@@ -22,7 +22,7 @@ test('a host on the wrong origin is ignored and nothing is posted to it', async 
 
 });
 
-test('roster cats become chromas, frames and Companion Kittens; the result reaches the host and /live', async ({ context, page, baseURL }) => {
+test('NO-TOKENTAILS.md: a roster brings no chromas, frames or kittens; the result reaches the host and /live', async ({ context, page, baseURL }) => {
   test.setTimeout(150_000);
   await recordPostTargets(context);
   const roster = [
@@ -32,21 +32,20 @@ test('roster cats become chromas, frames and Companion Kittens; the result reach
   ];
   const mock = await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, roster, query: '&speed=64' });
   const game = await openHost(page);
-  await expect.poll(() => gattr(game, 'chromas')).toBe('ICE,FIRE');
-  expect(await gattr(game, 'frame')).toBe('frame.legendary');
-  // QA (lobby fix pass): a first visit hides the roster tier frame badge (it read as unexplained); the frame is still
-  // owned and worn in the match (matchFrame below)
+  await page.waitForTimeout(500);
+  expect(await gattr(game, 'chromas')).toBe('');
+  expect(await gattr(game, 'frame')).toBe('');
   await expect(game.locator('.hm-av[data-frame]')).toHaveCount(0);
   const msgs = await received(page);
   expect(msgs[0]).toMatchObject({ type: 'ready' });
 
-  // first match: one tap, wearing the Pinkie coat (the starter breed) and the first squad mate's chroma (round 1:
-  // the highest tier walks first, Biscuit the LEGENDARY: ICE), with two kittens
+  // first match: one tap, the hero's own look, no kittens, no frame from the cats
   await playFromHome(game);
   await game.waitForSelector('html[data-match="live"]');
-  await expect.poll(() => gattr(game, 'matchLook')).toBe('coat.breed.PINKIE|ICE');
-  expect(await gattr(game, 'kittens')).toBe('2');
-  expect(await gattr(game, 'matchFrame')).toBe('frame.legendary');
+  await expect.poll(async () => (await gattr(game, 'matchLook')) !== null).toBe(true);
+  expect(await gattr(game, 'matchLook')).not.toMatch(/PINKIE|ICE|FIRE|cat\./);
+  expect(await gattr(game, 'kittens')).toBe('0');
+  expect(await gattr(game, 'matchFrame') ?? '').toBe('');
 
   await game.waitForSelector('html[data-screen="results"]', { timeout: 120_000 });
   await expect.poll(async () => (await received(page)).filter((m) => m.type === 'match-result').length).toBe(1);
@@ -151,14 +150,16 @@ test('party play (P9): a host without a ticket answers null and the player joins
   expect(typeof hellos[0].guestKey).toBe('string');
 });
 
-test('Nov 12: no "Games" button on Home; Settings keeps the way back, which posts exit to the host', async ({ context, page, baseURL }) => {
+test('NO-TOKENTAILS.md: no "Games" exit to the host\'s games page; the game never posts exit', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true } });
   const game = await openHost(page);
   await game.waitForSelector('html[data-screen="title"]');
+  await page.waitForTimeout(500);
   await expect(game.getByTestId('lobby-exit')).toHaveCount(0);
+  await expect(game.locator('body')).not.toContainText(/token ?tails/i);
   await game.locator('.pl-home [data-a="settings"]').click();
-  const exit = game.getByTestId('settings-exit');
-  await expect(exit).toBeVisible();
-  await exit.click();
-  await expect.poll(async () => (await received(page)).some((m) => m.type === 'exit')).toBe(true);
+  await expect(game.locator('.pl-settings, [role="dialog"]').first()).toBeVisible();
+  await expect(game.getByTestId('settings-exit')).toHaveCount(0);
+  await expect(game.locator('body')).not.toContainText(/token ?tails/i);
+  expect((await received(page)).some((m) => m.type === 'exit')).toBe(false);
 });

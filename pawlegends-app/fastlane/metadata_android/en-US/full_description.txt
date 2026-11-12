@@ -15,5 +15,3 @@ PLAY WITH FRIENDS
 HEROES WITH CHARACTER
 - Cats and dogs, each with their own look, role and way to win a lane.
 - Get a grade from C to S after every match and chase your best.
-
-Pawlegends is made by Token Tails, a small game studio from Vilnius, Lithuania.

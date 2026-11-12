@@ -20,12 +20,12 @@ describe('party links (P5)', () => {
     expect(normalizeCode('K7QX2')).toBeNull();
   });
 
-  it('the invite URL is the embed URL on tokentails.com from every surface (D12)', () => {
-    expect(inviteUrl('K7QX2M')).toBe('https://tokentails.com/pawlegends?party=K7QX2M');
+  it('the invite URL is Paw Legends\' own page from every surface (D12, NO-TOKENTAILS.md)', () => {
+    expect(inviteUrl('K7QX2M')).toBe('https://pawlegends.app/?party=K7QX2M');
     // the same whatever page the game runs on (standalone, embed, app): no location is read
     for (const host of ['localhost:5176', 'tokentails.com', 'capacitor://localhost']) {
       void host;
-      expect(inviteUrl('ABCDEF')).toBe('https://tokentails.com/pawlegends?party=ABCDEF');
+      expect(inviteUrl('ABCDEF')).toBe('https://pawlegends.app/?party=ABCDEF');
     }
   });
 

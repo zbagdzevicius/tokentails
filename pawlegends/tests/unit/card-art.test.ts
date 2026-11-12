@@ -27,17 +27,17 @@ describe('card frame and pick tiles', () => {
     for (const h of HERO_IDS) expect(['ICE', 'ELECTRIC', 'FIRE', 'WIND', 'DARK', 'WATER', 'GRASS', 'SAND', 'FAIRY', 'STELLAR']).toContain(heroElement(h));
     const html = cardFrame({ el: 'FIRE', tier: 'EPIC', inner: '<b>x</b>', foot: true, sparkles: true, icon: true });
     expect(html).toContain(cardAttrs('FIRE', 'EPIC'));
-    expect(html).toContain('Epic · TOKEN TAILS');
+    expect(html).toContain('Epic · PAWLEGENDS');
     expect(html.match(/tt-sp /g)).toHaveLength(4);
     expect(html).not.toMatch(/url\(/);
   });
   it('an Awakened footer names the stage once (stage 0 says Awakened, never "Awakened · Awakened")', () => {
     const foot = (aw: 0 | 1 | 2 | 3) => cardFrame({ el: 'FIRE', tier: 'LEGENDARY', inner: '', foot: true, awakened: aw });
-    expect(foot(0)).toContain('>Awakened · TOKEN TAILS<');
+    expect(foot(0)).toContain('>Awakened · PAWLEGENDS<');
     expect(foot(0)).not.toContain('Awakened · Awakened');
-    expect(foot(3)).toContain('Legend · Awakened · TOKEN TAILS');
+    expect(foot(3)).toContain('Legend · Awakened · PAWLEGENDS');
   });
-  it('pick (champion select): a portrait tile per hero (20), one name each, the worn card rung as the tile border', () => {
+  it('pick (champion select): a portrait tile per hero (20), one name each; a worn card never renames or borders a tile (NO-TOKENTAILS.md)', () => {
     document.body.innerHTML = '';
     setRosterSkins([{ id: 'z', name: 'Zuzu', type: 'ICE', tier: 'LEGENDARY', isStarter: false, origin: 'adopt' }]);
     const root = pickScreen(document.body, {
@@ -53,10 +53,10 @@ describe('card frame and pick tiles', () => {
     for (const t of tiles) expect(t.querySelectorAll('.cs-tn')).toHaveLength(1);
     const on = root.querySelector<HTMLElement>('.cs-tile.on') as HTMLElement;
     expect(on.dataset.h).toBe('meatball');
-    // the portrait sits on its element gradient; the worn card's rung is the tile border (no heavy card frame)
+    // the portrait sits on its element gradient; the tile names the champion, never a cat
     expect(on.querySelector<HTMLElement>('.cs-face')?.dataset.ttEl).toBe('GRASS');
-    expect(on.dataset.rung).toBe('LEGENDARY');
-    expect(on.querySelector('.cs-tn')?.textContent).toBe('Zuzu');
+    expect(on.dataset.rung).toBeUndefined();
+    expect(on.querySelector('.cs-tn')?.textContent).toBe('Meatball');
     const off = root.querySelector<HTMLElement>('.cs-tile[data-h="clem"]') as HTMLElement;
     expect(off.dataset.rung).toBeUndefined();
     expect(root.querySelector('.tt-card')).toBeNull();

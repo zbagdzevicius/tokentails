@@ -25,13 +25,7 @@ const bar = document.getElementById('bar') as HTMLElement;
 const out = document.getElementById('stats') as HTMLElement;
 
 const coatQ = q.get('coat');
-const cardQ = q.get('card');
-let look: Look | null = null;
-if (cardQ) {
-  const [{ DEMO_ROSTER }, { parseRoster }, reg] = await Promise.all([import('../app/skinDemo'), import('../meta/roster'), import('../render/skins/registry')]);
-  reg.setRosterSkins(parseRoster(DEMO_ROSTER, { isApp: false }), { [`demo-${cardQ}`]: Number(q.get('bond') ?? 0) });
-  look = { coat: reg.skinIdOf(`demo-${cardQ}`), chroma: null };
-} else if (coatQ) look = { coat: coatQ, chroma: null };
+const look: Look | null = coatQ ? { coat: coatQ, chroma: null } : null;
 
 const { mountSkillPreview } = await import('../ui/preview/skillPreview');
 const level = Number(q.get('level') ?? 0) || undefined;

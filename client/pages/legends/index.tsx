@@ -20,8 +20,10 @@ const T = LEGENDS_FACTS.teamSize;
  * the sitemap (`client/next-sitemap.config.js`). Same share card as `/pawlegends` (`public/pawlegends/og.jpg`).
  */
 export const LEGENDS_SEO = Object.freeze({
-  title: `${PAWLEGENDS_TITLE}: Cats vs Dogs - Token Tails`,
-  description: `${PAWLEGENDS_TITLE} is a free ${T}v${T} cats vs dogs game by Token Tails. ${liveRoster().length} heroes; push the lanes solo or with up to ${countWord(LEGENDS_FACTS.partyMax - 1).toLowerCase()} friends against bots, right in your browser on desktop or phone.`,
+  // NO-TOKENTAILS.md: the share card and tab name Paw Legends, not the site
+  siteName: PAWLEGENDS_TITLE,
+  title: `${PAWLEGENDS_TITLE}: Cats vs Dogs`,
+  description: `${PAWLEGENDS_TITLE} is a free ${T}v${T} cats vs dogs game. ${liveRoster().length} heroes; push the lanes solo or with up to ${countWord(LEGENDS_FACTS.partyMax - 1).toLowerCase()} friends against bots, right in your browser on desktop or phone.`,
   path: PAWLEGENDS_LEGENDS_PATH,
   image: Object.freeze({
     url: "/pawlegends/og.jpg",

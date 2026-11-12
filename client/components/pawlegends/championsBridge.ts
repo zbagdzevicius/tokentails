@@ -42,3 +42,11 @@ export function championsOf(body: unknown, owned: ICat[] | undefined, isApp: boo
   }
   return { cards, byId };
 }
+
+/**
+ * The `champions` message Paw Legends sends now (docs/plans/moba/NO-TOKENTAILS.md, 2026-11-12): the champions' art
+ * only, never a card for sale, on the web and in the app alike (the game never sells a Token Tails cat).
+ */
+export function championArtOf(body: unknown): PawlegendsChampionCard[] {
+  return championsOf(body, [], true).cards;
+}

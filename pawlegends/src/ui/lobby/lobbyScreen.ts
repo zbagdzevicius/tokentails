@@ -6,58 +6,44 @@
  * 1. the logo, the champion's name block (a button that opens the champion select for a returning player) and the one
  *    filled Play button, with the bots segment and the "vs bots" line in the row under it;
  * 2. the online row: Co-op and PvP (each one tap, no pre-selected mode), Friends and a "#" join-with-code button;
- * 3. the rail at the bottom: Heroes, Cards, Today, Track, Store (items the player does not have yet are left out; no
+ * 3. the rail at the bottom: Heroes, Today, Track, Store (items the player does not have yet are left out; no
  *    rail before the first match or during a dare).
  * When the height runs out, things are hidden in a fixed order (lobby.css, the hide ladder), never pushed below the
- * fold. Top right: Games (embedded), the profile avatar (desktop), Settings, Sound. Desktop keeps the card peek bottom
- * right; phones drop it (the Cards rail item opens the same drawer).
+ * fold. Top right: the profile avatar (desktop), Settings, Sound.
  *
- * Keyboard: Enter plays (when no button has focus); C opens the cards and H the champion select only while focus is
- * inside the lobby (WCAG 2.1.4); Esc closes the quests popover. Every document listener is removed by
+ * Keyboard: Enter plays (when no button has focus); H opens the champion select only while focus is inside the lobby
+ * (WCAG 2.1.4); Esc closes the quests popover. Every document listener is removed by
  * `disposeLobby(el)` (app setScreen), so redraws never pile them up. Play runs the stage dolly (`playOut`, skipped with
  * reduced motion) before the match loads.
  *
- * Names are host data: always escaped here. Cosmetic only. App builds never point to the web to collect cards.
+ * Names are host data: always escaped here. Cosmetic only.
  */
 import { MODE_MAP, matchModeHtml, parseMatchMode, type MatchMode } from './matchMode';
 import { logoHtml } from '../brandLogo';
 import './lobby.css';
 import type { Difficulty, HeroId } from '../../sim/api';
 import { ELEMENT_COLOR, FRAME_NAME, type FrameId } from '../../render/cosmetics';
-import { ELEMENT_NAME, type CatTier, type Element } from '../../meta/roster';
+import { ELEMENT_NAME, type Element } from '../../meta/roster';
 import type { QuestView } from '../../meta/quests';
 import { dareText, type Dare } from '../../share/dare';
 import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT } from '../heroText';
 import { icon } from '../icons';
-import { cardFrame } from '../cards/frame';
 import { cardAttrs } from '../cards/el';
 import type { Choice } from '../screens';
-import { cssDataUrl, cssUrl } from '../deck/cssUrl';
+import { cssDataUrl } from '../cssUrl';
 import { bindVersionMark, versionMarkHtml } from '../versionMark';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 
-/** The champion's display identity on the lobby (from meta/cardName `cardIdentity`, else the hero). */
+/** The champion's display identity on the lobby (the hero). */
 export interface LobbyIdentity {
-  /** Big name: the worn cat's, else the hero title. */
+  /** Big name: the hero title. */
   name: string;
   /** "Clem the Fighter". */
   sub: string;
   element: Element;
   role: string;
-  /** True when `name` is a worn card's cat. */
-  card: boolean;
-  rung?: CatTier | null;
-}
-
-/** One card in the bottom-right peek (an owned card skin). */
-export interface PeekCard {
-  name: string;
-  element: Element;
-  rung: CatTier;
-  art?: string;
-  sprite?: string;
 }
 
 export interface LobbyScreenOpts {
@@ -73,7 +59,7 @@ export interface LobbyScreenOpts {
   portrait?: string | null;
   /** "Signed in: wins save to your account." vs "No account needed." */
   signedIn: boolean;
-  /** An app build: the empty peek never sends players to the web (anti-steering). */
+  /** An app build (no store, no prices). */
   isApp?: boolean;
   /** The first match's line ("a guided Rookie match"). */
   firstLine?: string;
@@ -81,12 +67,6 @@ export interface LobbyScreenOpts {
   difficulties: readonly Difficulty[];
   difficultyNote?: string;
   onDifficulty?(d: Difficulty): void;
-  /** Owned card skins (count) and up to three for the peek, worn first. */
-  cardCount: number;
-  peek: readonly PeekCard[];
-  /** The worn card (the peek caption "Wearing <name>"). */
-  wearing?: { name: string } | null;
-  onCards?(): void;
   /** Party play (MULTIPLAYER.md §8): "Play with friends" creates a party at once; absent = no relay configured. */
   onParty?(): void;
   /** "Join with code" under it (opens the party chunk on the code boxes). */
@@ -122,19 +102,12 @@ export interface LobbyScreenOpts {
   onSocial?(): void;
   socialBadge?: number;
   onCollection?(): void;
-  /**
-   * Embedded in Token Tails: "Games" (first in the top-right corner group; the top-left is the title) leaves for the host's games page (the bridge `exit`).
-   * The host no longer lays its own close button over the game. Absent = standalone (nothing to leave to).
-   */
-  onExit?(): void;
   quests?: readonly QuestView[];
   /** The stage dolly before the match loads (Lobby.playOut). */
   playOut?(): Promise<void>;
   /** A UI sound (sfx.play). */
   sound?(name: 'click' | 'magic' | 'horn'): void;
 }
-
-const RUNG_NAME: Readonly<Record<CatTier, string>> = Object.freeze({ COMMON: 'Common', RARE: 'Rare', EPIC: 'Epic', LEGENDARY: 'Legendary' });
 
 /** Social (SOCIAL-RANKED.md §14.1): two heads, the Friends and ranked sheet. */
 const PEOPLE =
@@ -147,10 +120,6 @@ const SPEAKER = (on: boolean): string =>
       ? '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
       : '<path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
   }</svg>`;
-/** The lobby's "Games" exit (embedded): a chevron back. */
-const EXIT = '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const CARDS =
-  '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><rect x="3" y="6" width="11" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-10 8 13)"/><rect x="9" y="3" width="11" height="15" rx="2" fill="currentColor"/></svg>';
 
 /** Today's quests as "done/total". */
 export function questTally(qs: readonly QuestView[] | undefined): { done: number; total: number } {
@@ -182,77 +151,17 @@ export function playLabel(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'ident
   return `Play as ${o.identity.name}`;
 }
 
-/** A card's cat picture: its art, else its sprite's idle frame (pixelated), else a paw. URLs go through `cssUrl`
- * (QA: a sprite path with `');…` injected CSS through the old `url('…')`). */
-function catPic(c: PeekCard): string {
-  if (c.art && cssUrl(c.art)) return `<img class="lb-cat" src="${esc(c.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">`;
-  // the sprite sheet's idle frame (48 px cell, row 4), as the cards drawer draws it
-  const sp = cssUrl(c.sprite);
-  if (sp) return `<span class="lb-cat lb-sprite" aria-hidden="true"><i style="background-image:${sp}"></i></span>`;
-  return `<span class="lb-cat lb-noart" aria-hidden="true">${icon('paw')}</span>`;
-}
-
-/** The peek's fanned card faces (front card first in `cards`). `live`: the front card's Nature moves (not on Low). */
-function fanHtml(cards: readonly PeekCard[], live: boolean): string {
-  return cards
-    .map((c, i) =>
-      cardFrame({
-        el: c.element,
-        tier: c.rung,
-        tag: 'span',
-        // integrate: the Nature lane's card layer; the front card moves (ui/nature/nature.css, loaded lazily below)
-        cls: `lb-mini n${i} pl-nature${i === 0 && live ? ' pl-nature-live' : ''}`,
-        foil: i === 0 && live && (c.rung === 'EPIC' || c.rung === 'LEGENDARY') ? 'sweep' : 'none',
-        attrs: `data-nature="${c.element}" aria-hidden="true"`,
-        inner: `${catPic(c)}<b class="lb-mini-name">${esc(c.name)}</b>`,
-      }),
-    )
-    .reverse()
-    .join('');
-}
-
-/** "Your 5 cats are here." Pure. */
-export function firstPeekLine(n: number): string {
-  return n === 1 ? 'Your cat is here.' : `Your ${n} cats are here.`;
-}
-
-/** The bottom-right card peek (also on Home's desktop layout, ui/home/homeScreen.ts). */
-export function peekHtml(o: LobbyScreenOpts, live: boolean): string {
-  if (!o.onCards) return '';
-  const cards = o.peek.slice(0, 3);
-  if (o.firstTime) {
-    // QA: a first-time card owner saw nothing of their cards, then met them in the match. Shown, not wearable yet
-    // (GDD §7.2: the first match never wears a card); the guided Play stays the one call to action.
-    if (!cards.length) return '';
-    return `<div class="lb-peek first lb-wait" role="note"><span class="lb-fan" aria-hidden="true">${fanHtml(cards, live)}</span><span class="lb-peek-cap"><b>${esc(firstPeekLine(o.cardCount))}</b><small>Wear one after your first match.</small></span></div>`;
-  }
-  if (!cards.length) {
-    // no cards: never invent one; a plain card back that opens the drawer's empty state (its name is its visible
-    // text, WCAG 2.5.3); an app build never points to the web or names another store (App Review 3.1.3)
-    const how = o.isApp ? 'No cat cards yet' : 'Collect cards on Token Tails';
-    return `<button type="button" class="lb-peek empty" data-a="cards" aria-haspopup="dialog">
-      <span class="lb-back" aria-hidden="true">${icon('paw')}</span>
-      <span class="lb-peek-cap"><b>Your cats become skins</b> <small>${how}</small></span></button>`;
-  }
-  const faces = fanHtml(cards, live);
-  const cap = o.wearing ? `<span class="lb-peek-cap pl-wearing"><small class="cap">Wearing ${esc(o.wearing.name)}</small></span>` : `<span class="lb-peek-cap"><small>Tap to wear a card</small></span>`;
-  // the visible caption leads the accessible name (WCAG 2.5.3), the count follows
-  const capText = o.wearing ? `Wearing ${o.wearing.name}` : 'Tap to wear a card';
-  return `<button type="button" class="lb-peek lb-wait" data-a="cards" data-count="${cards.length}" aria-haspopup="dialog" aria-label="${esc(`${capText}: your ${o.cardCount} cards`)}"><span class="lb-fan">${faces}</span>${cap}</button>`;
-}
-
 function badgeHtml(frame: FrameId | null | undefined, title: string | null | undefined, portrait: string | null | undefined, el: Element): string {
   if (!frame && !title) return '';
   // an internal baked portrait only (data: or blob: URL), never raw into the style attribute
   const pic = cssDataUrl(portrait);
   portrait = pic ? portrait : null;
   const face = pic ? ` style="background-image:${pic}" ${cardAttrs(el, null)}` : '';
-  const tip = frame?.startsWith('frame.champ.') ? 'Earned on the Treat Track.' : 'Frames come from cats you adopted by name, by their tier.';
-  return `<div class="pl-badge lb-badge" ${frame ? `data-frame="${frame}"` : ''} title="${tip}"><span class="ring${portrait ? ' pic tt-ring' : ''}"${face}></span><span class="lb-badge-t"><small>Profile frame</small>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
+  return `<div class="pl-badge lb-badge" ${frame ? `data-frame="${frame}"` : ''} title="Earned on the Treat Track."><span class="ring${portrait ? ' pic tt-ring' : ''}"${face}></span><span class="lb-badge-t"><small>Profile frame</small>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
 }
 
-/** QA: a first visit shows no unexplained roster tier frame ("Profile frame / Legendary frame"); a bought frame or a
- * title (a restored purchase) still shows. Pure. */
+/** QA: a first visit shows no unexplained tier frame ("Profile frame / Legendary frame") from an older save; a bought
+ * frame or a title (a restored purchase) still shows. Pure. */
 export function firstHidesBadge(o: Pick<LobbyScreenOpts, 'firstTime' | 'frame' | 'title'>): boolean {
   return o.firstTime && !o.title && /^frame\.(rare|epic|legendary)$/.test(o.frame ?? '');
 }
@@ -290,15 +199,14 @@ function questsRail(qs: readonly QuestView[] | undefined): string {
 }
 
 /**
- * Tier 3: the rail (Heroes · Cards · Today · Track · Store); items the player has not got yet are left out. A first visit
+ * Tier 3: the rail (Heroes · Today · Track · Store); items the player has not got yet are left out. A first visit
  * or a dare (`full` false) keeps only Track and Store, which main showed in the corner whenever they were open.
  */
 function railHtml(o: LobbyScreenOpts, full = true): string {
-  const item = (a: string, ico: string, label: string, extra = '', badge = ''): string =>
-    `<button type="button" class="lb-ri" data-a="${a}"${extra}>${ico}${badge}<span class="lb-rl">${label}</span></button>`;
+  const item = (a: string, ico: string, label: string, extra = ''): string =>
+    `<button type="button" class="lb-ri" data-a="${a}"${extra}>${ico}<span class="lb-rl">${label}</span></button>`;
   const items = [
     full ? item('choose', icon('paw'), 'Heroes', ' aria-keyshortcuts="H"') : '',
-    full && o.onCards ? item('cards', CARDS, 'Cards', ` aria-keyshortcuts="C" aria-haspopup="dialog" aria-label="${o.cardCount ? `Cards, ${o.cardCount}` : 'Cards'}"`, o.cardCount ? `<span class="lb-count" aria-hidden="true">${o.cardCount}</span>` : '') : '',
     full ? questsRail(o.quests) : '',
     o.onCollection ? item('collection', icon('crown'), 'Track', ' aria-label="Treat Track"') : '',
     o.storeOpen ? item('store', BAG, 'Store', ' aria-label="Store"') : '',
@@ -363,23 +271,19 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
   };
   const dare = o.dare;
   const returning = !o.firstTime && !dare;
-  // QA: a card's element is part of its look (no element exists in the sim): "Fire look", never a bare type chip
-  const elName = id.card ? `${ELEMENT_NAME[id.element]} look` : ELEMENT_NAME[id.element];
-  const chips = `<span class="lb-chip el" style="--c:${elColor}"${id.card ? ' title="Part of the card\'s look. Stats stay the same."' : ''}><i aria-hidden="true"></i>${esc(elName)}</span><span class="lb-chip role">${esc(id.role)}</span>${id.card && id.rung ? `<span class="lb-chip rung" data-rung="${id.rung}">${RUNG_NAME[id.rung]} card</span>` : ''}`;
-  // phones: one sub-line instead of the chips ("Marksman · Wind", or "Clem the Fighter · Fire look" for a worn card)
-  const subLine = id.card ? `${id.sub} · ${elName}` : `${id.role} · ${elName}`;
-  const gem = id.card && id.rung ? `<i class="lb-gem" data-rung="${id.rung}" aria-hidden="true"></i>` : '';
-  const nameInner = `<small class="lb-eyebrow">${id.card ? 'Your Token Tails cat' : 'Your champion'}</small>
-        <span class="lb-hero-row">${gem}<span class="lb-hero">${esc(id.name)}</span>${returning ? `<span class="lb-swap" aria-hidden="true">⇄</span>` : ''}</span>
+  const elName = ELEMENT_NAME[id.element];
+  const chips = `<span class="lb-chip el" style="--c:${elColor}"><i aria-hidden="true"></i>${esc(elName)}</span><span class="lb-chip role">${esc(id.role)}</span>`;
+  // phones: one sub-line instead of the chips ("Marksman · Wind")
+  const subLine = `${id.role} · ${elName}`;
+  const nameInner = `<small class="lb-eyebrow">Your champion</small>
+        <span class="lb-hero-row"><span class="lb-hero">${esc(id.name)}</span>${returning ? `<span class="lb-swap" aria-hidden="true">⇄</span>` : ''}</span>
         <span class="lb-sub">${esc(subLine)}</span>
         <span class="lb-chips">${chips}</span>`;
   // returning players: the whole name block opens the champion select (as Heroes and H do; `data-a="name"`, so the
   // one `data-a="choose"` stays the Heroes rail item)
   const nameBlock = returning
-    ? `<button type="button" class="lb-name" data-a="name" data-card="${id.card ? '1' : '0'}"${id.name.length > 10 ? ' data-long="1"' : ''} aria-keyshortcuts="H" aria-label="${esc(`${id.name}, ${subLine}. Change hero`)}">${nameInner}</button>`
-    : `<div class="lb-name" data-card="${id.card ? '1' : '0'}"${id.name.length > 10 ? ' data-long="1"' : ''}>${nameInner}</div>`;
-  // QA: on Low quality the peek's front card stays still (its Nature layer repainted every frame)
-  const live = document.documentElement.dataset.quality !== 'low';
+    ? `<button type="button" class="lb-name" data-a="name"${id.name.length > 10 ? ' data-long="1"' : ''} aria-keyshortcuts="H" aria-label="${esc(`${id.name}, ${subLine}. Change hero`)}">${nameInner}</button>`
+    : `<div class="lb-name"${id.name.length > 10 ? ' data-long="1"' : ''}>${nameInner}</div>`;
   const diffShort = (d: Difficulty): string => (DIFFICULTY_TEXT as Record<string, string>)[d]?.replace(' bots', '') ?? d;
   root.innerHTML = `
     <div class="pl-title-col lb-col">
@@ -398,10 +302,8 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
       <div class="lb-cards" data-slot="cards"></div>
       ${railHtml(o, returning)}
     </div>
-    ${peekHtml(o, live)}
     ${versionMarkHtml()}
     <div class="pl-corner lb-corner">
-      ${o.onExit ? `<button type="button" class="lb-icon wide lb-exit" data-a="exit" data-testid="lobby-exit" aria-label="Back to Token Tails games" title="Back to Token Tails games">${EXIT}<span>Games</span></button>` : ''}
       ${firstHidesBadge(o) ? '' : badgeHtml(o.frame, o.title, o.portrait, id.element)}
       ${o.onSocial && !o.firstTime ? `<button type="button" class="lb-icon lb-social" data-a="social" data-testid="lobby-social" aria-label="Friends and ranked" title="Friends and ranked">${PEOPLE}${o.socialBadge ? `<i class="lb-social-badge">${Math.min(9, o.socialBadge)}</i>` : ''}</button>` : ''}
       ${o.onSettings ? `<button type="button" class="lb-icon" data-a="settings" aria-label="Settings" title="Settings">${GEAR}</button>` : ''}
@@ -496,14 +398,10 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     }
     else if (a === 'party') o.onParty?.();
     else if (a === 'joincode') o.onJoinCode?.();
-    else if (a === 'cards') {
-      o.sound?.('magic');
-      o.onCards?.();
-    } else if (a === 'store') o.onStore?.();
+    else if (a === 'store') o.onStore?.();
     else if (a === 'settings') o.onSettings?.();
     else if (a === 'social') o.onSocial?.();
     else if (a === 'collection') o.onCollection?.();
-    else if (a === 'exit') o.onExit?.();
     else if (a === 'mute') {
       const b = root.querySelector<HTMLElement>('[data-a="mute"]');
       if (!b) return;
@@ -554,10 +452,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     }
     // WCAG 2.1.4: the single-letter shortcuts only while focus is on the lobby itself
     if (!t || !root.contains(t)) return;
-    if ((e.key === 'c' || e.key === 'C') && root.querySelector('button[data-a="cards"]')) {
-      e.preventDefault();
-      (root.querySelector('button[data-a="cards"]') as HTMLElement | null)?.click();
-    } else if ((e.key === 'h' || e.key === 'H') && !o.firstTime && !dare) {
+    if ((e.key === 'h' || e.key === 'H') && !o.firstTime && !dare) {
       e.preventDefault();
       (root.querySelector('[data-a="choose"]') as HTMLElement | null)?.click();
     }
@@ -572,20 +467,13 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
   // the release watermark (ui/versionMark.ts): a tap copies it; the app shell's native info fills in when it arrives
   bindVersionMark(root, ac?.signal);
   parent.appendChild(root);
-  // integrate: the card peek's Nature stylesheet stays out of the first load; the fan shows once it is in (QA: the
-  // front card flashed without its Nature styling)
-  const wait = root.querySelector<HTMLElement>('.lb-peek.lb-wait');
-  if (wait)
-    void import('../nature/natureCss')
-      .catch(() => undefined)
-      .then(() => wait.classList.remove('lb-wait'));
   // sim v22: a link's mode this build does not know ("Update to play Blitz") or a mode note
   if (o.notice) toast(o.notice);
   return root;
 }
 
-/** The hero's own identity (no card): its title, "Clem the Fighter", its card element and role. */
+/** The hero's own identity: its title, "Clem the Fighter", its element and role. */
 export function heroIdentity(hero: HeroId, element: Element): LobbyIdentity {
   const t = HERO_TEXT[hero];
-  return { name: t.title, sub: `${t.title} the ${t.role}`, element, role: t.role, card: false, rung: null };
+  return { name: t.title, sub: `${t.title} the ${t.role}`, element, role: t.role };
 }

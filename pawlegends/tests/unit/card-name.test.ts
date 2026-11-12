@@ -1,20 +1,15 @@
 // @vitest-environment happy-dom
 /**
- * Lobby spec §3b: a hero wearing one of the player's own Token Tails cats is called by the cat's name everywhere the
- * player's name shows (pick tile, loading veil, plate, kill feed, scoreboard, results), with the hero underneath. Only
- * the player's slot changes; bots and allies keep their names; featured (unowned) cats never rename anyone. The
- * "Your cards" drawer shows real cards only (an empty roster gets the shelter champions and a sign-in or link, never
- * an invented card, a price or a buy button). Render and UI only: nothing here imports the sim.
+ * meta/cardName.ts, the dormant card-skin naming kit (lobby spec §3b): a registered card skin names the hero; only the
+ * player's slot changes; bots and allies keep their names; featured (unowned) cats never rename anyone. The game no
+ * longer registers any cat (NO-TOKENTAILS.md: the cards drawer and the pick screen's card tiles are gone), so these
+ * pure helpers are kept for the in-match names (selfNames, cutName, tidyName). Nothing here imports the sim.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { cardIdentity, cutName, displayName, getEquippedCard, heroSub, selfNames, tidyName, veilName } from '../../src/meta/cardName';
 import { resetRegistry, setFeaturedSkins, setRosterSkins } from '../../src/render/skins/registry';
 import { slotNames } from '../../src/ui/heroText';
-import { pickScreen, setPickLook } from '../../src/ui/screens';
-import { rosterCosmetics, type RosterCat } from '../../src/meta/roster';
-import { bondLine, catFace, cardLabel, cssUrl, deckCard } from '../../src/ui/deck/deckCard';
-import { emptyAction, emptyCard, postcards } from '../../src/ui/deck/empty';
-import { openDeck } from '../../src/ui/deck/deck';
+import type { RosterCat } from '../../src/meta/roster';
 import { plateName } from '../../src/ui/overhead';
 
 const CDN = 'https://storage.googleapis.com/tokentails-public/heist';
@@ -97,178 +92,5 @@ describe('card names (meta/cardName.ts)', () => {
 
   it('other plates are untouched: the player plate still reads "You" without a card', () => {
     expect(plateName({ id: 0, team: 0, hero: 'clem' }, 0, 0, new Set(), ['Simas'])).toBe('You');
-  });
-});
-
-describe('pick screen with the cards drawer', () => {
-  const opts = (onDeck = vi.fn()) => ({
-    initial: { hero: 'clem' as const, trick: 'pounce' as const, difficulty: 'easy' as const },
-    owned: { items: new Set<string>(), unlocks: new Set<string>(), roster: rosterCosmetics(ROSTER) },
-    looks: { clem: { coat: 'cat.a', chroma: null } },
-    onHero: () => undefined,
-    onStart: () => undefined,
-    onBack: () => undefined,
-    onDeck,
-  });
-
-  it('the worn card names the hero tile; Look opens the drawer (no strip, no prices on the pick)', () => {
-    setRosterSkins(ROSTER);
-    const onDeck = vi.fn();
-    const root = pickScreen(document.body, opts(onDeck));
-    const tile = root.querySelector('.cs-tile[data-h="clem"]') as HTMLElement;
-    expect(tile.querySelector('.cs-tn')?.textContent).toBe('Simas');
-    expect(tile.getAttribute('aria-label')).toBe('Simas: Clem, Cat Fighter');
-    expect(root.querySelector('.cs-tile[data-h="sage"] .cs-tn')?.textContent).toBe('Sage');
-    expect(root.querySelector('.skin-strip')).toBeNull();
-    const look = root.querySelector('.cs-look[data-a="look"]') as HTMLElement;
-    expect(look.textContent).toBe('Look');
-    look.click();
-    // the player owns colour tints: the Look sheet opens, its Cards button opens the drawer
-    (root.querySelector('.cs-looksheet [data-a="deck"]') as HTMLElement).click();
-    expect(onDeck).toHaveBeenCalledWith('clem');
-  });
-
-  it('setPickLook redraws in place and keeps the trick picked on the screen', () => {
-    setRosterSkins(ROSTER);
-    const root = pickScreen(document.body, opts());
-    (root.querySelector('[data-t="hiss"]') as HTMLElement | null)?.click();
-    const trick = root.querySelector('.cs-trick.on')?.getAttribute('data-t');
-    expect(trick).toBe('hiss');
-    const grid = root.querySelector('.cs-grid') as HTMLElement;
-    setPickLook(root, 'clem', { coat: null, chroma: null });
-    expect(root.querySelector('.cs-tile[data-h="clem"] .cs-tn')?.textContent).toBe('Clem');
-    expect(root.querySelector('.cs-trick.on')?.getAttribute('data-t')).toBe(trick);
-    // the grid element survives (its scroll position with it)
-    expect(root.querySelector('.cs-grid')).toBe(grid);
-  });
-});
-
-describe('cards drawer (ui/deck)', () => {
-  it('builders escape names and keep URLs out of CSS unless they are plain https', () => {
-    expect(cssUrl('https://x.test/a.png')).toBe('url(&quot;https://x.test/a.png&quot;)');
-    for (const bad of ['javascript:alert(1)', 'https://x.test/a.png")', 'https://x.test/a b.png', undefined]) expect(cssUrl(bad)).toBeNull();
-    const html = deckCard({ id: 'cat.a', name: '<b>x</b>', element: 'FIRE', rung: 'EPIC', bond: 4, next: 10 }, 'clem', true);
-    expect(html).not.toContain('<b>x</b>');
-    expect(html).toContain('&lt;b&gt;x&lt;/b&gt;');
-    expect(html).toContain('data-nature="FIRE"');
-    expect(html).toContain('pl-nature');
-    expect(html).toContain('aria-pressed="true"');
-    expect(catFace({ sprite: `${CDN}/assets/FICUS/base.png` })).toContain('dk-sprite');
-    expect(catFace({})).toContain('dk-noart');
-  });
-
-  it('labels and bond lines read like the card', () => {
-    expect(cardLabel({ id: 'cat.a', name: 'Simas', element: 'FIRE', rung: 'LEGENDARY', bond: 0 }, 'clem', false)).toBe('Simas, Fire, Legendary card. Wear on Clem');
-    expect(cardLabel({ id: 'cat.a', name: 'Simas', element: 'DARK', rung: 'RARE', bond: 0 }, 'brutus', true)).toBe('Simas, Shadow, Rare card. Wearing on Sir Brutus');
-    expect(bondLine({ bond: 4, next: 10, rung: 'RARE' })).toBe('Bond 4 · 6 more to Epic');
-    expect(bondLine({ bond: 4, next: 10, rung: 'LEGENDARY' })).toBe('Bond 4');
-    expect(bondLine({ bond: 31, next: null, rung: 'LEGENDARY' })).toBe('Bond 31');
-  });
-
-  it('empty state: sign in when embedded as a guest, a link on the standalone web, nothing in the app; never a price', () => {
-    expect(emptyAction({ signedIn: false, isApp: false, embed: true })).toBe('sign-in');
-    expect(emptyAction({ signedIn: true, isApp: false, embed: true })).toBe('none');
-    expect(emptyAction({ signedIn: false, isApp: false, embed: false })).toBe('link');
-    expect(emptyAction({ signedIn: false, isApp: true, embed: true })).toBe('none');
-    expect(emptyAction({ signedIn: false, isApp: true, embed: false })).toBe('none');
-    const app = emptyCard({ signedIn: false, isApp: true, embed: false });
-    expect(app).not.toMatch(/href|<button|token tails/i);
-    const web = emptyCard({ signedIn: false, isApp: false, embed: false });
-    expect(web).toContain('href="https://tokentails.com"');
-    expect(web).toContain('rel="noopener"');
-    for (const h of [app, web, emptyCard({ signedIn: false, isApp: false, embed: true })]) expect(h).not.toMatch(/\$|€|price|buy|donate|checkout/i);
-    expect(postcards([{ name: 'Lambo', art: 'https://x.test/l.gif' }, { name: 'No art' }])).toContain('Lambo');
-    expect(postcards([{ name: 'No art' }])).toBe('');
-  });
-
-  it('opens as a modal; arrows move a roving tabindex; Enter wears; Esc closes and returns focus', () => {
-    const opener = document.createElement('button');
-    document.body.appendChild(opener);
-    opener.focus();
-    const onEquip = vi.fn();
-    const onClose = vi.fn();
-    const h = openDeck(document.body, {
-      hero: 'clem',
-      current: null,
-      owned: [
-        { id: 'cat.a', name: 'Simas', element: 'FIRE', rung: 'LEGENDARY', bond: 30, next: null },
-        { id: 'cat.b', name: 'Bart', element: 'ICE', rung: 'RARE', bond: 3, next: 10 },
-      ],
-      signedIn: true,
-      isApp: false,
-      embed: true,
-      onEquip,
-      onClose,
-    });
-    const dlg = document.querySelector('.pl-deck') as HTMLElement;
-    expect(dlg.getAttribute('role')).toBe('dialog');
-    expect(dlg.getAttribute('aria-modal')).toBe('true');
-    const cards = () => [...dlg.querySelectorAll<HTMLElement>('.dk-card[data-coat]')];
-    expect(cards().map((c) => c.dataset.coat)).toEqual(['', 'cat.a', 'cat.b']);
-    expect(cards().filter((c) => c.tabIndex === 0)).toHaveLength(1);
-    expect(document.activeElement).toBe(cards()[0]);
-    const key = (k: string) => (document.activeElement as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
-    key('ArrowRight');
-    expect((document.activeElement as HTMLElement).dataset.coat).toBe('cat.a');
-    expect(dlg.querySelector('.dk-foot')?.textContent).toContain('Simas');
-    key('End');
-    expect((document.activeElement as HTMLElement).dataset.coat).toBe('cat.b');
-    (document.activeElement as HTMLElement).click();
-    expect(onEquip).toHaveBeenCalledWith('cat.b');
-    expect(dlg.querySelector('.dk-card[data-coat="cat.b"]')?.getAttribute('aria-pressed')).toBe('true');
-    expect(dlg.querySelector('.dk-card[data-coat=""]')?.getAttribute('aria-pressed')).toBe('false');
-    expect(dlg.querySelector('.dk-foot')?.textContent).toContain('Bond 3 · 7 more to Epic');
-    key('Escape');
-    expect(onClose).toHaveBeenCalled();
-    expect(document.activeElement).toBe(opener);
-    h.close();
-  });
-
-  it('an empty roster shows Classic, the empty card and the champions, never a made-up cat', () => {
-    openDeck(document.body, {
-      hero: 'lambo',
-      current: null,
-      owned: [],
-      postcards: [{ name: 'Lambo', art: 'https://x.test/l.gif' }],
-      signedIn: false,
-      isApp: false,
-      embed: true,
-      onEquip: () => undefined,
-      onSignIn: vi.fn(),
-    });
-    const dlg = document.querySelector('.pl-deck') as HTMLElement;
-    expect(dlg.classList.contains('empty')).toBe(true);
-    expect(dlg.querySelectorAll('.dk-card[data-coat]')).toHaveLength(1);
-    expect(dlg.querySelector('[data-a="deck-sign-in"]')?.textContent).toBe('Sign in');
-    expect(dlg.querySelectorAll('.dk-postcard')).toHaveLength(1);
-    // QA: the Sign in / Visit call is its own Tab stop (it was reachable by arrow keys only)
-    expect((dlg.querySelector('[data-a="deck-sign-in"]') as HTMLElement).tabIndex).toBe(0);
-  });
-
-  it('QA: one announcement per wear (no live footer), Bond 0 hidden, CSS-breaking paths rejected, app copy neutral', () => {
-    expect(cssUrl("https://x.test/a');position:fixed;--x:('.png")).toBeNull();
-    expect(cssUrl('https://x.test/a;b.png')).toBeNull();
-    expect(deckCard({ id: 'cat.a', name: 'A', element: 'FIRE', rung: 'RARE', bond: 0, next: 3 }, 'clem', false)).not.toContain('Bond 0');
-    expect(deckCard({ id: 'cat.a', name: 'A', element: 'FIRE', rung: 'RARE', bond: 2, next: 3 }, 'clem', false)).toContain('Bond 2');
-    expect(emptyCard({ signedIn: false, isApp: true, embed: true })).not.toMatch(/collect|adopt/i);
-    openDeck(document.body, {
-      hero: 'clem',
-      current: null,
-      owned: [{ id: 'cat.a', name: 'Simas', element: 'FIRE', rung: 'LEGENDARY', bond: 0, next: null }],
-      signedIn: true,
-      isApp: false,
-      embed: true,
-      onEquip: () => undefined,
-    });
-    const dlg = document.querySelector('.pl-deck') as HTMLElement;
-    expect(dlg.querySelector('.dk-foot')?.getAttribute('aria-live')).toBeNull();
-    const sr = dlg.querySelector('.dk-sr') as HTMLElement;
-    expect(sr.getAttribute('role')).toBe('status');
-    expect(sr.textContent).toBe('');
-    (dlg.querySelector('.dk-card[data-coat="cat.a"]') as HTMLElement).click();
-    expect(sr.textContent).toBe('Wearing Simas. Clem is now Simas.');
-    expect(dlg.querySelector('.dk-foot')?.textContent).toContain('earns Bond as you play in it');
-    (dlg.querySelector('.dk-card[data-coat=""]') as HTMLElement).click();
-    expect(sr.textContent).toBe('Classic Clem: no card.');
   });
 });

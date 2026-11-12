@@ -1,51 +1,39 @@
 /**
- * Token Tails integration, game side (integration plan §3.2). One self-contained module: it listens to the bridge
- * on its own (`Bridge.on` takes several handlers), keeps the integration state, and mounts the card UI
- * (ui/cards.ts) into the screens' `[data-slot="cards"]` and `[data-slot="save"]` elements through a
- * MutationObserver on `#app`. A screen without a slot gets one appended in a fixed place, so the cards also show
- * before the screens declare their slots.
+ * Host integration, game side (integration plan §3.2). One self-contained module: it listens to the bridge on its own
+ * (`Bridge.on` takes several handlers), keeps the integration state, and mounts the slot UI (ui/cards.ts) into the
+ * screens' `[data-slot="cards"]` and `[data-slot="save"]` elements through a MutationObserver on `#app`. A screen
+ * without a slot gets one appended in a fixed place, so the slots also show before the screens declare them.
  *
  * Handles: `session{signedIn, progress}` (merged into the local profile: unlocks follow the account), `save-result`
- * (the results save chip), `featured` (guest cards), `offer{kind:'meet'}` (the session's single offer), `app.notify`,
- * `purchase-result{catalogId, ok}`, `roster` art and catalog ids, `audio` volumes and (sim v9) `champions` (the
- * shelter champions' card art and sale state). Sends `request-sign-in`, `open-cat`, `offer-seen` and
- * `champion-offer`. App builds: no featured cats, no offer, no checkout, no champion badge or Meet link, roster
- * starter and redeem only.
+ * (the results save chip), `app.notify`, `audio` volumes and (sim v9) `champions` (the shelter champions' art). Sends
+ * `request-sign-in`. Paw Legends stands on its own (docs/plans/moba/NO-TOKENTAILS.md, 2026-11-12): an older host's
+ * `roster`, `featured` and Meet `offer` are ignored, and a champion is never for sale here.
  *
  * `handle(m)` tells the app which messages need nothing more from it (the app's last branch:
  * `else if (!integration.handle(m)) ent.apply(m)`); processing happens in the listener, never twice.
  */
 import type { AnalyticsEvent, AnalyticsProps } from '../analytics/posthog';
-import { CheckoutBridge, INTENT_HOLD_MS } from '../money/checkoutBridge';
 import type { Entitlements } from '../money/entitlements';
-import { pickMeet } from '../money/offer';
-import { accountState, mergeServerProgress, playSession, progressChanged, saveProfile, setAccountState, type Profile } from '../meta/profile';
-import { isAppBuild, parseRoster, rosterCosmetics, setAppBuild, type RosterCat } from '../meta/roster';
-import { chooseSquadMate, noteNewCat, squadPrefs } from '../meta/squad';
-import { championInfo, meetCard, pickCards, resultsCards, saveChip, titleCards, levelBadges, type ChipState, type SquadMate } from '../ui/cards';
+import { accountState, mergeServerProgress, progressChanged, saveProfile, setAccountState, type Profile } from '../meta/profile';
+import { isAppBuild, setAppBuild } from '../meta/roster';
+import { championInfo, resultsCards, saveChip, titleCards, levelBadges, type ChipState } from '../ui/cards';
 import { HEROES } from '../data/heroes';
 import { closeAccountPanel, mountAccountChip, type AccountModel } from '../ui/account';
-import { championByCatalogId, championOf } from '../data/heroes/shelter';
-import { championDue, championEarned, noteChampionShown } from '../meta/profile';
+import { championOf } from '../data/heroes/shelter';
 import type { HeroId } from '../sim/api';
 import { HERO_TEXT } from '../ui/heroText';
 import {
   parseApp,
   parseAudio,
   parseChampions,
-  parseFeatured,
-  parseOffer,
   parsePartyTicket,
-  parsePurchaseResult,
   parseSaveResult,
   parseSession,
   type AppInfo,
   type AudioInfo,
   type Bridge,
   type ChampionCard,
-  type FeaturedCat,
   type HostMessage,
-  type MeetOffer,
   type PartyResult,
   type Progress,
   type SaveResult,
@@ -55,8 +43,11 @@ import {
 } from './bridge';
 import { parseApiResult, type ApiArgs, type ApiOp, type ApiResult } from './api';
 
-/** Messages the integration fully owns: the app has nothing to do with them. */
-export const OWNED_TYPES: readonly string[] = Object.freeze(['save-result', 'featured', 'champions', 'party-ticket', 'api-result']);
+/**
+ * Messages the integration fully owns: the app has nothing to do with them. `roster`, `featured` and `offer` are an
+ * older host's Token Tails cat feed: owned here so nothing else reads them (NO-TOKENTAILS.md).
+ */
+export const OWNED_TYPES: readonly string[] = Object.freeze(['save-result', 'featured', 'roster', 'offer', 'champions', 'party-ticket', 'api-result']);
 /** How long the game waits for the host's `api-result` (SOCIAL-RANKED.md §13). */
 export const API_WAIT_MS = 10000;
 /** How long the game waits for the host's party ticket before it joins as an unscored guest. */
@@ -68,13 +59,10 @@ export interface IntegrationDeps {
   ent: Entitlements;
   profile: () => Profile;
   analytics: { track(event: AnalyticsEvent, props?: AnalyticsProps): void };
-  /** Profile or roster derived state changed: the app redraws its meta (lobby, looks, frames). */
+  /** Profile or champion art changed: the app redraws its meta (lobby, looks, frames). */
   onRosterChange(): void;
   /** Where the screens live (default `#app`). */
   root?: HTMLElement | null;
-  now?: () => number;
-  /** Round 1: a portrait of the player's hero in an element's chroma, for the Meet card preview (null: none). */
-  chromaPreview?: (element: string) => { url: string; hero: string } | null;
   /** Sim v9: the hero on the lobby turntable (the title's champion info follows it). */
   lobbyHero?: () => HeroId;
 }
@@ -94,21 +82,12 @@ export interface IntegrationState {
   progress: Progress | null;
   app: AppInfo | null;
   audio: AudioInfo | null;
-  roster: RosterCat[];
-  featured: FeaturedCat[];
-  hostOffer: MeetOffer | null | undefined;
-  /** The Meet card was shown in this page session (one per session). */
-  offerShown: boolean;
-  /** Where the live card shows (it stays there across redraws until the player leaves the screen or closes it). */
-  liveOffer: { offer: MeetOffer; screen: 'title' | 'results' } | null;
   matchId: string | null;
   match: MatchInfo | null;
   /** Account progress when the match ended (for "New fastest!"). */
   progressAtMatch: Progress | null;
   save: SaveResult | null;
-  /** A cat bought in this session (its name), celebrated on the title. */
-  joined: string | null;
-  /** Sim v9: the shelter champions' cards (art, for sale); empty until the host sends them. */
+  /** Sim v9: the shelter champions' art (never for sale here); empty until the host sends them. */
   champions: ChampionCard[];
 }
 
@@ -121,20 +100,8 @@ export interface Integration {
   state(): Readonly<IntegrationState>;
   /** Redraw every mounted slot now. */
   refresh(): void;
-  /**
-   * Sim v9: a finished match on `hero` (already counted in the profile). From the CHAMPION_OFFER_AT-th, until the card
-   * has been shown, for a non-owner on the web while the card is for sale, the host is told (`champion-offer`, once a
-   * page load) so its offer ask puts that card first; the server's caps (session 1, one a session, one a day, the same
-   * cat, spend) still decide. The `champions` message re-sends due cards on every later visit.
-   */
-  championMatch(hero: HeroId): boolean;
-  /** Sim v9: the pick tiles' card art and (web only) the owner badge per champion. */
-  championTiles(): Partial<Record<HeroId, { art?: string; owned: boolean }>>;
-  /**
-   * GDD §7.2: a featured cat's skin was previewed on the pick screen. Web only, once per cat a page load: the host
-   * puts it first in its next Meet offer ask (`skin-preview`); the server's caps decide whether a card shows.
-   */
-  notePreview(catalogId: string): boolean;
+  /** Sim v9: the pick tiles' champion art. */
+  championTiles(): Partial<Record<HeroId, { art?: string }>>;
   /**
    * Party play (MULTIPLAYER.md §5.3): a single-use party ticket minted by the embed host with its own session, or null
    * (standalone, no host answer within PARTY_TICKET_WAIT_MS, or the host had none): the player is an unscored guest.
@@ -242,8 +209,6 @@ export function installIntegration(bridge: Pick<Bridge, 'active' | 'post' | 'on'
 }
 
 function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: IntegrationDeps): Integration {
-  const now = deps.now ?? (() => Date.now());
-  const checkout = new CheckoutBridge(bridge, deps.ent, now);
   const s: IntegrationState = {
     signedIn: false,
     playerName: null,
@@ -251,16 +216,10 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
     progress: null,
     app: null,
     audio: null,
-    roster: [],
-    featured: [],
-    hostOffer: undefined,
-    offerShown: false,
-    liveOffer: null,
     matchId: null,
     match: null,
     progressAtMatch: null,
     save: null,
-    joined: null,
     champions: [],
   };
   let cardsV = 1;
@@ -272,16 +231,9 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   /** API answers the game is waiting for, by request id. */
   const apiWaits = new Map<string, (r: ApiResult) => void>();
   let disposed = false;
-  let lastScreen: ScreenKind | null = null;
-  /** Champion cards already sent to the host this page load (`champion-offer`). */
-  const championAsked = new Set<string>();
-  /** Featured cats whose skin preview the host was told about this page load (`skin-preview`). */
-  const previewAsked = new Set<string>();
 
   const isApp = (): boolean => s.app?.isApp === true || deps.ent.snapshot().isApp || isAppBuild();
   const embedded = (): boolean => bridge.active && deps.ent.snapshot().embedded;
-  const featuredIds = (): string[] => s.featured.map((c) => c.catalogId);
-  const cosmetics = () => rosterCosmetics(s.roster, squadPrefs());
 
   // the host tracks the prompt (`pawlegends_signin_prompt`); the game only asks
   const signIn = (reason: SignInReason): void => void bridge.post('request-sign-in', { reason });
@@ -292,122 +244,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   const accountModel = (): AccountModel | null =>
     embedded() ? { signedIn: s.signedIn, name: s.signedIn ? s.playerName : null, provider: s.signedIn ? s.provider : null, isApp: isApp() } : null;
 
-  const mate = (c: { id: string; name: string; element: RosterCat['type']; tier: RosterCat['tier']; art?: string; fromPack?: boolean }): SquadMate => {
-    const art = c.art ?? s.roster.find((r) => r.id === c.id)?.art;
-    return { id: c.id, name: c.name, type: c.element, tier: c.tier, ...(art ? { art } : {}), ...(c.fromPack ? { fromPack: true } : {}) };
-  };
-  const squad = (): SquadMate[] => cosmetics().companions.map(mate);
-  /** Every other owned cat (the pick screen's swap row). */
-  const bench = (): SquadMate[] => cosmetics().cats.slice(2).map(mate);
-
-  /** The Meet offer for `screen`, marking it shown (and telling the host) the first time it renders. */
-  /** Sim v9: a champion card as a Meet card's cat (its card name and element; art from the host). */
-  const championCat = (catalogId: string): FeaturedCat | null => {
-    const champ = championByCatalogId(catalogId);
-    const card = s.champions.find((c) => c.catalogId === catalogId);
-    if (!champ || !card?.forSale) return null;
-    return { catalogId, name: champ.cardName, type: HEROES[champ.hero].element, ...(card.art ? { art: card.art } : {}) };
-  };
-  /** Sim v9: a champion card is a Meet card only after the player's CHAMPION_OFFER_AT-th match on that champion. */
-  const meetAllowed = (catalogId: string): boolean => {
-    const champ = championByCatalogId(catalogId);
-    return !champ || championEarned(deps.profile(), champ.hero);
-  };
-  const offerCat = (catalogId: string): FeaturedCat | null => {
-    if (!meetAllowed(catalogId)) return null;
-    // a champion's card always reads as the champion (never a storefront cat that happens to be it)
-    return championByCatalogId(catalogId) ? championCat(catalogId) : (s.featured.find((c) => c.catalogId === catalogId) ?? null);
-  };
-  /** Sim v9: tell the host a champion's card is due (earned, never shown, unowned, for sale, web), once a page load. */
-  const askChampion = (hero: HeroId): boolean => {
-    const champ = championOf(hero);
-    if (!champ || isApp() || championAsked.has(champ.catalogId)) return false;
-    if (!championDue(deps.profile(), hero)) return false;
-    if (!s.champions.some((c) => c.catalogId === champ.catalogId && c.forSale)) return false;
-    if (cosmetics().catalogIds.includes(champ.catalogId)) return false;
-    if (!bridge.post('champion-offer', { catalogId: champ.catalogId })) return false;
-    championAsked.add(champ.catalogId);
-    return true;
-  };
-
-  const meetFor = (screen: 'title' | 'results'): FeaturedCat | null => {
-    const live = s.liveOffer;
-    if (live && live.screen === screen) {
-      if (cosmetics().catalogIds.includes(live.offer.catalogId) || isApp()) return null;
-      return offerCat(live.offer.catalogId);
-    }
-    // fun plan F4: no offer after a Rookie match
-    if (screen === 'results' && s.match?.difficulty === 'rookie') return null;
-    const prof = deps.profile();
-    const o = pickMeet({
-      session: playSession(prof),
-      closed: prof.meetClosed,
-      pageSession: prof.sessions,
-      now: Date.now(),
-      screen: screen === 'title' ? 'lobby' : 'results',
-      store: deps.ent.snapshot(),
-      shownThisSession: s.offerShown,
-      hostOffer: s.hostOffer,
-      // round 1: only cats with art get a Meet card (never ask to adopt a cat the player cannot see); sim v9: a
-      // champion's card for sale counts too (the player has seen the champion itself)
-      // champion only from its CHAMPION_OFFER_AT-th match (a storefront copy of a champion card never counts)
-      featured: [
-        ...s.featured.filter((c) => !!c.art && !championByCatalogId(c.catalogId)).map((c) => c.catalogId),
-        ...s.champions.filter((c) => c.forSale && meetAllowed(c.catalogId)).map((c) => c.catalogId),
-      ],
-      owned: cosmetics().catalogIds,
-    });
-    if (!o) return null;
-    const cat = offerCat(o.catalogId);
-    if (!cat) return null;
-    s.offerShown = true;
-    s.liveOffer = { offer: o, screen };
-    bridge.post('offer-seen', { kind: 'meet', catalogId: o.catalogId });
-    const shownChamp = championByCatalogId(o.catalogId);
-    if (shownChamp) noteChampionShown(shownChamp.hero);
-    deps.analytics.track('offer_shown', { kind: 'meet', catalogId: o.catalogId, screen });
-    document.documentElement.dataset.offer = 'meet';
-    return cat;
-  };
-
-  const meetModel = (cat: FeaturedCat) => ({
-    cat,
-    champion: championByCatalogId(cat.catalogId) ? { pronoun: championByCatalogId(cat.catalogId)!.pronoun, hero: championByCatalogId(cat.catalogId)!.name } : null,
-    preview: deps.chromaPreview?.(cat.type) ?? null,
-    waiting: checkout.waiting() === cat.catalogId,
-    onMeet: () => {
-      deps.analytics.track('offer_click', { kind: 'meet', catalogId: cat.catalogId });
-      if (checkout.openCat(cat.catalogId, [...featuredIds(), ...s.champions.map((c) => c.catalogId)])) {
-        deps.analytics.track('checkout_start', { kind: 'meet', catalogId: cat.catalogId });
-        cardsV++;
-        render();
-        setTimeout(() => {
-          cardsV++;
-          render();
-        }, INTENT_HOLD_MS + 50);
-      }
-    },
-  });
-
-  const closeMeet = (): void => {
-    s.liveOffer = null;
-    document.documentElement.dataset.offer = '';
-  };
-  /** Round 2: the player closed the card (✕): remember it, so it does not come back on every page load. */
-  const dismissMeet = (): void => {
-    const live = s.liveOffer;
-    if (live) {
-      const p = deps.profile();
-      p.meetClosed = { id: live.offer.catalogId, session: p.sessions, at: Date.now() };
-      saveProfile(p);
-    }
-    closeMeet();
-  };
-
-  /**
-   * Sim v9: the lobby (title) info panel of the champion on the turntable. Information only: the `champion-offer`
-   * Meet card stays the one purchase surface. The owner badge is web only.
-   */
+  /** Sim v9: the lobby (title) info panel of the champion on the turntable (a real Pink Paw cat). Information only. */
   const championPanel = (): HTMLElement | null => {
     const hero = deps.lobbyHero?.();
     const champ = hero ? championOf(hero) : null;
@@ -420,11 +257,10 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       type: HEROES[champ.hero].element,
       art: card?.art,
       flavour: HERO_TEXT[champ.hero].flavour,
-      owned: !isApp() && cosmetics().catalogIds.includes(champ.catalogId),
     });
   };
 
-  /** The inline part goes in the slot, the corner cards (Meet, squad, companion) in the screen dock. */
+  /** The inline part goes in the slot, the corner part (results: notify) in the screen dock. */
   const renderCards = (slot: HTMLElement, kind: ScreenKind, scr: HTMLElement): void => {
     const p = deps.profile();
     const ask = embedded() && !s.signedIn;
@@ -433,53 +269,23 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       // signed-in owners were still told "No account needed." (round 0)
       const acct = scr.querySelector<HTMLElement>('.acct');
       if (acct) acct.textContent = s.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.';
-      // sign-in: the account chip in the corner (a host answered: the Token Tails page or the app's in-page host)
+      // sign-in: the account chip in the corner (a host answered: the web page or the app's in-page host)
       const model = accountModel();
       if (model) mountAccountChip(scr, model, (a) => void account(a));
       else scr.querySelector('.pl-acct-chip')?.remove();
-      const cat = meetFor('title');
-      slot.replaceChildren(
-        titleCards(
-          { badges: levelBadges(s.progress, p.fastest), askSignIn: ask && p.matches >= 1, meet: null, joined: s.joined, squad: s.signedIn ? squad() : [] },
-          { signIn: () => signIn('save-progress'), meetClosed: dismissMeet },
-        ),
-      );
-      dock.replaceChildren(...(cat ? [meetCard({ ...meetModel(cat), onClose: dismissMeet })] : []));
+      slot.replaceChildren(titleCards({ badges: levelBadges(s.progress, p.fastest), askSignIn: ask && p.matches >= 1 }, { signIn: () => signIn('save-progress') }));
+      dock.replaceChildren();
       const info = championPanel();
       if (info) slot.appendChild(info);
     } else if (kind === 'pick') {
-      const cards = pickCards(
-        { squad: squad(), bench: bench(), guest: isApp() ? null : (s.featured[0] ?? null), askSignIn: ask },
-        {
-          signIn: () => signIn('save-progress'),
-          choose: (id) => {
-            chooseSquadMate(id, squad().map((c) => c.id));
-            deps.onRosterChange();
-            redraw();
-          },
-        },
-      );
-      // the champion select declares its slot under the team seats (LANDING-PICK-UX §B5): the squad walks with the
-      // team there, never over the hero panel; a screen without one keeps the corner dock
-      const inline = !slot.dataset.auto;
-      slot.replaceChildren(...(inline ? [cards] : []));
-      dock.replaceChildren(...(inline ? [] : [cards]));
+      slot.replaceChildren();
+      dock.replaceChildren();
     } else {
-      const won = scr.classList.contains('won');
-      const cat = won ? meetFor('results') : null;
-      const mates = squad();
       slot.replaceChildren();
       dock.replaceChildren(
         resultsCards(
+          { notify: !!s.app?.notify && deps.ent.snapshot().notifyOpen && !scr.querySelector('[data-a="notify"]') },
           {
-            won,
-            companion: mates[0] ?? null,
-            guest: isApp() ? null : (s.featured.find((c) => c.catalogId !== cat?.catalogId) ?? s.featured[0] ?? null),
-            meet: cat ? meetModel(cat) : null,
-            notify: !!s.app?.notify && deps.ent.snapshot().notifyOpen && !scr.querySelector('[data-a="notify"]'),
-          },
-          {
-            meetClosed: dismissMeet,
             notify: () => {
               if (bridge.post('notify', { where: 'results' })) deps.analytics.track('notify_signup', { where: 'results' });
             },
@@ -506,8 +312,6 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       saveChip(
         {
           state: st,
-          catnipPaid: sv?.status === 'saved' ? sv.catnipPaid : 0,
-          catnipTotal: sv?.catnipTotal ?? null,
           newFastest: isNewFastest(sv, s.progressAtMatch, s.match),
           askSignIn: embedded() && !s.signedIn,
           season: sv?.status === 'saved' ? (sv.season ?? null) : null,
@@ -521,24 +325,16 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
 
   function render(): void {
     if (disposed || !root) return;
-    let seen: ScreenKind | null = null;
     for (const node of Array.from(root.children)) {
       const scr = node as HTMLElement;
       const kind = screenKind(scr);
       if (!kind) continue;
-      seen = kind;
       const cards = slotIn(scr, 'cards', kind);
       if (cards && cards.dataset.plcV !== String(cardsV)) renderCards(cards, kind, scr);
       if (kind === 'results') {
         const save = slotIn(scr, 'save', kind);
         if (save && save.dataset.plcV !== String(saveV)) renderSave(save);
       }
-    }
-    // leaving the screen of the live card ends it (one show per session)
-    if (seen !== lastScreen) {
-      if (s.liveOffer && seen !== s.liveOffer.screen) closeMeet();
-      if (seen !== 'title' && seen !== 'results') s.joined = null;
-      lastScreen = seen;
     }
   }
 
@@ -589,49 +385,11 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         redraw(false, true);
         return;
       }
-      case 'featured': {
-        const v = parseFeatured(m);
-        if (!v) return;
-        s.featured = isApp() ? [] : v;
-        redraw();
-        return;
-      }
-      case 'offer': {
-        const v = parseOffer(m);
-        if (v === undefined) return;
-        s.hostOffer = isApp() ? null : v;
-        redraw();
-        return;
-      }
       case 'app': {
         const v = parseApp(m);
         if (!v) return;
         s.app = v;
         setAppBuild(v.isApp);
-        if (v.isApp) {
-          s.featured = [];
-          s.hostOffer = null;
-          s.liveOffer = null;
-        }
-        redraw();
-        return;
-      }
-      case 'roster': {
-        s.roster = parseRoster(m.cats, { isApp: isApp() });
-        if (s.liveOffer && cosmetics().catalogIds.includes(s.liveOffer.offer.catalogId)) closeMeet();
-        redraw();
-        return;
-      }
-      case 'purchase-result': {
-        const v = parsePurchaseResult(m);
-        if (!v) return;
-        if (v.ok) {
-          s.joined = s.featured.find((c) => c.catalogId === v.catalogId)?.name ?? 'Your new cat';
-          // the new cat takes the first squad slot, so the joined line's promise holds (round 0 blocker)
-          noteNewCat(v.catalogId);
-          deps.onRosterChange();
-          if (s.liveOffer?.offer.catalogId === v.catalogId) closeMeet();
-        }
         redraw();
         return;
       }
@@ -643,11 +401,9 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       case 'champions': {
         const v = parseChampions(m);
         if (!v) return;
-        // App builds keep the art (the champions are in every build) but never a card for sale.
-        s.champions = isApp() ? v.map((c) => ({ ...c, forSale: false })) : v;
+        // the champions' art only: a champion card is never for sale in Paw Legends (NO-TOKENTAILS.md)
+        s.champions = v.map((c) => ({ ...c, forSale: false }));
         deps.onRosterChange();
-        // a card earned in an earlier visit (or one the server held back, e.g. in session 1) is still due
-        for (const c of s.champions) askChampion(c.hero);
         redraw();
         return;
       }
@@ -754,18 +510,9 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
     },
     state: () => s,
     refresh: () => redraw(true, true),
-    championMatch: (hero) => askChampion(hero),
-    notePreview: (catalogId) => {
-      if (isApp() || previewAsked.has(catalogId) || !s.featured.some((c) => c.catalogId === catalogId)) return false;
-      if (cosmetics().catalogIds.includes(catalogId)) return false;
-      if (!bridge.post('skin-preview', { catalogId })) return false;
-      previewAsked.add(catalogId);
-      return true;
-    },
     championTiles: () => {
-      const owned = cosmetics().catalogIds;
-      const out: Partial<Record<HeroId, { art?: string; owned: boolean }>> = {};
-      for (const c of s.champions) out[c.hero] = { ...(c.art ? { art: c.art } : {}), owned: !isApp() && owned.includes(c.catalogId) };
+      const out: Partial<Record<HeroId, { art?: string }>> = {};
+      for (const c of s.champions) out[c.hero] = c.art ? { art: c.art } : {};
       return out;
     },
     dispose: () => {

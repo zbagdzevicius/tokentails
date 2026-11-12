@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { DEMO_ROSTER } from '../../src/app/skinDemo';
+import { DEMO_ROSTER } from '../../tools/fixtures/demoRoster';
 import { ELEMENTS, parseRoster, type CatTier } from '../../src/meta/roster';
 import {
   CARD_MAX, CardVfx, WAVE_PAWS, cardFxDetail, cardFxFor, cardFxLine, cardTint, coatGlow, hasSignature, hasSparkle, tinted, type CardFx,

@@ -48,8 +48,12 @@ export function partyCodeOf(search: string): string | null {
   const code = raw ? raw.toUpperCase().replace(/[\s-]/g, "") : "";
   return PARTY_CODE.test(code) ? code : null;
 }
-/** The invite link the game shares (D12: always the embed URL on tokentails.com). */
-export const PAWLEGENDS_PARTY_LINK = /^https:\/\/tokentails\.com\/pawlegends\?party=[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/;
+/**
+ * The invite link the game shares (D12: Paw Legends' own domain, docs/plans/moba/NO-TOKENTAILS.md; `/?party=` goes on
+ * to `/play` there). An older game build's tokentails.com link is still accepted.
+ */
+export const PAWLEGENDS_PARTY_LINK =
+  /^https:\/\/(pawlegends\.app\/|tokentails\.com\/pawlegends)\?party=[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/;
 /**
  * The iframe's src for this page URL (launch finding PUB-03). A shared dare link points at the host page
  * (`/pawlegends?dare=…`), but the game reads the dare from its own URL, so the host forwards a well-formed `dare`
@@ -94,10 +98,28 @@ export function withoutParty(href: string): string | null {
     return null;
   }
 }
-/** Where the exit button and the kill switch go. */
+/** Where the kill switch goes (Paw Legends turned off on this deploy). Never linked from inside the game. */
 export const PAWLEGENDS_EXIT_PATH = "/game";
+/** Paw Legends' own domain (client/next.config.js: `/` is the landing there, `/<page>` each Paw Legends page). */
+export const PAWLEGENDS_HOST = "pawlegends.app";
+/**
+ * The Paw Legends landing for this page host: `/` on pawlegends.app, `/pawlegends` elsewhere. The loading banners'
+ * way out (NO-TOKENTAILS.md: never the Token Tails games hub).
+ */
+export function pawlegendsHomePath(hostname: string): string {
+  const h = hostname.toLowerCase();
+  return h === PAWLEGENDS_HOST || h === `www.${PAWLEGENDS_HOST}` ? "/" : "/pawlegends";
+}
 export const PAWLEGENDS_TERMS_PATH = "/pawlegends/terms";
-/** Token Tails privacy policy (same page as the site footer and `PRIVACY_URL` in the sign-in sheet). */
-export const PAWLEGENDS_PRIVACY_URL = "https://docs.tokentails.com/community-and-social-impact/privacy-policy";
+/**
+ * Paw Legends' own privacy notice (pages/pawlegends/privacy.tsx; it names the operator as the law requires). Web and
+ * app link the same page (NO-TOKENTAILS.md, Your call 3).
+ */
+export const PAWLEGENDS_PRIVACY_URL = "https://pawlegends.app/privacy";
+/**
+ * The operator's general privacy policy, which also covers the shared account. Linked only from the Paw Legends privacy
+ * notice itself, where the law needs it (NO-TOKENTAILS.md, Your call 3); never from the game.
+ */
+export const OPERATOR_PRIVACY_URL = "https://docs.tokentails.com/community-and-social-impact/privacy-policy";
 /** Where players write for refunds, limits or to stop season news. */
 export const PAWLEGENDS_CONTACT = "info@tokentails.com";

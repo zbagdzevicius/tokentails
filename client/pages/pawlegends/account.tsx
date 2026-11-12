@@ -6,7 +6,9 @@ import { SeoHead } from "@/components/seo/SeoHead";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 
 export const PAWLEGENDS_ACCOUNT_SEO = Object.freeze({
-  title: `${PAWLEGENDS_TITLE} account - Token Tails`,
+  // NO-TOKENTAILS.md: the share card and tab name Paw Legends, not the site
+  siteName: PAWLEGENDS_TITLE,
+  title: `${PAWLEGENDS_TITLE} account`,
   description: `Sign in to ${PAWLEGENDS_TITLE}, sign out, or delete your account and its data.`,
   path: "/pawlegends/account",
 });

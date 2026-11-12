@@ -8,7 +8,6 @@
  * Pure: `lobbyHtml(model)` returns markup; every name, code and label is escaped; actions are `data-p` attributes the
  * party client dispatches. The results phase reuses it with "Play again together".
  */
-import { cleanArt } from '../../embed/bridge';
 import { displayCode, type MemberView, type PartyView } from '../../net/proto';
 import { COPY, DIFF_LABEL, esc } from './copy';
 import { avatarHtml, titleText } from '../../ui/avatar';
@@ -47,13 +46,9 @@ function seatHtml(v: PartyView, m: MemberView | undefined, i: number, leader: bo
   }
   const me = m.id === v.you;
   const name = shownName(v, m, hide);
-  const art = cleanArt(m.card?.image);
-  // CHAT-AVATARS §7.4: the player's avatar (icon + border) in the seat; the worn cat card stays beside it as the skin
-  // preview. An older relay sends no avatar: the card art or the paw, as before.
-  const card = art ? `<span class="pp-av pic${m.av ? ' pp-av-card' : ''}" style="background-image:url('${esc(art)}')" data-el="${esc(m.card?.element ?? '')}"></span>` : '';
-  const av = m.av
-    ? `${avatarHtml(m.av, 56, { guest: m.guest })}${card}`
-    : card || `<span class="pp-av">${PAW}</span>`;
+  // CHAT-AVATARS §7.4: the player's avatar (icon + border) in the seat; an older relay sends no avatar: the paw. A cat
+  // card from an older client (`m.card`) is never shown (NO-TOKENTAILS.md).
+  const av = m.av ? avatarHtml(m.av, 56, { guest: m.guest }) : `<span class="pp-av">${PAW}</span>`;
   const title = m.av?.t ? `<small class="pp-title">${esc(titleText(m.av.t))}</small>` : '';
   const badges = [
     m.id === v.leader ? `<span class="pp-crown" title="${COPY.leader}">${CROWN}</span>` : '',

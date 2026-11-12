@@ -374,6 +374,12 @@ Soft currency **Yarn** (P2+): about 60 to 120 per match, +150 first win of the d
 
 ### 7.2 Owned Token Tails cats in Pawlegends (the cross-sell)
 
+> **Parked 2026-11-12: no Token Tails in Paw Legends** ([NO-TOKENTAILS.md](NO-TOKENTAILS.md)). The founder dropped the
+> "Your cats become skins" feature. The game no longer reads the host's roster, featured cats or Meet offer, and the
+> host no longer sends them. This section is history: no cat card skins, chromas,
+> tier or collection frames, breed coats, Companion Kittens, squad, Meet card or $5 cat checkout in the game, the host
+> page or the app. Server data (owned cats, offers, champion cards for sale) stays untouched, just unused.
+
 The host page calls `GET /user/cats` (signed-in or guest session) and passes a sanitised roster over the bridge: id, name, `type` (element), `tier`, `isStarter`, `starterBreed`, `origin` (one of `CAT_ORIGINS`: starter, pack, redeem, adopt, portrait). The access token never crosses the bridge (`docs/GAMES.md`, "Bridge v1"). **Owned cats have no stored breed:** `origin` keeps only the `CAT_ORIGINS` vocabulary (`backend/src/cat/cat.schema.ts`), so a coat comes from `starterBreed` when set, else from a stable hash of the cat id into a preset coat.
 
 | You own on Token Tails | You get in Pawlegends (cosmetic only) | Phase |

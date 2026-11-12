@@ -24,7 +24,7 @@ export const UI_STRINGS = Object.freeze({
   'pause.lettersCount': '{n}/{max} found',
   'credits.title': 'Credits',
   'credits.made': 'Made with love for one very small knight.',
-  'credits.team': 'Design · Code · Art · Music direction: Token Tails',
+  'credits.team': 'Design · Code · Art · Music direction: the Pawlegends team',
   'credits.assets': 'Asset attribution',
   // one source (TOKENTAILS-PLAN §10.4): the Pink Paw line lives in story/strings.js; this fallback reads it from there
   'credits.pinkpaw': STORY_STRINGS['credits.pinkpaw'].default,
@@ -163,7 +163,7 @@ export const UI_STRINGS = Object.freeze({
   'settings.batterySaver': 'Battery saver',
   'title.press': 'Press any key to play!',
   'title.tap': 'Tap to play!',
-  'title.foot': 'A Token Tails game',
+  'title.foot': 'A Pawlegends game',
   'title.settings': 'Settings',
   'menu.continue': 'Keep going!',
   'menu.newGame': 'New adventure',

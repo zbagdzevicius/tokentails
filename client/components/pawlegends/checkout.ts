@@ -1,10 +1,9 @@
 /**
  * The Pawlegends `pl_*` store client and the offer API, host side (POC.md §8.2, §8.3).
  *
- * Since the Token Tails integration the game sells nothing itself: its one card is "Meet <cat>", which opens the
- * Token Tails $5 named-cat checkout (`PawlegendsCatSheet`, `<Payment entityType={EntityType.CAT}>`). The offer
- * comes from `GET /pawlegends/offer` (`offer()` below) and is recorded with `POST /pawlegends/offer/seen`. The
- * `pl_*` routes stay so earlier buyers keep their items: the stored token is refreshed and sent as `entitlements`,
+ * The game sells its own store items and the Legends Pass (`PawlegendsStoreSheet`). The "Meet <cat>" card and its
+ * named-cat checkout left the game on 2026-11-12 (docs/plans/moba/NO-TOKENTAILS.md): `offer()` and `offerSeen()`
+ * below are no longer called. The `pl_*` routes stay so earlier buyers keep their items: the stored token is refreshed and sent as `entitlements`,
  * a restore link still works, and a Checkout return still fetches its token. No new `pl_*` purchase starts here.
  *
  * The legacy flow, kept for those returns:
@@ -55,17 +54,6 @@ export const isAgeBand = (value: unknown): value is PawlegendsAgeBand =>
 /** Mirror of the backend's `UNDER_16_MESSAGE`. */
 export const UNDER_16_MESSAGE =
   "Ask a parent or guardian to buy this on their own device.";
-
-/**
- * What a new squad member brings in Pawlegends (display only; the game decides the effect). Cosmetic only, and it
- * must match what the game grants (`rosterCosmetics` in pawlegends/src/meta/roster.ts) and the game's Meet card line
- * (`meetCard` in pawlegends/src/ui/cards.ts): a Companion Kitten, the element chroma and the card skin for every hero.
- */
-export const MEET_PERKS = [
-  "Trots at your heels as a Companion Kitten",
-  "Its element chroma for every hero",
-  "Its card skin for every hero",
-] as const;
 
 export type PawlegendsCurrency = "usd" | "eur";
 

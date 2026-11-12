@@ -16,8 +16,8 @@ export function partyFromUrl(search: string = typeof location !== 'undefined' ? 
   }
 }
 
-/** The invite link for a code: always the Token Tails page that embeds the game (D12). */
-export const inviteUrl = (code: string): string => `https://tokentails.com/pawlegends?party=${code}`;
+/** The invite link for a code: always Paw Legends' own page that embeds the game (D12; `/?party=` goes on to `/play`). */
+export const inviteUrl = (code: string): string => `https://pawlegends.app/?party=${code}`;
 
 /** Backend origin per page host (as Bad Cat does): the hosted game on tokentails.com and pawlegends.app talks to the production API. */
 const API_BY_HOST: Readonly<Record<string, string>> = Object.freeze({

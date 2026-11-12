@@ -60,7 +60,8 @@ describe('profile', () => {
     const strip = progressStrip(levelBadges(null, { easy: 426 }));
     expect(strip.querySelector('.plc-level[data-level="rookie"]')).toBeNull();
     expect(strip.querySelector('.plc-level[data-level="easy"]')?.textContent).toContain('best 7:06');
-    expect(strip.querySelector('.plc-level[data-level="normal"]')?.textContent).toContain('First win: +40 catnip');
+    expect(strip.querySelector('.plc-level[data-level="normal"]')?.textContent).toContain('First win: badge');
+    expect(strip.textContent).not.toMatch(/catnip/i);
     expect(strip.querySelector('.plc-level[data-level="hard"]')?.textContent).toContain('First win: badge');
   });
 });

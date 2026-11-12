@@ -1,61 +1,13 @@
 // @vitest-environment happy-dom
 /**
- * Playtest round 0 client fixes: the bought cat walks (squad order), the pick-screen swap, hero-following daily
- * quests, the bot ladder, deferred talent offers, banner priority and the Frenzy / Nine Lives callouts.
+ * Playtest round 0 client fixes (the squad parts went with NO-TOKENTAILS.md): hero-following daily quests, the bot ladder, deferred talent offers, banner priority and the Frenzy / Nine Lives callouts.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadProfile, resetProfileCache, saveProfile } from '../../src/meta/profile';
-import { parseRoster, rosterCosmetics } from '../../src/meta/roster';
-import { chooseSquadMate, noteNewCat, squadPrefs } from '../../src/meta/squad';
 import { PLACEMENT, recordLadder } from '../../src/meta/ladder';
 import { dailyQuests, freshQuests, progressQuests } from '../../src/meta/quests';
 import { TalentPicker } from '../../src/ui/talents';
 import { Juice } from '../../src/render/juice';
-import { pickCards } from '../../src/ui/cards';
-
-const SIX = parseRoster([
-  { id: 's1', name: 'Scout', type: 'WIND', tier: 'COMMON', isStarter: true, starterBreed: 'SCOUT', origin: 'starter' },
-  { id: 'p1', name: 'Pumpkin', type: 'GRASS', tier: 'COMMON', isStarter: false, origin: 'pack' },
-  { id: 'n1', name: 'Nova', type: 'STELLAR', tier: 'EPIC', isStarter: false, origin: 'adopt', catalogId: 'aaaaaaaaaaaaaaaaaaaaaaaa' },
-  { id: 'b1', name: 'Blaze', type: 'FIRE', tier: 'LEGENDARY', isStarter: false, origin: 'pack' },
-  { id: 'z1', name: 'Ziggy', type: 'ELECTRIC', tier: 'RARE', isStarter: false, origin: 'pack' },
-  { id: 'l1', name: 'Luna', type: 'DARK', tier: 'RARE', isStarter: false, origin: 'adopt', catalogId: 'bbbbbbbbbbbbbbbbbbbbbbbb' },
-]);
-
-describe('round 0: squad mates', () => {
-  beforeEach(() => {
-    localStorage.clear();
-    resetProfileCache();
-  });
-
-  it('a cat bought on a 6-cat roster walks in the next match (the "Luna walks with your waves" promise)', () => {
-    // round 1: no saved choice → the highest tiers walk (Blaze LEGENDARY, Nova EPIC), not two Commons
-    expect(rosterCosmetics(SIX).companions.map((c) => c.name)).toEqual(['Blaze', 'Nova']);
-    noteNewCat('bbbbbbbbbbbbbbbbbbbbbbbb');
-    const r = rosterCosmetics(SIX, squadPrefs());
-    expect(r.companions[0].name).toBe('Luna');
-    expect(r.cats).toHaveLength(6);
-  });
-
-  it('the pick screen swap puts any owned cat first and clears the newest-cat rule', () => {
-    noteNewCat('bbbbbbbbbbbbbbbbbbbbbbbb');
-    const next = chooseSquadMate('b1', ['l1', 's1']);
-    expect(next).toEqual(['b1', 'l1']);
-    expect(loadProfile().newCat).toBeNull();
-    expect(rosterCosmetics(SIX, squadPrefs()).companions.map((c) => c.name)).toEqual(['Blaze', 'Luna']);
-  });
-
-  it('pickCards shows the bench and reports a swap', () => {
-    let chosen = '';
-    const r = rosterCosmetics(SIX);
-    const mate = (c: (typeof r.cats)[number]) => ({ id: c.id, name: c.name, type: c.element, tier: c.tier });
-    const el = pickCards({ squad: r.companions.map(mate), bench: r.cats.slice(2).map(mate), guest: null, askSignIn: false }, { signIn: () => {}, choose: (id) => (chosen = id) });
-    const swaps = el.querySelectorAll<HTMLButtonElement>('[data-a="squad-swap"]');
-    expect(swaps).toHaveLength(4);
-    swaps[0].click();
-    expect(chosen).toBe(r.cats[2].id);
-  });
-});
 
 describe('round 0: quests, ladder', () => {
   beforeEach(() => {

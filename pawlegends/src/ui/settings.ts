@@ -61,19 +61,20 @@ export interface SettingsOpts {
   onSkinFx?(m: 'all' | 'mine' | 'off'): void;
   onSaver?(on: boolean): void;
   onClose(): void;
-  /** The host's terms page (null outside the Token Tails page: the link hides). */
+  /** The host's terms page (null without a host page: the link hides). */
   termsUrl?: string | null;
   /** Sign-in: the Account row (absent without a host: the plain standalone game has no accounts). */
   account?: { model: AccountModel; send: AccountSend };
-  /** Embedded on the Token Tails page, on Home: back to the site's games (Home's "< Games" button moved here, Nov 12). */
-  onExit?(): void;
 }
 
-/** Token Tails privacy policy (the same page as the site footer and the sign-in sheet). */
-export const WEB_PRIVACY_URL = 'https://docs.tokentails.com/community-and-social-impact/privacy-policy';
-/** The iOS app's own notice (client/pages/pawlegends/privacy.tsx; the App Store listing's privacy policy URL). */
-export const APP_PRIVACY_URL = 'https://tokentails.com/pawlegends/privacy';
-/** The Settings link: the app build links the app's notice, the web build the Token Tails policy. */
+/**
+ * Paw Legends' own privacy notice (client/pages/pawlegends/privacy.tsx, served at pawlegends.app/privacy; it names the
+ * operator as the law requires). Web and app link the same page (NO-TOKENTAILS.md, Your call 3).
+ */
+export const WEB_PRIVACY_URL = 'https://pawlegends.app/privacy';
+/** The app's notice (the App Store listing's privacy policy URL): the same page. */
+export const APP_PRIVACY_URL = WEB_PRIVACY_URL;
+/** The Settings link. */
 export const PRIVACY_URL = APP_ENV ? APP_PRIVACY_URL : WEB_PRIVACY_URL;
 
 const linkAttr = (url: string): string => url.replace(/[&"<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c] ?? c);
@@ -146,7 +147,6 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${accountRowHtml(o.account?.model ?? null)}
       <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
       <p class="fine links" data-testid="settings-legal"><a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy</a>${o.termsUrl ? ` · <a href="${linkAttr(o.termsUrl)}" target="_blank" rel="noopener">Terms</a>` : ''}</p>
-      ${o.onExit ? '<button type="button" class="pl-btn ghost small set-exit" data-a="exitgame" data-testid="settings-exit">Back to Token Tails games</button>' : ''}
       <button class="pl-btn big" data-a="close">Done</button></div>`;
   };
   render();
@@ -227,10 +227,6 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       o.onStats(s.stats);
     } else if (a === 'close' || a === 'x' || t === root) {
       close();
-      return;
-    } else if (a === 'exitgame' && o.onExit) {
-      close();
-      o.onExit();
       return;
     } else return;
     render();

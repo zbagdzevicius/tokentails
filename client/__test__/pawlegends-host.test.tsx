@@ -2,12 +2,11 @@
  * @jest-environment jsdom
  */
 /**
- * The /pawlegends host inside the Token Tails games ecosystem: the same-origin iframe with `embed=1`, the exit to
- * /game, the kill switch, sign-in requests, `session {signedIn, progress}`, saves through /live with `save-result`
- * (and the profile following the answer), the "ADD YOUR MATCHES?" claim, the roster with art and catalog ids, the
- * featured cats and the one Meet offer, the Token Tails cat checkout (`open-cat` → sheet → `purchase-result` and a
- * fresh roster), notify-me, audio volumes, app builds (no checkout, no featured, starter and redeemed cats only),
- * and the legacy `pl_*` token and returns.
+ * The /pawlegends host (`/play` on pawlegends.app): the same-origin iframe with `embed=1`, the kill switch, sign-in
+ * requests, `session {signedIn, progress}`, saves through /live with `save-result` (and the profile following the
+ * answer), the "ADD YOUR MATCHES?" claim, the shelter champions' art (never for sale), notify-me, audio volumes, app
+ * builds (no checkout), and the legacy `pl_*` token and returns. NO-TOKENTAILS.md: no roster, featured cats, Meet
+ * offer, cat checkout or exit to the Token Tails games, whatever an older game build sends.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -49,31 +48,6 @@ jest.mock("next/dynamic", () => (loader: () => Promise<React.ComponentType<Recor
     return C ? R.createElement(C, props) : null;
   };
 });
-// The Token Tails checkout itself is tested in pawlegends/cat-sheet.test.tsx.
-const BOUGHT = { _id: "mine-new", name: "Pumpkin", type: "GRASS", tier: "COMMON", origin: "adopt", sourceCat: "65a1b2c3d4e5f6a7b8c9d0e1" };
-jest.mock("@/components/pawlegends/PawlegendsCatSheet", () => ({
-  PawlegendsCatSheet: ({
-    cat,
-    onBought,
-    onClose,
-  }: {
-    cat: { _id: string; name: string };
-    onBought: (c: unknown) => void;
-    onClose: (c: unknown) => void;
-  }) => (
-    <div data-testid="pawlegends-cat-sheet" data-cat={cat._id}>
-      <button type="button" onClick={() => onBought(BOUGHT)}>
-        stub-buy
-      </button>
-      <button type="button" onClick={() => onClose(null)}>
-        stub-close
-      </button>
-      <button type="button" onClick={() => onClose(BOUGHT)}>
-        stub-done
-      </button>
-    </div>
-  ),
-}));
 // Sign-in: the account sheet (sign out, delete) is tested on its own; here only that the host opens it.
 jest.mock("@/components/pawlegends/PawlegendsAccount", () => ({
   PawlegendsAccountSheet: ({ onClose }: { onClose: () => void }) => (
@@ -126,7 +100,6 @@ const tokenFor = (skus: string[], items: string[]) =>
   `${b64url(JSON.stringify({ skus, items, expiresAt: 9e15 }))}.${"s".repeat(43)}`;
 const TOKEN = tokenFor(["pl_founder"], ["frame.founder"]);
 const CAT_A = "65a1b2c3d4e5f6a7b8c9d0e1";
-const CAT_B = "65a1b2c3d4e5f6a7b8c9d0e2";
 const ART = "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/assets/cats/a.png";
 
 const REPLAY = {
@@ -142,16 +115,6 @@ const REPLAY = {
   finalHash: "0000abcd",
 };
 const LIVE = { difficulty: "easy", outcome: "won", ticks: 9000, finalHash: "0000abcd", catnipPaid: 20, catnipCount: 140, fastestWin: 9000 };
-
-const saleCat = (id: string, type: string, name: string) => ({
-  _id: id,
-  name,
-  type,
-  tier: "RARE",
-  catImg: ART,
-  blessing: { _id: `b${id}`, status: "WAITING" },
-});
-const STOREFRONT = { tokentails: [saleCat(CAT_A, "GRASS", "Pumpkin"), saleCat(CAT_B, "STELLAR", "Nova")], "token-tails": [] };
 
 const STATUS = {
   ok: true,
@@ -191,14 +154,12 @@ async function mount(props: Partial<React.ComponentProps<typeof PawlegendsHost>>
   const api = (props.api as ReturnType<typeof fakeApi>) ?? fakeApi();
   const navigate = jest.fn();
   const saveMatch = jest.fn(async () => ({ ok: true, status: 201, code: null, body: LIVE }));
-  const loadStorefront = jest.fn(async () => STOREFRONT as Record<string, unknown>);
   render(
     <PawlegendsHost
       api={api}
       navigate={navigate}
       isApp={false}
       saveMatch={saveMatch as never}
-      loadStorefront={loadStorefront}
       pollMs={0}
       {...props}
     />
@@ -225,7 +186,7 @@ async function mount(props: Partial<React.ComponentProps<typeof PawlegendsHost>>
   await settle();
   const last = (type: string) => [...posted].reverse().find((m) => m.type === type);
   const all = (type: string) => posted.filter((m) => m.type === type);
-  return { api, navigate, saveMatch, loadStorefront, frame, posted, origins, fromGame, last, all };
+  return { api, navigate, saveMatch, frame, posted, origins, fromGame, last, all };
 }
 
 const account = (over: Record<string, unknown> = {}) => ({
@@ -309,13 +270,16 @@ describe("/pawlegends/play page", () => {
     expect(replace).toHaveBeenCalledWith("/game");
   });
 
-  it("the terms page describes the $5 cat, the withdrawal notice, age limits and a contact; no retired packs", () => {
+  it("the terms page: store items and the pass, the withdrawal notice, age limits, the operator and a contact; no cat sale", () => {
     render(<PawlegendsTermsPage />);
     const text = screen.getByTestId("pawlegends-terms").textContent ?? "";
-    expect(text).toMatch(/for \$5\./);
-    expect(text).toMatch(/Companion Kitten/);
+    expect(text).toMatch(/store items/);
     expect(text).toMatch(/14-day withdrawal right/);
-    expect(text).toMatch(/lose this 14-day withdrawal right once the cat is\s+delivered/);
+    expect(text).toMatch(/lose this 14-day withdrawal right\s+once the item is delivered/);
+    // NO-TOKENTAILS.md: no named cat for sale, no Meet card; the operator is named once, where the law needs it
+    expect(text).not.toMatch(/\$5|Companion Kitten|Meet|named cat|card skin/);
+    expect(text.match(/Token Tails/g)).toEqual(["Token Tails"]);
+    expect(text).toContain("operated by Token Tails MB");
     expect(text).not.toMatch(/Starter|Founder|500|pack|MVP|2027-06-30/i);
     expect(text).toMatch(/€30/);
     expect(text).toMatch(/€200/);
@@ -325,25 +289,22 @@ describe("/pawlegends/play page", () => {
 });
 
 describe("PawlegendsHost: shell", () => {
-  it("posts only to its own origin; the checkout is reachable on the web; the game's exit goes to /game", async () => {
+  it("posts only to its own origin; the store is reachable on the web; an older build's exit leaves nowhere", async () => {
     const h = await mount();
     expect(h.origins.every((o) => o === window.location.origin)).toBe(true);
     expect(h.last("app")).toEqual({ ns: PAWLEGENDS_NS, v: 1, type: "app", isApp: false, store: true, notify: true });
     expect(h.last("session")).toMatchObject({ signedIn: false, progress: null });
-    // UX pass 2: no host close button over the game; the lobby's "Games" button posts `exit`
+    // no host close button over the game, and NO-TOKENTAILS.md: no way out to the Token Tails games hub
     expect(screen.queryByRole("button", { name: "Back to games" })).toBeNull();
     expect(screen.queryByTestId("pawlegends-exit")).toBeNull();
-    expect(h.navigate).not.toHaveBeenCalled();
     h.fromGame({ type: "exit" });
-    expect(h.navigate).toHaveBeenCalledWith("/game");
+    expect(h.navigate).not.toHaveBeenCalled();
     expect(eventNames()).toContain("pawlegends_open");
   });
 
-  it("counts sessions and strips ?from=picker after reporting it", async () => {
+  it("strips ?from=picker after reporting it", async () => {
     mockRouter.query = { from: "picker" };
-    window.localStorage.setItem(PAWLEGENDS_SESSIONS_KEY, "4");
     await mount();
-    expect(window.localStorage.getItem(PAWLEGENDS_SESSIONS_KEY)).toBe("5");
     expect(replace).toHaveBeenCalledWith({ pathname: "/pawlegends/play", query: {} }, undefined, { shallow: true, scroll: false });
   });
 
@@ -382,7 +343,7 @@ describe("PawlegendsHost: shell", () => {
     jest.useFakeTimers();
     try {
       mockTrack.mockClear();
-      render(<PawlegendsHost api={fakeApi()} navigate={jest.fn()} isApp={false} loadStorefront={jest.fn(async () => null)} pollMs={0} />);
+      render(<PawlegendsHost api={fakeApi()} navigate={jest.fn()} isApp={false} pollMs={0} />);
       act(() => {
         jest.advanceTimersByTime(PAWLEGENDS_HELLO_TIMEOUT_MS + 3_000);
       });
@@ -441,7 +402,6 @@ describe("PawlegendsHost: shell", () => {
   it("answers a deprecated purchase-intent with the legacy refusal and opens nothing", async () => {
     const h = await mount();
     h.fromGame({ type: "purchase-intent", sku: "pl_founder" });
-    expect(screen.queryByTestId("pawlegends-cat-sheet")).toBeNull();
     expect(h.last("purchase-result")).toMatchObject({ sku: "pl_founder", ok: false });
   });
 
@@ -638,106 +598,55 @@ describe("PawlegendsHost: account and saves", () => {
   });
 });
 
-describe("PawlegendsHost: cards and the Meet checkout", () => {
+describe("PawlegendsHost: no Token Tails cat feed (NO-TOKENTAILS.md)", () => {
   const owned = [
-    {
-      _id: "mine1",
-      name: "Mochi",
-      type: "FIRE",
-      tier: "RARE",
-      isStarter: false,
-      origin: "adopt",
-      owner: "uid-1",
-      catImg: ART,
-      sourceCat: "65a1b2c3d4e5f6a7b8c9d0ff",
-    },
-    { _id: "mine2", name: "Packy", type: "ICE", tier: "EPIC", origin: "pack", owner: "uid-1" },
+    { _id: "mine1", name: "Mochi", type: "FIRE", tier: "RARE", isStarter: false, origin: "adopt", owner: "uid-1", catImg: ART, sourceCat: "65a1b2c3d4e5f6a7b8c9d0ff" },
     { _id: "mine3", name: "Scout", type: "WATER", tier: "COMMON", isStarter: true, origin: "starter", owner: "uid-1" },
   ];
+  const CHAMPS = { cats: [{ catalogId: CAT_A, forSale: true, cat: { _id: CAT_A, name: "Lambo", type: "STELLAR", tier: "RARE", catImg: ART, blessing: { _id: "b1", status: "WAITING" } } }] };
 
-  it("sends the owned cats with art and catalog id, and two unowned featured cats", async () => {
+  it("sends no roster, featured cats or Meet offer; the champions carry art only, never for sale", async () => {
+    window.localStorage.setItem(PAWLEGENDS_SESSIONS_KEY, "5");
+    mockAuth.mockReturnValue(account());
+    mockProfile.mockReturnValue({ profile: { cats: owned } });
+    const api = fakeApi({ champions: jest.fn(async () => ({ ok: true, status: 200, code: null, message: null, body: CHAMPS })) });
+    const h = await mount({ api });
+    expect(h.all("roster")).toHaveLength(0);
+    expect(h.all("featured")).toHaveLength(0);
+    expect(h.all("offer")).toHaveLength(0);
+    expect(api.offer).not.toHaveBeenCalled();
+    expect(h.last("champions")).toEqual({ ns: PAWLEGENDS_NS, v: 1, type: "champions", cats: [{ catalogId: CAT_A, forSale: false, catImg: ART }] });
+  });
+
+  it("an older game's open-cat, offer-seen, champion-offer and skin-preview open nothing and ask nothing", async () => {
     mockAuth.mockReturnValue(account());
     mockProfile.mockReturnValue({ profile: { cats: owned } });
     const h = await mount();
-    const roster = h.last("roster") as { cats: Record<string, unknown>[] };
-    expect(roster.cats[0]).toMatchObject({ id: "mine3", isStarter: true });
-    expect(roster.cats.find((c) => c.id === "mine1")).toEqual({
-      id: "mine1",
-      name: "Mochi",
-      type: "FIRE",
-      tier: "RARE",
-      isStarter: false,
-      origin: "adopt",
-      art: ART,
-      catalogId: "65a1b2c3d4e5f6a7b8c9d0ff",
-    });
-    expect((h.last("featured") as { cats: unknown[] }).cats).toEqual([
-      expect.objectContaining({ catalogId: expect.any(String), art: ART }),
-      expect.objectContaining({ catalogId: expect.any(String) }),
-    ]);
-  });
-
-  it("asks for the session's one offer with the featured ids, sends it after featured, and records offer-seen", async () => {
-    window.localStorage.setItem(PAWLEGENDS_SESSIONS_KEY, "1");
-    const h = await mount();
-    expect(h.api.offer).toHaveBeenCalledWith(
-      expect.objectContaining({ session: 2, catalogIds: expect.arrayContaining([CAT_A, CAT_B]), deviceId: expect.any(String) })
-    );
-    expect(h.last("offer")).toEqual({ ns: PAWLEGENDS_NS, v: 1, type: "offer", offer: { kind: "meet", catalogId: CAT_A } });
-    h.fromGame({ type: "offer-seen", kind: "meet", catalogId: CAT_A });
-    expect(h.api.offerSeen).toHaveBeenCalledWith(expect.objectContaining({ session: 2, catalogId: CAT_A }));
-  });
-
-  it("an offer for a cat outside the featured list is never sent", async () => {
-    const h = await mount({ api: fakeApi({ offer: jest.fn(async () => ({ ok: true, status: 200, code: null, message: null, body: { offer: { kind: "meet", catalogId: "65a1b2c3d4e5f6a7b8c9d0ee" } } })) }) });
-    expect(h.all("offer")).toHaveLength(0);
-  });
-
-  it("open-cat signed out asks for an account first; signed in opens the sheet; a purchase answers ok and a fresh roster", async () => {
-    const auth = account({ user: null, authStatus: "signed-out", requireAccount: jest.fn(async () => "dismissed") });
-    mockAuth.mockReturnValue(auth);
-    const h = await mount();
     h.fromGame({ type: "open-cat", catalogId: CAT_A });
+    h.fromGame({ type: "offer-seen", kind: "meet", catalogId: CAT_A });
+    h.fromGame({ type: "champion-offer", catalogId: CAT_A });
+    h.fromGame({ type: "skin-preview", catalogId: CAT_A });
     await settle();
-    expect(auth.requireAccount).toHaveBeenCalledWith("purchase");
-    expect(screen.queryByTestId("pawlegends-cat-sheet")).toBeNull();
-    expect(h.last("purchase-result")).toMatchObject({ catalogId: CAT_A, ok: false });
-
-    mockAuth.mockReturnValue(account());
-    mockProfile.mockReturnValue({ profile: { cats: [] } });
-    cleanup();
-    const h2 = await mount();
-    h2.fromGame({ type: "open-cat", catalogId: CAT_A });
-    await settle();
-    expect(screen.getByTestId("pawlegends-cat-sheet").getAttribute("data-cat")).toBe(CAT_A);
-    fireEvent.click(screen.getByText("stub-buy"));
-    expect(h2.last("purchase-result")).toEqual({ ns: PAWLEGENDS_NS, v: 1, type: "purchase-result", catalogId: CAT_A, ok: true });
-    const order = h2.posted.map((m) => m.type);
-    expect(order.lastIndexOf("roster")).toBeGreaterThan(order.lastIndexOf("purchase-result"));
-    expect((h2.last("roster") as { cats: Record<string, unknown>[] }).cats).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: "mine-new", catalogId: CAT_A })])
-    );
-    expect(eventNames()).toEqual(expect.arrayContaining(["pawlegends_meet_open", "pawlegends_cat_purchase"]));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(h.api.offer).not.toHaveBeenCalled();
+    expect(h.api.offerSeen).not.toHaveBeenCalled();
+    expect(h.all("purchase-result")).toHaveLength(0);
+    expect(eventNames()).not.toEqual(expect.arrayContaining(["pawlegends_meet_open"]));
   });
 
-  it("closing the sheet without buying answers ok:false", async () => {
-    mockAuth.mockReturnValue(account());
-    mockProfile.mockReturnValue({ profile: { cats: [] } });
-    const h = await mount();
-    h.fromGame({ type: "open-cat", catalogId: CAT_B });
-    await settle();
-    fireEvent.click(screen.getByText("stub-close"));
-    expect(screen.queryByTestId("pawlegends-cat-sheet")).toBeNull();
-    expect(h.last("purchase-result")).toMatchObject({ catalogId: CAT_B, ok: false });
-  });
-
-  it("open-cat for an unknown cat does nothing", async () => {
-    mockAuth.mockReturnValue(account());
-    mockProfile.mockReturnValue({ profile: { cats: [] } });
-    const h = await mount();
-    h.fromGame({ type: "open-cat", catalogId: "65a1b2c3d4e5f6a7b8c9d0ee" });
-    await settle();
-    expect(screen.queryByTestId("pawlegends-cat-sheet")).toBeNull();
+  it("the loading banners lead back to the Paw Legends landing, never the Token Tails games", async () => {
+    jest.useFakeTimers();
+    try {
+      render(<PawlegendsHost api={fakeApi()} navigate={jest.fn()} isApp={false} pollMs={0} />);
+      act(() => {
+        jest.advanceTimersByTime(PAWLEGENDS_HELLO_TIMEOUT_MS + 10);
+      });
+      const out = screen.getByTestId("pawlegends-timeout-exit");
+      expect(out.getAttribute("href")).toBe("/pawlegends");
+      expect(screen.getByTestId("pawlegends-timeout").textContent).not.toMatch(/token ?tails|games/i);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("notify opens the season-news form and posts the email", async () => {
@@ -749,20 +658,16 @@ describe("PawlegendsHost: cards and the Meet checkout", () => {
     expect((screen.getByTestId("pawlegends-notify-email") as HTMLInputElement).value).toBe("cat@example.com");
     const privacy = screen.getByTestId("pawlegends-notify-privacy");
     const hrefs = Array.from(privacy.querySelectorAll("a")).map((a) => a.getAttribute("href"));
-    expect(hrefs).toEqual([
-      "mailto:info@tokentails.com",
-      "https://docs.tokentails.com/community-and-social-impact/privacy-policy",
-      "/pawlegends/terms",
-    ]);
+    expect(hrefs).toEqual(["mailto:info@tokentails.com", "https://pawlegends.app/privacy", "/pawlegends/terms"]);
+    expect(privacy.textContent).not.toMatch(/token ?tails keeps/i);
     await act(async () => {
       fireEvent.click(screen.getByTestId("pawlegends-notify-send"));
     });
     expect(h.api.notify).toHaveBeenCalledWith("cat@example.com", "results");
   });
 
-  it("app builds: no checkout, no featured cats, no offer, open-cat dropped, starter and redeemed cats only", async () => {
+  it("app builds: no checkout, no offer, no cat feed", async () => {
     window.localStorage.setItem(PAWLEGENDS_TOKEN_KEY, TOKEN);
-    window.localStorage.setItem(PAWLEGENDS_SESSIONS_KEY, "5");
     mockAuth.mockReturnValue(account());
     mockProfile.mockReturnValue({ profile: { cats: owned } });
     const api = fakeApi();
@@ -770,15 +675,10 @@ describe("PawlegendsHost: cards and the Meet checkout", () => {
     expect(api.status).not.toHaveBeenCalled();
     expect(api.refresh).not.toHaveBeenCalled();
     expect(api.offer).not.toHaveBeenCalled();
-    expect(h.loadStorefront).not.toHaveBeenCalled();
     expect(h.last("app")).toMatchObject({ isApp: true, store: false, notify: false });
     expect(h.last("entitlements")).toMatchObject({ token: null });
-    expect((h.last("featured") as { cats: unknown[] }).cats).toEqual([]);
-    expect(h.all("offer").every((m) => m.offer === null)).toBe(true);
-    expect((h.last("roster") as { cats: { id: string }[] }).cats.map((c) => c.id)).toEqual(["mine3"]);
-    h.fromGame({ type: "open-cat", catalogId: CAT_A });
-    await settle();
-    expect(screen.queryByTestId("pawlegends-cat-sheet")).toBeNull();
+    expect(h.all("roster")).toHaveLength(0);
+    expect(h.all("featured")).toHaveLength(0);
   });
 });
 

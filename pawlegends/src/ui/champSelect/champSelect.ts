@@ -32,7 +32,6 @@ import { laneHint } from '../pingText';
 import { cardAttrs, heroElement, heroPic } from '../cards/el';
 import { DIFFICULTY_NAME, HERO_DIFFICULTY } from '../champBrowser/meta';
 import type { SkillSlot } from '../skillCodex/facts';
-import type { CatTier } from '../../meta/roster';
 import { ROLE_ICON, ROLE_NAME, ROLE_ORDER, SIDE_TAB_CSS, isNewHero } from './roles';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -68,14 +67,8 @@ export interface TileState {
   blocked?: boolean;
   /** "New? Try this" (a new player's easy hero). */
   tryThis?: boolean;
-  /** The worn card's cat name (lobby spec §3b): the tile says it, the hero underneath in the label. */
-  cardName?: string | null;
   /** A teammate hovers it: their seat index (a corner dot). */
   mate?: number;
-  /** The worn card's rung: a 2 px border in the rarity colour (the card-skin foil). */
-  rung?: CatTier | null;
-  /** Web only: the player owns this shelter champion's Token Tails card (a "Card" badge; cosmetic only). */
-  owned?: string | null;
   /** CHAMPION-STORE.md §10: a short champion badge ("Free" this week). */
   champTag?: string | null;
 }
@@ -294,21 +287,21 @@ function tileHtml(m: CsModel, h: HeroId, focusH: HeroId | null): string {
   const st = m.tile?.(h) ?? {};
   const on = h === m.selected;
   const show = passesFilter(h, m.sideTabs ? ui.side : 'all', ui.role);
-  const name = st.cardName ?? t.title;
-  const label = st.cardName ? `${st.cardName}: ${t.title}, ${t.side} ${t.role}` : `${t.title}, ${t.side} ${t.role}`;
+  const name = t.title;
+  const label = `${t.title}, ${t.side} ${t.role}`;
   const why = st.taken ? `Taken: ${st.taken}` : (st.locked ?? '');
   const party = m.kind === 'party' ? ` data-p="hero" data-v="${h}" data-testid="party-hero-${h}"` : '';
   const dis = st.disabled ? ' disabled aria-disabled="true"' : st.blocked ? ' aria-disabled="true" data-blocked="1"' : '';
   const cls = `cs-tile${on ? ' on' : ''}${st.taken ? ' taken' : ''}${st.locked ? ' locked' : ''}`;
   const badges = [
     `<i class="cs-sb ${HEROES[h].side}" style="--side:${SIDE_TAB_CSS[HEROES[h].side]}" aria-hidden="true">${icon(SIDE_ICON[HEROES[h].side])}</i>`,
-    isNewHero(h) ? '<span class="cs-new new-tag">New</span>' : st.owned ? `<span class="cs-new champ-owned" title="${esc(`From ${st.owned}'s card`)}">Card</span>` : st.champTag && !st.locked ? `<span class="cs-new champ-free">${esc(st.champTag)}</span>` : '',
+    isNewHero(h) ? '<span class="cs-new new-tag">New</span>' : st.champTag && !st.locked ? `<span class="cs-new champ-free">${esc(st.champTag)}</span>` : '',
     st.locked && !st.taken ? '<span class="cs-lk" aria-hidden="true">🔒</span>' : '',
     st.taken ? `<span class="cs-taken pp-taken">${esc(`Taken: ${st.taken}`)}</span>` : '',
     st.tryThis && !st.taken && !st.locked ? '<span class="cs-try pp-try">New? Try this</span>' : '',
     st.mate !== undefined ? `<i class="cs-mate" data-mate="${st.mate}" aria-hidden="true"></i>` : '',
   ].join('');
-  return `<button type="button" class="${cls}" data-h="${h}" data-side="${HEROES[h].side}" data-role="${HEROES[h].role}"${isNewHero(h) ? ' data-new="1"' : ''}${name.length > 9 ? ' data-long="1"' : ''}${st.taken ? ' data-taken="1"' : ''}${st.rung ? ` data-rung="${st.rung}"` : ''}${party} aria-pressed="${on}" aria-label="${esc(why ? `${label}. ${why}` : label)}" tabindex="${h === focusH ? 0 : -1}"${show ? '' : ' hidden'}${dis} style="--hero:${HERO_COLOR_CSS[h]}">${face(h, m.portrait ? m.portrait(h) : undefined, ' cs-face')}<span class="cs-tn">${esc(name)}</span>${badges}</button>`;
+  return `<button type="button" class="${cls}" data-h="${h}" data-side="${HEROES[h].side}" data-role="${HEROES[h].role}"${isNewHero(h) ? ' data-new="1"' : ''}${name.length > 9 ? ' data-long="1"' : ''}${st.taken ? ' data-taken="1"' : ''}${party} aria-pressed="${on}" aria-label="${esc(why ? `${label}. ${why}` : label)}" tabindex="${h === focusH ? 0 : -1}"${show ? '' : ' hidden'}${dis} style="--hero:${HERO_COLOR_CSS[h]}">${face(h, m.portrait ? m.portrait(h) : undefined, ' cs-face')}<span class="cs-tn">${esc(name)}</span>${badges}</button>`;
 }
 
 function dots(h: HeroId): string {

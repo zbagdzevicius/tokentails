@@ -3,11 +3,11 @@
  * (client/components/pawlegends/PawlegendsHost.tsx), for the native app, which has no Next page. It runs the web
  * host's own bridge (`createPawlegendsBridge`) over the same-window channel (channel.ts) and reuses the web host's
  * React-free modules: the save queue (`PawlegendsSaver`, the one write path `POST /user/catbassadors/live`), party
- * tickets and party saves, the game's API ops (`PawlegendsApi`), the roster rules for app builds (`rosterOf(cats,
- * true)`: starter and redeemed cats only), the champions' cards (never for sale here) and the store state.
+ * tickets and party saves, the game's API ops (`PawlegendsApi`), the champions' art (never for sale) and the store
+ * state. No `roster`: Paw Legends shows no Token Tails cats (docs/plans/moba/NO-TOKENTAILS.md).
  *
  * - `hello` → `app {isApp: true, store: false, notify: false}`, `session {signedIn, progress, name, provider}`,
- *   `roster`, `champions`, `store`.
+ *   `champions`, `store`.
  * - `request-sign-in`, `account {sign-in}` → the native sign-in sheet (sheet.ts); a guest is linked (same uid) or,
  *   when the identity already has an account, the player is asked before the guest's progress is merged
  *   (`POST /user/guest/merge`, which runs `mergeStoreProgress` server side). Matches played on this device without
@@ -21,15 +21,13 @@
  * - Offline and signed out, nothing is created and nothing is sent: matches wait on the device.
  */
 import { claimQuestion } from "@/components/pawlegends/claim";
-import { championsOf } from "@/components/pawlegends/championsBridge";
+import { championArtOf } from "@/components/pawlegends/championsBridge";
 import { createPawlegendsBridge, storeStateOf, type PawlegendsBridge, type PawlegendsReplay, type PawlegendsSignInReason } from "@/components/pawlegends/bridge";
 import { PawlegendsApi as GameApi } from "@/components/pawlegends/apiBridge";
 import { PartySaves, PartyTickets } from "@/components/pawlegends/partySaves";
-import { rosterOf } from "@/components/pawlegends/rosterBridge";
 import { PawlegendsSaver } from "@/components/pawlegends/saves";
 import { profileAfterSave, progressFromProfile, type PawlegendsLiveAnswer, type PawlegendsProfileFields } from "@/components/pawlegends/session";
 import { clearLastMethod, rememberLastMethod } from "@/context/auth/lastMethod";
-import type { ICat } from "@/models/cats";
 import type { QueueStorage } from "@/components/heist/heistSaves";
 import type { MatchSaveResult, PartyTicketResult } from "@/api/user-api";
 import type { ApiAnswer, HostApi } from "./api";
@@ -74,7 +72,6 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
   const online = deps.online ?? (() => (typeof navigator === "undefined" ? true : navigator.onLine !== false));
   let profile: Profile | null = null;
   let profileUid: string | null = null;
-  let rosterSent = false;
   let championsBody: unknown = null;
   let lastUid: string | null | undefined;
   let signInOpen = false;
@@ -174,12 +171,7 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
     const known = signedIn && !!profile && !profile.transient && profileUid === user()?.uid;
     const name = known && typeof profile?.name === "string" ? profile.name : null;
     bridge.setSession(signedIn, known ? progressFromProfile(profile) : null, name, signedIn ? providerOf(user()) : null);
-    const cats = known && Array.isArray(profile?.cats) ? (profile!.cats as ICat[]) : [];
-    if (signedIn || rosterSent) {
-      bridge.setRoster(rosterOf(cats, true));
-      rosterSent = true;
-    }
-    if (championsBody) bridge.setChampions(championsOf(championsBody, cats, true).cards);
+    if (championsBody) bridge.setChampions(championArtOf(championsBody));
   };
 
   const refreshProfile = async (): Promise<void> => {
@@ -340,7 +332,7 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
     if (!u || u.isAnonymous) return "cancelled";
     const yes = await ui.ask({
       title: "Delete your account?",
-      text: "Your sign-in is deleted, your Token Tails profile is anonymised and your cats go back to the shelter pool. This cannot be undone.",
+      text: "Your sign-in is deleted and your profile is anonymised. This cannot be undone.",
       fine: "The game keeps working without an account. Matches on this phone stay on this phone.",
       yes: "Delete forever",
       no: "Keep my account",

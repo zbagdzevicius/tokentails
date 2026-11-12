@@ -399,6 +399,11 @@ The relay carries each member's `av` in the party view, so `partyLoading`, `vs.t
 
 ### 7.4 Rendering (`src/ui/avatar.ts`, new)
 
+> **Parked 2026-11-12: no Token Tails in Paw Legends** ([NO-TOKENTAILS.md](NO-TOKENTAILS.md)). The founder dropped the
+> "Your cats become skins" feature. The game no longer reads the host's roster, featured cats or Meet offer, and the
+> host no longer sends them. The avatar picker offers champions only (no "My cats" tab);
+> a cat avatar chosen earlier keeps rendering (server data, Your call 4).
+
 - **Hero icons:** the existing runtime portrait renderer where a renderer exists (match screens); menus draw a CSS medallion with the hero's colour and initial, so no WebGL renderer and no `portraits.ts` LRU slot is used for lists. A baked `assets/avatars/hero/<heroId>.webp` set is a follow-up (§11).
 - **Cat icons:** the card art URL, center-cropped in CSS, with a lazy `<img loading="lazy" decoding="async">`, bucket host only.
 - **Borders:** CSS only, a ring coloured per frame id. No new image per frame.

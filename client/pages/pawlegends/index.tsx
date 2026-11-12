@@ -16,8 +16,10 @@ import { useEffect } from "react";
  * `/pawlegends/play` and the terms stay out). Same share card as the game (`public/pawlegends/og.jpg`).
  */
 export const PAWLEGENDS_LANDING_SEO = Object.freeze({
-  title: `${PAWLEGENDS_TITLE}: Cats vs Dogs - Token Tails`,
-  description: `${PAWLEGENDS_TITLE} is a free 3v3 cats vs dogs game by Token Tails. ${liveRoster().length} heroes; play solo or with up to two friends against bots, right in your browser on desktop or phone.`,
+  // NO-TOKENTAILS.md: the share card and tab name Paw Legends, not the site
+  siteName: PAWLEGENDS_TITLE,
+  title: `${PAWLEGENDS_TITLE}: Cats vs Dogs`,
+  description: `${PAWLEGENDS_TITLE} is a free 3v3 cats vs dogs game. ${liveRoster().length} heroes; play solo or with up to two friends against bots, right in your browser on desktop or phone.`,
   path: PAWLEGENDS_LANDING_PATH,
   image: Object.freeze({
     url: "/pawlegends/og.jpg",

@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { DEMO_ROSTER } from '../../src/app/skinDemo';
+import { DEMO_ROSTER } from '../../tools/fixtures/demoRoster';
 import { parseRoster, type CatTier } from '../../src/meta/roster';
 import { PAID_COATS } from '../../src/render/cosmetics';
 import { CARD_MAX, CardVfx } from '../../src/render/skins/cardFx';

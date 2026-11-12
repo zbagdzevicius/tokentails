@@ -1,5 +1,5 @@
 /**
- * Pawlegends host helpers (POC.md §8, §11): kill-switch-only flags, the roster from the player's cats, and the
+ * Pawlegends host helpers (POC.md §8, §11): kill-switch-only flags and the
  * store helpers (currency, return query, storage that may throw, no price in a checkout request).
  */
 import {
@@ -22,10 +22,6 @@ import {
   pawlegendsFrameSrc,
   pawlegendsPickerEnabled,
 } from "@/components/pawlegends/flags";
-import {
-  PAWLEGENDS_ROSTER_MAX,
-  rosterOf,
-} from "@/components/pawlegends/rosterBridge";
 
 const memoryStorage = () => {
   const map = new Map<string, string>();
@@ -90,75 +86,6 @@ describe("pawlegends flags (kill switches only)", () => {
     for (const bad of ["?dare=", "?dare=abc", "?dare=9ix.0.0.3.c0", "?dare=9IX.0.0.1.c0", "?dare=9ix.0.0.1.c0%26embed%3D0", "?dare=<script>", `?dare=${"1".repeat(8)}.0.0.1.0`]) {
       expect(pawlegendsFrameSrc(bad)).toBe(PAWLEGENDS_FRAME_SRC);
     }
-  });
-});
-
-describe("rosterOf", () => {
-  it("keeps valid cats only, starters first, known fields only", () => {
-    const roster = rosterOf([
-      {
-        _id: "a1",
-        name: "Biscuit",
-        type: "FIRE",
-        tier: "RARE",
-        origin: "pack",
-        owner: "uid",
-      },
-      {
-        _id: "s1",
-        name: "  Scout\n",
-        type: "WATER",
-        tier: "COMMON",
-        isStarter: true,
-        origin: "starter",
-        starterBreed: "SCOUT",
-      },
-      { _id: "bad", name: "No type", tier: "RARE" },
-      { _id: "a1", name: "Duplicate", type: "FIRE", tier: "RARE" },
-      { _id: "x<y", name: "Bad id", type: "FIRE", tier: "RARE" },
-      {
-        _id: "o1",
-        name: "Odd",
-        type: "FIRE",
-        tier: "RARE",
-        origin: "stolen",
-        starterBreed: "DRAGON",
-      },
-      null,
-    ]);
-    expect(roster).toEqual([
-      {
-        id: "s1",
-        name: "Scout",
-        type: "WATER",
-        tier: "COMMON",
-        isStarter: true,
-        origin: "starter",
-        starterBreed: "SCOUT",
-      },
-      {
-        id: "a1",
-        name: "Biscuit",
-        type: "FIRE",
-        tier: "RARE",
-        isStarter: false,
-        origin: "pack",
-      },
-      { id: "o1", name: "Odd", type: "FIRE", tier: "RARE", isStarter: false },
-    ]);
-  });
-
-  it("caps the list and cuts long names", () => {
-    const cats = Array.from({ length: 40 }, (_, i) => ({
-      _id: `c${i}`,
-      name: "N".repeat(50),
-      type: "ICE",
-      tier: "EPIC",
-    }));
-    const roster = rosterOf(cats);
-    expect(roster).toHaveLength(PAWLEGENDS_ROSTER_MAX);
-    expect(roster[0].name).toHaveLength(32);
-    expect(rosterOf(null)).toEqual([]);
   });
 });
 

@@ -25,7 +25,7 @@ test('Share falls back to Copy when navigator.share is missing ("Link copied", t
   const code = await createParty(a);
   await a.page.locator('[data-testid="party-share"]').click();
   await expect(a.page.locator('.pp-notes')).toContainText('Link copied');
-  expect(await a.page.evaluate(() => navigator.clipboard.readText())).toBe(`https://tokentails.com/pawlegends?party=${code}`);
+  expect(await a.page.evaluate(() => navigator.clipboard.readText())).toBe(`https://pawlegends.app/?party=${code}`);
 });
 
 test('an unknown code: "No party with that code" with Play now (a solo match) and Start your own party', async ({ browser }) => {

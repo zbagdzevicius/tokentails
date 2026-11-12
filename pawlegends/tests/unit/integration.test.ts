@@ -194,88 +194,33 @@ describe('mounted cards', () => {
     expect(loadProfile().unlocks).toContain(BISCUIT_UNLOCK);
     const t2 = h.screen('title');
     expect(t2.querySelector('[data-a="save-wins"]')).toBeNull();
-    expect(t2.querySelector('.plc-level[data-level="easy"]')?.textContent).toContain('20 catnip');
-    expect(t2.querySelector('.plc-level[data-level="normal"]')?.textContent).toContain('+40 catnip');
+    // NO-TOKENTAILS.md (Your call 2): catnip is never named in the game; the chips show times and badges
+    expect(t2.querySelector('.plc-level[data-level="easy"]')?.textContent).toContain('best 4:31');
+    expect(t2.querySelector('.plc-level[data-level="normal"]')?.textContent).toContain('First win: badge');
+    expect(t2.textContent).not.toMatch(/catnip/i);
   });
 
-  it('Meet card: session 2, lobby, once; offer-seen once, then open-cat', () => {
+  it('NO-TOKENTAILS.md: an older host\'s roster, featured cats, Meet offer and cat purchase render nothing', () => {
     const h = harness();
     h.emit(featured);
     h.emit({ type: 'offer', offer: { kind: 'meet', catalogId: CAT_A } });
-    const t = h.screen('title');
-    const card = t.querySelector<HTMLElement>('.plc-meet');
-    expect(card?.dataset.catalog).toBe(CAT_A);
-    expect(card?.textContent).not.toMatch(/\$|€|price|shelter|donat|pack/i);
-    h.integ.refresh(); // a redraw keeps the same card and does not re-send offer-seen
-    expect(h.posted.filter((m) => m.type === 'offer-seen')).toEqual([{ type: 'offer-seen', payload: { kind: 'meet', catalogId: CAT_A } }]);
-    t.querySelector<HTMLElement>('[data-a="meet"]')!.click();
-    expect(h.posted).toContainEqual({ type: 'open-cat', payload: { catalogId: CAT_A } });
-    // leaving the lobby ends the card; one per session, so the results screen shows none
-    h.screen('pick');
-    const r = h.screen('results', true);
-    expect(r.querySelector('.plc-meet')).toBeNull();
-    expect(h.posted.filter((m) => m.type === 'offer-seen')).toHaveLength(1);
-  });
-
-  it('no Meet card in session 1, in app builds, or for a cat the host did not feature', () => {
-    const s1 = harness({ sessions: 1 });
-    s1.emit(featured);
-    s1.emit({ type: 'offer', offer: { kind: 'meet', catalogId: CAT_A } });
-    expect(s1.screen('title').querySelector('.plc-meet')).toBeNull();
-
-    const app = harness();
-    app.emit({ type: 'app', isApp: true, store: true });
-    app.emit(featured);
-    app.emit({ type: 'offer', offer: { kind: 'meet', catalogId: CAT_A } });
-    expect(app.screen('title').querySelector('.plc-meet')).toBeNull();
-    expect(app.screen('pick').querySelector('.plc-card.guest')).toBeNull();
-    expect(app.posted.some((m) => m.type === 'offer-seen' || m.type === 'open-cat')).toBe(false);
-
-    const other = harness();
-    other.emit({ type: 'featured', cats: [{ catalogId: CAT_B, name: 'Nova', type: 'STELLAR' }] });
-    other.emit({ type: 'offer', offer: { kind: 'meet', catalogId: CAT_A } });
-    expect(other.screen('title').querySelector('.plc-meet')).toBeNull();
-  });
-
-  it('no Meet card on the results after a Rookie match (fun plan F4); an Easy win may show it', () => {
-    const rookie = harness();
-    rookie.emit(featured);
-    rookie.emit({ type: 'offer', offer: { kind: 'meet', catalogId: CAT_A } });
-    rookie.integ.nextMatchId({ ticks: 9000, difficulty: 'rookie', won: true });
-    expect(rookie.screen('results', true).querySelector('.plc-meet')).toBeNull();
-    expect(rookie.posted.some((m) => m.type === 'offer-seen')).toBe(false);
-
-    const easy = harness();
-    easy.emit(featured);
-    easy.emit({ type: 'offer', offer: { kind: 'meet', catalogId: CAT_A } });
-    easy.integ.nextMatchId({ ticks: 9000, difficulty: 'easy', won: true });
-    expect(easy.screen('results', true).querySelector<HTMLElement>('.plc-meet')?.dataset.catalog).toBe(CAT_A);
-  });
-
-  it('pick shows your squad with art; a purchase result celebrates the new cat', () => {
-    const h = harness();
-    h.emit(featured);
-    const guestPick = h.screen('pick');
-    expect(guestPick.querySelector('.plc-card.guest')?.textContent).toContain('Pumpkin');
-    h.emit({ type: 'purchase-result', catalogId: CAT_A, ok: true });
     h.emit({
       type: 'roster',
-      cats: [{ id: 'c1', name: 'Pumpkin', type: 'GRASS', tier: 'COMMON', isStarter: false, origin: 'adopt', catalogId: CAT_A, art: 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/a.png' }],
+      cats: [{ id: 'c1', name: 'Pumpkin', type: 'GRASS', tier: 'COMMON', isStarter: false, origin: 'adopt', catalogId: CAT_A, art: ART('pumpkin') }],
     });
-    const pick = h.screen('pick');
-    const card = pick.querySelector<HTMLElement>('.plc-card');
-    expect(card?.textContent).toContain('Pumpkin');
-    expect(card?.querySelector('img')?.getAttribute('src')).toBe('https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/a.png');
-    expect(pick.querySelector('.plc-card.guest')).toBeNull();
-    // pick → title: the joined line has gone with the screen change (it shows on the title right after the purchase)
-    const h2 = harness();
-    h2.emit(featured);
-    h2.screen('title');
-    h2.emit({ type: 'purchase-result', catalogId: CAT_B, ok: true });
-    expect(h2.root.querySelector('.plc-joined')?.textContent).toContain('Nova');
+    h.emit({ type: 'purchase-result', catalogId: CAT_B, ok: true });
+    h.emit({ type: 'session', signedIn: true, progress: progress() });
+    for (const kind of ['title', 'pick', 'results'] as const) {
+      const el = h.screen(kind, true);
+      expect(el.querySelector('.plc-meet, .plc-squad, .plc-joined, .plc-pick, .plc-card, .plc-with, .plc-bench'), kind).toBeNull();
+      expect(el.textContent ?? '', kind).not.toMatch(/token ?tails|squad|pumpkin|nova|meet /i);
+    }
+    expect(h.posted.some((m) => ['offer-seen', 'open-cat', 'champion-offer', 'skin-preview'].includes(m.type))).toBe(false);
+    expect(h.integ.state()).not.toHaveProperty('roster');
+    expect(h.integ.state()).not.toHaveProperty('featured');
   });
 
-  it('results: the save chip follows the match id, counts up the catnip, and offers sign-in when queued', () => {
+  it('results: the save chip follows the match id (no catnip shown), and offers sign-in when queued', () => {
     const h = harness();
     h.emit({ type: 'session', signedIn: true, progress: progress() });
     const id = h.integ.nextMatchId();
@@ -285,7 +230,8 @@ describe('mounted cards', () => {
     expect(r.querySelector('[data-save]')?.getAttribute('data-save')).toBe('waiting');
     h.emit({ type: 'save-result', matchId: id, status: 'saved', catnipPaid: 20, catnipTotal: 20, fastestWin: 8000 });
     expect(r.querySelector('[data-save]')?.getAttribute('data-save')).toBe('saved');
-    expect(r.querySelector('.plc-catnip')).toBeTruthy();
+    expect(r.querySelector('.plc-catnip')).toBeNull();
+    expect(r.textContent).not.toMatch(/catnip/i);
     expect(r.querySelector('.plc-stamp')?.textContent).toBe('New fastest!');
 
     const g = harness();
@@ -299,7 +245,7 @@ describe('mounted cards', () => {
   });
 
   it('game messages match the shared fixture shapes', () => {
-    for (const t of ['request-sign-in', 'open-cat', 'offer-seen'] as const) {
+    for (const t of ['request-sign-in'] as const) {
       const keys = Object.keys(FIX.gameToHost[t].valid).filter((k) => !['ns', 'v', 'type'].includes(k)).sort();
       const h = harness();
       h.emit(featured);
@@ -307,7 +253,6 @@ describe('mounted cards', () => {
       h.emit({ type: 'session', signedIn: false });
       const tEl = h.screen('title');
       tEl.querySelector<HTMLElement>('[data-a="save-wins"]')?.click();
-      tEl.querySelector<HTMLElement>('[data-a="meet"]')?.click();
       const sent = h.posted.find((m) => m.type === t);
       expect(sent, t).toBeTruthy();
       expect(Object.keys(sent!.payload).sort()).toEqual(keys);
@@ -315,46 +260,17 @@ describe('mounted cards', () => {
   });
 });
 
-describe('champion Meet card (sim v9)', () => {
+describe('champions (sim v9): art only, never for sale', () => {
   const LAMBO = '6a30473c1d6649b19b03622b';
   const champions = { type: 'champions', cats: [{ catalogId: LAMBO, forSale: true, catImg: ART('lambo') }] };
-  const asks = (h: ReturnType<typeof harness>) => h.posted.filter((m) => m.type === 'champion-offer');
 
-  it('the 3rd match in session 1 makes the card due; visit 2 asks again and shows it; once shown it is no longer due', () => {
-    const v1 = harness({ sessions: 1 });
-    v1.emit(champions);
-    for (let i = 0; i < 2; i++) {
-      noteChampionMatch('lambo');
-      v1.integ.championMatch('lambo');
-    }
-    expect(asks(v1)).toEqual([]);
-    noteChampionMatch('lambo');
-    v1.integ.championMatch('lambo');
-    expect(asks(v1)).toEqual([{ type: 'champion-offer', payload: { catalogId: LAMBO } }]);
-    noteChampionMatch('lambo');
-    v1.integ.championMatch('lambo'); // once a page load
-    expect(asks(v1)).toHaveLength(1);
-    // the server held it back (session 1): the host sends no offer, nothing shows
-    expect(v1.screen('title').querySelector('.plc-meet')).toBeNull();
-
-    // visit 2: the champions message re-sends the due card; the host's offer puts it on the lobby
-    const v2 = harness({ sessions: 2, keep: { championMatches: loadProfile().championMatches } });
-    v2.emit(champions);
-    expect(asks(v2)).toEqual([{ type: 'champion-offer', payload: { catalogId: LAMBO } }]);
-    v2.emit({ type: 'offer', offer: { kind: 'meet', catalogId: LAMBO } });
-    expect(v2.screen('title').querySelector<HTMLElement>('.plc-meet')?.dataset.catalog).toBe(LAMBO);
-    expect(loadProfile().championShown).toEqual(['lambo']);
-
-    const v3 = harness({ sessions: 3, keep: { championMatches: loadProfile().championMatches, championShown: ['lambo'] } });
-    v3.emit(champions);
-    expect(asks(v3)).toEqual([]);
-  });
-
-  it('never a champion card before its 3rd match, even when the storefront features that card', () => {
-    const h = harness({ keep: { championMatches: { lambo: 2 } } });
+  it('keeps the champion art, drops the sale flag, never asks the host to offer a card', () => {
+    const h = harness({ sessions: 3, keep: { championMatches: { lambo: 5 } } });
+    for (let i = 0; i < 3; i++) noteChampionMatch('lambo');
     h.emit(champions);
-    h.emit({ type: 'featured', cats: [{ catalogId: LAMBO, name: 'Lambo', type: 'STELLAR', art: ART('lambo') }] });
     h.emit({ type: 'offer', offer: { kind: 'meet', catalogId: LAMBO } });
+    expect(h.integ.state().champions.map((c) => c.forSale)).toEqual([false]);
+    expect(h.integ.championTiles().lambo).toEqual({ art: ART('lambo') });
     expect(h.screen('title').querySelector('.plc-meet')).toBeNull();
     expect(h.posted.some((m) => m.type === 'offer-seen' || m.type === 'champion-offer')).toBe(false);
   });

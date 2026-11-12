@@ -38,6 +38,12 @@
 | D12 | **Every invite URL is the embed URL** (`https://tokentails.com/pawlegends?party=K7QX2M`), even from the app or the standalone build. | Only the embed host has a guest session that can mint a guest ticket, so the friend is scored as a guest account instead of getting nothing (U3). |
 | D13 | **The relay runs in the Nest process; the sim never does.** Sockets, the turn clock and JSON run on the main thread. Every sim step (referee and pilots) runs in `worker_threads`. Event-loop delay is measured, and new rooms are refused when it is too high. | GDD §9.6 rejected the Nest box because sim CPU would starve the API. Moving all sim work to workers removes that concern. The relay itself only orders bytes. `DEPLOYMENT.md` has no process manager, so a second process is deferred (§15). |
 
+> **Parked 2026-11-12: no Token Tails in Paw Legends** ([NO-TOKENTAILS.md](NO-TOKENTAILS.md)). The founder dropped the
+> "Your cats become skins" feature. The game no longer reads the host's roster, featured cats or Meet offer, and the
+> host no longer sends them. D8's party cat card is gone: the game sends no `party.card`
+> and ignores a peer's card from an older client (the relay still fills `heroSkins` with `null`). D12's invite URL is now Paw Legends' own
+> `https://pawlegends.app/?party=K7QX2M` (the host still accepts an older build's tokentails.com link).
+
 ### Why this beats Fortnite and League of Legends
 
 - **A friend joins in 2 taps with no account and no install:** tap the link, pick a hero. The leader needs about 5 taps. Fortnite needs a 20 GB+ install and an Epic account. LoL is PC-only, and Wild Rift is a separate install and account.

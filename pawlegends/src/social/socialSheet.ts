@@ -126,8 +126,6 @@ export interface SocialSheetDeps {
   height?(): number;
   /** Owned store and pass items (frames and titles the avatar picker offers). */
   ownedItems?(): readonly string[];
-  /** The player's own cats with art (the avatar picker's Cats page). */
-  cats?(): readonly { id: string; image: string }[];
   /** A match runs: chat polls pause. */
   inMatch?(): boolean;
   /** The unread DM count changed (the landing badge). */
@@ -163,7 +161,7 @@ export class SocialSheet {
   private threads = new Map<string, ChatThreadRow>();
   private chat: ChatSheet | null = null;
   /** The avatar picker (Me): its page and the choice not saved yet. */
-  private picking: { page: 'heroes' | 'cats'; avatarKind: string; avatarRef: string; frame: string } | null = null;
+  private picking: { avatarKind: string; avatarRef: string; frame: string } | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -531,10 +529,6 @@ export class SocialSheet {
       case 'avatar':
         this.openPicker();
         return;
-      case 'pick-tab':
-        if (this.picking) this.picking.page = el.dataset.page === 'cats' ? 'cats' : 'heroes';
-        this.render();
-        return;
       case 'pick-icon':
         if (this.picking) {
           this.picking.avatarKind = el.dataset.kind ?? 'hero';
@@ -646,10 +640,10 @@ export class SocialSheet {
     const me = this.state?.me;
     if (!me) return;
     const a = me.avatar;
+    // NO-TOKENTAILS.md (Your call 4): a cat avatar chosen earlier keeps showing, but the picker offers champions only
     this.picking = {
-      page: a?.kind === 'cat' ? 'cats' : 'heroes',
-      avatarKind: a?.kind === 'cat' ? 'cat' : a?.kind === 'icon' ? 'icon' : 'hero',
-      avatarRef: a?.kind === 'cat' ? (a.catId ?? '') : a?.kind === 'icon' ? (a.icon ?? '') : (a?.hero ?? (me.av?.i.startsWith('h:') ? me.av.i.slice(2) : 'clem')),
+      avatarKind: a?.kind === 'icon' ? 'icon' : 'hero',
+      avatarRef: a?.kind === 'icon' ? (a.icon ?? '') : (a?.hero ?? (me.av?.i.startsWith('h:') ? me.av.i.slice(2) : 'clem')),
       frame: me.frame ?? 'none',
     };
     this.deps.track?.('avatar_open');
@@ -659,34 +653,23 @@ export class SocialSheet {
   /** The preview of the choice not saved yet. */
   private pickedView(): AvatarView {
     const p = this.picking!;
-    const cat = p.avatarKind === 'cat' ? this.deps.cats?.().find((c) => c.id === p.avatarRef) : undefined;
-    const v: AvatarView = cat ? { i: `c:${cat.id}`, img: cat.image } : { i: `h:${p.avatarRef || 'clem'}` };
+    const v: AvatarView = { i: `h:${p.avatarRef || 'clem'}` };
     if (p.frame !== 'none') v.f = p.frame;
     const t = this.state?.me.title;
     if (t) v.t = t;
     return v;
   }
 
-  /** Avatar picker (CHAT-AVATARS §7.4): champions or your cats (the one scroll region), owned borders, a live preview. */
+  /** Avatar picker (CHAT-AVATARS §7.4): champions (the one scroll region), owned borders, a live preview. */
   private pickerBody(): string {
     const p = this.picking!;
-    const tabs = `<div class="pl-social-sub"><button type="button" class="pl-btn ghost small" data-a="pick-tab" data-page="heroes" aria-pressed="${p.page === 'heroes'}">Champions</button><button type="button" class="pl-btn ghost small" data-a="pick-tab" data-page="cats" aria-pressed="${p.page === 'cats'}">My cats</button></div>`;
-    const cats = this.deps.cats?.() ?? [];
-    const tiles =
-      p.page === 'heroes'
-        ? HERO_IDS.map((h) => `<button type="button" class="pl-av-tile" data-a="pick-icon" data-kind="hero" data-ref="${h}" aria-pressed="${p.avatarKind === 'hero' && p.avatarRef === h}" aria-label="${this.esc(h)}">${avatarHtml({ i: `h:${h}` }, 40)}</button>`).join('')
-        : cats.length
-          ? cats
-              .slice(0, 60)
-              .map((c) => `<button type="button" class="pl-av-tile" data-a="pick-icon" data-kind="cat" data-ref="${this.esc(c.id)}" aria-pressed="${p.avatarKind === 'cat' && p.avatarRef === c.id}" aria-label="Cat">${avatarHtml({ i: `c:${c.id}`, img: c.image }, 40)}</button>`)
-              .join('')
-          : `<p class="pl-social-empty">Your Token Tails cats show here.</p>`;
+    const tiles = HERO_IDS.map((h) => `<button type="button" class="pl-av-tile" data-a="pick-icon" data-kind="hero" data-ref="${h}" aria-pressed="${p.avatarKind === 'hero' && p.avatarRef === h}" aria-label="${this.esc(h)}">${avatarHtml({ i: `h:${h}` }, 40)}</button>`).join('');
     const frames = ['none', ...(this.deps.ownedItems?.() ?? []).filter((i) => /^frame\.(store|s1)\.[a-z0-9._-]+$|^frame\.(legend|founder)$/.test(i))].slice(0, 7);
     const ring = frames
       .map((f) => `<button type="button" class="pl-av-tile" data-a="pick-frame" data-frame="${this.esc(f)}" aria-pressed="${p.frame === f}" aria-label="${f === 'none' ? 'No border' : this.esc(f)}">${avatarHtml({ i: `h:${p.avatarKind === 'hero' ? p.avatarRef || 'clem' : 'clem'}`, ...(f !== 'none' ? { f } : {}) }, 32)}</button>`)
       .join('');
     const title = this.state?.me.title ? `<small class="pl-social-st">${this.esc(titleText(this.state.me.title))}</small>` : '';
-    return `<div class="pl-av-pick" data-testid="avatar-picker"><div class="pl-av-preview">${avatarHtml(this.pickedView(), 56)}<span class="pl-social-name" data-name="${this.esc(this.state?.me.name ?? '')}"></span>${title}</div>${tabs}<div class="pl-av-grid">${tiles}</div><div class="pl-av-frames" aria-label="Border">${ring}</div></div>`;
+    return `<div class="pl-av-pick" data-testid="avatar-picker"><div class="pl-av-preview">${avatarHtml(this.pickedView(), 56)}<span class="pl-social-name" data-name="${this.esc(this.state?.me.name ?? '')}"></span>${title}</div><div class="pl-av-grid">${tiles}</div><div class="pl-av-frames" aria-label="Border">${ring}</div></div>`;
   }
 
   private async saveAvatar(): Promise<void> {

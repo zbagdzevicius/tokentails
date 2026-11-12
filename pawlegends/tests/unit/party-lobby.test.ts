@@ -51,12 +51,13 @@ describe('party lobby (P4)', () => {
     expect(peer.textContent).toContain('Sunny Tabby');
   });
 
-  it('badges: the leader crown, you, guest, new; the card art from the bucket only', () => {
+  it('badges: the leader crown, you, guest, new; never a cat card from an older client (NO-TOKENTAILS.md)', () => {
     const el = mount(lobbyHtml(model(view())));
     const [a, b] = el.querySelectorAll('[data-testid="party-seat"]');
     expect(a.querySelector('.pp-crown')).not.toBeNull();
     expect(a.querySelector('.pp-tag.me')).not.toBeNull();
-    expect((a.querySelector('.pp-av') as HTMLElement).getAttribute('style')).toContain(ART);
+    expect(el.innerHTML).not.toContain(ART);
+    expect(a.querySelector('.pp-av.pic, .pp-av-card')).toBeNull();
     expect(b.querySelector('.pp-crown')).toBeNull();
     expect(b.textContent).toContain('guest');
     expect(b.querySelector('.pp-tag.new')).not.toBeNull();
