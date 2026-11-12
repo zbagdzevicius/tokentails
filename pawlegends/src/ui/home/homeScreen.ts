@@ -389,6 +389,9 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
         modesLoading = false;
         if (!root.isConnected || leaving || modeSel) return;
         root.classList.add('hm-dim');
+        // a modal: Home behind it leaves the tab order and the accessibility tree (aria-modal alone does not)
+        const behind = Array.from(root.children) as HTMLElement[];
+        for (const n of behind) n.inert = true;
         modeSel = openModeSelect(root, {
           modes: o.modes,
           choice: start,
@@ -408,6 +411,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
           },
           onClose: () => {
             modeSel = null;
+            for (const n of behind) n.inert = false;
             root.classList.remove('hm-dim');
             root.querySelector<HTMLElement>('.hm-pill')?.focus({ preventScroll: true });
           },
@@ -551,22 +555,30 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
     const p = { x: 0, y: 0 };
     let last = 0;
     const fx = root.querySelector<HTMLElement>('.hm-fx');
-    const onMove = (e: PointerEvent): void => {
-      if (e.pointerType === 'touch') return;
-      tgt.x = (e.clientX / (window.innerWidth || 1)) * 2 - 1;
-      tgt.y = (e.clientY / (window.innerHeight || 1)) * 2 - 1;
-    };
-    window.addEventListener('pointermove', onMove, ac ? { signal: ac.signal, passive: true } : { passive: true });
+    // the loop runs only while the light is catching up with the pointer: idle (no style writes) once it settles,
+    // and never on touch phones, which send no hover moves
     const loop = (t: number): void => {
       raf = requestAnimationFrame(loop);
       if (t - last < 33 || document.hidden) return;
       last = t;
       p.x += (tgt.x - p.x) * 0.08;
       p.y += (tgt.y - p.y) * 0.08;
+      if (Math.abs(tgt.x - p.x) < 0.002 && Math.abs(tgt.y - p.y) < 0.002) {
+        p.x = tgt.x;
+        p.y = tgt.y;
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
       fx?.style.setProperty('--px', p.x.toFixed(3));
       fx?.style.setProperty('--py', p.y.toFixed(3));
     };
-    raf = requestAnimationFrame(loop);
+    const onMove = (e: PointerEvent): void => {
+      if (e.pointerType === 'touch' || !root.isConnected) return;
+      tgt.x = (e.clientX / (window.innerWidth || 1)) * 2 - 1;
+      tgt.y = (e.clientY / (window.innerHeight || 1)) * 2 - 1;
+      if (!raf) raf = requestAnimationFrame(loop);
+    };
+    window.addEventListener('pointermove', onMove, ac ? { signal: ac.signal, passive: true } : { passive: true });
     const cv = root.querySelector<HTMLCanvasElement>('.hm-motes');
     if (cv) stopMotes = startMotes(cv, quality === 'high' ? 48 : 24);
   }
@@ -575,6 +587,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
     if (toastTimer) clearTimeout(toastTimer);
     if (promoTimer) clearInterval(promoTimer);
     cancelAnimationFrame(raf);
+    raf = 0;
     stopMotes();
     modeSel?.close();
     ac?.abort();
