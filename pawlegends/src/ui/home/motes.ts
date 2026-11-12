@@ -59,6 +59,26 @@ export function startMotes(canvas: HTMLCanvasElement, count: number, rnd: () => 
   const ctx = canvas.getContext('2d');
   if (!ctx || count <= 0) return () => undefined;
   const motes: Mote[] = Array.from({ length: count }, () => spawnMote(rnd, true));
+  // one pre-drawn glow per hue (6 tiny canvases), stamped with globalAlpha: no gradient object per mote per frame
+  const SPR = 32;
+  const sprites = new Map<number, CanvasImageSource>();
+  const sprite = (hue: number): CanvasImageSource | null => {
+    const hit = sprites.get(hue);
+    if (hit) return hit;
+    const c = document.createElement('canvas');
+    c.width = c.height = SPR;
+    const g2 = c.getContext('2d');
+    if (!g2) return null;
+    const h = SPR / 2;
+    const g = g2.createRadialGradient(h, h, 0, h, h, h);
+    g.addColorStop(0, `hsla(${hue}, 100%, 85%, 1)`);
+    g.addColorStop(0.35, `hsla(${hue}, 95%, 65%, 0.5)`);
+    g.addColorStop(1, `hsla(${hue}, 90%, 55%, 0)`);
+    g2.fillStyle = g;
+    g2.fillRect(0, 0, SPR, SPR);
+    sprites.set(hue, c);
+    return c;
+  };
   let raf = 0;
   let last = 0;
   let w = 0;
@@ -93,13 +113,12 @@ export function startMotes(canvas: HTMLCanvasElement, count: number, rnd: () => 
       const x = m.x * w;
       const y = m.y * h;
       const r = m.r * dpr;
-      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
-      g.addColorStop(0, `hsla(${m.hue}, 100%, 85%, ${a})`);
-      g.addColorStop(0.35, `hsla(${m.hue}, 95%, 65%, ${a * 0.5})`);
-      g.addColorStop(1, `hsla(${m.hue}, 90%, 55%, 0)`);
-      ctx.fillStyle = g;
-      ctx.fillRect(x - r * 4, y - r * 4, r * 8, r * 8);
+      const img = sprite(m.hue);
+      if (!img) continue;
+      ctx.globalAlpha = Math.min(1, a);
+      ctx.drawImage(img, x - r * 4, y - r * 4, r * 8, r * 8);
     }
+    ctx.globalAlpha = 1;
   };
   raf = requestAnimationFrame(frame);
   let stopped = false;
