@@ -77,7 +77,7 @@ test('Home → PLAY → Skirmish → vs Bots Hard → champion select → LOCK I
   await page.waitForSelector('html[data-screen="title"] .pl-home');
   // Home: one PLAY, no other match start
   await expect(page.locator('[data-testid="home-play"]')).toHaveAttribute('aria-label', 'Play: choose a mode');
-  for (const sel of ['[data-testid="play-online"]', '[data-testid="play-pvp"]', '[data-testid="play-friends"]', '[data-testid="lobby-exit"]', 'button.hm-plate', 'button.hm-pill'])
+  for (const sel of ['[data-testid="play-online"]', '[data-testid="play-pvp"]', '[data-testid="play-friends"]', '[data-testid="lobby-exit"]', '.hm-pill', '[data-testid="mode-pill"]'])
     await expect(page.locator(sel), sel).toHaveCount(0);
   await expect(page.locator('.pl-home')).not.toContainText(/\$|€|price|buy|donate/i);
   await page.locator('[data-testid="home-play"]').click();
@@ -122,10 +122,15 @@ test('Classic → vs Bots → LOCK IN → a live 5v5 match on Hearthwood (it nev
   await expect(page.locator('.pl-loading')).toContainText('Hearthwood', { timeout: 20_000 });
   await page.waitForSelector('html[data-match="live"]', { timeout: 150_000 });
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
-  // the choice survives a reload (per-viewer convenience): the label and Mode Select open on Classic
+  // the choice survives a reload (per-viewer convenience): Home shows PLAY alone, and Mode Select opens on Classic
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await expect(page.locator('[data-testid="mode-pill"]')).toContainText('Classic 5v5 · vs Bots');
+  await expect(page.locator('[data-testid="mode-pill"]')).toHaveCount(0);
+  await expect(page.locator('.hm-playc')).not.toContainText('Classic');
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-testid="mode-select"]')).toHaveAttribute('data-stage', 'mode');
+  await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute('data-mode'))).toBe('classic');
 });
 
 test('keyboard: Enter opens Mode Select, Enter goes on, Esc backs out one step at a time', async ({ page }) => {

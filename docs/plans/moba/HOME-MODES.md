@@ -33,8 +33,9 @@ Home ── PLAY ──> Mode Select: mode ──Next──> Mode Select: varian
   select before the queue: the party flow's own select follows the match found (Wild Rift's order), so nobody picks
   twice.
 - **Back and Esc** step back one stage: the champion select → the variant stage → the mode stage → Home.
-- **Remembered.** The mode and variant (`pawlegends.mode.v1`) and the difficulty (the profile). Home shows the last
-  choice as a label above PLAY ("Skirmish 3v3 · vs Bots"); it is not a button. "Run it back" on the results keeps the
+- **Remembered.** The mode and variant (`pawlegends.mode.v1`) and the difficulty (the profile). Mode Select opens on
+  the last choice. Home does not show it: the label above PLAY ("Skirmish 3v3 · vs Bots") looked like a button and
+  read as a leftover, so it was removed (founder, Nov 12). "Run it back" on the results keeps the
   match's mode, variant and difficulty, as before.
 
 | Mode | Variants |
@@ -54,7 +55,7 @@ Co-op.
 |---|---|
 | The quick Co-op button beside PLAY (`play-online`) | PLAY → Skirmish → Co-op |
 | The quick PvP button beside PLAY (`play-pvp`) | PLAY → Skirmish (or Classic) → PvP |
-| The mode pill as a button that opened Mode Select, then PLAY played it in one tap | The pill is a label; PLAY opens Mode Select |
+| The mode pill as a button that opened Mode Select, then PLAY played it in one tap | Removed (Nov 12; a label first, then gone): PLAY opens Mode Select on the last choice |
 | The champion nameplate "⇄" (lock in to play) | A label |
 | Nav Heroes → the champion select (LOCK IN played) | Heroes opens the champion browser: skills and lore, browse only |
 | Nav Friends "Play with friends" (`play-friends`) | PLAY → Skirmish → With Friends |
@@ -113,7 +114,7 @@ for a tree crown, so the crown layer was empty. An empty builder now gives an em
 | Left edge | Round buttons: Events (glows when an event is live), Today (quests ring) and # (join with a code). |
 | Right edge | Promo rotator, changing every 5 s: Legends Pass season, Cannon Chaos and the Store (web only). |
 | Bottom | Glass nav: Heroes (browse only), Cards, Pass, Ranked (locked), Store (web only). It also shows on the first visit, with Heroes, Cards and Pass locked. |
-| Bottom right | The last mode and variant (a label) and the round PLAY. |
+| Bottom right | The round PLAY, alone for a returning player. The first visit and a dare keep one line above it. |
 
 **PLAY.** It opens Mode Select (the one play path above). On the first visit PLAY starts the guided Clem match. On a
 dare it accepts the dare.

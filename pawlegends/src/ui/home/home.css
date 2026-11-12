@@ -273,17 +273,6 @@ html[data-quality='low'] .hm-nav, .pl-home.low .hm-nav { background: var(--hm-gl
 .hm-playc {
   position: absolute; right: var(--hm-r); bottom: var(--hm-b); display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
 }
-.hm-pill {
-  /* a label of the last mode and variant (PLAY opens Mode Select on it) */
-  margin: 0; display: inline-flex; align-items: center; gap: 8px; height: 44px; max-width: 260px; padding: 0 14px 0 6px; box-sizing: border-box; border-radius: 999px;
-  color: #fff; font: 700 13px/1 var(--font, sans-serif); white-space: nowrap; pointer-events: none;
-  background: linear-gradient(180deg, rgba(60, 36, 72, 0.92), rgba(28, 16, 36, 0.92));
-  box-shadow: 0 0 0 1.5px var(--hm-gold-2), 0 0 0 3px var(--hm-ink), 0 6px 14px rgba(0, 0, 0, 0.45);
-  animation: hm-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
-}
-.hm-pill-c { width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center; color: #3a2410; background: radial-gradient(circle at 35% 30%, var(--hm-gold-1), var(--hm-gold-2) 55%, var(--hm-gold-3)); }
-.hm-pill-c svg { width: 16px; height: 16px; }
-.hm-pill-t { overflow: hidden; text-overflow: ellipsis; }
 .hm-line {
   margin: 0; max-width: 240px; padding: 7px 14px; border-radius: 14px; text-align: center; font: 700 12px/1.25 var(--font, sans-serif);
   background: var(--hm-glass); box-shadow: inset 0 0 0 1px var(--hm-line), 0 4px 12px rgba(0, 0, 0, 0.35); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
@@ -382,7 +371,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 .pl-home.leaving .hm-cur { transform: translate(-50%, -24px); }
 .pl-home.leaving .hm-stage { opacity: 0; transition: opacity 0.22s ease-in; }
 .pl-home.leaving .hm-nav { translate: 0 24px; opacity: 0; transition: opacity 0.22s ease-in, translate 0.22s ease-in; }
-.pl-home.leaving .hm-left, .pl-home.leaving .hm-slot, .pl-home.leaving .hm-promo, .pl-home.leaving .lb-peek, .pl-home.leaving .hm-pill { opacity: 0; transition: opacity 0.22s ease-in; pointer-events: none; }
+.pl-home.leaving .hm-left, .pl-home.leaving .hm-slot, .pl-home.leaving .hm-promo, .pl-home.leaving .lb-peek { opacity: 0; transition: opacity 0.22s ease-in; pointer-events: none; }
 /* Mode Select open: Home dims under it */
 .pl-home.hm-dim > :not(.ms-overlay):not(.hm-fx) { opacity: 0.4; transition: opacity 0.3s; pointer-events: none; }
 
@@ -402,8 +391,6 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
   .hm-stage { top: calc(var(--hm-t) + 60px); }
   .hm-plate-n { font-size: 30px; }
   .hm-plate-s { font-size: 14px; }
-  .hm-pill { height: 48px; font-size: 15px; max-width: 320px; }
-  .hm-pill-c { width: 34px; height: 34px; }
   .hm-promo { width: 256px; height: 144px; top: calc(var(--hm-t) + 76px); }
   .hm-slide-t b { font-size: 17px; }
   .hm-slide-t small { font-size: 13px; }
@@ -465,7 +452,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 /* ----------------------------------------------------- a settled Home (homeScreen.ts `patchHome`, `still`) */
 /* The entrance (bars drop in, the left stack and the promo slide in, PLAY pops in) plays on the first Home and the one
    after a match only: a Home redrawn under a panel, a tab switch or a data refresh stays still. Loops keep running. */
-.pl-screen.pl-home.hm-still :is(.hm-top, .hm-corner, .hm-left, .hm-promo, .hm-stage, .hm-nav, .hm-pill, .hm-line, .hm-qb, .hm-play, .lb-peek) { animation: none; }
+.pl-screen.pl-home.hm-still :is(.hm-top, .hm-corner, .hm-left, .hm-promo, .hm-stage, .hm-nav, .hm-line, .hm-qb, .hm-play, .lb-peek) { animation: none; }
 
 /* ------------------------------------------------------------------------- Low tier, reduced motion */
 .pl-home.low *, html[data-quality='low'] .pl-home * { animation: none !important; }

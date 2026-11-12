@@ -40,7 +40,7 @@ import { icon } from '../icons';
 import type { Choice } from '../screens';
 import { bindVersionMark, versionMarkHtml } from '../versionMark';
 import type { ModeSelectHandle } from '../modeSelect/modeSelect';
-import { effectiveState, modeById, pillText, playable, queueFor, type ModeChoice, type ModeDef, type Queue } from '../modeSelect/modes';
+import { effectiveState, modeById, playable, queueFor, type ModeChoice, type ModeDef, type Queue } from '../modeSelect/modes';
 import { crestSvg } from '../modeSelect/crest';
 import { startMotes } from './motes';
 
@@ -298,13 +298,10 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     return `<div class="hm-plate"><span class="hm-plate-n">${esc(id.name)}</span><small class="hm-plate-s">${esc(subLine)}</small></div>`;
   };
   const playcHtml = (): string => {
-    const { mode, queue } = cur();
-    // the last mode and variant: a label only (PLAY opens Mode Select on it)
-    const pill = returning
-      ? `<p class="hm-pill" data-testid="mode-pill" aria-label="${esc(`Last played: ${pillText(mode, queue)}`)}"><span class="hm-pill-c" aria-hidden="true">${crestSvg(mode.id)}</span><span class="hm-pill-t">${esc(pillText(mode, queue))}</span></p>`
-      : `<p class="hm-line${dare ? ' dare' : ''}">${esc(playLine(o))}</p>`;
+    // a returning player sees PLAY alone (Mode Select opens on the last mode and variant); the first match and a dare keep their line
+    const line = returning ? '' : `<p class="hm-line${dare ? ' dare' : ''}">${esc(playLine(o))}</p>`;
     return `<div class="hm-playc lb-play">
-      ${pill}
+      ${line}
       <div class="hm-playrow">
         <button type="button" class="pl-btn big hm-play" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'play'}" data-testid="home-play" aria-keyshortcuts="Enter M"${returning ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(returning ? 'Play: choose a mode' : playLabel(o))}">
           <span class="hm-play-glow" aria-hidden="true"></span><span class="hm-play-glow b" aria-hidden="true"></span>
@@ -393,17 +390,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     }
     openModes(undefined, from);
   };
-  const updatePill = (): void => {
-    const { mode: m, queue } = cur();
-    const p = root.querySelector('.hm-pill');
-    p?.setAttribute('aria-label', `Last played: ${pillText(m, queue)}`);
-    const t = root.querySelector('.hm-pill-t');
-    if (t) t.textContent = pillText(m, queue);
-    const c = root.querySelector('.hm-pill-c');
-    if (c) c.innerHTML = crestSvg(m.id);
-    // the next patch compares against what is on screen now
-    shown['.hm-playc'] = playcHtml();
-  };
   let modesLoading = false;
   /** Mode Select is its own chunk (loaded on the first open, so Home's first load stays small). */
   const openModes = (focusMode?: string, from: 'play' | 'key' | 'promo' | 'event' | 'back' = 'play', at?: ModeChoice): void => {
@@ -437,7 +423,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
           onConfirm: (c) => {
             choice = c;
             o.onModeChoice(c);
-            updatePill();
           },
           onGo: (c) => o.onStart(c),
           onClose: (went) => {

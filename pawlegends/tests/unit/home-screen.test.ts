@@ -97,10 +97,10 @@ describe('home screen: one play path', () => {
     // the nameplate opens the champion browser (Nov 12: SELECT switches the Home hero there), never a match
     expect(root.querySelector('.hm-plate')?.tagName).toBe('BUTTON');
     expect(root.querySelector('.hm-plate')?.getAttribute('data-a')).toBe('plate');
-    // the mode pill is a label of the last choice, not a button
-    const pill = root.querySelector('[data-testid="mode-pill"]')!;
-    expect(pill.tagName).toBe('P');
-    expect(pill.textContent).toContain('Skirmish 3v3 · vs Bots');
+    // nothing above PLAY for a returning player: no mode pill, no line (Mode Select opens on the last choice)
+    expect(root.querySelector('[data-testid="mode-pill"]')).toBeNull();
+    expect(root.querySelector('.hm-pill, .hm-playc .hm-line')).toBeNull();
+    expect(root.querySelector('.hm-playc')?.textContent).not.toContain('Skirmish');
     // # Code stays (it joins a party lobby, not a match)
     expect(root.querySelector('[data-testid="join-code"]')).toBeTruthy();
   });
