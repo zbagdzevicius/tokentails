@@ -28,7 +28,7 @@ import { CATALOG_SKUS, CHAMPION_IDS, STARTERS, catalogSku, champSkuOf, type Cata
 import { appHidden, canPlay, champStatus, localChampions, lockReason, openChampions, ownedCount, type ChampionsState } from '../meta/champions';
 import { PAID_COATS, bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { Lobby } from '../render/lobby';
-import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
+import { bakeLooks, bakePortrait, bakePortraits, cachedPortraitUrl, portraitUrl } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
 import { isPhone } from '../render/perf/device';
 import { FramePacer, MATCH_FPS, WARM, paceTarget, warmMatch } from '../render/perf/pacer';
@@ -1761,6 +1761,22 @@ export class App {
         const look: Look = { coat, chroma: null };
         bakePortrait(this.gr, hero as HeroId, look);
         return portraitUrl(hero as HeroId, look);
+      },
+      // the coat grid draws every coat on its hero: the store shows the splash first and asks for a few portraits per
+      // frame (`warm`), so opening Coats never stalls the page on a slow GPU
+      ready: (hero, coat) => ((HERO_IDS as readonly string[]).includes(hero) ? cachedPortraitUrl(hero as HeroId, { coat, chroma: null }) : null),
+      warm: (looks) =>
+        bakeLooks(
+          this.gr,
+          looks.filter(([h]) => (HERO_IDS as readonly string[]).includes(h)).map(([h, coat]) => [h as HeroId, { coat, chroma: null }] as [HeroId, Look]),
+        ),
+      equipped: () => {
+        const p = loadProfile();
+        const worn = new Set<string>();
+        for (const l of Object.values(p.looks)) if (l?.coat) worn.add(l.coat);
+        if (p.wornFrame) worn.add(p.wornFrame);
+        if (p.wornTitle) worn.add(p.wornTitle);
+        return worn;
       },
       onEquip: (def) => this.equipStore(def),
       onPass: () => this.openPass(),

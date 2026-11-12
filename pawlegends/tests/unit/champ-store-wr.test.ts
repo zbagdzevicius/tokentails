@@ -191,11 +191,110 @@ describe('store panel', () => {
     expect(el.querySelector('.cst-detail [data-buy="pl_champs_all_s1"]')).not.toBeNull();
     click(el.querySelector('[data-a="detail-close"]'));
     click(el.querySelector('.cst-tabs [data-tab="coats"]'));
-    expect(el.querySelectorAll('.shop-tile[data-sel]')).toHaveLength(20);
+    expect(el.querySelectorAll('.cst-card[data-sel]')).toHaveLength(20);
     // Coats / Sets sit in the top bar; Sets keeps the Coats tab lit
     click(el.querySelector('.cst-top [data-tab="sets"]'));
     expect(el.querySelector('.cst-top [data-tab="sets"]')!.getAttribute('aria-pressed')).toBe('true');
     expect(el.querySelector('.cst-tab.on')!.getAttribute('data-tab')).toBe('coats');
+  });
+
+  it('every tab is one vertical grid of the same cards (no sideways shelf, no old preview and buy bar)', () => {
+    const { el } = open(state());
+    for (const [tab, n] of [['champions', 20], ['featured', 13], ['coats', 20], ['frames', 4]] as const) {
+      click(el.querySelector(`.cst-tabs [data-tab="${tab}"]`));
+      const grids = el.querySelectorAll('[data-scroll]');
+      expect(grids, tab).toHaveLength(1);
+      expect(grids[0].getAttribute('data-scroll')).toBe('grid');
+      expect(el.querySelectorAll('[data-scroll="grid"] .cst-card').length, tab).toBe(n);
+      expect(el.querySelector('.shop-preview, .shop-bar, .shop-grid, .cst-strip'), tab).toBeNull();
+    }
+    click(el.querySelector('.cst-tabs [data-tab="coats"]'));
+    click(el.querySelector('.cst-top [data-tab="sets"]'));
+    expect(el.querySelectorAll('[data-scroll="grid"] .cst-card.cst-cos[data-tier="bundle"]')).toHaveLength(2);
+  });
+
+  it('coat cards: the coat on its hero, the rung and price; a tap opens the detail with Buy; the grid keeps its scroll', () => {
+    const looks: string[] = [];
+    const warmed: number[] = [];
+    const { el, checkout } = open(state(), {
+      preview: (h, c) => (looks.push(`${h}:${c}`), `data:image/png;base64,${h}`),
+      warm: (l) => void warmed.push(l.length),
+    });
+    click(el.querySelector('.cst-tabs [data-tab="coats"]'));
+    expect(warmed).toEqual([20]); // one bake pass for the whole grid
+    const legendary = el.querySelector('.cst-card[data-sel="pl_coat_brutus_thunderpaw"]')!;
+    expect(legendary.getAttribute('data-rung')).toBe('LEGENDARY');
+    expect(legendary.textContent).toMatch(/Legendary · (\$|€)14\.99/);
+    expect((legendary.querySelector('img.cst-pic') as HTMLImageElement).getAttribute('src')).toContain('brutus');
+    expect(looks).toContain('brutus:coat.brutus.store_thunderpaw');
+    click(el.querySelector('.cst-card[data-sel="pl_coat_clem_calico"]'));
+    const d = el.querySelector('.cst-detail')!;
+    expect(d.textContent).toContain('Calico');
+    click(d.querySelector('[data-buy="pl_coat_clem_calico"]'));
+    expect(checkout.bought).toEqual(['pl_coat_clem_calico']);
+    click(el.querySelector('[data-a="detail-close"]'));
+    expect(el.querySelector('.cst-detail')).toBeNull();
+    expect(document.activeElement?.getAttribute('data-sel')).toBe('pl_coat_clem_calico');
+  });
+
+  it('with ready(): the coat grid draws the splash first, then bakes two portraits per frame and swaps them in', async () => {
+    vi.useFakeTimers();
+    try {
+      const baked = new Set<string>();
+      const batches: number[] = [];
+      const { el } = open(state(), {
+        ready: (h, c) => (baked.has(`${c}`) ? `data:image/png;base64,${h}` : null),
+        warm: (l) => {
+          batches.push(l.length);
+          for (const [, c] of l) baked.add(`${c}`);
+        },
+        tab: 'coats',
+      });
+      expect(el.querySelectorAll('img.cst-pic')).toHaveLength(0);
+      expect(el.querySelectorAll('img[data-coat]')).toHaveLength(20);
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(Math.max(...batches)).toBeLessThanOrEqual(2);
+      expect(batches.reduce((a, b) => a + b, 0)).toBe(20);
+      expect(el.querySelectorAll('img.cst-pic')).toHaveLength(20);
+      expect(el.querySelectorAll('img[data-coat]')).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('owned and equipped: Owned · Equip, then Equipped after the equip; frames show the ring and their title', () => {
+    const worn = new Set<string>();
+    const equips: string[] = [];
+    const checkout = fakeCheckout();
+    const s = { ...snap(state()), items: new Set(['coat.clem.store_calico', 'frame.store.moonlit', 'title.store.moonlit']) } as StoreSnapshot;
+    const p = storePanel(document.body, {
+      snapshot: () => s,
+      checkout,
+      onClose: () => undefined,
+      equipped: () => worn,
+      onEquip: (def) => {
+        equips.push(def.sku);
+        for (const i of def.items) worn.add(i);
+      },
+      tab: 'coats',
+    });
+    const el = p.el;
+    const card = (sku: string) => el.querySelector(`.cst-card[data-sel="${sku}"]`)!;
+    expect(card('pl_coat_clem_calico').className).toContain('st-owned');
+    expect(card('pl_coat_clem_calico').textContent).toContain('Owned');
+    click(card('pl_coat_clem_calico'));
+    expect(el.querySelector('.cst-detail [data-buy]')).toBeNull();
+    click(el.querySelector('.cst-detail [data-equip="pl_coat_clem_calico"]'));
+    expect(equips).toEqual(['pl_coat_clem_calico']);
+    expect(el.querySelector('.cst-detail [data-equip]')!.textContent).toContain('Equipped');
+    click(el.querySelector('[data-a="detail-close"]'));
+    expect(card('pl_coat_clem_calico').className).toContain('st-equipped');
+    click(el.querySelector('.cst-tabs [data-tab="frames"]'));
+    const moon = card('pl_frame_moonlit');
+    expect(moon.querySelector('.cst-frameart[data-frame="frame.store.moonlit"] .cst-ring')).not.toBeNull();
+    expect(moon.querySelector('.cst-plate')!.textContent).toBe('Night Prowler');
+    expect(moon.textContent).toContain('Owned');
+    expect(card('pl_frame_goldpaw').textContent).toMatch(/(\$|€)1\.99/);
   });
 
   it('app build: Featured and Champions only, no price, no buy, no bundle, no pass; Yarn unlocks still work', () => {

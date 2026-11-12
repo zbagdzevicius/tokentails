@@ -114,7 +114,7 @@ This is the best order from an exhaustive search:
 - **Welcome milestones**, server counted, like Wild Rift's level rewards: a free **Champion Pick** after verified matches 5, 15 and 30. A pick unlocks any Tier 1 or Tier 2 champion and is stored as an owned row with `source: 'milestone'`.
 - **Pass:** the S1 table is unchanged, since rewards don't change mid-season. From S2, one Champion Pick sits on the free row at tier 15 (founder decision 6).
 
-**Direct web purchase** goes through the existing Stripe store: signed-in only, the same age bands, spend caps, consent version, webhook grant and refund revoke.
+**Direct web purchase** goes through the existing Stripe store: signed-in only, the same spend caps (no age question since Nov 12: an unknown buyer gets the 16-17 cap, see STORE-PASS "Checkout sheet"), the purchase button as the consent, webhook grant and refund revoke.
 
 ## 5. Prices
 
@@ -211,11 +211,14 @@ Release time `T` is the first time a backend with this code answers a champion r
 
 **Store tab "Champions"** (web), next to cosmetics: every champion to unlock and the three bundle cards with honest savings.
 
-**Store layout (Wild Rift style, founder request Nov 12: "make champions store in pawlegends be more like wild rift").** `ui/store.ts` with `ui/champStore/` (model, CSS):
-- Top bar: back, STORE, Cats/Dogs (Champions only), the Yarn balance and Champion Picks. No money balance (there is no paid currency).
-- Champions (the default tab): 6 role filters, an Unowned toggle and a sort (Default, Price, Name, Newest; remembered in `localStorage`, guarded). A sideways grid of tall splash cards (`public/assets/splash/<hero>-360|720.webp`, lazy `<img>` with srcset; the Low quality tier loads 360 only), one row, two on tall screens. Each card: a thin frame in its tier's gold, ribbons (Free this week, Starter, New), the name and role on a dark gradient, and a price bar (Yarn, and on the web its price; Owned or Starter with a check).
-- A card opens a detail: the big splash, role, side, tier, difficulty, the blurb and the kit (P, Q, W, E, R), the rotation line, "Unlock · N Yarn" or "N Yarn to go", "Use a Champion Pick", the web price (the same checkout as before) and "Skills & lore" (the champion browser). Esc closes the detail, then the store.
-- Bottom tabs: Featured (this week's free champions, the bundles, the newest champions, the Legends Pass), Champions, Coats (coats and sets, the old shelf) and Frames & Titles. The gold chevron marks the active tab.
+**Store layout (Wild Rift style, founder request Nov 12: "make champions store in pawlegends be more like wild rift"; then Nov 12: "champ store should be vertically scrollable. and it's not for champs only, same should be for coats, for frames & titles. similar patter").** `ui/store.ts` with `ui/champStore/` (model, CSS):
+- Top bar: back, STORE, Cats/Dogs (Champions only) or Coats/Sets (Coats only), the Yarn balance and Champion Picks. No money balance (there is no paid currency).
+- **One vertical grid on every tab.** Each tab's content is a single grid of tall 2:3 cards that scrolls up and down (`[data-scroll="grid"]`, `overflow-y: auto`, momentum on touch, a soft fade at its foot while more is below). The page never scrolls; the top bar, the filters and the bottom tabs stay fixed. Columns fill the width: cards are at least 112 px wide on a phone held sideways (5 to 7 columns at 667 to 844 px), 150 to 186 px on a desktop (7 at 1440x900). Nothing scrolls sideways.
+- Champions (the default tab): 6 role filters, an Unowned toggle and a sort (Default, Price, Name, Newest; remembered in `localStorage`, guarded), then the grid of splash cards (`public/assets/splash/<hero>-360|720.webp`, lazy `<img>` with srcset; the Low quality tier loads 360 only). Each card: a thin frame in its tier's gold, ribbons (Free this week, Starter, New), the name and role on a dark gradient, and a price bar (Yarn, and on the web its price; Owned or Starter when owned).
+- Featured: the sections stacked in the same vertical scroll (Free this week, Champion bundles, New champions, Legends Pass), each a wrapping row of the same cards.
+- Coats (with Sets) and Frames & Titles use the same card: the art is the coat worn by its hero (the game bakes every coat portrait of the grid in one pass, `render/portraits.ts` `bakeLooks`; the hero's splash when WebGL read-back fails), a set shows two of its coats, a frame shows a portrait in the frame's ring with its title on a gold plate, a pass card shows the crown. Ribbons: Epic, Legendary, Set, Equipped. The price bar: "Legendary · $14.99", Owned, Equipped (green frame), Own some, Pass owners. Cosmetic only and the safeguards line sit at the end of the grid.
+- A card opens a detail: a champion's big splash, role, side, tier, difficulty, the blurb and the kit (P, Q, W, E, R), the rotation line, "Unlock · N Yarn" or "N Yarn to go", "Use a Champion Pick", the web price (the same checkout as before) and "Skills & lore" (the champion browser); a coat, set, frame or pass shows its big preview, what it is, and Buy $X, "Owned · Equip" / "Equipped", "Wear the frame" (sets), "Open the pass", or why it can't be bought. Esc closes the detail, then the store.
+- Bottom tabs: Featured, Champions, Coats and Frames & Titles. The gold chevron marks the active tab.
 - App builds never open the store today (STORE-PASS "Native app"). If one does, the panel shows Featured and Champions only, with Yarn unlocks and no price, bundle, pass or buy button.
 - Purchase, ownership, rotation and server validation are unchanged.
 
