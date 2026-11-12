@@ -1975,6 +1975,7 @@ export class App {
         }
         return ok;
       },
+      portrait: (h, item) => portraitUrl(h, { coat: item, chroma: null }),
       onTrack: () => this.openCollection(),
       onClose: () => {
         this.overlay = null;
