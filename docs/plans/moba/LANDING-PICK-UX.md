@@ -46,6 +46,9 @@ Inputs:
 
 ## Part A: Landing screen
 
+> **Superseded (Nov 2026)** by [HOME-MODES.md](HOME-MODES.md): the left column was replaced by a corner layout with
+> key art, a glass nav, a round PLAY and a Mode Select overlay. The rules in §0 and the hide-ladder idea still apply.
+
 ### A1. Diagnosis (from the survey)
 
 - **Returning player at 667x375:** one 46vw column stacks the logo, the name block, Play, the bots buttons, a separate 44 px Co-op/PvP chip, the friends row, Join with code, Change hero / Cards / Today, the account line and the badge. That is 476 px in 369 px of space.

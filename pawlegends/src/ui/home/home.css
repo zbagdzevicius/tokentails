@@ -1,0 +1,457 @@
+/* Home (docs/plans/moba/HOME-MODES.md §4): a corner layout over the painted key art and the 3D hero. Never scrolls;
+   when the height runs out, things are hidden in a fixed order (the hide ladder at the end). Frames, rings, glass
+   bars and the PLAY button are CSS/SVG only (0 KB of art). */
+.pl-home {
+  --hm-el: #ff9f6b;
+  --hm-gold-1: #fff1b8;
+  --hm-gold-2: #f2c14e;
+  --hm-gold-3: #a8741c;
+  --hm-gold-4: #5e3d0c;
+  --hm-ink: #1b1022;
+  --hm-glass: rgba(24, 14, 30, 0.58);
+  --hm-glass-solid: rgba(30, 19, 35, 0.94);
+  --hm-line: rgba(255, 228, 170, 0.28);
+  --hm-l: max(16px, var(--safe-l, 0px));
+  --hm-r: max(16px, var(--safe-r, 0px));
+  --hm-t: max(8px, var(--safe-t, 0px));
+  --hm-b: max(8px, var(--safe-b, 0px));
+  --hm-play: 104px;
+  --hm-nav-h: 52px;
+  --hm-round: 52px;
+  --hm-av: 44px;
+  position: absolute; inset: 0; overflow: hidden; color: var(--cream, #fff3dc); font-family: var(--font, 'Fredoka', system-ui, sans-serif);
+}
+.pl-home button { font-family: inherit; }
+/* ui.css gives .pl-title a left gradient for the old column and every .pl-screen child pointer events: not here */
+.pl-title.pl-home { background: none; }
+.pl-home > .hm-fx, .pl-home > .hm-stage { pointer-events: none; }
+.pl-home > .hm-stage > * { pointer-events: auto; }
+
+/* L2 + L3: light shafts and motes over the 3D, under the UI; a soft shade top and bottom for contrast */
+.hm-fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; --px: 0; --py: 0; }
+.hm-shade {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(16, 9, 22, 0.62) 0%, rgba(16, 9, 22, 0) 22%),
+    linear-gradient(0deg, rgba(16, 9, 22, 0.72) 0%, rgba(16, 9, 22, 0) 26%),
+    radial-gradient(ellipse 60% 55% at 100% 100%, rgba(16, 9, 22, 0.55), transparent 70%);
+}
+.hm-motes {
+  position: absolute; inset: -20px; width: calc(100% + 40px); height: calc(100% + 40px);
+  transform: translate3d(calc(var(--px) * -18px), calc(var(--py) * -10px), 0);
+}
+.hm-shaft {
+  position: absolute; top: -30%; width: 22vw; height: 150%; mix-blend-mode: screen; opacity: 0.32; filter: blur(6px);
+  background: linear-gradient(90deg, transparent, rgba(255, 214, 150, 0.55) 45%, rgba(255, 240, 210, 0.7) 50%, rgba(255, 214, 150, 0.55) 55%, transparent);
+  -webkit-mask: linear-gradient(180deg, #000 0%, #000 45%, transparent 85%);
+  mask: linear-gradient(180deg, #000 0%, #000 45%, transparent 85%);
+  animation: hm-breathe 8s ease-in-out infinite;
+  translate: calc(var(--px) * -10px) 0;
+}
+.hm-shaft.a { left: 30%; transform: rotate(18deg); }
+.hm-shaft.b { left: 52%; width: 12vw; transform: rotate(24deg); animation-delay: -4s; opacity: 0.25; }
+@keyframes hm-breathe { 50% { opacity: 0.4; } }
+
+/* ------------------------------------------------------------------------------------- top left: profile */
+.hm-top {
+  position: absolute; left: var(--hm-l); top: var(--hm-t); right: 40%; display: flex; align-items: center; gap: 14px; height: 48px;
+  animation: hm-drop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.02s both;
+}
+/* the top bar drops in from just above its place (it never starts off screen: the corner tests measure it early) */
+@keyframes hm-drop { from { opacity: 0; transform: translateY(-8px); } }
+.hm-profile {
+  flex: none; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 2px 14px 2px 2px; border: 0; border-radius: 999px;
+  color: inherit; background: linear-gradient(90deg, var(--hm-glass), rgba(24, 14, 30, 0.12)); text-align: left; cursor: default;
+  max-width: 300px;
+}
+button.hm-profile { cursor: pointer; }
+button.hm-profile:hover { background: linear-gradient(90deg, rgba(60, 38, 68, 0.8), rgba(24, 14, 30, 0.2)); }
+.hm-av {
+  position: relative; flex: none; width: var(--hm-av); height: var(--hm-av); border-radius: 50%; display: grid; place-items: center;
+  background:
+    radial-gradient(closest-side, transparent 80%, rgba(0, 0, 0, 0) 81%),
+    conic-gradient(var(--hm-gold-2) var(--p), rgba(255, 243, 220, 0.2) 0);
+  box-shadow: 0 0 0 2px var(--hm-ink), 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+.hm-av::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 200deg, var(--hm-gold-1), var(--hm-gold-3), var(--hm-gold-1), var(--hm-gold-4), var(--hm-gold-1));
+  -webkit-mask: radial-gradient(closest-side, transparent 88%, #000 90%);
+  mask: radial-gradient(closest-side, transparent 88%, #000 90%);
+}
+.hm-av[style*='--hm-frame']::after { background: conic-gradient(from 200deg, #fff, var(--hm-frame), #fff8, var(--hm-frame), #fff); }
+.hm-av-in {
+  width: calc(100% - 8px); height: calc(100% - 8px); border-radius: 50%; display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--el) 55%, #3a2440), #1e1226); color: rgba(255, 243, 220, 0.8);
+  background-size: cover; background-position: center 20%;
+}
+.hm-av-in.pic { background-color: #2b1d2e; }
+.hm-av-in .pl-icon { width: 55%; height: 55%; }
+.hm-pf-t { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.hm-pf-name { font: 800 16px/1.05 var(--font, sans-serif); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
+.hm-pf-title { font: 700 10px/1 var(--font, sans-serif); color: var(--hm-gold-1); letter-spacing: 0.04em; white-space: nowrap; }
+.hm-xp { display: block; width: 120px; height: 4px; border-radius: 4px; background: rgba(255, 243, 220, 0.18); overflow: hidden; }
+.hm-xp i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--hm-gold-3), var(--hm-gold-1)); box-shadow: 0 0 6px var(--hm-gold-2); }
+.hm-pf-sub { font: 600 11px/1 var(--font, sans-serif); opacity: 0.85; white-space: nowrap; }
+
+/* top centre: Season XP and tier */
+.hm-cur {
+  display: flex; align-items: center; gap: 8px; height: 44px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer;
+  position: fixed; left: 50%; top: var(--hm-t); transform: translateX(-50%);
+}
+.hm-cur:disabled { cursor: default; }
+.hm-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 6px; border-radius: 999px; white-space: nowrap;
+  background: var(--hm-glass); box-shadow: inset 0 0 0 1px var(--hm-line), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.hm-chip b { font: 800 14px/1 var(--font, sans-serif); color: #fff; }
+.hm-chip small { font: 600 11px/1 var(--font, sans-serif); opacity: 0.75; }
+.hm-gem { width: 20px; height: 20px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1.5px var(--hm-ink), 0 0 8px currentColor; }
+.hm-gem.xp { color: #b98cff; background: radial-gradient(circle at 35% 30%, #fff, #c9a8ff 35%, #6d3fd6); }
+.hm-gem.tier { color: #ffd34d; background: radial-gradient(circle at 35% 30%, #fff, var(--hm-gold-2) 40%, var(--hm-gold-3)); }
+
+/* top right: the existing corner group (the account chip mounts here) */
+.pl-home .hm-corner { position: absolute; right: var(--hm-r); top: var(--hm-t); display: flex; gap: 8px; align-items: center; animation: hm-drop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.06s both; }
+.hm-icon {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 44px; height: 44px; padding: 0;
+  border: 0; border-radius: 50%; cursor: pointer; color: var(--cream, #fff3dc); background: var(--hm-glass);
+  box-shadow: inset 0 0 0 1.5px var(--hm-line), 0 4px 12px rgba(0, 0, 0, 0.3); font: 700 14px/1 var(--font, sans-serif);
+}
+.hm-icon.wide { width: auto; padding: 0 14px 0 10px; border-radius: 999px; }
+.hm-icon:hover { background: rgba(60, 38, 68, 0.9); }
+.hm-icon[aria-pressed='false'] { opacity: 0.75; }
+.hm-ico { width: 22px; height: 22px; flex: none; }
+.hm-badge, .pl-home .lb-social-badge {
+  position: absolute; top: 0; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; box-sizing: border-box;
+  background: #ff5a6e; color: #fff; font: 700 11px/16px var(--font, sans-serif); font-style: normal; text-align: center; pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------- left edge: round buttons */
+.hm-left {
+  position: absolute; left: var(--hm-l); top: calc(var(--hm-t) + 60px); display: flex; flex-direction: column; gap: 10px;
+  animation: hm-slide-l 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.18s both;
+}
+@keyframes hm-slide-l { from { opacity: 0; transform: translateX(-24px); } }
+.hm-left details { position: relative; }
+.hm-round {
+  position: relative; width: var(--hm-round); height: var(--hm-round); border-radius: 50%; box-sizing: border-box; border: 0; padding: 0; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; list-style: none; color: var(--cream, #fff3dc);
+  background: radial-gradient(circle at 50% 35%, rgba(70, 44, 82, 0.9), rgba(24, 14, 30, 0.85));
+  box-shadow: 0 0 0 2px rgba(242, 193, 78, 0.65), 0 0 0 3.5px var(--hm-ink), 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.15);
+}
+.hm-round::-webkit-details-marker { display: none; }
+.hm-round:hover, details[open] > .hm-round { background: radial-gradient(circle at 50% 35%, rgba(100, 64, 112, 0.95), rgba(34, 20, 42, 0.9)); }
+.hm-round .hm-ico { width: 20px; height: 20px; color: var(--hm-gold-1); }
+.hm-rl { font: 700 10px/1 var(--font, sans-serif); white-space: nowrap; }
+.hm-round.live { animation: hm-glow 2.4s ease-in-out infinite; }
+@keyframes hm-glow { 50% { box-shadow: 0 0 0 2px #ffd34d, 0 0 0 3.5px var(--hm-ink), 0 0 18px 4px rgba(255, 170, 80, 0.7); } }
+.hm-dot { position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; background: #ff5a3c; box-shadow: 0 0 0 2px var(--hm-ink); }
+.hm-code b { font: 900 20px/1 var(--font, sans-serif); color: var(--hm-gold-1); }
+.hm-qring {
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(closest-side, rgba(30, 19, 35, 1) 74%, transparent 76%), conic-gradient(var(--hm-gold-2) var(--p), rgba(255, 243, 220, 0.2) 0);
+}
+.hm-qring.all { background: radial-gradient(closest-side, rgba(30, 19, 35, 1) 74%, transparent 76%), conic-gradient(#9be3c4 100%, transparent 0); }
+.hm-qring .hm-ico { width: 14px; height: 14px; }
+.hm-pop {
+  position: absolute; z-index: 8; left: calc(100% + 12px); top: 0; width: 280px; box-sizing: border-box; padding: 8px; border-radius: 14px;
+  background: var(--hm-glass-solid); box-shadow: 0 0 0 1.5px rgba(242, 193, 78, 0.5), 0 12px 30px rgba(0, 0, 0, 0.5);
+  display: flex; flex-direction: column; gap: 4px; animation: hm-pop 0.18s ease-out both;
+}
+@keyframes hm-pop { from { opacity: 0; transform: translateX(-8px); } }
+.hm-qlist .q { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; border-radius: 10px; background: rgba(255, 243, 220, 0.06); }
+.hm-qlist .tick { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255, 243, 220, 0.3); display: grid; place-items: center; font-size: 11px; flex: none; }
+.hm-qlist .q.done .tick { background: #9be3c4; color: #2b1d2e; box-shadow: none; }
+.hm-qlist .t { flex: 1; }
+.hm-qlist .n { opacity: 0.7; font-weight: 600; }
+.hm-evlist .ev {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 8px; border: 0; border-radius: 10px; cursor: pointer; text-align: left;
+  color: inherit; background: rgba(255, 243, 220, 0.06);
+}
+.hm-evlist .ev:hover { background: rgba(255, 243, 220, 0.12); }
+.ev-crest { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; color: #3a2410; background: radial-gradient(circle at 35% 30%, var(--hm-gold-1), var(--hm-gold-2) 55%, var(--hm-gold-3)); }
+.ev-crest svg, .ev-crest .pl-icon { width: 16px; height: 16px; }
+.hm-evlist .t { display: flex; flex-direction: column; gap: 2px; }
+.hm-evlist .t b { font: 700 14px/1.1 var(--font, sans-serif); }
+.hm-evlist .t small { font: 600 11px/1 var(--font, sans-serif); opacity: 0.75; }
+.ev-none { margin: 4px 6px; font-size: 13px; opacity: 0.8; }
+
+/* the host's cards slot (embed: champion chip, sign-in, squad): beside the left stack, never over PLAY */
+.pl-home .hm-slot {
+  position: absolute; left: calc(var(--hm-l) + var(--hm-round) + 14px); top: calc(var(--hm-t) + 60px); max-width: 240px; max-height: calc(100% - 200px);
+  overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0;
+}
+.pl-home .hm-slot:empty { display: none; }
+
+/* ------------------------------------------------------------------------ right edge: promo rotator */
+.hm-promo {
+  position: absolute; right: var(--hm-r); top: calc(var(--hm-t) + 60px); width: 168px; height: 86px; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 0 0 2px rgba(242, 193, 78, 0.7), 0 0 0 3.5px var(--hm-ink), 0 8px 20px rgba(0, 0, 0, 0.45);
+  animation: hm-slide-r 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.24s both;
+}
+@keyframes hm-slide-r { from { opacity: 0; transform: translateX(24px); } }
+.hm-slide {
+  position: absolute; inset: 0; border: 0; padding: 0; cursor: pointer; color: #fff; text-align: left; opacity: 0; pointer-events: none;
+  background: linear-gradient(0deg, rgba(16, 9, 22, 0.88), rgba(16, 9, 22, 0.05) 70%), var(--art, linear-gradient(135deg, #5b2a6e, #2a1838)) center / cover no-repeat;
+  transition: opacity 0.6s ease;
+}
+.hm-slide.on { opacity: 1; pointer-events: auto; }
+.hm-slide-t { position: absolute; left: 10px; right: 10px; bottom: 8px; display: flex; flex-direction: column; gap: 1px; }
+.hm-slide-t b { font: 800 14px/1.05 var(--font, sans-serif); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7); }
+.hm-slide-t small { font: 600 11px/1.1 var(--font, sans-serif); opacity: 0.9; }
+.hm-dots { position: absolute; right: 8px; top: 7px; display: flex; gap: 4px; pointer-events: none; }
+.hm-dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 255, 255, 0.4); }
+.hm-dots i.on { background: var(--hm-gold-1); box-shadow: 0 0 6px var(--hm-gold-2); }
+
+/* ------------------------------------------------- top centre: the champion nameplate, over the hero's head */
+.hm-stage {
+  position: absolute; left: 50%; top: calc(var(--hm-t) + 48px); transform: translateX(-50%);
+  animation: hm-drop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.16s both;
+  display: flex; justify-content: center; pointer-events: none;
+}
+.hm-plate {
+  pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 44px; padding: 4px 22px; border: 0; border-radius: 12px;
+  color: inherit; text-align: center;
+  background: linear-gradient(90deg, transparent, rgba(16, 9, 22, 0.6) 20%, rgba(16, 9, 22, 0.6) 80%, transparent);
+}
+button.hm-plate { cursor: pointer; }
+button.hm-plate:hover .hm-plate-n { color: var(--hm-gold-1); }
+.hm-plate-n {
+  display: inline-flex; align-items: center; gap: 8px; font: 800 22px/1.05 var(--font, sans-serif); color: #fff; white-space: nowrap;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4), 0 0 18px color-mix(in srgb, var(--hm-el) 60%, transparent);
+}
+.hm-plate-s { font: 600 12px/1.1 var(--font, sans-serif); opacity: 0.85; white-space: nowrap; }
+.hm-swap { font-style: normal; width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 13px; background: rgba(255, 243, 220, 0.16); box-shadow: inset 0 0 0 1px var(--hm-line); text-shadow: none; }
+
+/* ------------------------------------------------------------------------------- bottom: glass nav */
+.hm-nav {
+  position: absolute; left: var(--hm-l); bottom: var(--hm-b); height: var(--hm-nav-h); display: flex; align-items: stretch; gap: 2px; padding: 0 8px;
+  border-radius: 16px; background: var(--hm-glass); box-shadow: inset 0 0 0 1px var(--hm-line), inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: hm-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both;
+}
+html:not([data-quality='low']) .pl-home:not(.low) .hm-nav { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+/* a thin gold rule along the nav's top edge */
+.hm-nav::before {
+  content: ''; position: absolute; left: 14px; right: 14px; top: 0; height: 1.5px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--hm-gold-2) 20%, var(--hm-gold-1) 50%, var(--hm-gold-2) 80%, transparent); opacity: 0.85;
+}
+html[data-quality='low'] .hm-nav, .pl-home.low .hm-nav { background: var(--hm-glass-solid); }
+@keyframes hm-rise { from { opacity: 0; transform: translateY(24px); } }
+.hm-ni {
+  position: relative; width: 60px; flex: none; border: 0; padding: 4px 0 3px; background: none; cursor: pointer; color: var(--cream, #fff3dc);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border-radius: 12px;
+}
+.hm-ni:hover { background: rgba(255, 243, 220, 0.08); }
+.hm-ni-i { position: relative; display: grid; place-items: center; width: 26px; height: 26px; }
+.hm-ni-i > .hm-ico, .hm-ni-i > .pl-icon { width: 24px; height: 24px; color: var(--hm-gold-1); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
+.hm-nl { font: 700 11px/1 var(--font, sans-serif); white-space: nowrap; }
+.hm-ni.locked { opacity: 0.6; }
+.hm-ni.locked .hm-ni-i > .hm-ico, .hm-ni.locked .hm-ni-i > .pl-icon { filter: grayscale(1); opacity: 0.7; }
+.hm-lk { position: absolute; right: -6px; bottom: -3px; width: 13px; height: 13px; color: #fff; filter: drop-shadow(0 1px 1px #000); }
+.hm-count {
+  position: absolute; top: -6px; right: -12px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; box-sizing: border-box;
+  background: var(--hm-el); color: #2b1d2e; font: 800 11px/18px var(--font, sans-serif); text-align: center;
+}
+.hm-count.tier { background: linear-gradient(180deg, var(--hm-gold-1), var(--hm-gold-2)); }
+
+/* ---------------------------------------------------------------------- bottom right: the PLAY cluster */
+.hm-playc {
+  position: absolute; right: var(--hm-r); bottom: var(--hm-b); display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+}
+.hm-pill {
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; max-width: 260px; padding: 0 12px 0 4px; border: 0; border-radius: 999px; cursor: pointer;
+  color: #fff; font: 700 13px/1 var(--font, sans-serif); white-space: nowrap;
+  background: linear-gradient(180deg, rgba(60, 36, 72, 0.92), rgba(28, 16, 36, 0.92));
+  box-shadow: 0 0 0 1.5px var(--hm-gold-2), 0 0 0 3px var(--hm-ink), 0 6px 14px rgba(0, 0, 0, 0.45);
+  animation: hm-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+.hm-pill:hover { background: linear-gradient(180deg, rgba(86, 52, 100, 0.95), rgba(40, 24, 50, 0.95)); }
+.hm-pill-c { width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center; color: #3a2410; background: radial-gradient(circle at 35% 30%, var(--hm-gold-1), var(--hm-gold-2) 55%, var(--hm-gold-3)); }
+.hm-pill-c svg { width: 16px; height: 16px; }
+.hm-pill-t { overflow: hidden; text-overflow: ellipsis; }
+.hm-pill i { font-style: normal; color: var(--hm-gold-1); font-size: 12px; }
+.hm-line {
+  margin: 0; max-width: 240px; padding: 7px 14px; border-radius: 14px; text-align: center; font: 700 12px/1.25 var(--font, sans-serif);
+  background: var(--hm-glass); box-shadow: inset 0 0 0 1px var(--hm-line), 0 4px 12px rgba(0, 0, 0, 0.35); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  animation: hm-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+.hm-line.dare { color: var(--butter, #ffd34d); }
+.hm-playrow { display: flex; align-items: flex-end; gap: 10px; }
+.hm-quick { display: flex; flex-direction: column; gap: 8px; padding-bottom: 4px; }
+.hm-qb {
+  display: inline-flex; align-items: center; gap: 6px; height: 44px; min-width: 44px; padding: 0 12px 0 10px; border: 0; border-radius: 999px; cursor: pointer;
+  color: var(--cream, #fff3dc); font: 700 13px/1 var(--font, sans-serif); white-space: nowrap;
+  background: var(--hm-glass); box-shadow: inset 0 0 0 1.5px var(--hm-line), 0 4px 10px rgba(0, 0, 0, 0.35);
+  animation: hm-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.24s both;
+}
+.hm-qb .hm-ico { width: 18px; height: 18px; }
+.hm-qb.hm-online { background: rgba(255, 211, 77, 0.24); box-shadow: inset 0 0 0 2px rgba(255, 211, 77, 0.75), 0 4px 10px rgba(0, 0, 0, 0.35); }
+.hm-qb.hm-online .hm-ico { color: var(--butter, #ffd34d); }
+.hm-qb[aria-disabled='true'] { opacity: 0.6; filter: saturate(0.5); }
+
+/* PLAY: a gold double bevelled ring (conic metal plus inset shadows), a pink radial face, an embossed paw */
+.pl-home .hm-play.pl-btn.big {
+  position: relative; flex: none; width: var(--hm-play); height: var(--hm-play); min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer; overflow: visible; font-size: 0; line-height: 0;
+  background: conic-gradient(from 220deg, var(--hm-gold-1), var(--hm-gold-2) 15%, var(--hm-gold-3) 32%, var(--hm-gold-1) 50%, var(--hm-gold-2) 65%, var(--hm-gold-4) 82%, var(--hm-gold-1));
+  box-shadow: 0 0 0 3px var(--hm-ink), 0 10px 26px rgba(0, 0, 0, 0.55), 0 0 30px rgba(255, 120, 170, 0.45), inset 0 0 0 2px rgba(255, 255, 255, 0.45);
+  animation: hm-pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+  transition: transform 0.09s ease-out;
+}
+@keyframes hm-pop-in { from { opacity: 0; transform: scale(0.4); } }
+.pl-home .hm-play::before {
+  content: ''; position: absolute; inset: 7px; border-radius: 50%;
+  background: conic-gradient(from 40deg, var(--hm-gold-4), var(--hm-gold-2) 25%, var(--hm-gold-1) 50%, var(--hm-gold-3) 75%, var(--hm-gold-4));
+  box-shadow: inset 0 0 0 2px var(--hm-ink);
+}
+.hm-play-face {
+  position: absolute; inset: 12px; border-radius: 50%; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  background: radial-gradient(circle at 50% 28%, #ffc2d8 0%, #ff74a6 32%, #e0407a 62%, #8e1a48 100%);
+  box-shadow: inset 0 4px 8px rgba(255, 255, 255, 0.45), inset 0 -10px 18px rgba(80, 8, 40, 0.65), 0 0 0 2px var(--hm-ink);
+}
+.hm-paw { width: 42%; height: auto; color: rgba(255, 255, 255, 0.92); filter: drop-shadow(0 2px 0 rgba(120, 20, 60, 0.75)) drop-shadow(0 -1px 0 rgba(255, 255, 255, 0.5)); animation: hm-paw 2.4s ease-in-out infinite; }
+@keyframes hm-paw { 50% { transform: scale(1.04); } }
+.hm-play-face b {
+  font: 900 calc(var(--hm-play) * 0.2) / 1 'Fredoka', var(--font, sans-serif); letter-spacing: 0.06em; color: #fff; margin-top: 1px;
+  text-shadow: 0 2px 0 #8e1a48, 0 0 10px rgba(255, 255, 255, 0.35);
+}
+.hm-sheen {
+  position: absolute; top: -20%; bottom: -20%; left: -60%; width: 40%; transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent); animation: hm-sheen 6s ease-in-out 1.2s infinite;
+}
+@keyframes hm-sheen { 0%, 78% { left: -60%; } 100% { left: 130%; } }
+.hm-play-glow {
+  position: absolute; inset: -2px; border-radius: 50%; pointer-events: none; box-shadow: 0 0 0 3px rgba(255, 196, 120, 0.85), 0 0 22px 6px rgba(255, 110, 170, 0.6);
+  opacity: 0; animation: hm-ring 2.4s ease-out infinite;
+}
+.hm-play-glow.b { animation-delay: 1.2s; }
+@keyframes hm-ring { 0% { transform: scale(1); opacity: 0.85; } 100% { transform: scale(1.35); opacity: 0; } }
+.pl-home .hm-play:hover { transform: scale(1.04); }
+.pl-home .hm-play:active, .pl-home .hm-play.pressed { transform: scale(0.94); }
+.pl-home .hm-play.pressed::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%; pointer-events: none; border: 4px solid var(--hm-gold-1);
+  animation: hm-shock 0.5s ease-out both;
+}
+@keyframes hm-shock { to { transform: scale(2.1); opacity: 0; border-width: 1px; } }
+.pl-home .hm-play:focus-visible { outline: 3px solid var(--butter, #ffd34d); outline-offset: 6px; }
+
+/* the card peek (desktop only): above the PLAY cluster */
+.pl-home .lb-peek { right: var(--hm-r); bottom: auto; top: calc(var(--hm-t) + 160px); }
+
+/* toast */
+.hm-toast {
+  position: absolute; left: 50%; bottom: calc(var(--hm-b) + var(--hm-nav-h) + 64px); transform: translate(-50%, 6px); margin: 0; z-index: 9;
+  padding: 8px 14px; border-radius: 12px; font: 600 13px/1.2 var(--font, sans-serif); white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis;
+  background: var(--hm-glass-solid); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(242, 193, 78, 0.45); opacity: 0;
+  transition: opacity 0.2s, transform 0.2s; pointer-events: none;
+}
+.hm-toast.on { opacity: 1; transform: translate(-50%, 0); }
+.shake { animation: hm-shake 0.36s ease both !important; }
+@keyframes hm-shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+
+/* focus */
+.pl-home button:focus-visible:not(.hm-play), .pl-home summary:focus-visible { outline: 3px solid var(--butter, #ffd34d); outline-offset: 3px; }
+
+/* the release watermark: just above the nav on the left, low contrast */
+.pl-home .lb-ver {
+  position: absolute; left: calc(var(--hm-l) + 6px); bottom: calc(var(--hm-b) + var(--hm-nav-h) + 2px); z-index: 0; height: 14px; padding: 0 4px; margin: 0; border: 0;
+  background: none; cursor: copy; font: 500 9px/14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--cream, #fff3dc); opacity: 0.35; max-width: 34vw;
+}
+.pl-home .lb-ver span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* leaving (PLAY): the top bar up, the nav down, the rest fades */
+.pl-home.leaving .hm-top, .pl-home.leaving .hm-corner, .pl-home.leaving .hm-cur { transform: translateY(-24px); opacity: 0; transition: opacity 0.22s ease-in, transform 0.22s ease-in; }
+.pl-home.leaving .hm-cur { transform: translate(-50%, -24px); }
+.pl-home.leaving .hm-stage { opacity: 0; transition: opacity 0.22s ease-in; }
+.pl-home.leaving .hm-nav { translate: 0 24px; opacity: 0; transition: opacity 0.22s ease-in, translate 0.22s ease-in; }
+.pl-home.leaving .hm-left, .pl-home.leaving .hm-slot, .pl-home.leaving .hm-promo, .pl-home.leaving .lb-peek, .pl-home.leaving .hm-pill, .pl-home.leaving .hm-quick { opacity: 0; transition: opacity 0.22s ease-in; pointer-events: none; }
+/* Mode Select open: Home dims under it */
+.pl-home.hm-dim > :not(.ms-overlay):not(.hm-fx) { opacity: 0.4; transition: opacity 0.3s; pointer-events: none; }
+
+/* ------------------------------------------------------------------------------------------ desktop */
+@media (min-height: 600px) and (min-width: 1000px) {
+  .pl-home { --hm-l: max(40px, var(--safe-l, 0px)); --hm-r: max(40px, var(--safe-r, 0px)); --hm-t: 24px; --hm-b: 24px; --hm-play: 140px; --hm-nav-h: 68px; --hm-round: 64px; --hm-av: 64px; }
+  .hm-pf-name { font-size: 20px; max-width: 260px; }
+  .hm-xp { width: 240px; height: 5px; }
+  .hm-pf-sub { font-size: 12px; }
+  .hm-ni { width: 84px; }
+  .hm-ni-i { width: 32px; height: 32px; }
+  .hm-ni-i > .hm-ico, .hm-ni-i > .pl-icon { width: 30px; height: 30px; }
+  .hm-nl { font-size: 13px; }
+  .hm-nav { left: 50%; transform: translateX(-50%); padding: 0 16px; gap: 6px; }
+  @keyframes hm-rise-c { from { opacity: 0; transform: translate(-50%, 24px); } }
+  .hm-nav { animation-name: hm-rise-c; }
+  .hm-stage { top: calc(var(--hm-t) + 60px); }
+  .hm-plate-n { font-size: 30px; }
+  .hm-plate-s { font-size: 14px; }
+  .hm-pill { height: 48px; font-size: 15px; max-width: 320px; }
+  .hm-pill-c { width: 34px; height: 34px; }
+  .hm-qb { height: 46px; font-size: 15px; padding: 0 16px 0 12px; }
+  .hm-promo { width: 256px; height: 144px; top: calc(var(--hm-t) + 76px); }
+  .hm-slide-t b { font-size: 17px; }
+  .hm-slide-t small { font-size: 13px; }
+  .hm-left { top: calc(var(--hm-t) + 86px); gap: 14px; }
+  .hm-rl { font-size: 11px; }
+  .pl-home .hm-slot { top: calc(var(--hm-t) + 86px); left: calc(var(--hm-l) + var(--hm-round) + 18px); max-width: 300px; }
+  .hm-round .hm-ico { width: 26px; height: 26px; }
+  .hm-chip { height: 38px; }
+  .hm-chip b { font-size: 16px; }
+  .pl-home .lb-peek { top: auto; bottom: calc(var(--hm-b) + var(--hm-play) + 70px); }
+}
+@media (min-height: 600px) and (min-width: 1000px) {
+  .pl-home.leaving .hm-nav { translate: 0 24px; }
+}
+
+/* ------------------------------------------------------------------------------------------- phones */
+@media (max-height: 480px) {
+  .pl-home .lb-peek { display: none; }
+  .hm-cur small { display: none; }
+  .hm-chip { padding: 0 10px 0 6px; }
+}
+/* narrow phones (667 wide): nav items tighter, the quick buttons show icons only */
+@media (max-width: 760px) {
+  .hm-ni { width: 52px; }
+  .hm-nav { padding: 0 4px; }
+  .hm-qb span { display: none; }
+  .hm-qb { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .hm-cur { display: none; }
+  .hm-promo { width: 132px; height: 72px; }
+  .hm-xp { width: 96px; }
+}
+@media (max-width: 760px) and (max-height: 480px) {
+  .hm-pf-name { max-width: 140px; }
+}
+
+/* ---------------------------------------------------------------------------------------- hide ladder */
+/* step 1 (<= 360): nav icons only, the promo a 56 px square */
+@media (max-height: 360px) {
+  .pl-home { --hm-nav-h: 44px; --hm-play: 92px; --hm-round: 44px; }
+  .hm-nl, .hm-rl { display: none; }
+  .hm-ni { width: 48px; }
+  .hm-promo { width: 56px; height: 56px; }
+  .hm-slide-t, .hm-dots { display: none; }
+  .hm-plate-s { display: none; }
+  .hm-plate-n { font-size: 18px; }
+  .hm-left { top: calc(var(--hm-t) + 52px); gap: 8px; }
+}
+/* step 2 (<= 320): no left stack (Today stays in Events' place), no promo */
+@media (max-height: 320px) {
+  .hm-left, .hm-promo, .pl-home .hm-slot { display: none; }
+  .pl-home { --hm-play: 80px; }
+  .hm-quick { flex-direction: row; }
+}
+@media (max-height: 260px) {
+  .hm-stage, .pl-home .lb-ver { display: none; }
+}
+/* narrow phones: the nameplate sits under the top bar between the profile and the corner group */
+@media (max-width: 760px) {
+  .hm-plate-n { font-size: 18px; }
+}
+
+/* ------------------------------------------------------------------------- Low tier, reduced motion */
+.pl-home.low *, html[data-quality='low'] .pl-home * { animation: none !important; }
+.pl-home.low .hm-play-glow { opacity: 0.5; transform: scale(1.08); }
+@media (prefers-reduced-motion: reduce) {
+  .pl-home *, .pl-home *::before, .pl-home *::after { animation: none !important; transition: none !important; }
+  .hm-play-glow { opacity: 0.5; transform: scale(1.08); }
+}

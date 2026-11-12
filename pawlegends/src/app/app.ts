@@ -54,7 +54,10 @@ import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
 import { loadingVeil, pickScreen, refreshPickChamps, refreshPickFaces, setPickLook, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
-import { disposeLobby, heroIdentity, lobbyScreen, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
+import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
+import { disposeHome, homeScreen, type HomeProfile, type Promo } from '../ui/home/homeScreen';
+import { currentSeason, seasonEndText } from '../meta/pass';
+import { legacyMode, loadModeChoice, modeList, saveModeChoice, type ModeChoice } from '../ui/modeSelect/modes';
 import { heroElement } from '../ui/cards/el';
 import type { DeckCard, DeckHandle } from '../ui/deck/deck';
 import { championOf } from '../data/heroes/shelter';
@@ -660,6 +663,7 @@ export class App {
   private setScreen(s: Screen, el: HTMLElement | null): void {
     // QA: the lobby's document key listener left with its screen (it piled up, one per redraw, holding old screens)
     disposeLobby(this.screenEl);
+    disposeHome(this.screenEl);
     this.screenEl?.remove();
     this.screenEl = el;
     this.screen = s;
@@ -695,6 +699,8 @@ export class App {
   private onlineMode: OnlineMode | null = null;
   /** The title's 3v3 Quick | 5v5 Classic pick this visit (localStorage may be blocked; null = the stored one). */
   private matchModeNow: MatchMode | null = null;
+  /** Home's mode and queue this visit (Mode Select's Confirm; null = the stored one). */
+  private modeChoiceNow: ModeChoice | null = null;
 
   /** `offer` false: a redraw after a lobby panel closed (the Treat Track panel never leads to an offer). */
   showTitle(offer = true): void {
@@ -724,7 +730,10 @@ export class App {
     // a cat that arrived during a match goes on now (never over the match HUD)
     this.autoEquip(true);
     this.lobby.enter();
-    this.lobby.side = 0.42;
+    // Home (HOME-MODES.md §4): the hero stands centred on the key art's ring, at 72% of the full band
+    this.lobby.side = 0;
+    this.lobby.heroScale = 0.72;
+    this.lobby.footShare = 0.09;
     this.setLobbyHero(this.dare?.hero ?? this.choice.hero);
     const p = loadProfile();
     const owned = this.owned();
@@ -745,9 +754,51 @@ export class App {
       ...(k.art ? { art: k.art } : {}),
       ...(k.sprite ? { sprite: k.sprite } : {}),
     }));
+    // Home's profile strip, season and promos (HOME-MODES.md §4): only numbers the server or this device has
+    const season = s.season;
+    const def = season ? currentSeason() : null;
+    const profile: HomeProfile = {
+      name: accountState().name ?? this.integration.state().playerName ?? 'Guest',
+      tier: season ? season.tier : null,
+      pct: season && def ? (Math.max(0, season.xp) % def.xpPerTier) / def.xpPerTier : 0,
+      xp: season ? season.xp : null,
+      matches: p.matches,
+    };
+    const ends = season ? seasonEndText(season.endsAt) : '';
+    const base = import.meta.env.BASE_URL ?? './';
+    const promos: Promo[] = [
+      ...(p.matches > 0
+        ? [
+            season
+              ? { id: 'pass', title: 'Legends Pass', sub: `Tier ${season.tier}${ends ? ` · ends ${ends}` : ''}`, art: `${base}assets/lobby/promo-pass.webp`, action: 'pass' as const }
+              : { id: 'track', title: 'Treat Track', sub: 'Pick your next reward', art: `${base}assets/lobby/promo-pass.webp`, action: 'pass' as const },
+          ]
+        : []),
+      { id: 'cannon', title: 'Cannon Chaos', sub: 'Party event, coming soon', art: `${base}assets/lobby/promo-cannon.webp`, action: 'modes' },
+      { id: 'store', title: 'Store', sub: 'Champions, coats and frames', action: 'store' },
+    ];
+    const modes = modeList();
     this.setScreen(
       'title',
-      lobbyScreen(this.root, {
+      homeScreen(this.root, {
+        profile,
+        modes,
+        modeChoice: this.modeChoiceNow ?? loadModeChoice(modes),
+        // Mode Select's Confirm: saved, and the old 3v3 | 5v5 key follows (the pick, party queue and rematch read it)
+        onModeChoice: (c) => {
+          this.modeChoiceNow = c;
+          saveModeChoice(c);
+          const lm = legacyMode(c.mode);
+          this.matchModeNow = lm;
+          saveMatchMode(lm);
+          if (c.queue !== 'bots' && pvpKnown() === true) {
+            this.onlineMode = c.queue;
+            setOnlineMode(c.queue);
+          }
+        },
+        promos,
+        seasonEnd: ends ? `Ends ${ends}` : '',
+        base,
         firstTime: p.matches === 0,
         last: this.choice,
         dare: this.dare,
@@ -764,14 +815,6 @@ export class App {
         difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `More bots after ${PICK_DIFFICULTY_FROM} matches.`,
         onDifficulty: (d) => {
           this.choice = { ...this.choice, difficulty: d };
-        },
-        // Sim v19 (MAP-5V5.md §8.1): 3v3 Quick | 5v5 Classic above Play, remembered; the first match is 3v3
-        matchMode: {
-          mode: this.matchModeNow ?? loadMatchMode(),
-          onMode: (m) => {
-            this.matchModeNow = m;
-            saveMatchMode(m);
-          },
         },
         cardCount: skins.length,
         peek,
@@ -937,6 +980,8 @@ export class App {
   showPick(): void {
     this.lobby.enter();
     this.lobby.side = 0.5;
+    this.lobby.heroScale = 1;
+    this.lobby.footShare = 0;
     this.setLobbyHero(this.choice.hero);
     const p = loadProfile();
     this.setScreen(
@@ -1578,6 +1623,8 @@ export class App {
     this.session = null;
     this.lobby.enter();
     this.lobby.side = 0.45;
+    this.lobby.heroScale = 1;
+    this.lobby.footShare = 0;
     this.setLobbyHero(e.replay.hero);
     if (won) this.lobby.confetti(3);
     let link: string | null = null;

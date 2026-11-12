@@ -18,7 +18,14 @@
 export const LOBBY_BGS = ['castles', 'meadow', 'arena'] as const;
 /** Scenes tied to a screen (public/assets/screens/), not to the visit. */
 export const SCREEN_BGS = ['stage', 'win-cat', 'win-dog', 'lose-cat', 'lose-dog'] as const;
-export type LobbyBg = (typeof LOBBY_BGS)[number] | (typeof SCREEN_BGS)[number];
+/**
+ * Home (docs/plans/moba/HOME-MODES.md §4): the key art behind the title screen on every visit. A sunset arena, cats
+ * left and dogs right, an empty glowing ring in the middle where the 3D hero stands. One painting in two crops: 16:9
+ * (`legends-*`) for desktop and 21:9 (`legends-wide-*`) for phones wider than ~1.9:1, so the ring and both teams stay
+ * in frame under the cover fit.
+ */
+export const HOME_BG = 'legends' as const;
+export type LobbyBg = (typeof LOBBY_BGS)[number] | (typeof SCREEN_BGS)[number] | typeof HOME_BG;
 
 const VISIT_KEY = 'tt.pawlegends.lobbybg.v1';
 
@@ -28,17 +35,22 @@ export function lobbyBgFor(visit: number): (typeof LOBBY_BGS)[number] {
   return visit > 0 && visit % 3 === 2 ? 'meadow' : 'castles';
 }
 
-/** The screen's own scene (`data-screen` on <html>), or null to keep the visit's scene. */
-export function screenBg(screen: string | undefined, o: { won: boolean; side: 'cat' | 'dog' }): LobbyBg | null {
+/**
+ * The screen's own scene (`data-screen` on <html>), or null to keep the visit's scene. Home (`title`) shows the key art
+ * unless `forced` (a `?lobbybg=` override for e2e and screenshots).
+ */
+export function screenBg(screen: string | undefined, o: { won: boolean; side: 'cat' | 'dog'; forced?: boolean }): LobbyBg | null {
+  if (screen === 'title' && !o.forced) return HOME_BG;
   if (screen === 'pick') return 'stage';
   if (screen === 'results') return `${o.won ? 'win' : 'lose'}-${o.side}`;
   return null;
 }
 
-/** The file for a scene: the 1920 px one on a wide, not-Low screen. */
-export function lobbyBgUrl(bg: LobbyBg, o: { base: string; bufferWidth: number; low: boolean }): string {
+/** The file for a scene: the 1920 px one on a wide, not-Low screen; Home's 21:9 crop on a screen wider than 1.9:1. */
+export function lobbyBgUrl(bg: LobbyBg, o: { base: string; bufferWidth: number; low: boolean; aspect?: number }): string {
   const w = !o.low && o.bufferWidth > 1400 ? 1920 : 1280;
   if (bg === 'stage') return `${o.base}assets/screens/pick-stage-${w}.webp`;
+  if (bg === HOME_BG) return `${o.base}assets/lobby/${(o.aspect ?? 0) > 1.9 ? 'legends-wide' : 'legends'}-${w}.webp`;
   const dir = (SCREEN_BGS as readonly string[]).includes(bg) ? 'screens' : 'lobby';
   return `${o.base}assets/${dir}/${bg}-${w}.webp`;
 }

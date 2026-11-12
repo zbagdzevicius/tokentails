@@ -1,10 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { PROFILE_KEY } from './helpers';
 
-// No-scroll landing and champion select (docs/plans/moba/LANDING-PICK-UX.md §0, §A5, §B7): at 667x375 and 844x390
-// (touch, 2x), 1440x900 and 667x300, for a new, a returning and a dare profile, nothing scrolls on the landing (the
-// document, the column, nothing), every tier 1, tier 2 and rail control sits inside the viewport at a 44 px touch
-// size, and on the pick screen only the portrait grid may scroll while LOCK IN, the selected tile, the skill row and
+// No-scroll Home and champion select (docs/plans/moba/HOME-MODES.md §4, LANDING-PICK-UX.md §B7): at 667x375 and 844x390
+// (touch, 2x), 1440x900 and 667x300, for a new, a returning and a dare profile, nothing scrolls on Home, every Home
+// control sits inside the viewport at a 44 px touch size, and on the pick screen only the portrait grid may scroll while LOCK IN, the selected tile, the skill row and
 // the trick row stay in view. The online buttons come from a mocked relay answering PvP-capable, as in production.
 
 const RETURNING = { v: 1, sessions: 3, matches: 8, wins: 4, firstWinDone: true, hero: 'sage', side: 'cat', veteran: true, firstPlaySession: 1 };
@@ -58,42 +57,41 @@ for (const size of SIZES) {
           }, [PROFILE_KEY, JSON.stringify(RETURNING)] as const);
         const q = profile === 'dare' ? '&dare=7.1.0.0.8c' : '';
         await page.goto(`/?e2e=1${q}`);
-        await page.waitForSelector('html[data-screen="title"] .pl-lobby');
-        await page.waitForTimeout(600);
+        await page.waitForSelector('html[data-screen="title"] .pl-home');
+        // past Home's entrance animations (the looping ones keep running)
+        await page.waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: 10_000 });
         expect(await page.evaluate(() => (document.scrollingElement?.scrollHeight ?? 0) <= innerHeight)).toBe(true);
         expect(await page.evaluate(() => (document.scrollingElement?.scrollWidth ?? 0) <= innerWidth)).toBe(true);
         expect(await scrollers(page)).toEqual([]);
-        // the column's content fits its box (nothing clipped below the fold)
-        expect(await page.evaluate(() => {
-          const c = document.querySelector<HTMLElement>('.lb-col')!;
-          return c.scrollHeight <= c.clientHeight + 1;
-        })).toBe(true);
-        // tier 1 (Play), tier 2 (the online row) and the rail: in view and touch sized (the bots radio: 28 px pills in a
-        // 34 px segment, each with a 40 px tall hit area)
-        expect(await bad(page, '.lb-play .pl-btn.big, .lb-online-row .pl-btn, .lb-rail .lb-ri, .lb-corner .lb-icon', 40)).toEqual([]);
-        // the bots pills and the 3v3 | 5v5 toggle (sim v19, in the same row): 34 px drawn, 44+ px hit areas
-        expect(await bad(page, '.lb-seg button, .lb-map button', size.height <= 320 ? 26 : 32)).toEqual([]);
-        // Play is the only filled pink button: Co-op is solid butter, PvP, Friends and # are ghosts
-        expect(await page.locator('.lb-online-row .pl-btn:not(.ghost):not(.lb-online)').count()).toBe(0);
-        const pink = await page.evaluate(() => getComputedStyle(document.querySelector('.lb-play .pl-btn.big')!).backgroundColor);
-        for (const bg of await page.locator('.lb-online-row .pl-btn').evaluateAll((els) => els.map((e) => getComputedStyle(e).backgroundColor))) expect(bg).not.toBe(pink);
+        // Home (HOME-MODES.md §4): PLAY, the mode pill, the quick online buttons, the nav, the left stack and the corner:
+        // in view and touch sized
+        expect(await bad(page, '.hm-play, .hm-pill, .hm-qb, .hm-ni, .hm-left .hm-round, .hm-corner .hm-icon, .hm-profile', 44)).toEqual([]);
+        // PLAY is the only pink button: the quick online buttons are butter (Co-op) and glass (PvP)
+        const pink = await page.evaluate(() => getComputedStyle(document.querySelector('.hm-play-face')!).backgroundImage);
+        for (const bg of await page.locator('.hm-qb').evaluateAll((els) => els.map((e) => getComputedStyle(e).backgroundImage))) expect(bg).not.toBe(pink);
         if (profile === 'returning') {
-          await expect(page.locator('.lb-rail [data-a="choose"]')).toBeInViewport();
-          if (size.height > 280) await expect(page.locator('[data-testid="match-mode"]')).toBeInViewport();
+          await expect(page.locator('.hm-nav [data-a="choose"]')).toBeInViewport();
+          await expect(page.locator('[data-testid="mode-pill"]')).toBeInViewport();
         }
-        // a first visit and a dare: no Heroes, Cards or Today in the rail (Store and Treat Track stay when open)
-        if (profile !== 'returning') await expect(page.locator('.lb-rail [data-a="choose"]')).toHaveCount(0);
-        // the host's cards slot (the champion's About chip, badges) is in the column, never over the 3D hero
+        // a first visit and a dare: Heroes is in the nav but locked (the guided match or the dare is the one call)
+        if (profile !== 'returning') {
+          await expect(page.locator('.hm-nav [data-a="choose"]')).toHaveCount(0);
+          await expect(page.locator('[data-testid="mode-pill"]')).toHaveCount(0);
+        }
+        // the host's cards slot (the champion's About chip, badges) never covers PLAY or the nav
         await page.evaluate(() => {
-          const s = document.querySelector<HTMLElement>('.lb-cards');
+          const s = document.querySelector<HTMLElement>('.hm-slot');
           if (s) s.innerHTML = '<div class="plc-champ"><button class="pl-btn ghost small plc-champ-chip">About Bengas</button></div>';
         });
         expect(await page.evaluate(() => {
-          const c = document.querySelector<HTMLElement>('.lb-col')!.getBoundingClientRect();
-          const s = document.querySelector<HTMLElement>('.lb-cards');
+          const s = document.querySelector<HTMLElement>('.hm-slot');
           if (!s) return true;
           const r = s.getBoundingClientRect();
-          return r.width === 0 || (r.left >= c.left - 1 && r.right <= c.right + 1);
+          if (r.width === 0) return true;
+          return ['.hm-play', '.hm-nav'].every((q) => {
+            const b = document.querySelector<HTMLElement>(q)!.getBoundingClientRect();
+            return r.right <= b.left + 1 || b.right <= r.left + 1 || r.bottom <= b.top + 1 || b.bottom <= r.top + 1;
+          });
         })).toBe(true);
         expect(await scrollers(page)).toEqual([]);
       });
@@ -105,8 +103,8 @@ for (const size of SIZES) {
         if (!localStorage.getItem(k)) localStorage.setItem(k, v);
       }, [PROFILE_KEY, JSON.stringify(RETURNING)] as const);
       await page.goto('/?e2e=1');
-      await page.waitForSelector('html[data-screen="title"] .pl-lobby');
-      await page.locator('.lb-rail [data-a="choose"]').click();
+      await page.waitForSelector('html[data-screen="title"] .pl-home');
+      await page.locator('.hm-nav [data-a="choose"]').click();
       await page.waitForSelector('html[data-screen="pick"] .cs');
       for (const tab of ['cat', 'all'] as const) {
         await page.locator(`[data-cs="side"][data-side="${tab}"]`).click();
@@ -147,7 +145,7 @@ for (const size of SIZES) {
           if (!localStorage.getItem(k)) localStorage.setItem(k, v);
         }, [PROFILE_KEY, JSON.stringify(RETURNING)] as const);
         await page.goto('/?e2e=1');
-        await page.waitForSelector('html[data-screen="title"] .pl-lobby');
+        await page.waitForSelector('html[data-screen="title"] .pl-home');
         // an iPhone in landscape: 47 px on both sides, 21 px at the bottom (env() is 0 here, so the variables are set)
         await page.evaluate(() => {
           const r = document.documentElement.style;
@@ -155,7 +153,7 @@ for (const size of SIZES) {
           r.setProperty('--safe-r', '47px');
           r.setProperty('--safe-b', '21px');
         });
-        await page.locator('.lb-rail [data-a="choose"]').click();
+        await page.locator('.hm-nav [data-a="choose"]').click();
         await page.waitForSelector('html[data-screen="pick"] .cs');
         await page.locator('[data-cs="side"][data-side="cat"]').click();
         expect(await page.evaluate(() => {

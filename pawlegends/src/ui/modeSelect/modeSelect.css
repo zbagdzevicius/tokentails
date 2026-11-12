@@ -1,0 +1,232 @@
+/* Mode Select (docs/plans/moba/HOME-MODES.md §5). Full screen, never scrolls vertically; the tile row is the only scroll
+   region (sideways, with snap) when more tiles exist than fit. Frames, rings, crests and buttons are CSS/SVG only. */
+.ms-overlay {
+  --ms-gold-1: #fff1b8;
+  --ms-gold-2: #f2c14e;
+  --ms-gold-3: #a8741c;
+  --ms-gold-4: #5e3d0c;
+  --ms-ink: #1b1022;
+  --ms-tile: clamp(84px, 26dvh, 132px);
+  --ms-gap: clamp(10px, 2vw, 22px);
+  --ms-pad-l: max(16px, var(--safe-l, 0px));
+  --ms-pad-r: max(16px, var(--safe-r, 0px));
+  --ms-pad-t: max(8px, var(--safe-t, 0px));
+  --ms-pad-b: max(10px, var(--safe-b, 0px));
+  position: fixed; inset: 0; z-index: 40; box-sizing: border-box; overflow: hidden;
+  display: flex; flex-direction: column; padding: var(--ms-pad-t) var(--ms-pad-r) var(--ms-pad-b) var(--ms-pad-l);
+  color: var(--cream, #fff3dc); font-family: var(--font, 'Fredoka', system-ui, sans-serif);
+  background: rgba(14, 8, 20, 0.55);
+  animation: ms-in 0.3s ease-out both;
+}
+.ms-overlay.out { animation: ms-out 0.2s ease-in both; }
+@keyframes ms-in { from { opacity: 0; } }
+@keyframes ms-out { to { opacity: 0; } }
+html:not([data-quality='low']) .ms-overlay:not(.low) { backdrop-filter: blur(8px) brightness(0.6); -webkit-backdrop-filter: blur(8px) brightness(0.6); }
+.ms-bg {
+  position: absolute; inset: -12px; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 55%, rgba(255, 196, 120, 0.18), transparent 70%),
+    linear-gradient(180deg, rgba(10, 6, 16, 0.55) 0%, rgba(10, 6, 16, 0) 20%, rgba(10, 6, 16, 0) 72%, rgba(10, 6, 16, 0.8) 100%),
+    var(--ms-bg) center / cover no-repeat, #1a1024;
+  animation: ms-bg-in 0.5s ease-out both, ms-drift 22s ease-in-out 0.5s infinite alternate;
+}
+@keyframes ms-bg-in { from { opacity: 0; transform: scale(1.05); } }
+@keyframes ms-drift { to { transform: translate3d(-8px, -4px, 0) scale(1.01); } }
+
+/* header */
+.ms-head { flex: none; display: flex; align-items: center; gap: 12px; height: 44px; }
+.ms-btn {
+  flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer;
+  color: var(--cream, #fff3dc); background: rgba(27, 16, 34, 0.72);
+  box-shadow: inset 0 0 0 1.5px rgba(242, 193, 78, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.ms-btn:hover { background: rgba(60, 38, 68, 0.9); }
+.ms-ico { width: 22px; height: 22px; flex: none; }
+.ms-title {
+  position: relative; margin: 0; flex: 1; text-align: center; font: 800 clamp(20px, 6dvh, 30px)/1 var(--font, 'Fredoka', sans-serif);
+  letter-spacing: 0.02em; color: #fff7e0; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45), 0 0 18px rgba(242, 193, 78, 0.45);
+}
+.ms-title::after {
+  content: ''; position: absolute; left: 50%; bottom: -8px; width: min(220px, 50%); height: 6px; transform: translateX(-50%);
+  background:
+    radial-gradient(circle at 50% 50%, var(--ms-gold-1) 0 2.5px, transparent 3px),
+    linear-gradient(90deg, transparent, var(--ms-gold-2) 30%, var(--ms-gold-2) 45%, transparent 47%, transparent 53%, var(--ms-gold-2) 55%, var(--ms-gold-2) 70%, transparent) center / 100% 2px no-repeat;
+}
+.ms-head-r { width: 44px; flex: none; }
+
+/* the tile row: centred; a sideways scroller with snap only when it overflows */
+.ms-rowwrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; }
+.ms-row {
+  display: flex; gap: var(--ms-gap); margin: 0 auto; max-width: 100%; box-sizing: border-box;
+  overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
+  padding: 18px 8px 6px;
+}
+.ms-row::-webkit-scrollbar { display: none; }
+.ms-rowwrap::before, .ms-rowwrap::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 36px; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 0.2s;
+}
+.ms-rowwrap::before { left: 0; background: linear-gradient(90deg, rgba(14, 8, 20, 0.85), transparent); }
+.ms-rowwrap::after { right: 0; background: linear-gradient(-90deg, rgba(14, 8, 20, 0.85), transparent); }
+.ms-rowwrap.fade-l::before, .ms-rowwrap.fade-r::after { opacity: 1; }
+
+.ms-tile {
+  position: relative; flex: none; width: var(--ms-tile); scroll-snap-align: center;
+  animation: ms-tile-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(var(--i, 0) * 40ms + 80ms);
+}
+@keyframes ms-tile-in { from { opacity: 0; transform: translateY(20px) scale(0.8); } }
+.ms-pick {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0; border: 0; background: none; cursor: pointer;
+  color: inherit; font: inherit; text-align: center; transition: opacity 0.2s, filter 0.2s;
+}
+.ms-ring {
+  position: relative; width: var(--ms-tile); height: var(--ms-tile); border-radius: 50%; display: block;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s;
+}
+/* the gold bevelled ring: a conic metal band, a dark keyline and two inset shadows */
+.ms-frame {
+  position: absolute; inset: 0; border-radius: 50%; overflow: hidden; padding: 5px; box-sizing: border-box;
+  background: conic-gradient(from 210deg, var(--ms-gold-1), var(--ms-gold-2) 18%, var(--ms-gold-3) 34%, var(--ms-gold-1) 50%, var(--ms-gold-2) 66%, var(--ms-gold-4) 84%, var(--ms-gold-1));
+  box-shadow: 0 0 0 2px var(--ms-ink), 0 8px 18px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+.ms-frame::after {
+  content: ''; position: absolute; inset: 5px; border-radius: 50%; pointer-events: none;
+  box-shadow: inset 0 0 0 2px var(--ms-ink), inset 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 -10px 22px rgba(0, 0, 0, 0.35);
+}
+.ms-art { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #2b1d2e; transition: filter 0.2s; }
+/* a slow rune ring behind live tiles */
+.ms-runes {
+  position: absolute; inset: -9px; border-radius: 50%; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 214, 140, 0.55) 0 2deg, transparent 2deg 15deg);
+  -webkit-mask: radial-gradient(closest-side, transparent 86%, #000 88%, #000 98%, transparent 100%);
+  mask: radial-gradient(closest-side, transparent 86%, #000 88%, #000 98%, transparent 100%);
+  opacity: 0.55; animation: ms-spin 12s linear infinite;
+}
+.ms-tile:not([data-state='live']):not([data-state='event']) .ms-runes { display: none; }
+@keyframes ms-spin { to { transform: rotate(360deg); } }
+.ms-crest {
+  position: absolute; left: 50%; top: -10px; width: 28px; height: 28px; transform: translateX(-50%); border-radius: 50%; z-index: 2;
+  display: grid; place-items: center; color: #3a2410;
+  background: radial-gradient(circle at 35% 30%, var(--ms-gold-1), var(--ms-gold-2) 55%, var(--ms-gold-3));
+  box-shadow: 0 0 0 2px var(--ms-ink), 0 3px 6px rgba(0, 0, 0, 0.5);
+}
+.ms-crest svg { width: 16px; height: 16px; }
+.ms-band {
+  position: absolute; left: -6%; right: -6%; top: 50%; height: 24px; margin-top: -12px; z-index: 2; transform: rotate(-12deg);
+  display: grid; place-items: center; font: 800 13px/1 var(--font, sans-serif); letter-spacing: 0.22em; color: #2a1830;
+  background: linear-gradient(90deg, transparent, #f2c14e 12%, #ffe08a 50%, #f2c14e 88%, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+.ms-lock {
+  position: absolute; left: 2px; bottom: 6px; z-index: 2; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  color: #fff3dc; background: #2b1d2e; box-shadow: 0 0 0 2px var(--ms-gold-2), 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+.ms-lock svg { width: 16px; height: 16px; }
+.ms-tile[data-state='locked'] .ms-art, .ms-tile[data-state='soon'] .ms-art { filter: grayscale(0.6) brightness(0.7); }
+.ms-tile[data-state='soon'] .ms-pick, .ms-tile[data-state='locked'] .ms-pick { cursor: not-allowed; }
+.ms-name { margin-top: 8px; max-width: calc(var(--ms-tile) + 20px); overflow: hidden; text-overflow: ellipsis; font: 800 15px/1.1 var(--font, sans-serif); color: #fff; white-space: nowrap; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7); }
+.ms-meta { font: 600 11px/1.2 var(--font, sans-serif); opacity: 0.85; white-space: nowrap; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
+.ms-rank { font: 700 11px/1.2 var(--font, sans-serif); color: #9fd0ff; white-space: nowrap; }
+.ms-chip {
+  position: absolute; left: 50%; top: -14px; transform: translateX(-50%); z-index: 3; white-space: nowrap;
+  padding: 3px 8px; border-radius: 999px; font: 800 11px/1.2 var(--font, sans-serif); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.ms-chip.ev { background: linear-gradient(180deg, #ff7a45, #d9381e); color: #fff; }
+.ms-chip.new { background: linear-gradient(180deg, #8ff0c8, #2fae7a); color: #10261c; letter-spacing: 0.08em; }
+.ms-tile:has(.ms-chip) .ms-crest { display: none; }
+/* the "i": a 24 px glyph at 4 o'clock on the ring with a 44 px hit area */
+.ms-info {
+  position: absolute; z-index: 4; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+  left: calc(var(--ms-tile) * 0.933 - 22px); top: calc(var(--ms-tile) * 0.75 - 22px);
+  display: grid; place-items: center;
+}
+.ms-info i {
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: italic 800 14px/1 Georgia, serif; color: #3a2410;
+  background: radial-gradient(circle at 35% 30%, var(--ms-gold-1), var(--ms-gold-2) 60%, var(--ms-gold-3));
+  box-shadow: 0 0 0 2px var(--ms-ink), 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+/* selection: the picked ring brightens and lifts, a burst glows under it, the others dim */
+.ms-row.has-sel .ms-pick:not(.on) { opacity: 0.7; }
+.ms-pick.on .ms-ring { transform: scale(1.08); filter: brightness(1.12) drop-shadow(0 0 14px rgba(255, 210, 110, 0.75)); }
+.ms-pick.on .ms-ring::before {
+  content: ''; position: absolute; inset: -22%; border-radius: 50%; z-index: -1;
+  background: radial-gradient(closest-side, rgba(255, 214, 120, 0.55), rgba(255, 140, 90, 0.18) 60%, transparent);
+  animation: ms-burst 0.45s ease-out both;
+}
+@keyframes ms-burst { from { transform: scale(0.6); opacity: 0; } }
+.ms-pick:hover:not(.on):not([aria-disabled='true']) .ms-ring { transform: scale(1.04); }
+.ms-pick:focus-visible { outline: none; }
+.ms-pick:focus-visible .ms-ring { outline: 3px solid var(--butter, #ffd34d); outline-offset: 5px; }
+.shake { animation: ms-shake 0.36s ease both !important; }
+@keyframes ms-shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+
+/* footer: queue segment, bots difficulty, Confirm */
+.ms-foot { flex: none; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 0 8px; }
+.ms-queues, .ms-seg {
+  flex: none; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; height: 50px; box-sizing: border-box;
+  background: rgba(27, 16, 34, 0.78); box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.4);
+}
+.ms-queues button, .ms-seg button {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border: 0; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--cream, #fff3dc); font: 700 14px/1 var(--font, sans-serif); white-space: nowrap;
+}
+.ms-queues button::after, .ms-seg button::after { content: ''; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px; }
+.ms-queues button.on { background: linear-gradient(180deg, #ffe08a, #f2c14e); color: #3a2410; }
+.ms-seg button.on { background: var(--cream, #fff3dc); color: #3a2440; }
+.ms-queues button[aria-disabled='true'] { opacity: 0.55; }
+.ms-qlock { font-style: normal; font-size: 11px; }
+.ms-diff { flex: 1 1 auto; min-width: 0; display: flex; justify-content: center; }
+.ms-qline { margin: 0; font: 600 13px/1.2 var(--font, sans-serif); opacity: 0.85; text-align: center; }
+.ms-confirm {
+  flex: none; position: relative; min-width: 160px; height: 52px; padding: 0 28px; border: 0; border-radius: 999px; cursor: pointer;
+  font: 900 20px/1 var(--font, sans-serif); letter-spacing: 0.06em; text-transform: uppercase; color: #fff;
+  text-shadow: 0 2px 0 rgba(120, 30, 60, 0.6);
+  background: radial-gradient(ellipse 80% 70% at 50% 30%, #ff9fc2, #f0568a 55%, #b8285e);
+  box-shadow: 0 0 0 3px #f2c14e, 0 0 0 5px var(--ms-ink), 0 6px 0 5px #6d1838, 0 12px 24px rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.4);
+  transition: transform 0.09s;
+}
+.ms-confirm:active { transform: scale(0.95); }
+.ms-confirm:disabled { filter: grayscale(0.8); opacity: 0.6; cursor: not-allowed; }
+.ms-overlay button:focus-visible:not(.ms-pick) { outline: 3px solid var(--butter, #ffd34d); outline-offset: 3px; }
+
+/* the info popover and the toast */
+.ms-pop {
+  position: fixed; z-index: 5; box-sizing: border-box; padding: 12px 40px 12px 14px; border-radius: 14px; transform: translateY(-100%);
+  background: rgba(27, 16, 34, 0.97); box-shadow: 0 0 0 1.5px rgba(242, 193, 78, 0.6), 0 12px 30px rgba(0, 0, 0, 0.55);
+}
+.ms-pop h3 { margin: 0 0 2px; font: 800 16px/1.2 var(--font, sans-serif); color: #ffe08a; }
+.ms-pop .ms-facts { margin: 0 0 6px; font: 600 12px/1.2 var(--font, sans-serif); opacity: 0.8; }
+.ms-pop ul { margin: 0; padding-left: 16px; font: 500 13px/1.35 var(--font, sans-serif); }
+.ms-pop .ms-pop-x { position: absolute; right: 2px; top: 2px; width: 36px; height: 36px; box-shadow: none; background: none; }
+.ms-toast {
+  position: absolute; left: 50%; bottom: calc(var(--ms-pad-b) + 64px); transform: translate(-50%, 6px); margin: 0; z-index: 6;
+  padding: 8px 14px; border-radius: 12px; font: 600 13px/1.2 var(--font, sans-serif); background: rgba(27, 16, 34, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(242, 193, 78, 0.4); opacity: 0; transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none; white-space: nowrap;
+}
+.ms-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* phones (landscape): 104 px tiles, labels trimmed */
+@media (max-height: 480px) {
+  .ms-overlay { --ms-tile: clamp(72px, 26.5dvh, 104px); --ms-gap: 14px; }
+  .ms-title { font-size: 22px; }
+  .ms-name { font-size: 14px; margin-top: 6px; }
+  .ms-queues button, .ms-seg button { padding: 0 11px; font-size: 13px; }
+  .ms-confirm { min-width: 140px; height: 48px; font-size: 18px; }
+}
+@media (max-height: 480px) and (max-width: 760px) {
+  .ms-queues button span { display: none; }
+  .ms-queues button { padding: 0 12px; }
+  .ms-confirm { min-width: 120px; padding: 0 18px; }
+}
+@media (max-height: 340px) {
+  .ms-meta, .ms-rank { display: none; }
+  .ms-title::after { display: none; }
+}
+
+/* Low tier and reduced motion: a fade only */
+.ms-overlay.low .ms-tile, .ms-overlay.low .ms-runes, .ms-overlay.low .ms-bg, .ms-overlay.low .ms-pick.on .ms-ring::before { animation: none; }
+html[data-quality='low'] .ms-tile, html[data-quality='low'] .ms-runes, html[data-quality='low'] .ms-bg { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ms-tile, .ms-runes, .ms-bg, .ms-pick.on .ms-ring::before, .ms-overlay, .ms-overlay.out { animation: none; }
+  .ms-ring { transition: none; }
+}

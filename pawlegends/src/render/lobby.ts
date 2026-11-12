@@ -62,6 +62,14 @@ export class Lobby {
   private confettiT = 0;
   /** Where on screen the hero stands: -1 left .. 1 right (the floor when no UI column is found). */
   side = 0.42;
+  /**
+   * Home (HOME-MODES.md §4): the hero's height as a share of the framing band (1 = the full band; Home 0.72, so the
+   * key art's teams stay visible) and the share of the screen height under its feet (Home: the painted ring).
+   */
+  heroScale = 1;
+  footShare = 0;
+  /** A `?lobbybg=` override is on: every screen keeps that scene (e2e, screenshots). */
+  private bgForced = false;
   /** Camera framing of the last placement (m): its sideways offset and distance, for the hero's facing. */
   private camOff = 0;
   private camDist = 7.6;
@@ -261,9 +269,10 @@ export class Lobby {
         cam.updateProjectionMatrix();
         const yTop = P.set(0, top, 0).project(cam).y;
         const yBot = P.set(0, PEDESTAL_BOTTOM, PEDESTAL_R).project(cam).y;
-        const want = NDC_TOP - lowLimit;
+        const want = (NDC_TOP - lowLimit) * this.heroScale;
         const span = yTop - yBot;
-        const mid = (NDC_TOP + lowLimit) / 2;
+        // the band's foot stays put; a smaller hero (Home) stands on it with the room above it
+        const mid = lowLimit + want / 2;
         // held back by the width floor, the hero is smaller than the band: only centre it in the band
         const spanOk = Math.abs(span - want) < 0.01 || (dist <= minDist + 1e-6 && span < want);
         if (spanOk && Math.abs((yTop + yBot) / 2 - mid) < 0.01) break;
@@ -308,7 +317,7 @@ export class Lobby {
       if (r.width > 0 && r.height > 0) right = Math.max(right, r.right);
     }
     const w = window.innerWidth || 1;
-    this.foot = 0;
+    this.foot = this.footShare;
     this.edge = right > 0 ? (right / w) * 2 - 1 : null;
     let card = Infinity;
     for (const el of document.querySelectorAll<HTMLElement>('.tt-mvp')) {
@@ -329,7 +338,9 @@ export class Lobby {
   /** UX pass 2: the visit's painted scene behind the turntable (the gradient shows until it loads). */
   private loadScene(): void {
     if (typeof window === 'undefined') return;
-    this.visitBg = lobbyBgOverride(window.location.search) ?? lobbyBgFor(lobbyBgVisit());
+    const forced = lobbyBgOverride(window.location.search);
+    this.bgForced = forced !== null;
+    this.visitBg = forced ?? lobbyBgFor(lobbyBgVisit());
     this.syncScene();
   }
 
@@ -338,11 +349,16 @@ export class Lobby {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
     const side = this.heroId ? HEROES[this.heroId].side : 'cat';
     const won = !!document.querySelector('.pl-results.won');
-    const bg = screenBg(document.documentElement.dataset.screen, { won, side }) ?? this.visitBg;
+    const bg = screenBg(document.documentElement.dataset.screen, { won, side, forced: this.bgForced }) ?? this.visitBg;
     if (bg === this.shownBg) return;
     this.shownBg = bg;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const url = lobbyBgUrl(bg, { base: import.meta.env.BASE_URL ?? './', bufferWidth: (window.innerWidth || 1280) * dpr, low: this.gr.settings.tier === 'low' });
+    const url = lobbyBgUrl(bg, {
+      base: import.meta.env.BASE_URL ?? './',
+      bufferWidth: (window.innerWidth || 1280) * dpr,
+      low: this.gr.settings.tier === 'low',
+      aspect: (window.innerWidth || 16) / (window.innerHeight || 9),
+    });
     document.documentElement.dataset.lobbyBg = bg;
     this.backdrop.setImage(url, reducedMotion());
   }

@@ -36,7 +36,7 @@ const TIP_ON = '.pl-rail-line.on[data-key^="tip:"]';
 
 test('first match is one tap away and the move tip fires', async ({ page }, info) => {
   await page.goto('/?e2e=1');
-  await expect(page.locator('.pl-btn.big')).toHaveText('Play as Clem');
+  await expect(page.locator('.pl-btn.big')).toHaveAttribute('aria-label', 'Play as Clem');
   await startFirstMatch(page);
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
   // LoL pass (lane A): the tip is a note on the top rail
