@@ -15,6 +15,8 @@
  * regenerates the golden the same way.
  * Sim v21 (the Kibble Cannon, Boing Beds, the Yarn Ball, stronger towers, V21-FUN.md): VENDOR points at the live v21
  * fixtures and the golden was regenerated from the v21 sim the same way.
+ * Sim v24 (instant Boing Beds, V21-FUN.md §2.1): bots step onto beds differently on Crossing, so VENDOR points at the
+ * live v24 fixtures and the golden was regenerated from the v24 sim the same way (v22 and v23 kept the v21 golden).
  * Part of the merge checklist.
  *
  * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
@@ -28,9 +30,10 @@ import { createMatch, createPlayerBot, fillPicks, hashTrail, playerBotCommands, 
 import type { HeroId, ReplayRecord, TrickId, Difficulty } from '../../src/sim/api';
 import { runReplay } from '../../src/sim/replay';
 import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
+import { SIM_VERSION } from '../../src/sim/version';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v21');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v24');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {
@@ -73,7 +76,7 @@ describe('party-identity (MULTIPLAYER.md §1.5, merge checklist)', { timeout: 60
   it('single-player output equals the golden (262c36a0 dogs-only sim at v14; regenerated at v15 and per v16 B item)', () => {
     const got = rows();
     if (process.env.PARTY_GOLDEN_WRITE === '1') {
-      writeFileSync(GOLDEN, JSON.stringify({ base: process.env.PARTY_GOLDEN_BASE ?? 'v21', simVersion: 21, rows: got }, null, 2) + '\n');
+      writeFileSync(GOLDEN, JSON.stringify({ base: process.env.PARTY_GOLDEN_BASE ?? `v${SIM_VERSION}`, simVersion: SIM_VERSION, rows: got }, null, 2) + '\n');
       return;
     }
     expect(existsSync(GOLDEN)).toBe(true);

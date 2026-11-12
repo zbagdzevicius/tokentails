@@ -70,8 +70,8 @@ const chaser: Foe = (t, m) => {
 };
 
 describe('KITE-FIX: commands and gate', () => {
-  it('ships in sim v23 as op 12 (op 11 is the v21 Fire); the relay framing knows its size', () => {
-    expect(SIM_VERSION).toBe(23);
+  it('ships in sim v23 as op 12 (op 11 is the v21 Fire; v24 keeps it); the relay framing knows its size', () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(23);
     expect(Op.Kite).toBe(12);
     expect(CMD_OP.Kite).toBe(Op.Kite);
     expect(CMD_SIZE[Op.Kite]).toBe(OP_SIZE[Op.Kite]);
