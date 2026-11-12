@@ -125,7 +125,10 @@ describe('net rejoin (N7)', { timeout: 300_000 }, () => {
     const perTick = ms / ticks;
     console.log(`perf-ff: ${ticks} ticks in ${ms.toFixed(0)} ms (${(perTick * 19_800).toFixed(0)} ms per 19,800 ticks)`);
     expect(perTick * 19_800).toBeLessThan(1500);
-    expect(out.filter((m) => m.t === 'hash')).toHaveLength(0);
+    // no HASH during the fast-forward; the last B turns (2 ticks each) are stepped live and may post one (sim v21: this
+    // log ends on tick 12720, a trail tick inside that live tail)
+    const liveTail = 2 * core.runner.B;
+    expect(out.filter((m) => m.t === 'hash' && m.tick <= ticks - liveTail)).toHaveLength(0);
     expect(out.filter((m) => m.t === 'snap').length).toBeLessThanOrEqual(2);
     expect(out.some((m) => m.t === 'progress' && m.done)).toBe(true);
   });
