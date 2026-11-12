@@ -22,8 +22,7 @@ import { HERO_RULES, XP } from '../data/xp';
 import { DIFFICULTY_RULES, type Difficulty } from '../data/bots';
 // cards: the respawn countdown card, kill-feed faces in element rings, the ult-ready and level-up glints
 import { heroElement } from './cards/el';
-import type { RespawnCard } from './cards/reveal';
-import type { CatTier } from '../meta/roster';
+import { NapCard, type NapKiller } from './napCard';
 import { getSkin } from '../render/skins/skinStore';
 import { cdLabel } from './cdLabel';
 export { cdLabel } from './cdLabel';
@@ -233,19 +232,13 @@ export class Hud {
   /** The own hero's cooldowns (ticks) and whether it is down, from the last snapshot (the card counts down live). */
   private cds: readonly number[] = [];
   private dead = false;
-  /** cards: the face-down card that counts the respawn down and flips up at 0. */
-  private respawnCard: RespawnCard | null = null;
-  private cardDead = false;
-  /** The respawn card loads (its own chunk, ui/cards/reveal.ts) on the first knockout. */
-  private cardInit: (() => void) | null = null;
+  /** The nap card (ui/napCard.ts): the champion napping at the fountain, the countdown, who knocked them out. */
+  private napCard: NapCard;
   /** LoL pass (lane B): the trailing damage chunk, the resource / XP bar, the nap bar, the respawn seconds. */
   private hpChunk: HTMLElement;
   private resFill: HTMLElement;
   private napEl: HTMLElement;
   private dsec: HTMLElement;
-  /** Audit GFX-12: the big "Back in N" countdown in the middle of the screen while the hero is out. */
-  private backIn: HTMLElement;
-  private backNum: HTMLElement;
   private trail: Trail | null = null;
   private napStart = -1;
   private crestEl: HTMLElement | null = null;
@@ -345,12 +338,8 @@ export class Hud {
     this.resFill = q('.pl-res > i');
     this.napEl = q('.lol-nap');
     this.dsec = q('.pl-portrait .dsec');
-    this.backIn = document.createElement('div');
-    this.backIn.className = 'pl-backin';
-    this.backIn.setAttribute('aria-hidden', 'true');
-    this.backIn.innerHTML = '<small>Back in</small><b></b>';
-    this.root.appendChild(this.backIn);
-    this.backNum = this.backIn.querySelector('b') as HTMLElement;
+    // the nap card replaces the Token Tails respawn card and the plain "Back in N" counter (founder ask 2026-11-12)
+    this.napCard = new NapCard(this.root, hero);
     this.hpShield = q('.pl-hp .shield');
     this.hpText = q('.pl-hp .txt');
     this.level = q('.pl-portrait .lvl');
@@ -361,21 +350,10 @@ export class Hud {
     this.feed = q('.pl-feed');
     this.respawnNum = q('.pl-respawn b');
     this.recapEl = q('.pl-respawn .recap');
-    // cards: the worn card skin's rung gives the glints their foil (Common when none); the respawn card shows this look
+    // cards: the worn card skin's rung gives the glints their foil (Common when none)
     const rung = getSkin(look?.coat)?.rung ?? 'COMMON';
     root.dataset.ttTier = rung;
-    this.cardInit = () => {
-      this.cardInit = null;
-      void import('./cards/reveal')
-        .then((m) => {
-          if (!root.isConnected) return;
-          this.respawnCard = new m.RespawnCard(root, hero, portraitUrl(hero, look) ?? pic, rung as CatTier);
-          if (this.cardDead) this.respawnCard.down(this.cardSecs);
-        })
-        .catch(() => undefined);
-    };
   }
-  private cardSecs = 0;
 
   /**
    * GAPS A4: the portrait strip for the other five heroes (allies and enemies, by slot). `names` are the slot labels
@@ -539,9 +517,10 @@ export class Hud {
     el.setAttribute('aria-label', o.key === 'up' ? 'Objective up' : `Objective in ${o.secs} seconds`);
   }
 
-  /** The death recap under "Back in N" ("Knocked out by Cacklejaw + a tower: wait for your minions"). */
-  recap(text: string): void {
+  /** The death recap ("Knocked out by Cacklejaw + a tower: wait for your minions") and the nap card's medallion. */
+  recap(text: string, killer: NapKiller | null = null): void {
     this.set('recap', this.recapEl, text || 'Your team is still fighting!');
+    this.napCard.knockedOut(text, killer);
   }
 
   /** Desktop skill tooltips: the pointer rests on slot `i` (−1 the portrait); the card follows after TIP_DELAY_MS. */
@@ -758,16 +737,9 @@ export class Hud {
     // LoL pass (lane B): the death wash (the world greys, the HUD keeps its colour) and the seconds over the portrait
     this.deathWash(dead);
     this.set('dsec', this.dsec, dead ? String(back) : '');
-    // GFX-12: the central countdown (the portrait seconds and the rail line were small and off to the side)
-    this.backIn.classList.toggle('on', dead);
-    this.set('backin', this.backNum, dead ? String(back) : '');
-    // cards: face down while out, flipped up the moment the hero is back
-    if (dead) {
-      this.cardSecs = back;
-      if (this.cardInit) this.cardInit();
-      this.respawnCard?.down(back);
-    } else if (this.cardDead) this.respawnCard?.reveal();
-    this.cardDead = dead;
+    // the nap card: the champion napping at the fountain, the countdown, who did it and a tip (ui/napCard.ts)
+    if (dead) this.napCard.show(back, this.lowQuality);
+    else this.napCard.hide();
     // an open talent card hides the respawn chip (CSS) and shows the countdown as a badge on its header
     const head = this.root.parentElement?.querySelector<HTMLElement>('.pl-talents.on .head') ?? null;
     if (head) {
@@ -1080,8 +1052,7 @@ export class Hud {
     this.deathWash(false);
     this.crestEl?.remove();
     this.crestEl = null;
-    this.respawnCard?.dispose();
-    this.respawnCard = null;
+    this.napCard.dispose();
     this.tipLeave();
     this.fishObs?.disconnect();
     this.fishObs = null;

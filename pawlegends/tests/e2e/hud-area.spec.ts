@@ -21,7 +21,7 @@ async function measure(page: Page): Promise<{ total: number; centre: number; pla
     const gw = Math.ceil(W / S);
     const gh = Math.ceil(H / S);
     const all = new Uint8Array(gw * gh);
-    const skip = '.pl-rail, .pl-pops, .pl-basetoast, .pl-flash, .pl-punch, .pl-feed, .pl-stick, .pl-aimring, .pl-cancel, .pl-slot-tip, canvas.pl-overhead, .pl-loading, .tt-vs, .pl-backin, .pl-respawn, .lol-nap, .pl-chatline, .pl-chatdrawer';
+    const skip = '.pl-rail, .pl-pops, .pl-basetoast, .pl-flash, .pl-punch, .pl-feed, .pl-stick, .pl-aimring, .pl-cancel, .pl-slot-tip, canvas.pl-overhead, .pl-loading, .tt-vs, .pl-napcard, .pl-respawn, .lol-nap, .pl-chatline, .pl-chatdrawer';
     const effOpacity = (el: Element): number => {
       let o = 1;
       for (let e: Element | null = el; e && e !== document.body; e = e.parentElement) o *= Number(getComputedStyle(e).opacity);
