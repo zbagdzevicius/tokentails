@@ -83,7 +83,7 @@ describe('announcer clips', () => {
   });
 
   it('the committed web build carries the same clips', () => {
-    const dir = join(ROOT, '../client/public/pawlegends-game/voice');
+    const dir = join(ROOT, '../pawlegends-web/public/pawlegends-game/voice');
     if (!existsSync(dir)) return;
     const built = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as string[];
     for (const k of allVoiceKeys()) {

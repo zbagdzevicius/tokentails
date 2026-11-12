@@ -15,7 +15,9 @@ import { parseChampionsState, type ChampionsState } from '../meta/champions';
 
 export const EMBED_NS = 'tt-pawlegends';
 export const EMBED_VERSION = 1;
-export const DEFAULT_EMBED_ORIGINS = 'https://tokentails.com,https://www.tokentails.com';
+// pawlegends.app (pawlegends-web, docs/plans/moba/PAWLEGENDS-WEB.md) is same-origin with the game, so withSameOrigin
+// already admits it; listed anyway so a cross-origin preview of the host can name it.
+export const DEFAULT_EMBED_ORIGINS = 'https://pawlegends.app,https://tokentails.com,https://www.tokentails.com';
 export const DEV_EMBED_ORIGINS = 'http://localhost:3000';
 
 /**

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Renders landing roster portraits (client/public/pawlegends/landing/portrait-<hero>.<hash>.webp, 420 × 574,
+ * Renders landing roster portraits (pawlegends-web/public/pawlegends/landing/portrait-<hero>.<hash>.webp, 420 × 574,
  * transparent) from the dev page landing-portrait.html (src/gallery/landingPortrait.ts) with the game's own models.
  *
  *   npm run dev -- --port 5451 &   # any port
  *   node tools/landing-portraits.mjs --url http://localhost:5451 rocket frankie domino
  *
  * Writes each file under its content hash (sha256, 8 hex), plus its 280 px wide tile copy (`.w280.webp`, the landing
- * grid's srcset), and prints the `P("<hero>", "<hash>")` entries for client/components/pawlegends/landing/roster.ts.
+ * grid's srcset), and prints the `P("<hero>", "<hash>")` entries for pawlegends-web/components/pawlegends/landing/roster.ts.
  * Needs `cwebp` (libwebp) on PATH.
  */
 import { execFileSync } from 'node:child_process';
@@ -22,11 +22,11 @@ const argv = process.argv.slice(2);
 const urlAt = argv.indexOf('--url');
 const base = urlAt >= 0 ? argv[urlAt + 1] : 'http://localhost:5176';
 const heroes = argv.filter((a, i) => !a.startsWith('--') && (urlAt < 0 || i !== urlAt + 1));
-const outDir = resolve(PKG_ROOT, '..', 'client', 'public', 'pawlegends', 'landing');
+const outDir = resolve(PKG_ROOT, '..', 'pawlegends-web', 'public', 'pawlegends', 'landing');
 const tmp = mkdtempSync(join(tmpdir(), 'pl-portrait-'));
 /** Per-hero framing (landingPortrait.ts query): Frankie's low crouch is wide, so his frame opens up. */
 const FRAME = { frankie: '&half=0.95&look=0.75' };
-/** The tile copy's width (client/components/pawlegends/landing/markup.ts TILE_PORTRAIT_WIDTH). */
+/** The tile copy's width (pawlegends-web/components/pawlegends/landing/markup.ts TILE_PORTRAIT_WIDTH). */
 const TILE_W = 280;
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });

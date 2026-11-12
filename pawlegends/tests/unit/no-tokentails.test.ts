@@ -31,7 +31,7 @@ const ROOT = resolve(__dirname, '../..');
 const TT = /token\s?tails/i;
 /** Technical hosts the player never reads (embed origins, art bucket, API, share-link host list). */
 const ALLOWED: readonly RegExp[] = [
-  /DEFAULT_EMBED_ORIGINS = 'https:\/\/tokentails\.com,https:\/\/www\.tokentails\.com'/,
+  /DEFAULT_EMBED_ORIGINS = 'https:\/\/pawlegends\.app,https:\/\/tokentails\.com,https:\/\/www\.tokentails\.com'/,
   /tokentails-nfts/,
   /https:\/\/api\.tokentails\.com/,
   /^const PUBLIC_HOSTS: /,

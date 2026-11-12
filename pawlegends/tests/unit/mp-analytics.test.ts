@@ -23,7 +23,7 @@ describe('party analytics (M8)', () => {
     expect([...MP_EVENTS].sort()).toEqual([...SPEC].sort());
     for (const e of SPEC) expect(isMpEvent(e)).toBe(true);
     expect(isMpEvent('match_end')).toBe(false);
-    const host = readFileSync(resolve(__dirname, '../../../client/analytics/pawlegends-events.ts'), 'utf8');
+    const host = readFileSync(resolve(__dirname, '../../../pawlegends-web/analytics/pawlegends-events.ts'), 'utf8');
     for (const e of SPEC) expect(host).toContain(`"${e}"`);
   });
 

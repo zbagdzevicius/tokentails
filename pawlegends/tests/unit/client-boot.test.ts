@@ -25,6 +25,7 @@ describe('embed bridge (pure parts, §11.1)', () => {
     ]);
     expect(allowedOrigins({ DEV: true })).toContain('http://localhost:3000');
     expect(allowedOrigins({ DEV: false })).not.toContain('http://localhost:3000');
+    expect(allowedOrigins({ DEV: false })).toContain('https://pawlegends.app');
     expect(allowedOrigins({ VITE_EMBED_ORIGINS: 'https://a.example', DEV: false })).toEqual(['https://a.example']);
   });
   it('accepts only our namespace, version and host types', () => {

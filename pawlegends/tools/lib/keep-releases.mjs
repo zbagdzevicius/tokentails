@@ -4,7 +4,7 @@
  * next match, lazy chunks), so the previous KEEP_RELEASES - 1 releases stay on disk next to the new one and only older
  * files are pruned. `build-releases.json` (outside `build/`, so it is not served as immutable) lists each kept
  * release's `build/` files, newest first, and `sim` ({simVersion, simHash}) of the newest one: the landing
- * (`client/components/pawlegends/landing/roster.ts`) reads it, so it never advertises heroes from a sim version the
+ * (`pawlegends-web/components/pawlegends/landing/roster.ts`) reads it, so it never advertises heroes from a sim version the
  * shipped game does not run yet. Outside `build/`, files that are neither in the bundle nor in the public dir
  * are removed, which is what `--emptyOutDir` did before.
  */

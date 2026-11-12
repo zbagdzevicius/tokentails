@@ -6,12 +6,14 @@
  *   node scripts/cdn-cache.mjs ota  --file manifest-beta.json [--compat 1] [--platform ios]
  *     Waits until the origin serves the committed manifest (its `version`), then purges that manifest URL from
  *     Cloudflare, so apps see a new bundle at once instead of after the edge TTL.
- *   node scripts/cdn-cache.mjs game --since <git sha>
+ *   node scripts/cdn-cache.mjs game --since <git sha> [--root client/public] [--no-purge]
  *     Purges /pawlegends-game/index.html (bare and `?embed=1`, the URL the game iframe loads) and fetches it until it
  *     serves the committed build, purges once more, then fetches the page and every build/ file added since <sha>
  *     once, so the first player after a deploy is not the one who fills the edge. The purge runs before each poll
  *     because the Cloudflare rule ignores the query string for that page (RUNBOOK rule 1): a `?cb=` alone would read
- *     the edge copy.
+ *     the edge copy. `--root` is the folder that holds the committed pawlegends-game build for SITE: client/public for
+ *     tokentails.com, pawlegends-web/public for pawlegends.app (its own Vercel project, docs/plans/moba/PAWLEGENDS-WEB.md).
+ *     `--no-purge` skips Cloudflare (a site outside the CF_ZONE_ID zone); the wait and the warm-up still run.
  *
  * Env: CF_API_TOKEN (Zone.Cache Purge), CF_ZONE_ID. Without both, the purge is skipped with a notice; the warm-up and
  * the wait still run. SITE (default https://tokentails.com). Never prints the token.
@@ -27,13 +29,18 @@ const SITE = (process.env.SITE ?? 'https://tokentails.com').replace(/\/+$/, '');
 export const otaPath = (file, platform = 'ios', compat = '1') => `/pawlegends-app/updates/${platform}/${compat}/${file}`;
 export const GAME_INDEX = '/pawlegends-game/index.html';
 
-/** Files under client/public/pawlegends-game/build/ added between `since` and HEAD, as site paths. */
-export function addedBuildPaths(diffNameStatus) {
+/** The folder that holds the committed game build for tokentails.com (the default site). */
+export const DEFAULT_GAME_ROOT = 'client/public';
+
+/** Files under <root>/pawlegends-game/build/ added between `since` and HEAD, as site paths. */
+export function addedBuildPaths(diffNameStatus, root = DEFAULT_GAME_ROOT) {
+    const prefix = `${root.replace(/\/+$/, '')}/`;
     const out = [];
     for (const line of diffNameStatus.split('\n')) {
         const [status, file] = line.split('\t');
         if (status !== 'A' || !file) continue;
-        const m = /^client\/public(\/pawlegends-game\/build\/[^/]+)$/.exec(file);
+        if (!file.startsWith(prefix)) continue;
+        const m = /^(\/pawlegends-game\/build\/[^/]+)$/.exec(file.slice(prefix.length - 1));
         if (m) out.push(m[1]);
     }
     return out;
@@ -71,7 +78,9 @@ export async function waitForOrigin(url, ok, { timeoutMs = 600_000, everyMs = 15
 }
 
 let purgeNoticed = false;
+let noPurge = false;
 async function purge(urls, fetchImpl = fetch, quiet = false) {
+    if (noPurge) return;
     const token = process.env.CF_API_TOKEN;
     const zone = process.env.CF_ZONE_ID;
     if (!token || !zone) {
@@ -133,7 +142,10 @@ async function main() {
     }
     if (mode === 'game') {
         const since = arg('since', 'HEAD~1');
-        const local = readFileSync(join(REPO, 'client/public', GAME_INDEX), 'utf8');
+        const root = arg('root', DEFAULT_GAME_ROOT).replace(/\/+$/, '');
+        noPurge = process.argv.includes('--no-purge');
+        if (noPurge) console.log('--no-purge: no Cloudflare purge for ' + SITE);
+        const local = readFileSync(join(REPO, root, GAME_INDEX), 'utf8');
         const entry = /build\/index-[A-Za-z0-9_-]+\.js/.exec(local)?.[0];
         if (!entry) throw new Error('no build/index-*.js in the committed index.html');
         const pages = gameIndexUrls(SITE);
@@ -142,16 +154,16 @@ async function main() {
             throw new Error(`origin never served ${entry}`);
         await purge(pages);
         await warm(pages);
-        const diff = execFileSync('git', ['diff', '--name-status', `${since}`, 'HEAD', '--', 'client/public/pawlegends-game/build'], {
+        const diff = execFileSync('git', ['diff', '--name-status', `${since}`, 'HEAD', '--', `${root}/pawlegends-game/build`], {
             cwd: REPO,
             encoding: 'utf8',
         });
-        const paths = addedBuildPaths(diff);
+        const paths = addedBuildPaths(diff, root);
         const ok = await warm(paths.map(p => `${SITE}${p}`));
         console.log(`warmed ${ok}/${paths.length} new build file(s)`);
         return;
     }
-    console.error('usage: cdn-cache.mjs ota --file manifest-beta.json | game --since <sha>');
+    console.error('usage: cdn-cache.mjs ota --file manifest-beta.json | game --since <sha> [--root <dir>] [--no-purge]');
     process.exit(2);
 }
 

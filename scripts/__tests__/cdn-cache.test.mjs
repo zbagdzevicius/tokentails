@@ -25,6 +25,16 @@ describe('cdn-cache (LATENCY-PLAN C5)', () => {
         assert.deepEqual(addedBuildPaths(diff), ['/pawlegends-game/build/index-AbC123.js', '/pawlegends-game/build/three-x_y-Z.js']);
     });
 
+    it('reads the build of the given root: pawlegends-web/public for pawlegends.app', () => {
+        const diff = [
+            'A\tpawlegends-web/public/pawlegends-game/build/index-New.js',
+            'A\tclient/public/pawlegends-game/build/index-New.js',
+            'A\tpawlegends-web/public/pawlegends-game/build/sub/deep.js',
+        ].join('\n');
+        assert.deepEqual(addedBuildPaths(diff, 'pawlegends-web/public'), ['/pawlegends-game/build/index-New.js']);
+        assert.deepEqual(addedBuildPaths(diff), ['/pawlegends-game/build/index-New.js']);
+    });
+
     it('purges in batches of 30 URLs (the Cloudflare API limit)', () => {
         const urls = Array.from({ length: 65 }, (_, i) => `https://x/${i}`);
         const b = purgeBatches(urls);

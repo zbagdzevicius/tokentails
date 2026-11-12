@@ -9,12 +9,12 @@
  *      relay Room, codec, NetHost, NetCore and Pacer on fake timers.
  *   3. Quick Play queue time: backend/test/mm-sim.ts (the real Matchmaker, Poisson arrivals, 2 h per rate).
  *   4. Download size: first-load JS/CSS (gzip) and the whole web build (default: the shipped
- *      client/public/pawlegends-game), and the iOS app's bundled web payload (the newest signed OTA zip).
+ *      pawlegends-web/public/pawlegends-game), and the iOS app's bundled web payload (the newest signed OTA zip).
  *   5. `--browser`: cold load to the first live match in Chromium (tests/e2e/measure-load.spec.ts), desktop and an
  *      844×390 touch phone with a 4× slower CPU, unthrottled and on simulated 4G. Builds the game (Playwright's
  *      web server), so it takes a few minutes.
  *
- *   node tools/measure.mjs [--seeds 2000] [--naive-seeds 400] [--browser] [--runs 3] [--dist ../client/public/pawlegends-game]
+ *   node tools/measure.mjs [--seeds 2000] [--naive-seeds 400] [--browser] [--runs 3] [--dist ../pawlegends-web/public/pawlegends-game]
  *                          [--out ../docs/plans/moba/benchmarks/measured.json] [--skip match,latency,queue,size]
  *
  * Writes the JSON and a Markdown table next to it (`.md`), and prints the table.
@@ -35,7 +35,7 @@ const TICK_HZ = 30;
 const seeds = Number(argValue('--seeds') ?? 2000);
 const naiveSeeds = Number(argValue('--naive-seeds') ?? 400);
 const out = path.resolve(PKG, argValue('--out') ?? '../docs/plans/moba/benchmarks/measured.json');
-const dist = path.resolve(PKG, argValue('--dist') ?? '../client/public/pawlegends-game');
+const dist = path.resolve(PKG, argValue('--dist') ?? '../pawlegends-web/public/pawlegends-game');
 const skip = new Set((argValue('--skip') ?? '').split(',').filter(Boolean));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pl-measure-'));
 

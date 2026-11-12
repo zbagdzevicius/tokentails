@@ -2,7 +2,7 @@
 /**
  * npm run budget (after `npm run build`), POC.md §10:
  * - first-load JS (entry + three, from dist/index.html) <= 450 KB gzip
- * - the whole output dir <= 10 MB (the committed client/public/pawlegends-game/ must fit)
+ * - the whole output dir <= 10 MB (the committed pawlegends-web/public/pawlegends-game/ must fit)
  * - no debug hooks (window.__GAME__) in any shipped JS (§15 item 23)
  * Exit 1 on any failure.
  *

@@ -189,6 +189,48 @@ jobs:
             client/test-results
           retention-days: 7
 
+  pawlegends-web:
+    name: pawlegends-web
+    runs-on: ubuntu-latest
+    # Paw Legends' own Next app on pawlegends.app (docs/plans/moba/PAWLEGENDS-WEB.md).
+    defaults:
+      run:
+        working-directory: pawlegends-web
+    env:
+      NEXT_PUBLIC_E2E: 1
+      E2E_BASE_URL: http://localhost:3006
+      E2E_API_URL: http://localhost:3005
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: pawlegends-web/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - name: Type-check the e2e harness
+        run: npx tsc -p e2e --noEmit
+      - run: npx eslint .
+      - run: npm test
+      # Phase A: tokentails.com still serves the game from client/public/pawlegends-game, a copy of this one.
+      - name: The client copy of the game matches pawlegends-web (until the cutover)
+        run: node ../pawlegends/tools/mirror-client.mjs --check
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: End-to-end tests
+        timeout-minutes: 15
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: pawlegends-web-playwright-report
+          path: |
+            pawlegends-web/playwright-report
+            pawlegends-web/test-results
+          retention-days: 7
+
   cms:
     name: cms
     runs-on: ubuntu-latest
