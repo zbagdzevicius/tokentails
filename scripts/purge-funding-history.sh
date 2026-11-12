@@ -6,7 +6,7 @@
 #
 # What it does, all inside a scratch directory (your working checkout is never touched):
 #   1. Mirror-clones the public repo (fresh, from GitHub by default).
-#   2. Syncs the private repo zbagdzevicius/tokentails-funding: re-filters funding/'s full history
+#   2. Syncs the private funding repo ($PRIVATE_SLUG): re-filters funding/'s full history
 #      (git filter-repo --subdirectory-filter funding), merges it into the private main, and copies
 #      the latest CLAUDE.md tracker section into FUNDING-TRACKER.md. Pushes the private repo only in
 #      --execute mode, only after checking it is PRIVATE, and never with --force.
@@ -21,6 +21,7 @@
 #   scripts/purge-funding-history.sh --execute            # after 2026-10-12 06:00 UTC: also pushes the
 #                                                         # PRIVATE repo, then prints the public commands
 # Options (env):
+#   PRIVATE_URL, PRIVATE_SLUG  the private funding repo to sync into (required, no default).
 #   SOURCE=<url or path>   what to mirror (default: $PUBLIC_URL). A local path is for testing only.
 #   WORK=<dir>             scratch directory (default: a new mktemp dir; must not exist or be empty)
 #   EXTRA_PATHS="a b/ c"   more paths to purge (git filter-repo --path semantics), e.g. after you decide
@@ -32,8 +33,8 @@
 set -euo pipefail
 
 PUBLIC_URL=${PUBLIC_URL:-https://github.com/zbagdzevicius/tokentails.git}
-PRIVATE_URL=${PRIVATE_URL:-https://github.com/zbagdzevicius/tokentails-funding.git}
-PRIVATE_SLUG=${PRIVATE_SLUG:-zbagdzevicius/tokentails-funding}
+PRIVATE_URL=${PRIVATE_URL:?set PRIVATE_URL to the private funding repo URL}
+PRIVATE_SLUG=${PRIVATE_SLUG:?set PRIVATE_SLUG to the private funding repo (owner/name)}
 SOURCE=${SOURCE:-$PUBLIC_URL}
 EXTRA_PATHS=${EXTRA_PATHS:-}
 # Tip of `git filter-repo --subdirectory-filter funding` on public commit 1eb078c3 (2026-10-06): the
