@@ -163,7 +163,12 @@ export interface GameRenderer {
   dispose(): void;
 }
 
-export function createRenderer(container: HTMLElement, tier: QualityTier): GameRenderer {
+/**
+ * `overlay: false` (the champion browser's skill clips): this renderer never becomes the live one the overhead plates
+ * draw with. A preview that took the slot and then disposed left it null, so every match after a Heroes or Preview
+ * visit drew no health bars at all.
+ */
+export function createRenderer(container: HTMLElement, tier: QualityTier, opts: { overlay?: boolean } = {}): GameRenderer {
   installToon();
   const settings0 = tierSettings(tier, { phone: isPhone() });
   // PERF-IOS P3-4: the Mac app stays on the integrated GPU of a dual-GPU Mac (no effect on an iPhone)
@@ -173,7 +178,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.domElement.id = 'game-canvas';
   container.appendChild(renderer.domElement);
-  live = renderer;
+  if (opts.overlay !== false) live = renderer;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(RENDER.background ?? '#F6E4C0');

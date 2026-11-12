@@ -115,7 +115,8 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   host.className = 'pl-skill-preview';
   host.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;contain:strict';
   el.appendChild(host);
-  const gr: GameRenderer = createRenderer(host, tier);
+  // never the overlay's live renderer: the match's plates keep drawing with the game's own (renderer.ts)
+  const gr: GameRenderer = createRenderer(host, tier, { overlay: false });
   const canvas = gr.renderer.domElement;
   canvas.id = '';
   canvas.className = 'pl-skill-preview-canvas';
