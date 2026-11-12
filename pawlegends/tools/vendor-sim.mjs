@@ -32,7 +32,7 @@
  *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
  * 10. pvp-replay.fixture.json (sim v16, S-PvP, docs/plans/moba/V16.md §1.3): one genuine PvP match (PvpReplayRecord v3,
  *    Hard rules, two humans a side flown by player-bots, one bot each side), for the backend's casual /live spec.
- * backend/src/vendor/pawlegends-sim/v10/ to v22/: those files, frozen (FROZEN below; sim v23 is live).
+ * backend/src/vendor/pawlegends-sim/v10/ to v23/: those files, frozen (FROZEN below; sim v24 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -93,6 +93,8 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * released v21 (the Kibble Cannon) at 61cf4f5d and keeps v10 to v20, so the backend verifies 10 to 22.
  * Sim v23 (Op.Kite: hold Attack and steer on touch, docs/plans/moba/KITE-FIX.md) froze the released v22 (the standard
  * 5v5 Hearthwood and Blitz) at 9c098621 and keeps v10 to v21, so the backend verifies 10 to 23.
+ * Sim v24 (instant Boing Beds, docs/plans/moba/V21-FUN.md §2.1) froze the released v23 (Op.Kite) at de5ca5b5 (its
+ * kite review re-vendored the bundle after 9a743dc7) and keeps v10 to v22, so the backend verifies 10 to 24.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -217,6 +219,23 @@ export const FROZEN = Object.freeze([
       'hearthwood-party.fixture.json',
       'hearthwood-pvp.fixture.json',
       'blitz-replay.fixture.json',
+    ]),
+  }),
+  Object.freeze({
+    simVersion: 23,
+    commit: 'de5ca5b57aa41d54157caf17574f39bf230acb90',
+    from: 'backend/src/vendor/pawlegends-sim/v23',
+    bundle: '13d26de911de8cb57e34aec7284a8f5d06084f3c0d6bfab549d56c7ae39d8b62',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+      'blitz-replay.fixture.json',
+      'kite-replay.fixture.json',
     ]),
   }),
 ]);
@@ -930,7 +949,7 @@ export async function buildFiles() {
     'hearthwood-pvp.fixture.json': hearthPvp,
     // Sim v22 (Blitz): a mutator record; a later freeze lists it in `extra`
     'blitz-replay.fixture.json': blitz,
-    // Sim v23 (KITE-FIX): a record with Op.Kite; a later freeze lists it in `extra`
+    // Sim v23 (KITE-FIX): a record with Op.Kite (frozen v23 lists it in `extra`)
     'kite-replay.fixture.json': kite,
   };
   const files = {};
