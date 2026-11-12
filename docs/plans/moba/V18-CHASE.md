@@ -35,7 +35,7 @@ the fix and v17 data):
 | | v17 released (V17.md §6.5) | v18 fix only | v18 final, seeds 1–2000 | v18 final, seeds 2001–4000 |
 |---|---|---|---|---|
 | Takedowns a minute | ~3.3 | **4.70** | 3.37 | 3.39 |
-| Heroes outside 46–54% | 0 | 10 (Nugget 55.3, Clem 45.3, Stilts 43.1, Gabė 57.3, Bravo 42.4, Duchess 57.1, Lambo 45.9, Domino 44.6, Chili 56.3, Sage 54.1) | 0 | 0 |
+| Heroes outside 46–54% | 0 | 10 (Nugget 55.3, Clem 45.3, Stilts 43.1, Gabby 57.3, Bravo 42.4, Duchess 57.1, Lambo 45.9, Domino 44.6, Chili 56.3, Sage 54.1) | 0 | 0 |
 | Brutus level-6 branch | 47.8% / 46.2% | 44.1% (fail) | 51.5% | 49.8% |
 | Sage level-6 branch | 50.7% / 50.0% | pass | 54.4% | 45.7% |
 | PvE human side | 48.2% / 49.0% | 50.9% | 49.1% | 50.3% (pooled 49.7%, band 48.4–51.4%) |
@@ -50,12 +50,12 @@ the fix and v17 data):
   (`combat/damage.ts`, `kind === 'basic'`). Abilities keep × 1.05.
 
 Probes, 1,000 seeds each (takedowns a minute): 10500 + 7500 → 3.65; 10000 + 7500 → 3.55; **10500 + 6500 → 3.31**.
-A ranged-basic tweak was not needed: after the cut, ranged heroes landed on both sides of 50% (Gabė high, Pixel,
+A ranged-basic tweak was not needed: after the cut, ranged heroes landed on both sides of 50% (Gabby high, Pixel,
 Rocket and Domino low), so the per-hero rows handled them.
 
 ### 3.2 Kit change
 
-- **Gabė Heart Breeze** (her basic hits on heroes heal the weakest ally): 10 (+2/lvl) → **8 (+1/lvl)**. Her basics land
+- **Gabby Heart Breeze** (her basic hits on heroes heal the weakest ally): 10 (+2/lvl) → **8 (+1/lvl)**. Her basics land
   more often while chasing and heals are not cut by the damage change; she stayed at 56–58% through two row refits.
 
 ### 3.3 `pvp` rows (dealt / taken, bp)
@@ -64,8 +64,8 @@ Fitted on both windows (six two-window runs), moving `takenBp` and `dmgBp` toget
 
 | Hero | v17 | v18 |
 |---|---|---|
-| Avietė | 11650 / 7600 | 11475 / 7950 |
-| Bengas | 9950 / 8625 | 10000 / 8625 |
+| Raspberry | 11650 / 7600 | 11475 / 7950 |
+| Bengal | 9950 / 8625 | 10000 / 8625 |
 | Bravo | 10400 / 8500 | 10775 / 7950 |
 | Sir Brutus | 8625 / 9575 | 8375 / 9925 |
 | Cacklejaw | 10400 / 8775 | 9925 / 9475 |
@@ -74,7 +74,7 @@ Fitted on both windows (six two-window runs), moving `takenBp` and `dmgBp` toget
 | Domino | 9050 / 9850 | 9500 / 9100 |
 | Duchess | 10550 / 8675 | 10550 / 8725 |
 | Frankie | 9950 / 8900 | 9725 / 9175 |
-| Gabė | 8075 / 10000 | 7700 / 10650 |
+| Gabby | 8075 / 10000 | 7700 / 10650 |
 | Howler | 8350 / 9750 | 8275 / 9750 |
 | Lambo | 9300 / 8050 | 9450 / 7750 |
 | Marshmallow | 8475 / 9850 | 8475 / 9800 |
@@ -89,8 +89,8 @@ Fitted on both windows (six two-window runs), moving `takenBp` and `dmgBp` toget
 
 | Hero | Seeds 1–2000 | Seeds 2001–4000 |
 |---|---|---|
-| Avietė | 52.8% | 49.3% |
-| Bengas | 48.2% | 50.7% |
+| Raspberry | 52.8% | 49.3% |
+| Bengal | 48.2% | 50.7% |
 | Bravo | 46.0% | 52.8% |
 | Sir Brutus | 52.7% | 48.2% |
 | Cacklejaw | 52.8% | 50.0% |
@@ -99,7 +99,7 @@ Fitted on both windows (six two-window runs), moving `takenBp` and `dmgBp` toget
 | Domino | 50.8% | 50.7% |
 | Duchess | 50.9% | 47.5% |
 | Frankie | 47.3% | 53.5% |
-| Gabė | 51.0% | 50.2% |
+| Gabby | 51.0% | 50.2% |
 | Howler | 48.6% | 48.3% |
 | Lambo | 48.5% | 50.8% |
 | Marshmallow | 50.8% | 51.1% |
@@ -118,11 +118,11 @@ Fitted on both windows (six two-window runs), moving `takenBp` and `dmgBp` toget
 
 ### 3.5 Test changes
 
-- `kit-helpers.ts` gains `basicHit` (heroHit with `HERO_BASIC_VS_HERO_BP`). Basic-hit expectations in the Bengas,
+- `kit-helpers.ts` gains `basicHit` (heroHit with `HERO_BASIC_VS_HERO_BP`). Basic-hit expectations in the Bengal,
   Brutus, Cacklejaw, Clem, Stilts and cage-exit tests use it; the `effects.test.ts` shield case uses an ability hit.
 - `domino.test.ts` "the zone still hits" checked HP against a value read before the foe's regen; with × 1.05 the pulse
   (49) no longer outweighs it, so the test now checks the pulse's own hit event.
-- `pvp` row expectations (round2, Bengas, Duchess, Lambo, champions-final) carry the v18 rows.
+- `pvp` row expectations (round2, Bengal, Duchess, Lambo, champions-final) carry the v18 rows.
 
 ## 4. Gates
 

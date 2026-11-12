@@ -1,5 +1,5 @@
 /**
- * Bengas: Diva chef: toast crumbs and camellia petals. Timbre: castanet clack and sizzle.
+ * Bengal: Diva chef: toast crumbs and camellia petals. Timbre: castanet clack and sizzle.
  * Champion sound and motif layer (audio/champ/types.ts, CHAMP-IDENTITY.md §3).
  *
  * Sound: every Q/W/E cast adds a castanet double clack (the motif, rising Q → E); Striking Pose (W) swaps it for a
@@ -15,7 +15,7 @@ import type { ChampAudio, MotifPainter, P3 } from './types';
 /** Particles.js FADE ids (numbers: this data file carries no render import). */
 const FADE_HOLD = 2;
 
-/** Bengas's own sounds, baked as `c:bengas:<name>`. */
+/** Bengal's own sounds, baked as `c:bengas:<name>`. */
 export const BENGAS_SOUNDS = Object.freeze({
   /** Striking Pose: a camera shutter (two hard noise ticks, high-passed) (0.06 s). */
   shutter: [0.32, 0, 1800, 0, 0.012, 0.035, 4, 1, 0, 0, 0, 0, 0.03, 0, 0, 0, 0, 0.6, 0.01, 0, 2500],

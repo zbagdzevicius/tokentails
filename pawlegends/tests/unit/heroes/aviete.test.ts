@@ -8,7 +8,7 @@ import { isqrt } from '../../../src/sim/fixed';
 import { G } from '../../../src/sim/world';
 import { MID, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
-// Avietė (slot 0) vs Clem (slot 3, armour 25) and Sage (slot 4, armour 15).
+// Raspberry (slot 0) vs Clem (slot 3, armour 25) and Sage (slot 4, armour 15).
 const AV = 0;
 const FOE = 3;
 const FOE2 = 4;
@@ -29,9 +29,9 @@ function arena() {
   return m;
 }
 
-describe('Avietė, shelter champion assassin (sim v9)', () => {
+describe('Raspberry, shelter champion assassin (sim v9)', () => {
   it('data: an ELECTRIC cat assassin; no stealth in the kit', () => {
-    expect([AVIETE.side, AVIETE.role, AVIETE.element, AVIETE.name]).toEqual(['cat', 'assassin', 'ELECTRIC', 'Avietė']);
+    expect([AVIETE.side, AVIETE.role, AVIETE.element, AVIETE.name]).toEqual(['cat', 'assassin', 'ELECTRIC', 'Avietė']); // sim data keeps the old name (hashed); the UI shows Raspberry
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([180, 420, 420, 1950]);
     expect(P).toEqual({ brushTime: 30, hold: 120, bonus: 40, bonusPerLevel: 4, stun: 15, lockout: 240 });
   });

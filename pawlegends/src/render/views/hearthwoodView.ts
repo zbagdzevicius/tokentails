@@ -484,6 +484,14 @@ export function createHearthwoodView(info: MapInfo): MapView {
   const rnd = lcg(13);
   const sceneryMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
   const addMerged = (b: ModelBuilder, name: string, cast = true, mat: THREE.Material = sceneryMat): THREE.Mesh => {
+    // sim v22's standard Hearthwood has no pits (and may have no tree outcrop): an empty builder is an empty, hidden
+    // mesh, not a merge of nothing (that threw in mergeGeometries and the Classic match never started)
+    if (b.empty) {
+      const none = new THREE.Mesh(keep(new THREE.BufferGeometry()), mat);
+      none.name = name;
+      none.visible = false;
+      return none;
+    }
     const m = new THREE.Mesh(keep(b.build()), mat);
     m.name = name;
     m.castShadow = cast;

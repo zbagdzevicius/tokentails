@@ -306,7 +306,7 @@ export class TouchControls {
    * steers from the landing (the sim and the drawn hero still have the hero where it was).
    */
   private runOn: { x: number; y: number; slot: CastIndex; until: number; tick: number | null } | null = null;
-  /** Avietė's Live Wire return window (heading.ts ReturnWindow). */
+  /** Raspberry's Live Wire return window (heading.ts ReturnWindow). */
   private readonly wire = new ReturnWindow();
   /** Heading presses that sent (or buffered) a cast, and heading casts that went out (e2e telemetry). */
   heads = { press: 0, fired: 0 };
@@ -739,7 +739,7 @@ export class TouchControls {
   }
 
   /**
-   * Audit CF-07: a cast the orders refused (a unit-target ult, Brutus R or Avietė R, with no enemy hero in reach)
+   * Audit CF-07: a cast the orders refused (a unit-target ult, Brutus R or Raspberry R, with no enemy hero in reach)
    * used to do nothing at all on touch: now the deny sound, the red flash and, for a unit aim, a short note.
    */
   private refused(slot: CastIndex): void {
@@ -789,7 +789,7 @@ export class TouchControls {
     const aim = this.h.orders.aimSpec(slot);
     if (aim.heading) return { ...headingPoint(aim, me, this.heading(me, aim)), id: 0xff };
     const p = smartAim(aim, this.targets(), me, this.h.view.myTeam, this.facing(), this.lockedId());
-    // CF-03: a blink (Pounce, Avietė E) follows the held stick too, at full range (smartAim's fallback is the facing)
+    // CF-03: a blink (Pounce, Raspberry E) follows the held stick too, at full range (smartAim's fallback is the facing)
     const a = aim.blink ? this.stickCastAngle(me, aim, performance.now()) : aim.kind === 'dir' ? this.stickAngle() : null;
     if (a === null) return p;
     // smartAim's fallback for a direction is straight ahead along the facing: anything else means it found a target

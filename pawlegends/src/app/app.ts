@@ -63,6 +63,7 @@ import type { DeckCard, DeckHandle } from '../ui/deck/deck';
 import { championOf } from '../data/heroes/shelter';
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel, type StoreTab } from '../ui/store';
+import { openChampInfo } from '../ui/champBrowser/open';
 import { passPanel } from '../ui/passPanel';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { cardIdentity, selfNames, veilName } from '../meta/cardName';
@@ -116,9 +117,9 @@ function installFont(): void {
   try {
     if (typeof FontFace === 'undefined' || !document.fonts) return;
     const base = import.meta.env.BASE_URL ?? './';
-    // Sim v9: the champion names Avietė and Gabė. Fredoka has no precomposed ė, but it has e and the combining dot
-    // (U+0307), so the UI writes those names decomposed (data/heroes/shelter.ts `uiName`). A cluster e + dot must come
-    // from one face, so this one (the whole font) covers Basic Latin too.
+    // The extended Fredoka (Latin Extended and combining marks) draws accented player and card names; a letter and its
+    // combining mark must come from one face, so this one (the whole font) covers Basic Latin too. (The champion names
+    // are plain English since Nov 2026: Raspberry, Gabby, Bengal, Lambo.)
     // Audit GFX-14: it is the only face now. The separate Latin file (65 KB) only duplicated its Basic Latin, so the
     // game loaded 152 KB of fonts for one family; index.html preloads this file.
     const ext = new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Ext.woff2") format("woff2")`, {
@@ -1932,6 +1933,11 @@ export class App {
       onEquip: (def) => this.equipStore(def),
       onPass: () => this.openPass(),
       tab,
+      // CHAMPION-STORE.md §10: the champion grid reads the same champions the pick does, and unlocks the same way
+      champs: () => this.champs(),
+      isApp: this.isApp(),
+      onUnlock: (h, via) => this.unlockChamp(h, via),
+      onInfo: (h, within) => void openChampInfo({ hero: h, within, parent: within }),
     });
     this.overlay = Object.assign(panel, { kind: 'store' as const });
   }
@@ -1969,6 +1975,7 @@ export class App {
         }
         return ok;
       },
+      portrait: (h, item) => portraitUrl(h, { coat: item, chroma: null }),
       onTrack: () => this.openCollection(),
       onClose: () => {
         this.overlay = null;

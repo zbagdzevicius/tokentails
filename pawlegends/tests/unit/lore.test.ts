@@ -57,9 +57,11 @@ describe('hero lore', () => {
     for (const id of HERO_IDS) expect(LORE[id].howTheyFight.normalize('NFC')).toContain(ult[id]);
   });
 
-  it('is written in NFD so Fredoka draws the ė dot', () => {
-    expect(LORE.gabe.hook).toBe(LORE.gabe.hook.normalize('NFD'));
-    expect(LORE.gabe.hook).not.toContain('ė');
+  it('names the shelter champions in English, never with the old Lithuanian letters', () => {
+    expect(LORE.gabe.hook).toContain('Gabby');
+    expect(LORE.aviete.hook).toContain('Raspberry');
+    expect(LORE.bengas.hook).toContain('Bengal');
+    for (const id of HERO_IDS) expect(JSON.stringify(LORE[id])).not.toMatch(/\u0117|\u0307|Aviet|Gab\u0117|Bengas/);
   });
 });
 
@@ -70,5 +72,21 @@ describe('world lore', () => {
     expect(WORLD.story.length).toBeGreaterThanOrEqual(3);
     const names = WORLD.places.map((p) => p.name);
     for (const n of ['Purrhaven Isle', 'Isle of Woof', 'The Crossing', 'Pudding']) expect(names).toContain(n);
+  });
+});
+
+describe('shelter champion names (Nov 2026: English in the game, plain letters for the real cats)', () => {
+  it('the UI names are English; the sim data keeps its old names and the UI maps them', async () => {
+    const { HEROES } = await import('../../src/data/heroes');
+    const { heroDisplayName, SHELTER_CHAMPIONS } = await import('../../src/data/heroes/shelter');
+    const { HERO_TEXT } = await import('../../src/ui/heroText');
+    expect(Object.fromEntries(SHELTER_CHAMPIONS.map((c) => [c.hero, [c.name, c.cardName]]))).toEqual({
+      lambo: ['Lambo', 'Lambo'], aviete: ['Raspberry', 'Aviete'], bengas: ['Bengal', 'Bengas'], gabe: ['Gabby', 'Gabe'],
+    });
+    for (const c of SHELTER_CHAMPIONS) {
+      expect(heroDisplayName(c.hero, HEROES[c.hero].name)).toBe(c.name);
+      expect(HERO_TEXT[c.hero].title).toBe(c.name);
+      expect(c.cardName).toMatch(/^[A-Za-z]+$/);
+    }
   });
 });

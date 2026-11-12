@@ -170,7 +170,7 @@ for (let k = 0; k < 4; k++) {
   padBar(f, PROG[(k + 3) % 4], fs(50), 0.14, 1800);
   if (k % 2 === 0) catMotif(f + 25, 0.4);
 }
-// v3.8: Avietė's strike is up on f450, Gabė's charm beam on the cut (f550), Lambo leaps on f649
+// v3.8: Raspberry's strike is up on f450, Gabby's charm beam on the cut (f550), Lambo leaps on f649
 sfx.add(smp(450), I.crackle(0.35, 93), 0.35);
 sfx.add(smp(524), I.game('ult'), 0.4);
 sfx.add(smp(552), I.game('magic'), 0.45);

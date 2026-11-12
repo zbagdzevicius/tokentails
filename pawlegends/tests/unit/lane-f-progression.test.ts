@@ -19,7 +19,7 @@ import { toyPips } from '../../src/ui/scoreboard';
 import { fedPips } from '../../src/ui/overhead';
 import type { HeroId, SlotStats } from '../../src/sim/api';
 
-const names = (s: number) => ['Clem', 'Sage', 'Sir Brutus', 'Rex', 'Cacklejaw', 'Bengas'][s];
+const names = (s: number) => ['Clem', 'Sage', 'Sir Brutus', 'Rex', 'Cacklejaw', 'Bengal'][s];
 const picks: HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw', 'sage', 'clem'].filter((h) => (HERO_IDS as readonly string[]).includes(h)) as HeroId[];
 const heroOf = (s: number): HeroId | undefined => picks[s] ?? 'clem';
 const death = (tick: number, id: number, killer: number) => ({ type: 'death' as const, tick, id, killer });

@@ -1,5 +1,5 @@
 /**
- * The storyboard's shot list as data ("Meet Gabė", 30.000 s, 120 BPM, 60 fps: STORYBOARD.md §3, §6). capture.mjs turns
+ * The storyboard's shot list as data ("Meet Gabby", 30.000 s, 120 BPM, 60 fps: STORYBOARD.md §3, §6). capture.mjs turns
  * each entry plus its take (takes.json) into a harness ShotSpec per aspect. Frames are the master's output frames.
  *
  *   take      takes.json id; `anchor` puts the take's key tick on a frame, `fit` stretches the ramp on `seg` so a
@@ -90,7 +90,7 @@ export const SHOTS = [
     id: 'S05',
     f0: 180,
     f1: 239,
-    // Gabė's champion on a flat key colour (the backdrop disc and pedestal hidden): the edit lays her over the same
+    // Gabby's champion on a flat key colour (the backdrop disc and pedestal hidden): the edit lays her over the same
     // blurred world as the photo card, so the match cut keeps the background and only the cat changes. Her eyes on
     // f186 land where the photo's eyes end (GABE.screenEyes); a slow push and orbit, her stand turning, through f239
     lobby: { key: '#00ff00', stands: [{ hero: 'gabe', spin: 0.22, spinFrom: 180 }] },
@@ -138,7 +138,7 @@ export const SHOTS = [
     take: 'E',
     look: 'demo-ficus',
     anchor: { key: 'hit', frame: 398 },
-    // Avietė's Short Circuit on Sir Brutus (Ficus card): only her own ultimate callout
+    // Raspberry's Short Circuit on Sir Brutus (Ficus card): only her own ultimate callout
     cam: { target: { mid: ['@hero', '@target'], lift: 1.1 }, keys: [{ f: 390, dist: 0.5, pitch: 30, yaw: 0, fov: 40 }, { f: 419, dist: 0.44 }], smooth: 0.12 },
     ramp: [[390, 1], [398, 1], [399, 0], [400, 0], [401, 1]],
     layers: ['pops'],
@@ -154,7 +154,7 @@ export const SHOTS = [
     take: 'F',
     // the cut lands three ticks after the cast, once she has stepped clear of the cats' yarn core: the stage is lit
     anchor: { key: 'cast', frame: 420, offset: 3 },
-    // Bengas centred on her burning stage
+    // Bengal centred on her burning stage
     cam: { target: { unit: '@hero', lift: 1 }, keys: [{ f: 420, dist: 0.46, pitch: 46, yaw: 120, fov: 40 }, { f: 449, dist: 0.41, yaw: 134 }], smooth: 0.12 },
     layers: ['pops'],
     popText: ['Curtains Up!'],
@@ -194,14 +194,14 @@ export const SHOTS = [
     take: 'I',
     anchor: { key: 'spell', frame: 540 },
     fit: { key: 'pop', frame: 580, seg: [540, 579] },
-    // a side-on two-shot: Gabė and Sir Brutus on one horizontal line (the align yaw + 90°), Brutus walking across to her
+    // a side-on two-shot: Gabby and Sir Brutus on one horizontal line (the align yaw + 90°), Brutus walking across to her
     cam: { target: { mid: ['@hero', '@target'], lift: 1 }, align: { a: '@target', b: '@hero' }, keys: [{ f: 540, dist: 0.5, pitch: 34, yaw: 90, fov: 40 }, { f: 593, dist: 0.445 }], smooth: 0.25 },
     layers: ['pops'],
     // only the shot's own words: other heroes' ability names and far numbers stay out
     popText: [],
     dmgRadius: 6,
     cullHeroes: 2.5,
-    // 9:16: a vertical two-shot, Gabė low in frame and Sir Brutus walking down-screen toward her, under L4
+    // 9:16: a vertical two-shot, Gabby low in frame and Sir Brutus walking down-screen toward her, under L4
     portrait: { align: { a: '@target', b: '@hero' }, target: { mid: ['@hero', '@target'], lift: 2.2 }, keys: [{ f: 540, dist: 0.62, pitch: 40, yaw: 0, fov: 40 }, { f: 593, dist: 0.565 }] },
   },
   {

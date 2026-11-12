@@ -46,9 +46,9 @@ export interface AimSpec {
   radius?: number;
   /** Sage's Hop Back: the dash goes away from the aim point. */
   away?: boolean;
-  /** Audit CF-03: a blink (Pounce, Avietė's Live Wire): a touch tap goes the full range along the stick or the facing. */
+  /** Audit CF-03: a blink (Pounce, Raspberry's Live Wire): a touch tap goes the full range along the stick or the facing. */
   blink?: boolean;
-  /** Smart-cast targets (touch tap / bots-like auto aim); 'ally' (sim v9, Gabė's Wing Wrap): the most hurt allied hero. */
+  /** Smart-cast targets (touch tap / bots-like auto aim); 'ally' (sim v9, Gabby's Wing Wrap): the most hurt allied hero. */
   smart: 'hero' | 'any' | 'ally' | 'none';
   /**
    * A mobility blink or escape dash (heading.ts): a touch press fires at once, the full distance where the player is
@@ -59,9 +59,9 @@ export interface AimSpec {
   heading?: boolean;
   /** The Paw Trick flash (Pounce): desktop casts it on the key press, the full distance toward the cursor. */
   flash?: boolean;
-  /** Avietė's Live Wire: for this many ticks after it (or a cast of a `opensReturn` slot) E blinks back instead. */
+  /** Raspberry's Live Wire: for this many ticks after it (or a cast of a `opensReturn` slot) E blinks back instead. */
   returnTicks?: number;
-  /** Avietė's Short Circuit: its cast opens the Live Wire return window too. */
+  /** Raspberry's Short Circuit: its cast opens the Live Wire return window too. */
   opensReturn?: boolean;
 }
 

@@ -237,7 +237,7 @@ function meetGabe(S, f0) {
   S.at(f0 + 60, 'synth', I.bass(31, 1.0, { cutoff: 600 }), { gain: 0.3 });
   S.cue(f0 + 6, 'L1 "Meet": soft tick (the game click)');
   S.g(f0 + 6, 'click', { rate: 1.2, gain: 0.35 });
-  S.cue(f0 + 21, 'L1 "Gabe.": soft tick');
+  S.cue(f0 + 21, 'L1 "Gabby.": soft tick');
   S.g(f0 + 21, 'click', { rate: 1.35, gain: 0.35 });
   S.cue(f0 + 60, 'Swell + whip-zoom whoosh (pitched up, f180-186)');
   S.at(f0 + 50, 'sfx', I.riseWhoosh(0.17, 84), { gain: 1.3 });

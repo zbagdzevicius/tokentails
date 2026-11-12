@@ -26,7 +26,7 @@ export const SHOTS = [
     cam: game([{ f: 725, dist: 1 }, { f: 1250, dist: 1 }]),
     portrait: portrait({ mid: [0, 1] }, [{ f: 725, dist: 1.1 }, { f: 1250, dist: 1.1 }], { off: [2, -2.5] }),
   },
-  // MODE (9:16) 1: take W9, all six heroes meet on the bridge (Bengas the player).
+  // MODE (9:16) 1: take W9, all six heroes meet on the bridge (Bengal the player).
   {
     id: 'M1', ...V3, take: 'W9', f0: 0, f1: 419,
     anchor: { key: 'six', frame: 120 },
@@ -34,7 +34,7 @@ export const SHOTS = [
     cam: game([{ f: 0, dist: 1 }, { f: 419, dist: 1 }]),
     portrait: portrait({ mid: [0, 1, 2, 3, 4, 5] }, [{ f: 0, dist: 1.05 }, { f: 419, dist: 1.05 }], { off: [0, -2.2] }),
   },
-  // MODE 3: take V12, the cats push the dog base and the doghouse falls (Bengas the player).
+  // MODE 3: take V12, the cats push the dog base and the doghouse falls (Bengal the player).
   {
     id: 'M3', ...V3, take: 'V12', f0: 560, f1: 1139, shockI: 0.45,
     anchor: { key: 'core', frame: 1067 },

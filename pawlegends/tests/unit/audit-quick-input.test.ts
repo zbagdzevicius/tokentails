@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 describe('CF-03 blink taps go the full range', () => {
-  it('Pounce and Avietė E are blinks; other ground aims are not', () => {
+  it('Pounce and Raspberry E are blinks; other ground aims are not', () => {
     expect(trickAim('pounce').blink).toBe(true);
     expect(aimFor('aviete', 2).blink).toBe(true);
     expect(aimFor('aviete', 0).blink).toBeFalsy();
@@ -84,7 +84,7 @@ describe('CF-03 blink taps go the full range', () => {
 });
 
 describe('CF-07 a refused unit-target cast says so on touch', () => {
-  it('Avietė R with no enemy hero: no command, the red flash and "No hero in range"', () => {
+  it('Raspberry R with no enemy hero: no command, the red flash and "No hero in range"', () => {
     expect(aimFor('aviete', 3).kind).toBe('unit');
     const r = rig('aviete');
     expect(r.orders.cast(3, 21000, 10000, 0xff)).toBe(false);
@@ -107,7 +107,7 @@ describe('CF-07 a refused unit-target cast says so on touch', () => {
 });
 
 describe('CF-08 a smart cast never walks in under an untanked enemy tower', () => {
-  it('Avietė R (unit aim) skips a hero past its range that a tower guards; it takes it with no tower', () => {
+  it('Raspberry R (unit aim) skips a hero past its range that a tower guards; it takes it with no tower', () => {
     const aim = aimFor('aviete', 3);
     const me = unit(0, 'hero', 0, 20000, 10000);
     const foe = unit(4, 'hero', 1, 20000 + aim.range + 1500, 10000);
@@ -137,7 +137,7 @@ describe('CF-14, CF-09, CF-06 touch details', () => {
   });
 
   it('CF-06: a skill drag shows the aim ring at the thumb; release hides it', () => {
-    // a ground aim that is no heading cast (Pounce fires on the press now, heading.ts): Gabė's Q
+    // a ground aim that is no heading cast (Pounce fires on the press now, heading.ts): Gabby's Q
     const r = rig('gabe');
     const btn = r.t.root.querySelector('[data-b="q"]') as HTMLElement;
     const ring = r.t.root.querySelector('.pl-aimring') as HTMLElement;

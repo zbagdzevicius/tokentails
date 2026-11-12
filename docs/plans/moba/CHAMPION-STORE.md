@@ -1,5 +1,7 @@
 # Champion store
 
+> Names (Nov 12, 2026): the shelter champions have English names in the game. Raspberry, Gabby and Bengal were Avietė, Gabė and Bengas (Lambo kept his name); hero ids stay `aviete`, `gabe`, `bengas`. The real Pink Paw cats keep their own names, written in plain letters (Aviete, Gabe, Bengas).
+
 The founder's request, quoted exactly: "don't give every champion for free by default, give 1 of each type by default as a starter. then create a store to purchase more champs ultracode". Other requests are handled elsewhere.
 
 Status: built on `feat/pawlegends-champion-store` (from origin/main 517eafbb). Nothing here touches the sim, the replay record, the hash or `simVersion`. Champion ownership is meta data only. §16 lists where the build differs from this design and why.
@@ -43,18 +45,18 @@ Roster by role (difficulty comes from `ui/champBrowser/meta.ts` `HERO_DIFFICULTY
 | Fighter | Clem (Easy) | Howler (Easy) |
 | Marksman | Sage (Medium), Pixel (Medium) | Chili (Hard), Rocket (Hard) |
 | Tank | Lambo (Medium), Meatball (Easy) | Sir Brutus (Easy), Bravo (Medium) |
-| Assassin | Avietė (Hard), Stilts (Hard) | Cacklejaw (Hard), Frankie (Medium) |
-| Mage | Bengas (Medium), Duchess (Medium) | Marshmallow (Medium), Domino (Hard) |
-| Support | Gabė (Medium) | Nugget (Medium) |
+| Assassin | Raspberry (Hard), Stilts (Hard) | Cacklejaw (Hard), Frankie (Medium) |
+| Mage | Bengal (Medium), Duchess (Medium) | Marshmallow (Medium), Domino (Hard) |
+| Support | Gabby (Medium) | Nugget (Medium) |
 
-**Starters: Clem, Sage, Gabė (cats) and Sir Brutus, Frankie, Marshmallow (dogs).**
+**Starters: Clem, Sage, Gabby (cats) and Sir Brutus, Frankie, Marshmallow (dogs).**
 
 - **Fighter, Clem:** Easy. He is the guided first match hero ("Play as Clem") and the party `newbieHero`, so the first match keeps working unchanged.
 - **Marksman, Sage:** one of the original four and the face of the cat side. Pixel is the alternative. Both dog marksmen are Hard.
 - **Tank, Sir Brutus:** Easy, one of the original four, and the "stands in front" tank. He is the iconic dog.
 - **Assassin, Frankie:** the only assassin that isn't Hard. Cacklejaw is more iconic but Hard (founder decision 2).
 - **Mage, Marshmallow:** Medium, with forgiving slows. Domino is Hard. Picking Marshmallow keeps the 3/3 species split.
-- **Support, Gabė:** a shelter champion. One Pink Paw champion appears from match 1, so the shelter story is visible without a store. Nugget is the dog alternative, but taking her would make the split 2 cats and 4 dogs.
+- **Support, Gabby:** a shelter champion. One Pink Paw champion appears from match 1, so the shelter story is visible without a store. Nugget is the dog alternative, but taking her would make the split 2 cats and 4 dogs.
 
 The dogs stay locked until the first match is done ("Dogs unlock after your first match"). After that, the 3 dog starters are owned.
 
@@ -72,13 +74,13 @@ This is the best order from an exhaustive search:
 
 | w | Free this week | Roles covered |
 |---|---|---|
-| 0 | Meatball, Pixel, Avietė, Domino, Cacklejaw, Rocket | 4 |
+| 0 | Meatball, Pixel, Raspberry, Domino, Cacklejaw, Rocket | 4 |
 | 1 | Duchess, Lambo, Stilts, Bravo, Howler, Chili | 5 |
-| 2 | Bengas, Meatball, Pixel, Nugget, Domino, Cacklejaw | 5 |
-| 3 | Avietė, Duchess, Lambo, Rocket, Bravo, Howler | 5 |
-| 4 | Stilts, Bengas, Meatball, Chili, Nugget, Domino | 5 |
-| 5 | Pixel, Avietė, Duchess, Cacklejaw, Rocket, Bravo | 4 |
-| 6 | Lambo, Stilts, Bengas, Howler, Chili, Nugget | 6 |
+| 2 | Bengal, Meatball, Pixel, Nugget, Domino, Cacklejaw | 5 |
+| 3 | Raspberry, Duchess, Lambo, Rocket, Bravo, Howler | 5 |
+| 4 | Stilts, Bengal, Meatball, Chili, Nugget, Domino | 5 |
+| 5 | Pixel, Raspberry, Duchess, Cacklejaw, Rocket, Bravo | 4 |
+| 6 | Lambo, Stilts, Bengal, Howler, Chili, Nugget | 6 |
 
 **Properties (each is a test):**
 - Every week has 3 cats and 3 dogs.
@@ -121,8 +123,8 @@ Tiers are set by age and difficulty. VAT is included, and USD and EUR use the sa
 | Tier | Yarn | Web price | Champions |
 |---|---|---|---|
 | T1 Classic | 2,500 | $2.99 | Meatball, Howler, Cacklejaw |
-| T2 Standard | 3,500 | $3.99 | Pixel, Duchess, Lambo, Bengas, Nugget, Bravo |
-| T3 Advanced | 4,800 | $4.99 | Avietė, Stilts, Chili, Rocket, Domino |
+| T2 Standard | 3,500 | $3.99 | Pixel, Duchess, Lambo, Bengal, Nugget, Bravo |
+| T3 Advanced | 4,800 | $4.99 | Raspberry, Stilts, Chili, Rocket, Domino |
 | Launch | 6,000 | $5.99 | A new champion during its first sim version (`CHAMP_LAUNCH`, empty today), then its normal tier |
 
 At about 90 Yarn per match plus first-win bonuses, T2 takes about 30 matches and T3 about 40. That fits GDD §7.
@@ -209,6 +211,14 @@ Release time `T` is the first time a backend with this code answers a champion r
 
 **Store tab "Champions"** (web), next to cosmetics: every champion to unlock and the three bundle cards with honest savings.
 
+**Store layout (Wild Rift style, founder request Nov 12: "make champions store in pawlegends be more like wild rift").** `ui/store.ts` with `ui/champStore/` (model, CSS):
+- Top bar: back, STORE, Cats/Dogs (Champions only), the Yarn balance and Champion Picks. No money balance (there is no paid currency).
+- Champions (the default tab): 6 role filters, an Unowned toggle and a sort (Default, Price, Name, Newest; remembered in `localStorage`, guarded). A sideways grid of tall splash cards (`public/assets/splash/<hero>-360|720.webp`, lazy `<img>` with srcset; the Low quality tier loads 360 only), one row, two on tall screens. Each card: a thin frame in its tier's gold, ribbons (Free this week, Starter, New), the name and role on a dark gradient, and a price bar (Yarn, and on the web its price; Owned or Starter with a check).
+- A card opens a detail: the big splash, role, side, tier, difficulty, the blurb and the kit (P, Q, W, E, R), the rotation line, "Unlock · N Yarn" or "N Yarn to go", "Use a Champion Pick", the web price (the same checkout as before) and "Skills & lore" (the champion browser). Esc closes the detail, then the store.
+- Bottom tabs: Featured (this week's free champions, the bundles, the newest champions, the Legends Pass), Champions, Coats (coats and sets, the old shelf) and Frames & Titles. The gold chevron marks the active tab.
+- App builds never open the store today (STORE-PASS "Native app"). If one does, the panel shows Featured and Champions only, with Yarn unlocks and no price, bundle, pass or buy button.
+- Purchase, ownership, rotation and server validation are unchanged.
+
 **Collection:** "Champions 9/20" and the Founders roster badge.
 
 **Lobby and results:** a "+90 Yarn" line on the results screen next to Season XP, and milestone lines ("Match 5: pick a free champion").
@@ -253,7 +263,7 @@ Game (`champions.test.ts`): the catalogue mirror; the rotation properties from �
 ## 15. Founder decisions (defaults used until answered)
 
 1. **Web-bought champions in the native app:** default hidden in the app (GDD §8.1 #10, Apple 3.1.3(b)). Alternative: IAP in Phase 3.
-2. **Starters:** default Clem, Sage, Gabė, Sir Brutus, Frankie, Marshmallow. Swaps: Cacklejaw for Frankie (more iconic but Hard), Nugget and Bengas for Gabė and Marshmallow (more shelter weight on the dog side), Pixel for Sage.
+2. **Starters:** default Clem, Sage, Gabby, Sir Brutus, Frankie, Marshmallow. Swaps: Cacklejaw for Frankie (more iconic but Hard), Nugget and Bengal for Gabby and Marshmallow (more shelter weight on the dog side), Pixel for Sage.
 3. **Rotation:** default 6 a week (3 cats and 3 dogs), covering 4 to 6 roles, with the starters guaranteeing all 6. Alternative: Howler and Nugget always free, so the rotation covers every role.
 4. **Founders roster:** default all 20 for anyone with server evidence of at least 1 match before T. Players with only local saves get a support email path, not an automatic grant.
 5. **Prices:** default T1 $2.99 / 2,500 Yarn, T2 $3.99 / 3,500, T3 $4.99 / 4,800, launch $5.99 / 6,000. Bundles $16.99 per species and $29.99 for all 14.

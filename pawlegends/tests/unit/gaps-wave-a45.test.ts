@@ -170,7 +170,7 @@ describe('A4: portrait strip', () => {
     document.body.innerHTML = '';
     const taps: number[] = [];
     const hud = new Hud(document.body, 'sage', 'hiss', { onSlot: () => {}, onPortrait: (s) => taps.push(s) });
-    hud.mountStrip(['sage', 'clem', 'brutus', 'cacklejaw', 'lambo', 'gabe'], 0, 0, ['You', 'Clem', 'Brutus', 'Cacklejaw', 'Lambo', 'Gabė']);
+    hud.mountStrip(['sage', 'clem', 'brutus', 'cacklejaw', 'lambo', 'gabe'], 0, 0, ['You', 'Clem', 'Brutus', 'Cacklejaw', 'Lambo', 'Gabby']);
     expect(document.querySelectorAll('.pl-strip.ally .pp').length).toBe(2);
     expect(document.querySelectorAll('.pl-top .pl-strip.enemy button.pp').length).toBe(3);
     const byId = new Map<number, EntitySnap>([[4, snap({ id: 4, kind: 'hero', team: 1, state: 'dead', respawnIn: 90 })]]);

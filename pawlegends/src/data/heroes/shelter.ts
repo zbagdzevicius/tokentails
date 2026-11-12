@@ -2,7 +2,7 @@
  * Shelter champions (sim v9): the four heroes inspired by real Pink Paw cats' Token Tails cards (licence for the
  * cats' names and photos, Oct 11). Meta and render only: the sim never reads this file. Owning the card (roster
  * `catalogIds`) adds cosmetics only (a card badge, the Companion Kitten, the element chroma); it never unlocks the
- * champion (CHAMPION-STORE.md: Gabė is a starter, the other three rotate free or unlock with Yarn or the store).
+ * champion (CHAMPION-STORE.md: Gabby is a starter, the other three rotate free or unlock with Yarn or the store).
  *
  * The catalog ids live in three places (docs/DEVELOPMENT.md): here, backend/src/pawlegends/pawlegends-champions.ts
  * and the host, which reads them from GET /pawlegends/champions.
@@ -15,22 +15,18 @@ export interface ShelterChampion {
   hero: ChampionId;
   /** The Token Tails catalog cat (`cat._id`) the champion is inspired by. */
   catalogId: string;
-  /** The card's name as the UI writes it (`uiName`: Avietė and Gabė decomposed, so Fredoka draws the dot). */
+  /** The champion's in-game name (English; Nov 2026, was the cat's Lithuanian name: Avietė, Gabė, Bengas). */
+  name: string;
+  /** The real Pink Paw cat's name in plain letters (no ė), for "based on a real cat" lines and postcards. */
   cardName: string;
   pronoun: 'he' | 'she';
 }
 
-/**
- * A name as the game UI writes it: Unicode NFD. Fredoka (the UI font) has no precomposed ė (U+0117) but has e and
- * the combining dot (U+0307); written decomposed, the browser draws both from Fredoka instead of a fallback face.
- */
-export const uiName = (name: string): string => name.normalize('NFD');
-
 export const SHELTER_CHAMPIONS: readonly ShelterChampion[] = Object.freeze([
-  { hero: 'lambo', catalogId: '6a30473c1d6649b19b03622b', cardName: uiName('Lambo'), pronoun: 'he' },
-  { hero: 'aviete', catalogId: '6965203d0a2c7b325b78f7e2', cardName: uiName('Avietė'), pronoun: 'she' },
-  { hero: 'bengas', catalogId: '6963fd97f5f542518922871b', cardName: uiName('Bengas'), pronoun: 'he' },
-  { hero: 'gabe', catalogId: '6992227d890a12f52a317e22', cardName: uiName('Gabė'), pronoun: 'she' },
+  { hero: 'lambo', catalogId: '6a30473c1d6649b19b03622b', name: 'Lambo', cardName: 'Lambo', pronoun: 'he' },
+  { hero: 'aviete', catalogId: '6965203d0a2c7b325b78f7e2', name: 'Raspberry', cardName: 'Aviete', pronoun: 'she' },
+  { hero: 'bengas', catalogId: '6963fd97f5f542518922871b', name: 'Bengal', cardName: 'Bengas', pronoun: 'he' },
+  { hero: 'gabe', catalogId: '6992227d890a12f52a317e22', name: 'Gabby', cardName: 'Gabe', pronoun: 'she' },
 ] as ShelterChampion[]);
 
 export const CHAMPION_IDS: readonly ChampionId[] = Object.freeze(SHELTER_CHAMPIONS.map((c) => c.hero));
@@ -38,6 +34,14 @@ export const CHAMPION_IDS: readonly ChampionId[] = Object.freeze(SHELTER_CHAMPIO
 /** The champion of a hero id, or null for the four original heroes. */
 export function championOf(hero: HeroId): ShelterChampion | null {
   return SHELTER_CHAMPIONS.find((c) => c.hero === hero) ?? null;
+}
+
+/**
+ * A hero's in-game name. The sim's hero data still carries the shelter cats' old names (sim source is hashed, so it
+ * changes only with a sim version), so the UI reads the English champion name from here first.
+ */
+export function heroDisplayName(hero: HeroId, simName: string): string {
+  return championOf(hero)?.name ?? simName;
 }
 
 /** The champion inspired by a catalog cat, or null. */

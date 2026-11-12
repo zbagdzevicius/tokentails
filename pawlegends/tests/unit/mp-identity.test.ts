@@ -19,7 +19,7 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-const BASE = ['Clem', 'Biscuit the Sage', 'Rex the Lambo', 'Duke the Gabe', 'Pepper the Pixel', 'Bolt the Stilts'];
+const BASE = ['Clem', 'Biscuit the Sage', 'Rex the Lambo', 'Duke the Gabby', 'Pepper the Pixel', 'Bolt the Stilts'];
 
 describe('teammate identity (M1)', () => {
   it('names from the party; Hide names and mute read "Teammate 2"; bots and the viewer keep theirs', () => {

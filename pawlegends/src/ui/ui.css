@@ -161,14 +161,14 @@ kbd {
 /* Short phones: the pause card (Resume, Scores, Sound, Settings, the zoom row, Forfeit, Leave) was 475 px tall at
    844x390, so Leave sat off screen. Two columns for the smaller buttons, tighter spacing, and a scroll as a safety net. */
 @media (max-height: 480px) {
-  .pl-menu:not(.pl-settings):not(.pl-collection) > .card {
+  .pl-menu:not(.pl-settings):not(.pl-collection):not(.pl-book) > .card {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 18px; width: min(560px, calc(100vw - 32px)); max-width: none;
     max-height: calc(100dvh - 16px); overflow-y: auto; box-sizing: border-box;
   }
-  .pl-menu:not(.pl-settings):not(.pl-collection) > .card > :is(h2, .pl-btn.big, .set-zoom, .keys, .sub) { grid-column: 1 / -1; }
+  .pl-menu:not(.pl-settings):not(.pl-collection):not(.pl-book) > .card > :is(h2, .pl-btn.big, .set-zoom, .keys, .sub) { grid-column: 1 / -1; }
   /* the confirm cards (Forfeit, Leave): both buttons full width */
   .pl-menu > .card:is(.pl-forfeit, .pl-leave) > .pl-btn { grid-column: 1 / -1; }
-  .pl-menu:not(.pl-settings):not(.pl-collection) > .card .pl-btn { padding-top: 9px; padding-bottom: 9px; }
+  .pl-menu:not(.pl-settings):not(.pl-collection):not(.pl-book) > .card .pl-btn { padding-top: 9px; padding-bottom: 9px; }
   .pl-menu h2 { margin: 0; font-size: 20px; }
 }
 
@@ -246,7 +246,7 @@ kbd {
 .pl-portrait .gap { position: absolute; left: 50%; top: -18px; transform: translateX(-50%); white-space: nowrap; font: 700 11px/1 var(--font); font-style: normal;
   color: #2b1d2e; background: #e1c6ff; border-radius: 8px; padding: 2px 6px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
 .pl-portrait .gap:empty { display: none; }
-/* Sim v9, Avietė: the charge ring on the portrait (a spark ring while Charged, a grey ring and timer during the lockout). */
+/* Sim v9, Raspberry: the charge ring on the portrait (a spark ring while Charged, a grey ring and timer during the lockout). */
 .pl-portrait .charge { position: absolute; inset: -6px; border-radius: 50%; pointer-events: none; display: none; }
 .pl-portrait .charge[data-state='charged'] { display: block; box-shadow: 0 0 0 3px #ffe14d, 0 0 14px 3px rgba(255, 238, 120, 0.85); animation: pl-spark 0.5s ease-in-out infinite alternate; }
 .pl-portrait .charge[data-state='lockout'] {

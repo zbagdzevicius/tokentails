@@ -287,10 +287,10 @@ const OVERLAP_FRAMES = 2;
 /**
  * v3.6: a body more than this share hidden behind a nearer one fails (was 0.5: Sir Brutus over Bruno the Cacklejaw at
  * 0.47 read as one blob in the v3.5 review), and so does any `clip` (a head drawn inside a nearer body: Bolt the Brutus
- * leaning into Gabė at 0.34-0.39 hidden).
+ * leaning into Gabby at 0.34-0.39 hidden).
  */
 const HIDDEN_MAX = 0.4;
-/** v3.8: posed bodies inside each other (harness `touch`) on any frame fail (the maul through Gabė was 1 frame). */
+/** v3.8: posed bodies inside each other (harness `touch`) on any frame fail (the maul through Gabby was 1 frame). */
 const TOUCH_FRAMES = 1;
 /** v3.8: frames in a row a hero plate may sit across the frame edge. */
 const EDGE_PLATE_FRAMES = 12;
@@ -464,7 +464,7 @@ async function capturePass(shot, spec, aspect, pass, dirs, keyTicks) {
   // than its game life or pinned in place (the pop cull should have dropped it)
   const contacts = runsOf((q) => (q.contact ?? 0) > 0);
   // v3.8: one drawn body inside another as posed (the skinned mesh after root motion: a lunge or a flip through a
-  // hero), on 2 frames in a row (the v3.7 review: Cacklejaw's maul through Gabė under the CACKLEJAW card)
+  // hero), on 2 frames in a row (the v3.7 review: Cacklejaw's maul through Gabby under the CACKLEJAW card)
   const touches = runsOf((q) => (q.touch ?? 0) > 0, TOUCH_FRAMES);
   // v3.8: a hero's name plate or posed body cut by the frame's left or right edge (part in, part out) for EDGE_PLATE_FRAMES frames in a row (the v3.7
   // review: "Sir Brutu", "Bean the Brutu" in the 9:16 cut); a hero walking in or out crosses the edge in a few frames

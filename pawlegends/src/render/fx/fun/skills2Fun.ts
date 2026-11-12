@@ -1,5 +1,5 @@
 /**
- * Skill-feel lane 2 (Bengas, Gabė, Meatball, Pixel) extras on top of the shared fun kit (./funKit.ts): a few more
+ * Skill-feel lane 2 (Bengal, Gabby, Meatball, Pixel) extras on top of the shared fun kit (./funKit.ts): a few more
  * composite stickers (a sleepy "Z", peeking eyes, a slice of toast, a bottle cap), a thrown sticker with its own
  * velocity and gravity (roses onto the stage, toast crumbs, cardboard confetti), and the overhead anchor of a hero's
  * Overhead anchors come from funKit (funOverY: chars/visualSize.ts), so the stickers sit over Pixel's small box and
@@ -99,7 +99,7 @@ export function eyes(fx: FxCtx, x: number, y: number, z: number, size: number, l
   for (const k of [-1, 1]) spr(p, false, x + (k * gap + lk) * r.x + 0.02 * t.x, y - size * 0.05, z + (k * gap + lk) * r.z + 0.02 * t.z, 0, 0, 0, SHAPE.SOFT, size * 0.62, 1, life, 0, 0, 0, 0, FADE.HOLD, GROW.BACK);
 }
 
-/** A slice of toast: a crust puff and a lighter crumb face, flying with (vx, vy, vz) (Bengas's Burnt Toast). */
+/** A slice of toast: a crust puff and a lighter crumb face, flying with (vx, vy, vz) (Bengal's Burnt Toast). */
 export function toast(fx: FxCtx, x: number, y: number, z: number, vx: number, vy: number, vz: number, size: number, life: number, burnt: boolean, spin = 0, rot = 0.4): void {
   const p = funPool(fx);
   if (!p) return;

@@ -43,6 +43,11 @@ const _c = new THREE.Color();
 export class ModelBuilder {
   private geos: THREE.BufferGeometry[] = [];
 
+  /** No primitive added yet (`build` would have nothing to merge). */
+  get empty(): boolean {
+    return this.geos.length === 0;
+  }
+
   add(geo: THREE.BufferGeometry, color: number, o: PrimOpts = {}): this {
     const g = geo;
     g.deleteAttribute('uv');

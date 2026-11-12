@@ -158,7 +158,7 @@ export function progressStrip(badges: readonly LevelBadge[]): HTMLElement {
 export interface MeetCardOpts {
   cat: FeaturedCat;
   /** Sim v9: the cat is a shelter champion's card (its own copy: the champion stays free to play either way). */
-  champion?: { pronoun: 'he' | 'she' } | null;
+  champion?: { pronoun: 'he' | 'she'; /** The champion's in-game name when it differs from the cat's (Aviete: Raspberry). */ hero?: string } | null;
   /** Round 1: the player's hero in this cat's chroma (a fair preview: no price, no timer). */
   preview?: { url: string; hero: string } | null;
   /** Waiting for the host to open its sheet. */
@@ -178,7 +178,7 @@ export function meetCard(o: MeetCardOpts): HTMLElement {
   const body = h('div', 'plc-meet-body');
   body.appendChild(h('small', 'plc-kicker', o.champion ? 'A Pawlegends champion' : 'A new squad mate?'));
   body.appendChild(h('b', 'plc-meet-name', o.cat.name));
-  body.appendChild(h('p', 'plc-meet-line', o.champion ? championMeetLine(o.cat.name, o.champion.pronoun, o.cat.type) : `${elementName(o.cat.type)} cat. Trots at your heels, cheers your takedowns and unlocks the ${elementName(o.cat.type)} chroma and its card skin for every hero.`));
+  body.appendChild(h('p', 'plc-meet-line', o.champion ? championMeetLine(o.cat.name, o.champion.pronoun, o.cat.type, o.champion.hero) : `${elementName(o.cat.type)} cat. Trots at your heels, cheers your takedowns and unlocks the ${elementName(o.cat.type)} chroma and its card skin for every hero.`));
   if (o.preview) {
     const pv = h('div', 'plc-meet-preview');
     const pic = h('i', 'plc-meet-pic');
@@ -216,12 +216,16 @@ export function meetCard(o: MeetCardOpts): HTMLElement {
  * The Meet line for a shelter champion's card (sim v9). Cosmetics only: the card never unlocks the champion (CHAMPION-STORE.md);
  * no price, money or impact words (docs/CLAIMS.md R2/R3), no "adopt" next to the real cat's name; STELLAR reads "Star".
  */
-export function championMeetLine(name: string, pronoun: 'he' | 'she', type: string): string {
-  return `Inspired by ${name}'s Token Tails card. With the card, ${pronoun} trots at your heels, cheers your takedowns and unlocks the ${elementName(type)} chroma and the card skin for every hero, plus a card badge on ${name}.`;
+export function championMeetLine(name: string, pronoun: 'he' | 'she', type: string, hero: string = name): string {
+  const lead = hero === name ? `Inspired by ${name}'s Token Tails card.` : `${hero} is inspired by ${name}'s Token Tails card.`;
+  return `${lead} With the card, ${pronoun} trots at your heels, cheers your takedowns and unlocks the ${elementName(type)} chroma and the card skin for every hero, plus a card badge on ${hero}.`;
 }
 
 export interface ChampionInfoModel {
+  /** The champion's in-game name (Raspberry). */
   name: string;
+  /** The real Pink Paw cat's name in plain letters (Aviete); omitted when it is the same. */
+  realName?: string;
   pronoun: 'he' | 'she';
   type: string;
   art?: string;
@@ -243,12 +247,17 @@ export function championInfo(m: ChampionInfoModel): HTMLElement {
   chip.setAttribute('aria-expanded', 'false');
   const panel = h('div', 'plc-champ-panel');
   panel.hidden = true;
-  panel.appendChild(catCard({ name: m.name, type: m.type, art: m.art, ...(m.owned ? { ribbon: 'Yours' } : {}) }, { small: true }));
+  const real = m.realName ?? m.name;
+  panel.appendChild(catCard({ name: real, type: m.type, art: m.art, ...(m.owned ? { ribbon: 'Yours' } : {}) }, { small: true }));
   const body = h('div', 'plc-champ-body');
   body.appendChild(h('small', 'plc-kicker', 'Pawlegends champion'));
-  body.appendChild(h('p', 'plc-champ-line', `${m.name} is inspired by ${m.pronoun === 'she' ? 'her' : 'his'} Token Tails card. Every player can pick ${m.pronoun === 'she' ? 'her' : 'him'}.`));
+  const them = m.pronoun === 'she' ? 'her' : 'him';
+  const line = real === m.name
+    ? `${m.name} is inspired by ${m.pronoun === 'she' ? 'her' : 'his'} Token Tails card. Every player can pick ${them}.`
+    : `${m.name} is based on ${real}, a real cat at Pink Paw in Kaunas, and ${m.pronoun === 'she' ? 'her' : 'his'} Token Tails card. Every player can pick ${them}.`;
+  body.appendChild(h('p', 'plc-champ-line', line));
   if (m.flavour) body.appendChild(h('p', 'plc-champ-flavour', m.flavour));
-  if (m.owned) body.appendChild(h('span', 'plc-champ-badge', `From ${m.name}'s card`));
+  if (m.owned) body.appendChild(h('span', 'plc-champ-badge', `From ${real}'s card`));
   panel.appendChild(body);
   root.append(chip, panel);
   root.addEventListener('click', (e) => {

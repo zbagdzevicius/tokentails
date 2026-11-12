@@ -45,7 +45,7 @@ export const DEFAULT_GAIT: GaitProfile = Object.freeze({
   }),
 }) as GaitProfile;
 
-/** §5 spring tuning: Lambo heavy and slow, Avietė whippy, Brutus short and stiff, the others k 140, c 12. */
+/** §5 spring tuning: Lambo heavy and slow, Raspberry whippy, Brutus short and stiff, the others k 140, c 12. */
 export const HERO_SPRINGS: Readonly<Record<HeroId, SpringTuning>> = Object.freeze({
   clem: { tail: { k: 140, c: 12, lag: 0.55 }, ears: { k: 160, c: 12, lag: 0 } },
   sage: { tail: { k: 140, c: 12, lag: 0.55 }, ears: { k: 150, c: 11, lag: 0 } },
