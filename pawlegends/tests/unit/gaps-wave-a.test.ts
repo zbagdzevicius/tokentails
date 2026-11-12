@@ -299,7 +299,7 @@ describe('A1: collection panel', () => {
     document.body.innerHTML = '';
   });
 
-  it('chooses a target, shows N matches to go, unlocked postcards with the card art and a CLAIMS-safe story, and wears titles', () => {
+  it('chooses a target, shows N matches to go, unlocked postcards with the splash art (never the Token Tails card art) and a CLAIMS-safe story, and wears titles', () => {
     const targets: (HeroId | null)[] = [];
     const worn: [string, string | null][] = [];
     let closed = false;
@@ -317,7 +317,7 @@ describe('A1: collection panel', () => {
       },
     });
     expect(root.querySelector('[data-togo]')?.textContent).toBe('about 2 matches to go');
-    expect(root.querySelector('[data-postcard="lambo"] img')?.getAttribute('src')).toBe('https://example.test/lambo.png');
+    expect(root.querySelector('[data-postcard="lambo"] img')?.getAttribute('src')).toMatch(/assets\/splash\/lambo-360\.webp/);
     expect(root.querySelector('[data-postcard="gabe"]')?.classList.contains('locked')).toBe(true);
     (root.querySelector('[data-target="gabe"]') as HTMLElement).click();
     expect(targets).toEqual(['gabe']);

@@ -1,7 +1,7 @@
 /**
  * Collection (GAPS A1): the Treat Track's chest screen and the player's profile shelf. "Pick your next target"
  * chooses the hero whose next reward the next chest holds ("N matches to go"; the order inside each hero is fixed),
- * the champions' "Meet the real cat" postcards show the real cat's card art and a short story, and the track titles
+ * the champions' "Meet the real cat" postcards show the champion's splash art and a short story, and the track titles
  * and frames can be worn. Free and local: no price, no buy button, no link, and nothing here opens an offer.
  * Copy follows docs/CLAIMS.md: the stories are the cards' own jokes, with no money or impact words.
  */
@@ -13,6 +13,7 @@ import { HERO_TEXT } from './heroText';
 import { icon } from './icons';
 import { openChampInfo } from './champBrowser/open';
 import { bookClose, bookTabs, focusTab, isCat, wireTabs } from './passBook';
+import { splashUrl } from './champStore/model';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
@@ -20,7 +21,7 @@ export interface CollectionOpts {
   treats: TreatState;
   /** Free unlocks and owned items (a reward in here is collected). */
   owned: ReadonlySet<string>;
-  /** The champions' card art from the host (`champions`), when it has arrived. */
+  /** The champions' card art from the host (`champions`). Unused: the game shows no Token Tails art; postcards use the splash. */
   art: Partial<Record<HeroId, string>>;
   /** A hero portrait (the fallback picture of a postcard), or null. */
   portrait(hero: HeroId): string | null;
@@ -84,7 +85,8 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       const have = o.owned.has(`postcard.${h}`);
       if (!have)
         return `<div class="postcard locked" data-postcard="${h}" style="--i:${i}"><span class="pic sealed" role="img" aria-label="A sealed postcard"></span><b>${esc(c.cardName)}</b><small>Earn ${esc(c.name)}'s real-cat postcard on the Treat Track.</small></div>`;
-      const pic = o.art[h] ?? o.portrait(h);
+      // Paw Legends art only (no Token Tails card art in the game): the champion's splash
+      const pic = splashUrl(String(import.meta.env.BASE_URL ?? './'), h, 360);
       const img = pic ? `<img src="${esc(pic)}" alt="${esc(c.cardName)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : `<span class="pic">${icon('paw')}</span>`;
       return `<div class="postcard" data-postcard="${h}" style="--i:${i}" tabindex="0" role="button" aria-label="${esc(`${c.cardName}: meet the real cat`)}"><span class="pc-photo">${img}<span class="stamp" aria-hidden="true">${icon('paw')}</span></span><b>${esc(c.cardName)}</b><small>${esc(postcardStory(h))}</small></div>`;
     };

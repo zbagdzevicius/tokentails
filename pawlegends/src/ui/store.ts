@@ -30,6 +30,7 @@ import { PAID_COATS } from '../render/cosmetics';
 import { browserCurrency } from '../money/skus';
 import { icon } from './icons';
 import { portraitUrl, SKU_LOOK } from '../render/portraits';
+import { assetRev } from './assetRev';
 
 /** Plain words for the planned extras the pack lines name (they are not on sale yet). */
 const GLOSSARY: readonly [RegExp, string][] = [
@@ -373,12 +374,21 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const hero = sel.hero ?? (coat ? coat.split('.')[1] : 'clem');
     const pic = o.preview?.(hero, coat) ?? null;
     const frame = sel.items.find((i) => i.startsWith('frame.'));
+    /** Every tile shows its item: the coat on its hero, a set's first coat, a frame as its ring around the hero, the pass art. */
+    const tileThumb = (d: CatalogSku): string => {
+      if (d.kind === 'pass') return `<i class="tpic" style="background-image:url('${esc(`${base}assets/lobby/promo-pass.webp${assetRev()}`)}')" aria-hidden="true"></i>`;
+      const c = d.items.find((i) => i.startsWith('coat.')) ?? null;
+      const f = d.items.find((i) => i.startsWith('frame.'));
+      const h = d.hero ?? (c ? c.split('.')[1] : 'clem');
+      const url = o.preview?.(h, c) ?? null;
+      return `<i class="tpic${f && !c ? ' ring' : ''}"${f ? ` data-frame="${esc(f)}"` : ''}${url ? ` style="background-image:url(${url})"` : ''} aria-hidden="true">${url ? '' : icon('paw')}</i>`;
+    };
     const tile = (d: CatalogSku): string => {
       const ds = itemState(d, s);
       const tag = ds === 'owned' ? 'Owned' : ds === 'partly' ? 'Own some' : ds === 'locked' ? (d.sku === PASS_UPGRADE_SKU ? 'Pass owners' : 'Upgrade instead') : catalogPrice({ cents: priceFor(d, s) }, currency);
       const r = d.group === 'coats' ? coatRungOf(d.items[0]) : null;
       const rung = r && r !== 'COMMON' ? `${RUNG_WORD[r]} · ` : '';
-      return `<button type="button" class="shop-tile ${d.sku === selected ? 'on' : ''} st-${ds}"${r ? ` data-rung="${r}"` : ''} data-sel="${d.sku}" data-k="sel:${d.sku}" aria-pressed="${d.sku === selected}"><b>${esc(d.label)}</b><small>${esc(rung + tag)}</small></button>`;
+      return `<button type="button" class="shop-tile pic ${d.sku === selected ? 'on' : ''} st-${ds}"${r ? ` data-rung="${r}"` : ''} data-sel="${d.sku}" data-k="sel:${d.sku}" aria-pressed="${d.sku === selected}">${tileThumb(d)}<span class="tt"><b>${esc(d.label)}</b><small>${esc(rung + tag)}</small></span></button>`;
     };
     const action =
       st === 'owned'
