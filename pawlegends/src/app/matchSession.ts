@@ -3,6 +3,7 @@
  * touch), HUD, minimap, scoreboard, talents, first-match tips and the Esc menu. The app's frame loop calls
  * `frame(dt)`; the session calls back once with the result and the replay.
  */
+import type { NapKiller } from '../ui/napCard';
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
 import { matchVoiceKeys } from '../audio/voiceLines';
@@ -951,7 +952,9 @@ export class MatchSession {
       const k = killer?.kind ?? 'other';
       this.deathsBy[k] = (this.deathsBy[k] ?? 0) + 1;
       this.clearTowerWarnings();
-      this.hud?.recap(this.recapLine(killer, e.killer));
+      // the nap card's medallion (ui/napCard.ts), read before recapLine clears the hits
+      const medal = this.napKiller(killer);
+      this.hud?.recap(this.recapLine(killer, e.killer), medal);
     }
     const good = victim.team !== this.view.myTeam;
     const rel = (team: number | undefined, id: number): FeedName['rel'] =>
@@ -1209,7 +1212,7 @@ export class MatchSession {
     return true;
   }
   /** Who hurt the player lately (render ms), for the death recap. */
-  private hurtBy: { name: string; tower: boolean; at: number }[] = [];
+  private hurtBy: { name: string; tower: boolean; at: number; hero?: HeroId }[] = [];
 
   private calmFor = 0;
   private behindSaid = false;
@@ -1249,6 +1252,22 @@ export class MatchSession {
     this.view.juice.notify.drop('tower');
     this.view.juice.notify.drop('dive');
     this.alertAt = -1e9;
+  }
+
+  /**
+   * The nap card's medallion: the hero who landed the knockout, else the last hero who hit the player in the recap
+   * window (the recap names them first), else a tower or a paw for minions.
+   */
+  private napKiller(killer: { kind: string; hero?: HeroId } | null): NapKiller {
+    if (killer?.kind === 'hero' && killer.hero) return { kind: 'hero', hero: killer.hero };
+    const now = performance.now();
+    const recent = this.hurtBy.filter((h) => now - h.at < 6000 / Math.max(1, this.buffer.speed));
+    for (let i = recent.length - 1; i >= 0; i--) {
+      const h = recent[i].hero;
+      if (h) return { kind: 'hero', hero: h };
+    }
+    if (killer?.kind === 'tower' || killer?.kind === 'core' || recent.some((h) => h.tower)) return { kind: 'tower' };
+    return { kind: killer?.kind === 'minion' ? 'minion' : 'other' };
   }
 
   /** "Knocked out by Cacklejaw + a tower: wait for your minions." from the last 6 s of hits. */
@@ -2230,7 +2249,7 @@ export class MatchSession {
           if (src && (src.kind === 'tower' || src.kind === 'core') && src.team !== this.view.myTeam) this.towerHit(ev.src);
           if (src && src.team !== this.view.myTeam) {
             const tower = src.kind === 'tower' || src.kind === 'core';
-            this.hurtBy.push({ name: src.hero ? (this.names[ev.src] ?? HERO_TEXT[src.hero].title) : tower ? 'a tower' : 'minions', tower, at: performance.now() });
+            this.hurtBy.push({ name: src.hero ? (this.names[ev.src] ?? HERO_TEXT[src.hero].title) : tower ? 'a tower' : 'minions', tower, at: performance.now(), ...(src.hero ? { hero: src.hero } : {}) });
             if (this.hurtBy.length > 24) this.hurtBy.shift();
           }
         }
