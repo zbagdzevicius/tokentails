@@ -1,5 +1,5 @@
 /**
- * Avietė move set and skill FX (ANIM-SPEC §14): the clips bind to the sim timings (8 t basic windup, instant casts on
+ * Raspberry move set and skill FX (ANIM-SPEC §14): the clips bind to the sim timings (8 t basic windup, instant casts on
  * the cast tick, the 60 t Live Wire window, the 60 t Shiny Coat haste), stay inside the root caps and compile on her
  * rig, the picks choose the right clip without allocating, and the skill FX draw at the sim's (talent-resolved)
  * shapes: the Q cone, the E wire for exactly the return window, the R dazzle ring at the 3 m radius.

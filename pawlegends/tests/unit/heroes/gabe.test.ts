@@ -9,7 +9,7 @@ import { snapshot } from '../../../src/sim/index';
 import { Kind } from '../../../src/sim/world';
 import { MID, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
-// Gabė (slot 0) with Clem (1) and Sage (2) vs Clem (slot 3, armour 25) and Sage (slot 4).
+// Gabby (slot 0) with Clem (1) and Sage (2) vs Clem (slot 3, armour 25) and Sage (slot 4).
 const GB = 0;
 const ALLY = 1;
 const ALLY2 = 2;
@@ -33,9 +33,9 @@ function arena() {
 
 const dist = (m: ReturnType<typeof arena>, a: number, b: number): number => isqrt((m.world.x[a] - m.world.x[b]) ** 2 + (m.world.y[a] - m.world.y[b]) ** 2);
 
-describe('Gabė, shelter champion support (sim v9)', () => {
+describe('Gabby, shelter champion support (sim v9)', () => {
   it('data: a WIND cat support; the charm is 1 s', () => {
-    expect([GABE.side, GABE.role, GABE.element, GABE.name]).toEqual(['cat', 'support', 'WIND', 'Gabė']);
+    expect([GABE.side, GABE.role, GABE.element, GABE.name]).toEqual(['cat', 'support', 'WIND', 'Gabė']); // sim data keeps the old name (hashed); the UI shows Gabby
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([210, 360, 420, 2100]);
     expect([A.r.charm, A.r.windup]).toEqual([30, 20]);
   });
@@ -54,7 +54,7 @@ describe('Gabė, shelter champion support (sim v9)', () => {
     const again = w.hp[ALLY2];
     dealDamage(m, GB, 0, Kind.Hero, FOE, 50, 'ability');
     expect(w.hp[ALLY2]).toBe(again);
-    // Out of 6 m: the weakest in range (Gabė herself when she is lower).
+    // Out of 6 m: the weakest in range (Gabby herself when she is lower).
     place(m, ALLY2, MID.x - 9000, MID.y, 0);
     w.hp[GB] = 10;
     dealDamage(m, GB, 0, Kind.Hero, FOE, 50, 'basic');
@@ -91,7 +91,7 @@ describe('Gabė, shelter champion support (sim v9)', () => {
     expect(w.shield[ALLY]).toBe(A.w.shield);
     expect(w.hasteBp[ALLY]).toBe(A.w.hasteBp);
     expect(w.shield[GB]).toBe(0);
-    // Aimed where no ally stands (within 2.5 m of the point): herself, and Gabė does not walk.
+    // Aimed where no ally stands (within 2.5 m of the point): herself, and Gabby does not walk.
     const m2 = arena();
     setLevel(m2, GB, 2);
     cast(m2, GB, 1, MID.x + 30000, MID.y);
@@ -109,7 +109,7 @@ describe('Gabė, shelter champion support (sim v9)', () => {
     expect(w.hasteBp[ALLY]).toBe(A.e.hasteBp);
   });
 
-  it('Under Her Spell: charmed heroes walk toward Gabė at half speed, stop within 1 m, cannot act; the charm ends if she dies', () => {
+  it('Under Her Spell: charmed heroes walk toward Gabby at half speed, stop within 1 m, cannot act; the charm ends if she dies', () => {
     const m = arena();
     const w = m.world;
     setLevel(m, GB, 4);

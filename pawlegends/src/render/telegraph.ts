@@ -26,7 +26,7 @@ const steps = (dy: number, dx: number): number => (Math.atan2(dy, dx) * STEPS) /
 const diff = (a: number, b: number): number => ((((b - a) % STEPS) + STEPS * 1.5) % STEPS) - STEPS / 2;
 
 /**
- * Bengas's Striking Pose telegraph (sim v9): during the wind-up, the heroes of the other team in the pose's cone that
+ * Bengal's Striking Pose telegraph (sim v9): during the wind-up, the heroes of the other team in the pose's cone that
  * face him (they get stunned; the rest of the cone only gets slowed). The wind-up marks them with a "!" eye glyph, so
  * "do not look at him" can be read on a phone. A float mirror of the sim's inCone + inFront (src/sim/effects); render
  * only, never a replay input. Writes the ids into `out` (cleared first).

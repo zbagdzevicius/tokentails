@@ -142,7 +142,7 @@ export interface MoveCtx {
 export interface SlotMoves {
   /** default cast clip */
   cast: ClipDef;
-  /** Clem Q2/Q3, Cacklejaw Q2, Avietė E return */
+  /** Clem Q2/Q3, Cacklejaw Q2, Raspberry E return */
   recasts?: readonly ClipDef[];
   /** level-6 shape branch (Sage lance, Brutus post) */
   branch?: ClipDef;

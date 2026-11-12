@@ -79,7 +79,7 @@ for (const size of SIZES) {
         // the host's cards slot (the champion's About chip, badges) never covers PLAY or the nav
         await page.evaluate(() => {
           const s = document.querySelector<HTMLElement>('.hm-slot');
-          if (s) s.innerHTML = '<div class="plc-champ"><button class="pl-btn ghost small plc-champ-chip">About Bengas</button></div>';
+          if (s) s.innerHTML = '<div class="plc-champ"><button class="pl-btn ghost small plc-champ-chip">About Bengal</button></div>';
         });
         expect(await page.evaluate(() => {
           const s = document.querySelector<HTMLElement>('.hm-slot');

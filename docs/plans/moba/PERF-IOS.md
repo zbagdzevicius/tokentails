@@ -884,7 +884,7 @@ numbers are still open) cycled each hero's moves at 852×393 DPR 3:
 |---|---|---|
 | Clem | 1.61, 9% | 1.87, 11% (E) |
 | Duchess | 1.79, 11% | **3.10, 41% (R)** |
-| Avietė | 1.61, 9% | 1.78, 11% (R) |
+| Raspberry | 1.61, 9% | 1.78, 11% (R) |
 | Cacklejaw | 1.73, 11% | 2.03, 16% (W) |
 | Rocket | 1.66, 10% | 1.90, 11% (R) |
 

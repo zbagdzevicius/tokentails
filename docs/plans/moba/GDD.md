@@ -1,5 +1,7 @@
 # Pawlegends: game design document
 
+> Names (Nov 12, 2026): the shelter champions have English names in the game. Raspberry, Gabby and Bengal were Avietė, Gabė and Bengas (Lambo kept his name); hero ids stay `aviete`, `gabe`, `bengas`. The real Pink Paw cats keep their own names, written in plain letters (Aviete, Gabe, Bengas).
+
 A cats vs dogs MOBA in three.js for Token Tails. Written 2026-10-17 and revised the same day after an adversarial review (repo paths re-verified). Status: proposal for founder review.
 
 The Phase 1 build spec is in [`POC.md`](POC.md). This file is the whole game: what it is, how it makes money, and the three rollouts.
@@ -283,9 +285,9 @@ Pip move to P3. Dogs stay at 2 heroes until the P2 dogs arrive. Sim v11 (2026-10
 | **Clem** | Fighter | FAIRY | *Valor* meter; ult *Golden Hour* | **P1** | PPK Player, `Valor.js` |
 | **Sage** | Marksman | WIND | Every 4th shot pierces; ult *Moonshot* | **P1** | PPK `sage.volley` |
 | **Lambo** (shelter champion) | Tank | STELLAR ("Star") | *Brave With Friends*; ult *Tangled Lights* pull and root | **P2 (sim v9)** | Lambo's Token Tails card |
-| **Avietė** (shelter champion) | Assassin | ELECTRIC | Charged in brush, next hit stuns; *Live Wire* blink and return | **P2 (sim v9)** | Avietė's Token Tails card |
-| **Bengas** (shelter champion) | Mage | FIRE | *Hot Toast* vs CC'd heroes; ult *Curtains Up!* fire stage | **P2 (sim v9)** | Bengas's Token Tails card |
-| **Gabė** (shelter champion) | Support | WIND | *Heart Breeze* heals; ult *Under Her Spell* charm | **P2 (sim v9)** | Gabė's Token Tails card |
+| **Raspberry** (shelter champion) | Assassin | ELECTRIC | Charged in brush, next hit stuns; *Live Wire* blink and return | **P2 (sim v9)** | Raspberry's Token Tails card |
+| **Bengal** (shelter champion) | Mage | FIRE | *Hot Toast* vs CC'd heroes; ult *Curtains Up!* fire stage | **P2 (sim v9)** | Bengal's Token Tails card |
+| **Gabby** (shelter champion) | Support | WIND | *Heart Breeze* heals; ult *Under Her Spell* charm | **P2 (sim v9)** | Gabby's Token Tails card |
 | **Meatball** (original cat) | Tank | GRASS | *Bowling Roll* knocks dogs aside; ult *Unstoppable Chonk* | **P2 (sim v11)** | `CATS-V11.md` §2.1 |
 | **Pixel** (original cat) | Marksman | ICE | *Laser Pointer* channelled beam; ult *BOXBOT MK II* | **P2 (sim v11)** | `CATS-V11.md` §2.2 |
 | **Duchess** (original cat) | Mage | DARK | *Utter Disdain* stacks into a Snub stun; ult *Royal Decree* | **P2 (sim v11)** | `CATS-V11.md` §2.3 |
@@ -333,7 +335,7 @@ Pip move to P3. Dogs stay at 2 heroes until the P2 dogs arrive. Sim v11 (2026-10
 
 Full numbers for the 4 POC heroes are in `POC.md` §6.
 
-**Shelter champions (sim v9, founder default 2026-10-19: go ahead under the Oct 11 licence for names and photos).** Four heroes are each *inspired by* a real Pink Paw cat's Token Tails card: Lambo, Avietė, Bengas and Gabė (`pawlegends/src/data/heroes/shelter.ts`). Copy says "inspired by <name>'s Token Tails card"; it never says the cat endorses anything or that playing helps the cat (CLAIMS R2/R3), and it uses no health details from the bios (the flavour lines come from each card's one-line story). Owning the card adds cosmetics only (a badge, the Companion Kitten, the element chroma); it never unlocks the champion. Since the champion store (CHAMPION-STORE.md, 2026-11-11) Gabė is a starter and Lambo, Avietė and Bengas rotate free or unlock with Yarn or a web purchase. A one-line courtesy note to Pink Paw about playable-hero use is sent, but does not block. Other real Pink Paw cats (Judas, Raudvis, Zare, Simas) still appear only as **Rescue coats** with a photo card. Pudding stays an objective (a playable "brave mode" Pudding is a Phase 3 event idea only).
+**Shelter champions (sim v9, founder default 2026-10-19: go ahead under the Oct 11 licence for names and photos).** Four heroes are each *inspired by* a real Pink Paw cat's Token Tails card: Lambo, Raspberry, Bengal and Gabby (`pawlegends/src/data/heroes/shelter.ts`). Copy says "inspired by <name>'s Token Tails card"; it never says the cat endorses anything or that playing helps the cat (CLAIMS R2/R3), and it uses no health details from the bios (the flavour lines come from each card's one-line story). Owning the card adds cosmetics only (a badge, the Companion Kitten, the element chroma); it never unlocks the champion. Since the champion store (CHAMPION-STORE.md, 2026-11-11) Gabby is a starter and Lambo, Raspberry and Bengal rotate free or unlock with Yarn or a web purchase. A one-line courtesy note to Pink Paw about playable-hero use is sent, but does not block. Other real Pink Paw cats (Judas, Raudvis, Zare, Simas) still appear only as **Rescue coats** with a photo card. Pudding stays an objective (a playable "brave mode" Pudding is a Phase 3 event idea only).
 
 **Release cadence after Phase 3 launch:** one hero every 3 weeks, alternating cat and dog, each with a launch bundle.
 
@@ -801,7 +803,7 @@ Spend in two tranches: €500 in week 1 after launch, the rest only if cost per 
   already fails on `main`'s inputs bound (40,801 characters now pass).
 
 - Card skins (Oct 19), fixed on purpose: the host's `artUrlOf` now trims surrounding spaces (2 sprite and 4 GIF storefront URLs end in one and lost their art); the hero geometry cache (now a reference-counted LRU of 32) and the portrait cache (an LRU of 64) were unbounded.
-- Card skins, not fixed: Cacklejaw ignores `lookCoat` (`render/chars/specs.ts`), so the free Spotted and Dusk coats change nothing; Epic and Legendary pack kittens still get the tier aura and ✦ marks (`render/views/companionView.ts`, no `fromPack` check); a cat with no `origin` still earns tier frames (`meta/roster.ts` `rosterCosmetics`), against #19's intent (card skins already fail closed); the existing chroma ground aura uses the ELECTRIC and FAIRY colours, close to Avietė's charge glow and the charm glow; CAMP and EARTH cats are dropped from the roster; 27 of 230 storefront sprite URLs (32 cats, all of PEACHES) return 403 and fall back to the table or the presets; starter sprites (`tokentails.com/cats/...`) are off the art allowlist, so starters use their breed coat.
+- Card skins, not fixed: Cacklejaw ignores `lookCoat` (`render/chars/specs.ts`), so the free Spotted and Dusk coats change nothing; Epic and Legendary pack kittens still get the tier aura and ✦ marks (`render/views/companionView.ts`, no `fromPack` check); a cat with no `origin` still earns tier frames (`meta/roster.ts` `rosterCosmetics`), against #19's intent (card skins already fail closed); the existing chroma ground aura uses the ELECTRIC and FAIRY colours, close to Raspberry's charge glow and the charm glow; CAMP and EARTH cats are dropped from the roster; 27 of 230 storefront sprite URLs (32 cats, all of PEACHES) return 403 and fall back to the table or the presets; starter sprites (`tokentails.com/cats/...`) are off the art allowlist, so starters use their breed coat.
 
 - Resolved Oct 17: the Bad Cat and Moon Rave on/off flags (`BADCAT_*_ENABLED`, `RAVE_*_ENABLED`, `BADCAT_ROUTES`, the `VITE_BADCAT_*` switches) were removed; features are on whenever their secrets are set.
 - `client/public/swordcat-game/` (about 63 MB) ships in every Vercel deploy and in the Capacitor `public/` copy.

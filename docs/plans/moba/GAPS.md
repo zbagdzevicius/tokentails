@@ -25,7 +25,7 @@ These checks change the plan:
 | Mutator field: "the DTO must keep it" | `canonicalRecord` copies only `RECORD_KEYS` (`backend/src/pawlegends/pawlegends-live.ts`), so the worker and the digest would drop it. `$min pawlegendsFastestWin` would also take 4-minute Sunset Rush wins | Add it to `RECORD_KEYS`, the DTO and the digest. Leave mutator wins out of the fastest-win record |
 | Dual v9/v10 verifier is small | The version check is in `pawlegends-live.ts` *and* `checkReplayShape`. Each vendored bundle is about 294 KB | Effort M (1–2 days): versioned vendor dirs plus dispatch in the worker |
 | Adding tricks is data | Bot tricks are drawn from `TRICK_IDS` by seed (`fillPicks`). A new trick changes every bot's trick and needs bot cast logic. Whisker Ward changes `src/sim/map/brush.ts`, which bots also see through (`sense.ts`) | Purr-ify only in Wave B. The ward moves to Next with vision |
-| Grade formula from `SlotStats` | `SlotStats` has only K/D/A, hero damage, tower damage and level. There is no damage taken, heal, shield or objective stat | Tanks (Brutus, Lambo) and the support (Gabė) would grade C. The formula must weight by role |
+| Grade formula from `SlotStats` | `SlotStats` has only K/D/A, hero damage, tower damage and level. There is no damage taken, heal, shield or objective stat | Tanks (Brutus, Lambo) and the support (Gabby) would grade C. The formula must weight by role |
 | Ladder: halve losses on S/A | `impactOf` already reduces a loss by up to 50% (`src/meta/ladder.ts`) | Replace `impact` with the grade. Do not stack the two |
 | PostHog measures | Consent-gated (`src/analytics/posthog.ts`), so it sees a biased subset | Primary measures are the headless gates and the backend's verified `pawlegendsMatches`. PostHog is secondary |
 
@@ -117,7 +117,7 @@ vendor's own claim) come from the inventory and were not re-checked in this pass
 **A1. Treat Track for all 8 heroes, 30 chests, then a loop; quests for all 8.** S–M (1.5 days plus data).
 - `src/meta/treats.ts`: 9 → 30 rewards.
   - **Cat and dog originals** (Clem, Sage, Brutus, Cacklejaw): +1 coat each (4) and 4 palette variants of the earlier coats.
-  - **Shelter champions** (Lambo, Avietė, Bengas, Gabė): no coats, because they wear their real card's coat. Each gets a title (for example "Lambo's Pal"), a frame, and a **"Meet the real cat" postcard**: the licensed Pink Paw photo and a short story, shown in the profile (4 × 3 = 12).
+  - **Shelter champions** (Lambo, Raspberry, Bengal, Gabby): no coats, because they wear their real card's coat. Each gets a title (for example "Lambo's Pal"), a frame, and a **"Meet the real cat" postcard**: the licensed Pink Paw photo and a short story, shown in the profile (4 × 3 = 12).
   - 2 general emotes (if animation is cheap; otherwise 2 more palette variants).
 - **Never free:** anything that owning the $5 card gives (element chroma, Companion Kitten, card badge, card skin). The free track must not cannibalise the one paid item.
 - **Pick your next target:** a chest screen to choose the hero whose next reward you are working toward, with "N matches to go". The order inside each hero is fixed (Unite License Journeys, deterministic part only).
@@ -129,7 +129,7 @@ vendor's own claim) come from the inventory and were not re-checked in this pass
 **A2. Grade (S/A/B/C), MVP, "Best on your team" on a loss.** S–M (1.5 days). Risk: calibration.
 - A pure `src/meta/grade.ts` on `MatchResult.stats`, weighted by role. KP = (K+A) / max(1, team kills); D = 1 − deaths/(deaths+3).
   - Carry roles (marksman, mage, assassin, fighter): `0.35·KP + 0.25·heroDmgShare + 0.20·towerDmgShare + 0.20·D`.
-  - Tank and support (Brutus, Lambo, Gabė): `0.50·KP + 0.10·heroDmgShare + 0.10·towerDmgShare + 0.30·D`, until v10 adds `damageTaken` and `healShield` to `SlotStats` (part of B0).
+  - Tank and support (Brutus, Lambo, Gabby): `0.50·KP + 0.10·heroDmgShare + 0.10·towerDmgShare + 0.30·D`, until v10 adds `damageTaken` and `healShield` to `SlotStats` (part of B0).
 - Starting thresholds: S ≥ 0.72, A ≥ 0.55, B ≥ 0.40, otherwise C. Calibrate **per role**: `npm run match -- --difficulty normal --profile normal --seeds 400 --json`, with each hero as the human. Target: about 12% S, 30% A, 35% B, 23% C for every role, and at least 25% of losses graded A or S.
 - Treat XP: S +40, A +25, B +10. Never catnip. Ladder: the grade replaces `impactOf` in `recordLadder` (S/A loss = half points). It does not stack on top.
 - **Measure:** `grade.test.ts`, the per-role distribution check, and round-3 comments on losses.
@@ -269,7 +269,7 @@ prints per-trick win rates and the balance gate checks them. Balance at 2,000 se
 | 3 (stretch) | Cacklejaw | Jeer Hook: Q becomes a 6 m line that pulls the first hero 2 m | `line` + Lambo's pull | |
 | 4 (stretch) | Lambo | Belly Bounce: E becomes 2 hops of 3 m (slow 30%, then stun 23 ticks) | `dash`, `ring`, recasts as in Clem Q | |
 | Next | Clem | Twin Tumble: 2 charges | **needs a charge system** (new world arrays, snapshot field, HUD pips) | not "dash reuse" |
-| Next | Avietė, Bengas, Gabė | Live Wire Fence, Flambé, Twin Wrap | tether, armed zone, shield | |
+| Next | Raspberry, Bengal, Gabby | Live Wire Fence, Flambé, Twin Wrap | tether, armed zone, shield | |
 
 - Each branch ships only if the hero stays 46–54% with `--bot-talents branch`, the branch wins 45–55% against the number option, and bot casts handle the new shape.
 - Show the branch on the enemy portrait so the other side can read it.
@@ -326,7 +326,7 @@ render only. Card effects are cosmetic: no card reaches a stat, cooldown, hitbox
 | Item | Status |
 |---|---|
 | C1 level growth | done (attack speed and move speed per level by role) |
-| C2 ability ranks | done (Q/W/E at 2, 5, 8; R at 4, 7, 10; pips, toast, tooltips); open: talents that set an absolute cooldown or damage lose value as ranks stack (Avietė Quick Shine 120 ticks better than base at level 6, 75 at level 8), a design call, not changed |
+| C2 ability ranks | done (Q/W/E at 2, 5, 8; R at 4, 7, 10; pips, toast, tooltips); open: talents that set an absolute cooldown or damage lose value as ranks stack (Raspberry Quick Shine 120 ticks better than base at level 6, 75 at level 8), a design call, not changed |
 | C3 combat VFX | done; outlines on minions and towers not added (draw-call caps); known bug: unfiltered `levelup` ring (below) |
 | C4 card-tier effects | done (Rare tint, Epic cast sparkle, Legendary hit burst, takedown flourish, ultimate paw wave) |
 
@@ -337,7 +337,7 @@ frozen, v10); `sync-contracts --check` up to date; backend lint and build ok, ba
 passed (2 suites fail to load without `OPENAI_API_KEY` in the shell and pass with a dummy key; not a Wave C change).
 Playwright: 74 passed, 48 skipped (per-project skips), 1 failed on the first run (`first-match` "all five tips", the
 attack tip's text not caught at speed 4) and passed twice on re-run; Med perf with card effects at 59 draws (≤ 110). Balance at 2,000 seeds passes every line:
-heroes 48.4% (Cacklejaw) to 53.4% (Avietė), cats 51.3%, Purrhaven 46.9% (inside the gate's 45–55%, under the plan's
+heroes 48.4% (Cacklejaw) to 53.4% (Raspberry), cats 51.3%, Purrhaven 46.9% (inside the gate's 45–55%, under the plan's
 47%), median 7:01, p95 7:52, 0 safety ends, core kill before Sudden Death 80.7%, 3.44 takedowns a minute, trailing at
 3:30 won 26.8%; tricks 48.8% to 50.9%; branches Sage 52.5%, Sir Brutus 47.2%. fun1 (99.0%, 5:01), fun2 (80.0%, 6:40),
 novice (90.5%) and parked (1.5%) pass.
@@ -353,8 +353,8 @@ merge before the talents (a talent number wins); the sim table is per hero, leve
 bots. Half of each `dmgPerLevel` moved into the ranks, so level-1 and level-10 damage are unchanged; W and E get −0.5 s
 a rank, R −3.3 s a rank. Client: rank pips on the desktop slots and touch buttons, a "Rank up!" toast at the level-ups
 that rank something, tooltips and talent cards with the numbers at the current level and picks, and cooldown sweeps
-from the same table. Tuning: Avietė `pvp.dmgBp` 13000 → 12700, Sage 10700 → 10900, Purr-ify cooldown 3000 → 2700.
-Balance at 2,000 seeds: heroes 48.4% (Cacklejaw) to 53.4% (Avietė), cats 51.3%, Purrhaven 46.9%, median 7:01, p95 7:52,
+from the same table. Tuning: Raspberry `pvp.dmgBp` 13000 → 12700, Sage 10700 → 10900, Purr-ify cooldown 3000 → 2700.
+Balance at 2,000 seeds: heroes 48.4% (Cacklejaw) to 53.4% (Raspberry), cats 51.3%, Purrhaven 46.9%, median 7:01, p95 7:52,
 0 safety ends, core kill before Sudden Death 80.7%; tricks 48.8% to 50.9%; branches Sage 52.5%, Sir Brutus 47.2%.
 fun1, fun2, novice, parked, idle, hard, feeder and feedNormal pass. A2 grades drifted (fighter, assassin, mage over
 5 points on the held-out block) and were refit on the same 1,400 seeds a hero.
@@ -363,7 +363,7 @@ fun1, fun2, novice, parked, idle, hard, feeder and feedNormal pass. A2 grades dr
 the impact flash scale with the damage (an element ring on ability hits), a big-hit pop on a hero hit for 16% of its max
 HP (the sim has no crits), slash crescents on melee basics and cone casts, element-coloured projectile trails with
 embers and dash streaks, ground debris by biome (grass, lane dirt, river water, bridge wood, plaza stone), ultimates
-with a relation-coloured wave (an enemy one reads red), a pillar and cracks, lightning on Avietė's ability hits and
+with a relation-coloured wave (an enemy one reads red), a pillar and cracks, lightning on Raspberry's ability hits and
 areas, a power spike at levels 4, 7 and 10 with a level aura underfoot (no gold under another hero, none while
 stealthed), and casts that grow 18% a C2 rank with a sparkle at the top rank. Colours come from the hero's element,
 never from a card. Budgets: Low 800 particles (counts ×0.6, no embers, motes or cracks), Med 1,600, High 2,000; the
@@ -373,7 +373,7 @@ the ink hull on Med and High; minions and towers were not given one (more draw c
 First-load JS 392.3 KB gzip (387.0 KB before, budget 450 KB).
 Review fixes: the aura layer holds two rings for all six heroes (it had 6 slots, so team 0 filled them and the other
 team showed no level-7 or level-10 aura); the level spike, cast accents, dash streaks and hit sparks of another player's
-hero never take the gold "you" family (Avietė, Sir Brutus and Lambo read gold; Clem's gold cast accent is mixed toward
+hero never take the gold "you" family (Raspberry, Sir Brutus and Lambo read gold; Clem's gold cast accent is mixed toward
 white under another player too); the level spike draws only for a hero in the current snapshot.
 **Known bug (predates C3, not fixed):** the `levelup` event is not vision filtered, and the render keeps a hero's
 last-seen place for 3 s (`WHO_TTL`), so the small gold level-up ring still pops where an enemy that just stepped into
@@ -393,7 +393,7 @@ Previews: the pick screen under the Skins strip, the results line and a Card eff
 proof: `tests/unit/card-fx.test.ts` plays a match with every hero in a Legendary card and without, through the same
 event director, and the replay (inputs, hash trail, final hash) is identical and verifies; the sim, the backend
 verifier and the vendored bundles never mention cards. Balance at 2,000 seeds is unchanged from C1 + C2 (no sim
-change): heroes 48.4% (Cacklejaw) to 53.4% (Avietė), cats 51.3%, median 7:01, 0 safety ends; fun1, fun2, novice and
+change): heroes 48.4% (Cacklejaw) to 53.4% (Raspberry), cats 51.3%, median 7:01, 0 safety ends; fun1, fun2, novice and
 parked pass. Perf (Med, every hero Legendary): 61 draws at most (≤ 110), 2,451 card-effect particles in the match.
 
 ## 4. Next: MVP (Nov 13 – early January)
@@ -414,7 +414,7 @@ parked pass. Perf (Med, every hero Legendary): 61 draws at most (≤ 110), 2,451
 - **N3. Crow roost.** M–L. From 4:00, a 1,200 HP roost every 90 s at two mirrored river spots. The Feather order (Swift +6% speed / Sturdy 5% shield on respawn / Sharp +5% hero damage) is drawn from the seed and shown in advance, up to 3 stacks. Gates: median 7–9 min; more Feathers wins ≤ 65%.
 - **N4. Third dog.** Done in sim v14 (`DOGS-V13.md`): five original dogs (Nugget, Marshmallow, Bravo, Chili, Howler) end the forced dog mirror; Lord Barkus, Pilfer and Longfellow wait for the next dog wave. Clowder keeps the joke.
   Sim v15 (`DOGS-V15.md`): Rocket (marksman), Frankie (assassin) and Domino (mage) make it 10 v 10 with the same roles on both sides; Longfellow is dropped (the dachshund is Frankie), and Lord Barkus, Pilfer and the Golden Retriever wait for v16.
-- **N5. More tricks and the rest of the branches.** Whisker Ward (with N12 vision rules and `sense.ts`), Scratch (ignite plus anti-heal), Yowl (area slow); Clem charges; Avietė, Bengas and Gabė branches.
+- **N5. More tricks and the rest of the branches.** Whisker Ward (with N12 vision rules and `sense.ts`), Scratch (ignite plus anti-heal), Yowl (area slow); Clem charges; Raspberry, Bengal and Gabby branches.
 - **N6. Ranked against bots, server-verified.** L (backend). Kitten, Tabby, Alley, Lion, Legend; the bottom two tiers never lose points; S/A losses are cushioned; 8-week seasons, no decay, a season frame. Points come from the verified stats and the grade, posted only through `POST /user/catbassadors/live`. The grade function moves into the vendored sim facade so the server computes the same number.
 - **N7. Training ground.** S–M. `mode: 'practice'`, dummies, sliders, never posted.
 - **N8. Weekly fastest-win board per hero.** M (backend). Global only, initial plus cat name, opt-out, Skirmish only (no mutators).

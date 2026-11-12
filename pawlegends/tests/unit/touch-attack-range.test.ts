@@ -38,7 +38,7 @@ afterEach(() => {
 });
 
 describe('touch Attack button and range rings', () => {
-  it('the Attack button uses the hero data range for every hero (Pixel, Duchess, Bengas, Gabė are ranged)', () => {
+  it('the Attack button uses the hero data range for every hero (Pixel, Duchess, Bengal, Gabby are ranged)', () => {
     for (const hero of ['pixel', 'duchess', 'bengas', 'gabe', 'sage', 'clem'] as const) {
       const r = rig(hero);
       r.down('attack', 1);

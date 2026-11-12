@@ -455,7 +455,7 @@ const DESIGN = [
     S.g(f, 'cheer', { gain: 0.9 });
     S.g(f, 'sting', { gain: 0.7, rev: 0.2 });
   }],
-  [1053, 'Combo: Bengas Q + Aviete E on three dogs', (S, f) => {
+  [1053, 'Combo: Bengal Q + Raspberry E on three dogs', (S, f) => {
     S.mv(f, 'zap', { boost: 1.8 });
     S.g(f, 'heroHit', { gain: 0.8 });
     S.at(f, 'sfx', I.snap(108), { gain: 0.6 });
@@ -491,7 +491,7 @@ const DESIGN = [
   ...[
     [1302, 'Pack Hunt pounce', (S, f) => { S.g(f, 'hyenaLaugh', { rate: 1.1, gain: 0.5 }); S.g(f, 'heroHit', { gain: 0.8 }); }],
     [1319, 'Live Wire blink', (S, f) => { S.mv(f, 'zap', { boost: 1.8 }); S.mv(f + 3, 'zap', { boost: 1.4, pan: 0.3 }); }],
-    [1336, 'Bengas takedown', (S, f) => { S.g(f, 'heroHit', { gain: 0.9 }); S.g(f + 1, 'death', { gain: 0.5 }); }],
+    [1336, 'Bengal takedown', (S, f) => { S.g(f, 'heroHit', { gain: 0.9 }); S.g(f + 1, 'death', { gain: 0.5 }); }],
     [1352, 'Tangled Lights', (S, f) => { S.mv(f, 'lightsJingle', { boost: 2 }); S.mv(f + 2, 'bodyThud', { boost: 1.6 }); }],
     [1369, 'Clem Q', (S, f) => S.mv(f, 'clang', { boost: 2 })],
     [1386, 'Pack Hunt maul', (S, f) => { S.g(f, 'heroHit', { gain: 0.9 }); S.g(f, 'swipe', { gain: 0.7 }); }],

@@ -88,7 +88,7 @@ const PORT_YAW = 90;
 const PORT_OFF_S01 = [0, -4.5];
 /** v3.8: the take's clock while the map is wide (the landing falls on H1's clean moment). */
 const S01_CLOCK = 3.5;
-/** v3.8: H1's four in the exchange (entity ids: Clem, Gabė, Muffin the Cacklejaw, Sir Brutus). */
+/** v3.8: H1's four in the exchange (entity ids: Clem, Gabby, Muffin the Cacklejaw, Sir Brutus). */
 const S01_FOUR = [0, 1, 3, 4];
 /** GAMECAM-P (9:16): pitch 48.8, FOV 50, 1.2x the distance, the subject centred (PORT_OFF). */
 const portrait = (target, keys, o = {}) => ({
@@ -114,17 +114,17 @@ const push = (a, beat, b, d = 0.9) => [{ f: a, dist: 1 }, { f: beat, dist: d, ea
  */
 const TEAMFIGHT_SHOTS = [
   {
-    // Sage is the player: Bengas takes Cacklejaw down at the dog base (f906); v3.8 (review of v3.7: S14B cut back to a
+    // Sage is the player: Bengal takes Cacklejaw down at the dog base (f906); v3.8 (review of v3.7: S14B cut back to a
     // mid-map bridge, so the story ran tower, base, bridge, core): S14B is dropped and S14 runs on to f1099 (take F1
     // stays QC-clean to f1101: the KO, Sir Brutus's Q on ~f996, the cats pushing on), so the run is tower, base fight,
     // core with no backtrack
-    // v3.9 (review of v3.8: after the KO the shot held 2.5 s on a static clump, Sir Brutus's shield in Bengas and a
-    // pickup's beam glaring in from the bottom edge): S14 is the KO only, f900-949, cut before Bengas stacks up behind
+    // v3.9 (review of v3.8: after the KO the shot held 2.5 s on a static clump, Sir Brutus's shield in Bengal and a
+    // pickup's beam glaring in from the bottom edge): S14 is the KO only, f900-949, cut before Bengal stacks up behind
     // Sage (from f955) (the beam is
     // now drawn in its own colour, pickupView PICKUP_BEAM)
     id: 'S14', ...V3, ...LITE, take: 'F1', f0: 900, f1: 949,
     anchor: { key: 'ko', frame: 906 },
-    // 0.9x from f1040, so the cut comes before Bengas and Sir Brutus close in on each other (QC contact from f1098)
+    // 0.9x from f1040, so the cut comes before Bengal and Sir Brutus close in on each other (QC contact from f1098)
     ramp: [[900, 1]],
     cam: game([{ f: 900, dist: 1 }, { f: 912, dist: 0.9, ease: 'out' }, { f: 949, dist: 1, ease: 'ease' }]),
     // 9:16: v3.8 (review: the KO at the left edge, a dog hero cut by it, the right half empty core plaza): the look
@@ -142,7 +142,7 @@ export const SHOTS = [
     // into the real gameplay camera inside the shot: the descent starts on the half-beat f112 (the words wipe on
     // f115) and lands, eased, on the next half-beat (f137), held on the gameplay view to the downbeat cut. While the map is wide (every hero a speck) the clock runs at 4.2x, so
     // the camera lands about 370 frames of real time after f0, as Clem's Q settles and the dogs fall back (Sir Brutus
-    // and the second Cacklejaw out on the right, Gabė and Clem with Muffin in the river), every body apart: the clean
+    // and the second Cacklejaw out on the right, Gabby and Clem with Muffin in the river), every body apart: the clean
     // window of the take is 324-387 (v3.4's descent landed on the Clem / Sir Brutus pile at 200-320, where the melee
     // keeps their swings touching). The plates and the HUD fade out on the way up and back in on the way down.
     // v3.6 (review of v3.5: the rise was a 14-frame snap with the clock jumping to 4.2x at once, the 9:16 crane spun
@@ -155,7 +155,7 @@ export const SHOTS = [
     // is up and still (the 9:16 quarter turn done) by f54; CATS / VS / DOGS slam on f55 / f62 / f69 and hold to f135
     // (1.1 s all three up); the descent starts once they wipe (f136) and lands, eased, on f156 on the gameplay camera,
     // held 19 frames to the cut. The clock runs 3.5x while wide and eases back to 1x by f152, so the landing is the take's
-    // clean moment (ticks ~10446-10455: Muffin, Gabė, Clem, Sir Brutus and Bruno spread across the river and the meadow,
+    // clean moment (ticks ~10446-10455: Muffin, Gabby, Clem, Sir Brutus and Bruno spread across the river and the meadow,
     // every body apart in both aspects' QC)
     // v3.9 (review of v3.8: the descent was a 9-frame snap under a half-faded HUD, the 9:16 quarter turn spun in 18
     // frames each way, the last frames landed on Bruno merged into Sir Brutus's back): S01 is 200 frames (S02 from the
@@ -187,7 +187,7 @@ export const SHOTS = [
       // v3.9: the plates fade back in once the 9:16 descent has landed (f188)
       uiFade: [[24, 1], [40, 0], [188, 0], [196, 1]],
       cam: {
-        // v3.8: the opening on the exchange's three (Clem, Gabė, Sir Brutus), easing onto the four as Muffin runs in (f6-22), at 1.4x the portrait
+        // v3.8: the opening on the exchange's three (Clem, Gabby, Sir Brutus), easing onto the four as Muffin runs in (f6-22), at 1.4x the portrait
         // distance, the landing on the four (with Muffin) at 1.25x, so nobody is cut by the narrow frame's edges
         // v3.9: the quarter turn eases over 44 frames each way: up f28-72 (after the plates have faded, done on
         // CATS, f72), back f146-188 together with the descent (the words are wiped by f146 in 9:16), so the turn
@@ -209,18 +209,18 @@ export const SHOTS = [
       },
     },
   },
-  // ---------------------------------------------------------------- S02 3V3: the real HUD on the gameplay camera (take W9, Bengas)
+  // ---------------------------------------------------------------- S02 3V3: the real HUD on the gameplay camera (take W9, Bengal)
   {
-    // all six heroes round Pudding's pad, the cats 13-6 up: Bengas, Sage and Gabė trade with the two Sir Brutus
+    // all six heroes round Pudding's pad, the cats 13-6 up: Bengal, Sage and Gabby trade with the two Sir Brutus
     // ("Duke" and "Bolt", the game's own persona plates) and Cacklejaw; the full HUD as a player sees it
     // v3.6: the objective toast ("Calm Pudding! ...") and the sudden-death subline are hidden (they competed with 3V3
     // and spent the Pudding beat 15 s early); the score bar, minimap and ability bar stay
     // v3.8: S02 starts on the f175 beat (S01 holds its landing to f174); the same moments of V10 from there
     // v3.9 (review of v3.8: 2 s of a static line-up under 3V3, nothing hit anything until f272, only five heroes in
-    // frame: Bengas walked off to the river): S02 is take W9 again (all six round Pudding's pad, Bengas is the player),
-    // 9 ticks after the six stand apart, at 0.75x: Sir Brutus and Gabė, Bengas and Duke trade blows from the first
+    // frame: Bengal walked off to the river): S02 is take W9 again (all six round Pudding's pad, Bengal is the player),
+    // 9 ticks after the six stand apart, at 0.75x: Sir Brutus and Gabby, Bengal and Duke trade blows from the first
     // frames under 3V3 (f202), Sage shoots, Cacklejaw comes in from the east; every body apart (the capture's QC of
-    // W9 at this framing passes in both aspects, unlike v3.5's W9 window that put Bolt the Brutus's head in Gabė)
+    // W9 at this framing passes in both aspects, unlike v3.5's W9 window that put Bolt the Brutus's head in Gabby)
     // and all six in both frames: the game camera on the six's centroid, the look point 1.5 m west and 2.5 m north
     id: 'S02', ...V3, take: 'W9', f0: 200, f1: 299, layers: ['hud'], hide: ['.pl-goal', '.pl-score .phase'], selfName: false, edgeArrows: true,
     anchor: { key: 'six', offset: 9, frame: 200 },
@@ -238,7 +238,7 @@ export const SHOTS = [
     portrait: portrait({ mid: ['@clem', '@brutus'] }, push(300, 324, 349), { wide: 1.1, extra: NOHUD }),
   },
   {
-    // the dogs answer: Cacklejaw's Pack Hunt on Gabė at the cat-side bridge (take V3; v3.3's Z1 window had Lambo's
+    // the dogs answer: Cacklejaw's Pack Hunt on Gabby at the cat-side bridge (take V3; v3.3's Z1 window had Lambo's
     // flop snap through him)
     id: 'S04', ...V3, ...LITE, take: 'V3', twinNames: false, f0: 350, f1: 399,
     anchor: { key: 'cackR', frame: 360 },
@@ -257,13 +257,13 @@ export const SHOTS = [
   },
   // ---------------------------------------------------------------- S07-S10 THE FOUR CHAMPIONS (each one's ultimate)
   {
-    // Avietė's Short Circuit. v3.7 (review of v3.6: in take V6 her body sank into Bruno the Cacklejaw from f456, and
-    // before the cast she lay on a cadet pile): take W6, Avietė is the player; the cast on f452 strikes the two Sir
+    // Raspberry's Short Circuit. v3.7 (review of v3.6: in take V6 her body sank into Bruno the Cacklejaw from f456, and
+    // before the cast she lay on a cadet pile): take W6, Raspberry is the player; the cast on f452 strikes the two Sir
     // Brutus at the cat base and takes one down, her body clear of theirs (the take's QC-clean span after the cast);
     // the game camera looking at her, a push on the strike that eases back
     id: 'S07', ...V3, ...LITE, take: 'W6', twinNames: false, f0: 450, f1: 499, dmgRadius: 4,
     // v3.8 (review: her strike half hidden behind Gravy the Brutus's shield): 3.5 ticks later in W6, the strike's bolt
-    // and Takedown! still up on f450 and Avietė already clear of the shield; the look point 2 m west and north (the
+    // and Takedown! still up on f450 and Raspberry already clear of the shield; the look point 2 m west and north (the
     // game's lead had her in the top-left corner); 9:16 15 % closer, the look point further north (she sat in the top
     // 40 % over empty meadow)
     anchor: { key: 'avieteR', offset: 3.5, frame: 452 },
@@ -272,29 +272,29 @@ export const SHOTS = [
     portrait: portrait({ unit: 0 }, [{ f: 450, dist: 1 }, { f: 499, dist: 1 }], { off: [0, -3.6], extra: NOHUD }),
   },
   {
-    // Bengas's Striking Pose on the bridge (take V7, Bengas is the player)
+    // Bengal's Striking Pose on the bridge (take V7, Bengal is the player)
     id: 'S08', ...V3, ...LITE, take: 'V7', twinNames: false, f0: 500, f1: 549,
     anchor: { key: 'bengasR', frame: 524 },
     cam: game(push(500, 524, 549, 0.85)),
-    // v3.6: the look point further north (Bengas sat in the top fifth, under him an empty band and Sage, who read as
+    // v3.6: the look point further north (Bengal sat in the top fifth, under him an empty band and Sage, who read as
     // the named hero)
     // v3.7: the look point 1.8 m east (toward the bridge) and 15 % wider, so the fire ring and Duke's group stay in
-    // x 0.1-0.9 (v3.6 cut them at the right edge); v3.8: back to Bengas's own x (he sat at the left edge, his tag nearer Sage)
+    // x 0.1-0.9 (v3.6 cut them at the right edge); v3.8: back to Bengal's own x (he sat at the left edge, his tag nearer Sage)
     portrait: portrait({ mid: ['@bengas', '@cack'] }, push(500, 524, 549), { wide: 1.15, off: [0, -5.5], extra: NOHUD }),
   },
   {
-    // Gabė's Under Her Spell (take V8, Gabė is the player): v3.4 the cast lands late in the shot and the cut comes
-    // before the charmed Sir Brutus walks into the pile with Bengas and a cadet
-    // v3.6 tags off: Gabė's channel shows the game's "Napping" status chip, which read wrong under her name card
+    // Gabby's Under Her Spell (take V8, Gabby is the player): v3.4 the cast lands late in the shot and the cut comes
+    // before the charmed Sir Brutus walks into the pile with Bengal and a cadet
+    // v3.6 tags off: Gabby's channel shows the game's "Napping" status chip, which read wrong under her name card
     id: 'S09', ...V3, ...LITE, take: 'V8', twinNames: false, f0: 550, f1: 599, tags: false,
-    // v3.7 (review: Bengas, a cadet and Sir Brutus stood in one pile under GABĖ from f562): the cast on f553 and the
-    // rest at 0.8x, so the shot plays the charm's payoff: Sir Brutus walking out of the pile toward Gabė
-    // v3.8 (review: Sir Brutus pushed into Bengas and a cadet at the tower, f560-574, three bodies in one pile under
+    // v3.7 (review: Bengal, a cadet and Sir Brutus stood in one pile under GABĖ from f562): the cast on f553 and the
+    // rest at 0.8x, so the shot plays the charm's payoff: Sir Brutus walking out of the pile toward Gabby
+    // v3.8 (review: Sir Brutus pushed into Bengal and a cadet at the tower, f560-574, three bodies in one pile under
     // GABĖ): the shot opens 23 frames after the cast (10.5 ticks), the charm's beam still on, as the charmed Sir Brutus
-    // steps out of the pile and walks to Gabė; 0.8x throughout
+    // steps out of the pile and walks to Gabby; 0.8x throughout
     anchor: { key: 'gabeR', offset: 10.5, frame: 550 },
     ramp: [[550, 0.8]],
-    // v3.8: the look point 2 m west and 2 m north (the game's 4 m lead put Gabė and Sir Brutus in the top-left corner)
+    // v3.8: the look point 2 m west and 2 m north (the game's 4 m lead put Gabby and Sir Brutus in the top-left corner)
     cam: { ...onSubject({ mid: ['@gabe', '@brutus'] }, push(550, 566, 599, 0.88)), off: [-2, -2] },
     portrait: portrait({ mid: ['@gabe', '@brutus'] }, push(550, 562, 599), { extra: NOHUD }),
   },
@@ -359,7 +359,7 @@ export const SHOTS = [
   },
   // ---------------------------------------------------------------- S14 KO and S14B the bridge fight (v3.7)
   ...TEAMFIGHT_SHOTS,
-  // ---------------------------------------------------------------- S15 THE MISSION 3: TAKE THEIR CORE. (take V12, Bengas)
+  // ---------------------------------------------------------------- S15 THE MISSION 3: TAKE THEIR CORE. (take V12, Bengal)
   {
     // one continuous shot: the cats win the dog base and knock the doghouse over; v3.4 the killing blow on f1318, so
     // the doghouse caves in on f1331 (CORE_HIT, the boom and VICTORY!); the bodies keep idling after the match ends
@@ -381,7 +381,7 @@ export const SHOTS = [
   },
   // ---------------------------------------------------------------- S18 THE REAL CATS: the game's own pick screen (lobby)
   {
-    // "Choose your legend" as the player sees it: Lambo, Avietė, Bengas, Gabė tapped on the beats; each stands at full
+    // "Choose your legend" as the player sees it: Lambo, Raspberry, Bengal, Gabby tapped on the beats; each stands at full
     // size on its cut (no grow-in); the detail panel ends after the "Inspired by <name>'s Token Tails card." line and
     // the flavour line (the ability list and the footer are not drawn: the panel shrinks to its content)
     // v3.9 (review of v3.8: four champions at 25 frames each could not be read on a phone, and the card's own

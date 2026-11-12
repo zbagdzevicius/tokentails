@@ -44,7 +44,10 @@ export function postcardStory(hero: HeroId): string {
   if (!c) return '';
   const their = c.pronoun === 'she' ? 'her' : 'his';
   const flavour = HERO_TEXT[hero].flavour;
-  return `${c.cardName} is a real Pink Paw cat. This champion is drawn from ${their} Token Tails card.${flavour ? ` ${flavour}` : ''}`;
+  const lead = c.name === c.cardName
+    ? `${c.name} is a real Pink Paw cat in Kaunas. This champion is drawn from ${their} Token Tails card.`
+    : `${c.name} is based on ${c.cardName}, a real Pink Paw cat in Kaunas, and drawn from ${their} Token Tails card.`;
+  return `${lead}${flavour ? ` ${flavour}` : ''}`;
 }
 
 /** "about N matches to go" (1: "1 match"). */
@@ -83,7 +86,7 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       if (!c) return '';
       const have = o.owned.has(`postcard.${h}`);
       if (!have)
-        return `<div class="postcard locked" data-postcard="${h}" style="--i:${i}"><span class="pic sealed" role="img" aria-label="A sealed postcard"></span><b>${esc(c.cardName)}</b><small>Earn this postcard on the Treat Track.</small></div>`;
+        return `<div class="postcard locked" data-postcard="${h}" style="--i:${i}"><span class="pic sealed" role="img" aria-label="A sealed postcard"></span><b>${esc(c.cardName)}</b><small>Earn ${esc(c.name)}'s real-cat postcard on the Treat Track.</small></div>`;
       const pic = o.art[h] ?? o.portrait(h);
       const img = pic ? `<img src="${esc(pic)}" alt="${esc(c.cardName)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : `<span class="pic">${icon('paw')}</span>`;
       return `<div class="postcard" data-postcard="${h}" style="--i:${i}" tabindex="0" role="button" aria-label="${esc(`${c.cardName}: meet the real cat`)}"><span class="pc-photo">${img}<span class="stamp" aria-hidden="true">${icon('paw')}</span></span><b>${esc(c.cardName)}</b><small>${esc(postcardStory(h))}</small></div>`;

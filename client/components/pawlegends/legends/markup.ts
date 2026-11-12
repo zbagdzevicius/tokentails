@@ -18,6 +18,7 @@ import {
   landingDogs,
   liveRoster,
   newcomers,
+  SHELTER_REAL_NAMES,
   type LandingHero,
 } from "../landing/roster";
 import { variantPlayHref } from "../landingVariant";
@@ -75,7 +76,7 @@ export const LEGENDS_FILES: readonly string[] = Object.freeze([
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 /** Fredoka has no precomposed ė but has the combining dot, so names are written decomposed (as the game does). */
-const shown = (name: string) => esc(name.normalize("NFD"));
+const shown = (name: string) => esc(name);
 const hero = (id: string): LandingHero => {
   const h = LANDING_ROSTER.find((x) => x.id === id);
   if (!h) throw new Error(`legends landing: unknown hero ${id}`);
@@ -139,7 +140,7 @@ function shelterSection(champions: LandingHero[]): string {
         <div class="masc" role="img" aria-label="Token Tails mascot, a white cat thinking"><img class="mb" src="${A.mascot}" alt="" width="268" height="354" loading="lazy" decoding="async"><img class="mh" src="${A.mascot}" alt="" width="268" height="354" loading="lazy" decoding="async"><img class="mp" src="${A.mascot}" alt="" width="268" height="354" loading="lazy" decoding="async"></div>
         <div>
           <h2 class="kin" id="lgb-h-shelter">Made by a <em>cat game studio.</em></h2>
-          <p class="lede rv">Pawlegends is made by <strong>Token Tails</strong>. ${and(champions.map((h) => shown(h.name)))} are real cats from the <strong>Pink Paw</strong> shelter, drawn as heroes.</p>
+          <p class="lede rv">Pawlegends is made by <strong>Token Tails</strong>. ${and(champions.map((h) => shown(h.name)))} are drawn from real cats at the <strong>Pink Paw</strong> shelter in Kaunas: ${and(champions.map((h) => shown(SHELTER_REAL_NAMES[h.id] ?? h.name)))}.</p>
           <p class="rv"><a class="tlink" href="/">Meet the cats at Token Tails</a></p>
         </div>
       </div>
@@ -267,8 +268,8 @@ export function legendsMarkup(): string {
       <div class="duo">
         <figure class="scout rv" data-depth=".06">
           <span class="rec">In game</span>
-          <img src="${sized(A.teamfight, 720)}" srcset="${srcset(A.teamfight, 720, 1000)}" sizes="(max-width:1100px) 92vw, 560px" alt="In-game screenshot: the cat heroes Sage, Clem and Bengas fight on a lane as a blue dog tower takes a hit." width="1000" height="563" loading="lazy" decoding="async">
-          <figcaption>Sage, Clem and Bengas hit a dog tower.</figcaption>
+          <img src="${sized(A.teamfight, 720)}" srcset="${srcset(A.teamfight, 720, 1000)}" sizes="(max-width:1100px) 92vw, 560px" alt="In-game screenshot: the cat heroes Sage, Clem and Bengal fight on a lane as a blue dog tower takes a hit." width="1000" height="563" loading="lazy" decoding="async">
+          <figcaption>Sage, Clem and Bengal hit a dog tower.</figcaption>
         </figure>
         <div class="card">
           <h2 class="kin" id="lgb-h-team">${T} of you. <span class="dog">${T} of them.</span></h2>

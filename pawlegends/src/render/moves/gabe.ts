@@ -1,5 +1,5 @@
 /**
- * Gabė move set (ANIM-SPEC §14 "Gabė: Support, Wind, wings and heart float"). A light, airy dancer: every move reads
+ * Gabby move set (ANIM-SPEC §14 "Gabby: Support, Wind, wings and heart float"). A light, airy dancer: every move reads
  * as a silhouette at gameplay zoom (arms spread as wings, tiptoe hops, pirouettes, a barrel roll, a blown kiss).
  *
  * Timing contract (all from timing.ts, never literals):

@@ -2,7 +2,7 @@
  "_comment": "Every on-screen trailer string (storyboard §4). lint-copy.mjs runs each one through the copy lint (pawlegends target, R13 game copy) and fails the render on any finding. Names keep their composed form here; the renderer writes ė decomposed (e + U+0307) the way the game does, because Fredoka has no precomposed ė. CLK, CAP1, CAP, CB, CBs, SD and WIN repeat the game's own lines word for word (the guard callout in render/effects.ts, the ping barks in ui/pingText.ts, the announcer banners in render/announcer.ts, the result banner in app/matchSession.ts), so the in-game words read on a phone.",
  "CLK": "CLANK!",
  "L1a": "Meet",
- "L1b": "Gabė.",
+ "L1b": "Gabby.",
  "L2": "Now she's a legend.",
  "L2v1": "Now she's",
  "L2v2": "a legend.",

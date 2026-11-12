@@ -6,7 +6,7 @@
  * Copy rules: no player counts, no ratings, no claims about features that are not in the game. The roster numbers
  * come from roster.ts, never from literals.
  */
-import { countWord, gridHeroes, isReleased, justReleased, landingCats, landingDogs, LANDING_ROSTER, liveRoster, newcomers, rolesOf, type LandingHero, type LandingSide } from "./roster";
+import { countWord, gridHeroes, isReleased, justReleased, landingCats, landingDogs, LANDING_ROSTER, liveRoster, newcomers, rolesOf, SHELTER_REAL_NAMES, type LandingHero, type LandingSide } from "./roster";
 import { variantPlayHref } from "../landingVariant";
 import { PAWLEGENDS_TERMS_PATH } from "../flags";
 
@@ -89,7 +89,7 @@ function appStoreBadge(cta: string, src: string, lazy: boolean): string {
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 /** Fredoka has no precomposed ė but has the combining dot, so names are written decomposed (as the game does). */
-const shown = (name: string) => esc(name.normalize("NFD"));
+const shown = (name: string) => esc(name);
 const hero = (id: string): LandingHero => {
   const h = LANDING_ROSTER.find((x) => x.id === id);
   if (!h) throw new Error(`landing: unknown hero ${id}`);
@@ -242,7 +242,9 @@ function squadSvg(): string {
  * (docs/CLAIMS.md, copy-lint R2).
  */
 function shelterSection(champions: LandingHero[]): string {
-  const names = champions.map((h) => shown(h.name)).join(", ").replace(/, ([^,]*)$/, " and $1");
+  const list = (xs: string[]) => xs.join(", ").replace(/, ([^,]*)$/, " and $1");
+  const names = list(champions.map((h) => shown(h.name)));
+  const real = list(champions.map((h) => shown(SHELTER_REAL_NAMES[h.id] ?? h.name)));
   return `<section class="shelter" aria-labelledby="sh-h">
   <div class="stripes" aria-hidden="true"></div>
   <div class="wrap">
@@ -257,7 +259,7 @@ function shelterSection(champions: LandingHero[]): string {
     <div>
       <p class="kicker">The real title belt</p>
       <h2 class="disp" id="sh-h"><span class="ital">Cats win off the map too</span></h2>
-      <p>Pawlegends is made by <strong>Token Tails</strong>, a cat game studio. ${names} are real cats from the <strong>Pink Paw</strong> shelter, drawn as heroes.</p>
+      <p>Pawlegends is made by <strong>Token Tails</strong>, a cat game studio. ${names} are drawn from real cats at the <strong>Pink Paw</strong> shelter in Kaunas: ${real}.</p>
       <div class="ctas"><span class="mag"><a class="btn ghost" href="/"><span>Visit Token Tails <span class="arrow" aria-hidden="true">&#9654;</span></span></a></span></div>
     </div>
   </div>
@@ -404,7 +406,7 @@ export function landingMarkup(): string {
     <div class="stripes"></div><div class="zap" aria-hidden="true"></div>
     <svg class="num" viewBox="0 0 100 100" aria-hidden="true"><text x="50" y="92" text-anchor="middle">3</text></svg>
     <div class="wrap">
-      <div class="shot"><div class="kb"><img src="${A.teamfight}" srcset="${srcset(A.teamfight, SMALLER[A.teamfight], 1000)}" sizes="(max-width:820px) 92vw, 760px" alt="Cat heroes Sage, Clem and Bengas fight on a lane as a dog tower takes a hit" width="1000" height="563" loading="lazy" decoding="async">
+      <div class="shot"><div class="kb"><img src="${A.teamfight}" srcset="${srcset(A.teamfight, SMALLER[A.teamfight], 1000)}" sizes="(max-width:820px) 92vw, 760px" alt="Cat heroes Sage, Clem and Bengal fight on a lane as a dog tower takes a hit" width="1000" height="563" loading="lazy" decoding="async">
         <svg class="ov ov3" viewBox="0 0 1000 563" aria-hidden="true">
           <path class="star" transform="translate(500 290)" d="M0,-52 L13,-17 L50,-16 L21,7 L31,42 L0,22 L-31,42 L-21,7 L-50,-16 L-13,-17 Z"/>
           <path class="star" transform="translate(770 322) scale(.85)" d="M0,-52 L13,-17 L50,-16 L21,7 L31,42 L0,22 L-31,42 L-21,7 L-50,-16 L-13,-17 Z"/>

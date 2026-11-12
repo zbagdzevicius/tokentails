@@ -230,7 +230,7 @@ export class GameView {
   autoRingId = -1;
   private markNext = 0;
   private who = new Map<number, Who & { t: number }>();
-  /** Sim v9: heroes facing a Bengas mid Striking Pose wind-up (the overhead draws a "!" eye glyph over them). */
+  /** Sim v9: heroes facing a Bengal mid Striking Pose wind-up (the overhead draws a "!" eye glyph over them). */
   readonly watchers = new Set<number>();
   private poseHits = new Set<number>();
   private time = 0;

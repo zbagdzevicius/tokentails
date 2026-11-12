@@ -1,6 +1,6 @@
 /**
  * Render bug from the trailer v3.7 review (render only; nothing under src/sim changes): Cacklejaw's Pack Hunt maul
- * slammed his head and torso into the hero he hunted (Gabė, under the CACKLEJAW card). The slam key pitched the body
+ * slammed his head and torso into the hero he hunted (Gabby, under the CACKLEJAW card). The slam key pitched the body
  * 0.4 + 0.7 rad forward on top of the 0.3 m root lunge, which threw the skull 2.1 m ahead of his sim position while the
  * victim stands at sim reach (≈1.6-2.6 m). The slam now leans no further than the corkscrew that follows it.
  */

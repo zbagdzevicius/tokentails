@@ -106,7 +106,7 @@ const _d3 = (p: THREE.Vector3, a: readonly number[]): number => Math.hypot(p.x -
 
 /**
  * Spot noise frequency (per region-space metre). The coat is vertex coloured: the fine 9x noise with a hard edge,
- * sampled at sparse vertices, read as smeared, blurry black blotches (trailer review, Avietė).
+ * sampled at sparse vertices, read as smeared, blurry black blotches (trailer review, Raspberry).
  */
 export const SPOT_FREQ = 5;
 
@@ -130,7 +130,7 @@ export function coatColor(coat: CoatSpec, region: Region, p: THREE.Vector3, o: {
     else if (region === 'ear') c = mix(c, deep, 0.15);
   } else if (coat.pattern === 'spots') {
     if (coat.spotFreq) {
-      // big spots at a low frequency (Avietė): resolved by the vertices instead of smeared between them
+      // big spots at a low frequency (Raspberry): resolved by the vertices instead of smeared between them
       const f = coat.spotFreq;
       const ns = fbm3(p.x * f + 3.1, p.y * f + 1.7, p.z * f + 5.3, 2) as number;
       if (region !== 'muzzle' && region !== 'bib' && ns > 0.55) c = mix(c, deep, smooth(0.55, 0.6, ns) * 0.95);

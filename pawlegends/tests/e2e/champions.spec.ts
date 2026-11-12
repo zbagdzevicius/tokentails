@@ -4,8 +4,8 @@ import { art, mockHost, openHost, received } from './host';
 
 // Sim v9 shelter champions (sim v15: 20 pick tiles, 10 a side behind the All · Cats · Dogs tabs), the web-only owner
 // badge on a champion tile (portraits only on the champion select; the card art lives in the lobby panel), no Meet link on hero pick or in the lobby (title) champion info panel (information only:
-// the champion-offer Meet card is the one purchase surface), none of the badges in an app build, and the Avietė /
-// Gabė diacritics drawn in the UI font.
+// the champion-offer Meet card is the one purchase surface), none of the badges in an app build, and the Raspberry /
+// Gabby diacritics drawn in the UI font.
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'pick and lobby panels are viewport independent'));
 
 const LAMBO = '6a30473c1d6649b19b03622b';
@@ -14,7 +14,7 @@ const CHAMPIONS = [
   { catalogId: LAMBO, forSale: true, catImg: art('lambo') },
   { catalogId: GABE, forSale: true, catImg: art('gabe') },
 ];
-const OWNS_GABE = [{ id: 'g1', name: 'Gabė', type: 'WIND', tier: 'COMMON', isStarter: false, origin: 'adopt', catalogId: GABE }];
+const OWNS_GABE = [{ id: 'g1', name: 'Gabby', type: 'WIND', tier: 'COMMON', isStarter: false, origin: 'adopt', catalogId: GABE }];
 const PLAYED = { v: 1, sessions: 2, matches: 4, wins: 2, firstWinDone: true, hero: 'lambo' };
 
 async function toPick(game: Frame): Promise<void> {
@@ -48,7 +48,7 @@ test('20 pick tiles (10 cats, 10 dogs), card art and the owner badge on the web;
   for (const h of ['meatball', 'pixel', 'duchess', 'stilts']) await expect(game.locator(`.cs-tile[data-h="${h}"] .champ-owned`)).toHaveCount(0);
   // GDD §8.1 #5: no offer on hero pick
   await game.locator('[data-h="aviete"]').click();
-  await expect(game.locator('.cs-panel .cs-name')).toHaveText('Avietė'.normalize('NFD'));
+  await expect(game.locator('.cs-panel .cs-name')).toHaveText('Raspberry');
   await expect(game.locator('.pl-pick [data-a="champion-meet"], .pl-pick .plc-meet, .pl-pick .plc-champ')).toHaveCount(0);
   await expect(game.locator('.pl-pick')).not.toContainText(/\$|€|price|pack|donat|fund|adopt/i);
 });
@@ -67,25 +67,12 @@ test('app build: champions play, no owner badge, no Meet link anywhere', async (
   expect((await received(page)).some((m) => m.type === 'open-cat')).toBe(false);
 });
 
-test('the Avietė and Gabė diacritics render in the UI font (Fredoka draws e + dot, no fallback face)', async ({ context, page, baseURL }) => {
+test('the shelter champions show their English names on the pick screen', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, champions: CHAMPIONS, profile: PLAYED });
   const game = await openHost(page);
   await toPick(game);
-  // the UI writes them decomposed (NFD: e + combining dot), which is what Fredoka can draw
-  await expect(game.locator('.cs-tile[data-h="aviete"] .cs-tn')).toHaveText('Avietė'.normalize('NFD'));
-  await expect(game.locator('.cs-tile[data-h="gabe"] .cs-tn')).toHaveText('Gabė'.normalize('NFD'));
-  const widths = await game.evaluate(async () => {
-    await document.fonts.load('600 40px Fredoka', 'ė');
-    const g = document.createElement('canvas').getContext('2d')!;
-    const w = (font: string, t: string): number => {
-      g.font = font;
-      return g.measureText(t).width;
-    };
-    const label = document.querySelector('.cs-tile[data-h="aviete"] .cs-tn')?.textContent ?? '';
-    return { loaded: document.fonts.check('600 40px Fredoka', label), edot: w('600 40px Fredoka, monospace', 'e\u0307'), e: w('600 40px Fredoka, monospace', 'e'), mono: w('600 40px monospace', 'e\u0307') };
-  });
-  expect(widths.loaded).toBe(true);
-  // ė (e + U+0307) is shaped in Fredoka: its e plus a zero-advance dot, not a monospace fallback cluster
-  expect(Math.abs(widths.edot - widths.e)).toBeLessThan(0.5);
-  expect(Math.abs(widths.edot - widths.mono)).toBeGreaterThan(0.5);
+  await expect(game.locator('.cs-tile[data-h="aviete"] .cs-tn')).toHaveText('Raspberry');
+  await expect(game.locator('.cs-tile[data-h="gabe"] .cs-tn')).toHaveText('Gabby');
+  await expect(game.locator('.cs-tile[data-h="bengas"] .cs-tn')).toHaveText('Bengal');
+  await expect(game.locator('.cs-tile[data-h="lambo"] .cs-tn')).toHaveText('Lambo');
 });
