@@ -45,8 +45,9 @@ describe('honest lines', () => {
     expect(endsText(null, 0)).toBe('');
   });
   it('the store names its safeguards and explains the planned extras', () => {
-    expect(safeguardsLine('eur')).toBe("Prices include VAT. Under 16 can't buy. Spending limit €30 (age 16 to 17) or €200 (18+) per 30 days.");
-    expect(safeguardsLine('usd')).toMatch(/\$30 .* \$200/);
+    // founder, Nov 12: no age question; the server holds an unknown buyer to the 16-17 cap
+    expect(safeguardsLine('eur')).toBe('Prices include VAT. Spending limit €30 per 30 days (€200 if you told us earlier you are 18 or older).');
+    expect(safeguardsLine("usd")).toMatch(/\$30 .*\$200/);
     expect(glossaryFor('3-day Pride Club trial (bonus)')).toEqual(['Pride Club: a planned monthly membership, not on sale yet.']);
     expect(glossaryFor('Season 1 Legends Pass+, 1 month Pride Club')).toHaveLength(2);
     expect(glossaryFor('Season 1 Legends Pass, your name')[0]).toMatch(/^Legends Pass:/);

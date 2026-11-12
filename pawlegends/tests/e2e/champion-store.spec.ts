@@ -78,7 +78,7 @@ test('store Champions: splash grid, filters, sort remembered, detail unlock and 
   await shop.locator('[data-a="unowned"]').check();
   await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(14);
   await shop.locator('[data-a="sort"]').selectOption('name');
-  await expect(shop.locator('.cst-card[data-hero]').first()).toHaveAttribute('data-hero', 'aviete');
+  await expect(shop.locator('.cst-card[data-hero]').first()).toHaveAttribute('data-hero', 'bengas'); // English names (Nov 12): Bengal first
   // detail: a locked champion (not in this week's rotation) unlocks with Yarn through the host, or buys on the web
   const locked = await game.evaluate(() => (document.querySelector('.cst-card.st-locked[data-hero]') as HTMLElement).dataset.hero ?? '');
   await shop.locator(`.cst-card[data-hero="${locked}"]`).click();
@@ -99,7 +99,7 @@ test('store Champions: splash grid, filters, sort remembered, detail unlock and 
   await expect(game.locator('.pl-shop [data-a="sort"]')).toHaveValue('name');
 });
 
-test('store fits 667x375, 844x390, 1280x720 and 1440x900: no page scroll, the grid scrolls, controls at least 44 px', async ({ context, page, baseURL }) => {
+test('store fits 667x375, 844x390, 1280x720 and 1440x900: no page scroll, every tab\'s grid scrolls vertically, controls at least 44 px', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, profile: PLAYED, champState: NEW_GUEST, store: { items: [], season: null } });
   const game = await openHost(page);
   for (const [w, h] of [[667, 375], [844, 390], [1280, 720], [1440, 900]]) {
@@ -107,14 +107,35 @@ test('store fits 667x375, 844x390, 1280x720 and 1440x900: no page scroll, the gr
     await game.locator('.hm-nav [data-a="store"]').click();
     const shop = game.locator('.pl-shop');
     await expect(shop.locator('.cst-card').first()).toBeVisible();
-    for (const t of ['champions', 'featured']) {
+    for (const t of ['champions', 'featured', 'coats', 'frames']) {
       await shop.locator(`.cst-tabs [data-tab="${t}"]`).click();
       const r = await fits(game);
       expect(r.page, `${w}x${h} ${t}`).toEqual({ sh: r.page.ch, sw: r.page.cw, ch: r.page.ch, cw: r.page.cw });
       expect(r.small, `${w}x${h} ${t} small controls`).toEqual([]);
       expect(r.out, `${w}x${h} ${t} outside the screen`).toEqual([]);
       expect(r.cardH, `${w}x${h} ${t} card height`).toBeGreaterThan(150);
+      // founder, Nov 12: every tab scrolls up and down, never sideways; the bars stay put while it scrolls
+      expect(r.grid.sw, `${w}x${h} ${t} no sideways scroll`).toBeLessThanOrEqual(r.grid.cw + 1);
+      if (t === 'champions' || t === 'coats' || t === 'featured') {
+        expect(r.grid.sh, `${w}x${h} ${t} more below`).toBeGreaterThan(r.grid.ch);
+        const moved = await game.evaluate(() => {
+          const g = document.querySelector<HTMLElement>('.pl-shop [data-scroll="grid"]')!;
+          const top = document.querySelector('.pl-shop .cst-top')!.getBoundingClientRect().top;
+          const tabs = document.querySelector('.pl-shop .cst-tabs')!.getBoundingClientRect().top;
+          g.scrollTop = 99999;
+          return { st: g.scrollTop, top: document.querySelector('.pl-shop .cst-top')!.getBoundingClientRect().top - top, tabs: document.querySelector('.pl-shop .cst-tabs')!.getBoundingClientRect().top - tabs };
+        });
+        expect(moved.st, `${w}x${h} ${t} scrolled`).toBeGreaterThan(0);
+        expect(moved.top).toBe(0);
+        expect(moved.tabs).toBe(0);
+      }
     }
+    await shop.locator('.cst-tabs [data-tab="coats"]').click();
+    await shop.locator('.cst-card[data-sel]').first().click();
+    const c = await fits(game);
+    expect(c.page.sh).toBe(c.page.ch);
+    expect(c.out, `${w}x${h} coat detail`).toEqual([]);
+    await game.locator('body').press('Escape');
     await shop.locator('.cst-tabs [data-tab="champions"]').click();
     await shop.locator('.cst-card[data-hero]').first().click();
     const d = await fits(game);
@@ -147,6 +168,8 @@ async function fits(game: Frame) {
       .map((e) => e.className);
     if (filters && filters.scrollWidth > filters.clientWidth + 1) out.push('cst-filters overflows');
     const card = document.querySelector('.pl-shop .cst-card');
-    return { page: { sh: se.scrollHeight, sw: se.scrollWidth, ch: se.clientHeight, cw: se.clientWidth }, small, out, cardH: card ? card.getBoundingClientRect().height : 0 };
+    const g = document.querySelector<HTMLElement>('.pl-shop [data-scroll="grid"]');
+    const grid = g ? { sh: g.scrollHeight, ch: g.clientHeight, sw: g.scrollWidth, cw: g.clientWidth } : { sh: 0, ch: 0, sw: 0, cw: 0 };
+    return { page: { sh: se.scrollHeight, sw: se.scrollWidth, ch: se.clientHeight, cw: se.clientWidth }, small, out, cardH: card ? card.getBoundingClientRect().height : 0, grid };
   });
 }

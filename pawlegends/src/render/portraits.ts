@@ -54,10 +54,26 @@ export const SKU_LOOK: Readonly<Record<'pl_starter' | 'pl_founder' | 'pl_founder
  */
 export const portraitUrl = (hero: HeroId, look?: Look | null): string | null => recall(keyOf(hero, look)) ?? cache.get(keyOf(hero, null)) ?? null;
 
+/** The portrait of `hero` in exactly `look` when it is already rendered, else null (no fallback, no bake). */
+export const cachedPortraitUrl = (hero: HeroId, look: Look | null): string | null => (cache.has(keyOf(hero, look)) ? (recall(keyOf(hero, look)) ?? null) : null);
+
 /** Render one hero portrait in a look (no-op when cached). Never throws. */
 export function bakePortrait(gr: GameRenderer, hero: HeroId, look: Look | null): void {
   if (cache.has(keyOf(hero, look))) return;
   bake(gr, [[hero, look]]);
+}
+
+/** Render several hero-in-look portraits in one pass (the store's coat grid); cached ones are skipped. Never throws. */
+export function bakeLooks(gr: GameRenderer, jobs: readonly [HeroId, Look | null][]): void {
+  const seen = new Set<string>();
+  const todo = jobs.filter(([h, l]) => {
+    const k = keyOf(h, l);
+    if (cache.has(k) || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  // the LRU holds PORTRAIT_MAX looks: never bake more than fit, or the first ones would be evicted again
+  bake(gr, todo.slice(0, Math.max(0, PORTRAIT_MAX - HEROES.length)));
 }
 
 /** Render every hero's default portrait and the store looks once. Safe to call again (no-op); never throws. */

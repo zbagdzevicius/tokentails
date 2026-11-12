@@ -3,11 +3,13 @@
  * results screen; never in pick, loading or a match, never in app builds, and only when the host says its checkout is
  * reachable. Laid out like Wild Rift's store: a top bar (back, STORE, the Yarn balance), a bottom tab bar (Featured ·
  * Champions · Coats · Frames & Titles, a gold chevron on the active one) and, on Champions, the side and role filters,
- * an Unowned toggle, a sort and a sideways-scrolling grid of tall splash cards (the one scroll region). A card opens a
- * detail with the big splash, the kit and the unlock buttons (Yarn, a Champion Pick, and the web price). The cosmetics
- * shelves keep their preview, item grid and buy bar. Buy hands over to the host
- * (money/checkoutBridge.ts): its own sheet with the server price, the age question, the terms link and the consent
- * box, then Stripe Checkout on the web page. Prices here are display only; the server price always wins.
+ * an Unowned toggle and a sort. Every tab is one vertically scrolling grid of the same tall framed cards (art, the
+ * name on a dark gradient, a price bar, owned and equipped states; founder, Nov 12: "champ store should be vertically
+ * scrollable ... same should be for coats, for frames & titles"): only the grid scrolls, the top bar, the filters and
+ * the tabs stay put. A card opens a detail: a champion's big splash, kit and unlock buttons (Yarn, a Champion Pick,
+ * the web price), or a coat, frame, set or pass with its preview and Buy or Equip. Buy hands over to the host
+ * (money/checkoutBridge.ts): its own sheet with the server price, the email and the purchase button that is the
+ * consent, then Stripe Checkout on the web page. Prices here are display only; the server price always wins.
  *
  * Pull only: nothing here pushes an offer card (one per session, §8.1 #4 and #5). Cosmetic only: no item changes a
  * match. No randomness: every item and every pass reward is shown before buying.
@@ -17,7 +19,7 @@
 import { CheckoutBridge } from '../money/checkoutBridge';
 import type { StoreSnapshot } from '../money/entitlements';
 import { MVP_TARGET, SKUS, priceText, type Currency, type SkuId } from '../money/skus';
-import { CATALOG_SKUS, CHAMPIONS, CHAMP_BUNDLE_SKUS, EFFECT_COATS, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU, STORE_COATS, STORE_FRAMES, champSkuOf, championDef, coatSkuOf, frameSkuOf, isStarter, type CatalogSku, type CoatRung } from '../money/catalog';
+import { CATALOG_SKUS, CHAMPIONS, CHAMP_BUNDLE_SKUS, EFFECT_COATS, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU, STORE_COATS, STORE_FRAMES, champSkuOf, championDef, coatSkuOf, frameSkuOf, isStarter, type CatalogFrame, type CatalogSku, type CoatRung } from '../money/catalog';
 import { champStatus, localChampions, matchesFor, rotationEndText, unlockInfo, yarnText, type ChampionsState } from '../meta/champions';
 import type { ChampTier } from '../money/catalog';
 import type { HeroId, HeroRole } from '../data/heroes/types';
@@ -43,10 +45,13 @@ export function glossaryFor(text: string): string[] {
   return GLOSSARY.filter(([re]) => re.test(text)).map(([, line]) => line);
 }
 
-/** Spending safeguards shown in the store (POC.md §8.5): VAT, age, the 30-day caps. */
+/**
+ * Spending safeguards shown in the store (POC.md §8.5): VAT and the 30-day cap. The sheets no longer ask the age
+ * (founder, Nov 12): the server holds an unknown buyer to the 16-17 cap and keeps a stored 18+ answer's cap.
+ */
 export function safeguardsLine(currency: Currency): string {
   const c = currency === 'eur' ? '€' : '$';
-  return `Prices include VAT. Under 16 can't buy. Spending limit ${c}30 (age 16 to 17) or ${c}200 (18+) per 30 days.`;
+  return `Prices include VAT. Spending limit ${c}30 per 30 days (${c}200 if you told us earlier you are 18 or older).`;
 }
 
 /** Purchases made in this page session: the store then hides the upsell (no "€20 more" right after a purchase). */
@@ -193,6 +198,15 @@ export interface StoreOpts {
   onUnlock?(hero: HeroId, via: 'yarn' | 'pick'): void;
   /** Open the champion browser (skills and lore) for `hero` over the store. */
   onInfo?(hero: HeroId, within: HTMLElement): void;
+  /** The cosmetic items the player wears now (coats on their heroes, the frame and title): the Equipped state. */
+  equipped?(): ReadonlySet<string>;
+  /** Render these hero-in-coat portraits now (`preview` and `ready` then read them). */
+  warm?(looks: readonly [hero: string, coat: string | null][]): void;
+  /**
+   * A hero-in-coat portrait only when already rendered, else null (no bake). With it the coat grid draws the splash
+   * first and renders the portraits a few per frame through `warm`, swapping each in as it is ready.
+   */
+  ready?(hero: string, coat: string | null): string | null;
 }
 
 /** The bottom tab bar (Wild Rift's FEATURED · CHAMPION · SKIN · ITEMS): the views each tab lights. */
@@ -221,8 +235,8 @@ const BACK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 
 const CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" class="cst-ico"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" class="cst-ico"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>';
 const X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
-/** Featured cards are taller than the grid's (one row, up to 600 px). */
-const FEATURED_SIZES = '(min-height: 700px) 400px, 160px';
+/** A grid card is 112 to about 220 px wide (the splash's srcset picks 360 or 720 by it). */
+const CARD_SIZES = '(min-width: 1200px) 220px, 160px';
 const SIDE_WORD: Readonly<Record<SideFilter, string>> = Object.freeze({ all: 'All', cat: 'Cats', dog: 'Dogs' });
 const TIER_WORD: Readonly<Record<ChampTier, string>> = Object.freeze({ t1: 'Classic', t2: 'Standard', t3: 'Advanced', launch: 'Launch' });
 /** Bundle cover art: one champion of the bundle's side (both for the all-champions bundle). */
@@ -242,10 +256,9 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   const low = (): boolean => document.documentElement.dataset.quality === 'low';
   let tab: StoreTab = o.tab ?? 'champions';
   if (app() && !APP_TABS.includes(tab)) tab = 'champions';
-  let selected: string = tabSkus(legacyTab(tab))[0].sku;
   let filter: ChampFilter = { ...DEFAULT_FILTER, sort: loadSort() };
-  /** The open detail: a champion or a bundle SKU. */
-  let detail: { hero?: HeroId; sku?: string } | null = null;
+  /** The open detail: a champion, a champion bundle SKU, or a cosmetic or pass SKU (`sel`). */
+  let detail: { hero?: HeroId; sku?: string; sel?: string } | null = null;
   let detailFrom: string | null = null;
   if (o.hero && championDef(o.hero)) {
     tab = 'champions';
@@ -253,8 +266,8 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     detailFrom = `card:${o.hero}`;
   }
   let line = '';
+  /** The grid's scrollTop, kept across re-renders of the same tab. */
   let gridScroll = 0;
-  let legacyScroll = 0;
   const money = (): boolean => !app();
 
   // ------------------------------------------------------------------------------------------- champion cards
@@ -279,7 +292,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     return bits.join(', ');
   };
   const roleImg = (r: HeroRole, cls = 'cst-role'): string => `<img class="${cls}" src="${base}assets/splash/roles/${r}.svg" alt="" width="16" height="16">`;
-  const champCardHtml = (c: ChampCard, sizes = '(min-height: 700px) 260px, 160px'): string => {
+  const champCardHtml = (c: ChampCard, sizes = CARD_SIZES): string => {
     const ribbons = [
       c.status === 'free' ? '<i class="cst-rib free">Free this week</i>' : '',
       c.status === 'starter' ? '<i class="cst-rib starter">Starter</i>' : '',
@@ -297,7 +310,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   const bundleCardHtml = (def: CatalogSku): string => {
     const s = o.snapshot();
     const own = itemState(def, s) === 'owned';
-    const art = (BUNDLE_ART[def.sku] ?? ['clem']).map((h) => `<img class="cst-art" alt="" loading="lazy" decoding="async" draggable="false" ${splashAttrs(base, h, true, '160px')}>`).join('');
+    const art = (BUNDLE_ART[def.sku] ?? ['clem']).map((h) => `<img class="cst-art" alt="" loading="lazy" decoding="async" draggable="false" ${splashAttrs(base, h, true, CARD_SIZES)}>`).join('');
     const price = own ? `<span class="cst-have">${CHECK_SVG}Owned</span>` : `<span class="cst-cash">${esc(catalogPrice({ cents: priceFor(def, s) }, currency))}</span>`;
     return `<button type="button" class="cst-card cst-bundle${own ? ' st-owned' : ''}" data-bundle="${def.sku}" data-tier="bundle" data-k="bundle:${def.sku}" aria-label="${esc(`${def.label}, ${own ? 'Owned' : catalogPrice({ cents: priceFor(def, s) }, currency)}`)}">
       <span class="cst-arts n${art.length > 1 ? 2 : 1}">${art}</span>
@@ -353,80 +366,188 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const pass = money()
       ? `<button type="button" class="cst-card cst-passcard" data-tab="pass" data-k="tab:pass" aria-label="Legends Pass"><span class="cst-passart" aria-hidden="true">${icon('crown')}</span><span class="cst-foot"><b class="cst-name">Legends Pass</b><span class="cst-meta">Season rewards</span><span class="cst-price"><span class="cst-cash">Open</span></span></span></button>`
       : '';
-    return `<div class="cst-box"><div class="cst-grid cst-strip" data-scroll="grid">
-      ${sec(`Free this week <small>${esc(rotationEndText(c))}</small>`, free.map((x) => champCardHtml(x, FEATURED_SIZES)).join(''), 'free')}
+    // one vertical scroll: the sections stacked, each a row of the grid's cards that wraps
+    return `<div class="cst-box"><div class="cst-grid cst-stack" data-scroll="grid">
+      ${sec(`Free this week <small>${esc(rotationEndText(c))}</small>`, free.map((x) => champCardHtml(x)).join(''), 'free')}
       ${sec('Champion bundles', bundles.map(bundleCardHtml).join(''), 'bundles')}
-      ${sec('New champions', fresh.map((x) => champCardHtml(x, FEATURED_SIZES)).join(''), 'new')}
+      ${sec('New champions', fresh.map((x) => champCardHtml(x)).join(''), 'new')}
       ${sec('Legends Pass', pass, 'pass')}
     </div></div>`;
   };
 
-  /** The cosmetics shelves as before (Coats, Sets, Frames, Pass): a preview, the item grid and the buy bar. */
-  const legacyView = (): string => {
+  // ------------------------------------------------------------------------------------------ cosmetic cards
+  /** Coats, sets, frames and the pass in the champions' card pattern: one vertical grid, a detail on tap. */
+  const coatOf = (def: CatalogSku): string | null => def.items.find((i) => i.startsWith('coat.')) ?? null;
+  const frameOf = (def: CatalogSku): CatalogFrame | null => {
+    const id = def.items.find((i) => i.startsWith('frame.'));
+    return (id && STORE_FRAMES.find((f) => f.id === id)) || null;
+  };
+  const heroOfCoat = (coat: string): string => coat.split('.')[1] ?? 'clem';
+  const heroName = (h: string): string => championDef(h)?.name ?? h.charAt(0).toUpperCase() + h.slice(1);
+  /** Worn now: a coat on its hero, or a frame (its title goes with it). Sets and the pass have no Equipped state. */
+  const isEquipped = (def: CatalogSku): boolean => {
+    if (def.kind !== 'cosmetic') return false;
+    const eq = o.equipped?.();
+    if (!eq) return false;
+    const keys = def.items.filter((i) => !i.startsWith('title.'));
+    return keys.length > 0 && keys.every((i) => eq.has(i));
+  };
+  /** The card colour: a coat's rung, else the kind. */
+  const cosTier = (def: CatalogSku): string => {
+    if (def.kind === 'pass') return 'pass';
+    if (def.kind === 'bundle') return 'bundle';
+    if (def.group === 'frames') return 'frame';
+    return (coatRungOf(coatOf(def) ?? undefined) ?? 'RARE').toLowerCase();
+  };
+  const cosName = (def: CatalogSku): string => {
+    // the card says "Thunderpaw" (the hero is on the next line, "coat" is the tab); the detail keeps the full label
+    if (def.group === 'coats') return def.label.replace(/^[^:]*:\s*/, '').replace(/\s*\([^)]*effects\)$/, '').replace(/ coat$/, '');
+    if (def.group === 'frames') return frameOf(def)?.name ?? def.label;
+    return def.label.replace(/:.*$/, '');
+  };
+  const cosMeta = (def: CatalogSku): string => {
+    if (def.kind === 'pass') return 'Season 1';
+    if (def.kind === 'bundle') return `${def.items.filter((i) => i.startsWith('coat.')).length} coats, a frame and its title`;
+    const f = frameOf(def);
+    if (f) return `"${f.title.name}" title`;
+    return heroName(def.hero ?? heroOfCoat(coatOf(def) ?? ''));
+  };
+  /** A coat's portrait on its hero (baked by the app), else the hero's splash art. */
+  /** Coats still to render (with `ready`): baked a few per frame after the grid draws, then swapped in. */
+  const pending = new Set<string>();
+  let baking = 0;
+  const coatImg = (coat: string, sizes: string): string => {
+    const h = heroOfCoat(coat);
+    const pic = o.ready ? o.ready(h, coat) : (o.preview?.(h, coat) ?? null);
+    if (!pic && o.ready && o.warm) pending.add(coat);
+    return pic
+      ? `<img class="cst-art cst-pic" alt="" draggable="false" src="${pic}">`
+      : `<img class="cst-art" alt="" loading="lazy" decoding="async" draggable="false" data-coat="${esc(coat)}" ${splashAttrs(base, h, low(), sizes)}>`;
+  };
+  const bakeSome = (): void => {
+    baking = 0;
+    if (!root.isConnected || !pending.size || !o.warm || !o.ready) return;
+    const batch = [...pending].slice(0, 2);
+    for (const c of batch) pending.delete(c);
+    o.warm(batch.map((c) => [heroOfCoat(c), c]));
+    for (const c of batch) {
+      const url = o.ready(heroOfCoat(c), c);
+      if (!url) continue;
+      for (const img of root.querySelectorAll<HTMLImageElement>(`img[data-coat="${CSS.escape(c)}"]`)) {
+        img.removeAttribute('srcset');
+        img.removeAttribute('sizes');
+        img.removeAttribute('data-coat');
+        img.src = url;
+        img.classList.add('cst-pic');
+      }
+    }
+    if (pending.size) baking = window.setTimeout(bakeSome, 30);
+  };
+  const cosArt = (def: CatalogSku, sizes = CARD_SIZES): string => {
+    if (def.kind === 'pass') return `<span class="cst-passart pic" style="background-image:url('${esc(`${base}assets/lobby/promo-pass.webp${assetRev()}`)}')" aria-hidden="true"></span>`;
+    const f = frameOf(def);
+    if (def.kind === 'cosmetic' && f) {
+      const pic = o.preview?.('clem', null) ?? null;
+      return `<span class="cst-frameart" data-frame="${esc(f.id)}" aria-hidden="true"><span class="cst-ring"${pic ? ` style="background-image:url(${pic})"` : ''}>${pic ? '' : icon('paw')}</span><b class="cst-plate">${esc(f.title.name)}</b></span>`;
+    }
+    const coats = def.items.filter((i) => i.startsWith('coat.')).slice(0, def.kind === 'bundle' ? 2 : 1);
+    return `<span class="cst-arts cst-cosarts n${coats.length > 1 ? 2 : 1}">${coats.map((c) => coatImg(c, sizes)).join('')}</span>`;
+  };
+  const cosPrice = (def: CatalogSku, ds: ItemState, eq: boolean): string => {
+    if (ds === 'owned') return def.kind === 'pass' ? `<span class="cst-have">${CHECK_SVG}Owned</span>` : `<span class="cst-have">${CHECK_SVG}${eq ? 'Equipped' : 'Owned'}</span>`;
+    if (ds === 'partly') return `<span class="cst-have locked">Own some</span>`;
+    if (ds === 'locked') return `<span class="cst-have locked">${LOCK_SVG}${def.sku === PASS_UPGRADE_SKU ? 'Pass owners' : 'Upgrade instead'}</span>`;
+    const r = def.group === 'coats' ? coatRungOf(coatOf(def) ?? undefined) : null;
+    return `<span class="cst-cash">${esc(`${r && r !== 'COMMON' ? `${RUNG_WORD[r]} · ` : ''}${catalogPrice({ cents: priceFor(def, o.snapshot()) }, currency)}`)}</span>`;
+  };
+  const cosCardHtml = (def: CatalogSku): string => {
     const s = o.snapshot();
-    const lt = legacyTab(tab);
-    const skus = tabSkus(lt);
-    if (!skus.some((d) => d.sku === selected)) selected = skus[0].sku;
-    const sel = skus.find((d) => d.sku === selected)!;
-    const st = itemState(sel, s);
-    const waiting = o.checkout.waitingSku();
-    const coat = sel.items.find((i) => i.startsWith('coat.')) ?? null;
-    const hero = sel.hero ?? (coat ? coat.split('.')[1] : 'clem');
-    const pic = o.preview?.(hero, coat) ?? null;
-    const frame = sel.items.find((i) => i.startsWith('frame.'));
-    /** Every tile shows its item: the coat on its hero, a set's first coat, a frame as its ring around the hero, the pass art. */
-    const tileThumb = (d: CatalogSku): string => {
-      if (d.kind === 'pass') return `<i class="tpic" style="background-image:url('${esc(`${base}assets/lobby/promo-pass.webp${assetRev()}`)}')" aria-hidden="true"></i>`;
-      const c = d.items.find((i) => i.startsWith('coat.')) ?? null;
-      const f = d.items.find((i) => i.startsWith('frame.'));
-      const h = d.hero ?? (c ? c.split('.')[1] : 'clem');
-      const url = o.preview?.(h, c) ?? null;
-      return `<i class="tpic${f && !c ? ' ring' : ''}"${f ? ` data-frame="${esc(f)}"` : ''}${url ? ` style="background-image:url(${url})"` : ''} aria-hidden="true">${url ? '' : icon('paw')}</i>`;
-    };
-    const tile = (d: CatalogSku): string => {
-      const ds = itemState(d, s);
-      const tag = ds === 'owned' ? 'Owned' : ds === 'partly' ? 'Own some' : ds === 'locked' ? (d.sku === PASS_UPGRADE_SKU ? 'Pass owners' : 'Upgrade instead') : catalogPrice({ cents: priceFor(d, s) }, currency);
-      const r = d.group === 'coats' ? coatRungOf(d.items[0]) : null;
-      const rung = r && r !== 'COMMON' ? `${RUNG_WORD[r]} · ` : '';
-      return `<button type="button" class="shop-tile pic ${d.sku === selected ? 'on' : ''} st-${ds}"${r ? ` data-rung="${r}"` : ''} data-sel="${d.sku}" data-k="sel:${d.sku}" aria-pressed="${d.sku === selected}">${tileThumb(d)}<span class="tt"><b>${esc(d.label)}</b><small>${esc(rung + tag)}</small></span></button>`;
-    };
-    const action =
-      st === 'owned'
-        ? sel.kind === 'pass'
-          ? `<button class="pl-btn small" data-a="pass">Open the pass</button>`
-          : `<button class="pl-btn small" data-equip="${sel.sku}">Owned · Equip</button>`
-        : st === 'partly'
-          ? `<span class="why">You own some of these: buy the singles.</span>`
-          : st === 'locked'
-            ? `<span class="why">${sel.sku === PASS_UPGRADE_SKU ? 'For Legends Pass owners.' : 'You have the Pass: get the Pass+ upgrade.'}</span>`
-            : `<button class="pl-btn small buy" data-buy="${sel.sku}"${waiting ? ' disabled' : ''}>${waiting === sel.sku ? 'Opening...' : `Buy ${esc(catalogPrice({ cents: priceFor(sel, s) }, currency))}`}</button>`;
-    const what =
-      sel.kind === 'pass'
-        ? sel.sku === PASS_SKU
-          ? 'Premium row: 30 rewards (coats, frames, titles). Every premium reward you already reached unlocks at once. Never expires.'
-          : 'Premium row, 15 tier skips and the exclusive Eclipse coat. Never expires.'
-        : sel.kind === 'bundle'
-          ? `${sel.items.filter((i) => i.startsWith('coat.')).length} coats, a frame and its title.`
-          : frame
-            ? 'A profile frame and its title.'
-            : coatLine(coat);
-    return `<div class="cst-legacy">
-      <div class="shop-body">
-        <div class="shop-preview">${pic ? `<div class="pl-portrait shop-pic" style="background-image:url(${pic})"${frame ? ` data-frame="${esc(frame)}"` : ''} role="img" aria-label="${esc(sel.label)}"></div>` : `<div class="shop-pic none"${frame ? ` data-frame="${esc(frame)}"` : ''}>${icon('paw')}</div>`}<b>${esc(sel.label)}</b><small>${esc(what)}</small></div>
-        <div class="shop-scroll"><div class="shop-grid" data-scroll="legacy" role="list">${skus.map(tile).join('')}</div><span class="more" aria-hidden="true">▾ more</span></div>
-      </div>
-      <div class="shop-bar">${action}</div>
-      <p class="fine">Cosmetic only: nothing here changes a match. Checkout opens on a secure web page.</p>
-      <p class="fine safe">${esc(safeguardsLine(currency))}${o.termsUrl ? ` <a href="${esc(o.termsUrl)}" target="_blank" rel="noopener">Terms and refunds</a>` : ''}</p>
-    </div>`;
+    const ds = itemState(def, s);
+    const eq = ds === 'owned' && isEquipped(def);
+    const r = def.group === 'coats' ? coatRungOf(coatOf(def) ?? undefined) : null;
+    const ribbons = [
+      r === 'EPIC' || r === 'LEGENDARY' ? `<i class="cst-rib rung-${r.toLowerCase()}">${RUNG_WORD[r]}</i>` : '',
+      def.kind === 'bundle' ? '<i class="cst-rib bundle">Set</i>' : '',
+      eq ? '<i class="cst-rib starter">Equipped</i>' : '',
+    ].join('');
+    const state = ds === 'owned' ? (eq ? 'Equipped' : 'Owned') : ds === 'partly' ? 'You own some of these' : ds === 'locked' ? 'Not available' : catalogPrice({ cents: priceFor(def, s) }, currency);
+    return `<button type="button" class="cst-card cst-cos st-${ds}${eq ? ' st-equipped' : ''}" data-sel="${def.sku}" data-k="sel:${def.sku}" data-tier="${cosTier(def)}"${r ? ` data-rung="${r}"` : ''} aria-label="${esc(`${def.label}, ${state}`)}">
+      ${cosArt(def)}
+      <span class="cst-ribs">${ribbons}</span>
+      <span class="cst-foot"><b class="cst-name">${esc(cosName(def))}</b><span class="cst-meta">${esc(cosMeta(def))}</span><span class="cst-price">${cosPrice(def, ds, eq)}</span></span>
+    </button>`;
+  };
+  const fineHtml = (): string =>
+    `<p class="fine safe">${esc(safeguardsLine(currency))}${o.termsUrl ? ` <a href="${esc(o.termsUrl)}" target="_blank" rel="noopener">Terms and refunds</a>` : ''}</p>`;
+  /** Coats, Sets, Frames & Titles and the pass: one vertical grid of cards, the fine print at its end. */
+  const warmed = new Set<StoreTab>();
+  const cosmeticsView = (): string => {
+    const skus = tabSkus(tab);
+    if (!warmed.has(tab) && o.warm && !o.ready) {
+      warmed.add(tab);
+      const looks = skus.flatMap((d) => d.items.filter((i) => i.startsWith('coat.')).slice(0, d.kind === 'bundle' ? 2 : 1).map((c) => [heroOfCoat(c), c] as [string, string | null]));
+      if (tab === 'frames') looks.push(['clem', null]);
+      o.warm(looks);
+    }
+    const label = tab === 'coats' ? 'Coats' : tab === 'sets' ? 'Sets' : tab === 'frames' ? 'Frames and titles' : 'Legends Pass';
+    return `<div class="cst-box"><div class="cst-grid" data-scroll="grid" role="group" aria-label="${label}">${skus.map(cosCardHtml).join('')}
+      <div class="cst-fine"><p class="fine">Cosmetic only: nothing here changes a match. Checkout opens on a secure web page.</p>${fineHtml()}</div>
+    </div></div>`;
   };
 
   // --------------------------------------------------------------------------------------------- detail
   const detailHtml = (): string => {
     if (!detail) return '';
     const s = o.snapshot();
-    const fine = money() ? `<p class="fine safe">${esc(safeguardsLine(currency))}${o.termsUrl ? ` <a href="${esc(o.termsUrl)}" target="_blank" rel="noopener">Terms and refunds</a>` : ''}</p>` : '';
+    const fine = money() ? fineHtml() : '';
     const waiting = o.checkout.waitingSku();
+    if (detail.sel) {
+      // a coat, a set, a frame and its title, or a pass SKU: the preview, what it is, and Buy, Equip or Open the pass
+      const def = CATALOG_SKUS.find((d) => d.sku === detail!.sel);
+      if (!def) return '';
+      const st = itemState(def, s);
+      const eq = st === 'owned' && isEquipped(def);
+      const coat = coatOf(def);
+      const r = def.group === 'coats' ? coatRungOf(coat ?? undefined) : null;
+      const action =
+        st === 'owned'
+          ? def.kind === 'pass'
+            ? `<button type="button" class="pl-btn small" data-a="pass" data-k="pass">Open the pass</button>`
+            : def.kind === 'bundle'
+              ? `<span class="cst-have">${CHECK_SVG}Owned: equip each coat on its hero.</span><button type="button" class="pl-btn ghost small" data-equip="${def.sku}" data-k="equip">Wear the frame</button>`
+              : `<button type="button" class="pl-btn small${eq ? ' ghost' : ''}" data-equip="${def.sku}" data-k="equip">${eq ? `${CHECK_SVG}Equipped` : 'Owned · Equip'}</button>`
+          : st === 'partly'
+            ? `<span class="why">You own some of these: buy the singles.</span>`
+            : st === 'locked'
+              ? `<span class="why">${def.sku === PASS_UPGRADE_SKU ? 'For Legends Pass owners.' : 'You have the Pass: get the Pass+ upgrade.'}</span>`
+              : `<button type="button" class="pl-btn small buy" data-buy="${def.sku}" data-k="buy:${def.sku}"${waiting ? ' disabled' : ''}>${waiting === def.sku ? 'Opening...' : `Buy ${esc(catalogPrice({ cents: priceFor(def, s) }, currency))}`}</button>`;
+      const what =
+        def.kind === 'pass'
+          ? def.sku === PASS_SKU
+            ? 'Premium row: 30 rewards (coats, frames, titles). Every premium reward you already reached unlocks at once. Never expires.'
+            : def.sku === PASS_PLUS_SKU
+              ? 'Premium row, 15 tier skips and the exclusive Eclipse coat. Never expires.'
+              : 'For Legends Pass owners: 15 tier skips and the Eclipse coat, at the price difference.'
+          : def.kind === 'bundle'
+            ? `${def.items.filter((i) => i.startsWith('coat.')).length} coats, a frame and its title.`
+            : frameOf(def)
+              ? `A profile frame and its title, "${frameOf(def)!.title.name}".`
+              : coatLine(coat);
+      const list = def.kind === 'bundle' ? `<p class="cst-list">${esc(def.items.filter((i) => i.startsWith('coat.')).map((c) => heroName(heroOfCoat(c))).join(', '))}</p>` : '';
+      const tags = [r ? RUNG_WORD[r] : '', def.group === 'coats' ? `Coat for ${heroName(def.hero ?? heroOfCoat(coat ?? ''))}` : def.kind === 'bundle' ? 'Set' : def.kind === 'pass' ? 'Season 1' : 'Frame and title'].filter(Boolean).join(' · ');
+      return `<div class="cst-detail" role="dialog" aria-modal="true" aria-label="${esc(def.label)}"><div class="cst-dpanel cst-dcos" data-tier="${cosTier(def)}">
+        <div class="cst-dart">${cosArt(def, '(min-height: 700px) 420px, 240px')}</div>
+        <div class="cst-dinfo">
+          <button type="button" class="cst-x" data-a="detail-close" aria-label="Close">${X_SVG}</button>
+          <h3>${esc(cosName(def))}</h3>
+          <p class="cst-tags">${esc(tags)}</p>
+          <p class="cst-blurb">${esc(what)}</p>
+          ${list}
+          <div class="cst-acts">${action}</div>
+          <p class="fine">Cosmetic only: nothing here changes a match. Checkout opens on a secure web page.</p>
+          ${st === 'buy' ? fine : ''}
+        </div></div></div>`;
+    }
     if (detail.sku) {
       const def = CATALOG_SKUS.find((d) => d.sku === detail!.sku);
       if (!def) return '';
@@ -501,6 +622,8 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   };
 
   // --------------------------------------------------------------------------------------------- render
+  /** The markup last drawn. */
+  let lastHtml = '';
   const render = (): void => {
     // an unlock the host confirmed (a fresh `store`): say so once the champion shows as owned
     if (line === 'Unlocking...' && detail?.hero && champStatus(detail.hero, champs(), app()) === 'owned') line = `${championDef(detail.hero)?.name ?? 'Champion'} unlocked. Pick it in any mode.`;
@@ -513,9 +636,9 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
         return `<button type="button" role="tab" class="cst-tab${on ? ' on' : ''}" data-tab="${b.id}" data-k="tab:${b.id}" aria-selected="${on}">${esc(b.label)}</button>`;
       })
       .join('');
-    const view = tab === 'champions' ? championsView() : tab === 'featured' ? featuredView() : legacyView();
+    const view = tab === 'champions' ? championsView() : tab === 'featured' ? featuredView() : cosmeticsView();
     const inert = detail ? ' inert' : '';
-    root.innerHTML = `<div class="card cst-frame">
+    const html = `<div class="card cst-frame">
       <header class="cst-top"${inert}>
         <button type="button" class="cst-back" data-a="close" data-k="close" aria-label="Back">${BACK_SVG}</button>
         <h2>Store</h2>
@@ -527,38 +650,26 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       <nav class="cst-tabs" role="tablist" aria-label="Store sections"${inert}>${tabs}</nav>
       ${detailHtml()}
     </div>`;
+    // a refresh that changes nothing (the host resends its state) keeps the DOM: no lost tap, focus or scroll
+    if (html === lastHtml && !detailFocus) return;
+    lastHtml = html;
+    root.innerHTML = html;
+    // the one scroll region: the grid scrolls up and down (the wheel and touch natively); the fade at its foot
+    // shows while more is below
     const grid = root.querySelector<HTMLElement>('[data-scroll="grid"]');
     if (grid) {
-      grid.scrollLeft = gridScroll;
+      grid.scrollTop = gridScroll;
       const box = grid.parentElement as HTMLElement;
       const end = (): void => {
-        box.classList.toggle('end', grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 4);
+        box.classList.toggle('end', grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 4);
       };
       grid.addEventListener('scroll', () => {
-        gridScroll = grid.scrollLeft;
+        gridScroll = grid.scrollTop;
         end();
       }, { passive: true });
-      // a mouse wheel scrolls the row sideways (Wild Rift's grid scrolls left and right)
-      grid.addEventListener('wheel', (e) => {
-        if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || grid.scrollWidth <= grid.clientWidth) return;
-        grid.scrollLeft += e.deltaY;
-        e.preventDefault();
-      }, { passive: false });
       end();
     }
-    const lg = root.querySelector<HTMLElement>('[data-scroll="legacy"]');
-    if (lg) {
-      lg.scrollTop = legacyScroll;
-      const sc = lg.parentElement as HTMLElement;
-      const more = (): void => {
-        sc.classList.toggle('end', lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 4);
-      };
-      lg.addEventListener('scroll', () => {
-        legacyScroll = lg.scrollTop;
-        more();
-      });
-      more();
-    }
+    if (pending.size && !baking) baking = window.setTimeout(bakeSome, 30);
     // a detail that opens takes focus (its close button); one that closes gives it back to its card
     const want = detailFocus ?? (detail ? (focusKey && focusInDetail ? focusKey : 'detail-close') : focusKey);
     detailFocus = null;
@@ -574,12 +685,10 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     if (app() && !APP_TABS.includes(t)) return;
     tab = t;
     gridScroll = 0;
-    legacyScroll = 0;
     detail = null;
-    if (t !== 'champions' && t !== 'featured') selected = tabSkus(legacyTab(t))[0].sku;
     line = '';
   };
-  const openDetail = (d: { hero?: HeroId; sku?: string }, from: string): void => {
+  const openDetail = (d: { hero?: HeroId; sku?: string; sel?: string }, from: string): void => {
     detail = d;
     detailFrom = from;
     line = '';
@@ -655,9 +764,8 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     } else if (unlock && detail?.hero) {
       o.onUnlock?.(detail.hero, unlock);
       line = o.onUnlock ? 'Unlocking...' : 'Unlocking is not available right now.';
-    } else if (sel) {
-      selected = sel;
-      line = '';
+    } else if (sel && !detail) {
+      openDetail({ sel }, `sel:${sel}`);
     } else if (buy) {
       if (!money()) return;
       if (o.checkout.buy(buy)) {
@@ -692,11 +800,6 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   });
   parent.appendChild(root);
   return { el: root, close, refresh: render };
-}
-
-/** The catalogue shelf a view shows (the champion views use the champion shelf for their default selection). */
-function legacyTab(t: StoreTab): Exclude<StoreTab, 'featured'> {
-  return t === 'featured' ? 'champions' : t;
 }
 
 const absUrl = (p: string): string => {

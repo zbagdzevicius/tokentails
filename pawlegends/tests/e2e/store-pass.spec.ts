@@ -52,18 +52,18 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   await shop.locator('.cst-tabs [data-tab="frames"]').click();
   await expect(shop.locator('[data-sel]')).toHaveCount(4);
   // every frame tile shows its ring around a hero portrait (no text-only tile)
-  await expect(shop.locator('[data-sel] .tpic.ring[data-frame]')).toHaveCount(4);
+  await expect(shop.locator('[data-sel] .cst-frameart[data-frame] .cst-ring')).toHaveCount(4);
   await expect(shop).toContainText('Cosmetic only: nothing here changes a match');
   await shop.locator('.cst-tabs [data-tab="coats"]').click();
   // CARD-SKINS.md: 4 effect coats (Epic $7.99, Legendary $14.99, tier word on the tile) and the 16 Rare coats
   await expect(shop.locator('[data-sel]')).toHaveCount(20);
-  // every coat tile shows the coat on its hero, and the preview is the whole square portrait (the head is not cut off)
-  await expect.poll(() => shop.locator('[data-sel] .tpic').evaluateAll((els) => els.filter((e) => getComputedStyle(e).backgroundImage.startsWith('url(')).length)).toBe(20);
-  const pic = await shop.locator('.shop-pic').boundingBox();
-  expect(pic && Math.abs(pic.width - pic.height)).toBeLessThan(2);
+  // every coat card shows the coat on its hero (a picture, never a text-only tile)
+  await expect.poll(() => shop.locator('[data-sel] img.cst-art').evaluateAll((els) => els.filter((e) => (e as HTMLImageElement).getAttribute('src') || (e as HTMLImageElement).getAttribute('srcset')).length)).toBe(20);
   await expect(shop.locator('[data-sel][data-rung="LEGENDARY"]')).toHaveCount(2);
   await expect(shop.locator('[data-sel="pl_coat_brutus_thunderpaw"]')).toContainText(/Legendary · (\$|€)14\.99/);
+  // a card opens its detail (the coat on its hero) with the buy button
   await shop.locator(`[data-sel="${SKU}"]`).click();
+  await expect(shop.locator('.cst-detail')).toBeVisible();
   await expect(shop.locator(`[data-buy="${SKU}"]`)).toContainText(/Buy (\$|€)2\.99/);
 
   // buy: purchase-intent{sku}; the host answers purchase-result and a fresh `store`
@@ -74,6 +74,9 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   // the reveal puts it on and an explicit Equip keeps it
   await shop.locator(`[data-equip="${SKU}"]`).click();
   expect((await profileOf(game)).looks?.clem?.coat).toBe(CALICO);
+  await expect(shop.locator(`[data-equip="${SKU}"]`)).toContainText('Equipped');
+  await shop.locator('[data-a="detail-close"]').click();
+  await expect(shop.locator(`.cst-card[data-sel="${SKU}"]`)).toHaveClass(/st-equipped/);
   await shop.locator('[data-a="close"]').click();
   await expect(shop).toHaveCount(0);
 
@@ -129,10 +132,9 @@ async function noPageScroll(game: Frame): Promise<void> {
   const r = await game.evaluate(() => {
     const se = document.scrollingElement!;
     const card = document.querySelector('.pl-shop .card, .pl-pass .card')!.getBoundingClientRect();
-    // The card clips its content, so also check the store preview column ends above the buy bar.
-    const preview = document.querySelector('.pl-shop .shop-preview')?.getBoundingClientRect();
-    const bar = document.querySelector('.pl-shop .shop-bar')?.getBoundingClientRect();
-    const overlap = preview && bar ? preview.bottom - bar.top : 0;
+    // The store's tab bar stays inside the screen (only the grid above it scrolls).
+    const tabs = document.querySelector('.pl-shop .cst-tabs')?.getBoundingClientRect();
+    const overlap = tabs ? tabs.bottom - innerHeight : 0;
     return { sh: se.scrollHeight, ch: se.clientHeight, sw: se.scrollWidth, cw: se.clientWidth, bottom: card.bottom, right: card.right, vh: innerHeight, vw: innerWidth, overlap };
   });
   expect(r.overlap).toBeLessThanOrEqual(1);
