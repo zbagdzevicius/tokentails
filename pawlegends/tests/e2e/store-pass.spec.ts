@@ -37,7 +37,8 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   expect(arts.some((a) => a.includes('promo-store'))).toBe(true);
   for (const a of arts) {
     const url = /url\('?([^')]+)'?\)/.exec(a)![1];
-    expect((await page.request.get(url)).status(), url).toBe(200);
+    // fetched from inside the game frame, so the host mock's routes serve it (never the live site)
+    expect(await game.evaluate(async (u) => (await fetch(u)).status, url), url).toBe(200);
   }
 
   // browse: the rail's Store opens one screen with tabs; only the grid scrolls
