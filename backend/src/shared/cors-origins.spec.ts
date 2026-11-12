@@ -26,6 +26,8 @@ const allowed = [
     'https://tokentails-landing-lab.vercel.app',
     'https://tokentails-landing-2n1w9gd1d-zbagdzevicius-projects.vercel.app',
     'https://tokentails-landing-lab-zbagdzevicius-projects.vercel.app',
+    // pawlegends-web previews (its own Vercel project)
+    'https://pawlegends-web-4kq9x2m1a-zbagdzevicius-projects.vercel.app',
 ];
 
 const refused = [
@@ -43,6 +45,10 @@ const refused = [
     'http://pawlegends.app',
     'https://pawlegends.app.evil.com',
     'https://evil.pawlegends.app',
+    'http://pawlegends-web-4kq9x2m1a-zbagdzevicius-projects.vercel.app',
+    'https://pawlegends-web-4kq9x2m1a-other-team-projects.vercel.app',
+    'https://evil-pawlegends-web-4kq9x2m1a-zbagdzevicius-projects.vercel.app',
+    'https://pawlegends-web-4kq9x2m1a-zbagdzevicius-projects.vercel.app.evil.com',
     'https://pawlegends.app:8443',
     'https://localhost:8443',
     'https://localhost.evil.com',

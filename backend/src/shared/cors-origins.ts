@@ -6,12 +6,18 @@
  * donation checkouts, so its production alias and its per-deployment URLs
  * (`tokentails-landing-<hash>-zbagdzevicius-projects.vercel.app`, https only) are allowed. Nothing else on
  * vercel.app is: any Vercel user can deploy there.
+ *
+ * Paw Legends' own Next app (Vercel project `pawlegends-web`, root directory `pawlegends-web/`,
+ * docs/plans/moba/PAWLEGENDS-WEB.md) serves pawlegends.app; its per-deployment preview URLs
+ * (`pawlegends-web-<hash>-zbagdzevicius-projects.vercel.app`, https only) are allowed the same way.
  */
 
 export const LANDING_LAB_PRODUCTION_ORIGIN = 'https://tokentails-landing-lab.vercel.app';
 
 export const LANDING_LAB_PREVIEW_ORIGIN =
     /^https:\/\/tokentails-landing-[a-z0-9]+-zbagdzevicius-projects\.vercel\.app$/;
+
+export const PAWLEGENDS_WEB_PREVIEW_ORIGIN = /^https:\/\/pawlegends-web-[a-z0-9]+-zbagdzevicius-projects\.vercel\.app$/;
 
 export type CorsOrigin = string | RegExp;
 
@@ -28,10 +34,11 @@ export function corsOrigins(frontEndUrls: string | undefined = process.env.FRONT
         'https://tokentails.com',
         // the Bad Cat embed on www defaults its API to api.tokentails.com too
         'https://www.tokentails.com',
-        // Paw Legends' own domain (the same Vercel project as tokentails.com): the landing, /play and the game's
+        // Paw Legends' own domain (its own Vercel project, pawlegends-web/): the landing, /play and the game's
         // API and party relay calls. www redirects to the apex, but its first request may still carry www.
         'https://pawlegends.app',
         'https://www.pawlegends.app',
+        PAWLEGENDS_WEB_PREVIEW_ORIGIN,
         LANDING_LAB_PRODUCTION_ORIGIN,
         LANDING_LAB_PREVIEW_ORIGIN,
         // Unchanged: unset FRONT_END_URLS adds the literal '*', which `cors` compares by equality only.
