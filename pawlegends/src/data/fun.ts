@@ -72,15 +72,23 @@ export const HEARTHWOOD_CANNON: CannonData = Object.freeze({
 });
 
 /**
- * Boing Beds: a hero that steps onto one with a move order that goes on past it (or that was sent onto the bed itself)
- * is launched to the landing point over the wall in a fixed flight. Rows are [bedX, bedY, landX, landY], team 0's
- * side; team 1 has the reflection of each.
+ * Boing Beds: a hero that steps onto one is launched to the landing point over the wall in a fixed flight. Rows are
+ * [bedX, bedY, landX, landY], team 0's side; team 1 has the reflection of each. Sim v24 (V21-FUN.md §2.1): a walk that
+ * steps onto the disc launches at once, a hero stopped on it after `stand` ticks (src/sim/units/boing.ts).
  */
 export const BOING = Object.freeze({
-  /** Trigger reach from the hero's centre to the bed centre. */
-  reach: 900,
-  /** A move goal within this distance of the bed counts as "sent onto the bed" (a tap on the cushion). */
-  aim: 600,
+  /**
+   * Sim v24: the bed's disc, hero centre to bed centre: the drawn rim's outer edge (1.15 m), so a hero half on the
+   * cushion is on it; one brushing the rim from outside (centre 1.65 m out) is not. v21–v23: 900.
+   */
+  reach: 1200,
+  /**
+   * Sim v24: a walking goal within this of the bed steps onto it (a tap on or by the cushion; a touch stick's 2 m
+   * look-ahead from anywhere on it). v21–v23: 600 (`aim`).
+   */
+  near: 3200,
+  /** Sim v24: a hero stopped (Order.None) in the disc this many ticks (0.27 s) is launched. */
+  stand: 8,
   /** Flight: 0.9 s. */
   flight: 27,
   /** Per-hero cooldown after landing (3 s). */
