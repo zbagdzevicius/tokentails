@@ -12,6 +12,7 @@ import { createGrid } from '../../src/sim/map/grid';
 import { findPath } from '../../src/sim/nav/astar';
 import { isqrt } from '../../src/sim/fixed';
 import { GRIZZLECHOP_PIT } from '../../src/data/maps/hearthwood';
+import { SIM_VERSION } from '../../src/sim/version';
 
 const W = 128000;
 const info = mapInfo('hearthwood');
@@ -267,7 +268,7 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(grizz).toBeGreaterThan(0);
     const rec = replayRecord(m)!;
     expect(rec.map).toBe('hearthwood');
-    expect(rec.simVersion).toBe(22);
+    expect(rec.simVersion).toBe(SIM_VERSION);
     expect(verifyReplay(rec)).toMatchObject({ ok: true, finalHash: rec.finalHash });
     expect(verifyReplay({ ...rec, map: undefined }).ok).toBe(false);
     expect(verifyReplay({ ...rec, map: 'atlantis' })).toMatchObject({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' });

@@ -18,7 +18,7 @@ describe('pvp-sim', { timeout: 600_000 }, () => {
     expect(res).not.toBeNull();
     expect(partyReplayRecord(m)).toBeNull();
     const rec = pvpReplayRecord(m)!;
-    expect(rec).toMatchObject({ v: 3, mode: 'pvp', simVersion: 22, difficulty: 'hard', fillDifficulty: ['hard', 'hard'] });
+    expect(rec).toMatchObject({ v: 3, mode: 'pvp', simVersion: 23, difficulty: 'hard', fillDifficulty: ['hard', 'hard'] });
     expect(rec.inputs).toHaveLength(6);
     for (const s of rec.inputs) expect(s.length).toBeGreaterThan(0);
     const run = runPvpReplay(rec);

@@ -32,8 +32,8 @@ const nearPit = (i: number, j: number): boolean =>
 afterAll(() => bindMap(0));
 
 describe('sim v22 version', () => {
-  it('SIM_VERSION is 22; Hearthwood holds 160 entity ids', () => {
-    expect(SIM_VERSION).toBe(22);
+  it('SIM_VERSION is 22 or later (v23 kept the map); Hearthwood holds 160 entity ids', () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(22);
     expect(MAX_ENTITIES).toBe(160);
     expect(CAMP_KINDS[CAMP_KIND.beetle].name).toBe('beetle');
     expect(CAMP_KIND.beetle).toBe(5);

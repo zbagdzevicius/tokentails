@@ -138,8 +138,9 @@ const zeroTicks = (): Record<PilotReason, number> => ({
     before: 0,
 });
 
-/** Ops a client may send (Forfeit never; Ping only from slot 0). Fire (sim v21, the Kibble Cannon): a room on an older
- * sim never sees it, since that sim's decoder rejects op 11 (a strike) before intake. */
+/** Ops a client may send (Forfeit never; Ping only from slot 0). Fire (sim v21, the Kibble Cannon) and Kite (sim v23,
+ * KITE-FIX): a room on an older sim never sees them, since that sim's decoder rejects op 11 / 12 (a strike) before
+ * intake. */
 const CLIENT_OPS: readonly number[] = [
     CMD_OP.Move,
     CMD_OP.AttackMove,
@@ -151,7 +152,11 @@ const CLIENT_OPS: readonly number[] = [
     CMD_OP.Talent,
     CMD_OP.Ping,
     CMD_OP.Fire,
+    CMD_OP.Kite,
 ];
+
+/** Sim v23 (KITE-FIX): a kite is a held stick's move (the sim gates it as one), so it coalesces with a pending move. */
+const movesLike = (op: number): boolean => op === CMD_OP.Move || op === CMD_OP.Kite;
 
 export type IntakeResult = 'ok' | 'dup' | 'not_human' | 'bad_op' | 'dropped' | 'closed' | 'log_full';
 
@@ -445,7 +450,8 @@ export class Room {
     /**
      * One client command for `slot` (already size-checked; `cmd` = sim command bytes). Goes into the open turn: the
      * first into sub 0, the next into sub 1, then the newest replaces sub 1. Moves coalesce (B4): a newer Move
-     * replaces the pending Move. Over the token bucket a Move still replaces the pending Move; others are dropped.
+     * replaces the pending Move (sim v23: a Kite counts as a Move). Over the token bucket a Move still replaces the pending
+     * Move; others are dropped.
      */
     intake(slot: number, seq: number, cmd: Uint8Array, nowMs: number): IntakeResult {
         const s = this.slots[slot];
@@ -470,7 +476,7 @@ export class Room {
         s.afkWarned = false;
         this.played = true;
         if (this.logBytes >= PARTY_LIMITS.roomLogBytes) return 'log_full';
-        const isMove = op === CMD_OP.Move;
+        const isMove = movesLike(op);
         if (!isMove) {
             // token bucket for non-move commands (20/s, burst 10)
             const b = s.bucket;
@@ -494,7 +500,7 @@ export class Room {
         for (const c of cmds) {
             const op = c[0];
             if (op === CMD_OP.Ping || op === CMD_OP.Forfeit || cmdSize(op) !== c.length) continue;
-            place(s.open.pilot, c, op === CMD_OP.Move);
+            place(s.open.pilot, c, movesLike(op));
         }
     }
 
@@ -948,7 +954,7 @@ function place(subs: [Uint8Array | null, Uint8Array | null], cmd: Uint8Array, is
     if (isMove) {
         for (let i = 0; i < 2; i++) {
             const c = subs[i];
-            if (c && c[0] === CMD_OP.Move) {
+            if (c && movesLike(c[0])) {
                 subs[i] = cmd;
                 return;
             }
