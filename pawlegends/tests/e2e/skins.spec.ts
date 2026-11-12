@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { toChampSelect } from './helpers';
+import { playFromHome, toChampSelect } from './helpers';
 import { art, mockHost, openHost, received, type HostConfig } from './host';
 
 // GDD §7.2 card skins: the "Your cards" drawer (every owned cat on every champion, lobby spec §3b), the choice
@@ -144,7 +144,7 @@ test('dog costume in a match: Sir Brutus in a card skin, the team ring visible u
   test.setTimeout(90_000);
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, roster: ROSTER, profile: { ...PLAYED, hero: 'brutus', looks: { brutus: { coat: 'cat.c1', chroma: null } } } });
   const game = await openHost(page);
-  await game.locator('[data-a="quick"]').click();
+  await playFromHome(game);
   // lobby spec §3b: the champion takes the worn cat's name (veil, scoreboard), the hero underneath
   await expect(game.locator('.pl-loading .hero-line')).toContainText('as Pickles (Sir Brutus)');
   await game.waitForFunction(() => document.documentElement.dataset.match === 'live');
@@ -195,7 +195,7 @@ test('?skins=demo in a match: a Legendary demo card draws its effects, the sim u
   await page.addInitScript(() => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify({ v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true, hero: 'sage', firstPlaySession: 1, looks: { sage: { coat: 'cat.demo-ficus', chroma: null } } })));
   await page.goto('/?skins=demo&e2e=1&speed=4');
   await page.waitForSelector('html[data-ready="1"]');
-  await page.locator('[data-a="quick"]').click();
+  await playFromHome(page);
   await page.waitForFunction(() => document.documentElement.dataset.match === 'live');
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.matchLook)).toBe('cat.demo-ficus@0|-');
   // an idle hero at the fountain may never land a hit in the window (sim v11 picks and bot tuning): she casts Q (a

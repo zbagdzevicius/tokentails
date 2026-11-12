@@ -246,67 +246,109 @@ export function disposeHome(el: HTMLElement | null | undefined): void {
 
 const overlayOpen = (): boolean => !!document.querySelector('.pl-menu, [aria-modal="true"], .pl-store, .plc-meet, .pl-offer');
 
-export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement {
+/**
+ * Home's patch hook (the Home re-render fix, Nov 12): a redraw of a Home already on screen (a panel closed, a tab switch,
+ * an entitlement or progress refresh) patches the regions whose markup changed into the same root. No root swap, so
+ * the entrance animations never replay behind a modal. False: this Home cannot take these options in place (its layout
+ * differs: first visit, a dare, the quality class); the caller then builds a new one with `still`.
+ */
+const patchers = new WeakMap<HTMLElement, (o: HomeScreenOpts) => boolean>();
+export function patchHome(el: HTMLElement | null | undefined, o: HomeScreenOpts): boolean {
+  if (!el?.isConnected) return false;
+  return patchers.get(el)?.(o) ?? false;
+}
+
+/**
+ * The entrance animations (bars drop in, the left stack and promo slide, PLAY pops in) run on the first Home of a visit
+ * and on the one after a match only. `.hm-still` turns them off (home.css) for every later Home and every patch.
+ */
+export const HOME_ENTRANCE = ['hm-drop', 'hm-slide-l', 'hm-slide-r', 'hm-rise', 'hm-rise-c', 'hm-pop-in'] as const;
+
+/** The patched regions, in DOM order (the corner, the cards slot, the fx layer, toast and version mark stay put). */
+const REGIONS = ['.hm-top', '.hm-left', '.hm-promo', '.hm-stage', '.hm-nav', '.hm-playc', '.lb-peek'] as const;
+type Region = (typeof REGIONS)[number];
+
+export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: boolean }): HTMLElement {
   const root = document.createElement('div');
   const ac = typeof AbortController === 'function' ? new AbortController() : null;
   const quality = document.documentElement.dataset.quality ?? 'med';
   const low = quality === 'low';
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  root.className = `pl-screen pl-title pl-home${low ? ' low' : ''}`;
+  root.className = `pl-screen pl-title pl-home${low ? ' low' : ''}${o.still ? ' hm-still' : ''}`;
   root.dataset.testid = 'home';
+  // the layout keys: a patch with other values rebuilds (the caller builds a still Home)
   // the variants this build can start now (Mode Select locks the others; e2e waits on it)
   root.dataset.variants = availableQueues(o).join(' ');
-  const id = o.identity;
-  const elColor = cssHex(ELEMENT_COLOR[id.element]);
-  root.style.setProperty('--hm-el', elColor);
   const dare = o.dare;
   const returning = !o.firstTime && !dare;
+  const layoutKey = (x: HomeScreenOpts): string => [!!x.firstTime, x.dare ? JSON.stringify(x.dare) : '', !!x.onExit, !!x.onSocial, !!x.onSettings, !!x.onJoinCode].join('|');
+  const layout = layoutKey(o);
   let diff: Difficulty = o.last.difficulty;
   let choice: ModeChoice = o.modeChoice;
-  const avail = availableQueues(o);
+  let avail = availableQueues(o);
   const now = (): number => Date.now();
   const cur = (): { mode: ModeDef; queue: Queue } => resolveChoice(o.modes, choice, avail, now());
-  const liveEvent = o.modes.some((m) => effectiveState(m, now()) === 'event');
-  const elName = id.card ? `${ELEMENT_NAME[id.element]} look` : ELEMENT_NAME[id.element];
-  const subLine = id.card ? `${id.sub} · ${elName}` : `${id.role} · ${elName}`;
-  // the nameplate is a label: the champion is chosen in the champion select, after PLAY and the mode
-  const plate = `<div class="hm-plate"><span class="hm-plate-n">${esc(id.name)}</span><small class="hm-plate-s">${esc(subLine)}</small></div>`;
-  const { mode, queue: lastQ } = cur();
-  // the last mode and variant: a label only (PLAY opens Mode Select on it)
-  const pill = returning
-    ? `<p class="hm-pill" data-testid="mode-pill" aria-label="${esc(`Last played: ${pillText(mode, lastQ)}`)}"><span class="hm-pill-c" aria-hidden="true">${crestSvg(mode.id)}</span><span class="hm-pill-t">${esc(pillText(mode, lastQ))}</span></p>`
-    : `<p class="hm-line${dare ? ' dare' : ''}">${esc(playLine(o))}</p>`;
-  const playWord = dare ? 'DARE' : 'PLAY';
+  const elColorOf = (): string => cssHex(ELEMENT_COLOR[o.identity.element]);
+  root.style.setProperty('--hm-el', elColorOf());
+  const plateHtml = (): string => {
+    const id = o.identity;
+    const elName = id.card ? `${ELEMENT_NAME[id.element]} look` : ELEMENT_NAME[id.element];
+    const subLine = id.card ? `${id.sub} · ${elName}` : `${id.role} · ${elName}`;
+    // the nameplate is a label: the champion is chosen in the champion select, after PLAY and the mode
+    return `<div class="hm-plate"><span class="hm-plate-n">${esc(id.name)}</span><small class="hm-plate-s">${esc(subLine)}</small></div>`;
+  };
+  const playcHtml = (): string => {
+    const { mode, queue } = cur();
+    // the last mode and variant: a label only (PLAY opens Mode Select on it)
+    const pill = returning
+      ? `<p class="hm-pill" data-testid="mode-pill" aria-label="${esc(`Last played: ${pillText(mode, queue)}`)}"><span class="hm-pill-c" aria-hidden="true">${crestSvg(mode.id)}</span><span class="hm-pill-t">${esc(pillText(mode, queue))}</span></p>`
+      : `<p class="hm-line${dare ? ' dare' : ''}">${esc(playLine(o))}</p>`;
+    return `<div class="hm-playc lb-play">
+      ${pill}
+      <div class="hm-playrow">
+        <button type="button" class="pl-btn big hm-play" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'play'}" data-testid="home-play" aria-keyshortcuts="Enter M"${returning ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(returning ? 'Play: choose a mode' : playLabel(o))}">
+          <span class="hm-play-glow" aria-hidden="true"></span><span class="hm-play-glow b" aria-hidden="true"></span>
+          <span class="hm-play-face" aria-hidden="true">${PAW}<b>${dare ? 'DARE' : 'PLAY'}</b><span class="hm-sheen"></span></span>
+        </button>
+      </div>
+    </div>`;
+  };
+  /** Each region's markup from the current options ('' = not shown). */
+  const regionHtml = (): Record<Region, string> => {
+    const elColor = elColorOf();
+    return {
+      '.hm-top': `<header class="hm-top">
+      ${profileHtml(o, elColor)}
+      ${returning ? currencyHtml(o) : ''}
+    </header>`,
+      '.hm-left': leftHtml(o, o.modes.some((m) => effectiveState(m, now()) === 'event')),
+      '.hm-promo': returning ? promoHtml(o) : '',
+      '.hm-stage': `<div class="hm-stage">${plateHtml()}</div>`,
+      '.hm-nav': navHtml(o, returning),
+      '.hm-playc': playcHtml(),
+      '.lb-peek': peekHtml(o, !low),
+    };
+  };
+  let shown = regionHtml();
   root.innerHTML = `
     <div class="hm-fx" aria-hidden="true">
       ${low || reduced ? '' : '<i class="hm-shaft a"></i><i class="hm-shaft b"></i>'}
       ${low || reduced ? '' : '<canvas class="hm-motes"></canvas>'}
       <i class="hm-shade"></i>
     </div>
-    <header class="hm-top">
-      ${profileHtml(o, elColor)}
-      ${returning ? currencyHtml(o) : ''}
-    </header>
+    ${shown['.hm-top']}
     <div class="pl-corner lb-corner hm-corner">
       ${o.onSocial && !o.firstTime ? `<button type="button" class="hm-icon lb-social" data-a="social" data-testid="lobby-social" aria-label="Friends and ranked" title="Friends and ranked">${PEOPLE}${o.socialBadge ? `<i class="hm-badge lb-social-badge">${Math.min(9, o.socialBadge)}</i>` : ''}</button>` : ''}
       ${o.onSettings ? `<button type="button" class="hm-icon" data-a="settings" aria-label="Settings" title="Settings">${GEAR}</button>` : ''}
       <button type="button" class="hm-icon hm-mute" data-a="mute" aria-label="Sound" aria-pressed="${!o.muted}" title="Sound">${SPEAKER(!o.muted)}</button>
     </div>
-    ${leftHtml(o, liveEvent)}
+    ${shown['.hm-left']}
     <div class="hm-slot lb-cards" data-slot="cards"></div>
-    ${returning ? promoHtml(o) : ''}
-    <div class="hm-stage">${plate}</div>
-    ${navHtml(o, returning)}
-    <div class="hm-playc lb-play">
-      ${pill}
-      <div class="hm-playrow">
-        <button type="button" class="pl-btn big hm-play" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'play'}" data-testid="home-play" aria-keyshortcuts="Enter M"${returning ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(returning ? 'Play: choose a mode' : playLabel(o))}">
-          <span class="hm-play-glow" aria-hidden="true"></span><span class="hm-play-glow b" aria-hidden="true"></span>
-          <span class="hm-play-face" aria-hidden="true">${PAW}<b>${playWord}</b><span class="hm-sheen"></span></span>
-        </button>
-      </div>
-    </div>
-    ${peekHtml(o, !low)}
+    ${shown['.hm-promo']}
+    ${shown['.hm-stage']}
+    ${shown['.hm-nav']}
+    ${shown['.hm-playc']}
+    ${shown['.lb-peek']}
     <p class="hm-toast" role="status" aria-live="polite"></p>
     ${versionMarkHtml()}`;
 
@@ -361,6 +403,8 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
     if (t) t.textContent = pillText(m, queue);
     const c = root.querySelector('.hm-pill-c');
     if (c) c.innerHTML = crestSvg(m.id);
+    // the next patch compares against what is on screen now
+    shown['.hm-playc'] = playcHtml();
   };
   let modesLoading = false;
   /** Mode Select is its own chunk (loaded on the first open, so Home's first load stays small). */
@@ -462,14 +506,17 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
   root.addEventListener('pointerdown', (e) => {
     for (const d of root.querySelectorAll<HTMLDetailsElement>('details[open]')) if (!d.contains(e.target as Node)) d.open = false;
   });
-  for (const d of root.querySelectorAll<HTMLDetailsElement>('details')) {
-    d.addEventListener('toggle', () => {
-      if (d.open) {
-        o.sound?.('click');
-        for (const x of root.querySelectorAll<HTMLDetailsElement>('details[open]')) if (x !== d) x.open = false;
-      }
-    });
-  }
+  const bindDetails = (scope: ParentNode): void => {
+    for (const d of scope.querySelectorAll<HTMLDetailsElement>('details')) {
+      d.addEventListener('toggle', () => {
+        if (d.open) {
+          o.sound?.('click');
+          for (const x of root.querySelectorAll<HTMLDetailsElement>('details[open]')) if (x !== d) x.open = false;
+        }
+      });
+    }
+  };
+  bindDetails(root);
   const onKey = (e: KeyboardEvent): void => {
     if (!root.isConnected) {
       disposeHome(root);
@@ -512,10 +559,21 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
 
   // the promo rotator: a 5 s crossfade (paused while hovered or focused; still on Low or reduced motion)
   let promoTimer: ReturnType<typeof setInterval> | null = null;
-  const promo = root.querySelector<HTMLElement>('.hm-promo');
-  const slides = promo ? Array.from(promo.querySelectorAll<HTMLElement>('.hm-slide')) : [];
-  if (slides.length > 1 && !low && !reduced) {
-    let i = 0;
+  const startPromo = (at = 0): void => {
+    if (promoTimer) clearInterval(promoTimer);
+    promoTimer = null;
+    const promo = root.querySelector<HTMLElement>('.hm-promo');
+    const slides = promo ? Array.from(promo.querySelectorAll<HTMLElement>('.hm-slide')) : [];
+    if (slides.length < 2 || low || reduced) return;
+    // a patched promo keeps the slide it was showing (no jump back to the first)
+    let i = at % slides.length;
+    if (i) {
+      slides.forEach((s, j) => {
+        s.classList.toggle('on', j === i);
+        s.tabIndex = j === i ? 0 : -1;
+      });
+      promo!.querySelectorAll('.hm-dots i').forEach((d, j) => d.classList.toggle('on', j === i));
+    }
     let hold = false;
     promo!.addEventListener('pointerenter', () => (hold = true));
     promo!.addEventListener('pointerleave', () => (hold = false));
@@ -530,7 +588,8 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
       });
       promo!.querySelectorAll('.hm-dots i').forEach((d, j) => d.classList.toggle('on', j === i));
     }, 5000);
-  }
+  };
+  startPromo();
 
   // parallax (pointer): the motes ±18 px and the light ±10 px, lerped at 0.08 on the menu's 30 fps budget
   let raf = 0;
@@ -577,16 +636,75 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
     modeSel?.close();
     ac?.abort();
     document.removeEventListener('keydown', onKey);
+    patchers.delete(root);
   });
   bindVersionMark(root, ac?.signal);
   parent.appendChild(root);
-  const wait = root.querySelector<HTMLElement>('.lb-peek.lb-wait');
-  if (wait)
-    void import('../nature/natureCss')
-      .catch(() => undefined)
-      .then(() => wait.classList.remove('lb-wait'));
+  const unwait = (): void => {
+    const wait = root.querySelector<HTMLElement>('.lb-peek.lb-wait');
+    if (wait)
+      void import('../nature/natureCss')
+        .catch(() => undefined)
+        .then(() => wait.classList.remove('lb-wait'));
+  };
+  unwait();
   // sim v22: a `?mode=` link's mode this build does not know ("Update to play …, playing Skirmish for now")
   if (o.notice) toast(o.notice);
+
+  patchers.set(root, (next) => {
+    if (leaving || layoutKey(next) !== layout || (document.documentElement.dataset.quality ?? 'med') !== quality) return false;
+    o = next;
+    diff = o.last.difficulty;
+    choice = o.modeChoice;
+    avail = availableQueues(o);
+    root.dataset.variants = avail.join(' ');
+    // from here on nothing replays its entrance (a region that changes is swapped in place, already settled)
+    root.classList.add('hm-still');
+    root.style.setProperty('--hm-el', elColorOf());
+    const want = regionHtml();
+    for (let r = 0; r < REGIONS.length; r++) {
+      const sel = REGIONS[r]!;
+      if (want[sel] === shown[sel]) continue;
+      const old = root.querySelector<HTMLElement>(`:scope > ${sel}`);
+      const tpl = document.createElement('template');
+      tpl.innerHTML = want[sel].trim();
+      const nu = tpl.content.firstElementChild as HTMLElement | null;
+      if (nu) {
+        // a popover the player has open stays open; a focused control keeps focus (same data-a)
+        for (const d of old?.querySelectorAll<HTMLDetailsElement>('details[open]') ?? []) nu.querySelector<HTMLDetailsElement>(`details.${d.classList[0]}`)?.setAttribute('open', '');
+        if (modeSel) nu.inert = true;
+        const focused = old?.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.a : undefined;
+        if (old) old.replaceWith(nu);
+        else {
+          // insert before the next region on screen, else before the toast (the DOM order is the paint order)
+          let anchor: Element | null = null;
+          for (let k = r + 1; k < REGIONS.length && !anchor; k++) anchor = root.querySelector(`:scope > ${REGIONS[k]}`);
+          root.insertBefore(nu, anchor ?? root.querySelector(':scope > .hm-toast'));
+        }
+        bindDetails(nu);
+        if (focused) nu.querySelector<HTMLElement>(`[data-a="${focused}"]`)?.focus({ preventScroll: true });
+        if (sel === '.hm-promo') {
+          const slides = Array.from(old?.querySelectorAll('.hm-slide') ?? []);
+          startPromo(Math.max(0, slides.findIndex((x) => x.classList.contains('on'))));
+        }
+      } else {
+        old?.remove();
+        if (sel === '.hm-promo') startPromo();
+      }
+    }
+    shown = want;
+    unwait();
+    // the corner's Sound switch follows a mute changed elsewhere (Settings, the host)
+    const mute = root.querySelector<HTMLElement>('[data-a="mute"]');
+    if (mute && mute.getAttribute('aria-pressed') !== String(!o.muted)) {
+      mute.setAttribute('aria-pressed', String(!o.muted));
+      mute.innerHTML = SPEAKER(!o.muted);
+    }
+    if (o.notice) toast(o.notice);
+    // Back from the champion select onto a Home still on screen: Mode Select again, on the chosen variant
+    if (o.openAt && returning) openModes(undefined, 'back', o.openAt);
+    return true;
+  });
   // Back from the champion select: Mode Select again, on the variant the player had chosen
   if (o.openAt && returning) openModes(undefined, 'back', o.openAt);
   return root;

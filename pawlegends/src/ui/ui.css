@@ -161,14 +161,14 @@ kbd {
 /* Short phones: the pause card (Resume, Scores, Sound, Settings, the zoom row, Forfeit, Leave) was 475 px tall at
    844x390, so Leave sat off screen. Two columns for the smaller buttons, tighter spacing, and a scroll as a safety net. */
 @media (max-height: 480px) {
-  .pl-menu:not(.pl-settings):not(.pl-collection) > .card {
+  .pl-menu:not(.pl-settings):not(.pl-collection):not(.pl-book) > .card {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 18px; width: min(560px, calc(100vw - 32px)); max-width: none;
     max-height: calc(100dvh - 16px); overflow-y: auto; box-sizing: border-box;
   }
-  .pl-menu:not(.pl-settings):not(.pl-collection) > .card > :is(h2, .pl-btn.big, .set-zoom, .keys, .sub) { grid-column: 1 / -1; }
+  .pl-menu:not(.pl-settings):not(.pl-collection):not(.pl-book) > .card > :is(h2, .pl-btn.big, .set-zoom, .keys, .sub) { grid-column: 1 / -1; }
   /* the confirm cards (Forfeit, Leave): both buttons full width */
   .pl-menu > .card:is(.pl-forfeit, .pl-leave) > .pl-btn { grid-column: 1 / -1; }
-  .pl-menu:not(.pl-settings):not(.pl-collection) > .card .pl-btn { padding-top: 9px; padding-bottom: 9px; }
+  .pl-menu:not(.pl-settings):not(.pl-collection):not(.pl-book) > .card .pl-btn { padding-top: 9px; padding-bottom: 9px; }
   .pl-menu h2 { margin: 0; font-size: 20px; }
 }
 
@@ -900,12 +900,12 @@ html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px
 .pl-reward .rw-chest b, .pl-reward .rw-chest small { display: block; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-reward .rw-chest b { font-size: 12px; }
 .pl-reward .rw-share { white-space: nowrap; }
-.pl-results .pl-home {
+.pl-results .pl-tohome {
   position: absolute; right: calc(16px + var(--safe-r)); top: calc(14px + var(--safe-t)); z-index: 4; display: inline-flex; align-items: center; gap: 6px; min-height: 44px;
 }
-.pl-results .pl-home .pl-icon { width: 18px; height: 18px; }
+.pl-results .pl-tohome .pl-icon { width: 18px; height: 18px; }
 /* the MVP card sits top right: Home goes to its left on wide screens */
-.pl-results:has(.tt-mvp, .tt-mvp-slot) .pl-home { right: auto; left: calc(50% - 40px); }
+.pl-results:has(.tt-mvp, .tt-mvp-slot) .pl-tohome { right: auto; left: calc(50% - 40px); }
 @media (prefers-reduced-motion: reduce) { .pl-reward .rw-treat .fill { animation: none; width: var(--to); } }
 @media (max-height: 480px) {
   .pl-results .pl-reward { bottom: calc(74px + var(--safe-b)); padding: 4px 6px; gap: 6px; }
@@ -914,7 +914,7 @@ html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px
   .pl-reward .rw-treat { min-width: 90px; }
   .pl-reward .rw-chest small { display: none; }
   .pl-reward .rw-share { padding: 6px 10px; font-size: 13px; }
-  .pl-results .pl-home { top: calc(8px + var(--safe-t)); padding: 6px 12px; }
+  .pl-results .pl-tohome { top: calc(8px + var(--safe-t)); padding: 6px 12px; }
 }
 .pl-loading small.squad { display: block; margin-top: 6px; font-size: 14px; opacity: 0.85; }
 

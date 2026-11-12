@@ -57,3 +57,15 @@ references, no text and no third-party characters, encoded to WebP. Prompts and 
 | `lobby/promo-{pass,cannon}.webp` | crops of the Home key art and the Cannon Chaos tile | Token Tails, all rights reserved |
 | `modes/{blitz,skirmish,classic,coop,ranked,cannon}-{256,512}.webp` | generated, Gemini, 2026-11 (round mode tiles) | Token Tails, all rights reserved |
 | `screens/modes-{1280,1920}.webp` | generated, Gemini, 2026-11 (Mode Select backdrop: a moonlit hall of banners) | Token Tails, all rights reserved |
+
+### Treat Track and Legends Pass art (Hearth Storybook, brandbook v1)
+
+Generated with gemini-3-pro-image-preview from the repo portraits (prompts in `~/Downloads/paw-legends/brandbook/pass/scripts/`).
+No text or logo is drawn in any image; titles are set in HTML. Each file has a smaller `-lo` copy for the Low quality tier.
+
+| File | Source | Licence |
+|---|---|---|
+| `pass/banner{,-lo}.webp` | generated, Gemini, 2026-11 (Season 1 banner: Clem and Duchess casting over an open storybook) | Token Tails, all rights reserved |
+| `pass/book{,-lo}.webp` | generated, Gemini, 2026-11 (blank open-book parchment spread) | Token Tails, all rights reserved |
+| `pass/chest{,-lo}.webp`, `pass/sealed{,-lo}.webp` | generated, Gemini, 2026-11 (treat chest; wax-sealed postcard envelope), green screen keyed | Token Tails, all rights reserved |
+| `pass/node-{free,premium,now}{,-lo}.webp` | generated, Gemini, 2026-11 (tier node emblems), green screen keyed | Token Tails, all rights reserved |

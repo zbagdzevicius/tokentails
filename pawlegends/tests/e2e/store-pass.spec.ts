@@ -33,13 +33,14 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   await game.locator('.hm-nav [data-a="store"]').click();
   const shop = game.locator('.pl-shop');
   await expect(shop).toBeVisible();
-  // Champions · Coats · Frames · Sets · Pass (CHAMPION-STORE.md: the Champions tab sits next to the cosmetics)
-  await expect(shop.locator('[data-tab]')).toHaveCount(5);
-  await expect(shop).toContainText('Cosmetic only: nothing here changes a match');
+  // the bottom tab bar (Wild Rift layout): Featured · Champions (opens here) · Coats · Frames & Titles
+  await expect(shop.locator('.cst-tabs [data-tab]')).toHaveCount(4);
+  await expect(shop.locator('.cst-tab.on')).toHaveAttribute('data-tab', 'champions');
   await expect(shop).not.toContainText(/[0-9] Tails|coins/); // XP and prices only (CLAIMS R8)
-  await shop.locator('[data-tab="frames"]').click();
+  await shop.locator('.cst-tabs [data-tab="frames"]').click();
   await expect(shop.locator('[data-sel]')).toHaveCount(4);
-  await shop.locator('[data-tab="coats"]').click();
+  await expect(shop).toContainText('Cosmetic only: nothing here changes a match');
+  await shop.locator('.cst-tabs [data-tab="coats"]').click();
   // CARD-SKINS.md: 4 effect coats (Epic $7.99, Legendary $14.99, tier word on the tile) and the 16 Rare coats
   await expect(shop.locator('[data-sel]')).toHaveCount(20);
   await expect(shop.locator('[data-sel][data-rung="LEGENDARY"]')).toHaveCount(2);
