@@ -18,7 +18,8 @@ import { CLASSIC_WHEEL_KINDS, WHEEL_KINDS, chipPing, wheelKinds, wheelSlice } fr
 import { PING_KIND } from '../../src/data/pings';
 import { teamLabel } from '../../src/ui/scoreboard';
 import { mapInfo } from '../../src/sim/map/info';
-import { hwCanopy, hwForestTrees, hwLanes, hwLanterns, hwOuterTrees, hwReedSteps, hwWalkable, wallPit } from '../../src/render/views/hearthwoodView';
+import { createHearthwoodView, hwCanopy, hwForestTrees, hwLanes, hwLanterns, hwOuterTrees, hwReedSteps, hwWalkable, wallPit } from '../../src/render/views/hearthwoodView';
+import { ModelBuilder } from '../../src/render/views/rig';
 import { gateLines } from '../../src/render/fx/lifecycleGate';
 import { lanePoints, bushList } from '../../src/ui/minimap';
 import { bushCount } from '../../src/render/bushClear';
@@ -167,6 +168,14 @@ describe('Hearthwood scenery', () => {
     // Reed Steps where the river entrances meet the river: two a quadrant.
     expect(hwReedSteps(info).length).toBe(8);
     expect(hwForestTrees(mapInfo('crossing'))).toEqual([]);
+  });
+
+  it('Nov 12: the 3D map builds although sim v22 left no rock for a tree crown (Classic never started)', () => {
+    expect(new ModelBuilder().build().getAttribute('position').count).toBe(0);
+    const view = createHearthwoodView(info);
+    const crowns = view.group.getObjectByName('wall-crowns');
+    expect(crowns?.visible).toBe(false);
+    expect(view.group.getObjectByName('walls')?.visible).toBe(true);
   });
 
   it('the far forest stays off the map', () => {

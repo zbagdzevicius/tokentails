@@ -102,7 +102,23 @@ export class ModelBuilder {
     return this.add(new THREE.TorusGeometry(r, tube, 6, 18, arc), color, o);
   }
 
+  /** Nothing was added (a map whose data gives this layer no piece, e.g. sim v22 Hearthwood's wall crowns). */
+  get empty(): boolean {
+    return this.geos.length === 0;
+  }
+
   build(): THREE.BufferGeometry {
+    // an empty builder merges to an empty geometry: three's mergeGeometries([]) throws (Classic 5v5 never started,
+    // Nov 12: sim v22's Hearthwood has no rock big enough for a tree crown)
+    if (!this.geos.length) {
+      const e = new THREE.BufferGeometry();
+      e.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+      e.setAttribute('color', new THREE.Float32BufferAttribute([], 3));
+      e.setAttribute('aPart', new THREE.Float32BufferAttribute([], 1));
+      e.setAttribute('aPivot', new THREE.Float32BufferAttribute([], 3));
+      e.computeBoundingSphere();
+      return e;
+    }
     const g = mergeGeometries(this.geos, false);
     for (const x of this.geos) x.dispose();
     this.geos = [];

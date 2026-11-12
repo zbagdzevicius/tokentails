@@ -484,8 +484,14 @@ export function createHearthwoodView(info: MapInfo): MapView {
   const rnd = lcg(13);
   const sceneryMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
   const addMerged = (b: ModelBuilder, name: string, cast = true, mat: THREE.Material = sceneryMat): THREE.Mesh => {
+    const none = b.empty;
     const m = new THREE.Mesh(keep(b.build()), mat);
     m.name = name;
+    // a layer the map data leaves empty draws nothing (and casts no shadow)
+    if (none) {
+      m.visible = false;
+      cast = false;
+    }
     m.castShadow = cast;
     m.receiveShadow = true;
     if (cast) shadowCasters.push(m);
