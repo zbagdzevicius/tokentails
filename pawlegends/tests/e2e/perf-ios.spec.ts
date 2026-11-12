@@ -5,7 +5,7 @@ import { seedSide, playFromHome, toChampSelect } from './helpers';
  * PERF-IOS §8 Track C (docs/plans/moba/PERF-IOS.md), project `landscape` (touch, 844x390):
  * - the boot splash leaves the page (its infinite animations ran for the whole session) and the title runs at most
  *   one infinite CSS animation;
- * - the champion browser: no backdrop blur on touch, the lobby canvas stops drawing behind it, the skill clip draws at
+ * - the champion browser: no backdrop blur on touch, the game canvas draws nothing behind it (menus are painted art), the skill clip draws at
  *   the menu rate (≤ 30 fps), and the clip adds no DOM damage numbers;
  * - a match: the loading veil stays up until the warm-up linked the match's programs (no program links after it in
  *   the first seconds of play), and a skill on cooldown writes its sweep only when it moves a step (ui/cdSweep.ts).
@@ -46,9 +46,16 @@ test('boot splash, champion browser and preview pacing', async ({ page }) => {
   await expect(page.locator('#boot')).toHaveCount(0, { timeout: 5_000 });
   const infinite = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity).length);
   expect(infinite).toBeLessThanOrEqual(1);
+  // founder, Nov 13: Home and the champion select are painted art; the game canvas draws nothing behind them
+  const h0 = await clears(page, 'game-canvas');
+  await page.waitForTimeout(1500);
+  expect(await clears(page, 'game-canvas')).toBe(h0);
 
   await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
+  const c0 = await clears(page, 'game-canvas');
+  await page.waitForTimeout(1500);
+  expect(await clears(page, 'game-canvas')).toBe(c0);
   const dmg0 = await page.locator('.fx-dmg-layer').count();
   // the champion select itself draws no 3D (portraits only); Preview opens the browser's clip on demand
   await expect(page.locator('.pl-pick canvas')).toHaveCount(0);
@@ -76,10 +83,10 @@ test('boot splash, champion browser and preview pacing', async ({ page }) => {
   await page.locator('.pl-champ [data-a="close"]').tap();
   await expect(page.locator('.pl-champ')).toHaveCount(0);
   await expect(page.locator('html[data-champ]')).toHaveCount(0);
-  // the lobby draws again
+  // the menus are painted art (ui/stage/artStage.ts): the game canvas still draws nothing
   const g2 = await clears(page, 'game-canvas');
   await page.waitForTimeout(1000);
-  expect(await clears(page, 'game-canvas')).toBeGreaterThan(g2);
+  expect(await clears(page, 'game-canvas')).toBe(g2);
 });
 
 test('match: no program links after the veil; cooldown sweeps write only on a step', async ({ page }) => {

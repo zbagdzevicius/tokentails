@@ -2,8 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { toChampSelect } from './helpers';
 
 // Home (HOME-MODES.md §4, was the lobby redesign), desktop 1280x720 and landscape 844x390: the round PLAY is visible and on
-// top, the whole pedestal stays in frame (it was cut off at both sizes), Settings closes on Escape with focus back on
-// its button, and the keyboard plays (Enter → Mode Select → Enter → Enter → LOCK IN) into a live match.
+// top, the hero shows as painted art wholly in frame (ui/stage/artStage.ts; no 3D on menus, founder Nov 13), Settings
+// closes on Escape with focus back on its button, and the keyboard plays (Enter → Mode Select → Enter → Enter → LOCK IN)
+// into a live match.
 
 const PLAYED = { v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
 
@@ -13,8 +14,6 @@ async function seed(page: Page): Promise<void> {
   }, JSON.stringify(PLAYED));
 }
 
-const frame = async (page: Page): Promise<number[]> =>
-  (await page.evaluate(() => document.documentElement.dataset.lobbyFrame ?? '')).split(',').filter(Boolean).map(Number);
 
 async function onTop(page: Page, sel: string): Promise<boolean> {
   return page.evaluate((s) => {
@@ -26,7 +25,7 @@ async function onTop(page: Page, sel: string): Promise<boolean> {
   }, sel);
 }
 
-test('the lobby: Play on top, the whole pedestal in frame, named champion', async ({ page }) => {
+test('the lobby: Play on top, the hero art in frame, named champion, no 3D', async ({ page }) => {
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
@@ -38,14 +37,19 @@ test('the lobby: Play on top, the whole pedestal in frame, named champion', asyn
   // Home (HOME-MODES.md §4): the champion's nameplate over the hero, a label (the champion is chosen after PLAY)
   await expect(page.locator('.hm-plate-n')).toHaveText(/^Sage/);
   await expect(page.locator('.hm-plate-s')).toHaveText('Marksman · Wind');
-  await expect(page.locator('div.hm-plate')).toHaveCount(1);
-  // [hero top, pedestal front-bottom, pedestal left, pedestal right] in NDC
-  await expect.poll(async () => (await frame(page)).length).toBe(4);
-  const [top, bottom, left, right] = await frame(page);
-  expect(top).toBeLessThanOrEqual(1);
-  expect(bottom).toBeGreaterThanOrEqual(-1);
-  expect(left).toBeGreaterThanOrEqual(-1);
-  expect(right).toBeLessThanOrEqual(1);
+  await expect(page.locator('.hm-plate')).toHaveCount(1);
+  // the hero is painted art (its splash), wholly on screen; the game canvas is hidden on menus
+  const art = page.locator('.pl-stage[data-mode="home"] [data-testid="stage-art"]');
+  await expect(art).toBeVisible();
+  await expect.poll(() => art.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+  expect(await art.getAttribute('src')).toMatch(/assets\/splash\/sage-(360|720)\.webp/);
+  const box = (await art.boundingBox())!;
+  const vp = page.viewportSize()!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
+  expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
+  expect(await page.locator('#game-canvas').evaluate((c) => getComputedStyle(c).visibility)).toBe('hidden');
   // no money words on the lobby
   await expect(page.locator('.pl-home')).not.toContainText(/\$|€|price|buy|donate/i);
 });
