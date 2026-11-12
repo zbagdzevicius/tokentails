@@ -213,20 +213,17 @@ describe('store panel', () => {
     expect(el.querySelectorAll('[data-scroll="grid"] .cst-card.cst-cos[data-tier="bundle"]')).toHaveLength(2);
   });
 
-  it('coat cards: the coat on its hero, the rung and price; a tap opens the detail with Buy; the grid keeps its scroll', () => {
-    const looks: string[] = [];
-    const warmed: number[] = [];
-    const { el, checkout } = open(state(), {
-      preview: (h, c) => (looks.push(`${h}:${c}`), `data:image/png;base64,${h}`),
-      warm: (l) => void warmed.push(l.length),
-    });
+  it('coat cards: the coat painted art, the rung and price; a tap opens the detail with Buy; the grid keeps its scroll', () => {
+    const { el, checkout } = open(state());
     click(el.querySelector('.cst-tabs [data-tab="coats"]'));
-    expect(warmed).toEqual([20]); // one bake pass for the whole grid
     const legendary = el.querySelector('.cst-card[data-sel="pl_coat_brutus_thunderpaw"]')!;
     expect(legendary.getAttribute('data-rung')).toBe('LEGENDARY');
     expect(legendary.textContent).toMatch(/Legendary · (\$|€)14\.99/);
-    expect((legendary.querySelector('img.cst-pic') as HTMLImageElement).getAttribute('src')).toContain('brutus');
-    expect(looks).toContain('brutus:coat.brutus.store_thunderpaw');
+    // the brand-book skin art on pawlegends.app (lazy), Sir Brutus's own splash when it fails to load
+    const img = legendary.querySelector('img.cst-skin') as HTMLImageElement;
+    expect(img.getAttribute('src')).toContain('/pawlegends-art/skins/coat.brutus.store_thunderpaw-');
+    expect(img.getAttribute('loading')).toBe('lazy');
+    expect(img.getAttribute('data-fallback')).toContain('assets/splash/brutus-');
     click(el.querySelector('.cst-card[data-sel="pl_coat_clem_calico"]'));
     const d = el.querySelector('.cst-detail')!;
     expect(d.textContent).toContain('Calico');
@@ -237,29 +234,12 @@ describe('store panel', () => {
     expect(document.activeElement?.getAttribute('data-sel')).toBe('pl_coat_clem_calico');
   });
 
-  it('with ready(): the coat grid draws the splash first, then bakes two portraits per frame and swaps them in', async () => {
-    vi.useFakeTimers();
-    try {
-      const baked = new Set<string>();
-      const batches: number[] = [];
-      const { el } = open(state(), {
-        ready: (h, c) => (baked.has(`${c}`) ? `data:image/png;base64,${h}` : null),
-        warm: (l) => {
-          batches.push(l.length);
-          for (const [, c] of l) baked.add(`${c}`);
-        },
-        tab: 'coats',
-      });
-      expect(el.querySelectorAll('img.cst-pic')).toHaveLength(0);
-      expect(el.querySelectorAll('img[data-coat]')).toHaveLength(20);
-      await vi.advanceTimersByTimeAsync(2000);
-      expect(Math.max(...batches)).toBeLessThanOrEqual(2);
-      expect(batches.reduce((a, b) => a + b, 0)).toBe(20);
-      expect(el.querySelectorAll('img.cst-pic')).toHaveLength(20);
-      expect(el.querySelectorAll('img[data-coat]')).toHaveLength(0);
-    } finally {
-      vi.useRealTimers();
-    }
+  it('the coat grid renders nothing at runtime: every coat card is a painted <img>, none is a data: bake', () => {
+    const { el } = open(state(), { tab: 'coats' });
+    const imgs = [...el.querySelectorAll<HTMLImageElement>('img[data-coat]')];
+    expect(imgs).toHaveLength(20);
+    for (const i of imgs) expect(i.getAttribute('src')).toMatch(/^(https?:|\.?\/)[^ ]*\.webp/);
+    expect(el.innerHTML).not.toContain('data:image');
   });
 
   it('owned and equipped: Owned · Equip, then Equipped after the equip; frames show the ring and their title', () => {

@@ -3,9 +3,9 @@
  * out (structure only; every piece of art and every shape here is our own). It supersedes LANDING-PICK-UX.md Part A
  * (the left column) and keeps its rules: no scroll, 44 px targets, safe areas, no feature flags.
  *
- * Layers, back to front: L0 the painted key art (the 3D lobby's backdrop, render/lobby/lobbyBg.ts `legends`), L1 the
- * 3D picked hero on its pedestal (centred), L2 warm motes on a canvas (motes.ts; Med/High only), L3 two CSS light
- * shafts (off on Low), L4 this UI:
+ * Layers, back to front: L0 the painted key art (ui/stage/artStage.ts, render/lobby/lobbyBg.ts `legends`), L1 the
+ * picked hero as painted art in its gold card (its splash, or the worn skin's splash; no 3D on menus, founder Nov 13),
+ * centred, L2 warm motes on a canvas (motes.ts; Med/High only), L3 two CSS light shafts (off on Low), L4 this UI:
  * - top left: the profile chip (avatar in its frame ring with the Season XP ring, name, XP bar, tier);
  * - top centre: Season XP and tier chips (only numbers that exist; tap opens the pass);
  * - top right (`.lb-corner`, where the account chip mounts): Friends and ranked (embedded), Settings, Sound (the old
@@ -35,7 +35,7 @@ import { ELEMENT_COLOR, FRAME_NAME } from '../../render/cosmetics';
 import { ELEMENT_NAME } from '../../meta/roster';
 import { cardAttrs } from '../cards/el';
 import { frameRing } from '../avatar';
-import { cssDataUrl } from '../cssUrl';
+import { cssPicUrl } from '../cssUrl';
 import { icon } from '../icons';
 import type { Choice } from '../screens';
 import { bindVersionMark, versionMarkHtml } from '../versionMark';
@@ -155,7 +155,7 @@ export const ringPct = (p: HomeProfile): number => (p.tier === null ? 0 : Math.r
 function avatarHtml(o: HomeScreenOpts, el: string): string {
   const hide = firstHidesBadge(o);
   const frame = hide ? null : o.frame;
-  const pic = cssDataUrl(o.portrait);
+  const pic = cssPicUrl(o.portrait);
   const face = pic ? ` style="background-image:${pic}" ${cardAttrs(o.identity.element, null)}` : '';
   // a worn profile frame tints the outer ring (CHAT-AVATARS.md §7.4 colours; the chat worktree's avatar plugs in here)
   const ring = frame ? frameRing(frame) : null;

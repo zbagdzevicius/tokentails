@@ -18,3 +18,11 @@ export function cssDataUrl(u: string | null | undefined): string | null {
   const ok = /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u) || /^blob:https?:\/\/[^\s"'\\()<>;]+$/.test(u);
   return ok ? `url(&quot;${u}&quot;)` : null;
 }
+
+/**
+ * A hero picture for an inline style: a painted face or splash (ui/art.ts: an absolute http(s) URL, checked like
+ * `cssUrl`) or an internal data/blob picture; else null.
+ */
+export function cssPicUrl(u: string | null | undefined): string | null {
+  return cssDataUrl(u) ?? cssUrl(u);
+}

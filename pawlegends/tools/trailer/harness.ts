@@ -14,7 +14,6 @@ import '../../src/ui/ui.css';
 import * as THREE from 'three';
 import { createRenderer, isShortLandscape, type GameRenderer } from '../../src/render/renderer';
 import { isoPitch } from '../../src/render/camera/IsoRig.js';
-import { bakePortraits } from '../../src/render/portraits';
 import { Lobby } from '../../src/render/lobby';
 import { pickScreen } from '../../src/ui/screens';
 import { MatchSession, type MatchSetup } from '../../src/app/matchSession';
@@ -397,7 +396,6 @@ function setLayers(keep: readonly string[], hide: readonly string[] = []): void 
 function ensureRenderer(): GameRenderer {
   if (gr) return gr;
   gr = createRenderer(root, 'high');
-  bakePortraits(gr);
   gr.resize();
   return gr;
 }

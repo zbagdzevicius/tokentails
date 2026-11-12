@@ -56,7 +56,8 @@ describe('party chat', () => {
     c.el.querySelector<HTMLElement>('[data-a="toggle"]')!.click();
     const line = c.el.querySelector('.pp-chat-line')!;
     expect(line.querySelector('.pp-chat-name')!.textContent).toBe('<b>Sunny</b>');
-    expect(line.querySelector('img')).toBeNull();
+    // the text never becomes markup: the only picture is the sender's painted hero face (ui/art.ts)
+    expect(line.querySelector('img:not([src*="/assets/faces/"])')).toBeNull();
     c.el.querySelector<HTMLElement>('[data-a="say"]')!.click();
     expect(sent[0]).toMatchObject({ t: 'chat.say', k: 'q' });
     const input = c.el.querySelector<HTMLInputElement>('[data-testid="party-chat-input"]')!;
