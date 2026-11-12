@@ -107,6 +107,26 @@ like in Pink Paw Knight"):
 Team colour sits on the shoulder mantle, the helmet / hood / cap, the pauldrons and the cape (21% to 34% of the
 up-facing area, `tests/unit/team-read.test.ts`). `bake:heroes` and `bake:map` stay unwritten.
 
+## UI art: pictures, not renders (Nov 13)
+
+Founder, Nov 13: "we show too much of champs look rendered rather than images in in-game UI". The 3D models are for
+the match and the champion browser's skill clips only; every menu, card and HUD picture is painted art (`src/ui/art.ts`):
+
+- **Faces** `public/assets/faces/<hero>-256.webp` (in the bundle, ≈7 KB each): HUD, pick tiles and seats, cards,
+  avatars, minimap, profile ring (`render/portraits.ts` `portraitUrl` now returns them; no WebGL bake at boot).
+- **Splashes** `public/assets/splash/<hero>-360|720.webp`: the hero in its default look on big surfaces.
+- **Skin art** `../pawlegends-web/public/pawlegends-art/skins/<skin id>-256|360|720.webp` (face + 4:5 splash per skin of
+  the game's skins library, ids from `src/ui/art/skinArt.gen.ts`): 14 MB, so it is served by pawlegends.app beside
+  the game, outside the 10 MB budget, loaded lazily with `?v=`; the app and other hosts read it from
+  https://pawlegends.app. A missing or offline skin picture falls back to the hero's own (`data-fallback`, stacked
+  backgrounds, faces swapped in only once loaded).
+- **Menu stage** `src/ui/stage/artStage.ts`: Home, the champion select and the results show the screen's painted scene
+  and the hero's art card in plain DOM; the game canvas is hidden and draws nothing outside a match.
+
+Import or refresh the art from the brand book with `node tools/import-skin-art.mjs <brandbook skins/img dir>` (needs
+`cwebp`); it rewrites the faces, the skin files and `skinArt.gen.ts`. `tests/unit/skin-art.test.ts` checks every id
+maps to a real skin of the same hero and every file exists.
+
 ## Cats or dogs (sim v14, DOGS-V13 §2)
 
 The pick screen opens with a **CATS / DOGS** switch over the hero grid (`src/ui/screens.ts` `sideSwitch`,

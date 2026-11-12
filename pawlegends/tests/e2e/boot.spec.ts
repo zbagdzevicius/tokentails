@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-// The page boots into the title over the lobby turntable, with no crash overlay and no debug globals.
+// The page boots into the title over the painted menu stage (the game canvas exists, hidden until a match), with no
+// crash overlay and no debug globals.
 test('boots to the title screen', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -9,7 +10,8 @@ test('boots to the title screen', async ({ page }) => {
   });
   await page.goto('/');
   await page.waitForSelector('html[data-ready="1"]');
-  await expect(page.locator('#game-canvas')).toBeVisible();
+  await expect(page.locator('#game-canvas')).toHaveCount(1);
+  await expect(page.locator('.pl-stage [data-testid="stage-art"]')).toBeVisible();
   await expect(page.locator('.pl-title')).toBeVisible();
   await page.waitForTimeout(500);
   await expect(page.locator('#crash')).toHaveCount(0);
