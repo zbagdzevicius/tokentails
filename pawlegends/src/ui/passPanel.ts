@@ -99,6 +99,21 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
           .join('');
     const [kick, title] = def.name.includes(': ') ? def.name.split(': ', 2) : ['', def.name];
     const prevLeft = root.querySelector<HTMLElement>('.pass-track')?.scrollLeft;
+    // a re-render (a claim, Claim all, a host refresh) keeps keyboard focus: the same tile, else the same control,
+    // else the selected tab (innerHTML would otherwise drop focus to the page behind the modal)
+    const f = document.activeElement as HTMLElement | null;
+    const refocus =
+      f && root.contains(f)
+        ? f.dataset.tier
+          ? `.pc[data-row="${f.dataset.row}"][data-tier="${f.dataset.tier}"]`
+          : f.dataset.a
+            ? `[data-a="${f.dataset.a}"]`
+            : f.dataset.buy
+              ? `[data-buy="${f.dataset.buy}"]`
+              : f.classList.contains('pass-track')
+                ? '.pass-track'
+                : '[role="tab"][aria-selected="true"]'
+        : null;
     root.innerHTML = `<div class="card bk-card">${bookClose('Legends Pass')}<div class="bk-head">${bookTabs('pass', 'Treat Track and Legends Pass')}</div>
       <div class="pass-plate" role="group" aria-label="${esc(def.name)}">
         <div class="pp-title"><span class="kick">${esc(kick)}</span><b>${esc(title)}</b></div>
@@ -125,6 +140,11 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
       };
       track.addEventListener('scroll', more, { passive: true });
       more();
+    }
+    if (refocus) {
+      const el = root.querySelector<HTMLElement>(refocus);
+      const to = el && !(el as HTMLButtonElement).disabled ? el : root.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+      to?.focus({ preventScroll: true });
     }
   };
   render();

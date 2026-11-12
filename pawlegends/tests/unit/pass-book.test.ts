@@ -128,6 +128,18 @@ describe('Legends Pass book', () => {
     expect(closed).toBe(2);
   });
 
+  it('a claim re-render keeps keyboard focus on the same tile; a refresh keeps it inside the dialog', () => {
+    const p = passPanel(document.body, { snapshot: () => snap(), claim: () => true, onClose: () => undefined });
+    const tile = p.el.querySelector<HTMLElement>('.pc.ready[data-row="f"][data-tier="6"]')!;
+    tile.focus();
+    tile.click();
+    expect((document.activeElement as HTMLElement).dataset.tier).toBe('6');
+    p.el.querySelector<HTMLElement>('[data-a="all"]')!.focus();
+    p.refresh();
+    expect((document.activeElement as HTMLElement).dataset.a).toBe('all');
+    p.close();
+  });
+
   it('hex() pads palette numbers', () => {
     expect(hex(0x0a0b0c)).toBe('#0a0b0c');
     expect(hex(0xffd34d)).toBe('#ffd34d');
