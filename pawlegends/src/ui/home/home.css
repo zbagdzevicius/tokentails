@@ -182,6 +182,13 @@ button.hm-profile:hover { background: linear-gradient(90deg, rgba(60, 38, 68, 0.
   overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0;
 }
 .pl-home .hm-slot:empty { display: none; }
+/* rows keep their height (a squashed column drew "Save your wins" over the level chips); too tall scrolls */
+.pl-home .hm-slot { overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; z-index: 6; }
+.pl-home .hm-slot::-webkit-scrollbar { display: none; }
+.pl-home .hm-slot > * { flex: none; max-width: 100%; }
+/* a left popover (Events, Today) opens where the slot sits: it goes on top and the slot steps aside */
+.pl-home .hm-left { z-index: 9; }
+.pl-home:has(.hm-left details[open]) .hm-slot { visibility: hidden; }
 
 /* ------------------------------------------------------------------------ right edge: promo rotator */
 .hm-promo {
@@ -464,6 +471,11 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 @media (max-width: 760px) {
   .hm-plate-n { font-size: 18px; }
 }
+
+/* ----------------------------------------------------- a settled Home (homeScreen.ts `patchHome`, `still`) */
+/* The entrance (bars drop in, the left stack and the promo slide in, PLAY pops in) plays on the first Home and the one
+   after a match only: a Home redrawn under a panel, a tab switch or a data refresh stays still. Loops keep running. */
+.pl-screen.pl-home.hm-still :is(.hm-top, .hm-corner, .hm-left, .hm-promo, .hm-stage, .hm-nav, .hm-pill, .hm-line, .hm-qb, .hm-play, .lb-peek) { animation: none; }
 
 /* ------------------------------------------------------------------------- Low tier, reduced motion */
 .pl-home.low *, html[data-quality='low'] .pl-home * { animation: none !important; }
