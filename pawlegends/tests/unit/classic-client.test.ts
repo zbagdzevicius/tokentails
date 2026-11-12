@@ -18,7 +18,7 @@ import { CLASSIC_WHEEL_KINDS, WHEEL_KINDS, chipPing, wheelKinds, wheelSlice } fr
 import { PING_KIND } from '../../src/data/pings';
 import { teamLabel } from '../../src/ui/scoreboard';
 import { mapInfo } from '../../src/sim/map/info';
-import { hwLanes, hwLanterns, hwOuterTrees, hwWalkable, wallPit } from '../../src/render/views/hearthwoodView';
+import { hwCanopy, hwForestTrees, hwLanes, hwLanterns, hwOuterTrees, hwReedSteps, hwWalkable, wallPit } from '../../src/render/views/hearthwoodView';
 import { gateLines } from '../../src/render/fx/lifecycleGate';
 import { lanePoints, bushList } from '../../src/ui/minimap';
 import { bushCount } from '../../src/render/bushClear';
@@ -68,7 +68,8 @@ describe('mode toggle', () => {
   it('maps modes to maps and renders a radio group', () => {
     expect(MODE_MAP.classic).toBe('hearthwood');
     expect(modeOfMap('hearthwood')).toBe('classic');
-    expect(modeOfMap(undefined)).toBe('quick');
+    expect(modeOfMap(undefined)).toBe('skirmish');
+    expect(modeOfMap(undefined, 'blitz')).toBe('blitz');
     const html = matchModeHtml('classic');
     expect(html).toContain('role="radiogroup"');
     expect(html).toMatch(/data-v="classic"[^>]*>|aria-checked="true"[^>]*data-v="classic"/);
@@ -149,8 +150,23 @@ describe('Hearthwood scenery', () => {
     const lamps = hwLanterns(info);
     expect(lamps.length).toBeGreaterThan(6);
     for (const p of lamps) expect(hwWalkable(info, p.x, p.y)).toBe(true);
+    // Sim v22: no loose jungle rocks (the carved forest replaced them); only the pit rings.
     const kinds = new Set(info.walls.map((r) => wallPit(info, r)));
-    expect(kinds).toEqual(new Set(['grizzlechop', 'pudding', null]));
+    expect(kinds).toEqual(new Set(['grizzlechop', 'pudding']));
+  });
+
+  it('sim v22: forest trees stand on the forest edge, canopy over the deep forest, within the phone budget', () => {
+    const trees = hwForestTrees(info);
+    const canopy = hwCanopy(info);
+    // MAP-5V5-STANDARD.md §12: about 600 edge trees and 120 canopy cards; Low keeps about half the trees.
+    expect(trees.length).toBeGreaterThan(300);
+    expect(trees.length).toBeLessThan(1100);
+    expect(trees.filter((t) => t.low).length / trees.length).toBeGreaterThan(0.4);
+    expect(canopy.length).toBeLessThan(260);
+    for (const t of [...trees, ...canopy]) expect(hwWalkable(info, t.x, t.y), `${t.x},${t.y}`).toBe(false);
+    // Reed Steps where the river entrances meet the river: two a quadrant.
+    expect(hwReedSteps(info).length).toBe(8);
+    expect(hwForestTrees(mapInfo('crossing'))).toEqual([]);
   });
 
   it('the far forest stays off the map', () => {

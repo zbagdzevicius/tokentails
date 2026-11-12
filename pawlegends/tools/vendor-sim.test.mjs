@@ -13,12 +13,14 @@ describe('vendor-sim', () => {
     expect(/^\s*import\s/m.test(bundle)).toBe(false);
     expect(modules.every((m) => m.startsWith('src/sim/') || m.startsWith('src/data/'))).toBe(true);
     expect(JSON.parse(files[`v${SIM_VERSION}/pawlegends-sim.sha256.json`]).simVersion).toBe(SIM_VERSION);
-    // GAPS B0 dual verifier: v10 to v20 (v19: 5v5 Classic on Hearthwood Divide; v20: Wild Rift basic attacks) stay
-    // frozen beside the live sim v21 (the Kibble Cannon, docs/plans/moba/V21-FUN.md; v9 retired), and the root index
-    // dispatches by simVersion.
-    expect(SIM_VERSION).toBe(21);
+    // GAPS B0 dual verifier: v10 to v21 (v19: 5v5 Classic on Hearthwood Divide; v20: Wild Rift basic attacks; v21: the
+    // Kibble Cannon) stay frozen beside the live sim v22 (the standard 5v5 layout and Blitz,
+    // docs/plans/moba/MAP-5V5-STANDARD.md, BLITZ.md; v9 retired), and the root index dispatches by simVersion.
+    expect(SIM_VERSION).toBe(22);
     expect(JSON.parse(files['v20/pawlegends-sim.sha256.json']).simVersion).toBe(20);
+    expect(JSON.parse(files['v21/pawlegends-sim.sha256.json']).simVersion).toBe(21);
     expect(files['v20/hearthwood-pvp.fixture.json']).toBeDefined();
+    expect(files['v21/hearthwood-pvp.fixture.json']).toBeDefined();
     expect(JSON.parse(files['v10/pawlegends-sim.sha256.json']).simVersion).toBe(10);
     expect(JSON.parse(files['v11/pawlegends-sim.sha256.json']).simVersion).toBe(11);
     expect(JSON.parse(files['v12/pawlegends-sim.sha256.json']).simVersion).toBe(12);

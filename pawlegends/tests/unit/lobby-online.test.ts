@@ -142,7 +142,7 @@ describe('Play online (M1a)', () => {
     expect(pvp().getAttribute('aria-disabled')).toBeNull();
     expect(pvp().textContent).not.toContain('1/5');
     expect(pvp().getAttribute('aria-label')).toContain('5v5 Classic');
-    (root.querySelector('[data-testid="map-quick"]') as HTMLElement).click();
+    (root.querySelector('[data-testid="map-skirmish"]') as HTMLElement).click();
     expect(pvp().getAttribute('aria-disabled')).toBe('true');
     expect(pvp().textContent).toContain('1/5');
     (root.querySelector('[data-testid="map-classic"]') as HTMLElement).click();

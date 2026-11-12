@@ -19,6 +19,7 @@ import type { Team } from '../api';
 import { dist2, idiv, iatan2, isqrt, moveToward } from '../fixed';
 import { LANE_PATHS } from '../map/lanes';
 import type { MatchHandle } from '../state';
+import { grantSugarRush } from './sugar';
 import { G, Kind, NEVER, RANGE, TEAM_NEUTRAL, UnitState, type World } from '../world';
 import { clearStatus } from '../effects/status';
 import { knockback } from '../effects/knockback';
@@ -211,6 +212,8 @@ export function onPuddingDown(m: MatchHandle): void {
   if (w.mg.length > 0) m.events.push({ type: 'objective', tick: w.globals[G.Tick], kind: 'pudding', team: team as Team, slot: by >= 0 && by < RANGE.minions ? by : -1 });
   // Sim v12: every hero of the calming team gets FISH.pudding.
   for (let h = RANGE.heroes; h < RANGE.minions; h++) if (w.kind[h] === Kind.Hero && w.team[h] === team) grantFish(m, h, FISH.pudding, 'pudding');
+  // Sim v22 (Hearthwood): and Sugar Rush.
+  grantSugarRush(m, team);
 }
 
 /** Nearest standing enemy structure within breath range of the escort, or −1. */

@@ -5,10 +5,10 @@
  *   node tools/hearth-gates.mjs [--seeds 300] [--from 1] [--procs N] [--det 40] [--json]
  *
  * - G5/G6 symmetry and balance: each seed plays two PvP matches with ten `normal` pilots, cats on team 0 and then the
- *   same line-up with the sides swapped (tools/lib/hearth-entry.ts hearthSymmetryPair). Passes when team 0 wins 47% to
- *   53%, cats 47% to 53%, every hero 46% to 54% (heroes with fewer than 60 matches are reported, not gated), the
- *   median length lies within 12:00 to 14:30 and at most 2% reach the safety end. Sim v20 method
- *   (docs/plans/moba/V20-CHASE.md §10): side, species, length and safety must pass in every window (at least two
+ *   same line-up with the sides swapped (tools/lib/hearth-entry.ts hearthSymmetryPair). Passes when team 0 wins 48% to
+ *   52% (sim v22; 47% to 53% before), cats 47% to 53%, every hero 46% to 54% (heroes with fewer than 60 matches are
+ *   reported, not gated), the median length lies within 12:00 to 14:30 and at most 2% reach the safety end. Sim v20
+ *   method (docs/plans/moba/V20-CHASE.md §10): side, species, length and safety must pass in every window (at least two
  *   `--seeds 2000` windows of 4,000 matches); the per-hero check is judged pooled over those windows. Verify only on
  *   unseen seeds 20001–28000.
  * - G2 determinism: `--det` seeds each of a solo, a party and a PvP 5v5 match recorded and re-simulated from the record.
@@ -160,7 +160,8 @@ export function hearthGates(s) {
   const heroes = Object.entries(s.heroes).filter(([, v]) => v.n >= 60);
   const off = heroes.filter(([, v]) => v.pct < 46 || v.pct > 54);
   return [
-    ['G6 side (team 0) win rate 47% to 53%', s.leftPct >= 47 && s.leftPct <= 53, `${s.leftPct.toFixed(1)}% of ${s.matches}`],
+    // sim v22 (MAP-5V5-STANDARD.md §14 G5): the side band tightened from 47–53% to 48–52%
+    ['G6 side (team 0) win rate 48% to 52%', s.leftPct >= 48 && s.leftPct <= 52, `${s.leftPct.toFixed(1)}% of ${s.matches}`],
     ['G5 cats vs dogs 47% to 53%', s.catsPct >= 47 && s.catsPct <= 53, `${s.catsPct.toFixed(1)}%`],
     ['G5 every hero 46% to 54% (n ≥ 60)', off.length === 0, off.length ? off.map(([h, v]) => `${h} ${v.pct.toFixed(1)}%`).join(', ') : `${heroes.length} heroes in band`],
     ['G5 match length p50 12:00 to 14:30', s.p50 >= 12 * TICKS_PER_MIN && s.p50 <= 14.5 * TICKS_PER_MIN, `p50 ${mmss(s.p50)}, p95 ${mmss(s.p95)}`],

@@ -39,16 +39,20 @@ afterEach(() => {
 const NOW = Date.UTC(2026, 10, 11, 12);
 
 describe('mode registry', () => {
-  it('ships the default table: Skirmish and Classic live, Ranked locked, Blitz and Cannon Chaos soon', () => {
+  it('ships the default table: Blitz, Skirmish and Classic live (sim v22), Ranked locked, Cannon Chaos soon', () => {
     const s = (id: string): string => effectiveState(modeById(id)!, NOW);
     expect(s('skirmish')).toBe('live');
     expect(s('classic')).toBe('live');
     expect(s('coop')).toBe('live');
     expect(s('ranked')).toBe('locked');
-    expect(s('blitz')).toBe('soon');
+    expect(s('blitz')).toBe('live');
     expect(s('cannon')).toBe('soon');
     expect(modeById('classic')!.map).toBe('hearthwood');
     expect(modeById('skirmish')!.map).toBe('crossing');
+    // sim v22 Blitz: the Crossing, solo against bots at launch (WR-BS-PLAN.md §3a), tiles with the probe minutes
+    expect(modeById('blitz')).toMatchObject({ map: 'crossing', size: '3v3', minutes: '~3 min', queues: ['bots'] });
+    expect(modeById('skirmish')!.minutes).toBe('~7 min');
+    expect(modeById('classic')!.minutes).toBe('~13 min');
     // every mode has art, rules and at least one queue
     for (const m of BASE_MODES) {
       expect(m.art).toMatch(/^[a-z]+$/);
@@ -58,7 +62,7 @@ describe('mode registry', () => {
   });
 
   it('lists playable modes first, then locked, then coming soon (registry order inside each group)', () => {
-    expect(modeList(NOW).map((m) => m.id)).toEqual(['skirmish', 'classic', 'coop', 'ranked', 'blitz', 'cannon']);
+    expect(modeList(NOW).map((m) => m.id)).toEqual(['blitz', 'skirmish', 'classic', 'coop', 'ranked', 'cannon']);
   });
 
   it('a mode registered by another worktree replaces the base entry by id (v22 Blitz goes live)', () => {
@@ -88,9 +92,10 @@ describe('mode registry', () => {
   });
 
   it('meta line: size and length, the lock text, or Coming soon', () => {
-    expect(metaLine(modeById('classic')!, NOW)).toBe('5v5 · ~15 min');
+    expect(metaLine(modeById('classic')!, NOW)).toBe('5v5 · ~13 min');
+    expect(metaLine(modeById('blitz')!, NOW)).toBe('3v3 · ~3 min');
     expect(metaLine(modeById('ranked')!, NOW)).toBe('Coming soon');
-    expect(metaLine(modeById('blitz')!, NOW)).toBe('Coming soon');
+    expect(metaLine(modeById('cannon')!, NOW)).toBe('Coming soon');
   });
 
   it('pill text and queue fallback', () => {
@@ -104,8 +109,9 @@ describe('mode registry', () => {
   it('maps a mode to the old toggle value (the pick and party screens still read it)', () => {
     expect(legacyMode('classic')).toBe('classic');
     expect(legacyMode('ranked')).toBe('classic');
-    expect(legacyMode('skirmish')).toBe('quick');
-    expect(legacyMode('coop')).toBe('quick');
+    expect(legacyMode('skirmish')).toBe('skirmish');
+    expect(legacyMode('coop')).toBe('skirmish');
+    expect(legacyMode('blitz')).toBe('blitz');
   });
 });
 
@@ -114,6 +120,10 @@ describe('saved mode choice', () => {
     expect(loadModeChoice(modeList(NOW), NOW)).toEqual({ mode: 'skirmish', queue: 'bots' });
     mem.set('pawlegends.matchMode', 'classic');
     expect(loadModeChoice(modeList(NOW), NOW)).toEqual({ mode: 'classic', queue: 'bots' });
+    mem.set('pawlegends.matchMode', 'quick');
+    expect(loadModeChoice(modeList(NOW), NOW)).toEqual({ mode: 'skirmish', queue: 'bots' });
+    mem.set('pawlegends.matchMode', 'blitz');
+    expect(loadModeChoice(modeList(NOW), NOW)).toEqual({ mode: 'blitz', queue: 'bots' });
   });
 
   it('round-trips, and a saved mode that cannot be played falls back to Skirmish', () => {

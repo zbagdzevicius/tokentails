@@ -133,8 +133,23 @@ const C_PLAYFIELD = Object.freeze({
   laneHalf: 5500,
   /** Base plaza, Purrhaven side (mirrored for Woof): [x0, y0, x1, y1]. Holds the fountain, the core and both lane mouths. */
   base: Object.freeze([1000, 20000, 15000, 40000]) as readonly [number, number, number, number],
-  /** Sim v19: 1 = every cell inside the rim is playfield (Hearthwood's open jungle); 0 = lanes, loop and plazas only. */
-  open: 0 as 0 | 1,
+  /**
+   * Sim v19: 1 = every cell inside the rim is playfield (v19 to v21 Hearthwood's open jungle); 0 = lanes, loop and
+   * plazas only. Sim v22 (docs/plans/moba/MAP-5V5-STANDARD.md §5.1): 2 = carved, a forest by default with the lanes,
+   * the river band, the base corners and the carved clearings, corridors and pit discs walkable.
+   */
+  open: 0 as 0 | 1 | 2,
+  /** Sim v22, carved maps: the base plaza is x + y ≤ baseSum in each team's corner (0: none). */
+  baseSum: 0,
+  /** Sim v22, carved maps: the river band |x + y − W| ≤ riverSum is walkable (0: none). */
+  riverSum: 0,
+  /**
+   * Sim v22, carved maps, all authored in team 0's south eighth (y ≤ x, x + y ≤ W) and applied to every copy under the
+   * map's D2 symmetry: clearings and pit discs [x, y, r], corridors [ax, ay, bx, by, half width].
+   */
+  clearings: Object.freeze([]) as readonly (readonly [number, number, number])[],
+  corridors: Object.freeze([]) as readonly (readonly [number, number, number, number, number])[],
+  pits: Object.freeze([]) as readonly (readonly [number, number, number])[],
 });
 
 /** Footprint radii (mm): range checks use centre distance ≤ range + target radius. Structures also block the nav grid. */
@@ -299,5 +314,6 @@ export function setMapData(d: MapDef): void {
 
 /** The largest map's sizes (module-level scratch buffers are sized by these). */
 export const MAX_CELLS = 16384;
-export const MAX_ENTITIES = 150;
+/** Sim v22: 160 (Hearthwood's 21 camp monsters; the hit masks cover 160 ids: 2 base words plus MASK_EXTRA 3). */
+export const MAX_ENTITIES = 160;
 export const MAX_HEROES = 10;

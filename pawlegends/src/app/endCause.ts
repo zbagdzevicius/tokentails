@@ -36,7 +36,9 @@ export class CoreLog {
 export interface EndCauseInput {
   won: boolean;
   /** GAPS B2: 'forfeit' = the player forfeited. */
-  reason: 'core' | 'safetyEnd' | 'forfeit';
+  /** Sim v22: 'timeUp' = a Blitz match reached 3:15 (`draw`: every tie-break was equal). */
+  reason: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp';
+  draw?: boolean;
   /** The phase the match ended in. */
   phase: 'play' | 'sunset' | 'suddenDeath' | string;
   /** What hit the losing core most in its last 20 s. */
@@ -61,6 +63,12 @@ const WHO: Record<CoreSource, [string, string]> = {
 /** One sentence: what decided the match, from the player's side. */
 export function endCause(i: EndCauseInput): string {
   if (i.reason === 'forfeit') return 'You forfeited the match.';
+  if (i.reason === 'timeUp') {
+    if (i.draw) return 'Time! Dead even on towers, core and takedowns: a draw.';
+    const [ourT, theirT] = i.towers;
+    if (ourT !== theirT) return i.won ? `Time! We took more towers (${ourT} to ${theirT}).` : `Time! They took more towers (${theirT} to ${ourT}).`;
+    return i.won ? 'Time! Towers even, our core was healthier.' : 'Time! Towers even, their core was healthier.';
+  }
   if (i.reason === 'safetyEnd') return i.won ? 'Time ran out with our core healthier.' : 'Time ran out with their core healthier.';
   const src: CoreSource = i.top ?? (i.phase === 'suddenDeath' ? 'decay' : 'heroes');
   let line = WHO[src][i.won ? 1 : 0];

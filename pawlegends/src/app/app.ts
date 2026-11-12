@@ -67,7 +67,7 @@ import { passPanel } from '../ui/passPanel';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { cardIdentity, selfNames, veilName } from '../meta/cardName';
 import type { MatchEnd, MatchSession, MatchSetup } from './matchSession';
-import { MODE_MAP, loadMatchMode, saveMatchMode, type MatchMode } from '../ui/lobby/matchMode';
+import { MODE_MAP, MODE_MINUTES, MODE_MUTATOR, MODE_NAME, loadMatchMode, modeFromUrl, saveMatchMode, type MatchMode } from '../ui/lobby/matchMode';
 import type { MapId } from '../sim/api';
 
 /**
@@ -77,7 +77,7 @@ import type { MapId } from '../sim/api';
 const loadMatch = (): Promise<typeof import('./matchSession')> => import('./matchSession');
 import { canPickDifficulty, difficultyFor, forfeitTick, guideMode, isRookie, pickable, PICK_DIFFICULTY_FROM, rookieAvailable } from './firstSession';
 import { dayKey, followsHero, loadQuests, progressQuests, questViews, saveQuests } from '../meta/quests';
-import { addTreatXp, loadTreats, loadTreatsRaw, migrateTreats, saveTreats, treatXpFor } from '../meta/treats';
+import { addTreatXp, loadTreats, loadTreatsRaw, migrateTreats, perMinuteShare, saveTreats, treatXpFor } from '../meta/treats';
 import { collectionPanel } from '../ui/collection';
 import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
@@ -188,6 +188,19 @@ export class App {
   private readonly forcedTier = qualityOverride() !== null;
   private last = performance.now();
   private dare: Dare | null = dareFromUrl();
+  /**
+   * Sim v22 (WR-BS-PLAN.md §5): `?mode=blitz|skirmish|classic` selects that tile once; a mode this build does not know
+   * (a newer client's link) shows "Update to play …" and falls back to Skirmish, never a crash.
+   */
+  private linkMode = (() => {
+    try {
+      return modeFromUrl(location.search);
+    } catch {
+      return null;
+    }
+  })();
+  /** Sim v22: Blitz matches finished in a row (the results' "Take {hero} into Skirmish" after two). */
+  private blitzRun = 0;
   /** Party play (MULTIPLAYER.md): the open party (lazy chunk), and a `?party=` code to join at boot. */
   private party: PartyClient | null = null;
   private partyCode: string | null = partyFromUrl();
@@ -697,7 +710,7 @@ export class App {
 
   /** Casual PvP: the mode chosen on the title this page (null: the remembered one). */
   private onlineMode: OnlineMode | null = null;
-  /** The title's 3v3 Quick | 5v5 Classic pick this visit (localStorage may be blocked; null = the stored one). */
+  /** The title's Blitz | Skirmish | Classic pick this visit (localStorage may be blocked; null = the stored one). */
   private matchModeNow: MatchMode | null = null;
   /** Home's mode and queue this visit (Mode Select's Confirm; null = the stored one). */
   private modeChoiceNow: ModeChoice | null = null;
@@ -706,6 +719,19 @@ export class App {
   showTitle(offer = true): void {
     // CHAMPION-STORE.md: the lobby's hero is one the player may pick (its quick Play starts it)
     this.keepPlayable();
+    // sim v22: a `?mode=` link picks its tile once (an unknown one says so and keeps Skirmish)
+    let notice: string | undefined;
+    if (this.linkMode) {
+      const lm = this.linkMode;
+      this.linkMode = null;
+      this.matchModeNow = lm.mode;
+      saveMatchMode(lm.mode);
+      // Home reads its own mode key (Mode Select): the link's tile, vs Bots
+      this.modeChoiceNow = { mode: lm.mode, queue: 'bots' };
+      saveModeChoice(this.modeChoiceNow);
+      if (!lm.known) notice = `Update to play ${lm.asked.charAt(0).toUpperCase()}${lm.asked.slice(1)}. Playing Skirmish for now.`;
+      this.analytics.track('mode_link', { mode: lm.known ? lm.mode : 'unknown', asked: lm.asked });
+    }
     // casual PvP: ask the backend once; the title redraws with the mode chip when it answers yes
     if (this.partyApi && pvpKnown() === null)
       void pvpAvailable(this.partyApi).then((yes) => {
@@ -816,6 +842,8 @@ export class App {
         onDifficulty: (d) => {
           this.choice = { ...this.choice, difficulty: d };
         },
+        // sim v22: a `?mode=` link's unknown mode says "Update to play …" as Home opens
+        ...(notice ? { notice } : {}),
         cardCount: skins.length,
         peek,
         wearing: card ? { name: card.name } : null,
@@ -1365,8 +1393,12 @@ export class App {
     // a dare keeps its own bots (the seed and the difficulty make the dare)
     const c: Choice = { ...pick, difficulty: seed !== undefined ? pick.difficulty : difficultyFor(p.matches, pick.difficulty, undefined, undefined, p.veteran) };
     // Sim v19: 5v5 Classic is the toggle's choice (a rematch keeps it); the first match and a dare stay 3v3
-    const map: MapId | undefined = seed === undefined && p.matches > 0 && (pick.map ?? MODE_MAP[loadMatchMode()]) === 'hearthwood' ? 'hearthwood' : undefined;
+    const stored = this.matchModeNow ?? loadMatchMode();
+    const map: MapId | undefined = seed === undefined && p.matches > 0 && (pick.map ?? (pick.mutator === 'blitz' ? 'crossing' : MODE_MAP[stored])) === 'hearthwood' ? 'hearthwood' : undefined;
+    // Sim v22: Blitz is the 3v3 tile's mutator (never on the first match, a dare or Classic)
+    const mutator = seed === undefined && p.matches > 0 && !map && (pick.mutator ?? (pick.map ? 'none' : MODE_MUTATOR[stored])) === 'blitz' ? ('blitz' as const) : undefined;
     delete c.map;
+    delete c.mutator;
     this.choice = isRookie(c.difficulty) ? { ...c, difficulty: pick.difficulty } : c;
     // Practice never becomes the remembered hero (the lobby keeps a playable one)
     if (practice) this.choice = { ...this.choice, hero: this.playableHero(this.choice.hero) };
@@ -1395,6 +1427,7 @@ export class App {
       seed,
       speed: this.speed,
       ...(map ? { map } : {}),
+      ...(mutator ? { mutator } : {}),
       firstMatch: tips,
       newPlayer: p.matches < 5,
       emote: owned.items.has('emote.starter') || owned.unlocks.has('emote.wave'),
@@ -1414,7 +1447,7 @@ export class App {
       showcase: this.skinShowcaseOpen(p.matches === 0 || tips).bots ? this.integration.state().featured.map((f) => `${FEATURED_SKIN_PREFIX}${f.catalogId}`) : [],
     };
     this.lastSetup = setup;
-    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined, load_ms: sinceLoadMs(), first_match: p.matches === 0 });
+    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined, load_ms: sinceLoadMs(), first_match: p.matches === 0, mode: map ? 'classic' : mutator ? 'blitz' : 'skirmish', map: map ?? 'crossing', mutator: mutator ?? 'none' });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
     const mates = companions.map((k) => k.name);
@@ -1422,7 +1455,7 @@ export class App {
     const worn = isCardSkinId(look.coat) ? getSkin(look.coat) : null;
     const veil = loadingVeil(
       this.root,
-      map ? 'Into Hearthwood Divide...' : 'Into the Crossing...',
+      map ? 'Into Hearthwood Divide...' : mutator ? 'Blitz! Into the Crossing...' : 'Into the Crossing...',
       mates.length ? `${mates.join(' and ')} ${mates.length > 1 ? 'walk' : 'walks'} with you this match` : undefined,
       this.wearing(look),
       { name: veilName(c.hero, look), matches: p.heroMatches[c.hero] ?? 0, bond: worn && !worn.featured ? worn.bond : null },
@@ -1434,8 +1467,11 @@ export class App {
     this.pendingPause = false;
     const token = ++this.matchToken;
     void loadMatch()
-      .then(({ MatchSession }) => {
+      .then(({ MatchSession, mapPreviewFor }) => {
         if (token !== this.matchToken) return;
+        // sim v22: a top-down card of Hearthwood on the veil while the match loads
+        const pv = mapPreviewFor(setup.map);
+        if (pv) veil.appendChild(pv);
         this.beginSession(MatchSession, setup, c, veil);
       })
       .catch((err: unknown) => {
@@ -1530,6 +1566,28 @@ export class App {
     this.analytics.track('match_end', { result: 'lost', reason: 'leave', length: seconds, hero: c.hero, difficulty: c.difficulty, takedowns: at.takedowns, pl_match_len_s: seconds, pl_rookie: isRookie(c.difficulty) });
   }
 
+  /** Sim v22: the Choice fields that start `mode` (Classic: the map; Blitz: the mutator; Skirmish: neither). */
+  private modeChoice(mode: MatchMode): Pick<Choice, 'map' | 'mutator'> {
+    return mode === 'classic' ? { map: 'hearthwood' } : mode === 'blitz' ? { mutator: 'blitz' } : { map: 'crossing', mutator: 'none' };
+  }
+
+  /**
+   * Sim v22 (WR-BS-PLAN.md §5): the results' context button. After a Skirmish or Classic loss: "Quick Blitz? ~3 min";
+   * after two Blitz in a row: "Take {hero} into Skirmish" (feeds the deep mode). Otherwise none.
+   */
+  private nextMode(played: MatchMode, won: boolean, hero: HeroId, setup: MatchSetup | null): { label: string; sub: string; onNext(): void } | null {
+    const go = (mode: MatchMode): void => {
+      sfx.play('click');
+      this.matchModeNow = mode;
+      saveMatchMode(mode);
+      this.analytics.track('rematch_click', { kind: 'mode', hero, mode, from: played });
+      this.startMatch({ ...(setup ? { hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty } : this.choice), ...this.modeChoice(mode) });
+    };
+    if (played !== 'blitz' && !won) return { label: 'Quick Blitz?', sub: `~${MODE_MINUTES.blitz} min`, onNext: () => go('blitz') };
+    if (played === 'blitz' && this.blitzRun >= 2) return { label: `Take ${HERO_TEXT[hero].title} into Skirmish`, sub: `~${MODE_MINUTES.skirmish} min`, onNext: () => go('skirmish') };
+    return null;
+  }
+
   private showResults(e: MatchEnd): void {
     // QA: the name the match used (a roster update during the match must not turn "Ficus" back into "Clem")
     const myCard = this.session?.card ?? null;
@@ -1538,7 +1596,13 @@ export class App {
     const won = e.result.outcome === 'won';
     const seconds = Math.floor(e.result.ticks / 30);
     const setup = this.lastSetup;
-    const rec = recordMatch(won, seconds, e.replay.difficulty);
+    // Sim v22: a Blitz match counts as a match but sets no fastest win, moves no ladder and has no dare link; its
+    // Treat XP is paid per minute like Skirmish (WR-BS-PLAN.md §9)
+    const blitz = e.replay.mutator === 'blitz';
+    const draw = e.result.draw === true;
+    const playedMode: MatchMode = setup?.map === 'hearthwood' ? 'classic' : blitz ? 'blitz' : 'skirmish';
+    this.blitzRun = blitz ? this.blitzRun + 1 : 0;
+    const rec = recordMatch(won, seconds, e.replay.difficulty, !blitz);
     // GDD §7.2 Bond: one more finished match wearing this cat's skin (earned by play only)
     const worn = isCardSkinId(setup?.look?.coat) ? getSkin(setup?.look?.coat) : null;
     let skinLine: { name: string; art?: string; bond: number; next: number | null; rung: CatTier; tint: number } | null = null;
@@ -1611,9 +1675,9 @@ export class App {
     const mySlot = e.welcome.slot;
     const grades = gradeMatch(e.result);
     const myGrade = grades.slots.find((g) => g.slot === mySlot)?.grade ?? 'C';
-    const gradeXp = forfeit ? 0 : GRADE_TREAT_XP[myGrade];
+    const gradeXp = forfeit ? 0 : Math.round(GRADE_TREAT_XP[myGrade] * perMinuteShare(blitz ? e.result.ticks : undefined));
     // GAPS A6: the first win of the local day adds its bonus (once a day, no streak, no catnip)
-    const treats = addTreatXp(loadTreats(), practice ? 0 : treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding, forfeit }) + quests.xp + gradeXp, ownedIds, { won: won && !practice, day: dayKey() });
+    const treats = addTreatXp(loadTreats(), practice ? 0 : treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding, forfeit, ...(blitz ? { ticks: e.result.ticks } : {}), ...(draw ? { draw } : {}) }) + quests.xp + gradeXp, ownedIds, { won: won && !practice, day: dayKey() });
     saveTreats(treats.state);
     if (treats.rewards.length) {
       for (const r of treats.rewards) if (!prof.unlocks.includes(r.id)) prof.unlocks.push(r.id);
@@ -1632,7 +1696,7 @@ export class App {
     if (won) this.lobby.confetti(3);
     let link: string | null = null;
     // a party match has no dare link (its seed belongs to the party)
-    if (won && !partyEnd) {
+    if (won && !partyEnd && !blitz) {
       try {
         const base = shareBase({ appShell: inAppShell(), embedded: this.bridge.active, referrer: document.referrer, href: location.href });
         link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds: seconds < suddenDeathS(e.replay.difficulty) ? seconds : 0 }, base);
@@ -1648,8 +1712,9 @@ export class App {
     }
     // GAPS A2: the grade replaces the old KDA impact on the ladder (an S or A loss costs half; not stacked)
     // the bot ladder is a solo rating: a party match (friends, a shared seed, bots flying dropped friends) never moves it
-    // CHAMPION-STORE.md §6: Practice never moves the bot ladder either (the forfeit flag above would count a full loss)
-    const ladder = partyEnd || practice ? null : recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade, forfeit });
+    // CHAMPION-STORE.md §6: Practice never moves the bot ladder either (the forfeit flag above would count a full loss);
+    // sim v22: nor does Blitz
+    const ladder = partyEnd || practice || blitz ? null : recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade, forfeit });
     // round 2: "Change hero" names one to try (from match 2: match 1 keeps Play again as the only call)
     const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests, (h) => this.playable(h)) : null;
     const myTeam = mySlot < 3 ? 0 : 1;
@@ -1766,9 +1831,12 @@ export class App {
             return this.openParty('queue');
           }
           if (partyEnd) return this.backToParty();
-          this.analytics.track('rematch_click', { kind: 'again', hero: e.replay.hero, difficulty: e.replay.difficulty });
-          this.startMatch(setup ? { hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty } : this.choice);
+          this.analytics.track('rematch_click', { kind: 'again', hero: e.replay.hero, difficulty: e.replay.difficulty, mode: playedMode });
+          // sim v22: the same mode, one tap (Blitz stays Blitz, Classic stays Classic)
+          this.startMatch(setup ? { hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty, ...this.modeChoice(playedMode) } : this.choice);
         },
+        mode: lp.matches >= 2 ? `${MODE_NAME[playedMode]} ~${MODE_MINUTES[playedMode]} min` : null,
+        next: partyEnd || lp.matches < 2 ? null : this.nextMode(playedMode, won, e.replay.hero, setup),
         // GAPS A3 "Switch cat": the pick screen with this match's difficulty kept (round 2: on the teased hero)
         onChange: () => {
           sfx.play('click');

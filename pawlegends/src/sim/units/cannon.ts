@@ -27,8 +27,10 @@ import type { MatchHandle } from '../state';
 import { CANNON_STATE, FM, G, Kind, Order, RANGE, UnitState, type World } from '../world';
 import { PFLAG, fireSkillshot } from '../effects/projectile';
 import { disabled, interrupt } from '../effects/status';
+import { mutOf } from '../mutator';
 
-export const cannonData = (w: World): CannonData => FUN_BY_MAP[w.map].cannon;
+/** Sim v22: a mutator may bring its own cannon row (Blitz: 0:20, then 40 s after each shot or fizzle). */
+export const cannonData = (w: World): CannonData => mutOf(w).cannon ?? FUN_BY_MAP[w.map].cannon;
 
 /** Is hero `id` carrying the cannon? Winding it up? */
 export const carries = (w: World, id: number): boolean => w.globals[G.CannonState] === CANNON_STATE.Carried && w.globals[G.CannonBy] === id;
@@ -45,7 +47,7 @@ export function underdogTeam(w: World): number {
   for (let team = 0; team < 2; team++) {
     const towersBehind = w.globals[team === 0 ? G.Towers1 : G.Towers0] - w.globals[team === 0 ? G.Towers0 : G.Towers1];
     const killsBehind = w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1];
-    if (towersBehind >= COMEBACK.structuresBehind || killsBehind >= COMEBACK.takedownsBehind) out = out < 0 ? team : -2;
+    if (towersBehind >= COMEBACK.structuresBehind || killsBehind >= (mutOf(w).underdogTakedowns || COMEBACK.takedownsBehind)) out = out < 0 ? team : -2;
   }
   return out < 0 ? -1 : out;
 }

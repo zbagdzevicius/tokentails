@@ -225,6 +225,13 @@ export interface SeasonXpMatch {
     forfeit: boolean;
     /** Kills plus assists of the player's slot (0 when the verdict has no stats). */
     takedowns: number;
+    /**
+     * Sim v22 (WR-BS-PLAN.md §9): a mutator match (Blitz) pays per minute like Skirmish: its length in ticks
+     * (seasonXpFor scales the match XP by ticks / SEASON_XP.refTicks, at most 1). Absent for a plain match.
+     */
+    ticks?: number;
+    /** Sim v22: a Blitz draw (time up with every tie-break equal) pays the loss plus half the win bonus. */
+    draw?: boolean;
     /** A party match over the daily cap counts as a match and pays no XP. */
     capped?: boolean;
     /**
@@ -310,7 +317,14 @@ export async function addSeasonXp(
             .lean();
         firstWinToday = !!claimed;
     }
-    const gained = seasonXpFor({ won: m.won, forfeit: m.forfeit, takedowns: m.takedowns, firstWinToday });
+    const gained = seasonXpFor({
+        won: m.won,
+        forfeit: m.forfeit,
+        takedowns: m.takedowns,
+        firstWinToday,
+        ...(m.ticks !== undefined ? { ticks: m.ticks } : {}),
+        ...(m.draw ? { draw: true } : {}),
+    });
     const after = (await models.seasons
         .findOneAndUpdate({ _id }, { $inc: { xp: gained }, $set: { updatedAt: now } }, { new: true })
         .lean()) as any;

@@ -21,6 +21,7 @@ import { fleeStep } from '../effects/fear';
 import { stepForced } from '../effects/dash';
 import { inAttackRange, startAttack } from '../combat/attack';
 import { dealDamage } from '../combat/damage';
+import { HEARTHWOOD_RULES } from '../../data/maps/hearthwood';
 import { grantFish } from '../progression/fish';
 import { grantXp } from '../progression/levels';
 import { moveSpeed, targetable } from './kinds';
@@ -120,6 +121,9 @@ function spawnRat(w: World, id: number): void {
   if (c === BOSS_CAMP) {
     hp += applyBp(k.hp, GRIZZLECHOP.hpBpPerMinute * idiv(w.globals[G.Tick], TIMELINE.minute));
     w.timer[id] = 0;
+  } else if (w.mg.length > 0) {
+    // Sim v22 (Hearthwood): jungle monsters spawn with HEARTHWOOD_RULES.campHpBp of their HP (a solo clear, gate G9).
+    hp = applyBp(hp, HEARTHWOOD_RULES.campHpBp);
   }
   w.alive[id] = 1;
   w.hp[id] = hp;
@@ -211,6 +215,8 @@ export function stealJungleBuffs(m: MatchHandle, victim: number, killer: number)
   const w = m.world;
   if (w.mg.length === 0) return;
   w.mg[MG.Hoard + victim] = 0;
+  // Sim v22: Sugar Rush ends with its hero.
+  w.mg[MG.Rush + victim] = 0;
   for (let b = 0; b < 2; b++) {
     const at = (b === 0 ? MG.Prickle : MG.Feather) + victim;
     const left = w.mg[at];

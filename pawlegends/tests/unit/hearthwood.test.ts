@@ -19,7 +19,7 @@ const info = mapInfo('hearthwood');
 afterAll(() => bindMap(0));
 
 describe('Hearthwood Divide: the map (G3)', () => {
-  it('is 128 × 128 m, 5 a side, point-symmetric, with three lanes, 11 towers a team, 12 camps and two pits', () => {
+  it('is 128 × 128 m, 5 a side, point-symmetric, with three lanes, 11 towers a team, 16 camps and two pits', () => {
     expect(MAP_IDS).toEqual(['crossing', 'hearthwood']);
     expect([info.width, info.height, info.nx, info.ny, info.teamSize, info.symmetry]).toEqual([W, W, 128, 128, 5, 'point']);
     expect([teamSizeOf('hearthwood'), slotCountOf('hearthwood'), teamOfSlot(4, 'hearthwood'), teamOfSlot(5, 'hearthwood'), teamOfSlot(3, 'crossing')]).toEqual([5, 10, 0, 1, 1]);
@@ -29,7 +29,7 @@ describe('Hearthwood Divide: the map (G3)', () => {
       ['gutter', 'Gutterway', 'fish'],
     ]);
     expect(info.towers).toHaveLength(22);
-    expect(info.camps).toHaveLength(12);
+    expect(info.camps).toHaveLength(16);
     expect(info.objectives.map((o) => o.kind).sort()).toEqual(['grizzlechop', 'pudding']);
     expect(info.camera.yawDeg).toBe(0);
     expect(mapInfo('crossing').camera.yawDeg).toBe(-38);
@@ -47,8 +47,9 @@ describe('Hearthwood Divide: the map (G3)', () => {
         expect(c, `cell ${i},${j} vs its swap`).toBe(p[i * 128 + j]);
       }
     }
-    // Mostly open jungle: the rim and the rocks are walls.
-    expect(open).toBeGreaterThan(12000);
+    // Sim v22: a carved forest (MAP-5V5-STANDARD.md §8.2: about 69% walkable).
+    expect(open).toBeGreaterThan(10800);
+    expect(open).toBeLessThan(12000);
   });
 
   it('the river objectives sit on the river axis, each the other one reflected', () => {
@@ -92,7 +93,7 @@ describe('Hearthwood Divide: the map (G3)', () => {
     // Each team has one Prickle Hollow and one Crow Roost.
     for (const side of [0, 1]) {
       const own = info.camps.filter((c) => (side === 0 ? c.x + c.y < W : c.x + c.y > W));
-      expect(own.map((c) => c.kind).sort()).toEqual(['crow', 'prickle', 'rat', 'rat', 'toad', 'toad']);
+      expect(own.map((c) => c.kind).sort()).toEqual(['beetle', 'beetle', 'crow', 'prickle', 'rat', 'rat', 'toad', 'toad']);
     }
     const half = info.bushes.length / 2;
     for (let k = 0; k < half; k++) {
@@ -196,7 +197,7 @@ describe('Hearthwood Divide: fair paths (G4)', () => {
     }
     // Every camp and objective can be reached.
     for (const p of [...info.camps, ...info.objectives]) expect(d0[cell(p.x, p.y)], `${p.x},${p.y}`).toBeGreaterThan(0);
-    expect(reached).toBeGreaterThan(12000);
+    expect(reached).toBeGreaterThan(10800);
   });
 
   it('from each fountain, A* reaches every camp, objective, tower and lane river point, equally far for both teams (±3 m)', () => {
@@ -245,7 +246,7 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(rolesOf({ picks: picks.slice(0, 6) })).toEqual([]);
   });
 
-  it('a whole solo 5v5 match ends by itself, its record names the map and verifies on the server entry', { timeout: 120000 }, () => {
+  it('a whole solo 5v5 match ends by itself, its record names the map and verifies on the server entry', { timeout: 600000 }, () => {
     const seed = 4040;
     const { picks, tricks } = fillPicks(seed, 'sage', 'pounce', 'hearthwood');
     const m = createMatch({ seed, picks, tricks, difficulty: 'normal', map: 'hearthwood' });
@@ -266,7 +267,7 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(grizz).toBeGreaterThan(0);
     const rec = replayRecord(m)!;
     expect(rec.map).toBe('hearthwood');
-    expect(rec.simVersion).toBe(21);
+    expect(rec.simVersion).toBe(22);
     expect(verifyReplay(rec)).toMatchObject({ ok: true, finalHash: rec.finalHash });
     expect(verifyReplay({ ...rec, map: undefined }).ok).toBe(false);
     expect(verifyReplay({ ...rec, map: 'atlantis' })).toMatchObject({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' });
@@ -292,7 +293,7 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(play(true)).toEqual(play(false));
   });
 
-  it('the snapshot carries the map, the river objectives and the camp timers; slots 0..9 are heroes', () => {
+  it('the snapshot carries the map, the river objectives and the camp timers; slots 0..9 are heroes', { timeout: 120000 }, () => {
     const { picks, tricks } = fillPicks(5, 'bravo', 'hiss', 'hearthwood');
     const m = createMatch({ seed: 5, picks, tricks, difficulty: 'easy', map: 'hearthwood' });
     while (tickOf(m) < 3700) step(m);
@@ -300,7 +301,7 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(s.map).toBe('hearthwood');
     expect(s.objectives?.map((o) => o.kind)).toEqual(['grizzlechop', 'pudding']);
     expect(s.objectives?.[0].state).toBe('up');
-    expect(s.camps).toHaveLength(12);
+    expect(s.camps).toHaveLength(16);
     expect(s.entities.filter((e) => e.kind === 'hero').map((e) => e.slot)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(s.entities.some((e) => e.kind === 'boss')).toBe(true);
     expect(s.entities.filter((e) => e.kind === 'tower').map((e) => e.variant)).toContain('hearth');

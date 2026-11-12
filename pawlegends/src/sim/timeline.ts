@@ -16,16 +16,17 @@ export function phaseAt(tick: number, ended: boolean, sunset: number = TIMELINE.
   return 'suddenDeath';
 }
 
-function nextPhaseTick(tick: number, sunset: number, suddenDeath: number): number {
+function nextPhaseTick(tick: number, sunset: number, suddenDeath: number, end: number): number {
   if (tick < TIMELINE.barrierDrop) return TIMELINE.barrierDrop;
   if (tick < sunset) return sunset;
   if (tick < suddenDeath) return suddenDeath;
-  if (tick < TIMELINE.safetyEnd) return TIMELINE.safetyEnd;
+  if (tick < end) return end;
   return 0;
 }
 
-export function clockAt(tick: number, ended: boolean, sunset: number = TIMELINE.sunset, suddenDeath: number = TIMELINE.suddenDeath): MatchClock {
-  const next = ended ? 0 : nextPhaseTick(tick, sunset, suddenDeath);
+/** Sim v22: `end` is the match's last tick (a Blitz match's hard end; default the safety end). */
+export function clockAt(tick: number, ended: boolean, sunset: number = TIMELINE.sunset, suddenDeath: number = TIMELINE.suddenDeath, end: number = TIMELINE.safetyEnd): MatchClock {
+  const next = ended ? 0 : nextPhaseTick(tick, sunset, suddenDeath, end);
   return { tick, seconds: idiv(tick, TICK_HZ), phase: phaseAt(tick, ended, sunset, suddenDeath), nextPhaseIn: next === 0 ? 0 : next - tick };
 }
 

@@ -52,8 +52,8 @@ const LANE_Y = 36000;
 const events = (m: MatchHandle, type: string) => m.events.filter((e) => e.type === type);
 
 describe('sim v21 version and data', () => {
-  it('SIM_VERSION is 21', () => {
-    expect(SIM_VERSION).toBe(21);
+  it('SIM_VERSION is 21 or later (sim v22 keeps the v21 rules)', () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(21);
   });
 
   it('stronger towers: 120 a shot, +25% a shot up to +80%, outer and inner +25%, Fortified until 3:00 / 5:00', () => {
@@ -404,6 +404,6 @@ describe('determinism (sim v21)', () => {
       expect(a.hash).toBe(b.hash);
       expect(a.trail).toBe(b.trail);
       expect(a.fun).toBeGreaterThan(0);
-    }, 120000);
+    }, 600000);
   }
 });

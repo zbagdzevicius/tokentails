@@ -60,7 +60,7 @@ export const PAWLEGENDS_PICKER_HREF = "/pawlegends/play";
 /** The Pawlegends card's key: `GameType.PAWLEGENDS` is the save type, the card itself is a link. */
 export const PAWLEGENDS_CARD_KEY = "PAWLEGENDS";
 /** The Pawlegends card's line: what the game is (both sides are playable, the other five heroes are bots). */
-export const PAWLEGENDS_PICKER_DESCRIPTION = "Cats vs dogs: 3v3 hero battles against bots";
+export const PAWLEGENDS_PICKER_DESCRIPTION = "Cats vs dogs hero battles: 3-minute Blitz or full 5v5";
 /**
  * The Pawlegends card art: a teamfight from a real seeded match (take X14 of the launch trailer, master frame f1232),
  * rendered in-engine by the game's own renderer after the per-skill animation upgrade: the trailer's wide brawl (shot
@@ -150,7 +150,8 @@ export interface GameCard {
 export const cardHref = (card: Pick<GameCard, "key" | "href">) => {
   if (!card.href) return undefined;
   if (card.key === GameType.CATNIP_HEIST) return heistHref(card.href);
-  if (card.key === PAWLEGENDS_CARD_KEY) return heistHref(card.href);
+  // sim v22: the card opens the PLAY screen on Blitz, the ~3-minute match (WR-BS-PLAN.md §5)
+  if (card.key === PAWLEGENDS_CARD_KEY) return `${card.href}?mode=blitz&from=picker`;
   if (card.key === BADCAT_CARD_KEY) return badcatHref("picker");
   if (card.key === RAVE_CARD_KEY) return raveHref("picker");
   if (card.key === FORMULA_MEOW_CARD_KEY) return formulaMeowHref("picker");

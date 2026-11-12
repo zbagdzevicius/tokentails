@@ -30,12 +30,12 @@ import { TIMELINE } from '../../data/timeline';
 import { HERO_RULES } from '../../data/xp';
 import { HUMAN_SLOT, Op, type Command } from '../api';
 import { BP_ONE, applyBp, dist2, idiv, isqrt } from '../fixed';
-import { CAMPS, LANES, MAP, PUDDING_SPOT, RAT_CAMP, TOWER_SPOTS, mirrorX } from '../../data/map';
+import { CAMPS, FOUNTAIN, LANES, MAP, PUDDING_SPOT, RAT_CAMP, TOWER_SPOTS, mirrorX, mirrorY } from '../../data/map';
 import { ROLE } from './roles';
-import { nearLane, nearestLane } from '../map/grid';
+import { cellOfTeam, nearLane, nearestLane, walkable } from '../map/grid';
 import type { Rng } from '../rng';
 import type { MatchHandle } from '../state';
-import { G, Kind, MG, NEVER, Order, RANGE, type World } from '../world';
+import { G, JG_ROW, Kind, MG, NEVER, Order, RANGE, type World } from '../world';
 import { rulesOf } from '../rules';
 import { PICKUP_FRENZY, PICKUP_SNACK, nearestPickup } from '../units/pickup';
 import { heroData, attackDamage, attackRange, radiusOf, targetable } from '../units/kinds';
@@ -45,7 +45,10 @@ import { awayFrom, clearCast, escapeCast, fightCast, nearestFoe, pt, purrifyCast
 import { kitOf } from '../heroes/kit';
 import { laneRole, orderOf } from './orders';
 import { bedHop, cannonGrab, cannonShot, funCommitted, yarnKick } from './fun';
+import { JG, PLAN, holdObjective, holding, inDanger, noteEnemyProwl, noteHold, prowlPlan, unitHpBp } from './jungle';
+import { JUNGLE_BOT } from '../../data/maps/hearthwoodGraph';
 import { isHumanSlot, leadOf } from '../humans';
+import { mutOf } from '../mutator';
 import {
   fountainX,
   fountainY,
@@ -79,14 +82,60 @@ const roams = (w: World, id: number): boolean => (w.mg.length > 0 ? w.mg[MG.Role
 
 /** Sim v21: scratch point of the fun rules (bots/fun.ts). */
 const funPt = new Int32Array(2);
+/** Sim v22: scratch of the jungle rules (bots/jungle.ts): a goal (0, 1), a target (2), an objective centre (3, 4). */
+const jgOut = new Int32Array(5);
 
 const isRanged = (w: World, id: number): boolean => heroData(w, id).base.range > HERO_RULES.meleeMaxRange;
+
+/** Is target `t` within bot `id`'s attack reach (JUNGLE_BOT.reachSlack of slack): hitting it needs no walk. */
+const inReach = (w: World, id: number, t: number): boolean => {
+  const r = attackRange(w, id) + radiusOf(w, t) + JUNGLE_BOT.reachSlack;
+  return dist2(w.x[id], w.y[id], w.x[t], w.y[t]) <= r * r;
+};
+
+/** Scratch: the walk goal of `walkGoal`. */
+const walkPt = new Int32Array(2);
+
+/**
+ * Sim v22 (Hearthwood, balance pass): the point bot `id` is walking to, into walkPt: its Move goal, or the target of
+ * an attack it must walk to (out of reach). False when it is not walking anywhere (or hitting something in reach).
+ */
+function walkGoal(w: World, id: number, mem: BotMem): boolean {
+  if (mem.op[id] === Op.Move && w.order[id] === Order.Move) {
+    walkPt[0] = mem.x[id];
+    walkPt[1] = mem.y[id];
+    return true;
+  }
+  const t = mem.tid[id];
+  if (mem.op[id] !== Op.Attack || w.order[id] !== Order.Attack || t < 0 || w.target[id] !== t || w.alive[t] !== 1 || inReach(w, id, t)) return false;
+  walkPt[0] = w.x[t];
+  walkPt[1] = w.y[t];
+  return true;
+}
+
+/**
+ * Sim v22 (Hearthwood): should a new walk to (x, y) wait? A goal more than JUNGLE_BOT.goalFar from the walk given less
+ * than JUNGLE_BOT.goalHold ago keeps that walk (not when retreating), so two rules that take turns cannot hold a bot
+ * on one spot (a fork of the carved jungle; the balance pass: the edge of siege, tower or engage range, two
+ * objectives). A goal that is far restarts the clock. `walk`: false for an attack in reach (never held, no clock).
+ */
+function holdWalk(w: World, id: number, mem: BotMem, x: number, y: number, walk: boolean): boolean {
+  if (w.mg.length === 0 || !walk) return false;
+  const at = id * JG_ROW + JG.MoveAt;
+  const tick = w.globals[G.Tick];
+  const has = walkGoal(w, id, mem);
+  const far = !has || Math.abs(walkPt[0] - x) > JUNGLE_BOT.goalFar || Math.abs(walkPt[1] - y) > JUNGLE_BOT.goalFar;
+  if (has && far && mem.mode[id] !== BOT_MODE.Retreat && tick - mem.jg[at] < JUNGLE_BOT.goalHold) return true;
+  if (far) mem.jg[at] = tick;
+  return false;
+}
 
 function moveTo(w: World, id: number, mem: BotMem, x: number, y: number): Command | null {
   const slack = BOT_AI.repeatSlack;
   if (mem.op[id] === Op.Move && Math.abs(mem.x[id] - x) <= slack && Math.abs(mem.y[id] - y) <= slack) {
     if (w.order[id] === Order.Move || dist2(w.x[id], w.y[id], x, y) <= slack * slack) return null;
   }
+  if (holdWalk(w, id, mem, x, y, true)) return null;
   mem.op[id] = Op.Move;
   mem.x[id] = x;
   mem.y[id] = y;
@@ -102,6 +151,8 @@ function attack(w: World, id: number, mem: BotMem, t: number): Command | null {
     return moveTo(w, id, mem, pt[0], pt[1]);
   }
   if (w.order[id] === Order.Attack && w.target[id] === t) return null;
+  // Sim v22 (Hearthwood, balance pass): an attack it must walk to is a walk too (moveTo's hold).
+  if (holdWalk(w, id, mem, w.x[t], w.y[t], !inReach(w, id, t))) return null;
   mem.op[id] = Op.Attack;
   mem.tid[id] = t;
   return { op: Op.Attack, id: t };
@@ -195,6 +246,9 @@ function pickFoe(
     // Sim v10 Focus ping: with the human on the focused hero, the bot chases it like its own foe and skips the power check.
     const committed = focused && w.alive[lead] === 1 && dist2(w.x[lead], w.y[lead], w.x[e], w.y[e]) <= BOT_AI.powerRange * BOT_AI.powerRange;
     const d = isqrt(dist2(w.x[id], w.y[id], w.x[e], w.y[e]));
+    // Sim v22 (Hearthwood, balance pass): a foe standing in its own fountain is out of reach (the fountain is a wall to
+    // us) unless it is already in our attack range; chasing it held bots at the fountain's edge under core fire.
+    if (w.mg.length > 0 && d > attackRange(w, id) + radiusOf(w, e) && inOwnFountain(w, e)) continue;
     // Carry allies peel: an enemy hero on the human is fought first, from further away, whatever the odds.
     const peel = carry && w.target[e] === HUMAN_SLOT && w.alive[HUMAN_SLOT] === 1;
     const reach = BOT_AI.engageRange + (e === mem.foe[id] || peel || brave || committed ? BOT_AI.chaseSlack : 0) + (slip ? BOT_AI.chaseSlack : 0);
@@ -218,6 +272,13 @@ function pickFoe(
     }
   }
   return best;
+}
+
+/** Is hero `e` inside its own team's fountain (Hearthwood: team 1's is the point reflection of team 0's)? */
+function inOwnFountain(w: World, e: number): boolean {
+  const fx = w.team[e] === 0 ? FOUNTAIN.x : mirrorX(FOUNTAIN.x);
+  const fy = w.team[e] === 0 ? FOUNTAIN.y : mirrorY(FOUNTAIN.y);
+  return dist2(w.x[e], w.y[e], fx, fy) <= FOUNTAIN.radius * FOUNTAIN.radius;
 }
 
 const scratch = new Int32Array(1);
@@ -251,7 +312,8 @@ function raiders(w: World, team: number, lane: number): number {
  * ahead groups and sieges from BOT_AI.leadGroupFrom on, so a lead in fights becomes map pressure.
  */
 function groupedNow(m: MatchHandle, team: number, tick: number, p: BotParams): boolean {
-  if (tick >= p.groupAt) return true;
+  // Sim v22 (Hearthwood, balance pass): the five-a-side teams lane and jungle until JUNGLE_BOT.groupAt.
+  if (tick >= (m.world.mg.length > 0 ? Math.max(p.groupAt, JUNGLE_BOT.groupAt) : p.groupAt)) return true;
   return rulesOf(m).leadPressure && tick >= BOT_AI.leadGroupFrom && -scoreBehind(m.world, team) >= BOT_AI.leadGroup;
 }
 
@@ -871,6 +933,8 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   }
   const slip = slipOf(mem, id, tick, p, rng);
   updateAwareness(w, id, mem, tick, slip === SLIP.Gank);
+  // Sim v22 (Hearthwood): where the enemy Prowl was last seen (the gank and danger reads).
+  noteEnemyProwl(w, id, mem);
   if (w.castPhase[id] !== 0) return null;
   // Sim v10 (GAPS B5): a crowd-controlled bot shrugs it off first.
   const purr = purrifyCast(w, id, p);
@@ -936,7 +1000,8 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
       return defend(w, id, mem, s, p, rng);
     }
   }
-  truceUntil = rules.truceUntil;
+  // Sim v22: a mutator may set its own truce.
+  truceUntil = mutOf(m.world).truceUntil >= 0 ? mutOf(m.world).truceUntil : rules.truceUntil;
   // Sim v21: a cannon on the ground is worth leaving a fight for (its team's nearest bot, or one close to it).
   if (!low && !ordered && !script && cannonGrab(w, id, funPt)) {
     mem.mode[id] = BOT_MODE.Lane;
@@ -949,7 +1014,10 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   if (foe >= 0) {
     mem.mode[id] = BOT_MODE.Fight;
     mem.foe[id] = foe;
-    const c = rng.chanceBp(p.abilityUseBp) ? fightCast(w, id, foe, p, rng) : null;
+    let c = rng.chanceBp(p.abilityUseBp) ? fightCast(w, id, foe, p, rng) : null;
+    // Sim v22 (Hearthwood, balance pass): a step whose point lies in the forest (a kite or dodge point off the walkable
+    // ground) is not taken; the bot hits its foe instead of standing at the forest edge.
+    if (c !== null && c.op === Op.Move && w.mg.length > 0 && !walkable(m.grid, cellOfTeam(c.x, c.y, w.team[id]))) c = null;
     return c ?? attack(w, id, mem, foe);
   }
   mem.foe[id] = -1;
@@ -1011,6 +1079,11 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   // Sim v10: a ping order comes after the fights and the back-off, before Pudding, the camp and the lane.
   if (ordered) return orderAct(m, id, mem, ord, p, slip === SLIP.LastHit);
 
+  // Sim v22 (Hearthwood, BotParams.jungle ≥ 1): a hold at an objective's mouth bush lasts a few seconds.
+  if (p.jungle >= 1 && !carry && holding(w, id, mem, jgOut)) {
+    mem.mode[id] = BOT_MODE.Pudding;
+    return moveTo(w, id, mem, jgOut[0], jgOut[1]);
+  }
   // Pudding: decided once per spawn.
   const pud = RANGE.pudding;
   if (w.globals[G.PudState] === PUD_STATE.Wild && w.alive[pud] === 1) {
@@ -1019,6 +1092,11 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
     const withHuman = !carry || dist2(w.x[HUMAN_SLOT], w.y[HUMAN_SLOT], w.x[pud], w.y[pud]) <= BOT_AI.awareRange * BOT_AI.awareRange;
     if ((mem.pud[id] & 1) === 1 && withHuman && hp >= BOT_AI.objectiveHpBp && healthyAllies(w, id) >= BOT_AI.pudAllies && (!grouped || !sieging(w, id))) {
       mem.mode[id] = BOT_MODE.Pudding;
+      // Sim v22 (Hearthwood, BotParams.jungle ≥ 1): outnumbered at the pit, hold at the mouth bush (unless stealing).
+      if (p.jungle >= 1 && holdObjective(w, id, w.x[pud], w.y[pud], unitHpBp(w, pud), jgOut)) {
+        noteHold(w, id, mem, true);
+        return moveTo(w, id, mem, jgOut[0], jgOut[1]);
+      }
       return (p.waveClear ? clearCast(w, id, pud) : null) ?? attack(w, id, mem, pud);
     }
   }
@@ -1026,10 +1104,27 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   const boss = carry ? -1 : bossFor(w, id, mem, p, rng, hp);
   if (boss >= 0) {
     mem.mode[id] = BOT_MODE.Pudding;
+    if (p.jungle >= 1 && holdObjective(w, id, w.x[boss], w.y[boss], unitHpBp(w, boss), jgOut)) {
+      noteHold(w, id, mem, false);
+      return moveTo(w, id, mem, jgOut[0], jgOut[1]);
+    }
     return (p.waveClear ? clearCast(w, id, boss) : null) ?? attack(w, id, mem, boss);
   }
+  // Sim v22 (Hearthwood, BotParams.jungle ≥ 1): the Prowl's route plan (first clear, waits, ganks, invades, farm).
+  if (w.mg.length > 0 && p.jungle >= 1 && !carry && !hunt && roams(w, id) && !grouped && hp >= JUNGLE_BOT.campHpBp) {
+    const plan = prowlPlan(w, id, p, mem, jgOut);
+    if (plan === PLAN.Attack) {
+      mem.mode[id] = BOT_MODE.Camp;
+      const t = jgOut[2];
+      return (w.kind[t] !== Kind.Hero && p.waveClear ? clearCast(w, id, t) : null) ?? attack(w, id, mem, t);
+    }
+    if (plan === PLAN.Move) {
+      mem.mode[id] = BOT_MODE.Camp;
+      return moveTo(w, id, mem, jgOut[0], jgOut[1]);
+    }
+  }
   // The roamer clears the own rat camp until the team groups.
-  if (!carry && !hunt && roams(w, id) && tick >= TIMELINE.campsUp && !grouped && hp >= BOT_AI.objectiveHpBp) {
+  if (!carry && !hunt && roams(w, id) && tick >= TIMELINE.campsUp && !grouped && hp >= BOT_AI.objectiveHpBp && (w.mg.length === 0 || p.jungle === 0)) {
     const rat = campRat(w, id);
     if (rat >= 0) {
       mem.mode[id] = BOT_MODE.Camp;
@@ -1045,5 +1140,15 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   if (!carry && funCommitted(w, id)) return null;
   if (!carry && yarnKick(w, id, funPt)) return moveTo(w, id, mem, funPt[0], funPt[1]);
   if (bedHop(w, id, funPt)) return moveTo(w, id, mem, funPt[0], funPt[1]);
+  // Sim v22 (Hearthwood, BotParams.jungle ≥ 1): the danger read. Past the river with the enemy Prowl missing near this
+  // lane, a laner backs off to its outer tower (it still last-hits on the way: laneAct is skipped only out there).
+  // Only a bot laning (its last mode Lane) within JUNGLE_BOT.dangerLane of its own outer structure in that lane.
+  if (w.mg.length > 0 && p.jungle >= 1 && !carry && !grouped && !roams(w, id) && mem.mode[id] === BOT_MODE.Lane && inDanger(w, id, mem, lane)) {
+    const own = laneStructure(w, team, lane, true);
+    if (dist2(w.x[id], w.y[id], w.x[own], w.y[own]) <= JUNGLE_BOT.dangerLane * JUNGLE_BOT.dangerLane) {
+      alongLane(team, lane, w.x[own], w.y[own], BOT_AI.holdAhead, goal);
+      return moveTo(w, id, mem, goal[0], goal[1]);
+    }
+  }
   return laneAct(w, id, mem, lane, slip === SLIP.LastHit, p, carry, noSiege);
 }

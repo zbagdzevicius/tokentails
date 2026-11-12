@@ -3,7 +3,7 @@
  * play the other five slots), recorded, then replayed from the record alone. The two hash trails (one hash every 30
  * ticks) and the results must be identical. Bundled for Node by tools/determinism.mjs and tests/unit/determinism.test.ts.
  */
-import { Op, type Command, type Difficulty, type HeroId, type TrickId } from '../../src/sim/api';
+import { Op, type Command, type Difficulty, type HeroId, type MapId, type Mutator, type TrickId } from '../../src/sim/api';
 import { createMatch, createPlayerBotFor, fillPicks, hashTrail, playerBotCommands, replayRecord, result, step, tickOf } from '../../src/sim/index';
 import { fillPicksParty, partyReplayRecord, pvpReplayRecord, runPartyReplay, runPvpReplay } from '../../src/sim/party';
 import { runReplay } from '../../src/sim/replay';
@@ -34,8 +34,15 @@ export interface FuzzResult {
   inputChars: number;
 }
 
+/**
+ * Sim v22: the match variant a fuzz seed plays (default: a plain Crossing match, unchanged since v10). 'blitz' is the
+ * Blitz mutator on Crossing; 'hearthwood' the 5v5 Classic map (tools/determinism.mjs runs both beside the plain one).
+ */
+export type FuzzVariant = 'plain' | 'blitz' | 'hearthwood';
+const VARIANT_CONFIG: Readonly<Record<FuzzVariant, { map?: MapId; mutator?: Mutator }>> = { plain: {}, blitz: { mutator: 'blitz' }, hearthwood: { map: 'hearthwood' } };
+
 /** Play one fuzz match (no replay). `trail` folds the whole hash trail (one hash every 30 ticks) into one hex. */
-export function fuzzPlay(seed: number) {
+export function fuzzPlay(seed: number, variant: FuzzVariant = 'plain') {
   const r = new Rng(seed ^ 0x5eed);
   r.int(HEROES.length); // the draw that used to pick the hero: kept, so the rest of the seed's stream does not move
   const hero = HEROES[fuzzIndex(seed) % HEROES.length];
@@ -44,8 +51,9 @@ export function fuzzPlay(seed: number) {
   // Command rate per tick from 2% to 40%, and some ticks with two commands (the latest wins).
   const rateBp = 200 + r.int(3800);
   const pingEvery = 20 + r.int(400);
-  const { picks, tricks } = fillPicks(seed, hero, trick);
-  const m = createMatch({ seed, picks, tricks, difficulty });
+  const cfg = VARIANT_CONFIG[variant];
+  const { picks, tricks } = fillPicks(seed, hero, trick, cfg.map);
+  const m = createMatch({ seed, picks, tricks, difficulty, ...cfg });
   // Sim v10 (GAPS B2): a quarter of the seeds try to forfeit, some before the difficulty allows it (dropped). Its own
   // stream, so the other commands of a seed do not move.
   const fr = new Rng(seed ^ 0xf0f7);
@@ -84,8 +92,8 @@ export function fuzzFinal(seed: number): { seed: number; finalHash: string; trai
   return { seed, finalHash: p.result.finalHash, trail: p.trail, ticks: p.result.ticks };
 }
 
-export function fuzzMatch(seed: number): FuzzResult {
-  const { match: m, hero, difficulty, commands, result: res } = fuzzPlay(seed);
+export function fuzzMatch(seed: number, variant: FuzzVariant = 'plain'): FuzzResult {
+  const { match: m, hero, difficulty, commands, result: res } = fuzzPlay(seed, variant);
   const rec = replayRecord(m)!;
   const run = runReplay(rec);
   const a = hashTrail(m);

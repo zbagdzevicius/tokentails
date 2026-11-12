@@ -79,7 +79,8 @@ Rules:
 
 | Mode | Players | Length | Phase |
 |---|---|---|---|
-| **Skirmish** (core) | 3v3, 2 lanes + jungle | median 7 to 9 min, hard end 11:00 | P1 vs bots; P2 PvP casual and ranked |
+| **Blitz** (sim v22, `BLITZ.md`) | 3v3 on Purrhaven Crossing, `mutator: 'blitz'` | median 2:30 to 3:15, time up 3:15 | P1 vs bots (solo); Party and PvP later |
+| **Skirmish** (core; "3v3 Quick" before v22) | 3v3, 2 lanes + jungle | median 7 to 9 min, hard end 11:00 | P1 vs bots; P2 PvP casual and ranked |
 | Co-op vs bots | 1 to 3 humans + bots | same | P2 |
 | **Duel** | 1v1, one lane | about 4 min | P2 |
 | **Grand Clash** | 5v5, 3 lanes | 12 to 15 min | P3 |
@@ -113,7 +114,7 @@ Why 3v3: matchmaking needs 6 players, not 10; art, netcode and balance load is l
     0.75 s planted windup (hard CC fumbles it); the kibble rolls through minions and one-shots the first enemy hero it
     touches (KABOOM, through Nine Lives and shields). Dodges, Clem's parry ("Return to sender!") and Brutus's Guard beat
     it; towers take 12% of max HP, neutrals 10%. The Underdog Cannon spawns 5 m toward a team that is far behind.
-  - **Boing Beds**: springy cat beds by the jungle walls (Crossing 3 a side, Hearthwood 4 a side); stepping onto one
+  - **Boing Beds**: springy cat beds by the jungle walls (Crossing 3 a side; Hearthwood sim v22: 2 a side, one a quadrant from the side lane into the buff clearing); stepping onto one
     with a goal past it flings the hero over the wall in a 0.9 s flight nothing interrupts; 3 s cooldown.
   - **Mega Yarn Ball**: a ball on the river (Crossing 2, Hearthwood 1) that a walking hero kicks; it rolls 20 m,
     bowling enemy heroes and minions over (damage, 2.5 m knockback; STRIKE at 3+ heroes); 3 kicks, then it unravels.
@@ -121,6 +122,15 @@ Why 3v3: matchmaking needs 6 players, not 10; art, netcode and balance load is l
     Hearthwood 3,000 / 3,500 / 3,800 / 3,500); **Fortified**: heroes deal 35% less to towers before 3:00 (Crossing) /
     5:00 (Hearthwood).
 - **POC subset** (`POC.md` §5): 1 rat camp per side, no crow roost, no Grizzlechop, 4 bushes, no fog of war (brush still hides). The rest arrives in the MVP.
+- **5v5 Classic, Hearthwood Divide (sim v22, `MAP-5V5-STANDARD.md`)**: the standard MOBA layout with our own geometry
+  and art. Three lanes (Fenceline, Yarn Road, Gutterway) with outer, inner and gate towers, two Hearth Guards and a
+  core; a diagonal river with brush at every entrance; four jungle quadrants carved out of a forest, each a buff camp
+  (Prickle Hollow or Crow Roost), a Rat Nest, a Frog Pond and a Beetle Log on paths with seven exits (two to the side
+  lane, two to mid, two to the river, one to the base); two river objectives on clear timers: Captain Grizzlechop on
+  his wreck island (2:00, then 2:00 after a take, none after 8:30; Fish, XP and a Hoard shield) and the Great Pudding
+  in his jelly-mould hollow (8:00, then 2:30; he escorts a wave and gives the team **Sugar Rush**: 90 s, allied
+  minions near a Sugar Rush hero take 30% less damage and deal 30% more to structures). One Boing Bed a quadrant
+  launches from the side lane into the buff clearing. The 3v3 Crossing does not change.
 
 ### 3.3 Timeline and safety rails
 
@@ -782,6 +792,13 @@ Spend in two tranches: €500 in week 1 after launch, the rest only if cost per 
 ---
 
 ## 13. Known issues noticed (mentioned, not fixed)
+
+- Sim v22 Blitz work (Nov 11), not fixed: a solo 5v5 Classic (Hearthwood) save cannot verify. The Token Tails host's
+  `replayOf` (`client/components/pawlegends/bridge.ts`) copies no `map`, the backend's `PawlegendsReplayDto` has no
+  `map` field and `canonicalRecord` (`backend/src/pawlegends/pawlegends-live.ts` RECORD_KEYS) leaves it out, so the
+  record is re-simulated on Crossing and refused; `replayOf` also caps `ticks` at Crossing's 19,800 (Classic plays to
+  28,800). Blitz keeps its `mutator` through all three. The client test "replayOf enforces the backend DTO bounds"
+  already fails on `main`'s inputs bound (40,801 characters now pass).
 
 - Card skins (Oct 19), fixed on purpose: the host's `artUrlOf` now trims surrounding spaces (2 sprite and 4 GIF storefront URLs end in one and lost their art); the hero geometry cache (now a reference-counted LRU of 32) and the portrait cache (an LRU of 64) were unbounded.
 - Card skins, not fixed: Cacklejaw ignores `lookCoat` (`render/chars/specs.ts`), so the free Spotted and Dusk coats change nothing; Epic and Legendary pack kittens still get the tier aura and ✦ marks (`render/views/companionView.ts`, no `fromPack` check); a cat with no `origin` still earns tier frames (`meta/roster.ts` `rosterCosmetics`), against #19's intent (card skins already fail closed); the existing chroma ground aura uses the ELECTRIC and FAIRY colours, close to Avietė's charge glow and the charm glow; CAMP and EARTH cats are dropped from the roster; 27 of 230 storefront sprite URLs (32 cats, all of PEACHES) return 403 and fall back to the table or the presets; starter sprites (`tokentails.com/cats/...`) are off the art allowlist, so starters use their breed coat.

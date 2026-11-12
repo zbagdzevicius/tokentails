@@ -164,6 +164,15 @@ describe('determinism fuzz (§15 item 1)', { timeout: 600000 }, () => {
     expect(new Set(rows.map((r) => r.hero)).size).toBe(HERO_IDS.length);
     expect(new Set(rows.map((r) => r.difficulty)).size).toBe(3);
   });
+
+  it('sim v22: Blitz (8 seeds) and 5v5 Hearthwood (2 seeds) record → replay give identical hash trails', async () => {
+    const { importSim } = await import('../../tools/lib/sim-bundle.mjs');
+    const fz = (await importSim('tools/lib/fuzz-entry.ts')) as Fuzz;
+    const rows = [];
+    for (let i = 0; i < 8; i++) rows.push(fz.fuzzMatch(fz.fuzzSeed(i), 'blitz'));
+    for (let i = 0; i < 2; i++) rows.push(fz.fuzzMatch(fz.fuzzSeed(i), 'hearthwood'));
+    expect(rows.filter((r) => !r.ok)).toEqual([]);
+  });
 });
 
 describe.skipIf(!NIGHTLY)('determinism fuzz nightly (§15 item 1)', { timeout: 3600000 }, () => {

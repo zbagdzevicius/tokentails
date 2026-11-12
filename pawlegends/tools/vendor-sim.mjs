@@ -32,7 +32,7 @@
  *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
  * 10. pvp-replay.fixture.json (sim v16, S-PvP, docs/plans/moba/V16.md §1.3): one genuine PvP match (PvpReplayRecord v3,
  *    Hard rules, two humans a side flown by player-bots, one bot each side), for the backend's casual /live spec.
- * backend/src/vendor/pawlegends-sim/v10/ to v20/: those files, frozen (FROZEN below; sim v21 is live).
+ * backend/src/vendor/pawlegends-sim/v10/ to v21/: those files, frozen (FROZEN below; sim v22 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -88,6 +88,9 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * with its per-hero rows) at d65a13ba and keeps v10 to v18, so the backend verifies 10 to 20.
  * Sim v21 (the Kibble Cannon, Boing Beds, the Mega Yarn Ball and stronger towers, docs/plans/moba/V21-FUN.md) froze the
  * released v20 (Wild Rift chase fix) at 4f9c97d4 and keeps v10 to v19, so the backend verifies 10 to 21.
+ * Sim v22 (Hearthwood rebuilt to the standard MOBA layout: carved jungle, Beetle Log, Sugar Rush, jungle route bots,
+ * docs/plans/moba/MAP-5V5-STANDARD.md; and Blitz, the 3-minute Crossing match, docs/plans/moba/BLITZ.md) froze the
+ * released v21 (the Kibble Cannon) at 61cf4f5d and keeps v10 to v20, so the backend verifies 10 to 22.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -173,6 +176,21 @@ export const FROZEN = Object.freeze([
     commit: '4f9c97d4227bbc06e652958cb8c2200c3bdd8b4c',
     from: 'backend/src/vendor/pawlegends-sim/v20',
     bundle: '6f337e79daa86feee09c1b5d9c47494f6d6f07ace9891b500392271540c6d57b',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+    ]),
+  }),
+  Object.freeze({
+    simVersion: 21,
+    commit: '61cf4f5d7fa84cb76e57ec77175c1d11ba81690b',
+    from: 'backend/src/vendor/pawlegends-sim/v21',
+    bundle: '443c5c6335ec5e11e54ef262e0ac7533ca1c054b8a21bdb3067614c813390066',
     extra: Object.freeze([
       'forfeit-replay.fixture.json',
       'dog-replay.fixture.json',
@@ -335,8 +353,8 @@ export type PawlegendsHeroId =
 export type PawlegendsTrickId = string;
 export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
-/** Sim v10: only 'none' exists. */
-export type PawlegendsMutator = 'none';
+/** Sim v10: only 'none' exists. Sim v22: 'blitz' (the ~3-minute Crossing match; WR-BS-PLAN.md §4). */
+export type PawlegendsMutator = 'none' | 'blitz';
 /** Sim v19: the maps ('crossing' 3v3, 'hearthwood' 5v5 Classic); a record without \`map\` is Crossing. */
 export type PawlegendsMapId = 'crossing' | 'hearthwood';
 
@@ -351,7 +369,7 @@ export interface PawlegendsReplay {
     inputs: string;
     outcome: PawlegendsOutcome;
     finalHash: string;
-    /** Sim v10 and later: 'none' (every record from v10 carries it). */
+    /** Sim v10 and later: 'none' (every record from v10 carries it); sim v22 and later also 'blitz'. */
     mutator?: PawlegendsMutator;
     /** Sim v19 and later: the map; omitted = 'crossing'. */
     map?: PawlegendsMapId;
@@ -393,7 +411,8 @@ export type PawlegendsVerifyCode =
 
 export type PawlegendsVerifyResult =
     /** Sim v10 and later (GAPS B2): how the match ended; 'forfeit' = the player forfeited. */
-    | { ok: true; outcome: PawlegendsOutcome; finalHash: string; ticks: number; stats: PawlegendsSlotStats[]; reason?: 'core' | 'safetyEnd' | 'forfeit'; winner?: 0 | 1 }
+    /** Sim v22: 'timeUp' = a Blitz match reached 3:15; \`draw\` when every tie-break was equal (\`winner\` −1). */
+    | { ok: true; outcome: PawlegendsOutcome; finalHash: string; ticks: number; stats: PawlegendsSlotStats[]; reason?: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp'; winner?: 0 | 1 | -1; draw?: true }
     | { ok: false; code: PawlegendsVerifyCode; message: string };
 
 export const SIM_VERSION: number = sim.SIM_VERSION;
@@ -470,8 +489,9 @@ export type PawlegendsPilot = { readonly __pawlegendsPilot: true };
 
 export interface PawlegendsMatchResult {
     outcome: PawlegendsOutcome;
-    winner: 0 | 1;
-    reason: 'core' | 'safetyEnd' | 'forfeit';
+    winner: 0 | 1 | -1;
+    reason: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp';
+    draw?: true;
     ticks: number;
     finalHash: string;
     stats: PawlegendsSlotStats[];
@@ -641,6 +661,16 @@ export async function hearthwoodFixture(seed = HEARTHWOOD_FIXTURE_SEED) {
   const sim = await importSim('src/sim/index.ts');
   const { picks, tricks } = sim.fillPicks(seed, 'clem', 'pounce', 'hearthwood');
   const m = sim.createMatch({ seed, picks, tricks, difficulty: 'easy', map: 'hearthwood' });
+  const bot = sim.createPlayerBot(m, 'normal');
+  while (!sim.result(m)) sim.step(m, sim.playerBotCommands(m, bot));
+  return sim.replayRecord(m);
+}
+
+/** Sim v22 (WR-BS-PLAN.md §4): one genuine Blitz match on Crossing (Normal, the normal player-bot); its v:1 record. */
+export async function blitzFixture(seed = HEARTHWOOD_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/index.ts');
+  const { picks, tricks } = sim.fillPicks(seed, 'pixel', 'snack');
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'normal', mutator: 'blitz' });
   const bot = sim.createPlayerBot(m, 'normal');
   while (!sim.result(m)) sim.step(m, sim.playerBotCommands(m, bot));
   return sim.replayRecord(m);
@@ -830,6 +860,7 @@ export async function buildFiles() {
   const hearth = JSON.stringify(await hearthwoodFixture(), null, 2) + '\n';
   const hearthParty = JSON.stringify(await hearthwoodPartyFixture(), null, 2) + '\n';
   const hearthPvp = JSON.stringify(await hearthwoodPvpFixture(), null, 2) + '\n';
+  const blitz = JSON.stringify(await blitzFixture(), null, 2) + '\n';
   const live = {
     'pawlegends-sim.bundle.ts': text,
     'index.ts': face,
@@ -848,6 +879,8 @@ export async function buildFiles() {
     'hearthwood-replay.fixture.json': hearth,
     'hearthwood-party.fixture.json': hearthParty,
     'hearthwood-pvp.fixture.json': hearthPvp,
+    // Sim v22 (Blitz): a mutator record; a later freeze lists it in `extra`
+    'blitz-replay.fixture.json': blitz,
   };
   const files = {};
   for (const entry of FROZEN) for (const [name, body] of Object.entries(frozenFiles(entry))) files[`v${entry.simVersion}/${name}`] = body;

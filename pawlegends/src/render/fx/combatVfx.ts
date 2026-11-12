@@ -347,6 +347,9 @@ const HEX: Record<number, string> = {};
 const css = (c: number): string => (HEX[c] ??= '#' + c.toString(16).padStart(6, '0'));
 
 const AURA_SLOTS = 6;
+/** Sim v22: Sugar Rush rings (5 heroes and the minions round them). */
+const SUGAR_SLOTS = 48;
+const SUGAR_PINK = 0xff7ac8;
 
 export class CombatVfx {
   tier: Readonly<VfxTier> = VFX_TIERS.med;
@@ -355,6 +358,11 @@ export class CombatVfx {
   reduced = false;
   /** Level auras: one ring layer under the telegraphs (renderOrder 1); up to two rings per hero (level 7+). */
   readonly auras = new DecalLayer(ringTexture(), AURA_SLOTS * 2, { additive: true, y: 0.042, renderOrder: 1, name: 'level-aura' });
+  /**
+   * Sim v22 (MAP-5V5-STANDARD.md §6.2) Sugar Rush: a candy-pink ring under each Sugar Rush hero and a small one under
+   * each boosted minion (BuffFlag.SugarRush / Sugared; Hearthwood only).
+   */
+  readonly sugar = new DecalLayer(ringTexture(), SUGAR_SLOTS, { additive: true, y: 0.043, renderOrder: 1, name: 'sugar-rush' });
   /** Most live particles seen (perf checks). */
   peak = 0;
   private time = 0;
@@ -857,8 +865,18 @@ export class CombatVfx {
     if (live > this.peak) this.peak = live;
     const L = this.auras;
     L.begin();
+    const S = this.sugar;
+    S.begin();
+    let sugarN = 0;
     for (let i = 0; i < heroes.length; i++) {
       const e = heroes[i];
+      if (sugarN < SUGAR_SLOTS && e.state !== 'dead' && (e.buffs & (BuffFlag.SugarRush | BuffFlag.Sugared)) !== 0) {
+        const hero = e.kind === 'hero' && e.hero !== undefined;
+        const r = hero ? HERO_RING[e.hero!] * 1.6 : 0.85;
+        const pulse = this.reduced ? 0 : Math.sin(this.time * 4 + e.id);
+        S.add(toX(e.fx), toZ(e.fy), r * (1 + 0.04 * pulse), SUGAR_PINK, hero ? 0.55 + 0.1 * pulse : 0.35);
+        sugarN++;
+      }
       if (e.kind !== 'hero' || !e.hero || e.state === 'dead' || (e.buffs & BuffFlag.Stealth) !== 0) continue;
       const step = auraStep(e.level ?? 1);
       if (step === 0) continue;
@@ -887,9 +905,11 @@ export class CombatVfx {
       this.particles.single(_a, m);
     }
     L.end();
+    S.end();
   }
 
   dispose(): void {
     this.auras.dispose();
+    this.sugar.dispose();
   }
 }

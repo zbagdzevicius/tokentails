@@ -43,12 +43,13 @@ import { HERO_SCALE } from '../render/views/models';
 import { CORE, FOUNTAIN, MAP, PUDDING_SPOT, TOWER_SPOTS, mirrorX } from '../data/map';
 import { useMap } from './mapBinding';
 import { mapInfo } from '../sim/map/info';
+import { drawMapPreview } from '../ui/mapPreview';
 import { rolesOf } from '../sim/bots/roles';
 import { PING_KIND } from '../data/pings';
 import { TOWERS } from '../data/towers';
 import { HEROES } from '../data/heroes';
 import { TICK_HZ } from '../data/timeline';
-import { BuffFlag, Op, SLOT_COUNT, SLOTS_PER_TEAM, type Difficulty, type MapId, type EntitySnap, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
+import { BuffFlag, Op, SLOT_COUNT, SLOTS_PER_TEAM, type Difficulty, type MapId, type Mutator, type EntitySnap, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
 import { HERO_TEXT, rankUpLines, slotNames, TRICK_TEXT } from '../ui/heroText';
 import { headingPoint } from '../input/heading';
 import { ProgressRail } from '../ui/progressRail';
@@ -116,8 +117,10 @@ export interface MatchSetup {
   difficulty: Difficulty;
   seed?: number;
   speed?: number;
-  /** Sim v19: the map; omitted = 'crossing' (3v3 Quick), 'hearthwood' = 5v5 Classic. */
+  /** Sim v19: the map; omitted = 'crossing' (3v3 Skirmish), 'hearthwood' = 5v5 Classic. */
   map?: MapId;
+  /** Sim v22: 'blitz' = the ~3-minute Crossing match (omitted = none). */
+  mutator?: Mutator;
   firstMatch: boolean;
   muted: boolean;
   /** Fewer than five matches played: extra warnings (a tower is hitting you, lane arrow in the first match). */
@@ -322,6 +325,15 @@ class UnitRec implements Unit {
   hp = 0;
   maxHp = 0;
   state: Unit['state'] = 'idle';
+}
+
+/**
+ * Sim v22 (MAP-5V5-STANDARD.md §16 step 9): the loading veil's map preview for a 5v5 Classic match (null on the 3v3
+ * Crossing, which needs no map read). Lives in the lazy match chunk, so the first load does not carry it.
+ */
+export function mapPreviewFor(map: MapId | undefined): HTMLCanvasElement | null {
+  if (map !== 'hearthwood' || typeof document === 'undefined') return null;
+  return drawMapPreview(mapInfo('hearthwood'), 192);
 }
 
 export class MatchSession {
@@ -580,7 +592,7 @@ export class MatchSession {
       end: (result, replay) => this.onEnd(result, replay),
       error: (m) => hooks.onError(m),
     });
-    this.host.join({ hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty, seed: setup.seed, speed: setup.speed, ...(setup.map === 'hearthwood' ? { map: setup.map } : {}) });
+    this.host.join({ hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty, seed: setup.seed, speed: setup.speed, ...(setup.map === 'hearthwood' ? { map: setup.map } : {}), ...(setup.mutator === 'blitz' && setup.map !== 'hearthwood' ? { mutator: setup.mutator } : {}) });
     // Hold the sim until the scene has drawn and the countdown ran (the clock read 0:25 on a slow first load).
     this.host.pause(true);
     document.documentElement.dataset.match = 'loading';
@@ -1778,6 +1790,7 @@ export class MatchSession {
     return endCause({
       won,
       reason: result.reason,
+      ...(result.draw ? { draw: true } : {}),
       phase: this.lastPhase,
       top: this.coreLog.top(loser, result.ticks),
       kills: team === 0 ? [k[0], k[1]] : [k[1], k[0]],

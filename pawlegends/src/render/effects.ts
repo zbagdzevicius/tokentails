@@ -920,7 +920,9 @@ export class Effects {
     switch (e.what) {
       case 'spawn':
         sfx.play('horn', { rate: 1.3 });
-        this.juice.banner({ title: 'Pudding is here!', sub: 'Calm him in the river to win his courage.', tone: 'gold' });
+        // sim v22 (Hearthwood): the Great Pudding's own line, and his Sugar Rush (MAP-5V5-STANDARD.md §6.3)
+        if (MAP.point === 1) this.juice.banner({ title: 'The Great Pudding wobbles awake!', sub: 'Calm him in his hollow: Sugar Rush for your whole team.', tone: 'gold' });
+        else this.juice.banner({ title: 'Pudding is here!', sub: 'Calm him in the river to win his courage.', tone: 'gold' });
         sfx.voice('puddingWild', { sting: false });
         break;
       case 'hop':
@@ -928,7 +930,9 @@ export class Effects {
         break;
       case 'calmed': {
         const ours = e.team === this.hooks.myTeam;
-        this.juice.banner({ title: ours ? 'We calmed Pudding!' : 'They calmed Pudding', sub: ours ? 'He walks with our next wave.' : 'He walks with their next wave.', tone: ours ? 'good' : 'bad' });
+        if (MAP.point === 1)
+          this.juice.banner({ title: ours ? 'Sugar Rush!' : 'They have Sugar Rush', sub: ours ? 'Our minions near you shrug off hits and smash towers.' : 'Their minions hit towers harder: defend.', tone: ours ? 'good' : 'bad' });
+        else this.juice.banner({ title: ours ? 'We calmed Pudding!' : 'They calmed Pudding', sub: ours ? 'He walks with our next wave.' : 'He walks with their next wave.', tone: ours ? 'good' : 'bad' });
         sfx.voice(ours ? 'puddingOurs' : 'puddingTheirs');
         break;
       }

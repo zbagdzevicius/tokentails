@@ -52,6 +52,11 @@ The work splits into a **SIM lane** (§3 to §7) and a **CLIENT+SERVER lane** (�
 
 ## 1. Map spec: Hearthwood Divide
 
+> **Sim v22:** the jungle, river pickups, walls and bushes of this section (§1.5, §1.6, §1.8) are superseded by
+> `MAP-5V5-STANDARD.md` (the standard MOBA layout: a carved forest with four quadrants of clearings and corridors,
+> the Beetle Log, brush at every river entrance and gank exit, lane-to-buff Boing Beds and Sugar Rush). The frame,
+> lanes, towers, base, river band, both pits, the timeline and the interface below still hold.
+
 ### 1.1 Frame and symmetry
 
 - `width = height = 128000` and `navCell = 1000`, so the nav grid is 128 × 128 = 16,384 cells (2.7× the 6,000 cells of Crossing).

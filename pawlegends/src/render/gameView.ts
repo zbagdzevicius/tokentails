@@ -281,6 +281,7 @@ export class GameView {
     this.heroes.spinOf = (id) => this.fun.spinOf(id);
     this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group, this.fun.group);
     this.scene.add(this.vfx.auras.mesh);
+    this.scene.add(this.vfx.sugar.mesh);
     this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.candRings.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.pingMarks.group);
     this.juice = new Juice(uiRoot);
     // Settings → Screen shake, capped under the OS reduce-motion switch (render/fx/vfxPrefs.ts)
@@ -1405,7 +1406,7 @@ export class GameView {
     this.warmKeep.length = 0;
     this.gr.preRender = null;
     this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
-    this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.candRings.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.vfx.auras.mesh);
+    this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.candRings.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.vfx.auras.mesh, this.vfx.sugar.mesh);
     this.pingMarks.dispose();
     this.vfx.dispose();
     this.scene.remove(this.meshFx.group, this.linger.mesh, this.ribbons.mesh, this.ghosts.group);

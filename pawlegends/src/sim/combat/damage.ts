@@ -23,6 +23,8 @@ import { campKilled, heroKilled, minionKilled } from '../progression/xp';
 import { campReward, onRatDied, packBuff, stealJungleBuffs } from '../units/camp';
 import { HEARTHWOOD_PVP, HEARTHWOOD_RULES } from '../../data/maps/hearthwood';
 import { onPuddingDown } from '../units/pudding';
+import { sugared } from '../units/sugar';
+import { SUGAR_RUSH } from '../../data/pudding';
 import { respawnTicks } from '../progression/respawn';
 import { toyIncoming, toyLifesteal, toyOutgoing } from '../progression/fish';
 import { creditHealShield, heal } from '../effects/heal';
@@ -30,6 +32,7 @@ import { bonusDamage, nineLives } from '../effects/bonus';
 import { HUMAN_SLOT, teamOfSlot } from '../api';
 import { isHumanSlot } from '../humans';
 import { rulesOf } from '../rules';
+import { fortifyUntilOf, mutOf, mutatorRespawn } from '../mutator';
 
 export { respawnTicks } from '../progression/respawn';
 
@@ -101,15 +104,27 @@ export function dealDamage(
         if (hs) raw = applyBp(raw, hs.dmgBp);
         if (hd) raw = applyBp(raw, hd.takenBp);
       }
+      // Sim v22: a mutator's own hero-vs-hero scale and per-hero row (Blitz's balance pass).
+      const mut = mutOf(w);
+      if (mut.heroVsHeroBp !== BP_ONE) raw = applyBp(raw, mut.heroVsHeroBp);
+      const ms = mut.hero[HERO_IDS[w.sub[src]]];
+      const md = mut.hero[HERO_IDS[w.sub[dst]]];
+      if (ms) raw = applyBp(raw, ms.dmgBp);
+      if (md) raw = applyBp(raw, md.takenBp);
     }
     if (isHumanSlot(w, src)) raw = applyBp(raw, rulesOf(m).humanDamageBp);
   }
   if (isHumanSlot(w, dst) && !opts.pure && srcTeam !== w.team[dst]) raw = applyBp(raw, rulesOf(m).humanTakenBp);
   let dmg = opts.pure ? raw : idiv(raw * HERO_RULES.armourBase, HERO_RULES.armourBase + w.armour[dst]);
+  // Sim v22 (Hearthwood) Sugar Rush: minions beside an allied Sugar Rush hero take less and hit structures harder.
+  if (w.mg.length > 0 && !opts.pure) {
+    if (w.kind[dst] === Kind.Minion && sugared(w, dst)) dmg = applyBp(dmg, SUGAR_RUSH.takenBp);
+    else if (structure && srcKind === Kind.Minion && src >= 0 && w.kind[src] === Kind.Minion && w.alive[src] === 1 && sugared(w, src)) dmg = applyBp(dmg, SUGAR_RUSH.structBp);
+  }
   if (structure && !opts.pure) {
     if (tick >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.structureDamageBp);
     // Sim v21 Fortified: heroes deal TOWERS.fortifyBp to towers early (V21-FUN.md §3.1).
-    if (srcKind === Kind.Hero && w.kind[dst] === Kind.Tower && tick < TOWERS.fortifyUntil[w.map]) dmg = applyBp(dmg, TOWERS.fortifyBp);
+    if (srcKind === Kind.Hero && w.kind[dst] === Kind.Tower && tick < fortifyUntilOf(w)) dmg = applyBp(dmg, TOWERS.fortifyBp);
   }
   if (structure && (!opts.pure || opts.backdoor === true)) {
     // Backdoor protection: heroes deal half when no minion of their team is near the structure.
@@ -264,7 +279,10 @@ export function resolveDeaths(m: MatchHandle): void {
       w.state[id] = UnitState.Dead;
       w.order[id] = Order.None;
       w.pathLen[id] = 0;
-      w.timer[id] = respawnTicks(w.level[id], tick, w.globals[G.Sunset]);
+      // Sim v22 (Blitz): a flat wait rising from 6 s to 8 s over the match replaces the level wait, Sunset and the lead
+      // pressure; the difficulty's human and enemy edges still apply.
+      const flat = mutatorRespawn(w, tick);
+      w.timer[id] = flat > 0 ? flat : respawnTicks(w.level[id], tick, w.globals[G.Sunset]);
       if (isHumanSlot(w, id)) w.timer[id] = Math.max(1, applyBp(w.timer[id], rulesOf(m).humanRespawnBp));
       else if (w.team[id] !== teamOfSlot(HUMAN_SLOT)) w.timer[id] = applyBp(w.timer[id], rulesOf(m).enemyRespawnBp);
       m.stats[id].deaths++;
@@ -276,7 +294,7 @@ export function resolveDeaths(m: MatchHandle): void {
       // PvP (sim v16, DifficultyRules.humanStreakRespawn: a human-only wait would favour one team).
       const struggling = isHumanSlot(w, id) && w.deathStreak[id] >= RESPAWN.humanStreakFrom && rulesOf(m).humanRespawnBp >= BP_ONE && rulesOf(m).humanStreakRespawn;
       if (struggling) w.timer[id] = Math.max(1, applyBp(w.timer[id], RESPAWN.humanStreakBp));
-      if (rulesOf(m).leadPressure && !struggling) {
+      if (rulesOf(m).leadPressure && !struggling && flat <= 0) {
         const gap = w.globals[enemy === 0 ? G.Kills0 : G.Kills1] - w.globals[enemy === 0 ? G.Kills1 : G.Kills0] - RESPAWN.gapFree;
         if (gap > 0) w.timer[id] = applyBp(w.timer[id], BP_ONE + Math.min(RESPAWN.gapCapBp, gap * RESPAWN.gapPerBp));
       }
@@ -302,7 +320,7 @@ export function resolveDeaths(m: MatchHandle): void {
         // Past the cap the chips go on only into an open base (an inner tower of that side down), else to its weakest tower.
         if (chip > 0 && (chips * chip <= rulesOf(m).takedownChipCapBp || coreExposed(w, victimTeam))) {
           const core = RANGE.cores + victimTeam;
-          dealDamage(m, -1, enemy, Kind.None, core, applyBp(w.maxHp[core], chip), 'chip', { pure: true, pierce: true });
+          dealDamage(m, -1, enemy, Kind.None, core, applyBp(applyBp(w.maxHp[core], chip), mutOf(w).takedownCoreBp), 'chip', { pure: true, pierce: true });
         } else if (chip > 0 && rulesOf(m).takedownTowerChipBp > 0) {
           const t = weakestTower(w, victimTeam);
           if (t >= 0) dealDamage(m, -1, enemy, Kind.None, t, applyBp(w.maxHp[t], rulesOf(m).takedownTowerChipBp), 'chip', { pure: true });
@@ -312,7 +330,8 @@ export function resolveDeaths(m: MatchHandle): void {
         const core = RANGE.cores + victimTeam;
         const sd = tick >= w.globals[G.SuddenDeath];
         const bp = sd ? SUDDEN_DEATH.takedownCoreBp : coreExposed(w, victimTeam) ? SUNSET.takedownCoreBp : SUNSET.closedCoreBp;
-        dealDamage(m, -1, enemy, Kind.None, core, applyBp(w.maxHp[core], bp), 'zone', { pure: true, pierce: true });
+        // Sim v22: a mutator may scale it (mutOf(w).takedownCoreBp)
+        dealDamage(m, -1, enemy, Kind.None, core, applyBp(applyBp(w.maxHp[core], bp), mutOf(w).takedownCoreBp), 'zone', { pure: true, pierce: true });
       }
     } else if (k === Kind.Minion) {
       minionKilled(m, id);

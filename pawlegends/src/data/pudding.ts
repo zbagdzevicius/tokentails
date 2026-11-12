@@ -45,6 +45,18 @@ export const HEARTHWOOD_PUDDING: PuddingStats = Object.freeze({
   escortLeaveDamage: 6000,
   escortBreathDamage: 260,
 });
+/**
+ * Sim v22 (docs/plans/moba/MAP-5V5-STANDARD.md §6.2) Sugar Rush, Hearthwood only: each living hero of the team that
+ * calms the Great Pudding gets it for 90 s. Allied minions within `range` of a Sugar Rush hero take `takenBp` of the
+ * damage and deal `structBp` to structures.
+ */
+export const SUGAR_RUSH = Object.freeze({
+  ticks: 2700,
+  range: 8000,
+  takenBp: 7000,
+  structBp: 13000,
+});
+
 /** Live binding (src/sim/map/runtime.ts bindMap). */
 export let PUDDING: PuddingStats = C_PUDDING;
 export function setPudding(p: PuddingStats): void {

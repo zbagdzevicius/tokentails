@@ -7,6 +7,12 @@
  * nav grid blocks, Captain Grizzlechop's sunken rat-pirate wreck and the Great Pudding's mossy jelly-mould hollow,
  * base banners, and an instanced autumn forest round the map. Static scenery only (units and structures have their
  * own views). Render only.
+ *
+ * Sim v22 (docs/plans/moba/MAP-5V5-STANDARD.md §11, §12): the carved jungle. A dark forest floor under every blocked
+ * cell, warm dirt paths along the corridors, clearings and the pits' moats painted into the ground texture (no extra
+ * draws); edge trees on the forest's silhouette in the far forest's instanced chunks (Low keeps half); canopy blobs
+ * over the deep forest (one instanced draw); and the landmarks: the Glow Log (Beetle Log), the Apple Den (Prickle
+ * Hollow), the Lantern Oak (Crow Roost) and the Reed Steps where a jungle path meets the river.
  */
 import * as THREE from 'three';
 import type { MapInfo } from '../../sim/map/info';
@@ -54,6 +60,15 @@ export const HW = Object.freeze({
   bush: [0xb3562c, 0xc9742e, 0x9b4426],
   berry: 0xb98cff,
   rock: [0x9d958a, 0xaaa294, 0x8c857b, 0xb3ab9c],
+  /** Sim v22: the carved forest floor, the jungle paths, the pit moats, the canopy, landmark lights. */
+  forest: '#5d5a2c',
+  forestLo: '#535026',
+  path: 'rgba(206,166,108,0.7)',
+  moat: 'rgba(143,184,200,0.55)',
+  canopy: [0x9c5a2a, 0xb8482c, 0xc98a2e, 0x7f6a2c],
+  crowLamp: 0x7fc4ff,
+  beetle: 0x8dff7a,
+  apple: 0xd8342c,
 });
 
 type Pt = readonly [number, number];
@@ -98,7 +113,8 @@ export function hwLanterns(info: MapInfo): { x: number; y: number }[] {
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
   const ux = (b[0] - a[0]) / len;
   const uy = (b[1] - a[1]) / len;
-  const off = 6.3;
+  // sim v22: 5 m (the shoulder; past it the carved forest starts)
+  const off = 5.0;
   const W = info.width / 1000;
   for (let t = 18; t < len - 18; t += 9) {
     const cx = a[0] + ux * t;
@@ -221,6 +237,32 @@ function paintGround(info: MapInfo, swap: boolean): THREE.Texture {
       stroke(l.pts, 0.45, style, l.id === 'gutter' ? undefined : [0.25, 0.6]);
     }
   }
+  // Sim v22: the carved forest's floor (dark moss under the trees), the jungle paths and the clearings
+  if (hwCarved(info)) {
+    const n = info.nx;
+    for (let j = 0; j < info.ny; j++) {
+      for (let i = 0; i < n; i++) {
+        if (info.playable[j * n + i] === 1) continue;
+        g.fillStyle = (i * 7 + j * 13) % 5 === 0 ? HW.forestLo : HW.forest;
+        g.fillRect(px(i) - 0.5, py(j + 1) - 0.5, S + 1, S + 1);
+      }
+    }
+    for (const c of info.corridors) stroke([[c.ax / 1000, c.ay / 1000], [c.bx / 1000, c.by / 1000]], Math.max(1.6, (c.half / 1000) * 0.9), HW.path);
+    for (const c of info.clearings) {
+      g.fillStyle = HW.clearing;
+      g.beginPath();
+      g.arc(px(c.x / 1000), py(c.y / 1000), (c.r / 1000 - 0.6) * S, 0, Math.PI * 2);
+      g.fill();
+    }
+    // the pits' moats: a shallow ring of water round each island
+    for (const p of info.pits) {
+      g.strokeStyle = HW.moat;
+      g.lineWidth = 2.2 * S;
+      g.beginPath();
+      g.arc(px(p.x / 1000), py(p.y / 1000), (p.r / 1000 - 2) * S, 0, Math.PI * 2);
+      g.stroke();
+    }
+  }
   // base plazas (fountain and core) and camp clearings
   const plaza = (team: 0 | 1): string => ((swap ? 1 - team : team) === 0 ? HW.plaza0 : HW.plaza1);
   for (const f of info.fountains) {
@@ -238,7 +280,7 @@ function paintGround(info: MapInfo, swap: boolean): THREE.Texture {
     g.lineWidth = 0.25 * S;
     g.stroke();
   }
-  for (const cp of info.camps) {
+  for (const cp of hwCarved(info) ? [] : info.camps) {
     g.fillStyle = HW.clearing;
     g.beginPath();
     g.ellipse(px(cp.x / 1000), py(cp.y / 1000), 4.2 * S, 3.6 * S, 0.6, 0, Math.PI * 2);
@@ -353,6 +395,75 @@ export function hwOuterTrees(info: MapInfo): { x: number; y: number; s: number; 
       if (Math.abs(px + py - W) < 9 && d < 14) continue;
       if (keep > Math.max(0.4, 1 - d / 60)) continue;
       out.push({ x: px, y: py, s, low });
+    }
+  }
+  return out;
+}
+
+/** Sim v22: is the map carved (a forest with clearings and corridors, MAP-5V5-STANDARD.md §5)? */
+export const hwCarved = (info: MapInfo): boolean => info.clearings.length > 0;
+
+/** Sim v22: the nav cell (i, j) is forest: blocked, inside the map, and not one of the pit rings' rocks. */
+function forestCell(info: MapInfo, i: number, j: number): boolean {
+  if (i < 0 || j < 0 || i >= info.nx || j >= info.ny || info.playable[j * info.nx + i] === 1) return false;
+  const x = i + 0.5;
+  const y = j + 0.5;
+  return !info.objectives.some((o) => Math.hypot(x - o.x / 1000, y - o.y / 1000) < 10.5);
+}
+
+/**
+ * Sim v22 (MAP-5V5-STANDARD.md §12): the carved forest's trees (m), edge cells only (forest cells touching walkable
+ * ground: the silhouette), spaced about 1.9 m; `low` marks the half the Low tier keeps. Deterministic.
+ */
+export function hwForestTrees(info: MapInfo): { x: number; y: number; s: number; low: boolean }[] {
+  if (!hwCarved(info)) return [];
+  const rnd = lcg(57);
+  const out: { x: number; y: number; s: number; low: boolean }[] = [];
+  const taken = new Uint8Array(info.nx * info.ny);
+  for (let j = 0; j < info.ny; j++) {
+    for (let i = 0; i < info.nx; i++) {
+      if (!forestCell(info, i, j)) continue;
+      let edge = false;
+      for (let dj = -1; dj <= 1 && !edge; dj++) for (let di = -1; di <= 1; di++) if (hwWalkable(info, i + di + 0.5, j + dj + 0.5)) edge = true;
+      if (!edge) continue;
+      let near = false;
+      for (let dj = -1; dj <= 1 && !near; dj++) for (let di = -1; di <= 1; di++) if (taken[(j + dj) * info.nx + i + di] === 1) near = true;
+      if (near) continue;
+      taken[j * info.nx + i] = 1;
+      out.push({ x: i + 0.3 + rnd() * 0.4, y: j + 0.3 + rnd() * 0.4, s: 0.8 + rnd() * 0.45, low: rnd() < 0.5 });
+    }
+  }
+  return out;
+}
+
+/** Sim v22: canopy blobs (m) over the deep forest, one per 4 m block that is all forest. */
+export function hwCanopy(info: MapInfo): { x: number; y: number; s: number }[] {
+  if (!hwCarved(info)) return [];
+  const rnd = lcg(61);
+  const out: { x: number; y: number; s: number }[] = [];
+  for (let j = 0; j + 4 <= info.ny; j += 4) {
+    for (let i = 0; i + 4 <= info.nx; i += 4) {
+      let all = true;
+      for (let b = 0; b < 4 && all; b++) for (let a = 0; a < 4; a++) if (!forestCell(info, i + a, j + b)) all = false;
+      if (all) out.push({ x: i + 1.6 + rnd() * 0.8, y: j + 1.6 + rnd() * 0.8, s: 0.9 + rnd() * 0.3 });
+    }
+  }
+  return out;
+}
+
+/** Sim v22: where a jungle corridor meets the river band (the Reed Steps), each once (m). */
+export function hwReedSteps(info: MapInfo): { x: number; y: number }[] {
+  const W = info.width / 1000;
+  const b = info.river.b / 1000 / Math.SQRT2 + 1.5;
+  const out: { x: number; y: number }[] = [];
+  for (const c of info.corridors) {
+    for (const [x, y] of [
+      [c.ax / 1000, c.ay / 1000],
+      [c.bx / 1000, c.by / 1000],
+    ] as const) {
+      if (Math.abs(x + y - W) > b * 2.2) continue;
+      if (out.some((p) => Math.hypot(p.x - x, p.y - y) < 3)) continue;
+      out.push({ x, y });
     }
   }
   return out;
@@ -482,11 +593,6 @@ export function createHearthwoodView(info: MapInfo): MapView {
     props.box(0.5, 0.06, 0.06, 0x4e3524, { at: [p.x, 1.85, -p.y] });
     lamps.sphere(0.22, 0xffc76b, { at: [p.x + 0.22, 1.6, -p.y] }, 8);
   }
-  const lampMat = keep(new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }));
-  const lampMesh = new THREE.Mesh(keep(lamps.build()), lampMat);
-  lampMesh.name = 'lanterns';
-  group.add(lampMesh);
-
   // camp dressing: a few stones round each clearing (outside it, low)
   for (const cp of info.camps) {
     const cx = cp.x / 1000;
@@ -509,8 +615,45 @@ export function createHearthwoodView(info: MapInfo): MapView {
       }
     } else if (cp.kind === 'toad') {
       props.cyl(1.6, 1.6, 0.02, 0x8fb8c8, { at: [cx + 2.8, 0.03, -(cy - 1.6)] }, 16);
+    } else if (cp.kind === 'beetle') {
+      // the Glow Log (sim v22): a mossy hollow log with glowing green beetles
+      props.cyl(0.55, 0.65, 3.2, 0x6e4a2e, { at: [cx + 2.2, 0.5, -(cy + 1.4)], rot: [0, 0.5, Math.PI / 2] }, 8);
+      props.sphere(0.5, 0x5d7f3e, { at: [cx + 2.2, 1.0, -(cy + 1.4)], scale: [1.6, 0.35, 1] }, 6);
+      for (let k = 0; k < 5; k++) lamps.sphere(0.09, HW.beetle, { at: [cx + 1.2 + k * 0.5, 0.95 + (k % 2) * 0.12, -(cy + 1.2 + (k % 3) * 0.2)] }, 6);
+    }
+    if (hwCarved(info) && cp.kind === 'prickle') {
+      // the Apple Den (sim v22): a fallen log full of apples
+      props.cyl(0.5, 0.6, 3.6, 0x7a5133, { at: [cx - 2.6, 0.45, -(cy - 2.2)], rot: [0, -0.4, Math.PI / 2] }, 8);
+      for (let k = 0; k < 6; k++) props.sphere(0.2, HW.apple, { at: [cx - 3.6 + k * 0.4, 0.95, -(cy - 2.2 + (k % 2) * 0.25)] }, 6);
+    } else if (hwCarved(info) && cp.kind === 'crow') {
+      // the Lantern Oak (sim v22): blue lanterns and trinkets on the roost
+      for (let k = 0; k < 4; k++) {
+        const a = (k / 4) * Math.PI * 2 + 0.4;
+        props.cyl(0.02, 0.02, 0.5, 0x3a2a20, { at: [cx - 2.6 + Math.cos(a) * 0.9, 2.55, -(cy + 2.6 + Math.sin(a) * 0.9)] }, 4);
+        lamps.sphere(0.16, HW.crowLamp, { at: [cx - 2.6 + Math.cos(a) * 0.9, 2.25, -(cy + 2.6 + Math.sin(a) * 0.9)] }, 8);
+      }
     }
   }
+  // the Reed Steps (sim v22): stepping stones and reeds where a jungle path meets the river
+  for (const r of hwReedSteps(info)) {
+    for (let k = 0; k < 4; k++) {
+      const a = rnd() * Math.PI * 2;
+      const d = 0.8 + rnd() * 1.4;
+      props.cyl(0.35, 0.4, 0.08, 0xb9b2a6, { at: [r.x + Math.cos(a) * d, 0.05, -(r.y + Math.sin(a) * d)] }, 8);
+    }
+    for (let k = 0; k < 9; k++) {
+      const a = rnd() * Math.PI * 2;
+      const d = 2.2 + rnd() * 1.2;
+      const h = 0.9 + rnd() * 0.6;
+      props.cyl(0.03, 0.04, h, 0x7d8f3e, { at: [r.x + Math.cos(a) * d, h / 2, -(r.y + Math.sin(a) * d)], rot: [(rnd() - 0.5) * 0.3, 0, (rnd() - 0.5) * 0.3] }, 4);
+    }
+  }
+
+  // the warm lanterns, the Lantern Oaks' blue lights and the Glow Logs' beetles: one unlit mesh
+  const lampMat = keep(new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }));
+  const lampMesh = new THREE.Mesh(keep(lamps.build()), lampMat);
+  lampMesh.name = 'lanterns';
+  group.add(lampMesh);
 
   // the pits: Grizzlechop's sunken rat-pirate wreck, the Great Pudding's jelly-mould hollow (on their pit walls)
   const wreck = new ModelBuilder();
@@ -700,7 +843,8 @@ export function createHearthwoodView(info: MapInfo): MapView {
   const farGeo = keep(farB.build());
   const farMat = keep(cutMaterial(forestU, CANOPY_CUT.minY, 'pl-hw-forest-cut-v1'));
   const CHUNK = 24;
-  const far = hwOuterTrees(info).map((t, i) => ({ ...t, i }));
+  // Sim v22: the carved jungle's edge trees join the same instanced chunks (one draw a chunk)
+  const far = [...hwOuterTrees(info), ...hwForestTrees(info)].map((t, i) => ({ ...t, i }));
   const chunks = new Map<string, typeof far>();
   for (const t of far) {
     const k = `${Math.floor(t.x / CHUNK)},${Math.floor(t.y / CHUNK)}`;
@@ -730,6 +874,25 @@ export function createHearthwoodView(info: MapInfo): MapView {
     mesh.receiveShadow = true;
     group.add(mesh);
     farMeshes.push({ mesh, all: list.length, low: list.filter((t) => t.low).length });
+  }
+
+  // Sim v22: canopy blobs over the deep forest (one instanced draw; kept on Low, MAP-5V5-STANDARD.md §12)
+  const canopyList = hwCanopy(info);
+  if (canopyList.length > 0) {
+    const cb = new ModelBuilder();
+    cb.add(new THREE.IcosahedronGeometry(2.6, 0), 0xffffff, { at: [0, 3.0, 0], scale: [1, 0.55, 1] });
+    cb.add(new THREE.IcosahedronGeometry(1.8, 0), 0xf0f0f0, { at: [0.6, 3.7, -0.4], scale: [1, 0.6, 1] });
+    const canopy = new THREE.InstancedMesh(keep(cb.build()), farMat, canopyList.length);
+    canopy.name = 'canopy';
+    canopyList.forEach((t, j) => {
+      fq.setFromAxisAngle(up, (t.x * 5.3 + t.y * 2.9) % (Math.PI * 2));
+      fm.compose(fv.set(t.x, 0, -t.y), fq, fs.set(t.s, t.s, t.s));
+      canopy.setMatrixAt(j, fm);
+      canopy.setColorAt(j, tc.setHex(HW.canopy[j % HW.canopy.length]));
+    });
+    canopy.computeBoundingSphere();
+    canopy.receiveShadow = true;
+    group.add(canopy);
   }
 
   let myTeam = 0;

@@ -11,7 +11,7 @@ import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
 import { HEROES } from '../data/heroes';
 import { championOf } from '../data/heroes/shelter';
-import type { Difficulty, HeroId, MapId, TrickId } from '../sim/api';
+import type { Difficulty, HeroId, MapId, Mutator, TrickId } from '../sim/api';
 import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, wearsCardSkin, type FrameId, type Look, type Owned } from '../render/cosmetics';
 import { ELEMENT_NAME } from '../meta/roster';
 import type { CatTier, Element } from '../meta/roster';
@@ -55,8 +55,10 @@ export interface Choice {
   hero: HeroId;
   trick: TrickId;
   difficulty: Difficulty;
-  /** Sim v19: the map (omitted = 'crossing', 3v3 Quick; 'hearthwood' = 5v5 Classic). */
+  /** Sim v19: the map (omitted = 'crossing', 3v3 Skirmish; 'hearthwood' = 5v5 Classic). */
   map?: MapId;
+  /** Sim v22: 'blitz' = the ~3-minute Crossing match (omitted = none). */
+  mutator?: Mutator;
 }
 
 // ------------------------------------------------------------------------------------------------- title
@@ -514,6 +516,12 @@ export interface ResultsOpts {
   speed?: number;
   onAgain(): void;
   onChange(): void;
+  /**
+   * Sim v22 (WR-BS-PLAN.md §5): the context button beside "Run it back" ("Quick Blitz? ~3 min" after a Skirmish or
+   * Classic loss, "Take {hero} into Skirmish" after two Blitz in a row). `mode` names the match's mode on Run it back.
+   */
+  next?: { label: string; sub: string; onNext(): void } | null;
+  mode?: string | null;
   /** Audit UX-08: Home (the lobby) from the results, top right. */
   onHome?(): void;
   /** `text`: the dare line ("Beat my 7:12 vs Easy bots in Pawlegends!"), sent with the link to the share sheet (PUB-06). */
@@ -754,7 +762,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     ${
       o.party
         ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">${esc(o.party.leave ?? 'Leave party')}</button>${o.party.change === false ? '' : '<button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button>'}<button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
-        : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`
+        : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button>${o.next ? `<button class="pl-btn ghost lb-next" data-a="next" data-testid="results-next">${esc(o.next.label)}<small>${esc(o.next.sub)}</small></button>` : ''}<button class="pl-btn big" data-a="again" data-testid="results-again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots${o.mode ? ` · ${esc(o.mode)}` : ''}</small></button></div>`
     }`;
   root.addEventListener('click', (e) => {
     const flag = (e.target as HTMLElement).closest<HTMLElement>('[data-report]');
@@ -765,6 +773,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     }
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'again') o.onAgain();
+    else if (a === 'next') o.next?.onNext();
     else if (a === 'change') o.onChange();
     else if (a === 'leave-party') o.party?.onLeave();
     else if (a === 'home') o.onHome?.();

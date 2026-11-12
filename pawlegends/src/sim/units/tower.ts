@@ -14,6 +14,7 @@ import { grantFish } from '../progression/fish';
 import { FISH } from '../../data/fish';
 import { fireBolt, inAttackRange, structureShot } from '../combat/attack';
 import { attackEvery, isInvulnerable, radiusOf, targetable } from './kinds';
+import { fortifyUntilOf } from '../mutator';
 
 /** Nearest targetable enemy of `kind` in range of structure `id`, or −1 (ties: lowest id). */
 function nearestInRange(w: World, id: number, from: number, to: number): number {
@@ -53,7 +54,7 @@ export function stepStructures(m: MatchHandle): void {
     if (isInvulnerable(w, id)) w.buffs[id] |= Buff.Invulnerable;
     else w.buffs[id] &= ~Buff.Invulnerable;
     // Sim v21: the Fortified ribbon the render shows (combat/damage.ts applies it).
-    if (w.kind[id] === Kind.Tower && w.globals[G.Tick] < TOWERS.fortifyUntil[w.map]) w.buffs[id] |= Buff.Fortified;
+    if (w.kind[id] === Kind.Tower && w.globals[G.Tick] < fortifyUntilOf(w)) w.buffs[id] |= Buff.Fortified;
     else w.buffs[id] &= ~Buff.Fortified;
     if (w.attackTimer[id] > 0) w.attackTimer[id]--;
     const t = chooseTarget(w, id);

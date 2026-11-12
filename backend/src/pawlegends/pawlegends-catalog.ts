@@ -602,14 +602,33 @@ export const SEASON_XP = Object.freeze({
     perTakedown: 10,
     maxTakedowns: 15,
     firstWinOfDay: 150,
+    /**
+     * Sim v22 (WR-BS-PLAN.md §9): every mode pays the same Season XP per minute. A mutator match (Blitz, ~3 min) gets
+     * the match XP × its ticks / refTicks (at most ×1): refTicks is a Skirmish match (7:30 at 30 Hz, the v21 probe
+     * median 7:29). The first win of the day is paid in full in any mode.
+     */
+    refTicks: 13500,
 });
 
-export function seasonXpFor(m: { won: boolean; forfeit: boolean; takedowns: number; firstWinToday: boolean }): number {
-    const base = m.forfeit ? SEASON_XP.forfeit : m.won ? SEASON_XP.win : SEASON_XP.loss;
+export function seasonXpFor(m: {
+    won: boolean;
+    forfeit: boolean;
+    takedowns: number;
+    firstWinToday: boolean;
+    /** Sim v22: a mutator match's length (per-minute pay); absent = a plain match, paid in full. */
+    ticks?: number;
+    /** Sim v22: a Blitz draw: the loss plus half the win bonus. */
+    draw?: boolean;
+}): number {
+    const drawBase = SEASON_XP.loss + Math.floor((SEASON_XP.win - SEASON_XP.loss) / 2);
+    const base = m.forfeit ? SEASON_XP.forfeit : m.won ? SEASON_XP.win : m.draw ? drawBase : SEASON_XP.loss;
     const t = Math.max(0, Math.min(SEASON_XP.maxTakedowns, Math.floor(Number(m.takedowns) || 0)));
-    return (
-        base + (m.forfeit ? 0 : t * SEASON_XP.perTakedown) + (m.won && m.firstWinToday ? SEASON_XP.firstWinOfDay : 0)
-    );
+    let match = base + (m.forfeit ? 0 : t * SEASON_XP.perTakedown);
+    if (m.ticks !== undefined) {
+        const share = Math.max(0, Math.min(1, (Number(m.ticks) || 0) / SEASON_XP.refTicks));
+        match = Math.round(match * share);
+    }
+    return match + (m.won && m.firstWinToday ? SEASON_XP.firstWinOfDay : 0);
 }
 
 /** The tier reached: XP tiers plus Pass+ skips, at most the season's last tier. */

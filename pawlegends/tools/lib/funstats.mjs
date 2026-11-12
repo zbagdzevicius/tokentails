@@ -66,6 +66,7 @@ export function createFunTracker(sim, m) {
     gap5: null,
     gap6: null,
     score330: null,
+    score90: null,
     pings: 0,
     pingsObeyed: 0,
     pickups: 0,
@@ -226,6 +227,8 @@ export function createFunTracker(sim, m) {
       st.fishGap3 = Math.max(w.fishTotal[3], w.fishTotal[4], w.fishTotal[5]) - w.fishTotal[0];
       st.fishRatio3 = (w.fishTotal[3] + w.fishTotal[4] + w.fishTotal[5]) / 3 / Math.max(1, w.fishTotal[0]);
     }
+    // Sim v22 (Blitz): the comeback check at 1:30 (Sunset), same score
+    if (t === 90 * HZ) st.score90 = st.takedowns[0] - st.takedowns[1] + 3 * (w.globals[4] - w.globals[5]);
     if (t === 210 * HZ) st.score330 = st.takedowns[0] - st.takedowns[1] + 3 * (w.globals[4] - w.globals[5]);
   }
 
@@ -269,6 +272,7 @@ export function createFunTracker(sim, m) {
       gap5: st.gap5,
       gap6: st.gap6,
       score330: st.score330,
+      score90: st.score90,
       /** GAPS B1: pings slot 0 sent, and the share of them an ally took (null without pings). */
       pings: st.pings,
       pingsObeyedShare: st.pings ? st.pingsObeyed / st.pings : null,
@@ -347,6 +351,9 @@ export function aggregateFun(funRows, sdTick) {
   const r = funRows;
   const trailing = r.filter((x) => x.score330 !== null && Math.abs(x.score330) >= 3);
   const trailingWon = trailing.filter((x) => (x.score330 < 0 ? x.winner === 0 : x.winner === 1)).length;
+  // Sim v22 (Blitz): the same at 1:30
+  const trailing90 = r.filter((x) => x.score90 !== null && x.score90 !== undefined && Math.abs(x.score90) >= 3);
+  const trailing90Won = trailing90.filter((x) => (x.score90 < 0 ? x.winner === 0 : x.winner === 1)).length;
   // Playtest round 1 ("kills barely decide the match"): a team down DEFICIT or more takedowns at the end.
   const deficit = r.filter((x) => Math.abs(x.teamTakedowns[0] - x.teamTakedowns[1]) >= DEFICIT);
   const deficitWon = deficit.filter((x) => (x.teamTakedowns[0] < x.teamTakedowns[1] ? x.winner === 0 : x.winner === 1)).length;
@@ -370,6 +377,13 @@ export function aggregateFun(funRows, sdTick) {
     lengthP95: pct(r.map((x) => x.ticks), 95) / 30,
     coreBeforeSD: (100 * r.filter((x) => x.reason === 'core' && x.ticks < sdTick).length) / n,
     safetyEnds: r.filter((x) => x.reason === 'safetyEnd').length,
+    /** Sim v22 (Blitz): designed ends at 3:15, and draws among them. */
+    timeUps: r.filter((x) => x.reason === 'timeUp').length,
+    draws: r.filter((x) => x.winner === -1).length,
+    coreKills: (100 * r.filter((x) => x.reason === 'core').length) / n,
+    lengthP90: pct(r.map((x) => x.ticks), 90) / 30,
+    trailingAt90: trailing90.length,
+    trailing90WonRate: trailing90.length ? (100 * trailing90Won) / trailing90.length : NaN,
     actionShare: 100 * median(r.map((x) => x.actionShare)),
     gapMedian: median(r.map((x) => x.gapMedian)),
     gapMaxMedian: median(r.map((x) => x.gapMax)),
@@ -529,6 +543,35 @@ export function funGates(gate, a, perHero, difficulty, catHeroes = []) {
     // comeback band moved from 30%..40% to 20%..40%, and a team down DEFICIT+ takedowns at the end wins < 5%.
     add('trailing at 3:30 wins 20% to 40%', between(a.trailingWonRate, 20, 40), `${f1(a.trailingWonRate)}% of ${a.trailingAt330}`);
     add(`down ${DEFICIT}+ takedowns at the end wins < 5%`, a.deficitWonRate < 5, `${f1(a.deficitWonRate)}% of ${a.deficitMatches}`);
+  } else if (gate === 'blitz') {
+    // Sim v22 (WR-BS-PLAN.md §4.3): the ~3-minute Crossing match. Takedowns 4 to 6 a minute is a written Blitz-only
+    // exception to the 3v3 band (2.5 to 3.5).
+    add('median 2:30 to 3:15', between(a.lengthMedian, 150, 195), mmss(a.lengthMedian));
+    add('p90 ≤ 3:10', a.lengthP90 <= 190, mmss(a.lengthP90));
+    add('≥ 85% decided by a core kill', a.coreKills >= 85, `${f1(a.coreKills)}% (time up ${a.timeUps})`);
+    add('draws ≤ 1%', (100 * a.draws) / a.matches <= 1, `${a.draws} of ${a.matches}`);
+    add('no safety end', a.safetyEnds === 0, `${a.safetyEnds} safety ends`);
+    add('side win rate 47% to 53%', between(a.winRate, 47, 53), `Purrhaven ${f1(a.winRate)}% / Woof ${f1(100 - a.winRate - (100 * a.draws) / a.matches)}%`);
+    for (const [hero, h] of Object.entries(perHero)) {
+      const rate = (100 * h.wins) / h.slots;
+      add(`${hero} win rate 46% to 54%`, between(rate, 46, 54), `${f1(rate)}%`);
+    }
+    if (catHeroes.length) {
+      let wins = 0;
+      let slots = 0;
+      for (const [hero, h] of Object.entries(perHero)) {
+        if (!catHeroes.includes(hero)) continue;
+        wins += h.wins;
+        slots += h.slots;
+      }
+      const cats = slots ? (100 * wins) / slots : 0;
+      add('cat species win rate 47% to 53%', between(cats, 47, 53), `cats ${f1(cats)}%`);
+    }
+    add('takedowns a minute 4.0 to 6.0 (Blitz exception)', between(a.tdPerMin, 4, 6), a.tdPerMin.toFixed(2));
+    add('trailing at 1:30 wins 20% to 40%', between(a.trailing90WonRate, 20, 40), `${f1(a.trailing90WonRate)}% of ${a.trailingAt90}`);
+    add(`down ${DEFICIT}+ takedowns at the end wins < 5%`, a.deficitWonRate < 5, `${f1(a.deficitWonRate)}% of ${a.deficitMatches}`);
+  } else if (gate === 'blitzNovice') {
+    add(`novice vs ${difficulty} in Blitz win ≥ 60%`, a.winRate >= 60, `${f1(a.winRate)}%`);
   } else throw new Error(`unknown gate ${gate}`);
   return g;
 }

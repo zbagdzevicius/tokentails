@@ -10,10 +10,11 @@ import { DIFFICULTIES } from '../data/bots';
 import { HERO_IDS } from '../data/heroes';
 import { MAX_TICKS } from '../data/limits';
 import { TRICK_IDS } from '../data/tricks';
-import { MAP_IDS, MAX_INPUT_CHARS, MUTATORS, type MapId, type ReplayRecord, type VerifyCode, type VerifyResult } from './api';
+import { MAP_IDS, MAX_INPUT_CHARS, type MapId, type ReplayRecord, type VerifyCode, type VerifyResult } from './api';
 import { bindMap, mapIndex } from './map/runtime';
 import { DecodeError } from './commands';
 import { runReplay } from './replay';
+import { mutatorProblem } from './mutator';
 import { SIM_VERSION } from './version';
 
 export { SIM_VERSION, MAX_TICKS, MAX_INPUT_CHARS };
@@ -46,8 +47,9 @@ export function checkReplayShape(r: unknown): VerifyResult | null {
   if (x.inputs.length > MAX_INPUT_CHARS) return fail('PAWLEGENDS_TOO_LONG', `inputs over ${MAX_INPUT_CHARS} characters`);
   if (x.outcome !== 'won' && x.outcome !== 'lost') return fail('PAWLEGENDS_REPLAY_INVALID', 'outcome must be won or lost');
   if (typeof x.finalHash !== 'string' || !isHex8(x.finalHash)) return fail('PAWLEGENDS_REPLAY_INVALID', 'finalHash must be 8 hex digits');
-  // Sim v10: no field or 'none' (the only mutator in v10).
-  if (x.mutator !== undefined && !(MUTATORS as readonly unknown[]).includes(x.mutator)) return fail('PAWLEGENDS_REPLAY_INVALID', "mutator must be 'none'");
+  // Sim v10: no field or 'none'. Sim v22: or 'blitz' (Crossing only).
+  const mutBad = mutatorProblem(x.mutator, x.map, false);
+  if (mutBad) return fail('PAWLEGENDS_REPLAY_INVALID', mutBad);
   return null;
 }
 
@@ -66,7 +68,7 @@ export function verifyReplay(record: unknown): VerifyResult {
   if (!res || res.ticks !== r.ticks) return fail('PAWLEGENDS_NOT_ENDED', 'the match does not end on the reported tick');
   if (res.outcome !== r.outcome) return fail('PAWLEGENDS_OUTCOME_MISMATCH', `re-sim outcome is ${res.outcome}`);
   if (res.finalHash !== r.finalHash) return fail('PAWLEGENDS_HASH_MISMATCH', 'final hash differs');
-  return { ok: true, outcome: res.outcome, finalHash: res.finalHash, ticks: res.ticks, stats: res.stats, reason: res.reason };
+  return { ok: true, outcome: res.outcome, finalHash: res.finalHash, ticks: res.ticks, stats: res.stats, reason: res.reason, ...(res.draw ? { draw: true as const } : {}) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------

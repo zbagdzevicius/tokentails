@@ -15,6 +15,7 @@ import { G, Kind, RANGE } from '../world';
 import { offerTalent } from '../heroes/talents';
 import { HUMAN_SLOT, teamOfSlot } from '../api';
 import { rulesOf } from '../rules';
+import { mutOf } from '../mutator';
 
 export type XpReason = Extract<SimEvent, { type: 'xp' }>['reason'];
 
@@ -30,7 +31,9 @@ export function levelForXp(xp: number): number {
 export function catchUpBp(m: MatchHandle, id: number): number {
   const w = m.world;
   // Sim v12 (S2): no catch-up before DifficultyRules.catchUpFrom (Normal and Hard 3:00), so an early lead holds.
-  if (w.globals[G.Tick] < rulesOf(m).catchUpFrom) return 0;
+  // Sim v22: a mutator may start it earlier (Blitz 0:45).
+  const from = mutOf(w).catchUpFrom;
+  if (w.globals[G.Tick] < (from >= 0 ? from : rulesOf(m).catchUpFrom)) return 0;
   let sum = 0;
   let n = 0;
   for (let h = RANGE.heroes; h < RANGE.minions; h++) {
@@ -55,6 +58,9 @@ export function grantXp(m: MatchHandle, id: number, amount: number, reason: XpRe
   let total = bonus > 0 ? applyBp(amount, BP_ONE + bonus) : amount;
   // Sim v19 (Hearthwood): the longer match levels slower (HEARTHWOOD_RULES.xpBp).
   if (w.mg.length > 0) total = Math.max(1, applyBp(total, HEARTHWOOD_RULES.xpBp));
+  // Sim v22 (Blitz): the mutator's XP rate (×2).
+  const mutXp = mutOf(w).xpBp;
+  if (mutXp !== BP_ONE) total = Math.max(1, applyBp(total, mutXp));
   // Sim v7 rubber band (DifficultyRules.enemyAheadXpBp, Rookie): an enemy hero XP.aheadLevels or more above the human
   // earns less XP, so a first-timer who feeds is not facing level 10s at 5:00 with level 7 allies.
   const rules = rulesOf(m);

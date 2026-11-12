@@ -180,7 +180,23 @@ const BY_ID: ReadonlyMap<string, TreatReward> = new Map(ALL.map((r) => [r.id, r]
 export const treatReward = (id: string): TreatReward | null => BY_ID.get(id) ?? null;
 
 /** GAPS B2: `forfeit` is all a forfeited match pays (no takedown, Pudding, grade, quest or first-win XP). */
-export const TREAT_XP = Object.freeze({ win: 100, loss: 60, takedown: 10, takedownMax: 15, pudding: 20, firstWinOfDay: 150, forfeit: 20 });
+export const TREAT_XP = Object.freeze({
+  win: 100,
+  loss: 60,
+  takedown: 10,
+  takedownMax: 15,
+  pudding: 20,
+  firstWinOfDay: 150,
+  forfeit: 20,
+  /**
+   * Sim v22 (WR-BS-PLAN.md §9): every mode pays the same Treat XP per minute. A Blitz match pays its match XP × its
+   * ticks / refTicks (a 7:30 Skirmish), at most ×1 (the backend's SEASON_XP.refTicks).
+   */
+  refTicks: 13500,
+});
+
+/** Sim v22: the per-minute share of a Blitz match (1 for every other match). */
+export const perMinuteShare = (ticks: number | undefined): number => (ticks === undefined ? 1 : Math.max(0, Math.min(1, ticks / TREAT_XP.refTicks)));
 
 export interface TreatState {
   v: 2;
@@ -272,9 +288,12 @@ export function saveTreats(s: TreatState): void {
 }
 
 /** Treat XP for one match (quest XP and the first-win-of-the-day bonus are added by `addTreatXp`'s caller). Pure. */
-export function treatXpFor(m: { won: boolean; takedowns: number; pudding: boolean; forfeit?: boolean }): number {
+/** Sim v22: `ticks` (Blitz) pays per minute; `draw` (Blitz time up, all even) pays the loss plus half the win bonus. */
+export function treatXpFor(m: { won: boolean; takedowns: number; pudding: boolean; forfeit?: boolean; ticks?: number; draw?: boolean }): number {
   if (m.forfeit) return TREAT_XP.forfeit;
-  return (m.won ? TREAT_XP.win : TREAT_XP.loss) + Math.min(TREAT_XP.takedownMax, Math.max(0, m.takedowns)) * TREAT_XP.takedown + (m.pudding ? TREAT_XP.pudding : 0);
+  const base = m.won ? TREAT_XP.win : m.draw ? TREAT_XP.loss + Math.floor((TREAT_XP.win - TREAT_XP.loss) / 2) : TREAT_XP.loss;
+  const xp = base + Math.min(TREAT_XP.takedownMax, Math.max(0, m.takedowns)) * TREAT_XP.takedown + (m.pudding ? TREAT_XP.pudding : 0);
+  return Math.round(xp * perMinuteShare(m.ticks));
 }
 
 /**

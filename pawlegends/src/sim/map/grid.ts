@@ -95,10 +95,45 @@ export function onPlayfield(x: number, y: number): boolean {
   const rim = PLAYFIELD.rim;
   if (x < rim || y < rim || x > MAP.width - rim || y > MAP.height - rim) return false;
   if (PLAYFIELD.open === 1) return true;
+  if (PLAYFIELD.open === 2) return onCarved(x, y);
   const [b0, b1, b2, b3] = PLAYFIELD.base;
   if (y >= b1 && y <= b3 && ((x >= b0 && x <= b2) || (x >= mirrorX(b2) && x <= mirrorX(b0)))) return true;
   return nearLane(x, y, PLAYFIELD.laneHalf) || insideRing(x, y, LOOP);
 }
+
+/**
+ * Sim v22 (docs/plans/moba/MAP-5V5-STANDARD.md §5.1): a carved square point map. Walkable: the lane bands, the river
+ * band, each base corner (x + y ≤ baseSum), and the clearings, corridors and pit discs authored in team 0's south
+ * eighth. The point is first folded into that eighth (the 180° reflection when x + y > W, then the diagonal swap when
+ * y > x), so every copy under the D2 symmetry is the same cell for cell. Integer maths only.
+ */
+function onCarved(x: number, y: number): boolean {
+  const W = MAP.width;
+  const sum = x + y - W;
+  if (PLAYFIELD.riverSum > 0 && sum <= PLAYFIELD.riverSum && sum >= -PLAYFIELD.riverSum) return true;
+  if (nearLane(x, y, PLAYFIELD.laneHalf)) return true;
+  let cx = x;
+  let cy = y;
+  if (sum > 0) {
+    cx = W - x;
+    cy = MAP.height - y;
+  }
+  if (cy > cx) {
+    const t = cx;
+    cx = cy;
+    cy = t;
+  }
+  if (cx + cy <= PLAYFIELD.baseSum) return true;
+  const cl = PLAYFIELD.clearings;
+  for (let k = 0; k < cl.length; k++) if (inDisc(cx, cy, cl[k][0], cl[k][1], cl[k][2])) return true;
+  const pits = PLAYFIELD.pits;
+  for (let k = 0; k < pits.length; k++) if (inDisc(cx, cy, pits[k][0], pits[k][1], pits[k][2])) return true;
+  const co = PLAYFIELD.corridors;
+  for (let k = 0; k < co.length; k++) if (nearSegment(cx, cy, co[k][0], co[k][1], co[k][2], co[k][3], co[k][4])) return true;
+  return false;
+}
+
+const inDisc = (px: number, py: number, x: number, y: number, r: number): boolean => (px - x) * (px - x) + (py - y) * (py - y) <= r * r;
 
 let LINES: readonly (readonly number[])[] = [];
 
@@ -181,6 +216,8 @@ function staticWalls(): Uint8Array {
   for (let j = 0; j < NY; j++) {
     for (let i = 0; i < NX; i++) if (!onPlayfield(i * MAP.navCell + HALF, j * MAP.navCell + HALF)) walls[j * NX + i] = 1;
   }
+  // Opening one sliver can leave a thin wall across it, so repeat until nothing changes (two or three passes).
+  if (PLAYFIELD.open === 2) while (openSlivers(walls));
   for (let k = 0; k < WALLS.length; k++) {
     const [x0, y0, x1, y1] = WALLS[k];
     markRect(walls, x0, y0, x1, y1);
@@ -190,6 +227,37 @@ function staticWalls(): Uint8Array {
   }
   return walls;
 }
+
+/**
+ * Sim v22 (MAP-5V5-STANDARD.md §5.2: every wall at least 3 cells thick): a forest run of 1 or 2 cells along a row or a
+ * column with walkable ground at both ends is opened, read from the unchanged grid (so the result keeps the D2
+ * symmetry: the swap maps rows onto columns, the reflection reverses runs). Rocks (WALLS) are stamped after this.
+ */
+const SLIVER = 2;
+function openSlivers(walls: Uint8Array): boolean {
+  const src = walls.slice();
+  let changed = false;
+  for (let j = 0; j < NY; j++) {
+    for (let i = 0; i < NX; i++) {
+      if (src[j * NX + i] === 0) continue;
+      for (let axis = 0; axis < 2; axis++) {
+        const di = axis === 0 ? 1 : 0;
+        const dj = axis === 0 ? 0 : 1;
+        let a = 0;
+        while (a <= SLIVER && inGrid(i - di * (a + 1), j - dj * (a + 1)) && src[(j - dj * (a + 1)) * NX + i - di * (a + 1)] === 1) a++;
+        let b = 0;
+        while (b <= SLIVER && inGrid(i + di * (b + 1), j + dj * (b + 1)) && src[(j + dj * (b + 1)) * NX + i + di * (b + 1)] === 1) b++;
+        if (a + b + 1 > SLIVER) continue;
+        if (!inGrid(i - di * (a + 1), j - dj * (a + 1)) || !inGrid(i + di * (b + 1), j + dj * (b + 1))) continue;
+        walls[j * NX + i] = 0;
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
+const inGrid = (i: number, j: number): boolean => i >= 0 && j >= 0 && i < NX && j < NY;
 
 function foeDiscs(): Uint8Array[] {
   const foe = [new Uint8Array(NX * NY), new Uint8Array(NX * NY)];

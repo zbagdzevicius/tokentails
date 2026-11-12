@@ -82,6 +82,11 @@ describe("pawlegends flags (kill switches only)", () => {
     expect(pawlegendsFrameSrc("?from=picker")).toBe(PAWLEGENDS_FRAME_SRC);
     expect(pawlegendsFrameSrc("?dare=9ix.0.0.1.c0")).toBe("/pawlegends-game/index.html?embed=1&dare=9ix.0.0.1.c0");
     expect(pawlegendsFrameSrc("?from=x&dare=1.7.3.2.0&utm_source=x")).toBe("/pawlegends-game/index.html?embed=1&dare=1.7.3.2.0");
+    // sim v22: `mode` is forwarded (lowercased, letters only); the game handles a mode it does not know
+    expect(pawlegendsFrameSrc("?mode=blitz&from=picker")).toBe("/pawlegends-game/index.html?embed=1&mode=blitz");
+    expect(pawlegendsFrameSrc("?mode=Classic")).toBe("/pawlegends-game/index.html?embed=1&mode=classic");
+    expect(pawlegendsFrameSrc("?mode=bl itz")).toBe(PAWLEGENDS_FRAME_SRC);
+    expect(pawlegendsFrameSrc("?mode=<script>")).toBe(PAWLEGENDS_FRAME_SRC);
     for (const bad of ["?dare=", "?dare=abc", "?dare=9ix.0.0.3.c0", "?dare=9IX.0.0.1.c0", "?dare=9ix.0.0.1.c0%26embed%3D0", "?dare=<script>", `?dare=${"1".repeat(8)}.0.0.1.0`]) {
       expect(pawlegendsFrameSrc(bad)).toBe(PAWLEGENDS_FRAME_SRC);
     }

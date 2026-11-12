@@ -169,5 +169,7 @@ export function gradeMatch(result: Pick<MatchResult, 'stats' | 'winner'>): Match
     return { slot: s.slot, hero: s.hero, score, grade: gradeOf(score, roleOf(s.hero)) };
   });
   const best: [number, number] = [bestOf(slots.filter((r) => teamOf(r.slot) === 0), result.stats), bestOf(slots.filter((r) => teamOf(r.slot) === 1), result.stats)];
-  return { slots, mvp: best[result.winner], best };
+  // sim v22: a Blitz draw (winner −1): the MVP is the better of the two teams' bests
+  const mvp = result.winner === -1 ? bestOf(slots.filter((r) => r.slot === best[0] || r.slot === best[1]), result.stats) : best[result.winner];
+  return { slots, mvp, best };
 }

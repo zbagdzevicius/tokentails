@@ -401,3 +401,14 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
 @media (max-width: 560px), (max-height: 260px) {
   .pl-lobby .lb-ver { display: none; }
 }
+
+/* Sim v22 (WR-BS-PLAN.md §5): three tiles with minutes (Blitz ~3 | Skirmish ~7 | Classic ~13). The minutes and the icon
+   are small; on phones the size word folds away ("⚡ Blitz ~3 min"). */
+.pl-lobby .lb-map button small { font-weight: 600; opacity: 0.8; font-size: 12px; }
+.pl-lobby .lb-map button .lb-mi { margin-right: 4px; font-size: 13px; }
+.pl-lobby .lb-map button.on small { opacity: 1; }
+.pl-lobby .lb-solo-note { margin: 0; font-size: 13px; opacity: 0.85; color: var(--cream); }
+@media (max-width: 520px), (max-height: 480px) {
+  .pl-lobby .lb-map button { padding: 0 9px; font-size: 12.5px; }
+  .pl-lobby .lb-map button .lb-mi { display: none; }
+}

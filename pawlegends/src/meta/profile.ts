@@ -264,7 +264,8 @@ export function playSession(p: Pick<Profile, 'sessions' | 'firstPlaySession' | '
 }
 
 /** Record a finished match. Returns what changed for the results screen. */
-export function recordMatch(won: boolean, seconds: number, difficulty: Difficulty): { firstWin: boolean; best: boolean; second: boolean } {
+/** Sim v22: `ranked` false (a Blitz match) counts the match and the win but sets no fastest-win record. */
+export function recordMatch(won: boolean, seconds: number, difficulty: Difficulty, ranked = true): { firstWin: boolean; best: boolean; second: boolean } {
   const p = loadProfile();
   const second = p.matches >= 1 && Date.now() - p.lastMatchAt < 24 * 3600 * 1000;
   p.matches++;
@@ -280,7 +281,7 @@ export function recordMatch(won: boolean, seconds: number, difficulty: Difficult
       if (!p.unlocks.includes(BISCUIT_UNLOCK)) p.unlocks.push(BISCUIT_UNLOCK);
     }
     const prev = p.fastest[difficulty];
-    if (!prev || seconds < prev) {
+    if (ranked && (!prev || seconds < prev)) {
       p.fastest[difficulty] = seconds;
       // "best!" only when this win beat a stored time for the same bots (fun plan F4), not on the first one
       best = prev !== undefined && prev > 0;

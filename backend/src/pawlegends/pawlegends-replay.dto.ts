@@ -5,8 +5,13 @@ import {
     PAWLEGENDS_MAX_TICKS_ANY_MAP,
 } from 'src/shared-contracts/caps';
 
-/** The mutators a replay may carry (sim v10: only 'none'; GAPS §8 item 1). */
-export const PAWLEGENDS_MUTATORS = ['none'] as const;
+/**
+ * The mutators a replay may carry (sim v10: only 'none'; GAPS §8 item 1). Sim v22 (WR-BS-PLAN.md §4): 'blitz', the
+ * ~3-minute Crossing match; a record of an earlier sim version with any mutator but 'none' is refused
+ * (PAWLEGENDS_MUTATOR_PLAY_SINCE in pawlegends-live.ts).
+ */
+export const PAWLEGENDS_MUTATORS = ['none', 'blitz'] as const;
+export type PawlegendsMutatorId = typeof PAWLEGENDS_MUTATORS[number];
 
 /**
  * The Pawlegends replay posted with a `PAWLEGENDS` save in the `pawlegends` field (POC.md §11.3): the
@@ -59,10 +64,10 @@ export class PawlegendsReplayDto {
     @Matches(/^[0-9a-f]{8}$/)
     finalHash: string;
 
-    /** Sim v10 (GAPS B0): the match mutator. Only 'none' exists; v9 records have no field. */
+    /** Sim v10 (GAPS B0): the match mutator; v9 records have no field. Sim v22: or 'blitz'. */
     @IsOptional()
     @IsIn(PAWLEGENDS_MUTATORS)
-    mutator?: 'none';
+    mutator?: PawlegendsMutatorId;
 }
 
 /**
