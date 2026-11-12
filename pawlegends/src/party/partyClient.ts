@@ -29,7 +29,6 @@ import { closeChampInfo, openChampInfo } from '../ui/champBrowser/open';
 import type { HeroId } from '../sim/api';
 import { loadingHtml } from './ui/partyLoading';
 import { qrSvg } from './qr';
-import { cleanArt } from '../embed/bridge';
 import { hideNames } from '../meta/partyPrefs';
 import type { SeatInfo } from '../app/mpTypes';
 import type { SlotStats } from '../sim/api';
@@ -592,11 +591,12 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
   }
 }
 
-/** The in-match seats of a party view (lane M1): name, connection and card art per human slot (0..5 in PvP). Pure. */
+/** The in-match seats of a party view (lane M1): name and connection per human slot (0..5 in PvP); no cat card art
+ * (NO-TOKENTAILS.md: an older client's `party.card` is ignored). Pure. */
 export function seatsOf(v: PartyView): SeatInfo[] {
   return v.members
     .filter((m) => typeof m.slot === 'number' && m.slot >= 0 && m.slot < 6)
-    .map((m) => ({ slot: m.slot!, name: m.id === v.you ? (m.ownName ?? m.name) : m.name, conn: m.conn, art: cleanArt(m.card?.image) ?? null, ...(m.av ? { av: m.av } : {}) }));
+    .map((m) => ({ slot: m.slot!, name: m.id === v.you ? (m.ownName ?? m.name) : m.name, conn: m.conn, art: null, ...(m.av ? { av: m.av } : {}) }));
 }
 
 // ------------------------------------------------------------------------------------------------ the client
@@ -617,8 +617,6 @@ export interface PartyHooks {
   /** A single-use party ticket from the host (embed), or null (standalone: an unscored guest). */
   ticket(): Promise<string | null>;
   guestKey(): string;
-  /** The worn card's cat id (the relay resolves it and checks ownership), or null. */
-  cardId?(): string | null;
   /** Start loading the match chunk and assets (during the lobby and the pick). */
   preload?(): Promise<unknown>;
   /** Start the party match in the app (a MatchSession on this NetHost). `backfill`: this player took a leaver's seat. */
@@ -705,7 +703,6 @@ export class PartyClient {
   private nudged = new Map<string, number>();
   private drawn = '';
   private qrCache = { code: '', svg: '' };
-  private cardSent = false;
   private preloading: Promise<unknown> | null = null;
   private closed = false;
   private readonly now: () => number;
@@ -1107,12 +1104,6 @@ export class PartyClient {
     if (via !== 'create') this.h.analytics?.('party_join', { via, members: this.state.view?.members.length ?? 0, ...this.connectProp() });
     // match assets load during the lobby and the pick (§5.1)
     this.preloading ??= this.h.preload?.() ?? Promise.resolve();
-    const v = this.state.view!;
-    if (!this.cardSent && (v.phase === 'lobby' || v.phase === 'results')) {
-      this.cardSent = true;
-      const id = this.h.cardId?.() ?? null;
-      if (id) this.socket.sendJson({ t: 'party.card', catId: id });
-    }
   }
 
   private enteredPick(): void {

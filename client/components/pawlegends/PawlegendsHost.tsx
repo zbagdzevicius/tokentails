@@ -1,7 +1,6 @@
 import { analytics, reportAppError } from "@/analytics";
 import { buildPawlegendsEvent, pawlegendsSaveCode } from "@/analytics/pawlegends-events";
 import { forwardPawlegendsEvent } from "@/analytics/pawlegends-datalayer";
-import { CAT_API } from "@/api/cat-api";
 import { USER_API } from "@/api/user-api";
 import { getAudioSettings, setMuted, subscribeAudioSettings, type AudioSettings } from "@/components/audio/settings";
 import { isAppBuild } from "@/components/claims/build";
@@ -13,7 +12,6 @@ import { useOptionalFirebaseAuth } from "@/context/FirebaseAuthContext";
 import { methodFromProviders, readLastMethod } from "@/context/auth/lastMethod";
 import { useProfile } from "@/context/ProfileContext";
 import { GameType } from "@/models/game";
-import type { ICat } from "@/models/cats";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -30,9 +28,7 @@ import {
 import {
   browserStorage,
   createPawlegendsApi,
-  deviceId,
   isEmail,
-  nextSession,
   readToken,
   RETURN_QUERY_KEYS,
   returnActionOf,
@@ -40,20 +36,18 @@ import {
   type PawlegendsApi,
   type StoreStatus,
 } from "./checkout";
-import { championsOf } from "./championsBridge";
+import { championArtOf } from "./championsBridge";
 import { claimQuestion } from "./claim";
-import { pickFeatured, storefrontCats, type FeaturedPick } from "./featuredBridge";
 import {
   PAWLEGENDS_CONTACT,
-  PAWLEGENDS_EXIT_PATH,
   PAWLEGENDS_FRAME_SRC,
   PAWLEGENDS_PRIVACY_URL,
   PAWLEGENDS_PARTY_LINK,
   PAWLEGENDS_TERMS_PATH,
   pawlegendsFrameSrc,
+  pawlegendsHomePath,
   withoutParty,
 } from "./flags";
-import { rosterOf } from "./rosterBridge";
 import { PartySaves, PartyTickets } from "./partySaves";
 import { PawlegendsApi as PawlegendsGameApi } from "./apiBridge";
 import { PawlegendsSaver } from "./saves";
@@ -61,11 +55,8 @@ import { openedFrom, profileAfterSave, progressFromProfile, type PawlegendsProfi
 import { PAWLEGENDS_TITLE } from "./title";
 import { LANDING_VARIANT_PARAM, landingVariantOf } from "./landingVariant";
 
-// The Token Tails checkout (Stripe Elements, the crypto checkout) is browser only and loads on first use.
+// The store checkout (Stripe Elements) is browser only and loads on first use.
 const PawlegendsStoreSheet = dynamic(() => import("./PawlegendsStoreSheet").then((m) => m.PawlegendsStoreSheet), { ssr: false });
-const PawlegendsCatSheet = dynamic(() => import("./PawlegendsCatSheet").then((m) => m.PawlegendsCatSheet), {
-  ssr: false,
-});
 // Sign-in: the account chip's "Manage account" (sign out, delete); loads on first use.
 const PawlegendsAccountSheet = dynamic(() => import("./PawlegendsAccount").then((m) => m.PawlegendsAccountSheet), {
   ssr: false,
@@ -105,48 +96,39 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 interface PawlegendsHostProps {
   /** The store and offer API (tests pass a fake). */
   api?: PawlegendsApi;
-  /** Full page loads (the exit). Defaults to `window.location.assign`. */
+  /** Full page loads (Stripe Checkout). Defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
   /** Override `isAppBuild()` (tests). */
   isApp?: boolean;
   /** Override the `/live` POST (tests). */
   saveMatch?: typeof USER_API.saveMatchDetailed;
-  /** Override `GET /cat/sale` (tests). */
-  loadStorefront?: () => Promise<Record<string, unknown> | null>;
   /** The delay between entitlement polls (tests pass 0). */
   pollMs?: number;
 }
 
 /**
- * The `/pawlegends` host: the game full-bleed in a same-origin iframe (`/pawlegends-game/index.html?embed=1`) inside
- * the Token Tails games ecosystem.
+ * The `/pawlegends` host (`/play` on pawlegends.app): the game full-bleed in a same-origin iframe
+ * (`/pawlegends-game/index.html?embed=1`). Paw Legends stands on its own (docs/plans/moba/NO-TOKENTAILS.md): no Token
+ * Tails cats, cards, Meet offers or links to the Token Tails games inside it.
  *
  * - **Account.** An existing Firebase session is reused (`authMode="optional"`); the game asks for sign-in with
  *   `request-sign-in` ("Save your wins") and the AuthSheet opens. `session {signedIn, progress}` is re-sent on
  *   every change, so unlocks and fastest wins follow the account across devices.
  * - **Saves.** Every match goes through `POST /user/catbassadors/live` (`./saves`), keyed by the game's `matchId`;
- *   each step is told to the game as `save-result` (the results screen's save chip and "+20 catnip"). A first
- *   win per difficulty pays catnip within `PAWLEGENDS_LEVEL_CAPS`. Matches played with no account wait on the
- *   device and the "ADD YOUR MATCHES?" prompt asks after sign-in.
- * - **Cards.** The player's Token Tails cats are the roster (art and catalog id included). Up to two unowned
- *   direct-purchase cats from `GET /cat/sale` are `featured`, and `GET /pawlegends/offer` may name one of them as
- *   the session's single "Meet" card (never in session 1). `open-cat` opens the Token Tails $5 named-cat
- *   checkout (`PawlegendsCatSheet`); the bought cat joins the roster at once. Never packs, never random.
- * - **Champions** (sim v9). A shelter champion's card adds cosmetics only (who may pick a champion is the
- *   champion store's rule, CHAMPION-STORE.md: `store.champions`); `GET /pawlegends/champions`
- *   gives their cards (`champions`): art, and whether each is for sale. The game's lobby info panel may open a
- *   champion's card (`open-cat`), and from a non-owner's 3rd match on a champion until its card is shown, the game
- *   sends `champion-offer` (once a page load): unless a card was shown this visit, the host asks the offer engine
- *   with that card first (the server's caps still decide). Champion cards are never featured cats.
- * - **App builds** (Capacitor) play the game with starter and redeemed cats only: `store: false`, no featured
- *   cats, no offer, no champion card for sale, and `open-cat` is dropped (Apple 3.1.1 and 3.1.3(b)).
+ *   each step is told to the game as `save-result` (the results screen's save chip). Matches played with no
+ *   account wait on the device and the "ADD YOUR MATCHES?" prompt asks after sign-in.
+ * - **Champions** (sim v9). `GET /pawlegends/champions` gives the shelter champions' art (`champions`), never a card
+ *   for sale. Who may pick a champion is the champion store's rule (CHAMPION-STORE.md: `store.champions`).
+ * - **No cat feed.** The host sends no `roster`, `featured` or Meet `offer` and handles no `open-cat`,
+ *   `offer-seen`, `champion-offer`, `skin-preview` or `exit` (an older game build may still send them: ignored).
+ *   The account's owned cats stay on the server, unused here.
+ * - **App builds** (Capacitor): `store: false` (Apple 3.1.1 and 3.1.3(b)).
  */
 export const PawlegendsHost = ({
   api: apiProp,
   navigate,
   isApp: isAppProp,
   saveMatch,
-  loadStorefront,
   pollMs = ENTITLEMENT_POLL_MS,
 }: PawlegendsHostProps) => {
   const isApp = isAppProp ?? isAppBuild();
@@ -169,8 +151,6 @@ export const PawlegendsHost = ({
   const [note, setNote] = useState<string | null>(null);
   const [unclaimed, setUnclaimed] = useState(0);
   const [claimDismissed, setClaimDismissed] = useState(false);
-  const [forSale, setForSale] = useState<ICat[] | null>(null);
-  const [sheet, setSheet] = useState<{ cat: ICat; owned: boolean } | null>(null);
   const [notifyWhere, setNotifyWhere] = useState<PawlegendsNotifyWhere | null>(null);
   /** Sign-in: the account sheet is open (the game's account chip, "Manage account"). */
   const [accountOpen, setAccountOpen] = useState(false);
@@ -186,9 +166,9 @@ export const PawlegendsHost = ({
   const authStatus = auth ? auth.authStatus : "signed-out";
   const signedIn = !!auth?.user && !auth.user.isAnonymous && authStatus === "ready";
   const go = useCallback((url: string) => (navigate ?? ((u: string) => window.location.assign(u)))(url), [navigate]);
-  // The game's lobby "Games" button (bridge `exit`): the one way out once the game is up (no host close button).
-  const goRef = useRef(go);
-  goRef.current = go;
+  /** The Paw Legends landing (`/` on pawlegends.app, `/pawlegends` elsewhere): the loading banners' way out. */
+  const [homePath, setHomePath] = useState("/pawlegends");
+  useEffect(() => setHomePath(pawlegendsHomePath(window.location.hostname)), []);
 
   // Refs follow the latest render (synced in an effect, never written during render).
   const latest = useRef({ uid, anonymous: !!auth?.user?.isAnonymous, signedIn, authStatus, profile, setProfileUpdate, auth });
@@ -432,22 +412,7 @@ export const PawlegendsHost = ({
     })();
   }, [router, api, isApp, keepToken, pollMs]);
 
-  // ---- cards: roster, featured, offer ---------------------------------------------------------------
-  const ownedCats = useMemo(() => (uid ? ((profile?.cats as ICat[] | undefined) ?? []) : []), [uid, profile?.cats]);
-  const roster = useMemo(() => rosterOf(ownedCats, isApp), [ownedCats, isApp]);
-  // The storefront once per visit (web only); the featured pick follows the owned cats.
-  useEffect(() => {
-    if (isApp) return;
-    let live = true;
-    const load = loadStorefront ?? (async () => (await CAT_API.storefront()).cats as unknown as Record<string, unknown>);
-    void load()
-      .then((front) => live && setForSale(storefrontCats(front)))
-      .catch(() => live && setForSale([]));
-    return () => {
-      live = false;
-    };
-  }, [isApp, loadStorefront]);
-  // Sim v9: the shelter champions' cards, once per visit (art in every build, for sale on the web only).
+  // ---- champions (sim v9): the shelter champions' art, once per visit ------------------------------
   const [championsBody, setChampionsBody] = useState<unknown>(null);
   useEffect(() => {
     // A test double may leave the champions route out.
@@ -461,54 +426,24 @@ export const PawlegendsHost = ({
       live = false;
     };
   }, [api]);
-  const champions = useMemo(() => championsOf(championsBody, ownedCats, isApp), [championsBody, ownedCats, isApp]);
-  // The champions' cards are never featured: they reach the offer engine only as a champion offer (after a
-  // non-owner's 3rd match on that champion).
-  const featured: FeaturedPick = useMemo(
-    () =>
-      isApp || !forSale
-        ? { cats: [], byId: new Map() }
-        : pickFeatured(forSale, ownedCats, roster, undefined, undefined, new Set(champions.cards.map((c) => c.catalogId))),
-    [isApp, forSale, ownedCats, roster, champions]
-  );
-
-  const sessionRef = useRef<number | null>(null);
-  const offerAsked = useRef(false);
-  const offerRef = useRef<string | null>(null);
-  /** A Meet card was shown this visit (`offer-seen`): no other offer is asked for. */
-  const offerSeen = useRef(false);
-  /** Champion cards the game said are due this visit (`champion-offer`); every offer ask puts them first. */
-  const dueChampions = useRef<string[]>([]);
-  useEffect(() => {
-    if (sessionRef.current === null) sessionRef.current = nextSession();
-  }, []);
+  const champions = useMemo(() => championArtOf(championsBody), [championsBody]);
 
   // ---- bridge ----------------------------------------------------------------------------------
   const handlers = useRef<{
     onRequestSignIn: (reason: PawlegendsSignInReason) => void;
     onAccount: (action: PawlegendsAccountAction) => void;
-    onOpenCat: (catalogId: string) => void;
-    onOfferSeen: (catalogId: string) => void;
     onNotify: (where: PawlegendsNotifyWhere) => void;
-    onChampionOffer: (catalogId: string) => void;
-    onSkinPreview: (catalogId: string) => void;
     onStoreIntent: (sku: string) => void;
     onPassClaim: (row: "f" | "p" | null, tier: number | null) => void;
     onChampUnlock: (hero: string, via: "yarn" | "pick") => void;
   }>({
     onRequestSignIn: () => undefined,
     onAccount: () => undefined,
-    onOpenCat: () => undefined,
-    onOfferSeen: () => undefined,
     onNotify: () => undefined,
-    onChampionOffer: () => undefined,
-    onSkinPreview: () => undefined,
     onStoreIntent: () => undefined,
     onPassClaim: () => undefined,
     onChampUnlock: () => undefined,
   });
-  /** Featured cats the player previewed as a card skin this visit (`skin-preview`): the next offer ask puts them first. */
-  const previewed = useRef<string[]>([]);
   useEffect(() => {
     handlers.current = {
       onRequestSignIn: (reason) => {
@@ -524,43 +459,6 @@ export const PawlegendsHost = ({
           void auth.requireAccount("sign-in").catch(() => undefined);
         } else if (action === "sign-out") void auth.signOut().catch(() => undefined);
         else setAccountOpen(true);
-      },
-      onOpenCat: (catalogId) => {
-        if (isApp) return;
-        const forSaleCat = featured.byId.get(catalogId) ?? champions.byId.get(catalogId);
-        const ownedCat = ownedCats.find((c) => roster.some((r) => r.id === c._id && r.catalogId === catalogId));
-        if (!forSaleCat && !ownedCat) return;
-        track(
-          buildPawlegendsEvent("pawlegends_meet_open", {
-            catalogId,
-            from: ownedCat
-              ? "roster"
-              : offerRef.current === catalogId
-                ? "offer"
-                : featured.byId.has(catalogId)
-                  ? "featured"
-                  : "champion",
-          })
-        );
-        if (ownedCat) {
-          setSheet({ cat: ownedCat, owned: true });
-          return;
-        }
-        const open = () => setSheet({ cat: forSaleCat!, owned: false });
-        if (latest.current.signedIn) return open();
-        track(buildPawlegendsEvent("pawlegends_signin_prompt", { reason: "purchase" }));
-        if (!auth) {
-          bridgeRef.current?.purchaseResult(catalogId, false);
-          return;
-        }
-        void auth.requireAccount("purchase").then(
-          (result) => (result === "signed-in" ? open() : bridgeRef.current?.purchaseResult(catalogId, false)),
-          () => bridgeRef.current?.purchaseResult(catalogId, false)
-        );
-      },
-      onOfferSeen: (catalogId) => {
-        offerSeen.current = true;
-        void api.offerSeen({ deviceId: deviceId(), session: sessionRef.current ?? 1, catalogId });
       },
       onNotify: (where) => {
         if (!isApp && status?.email) setNotifyWhere(where);
@@ -590,45 +488,6 @@ export const PawlegendsHost = ({
           track(buildPawlegendsEvent("pawlegends_champ_unlock", { hero, via, ok: result.ok }));
           void refreshStoreRef.current?.();
         }),
-      // Sim v9: a champion's card is due (from the 3rd match on it, until shown; the game re-sends it every visit):
-      // ask the offer engine again with that card first, unless a card was already shown this visit. An offer held
-      // but not yet shown does not block it; the server keeps one card a session and every other cap.
-      onChampionOffer: (catalogId) => {
-        if (isApp || offerSeen.current || !champions.byId.has(catalogId) || dueChampions.current.includes(catalogId)) return;
-        dueChampions.current = [...dueChampions.current, catalogId];
-        const due = dueChampions.current.filter((id) => champions.byId.has(id));
-        void api
-          .offer({
-            deviceId: deviceId(),
-            session: sessionRef.current ?? 1,
-            screen: "results",
-            catalogIds: [...due, ...featured.cats.map((c) => c.catalogId).filter((id) => !due.includes(id))],
-            token: readToken(),
-          })
-          .then((result) => {
-            const offer = result.ok ? result.body?.offer ?? null : null;
-            if (offer && bridgeRef.current?.setOffer(offer)) offerRef.current = offer.catalogId;
-          });
-      },
-      // Card skins: the player previewed a featured cat's skin on the pick screen. Same re-ask, with that cat right
-      // after any due champion card; the server's caps (session 1, one a session, one a day, spend) still decide.
-      onSkinPreview: (catalogId) => {
-        if (isApp || offerSeen.current || !featured.byId.has(catalogId) || previewed.current.includes(catalogId)) return;
-        previewed.current = [...previewed.current, catalogId];
-        const first = [...dueChampions.current.filter((id) => champions.byId.has(id)), catalogId];
-        void api
-          .offer({
-            deviceId: deviceId(),
-            session: sessionRef.current ?? 1,
-            screen: "results",
-            catalogIds: [...first, ...featured.cats.map((c) => c.catalogId).filter((id) => !first.includes(id))],
-            token: readToken(),
-          })
-          .then((result) => {
-            const offer = result.ok ? result.body?.offer ?? null : null;
-            if (offer && bridgeRef.current?.setOffer(offer)) offerRef.current = offer.catalogId;
-          });
-      },
     };
   });
 
@@ -687,19 +546,14 @@ export const PawlegendsHost = ({
           })(),
         onRequestSignIn: (reason) => handlers.current.onRequestSignIn(reason),
         onAccount: (action) => handlers.current.onAccount(action),
-        onOpenCat: (catalogId) => handlers.current.onOpenCat(catalogId),
-        onOfferSeen: (catalogId) => handlers.current.onOfferSeen(catalogId),
         onNotify: (where) => handlers.current.onNotify(where),
-        onChampionOffer: (catalogId) => handlers.current.onChampionOffer(catalogId),
-        onSkinPreview: (catalogId) => handlers.current.onSkinPreview(catalogId),
         onStoreIntent: (sku) => handlers.current.onStoreIntent(sku),
         onPassClaim: (row, tier) => handlers.current.onPassClaim(row, tier),
         onChampUnlock: (hero, via) => handlers.current.onChampUnlock(hero, via),
-        onExit: () => goRef.current(PAWLEGENDS_EXIT_PATH),
         // the player's own Sound switch in the game is the site's one mute (it was lost on the next visit)
         onSound: (muted) => setMuted(muted),
         onShare: (kind, url, text) => {
-          // a party invite is always the tokentails.com embed URL (D12), also from a preview or local host
+          // a party invite is always Paw Legends' own URL (D12), also from a preview or local host
           const safe = kind === "party" && PAWLEGENDS_PARTY_LINK.test(url) ? url : shareUrlOf(url, window.location.origin);
           if (!safe) return;
           const nav = window.navigator as Navigator & { share?: (data: ShareData) => Promise<void> };
@@ -717,7 +571,7 @@ export const PawlegendsHost = ({
     };
   }, [authKnown, saver, partySaves, partyTickets, pawlegendsApi]);
 
-  // `app.store`: the Token Tails cat checkout is reachable (web). `notify`: the backend can send the email.
+  // `app.store`: the web store is reachable (never the app). `notify`: the backend can send the email.
   const notify = !isApp && !!status?.email;
   useEffect(() => {
     bridgeRef.current?.setApp(isApp, !isApp, notify);
@@ -764,42 +618,14 @@ export const PawlegendsHost = ({
     void refreshStore();
   }, [uid, authStatus, bridgeState, refreshStore]);
   useEffect(() => {
-    bridgeRef.current?.setRoster(roster);
-  }, [roster]);
-  useEffect(() => {
-    bridgeRef.current?.setFeatured(featured.cats);
-  }, [featured]);
-  useEffect(() => {
-    bridgeRef.current?.setChampions(champions.cards);
-  }, [champions]);
+    bridgeRef.current?.setChampions(champions);
+  }, [champions, bridgeState]);
   useEffect(() => {
     const send = (settings: AudioSettings) =>
       bridgeRef.current?.setAudio({ muted: settings.muted, music: settings.musicVolume, sfx: settings.effectsVolume });
     send(getAudioSettings());
     return subscribeAudioSettings(send);
   }, []);
-
-  // The session's one offer: asked once per visit, after the game is ready and the featured cats are known.
-  useEffect(() => {
-    if (isApp || offerAsked.current || bridgeState !== "ready" || !featured.cats.length) return;
-    if (authStatus === "unknown" || authStatus === "loading-profile") return;
-    offerAsked.current = true;
-    // a champion card the game already said is due goes first (the server returns the first one it may show)
-    const due = dueChampions.current.filter((id) => champions.byId.has(id));
-    void api
-      .offer({
-        deviceId: deviceId(),
-        session: sessionRef.current ?? 1,
-        catalogIds: [...due, ...featured.cats.map((c) => c.catalogId).filter((id) => !due.includes(id))],
-        token: readToken(),
-      })
-      .then((result) => {
-        // a champion ask sent after this one (it lists the featured cats too) has the newer answer
-        if (dueChampions.current.length > due.length) return;
-        const offer = result.ok ? result.body?.offer ?? null : null;
-        if (offer && bridgeRef.current?.setOffer(offer)) offerRef.current = offer.catalogId;
-      });
-  }, [api, isApp, bridgeState, featured, authStatus, champions]);
 
   useEffect(
     () =>
@@ -845,21 +671,6 @@ export const PawlegendsHost = ({
     bridgeRef.current?.reconnect();
   }, []);
 
-  const onBought = (cat: ICat, got: ICat) => {
-    const catalogId = String(cat._id).toLowerCase();
-    track(buildPawlegendsEvent("pawlegends_cat_purchase", { ok: true }));
-    bridgeRef.current?.purchaseResult(catalogId, true);
-    // The new cat is in the roster before the game hears anything else.
-    bridgeRef.current?.setRoster(rosterOf([...ownedCats, got], isApp));
-  };
-  const closeSheet = (bought: ICat | null) => {
-    if (sheet && !sheet.owned && !bought) {
-      track(buildPawlegendsEvent("pawlegends_cat_purchase", { ok: false }));
-      bridgeRef.current?.purchaseResult(String(sheet.cat._id).toLowerCase(), false);
-    }
-    setSheet(null);
-  };
-
   const reloadClass =
     "inline-flex min-h-[44px] items-center justify-center rounded-md border-2 border-tt-night-950 bg-tt-gold-400 px-4 font-sans text-p6 font-bold text-tt-night-950 shadow-[0_2px_0_rgb(var(--tt-night-950))] outline-none focus-visible:ring-4 focus-visible:ring-tt-cream";
 
@@ -904,8 +715,8 @@ export const PawlegendsHost = ({
           <button type="button" onClick={reload} className={reloadClass}>
             Reload
           </button>
-          {/* No host close button any more: until the game's own "Games" button is up, this is the way out. */}
-          <a href={PAWLEGENDS_EXIT_PATH} data-testid="pawlegends-slow-exit" className="px-2 font-sans text-p6 font-bold text-tt-gold-400 underline underline-offset-4">
+          {/* No host close button: until the game is up, this is the way out (the Paw Legends landing). */}
+          <a href={homePath} data-testid="pawlegends-slow-exit" className="px-2 font-sans text-p6 font-bold text-tt-gold-400 underline underline-offset-4">
             Back
           </a>
         </div>
@@ -921,8 +732,8 @@ export const PawlegendsHost = ({
             <button type="button" onClick={reload} className={reloadClass}>
               Reload
             </button>
-            <a href={PAWLEGENDS_EXIT_PATH} className="font-sans text-p5 font-bold text-tt-gold-400 underline underline-offset-4">
-              Back to games
+            <a href={homePath} data-testid="pawlegends-timeout-exit" className="font-sans text-p5 font-bold text-tt-gold-400 underline underline-offset-4">
+              Back
             </a>
           </div>
         </div>
@@ -956,10 +767,6 @@ export const PawlegendsHost = ({
           </ActionRow>
         </div>
       </GameModal>
-      {sheet && !sheet.owned && (
-        <PawlegendsCatSheet cat={sheet.cat} onBought={(got) => onBought(sheet.cat, got)} onClose={closeSheet} />
-      )}
-      {sheet?.owned && <OwnedCatSheet cat={sheet.cat} onClose={() => setSheet(null)} />}
       {storeSku && status?.catalog?.some((c) => c.sku === storeSku) && (
         <PawlegendsStoreSheet
           api={api}
@@ -990,26 +797,6 @@ export const PawlegendsHost = ({
     </div>
   );
 };
-
-/** A cat the player already has: its card and what it does in the game. No checkout. */
-const OwnedCatSheet = ({ cat, onClose }: { cat: ICat; onClose: () => void }) => (
-  <GameModal
-    open
-    onOpenChange={(open) => !open && onClose()}
-    title={`${cat.name} is in your squad`}
-    icon="paw"
-    size="sm"
-    surface="panel"
-    name="pawlegends-owned-cat"
-  >
-    <div className="flex flex-col items-center gap-4 text-center" data-testid="pawlegends-owned-cat">
-      <p className="font-sans text-p5 font-semibold text-tt-cream">Pick it as a companion on the hero screen.</p>
-      <ModalButton variant="primary" icon="check" onClick={onClose}>
-        PLAY
-      </ModalButton>
-    </div>
-  </GameModal>
-);
 
 /** "Notify me" for news of the next season (`POST /pawlegends/notify`, confirmed by email). */
 const NotifySheet = ({
@@ -1048,7 +835,7 @@ const NotifySheet = ({
           />
         </label>
         <p className="text-p6 leading-snug opacity-80" data-testid="pawlegends-notify-privacy">
-          Token Tails keeps this email only to send {PAWLEGENDS_TITLE} season news. To stop, write to{" "}
+          We keep this email only to send {PAWLEGENDS_TITLE} season news. To stop, write to{" "}
           <a href={`mailto:${PAWLEGENDS_CONTACT}`} className="font-bold text-tt-gold-400 underline underline-offset-2">
             {PAWLEGENDS_CONTACT}
           </a>

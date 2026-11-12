@@ -20,7 +20,7 @@ const title = USE_PINK_PAW_NAME ? PINK_PAW_TITLE : FALLBACK_TITLE;
  * @typedef {object} Brand
  * @property {string} title          display title ("Pink Paw Knight")
  * @property {string} titleCaps      the wordmark form ("PINK PAW KNIGHT"), derived
- * @property {string} subtitle       "A Token Tails Adventure"
+ * @property {string} subtitle       "A Pink Paw Adventure"
  * @property {string} tagline        the one-line pitch under the title logo
  * @property {boolean} usePinkPawName  one switch for the title and the Rescue House name
  * @property {string} fallbackTitle  title when usePinkPawName is false
@@ -29,14 +29,14 @@ const title = USE_PINK_PAW_NAME ? PINK_PAW_TITLE : FALLBACK_TITLE;
  * @property {string} rescueHouse    the in-game (fictional) Rescue House name in use
  * @property {string} fallbackRescueHouse
  * @property {Readonly<Record<string, string>>} pinkPawKittens  kitten id → licensed Pink Paw cat name (delete an entry to revert it)
- * @property {string} site           "tokentails.com"
+ * @property {string} site           "pawlegends.app"
  */
 
 /** @type {Readonly<Brand>} */
 export const BRAND = Object.freeze({
   title,
   titleCaps: title.toUpperCase(),
-  subtitle: 'A Token Tails Adventure',
+  subtitle: 'A Pink Paw Adventure',
   tagline: 'One tiny knight. Twelve lost kittens. One warm Rescue House.',
   usePinkPawName: USE_PINK_PAW_NAME,
   fallbackTitle: FALLBACK_TITLE,
@@ -46,7 +46,7 @@ export const BRAND = Object.freeze({
   fallbackRescueHouse: 'Pawsbury Rescue House',
   // TOKENTAILS-PLAN §2.5 / §10.5: licensed names of real Pink Paw cats; the adventures are made up (credits say so)
   pinkPawKittens: Object.freeze({ pickles: 'Judas', pebble: 'Simas', muffin: 'Raudvis', socks: 'Zare' }),
-  site: 'tokentails.com',
+  site: 'pawlegends.app',
 });
 
 /** The names the four kittens had before the Pink Paw nod (a missing `pinkPawKittens` entry falls back to these). */
@@ -58,5 +58,5 @@ export function brandKittenName(id, brand = BRAND) {
   return brand.pinkPawKittens?.[id] ?? KITTEN_FALLBACK_NAMES[id];
 }
 
-/** `<title>` / share-card title: "Pink Paw Knight · Token Tails". */
-export const PAGE_TITLE = `${BRAND.title} · Token Tails`;
+/** `<title>` / share-card title: "Pink Paw Knight". */
+export const PAGE_TITLE = BRAND.title;

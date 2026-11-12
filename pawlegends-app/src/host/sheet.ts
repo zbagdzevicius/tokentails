@@ -257,7 +257,7 @@ export class DomHostUi implements HostUi {
           <div class="plh-col">${social}
             <button type="button" class="plh-btn ghost" data-h="email" data-testid="native-auth-email">Continue with email</button>
           </div>
-          <p class="plh-fine" style="margin-top:12px">By signing in you agree to the Token Tails terms. Privacy: tokentails.com/pawlegends/privacy</p>`;
+          <p class="plh-fine" style="margin-top:12px">By signing in you agree to the Pawlegends terms. Privacy: pawlegends.app/privacy</p>`;
       }
       case "email": {
         const create = view.tab === "create";

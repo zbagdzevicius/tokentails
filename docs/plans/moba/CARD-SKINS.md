@@ -1,5 +1,11 @@
 # Card skins: a skin-effects ladder built from our Cards
 
+> **Parked 2026-11-12: no Token Tails in Paw Legends** ([NO-TOKENTAILS.md](NO-TOKENTAILS.md)). The founder dropped the
+> "Your cats become skins" feature. The game no longer reads the host's roster, featured cats or Meet offer, and the
+> host no longer sends them. The card side (§1, §5, §6: cat card skins, Bond, Awakened
+> cards, the cards drawer, showcase bots) is parked; its render kit (`render/skins/registry.ts`, `cardFx`, `tierCardFx`)
+> stays dormant in the code. The coat rung part (store coats, `coatRung.ts`, `effectKit.ts`) stays live.
+
 Founder ask (2026-11-10, verbatim): "investigate League of Legends ( wild rift ) and mobile legends skins. we already
 have Cards with tiers and multiple modifications, can't we adapt them somehow and spark more effects around it ?"
 

@@ -22,7 +22,7 @@ import { sfx } from '../../src/audio/sfx';
 import { parseRoster } from '../../src/meta/roster';
 import { setRosterSkins } from '../../src/render/skins/registry';
 import { skinIdOf } from '../../src/render/skins/skinStore';
-import { DEMO_ROSTER } from '../../src/app/skinDemo';
+import { DEMO_ROSTER } from '../fixtures/demoRoster';
 import { cardLook, type Look } from '../../src/render/cosmetics';
 import { lobbyHero, type LobbyHero } from '../../src/render/views/heroView';
 import { BONE_INDEX, type BoneName } from '../../src/render/chars/skeleton';
@@ -402,7 +402,7 @@ function ensureRenderer(): GameRenderer {
   return gr;
 }
 
-/** Demo card skins (app/skinDemo.ts roster), registered locally; cosmetic only. */
+/** Demo card skins (tools/fixtures/demoRoster.ts), registered locally; cosmetic only. */
 function registerDemoSkins(): void {
   setRosterSkins(parseRoster(DEMO_ROSTER), {});
 }

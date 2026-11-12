@@ -1,4 +1,4 @@
-import { expect, test, type Frame, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { startFirstMatch, playFromHome, toChampSelect } from './helpers';
 import { mockHost, openHost } from './host';
 
@@ -8,18 +8,7 @@ import { mockHost, openHost } from './host';
 
 const VETERAN = { v: 1, sessions: 3, matches: 5, wins: 2, firstWinDone: true, hero: 'clem', veteran: true };
 
-async function topmost(where: Page | Frame, sel: string): Promise<boolean> {
-  return where.evaluate((s) => {
-    const el = document.querySelector(s);
-    if (!el) return false;
-    const r = el.getBoundingClientRect();
-    if (r.width === 0 || r.height === 0) return false;
-    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    return !!top && (top === el || el.contains(top));
-  }, sel);
-}
-
-test('pick at 1280×720: the first chroma chip is visible and on top (the Look row is above the kit)', async ({ context, page, baseURL }, info) => {
+test('pick at 1280×720: a roster from an older host adds no colour tints and no Look button (NO-TOKENTAILS.md)', async ({ context, page, baseURL }, info) => {
   test.skip(info.project.name !== 'desktop', 'the 1280×720 layout');
   await mockHost(context, baseURL!, {
     app: { isApp: false, store: true },
@@ -33,15 +22,8 @@ test('pick at 1280×720: the first chroma chip is visible and on top (the Look r
   const game = await openHost(page);
   await toChampSelect(game);
   await game.waitForSelector('html[data-screen="pick"]');
-  // the colour tints live on the panel's Look sheet
-  await game.locator('.cs-look').click();
-  const chip = game.locator('.pl-pick .chip.chroma[data-chroma]:not([data-chroma=""])').first();
-  await expect(chip).toBeVisible();
-  const box = await chip.boundingBox();
-  expect(box && box.y + box.height).toBeLessThanOrEqual(720);
-  expect(await topmost(game, '.pl-pick .chip.chroma[data-chroma]:not([data-chroma=""])')).toBe(true);
-  // the squad chip names the tier positively, never "no frame"
-  await expect(game.locator('body')).not.toContainText('no frame');
+  await expect(game.locator('.pl-pick .chip.chroma')).toHaveCount(0);
+  await expect(game.locator('.pl-pick')).not.toContainText(/Blaze|Queenie|squad|no frame/);
 });
 
 test('in a match nothing draws words in the middle: one rail main line at most, the rail ends by y 160', async ({ page }, info) => {

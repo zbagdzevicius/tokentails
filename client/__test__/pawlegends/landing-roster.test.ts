@@ -149,6 +149,6 @@ describe("Pawlegends landing roster", () => {
   it("matches the party invite URL the game builds, once party play is in this tree", () => {
     const file = join(GAME, "share/partyLink.ts");
     if (!existsSync(file)) return; // feat/pawlegends-mp not merged yet
-    expect(readFileSync(file, "utf8")).toContain("https://tokentails.com/pawlegends?party=");
+    expect(readFileSync(file, "utf8")).toContain("https://pawlegends.app/?party=");
   });
 });

@@ -262,11 +262,11 @@ describe('A6: loading line, pick role, ally barks', () => {
     document.body.innerHTML = '';
   });
 
-  it('the loading screen shows the Bond badge and the match count on this hero', () => {
-    const v = loadingVeil(document.body, 'Into the Crossing...', undefined, null, { name: 'Sage', matches: 7, bond: 3 });
+  it('the loading screen shows the match count on this hero (no card Bond: NO-TOKENTAILS.md)', () => {
+    const v = loadingVeil(document.body, 'Into the Crossing...', undefined, { name: 'Sage', matches: 7 });
     expect(v.querySelector('[data-hero-matches]')?.textContent).toContain('7 matches as Sage');
-    expect(v.querySelector('.bond')?.textContent).toBe('Bond 3');
-    const f = loadingVeil(document.body, 'x', undefined, null, { name: 'Clem', matches: 0, bond: null });
+    expect(v.querySelector('.bond')).toBeNull();
+    const f = loadingVeil(document.body, 'x', undefined, { name: 'Clem', matches: 0 });
     expect(f.textContent).toContain('First match as Clem');
     expect(f.querySelector('.bond')).toBeNull();
   });

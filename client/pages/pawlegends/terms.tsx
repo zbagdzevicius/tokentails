@@ -1,5 +1,4 @@
 import {
-  MEET_PERKS,
   PAWLEGENDS_CONSENT_VERSION,
   PAWLEGENDS_STORE_CONSENT_VERSION,
   UNDER_16_MESSAGE,
@@ -7,13 +6,15 @@ import {
 import { PAWLEGENDS_CONTACT, PAWLEGENDS_PRIVACY_URL, pawlegendsEnabled } from "@/components/pawlegends/flags";
 import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
-import { Prices } from "@/models/cats";
+import Link from "next/link";
 
 export { PAWLEGENDS_CONTACT };
 
 export const PAWLEGENDS_TERMS_SEO = Object.freeze({
-  title: `${PAWLEGENDS_TITLE} terms - Token Tails`,
-  description: `What a named cat bought from ${PAWLEGENDS_TITLE} delivers, the EU withdrawal notice, age limits and contact.`,
+  // NO-TOKENTAILS.md: the share card and tab name Paw Legends, not the site
+  siteName: PAWLEGENDS_TITLE,
+  title: `${PAWLEGENDS_TITLE} terms`,
+  description: `What you can buy in ${PAWLEGENDS_TITLE}, the EU withdrawal notice, age limits and contact.`,
   path: "/pawlegends/terms",
 });
 
@@ -26,12 +27,11 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 /**
- * `/pawlegends/terms` (launch item U5): the terms for the one thing the game sells, the $5 named cat
- * (`Prices.shelterCat`) opened from its "Meet <cat>" card (`PawlegendsCatSheet`). Default wording; the founder's
- * legal OK is pending. The version shown here is the one the cat sheet sends as `consentVersion` when the buyer ticks the consent box, and
- * the backend records it with the payment; a change to the text needs a new version in
- * `components/pawlegends/checkout.ts` and in `backend/src/pawlegends/pawlegends.contracts.ts`. Readable even while
- * the game's kill switch is on, so buyers can always find it.
+ * `/pawlegends/terms` (launch item U5; `/terms` on pawlegends.app): the terms for the game's store items and the
+ * Legends Pass. The named-cat purchase ("Meet <cat>", $5) left the game on 2026-11-12 (docs/plans/moba/NO-TOKENTAILS.md);
+ * earlier cat buyers keep the terms of their version ("Earlier purchases"). The operator is named only where the law
+ * needs it (the "Who runs it" section). Default wording; the founder's legal OK is pending. Readable even while the
+ * game's kill switch is on, so buyers can always find it.
  */
 export default function PawlegendsTermsPage() {
   const open = pawlegendsEnabled();
@@ -50,58 +50,39 @@ export default function PawlegendsTermsPage() {
 
           <Section title="The game">
             <p>
-              {PAWLEGENDS_TITLE} is free to play in the browser: you never have to pay to play it. It is made by Token
-              Tails and is still in development, so it changes over time.
+              {PAWLEGENDS_TITLE} is free to play in the browser: you never have to pay to play it. It is still in
+              development, so it changes over time.
             </p>
           </Section>
 
-          <Section title="What you can buy">
+          <Section title={`What you can buy: store items and the Legends Pass (version ${PAWLEGENDS_STORE_CONSENT_VERSION}, draft)`}>
             <p>
-              The only thing for sale is a named cat, from its &quot;Meet&quot; card in the game, for $
-              {Prices.shelterCat}. You see the cat, its name and its element before checkout, and nothing is random. The
-              Token Tails checkout takes cards and supported stablecoins. The cat is added to your
-              Token Tails account as a Common card. In {PAWLEGENDS_TITLE} it brings:
-            </p>
-            <ul className="list-disc pl-5">
-              {MEET_PERKS.map((perk) => (
-                <li key={perk}>{perk}</li>
-              ))}
-            </ul>
-            <p>
-              These are cosmetic. They do not make any hero stronger, and they do not change how a match is played or
-              scored.
-            </p>
-          </Section>
-
-          <Section title={`Store items and the Legends Pass (version ${PAWLEGENDS_STORE_CONSENT_VERSION}, draft)`}>
-            <p>
-              On the web, signed-in players can also buy cosmetic store items (coats, frames with titles, sets) and the
+              On the web, signed-in players can buy cosmetic store items (coats, frames with titles, sets) and the
               Legends Pass from the game&apos;s Store. Each item, its price and every pass reward are shown before
-              checkout; nothing is random. Items belong to your Token Tails account and are bought once. They are
+              checkout; nothing is random. Items belong to your account and are bought once. They are
               cosmetic: they do not make any hero stronger and do not change how a match is played or scored.
             </p>
             <p>
               The Legends Pass opens a season&apos;s premium reward row. You reach tiers with Season XP from finished
               matches; Pass+ also moves you 15 tiers ahead (up to tier 30) and adds one extra coat, Eclipse. Season XP
               is progress only: it is not money, cannot be bought, sold or exchanged, and has no cash value. A
-              season&apos;s rewards stay claimable after the season ends. Store items and the pass are digital content delivered right away: the same 14-day withdrawal
-              rule below applies, with the same box to tick. A refunded pass removes its premium rewards.
+              season&apos;s rewards stay claimable after the season ends. A refunded pass removes its premium rewards.
             </p>
           </Section>
 
           <Section title="Delivery and your 14-day withdrawal right (EU)">
             <p>
-              The cat is digital content and is delivered right away, as soon as the payment is confirmed. Under EU law
-              you can normally withdraw from an online purchase within 14 days. Before checkout, you tick a box to ask
-              for delivery right away and to confirm that you lose this 14-day withdrawal right once the cat is
-              delivered. Without that tick the checkout does not start.
+              Store items and the pass are digital content and are delivered right away, as soon as the payment is
+              confirmed. Under EU law you can normally withdraw from an online purchase within 14 days. Before checkout,
+              you tick a box to ask for delivery right away and to confirm that you lose this 14-day withdrawal right
+              once the item is delivered. Without that tick the checkout does not start.
             </p>
           </Section>
 
           <Section title="If something goes wrong">
             <ul className="list-disc pl-5">
               <li>
-                If the payment goes through but the cat does not reach your account, or you are charged twice, write to
+                If the payment goes through but the item does not reach your account, or you are charged twice, write to
                 us and we put it right or refund that payment.
               </li>
               <li>Your legal rights for digital content that is faulty or not as described are not affected.</li>
@@ -124,6 +105,12 @@ export default function PawlegendsTermsPage() {
             </p>
           </Section>
 
+          <Section title="Who runs it">
+            <p>
+              {PAWLEGENDS_TITLE} is operated by Token Tails MB, Vilnius, Lithuania, the seller of every purchase.
+            </p>
+          </Section>
+
           <Section title="Contact">
             <p>
               Questions, a problem with a purchase or a higher limit:{" "}
@@ -139,9 +126,11 @@ export default function PawlegendsTermsPage() {
           </Section>
 
           <p>
-            <a href={open ? "/pawlegends/play" : "/game"} className="font-bold text-tt-gold-400 underline underline-offset-4">
-              {open ? `Back to ${PAWLEGENDS_TITLE}` : "Back to games"}
-            </a>
+            {open && (
+              <Link href="/pawlegends/play" className="font-bold text-tt-gold-400 underline underline-offset-4">
+                Back to {PAWLEGENDS_TITLE}
+              </Link>
+            )}
           </p>
         </article>
       </main>

@@ -1,6 +1,6 @@
 /* Token Tails card art in Pawlegends (ui/cards/). The frame follows client/components/tailsCard/CardWrapper.tsx:
    aspect 17/23, corners 5cqw, the element art as the card, a #0b0b2a inset at 6 %, sparkle stars on the inner
-   edges, the tier pattern through a color-dodge glare, the tier and TOKEN TAILS in the footer. Everything in cqw. */
+   edges, the tier pattern through a color-dodge glare, the tier and PAWLEGENDS in the footer. Everything in cqw. */
 
 .tt-card {
   --mx: 50cqw; --my: 40cqw; --rx: 0deg; --ry: 0deg;

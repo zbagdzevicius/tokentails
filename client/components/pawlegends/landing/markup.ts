@@ -18,7 +18,6 @@ const A = {
   aim: LANDING_ASSET("shot-aim.2a268c6c.webp"),
   teamfight: LANDING_ASSET("shot-teamfight.1be7757e.webp"),
   phone: LANDING_ASSET("shot-phone.24bce0a7.webp"),
-  logo: LANDING_ASSET("tt-logo.19b6c796.webp"),
   /** The PawLegends wordmark (brand/pawlegends logo-compact.png, founder pick #48, without the paws: the hero has no room for the full logo under the VS), 1200x334. */
   wordmark: LANDING_ASSET("logo-compact.ec9e56ee.webp"),
   fredoka: LANDING_ASSET("fredoka-latin.ec85d7eb.woff2"),
@@ -36,7 +35,6 @@ const A = {
  * at their full size: tiles, the footer logo and the round screenshots. `sizes` errs large, so no image upscales.
  */
 export const SMALLER: Readonly<Record<string, number>> = Object.freeze({
-  [A.logo]: 244,
   [A.wordmark]: 640,
   [A.map]: 720,
   [A.aim]: 720,
@@ -227,7 +225,7 @@ function squadSvg(): string {
           <rect x="0" y="136" width="480" height="404" fill="rgba(47,107,255,.18)"/><rect x="480" y="136" width="480" height="404" fill="rgba(232,52,74,.16)"/>
           <g class="chip"><rect x="120" y="44" width="720" height="68" rx="34" fill="#fff" stroke="#12091f" stroke-width="5"/>
             <g transform="translate(164 78)" fill="none" stroke="#2f6bff" stroke-width="6" stroke-linecap="round"><path d="M-4,6 L6,-4"/><path d="M-10,0 l-4,4 a8,8 0 0 0 11,11 l4,-4"/><path d="M10,0 l4,-4 a8,8 0 0 0 -11,-11 l-4,4"/></g>
-            <text x="192" y="90" font-size="30" fill="#12091f" class="url">tokentails.com/pawlegends?party=<tspan fill="#2f6bff" class="code">K7QX2M</tspan></text></g>
+            <text x="192" y="90" font-size="30" fill="#12091f" class="url">pawlegends.app/?party=<tspan fill="#2f6bff" class="code">K7QX2M</tspan></text></g>
           <circle class="tapdot" cx="790" cy="78" r="22" fill="none" stroke="#fff04d" stroke-width="5" opacity="0"/>
           ${ours}
           <text x="480" y="${Y + H / 2 + 18}" text-anchor="middle" font-size="44" fill="#fff04d" stroke="#12091f" stroke-width="6" paint-order="stroke" class="vsx">VS</text>
@@ -251,7 +249,7 @@ function shelterSection(champions: LandingHero[]): string {
     <div class="belt">
       <div class="belt-in">
         <div class="disc" aria-hidden="true"></div>
-        <img src="${A.logo}" alt="Token Tails logo" width="420" height="236" loading="lazy" decoding="async">
+        <img src="${A.wordmark}" srcset="${srcset(A.wordmark, SMALLER[A.wordmark], 1200)}" sizes="260px" alt="Pawlegends" width="1200" height="334" loading="lazy" decoding="async">
         <div class="split" aria-hidden="true"><div><b>${champions.length}</b><small>Pink Paw cats</small></div></div>
       </div>
       <canvas aria-hidden="true"></canvas>
@@ -259,8 +257,7 @@ function shelterSection(champions: LandingHero[]): string {
     <div>
       <p class="kicker">The real title belt</p>
       <h2 class="disp" id="sh-h"><span class="ital">Cats win off the map too</span></h2>
-      <p>Pawlegends is made by <strong>Token Tails</strong>, a cat game studio. ${names} are drawn from real cats at the <strong>Pink Paw</strong> shelter in Kaunas: ${real}.</p>
-      <div class="ctas"><span class="mag"><a class="btn ghost" href="/"><span>Visit Token Tails <span class="arrow" aria-hidden="true">&#9654;</span></span></a></span></div>
+      <p>${names} are real cats from the <strong>Pink Paw</strong> shelter, drawn as heroes.</p>
     </div>
   </div>
   <div class="dotband" aria-hidden="true" style="--c:#000"><i></i><i></i><i></i><i></i></div>
@@ -493,8 +490,7 @@ ${shelterSection(champions)}
     </div>
   </div>
   <footer class="foot">
-    <img src="${A.logo}" srcset="${srcset(A.logo, SMALLER[A.logo], 420)}" sizes="120px" alt="Token Tails" width="420" height="236" loading="lazy" decoding="async">
-    <span>Pawlegends by Token Tails</span>
+    <img src="${A.wordmark}" srcset="${srcset(A.wordmark, SMALLER[A.wordmark], 1200)}" sizes="160px" alt="Pawlegends" width="1200" height="334" loading="lazy" decoding="async">
     <a href="${PAWLEGENDS_TERMS_PATH}">Terms</a>
     <a href="#top">Back to top</a>
   </footer>

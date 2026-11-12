@@ -1,7 +1,7 @@
 /**
  * The app flow (POC.md §12): title → pick → match → results, one frame loop, the quality governor, the lobby
  * turntable between matches and the embed bridge. Also the meta layer around the matches: cosmetics from the
- * entitlement token, free unlocks and the host roster; the store, the offer card and settings; consent-gated
+ * entitlement token and free unlocks; the store, the offer card and settings; consent-gated
  * analytics. `html[data-screen]` names the current screen (tests read it; there is no debug global).
  */
 import { fishSources, medals, progressRows } from '../ui/progressSummary';
@@ -14,25 +14,19 @@ import { crashSender, reportCrash, setCrashHook } from './crash';
 import { SIM_VERSION } from '../sim/version';
 import { inAppShell, shareBase } from './platform';
 import type { Bridge, HostMessage } from '../embed/bridge';
-import { EMPTY_ROSTER, isAppBuild, parseRoster, rosterCosmetics, type CatTier, type RosterCat, type RosterCosmetics } from '../meta/roster';
-import { coatGlow } from '../render/skins/cardFx';
-import { stageOf } from '../render/skins/effectKit';
-import { nextBond, onSkinsChanged, ownedSkins, setFeaturedSkins, setRosterSkins, showcaseGate, wantProbe } from '../render/skins/registry';
-import { FEATURED_SKIN_PREFIX, getSkin, isCardSkinId, skinIdOf, type CatSkin } from '../render/skins/skinStore';
-import type { SkinTile } from '../ui/screens';
-import { squadPrefs } from '../meta/squad';
-import { DEMO_ROSTER, skinDemoOn } from './skinDemo';
+import { EMPTY_ROSTER, isAppBuild } from '../meta/roster';
+import { onSkinsChanged } from '../render/skins/registry';
 import { recordLadder } from '../meta/ladder';
 import { GRADE_TREAT_XP, gradeMatch } from '../meta/grade';
 import { HERO_IDS, HEROES } from '../data/heroes';
-import { accountState, heroForSide, loadProfile, noteBond, noteChampionMatch, noteHeroMatch, notePreview, playSession, previewAllowed, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
+import { accountState, heroForSide, loadProfile, noteChampionMatch, noteHeroMatch, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
-import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../money/offer';
+import { markShown, pickOffer, type Offer, type OfferScreen } from '../money/offer';
 import { isSku, type SkuId } from '../money/skus';
 import { CATALOG_SKUS, CHAMPION_IDS, STARTERS, catalogSku, champSkuOf, type CatalogSku } from '../money/catalog';
 import { canPlay, champStatus, localChampions, lockReason, openChampions, ownedCount, type ChampionsState } from '../meta/champions';
-import { ELEMENT_COLOR, PAID_COATS, bestFrame, cardLook, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
+import { PAID_COATS, bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { Lobby } from '../render/lobby';
 import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
@@ -54,19 +48,17 @@ import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
-import { loadingVeil, pickScreen, refreshPickChamps, refreshPickFaces, setPickLook, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
+import { loadingVeil, pickScreen, refreshPickChamps, refreshPickFaces, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
 import { botsChoice, disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
 import { legacyMode, loadModeChoice, modeById, modeList, pillText, saveModeChoice, type ModeChoice, type ModeDef } from '../ui/modeSelect/modes';
 import { heroElement } from '../ui/cards/el';
-import type { DeckCard, DeckHandle } from '../ui/deck/deck';
-import { championOf } from '../data/heroes/shelter';
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel, type StoreTab } from '../ui/store';
 import { passPanel } from '../ui/passPanel';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
-import { cardIdentity, selfNames, veilName } from '../meta/cardName';
+import { selfNames } from '../meta/cardName';
 import type { MatchEnd, MatchSession, MatchSetup } from './matchSession';
 import { MODE_MAP, MODE_MINUTES, MODE_MUTATOR, MODE_NAME, loadMatchMode, modeFromUrl, saveMatchMode, type MatchMode } from '../ui/lobby/matchMode';
 import type { MapId } from '../sim/api';
@@ -166,7 +158,7 @@ export class App {
   readonly ent = new Entitlements();
   readonly checkout: CheckoutBridge;
   readonly analytics: Analytics;
-  /** Token Tails cards, sign-in, save chip and the Meet card (embed/integrate.ts). */
+  /** Sign-in, save chip and the champion info (embed/integrate.ts). */
   readonly integration: Integration;
   private readonly human = new HumanFilter();
   private screen: Screen = 'title';
@@ -214,8 +206,6 @@ export class App {
   /** Locked champions already reported as viewed this session (analytics, once each). */
   private lockedSeen = new Set<string>();
   private frames = 0;
-  private roster: RosterCosmetics = EMPTY_ROSTER;
-  private rosterCats: RosterCat[] = [];
   private hostOffer: Offer | null | undefined = undefined;
   private offerShown = false;
   private matchesThisSession = 0;
@@ -284,31 +274,11 @@ export class App {
       ent: this.ent,
       profile: loadProfile,
       analytics: this.analytics,
-      onRosterChange: () => {
-        this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
-        this.syncSkins();
-        this.autoEquip();
-        this.refreshMeta();
-      },
+      onRosterChange: () => this.refreshMeta(),
       root,
       lobbyHero: () => this.choice.hero,
-      chromaPreview: (element) => {
-        const hero = this.choice.hero;
-        if (!(element in ELEMENT_COLOR)) return null;
-        const look: Look = { ...this.lookFor(hero), chroma: element as Look['chroma'] };
-        bakePortrait(this.gr, hero, look);
-        const url = portraitUrl(hero, look);
-        return url ? { url, hero: HERO_TEXT[hero].title } : null;
-      },
     });
     bridge.on((m) => this.onHost(m));
-    // `?skins=demo` (local standalone only, see skinDemo.ts): a fixed roster so card skins show without a host
-    if (skinDemoOn({ search: location.search, protocol: location.protocol, hostname: location.hostname, framed: bridge.active || window.parent !== window, isApp: this.isApp() })) {
-      this.rosterCats = parseRoster(DEMO_ROSTER);
-      this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
-      this.syncSkins();
-      document.documentElement.dataset.skinDemo = '1';
-    }
     // a sprite probe finished: the palette changed, so the pick tiles, the lobby hero and the portraits follow
     // (debounced; the pick screen is never rebuilt, so the trick, bots, a running Preview and the strip scroll stay)
     let skinsTimer: ReturnType<typeof setTimeout> | null = null;
@@ -384,116 +354,21 @@ export class App {
       const v = parseAudio(m);
       if (v) sfx.setVolumes(v);
     }
-    else if (m.type === 'roster') {
-      this.rosterCats = parseRoster(m.cats);
-      this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
-      this.syncSkins();
-      this.autoEquip();
-      this.refreshMeta();
-    } else if (m.type === 'offer') {
-      const o = offerOf(m.offer);
-      if (o !== undefined) this.hostOffer = o;
-    } else if (!this.integration.handle(m)) this.ent.apply(m);
-    if (m.type === 'featured' || m.type === 'app') this.syncSkins();
-    // save-result and featured belong to the integration: the results save chip shows "+N catnip" once the
-    // server paid it (POST /user/catbassadors/live via the host)
+    else if (!this.integration.handle(m)) this.ent.apply(m);
+    // save-result belongs to the integration (POST /user/catbassadors/live via the host). An older host's Token Tails
+    // `roster`, `featured` and Meet `offer` are owned there too and ignored (NO-TOKENTAILS.md).
   }
 
-  // ------------------------------------------------------------------------------------------- card skins
+  // ------------------------------------------------------------------------------------------- looks
 
   private isApp(): boolean {
     return this.ent.snapshot().isApp || isAppBuild() || this.integration.state().app?.isApp === true;
   }
 
-  /** GDD §7.2: owned cats (with their Bond) and, on the web, the featured cats as skins. */
-  private syncSkins(): void {
-    setRosterSkins(this.rosterCats, loadProfile().bond);
-    setFeaturedSkins(this.isApp() ? [] : this.integration.state().featured);
-  }
-
-  /**
-   * Locked featured tiles and showcase bots follow the offer gates: web only, from the second play session (never in
-   * session 1). App builds: never.
-   */
-  private skinShowcaseOpen(firstMatch = false): { tiles: boolean; bots: boolean } {
-    return showcaseGate({ isApp: this.isApp(), playSession: playSession(loadProfile()), firstMatch });
-  }
-
-  private skinTile(sk: CatSkin): SkinTile {
-    return { id: sk.id, name: sk.name, element: sk.element, rung: sk.rung, bond: sk.bond, next: nextBond(sk.bond), tint: coatGlow(sk), ...(sk.art ? { art: sk.art } : {}), ...(sk.fromPack ? { fromPack: true } : {}) };
-  }
-
-  /** The card the lobby shows for a worn skin ("Wearing <name>"), or null. */
-  private wearing(look: Look | null): { name: string; type: string; art?: string; frame?: string } | null {
-    const sk = isCardSkinId(look?.coat) ? getSkin(look?.coat) : null;
-    if (!sk || sk.featured) return null;
-    const frame = sk.rung === 'RARE' ? 'frame.rare' : sk.rung === 'EPIC' ? 'frame.epic' : sk.rung === 'LEGENDARY' ? 'frame.legendary' : undefined;
-    return { name: sk.name, type: sk.element, ...(sk.art ? { art: sk.art } : {}), ...(frame ? { frame } : {}) };
-  }
-
-  /**
-   * The newest cat (profile `newCat`) arrives in the roster: its skin goes on the last-picked champion, once, with a
-   * "Now wearing <name> · Undo" chip. Nothing is worn silently.
-   */
-  private autoEquip(leavingMatch = false): void {
-    // never over the match HUD: showTitle runs it again when the match ends
-    if (this.screen === 'match' && !leavingMatch) return;
-    const p = loadProfile();
-    const id = p.newCat;
-    if (!id || p.skinAuto === id) return;
-    const cat = this.rosterCats.find((c) => c.catalogId === id || c.id === id);
-    if (!cat) return;
-    const hero = p.hero;
-    const prev = p.looks[hero] ?? null;
-    p.looks[hero] = cardLook(skinIdOf(cat.id));
-    p.skinAuto = id;
-    saveProfile(p);
-    const chip = document.createElement('div');
-    chip.className = 'pl-new pl-wear-chip';
-    chip.setAttribute('role', 'status');
-    const t = document.createElement('span');
-    t.textContent = `Now wearing ${cat.name}`;
-    const undo = document.createElement('button');
-    undo.className = 'chip small';
-    undo.dataset.a = 'undo-skin';
-    undo.textContent = 'Undo';
-    undo.addEventListener('click', () => {
-      const q = loadProfile();
-      if (prev) q.looks[hero] = prev;
-      else delete q.looks[hero];
-      saveProfile(q);
-      chip.remove();
-      this.refreshMeta();
-      if (this.screen === 'pick') this.showPick();
-    });
-    chip.append(t, document.createTextNode(' · '), undo);
-    this.root.appendChild(chip);
-    setTimeout(() => chip.classList.add('out'), 6000);
-    setTimeout(() => chip.remove(), 6600);
-  }
-
-  /** A locked featured skin spins on the turntable for PREVIEW_MS, then the hero's own look returns. */
-  private previewSkin(id: string): boolean {
-    const sk = getSkin(id);
-    if (!sk?.featured || !this.skinShowcaseOpen().tiles) return false;
-    const p = loadProfile();
-    if (!previewAllowed(p, accountState().signedIn)) return false;
-    notePreview();
-    wantProbe(id);
-    const hero = this.choice.hero;
-    this.lobby.setHero(hero, 0, cardLook(id));
-    document.documentElement.dataset.skinPreview = id;
-    if (sk.catalogId) this.integration.notePreview(sk.catalogId);
-    setTimeout(() => {
-      if (document.documentElement.dataset.skinPreview === id) delete document.documentElement.dataset.skinPreview;
-      if ((this.screen === 'pick' || this.screen === 'title') && this.choice.hero === hero) this.setLobbyHero(hero);
-    }, PREVIEW_MS);
-    return true;
-  }
-
   private owned(): Owned {
     const s = this.ent.snapshot();
-    return { items: s.items, unlocks: new Set(loadProfile().unlocks), roster: this.roster };
+    // Paw Legends stands on its own: no Token Tails cats, so no cat coats, tints or tier frames (NO-TOKENTAILS.md)
+    return { items: s.items, unlocks: new Set(loadProfile().unlocks), roster: EMPTY_ROSTER };
   }
 
   private lookFor(hero: HeroId): Look {
@@ -511,7 +386,7 @@ export class App {
     d.store = s.storeOpen ? '1' : '0';
     d.isApp = s.isApp ? '1' : '0';
     d.items = [...s.items].sort().join(',');
-    d.chromas = this.roster.chromas.join(',');
+    d.chromas = '';
     d.frame = bestFrame(this.owned(), loadProfile().wornFrame) ?? '';
     if (!s.storeOpen) {
       // only the store closes with the store; the Legends Pass and other panels stay (and redraw)
@@ -530,8 +405,6 @@ export class App {
       // CHAMPION-STORE.md: an unlock or a purchase landed while the pick is up
       if (this.screenEl) refreshPickChamps(this.screenEl);
     }
-    // the open cards drawer follows a roster change
-    if (this.cards) this.cards.update(this.deckData(this.dare?.hero ?? this.choice.hero));
   }
 
   // ------------------------------------------------------------------------------------------- champions
@@ -683,11 +556,6 @@ export class App {
     this.screen = s;
     document.documentElement.dataset.screen = s;
     if (s === 'match') this.homeIntro = true;
-    // the cards drawer belongs to the lobby screens
-    if (s === 'match' || s === 'results') {
-      this.cards?.close();
-      this.cards = null;
-    }
     if (s === 'pick' || s === 'match') {
       this.offerEl?.close();
       this.offerEl = null;
@@ -785,27 +653,12 @@ export class App {
     }
     // a party of one played its solo match (D10): the party is still open, back to it
     if (this.party?.suspended && this.screen !== 'title') queueMicrotask(() => this.party?.show());
-    // a cat that arrived during a match goes on now (never over the match HUD)
-    this.autoEquip(true);
     const p = loadProfile();
     const owned = this.owned();
     const s = this.ent.snapshot();
-    // lobby spec §3a: the redesigned lobby (ui/lobby); the champion is named after the worn Token Tails cat
+    // lobby spec §3a: the redesigned lobby (ui/lobby), named after the hero
     const hero = this.dare?.hero ?? this.choice.hero;
-    const look = this.lookFor(hero);
-    const card = cardIdentity(hero, look);
-    const identity: LobbyIdentity = card
-      ? { name: card.name, sub: card.sub, element: card.element, role: card.role, card: true, rung: card.rung }
-      : heroIdentity(hero, heroElement(hero));
-    const skins = ownedSkins();
-    const worn = card ? skins.find((k) => k.id === card.skinId) : undefined;
-    const peek = [...(worn ? [worn] : []), ...skins.filter((k) => k !== worn)].slice(0, 3).map((k) => ({
-      name: k.name,
-      element: k.element,
-      rung: k.rung,
-      ...(k.art ? { art: k.art } : {}),
-      ...(k.sprite ? { sprite: k.sprite } : {}),
-    }));
+    const identity: LobbyIdentity = heroIdentity(hero, heroElement(hero));
     // Home's profile strip, season and promos (HOME-MODES.md §4): only numbers the server or this device has
     const season = s.season;
     const def = season ? currentSeason() : null;
@@ -881,10 +734,6 @@ export class App {
       },
       // sim v22: a `?mode=` link's unknown mode says "Update to play …" as Home opens
       ...(notice ? { notice } : {}),
-      cardCount: skins.length,
-      peek,
-      wearing: card ? { name: card.name } : null,
-      onCards: () => this.openCards(),
       // the match chunk loads during the 0.4 s dolly (it is usually prefetched already)
       playOut: () => {
         void loadMatch().catch(() => undefined);
@@ -968,90 +817,6 @@ export class App {
     this.maybeConsent();
   }
 
-  /** The "Your cards" drawer on screen (lobby spec §3b), or null. */
-  private cards: DeckHandle | null = null;
-  private cardsLoading = false;
-
-  /** A card skin as the drawer shows it. */
-  private deckCard(sk: CatSkin, locked = false): DeckCard {
-    return { ...this.skinTile(sk), ...(sk.sprite ? { sprite: sk.sprite } : {}), ...(locked ? { locked: true } : {}) };
-  }
-
-  /** The drawer's data for the lobby hero: owned cards, locked featured tiles (the gates), the worn card. */
-  private deckData(hero: HeroId): { owned: DeckCard[]; locked: DeckCard[]; current: string | null; classicPortrait: string | null; signedIn: boolean } {
-    const look = this.lookFor(hero);
-    const classic = resolveLook(hero, this.owned(), null);
-    bakePortrait(this.gr, hero, classic);
-    return {
-      owned: ownedSkins().map((sk) => this.deckCard(sk)),
-      locked: this.skinShowcaseOpen().tiles
-        ? this.integration
-            .state()
-            .featured.map((f) => getSkin(`${FEATURED_SKIN_PREFIX}${f.catalogId}`))
-            .filter((sk): sk is CatSkin => !!sk)
-            .slice(0, 2)
-            .map((sk) => this.deckCard(sk, true))
-        : [],
-      current: cardIdentity(hero, look)?.skinId ?? null,
-      classicPortrait: portraitUrl(hero, classic),
-      signedIn: accountState().signedIn,
-    };
-  }
-
-  /**
-   * Open the cards drawer (its own chunk) for the lobby hero. Wearing a card saves `profile.looks[hero]` (as the pick
-   * screen's Skins row did), redraws the hero with the equip burst and redraws the screen under the drawer.
-   */
-  private openCards(): void {
-    if (this.cards || this.cardsLoading || this.overlay) return;
-    this.cardsLoading = true;
-    void import('../ui/deck/deck')
-      .then(({ openDeck }) => {
-        this.cardsLoading = false;
-        if (this.screen !== 'title' && this.screen !== 'pick') return;
-        const hero = this.dare?.hero ?? this.choice.hero;
-        const tiles = this.integration.championTiles();
-        this.cards = openDeck(this.root, {
-          hero,
-          ...this.deckData(hero),
-          postcards: HERO_IDS.flatMap((h) => {
-            const c = championOf(h);
-            return c ? [{ name: c.cardName, ...(tiles[h]?.art ? { art: tiles[h]?.art } : {}) }] : [];
-          }),
-          isApp: this.isApp(),
-          embed: this.bridge.active,
-          onEquip: (id) => {
-            const q = loadProfile();
-            if (id) q.looks[hero] = cardLook(id);
-            else delete q.looks[hero];
-            saveProfile(q);
-            // nature lane: the worn card's element has its own equip sound (already loaded with the drawer chunk)
-            const el = id ? cardIdentity(hero, cardLook(id))?.element : null;
-            if (el) void import('../render/nature/natureDefs').then(({ NATURE }) => sfx.play(NATURE[el].sfx)).catch(() => sfx.play('pickup'));
-            else sfx.play('pickup');
-            this.setLobbyHero(hero);
-            this.lobby.equipBurst();
-            this.cards?.update({ current: id });
-            if (this.screen === 'title') this.showTitle(false);
-            // cards lane: redraw the pick screen in place (a rebuilt screen dropped the trick and bots picked on it)
-            else if (this.screen === 'pick' && this.screenEl) setPickLook(this.screenEl, hero, this.lookFor(hero));
-          },
-          onPreview: (id) => this.previewSkin(id),
-          onSignIn: () => void this.bridge.post('request-sign-in', { reason: 'save-progress' }),
-          onSeen: (id) => wantProbe(id),
-          flyTo: () => this.lobby.heroPoint(),
-          onClose: () => {
-            this.cards = null;
-          },
-        });
-      })
-      .catch(() => {
-        // the chunk did not load (offline): the pick screen still has every card
-        this.cardsLoading = false;
-        if (this.screen === 'title') this.showPick();
-      });
-  }
-
   /** The variant Home reopens Mode Select on (Back from the champion select), once. */
   private takeModesAt(): ModeChoice | null {
     const at = this.modesAt;
@@ -1100,8 +865,6 @@ export class App {
             this.analytics.track('champ_locked_view', { hero: h });
           },
         },
-        // lobby spec §3b: the panel's Look button opens the cards drawer (the skins live there)
-        onDeck: () => this.openCards(),
         looks: p.looks as Record<HeroId, Partial<Look>>,
         playerName: this.integration.state().playerName ?? null,
         onLook: (h, look) => {
@@ -1212,7 +975,6 @@ export class App {
             // P9: the embed host mints a single-use ticket with its own session; standalone players are unscored guests
             ticket: () => this.integration.partyTicket(),
             guestKey: () => partyGuestKey(),
-            cardId: () => cardIdentity(this.choice.hero, this.lookFor(this.choice.hero))?.catId ?? null,
             preload: () => loadMatch(),
             startMatch: (host, match, _view, info) => this.startPartyMatch(host, match, info?.backfill === true),
             // Quick Play: the remembered side, the analytics context and the pick's default hero per side
@@ -1307,9 +1069,8 @@ export class App {
               this.modesAt = { mode: 'skirmish', queue: 'pvp' };
               if (this.screen === 'title' && !this.session) this.showTitle(false);
             },
-            // CHAT-AVATARS §7.4: the picker's owned borders and the player's own cats (bucket art only)
+            // CHAT-AVATARS §7.4: the picker's owned borders (champions only: no Token Tails cats, NO-TOKENTAILS.md)
             ownedItems: () => [...this.ent.snapshot().items],
-            cats: () => this.rosterCats.filter((c) => /^[a-f0-9]{24}$/i.test(c.id) && !!c.art).map((c) => ({ id: c.id.toLowerCase(), image: c.art! })),
             inMatch: () => !!this.session,
             onUnread: (n) => {
               this.chatUnread = Math.max(0, n);
@@ -1415,7 +1176,7 @@ export class App {
     };
     this.lastSetup = setup;
     this.analytics.track('match_start', { hero, difficulty, trick, dare: false, party: true, load_ms: sinceLoadMs(), first_match: p.matches === 0 });
-    const veil = loadingVeil(this.root, 'Into the Crossing...', match.mode === 'casual' ? 'PvP' : match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', this.wearing(look), { name: veilName(hero, look), matches: p.heroMatches[hero] ?? 0, bond: null });
+    const veil = loadingVeil(this.root, 'Into the Crossing...', match.mode === 'casual' ? 'PvP' : match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', { name: HERO_TEXT[hero].title, matches: p.heroMatches[hero] ?? 0 });
     this.setScreen('match', null);
     this.lobby.leave();
     this.session?.dispose();
@@ -1476,15 +1237,8 @@ export class App {
     const tips = tipsDue(p);
     p.tipsNext = false;
     saveProfile(p);
-    // the squad may have changed on the pick screen, or a cat just joined
-    this.roster = rosterCosmetics(this.rosterCats, squadPrefs());
     const owned = this.owned();
-    // GDD §7.2: the first match never wears a card skin (the tutorial art matches); its coat and chroma stay as before
-    const chosen = this.lookFor(c.hero);
-    const look = p.matches === 0 && isCardSkinId(chosen.coat) ? resolveLook(c.hero, owned, null) : chosen;
-    // QA: the cat the champion wears does not also walk as a kitten ("Ficus" twice); the next squad cat walks instead
-    const wornCat = cardIdentity(c.hero, look)?.catId ?? null;
-    const companions = wornCat ? this.roster.cats.filter((k) => k.id !== wornCat).slice(0, this.roster.companions.length) : this.roster.companions;
+    const look = this.lookFor(c.hero);
     // no probe here: the match uses the palette cached at its start (a probe landing mid-match would rebuild the rig)
     const setup: MatchSetup = {
       ...c,
@@ -1501,7 +1255,7 @@ export class App {
       look,
       frame: bestFrame(owned, p.wornFrame),
       title: titleOf(owned, p.wornTitle),
-      companions,
+      companions: [],
       guide: p.tipsOff ? 'off' : seed !== undefined && p.matches > 0 ? 'off' : guideMode(p.matches),
       knowsUlt: p.knowsUlt && p.matches > 0,
       // GAPS B1: the ping tip in the player's second match
@@ -1509,23 +1263,17 @@ export class App {
       // GAPS B2: Forfeit in the pause menu from this tick (never in matches 1–3 or on Rookie)
       forfeitFrom: forfeitTick(p.matches, c.difficulty),
       skinFx: p.skinFx,
-      // GDD §7.2 bot showcase: web, from session 2, never the first match
-      showcase: this.skinShowcaseOpen(p.matches === 0 || tips).bots ? this.integration.state().featured.map((f) => `${FEATURED_SKIN_PREFIX}${f.catalogId}`) : [],
+      showcase: [],
     };
     this.lastSetup = setup;
     this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined, load_ms: sinceLoadMs(), first_match: p.matches === 0, mode: map ? 'classic' : mutator ? 'blitz' : 'skirmish', map: map ?? 'crossing', mutator: mutator ?? 'none' });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
-    const mates = companions.map((k) => k.name);
-    // GAPS A6: the loading screen names this hero's match count and, in a card skin, that cat's Bond
-    const worn = isCardSkinId(look.coat) ? getSkin(look.coat) : null;
-    const veil = loadingVeil(
-      this.root,
-      map ? 'Into Hearthwood Divide...' : mutator ? 'Blitz! Into the Crossing...' : 'Into the Crossing...',
-      mates.length ? `${mates.join(' and ')} ${mates.length > 1 ? 'walk' : 'walks'} with you this match` : undefined,
-      this.wearing(look),
-      { name: veilName(c.hero, look), matches: p.heroMatches[c.hero] ?? 0, bond: worn && !worn.featured ? worn.bond : null },
-    );
+    // GAPS A6: the loading screen names this hero's match count
+    const veil = loadingVeil(this.root, map ? 'Into Hearthwood Divide...' : mutator ? 'Blitz! Into the Crossing...' : 'Into the Crossing...', undefined, {
+      name: HERO_TEXT[c.hero].title,
+      matches: p.heroMatches[c.hero] ?? 0,
+    });
     this.setScreen('match', null);
     this.lobby.leave();
     this.session?.dispose();
@@ -1655,8 +1403,6 @@ export class App {
   }
 
   private showResults(e: MatchEnd): void {
-    // QA: the name the match used (a roster update during the match must not turn "Ficus" back into "Clem")
-    const myCard = this.session?.card ?? null;
     // UX pass 2: the username the match showed names the player's row (and the MVP / best lines)
     const userName = this.session?.playerName ?? null;
     const won = e.result.outcome === 'won';
@@ -1669,16 +1415,6 @@ export class App {
     const playedMode: MatchMode = setup?.map === 'hearthwood' ? 'classic' : blitz ? 'blitz' : 'skirmish';
     this.blitzRun = blitz ? this.blitzRun + 1 : 0;
     const rec = recordMatch(won, seconds, e.replay.difficulty, !blitz);
-    // GDD §7.2 Bond: one more finished match wearing this cat's skin (earned by play only)
-    const worn = isCardSkinId(setup?.look?.coat) ? getSkin(setup?.look?.coat) : null;
-    let skinLine: { name: string; art?: string; bond: number; next: number | null; rung: CatTier; tint: number } | null = null;
-    if (worn && !worn.featured) {
-      const bond = noteBond(worn.catId, this.rosterCats.map((c) => c.id));
-      this.syncSkins();
-      // Wave C (C4): the card effects after this match's Bond (a new rung shows its new effect)
-      const now = getSkin(worn.id) ?? worn;
-      skinLine = { name: worn.name, ...(worn.art ? { art: worn.art } : {}), bond, next: nextBond(bond), rung: now.rung, tint: coatGlow(now) };
-    }
     this.matchesThisSession++;
     this.human.match(seconds);
     // Bridge: the replay is the record; the summary is display only (host `summaryOf`).
@@ -1721,8 +1457,7 @@ export class App {
       pl_match_len_s: seconds,
       pl_rookie: isRookie(e.replay.difficulty),
     });
-    // Sim v9: from a non-owner's 3rd finished match on a shelter champion, the host may offer that card (until shown)
-    if (noteChampionMatch(e.replay.hero) > 0) this.integration.championMatch(e.replay.hero);
+    noteChampionMatch(e.replay.hero);
     noteHeroMatch(e.replay.hero);
     // Treat Track and daily quests (local, free, fixed order); recordMatch counted this match already.
     // GAPS B2: a forfeit pays TREAT_XP.forfeit only: no quest progress, no grade or first-win XP, a full ladder loss.
@@ -1784,8 +1519,8 @@ export class App {
     // round 2: "Change hero" names one to try (from match 2: match 1 keeps Play again as the only call)
     const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests, (h) => this.playable(h)) : null;
     const myTeam = mySlot < 3 ? 0 : 1;
-    // lobby spec §3b: a worn owned card names the player's row and MVP after the cat (records stay per hero)
-    const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, userName ? { name: userName } : myCard);
+    // UX pass 2: the username names the player's row and MVP (records stay per hero)
+    const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, userName ? { name: userName } : null);
     // party play: every human row (yours too), the MVP and "Best on your team" use the party names the friends saw
     const partyNames = (partyEnd as { names?: (string | null)[] } | undefined)?.names;
     if (partyNames) partyNames.forEach((n, slot) => n && (names[slot] = n));
@@ -1837,7 +1572,7 @@ export class App {
         won,
         seconds,
         hero: e.replay.hero,
-        heroName: myCard?.name ?? null,
+        heroName: null,
         difficulty: e.replay.difficulty,
         kills: e.kills,
         deaths: e.deaths,
@@ -1863,7 +1598,7 @@ export class App {
             name: nameOf(grades.mvp),
             you: grades.mvp === mySlot,
             hero: e.welcome.picks[grades.mvp] ?? e.result.stats.find((st) => st.slot === grades.mvp)?.hero,
-            ...(grades.mvp === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: worn && !worn.featured ? (getSkin(worn.id) ?? worn).rung : null, awakened: worn && !worn.featured && (getSkin(worn.id) ?? worn).awakened ? stageOf(e.level ?? 1) : null } : {}),
+            ...(grades.mvp === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: null, awakened: null } : {}),
           },
           // cards: on a defeat the results card shows the best on the player's team (feel QA: the enemy MVP got the rays)
           bestOnTeam: won
@@ -1872,7 +1607,7 @@ export class App {
                 name: nameOf(bestMine),
                 you: bestMine === mySlot,
                 hero: e.welcome.picks[bestMine] ?? e.result.stats.find((st) => st.slot === bestMine)?.hero,
-                ...(bestMine === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: worn && !worn.featured ? (getSkin(worn.id) ?? worn).rung : null, awakened: worn && !worn.featured && (getSkin(worn.id) ?? worn).awakened ? stageOf(e.level ?? 1) : null } : {}),
+                ...(bestMine === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: null, awakened: null } : {}),
               },
         },
         personal: ladder?.personal ?? null,
@@ -1881,7 +1616,6 @@ export class App {
         // round 2: a returning player (4+ matches or "played MOBAs before") gets Play again at End + 2.5 s
         quick: lp.matches >= 4 || lp.veteran || !!partyEnd,
         tryHero: tease,
-        skin: skinLine,
         touch: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
         speed: this.speed,
         storeOpen: s.storeOpen,
@@ -2109,7 +1843,6 @@ export class App {
       portrait: (h) => portraitUrl(h, null),
       wornTitle: p.wornTitle,
       wornFrame: p.wornFrame,
-      cards: ownedSkins().map((sk) => ({ name: sk.name, rung: sk.rung, tint: coatGlow(sk) })),
       onTarget: (h) => {
         const t = loadTreats();
         t.target = h;
@@ -2170,15 +1903,6 @@ export class App {
       onStats: (on) => this.analytics.setConsent(on),
       termsUrl: this.termsUrl(),
       ...(account ? { account: { model: account, send: (a) => void this.integration.account(a) } } : {}),
-      // embedded, on Home: the way back to the site's games (Home's "< Games" corner button was removed, Nov 12)
-      ...(this.bridge.kind === 'frame' && !after && this.screen === 'title'
-        ? {
-            onExit: () => {
-              sfx.play('click');
-              this.bridge.post('exit');
-            },
-          }
-        : {}),
       onClose: () => {
         this.overlay = null;
         if (this.screen === 'title') this.showTitle();
@@ -2314,8 +2038,6 @@ export class App {
 }
 
 const HERO_NAME = (h: HeroId): string => HERO_TEXT[h].title;
-/** How long a featured skin preview spins on the turntable (ms). */
-export const PREVIEW_MS = 8000;
 
 /** The SKU an item came from (analytics only). */
 function skuOfItem(item: string): string {

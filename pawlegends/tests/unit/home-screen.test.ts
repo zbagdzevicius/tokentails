@@ -17,11 +17,9 @@ const base = (o: Partial<HomeScreenOpts> = {}): HomeScreenOpts => ({
   last: { hero: 'sage', trick: 'pounce', difficulty: 'easy' },
   dare: null,
   muted: false,
-  identity: { name: 'Sage', sub: 'Sage the Marksman', element: 'WIND', role: 'Marksman', card: false, rung: null },
+  identity: { name: 'Sage', sub: 'Sage the Marksman', element: 'WIND', role: 'Marksman' },
   signedIn: false,
   difficulties: ['easy', 'normal', 'hard'],
-  cardCount: 0,
-  peek: [],
   onPlay: vi.fn(),
   onChoose: vi.fn(),
   onMute: vi.fn(),
@@ -90,7 +88,7 @@ describe('home state logic', () => {
 
 describe('home screen: one play path', () => {
   it('one round PLAY, and no other match start on Home', () => {
-    const root = mount(online({ onCards: vi.fn(), onCollection: vi.fn(), onJoinCode: vi.fn(), onHeroes: vi.fn(), onExit: vi.fn() }));
+    const root = mount(online({ onCollection: vi.fn(), onJoinCode: vi.fn(), onHeroes: vi.fn() }));
     expect(root.querySelectorAll('.pl-btn.big')).toHaveLength(1);
     expect(root.querySelector('[data-testid="home-play"]')?.getAttribute('aria-label')).toBe('Play: choose a mode');
     // gone: the quick Co-op and PvP buttons, the Friends nav, the nameplate lock-in, the Games button
@@ -257,14 +255,15 @@ describe('home screen: one play path', () => {
     expect(document.querySelector('[data-testid="mode-select"]')).toBeTruthy();
   });
 
-  it('first visit: the guided match in one tap, no Mode Select, the nav shown with Heroes, Cards and Pass locked', async () => {
+  it('first visit: the guided match in one tap, no Mode Select, the nav shown with Heroes and Pass locked (no Cards item)', async () => {
     const onPlay = vi.fn();
     const onHeroes = vi.fn();
-    const root = mount(base({ firstTime: true, onPlay, onHeroes, onCards: vi.fn(), firstLine: 'Your first match is a guided Rookie match.' }));
+    const root = mount(base({ firstTime: true, onPlay, onHeroes, firstLine: 'Your first match is a guided Rookie match.' }));
     expect(root.querySelector('[data-testid="mode-pill"]')).toBeNull();
     expect(root.querySelector('.hm-line')?.textContent).toBe('Your first match is a guided Rookie match.');
     const nav = root.querySelector('.hm-nav')!;
     expect(nav.querySelectorAll('.hm-ni.locked').length).toBeGreaterThanOrEqual(3);
+    expect(nav.querySelector('[data-a="cards"]')).toBeNull();
     (nav.querySelector('.hm-ni.locked') as HTMLElement).click();
     expect(onHeroes).not.toHaveBeenCalled();
     expect(root.querySelector('.hm-toast')?.textContent).toContain('first match');
@@ -378,13 +377,13 @@ describe('home patch (no rebuild under modals)', () => {
     expect(root.dataset.variants).toBe('bots coop pvp friends');
   });
 
-  it('follows a new worn card on the nameplate, and keeps an open popover open', () => {
+  it('follows a new name on the nameplate, and keeps an open popover open', () => {
     const quests = [{ quest: { id: 'q1', text: 'Win one', goal: 1 }, value: 0, done: false }] as unknown as HomeScreenOpts['quests'];
     const root = mount(base({ quests }));
     const today = root.querySelector<HTMLDetailsElement>('.hm-today')!;
     today.open = true;
     const done = [{ quest: { id: 'q1', text: 'Win one', goal: 1 }, value: 1, done: true }] as unknown as HomeScreenOpts['quests'];
-    expect(patchHome(root, base({ quests: done, identity: { name: 'Pumpkin', sub: 'Sage the Marksman', element: 'FIRE', role: 'Marksman', card: true, rung: null } }))).toBe(true);
+    expect(patchHome(root, base({ quests: done, identity: { name: 'Pumpkin', sub: 'Sage the Marksman', element: 'FIRE', role: 'Marksman' } }))).toBe(true);
     expect(root.querySelector('.hm-plate-n')?.textContent).toContain('Pumpkin');
     expect(root.querySelector('.hm-today')).not.toBe(today);
     expect(root.querySelector<HTMLDetailsElement>('.hm-today')!.open).toBe(true);

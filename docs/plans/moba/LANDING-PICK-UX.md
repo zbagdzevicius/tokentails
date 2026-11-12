@@ -16,6 +16,11 @@ Inputs:
 
 ## 0. Rules this spec keeps
 
+> **Parked 2026-11-12: no Token Tails in Paw Legends** ([NO-TOKENTAILS.md](NO-TOKENTAILS.md)). The founder dropped the
+> "Your cats become skins" feature. The game no longer reads the host's roster, featured cats or Meet offer, and the
+> host no longer sends them. The Cards peek and the Cards rail item (Part A) and the
+> squad slot under the seats (§B5) are removed; the Look button shows only when there are coats or tints to choose.
+
 - **No screen scrolls, at any size.**
   - Remove every `overflow-y:auto` "safety net" on the landing column (`lobby.css:229-234`) and the pick column (`ui.css .pl-pick-col`).
   - When height runs out, things are hidden in a fixed order (the ladders in §A5 and §B7). Nothing is pushed below the fold.

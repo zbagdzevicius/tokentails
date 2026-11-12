@@ -58,7 +58,7 @@ test('the pick screen shows ability numbers on request and the bots chip says wh
   await expect(page.locator('.cs-lock')).toContainText('vs Hard bots');
 });
 
-test('results: Play again is the topmost element at its centre, also with a squad cat card', async ({ context, page, baseURL }, info) => {
+test('results: Play again is the topmost element at its centre; an older host\'s roster adds no squad card', async ({ context, page, baseURL }, info) => {
   test.skip(info.project.name !== 'desktop', 'the mock host flow runs on desktop');
   test.setTimeout(150_000);
   await mockHost(context, baseURL!, {
@@ -72,7 +72,7 @@ test('results: Play again is the topmost element at its centre, also with a squa
   await playFromHome(game);
   await game.waitForSelector('html[data-screen="results"]', { timeout: 130_000 });
   await game.waitForSelector('.pl-results.actions-in', { timeout: 15_000 });
-  await expect(game.locator('.plc-dock .plc-with')).toBeVisible();
+  await expect(game.locator('.plc-dock .plc-with')).toHaveCount(0);
   expect(await topmost(game, '[data-a="again"]')).toBe(true);
   // one takedown definition: the card reads K / D / A
   await expect(game.locator('.pl-results .stats [data-kda]')).toContainText(/\d+ \/ \d+ \/ \d+/);

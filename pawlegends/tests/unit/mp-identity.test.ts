@@ -41,7 +41,8 @@ describe('teammate identity (M1)', () => {
       ],
     };
     expect(seatsOf(v)).toEqual([
-      { slot: 0, name: 'Sunny Tabby', conn: 'on', art: 'https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/a.png' },
+      // NO-TOKENTAILS.md: an older client's cat card art is never shown
+      { slot: 0, name: 'Sunny Tabby', conn: 'on', art: null },
       { slot: 1, name: 'Simas', conn: 'away', art: null },
     ]);
   });

@@ -14,7 +14,7 @@ import { snapshot } from '../../src/sim/index';
 import { Op } from '../../src/sim/api';
 import { Rng } from '../../src/sim/rng';
 import { chargeRing } from '../../src/ui/overhead';
-import { championInfo, championMeetLine, meetCard } from '../../src/ui/cards';
+import { championInfo } from '../../src/ui/cards';
 import { HERO_TEXT } from '../../src/ui/heroText';
 import { MID, heroMatch, hold, place, setLevel } from './heroes/kit-helpers';
 
@@ -124,24 +124,10 @@ describe('copy (final spec)', () => {
     expect(HERO_TEXT.bengas.abilities[1].text).toMatch(/the rest slowed/);
   });
 
-  it('the champion Meet card: "Inspired by…", "See <name>\'s card", no adopt, price or impact words', () => {
-    expect(championMeetLine('Lambo', 'he', 'STELLAR')).toMatch(/^Inspired by Lambo's Token Tails card\./);
-    const el = meetCard({ cat: { catalogId: '6a30473c1d6649b19b03622b', name: 'Lambo', type: 'STELLAR' }, champion: { pronoun: 'he' }, onMeet() {}, onClose() {} });
-    expect(el.querySelector('[data-a="meet"]')?.textContent).toBe("See Lambo's card ›");
-    expect(el.textContent).not.toMatch(/adopt|\$|€|price|donat|fund|shelter|help/i);
-  });
-
-  it('the Meet card names what a cat grants (rosterCosmetics): companion, chroma and card skin; never a Rescue coat', () => {
-    const el = meetCard({ cat: { catalogId: 'c1', name: 'Pumpkin', type: 'FIRE' }, onMeet() {}, onClose() {} });
-    const line = el.querySelector('.plc-meet-line')?.textContent ?? '';
-    expect(line).toMatch(/chroma and its card skin for every hero/);
-    expect(championMeetLine('Lambo', 'he', 'STELLAR')).toMatch(/chroma and the card skin for every hero/);
-    expect(`${line} ${championMeetLine('Lambo', 'he', 'STELLAR')}`).not.toMatch(/rescue|trail/i);
-  });
-
   it('the lobby champion panel is information only (no buy link)', () => {
-    const el = championInfo({ name: 'Lambo', pronoun: 'he', type: 'STELLAR', owned: false });
+    const el = championInfo({ name: 'Lambo', pronoun: 'he', type: 'STELLAR' });
     expect(el.querySelector('[data-a="champion-meet"], .plc-meet-go')).toBeNull();
-    expect(el.textContent).toContain("Lambo is inspired by his Token Tails card. Every player can pick him.");
+    expect(el.textContent).toContain('Lambo is a real cat from the Pink Paw shelter. Every player can pick him.');
+    expect(el.textContent).not.toMatch(/token ?tails|\bcard\b/i);
   });
 });

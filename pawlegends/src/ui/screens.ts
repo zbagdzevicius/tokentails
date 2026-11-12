@@ -10,9 +10,8 @@ import './champions.css';
 import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
 import { HEROES } from '../data/heroes';
-import { championOf } from '../data/heroes/shelter';
 import type { Difficulty, HeroId, MapId, Mutator, TrickId } from '../sim/api';
-import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, wearsCardSkin, type FrameId, type Look, type Owned } from '../render/cosmetics';
+import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, type FrameId, type Look, type Owned } from '../render/cosmetics';
 import { ELEMENT_NAME } from '../meta/roster';
 import type { CatTier, Element } from '../meta/roster';
 import type { Dare } from '../share/dare';
@@ -20,7 +19,6 @@ import { dareText, kaboomDare } from '../share/dare';
 import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, trickHint } from './heroText';
 import { portraitUrl } from '../render/portraits';
 import { icon } from './icons';
-import { wearingCard } from './cards';
 import * as TL from '../data/timeline';
 import { rookieAvailable } from '../app/firstSession';
 import { castMode, trackpadOn } from '../input/presets';
@@ -30,9 +28,7 @@ import type { QuestView } from '../meta/quests';
 import { TREAT_XP, type TreatGain } from '../meta/treats';
 import type { Grade } from '../meta/grade';
 import { toGoText } from './collection';
-import { cardFxPreview } from './cardFxView';
-import { cardIdentity } from '../meta/cardName';
-// Token Tails card art (ui/cards/): pick tiles as collectible cards, skin mini cards, the title badge, the MVP card
+// card art (ui/cards/): pick tiles as collectible cards, the title badge, the MVP card
 import { cardAttrs, heroElement } from './cards/el';
 import { openChampInfo } from './champBrowser/open';
 import { BROWSE_ORDER } from './champBrowser/meta';
@@ -83,8 +79,6 @@ export interface TitleOpts {
   onCollection?(): void;
   /** Today's quests (fun plan F4), shown under the play button. */
   quests?: readonly QuestView[];
-  /** GDD §7.2: the card skin the lobby hero wears ("Wearing <name>"), or null. */
-  wearing?: { name: string; type: string; art?: string; frame?: string } | null;
 }
 
 function questRow(q: QuestView): string {
@@ -93,12 +87,10 @@ function questRow(q: QuestView): string {
 
 function badge(frame: FrameId | null | undefined, title: string | null | undefined, portrait?: string | null, el?: Element): string {
   if (!frame && !title) return '';
-  // Token Tails cards: the portrait sits in its hero's element frame (the element art and border behind the face)
+  // the portrait sits in its hero's element frame (the element art and border behind the face)
   const face = portrait ? ` style="background-image:url(${portrait})"${el ? ` ${cardAttrs(el, null)}` : ''}` : '';
-  // round 1: say where frames come from (a Legendary from a pack gives none: decision #19)
-  // GAPS A1: a champion frame comes from the Treat Track
-  const tip = frame?.startsWith('frame.champ.') ? 'Earned on the Treat Track.' : 'Frames come from cats you adopted by name, by their tier.';
-  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''} title="${tip}"><span class="ring${portrait ? ' pic' : ''}${portrait && el ? ' tt-ring' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
+  // GAPS A1: frames come from the Treat Track
+  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''} title="Earned on the Treat Track."><span class="ring${portrait ? ' pic' : ''}${portrait && el ? ' tt-ring' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
 }
 
 export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
@@ -124,7 +116,6 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
       ${o.onSettings ? `<button class="pl-btn ghost small" data-a="settings">Settings</button>` : ''}
       <button class="pl-mute" data-a="mute" aria-label="Sound">${o.muted ? 'Sound off' : 'Sound on'}</button>
     </div>`;
-  if (o.wearing) root.querySelector('.pl-title-col')?.appendChild(wearingCard(o.wearing));
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'clem') o.onPlay({ hero: 'clem', trick: 'pounce', difficulty: 'easy' });
@@ -153,7 +144,7 @@ export interface PickOpts {
   teamSize?: number;
   /** The one play path: the mode and variant this champion select starts ("Skirmish 3v3 · vs Bots"), under the title. */
   modeLine?: string;
-  /** What the player owns (coats, chromas, card skins): the tiles name a hero after its worn card. */
+  /** What the player owns (coats, chromas): the Look sheet's choices. */
   owned?: Owned;
   looks?: Partial<Record<HeroId, Partial<Look>>>;
   onHero(h: HeroId): void;
@@ -169,11 +160,6 @@ export interface PickOpts {
   onNumbers?(on: boolean): void;
   /** Round 1: an experienced player can unlock the bots right away ("I've played MOBAs before"). */
   onVeteran?(): void;
-  /**
-   * Lobby spec §3b: the panel's Look button. With free or store coats or colour tints it opens the Look sheet (those,
-   * and "Cards" for the drawer); else it opens the "Your cards" drawer at once. No prices, no store.
-   */
-  onDeck?(hero: HeroId): void;
   /** A coat or colour tint was chosen on the Look sheet. */
   onLook?(h: HeroId, look: Look): void;
   /** Sim v14: dogs wait for the guided first match (their tiles show a lock and can be viewed, not locked in). */
@@ -184,7 +170,7 @@ export interface PickOpts {
    * Sim v9 shelter champions, web only: whether the player owns the champion's card (a "Card" badge on its tile; app
    * builds pass owned: false). Cosmetic only: who may pick a champion is `champs`. No Meet link here (GDD §8.1 #5).
    */
-  champions?: Partial<Record<HeroId, { art?: string; owned: boolean }>>;
+  champions?: Partial<Record<HeroId, { art?: string }>>;
   /**
    * CHAMPION-STORE.md §10: which champions this player may pick. A locked one can be viewed, unlocked (Yarn, a
    * Champion Pick, on the web its price) or played as Practice (a match that saves nothing). Absent: every hero.
@@ -240,20 +226,6 @@ export const refreshPickChamps = (root: HTMLElement): void => champsChanged.get(
 
 export { isNewHero, SIDE_TAB_CSS } from './champSelect/roles';
 
-export interface SkinTile {
-  id: string;
-  name: string;
-  element: Element;
-  rung: CatTier;
-  bond: number;
-  art?: string;
-  fromPack?: boolean;
-  /** The next bond threshold (null at Legendary). */
-  next?: number | null;
-  /** Wave C (C4): the coat glow its card effects use. */
-  tint?: number;
-}
-
 const BACK = '<svg viewBox="0 0 24 24" aria-hidden="true" class="cs-back-ico"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const DOGS_LOCKED = 'Dogs unlock after your first match';
 
@@ -289,7 +261,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     document.documentElement.dataset.pickSide = HEROES[c.hero]?.side ?? 'cat';
   };
   const diffs = o.difficulties ?? DIFFICULTIES;
-  // the Look sheet: coats and colour tints the player owns (the cards live in the drawer)
+  // the Look sheet: coats and colour tints the player owns
   let lookOpen = false;
   const hex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
   const lookChoices = (h: HeroId): { coats: ReturnType<typeof wardrobe>; chromas: ReturnType<typeof chromaOptions> } =>
@@ -303,12 +275,11 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const h = c.hero;
     const l = lookOf(h);
     const { coats, chromas } = lookChoices(h);
-    const card = !!l && wearsCardSkin(l);
     // pawlegends (QA): the swatches are colour tints, said so ("Ice colour tint, looks only")
     const tint = (k: { id: Element | null }): string => (k.id ? `${ELEMENT_NAME[k.id]} colour tint, looks only` : 'No colour tint');
-    const coatChips = coats.length > 1 ? `<div class="cs-ls-row" role="group" aria-label="Coats">${coats.map((k) => `<button type="button" class="chip ${!card && k.id === (l?.coat ?? null) ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" aria-pressed="${!card && k.id === (l?.coat ?? null)}">${esc(k.name)}</button>`).join('')}</div>` : '';
-    const sw = chromas.length > 1 && !card ? `<div class="cs-ls-row swatches" role="group" aria-label="Colour tints">${chromas.map((k) => `<button type="button" class="chip chroma ${k.id === (l?.chroma ?? null) ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(tint(k))}" aria-label="${esc(tint(k))}" style="--el:${k.id ? hex(ELEMENT_COLOR[k.id]) : 'transparent'}"></button>`).join('')}</div>` : '';
-    return `<div class="cs-looksheet" role="dialog" aria-label="${esc(`Look: ${HERO_TEXT[h].title}`)}"><div class="cs-ls-head"><b>Look</b><button type="button" class="cs-ls-x" data-a="lookclose" aria-label="Close">✕</button></div><button type="button" class="pl-btn ghost small cs-ls-cards" data-a="deck" aria-haspopup="dialog">${icon('paw')}Cards</button>${coatChips}${sw}${hasLookChoices(h) ? '' : `<p class="cs-ls-none">${esc(`No other coats for ${HERO_TEXT[h].title} yet. Cards dress your heroes.`)}</p>`}</div>`;
+    const coatChips = coats.length > 1 ? `<div class="cs-ls-row" role="group" aria-label="Coats">${coats.map((k) => `<button type="button" class="chip ${k.id === (l?.coat ?? null) ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" aria-pressed="${k.id === (l?.coat ?? null)}">${esc(k.name)}</button>`).join('')}</div>` : '';
+    const sw = chromas.length > 1 ? `<div class="cs-ls-row swatches" role="group" aria-label="Colour tints">${chromas.map((k) => `<button type="button" class="chip chroma ${k.id === (l?.chroma ?? null) ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(tint(k))}" aria-label="${esc(tint(k))}" style="--el:${k.id ? hex(ELEMENT_COLOR[k.id]) : 'transparent'}"></button>`).join('')}</div>` : '';
+    return `<div class="cs-looksheet" role="dialog" aria-label="${esc(`Look: ${HERO_TEXT[h].title}`)}"><div class="cs-ls-head"><b>Look</b><button type="button" class="cs-ls-x" data-a="lookclose" aria-label="Close">✕</button></div>${coatChips}${sw}${hasLookChoices(h) ? '' : `<p class="cs-ls-none">${esc(`No other coats for ${HERO_TEXT[h].title} yet.`)}</p>`}</div>`;
   };
   const botsHtml = (): string => {
     if (o.difficultyNote)
@@ -345,24 +316,19 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       selected: viewing,
       sideTabs: true,
       dogsLocked,
-      tile: (h) => {
-        const id = cardIdentity(h, lookOf(h));
-        return { locked: why(h) || undefined, cardName: id?.name ?? null, rung: id?.rung ?? null, owned: o.champions?.[h]?.owned ? (championOf(h)?.cardName ?? null) : null, champTag: champTag(h) };
-      },
+      tile: (h) => ({ locked: why(h) || undefined, champTag: champTag(h) }),
       portrait: (h) => portraitUrl(h, lookOf(h)),
       trick: c.trick,
       trickHint: trickHint(HERO_TEXT[c.hero].role, HEROES[c.hero].side),
       headLeft: `<button type="button" class="pl-btn ghost small cs-back" data-a="back" aria-label="Back" aria-keyshortcuts="Escape">${BACK}<span>Back</span></button>`,
       ...(o.modeLine ? { headNote: `<small class="cs-mode" data-testid="pick-mode">${esc(o.modeLine)}</small>` } : {}),
-      // the Token Tails squad (embed integration) walks with the team: its slot sits under the seats
-      teamNote: '<div class="cs-squad" data-slot="cards"></div>',
       footLeft: botsHtml(),
       lock: practice ? { enabled: true, label: 'PRACTICE', sub: 'Saves nothing: unlock it to earn' } : { enabled: !no, label: 'LOCK IN', sub: no || `vs ${vs}` },
       champBar: practice && o.champs ? champBarHtml(viewing, o.champs) : freeLine,
       note,
       numbers,
       numbersToggle: !!o.onNumbers,
-      look: !!o.onDeck,
+      look: hasLookChoices(c.hero),
       lookSheet: sheetHtml(),
     };
   };
@@ -433,11 +399,10 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     if (a === 'back') return o.onBack();
     if (a === 'veteran') return o.onVeteran?.();
     if (a === 'look') {
-      // always the small sheet (coats, colour tints, and Cards for the drawer): the pick screen never opens the
-      // drawer, with its offers, by itself
+      // the small sheet: coats and colour tints
       lookOpen = !lookOpen;
       render();
-      root.querySelector<HTMLElement>(lookOpen ? '.cs-ls-cards' : '.cs-look')?.focus();
+      root.querySelector<HTMLElement>(lookOpen ? '.cs-ls-x' : '.cs-look')?.focus();
       return;
     }
     if (a === 'lookclose') {
@@ -446,22 +411,13 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       root.querySelector<HTMLElement>('.cs-look')?.focus();
       return;
     }
-    if (a === 'deck') {
-      // the drawer gives focus back to its opener: the Look button (the sheet closes first)
-      const wasOpen = lookOpen;
-      lookOpen = false;
-      render();
-      if (wasOpen) root.querySelector<HTMLElement>('.cs-look')?.focus();
-      return o.onDeck?.(c.hero);
-    }
     const coat = t.closest<HTMLElement>('.cs-looksheet [data-coat]')?.dataset.coat;
     const chroma = t.closest<HTMLElement>('.cs-looksheet [data-chroma]')?.dataset.chroma;
     if (coat !== undefined || chroma !== undefined) {
       const cur = lookOf(c.hero);
       if (!cur) return;
       const nextCoat = coat !== undefined ? coat || null : cur.coat;
-      // card skins never carry a chroma (GDD §7.2)
-      const next: Look = { coat: nextCoat, chroma: nextCoat && nextCoat.startsWith('cat.') ? null : chroma !== undefined ? ((chroma || null) as Look['chroma']) : cur.chroma };
+      const next: Look = { coat: nextCoat, chroma: chroma !== undefined ? ((chroma || null) as Look['chroma']) : cur.chroma };
       looks[c.hero] = next;
       o.onLook?.(c.hero, next);
       return render();
@@ -568,15 +524,13 @@ export interface ResultsOpts {
   party?: { rowsHtml: string; again: string; onLeave(): void; leave?: string; change?: boolean; coop?: boolean };
   /** Lane F (F5): per-hero level, Toys, Fish, last hits and Toy timings, medals, and the player's Fish by source. */
   progress?: ProgressSummary | null;
-  /** GDD §7.2: the card skin worn this match ("<name> fought as <Hero>") and its Bond after it. */
-  skin?: { name: string; art?: string; bond: number; next: number | null; rung?: CatTier; tint?: number } | null;
 }
 
 export interface ResultGrade {
   grade: Grade;
   /** Treat XP the grade added (GRADE_TREAT_XP). */
   xp: number;
-  /** Token Tails cards: `hero` (and `portrait`, `tier` for the player's own look) draw the MVP card. */
+  /** `hero` (and `portrait`, `tier` for the player's own look) draw the MVP card. */
   mvp: { name: string; you: boolean; hero?: HeroId; portrait?: string | null; tier?: CatTier | null; awakened?: 0 | 1 | 2 | 3 | null };
   /** A loss only: the best on the player's team (its `hero` draws the results card in place of the enemy MVP). */
   bestOnTeam?: { name: string; you: boolean; hero?: HeroId; portrait?: string | null; tier?: CatTier | null; awakened?: 0 | 1 | 2 | 3 | null } | null;
@@ -743,7 +697,6 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.progress && o.progress.rows.length ? progressBlock(o.progress) : ''}
       ${o.party ? o.party.rowsHtml : ''}
       ${o.grade ? gradeBlock(o.grade, o.won) : ''}
-      ${o.skin ? `<p class="pl-skin" data-bond="${o.skin.bond}">${o.skin.art ? `<img src="${esc(o.skin.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : icon('paw')}<span><b>${esc(o.skin.name)}</b> fought as ${esc(HERO_TEXT[o.hero].title)}<small>Bond ${o.skin.bond}${o.skin.next !== null ? ` · next look at ${o.skin.next}` : ''}</small></span></p>${o.skin.rung ? cardFxPreview({ name: o.skin.name, rung: o.skin.rung, ...(o.skin.tint !== undefined ? { tint: o.skin.tint } : {}) }, 'card-fx pl-skin-fx') : ''}` : ''}
       ${o.bestMoment ? `<p class="pl-best">${icon('crown')}<span>Best moment: <b>${esc(o.bestMoment)}</b></span></p>` : ''}
       ${o.ladder ? ladderLine(o.ladder, o.won) : ''}
       ${o.personal ? `<p class="pl-personal">${icon('crown')}<span>${esc(o.personal)}</span></p>` : ''}
@@ -934,21 +887,18 @@ export function rotatePrompt(parent: HTMLElement): HTMLElement {
 }
 
 /** Loading veil between screens. */
-/** GAPS A6: the loading screen's line for this hero: matches played on it and, in a card skin, that cat's Bond. */
+/** GAPS A6: the loading screen's line for this hero: matches played on it. */
 export interface VeilHero {
   name: string;
   /** Finished matches on this hero before this one. */
   matches: number;
-  /** Bond with the worn card skin's cat, or null. */
-  bond: number | null;
 }
 
-export function loadingVeil(parent: HTMLElement, text: string, sub?: string, wearing?: { name: string; type: string; art?: string; frame?: string } | null, hero?: VeilHero | null): HTMLElement {
+export function loadingVeil(parent: HTMLElement, text: string, sub?: string, hero?: VeilHero | null): HTMLElement {
   const line = hero
-    ? `<p class="hero-line" data-hero-matches="${hero.matches}">${hero.bond !== null ? `<span class="bond" data-bond="${hero.bond}">Bond ${hero.bond}</span>` : ''}<span>${hero.matches === 0 ? `First match as ${esc(hero.name)}` : `${hero.matches} ${hero.matches === 1 ? 'match' : 'matches'} as ${esc(hero.name)}`}</span></p>`
+    ? `<p class="hero-line" data-hero-matches="${hero.matches}"><span>${hero.matches === 0 ? `First match as ${esc(hero.name)}` : `${hero.matches} ${hero.matches === 1 ? 'match' : 'matches'} as ${esc(hero.name)}`}</span></p>`
     : '';
   const r = el('pl-loading', `<div class="spin">${icon('paw')}</div><b>${esc(text)}</b>${sub ? `<small class="squad">${esc(sub)}</small>` : ''}${line}`);
-  if (wearing) r.appendChild(wearingCard(wearing));
   parent.appendChild(r);
   return r;
 }

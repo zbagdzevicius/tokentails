@@ -129,7 +129,7 @@ Every owned Token Tails cat is a skin every champion can wear (`src/render/skins
 - `classify.ts`: the pure sprite classifier (palette slots and the coat pattern from 48 px pixel art), shared by
   `tools/gen-cat-skins.mjs` (Node imports the `.ts` directly, so the file has no imports) and the runtime probe.
 - `families.gen.ts` (generated, never edited) plus `overrides.json` (the reviewed misreads); `registry.ts` turns
-  roster and featured cats into `CatSkin`s (palette chain, rung = max(tier rung, Bond), team-hue clamp);
+  roster and featured cats into `CatSkin`s (dormant since 2026-11-12: the game reads no roster, NO-TOKENTAILS.md) (palette chain, rung = max(tier rung, Bond), team-hue clamp);
   `spriteProbe.ts` (CORS fetch, 48 px decode, 64-entry cache with 24 h failures); `tierFx.ts` (Epic glints,
   Legendary foil and recall ring, quality and team-fight caps).
 - The character shader gains `uFoil` / `uTime` (one program, `pl-char-v2`); `chars/specs.ts` has one card-skin branch

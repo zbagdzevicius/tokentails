@@ -18,7 +18,9 @@ import { useEffect } from "react";
  * and dare links preview the game, not the generic Token Tails card.
  */
 export const PAWLEGENDS_SEO = Object.freeze({
-  title: `${PAWLEGENDS_TITLE} - Token Tails`,
+  // NO-TOKENTAILS.md: the share card and tab name Paw Legends, not the site
+  siteName: PAWLEGENDS_TITLE,
+  title: PAWLEGENDS_TITLE,
   description: `${PAWLEGENDS_SUBTITLE}. Seven-minute matches in your browser, no download.`,
   path: PAWLEGENDS_PLAY_PATH,
   image: Object.freeze({

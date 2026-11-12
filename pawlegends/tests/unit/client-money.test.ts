@@ -7,7 +7,7 @@ import { HumanFilter, isHeadlessAgent } from '../../src/analytics/human';
 import { parseRoster, rosterCosmetics, stableIndex } from '../../src/meta/roster';
 import { CheckoutBridge } from '../../src/money/checkoutBridge';
 import { Entitlements, decodeToken } from '../../src/money/entitlements';
-import { MEET_SNOOZE, offerOf, pickMeet, pickOffer, type MeetInput } from '../../src/money/offer';
+import { offerOf, pickOffer } from '../../src/money/offer';
 import { playSession } from '../../src/meta/profile';
 import { SKUS, SKU_IDS, buyable, currencyFor, priceText, type SkuId } from '../../src/money/skus';
 import { bestFrame, resolveLook, wardrobe, type Owned } from '../../src/render/cosmetics';
@@ -84,81 +84,32 @@ function fakeBridge() {
 }
 
 const CAT_A = '65a1b2c3d4e5f6a7b8c9d0e1';
-const CAT_B = '65a1b2c3d4e5f6a7b8c9d0e2';
 
-describe('checkout bridge (open-cat)', () => {
-  it('asks the host only for a featured cat with the checkout open, one at a time; never purchase-intent', () => {
+describe('checkout bridge (no cat checkout)', () => {
+  it('never posts open-cat; an older host\'s cat purchase-result reaches no listener; app builds buy nothing', () => {
     const br = fakeBridge();
     const ent = new Entitlements();
-    let now = 0;
-    const co = new CheckoutBridge(br as never, ent, () => now);
-    expect(co.openCat(CAT_A, [CAT_A])).toBe(false); // no host checkout yet
+    const co = new CheckoutBridge(br as never, ent, () => 0);
     ent.apply({ type: 'app', isApp: false, store: true });
-    expect(co.openCat(CAT_A, [CAT_B])).toBe(false); // not featured
-    expect(co.openCat('../packs', ['../packs'])).toBe(false); // not a catalog id
     expect(co.buy('pl_starter')).toBe(false); // retired
-    expect(co.openCat(CAT_A, [CAT_A, CAT_B])).toBe(true);
-    expect(br.posted).toEqual([{ type: 'open-cat', payload: { catalogId: CAT_A } }]);
-    expect(co.openCat(CAT_B, [CAT_A, CAT_B])).toBe(false); // one at a time
+    expect('openCat' in co).toBe(false);
     const results: [string, boolean][] = [];
-    co.onCatResult((c, ok) => results.push([c, ok]));
-    br.emit({ type: 'purchase-result', sku: 'pl_starter', ok: true }); // the retired shape is ignored
+    co.onResult((sku, ok) => results.push([sku, ok]));
     br.emit({ type: 'purchase-result', catalogId: CAT_A, ok: true });
-    expect(results).toEqual([[CAT_A, true]]);
-    expect(co.waiting()).toBeNull();
-    expect(co.openCat(CAT_B, [CAT_B])).toBe(true);
-    now = 10_000;
-    expect(co.waiting()).toBeNull();
-    ent.apply({ type: 'app', isApp: true, store: true });
-    expect(co.openCat(CAT_B, [CAT_B])).toBe(false); // app builds: never
-    expect(br.posted.some((m) => m.type === 'purchase-intent')).toBe(false);
+    expect(results).toEqual([]);
+    expect(br.posted.some((m) => m.type === 'open-cat' || m.type === 'purchase-intent')).toBe(false);
   });
 });
 
-describe('offer rules: the single Meet card', () => {
-  const base = (o: Partial<MeetInput> = {}): MeetInput => ({
-    session: 2,
-    screen: 'lobby',
-    store: { catCheckout: true, isApp: false },
-    shownThisSession: false,
-    hostOffer: { kind: 'meet', catalogId: CAT_A },
-    featured: [CAT_A, CAT_B],
-    owned: [],
-    ...o,
-  });
-  it('shows the host Meet offer on lobby or results from session 2', () => {
-    expect(pickMeet(base())).toEqual({ kind: 'meet', catalogId: CAT_A });
-    expect(pickMeet(base({ screen: 'results' }))).toEqual({ kind: 'meet', catalogId: CAT_A });
-  });
-  it('never in session 1, app builds, without the checkout, on pick/match/loading, twice, or without a host answer', () => {
-    expect(pickMeet(base({ session: 1 }))).toBeNull();
-    expect(pickMeet(base({ store: { catCheckout: true, isApp: true } }))).toBeNull();
-    expect(pickMeet(base({ store: { catCheckout: false, isApp: false } }))).toBeNull();
-    for (const screen of ['pick', 'match', 'loading'] as const) expect(pickMeet(base({ screen }))).toBeNull();
-    expect(pickMeet(base({ shownThisSession: true }))).toBeNull();
-    expect(pickMeet(base({ hostOffer: undefined }))).toBeNull();
-    expect(pickMeet(base({ hostOffer: null }))).toBeNull();
-  });
-  it('round 2: a closed card stays away for MEET_SNOOZE (sessions and time)', () => {
-    const closed = { id: CAT_A, session: 4, at: 1_000 };
-    expect(pickMeet(base({ closed, pageSession: 5, now: 1_000 + MEET_SNOOZE.ms }))).toBeNull();
-    expect(pickMeet(base({ closed, pageSession: 4 + MEET_SNOOZE.sessions + 1, now: 2_000 }))).toBeNull();
-    expect(pickMeet(base({ closed, pageSession: 4 + MEET_SNOOZE.sessions + 1, now: 1_000 + MEET_SNOOZE.ms }))).toEqual({ kind: 'meet', catalogId: CAT_A });
-    expect(pickMeet(base({ closed: { ...closed, id: CAT_B }, pageSession: 5, now: 2_000 }))).toEqual({ kind: 'meet', catalogId: CAT_A });
-  });
-  it('round 2: sessions count from the first finished match, not page loads', () => {
+describe('offer rules', () => {
+  it('sessions count from the first finished match, not page loads', () => {
     // four page loads, no match: never "session 2"
     expect(playSession({ sessions: 4, firstPlaySession: 0, matches: 0 })).toBe(0);
-    expect(pickMeet(base({ session: playSession({ sessions: 4, firstPlaySession: 0, matches: 0 }) }))).toBeNull();
     // first match in page load 3: that load is play session 1, the next one is 2
     expect(playSession({ sessions: 3, firstPlaySession: 3, matches: 1 })).toBe(1);
     expect(playSession({ sessions: 4, firstPlaySession: 3, matches: 1 })).toBe(2);
     // older profiles without the field
     expect(playSession({ sessions: 2, firstPlaySession: 0, matches: 1 })).toBe(2);
-  });
-  it('never a cat the host did not feature or the player owns', () => {
-    expect(pickMeet(base({ featured: [CAT_B] }))).toBeNull();
-    expect(pickMeet(base({ owned: [CAT_A] }))).toBeNull();
   });
   it('the retired starter/founder engine never produces a card', () => {
     const legacy = { session: 5, matches: 9, firstWin: true, store: { storeOpen: true, isApp: false, skus: new Set<SkuId>() }, history: {}, screen: 'lobby' as const, shownThisSession: false, now: 1 };

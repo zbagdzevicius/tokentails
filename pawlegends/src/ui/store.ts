@@ -399,7 +399,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
         <div class="shop-scroll"><div class="shop-grid" data-scroll="legacy" role="list">${skus.map(tile).join('')}</div><span class="more" aria-hidden="true">▾ more</span></div>
       </div>
       <div class="shop-bar">${action}</div>
-      <p class="fine">Cosmetic only: nothing here changes a match. Checkout opens on the Token Tails web page.</p>
+      <p class="fine">Cosmetic only: nothing here changes a match. Checkout opens on a secure web page.</p>
       <p class="fine safe">${esc(safeguardsLine(currency))}${o.termsUrl ? ` <a href="${esc(o.termsUrl)}" target="_blank" rel="noopener">Terms and refunds</a>` : ''}</p>
     </div>`;
   };
@@ -428,7 +428,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
           <p class="cst-blurb">${esc(champLine(def, s))}</p>
           <p class="cst-list">${esc(names)}</p>
           <div class="cst-acts">${buy}</div>
-          <p class="fine">A champion is the same in a match whether bought or earned with Yarn. Checkout opens on the Token Tails web page.</p>
+          <p class="fine">A champion is the same in a match whether bought or earned with Yarn. Checkout opens on a secure web page.</p>
           ${fine}
         </div></div></div>`;
     }

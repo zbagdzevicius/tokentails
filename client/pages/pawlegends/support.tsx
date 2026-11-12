@@ -4,7 +4,9 @@ import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 
 export const PAWLEGENDS_SUPPORT_SEO = Object.freeze({
-  title: `${PAWLEGENDS_TITLE} help - Token Tails`,
+  // NO-TOKENTAILS.md: the share card and tab name Paw Legends, not the site
+  siteName: PAWLEGENDS_TITLE,
+  title: `${PAWLEGENDS_TITLE} help`,
   description: `How to play ${PAWLEGENDS_TITLE}, play with friends, and reach us.`,
   path: "/pawlegends/support",
 });

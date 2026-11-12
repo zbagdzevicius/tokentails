@@ -35,7 +35,6 @@ const A = {
   desktop: LANDING_ASSET("shot-aim.2a268c6c.webp"),
   phone: LANDING_ASSET("shot-phone.24bce0a7.webp"),
   mascot: LANDING_ASSET("mascot2.ff449081.webp"),
-  logo: LANDING_ASSET("tt-logo.19b6c796.webp"),
   /** The PawLegends logo (brand/pawlegends, founder pick #48: wordmark, lightning, paw fist-bump), 1200x757. */
   brandLogo: LANDING_ASSET("logo.7d6a0f0e.webp"),
   /** The same wordmark without the paws, for the small top-left brand link, 1200x334. */
@@ -47,7 +46,6 @@ export const LEGENDS_FONT = LANDING_ASSET("fredoka-latin.ec85d7eb.woff2");
 const SMALLER: Readonly<Record<string, number>> = Object.freeze({
   [A.teamfight]: 720,
   [A.desktop]: 720,
-  [A.logo]: 244,
   [A.brandLogo]: 640,
   [A.wordmark]: 640,
 });
@@ -137,11 +135,10 @@ function shelterSection(champions: LandingHero[]): string {
     <div class="content">
       ${label("&#9829;", "Rest stop · Pink Paw", true)}
       <div class="card">
-        <div class="masc" role="img" aria-label="Token Tails mascot, a white cat thinking"><img class="mb" src="${A.mascot}" alt="" width="268" height="354" loading="lazy" decoding="async"><img class="mh" src="${A.mascot}" alt="" width="268" height="354" loading="lazy" decoding="async"><img class="mp" src="${A.mascot}" alt="" width="268" height="354" loading="lazy" decoding="async"></div>
+        <div class="masc" role="img" aria-label="A white cat thinking"><img class="mb" src="${A.mascot}" alt="" width="268" height="354" loading="lazy" decoding="async"><img class="mh" src="${A.mascot}" alt="" width="268" height="354" loading="lazy" decoding="async"><img class="mp" src="${A.mascot}" alt="" width="268" height="354" loading="lazy" decoding="async"></div>
         <div>
-          <h2 class="kin" id="lgb-h-shelter">Made by a <em>cat game studio.</em></h2>
-          <p class="lede rv">Pawlegends is made by <strong>Token Tails</strong>. ${and(champions.map((h) => shown(h.name)))} are drawn from real cats at the <strong>Pink Paw</strong> shelter in Kaunas: ${and(champions.map((h) => shown(SHELTER_REAL_NAMES[h.id] ?? h.name)))}.</p>
-          <p class="rv"><a class="tlink" href="/">Meet the cats at Token Tails</a></p>
+          <h2 class="kin" id="lgb-h-shelter">Real cats, <em>drawn as heroes.</em></h2>
+          <p class="lede rv">${and(champions.map((h) => shown(h.name)))} are real cats from the <strong>Pink Paw</strong> shelter, drawn as heroes.</p>
         </div>
       </div>
     </div>
@@ -214,7 +211,6 @@ export function legendsMarkup(): string {
         <p class="lede">The game&#8217;s map has ${countWord(F.lanes).toLowerCase()} lanes and ${countWord(towers).toLowerCase()} dog towers between you and their core. Scroll to push one lane here, then play the full match free on desktop or phone.</p>
         <div class="ctas">
           ${play(LEGENDS_CTA.hero, "legends_hero", "Play free in your browser")}
-          <a class="btn ghost sm" href="/">By Token Tails</a>
         </div>
       </div>
       <div class="gates ani"><span class="gdot"></span><span id="gates">Gates open in <span class="num">${F.gateSeconds}</span></span></div>
@@ -329,7 +325,7 @@ export function legendsMarkup(): string {
           </ul>
         </div>
         <div class="devices rv">
-          <div class="browser" data-depth=".05"><div class="bar"><i></i><i></i><i></i><span>tokentails.com/pawlegends/play</span></div><img src="${sized(A.desktop, 720)}" srcset="${srcset(A.desktop, 720, 960)}" sizes="(max-width:760px) 60vw, 560px" alt="Desktop browser showing a match start: a cat hero at the start of a match, with the skill bar along the bottom of the screen." width="960" height="540" loading="lazy" decoding="async"></div>
+          <div class="browser" data-depth=".05"><div class="bar"><i></i><i></i><i></i><span>pawlegends.app/play</span></div><img src="${sized(A.desktop, 720)}" srcset="${srcset(A.desktop, 720, 960)}" sizes="(max-width:760px) 60vw, 560px" alt="Desktop browser showing a match start: a cat hero at the start of a match, with the skill bar along the bottom of the screen." width="960" height="540" loading="lazy" decoding="async"></div>
           <div class="phone" data-depth="-.08"><img src="${A.phone}" alt="Phone screenshot: cat heroes clash with dogs at the blue base." width="420" height="747" loading="lazy" decoding="async"></div>
         </div>
       </div>
@@ -364,7 +360,6 @@ ${shelterSection(champions)}
       <p class="tag">The road ends here. The match starts in your browser.</p>
       <div class="ctas">
         <span class="cta-wrap"><i class="ring"></i><i class="ring"></i>${play(LEGENDS_CTA.final, "legends_final", "Play free in your browser")}</span>
-        <a class="btn ghost" href="/">Visit Token Tails</a>
       </div>
       <p class="small">Free · desktop and phone · ${F.teamSize}v${F.teamSize}, solo or with up to ${countWord(friends).toLowerCase()} friends, against bots. No PvP.</p>
     </div>
@@ -372,9 +367,9 @@ ${shelterSection(champions)}
 
   <footer class="foot">
     <div class="in">
-      <img src="${sized(A.logo, 244)}" srcset="${srcset(A.logo, 244, 420)}" sizes="150px" alt="Token Tails" width="420" height="236" loading="lazy" decoding="async">
-      <p>Pawlegends is a free ${F.teamSize}v${F.teamSize} cats vs dogs game by Token Tails, a cat game studio.</p>
-      <nav aria-label="Footer"><a href="${LEGENDS_CTA.footer}" data-cta="legends_footer">Play Pawlegends</a><a href="${PAWLEGENDS_TERMS_PATH}">Terms</a><a href="/">Token Tails</a><a href="#top">Back to top</a></nav>
+      <img src="${sized(A.wordmark, 640)}" srcset="${srcset(A.wordmark, 640, 1200)}" sizes="180px" alt="Pawlegends" width="1200" height="334" loading="lazy" decoding="async">
+      <p>Pawlegends is a free ${F.teamSize}v${F.teamSize} cats vs dogs game.</p>
+      <nav aria-label="Footer"><a href="${LEGENDS_CTA.footer}" data-cta="legends_footer">Play Pawlegends</a><a href="${PAWLEGENDS_TERMS_PATH}">Terms</a><a href="#top">Back to top</a></nav>
     </div>
   </footer>
 </div>

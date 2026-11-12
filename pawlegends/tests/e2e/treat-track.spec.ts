@@ -53,9 +53,9 @@ test('closing the Treat Track panel on an offer-eligible profile never shows a n
     profile: { v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true },
   });
   const game = await openHost(page);
-  // the host's Meet answer shows once on the title (session 2+), before the panel opens
-  await expect(game.locator('.plc-meet')).toHaveCount(1);
-  await expect.poll(async () => (await received(page)).filter((m) => m.type === 'offer-seen').length).toBe(1);
+  // NO-TOKENTAILS.md: an older host's Meet answer shows no card at all
+  await page.waitForTimeout(500);
+  await expect(game.locator('.plc-meet')).toHaveCount(0);
   await game.locator('[data-a="collection"]').click();
   const panel = game.locator('.pl-collection');
   await expect(panel).toBeVisible();
@@ -63,9 +63,8 @@ test('closing the Treat Track panel on an offer-eligible profile never shows a n
   await expect(panel).toHaveCount(0);
   await game.waitForSelector('html[data-screen="title"]');
   await page.waitForTimeout(300);
-  expect((await received(page)).filter((m) => m.type === 'offer-seen').length).toBe(1);
-  await expect(game.locator('.plc-meet')).toHaveCount(1);
-  expect((await received(page)).some((m) => m.type === 'open-cat' || m.type === 'purchase-intent')).toBe(false);
+  await expect(game.locator('.plc-meet')).toHaveCount(0);
+  expect((await received(page)).some((m) => m.type === 'offer-seen' || m.type === 'open-cat' || m.type === 'purchase-intent')).toBe(false);
 });
 
 test('the pick screen labels the role and (GAPS B1) gives one lane hint', async ({ page }) => {

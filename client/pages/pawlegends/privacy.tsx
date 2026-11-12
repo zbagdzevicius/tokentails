@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { PAWLEGENDS_CONTACT, PAWLEGENDS_PRIVACY_URL } from "@/components/pawlegends/flags";
+import { OPERATOR_PRIVACY_URL, PAWLEGENDS_CONTACT } from "@/components/pawlegends/flags";
 import { ConsentChoiceButton } from "@/components/pawlegends/PawlegendsConsent";
 import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 
 /** The date this notice last changed. Update it with every change to the text. */
-export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-11";
+export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-12";
 
 export const PAWLEGENDS_PRIVACY_SEO = Object.freeze({
-  title: `${PAWLEGENDS_TITLE} app privacy - Token Tails`,
+  // NO-TOKENTAILS.md: the share card and tab name Paw Legends, not the site
+  siteName: PAWLEGENDS_TITLE,
+  title: `${PAWLEGENDS_TITLE} privacy`,
   description: `What the ${PAWLEGENDS_TITLE} app for iPhone and Android keeps on your phone, what signing in and party play send to our server, what the website measures with Google Analytics, and how long we keep it.`,
   path: "/pawlegends/privacy",
 });
@@ -35,8 +37,9 @@ const A = ({ href, children }: { href: string; children: React.ReactNode }) => (
  * runs in the app's in-page host, `pawlegends-app/src/host`) and what
  * the party relay keeps (`backend/src/pawlegends/party/room-store.ts`: parties 3 h after the last change, ended
  * rooms 30 days). The answers in `docs/plans/moba/APP-STORE-ANSWERS.md` must say the same thing: change both
- * together. The web game and Token Tails accounts stay under the general Token Tails policy; the "On the website"
- * section covers the Paw Legends GTM container (analytics/gtm.ts) and its consent bar.
+ * together. The shared account stays under the operator's general policy (one link, "Links out of the app": the law
+ * needs it; NO-TOKENTAILS.md Your call 3); the "On the website" section covers the Paw Legends GTM container
+ * (analytics/gtm.ts) and its consent bar. Since 2026-11-12 this is also the web game's Settings privacy link.
  */
 export default function PawlegendsPrivacyPage() {
   return (
@@ -66,9 +69,9 @@ export default function PawlegendsPrivacyPage() {
               <li>Playing against bots offline sends nothing to us.</li>
               <li>
                 You can delete your account in the app (Settings → Account) or at{" "}
-                <Link href="/pawlegends/account" className="text-tt-gold-400 underline underline-offset-4">
-                  tokentails.com/pawlegends/account
-                </Link>
+                <a href="https://pawlegends.app/account" className="text-tt-gold-400 underline underline-offset-4">
+                  pawlegends.app/account
+                </a>
                 .
               </li>
               <li>
@@ -108,7 +111,7 @@ export default function PawlegendsPrivacyPage() {
               </li>
               <li>an account id from our sign-in provider (Google Firebase Authentication);</li>
               <li>
-                your Token Tails profile: a player name, your match results and grades, the Treat Track (Legends Pass)
+                your profile: a player name, your match results and grades, the Treat Track (Legends Pass)
                 progress you earn by playing, and, if you use them, your friends, ranked results and reports.
               </li>
             </ul>
@@ -123,9 +126,9 @@ export default function PawlegendsPrivacyPage() {
             </p>
             <p>
               We keep your account until you delete it: in the app (Settings → Account → Delete account) or at{" "}
-              <Link href="/pawlegends/account" className="text-tt-gold-400 underline underline-offset-4">
-                tokentails.com/pawlegends/account
-              </Link>
+              <a href="https://pawlegends.app/account" className="text-tt-gold-400 underline underline-offset-4">
+                pawlegends.app/account
+              </a>
               . Deleting removes your sign-in and email, revokes Sign in with Apple, renames the profile to
               &quot;Deleted player&quot; and takes it off the leaderboards.
             </p>
@@ -189,9 +192,9 @@ export default function PawlegendsPrivacyPage() {
 
           <Section title="Links out of the app">
             <p>
-              A shared invite or challenge link opens tokentails.com in your browser. The website and Token Tails
-              accounts follow the{" "}
-              <A href={PAWLEGENDS_PRIVACY_URL}>Token Tails privacy policy</A>.
+              A shared invite or challenge link opens pawlegends.app in your browser. Your account is shared with our
+              other games and follows our{" "}
+              <A href={OPERATOR_PRIVACY_URL}>general privacy policy</A>.
             </p>
           </Section>
 

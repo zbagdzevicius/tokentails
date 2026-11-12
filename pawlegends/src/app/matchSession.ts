@@ -2237,10 +2237,6 @@ export class MatchSession {
         if (ev.type === 'hit') this.scoreboard?.hit(ev.src, ev.dst, ev.amount);
         if (ev.type === 'buff' && ev.kind === 'takedown') {
           this.scoreboard?.credit(ev.id);
-          if (ev.id === this.view.mySlot) {
-            const who = this.view.companions?.cheer();
-            if (who) this.hud?.note(`${who} cheered your takedown`);
-          }
         }
         if (ev.type === 'hit' && (ev.src === this.view.mySlot || ev.dst === this.view.mySlot)) {
           const other = frame.byId.get(ev.src === this.view.mySlot ? ev.dst : ev.src);

@@ -44,7 +44,7 @@ const SESSION_ID = /^cs_[A-Za-z0-9_]{8,200}$/;
 const frame = (body: string) =>
     `<html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">` +
     `<div style="max-width: 560px; margin: 0 auto; padding: 20px;">${body}` +
-    `<p style="margin-top: 28px; color: #777; font-size: 13px;">Pawlegends by Token Tails.</p></div></body></html>`;
+    `<p style="margin-top: 28px; color: #777; font-size: 13px;">Pawlegends.</p></div></body></html>`;
 
 const button = (link: string, label: string) =>
     `<p style="text-align:center;margin:28px 0;"><a href="${escapeHtml(link)}" ` +

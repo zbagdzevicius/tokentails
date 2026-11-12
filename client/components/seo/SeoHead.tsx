@@ -40,6 +40,12 @@ export interface SeoHeadProps {
   type?: "website" | "article";
   /** Share title (og:title, twitter:title) when it differs from the `<title>` (blog articles). */
   ogTitle?: string;
+  /**
+   * The site name for `og:site_name` and `author` when the page is its own brand (Paw Legends,
+   * docs/plans/moba/NO-TOKENTAILS.md). Such a page also leaves out `twitter:site` and `twitter:creator` (the site's
+   * handle). Default: the site's own name.
+   */
+  siteName?: string;
   /** Open Graph article tags for pages that are not an `IArticle` (the repo blog, lib/feed). */
   articleMeta?: {
     publishedTime: string;
@@ -65,7 +71,8 @@ export interface SeoTag {
  */
 export function buildSeoTags(props: SeoHeadProps): SeoTag[] {
   const origin = siteOrigin();
-  const site = siteName();
+  const site = props.siteName || siteName();
+  const ownBrand = !!props.siteName;
   const { article } = props;
 
   const title = article?.title || props.title || props.name || site;
@@ -155,8 +162,10 @@ export function buildSeoTags(props: SeoHeadProps): SeoTag[] {
   const handle = twitterHandle();
   if (handle) {
     meta("name", "twitter:card", "summary_large_image");
-    meta("name", "twitter:site", `@${handle}`);
-    meta("name", "twitter:creator", `@${handle}`);
+    if (!ownBrand) {
+      meta("name", "twitter:site", `@${handle}`);
+      meta("name", "twitter:creator", `@${handle}`);
+    }
     meta("name", "twitter:title", shareTitle);
     meta("name", "twitter:description", description);
     meta("name", "twitter:image", imageUrl);

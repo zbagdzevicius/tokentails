@@ -9,10 +9,10 @@
  * - top left: the profile chip (avatar in its frame ring with the Season XP ring, name, XP bar, tier);
  * - top centre: Season XP and tier chips (only numbers that exist; tap opens the pass);
  * - top right (`.lb-corner`, where the account chip mounts): Friends and ranked (embedded), Settings, Sound (the old
- *   "< Games" button is gone, Nov 12: the founder found it redundant; Settings keeps a way back to the host's games);
+ *   "< Games" button is gone, Nov 12: the founder found it redundant; no exit to the host's games, NO-TOKENTAILS.md);
  * - left edge: Events, Today (quests ring) and # (join with a code), round buttons;
  * - right edge: the promo rotator (pass season, events, store on the web only);
- * - bottom: a glass nav (Heroes, Cards, Pass, Ranked, Store on the web), on the first visit too with the items that
+ * - bottom: a glass nav (Heroes, Pass, Ranked, Store on the web), on the first visit too with the items that
  *   need a match locked. Heroes only browses (skills, lore): it never starts a match;
  * - bottom right: the last mode and variant as a label, and the big round PLAY.
  * Under the hero: the champion's nameplate (a label; the champion is chosen in the champion select).
@@ -22,19 +22,19 @@
  * first-ever match keeps its one-tap guided start (FTUE) and a dare link its direct start; # Code joins a friend's
  * party (its lobby, not a match).
  *
- * Keyboard: Enter plays (when no button has focus); C cards, H heroes and M modes while focus is inside Home
+ * Keyboard: Enter plays (when no button has focus); H heroes and M modes while focus is inside Home
  * (WCAG 2.1.4); Esc closes a popover. Every document listener is removed by `disposeHome` (app setScreen).
  * Names are host data: always escaped. Cosmetic only. The app build never shows a price or a store.
  */
 import './home.css';
 import type { LobbyScreenOpts } from '../lobby/lobbyScreen';
-import { firstHidesBadge, peekHtml, playLabel, playLine, questTally } from '../lobby/lobbyScreen';
+import { firstHidesBadge, playLabel, playLine, questTally } from '../lobby/lobbyScreen';
 import type { Difficulty } from '../../sim/api';
 import { ELEMENT_COLOR, FRAME_NAME } from '../../render/cosmetics';
 import { ELEMENT_NAME } from '../../meta/roster';
 import { cardAttrs } from '../cards/el';
 import { frameRing } from '../avatar';
-import { cssDataUrl } from '../deck/cssUrl';
+import { cssDataUrl } from '../cssUrl';
 import { icon } from '../icons';
 import type { Choice } from '../screens';
 import { bindVersionMark, versionMarkHtml } from '../versionMark';
@@ -106,8 +106,6 @@ const SPEAKER = (on: boolean): string =>
   }</svg>`;
 const PEOPLE =
   '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2c2.4.1 4.3 1.6 4.9 4.6"/></svg>';
-const CARDS =
-  '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><rect x="3" y="6" width="11" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-10 8 13)"/><rect x="9" y="3" width="11" height="15" rx="2" fill="currentColor"/></svg>';
 const BAG = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M6 8h12l1 13H5zM9 8V6a3 3 0 0 1 6 0v2h-2V6a1 1 0 0 0-2 0v2z"/></svg>';
 const TROPHY = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M7 3h10v2h3v3a4 4 0 0 1-4 4h-.3A5 5 0 0 1 13 14.9V18h3v3H8v-3h3v-3.1A5 5 0 0 1 8.3 12H8a4 4 0 0 1-4-4V5h3zm0 4H6v1a2 2 0 0 0 1 1.7zm10 0v2.7A2 2 0 0 0 18 8V7z"/></svg>';
 const SCROLL = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M6 3h11a3 3 0 0 1 3 3v1h-3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-1h3V6a3 3 0 0 1 3-3zm2 5v2h7V8zm0 4v2h7v-2z"/></svg>';
@@ -226,9 +224,6 @@ function navHtml(o: HomeScreenOpts, returning: boolean): string {
   const after = 'Unlocks after your first match.';
   const items = [
     o.onHeroes ? item('heroes', icon('paw'), 'Heroes', lockedFirst || o.dare ? { locked: o.dare ? 'Finish the dare first.' : after } : { extra: ' aria-keyshortcuts="H" aria-haspopup="dialog" aria-label="Heroes: skills and lore"' }) : '',
-    o.onCards
-      ? item('cards', CARDS, 'Cards', lockedFirst ? { locked: after } : { extra: ` aria-keyshortcuts="C" aria-haspopup="dialog" aria-label="${o.cardCount ? `Cards, ${o.cardCount}` : 'Cards'}"`, badge: o.cardCount ? `<b class="hm-count" aria-hidden="true">${o.cardCount}</b>` : '' })
-      : '',
     item('collection', TROPHY, 'Pass', o.onCollection && returning ? { badge: o.profile.tier !== null ? `<b class="hm-count tier" aria-hidden="true">${o.profile.tier}</b>` : '', extra: ' aria-label="Treat Track and Legends Pass"' } : { locked: o.onCollection ? 'Finish the dare first.' : after }),
     item('ranked', crestSvg('ranked').replace('<svg ', '<svg class="hm-ico" '), 'Ranked', { locked: 'Ranked opens in a later season.' }),
     o.storeOpen && !o.isApp ? item('store', BAG, 'Store', { extra: ' aria-label="Store"' }) : '',
@@ -265,7 +260,7 @@ export function patchHome(el: HTMLElement | null | undefined, o: HomeScreenOpts)
 export const HOME_ENTRANCE = ['hm-drop', 'hm-slide-l', 'hm-slide-r', 'hm-rise', 'hm-rise-c', 'hm-pop-in'] as const;
 
 /** The patched regions, in DOM order (the corner, the cards slot, the fx layer, toast and version mark stay put). */
-const REGIONS = ['.hm-top', '.hm-left', '.hm-promo', '.hm-stage', '.hm-nav', '.hm-playc', '.lb-peek'] as const;
+const REGIONS = ['.hm-top', '.hm-left', '.hm-promo', '.hm-stage', '.hm-nav', '.hm-playc'] as const;
 type Region = (typeof REGIONS)[number];
 
 export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: boolean }): HTMLElement {
@@ -281,7 +276,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
   root.dataset.variants = availableQueues(o).join(' ');
   const dare = o.dare;
   const returning = !o.firstTime && !dare;
-  const layoutKey = (x: HomeScreenOpts): string => [!!x.firstTime, x.dare ? JSON.stringify(x.dare) : '', !!x.onExit, !!x.onSocial, !!x.onSettings, !!x.onJoinCode].join('|');
+  const layoutKey = (x: HomeScreenOpts): string => [!!x.firstTime, x.dare ? JSON.stringify(x.dare) : '', !!x.onSocial, !!x.onSettings, !!x.onJoinCode].join('|');
   const layout = layoutKey(o);
   let diff: Difficulty = o.last.difficulty;
   let choice: ModeChoice = o.modeChoice;
@@ -292,8 +287,8 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
   root.style.setProperty('--hm-el', elColorOf());
   const plateHtml = (): string => {
     const id = o.identity;
-    const elName = id.card ? `${ELEMENT_NAME[id.element]} look` : ELEMENT_NAME[id.element];
-    const subLine = id.card ? `${id.sub} · ${elName}` : `${id.role} · ${elName}`;
+    const elName = ELEMENT_NAME[id.element];
+    const subLine = `${id.role} · ${elName}`;
     // the nameplate is a label: the champion is chosen in the champion select, after PLAY and the mode
     return `<div class="hm-plate"><span class="hm-plate-n">${esc(id.name)}</span><small class="hm-plate-s">${esc(subLine)}</small></div>`;
   };
@@ -326,7 +321,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       '.hm-stage': `<div class="hm-stage">${plateHtml()}</div>`,
       '.hm-nav': navHtml(o, returning),
       '.hm-playc': playcHtml(),
-      '.lb-peek': peekHtml(o, !low),
     };
   };
   let shown = regionHtml();
@@ -348,7 +342,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     ${shown['.hm-stage']}
     ${shown['.hm-nav']}
     ${shown['.hm-playc']}
-    ${shown['.lb-peek']}
     <p class="hm-toast" role="status" aria-live="polite"></p>
     ${versionMarkHtml()}`;
 
@@ -473,10 +466,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       o.sound?.('click');
       o.onHeroes?.();
     } else if (a === 'joincode') o.onJoinCode?.();
-    else if (a === 'cards') {
-      o.sound?.('magic');
-      o.onCards?.();
-    } else if (a === 'store') o.onStore?.();
+    else if (a === 'store') o.onStore?.();
     else if (a === 'settings') o.onSettings?.();
     else if (a === 'social') o.onSocial?.();
     // the nav Pass item, the profile chip and the Season XP chips all open the Treat Track and its Pass tab
@@ -543,10 +533,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     }
     if (!t || !root.contains(t)) return;
     const k = e.key.toLowerCase();
-    if (k === 'c' && root.querySelector('button[data-a="cards"]')) {
-      e.preventDefault();
-      root.querySelector<HTMLElement>('button[data-a="cards"]')?.click();
-    } else if (k === 'h' && returning) {
+    if (k === 'h' && returning) {
       e.preventDefault();
       root.querySelector<HTMLElement>('[data-a="heroes"]')?.click();
     } else if (k === 'm' && returning) {
@@ -640,14 +627,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
   });
   bindVersionMark(root, ac?.signal);
   parent.appendChild(root);
-  const unwait = (): void => {
-    const wait = root.querySelector<HTMLElement>('.lb-peek.lb-wait');
-    if (wait)
-      void import('../nature/natureCss')
-        .catch(() => undefined)
-        .then(() => wait.classList.remove('lb-wait'));
-  };
-  unwait();
   // sim v22: a `?mode=` link's mode this build does not know ("Update to play …, playing Skirmish for now")
   if (o.notice) toast(o.notice);
 
@@ -693,7 +672,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       }
     }
     shown = want;
-    unwait();
     // the corner's Sound switch follows a mute changed elsewhere (Settings, the host)
     const mute = root.querySelector<HTMLElement>('[data-a="mute"]');
     if (mute && mute.getAttribute('aria-pressed') !== String(!o.muted)) {

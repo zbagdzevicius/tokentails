@@ -1,12 +1,11 @@
 // @vitest-environment happy-dom
 /**
- * Card skins and the offer rules (GDD §7.2, §8.1): locked featured tiles and showcase bots only on the web, never in
- * play session 1, bots never in the first match; app builds show no locked, preview or showcase tiles; guests get
- * one preview a session; the pick screen shows no price, money word or pack anywhere; showcase bots are picked by a
- * render-side hash (at most one per team, two per match) and never touch the player's slot.
+ * Card skins and the offer rules (GDD §7.2, §8.1), parked by NO-TOKENTAILS.md: the game sends no showcase bots and the
+ * pick screen has no cards. The dormant render kit keeps its rules (gates, showcase hash) for a later return; the pick
+ * screen's Look sheet holds coats and colour tints only, with no Cards button, price, money word or pack anywhere.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { pickScreen, type SkinTile } from '../../src/ui/screens';
+import { pickScreen } from '../../src/ui/screens';
 import { showcaseGate, resetRegistry, setFeaturedSkins, setRosterSkins } from '../../src/render/skins/registry';
 import { rosterCosmetics } from '../../src/meta/roster';
 import { PREVIEW_CAP, previewAllowed } from '../../src/meta/profile';
@@ -16,14 +15,12 @@ import { getSkin } from '../../src/render/skins/skinStore';
 vi.mock('../../src/render/portraits', () => ({ portraitUrl: () => null }));
 
 const owned = (ids: string[]): Owned => ({ items: new Set(), unlocks: new Set(), roster: rosterCosmetics(ids.map((id) => ({ id, name: `Cat ${id}`, type: 'FIRE', tier: 'COMMON', isStarter: false, origin: 'adopt' }))) });
-const tile = (id: string, over: Partial<SkinTile> = {}): SkinTile => ({ id, name: `Cat ${id}`, element: 'FIRE', rung: 'COMMON', bond: 0, ...over });
 
-function pick(skins: { owned: SkinTile[]; locked: SkinTile[] }): HTMLElement {
+function pick(cats: string[]): HTMLElement {
   document.body.innerHTML = '';
   return pickScreen(document.body, {
     initial: { hero: 'clem', trick: 'pounce', difficulty: 'easy' },
-    owned: owned(skins.owned.map((s) => s.id.slice(4))),
-    onDeck: () => undefined,
+    owned: owned(cats),
     onHero: () => undefined,
     onStart: () => undefined,
     onBack: () => undefined,
@@ -49,23 +46,28 @@ describe('gates', () => {
 
 describe('champion select: no offers, the Look sheet', () => {
   it('the pick shows no skins strip, no locked or preview tiles and no price, money word or pack anywhere', () => {
-    const root = pick({ owned: [tile('cat.a', { rung: 'LEGENDARY', bond: 31 })], locked: [tile('cat.f.65a1b2c3d4e5f6a7b8c9d0e1', { name: 'Nova' })] });
+    const root = pick(['a']);
     expect(root.querySelector('.skin-strip, .skin-tile, [data-preview]')).toBeNull();
     (root.querySelector('[data-a="look"]') as HTMLElement).click();
     expect(root.querySelector('.cs-looksheet')).not.toBeNull();
     const text = root.textContent ?? '';
     expect(text).not.toMatch(/\$|€|£|price|buy|pack|donat|fund|adopt now|purchase|shop/i);
     expect(root.querySelector('a, [href]')).toBeNull();
+    // NO-TOKENTAILS.md: no Cards button and no "Cards dress your heroes" line
+    expect(root.querySelector('.cs-looksheet [data-a="deck"], .cs-ls-cards')).toBeNull();
+    expect(text).not.toMatch(/\bcards?\b|token ?tails/i);
   });
-  it('a colour tint and a card: wearing a card skin hides the tints; Cards opens the drawer', () => {
+  it('no coats or tints to choose: no Look button (Paw Legends without cats has no chromas)', () => {
+    const root = pick([]);
+    expect(root.querySelector('[data-a="look"]')).toBeNull();
+  });
+  it('a colour tint is chosen on the Look sheet', () => {
     const onLook = vi.fn();
-    const onDeck = vi.fn();
     document.body.innerHTML = '';
     const root = pickScreen(document.body, {
       initial: { hero: 'clem', trick: 'pounce', difficulty: 'easy' },
       owned: owned(['a']),
       onLook,
-      onDeck,
       onHero: () => undefined,
       onStart: () => undefined,
       onBack: () => undefined,
@@ -76,9 +78,6 @@ describe('champion select: no offers, the Look sheet', () => {
     tints[1].click();
     expect(onLook).toHaveBeenLastCalledWith('clem', expect.objectContaining({ chroma: tints[1].dataset.chroma }));
     expect(root.querySelector('.cs-looksheet [data-chroma].on')?.getAttribute('data-chroma')).toBe(tints[1].dataset.chroma);
-    (root.querySelector('.cs-looksheet [data-a="deck"]') as HTMLElement).click();
-    expect(onDeck).toHaveBeenCalledWith('clem');
-    expect(root.querySelector('.cs-looksheet')).toBeNull();
   });
 });
 

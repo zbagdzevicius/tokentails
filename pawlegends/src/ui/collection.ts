@@ -11,7 +11,6 @@ import { FRAME_NAME, STORE_TITLE_NAME, isStoreFrame, isTrackFrame } from '../ren
 import { TRACK_CHAMPIONS, TRACK_ORIGINALS, TRACK_TITLES, TREAT_STEP, heroTrack, matchesToGo, nextReward, type TreatState } from '../meta/treats';
 import { HERO_TEXT } from './heroText';
 import { icon } from './icons';
-import { cardFxPreview, type CardFxTile } from './cardFxView';
 import { openChampInfo } from './champBrowser/open';
 import { bookClose, bookTabs, focusTab, isCat, wireTabs } from './passBook';
 
@@ -27,8 +26,6 @@ export interface CollectionOpts {
   portrait(hero: HeroId): string | null;
   wornTitle: string | null;
   wornFrame: string | null;
-  /** Wave C (C4): owned card skins, best rung first; each shows its line ("Legendary card: Ficus burst"). */
-  cards?: readonly CardFxTile[];
   onTarget(hero: HeroId | null): void;
   onWear(kind: 'title' | 'frame', id: string | null): void;
   onClose(): void;
@@ -42,11 +39,11 @@ export interface CollectionOpts {
 export function postcardStory(hero: HeroId): string {
   const c = championOf(hero);
   if (!c) return '';
-  const their = c.pronoun === 'she' ? 'her' : 'his';
   const flavour = HERO_TEXT[hero].flavour;
+  const them = c.pronoun === 'she' ? 'her' : 'him';
   const lead = c.name === c.cardName
-    ? `${c.name} is a real Pink Paw cat in Kaunas. This champion is drawn from ${their} Token Tails card.`
-    : `${c.name} is based on ${c.cardName}, a real Pink Paw cat in Kaunas, and drawn from ${their} Token Tails card.`;
+    ? `${c.name} is a real Pink Paw cat. This champion is drawn from ${them}.`
+    : `${c.name} is based on ${c.cardName}, a real Pink Paw cat. This champion is drawn from ${them}.`;
   return `${lead}${flavour ? ` ${flavour}` : ''}`;
 }
 
@@ -121,7 +118,6 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       <div class="targets"><div class="md-row" role="group" aria-label="Pick your next target"><button type="button" class="target md order${s.target === null ? ' on' : ''}" data-target="" aria-pressed="${s.target === null}" aria-label="Track order, any hero"><span class="md-ring"><span class="md-face">${icon('arrows')}</span></span><b>Track order</b><small>Any hero</small></button><span class="grp" aria-hidden="true">Cats</span>${cats.map(medal).join('')}<span class="grp dog" aria-hidden="true">Dogs</span>${dogs.map(medal).join('')}</div></div>
       <h3 class="bk-h3">Meet the real cat</h3>
       <div class="postcards">${TRACK_CHAMPIONS.map(card).join('')}</div>
-      ${o.cards && o.cards.length ? `<h3 class="bk-h3">Card effects</h3><div class="card-fx-list">${o.cards.map((k) => cardFxPreview(k)).join('')}</div>` : ''}
       ${titles.length || frames.length ? `<h3 class="bk-h3">Wear</h3>${wearRow('title', titles, (id) => TRACK_TITLES[id] ?? STORE_TITLE_NAME[id] ?? id, s.title)}${wearRow('frame', frames, (id) => FRAME_NAME[id] ?? id, s.frame)}` : ''}
       <p class="fine">Free, earned by playing. Rewards come in a fixed order.</p>
       </div>

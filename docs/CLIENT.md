@@ -125,7 +125,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/impact/` | Lobby RESCUE tile, impact board (`ImpactStrip`), `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
-| `components/pawlegends/` | The `/pawlegends` landing (`landing/`: roster, markup, scoped CSS, the GSAP motion chunk) and routes (`routes.json`), and the `/pawlegends/play` host: flags, title, the v1 bridge, roster and featured-cat bridges, session, offer and retired store client (`checkout.ts`), cat sheet, saves queue, `PawlegendsHost`. |
+| `components/pawlegends/` | The `/pawlegends` landing (`landing/`: roster, markup, scoped CSS, the GSAP motion chunk) and routes (`routes.json`), and the `/pawlegends/play` host: flags, title, the v1 bridge, champion art (`championsBridge.ts`), session, the retired offer and `pl_*` store client (`checkout.ts`), saves queue, `PawlegendsHost` (no roster, featured cats or cat sheet since 2026-11-12: docs/plans/moba/NO-TOKENTAILS.md). |
 | `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the title constant (`title.ts`), the v1 postMessage bridge, `SwordcatHost`. |
 | `components/audio/` | Audio settings store, music engine, system mute, tracks, Settings modal, mute toggle, graphics control. |
 | `components/typography/`, `components/Phaser/typography/` | Type roles, `loadGameFonts`, `ttCanvasFont`; the Phaser side (`TTFontsFile`, `ttText`, `ttFit`, font healing, `ttWorldText`). |
@@ -580,7 +580,7 @@ needed: the page, the picker card and the landing section (web only, never in th
   address). `/pawlegends/account` is the public account page (sign in, sign out, delete), the account deletion URL of
   the apps' Google Play Data safety form. The native app runs the same host over a same-window channel
   (`pawlegends-app/src/host`, see `pawlegends-app/README.md` "Sign-in"); it reuses `bridge.ts`, `saves.ts`,
-  `partySaves.ts`, `apiBridge.ts`, `rosterBridge.ts`, `championsBridge.ts`, `session.ts`, `claim.ts`,
+  `partySaves.ts`, `apiBridge.ts`, `championsBridge.ts`, `session.ts`, `claim.ts`,
   `context/auth/link.ts`, `authErrors.ts`, `lastMethod.ts` and `firebaseConfig.ts`, so keep those React-free.
 
 - The iframe loads `/pawlegends-game/index.html?embed=1`. Rebuild it after any game change with
@@ -592,12 +592,11 @@ needed: the page, the picker card and the landing section (web only, never in th
 - `bridge.ts` speaks bridge v1 (GAMES.md). It accepts messages only from the iframe's window and the game's
   origin, posts only to that origin, builds every payload field by field (no `accesstoken`), and checks a
   replay against the same bounds as the backend DTO before it is queued.
-- `rosterBridge.ts` turns the signed-in player's cats into `{id, name, type, tier, isStarter, starterBreed?,
-  origin?, art?, catalogId?}`, starters first, 24 cats and 32-character names at most. App builds send starter
-  and redeemed cats only.
-- `featuredBridge.ts` picks at most two unowned direct-purchase cats from `GET /cat/sale` (`isCatForSale`,
-  `ownsCopy`; elements the roster lacks first, ties rotate once a UTC day). Never packs, never random; `[]` in
-  app builds.
+- No cat feed (2026-11-12, `docs/plans/moba/NO-TOKENTAILS.md`): the host sends no `roster`, `featured` or Meet
+  `offer` and handles no `open-cat`, `offer-seen`, `champion-offer`, `skin-preview` or `exit` (an older game build
+  may still send them). `championsBridge.ts` `championArtOf` sends the shelter champions' art, never for sale. The
+  loading banners lead back to the Paw Legends landing (`pawlegendsHomePath`: `/` on pawlegends.app). Invite and dare
+  links use `https://pawlegends.app/`; the Settings and notify privacy links use `https://pawlegends.app/privacy`.
 - `session.ts` sends `session {signedIn, progress}` with the account's Pawlegends fields from `GET /user/profile`.
 - `saves.ts` (`PawlegendsSaver`, the Heist saves pattern) posts every finished match to
   `POST /user/catbassadors/live` and answers the game with `save-result`. Without a Firebase user it queues the

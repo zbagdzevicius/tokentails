@@ -123,7 +123,7 @@ export const PawlegendsAccountPanel = ({ onDone }: { onDone?: () => void }) => {
         </ActionRow>
       </ModalSection>
       {ready && (
-        <DangerZone description="Deletes your sign-in and anonymises your Token Tails profile. Your cats go back to the shelter pool.">
+        <DangerZone description="Deletes your sign-in and anonymises your profile. This cannot be undone.">
           {error && (
             <p role="alert" className="border-2 border-tt-rust/70 bg-tt-night-950/60 px-3 py-2 font-sans text-p5 font-semibold text-tt-cream">
               {error}

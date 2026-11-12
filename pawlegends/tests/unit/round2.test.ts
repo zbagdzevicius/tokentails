@@ -19,7 +19,6 @@ import { CoreLog, endCause } from '../../src/app/endCause';
 import { tryHeroFor } from '../../src/app/app';
 import { dareText } from '../../src/share/dare';
 import { CAT_NAMES, DOG_NAMES, DIFFICULTY_HINT, pvpNumbers, slotNames } from '../../src/ui/heroText';
-import { tierLabel } from '../../src/ui/cards';
 import { slideAngle } from '../../src/input/orders';
 import { cellOf, createGrid, walkable } from '../../src/sim/map/grid';
 import { rosterCosmetics, type RosterCat } from '../../src/meta/roster';
@@ -199,11 +198,6 @@ describe('round 2 client: names, cats and controls', () => {
     expect(DOG_NAMES.some((n) => a[3].startsWith(n))).toBe(true);
     expect(slotNames(picks, 42, 0)).toEqual(a);
     expect(slotNames(picks, 43, 0)).not.toEqual(a);
-  });
-
-  it('a squad chip names its tier and element, never "no frame"', () => {
-    expect(tierLabel({ tier: 'LEGENDARY', type: 'FIRE' })).toBe('Legendary · Fire');
-    expect(tierLabel({ tier: 'COMMON', type: 'WATER' })).toBe('Water');
   });
 
   it('adopting a cat keeps the Legendary adopted by name over a pack Legendary', () => {
