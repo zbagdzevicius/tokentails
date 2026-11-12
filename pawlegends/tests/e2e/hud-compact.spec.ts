@@ -100,9 +100,9 @@ for (const [width, height] of [
     const strip = await boxes(page, '.pl-score');
     const feed = await boxes(page, '.pl-feed-row');
     const enemy = await boxes(page, '.pl-top .pl-strip.enemy .pp');
-    // the strip: 24 px tall, at most 220 px wide, centred at the top; pause inside it
-    expect(strip[0].height).toBeLessThanOrEqual(24.5);
-    expect(strip[0].width).toBeLessThanOrEqual(220);
+    // the strip: 31 px tall, at most 248 px wide (with the own K / D / A, 2026-11-12), centred at the top; pause inside it
+    expect(strip[0].height).toBeLessThanOrEqual(31.5);
+    expect(strip[0].width).toBeLessThanOrEqual(248);
     expect(Math.abs(strip[0].x + strip[0].width / 2 - width / 2)).toBeLessThan(2);
     expect(overlaps(pause[0], strip[0])).toBe(true);
     // the minimap: top left, square, 112 px (104 on short phones)

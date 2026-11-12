@@ -58,7 +58,7 @@ html[data-touch='1'] { --mm-w: calc(112px * var(--mm-k, 1)); --mm-h: calc(112px 
 
 /* ======================================================================================================= B3: HUD diet
    Phones (html[data-touch='1']): the play area around the hero (18–60% across, 12–78% down) carries no persistent HUD.
-   Kept: one 24 px top strip (≤ 220 px: kills, clock, tower counts, the objective timer when due, pause), a 112 px
+   Kept: one 31 px top strip (≤ 248 px: kills, your K / D / A, clock, tower counts, the objective timer when due, pause), a 112 px
    minimap top left (104 px on short phones) with the ping corner, a 2-line kill feed beside it, the button arc and
    the right-edge column, and the target-lock row of near enemies by the cluster. `.pl-match` lifts these rules over
    ui.css and lol-hud.css. */
@@ -69,7 +69,7 @@ html[data-touch='1'] .pl-match .pl-hud .pl-bar,
 html[data-touch='1'] .pl-match .pl-strip.ally,
 html[data-touch='1'] .pl-match .pl-respawn > div { display: none !important; }
 
-/* the top strip: 24 px, 220 px, centred at the very top */
+/* the top strip, centred at the very top (1.3× and the K / D / A chip below: 31 px, ≤ 248 px) */
 html[data-touch='1'] .pl-match .pl-top { top: var(--safe-t, 0px); }
 html[data-touch='1'] .pl-match .pl-hud .pl-score.lol {
   display: flex; align-items: center; justify-content: flex-start; gap: 5px; width: auto; max-width: 220px; min-width: 0; height: 24px;
@@ -106,6 +106,81 @@ html[data-touch='1'] .pl-match .pl-score .pl-pause {
 }
 html[data-touch='1'] .pl-match .pl-score .pl-pause::after { content: ''; position: absolute; inset: -10px; }
 html[data-touch='1'] .pl-match .pl-score .pl-pause i { width: 3px; height: 11px; background: #fff3dc; }
+
+/* the score strip, 1.3× (founder ask 2026-11-12: "on mobile make this a little bit bigger and show K/D/A as well"):
+   31 px tall, 20 px kill digits, a 26 × 30 px pause (44 px hit area), and the own K / D / A chip beside the clock, still
+   one line, under the rail (top 44 px). Its half width is --strip-half (124 px; 104 px on small phones, which start
+   at the second squeeze step); the kill feed's rows end 8 px left of it (below). The frame's 9-slice width is half the
+   height, so its top and bottom meet and no stretched middle row shows. */
+html[data-touch='1'] { --strip-half: 124px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol { height: 31px; max-width: calc(2 * var(--strip-half)); gap: 4px; column-gap: 4px; padding: 0 6px 0 11px; border-image-width: 15.5px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team { font-size: 20px; line-height: 20px; gap: 3px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team i { font-size: 12px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team i svg { width: 12px; height: 12px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .sw svg { width: 14px; height: 14px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .mid { display: flex; align-items: center; gap: 5px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .clock { font-size: 14px; line-height: 16px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .mp-ping { line-height: 16px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .obj:not([hidden]) { font-size: 12px; line-height: 16px; }
+html[data-touch='1'] .pl-match .pl-score .pl-pause { width: 24px; height: 24px; gap: 4px; }
+html[data-touch='1'] .pl-match .pl-score .pl-pause::after { inset: -10px; }
+html[data-touch='1'] .pl-match .pl-score .pl-pause i { width: 3.5px; height: 13px; }
+/* (no fill behind the chip, the word or a claw glyph, then the numbers: the HUD area budget counts what is painted) */
+html[data-touch='1'] .pl-match .pl-hud .pl-score .kda {
+  display: inline-flex; align-items: center; gap: 1px; flex: none; padding: 0 2px; color: #3b2417; font: 800 14px/14px var(--font); font-variant-numeric: tabular-nums;
+}
+html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .ki { display: none; place-items: center; width: 11px; height: 11px; margin-right: 1px; color: #6b4a2f; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .ki svg { width: 11px; height: 11px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .kl { font: 900 9px/10px var(--font); letter-spacing: 0.02em; color: #6b4a2f; margin-right: 3px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .ks { font: 700 11px/12px var(--font); opacity: 0.45; padding: 0; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .kd { color: #a3261c; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .kda + .clock::before { content: none; }
+/* a fuller strip (hud.ts scoreDense: two-digit numbers, a 10:00+ clock, the objective timer, the ping chip) tightens
+   in steps so it stays one line inside its width: 1 drops the "KDA" word; 2 also the crossed swords, with smaller
+   digits; 3 also the tower counts; 4 (small phones only) also the objective timer, with tighter gaps */
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='1'], [data-dense='2'], [data-dense='3'], [data-dense='4']) .kda .kl { display: none; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='2'], [data-dense='3'], [data-dense='4']) { gap: 3px; column-gap: 3px; padding-left: 9px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='2'], [data-dense='3'], [data-dense='4']) .sw { display: none; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='2'], [data-dense='3'], [data-dense='4']) .team { font-size: 17px; gap: 2px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='2'], [data-dense='3'], [data-dense='4']) .team.t1 { margin-left: 4px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='2'], [data-dense='3'], [data-dense='4']) .kda { font-size: 13px; padding: 0 1px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='2'], [data-dense='3'], [data-dense='4']) .clock { font-size: 13px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='3'], [data-dense='4']) .team i.tw { display: none; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='3'], [data-dense='4']) { padding-left: 8px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='3'], [data-dense='4']) .team { font-size: 16px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='3'], [data-dense='4']) .mid { gap: 3px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='3'], [data-dense='4']) :is(.kda, .clock) { font-size: 12px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol[data-dense='4'] { gap: 2px; column-gap: 2px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol[data-dense='4'] .mid { gap: 2px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol[data-dense='4'] .obj { display: none !important; }
+/* small phones (667 × 375, 640 × 360): the strip starts at step 2 (no "KDA" word or swords, 17 px digits), 208 px wide
+   at most, so the kill feed beside a larger minimap keeps room for a row */
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] { --strip-half: 104px; }
+  html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .kda .kl, html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .sw { display: none; }
+  html[data-touch='1'] .pl-match .pl-hud .pl-score.lol, html[data-touch='1'] .pl-match .pl-hud .pl-score.lol[data-dense='2'] { gap: 3px; column-gap: 3px; padding-left: 8px; }
+  html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team { font-size: 17px; gap: 2px; }
+  html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='2'], [data-dense='3'], [data-dense='4']) .team.t1 { margin-left: 2px; }
+  html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .kda, html[data-touch='1'] .pl-match .pl-hud .pl-score.lol:is([data-dense='2'], [data-dense='3'], [data-dense='4']) .kda { font-size: 13px; padding: 0; }
+  /* no room for the word here: a small claw (the kill feed's knockout mark) labels the K / D / A */
+  html[data-touch='1'] .pl-match .pl-hud .pl-score .kda { gap: 0; }
+  html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .ki { display: grid; margin-right: 1px; }
+  html[data-touch='1'] .pl-match .pl-hud .pl-score.lol[data-dense='4'] .kda .ki { display: none; }
+  html[data-touch='1'] .pl-match .pl-score .pl-pause { width: 22px; }
+  html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .clock { font-size: 13px; }
+  /* the large minimap leaves the least room: the kill row drops its claw (killer face, victim face) */
+  html[data-touch='1'][data-mm-size='l'] .pl-match .pl-hud .pl-feed-row .claw { display: none; }
+}
+/* phones: a new feed row drops in from above (sideways it would cross the minimap or the strip) */
+html[data-touch='1'] .pl-match .pl-hud .pl-feed > .pl-feed-row { animation-name: pl-slide-l; }
+@keyframes pl-slide-l { from { transform: translateY(-6px); opacity: 0; } }
+/* the kill feed's rows end 8 px left of the strip, whatever the minimap size (the feed starts 16 px right of it) */
+html[data-touch='1'] { --feed-cap: 150px; }
+html[data-touch='1']:has(.pl-emote) { --feed-cap: 132px; }
+html[data-touch='1']:has(.pl-chatbtn) { --feed-cap: 128px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-feed > .pl-feed-row {
+  max-width: min(var(--feed-cap), calc(50vw - var(--strip-half) - 24px - var(--safe-l, 0px) - var(--mm-w)));
+}
 
 /* the minimap: top left, 112 px (104 px on short phones), 80% opacity, a paw-stitched rim */
 html[data-touch='1'] .pl-match .pl-minimap {

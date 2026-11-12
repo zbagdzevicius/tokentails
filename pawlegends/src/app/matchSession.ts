@@ -795,6 +795,7 @@ export class MatchSession {
     this.ui.dataset.side = HEROES[w.picks[w.slot]]?.side === 'dog' ? 'dog' : 'cat';
     // a renamed champion's row reads "Simas · Clem (you)": the hero title takes the cat column (the VS keeps the cat)
     this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames.map((c, slot) => (slot === w.slot && (this.myCard || this.selfName) ? heroTitle : c)));
+    if (this.e2e) e2eHook('Scoreboard', this.scoreboard);
     // sim v19 (Hearthwood): each slot's role (the bots' role solver, pure), as a chip on the scoreboard
     if ((this.setup.map ?? w.map) === 'hearthwood') this.scoreboard.roles = rolesOf({ picks: w.picks, map: 'hearthwood' });
     // cards: the VS intro (both teams as Token Tails cards flipping up over the held countdown); its own lazy chunk,
@@ -2350,6 +2351,10 @@ export class MatchSession {
       // LoL pass (lane B): low quality greys the world with an overlay, not a filter on the WebGL canvas
       this.hud.lowQuality = this.gr.settings.tier === 'low';
       this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0, this.goals.standingTitle ?? this.lcGateTitle());
+      // the own K / D / A on the score plate (founder ask 2026-11-12), from the scoreboard's counts
+      const sb = this.scoreboard;
+      const mine = this.welcome.slot;
+      if (sb) this.hud.kda(sb.kills[mine] ?? 0, sb.deaths[mine] ?? 0, sb.assists(mine));
       const lock = this.touch?.isEnabled ? this.touch.lockedId() : null;
       this.hud.stripUpdate(frame.byId, frame.tick, lock, this.nearEnemies(frame, me, lock));
       this.objStrip(frame);
