@@ -26,6 +26,10 @@ const SIZES: [number, number][] = [
 const SHOTS = process.env.PASS_SHOTS;
 
 async function fits(game: Frame, sel: string): Promise<void> {
+  // the card's open animation scales it up from 0.9x: measure once it has settled (44 px read as 43 mid-animation)
+  await game.evaluate(async (s) => {
+    await Promise.all(document.querySelector(`${s} .card`)!.getAnimations().map((a) => a.finished.catch(() => undefined)));
+  }, sel);
   const r = await game.evaluate((s) => {
     const se = document.scrollingElement!;
     const card = document.querySelector(`${s} .card`)!.getBoundingClientRect();
