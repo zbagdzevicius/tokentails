@@ -10,6 +10,7 @@
 import { randomBytes, randomInt } from 'crypto';
 import { CODE_ALPHABET, type MemberView, type PartyPhase, type PartyView } from './net';
 import { dedupeNames, memberName } from './party-names';
+import { rotationWeek } from '../pawlegends-catalog';
 import { partyThreadId } from '../social/chat-ids';
 
 export const PARTY_TIMING = Object.freeze({
@@ -105,6 +106,11 @@ export interface Party {
     side: string | null;
     /** A rematch pick: loading waits until this time even when everyone is locked. */
     pickMinUntilMs?: number;
+    /**
+     * CHAMPION-STORE.md §3: the free-rotation week of this pick, fixed when the pick opens, so a Monday flip during a
+     * pick, a queue or a match never takes a hero away.
+     */
+    rotationWeek?: number;
     ended: boolean;
     /**
      * Quick Play (M1A-IMPL.md §5.2): a party the matchmaker built or filled. The side is fixed for everyone; strangers
@@ -176,6 +182,11 @@ export interface PartyRules {
     sideOf(hero: string): string | null;
     /** The "New? Try this" hero for newbies. */
     newbieHero: string;
+    /**
+     * CHAMPION-STORE.md §8.1: may this member pick this hero (a starter, the pick's rotation week, or owned)? Absent:
+     * every hero (specs and the harness). Bots and pilots never ask.
+     */
+    allowed?(p: Party, m: Member, hero: string): boolean;
 }
 
 export type PartyError =
@@ -546,6 +557,7 @@ export class PartyService {
         p.deadlineMs = this.now() + PARTY_TIMING.pickMs + (rematch ? PARTY_TIMING.rematchNoteMs : 0);
         p.pickMinUntilMs = rematch ? this.now() + PARTY_TIMING.rematchPickMinMs : undefined;
         p.waitingSinceMs = undefined;
+        p.rotationWeek = rotationWeek(this.now());
         p.rematchYes.clear();
         if (!p.openSeats) p.locked = true;
         p.side = null;
@@ -559,6 +571,8 @@ export class PartyService {
             m.loadPct = 0;
             m.hero = rematch ? m.lastHero : undefined;
             m.trick = rematch ? m.lastTrick : undefined;
+            // a rematch never keeps a hero the member may no longer pick (a rotation flip, a refund)
+            if (m.hero && this.rules.allowed && !this.rules.allowed(p, m, m.hero)) m.hero = undefined;
         });
         const lead = ordered[0];
         if (p.mm) p.side = p.mm.side;
@@ -615,7 +629,14 @@ export class PartyService {
         const species = this.speciesOf(p, m);
         if (species && this.rules.sideOf(hero) !== species) return false;
         if (!p.mm && m.id !== p.leader && p.side && this.rules.sideOf(hero) !== p.side) return false;
+        // CHAMPION-STORE.md §8.1: a starter, the pick's rotation week, or owned
+        if (this.rules.allowed && !this.rules.allowed(p, m, hero)) return false;
         return true;
+    }
+
+    /** CHAMPION-STORE.md §8.2: the relay's re-check at the start (the same rule as a lock). */
+    heroAllowedFor(p: Party, m: Member, hero: string): boolean {
+        return !this.rules.allowed || this.rules.allowed(p, m, hero);
     }
 
     lock(memberId: string, hero: string, trick: string): void {

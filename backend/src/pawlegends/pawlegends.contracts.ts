@@ -133,6 +133,8 @@ export const PAWLEGENDS_SKUS: Record<PawlegendsSku, PawlegendsSkuDef> = Object.f
                         ? def.pass === 'plus'
                             ? 'Legends Pass+ (premium row, 15 tier skips, the exclusive Eclipse coat), delivered now'
                             : 'Legends Pass premium row (every premium reward already reached unlocks now), delivered now'
+                        : def.kind === 'champion'
+                        ? 'Champion unlock for your account, delivered now. A champion is the same in a match whether bought or earned with Yarn'
                         : 'Cosmetic items, delivered now. Cosmetic only: nothing here changes a match',
                 deliveredAtMvp: '',
                 kind: def.kind,

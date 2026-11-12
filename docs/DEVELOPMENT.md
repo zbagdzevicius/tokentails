@@ -256,6 +256,13 @@ Copy the file and keep the header. Coat palettes and patterns live only in `pawl
 (`STORE_COAT_PAL`, `PASS_COAT_PAL`). The host mirrors the store item id shapes and `STORE_TERMS_VERSION`
 (`PAWLEGENDS_STORE_CONSENT_VERSION`) in `client/components/pawlegends/bridge.ts` and `checkout.ts`.
 
+Champion store (CHAMPION-STORE.md): the same two catalogue copies hold `CHAMPIONS` (side and role per hero),
+`STARTERS`, `ROTATION_EPOCH`, `ROTATION_CATS`, `ROTATION_DOGS`, `CHAMP_TIER`, `CHAMP_LAUNCH`, `TIER_PRICE`, `YARN`,
+`CHAMP_PICK_MILESTONES` and the `pl_champ_*` / `pl_champs_*` SKUs (deep-compared by
+`pawlegends/tests/unit/champion-store.test.ts`, which also checks every champion against the game's `HEROES`). A new
+hero needs a `CHAMPIONS` row, a tier and a place in a rotation cycle. The host mirrors the champion SKU shape
+(`STORE_SKU`) and the `store.champions` shape (`championsOf`) in `client/components/pawlegends/bridge.ts`.
+
 Social, ranked and PvP reports (`docs/plans/moba/SOCIAL-RANKED.md` §11.1): duplicated constants, change every copy.
 
 | Constant | Backend | Game / host | Checked by |

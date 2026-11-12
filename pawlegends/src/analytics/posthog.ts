@@ -33,6 +33,10 @@ export type AnalyticsEvent =
   | 'store_item_granted'
   | 'pass_open'
   | 'pass_claim'
+  /** CHAMPION-STORE.md §12: a locked champion viewed, an unlock asked (`via` yarn or pick), a Practice match. */
+  | 'champ_locked_view'
+  | 'champ_unlock'
+  | 'practice_try'
   | 'item_seen_in_match'
   | 'notify_signup'
   | 'quality_tier'

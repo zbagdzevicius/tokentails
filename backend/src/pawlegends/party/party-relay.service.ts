@@ -27,6 +27,7 @@ import { ChatSink, type ChatSinkWriters } from './chat-sink';
 import { relayChatInfo } from './relay-chat-info';
 import { BotSeenStore } from './bot-chat';
 import { BACKEND_ROLE, type BackendRole } from '../../shared/runtime/backend-role';
+import { PawlegendsSeasonService } from '../pawlegends-season.service';
 
 /*
  * Nest wiring of the party relay (docs/plans/moba/MULTIPLAYER.md §3.1). On bootstrap it takes the HTTP server from
@@ -65,7 +66,8 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
         @Optional() @InjectModel(PawlegendsChatMessage.name) private readonly chatMessages?: any,
         // role all: DM notices from the API in this process; a report can name a line still in the sink
         @Optional() private readonly chatBus?: ChatBus,
-        @Optional() private readonly chatService?: ChatService
+        @Optional() private readonly chatService?: ChatService,
+        @Optional() private readonly season?: PawlegendsSeasonService
     ) {}
 
     /** The chat hooks of the relay: absent models (an old deploy, specs) leave every member on quick chat. */
@@ -121,6 +123,8 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
             ownsServer: this.role === 'relay',
             drainMaxMs: drainMaxMsFrom(),
             pool: relayPoolFrom(this.role),
+            // CHAMPION-STORE.md §8.1: members pick starters, the rotation and the champions their account owns
+            ...(this.season ? { champions: (accountId: string) => this.season!.ownedHeroes(accountId) } : {}),
             chat: this.chatHooks(),
         });
         const relay = this.relay;

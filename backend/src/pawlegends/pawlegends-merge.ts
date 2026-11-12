@@ -72,11 +72,13 @@ export function pawlegendsFieldRepair(target: Record<string, any> | null | undef
 
 /**
  * The store's owned-items and season models next to the users model (the guest merge gets only the users model;
- * the rating merge finds its model the same way). Null when either is not registered (specs without them).
+ * the rating merge finds its model the same way), plus the champion store's Yarn model when registered. Null when
+ * owned or seasons is not registered (specs without them).
  */
-export function storeModelsBesides(users: unknown): { owned: any; seasons: any } | null {
+export function storeModelsBesides(users: unknown): { owned: any; seasons: any; yarn?: any } | null {
     const models = (users as { db?: { models?: Record<string, unknown> } } | null)?.db?.models;
     const owned = models?.PawlegendsOwned;
     const seasons = models?.PawlegendsSeason;
-    return owned && seasons ? { owned, seasons } : null;
+    const yarn = models?.PawlegendsYarn;
+    return owned && seasons ? { owned, seasons, ...(yarn ? { yarn } : {}) } : null;
 }

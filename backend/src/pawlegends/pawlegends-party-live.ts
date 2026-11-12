@@ -234,6 +234,8 @@ export async function savePawlegendsPartyMatch(
               forfeit: v.reason === 'forfeit',
               takedowns: takedownsOf(v.stats, r.slot),
               capped: daily,
+              // CHAMPION-STORE.md: Yarn once per room and slot (the relay checked the hero at the pick, §8.1)
+              ref: digest,
           })
         : null;
     if (deps.mm && pvp) {

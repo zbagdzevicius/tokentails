@@ -428,6 +428,9 @@ export async function savePawlegendsMatch(
               takedowns: takedownsOf((result as { stats?: unknown }).stats, 0),
               // Daily cap and real-time gap: a solo seed is the client's, so replays could be made offline.
               soloMs: (result.ticks / PAWLEGENDS_TICK_HZ) * 1000,
+              // CHAMPION-STORE.md: Yarn once per save; the hero must have been the player's to pick (§8.5)
+              ref: digest,
+              hero: replay.hero,
           })
         : null;
 

@@ -22,6 +22,7 @@ import { KNOWN_ITEMS, isSku, type SkuId } from './skus';
 import { isAppBuild } from '../meta/roster';
 import { parseStoreState, type StoreSeason } from '../embed/bridge';
 import { FREE_ROW_ITEMS } from '../meta/pass';
+import type { ChampionsState } from '../meta/champions';
 
 export interface TokenPayload {
   items: string[];
@@ -73,6 +74,11 @@ export interface StoreSnapshot {
   skus: ReadonlySet<SkuId>;
   /** The account's Legends Pass row (null before the host sent one, or outside a host). */
   season: StoreSeason | null;
+  /**
+   * CHAMPION-STORE.md: the account's champions, rotation and Yarn (`store.champions`), or null (no host, signed out,
+   * or an older host): the game then offers the starters and the week's rotation only (meta/champions.ts).
+   */
+  champions: ChampionsState | null;
 }
 
 /** Host-fed store state with change listeners. One per page. */
@@ -85,6 +91,7 @@ export class Entitlements {
   private payload: TokenPayload | null = null;
   private owned: string[] = [];
   private season: StoreSeason | null = null;
+  private champions: ChampionsState | null = null;
   private listeners: ((s: StoreSnapshot) => void)[] = [];
 
   /** Feed a host message (`app`, `entitlements`, `session`, `hello`). Returns true when the state changed. */
@@ -109,6 +116,8 @@ export class Entitlements {
         if (!this.signedIn) {
           this.owned = [];
           this.season = null;
+          // CHAMPION-STORE.md: a signed-out player sees the starters and the rotation until the host sends a new store
+          this.champions = null;
         }
         break;
       case 'store': {
@@ -116,6 +125,9 @@ export class Entitlements {
         if (!v) return false;
         this.owned = v.items;
         this.season = v.season;
+        // every `store` carries the account's champions (a signed-out or older host's has none: the game then offers
+        // the starters and the week's rotation, meta/champions.ts)
+        this.champions = v.champions ?? null;
         break;
       }
       default:
@@ -130,7 +142,7 @@ export class Entitlements {
   }
 
   private snapshotKey(): unknown[] {
-    return [this.embedded, this.isApp || isAppBuild(), this.store, this.notify, this.signedIn, this.payload?.items, this.payload?.skus, this.owned, this.season];
+    return [this.embedded, this.isApp || isAppBuild(), this.store, this.notify, this.signedIn, this.payload?.items, this.payload?.skus, this.owned, this.season, this.champions];
   }
 
   snapshot(): StoreSnapshot {
@@ -149,6 +161,7 @@ export class Entitlements {
       items: new Set([...(paid?.items ?? []), ...store]),
       skus: new Set(paid?.skus ?? []),
       season: this.season,
+      champions: this.champions,
     };
   }
 

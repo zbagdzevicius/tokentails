@@ -11,6 +11,7 @@
  */
 import { championByCatalogId, type ChampionId } from '../data/heroes/shelter';
 import { inAppShell } from '../app/platform';
+import { parseChampionsState, type ChampionsState } from '../meta/champions';
 
 export const EMBED_NS = 'tt-pawlegends';
 export const EMBED_VERSION = 1;
@@ -47,7 +48,7 @@ export type HostType = (typeof HOST_TYPES)[number];
  * button of its own over the game any more). `sound{muted}`: the player switched the game's Sound; the host makes it
  * its own mute (tt:audio:v1), so the next `audio` it sends agrees (a host mute is never saved into the game profile).
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'sound', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit', 'purchase-intent', 'pass-claim', 'api-request', 'account'] as const);
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'sound', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit', 'purchase-intent', 'pass-claim', 'api-request', 'account', 'champ-unlock'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
 /*
  * Store and Legends Pass (docs/plans/moba/STORE-PASS.md, web only): `purchase-intent{sku}` is back for the catalogue
@@ -55,6 +56,11 @@ export type GameType = (typeof GAME_TYPES)[number];
  * and Stripe Checkout, then answers `purchase-result{sku, ok}` and a fresh `store`. `pass-claim{row, tier}` or
  * `pass-claim{all: true}` asks the host to claim pass rewards (`POST /pawlegends/pass/claim`); it answers `store`.
  * `store{items, season}` is the account's owned store and pass items and its pass row (`GET /pawlegends/me`).
+ *
+ * Champion store (docs/plans/moba/CHAMPION-STORE.md): `store.champions` is the account's champions, the week's
+ * rotation and its Yarn. `purchase-intent{sku}` also takes the champion SKUs (`pl_champ_*`, `pl_champs_*`, web only).
+ * `champ-unlock{hero, via: 'yarn' | 'pick'}` asks the host to unlock a champion with Yarn or a Champion Pick (`POST
+ * /pawlegends/champions/unlock`, the app too: no money); it answers a fresh `store`.
  */
 
 /*
@@ -146,9 +152,9 @@ export interface NativeHostChannel {
  * Game messages the in-app host takes. Everything else stays with the game's standalone path (post returns false):
  * share and copy use the game's own fallback, exit and notify have no meaning in the app, analytics and crash reports
  * are not collected there (no analytics on the privacy label), and nothing about cats for sale or purchases is ever
- * sent (App Store 3.1.1, Google Play payments).
+ * sent (App Store 3.1.1, Google Play payments). `champ-unlock` is: Yarn and Champion Picks are earned, never bought.
  */
-export const NATIVE_HOST_TYPES: readonly GameType[] = Object.freeze(['ready', 'match-result', 'request-sign-in', 'account', 'party-ticket-request', 'party-result', 'pass-claim', 'api-request', 'paused', 'sound']);
+export const NATIVE_HOST_TYPES: readonly GameType[] = Object.freeze(['ready', 'match-result', 'request-sign-in', 'account', 'party-ticket-request', 'party-result', 'pass-claim', 'api-request', 'paused', 'sound', 'champ-unlock']);
 
 /** The shell's channel on this page, or null (not the app, or no valid channel). Never throws. */
 export function nativeChannel(win: unknown): NativeHostChannel | null {
@@ -307,7 +313,17 @@ export interface SaveResult {
   fastestWin: number | null;
   code?: string;
   /** Legends Pass Season XP the save paid (STORE-PASS.md §5); absent from older hosts. */
-  season?: { gained: number; xp: number; tier: number; prevTier: number };
+  season?: SaveSeason;
+}
+
+/** A save's Season XP, plus its Yarn (CHAMPION-STORE.md §4) and whether its hero was locked (§8.5). */
+export interface SaveSeason {
+  gained: number;
+  xp: number;
+  tier: number;
+  prevTier: number;
+  yarn?: { gained: number; balance: number; newPicks: number };
+  heroLocked?: true;
 }
 
 export function parseSaveResult(m: Record<string, unknown>): SaveResult | null {
@@ -555,6 +571,8 @@ export interface StoreSeason {
 export interface StoreState {
   items: string[];
   season: StoreSeason | null;
+  /** CHAMPION-STORE.md: absent from an older host. */
+  champions?: ChampionsState;
 }
 
 /** `store{items, season}`: owned store and pass items (known shapes only) and the pass row, or null. */
@@ -570,10 +588,11 @@ export function parseStoreState(m: Record<string, unknown>): StoreState | null {
     const endsAt = typeof r.endsAt === 'string' && Number.isFinite(Date.parse(r.endsAt)) ? r.endsAt : '';
     season = { id: r.id, xp: n(r.xp, 10_000_000), tier: n(r.tier, 1000), premium, skips: n(r.skips, 1000), claimed, endsAt };
   }
-  return { items, season };
+  const champions = parseChampionsState(m.champions);
+  return champions ? { items, season, champions } : { items, season };
 }
 
-const SKU = /^pl_(coat|frame|set|pass)_[a-z0-9_]{1,40}$/;
+const SKU = /^pl_(coat|frame|set|pass|champ|champs)_[a-z0-9_]{1,40}$/;
 
 /** `purchase-result{sku, ok}` for a store or pass SKU, or null. */
 export function parseSkuPurchaseResult(m: Record<string, unknown>): { sku: string; ok: boolean } | null {
@@ -582,7 +601,7 @@ export function parseSkuPurchaseResult(m: Record<string, unknown>): { sku: strin
 }
 
 /** `save-result.season`: the Season XP a saved match paid (absent when the backend sent none). */
-export function parseSaveSeason(v: unknown): { gained: number; xp: number; tier: number; prevTier: number } | null {
+export function parseSaveSeason(v: unknown): SaveSeason | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
   const n = (x: unknown): number | null => (typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= 10_000_000 ? x : null);
@@ -590,5 +609,12 @@ export function parseSaveSeason(v: unknown): { gained: number; xp: number; tier:
   const xp = n(o.xp);
   const tier = n(o.tier);
   const prevTier = n(o.prevTier);
-  return gained === null || xp === null || tier === null ? null : { gained, xp, tier, prevTier: prevTier ?? tier };
+  if (gained === null || xp === null || tier === null) return null;
+  const out: SaveSeason = { gained, xp, tier, prevTier: prevTier ?? tier };
+  const y = o.yarn && typeof o.yarn === 'object' ? (o.yarn as Record<string, unknown>) : null;
+  const yg = y ? n(y.gained) : null;
+  const yb = y ? n(y.balance) : null;
+  if (y && yg !== null && yb !== null) out.yarn = { gained: yg, balance: yb, newPicks: Math.min(3, n(y.newPicks) ?? 0) };
+  if (o.heroLocked === true) out.heroLocked = true;
+  return out;
 }

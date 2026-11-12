@@ -38,6 +38,8 @@ import { openChampInfo } from './champBrowser/open';
 import { BROWSE_ORDER } from './champBrowser/meta';
 import type { SkillSlot } from './skillCodex/facts';
 import { champSelectHtml, openChampSelect, patchChampSelect, refreshFaces, wireChampSelect, type CsModel } from './champSelect/champSelect';
+import { appHidden, champStatus, lockReason, matchesFor, rotationEndText, unlockInfo, yarnText, type ChampionsState } from '../meta/champions';
+import { browserCurrency } from '../money/skus';
 import { soloSeats } from './champSelect/seats';
 
 function el(cls: string, html = ''): HTMLElement {
@@ -151,7 +153,8 @@ export interface PickOpts {
   owned?: Owned;
   looks?: Partial<Record<HeroId, Partial<Look>>>;
   onHero(h: HeroId): void;
-  onStart(c: Choice): void;
+  /** `practice`: a locked champion played as Practice (CHAMPION-STORE.md §6: the match saves nothing). */
+  onStart(c: Choice, opts?: { practice?: boolean }): void;
   onBack(): void;
   /** The bots radio (fun plan F1: hidden until the player has played a few matches). */
   difficulties?: readonly Difficulty[];
@@ -175,10 +178,61 @@ export interface PickOpts {
   playerName?: string | null;
   /**
    * Sim v9 shelter champions, web only: whether the player owns the champion's card (a "Card" badge on its tile; app
-   * builds pass owned: false). Every champion is free to play either way. No Meet link here (GDD §8.1 #5).
+   * builds pass owned: false). Cosmetic only: who may pick a champion is `champs`. No Meet link here (GDD §8.1 #5).
    */
   champions?: Partial<Record<HeroId, { art?: string; owned: boolean }>>;
+  /**
+   * CHAMPION-STORE.md §10: which champions this player may pick. A locked one can be viewed, unlocked (Yarn, a
+   * Champion Pick, on the web its price) or played as Practice (a match that saves nothing). Absent: every hero.
+   */
+  champs?: PickChamps;
 }
+
+export interface PickChamps {
+  state(): ChampionsState;
+  /** App builds: no price, no buy button, web-bought champions count as locked (founder decision 1). */
+  isApp: boolean;
+  /** The web store is open: the price button opens its sheet. */
+  store: boolean;
+  onUnlock(h: HeroId, via: 'yarn' | 'pick'): void;
+  onBuy(h: HeroId): void;
+  /** A locked champion's tile was tapped (analytics). */
+  onLockedView?(h: HeroId): void;
+}
+
+/** "$3.99" / "€3.99". */
+const centsText = (c: { usd: number; eur: number }): string => {
+  const cur = browserCurrency();
+  const v = c[cur];
+  return `${cur === 'eur' ? '€' : '$'}${Math.floor(v / 100)}.${String(v % 100).padStart(2, '0')}`;
+};
+
+/**
+ * The unlock row of a locked champion (CHAMPION-STORE.md §10): "Unlock · 3,500 Yarn" or "1,200 Yarn to go (about 13
+ * matches)", "Use a Champion Pick" when one is left (Tier 1 and 2), and on the web only its price. No offer is pushed:
+ * this shows only on a tile the player tapped.
+ */
+export function champBarHtml(h: HeroId, c: PickChamps): string {
+  const s = c.state();
+  // app builds: an owned champion the app does not offer has nothing to unlock (Practice still plays it)
+  if (appHidden(h, s, c.isApp)) return '';
+  const info = unlockInfo(h, s);
+  const out: string[] = [];
+  if (info.yarn !== null) {
+    out.push(
+      info.toGo === 0
+        ? `<button type="button" class="pl-btn small" data-a="unlock" data-via="yarn" data-testid="champ-unlock">Unlock · ${yarnText(info.yarn)} Yarn</button>`
+        : `<span class="cs-togo" data-testid="champ-togo">${yarnText(info.toGo)} Yarn to go (about ${matchesFor(info.toGo)} matches)</span>`,
+    );
+  }
+  if (info.pick) out.push(`<button type="button" class="pl-btn small" data-a="unlock" data-via="pick" data-testid="champ-pick">Use a Champion Pick</button>`);
+  if (!c.isApp && c.store && info.cents) out.push(`<button type="button" class="pl-btn ghost small" data-a="buychamp" data-testid="champ-buy">${esc(centsText(info.cents))}</button>`);
+  return out.join('');
+}
+
+const champsChanged = new WeakMap<HTMLElement, () => void>();
+/** CHAMPION-STORE.md: the player's champions changed (an unlock, a purchase): redraw the pick screen in place. */
+export const refreshPickChamps = (root: HTMLElement): void => champsChanged.get(root)?.();
 
 export { isNewHero, SIDE_TAB_CSS } from './champSelect/roles';
 
@@ -222,7 +276,11 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
   const lookOf = (h: HeroId): Look | null => (o.owned ? resolveLook(h, o.owned, looks[h]) : null);
   // sim v14: a dog dare opens on the dogs even before match 1
   const dogsLocked = o.dogsLocked === true && HEROES[c.hero]?.side !== 'dog';
-  const why = (h: HeroId): string => (dogsLocked && HEROES[h].side === 'dog' ? DOGS_LOCKED : '');
+  const dogWhy = (h: HeroId): string => (dogsLocked && HEROES[h].side === 'dog' ? DOGS_LOCKED : '');
+  // CHAMPION-STORE.md §6: a champion that is not a starter, free this week or owned (it can be viewed and practised)
+  const champWhy = (h: HeroId): string => (o.champs ? lockReason(h, o.champs.state(), o.champs.isApp) : '');
+  const why = (h: HeroId): string => dogWhy(h) || champWhy(h);
+  const champTag = (h: HeroId): string | null => (o.champs && champStatus(h, o.champs.state(), o.champs.isApp) === 'free' ? 'Free' : null);
   const markSide = (): void => {
     document.documentElement.dataset.pickSide = HEROES[c.hero]?.side ?? 'cat';
   };
@@ -272,7 +330,9 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     }, 3500);
   };
   const model = (): CsModel => {
-    const no = why(viewing);
+    const no = dogWhy(viewing);
+    const practice = !no && !!champWhy(viewing);
+    const freeLine = !practice && champTag(viewing) && o.champs ? `<span class="cs-togo">${esc(rotationEndText(o.champs.state()))}</span>` : '';
     const vs = (DIFFICULTY_TEXT as Record<string, string>)[c.difficulty] ?? 'bots';
     return {
       kind: 'solo',
@@ -283,7 +343,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       dogsLocked,
       tile: (h) => {
         const id = cardIdentity(h, lookOf(h));
-        return { locked: why(h) || undefined, cardName: id?.name ?? null, rung: id?.rung ?? null, owned: o.champions?.[h]?.owned ? (championOf(h)?.cardName ?? null) : null };
+        return { locked: why(h) || undefined, cardName: id?.name ?? null, rung: id?.rung ?? null, owned: o.champions?.[h]?.owned ? (championOf(h)?.cardName ?? null) : null, champTag: champTag(h) };
       },
       portrait: (h) => portraitUrl(h, lookOf(h)),
       trick: c.trick,
@@ -292,7 +352,8 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       // the Token Tails squad (embed integration) walks with the team: its slot sits under the seats
       teamNote: '<div class="cs-squad" data-slot="cards"></div>',
       footLeft: botsHtml(),
-      lock: { enabled: !no, label: 'LOCK IN', sub: no || `vs ${vs}` },
+      lock: practice ? { enabled: true, label: 'PRACTICE', sub: 'Saves nothing: unlock it to earn' } : { enabled: !no, label: 'LOCK IN', sub: no || `vs ${vs}` },
+      champBar: practice && o.champs ? champBarHtml(viewing, o.champs) : freeLine,
       note,
       numbers,
       numbersToggle: !!o.onNumbers,
@@ -311,6 +372,15 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     looks[h] = look;
     render();
   });
+  champsChanged.set(root, () => {
+    // an unlock or a purchase landed: the viewed champion becomes the pick when it is playable now
+    if (!why(viewing) && viewing !== c.hero) {
+      c.hero = viewing;
+      o.onHero(viewing);
+      markSide();
+    }
+    render();
+  });
   faces.set(root, () => {
     const cs = root.querySelector<HTMLElement>('.cs');
     if (cs) refreshFaces(cs, (h) => portraitUrl(h, lookOf(h)));
@@ -323,6 +393,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       o.onHero(h);
       markSide();
     }
+    if (champWhy(h)) o.champs?.onLockedView?.(h);
     render();
   };
   root.addEventListener('click', (e) => {
@@ -343,9 +414,17 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const btn = t.closest<HTMLElement>('[data-a]');
     const a = btn?.dataset.a;
     if (a === 'start') {
-      if (why(viewing)) return;
+      if (dogWhy(viewing)) return;
+      // a locked champion: Practice (a solo match that saves nothing)
+      if (champWhy(viewing)) return o.onStart({ ...c, hero: viewing }, { practice: true });
       return o.onStart({ ...c });
     }
+    if (a === 'unlock' && o.champs) {
+      const via = btn?.dataset.via === 'pick' ? 'pick' : 'yarn';
+      btn?.setAttribute('disabled', '');
+      return o.champs.onUnlock(viewing, via);
+    }
+    if (a === 'buychamp' && o.champs) return o.champs.onBuy(viewing);
     if (a === 'back') return o.onBack();
     if (a === 'veteran') return o.onVeteran?.();
     if (a === 'look') {

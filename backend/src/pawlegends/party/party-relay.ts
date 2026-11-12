@@ -72,6 +72,7 @@ import { RoomScheduler, phaseOf } from './room-scheduler';
 import type { Occupant, RelayRow, RoomStore, StoredParty, StoredRoom } from './room-store';
 import { memoryMm, type MmHookFactory, type MmHooks, type MmRelayApi, type MmRoomView } from '../mm/mm-bridge';
 import { MemoryMmRoomStore } from '../mm/mm-room.schema';
+import { CHAMPION_IDS, isFreeChampion, rotationWeek } from '../pawlegends-catalog';
 import {
     CHAT_LIMITS,
     MATCH_LEGACY_CHAT,
@@ -125,6 +126,12 @@ export interface RelayOptions {
      * up must never drain the relay that still serves players. Handoffs, pulls and the restore loop ignore pools.
      */
     pool?: string;
+    /**
+     * CHAMPION-STORE.md §8.1: the champions a ticketed account owns (PawlegendsSeasonService.ownedHeroes, the
+     * Founders roster checked first). With it, a member picks only starters, the pick's rotation and owned
+     * champions; without it (specs, the harness) every hero is open.
+     */
+    champions?: (accountId: string) => Promise<readonly string[]>;
     /**
      * Friends chat (CHAT-AVATARS.md §5): resolve a ticketed account's chat side, store party lines, and receive DM
      * notices. Production wires the Mongo models (party-relay.service.ts); without it (specs, harness) every member is
@@ -188,6 +195,15 @@ const chatMid = (nowMs: number) =>
         .toString(16)
         .padStart(8, '0')
         .slice(-8) + randomBytes(8).toString('hex');
+
+/** CHAMPION-STORE.md §8.1: a member's owned champions are read again at most this often (after a refused pick). */
+export const CHAMPS_RELOAD_MS = 5000;
+/**
+ * An owned (not free) champion is picked on a cached answer at most this old; an older one is read again first, so a
+ * refund or a chargeback (the purchase row revoked) stops being playable online without a relay restart.
+ */
+export const CHAMPS_MAX_AGE_MS = 10 * 60_000;
+const CHAMPS_CACHE_MAX = 20_000;
 
 /** What started a drain (LIVE-MATCH-DEPLOYS.md §4.1); a later trigger only makes it more final. */
 export type DrainTrigger = 'generation' | 'endpoint' | 'sigterm';
@@ -412,6 +428,8 @@ export class PartyRelay {
     private botTimer: NodeJS.Timeout | null = null;
     private readonly botSalt = randomBytes(16).toString('hex');
     private readonly botSeen: BotSeenStore;
+    /** CHAMPION-STORE.md §8.1: owned champions per ticketed account, and when they were read. */
+    private readonly champs = new Map<string, { heroes: Set<string>; atMs: number; loading: Promise<void> | null }>();
 
     constructor(private readonly opts: RelayOptions) {
         this.now = opts.now ?? Date.now;
@@ -435,6 +453,7 @@ export class PartyRelay {
                 difficulties: ['rookie', 'easy', 'normal', 'hard'].filter(d => sim.DIFFICULTIES.includes(d as never)),
                 sideOf: h => sim.heroSideOf(h),
                 newbieHero: 'clem',
+                allowed: (p, m, hero) => this.championAllowed(p.rotationWeek, m.identity, hero),
             },
             {
                 changed: p => {
@@ -484,6 +503,61 @@ export class PartyRelay {
 
     private get pool(): string {
         return this.opts.pool || DEFAULT_POOL;
+    }
+
+    /**
+     * CHAMPION-STORE.md §8.1: a starter, the pick's rotation week, or a champion the member's ticketed account owns.
+     * A hero the catalogue does not know (a newer sim's) is open; unticketed members get starters and the rotation.
+     */
+    private championAllowed(week: number | undefined, identity: MemberIdentity, hero: string): boolean {
+        if (!this.opts.champions || !CHAMPION_IDS.includes(hero)) return true;
+        if (isFreeChampion(hero, week ?? rotationWeek(this.now()))) return true;
+        const account = identity.ticketed ? identity.accountId : null;
+        return !!account && !!this.champs.get(account)?.heroes.has(hero);
+    }
+
+    /** Reads an account's owned champions (at most every CHAMPS_RELOAD_MS; a failed read keeps the last answer). */
+    private loadChamps(accountId: string): Promise<void> {
+        const load = this.opts.champions;
+        if (!load) return Promise.resolve();
+        const now = this.now();
+        const e = this.champs.get(accountId);
+        if (e?.loading) return e.loading;
+        if (e && now - e.atMs < CHAMPS_RELOAD_MS) return Promise.resolve();
+        const entry = e ?? { heroes: new Set<string>(), atMs: 0, loading: null };
+        entry.atMs = now;
+        entry.loading = load(accountId)
+            .then(heroes => {
+                entry.heroes = new Set(heroes);
+            })
+            .catch(() => undefined)
+            .finally(() => {
+                entry.loading = null;
+            });
+        this.champs.delete(accountId);
+        this.champs.set(accountId, entry);
+        // oldest first: the cache never grows past its cap
+        while (this.champs.size > CHAMPS_CACHE_MAX) this.champs.delete(this.champs.keys().next().value as string);
+        return entry.loading;
+    }
+
+    /**
+     * A hover or lock of a champion the member may not pick yet: read its account's champions again first (a purchase
+     * or a Yarn unlock in this session), then apply the pick. The party service refuses it again if still locked.
+     */
+    private pickChamp(s: Sock, member: string, hero: string, apply: () => void): void {
+        const party = this.parties.partyOf(member);
+        const identity = s.identity;
+        const account = identity?.ticketed ? identity.accountId : null;
+        if (!this.opts.champions || !party || !identity || !account) return apply();
+        const week = party.rotationWeek ?? rotationWeek(this.now());
+        const owns = CHAMPION_IDS.includes(hero) && !isFreeChampion(hero, week);
+        const e = this.champs.get(account);
+        const stale = owns && (!e || this.now() - e.atMs >= CHAMPS_MAX_AGE_MS);
+        if (!stale && this.championAllowed(party.rotationWeek, identity, hero)) return apply();
+        void this.loadChamps(account).then(() => {
+            if (s.memberId === member && !s.closed) apply();
+        });
     }
 
     /** The party API of the sim the party is pinned to (its leader's), or null before the leader's hello. */
@@ -1008,6 +1082,8 @@ export class PartyRelay {
         s.helloed = true;
         if (s.helloTimer) clearTimeout(s.helloTimer);
         s.identity = identity;
+        // CHAMPION-STORE.md §8.1: the account's champions are read before its first pick
+        if (identity.ticketed && identity.accountId) void this.loadChamps(identity.accountId);
         s.hint = msg.hint;
         s.sim = { version: msg.sim, hash: msg.simHash };
         s.proto = msg.proto;
@@ -1290,9 +1366,9 @@ export class PartyRelay {
             case 'party.nudge':
                 return p.nudge(member, msg.member);
             case 'pick.hover':
-                return p.hover(member, msg.hero);
+                return this.pickChamp(s, member, msg.hero, () => p.hover(member, msg.hero));
             case 'pick.lock':
-                return p.lock(member, msg.hero, msg.trick);
+                return this.pickChamp(s, member, msg.hero, () => p.lock(member, msg.hero, msg.trick));
             case 'pick.unlock':
                 return p.unlock(member);
             case 'load':
@@ -2087,6 +2163,23 @@ export class PartyRelay {
             }
             this.parties.matchEnded(party.id);
             this.log('refused_old_sim', { simVersion: sim.version });
+            return;
+        }
+        // CHAMPION-STORE.md §8.2: every human seat again (a lock was checked; a forged or stale one refuses the room,
+        // never a silent swap). Pilots and bots pick any champion. A seat that fails on this relay's cache (a party
+        // restored or handed off here before its members' champions were read) reads its account once first.
+        const failing = () => party.members.filter(m => !!m.hero && !this.parties.heroAllowedFor(party, m, m.hero));
+        const stale = failing()
+            .map(m => (m.identity.ticketed ? m.identity.accountId : null))
+            .filter((a): a is string => !!a);
+        if (stale.length) {
+            await Promise.all(stale.map(a => this.loadChamps(a)));
+            if (party.ended || (this.state as string) === 'stopped') return;
+        }
+        if (failing().length) {
+            for (const m of party.members) this.sendJsonTo(m.id, { t: 'error', code: 'bad_message' });
+            this.parties.matchEnded(party.id);
+            this.log('refused_hero_locked', {});
             return;
         }
         // casual PvP: the pinned sim must run PvP, and each team must be one species (V16.md §3.1.6, §4.2); 5v5

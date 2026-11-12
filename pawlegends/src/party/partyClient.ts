@@ -20,7 +20,7 @@ import { queueCardHtml, type QueueStop } from './ui/queueCard';
 import { acceptCardHtml } from './ui/acceptCard';
 import { lobbyHtml, qrSheetHtml, shownName } from './ui/partyLobby';
 import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
-import { firstFree, heroBlock, lockedByOthers, pickHtml } from './ui/partyPick';
+import { firstFree, heroBlock, lockedByOthers, pickHtml, setPickChampLock } from './ui/partyPick';
 import { openChampSelect, patchChampSelect, timerText, wireChampSelect } from '../ui/champSelect/champSelect';
 import { loadProfile, saveProfile } from '../meta/profile';
 import type { SkillSlot } from '../ui/skillCodex/facts';
@@ -635,6 +635,8 @@ export interface PartyHooks {
   mmInfo?(): { surface: 'web' | 'embed' | 'app'; matches: number; guest: boolean };
   /** The hero this player last played on a side (the Quick Play pick's default), or ''. */
   heroForSide?(side: 'cat' | 'dog'): string;
+  /** CHAMPION-STORE.md §8.1: why this player may not pick a champion ('' when it can): starters, rotation, owned. */
+  champLock?(hero: string): string;
   /** A backfill took this player's seat while the match ran: end it in the app (the party screen says why). */
   endMatch?(): void;
   /** D10: a party of one with Open seats off plays a normal local match (the party stays open). */
@@ -1749,6 +1751,7 @@ export class PartyClient {
 
 /** Open the party flow: create a party at once (the first tap), join `code` (a link), type a code, or resume a seat. */
 export function openParty(h: PartyHooks, opts: { mode: OpenMode; code?: string | null }): PartyClient {
+  setPickChampLock(h.champLock ? (hero) => h.champLock!(hero) : null);
   return new PartyClient(h, opts);
 }
 

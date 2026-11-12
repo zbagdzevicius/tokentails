@@ -210,7 +210,11 @@ PawlegendsWebhookEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 
 // Cosmetic only: nothing here is read by the sim, the replay or the score.
 // ---------------------------------------------------------------------------------------------
 
-export type PawlegendsOwnedSource = 'purchase' | 'pass' | 'legacy';
+/**
+ * How an item was got: a web purchase, a pass reward, the presale, and for champions (CHAMPION-STORE.md) the
+ * Founders roster grant, a Yarn unlock or a free Champion Pick.
+ */
+export type PawlegendsOwnedSource = 'purchase' | 'pass' | 'legacy' | 'founders' | 'yarn' | 'milestone';
 
 @Schema({ collection: 'pawlegendsowned', timestamps: true })
 export class PawlegendsOwned extends CommonSchema {
@@ -290,6 +294,90 @@ export class PawlegendsSeason {
 export type PawlegendsSeasonDocument = PawlegendsSeason & Document;
 export const PawlegendsSeasonSchema = SchemaFactory.createForClass(PawlegendsSeason);
 
+// ---------------------------------------------------------------------------------------------
+// Yarn (docs/plans/moba/CHAMPION-STORE.md §4): the earned soft currency that unlocks champions. One row per account
+// (`_id` = account id): the balance, the verified matches counted for the welcome milestones, the Champion Picks
+// earned and spent, the weekly chest's ISO week and count, and the Founders roster check. Never sold, never
+// converted, no cash value. One more row, `_id: 'meta:champions-release'`, holds the release time T of the champion
+// store (the Founders roster cut-off), written once by the first backend that runs this code.
+// ---------------------------------------------------------------------------------------------
+
+@Schema({ collection: 'pawlegendsyarn', timestamps: true })
+export class PawlegendsYarn {
+    @Prop({ type: String })
+    _id: string;
+
+    @Prop({ default: 0 })
+    balance: number;
+
+    /** Yarn earned in total (never decreases). */
+    @Prop({ default: 0 })
+    earned: number;
+
+    /** Verified matches that paid Yarn (the welcome milestones count these). */
+    @Prop({ default: 0 })
+    matches: number;
+
+    /** Champion Picks earned by milestones, and spent. */
+    @Prop({ default: 0 })
+    picks: number;
+
+    @Prop({ default: 0 })
+    picksUsed: number;
+
+    /**
+     * The champions this row paid for (Yarn or a Champion Pick): the spend's claim, written in the same update as the
+     * spend, so an unlock never spends twice and a grant that failed after the spend is finished by the next call.
+     */
+    @Prop({ type: [String], default: undefined })
+    unlocked?: string[];
+
+    /** The weekly chest: the ISO week (`2026-W47`) of `weekMatches`, and the last week whose chest was paid. */
+    @Prop()
+    week?: string;
+
+    @Prop()
+    weekMatches?: number;
+
+    @Prop()
+    chestWeek?: string;
+
+    /** The Founders roster check ran for this account (granted or not). */
+    @Prop()
+    foundersChecked?: boolean;
+
+    /** The release row only: the champion store's release time. */
+    @Prop()
+    at?: Date;
+}
+export type PawlegendsYarnDocument = PawlegendsYarn & Document;
+export const PawlegendsYarnSchema = SchemaFactory.createForClass(PawlegendsYarn);
+
+/** The Yarn ledger: one row per payment or spend, unique per account and `ref` (a game id, `unlock:<id>`, a week). */
+@Schema({ collection: 'pawlegendsyarnlog', timestamps: true })
+export class PawlegendsYarnLog {
+    @Prop({ required: true })
+    accountId: string;
+
+    @Prop({ required: true })
+    ref: string;
+
+    /** Positive: earned; negative: spent. */
+    @Prop({ required: true })
+    amount: number;
+
+    /** The champion an unlock or a pick bought. */
+    @Prop()
+    hero?: string;
+
+    /** An unlock's record: written after its spend (the claim is the Yarn row's `unlocked`). */
+    @Prop()
+    done?: boolean;
+}
+export type PawlegendsYarnLogDocument = PawlegendsYarnLog & Document;
+export const PawlegendsYarnLogSchema = SchemaFactory.createForClass(PawlegendsYarnLog);
+PawlegendsYarnLogSchema.index({ accountId: 1, ref: 1 }, { unique: true });
+
 /** Every Pawlegends schema, for `MongooseModule.forFeature` in the one AppModule. */
 export const PAWLEGENDS_SCHEMAS = [
     { name: PawlegendsPurchase.name, schema: PawlegendsPurchaseSchema },
@@ -300,6 +388,8 @@ export const PAWLEGENDS_SCHEMAS = [
     { name: PawlegendsWebhookEvent.name, schema: PawlegendsWebhookEventSchema },
     { name: PawlegendsOwned.name, schema: PawlegendsOwnedSchema },
     { name: PawlegendsSeason.name, schema: PawlegendsSeasonSchema },
+    { name: PawlegendsYarn.name, schema: PawlegendsYarnSchema },
+    { name: PawlegendsYarnLog.name, schema: PawlegendsYarnLogSchema },
 ];
 
 /**
@@ -316,6 +406,8 @@ export class PawlegendsStore {
         @InjectModel(PawlegendsNotify.name) readonly notify: Model<PawlegendsNotifyDocument>,
         @InjectModel(PawlegendsWebhookEvent.name) readonly webhookEvents: Model<PawlegendsWebhookEventDocument>,
         @InjectModel(PawlegendsOwned.name) readonly owned: Model<PawlegendsOwnedDocument>,
-        @InjectModel(PawlegendsSeason.name) readonly seasons: Model<PawlegendsSeasonDocument>
+        @InjectModel(PawlegendsSeason.name) readonly seasons: Model<PawlegendsSeasonDocument>,
+        @InjectModel(PawlegendsYarn.name) readonly yarn: Model<PawlegendsYarnDocument>,
+        @InjectModel(PawlegendsYarnLog.name) readonly yarnLog: Model<PawlegendsYarnLogDocument>
     ) {}
 }
