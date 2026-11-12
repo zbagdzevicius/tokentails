@@ -69,6 +69,9 @@ describe('home state logic', () => {
     const last = { hero: 'sage' as const, trick: 'pounce' as const, difficulty: 'easy' as const, map: 'hearthwood' as const };
     expect(botsChoice(last, 'hard', modeById('skirmish')!)).toEqual({ hero: 'sage', trick: 'pounce', difficulty: 'hard' });
     expect(botsChoice(last, 'normal', modeById('classic')!)).toEqual({ hero: 'sage', trick: 'pounce', difficulty: 'normal', map: 'hearthwood' });
+    // sim v22: Blitz is the Crossing with the blitz mutator (no map); another mode drops a remembered mutator
+    expect(botsChoice(last, 'easy', modeById('blitz')!)).toEqual({ hero: 'sage', trick: 'pounce', difficulty: 'easy', mutator: 'blitz' });
+    expect(botsChoice({ ...last, mutator: 'blitz' }, 'easy', modeById('skirmish')!)).toEqual({ hero: 'sage', trick: 'pounce', difficulty: 'easy' });
   });
 
   it('the profile ring shows Season XP progress only when a season is known', () => {

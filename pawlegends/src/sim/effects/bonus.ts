@@ -40,6 +40,7 @@ export function stepBonuses(w: World): void {
       if (w.mg[MG.Prickle + id] > 0) w.mg[MG.Prickle + id]--;
       if (w.mg[MG.Feather + id] > 0) w.mg[MG.Feather + id]--;
       if (w.mg[MG.Hoard + id] > 0) w.mg[MG.Hoard + id]--;
+      if (w.mg[MG.Rush + id] > 0) w.mg[MG.Rush + id]--;
     }
   }
 }

@@ -120,6 +120,13 @@ describe('store catalogue', () => {
         expect(seasonXpFor({ won: true, forfeit: false, takedowns: 3, firstWinToday: true })).toBe(100 + 30 + 150);
         expect(seasonXpFor({ won: false, forfeit: false, takedowns: 40, firstWinToday: true })).toBe(60 + 150);
         expect(seasonXpFor({ won: false, forfeit: true, takedowns: 5, firstWinToday: false })).toBe(20);
+        // sim v22 (WR-BS-PLAN.md §9): a Blitz match pays per minute like Skirmish (7:30 = 13,500 ticks); the first win
+        // of the day stays whole; a draw is the loss plus half the win bonus
+        expect(seasonXpFor({ won: true, forfeit: false, takedowns: 3, firstWinToday: true, ticks: 5400 })).toBe(
+            Math.round(130 * 0.4) + 150
+        );
+        expect(seasonXpFor({ won: false, forfeit: false, takedowns: 0, firstWinToday: false, ticks: 99_999 })).toBe(60);
+        expect(seasonXpFor({ won: false, forfeit: false, takedowns: 0, firstWinToday: false, draw: true })).toBe(80);
         const s1 = SEASONS[0];
         expect(seasonTier(s1, 399)).toBe(0);
         expect(seasonTier(s1, 800, 15)).toBe(17);

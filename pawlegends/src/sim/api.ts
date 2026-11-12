@@ -81,9 +81,14 @@ export interface CosmeticsConfig {
 export type BotTalentMode = 'first' | 'seeded' | 'branch';
 export const BOT_TALENT_MODES: readonly BotTalentMode[] = Object.freeze(['first', 'seeded', 'branch'] as BotTalentMode[]);
 
-/** Sim v10 (GAPS B0): the match mutator. Only 'none' exists in v10 (mutators come later, GAPS §8 item 18). */
-export type Mutator = 'none';
-export const MUTATORS: readonly Mutator[] = Object.freeze(['none'] as Mutator[]);
+/**
+ * Sim v10 (GAPS B0): the match mutator. Only 'none' existed until v21. Sim v22 (WR-BS-PLAN.md §4): 'blitz', the
+ * ~3-minute Crossing match (data/mutators.ts); a record of an earlier sim version may only carry 'none'.
+ */
+export type Mutator = 'none' | 'blitz';
+export const MUTATORS: readonly Mutator[] = Object.freeze(['none', 'blitz'] as Mutator[]);
+/** Sim v22: the first sim version that plays a mutator other than 'none'. */
+export const MUTATOR_PLAY_SINCE = 22; // lint-sim: allow (a version number)
 
 export interface MatchConfig {
   /** uint32. A dare link carries it; otherwise the host draws one. */
@@ -118,6 +123,11 @@ export interface MatchConfig {
    * `picks` and `tricks` have 10 slots, `humans` lists slots 0..4 (party) or 0..9 with 0 and 5 (PvP).
    */
   map?: MapId;
+  /**
+   * Sim v22: the mutator (omitted = 'none', byte-identical to v21). 'blitz' is Crossing only and not in PvP
+   * (WR-BS-PLAN.md §3a: bots and Party only).
+   */
+  mutator?: Mutator;
 }
 
 /** Sim v16: 'pve' (co-op and solo against bots) or 'pvp' (humans on both teams). */
@@ -196,7 +206,8 @@ export type PickupKind = 'frenzy' | 'snack';
 /** Bonus kinds of the `buff` event (sim v4). */
 /** 'takedown' (sim v4): a hero credited with a takedown got TAKEDOWN_HEAL back (data/xp.ts); `ticks` is 0. */
 /** Sim v19 (Hearthwood): 'prickle' and 'feather' (jungle buffs), 'hoard' (Grizzlechop's shield). */
-export type BuffKind = 'nineLives' | 'frenzy' | 'snack' | 'pack' | 'zoomies' | 'takedown' | 'prickle' | 'feather' | 'hoard';
+/** Sim v22: 'sugarRush' (the Great Pudding's team buff). */
+export type BuffKind = 'nineLives' | 'frenzy' | 'snack' | 'pack' | 'zoomies' | 'takedown' | 'prickle' | 'feather' | 'hoard' | 'sugarRush';
 
 /** Coarse state for animation. */
 export type UnitStateName = 'idle' | 'moving' | 'attacking' | 'casting' | 'dead' | 'napping';
@@ -234,6 +245,9 @@ export const BuffFlag = Object.freeze({
   Cannon: 1 << 23, // lint-sim: allow (a bit index)
   Fortified: 1 << 24, // lint-sim: allow (a bit index)
   Leaping: 1 << 25, // lint-sim: allow (a bit index)
+  /** Sim v22 (MAP-5V5-STANDARD.md §6.2): a hero has Sugar Rush; a minion is boosted by an allied Sugar Rush hero. */
+  SugarRush: 1 << 26, // lint-sim: allow (a bit index)
+  Sugared: 1 << 27, // lint-sim: allow (a bit index)
 } as const);
 
 export interface EntitySnap {
@@ -480,7 +494,8 @@ export interface ObjectiveSnap {
 /** Sim v19: a jungle camp: index, kind, centre, whether a monster is up, ticks to its respawn (0 while up). */
 export interface CampSnap {
   id: number;
-  kind: 'rat' | 'prickle' | 'crow' | 'toad';
+  /** Sim v22: 'beetle' (the Beetle Log). */
+  kind: 'rat' | 'prickle' | 'crow' | 'toad' | 'beetle';
   x: number;
   y: number;
   up: boolean;
@@ -521,9 +536,15 @@ export interface SlotStats {
 export interface MatchResult {
   /** From the human's (slot 0, Purrhaven) point of view. */
   outcome: Outcome;
-  winner: Team;
-  /** Sim v10 (GAPS B2): 'forfeit' = the human forfeited (outcome 'lost'). */
-  reason: 'core' | 'safetyEnd' | 'forfeit';
+  /** Sim v22: −1 on a draw (`draw`). */
+  winner: Team | -1;
+  /**
+   * Sim v10 (GAPS B2): 'forfeit' = the human forfeited (outcome 'lost'). Sim v22: 'timeUp' = a Blitz match reached its
+   * designed end (data/mutators.ts hardEnd), decided on structures, core HP, takedowns, structure damage, else a draw.
+   */
+  reason: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp';
+  /** Sim v22: a 'timeUp' end with every tie-break equal; `winner` is −1 and `outcome` 'lost' for both teams. */
+  draw?: true;
   ticks: number;
   /** 8-digit hex FNV-1a of the final state. */
   finalHash: string;
@@ -624,7 +645,7 @@ export type VerifyCode =
 
 export type VerifyResult =
   /** Sim v10 (GAPS B2): `reason` says how the match ended ('forfeit': the human forfeited; the backend stores 'quit'). */
-  | { ok: true; outcome: Outcome; finalHash: string; ticks: number; stats: SlotStats[]; reason: MatchResult['reason']; winner?: Team }
+  | { ok: true; outcome: Outcome; finalHash: string; ticks: number; stats: SlotStats[]; reason: MatchResult['reason']; winner?: Team | -1; draw?: true }
   | { ok: false; code: VerifyCode; message: string };
 
 // ---------------------------------------------------------------------------------------------------------------

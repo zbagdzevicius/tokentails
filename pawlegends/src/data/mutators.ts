@@ -1,0 +1,133 @@
+/**
+ * Sim v22 (docs/plans/moba/WR-BS-PLAN.md §4): the match mutators' rule table. One frozen row per mutator, read by the
+ * tower and core setup, XP, respawn, the Kibble Cannon, the phase clock and the win check (sim/mutator.ts `mutOf`),
+ * so no system carries its own `if (blitz)`. Every value of the 'none' row is the neutral one: a 'none' match plays
+ * exactly as in v21 (gate G1).
+ *
+ * Blitz: a ~3-minute Crossing match. Start at level 4 (the level-3 talent is offered at once), XP ×2, towers ×0.45 and
+ * cores ×0.5 HP (of the v21 values), respawn 6 s rising to 8 s, the cannon at 0:20 and 40 s after each shot, Sunset at
+ * 1:30, Sudden Death at 2:30, and a hard end at 3:15 (EndReason 4 timeUp, won on structures, then core HP, then
+ * takedowns, then structure damage, else a draw).
+ */
+import type { HeroId, MapId, Mutator } from '../sim/api';
+import { CROSSING_CANNON, type CannonData } from './fun';
+
+export interface MutatorRules {
+  /** The maps it may be played on (empty: every map). */
+  maps: readonly MapId[];
+  /** Level every hero starts at (1: the normal start). The talents of the levels passed are offered at tick 0. */
+  startLevel: number;
+  /** XP from every source × this (bp; 10000 = ×1). */
+  xpBp: number;
+  /** Tower and core HP × this, after the difficulty's own scale (bp). */
+  towerHpBp: number;
+  coreHpBp: number;
+  /** Respawn wait, ticks: `respawnFrom` at 0:00 rising in a straight line to `respawnTo` at the hard end; 0: the normal
+   *  rules (level, Sunset, lead pressure, caps). */
+  respawnFrom: number;
+  respawnTo: number;
+  /** Kibble Cannon row (its first spawn and the wait after a shot or fizzle); null: the map's own. */
+  cannon: CannonData | null;
+  /** Towers are Fortified until this tick (−1: the map's own, TOWERS.fortifyUntil; 0: never). */
+  fortifyUntil: number;
+  /** Catch-up XP starts at this tick (−1: the difficulty's DifficultyRules.catchUpFrom). */
+  catchUpFrom: number;
+  /** Hero-vs-hero damage × this (bp), then the per-hero row (`hero`, its own balance pass). */
+  heroVsHeroBp: number;
+  hero: Readonly<Partial<Record<HeroId, Readonly<{ dmgBp: number; takenBp: number }>>>>;
+  /** Sudden Death decay follows the takedown gap (SUDDEN_DEATH.decayPerTakedownBp) when the difficulty has lead
+   *  pressure; false: every core burns at the base rate. */
+  decayLead: boolean;
+  /** The Underdog Cannon favours a team this many takedowns behind (0: the COMEBACK trigger's own). */
+  underdogTakedowns: number;
+  /** Core damage from takedowns (the chip before Sunset, the Sunset and Sudden Death share) × this (bp). */
+  takedownCoreBp: number;
+  /** Enemy bots leave the human alone until this tick (−1: the difficulty's DifficultyRules.truceUntil). */
+  truceUntil: number;
+  /** Sunset and Sudden Death ticks (0: the difficulty's). */
+  sunset: number;
+  suddenDeath: number;
+  /** The designed end (0: none, only the map's safety end). At this tick the match ends with reason 'timeUp'. */
+  hardEnd: number;
+}
+
+const NONE: MutatorRules = Object.freeze({
+  maps: Object.freeze([] as MapId[]),
+  startLevel: 1,
+  xpBp: 10000,
+  towerHpBp: 10000,
+  coreHpBp: 10000,
+  respawnFrom: 0,
+  respawnTo: 0,
+  cannon: null,
+  fortifyUntil: -1,
+  catchUpFrom: -1,
+  heroVsHeroBp: 10000,
+  hero: Object.freeze({}),
+  decayLead: true,
+  underdogTakedowns: 0,
+  takedownCoreBp: 10000,
+  truceUntil: -1,
+  sunset: 0,
+  suddenDeath: 0,
+  hardEnd: 0,
+});
+
+const BLITZ: MutatorRules = Object.freeze({
+  maps: Object.freeze(['crossing'] as MapId[]),
+  startLevel: 4,
+  xpBp: 20000,
+  // v21 Crossing towers 2,250 / 2,750 → about 1,010 / 1,240
+  towerHpBp: 4500,
+  coreHpBp: 5000,
+  // 6 s → 8 s
+  respawnFrom: 180,
+  respawnTo: 240,
+  // 0:20, then 40 s after each shot or fizzle (none from Sudden Death on, as on every map)
+  cannon: Object.freeze({ ...CROSSING_CANNON, first: 600, respawn: 1200 }),
+  // Crossing's Fortified 3:00 would cover the whole match: no Fortify, so towers fall inside 3 minutes
+  fortifyUntil: 0,
+  // Normal's catch-up starts at 3:00 (never in Blitz): from 0:45
+  catchUpFrom: 1350,
+  // takedowns 3.5 a minute at ×1; the Blitz band is 4 to 6 (BLITZ.md §4)
+  heroVsHeroBp: 13500,
+  // fitted on the Blitz gate (4,000-seed windows 980001 and 990001, then four outliers): every match is cats vs dogs, so
+  // a species shift moves ten heroes at once (about 2.6 points per 1% relative); one hero moves about 0.8 points per 1%.
+  // Rebased on main's v20 + v21 (fresh windows 3500001 and 3700001, 4,000 matches): cats 47.8%; every cat row +1% gave
+  // 53.0% (4000001, 4100001), so every cat row +0.5% but Duchess (52.4% before), and Aviete (44.3%) +1.6% in all
+  hero: Object.freeze({
+    aviete: { dmgBp: 9409, takenBp: 10567 },
+    bengas: { dmgBp: 9853, takenBp: 10145 },
+    bravo: { dmgBp: 10820, takenBp: 9180 },
+    brutus: { dmgBp: 10577, takenBp: 9423 },
+    cacklejaw: { dmgBp: 9111, takenBp: 10889 },
+    chili: { dmgBp: 9934, takenBp: 10066 },
+    clem: { dmgBp: 9707, takenBp: 10289 },
+    domino: { dmgBp: 9987, takenBp: 10013 },
+    duchess: { dmgBp: 10147, takenBp: 9853 },
+    frankie: { dmgBp: 8991, takenBp: 11009 },
+    gabe: { dmgBp: 10701, takenBp: 9305 },
+    howler: { dmgBp: 9720, takenBp: 10280 },
+    lambo: { dmgBp: 10624, takenBp: 9382 },
+    marshmallow: { dmgBp: 10285, takenBp: 9715 },
+    meatball: { dmgBp: 11781, takenBp: 8237 },
+    nugget: { dmgBp: 10321, takenBp: 9679 },
+    pixel: { dmgBp: 9312, takenBp: 10680 },
+    rocket: { dmgBp: 9740, takenBp: 10260 },
+    sage: { dmgBp: 9684, takenBp: 10312 },
+    stilts: { dmgBp: 9258, takenBp: 10734 },
+  }),
+  // every core burns 3% a second in Sudden Death: with the takedown-gap burn the team behind at 1:30 won 4% to 8%
+  decayLead: false,
+  // the cannon goes to a team 3 takedowns behind (8 on every other match): a short match needs its comeback early
+  underdogTakedowns: 3,
+  // half the takedown core damage: kills still count, the core and the towers decide
+  takedownCoreBp: 5000,
+  truceUntil: -1,
+  // 1:30 Sunset, 2:30 Sudden Death, 3:15 time up
+  sunset: 2700,
+  suddenDeath: 4500,
+  hardEnd: 5850,
+});
+
+export const MUTATOR_RULES: Readonly<Record<Mutator, MutatorRules>> = Object.freeze({ none: NONE, blitz: BLITZ });

@@ -278,6 +278,12 @@ describe("pawlegends host messages", () => {
     expect(Object.keys(roster.cats[0]).sort()).toEqual(["id", "isStarter", "name", "tier", "type"]);
   });
 
+  it("replayOf keeps a Blitz record's mutator (sim v22: the backend re-sims with it); 'none' is dropped as before", () => {
+    expect(replayOf({ ...REPLAY, mutator: "blitz" })).toEqual({ ...REPLAY, mutator: "blitz" });
+    expect(replayOf({ ...REPLAY, mutator: "none" })).toEqual(REPLAY);
+    expect(replayOf({ ...REPLAY, mutator: "<x>" })).toBeNull();
+  });
+
   it("replayOf enforces the backend DTO bounds", () => {
     expect(replayOf(REPLAY)).toEqual(REPLAY);
     expect(replayOf({ ...REPLAY, difficulty: "nightmare" })).toBeNull();

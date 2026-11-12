@@ -271,6 +271,11 @@ export interface PawlegendsReplay {
   inputs: string;
   outcome: "won" | "lost";
   finalHash: string;
+  /**
+   * Sim v22: the match mutator when it is not 'none' ('blitz', the ~3-minute match). It is part of what was played (the
+   * backend re-sims with it and its digest covers it), so a Blitz record must keep it; 'none' is dropped as before.
+   */
+  mutator?: string;
 }
 
 /** What the game says about the match for display and analytics; never trusted for a save. */
@@ -531,7 +536,10 @@ export function replayOf(value: unknown): PawlegendsReplay | null {
   if (typeof inputs !== "string" || inputs.length > PAWLEGENDS_MAX_INPUT_CHARS || !BASE64.test(inputs)) return null;
   if (outcome !== "won" && outcome !== "lost") return null;
   if (typeof finalHash !== "string" || !/^[0-9a-f]{8}$/.test(finalHash)) return null;
-  return { v: 1, simVersion, seed, difficulty, hero, trick, ticks, inputs, outcome, finalHash };
+  const { mutator } = value;
+  if (mutator !== undefined && mutator !== "none" && (typeof mutator !== "string" || !/^[a-z]{1,16}$/i.test(mutator))) return null;
+  const mut = typeof mutator === "string" && mutator !== "none" ? { mutator } : {};
+  return { v: 1, simVersion, seed, difficulty, hero, trick, ticks, inputs, outcome, finalHash, ...mut };
 }
 
 const shortId = (value: unknown, max = 16): string | null =>

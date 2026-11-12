@@ -9,6 +9,7 @@ import type {
   Difficulty,
   EntityKind,
   MapId,
+  Mutator,
   ObjectiveSnap,
   EntitySnap,
   HeroId,
@@ -43,8 +44,10 @@ export interface JoinMsg {
    * hash, so a sped-up match verifies like any other. Clamped to 1..64; the Phase 2 server ignores it.
    */
   speed?: number;
-  /** Sim v19: the map (omitted = 'crossing', 3v3 Quick; 'hearthwood' = 5v5 Classic). */
+  /** Sim v19: the map (omitted = 'crossing', 3v3 Skirmish; 'hearthwood' = 5v5 Classic). */
   map?: MapId;
+  /** Sim v22: the mutator (omitted = 'none'; 'blitz' on Crossing). */
+  mutator?: Mutator;
 }
 
 export interface CmdMsg {
@@ -81,6 +84,8 @@ export interface WelcomeMsg {
   tricks: TrickId[];
   /** Sim v19: the match's map (omitted = 'crossing'). */
   map?: MapId;
+  /** Sim v22: the match's mutator (omitted = 'none'). */
+  mutator?: Mutator;
 }
 
 /** 30 Hz in the POC. `buf` is transferable; decode with `decodeSnap`. */
@@ -163,7 +168,7 @@ const STATES: readonly UnitStateName[] = ['idle', 'moving', 'attacking', 'castin
 /** The wire index is the HERO_IDS index (append only: the sim v9 champions follow the first four). */
 const HEROES: readonly HeroId[] = HERO_IDS;
 // Sim v19: append only (Hearthwood's tower tiers and camp kinds).
-const VARIANTS: readonly string[] = ['', 'melee', 'ranged', 'siege', 'outer', 'inner', 'gate', 'hearth', 'rat', 'prickle', 'crow', 'toad', 'boss'];
+const VARIANTS: readonly string[] = ['', 'melee', 'ranged', 'siege', 'outer', 'inner', 'gate', 'hearth', 'rat', 'prickle', 'crow', 'toad', 'boss', 'beetle'];
 const LANES: readonly ('sunny' | 'puddle' | 'fence' | 'yarn' | 'gutter')[] = ['sunny', 'puddle', 'fence', 'yarn', 'gutter'];
 const NONE = 0xff;
 const NO_OWNER = 0xff;
@@ -183,7 +188,8 @@ export const TRAILER_REC = 16;
 const MAP_LIST: readonly MapId[] = ['crossing', 'hearthwood'];
 const OBJ_KINDS: readonly ObjectiveSnap['kind'][] = ['grizzlechop', 'pudding'];
 const OBJ_STATES: readonly ObjectiveSnap['state'][] = ['away', 'up', 'escort'];
-const CAMP_KINDS: readonly CampSnap['kind'][] = ['rat', 'prickle', 'crow', 'toad'];
+// Sim v22: append only ('beetle', the Beetle Log).
+const CAMP_KINDS: readonly CampSnap['kind'][] = ['rat', 'prickle', 'crow', 'toad', 'beetle'];
 /**
  * Sim v21 (V21-FUN.md): the fun trailer, after the map trailer (or after the zones on Crossing). u8 0x46 ('F'), u8
  * cannon state, u8 carrier (0xff none), u8 yarn balls; i32 x, i32 y, u16 fuse, u16 windup, i32 nextIn, i32 ax, i32 ay

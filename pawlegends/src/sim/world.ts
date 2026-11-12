@@ -81,6 +81,9 @@ export const Buff = Object.freeze({
   Cannon: 1 << 23, // lint-sim: allow (a bit index)
   Fortified: 1 << 24, // lint-sim: allow (a bit index)
   Leaping: 1 << 25, // lint-sim: allow (a bit index)
+  /** Sim v22 (MAP-5V5-STANDARD.md §6.2): a hero has Sugar Rush; a minion is boosted by an allied Sugar Rush hero. */
+  SugarRush: 1 << 26, // lint-sim: allow (a bit index)
+  Sugared: 1 << 27, // lint-sim: allow (a bit index)
 } as const);
 export type Buff = (typeof Buff)[keyof typeof Buff];
 
@@ -106,7 +109,7 @@ export const G = Object.freeze({
   TowerDamage0: 6,
   TowerDamage1: 7,
   Wave: 8,
-  EndReason: 9, // 0 running, 1 core kill, 2 safety end, 3 forfeit (sim v10)
+  EndReason: 9, // 0 running, 1 core kill, 2 safety end, 3 forfeit (sim v10), 4 time up (sim v22 Blitz)
   InputHash: 10, // FNV-1a of every applied (tick, command): the final hash commits to the whole input stream
   SiegeWaves: 11, // waves spawned since TIMELINE.siegeFrom (every 3rd one, counting from the first, adds a siege)
   /** 1 = the in-sim bots (slots 1..5) do not think. Tests only; a real match never sets it. */
@@ -199,21 +202,31 @@ export const YARN_STATE = Object.freeze({ Away: 0, Rest: 1, Rolling: 2 } as cons
  */
 export const MG = Object.freeze({
   MapId: 0,
-  /** Tick each camp (13: 12 jungle camps and Grizzlechop's pit) spawns next; −1 while up; −2 never again. */
+  /**
+   * Tick each camp spawns next; −1 while up; −2 never again. Sim v22 (MAP-5V5-STANDARD.md §5.4): 17 camps (16 jungle
+   * camps, four per quadrant, and Grizzlechop's pit); v19 to v21 had 13.
+   */
   CampAt: 1,
   /** Grizzlechop: takes per team, Tail Sweep telegraph ticks left and the next sweep tick. */
-  Takes0: 14, // lint-sim: allow
-  Takes1: 15, // lint-sim: allow
-  SweepT: 16, // lint-sim: allow
-  SweepAt: 17, // lint-sim: allow
+  Takes0: 18, // lint-sim: allow
+  Takes1: 19, // lint-sim: allow
+  SweepT: 20, // lint-sim: allow
+  SweepAt: 21, // lint-sim: allow
   /** Per hero (10 each): bot role (ROLE), Prickle Coat ticks, Feather ticks, Hoard shield ticks, objective decision. */
-  Role: 18, // lint-sim: allow
-  Prickle: 28, // lint-sim: allow
-  Feather: 38, // lint-sim: allow
-  Hoard: 48, // lint-sim: allow
-  BossDec: 58, // lint-sim: allow
-  Count: 68, // lint-sim: allow
+  Role: 22, // lint-sim: allow
+  Prickle: 32, // lint-sim: allow
+  Feather: 42, // lint-sim: allow
+  Hoard: 52, // lint-sim: allow
+  BossDec: 62, // lint-sim: allow
+  /** Sim v22 (§6.2): Sugar Rush ticks left per hero (10). */
+  Rush: 72, // lint-sim: allow
+  /** Sim v22 (§9): the in-sim bots' jungle memory, JG_ROW per hero (bots/jungle.ts). */
+  Jg: 82, // lint-sim: allow
+  Count: 162, // lint-sim: allow
 } as const);
+
+/** Sim v22: fields of one hero's jungle memory row (MG.Jg + hero × JG_ROW; bots/jungle.ts). */
+export const JG_ROW = 8;
 
 export interface World {
   // Entities
@@ -483,6 +496,8 @@ export interface World {
   pvp: number;
   /** Sim v19: the match's map (MAP_IDS index: 0 Crossing, 1 Hearthwood). NOT hashed itself (Hearthwood: mg[MG.MapId]). */
   map: number;
+  /** Sim v22: the match's mutator (MUTATORS index: 0 none, 1 blitz). NOT hashed: part of the match config. */
+  mutator: number;
 }
 
 export const COOLDOWN_SLOTS = 5;
@@ -762,6 +777,7 @@ export function createWorld(seed: number, map = 0): World {
     humans: 1,
     pvp: 0,
     map,
+    mutator: 0,
   };
   if (map !== 0) w.mg[MG.MapId] = map;
   w.globals[G.Winner] = -1;

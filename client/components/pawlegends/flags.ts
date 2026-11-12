@@ -66,7 +66,21 @@ export function pawlegendsFrameSrc(search: string): string {
   let src = dare && DARE_CODE.test(dare) ? `${PAWLEGENDS_FRAME_SRC}&dare=${dare}` : PAWLEGENDS_FRAME_SRC;
   const party = partyCodeOf(search);
   if (party) src += `&party=${party}`;
+  // sim v22 (WR-BS-PLAN.md §5): `?mode=blitz|skirmish|classic` opens the PLAY screen on that tile; any other short word
+  // is forwarded too, so the game can say "Update to play …" (an older game build falls back to Skirmish)
+  const mode = modeOf(search);
+  if (mode) src += `&mode=${mode}`;
   return src;
+}
+
+/** A well-formed `mode` of the page URL (lowercase letters, at most 16), or null. */
+export function modeOf(search: string): string | null {
+  try {
+    const m = new URLSearchParams(search).get("mode")?.toLowerCase() ?? null;
+    return m && /^[a-z]{1,16}$/.test(m) ? m : null;
+  } catch {
+    return null;
+  }
 }
 
 /** The page URL without `party` (the host strips it once forwarded, so a reload does not rejoin an old party). */

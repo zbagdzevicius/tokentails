@@ -133,10 +133,15 @@ export function resolveChoice(modes: readonly ModeDef[], c: ModeChoice, avail: r
   return { mode, queue: queueFor({ queues: qs.length ? qs : ['bots'] }, c.queue) };
 }
 
-/** The bots match `Choice` for a mode: the 3v3 default map carries no `map`. Pure. */
-export function botsChoice(last: Choice, diff: Difficulty, mode: Pick<ModeDef, 'map'>): Choice {
+/**
+ * The bots match `Choice` for a mode: the 3v3 default map carries no `map`; sim v22 Blitz is the Crossing with the
+ * 'blitz' mutator (WR-BS-PLAN.md §5). Pure.
+ */
+export function botsChoice(last: Choice, diff: Difficulty, mode: Pick<ModeDef, 'map'> & { id?: ModeDef['id'] }): Choice {
   const c: Choice = { ...last, difficulty: diff };
   delete c.map;
+  delete c.mutator;
+  if (mode.id === 'blitz') return { ...c, mutator: 'blitz' };
   return mode.map && mode.map !== 'crossing' ? { ...c, map: mode.map } : c;
 }
 
@@ -600,5 +605,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
     void import('../nature/natureCss')
       .catch(() => undefined)
       .then(() => wait.classList.remove('lb-wait'));
+  // sim v22: a `?mode=` link's mode this build does not know ("Update to play …, playing Skirmish for now")
+  if (o.notice) toast(o.notice);
   return root;
 }

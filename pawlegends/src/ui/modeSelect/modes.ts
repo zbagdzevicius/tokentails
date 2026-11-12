@@ -41,24 +41,27 @@ export interface ModeDef {
   short?: string;
 }
 
-/** The modes this build ships (HOME-MODES.md §5 default table). Blitz is `soon` until v22 registers it live. */
+/** The modes this build ships (HOME-MODES.md §5 default table; sim v22 made Blitz live, minutes from the v22 probe). */
 export const BASE_MODES: readonly ModeDef[] = Object.freeze([
   {
+    // Sim v22 (WR-BS-PLAN.md §5, docs/plans/moba/BLITZ.md): the 3-minute Crossing match, solo against bots at launch
     id: 'blitz',
     name: 'Blitz',
+    map: 'crossing',
     size: '3v3',
-    minutes: '~6 min',
-    queues: ['bots', 'pvp'],
+    minutes: '~3 min',
+    queues: ['bots'],
     art: 'blitz',
-    state: 'soon',
-    rules: ['A short 3v3 sprint: faster gold, faster respawns.', 'Great for a quick match on the go.'],
+    state: 'live',
+    isNew: true,
+    rules: ['3v3 on the Crossing in about 3 minutes: start at level 4, double XP.', 'Kibble Cannon at 0:20, Sudden Death at 2:30.'],
   },
   {
     id: 'skirmish',
     name: 'Skirmish',
     map: 'crossing',
     size: '3v3',
-    minutes: '~8 min',
+    minutes: '~7 min',
     queues: ['bots', 'coop', 'pvp'],
     art: 'skirmish',
     state: 'live',
@@ -69,7 +72,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     name: 'Classic',
     map: 'hearthwood',
     size: '5v5',
-    minutes: '~15 min',
+    minutes: '~13 min',
     queues: ['bots', 'coop', 'pvp'],
     art: 'classic',
     state: 'live',
@@ -80,7 +83,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     name: 'Co-op vs Bots',
     map: 'crossing',
     size: '3v3',
-    minutes: '~8 min',
+    minutes: '~7 min',
     queues: ['coop'],
     art: 'coop',
     state: 'live',
@@ -91,7 +94,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     name: 'Ranked',
     map: 'hearthwood',
     size: '5v5',
-    minutes: '~15 min',
+    minutes: '~13 min',
     queues: ['pvp'],
     art: 'ranked',
     state: 'locked',
@@ -188,7 +191,7 @@ export function pillText(m: Pick<ModeDef, 'name' | 'size'>, q: Queue): string {
 export const queueFor = (m: Pick<ModeDef, 'queues'>, q: Queue | null | undefined): Queue => (q && m.queues.includes(q) ? q : (m.queues[0] ?? 'bots'));
 
 /** The old toggle's value for a mode (the app still saves it, so the pick and party screens keep their map). */
-export const legacyMode = (id: ModeId): MatchMode => (id === 'classic' || id === 'ranked' ? 'classic' : 'quick');
+export const legacyMode = (id: ModeId): MatchMode => (id === 'classic' || id === 'ranked' ? 'classic' : id === 'blitz' ? 'blitz' : 'skirmish');
 
 // ------------------------------------------------------------------------------------------ the saved selection
 
@@ -201,7 +204,7 @@ export interface ModeChoice {
 
 /**
  * The saved mode and queue (a per-viewer convenience). Migration: no new key yet → the old toggle's value, `'quick'`
- * → Skirmish and `'classic'` → Classic, vs Bots. A saved mode that is gone or not playable falls back to Skirmish.
+ * → Skirmish (sim v22 stores 'blitz' | 'skirmish' | 'classic', each its tile) and `'classic'` → Classic, vs Bots. A saved mode that is gone or not playable falls back to Skirmish.
  */
 export function loadModeChoice(list: readonly ModeDef[] = modeList(), now = Date.now()): ModeChoice {
   let raw: Partial<ModeChoice> | null = null;
@@ -211,7 +214,7 @@ export function loadModeChoice(list: readonly ModeDef[] = modeList(), now = Date
   } catch {
     raw = null;
   }
-  const id = raw?.mode ?? (loadMatchMode() === 'classic' ? 'classic' : 'skirmish');
+  const id = raw?.mode ?? loadMatchMode();
   const m = modeById(String(id), list);
   const ok = m && playable(m, now) ? m : (modeById('skirmish', list) ?? list.find((x) => playable(x, now)) ?? list[0]);
   return { mode: ok.id, queue: queueFor(ok, raw?.queue as Queue | undefined) };

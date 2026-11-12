@@ -22,26 +22,48 @@ type Bush = { readonly x: number; readonly y: number; readonly w: number; readon
 const swapRect = (r: Rect): Rect => Object.freeze([r[1], r[0], r[3], r[2]] as const);
 const swapBush = (b: Bush): Bush => Object.freeze({ x: b.y, y: b.x, w: b.h, h: b.w });
 
-/** South eighth rock walls ([x0, y0, x1, y1]); each also stands swapped, then both are reflected for team 1. */
-const SOUTH_WALLS: readonly Rect[] = [
-  // Behind the Gutterway inner tower.
-  [44000, 14000, 50000, 18000],
-  // Between Prickle Hollow and Yarn Road.
-  [58000, 30000, 62000, 40000],
-  // Between the Frog Pond and Gutterway.
-  [66000, 14000, 70000, 22000],
-  // The jungle side of the Grizzlechop pit's south-west mouth.
-  [78000, 26000, 82000, 30000],
-  // The base jungle mouth.
-  [30000, 18000, 33000, 21000],
-];
+/**
+ * Sim v22 (docs/plans/moba/MAP-5V5-STANDARD.md §5): the jungle is a forest with carved clearings and corridors (no
+ * loose rocks: the v19 to v21 rock list is gone). Everything below is authored for team 0's south eighth only; the grid
+ * (`sim/map/grid.ts`) applies it to every copy under the map's D2 symmetry (the swap and the reflection).
+ */
+const SOUTH_WALLS: readonly Rect[] = [];
+
+/** South quadrant clearings [x, y, r]: the Rat Nest, Prickle Hollow (buff), the Frog Pond and the Beetle Log. */
+export const HEARTHWOOD_CLEARINGS = Object.freeze([
+  Object.freeze([42000, 22000, 4500] as const),
+  Object.freeze([58000, 30000, 6000] as const),
+  Object.freeze([80000, 24000, 5000] as const),
+  Object.freeze([64000, 42000, 4500] as const),
+]) as readonly (readonly [number, number, number])[];
+
+/**
+ * South quadrant corridors [ax, ay, bx, by, half width] (MAP-5V5-STANDARD.md §5.2, ids P1 to P10): the base mouth,
+ * the trunk (Rat Nest, buff, Frog Pond), the Beetle Log spur, and the exits: two into the side lane (P8 risky past the
+ * outer tower, P9 safe between the gate and inner towers), two into mid (P5 risky by the river, P10 safe by the inner
+ * tower) and two into the river (P6 upper, P7 to Grizzlechop's team mouth).
+ */
+export const HEARTHWOOD_CORRIDORS = Object.freeze([
+  Object.freeze([30000, 18000, 42000, 22000, 2500] as const),
+  Object.freeze([42000, 22000, 58000, 30000, 3000] as const),
+  Object.freeze([58000, 30000, 80000, 24000, 3000] as const),
+  Object.freeze([58000, 30000, 64000, 42000, 2500] as const),
+  Object.freeze([64000, 42000, 57000, 51000, 2500] as const),
+  Object.freeze([64000, 42000, 76000, 48000, 2500] as const),
+  Object.freeze([80000, 24000, 87000, 30000, 2500] as const),
+  Object.freeze([80000, 24000, 88000, 13000, 2500] as const),
+  Object.freeze([50000, 26000, 48000, 13000, 2500] as const),
+  Object.freeze([42000, 22000, 35000, 30000, 2500] as const),
+]) as readonly (readonly [number, number, number, number, number])[];
 
 /**
  * Captain Grizzlechop's pit, centre (92, 36) m on the river axis: a ring of rocks with a mouth toward each team's jungle
  * (south-west for team 0, north-east for team 1) and a wider one up the river toward the centre (north-west). The set
- * is its own mirror across the river, (x, y) → (W − y, W − x). The Great Pudding pit is its reflection.
+ * is its own mirror across the river, (x, y) → (W − y, W − x). The Great Pudding pit is its reflection. Sim v22: a
+ * walkable disc of PIT_DISC round each pit, so the river flows round the ring instead of through it.
  */
 const PIT = { x: 92000, y: 36000 };
+const PIT_DISC = 12000;
 const PIT_WALLS: readonly Rect[] = [
   // The closed back toward the south-east corner.
   [PIT.x + 3000, PIT.y - 8000, PIT.x + 8000, PIT.y - 3000],
@@ -53,30 +75,40 @@ const PIT_WALLS: readonly Rect[] = [
   [PIT.x, PIT.y + 6000, PIT.x + 3000, PIT.y + 8000],
 ];
 
-/** South eighth bushes (centre, size); each also stands swapped, then both are reflected. */
+/**
+ * South eighth bushes (centre, size; MAP-5V5-STANDARD.md §4.3); each also stands swapped, then both are reflected: brush
+ * at every river entrance and gank exit.
+ */
 const SOUTH_BUSHES: readonly Bush[] = [
-  // Gutterway lane bushes near the outer and inner towers.
+  // Gutterway lane brush: at the P8 exit beyond the outer tower, and between the inner and outer towers.
   { x: 88000, y: 13000, w: 3000, h: 6000 },
   { x: 62000, y: 13000, w: 3000, h: 6000 },
-  // The river entrance below the Grizzlechop pit.
-  { x: 102000, y: 22000, w: 4000, h: 4000 },
-  // Prickle Hollow's flank.
-  { x: 56000, y: 20000, w: 3000, h: 3000 },
-  // Beside Yarn Road.
-  { x: 52000, y: 42000, w: 3000, h: 5000 },
-  // Behind the Frog Pond.
-  { x: 78000, y: 18000, w: 3000, h: 3000 },
-  // The base jungle mouth.
-  { x: 36000, y: 13000, w: 3000, h: 3000 },
+  // The upper river entrance (P6's river mouth).
+  { x: 74000, y: 46000, w: 4000, h: 3000 },
+  // The pit approach on P7, before Grizzlechop's team mouth.
+  { x: 86000, y: 27000, w: 3000, h: 3000 },
+  // The mid gank brush at the mid end of P5.
+  { x: 61000, y: 48000, w: 3000, h: 3000 },
+  // Prickle Hollow's flank on P3 (an ambush or a buff steal).
+  { x: 67000, y: 28000, w: 3000, h: 3000 },
+  // The inner lane exit (P9's lane end).
+  { x: 48000, y: 16000, w: 3000, h: 3000 },
 ];
-/** One river bush beside the centre crossing; its reflection is the other (a self-symmetric pair). */
-const RIVER_BUSHES: readonly Bush[] = [{ x: 70000, y: 58000, w: 3000, h: 3000 }];
+/** River bushes; each one's reflection is the other of its pair: beside the centre crossing, and the pit's wide mouth. */
+const RIVER_BUSHES: readonly Bush[] = [
+  { x: 70000, y: 58000, w: 3000, h: 3000 },
+  { x: 84000, y: 44000, w: 3000, h: 3000 },
+];
 
-/** Team 0's camps in the South quadrant: Prickle Hollow, the Rat Nest, the Frog Pond (West: swapped, Crow Roost). */
+/**
+ * Team 0's camps in the South quadrant: Prickle Hollow, the Rat Nest, the Frog Pond, the Beetle Log (sim v22) at the
+ * clearing centres (West: swapped, with Crow Roost for the buff).
+ */
 const SOUTH_CAMPS = [
-  { kind: CAMP_KIND.prickle, x: 52000, y: 26000 },
-  { kind: CAMP_KIND.rat, x: 38000, y: 21000 },
-  { kind: CAMP_KIND.toad, x: 74000, y: 24000 },
+  { kind: CAMP_KIND.prickle, x: 58000, y: 30000 },
+  { kind: CAMP_KIND.rat, x: 42000, y: 22000 },
+  { kind: CAMP_KIND.toad, x: 80000, y: 24000 },
+  { kind: CAMP_KIND.beetle, x: 64000, y: 42000 },
 ];
 
 /** Gutterway towers (outer, inner, gate), team 0; Fenceline is their swap, Yarn Road on the diagonal. */
@@ -117,8 +149,8 @@ export const HEARTHWOOD: MapDef = Object.freeze({
     towers: 22,
     cores: 2,
     fountains: 2,
-    // 16 jungle monsters, then Grizzlechop.
-    campMonsters: 17,
+    // Sim v22: 20 jungle monsters (five a quadrant with the Beetle Log), then Grizzlechop.
+    campMonsters: 21,
     pudding: 1,
     projectiles: 96,
     zones: 40,
@@ -193,9 +225,16 @@ export const HEARTHWOOD: MapDef = Object.freeze({
     // The side lanes run 8 m from the edges: their outer shoulder ends at 2.5 m, where the rim starts.
     rim: 2500,
     base: Object.freeze([0, 0, 0, 0]) as readonly [number, number, number, number],
-    open: 1 as 0 | 1,
+    // Sim v22: carved (MAP-5V5-STANDARD.md §5.1); the base plaza is x + y ≤ 48 m in each corner.
+    open: 2 as 0 | 1 | 2,
+    baseSum: 48000,
+    riverSum: HEARTHWOOD_RIVER_SUM,
+    clearings: HEARTHWOOD_CLEARINGS,
+    corridors: HEARTHWOOD_CORRIDORS,
+    pits: Object.freeze([Object.freeze([PIT.x, PIT.y, PIT_DISC] as const)]) as readonly (readonly [number, number, number])[],
   }),
-  NAV: Object.freeze({ ...CROSSING.NAV, maxExpand: 8000 }),
+  // Sim v22: the whole grid (the carved forest makes long walks wind; 8000 left 0.6% of random searches short).
+  NAV: Object.freeze({ ...CROSSING.NAV, maxExpand: 16384 }),
   coreHp: 4500,
   coreArmour: 60,
 });
@@ -211,6 +250,18 @@ export const HEARTHWOOD_RULES = Object.freeze({
   waveRanged: 2,
   /** XP from every source × this (bp): level 10 lands later in the longer match. */
   xpBp: 8000,
+  /**
+   * Sim v22 (MAP-5V5-STANDARD.md §5.4, gate G9): the jungle camps' XP and Fish × this (bp; Grizzlechop has his own
+   * reward), so a Prowl who full-clears keeps up with the average laner at 5:00.
+   */
+  jungleXpBp: 7500,
+  jungleFishBp: 6200,
+  /**
+   * Sim v22: jungle monsters (not Grizzlechop) spawn with this share of their HP and hit heroes for this share (bp):
+   * a level 1 Prowl clears its quadrant alone at the pace of §9.2 (Crow Roost in about 15 s).
+   */
+  campHpBp: 6000,
+  campDmgBp: 6000,
 });
 
 /** The fixed camera's yaw per map (degrees; render only): Crossing's −38°, Hearthwood's 0° (its diagonal climbs). */
@@ -241,23 +292,33 @@ export const HEARTHWOOD_PVP = Object.freeze({
     clem: { dmgBp: 12048, takenBp: 8220 },
     sage: { dmgBp: 10045, takenBp: 10180 },
     gabe: { dmgBp: 8727, takenBp: 11470 },
-    meatball: { dmgBp: 9581, takenBp: 10637 },
-    duchess: { dmgBp: 9891, takenBp: 10361 },
+    // sim v22 (carved jungle, on the v21 row 9581 / 10637): 54.1% of 1,200 → −1%
+    meatball: { dmgBp: 9481, takenBp: 10737 },
+    // sim v22 (carved jungle, on the v21 row 9891 / 10361): 46.4% of 600 → +1%
+    duchess: { dmgBp: 9991, takenBp: 10261 },
     aviete: { dmgBp: 10870, takenBp: 9351 },
     bengas: { dmgBp: 10118, takenBp: 10110 },
     lambo: { dmgBp: 11172, takenBp: 9080 },
     pixel: { dmgBp: 10178, takenBp: 10050 },
-    stilts: { dmgBp: 10320, takenBp: 9910 },
-    brutus: { dmgBp: 11867, takenBp: 8435 },
+    // sim v22 on main's v20 + v21 (fresh windows 3200001-3400300, 1,800 matches): 54.7% → the v21 row −1% (the +2%
+    // fitted without v20 overshot)
+    stilts: { dmgBp: 10217, takenBp: 10009 },
+    // sim v22 (carved jungle, on the v21 row 11867 / 8435): 53.4% of 600 → −1%
+    brutus: { dmgBp: 11767, takenBp: 8535 },
     cacklejaw: { dmgBp: 10782, takenBp: 9511 },
     nugget: { dmgBp: 9200, takenBp: 11058 },
-    // sim v21: −1% on the v20 row (9190 / 10810 before)
-    marshmallow: { dmgBp: 9344, takenBp: 10910 },
-    bravo: { dmgBp: 11023, takenBp: 9280 },
+    // sim v21: −1% on the v20 row (9190 / 10810 before); sim v22: 46.3% of 1,800 (windows 3200001-3400300), then 44.2%
+    // on 3600001 → +2%
+    marshmallow: { dmgBp: 9531, takenBp: 10692 },
+    // sim v22 (carved jungle, on the v21 row 11023 / 9280): 54.2% of 600 → −1%
+    bravo: { dmgBp: 10923, takenBp: 9380 },
     chili: { dmgBp: 9494, takenBp: 10770 },
-    howler: { dmgBp: 10702, takenBp: 9590 },
-    rocket: { dmgBp: 9225, takenBp: 11030 },
+    // sim v22 (carved jungle, on the v21 row 10702 / 9590): 53.5% of 600 → −1%
+    howler: { dmgBp: 10602, takenBp: 9690 },
+    // sim v22 (carved jungle, on the v21 row 9225 / 11030): 45.5% of 1,200 → +1.5%
+    rocket: { dmgBp: 9375, takenBp: 10880 },
     frankie: { dmgBp: 10106, takenBp: 10170 },
-    domino: { dmgBp: 9912, takenBp: 10360 },
+    // sim v22 (carved jungle, on the v21 row 9912 / 10360): 42.9% of 1,200 → +3%
+    domino: { dmgBp: 10212, takenBp: 10060 },
   }) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
 });

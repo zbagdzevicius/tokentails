@@ -14,6 +14,7 @@ import { TIMELINE, TIMELINE_BY } from '../data/timeline';
 import { TRICK_IDS } from '../data/tricks';
 import {
   HUMAN_SLOT,
+  MUTATORS,
   MATCH_MODES,
   MAP_IDS,
   Op,
@@ -23,6 +24,7 @@ import {
   teamOfSlot,
   teamSizeOf,
   type MapId,
+  type CampSnap,
   type Command,
   type Difficulty,
   type EntityKind,
@@ -48,7 +50,7 @@ import { encodeCommand, encodeStream, toBase64 } from './commands';
 import { fnvBytes, fnvInt } from './hash';
 import { createGate, gateCommand, gateForfeit } from './input';
 import { createGrid } from './map/grid';
-import { heroHp } from './progression/levels';
+import { heroHp, levelUp } from './progression/levels';
 import { checkWin } from './match';
 import { Rng } from './rng';
 import { rulesOf } from './rules';
@@ -85,6 +87,9 @@ import { stepBoing } from './units/boing';
 import { initYarn, stepYarn, yarnAt, yarnCount } from './units/yarn';
 import { CANNON_STATE, YARN_STATE, YF } from './world';
 import { CANNON } from '../data/fun';
+import { MUTATOR_RULES } from '../data/mutators';
+import { endTickOf, fortifyUntilOf, mutOf, mutatorIndex, mutatorOf } from './mutator';
+import { XP } from '../data/xp';
 
 export * from './api';
 export { SIM_VERSION } from './version';
@@ -118,7 +123,7 @@ const STATE_NAME: readonly UnitStateName[] = ['idle', 'moving', 'attacking', 'ca
 const MINION_VARIANT: readonly string[] = ['melee', 'ranged', 'siege'];
 /** Sim v19: 'gate' and 'hearth' (Hearthwood). */
 const TOWER_VARIANT: readonly string[] = ['outer', 'inner', 'gate', 'hearth'];
-const CAMP_VARIANT: readonly ('rat' | 'prickle' | 'crow' | 'toad' | 'boss')[] = ['rat', 'prickle', 'crow', 'toad', 'boss'];
+const CAMP_VARIANT: readonly ('rat' | 'prickle' | 'crow' | 'toad' | 'boss' | 'beetle')[] = ['rat', 'prickle', 'crow', 'toad', 'boss', 'beetle'];
 
 /**
  * Bot picks and tricks from the seed (§6.8): the human takes slot 0, no duplicate hero within a team, duplicates
@@ -169,6 +174,13 @@ function validate(config: MatchConfig): void {
     if (fill !== undefined && (!Array.isArray(fill) || fill.length !== 2 || !fill.every((d) => DIFFICULTY_LIST.includes(d)))) throw new RangeError('fillDifficulty needs two difficulties');
   } else if (config.fillDifficulty !== undefined) throw new RangeError('fillDifficulty is for pvp matches only');
   if (config.humans !== undefined) validateHumans(config.humans, config.mode);
+  // Sim v22 (WR-BS-PLAN.md §4): a mutator plays on its own maps, never in PvP (Blitz is bots and Party only).
+  if (config.mutator !== undefined) {
+    if (!MUTATORS.includes(config.mutator)) throw new RangeError(`unknown mutator ${String(config.mutator)}`);
+    const maps = MUTATOR_RULES[config.mutator].maps;
+    if (maps.length > 0 && !maps.includes(config.map ?? 'crossing')) throw new RangeError(`mutator ${config.mutator} is not played on ${config.map ?? 'crossing'}`);
+    if (config.mutator !== 'none' && config.mode === 'pvp') throw new RangeError(`mutator ${config.mutator} is not played in pvp`);
+  }
   // Sim v5: a team may field a hero twice (species teams: 2 heroes a side for 3 slots).
 }
 
@@ -185,6 +197,8 @@ export function createMatch(config: MatchConfig): MatchHandle {
   bindMap(mapIdx);
   validate(config);
   const w = createWorld(config.seed >>> 0, mapIdx);
+  w.mutator = mutatorIndex(config.mutator);
+  const mut = mutOf(w);
   const stats: SlotStats[] = [];
   for (let slot = 0; slot < SLOT_COUNT; slot++) {
     const team = teamOfSlot(slot);
@@ -204,8 +218,9 @@ export function createMatch(config: MatchConfig): MatchHandle {
   // Sim v16: the rules are cached on the match (rules.ts rulesOf); PvP swaps in PVP_RULES, PvE keeps its row.
   const rules = pvp ? PVP_RULES : DIFFICULTY_RULES[config.difficulty];
   const phases = TIMELINE_BY[config.difficulty];
-  w.globals[G.Sunset] = phases.sunset;
-  w.globals[G.SuddenDeath] = phases.suddenDeath;
+  // Sim v22: a mutator may set its own Sunset and Sudden Death (Blitz 1:30 and 2:30).
+  w.globals[G.Sunset] = mut.sunset || phases.sunset;
+  w.globals[G.SuddenDeath] = mut.suddenDeath || phases.suddenDeath;
   w.globals[G.CoreOpenAt] = rules.coreOpenAt;
   w.globals[G.HumanPanic] = rules.humanPanicBp;
   w.globals[G.HumanCoreOpenAt] = rules.humanCoreOpenAt;
@@ -223,7 +238,7 @@ export function createMatch(config: MatchConfig): MatchHandle {
       w.sub[id] = TOWER_VARIANT.indexOf(spot.tier);
       // Sim v19: a Hearth Guard has no lane (0, like Crossing's first lane, never read for it).
       w.lane[id] = spot.lane === null ? 0 : LANES.indexOf(spot.lane);
-      w.hp[id] = applyBp(spot.hp ?? t.hp, rules.structureHpBp);
+      w.hp[id] = applyBp(applyBp(spot.hp ?? t.hp, rules.structureHpBp), mut.towerHpBp);
       w.maxHp[id] = w.hp[id];
       w.armour[id] = spot.armour ?? t.armour;
       w.x[id] = sideX(team, at.x);
@@ -233,7 +248,7 @@ export function createMatch(config: MatchConfig): MatchHandle {
     w.kind[core] = Kind.Core;
     w.team[core] = team;
     w.alive[core] = 1;
-    w.hp[core] = applyBp(ACTIVE_MAP.coreHp > 0 ? ACTIVE_MAP.coreHp : CORE_STATS.hp, rules.coreHpBp);
+    w.hp[core] = applyBp(applyBp(ACTIVE_MAP.coreHp > 0 ? ACTIVE_MAP.coreHp : CORE_STATS.hp, rules.coreHpBp), mut.coreHpBp);
     w.maxHp[core] = w.hp[core];
     w.armour[core] = ACTIVE_MAP.coreArmour > 0 ? ACTIVE_MAP.coreArmour : CORE_STATS.armour;
     w.x[core] = sideX(team, CORE.x);
@@ -292,6 +307,9 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   //    damage ring forgets this tick's slot.
   tickCooldowns(w);
   beginTick(w);
+  // Sim v22 (Blitz): every hero starts at the mutator's level on tick 0 (inside a step, so the level-ups and the
+  // talent offers reach the client as events; bots pick theirs at once, humans by command).
+  if (tick === 0) startLevels(m);
   // 1. Human command. Sim v10: the tick's ping (if the gate let one through) is logged and applied first.
   const cmd = gateCommand(m.gate, tick, commands);
   const ping = m.gate.ping;
@@ -331,7 +349,7 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   spawnCamps(m);
   spawnPickups(m);
   spawnCannon(m);
-  if (tick === TOWERS.fortifyUntil[w.map]) m.events.push({ type: 'fortifyEnd', tick });
+  if (tick > 0 && tick === fortifyUntilOf(w)) m.events.push({ type: 'fortifyEnd', tick });
   stepPuddingTimeline(m, wave >= 0);
   if (tick === w.globals[G.Sunset]) m.events.push({ type: 'sunset', tick });
   if (tick === w.globals[G.SuddenDeath]) m.events.push({ type: 'suddenDeath', tick });
@@ -385,6 +403,18 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   // 9. Win check, hash trail.
   checkWin(m);
   if ((tick + 1) % TIMELINE.hashEvery === 0) m.trail.push(hashWorld(w));
+}
+
+/** Sim v22: raise every hero to the mutator's start level (XP set to that level's threshold). */
+function startLevels(m: MatchHandle): void {
+  const w = m.world;
+  const start = Math.min(XP.maxLevel, mutOf(w).startLevel);
+  if (start <= 1) return;
+  for (let slot = 0; slot < SLOT_COUNT; slot++) {
+    if (w.kind[slot] !== Kind.Hero) continue;
+    w.xp[slot] = Math.max(w.xp[slot], XP.toLevel[start - 1]);
+    while (w.level[slot] < start) levelUp(m, slot);
+  }
 }
 
 /** An event as `team` may see it (POC.md §7.3): nothing from a unit hidden from it, hidden sources anonymised. */
@@ -520,7 +550,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
   }
   const snap: Snapshot = {
     team,
-    clock: clockAt(tick, m.ended !== null, w.globals[G.Sunset], w.globals[G.SuddenDeath]),
+    clock: clockAt(tick, m.ended !== null, w.globals[G.Sunset], w.globals[G.SuddenDeath], endTickOf(w)),
     score: { kills: [w.globals[G.Kills0], w.globals[G.Kills1]], towers: [w.globals[G.Towers0], w.globals[G.Towers1]] },
     entities,
     projectiles,
@@ -587,7 +617,7 @@ function mapSnapshot(w: World, snap: Snapshot): void {
     let up = false;
     for (let k = 0; k < CAMP_KINDS[w.sub[firstRat(c)]].rats; k++) if (w.alive[firstRat(c) + k] === 1) up = true;
     const at = campDueAt(w, c);
-    camps.push({ id: c, kind: CAMP_VARIANT[w.sub[firstRat(c)]] as 'rat' | 'prickle' | 'crow' | 'toad', x: CAMPS[c].x, y: CAMPS[c].y, up, nextIn: up || at < 0 ? 0 : at - tick });
+    camps.push({ id: c, kind: CAMP_VARIANT[w.sub[firstRat(c)]] as CampSnap['kind'], x: CAMPS[c].x, y: CAMPS[c].y, up, nextIn: up || at < 0 ? 0 : at - tick });
   }
   snap.camps = camps;
 }
@@ -657,7 +687,7 @@ export function replayRecord(match: Match): ReplayRecord | null {
     inputs: toBase64(encodeStream(m.log)),
     outcome: m.ended.outcome,
     finalHash: m.ended.finalHash,
-    mutator: 'none',
+    mutator: mutatorOf(m.world),
     // Sim v19: only a Hearthwood record names its map (a Crossing record stays as in v18).
     ...(m.world.map !== 0 ? { map: MAP_IDS[m.world.map] } : {}),
   };

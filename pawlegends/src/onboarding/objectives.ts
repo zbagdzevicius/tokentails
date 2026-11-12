@@ -445,8 +445,8 @@ export class ObjectiveClock {
     for (const o of hw.objectives) if (o.state === 'away' && o.nextIn > 0) out.push({ key: o.kind, x: o.x, y: o.y, left: o.nextIn, total: total(o.kind, o.nextIn) });
     for (const c of hw.camps) {
       if (c.up || c.nextIn <= 0 || (c.kind !== 'prickle' && c.kind !== 'crow')) continue;
-      // team 0's camps are listed first (6 a side); the river mirror holds team 1's
-      const ours = (c.id < 6 ? 0 : 1) === this.myTeam;
+      // sim v22: by the river (8 camps a side since the Beetle Log; v19 to v21 listed 6 a side)
+      const ours = (c.x + c.y < MAP.width ? 0 : 1) === this.myTeam;
       out.push({ key: ours ? 'rats' : 'theirRats', x: c.x, y: c.y, left: c.nextIn, total: total(`c${c.id}`, c.nextIn) });
     }
     return out;

@@ -33,6 +33,9 @@ describe('catalogue mirror', () => {
     expect(game.SEASON_XP).toEqual(server.SEASON_XP);
     expect(game.STORE_TERMS_VERSION).toBe(server.STORE_TERMS_VERSION);
     expect(game.seasonXpFor({ won: true, forfeit: false, takedowns: 99, firstWinToday: true })).toBe(server.seasonXpFor({ won: true, forfeit: false, takedowns: 99, firstWinToday: true }));
+    // sim v22: a Blitz match pays per minute, a draw the loss plus half the win bonus
+    expect(game.seasonXpFor({ won: true, forfeit: false, takedowns: 4, firstWinToday: false, ticks: 5200 })).toBe(server.seasonXpFor({ won: true, forfeit: false, takedowns: 4, firstWinToday: false, ticks: 5200 }));
+    expect(game.seasonXpFor({ won: false, forfeit: false, takedowns: 0, firstWinToday: false, draw: true })).toBe(80);
   });
 });
 

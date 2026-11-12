@@ -15,6 +15,7 @@ import { trickleXp } from '../progression/xp';
 import { fishTick } from '../progression/fish';
 import { HUMAN_SLOT } from '../api';
 import { rulesOf } from '../rules';
+import { mutOf } from '../mutator';
 
 export function stepSeconds(m: MatchHandle): void {
   const w = m.world;
@@ -49,7 +50,8 @@ export function stepSeconds(m: MatchHandle): void {
       if (w.alive[c] === 0) continue;
       // Sim v7: the team behind on takedowns burns faster (SUDDEN_DEATH.decayPerTakedownBp; DifficultyRules.leadPressure).
       const team = c - RANGE.cores;
-      const behind = rulesOf(m).leadPressure ? w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1] : 0;
+      // Sim v22: a mutator may switch the takedown-gap burn off (mutOf(w).decayLead).
+      const behind = rulesOf(m).leadPressure && mutOf(w).decayLead ? w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1] : 0;
       const bp = Math.max(SUDDEN_DEATH.decayMinBp, Math.min(SUDDEN_DEATH.decayMaxBp, SUDDEN_DEATH.coreDecayBpPerSecond + behind * SUDDEN_DEATH.decayPerTakedownBp));
       dealDamage(m, -1, 2, Kind.None, c, applyBp(w.maxHp[c], bp), 'zone', { pure: true, pierce: true });
     }

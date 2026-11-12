@@ -12,6 +12,7 @@
 import { CC_DR, EFFECTS } from '../../data/effects';
 import { BRUSH_REVEAL_MM, BUSHES, MINION_BRUSH_REVEAL_MM, mirrorX, mirrorY } from '../../data/map';
 import { dist2 } from '../fixed';
+import { sugared } from '../units/sugar';
 import { Buff, CANNON_STATE, FM, G, Kind, MG, RANGE, SEEN_ALL, TEAM_NEUTRAL, type World } from '../world';
 
 /** Hero indices (HERO_IDS) whose kit arrays mean something else; kept local so brush.ts imports no hero kit. */
@@ -122,7 +123,11 @@ export function refreshFlags(w: World): void {
           if (w.mg[MG.Prickle + id] > 0) b |= Buff.Prickle;
           if (w.mg[MG.Feather + id] > 0) b |= Buff.Feather;
           if (w.mg[MG.Hoard + id] > 0 && shield > 0) b |= Buff.Hoard;
+          if (w.mg[MG.Rush + id] > 0) b |= Buff.SugarRush;
         }
+      } else if (w.mg.length > 0 && w.kind[id] === Kind.Minion && sugared(w, id)) {
+        // Sim v22: a minion beside an allied Sugar Rush hero (render: pink sparkles).
+        b |= Buff.Sugared;
       }
       if (shield > 0) b |= Buff.Shielded;
     }

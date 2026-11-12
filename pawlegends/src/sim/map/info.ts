@@ -8,7 +8,10 @@ import { BUSHES, CAMPS, CAPS, CORE, FOUNTAIN, HERO_SPAWNS, LANES, MAP, PUDDING_S
 import { LIMITS_BY_MAP } from '../../data/limits';
 import { TIMELINE, TIMELINE_BY } from '../../data/timeline';
 import { CROSSING_CAMERA_YAW, HEARTHWOOD_CAMERA_YAW, HEARTHWOOD_RIVER_SUM } from '../../data/maps/hearthwood';
-import { PUDDING } from '../../data/pudding';
+import { PUDDING, SUGAR_RUSH } from '../../data/pudding';
+import { FUN_BY_MAP } from '../../data/fun';
+import { PLAYFIELD } from '../../data/map';
+import { JUNGLE_EDGES, JUNGLE_NODES } from '../bots/jungle';
 import { GRIZZLECHOP } from '../../data/camps';
 import type { MapId, Team } from '../api';
 import { MAP_IDS } from '../api';
@@ -19,7 +22,7 @@ import { activeMap, bindMap, mapIndex } from './runtime';
 export type LaneKey = 'sunny' | 'puddle' | 'fence' | 'yarn' | 'gutter';
 export type LaneRole = 'solo' | 'mid' | 'fish' | 'sunny' | 'puddle';
 export type TowerTierName = 'outer' | 'inner' | 'gate' | 'hearth';
-export type CampKindName = 'rat' | 'prickle' | 'crow' | 'toad';
+export type CampKindName = 'rat' | 'prickle' | 'crow' | 'toad' | 'beetle';
 export type Quadrant = 'south' | 'west' | 'north' | 'east';
 
 export interface MapInfo {
@@ -67,6 +70,24 @@ export interface MapInfo {
   readonly limits: { readonly maxTicks: number; readonly maxInputBytes: number; readonly maxInputChars: number };
   /** The fixed camera's yaw: Crossing −38° (its lanes run left to right), Hearthwood 0° (the diagonal already climbs). */
   readonly camera: { readonly yawDeg: number };
+  /**
+   * Sim v22 (MAP-5V5-STANDARD.md §5, §7.3, §9.1; Hearthwood only, empty on Crossing): the carved jungle's clearings
+   * and pit discs (x, y, r) and corridors (ax, ay, bx, by, half width), every copy; the Boing Beds (both teams); the
+   * bots' jungle route nodes and edges (kind: data/maps/hearthwoodGraph.ts JNODE).
+   */
+  readonly clearings: readonly { x: number; y: number; r: number }[];
+  readonly corridors: readonly { ax: number; ay: number; bx: number; by: number; half: number }[];
+  readonly pits: readonly { x: number; y: number; r: number }[];
+  readonly beds: readonly { team: Team; x: number; y: number; landX: number; landY: number }[];
+  readonly jungleNodes: readonly { kind: number; team: Team; x: number; y: number }[];
+  readonly jungleEdges: readonly (readonly [number, number])[];
+  /** Sim v22: the river objectives' timers (ticks; −1 = none on this map) and Sugar Rush's length. */
+  readonly objectiveTimers: {
+    readonly grizzlechopRespawn: number;
+    readonly grizzlechopLast: number;
+    readonly puddingRespawn: number;
+    readonly sugarRush: number;
+  };
 }
 
 const NAMES: Readonly<Record<string, string>> = { sunny: 'Sunny Lane', puddle: 'Puddle Lane', fence: 'Fenceline', yarn: 'Yarn Road', gutter: 'Gutterway' };
@@ -123,6 +144,33 @@ function build(id: MapId): MapInfo {
     else camps.push({ id: c, kind, quadrant: point ? quadrantOf(s.x, s.y, s.side) : null, x: s.x, y: s.y });
   }
   objectives.push({ kind: 'pudding', x: PUDDING_SPOT.x, y: PUDDING_SPOT.y, radius: PUDDING.hopRadius });
+  // Sim v22: the carved jungle, each south-eighth shape in its four copies (as authored, swapped, reflected, both).
+  const carved = PLAYFIELD.open === 2;
+  const copies = (x: number, y: number): [number, number][] => [
+    [x, y],
+    [y, x],
+    [W - x, H - y],
+    [H - y, W - x],
+  ];
+  const clearings = carved ? PLAYFIELD.clearings.flatMap(([x, y, r]) => copies(x, y).map(([cx, cy]) => ({ x: cx, y: cy, r }))) : [];
+  const pits = carved ? PLAYFIELD.pits.flatMap(([x, y, r]) => [{ x, y, r }, { x: W - x, y: H - y, r }]) : [];
+  const corridors = carved
+    ? PLAYFIELD.corridors.flatMap(([ax, ay, bx, by, half]) => {
+        const a = copies(ax, ay);
+        const b = copies(bx, by);
+        return a.map(([px, py], k) => ({ ax: px, ay: py, bx: b[k][0], by: b[k][1], half }));
+      })
+    : [];
+  const bedRows = FUN_BY_MAP[mapIndex(id)].beds;
+  const beds = [0, 1].flatMap((team) =>
+    bedRows.map(([x, y, lx, ly]) => ({
+      team: team as Team,
+      x: team === 0 ? x : mirrorX(x),
+      y: team === 0 ? y : mirrorY(y),
+      landX: team === 0 ? lx : mirrorX(lx),
+      landY: team === 0 ? ly : mirrorY(ly),
+    })),
+  );
   const grid = createGrid();
   const playable = new Uint8Array(NX * NY);
   for (let c = 0; c < playable.length; c++) playable[c] = grid.walls[c] === 0 ? 1 : 0;
@@ -173,6 +221,18 @@ function build(id: MapId): MapInfo {
     },
     limits: LIMITS_BY_MAP[id],
     camera: { yawDeg: point ? HEARTHWOOD_CAMERA_YAW : CROSSING_CAMERA_YAW },
+    clearings,
+    corridors,
+    pits,
+    beds,
+    jungleNodes: carved ? JUNGLE_NODES.map((n) => ({ kind: n.kind, team: n.team as Team, x: n.x, y: n.y })) : [],
+    jungleEdges: carved ? JUNGLE_EDGES : [],
+    objectiveTimers: {
+      grizzlechopRespawn: point ? GRIZZLECHOP.respawn : -1,
+      grizzlechopLast: point ? GRIZZLECHOP.lastSpawn : -1,
+      puddingRespawn: PUDDING.respawn,
+      sugarRush: point ? SUGAR_RUSH.ticks : -1,
+    },
   });
 }
 

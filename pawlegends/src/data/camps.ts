@@ -29,7 +29,7 @@ export const RAT_CAMP_STATS = Object.freeze({
  * and `fishNear` the Fish to the last hitter and to each other hero of its team in range (rats: data/fish.ts).
  */
 export interface CampKind {
-  readonly name: 'rat' | 'prickle' | 'crow' | 'toad' | 'boss';
+  readonly name: 'rat' | 'prickle' | 'crow' | 'toad' | 'boss' | 'beetle';
   readonly rats: number;
   readonly hp: number;
   readonly dmg: number;
@@ -47,7 +47,7 @@ export interface CampKind {
   readonly radius: number;
 }
 
-export const CAMP_KIND = Object.freeze({ rat: 0, prickle: 1, crow: 2, toad: 3, boss: 4 });
+export const CAMP_KIND = Object.freeze({ rat: 0, prickle: 1, crow: 2, toad: 3, boss: 4, beetle: 5 });
 
 export const CAMP_KINDS: readonly CampKind[] = Object.freeze([
   Object.freeze({ name: 'rat', rats: 2, hp: RAT_CAMP_STATS.hp, dmg: RAT_CAMP_STATS.dmg, attackEvery: RAT_CAMP_STATS.attackEvery, windup: RAT_CAMP_STATS.windup, range: RAT_CAMP_STATS.range, speed: RAT_CAMP_STATS.speed, armour: RAT_CAMP_STATS.armour, leash: RAT_CAMP_STATS.leash, xpTotal: RAT_CAMP_STATS.xpTotal, respawn: RAT_CAMP_STATS.respawn, fishLast: 0, fishNear: 0, radius: 500 }),
@@ -59,6 +59,8 @@ export const CAMP_KINDS: readonly CampKind[] = Object.freeze([
   Object.freeze({ name: 'toad', rats: 1, hp: 900, dmg: 35, attackEvery: 36, windup: 9, range: 1500, speed: 3200, armour: 20, leash: 8000, xpTotal: 80, respawn: 1800, fishLast: 70, fishNear: 15, radius: 600 }),
   /** Captain Grizzlechop (GDD §3.2): Bite 140 every 1.2 s; the team reward is GRIZZLECHOP's. */
   Object.freeze({ name: 'boss', rats: 1, hp: 3400, dmg: 140, attackEvery: 36, windup: 12, range: 2500, speed: 3200, armour: 30, leash: 10000, xpTotal: 0, respawn: 3600, fishLast: 0, fishNear: 0, radius: 1500 }),
+  /** Sim v22 (MAP-5V5-STANDARD.md §5.4) Beetle Log: one stag beetle, 1100 HP, 45 every 1.2 s; respawn 60 s. */
+  Object.freeze({ name: 'beetle', rats: 1, hp: 1100, dmg: 45, attackEvery: 36, windup: 9, range: 1500, speed: 3200, armour: 25, leash: 8000, xpTotal: 90, respawn: 1800, fishLast: 70, fishNear: 15, radius: 600 }),
 ]);
 
 /** Sim v19: the jungle buffs (Hearthwood), in ticks and bp. */

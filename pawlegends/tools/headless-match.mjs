@@ -61,6 +61,9 @@ const GATES = {
   hard: { profile: 'normal', difficulty: 'hard', seeds: 200 },
   feeder: { profile: 'feeder', difficulty: 'rookie', seeds: 200 },
   feedNormal: { profile: 'feeder', difficulty: 'normal', seeds: 200 },
+  // Sim v22 (WR-BS-PLAN.md §4.3): Blitz on Crossing
+  blitz: { profile: 'normal', difficulty: 'normal', seeds: 2000, mutator: 'blitz' },
+  blitzNovice: { profile: 'novice', difficulty: 'easy', seeds: 400, mutator: 'blitz' },
 };
 /** --ablate: comeback sources and the source patch that switches each off (tools/lib/sim-bundle.mjs patches). */
 const ABLATIONS = {
@@ -89,6 +92,8 @@ const heroArg = argValue('--hero') ?? (gate ? 'random' : 'clem');
 const trickArg = argValue('--trick') ?? (gate ? 'random' : 'pounce');
 const profile = argValue('--profile') ?? def.profile;
 const botTalents = argValue('--bot-talents') ?? 'seeded';
+/** Sim v22: `--mutator blitz` (default: the gate's, else none). */
+const mutator = argValue('--mutator') ?? def.mutator ?? 'none';
 const json = hasFlag('--json');
 const quiet = hasFlag('--quiet') || (gate !== null && !hasFlag('--rows'));
 const checkDet = hasFlag('--check-determinism');
@@ -144,7 +149,7 @@ function play(seed, track) {
   const hero = heroArg === 'random' ? pickFor(seed, HEROES, 0x51) : heroArg;
   const trick = trickArg === 'random' ? pickFor(seed, TRICKS, 0x7a) : trickArg;
   const { picks, tricks } = sim.fillPicks(seed, hero, trick);
-  const m = sim.createMatch({ seed, picks, tricks, difficulty, botTalents });
+  const m = sim.createMatch({ seed, picks, tricks, difficulty, botTalents, ...(mutator !== 'none' ? { mutator } : {}) });
   const bot = sim.createPlayerBot(m, profile);
   const tracker = track ? createFunTracker(sim, m) : null;
   const t0 = performance.now();
@@ -219,7 +224,7 @@ function runRange(f, n) {
 async function runParallel() {
   const per = Math.ceil(seeds / procs);
   const self = fileURLToPath(import.meta.url);
-  const passOn = ['--difficulty', difficulty, '--hero', heroArg, '--trick', trickArg, '--profile', profile, '--bot-talents', botTalents];
+  const passOn = ['--difficulty', difficulty, '--hero', heroArg, '--trick', trickArg, '--profile', profile, '--bot-talents', botTalents, '--mutator', mutator];
   if (ablate.length) passOn.push('--ablate', ablate.join(','));
   if (checkDet) passOn.push('--check-determinism');
   if (fun) passOn.push('--fun');
@@ -294,6 +299,8 @@ const summary = {
   p95Length: fmt(pct(95)),
   coreKills: rows.filter((r) => r.reason === 'core').length,
   safetyEnds: rows.filter((r) => r.reason === 'safetyEnd').length,
+  timeUps: rows.filter((r) => r.reason === 'timeUp').length,
+  draws: rows.filter((r) => r.winner === -1).length,
   purrhavenWins: rows.filter((r) => r.winner === 0).length,
   woofWins: rows.filter((r) => r.winner === 1).length,
   msPerMatch: Math.round(rows.reduce((s, r) => s + r.ms, 0) / rows.length),
@@ -302,7 +309,7 @@ const summary = {
   maxInputChars: Math.max(...rows.map((r) => r.inputChars)),
   deterministic: checkDet ? failures === 0 : undefined,
 };
-const funAgg = fun ? aggregateFun(rows.map((r) => r.fun), sim.timelineFor(difficulty).suddenDeath) : null;
+const funAgg = fun ? aggregateFun(rows.map((r) => r.fun), mutator === 'blitz' ? 4500 : sim.timelineFor(difficulty).suddenDeath) : null;
 const gates = gate ? funGates(gate, funAgg, perHero, difficulty, CAT_HEROES) : [];
 // Sim v10 (GAPS B5): with --trick random (the gate default) every Paw Trick, over all six slots, wins 47% to 53%.
 if (gate === 'balance' && trickArg === 'random') {
@@ -334,7 +341,7 @@ else {
   }
   console.log(
     `\n${summary.matches} matches (${profile} + bots, ${difficulty}${gate ? `, gate ${gate}` : ''}${botTalents !== 'seeded' ? `, bot talents ${botTalents}` : ''}${ablate.length ? `, ablated ${ablate.join('+')}` : ''}): median ${summary.medianLength}, p95 ${summary.p95Length}, ` +
-      `core kills ${summary.coreKills}, safety ends ${summary.safetyEnds}, Purrhaven ${summary.purrhavenWins} / Woof ${summary.woofWins}, ` +
+      `core kills ${summary.coreKills}, safety ends ${summary.safetyEnds}${mutator !== 'none' ? `, ${mutator}: time up ${summary.timeUps}, draws ${summary.draws}` : ''}, Purrhaven ${summary.purrhavenWins} / Woof ${summary.woofWins}, ` +
       `takedowns ${summary.avgTakedowns} a match, ${summary.msPerMatch} ms a match (max ${summary.maxMs}), inputs ≤ ${summary.maxInputChars} chars, ${wall} s wall` +
       (checkDet ? `, deterministic: ${failures === 0 ? 'yes' : `NO (${failures})`}` : ''),
   );

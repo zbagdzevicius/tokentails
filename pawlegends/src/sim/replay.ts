@@ -23,10 +23,10 @@ export function replayCommands(record: Pick<ReplayRecord, 'inputs' | 'ticks' | '
 }
 
 /** Re-simulate a replay. Stops at the match end or at `record.ticks` (never beyond MAX_TICKS). */
-export function runReplay(record: Pick<ReplayRecord, 'seed' | 'difficulty' | 'hero' | 'trick' | 'inputs' | 'ticks' | 'map'>): ReplayRun {
+export function runReplay(record: Pick<ReplayRecord, 'seed' | 'difficulty' | 'hero' | 'trick' | 'inputs' | 'ticks' | 'map' | 'mutator'>): ReplayRun {
   const commands = replayCommands(record);
   const { picks, tricks } = fillPicks(record.seed, record.hero, record.trick, record.map);
-  const match: MatchHandle = createMatch({ seed: record.seed, picks, tricks, difficulty: record.difficulty, ...(record.map === undefined ? {} : { map: record.map }) });
+  const match: MatchHandle = createMatch({ seed: record.seed, picks, tricks, difficulty: record.difficulty, ...(record.map === undefined ? {} : { map: record.map }), ...(record.mutator === undefined || record.mutator === 'none' ? {} : { mutator: record.mutator }) });
   const limit = Math.min(record.ticks, MAX_TICKS);
   let ci = 0;
   const batch: TimedCommand['cmd'][] = [];

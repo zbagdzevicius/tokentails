@@ -54,6 +54,12 @@ export interface BotParams {
    * overextension); a bot more than BOT_AI.overextend ahead of its wave with no allied hero near steps back.
    */
   hunts: boolean;
+  /**
+   * Sim v22 (docs/plans/moba/MAP-5V5-STANDARD.md §9, Hearthwood): 0 = the v19 Prowl (the nearest own camp, then a
+   * lane) and no danger read; 1 = the fixed first clear, ganks at the jungle exits, objective waits at the pit-mouth
+   * brush, contests, and the laners' danger read; 2 = also invades.
+   */
+  jungle: number;
 }
 
 /** Match rules that depend on the difficulty (sim v4), beyond the bots. */
@@ -302,6 +308,7 @@ export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.fr
     pressAhead: 0,
     defendBase: false,
     hunts: false,
+    jungle: 0,
   }),
   easy: Object.freeze({
     reactionTicks: 18,
@@ -324,6 +331,7 @@ export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.fr
     pressAhead: 0,
     defendBase: false,
     hunts: false,
+    jungle: 0,
   }),
   normal: Object.freeze({
     reactionTicks: 9,
@@ -353,6 +361,7 @@ export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.fr
     pressAhead: 3,
     defendBase: true,
     hunts: false,
+    jungle: 1,
   }),
   /**
    * Sim v6 Hard (playtest round 0): reacts in 5 ticks, ±5° aim, 3% mistakes, every ability in a fight, Paw Tricks
@@ -377,6 +386,7 @@ export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.fr
     pressAhead: 3,
     defendBase: true,
     hunts: true,
+    jungle: 2,
   }),
 });
 

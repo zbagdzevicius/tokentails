@@ -19,7 +19,7 @@
  *
  * Names are host data: always escaped here. Cosmetic only. App builds never point to the web to collect cards.
  */
-import { MODE_MAP, matchModeHtml, type MatchMode } from './matchMode';
+import { MODE_MAP, matchModeHtml, parseMatchMode, type MatchMode } from './matchMode';
 import { logoHtml } from '../brandLogo';
 import './lobby.css';
 import type { Difficulty, HeroId } from '../../sim/api';
@@ -104,10 +104,12 @@ export interface LobbyScreenOpts {
    */
   onlineMode?: { mode: 'coop' | 'pvp'; locked: boolean; onMode(mode: 'coop' | 'pvp'): void; played?: number; needed?: number };
   /**
-   * Sim v19 (MAP-5V5.md §8.1): the 3v3 Quick | 5v5 Classic toggle above Play (remembered by the caller). Absent on
-   * the first match and on a dare (both are 3v3).
+   * Sim v19 (MAP-5V5.md §8.1): the mode tiles under Play (sim v22: Blitz ~3 min | Skirmish ~7 min | Classic ~13 min,
+   * remembered by the caller). Absent on the first match and on a dare (both are 3v3 Skirmish).
    */
   matchMode?: { mode: MatchMode; onMode(mode: MatchMode): void };
+  /** A line for the toast as the lobby opens (sim v22: "Update to play …" for a link's unknown mode). */
+  notice?: string;
   onPlay(c: Choice, seed?: number): void;
   onChoose(): void;
   onMute(m: boolean): void;
@@ -160,7 +162,7 @@ export function questTally(qs: readonly QuestView[] | undefined): { done: number
 export function playLine(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'firstLine' | 'last'>): string {
   if (o.dare) return dareText(o.dare);
   if (o.firstTime) return o.firstLine ?? 'Your first match is a guided match.';
-  return `${o.last.map === 'hearthwood' ? '5v5 Classic' : '3v3'} vs ${DIFFICULTY_TEXT[o.last.difficulty as keyof typeof DIFFICULTY_TEXT] ?? 'bots'}`;
+  return `${o.last.map === 'hearthwood' ? '5v5 Classic' : o.last.mutator === 'blitz' ? '3v3 Blitz' : '3v3'} vs ${DIFFICULTY_TEXT[o.last.difficulty as keyof typeof DIFFICULTY_TEXT] ?? 'bots'}`;
 }
 
 /**
@@ -308,9 +310,14 @@ function railHtml(o: LobbyScreenOpts, full = true): string {
 /** Is the PvP button locked? Only 3v3 casual PvP can have a match-count lock (none for now); 5v5 Classic never has. */
 const pvpLockedIn = (o: LobbyScreenOpts, mode: MatchMode | null): boolean => !!o.onlineMode?.locked && mode !== 'classic';
 
-/** Tier 2: Co-op, PvP (when the backend has it), Friends and "#" (join with code). Each is one tap. */
+/**
+ * Tier 2: Co-op, PvP (when the backend has it), Friends and "#" (join with code). Each is one tap. Sim v22
+ * (WR-BS-PLAN.md §3a): Blitz is solo against bots only at launch, so its tile shows no online row (no Co-op or PvP
+ * queue for it); Friends and Code stay on the other tiles.
+ */
 function onlineRowHtml(o: LobbyScreenOpts, mode: MatchMode | null = null): string {
   if (!o.onOnline && !o.onParty) return '';
+  if (mode === 'blitz') return `<div class="lb-friends-row lb-online-row" role="group" aria-label="Play online"><p class="lb-solo-note">Blitz: you and bots, ~3 minutes. Online play is on Skirmish and Classic.</p></div>`;
   const m = o.onlineMode;
   const pvpLocked = pvpLockedIn(o, mode);
   const need = m?.needed ?? 5;
@@ -350,7 +357,9 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
   const choice = (): Choice => {
     const c: Choice = { ...o.last, difficulty: diff };
     delete c.map;
-    return mode === 'classic' ? { ...c, map: MODE_MAP.classic } : c;
+    delete c.mutator;
+    if (mode === 'classic') return { ...c, map: MODE_MAP.classic };
+    return mode === 'blitz' ? { ...c, mutator: 'blitz' } : c;
   };
   const dare = o.dare;
   const returning = !o.firstTime && !dare;
@@ -376,7 +385,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     <div class="pl-title-col lb-col">
       <div class="lb-main">
         ${logoHtml()}
-        <p class="tag">3v3 cats and dogs. Quick matches, big plays.</p>
+        <p class="tag">Cats vs Dogs. 3-minute Blitz or full 5v5.</p>
         ${nameBlock}
         <div class="lb-play actions">
           <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter"${returning ? ` data-diff="· ${esc(diffShort(diff))}"` : ''}>${esc(playLabel(o))}</button>
@@ -448,7 +457,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     const a = t.closest<HTMLElement>('[data-a]')?.dataset.a;
     if (leaving && a !== 'mute') return;
     if (a === 'map' && mode) {
-      const v = t.closest<HTMLElement>('[data-a="map"]')!.dataset.v === 'classic' ? 'classic' : 'quick';
+      const v = parseMatchMode(t.closest<HTMLElement>('[data-a="map"]')!.dataset.v) ?? 'skirmish';
       if (v === mode) return;
       o.sound?.('click');
       mode = v;
@@ -570,6 +579,8 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     void import('../nature/natureCss')
       .catch(() => undefined)
       .then(() => wait.classList.remove('lb-wait'));
+  // sim v22: a link's mode this build does not know ("Update to play Blitz") or a mode note
+  if (o.notice) toast(o.notice);
   return root;
 }
 

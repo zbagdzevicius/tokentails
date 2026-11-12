@@ -28,6 +28,7 @@ import { HUMAN_SLOT } from '../api';
 import { grantXp } from './levels';
 import { grantFish } from './fish';
 import { FISH } from '../../data/fish';
+import { HEARTHWOOD_RULES } from '../../data/maps/hearthwood';
 
 // Sim v19: sized for the largest map (10 heroes). `RANGE` is bound to the active map, and at module load it is
 // Crossing's (6 heroes): on Hearthwood, team 1's slots 6 to 9 fell outside these tables, so `helpedBy[h] === 0` was
@@ -196,10 +197,13 @@ export function campKilled(m: MatchHandle, id: number): number {
   // Sim v19: per camp kind (Hearthwood's buff camps, toad, Grizzlechop); rats keep their FISH values.
   const kind = CAMP_KINDS[w.sub[id]];
   const rat = w.sub[id] === 0;
-  if (hitter >= 0) grantFish(m, hitter, rat ? FISH.ratLastHit : kind.fishLast, 'camp');
-  for (let i = 0; i < n; i++) if (share[i] !== hitter) grantFish(m, share[i], rat ? FISH.ratNear : kind.fishNear, 'camp');
+  // Sim v22 (Hearthwood, gate G9): the jungle camps pay HEARTHWOOD_RULES.jungleFishBp / jungleXpBp (Crossing: × 1).
+  const jungle = w.mg.length > 0;
+  const fishOf = (v: number): number => (jungle ? applyBp(v, HEARTHWOOD_RULES.jungleFishBp) : v);
+  if (hitter >= 0) grantFish(m, hitter, fishOf(rat ? FISH.ratLastHit : kind.fishLast), 'camp');
+  for (let i = 0; i < n; i++) if (share[i] !== hitter) grantFish(m, share[i], fishOf(rat ? FISH.ratNear : kind.fishNear), 'camp');
   if (n === 0 || kind.xpTotal === 0) return team;
-  let each = idiv(idiv(kind.xpTotal, kind.rats), n);
+  let each = idiv(idiv(jungle ? applyBp(kind.xpTotal, HEARTHWOOD_RULES.jungleXpBp) : kind.xpTotal, kind.rats), n);
   // Sim v8: the team behind on levels gets DifficultyRules.campBehindBp of the camp's XP (per difficulty since v10).
   let ours = 0;
   let theirs = 0;

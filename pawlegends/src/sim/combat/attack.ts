@@ -5,7 +5,8 @@
  */
 import { HERO_RULES } from '../../data/xp';
 import { MINIONS } from '../../data/minions';
-import { CAMP_KINDS, JUNGLE_BUFF } from '../../data/camps';
+import { CAMP_KIND, CAMP_KINDS, JUNGLE_BUFF } from '../../data/camps';
+import { HEARTHWOOD_RULES } from '../../data/maps/hearthwood';
 import { slow } from '../effects/slow';
 import { SUNSET } from '../../data/timeline';
 import { CORE_STATS, PROJECTILE_KIND, TOWERS } from '../../data/towers';
@@ -119,6 +120,9 @@ function resolveSwing(m: MatchHandle, id: number): void {
     if (w.kind[dst] === Kind.Hero || w.kind[dst] === Kind.Minion) slow(w, dst, JUNGLE_BUFF.prickleSlowBp, JUNGLE_BUFF.prickleSlowTicks);
   }
   if (w.kind[id] === Kind.Camp) {
+    // Sim v22 (Hearthwood): jungle monsters (not Grizzlechop) hit heroes for HEARTHWOOD_RULES.campDmgBp, so a Prowl
+    // can clear its quadrant alone at level 1 (MAP-5V5-STANDARD.md §9.2, gate G9).
+    if (w.mg.length > 0 && w.sub[id] !== CAMP_KIND.boss && w.kind[dst] === Kind.Hero) dmg = applyBp(dmg, HEARTHWOOD_RULES.campDmgBp);
     dealDamage(m, id, w.team[id], Kind.Camp, dst, dmg, 'basic');
     return;
   }

@@ -167,7 +167,8 @@ export const LANE_FLASH_MS = 1000;
 /** Sim v19 (Hearthwood): Grizzlechop's minimap hue (rust red, apart from Pudding's violet). */
 export const MM_BOSS = '#e0703a';
 /** Sim v19: the buff camps' minimap hues (Prickle Hollow, Crow Roost). */
-export const MM_CAMP: Readonly<Record<string, string>> = Object.freeze({ rat: '#cdb784', toad: '#9cc77a', prickle: '#ff9a4d', crow: '#9aa8ff' });
+export const MM_CAMP: Readonly<Record<string, string>> = Object.freeze({ rat: '#cdb784', toad: '#9cc77a', prickle: '#ff9a4d', crow: '#9aa8ff', beetle: '#8dff7a' });
+
 
 const isPoint = (): boolean => MAP.point === 1;
 
@@ -779,6 +780,27 @@ export class Minimap {
    * a cannon glyph on the ground, then on its carrier (a gold ring round the carrier's dot); the yarn balls as pink
    * dots. Cached sprites (PERF-IOS §8 Track A).
    */
+  /**
+   * Sim v22 (Hearthwood, MAP-5V5-STANDARD.md §6.3): a pulsing ring on each river objective while it is up (its
+   * countdown is one of drawTimers' rings, from ObjectiveClock).
+   */
+  private drawObjectiveRings(frame: ViewFrame, glowStep: number): void {
+    const objs = frame.latest.objectives;
+    const g = this.g;
+    if (!objs || !g) return;
+    for (const o of objs) {
+      if (o.state !== 'up') continue;
+      const [x, y] = this.P(o.x, o.y);
+      g.strokeStyle = o.kind === 'grizzlechop' ? MM_BOSS : MM_OBJECTIVE;
+      g.globalAlpha = 0.55 + 0.45 * Math.abs(Math.sin(glowStep * 0.5));
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(x, y, 7.5 * this.k, 0, Math.PI * 2);
+      g.stroke();
+      g.globalAlpha = 1;
+    }
+  }
+
   private drawFun(frame: ViewFrame, glowStep: number): void {
     const fun = frame.latest.fun;
     this.cannonDrawn = '';
@@ -1013,6 +1035,7 @@ export class Minimap {
       );
     }
     this.drawFun(frame, glowStep);
+    this.drawObjectiveRings(frame, glowStep);
     this.drawTimers();
     this.ghostsDrawn = [];
     for (const gh of this.updateGhosts(frame, team)) {

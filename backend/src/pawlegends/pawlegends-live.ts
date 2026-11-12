@@ -86,6 +86,8 @@ const RECORD_KEYS: (keyof PawlegendsReplayRecord)[] = [
 
 /** The first sim version whose records carry `mutator` (GAPS B0). */
 export const PAWLEGENDS_MUTATOR_SINCE = 10;
+/** Sim v22 (WR-BS-PLAN.md §4): the first sim version that plays a mutator other than 'none' (Blitz). */
+export const PAWLEGENDS_MUTATOR_PLAY_SINCE = 22;
 
 /**
  * The record with its fields in a fixed order and nothing else: what the worker gets and the digest covers. From
@@ -294,8 +296,9 @@ export interface IPawlegendsLiveResult {
     catnipCount: number;
     /** Fastest win held for the difficulty after this save, in ticks (null without a win). */
     fastestWin: number | null;
-    /** Sim v10 (GAPS B2): how the re-simmed match ended ('forfeit': the player forfeited); absent for v9 replays. */
-    reason?: 'core' | 'safetyEnd' | 'forfeit';
+    /** Sim v10 (GAPS B2): how the re-simmed match ended ('forfeit': the player forfeited; sim v22 'timeUp': a Blitz match
+     *  reached 3:15); absent for v9 replays. */
+    reason?: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp';
     /** Legends Pass Season XP this save paid (absent when the pass service is not wired). */
     season?: IPawlegendsSeasonAnswer;
 }
@@ -331,6 +334,13 @@ export async function savePawlegendsMatch(
     }
     const index = PAWLEGENDS_LEVELS.indexOf(replay.difficulty);
     if (index < 0) throw reject(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'unknown difficulty');
+    // Sim v22: Blitz exists from v22 on; an older sim never played it (its own verifier would refuse it too).
+    if ((replay.mutator ?? 'none') !== 'none' && replay.simVersion < PAWLEGENDS_MUTATOR_PLAY_SINCE) {
+        throw reject(
+            ErrorCode.PAWLEGENDS_REPLAY_INVALID,
+            `mutator ${replay.mutator} needs simVersion ${PAWLEGENDS_MUTATOR_PLAY_SINCE} or later`
+        );
+    }
 
     const record = canonicalRecord(replay);
     const digest = pawlegendsDigest(record);
@@ -426,6 +436,9 @@ export async function savePawlegendsMatch(
               won,
               forfeit: result.reason === 'forfeit',
               takedowns: takedownsOf((result as { stats?: unknown }).stats, 0),
+              // Sim v22 (Blitz): paid per minute like Skirmish, and a draw pays the loss plus half the win bonus
+              ...(ranked ? {} : { ticks: result.ticks }),
+              ...((result as { draw?: boolean }).draw ? { draw: true } : {}),
               // Daily cap and real-time gap: a solo seed is the client's, so replays could be made offline.
               soloMs: (result.ticks / PAWLEGENDS_TICK_HZ) * 1000,
               // CHAMPION-STORE.md: Yarn once per save; the hero must have been the player's to pick (§8.5)

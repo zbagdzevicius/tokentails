@@ -16,7 +16,6 @@ import { MAX_INPUT_CHARS, MAX_TICKS } from '../data/limits';
 import { TRICK_IDS } from '../data/tricks';
 import {
   MAP_IDS,
-  MUTATORS,
   PVP_LEAD1,
   type MapId,
   SLOTS_PER_TEAM,
@@ -39,6 +38,7 @@ import { createMatch, fillPicks, hashTrail, result, step, tickOf } from './index
 import { bindMap, mapIndex } from './map/runtime';
 import type { MatchHandle } from './state';
 import { SIM_VERSION } from './version';
+import { mutatorOf, mutatorProblem } from './mutator';
 
 export { applyPartyInputs, createPartyState, validateHumans } from './party-inputs';
 export { createPlayerBotFor } from './bots';
@@ -100,7 +100,7 @@ export function partyReplayRecord(m: MatchHandle): PartyReplayRecord | null {
     inputs,
     outcome: m.ended.outcome,
     finalHash: m.ended.finalHash,
-    mutator: 'none',
+    mutator: mutatorOf(m.world),
     ...(m.world.map !== 0 ? { map: MAP_IDS[m.world.map] } : {}),
   };
 }
@@ -143,7 +143,7 @@ export interface PartyReplayRun {
 }
 
 /** Re-simulate a party replay (shape already checked). Throws DecodeError on a malformed stream. */
-export function runPartyReplay(r: Pick<PartyReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs' | 'map'>): PartyReplayRun {
+export function runPartyReplay(r: Pick<PartyReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs' | 'map' | 'mutator'>): PartyReplayRun {
   return runSeats(r, undefined);
 }
 
@@ -152,10 +152,12 @@ export function runPvpReplay(r: Pick<PvpReplayRecord, 'seed' | 'difficulty' | 'h
   return runSeats(r, [r.fillDifficulty[0], r.fillDifficulty[1]]);
 }
 
-function runSeats(r: Pick<PartyReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs' | 'map'>, fill: [Difficulty, Difficulty] | undefined): PartyReplayRun {
+function runSeats(r: Pick<PartyReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs' | 'map' | 'mutator'>, fill: [Difficulty, Difficulty] | undefined): PartyReplayRun {
   // Sim v19: the record's map first (the stream bounds and the limits are per map).
   bindMap(mapIndex(r.map));
   const map = r.map === undefined ? {} : { map: r.map };
+  // Sim v22: a party record may carry a mutator (Blitz); PvP never does (checkPvpShape).
+  const mut = r.mutator === undefined || r.mutator === 'none' ? {} : { mutator: r.mutator };
   const limit = Math.min(r.ticks, MAX_TICKS);
   const streams: TimedCommand[][] = [];
   for (let i = 0; i < r.inputs.length; i++) streams.push(decodeStream(fromBase64(r.inputs[i]), limit - 1));
@@ -164,7 +166,7 @@ function runSeats(r: Pick<PartyReplayRecord, 'seed' | 'difficulty' | 'humans' | 
   for (let i = 0; i < r.humans.length; i++) humans.push(r.humans[i].slot);
   const m = fill
     ? createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, humans, mode: 'pvp', fillDifficulty: fill, ...map })
-    : createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, humans, ...map });
+    : createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, humans, ...map, ...mut });
   const at: number[] = [];
   for (let i = 0; i < streams.length; i++) at.push(0);
   const slot0: Command[] = [];
@@ -223,7 +225,8 @@ export function checkPartyShape(r: unknown): VerifyResult | null {
   }
   if (x.outcome !== 'won' && x.outcome !== 'lost') return fail('PAWLEGENDS_REPLAY_INVALID', 'outcome must be won or lost');
   if (!isHex8(x.finalHash)) return fail('PAWLEGENDS_REPLAY_INVALID', 'finalHash must be 8 hex digits');
-  if (x.mutator !== undefined && !(MUTATORS as readonly unknown[]).includes(x.mutator)) return fail('PAWLEGENDS_REPLAY_INVALID', "mutator must be 'none'");
+  const mutBad = mutatorProblem(x.mutator, x.map, false);
+  if (mutBad) return fail('PAWLEGENDS_REPLAY_INVALID', mutBad);
   const want = fillPicksParty(x.seed, x.humans as PartySeat[], x.map as MapId | undefined);
   for (let s = 0; s < SLOT_COUNT; s++) {
     if (x.picks[s] !== want.picks[s] || x.tricks[s] !== want.tricks[s]) return fail('PAWLEGENDS_REPLAY_INVALID', 'picks do not match the seed and seats');
@@ -247,7 +250,7 @@ export function verifyPartyReplay(record: unknown): VerifyResult {
   if (!res || res.ticks !== r.ticks) return fail('PAWLEGENDS_NOT_ENDED', 'the match does not end on the reported tick');
   if (res.outcome !== r.outcome) return fail('PAWLEGENDS_OUTCOME_MISMATCH', `re-sim outcome is ${res.outcome}`);
   if (res.finalHash !== r.finalHash) return fail('PAWLEGENDS_HASH_MISMATCH', 'final hash differs');
-  return { ok: true, outcome: res.outcome, finalHash: res.finalHash, ticks: res.ticks, stats: res.stats, reason: res.reason };
+  return { ok: true, outcome: res.outcome, finalHash: res.finalHash, ticks: res.ticks, stats: res.stats, reason: res.reason, winner: res.winner, ...(res.draw ? { draw: true as const } : {}) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -305,7 +308,8 @@ export function checkPvpShape(r: unknown): VerifyResult | null {
   }
   if (x.outcome !== 'won' && x.outcome !== 'lost') return fail('PAWLEGENDS_REPLAY_INVALID', 'outcome must be won or lost');
   if (!isHex8(x.finalHash)) return fail('PAWLEGENDS_REPLAY_INVALID', 'finalHash must be 8 hex digits');
-  if (x.mutator !== undefined && !(MUTATORS as readonly unknown[]).includes(x.mutator)) return fail('PAWLEGENDS_REPLAY_INVALID', "mutator must be 'none'");
+  const mutBad = mutatorProblem(x.mutator, x.map, true);
+  if (mutBad) return fail('PAWLEGENDS_REPLAY_INVALID', mutBad);
   const want = fillPicksParty(x.seed, seats, x.map as MapId | undefined);
   for (let s = 0; s < SLOT_COUNT; s++) {
     if (x.picks[s] !== want.picks[s] || x.tricks[s] !== want.tricks[s]) return fail('PAWLEGENDS_REPLAY_INVALID', 'picks do not match the seed and seats');

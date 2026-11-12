@@ -99,13 +99,14 @@ export const CROSSING_BEDS: readonly (readonly [number, number, number, number])
   Object.freeze([27000, 14500, 27000, 25500] as const),
 ]);
 
+/**
+ * Sim v22 (MAP-5V5-STANDARD.md §7.3): one bed per quadrant, a lane-to-buff launch pad. The cushion sits on Gutterway's
+ * shoulder just past the inner tower and lands at the edge of Prickle Hollow's clearing (12.5 m over the forest); its
+ * swap does the same from Fenceline to Crow Roost. (v21's four beds launched over rocks the carved jungle no longer has.)
+ */
 export const HEARTHWOOD_BEDS: readonly (readonly [number, number, number, number])[] = Object.freeze([
-  // Prickle Hollow, east over the rocks to Yarn Road; and its swap (the Crow Roost side, north to Yarn Road).
-  Object.freeze([56000, 35000, 65000, 35000] as const),
-  Object.freeze([35000, 56000, 35000, 65000] as const),
-  // The Frog Pond, south over the rocks to Gutterway; and its swap (west to Fenceline).
-  Object.freeze([68000, 23500, 68000, 12500] as const),
-  Object.freeze([23500, 68000, 12500, 68000] as const),
+  Object.freeze([58000, 12500, 58000, 25000] as const),
+  Object.freeze([12500, 58000, 25000, 58000] as const),
 ]);
 
 /** One map's Mega Yarn Balls. */

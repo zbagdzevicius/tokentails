@@ -94,18 +94,20 @@ scrolls sideways with snap. This is the only scroll region.
 | Classic | 5v5 Hearthwood Divide | bots, coop, pvp | live |
 | Co-op vs Bots | 3v3 | coop | live |
 | Ranked | 5v5 | pvp | locked ("Coming soon", Unranked) |
-| Blitz | 3v3 | bots, pvp | soon (v22 registers it live) |
+| Blitz | 3v3 Purrhaven Crossing, the `blitz` mutator (sim v22, BLITZ.md) | bots (party and PvP later) | live since sim v22 (~3 min; Skirmish ~7 min, Classic ~13 min from the v22 probe) |
 | Cannon Chaos | 3v3 | bots, coop | soon (becomes an event only when given a real `endsAt`) |
 
 **Saved choice.** It is stored as `pawlegends.mode.v1` in localStorage.
-- Migration: when no new key exists, the old `pawlegends.matchMode` maps `quick` to Skirmish and `classic` to Classic.
+- Migration: when no new key exists, the old `pawlegends.matchMode` maps `quick` to Skirmish and `classic` to Classic
+  (sim v22 stores `blitz`, `skirmish` or `classic`, each its own tile). A `?mode=` link sets both keys (vs Bots); an
+  unknown mode shows "Update to play …" on Home and keeps Skirmish.
 - Every confirm also writes the old key, so the pick screen, party queue and rematch keep the same map.
 
 ## Plug-in points for the other worktrees
 
 | Worktree | Where it plugs in |
 |---|---|
-| v22 (Blitz, PLAY picker tiles) | `registerMode({...})` in `modes.ts`, or edit `BASE_MODES`. A mode with the same id replaces the base entry. |
+| v22 (Blitz, PLAY picker tiles) | Done in sim v22: Blitz is a live `BASE_MODES` row; `botsChoice` gives it `mutator: 'blitz'`. A mode with the same id registered later replaces the base entry. |
 | -champs (champion store) | `HomeScreenOpts.onHeroes` (nav Heroes, falls back to the champion select), plus a `Promo` with `action: 'heroes'`. |
 | -chat (avatars, chat) | Profile avatar (`.hm-av`), top-right corner (`.lb-corner`), nav Friends (`data-a="party"`). |
 | Pass | Nav Pass, profile XP ring and the season promo all read `ent.snapshot().season`. |

@@ -34,6 +34,9 @@ The games are short because the sea is patient but not that patient. At Sunset t
 | Kitten Cadets and Pup Troopers | The little ones who march down the lanes in waves. They take their job extremely seriously. |
 | Pudding | A huge, shy, wobbly creature who lives in the Crossing's river. Calm it down and it will happily walk with your team for a while. |
 | Rat camps | The Rat Gang lives on the Crossing and steals everyone's snacks. Both teams agree on one thing: chase off the rats. |
+| Hearthwood Divide | The autumn wood on the edge of the village where the 5v5 Classic is played. Warm-lit paths wind through dense hedgerows; Hearth Cottage (the cats) and Kennel Keep (the dogs) face each other across a river crossed by the Thread Bridge. |
+| Beetle Log | A mossy hollow log in each Hearthwood quadrant, home to a grumpy stag beetle and a swarm of green-glowing little ones. Chase the big one off and the jungle pays you for it. |
+| Sugar Rush | Calm the Great Pudding in Hearthwood and he shares his dessert: for 90 seconds every minion near your heroes is too happy to feel a scratch and hits towers like a battering ram. |
 | Catnip Bushes | Tall, leafy bushes that hide anyone inside. Frenzy Catnip grows by the river, and a sniff of it puts a spring in any step, cat or dog. |
 | Fish and Toys | Every play earns Fish. Fish buys Toys the moment there is enough, and Toys make a hero a little stronger, a little faster and a lot happier. |
 

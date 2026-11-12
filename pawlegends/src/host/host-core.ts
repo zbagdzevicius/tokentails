@@ -51,8 +51,10 @@ export class HostCore {
   join(msg: JoinMsg): WelcomeMsg {
     const seed = typeof msg.seed === 'number' && Number.isInteger(msg.seed) && msg.seed >= 0 && msg.seed <= 0xffffffff ? msg.seed >>> 0 : drawSeed();
     const map = msg.map === 'hearthwood' ? 'hearthwood' : undefined;
+    // Sim v22: Blitz is a Crossing mutator (anything else is a plain match)
+    const mutator = msg.mutator === 'blitz' && !map ? 'blitz' : undefined;
     const { picks, tricks } = fillPicks(seed, msg.hero, msg.trick, map);
-    this.match = createMatch({ seed, picks, tricks, difficulty: msg.difficulty, ...(map ? { map } : {}) });
+    this.match = createMatch({ seed, picks, tricks, difficulty: msg.difficulty, ...(map ? { map } : {}), ...(mutator ? { mutator } : {}) });
     this.team = teamOfSlot(HUMAN_SLOT, map);
     this.pending = [];
     this.endSent = false;
@@ -68,6 +70,7 @@ export class HostCore {
       picks: picks.slice(),
       tricks: tricks.slice(),
       ...(map ? { map } : {}),
+      ...(mutator ? { mutator } : {}),
     };
   }
 
