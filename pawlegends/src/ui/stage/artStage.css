@@ -78,8 +78,8 @@
   mask-image: radial-gradient(ellipse 50% 50% at 50% 46%, #000 52%, transparent 100%);
 }
 html[data-phone='1'] .pl-stage[data-mode='pick'] .pl-stage-hero { opacity: 0.4; }
-/* the results: between the results column and the MVP card */
-.pl-stage[data-mode='results'] .pl-stage-hero { --h: 68vh; left: 58%; bottom: 8vh; }
+/* the results: between the results column and the MVP card, above the action row */
+.pl-stage[data-mode='results'] .pl-stage-hero { --h: 60vh; left: 58%; bottom: 17vh; }
 
 /* PLAY: the card leans in and the scene dims (DOLLY_MS) */
 .pl-stage.out .pl-stage-hero { transform: translateX(-50%) scale(1.08); opacity: 0.85; }
