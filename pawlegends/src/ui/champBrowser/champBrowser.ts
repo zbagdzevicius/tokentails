@@ -11,7 +11,9 @@
  *   the world (The Truce Games).
  *
  * Opened from the "i" on a pick card, the detail's "Skills & lore" button, the party pick, the collection and the
- * lobby. `pick` adds a Select button (the picker's own rule says whether a hero can be picked now). Nothing here is on
+ * lobby. Home's Heroes and its nameplate pass `action`: one button under the description, SELECT (the Home hero and the
+ * champion select's first pick; the browser stays open), SELECTED, BUY (web: the store's champion detail) or UNLOCK (app:
+ * the same detail with Yarn and Champion Picks only). `pick` adds a Select button (the picker's own rule says whether a hero can be picked now). Nothing here is on
  * the quick Play path: the browser opens only when asked and closes with ✕, Esc, Select or a tap outside on desktop.
  *
  * Keyboard: ← → champions (inside a tab list they move that list, as the ARIA pattern says), P / A / Q W E R the
@@ -52,6 +54,20 @@ export interface ChampPick {
   on(h: HeroId): void;
 }
 
+/**
+ * Home's hero button (Nov 12, the founder: "add SELECT / BUY as a button in here"): what the button under the
+ * description does for a hero. 'select': a playable hero that is not the Home hero yet; 'selected': it already is
+ * (shown, not pressable); 'buy' (web) and 'unlock' (app: Yarn or a Champion Pick, no price): a locked hero; 'none':
+ * no button (a locked hero the app does not offer, or no store here). Never starts a match.
+ */
+export type HeroActionState = 'select' | 'selected' | 'buy' | 'unlock' | 'none';
+export interface HeroAction {
+  state(h: HeroId): HeroActionState;
+  /** 'select' runs with the browser still open (the button turns SELECTED); 'buy' and 'unlock' close it first. */
+  on(h: HeroId, kind: 'select' | 'buy' | 'unlock'): void;
+}
+export const ACTION_WORD: Readonly<Record<Exclude<HeroActionState, 'none'>, string>> = Object.freeze({ select: 'SELECT', selected: 'SELECTED', buy: 'BUY', unlock: 'UNLOCK' });
+
 export interface ChampBrowserOpts {
   hero: HeroId;
   /** The heroes the arrows walk (default: all, cats then dogs). A jump to a rival outside it still shows. */
@@ -60,6 +76,8 @@ export interface ChampBrowserOpts {
   /** The skill shown first (default Q, which auto-plays). */
   slot?: SkillSlot;
   pick?: ChampPick;
+  /** Home's SELECT / BUY / UNLOCK button under the description (Home's Heroes and the nameplate). */
+  action?: HeroAction;
   /** Called after every champion change (the lobby turns its stage hero, for example). */
   onBrowse?(h: HeroId): void;
   onClose?(): void;
@@ -262,8 +280,17 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
         </ul>
         <p class="cb-hook">${esc(l.hook)}</p>
       </div>
+      ${actionHtml()}
       <p class="cb-count" aria-hidden="true">${i >= 0 ? `${i + 1} / ${order.length}` : ''}</p>
       ${o.pick ? `<div class="cb-pick"><button type="button" class="pl-btn big cb-select" data-a="select"${blocked ? ' disabled aria-disabled="true"' : ''}>${esc(o.pick.label ?? 'Select')}</button>${blocked ? `<small class="cb-why">${esc(blocked)}</small>` : ''}</div>` : ''}`;
+  };
+
+  const actionHtml = (): string => {
+    const st = o.action?.state(hero) ?? 'none';
+    if (st === 'none') return '';
+    const t = HERO_TEXT[hero]?.title ?? hero;
+    const label = st === 'select' ? `Select ${t} as your hero` : st === 'selected' ? `${t} is your hero` : st === 'buy' ? `Buy ${t} in the store` : `Unlock ${t}`;
+    return `<div class="cb-act"><button type="button" class="pl-btn big cb-act-btn" data-a="act" data-act="${st}" data-testid="hero-action"${st === 'selected' ? ' aria-disabled="true"' : ''} aria-label="${esc(label)}">${ACTION_WORD[st]}</button></div>`;
   };
 
   const drawIcons = (): void => {
@@ -417,6 +444,22 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
         const h = hero;
         api.close();
         o.pick.on(h);
+        return;
+      }
+      case 'act': {
+        if (!o.action) return;
+        const h = hero;
+        const st = o.action.state(h);
+        if (st === 'select') {
+          o.action.on(h, 'select');
+          // the browser stays: the button turns SELECTED and keeps the focus
+          if (!open) return;
+          drawHero();
+          root.querySelector<HTMLElement>('.cb-act-btn')?.focus({ preventScroll: true });
+        } else if (st === 'buy' || st === 'unlock') {
+          api.close();
+          o.action.on(h, st);
+        }
         return;
       }
       case 'world':

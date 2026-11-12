@@ -94,7 +94,9 @@ describe('home screen: one play path', () => {
     // gone: the quick Co-op and PvP buttons, the Friends nav, the nameplate lock-in, the Games button
     for (const sel of ['[data-testid="play-online"]', '[data-testid="play-pvp"]', '[data-testid="play-friends"]', '[data-a="online"]', '[data-a="party"]', '[data-a="name"]', '[data-a="choose"]', '[data-testid="lobby-exit"]', '.hm-quick'])
       expect(root.querySelector(sel), sel).toBeNull();
-    expect(root.querySelector('.hm-plate')?.tagName).toBe('DIV');
+    // the nameplate opens the champion browser (Nov 12: SELECT switches the Home hero there), never a match
+    expect(root.querySelector('.hm-plate')?.tagName).toBe('BUTTON');
+    expect(root.querySelector('.hm-plate')?.getAttribute('data-a')).toBe('plate');
     // the mode pill is a label of the last choice, not a button
     const pill = root.querySelector('[data-testid="mode-pill"]')!;
     expect(pill.tagName).toBe('P');

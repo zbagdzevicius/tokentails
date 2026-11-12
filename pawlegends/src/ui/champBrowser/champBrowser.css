@@ -65,6 +65,13 @@ html[data-champ] .tt-card > .tt-sp, html[data-champ] .tt-card > .tt-glare, html[
 .cb-hook::-webkit-scrollbar { display: none; }
 .cb-id { overflow: hidden; display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; }
 .cb-id > :not(.cb-hook) { flex-shrink: 0; }
+/* Home's SELECT / BUY / UNLOCK (champBrowser.ts `action`): under the description, above the count */
+.cb-act { margin: auto 0 0; padding-top: 6px; display: flex; flex-direction: column; align-items: stretch; }
+.cb-act .pl-btn.big { min-height: 44px; padding: 6px 14px; font-size: 17px; letter-spacing: 0.06em; }
+.cb-act-btn[data-act='buy'], .cb-act-btn[data-act='unlock'] { background: linear-gradient(180deg, #ffe08a, #f2b13c); color: #3a2208; }
+.cb-act-btn[aria-disabled='true'] { opacity: 0.6; cursor: default; filter: saturate(0.4); }
+.cb-act-btn:focus-visible { outline: 3px solid var(--cream, #fff3dc); outline-offset: 2px; }
+.cb-act + .cb-count { margin-top: 2px; }
 .cb-count { margin: auto 0 0; text-align: center; font-size: 11px; opacity: 0.6; }
 .cb-pick { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
 .cb-pick .pl-btn.big { min-height: 40px; padding: 6px 14px; font-size: 17px; }
@@ -255,6 +262,7 @@ html[data-champ] .tt-card > .tt-sp, html[data-champ] .tt-card > .tt-glare, html[
   .cb-lore { font-size: 15px; padding: 16px 22px 20px; line-height: 1.55; }
   .cb-quote { font-size: 17px; }
   .cb-pick .pl-btn.big { min-height: 50px; font-size: 20px; }
+  .cb-act .pl-btn.big { min-height: 52px; font-size: 20px; }
   .cb-x { top: 0; right: 0; width: 42px; height: 42px; }
 }
 
