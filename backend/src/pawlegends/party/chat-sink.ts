@@ -75,7 +75,12 @@ export class ChatSink {
         this.inFlight = batch;
         try {
             await this.writers.messages.insertMany(
-                batch.map(({ line }) => ({ ...line, exp: new Date(line.at.getTime() + RETAIN_MS) })),
+                batch.map(({ line }) => {
+                    // the thread kind belongs to the thread row, not the message
+                    const row: Record<string, unknown> = { ...line, exp: new Date(line.at.getTime() + RETAIN_MS) };
+                    delete row.kind;
+                    return row;
+                }),
                 { ordered: false }
             );
             const last = new Map<string, { line: RelayChatLine; members: Set<string> }>();
@@ -90,7 +95,13 @@ export class ChatSink {
                     updateOne: {
                         filter: { _id: thread },
                         update: {
-                            $setOnInsert: { kind: 'party', createdAt: line.at, read: {}, muted: [], createdBy: '' },
+                            $setOnInsert: {
+                                kind: line.kind ?? 'party',
+                                createdAt: line.at,
+                                read: {},
+                                muted: [],
+                                createdBy: '',
+                            },
                             $addToSet: { members: { $each: [...members] } },
                             $set: {
                                 tier: line.k === 't' ? 'text' : 'quick',

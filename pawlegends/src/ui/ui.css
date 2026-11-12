@@ -1644,3 +1644,74 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
   .pl-party[data-screen='pick'] .pp-chat { left: max(32px, calc((100vw - 1400px) / 2)); bottom: calc(max(24px, var(--safe-b, 0px)) + 28px); }
   .pl-party[data-screen='pick']:has(> .pp-chat:not([hidden])) .cs-fl { padding-left: 52px; }
 }
+
+/* In-match chat (docs/plans/moba/MATCH-CHAT.md §4, ui/chatTicker.ts, ui/chatDrawer.ts). The ticker is transient: with
+   no line it paints nothing (the HUD budget, tests/e2e/hud-area.spec.ts). Phones: right-aligned under the kill feed's
+   box, as wide as the feed. Desktop: a 6-line log bottom left, above the left end of the bottom HUD bar. */
+.pl-chatline { position: absolute; z-index: 5; display: flex; flex-direction: column; gap: 3px; pointer-events: none; }
+.pl-chatline.empty { display: none; }
+.pl-chatline .cl-row {
+  position: relative; box-sizing: border-box; display: flex; align-items: baseline; gap: 4px; max-width: 100%; min-width: 0; white-space: nowrap; overflow: hidden;
+  padding: 3px 8px; border-radius: 8px; background: var(--panel-2); color: var(--cream); font: 600 12px/1.25 var(--font);
+  pointer-events: auto; cursor: pointer; transition: opacity 0.6s; animation: pl-slide 0.25s;
+}
+.pl-chatline .cl-row.out { opacity: 0; }
+.pl-chatline .cl-row b { flex: none; font-weight: 700; }
+.pl-chatline .cl-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pl-chatline .cl-row i { flex: none; font-style: normal; font-size: 10px; opacity: 0.7; }
+html[data-touch='1'] .pl-chatline { right: calc(10px + var(--safe-r)); top: calc(var(--chat-top, 152px) + var(--safe-t)); width: 170px; align-items: flex-end; }
+/* the feed sits left (beside the minimap, the LoL HUD): the ticker lines up under it on its left edge */
+html[data-touch='1'] .pl-match[data-chat-align='left'] .pl-chatline { right: auto; left: var(--chat-left, 150px); align-items: flex-start; }
+html[data-touch='1']:has(.pl-emote) .pl-chatline, html[data-touch='1']:has(.pl-chatbtn) .pl-chatline { width: 128px; }
+html[data-touch='1'] .pl-chatline .cl-row { font-size: 11.5px; padding: 3px 8px; }
+/* 44 px tap targets by padding (the row's tap area, never painted) */
+html[data-touch='1'] .pl-chatline .cl-row::after { content: ''; position: absolute; left: -6px; right: -6px; top: -10px; bottom: -10px; }
+html:not([data-touch='1']) .pl-chatline { left: calc(14px + var(--safe-l)); bottom: calc(var(--chat-bottom, 170px) + var(--safe-b)); width: 340px; align-items: flex-start; }
+html:not([data-touch='1']) .pl-chatline .cl-row { background: rgba(20, 12, 22, 0.55); }
+
+.pl-chatdrawer {
+  position: absolute; z-index: 25; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: auto; touch-action: manipulation;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); color: var(--cream); font: 600 13px var(--font);
+}
+.pl-chatdrawer[hidden] { display: none; }
+.pl-chatdrawer.touch {
+  box-sizing: border-box; right: calc(var(--drawer-right, 10px) + var(--safe-r)); top: calc(var(--drawer-top, 12px) + var(--safe-t)); width: var(--drawer-w, min(360px, 46vw));
+  max-height: min(calc(var(--vvh, 100vh) * 0.58), var(--drawer-max, 100vh));
+}
+.pl-chatdrawer.desk { box-sizing: border-box; left: calc(14px + var(--safe-l)); bottom: calc(var(--chat-bottom, 170px) + var(--safe-b)); width: 360px; max-height: 320px; }
+.pl-chatdrawer .cd-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none; }
+.pl-chatdrawer .cd-seg { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.pl-chatdrawer .cd-seg button, .pl-chatdrawer .cd-x {
+  min-height: 44px; min-width: 64px; padding: 0 12px; border: 0; background: transparent; color: var(--cream); font: 700 13px var(--font); cursor: pointer;
+}
+.pl-chatdrawer.desk .cd-seg button, .pl-chatdrawer.desk .cd-x { min-height: 30px; min-width: 52px; }
+.pl-chatdrawer .cd-seg button[aria-selected='true'] { background: #7fd4ff; color: var(--ink); }
+.pl-chatdrawer .cd-x { min-width: 44px; border-radius: 50%; }
+.pl-chatdrawer .cd-list {
+  margin: 0; padding: 0 4px 0 0; list-style: none; overflow-y: scroll; flex: 1 1 auto; min-height: 44px; display: flex; flex-direction: column; gap: 4px;
+  scrollbar-width: thin; scrollbar-color: rgba(255, 243, 220, 0.45) transparent;
+}
+.pl-chatdrawer .cd-list::-webkit-scrollbar { width: 6px; }
+.pl-chatdrawer .cd-list::-webkit-scrollbar-thumb { background: rgba(255, 243, 220, 0.45); border-radius: 3px; }
+.pl-chatdrawer .cd-list li { font-size: 12.5px; line-height: 1.3; overflow-wrap: anywhere; user-select: none; -webkit-user-select: none; }
+.pl-chatdrawer .cd-list li i { font-style: normal; opacity: 0.7; font-size: 10.5px; margin-right: 4px; }
+.pl-chatdrawer .cd-menu { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.pl-chatdrawer .cd-menu button { min-height: 36px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 243, 220, 0.08); color: var(--cream); font: 600 12px var(--font); }
+.pl-chatdrawer .cd-err { display: none; color: #ffb4a8; font-size: 12px; }
+.pl-chatdrawer .cd-err.on { display: block; }
+.pl-chatdrawer .cd-foot { display: flex; flex-direction: column; gap: 6px; flex: none; margin: 0; }
+.pl-chatdrawer .cd-row { display: flex; gap: 6px; }
+.pl-chatdrawer .cd-input {
+  flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(20, 12, 22, 0.7); color: var(--cream);
+  font: 500 15px var(--font);
+}
+.pl-chatdrawer.desk .cd-input { min-height: 34px; font-size: 14px; }
+.pl-chatdrawer .cd-send { min-height: 44px; padding: 0 14px; border-radius: 12px; border: 0; background: #7fd4ff; color: var(--ink); font: 700 13px var(--font); cursor: pointer; }
+.pl-chatdrawer.desk .cd-send { min-height: 34px; }
+.pl-chatdrawer .cd-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.pl-chatdrawer .cd-chips::-webkit-scrollbar { display: none; }
+.pl-chatdrawer .cd-chip {
+  flex: none; min-height: 44px; padding: 0 12px; border-radius: 999px; border: 1px solid #7fd4ff; background: rgba(127, 212, 255, 0.12); color: var(--cream);
+  font: 700 12.5px var(--font); cursor: pointer; white-space: nowrap;
+}
+.pl-chatdrawer.desk .cd-chip { min-height: 30px; }

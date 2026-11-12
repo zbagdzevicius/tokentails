@@ -86,7 +86,7 @@ describe('PartySocket', () => {
     const t = setup();
     t.s.connect();
     t.sockets[0].open();
-    expect(JSON.parse(t.sockets[0].sent[0] as string)).toMatchObject({ t: 'hello', proto: 5, sim: 11 });
+    expect(JSON.parse(t.sockets[0].sent[0] as string)).toMatchObject({ t: 'hello', proto: 6, sim: 11 });
     welcome(t.sockets[0]);
     const first = t.store.get('pl.party.resume');
     expect(first).toBeTruthy();

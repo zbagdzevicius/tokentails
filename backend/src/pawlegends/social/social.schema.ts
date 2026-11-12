@@ -65,6 +65,14 @@ export class PawlegendsSocial {
     /** Filter rejections today (UTC day); 20 raise CMS flag F6. */
     @Prop({ type: Object, default: null })
     chatStrikes?: { day: string; n: number } | null;
+
+    /**
+     * MATCH-CHAT.md §5.8: the bot lines this player saw lately (the last 80 line ids, the last 30 surfaces, the last 3
+     * surfaces of each common token), so a bot line never repeats for them across matches. Written by the relay once
+     * per match; removed with the row on account deletion.
+     */
+    @Prop({ type: Object, default: undefined })
+    botSeen?: { l: string[]; s: string[]; t?: Record<string, string[]> };
 }
 export const PawlegendsSocialSchema = SchemaFactory.createForClass(PawlegendsSocial);
 

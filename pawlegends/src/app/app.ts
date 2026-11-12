@@ -1313,6 +1313,9 @@ export class App {
         rejoin: match.startInMs === 0,
         newbie: p.matches === 0,
         hideNames: hideNames(),
+        // MATCH-CHAT.md §3: report an in-match line through the host (signed-in players only)
+        chatReport: (mid, kind) =>
+          accountState().signedIn ? this.integration.api('chat.report', { msg: mid, kind }).then((r) => r.ok) : Promise.resolve(false),
         ...(match.mode === 'coop' ? { coop: true, backfill } : {}),
         ...(match.mode === 'casual' ? { coop: true, backfill, pvp: true, report: this.reportBookFor(match.room) } : {}),
       },

@@ -25,7 +25,7 @@ import { sinceLoadMs } from '../analytics/kpi';
 import { PING_TEXT } from '../ui/pingText';
 import { EMOTES, socialLine, socialText } from '../data/social';
 import { SLOT_RING, partySlotNames, type PartyLink, type PausedMsg, type SocialMsg, type VoteMsg } from './mpTypes';
-import { QuickChat, type ChatPick } from '../party/ui/quickChat';
+import { QuickChat, WHEEL_ALL, type ChatPick } from '../party/ui/quickChat';
 import { shellPlatform } from './platform';
 import { SIM_VERSION } from '../sim/version';
 import { REPORT_THANKS, reportPopover, reportable, closeReportPopover, type ReportBook } from '../social/report';
@@ -60,6 +60,11 @@ export interface MpHudHost {
   tick(): number;
   /** PvP reports (SOCIAL-RANKED.md §8): this match's report book (null outside PvP or standalone). */
   report?: ReportBook | null;
+  /**
+   * MATCH-CHAT.md §4.1: the match's chat (app/matchChat.ts). Wheel lines go to its ticker instead of the rail, and the
+   * wheel's centre opens its drawer. Absent: the rail notes of before.
+   */
+  chat?: { wheelLine(slot: number, text: string, mine: boolean): void; openDrawer(): void } | null;
   /** Test seam. */
   now?(): number;
 }
@@ -186,6 +191,9 @@ export class MpHud {
       vote: (v) => this.onVote(v),
       paused: (p) => this.onPaused(p),
       covered: (s) => this.onCovered(s),
+      chatTier: (t) => {
+        if (this.chat) this.chat.centreLabel = t === 'text' ? 'Type' : 'More';
+      },
     });
     link.nameOf = (slot) => this.names[slot] ?? `Teammate ${slot + 1}`;
     h.rail.onAction = (id) => this.onAction(id);
@@ -211,6 +219,12 @@ export class MpHud {
     }
     this.chat = new QuickChat(h.ui, { enabled: () => h.enabled() });
     this.chat.onPick = (p) => this.sendChat(p);
+    // PROTO 6 (MATCH-CHAT.md §4.1): the centre opens the drawer; Type for a text-tier team, More for phrases only
+    if (h.chat && link.chat) {
+      const hub = h.chat;
+      this.chat.onType = () => hub.openDrawer();
+      this.chat.centreLabel = link.chatTier === 'text' ? 'Type' : 'More';
+    }
     this.applyNames();
     this.refreshSeats();
     this.chip = this.makeChip();
@@ -366,6 +380,11 @@ export class MpHud {
   }
 
   private sendChat(p: ChatPick): void {
+    // the All chip: the wheel line's all-chat phrase, through PROTO 6 chat (the ticker shows it when it comes back)
+    if (p.all && p.kind === 'chat' && WHEEL_ALL[p.id] !== undefined && this.link.chat) {
+      if (!this.link.chat('all', { k: 'q', id: WHEEL_ALL[p.id] })) this.h.rail.push({ key: 'mp-chat-slow', title: 'Slow down a moment', tone: 'info', prio: 3, ttl: 1200 });
+      return;
+    }
     if (!this.link.social(p.kind, p.id)) {
       this.h.rail.push({ key: 'mp-chat-slow', title: 'Slow down a moment', tone: 'info', prio: 3, ttl: 1200 });
       return;
@@ -397,9 +416,10 @@ export class MpHud {
       this.h.popOver(m.slot, em.glyph, 'gold');
       return;
     }
-    // chat: over the hero when on screen, and on the rail for the others
+    // chat: over the hero when on screen, and in the chat ticker (MATCH-CHAT.md §4.1; the rail before)
     this.h.popOver(m.slot, socialText('chat', m.id), 'info');
-    if (!m.mine) this.note(m.slot, m.kind, m.id);
+    if (this.h.chat) this.h.chat.wheelLine(m.slot, socialText('chat', m.id), m.mine);
+    else if (!m.mine) this.note(m.slot, m.kind, m.id);
   }
 
   private note(slot: number, kind: SocialKind, id: number): void {

@@ -16,8 +16,9 @@ export class PawlegendsChatThread {
     @Prop({ type: String, required: true })
     _id: string;
 
-    @Prop({ type: String, required: true, enum: ['dm', 'party'] })
-    kind: 'dm' | 'party';
+    /** `match` (MATCH-CHAT.md §3): a room's in-match lines, kept only so a line can be reported. */
+    @Prop({ type: String, required: true, enum: ['dm', 'party', 'match'] })
+    kind: 'dm' | 'party' | 'match';
 
     /** Account ids (party: registered members only; guests are never stored). */
     @Prop({ type: [String], required: true })

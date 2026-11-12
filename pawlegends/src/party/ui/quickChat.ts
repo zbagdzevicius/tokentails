@@ -2,13 +2,21 @@
  * Quick chat and emotes (docs/plans/moba/MULTIPLAYER.md §7 M3): a speech-bubble button under the paw button (touch;
  * a chip over the minimap on desktop) opens a wheel of the 8 quick lines (outer ring) and the 4 emotes (inner ring).
  * Desktop: hold T, point at a slice, release T (like the ping wheel's G). Touch: tap the bubble, tap a slice; a tap
- * anywhere else closes it. Enumerated ids only (D8): nothing typed ever leaves the device.
+ * anywhere else closes it. Enumerated ids only: the wheel never carries typed text.
+ *
+ * MATCH-CHAT.md §4.1: the dead centre is a "Type" button (a text-tier team) or "More" (phrases only) that opens the
+ * chat drawer, and a small "All" chip at the top sends the next pick to both teams; while it is on, only the lines
+ * that have an all-chat phrase (`WHEEL_ALL`) are enabled. Emotes always reach everyone.
  *
  * The wheel names a line; the party HUD sends it (rate-limited, src/net/proto.ts SocialLimiter) and draws it.
  */
 import { CHAT_LINES, EMOTES } from '../../data/social';
 
-export type ChatPick = { kind: 'chat' | 'emote'; id: number };
+/** `all`: the pick goes to all chat (an all-scope phrase, PROTO 6). */
+export type ChatPick = { kind: 'chat' | 'emote'; id: number; all?: boolean };
+
+/** Wheel lines that have an all-chat phrase (MATCH-CHAT.md §2.1): 0 Nice! → 28, 7 GG → 25. */
+export const WHEEL_ALL: Readonly<Record<number, number>> = Object.freeze({ 0: 28, 7: 25 });
 
 /** Ring radii (px): emotes inside, lines outside; the dead zone in the middle sends nothing. */
 export const CHAT_RING = Object.freeze({ dead: 22, inner: 50, split: 80, outer: 112 });
@@ -37,6 +45,16 @@ export class QuickChat {
   private readonly offKey: () => void;
   /** A slice was chosen. */
   onPick: ((p: ChatPick) => void) | null = null;
+  /** The centre (Type / More): open the chat drawer. Absent: no centre button (PROTO 5 relays). */
+  onType: (() => void) | null = null;
+  private readonly centre: HTMLButtonElement;
+  private readonly allChip: HTMLButtonElement;
+  private all = false;
+  /** 'Type' for a text-tier team, 'More' for phrases only. */
+  set centreLabel(t: 'Type' | 'More') {
+    this.centre.textContent = t;
+    this.centre.setAttribute('aria-label', t === 'Type' ? 'Type a message' : 'More chat');
+  }
   /** The cooldown look (the HUD greys the button while the rate limit holds). */
   set cool(on: boolean) {
     this.button.classList.toggle('cool', on);
@@ -82,6 +100,35 @@ export class QuickChat {
     };
     CHAT_LINES.forEach((line, id) => add({ kind: 'chat', id }, line, (360 / CHAT_LINES.length) * id, CHAT_RING.outer, 'line'));
     EMOTES.forEach((em, id) => add({ kind: 'emote', id }, em.glyph, (360 / EMOTES.length) * id, CHAT_RING.inner, 'emote'));
+    // MATCH-CHAT.md §4.1: the centre opens the drawer, the All chip routes the next pick to both teams
+    this.centre = document.createElement('button');
+    this.centre.type = 'button';
+    this.centre.className = 'cw centre';
+    this.centre.dataset.testid = 'quick-chat-type';
+    this.centre.style.setProperty('--a', '0deg');
+    this.centre.style.setProperty('--r', '0px');
+    this.centre.textContent = 'More';
+    this.centre.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.close();
+      this.onType?.();
+    });
+    this.wheel.appendChild(this.centre);
+    this.allChip = document.createElement('button');
+    this.allChip.type = 'button';
+    this.allChip.className = 'cw allchip';
+    this.allChip.dataset.testid = 'quick-chat-all';
+    this.allChip.style.setProperty('--a', '0deg');
+    this.allChip.style.setProperty('--r', `${-(CHAT_RING.outer + 46)}px`);
+    this.allChip.textContent = 'All';
+    this.allChip.setAttribute('aria-pressed', 'false');
+    this.allChip.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.setAll(!this.all);
+    });
+    this.wheel.appendChild(this.allChip);
     // a tap outside the slices closes it
     this.wheel.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -127,6 +174,18 @@ export class QuickChat {
     return this.wheel.classList.contains('on');
   }
 
+  /** All chat for the next pick: only lines with an all-chat phrase stay enabled. */
+  private setAll(on: boolean): void {
+    this.all = on;
+    this.allChip.setAttribute('aria-pressed', String(on));
+    this.allChip.classList.toggle('on', on);
+    for (const it of this.items) {
+      const off = on && it.pick.kind === 'chat' && WHEEL_ALL[it.pick.id] === undefined;
+      it.el.disabled = off;
+      it.el.classList.toggle('off', off);
+    }
+  }
+
   openAt(x: number, y: number): void {
     const pad = CHAT_RING.outer + 30;
     this.cx = Math.max(pad, Math.min(window.innerWidth - pad, x));
@@ -134,6 +193,8 @@ export class QuickChat {
     this.wheel.style.setProperty('--x', `${this.cx}px`);
     this.wheel.style.setProperty('--y', `${this.cy}px`);
     this.setHot(null);
+    this.centre.hidden = !this.onType;
+    this.allChip.hidden = !this.onType;
     this.wheel.classList.add('on');
     document.documentElement.dataset.chatWheel = '1';
   }
@@ -144,19 +205,23 @@ export class QuickChat {
 
   commit(): void {
     const p = this.hot;
+    const all = this.all;
     this.close();
-    if (p) this.onPick?.(p);
+    if (p && !(all && p.kind === 'chat' && WHEEL_ALL[p.id] === undefined)) this.onPick?.(all ? { ...p, all: true } : p);
   }
 
   close(): void {
+    if (this.all) this.setAll(false);
     this.wheel.classList.remove('on');
     this.setHot(null);
     delete document.documentElement.dataset.chatWheel;
   }
 
   private pick(p: ChatPick): void {
+    const all = this.all;
     this.close();
-    this.onPick?.(p);
+    if (all && p.kind === 'chat' && WHEEL_ALL[p.id] === undefined) return;
+    this.onPick?.(all ? { ...p, all: true } : p);
   }
 
   private setHot(p: ChatPick | null): void {
