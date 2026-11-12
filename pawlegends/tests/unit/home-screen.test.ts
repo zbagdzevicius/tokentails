@@ -368,6 +368,16 @@ describe('home patch (no rebuild under modals)', () => {
     expect(root.querySelector('.hm-play')).toBe(play);
   });
 
+  it('a patch with openAt opens Mode Select on that variant (Social "Play casual" over a Home still on screen)', async () => {
+    const root = mount(online());
+    expect(patchHome(root, online({ openAt: { mode: 'skirmish', queue: 'pvp' } }))).toBe(true);
+    expect(document.querySelectorAll('.pl-home')).toHaveLength(1);
+    const ms = await modesOpen();
+    expect(ms.dataset.stage).toBe('variant');
+    expect(ms.querySelector('[data-testid="variant-pvp"]')?.getAttribute('aria-checked')).toBe('true');
+    expect(root.dataset.variants).toBe('bots coop pvp friends');
+  });
+
   it('follows a new worn card on the nameplate, and keeps an open popover open', () => {
     const quests = [{ quest: { id: 'q1', text: 'Win one', goal: 1 }, value: 0, done: false }] as unknown as HomeScreenOpts['quests'];
     const root = mount(base({ quests }));
