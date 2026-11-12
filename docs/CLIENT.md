@@ -537,6 +537,17 @@ needed: the page, the picker card and the landing section (web only, never in th
 
 ### Pawlegends (/pawlegends)
 
+**Moving out (2026-11-12, `docs/plans/moba/PAWLEGENDS-WEB.md`).** Paw Legends now has its own Next app,
+`pawlegends-web/` (`pawlegends-web/README.md`), its own Vercel project and pawlegends.app: `/`, `/play`, `/terms`,
+`/privacy`, `/account`, `/support`, `/legends`. Phase A (now): the client pages below still serve
+tokentails.com/pawlegends*, and pawlegends.app until its domain moves to the new project; `npm run build:client` in
+`pawlegends/` writes the game to `pawlegends-web/public/pawlegends-game` and mirrors it here
+(`pawlegends/tools/mirror-client.mjs`; CI checks they match). Change Paw Legends host code in `pawlegends-web/`
+first and copy it here only while Phase A lasts. Phase B (after pawlegends.app serves the new project): the pages,
+`components/pawlegends/`, `analytics/pawlegends-*.ts`, `public/pawlegends/` and `public/pawlegends-game/` are
+deleted here, and tokentails.com/pawlegends*, /legends and /pawlegends-game/** redirect (308) to pawlegends.app.
+`public/pawlegends-app/updates/` (the apps' OTA files) stays in client for good.
+
 `/pawlegends` is the landing page and `/pawlegends/play` the game.
 
 - **Landing** (`pages/pawlegends/index.tsx`, `components/pawlegends/landing/`): a port of the vs-screen landing
@@ -584,7 +595,8 @@ needed: the page, the picker card and the landing section (web only, never in th
   `context/auth/link.ts`, `authErrors.ts`, `lastMethod.ts` and `firebaseConfig.ts`, so keep those React-free.
 
 - The iframe loads `/pawlegends-game/index.html?embed=1`. Rebuild it after any game change with
-  `npm run build:client` in `pawlegends/` and commit `client/public/pawlegends-game/`. The build keeps the two
+  `npm run build:client` in `pawlegends/` and commit `pawlegends-web/public/pawlegends-game/` and its mirror
+  `client/public/pawlegends-game/`. The build keeps the two
   previous releases' hashed `build/` files (listed in `build-releases.json`) and prunes older ones, so a tab opened
   before a deploy still loads its chunks and sim Worker; `next.config.js` serves `/pawlegends-game/build/*` as
   `immutable`. If the sim Worker still fails to load before the match starts, the game retries it once and then runs

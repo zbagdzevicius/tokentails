@@ -2,7 +2,8 @@
 
 The Phaser games run in the browser with Phaser 4 rc.5 (WebGL, pixel art, arcade physics) inside the
 Next.js client. Catnip Heist is a separate three.js game (`catnip-heist/`) hosted on `/heist`, and
-Pawlegends one in `pawlegends/` hosted on `/pawlegends`. The backend stores results, re-simulates Heist
+Pawlegends one in `pawlegends/` hosted on pawlegends.app by `pawlegends-web/` (and on tokentails.com/pawlegends until
+the cutover, docs/plans/moba/PAWLEGENDS-WEB.md). The backend stores results, re-simulates Heist
 runs and Pawlegends matches and serves leaderboards. See
 [BACKEND.md](BACKEND.md#games) for the server side and [CLIENT.md](CLIENT.md) for the app around
 the games.
@@ -17,7 +18,7 @@ the games.
 | `PIXEL_RESCUE` | Cupid Cat | `client/components/PixelRescue/` | Yes, hearts per level, cleared state, date-gated levels. |
 | `MATCH_3` | Paw Match | `client/components/Match3/` | Yes, catnip and raw score per level, cleared state. |
 | `CATNIP_HEIST` | Catnip Heist | `catnip-heist/`, host in `client/components/heist/` | Yes, a replay the server re-simulates. |
-| `PAWLEGENDS` | Pawlegends | `pawlegends/`, host in `client/components/pawlegends/` | Yes, a replay the server re-simulates (won and lost matches). |
+| `PAWLEGENDS` | Pawlegends | `pawlegends/`, host in `pawlegends-web/components/pawlegends/` (client copy until the cutover) | Yes, a replay the server re-simulates (won and lost matches). |
 
 `PURRQUEST` and `CATBASSADORS` exist in the backend enum from earlier iterations. Old `Game`
 rows use them and the score endpoint path is still `/user/catbassadors/live`, but the endpoint
@@ -247,10 +248,11 @@ Dec 1; v9 is retired).
   when a unit-target quick cast would hit a different enemy hero, that hero gets a thinner red ring. Touch keeps
   the joystick and button cluster.
 - **Hosting**: same origin, like the Heist. `npm run build:client` in `pawlegends/` writes
-  `client/public/pawlegends-game/` (about 1.4 MB, committed); `/pawlegends/play` frames
-  `/pawlegends-game/index.html?embed=1` (CLIENT.md, "Pawlegends (/pawlegends)").
+  `pawlegends-web/public/pawlegends-game/` (committed) and mirrors it to `client/public/pawlegends-game/` until the
+  cutover; `/play` on pawlegends.app (and `/pawlegends/play` on tokentails.com until then) frames
+  `/pawlegends-game/index.html?embed=1` (`pawlegends-web/README.md`, CLIENT.md "Pawlegends (/pawlegends)").
 - **Bridge v1**: envelope `{ns: 'tt-pawlegends', v: 1, type}`, host side
-  `client/components/pawlegends/bridge.ts`, game side `pawlegends/src/embed/bridge.ts` and
+  `pawlegends-web/components/pawlegends/bridge.ts` (client copy until the cutover), game side `pawlegends/src/embed/bridge.ts` and
   `src/embed/integrate.ts`; both test against `shared/pawlegends-bridge.fixtures.json`. The host says `hello`
   until the game answers `ready {version}` (every 500 ms for 10 s, then every 2 s; a "still loading" note
   after 10 s and a Reload / Back to games panel after 2 min). On every `ready` it re-sends `app {isApp, store,
@@ -426,7 +428,7 @@ Dec 1; v9 is retired).
   the web from play session 2, up to two locked featured cats get a Preview (8 s spin, no price, no link; the game
   sends `skin-preview`), and showcase bots may wear one (capped at Rare). App builds: owned skins only.
   **Local preview without a host**: open the standalone build with `?skins=demo` (for example
-  `http://127.0.0.1:5176/?skins=demo` under `npm run dev`, or a local static server on the `client/public/pawlegends-game`
+  `http://127.0.0.1:5176/?skins=demo` under `npm run dev`, or a local static server on the `pawlegends-web/public/pawlegends-game`
   copy), then Choose hero (the title shows it after the first match; the first match always wears the default looks). It loads a fixed five-cat demo roster (`src/app/skinDemo.ts`: Legendary, Epic and Rare
   adopted or redeemed cats, a Common adopted cat and an Epic pack cat that shows as Common) through the normal roster
   path. It runs only on localhost, 127.0.0.1, ::1 or `file://`, never in a host frame or an app build, grants
@@ -461,7 +463,7 @@ Dec 1; v9 is retired).
   `npm run build:client`, LAUNCH.md a.6; without it nothing is sent; the `tt-analytics-consent` key, which only the
   game reads and writes; the "anonymous play stats?" prompt on the title screen from session 2). Every event carries a
   `human` flag. Host events from
-  `client/analytics/pawlegends-events.ts` (`pawlegends_open`, `pawlegends_save`, `pawlegends_guest_claim`,
+  `pawlegends-web/analytics/pawlegends-events.ts` (`pawlegends_open`, `pawlegends_save`, `pawlegends_guest_claim`,
   `pawlegends_signin_prompt`, `pawlegends_meet_open`, `pawlegends_cat_purchase`, `pawlegends_bridge_timeout`).
   Crashes (`pawlegends/src/app/crash.ts`, at most 5 a page, none after stats were turned off): embedded they go
   to the host as `client-error` (reported as `app_error`), standalone as the game's own `app_error` event.

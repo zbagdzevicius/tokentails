@@ -117,12 +117,14 @@ describe("/legends landing", () => {
     const timeline = read("data/timeline.ts");
     expect(num(/SLOTS_PER_TEAM\s*=\s*(\d+)/, api)).toBe(LEGENDS_FACTS.teamSize);
     expect(num(/heroesPerTeam:\s*(\d+)/, map)).toBe(LEGENDS_FACTS.teamSize);
-    const lanes = /export const LANES[^=]*=\s*Object\.freeze\(\[([^\]]*)\]/.exec(map)?.[1] ?? "";
+    // the Classic map (the landing describes Classic; sim v22 made LANES a per-map `let`)
+    const lanes = /const C_LANES[^=]*=\s*Object\.freeze\(\[([^\]]*)\]/.exec(map)?.[1] ?? "";
     expect(lanes.split(",").filter((s) => s.trim()).length).toBe(LEGENDS_FACTS.lanes);
-    const spots = /export const TOWER_SPOTS = Object\.freeze\(\[([\s\S]*?)\]\);/.exec(map)?.[1] ?? "";
+    const spots = /const C_TOWER_SPOTS = Object\.freeze\(\[([\s\S]*?)\]\);/.exec(map)?.[1] ?? "";
     expect((spots.match(/tier:/g) ?? []).length).toBe(LEGENDS_FACTS.towersPerTeam);
     expect(num(/towers:\s*(\d+)/, map)).toBe(LEGENDS_FACTS.towersPerTeam * 2);
-    expect(num(/MAX_HUMANS\s*=\s*(\d+)/, read("net/proto.ts"))).toBe(LEGENDS_FACTS.partyMax);
+    // a party seats COOP_HUMANS (MAX_HUMANS became the 5v5 PvP wire width in PROTO 4)
+    expect(num(/COOP_HUMANS\s*=\s*(\d+)/, read("net/proto.ts"))).toBe(LEGENDS_FACTS.partyMax);
     const hz = num(/TICK_HZ\s*=\s*(\d+)/, timeline);
     expect(num(/safetyEnd:\s*(\d+)/, timeline) / hz / 60).toBe(LEGENDS_FACTS.matchCapMinutes);
     expect(num(/barrierDrop:\s*(\d+)/, timeline) / hz).toBe(LEGENDS_FACTS.gateSeconds);

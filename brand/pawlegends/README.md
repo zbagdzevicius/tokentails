@@ -2,7 +2,7 @@
 
 Founder decision (Nov 2026): primary logo = candidate #48, app icon = candidate #143.
 These are the final masters, regenerated with Gemini (`gemini-3-pro-image`) from the chosen candidates
-and refined, not redesigned. Wired in: the game (lobby, boot splash, favicons), the `/pawlegends` and `/legends` landings, the share card `client/public/pawlegends/og.jpg` and the app (`pawlegends-app/scripts/make-icons.mjs`).
+and refined, not redesigned. Wired in: the game (lobby, boot splash, favicons), the `/pawlegends` and `/legends` landings, the share card `pawlegends-web/public/pawlegends/og.jpg` (copy in `client/public/pawlegends/og.jpg` until the cutover) and the app (`pawlegends-app/scripts/make-icons.mjs`).
 
 `contact-sheet.png` shows everything on dark and light, and at small sizes.
 
@@ -39,7 +39,7 @@ teal flame wisp, orange-coral sunburst. Full bleed, no frame, no border, no "PL"
 | `favicon-16.png`, `favicon-32.png`, `favicon-48.png` | RGB | favicon PNGs, a tighter head crop so the crown and eyes read |
 | `pwa-icon-192.png`, `pwa-icon-512.png` | RGB | web manifest, purpose `any` |
 | `pwa-maskable-192.png`, `pwa-maskable-512.png` | RGB | web manifest, purpose `maskable` (art at 84 %, sunburst mirrored into the margin so the crown and ears sit inside the 80 % safe circle) |
-| `og-1200x630.png`, `og-1200x630.jpg` | 1200×630 | social / Open Graph card (icon tile + logo on dark plum). The site's current one is `client/public/pawlegends/og.jpg` |
+| `og-1200x630.png`, `og-1200x630.jpg` | 1200×630 | social / Open Graph card (icon tile + logo on dark plum). The site's current one is `pawlegends-web/public/pawlegends/og.jpg` |
 
 ## Source
 
