@@ -25,7 +25,7 @@ import { Entitlements } from '../money/entitlements';
 import { markShown, pickOffer, type Offer, type OfferScreen } from '../money/offer';
 import { isSku, type SkuId } from '../money/skus';
 import { CATALOG_SKUS, CHAMPION_IDS, STARTERS, catalogSku, champSkuOf, type CatalogSku } from '../money/catalog';
-import { canPlay, champStatus, localChampions, lockReason, openChampions, ownedCount, type ChampionsState } from '../meta/champions';
+import { appHidden, canPlay, champStatus, localChampions, lockReason, openChampions, ownedCount, type ChampionsState } from '../meta/champions';
 import { PAID_COATS, bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { Lobby } from '../render/lobby';
 import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
@@ -34,6 +34,7 @@ import { isPhone } from '../render/perf/device';
 import { FramePacer, MATCH_FPS, WARM, paceTarget, warmMatch } from '../render/perf/pacer';
 import { champCovered } from '../ui/champBrowser/cover';
 import { openChampInfo } from '../ui/champBrowser/open';
+import type { HeroActionState } from '../ui/champBrowser/champBrowser';
 import { GOV, GOV_NAMES, GOV_STEP, ThermalGovernor } from '../render/perf/governor';
 import { autoBatterySaver, batterySaver, releaseAutoSaver, savePerfStep, savedPerfStep, setBatterySaver } from '../render/perf/prefs';
 import { thermal } from '../render/perf/thermal';
@@ -461,6 +462,40 @@ export class App {
     if (!this.bridge.post('champ-unlock', { hero: h, via }) && this.screenEl) refreshPickChamps(this.screenEl);
   }
 
+  /**
+   * Home's champion browser button for `h` (champBrowser.ts HeroAction): SELECT a playable hero, SELECTED for the Home
+   * hero, BUY a locked one on the web (the store's champion detail), UNLOCK in the app (Yarn and Champion Picks only,
+   * no price). No button for a locked hero the app does not offer or when no store can open.
+   */
+  heroAction(h: HeroId): HeroActionState {
+    if (this.dare) return 'none';
+    if (this.playable(h)) return h === this.choice.hero ? 'selected' : 'select';
+    const app = this.isApp();
+    if (app) return appHidden(h, this.champs(), true) ? 'none' : 'unlock';
+    return this.ent.snapshot().storeOpen ? 'buy' : 'none';
+  }
+
+  /**
+   * SELECT in Home's champion browser: `h` becomes the Home hero and the hero the champion select opens on (the same
+   * memory the champion select's own pick writes). Home is patched in place (no rebuild, no entrance replay).
+   */
+  selectHomeHero(h: HeroId): void {
+    if (!this.playable(h) || this.dare) return;
+    sfx.play('click');
+    const prev = this.choice.hero;
+    this.choice = { ...this.choice, hero: h };
+    this.swapped = null;
+    const q = loadProfile();
+    if (HEROES[prev] && HEROES[prev].side !== HEROES[h].side) q.lastBySide[HEROES[prev].side] = prev;
+    q.hero = h;
+    q.side = HEROES[h].side;
+    q.lastBySide[q.side] = h;
+    saveProfile(q);
+    this.analytics.track('home_hero_select', { hero: h });
+    if (this.screen === 'title') this.showTitle(false);
+    else this.setLobbyHero(h);
+  }
+
   /** The lobby hero's portrait in its look, for the frame badge (baked on demand). */
   private badgePortrait(): string | null {
     const hero = this.dare?.hero ?? this.choice.hero;
@@ -703,10 +738,18 @@ export class App {
       onStart: (c) => this.startFlow(c),
       openAt: this.takeModesAt(),
       onModesOpen: (from) => this.analytics.track('play_open', { from }),
-      // nav Heroes: browse only (skills and lore); choosing a champion happens after PLAY
+      // nav Heroes and the nameplate: the champion browser on the Home hero, with SELECT / BUY / UNLOCK under the
+      // description (Nov 12, the founder). Never a match: the match still starts only from PLAY → Mode Select.
       onHeroes: () => {
         const h = this.dare?.hero ?? this.choice.hero;
-        void openChampInfo({ hero: h, within: this.screenEl, look: (x) => this.lookFor(x), onBrowse: (x) => this.setLobbyHero(x), onClose: () => this.setLobbyHero(this.dare?.hero ?? this.choice.hero) });
+        void openChampInfo({
+          hero: h,
+          within: this.screenEl,
+          look: (x) => this.lookFor(x),
+          onBrowse: (x) => this.setLobbyHero(x),
+          onClose: () => this.setLobbyHero(this.dare?.hero ?? this.choice.hero),
+          action: { state: (x) => this.heroAction(x), on: (x, kind) => (kind === 'select' ? this.selectHomeHero(x) : this.openStore('lobby', 'champions', x)) },
+        });
       },
       promos,
       seasonEnd: ends ? `Ends ${ends}` : '',
@@ -1693,8 +1736,9 @@ export class App {
 
   // ------------------------------------------------------------------------------------- store and offers
 
-  private openStore(from: 'lobby' | 'results', tab?: StoreTab): void {
-    if (!this.ent.snapshot().storeOpen || this.overlay) return;
+  private openStore(from: 'lobby' | 'results', tab?: StoreTab, hero?: HeroId): void {
+    // the app has no store (no prices): only a champion's detail opens there, for its Yarn and Champion Pick unlock
+    if (this.overlay || !(this.ent.snapshot().storeOpen || (hero && this.isApp()))) return;
     this.offerEl?.close();
     this.offerEl = null;
     this.analytics.track('store_open', { from });
@@ -1720,6 +1764,7 @@ export class App {
       onEquip: (def) => this.equipStore(def),
       onPass: () => this.openPass(),
       tab,
+      ...(hero ? { hero } : {}),
       // CHAMPION-STORE.md §10: the champion grid reads the same champions the pick does, and unlocks the same way
       champs: () => this.champs(),
       isApp: this.isApp(),

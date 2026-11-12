@@ -15,7 +15,8 @@
  * - bottom: a glass nav (Heroes, Pass, Ranked, Store on the web), on the first visit too with the items that
  *   need a match locked. Heroes only browses (skills, lore): it never starts a match;
  * - bottom right: the last mode and variant as a label, and the big round PLAY.
- * Under the hero: the champion's nameplate (a label; the champion is chosen in the champion select).
+ * Under the hero: the champion's nameplate; a returning player's opens the champion browser on that hero, whose SELECT
+ * makes another owned hero the Home hero (and the champion select's first pick). BUY / UNLOCK go to the store detail.
  *
  * One play path (Nov 12, the founder: "there should be one path"): PLAY → Mode Select (mode, then variant: vs Bots
  * with its difficulty, Co-op, PvP, With Friends) → the champion select (bots) or the queue or the party lobby. The
@@ -86,7 +87,7 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   seasonEnd?: string;
   /** Asset base (import.meta.env.BASE_URL). */
   base: string;
-  /** Nav Heroes: the champion browser, browse only (the champion store worktree plugs in here). Absent: no item. */
+  /** Nav Heroes and the nameplate: the champion browser (SELECT / BUY / UNLOCK; never a match). Absent: no item. */
   onHeroes?(): void;
   /** The end of Mode Select: start the champion select (bots), the queue (co-op, PvP) or the party (friends). */
   onStart(c: ModeChoice): void;
@@ -289,7 +290,11 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     const id = o.identity;
     const elName = ELEMENT_NAME[id.element];
     const subLine = `${id.role} · ${elName}`;
-    // the nameplate is a label: the champion is chosen in the champion select, after PLAY and the mode
+    // Nov 12 (the founder: "I can't switch home screen hero by clicking on its name"): a returning player's nameplate
+    // opens the champion browser on this hero (its SELECT button switches the Home hero). Never a match, never the pick.
+    if (returning && o.onHeroes && !o.dare)
+      return `<button type="button" class="hm-plate" data-a="plate" data-testid="home-plate" aria-haspopup="dialog" aria-label="${esc(`${id.name}, ${subLine}. Switch hero`)}"><span class="hm-plate-n">${esc(id.name)}<i class="hm-plate-cue" aria-hidden="true">⇄</i></span><small class="hm-plate-s">${esc(subLine)}</small></button>`;
+    // otherwise a label (the first visit and a dare: the hero is set)
     return `<div class="hm-plate"><span class="hm-plate-n">${esc(id.name)}</span><small class="hm-plate-s">${esc(subLine)}</small></div>`;
   };
   const playcHtml = (): string => {
@@ -462,7 +467,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     for (const d of root.querySelectorAll<HTMLDetailsElement>('details[open]')) if (!d.contains(t) || btn?.closest('.hm-pop')) d.open = false;
     if (a === 'clem' || a === 'play' || a === 'dare') playNow();
     else if (a === 'modes') openModes(btn?.dataset.mode, 'event');
-    else if (a === 'heroes') {
+    else if (a === 'heroes' || a === 'plate') {
       o.sound?.('click');
       o.onHeroes?.();
     } else if (a === 'joincode') o.onJoinCode?.();

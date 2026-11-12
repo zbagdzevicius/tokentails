@@ -179,6 +179,8 @@ export interface StoreOpts {
   onPass?(): void;
   /** The tab to open on (default Champions). */
   tab?: StoreTab;
+  /** Open on this champion's detail (Home's champion browser BUY / UNLOCK); Back shows the Champions grid. */
+  hero?: HeroId;
   /** The player's champions (the app's rule: host state, else starters and the rotation). Default: the snapshot's. */
   champs?(): ChampionsState;
   /**
@@ -244,6 +246,11 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   /** The open detail: a champion or a bundle SKU. */
   let detail: { hero?: HeroId; sku?: string } | null = null;
   let detailFrom: string | null = null;
+  if (o.hero && championDef(o.hero)) {
+    tab = 'champions';
+    detail = { hero: o.hero };
+    detailFrom = `card:${o.hero}`;
+  }
   let line = '';
   let gridScroll = 0;
   let legacyScroll = 0;

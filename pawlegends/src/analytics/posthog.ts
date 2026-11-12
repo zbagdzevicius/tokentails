@@ -41,6 +41,8 @@ export type AnalyticsEvent =
   | 'champ_locked_view'
   | 'champ_unlock'
   | 'practice_try'
+  /** Home's champion browser SELECT made `hero` the Home hero. */
+  | 'home_hero_select'
   | 'item_seen_in_match'
   | 'notify_signup'
   | 'quality_tier'
