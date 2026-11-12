@@ -21,7 +21,8 @@
 .ms-overlay.out { animation: ms-out 0.2s ease-in both; }
 @keyframes ms-in { from { opacity: 0; } }
 @keyframes ms-out { to { opacity: 0; } }
-html:not([data-quality='low']) .ms-overlay:not(.low) { backdrop-filter: blur(8px) brightness(0.6); -webkit-backdrop-filter: blur(8px) brightness(0.6); }
+/* no backdrop-filter: .ms-bg is opaque (#1a1024 under the art), so a blur of the live 3D canvas behind would never show
+   and still cost a full-screen re-blur every frame on phones */
 .ms-bg {
   position: absolute; inset: -12px; z-index: -1; pointer-events: none;
   background:
@@ -57,9 +58,11 @@ html:not([data-quality='low']) .ms-overlay:not(.low) { backdrop-filter: blur(8px
 /* the tile row: centred; a sideways scroller with snap only when it overflows */
 .ms-rowwrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; }
 .ms-row {
-  display: flex; gap: var(--ms-gap); margin: 0 auto; max-width: 100%; box-sizing: border-box;
+  display: flex; gap: var(--ms-gap); margin: -22px auto; max-width: 100%; box-sizing: border-box;
   overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
-  padding: 18px 8px 6px;
+  /* review: overflow clips at the padding box, so the padding holds the picked tile's glow, lift and crest (18 px cut the
+     glow into a square and the crest's top); the negative margin keeps the row's footprint */
+  padding: 40px 28px 18px;
 }
 .ms-row::-webkit-scrollbar { display: none; }
 .ms-rowwrap::before, .ms-rowwrap::after {
@@ -146,7 +149,14 @@ html:not([data-quality='low']) .ms-overlay:not(.low) { backdrop-filter: blur(8px
 }
 /* selection: the picked ring brightens and lifts, a burst glows under it, the others dim */
 .ms-row.has-sel .ms-pick:not(.on) { opacity: 0.7; }
-.ms-pick.on .ms-ring { transform: scale(1.08); filter: brightness(1.12) drop-shadow(0 0 14px rgba(255, 210, 110, 0.75)); }
+/* the picked ring: a round box-shadow glow on the frame (cheaper than a filter on the whole ring) */
+.ms-pick.on .ms-ring { transform: scale(1.1); }
+.ms-pick.on .ms-frame {
+  box-shadow: 0 0 0 2px var(--ms-ink), 0 0 0 4px rgba(255, 236, 170, 0.95), 0 0 26px 8px rgba(255, 200, 100, 0.6), 0 8px 18px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+.ms-pick.on .ms-art { filter: brightness(1.1) saturate(1.12); }
+.ms-pick.on .ms-name { color: #ffe9a8; }
 .ms-pick.on .ms-ring::before {
   content: ''; position: absolute; inset: -22%; border-radius: 50%; z-index: -1;
   background: radial-gradient(closest-side, rgba(255, 214, 120, 0.55), rgba(255, 140, 90, 0.18) 60%, transparent);
@@ -204,6 +214,18 @@ html:not([data-quality='low']) .ms-overlay:not(.low) { backdrop-filter: blur(8px
   pointer-events: none; white-space: nowrap;
 }
 .ms-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* review: large screens (1280x720, 1440x900) got the 132 px phone-sized tiles in a mostly empty hall; the portraits
+   grow with the viewport (6 tiles still fit the width) */
+@media (min-height: 600px) and (min-width: 1000px) {
+  .ms-overlay { --ms-tile: clamp(132px, min(24dvh, 12.5vw), 200px); --ms-gap: clamp(18px, 2vw, 30px); }
+  .ms-crest { width: 36px; height: 36px; top: -14px; }
+  .ms-crest svg { width: 20px; height: 20px; }
+  .ms-name { font-size: 19px; margin-top: 12px; }
+  .ms-meta, .ms-rank { font-size: 13px; }
+  .ms-band { height: 30px; margin-top: -15px; font-size: 16px; }
+  .ms-title { font-size: 36px; }
+}
 
 /* phones (landscape): 104 px tiles, labels trimmed */
 @media (max-height: 480px) {

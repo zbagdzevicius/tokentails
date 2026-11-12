@@ -230,6 +230,8 @@ button.hm-plate:hover .hm-plate-n { color: var(--hm-gold-1); }
   animation: hm-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both;
 }
 html:not([data-quality='low']) .pl-home:not(.low) .hm-nav { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+/* phones: no backdrop blur over the live 3D canvas (re-blurred every frame; the champ browser's rule, champBrowser.css) */
+html[data-phone='1'] .pl-home .hm-nav, html[data-touch='1'] .pl-home .hm-nav { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--hm-glass-solid); }
 /* a thin gold rule along the nav's top edge */
 .hm-nav::before {
   content: ''; position: absolute; left: 14px; right: 14px; top: 0; height: 1.5px; pointer-events: none;
@@ -335,8 +337,23 @@ html[data-quality='low'] .hm-nav, .pl-home.low .hm-nav { background: var(--hm-gl
 @keyframes hm-shock { to { transform: scale(2.1); opacity: 0; border-width: 1px; } }
 .pl-home .hm-play:focus-visible { outline: 3px solid var(--butter, #ffd34d); outline-offset: 6px; }
 
-/* the card peek (desktop only): above the PLAY cluster */
-.pl-home .lb-peek { right: var(--hm-r); bottom: auto; top: calc(var(--hm-t) + 160px); }
+/* the card peek (desktop only): above the PLAY cluster. Review: the old lobby drew it bare on a dark gradient; over the
+   key art the caption and the empty card back read as a stray, broken element, so it sits on the same glass card as
+   the promo */
+.pl-home .lb-peek {
+  right: var(--hm-r); bottom: auto; top: calc(var(--hm-t) + 160px); padding: 8px 14px 8px 8px; border-radius: 16px;
+  background: var(--hm-glass); box-shadow: inset 0 0 0 1px var(--hm-line), inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: hm-slide-r 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+}
+html:not([data-quality='low']) .pl-home:not(.low) .lb-peek { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: var(--hm-glass-solid); }
+.pl-home .lb-peek .lb-peek-cap { margin-bottom: 0; }
+.pl-home .lb-peek .lb-back {
+  width: 52px; height: 72px; color: var(--hm-gold-1);
+  background: repeating-linear-gradient(45deg, rgba(255, 228, 170, 0.08) 0 6px, transparent 6px 12px), linear-gradient(160deg, #4a2c5a, #241430);
+  box-shadow: inset 0 0 0 1.5px rgba(242, 193, 78, 0.6), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+.pl-home .lb-peek:hover { background: rgba(40, 24, 50, 0.72); }
 
 /* toast */
 .hm-toast {
