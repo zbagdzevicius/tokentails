@@ -48,9 +48,6 @@ export const PAGES = [
   { request: "/shelter-payouts", canonical: "/shelter-payouts" },
   { request: "/impact", canonical: "/impact" },
   { request: "/yourcat?utm_source=share", canonical: "/yourcat" },
-  // The Pawlegends landing (a utm link stays on it; game keys redirect to /pawlegends/play) and the game.
-  { request: "/pawlegends?utm_source=check-meta", canonical: "/pawlegends" },
-  { request: "/pawlegends/play", canonical: "/pawlegends/play" },
 ];
 
 const BAD_STRINGS = [

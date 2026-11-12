@@ -1,6 +1,5 @@
 import { GoogleTagManager } from "@/components/GoogleTagManager";
 import { PageBoundary } from "@/components/errors/PageBoundary";
-import { PawlegendsConsent } from "@/components/pawlegends/PawlegendsConsent";
 import { installWindowErrorReporting } from "@/components/Phaser/events";
 import { CatProvider } from "@/context/CatContext";
 import { ProfileProvider } from "@/context/ProfileContext";
@@ -32,8 +31,6 @@ export const MainLayout = ({ children }: PropsWithChildren) => {
   return (
     <QueryClientProvider client={queryClient}>
       <GoogleTagManager />
-      {/* Paw Legends pages and pawlegends.app only: the Consent Mode v2 choice for their GTM container. */}
-      <PawlegendsConsent />
       <ToastProvider>
         <ProfileProvider>
           <CatProvider>

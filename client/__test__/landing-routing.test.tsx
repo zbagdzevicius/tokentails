@@ -523,10 +523,6 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
       "/badcat/sw.js",
       "/home/media/:path*",
       "/music/back-on-track-v1/:path*",
-      "/pawlegends-game/build/:path*",
-      "/pawlegends/landing/:path*",
-      "/pawlegends-game/index.html",
-      "/pawlegends-game/assets/:path*",
       "/pawlegends-app/updates/:platform/:compat/bundles/:file*",
       "/pawlegends-app/updates/:platform/:compat/manifest.json",
       "/pawlegends-app/updates/:platform/:compat/manifest-beta.json",
@@ -534,19 +530,6 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     // Moon Rave's second track: every file name is versioned, so the folder is immutable.
     const music = headers.find((h: { source: string }) => h.source === "/music/back-on-track-v1/:path*");
     expect(music.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);
-  });
-
-  it("serves the Pawlegends hashed build files as immutable (launch finding R2)", async () => {
-    const headers = await nextConfig.headers();
-    const build = headers.find((h: { source: string }) => h.source === "/pawlegends-game/build/:path*");
-    expect(build.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);
-    // index.html revalidates in the browser every time, with no stale-while-revalidate (browsers honour it and would
-    // load the previous release once); only Cloudflare keeps it 60 s, through its own header (LATENCY-PLAN §3.3)
-    const index = headers.find((h: { source: string }) => h.source === "/pawlegends-game/index.html");
-    expect(index.headers).toEqual([
-      { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-      { key: "Cloudflare-CDN-Cache-Control", value: "max-age=60, stale-while-revalidate=300" },
-    ]);
   });
 
   it("caches the Pawlegends OTA bundles for good and the OTA manifests 30 s at Cloudflare only (LATENCY-PLAN §3.3)", async () => {
@@ -559,8 +542,6 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
         { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
         { key: "Cloudflare-CDN-Cache-Control", value: "max-age=30, stale-while-revalidate=60" },
       ]);
-    // the game's assets/ names carry no content hash yet: never immutable
-    expect(value("/pawlegends-game/assets/:path*")).toBe("public, max-age=3600, stale-while-revalidate=604800");
   });
 });
 
@@ -735,7 +716,7 @@ describe("playerStateFrom (the landing's optional, non-creating profile read)", 
   });
 });
 
-describe("pawlegends.app shows Paw Legends (next.config.js host rules)", () => {
+describe("Paw Legends moved to pawlegends.app (next.config.js redirects)", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { match } = require("next/dist/compiled/path-to-regexp");
   type Rule = { source: string; destination: string; has?: Array<{ type: string; key?: string; value?: string }>; missing?: unknown[]; permanent?: boolean };
@@ -753,69 +734,51 @@ describe("pawlegends.app shows Paw Legends (next.config.js host rules)", () => {
       for (const k of rule.source.match(/:(\w+)/g)?.map((p) => p.slice(1)) ?? []) {
         const v = params[k];
         const text = Array.isArray(v) ? v.join("/") : v ?? "";
-        dest = dest.replace(`:${k}*`, text).replace(`:${k}`, text);
+        dest = dest.replace(`:${k}*`, text).replace(`:${k}+`, text).replace(`:${k}`, text);
       }
       return dest;
     }
     return null;
   };
 
-  it("serves the landing at / and each Paw Legends page at /<page>, ahead of the static home page", async () => {
-    const { beforeFiles } = await nextConfig.rewrites();
-    expect(resolve(beforeFiles, "pawlegends.app", "/")).toBe("/pawlegends");
-    for (const page of ["play", "privacy", "terms", "account", "support"]) {
-      expect(resolve(beforeFiles, "pawlegends.app", `/${page}`)).toBe(`/pawlegends/${page}`);
-      expect(existsSync(join(__dirname, "..", "pages", "pawlegends", `${page}.tsx`))).toBe(true);
+  it("sends every old tokentails.com Paw Legends page to the same page on pawlegends.app, for good", async () => {
+    const redirects: Rule[] = await nextConfig.redirects();
+    expect(resolve(redirects, "tokentails.com", "/pawlegends")).toBe("https://pawlegends.app/");
+    for (const page of ["play", "privacy", "terms", "account", "support"])
+      expect(resolve(redirects, "tokentails.com", `/pawlegends/${page}`)).toBe(`https://pawlegends.app/${page}`);
+    expect(resolve(redirects, "tokentails.com", "/legends")).toBe("https://pawlegends.app/legends");
+    expect(resolve(redirects, "tokentails.com", "/pawlegends/og.jpg")).toBe("https://pawlegends.app/pawlegends/og.jpg");
+    expect(resolve(redirects, "tokentails.com", "/pawlegends/landing/logo.webp")).toBe("https://pawlegends.app/pawlegends/landing/logo.webp");
+    for (const r of redirects.filter((r) => r.destination.startsWith("https://pawlegends.app"))) {
+      expect(r.permanent).toBe(true);
+      expect(r.has).toBeUndefined();
     }
+    // the pages left the client
+    expect(existsSync(join(__dirname, "..", "pages", "pawlegends"))).toBe(false);
+    expect(existsSync(join(__dirname, "..", "pages", "legends"))).toBe(false);
   });
 
-  it("leaves the game, the app's OTA files, Next's assets, public files and /pawlegends/** alone", async () => {
-    const { beforeFiles, afterFiles } = await nextConfig.rewrites();
+  it("sends the game files to the same paths on pawlegends.app", async () => {
+    const redirects: Rule[] = await nextConfig.redirects();
+    expect(resolve(redirects, "tokentails.com", "/pawlegends-game/index.html")).toBe("https://pawlegends.app/pawlegends-game/index.html");
+    expect(resolve(redirects, "tokentails.com", "/pawlegends-game/build/index-abc.js")).toBe("https://pawlegends.app/pawlegends-game/build/index-abc.js");
+    expect(resolve(redirects, "tokentails.com", "/pawlegends-game")).toBe("https://pawlegends.app/pawlegends-game/index.html");
+    expect(existsSync(join(__dirname, "..", "public", "pawlegends-game"))).toBe(false);
+  });
+
+  it("keeps the app's OTA files, the home page and other paths on tokentails.com", async () => {
+    const redirects: Rule[] = await nextConfig.redirects();
     for (const path of [
-      "/pawlegends-game/index.html",
-      "/pawlegends-game/build/main.abc.js",
       "/pawlegends-app/updates/ios/1/manifest.json",
-      "/_next/static/chunks/main.js",
-      "/pawlegends/play",
-      "/pawlegends/landing/hero.webp",
-      "/legends",
-      "/favicon.ico",
-      "/manifest.webmanifest",
-      "/api/anything",
-    ]) {
-      expect(resolve(beforeFiles, "pawlegends.app", path)).toBeNull();
-      expect(resolve(afterFiles, "pawlegends.app", path)).toBeNull();
-    }
-  });
-
-  it("keeps tokentails.com unchanged: / is still the static home page", async () => {
+      "/pawlegends-app/updates/ios/1/bundles/20261111112457-ef22d35.zip",
+      "/pawlegendsx",
+      "/play",
+      "/privacy",
+    ])
+      expect(resolve(redirects, "tokentails.com", path)).toBeNull();
     const { beforeFiles } = await nextConfig.rewrites();
     expect(resolve(beforeFiles, "tokentails.com", "/")).toBe("/home/index.html");
-    expect(resolve(beforeFiles, "tokentails.com", "/play")).toBeNull();
-    expect(resolve(beforeFiles, "tokentails.com", "/privacy")).toBeNull();
-    const redirects: Rule[] = await nextConfig.redirects();
-    expect(resolve(redirects, "tokentails.com", "/pawlegends")).toBeNull();
-    // every new rule needs a pawlegends host
-    for (const rule of [...beforeFiles, ...redirects].filter((r: Rule) => (host(r) ?? "").includes("pawlegends")))
-      expect(["pawlegends.app", "www.pawlegends.app"]).toContain(host(rule));
-  });
-
-  it("sends www to the apex, keeping the path", async () => {
-    const redirects: Rule[] = await nextConfig.redirects();
-    const www = redirects.find((r) => host(r) === "www.pawlegends.app")!;
-    expect(www).toMatchObject({ source: "/:path*", destination: "https://pawlegends.app/:path*", permanent: true });
-    expect(resolve(redirects, "www.pawlegends.app", "/privacy")).toBe("https://pawlegends.app/privacy");
-    expect(resolve(redirects, "www.pawlegends.app", "/")).toBe("https://pawlegends.app/");
-    // it comes first, so no other redirect answers a www request
-    expect(redirects.indexOf(www)).toBe(0);
-  });
-
-  it("sends a game link on / (party, dare, checkout, ...) to /play with its query, as /pawlegends does", async () => {
-    const redirects: Rule[] = await nextConfig.redirects();
-    const onRoot = redirects.filter((r) => host(r) === "pawlegends.app" && r.source === "/");
-    expect(onRoot.map((r) => r.has!.find((h) => h.type === "query")!.key).sort()).toEqual(
-      ["checkout", "dare", "from", "mode", "notify", "party", "restore"]
-    );
-    for (const r of onRoot) expect(r).toMatchObject({ destination: "/play", permanent: false });
+    // no host rules left: pawlegends.app is its own Vercel project
+    for (const rule of [...beforeFiles, ...redirects]) expect(host(rule)).toBeUndefined();
   });
 });

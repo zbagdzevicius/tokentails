@@ -1,19 +1,16 @@
-# Paw Legends web game: Cloudflare cache after a deploy (LATENCY-PLAN C5, infra/gcp/RUNBOOK.md "Latency").
+# Paw Legends web game: cache warm-up after a deploy (LATENCY-PLAN C5, infra/gcp/RUNBOOK.md "Latency").
 # A push to main that changes the committed embed build (pawlegends `npm run build:client` writes
-# pawlegends-web/public/pawlegends-game and, until the cutover, mirrors it to client/public/pawlegends-game) waits until
-# Vercel serves the new index.html, purges that one URL from Cloudflare (when the optional CF_API_TOKEN and CF_ZONE_ID
-# secrets exist), then fetches every build/ file the push added once. tokentails.com (the client copy) first, then
-# pawlegends.app (the pawlegends-web copy, its own Vercel project; not in the CF_ZONE_ID zone, so no purge there, and
-# it does not fail the job while the domain still points at the client project: docs/plans/moba/PAWLEGENDS-WEB.md).
-# The warm-up fills the Cloudflare PoP nearest the runner (GitHub-hosted runners are in the US), and Vercel's own
-# cache; a European PoP still fills on its first European request. The OTA manifests are purged by pawlegends-ota.yml.
+# pawlegends-web/public/pawlegends-game) waits until pawlegends.app (pawlegends-web's own Vercel project,
+# docs/plans/moba/PAWLEGENDS-WEB.md) serves the new index.html, then fetches every build/ file the push added once.
+# pawlegends.app is not in the CF_ZONE_ID zone, so there is no Cloudflare purge (--no-purge). tokentails.com only
+# redirects the game paths there. The warm-up fills Vercel's cache and the edge nearest the runner (GitHub-hosted
+# runners are in the US). The OTA manifests (still on tokentails.com) are purged by pawlegends-ota.yml.
 name: Pawlegends CDN
 
 on:
   push:
     branches: [main]
     paths:
-      - 'client/public/pawlegends-game/**'
       - 'pawlegends-web/public/pawlegends-game/**'
   workflow_dispatch:
 
@@ -26,12 +23,10 @@ concurrency:
 
 jobs:
   warm:
-    name: purge index, warm new build files
+    name: warm new build files
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
       SINCE: ${{ github.event.before || 'HEAD~1' }}
     steps:
       - uses: actions/checkout@v4
@@ -40,15 +35,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Purge and warm (tokentails.com)
+      - name: Warm (pawlegends.app)
         run: |
           # a force push or the first push has no usable `before`: fall back to the previous commit
           if ! git cat-file -e "$SINCE^{commit}" 2>/dev/null; then SINCE=HEAD~1; fi
-          node scripts/cdn-cache.mjs game --since "$SINCE"
-      - name: Warm (pawlegends.app)
-        continue-on-error: true
-        env:
-          SITE: https://pawlegends.app
-        run: |
-          if ! git cat-file -e "$SINCE^{commit}" 2>/dev/null; then SINCE=HEAD~1; fi
-          node scripts/cdn-cache.mjs game --since "$SINCE" --root pawlegends-web/public --no-purge
+          node scripts/cdn-cache.mjs game --since "$SINCE" --no-purge

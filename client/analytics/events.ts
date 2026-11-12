@@ -20,7 +20,6 @@
 
 import type { GamePlatformValue } from "@/models/game";
 import type { GrowthEvent } from "./growth-events";
-import type { PawlegendsEvent } from "./pawlegends-events";
 import {
   ANALYTICS_EVENTS,
   type AnalyticsEventName,
@@ -194,11 +193,10 @@ export type CoreAnalyticsEvent = {
 }[AnalyticsEventName];
 
 /**
- * Anything `analytics.track` accepts: the core catalog plus two client-only extensions, kept out of `shared/`
- * so `catnip-heist/` needs no sync: the growth events of bet #3 (`./growth-events`) and the `/pawlegends` host
- * events (`./pawlegends-events`).
+ * Anything `analytics.track` accepts: the core catalog plus a client-only extension, kept out of `shared/` so
+ * `catnip-heist/` needs no sync: the growth events of bet #3 (`./growth-events`).
  */
-export type AnalyticsEvent = CoreAnalyticsEvent | GrowthEvent | PawlegendsEvent;
+export type AnalyticsEvent = CoreAnalyticsEvent | GrowthEvent;
 
 export type AnalyticsEventOf<K extends AnalyticsEventName> = Extract<
   CoreAnalyticsEvent,

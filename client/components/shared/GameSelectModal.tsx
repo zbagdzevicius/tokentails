@@ -29,8 +29,6 @@ import { CatnipIcon } from "@/components/shared/CatnipIcon";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { isCupidSeason } from "@/components/game/seasons";
 import { isAppBuild } from "@/components/claims/build";
-import { pawlegendsPickerEnabled } from "@/components/pawlegends/flags";
-import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -65,8 +63,15 @@ export const SWORDCAT_CARD_KEY = "SWORDCAT";
 export const SWORDCAT_PICKER_DESCRIPTION = "Every cat you save is a real Pink Paw cat";
 <<<<<<< HEAD
 
-/** Where the Pawlegends card goes: the game page (not the landing), by a full page load (POC.md §11.4; web builds only). */
-export const PAWLEGENDS_PICKER_HREF = "/pawlegends/play";
+/**
+ * Where the Pawlegends card goes: the game page on its own site, pawlegends.app (pawlegends-web/), by a full page load
+ * (POC.md §11.4; web builds only).
+ */
+export const PAWLEGENDS_PICKER_HREF = "https://pawlegends.app/play";
+/** Pawlegends' display name on the card. */
+export const PAWLEGENDS_TITLE = "Pawlegends";
+/** The Pawlegends card shows in web builds only (GDD §9.8), never in an app build. */
+export const pawlegendsPickerEnabled = (isApp: boolean): boolean => !isApp;
 /** The Pawlegends card's key: `GameType.PAWLEGENDS` is the save type, the card itself is a link. */
 export const PAWLEGENDS_CARD_KEY = "PAWLEGENDS";
 /** The Pawlegends card's line: what the game is (both sides are playable, the other five heroes are bots). */
@@ -301,7 +306,7 @@ const cardTestId = (card: GameCard) =>
  * first (founder, Oct 18: the rave is the priority, as on the landing), when `includeRave` is set
  * (`raveEntryEnabled()`: every web build, no flag; never the app build). Pawlegends, the new flagship, comes
  * right after the Moon Rave with the same NEW badge, only when `includePawlegends` is set
- * (`pawlegendsPickerEnabled()`: web builds only, the env flags are kill switches). Cupid Cat is seasonal
+ * (`pawlegendsPickerEnabled()`: web builds only) and links to pawlegends.app. Cupid Cat is seasonal
  * (January to March, `components/game/seasons`): outside the season it is left out. The Swordcat card
  * (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set (`swordcatPickerEnabled()`: on
  * by default, the env flags are kill switches). Bad Cat Daily comes next, when `includeBadcat` is set
@@ -866,7 +871,15 @@ interface GameSelectModalProps {
 >>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
   showSwordcat?: boolean;
 <<<<<<< HEAD
+<<<<<<< HEAD
   /** Override `pawlegendsPickerEnabled(isAppBuild())` (on in web builds; `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` hides it) (tests). */
+=======
+  /** Override `badcatEntryEnabled()` (every web build; never the app build) (tests). */
+  showBadcat?: boolean;
+  /** Override `raveEntryEnabled()` (every web build; never the app build) (tests). */
+  showRave?: boolean;
+  /** Override `pawlegendsPickerEnabled(isAppBuild())` (on in web builds) (tests). */
+>>>>>>> 21d709816 (feat(pawlegends-web): cutover, tokentails.com/pawlegends* redirects to pawlegends.app)
   showPawlegends?: boolean;
 =======
   /** Override `badcatEntryEnabled()` (every web build; never the app build) (tests). */

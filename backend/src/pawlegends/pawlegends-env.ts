@@ -10,9 +10,9 @@ import { badcatStripeKey, Env, isProduction, StripeKeyState } from 'src/badcat/b
 export type { Env };
 export { isProduction };
 
-export const PAWLEGENDS_DEFAULT_PUBLIC_URL = 'https://tokentails.com';
+export const PAWLEGENDS_DEFAULT_PUBLIC_URL = 'https://pawlegends.app';
 
-/** `PAWLEGENDS_PUBLIC_URL` (else https://tokentails.com) without a trailing slash: where Checkout returns. */
+/** `PAWLEGENDS_PUBLIC_URL` (else https://pawlegends.app, pawlegends-web) without a trailing slash: where Checkout returns. */
 export function pawlegendsPublicUrl(env: Env = process.env): string {
     const value = (env.PAWLEGENDS_PUBLIC_URL || '').trim() || PAWLEGENDS_DEFAULT_PUBLIC_URL;
     return value.replace(/\/+$/, '');

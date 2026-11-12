@@ -1,6 +1,6 @@
 # Trailer capture rig (dev only)
 
-> The end card sends viewers to `tokentails.com/pawlegends`, the landing page (`client/pages/pawlegends/index.tsx`);
+> The end card sends viewers to `tokentails.com/pawlegends`, which redirects to pawlegends.app, the landing page (`pawlegends-web/pages/index.tsx`);
 > the game itself is `/pawlegends/play`. Confirm the live URL returns 200 before anyone posts a master.
 
 **Capture QC (v3.1).** `harness.ts` `frame()` returns a per-frame `qc` (`FrameQc`): every on-screen hero's body-and-plate
