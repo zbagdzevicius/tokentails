@@ -10,3 +10,7 @@ media/trailer-v2/
 media/trailer-v3/
 dist-app/
 .soak-dist/
+
+# fun-toys investigation harness and its playwright profile (never commit)
+.toys/
+.toys-pw/

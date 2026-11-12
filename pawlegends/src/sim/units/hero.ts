@@ -9,6 +9,7 @@ import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { NO_TARGET, Op, type Command } from '../api';
 import { ANGLE_STEPS, clamp, dist2, iatan2, isqrt, moveToward } from '../fixed';
 import { findPath } from '../nav/astar';
+import { cellOfTeam, walkable } from '../map/grid';
 import type { MatchHandle } from '../state';
 import { FM, G, Kind, NEVER, Order, RANGE, UnitState, type World } from '../world';
 import { inAttackRange, startAttack } from '../combat/attack';
@@ -269,7 +270,7 @@ function walk(m: MatchHandle, id: number): boolean {
   const tx = w.pathX[base + w.pathIdx[id]];
   const ty = w.pathY[base + w.pathIdx[id]];
   if (tx !== w.x[id] || ty !== w.y[id]) w.facing[id] = iatan2(ty - w.y[id], tx - w.x[id]);
-  const arrived = moveToward(w.x[id], w.y[id], tx, ty, moveSpeed(w, id), w.moveCarry[id], TICK_HZ, out);
+  let arrived = moveToward(w.x[id], w.y[id], tx, ty, moveSpeed(w, id), w.moveCarry[id], TICK_HZ, out);
   // Gate barrier (§5): no hero crosses its team's x = 8 m line toward the enemy before it drops. Sim v16 (MAP-GAPS
   // B2): the hero steps toward the real path point and the stepped position is clamped; when the clamp bites it keeps
   // its old y too, so it waits at the barrier instead of sliding along it into the forest or its own tower.
@@ -292,10 +293,17 @@ function walk(m: MatchHandle, id: number): boolean {
       out[1] = w.y[id];
     }
   }
-  // The enemy fountain is a wall (v4): a hero stops at its edge instead of walking into its fire.
+  // The enemy fountain is a wall (v4): a hero does not walk into its fire. Sim v25: it slides along the edge (the x
+  // step alone, else the y step alone) instead of stopping dead there, as a path point just past the fountain's rim
+  // could hold a walking hero still until its order changed.
   if (inEnemyFountain(w, id, out[0], out[1]) && !inEnemyFountain(w, id, w.x[id], w.y[id])) {
-    w.state[id] = UnitState.Idle;
-    return false;
+    if (out[0] !== w.x[id] && !inEnemyFountain(w, id, out[0], w.y[id]) && walkable(m.grid, cellOfTeam(out[0], w.y[id], w.team[id]))) out[1] = w.y[id];
+    else if (out[1] !== w.y[id] && !inEnemyFountain(w, id, w.x[id], out[1]) && walkable(m.grid, cellOfTeam(w.x[id], out[1], w.team[id]))) out[0] = w.x[id];
+    else {
+      w.state[id] = UnitState.Idle;
+      return false;
+    }
+    arrived = false;
   }
   w.x[id] = out[0];
   w.y[id] = out[1];

@@ -84,7 +84,8 @@ describe('Marshmallow, original dog mage (sim v14)', () => {
     let froze = -1;
     for (let t = 0; t < A.r.windup + A.r.duration + 4; t++) {
       // FOE2 walks out halfway through; FOE3 is CC-immune at the end.
-      if (t === 60) place(m, FOE2, cx + 9000, MID.y, 2048);
+      // (4 m off the row: sim v25 moved team 1's rat-camp Boing Bed to x 65.5 m, and a hero parked on it is thrown)
+      if (t === 60) place(m, FOE2, cx + 9000, MID.y + 4000, 2048);
       w.ccImmT[FOE3] = 5;
       steps(m, 1);
       for (const e of m.events) if (e.type === 'clip') clips.push(e);

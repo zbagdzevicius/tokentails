@@ -2,8 +2,13 @@
  * Sim v24 (docs/plans/moba/V21-FUN.md §2.1 "v24: instant beds"; founder report 2026-11-12: "these in Blitz are glitchy,
  * they must be better, more sensitive, as right now it takes time and several attempt to be lifted at all"). A Boing
  * Bed launches a hero that steps onto its disc at once and one stopped on it within BOING.stand ticks; a hero fighting
- * by the rim or walking along the lane past it is not thrown. Headless sim at 30 Hz, bots off; slot 0's commands go
- * through the input gate (step), as a touch stick's would: a move 2 m ahead every 100 ms.
+ * by the rim or walking along the lane past it is not thrown.
+ *
+ * Sim v25 (founder report 2026-11-12: "fix in-game objects in fun mode (ball, cannonball, trampoline) as it's hard to
+ * navigate through them"): only a walk heading within 60° of the throw launches at once; a touch walk that only
+ * crosses the cushion (or a fight on it) is never thrown, not even when the thumb lets go on it; a tap on the cushion
+ * from the side throws 0.5 s after the hero stops there. Headless sim at 30 Hz, bots off; slot 0's commands go through
+ * the input gate (step), as a touch stick's would: a move 2 m ahead every 100 ms.
  */
 import { describe, expect, it } from 'vitest';
 import { BOING, CROSSING_BEDS, HEARTHWOOD_BEDS } from '../../src/data/fun';
@@ -21,8 +26,12 @@ import { hold, place } from './heroes/kit-helpers';
 /** Touch stick: STICK.aheadMm and STICK.everyMs (src/input/touch/touchControls.ts). */
 const AHEAD = 2000;
 const EVERY = 3;
-/** The bar: launched within 0.3 s of the hero's centre first entering the disc. */
-const WITHIN = 9;
+/** The bars: a stick launches within 0.3 s of the hero's centre first entering the disc; a let-go after BOING.stand; a
+ * tap on a cushion spot within 2 s (the walk across the cushion, then the stand). */
+const WITHIN = { stick: 9, stop: BOING.stand, tap: 60 } as const;
+/** The v25 cone (the sim's within60) and the approach band the trials draw from, a little inside it. */
+const CONE = 60;
+const BAND = 55;
 
 /** A bots-off match on `map` with slot 0 = `hero`, everyone else parked far from every bed. */
 function match(map: MapId, hero: HeroId, seed: number): MatchHandle {
@@ -73,8 +82,8 @@ function trial(i: number): Trial {
   bedOf(probe.world, bed, b);
   const throwA = Math.atan2(b[3] - b[1], b[2] - b[0]);
   for (;;) {
-    // approach heading at most 110° off the throw (from the landing's side a walk onto the bed would throw it back)
-    const a = throwA + Math.PI + ((r.int(2201) - 1100) / 1100) * ((110 * Math.PI) / 180);
+    // approach from behind the bed: the walk heads at most BAND° off the throw
+    const a = throwA + Math.PI + ((r.int(2201) - 1100) / 1100) * ((BAND * Math.PI) / 180);
     const dist = 2500 + r.int(2500);
     const sx = Math.round(b[0] + Math.cos(a) * dist);
     const sy = Math.round(b[1] + Math.sin(a) * dist);
@@ -127,22 +136,22 @@ function play(t: Trial): number {
   }
 }
 
-describe('Boing Beds v24: instant beds', { timeout: 300000 }, () => {
-  it('SIM_VERSION is 24 or later; the disc reaches the drawn rim (1.2 m), a stop launches in 0.27 s', () => {
-    expect(SIM_VERSION).toBeGreaterThanOrEqual(24);
-    expect([BOING.reach, BOING.near, BOING.stand]).toEqual([1200, 3200, 8]);
+describe('Boing Beds v25: deliberate beds', { timeout: 300000 }, () => {
+  it('SIM_VERSION is 25 or later; the disc reaches the drawn rim (1.2 m), a stop launches in 0.5 s', () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(25);
+    expect([BOING.reach, BOING.near, BOING.stand]).toEqual([1200, 3200, 15]);
     // the angle test stays exact (< 2^53) only while every throw is under 16 m
     for (const [bx, by, lx, ly] of [...CROSSING_BEDS, ...HEARTHWOOD_BEDS]) expect(Math.hypot(lx - bx, ly - by)).toBeLessThan(16000);
   });
 
-  it('a touch stick steering onto a bed (and letting go on it) launches within 0.3 s of reaching the disc, 200 of 200', () => {
+  it('a touch stick steering onto a bed from behind launches within 0.3 s; a let-go or a tap on it once stopped, 200 of 200', () => {
     const slow: string[] = [];
     const styles = { stick: 0, tap: 0, stop: 0 };
     for (let i = 0; i < 200; i++) {
       const t = trial(i);
       styles[t.style]++;
       const dt = play(t);
-      if (dt < 0 || dt > WITHIN) slow.push(`#${i} ${t.map} bed ${t.bed} ${t.hero} ${t.style}: ${dt}`);
+      if (dt < 0 || dt > WITHIN[t.style]) slow.push(`#${i} ${t.map} bed ${t.bed} ${t.hero} ${t.style}: ${dt}`);
     }
     expect(slow).toEqual([]);
     for (const n of Object.values(styles)) expect(n).toBeGreaterThan(40);
@@ -250,5 +259,111 @@ describe('Boing Beds v24: instant beds', { timeout: 300000 }, () => {
     expect([w.x[0], w.y[0]]).toEqual([lx, ly]);
     expect([w.moveX[0], w.moveY[0]]).toEqual([lx, ly]);
     expect(w.boingT[0]).toBeGreaterThan(0);
+  });
+  it('a touch stick crossing a bed more than 60° off its throw is never thrown, not even when the thumb lets go on it', () => {
+    const thrown: string[] = [];
+    let walks = 0;
+    for (const map of ['crossing', 'hearthwood'] as const) {
+      const probe = match(map, 'clem', 7);
+      const n = bedCount(probe.world);
+      const g = createGrid();
+      for (let bed = 0; bed < n; bed++) {
+        const b = new Int32Array(4);
+        bedOf(probe.world, bed, b);
+        const throwA = Math.atan2(b[3] - b[1], b[2] - b[0]);
+        // from 15° outside the cone: commands quantise goals to 250 mm and the stick's look-ahead shrinks to about 1.1 m
+        // between sends, so the sim's heading wobbles up to ~10° around the stick's
+        for (let deg = CONE + 15; deg <= 180; deg += 15) {
+          for (const side of [1, -1]) {
+            const a = throwA + side * ((deg * Math.PI) / 180);
+            const dx = Math.cos(a);
+            const dy = Math.sin(a);
+            for (const off of [0, 400, 800, 1100]) {
+              const px = b[0] - dy * off;
+              const py = b[1] + dx * off;
+              const [sx, sy, ex, ey] = [px - dx * 5000, py - dy * 5000, px + dx * 5000, py + dy * 5000].map(Math.round);
+              let clear = true;
+              bindMap(map === 'hearthwood' ? 1 : 0);
+              for (let k = 0; k <= 20 && clear; k++) clear = walkable(g, cellOf(Math.round(sx + ((ex - sx) * k) / 20), Math.round(sy + ((ey - sy) * k) / 20)));
+              bindMap(0);
+              if (!clear) continue;
+              for (const letGo of [false, true]) {
+                walks++;
+                const m = match(map, HERO_IDS[walks % HERO_IDS.length], 7);
+                const w = m.world;
+                place(m, 0, sx, sy, 0);
+                let stopped = false;
+                for (let tick = 0; tick < 150; tick++) {
+                  const cmds: Command[] = [];
+                  const near = d2(w.x[0], w.y[0], px, py) <= 250 * 250 || d2(w.x[0], w.y[0], b[0], b[1]) > d2(sx, sy, b[0], b[1]);
+                  if (letGo && !stopped && d2(w.x[0], w.y[0], px, py) <= 400 * 400) {
+                    cmds.push({ op: Op.Stop });
+                    stopped = true;
+                  } else if (!stopped && tick % EVERY === 0 && !near) {
+                    cmds.push({ op: Op.Move, x: Math.round(w.x[0] + dx * AHEAD), y: Math.round(w.y[0] + dy * AHEAD) });
+                  }
+                  step(m, cmds);
+                  if (launched(m)) {
+                    thrown.push(`${map} bed ${bed} ${deg * side}° off ${off} ${letGo ? 'let go' : 'walk'}`);
+                    break;
+                  }
+                }
+                bindMap(0);
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(walks).toBeGreaterThan(150);
+    expect(thrown).toEqual([]);
+  });
+
+  it('a fight on the cushion, then a pause there, does not throw; a fresh step off and back on from behind does', () => {
+    const m = match('crossing', 'clem', 3);
+    const w = m.world;
+    const [bx, by] = CROSSING_BEDS[0];
+    place(m, 0, bx, by, 0);
+    place(m, 3, bx, by + 3000, 0);
+    w.attackTimer[0] = 0;
+    for (let t = 0; t < 30; t++) {
+      step(m, t % 6 === 0 ? [{ op: Op.Attack, id: 3 }] : []);
+      w.hp[3] = w.maxHp[3];
+    }
+    place(m, 3, bx - 30000, by + 20000, 0);
+    step(m, [{ op: Op.Stop }]);
+    for (let t = 0; t < BOING.stand * 4; t++) {
+      step(m);
+      expect(launched(m)).toBe(false);
+    }
+    expect(w.bedT[0]).toBe(-1);
+    // off the disc (west, behind the eastward throw), then the stick east onto it again: thrown at once
+    step(m, [{ op: Op.Move, x: bx - 3000, y: by }]);
+    for (let t = 0; t < 40 && d2(w.x[0], w.y[0], bx, by) <= BOING.reach * BOING.reach; t++) step(m);
+    expect(w.bedT[0]).toBe(0);
+    let up = false;
+    for (let t = 0; t < 30 && !up; t++) {
+      step(m, t % EVERY === 0 ? [{ op: Op.Move, x: w.x[0] + AHEAD, y: by }] : []);
+      up = launched(m);
+    }
+    expect(up).toBe(true);
+  });
+
+  it('a tap on the cushion from the side walks there and is thrown BOING.stand ticks after it stops', () => {
+    const m = match('crossing', 'clem', 3);
+    const w = m.world;
+    const [bx, by] = CROSSING_BEDS[1]; // the sunny-side bed throws south: tap it from the east
+    place(m, 0, bx + 4000, by, 0);
+    step(m, [{ op: Op.Move, x: bx + 200, y: by }]);
+    let stoppedAt = -1;
+    let at = -1;
+    for (let t = 1; t < 120 && at < 0; t++) {
+      step(m);
+      if (stoppedAt < 0 && w.order[0] === 0 && d2(w.x[0], w.y[0], bx, by) <= BOING.reach * BOING.reach) stoppedAt = t;
+      if (launched(m)) at = t;
+    }
+    expect(stoppedAt).toBeGreaterThan(0);
+    expect(at - stoppedAt).toBeGreaterThanOrEqual(BOING.stand - 1);
+    expect(at - stoppedAt).toBeLessThanOrEqual(BOING.stand + 1);
   });
 });
