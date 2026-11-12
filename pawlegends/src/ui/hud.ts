@@ -174,6 +174,39 @@ const PHASE_NEXT: Record<MatchClock['phase'], string> = { gate: 'Gates open', pl
  * The "Sunset in 7:19" line (fun plan F1): hidden while Sunset is more than a minute away (a far-off countdown
  * read as "this match is long"); the other phases always show theirs. Pure.
  */
+/** What the phone score strip carries (scoreDense): team kills, the own K / D / A, the clock text, the extra chips. */
+export interface StripLoad {
+  k0: number;
+  k1: number;
+  k: number;
+  d: number;
+  a: number;
+  clock: string;
+  /** The objective timer is shown ("Up!" or seconds). */
+  obj: boolean;
+  /** Party play's ping chip sits by the clock. */
+  ping: boolean;
+}
+
+/**
+ * The phone score strip's squeeze (founder ask 2026-11-12, K / D / A on the strip): the strip holds one line inside
+ * 248 px (208 px on small phones), so it counts what it carries beyond the plain case (single digits, an "m:ss" clock,
+ * no objective timer or ping chip) in rough digit widths and tightens in steps: 1 drops the "KDA" word; 2 also the
+ * crossed swords, with smaller digits; 3 also the tower counts (the minimap shows the towers); 4 also the objective
+ * timer (the minimap's rings count it down too). Small phones (`narrow`) start at 2 and go one step further. Pure;
+ * feel.css reads it as `data-dense`.
+ */
+export function scoreDense(l: StripLoad, narrow = false): 0 | 1 | 2 | 3 | 4 {
+  const digits = (v: number) => Math.max(0, String(Math.max(0, Math.floor(v))).length - 1);
+  const extra = digits(l.k0) + digits(l.k1) + digits(l.k) + digits(l.d) + digits(l.a) + Math.max(0, l.clock.length - 4) + (l.obj ? 4 : 0) + (l.ping ? 6 : 0);
+  const base = extra >= 7 ? 3 : extra >= 3 ? 2 : extra >= 1 ? 1 : 0;
+  if (!narrow) return base;
+  return base <= 1 ? 2 : base === 2 ? 3 : 4;
+}
+
+/** Small phones for the score strip (feel.css uses the same media query). */
+const NARROW_Q = '(max-width: 699px), (max-width: 843px) and (max-height: 380px)';
+
 export function phaseLine(clock: Pick<MatchClock, 'phase' | 'nextPhaseIn'>): string {
   const next = PHASE_NEXT[clock.phase];
   if (!next || clock.nextPhaseIn <= 0) return '';
@@ -212,6 +245,11 @@ export class Hud {
   private phase: HTMLElement;
   private kills: [HTMLElement, HTMLElement];
   private towers: [HTMLElement, HTMLElement];
+  /** The score plate and the small-phone query, looked up once (squeeze). */
+  private plate: HTMLElement | null = null;
+  private narrowQ: MediaQueryList | null = null;
+  /** What the score strip shows now, for the phone squeeze (scoreDense). */
+  private load: StripLoad = { k0: 0, k1: 0, k: 0, d: 0, a: 0, clock: '0:00', obj: false, ping: false };
   private feed: HTMLElement;
   private respawnNum: HTMLElement;
   private recapEl: HTMLElement;
@@ -287,7 +325,7 @@ export class Hud {
           <span class="team t0"><i class="tw" title="Towers taken">${TOWER_SVG}<em class="tw0">0</em></i><b class="k0">0</b></span>
           <span class="sw" aria-hidden="true">${SWORDS_SVG}</span>
           <span class="team t1"><b class="k1">0</b><i class="tw" title="Towers taken">${TOWER_SVG}<em class="tw1">0</em></i></span>
-          <span class="mid"><span class="clock">0:00</span><span class="phase"></span></span>
+          <span class="mid"><span class="kda" title="Your knockouts / naps / assists" aria-label="Your K / D / A: 0 / 0 / 0"><i class="ki" aria-hidden="true">${CLAW_SVG}</i><i class="kl" aria-hidden="true">KDA</i><b class="kk">0</b><i class="ks" aria-hidden="true">/</i><b class="kd">0</b><i class="ks" aria-hidden="true">/</i><b class="ka">0</b></span><span class="clock">0:00</span><span class="phase"></span></span>
           <span class="obj" hidden><i class="ic" aria-hidden="true"></i><b></b></span>
         </div>
       </div>
@@ -510,6 +548,8 @@ export class Hud {
     if (k === this.objKey) return;
     this.objKey = k;
     el.hidden = !o;
+    this.load.obj = !!o;
+    this.squeeze();
     if (!o) return;
     el.dataset.key = o.key;
     const b = el.querySelector('b');
@@ -605,6 +645,39 @@ export class Hud {
     this.tipLast = html;
     this.tip.innerHTML = html;
     if (this.tipEl) m.placeTip(this.tip, this.tipEl);
+  }
+
+  /**
+   * Founder ask 2026-11-12 ("on mobile make this a little bit bigger and show K/D/A as well"): the own hero's knockouts,
+   * naps and assists on the score plate, beside the clock. Fed every frame from the scoreboard's counts (the same
+   * numbers as the Tab / tap scoreboard), written only on a change.
+   */
+  kda(k: number, d: number, a: number): void {
+    const key = `${k}/${d}/${a}`;
+    if (this.cache.get('kda') === key) return;
+    const el = this.root.querySelector<HTMLElement>('.pl-score .kda');
+    if (!el) return;
+    this.cache.set('kda', key);
+    (el.querySelector('.kk') as HTMLElement).textContent = String(k);
+    (el.querySelector('.kd') as HTMLElement).textContent = String(d);
+    (el.querySelector('.ka') as HTMLElement).textContent = String(a);
+    el.setAttribute('aria-label', `Your K / D / A: ${k} / ${d} / ${a}`);
+    el.dataset.kda = key;
+    this.load.k = k;
+    this.load.d = d;
+    this.load.a = a;
+    this.squeeze();
+  }
+
+  /** Sets `data-dense` on the score plate (feel.css tightens the phone strip by it), only on a change. */
+  private squeeze(): void {
+    const plate = (this.plate ??= this.kills[0].closest<HTMLElement>('.pl-score'));
+    if (!plate) return;
+    // party play's ping chip (app/mpHud.ts) is added to the clock tab after the HUD is built, and stays
+    if (!this.load.ping) this.load.ping = !!plate.querySelector('.mp-ping');
+    const narrow = typeof matchMedia === 'function' && (this.narrowQ ??= matchMedia(NARROW_Q)).matches;
+    const v = String(scoreDense(this.load, narrow));
+    if (plate.dataset.dense !== v) plate.dataset.dense = v;
   }
 
   private set(key: string, el: HTMLElement, text: string): void {
@@ -724,6 +797,10 @@ export class Hud {
     const a = myTeam === 0 ? 0 : 1;
     this.set('k0', this.kills[0], String(score.kills[a]));
     this.set('k1', this.kills[1], String(score.kills[1 - a]));
+    this.load.k0 = score.kills[a];
+    this.load.k1 = score.kills[1 - a];
+    this.load.clock = this.clock.textContent ?? '';
+    this.squeeze();
     this.set('t0', this.towers[0], String(score.towers[a]));
     this.set('t1', this.towers[1], String(score.towers[1 - a]));
     if (!me) return;

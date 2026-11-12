@@ -40,7 +40,7 @@ async function knockedOut(page: Page, info: TestInfo, tag: string): Promise<void
     if (!card) return null;
     const r = card.getBoundingClientRect();
     const others: { sel: string; x: number; y: number; width: number; height: number }[] = [];
-    for (const sel of ['.pl-minimap', '.pl-bar', '.pl-slot', '.pl-fish', '.pl-touch .pl-tbtn', '.pl-touch button']) {
+    for (const sel of ['.pl-minimap', '.pl-bar', '.pl-slot', '.pl-fish', '.pl-touch .pl-tbtn', '.pl-touch button', '.pl-score']) {
       for (const e of document.querySelectorAll(sel)) {
         const cs = getComputedStyle(e);
         const b = e.getBoundingClientRect();

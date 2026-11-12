@@ -20,10 +20,11 @@ type HudHandle = { kill(a: unknown, b: unknown, good: boolean): void; note(t: st
 const hud = (page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(([f, a]) => ((window as unknown as { __plHud: Record<string, (...x: unknown[]) => void> }).__plHud[f as keyof HudHandle] as (...x: unknown[]) => void)(...(a as unknown[])), [fn, args] as const);
 
-// feel pass B3: the score is one 24 px strip, at most 220 px wide, centred at the top
+// feel pass B3: the score is one strip centred at the top; 31 px tall and at most 248 px wide since the founder's
+// "a little bit bigger and show K/D/A" (2026-11-12; it was 24 × ≤ 220)
 for (const s of [
-  { w: 844, h: 390, maxW: 220, maxH: 24.5 },
-  { w: 667, h: 375, maxW: 220, maxH: 24.5 },
+  { w: 844, h: 390, maxW: 248, maxH: 31.5 },
+  { w: 667, h: 375, maxW: 248, maxH: 31.5 },
 ] as const) {
   test(`${s.w}x${s.h}: the score plate keeps its footprint, a tap opens the scoreboard, the feed stays in its corner`, async ({ page }, info) => {
     test.skip(info.project.name !== 'landscape', 'touch sizes');
