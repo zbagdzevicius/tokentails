@@ -86,3 +86,21 @@ test('keyboard: M opens Mode Select, Escape closes it; Enter, Enter, Enter, Ctrl
   await page.waitForSelector('html[data-match="live"]', { timeout: 30_000 });
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
 });
+
+// NO-TOKENTAILS.md review: the pick tiles' and seat's element frame and portrait (`cardAttrs` + `.tt-pic`) need
+// ui/cards/cards.css in the first load. It used to arrive only through the removed lobby card fan, and without it every
+// pick portrait drew blank.
+test('the champion select draws the tile and seat portraits on their element frame', async ({ page }) => {
+  await seed(page);
+  await page.goto('/?e2e=1');
+  await page.waitForSelector('html[data-screen="title"] .pl-home');
+  await page.locator('.hm-plate').click();
+  await page.waitForSelector('html[data-screen="pick"] .cs-tile[data-h="clem"] .cs-face');
+  const looks = await page.evaluate(() => {
+    const face = document.querySelector<HTMLElement>('.cs-tile[data-h="clem"] .cs-face')!;
+    const pic = face.querySelector<HTMLElement>('.tt-pic');
+    return { frame: getComputedStyle(face).backgroundImage, picW: pic ? pic.getBoundingClientRect().width : 0 };
+  });
+  expect(looks.frame).not.toBe('none');
+  expect(looks.picW).toBeGreaterThan(20);
+});

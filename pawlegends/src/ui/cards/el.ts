@@ -8,6 +8,11 @@ import { HEROES } from '../../data/heroes';
 import type { CatTier, Element } from '../../meta/roster';
 import { portraitUrl } from '../../render/portraits';
 import { HERO_TEXT } from '../heroText';
+// The look these attributes pick (element art, border, `.tt-pic`) lives in this CSS: load it with the attributes. The
+// pick tiles, seat rings and title badge use `cardAttrs`/`heroPic` from the entry bundle; until NO-TOKENTAILS.md the
+// lobby's card fan (`cards/frame`) loaded it there by chance, and without it every pick portrait drew blank.
+import './vars.css';
+import './cards.css';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 

@@ -12,6 +12,7 @@ import {
   initializeAuth,
 } from "firebase/auth";
 import { useRouter } from "next/router";
+import { authBrandFor, type AuthSheetBrand } from "./auth/brand";
 import * as React from "react";
 import { useCallback } from "react";
 import { AccountGate } from "./auth/accountGate";
@@ -175,7 +176,14 @@ export interface AuthSheetController {
   lastMethod?: LastMethod | null;
   /** "Already have an account? Sign in": the sheet turns into the returning player's sheet. */
   switchToSignIn?: () => void;
+  /**
+   * Which product the sheet speaks for. On the Paw Legends pages (`/pawlegends/**`, `/legends`, also served on
+   * pawlegends.app) it never names Token Tails (docs/plans/moba/NO-TOKENTAILS.md). Absent: Token Tails.
+   */
+  brand?: AuthSheetBrand;
 }
+
+export type { AuthSheetBrand } from "./auth/brand";
 
 type ContextState = {
   mode: AuthMode;
@@ -1034,6 +1042,7 @@ const FirebaseAuthProvider = ({
     clearMessage: () => setMessage(null),
     lastMethod,
     switchToSignIn,
+    brand: authBrandFor(router?.pathname),
   };
 
   // Playwright: open any sheet state for the axe and layout checks (E2E builds only).
