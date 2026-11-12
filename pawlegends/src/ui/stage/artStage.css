@@ -18,11 +18,12 @@
 
 /* The hero card: 4:5, the art covers it (a hero's 2:3 splash crops its caption band). */
 .pl-stage-hero {
-  --h: 62vh;
+  --h: 58vh;
   position: absolute;
   margin: 0;
   left: 50%;
-  bottom: calc(10vh + var(--safe-b, 0px));
+  /* clear of Home's bottom nav (centred on desktop) and under the nameplate */
+  bottom: calc(15vh + var(--safe-b, 0px));
   height: var(--h);
   aspect-ratio: 4 / 5;
   transform: translateX(-50%);
@@ -64,9 +65,19 @@
   to { transform: translateX(-50%); opacity: 1; }
 }
 
-/* the champion select: the hero stands right of centre behind the grid and panel (desktop), dimmed on a phone */
-.pl-stage[data-mode='pick'] .pl-stage-hero { --h: 76vh; left: 62%; bottom: 5vh; }
-html[data-phone='1'] .pl-stage[data-mode='pick'] .pl-stage-hero { opacity: 0.45; }
+/* the champion select: the grid and the panel cover the middle, so the hero is a soft, frameless painting behind
+   them (no gold card crossing the tiles), dimmer on a phone */
+.pl-stage[data-mode='pick'] .pl-stage-hero { --h: 86vh; left: 60%; bottom: 4vh; opacity: 0.7; }
+.pl-stage[data-mode='pick'] .pl-stage-hero::before { display: none; }
+.pl-stage[data-mode='pick'] .pl-stage-art {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 46%, #000 52%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 46%, #000 52%, transparent 100%);
+}
+html[data-phone='1'] .pl-stage[data-mode='pick'] .pl-stage-hero { opacity: 0.4; }
 /* the results: between the results column and the MVP card */
 .pl-stage[data-mode='results'] .pl-stage-hero { --h: 68vh; left: 58%; bottom: 8vh; }
 
