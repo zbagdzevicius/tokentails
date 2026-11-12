@@ -233,8 +233,9 @@ export const HEARTHWOOD_CAMERA_YAW = 0;
  * predicts (cats 46.2% → 57.0% for a 600 bp move).
  */
 export const HEARTHWOOD_PVP = Object.freeze({
-  // sim v21 (cannon, beds, yarn, stronger towers): the cat row +1% on the v20 row (9920 / 10390 before)
-  cat: Object.freeze({ dmgBp: 10020, takenBp: 10290 }),
+  // sim v21 on the released v20 base: the v20 cat row (the +1% trial row, 10020 / 10290, gave cats 54.3% on seeds
+  // 30001-32000; this row gives 50.6% on fit seeds 6001-7000)
+  cat: Object.freeze({ dmgBp: 9920, takenBp: 10390 }),
   dog: Object.freeze({ dmgBp: 10000, takenBp: 10310 }),
   hero: Object.freeze({
     clem: { dmgBp: 12048, takenBp: 8220 },

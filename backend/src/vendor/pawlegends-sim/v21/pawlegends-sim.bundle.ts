@@ -4398,8 +4398,8 @@ var HEARTHWOOD_RULES = Object.freeze({
 */
 var HEARTHWOOD_PVP = Object.freeze({
 	cat: Object.freeze({
-		dmgBp: 10020,
-		takenBp: 10290
+		dmgBp: 9920,
+		takenBp: 10390
 	}),
 	dog: Object.freeze({
 		dmgBp: 1e4,
