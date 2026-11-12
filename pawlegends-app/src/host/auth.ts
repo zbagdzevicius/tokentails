@@ -1,9 +1,9 @@
 /**
  * Sign-in in the app (the in-page host): the Firebase JS SDK holds the session, exactly as the Token Tails app does
- * (client/context/FirebaseAuthContext.tsx with `initializeAuth` and IndexedDB persistence). Google and Apple run
+ * (pawlegends-web/context/FirebaseAuthContext.tsx with `initializeAuth` and IndexedDB persistence). Google and Apple run
  * natively through `@capacitor-firebase/authentication` with `skipNativeAuth`, and their ID token becomes a JS SDK
  * credential (`linkWithCredential` for a guest, so the uid and its progress stay; `signInWithCredential` otherwise).
- * The flows themselves are the client's own (`client/context/auth/link.ts`), imported, not copied. Email and
+ * The flows themselves are the web host's own (`pawlegends-web/context/auth/link.ts`), imported, not copied. Email and
  * password run in the JS SDK only.
  *
  * Which native providers this build can use comes from the native shell (`window.__PL_NATIVE_AUTH__`, set at

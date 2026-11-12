@@ -9,7 +9,7 @@
  * - prompts: the guest-progress merge, "Add N matches played on this device to your account?", the account
  *   deletion's last confirmation, a short toast.
  *
- * Error copy is the client's (`client/context/auth/authErrors.ts`), so both apps say the same thing.
+ * Error copy is the web host's (`pawlegends-web/context/auth/authErrors.ts`), so both apps say the same thing.
  */
 import { AUTH_COPY, mapAuthError, mapNativeAuthError, withLastMethodHint } from "@/context/auth/authErrors";
 import { LAST_METHOD_LABEL, readLastMethod } from "@/context/auth/lastMethod";

@@ -110,8 +110,8 @@ From 1.1.0 (native compat 2) the app signs in like the web game, without a Next 
 (`shell.js`, before the game) installs a same-window channel, `window.__PL_HOST__`; the game's bridge
 (`pawlegends/src/embed/bridge.ts`, `kind: 'native'`) talks to it exactly as it talks to the `/pawlegends/play` iframe
 host. `host.js` (`src/host/`, a deferred script after the game) is that host: it runs the web host's own bridge
-(`client/components/pawlegends/bridge.ts`) and its React-free modules (save queue, party tickets and saves, API ops,
-champion art, `client/context/auth/link.ts` for the sign-in flows; no roster since 2026-11-12, NO-TOKENTAILS.md), bundled from `../client` by `scripts/build-web.mjs`.
+(`pawlegends-web/components/pawlegends/bridge.ts`) and its React-free modules (save queue, party tickets and saves, API ops,
+champion art, `pawlegends-web/context/auth/link.ts` for the sign-in flows; no roster since 2026-11-12, NO-TOKENTAILS.md), bundled from `../pawlegends-web` by `scripts/build-web.mjs`.
 
 - **Providers:** Sign in with Apple (iPhone and Mac, shown first), Google (iPhone and Android), email and password
   (everywhere). The Firebase JS SDK holds the session (IndexedDB); Apple and Google run natively through

@@ -1,6 +1,6 @@
 /**
  * The app's in-page host (sign-in): what the `/pawlegends/play` page does around the iframe on the web
- * (client/components/pawlegends/PawlegendsHost.tsx), for the native app, which has no Next page. It runs the web
+ * (pawlegends-web/components/pawlegends/PawlegendsHost.tsx), for the native app, which has no Next page. It runs the web
  * host's own bridge (`createPawlegendsBridge`) over the same-window channel (channel.ts) and reuses the web host's
  * React-free modules: the save queue (`PawlegendsSaver`, the one write path `POST /user/catbassadors/live`), party
  * tickets and party saves, the game's API ops (`PawlegendsApi`), the champions' art (never for sale) and the store
