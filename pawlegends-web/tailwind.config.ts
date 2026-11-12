@@ -1,0 +1,455 @@
+import type { Config } from "tailwindcss";
+import convertPxToRem from "tailwindcss-convert-px-to-rem";
+import plugin from "tailwindcss/plugin";
+import { LAYERS, TT_COLORS } from "./design/tokens";
+
+/**
+ * `tt-*` colours from design/tokens.ts (plan F3.1). Each reads its RGB triplet from
+ * styles/tokens.css so opacity modifiers work: `bg-tt-night-950/70`.
+ */
+const ttColors = Object.fromEntries(
+  Object.keys(TT_COLORS).map((name) => [name, `rgb(var(--tt-${name}) / <alpha-value>)`])
+);
+
+/** The z scale (plan F3.2): `z-hud`, `z-modal`, `z-toast`, ... */
+const ttLayers = Object.fromEntries(
+  Object.entries(LAYERS).map(([name, z]) => [name, String(z)])
+);
+
+const config: Config = {
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./layouts/**/*.{ts,tsx}",
+    "./features/**/*.{ts,tsx}",
+  ],
+  theme: {
+    extend: {
+      zIndex: ttLayers,
+      colors: {
+        tt: ttColors,
+        accent: {
+          100: "#E6E6FA",
+          200: "#C8A2C8",
+          300: "#9966CC",
+          400: "#7851A9",
+          500: "#4B0082",
+          600: "#6F2DA8",
+          700: "#431C53",
+          800: "#702963",
+          900: "#301934",
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        // The legacy `yellow-300` override (#FCECBB) is gone (task 7b, plan F3.1/G6): every use
+        // moved to `tt-cream`, so `yellow-300` is Tailwind's default again. Use tt-cream for cream.
+        green: {
+          300: "#D5F4E5",
+        },
+        purple: {
+          300: "#F0C5FD",
+        },
+        blue: {
+          300: "#C4E2FC",
+        },
+        main: {
+          black: "#161616",
+          white: "#FFFFFF",
+          ember: "#C1260F",
+          rusty: "#EE642A",
+
+          slate: "#A1A1A1",
+
+          grape: "#8726B7",
+
+          midnight: "#1E293B",
+          gray: "#CBD5E1",
+        },
+        // Portrait page colors (only available when data-portrait-page="true")
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        warm: {
+          DEFAULT: "hsl(var(--warm))",
+          light: "hsl(var(--warm-light))",
+          dark: "hsl(var(--warm-dark))",
+        },
+        cream: "hsl(var(--cream))",
+        charcoal: "hsl(var(--charcoal))",
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        gold: "hsl(var(--gold))",
+        "gold-muted": "hsl(var(--gold-muted))",
+        "gold-light": "hsl(var(--gold-light))",
+      },
+      animation: {
+        "loop-scroll": "loop-scroll 50s linear infinite",
+        hover: "hover 5s infinite;",
+        hoverSlow: "hover 25s infinite;",
+        colormax: "colormax 15s infinite;",
+        "spin-slow": "spin-fade 1.5s linear forwards",
+        "spin-slow-reverse": "spin-reverse 1.5s linear forwards",
+        "spin-reveal": "spin-reveal 3s linear infinite",
+        "spin-reveal-reverse": "spin-reveal-reverse 3s linear infinite",
+        shake: "shake 0.15s ease-in-out 10",
+        "paw-pulse": "paw-pulse 1.5s ease-out forwards",
+        flip: "flip 10s infinite;",
+        appear: "appear 0.6s linear",
+        opacity: "opacity 1s;",
+        bounceWithFade: "bounceWithFade 2.7s ease-in-out",
+        brightness: "brightness 3s ease-in-out infinite",
+        pulseWeak: "pulseWeak 3s ease-in-out infinite",
+        blink: "blink 0.5s ease-in-out infinite",
+        float: "float 6s ease-in-out infinite",
+        "float-delayed": "float-delayed 7s ease-in-out infinite 1s",
+        "gradient-text": "gradient-text var(--speed, 8s) linear infinite",
+        "shiny-text": "shiny-text 8s linear infinite",
+        // Skeleton loaders (shelter payouts): a soft light sweeping across the block.
+        "tt-shimmer": "tt-shimmer 1.6s ease-in-out infinite",
+        "tt-reveal": "tt-fade-in 420ms ease-out both",
+        "shine-border": "shine-border var(--duration, 14s) linear infinite",
+        // GameModal (plan F3.3). Enter only: closing is instant, so focus returns at once.
+        // `backwards`, not `both`: a filled end keyframe interpolated to `transform: none` stays
+        // `translateY(0)`, which makes the panel the containing block of `position: fixed` children.
+        "tt-scrim-in": "tt-fade-in 160ms ease-out both",
+        "tt-modal-in": "tt-modal-in 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards",
+        "tt-sheet-in": "tt-sheet-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1) backwards",
+      },
+      keyframes: {
+        "tt-fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "tt-modal-in": {
+          from: { opacity: "0", transform: "translateY(8px) scale(0.97)" },
+          to: { opacity: "1", transform: "none" },
+        },
+        "tt-sheet-in": {
+          from: { opacity: "0", transform: "translateY(24px)" },
+          to: { opacity: "1", transform: "none" },
+        },
+        "loop-scroll": {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-100%)" },
+        },
+        "spin-reverse": {
+          from: { transform: "rotate(0deg)", opacity: "0" },
+          "20%": { opacity: "1" },
+          to: { transform: "rotate(-360deg)", opacity: "1" },
+        },
+        "spin-fade": {
+          from: { transform: "rotate(0deg)", opacity: "0" },
+          "20%": { opacity: "1" },
+          to: { transform: "rotate(360deg)", opacity: "1" },
+        },
+        "spin-reveal": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
+        "spin-reveal-reverse": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(-360deg)" },
+        },
+        shake: {
+          "0%, 100%": { transform: "translateX(0) rotate(0deg)" },
+          "25%": { transform: "translateX(-3px) rotate(-1deg)" },
+          "50%": { transform: "translateX(3px) rotate(1deg)" },
+          "75%": { transform: "translateX(-2px) rotate(-0.5deg)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0px) rotate(0deg)" },
+          "50%": { transform: "translateY(-20px) rotate(2deg)" },
+        },
+        "float-delayed": {
+          "0%, 100%": { transform: "translateY(0px) rotate(0deg)" },
+          "50%": { transform: "translateY(-15px) rotate(-2deg)" },
+        },
+        "gradient-text": {
+          to: { backgroundPosition: "var(--bg-size, 300%) 0" },
+        },
+        "tt-shimmer": {
+          // The light is half the block wide: -100% and 200% start and end it fully off the block.
+          "0%": { backgroundPosition: "-100% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        "shiny-text": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        "shine-border": {
+          "0%": { backgroundPosition: "0% 0%" },
+          "50%": { backgroundPosition: "100% 100%" },
+          "100%": { backgroundPosition: "0% 0%" },
+        },
+        "paw-pulse": {
+          "0%": {
+            opacity: "0",
+            transform: "scale(1)",
+          },
+          "50%": {
+            opacity: "0.7",
+            transform: "scale(1)",
+          },
+          "100%": {
+            opacity: "1",
+            transform: "scale(1)",
+          },
+        },
+        brightness: {
+          from: { filter: "brightness(1)" },
+          "50%": { filter: "brightness(1.1)" },
+          to: { filter: "brightness(1)" },
+        },
+        pulseWeak: {
+          from: { opacity: "30%" },
+          "50%": { opacity: "50%" },
+          to: { opacity: "30%" },
+        },
+        blink: {
+          "0%, 100%": { opacity: "0" },
+          "50%": { opacity: "1" },
+        },
+        bounceWithFade: {
+          "0%": {
+            transform: "translateY(-100%)",
+            opacity: "0",
+            animationTimingFunction: "cubic-bezier(0.8, 0, 1, 1)",
+          },
+          "5%": {
+            transform: "translateY(0)",
+            opacity: "1",
+            animationTimingFunction: "cubic-bezier(0.2, 0, 0.5, 1)",
+          },
+          "50%": {
+            transform: "translateY(0)",
+            opacity: "1",
+            animationTimingFunction: "cubic-bezier(0, 0, 0.2, 1)",
+          },
+          "90%": {
+            transform: "translateY(0)",
+            opacity: "1",
+            animationTimingFunction: "cubic-bezier(0, 0, 0.2, 1)",
+          },
+          "100%": {
+            transform: "translateY(-100%)",
+            opacity: "0",
+            animationTimingFunction: "cubic-bezier(0.8, 0, 1, 1)",
+          },
+        },
+        appear: {
+          "0%": {
+            opacity: "0",
+            transform: "translateY(-80px) scale(0.9)",
+          },
+          "40%": {
+            opacity: "0.8",
+            transform: "translateY(10px) scale(1.02)",
+          },
+          "60%": {
+            opacity: "0.9",
+            transform: "translateY(-5px) scale(0.98)",
+          },
+          "80%": {
+            opacity: "0.95",
+            transform: "translateY(2px) scale(1.01)",
+          },
+          "100%": {
+            opacity: "1",
+            transform: "translateY(0) scale(1)",
+          },
+        },
+        opacity: {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        flip: {
+          "0%, 100%": {
+            transform: "skew(0deg, 0deg)",
+            "border-radius": "0",
+            opacity: "0.5",
+          },
+          "50%": {
+            transform: "skew(90deg, 60deg)",
+            "border-radius": "90px",
+            opacity: "0.2",
+          },
+        },
+        hover: {
+          "0%, 100%": {
+            transform: "translateY(-4%)",
+          },
+          "50%": {
+            transform: "translateY(0)",
+          },
+        },
+        colormax: {
+          "0%, 100%": {
+            filter: "hue-rotate(0deg)",
+          },
+          "50%": {
+            filter: "hue-rotate(360deg)",
+          },
+        },
+      },
+      fontSize: {
+        h1: [
+          "6rem",
+          {
+            lineHeight: "6.75rem",
+          },
+        ],
+        h2: [
+          "4.75rem",
+          {
+            lineHeight: "5.25rem",
+          },
+        ],
+        h3: [
+          "3.5rem",
+          {
+            lineHeight: "3rem",
+          },
+        ],
+        h4: [
+          "3.25rem",
+          {
+            lineHeight: "3.5rem",
+          },
+        ],
+        h5: [
+          "2.875rem",
+          {
+            lineHeight: "3.2rem",
+          },
+        ],
+        h6: [
+          "2.5rem",
+          {
+            lineHeight: "2rem",
+          },
+        ],
+        p1: [
+          "2.25rem",
+          {
+            lineHeight: "1.375em",
+            letterSpacing: "-0.015625rem",
+          },
+        ],
+        p2: [
+          "1.75rem",
+          {
+            lineHeight: "1.375em",
+            letterSpacing: "-0.015625rem",
+          },
+        ],
+        p3: [
+          "1.5rem",
+          {
+            lineHeight: "1.375em",
+            letterSpacing: "-0.015625rem",
+          },
+        ],
+        p4: [
+          "1.25rem",
+          {
+            lineHeight: "1.375em",
+            letterSpacing: "-0.015625rem",
+          },
+        ],
+        p5: [
+          "1rem",
+          {
+            lineHeight: "1.375em",
+            letterSpacing: "-0.015625rem",
+          },
+        ],
+        p6: [
+          "0.75rem",
+          {
+            lineHeight: "1rem",
+            letterSpacing: "-0.015625rem",
+          },
+        ],
+        p7: [
+          "0.625rem",
+          {
+            lineHeight: "1rem",
+            letterSpacing: "-0.015625rem",
+          },
+        ],
+      },
+      boxShadow: {
+        custom: `
+          0 4px black, 
+          0 8px black, 
+          0 12px black, 
+          0 16px black, 
+          -4px 12px black, 
+          -8px 8px black, 
+          -12px 4px black, 
+          -4px 4px white, 
+          -8px 4px white, 
+          -4px 8px white, 
+          -4px 0 white, 
+          -8px 0 white, 
+          -12px 0 white
+        `,
+      },
+      screens: {
+        md: "667px",
+        "3xl": "2300px",
+      },
+    },
+    fontFamily: {
+      // The body face (as on <body>, styles/globals.scss). `fontFamily` here replaces Tailwind's
+      // defaults, so without this key `font-sans` generated nothing and every `font-sans` inside a
+      // display-font parent silently stayed in the display face (QA, Oct 3).
+      sans: ["Nunito", "Nunito Fallback", "Nunito Fallback Android", "sans-serif"],
+      display: ["Bebas Neue", "sans-serif"],
+      primary: ["Passion One", "sans-serif"],
+      secondary: ["Bebas Neue", "sans-serif"],
+      paws: ["paws", "sans-serif"],
+    },
+  },
+  plugins: [
+    convertPxToRem,
+    plugin(({ addVariant }) => {
+      // `lowfx:` applies under <html class="lowfx">, set by components/ui/lowfx.ts on Android and on
+      // devices with 4 or fewer cores, to drop blur and other costly effects.
+      addVariant("lowfx", ":is(.lowfx &)");
+      addVariant("reduced-transparency", "@media (prefers-reduced-transparency: reduce)");
+      // `short:` for short landscape viewports (phones on their side, 844x390): modals compact
+      // their header and padding and drop two-column layouts (components/ui/modal).
+      addVariant("short", "@media (max-height: 500px)");
+    }),
+  ],
+};
+export default config;

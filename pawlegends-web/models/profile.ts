@@ -1,0 +1,59 @@
+
+import { ICat } from "./cats";
+
+export interface IWallet {
+  walletAddress: string;
+}
+
+export interface IUserWallets {
+  stellar: IWallet;
+}
+
+export interface IProfile {
+  _id: string;
+  twitter?: string;
+  discord?: string;
+  name: string;
+  streak: number;
+  discount: string;
+  affiliated: number;
+  spent: number;
+  tails: number;
+  codex: number[];
+  boxes: number;
+  cat: ICat;
+  cats: ICat[];
+  score: number;
+  wallets: IUserWallets;
+  catnipChaos: number[];
+  catnipChaosCount: number;
+  catnipCount: number;
+  seasonEvent: number[];
+  seasonEventCount: number;
+  match3: number[];
+  match3Count: number;
+  match3Score?: number[];
+  match3ScoreCount?: number;
+  /** 0/1 per level, same order as `catnipChaos`, `seasonEvent` and `match3` (plan G10, #67). */
+  catnipChaosCleared?: number[];
+  seasonEventCleared?: number[];
+  match3Cleared?: number[];
+  referralsCount: number;
+  quests: string[];
+  monthTails: number;
+  monthSpent: number;
+  canRedeemLives: boolean;
+  monthCatsAdopted: number;
+  monthBoxes: number;
+  monthPacks: number;
+  monthFeeded: number;
+  monthStreak: number;
+  monthReferrals: number;
+  monthTicketCount: number;
+  monthTailsCrafted: number;
+  portraitPurchases: number;
+  monthPortraitPurchases: number;
+  airdropRewardsClaimed: string[];
+  airdropChallengesClaimed?: string[];
+  airdropMilestonesClaimed?: string[];
+}

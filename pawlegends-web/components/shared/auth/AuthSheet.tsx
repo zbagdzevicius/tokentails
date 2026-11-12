@@ -1,0 +1,1025 @@
+import { ModalButton } from "@/components/ui/modal";
+import { PixelIcon } from "@/components/shared/PixelIcon";
+import { GameModal } from "@/components/ui/GameModal";
+import type { AuthSheetController, SheetView } from "@/context/FirebaseAuthContext";
+import type { AccountReason } from "@/context/auth/types";
+import { LAST_METHOD_LABEL, type LastMethod } from "@/context/auth/lastMethod";
+import { describeProfileError, profileRetryDelayMs } from "@/context/auth/profileError";
+import { externalBrowserLink, signInLink } from "@/context/auth/platform";
+import { useProfile } from "@/context/ProfileContext";
+import { useToastHold } from "@/context/ToastContext";
+import clsx from "clsx";
+import { type FormEvent, type KeyboardEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
+import { PAWLEGENDS_CONTACT } from "@/components/pawlegends/flags";
+import { BrandSignInButton, type BrandProvider } from "./BrandSignInButton";
+import { SCROLL_FADE_CLASS, useScrollFade } from "@/components/ui/useScrollFade";
+
+/** Paw Legends' own legal pages and support subject. */
+export const PAWLEGENDS_TERMS_URL = "/terms";
+export const PAWLEGENDS_PRIVACY_URL = "/privacy";
+export const PAWLEGENDS_SUPPORT_URL = `mailto:${PAWLEGENDS_CONTACT}?subject=Pawlegends%20account`;
+
+/**
+ * The support link with a reference support can act on: the signed-in Firebase uid (the guest
+ * on the conflict path). Not personal data on its own; it lets support find both documents.
+ */
+export const supportUrl = (reference?: string | null): string => {
+  const base = PAWLEGENDS_SUPPORT_URL;
+  return reference ? `${base}&body=${encodeURIComponent(`Reference: ${reference}`)}` : base;
+};
+
+/** Where focus goes when a sheet that opened by itself closes (no opener to return to). */
+export const FOCUS_FALLBACK_SELECTOR = '[data-testid="guest-pill"] button';
+
+/** Decision #64: the sheet is named by why it opened. Plain sign-in words, no cat to save. */
+export const PAWLEGENDS_SHEET_TITLES: Record<AccountReason, string> = {
+  "save-progress": "SAVE YOUR PROGRESS",
+  "claim-rewards": "CLAIM YOUR REWARDS",
+  purchase: "SIGN IN",
+  adopt: "SIGN IN",
+  "give-treat": "SIGN IN",
+  share: "SIGN IN",
+  support: "SIGN IN",
+  "sign-in": "SIGN IN",
+  returning: "WELCOME BACK",
+};
+
+export const sheetTitle = (reason: AccountReason): string => PAWLEGENDS_SHEET_TITLES[reason];
+
+/**
+ * The subtitle under the title. Views that are not about the reason (a failure, a conflict) get
+ * none, so it never contradicts their body; the cat is named only when there is a user to own it.
+ */
+export const reasonLine = (
+  reason: AccountReason,
+  catName?: string,
+  view?: SheetView["name"],
+): string => {
+  if (view === "fallback" || view === "profile-error" || view === "conflict") return "";
+  switch (reason) {
+    case "save-progress":
+      return "Keep your progress on every device.";
+    case "claim-rewards":
+      return "Rewards are tied to an account. It takes a few seconds, and your progress comes with you.";
+    case "purchase":
+      return "An account keeps what you buy safe on every device.";
+    case "share":
+      return "Invites are linked to your account, so your friends find you.";
+    case "support":
+      return "Sign in so we can answer you.";
+    case "returning":
+      return "Sign in the way you did before: your progress is waiting.";
+    default:
+      return "Sign in to keep your progress on every device.";
+  }
+};
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const MIN_PASSWORD = 6;
+export const RESEND_COOLDOWN_S = 60;
+export const VERIFY_POLL_MS = 5000;
+
+const textButton =
+  "inline-flex min-h-[44px] items-center justify-center px-3 font-sans text-p5 text-tt-lilac underline underline-offset-4 decoration-tt-lilac/50 hover:text-tt-cream hover:decoration-tt-cream rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400 disabled:no-underline disabled:opacity-60";
+
+/** ModalButton keeps a 44 px minimum on its own; max-w-full keeps a long label inside the sheet. */
+const CTA_CLASS = "max-w-full min-h-[44px]";
+
+const bodyText = "font-sans text-p5 leading-snug text-tt-cream";
+
+const inputClass = (invalid: boolean) =>
+  clsx(
+    "h-[44px] w-full rounded-[4px] border-2 bg-tt-night-600 px-3 font-sans text-[16px] text-tt-cream",
+    "placeholder:text-tt-muted focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
+    invalid ? "border-tt-rust" : "border-tt-gold-500/70 focus:border-tt-gold-400"
+  );
+
+const Divider = () => (
+  <div className="flex items-center gap-3 py-1" aria-hidden="true">
+    <span className="h-px flex-1 bg-tt-gold-500/40" />
+    <span className="font-sans text-p6 font-extrabold uppercase tracking-widest text-tt-muted">or</span>
+    <span className="h-px flex-1 bg-tt-gold-500/40" />
+  </div>
+);
+
+const Spinner = ({ label }: { label: string }) => (
+  <div className="flex flex-col items-center gap-3 py-6 text-center" aria-busy="true">
+    <PixelIcon name="loader" className="animate-spin text-[32px] text-tt-gold-400 motion-reduce:animate-none" />
+    <p className={bodyText}>{label}</p>
+  </div>
+);
+
+const Heading = ({ children }: { children: ReactNode }) => (
+  <h3 className="font-primary text-p4 uppercase leading-tight tracking-wide text-tt-cream">{children}</h3>
+);
+
+/**
+ * The one sign-in surface (plan G1 + G9, section 2.13 #6): a night bottom sheet on phones, a
+ * centred panel from `md` up, built on GameModal. Rendered by FirebaseAuthProvider; features open
+ * it with `requireAccount(reason)`.
+ */
+export const AuthSheet = ({ controller }: { controller: AuthSheetController }) => {
+  const { sheet, message, dismissible } = controller;
+  const { profile } = useProfile();
+  const { held, markShown } = useToastHold(sheet.open);
+  const [scrollRef, fade] = useScrollFade<HTMLDivElement>();
+  // A form's own validation message. It belongs to the view and the controller message it was
+  // raised under: a new view or a new controller message hides it without an effect.
+  const [local, setLocal] = useState<{
+    text: string;
+    field: "email" | "password" | null;
+    view: SheetView;
+    message: string | null;
+  } | null>(null);
+  const localError = local && local.view === sheet.view && local.message === message && sheet.open ? local : null;
+  const setLocalError = (error: { text: string; field: "email" | "password" | null } | null) =>
+    setLocal(error ? { ...error, view: sheet.view, message } : null);
+  const alertId = useId();
+
+  const latestHeld = held.length > 0 ? held[held.length - 1] : null;
+  // The region shows the latest held toast only when no form error or controller message wins.
+  const showsHeld = !localError?.text && !message && !!latestHeld?.message;
+  const alertText = localError?.text ?? message ?? latestHeld?.message ?? "";
+  // A held toast keeps its own tone: news reads as a neutral notice, an error toast as an error.
+  const alertIsNotice = showsHeld && !latestHeld?.isError;
+  // Once displayed here, a held toast is not played again after the sheet closes.
+  useEffect(() => {
+    if (showsHeld && latestHeld) markShown(latestHeld);
+  }, [showsHeld, latestHeld, markShown]);
+  const errorField = localError?.field ?? controller.messageField;
+  // The template profile (Scout) shows before any Firebase user exists: no cat to name yet.
+  const catName = controller.user ? profile?.cat?.name : undefined;
+  const description = reasonLine(sheet.reason, catName, sheet.view.name);
+
+  // GameModal returns focus to the element that opened the sheet. A sheet that opened by itself
+  // (fallback, verify, conflict, profile error) has none, so focus would land on <body>: move it
+  // to the guest pill once the dialog is gone.
+  const wasOpen = useRef(sheet.open);
+  useEffect(() => {
+    const closing = wasOpen.current && !sheet.open;
+    wasOpen.current = sheet.open;
+    if (!closing) return;
+    let frame = 0;
+    let tries = 0;
+    const settle = () => {
+      tries += 1;
+      const stillMounted = !!document.querySelector("[data-auth-view]");
+      if (stillMounted && tries < 60) {
+        frame = requestAnimationFrame(settle);
+        return;
+      }
+      const active = document.activeElement;
+      if (!active || active === document.body) {
+        document.querySelector<HTMLElement>(FOCUS_FALLBACK_SELECTOR)?.focus({ preventScroll: true });
+      }
+    };
+    frame = requestAnimationFrame(settle);
+    return () => cancelAnimationFrame(frame);
+  }, [sheet.open]);
+
+  return (
+    <GameModal
+      open={sheet.open}
+      onOpenChange={(next) => {
+        if (!next) controller.close();
+      }}
+      title={sheetTitle(sheet.reason)}
+      icon="user"
+      description={description || undefined}
+      surface="sheet"
+      size="sm"
+      layer="auth"
+      name="auth-sheet"
+      dismissible={dismissible}
+      // The sheet owns its scroller (below), so it can fade the bottom edge while more sits below.
+      bodyClassName="!p-0 md:!p-0 flex flex-col !overflow-hidden"
+      className="md:max-w-[26rem]"
+    >
+      <div
+        ref={scrollRef}
+        data-fade={fade || undefined}
+        className={clsx("min-h-0 flex-1 overflow-y-auto overscroll-contain", fade && SCROLL_FADE_CLASS)}
+      >
+      <div className="relative px-4 pb-5 pt-3 md:px-6 md:pb-6 short:!pb-4 short:!pt-2.5" data-auth-view={sheet.view.name}>
+        {/* A night gradient under the title (no live backdrop-filter). */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span className="absolute inset-0 bg-gradient-to-b from-tt-night-700 via-tt-night-700/10 to-tt-night-800/80" />
+        </div>
+        <div className="relative flex flex-col gap-4 short:!gap-3">
+          <div
+            id={alertId}
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+            data-testid="auth-alert"
+            data-tone={alertText ? (alertIsNotice ? "notice" : "error") : undefined}
+            className={clsx(
+              "font-sans text-p5 leading-snug",
+              !alertText && "sr-only",
+              alertText && "rounded-[4px] border-2 bg-tt-night-900/80 px-3 py-2 text-tt-cream",
+              alertText && (alertIsNotice ? "border-tt-gold-500/60" : "border-tt-rust/70")
+            )}
+          >
+            {alertText}
+          </div>
+          <SheetBody
+            controller={controller}
+            alertId={alertId}
+            errorField={alertText && !alertIsNotice ? errorField : null}
+            setLocalError={setLocalError}
+          />
+        </div>
+      </div>
+      </div>
+    </GameModal>
+  );
+};
+
+interface BodyProps {
+  controller: AuthSheetController;
+  alertId: string;
+  errorField: "email" | "password" | null;
+  setLocalError: (error: { text: string; field: "email" | "password" | null } | null) => void;
+}
+
+const SheetBody = (props: BodyProps) => {
+  const { view } = props.controller.sheet;
+  switch (view.name) {
+    case "choose":
+      return <ChooseView {...props} />;
+    case "email":
+      // Remounts when the view brings a new email or notice (after a reset), not on a tab switch.
+      return <EmailView key={`${view.email ?? ""}|${view.notice ?? ""}`} {...props} view={view} />;
+    case "verify-email":
+      return <VerifyView {...props} view={view} />;
+    case "reset":
+      return <ResetView {...props} view={view} />;
+    case "link-account":
+      return <LinkAccountView {...props} view={view} />;
+    case "linking":
+    case "busy":
+      return <Spinner label={view.label} />;
+    case "profile-error":
+      return <ProfileErrorView {...props} view={view} />;
+    case "conflict":
+      return <ConflictView {...props} />;
+    case "merged":
+      return <MergedView {...props} view={view} />;
+    case "fallback":
+      return <FallbackView {...props} />;
+    default:
+      return null;
+  }
+};
+
+const LegalFooter = () => (
+  <p className="text-center font-sans text-[length:max(12px,0.75rem)] leading-relaxed text-tt-cream/80 md:text-[0.8125rem]">
+    By continuing you accept the{" "}
+    <a href={PAWLEGENDS_TERMS_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-cream underline underline-offset-2">
+      Terms
+    </a>{" "}
+    and the{" "}
+    <a href={PAWLEGENDS_PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-cream underline underline-offset-2">
+      Privacy Policy
+    </a>
+    .
+  </p>
+);
+
+/** The ring around the method this device used last time. */
+const LAST_USED_RING = "rounded-[6px] ring-2 ring-tt-gold-400 ring-offset-2 ring-offset-tt-night-700";
+
+/**
+ * "Last time on this device you used Google (z•••@motored.lt)." In an in-app browser, where the
+ * Google and Apple buttons are replaced by the notice, it also says how to reach that method.
+ */
+const LastMethodLine = ({ last, inAppBrowser }: { last: LastMethod; inAppBrowser?: boolean }) => {
+  const blocked = !!inAppBrowser && last.provider !== "email";
+  return (
+    <p className={clsx(bodyText, "text-center")} data-testid="last-method">
+      Last time on this device you used <strong className="font-bold text-tt-gold-400">{LAST_METHOD_LABEL[last.provider]}</strong>
+      {last.emailHint ? (
+        <>
+          {" "}
+          (<span className="font-semibold">{last.emailHint}</span>)
+        </>
+      ) : null}
+      .
+      {blocked && (
+        <>
+          {" "}
+          It doesn&apos;t work in this app&apos;s browser: copy the link below and open it in Safari or Chrome.
+        </>
+      )}
+    </p>
+  );
+};
+
+/**
+ * Inside a social app's or a wallet's browser (MetaMask, Trust, Phantom, Coinbase Wallet, ...)
+ * Google refuses to sign in. The notice says where to go and copies the link, the one step that
+ * works in every in-app browser.
+ */
+const InAppNotice = ({ emphasise }: { emphasise?: boolean }) => {
+  const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
+  // With `signin=1`, so the pasted link opens this sign-in again (Game drops it from the address bar).
+  const url = typeof window !== "undefined" ? signInLink(window.location.href) : "";
+  const external = typeof navigator !== "undefined" ? externalBrowserLink(url, navigator.userAgent) : null;
+  const copyLabel = copied === "done" ? "Link copied. Paste it in Safari or Chrome" : "Copy link";
+  const copy = () => {
+    const write = typeof navigator !== "undefined" ? navigator.clipboard?.writeText(url) : undefined;
+    if (!write) {
+      setCopied("failed");
+      return;
+    }
+    void write.then(
+      () => setCopied("done"),
+      () => setCopied("failed")
+    );
+  };
+  return (
+    <div className="rounded-[4px] border-2 border-tt-gold-500/50 bg-tt-night-900/70 p-3" data-testid="in-app-notice">
+      <p className={bodyText}>
+        Google and Apple sign-in don&apos;t work inside this app&apos;s browser. Copy the link, open Safari or Chrome, and
+        paste it there. Or use your email below.
+      </p>
+      <div className={clsx("mt-1 flex flex-wrap items-center gap-x-2", emphasise && "mt-3 flex-col items-stretch gap-1")}>
+        {emphasise ? (
+          // The way back to the method this device used last: the sheet's main action.
+          <ModalButton variant="primary" icon="copy" fullWidth className={CTA_CLASS} onClick={copy} data-testid="in-app-copy">
+            {copied === "done" ? "LINK COPIED" : "COPY LINK"}
+          </ModalButton>
+        ) : (
+          <button type="button" className={clsx(textButton, "px-0")} onClick={copy} data-testid="in-app-copy">
+            {copyLabel}
+          </button>
+        )}
+        {/* Android only: an intent leaves the wallet's web view. iOS has no such link. */}
+        {external && (
+          <a className={textButton} href={external} data-testid="in-app-open">
+            Open in Chrome
+          </a>
+        )}
+      </div>
+      <p className="sr-only" role="status" aria-live="polite" data-testid="in-app-copied">
+        {copied === "done" ? "Link copied. Paste it in Safari or Chrome." : ""}
+      </p>
+      {copied === "failed" && (
+        <p className="select-all break-all font-sans text-p6 text-tt-cream" data-testid="in-app-url">
+          {url}
+        </p>
+      )}
+    </div>
+  );
+};
+
+/** Google and Apple in the right order, or the in-app browser notice instead of them. */
+const ProviderButtons = ({
+  controller,
+  exclude,
+}: {
+  controller: AuthSheetController;
+  exclude?: BrandProvider;
+}) => {
+  if (controller.inAppBrowser) {
+    const last = controller.lastMethod?.provider;
+    return <InAppNotice emphasise={last === "google" || last === "apple"} />;
+  }
+  const last = controller.lastMethod?.provider;
+  const base: BrandProvider[] = controller.appleFirst ? ["apple", "google"] : ["google", "apple"];
+  // The method this device used last goes first, ringed, so a returning player taps it at once.
+  const order = last === "google" || last === "apple" ? [last, ...base.filter((p) => p !== last)] : base;
+  return (
+    <div className="flex flex-col gap-4 pb-1 pr-1">
+      {order
+        .filter((provider) => provider !== exclude)
+        .map((provider) => (
+          <BrandSignInButton
+            key={provider}
+            provider={provider}
+            className={provider === last ? LAST_USED_RING : undefined}
+            lastUsed={provider === last}
+            // Synchronous: the popup must open inside this click (G9).
+            onClick={() => controller.oauth(provider)}
+          />
+        ))}
+    </div>
+  );
+};
+
+const KeepPlaying = ({ controller }: { controller: AuthSheetController }) => {
+  if (!controller.dismissible) return null;
+  // Only when there is a guest to keep playing as (not after a failed anonymous sign-in).
+  const isGuest = !!controller.user?.isAnonymous;
+  return (
+    <button type="button" className={textButton} onClick={controller.close}>
+      {isGuest ? "Keep playing as guest" : "Not now"}
+    </button>
+  );
+};
+
+/**
+ * Which tab the email form opens on: Sign in for a returning player (and anyone who is not a
+ * guest), Create account only for a guest saving its cat.
+ */
+export const emailTabFor = (reason: AccountReason, isAnonymous: boolean): "sign-in" | "create" =>
+  reason === "returning" || !isAnonymous ? "sign-in" : "create";
+
+const ChooseView = ({ controller }: BodyProps) => {
+  const returning = controller.sheet.reason === "returning";
+  // "Already have an account? Sign in" unmounts the button that had focus: move it to the first
+  // sign-in option, so a keyboard player keeps their place.
+  const wasReturning = useRef(returning);
+  useEffect(() => {
+    const switched = !wasReturning.current && returning;
+    wasReturning.current = returning;
+    if (!switched) return;
+    document.querySelector<HTMLElement>('[data-auth-view="choose"] button')?.focus({ preventScroll: true });
+  }, [returning]);
+  const emailTab = emailTabFor(controller.sheet.reason, !!controller.user?.isAnonymous);
+  const last = controller.lastMethod ?? null;
+  const emailLast = last?.provider === "email";
+  const emailButton = (
+    <ModalButton
+      variant={emailLast ? "primary" : "secondary"}
+      icon="mail"
+      fullWidth
+      className={clsx(CTA_CLASS, emailLast && LAST_USED_RING)}
+      onClick={() => controller.setView({ name: "email", tab: emailTab })}
+    >
+      {returning ? "SIGN IN WITH EMAIL" : "CONTINUE WITH EMAIL"}
+    </ModalButton>
+  );
+  return (
+    <>
+      {last && <LastMethodLine last={last} inAppBrowser={controller.inAppBrowser} />}
+      {/* A returning player who used email goes straight to it; otherwise Google and Apple are the
+          quick path and email the alternative. */}
+      {emailLast && emailButton}
+      {emailLast && !controller.inAppBrowser && <Divider />}
+      <ProviderButtons controller={controller} />
+      {!emailLast && !controller.inAppBrowser && <Divider />}
+      {!emailLast && emailButton}
+      {!returning && controller.switchToSignIn && (
+        // A guest who had an account before: Google, Apple and email above all sign in to it, but
+        // the email form would open on Create account, so the switch says it out loud.
+        <p className={clsx(bodyText, "text-center")} data-testid="returning-switch">
+          Already have an account?{" "}
+          <button type="button" className={clsx(textButton, "px-1")} onClick={controller.switchToSignIn}>
+            Sign in
+          </button>
+        </p>
+      )}
+      <div className="flex flex-col items-center">
+        <KeepPlaying controller={controller} />
+      </div>
+      <LegalFooter />
+    </>
+  );
+};
+
+const EmailView = ({
+  controller,
+  view,
+  alertId,
+  errorField,
+  setLocalError,
+}: BodyProps & { view: Extract<SheetView, { name: "email" }> }) => {
+  const tab = view.tab;
+  const [email, setEmail] = useState(view.email ?? "");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const ids = { email: useId(), password: useId(), hint: useId(), tabs: useId() };
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    emailRef.current?.focus({ preventScroll: true });
+  }, [tab]);
+
+  const switchTab = (next: "sign-in" | "create") =>
+    controller.setView({ name: "email", tab: next, email });
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const trimmed = email.trim();
+    if (!EMAIL_PATTERN.test(trimmed)) {
+      setLocalError({ text: "Enter a valid email address.", field: "email" });
+      emailRef.current?.focus();
+      return;
+    }
+    if (password.length < MIN_PASSWORD) {
+      setLocalError({
+        text:
+          tab === "create"
+            ? `Use at least ${MIN_PASSWORD} characters for your password.`
+            : password.length === 0
+              ? "Enter your password."
+              : "That password looks too short. Check it and try again.",
+        field: "password",
+      });
+      passwordRef.current?.focus();
+      return;
+    }
+    setLocalError(null);
+    controller.emailSubmit(tab, trimmed, password);
+  };
+
+  const TAB_ORDER = ["sign-in", "create"] as const;
+  const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const index = TAB_ORDER.indexOf(tab);
+    let next: (typeof TAB_ORDER)[number] | null = null;
+    if (event.key === "ArrowRight") next = TAB_ORDER[(index + 1) % TAB_ORDER.length];
+    else if (event.key === "ArrowLeft") next = TAB_ORDER[(index - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+    else if (event.key === "Home") next = TAB_ORDER[0];
+    else if (event.key === "End") next = TAB_ORDER[TAB_ORDER.length - 1];
+    if (!next) return;
+    event.preventDefault();
+    if (next !== tab) switchTab(next);
+    document.getElementById(`${ids.tabs}-${next}`)?.focus();
+  };
+
+  const tabButton = (value: "sign-in" | "create", label: string) => (
+    <button
+      type="button"
+      role="tab"
+      id={`${ids.tabs}-${value}`}
+      aria-selected={tab === value}
+      aria-controls={`${ids.tabs}-panel`}
+      // ARIA tabs pattern: one Tab stop for the list, arrows/Home/End move between tabs.
+      tabIndex={tab === value ? 0 : -1}
+      onClick={() => switchTab(value)}
+      onKeyDown={onTabKeyDown}
+      className={clsx(
+        "min-h-[44px] flex-1 rounded-[4px] font-primary text-p5 uppercase tracking-wide transition-colors",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
+        tab === value ? "bg-tt-gold-400 text-tt-gold-ink" : "text-tt-lilac hover:text-tt-cream"
+      )}
+    >
+      {label}
+    </button>
+  );
+
+  // A returning player signs in: one form, no tabs, with "New here? Create an account" under it.
+  const signInOnly = controller.sheet.reason === "returning" && tab === "sign-in";
+
+  return (
+    <>
+      {signInOnly ? (
+        <Heading>
+          <span id={`${ids.tabs}-${tab}`}>Sign in with email</span>
+        </Heading>
+      ) : (
+        <div role="tablist" aria-label="Sign in or create an account" className="flex gap-1 rounded-[6px] border-2 border-tt-gold-500/50 bg-tt-night-900/70 p-1">
+          {tabButton("sign-in", "Sign in")}
+          {tabButton("create", "Create account")}
+        </div>
+      )}
+      <form
+        id={`${ids.tabs}-panel`}
+        role={signInOnly ? undefined : "tabpanel"}
+        aria-labelledby={`${ids.tabs}-${tab}`}
+        className="flex flex-col gap-3"
+        onSubmit={submit}
+        noValidate
+      >
+        {view.notice && <p className={clsx(bodyText, "text-tt-mint")}>{view.notice}</p>}
+        <div className="flex flex-col gap-1">
+          <label htmlFor={ids.email} className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-lilac">
+            Email
+          </label>
+          <input
+            ref={emailRef}
+            id={ids.email}
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete={tab === "create" ? "email" : "username"}
+            autoCapitalize="none"
+            spellCheck={false}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            aria-invalid={errorField === "email" || undefined}
+            aria-describedby={errorField === "email" ? alertId : undefined}
+            className={inputClass(errorField === "email")}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-end justify-between gap-2">
+            <label htmlFor={ids.password} className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-lilac">
+              Password
+            </label>
+            {tab === "sign-in" && (
+              // Next to the field it is about.
+              <button
+                type="button"
+                className={clsx(textButton, "-mb-2 -mr-3 text-p6")}
+                onClick={() => controller.setView({ name: "reset", email })}
+              >
+                Forgot password?
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <input
+              ref={passwordRef}
+              id={ids.password}
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete={tab === "create" ? "new-password" : "current-password"}
+              minLength={tab === "create" ? MIN_PASSWORD : undefined}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              aria-invalid={errorField === "password" || undefined}
+              aria-describedby={
+                [tab === "create" ? ids.hint : "", errorField === "password" ? alertId : ""].filter(Boolean).join(" ") ||
+                undefined
+              }
+              className={clsx(inputClass(errorField === "password"), "pr-[52px]")}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-pressed={showPassword}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-0 top-0 grid h-[44px] w-[48px] place-items-center rounded-[4px] text-tt-lilac hover:text-tt-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-tt-gold-400"
+            >
+              <PixelIcon name={showPassword ? "eye-off" : "eye"} className="text-[22px]" />
+            </button>
+          </div>
+          {tab === "create" && (
+            <p id={ids.hint} className="font-sans text-p6 text-tt-muted">
+              At least {MIN_PASSWORD} characters. We&apos;ll send a link to confirm your email.
+            </p>
+          )}
+        </div>
+        <ModalButton variant="primary" type="submit" fullWidth className={clsx(CTA_CLASS, "mt-1")}>
+          {tab === "create" ? "CREATE ACCOUNT" : "SIGN IN"}
+        </ModalButton>
+      </form>
+      <div className="flex flex-wrap items-center justify-center gap-x-2">
+        <button type="button" className={textButton} onClick={() => controller.setView({ name: "choose" })}>
+          Other ways to sign in
+        </button>
+      </div>
+      {signInOnly && (
+        <p className={clsx(bodyText, "text-center")}>
+          New here?{" "}
+          <button type="button" className={clsx(textButton, "px-1")} onClick={() => switchTab("create")}>
+            Create an account
+          </button>
+        </p>
+      )}
+    </>
+  );
+};
+
+const ResetView = ({
+  controller,
+  view,
+  alertId,
+  errorField,
+  setLocalError,
+}: BodyProps & { view: Extract<SheetView, { name: "reset" }> }) => {
+  const [email, setEmail] = useState(view.email ?? "");
+  const [busy, setBusy] = useState(false);
+  const id = useId();
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!EMAIL_PATTERN.test(email.trim())) {
+      setLocalError({ text: "Enter a valid email address.", field: "email" });
+      return;
+    }
+    setBusy(true);
+    try {
+      await controller.sendPasswordReset(email.trim());
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="flex flex-col gap-3" onSubmit={submit} noValidate>
+      <Heading>Reset your password</Heading>
+      <p className={bodyText}>Enter your email and we&apos;ll send you a link to choose a new password.</p>
+      <div className="flex flex-col gap-1">
+        <label htmlFor={id} className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-lilac">
+          Email
+        </label>
+        <input
+          id={id}
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          aria-invalid={errorField === "email" || undefined}
+          aria-describedby={errorField === "email" ? alertId : undefined}
+          className={inputClass(errorField === "email")}
+        />
+      </div>
+      <ModalButton variant="primary" type="submit" busy={busy} fullWidth className={CTA_CLASS}>
+        SEND RESET LINK
+      </ModalButton>
+      <div className="flex justify-center">
+        <button type="button" className={textButton} onClick={() => controller.setView({ name: "email", tab: "sign-in", email })}>
+          Back to sign in
+        </button>
+      </div>
+    </form>
+  );
+};
+
+const VerifyView = ({ controller, view }: BodyProps & { view: Extract<SheetView, { name: "verify-email" }> }) => {
+  // On the cooldown only when an email went out just now; a returning unverified account, or a
+  // first send that failed, can resend at once.
+  const [cooldown, setCooldown] = useState(view.justSent ? RESEND_COOLDOWN_S : 0);
+  const [checking, setChecking] = useState(false);
+  const { checkVerified } = controller;
+
+  // True once a running cooldown has reached zero, so the polite region announces it once.
+  const [cooldownEnded, setCooldownEnded] = useState(false);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => {
+      setCooldown((value) => value - 1);
+      if (cooldown === 1) setCooldownEnded(true);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  // Poll every 5 s: the player may confirm on another device.
+  useEffect(() => {
+    const timer = setInterval(() => void checkVerified(true), VERIFY_POLL_MS);
+    return () => clearInterval(timer);
+  }, [checkVerified]);
+
+  const resend = async () => {
+    if (cooldown > 0) return;
+    if (await controller.resend()) {
+      setCooldownEnded(false);
+      setCooldown(RESEND_COOLDOWN_S);
+    }
+  };
+
+  const check = async () => {
+    setChecking(true);
+    try {
+      await checkVerified(false);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <>
+      <Heading>Check your email</Heading>
+      {view.justSent ? (
+        <p className={bodyText}>
+          We sent a link to <strong className="font-bold text-tt-gold-400">{view.email || "your email"}</strong>. Open it
+          to confirm it&apos;s you, then come back here.{" "}
+          Your progress waits for you.
+        </p>
+      ) : (
+        <p className={bodyText}>
+          Welcome back. This is your account from before, and it&apos;s safe. Confirm{" "}
+          {/* In full: it is the signed-in player's own address, often typed seconds ago. */}
+          <strong className="break-all font-bold text-tt-gold-400" data-testid="verify-email-hint">
+            {view.email || "your email"}
+          </strong>{" "}
+          to keep playing: tap &ldquo;Resend email&rdquo; for a new link, open it, then come back here.
+        </p>
+      )}
+      <p className="sr-only" role="status" aria-live="polite" data-testid="resend-ready">
+        {cooldownEnded ? "You can resend the email now." : ""}
+      </p>
+      <ModalButton variant="primary" busy={checking} fullWidth className={CTA_CLASS} onClick={check}>
+        {"I'VE VERIFIED, CONTINUE"}
+      </ModalButton>
+      <div className="flex flex-wrap items-center justify-center gap-x-2">
+        {/* No live region on the button: its label ticks every second. The one announcement
+            comes when the cooldown ends. */}
+        <button type="button" className={textButton} onClick={resend} disabled={cooldown > 0}>
+          {cooldown > 0 ? `Resend email in ${cooldown} s` : "Resend email"}
+        </button>
+        <button type="button" className={textButton} onClick={() => void controller.signOut()}>
+          Use a different sign-in
+        </button>
+      </div>
+    </>
+  );
+};
+
+const LinkAccountView = ({
+  controller,
+  view,
+}: BodyProps & { view: Extract<SheetView, { name: "link-account" }> }) => {
+  const tried = view.provider === "google" ? "Google" : "Apple";
+  return (
+    <>
+      <Heading>You already have an account</Heading>
+      <p className={bodyText}>
+        {view.email ? (
+          <>
+            <strong className="font-bold text-tt-gold-400">{view.email}</strong> already signs in another way.
+          </>
+        ) : (
+          "This email already signs in another way."
+        )}{" "}
+        Sign in the way you did before, and we&apos;ll connect {tried} to it.
+      </p>
+      <ProviderButtons controller={controller} exclude={view.provider} />
+      <Divider />
+      <ModalButton
+        variant="primary"
+        fullWidth
+        className={CTA_CLASS}
+        onClick={() => controller.setView({ name: "email", tab: "sign-in", email: view.email ?? undefined })}
+      >
+        SIGN IN WITH EMAIL
+      </ModalButton>
+      <div className="flex justify-center">
+        <KeepPlaying controller={controller} />
+      </div>
+    </>
+  );
+};
+
+/** "Retrying in Ns", then `onDue`. Keyed by the attempt, so each attempt starts a fresh countdown. */
+const RetryCountdown = ({ delayMs, onDue }: { delayMs: number; onDue: () => void }) => {
+  const [left, setLeft] = useState(() => Math.ceil(delayMs / 1000));
+  useEffect(() => {
+    const due = Date.now() + delayMs;
+    const tick = setInterval(() => setLeft(Math.max(0, Math.ceil((due - Date.now()) / 1000))), 1000);
+    const timer = setTimeout(onDue, delayMs);
+    return () => {
+      clearInterval(tick);
+      clearTimeout(timer);
+    };
+  }, [delayMs, onDue]);
+  return <>{`Retrying in ${left}s`}</>;
+};
+
+const ProfileErrorView = ({
+  controller,
+  view,
+}: BodyProps & { view: Extract<SheetView, { name: "profile-error" }> }) => {
+  // The failed status and the Firebase uid, so a report tells support which answer this account got.
+  const uid = controller.user?.uid ?? null;
+  const reference = view.timeout
+    ? null
+    : [view.status ? `Error ${view.status}` : "No response", uid].filter(Boolean).join(" · ");
+  const copy = describeProfileError({
+    status: view.status ?? null,
+    code: view.code ?? null,
+    message: view.message,
+    timeout: view.timeout,
+    offline: typeof navigator !== "undefined" && navigator.onLine === false,
+  });
+  const loading = controller.status === "loading-profile";
+  const retry = controller.retryProfile;
+  const [attempt, setAttempt] = useState(0);
+  // A hidden tab does not retry; the visibilitychange below picks it up when it is shown again.
+  const autoRetry = useCallback(() => {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    setAttempt((value) => value + 1);
+    retry();
+  }, [retry]);
+  // Transient causes also retry at once when the tab is shown again or the network comes back.
+  useEffect(() => {
+    if (!copy.autoRetry || loading) return;
+    window.addEventListener("online", autoRetry);
+    document.addEventListener("visibilitychange", autoRetry);
+    return () => {
+      window.removeEventListener("online", autoRetry);
+      document.removeEventListener("visibilitychange", autoRetry);
+    };
+  }, [copy.autoRetry, loading, autoRetry]);
+
+  const signOut = () => void controller.signOut();
+  return (
+    <>
+      <Heading>{copy.heading}</Heading>
+      <p className={bodyText}>{copy.body}</p>
+      {copy.autoRetry && (
+        <p className="text-center font-sans text-p6 font-semibold text-tt-muted" aria-live="polite" data-testid="profile-error-retry">
+          {loading ? (
+            "Retrying…"
+          ) : (
+            <RetryCountdown key={attempt} delayMs={profileRetryDelayMs(attempt)} onDue={autoRetry} />
+          )}
+        </p>
+      )}
+      {copy.primary === "sign-out" ? (
+        <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={signOut}>
+          SIGN OUT AND SIGN IN AGAIN
+        </ModalButton>
+      ) : (
+        <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={retry}>
+          TRY AGAIN
+        </ModalButton>
+      )}
+      <div className="flex flex-wrap items-center justify-center gap-x-2">
+        {copy.primary === "sign-out" ? (
+          <button type="button" className={textButton} onClick={retry}>
+            Try again
+          </button>
+        ) : (
+          <button type="button" className={textButton} onClick={signOut}>
+            Sign out
+          </button>
+        )}
+        {reference && (
+          <a className={textButton} href={supportUrl(reference)}>
+            Contact support
+          </a>
+        )}
+      </div>
+      {reference && (
+        <p className="select-all break-all text-center font-sans text-p6 font-semibold text-tt-muted" data-testid="profile-error-reference">
+          {reference}
+        </p>
+      )}
+    </>
+  );
+};
+
+const ConflictView = ({ controller }: BodyProps) => {
+  // This guest's uid, so support can move its progress after the player signs in elsewhere.
+  const reference = controller.user?.uid ?? null;
+  return (
+    <>
+      <Heading>This email already has an account</Heading>
+      <p className={bodyText}>
+        Sign in to that account to keep playing. Write to us first and we&apos;ll move this guest&apos;s progress over
+        for you{reference ? ", quoting this reference:" : "."}
+      </p>
+      {reference && (
+        <p
+          className="select-all break-all rounded-[4px] border-2 border-tt-gold-500/60 bg-tt-night-900/80 px-3 py-2 font-sans text-p5 font-semibold text-tt-cream"
+          data-testid="conflict-reference"
+        >
+          {reference}
+        </p>
+      )}
+      <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={() => void controller.signOut()}>
+        SIGN IN TO MY ACCOUNT
+      </ModalButton>
+      <div className="flex flex-wrap items-center justify-center gap-x-2">
+        <a className={textButton} href={supportUrl(reference)}>
+          Contact support
+        </a>
+        <KeepPlaying controller={controller} />
+      </div>
+    </>
+  );
+};
+
+const MergedView = ({ controller, view }: BodyProps & { view: Extract<SheetView, { name: "merged" }> }) => (
+  <>
+    <Heading>Welcome back!</Heading>
+    {view.note ? (
+      <p className={bodyText}>{view.note}</p>
+    ) : (
+      <p className={bodyText}>
+        Your guest progress is in your account now
+        {view.gamesMoved > 0 ? ":" : "."}
+      </p>
+    )}
+    {!view.note && view.gamesMoved > 0 && (
+      <ul className="flex flex-wrap gap-2" aria-label="What moved">
+        <li className="rounded-[4px] border-2 border-tt-gold-500/60 bg-tt-night-900/70 px-3 py-1 font-sans text-p5 font-extrabold text-tt-cream">
+          {view.gamesMoved} {view.gamesMoved === 1 ? "match" : "matches"}
+        </li>
+      </ul>
+    )}
+    <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={controller.close}>
+      CONTINUE
+    </ModalButton>
+  </>
+);
+
+const FallbackView = ({ controller }: BodyProps) => (
+  <>
+    <Heading>We couldn&apos;t start a guest game</Heading>
+    <p className={bodyText}>
+      Guest play isn&apos;t available right now. You can still look around, try again or sign in.
+    </p>
+    <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={controller.retryGuest}>
+      TRY AGAIN
+    </ModalButton>
+    <div className="flex flex-col items-center">
+      <button
+        type="button"
+        className={textButton}
+        onClick={() => (controller.switchToSignIn ? controller.switchToSignIn() : controller.setView({ name: "choose" }))}
+      >
+        Sign in instead
+      </button>
+    </div>
+  </>
+);
+
+export default AuthSheet;

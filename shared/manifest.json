@@ -4,26 +4,30 @@
     "backend": "backend/src/shared-contracts",
     "client": "client/shared-contracts",
     "cms": "cms/shared-contracts",
-    "heist": "catnip-heist/src/shared-contracts"
+    "heist": "catnip-heist/src/shared-contracts",
+    "pawlegends-web": "pawlegends-web/shared-contracts"
   },
   "files": {
     "enums.ts": [
       "backend",
       "client",
       "cms",
-      "heist"
+      "heist",
+      "pawlegends-web"
     ],
     "errors.ts": [
       "backend",
       "client",
       "cms",
-      "heist"
+      "heist",
+      "pawlegends-web"
     ],
     "caps.ts": [
       "backend",
       "client",
       "cms",
-      "heist"
+      "heist",
+      "pawlegends-web"
     ],
     "storefront.ts": [
       "backend",
@@ -33,7 +37,8 @@
     "heist-bridge.ts": [
       "backend",
       "client",
-      "heist"
+      "heist",
+      "pawlegends-web"
     ],
     "copy.ts": [
       "backend",
@@ -48,7 +53,8 @@
     ],
     "analytics-core.ts": [
       "client",
-      "heist"
+      "heist",
+      "pawlegends-web"
     ],
     "pink-paw.ts": [
       "backend",
