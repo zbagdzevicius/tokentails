@@ -6,7 +6,7 @@
 
 /** First-load JS (entry + three), gzip. */
 export const BUDGET_KB = 450;
-/** Whole embed output (`client/public/pawlegends-game/`), raw bytes on disk. */
+/** Whole embed output (`pawlegends-web/public/pawlegends-game/`), raw bytes on disk. */
 export const TOTAL_MB = 10;
 export const LAZY_RE = /(^|[\/_.-])(lazy|store|results|share|clip|editor)/i;
 /** Debug hooks that must never ship (§15 item 23). */
