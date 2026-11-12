@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { gattr, mockHost, openHost } from './host';
-import { startFirstMatch } from './helpers';
+import { startFirstMatch, playFromHome } from './helpers';
 
 // UX pass 2: a human hero shows the player's username (the Token Tails profile name the host sends in `session`),
 // cleaned and cut to 14 characters; bots keep their persona names, which carry the champion ("Biscuit the Clem").
@@ -11,7 +11,7 @@ test('signed in: the own hero, scoreboard row and HUD portrait carry the usernam
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, name: 'Žygis <b>the Great</b> Pawsome', profile: PROFILE });
   const game = await openHost(page);
   await game.waitForSelector('html[data-screen="title"]');
-  await game.locator('.pl-btn.big').first().click();
+  await playFromHome(game);
   await game.waitForSelector('html[data-match="live"]');
   await expect.poll(() => gattr(game, 'selfName')).toBe('Žygis bthe Gr…');
   const names = (await gattr(game, 'plateNames')).split('|');

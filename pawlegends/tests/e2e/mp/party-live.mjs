@@ -26,6 +26,10 @@ const fail = (msg) => {
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const mk = async (name, viewport, touch) => {
   const ctx = await browser.newContext({ viewport, hasTouch: touch, isMobile: touch, deviceScaleFactor: 1 });
+  // a returning player: PLAY opens Mode Select (the first visit plays the guided match)
+  await ctx.addInitScript(() => {
+    if (!localStorage.getItem('tt.pawlegends.profile.v1')) localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify({ v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage' }));
+  });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => log(`${name} pageerror: ${e.message}`));
   page.on('console', (m) => {
@@ -47,7 +51,12 @@ const C = await mk('phone-667x375', { width: 667, height: 375 }, true);
 // 1. the leader creates a party from the title
 await A.page.goto(`${GAME}/?e2e=1`, { waitUntil: 'commit', timeout: 90000 });
 await A.page.waitForSelector('html[data-screen="title"]', { timeout: 90000 });
-await A.page.locator('[data-testid="play-friends"]').click();
+// the one play path: PLAY → Skirmish → With Friends → Open party (a returning profile; a first visit plays the guided match)
+await A.page.locator('[data-testid="home-play"]').click();
+await A.page.locator('[data-testid="mode-skirmish"]').click();
+await A.page.locator('[data-testid="mode-next"]').click();
+await A.page.locator('[data-testid="variant-friends"]').click();
+await A.page.locator('[data-testid="mode-go"]').click();
 const codeEl = A.page.locator('[data-testid="party-code"]');
 await codeEl.waitFor({ timeout: 15000 });
 const code = (await codeEl.textContent()).replace(/\s/g, '');

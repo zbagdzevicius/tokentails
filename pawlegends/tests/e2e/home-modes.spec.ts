@@ -1,11 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 
-// Home and Mode Select (docs/plans/moba/HOME-MODES.md): at 844x390 (landscape project) and 1280x720 (desktop) a
-// returning player goes Home → mode pill → Mode Select → Classic → Confirm → PLAY into a live 5v5 match. Home and Mode
-// Select never scroll, every control is at least 44 px and on top, and the zones keep apart (profile top left, PLAY
-// bottom right, the nav at the bottom, nothing overlapping PLAY).
+// The one play path (docs/plans/moba/HOME-MODES.md §5, Nov 12): Home → PLAY → Mode Select (mode) → the variant (vs Bots
+// with its difficulty, Co-op, PvP, With Friends) → the champion select → LOCK IN → a live match. At 667x375, 844x390,
+// 1280x720 and 1440x900: no scroll, every control at least 44 px and on top, Enter plays, Esc backs out one step.
+// The first-ever match keeps its one-tap guided start. Co-op, PvP and With Friends need the relay: tests/e2e/mp/
+// play-path.spec.ts. PLAY_SHOTS=1 saves each step to ~/Downloads/paw-legends/play-flow/.
 
 const PLAYED = { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
+const SHOTS = process.env.PLAY_SHOTS ? `${homedir()}/Downloads/paw-legends/play-flow` : '';
 
 async function seed(page: Page): Promise<void> {
   await page.addInitScript((v) => {
@@ -41,85 +45,117 @@ const small = (page: Page, root: string, min = 44): Promise<string[]> =>
           const q = b.getBoundingClientRect();
           return q.width > 0 && q.height > 0 && (q.width < Number(m) - 0.5 || q.height < Number(m) - 0.5);
         })
-        .map((b) => `${b.className || b.tagName} ${b.getAttribute('data-a') ?? b.getAttribute('data-q') ?? ''} ${Math.round(b.getBoundingClientRect().width)}x${Math.round(b.getBoundingClientRect().height)}`),
+        .map((b) => `${b.className || b.tagName} ${b.getAttribute('data-a') ?? b.getAttribute('data-v') ?? b.getAttribute('data-d') ?? ''} ${Math.round(b.getBoundingClientRect().width)}x${Math.round(b.getBoundingClientRect().height)}`),
     [root, String(min)] as const,
   );
 
-const box = async (page: Page, sel: string): Promise<{ x: number; y: number; w: number; h: number }> => {
-  const b = await page.locator(sel).first().boundingBox();
-  if (!b) throw new Error(`no box for ${sel}`);
-  return { x: b.x, y: b.y, w: b.width, h: b.height };
-};
-const apart = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean =>
-  a.x + a.w <= b.x + 0.5 || b.x + b.w <= a.x + 0.5 || a.y + a.h <= b.y + 0.5 || b.y + b.h <= a.y + 0.5;
+/** Every visible control inside `root` that leaves the viewport (none expected). */
+const outside = (page: Page, root: string): Promise<string[]> =>
+  page.evaluate(
+    (r) =>
+      Array.from(document.querySelectorAll<HTMLElement>(`${r} button`))
+        .filter((b) => {
+          if (b.closest('[hidden]') || getComputedStyle(b).visibility === 'hidden') return false;
+          const q = b.getBoundingClientRect();
+          return q.width > 0 && (q.left < -0.5 || q.top < -0.5 || q.right > innerWidth + 0.5 || q.bottom > innerHeight + 0.5);
+        })
+        .map((b) => b.className),
+    root,
+  );
 
-test('home → mode select → Classic → PLAY into a live 5v5 match', async ({ page }) => {
-  // a 5v5 Hearthwood match loads on SwiftShader here
+const shot = async (page: Page, step: string): Promise<void> => {
+  if (!SHOTS) return;
+  mkdirSync(SHOTS, { recursive: true });
+  const v = page.viewportSize()!;
+  await page.screenshot({ path: `${SHOTS}/${step}-${v.width}x${v.height}.png` });
+};
+
+test('Home → PLAY → Skirmish → vs Bots Hard → champion select → LOCK IN → a live match', async ({ page }) => {
   test.setTimeout(150_000);
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await settle(page);
-  const play = page.locator('[data-testid="home-play"]');
-  await expect(play).toBeInViewport();
-  expect(await onTop(page, '[data-testid="home-play"]')).toBe(true);
-  await expect(play).toHaveAttribute('aria-label', 'Play as Sage');
-  await expect(page.locator('html')).toHaveAttribute('data-lobby-bg', /^legends/);
-  expect(await noScroll(page)).toBe(true);
-  expect(await small(page, '.pl-home')).toEqual([]);
-  // zones: profile top left, PLAY bottom right, the nav bottom left; none overlaps PLAY or the pill
-  const vp = page.viewportSize()!;
-  const pb = await box(page, '[data-testid="home-play"]');
-  const prof = await box(page, '[data-testid="home-profile"]');
-  const nav = await box(page, '.hm-nav');
-  const pill = await box(page, '[data-testid="mode-pill"]');
-  expect(prof.x).toBeLessThan(vp.width / 3);
-  expect(prof.y).toBeLessThan(vp.height / 4);
-  expect(pb.x + pb.w).toBeGreaterThan(vp.width * 0.8);
-  expect(pb.y + pb.h).toBeGreaterThan(vp.height * 0.8);
-  expect(pb.x + pb.w).toBeLessThanOrEqual(vp.width);
-  expect(pb.y + pb.h).toBeLessThanOrEqual(vp.height);
-  expect(nav.y + nav.h).toBeGreaterThan(vp.height * 0.85);
-  for (const b of [prof, nav]) expect(apart(b, pb)).toBe(true);
-  expect(apart(nav, pill)).toBe(true);
-  expect(pb.w).toBeGreaterThanOrEqual(80);
-  // no money words on Home
+  // Home: one PLAY, no other match start
+  await expect(page.locator('[data-testid="home-play"]')).toHaveAttribute('aria-label', 'Play: choose a mode');
+  for (const sel of ['[data-testid="play-online"]', '[data-testid="play-pvp"]', '[data-testid="play-friends"]', '[data-testid="lobby-exit"]', 'button.hm-plate', 'button.hm-pill'])
+    await expect(page.locator(sel), sel).toHaveCount(0);
   await expect(page.locator('.pl-home')).not.toContainText(/\$|€|price|buy|donate/i);
-
-  await page.locator('[data-testid="mode-pill"]').click();
+  await page.locator('[data-testid="home-play"]').click();
   const ms = page.locator('[data-testid="mode-select"]');
   await expect(ms).toBeVisible();
-  await expect(ms.locator('.ms-pick')).toHaveCount(6);
-  await settle(page);
-  expect(await noScroll(page)).toBe(true);
-  expect(await small(page, '.ms-overlay')).toEqual([]);
-  // every tile row item is inside the screen (the row is the only scroll region and 6 fit at 844x390)
-  const tiles = await ms.locator('.ms-ring').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.left, r.right, r.top, r.bottom]));
-  for (const [l, r, t, b] of tiles) {
-    expect(l).toBeGreaterThanOrEqual(0);
-    expect(r).toBeLessThanOrEqual(vp.width);
-    expect(t).toBeGreaterThanOrEqual(0);
-    expect(b).toBeLessThanOrEqual(vp.height);
-  }
-  // a locked tile shakes and explains; it never becomes the choice
-  await ms.locator('[data-testid="mode-ranked"]').click({ force: true }); // aria-disabled: Playwright would wait for it
-  await expect(ms.locator('.ms-toast')).toContainText('Ranked');
-  await ms.locator('[data-testid="mode-classic"]').click();
-  await expect(ms.locator('[data-testid="mode-classic"]')).toHaveAttribute('aria-checked', 'true');
-  await ms.locator('[data-testid="queue-bots"]').click();
-  await ms.locator('[data-testid="mode-confirm"]').click();
-  await expect(ms).toHaveCount(0);
-  await expect(page.locator('[data-testid="mode-pill"]')).toContainText('Classic 5v5');
-  // the choice survives a reload (per-viewer convenience)
-  await page.reload();
-  await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await expect(page.locator('[data-testid="mode-pill"]')).toContainText('Classic 5v5');
-  await page.locator('[data-testid="home-play"]').click();
+  await expect(ms.locator('.ms-pick')).toHaveCount(5);
+  await ms.locator('[data-testid="mode-skirmish"]').click();
+  await ms.locator('[data-testid="mode-next"]').click();
+  await expect(ms).toHaveAttribute('data-stage', 'variant');
+  // standalone (no relay): Co-op, PvP and With Friends show, locked with the reason
+  await expect(ms.locator('[data-testid="variant-coop"]')).toHaveAttribute('aria-disabled', 'true');
+  await expect(ms.locator('[data-testid="variant-coop"]')).toContainText('party server');
+  await ms.locator('[data-testid="bots-hard"]').click();
+  await expect(ms.locator('[data-testid="bots-hard"]')).toHaveAttribute('aria-checked', 'true');
+  await ms.locator('[data-testid="mode-go"]').click();
+  await page.waitForSelector('html[data-screen="pick"] .cs');
+  await expect(page.locator('[data-testid="pick-mode"]')).toHaveText('Skirmish 3v3 · vs Bots');
+  await expect(page.locator('.cs-lock')).toContainText('vs Hard bots');
+  // the difficulty is remembered at once
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tt.pawlegends.profile.v1') ?? '{}').difficulty)).toBe('hard');
+  await page.locator('.cs-lock').click();
   await page.waitForSelector('html[data-match="live"]', { timeout: 90_000 });
-  await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
 });
 
-test('first visit: the guided match from PLAY, the nav shown with locked items', async ({ page }) => {
+test('Classic → vs Bots → LOCK IN → a live 5v5 match on Hearthwood (it never started before, Nov 12)', async ({ page }) => {
+  test.setTimeout(180_000);
+  await seed(page);
+  await page.goto('/?e2e=1');
+  await page.waitForSelector('html[data-screen="title"] .pl-home');
+  await page.locator('[data-testid="home-play"]').click();
+  await page.locator('[data-testid="mode-classic"]').click();
+  await page.locator('[data-testid="mode-next"]').click();
+  // Classic's own variants only: vs Bots and PvP (co-op and parties are 3v3)
+  await expect(page.locator('.ms-var')).toHaveCount(2);
+  await page.locator('[data-testid="variant-bots"]').click();
+  await page.locator('[data-testid="mode-go"]').click();
+  await page.waitForSelector('html[data-screen="pick"] .cs');
+  await expect(page.locator('[data-testid="pick-mode"]')).toHaveText('Classic 5v5 · vs Bots');
+  // five seats a team (Sim v19: the seats match the match the select starts)
+  await expect(page.locator('.cs-seats')).toHaveAttribute('style', /--n:5/);
+  await page.locator('.cs-lock').click();
+  await expect(page.locator('.pl-loading')).toContainText('Hearthwood', { timeout: 20_000 });
+  await page.waitForSelector('html[data-match="live"]', { timeout: 150_000 });
+  await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
+  // the choice survives a reload (per-viewer convenience): the label and Mode Select open on Classic
+  await page.goto('/?e2e=1');
+  await page.waitForSelector('html[data-screen="title"] .pl-home');
+  await expect(page.locator('[data-testid="mode-pill"]')).toContainText('Classic 5v5 · vs Bots');
+});
+
+test('keyboard: Enter opens Mode Select, Enter goes on, Esc backs out one step at a time', async ({ page }) => {
+  await seed(page);
+  await page.goto('/?e2e=1');
+  await page.waitForSelector('html[data-screen="title"] .pl-home');
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Enter');
+  const ms = page.locator('[data-testid="mode-select"]');
+  await expect(ms).toHaveAttribute('data-stage', 'mode');
+  await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute('data-mode'))).toBe('skirmish');
+  await page.keyboard.press('Enter');
+  await expect(ms).toHaveAttribute('data-stage', 'variant');
+  await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute('data-v'))).toBe('bots');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('html[data-screen="pick"] .cs');
+  // focus lands on the picked champion (a frame later)
+  await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('.pl-pick'))).toBe(true);
+  // Esc on the champion select: one step back, to the variant
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-testid="mode-select"]')).toHaveAttribute('data-stage', 'variant');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-testid="mode-select"]')).toHaveAttribute('data-stage', 'mode');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-testid="mode-select"]')).toHaveCount(0);
+  await expect(page.locator('html')).toHaveAttribute('data-screen', 'title');
+});
+
+test('first visit: the guided match in one tap from PLAY, the nav shown with locked items', async ({ page }) => {
+  test.setTimeout(120_000);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
   await expect(page.locator('[data-testid="mode-pill"]')).toHaveCount(0);
@@ -128,25 +164,31 @@ test('first visit: the guided match from PLAY, the nav shown with locked items',
   expect(await page.locator('.hm-nav .hm-ni.locked').count()).toBeGreaterThanOrEqual(2);
   expect(await noScroll(page)).toBe(true);
   expect(await small(page, '.pl-home')).toEqual([]);
+  await expect(page.locator('[data-testid="home-play"]')).toHaveAttribute('aria-label', 'Play as Clem');
+  await page.locator('[data-testid="home-play"]').click();
+  await expect(page.locator('[data-testid="mode-select"]')).toHaveCount(0);
+  await page.waitForSelector('html[data-match="live"]', { timeout: 90_000 });
 });
 
 for (const [w, h] of [
   [667, 375],
   [844, 390],
+  [1280, 720],
   [1440, 900],
-  [667, 300],
 ] as const) {
-  test(`no overflow and nothing overlapping PLAY at ${w}x${h}`, async ({ page }) => {
+  test(`every step fits at ${w}x${h}: Home, the modes, the variants, the champion select`, async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop', 'the sizes are set per test');
+    test.setTimeout(120_000);
     await seed(page);
     await page.setViewportSize({ width: w, height: h });
     await page.goto('/?e2e=1');
     await page.waitForSelector('html[data-screen="title"] .pl-home');
     await settle(page);
+    // Home
     expect(await noScroll(page)).toBe(true);
-    const pb = await box(page, '[data-testid="home-play"]');
-    expect(pb.x + pb.w).toBeLessThanOrEqual(w);
-    expect(pb.y + pb.h).toBeLessThanOrEqual(h);
-    // every visible Home control stays in the viewport and none sits on PLAY
+    expect(await small(page, '.pl-home')).toEqual([]);
+    expect(await outside(page, '.pl-home')).toEqual([]);
+    expect(await onTop(page, '[data-testid="home-play"]')).toBe(true);
     const bad = await page.evaluate(() => {
       const p = document.querySelector('[data-testid="home-play"]')!.getBoundingClientRect();
       return Array.from(document.querySelectorAll<HTMLElement>('.pl-home button, .pl-home summary'))
@@ -154,18 +196,43 @@ for (const [w, h] of [
         .filter((b) => {
           if (b.closest('.hm-slide') && !b.classList.contains('on')) return false;
           const r = b.getBoundingClientRect();
-          if (!r.width || !r.height) return false;
-          const out = r.left < -0.5 || r.top < -0.5 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5;
-          const hit = !(r.right <= p.left || p.right <= r.left || r.bottom <= p.top || p.bottom <= r.top);
-          return out || hit;
+          return r.width > 0 && !(r.right <= p.left || p.right <= r.left || r.bottom <= p.top || p.bottom <= r.top);
         })
         .map((b) => b.className);
     });
     expect(bad).toEqual([]);
-    await page.locator('[data-testid="mode-pill"]').click();
-    await expect(page.locator('[data-testid="mode-confirm"]')).toBeInViewport();
+    await shot(page, '1-home');
+    // the modes
+    await page.locator('[data-testid="home-play"]').click();
+    const ms = page.locator('[data-testid="mode-select"]');
+    await expect(ms).toBeVisible();
     await settle(page);
     expect(await noScroll(page)).toBe(true);
-    expect(await onTop(page, '[data-testid="mode-confirm"]')).toBe(true);
+    expect(await small(page, '.ms-overlay')).toEqual([]);
+    expect(await outside(page, '.ms-overlay .ms-foot, .ms-overlay .ms-head')).toEqual([]);
+    expect(await onTop(page, '[data-testid="mode-next"]')).toBe(true);
+    const tiles = await ms.locator('.ms-ring').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.top, r.bottom]));
+    for (const [t, b] of tiles) {
+      expect(t).toBeGreaterThanOrEqual(0);
+      expect(b).toBeLessThanOrEqual(h);
+    }
+    await shot(page, '2-modes');
+    // the variants (vs Bots with its difficulty)
+    await ms.locator('[data-testid="mode-next"]').click();
+    await expect(ms).toHaveAttribute('data-stage', 'variant');
+    await settle(page);
+    expect(await noScroll(page)).toBe(true);
+    expect(await small(page, '.ms-overlay')).toEqual([]);
+    expect(await outside(page, '.ms-overlay')).toEqual([]);
+    for (const sel of ['[data-testid="mode-go"]', '[data-testid="variant-bots"]', '[data-testid="variant-friends"]', '[data-testid="bots-hard"]', '[data-testid="mode-back"]']) expect(await onTop(page, sel), sel).toBe(true);
+    await shot(page, '3-variants');
+    // the champion select
+    await ms.locator('[data-testid="mode-go"]').click();
+    await page.waitForSelector('html[data-screen="pick"] .cs');
+    await settle(page);
+    expect(await noScroll(page)).toBe(true);
+    await expect(page.locator('[data-testid="pick-mode"]')).toBeVisible();
+    expect(await onTop(page, '.cs-lock')).toBe(true);
+    await shot(page, '4-champion-select');
   });
 }

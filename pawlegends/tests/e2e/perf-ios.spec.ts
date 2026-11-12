@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { seedSide } from './helpers';
+import { seedSide, playFromHome, toChampSelect } from './helpers';
 
 /**
  * PERF-IOS §8 Track C (docs/plans/moba/PERF-IOS.md), project `landscape` (touch, 844x390):
@@ -47,7 +47,7 @@ test('boot splash, champion browser and preview pacing', async ({ page }) => {
   const infinite = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity).length);
   expect(infinite).toBeLessThanOrEqual(1);
 
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
   const dmg0 = await page.locator('.fx-dmg-layer').count();
   // the champion select itself draws no 3D (portraits only); Preview opens the browser's clip on demand
@@ -90,7 +90,7 @@ test('match: no program links after the veil; cooldown sweeps write only on a st
   // programs by design; that is not a warm-up miss)
   await page.goto('/?e2e=1&quality=low');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('.pl-loading');
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), null, { timeout: 60_000 });
   await page.evaluate(() => ((window as unknown as { __veilOut: boolean }).__veilOut = true));

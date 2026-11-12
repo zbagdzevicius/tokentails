@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { toChampSelect } from './helpers';
 import { art, mockHost, openHost, received } from './host';
 
 // GAPS A1 / A6: an old 9-chest Treat Track moves to the 30-chest track with its empty chests paid once; the title's
@@ -73,7 +74,7 @@ test('the pick screen labels the role and (GAPS B1) gives one lane hint', async 
   });
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
   await expect(page.locator('.pl-pick .cs-panel .cs-role')).toContainText('Tank');
   await expect(page.locator('.pl-pick .cs-panel .lane-hint')).toHaveText('Lane: Puddle (bottom) or Sunny. Your bots swap to cover the other.');

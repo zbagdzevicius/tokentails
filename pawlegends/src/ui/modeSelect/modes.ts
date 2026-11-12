@@ -1,7 +1,8 @@
 /**
  * Home and Mode Select (docs/plans/moba/HOME-MODES.md §5): the one registry of game modes. It generalises the old
  * 3v3 Quick | 5v5 Classic toggle (ui/lobby/matchMode.ts, whose localStorage key it still reads) into tiles with art,
- * a state (live, locked, coming soon or a timed event) and the queues each mode offers (bots, co-op, PvP).
+ * a state (live, locked, coming soon or a timed event) and the variants each mode offers (vs Bots, Co-op, PvP, With
+ * Friends). The one play path (Nov 12): PLAY → mode → variant → champion select → match (or queue, or party lobby).
  *
  * Plug-in points: v22's Blitz and the PLAY-picker tiles, Ranked's `rank` line and timed events register here with
  * `registerMode` (or by editing `BASE_MODES`); the screens only read `modeList()`. Nothing here invents a number: a
@@ -13,8 +14,12 @@
 import type { MapId } from '../../sim/api';
 import { loadMatchMode, type MatchMode } from '../lobby/matchMode';
 
-export type ModeId = 'blitz' | 'skirmish' | 'classic' | 'coop' | 'ranked' | 'cannon' | (string & {});
-export type Queue = 'bots' | 'coop' | 'pvp';
+export type ModeId = 'blitz' | 'skirmish' | 'classic' | 'ranked' | 'cannon' | (string & {});
+/** A mode's variant (the second step after PLAY): solo vs bots, co-op vs bots, PvP, or a party with friends. */
+export type Queue = 'bots' | 'coop' | 'pvp' | 'friends';
+export type Variant = Queue;
+/** The order the variant cards show in. */
+export const VARIANTS: readonly Queue[] = Object.freeze(['bots', 'coop', 'pvp', 'friends'] as Queue[]);
 export type ModeState = 'live' | 'locked' | 'soon' | { event: { startsAt?: number; endsAt: number } };
 
 export interface ModeDef {
@@ -25,6 +30,7 @@ export interface ModeDef {
   size: '3v3' | '5v5' | '';
   /** "~8 min". */
   minutes: string;
+  /** The variants this mode supports (the others are not shown). */
   queues: readonly Queue[];
   /** File stem under assets/modes/ (`<art>-256.webp`, `<art>-512.webp`). */
   art: string;
@@ -62,10 +68,11 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     map: 'crossing',
     size: '3v3',
     minutes: '~7 min',
-    queues: ['bots', 'coop', 'pvp'],
     art: 'skirmish',
     state: 'live',
-    rules: ['3v3 on Purrhaven Crossing: one bridge, two lanes.', 'Destroy the enemy core to win.'],
+    // Nov 12: Co-op is Skirmish's variant (the separate "Co-op vs Bots" tile was the same match)
+    queues: ['bots', 'coop', 'pvp', 'friends'],
+    rules: ['3v3 on Purrhaven Crossing: one bridge, two lanes.', 'Destroy the enemy core to win.', 'Solo vs bots, co-op vs bots, PvP or with friends.'],
   },
   {
     id: 'classic',
@@ -73,21 +80,11 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     map: 'hearthwood',
     size: '5v5',
     minutes: '~13 min',
-    queues: ['bots', 'coop', 'pvp'],
     art: 'classic',
     state: 'live',
+    // the matchmaker's co-op queue and friend parties play 3v3 (PROTO 4: `classic` is the 10-player PvP queue)
+    queues: ['bots', 'pvp'],
     rules: ['5v5 on Hearthwood Divide: three lanes and a jungle.', 'Take towers and objectives, then the core.'],
-  },
-  {
-    id: 'coop',
-    name: 'Co-op vs Bots',
-    map: 'crossing',
-    size: '3v3',
-    minutes: '~7 min',
-    queues: ['coop'],
-    art: 'coop',
-    state: 'live',
-    rules: ['Team up with players online against bots.', 'Friends can join with a party code.'],
   },
   {
     id: 'ranked',
@@ -180,7 +177,15 @@ export function metaLine(m: ModeDef, now: number): string {
   return [m.size, m.minutes].filter(Boolean).join(' · ');
 }
 
-export const QUEUE_LABEL: Readonly<Record<Queue, string>> = Object.freeze({ bots: 'vs Bots', coop: 'Co-op', pvp: 'PvP' });
+export const QUEUE_LABEL: Readonly<Record<Queue, string>> = Object.freeze({ bots: 'vs Bots', coop: 'Co-op', pvp: 'PvP', friends: 'With Friends' });
+
+/** Each variant card's line under its name. */
+export const VARIANT_LINE: Readonly<Record<Queue, string>> = Object.freeze({
+  bots: 'Solo against bots',
+  coop: 'Team up with players vs bots',
+  pvp: 'Players vs players',
+  friends: 'Party up, invite, share a code',
+});
 
 /** The mode pill on Home: "Classic 5v5 · vs Bots". Pure. */
 export function pillText(m: Pick<ModeDef, 'name' | 'size'>, q: Queue): string {
@@ -189,6 +194,17 @@ export function pillText(m: Pick<ModeDef, 'name' | 'size'>, q: Queue): string {
 
 /** The queue a mode falls back to when the saved one is not offered (its first). Pure. */
 export const queueFor = (m: Pick<ModeDef, 'queues'>, q: Queue | null | undefined): Queue => (q && m.queues.includes(q) ? q : (m.queues[0] ?? 'bots'));
+
+/**
+ * Why a variant the mode supports cannot start in this build (no party server, no PvP sim), or null. Pure.
+ * `pvpLock`: the PvP match-count lock line for this mode (null: open).
+ */
+export function variantLock(q: Queue, available: readonly Queue[], pvpLock: string | null = null): string | null {
+  if (q === 'pvp' && pvpLock) return pvpLock;
+  if (available.includes(q)) return null;
+  if (q === 'pvp') return 'PvP is offline right now';
+  return 'Needs the party server (offline right now)';
+}
 
 /** The old toggle's value for a mode (the app still saves it, so the pick and party screens keep their map). */
 export const legacyMode = (id: ModeId): MatchMode => (id === 'classic' || id === 'ranked' ? 'classic' : id === 'blitz' ? 'blitz' : 'skirmish');
@@ -214,10 +230,16 @@ export function loadModeChoice(list: readonly ModeDef[] = modeList(), now = Date
   } catch {
     raw = null;
   }
-  const id = raw?.mode ?? loadMatchMode();
-  const m = modeById(String(id), list);
+  let id: string = String(raw?.mode ?? loadMatchMode());
+  let q = raw?.queue as Queue | undefined;
+  // Nov 12: the "Co-op vs Bots" tile is Skirmish's Co-op variant now
+  if (id === 'coop') {
+    id = 'skirmish';
+    q = 'coop';
+  }
+  const m = modeById(id, list);
   const ok = m && playable(m, now) ? m : (modeById('skirmish', list) ?? list.find((x) => playable(x, now)) ?? list[0]);
-  return { mode: ok.id, queue: queueFor(ok, raw?.queue as Queue | undefined) };
+  return { mode: ok.id, queue: queueFor(ok, q) };
 }
 
 export function saveModeChoice(c: ModeChoice): void {

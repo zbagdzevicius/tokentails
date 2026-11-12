@@ -1,5 +1,6 @@
 /* Mode Select (docs/plans/moba/HOME-MODES.md §5). Full screen, never scrolls vertically; the tile row is the only scroll
-   region (sideways, with snap) when more tiles exist than fit. Frames, rings, crests and buttons are CSS/SVG only. */
+   region (sideways, with snap) when more tiles exist than fit. Two stages: the mode tiles, then the variant cards.
+   Frames, rings, crests and buttons are CSS/SVG only. */
 .ms-overlay {
   --ms-gold-1: #fff1b8;
   --ms-gold-2: #f2c14e;
@@ -43,8 +44,11 @@
 }
 .ms-btn:hover { background: rgba(60, 38, 68, 0.9); }
 .ms-ico { width: 22px; height: 22px; flex: none; }
+.ms-ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ms-sub { margin: 0; font: 600 13px/1.2 var(--font, sans-serif); opacity: 0.85; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+.ms-sub:empty { display: none; }
 .ms-title {
-  position: relative; margin: 0; flex: 1; text-align: center; font: 800 clamp(20px, 6dvh, 30px)/1 var(--font, 'Fredoka', sans-serif);
+  position: relative; margin: 0; text-align: center; font: 800 clamp(20px, 6dvh, 30px)/1 var(--font, 'Fredoka', sans-serif);
   letter-spacing: 0.02em; color: #fff7e0; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45), 0 0 18px rgba(242, 193, 78, 0.45);
 }
 .ms-title::after {
@@ -54,6 +58,47 @@
     linear-gradient(90deg, transparent, var(--ms-gold-2) 30%, var(--ms-gold-2) 45%, transparent 47%, transparent 53%, var(--ms-gold-2) 55%, var(--ms-gold-2) 70%, transparent) center / 100% 2px no-repeat;
 }
 .ms-head-r { width: 44px; flex: none; }
+
+/* one stage at a time (the flex rules below would beat the hidden attribute) */
+.ms-rowwrap[hidden], .ms-vwrap[hidden] { display: none !important; }
+.ms-head { margin-bottom: 4px; }
+.ms-overlay[data-stage='variant'] .ms-head { height: 52px; }
+
+/* the variant stage: four cards in a row (vs Bots, Co-op, PvP, With Friends), only the mode's own */
+.ms-vwrap { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.ms-vrow { display: flex; gap: clamp(10px, 1.6vw, 22px); justify-content: center; max-width: 100%; }
+.ms-var {
+  position: relative; flex: 0 1 clamp(124px, 19vw, 230px); min-height: clamp(112px, 34dvh, 230px); box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px 10px; border: 0;
+  border-radius: 18px; cursor: pointer; color: var(--cream, #fff3dc); font: inherit; text-align: center;
+  background: linear-gradient(180deg, rgba(48, 30, 58, 0.92), rgba(24, 14, 32, 0.94));
+  box-shadow: 0 0 0 2px var(--ms-ink), inset 0 0 0 1.5px rgba(242, 193, 78, 0.5), 0 10px 22px rgba(0, 0, 0, 0.45);
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s, opacity 0.2s;
+  animation: ms-tile-in 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(var(--i, 0) * 40ms);
+}
+.ms-var-i {
+  position: relative; width: clamp(44px, 12dvh, 72px); height: clamp(44px, 12dvh, 72px); border-radius: 50%; display: grid; place-items: center;
+  color: #3a2410; background: radial-gradient(circle at 35% 30%, var(--ms-gold-1), var(--ms-gold-2) 58%, var(--ms-gold-3));
+  box-shadow: 0 0 0 2px var(--ms-ink), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+.ms-var-i .ms-ico { width: 55%; height: 55%; }
+.ms-var-lk {
+  position: absolute; right: -6px; bottom: -6px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  color: #fff3dc; background: #2b1d2e; box-shadow: 0 0 0 2px var(--ms-gold-2);
+}
+.ms-var-lk svg { width: 13px; height: 13px; }
+.ms-var-n { font: 800 clamp(15px, 4.6dvh, 22px)/1.1 var(--font, sans-serif); letter-spacing: 0.04em; text-transform: uppercase; color: #fff; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
+.ms-var-l { font: 600 clamp(11px, 3.2dvh, 14px)/1.25 var(--font, sans-serif); opacity: 0.85; max-width: 100%; }
+.ms-var:hover:not(.locked):not(.on) { transform: translateY(-2px); }
+.ms-var.on {
+  transform: translateY(-4px) scale(1.03);
+  background: linear-gradient(180deg, rgba(96, 54, 92, 0.96), rgba(46, 24, 52, 0.96));
+  box-shadow: 0 0 0 2px var(--ms-ink), 0 0 0 4px rgba(255, 236, 170, 0.95), 0 0 24px 6px rgba(255, 200, 100, 0.45), 0 12px 24px rgba(0, 0, 0, 0.5);
+}
+.ms-var.on .ms-var-n { color: #ffe9a8; }
+.ms-var.locked { cursor: not-allowed; opacity: 0.62; }
+.ms-var.locked .ms-var-i { filter: grayscale(0.8); }
+.ms-var:focus-visible { outline: 3px solid var(--butter, #ffd34d); outline-offset: 4px; }
 
 /* the tile row: centred; a sideways scroller with snap only when it overflows */
 .ms-rowwrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; }
@@ -169,7 +214,7 @@
 .shake { animation: ms-shake 0.36s ease both !important; }
 @keyframes ms-shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 
-/* footer: queue segment, bots difficulty, Confirm */
+/* footer: the mode's summary or the bots difficulty, and Next or the variant's action */
 .ms-foot { flex: none; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 0 8px; }
 .ms-queues, .ms-seg {
   flex: none; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; height: 50px; box-sizing: border-box;
@@ -182,6 +227,8 @@
 .ms-queues button::after, .ms-seg button::after { content: ''; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px; }
 .ms-queues button.on { background: linear-gradient(180deg, #ffe08a, #f2c14e); color: #3a2410; }
 .ms-seg button.on { background: var(--cream, #fff3dc); color: #3a2440; }
+.ms-seg-l { align-self: center; padding: 0 8px 0 12px; font: 800 12px/1 var(--font, sans-serif); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.8; }
+.ms-sum b { color: #ffe9a8; }
 .ms-queues button[aria-disabled='true'] { opacity: 0.55; }
 .ms-qlock { font-style: normal; font-size: 11px; }
 .ms-diff { flex: 1 1 auto; min-width: 0; display: flex; justify-content: center; }
@@ -230,25 +277,30 @@
 /* phones (landscape): 104 px tiles, labels trimmed */
 @media (max-height: 480px) {
   .ms-overlay { --ms-tile: clamp(72px, 26.5dvh, 104px); --ms-gap: 14px; }
+  .ms-ttl { gap: 6px; }
+  .ms-sub { font-size: 12px; }
+  .ms-var { flex-basis: clamp(118px, 22vw, 180px); padding: 8px 8px; gap: 4px; border-radius: 14px; }
   .ms-title { font-size: 22px; }
   .ms-name { font-size: 14px; margin-top: 6px; }
   .ms-queues button, .ms-seg button { padding: 0 11px; font-size: 13px; }
   .ms-confirm { min-width: 140px; height: 48px; font-size: 18px; }
 }
 @media (max-height: 480px) and (max-width: 760px) {
+  .ms-var { flex-basis: 142px; }
+  .ms-seg-l { display: none; }
   .ms-queues button span { display: none; }
   .ms-queues button { padding: 0 12px; }
   .ms-confirm { min-width: 120px; padding: 0 18px; }
 }
 @media (max-height: 340px) {
-  .ms-meta, .ms-rank { display: none; }
+  .ms-meta, .ms-rank, .ms-sub, .ms-var-l { display: none; }
   .ms-title::after { display: none; }
 }
 
 /* Low tier and reduced motion: a fade only */
-.ms-overlay.low .ms-tile, .ms-overlay.low .ms-runes, .ms-overlay.low .ms-bg, .ms-overlay.low .ms-pick.on .ms-ring::before { animation: none; }
+.ms-overlay.low .ms-var, .ms-overlay.low .ms-tile, .ms-overlay.low .ms-runes, .ms-overlay.low .ms-bg, .ms-overlay.low .ms-pick.on .ms-ring::before { animation: none; }
 html[data-quality='low'] .ms-tile, html[data-quality='low'] .ms-runes, html[data-quality='low'] .ms-bg { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .ms-tile, .ms-runes, .ms-bg, .ms-pick.on .ms-ring::before, .ms-overlay, .ms-overlay.out { animation: none; }
+  .ms-tile, .ms-var, .ms-runes, .ms-bg, .ms-pick.on .ms-ring::before, .ms-overlay, .ms-overlay.out { animation: none; }
   .ms-ring { transition: none; }
 }

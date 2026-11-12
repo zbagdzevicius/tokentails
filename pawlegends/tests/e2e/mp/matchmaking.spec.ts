@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { closeAll, mpNames, player, shot, tap, tickOf, type Player } from './party.helpers';
+import { closeAll, mpNames, player, shot, tap, tickOf, type Player, playVariant } from './party.helpers';
 
 test.afterEach(closeAll);
 
@@ -15,14 +15,15 @@ test.afterEach(closeAll);
  *    3:00 with the phone). Results: the strangers see Play again and Back; Play again searches again.
  */
 
-// match 1 played (Play online opens from match 1), fewer than 3 matches: the bots stay Easy (surrender from 3:00)
+// match 1 played (the one play path opens after the guided first match), fewer than 3 matches: Easy bots (surrender
+// from 3:00). Co-op is PLAY → Skirmish → Co-op → Find match (HOME-MODES.md §5).
 const ONE_MATCH = { v: 1, sessions: 2, matches: 1, wins: 1, firstWinDone: true, hero: 'clem', trick: 'pounce', difficulty: 'easy' };
 
 async function title(p: Player): Promise<void> {
   await p.page.goto('/?e2e=1', { waitUntil: 'commit' });
   // a busy machine (several WebGL pages in software) can take minutes to boot one
   await p.page.waitForSelector('html[data-screen="title"]', { timeout: 240_000 });
-  await expect(p.page.locator('[data-testid="play-online"]')).toBeVisible({ timeout: 30_000 });
+  await expect(p.page.locator('.pl-home[data-variants~="coop"]')).toBeVisible({ timeout: 30_000 });
 }
 
 /** The party chunk is in (the title prefetches it while idle): a tap then reaches the relay at once. */
@@ -64,9 +65,9 @@ test('solo: the queue card at once, Cancel back to the title, a bot fill to a lo
   test.setTimeout(240_000);
   const a = await player(browser, 'phone-small', { profile: ONE_MATCH });
   await title(a);
-  expect(await onTop(a.page, '[data-testid="play-online"]')).toBe(true);
+  expect(await onTop(a.page, '[data-testid="home-play"]')).toBe(true);
   await shot(a, 'm1a', '00-title-play-online');
-  await tap(a, a.page.locator('[data-testid="play-online"]'));
+  await playVariant(a, 'coop');
   await expect(a.page.locator('[data-testid="mm-cancel"]')).toBeVisible({ timeout: 1500 });
   await expect(a.page.locator('[data-testid="mm-timer"]')).toHaveText(/^0:0\d$/);
   expect(await onTop(a.page, '[data-testid="mm-cancel"]')).toBe(true);
@@ -84,7 +85,7 @@ test('solo: the queue card at once, Cancel back to the title, a bot fill to a lo
 
   // search again (the side is remembered: dogs); quiet pool: bots fill in about 8 s
   const t1 = Date.now();
-  await tap(a, a.page.locator('[data-testid="play-online"]'));
+  await playVariant(a, 'coop');
   await expect(a.page.locator('[data-testid="mm-side-dog"]')).toHaveAttribute('aria-checked', 'true');
   await expect(a.page.locator('[data-testid="mm-found"]')).toContainText('1 player + 2 bots · Dogs', { timeout: 20_000 });
   expect(Date.now() - t1).toBeLessThan(16_000);
@@ -103,11 +104,11 @@ test('co-op: two strangers on one team vs bots; a leaver is backfilled by a thir
   const a = await player(browser, 'desktop', { profile: ONE_MATCH });
   const b = await player(browser, 'phone', { profile: ONE_MATCH });
   for (const p of [a, b]) await title(p);
-  expect(await onTop(a.page, '[data-testid="play-online"]')).toBe(true);
-  expect(await onTop(b.page, '[data-testid="play-online"]')).toBe(true);
+  expect(await onTop(a.page, '[data-testid="home-play"]')).toBe(true);
+  expect(await onTop(b.page, '[data-testid="home-play"]')).toBe(true);
   // both search within a moment of each other (a lone search fills with bots after 8 s in a quiet pool)
   await Promise.all([warm(a), warm(b)]);
-  await Promise.all([tap(a, a.page.locator('[data-testid="play-online"]')), tap(b, b.page.locator('[data-testid="play-online"]'))]);
+  await Promise.all([playVariant(a, 'coop'), playVariant(b, 'coop')]);
   // the card, then "Match found" (it may already have turned into the pick on a slow machine: the pick repeats it)
   for (const p of [a, b]) await expect(p.page.locator('[data-testid="mm-queue"], [data-testid="party-lock"]').first()).toBeVisible({ timeout: 30_000 });
   for (const p of [a, b]) await expect(p.page.locator('[data-testid="mm-found"], [data-testid="mm-found-line"]').first()).toContainText('2 players + 1 bot', { timeout: 30_000 });
@@ -151,7 +152,7 @@ test('co-op: two strangers on one team vs bots; a leaver is backfilled by a thir
   const c = await player(browser, 'desktop', { profile: ONE_MATCH });
   await title(c);
   const tickAtSearch = await tickOf(b);
-  await tap(c, c.page.locator('[data-testid="play-online"]'));
+  await playVariant(c, 'coop');
   const backfill = tickAtSearch < 5400 - 30 * 20;
   let humans = 1;
   if (backfill) {
@@ -208,12 +209,14 @@ test('co-op: two strangers on one team vs bots; a leaver is backfilled by a thir
   }
 });
 
-test('a brand-new guest sees Play online on the first visit, as a solid button', async ({ browser }) => {
+test('one play path: a brand-new guest gets the guided first match on PLAY and # Code; no other match start', async ({ browser }) => {
   test.setTimeout(240_000);
   const n = await player(browser, 'phone', { profile: null });
-  await title(n);
-  expect(await onTop(n.page, '[data-testid="play-online"]')).toBe(true);
-  await expect(n.page.locator('[data-testid="play-online"]')).not.toHaveClass(/\bghost\b/);
+  await n.page.goto('/?e2e=1', { waitUntil: 'commit' });
+  await n.page.waitForSelector('html[data-screen="title"] .pl-home', { timeout: 240_000 });
+  await expect(n.page.locator('[data-testid="home-play"]')).toHaveAttribute('aria-label', 'Play as Clem');
+  expect(await onTop(n.page, '[data-testid="join-code"]')).toBe(true);
+  for (const sel of ['[data-testid="play-online"]', '[data-testid="play-pvp"]', '[data-testid="play-friends"]']) await expect(n.page.locator(sel)).toHaveCount(0);
 });
 
 test('after a match: Leave then Play online fills with bots; the pick has Leave; a closed tab returns to its match', async ({ browser }) => {
@@ -221,7 +224,7 @@ test('after a match: Leave then Play online fills with bots; the pick has Leave;
   const a = await player(browser, 'phone', { profile: ONE_MATCH });
   await title(a);
   await warm(a);
-  await tap(a, a.page.locator('[data-testid="play-online"]'));
+  await playVariant(a, 'coop');
   await expect(a.page.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 40_000 });
   // the pick has a way out; the assigned side is a plain badge, visible on a phone
   await expect(a.page.locator('[data-testid="party-leave"]')).toBeVisible();
@@ -235,7 +238,7 @@ test('after a match: Leave then Play online fills with bots; the pick has Leave;
   await a.page.locator('.pl-menu [data-a="leave"]').click();
   await a.page.locator('.pl-menu [data-a="leave-yes"]').click();
   await a.page.waitForSelector('html[data-screen="title"] .pl-lobby', { timeout: 20_000 });
-  await tap(a, a.page.locator('[data-testid="play-online"]'));
+  await playVariant(a, 'coop');
   await expect(a.page.locator('[data-testid="mm-found"], [data-testid="mm-found-line"]').first()).toContainText('1 player + 2 bots', { timeout: 40_000 });
   await expect(a.page.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 15_000 });
   await lockFree(a, 0);

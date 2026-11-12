@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { toChampSelect } from './helpers';
 import { art, mockHost, openHost, received, type HostConfig } from './host';
 
 // GDD §7.2 card skins: the "Your cards" drawer (every owned cat on every champion, lobby spec §3b), the choice
@@ -28,7 +29,7 @@ test('Your cards: wear a cat on a champion, the turntable rebuilds, the hero tak
   const cfg: HostConfig = { app: { isApp: false, store: true }, signedIn: true, roster: ROSTER, profile: PLAYED };
   await mockHost(context, baseURL!, cfg);
   let game = await openHost(page);
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await game.waitForSelector('.pl-pick');
   await expect(game.locator('.pl-pick .cs-look')).toHaveText('Look');
   await expect(game.locator('.pl-pick .skin-strip')).toHaveCount(0);
@@ -63,7 +64,7 @@ test('Your cards: wear a cat on a champion, the turntable rebuilds, the hero tak
   cfg.profile = undefined;
   await page.reload();
   game = await openHost(page);
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await game.waitForSelector('.pl-pick');
   await expect(game.locator('.cs-tile[data-h="lambo"] .cs-tn')).toHaveText('Ficus');
   await openCards(game);
@@ -74,7 +75,7 @@ test('Your cards: wear a cat on a champion, the turntable rebuilds, the hero tak
 test('Your cards: keyboard only (arrows, Enter, Esc), focus returns to the card row', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, roster: ROSTER, profile: PLAYED });
   const game = await openHost(page);
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await game.waitForSelector('.pl-pick');
   await game.locator('.pl-pick .cs-look').focus();
   await page.keyboard.press('Enter');
@@ -97,7 +98,7 @@ test('Your cards: keyboard only (arrows, Enter, Esc), focus returns to the card 
 test('Your cards, guest with no cats: Classic, the shelter champions and Sign in; never a made-up card or a price', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: false, roster: [], profile: PLAYED });
   const game = await openHost(page);
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await game.waitForSelector('.pl-pick');
   await openCards(game);
   const deck = game.locator('.pl-deck');
@@ -111,7 +112,7 @@ test('Your cards, guest with no cats: Classic, the shelter champions and Sign in
 test('locked featured tile: Preview spins it (one for a guest), tells the host, no price or link; app builds show none', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: false, roster: ROSTER, featured: FEATURED, profile: PLAYED });
   const game = await openHost(page);
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await game.waitForSelector('.pl-pick');
   await openCards(game);
   const locked = game.locator('.pl-deck .dk-slot.locked');
@@ -132,7 +133,7 @@ test('locked featured tile: Preview spins it (one for a guest), tells the host, 
 test('app build: owned skins only, no locked, preview or showcase tiles', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: true, store: false }, signedIn: true, roster: [{ ...ROSTER[0], origin: 'redeem' }, ROSTER[2]], featured: FEATURED, profile: PLAYED });
   const game = await openHost(page);
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await game.waitForSelector('.pl-pick');
   await openCards(game);
   await expect(game.locator('.pl-deck .dk-card[data-coat^="cat."]')).toHaveCount(1);
@@ -164,7 +165,7 @@ test('?skins=demo on a local standalone page: the demo roster fills the cards dr
   await page.goto('/?skins=demo');
   await page.waitForSelector('html[data-ready="1"]');
   expect(await page.evaluate(() => document.documentElement.dataset.skinDemo)).toBe('1');
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.waitForSelector('.pl-pick');
   await openCards(page);
   const deck = page.locator('.pl-deck');

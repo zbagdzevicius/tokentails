@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { seedSide } from './helpers';
+import { seedSide, playFromHome, toChampSelect } from './helpers';
 
 // Champion browser (src/ui/champBrowser/): Preview in the champion select's hero panel opens the hero's page on the
 // tapped skill (the only live clip on the pick); a skill tap switches the clip; Lore links jump to the rival; Select picks; Esc closes; the page fits the viewport at
@@ -9,7 +9,7 @@ async function toPick(page: Page): Promise<void> {
   await seedSide(page, 'cat');
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
 }
 
@@ -73,7 +73,7 @@ test('in a match, holding a skill shows its card and the match keeps running', a
   await seedSide(page, 'cat');
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]', { timeout: 120_000 });
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));
   const sel = touch ? '.pl-tbtn[data-b="w"]' : '.pl-slot[data-i="1"]';

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr } from './helpers';
+import { attr, playFromHome } from './helpers';
 
 // GAPS B2: Forfeit in the pause menu (Esc on desktop, the pause button on touch). From match 4 only, from 3:00 on
 // Easy (4:00 on Normal and Hard), never on Rookie. Before its time the button is disabled and names the time; then a
@@ -12,7 +12,7 @@ async function start(page: Page, profile: Record<string, unknown>, query = ''): 
   await page.addInitScript((p) => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p)), profile);
   await page.goto(`/?e2e=1${query}`);
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));

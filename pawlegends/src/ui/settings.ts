@@ -65,6 +65,8 @@ export interface SettingsOpts {
   termsUrl?: string | null;
   /** Sign-in: the Account row (absent without a host: the plain standalone game has no accounts). */
   account?: { model: AccountModel; send: AccountSend };
+  /** Embedded on the Token Tails page, on Home: back to the site's games (Home's "< Games" button moved here, Nov 12). */
+  onExit?(): void;
 }
 
 /** Token Tails privacy policy (the same page as the site footer and the sign-in sheet). */
@@ -144,6 +146,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${accountRowHtml(o.account?.model ?? null)}
       <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
       <p class="fine links" data-testid="settings-legal"><a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy</a>${o.termsUrl ? ` · <a href="${linkAttr(o.termsUrl)}" target="_blank" rel="noopener">Terms</a>` : ''}</p>
+      ${o.onExit ? '<button type="button" class="pl-btn ghost small set-exit" data-a="exitgame" data-testid="settings-exit">Back to Token Tails games</button>' : ''}
       <button class="pl-btn big" data-a="close">Done</button></div>`;
   };
   render();
@@ -224,6 +227,10 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       o.onStats(s.stats);
     } else if (a === 'close' || a === 'x' || t === root) {
       close();
+      return;
+    } else if (a === 'exitgame' && o.onExit) {
+      close();
+      o.onExit();
       return;
     } else return;
     render();

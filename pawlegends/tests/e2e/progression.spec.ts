@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { playFromHome } from './helpers';
 
 // Lane F (docs/FUN-PROGRESSION-V12.md F1–F5): the Fish chip sits clear of the rest of the HUD (desktop: on the ability
 // plate; phones, where feel pass B3 hides the hero box: on the minimap's bottom-left rim, clear of the ping paw, the
@@ -21,7 +22,7 @@ const said = (page: Page): Promise<string[]> => page.evaluate(() => [...((window
 async function start(page: Page, speed: number): Promise<void> {
   await page.goto(`/?e2e=1&speed=${speed}`);
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]', { timeout: 60_000 });
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));

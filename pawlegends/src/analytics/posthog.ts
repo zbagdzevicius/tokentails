@@ -23,6 +23,9 @@ export type AnalyticsEvent =
   | 'second_match'
   | 'rematch_click'
   | 'mode_link'
+  // the one play path (HOME-MODES.md §5): PLAY opened Mode Select (`from`), and a mode and variant went on
+  | 'play_open'
+  | 'play_start'
   | 'talent_pick'
   | 'tip_done'
   | 'dare_open'

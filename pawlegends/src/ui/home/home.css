@@ -217,18 +217,15 @@ button.hm-profile:hover { background: linear-gradient(90deg, rgba(60, 38, 68, 0.
   display: flex; justify-content: center; pointer-events: none;
 }
 .hm-plate {
-  pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 44px; padding: 4px 22px; border: 0; border-radius: 12px;
+  pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 44px; box-sizing: border-box; padding: 4px 22px; border: 0; border-radius: 12px;
   color: inherit; text-align: center;
   background: linear-gradient(90deg, transparent, rgba(16, 9, 22, 0.6) 20%, rgba(16, 9, 22, 0.6) 80%, transparent);
 }
-button.hm-plate { cursor: pointer; }
-button.hm-plate:hover .hm-plate-n { color: var(--hm-gold-1); }
 .hm-plate-n {
   display: inline-flex; align-items: center; gap: 8px; font: 800 22px/1.05 var(--font, sans-serif); color: #fff; white-space: nowrap;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4), 0 0 18px color-mix(in srgb, var(--hm-el) 60%, transparent);
 }
 .hm-plate-s { font: 600 12px/1.1 var(--font, sans-serif); opacity: 0.85; white-space: nowrap; }
-.hm-swap { font-style: normal; width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 13px; background: rgba(255, 243, 220, 0.16); box-shadow: inset 0 0 0 1px var(--hm-line); text-shadow: none; }
 
 /* ------------------------------------------------------------------------------- bottom: glass nav */
 .hm-nav {
@@ -268,17 +265,16 @@ html[data-quality='low'] .hm-nav, .pl-home.low .hm-nav { background: var(--hm-gl
   position: absolute; right: var(--hm-r); bottom: var(--hm-b); display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
 }
 .hm-pill {
-  display: inline-flex; align-items: center; gap: 8px; height: 44px; max-width: 260px; padding: 0 12px 0 4px; border: 0; border-radius: 999px; cursor: pointer;
-  color: #fff; font: 700 13px/1 var(--font, sans-serif); white-space: nowrap;
+  /* a label of the last mode and variant (PLAY opens Mode Select on it) */
+  margin: 0; display: inline-flex; align-items: center; gap: 8px; height: 44px; max-width: 260px; padding: 0 14px 0 6px; box-sizing: border-box; border-radius: 999px;
+  color: #fff; font: 700 13px/1 var(--font, sans-serif); white-space: nowrap; pointer-events: none;
   background: linear-gradient(180deg, rgba(60, 36, 72, 0.92), rgba(28, 16, 36, 0.92));
   box-shadow: 0 0 0 1.5px var(--hm-gold-2), 0 0 0 3px var(--hm-ink), 0 6px 14px rgba(0, 0, 0, 0.45);
   animation: hm-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
 }
-.hm-pill:hover { background: linear-gradient(180deg, rgba(86, 52, 100, 0.95), rgba(40, 24, 50, 0.95)); }
 .hm-pill-c { width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center; color: #3a2410; background: radial-gradient(circle at 35% 30%, var(--hm-gold-1), var(--hm-gold-2) 55%, var(--hm-gold-3)); }
 .hm-pill-c svg { width: 16px; height: 16px; }
 .hm-pill-t { overflow: hidden; text-overflow: ellipsis; }
-.hm-pill i { font-style: normal; color: var(--hm-gold-1); font-size: 12px; }
 .hm-line {
   margin: 0; max-width: 240px; padding: 7px 14px; border-radius: 14px; text-align: center; font: 700 12px/1.25 var(--font, sans-serif);
   background: var(--hm-glass); box-shadow: inset 0 0 0 1px var(--hm-line), 0 4px 12px rgba(0, 0, 0, 0.35); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
@@ -286,17 +282,6 @@ html[data-quality='low'] .hm-nav, .pl-home.low .hm-nav { background: var(--hm-gl
 }
 .hm-line.dare { color: var(--butter, #ffd34d); }
 .hm-playrow { display: flex; align-items: flex-end; gap: 10px; }
-.hm-quick { display: flex; flex-direction: column; gap: 8px; padding-bottom: 4px; }
-.hm-qb {
-  display: inline-flex; align-items: center; gap: 6px; height: 44px; min-width: 44px; padding: 0 12px 0 10px; border: 0; border-radius: 999px; cursor: pointer;
-  color: var(--cream, #fff3dc); font: 700 13px/1 var(--font, sans-serif); white-space: nowrap;
-  background: var(--hm-glass); box-shadow: inset 0 0 0 1.5px var(--hm-line), 0 4px 10px rgba(0, 0, 0, 0.35);
-  animation: hm-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.24s both;
-}
-.hm-qb .hm-ico { width: 18px; height: 18px; }
-.hm-qb.hm-online { background: rgba(255, 211, 77, 0.24); box-shadow: inset 0 0 0 2px rgba(255, 211, 77, 0.75), 0 4px 10px rgba(0, 0, 0, 0.35); }
-.hm-qb.hm-online .hm-ico { color: var(--butter, #ffd34d); }
-.hm-qb[aria-disabled='true'] { opacity: 0.6; filter: saturate(0.5); }
 
 /* PLAY: a gold double bevelled ring (conic metal plus inset shadows), a pink radial face, an embossed paw */
 .pl-home .hm-play.pl-btn.big {
@@ -388,7 +373,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 .pl-home.leaving .hm-cur { transform: translate(-50%, -24px); }
 .pl-home.leaving .hm-stage { opacity: 0; transition: opacity 0.22s ease-in; }
 .pl-home.leaving .hm-nav { translate: 0 24px; opacity: 0; transition: opacity 0.22s ease-in, translate 0.22s ease-in; }
-.pl-home.leaving .hm-left, .pl-home.leaving .hm-slot, .pl-home.leaving .hm-promo, .pl-home.leaving .lb-peek, .pl-home.leaving .hm-pill, .pl-home.leaving .hm-quick { opacity: 0; transition: opacity 0.22s ease-in; pointer-events: none; }
+.pl-home.leaving .hm-left, .pl-home.leaving .hm-slot, .pl-home.leaving .hm-promo, .pl-home.leaving .lb-peek, .pl-home.leaving .hm-pill { opacity: 0; transition: opacity 0.22s ease-in; pointer-events: none; }
 /* Mode Select open: Home dims under it */
 .pl-home.hm-dim > :not(.ms-overlay):not(.hm-fx) { opacity: 0.4; transition: opacity 0.3s; pointer-events: none; }
 
@@ -410,7 +395,6 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
   .hm-plate-s { font-size: 14px; }
   .hm-pill { height: 48px; font-size: 15px; max-width: 320px; }
   .hm-pill-c { width: 34px; height: 34px; }
-  .hm-qb { height: 46px; font-size: 15px; padding: 0 16px 0 12px; }
   .hm-promo { width: 256px; height: 144px; top: calc(var(--hm-t) + 76px); }
   .hm-slide-t b { font-size: 17px; }
   .hm-slide-t small { font-size: 13px; }
@@ -432,12 +416,10 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
   .hm-cur small { display: none; }
   .hm-chip { padding: 0 10px 0 6px; }
 }
-/* narrow phones (667 wide): nav items tighter, the quick buttons show icons only */
+/* narrow phones (667 wide): nav items tighter */
 @media (max-width: 760px) {
   .hm-ni { width: 52px; }
   .hm-nav { padding: 0 4px; }
-  .hm-qb span { display: none; }
-  .hm-qb { width: 44px; height: 44px; padding: 0; justify-content: center; }
   .hm-cur { display: none; }
   .hm-promo { width: 132px; height: 72px; }
   .hm-xp { width: 96px; }
@@ -462,7 +444,6 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 @media (max-height: 320px) {
   .hm-left, .hm-promo, .pl-home .hm-slot { display: none; }
   .pl-home { --hm-play: 80px; }
-  .hm-quick { flex-direction: row; }
 }
 @media (max-height: 260px) {
   .hm-stage, .pl-home .lb-ver { display: none; }

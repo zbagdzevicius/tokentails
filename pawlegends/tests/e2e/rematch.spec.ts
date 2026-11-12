@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { playFromHome } from './helpers';
 
 // GAPS A2 + A3: the results screen grades the match (S/A/B/C, MVP, "Best on your team" on a loss) and offers
 // "Run it back" (same hero, trick and difficulty, a new seed) and "Switch cat" (the pick screen, difficulty kept).
@@ -24,7 +25,7 @@ test('results: Run it back keeps hero, trick and difficulty with a new seed; Swi
   await page.addInitScript((p) => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p)), VETERAN);
   await page.goto('/?e2e=1&speed=64');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   const pick = await data(page, 'matchPick');
   const seed = await data(page, 'matchSeed');

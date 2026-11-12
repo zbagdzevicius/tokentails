@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr, PROFILE_KEY, seedSide, startFirstMatch } from './helpers';
+import { attr, PROFILE_KEY, seedSide, startFirstMatch, toChampSelect } from './helpers';
 
 // Sim v14 (DOGS-V13 §2, gate 13; DOGS-V15 §2: 10 v 10), champion select (LANDING-PICK-UX §B2.3): the All · Cats ·
 // Dogs tabs filter the grid (cats 10, dogs 10); picking a dog plays the dog side (the bots fill both teams by species,
@@ -17,7 +17,7 @@ const visibleTiles = (page: Page) => page.locator('.cs-grid .cs-tile:not([hidden
 async function toPick(page: Page): Promise<void> {
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
 }
 
@@ -87,7 +87,7 @@ test('the side and the hero are remembered across a reload; the pick opens on th
   await page.reload();
   await page.waitForSelector('html[data-screen="title"]');
   await expect(page.locator('.pl-btn.big').first()).toContainText('Bravo');
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
   await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'bravo');

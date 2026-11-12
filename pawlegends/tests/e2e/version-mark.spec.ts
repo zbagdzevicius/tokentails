@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { PROFILE_KEY } from './helpers';
+import { PROFILE_KEY, playFromHome } from './helpers';
 
 // The release watermark (src/ui/versionMark.ts) on the title screen: at a landscape phone (844x390, touch) and a
 // desktop (1440x900), for a new and a returning profile, it renders the baked line ("v0.1.0 · build 20261111-1530 ·
@@ -87,7 +87,7 @@ test('a click copies the full line; the watermark is gone in a match', async ({ 
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'title');
   await expect(mark).toHaveText(line, { timeout: 3000 });
   // into a match: the title (and the watermark with it) is gone
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]', { timeout: 60_000 });
   await expect(mark).toHaveCount(0);
 });

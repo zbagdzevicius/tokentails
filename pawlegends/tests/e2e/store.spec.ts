@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { toChampSelect } from './helpers';
 import { art, fakeToken, gattr, mockHost, openHost, received } from './host';
 
 // Integration plan §2 (game side): the game sells nothing of its own. The one offer is the "Meet ‹name›" card for a
@@ -37,7 +38,7 @@ test('Meet card → open-cat → the new cat joins the squad', async ({ context,
   await expect(game.locator('.plc-joined')).toContainText('Pumpkin');
   await expect.poll(() => gattr(game, 'chromas')).toBe('GRASS');
   expect((await received(page)).some((m) => m.type === 'purchase-intent')).toBe(false);
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await expect(game.locator('.plc-pick .plc-card')).toContainText('Pumpkin');
 });
 
@@ -69,7 +70,7 @@ test('round 0: a cat bought on a 6-cat roster walks in the next match (squad str
   await expect(game.locator('.plc-joined')).toContainText('Luna');
   // the title's read-only squad strip and the pick screen both put Luna first
   await expect.poll(() => game.locator('.plc-squad').getAttribute('data-squad')).toMatch(/^Luna,/);
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await expect(game.locator('.plc-pick .plc-card').first()).toContainText('Luna');
   // any other owned cat can be swapped in from the bench
   await expect(game.locator('.plc-bench [data-a="squad-swap"]')).toHaveCount(5);
@@ -109,7 +110,7 @@ test('app builds: no checkout, no offers, no guest cats, no purchased cosmetics'
   await expect(game.locator('.pl-offer, .plc-meet')).toHaveCount(0);
   expect(await gattr(game, 'items')).toBe('');
   expect(await gattr(game, 'look')).toBe('clem:-|-');
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await expect(game.locator('.plc-card.guest')).toHaveCount(0);
   expect((await received(page)).some((m) => m.type === 'offer-seen' || m.type === 'open-cat')).toBe(false);
 });
@@ -128,7 +129,7 @@ test('no Meet card in session 1; once per session from session 2', async ({ cont
   const game2 = await openHost(page);
   await expect(game2.locator('.plc-meet')).toBeVisible();
   await game2.locator('.plc-meet [data-a="meet-close"]').click();
-  await game2.locator('[data-a="choose"]').click();
+  await toChampSelect(game2);
   await game2.locator('[data-a="back"]').click();
   await page.waitForTimeout(500);
   await expect(game2.locator('.plc-meet')).toHaveCount(0);

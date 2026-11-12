@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr } from './helpers';
+import { attr, playFromHome } from './helpers';
 
 // Audio fix (Nov 9, "sounds are not played in-game: victory, first blood..."): a real bot match in Chromium (autoplay
 // needs a gesture, like a phone) and WebKit (Safari's engine), with a hook on the page's WebAudio graph. Every sound
@@ -90,7 +90,7 @@ test('a bot match: start, hits, skills, a knockout and the result all reach the 
   await page.waitForSelector('html[data-screen="title"]');
   // no sound before the first gesture (no AudioContext, no autoplay warning)
   expect(await heard(page)).toEqual([]);
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));
 
@@ -141,7 +141,7 @@ test('every announcer clip in the build decodes under the page base', async ({ p
   test.setTimeout(120_000);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   const r = await page.evaluate(async () => {
     const base = new URL('.', location.href).pathname;
     const list = (await (await fetch(`${base}voice/manifest.json`)).json()) as string[];

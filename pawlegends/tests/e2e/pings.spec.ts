@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr, ops } from './helpers';
+import { attr, ops, playFromHome } from './helpers';
 
 // GAPS B1: command pings. Desktop: hold G for the wheel (point at a slice, release G), Alt-click pings Go here on the
 // ground. Touch: the paw button by the minimap opens a six-slice wheel, a long press on the minimap pings Go here, a
@@ -12,7 +12,7 @@ async function start(page: Page, profile: Record<string, unknown> = VETERAN, que
   await page.addInitScript((p) => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p)), profile);
   await page.goto(`/?e2e=1${query}`);
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));

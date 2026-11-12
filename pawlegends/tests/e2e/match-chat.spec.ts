@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { playFromHome } from './helpers';
 
 // MATCH-CHAT.md §4, §5, §8: in-match chat in a bot match. A bot sometimes types (a pinned chatter seed makes "sometimes"
 // happen early), its line shows in the ticker as a phrase (a solo player's age is unknown, so everything is a phrase),
@@ -17,7 +18,7 @@ async function botMatch(page: Page, seed: number): Promise<void> {
   );
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]', { timeout: 120_000 });
-  await page.locator('.pl-btn.big').first().click({ timeout: 120_000 });
+  await playFromHome(page, { timeout: 120_000 });
   await page.waitForSelector('html[data-match="live"]', { timeout: 240_000 });
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), undefined, { timeout: 120_000 });
 }

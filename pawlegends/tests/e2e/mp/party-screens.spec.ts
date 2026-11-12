@@ -35,14 +35,14 @@ async function atEverySize(page: Page, label: string, must: string[]): Promise<v
   }
 }
 
-test('the title shows Play with friends and Join with code inside the viewport at every size', async ({ browser }) => {
+test('the title shows PLAY (its With Friends variant opens the party) and Join with code inside the viewport at every size', async ({ browser }) => {
   const a = await player(browser, 'phone');
   await a.page.goto('/?e2e=1', { waitUntil: 'commit' });
   await a.page.waitForSelector('html[data-screen="title"]', { timeout: 120_000 });
   for (const s of SIZES) {
     await a.page.setViewportSize(s);
     await a.page.waitForTimeout(300);
-    for (const sel of ['[data-testid="play-friends"]', '[data-testid="join-code"]']) {
+    for (const sel of ['[data-testid="home-play"]', '[data-testid="join-code"]']) {
       const box = (await a.page.locator(sel).boundingBox())!;
       expect(box.y + box.height, `${sel} below the fold at ${s.width}x${s.height}`).toBeLessThanOrEqual(s.height);
       expect(box.height).toBeGreaterThanOrEqual(36);

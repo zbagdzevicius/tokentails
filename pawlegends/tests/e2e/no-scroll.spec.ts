@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { PROFILE_KEY } from './helpers';
+import { PROFILE_KEY, toChampSelect } from './helpers';
 
 // No-scroll Home and champion select (docs/plans/moba/HOME-MODES.md §4, LANDING-PICK-UX.md §B7): at 667x375 and 844x390
 // (touch, 2x), 1440x900 and 667x300, for a new, a returning and a dare profile, nothing scrolls on Home, every Home
@@ -63,19 +63,17 @@ for (const size of SIZES) {
         expect(await page.evaluate(() => (document.scrollingElement?.scrollHeight ?? 0) <= innerHeight)).toBe(true);
         expect(await page.evaluate(() => (document.scrollingElement?.scrollWidth ?? 0) <= innerWidth)).toBe(true);
         expect(await scrollers(page)).toEqual([]);
-        // Home (HOME-MODES.md §4): PLAY, the mode pill, the quick online buttons, the nav, the left stack and the corner:
-        // in view and touch sized
-        expect(await bad(page, '.hm-play, .hm-pill, .hm-qb, .hm-ni, .hm-left .hm-round, .hm-corner .hm-icon, .hm-profile', 44)).toEqual([]);
-        // PLAY is the only pink button: the quick online buttons are butter (Co-op) and glass (PvP)
-        const pink = await page.evaluate(() => getComputedStyle(document.querySelector('.hm-play-face')!).backgroundImage);
-        for (const bg of await page.locator('.hm-qb').evaluateAll((els) => els.map((e) => getComputedStyle(e).backgroundImage))) expect(bg).not.toBe(pink);
+        // Home (HOME-MODES.md §4): PLAY, the last-mode label, the nav, the left stack and the corner: in view and touch
+        // sized (the one play path, Nov 12: no quick online buttons any more)
+        expect(await bad(page, '.hm-play, .hm-pill, .hm-ni, .hm-left .hm-round, .hm-corner .hm-icon, .hm-profile', 44)).toEqual([]);
+        await expect(page.locator('.hm-qb')).toHaveCount(0);
         if (profile === 'returning') {
-          await expect(page.locator('.hm-nav [data-a="choose"]')).toBeInViewport();
+          await expect(page.locator('.hm-nav [data-a="heroes"]')).toBeInViewport();
           await expect(page.locator('[data-testid="mode-pill"]')).toBeInViewport();
         }
         // a first visit and a dare: Heroes is in the nav but locked (the guided match or the dare is the one call)
         if (profile !== 'returning') {
-          await expect(page.locator('.hm-nav [data-a="choose"]')).toHaveCount(0);
+          await expect(page.locator('.hm-nav [data-a="heroes"]')).toHaveCount(0);
           await expect(page.locator('[data-testid="mode-pill"]')).toHaveCount(0);
         }
         // the host's cards slot (the champion's About chip, badges) never covers PLAY or the nav
@@ -104,7 +102,7 @@ for (const size of SIZES) {
       }, [PROFILE_KEY, JSON.stringify(RETURNING)] as const);
       await page.goto('/?e2e=1');
       await page.waitForSelector('html[data-screen="title"] .pl-home');
-      await page.locator('.hm-nav [data-a="choose"]').click();
+      await toChampSelect(page);
       await page.waitForSelector('html[data-screen="pick"] .cs');
       for (const tab of ['cat', 'all'] as const) {
         await page.locator(`[data-cs="side"][data-side="${tab}"]`).click();
@@ -153,7 +151,7 @@ for (const size of SIZES) {
           r.setProperty('--safe-r', '47px');
           r.setProperty('--safe-b', '21px');
         });
-        await page.locator('.hm-nav [data-a="choose"]').click();
+        await toChampSelect(page);
         await page.waitForSelector('html[data-screen="pick"] .cs');
         await page.locator('[data-cs="side"][data-side="cat"]').click();
         expect(await page.evaluate(() => {

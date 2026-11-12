@@ -1,11 +1,77 @@
 # Paw Legends: Home and Mode Select
 
-Status: built on `feat/pawlegends-home-ui` (Nov 11, 2026). This replaces Part A of `LANDING-PICK-UX.md`, the old
-left-column lobby. Part A's rules still apply: the screen never scrolls, touch targets are at least 44 px, safe areas
+Status: built on `feat/pawlegends-home-ui` (Nov 11, 2026); the one play path on `feat/pawlegends-one-play-path`
+(Nov 12, 2026, see "One play path" below). This replaces Part A of `LANDING-PICK-UX.md`, the old left-column lobby. Part A's rules still apply: the screen never scrolls, touch targets are at least 44 px, safe areas
 are respected and nothing sits behind a feature flag.
 
 The founder asked for a home screen and a mode picker on the level of Wild Rift and the League client. We borrowed
 the structure and the finish. Every piece of art, every shape and all the text are our own.
+
+## One play path (Nov 12)
+
+The founder: "current UX on how to start a match is scattered ... there should be one path. PLAY -> SELECT MODE ->
+SELECT VARIANT (VS BOTS / CO-OP / PVP / WITH FRIENDS)", and "skirmish with co-op selection is the same as Co-op vs
+Bots". Wild Rift's order: PLAY, the mode, how to play it, the champion select, the match.
+
+```
+Home ── PLAY ──> Mode Select: mode ──Next──> Mode Select: variant ──> vs Bots ─────> champion select ── LOCK IN ──> match
+                 (Blitz, Skirmish, Classic,   (the same overlay,    ├─ Co-op ──────> queue ── match found ──> champion select
+                  Ranked locked, Cannon soon)  second stage)        ├─ PvP ────────> queue ── accept ──> champion select
+                                                                    └─ With Friends > party lobby (code, invites)
+```
+
+- **PLAY** opens Mode Select on the remembered mode. The first-ever match keeps its one-tap guided start ("Play as
+  Clem", the FTUE) and a dare link its direct start. Everything else goes through the path.
+- **Mode stage.** A tap selects a tile; Next, a double tap or Enter on the tile goes to the variants.
+- **Variant stage.** Cards for the variants the mode supports (below). One this build cannot start shows locked with
+  the reason: "Needs the party server (offline right now)", "PvP is offline right now", or the PvP match lock. vs Bots
+  carries the bots difficulty (Easy, Normal, Hard; "More bots after N matches" until it opens), saved to the profile
+  at once. The action names the next step: "Choose champion", "Find match" or "Open party". A double tap or Enter on
+  a variant goes too.
+- **Champion select** (vs Bots): the existing select, with the mode line under its title ("Classic 5v5 · vs Bots") and
+  the seats of the mode (5 for Classic). LOCK IN starts the match on the mode's map or mutator. Co-op and PvP have no
+  select before the queue: the party flow's own select follows the match found (Wild Rift's order), so nobody picks
+  twice.
+- **Back and Esc** step back one stage: the champion select → the variant stage → the mode stage → Home.
+- **Remembered.** The mode and variant (`pawlegends.mode.v1`) and the difficulty (the profile). Home shows the last
+  choice as a label above PLAY ("Skirmish 3v3 · vs Bots"); it is not a button. "Run it back" on the results keeps the
+  match's mode, variant and difficulty, as before.
+
+| Mode | Variants |
+|---|---|
+| Skirmish 3v3 | vs Bots, Co-op, PvP, With Friends |
+| Classic 5v5 | vs Bots, PvP (the matchmaker's co-op queue and friend parties are 3v3; PROTO 4's `classic` queue is PvP) |
+| Blitz | vs Bots (party and PvP later) |
+| Ranked | locked ("Coming soon") |
+| Cannon Chaos | coming soon |
+
+The separate "Co-op vs Bots" tile is gone: it was Skirmish's Co-op. A saved `{ mode: 'coop' }` loads as Skirmish,
+Co-op.
+
+**Removed entry points** (each started a match, a queue or a party outside the path):
+
+| Was | Now |
+|---|---|
+| The quick Co-op button beside PLAY (`play-online`) | PLAY → Skirmish → Co-op |
+| The quick PvP button beside PLAY (`play-pvp`) | PLAY → Skirmish (or Classic) → PvP |
+| The mode pill as a button that opened Mode Select, then PLAY played it in one tap | The pill is a label; PLAY opens Mode Select |
+| The champion nameplate "⇄" (lock in to play) | A label |
+| Nav Heroes → the champion select (LOCK IN played) | Heroes opens the champion browser: skills and lore, browse only |
+| Nav Friends "Play with friends" (`play-friends`) | PLAY → Skirmish → With Friends |
+| H on Home → the champion select | H opens the champion browser |
+| The Social sheet's "Play casual" → the PvP queue at once | Mode Select on Skirmish, PvP (one tap: Find match) |
+| The "< Games" button in Home's top-right corner (`lobby-exit`) | Settings → "Back to Token Tails games" (embedded, on Home only); the host page has no header of its own |
+
+Kept: **# Code** (join a friend's party by code: it opens the party lobby, not a match), a party invite's Join and a
+party link (the lobby), the dare link, and the results' Run it back and Change hero.
+
+**Analytics.** `play_open` (`from`: play, key, promo, event or back) when Mode Select opens, and `play_start` (`mode`,
+`variant`, `difficulty`) when a variant goes on. `match_start`, `mm_join` and `party_create` follow as before.
+
+**Classic 5v5 never started (fixed Nov 12).** PLAY on Classic went back to Home: building the Hearthwood scenery threw
+in `ModelBuilder.build` (three's `mergeGeometries([])`), because sim v22's standard Hearthwood has no rock big enough
+for a tree crown, so the crown layer was empty. An empty builder now gives an empty geometry and the layer is hidden
+(`render/views/rig.ts`, `hearthwoodView.ts`; a unit test builds the whole map). No sim change.
 
 ## Code map
 
@@ -19,7 +85,8 @@ the structure and the finish. Every piece of art, every shape and all the text a
 | Ken Burns on the key art | `src/render/lobby/backdrop.ts` (`uZoom`) |
 | Wiring (profile, season, promos, mode choice) | `src/app/app.ts` `showTitle` |
 | Art | `public/assets/lobby/legends*.webp`, `promo-*.webp`, `public/assets/modes/*.webp`, `public/assets/screens/modes-*.webp` |
-| Tests | `tests/unit/modes.test.ts`, `tests/unit/home-screen.test.ts`, `tests/e2e/home-modes.spec.ts` |
+| Tests | `tests/unit/modes.test.ts`, `tests/unit/home-screen.test.ts`, `tests/e2e/home-modes.spec.ts`, `tests/e2e/mp/play-path.spec.ts` |
+| Screenshots of the path | `PLAY_SHOTS=1` on those two e2e specs: `~/Downloads/paw-legends/play-flow/` |
 | Screenshots | `docs/plans/moba/home-ui/` |
 
 `ui/lobby/lobbyScreen.ts` stays. Home reuses its pure helpers (`playLabel`, `playLine`, `questTally`, `peekHtml`,
@@ -41,19 +108,15 @@ the structure and the finish. Every piece of art, every shape and all the text a
 | Zone | Content |
 |---|---|
 | Top left | Profile chip: avatar with a Season XP ring, name (account name, else the host's player name, else "Guest"), XP bar, tier. A tap opens the Treat Track and Pass. |
-| Top centre | Season XP and Tier chips. They show only when the server sent a season, and a tap opens the pass. Below them sits the champion nameplate over the hero's head (the painted ring is at the bottom, so the plate cannot sit under the hero). A returning player can tap it to open the champion select. |
-| Top right (`.lb-corner`) | Games (when embedded), Friends and ranked (embedded), Settings, Sound. The account chip mounts here too. |
+| Top centre | Season XP and Tier chips. They show only when the server sent a season, and a tap opens the pass. Below them sits the champion nameplate over the hero's head (the painted ring is at the bottom, so the plate cannot sit under the hero). It is a label. |
+| Top right (`.lb-corner`) | Friends and ranked (embedded), Settings, Sound. The account chip mounts here too. No "Games" button (Nov 12): Settings has "Back to Token Tails games" when embedded. |
 | Left edge | Round buttons: Events (glows when an event is live), Today (quests ring) and # (join with a code). |
 | Right edge | Promo rotator, changing every 5 s: Legends Pass season, Cannon Chaos and the Store (web only). |
-| Bottom | Glass nav: Heroes, Cards, Pass, Ranked (locked), Store (web only), Friends (party). It also shows on the first visit, with Heroes, Cards and Pass locked. |
-| Bottom right | Mode pill (opens Mode Select), the one-tap Co-op and PvP buttons, and the round PLAY. |
+| Bottom | Glass nav: Heroes (browse only), Cards, Pass, Ranked (locked), Store (web only). It also shows on the first visit, with Heroes, Cards and Pass locked. |
+| Bottom right | The last mode and variant (a label) and the round PLAY. |
 
-**PLAY.** One tap plays the selected mode:
-- With the Bots queue, it starts a solo match on the mode's map.
-- With Co-op or PvP, it starts the online flow.
-- The 3v3 PvP match-count lock is explained in a toast.
-
-On the first visit PLAY starts the guided Clem match. On a dare it accepts the dare.
+**PLAY.** It opens Mode Select (the one play path above). On the first visit PLAY starts the guided Clem match. On a
+dare it accepts the dare.
 
 **Motion.**
 - PLAY has two glow rings, a sheen sweep every 6 s, a breathing paw, and a press shockwave followed by the existing
@@ -63,9 +126,10 @@ On the first visit PLAY starts the guided Clem match. On a dare it accepts the d
 
 ## Mode Select
 
-Mode Select opens from the mode pill or with M. It is a full-screen overlay that dims and blurs Home.
+Mode Select opens from PLAY, Enter or M (and a promo or an Events row on its mode). It is a full-screen overlay that
+dims Home, in two stages: the mode tiles, then the variant cards (the one play path above).
 
-**Header.** A back button and "Choose your battle".
+**Header.** A back button (one step back) and "Choose your battle", or the mode's name and "How do you want to play?".
 
 **Tile row.** Round tiles show painted art in a CSS gold bevelled ring. Each tile has:
 - an SVG crest at 12 o'clock and an "i" button at 4 o'clock;
@@ -81,18 +145,16 @@ A tap on a tile that cannot be played shakes it and explains why. When there are
 scrolls sideways with snap. This is the only scroll region.
 
 **Footer.**
-- The queue segment (Bots, Co-op, PvP) lists only what both the mode and this build offer.
-- The bots difficulty moved here from Home.
-- **Confirm** saves the choice and returns to Home. A double tap on a tile also confirms.
-- Mode Select has no Play button, so PLAY on Home stays the one way to start a match.
+- Mode stage: the mode's name, size and length, and **Next**.
+- Variant stage: the bots difficulty (vs Bots) or the variant's line, and the action (Choose champion, Find match,
+  Open party).
 
 **Registry (`modes.ts`).**
 
 | Mode | Map | Queues | State |
 |---|---|---|---|
-| Skirmish | 3v3 Purrhaven Crossing | bots, coop, pvp | live |
-| Classic | 5v5 Hearthwood Divide | bots, coop, pvp | live |
-| Co-op vs Bots | 3v3 | coop | live |
+| Skirmish | 3v3 Purrhaven Crossing | bots, coop, pvp, friends | live |
+| Classic | 5v5 Hearthwood Divide | bots, pvp | live |
 | Ranked | 5v5 | pvp | locked ("Coming soon", Unranked) |
 | Blitz | 3v3 Purrhaven Crossing, the `blitz` mutator (sim v22, BLITZ.md) | bots (party and PvP later) | live since sim v22 (~3 min; Skirmish ~7 min, Classic ~13 min from the v22 probe) |
 | Cannon Chaos | 3v3 | bots, coop | soon (becomes an event only when given a real `endsAt`) |
@@ -102,14 +164,15 @@ scrolls sideways with snap. This is the only scroll region.
   (sim v22 stores `blitz`, `skirmish` or `classic`, each its own tile). A `?mode=` link sets both keys (vs Bots); an
   unknown mode shows "Update to play …" on Home and keeps Skirmish.
 - Every confirm also writes the old key, so the pick screen, party queue and rematch keep the same map.
+- The old "Co-op vs Bots" tile's `{ mode: 'coop' }` loads as Skirmish, Co-op.
 
 ## Plug-in points for the other worktrees
 
 | Worktree | Where it plugs in |
 |---|---|
 | v22 (Blitz, PLAY picker tiles) | Done in sim v22: Blitz is a live `BASE_MODES` row; `botsChoice` gives it `mutator: 'blitz'`. A mode with the same id registered later replaces the base entry. |
-| -champs (champion store) | `HomeScreenOpts.onHeroes` (nav Heroes, falls back to the champion select), plus a `Promo` with `action: 'heroes'`. |
-| -chat (avatars, chat) | Profile avatar (`.hm-av`), top-right corner (`.lb-corner`), nav Friends (`data-a="party"`). |
+| -champs (champion store) | `HomeScreenOpts.onHeroes` (nav Heroes: browse only, the app passes the champion browser; no item without it), plus a `Promo` with `action: 'heroes'`. |
+| -chat (avatars, chat) | Profile avatar (`.hm-av`), top-right corner (`.lb-corner`). |
 | Pass | Nav Pass, profile XP ring and the season promo all read `ent.snapshot().season`. |
 | Ranked | `ModeDef.rank` and `state`. |
 | -5v5 | Classic `ModeDef.map`. |
@@ -122,12 +185,19 @@ scrolls sideways with snap. This is the only scroll region.
 ## Calls made with defaults
 
 1. **3D turntable.** It stays on Home, centred over the key art.
-2. **PLAY.** It plays at once, and the mode pill opens Mode Select. Opening modes from PLAY would add a tap.
+2. **PLAY.** Superseded Nov 12: PLAY opens Mode Select (the founder asked for one path, at the cost of a tap or
+   two: Enter, Enter, Enter, LOCK IN on a keyboard).
 3. **Nav on the first visit.** The nav shows, with the items that need a match locked.
 4. **Ranked.** It shows as a locked "Coming soon" tile.
 5. **Cannon Chaos.** It does not exist in the game yet, so it is "coming soon", not a fake countdown.
-6. **Quick Co-op and PvP.** The one-tap buttons stay beside PLAY. The M1A spec guarantees one-tap co-op, and the
-   multiplayer e2e uses them.
+6. **Quick Co-op and PvP.** Removed Nov 12 (the one play path). A brand-new guest's first match stays the guided
+   one; co-op opens from match 2. The multiplayer e2e goes through the path (`tests/e2e/mp/party.helpers.ts`
+   `playVariant`).
+7. **Co-op and PvP pick after the queue.** The champion select follows the match found (Wild Rift's order), not
+   before the queue, so a player never picks twice.
+8. **Classic and Blitz variants.** Only what the relay plays: Classic vs Bots and PvP, Blitz vs Bots. They show
+   when the relay supports more.
+9. **The way back to Token Tails games.** Settings, embedded and on Home only.
 
 ## Not done yet
 
