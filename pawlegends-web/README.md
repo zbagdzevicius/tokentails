@@ -39,7 +39,7 @@ npm run test:e2e       # Playwright against E2E_BASE_URL (default http://localho
 |---|---|---|
 | `NEXT_PUBLIC_BE_URL` | yes | the backend base URL (the same value as client: the shared account backend) |
 | `NEXT_PUBLIC_POSTHOG_KEY` | optional | the host relays the game's PostHog events; unset = no PostHog |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | optional | Firebase auth domain; default `news-ccd33.firebaseapp.com` |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | optional | Firebase auth domain; default `news-ccd33.firebaseapp.com`. Leave it unset: this app has no `/__/auth` proxy rewrites, so do not copy client's value if client points it at its own host |
 | `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` | optional | reCAPTCHA Enterprise key for App Check (its domain list must include pawlegends.app) |
 | `NEXT_PUBLIC_E2E` | tests only | `1` compiles the E2E hooks in; unset everywhere else |
 
@@ -66,8 +66,9 @@ makes. `lib/accountDeletion.ts` holds the two functions the account page used fr
 
 `pawlegends-app` bundles the React-free host modules from here (`@/` resolves to `../pawlegends-web` in its
 `scripts/build-web.mjs`, `tsconfig.json` and `vitest.config.ts`): keep `components/pawlegends/{bridge,saves,partySaves,
-apiBridge,championsBridge,session,claim}.ts`, `components/heist/heistSaves.ts`, `api/user-api.ts` (types) and
-`context/auth/{link,authErrors,lastMethod,firebaseConfig}.ts` free of React and Next.
+apiBridge,championsBridge,session,claim}.ts`, `components/heist/heistSaves.ts`, `components/shelter/catSale.ts`,
+`api/user-api.ts` (types) and `context/auth/{link,authErrors,lastMethod,firebaseConfig}.ts` free of React and Next.
+A change to any of them publishes a new app bundle (`.github/workflows/pawlegends-ota.yml` `push.paths`).
 
 The game build: `npm run build:client` in `pawlegends/` writes `public/pawlegends-game` here and, until the cutover,
 mirrors it to `client/public/pawlegends-game` (`pawlegends/tools/mirror-client.mjs`). Commit both.
