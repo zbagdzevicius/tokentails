@@ -19,6 +19,7 @@ import {
   type PawlegendsBridgeHandlers,
   type PawlegendsBridgeTimers,
 } from "@/components/pawlegends/bridge";
+import { PAWLEGENDS_MAX_INPUT_CHARS, PAWLEGENDS_MAX_TICKS } from "@/shared-contracts/caps";
 
 const ORIGIN = "https://tokentails.com";
 const CAT_A = "65a1b2c3d4e5f6a7b8c9d0e1";
@@ -287,8 +288,9 @@ describe("pawlegends host messages", () => {
   it("replayOf enforces the backend DTO bounds", () => {
     expect(replayOf(REPLAY)).toEqual(REPLAY);
     expect(replayOf({ ...REPLAY, difficulty: "nightmare" })).toBeNull();
-    expect(replayOf({ ...REPLAY, ticks: 19801 })).toBeNull();
-    expect(replayOf({ ...REPLAY, inputs: "A".repeat(40801) })).toBeNull();
+    expect(replayOf({ ...REPLAY, ticks: PAWLEGENDS_MAX_TICKS + 1 })).toBeNull();
+    // the cap follows the sim (shared/caps.ts); a hardcoded 40800 went stale when sim v21 raised it
+    expect(replayOf({ ...REPLAY, inputs: "A".repeat(PAWLEGENDS_MAX_INPUT_CHARS + 1) })).toBeNull();
     expect(replayOf({ ...REPLAY, finalHash: "XYZ" })).toBeNull();
     expect(replayOf({ ...REPLAY, outcome: "died" })).toBeNull();
     expect(parsePawlegendsMessage(env("paused", { paused: "yes" }))).toBeNull();

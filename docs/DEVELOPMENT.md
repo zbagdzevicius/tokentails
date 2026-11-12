@@ -25,7 +25,9 @@ client/         Next.js web app, Capacitor shells, Phaser games
 cms/            Next.js admin console
 catnip-heist/   Catnip Heist: standalone three.js game (Vite), built into client/public/heist-game
 bad-cat/        Bad Cat Daily: standalone three.js game (Vite), built into client/public/badcat-game
-pawlegends/     Pawlegends: 3v3 MOBA POC (three.js, Vite), built into client/public/pawlegends-game
+pawlegends/     Pawlegends: 3v3 MOBA POC (three.js, Vite), built into pawlegends-web/public/pawlegends-game
+                (mirrored to client/public/pawlegends-game until the pawlegends.app cutover)
+pawlegends-web/ Paw Legends' own Next.js site on pawlegends.app (landing, /play host, legal, account)
 cat-rave/       Cat Rave: three.js page (Vite), built into client/public/rave (committed, served at /rave)
 shared/         Framework-free TypeScript contracts copied into every package (plan F2)
 scripts/        Repo-level scripts: sync-contracts.mjs and its tests
@@ -236,14 +238,15 @@ npm run lint:sim             # determinism rules over src/sim and integer-only s
 npm run build && npm run budget
 npm run e2e                  # Playwright, desktop and landscape touch, mock host
 npm run match -- --seeds 40 --check-determinism   # headless matches in Node
-npm run build:client         # PAWLEGENDS_BASE=/pawlegends-game/ into ../client/public/pawlegends-game
+npm run build:client         # PAWLEGENDS_BASE=/pawlegends-game/ into ../pawlegends-web/public/pawlegends-game,
+                             # then tools/mirror-client.mjs copies it to ../client/public/pawlegends-game (until the cutover)
 npm run vendor-sim           # re-vendor the sim into backend/src/vendor/pawlegends-sim; vendor-sim:check
 ```
 
 Shelter champions (sim v9): the four champions' catalog ids live in three places. Change all of them together:
 the game (`pawlegends/src/data/heroes/shelter.ts`), the backend (`backend/src/pawlegends/pawlegends-champions.ts`)
 and the host, which reads them from `GET /pawlegends/champions`. The hero ids themselves (20 since sim v15, in
-`HERO_IDS` order, append only) are mirrored in `client/components/pawlegends/bridge.ts` (`PAWLEGENDS_HEROES`), in
+`HERO_IDS` order, append only) are mirrored in `pawlegends-web/components/pawlegends/bridge.ts` (`PAWLEGENDS_HEROES`; also its client copy until the cutover), in
 the vendored facade (`PawlegendsHeroId` in `pawlegends/tools/vendor-sim.mjs`, written by `npm run vendor-sim`) and
 in the tool lists (`tools/headless-match.mjs`, `tools/grade-calibrate.mjs`, `tools/lib/fuzz-entry.ts`,
 `tools/anim/capture.mjs`). The sim v11 original cats and the sim v14 and v15 original dogs are not champions and have no
@@ -254,14 +257,14 @@ Store and Legends Pass catalogue (STORE-PASS.md): two copies with the same value
 `pawlegends/src/money/catalog.ts` (the game's display mirror, deep-compared by `tests/unit/store-pass.test.ts`).
 Copy the file and keep the header. Coat palettes and patterns live only in `pawlegends/src/render/cosmetics.ts`
 (`STORE_COAT_PAL`, `PASS_COAT_PAL`). The host mirrors the store item id shapes and `STORE_TERMS_VERSION`
-(`PAWLEGENDS_STORE_CONSENT_VERSION`) in `client/components/pawlegends/bridge.ts` and `checkout.ts`.
+(`PAWLEGENDS_STORE_CONSENT_VERSION`) in `pawlegends-web/components/pawlegends/bridge.ts` and `checkout.ts` (and their client copies until the cutover).
 
 Champion store (CHAMPION-STORE.md): the same two catalogue copies hold `CHAMPIONS` (side and role per hero),
 `STARTERS`, `ROTATION_EPOCH`, `ROTATION_CATS`, `ROTATION_DOGS`, `CHAMP_TIER`, `CHAMP_LAUNCH`, `TIER_PRICE`, `YARN`,
 `CHAMP_PICK_MILESTONES` and the `pl_champ_*` / `pl_champs_*` SKUs (deep-compared by
 `pawlegends/tests/unit/champion-store.test.ts`, which also checks every champion against the game's `HEROES`). A new
 hero needs a `CHAMPIONS` row, a tier and a place in a rotation cycle. The host mirrors the champion SKU shape
-(`STORE_SKU`) and the `store.champions` shape (`championsOf`) in `client/components/pawlegends/bridge.ts`.
+(`STORE_SKU`) and the `store.champions` shape (`championsOf`) in `pawlegends-web/components/pawlegends/bridge.ts` (and its client copy until the cutover).
 
 Social, ranked and PvP reports (`docs/plans/moba/SOCIAL-RANKED.md` §11.1): duplicated constants, change every copy.
 
@@ -270,17 +273,18 @@ Social, ranked and PvP reports (`docs/plans/moba/SOCIAL-RANKED.md` §11.1): dupl
 | `RANKED_TIERS`, `RANKED_POINTS`, `PLACEMENTS`, `DIVISION_NUMERALS`, `LEGEND_IDX` | `backend/src/pawlegends/ranked/tiers.ts` | `pawlegends/src/meta/ranked.ts` | `pawlegends/tests/unit/ranked-tiers.test.ts` |
 | `RANKED_OPEN_AT` (24), `RANKED_CLOSE_BELOW` (16) | `ranked/tiers.ts` | the game shows the server's `ranked/status` | – |
 | `REPORT_REASONS` | `backend/src/pawlegends/social/report.contracts.ts` | `pawlegends/src/social/report.ts` | `pawlegends/tests/unit/report-popover.test.ts` |
-| API ops of `api-request` | – | `pawlegends/src/embed/api.ts`, `client/components/pawlegends/apiBridge.ts` | `shared/pawlegends-bridge.fixtures.json` (`apiOps`), both sides' tests |
+| API ops of `api-request` | – | `pawlegends/src/embed/api.ts`, `pawlegends-web/components/pawlegends/apiBridge.ts` (client copy until the cutover) | `shared/pawlegends-bridge.fixtures.json` (`apiOps`), both sides' tests |
 | Player code alphabet and format | `backend/src/pawlegends/social/social.contracts.ts` | the game only shows the server's code | – |
 | `CHAT_PHRASES`, `CHAT_STICKERS`, `CHAT_REPORT_KINDS`, `CHAT_LIMITS` (client subset), `AvatarView` checks (CHAT-AVATARS.md) | `shared/chat.ts` (synced to backend, client, CMS) | `pawlegends/src/data/chatPhrases.ts` | `pawlegends/tests/unit/chat-phrases.test.ts` |
 | Party chat frames (`chat.say`, `chat.msg`, `chat.reject`, `chat.notice`), PROTO 5 | `backend/src/vendor/pawlegends-net/` (vendored) | `pawlegends/src/net/proto.ts` | `vendor-sim:check`, `tests/unit/net-proto.test.ts` |
 
-The spec is `docs/plans/moba/POC.md`. The client serves the build at `/pawlegends-game/` and hosts it in
-`pages/pawlegends/index.tsx` (GAMES.md, "Pawlegends"). Rebuild `client/public/pawlegends-game` after any
-game change and commit it. After a sim change run `npm run vendor-sim` and deploy the backend first;
+The spec is `docs/plans/moba/POC.md`. pawlegends-web (pawlegends.app) serves the build at `/pawlegends-game/` and
+hosts it in `pages/play.tsx` (GAMES.md, "Pawlegends"); until the cutover client serves a mirrored copy on
+tokentails.com/pawlegends too (`docs/plans/moba/PAWLEGENDS-WEB.md`). Rebuild with `npm run build:client` after any
+game change and commit both `pawlegends-web/public/pawlegends-game` and `client/public/pawlegends-game`. After a sim change run `npm run vendor-sim` and deploy the backend first;
 `npm run vendor-sim:check-remote -- <backend url>` (or `PAWLEGENDS_BACKEND_URL`) compares the deployed
 `GET /pawlegends/sim` hash. Build env: `VITE_EMBED_ORIGINS` (comma-separated host origins; default
-tokentails.com and www.tokentails.com; the game's own origin is always allowed when the parent is
+pawlegends.app, tokentails.com and www.tokentails.com; the game's own origin is always allowed when the parent is
 same-origin), `VITE_PAWLEGENDS_POSTHOG_KEY` (analytics, consent-gated), `VITE_PAWLEGENDS_BUILD` (the
 version in `ready`), `PAWLEGENDS_BASE` (base path). `?speed=1..64` speeds up the local host for tests and
 never changes the replay. `npm run lift` (`PPK_DIR`, default `../../swordcat`) copies the Pink Paw Knight
