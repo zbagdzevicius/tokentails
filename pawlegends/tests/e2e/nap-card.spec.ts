@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { playFromHome, seedSide } from './helpers';
 
 // The nap card (founder ask 2026-11-12: the dead-player card was Token Tails' card back; it should be Paw Legends'):
@@ -10,8 +10,7 @@ const SHOTS = 'test-results/nap-card';
 type Box = { x: number; y: number; width: number; height: number };
 const overlap = (a: Box, b: Box): boolean => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
-test('knocked out: the nap card shows the countdown, the killer and a tip, no Token Tails, clear of the HUD', async ({ page }, info) => {
-  test.setTimeout(240_000);
+async function knockedOut(page: Page, info: TestInfo, tag: string): Promise<void> {
   await seedSide(page, 'cat', { matches: 3 });
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
@@ -62,7 +61,7 @@ test('knocked out: the nap card shows the countdown, the killer and a tip, no To
       oldCard: document.querySelectorAll('.tt-respawn, .tt-back').length,
     };
   });
-  await page.screenshot({ path: `${SHOTS}/${info.project.name}.png` });
+  await page.screenshot({ path: `${SHOTS}/${info.project.name}${tag}.png` });
   expect(seen).toBeTruthy();
   const v = seen!;
   expect(v.kicker).toBe('Napping at the fountain');
@@ -78,4 +77,19 @@ test('knocked out: the nap card shows the countdown, the killer and a tip, no To
   expect(v.box.x).toBeGreaterThanOrEqual(0);
   expect(v.box.x + v.box.width).toBeLessThanOrEqual(vw.width);
   for (const b of v.others) expect(overlap(v.box, b), `nap card over ${b.sel}`).toBe(false);
+}
+
+test('knocked out: the nap card shows the countdown, the killer and a tip, no Token Tails, clear of the HUD', async ({ page }, info) => {
+  test.setTimeout(240_000);
+  await knockedOut(page, info, '');
+});
+
+// review 2026-11-12: at 667 x 375 the centred card covered the (locked) ult button, which sits near the middle there
+test.describe('small phone', () => {
+  test.use({ viewport: { width: 667, height: 375 } });
+  test('knocked out at 667 x 375: the nap card stays clear of the touch buttons', async ({ page }, info) => {
+    test.skip(info.project.name !== 'landscape', 'touch layout only');
+    test.setTimeout(240_000);
+    await knockedOut(page, info, '-667');
+  });
 });

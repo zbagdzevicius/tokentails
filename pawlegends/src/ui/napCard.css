@@ -69,6 +69,8 @@
   background: #3A2740 50% 22% / cover no-repeat; box-shadow: 0 0 0 1.5px #FF4F58, 0 0 0 3px var(--nc-ink);
 }
 .pl-napcard .nc-medal svg { width: 62%; height: 62%; }
+/* no knockout seen yet (rejoined while out): no empty ring */
+.pl-napcard .nc-medal:not(.hero):empty { display: none; }
 .pl-napcard .nc-recap {
   font-weight: 600; font-size: 13px; line-height: 1.25; color: var(--nc-vellum); opacity: 0.92; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -94,6 +96,11 @@ html[data-touch='1'] .pl-napcard .nc-medal { width: 20px; height: 20px; }
 html[data-touch='1'] .pl-napcard .nc-recap { font-size: 12px; -webkit-line-clamp: 1; }
 html[data-touch='1'] .pl-napcard .nc-line { font-size: 12px; padding: 4px 8px; }
 @media (max-height: 340px) { html[data-touch='1'] .pl-napcard .nc-line { display: none; } }
+/* small phones (667 x 375, 740 x 360): the ult button sits near the middle (x ≈ 100vw - 260px), so the card centres in
+   the band between the minimap (right edge 120px) and it, and narrows to fit */
+@media (max-width: 1000px) {
+  html[data-touch='1'] .pl-napcard { left: calc((124px + 100vw - 268px) / 2); width: min(var(--nc-w), calc(100vw - 400px)); min-width: 236px; }
+}
 @media (max-width: 720px) and (min-height: 500px) { .pl-napcard { --nc-w: 340px; --nc-hero: 72px; --nc-num: 34px; } }
 
 /* reduced motion and Low quality: no entrance, no line fade */
