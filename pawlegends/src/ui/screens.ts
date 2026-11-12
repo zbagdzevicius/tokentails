@@ -783,7 +783,11 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     </div>
     ${(o.won ? o.grade?.mvp.hero : (o.grade?.bestOnTeam?.hero ?? o.grade?.mvp.hero)) ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
 <<<<<<< HEAD
+<<<<<<< HEAD
     ${o.onHome && !o.party ? `<button class="pl-btn ghost small pl-home" data-a="home" aria-label="Home">${icon('paw')}<span>Home</span></button>` : ''}
+=======
+    ${o.onHome && !o.party ? `<button class="pl-btn ghost small pl-tohome" data-a="home" aria-label="Home">${icon('paw')}<span>Home</span></button>` : ''}
+>>>>>>> 34f98cd9c (fix(pawlegends): results Home button no longer stretches full height)
     ${o.party ? '' : rewardStrip(o)}
     ${
       o.party
