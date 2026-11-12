@@ -403,7 +403,7 @@ Source: `design-brush-attack-no-reveal`.
 **Determinism and replay:** this changes visibility, so the snapshot and bot targeting change.
 
 **Tests:**
-- Bengas basic-attacks from bush (40,44) at 5.5 m: the victim's team sees her for 45 ticks.
+- Bengal basic-attacks from bush (40,44) at 5.5 m: the victim's team sees her for 45 ticks.
 - A cast from a bush also reveals.
 - PARITY.md:323 is ticked.
 

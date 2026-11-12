@@ -5,6 +5,7 @@
  */
 import type { HeroId } from '../data/heroes/types';
 import { HEROES } from '../data/heroes';
+import { heroDisplayName } from '../data/heroes/shelter';
 import { COMMON, DEFAULT_GAIT, HERO_SPRINGS, flip, kneelShot, leap, slam, spinSlash, swing, taunt, thrust, throwOverhand } from '../render/anim/common';
 import { SIM_TIMING } from '../render/anim/timing';
 import { Prio, type ClipDef, type MoveSet } from '../render/anim/types';
@@ -67,4 +68,4 @@ export function demoMoves(h: HeroId): MoveSet {
   };
 }
 
-export const HERO_LABEL = (h: HeroId): string => HEROES[h].name;
+export const HERO_LABEL = (h: HeroId): string => heroDisplayName(h, HEROES[h].name);

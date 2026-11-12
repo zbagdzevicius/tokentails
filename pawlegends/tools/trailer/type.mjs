@@ -13,7 +13,7 @@
  *   node tools/trailer/type.mjs --shots <capture dir> [--out DIR] [--cut 30|15|both] [--aspect 16x9|9x16|both]
  *                               [--preview] [--audio <dir with score.wav, score-15.wav>] [--every N]
  *
- * The copy gate (lint-copy.mjs) runs first and stops the render on any finding. The Gabė photo is upscaled with
+ * The copy gate (lint-copy.mjs) runs first and stops the render on any finding. The Gabby photo is upscaled with
  * Lanczos and unsharp in ffmpeg (1.2x for 16:9, 1.6x plus 3 % grain for 9:16; never AI upscaling).
  */
 import { execFileSync } from 'node:child_process';
@@ -61,7 +61,7 @@ const photoFor = {
   '16x9': { w: 405, h: 540, vf: 'scale=405:540:flags=lanczos,unsharp=5:5:0.4,colorchannelmixer=rr=1.03:bb=0.97' },
   '9x16': { w: 540, h: 720, vf: 'scale=540:720:flags=lanczos,unsharp=5:5:0.4,colorchannelmixer=rr=1.03:bb=0.97,noise=alls=8:allf=0' },
 };
-// v2 draws no photo card (the v1 trailer's Gabe photo); kept for mg-timeline-v1 only
+// v2 draws no photo card (the v1 trailer's Gabby photo); kept for mg-timeline-v1 only
 if (existsSync(PHOTO) && hasFlag('--v1')) for (const a of aspects) execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', PHOTO, '-vf', photoFor[a].vf, '-frames:v', '1', join(WORK, `gabe-${a}.png`)]);
 
 // ---------------------------------------------------------------- footage index (capture.mjs layout: <shot>/<aspect>/fNNNN.png)
@@ -139,7 +139,7 @@ try {
       for (const [kind, range] of Object.entries(pl)) {
         for (const f of frames([range])) {
           // the photo's background is the game world: the bridge of the drop (S06, f240+) running under the card, held
-          // on one frame through the whip-zoom, then running on under Gabė's champion (S05, keyed) to the drop
+          // on one frame through the whip-zoom, then running on under Gabby's champion (S05, keyed) to the drop
           // v2: the end card's background is the last gameplay frame (Victory!), blurred by the compositor
           const src = foot.get(END_PLATE_SOURCE);
           // v3: the eight-hero line-up (S40 on the key colour) laid over the plate's lower part

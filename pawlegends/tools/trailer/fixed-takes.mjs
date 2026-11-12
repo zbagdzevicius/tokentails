@@ -9,7 +9,7 @@
 export const FIXED = {
   // Cacklejaw's Pack Hunt resets three times at the cat fountain (three takedowns)
   X2: { seed: 139, hero: 'cacklejaw', keys: { r: 9804, ko1: 9805, ko2: 9812, ko3: 9818 }, roles: { star: 0, v1: 4 } },
-  // Aviete: Short Circuit -> Live Wire -> Spark Swipe, two takedowns
+  // Raspberry: Short Circuit -> Live Wire -> Spark Swipe, two takedowns
   X1: { seed: 143, hero: 'clem', keys: { r: 9803, e: 9809, q: 9815, ko2: 9853 }, roles: { star: 1, v1: 5, v2: 4 } },
   // Sage's Moonshot point-blank on three heroes (9:16 fallback only)
   X3: { seed: 3, hero: 'brutus', keys: { windup: 12553, cast: 12582, hit: 12583 }, roles: { star: 5, v1: 2 } },
@@ -24,9 +24,9 @@ export const FIXED = {
   X5: { seed: 52, hero: 'brutus', keys: { cast: 12730 }, roles: { star: 2, v1: 5 } },
   // Lambo's Tangled Lights hauls three heroes in
   X6: { seed: 57, hero: 'brutus', keys: { windup: 4676, cast: 4690 }, roles: { star: 4, v1: 1 } },
-  // Bengas's Striking Pose, three stunned
+  // Bengal's Striking Pose, three stunned
   X7: { seed: 64, hero: 'brutus', keys: { windup: 11379, cast: 11387, hit: 11394, ko1: 11409 }, roles: { star: 3, v1: 2 } },
-  // Gabe's Under Her Spell, three charmed
+  // Gabby's Under Her Spell, three charmed
   X8: { seed: 41, hero: 'lambo', keys: { windup: 12898, cast: 12912, hit: 12931 }, roles: { star: 2, v1: 3 } },
   // Clem's Golden Hour, then one Q: a double takedown
   X9: { seed: 103, hero: 'sage', keys: { r: 9179, q: 9185 }, roles: { star: 1, v1: 4 } },
@@ -34,9 +34,9 @@ export const FIXED = {
   X10: { seed: 12, hero: 'brutus', keys: { cast: 7780, ko: 7784 }, roles: { star: 2, v1: 3 } },
   // Sage's Hop Back (a backflip)
   X11: { seed: 68, hero: 'sage', keys: { cast: 9066 }, roles: { star: 0, v1: 3 } },
-  // Gabe's Chase the Wind (a gliding barrel roll)
+  // Gabby's Chase the Wind (a gliding barrel roll)
   X12: { seed: 150, hero: 'sage', keys: { cast: 10469 }, roles: { star: 1, v1: 3 } },
-  // Sir Brutus dives the cat tower, takes Gabe and walks out
+  // Sir Brutus dives the cat tower, takes Gabby and walks out
   X13: { seed: 84, hero: 'brutus', keys: { ko: 1786 }, roles: { star: 0, v1: 3, tower: 50 } },
   // the finale: the dogs dive the cat base; Clem reaches level 10 on a takedown; cat tower 46 falls
   X14: {
@@ -100,6 +100,6 @@ export const FIXED = {
   H1: { seed: 138, hero: 'clem', keys: { charge: 10275, clemW: 10279, clemQ: 10291 }, roles: { clem: 0, brutus: 4, gabe: 1 } },
   // the tower: Clem takes down Cacklejaw on the Sunny bridge, then the dog's outer tower falls east along the open lane
   T1: { seed: 33, hero: 'clem', keys: { ko: 6109, tower: 6158 }, roles: { clem: 0, cack: 3 } },
-  // the teamfight at the dog base: Bengas takes Cacklejaw down beside Sage and the cats' cart, Sir Brutus walks in
+  // the teamfight at the dog base: Bengal takes Cacklejaw down beside Sage and the cats' cart, Sir Brutus walks in
   F1: { seed: 129, hero: 'sage', keys: { ko: 10543, brutusQ: 10588 }, roles: { sage: 0, bengas: 2 } },
 };

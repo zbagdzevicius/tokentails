@@ -158,7 +158,7 @@ who do not, 3 who own Token Tails cats. Book them now (POC.md §17 step 8). One 
 on the production URL (or the preview before the deploy). Ask consent for notes; no recordings of faces; no personal
 data in the results beyond a tester number.
 
-What they play (SIM_VERSION 10): eight heroes (Clem, Sage, Sir Brutus, Cacklejaw, Lambo, Avietė, Bengas, Gabė), the
+What they play (SIM_VERSION 10): eight heroes (Clem, Sage, Sir Brutus, Cacklejaw, Lambo, Raspberry, Bengal, Gabby), the
 tester plus two bot allies against three bots, Rookie bots in the first match and then Easy, Normal or Hard. The first
 matches show ghost-paw tips. There is no store: the only thing on sale is a Token Tails
 cat ($5) from a "Meet <cat>" card, which never shows in a player's first visit.
@@ -499,7 +499,7 @@ shelter, impact or money words), the cat-offer block as a store file (prices all
 ```text
 Pawlegends is out. Cats vs dogs, 3v3, right in your browser. Seven-minute matches, eight heroes, no download, no account. Pick a hero and pop the Bone Throne. tokentails.com/pawlegends
 
-Eight heroes, all free to play: Clem, Sage, Sir Brutus, Cacklejaw, Lambo, Avietė, Bengas and Gabė. Fighter, marksman, tanks, assassins, a mage and a support.
+Eight heroes, all free to play: Clem, Sage, Sir Brutus, Cacklejaw, Lambo, Raspberry, Bengal and Gabby. Fighter, marksman, tanks, assassins, a mage and a support.
 
 On a laptop: right-click to move, QWER to cast. On a phone: joystick and drag-to-aim, in landscape. You play with two bot allies against three bots: Rookie bots in your first match, then Easy, Normal or Hard.
 
@@ -550,7 +550,7 @@ We built a 3v3 MOBA for the browser with talents instead of items. Looking for d
 
 Pawlegends is cats vs dogs on a two-lane map. No gold and no items: you pick a talent at levels 3, 6 and 9, and for Sage and Sir Brutus the level-6 pick changes an ability's shape (Sage's Volley becomes one piercing line; Sir Brutus plants a dome that blocks shots). Matches are built to end in about seven minutes: on Normal and Hard, Sunset at 6:00 makes towers and cores take double damage and lets each takedown chip the victim's core, Sudden Death at 7:45 drains both cores, and 11:00 is a hard end (Easy runs a little faster: Sunset 5:00, Sudden Death 7:00). Towers take half damage from heroes when none of your minions is near (backdoor protection).
 
-Eight heroes in this first build: Clem (fighter, a parry that sends shots back), Sage (marksman, a map-long Moonshot), Sir Brutus (tank, a tether ring), Cacklejaw (assassin, stealth in the bushes), Lambo (tank, a pull that ties enemy heroes up), Avietė (assassin, a blink you can recast to blink back), Bengas (mage, a burning stage that slows) and Gabė (support, a charm that walks enemies to her). Bots only for now: Rookie in the first match, then Easy, Normal or Hard.
+Eight heroes in this first build: Clem (fighter, a parry that sends shots back), Sage (marksman, a map-long Moonshot), Sir Brutus (tank, a tether ring), Cacklejaw (assassin, stealth in the bushes), Lambo (tank, a pull that ties enemy heroes up), Raspberry (assassin, a blink you can recast to blink back), Bengal (mage, a burning stage that slows) and Gabby (support, a charm that walks enemies to her). Bots only for now: Rookie in the first match, then Easy, Normal or Hard.
 
 What would you change first? tokentails.com/pawlegends
 ```
@@ -568,7 +568,7 @@ Cats vs dogs 3v3 battles. Seven-minute matches, eight heroes, play with bots in 
 
 The Truce Games have begun. Cats and dogs no longer fight over the best sunbeam: they settle it on the Crossing, three heroes a side. Push your lane, take the rat camp, calm Pudding before the other team does, and knock over the Bone Throne.
 
-Features: eight heroes with their own abilities and talents (Clem, Sage, Sir Brutus, Cacklejaw, Lambo, Avietė, Bengas, Gabė), all free to play. Pings to lead your two bot allies. Two lanes, towers, a jungle camp and a giant neutral dragon. Matches end by 11:00 at the latest. Paw Tricks: Pounce, Snack Break, Hiss or Purr-ify. Rookie bots for your first match, then Easy, Normal or Hard. Dare links to send a friend the exact same match. Plays on laptops and on phones in landscape.
+Features: eight heroes with their own abilities and talents (Clem, Sage, Sir Brutus, Cacklejaw, Lambo, Raspberry, Bengal, Gabby), all free to play. Pings to lead your two bot allies. Two lanes, towers, a jungle camp and a giant neutral dragon. Matches end by 11:00 at the latest. Paw Tricks: Pounce, Snack Break, Hiss or Purr-ify. Rookie bots for your first match, then Easy, Normal or Hard. Dare links to send a friend the exact same match. Plays on laptops and on phones in landscape.
 
 Controls (laptop): right-click to move and attack, A then left-click to attack-move, Q W E R abilities, D Paw Trick, B nap back to base, Space centres the camera, Tab scoreboard.
 

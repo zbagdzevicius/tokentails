@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * v3.8 type placement from the captured footage (review of v3.7: CACKLEJAW sat under Gabė, GABĖ beside Sir Brutus, so
+ * v3.8 type placement from the captured footage (review of v3.7: CACKLEJAW sat under Gabby, GABĖ beside Sir Brutus, so
  * viewers matched the name to the wrong animal; TAKE THEIR CORE. sat over busy trees).
  *
  * - Roll-call tags (N3-N10) are anchored to their own hero: the captured shot's per-frame QC gives the named hero's

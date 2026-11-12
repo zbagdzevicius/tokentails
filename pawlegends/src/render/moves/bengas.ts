@@ -1,5 +1,5 @@
 /**
- * Bengas move set (ANIM-SPEC §14 "Bengas"): the theatre cat. Fire mage with a toasting-fork baton and a flower crown;
+ * Bengal move set (ANIM-SPEC §14 "Bengal"): the theatre cat. Fire mage with a toasting-fork baton and a flower crown;
  * everything he does is a performance: flicks and pirouettes for basics, a tennis serve into a pirouette for Burnt
  * Toast, a spin-in vogue that freezes on the stun, a grand jeté for Camellia Hop, a bow and a curtain raise for
  * Curtains Up! and one conductor's downbeat on every stage pulse.

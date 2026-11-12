@@ -549,7 +549,7 @@ describe('the stick let go at the moment of the press: the Stop never eats the f
 
 describe('touch: the other heading skills', () => {
   const me = { x: 24000, y: 29000 };
-  it('Avietė E (Live Wire) and Clem E (Tumble) fire on the press along the joystick, full range', () => {
+  it('Raspberry E (Live Wire) and Clem E (Tumble) fire on the press along the joystick, full range', () => {
     for (const hero of ['aviete', 'clem'] as const) {
       const r = rig(hero);
       r.stick(Math.PI / 4);

@@ -1,5 +1,5 @@
 /**
- * Gabė skill FX (ANIM-SPEC §14, §7): pink hearts and pale wind, every gameplay shape at the sim's own numbers
+ * Gabby skill FX (ANIM-SPEC §14, §7): pink hearts and pale wind, every gameplay shape at the sim's own numbers
  * (FxCtx.abil: talent-resolved radius, range, arc, durations).
  *
  * - Basic / passive Heart Breeze: a heart streak arcs from a hero she hits back to her heart float (the heal is sent).
@@ -191,7 +191,7 @@ const bShadow = new Float32Array(NB);
 const bCol = new Uint32Array(NB);
 const bTick = new Int32Array(NB);
 
-/** Heart streaks (passive): from a hit hero back to Gabė. */
+/** Heart streaks (passive): from a hit hero back to Gabby. */
 const NH = 4;
 const hOn = new Uint8Array(NH);
 const hSrc = new Int16Array(NH);

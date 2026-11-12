@@ -243,13 +243,13 @@ export function woodenSword(A: Assembly): void {
   A.add('pawR', new THREE.BoxGeometry(0.035, 0.36, 0.014), { m: mat([0, 0.12, 0.05], [0.25, 0, 0]), color: WOOD });
   A.add('pawR', new THREE.BoxGeometry(0.11, 0.02, 0.026), { m: mat([0, -0.03, 0.02], [0.25, 0, 0]), color: 0x8a6440 });
 }
-/** A baton in the right paw (pup guards); with `tip`, Bengas's toasting fork: a long handle with an ember tip. */
+/** A baton in the right paw (pup guards); with `tip`, Bengal's toasting fork: a long handle with an ember tip. */
 export function baton(A: Assembly, color: Col = 0x22252c, tip: Col = BRASS, len = 0.3): void {
   A.add('pawR', new THREE.CylinderGeometry(0.018, 0.022, len, 5), { m: mat([0, 0.09 + (len - 0.3) / 2, 0.05], [0.25, 0, 0]), color });
   A.add('pawR', new THREE.SphereGeometry(0.026, 5, 3), { m: mat([0, 0.24 + (len - 0.3), 0.09 + (len - 0.3) * 0.25]), color: tip });
 }
 
-// Sim v9 shelter champions' gear (Lambo, Avietė, Bengas, Gabė), from their Token Tails card accessories.
+// Sim v9 shelter champions' gear (Lambo, Raspberry, Bengal, Gabby), from their Token Tails card accessories.
 
 /** Lambo's tangled festive lights: a cord across the chest and over a shoulder, octahedron bulbs in alternating colours. */
 export function lightString(A: Assembly, cord: Col, bulbs: readonly Col[]): void {
@@ -271,13 +271,13 @@ export function lightString(A: Assembly, cord: Col, bulbs: readonly Col[]): void
   }
 }
 
-/** Avietė's sparks (her card's coins): small bright octahedra floating at the shoulders and hips. */
+/** Raspberry's sparks (her card's coins): small bright octahedra floating at the shoulders and hips. */
 export function sparkOrbs(A: Assembly, color: Col): void {
   const at: readonly (readonly [number, number, number])[] = [[0.22, 0.2, 0.06], [-0.22, 0.16, 0.08], [0.2, -0.02, -0.1], [-0.18, 0.02, -0.12]];
   for (const [x, y, z] of at) A.add('chest', new THREE.OctahedronGeometry(0.032, 0), { m: mat([x * A.w, y, z], [0.4, 0.6, 0]), color });
 }
 
-/** Bengas's camellia crown: a ring of flower heads with leaves round the top of the head. */
+/** Bengal's camellia crown: a ring of flower heads with leaves round the top of the head. */
 export function flowerCrown(A: Assembly, flower: Col, leaf: Col): void {
   const n = A.detail >= 0.7 ? 7 : 5;
   for (let i = 0; i < n; i++) {
@@ -290,7 +290,7 @@ export function flowerCrown(A: Assembly, flower: Col, leaf: Col): void {
   A.add('head', new THREE.TorusGeometry(0.168, 0.008, 3, A.seg(14, 8)), { m: mat([0, 0.212, -0.01], [Math.PI / 2, 0, 0]), color: leaf });
 }
 
-/** Gabė's wings: two soft feathered panels on her back. */
+/** Gabby's wings: two soft feathered panels on her back. */
 export function wings(A: Assembly, color: Col): void {
   for (const side of [1, -1]) {
     const s = new THREE.Shape();
@@ -304,7 +304,7 @@ export function wings(A: Assembly, color: Col): void {
   }
 }
 
-/** Gabė's heart balloon: a heart (two lobes and a point) floating above her right shoulder on a thin string. */
+/** Gabby's heart balloon: a heart (two lobes and a point) floating above her right shoulder on a thin string. */
 export function heartFloat(A: Assembly, color: Col): void {
   const y = 0.62;
   for (const side of [1, -1]) A.add('chest', new THREE.SphereGeometry(0.055, A.seg(8, 5), A.seg(6, 4)), { m: mat([-0.2 + side * 0.04, y, -0.05]), color });

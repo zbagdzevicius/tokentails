@@ -20,7 +20,7 @@ raised and Riot answered) and CHAMPS.md (a review of how the heroes counter each
 
 | # | Question | Default |
 |---|---|---|
-| D1 | The five heading dashes and blinks (Clem E, Avietė E, Bengas E, Gabė E) and the Pounce trick fire on press, so they cannot be held to aim. Should they get hold-to-aim? | **Keep firing them on press, toward the heading.** The joystick sets the direction. Wild Rift's flash complaint (players swiping it the wrong way in a panic) supports this choice. Every other skill can already be held to aim. |
+| D1 | The five heading dashes and blinks (Clem E, Raspberry E, Bengal E, Gabby E) and the Pounce trick fire on press, so they cannot be held to aim. Should they get hold-to-aim? | **Keep firing them on press, toward the heading.** The joystick sets the direction. Wild Rift's flash complaint (players swiping it the wrong way in a panic) supports this choice. Every other skill can already be held to aim. |
 | D2 | Desktop camera: locked like on mobile, or free with edge pan like LoL PC? | **Locked.** Holding the minimap shows that spot, and the view returns when the button is released. Edge pan and the arrow-key pan are removed. |
 | D3 | Should the camera-height setting be the same for everyone in PvP? | **No.** Every step is open in PvP too (Nov 9: five steps, Close 0.88 to Max 1.4; every player has the same setting, as in Mobile Legends). Vision is decided in the sim (`sim/map/brush.ts` `visibleTo`: bushes and stealth, no distance fog) and each seat's snapshot leaves hidden units out, so a further camera reveals nothing hidden. |
 
@@ -305,13 +305,13 @@ v16 lands, because they change match outcomes.
 
 | # | Change (exact data) | Gap it fixes |
 |---|---|---|
-| P1 | Projectile `speed`: Lambo Q 16000→12000, Bravo Q 15000→12000, Bengas Q 18000→14000, Pixel Q 18000→15000, Rocket Q 21000→17000, Domino Q 17000→14000, Frankie R 20000→18000. Each shot then takes 0.5–0.77 s at max range. | Most skillshots cannot be dodged on reaction |
+| P1 | Projectile `speed`: Lambo Q 16000→12000, Bravo Q 15000→12000, Bengal Q 18000→14000, Pixel Q 18000→15000, Rocket Q 21000→17000, Domino Q 17000→14000, Frankie R 20000→18000. Each shot then takes 0.5–0.77 s at max range. | Most skillshots cannot be dodged on reaction |
 | P2 | `CC_DR = { window: 60, bp: 5000, cap: 45, immune: 30 }`. For 2 s after a hard CC ends, new hard CC lasts half as long; 1.5 s of CC inside that window grants 1 s of CC immunity. Needs new world fields `ccDrT` and `ccDrSum`, included in the hash. | Chains of 2.5–3.25 s |
 | P3 | Cacklejaw W `windup` 0→8, `fear` 24→21. Meatball W `windup` 0→9. Hiss `fear` 30→21. Brutus E `speed: 14000` plus a 6-tick windup. Lambo E `speed: 12000`, `radius` 2200→1800. | Instant area CC with no telegraph |
-| P4 | Avietė `w.chargeDelay: 15`; R damage no longer consumes Charged. | Point-and-click 6 m stun |
+| P4 | Raspberry `w.chargeDelay: 15`; R damage no longer consumes Charged. | Point-and-click 6 m stun |
 | P5 | Brutus R `duration` 90→75; Pounce and Purr-ify clear the caster's tether before they resolve. | 3 s cage with no escape |
-| P6 | Lambo R and Gabė R `windup` 15→20; Bravo R 18→21; Duchess R 18→21 with `stacks` 2→1; Domino R `windup` 15→18, `range` 11000→9500. | Big ults can be escaped only near their edge |
-| P7 | Bengas W `windup` 9→15. | "Turn away" cannot be done in time |
+| P6 | Lambo R and Gabby R `windup` 15→20; Bravo R 18→21; Duchess R 18→21 with `stacks` 2→1; Domino R `windup` 15→18, `range` 11000→9500. | Big ults can be escaped only near their edge |
+| P7 | Bengal W `windup` 9→15. | "Turn away" cannot be done in time |
 | P8 | Purr-ify `immune` 15→30, and it breaks tether; Pixel R and Chili R `immune` 15→21. | Cleanse expires before the ult lands |
 | P9 | Cacklejaw R `windup` 0→9, with the victim chosen when the order is given and marked during the windup; `r.speed` 24000→20000. | 12 m homing execute with no warning |
 | P10 | Howler E gets `e.fearRange: 4500` and ignores zone ticks. The client-side skip is already in B4.5. | Fears any attacker at any range |

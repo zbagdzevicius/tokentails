@@ -1,5 +1,5 @@
 /**
- * Avietė: Raspberry static: sparks that end in raspberry dots. Timbre: theremin buzz and static (square, bit-crushed).
+ * Raspberry: Raspberry static: sparks that end in raspberry dots. Timbre: theremin buzz and static (square, bit-crushed).
  * Champion sound and motif layer (audio/champ/types.ts, CHAMP-IDENTITY.md §3).
  *
  * Sound: every Q/E cast adds a short bit-crushed static stutter (the motif, rising Q → E); Shiny Coat (W) swaps it for
@@ -16,7 +16,7 @@ import type { ChampAudio, MotifPainter, P3 } from './types';
 const FADE_HOLD = 2;
 const FADE_TWINKLE = 3;
 
-/** Avietė's own sounds, baked as `c:aviete:<name>`. */
+/** Raspberry's own sounds, baked as `c:aviete:<name>`. */
 export const AVIETE_SOUNDS = Object.freeze({
   /** The raspberry pop: a tiny bright sine blip that drops (0.07 s). */
   drupe: [0.35, 0, 2200, 0, 0.01, 0.05, 0, 1, -40, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0.01, 0, 0],

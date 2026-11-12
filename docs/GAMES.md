@@ -202,7 +202,7 @@ A 3v3 cat-and-dog MOBA in `pawlegends/` (three.js, Vite; Phase 1 POC, spec
 `docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of twenty
 upright, Pink Paw Knight-style heroes and a Paw Trick (Pounce, Snack Break, Hiss, Purr-ify), and plays with two bot
 allies of its own side against three bots of the other side on Purrhaven Crossing. Cats (10): Clem, Sage, the
-four shelter champions (sim v9) Lambo (tank), Avietė (assassin), Bengas (mage) and Gabė (support), and the four
+four shelter champions (sim v9) Lambo (tank), Raspberry (assassin), Bengal (mage) and Gabby (support), and the four
 original cats (sim v11, POC.md §6.8c) Meatball (tank), Pixel (marksman), Duchess (mage) and Stilts (assassin);
 dogs (10): Sir Brutus, Cacklejaw, the five original dogs (sim v14, `docs/plans/moba/DOGS-V13.md`) Nugget
 (support), Marshmallow (mage), Bravo (tank), Chili (marksman) and Howler (fighter), and three more (sim v15,
@@ -220,15 +220,15 @@ Dec 1; v9 is retired).
     - Cacklejaw W, Meatball W and Sir Brutus E: 0.3 s.
     - Lambo E: 0.4 s, with the ring drawn at the landing point.
     - Frankie W: pops no sooner than 0.3 s.
-    - Bengas W: 0.5 s.
+    - Bengal W: 0.5 s.
   - **Big ults wind up longer:**
-    - Lambo R and Gabė R: 0.67 s.
+    - Lambo R and Gabby R: 0.67 s.
     - Bravo R and Duchess R: 0.7 s (Duchess R now gives one Disdain).
     - Domino R: 0.6 s at 9.5 m.
     - Purr-ify (1 s of immunity) cast on the telegraph blocks any of them.
   - **Pack Hunt** marks its victim at the start of a 0.3 s windup and fizzles if the victim escapes.
   - **Sir Brutus's ring** lasts 2.5 s; the challenged hero breaks it with Pounce or any cleanse.
-  - **Avietė's** Shiny Coat charges after 0.5 s, and her R no longer stuns.
+  - **Raspberry's** Shiny Coat charges after 0.5 s, and her R no longer stuns.
   - **Six skill shots fly slower.**
   - **Howler's Talk Back** scares only attackers within 4.5 m.
   - **Feared heroes** slide along walls.

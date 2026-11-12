@@ -80,7 +80,7 @@ function qcOf(shot, aspect) {
   }
   return qcCache.get(k);
 }
-const CHAMPIONS = new Set(['Lambo', 'Avietė', 'Bengas', 'Gabė']);
+const CHAMPIONS = new Set(['Lambo', 'Raspberry', 'Bengal', 'Gabby']);
 /**
  * v3.6: the game's own HUD is part of the footage, so the type QC counts it as an obstacle (v3.5 laid CALM PUDDING. on
  * the score bar): its boxes (landscape fractions) per layer set, while the shot's hudFade keeps it on screen.
