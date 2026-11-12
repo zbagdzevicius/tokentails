@@ -484,6 +484,8 @@ export interface World {
   mg: Int32Array;
   /** Sim v21: per hero, ticks until it can use a Boing Bed again (V21-FUN.md §2.1). Hashed. */
   boingT: Int32Array;
+  /** Sim v24: per hero, ticks it has stood in a Boing Bed's disc without a walking order (units/boing.ts). Hashed. */
+  bedT: Int32Array;
   // Scalars
   globals: Int32Array;
   rng: Rng;
@@ -774,6 +776,7 @@ export function createWorld(seed: number, map = 0): World {
     fmHitX: new Int32Array(big ? n * MASK_EXTRA : 0),
     mg: new Int32Array(map === 0 ? 0 : MG.Count),
     boingT: new Int32Array(h),
+    bedT: new Int32Array(h),
     globals: new Int32Array(G.Count),
     rng: new Rng(seed),
     humans: 1,
@@ -821,6 +824,8 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.pHitX, w.fmHitX, w.mg,
     // Sim v21.
     w.boingT,
+    // Sim v24.
+    w.bedT,
   ];
 }
 

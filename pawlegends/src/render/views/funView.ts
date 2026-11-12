@@ -2,6 +2,9 @@
  * Sim v21 (docs/plans/moba/V21-FUN.md §1.5, §1.6, §2): the Kibble Cannon, the Boing Beds and the Mega Yarn Balls on
  * the field. Render only: it reads the snapshot's `fun` block (the cannon's state, carrier, fuse, windup and aim; each
  * yarn ball) and the v21 events (a launch's flight arc, a bed's squash, the shot's muzzle cloud, a KABOOM's shockwave).
+ * Sim v24 (V21-FUN.md §2.1 "v24: instant beds"): a bed wobbles when a hero steps on it, and while the player's own hero
+ * is near one a dotted arc and a ring show where it throws (BED_GUIDE); the launch's squash, puff and ring play on the
+ * `boing` event itself.
  *
  * Original models built from primitives (a brass party cannon on a red-and-cream wheelbase, pastel cat beds with a paw
  * print, a striped yarn ball). Phone budget (PERF-IOS): a fixed set of meshes made once (one cannon, at most two balls,
@@ -38,6 +41,34 @@ const KIBBLE = 0xb5733a;
 const BED_COLORS = [0xffc4d6, 0xc9e7ff, 0xd8f5c8, 0xffe6a8];
 const YARN = 0xff7eb6;
 
+/**
+ * Sim v24: the bed guide. Shown while the player's own hero is within `near` m of a bed (and not flying): `dots` dots
+ * on the flight arc from the cushion to the landing and a ring at the landing, fading in over the last `fade` m. A hero
+ * stepping onto the disc (BOING.reach) wobbles the bed by `step` of a launch's squash.
+ */
+export const BED_GUIDE = Object.freeze({ near: 6, fade: 2, dots: 7, step: 0.45, reach: BOING.reach / 1000 });
+
+/** Hero ids the bed wobble looks at (both teams of the 5v5 map; Crossing uses the first six). */
+const HERO_SLOTS = 10;
+
+interface Bed {
+  root: THREE.Group;
+  squash: number;
+  /** Bed and landing centres (m). */
+  bx: number;
+  bz: number;
+  lx: number;
+  lz: number;
+  /** The throw arrow's own material (brightens with the guide). */
+  arrowMat: THREE.MeshBasicMaterial;
+  /** The guide: dots on the arc and the landing ring, in world space; its own material for the fade. */
+  guide: THREE.Group;
+  guideMat: THREE.MeshBasicMaterial;
+  dots: THREE.Mesh[];
+  /** Bit h set = hero h was on the cushion last frame (a new bit wobbles the bed). */
+  on: number;
+}
+
 interface Ball {
   root: THREE.Group;
   x: number;
@@ -51,6 +82,9 @@ const SPARK = { additive: true, n: 2, shape: SHAPE.STAR4, color: 0xffd34d, inten
 /** No yarn balls (a snapshot without the `fun` block, e.g. an older sim's replay): shared, not allocated per frame. */
 const NO_YARN: FunSnap['yarn'] = [];
 const _p = new THREE.Vector3();
+/** A launch's puff and ring (shared options objects). */
+const BED_PUFF = { n: 8, shape: SHAPE.PUFF, color: 0xf3e7d3, size: [0.3, 0.5], life: [0.35, 0.6], speed: [1, 2.2], up: 0.6 };
+const BED_RING = { r1: 2.2, dur: 0.3, color: '#FFF1D6', height: 0.35 };
 const _d = new THREE.Vector3();
 
 export class FunView {
@@ -70,7 +104,7 @@ export class FunView {
   private readonly lane: THREE.Mesh;
   private readonly laneMat: THREE.MeshBasicMaterial;
   private readonly balls: Ball[] = [];
-  private readonly beds: { root: THREE.Group; squash: number }[] = [];
+  private readonly beds: Bed[] = [];
   /** Hero id → render time its leap started (a `boing` event), so heroView can lift it on the arc. */
   private readonly leaps = new Map<number, number>();
   /** The cannon's spawn drop (s since it appeared) and whether it was on the ground last frame. */
@@ -138,7 +172,11 @@ export class FunView {
 
   /** Build the beds of map `index` (MAP_IDS order), both teams' (team 1's are the reflection of team 0's). */
   private buildBeds(index: number): void {
-    for (const b of this.beds) this.group.remove(b.root);
+    for (const b of this.beds) {
+      this.group.remove(b.root, b.guide);
+      b.arrowMat.dispose();
+      b.guideMat.dispose();
+    }
     this.beds.length = 0;
     const rows = FUN_BY_MAP[index]?.beds ?? [];
     const cushion = new THREE.CylinderGeometry(0.95, 1.05, 0.38, 20);
@@ -146,8 +184,11 @@ export class FunView {
     const pad = new THREE.CircleGeometry(0.22, 12);
     const toe = new THREE.CircleGeometry(0.1, 10);
     const padMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
-    const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide });
     const arrow = new THREE.ConeGeometry(0.35, 0.8, 3);
+    const dot = new THREE.CircleGeometry(0.16, 10);
+    dot.rotateX(-Math.PI / 2);
+    const ring = new THREE.RingGeometry(0.75, 0.95, 28);
+    ring.rotateX(-Math.PI / 2);
     for (let i = 0; i < rows.length * 2; i++) {
       const r = rows[i % rows.length];
       const team1 = i >= rows.length;
@@ -174,6 +215,7 @@ export class FunView {
       paw.rotation.x = -Math.PI / 2;
       paw.position.y = 0.395;
       // a faint arrow toward the landing (which way the bed throws)
+      const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide });
       const a = new THREE.Mesh(arrow, arrowMat);
       const ang = Math.atan2(-(ly - by), lx - bx);
       a.rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
@@ -183,8 +225,21 @@ export class FunView {
       a.position.set(1.6, 0.1, 0);
       root.add(c, rr, paw, holder);
       root.position.set(toX(bx), 0, toZ(by));
-      this.group.add(root);
-      this.beds.push({ root, squash: 0 });
+      // v24 guide: where this bed throws (dots on the arc, a ring at the landing), shown near the player's hero
+      const guideMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, toneMapped: false });
+      const guide = new THREE.Group();
+      const dots: THREE.Mesh[] = [];
+      for (let k = 0; k < BED_GUIDE.dots; k++) {
+        const d = new THREE.Mesh(dot, guideMat);
+        dots.push(d);
+        guide.add(d);
+      }
+      const land = new THREE.Mesh(ring, guideMat);
+      land.position.set(toX(lx), 0.07, toZ(ly));
+      guide.add(land);
+      guide.visible = false;
+      this.group.add(root, guide);
+      this.beds.push({ root, squash: 0, bx: toX(bx), bz: toZ(by), lx: toX(lx), lz: toZ(ly), arrowMat, guide, guideMat, dots, on: 0 });
     }
   }
 
@@ -231,7 +286,9 @@ export class FunView {
         const b = this.bedAt(toX(e.x), toZ(e.y));
         if (b >= 0) this.beds[b].squash = 1;
         _p.set(toX(e.x), 0.2, toZ(e.y));
-        this.particles.burst(_p, { n: 8, shape: SHAPE.PUFF, color: 0xf3e7d3, size: [0.3, 0.5], life: [0.35, 0.6], speed: [1, 2.2], up: 0.6 });
+        this.particles.burst(_p, BED_PUFF);
+        // v24: a ring off the cushion the moment it throws (the sound plays on the same event, gameView)
+        this.shock.start(_p.setY(0), BED_RING);
         return;
       }
       case 'cannonFire': {
@@ -299,12 +356,7 @@ export class FunView {
       this.map = map;
       this.buildBeds(map);
     }
-    for (const b of this.beds) {
-      if (b.squash <= 0) continue;
-      b.squash = Math.max(0, b.squash - dt * 3);
-      const k = this.reduceMotion ? 0 : Math.sin(b.squash * Math.PI) * b.squash;
-      b.root.scale.set(1 + 0.25 * k, 1 - 0.45 * k, 1 + 0.25 * k);
-    }
+    this.updateBeds(dt, heroAt);
     const c = fun?.cannon;
     const state = c?.state ?? 'away';
     if (state === 'ground' && this.wasState !== 'ground' && this.wasState !== 'soon') this.dropT = 0.6; // a drop, no sky fall
@@ -380,6 +432,45 @@ export class FunView {
       b.x = x;
       b.z = z;
       b.root.position.set(x, 0.85, z);
+    }
+  }
+
+  /** Sim v24: each bed's wobble when a hero steps on, its squash, and the guide near the player's own hero. */
+  private updateBeds(dt: number, heroAt: (id: number) => { x: number; z: number; yaw: number } | null): void {
+    const me = this.leaps.has(this.mySlot) ? null : heroAt(this.mySlot);
+    const mx = me ? me.x : 0;
+    const mz = me ? me.z : 0;
+    const r2 = BED_GUIDE.reach * BED_GUIDE.reach;
+    for (const b of this.beds) {
+      // a hero stepping onto the cushion: a small wobble (the launch itself squashes fully on the event)
+      let on = 0;
+      for (let h = 0; h < HERO_SLOTS; h++) {
+        const p = heroAt(h);
+        if (p && (p.x - b.bx) ** 2 + (p.z - b.bz) ** 2 <= r2) on |= 1 << h;
+      }
+      if ((on & ~b.on) !== 0 && b.squash < BED_GUIDE.step) b.squash = BED_GUIDE.step;
+      b.on = on;
+      if (b.squash > 0) {
+        b.squash = Math.max(0, b.squash - dt * 3);
+        const k = this.reduceMotion ? 0 : Math.sin(b.squash * Math.PI) * b.squash;
+        b.root.scale.set(1 + 0.25 * k, 1 - 0.45 * k, 1 + 0.25 * k);
+      }
+      // the guide: fades in as the player's hero comes within BED_GUIDE.near m
+      const d = me ? Math.hypot(mx - b.bx, mz - b.bz) : Infinity;
+      const a = Math.min(1, Math.max(0, (BED_GUIDE.near - d) / BED_GUIDE.fade));
+      b.guide.visible = a > 0;
+      b.arrowMat.opacity = 0.35 + 0.5 * a;
+      if (a <= 0) continue;
+      const pulse = this.reduceMotion ? 1 : 0.75 + 0.25 * Math.sin(this.time * 6);
+      b.guideMat.opacity = 0.85 * a * pulse;
+      // dots on the flight arc (LEAP's parabola), drifting toward the landing
+      const n = b.dots.length;
+      const drift = this.reduceMotion ? 0 : (this.time * 0.8) % (1 / n);
+      for (let k = 0; k < n; k++) {
+        const u = ((k + 0.5) / n + drift) % 1;
+        const dot = b.dots[k];
+        dot.position.set(b.bx + (b.lx - b.bx) * u, 0.08 + leapLift(u * LEAP.secs) * 0.35, b.bz + (b.lz - b.bz) * u);
+      }
     }
   }
 
