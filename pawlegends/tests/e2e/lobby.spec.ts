@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { toChampSelect } from './helpers';
 
 // Home (HOME-MODES.md §4, was the lobby redesign), desktop 1280x720 and landscape 844x390: the round PLAY is visible and on
 // top, the whole pedestal stays in frame (it was cut off at both sizes), Settings closes on Escape with focus back on
@@ -94,7 +95,7 @@ test('the champion select draws the tile and seat portraits on their element fra
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await page.locator('.hm-plate').click();
+  await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"] .cs-tile[data-h="clem"] .cs-face');
   const looks = await page.evaluate(() => {
     const face = document.querySelector<HTMLElement>('.cs-tile[data-h="clem"] .cs-face')!;
