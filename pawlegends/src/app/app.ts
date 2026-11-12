@@ -27,8 +27,9 @@ import { isSku, type SkuId } from '../money/skus';
 import { CATALOG_SKUS, CHAMPION_IDS, STARTERS, catalogSku, champSkuOf, type CatalogSku } from '../money/catalog';
 import { appHidden, canPlay, champStatus, localChampions, lockReason, openChampions, ownedCount, type ChampionsState } from '../meta/champions';
 import { PAID_COATS, bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
-import { Lobby } from '../render/lobby';
-import { bakeLooks, bakePortrait, bakePortraits, cachedPortraitUrl, portraitUrl } from '../render/portraits';
+import { ArtStage } from '../ui/stage/artStage';
+import { onSkinArt } from '../ui/art';
+import { portraitUrl, warmPortraits } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
 import { isPhone } from '../render/perf/device';
 import { FramePacer, MATCH_FPS, WARM, paceTarget, warmMatch } from '../render/perf/pacer';
@@ -156,7 +157,8 @@ export function framePcts(xs: readonly number[]): { p50: number; p95: number; p9
 
 export class App {
   readonly gr: GameRenderer;
-  readonly lobby: Lobby;
+  /** The menu stage: the screen's painted scene and the hero's art (ui/stage/artStage.ts; no 3D on menus). */
+  readonly stage: ArtStage;
   readonly ent = new Entitlements();
   readonly checkout: CheckoutBridge;
   readonly analytics: Analytics;
@@ -231,10 +233,12 @@ export class App {
     if (this.governor.step > 0) this.gr.apply(tierSettings(this.tier, { phone: this.phone, step: this.governor.step }));
     document.documentElement.dataset.phone = this.phone ? '1' : '0';
     this.perf = perfFromUrl() ? new PerfReadout(root) : null;
-    // Hero portraits for the pick cards and the HUD, rendered once by this renderer (render/portraits.ts).
-    bakePortraits(this.gr);
     document.documentElement.dataset.quality = this.gr.settings.tier;
-    this.lobby = new Lobby(this.gr);
+    // founder, Nov 13: the menus show the heroes as painted art (faces, splashes, skin art), never a 3D render
+    this.stage = new ArtStage(root, this.gr.renderer.domElement, () => this.gr.settings.tier === 'low');
+    // the worn skins' painted faces (profile ring, pick tiles and seats, HUD) load now; the screen takes them as they land
+    onSkinArt(() => this.artReady());
+    warmPortraits(HERO_IDS.map((h) => [h, this.lookFor(h)] as [HeroId, Look]));
     const p = startSession();
     this.sessionNo = p.sessions;
     this.dayN = retentionDay();
@@ -267,8 +271,6 @@ export class App {
     rotatePrompt(root);
     addEventListener('resize', () => {
       this.gr.resize();
-      // a resize clears the drawing buffer: the lobby frozen behind the champion browser draws once more
-      this.champFrozen = false;
     });
     // iOS Safari only lets a touch's end (touchend, pointerup, click) start or resume audio, not its pointerdown
     for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, () => sfx.unlock(), { capture: true });
@@ -373,6 +375,17 @@ export class App {
     return { items: s.items, unlocks: new Set(loadProfile().unlocks), roster: EMPTY_ROSTER };
   }
 
+  private artTimer: ReturnType<typeof setTimeout> | null = null;
+  /** A worn skin's painted face loaded: Home's profile ring and the pick's tiles and seats take it (debounced). */
+  private artReady(): void {
+    if (this.artTimer) return;
+    this.artTimer = setTimeout(() => {
+      this.artTimer = null;
+      if (this.screen === 'title') this.refreshMeta(false);
+      else if (this.screen === 'pick' && this.screenEl) refreshPickFaces(this.screenEl);
+    }, 150);
+  }
+
   private lookFor(hero: HeroId): Look {
     const chosen = loadProfile().looks[hero];
     return resolveLook(hero, this.owned(), chosen as Partial<Look> | undefined);
@@ -403,7 +416,7 @@ export class App {
     this.keepPlayable();
     if (this.screen === 'title') this.showTitle(offer);
     else if (this.screen === 'pick') {
-      this.lobby.setHero(this.choice.hero, 0, this.lookFor(this.choice.hero));
+      this.setLobbyHero(this.choice.hero);
       // CHAMPION-STORE.md: an unlock or a purchase landed while the pick is up
       if (this.screenEl) refreshPickChamps(this.screenEl);
     }
@@ -497,12 +510,10 @@ export class App {
     else this.setLobbyHero(h);
   }
 
-  /** The lobby hero's portrait in its look, for the frame badge (baked on demand). */
+  /** The lobby hero's face in its look, for the frame badge (the skin's face once it has loaded). */
   private badgePortrait(): string | null {
     const hero = this.dare?.hero ?? this.choice.hero;
-    const look = this.lookFor(hero);
-    bakePortrait(this.gr, hero, look);
-    return portraitUrl(hero, look);
+    return portraitUrl(hero, this.lookFor(hero));
   }
 
   /** The bought look goes on the lobby hero, with confetti and a short "New!" line, as proof the purchase arrived. */
@@ -520,7 +531,7 @@ export class App {
     p.looks[hero] = { coat, chroma: (p.looks[hero] as Partial<Look> | undefined)?.chroma ?? null };
     saveProfile(p);
     this.choice = { ...this.choice, hero };
-    this.lobby.confetti(2.5);
+    this.stage.confetti(2.5);
     const name = sku === 'pl_founder' ? `Founder coat on ${HERO_NAME(hero)}` : sku === 'pl_starter' ? 'Pink Bow Clem' : 'Dawnblade Clem';
     const el = document.createElement('div');
     el.className = 'pl-new';
@@ -562,7 +573,7 @@ export class App {
     if (coatHero) this.choice = { ...this.choice, hero: coatHero };
     // a single champion goes on the lobby at once
     if (champ && def.hero && (HERO_IDS as readonly string[]).includes(def.hero)) this.choice = { ...this.choice, hero: def.hero as HeroId };
-    this.lobby.confetti(2.5);
+    this.stage.confetti(2.5);
     const el = document.createElement('div');
     el.className = 'pl-new';
     el.setAttribute('role', 'status');
@@ -577,7 +588,7 @@ export class App {
 
   private setLobbyHero(hero: HeroId): void {
     const look = this.lookFor(hero);
-    this.lobby.setHero(hero, 0, look);
+    this.stage.setHero(hero, look);
     document.documentElement.dataset.look = `${hero}:${lookKey(look)}`;
   }
 
@@ -781,7 +792,7 @@ export class App {
       // the match chunk loads during the 0.4 s dolly (it is usually prefetched already)
       playOut: () => {
         void loadMatch().catch(() => undefined);
-        return this.lobby.playOut();
+        return this.stage.playOut();
       },
       sound: (n) => sfx.play(n),
       onPlay: (c, seed) => {
@@ -843,13 +854,8 @@ export class App {
     // switch, an entitlement or progress refresh, an equip) patches the changed parts into the same Home. Rebuilding
     // it replayed every entrance animation behind the next panel and re-entered the 3D lobby.
     const patched = !first && patchHome(this.screenEl, opts);
-    if (!patched) {
-      this.lobby.enter();
-      // Home (HOME-MODES.md §4): the hero stands centred on the key art's ring, at 72% of the full band
-      this.lobby.side = 0;
-      this.lobby.heroScale = 0.72;
-      this.lobby.footShare = 0.09;
-    }
+    // Home (HOME-MODES.md §4): the hero's art stands centred on the key art's ring
+    if (!patched) this.stage.enter('home');
     this.setLobbyHero(this.dare?.hero ?? this.choice.hero);
     if (!patched) {
       // the entrance plays on the first Home of the visit and on the one after a match; every other Home is still
@@ -875,10 +881,7 @@ export class App {
       this.pickFromFlow = true;
     }
     const flow = (this.pickFromFlow ? this.pickMode : null) ?? modeById((this.modeChoiceNow ?? loadModeChoice()).mode, modeList()) ?? null;
-    this.lobby.enter();
-    this.lobby.side = 0.5;
-    this.lobby.heroScale = 1;
-    this.lobby.footShare = 0;
+    this.stage.enter('pick');
     this.setLobbyHero(this.choice.hero);
     const p = loadProfile();
     this.setScreen(
@@ -1222,7 +1225,7 @@ export class App {
     this.analytics.track('match_start', { hero, difficulty, trick, dare: false, party: true, load_ms: sinceLoadMs(), first_match: p.matches === 0 });
     const veil = loadingVeil(this.root, 'Into the Crossing...', match.mode === 'casual' ? 'PvP' : match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', { name: HERO_TEXT[hero].title, matches: p.heroMatches[hero] ?? 0 });
     this.setScreen('match', null);
-    this.lobby.leave();
+    this.stage.leave();
     this.session?.dispose();
     this.session = null;
     const token = ++this.matchToken;
@@ -1319,7 +1322,7 @@ export class App {
       matches: p.heroMatches[c.hero] ?? 0,
     });
     this.setScreen('match', null);
-    this.lobby.leave();
+    this.stage.leave();
     this.session?.dispose();
     this.session = null;
     this.pendingPause = false;
@@ -1347,9 +1350,6 @@ export class App {
   /** A host pause (or a hidden tab) that arrived while the match chunk loaded: applied when the session starts. */
   private pendingPause = false;
   private matchPrefetched = false;
-
-  /** The lobby's last frame is up behind the champion browser: no more lobby frames until it closes. */
-  private champFrozen = false;
 
   private beginSession(Session: typeof MatchSession, setup: MatchSetup, c: Choice, veil: HTMLElement): void {
     this.session = new Session(this.gr, this.root, setup, {
@@ -1533,12 +1533,9 @@ export class App {
     if (this.frameMs.length > 60) this.analytics.track('perf_sample', { ...framePcts(this.frameMs), tier: this.tier });
     this.session?.dispose();
     this.session = null;
-    this.lobby.enter();
-    this.lobby.side = 0.45;
-    this.lobby.heroScale = 1;
-    this.lobby.footShare = 0;
+    this.stage.enter('results', { won });
     this.setLobbyHero(e.replay.hero);
-    if (won) this.lobby.confetti(3);
+    if (won) this.stage.confetti(3);
     let link: string | null = null;
     // a party match has no dare link (its seed belongs to the party)
     if (won && !partyEnd && !blitz) {
@@ -1756,20 +1753,8 @@ export class App {
         this.pendingReveal = sku;
         this.analytics.track('checkout_start', { sku });
       },
-      preview: (hero, coat) => {
-        if (!(HERO_IDS as readonly string[]).includes(hero)) return null;
-        const look: Look = { coat, chroma: null };
-        bakePortrait(this.gr, hero as HeroId, look);
-        return portraitUrl(hero as HeroId, look);
-      },
-      // the coat grid draws every coat on its hero: the store shows the splash first and asks for a few portraits per
-      // frame (`warm`), so opening Coats never stalls the page on a slow GPU
-      ready: (hero, coat) => ((HERO_IDS as readonly string[]).includes(hero) ? cachedPortraitUrl(hero as HeroId, { coat, chroma: null }) : null),
-      warm: (looks) =>
-        bakeLooks(
-          this.gr,
-          looks.filter(([h]) => (HERO_IDS as readonly string[]).includes(h)).map(([h, coat]) => [h as HeroId, { coat, chroma: null }] as [HeroId, Look]),
-        ),
+      // a face (ui/art.ts) for the frame previews; the coat cards show the skin's painted splash (store.ts `coatImg`)
+      preview: (hero, coat) => ((HERO_IDS as readonly string[]).includes(hero) ? portraitUrl(hero as HeroId, { coat, chroma: null }) : null),
       equipped: () => {
         const p = loadProfile();
         const worn = new Set<string>();
@@ -2048,19 +2033,16 @@ export class App {
     this.raf = requestAnimationFrame(this.frameCb);
     const inMatch = this.screen === 'match' && !!this.session;
     const paused = this.session?.isPaused ?? false;
+    // founder, Nov 13: the menus are painted art in the DOM (ui/stage/artStage.ts), so no WebGL frame is drawn outside a
+    // match: no GPU work behind Home, the champion select, the store or the results
+    if (!this.session) {
+      this.last = now;
+      return;
+    }
     const saver = batterySaver().on || this.gr.settings.fpsCap < MATCH_FPS;
-    // PERF-IOS §8 Track C: the champion browser covers the 3D view (its own clip runs on its own canvas): over a menu
-    // the lobby is drawn once more and then not at all until it closes; over a match it counts as a covering panel
-    const champ = champCovered();
-    if (champ && !this.session) {
-      if (this.champFrozen) return;
-      this.champFrozen = true;
-    } else this.champFrozen = false;
-    // the champion select covers nearly the whole phone screen (grid, panel, scrim): the stage behind it runs at the
-    // covered rate there (it still turns, just slower), the menu rate on a desktop where the hero shows at the sides
-    const pickCover = this.phone && this.screen === 'pick' && !this.session;
-    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champ || pickCover, saver });
-    if (!this.champFrozen && !this.pacer.due(now, fps)) return;
+    // PERF-IOS §8 Track C: over a match the champion browser counts as a covering panel (its clip has its own canvas)
+    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champCovered(), saver });
+    if (!this.pacer.due(now, fps)) return;
     const t0 = performance.now();
     const raw = Math.max(0, now - this.last);
     const dt = Math.min(0.1, raw / 1000);
@@ -2076,11 +2058,7 @@ export class App {
     if (inMatch && this.frameMs.length < 20000) this.frameMs.push(raw);
     // Draw calls for the perf check (POC.md §10): a plain data attribute, sampled once a second, no debug global.
     if ((this.frames = (this.frames + 1) % 60) === 0) document.documentElement.dataset.draws = String(this.gr.renderer.info.render.calls);
-    if (this.session) this.session.frame(dt);
-    else {
-      this.lobby.update(dt);
-      this.gr.render();
-    }
+    this.session.frame(dt);
     const work = performance.now() - t0;
     if (inMatch && !paused && !this.forcedTier) {
       const th = thermal().state;

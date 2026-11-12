@@ -17,6 +17,8 @@ import { catalogPrice, itemState } from './store';
 import type { HeroId } from '../sim/api';
 import { PAID_COATS } from '../render/cosmetics';
 import { icon } from './icons';
+import { faceImgAttrs, installArtFallback, skinArtId } from './art';
+import { HERO_IDS } from '../data/heroes';
 import { LOCK_SVG, TICK_SVG, bookClose, bookTabs, focusTab, hex, wireTabs } from './passBook';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -27,7 +29,7 @@ export interface PassOpts {
   claim(row: PassRow | null, tier: number | null): boolean;
   /** Buy a pass SKU (web store only). */
   buy?(sku: string): boolean;
-  /** A hero portrait for a coat tile (the coat's own look when baked, else the hero's default), or null. */
+  /** A hero portrait for a coat tile without painted skin art (ui/art.ts covers the rest), or null. */
   portrait?(hero: HeroId, item: string): string | null;
   /** Back to the Treat Track tab. */
   onTrack?(): void;
@@ -37,6 +39,7 @@ export interface PassOpts {
 const EMPTY: PassState = { id: 's1', xp: 0, tier: 0, premium: 'none', skips: 0, claimed: [], endsAt: '' };
 
 export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; close(): void; refresh(): void } {
+  installArtFallback();
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-pass pl-book';
   root.setAttribute('role', 'dialog');
@@ -54,8 +57,14 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
   const preview = (item: string, name: string, hero: string | undefined): string => {
     if (item.startsWith('coat.')) {
       const c = PAID_COATS[item]?.coat;
-      const pic = hero ? o.portrait?.(hero as HeroId, item) ?? null : null;
-      const face = pic ? `<img src="${esc(pic)}" alt="" loading="lazy" decoding="async" draggable="false">` : icon('coat');
+      // the coat's painted face (brand-book skin art; the hero's face if it fails), else the given portrait
+      const art = hero && (HERO_IDS as readonly string[]).includes(hero) && skinArtId({ coat: item });
+      const pic = !art && hero ? (o.portrait?.(hero as HeroId, item) ?? null) : null;
+      const face = art
+        ? `<img ${faceImgAttrs(hero as HeroId, { coat: item })} alt="" loading="lazy" decoding="async" draggable="false">`
+        : pic
+          ? `<img src="${esc(pic)}" alt="" loading="lazy" decoding="async" draggable="false">`
+          : icon('coat');
       const sw = c ? `<span class="sw" aria-hidden="true"><i style="background:${hex(c.base)}"></i><i style="background:${hex(c.light)}"></i><i style="background:${hex(c.accent)}"></i></span>` : '';
       return `<span class="pv coat"${c ? ` style="--c1:${hex(c.base)};--c2:${hex(c.accent)}"` : ''}>${face}${sw}</span>`;
     }

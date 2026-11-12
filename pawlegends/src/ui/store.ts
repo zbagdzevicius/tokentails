@@ -31,7 +31,9 @@ import './champStore/champStore.css';
 import { PAID_COATS } from '../render/cosmetics';
 import { browserCurrency } from '../money/skus';
 import { icon } from './icons';
-import { portraitUrl, SKU_LOOK } from '../render/portraits';
+import { SKU_LOOK } from '../render/portraits';
+import { artImgAttrs, artLayers, skinArtId } from './art';
+import { HERO_IDS } from '../data/heroes';
 import { assetRev } from './assetRev';
 
 /** Plain words for the planned extras the pack lines name (they are not on sale yet). */
@@ -71,11 +73,8 @@ const LAUNCH = (() => {
 /** One SKU card (also used by the offer card). */
 export function skuCard(sku: SkuId, currency: Currency, opts: { compact?: boolean } = {}): string {
   const d = SKUS[sku];
-  // a real preview of the look the pack is named after (rendered by the game), the icon only as a fallback
-  const pic = portraitUrl('clem', SKU_LOOK[sku]);
-  const art = pic
-    ? `<div class="pl-sku-art pic sku-${sku}" style="background-image:url(${pic})" role="img" aria-label="${esc(d.tag)}"></div>`
-    : `<div class="pl-sku-art sku-${sku}">${icon(sku === 'pl_starter' ? 'paw' : 'crown')}</div>`;
+  // the painted art of the look the pack is named after (the skin's splash over Clem's own)
+  const art = `<div class="pl-sku-art pic sku-${sku}" style="background-image:${artLayers('clem', SKU_LOOK[sku], 360)}" role="img" aria-label="${esc(d.tag)}"></div>`;
   const gloss = opts.compact ? [] : glossaryFor(d.deliveredAtMvp);
   return `<div class="pl-sku ${opts.compact ? 'compact' : ''}" data-sku="${sku}">
     ${art}
@@ -177,7 +176,7 @@ export interface StoreOpts {
   onNotify?(): void;
   /** Analytics: Buy tapped. */
   onBuy?(sku: string): void;
-  /** A portrait of `hero` wearing `coat` (baked by the app), or null. */
+  /** The face of `hero` wearing `coat` (ui/art.ts: the skin's painted face once loaded, else the hero's), or null. */
   preview?(hero: string, coat: string | null): string | null;
   /** Equip an owned item (a coat on its hero, a frame and its title). */
   onEquip?(def: CatalogSku): void;
@@ -200,13 +199,6 @@ export interface StoreOpts {
   onInfo?(hero: HeroId, within: HTMLElement): void;
   /** The cosmetic items the player wears now (coats on their heroes, the frame and title): the Equipped state. */
   equipped?(): ReadonlySet<string>;
-  /** Render these hero-in-coat portraits now (`preview` and `ready` then read them). */
-  warm?(looks: readonly [hero: string, coat: string | null][]): void;
-  /**
-   * A hero-in-coat portrait only when already rendered, else null (no bake). With it the coat grid draws the splash
-   * first and renders the portraits a few per frame through `warm`, swapping each in as it is ready.
-   */
-  ready?(hero: string, coat: string | null): string | null;
 }
 
 /** The bottom tab bar (Wild Rift's FEATURED · CHAMPION · SKIN · ITEMS): the views each tab lights. */
@@ -412,36 +404,16 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     if (f) return `"${f.title.name}" title`;
     return heroName(def.hero ?? heroOfCoat(coatOf(def) ?? ''));
   };
-  /** A coat's portrait on its hero (baked by the app), else the hero's splash art. */
-  /** Coats still to render (with `ready`): baked a few per frame after the grid draws, then swapped in. */
-  const pending = new Set<string>();
-  let baking = 0;
+  /**
+   * A coat's painted art: the brand-book skin splash (pawlegends.app, lazy; the hero's splash when it fails to load),
+   * else the hero's splash. No 3D render.
+   */
   const coatImg = (coat: string, sizes: string): string => {
     const h = heroOfCoat(coat);
-    const pic = o.ready ? o.ready(h, coat) : (o.preview?.(h, coat) ?? null);
-    if (!pic && o.ready && o.warm) pending.add(coat);
-    return pic
-      ? `<img class="cst-art cst-pic" alt="" draggable="false" src="${pic}">`
+    const look = { coat };
+    return skinArtId(look) && (HERO_IDS as readonly string[]).includes(h)
+      ? `<img class="cst-art cst-skin" alt="" loading="lazy" decoding="async" draggable="false" data-coat="${esc(coat)}" ${artImgAttrs(h as HeroId, look, { low: low(), sizes })}>`
       : `<img class="cst-art" alt="" loading="lazy" decoding="async" draggable="false" data-coat="${esc(coat)}" ${splashAttrs(base, h, low(), sizes)}>`;
-  };
-  const bakeSome = (): void => {
-    baking = 0;
-    if (!root.isConnected || !pending.size || !o.warm || !o.ready) return;
-    const batch = [...pending].slice(0, 2);
-    for (const c of batch) pending.delete(c);
-    o.warm(batch.map((c) => [heroOfCoat(c), c]));
-    for (const c of batch) {
-      const url = o.ready(heroOfCoat(c), c);
-      if (!url) continue;
-      for (const img of root.querySelectorAll<HTMLImageElement>(`img[data-coat="${CSS.escape(c)}"]`)) {
-        img.removeAttribute('srcset');
-        img.removeAttribute('sizes');
-        img.removeAttribute('data-coat');
-        img.src = url;
-        img.classList.add('cst-pic');
-      }
-    }
-    if (pending.size) baking = window.setTimeout(bakeSome, 30);
   };
   const cosArt = (def: CatalogSku, sizes = CARD_SIZES): string => {
     if (def.kind === 'pass') return `<span class="cst-passart pic" style="background-image:url('${esc(`${base}assets/lobby/promo-pass.webp${assetRev()}`)}')" aria-hidden="true"></span>`;
@@ -480,15 +452,8 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   const fineHtml = (): string =>
     `<p class="fine safe">${esc(safeguardsLine(currency))}${o.termsUrl ? ` <a href="${esc(o.termsUrl)}" target="_blank" rel="noopener">Terms and refunds</a>` : ''}</p>`;
   /** Coats, Sets, Frames & Titles and the pass: one vertical grid of cards, the fine print at its end. */
-  const warmed = new Set<StoreTab>();
   const cosmeticsView = (): string => {
     const skus = tabSkus(tab);
-    if (!warmed.has(tab) && o.warm && !o.ready) {
-      warmed.add(tab);
-      const looks = skus.flatMap((d) => d.items.filter((i) => i.startsWith('coat.')).slice(0, d.kind === 'bundle' ? 2 : 1).map((c) => [heroOfCoat(c), c] as [string, string | null]));
-      if (tab === 'frames') looks.push(['clem', null]);
-      o.warm(looks);
-    }
     const label = tab === 'coats' ? 'Coats' : tab === 'sets' ? 'Sets' : tab === 'frames' ? 'Frames and titles' : 'Legends Pass';
     return `<div class="cst-box"><div class="cst-grid" data-scroll="grid" role="group" aria-label="${label}">${skus.map(cosCardHtml).join('')}
       <div class="cst-fine"><p class="fine">Cosmetic only: nothing here changes a match. Checkout opens on a secure web page.</p>${fineHtml()}</div>
@@ -669,7 +634,6 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       }, { passive: true });
       end();
     }
-    if (pending.size && !baking) baking = window.setTimeout(bakeSome, 30);
     // a detail that opens takes focus (its close button); one that closes gives it back to its card
     const want = detailFocus ?? (detail ? (focusKey && focusInDetail ? focusKey : 'detail-close') : focusKey);
     detailFocus = null;

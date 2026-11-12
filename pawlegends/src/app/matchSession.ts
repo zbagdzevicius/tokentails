@@ -32,7 +32,7 @@ import { coarsePointer } from './platform';
 import { getSkin, isCardSkinId, putSkin, type CatSkin } from '../render/skins/skinStore';
 import { eyesOf } from '../render/skins/registry';
 import type { SkinFxMode } from '../render/skins/tierFx';
-import { bakePortrait, portraitUrl } from '../render/portraits';
+import { portraitUrl, warmPortraits } from '../render/portraits';
 import { toX, toZ } from '../render/coords';
 import { FADE, SHAPE } from '../render/fx/Particles.js';
 import { LowHp } from '../render/fx/lowHp';
@@ -734,7 +734,8 @@ export class MatchSession {
     this.music.start();
     // the announcer's lines for this match (its six heroes' lines too), fetched and decoded before they are needed
     sfx.preloadVoice(matchVoiceKeys(w.picks));
-    if (this.setup.look) bakePortrait(this.gr, hero, this.setup.look);
+    // the worn skin's painted face (HUD, VS card) starts loading now; the hero's own face shows until it lands
+    if (this.setup.look) warmPortraits([[hero, this.setup.look]]);
     this.hud = new Hud(this.ui, hero, trick, {
       onSlot: (i) => {
         const me = this.units.find((u) => u.id === w.slot);

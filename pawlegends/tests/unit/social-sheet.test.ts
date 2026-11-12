@@ -64,7 +64,8 @@ describe('social sheet', () => {
     await flush();
     const rows = document.querySelectorAll('.pl-social-row');
     expect(rows).toHaveLength(5);
-    expect(document.querySelector('img')).toBeNull();
+    // names never become markup: the only pictures are painted hero faces (ui/art.ts)
+    expect(document.querySelector('img:not([src*="/assets/faces/"])')).toBeNull();
     // CHAT-AVATARS §6.1: a joinable party first (Friend 1), then offline A–Z; names stay text
     expect(rows[0].querySelector('.pl-social-name')!.textContent).toBe('Friend 1');
     expect([...document.querySelectorAll('.pl-social-name')].map((n) => n.textContent)).toContain('<img src=x onerror=alert(1)>');

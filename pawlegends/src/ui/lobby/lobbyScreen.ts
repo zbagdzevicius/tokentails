@@ -30,7 +30,7 @@ import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT } from '../heroText';
 import { icon } from '../icons';
 import { cardAttrs } from '../cards/el';
 import type { Choice } from '../screens';
-import { cssDataUrl } from '../cssUrl';
+import { cssPicUrl } from '../cssUrl';
 import { bindVersionMark, versionMarkHtml } from '../versionMark';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -153,8 +153,8 @@ export function playLabel(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'ident
 
 function badgeHtml(frame: FrameId | null | undefined, title: string | null | undefined, portrait: string | null | undefined, el: Element): string {
   if (!frame && !title) return '';
-  // an internal baked portrait only (data: or blob: URL), never raw into the style attribute
-  const pic = cssDataUrl(portrait);
+  // a checked picture URL only (ui/cssUrl.ts), never raw into the style attribute
+  const pic = cssPicUrl(portrait);
   portrait = pic ? portrait : null;
   const face = pic ? ` style="background-image:${pic}" ${cardAttrs(el, null)}` : '';
   return `<div class="pl-badge lb-badge" ${frame ? `data-frame="${frame}"` : ''} title="Earned on the Treat Track."><span class="ring${portrait ? ' pic tt-ring' : ''}"${face}></span><span class="lb-badge-t"><small>Profile frame</small>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;

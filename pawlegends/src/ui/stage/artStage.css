@@ -1,0 +1,99 @@
+/* The menu stage (ui/stage/artStage.ts): the screen's painted scene and the hero's painted card, plain DOM under every
+   screen. v6 Lightning Rivalry colours: logo gold frame, rose and sky glow, night ink. No infinite animation. */
+.pl-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #12091f;
+  contain: strict;
+}
+.pl-stage[hidden] { display: none; }
+.pl-stage-bg {
+  position: absolute;
+  inset: 0;
+  background: #2b1d2e center / cover no-repeat;
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1), filter 0.4s ease-out;
+}
+
+/* The hero card: 4:5, the art covers it (a hero's 2:3 splash crops its caption band). */
+.pl-stage-hero {
+  --h: 62vh;
+  position: absolute;
+  margin: 0;
+  left: 50%;
+  bottom: calc(10vh + var(--safe-b, 0px));
+  height: var(--h);
+  aspect-ratio: 4 / 5;
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.4s ease-out;
+}
+.pl-stage-hero::before {
+  /* the scene's ring under the card: a soft rose/sky glow on the floor */
+  content: '';
+  position: absolute;
+  left: -18%;
+  right: -18%;
+  bottom: -9%;
+  height: 22%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 225, 74, 0.55), rgba(255, 61, 127, 0.28) 55%, rgba(57, 166, 255, 0) 100%);
+}
+.pl-stage-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 28%;
+  border-radius: clamp(12px, 3vh, 22px);
+  border: clamp(2px, 0.45vh, 4px) solid #f7bc3c;
+  background: #12091f;
+  box-shadow:
+    0 0 0 clamp(1px, 0.3vh, 3px) rgba(18, 9, 31, 0.7),
+    0 1.6vh 4vh rgba(18, 9, 31, 0.55),
+    0 0 3.2vh rgba(255, 61, 127, 0.38),
+    0 0 7vh rgba(57, 166, 255, 0.22);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.pl-stage-hero.pop { animation: pl-stage-pop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.25); }
+@keyframes pl-stage-pop {
+  from { transform: translateX(-50%) translateY(2vh) scale(0.94); opacity: 0.4; }
+  to { transform: translateX(-50%); opacity: 1; }
+}
+
+/* the champion select: the hero stands right of centre behind the grid and panel (desktop), dimmed on a phone */
+.pl-stage[data-mode='pick'] .pl-stage-hero { --h: 76vh; left: 62%; bottom: 5vh; }
+html[data-phone='1'] .pl-stage[data-mode='pick'] .pl-stage-hero { opacity: 0.45; }
+/* the results: between the results column and the MVP card */
+.pl-stage[data-mode='results'] .pl-stage-hero { --h: 68vh; left: 58%; bottom: 8vh; }
+
+/* PLAY: the card leans in and the scene dims (DOLLY_MS) */
+.pl-stage.out .pl-stage-hero { transform: translateX(-50%) scale(1.08); opacity: 0.85; }
+.pl-stage.out .pl-stage-bg { transform: scale(1.04); filter: brightness(0.7); }
+
+/* confetti: a Victory, a purchase that arrived */
+.pl-stage-fx { position: absolute; inset: 0; }
+.pl-stage-fx i {
+  position: absolute;
+  top: -4vh;
+  width: 1.1vh;
+  height: 1.8vh;
+  min-width: 6px;
+  min-height: 9px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: pl-stage-fall 2s cubic-bezier(0.3, 0.2, 0.6, 1) forwards;
+}
+@keyframes pl-stage-fall {
+  0% { transform: translateY(0) rotate(0); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(108vh) rotate(var(--r, 360deg)); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-stage-hero, .pl-stage-bg { transition: none; }
+  .pl-stage-hero.pop { animation: none; }
+}
