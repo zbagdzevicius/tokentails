@@ -206,6 +206,83 @@ so it waits.
 - **Data:** `data/boing.ts` (spots per map), sim in `units/boing.ts` (no new entities: a fixed table, nothing to hash
   but the per-hero cooldowns `boingT`, which are hashed).
 
+#### v24: instant beds (sim v24, 2026-11-12)
+
+Founder report (Blitz, touch): "these in Blitz are glitchy, they must be better, more sensitive, as right now it takes
+time and several attempt to be lifted at all". The screenshot showed a hero stopped right next to a bed, not launched.
+
+**Why v21–v23 missed.** A launch needed the hero's centre within 0.9 m of the bed centre AND a move (or attack-move;
+v23: kite) whose goal was within 0.6 m of the bed or nearer the landing than the bed. The touch stick sends a move 2 m
+ahead along the thumb every 100 ms, so a hero steered onto a bed from the side had a goal past the bed but not toward
+the landing and never launched; a hero let go on the cushion (Op.Stop, Order.None) never launched; and the 0.9 m reach
+was smaller than the drawn bed (rim to 1.15 m). Headless repro: the 200 touch trials of `tests/unit/boing-v24.test.ts`
+run on v23 leave **117 of 200 never launched** (stick, tap and stop styles alike).
+
+**v24 rule** (`units/boing.ts`, `data/fun.ts` BOING):
+
+- The disc: hero centre within `BOING.reach` = **1.2 m** of the bed centre. The drawn rim ends at 1.15 m and a hero is
+  0.5 m wide, so a hero half on the cushion is on it; one brushing the rim from outside (centre ≥ 1.65 m) is not.
+- **Walking onto it launches at once**: a move, attack-move or kite whose goal is within `BOING.near` = **3.2 m** of the
+  bed (a click or tap on or by the cushion; the stick's 2 m look-ahead from anywhere on it), unless the hero walks away
+  from the landing (goal more than 120° off the throw: a hero coming back over the wall is not thrown straight back); or
+  a far goal the throw brings at least half the throw's length nearer (v21: any far goal nearer the landing than the
+  bed, which threw walks across the map that only grazed a bed).
+- **Stopped on it launches after `BOING.stand` = 8 ticks (0.27 s)**: Order.None in the disc, counted in the new hashed
+  per-hero `bedT`.
+- **Not launched:** brushing the rim; walking past to a far goal (a lane walk over a bed beside the lane); an Attack on
+  a foe from the cushion (a fight is not cut short by a throw).
+- After a launch, a goal no nearer the landing than the bed becomes the landing (v21 did this only for a goal on the
+  bed), so a hero thrown off a stick step stays there and does not walk back over the bed.
+- Flight, the 3 s cooldown, the `free` conditions (alive; not disabled, rooted, napping, casting, dashing or winding the
+  cannon) and the landing are unchanged. Bots use the same rule; `bots/fun.ts` `bedHop` is unchanged (a bot within 5 m
+  of a bed whose landing is 8 m nearer its goal walks onto the bed centre, and now launches as it reaches the disc).
+
+**Client** (`render/views/funView.ts`): a bed wobbles (45% of a launch's squash) the moment any hero's drawn centre
+enters its disc; while the player's own hero is within 6 m of a bed (and not flying) seven dots drift along the flight
+arc to a ring at the landing (bed colour, fading in over the last 2 m, still under reduce motion) and the bed's throw
+arrow brightens; on the `boing` event the bed squashes fully, puffs and sends a ring, and `bedBoing` plays on that same
+event (gameView), so sound and squash land on the launch tick.
+
+**Tests** (`tests/unit/boing-v24.test.ts`): 200 seeded touch trials over every bed on Crossing and Hearthwood, a random
+hero, a start 2.5–5 m out on a walkable line from the throw's side, three styles (the stick held toward and across the
+bed with ±0.15 rad wobble; one tap on a random cushion spot; the stick onto the cushion while the bed cooldown runs, let
+go as it ends): **200 / 200 launch within 9 ticks (0.3 s)** of the centre reaching the disc (stop style: of the let-go).
+A hero placed on the cushion and stopped launches on tick 8. Attack, attack-move and kite fights with the centre
+0.15–0.45 m outside the disc never launch, on every bed of both maps (90 ticks each); an Attack from the cushion does
+not launch; a lane walk across a bed to a far goal and a walk off it backwards do not; a hero thrown while walking past
+stays at the landing.
+
+**Bed use** (headless probe, 80 seeds from 7000001 per mode, `normal` player-bot + bots; launches a match, v23 → v24):
+walks onto a bed the bot chose Skirmish 1.99 → 2.42, Blitz 0.36 → 0.36, Classic 0.55 → 0.35 (20 seeds); every other
+launch (incidental) 1.90 → 0.66, 0.86 → 0.16, 0.30 → 0.20. Repeat throws of one hero off one bed within 15 s stay at
+≤ 0.03 a match (no bed traps).
+
+**Versioning.** `SIM_VERSION` 24 (the world gains the hashed `bedT`, so every match hashes differently from v23).
+`tools/vendor-sim.mjs` freezes v23 at `de5ca5b5` (the kite review re-vendored the bundle after `9a743dc7`; bundle
+`13d26de9…`, the kite fixture in `extra`), so the backend verifies 10 to 24. The party-identity golden is regenerated
+from the v24 sim and its live v24 fixtures (Crossing bots step onto beds differently). Crossing identity
+(`map-identity --check`, 500 seeds × 3 profiles from 6500001, baseline written from v23 at `de5ca5b5`): 0 / 1500
+identical, by construction (the new hashed field), so the gates below compare v24 with v23 on the same seeds instead.
+
+**Gates on unseen seeds, v24 and v23 on the same seeds** (v23 = `git archive de5ca5b5`):
+
+| Gate | Seeds | v24 | v23 on the same seeds |
+|---|---|---|---|
+| 3v3 Skirmish (`--gate balance`) | 8,000 from 6200001 | 35 / 35 pass: side 50.0%, cats 49.3%, heroes 47.8–52.3%, median 7:11, p95 8:31, 0 safety, 3.48 takedowns/min, trailing at 3:30 wins 28.3%, down 10+ wins 2.0% | 35 / 35: side 49.7%, cats 49.4%, heroes 47.7–53.3%, 7:11 / 8:31, 3.47, 27.4%, 1.5% |
+| Blitz (`--gate blitz`) | 4,000 from 6300001 + 4,000 from 6700001 | pooled: side 47.2% (windows 46.6% / 47.8%), cats 50.7%, 20 / 20 heroes 47.5–52.5% (Brutus 45.9% in window 2 alone), 2:55 / p95 2:59, 100% core, 4.03 takedowns/min, trailing at 1:30 wins 16.0% | pooled: side 47.9% (47.1% / 48.6%), cats 51.5%, 20 / 20 heroes 46.3–53.4% (Marshmallow 45.9% in window 1 alone), trailing 15.4% |
+| Classic (`hearth-gates --det 40`) | 600 seed pairs from 6400001 (1,200 matches) | side 48.8%, cats 50.1%, 20 / 20 heroes 47–54%, p50 13:06 / p95 13:13, 0 safety, determinism 120 / 120 | side 49.3%, cats 49.3%, 19 / 20 (Gabe 45.2%), 13:06 / 13:13 |
+| Determinism (`determinism.mjs`) | 100 seeds from 6600001 + PvP, Blitz, Hearthwood every 4th | all identical | — |
+
+The Blitz side band (47–53%) misses in window 1 for both versions on the same seeds, and Blitz "trailing at 1:30 wins
+20–40%" fails on both (v23's own release table: 15.5%); neither moved with the beds. A first draft of v24 (any far
+goal nearer the landing than the bed still launched, with the wider disc) doubled the throws of walks that only grazed
+a bed (Classic 0.3 → 1.1 a match) and Classic fell to 15 / 20 heroes (Aviete 43.4%) on these seeds; the half-throw gain
+rule for far goals fixed it before these runs.
+
+**Checks.** `tsc` (pawlegends, backend), `lint:sim` (163 files), `vendor-sim:check` (v10–v23 frozen, v24), `vitest`,
+backend `jest src/pawlegends src/vendor`, `build`, `budget` (first load 425.0 KB gzip, party chunk 43.6 KB). Not run:
+`npm run build:client` (the client bundle ships with the release) and a device check of the new bed guide.
+
 ### 2.2 Mega Yarn Ball
 
 - **Spots:** Crossing: two balls, (50000, 46000) and (50000, 14000) (river, beside each lane crossing). Hearthwood: one
