@@ -1,0 +1,1 @@
+var e=Object.freeze({dashSpeed:2e4,knockbackTicks:6,minSpeedBp:2500,stealthReveal:2e3,fearSpeedBp:1e4,wallStep:250,projectileRadius:300,charmStop:1e3,pullGap:200}),t=Object.freeze({window:120,cap:60,immune:30}),n=Object.freeze({trap:0,arena:1,burst:2,dome:3});export{e as n,n as r,t};
