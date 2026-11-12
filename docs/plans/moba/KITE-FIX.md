@@ -1,7 +1,8 @@
-# KITE-FIX: move between basic attacks on touch (fold into the next sim version)
+# KITE-FIX: move between basic attacks on touch (sim v23)
 
-Branch `fix/pawlegends-kite` (from `origin/main`, sim v20). Not released: it adds a sim op, so it ships only as part of
-the next sim version after v21 (v21 is releasing, v22 is in progress). Do not merge it into `main` on its own.
+Built on branch `fix/pawlegends-kite` (from sim v20) and parked there; it ships as **sim v23** = the live v22 + this fix,
+on branch `feat/pawlegends-v23-kite` (§ Sim v23 below). `Op.Kite` is opcode **12** in v23 (the branch used 11, which
+v21 gave to the Kibble Cannon's `Op.Fire`).
 
 ## The report
 
@@ -26,7 +27,7 @@ times its moves walks about 16 m with the same 5 hits.
 ## The fix
 
 **Sim (new op, behaviour unchanged for every existing command):**
-- `Op.Kite = 11` `{ x, y, id }`, 6 bytes (`api.ts`, `commands.ts` encode/decode/quantize, `net/proto.ts` `CMD_OP`/`CMD_SIZE`).
+- `Op.Kite = 12` (sim v23; 11 on the parked branch) `{ x, y, id }`, 6 bytes (`api.ts`, `commands.ts` encode/decode/quantize, `net/proto.ts` `CMD_OP`/`CMD_SIZE`).
 - `Order.Kite = 4` (`world.ts`). `applyOrder` (`hero.ts`): a unit that is gone or untargetable makes it a plain Move. A
   kite on the unit already targeted keeps the windup in progress (so a held stick re-sending never throws a swing
   away); another unit cancels the swing with the timer refunded, as any new command does.
@@ -50,7 +51,7 @@ times its moves walks about 16 m with the same 5 hits.
   nobody tanks (the `keepLockOrder` guard); otherwise a Stop, so letting go never walks the hero under a tower.
 - `matchSession.ts`: `data-kites` telemetry.
 
-## To fold into the next sim version
+## To fold into the next sim version (done in sim v23, below)
 
 1. Cherry-pick the branch onto the version branch after v21 (conflicts likely in `hero.ts` and `touchControls.ts`).
 2. Bump `SIM_VERSION` there and re-vendor the sim and the net bundle (`tools/vendor-sim.mjs`), because the relay's
@@ -80,3 +81,59 @@ ranged heroes (Rocket, Clem and other long-range basics) to gain the most, since
 they back off a melee chaser; melee heroes gain little (in reach they were already swinging). Watch ranged win rates in
 the first live week of the version that ships this.
 
+
+## Sim v23 (2026-11-12): v22 + this fix
+
+Branch `feat/pawlegends-v23-kite` from `origin/main` (v22 live at `9c098621`, client bundle `e3d05f2c`).
+
+**Port.** The two branch commits cherry-picked onto v22. Changes against the branch:
+- `Op.Kite` is **12** (`api.ts`, `commands.ts`, `net/proto.ts` `CMD_OP` / `CMD_SIZE` `[…, 5, 6]`): v21 took 11 for `Op.Fire`.
+  The input gate keeps v21's Fire in `keepsMove` and counts a kite as a move.
+- v21's Boing Beds (`units/boing.ts`) and Mega Yarn Ball kicks (`units/yarn.ts`) treat a kiting hero as walking (a held
+  stick with ATK takes a bed or kicks the ball as a plain stick would). Bots never kite, so bot play is unchanged.
+- Relay (`backend/src/pawlegends/party/room.ts`): `CLIENT_OPS` gains Kite, and a kite coalesces with a pending move and
+  skips the command token bucket, as the client's `MoveCoalescer` and the sim's gate already treat it. Without this a
+  party or PvP room would have answered every kite with `bad_op`. A v22 room still strikes op 12 (its decoder does not
+  know it).
+- Cannon carry and Blitz needed nothing: a carrier winding the cannon up waits (`cannonWinding` before orders), and
+  mutators do not read orders.
+
+**Versioning.** `SIM_VERSION` 23. `tools/vendor-sim.mjs` freezes v22 at `9c098621` (bundle `f0381a93…`, with the Blitz
+fixture in `extra`), so the backend verifies 10 to 23. New live fixture `kite-replay.fixture.json` (Rocket, Easy, seed
+2323: the normal player-bot with every Attack turned into a kite 2 m back from the unit); v23 verifies it and v22 refuses
+it. The net bundle is re-vendored (relay `CMD_SIZE`). Sim golden unchanged (`1edabde3`); every v23 bot-only fixture
+(rookie, champion, dogs, forfeit, PvP, Hearthwood solo / party / PvP, Blitz) is byte-identical to v22's apart from
+`simVersion` / `simHash`.
+
+**Headless repro** (5 s, the kite.test.ts setup, target tanky):
+
+| Hero, target | v22 touch (ATK held re-sends Attack, stick away) | v23 kite, stick straight away | v23 kite, stick strafing |
+|---|---|---|---|
+| Rocket, chasing | 6 hits, 0.0 m | 6 hits, 17.3 m | 6 hits, 17.3 m |
+| Rocket, standing | 5 hits, 0.0 m | 1 hit, 24.1 m (walks out of reach; not chased, by design) | 5 hits, 17.5 m |
+| Clem, chasing | 5 hits, 0.0 m | 5 hits, 18.3 m | 5 hits, 18.3 m |
+| Clem, standing | 5 hits, 0.0 m | 1 hit, 23.7 m (as above) | 5 hits, 19.2 m |
+
+Same hits, about 17 to 19 m walked (the timed-client estimate was ~16 m).
+
+**Gates on unseen seeds, v23 and v22 on the same seeds** (v22 = `git archive 9c098621`):
+
+| Gate | Seeds | v23 | v22 on the same seeds |
+|---|---|---|---|
+| 3v3 Skirmish (`--gate balance`) | 8,000 from 5000001 | 35 / 35 pass: side 48.9%, cats 49.5%, heroes 48.3–52.1%, median 7:11, p95 8:31, 0 safety, 3.48 takedowns/min, trailing at 3:30 wins 28.2%, down 10+ wins 2.2% | 8,000 / 8,000 rows identical (final hash, ticks, winner, reason, input size); same gate table |
+| Blitz (`--gate blitz`) | 4,000 from 5100001 | side 47.8%, cats 50.7%, 19 / 20 heroes (Duchess 56.1%), 2:55 / p90 2:58, 100% core, 4.04 takedowns/min, trailing at 1:30 wins 15.5% | 4,000 / 4,000 identical; same table |
+| Classic (`hearth-gates --det 40`) | 600 seed pairs from 5300001 (1,200 matches) | side 50.1%, cats 48.9%, 20 / 20 heroes 46.3–54.0%, p50 13:06 / p95 13:13, 0 safety, determinism 120 / 120 | 600 / 600 rows identical (line-ups, ticks, winners, Grizzlechop, Pudding); same table |
+| Crossing identity (`map-identity`) | 1,500 seeds × 3 fuzz profiles from 5500001, baseline written from v22 | 4,500 / 4,500 identical | — |
+| Determinism (`determinism.mjs`) | 100 seeds from 5600001 + PvP, Blitz, Hearthwood every 4th | all identical | — |
+
+Bots never send `Op.Kite`, so every bot-only match is byte-identical to v22: no refit. The Blitz misses (Duchess 56.1%,
+trailing at 1:30 wins 15.5%) are v22's own rows on a fresh window (identical on v22); the trailing figure is the
+§5.1 founder call in BLITZ.md, and Duchess was 47.2–52.8 pooled in v22's E + F windows. Not changed here.
+
+**Checks.** `tsc` (pawlegends, backend), `lint:sim` (163 files), `vendor-sim:check` (v10–v22 frozen, v23), `vitest` (all
+pass after the version bumps), backend `jest src/pawlegends src/vendor` (70 suites, 1,026 tests), `build`, `budget`
+(first load 417.9 KB gzip, party chunk 43.6 KB). Not run: the Playwright `tests/e2e/kite.spec.ts`, and
+`npm run build:client` (the client bundle ships with the release).
+
+**Watch after release:** ranged hero win rates in human matches (Rocket, Clem, other long-range basics), and the
+`data-kites` telemetry.

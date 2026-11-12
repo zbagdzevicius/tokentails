@@ -32,7 +32,7 @@
  *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
  * 10. pvp-replay.fixture.json (sim v16, S-PvP, docs/plans/moba/V16.md §1.3): one genuine PvP match (PvpReplayRecord v3,
  *    Hard rules, two humans a side flown by player-bots, one bot each side), for the backend's casual /live spec.
- * backend/src/vendor/pawlegends-sim/v10/ to v21/: those files, frozen (FROZEN below; sim v22 is live).
+ * backend/src/vendor/pawlegends-sim/v10/ to v22/: those files, frozen (FROZEN below; sim v23 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -91,6 +91,8 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * Sim v22 (Hearthwood rebuilt to the standard MOBA layout: carved jungle, Beetle Log, Sugar Rush, jungle route bots,
  * docs/plans/moba/MAP-5V5-STANDARD.md; and Blitz, the 3-minute Crossing match, docs/plans/moba/BLITZ.md) froze the
  * released v21 (the Kibble Cannon) at 61cf4f5d and keeps v10 to v20, so the backend verifies 10 to 22.
+ * Sim v23 (Op.Kite: hold Attack and steer on touch, docs/plans/moba/KITE-FIX.md) froze the released v22 (the standard
+ * 5v5 Hearthwood and Blitz) at 9c098621 and keeps v10 to v21, so the backend verifies 10 to 23.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -199,6 +201,22 @@ export const FROZEN = Object.freeze([
       'hearthwood-replay.fixture.json',
       'hearthwood-party.fixture.json',
       'hearthwood-pvp.fixture.json',
+    ]),
+  }),
+  Object.freeze({
+    simVersion: 22,
+    commit: '9c098621f35d2de74e3772f8858f8c6e84cce99b',
+    from: 'backend/src/vendor/pawlegends-sim/v22',
+    bundle: 'f0381a934dce02fadfe715353dbe8ec0029ca759f55ab14042d8ecc4b288f662',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+      'blitz-replay.fixture.json',
     ]),
   }),
 ]);
@@ -676,6 +694,36 @@ export async function blitzFixture(seed = HEARTHWOOD_FIXTURE_SEED) {
   return sim.replayRecord(m);
 }
 
+/** Sim v23 (KITE-FIX): seed and hero of the kite fixture (a long-range basic, the hero the kite helps most). */
+export const KITE_FIXTURE_SEED = 2323;
+export const KITE_FIXTURE_HERO = 'rocket';
+
+/**
+ * Sim v23 (docs/plans/moba/KITE-FIX.md): one Easy match as Rocket where the normal player-bot's every Attack becomes an
+ * Op.Kite (12) on the same unit with the goal 2 m straight back from it (ATK held, stick pulled away); its v:1 record.
+ */
+export async function kiteFixture(seed = KITE_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/index.ts');
+  const { picks, tricks } = sim.fillPicks(seed, KITE_FIXTURE_HERO, 'snack');
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'easy' });
+  const bot = sim.createPlayerBot(m, 'normal');
+  const w = m.world;
+  let kites = 0;
+  while (!sim.result(m)) {
+    const cmds = sim.playerBotCommands(m, bot).map((c) => {
+      if (c.op !== 3) return c;
+      const dx = w.x[0] - w.x[c.id];
+      const dy = w.y[0] - w.y[c.id];
+      const d = Math.max(1, Math.hypot(dx, dy));
+      kites++;
+      return { op: 12, x: w.x[0] + Math.round((dx / d) * 2000), y: w.y[0] + Math.round((dy / d) * 2000), id: c.id };
+    });
+    sim.step(m, cmds);
+  }
+  if (kites === 0) throw new Error(`vendor-sim: kite fixture seed ${seed} sent no kite`);
+  return sim.replayRecord(m);
+}
+
 /** A 5v5 party on Hearthwood (slots 0, 1, 2 human, Normal); its v:2 record. */
 export async function hearthwoodPartyFixture(seed = HEARTHWOOD_FIXTURE_SEED) {
   const sim = await importSim('src/sim/server.ts');
@@ -861,6 +909,7 @@ export async function buildFiles() {
   const hearthParty = JSON.stringify(await hearthwoodPartyFixture(), null, 2) + '\n';
   const hearthPvp = JSON.stringify(await hearthwoodPvpFixture(), null, 2) + '\n';
   const blitz = JSON.stringify(await blitzFixture(), null, 2) + '\n';
+  const kite = JSON.stringify(await kiteFixture(), null, 2) + '\n';
   const live = {
     'pawlegends-sim.bundle.ts': text,
     'index.ts': face,
@@ -881,6 +930,8 @@ export async function buildFiles() {
     'hearthwood-pvp.fixture.json': hearthPvp,
     // Sim v22 (Blitz): a mutator record; a later freeze lists it in `extra`
     'blitz-replay.fixture.json': blitz,
+    // Sim v23 (KITE-FIX): a record with Op.Kite; a later freeze lists it in `extra`
+    'kite-replay.fixture.json': kite,
   };
   const files = {};
   for (const entry of FROZEN) for (const [name, body] of Object.entries(frozenFiles(entry))) files[`v${entry.simVersion}/${name}`] = body;

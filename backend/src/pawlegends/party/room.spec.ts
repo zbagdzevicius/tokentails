@@ -109,6 +109,21 @@ describe('party room (N3)', () => {
         expect(room.intake(1, 1, new Uint8Array([CMD_OP.Fire, 10, 0, 10, 0]), 1001)).toBe('ok');
     });
 
+    it('sim v23: accepts Kite (op 12, KITE-FIX) from a human seat; a kite coalesces with a pending move, never dropped', () => {
+        const { room, turns } = setup();
+        room.advance(1000);
+        let dropped = 0;
+        for (let i = 1; i <= 30; i++) if (room.intake(1, i, stop(), 1001) === 'dropped') dropped++;
+        expect(dropped).toBe(30 - PARTY_LIMITS.cmdBucket.burst);
+        expect(room.intake(1, 31, move(31), 1001)).toBe('ok');
+        for (let i = 32; i <= 60; i++)
+            expect(room.intake(1, i, new Uint8Array([CMD_OP.Kite, i, 0, 10, 0, 7]), 1001)).toBe('ok');
+        room.advance(1000 + TURN_MS + 1);
+        const walks = turns[0].entries.filter(e => e.cmd[0] === CMD_OP.Move || e.cmd[0] === CMD_OP.Kite);
+        expect(walks).toHaveLength(1);
+        expect(Array.from(walks[0].cmd)).toEqual([CMD_OP.Kite, 60, 0, 10, 0, 7]);
+    });
+
     it('B4: a Move replaces the pending Move and is never dropped over the budget; others are dropped', () => {
         const { room, turns } = setup();
         room.advance(1000);

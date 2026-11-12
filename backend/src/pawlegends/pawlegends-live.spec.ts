@@ -201,19 +201,19 @@ describe('PAWLEGENDS /live branch', () => {
             expect(error).toBeInstanceOf(BadRequestException);
             expect(error.getResponse()).toMatchObject({
                 code: ErrorCode.PAWLEGENDS_SIM_VERSION,
-                sim: { simVersion: SIM_VERSION, simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22] },
+                sim: { simVersion: SIM_VERSION, simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23] },
             });
             expect(verify).not.toHaveBeenCalled();
             expect(games.rows).toHaveLength(0);
         }
     );
 
-    it('sim v22 verifier: accepts v10 to v22 (GAPS B0; v9 retired), names all thirteen in GET /pawlegends/sim', async () => {
-        expect(SIM_VERSION).toBe(22);
-        expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]);
+    it('sim v23 verifier: accepts v10 to v23 (GAPS B0; v9 retired), names all fourteen in GET /pawlegends/sim', async () => {
+        expect(SIM_VERSION).toBe(23);
+        expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]);
         expect(PAWLEGENDS_SIM_INFO).toMatchObject({
-            simVersion: 22,
-            simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
+            simVersion: 23,
+            simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
         });
         expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual([
             '10',
@@ -229,6 +229,7 @@ describe('PAWLEGENDS /live branch', () => {
             '20',
             '21',
             '22',
+            '23',
         ]);
         const fakeHash: Record<number, string> = {
             10: '10100000',
@@ -244,8 +245,9 @@ describe('PAWLEGENDS /live branch', () => {
             20: '20200000',
             21: '21210000',
             22: '22220000',
+            23: '23230000',
         };
-        for (const simVersion of [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]) {
+        for (const simVersion of [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]) {
             const record = genuine({ simVersion, finalHash: fakeHash[simVersion] });
             const { save, games } = setup(record);
             expect(await save(record)).toMatchObject({ outcome: 'won' });
@@ -559,7 +561,7 @@ describe('PAWLEGENDS /live branch', () => {
             expect(users.updates).toHaveLength(0);
         }, 60_000);
 
-        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [23]])(
             'sim v%s: re-sims a genuine shelter champion match in the worker; its v9 twin is refused before any re-sim',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` (CHAMPION_FIXTURE_HERO, the naive player-bot on Easy); v10 is frozen.
@@ -835,6 +837,34 @@ describe('PAWLEGENDS /live branch', () => {
             });
         }, 120_000);
 
+        it('sim v23 (Op.Kite, KITE-FIX.md): a kite record verifies on v23 only; bot-only v22 records replay the same on v23', () => {
+            const vendor = join(__dirname, '..', 'vendor', 'pawlegends-sim', 'v23');
+            const kite = JSON.parse(readFileSync(join(vendor, 'kite-replay.fixture.json'), 'utf8'));
+            expect(kite).toMatchObject({ v: 1, simVersion: 23, hero: 'rocket', mutator: 'none' });
+            expect(verifyBySimVersion(kite)).toMatchObject({ ok: true, finalHash: kite.finalHash, ticks: kite.ticks });
+            // v22 has no opcode 12, so it refuses the record
+            expect(verifyBySimVersion({ ...kite, simVersion: 22 })).toMatchObject({ ok: false });
+            // bots never kite: a v22 bot-only record (solo, Blitz) plays byte for byte on v23
+            for (const name of ['rookie', 'hearthwood'] as const) {
+                const v22 = fixture(22, name);
+                expect(verifyBySimVersion({ ...v22, simVersion: 23 })).toMatchObject({
+                    ok: true,
+                    finalHash: v22.finalHash,
+                    ticks: v22.ticks,
+                });
+            }
+            const blitz = JSON.parse(
+                readFileSync(
+                    join(__dirname, '..', 'vendor', 'pawlegends-sim', 'v22', 'blitz-replay.fixture.json'),
+                    'utf8'
+                )
+            );
+            expect(verifyBySimVersion({ ...blitz, simVersion: 23 })).toMatchObject({
+                ok: true,
+                finalHash: blitz.finalHash,
+            });
+        }, 180_000);
+
         it('sim v20 (Wild Rift basic attacks, V20-CHASE.md): its own records verify on v20; v19 stays frozen and verifies its own', () => {
             const v19 = fixture(19, 'rookie');
             const v20 = fixture(20, 'rookie');
@@ -902,7 +932,7 @@ describe('PAWLEGENDS /live branch', () => {
             expect(v11.stats[0].fish).toBeUndefined();
         }, 60_000);
 
-        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [23]])(
             'sim v%s forfeit (GAPS B2): a genuine forfeited Normal match verifies, is a loss stored as quit, pays nothing',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` (FORFEIT_FIXTURE_SEED: the normal player-bot to 4:00, then Op.Forfeit).
@@ -937,7 +967,7 @@ describe('PAWLEGENDS /live branch', () => {
             60_000
         );
 
-        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [23]])(
             'sim v%s: re-sims a genuine Rookie match (match 1) in the worker and pays the Rookie first-win catnip once',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` with the vendored sim (the naive player-bot), so it is always current.

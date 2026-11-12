@@ -16,6 +16,8 @@ import { Order, UnitState, type World } from '../../src/sim/world';
 import { attackEvery, attackRange, radiusOf } from '../../src/sim/units/kinds';
 import { heroMatch, hold, place, tanky } from './heroes/kit-helpers';
 import { randomCommand } from './helpers';
+import { SIM_VERSION } from '../../src/sim/version';
+import { CMD_OP, CMD_SIZE } from '../../src/net/proto';
 
 const ME = 0;
 const FOE = 3;
@@ -68,6 +70,12 @@ const chaser: Foe = (t, m) => {
 };
 
 describe('KITE-FIX: commands and gate', () => {
+  it('ships in sim v23 as op 12 (op 11 is the v21 Fire); the relay framing knows its size', () => {
+    expect(SIM_VERSION).toBe(23);
+    expect(Op.Kite).toBe(12);
+    expect(CMD_OP.Kite).toBe(Op.Kite);
+    expect(CMD_SIZE[Op.Kite]).toBe(OP_SIZE[Op.Kite]);
+  });
   it('Op.Kite is 6 bytes and round-trips (quantised)', () => {
     const c: Command = { op: Op.Kite, x: 12345, y: 54321, id: 47 };
     const bytes = encodeCommand(c);
