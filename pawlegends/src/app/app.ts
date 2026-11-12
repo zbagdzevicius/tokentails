@@ -39,6 +39,7 @@ import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type 
 import { isPhone } from '../render/perf/device';
 import { FramePacer, MATCH_FPS, WARM, paceTarget, warmMatch } from '../render/perf/pacer';
 import { champCovered } from '../ui/champBrowser/cover';
+import { openChampInfo } from '../ui/champBrowser/open';
 import { GOV, GOV_NAMES, GOV_STEP, ThermalGovernor } from '../render/perf/governor';
 import { autoBatterySaver, batterySaver, releaseAutoSaver, savePerfStep, savedPerfStep, setBatterySaver } from '../render/perf/prefs';
 import { thermal } from '../render/perf/thermal';
@@ -55,15 +56,14 @@ import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
 import { loadingVeil, pickScreen, refreshPickChamps, refreshPickFaces, setPickLook, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
-import { disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
+import { botsChoice, disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
-import { legacyMode, loadModeChoice, modeList, saveModeChoice, type ModeChoice } from '../ui/modeSelect/modes';
+import { legacyMode, loadModeChoice, modeById, modeList, pillText, saveModeChoice, type ModeChoice, type ModeDef } from '../ui/modeSelect/modes';
 import { heroElement } from '../ui/cards/el';
 import type { DeckCard, DeckHandle } from '../ui/deck/deck';
 import { championOf } from '../data/heroes/shelter';
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel, type StoreTab } from '../ui/store';
-import { openChampInfo } from '../ui/champBrowser/open';
 import { passPanel } from '../ui/passPanel';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { cardIdentity, selfNames, veilName } from '../meta/cardName';
@@ -716,6 +716,32 @@ export class App {
   private matchModeNow: MatchMode | null = null;
   /** Home's mode and queue this visit (Mode Select's Confirm; null = the stored one). */
   private modeChoiceNow: ModeChoice | null = null;
+  /** Back from the champion select of the play path: Home opens Mode Select on this variant again (once). */
+  private modesAt: ModeChoice | null = null;
+  /** The mode the champion select starts (the play path's vs Bots, or the remembered mode). */
+  private pickMode: ModeDef | null = null;
+  /** The champion select on screen came from Mode Select (its Back goes back there; a match start clears it). */
+  private pickFromFlow = false;
+
+  /**
+   * The one play path's last step (HOME-MODES.md §5): Mode Select chose a mode and a variant. vs Bots opens the
+   * champion select (its LOCK IN starts the match on the mode's map), Co-op and PvP join the queue (the champion select
+   * follows the match found), With Friends opens the party lobby.
+   */
+  private startFlow(c: ModeChoice): void {
+    const mode = modeById(c.mode, modeList());
+    if (!mode) return;
+    this.analytics.track('play_start', { mode: c.mode, variant: c.queue, difficulty: this.choice.difficulty });
+    const lm = legacyMode(c.mode);
+    this.matchModeNow = lm;
+    saveMatchMode(lm);
+    if (c.queue === 'bots') return this.showPick(mode);
+    sfx.play('click');
+    if (c.queue === 'friends') return this.openParty('create');
+    this.onlineMode = c.queue;
+    setOnlineMode(c.queue);
+    this.openParty('queue');
+  }
 
   /** The next Home plays its entrance animations (the first of the visit, and after each match). */
   private homeIntro = true;
@@ -740,7 +766,8 @@ export class App {
     // casual PvP: ask the backend once; the title redraws with the mode chip when it answers yes
     if (this.partyApi && pvpKnown() === null)
       void pvpAvailable(this.partyApi).then((yes) => {
-        if (yes && this.screen === 'title' && !this.party) this.showTitle(false);
+        // never under an open Mode Select (the redraw would close it mid-choice; PvP shows the next time it opens)
+        if (yes && this.screen === 'title' && !this.party && !this.root.querySelector('.ms-overlay')) this.showTitle(false);
       });
     // social (SOCIAL-RANKED.md §4.3): the title pulse starts once (it runs only while the title shows)
     this.startSocialPulse();
@@ -814,10 +841,19 @@ export class App {
         const lm = legacyMode(c.mode);
         this.matchModeNow = lm;
         saveMatchMode(lm);
-        if (c.queue !== 'bots' && pvpKnown() === true) {
+        if ((c.queue === 'coop' || c.queue === 'pvp') && pvpKnown() === true) {
           this.onlineMode = c.queue;
           setOnlineMode(c.queue);
         }
+      },
+      // PLAY → Mode Select → variant: the champion select, the queue or the party (the one play path)
+      onStart: (c) => this.startFlow(c),
+      openAt: this.takeModesAt(),
+      onModesOpen: (from) => this.analytics.track('play_open', { from }),
+      // nav Heroes: browse only (skills and lore); choosing a champion happens after PLAY
+      onHeroes: () => {
+        const h = this.dare?.hero ?? this.choice.hero;
+        void openChampInfo({ hero: h, within: this.screenEl, look: (x) => this.lookFor(x), onBrowse: (x) => this.setLobbyHero(x), onClose: () => this.setLobbyHero(this.dare?.hero ?? this.choice.hero) });
       },
       promos,
       seasonEnd: ends ? `Ends ${ends}` : '',
@@ -836,8 +872,12 @@ export class App {
       firstLine: rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.',
       difficulties: pickable(),
       difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `More bots after ${PICK_DIFFICULTY_FROM} matches.`,
+      // the variant step's bots difficulty: remembered at once (the next PLAY opens on it)
       onDifficulty: (d) => {
         this.choice = { ...this.choice, difficulty: d };
+        const q = loadProfile();
+        q.difficulty = d;
+        saveProfile(q);
       },
       // sim v22: a `?mode=` link's unknown mode says "Update to play …" as Home opens
       ...(notice ? { notice } : {}),
@@ -902,12 +942,6 @@ export class App {
       onSocial: this.bridge.active ? () => this.openSocial() : undefined,
       socialBadge: this.socialBadge,
       onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
-      onExit: this.bridge.kind === 'frame'
-        ? () => {
-            sfx.play('click');
-            this.bridge.post('exit');
-          }
-        : undefined,
       // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
       // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
       quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined) : undefined,
@@ -1018,7 +1052,20 @@ export class App {
       });
   }
 
-  showPick(): void {
+  /** The variant Home reopens Mode Select on (Back from the champion select), once. */
+  private takeModesAt(): ModeChoice | null {
+    const at = this.modesAt;
+    this.modesAt = null;
+    return at;
+  }
+
+  /** The champion select. `mode`: the play path's vs Bots mode (else the remembered one, as after a match). */
+  showPick(mode?: ModeDef): void {
+    if (mode) {
+      this.pickMode = mode;
+      this.pickFromFlow = true;
+    }
+    const flow = (this.pickFromFlow ? this.pickMode : null) ?? modeById((this.modeChoiceNow ?? loadModeChoice()).mode, modeList()) ?? null;
     this.lobby.enter();
     this.lobby.side = 0.5;
     this.lobby.heroScale = 1;
@@ -1028,9 +1075,11 @@ export class App {
     this.setScreen(
       'pick',
       pickScreen(this.root, {
-        initial: this.choice,
+        // the play path: the mode's map (Classic: Hearthwood) or mutator (Blitz) rides on the choice LOCK IN starts
+        initial: flow && p.matches > 0 ? botsChoice(this.choice, this.choice.difficulty, flow) : this.choice,
         // Sim v19: the seats match the match it starts (startMatch's rule: 5v5 Classic after the first match)
-        teamSize: p.matches > 0 && (this.choice.map ?? MODE_MAP[loadMatchMode()]) === 'hearthwood' ? 5 : 3,
+        teamSize: p.matches > 0 && (flow ? flow.size === '5v5' : (this.choice.map ?? MODE_MAP[this.matchModeNow ?? loadMatchMode()]) === 'hearthwood') ? 5 : 3,
+        ...(flow && p.matches > 0 ? { modeLine: pillText(flow, 'bots') } : {}),
         owned: this.owned(),
         champions: this.integration.championTiles(),
         // CHAMPION-STORE.md §10: locked champions show their unlock row; LOCK IN on one is Practice
@@ -1088,6 +1137,9 @@ export class App {
           // Audit UX-08: Back from a "Try <hero>" pick goes home on the hero the player had, not the teased one
           if (this.beforeTry) this.choice = { ...this.choice, hero: this.beforeTry.hero, trick: this.beforeTry.trick };
           this.beforeTry = null;
+          // the play path: Back is one step, to the variant (vs Bots) of the mode
+          if (this.pickFromFlow) this.modesAt = { mode: flow?.id ?? 'skirmish', queue: 'bots' };
+          this.pickFromFlow = false;
           this.showTitle();
         },
         difficulties: pickable(),
@@ -1250,10 +1302,10 @@ export class App {
             },
             joinParty: (code) => this.openParty('join', code),
             signIn: () => this.integration.requestSignIn('save-progress'),
+            // the one play path: Play Casual opens Mode Select on Skirmish's PvP variant (Find match is one tap)
             playCasual: () => {
-              this.onlineMode = 'pvp';
-              setOnlineMode('pvp');
-              this.openParty('queue');
+              this.modesAt = { mode: 'skirmish', queue: 'pvp' };
+              if (this.screen === 'title' && !this.session) this.showTitle(false);
             },
             // CHAT-AVATARS §7.4: the picker's owned borders and the player's own cats (bucket art only)
             ownedItems: () => [...this.ent.snapshot().items],
@@ -1391,6 +1443,7 @@ export class App {
 
   private startMatch(pick: Choice, seed?: number, practice = false): void {
     this.beforeTry = null;
+    this.pickFromFlow = false;
     // the player chose this match's hero: a pending keepPlayable swap is not undone after it
     this.swapped = null;
     // CHAMPION-STORE.md §6: a locked champion plays only as Practice (asked for on the pick, or a dare's hero): the
@@ -2117,6 +2170,15 @@ export class App {
       onStats: (on) => this.analytics.setConsent(on),
       termsUrl: this.termsUrl(),
       ...(account ? { account: { model: account, send: (a) => void this.integration.account(a) } } : {}),
+      // embedded, on Home: the way back to the site's games (Home's "< Games" corner button was removed, Nov 12)
+      ...(this.bridge.kind === 'frame' && !after && this.screen === 'title'
+        ? {
+            onExit: () => {
+              sfx.play('click');
+              this.bridge.post('exit');
+            },
+          }
+        : {}),
       onClose: () => {
         this.overlay = null;
         if (this.screen === 'title') this.showTitle();

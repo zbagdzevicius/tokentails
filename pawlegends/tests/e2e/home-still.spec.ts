@@ -111,7 +111,7 @@ test('Home stays mounted and still while the Treat Track, Legends Pass, Cards an
   await still('settings closed');
 
   // Mode Select (it mounts inside Home; Home behind it stays put)
-  await page.locator('[data-testid="mode-pill"]').click();
+  await page.locator('[data-testid="home-play"]').click();
   await expect(page.locator('[data-testid="mode-select"]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-testid="mode-select"]')).toHaveCount(0);

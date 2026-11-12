@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { playFromHome } from './helpers';
 
 // MAP-GAPS A5 + feel pass B2/B3: the touch minimap is square (it turns with the diagonal camera), 104 px on a
 // 667x375 phone and 112 px at 844x390 (M), top left at 80% opacity, and S / M / L scale it. At every size the
@@ -36,7 +37,7 @@ for (const [width, height, mw, mh] of [
       );
       await page.goto('/?e2e=1');
       await page.waitForSelector('html[data-screen="title"]');
-      await page.locator('.pl-btn.big').first().click();
+      await playFromHome(page);
       await page.waitForSelector('html[data-match="live"]');
       await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));
       await expect(page.locator('.pl-touch.on')).toBeVisible();

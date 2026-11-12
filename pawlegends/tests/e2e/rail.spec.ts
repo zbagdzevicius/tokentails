@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr } from './helpers';
+import { attr, playFromHome } from './helpers';
 
 // LoL pass, lane A: every screen-anchored message is one line on the top rail (ui/notify.ts), just under the score
 // bar. On phones the rail ends by y 84 (844×390, 915×412) or y 70 (667×375) and shows one line; on desktop it ends
@@ -20,7 +20,7 @@ const SIZES = [
 async function start(page: Page): Promise<void> {
   await page.goto('/?e2e=1&speed=3');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]', { timeout: 60_000 });
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));

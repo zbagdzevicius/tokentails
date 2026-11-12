@@ -53,6 +53,7 @@
 }
 .cs .cs-timer { font: 800 14px/1 var(--font); color: var(--cs-gold); font-variant-numeric: tabular-nums; min-width: 0; text-align: center; }
 .cs .cs-timer[data-low] { color: #ff7a8a; }
+.cs-title .cs-mode { margin-top: 2px; font: 700 12px/1.2 var(--font, sans-serif); color: #ffe9a8; opacity: 0.9; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
 .cs-title .pp-side-note { font-size: 11px; padding: 1px 8px; margin-top: 1px; }
 .cs .cs-back.pl-btn { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 12px 0 8px; font-size: 14px; position: relative; }
 .cs .cs-back::after { content: ''; position: absolute; inset: -4px 0; }

@@ -1,4 +1,5 @@
 import { expect, test, type Frame } from '@playwright/test';
+import { toChampSelect } from './helpers';
 import { ALL_CHAMPS, mockHost, openHost, received } from './host';
 
 // CHAMPION-STORE.md: a new guest sees the 6 starters and the week's 6 free champions; every other tile is locked with
@@ -10,7 +11,7 @@ const PLAYED = { v: 1, sessions: 2, matches: 4, wins: 2, firstWinDone: true, her
 const NEW_GUEST = { ...ALL_CHAMPS, owned: [], founders: false, yarn: { balance: 0, matches: 0, picksLeft: 0, nextPickAt: 5 } };
 
 async function toPick(game: Frame): Promise<void> {
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await game.waitForSelector('.pl-pick .cs');
 }
 

@@ -1,5 +1,5 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
-import { startFirstMatch } from './helpers';
+import { startFirstMatch, playFromHome, toChampSelect } from './helpers';
 import { mockHost, openHost } from './host';
 
 // Playtest round 2 regressions: the pick screen's Look row (where owned cats pay off) sat under the footer at
@@ -31,7 +31,7 @@ test('pick at 1280×720: the first chroma chip is visible and on top (the Look r
     profile: VETERAN,
   });
   const game = await openHost(page);
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await game.waitForSelector('html[data-screen="pick"]');
   // the colour tints live on the panel's Look sheet
   await game.locator('.cs-look').click();
@@ -78,7 +78,7 @@ test('results: a returning player gets Play again at once and a line saying what
   await page.addInitScript((p) => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p)), VETERAN);
   await page.goto('/?e2e=1&speed=64');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-screen="results"]', { timeout: 130_000 });
   await expect(page.locator('.pl-results [data-cause]')).toContainText(/core|Time ran out/);
   // quick reveal (round 2): Play again within a second of the screen opening, even at 1× it is End + 2.5 s

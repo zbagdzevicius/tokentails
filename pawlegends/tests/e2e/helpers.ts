@@ -1,4 +1,7 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+
+/** A page, a frame or a frame locator: anything that finds elements. */
+export type Root = { locator(selector: string): Locator };
 
 export const attr = (page: Page, name: string): Promise<string> => page.evaluate((n) => document.documentElement.dataset[n] ?? '', name);
 
@@ -29,6 +32,55 @@ export async function seedSide(page: Page, side: 'cat' | 'dog', extra: Record<st
 }
 
 /**
+ * Home → a bots match through the one play path (HOME-MODES.md §5): PLAY; for a returning player Mode Select opens,
+ * then `mode` (default: the remembered one) → Next → vs Bots (with `difficulty`) → Choose champion → LOCK IN. The
+ * first-ever match (and a dare) still starts in one tap.
+ */
+export async function playFromHome(
+  root: Root,
+  opts: { mode?: string; difficulty?: 'easy' | 'normal' | 'hard'; timeout?: number } = {},
+): Promise<void> {
+  const t = opts.timeout !== undefined ? { timeout: opts.timeout } : {};
+  const play = root.locator('[data-testid="home-play"]');
+  // read before the tap: the first match's PLAY leaves the page as the match loads
+  const flow = (await play.getAttribute('aria-haspopup', t)) === 'dialog';
+  await play.click(t);
+  if (!flow) return;
+  await root.locator('[data-testid="mode-select"]').waitFor(t);
+  if (opts.mode) await root.locator(`[data-testid="mode-${opts.mode}"]`).click(t);
+  await root.locator('[data-testid="mode-next"]').click(t);
+  await root.locator('[data-testid="variant-bots"]').click(t);
+  if (opts.difficulty) await root.locator(`[data-testid="bots-${opts.difficulty}"]`).click(t);
+  await root.locator('[data-testid="mode-go"]').click(t);
+  await root.locator('.pl-pick .cs-lock:not([disabled])').click(t);
+}
+
+/**
+ * Home → the champion select through the one play path: PLAY → `mode` (default: the remembered one) → Next → vs Bots
+ * → Choose champion (a returning player; the nav Heroes only browses now).
+ */
+/** Home → With Friends through the one play path (PLAY → Skirmish → With Friends → Open party): the party lobby. */
+export async function withFriends(root: Root): Promise<void> {
+  await root.locator('[data-testid="home-play"]').click();
+  await root.locator('[data-testid="mode-select"]').waitFor();
+  await root.locator('[data-testid="mode-skirmish"]').click();
+  await root.locator('[data-testid="mode-next"]').click();
+  await root.locator('[data-testid="variant-friends"]').click();
+  await root.locator('[data-testid="mode-go"]').click();
+}
+
+export async function toChampSelect(root: Root, opts: { mode?: string; difficulty?: 'easy' | 'normal' | 'hard' } = {}): Promise<void> {
+  await root.locator('[data-testid="home-play"]').click();
+  await root.locator('[data-testid="mode-select"]').waitFor();
+  if (opts.mode) await root.locator(`[data-testid="mode-${opts.mode}"]`).click();
+  await root.locator('[data-testid="mode-next"]').click();
+  await root.locator('[data-testid="variant-bots"]').click();
+  if (opts.difficulty) await root.locator(`[data-testid="bots-${opts.difficulty}"]`).click();
+  await root.locator('[data-testid="mode-go"]').click();
+  await root.locator('.pl-pick').waitFor();
+}
+
+/**
  * Title → first match (one tap). With `side`, a played profile on that side is seeded first (sim v14: `dog` starts the
  * match as Sir Brutus on the dog side, so the bots fill both teams by species).
  */
@@ -36,7 +88,7 @@ export async function startFirstMatch(page: Page, query = '', side?: 'cat' | 'do
   if (side) await seedSide(page, side);
   await page.goto(`/?e2e=1${query}`);
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   // the loading veil takes clicks until it fades (app.ts adds .out on a timer, late under CPU load)

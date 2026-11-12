@@ -1,5 +1,5 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
-import { attr } from './helpers';
+import { attr, playFromHome, toChampSelect } from './helpers';
 import { mockHost, openHost } from './host';
 
 // Playtest round 1 regressions: on a landscape phone the pick screen's Play button sat under the lobby canvas (the
@@ -23,7 +23,7 @@ test('Heroes → Sir Brutus → LOCK IN starts the match (LOCK IN is never cover
   await page.addInitScript((p) => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p)), VETERAN);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
   // sim v14: Sir Brutus is behind the Dogs tab
   await page.locator('.side-tab.dog').click();
@@ -47,7 +47,7 @@ test('the pick screen shows ability numbers on request and the bots chip says wh
   test.skip(info.project.name !== 'desktop', 'one viewport is enough');
   await page.addInitScript((p) => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p)), VETERAN);
   await page.goto('/?e2e=1');
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.locator('.cs-sk[data-slot="q"]').click();
   await expect(page.locator('.cs-meta')).not.toContainText(/Cooldown/);
   await page.locator('[data-cs="numbers"]').click();
@@ -69,7 +69,7 @@ test('results: Play again is the topmost element at its centre, also with a squa
     query: '&speed=64',
   });
   const game = await openHost(page);
-  await game.locator('.pl-btn.big').first().click();
+  await playFromHome(game);
   await game.waitForSelector('html[data-screen="results"]', { timeout: 130_000 });
   await game.waitForSelector('.pl-results.actions-in', { timeout: 15_000 });
   await expect(game.locator('.plc-dock .plc-with')).toBeVisible();

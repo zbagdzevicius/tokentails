@@ -1,4 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { playFromHome, withFriends } from './helpers';
+
+/** A returning player (the one play path: PLAY opens Mode Select). */
+const PLAYED = { v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
 import { SIM_VERSION } from '../../src/sim/version';
 import { EVIL, SITE, gattr, mockHost, openHost, received, recordPostTargets } from './host';
 
@@ -38,7 +42,7 @@ test('roster cats become chromas, frames and Companion Kittens; the result reach
 
   // first match: one tap, wearing the Pinkie coat (the starter breed) and the first squad mate's chroma (round 1:
   // the highest tier walks first, Biscuit the LEGENDARY: ICE), with two kittens
-  await game.locator('.pl-btn.big').first().click();
+  await playFromHome(game);
   await game.waitForSelector('html[data-match="live"]');
   await expect.poll(() => gattr(game, 'matchLook')).toBe('coat.breed.PINKIE|ICE');
   expect(await gattr(game, 'kittens')).toBe('2');
@@ -112,9 +116,9 @@ test('party play (P9): the game asks its host for a ticket and sends it in the r
       }
     });
   });
-  await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, partyTicket: TICKET });
+  await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, partyTicket: TICKET, profile: PLAYED });
   const game = await openHost(page);
-  await game.locator('[data-testid="play-friends"]').click();
+  await withFriends(game);
   await expect.poll(() => hellos.length, { timeout: 30_000 }).toBeGreaterThan(0);
   expect(hellos[0].ticket).toBe(TICKET);
   const asks = (await received(page)).filter((m) => m.type === 'party-ticket-request');
@@ -139,23 +143,22 @@ test('party play (P9): a host without a ticket answers null and the player joins
       }
     });
   });
-  await mockHost(context, baseURL!, { app: { isApp: false, store: true }, partyTicket: null });
+  await mockHost(context, baseURL!, { app: { isApp: false, store: true }, partyTicket: null, profile: PLAYED });
   const game = await openHost(page);
-  await game.locator('[data-testid="play-friends"]').click();
+  await withFriends(game);
   await expect.poll(() => hellos.length, { timeout: 30_000 }).toBeGreaterThan(0);
   expect(hellos[0].ticket).toBeUndefined();
   expect(typeof hellos[0].guestKey).toBe('string');
 });
 
-test('UX pass 2: the lobby "Games" button posts exit to the host (the host draws no close button)', async ({ context, page, baseURL }) => {
+test('Nov 12: no "Games" button on Home; Settings keeps the way back, which posts exit to the host', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true } });
   const game = await openHost(page);
   await game.waitForSelector('html[data-screen="title"]');
-  const exit = game.getByTestId('lobby-exit');
+  await expect(game.getByTestId('lobby-exit')).toHaveCount(0);
+  await game.locator('.pl-home [data-a="settings"]').click();
+  const exit = game.getByTestId('settings-exit');
   await expect(exit).toBeVisible();
-  // it sits in the lobby's top corner group, inside the frame
-  const box = await exit.boundingBox();
-  expect(box!.y).toBeLessThan(40);
   await exit.click();
   await expect.poll(async () => (await received(page)).some((m) => m.type === 'exit')).toBe(true);
 });

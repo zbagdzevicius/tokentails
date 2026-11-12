@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr, me, startFirstMatch } from './helpers';
+import { attr, me, startFirstMatch, playFromHome } from './helpers';
 
 // Feel pass B3 (docs/plans/moba/FEEL-PASS.md, the phone HUD diet): one 24 px top strip (kills, clock, towers, the
 // objective timer, pause), a 112 px minimap top left (104 px on short phones) with the ping corner and the emote under
@@ -17,7 +17,7 @@ async function startVeteran(page: Page): Promise<void> {
   await page.addInitScript((p) => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p)), { ...VETERAN, unlocks: ['emote.wave'] });
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));

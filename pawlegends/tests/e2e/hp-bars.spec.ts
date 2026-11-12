@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { seedSide } from './helpers';
+import { playFromHome, seedSide, toChampSelect } from './helpers';
 
 // Health bars in a running match (Nov 12 regression). The overhead plates draw with the live WebGLRenderer
 // (render/renderer.ts liveRenderer). The champion browser's skill clip made its own renderer, took that slot and
@@ -34,7 +34,7 @@ test('health bars draw in a match after a skill clip in the champion browser', a
   await seedSide(page, 'cat');
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
   await press(page, '.cs-tile[data-h="sage"]', touch);
   await press(page, '.cs-sk[data-slot="q"]', touch);
@@ -49,20 +49,14 @@ test('health bars draw in a match after a skill clip in the champion browser', a
   await barsDraw(page);
 });
 
-test('Home → Mode Select → Classic → Confirm → PLAY reaches a live 5v5 match with health bars', async ({ page }) => {
+test('Home → PLAY → Classic → vs Bots → LOCK IN reaches a live 5v5 match with health bars', async ({ page }) => {
   // a 5v5 Hearthwood match loads on SwiftShader here
   test.setTimeout(180_000);
   await seedSide(page, 'cat', { matches: 6, sessions: 3, hero: 'sage' });
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await page.locator('[data-testid="mode-pill"]').click();
-  const ms = page.locator('[data-testid="mode-select"]');
-  await expect(ms).toBeVisible();
-  await ms.locator('[data-testid="mode-classic"]').click();
-  await ms.locator('[data-testid="queue-bots"]').click();
-  await ms.locator('[data-testid="mode-confirm"]').click();
-  await expect(ms).toHaveCount(0);
-  await page.locator('[data-testid="home-play"]').click();
+  // the one play path: PLAY → Classic → vs Bots → champion select → LOCK IN
+  await playFromHome(page, { mode: 'classic', timeout: 60_000 });
   await page.waitForSelector('html[data-match="live"]', { timeout: 120_000 });
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
   // ten heroes: a 5v5 match

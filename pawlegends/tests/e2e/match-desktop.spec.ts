@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { FOUNTAIN } from '../../src/data/map';
-import { attr, me, ops, startFirstMatch } from './helpers';
+import { attr, me, ops, startFirstMatch, toChampSelect } from './helpers';
 
 const fromFountain = (p: { x: number; y: number }) => Math.hypot(p.x - FOUNTAIN.x, p.y - FOUNTAIN.y);
 
@@ -128,7 +128,7 @@ test('an out-of-range point cast walks in first (Sage W, cast on release; quick 
   await page.waitForSelector('html[data-screen="title"]');
   await page.evaluate(() => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify({ v: 1, matches: 1, hero: 'sage' })));
   await page.reload();
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.locator('[data-h="sage"]').click();
   await page.locator('[data-a="start"]').click();
   await page.waitForFunction(() => !!document.documentElement.dataset.me);

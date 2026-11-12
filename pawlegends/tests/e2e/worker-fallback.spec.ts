@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr } from './helpers';
+import { attr, playFromHome } from './helpers';
 
 // perf-2: one failed fetch of the sim Worker's module script (a network blip, a stale hashed chunk after a deploy)
 // must not reach the crash overlay. The host retries the Worker once, then runs the sim on the main thread.
@@ -20,7 +20,7 @@ async function blockWorker(page: Page, times: number): Promise<{ blocked: () => 
 async function play(page: Page, query = ''): Promise<void> {
   await page.goto(`/?e2e=1${query}`);
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]', { timeout: 30_000 });
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
 }

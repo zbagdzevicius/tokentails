@@ -54,10 +54,27 @@ export async function title(p: Player, query = ''): Promise<void> {
   await p.page.waitForSelector('html[data-screen="title"]', { timeout: 120_000 });
 }
 
-/** The leader taps "Play with friends": the party exists at once. Returns its code. */
+/**
+ * The one play path (HOME-MODES.md §5): PLAY → `mode` → Next → the variant → its action ("Find match" for Co-op and
+ * PvP: the queue; "Open party" for With Friends: the party lobby). Waits until this build offers the variant (PvP
+ * needs the relay's sim check, which answers after Home first draws).
+ */
+export async function playVariant(p: Player, variant: 'coop' | 'pvp' | 'friends', mode = 'skirmish'): Promise<void> {
+  await expect(p.page.locator(`.pl-home[data-variants~="${variant}"]`)).toBeVisible({ timeout: 30_000 });
+  await tap(p, p.page.locator('[data-testid="home-play"]'));
+  await expect(p.page.locator('[data-testid="mode-select"]')).toBeVisible({ timeout: 15_000 });
+  await tap(p, p.page.locator(`[data-testid="mode-${mode}"]`));
+  await tap(p, p.page.locator('[data-testid="mode-next"]'));
+  const v = p.page.locator(`[data-testid="variant-${variant}"]`);
+  await expect(v).not.toHaveAttribute('aria-disabled', 'true');
+  await tap(p, v);
+  await tap(p, p.page.locator('[data-testid="mode-go"]'));
+}
+
+/** The leader goes PLAY → Skirmish → With Friends: the party exists at once. Returns its code. */
 export async function createParty(p: Player): Promise<string> {
   await title(p);
-  await tap(p, p.page.locator('[data-testid="play-friends"]'));
+  await playVariant(p, 'friends');
   const code = p.page.locator('[data-testid="party-code"]');
   await expect(code).toBeVisible({ timeout: 30_000 });
   return ((await code.textContent()) ?? '').replace(/\s/g, '');
