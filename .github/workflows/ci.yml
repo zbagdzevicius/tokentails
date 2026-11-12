@@ -213,9 +213,6 @@ jobs:
         run: npx tsc -p e2e --noEmit
       - run: npx eslint .
       - run: npm test
-      # Phase A: tokentails.com still serves the game from client/public/pawlegends-game, a copy of this one.
-      - name: The client copy of the game matches pawlegends-web (until the cutover)
-        run: node ../pawlegends/tools/mirror-client.mjs --check
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
       - run: npm run build

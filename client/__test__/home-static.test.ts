@@ -42,9 +42,8 @@ describe("next.config.js home routing", () => {
   it("serves public/home at / before pages/index.tsx on the web", async () => {
     const rewrites = await loadConfig(false).rewrites!();
     expect(rewrites.beforeFiles).toContainEqual({ source: "/", destination: "/home/index.html" });
-    // Only the root: every other route keeps its page. The pawlegends.app rules (landing-routing.test.tsx) need its host.
-    const tokentails = rewrites.beforeFiles.filter((r) => !(r as { has?: Array<{ type: string }> }).has?.some((h) => h.type === "host"));
-    expect(tokentails.map((r) => r.source)).toEqual(["/"]);
+    // Only the root: every other route keeps its page.
+    expect(rewrites.beforeFiles.map((r) => r.source)).toEqual(["/"]);
   });
 
   it("redirects /home and /home/index.html to / so the page has one URL", async () => {
@@ -173,13 +172,13 @@ describe("public/home/index.html", () => {
     expect(html).toContain("@media (min-width:640px) and (max-width:767px){.tab{flex-basis:146px}}");
   });
 
-  it("has a Pawlegends tab right after the Moon Rave, playing /pawlegends with its trailer, loop and 9:16 cut", () => {
+  it("has a Pawlegends tab right after the Moon Rave, playing pawlegends.app (its own site) with its trailer, loop and 9:16 cut", () => {
     const order = Array.from(html.matchAll(/\{k:'([a-z]+)',name:/g)).map((m) => m[1]);
     expect(order.indexOf("pawlegends")).toBe(order.indexOf("rave") + 1);
     const entry = html.slice(html.indexOf("{k:'pawlegends'"), html.indexOf("{k:'badcat'"));
-    expect(entry).toContain("play:T+'pawlegends'");
+    expect(entry).toContain("play:'https://pawlegends.app/'");
     expect(entry).toContain("tag:'New'");
-    // `pawlegends_open {from}` keeps a `from` of at most 24 characters (components/pawlegends/session.ts openedFrom).
+    // `pawlegends_open {from}` keeps a `from` of at most 24 characters (pawlegends-web components/pawlegends/session.ts openedFrom).
     expect("home_hub_pawlegends".length).toBeLessThanOrEqual(24);
     const budget: Record<string, number> = {
       "pawlegends-trailer.mp4": 9.5e6,

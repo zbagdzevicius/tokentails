@@ -8,7 +8,7 @@
   Firebase account id, also the anonymous guest id once the player has played online); party play sends a party key
   (User ID) and the match (Gameplay Content); saved matches and the Treat Track are Gameplay Content too. The Firebase
   and GoogleSignIn pods ship their own manifests. Keep this, the App Store Connect answers and
-  client/pages/pawlegends/privacy.tsx in step. Required-reason APIs, all for the app's
+  pawlegends-web/pages/privacy.tsx in step. Required-reason APIs, all for the app's
   own files and settings: UserDefaults (CA92.1), file timestamps of downloaded update bundles in the app container
   (C617.1) and free disk space before an update is written (E174.1), used by @capgo/capacitor-updater, which ships
   no manifest of its own. Capacitor ships its own (scripts/check-privacy-manifests.mjs checks after pod install).

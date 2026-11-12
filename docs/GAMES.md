@@ -2,8 +2,8 @@
 
 The Phaser games run in the browser with Phaser 4 rc.5 (WebGL, pixel art, arcade physics) inside the
 Next.js client. Catnip Heist is a separate three.js game (`catnip-heist/`) hosted on `/heist`, and
-Pawlegends one in `pawlegends/` hosted on pawlegends.app by `pawlegends-web/` (and on tokentails.com/pawlegends until
-the cutover, docs/plans/moba/PAWLEGENDS-WEB.md). The backend stores results, re-simulates Heist
+Pawlegends one in `pawlegends/` hosted on pawlegends.app by `pawlegends-web/` (tokentails.com/pawlegends redirects
+there, docs/plans/moba/PAWLEGENDS-WEB.md). The backend stores results, re-simulates Heist
 runs and Pawlegends matches and serves leaderboards. See
 [BACKEND.md](BACKEND.md#games) for the server side and [CLIENT.md](CLIENT.md) for the app around
 the games.
@@ -18,7 +18,7 @@ the games.
 | `PIXEL_RESCUE` | Cupid Cat | `client/components/PixelRescue/` | Yes, hearts per level, cleared state, date-gated levels. |
 | `MATCH_3` | Paw Match | `client/components/Match3/` | Yes, catnip and raw score per level, cleared state. |
 | `CATNIP_HEIST` | Catnip Heist | `catnip-heist/`, host in `client/components/heist/` | Yes, a replay the server re-simulates. |
-| `PAWLEGENDS` | Pawlegends | `pawlegends/`, host in `pawlegends-web/components/pawlegends/` (client copy until the cutover) | Yes, a replay the server re-simulates (won and lost matches). |
+| `PAWLEGENDS` | Pawlegends | `pawlegends/`, host in `pawlegends-web/components/pawlegends/` | Yes, a replay the server re-simulates (won and lost matches). |
 
 `PURRQUEST` and `CATBASSADORS` exist in the backend enum from earlier iterations. Old `Game`
 rows use them and the score endpoint path is still `/user/catbassadors/live`, but the endpoint
@@ -248,11 +248,11 @@ Dec 1; v9 is retired).
   when a unit-target quick cast would hit a different enemy hero, that hero gets a thinner red ring. Touch keeps
   the joystick and button cluster.
 - **Hosting**: same origin, like the Heist. `npm run build:client` in `pawlegends/` writes
-  `pawlegends-web/public/pawlegends-game/` (committed) and mirrors it to `client/public/pawlegends-game/` until the
-  cutover; `/play` on pawlegends.app (and `/pawlegends/play` on tokentails.com until then) frames
-  `/pawlegends-game/index.html?embed=1` (`pawlegends-web/README.md`, CLIENT.md "Pawlegends (/pawlegends)").
+  `pawlegends-web/public/pawlegends-game/` (committed); `/play` on pawlegends.app frames
+  `/pawlegends-game/index.html?embed=1` (`pawlegends-web/README.md`; tokentails.com redirects its old paths, CLIENT.md
+  "Pawlegends (moved to pawlegends.app)").
 - **Bridge v1**: envelope `{ns: 'tt-pawlegends', v: 1, type}`, host side
-  `pawlegends-web/components/pawlegends/bridge.ts` (client copy until the cutover), game side `pawlegends/src/embed/bridge.ts` and
+  `pawlegends-web/components/pawlegends/bridge.ts`, game side `pawlegends/src/embed/bridge.ts` and
   `src/embed/integrate.ts`; both test against `shared/pawlegends-bridge.fixtures.json`. The host says `hello`
   until the game answers `ready {version}` (every 500 ms for 10 s, then every 2 s; a "still loading" note
   after 10 s and a Reload / Back to games panel after 2 min). On every `ready` it re-sends `app {isApp, store,

@@ -7,7 +7,7 @@
  *    the API host, the production host list for share links);
  * 2. the screens render no cards, squad, Meet card, card peek, Cards nav item or "Games" exit, and the cat checkout
  *    message is never sent.
- * The legal pages that must name the operator (Token Tails MB) live in the host (client/pages/pawlegends), not here.
+ * The legal pages that must name the operator (Token Tails MB) live in the host (pawlegends-web/pages), not here.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';

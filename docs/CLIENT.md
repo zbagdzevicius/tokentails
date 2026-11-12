@@ -77,8 +77,6 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_SWORDCAT` | Kill switch only: `/swordcat` (Pink Paw Knight, GAMES.md), the picker card and the landing section (web only) are on by default. `0`, `false`, `no` or `off` turns them off: the page then only does a client-side `router.replace("/game")` |
 | `NEXT_PUBLIC_SWORDCAT_URL` | Optional override of where the Pink Paw Knight build is served. Default unset: the same-origin build `/swordcat-game/index.html` (`client/public/swordcat-game/`, copied from the Swordcat repo with `npm run build:tokentails`). An override must be an absolute `https:` URL, an `http://localhost` URL (local dev, e.g. `http://localhost:5175/` with the game's `npm run dev`) or a same-origin path starting with `/`; anything else is ignored |
 | `NEXT_PUBLIC_SWORDCAT_PICKER` | Kill switch only: the Swordcat card (after the Heist; title from `SWORDCAT_TITLE`) is in the PLAY picker by default, unless this or `NEXT_PUBLIC_SWORDCAT` is `0`, `false`, `no` or `off` (`swordcatPickerEnabled`) |
-| `NEXT_PUBLIC_PAWLEGENDS` | Kill switch only: `/pawlegends` (GAMES.md, "Pawlegends") and its picker card are on by default. `0`, `false`, `no` or `off` closes the page (it sends players to `/game`) |
-| `NEXT_PUBLIC_PAWLEGENDS_PICKER` | Kill switch only: the Pawlegends card (second in the PLAY picker, right after the Moon Rave, web only) shows unless this or `NEXT_PUBLIC_PAWLEGENDS` is off (`pawlegendsPickerEnabled`) |
 | `NEXT_PUBLIC_YOURCAT_ENTRY` | `1`, `true` or `on` turns on the way into `/yourcat`: the "Turn your cat's photo into your game cat" link under the landing hero (`pages/index.tsx`) and in the onboarding ceremony (`MeetYourCat.tsx`), both `YourcatEntryLink`. Read in `components/yourcat/useYourcatAvailable.ts`; with it on, the link still shows only when the public `GET /yourcat/status` answers `enabled` and `uploadsOpen`, and never in the app build. Default off: nothing renders and no status request is made. Inlined at build time, so a change needs a redeploy (YOURCAT.md, launch checklist) |
 | `NEXT_PUBLIC_IMPACT_URL` | CDN URL of the impact snapshot mirror (default `impact/impact.json` on the asset CDN) |
 | `NEXT_PUBLIC_SNOWFALL` | `on` turns the seasonal Snowfall on (off by default, decision #47; month-day windows in `SNOWFALL_SEASONS`) |
@@ -125,7 +123,6 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/impact/` | Lobby RESCUE tile, impact board (`ImpactStrip`), `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
-| `components/pawlegends/` | The `/pawlegends` landing (`landing/`: roster, markup, scoped CSS, the GSAP motion chunk) and routes (`routes.json`), and the `/pawlegends/play` host: flags, title, the v1 bridge, champion art (`championsBridge.ts`), session, the retired offer and `pl_*` store client (`checkout.ts`), saves queue, `PawlegendsHost` (no roster, featured cats or cat sheet since 2026-11-12: docs/plans/moba/NO-TOKENTAILS.md). |
 | `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the title constant (`title.ts`), the v1 postMessage bridge, `SwordcatHost`. |
 | `components/audio/` | Audio settings store, music engine, system mute, tracks, Settings modal, mute toggle, graphics control. |
 | `components/typography/`, `components/Phaser/typography/` | Type roles, `loadGameFonts`, `ttCanvasFont`; the Phaser side (`TTFontsFile`, `ttText`, `ttFit`, font healing, `ttWorldText`). |
@@ -168,11 +165,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/game` | `pages/game.tsx` | Main web game shell: auth in `guest` mode (a silent anonymous session, no sign-in wall), game provider, the night intro curtain, Meet your cat for a pending player, the lobby. `?meet=1` replays Meet your cat (read once `router.isReady`, then removed); `?ref=` is captured for the referral. Canonical `/game` without the query. |
 | `/heist` | `pages/heist.tsx` | Catnip Heist host: optional auth, SeoHead, the `/heist-game/index.html?embed=1` iframe in the server HTML, the bridge and the save chip. `?from=` feeds `heist_open` and is stripped. `/heist/index.html` redirects here; `/heist/:path+` redirects to `/heist-game/:path+` (old asset links) |
 | `/swordcat` | `pages/swordcat.tsx` | Pink Paw Knight host, on by default (`NEXT_PUBLIC_SWORDCAT=0` is the kill switch: a client redirect to `/game`). Optional auth, `noindex`, left out of the sitemap. See "Pink Paw Knight (/swordcat)" below |
-| `/pawlegends` | `pages/pawlegends/index.tsx` | Pawlegends landing page (port of the vs-screen landing, `components/pawlegends/landing/`). A URL with a game key (`?party=`, `?dare=`, `?checkout=`, `?restore=`, `?notify=`, `?from=`) goes on to `/pawlegends/play` with its query; app builds go straight there. `noindex`, left out of the sitemap. See "Pawlegends (/pawlegends)" below |
-| `/pawlegends/play` | `pages/pawlegends/play.tsx` | Pawlegends host (the game), on by default (`NEXT_PUBLIC_PAWLEGENDS=0` is the kill switch for both pages). Optional auth, always `noindex`, left out of the sitemap |
-| `/pawlegends/account` | `pages/pawlegends/account.tsx` | Paw Legends account: sign in, sign out, delete the account (the apps' Play Data safety deletion URL). Optional auth, `noindex` |
-| `/pawlegends/terms` | `pages/pawlegends/terms.tsx` | Pawlegends presale terms and refund policy (POC.md §8.6), left out of the sitemap |
-| `/pawlegends-game/` | `public/pawlegends-game/` | The static Pawlegends build (`npm run build:client` in `pawlegends/`, committed) |
+| `/pawlegends*`, `/legends`, `/pawlegends-game/**` | `next.config.js` | Permanent redirects to pawlegends.app (pawlegends-web/, "Pawlegends" below) |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
 | `/rave` | `public/rave/` | Cat Rave (`cat-rave/`): $1 paid out on-chain to Pink Paw = 1 dancing cat. The static build (`npm run build:client` in `cat-rave/`, base `/rave/`, committed like the Heist); `next.config.js` rewrites `/rave` to `/rave/index.html` so the URL stays `/rave`. Web only (the app export has no rewrites). Checkout: `cat-rave/CHECKOUT-SPEC.md`. |
 | `/shelter-payouts`, `/shelter-payouts/give`, `/shelter-payouts/receipt` | `pages/shelter-payouts*` | Treats and payouts on seven chains (mainnet list plus a separate testnet proof), the give page (open to guests, no account needed; a network picker on the web), one receipt per donation (`noindex`). App builds show a proof notice that opens web `/impact`. |
@@ -535,138 +528,24 @@ needed: the page, the picker card and the landing section (web only, never in th
   `node_modules` symlink to another checkout makes `next dev` (Turbopack) fail with "Symlink
   node_modules is invalid, it points out of the filesystem root" (`next dev --webpack` still works).
 
-### Pawlegends (/pawlegends)
+### Pawlegends (moved to pawlegends.app)
 
-**Moving out (2026-11-12, `docs/plans/moba/PAWLEGENDS-WEB.md`).** Paw Legends now has its own Next app,
-`pawlegends-web/` (`pawlegends-web/README.md`), its own Vercel project and pawlegends.app: `/`, `/play`, `/terms`,
-`/privacy`, `/account`, `/support`, `/legends`. Phase A (now): the client pages below still serve
-tokentails.com/pawlegends*, and pawlegends.app until its domain moves to the new project; `npm run build:client` in
-`pawlegends/` writes the game to `pawlegends-web/public/pawlegends-game` and mirrors it here
-(`pawlegends/tools/mirror-client.mjs`; CI checks they match). Change Paw Legends host code in `pawlegends-web/`
-first and copy it here only while Phase A lasts. Phase B (after pawlegends.app serves the new project): the pages,
-`components/pawlegends/`, `analytics/pawlegends-*.ts`, `public/pawlegends/` and `public/pawlegends-game/` are
-deleted here, and tokentails.com/pawlegends*, /legends and /pawlegends-game/** redirect (308) to pawlegends.app.
-`public/pawlegends-app/updates/` (the apps' OTA files) stays in client for good.
+Paw Legends has its own Next app, `pawlegends-web/` (`pawlegends-web/README.md`, `docs/plans/moba/PAWLEGENDS-WEB.md`),
+its own Vercel project and domain, pawlegends.app: `/`, `/play`, `/terms`, `/privacy`, `/account`, `/support`,
+`/legends`, and the game at `/pawlegends-game/**` (`npm run build:client` in `pawlegends/` writes
+`pawlegends-web/public/pawlegends-game`). Since the cutover (2026-11-12, Phase B) the client keeps none of its pages,
+host code or game files. `next.config.js` answers the old tokentails.com paths with permanent redirects to the same
+page there, query included: `/pawlegends` → `https://pawlegends.app/`, `/pawlegends/<play|privacy|terms|account|support>`
+→ `https://pawlegends.app/<page>`, other `/pawlegends/**` (landing media, `og.jpg`) → `https://pawlegends.app/pawlegends/**`,
+`/legends` → `https://pawlegends.app/legends`, `/pawlegends-game/**` → `https://pawlegends.app/pawlegends-game/**`.
+Party invites, dares, Stripe returns and account emails already out there keep working (pawlegends.app sends a game
+key on `/` on to `/play`).
 
-`/pawlegends` is the landing page and `/pawlegends/play` the game.
-
-- **Landing** (`pages/pawlegends/index.tsx`, `components/pawlegends/landing/`): a port of the vs-screen landing
-  (`docs/plans/moba/landings/02-vs-screen.html`, not in git) with its look and motion. The markup is one HTML string
-  (`markup.ts`) rendered under `.pll`; its stylesheet (`landingCss.ts`) is scoped to `.pll`, keyframes `pll-*`, and
-  ships in the server HTML. `motion.js` is the original engine (canvas seam, sparks, sprite fighters, GSAP 3.13 from
-  npm) loaded as its own chunk on this page; it tracks every listener, rAF, timer and observer and stops on unmount.
-  `prefers-reduced-motion` shows the finished page. Media live in `public/pawlegends/landing/` with content hashes in
-  their names (cached for good in `next.config.js`; pruned from the app export), Fredoka with its OFL licence too.
-  The roster (`roster.ts`) is the game's own words; heroes without in-game art yet show a paw card with a "New" badge,
-  never a stand-in image. `__test__/pawlegends/landing-roster.test.ts` checks it against the game's `HERO_IDS` and
-  `SIM_VERSION`, so a cut hero fails CI. Play buttons link `/pawlegends/play?from=landing_hero|landing_continue`.
-- **Landing load speed** (2026-11-07): the hero is hidden until the GSAP intro runs, so the motion chunk is the LCP
-  path. `LandingMotion.tsx` (GSAP, plugins and `motion.js`) is a server-rendered `next/dynamic` component that renders
-  nothing, so its scripts are in the page HTML and download next to the framework; it starts the motion in its own
-  task after hydration, and if the engine throws it shows the finished hero (`reveal.ts`). The pages router waits for
-  those scripts before it hydrates, and webpack would wait 120 s for a script tag that already failed, so a blocked or
-  missing motion chunk would stop hydration of the whole page. `_document.js` therefore inlines a watcher on
-  `/pawlegends` (`CHUNK_ERROR_WATCH`) that counts failed `/_next/static/chunks/` scripts, and `guardMotionChunk`
-  (`motionChunk.ts`) rejects as soon as one fails (or after 6 s): the page hydrates without motion, `MotionFailed`
-  shows the hero and tells analytics the page is ready. A request that hangs without failing still holds every
-  deferred script, Next's own included; the 5 s CSS fallback then shows the hero. Analytics waits for the intro (see
-  "Analytics"). Tiles, the round screenshots and the footer logo have smaller copies (`<name>.w<width>.webp`,
-  `srcset`/`sizes` in `markup.ts`; the tile `sizes` follows the measured tile width, so a DPR 3 phone at 390 takes the
-  280w copy); the two hero stills stay full size with `fetchpriority="high"`. Fredoka drops only its Hebrew glyphs
-  (Latin, punctuation, combining marks and the fi/fl ligature characters stay; width axis pinned at 100, weight axis
-  300 to 700 kept): 33 KB. `_document.js` preloads only Nunito here (`preloadFontsFor`) and warms the brand faces
-  after the first contentful paint instead of at load (`warmBrandFonts`). Endless idle loops pause while their section
-  is off screen (`loopIn` in `motion.js`).
-- **Routing** (`components/pawlegends/routes.json`): a `/pawlegends` URL with `party`, `dare`, `checkout`, `restore`,
-  `notify` or `from` is redirected (307) to `/pawlegends/play` with its query by `next.config.js`, and the landing
-  repeats the check in the browser (app export, client-side navigation). Party invites, dare links, Stripe returns,
-  account emails, the PLAY picker and the home hub keep working unchanged; `?utm_*` links stay on the landing.
-- **Game** (`pages/pawlegends/play.tsx`): Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin
-  iframe hosted by `components/pawlegends/PawlegendsHost.tsx`. It is on by default with no env needed;
-`NEXT_PUBLIC_PAWLEGENDS` and `NEXT_PUBLIC_PAWLEGENDS_PICKER` are kill switches only (`flags.ts`).
-- **Sign-in** (2026-11-11): the game's title has an account chip (top right) and Settings an Account row; they send
-  `account {sign-in | sign-out | manage | delete}`. The host opens the AuthSheet (`requireAccount("sign-in")`), signs
-  out, or opens `PawlegendsAccount.tsx` (who and how, Sign out, Delete account through `requestAccountDeletion`).
-  `session` carries `provider` (google, apple or email from the user's providers, the last-used one first; never the
-  address). `/pawlegends/account` is the public account page (sign in, sign out, delete), the account deletion URL of
-  the apps' Google Play Data safety form. The native app runs the same host over a same-window channel
-  (`pawlegends-app/src/host`, see `pawlegends-app/README.md` "Sign-in"); it reuses `bridge.ts`, `saves.ts`,
-  `partySaves.ts`, `apiBridge.ts`, `championsBridge.ts`, `session.ts`, `claim.ts`,
-  `context/auth/link.ts`, `authErrors.ts`, `lastMethod.ts` and `firebaseConfig.ts`, so keep those React-free.
-
-- The iframe loads `/pawlegends-game/index.html?embed=1`. Rebuild it after any game change with
-  `npm run build:client` in `pawlegends/` and commit `pawlegends-web/public/pawlegends-game/` and its mirror
-  `client/public/pawlegends-game/`. The build keeps the two
-  previous releases' hashed `build/` files (listed in `build-releases.json`) and prunes older ones, so a tab opened
-  before a deploy still loads its chunks and sim Worker; `next.config.js` serves `/pawlegends-game/build/*` as
-  `immutable`. If the sim Worker still fails to load before the match starts, the game retries it once and then runs
-  the sim on the main thread (`pawlegends/src/host/local-host.ts`).
-- `bridge.ts` speaks bridge v1 (GAMES.md). It accepts messages only from the iframe's window and the game's
-  origin, posts only to that origin, builds every payload field by field (no `accesstoken`), and checks a
-  replay against the same bounds as the backend DTO before it is queued.
-- No cat feed (2026-11-12, `docs/plans/moba/NO-TOKENTAILS.md`): the host sends no `roster`, `featured` or Meet
-  `offer` and handles no `open-cat`, `offer-seen`, `champion-offer`, `skin-preview` or `exit` (an older game build
-  may still send them). `championsBridge.ts` `championArtOf` sends the shelter champions' art, never for sale. The
-  loading banners lead back to the Paw Legends landing (`pawlegendsHomePath`: `/` on pawlegends.app). Invite and dare
-  links use `https://pawlegends.app/`; the Settings and notify privacy links use `https://pawlegends.app/privacy`.
-- `session.ts` sends `session {signedIn, progress}` with the account's Pawlegends fields from `GET /user/profile`.
-- `saves.ts` (`PawlegendsSaver`, the Heist saves pattern) posts every finished match to
-  `POST /user/catbassadors/live` and answers the game with `save-result`. Without a Firebase user it queues the
-  match on the device (`tt.pawlegends.queue.v1`); after sign-in the "ADD YOUR MATCHES?" prompt adds or declines
-  them (the host takes them with `take(uid)`, closes the prompt and drains in the background; `decline()`). A
-  guest's matches go back to the prompt when another uid signs in. Each POST is aborted after 20 s
-  (`PAWLEGENDS_SAVE_TIMEOUT_MS`), so a stalled connection reads as offline and backs off instead of holding
-  the chip on "saving" and blocking later retries.
-- Party play (`docs/plans/moba/MULTIPLAYER.md` §5.3, §6): `flags.ts` forwards a valid `?party=K7QX2M` to the
-  frame's src (upper-cased, the 31-letter alphabet only) and the host strips it from the address bar. The iframe
-  allows `web-share` and `clipboard-write`. `partySaves.ts`: the game's `party-ticket-request {id}` is answered
-  with `party-ticket {id, ticket}` minted by `POST /pawlegends/party/ticket` with the host's own session (a guest
-  session on 428; one in flight, 10 a minute; `ticket: null` and an error code on failure, so the friend plays as
-  an unscored guest); the access token never crosses. A party match's `party-result {matchId: room, result}` is
-  posted once to `POST /user/catbassadors/live` as `{type: 'PAWLEGENDS', pawlegends: {v: 2, ...}}` (no device
-  queue: the ticket fixed the account; retried 2 s, 6 s, 18 s on a network or server failure) and its status goes
-  back as `save-result`. A `share {kind: 'party'}` link is accepted only as `https://tokentails.com/pawlegends?party=…`.
-- `checkout.ts` has the offer API (`GET /pawlegends/offer` once per visit, after `ready` and the featured list;
-  `POST /pawlegends/offer/seen` on `offer-seen`), the device id, the age band and the session counter (every
-  storage access in try/catch). It also keeps the retired `pl_*` store client (`status`, `checkout`,
-  `checkout/account` with a session, `entitlements`, `restore`, `notify`) so tokens bought earlier restore.
-- `open-cat {catalogId}` opens `PawlegendsCatSheet.tsx`: the cat, the age question once, the under-16 block and
-  the $5 Token Tails checkout (`<Payment entityType={EntityType.CAT}>` with `context: 'pawlegends'`, so the
-  backend runs `PawlegendsCheckoutGuard`). Purchase answers `purchase-result {catalogId, ok}` and refreshes the
-  storefront. App builds drop `open-cat` and send no featured cats, offer or entitlement token.
-- Host analytics (`analytics/pawlegends-events.ts`): `pawlegends_open`, `pawlegends_save`,
-  `pawlegends_guest_claim`, `pawlegends_signin_prompt`, `pawlegends_meet_open`, `pawlegends_cat_purchase`,
-  `pawlegends_bridge_timeout {waitedMs, reloads}` (the frame never answered `hello`). Game crashes: the iframe's
-  errors never reach the host window's listeners, so the game posts `client-error {source, msg, screen, tier, sim}`
-  and the host reports it through `reportAppError` as `app_error` with code `pawlegends_<source>` (scrubbed, 5 a
-  session, one per code; launch finding R1). The game's own events arrive as `analytics {event, props}` and are sent
-  with the host's `analytics.track` (launch finding PUB-02): names from `PAWLEGENDS_GAME_EVENTS` only (no
-  `app_error`), flat number, boolean or token-string props (no `/`, `@`, `?`), at most 24 props and 1,000 events a page.
-  `pawlegends_save` carries `status`, `catnipPaid`, the backend's error `code` (UPPER_SNAKE only, anything else is
-  `OTHER`, null without one) and `httpStatus` (0 without an answer), so a rejected-save alert can tell sim drift
-  from other failures (LAUNCH.md a.8 step 4).
-- Any GameModal pauses the game. The exit button ("Back to games") does a full load of `/game`.
-- Hand-kept mirrors: the SKU ids, consent version and age bands come from
-  `backend/src/pawlegends/pawlegends.contracts.ts`; hero and trick ids from `pawlegends/src/data/`; difficulty
-  ids and caps from `shared/caps.ts` (synced).
-- Local dev: run `next dev --webpack` (`npm run dev`); with a symlinked `node_modules` Turbopack refuses to
-  start. The committed build accepts the host on any port because it is same-origin.
-- The picker card shows a real match frame (`PAWLEGENDS_PREVIEW`); the "3v3" tile is only the fallback when the image fails to load. Like the other web-only picker art,
-  `game-select/pawlegends-preview@2x.webp` is in `scripts/prune-app-export.mjs` `WEB_ONLY_FILES` (the card never
-  renders in app builds).
-- The home page games hub (`public/home/index.html`, `GAMES`): the Pawlegends tab (accent `#6fa8ff`, tag New) right
-  after the Moon Rave, as in the picker; it plays `/pawlegends?from=home_hub_pawlegends` (`pawlegends_open {from}`).
-  Its media sit at the top of `public/home/media/`: `pawlegends-trailer.mp4/.jpg` is the landing variant of trailer v3
-  (`pawlegends/media/trailer-v3/landing/`, the "INSPIRED BY REAL SHELTER CATS." cut, 30 s 1080p re-encoded to 30 fps,
-  about 8.6 MB; the poster is that variant's poster); `pawlegends-loop.mp4/.jpg` (a silent 8 s 1280x720 loop, about
-  0.9 MB) and `pawlegends-mode.mp4/.jpg` (the 9:16 cut, 25 s with the trailer's music bed, about 6 MB) are pure
-  gameplay with no screen layers (no HUD, plates, pops or type), captured with `tools/trailer/capture.mjs
-  --shots-file tools/trailer/v3/hub-shots.mjs` (pawlegends/) from takes V13 (the tower falls), W9 (all six meet) and V12 (the doghouse falls); `t/tab-pawlegends.webp`
-  is a 320x200 frame of the loop take. `scripts/sync-home.mjs` rebuilds `public/home` from `landing-poc/v16c1`, which
-  has no Pawlegends entry yet: add the entry and the media there before the next sync, or the sync drops the tab.
-  `/pawlegends` stays out of the sitemap and keeps its `noindex` until the trademark search passes
-  (docs/plans/moba/LAUNCH.md a.1), so the games taxonomy line does not name it yet. `/pawlegends/play` and
-  `/pawlegends/terms` stay out of the sitemap and `noindex` after launch.
+What stays in client: `public/pawlegends-app/updates/**` (the apps' OTA files; installed apps fetch
+`https://tokentails.com/pawlegends-app/updates/...`, written by `.github/workflows/pawlegends-ota.yml`, cache headers
+in `next.config.js`), the PLAY picker card (`components/shared/GameSelectModal.tsx`, web builds only) and the home
+hub tab (`public/home/index.html`), both linking to pawlegends.app, and the shared `GameType.PAWLEGENDS` and
+`context: "pawlegends"` checkout contract (the enum and API types are shared with the backend).
 
 ### Home page (/)
 
@@ -840,84 +719,7 @@ commands are pushed, so Google Analytics 4 in the container uses its default sto
 cookies. If the GTM container has its own consent settings in the GTM web UI, they still apply.
 There is no `<noscript>` iframe.
 
-One exception to "on mount": on the Pawlegends landing (`/pawlegends`) GTM and PostHog start when the
-intro has played (`pawlegends:landing-ready` from `landing/motion.js`, or from `reveal.ts` when there
-is no motion), on the first tap, key or scroll, or after 4 s, whichever comes first
-(`afterLandingReady`). The hero stays hidden until its GSAP intro runs, and the GTM tags (about
-470 KB of script) would otherwise compete with it. When the page is hidden first (app or tab switch,
-close) they start at once and the page_view is pushed without the 100 ms delay, so a quick bounce
-still has a chance to be counted. A route change before the start starts them at once, and the
-landing's page_view still goes first, then the new page's. The trade-off: a visitor who closes the
-tab within about 4 s without touching the page may send no page_view (the hide start is best effort).
-
-| Event | Sent when | Properties |
-|---|---|---|
-| `game_start` | `RUN_BEGIN` (the first input behind the RunGate; plan F6). `GAME_START` no longer sends it | `mode`, `level`, `platform`, `is_restart` (true after PLAY AGAIN / RETRY) |
-| `game_loaded` | First `GAME_LOADED` after a mode or level pick | `mode`, `level`, `platform`, `load_ms` |
-| `game_finish` | `GAME_STOP` with `completedLevel`, a Purrsuit stop with `outcome: won`, or a Purrsuit stop with no outcome (older builds, `run_end`) | `mode`, `level`, `platform`, `outcome` (`win` or `run_end`), `duration_s`, `score`, `catnip` |
-| `game_fail` | `GAME_STOP` without `completedLevel` in a level mode, or a Purrsuit stop with `outcome: died` or `quit` | same as `game_finish`, `outcome: fail` |
-| `game_quit` | Leaving the mode while a run is in progress (Home and Shelter only ever quit) | `mode`, `level`, `platform`, `duration_s` |
-| `life_lost` | `LIFE_LOST` (a Paw Guard was spent) | `mode`, `level`, `lives_left` (absent when unlimited) |
-| `ftue_gate_shown`, `ftue_hint_shown`, `ftue_hint_done`, `ftue_first_clear`, `ftue_abandon` | The full RunGate, a first-run hint and its completion, a first clear, leaving from the gate | `mode`, `level`, plus `hint` or `step` |
-| `intro_lifted` | The intro curtain lifts | `ms` |
-| `guest_session_created`, `auth_sheet_shown`, `auth_linked`, `auth_merged`, `auth_error` | Identity funnel (F9 catalog) | reason or error kind; never a user id or email |
-| `onboarding_shown`, `onboarding_step_viewed`, `starter_selected`, `starter_named`, `starter_committed`, `onboarding_skipped`, `featured_cat_followed`, `cat_name_rejected` | Meet your cat | step, breed; `starter_named` carries only `length` |
-| `landing_cta` | A landing call to action | `from` (`hero`, `hero_fallback`, `sample_card`, `crew`, `heist_pill`) |
-| `heist_open`, `heist_save`, `heist_signin_prompt`, `heist_guest_claim` | The `/heist` host | `from`, `status` |
-| `impact_tab_viewed`, `pledge_made`, `treat_sent` | PROGRESS IMPACT tab | `status` for treats |
-| `storefront_degraded` | A `/cat/sale` failure (per fetch) or a legacy shape (once per session) | `reason` |
-| `game_font_fallback` | A brand face did not load within 3 s (once per page) | faces |
-| `app_error` | A boundary, the crash guard, a listener or a same-origin window error (RESILIENCE.md) | `code` (`<level>_crash:<name>`, `scene_stall`, `listener_error:<event>`, ...), scrubbed message and stack, route |
-
-Every event also carries the super properties `app` (`core`), `platform` and `device_tier`
-(`low` at 4 GB `deviceMemory` or less). `mode` is the `GameType` value. Telemetry never writes
-scores; `saveMatch` stays the only write path and now adds `platform` to the `/live` body.
-
-`analytics/events.ts` is one typed catalog of every F9 event (areas: entry, identity, onboarding,
-runs, heist, impact, health) with property shapes that never carry a user id, email or cat name;
-`buildEvent` builds them. The scrubber (`shared/analytics-core.ts`, re-exported by `analytics/scrub.ts`)
-removes emails, JWTs and `fb` tokens, Stellar seeds and addresses, `0x` values, ObjectIds, long hex,
-phone numbers and national-id-like digit runs, IBANs, `did:` ids, opaque tokens, URL queries and
-quoted names (code-shaped quoted identifiers stay), and cuts stacks to 8 frames without the origin.
-`app_error` reports go through the same client, at most 5 per tab session and one per code
-(counts in `sessionStorage["tt-app-error-session"]`), and never call `posthog.captureException`.
-Catnip Heist sends its own scrubbed events with the same core (GAMES.md) whenever its build has a
-PostHog key.
-
-## SEO
-
-`components/seo/SeoHead.tsx` is the single meta source (plan F12): `siteOrigin()` and `new URL()`
-joins in `components/seo/site.ts` (no more `https:/host` or `@undefined`), keyed tags, an absolute
-`og:image` with its size, Twitter and Facebook tags only when configured, and a `noindex` prop. Blog
-pages add JSON-LD from `lib/feed/jsonld.ts` (see "Blog"). The sitemap is generated after the web
-build by `next-sitemap`: plain URLs for the app pages and the blog rows from the repo content
-(`lib/feed/engine.ts sitemapEntries`). Generated `robots.txt`, sitemap files and
-`public/feed/rss.xml` are gitignored.
-
-## Testing
-
-Jest suites live in `__test__/` and next to their code (around 120 suites); Playwright specs in
-`e2e/` (smoke, auth-guest, auth-sheet, meet-your-cat, intro, lobby-impact, progress-impact,
-purrsuit-ftue, cupid-ftue, pawmatch-ftue, heist-host, modals-a, modals-b, impact, resilience,
-render-foundation, world-look, typography, audio, landing-cta, meta). The older suites below are
-still the reference for the landing and analytics. `constants/catnip-accounting.test.ts` covers cap normalisation, count
-sums, and the total cap. `__test__/landing-routing.test.tsx` covers the root landing, the
-`/gaming` redirect in both hosting modes, the sitemap exclusion, and stale anchors; it opts into
-jsdom with a docblock and mocks the page's heavy components. `__test__/proof-section.test.tsx` covers the
-homepage proof section: copy guard, video attributes, marquee duplication, the lazy motion-aware
-playback controller (stubbed `IntersectionObserver`, `matchMedia`, and `HTMLMediaElement`
-`play`/`pause`), and that every video and poster points at the deck originals on the pitch site. `__test__/analytics.test.ts` covers the client with no consent
-state (sends at once, `init()`, the one-time opt-in after an old opt-out, throwing storage, no
-key), the `GAME_*` to event mapping, the run tracker and `getPlatform`. `__test__/gtm.test.ts`
-covers GTM (loads on start, pushes at once, no Consent Mode commands, no id, no window). `__test__/app-export.test.ts` covers the app-build switches
-(`output: "export"` and no redirects, no ISR or fallback, client-route links and `webPath`), and
-`__test__/app-route-restore.test.tsx` covers routing a cold app load to the page the URL names.
-`__test__/test.ts` is a placeholder
-so coverage runs. Jest defaults to the `node` environment, so component tests need the
-`@jest-environment jsdom` docblock. React 19 hoists `<title>`, `<meta>`, and `<link>` into
-`document.head`, so head assertions query the document. `jest-util` 30 is pinned as a
-devDependency because `ts-jest` 29 cannot resolve it under Jest 30 otherwise. Coverage is
-collected only from `components/CatnipChaos/**`, so the reported figure is misleading.
+Paw Legends' own container (`GTM-K6RTRKSR`, Consent Mode v2) and its deferred start live in pawlegends-web.
 
 ## Known issues
 
@@ -927,11 +729,7 @@ Home page (`public/home`, "Home page (/)"):
 - It is about 2,800 lines of hand-written HTML, CSS and JS outside the TypeScript, ESLint and copy-lint checks, and its numbers are not `components/claims/Claim` registry entries. `__test__/home-static.test.ts` checks only routing, meta, paths and the beacon.
 - `scripts/sync-home.mjs` downloads the community reel clips from the pitch deck site (`token-tails-pitch.vercel.app`) at sync time; the page then serves its own copies.
 
-Pawlegends landing (`/pawlegends`):
-
-- Scrolling the phone landing with motion shifts layout: a layout-shift observer during a full scroll at 390 px
-  reports CLS about 1.9 (one shift of about 1.0 on `.stripes` and one of about 0.9 on `.round`). Lighthouse, which
-  does not scroll, reports 0. It was already there before the 2026-11-07 load-speed work and is not fixed yet.
+The Pawlegends landing's known issues moved with it to `pawlegends-web/README.md`.
 
 Build and SSR:
 

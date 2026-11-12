@@ -8,8 +8,6 @@ import { getPlatform } from "@/analytics/platform";
 import { GameType } from "@/models/game";
 import { errorCodeOf, type ErrorCode } from "@/shared-contracts/errors";
 import type { HeistRunLog } from "@/shared-contracts/heist-bridge";
-import type { PawlegendsPartyResult, PawlegendsReplay } from "@/components/pawlegends/bridge";
-import type { PawlegendsApiFetchResult, PawlegendsApiRoute } from "@/components/pawlegends/apiBridge";
 import {
   ApiError,
   apiFetch,
@@ -353,24 +351,13 @@ export interface HeistMatch {
 }
 
 /**
- * The body a Pawlegends save posts (POC.md §11.5): the type and the match replay in `pawlegends`. The
- * backend re-simulates it; no score field is read.
- */
-export interface PawlegendsMatch {
-  type: typeof GameType.PAWLEGENDS;
-  /** A solo replay (v:1, re-simulated), or a party result (v:2, checked against the relay's stored room log). */
-  pawlegends: PawlegendsReplay | PawlegendsPartyResult;
-  platform?: IMatch["platform"];
-}
-
-/**
  * `POST /user/catbassadors/live` for callers that handle every outcome (the Heist host page). Unlike
  * `saveMatch` it never waits for a token (no `waitForLocalStorageKey`), never retries a 429 on its
  * own and never throws: it returns `{ ok, status, code }`. A 428 GUEST_SESSION_REQUIRED creates the
  * guest session once and retries once (the API wrapper); a 403 never opens the sheet.
  */
 const saveMatchDetailed = async (
-  match: IMatch | HeistMatch | PawlegendsMatch,
+  match: IMatch | HeistMatch,
   options: { signal?: AbortSignal } = {}
 ): Promise<MatchSaveResult> => {
   const body = JSON.stringify({
@@ -413,39 +400,6 @@ const saveMatchDetailed = async (
     if (wait > 0 && Number.isFinite(wait)) result.retryAfter = wait;
   }
   return result;
-};
-
-/** What `pawlegendsPartyTicket` reports: the ticket, or the HTTP status and code (0 for a network failure). */
-export interface PartyTicketResult {
-  ticket: string | null;
-  status: number;
-  code: ErrorCode | null;
-}
-
-/**
- * `POST /pawlegends/party/ticket` (MULTIPLAYER.md §5.2): a 60 s single-use party ticket for the caller (an account or
- * a guest: a 428 creates the guest session once, like a save). Never throws; the ticket is handed to the game and
- * never stored or logged. 503 `PAWLEGENDS_PARTY_TICKET_UNAVAILABLE` means the backend has no ticket secret: the game
- * then plays as an unscored guest.
- */
-const pawlegendsPartyTicket = async (options: { signal?: AbortSignal } = {}): Promise<PartyTicketResult> => {
-  let response: Response;
-  try {
-    response = await apiFetch(
-      `${apiUrl}/pawlegends/party/ticket`,
-      { method: "POST", body: "{}", headers: authHeaders(), signal: options.signal },
-      { guestSession: true, requireAccount: false }
-    );
-  } catch {
-    return { ticket: null, status: 0, code: null };
-  }
-  if (!response.ok) return { ticket: null, status: response.status, code: await readErrorCode(response) };
-  try {
-    const body = (await response.json()) as { ticket?: unknown } | null;
-    return { ticket: typeof body?.ticket === "string" ? body.ticket : null, status: response.status, code: null };
-  } catch {
-    return { ticket: null, status: response.status, code: null };
-  }
 };
 
 /**
@@ -558,40 +512,7 @@ const claimAirdropMilestone = async (
   });
 };
 
-/**
- * One game API op through the host (docs/plans/moba/SOCIAL-RANKED.md §13): the route comes from the host's own allowlist
- * (`components/pawlegends/apiBridge.ts`), never from the game. "none" sends no token; "any" lets a 428 create the guest
- * session (a guest may report); a registered-only route never opens the AuthSheet (the caller checked sign-in first).
- * Never throws for an HTTP answer; a network failure answers status 0.
- */
-const pawlegendsApiCall = async (route: PawlegendsApiRoute): Promise<PawlegendsApiFetchResult> => {
-  const init: RequestInit = {
-    method: route.method,
-    headers: route.auth === "none" ? baseHeaders : authHeaders(),
-    ...(route.body ? { body: JSON.stringify(route.body) } : {}),
-  };
-  let response: Response;
-  try {
-    response =
-      route.auth === "none"
-        ? await rawApiFetch(`${apiUrl}${route.path}`, init)
-        : await apiFetch(`${apiUrl}${route.path}`, init, { guestSession: route.auth === "any", requireAccount: false });
-  } catch {
-    return { status: 0, body: null };
-  }
-  let body: unknown = null;
-  if (response.status !== 204) {
-    try {
-      body = await response.json();
-    } catch {
-      body = null;
-    }
-  }
-  return { status: response.status, body };
-};
-
 export const USER_API = {
-  pawlegendsApiCall,
   profile,
   guestSession,
   guestMerge,
@@ -607,7 +528,6 @@ export const USER_API = {
   saveProfileTwitter,
   saveMatch,
   saveMatchDetailed,
-  pawlegendsPartyTicket,
   redeem,
   saveCodex,
   airdropProgression,

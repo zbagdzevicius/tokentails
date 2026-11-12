@@ -1,7 +1,7 @@
 import { ModalButton } from "@/components/ui/modal";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { GameModal } from "@/components/ui/GameModal";
-import type { AuthSheetBrand, AuthSheetController, SheetView } from "@/context/FirebaseAuthContext";
+import type { AuthSheetController, SheetView } from "@/context/FirebaseAuthContext";
 import type { AccountReason } from "@/context/auth/types";
 import { LAST_METHOD_LABEL, type LastMethod } from "@/context/auth/lastMethod";
 import { describeProfileError, profileRetryDelayMs } from "@/context/auth/profileError";
@@ -18,19 +18,12 @@ export const TERMS_URL = "https://docs.tokentails.com/community-and-social-impac
 export const PRIVACY_URL = "https://docs.tokentails.com/community-and-social-impact/privacy-policy";
 export const SUPPORT_URL = `mailto:${SUPPORT_EMAIL}?subject=Token%20Tails%20account`;
 
-/** The Paw Legends pages' own legal pages and support subject: the sheet never names Token Tails there. */
-export const PAWLEGENDS_TERMS_URL = "/pawlegends/terms";
-export const PAWLEGENDS_PRIVACY_URL = "/pawlegends/privacy";
-export const PAWLEGENDS_SUPPORT_URL = `mailto:${SUPPORT_EMAIL}?subject=Pawlegends%20account`;
-
 /**
  * The support link with a reference support can act on: the signed-in Firebase uid (the guest
  * on the conflict path). Not personal data on its own; it lets support find both documents.
  */
-export const supportUrl = (reference?: string | null, brand?: AuthSheetBrand): string => {
-  const base = brand === "pawlegends" ? PAWLEGENDS_SUPPORT_URL : SUPPORT_URL;
-  return reference ? `${base}&body=${encodeURIComponent(`Reference: ${reference}`)}` : base;
-};
+export const supportUrl = (reference?: string | null): string =>
+  reference ? `${SUPPORT_URL}&body=${encodeURIComponent(`Reference: ${reference}`)}` : SUPPORT_URL;
 
 /** Where focus goes when a sheet that opened by itself closes (no opener to return to). */
 export const FOCUS_FALLBACK_SELECTOR = '[data-testid="guest-pill"] button';
@@ -49,21 +42,7 @@ export const SHEET_TITLES: Record<AccountReason, string> = {
   returning: "WELCOME BACK",
 };
 
-/** The same titles on the Paw Legends pages: plain sign-in words, no Token Tails, no cat to save. */
-export const PAWLEGENDS_SHEET_TITLES: Record<AccountReason, string> = {
-  "save-progress": "SAVE YOUR PROGRESS",
-  "claim-rewards": "CLAIM YOUR REWARDS",
-  purchase: "SIGN IN",
-  adopt: "SIGN IN",
-  "give-treat": "SIGN IN",
-  share: "SIGN IN",
-  support: "SIGN IN",
-  "sign-in": "SIGN IN",
-  returning: "WELCOME BACK",
-};
-
-export const sheetTitle = (reason: AccountReason, brand?: AuthSheetBrand): string =>
-  (brand === "pawlegends" ? PAWLEGENDS_SHEET_TITLES : SHEET_TITLES)[reason];
+export const sheetTitle = (reason: AccountReason): string => SHEET_TITLES[reason];
 
 /**
  * The subtitle under the title. Views that are not about the reason (a failure, a conflict) get
@@ -73,15 +52,8 @@ export const reasonLine = (
   reason: AccountReason,
   catName?: string,
   view?: SheetView["name"],
-  brand?: AuthSheetBrand,
 ): string => {
   if (view === "fallback" || view === "profile-error" || view === "conflict") return "";
-  // Paw Legends: no cat to save and no Tails; the other reasons' lines are shared (they name neither)
-  if (brand === "pawlegends") {
-    if (reason === "save-progress") return "Keep your progress on every device.";
-    if (reason === "returning") return "Sign in the way you did before: your progress is waiting.";
-    if (reason === "adopt" || reason === "give-treat") return "Sign in to keep your progress on every device.";
-  }
   switch (reason) {
     case "save-progress":
       return `Keep ${catName || "your cat"}, your runs and your Tails on every device.`;
@@ -179,8 +151,7 @@ export const AuthSheet = ({ controller }: { controller: AuthSheetController }) =
   const errorField = localError?.field ?? controller.messageField;
   // The template profile (Scout) shows before any Firebase user exists: no cat to name yet.
   const catName = controller.user ? profile?.cat?.name : undefined;
-  const brand = controller.brand;
-  const description = reasonLine(sheet.reason, catName, sheet.view.name, brand);
+  const description = reasonLine(sheet.reason, catName, sheet.view.name);
 
   // GameModal returns focus to the element that opened the sheet. A sheet that opened by itself
   // (fallback, verify, conflict, profile error) has none, so focus would land on <body>: move it
@@ -214,7 +185,7 @@ export const AuthSheet = ({ controller }: { controller: AuthSheetController }) =
       onOpenChange={(next) => {
         if (!next) controller.close();
       }}
-      title={sheetTitle(sheet.reason, brand)}
+      title={sheetTitle(sheet.reason)}
       icon="user"
       description={description || undefined}
       surface="sheet"
@@ -228,7 +199,7 @@ export const AuthSheet = ({ controller }: { controller: AuthSheetController }) =
     >
       {/* One static hero cat (decision #65), perched on the top rim. Its containing block is the
           frame, not the scrolling body, so it is never clipped. */}
-      {brand !== "pawlegends" && <img
+      <img
         src="/brand/hero-cat-peek.webp"
         alt=""
         aria-hidden="true"
@@ -237,7 +208,7 @@ export const AuthSheet = ({ controller }: { controller: AuthSheetController }) =
         height={77}
         className="pointer-events-none absolute -top-[66px] left-5 h-[72px] w-auto select-none md:-top-[70px] md:h-[76px] [@media(max-height:560px)]:hidden"
         data-testid="auth-hero-cat"
-      />}
+      />
       <div
         ref={scrollRef}
         data-fade={fade || undefined}
@@ -321,14 +292,14 @@ const SheetBody = (props: BodyProps) => {
   }
 };
 
-const LegalFooter = ({ brand }: { brand?: AuthSheetBrand }) => (
+const LegalFooter = () => (
   <p className="text-center font-sans text-[length:max(12px,0.75rem)] leading-relaxed text-tt-cream/80 md:text-[0.8125rem]">
     By continuing you accept the{" "}
-    <a href={brand === "pawlegends" ? PAWLEGENDS_TERMS_URL : TERMS_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-cream underline underline-offset-2">
+    <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-cream underline underline-offset-2">
       Terms
     </a>{" "}
     and the{" "}
-    <a href={brand === "pawlegends" ? PAWLEGENDS_PRIVACY_URL : PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-cream underline underline-offset-2">
+    <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-tt-cream underline underline-offset-2">
       Privacy Policy
     </a>
     .
@@ -522,7 +493,7 @@ const ChooseView = ({ controller }: BodyProps) => {
       <div className="flex flex-col items-center">
         <KeepPlaying controller={controller} />
       </div>
-      <LegalFooter brand={controller.brand} />
+      <LegalFooter />
     </>
   );
 };
@@ -829,7 +800,7 @@ const VerifyView = ({ controller, view }: BodyProps & { view: Extract<SheetView,
         <p className={bodyText}>
           We sent a link to <strong className="font-bold text-tt-gold-400">{view.email || "your email"}</strong>. Open it
           to confirm it&apos;s you, then come back here.{" "}
-          {controller.brand === "pawlegends" ? "Your progress waits for you." : "Your cat waits for you."}
+          Your cat waits for you.
         </p>
       ) : (
         <p className={bodyText}>
@@ -981,7 +952,7 @@ const ProfileErrorView = ({
           </button>
         )}
         {reference && (
-          <a className={textButton} href={supportUrl(reference, controller.brand)}>
+          <a className={textButton} href={supportUrl(reference)}>
             Contact support
           </a>
         )}
@@ -1017,7 +988,7 @@ const ConflictView = ({ controller }: BodyProps) => {
         SIGN IN TO MY ACCOUNT
       </ModalButton>
       <div className="flex flex-wrap items-center justify-center gap-x-2">
-        <a className={textButton} href={supportUrl(reference, controller.brand)}>
+        <a className={textButton} href={supportUrl(reference)}>
           Contact support
         </a>
         <KeepPlaying controller={controller} />
@@ -1025,10 +996,6 @@ const ConflictView = ({ controller }: BodyProps) => {
     </>
   );
 };
-
-/** Tails are a Token Tails points balance: never shown on the Paw Legends pages. */
-const tailsShown = (controller: AuthSheetController, view: { tailsCredited: number }): number =>
-  controller.brand === "pawlegends" ? 0 : view.tailsCredited;
 
 const MergedView = ({ controller, view }: BodyProps & { view: Extract<SheetView, { name: "merged" }> }) => (
   <>
@@ -1038,17 +1005,17 @@ const MergedView = ({ controller, view }: BodyProps & { view: Extract<SheetView,
     ) : (
       <p className={bodyText}>
         Your guest progress is in your account now
-        {view.gamesMoved > 0 || tailsShown(controller, view) > 0 ? ":" : "."}
+        {view.gamesMoved > 0 || view.tailsCredited > 0 ? ":" : "."}
       </p>
     )}
-    {!view.note && (view.gamesMoved > 0 || tailsShown(controller, view) > 0) && (
+    {!view.note && (view.gamesMoved > 0 || view.tailsCredited > 0) && (
       <ul className="flex flex-wrap gap-2" aria-label="What moved">
         {view.gamesMoved > 0 && (
           <li className="rounded-[4px] border-2 border-tt-gold-500/60 bg-tt-night-900/70 px-3 py-1 font-sans text-p5 font-extrabold text-tt-cream">
             {view.gamesMoved} {view.gamesMoved === 1 ? "run" : "runs"}
           </li>
         )}
-        {tailsShown(controller, view) > 0 && (
+        {view.tailsCredited > 0 && (
           <li className="rounded-[4px] border-2 border-tt-gold-500/60 bg-tt-night-900/70 px-3 py-1 font-sans text-p5 font-extrabold text-tt-gold-400">
             +{view.tailsCredited} Tails
           </li>
@@ -1065,9 +1032,8 @@ const FallbackView = ({ controller }: BodyProps) => (
   <>
     <Heading>We couldn&apos;t start a guest game</Heading>
     <p className={bodyText}>
-      {controller.brand === "pawlegends"
-        ? "Guest play isn't available right now. You can still look around, try again or sign in."
-        : "Guest play isn't available right now. You can still look around, try again, sign in, or play Catnip Heist right now with no sign-up."}
+      Guest play isn&apos;t available right now. You can still look around, try again, sign in, or play Catnip Heist
+      right now with no sign-up.
     </p>
     <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={controller.retryGuest}>
       TRY AGAIN
@@ -1080,12 +1046,10 @@ const FallbackView = ({ controller }: BodyProps) => (
       >
         Sign in instead
       </button>
-      {/* Full load on purpose: /heist is its own page. Not on the Paw Legends pages (NO-TOKENTAILS.md). */}
-      {controller.brand !== "pawlegends" && (
-        <a className={textButton} href={HEIST_URL}>
-          Play Catnip Heist now, no sign-up
-        </a>
-      )}
+      {/* Full load on purpose: /heist is its own page. */}
+      <a className={textButton} href={HEIST_URL}>
+        Play Catnip Heist now, no sign-up
+      </a>
     </div>
   </>
 );

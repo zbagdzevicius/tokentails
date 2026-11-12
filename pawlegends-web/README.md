@@ -57,7 +57,7 @@ backend creates); the site origin and name are fixed (`components/seo/site.ts`).
 
 ## Where the code comes from
 
-Copied from `client/` and trimmed (Phase A of the move; the client copies are deleted at the cutover):
+Copied from `client/` and trimmed (Phase A of the move; the client copies were deleted at the cutover, Phase B):
 `components/pawlegends/**` and `analytics/pawlegends-*.ts` as they were, plus the sign-in runtime
 (`context/FirebaseAuthContext.tsx`, `context/auth/*`, `components/shared/auth/AuthSheet.tsx` with only its Paw Legends
 copy), the modal kit (`components/ui/*`), the analytics core, and `api/user-api.ts` with only the calls Paw Legends
@@ -70,5 +70,13 @@ apiBridge,championsBridge,session,claim}.ts`, `components/heist/heistSaves.ts`, 
 `api/user-api.ts` (types) and `context/auth/{link,authErrors,lastMethod,firebaseConfig}.ts` free of React and Next.
 A change to any of them publishes a new app bundle (`.github/workflows/pawlegends-ota.yml` `push.paths`).
 
-The game build: `npm run build:client` in `pawlegends/` writes `public/pawlegends-game` here and, until the cutover,
-mirrors it to `client/public/pawlegends-game` (`pawlegends/tools/mirror-client.mjs`). Commit both.
+The game build: `npm run build:client` in `pawlegends/` writes `public/pawlegends-game` here (the only copy since the
+cutover; tokentails.com redirects `/pawlegends-game/**` here). Commit it. `.github/workflows/pawlegends-cdn.yml` warms
+the new build files on pawlegends.app after a push.
+
+## Known issues
+
+- Scrolling the phone landing with motion shifts layout: a layout-shift observer during a full scroll at 390 px
+  reports CLS about 1.9 (one shift of about 1.0 on `.stripes` and one of about 0.9 on `.round`). Lighthouse, which
+  does not scroll, reports 0. It was already there before the 2026-11-07 load-speed work and is not fixed yet.
+- Support email is still info@tokentails.com (no pawlegends.app mailbox yet).

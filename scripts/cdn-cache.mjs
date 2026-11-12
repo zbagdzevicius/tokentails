@@ -11,12 +11,14 @@
  *     serves the committed build, purges once more, then fetches the page and every build/ file added since <sha>
  *     once, so the first player after a deploy is not the one who fills the edge. The purge runs before each poll
  *     because the Cloudflare rule ignores the query string for that page (RUNBOOK rule 1): a `?cb=` alone would read
- *     the edge copy. `--root` is the folder that holds the committed pawlegends-game build for SITE: client/public for
- *     tokentails.com, pawlegends-web/public for pawlegends.app (its own Vercel project, docs/plans/moba/PAWLEGENDS-WEB.md).
- *     `--no-purge` skips Cloudflare (a site outside the CF_ZONE_ID zone); the wait and the warm-up still run.
+ *     the edge copy. `--root` is the folder that holds the committed pawlegends-game build (default pawlegends-web/public,
+ *     served on pawlegends.app by its own Vercel project, docs/plans/moba/PAWLEGENDS-WEB.md; tokentails.com only
+ *     redirects there). `--no-purge` skips Cloudflare (a site outside the CF_ZONE_ID zone); the wait and the warm-up
+ *     still run.
  *
  * Env: CF_API_TOKEN (Zone.Cache Purge), CF_ZONE_ID. Without both, the purge is skipped with a notice; the warm-up and
- * the wait still run. SITE (default https://tokentails.com). Never prints the token.
+ * the wait still run. SITE: the origin (default https://tokentails.com for `ota`, where the app's OTA files stay, and
+ * https://pawlegends.app for `game`). Never prints the token.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -25,12 +27,14 @@ import { fileURLToPath } from 'node:url';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = (process.env.SITE ?? 'https://tokentails.com').replace(/\/+$/, '');
+/** Where the game is served (pawlegends-web's own Vercel project). */
+const GAME_SITE = (process.env.SITE ?? 'https://pawlegends.app').replace(/\/+$/, '');
 
 export const otaPath = (file, platform = 'ios', compat = '1') => `/pawlegends-app/updates/${platform}/${compat}/${file}`;
 export const GAME_INDEX = '/pawlegends-game/index.html';
 
-/** The folder that holds the committed game build for tokentails.com (the default site). */
-export const DEFAULT_GAME_ROOT = 'client/public';
+/** The folder that holds the committed game build (pawlegends-web, served on pawlegends.app). */
+export const DEFAULT_GAME_ROOT = 'pawlegends-web/public';
 
 /** Files under <root>/pawlegends-game/build/ added between `since` and HEAD, as site paths. */
 export function addedBuildPaths(diffNameStatus, root = DEFAULT_GAME_ROOT) {
@@ -144,11 +148,11 @@ async function main() {
         const since = arg('since', 'HEAD~1');
         const root = arg('root', DEFAULT_GAME_ROOT).replace(/\/+$/, '');
         noPurge = process.argv.includes('--no-purge');
-        if (noPurge) console.log('--no-purge: no Cloudflare purge for ' + SITE);
+        if (noPurge) console.log('--no-purge: no Cloudflare purge for ' + GAME_SITE);
         const local = readFileSync(join(REPO, root, GAME_INDEX), 'utf8');
         const entry = /build\/index-[A-Za-z0-9_-]+\.js/.exec(local)?.[0];
         if (!entry) throw new Error('no build/index-*.js in the committed index.html');
-        const pages = gameIndexUrls(SITE);
+        const pages = gameIndexUrls(GAME_SITE);
         console.log(`waiting for ${pages[1]} to load ${entry}`);
         if (!(await waitForOrigin(pages[1], body => body.includes(entry), { before: () => purge(pages, fetch, true) })))
             throw new Error(`origin never served ${entry}`);
@@ -159,7 +163,7 @@ async function main() {
             encoding: 'utf8',
         });
         const paths = addedBuildPaths(diff, root);
-        const ok = await warm(paths.map(p => `${SITE}${p}`));
+        const ok = await warm(paths.map(p => `${GAME_SITE}${p}`));
         console.log(`warmed ${ok}/${paths.length} new build file(s)`);
         return;
     }

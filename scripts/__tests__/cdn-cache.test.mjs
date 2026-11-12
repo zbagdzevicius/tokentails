@@ -14,25 +14,25 @@ describe('cdn-cache (LATENCY-PLAN C5)', () => {
 
     it('warms only build files added by the deploy (not removed or modified, not nested or outside build/)', () => {
         const diff = [
-            'A\tclient/public/pawlegends-game/build/index-AbC123.js',
-            'A\tclient/public/pawlegends-game/build/three-x_y-Z.js',
-            'D\tclient/public/pawlegends-game/build/index-Old.js',
-            'M\tclient/public/pawlegends-game/build-releases.json',
-            'A\tclient/public/pawlegends-game/assets/x.png',
-            'A\tclient/public/pawlegends-game/build/sub/deep.js',
+            'A\tpawlegends-web/public/pawlegends-game/build/index-AbC123.js',
+            'A\tpawlegends-web/public/pawlegends-game/build/three-x_y-Z.js',
+            'D\tpawlegends-web/public/pawlegends-game/build/index-Old.js',
+            'M\tpawlegends-web/public/pawlegends-game/build-releases.json',
+            'A\tpawlegends-web/public/pawlegends-game/assets/x.png',
+            'A\tpawlegends-web/public/pawlegends-game/build/sub/deep.js',
             '',
         ].join('\n');
         assert.deepEqual(addedBuildPaths(diff), ['/pawlegends-game/build/index-AbC123.js', '/pawlegends-game/build/three-x_y-Z.js']);
     });
 
-    it('reads the build of the given root: pawlegends-web/public for pawlegends.app', () => {
+    it('reads the build of the given root (default pawlegends-web/public, served on pawlegends.app)', () => {
         const diff = [
             'A\tpawlegends-web/public/pawlegends-game/build/index-New.js',
-            'A\tclient/public/pawlegends-game/build/index-New.js',
+            'A\tother/public/pawlegends-game/build/index-Other.js',
             'A\tpawlegends-web/public/pawlegends-game/build/sub/deep.js',
         ].join('\n');
-        assert.deepEqual(addedBuildPaths(diff, 'pawlegends-web/public'), ['/pawlegends-game/build/index-New.js']);
         assert.deepEqual(addedBuildPaths(diff), ['/pawlegends-game/build/index-New.js']);
+        assert.deepEqual(addedBuildPaths(diff, 'other/public'), ['/pawlegends-game/build/index-Other.js']);
     });
 
     it('purges in batches of 30 URLs (the Cloudflare API limit)', () => {

@@ -116,22 +116,15 @@ const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
   ],
 }));
 
-// Pawlegends (pawlegends/, launch finding R2): its embed build in public/pawlegends-game keeps the previous releases'
-// hashed build/ files (pawlegends `npm run build:client`, tools/lib/keep-releases.mjs), so a tab opened before a
-// redeploy still loads its chunks and sim Worker. The names change with their content, so they are cached for good;
-// build-releases.json keeps the default revalidation.
-// The landing's media (public/pawlegends/landing) carry a content hash in their names, so they are cached for good too.
+// The Pawlegends app's OTA files (pawlegends-app, LATENCY-PLAN §3.3 / C5). Installed apps fetch them from
+// tokentails.com/pawlegends-app/updates/** (pawlegends-app/scripts/lib/app-config.mjs UPDATES_URL), so they stay here.
+// - OTA bundles (`<yyyymmddhhmmss>-<sha>.zip|json`) are never rewritten under the same name: cached for good.
+// - The OTA manifests change on a release. The browser revalidates every time (`max-age=0, must-revalidate`, no
+//   stale-while-revalidate: browsers honour that too and would load the previous release once). Cloudflare alone keeps
+//   a copy 30 s through `Cloudflare-CDN-Cache-Control`, a header Vercel passes on untouched (it strips `s-maxage` and
+//   `stale-while-revalidate` from Cache-Control); the deploy purges it (scripts/cdn-cache.mjs).
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const cache = (source, value) => ({ source, headers: [{ key: "Cache-Control", value }] });
-// LATENCY-PLAN §3.3 / C5: the game page and the app's OTA files.
-// - OTA bundles (`<yyyymmddhhmmss>-<sha>.zip|json`) are never rewritten under the same name: cached for good.
-// - The OTA manifests and the game's index.html change on a release. The browser revalidates every time
-//   (`max-age=0, must-revalidate`, no stale-while-revalidate: browsers honour that too and would load the previous
-//   release once). Cloudflare alone keeps a copy 30 s / 60 s through `Cloudflare-CDN-Cache-Control`, a header Vercel
-//   passes on untouched (it strips `s-maxage` and `stale-while-revalidate` from Cache-Control); the deploy purges it
-//   (scripts/cdn-cache.mjs). index.html is safe to serve a little stale because the last releases' build/ files stay
-//   published (keep-releases.mjs) for the tab that loads it.
-// - The game's assets/ names are not content-hashed yet: an hour in the browser, a week stale-while-revalidate.
 const OTA = "/pawlegends-app/updates/:platform/:compat";
 const REVALIDATE = "public, max-age=0, must-revalidate";
 const edge = (source, browser, cloudflare) => ({
@@ -141,61 +134,27 @@ const edge = (source, browser, cloudflare) => ({
     { key: "Cloudflare-CDN-Cache-Control", value: cloudflare },
   ],
 });
-const pawlegendsHeaders = [
-  cache("/pawlegends-game/build/:path*", IMMUTABLE),
-  cache("/pawlegends/landing/:path*", IMMUTABLE),
-  edge("/pawlegends-game/index.html", REVALIDATE, "max-age=60, stale-while-revalidate=300"),
-  cache("/pawlegends-game/assets/:path*", "public, max-age=3600, stale-while-revalidate=604800"),
+const pawlegendsOtaHeaders = [
   cache(`${OTA}/bundles/:file*`, IMMUTABLE),
   edge(`${OTA}/manifest.json`, REVALIDATE, "max-age=30, stale-while-revalidate=60"),
   edge(`${OTA}/manifest-beta.json`, REVALIDATE, "max-age=30, stale-while-revalidate=60"),
 ];
-// `/pawlegends` is the landing page, `/pawlegends/play` the game (components/pawlegends/routes.json). Links that need
-// the game carry one of its query keys (party invites, dares, Stripe returns, account emails, `from` from the PLAY
-// picker and the home hub), so those go on to the game with their query (Next carries it over). Marketing links
-// (`?utm_*`) stay on the landing. The landing repeats the check in the browser for the app export.
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS config
-const pawlegendsRoutes = require("./components/pawlegends/routes.json");
-// `/legends` (the landing A/B arm B, components/pawlegends/landingVariant.ts) forwards the same keys.
-const pawlegendsRedirects = [pawlegendsRoutes.landingPath, pawlegendsRoutes.legendsPath].flatMap((source) =>
-  pawlegendsRoutes.playQueryKeys.map((key) => ({
-    source,
-    has: [{ type: "query", key }],
-    destination: pawlegendsRoutes.playPath,
-    permanent: false,
-  }))
-);
 
-// pawlegends.app (and www) is a domain of this same Vercel project: there it shows Paw Legends, not Token Tails.
-// `/` is the landing and `/<page>` each Paw Legends page (`/pawlegends/<page>`); everything else (`/pawlegends/**`,
-// `/legends`, `/pawlegends-game/**`, `/pawlegends-app/**`, `/_next/**`, public files) is served as on tokentails.com.
-// www goes to the apex, keeping the path and query. A game link (`/?party=...`) goes on to `/play` as on `/pawlegends`.
-// tokentails.com is unchanged: every rule here needs the pawlegends host.
-const PAWLEGENDS_HOST = "pawlegends.app";
-const PAWLEGENDS_DOMAIN_PAGES = ["play", "privacy", "terms", "account", "support"];
-const onPawlegendsHost = [{ type: "host", value: PAWLEGENDS_HOST }];
-const pawlegendsDomainRedirects = [
-  {
-    source: "/:path*",
-    has: [{ type: "host", value: `www.${PAWLEGENDS_HOST}` }],
-    destination: `https://${PAWLEGENDS_HOST}/:path*`,
-    permanent: true,
-  },
-  ...pawlegendsRoutes.playQueryKeys.map((key) => ({
-    source: "/",
-    has: [...onPawlegendsHost, { type: "query", key }],
-    destination: "/play",
-    permanent: false,
-  })),
-];
-// beforeFiles, ahead of the static home page's "/" rewrite (homeRewrites)
-const pawlegendsDomainRewrites = [
-  { source: "/", has: onPawlegendsHost, destination: pawlegendsRoutes.landingPath },
-  {
-    source: `/:page(${PAWLEGENDS_DOMAIN_PAGES.join("|")})`,
-    has: onPawlegendsHost,
-    destination: `${pawlegendsRoutes.landingPath}/:page`,
-  },
+// Paw Legends moved to its own app and domain, pawlegends.app (pawlegends-web/, docs/plans/moba/PAWLEGENDS-WEB.md).
+// The old tokentails.com paths answer with permanent redirects there, query included (Next carries it over), so
+// party invites, dares, Stripe returns and account emails already out there keep working: `/pawlegends?party=...`
+// lands on pawlegends.app/?party=..., which sends it on to /play. The game files go to the same paths there.
+// `/pawlegends-app/updates/**` (the OTA files above) is not matched and stays on tokentails.com.
+const PAWLEGENDS_ORIGIN = "https://pawlegends.app";
+const PAWLEGENDS_PAGES = ["play", "privacy", "terms", "account", "support"];
+const pawlegendsRedirects = [
+  { source: "/pawlegends", destination: `${PAWLEGENDS_ORIGIN}/`, permanent: true },
+  { source: `/pawlegends/:page(${PAWLEGENDS_PAGES.join("|")})`, destination: `${PAWLEGENDS_ORIGIN}/:page`, permanent: true },
+  // The landing's media and share card (public/pawlegends/** there).
+  { source: "/pawlegends/:path+", destination: `${PAWLEGENDS_ORIGIN}/pawlegends/:path+`, permanent: true },
+  { source: "/legends", destination: `${PAWLEGENDS_ORIGIN}/legends`, permanent: true },
+  { source: "/pawlegends-game", destination: `${PAWLEGENDS_ORIGIN}/pawlegends-game/index.html`, permanent: true },
+  { source: "/pawlegends-game/:path+", destination: `${PAWLEGENDS_ORIGIN}/pawlegends-game/:path+`, permanent: true },
 ];
 
 // The blog (docs/CLIENT.md "Blog"): every legacy CMS article URL and old category answers with a
@@ -237,8 +196,6 @@ const nextConfig = {
     : {
         async redirects() {
           return [
-            // First: pawlegends.app's own rules only ever match its host.
-            ...pawlegendsDomainRedirects,
             { source: "/gaming", destination: "/", permanent: true },
             // Legacy /catbassadors game shell; the same game runs at /game.
             { source: "/catbassadors", destination: "/game", permanent: true },
@@ -269,7 +226,7 @@ const nextConfig = {
         },
         async rewrites() {
           return {
-            beforeFiles: [...pawlegendsDomainRewrites, ...homeRewrites],
+            beforeFiles: homeRewrites,
             afterFiles: [...firebaseAuthRewrites, ...badcatRewrites, ...meowRaceRewrites, ...ultraCatRewrites, ...meowRunRewrites, ...raveRewrites],
             fallback: badcatFallbackRewrites,
           };
@@ -289,7 +246,7 @@ const nextConfig = {
               source: "/music/back-on-track-v1/:path*",
               headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
             },
-            ...pawlegendsHeaders,
+            ...pawlegendsOtaHeaders,
           ];
         },
       }),
