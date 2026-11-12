@@ -18,7 +18,7 @@
  * Only applied commands are logged, and a logged stream passes the gate unchanged on replay (moves are spaced, the
  * budget holds), so a live match and its replay apply identical inputs.
  */
-import { FORFEIT_RESERVE_BYTES, MAX_INPUT_BYTES, MOVE_MIN_GAP } from '../data/limits';
+import { FORFEIT_RESERVE_BYTES, KITE_MIN_GAP, MAX_INPUT_BYTES, MOVE_MIN_GAP } from '../data/limits';
 import { PING } from '../data/pings';
 import { Op, type Command } from './api';
 import { OP_SIZE, quantize } from './commands';
@@ -47,8 +47,11 @@ function spend(g: InputGate, tick: number, op: number): boolean {
   return true;
 }
 
-/** KITE-FIX (sim v23): a kite is gated as a move (spaced by MOVE_MIN_GAP, waits behind a cast), so a held stick costs the same bytes. */
+/** KITE-FIX (sim v23): a kite is gated as a move (spaced from the last move or kite, waits behind a cast). */
 const isMove = (op: number): boolean => op === Op.Move || op === Op.Kite;
+
+/** Ticks a move-class `op` waits after the last applied one: KITE_MIN_GAP for a kite (its extra byte, see limits.ts). */
+const gapOf = (op: number): number => (op === Op.Kite ? KITE_MIN_GAP : MOVE_MIN_GAP);
 
 /** Sim v12 (S5a): commands that leave a waiting move waiting (and win over a move of their own tick). Sim v21: Fire too. */
 const keepsMove = (op: number): boolean => op === Op.Cast || op === Op.Trick || op === Op.Talent || op === Op.Fire;
@@ -88,12 +91,12 @@ export function gateCommand(g: InputGate, tick: number, commands: readonly Comma
     g.pending = null;
   } else if (lastMove >= 0 && commands) {
     const move = quantize(commands[lastMove]);
-    if (tick - g.lastMoveTick < MOVE_MIN_GAP) g.pending = move;
+    if (tick - g.lastMoveTick < gapOf(move.op)) g.pending = move;
     else {
       g.pending = null;
       cmd = move;
     }
-  } else if (g.pending && tick - g.lastMoveTick >= MOVE_MIN_GAP) {
+  } else if (g.pending && tick - g.lastMoveTick >= gapOf(g.pending.op)) {
     cmd = g.pending;
     g.pending = null;
   }

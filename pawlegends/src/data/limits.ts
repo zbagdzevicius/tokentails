@@ -24,6 +24,15 @@ export let MAX_INPUT_BYTES: number = 30660;
 export const MOVE_MIN_GAP = 4;
 
 /**
+ * Sim v23 (KITE-FIX, docs/plans/moba/KITE-FIX.md): the gap after the last applied move-class command before an Op.Kite
+ * applies. A kite is 6 B against a move's 5 B, so at MOVE_MIN_GAP a held stick with ATK held for a whole match would
+ * outgrow MAX_INPUT_BYTES (7 B per 4 ticks: Crossing runs out at ~9:44, Hearthwood at ~14:12) and the hero would stop
+ * taking any command. At 5 ticks a kite costs 7 B per 5 ticks, under a move's 6 B per 4, so the move-rate worst case
+ * the budget was sized for still bounds every mix of moves and kites.
+ */
+export const KITE_MIN_GAP = 5;
+
+/**
  * Sim v10 (GAPS B2): bytes of MAX_INPUT_BYTES only a forfeit may use (a varint tick delta is at most 3 bytes below
  * MAX_TICKS, plus its 1-byte opcode), so a player at the input budget can still forfeit and the replay still fits.
  */

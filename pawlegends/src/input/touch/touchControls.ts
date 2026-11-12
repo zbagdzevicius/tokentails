@@ -1281,7 +1281,8 @@ export class TouchControls {
           this.lastStick.at = 0;
           this.steer(me, this.lastAttack);
         }
-        return;
+        // a stick pushed into the map edge or the enemy fountain has no goal, so it sent no kite: the press attacks
+        if (this.lastStick.kite === id) return;
       }
       // the same attack again is a no-op in the sim (v20 S2): the swing in progress is never restarted
       this.h.orders.attack(id);
