@@ -1,0 +1,13 @@
+export type IStatusValue = 0 | 1 | 2 | 3 | 4 | number
+export interface IStatus {
+  status: IStatusValue;
+  type: StatusType;
+}
+
+export enum StatusType {
+  EAT = 'EAT',
+}
+
+export const statusTypeLabels: Record<StatusType, string> = {
+  [StatusType.EAT]: "energy",
+}
