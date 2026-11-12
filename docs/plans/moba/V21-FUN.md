@@ -505,3 +505,60 @@ length 13:06, determinism 120 of 120; per-hero 45–56.5% on ~600 slots (refit o
   `strike`): render them with the same Qwen3-TTS clone pipeline, add them to `VOICE_LINES` and the manifest, and set
   `voice` on the announcer moments.
 - The Fortified ribbon on the tower model is not drawn; the shield glyph on the bar shows it.
+
+## 7. Release on the released v20 (2026-11-12)
+
+Rebased onto `origin/main` with sim v20 live (`4f9c97d4`, then the chat and store commits after it). v20 is frozen in
+`tools/vendor-sim.mjs` at `4f9c97d4`; the backend verifies 10 to 21. Balance rows: cats −2.25% / dogs −2.75% damage to
+heroes; Aviete −100, Meatball −70, Nugget +60, Cacklejaw +40, Brutus +40, Duchess +80 (3v3 rows, as the trial).
+
+Changes made while releasing:
+
+- **Hearthwood cat row back to the v20 row (9920 / 10390).** The trial's +1% row (10020 / 10290) gave cats **54.3%**
+  on 5v5 seeds 30001–32000 (every cat 53–56%, every dog 44–49%). Fit on seeds 6001–7000: v20 row 50.6%, −2% row
+  47.0%; the v20 row was kept.
+- **Relay and referee live sim:** `liveSim()` (referee-core) and the relay lobby walked a hard-coded `[11 … 20]`
+  list, so with v21 live the referee specs played v20 rooms and verified them on v21. Both now walk `SIM_VERSIONS`.
+  `bot-chat.spec.ts` also covers v21.
+- **`net-rejoin` perf-ff:** the v21 log ends on tick 12720, a trail tick inside the last B turns that are stepped live,
+  so one HASH is posted after the fast-forward; the test now allows HASH only in that live tail.
+
+### 7.1 Verification on unseen seeds (V20-CHASE §10 method): PASS
+
+3v3 (`--gate balance`, four 2,000-seed windows, per-window gates):
+
+| Gate | 30001–32000 | 32001–34000 | 34001–36000 | 36001–38000 |
+|---|---|---|---|---|
+| Cats / dogs 47–53 | 48.6 / 51.4 | 48.8 / 51.2 | 48.0 / 52.0 | 49.5 / 50.5 |
+| Map side 45–55 | 49.0 / 51.0 | 52.4 / 47.6 | 50.1 / 49.9 | 50.7 / 49.3 |
+| Down 10+ at the end wins < 5% | 1.6% of 304 | 1.0% of 298 | 1.0% of 292 | 2.2% of 314 |
+| Takedowns a minute 2.5–3.5 | 3.48 | 3.47 | 3.48 | 3.48 |
+| Median 6:30–9:00 / p95 ≤ 10:30 | 7:12 / 8:31 | 7:12 / 8:32 | 7:12 / 8:31 | 7:12 / 8:31 |
+| Core kill before Sudden Death ≥ 70%, no safety end | 93.8%, 0 | 92.5%, 0 | 94.0%, 0 | 94.0%, 0 |
+| Trailing at 3:30 wins 20–40% | 27.7% | 28.3% | 27.9% | 28.6% |
+| Tricks 47–53 (pounce/snack/hiss/purrify) | 50.5 / 51.1 / 51.4 / 47.1 | 50.7 / 50.3 / 50.8 / 48.3 | 50.3 / 51.3 / 51.3 / 47.1 | 49.5 / 51.8 / 50.6 / 48.2 |
+
+Pooled over the 8,000 matches (gated): every hero **46.2% (Meatball) to 53.6% (Bravo)**; level-6 branch Sage
+**48.9%** of 1,218, Brutus **48.5%** of 1,207. Reported only: per-window hero cells 45.4 (Meatball) to 55.9 (Bravo);
+branch windows Sage 44.8–51.7, Brutus 44.3–52.4. These 3v3 runs predate the Hearthwood row change, which does not reach
+Crossing.
+
+5v5 Hearthwood (`hearth-gates --seeds 2000`, 4,000 matches a window, with the v20 cat row):
+
+| 5v5 gate | 40001–42000 | 42001–44000 |
+|---|---|---|
+| G6 side (team 0) 47–53 | 50.1 | 49.5 |
+| G5 cats 47–53 | 50.6 | 49.7 |
+| G5 p50 12:00–14:30 / p95 | 13:06 / 13:13 | 13:06 / 13:12 |
+| G5 safety end ≤ 2% | 0.0% | 0.0% |
+| G5 heroes (per window) | 47 (Howler) – 53 (Aviete, Duchess) | 48 (Bengas, Meatball) – 52 (Domino, Stilts) |
+| G2 determinism | 300 / 300 | – |
+
+Pooled 8,000 5v5 matches (gated): every hero **48.5% (Marshmallow) to 52.0% (Stilts)**.
+
+Other checks: determinism 1,000 seeds (30001–31000, + PvP) 2,625,480 commands all identical; `tsc --noEmit` clean
+(pawlegends and backend); `lint:sim` ok (158 files); `vendor-sim:check` current (v10–v20 frozen, v21); backend
+`src/pawlegends/party` + `mm` 327 / 327 and `pawlegends-live.spec.ts` 75 / 75 at low load (under load 150+ its
+worker re-sims time out on `origin/main` the same way). Full `vitest` 3,010 passed; the two `tools/trailer` copy-gate
+tests fail on `origin/main` too; `perf-sim` passes at low load (v21 is about 8% slower than v20 on the 11:00 worst
+case: 1.65 s vs 1.53 s CPU median at load 20, both above 1.5 s there).
