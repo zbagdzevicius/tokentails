@@ -1,0 +1,83 @@
+/* Split from ui.css (facelift, cascade order unchanged: ui.css @imports these in the original order). Owner: foundation: tokens wiring, crash panel, base, shared buttons. */
+:root {
+  /* v6 facelift: the game-wide tokens read the v6 layer (src/ui/theme/v6.css) */
+  --font: var(--v6-font-ui);
+  --font-display: var(--v6-font-display);
+  --panel: var(--v6-glass);
+  --panel-2: var(--v6-glass-2);
+  --line: var(--v6-line);
+  --self: var(--v6-you);
+  --ally: var(--v6-ally);
+  --enemy: var(--v6-enemy);
+  --t0: var(--ally);
+  --t1: var(--enemy);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+body, button { font-family: var(--font); }
+button { -webkit-tap-highlight-color: transparent; }
+/* No double-tap zoom on anything tappable (with app/noZoom.ts for iOS, which does not always honour this in an
+   iframe). Overlays appended to body (#crash) match too. Scrolling panels keep their pan. */
+button, a, label, [role='button'], [data-a], [data-t], [data-c], .chip, .pl-btn, .pl-screen, .pl-menu, .card, #crash {
+  touch-action: manipulation;
+}
+#game-canvas, canvas { touch-action: none; }
+/* iOS zooms into a focused field under 16px. */
+input, select, textarea { font-size: max(16px, 1em); }
+
+#crash {
+  position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center;
+  background: var(--v6-scrim); padding: 16px;
+}
+#crash .crash-card {
+  max-width: 420px; width: 100%; background: var(--v6-night-2); color: var(--v6-cream); border-radius: var(--v6-r-xs);
+  padding: 20px 22px; box-shadow: inset 0 0 0 1px var(--v6-line), inset 0 4px 0 var(--v6-rose), var(--v6-shadow-3); text-align: center;
+}
+#crash h2 { margin: 0 0 8px; font: italic 900 22px/1.05 var(--v6-font-display); text-transform: uppercase; color: var(--v6-bolt); text-shadow: 0 3px 0 var(--v6-plum-deep); }
+#crash .crash-msg { margin: 0 0 16px; font-size: 14px; opacity: 0.75; word-break: break-word; }
+#crash button {
+  font: inherit; font-weight: 700; border: 0; border-radius: var(--v6-r-xs); padding: 10px 26px; min-height: 44px;
+  background: var(--v6-grad-rose); color: #fff; cursor: pointer; box-shadow: var(--v6-ledge-rose);
+}
+#crash .crash-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+#crash .crash-exit { background: rgb(var(--v6-navy-rgb) / 0.55); color: var(--v6-ice); box-shadow: inset 0 0 0 2px rgb(var(--v6-sky-rgb) / 0.6); }
+#crash .crash-exit:disabled { opacity: 0.5; cursor: default; }
+#game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* The match cursor (input/cursor.ts) is an inline SVG style set by DesktopInput; these are the stock fallbacks. */
+#game-canvas[data-cursor='enemy'], #game-canvas[data-cursor='attackMove'], #game-canvas[data-cursor='aim'] { cursor: crosshair; }
+#game-canvas[data-cursor='ally'] { cursor: pointer; }
+
+.pl-icon { width: 100%; height: 100%; display: block; }
+kbd {
+  font: 700 11px/1 var(--font); color: var(--v6-night); background: var(--v6-cream); border-radius: var(--v6-r-xs); padding: 3px 5px;
+  box-shadow: 0 2px 0 var(--v6-plum-deep); display: inline-block; min-width: 10px; text-align: center;
+}
+
+/* ------------------------------------------------------------------------------------------ buttons */
+.pl-btn {
+  font: 700 18px/1 var(--font); border: 0; border-radius: var(--v6-r-s); padding: 14px 30px; cursor: pointer;
+  background: var(--v6-grad-rose); color: #fff; letter-spacing: 0.02em; text-shadow: 0 2px 0 var(--v6-plum-deep);
+  box-shadow: var(--v6-ledge-rose), 0 10px 24px rgba(0, 0, 0, 0.3); transition: transform var(--v6-dur-press) ease-out, box-shadow var(--v6-dur-press) ease-out;
+}
+.pl-btn:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
+.pl-btn:hover { transform: translateY(-1px); }
+.pl-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--v6-rose-deep), 0 4px 10px rgba(0, 0, 0, 0.3); }
+.pl-btn.big { font-size: 24px; padding: 18px 40px; }
+.pl-btn.small { font-size: 14px; padding: 8px 16px; }
+/* v6: secondary actions lean sky (navy glass, sky keyline, ice label); the rose face stays for the one main action */
+.pl-btn.ghost { background: rgb(var(--v6-navy-rgb) / 0.55); color: var(--v6-ice); text-shadow: none; box-shadow: inset 0 0 0 2px rgb(var(--v6-sky-rgb) / 0.55); }
+.pl-btn.ghost:hover { box-shadow: inset 0 0 0 2px var(--v6-sky); }
+.pl-btn.ghost:active { box-shadow: inset 0 0 0 2px var(--v6-sky-top); }
+/* sub-lines on a rose (or sky/bolt) face: berry text, about 5:1 on rose (white was 2.3–3.4:1); dark faces keep their colour */
+.pl-btn small { color: var(--pl-btn-sub, var(--v6-berry)); text-shadow: none; }
+.pl-btn.ghost, .pl-btn.solid { --pl-btn-sub: currentColor; }
+/* danger (Leave match, Forfeit): enemy red, never rose (rose is the brand/cat colour) */
+.pl-btn.danger { color: var(--v6-enemy); }
+.pl-btn.ghost.danger { color: #ff8a90; box-shadow: inset 0 0 0 2px rgb(255 79 88 / 0.6); }
+.pl-btn.ghost.danger:hover { box-shadow: inset 0 0 0 2px var(--v6-enemy); }
+.pl-btn.ghost.danger:active { box-shadow: inset 0 0 0 2px #ff8a90; }
+/* Round 2: a solid dark secondary button (the ghost "Change hero" vanished on the pale results pedestal). */
+.pl-btn.solid { background: var(--v6-night-2); color: var(--cream); text-shadow: none; box-shadow: 0 4px 0 var(--v6-night-0), 0 8px 20px rgba(0, 0, 0, 0.35), inset 0 0 0 2px var(--v6-line-strong); }
+.pl-btn.solid small { display: block; font-size: 11px; font-weight: 600; opacity: 0.75; margin-top: 3px; }

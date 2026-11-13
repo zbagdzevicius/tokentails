@@ -1,0 +1,40 @@
+/* Split from ui.css (facelift, cascade order unchanged: ui.css @imports these in the original order). Owner: area hud-core: the FIRE attack button. */
+/* Sim v21 (V21-FUN.md §1.5): the Attack button is the FIRE button while the own hero carries the Kibble Cannon: brass
+   and red, a pulsing gold ring (v6: a bolt-to-flame face, the bolt fuse, night text), the fuse left drawn as a conic arc (--fuse, 1 → 0; written on change only). */
+.pl-tbtn.attack.fire {
+  background: radial-gradient(circle at 50% 38%, var(--v6-bolt-top) 0%, var(--v6-bolt) 38%, var(--v6-flame) 78%, #c4441a 100%);
+  border-color: var(--v6-cream);
+  color: var(--v6-night);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.45);
+  animation: pl-fire-pulse 0.8s ease-in-out infinite;
+}
+.pl-tbtn.attack.fire::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: conic-gradient(var(--v6-bolt) calc(var(--fuse, 1) * 360deg), rgb(var(--v6-night-rgb) / 0.3) 0);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%);
+  mask: radial-gradient(circle, transparent 62%, #000 63%);
+  pointer-events: none;
+}
+/* the first FIRE_ARM_MS (400 ms) after it turned into FIRE: presses are ignored (an ATK tap is not a shot), and the
+   button pops in from dimmed and small so the change is seen (transform and opacity only) */
+.pl-tbtn.attack.fire.arming {
+  animation: pl-fire-arm 0.4s ease-out 1;
+}
+@keyframes pl-fire-arm {
+  0% { opacity: 0.5; transform: scale(0.8); }
+  60% { opacity: 0.8; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes pl-fire-pulse {
+  0%, 100% { box-shadow: inset 0 -4px 0 rgb(196 68 26 / 0.5), 0 0 0 0 rgb(var(--v6-bolt-rgb) / 0.7), 0 4px 12px rgba(0, 0, 0, 0.35); }
+  50% { box-shadow: inset 0 -4px 0 rgb(196 68 26 / 0.5), 0 0 0 8px rgb(var(--v6-bolt-rgb) / 0), 0 4px 12px rgba(0, 0, 0, 0.35); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-tbtn.attack.fire { animation: none; }
+  .pl-tbtn.attack.fire.arming { animation: none; opacity: 0.55; }
+}

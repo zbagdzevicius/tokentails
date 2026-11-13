@@ -2,6 +2,8 @@
  * Boot (POC.md §3): crash overlay, no-zoom touch guards (app/noZoom.ts), embed handshake, then the app (quality
  * probe, renderer, lobby, title → pick → match → results). The match runs the sim in the LocalHost Worker (src/host/).
  */
+// v6 Lightning Rivalry tokens first: every screen's CSS (pulled in by the app graph below) reads them
+import './ui/theme/v6.css';
 import { App } from './app/app';
 import { installCrashOverlay, reportCrash, setCrashExit, setCrashHook, showCrash } from './app/crash';
 import { createAnalytics } from './analytics/posthog';

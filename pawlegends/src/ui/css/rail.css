@@ -1,0 +1,215 @@
+/* Split from ui.css (facelift, cascade order unchanged: ui.css @imports these in the original order). Owner: area hud-feel: the top notification rail and phone docking.
+   v6 Lightning Rivalry facelift: a night-glass plate leaning -8° (parallelogram clip), a cream hairline on top, the tone
+   as an underline, announcer titles in Rubik italic caps with a bolt top edge. Same boxes, same heights. */
+/* ================================================================ LoL pass, lane A: the top notification rail
+   (ui/notify.ts). Every screen-anchored message (announcer, callouts, tower alerts, tips, objective beats, the
+   countdown, the gate, the respawn timer) is one line under the score bar, a LoL announcer plate: dark navy, a gold
+   bevel top and bottom, clipped corners, the tone as a left accent and the title colour. Phones: one 26-28 px line
+   (bottom ≤ y 84 at 844×390, ≤ y 70 at 667×375). Desktop: a main line (big for the announcer), a smaller second line
+   and the resting line (bottom ≤ y 160 at 1440×900). Nothing else draws words in the middle of the screen. */
+.pl-rail {
+  --rail-top: 74px; --rail-h: 40px; --rail-big: 56px; --rail-w: 640px; --rail-fs: 20px; --rail-fsbig: 30px; --rail-badge: 28px;
+  --rail-low: 26px; --rail-lowfs: 15px; --accent: var(--v6-ice, #d6ecff);
+  position: absolute; left: 50%; top: calc(var(--rail-top) + var(--safe-t)); transform: translateX(-50%); width: var(--rail-w); z-index: 7;
+  pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: opacity 0.16s;
+}
+.pl-rail.empty { height: 0; opacity: 0; }
+.pl-rail.one { height: var(--rail-h); display: block; }
+.pl-rail.one.empty { height: 0; }
+.pl-rail-line {
+  --tone: var(--v6-ice, #d6ecff); position: absolute; left: 0; right: 0; top: 0; margin: 0 auto; width: fit-content; max-width: 100%; box-sizing: border-box;
+  display: flex; align-items: center; gap: 8px; height: var(--rail-h); padding: 0 16px 0 10px; opacity: 0; visibility: hidden;
+  background: linear-gradient(180deg, rgb(var(--v6-night-2-rgb) / 0.94), rgb(var(--v6-night-rgb) / 0.9));
+  border-top: 1px solid var(--v6-line-strong); border-bottom: 1px solid rgb(var(--v6-plum-rgb) / 0.9);
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  box-shadow: inset 0 -2px 0 var(--tone); color: var(--tone); white-space: nowrap; font-family: var(--font);
+  transition: opacity 0.16s, visibility 0s linear 0.16s;
+}
+.pl-rail-line.on { position: relative; opacity: 1; visibility: visible; transition: opacity 0.14s; animation: pl-rail-in 0.14s ease-out both; }
+.pl-rail.one .pl-rail-line.on { position: absolute; }
+@keyframes pl-rail-in { from { opacity: 0; transform: translate(10px, -6px); } }
+.pl-rail-line.tone-good { --tone: var(--v6-success, #9be3c4); }
+.pl-rail-line.tone-bad { --tone: var(--v6-enemy, #ff4f58); }
+.pl-rail-line.tone-gold { --tone: var(--v6-bolt, #ffe14a); }
+.pl-rail-line .ic {
+  flex: none; width: var(--rail-badge); height: var(--rail-badge); border-radius: 50%; display: grid; place-items: center; box-sizing: border-box;
+  background: var(--v6-night-0, #0b0614) center / cover no-repeat; border: 1px solid rgb(var(--v6-cream-rgb) / 0.32); color: var(--tone);
+}
+.pl-rail-line .ic[hidden] { display: none; }
+.pl-rail-line .ic svg { width: 64%; height: 64%; fill: currentColor; }
+.pl-rail-line .ic .pl-icon { width: 64%; height: 64%; }
+.pl-rail-line .tt {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--rail-fs); font-weight: 800; line-height: 1.1; letter-spacing: 0.01em;
+  -webkit-text-stroke: 1px rgb(var(--v6-night-rgb) / 0.6); paint-order: stroke fill; text-shadow: 0 1px 0 rgb(var(--v6-plum-rgb) / 0.9);
+}
+.pl-rail-line .ct { flex: none; font-size: calc(var(--rail-fs) * 0.8); font-weight: 800; color: var(--v6-bolt, #ffe14a); font-variant-numeric: tabular-nums; }
+.pl-rail-line .ct:empty { display: none; }
+.pl-rail-line .sb { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 14px; font-weight: 600; color: var(--v6-cream, #fff3e3); opacity: 0.78; }
+.pl-rail-line .sb::before { content: '· '; opacity: 0.6; }
+.pl-rail-line .sb:empty { display: none; }
+/* desktop announcer moments: bigger, a crest badge, the sub on its own line and a light sweep */
+.pl-rail:not(.one) .pl-rail-line.big {
+  display: grid; grid-template-columns: auto auto auto; grid-template-areas: 'ic tt ct' 'ic sb sb'; align-content: center; justify-content: center;
+  column-gap: 10px; height: var(--rail-big); padding: 0 22px 0 12px;
+  border-top-color: var(--v6-bolt, #ffe14a); clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+}
+.pl-rail:not(.one) .pl-rail-line.big .ic { grid-area: ic; width: 40px; height: 40px; background-color: var(--v6-night-0, #0b0614); border-width: 2px; border-color: var(--tone); }
+.pl-rail:not(.one) .pl-rail-line.big .tt {
+  grid-area: tt; font-size: var(--rail-fsbig); line-height: 1;
+  font-family: var(--v6-font-display, var(--font)); font-style: italic; font-weight: 900; text-transform: uppercase; letter-spacing: var(--v6-track-display, -0.01em);
+  -webkit-text-stroke: 0; text-shadow: 0 3px 0 var(--v6-plum-deep, #471f5d), 0 6px 14px rgb(0 0 0 / 0.4);
+}
+.pl-rail:not(.one) .pl-rail-line.big .ct { grid-area: ct; }
+.pl-rail:not(.one) .pl-rail-line.big .sb { grid-area: sb; font-size: 13px; line-height: 1.1; }
+.pl-rail:not(.one) .pl-rail-line.big .sb::before { content: none; }
+.pl-rail:not(.one) .pl-rail-line.big.on::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgb(var(--v6-cream-rgb) / 0.3) 50%, transparent 65%) no-repeat;
+  background-size: 250% 100%; animation: pl-rail-sweep 0.6s var(--v6-ease-out, ease-out) both;
+}
+@keyframes pl-rail-sweep { from { background-position: 120% 0; } to { background-position: -40% 0; } }
+/* desktop: the second line and the resting line are smaller, under the main line */
+.pl-rail-second, .pl-rail-rest { --rail-h: var(--rail-low); --rail-fs: var(--rail-lowfs); --rail-badge: 20px; }
+.pl-rail:not(.one).has-second .pl-rail-rest { opacity: 0; visibility: hidden; position: absolute; }
+/* QA v2 #12: desktop's resting line steps aside while a note is up (it jumped between y 74 and y 118 many times a
+   minute); notes take its place at the top of the rail, and it comes back in the same spot */
+.pl-rail:not(.one).has-main .pl-rail-rest { opacity: 0; visibility: hidden; position: absolute; }
+.pl-rail.one .pl-rail-second, .pl-rail.one .pl-rail-rest { --rail-h: inherit; --rail-fs: inherit; --rail-badge: inherit; }
+.pl-rail.one .pl-rail-line { height: var(--rail-h); }
+.pl-rail-rest.tap { pointer-events: auto; cursor: pointer; }
+.pl-rail-rest.rest-countdown { justify-content: center; min-width: 64px; }
+.pl-rail-rest.rest-countdown .tt {
+  font-size: 34px; line-height: 1; color: var(--v6-bolt, #ffe14a);
+  font-family: var(--v6-font-display, var(--font)); font-style: italic; font-weight: 900; font-variant-numeric: tabular-nums;
+  -webkit-text-stroke: 0; text-shadow: 0 3px 0 var(--v6-plum-deep, #471f5d);
+}
+.pl-rail:not(.one) .pl-rail-rest.rest-countdown { height: 34px; }
+.pl-rail:not(.one) .pl-rail-rest.rest-countdown .tt { font-size: 30px; }
+.pl-rail-rest.rest-countdown.on { animation: pl-rail-count 0.5s var(--v6-ease-pop, cubic-bezier(0.2, 1.4, 0.4, 1)) both; }
+@keyframes pl-rail-count { 0% { opacity: 0; transform: scale(0.7); } 40% { opacity: 1; transform: scale(1.08); } 100% { transform: scale(1); } }
+/* phones: one line, no sub (the badge and the title say it) */
+html[data-touch='1'] .pl-rail {
+  --rail-top: 56px; --rail-h: 28px; --rail-w: clamp(200px, calc(100vw - 480px), 360px); --rail-fs: 14px; --rail-badge: 20px;
+}
+html[data-touch='1'] .pl-rail .sb { display: none; }
+/* C13: on the narrowest phones (667 px) a coaching line wraps to two lines instead of being cut with an ellipsis */
+@media (max-width: 700px) {
+  html[data-touch='1'] .pl-rail { --rail-w: 240px; }
+  html[data-touch='1'] .pl-rail-line { height: auto; min-height: var(--rail-h); padding-top: 3px; padding-bottom: 3px; white-space: normal; }
+  html[data-touch='1'] .pl-rail-line .tt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.15; }
+}
+html[data-touch='1'] .pl-rail-line { padding: 0 12px 0 6px; gap: 6px; clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+html[data-touch='1'] .pl-rail-rest.rest-countdown .tt { font-size: 22px; }
+/* QA v2 #9: phone announcer moments (First Blood, a tower, Shut down, ACE, the own ult on desktop) read as a banner,
+   not a tip: 2 px taller, a gold frame and glow, an uppercase title and the light sweep, inside the same top band */
+html[data-touch='1'] .pl-rail-line.big {
+  top: -2px; height: calc(var(--rail-h) + 2px); padding: 0 14px 0 6px; border-top: 2px solid var(--v6-bolt, #ffe14a); border-bottom: 2px solid var(--v6-logo-plum, #633077);
+  background: linear-gradient(180deg, rgb(var(--v6-plum-rgb) / 0.96), rgb(var(--v6-night-rgb) / 0.95) 62%); box-shadow: inset 0 -2px 0 var(--tone), 0 0 14px rgb(var(--v6-bolt-rgb) / 0.4);
+}
+html[data-touch='1'] .pl-rail-line.big .tt {
+  font-size: calc(var(--rail-fs) + 2px); font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em;
+  font-family: var(--v6-font-display, var(--font)); font-style: italic; -webkit-text-stroke: 0; text-shadow: 0 2px 0 var(--v6-plum-deep, #471f5d);
+}
+html[data-touch='1'] .pl-rail-line.big .ic { background-color: var(--v6-night-0, #0b0614); border-width: 2px; border-color: var(--tone); }
+/* scaled from its bottom edge, so the pop-in never pokes below the top band (rail.spec: bottom ≤ y 70 at 667 × 375) */
+html[data-touch='1'] .pl-rail-line.big.on { transform-origin: 50% 100%; animation: pl-rail-big 0.24s var(--v6-ease-pop, ease-out) both; }
+html[data-touch='1'] .pl-rail-line.big.on::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgb(var(--v6-cream-rgb) / 0.38) 50%, transparent 65%) no-repeat;
+  background-size: 250% 100%; animation: pl-rail-sweep 0.6s var(--v6-ease-out, ease-out) 0.1s both;
+}
+@keyframes pl-rail-big { 0% { opacity: 0; transform: scale(0.82); } 70% { opacity: 1; } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { html[data-touch='1'] .pl-rail-line.big.on { animation: none; } html[data-touch='1'] .pl-rail-line.big.on::after { display: none; } }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-rail { --rail-top: 44px; --rail-h: 26px; --rail-w: min(210px, calc(100vw - 456px)); --rail-fs: 13px; --rail-badge: 18px; }
+}
+@media (max-height: 599px) {
+  html:not([data-touch='1']) .pl-rail { --rail-top: 64px; --rail-h: 34px; --rail-w: 460px; --rail-fs: 17px; --rail-badge: 24px; }
+}
+/* an open talent card dims the rail (only prio 0-1 notes show then); a menu or the pause screen hides it */
+.pl-match[data-stage='talent'] .pl-rail { opacity: 0.6; }
+.pl-match.paused .pl-rail, .pl-match:has(.pl-menu) .pl-rail { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .pl-rail-line.on, .pl-rail-rest.rest-countdown.on { animation: none; }
+  .pl-rail:not(.one) .pl-rail-line.big.on::after { animation: none; display: none; }
+}
+/* the old "Back in N" chip is the rail's respawn line now */
+.pl-hud .pl-respawn, .pl-hud.dead .pl-respawn { display: none; }
+
+/* 667×375 and smaller: the rail takes the slot under the score, so the enemy portraits move to the right edge under
+   the minimap (it ends by y 94; their 44 px tap areas start under it) and the kill feed under them (two rows at most,
+   ending by y 175 where the top ability button starts) */
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] { --mm-w: calc(160px * var(--mm-k, 1)); --mm-h: calc(96px * var(--mm-k, 1)); }
+  html[data-touch='1'] .pl-top .pl-strip.enemy { left: auto; right: calc(50% - 50vw + 10px + var(--safe-r)); top: calc(var(--mm-h) + 16px); transform: none; flex-direction: row; gap: 16px; }
+  /* the paw and the emote chip back beside the minimap (the portraits are under it here) */
+  html[data-touch='1'] .pl-pingbtn { right: calc(16px + var(--mm-w) + var(--safe-r)); top: calc(52px + var(--safe-t)); }
+  html[data-touch='1'] .pl-emote { right: calc(16px + var(--mm-w) + var(--safe-r)); top: calc(104px + var(--safe-t)); }
+  /* 28 px discs, each still a 44 px tap area (the ::after starts inside the 2 px border) */
+  html[data-touch='1'] .pl-top .pl-strip.enemy .pp { width: 28px; height: 28px; }
+  html[data-touch='1'] .pl-top .pl-strip.enemy .pp::after { inset: -10px; }
+  /* MAP-GAPS A5: under the bigger minimap and the portraits there is room for one row before the top ability button */
+  html[data-touch='1'] .pl-feed { top: calc(var(--mm-h) + 54px + var(--safe-t)); gap: 2px; }
+  html[data-touch='1'][data-mm-size='l'] .pl-feed { top: calc(var(--mm-h) + 36px + var(--safe-t)); right: calc(170px + var(--safe-r)) !important; }
+  html[data-touch='1'] .pl-feed-row:nth-child(n + 2) { display: none; }
+}
+/* 640×360 and shorter: one kill feed row, clear of the top ability button */
+@media (max-width: 699px) and (max-height: 365px) {
+  html[data-touch='1'] .pl-feed-row:nth-child(n + 2) { display: none; }
+}
+
+/* world pops on phones (A6): smaller, at most 5 at once (juice.ts), stacked closer */
+html[data-touch='1'] .pl-pop { font-size: 15px; -webkit-text-stroke-width: 3px; }
+html[data-touch='1'] .pl-pop.big { font-size: 19px; }
+.pl-pop.xp { font-size: 14px; }
+html[data-touch='1'] .pl-pop.xp { font-size: 12px; -webkit-text-stroke-width: 2px; }
+.pl-pop.bark {
+  font-size: 14px; -webkit-text-stroke: 0; text-shadow: none; color: var(--v6-cream, #fff3e3); background: rgb(var(--v6-navy-rgb) / 0.86); border-radius: var(--v6-r-s, 6px); padding: 3px 8px;
+  border: 1px solid rgb(var(--v6-sky-rgb) / 0.55);
+}
+.pl-pop.bark.tone-good { color: var(--v6-success, #9be3c4); }
+.pl-pop.bark.tone-bad { color: var(--v6-rose-light, #ffb3cd); }
+html[data-touch='1'] .pl-pop.bark { font-size: 12px; padding: 2px 6px; -webkit-text-stroke-width: 0; }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-pop { font-size: 13px; }
+  html[data-touch='1'] .pl-pop.big { font-size: 16px; }
+}
+
+/* phones (A4 #16): the talent offer is two 132 × 44 chips docked left of the ability cluster, never bottom centre */
+html[data-touch='1'] .pl-talents { top: auto; left: auto; right: calc(272px + var(--safe-r)); bottom: calc(16px + var(--safe-b)); transform: translateY(8px); gap: 6px; }
+html[data-touch='1'] .pl-talents.on { transform: none; }
+html[data-touch='1'] .pl-talents .head { left: auto; right: 0; transform: none; top: -20px; font-size: 11px; }
+html[data-touch='1'] .pl-talents button { width: 132px; height: 44px; padding: 4px 8px; display: flex; align-items: center; justify-content: center; text-align: center; }
+html[data-touch='1'] .pl-talents button b { font-size: 12px; line-height: 1.15; white-space: normal; }
+html[data-touch='1'] .pl-talents button :is(.d, .s, .n, kbd, .tag) { display: none; }
+/* QA v2 #7: a clear gap from the Nap button at 844, and at 667 narrower chips low in the corner, clear of the stick
+   ring (its box ends at y 317) with a short header (no "Branch coming soon" on phones) */
+html[data-touch='1'] .pl-talents { right: calc(282px + var(--safe-r)); }
+html[data-touch='1'] .pl-talents .head .soon { display: none; }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-talents { right: calc(276px + var(--safe-r)); bottom: calc(4px + var(--safe-b)); gap: 4px; }
+  html[data-touch='1'] .pl-talents button { width: 108px; height: 40px; padding: 3px 6px; }
+  html[data-touch='1'] .pl-talents button b { font-size: 11px; }
+  html[data-touch='1'] .pl-talents .head { top: -16px; font-size: 10px; }
+}
+/* Fun pass (playtest #6, gate hud-compact 667/640): phones read what a talent does, not only its name (the 2-5 word
+   short line under the name), and the closed card no longer slides in from below the screen edge: a chip still
+   mid-transition measured 2 px off screen at 667 × 375 and 640 × 360. */
+html[data-touch='1'] .pl-talents, html[data-touch='1'] .pl-talents.on { transform: none; }
+html[data-touch='1'] .pl-talents button { height: 48px; flex-direction: column; gap: 1px; animation-name: pl-talent-in; }
+html[data-touch='1'] .pl-talents button b { line-height: 1.1; }
+html[data-touch='1'] .pl-talents button span.s {
+  display: block; font-size: 10px; line-height: 1.15; opacity: 0.9; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+@keyframes pl-talent-in { from { opacity: 0; } }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-talents { bottom: calc(6px + var(--safe-b)); }
+  html[data-touch='1'] .pl-talents button { width: 118px; height: 44px; padding: 2px 6px; }
+  html[data-touch='1'] .pl-talents button span.s { font-size: 9.5px; }
+}
+/* UX pass 2: the talent card docks 8 px past the button arc's own reach (--arc-reach, set by touchControls.ts from
+   touchArc.ts: the last-hit and tower buttons, the Large size), so it never opens under a button at any phone size;
+   the left-handed mirror docks it on the left, past the mirrored arc */
+html[data-touch='1'] .pl-talents { right: calc(36px + var(--safe-r) + var(--arc-reach, 254px)); }
+html[data-touch='1'][data-lefty='1'] .pl-talents { right: auto; left: calc(36px + var(--safe-l) + var(--arc-reach, 254px)); }
+html[data-touch='1'][data-lefty='1'] .pl-talents .head { right: auto; left: 0; }
+/* the phone rank-up toast shares the bottom band with the talent chips: it waits while they are open */
+html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rankup { opacity: 0; }

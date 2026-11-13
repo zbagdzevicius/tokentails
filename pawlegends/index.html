@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#2b1d2e" />
+    <meta name="theme-color" content="#12091f" />
     <meta name="robots" content="noindex" />
     <meta name="format-detection" content="telephone=no" />
     <title>Pawlegends</title>
@@ -20,8 +20,9 @@
     <link rel="preload" href="%BASE_URL%assets/fonts/Fredoka-Ext.woff2" as="font" type="font/woff2" crossorigin />
     <style>
       :root {
-        --bg: #2b1d2e; --cream: #fff3dc; --butter: #ffd27a; --peach: #ff9f7a; --rose: #ff6f91;
-        --sage: #a8d5a2; --sky: #9fd3ff; --ink: #2a1a22; --danger: #e5484d;
+        /* v6 Lightning Rivalry (src/ui/theme/v6.css remaps the same names; keep both in step) */
+        --bg: #12091f; --cream: #fff3e3; --butter: #ffe14a; --peach: #ff8a1e; --rose: #ff3d7f;
+        --sage: #9be3c4; --sky: #39a6ff; --ink: #12091f; --danger: #ff4f58;
       }
       html, body {
         margin: 0; height: 100%; background: var(--bg); color: var(--cream); overflow: hidden;
@@ -35,13 +36,13 @@
          html[data-ready] when the title is up, and the splash fades out under it */
       #boot {
         position: fixed; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 14px; pointer-events: none;
-        background: radial-gradient(circle at 50% 42%, #3d2a42, var(--bg) 70%); transition: opacity 0.35s ease-out, visibility 0s linear 0.35s;
+        background: radial-gradient(circle at 50% 42%, rgba(18, 9, 31, 0) 30%, var(--bg) 72%), linear-gradient(118deg, #3a0f2a 0 49.6%, rgba(255, 225, 74, 0.55) 49.6% 50.4%, #0c1f4a 50.4%); transition: opacity 0.35s ease-out, visibility 0s linear 0.35s;
       }
       /* the logo sits dead centre at 240 px, like the native launch screen (pawlegends-app LaunchLogo, 240 pt), so the
          hand-over does not jump; the bar hangs below it */
       #boot img { width: 240px; height: auto; animation: boot-paw 1.1s ease-in-out infinite; }
-      #boot i { width: 120px; height: 4px; border-radius: 4px; background: rgba(255, 243, 220, 0.18); overflow: hidden; position: absolute; left: 50%; top: calc(50% + 100px); margin-left: -60px; }
-      #boot i::after { content: ''; position: absolute; inset: 0; width: 40%; border-radius: inherit; background: var(--rose); animation: boot-bar 1.2s ease-in-out infinite; }
+      #boot i { width: 120px; height: 4px; border-radius: 0; transform: skewX(-8deg); background: rgba(255, 243, 227, 0.16); overflow: hidden; position: absolute; left: 50%; top: calc(50% + 100px); margin-left: -60px; }
+      #boot i::after { content: ''; position: absolute; inset: 0; width: 40%; border-radius: inherit; background: linear-gradient(90deg, var(--rose), #ffe14a 50%, var(--sky)); animation: boot-bar 1.2s ease-in-out infinite; }
       html[data-ready='1'] #boot, body:has(#crash) #boot { opacity: 0; visibility: hidden; }
       @keyframes boot-paw { 50% { transform: translateY(-4px) scale(1.02); } }
       @keyframes boot-bar { from { transform: translateX(-100%); } to { transform: translateX(250%); } }

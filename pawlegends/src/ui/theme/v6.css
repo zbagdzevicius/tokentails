@@ -1,0 +1,219 @@
+/*
+ * Paw Legends v6 "Lightning Rivalry" theme layer (the founder's pick, brandbook v6). Imported FIRST by src/main.ts,
+ * before any screen CSS. It only defines tokens, the Rubik display face and opt-in `.v6-*` primitives; it remaps the
+ * old global tokens (--bg, --cream, --butter, --rose, --sky, ...) so every screen that reads them shifts to v6 at once.
+ * Area guide: pawlegends/.facelift/GUIDE.md. Rules of the kit:
+ *  - Night ground, rose = cats (Purrhaven), sky = dogs (Woof), the bolt yellow divides or celebrates (never a panel fill).
+ *  - Rectangles lean -8deg (opt-in `.v6-lean` / `.v6-skew`); PLAY, avatars, gems and the VS disc stay round.
+ *  - In a match the relation colours stay: ally blue, enemy red, "you" gold. Team colours leave the match at the door.
+ *  - Rubik italic 800-900 for display only (titles, VS, VICTORY); Fredoka for every other game string.
+ *  - Transform / opacity motion only; prefers-reduced-motion keeps a still split and a static glow.
+ */
+
+/* Rubik italic 700-900, Latin subset (ASCII + · × – — ’ “ ” … −), 25 KB, OFL (licenses/Rubik-OFL.txt). Other glyphs
+   fall through to Fredoka by unicode-range, so accented names never draw in a fallback system face. */
+@font-face {
+  font-family: 'Rubik';
+  font-style: italic;
+  font-weight: 700 900;
+  font-display: swap;
+  src: url('/assets/fonts/Rubik-Italic-Display.woff2') format('woff2');
+  unicode-range: U+20-7E, U+B7, U+D7, U+2013-2014, U+2019, U+201C-201D, U+2026, U+2212;
+}
+
+:root {
+  /* ---- palette (kit Round 03) */
+  --v6-rose: #ff3d7f; --v6-rose-deep: #c8135b; --v6-rose-light: #ffb3cd; --v6-rose-top: #ff86a5; --v6-berry: #3e0820;
+  --v6-sky: #39a6ff; --v6-sky-deep: #0d4fb8; --v6-sky-top: #7cc6ff; --v6-ice: #d6ecff; --v6-navy: #071334;
+  --v6-bolt: #ffe14a; --v6-bolt-top: #fff08a; --v6-bolt-ledge: #b98a00; --v6-flame: #ff8a1e;
+  --v6-logo-gold: #f7bc3c; --v6-logo-gold-hi: #fdd35a; --v6-logo-plum: #633077; --v6-plum-deep: #471f5d;
+  --v6-night: #12091f; --v6-night-2: #1c1230; --v6-night-3: #281a42; --v6-night-0: #0a0612;
+  --v6-cream: #fff3e3; --v6-muted: rgba(255, 243, 227, 0.68); --v6-faint: rgba(255, 243, 227, 0.42);
+  --v6-line: rgba(255, 243, 227, 0.14); --v6-line-strong: rgba(255, 243, 227, 0.28);
+  /* meaning: in-match relation reads (never swapped for team colours), done/owned */
+  --v6-ally: #4da0ff; --v6-enemy: #ff4f58; --v6-you: #ffd34d; --v6-success: #9be3c4; --v6-success-deep: #0e8f5b;
+  /* gold bevel (PLAY ring, premium rims) and the Season XP gem */
+  --v6-gold-1: #fff1b8; --v6-gold-2: #f2c14e; --v6-gold-3: #a8741c; --v6-gold-4: #5e3d0c;
+  --v6-xp-gem: radial-gradient(circle at 35% 30%, #fff, #c9a8ff 35%, #6d3fd6);
+  /* space-separated RGB for alpha: rgb(var(--v6-night-rgb) / 0.8) */
+  --v6-night-rgb: 18 9 31; --v6-night-2-rgb: 28 18 48; --v6-navy-rgb: 7 19 52; --v6-cream-rgb: 255 243 227;
+  --v6-rose-rgb: 255 61 127; --v6-sky-rgb: 57 166 255; --v6-bolt-rgb: 255 225 74; --v6-plum-rgb: 71 31 93;
+  --v6-sky-deep-rgb: 13 79 184; --v6-ice-rgb: 214 236 255; --v6-berry-rgb: 62 8 32; --v6-rose-light-rgb: 255 179 205; --v6-logo-gold-rgb: 247 188 60;
+
+  /* ---- surfaces */
+  --v6-surface: var(--v6-night-2);
+  --v6-surface-raised: var(--v6-night-3);
+  --v6-glass: rgb(var(--v6-night-2-rgb) / 0.88);
+  --v6-glass-2: rgb(var(--v6-night-2-rgb) / 0.66);
+  --v6-glass-navy: rgb(var(--v6-navy-rgb) / 0.72);
+  --v6-scrim: rgb(var(--v6-night-rgb) / 0.62);
+  --v6-scrim-strong: rgb(var(--v6-night-rgb) / 0.86);
+
+  /* ---- gradients */
+  --v6-grad-rose: linear-gradient(180deg, var(--v6-rose-top), var(--v6-rose));
+  --v6-grad-sky: linear-gradient(180deg, var(--v6-sky-top), var(--v6-sky));
+  --v6-grad-bolt: linear-gradient(180deg, var(--v6-bolt-top), var(--v6-bolt));
+  --v6-grad-gold: linear-gradient(180deg, var(--v6-gold-1), var(--v6-gold-2) 45%, var(--v6-gold-3));
+  --v6-grad-gold-ring: conic-gradient(from 210deg, #fff1b8, #f2c14e 18%, #a8741c 34%, #fff1b8 50%, #f2c14e 66%, #5e3d0c 84%, #fff1b8);
+  --v6-grad-wordmark: linear-gradient(180deg, #fff6cf, #fdd35a 40%, #f7bc3c 62%, #d98e1e);
+  --v6-grad-play: radial-gradient(circle at 40% 30%, #ffc2d8, #ff74a6 35%, #e0407a 70%, #8e1a48);
+  --v6-grad-night: linear-gradient(180deg, var(--v6-night-2), var(--v6-night));
+  /* the split: rose | bolt | sky, top-right to bottom-left like the logo slash */
+  --v6-split: linear-gradient(118deg, var(--v6-rose-deep) 0 49%, var(--v6-bolt) 49% 51.5%, var(--v6-sky-deep) 51.5%);
+  --v6-split-soft: linear-gradient(118deg, rgb(var(--v6-rose-rgb) / 0.22) 0 49.4%, rgb(var(--v6-bolt-rgb) / 0.55) 49.4% 50.6%, rgb(var(--v6-sky-rgb) / 0.22) 50.6%);
+  --v6-split-rule: linear-gradient(90deg, var(--v6-rose) 0 48%, var(--v6-bolt) 48% 52%, var(--v6-sky) 52%);
+  --v6-halftone: radial-gradient(rgb(0 0 0 / 0.22) 1.2px, transparent 1.7px) 0 0 / 9px 9px;
+  --v6-xp-fill: repeating-linear-gradient(118deg, var(--v6-bolt) 0 14px, var(--v6-bolt-top) 14px 20px);
+
+  /* ---- shadows, ledges, glows */
+  --v6-ledge: 5px;
+  --v6-ledge-rose: 0 var(--v6-ledge) 0 var(--v6-rose-deep);
+  --v6-ledge-sky: 0 var(--v6-ledge) 0 var(--v6-sky-deep);
+  --v6-ledge-bolt: 0 var(--v6-ledge) 0 var(--v6-bolt-ledge);
+  --v6-ledge-night: 0 var(--v6-ledge) 0 var(--v6-night-0);
+  --v6-shadow-1: 0 4px 12px rgb(0 0 0 / 0.35);
+  --v6-shadow-2: 0 10px 24px rgb(0 0 0 / 0.42);
+  --v6-shadow-3: 0 18px 40px rgb(0 0 0 / 0.45);
+  --v6-glow-bolt: 0 0 28px 6px rgb(var(--v6-bolt-rgb) / 0.45);
+  --v6-glow-rose: 0 0 22px 4px rgb(var(--v6-rose-rgb) / 0.45);
+  --v6-glow-sky: 0 0 22px 4px rgb(var(--v6-sky-rgb) / 0.45);
+  --v6-keyline: 0 0 0 4px var(--v6-night), 0 0 0 7px var(--v6-logo-plum);
+  --v6-ts-display: 0 4px 0 var(--v6-plum-deep), 0 10px 24px rgb(0 0 0 / 0.45);
+  --v6-ts-rose: 0 3px 0 var(--v6-berry);
+  --v6-ts-sky: 0 3px 0 var(--v6-navy);
+  --v6-ts-ui: 0 2px 0 rgb(0 0 0 / 0.35);
+
+  /* ---- shape */
+  --v6-r-xs: 4px; --v6-r-s: 6px; --v6-r-m: 10px; --v6-r-l: 14px; --v6-r-pill: 999px;
+  --v6-stroke-hair: 1px; --v6-stroke: 2px; --v6-stroke-bold: 3px; --v6-bar: 4px;
+  --v6-slant: -8deg; --v6-unslant: 8deg;
+  --v6-chamfer: 14px;
+  /* a parallelogram (lean without transform: layout box unchanged, text upright). Clips outside shadows/outlines. */
+  --v6-lean-clip: polygon(var(--v6-lean-x, 8px) 0, 100% 0, calc(100% - var(--v6-lean-x, 8px)) 100%, 0 100%);
+  --v6-chamfer-clip: polygon(0 0, 100% 0, 100% calc(100% - var(--v6-chamfer)), calc(100% - var(--v6-chamfer)) 100%, 0 100%);
+
+  /* ---- focus */
+  --v6-focus-ring: 0 0 0 3px var(--v6-night), 0 0 0 6px var(--v6-bolt);
+  --v6-focus-inset: inset 0 0 0 3px var(--v6-bolt);
+
+  /* ---- motion (kit Round 09) */
+  --v6-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --v6-ease-slam: cubic-bezier(0.7, 0, 0.2, 1.25);
+  --v6-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --v6-dur-press: 120ms; --v6-dur-fast: 180ms; --v6-dur-score: 360ms; --v6-dur-slam: 380ms; --v6-dur-punch: 500ms; --v6-dur-screen: 260ms;
+
+  /* ---- type */
+  --v6-font-ui: 'Fredoka', ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --v6-font-display: 'Rubik', 'Fredoka', ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --v6-fs-cap: 12px; --v6-fs-small: 14px; --v6-fs-body: 16px; --v6-fs-label: 20px; --v6-fs-h3: 26px; --v6-fs-ui-xl: 40px;
+  --v6-fs-display: clamp(40px, 7vw, 88px);
+  --v6-track-cap: 0.16em; --v6-track-round: 0.14em; --v6-track-display: -0.01em;
+
+  /* ---- legacy globals, remapped to v6 (index.html carries the same values for the boot splash) */
+  --bg: var(--v6-night);
+  --cream: var(--v6-cream);
+  --butter: var(--v6-bolt);
+  --peach: var(--v6-flame);
+  --rose: var(--v6-rose);
+  --sage: var(--v6-success);
+  --sky: var(--v6-sky);
+  --ink: var(--v6-night);
+  --danger: var(--v6-enemy);
+}
+
+/* ================================================================================== opt-in primitives (.v6-*)
+   Add these classes in markup only where it is safe (no badge or ring painted outside the box for the clip/lean ones).
+   They never change a layout box. */
+
+/* display type: Rubik 900 italic caps (titles, VS, VICTORY, round tags). Never body copy. */
+.v6-display {
+  font-family: var(--v6-font-display); font-style: italic; font-weight: 900; text-transform: uppercase;
+  letter-spacing: var(--v6-track-display); line-height: 0.92; text-shadow: var(--v6-ts-display);
+}
+.v6-display .c, .v6-display.c { color: var(--v6-rose); }
+.v6-display .d, .v6-display.d { color: var(--v6-sky); }
+/* UI display (Fredoka 700, bolt): PLAY-size labels, results numbers */
+.v6-ui-xl { font: 700 var(--v6-fs-ui-xl) / 1 var(--v6-font-ui); letter-spacing: 0.04em; color: var(--v6-bolt); text-shadow: 0 4px 0 var(--v6-plum-deep); }
+/* caption: Fredoka 700 12, +0.16em caps, muted */
+.v6-cap { font: 700 var(--v6-fs-cap) / 1.2 var(--v6-font-ui); letter-spacing: var(--v6-track-cap); text-transform: uppercase; color: var(--v6-muted); }
+.v6-num { font-variant-numeric: tabular-nums; }
+
+/* lean: a parallelogram by clip-path (text stays upright, box unchanged). Ledge drawn inside (inset shadow). */
+.v6-lean { clip-path: var(--v6-lean-clip); }
+/* skew: the kit's transform lean; wrap the label in .v6-unskew so it reads upright */
+.v6-skew { transform: skewX(var(--v6-slant)); }
+.v6-skew > .v6-unskew, .v6-unskew { display: inline-block; transform: skewX(var(--v6-unslant)); }
+.v6-chamfer { clip-path: var(--v6-chamfer-clip); }
+
+/* panel: night-2, 4 px radius, hairline; .v6-panel--bar adds the 6 px side bar in --v6-c (rose default) */
+.v6-panel {
+  background: var(--v6-glass); color: var(--v6-cream); border-radius: var(--v6-r-xs);
+  box-shadow: inset 0 0 0 1px var(--v6-line), var(--v6-shadow-2);
+}
+.v6-panel--bar { position: relative; }
+.v6-panel--bar::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--v6-c, var(--v6-rose)); border-radius: var(--v6-r-xs) 0 0 var(--v6-r-xs); }
+.v6-note { border-left: var(--v6-bar) solid var(--v6-bolt); background: rgb(var(--v6-bolt-rgb) / 0.06); }
+
+/* ledged 3D buttons (kit .btn.rose/.sky/.bolt). One rose per screen (PLAY); secondary actions sky. */
+.v6-btn {
+  font: 700 17px / 1 var(--v6-font-ui); letter-spacing: 0.02em; border: 0; cursor: pointer; border-radius: var(--v6-r-xs);
+  transition: transform var(--v6-dur-press) ease-out, box-shadow var(--v6-dur-press) ease-out;
+}
+.v6-btn--rose { background: var(--v6-grad-rose); color: #fff; box-shadow: var(--v6-ledge-rose), var(--v6-shadow-1); text-shadow: var(--v6-ts-rose); }
+.v6-btn--sky { background: var(--v6-grad-sky); color: var(--v6-navy); box-shadow: var(--v6-ledge-sky), var(--v6-shadow-1); }
+.v6-btn--bolt { background: var(--v6-grad-bolt); color: var(--v6-night); box-shadow: var(--v6-ledge-bolt), var(--v6-shadow-1); }
+.v6-btn--night { background: var(--v6-night-2); color: var(--v6-cream); box-shadow: var(--v6-ledge-night), inset 0 0 0 1px var(--v6-line-strong); }
+.v6-btn:active { transform: translateY(3px); }
+.v6-btn--rose:active { box-shadow: 0 2px 0 var(--v6-rose-deep); }
+.v6-btn--sky:active { box-shadow: 0 2px 0 var(--v6-sky-deep); }
+.v6-btn--bolt:active { box-shadow: 0 2px 0 var(--v6-bolt-ledge); }
+.v6-btn--night:active { box-shadow: 0 2px 0 var(--v6-night-0), inset 0 0 0 1px var(--v6-line-strong); }
+
+/* chips: team chips (cat rose / dog sky), a neutral glass chip */
+.v6-chip {
+  display: inline-flex; align-items: center; gap: 6px; font: 700 14px / 1 var(--v6-font-ui); color: var(--v6-cream);
+  background: rgb(var(--v6-cream-rgb) / 0.08); box-shadow: inset 0 0 0 1px var(--v6-line); border-radius: var(--v6-r-xs);
+}
+.v6-chip--cat { background: var(--v6-rose); color: #fff; box-shadow: none; }
+.v6-chip--dog { background: var(--v6-sky); color: var(--v6-navy); box-shadow: none; }
+.v6-chip--bolt { background: var(--v6-bolt); color: var(--v6-night); box-shadow: none; }
+
+/* tabs: navy glass track; the selected tab is cream with a 4 px bolt underline */
+.v6-tabs { display: flex; gap: 4px; padding: 4px; background: rgb(var(--v6-navy-rgb) / 0.6); box-shadow: inset 0 0 0 1px var(--v6-line); border-radius: var(--v6-r-xs); }
+.v6-tab { position: relative; border: 0; background: none; color: var(--v6-muted); font: 700 15px / 1 var(--v6-font-ui); cursor: pointer; border-radius: 2px; }
+.v6-tab[aria-selected='true'], .v6-tab.on { background: var(--v6-cream); color: var(--v6-night); }
+.v6-tab[aria-selected='true']::after, .v6-tab.on::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -4px; height: 4px; background: var(--v6-bolt); }
+
+/* the VS disc: bolt face, night Rubik, plum keyline, bolt glow. Size by --s. Always sits on the split. */
+.v6-vs {
+  display: inline-grid; place-items: center; width: var(--s, 64px); height: var(--s, 64px); border-radius: 50%;
+  font: italic 900 calc(var(--s, 64px) * 0.4) / 1 var(--v6-font-display); color: var(--v6-night); background: var(--v6-bolt);
+  box-shadow: var(--v6-keyline), var(--v6-glow-bolt); letter-spacing: -0.04em; padding-right: 0.08em;
+}
+/* the split as a divider rule (4 px) and as a full backdrop */
+.v6-split-rule { height: 4px; background: var(--v6-split-rule); }
+.v6-split-bg { background: var(--v6-split); }
+/* round tag: bolt skewed block + muted label */
+.v6-round { display: inline-flex; align-items: center; gap: 8px; font: italic 800 13px / 1 var(--v6-font-display); letter-spacing: var(--v6-track-round); text-transform: uppercase; }
+.v6-round > b { display: inline-block; background: var(--v6-bolt); color: var(--v6-night); padding: 5px 9px 5px 7px; transform: skewX(var(--v6-slant)); }
+.v6-round > span { color: var(--v6-muted); }
+/* XP bar: a leaning track with the bolt fill (set --v6-p 0..1) */
+.v6-xp { position: relative; height: 12px; background: rgb(var(--v6-cream-rgb) / 0.1); transform: skewX(var(--v6-slant)); overflow: hidden; }
+.v6-xp::before { content: ''; position: absolute; inset: 0; right: auto; width: calc(var(--v6-p, 0) * 100%); background: var(--v6-xp-fill); }
+
+/* focus: one visible ring everywhere (bolt on a night gap) */
+.v6-focus:focus-visible, .v6-btn:focus-visible, .v6-tab:focus-visible, .v6-chip:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
+.v6-lean:focus-visible, .v6-chamfer:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+
+/* motion: the kit's moves as reusable keyframes (transform / opacity only) */
+@keyframes v6-pop-in { from { opacity: 0; transform: scale(0.92); } }
+@keyframes v6-punch { 0% { opacity: 0; transform: scale(2.2) rotate(-6deg); } 70% { opacity: 1; transform: scale(0.94) rotate(1deg); } 100% { transform: none; } }
+@keyframes v6-slam-l { from { transform: translateX(-60%); } }
+@keyframes v6-slam-r { from { transform: translateX(60%); } }
+@keyframes v6-score-tick { 40% { transform: scale(1.28); } }
+@keyframes v6-shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+@keyframes v6-spin { to { transform: rotate(360deg); } }
+.v6-pop-in { animation: v6-pop-in var(--v6-dur-punch) var(--v6-ease-pop) both; }
+@media (prefers-reduced-motion: reduce) {
+  .v6-pop-in { animation: none; }
+}
