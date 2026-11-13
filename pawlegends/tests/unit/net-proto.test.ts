@@ -112,7 +112,9 @@ describe('net-proto', () => {
     expect(parseClientJson('{"t":"mm.accept","match":"abcdefghijkl","yes":true}')).toEqual({ t: 'mm.accept', match: 'abcdefghijkl', yes: true });
     expect(() => parseClientJson('{"t":"mm.accept","match":"ABC","yes":true}')).toThrow(ProtoError);
     expect(parseClientJson('{"t":"vote","kind":"remake","yes":true}')).toEqual({ t: 'vote', kind: 'remake', yes: true });
-    expect(() => parseClientJson('{"t":"mm.join","queue":"ranked","side":"any"}')).toThrow(ProtoError);
+    // ranked (gap plan P4): the same frame, no PROTO bump
+    expect(parseClientJson('{"t":"mm.join","queue":"ranked","side":"any"}')).toEqual({ t: 'mm.join', queue: 'ranked', side: 'any' });
+    expect(() => parseClientJson('{"t":"mm.join","queue":"ladder","side":"any"}')).toThrow(ProtoError);
     const hello = { t: 'hello', proto: 3, sim: 16, simHash: '0123456789abcdef', build: 'web.1', hint: { maxDifficulty: 'hard', newbie: false, matches: 12 } };
     expect(parseClientJson(JSON.stringify(hello))).toEqual(hello);
     expect(() => parseClientJson(JSON.stringify({ ...hello, hint: { ...hello.hint, matches: -1 } }))).toThrow(ProtoError);

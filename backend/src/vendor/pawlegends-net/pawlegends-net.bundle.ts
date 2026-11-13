@@ -55,9 +55,11 @@ export const PROTO_MATCH_CHAT = 6;
 export const SUBPROTOCOL = 'pl.1';
 /**
  * Quick Play queues: co-op (M1a), casual PvP (M1b, PROTO 3 on a sim >= PVP_SINCE) and 5v5 Classic (PROTO 4 on a sim
- * whose MAP_IDS has 'hearthwood'). 'ranked' is M2.
+ * whose MAP_IDS has 'hearthwood'). 'ranked' (gap plan P4, SOCIAL-RANKED.md §7.1): 3v3 casual frames on a PROTO 3 socket,
+ * solo or duo, only while the relay's liquidity gate is open. No PROTO bump: an older client never sends it, and the
+ * relay sends a ranked frame or a ranked error code only to a socket that asked for ranked.
  */
-export const MM_QUEUES = Object.freeze(['coop', 'casual', 'classic'] as const);
+export const MM_QUEUES = Object.freeze(['coop', 'casual', 'classic', 'ranked'] as const);
 export type MmQueue = (typeof MM_QUEUES)[number];
 /** The side a queued player asks for: cats, dogs, or either. A team is never mixed. */
 export const MM_SIDES = Object.freeze(['cat', 'dog', 'any'] as const);
@@ -508,6 +510,14 @@ export const ERROR_CODES = [
    * `retryMs` (the socket closes with 4013) and send the join again. The client retries a bounded number of times.
    */
   'party_elsewhere',
+  /** Ranked (only to a socket that sent `mm.join ranked`): the liquidity gate is closed (`online`, `need`). */
+  'mm_ranked_closed',
+  /** Ranked: a guest (or an unticketed socket) asked; ranked is for registered accounts. */
+  'mm_need_account',
+  /** Ranked: fewer saved matches than needed (`have`, `need`). */
+  'mm_ranked_matches',
+  /** Ranked: an ended ranked match of this account is not saved yet (`rooms`); save it, then search again. */
+  'mm_ranked_pending',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -847,7 +857,19 @@ export interface MatchMsg {
 export type ServerJson =
   | { t: 'welcome'; proto: number; member: string; resumeToken: string; serverMs: number; lastSeq?: number }
   /** `reason` (PROTO 3): why `mm_locked` refused a casual search ('pvp_newbie': fewer than 5 matches). */
-  | { t: 'error'; code: ErrorCode; retryMs?: number; reason?: 'pvp_newbie' }
+  | {
+      t: 'error';
+      code: ErrorCode;
+      retryMs?: number;
+      reason?: 'pvp_newbie' | 'ranked_party';
+      /** `mm_ranked_closed`: players online now, and the opening line. */
+      online?: number;
+      need?: number;
+      /** `mm_ranked_matches`: saved matches. */
+      have?: number;
+      /** `mm_ranked_pending`: the unsaved ranked rooms. */
+      rooms?: string[];
+    }
   | PartyView
   | MatchMsg
   | { t: 'slot'; slot: number; reason: SlotReason; joined?: boolean; name?: string; laggy?: boolean }
@@ -893,6 +915,8 @@ export type ServerJson =
       /** PROTO 4 classic: the map and seats per team. */
       map?: MapId;
       teamSize?: 3 | 5;
+      /** Ranked: the found match is ranked (the Accept card says so). */
+      queue?: 'ranked';
     }
   /** PROTO 3 casual: who accepted so far (counts only). */
   | { t: 'mm.accepted'; match: string; yes: number; need: number }
