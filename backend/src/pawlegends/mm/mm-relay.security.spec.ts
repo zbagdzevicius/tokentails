@@ -11,7 +11,7 @@ describe('Quick Play relay security', () => {
         try {
             for (const bad of [
                 { t: 'mm.join', queue: 'coop', side: 'any', extra: 1 },
-                { t: 'mm.join', queue: 'ranked', side: 'any' },
+                { t: 'mm.join', queue: 'ladder', side: 'any' },
                 { t: 'mm.join', queue: 'coop', side: 'bird' },
                 { t: 'mm.join', queue: 'coop', side: 'any', region: 'EU WEST!' },
                 { t: 'mm.backfill', offer: 'short', yes: true },

@@ -34,7 +34,10 @@ export interface MmRatingRow {
     v: number;
 }
 
-/** The visible ranked fields of a `${accountId}:ranked` row (SOCIAL-RANKED.md §7.3). Written only by `/live`. */
+/**
+ * The visible ranked fields of a `${accountId}:ranked` row (SOCIAL-RANKED.md §7.3). Written only by `/live`, except
+ * `peaks[].rewarded` (and a finished season's peak entry), which the season reward job sets (ranked/season-rewards.ts).
+ */
 export interface RankedFields {
     season: string;
     tierIdx: number;
@@ -42,7 +45,7 @@ export interface RankedFields {
     shield: number;
     placementsLeft: number;
     peakIdx: number;
-    /** Finished seasons: the peak and whether its cosmetic reward was granted (inside `/live`). */
+    /** Finished seasons: the peak and whether its cosmetic reward was granted (the season reward job). */
     peaks: Array<{ season: string; peakIdx: number; finalIdx: number; rewarded: boolean }>;
     lastRankedAt: Date | null;
     /** tierIdx × 100 + points (Legend 1200 + points): the global board key. */

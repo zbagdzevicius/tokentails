@@ -3,7 +3,8 @@ import { join, relative } from 'path';
 
 /*
  * One writer (CLAUDE.md, M1A-IMPL.md §0, §6.1): the hidden Quick Play rating is written only by `/live`
- * (pawlegends-party-live.ts) and re-keyed only by the guest merge (mm/rating-merge.ts). Nothing under mm/ touches the
+ * (pawlegends-party-live.ts) and re-keyed only by the guest merge (mm/rating-merge.ts). The ranked season reward job
+ * (ranked/season-rewards.ts) sets only a finished season's `peaks[].rewarded`, never a rating or points. Nothing under mm/ touches the
  * user or game repositories, and the relay glue never calls the score route.
  */
 
@@ -38,6 +39,8 @@ describe('mm: one rating writer', () => {
                 'pawlegends/pawlegends-party-live.ts: ratings.updateOne',
                 'pawlegends/mm/rating-merge.ts: ratings.replaceOne',
                 'pawlegends/mm/rating-merge.ts: ratings.deleteOne',
+                'pawlegends/ranked/season-rewards.ts: ratings.updateOne',
+                'pawlegends/ranked/season-rewards.ts: ratings.updateOne',
             ].sort()
         );
     });

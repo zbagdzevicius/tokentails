@@ -20,6 +20,7 @@ import {
     weeklyId,
 } from './ranked/boards';
 import { decayedPoints, freshPoints, ladderOf, rankedStep, softReset } from './ranked/points';
+import { rankedSettleCheck } from './ranked/settlement';
 import { AFK_REASONS } from './party/room';
 import type { StoredRoom } from './party/room-store';
 import { PawlegendsPartyResultDto } from './pawlegends-replay.dto';
@@ -241,8 +242,12 @@ export async function savePawlegendsPartyMatch(
     if (deps.mm && pvp) {
         const mmRoom = await deps.mm.rooms.get(r.room).catch(() => null);
         if (mmRoom?.queue === 'ranked') {
-            // ranked is for registered accounts only: a guest seat (never matched) rates nothing
-            if (!user.isGuest) await applyRankedRating(deps.mm, String(userId), r.room, won, now, log);
+            // ranked is for registered accounts only: a guest seat (never matched) rates nothing. Settlement (gap plan
+            // P4): the verified verdict (the relay's full log re-sim + verifyPvpReplay) and the room record must agree
+            // before any point moves
+            const settle = rankedSettleCheck(mmRoom, String(userId), r.slot);
+            if (!settle.ok) log.warn(`pawlegends ranked settle skipped: why=${settle.why}`);
+            else if (!user.isGuest) await applyRankedRating(deps.mm, String(userId), r.room, won, now, log);
         } else
             await applyCasualRating(
                 deps.mm,
@@ -360,8 +365,10 @@ async function applyRankedRating(
             };
             base.rd = Math.max(base.rd, 200);
         } else if (prev?.season && prev.season !== season) {
-            // the lazy soft reset at the first ranked save of a new season
-            peaks.push({ season: prev.season, peakIdx: points.peakIdx, finalIdx: points.tierIdx, rewarded: false });
+            // the lazy soft reset at the first ranked save of a new season (the season reward job may have recorded
+            // that season's peak already: it is kept, never doubled)
+            if (!peaks.some(p => p.season === prev.season))
+                peaks.push({ season: prev.season, peakIdx: points.peakIdx, finalIdx: points.tierIdx, rewarded: false });
             const reset = softReset({ r: prev.r, rd: prev.rd, tierIdx: points.tierIdx });
             base = { ...prev, r: reset.r, rd: reset.rd };
             floorIdx = reset.floorIdx;

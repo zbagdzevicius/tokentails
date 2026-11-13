@@ -5,24 +5,39 @@
  * teams, bots in the empty seats once the oldest entry waited `fillMs`.
  */
 import { entryRating, type MmEntry } from './matchmaker';
-import { MM_CASUAL, MM_CLASSIC } from './mm-limits';
+import { MM_CASUAL, MM_CLASSIC, MM_RANKED } from './mm-limits';
 
 /**
  * The PvP queue a plan is built for: `casual` (3v3 on Purrhaven Crossing) or `classic` (5v5 on Hearthwood Divide,
  * MAP-5V5.md §9.3). Same rules, different team size and limits.
  */
 /** A queue's numbers, widened (casual and classic share the shape). */
-export type PvpLimits = {
-    readonly [K in keyof typeof MM_CASUAL]: typeof MM_CASUAL[K] extends number ? number : typeof MM_CASUAL[K];
-};
+type Widen<T> = T extends number
+    ? number
+    : T extends readonly unknown[]
+    ? T
+    : T extends object
+    ? { readonly [K in keyof T]: Widen<T[K]> }
+    : T;
+export type PvpLimits = Widen<typeof MM_CASUAL>;
 export interface PvpQueueRules {
-    queue: 'casual' | 'classic';
+    queue: 'casual' | 'classic' | 'ranked';
     teamSize: 3 | 5;
     limits: PvpLimits;
+    /** Ranked (SOCIAL-RANKED.md §7.1): opposite teams never share a /24 (/48) network, not only an address. */
+    apartByNet?: boolean;
 }
 export const CASUAL_RULES: PvpQueueRules = Object.freeze({ queue: 'casual', teamSize: 3, limits: MM_CASUAL });
 export const CLASSIC_RULES: PvpQueueRules = Object.freeze({ queue: 'classic', teamSize: 5, limits: MM_CLASSIC });
-export const pvpRulesOf = (queue: string): PvpQueueRules => (queue === 'classic' ? CLASSIC_RULES : CASUAL_RULES);
+/** Ranked: 3v3 on the Crossing, full teams of humans only (no bot fill), the network rule across teams. */
+export const RANKED_RULES: PvpQueueRules = Object.freeze({
+    queue: 'ranked',
+    teamSize: 3,
+    limits: MM_RANKED,
+    apartByNet: true,
+});
+export const pvpRulesOf = (queue: string): PvpQueueRules =>
+    queue === 'classic' ? CLASSIC_RULES : queue === 'ranked' ? RANKED_RULES : CASUAL_RULES;
 
 export type Species = 'cat' | 'dog';
 
@@ -137,15 +152,17 @@ function teamOk(group: readonly MmEntry[], teamSize = 3): boolean {
     return true;
 }
 
-/** Same address never on opposite teams (teammates are fine); one identity never on both. */
-function apartOk(a: readonly MmEntry[], b: readonly MmEntry[]): boolean {
+/** Same address never on opposite teams (teammates are fine); one identity never on both. `byNet`: nor one network. */
+function apartOk(a: readonly MmEntry[], b: readonly MmEntry[], byNet = false): boolean {
     const ips = new Set(a.flatMap(e => e.members.map(m => m.ipKey)));
+    const nets = byNet ? new Set(a.flatMap(e => e.members.map(m => m.netKey).filter(Boolean))) : null;
     const ids = new Set(
         a.flatMap(e => e.members.filter(m => !m.identityKey.startsWith('ip:')).map(m => m.identityKey))
     );
     for (const e of b)
         for (const m of e.members) {
             if (m.ipKey && ips.has(m.ipKey)) return false;
+            if (nets && m.netKey && nets.has(m.netKey)) return false;
             if (ids.has(m.identityKey)) return false;
         }
     return true;
@@ -202,7 +219,7 @@ export function bestCasual(
         for (const foes of subsets(restA, n, n)) {
             if (!foes.length) continue;
             const teamB = [...foes];
-            if (!teamOk(teamB, n) || !apartOk(teamA, teamB)) continue;
+            if (!teamOk(teamB, n) || !apartOk(teamA, teamB, rules.apartByNet)) continue;
             const hb = humansOf(teamB);
             const rank = shapeRankN(ha, hb, n);
             if (rank !== 0 && !fillOk) continue;

@@ -7,7 +7,7 @@ import { PartyTicketService } from '../party/party-ticket.service';
 import { RefereePool } from '../party/referee-pool';
 import { MemoryRoomStore } from '../party/room-store';
 import { LIVE, TestClient } from '../party/relay-test-client.helper-spec';
-import { memoryMm } from './mm-bridge';
+import { memoryMm, type RankedJoinSource } from './mm-bridge';
 import { identityHash, MemoryMmRoomStore } from './mm-room.schema';
 import { MemoryRatingSource } from './rating.schema';
 
@@ -15,7 +15,7 @@ import { MemoryRatingSource } from './rating.schema';
 
 const SECRET = 'spec-secret-0123456789abcdef';
 
-export async function bootMm(opts: { ip?: (req: IncomingMessage) => string } = {}) {
+export async function bootMm(opts: { ip?: (req: IncomingMessage) => string; ranked?: RankedJoinSource } = {}) {
     process.env.PAWLEGENDS_PARTY_TICKET_SECRET = SECRET;
     const server: Server = createServer();
     await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
@@ -43,7 +43,7 @@ export async function bootMm(opts: { ip?: (req: IncomingMessage) => string } = {
                 return typeof h === 'string' ? h : `10.9.${(++ips >> 8) & 255}.${ips & 255}`;
             }),
         log: (e, p) => events.push({ e, p }),
-        mm: memoryMm({ rooms: mmRooms, ratings }),
+        mm: memoryMm({ rooms: mmRooms, ratings, ...(opts.ranked ? { ranked: opts.ranked } : {}) }),
     });
     const clients: TestClient[] = [];
     const client = async (headers: Record<string, string> = {}) => {

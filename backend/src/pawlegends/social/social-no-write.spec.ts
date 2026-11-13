@@ -49,11 +49,22 @@ describe('social and ranked: one writer', () => {
     });
 
     it('social/ and ranked/ never touch scores', () => {
+        // the ranked season reward job (gap plan P4) is the one ranked/ file that writes a rating row, and only its
+        // finished season's peak flag (checked below); nothing else there writes a rating or touches a score
+        const REWARDS = 'pawlegends/ranked/season-rewards.ts';
         for (const { file, text } of ALL.filter(f => /^pawlegends\/(social|ranked)\//.test(f.file))) {
-            expect([
+            const rating = file === REWARDS ? /ratings\.create/ : /ratings\.(create|updateOne)/;
+            expect([file, /UserRepository|GameRepository|catbassadors\/live/.test(text) || rating.test(text)]).toEqual([
                 file,
-                /UserRepository|GameRepository|catbassadors\/live|ratings\.(create|updateOne)/.test(text),
-            ]).toEqual([file, false]);
+                false,
+            ]);
+        }
+        const rewards = ALL.find(f => f.file === REWARDS)!.text;
+        const writes = Array.from(rewards.matchAll(/ratings\.updateOne\(([\s\S]*?)\n\s{14}\)/g)).map(m => m[1]);
+        expect(writes).toHaveLength(2);
+        for (const w of writes) {
+            expect(w).toMatch(/peaks/);
+            expect(w).not.toMatch(/\b(r|rd|sigma|points|tierIdx|ladder|games|wins)\s*:/);
         }
     });
 });
