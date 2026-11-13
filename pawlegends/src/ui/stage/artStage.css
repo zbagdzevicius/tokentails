@@ -12,7 +12,7 @@
 .pl-stage-bg {
   position: absolute;
   inset: 0;
-  background: #2b1d2e center / cover no-repeat;
+  background: #1c1230 center / cover no-repeat;
   transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1), filter 0.4s ease-out;
 }
 
