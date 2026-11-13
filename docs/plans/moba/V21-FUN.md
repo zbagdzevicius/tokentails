@@ -305,6 +305,109 @@ backend `jest src/pawlegends src/vendor`, `build`, `budget` (first load 425.0 KB
 
 ---
 
+### 2.3 v25: deliberate toys (sim v25, 2026-11-13)
+
+Founder report (verbatim): "ultracode fix in-game objects in fun mode ( "ball", "cannonball", "trampoline" ) as it's
+hard to navigate through them". None of the three is solid (the nav grid never sees them); each one grabbed a hero that
+only walked past, and each trigger reached past what is drawn. Headless sweep (straight walks past every toy of both
+maps, 24 headings × 0 / 0.6 / 1.2 / 1.8 / 2.4 m off centre; a touch stick is a move 2 m ahead every 100 ms, a click is
+one move to the end):
+
+| Toy, input | v24 grabbed | v25 grabbed |
+|---|---|---|
+| Bed, Crossing, stick | 40.6% (1.09 s lost a walk) | 13.2% (0.30 s), every one a walk heading within 60° of the throw |
+| Bed, Hearthwood, stick | 42.6% (3.08 s, worst 12.1 s) | 0% |
+| Bed, click (both maps) | 0% | 0% |
+| Yarn, stick | 60% (100% up to 1.2 m off) | 46.7% (100% at 0–0.6 m, a walk into the ball; 33% at 1.2 m) |
+| Yarn, click (far goal) | 60% | 0% |
+| Cannon, stick | 80% (100% up to 1.8 m off) | 40% (only 0–0.6 m off, a walk onto it; reach unchanged) |
+| Cannon, click (far goal) | 80% | 0% |
+
+**v25 rule** (`units/boing.ts`, `units/cannon.ts`, `units/yarn.ts`, `data/fun.ts`; heading tests are `within60` in
+`fixed.ts`, integer roots, no floats):
+
+- **Boing Bed.**
+  - A near goal (within `BOING.near`, 3.2 m) launches only a walk heading within 60° of the throw: onto the bed from
+    behind, toward the landing (v24: 120°).
+  - The far-goal rule (desktop clicks) is unchanged.
+  - A walk that crosses the disc to anywhere else (a stick's look-ahead, a kite) or a fight on it marks the hero
+    (`bedT` −1), and a stop there afterwards does not throw it.
+  - A hero that arrives at a spot on the cushion (within `BOING.arrive`, 0.6 m, of a goal on it: a tap on the bed from
+    any side, a bot walking onto it) and stops is thrown after `BOING.stand`, now 15 ticks (0.5 s; v24: 8 ticks for
+    anyone stopped).
+  - The rat-camp bed moves 1.5 m nearer its wall, from (33, 30) to (34.5, 30), landing at (42.5, 30): the same 8 m throw, 4.5 m from the camp.
+  - Hearthwood's Gutterway beds stay where they are: the forest starts at y = 14 m, so they cannot go further off the
+    lane, and the cone rule already takes their walk-past throws to 0.
+- **Kibble Cannon.**
+  - The reach stays at v24's: the hero's centre within `CANNON.reach` + hero radius, 1.5 + 0.5 = 2.0 m. The gold ring is
+    drawn out to it instead (1.15–1.55 m, v24: 1.0–1.35 m), so a hero's body touches the ring exactly when it can take
+    the cannon.
+    - A 1.5 m sim reach was tried first and moved Hearthwood's 5v5 balance. On the same 600 seeds, 12 of 20 heroes
+      were in band against v24's 20 of 20 (Marshmallow 42%, Aviete 56%), with cats at 53.3%.
+    - Ablations: the v24 rule at 1.5 m also failed; the v25 rule at 2.0 m passes.
+  - The hero must also either stand there (Order.None) or walk with its goal within `CANNON.aim` (0.8 m) of the cannon:
+    a tap on it, a stick pushed at it, or a bot fetching its spot.
+  - A walk past it, or a fight beside it, leaves it on the ground. There is still no drop, only Fire.
+- **Mega Yarn Ball.**
+  - It is kicked when the hero's body touches the ball: within `YARN.kickReach` 1.35 m (0.85 m ball + 0.5 m hero;
+    v24: 1.6 m).
+  - The walk must also head within 60° of the ball, with its goal within `YARN.near` (3.2 m) of it.
+  - The ball rolls along the walk (goal − hero), so a stick aims it. A walk through it to a far goal passes.
+- **Enemy fountain.** A walking hero slides along its edge (the x step alone, else the y step) instead of stopping
+  dead (`units/hero.ts` `walk`). A v25 bot match on Crossing (seed 6, `nav-v16.test.ts`) held a Brutus still for 119
+  ticks against it. In 160 seeds this happened once on v25 and never on v24.
+- **Render** (`funView.ts`, no hash impact): the cannon ring ends where the body takes it (`CANNON_RING`, 1.15–1.55 m),
+  the ball is drawn at the kick contact (`BALL_R` = kickReach − hero radius), and the bed guide adds a faint wedge behind
+  the cushion for the ±60° way in that throws.
+
+**Tests.**
+- `tests/unit/boing-v25.test.ts` (was boing-v24): 200 seeded approaches within ±55° of the throw.
+  - A stick launches within 0.3 s; a let-go launches at the stand; a tap on the cushion launches within 2 s.
+  - Every bed of both maps, crossed by stick 75–180° off its throw at 0–1.1 m (let go there or not), is never thrown.
+    75° is used because goal quantisation (250 mm) and the shrinking stick look-ahead wobble the heading by about 10°.
+  - A fight and then a pause on the cushion does not throw.
+  - A tap from the side throws `stand` ticks after the stop.
+- `tests/unit/fun-toys-v25.test.ts`:
+  - Cannon pick-up radius and intent.
+  - Yarn kick contact, intent and kick direction.
+  - Crossing's river line with the cannon and both balls on it, walked by stick and by click with three heroes: no
+    grab, no still run of 3 ticks, the same arrival tick as without toys.
+  - Every toy of both maps walked past in 24 headings: the same checks.
+  - All-bot Blitz matches still take the cannon, kick a ball and take a bed.
+
+**Versioning.** `SIM_VERSION` 25. `tools/vendor-sim.mjs` freezes v24 at `73b6404e` (bundle `c12a7ae2…`, the same nine
+`extra` fixtures as v23), so the backend verifies 10 to 25 (`pawlegends-live.spec.ts`: the version lists, and a v25
+case where v25 records verify on v25 only and the frozen v24 still verifies its own). The party-identity golden is
+regenerated from the v25 sim and its live v25 fixtures.
+
+**Backend replay worker.** The replay worker now reports `ready` once its sims are loaded, and a replay's 10 s timeout
+starts from then (`pawlegends-live.ts`). A start that never gets ready is given up after 60 s.
+- Why: with the 16th bundle, a cold start from TypeScript sources (jest, ts-node) took 10.0 s (9.8 s with 15 bundles).
+  The first replay after each restart got a 503 and the worker was killed, so every worker-thread case of the `/live`
+  spec failed.
+- Production loads the compiled worker and was not near the limit.
+- **Naive smoke check.** `tests/unit/naive.test.ts` now samples 24 seeds and needs at least 19 wins (it was at least
+  6 of seeds 1–8). Two of those eight Rookie wins came from accidental bed throws, which v25 no longer makes. The
+  `fun1` gate (200 seeds) reads 93.5% on v25 against 97.0% on v24, above its 85% bar.
+
+**Gates on the shipped v25** (unseen seeds, the same windows as v24):
+
+| Gate | Seeds | v25 | Notes |
+|---|---|---|---|
+| 3v3 Skirmish (`--gate balance`) | 8,000 from 6200001 | 35 / 35 pass: side 50.5%, cats 49.1%, heroes 47.4–53.6%, median 7:11, p95 8:31, 0 safety, 3.48 takedowns/min, trailing at 3:30 wins 27.5% | — |
+| Blitz (`--gate blitz`) | 4,000 from 6300001 + 4,000 from 6700001 | side 47.3% / 48.5%, cats 50.4% / 51.6%, every hero in band in both windows; trailing at 1:30 wins 13.3% / 15.5% | The trailing check also fails on v24 (16.0%) and v23 (15.4%). |
+| Classic (`hearth-gates --det 40`) | 600 seed pairs from 6400001 (1,200 matches) | side 51.3%, cats 50.6%, 20 / 20 heroes 46–53%, p50 13:06 / p95 13:13, 0 safety, determinism 120 / 120 | v24 on the same seeds: cats 50.1%, 20 / 20 |
+| Determinism (`determinism.mjs`) | 100 seeds + PvP, Blitz, Hearthwood every 4th | all identical | — |
+| `fun1` / `fun2` | 200 each | `fun1` win 93.5% (v24 97.0%); `fun2` win 71.5%, takedowns 2.49/min | v24's `fun2` also fails takedowns (2.50 shown). |
+
+**Checks.**
+- Pawlegends: `tsc`, `lint:sim` (163 files), `vendor-sim --check` (v10–v24 frozen, v25), `vitest` (3155 pass; the two
+  `tools/trailer` copy-gate cases fail in this worktree only because its root has no `node_modules`), `build`,
+  `budget` (first load 410.4 KB gzip, party chunk 43.4 KB).
+- Backend: `tsc`, `jest src/pawlegends src/vendor`.
+- Not run: `npm run build:client` (the client bundle ships with the release), the touch e2e
+  `tests/e2e/boing-touch.spec.ts`, and a device check of the new bed wedge and cannon ring.
+
 ## 3. Stronger towers (sim v21)
 
 Founder: "hits and more durable". Two levers: towers hurt more when they shoot heroes (dive costs a life) and take
