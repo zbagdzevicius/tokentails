@@ -23,6 +23,11 @@ import { clearedBushes } from '../bushClear';
 import { ModelBuilder } from './rig';
 import type { MapView } from './mapView';
 import { CANOPY_CUT, BUSH_CUT } from './mapView';
+import type { Ambient } from '../ambient';
+import { WIND, patchWind, stepWind, windUniforms } from './env/wind';
+import { cloudUniforms, patchCloudShadow, stepClouds } from './env/clouds';
+import { RIVER_LIFE_GLSL, riverLifeUniforms, stepWater } from './env/waterLife';
+import { BANNER, LIVE_KIND, livingMaterial, livingUniforms, stepLiving } from './env/banner';
 
 /** Seeded LCG so the scenery is the same every load (render only). */
 function lcg(seed: number): () => number {
@@ -327,6 +332,9 @@ void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; g
 const RIVER_FRAG = /* glsl */ `
 uniform float uTime;
 uniform float uLen;
+uniform float uWidth;
+uniform vec2 uMid;
+${RIVER_LIFE_GLSL}
 varying vec2 vUv;
 varying vec3 vW;
 void main(){
@@ -341,6 +349,9 @@ void main(){
   col += glint * vec3(0.45, 0.32, 0.12);
   float foam = smoothstep(0.08, 0.0, edge);
   col = mix(col, vec3(0.98, 0.96, 0.9), foam * 0.8);
+  // living pass: flow streaks, bank foam and foam against the bridge decks (off on Low); along the diagonal, world xz
+  vec2 plRq = vW.xz - uMid;
+  col = plRiverLife(col, dot(plRq, vec2(0.70710678, 0.70710678)), dot(plRq, vec2(0.70710678, -0.70710678)), edge * uWidth);
   float fade = smoothstep(0.0, 0.06, vUv.y) * smoothstep(1.0, 0.94, vUv.y);
   gl_FragColor = vec4(col, smoothstep(0.0, 0.03, edge) * fade);
 }`;
@@ -469,6 +480,14 @@ export function hwReedSteps(info: MapInfo): { x: number; y: number }[] {
   return out;
 }
 
+/**
+ * Living pass: where foam piles up on the Hearthwood river: each bridge deck (9.4 m along the river), as a position
+ * along the diagonal flow (world xz projected on (1, 1)/√2 from the map centre, m) and a half length.
+ */
+export function hwRiverWeirs(crossings: readonly { x: number; y: number }[], W: number, H: number): { at: number; half: number }[] {
+  return crossings.map((c) => ({ at: (c.x - W / 2 + (-c.y + H / 2)) / Math.SQRT2, half: 4.7 }));
+}
+
 export function createHearthwoodView(info: MapInfo): MapView {
   const W = info.width / 1000;
   const H = info.height / 1000;
@@ -482,6 +501,12 @@ export function createHearthwoodView(info: MapInfo): MapView {
   };
   const shadowCasters: THREE.Object3D[] = [];
   const rnd = lcg(13);
+  // living pass (render only): wind, cloud shadows, water life, banner cloth, lily pads and the pond; still until
+  // `setAmbient` says otherwise (Low stays level 0: every uniform 0, the same programs)
+  let amb: Pick<Ambient, 'level' | 'motion' | 'speed' | 'phone'> = { level: 0, motion: 0, speed: 1, phone: false };
+  const windU = windUniforms();
+  const cloudU = cloudUniforms();
+  const liveU = livingUniforms();
   const sceneryMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
   const addMerged = (b: ModelBuilder, name: string, cast = true, mat: THREE.Material = sceneryMat): THREE.Mesh => {
     // sim v22's standard Hearthwood has no pits (and may have no tree outcrop): an empty builder is an empty, hidden
@@ -504,7 +529,7 @@ export function createHearthwoodView(info: MapInfo): MapView {
   // the ground past the map: dusk grass under the forest
   const outerGeo = keep(new THREE.PlaneGeometry(W + 2 * HW_DRESS + 40, H + 2 * HW_DRESS + 40));
   outerGeo.rotateX(-Math.PI / 2);
-  const outer = new THREE.Mesh(outerGeo, keep(new THREE.MeshLambertMaterial({ color: HW.outer })));
+  const outer = new THREE.Mesh(outerGeo, keep(patchCloudShadow(new THREE.MeshLambertMaterial({ color: HW.outer }), cloudU)));
   outer.position.set(W / 2, -0.02, -H / 2);
   outer.receiveShadow = true;
   group.add(outer);
@@ -514,7 +539,7 @@ export function createHearthwoodView(info: MapInfo): MapView {
   let texSwap = false;
   const groundGeo = keep(new THREE.PlaneGeometry(W, H));
   groundGeo.rotateX(-Math.PI / 2);
-  const groundMat = keep(new THREE.MeshLambertMaterial({ color: tex ? 0xffffff : 0xa9a65c, map: tex }));
+  const groundMat = keep(patchCloudShadow(new THREE.MeshLambertMaterial({ color: tex ? 0xffffff : 0xa9a65c, map: tex }), cloudU));
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.position.set(W / 2, 0, -H / 2);
   ground.receiveShadow = true;
@@ -524,7 +549,13 @@ export function createHearthwoodView(info: MapInfo): MapView {
   // the river: one strip along the diagonal x + y = W (10 m wide), past both far corners
   const half = (info.river.b / 1000) / Math.SQRT2;
   const len = Math.hypot(W, H) + 24;
-  const riverU = { uTime: { value: 0 }, uLen: { value: len } };
+  const riverU: Record<string, THREE.IUniform> & ReturnType<typeof riverLifeUniforms> & { uTime: { value: number } } = {
+    uTime: { value: 0 },
+    uLen: { value: len },
+    uWidth: { value: half * 2 },
+    uMid: { value: new THREE.Vector2(W / 2, -H / 2) },
+    ...riverLifeUniforms([]),
+  };
   const riverGeo = keep(new THREE.PlaneGeometry(half * 2, len, 1, 1));
   riverGeo.rotateX(-Math.PI / 2);
   const river = new THREE.Mesh(riverGeo, keep(new THREE.ShaderMaterial({ uniforms: riverU, vertexShader: RIVER_VERT, fragmentShader: RIVER_FRAG, transparent: true, depthWrite: false })));
@@ -554,6 +585,10 @@ export function createHearthwoodView(info: MapInfo): MapView {
     const [ex, ey] = l.pts[l.pts.length - 1];
     if (ex + ey === W) crossings.push({ x: ex, y: ey });
   }
+  /** Living pass: the lily pads (drawn in the banner meshes' living material: they bob and turn on Med/High). */
+  const lilies: { x: number; y: number; r: number; pad: number; flower: number }[] = [];
+  /** Living pass: the toad camps' ponds (rippling in the same material). */
+  const ponds: { x: number; y: number }[] = [];
   const nearBridge = (x: number, y: number): boolean => crossings.some((c) => Math.hypot(c.x - x, c.y - y) < 7.5);
   for (let i = 0; i < 70; i++) {
     const t = rnd();
@@ -561,9 +596,12 @@ export function createHearthwoodView(info: MapInfo): MapView {
     const y = W - x + (rnd() - 0.5) * half * 1.4;
     if (nearBridge(x, y) || x < 4 || y < 4 || x > W - 4 || y > H - 4) continue;
     const r = 0.35 + rnd() * 0.35;
-    props.cyl(r, r, 0.02, rnd() < 0.5 ? 0x6f9a4e : 0x86ad5a, { at: [x, 0.04, -y] }, 10);
-    if (rnd() < 0.3) props.sphere(0.12, rnd() < 0.5 ? 0xffb3cd : 0xfff3e3, { at: [x + 0.1, 0.1, -y] }, 6);
+    const pad = rnd() < 0.5 ? 0x6f9a4e : 0x86ad5a;
+    const flower = rnd() < 0.3 ? (rnd() < 0.5 ? 0xffb3cd : 0xfff3e3) : -1;
+    lilies.push({ x, y, r, pad, flower });
   }
+  // living pass: foam piles against each bridge deck (9.4 m along the river), positions along the diagonal (world)
+  hwRiverWeirs(crossings, W, H).forEach((w, i) => riverU.uWeir.value[i]?.set(w.at, w.half));
   // plank bridges where the lanes cross the river (decks flush with the water)
   const deck = new ModelBuilder();
   for (const c of crossings) {
@@ -622,7 +660,7 @@ export function createHearthwoodView(info: MapInfo): MapView {
         props.sphere(0.22, 0x8a5a2a, { at: [cx + Math.cos(a) * 3.6, 0.15, -(cy + Math.sin(a) * 3.6)], scale: [1, 0.7, 1] }, 6);
       }
     } else if (cp.kind === 'toad') {
-      props.cyl(1.6, 1.6, 0.02, 0x8fb8c8, { at: [cx + 2.8, 0.03, -(cy - 1.6)] }, 16);
+      ponds.push({ x: cx + 2.8, y: cy - 1.6 });
     } else if (cp.kind === 'beetle') {
       // the Glow Log (sim v22): a mossy hollow log with glowing green beetles
       props.cyl(0.55, 0.65, 3.2, 0x6e4a2e, { at: [cx + 2.2, 0.5, -(cy + 1.4)], rot: [0, 0.5, Math.PI / 2] }, 8);
@@ -742,12 +780,13 @@ export function createHearthwoodView(info: MapInfo): MapView {
       const cx = (x0 + x1) / 2;
       const cy = (y0 + y1) / 2;
       wallB.cyl(0.3, 0.42, 2.4, HW.trunk, { at: [cx, 1.6, -cy] }, 6);
-      crown.add(new THREE.IcosahedronGeometry(1.9, 0), HW.leaves[(wr() * HW.leaves.length) | 0], { at: [cx, 3.6, -cy] });
-      crown.add(new THREE.IcosahedronGeometry(1.3, 0), HW.leaves[(wr() * HW.leaves.length) | 0], { at: [cx + 0.3, 4.6, -cy - 0.2] });
+      const sway = { part: WIND.treeCm, pivot: [cx, 2.4, -cy] as const };
+      crown.add(new THREE.IcosahedronGeometry(1.9, 0), HW.leaves[(wr() * HW.leaves.length) | 0], { at: [cx, 3.6, -cy], ...sway });
+      crown.add(new THREE.IcosahedronGeometry(1.3, 0), HW.leaves[(wr() * HW.leaves.length) | 0], { at: [cx + 0.3, 4.6, -cy - 0.2], ...sway });
     }
   }
   addMerged(wallB, 'walls', true, keep(cutMaterial(forestU, 0.6, 'pl-hw-wall-cut-v1')));
-  addMerged(crown, 'wall-crowns', true, keep(cutMaterial(forestU, 1.2, 'pl-hw-crown-cut-v1')));
+  addMerged(crown, 'wall-crowns', true, keep(patchWind(cutMaterial(forestU, 1.2, 'pl-hw-crown-cut-v1'), windU)));
   addMerged(wreck, 'pits', true);
 
   // autumn Catnip Bushes (sim bush order, both sides) with the cleared tint of MAP-GAPS A20
@@ -765,20 +804,22 @@ export function createHearthwoodView(info: MapInfo): MapView {
     const hh = b.h / 2000;
     const leaves: [number, number, number, number][] = [];
     const n = Math.max(6, Math.round(hw * hh * 3.6));
+    // living pass: the whole bush sways from its base (top-weighted, under 3 cm: never past its outline)
+    const sway = { part: WIND.bushCm, pivot: [cxm, 0.15, -cym] as const };
     for (let i = 0; i < n; i++) {
       const x = cxm + (rnd() * 2 - 1) * hw * 0.85;
       const y = cym + (rnd() * 2 - 1) * hh * 0.88;
       const r = 0.7 + rnd() * 0.45;
       const h = 0.45 + rnd() * 0.25;
       leaves.push([x, h, y, r]);
-      bush.sphere(r, HW.bush[(rnd() * HW.bush.length) | 0], { at: [x, h, -y], scale: [1, 0.85, 1] }, 9);
+      bush.sphere(r, HW.bush[(rnd() * HW.bush.length) | 0], { at: [x, h, -y], scale: [1, 0.85, 1], ...sway }, 9);
     }
     for (let i = 0; i < Math.round(n * 0.7); i++) {
       const [lx, lh, ly, lr] = leaves[(rnd() * leaves.length) | 0];
       const a = rnd() * Math.PI * 2;
       const el = 0.5 + rnd() * 0.6;
       const k = lr * 0.98;
-      bush.sphere(0.12, HW.berry, { at: [lx + Math.cos(a) * Math.cos(el) * k, lh + Math.sin(el) * k * 0.85, -(ly + Math.sin(a) * Math.cos(el) * k)] }, 6);
+      bush.sphere(0.12, HW.berry, { at: [lx + Math.cos(a) * Math.cos(el) * k, lh + Math.sin(el) * k * 0.85, -(ly + Math.sin(a) * Math.cos(el) * k)], ...sway }, 6);
     }
   }
   const bushMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
@@ -812,11 +853,21 @@ export function createHearthwoodView(info: MapInfo): MapView {
       );
   };
   bushMat.customProgramCacheKey = () => `pl-hw-bush-v1-${N}`;
+  patchWind(bushMat, windU);
   addMerged(bush, 'bushes', false, bushMat);
 
   // base banners: one mesh per style (round 2 swaps them when team 0 is the dogs)
+  // living pass: the cloth waves, the lily pads and the toad ponds share the banner meshes' living material (no extra
+  // draw); both styles carry the pads and ponds (one style is visible at a time)
+  const bannerMat = keep(livingMaterial(liveU, 'pl-living-v1'));
   const bannerMesh = (swap: boolean): THREE.Mesh => {
     const b = new ModelBuilder();
+    for (const l of lilies) {
+      const bob = { part: LIVE_KIND.bob, pivot: [l.x, 0.04, -l.y] as const };
+      b.cyl(l.r, l.r, 0.02, l.pad, { at: [l.x, 0.04, -l.y], ...bob }, 10);
+      if (l.flower >= 0) b.sphere(0.12, l.flower, { at: [l.x + 0.1, 0.1, -l.y], ...bob }, 6);
+    }
+    for (const p of ponds) b.cyl(BANNER.pondR, BANNER.pondR, 0.02, 0x8fb8c8, { at: [p.x, 0.03, -p.y], part: LIVE_KIND.pond, pivot: [p.x, 0.03, -p.y] }, 16);
     for (const core of info.cores) {
       const t = TEAM[(swap ? 1 - core.team : core.team) as 0 | 1];
       const cx = core.x / 1000;
@@ -830,12 +881,13 @@ export function createHearthwoodView(info: MapInfo): MapView {
         const x = cx + dx * s;
         const z = -(cy + dy * s);
         b.cyl(0.09, 0.11, 4.2, 0xfff3e3, { at: [x, 2.1, z] }, 6);
-        b.box(1.2, 1.7, 0.06, t.main, { at: [x + 0.6, 3.3, z] });
-        b.box(1.2, 0.25, 0.07, t.second, { at: [x + 0.6, 2.4, z] });
+        const cloth = { part: LIVE_KIND.cloth, pivot: [x, 3.3, z] as const };
+        b.add(new THREE.BoxGeometry(1.2, 1.7, 0.06, 6, 1, 1), t.main, { at: [x + 0.6, 3.3, z], ...cloth });
+        b.add(new THREE.BoxGeometry(1.2, 0.25, 0.07, 6, 1, 1), t.second, { at: [x + 0.6, 2.4, z], ...cloth });
         b.sphere(0.16, t.second, { at: [x, 4.3, z] }, 8);
       }
     }
-    return addMerged(b, swap ? 'banners-swapped' : 'banners');
+    return addMerged(b, swap ? 'banners-swapped' : 'banners', true, bannerMat);
   };
   const banners = bannerMesh(false);
   const bannersSwapped = bannerMesh(true);
@@ -846,10 +898,11 @@ export function createHearthwoodView(info: MapInfo): MapView {
   // the autumn forest round the map: one instanced tree, in culled chunks (Low keeps half)
   const farB = new ModelBuilder();
   farB.cyl(0.25, 0.35, 1.6, HW.trunk, { at: [0, 0.8, 0] }, 6);
-  farB.add(new THREE.IcosahedronGeometry(1.5, 0), 0xffffff, { at: [0, 2.3, 0] });
-  farB.add(new THREE.IcosahedronGeometry(1.05, 0), 0xf2f2f2, { at: [0.2, 3.2, -0.1] });
+  const farSway = { part: WIND.farCm, pivot: [0, 1.2, 0] as const };
+  farB.add(new THREE.IcosahedronGeometry(1.5, 0), 0xffffff, { at: [0, 2.3, 0], ...farSway });
+  farB.add(new THREE.IcosahedronGeometry(1.05, 0), 0xf2f2f2, { at: [0.2, 3.2, -0.1], ...farSway });
   const farGeo = keep(farB.build());
-  const farMat = keep(cutMaterial(forestU, CANOPY_CUT.minY, 'pl-hw-forest-cut-v1'));
+  const farMat = keep(patchWind(cutMaterial(forestU, CANOPY_CUT.minY, 'pl-hw-forest-cut-v1'), windU));
   const CHUNK = 24;
   // Sim v22: the carved jungle's edge trees join the same instanced chunks (one draw a chunk)
   const far = [...hwOuterTrees(info), ...hwForestTrees(info)].map((t, i) => ({ ...t, i }));
@@ -888,8 +941,9 @@ export function createHearthwoodView(info: MapInfo): MapView {
   const canopyList = hwCanopy(info);
   if (canopyList.length > 0) {
     const cb = new ModelBuilder();
-    cb.add(new THREE.IcosahedronGeometry(2.6, 0), 0xffffff, { at: [0, 3.0, 0], scale: [1, 0.55, 1] });
-    cb.add(new THREE.IcosahedronGeometry(1.8, 0), 0xf0f0f0, { at: [0.6, 3.7, -0.4], scale: [1, 0.6, 1] });
+    const blobSway = { part: WIND.treeCm, pivot: [0, 1.6, 0] as const };
+    cb.add(new THREE.IcosahedronGeometry(2.6, 0), 0xffffff, { at: [0, 3.0, 0], scale: [1, 0.55, 1], ...blobSway });
+    cb.add(new THREE.IcosahedronGeometry(1.8, 0), 0xf0f0f0, { at: [0.6, 3.7, -0.4], scale: [1, 0.6, 1], ...blobSway });
     const canopy = new THREE.InstancedMesh(keep(cb.build()), farMat, canopyList.length);
     canopy.name = 'canopy';
     canopyList.forEach((t, j) => {
@@ -926,6 +980,10 @@ export function createHearthwoodView(info: MapInfo): MapView {
       const on = bushU.uBushOn.value;
       for (let i = 0; i < on.length; i++) on[i] += ((cleared[i] ? 1 : 0) - on[i]) * Math.min(1, dt * 6);
       riverU.uTime.value = time;
+      stepWind(windU, amb, dt);
+      stepClouds(cloudU, amb, dt);
+      stepWater(riverU, amb, dt);
+      stepLiving(liveU, amb, dt);
       lampMat.color.setScalar(0.92 + Math.sin(time * 2.3) * 0.08);
     },
     setShadows(on) {
@@ -933,6 +991,9 @@ export function createHearthwoodView(info: MapInfo): MapView {
     },
     setTeam(team) {
       myTeam = team;
+    },
+    setAmbient(a) {
+      amb = a;
     },
     clearedTint() {
       return bushU.uBushOn.value.slice();
