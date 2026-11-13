@@ -30,9 +30,9 @@
 .tt-card .tt-name, .tt-card .tt-in > b { font: 700 13cqw/1.05 var(--font); }
 .tt-card .tt-sub, .tt-card .tt-in > small { position: relative; z-index: 1; font: 600 8.5cqw/1.1 var(--font); opacity: 0.8; white-space: nowrap; max-width: 94%; overflow: hidden; text-overflow: ellipsis; }
 .tt-card > .tt-ico {
-  position: absolute; left: 8%; top: 8%; width: 17%; aspect-ratio: 1; border-radius: 50%; z-index: 2; pointer-events: none;
-  background: rgba(255, 255, 255, 0.92) var(--tt-ico) center / 76% no-repeat; image-rendering: pixelated;
-  box-shadow: 0 0 0 0.8cqw var(--tt-border), 0 0.8cqw 1.6cqw rgba(0, 0, 0, 0.35);
+  position: absolute; left: 6%; top: 6%; width: 20%; aspect-ratio: 1; z-index: 2; pointer-events: none;
+  background: var(--tt-ico) center / contain no-repeat;
+  filter: drop-shadow(0 0.8cqw 1.2cqw rgba(0, 0, 0, 0.45));
 }
 .tt-card > .tt-sp {
   position: absolute; z-index: 3; aspect-ratio: 1; pointer-events: none; transform: translate(-50%, -50%);

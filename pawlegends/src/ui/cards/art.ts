@@ -20,9 +20,9 @@ const BASE: string = (() => {
   }
 })();
 
-/** The absolute URL of a card asset (`el/fire.webp`, `fx/sparkle.webp`, ...). */
-export function cardUrl(path: string): string {
-  const rel = `${BASE.endsWith('/') ? BASE : `${BASE}/`}assets/cards/${path}`;
+/** The absolute URL of a public asset under `assets/` (`elements/fire.webp`, ...). */
+export function assetUrl(path: string): string {
+  const rel = `${BASE.endsWith('/') ? BASE : `${BASE}/`}assets/${path}`;
   try {
     return typeof document !== 'undefined' ? new URL(rel, document.baseURI).href : rel;
   } catch {
@@ -30,11 +30,17 @@ export function cardUrl(path: string): string {
   }
 }
 
+/** The absolute URL of a card asset (`el/fire.webp`, `fx/sparkle.webp`, ...). */
+export const cardUrl = (path: string): string => assetUrl(`cards/${path}`);
+
 const lower = (e: Element): string => e.toLowerCase();
 /** The element's card background (512 px art, about 7–38 KB). */
 export const elBg = (e: Element): string => cardUrl(`el/${lower(e)}.webp`);
-/** The element's pixel icon (64 px, shown with image-rendering: pixelated). */
-export const elIcon = (e: Element): string => cardUrl(`icons/${lower(e)}.webp`);
+/**
+ * The element's badge: a Paw Legends icon-in-a-diamond (brand kit v6, generated with Gemini; 128 px WebP with alpha,
+ * about 3–5 KB). The one URL map for element icons; `vars.css` mirrors it for markup that only sets `data-tt-el`.
+ */
+export const elIcon = (e: Element): string => assetUrl(`elements/${lower(e)}.webp`);
 /** The tier's foil pattern (shown through a color-dodge glare). */
 export const tierPattern = (t: CatTier): string => cardUrl(`tier/${t}.webp`);
 /** fx art: sparkle, legendary-sparkle, golden-burst, white-burst, reveal-sparkle, legendary-bg, legendary-paws, ... */
