@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { toChampSelect } from './helpers';
 
 // Home (HOME-MODES.md §4, was the lobby redesign), desktop 1280x720 and landscape 844x390: the round PLAY is visible and on
-// top, the hero shows as painted art wholly in frame (ui/stage/artStage.ts; no 3D on menus, founder Nov 13), Settings
+// top, the 3D hero and its pedestal stay wholly in frame (founder, Nov 13: Home shows the 3D champion), Settings
 // closes on Escape with focus back on its button, and the keyboard plays (Enter → Mode Select → Enter → Enter → LOCK IN)
 // into a live match.
 
@@ -15,6 +15,9 @@ async function seed(page: Page): Promise<void> {
 }
 
 
+const frame = async (page: Page): Promise<number[]> =>
+  (await page.evaluate(() => document.documentElement.dataset.lobbyFrame ?? '')).split(',').filter(Boolean).map(Number);
+
 async function onTop(page: Page, sel: string): Promise<boolean> {
   return page.evaluate((s) => {
     const el = document.querySelector(s);
@@ -25,7 +28,7 @@ async function onTop(page: Page, sel: string): Promise<boolean> {
   }, sel);
 }
 
-test('the lobby: Play on top, the hero art in frame, named champion, no 3D', async ({ page }) => {
+test('the lobby: Play on top, the 3D hero and pedestal in frame, named champion', async ({ page }) => {
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
@@ -38,18 +41,16 @@ test('the lobby: Play on top, the hero art in frame, named champion, no 3D', asy
   await expect(page.locator('.hm-plate-n')).toHaveText(/^Sage/);
   await expect(page.locator('.hm-plate-s')).toHaveText('Marksman · Wind');
   await expect(page.locator('.hm-plate')).toHaveCount(1);
-  // the hero is painted art (its splash), wholly on screen; the game canvas is hidden on menus
-  const art = page.locator('.pl-stage[data-mode="home"] [data-testid="stage-art"]');
-  await expect(art).toBeVisible();
-  await expect.poll(() => art.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
-  expect(await art.getAttribute('src')).toMatch(/assets\/splash\/sage-(360|720)\.webp/);
-  const box = (await art.boundingBox())!;
-  const vp = page.viewportSize()!;
-  expect(box.x).toBeGreaterThanOrEqual(0);
-  expect(box.y).toBeGreaterThanOrEqual(0);
-  expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
-  expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
-  expect(await page.locator('#game-canvas').evaluate((c) => getComputedStyle(c).visibility)).toBe('hidden');
+  // Home shows the 3D hero on its pedestal (founder, Nov 13), wholly in frame: [hero top, pedestal front-bottom, left,
+  // right] in NDC; the painted stage is hidden and the canvas is visible
+  await expect.poll(async () => (await frame(page)).length).toBe(4);
+  const [top, bottom, left, right] = await frame(page);
+  expect(top).toBeLessThanOrEqual(1);
+  expect(bottom).toBeGreaterThanOrEqual(-1);
+  expect(left).toBeGreaterThanOrEqual(-1);
+  expect(right).toBeLessThanOrEqual(1);
+  await expect(page.locator('.pl-stage')).toBeHidden();
+  expect(await page.locator('#game-canvas').evaluate((c) => getComputedStyle(c).visibility)).toBe('visible');
   // no money words on the lobby
   await expect(page.locator('.pl-home')).not.toContainText(/\$|€|price|buy|donate/i);
 });
