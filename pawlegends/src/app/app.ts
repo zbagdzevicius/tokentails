@@ -57,6 +57,7 @@ import { loadingVeil, pickScreen, rankedBlockHtml, refreshPickChamps, refreshPic
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
 import { botsChoice, disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
+import { initLiveops } from '../meta/liveops';
 import { legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef } from '../ui/modeSelect/modes';
 import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard } from '../meta/ranked';
 import { heroElement } from '../ui/cards/el';
@@ -856,6 +857,8 @@ export class App {
       { id: 'cannon', title: 'Cannon Chaos', sub: 'Party event, coming soon', art: `${base}assets/lobby/promo-cannon.webp${assetRev()}`, action: 'modes' },
       { id: 'store', title: 'Store', sub: 'Champions, coats and frames', art: `${base}assets/lobby/promo-store${this.tier === 'low' ? '-lo' : ''}.webp${assetRev()}`, action: 'store' },
     ];
+    // live ops (LIVEOPS.md): Events reads the server through the host; the featured mode registers before modeList
+    initLiveops((op, args) => this.integration.api(op, args), () => loadProfile().matches > 0, () => this.screen === 'title' && this.refreshMeta(false));
     const modes = modeList();
     const opts: HomeScreenOpts = {
       profile,
