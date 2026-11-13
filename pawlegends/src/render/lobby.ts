@@ -99,11 +99,12 @@ export class Lobby {
 
   constructor(private readonly gr: GameRenderer) {
     const s = this.scene;
-    // v6 Lightning Rivalry: night ground, a plum sky bounce and a rose rim from the cat side (left)
+    // v6 one style (Nov 13): bright midday stadium light to match the comic key art: a clear sky over warm pale sand,
+    // a white key from the front, a rose rim from the cat side (left) and a sky rim from the dog side (right)
     s.background = new THREE.Color(0x12091f);
     s.fog = null;
-    s.add(new THREE.HemisphereLight(0xfff3e3, 0x553069, 1.7));
-    const key = new THREE.DirectionalLight(0xffffff, 2.4);
+    s.add(new THREE.HemisphereLight(0xffffff, 0xf3dcae, 2.0));
+    const key = new THREE.DirectionalLight(0xffffff, 2.6);
     key.position.set(4, 8, 6);
     key.castShadow = true;
     key.shadow.mapSize.set(512, 512);
@@ -113,9 +114,12 @@ export class Lobby {
     sc.top = 4;
     sc.bottom = -4;
     s.add(key);
-    const rim = new THREE.DirectionalLight(0xffa3c4, 1.6);
+    const rim = new THREE.DirectionalLight(0xff86a5, 1.5);
     rim.position.set(-5, 4, -6);
     s.add(rim);
+    const rimSky = new THREE.DirectionalLight(0x7cc6ff, 1.3);
+    rimSky.position.set(5, 4, -6);
+    s.add(rimSky);
     // backdrop, two-tier pedestal and rune ring (render/lobby/*)
     this.backdrop = createBackdrop();
     s.add(this.backdrop.mesh);
@@ -364,7 +368,7 @@ export class Lobby {
       aspect: (window.innerWidth || 16) / (window.innerHeight || 9),
     });
     document.documentElement.dataset.lobbyBg = bg;
-    // v6: Home's key art gets the rivalry grade (rose cat side left, sky dog side right); other scenes stay as painted
+    // Home's key art is shown as painted (no dim, tint or vignette: the rose and sky sides are in the art)
     this.backdrop.setSplit(bg === HOME_BG ? 1 : 0);
     this.backdrop.setImage(url, reducedMotion());
   }

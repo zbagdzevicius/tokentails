@@ -6,7 +6,7 @@
  * UX pass 2 ("the lobby looks dull"): a painted scene (public/assets/lobby/, Gemini art, see LICENSES.md) is laid
  * over the gradient once it loads: cover-fitted to the screen (not the plane), dimmed so the UI column and the hero
  * read, with a gentle parallax that follows the pointer, a slow drift and an 18 s Ken Burns push (all off under
- * reduced motion / Low tier).
+ * reduced motion / Low tier). Home's key art (`setSplit(1)`) is shown as painted: no dim, tint or vignette.
  * Until the image arrives (or if it fails) the gradient is the picture, so nothing waits on it.
  *
  * Render only: nothing here reaches the sim.
@@ -78,25 +78,18 @@ void main() {
     if (a > uImgAspect) s.y = (s.y - 0.5) * uImgAspect / a + 0.5;
     else s.x = (s.x - 0.5) * a / uImgAspect + 0.5;
     s = (s - 0.5) / (1.05 + uZoom) + 0.5 + uPar * 0.022;
-    vec3 img = texture2D(uImg, s).rgb * 0.86;
+    vec3 raw = texture2D(uImg, s).rgb;
+    vec3 img = raw * 0.86;
     img = mix(img, img * (0.75 + uTint * 0.5), 0.18);
     img += uTint * glow * 0.12;
-    // v6 rivalry grade (Home only, uSplit 1): rose on the cat side, sky on the dog side, a soft seam along the logo's
-    // slash (top right to bottom left); a few ALU ops in the existing pass, nothing on screens that keep uSplit 0
-    if (uSplit > 0.001) {
-      float d = (s.x - 0.5) - (s.y - 0.5) * 0.53;
-      float side = smoothstep(-0.18, 0.18, d);
-      vec3 rose = vec3(1.0, 0.046, 0.212);
-      vec3 sky = vec3(0.04, 0.38, 1.0);
-      vec3 wash = mix(rose, sky, side);
-      float edge = smoothstep(0.12, 0.55, abs(d));
-      img = mix(img, img * (0.72 + wash * 0.5), 0.42 * edge * uSplit);
-    }
+    // Home's key art (uSplit 1, one-style pass Nov 13): the bright comic art is final as painted (rose, sky and the
+    // bolt are in the picture), so no dimming, element tint or warm glow on it
+    img = mix(img, raw, uSplit);
     col = mix(col, img, uImgMix);
   }
-  // vignette
+  // vignette (none on Home's key art: midday light, no dusk falloff)
   vec2 v = (uv - 0.5) * vec2(1.25, 1.0);
-  col *= 1.0 - smoothstep(0.32, 0.85, length(v)) * 0.55;
+  col *= 1.0 - smoothstep(0.32, 0.85, length(v)) * 0.55 * (1.0 - uSplit * uImgMix);
   gl_FragColor = vec4(col, 1.0);
   #include <colorspace_fragment>
 }`;
@@ -109,7 +102,7 @@ export interface Backdrop {
   setBokeh(k: number): void;
   /** Advance; `frozen` keeps the picture still (Low tier or reduced motion). */
   update(dt: number, frozen: boolean): void;
-  /** The v6 rivalry grade over the painted scene, 0..1 (Home's key art: 1). */
+  /** Home's key art, 0..1: 1 shows the painted scene as is (no dim, tint or vignette). */
   setSplit(k: number): void;
   /** Lay a painted scene over the gradient (loaded async; it fades in, at once when `instant`). */
   setImage(url: string, instant?: boolean): void;
