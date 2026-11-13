@@ -1,0 +1,74 @@
+/* Split from ui.css (facelift, cascade order unchanged: ui.css @imports these in the original order). Owner: area champ-select: loading veil and rotate prompt. */
+
+.pl-loading {
+  position: absolute; inset: 0; z-index: 60; display: grid; place-content: center; justify-items: center; gap: 12px; background: var(--bg);
+  color: var(--cream); font-size: 20px; transition: opacity 0.5s;
+}
+.pl-loading.out { opacity: 0; pointer-events: none; }
+/* Feel pass A3: the matchup splash (cats bottom-left, dogs top-right, the same diagonal as the match camera), darkened
+   so the line and the spinner read. 1920 px only on wide screens. */
+.pl-loading {
+  /* v6 (facelift): the night scrim, a centre vignette so the line reads, the rivalry tint (rose left, sky right) */
+  background:
+    radial-gradient(48% 40% at 50% 50%, rgb(var(--v6-night-rgb, 18 9 31) / 0.55), transparent 80%),
+    linear-gradient(118deg, rgb(var(--v6-rose-rgb, 255 61 127) / 0.16), transparent 40% 60%, rgb(var(--v6-sky-rgb, 57 166 255) / 0.16)),
+    linear-gradient(rgb(var(--v6-night-rgb, 18 9 31) / 0.46), rgb(var(--v6-night-rgb, 18 9 31) / 0.62)),
+    url('/assets/screens/matchup-1280.webp') center / cover no-repeat, var(--bg);
+}
+@media (min-width: 1400px) {
+  .pl-loading {
+    background:
+      radial-gradient(48% 40% at 50% 50%, rgb(var(--v6-night-rgb, 18 9 31) / 0.55), transparent 80%),
+      linear-gradient(118deg, rgb(var(--v6-rose-rgb, 255 61 127) / 0.16), transparent 40% 60%, rgb(var(--v6-sky-rgb, 57 166 255) / 0.16)),
+      linear-gradient(rgb(var(--v6-night-rgb, 18 9 31) / 0.46), rgb(var(--v6-night-rgb, 18 9 31) / 0.62)),
+      url('/assets/screens/matchup-1920.webp') center / cover no-repeat, var(--bg);
+  }
+}
+/* the split along the bottom edge: rose | bolt | sky */
+.pl-loading::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; pointer-events: none;
+  background: var(--v6-split-rule, linear-gradient(90deg, #ff3d7f 0 48%, #ffe14a 48% 52%, #39a6ff 52%));
+}
+.pl-loading > * { text-shadow: 0 2px 0 var(--v6-plum-deep, #471f5d), 0 2px 8px rgb(0 0 0 / 0.6); }
+/* the line ("Into the Crossing..."): Rubik 900 italic caps, the display drop */
+.pl-loading > b {
+  font: italic 900 24px/1.05 var(--v6-font-display, var(--font)); text-transform: uppercase; letter-spacing: 0; text-align: center; padding: 0 0.1em;
+  text-shadow: var(--v6-ts-display, 0 4px 0 #471f5d);
+}
+/* the spinner: a rose paw in a dashed bolt spark ring (the PLAY ring of the kit), spun as one transform */
+.pl-loading .spin {
+  width: 56px; height: 56px; color: var(--v6-rose, #ff3d7f); animation: pl-spin 1s linear infinite; border-radius: 50%;
+  outline: 3px dashed var(--v6-bolt, #ffe14a); outline-offset: 5px;
+}
+/* sim v22: the 5v5 Classic map preview (ui/mapPreview.ts), a small framed card under the line */
+.pl-loading .pl-map-preview {
+  width: 96px; height: 96px; border-radius: var(--v6-r-xs, 4px);
+  box-shadow: 0 0 0 2px var(--v6-cream, #fff3e3), 0 0 0 4px var(--v6-logo-plum, #633077), var(--v6-shadow-2, 0 10px 24px rgb(0 0 0 / 0.42));
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-loading .spin { animation-duration: 3s; }
+}
+@keyframes pl-spin { to { transform: rotate(360deg); } }
+
+.pl-rotate { display: none; }
+@media (orientation: portrait) and (pointer: coarse) {
+  .pl-rotate {
+    position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; color: var(--cream); text-align: center; padding: 16px;
+    /* v6: night ground, rose glow from the top-left, sky from the bottom-right */
+    background:
+      radial-gradient(70% 45% at 0% 0%, rgb(var(--v6-rose-rgb, 255 61 127) / 0.22), transparent 70%),
+      radial-gradient(70% 45% at 100% 100%, rgb(var(--v6-sky-rgb, 57 166 255) / 0.22), transparent 70%),
+      var(--bg);
+  }
+  .pl-rotate div { display: grid; justify-items: center; gap: 8px; }
+  .pl-rotate .pl-icon { width: 72px; height: 72px; color: var(--v6-rose, #ff3d7f); animation: pl-turn 2s ease-in-out infinite; }
+  .pl-rotate b {
+    font: italic 900 24px/1.05 var(--v6-font-display, var(--font)); text-transform: uppercase; padding: 0 0.1em; text-shadow: var(--v6-ts-display, 0 4px 0 #471f5d);
+  }
+  .pl-rotate b::after { content: ''; display: block; width: 120px; height: 4px; margin: 10px auto 0; background: var(--v6-split-rule, linear-gradient(90deg, #ff3d7f 0 48%, #ffe14a 48% 52%, #39a6ff 52%)); transform: skewX(-20deg); }
+  .pl-rotate small { color: var(--v6-muted, rgba(255, 243, 227, 0.68)); font-size: 16px; }
+}
+@keyframes pl-turn { 50% { transform: rotate(-90deg); } }
+@media (orientation: portrait) and (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  .pl-rotate .pl-icon { animation: none; transform: rotate(-90deg); }
+}

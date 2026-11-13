@@ -1,0 +1,362 @@
+/* Split from ui.css (facelift, cascade order unchanged: ui.css @imports these in the original order). Owner: area social: social sheet, avatars, DM, party/team chat, in-match chat. */
+/* v6 Lightning Rivalry facelift (pawlegends/.facelift/GUIDE.md): the Social sheet and the DM thread are night-2 side
+   sheets with the rivalry seam (rose | bolt | sky) on their inner edge; tabs on a navy track, the selected one cream
+   with a bolt underline; 4 px rectangles, round avatars. Colours, radii, shadows and type only: every box keeps its
+   size (paddings, borders and min-heights unchanged), so the no-scroll paging and the 44 px targets hold. */
+.pl-social {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 55; width: min(360px, 54vw); min-width: min(300px, 100vw);
+  display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 8px;
+  background: linear-gradient(180deg, rgb(var(--v6-rose-rgb) / 0.1), rgb(var(--v6-rose-rgb) / 0) 96px), var(--v6-night-2); color: var(--v6-cream);
+  box-shadow: -12px 0 32px rgb(0 0 0 / 0.5); font: 600 14px/1.2 var(--font);
+  animation: pl-sheet-in var(--v6-dur-screen) var(--v6-ease-out) both;
+}
+/* the rivalry seam on the sheet's inner edge (painted, no box) */
+.pl-social::before, .pl-chat::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; pointer-events: none;
+  background: linear-gradient(180deg, var(--v6-rose) 0 47%, var(--v6-bolt) 47% 53%, var(--v6-sky) 53%);
+}
+@keyframes pl-sheet-in { from { opacity: 0; transform: translateX(24px); } }
+.pl-social-head { display: flex; align-items: stretch; gap: 2px; min-height: 44px; flex: none; border-radius: var(--v6-r-xs); background: rgb(var(--v6-navy-rgb) / 0.6); box-shadow: inset 0 0 0 1px var(--v6-line); }
+.pl-social-tab {
+  flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 2px; border: 0; border-radius: var(--v6-r-xs); background: transparent; color: var(--v6-muted);
+  font: 700 12px/1 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+  transition: background-color var(--v6-dur-fast) var(--v6-ease-out), color var(--v6-dur-fast) var(--v6-ease-out);
+}
+@media (hover: hover) { .pl-social-tab:not([aria-selected='true']):hover { color: var(--v6-cream); background: rgb(var(--v6-cream-rgb) / 0.06); } }
+.pl-social-tab[aria-selected='true'] { background: var(--v6-cream); color: var(--v6-night); box-shadow: inset 0 -4px 0 var(--v6-bolt); }
+.pl-social-tab:focus-visible, .pl-social-x:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+.pl-social-badge {
+  display: inline-block; min-width: 16px; padding: 1px 4px; border-radius: var(--v6-r-xs); background: var(--v6-rose); color: #fff; font-style: normal; font-size: 11px;
+  font-variant-numeric: tabular-nums; text-shadow: var(--v6-ts-rose);
+}
+.pl-social-x { flex: none; width: 44px; min-height: 44px; border: 0; border-radius: var(--v6-r-xs); background: transparent; color: var(--v6-cream); font: 700 22px/1 var(--font); cursor: pointer; }
+@media (hover: hover) { .pl-social-x:hover { background: rgb(var(--v6-cream-rgb) / 0.08); } }
+.pl-social-x:active { background: rgb(var(--v6-cream-rgb) / 0.14); }
+.pl-social-body { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 4px; padding: 6px 0; }
+.pl-social-row {
+  display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 4px; border-radius: var(--v6-r-xs);
+  transition: background-color var(--v6-dur-fast) var(--v6-ease-out);
+}
+@media (hover: hover) { .pl-social-row:hover { background: rgb(var(--v6-cream-rgb) / 0.05); } }
+.pl-social-row.me { background: rgb(var(--v6-bolt-rgb) / 0.1); box-shadow: inset 4px 0 0 var(--v6-bolt); }
+.pl-social-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--v6-cream); }
+.pl-social-st { flex: none; opacity: 1; color: var(--v6-muted); font-size: 12px; }
+.pl-social-row .pl-btn.small { min-height: 44px; min-width: 44px; }
+.pl-social-menu { display: flex; gap: 4px; }
+/* presence: a dot with a night keyline (online success, party/queue bolt, in match rose, offline faint) */
+.pl-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--v6-faint); box-shadow: 0 0 0 2px var(--v6-night-2); }
+.pl-dot[data-state='online'] { background: var(--v6-success); }
+.pl-dot[data-state='party'], .pl-dot[data-state='queue'] { background: var(--v6-bolt); }
+.pl-dot[data-state='match'] { background: var(--v6-rose); }
+.pl-rank { flex: none; min-width: 32px; text-align: right; font: italic 900 15px/1 var(--v6-font-display); color: var(--v6-cream); font-variant-numeric: tabular-nums; }
+.pl-social-row.me .pl-rank { color: var(--v6-bolt); }
+.pl-social-sub { display: flex; gap: 4px; }
+.pl-social-sub .pl-btn[aria-pressed='true'] { background: var(--v6-cream); color: var(--v6-night); box-shadow: inset 0 -4px 0 var(--v6-bolt); }
+.pl-social-empty { margin: 12px 4px; display: grid; gap: 10px; color: var(--v6-muted); }
+.pl-social-empty p { margin: 0; color: var(--v6-cream); }
+.pl-social-age { display: grid; gap: 8px; }
+/* the sheet is dark now: the ghost buttons read as the shared sky-navy secondary; only the 44 px target stays */
+.pl-social .pl-btn.ghost { min-height: 44px; }
+.pl-social-later {
+  justify-self: start; min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--v6-muted); font: 600 13px/1 var(--font);
+  text-decoration: underline; text-decoration-color: rgb(var(--v6-bolt-rgb) / 0.7); text-underline-offset: 3px; cursor: pointer;
+}
+@media (hover: hover) { .pl-social-later:hover { color: var(--v6-cream); } }
+.pl-social-foot {
+  flex: none; display: flex; align-items: center; gap: 6px; min-height: 44px; flex-wrap: nowrap; overflow: hidden;
+}
+.pl-social-foot:not(:empty) { background: linear-gradient(90deg, var(--v6-rose) 0 48%, var(--v6-bolt) 48% 52%, var(--v6-sky) 52%) top / 100% 2px no-repeat; }
+.pl-social-code { flex: 1 1 auto; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--v6-muted); }
+.pl-social-code b { color: var(--v6-bolt); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.pl-social-add { display: flex; gap: 6px; width: 100%; }
+.pl-social-add input {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0 10px; border-radius: var(--v6-r-xs); border: 2px solid var(--v6-line-strong);
+  background: var(--v6-night-0); color: var(--v6-cream); caret-color: var(--v6-bolt); font: 700 15px var(--font); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.pl-social-add input::placeholder { color: var(--v6-faint); }
+.pl-social-add input:focus { outline: none; border-color: var(--v6-bolt); }
+.pl-pager { display: inline-flex; align-items: center; gap: 4px; }
+.pl-pager small { color: var(--v6-muted); font-variant-numeric: tabular-nums; }
+.pl-social .pl-btn[disabled], .pl-chat .pl-btn[disabled], .pp-chat .pl-btn[disabled] { opacity: 0.4; cursor: default; transform: none; }
+.pl-social-note {
+  position: absolute; left: 8px; right: 8px; bottom: 56px; margin: 0; padding: 8px 10px; border-radius: var(--v6-r-xs); background: var(--v6-night-0); color: var(--v6-cream);
+  font-size: 13px; box-shadow: inset 4px 0 0 var(--v6-bolt), inset 0 0 0 1px var(--v6-line), var(--v6-shadow-2); animation: v6-pop-in var(--v6-dur-fast) var(--v6-ease-out) both;
+}
+.pl-social-undo { display: inline-flex; align-items: center; gap: 4px; }
+.pl-ranked-season { margin: 4px; font: 700 var(--v6-fs-cap) / 1.2 var(--font); letter-spacing: var(--v6-track-cap); text-transform: uppercase; color: var(--v6-muted); }
+.pl-ranked-tier {
+  margin: 8px 4px; font: italic 900 22px/1.1 var(--v6-font-display); text-transform: uppercase; letter-spacing: var(--v6-track-display);
+  color: var(--v6-logo-gold); text-shadow: 0 3px 0 var(--v6-plum-deep);
+}
+.pl-ranked-line { margin: 4px; color: var(--v6-cream); }
+.pl-invite-toast { gap: 10px; box-shadow: inset 4px 0 0 var(--v6-rose), var(--v6-shadow-2); }
+@media (max-height: 340px) { .pl-social-row { min-height: 44px; } }
+@media (max-height: 300px) { .pl-social-st { display: none; } }
+
+/* Avatars (CHAT-AVATARS.md §7.4): icon in a CSS ring (the border), no image per frame. v6: round medallions, cats on a
+   rose face, dogs on a sky face, an earned icon on logo gold; the frame colour is the ring. */
+.pl-av {
+  --av: 40px; --av-ring: var(--v6-line-strong);
+  flex: none; position: relative; display: inline-grid; place-items: center; width: var(--av); height: var(--av); border-radius: 50%;
+  box-sizing: border-box; border: max(2px, calc(var(--av) / 16)) solid var(--av-ring); overflow: hidden; background: var(--v6-night-3); color: var(--v6-cream);
+  font: 800 calc(var(--av) * 0.42) / 1 var(--font);
+}
+.pl-av[data-ring='1'] { box-shadow: 0 0 0 1px var(--v6-night), 0 0 calc(var(--av) / 6) var(--av-ring); }
+.pl-av[data-side='cat'] { background: radial-gradient(circle at 35% 30%, var(--v6-rose-light), var(--v6-rose) 62%, var(--v6-rose-deep)); color: #fff; text-shadow: 0 2px 0 var(--v6-berry); }
+.pl-av[data-side='dog'] { background: radial-gradient(circle at 35% 30%, var(--v6-ice), var(--v6-sky) 62%, var(--v6-sky-deep)); color: var(--v6-navy); }
+.pl-av[data-kind='guest'] { background: var(--v6-night-3); color: var(--v6-muted); }
+.pl-av[data-kind='icon'] { background: radial-gradient(circle at 35% 30%, var(--v6-gold-1), var(--v6-logo-gold) 60%, var(--v6-gold-3)); color: var(--v6-plum-deep); }
+.pl-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pl-av svg { width: 60%; height: 60%; }
+.pl-av b { font: inherit; }
+.pl-social-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pl-social-who .pl-social-st { font-size: 11px; }
+.pl-social-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; opacity: 1; color: var(--v6-rose-light); }
+.pl-chat-btn { position: relative; }
+.pl-chat-unread {
+  position: absolute; top: 2px; right: 2px; min-width: 16px; padding: 1px 4px; border-radius: var(--v6-r-xs); background: var(--v6-rose); color: #fff;
+  font: 800 11px/14px var(--font); font-style: normal; text-align: center; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--v6-night-2);
+}
+.pl-me-av { flex: none; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; display: grid; place-items: center; }
+.pl-me-av:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+@media (hover: hover) { .pl-me-av:hover .pl-av { --av-ring: var(--v6-bolt); } }
+@media (max-height: 340px) { .pl-social-row .pl-av { --av: 32px !important; } }
+
+/* The avatar picker (CHAT-AVATARS.md §7.4): the grid is the sheet's one scroll region. */
+.pl-av-pick { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.pl-av-preview { display: flex; align-items: center; gap: 10px; }
+.pl-av-grid {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgb(var(--v6-cream-rgb) / 0.35) transparent;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 4px; align-content: start;
+}
+.pl-av-frames { flex: none; display: flex; gap: 4px; overflow: hidden; }
+.pl-av-tile {
+  min-width: 44px; min-height: 52px; display: grid; place-items: center; border: 2px solid transparent; border-radius: var(--v6-r-xs); background: transparent; cursor: pointer;
+  transition: background-color var(--v6-dur-fast) var(--v6-ease-out), border-color var(--v6-dur-fast) var(--v6-ease-out), transform var(--v6-dur-press) var(--v6-ease-out);
+}
+@media (hover: hover) { .pl-av-tile:hover { border-color: var(--v6-line-strong); background: rgb(var(--v6-cream-rgb) / 0.05); } }
+.pl-av-tile:active { transform: translateY(2px); }
+.pl-av-tile:focus-visible { outline: none; border-color: var(--v6-bolt); }
+.pl-av-tile[aria-pressed='true'] { border-color: var(--v6-bolt); background: rgb(var(--v6-bolt-rgb) / 0.12); }
+
+/* A DM thread (CHAT-AVATARS.md §6.2): over the Social sheet; the message list is the one scroll region. */
+.pl-chat {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 56; width: min(420px, 100vw); display: flex; flex-direction: column; box-sizing: border-box;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  background: linear-gradient(180deg, rgb(var(--v6-sky-rgb) / 0.08), rgb(var(--v6-sky-rgb) / 0) 96px), var(--v6-night-2); color: var(--v6-cream);
+  box-shadow: -12px 0 32px rgb(0 0 0 / 0.5); font: 600 14px/1.25 var(--font); overflow: hidden;
+  animation: pl-sheet-in var(--v6-dur-screen) var(--v6-ease-out) both;
+}
+@media (max-width: 760px) { .pl-chat { width: 100vw; } }
+.pl-chat-head { flex: none; display: flex; align-items: center; gap: 8px; min-height: 48px; box-shadow: inset 0 -1px 0 var(--v6-line); }
+.pl-chat-head .pl-social-name { font-size: 16px; font-weight: 700; }
+.pl-chat-menu { flex: none; display: flex; gap: 6px; justify-content: flex-end; padding: 2px 0 6px; }
+.pl-chat-list {
+  flex: 1 1 auto; min-height: 0; margin: 0; padding: 4px 2px; list-style: none; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgb(var(--v6-cream-rgb) / 0.35) transparent;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.pl-chat-list::-webkit-scrollbar { width: 6px; }
+.pl-chat-list::-webkit-scrollbar-thumb { background: rgb(var(--v6-cream-rgb) / 0.35); border-radius: 3px; }
+.pl-chat-msg { display: flex; align-items: flex-end; gap: 4px; flex-wrap: wrap; max-width: 86%; }
+.pl-chat-msg.mine { align-self: flex-end; flex-direction: row-reverse; }
+.pl-chat-bubble {
+  padding: 8px 12px; border-radius: var(--v6-r-l) var(--v6-r-l) var(--v6-r-l) var(--v6-r-xs); background: var(--v6-night-3); color: var(--v6-cream);
+  box-shadow: inset 0 0 0 1px var(--v6-line), 0 2px 0 var(--v6-night-0); overflow-wrap: anywhere;
+}
+.pl-chat-msg.mine .pl-chat-bubble {
+  border-radius: var(--v6-r-l) var(--v6-r-l) var(--v6-r-xs) var(--v6-r-l); background: rgb(var(--v6-rose-rgb) / 0.24); color: #fff;
+  box-shadow: inset 0 0 0 1px rgb(var(--v6-rose-rgb) / 0.55), 0 2px 0 var(--v6-berry);
+}
+.pl-chat-msg.phrase .pl-chat-bubble::after { content: ' 🐾'; font-size: 11px; opacity: 0.6; }
+.pl-chat-msg.sticker .pl-chat-bubble { background: transparent; box-shadow: none; font-size: 40px; line-height: 1; padding: 0; }
+.pl-chat-more { min-width: 32px; min-height: 32px; border: 0; border-radius: var(--v6-r-xs); background: transparent; color: var(--v6-muted); opacity: 1; cursor: pointer; font: 700 16px/1 var(--font); }
+@media (hover: hover) { .pl-chat-more:hover { color: var(--v6-cream); background: rgb(var(--v6-cream-rgb) / 0.08); } }
+.pl-chat-report { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; }
+.pl-chat-empty { margin: auto; opacity: 1; color: var(--v6-muted); }
+.pl-chat-earlier { align-self: center; }
+.pl-chat-foot { flex: none; display: flex; flex-direction: column; gap: 6px; padding-top: 6px; }
+.pl-chat-form { display: flex; align-items: center; gap: 6px; min-height: 52px; }
+.pl-chat-form input {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: var(--v6-r-xs); border: 2px solid var(--v6-line-strong); font: 600 16px var(--font);
+  background: var(--v6-night-0); color: var(--v6-cream); caret-color: var(--v6-bolt);
+}
+.pl-chat-form input::placeholder { color: var(--v6-faint); }
+.pl-chat-form input:focus { outline: none; border-color: var(--v6-bolt); }
+.pl-chat-form .pl-btn.ghost[aria-pressed='true'] { background: var(--v6-cream); color: var(--v6-night); box-shadow: inset 0 -4px 0 var(--v6-bolt); }
+.pl-chat-count { flex: none; font-size: 11px; opacity: 1; color: var(--v6-muted); min-width: 0; font-variant-numeric: tabular-nums; }
+.pl-chat-tray { display: flex; flex-direction: column; gap: 4px; }
+.pl-chat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pl-chat-chip {
+  min-height: 44px; padding: 0 12px; border-radius: var(--v6-r-xs); border: 2px solid rgb(var(--v6-sky-rgb) / 0.45); background: rgb(var(--v6-navy-rgb) / 0.55);
+  color: var(--v6-ice); font: 700 13px/1 var(--font); cursor: pointer;
+  transition: border-color var(--v6-dur-fast) var(--v6-ease-out), background-color var(--v6-dur-fast) var(--v6-ease-out), transform var(--v6-dur-press) var(--v6-ease-out);
+}
+@media (hover: hover) { .pl-chat-chip:hover { border-color: var(--v6-sky); background: rgb(var(--v6-sky-rgb) / 0.18); } }
+.pl-chat-chip:active { transform: translateY(2px); border-color: var(--v6-sky-top); }
+.pl-chat-chip:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pl-chat-chip.sticker { min-width: 44px; padding: 0; font-size: 22px; }
+.pl-chat-pages { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.pl-chat-dots { display: inline-flex; gap: 4px; }
+.pl-chat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--v6-line-strong); }
+.pl-chat-dot[data-on='1'] { background: var(--v6-bolt); }
+.pl-chat-line { margin: 0; text-align: center; font-size: 12px; opacity: 1; color: var(--v6-muted); }
+.pl-chat-err {
+  margin: 0; padding: 6px 10px; border-radius: var(--v6-r-xs); background: var(--v6-night-0); color: var(--v6-cream); font-size: 13px;
+  box-shadow: inset 4px 0 0 var(--v6-enemy), inset 0 0 0 1px var(--v6-line);
+}
+
+/* Party and team chat (CHAT-AVATARS.md §6.3): a 36 px strip, or a drawer of at most half the height. */
+.pp-chat {
+  position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(8px, env(safe-area-inset-bottom)); z-index: 45; max-width: min(420px, calc(100vw - 32px));
+  font: 600 13px/1.25 var(--font); color: var(--v6-cream);
+}
+.pp-chat-strip {
+  display: flex; align-items: center; gap: 6px; max-width: 100%; min-height: 36px; padding: 0 12px; border: 0; border-radius: var(--v6-r-xs); background: var(--v6-glass);
+  box-shadow: inset 0 0 0 1px var(--v6-line-strong), inset 3px 0 0 var(--v6-rose), var(--v6-shadow-1); color: var(--v6-cream); font: inherit; cursor: pointer; position: relative; white-space: nowrap; overflow: hidden;
+  transition: transform var(--v6-dur-press) var(--v6-ease-out), background-color var(--v6-dur-fast) var(--v6-ease-out);
+}
+@media (hover: hover) { .pp-chat-strip:hover { background: var(--v6-night-3); } }
+.pp-chat-strip:active { transform: translateY(2px); }
+.pp-chat-strip:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pp-chat-strip .pl-chat-unread { position: static; }
+.pp-chat-who { font-weight: 800; color: var(--v6-rose-light); }
+.pp-chat-who::after { content: ':'; }
+.pp-chat-said { overflow: hidden; text-overflow: ellipsis; }
+.pp-chat-drawer {
+  display: flex; flex-direction: column; gap: 6px; max-height: 50vh; width: min(420px, calc(100vw - 32px)); box-sizing: border-box; padding: 8px; border-radius: var(--v6-r-xs);
+  background: linear-gradient(90deg, var(--v6-rose) 0 48%, var(--v6-bolt) 48% 52%, var(--v6-sky) 52%) top / 100% 3px no-repeat, var(--v6-night-2);
+  box-shadow: inset 0 0 0 1px var(--v6-line), var(--v6-shadow-3);
+  animation: v6-pop-in var(--v6-dur-fast) var(--v6-ease-out) both; transform-origin: 0 100%;
+}
+.pp-chat-head { flex: none; display: flex; align-items: center; justify-content: space-between; min-height: 36px; }
+.pp-chat-head > b { font: italic 900 15px/1 var(--v6-font-display); text-transform: uppercase; letter-spacing: 0.02em; text-shadow: 0 2px 0 var(--v6-plum-deep); }
+.pp-chat-lines {
+  flex: 1 1 auto; min-height: 40px; margin: 0; padding: 0; list-style: none; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgb(var(--v6-cream-rgb) / 0.35) transparent;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.pp-chat-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pp-chat-name { color: var(--v6-cream); }
+.pp-chat-name::after { content: ':'; }
+.pp-chat-line.mine .pp-chat-name { color: var(--v6-rose-light); }
+.pp-chat-line.sticker span { font-size: 24px; line-height: 1; }
+.pp-chat .pl-chat-chip { min-height: 40px; font-size: 12px; }
+@media (max-height: 400px) { .pp-chat-drawer { max-height: 62vh; } .pp-chat .pl-chat-chip { min-height: 36px; } }
+
+/* Avatars in the party screens and the VS intro. */
+.pp-av-card { width: 28px !important; height: 28px !important; margin-left: -14px; align-self: flex-end; border: 2px solid var(--v6-night); }
+.pp-title { display: block; font-size: 11px; opacity: 1; color: var(--v6-logo-gold); }
+.pp-lc-av { display: flex; justify-content: center; margin-bottom: 4px; }
+.tt-vs-av { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); z-index: 2; }
+/* Stable wrappers so a re-render morphs in place (the composer keeps its input); they add no box. */
+.pl-chat-menuwrap, .pl-chat-traywrap { display: contents; }
+.pl-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* The champion select keeps its bottom bar (bots or Leave · LOCK IN · tricks): there the chat strip is a 40 px round
+   button inside the bar's left cell, which makes room for it, so it never covers LOCK IN, the bots or Leave. */
+.pl-party[data-screen='pick'] .pp-chat { bottom: calc(max(8px, var(--safe-b, 0px)) + 8px); }
+.pl-party[data-screen='pick'] .pp-chat-strip { width: 40px; height: 40px; min-height: 40px; padding: 0; justify-content: center; border-radius: 50%; overflow: visible; box-shadow: inset 0 0 0 2px rgb(var(--v6-sky-rgb) / 0.55), var(--v6-shadow-1); background: rgb(var(--v6-navy-rgb) / 0.85); }
+.pl-party[data-screen='pick'] .pp-chat-strip :is(.pp-chat-who, .pp-chat-said) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pl-party[data-screen='pick'] .pp-chat-strip .pl-chat-unread { position: absolute; top: -4px; right: -4px; }
+.pl-party[data-screen='pick']:has(> .pp-chat:not([hidden])) .cs-fl { padding-left: 48px; }
+@media (max-height: 360px) { .pl-party[data-screen='pick'] .pp-chat { bottom: calc(max(8px, var(--safe-b, 0px)) + 5px); } }
+@media (min-width: 1000px) and (min-height: 481px) {
+  .pl-party[data-screen='pick'] .pp-chat { left: max(32px, calc((100vw - 1400px) / 2)); bottom: calc(max(24px, var(--safe-b, 0px)) + 28px); }
+  .pl-party[data-screen='pick']:has(> .pp-chat:not([hidden])) .cs-fl { padding-left: 52px; }
+}
+
+/* In-match chat (docs/plans/moba/MATCH-CHAT.md §4, ui/chatTicker.ts, ui/chatDrawer.ts). The ticker is transient: with
+   no line it paints nothing (the HUD budget, tests/e2e/hud-area.spec.ts). Phones: right-aligned under the kill feed's
+   box, as wide as the feed. Desktop: a 6-line log bottom left, above the left end of the bottom HUD bar.
+   v6: night glass, 4 px corners; inside the match the names keep their relation colours (ally, enemy, you), set inline
+   by the session: no rose/sky team paint here. */
+.pl-chatline { position: absolute; z-index: 5; display: flex; flex-direction: column; gap: 3px; pointer-events: none; }
+.pl-chatline.empty { display: none; }
+.pl-chatline .cl-row {
+  position: relative; box-sizing: border-box; display: flex; align-items: baseline; gap: 4px; max-width: 100%; min-width: 0; white-space: nowrap; overflow: hidden;
+  padding: 3px 8px; border-radius: var(--v6-r-xs); background: var(--panel-2); color: var(--v6-cream); font: 600 12px/1.25 var(--font);
+  box-shadow: inset 0 0 0 1px var(--v6-line);
+  pointer-events: auto; cursor: pointer; transition: opacity 0.6s; animation: pl-slide 0.25s;
+}
+.pl-chatline .cl-row.mine { box-shadow: inset 0 0 0 1px var(--v6-line), inset 2px 0 0 var(--v6-you); }
+.pl-chatline .cl-row.out { opacity: 0; }
+.pl-chatline .cl-row b { flex: none; font-weight: 700; }
+.pl-chatline .cl-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pl-chatline .cl-row i { flex: none; font-style: normal; font-size: 10px; opacity: 1; color: var(--v6-muted); }
+html[data-touch='1'] .pl-chatline { right: calc(10px + var(--safe-r)); top: calc(var(--chat-top, 152px) + var(--safe-t)); width: 170px; align-items: flex-end; }
+/* the feed sits left (beside the minimap, the LoL HUD): the ticker lines up under it on its left edge */
+html[data-touch='1'] .pl-match[data-chat-align='left'] .pl-chatline { right: auto; left: var(--chat-left, 150px); align-items: flex-start; }
+html[data-touch='1']:has(.pl-emote) .pl-chatline, html[data-touch='1']:has(.pl-chatbtn) .pl-chatline { width: 128px; }
+html[data-touch='1'] .pl-chatline .cl-row { font-size: 11.5px; padding: 3px 8px; }
+/* 44 px tap targets by padding (the row's tap area, never painted) */
+html[data-touch='1'] .pl-chatline .cl-row::after { content: ''; position: absolute; left: -6px; right: -6px; top: -10px; bottom: -10px; }
+html:not([data-touch='1']) .pl-chatline { left: calc(14px + var(--safe-l)); bottom: calc(var(--chat-bottom, 170px) + var(--safe-b)); width: 340px; align-items: flex-start; }
+html:not([data-touch='1']) .pl-chatline .cl-row { background: rgb(var(--v6-night-rgb) / 0.6); }
+
+.pl-chatdrawer {
+  position: absolute; z-index: 25; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: auto; touch-action: manipulation;
+  background: var(--panel); border: 1px solid var(--v6-line-strong); border-radius: var(--v6-r-xs); box-shadow: var(--v6-shadow-2); color: var(--v6-cream); font: 600 13px var(--font);
+}
+.pl-chatdrawer[hidden] { display: none; }
+.pl-chatdrawer.touch {
+  box-sizing: border-box; right: calc(var(--drawer-right, 10px) + var(--safe-r)); top: calc(var(--drawer-top, 12px) + var(--safe-t)); width: var(--drawer-w, min(360px, 46vw));
+  max-height: min(calc(var(--vvh, 100vh) * 0.58), var(--drawer-max, 100vh));
+}
+.pl-chatdrawer.desk { box-sizing: border-box; left: calc(14px + var(--safe-l)); bottom: calc(var(--chat-bottom, 170px) + var(--safe-b)); width: 360px; max-height: 320px; }
+.pl-chatdrawer .cd-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none; }
+.pl-chatdrawer .cd-seg { display: flex; border: 1px solid var(--v6-line); border-radius: var(--v6-r-xs); overflow: hidden; background: rgb(var(--v6-navy-rgb) / 0.6); }
+.pl-chatdrawer .cd-seg button, .pl-chatdrawer .cd-x {
+  min-height: 44px; min-width: 64px; padding: 0 12px; border: 0; background: transparent; color: var(--v6-muted); font: 700 13px var(--font); cursor: pointer;
+}
+.pl-chatdrawer .cd-x { color: var(--v6-cream); }
+.pl-chatdrawer.desk .cd-seg button, .pl-chatdrawer.desk .cd-x { min-height: 30px; min-width: 52px; }
+.pl-chatdrawer .cd-seg button[aria-selected='true'] { background: var(--v6-cream); color: var(--v6-night); box-shadow: inset 0 -3px 0 var(--v6-bolt); }
+.pl-chatdrawer .cd-seg button:focus-visible, .pl-chatdrawer .cd-x:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+.pl-chatdrawer .cd-x { min-width: 44px; border-radius: var(--v6-r-xs); }
+@media (hover: hover) { .pl-chatdrawer .cd-x:hover { background: rgb(var(--v6-cream-rgb) / 0.08); } }
+.pl-chatdrawer .cd-list {
+  margin: 0; padding: 0 4px 0 0; list-style: none; overflow-y: scroll; flex: 1 1 auto; min-height: 44px; display: flex; flex-direction: column; gap: 4px;
+  scrollbar-width: thin; scrollbar-color: rgb(var(--v6-cream-rgb) / 0.4) transparent;
+}
+.pl-chatdrawer .cd-list::-webkit-scrollbar { width: 6px; }
+.pl-chatdrawer .cd-list::-webkit-scrollbar-thumb { background: rgb(var(--v6-cream-rgb) / 0.4); border-radius: 3px; }
+.pl-chatdrawer .cd-list li { font-size: 12.5px; line-height: 1.3; overflow-wrap: anywhere; user-select: none; -webkit-user-select: none; }
+.pl-chatdrawer .cd-list li i { font-style: normal; opacity: 1; color: var(--v6-muted); font-size: 10.5px; margin-right: 4px; }
+.pl-chatdrawer .cd-menu { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.pl-chatdrawer .cd-menu button {
+  min-height: 36px; padding: 0 10px; border-radius: var(--v6-r-xs); border: 1px solid var(--v6-line-strong); background: var(--v6-night-3); color: var(--v6-cream); font: 600 12px var(--font);
+}
+.pl-chatdrawer .cd-menu button:active { transform: translateY(2px); }
+.pl-chatdrawer .cd-err { display: none; color: #ff9aa0; font-size: 12px; }
+.pl-chatdrawer .cd-err.on { display: block; }
+.pl-chatdrawer .cd-foot { display: flex; flex-direction: column; gap: 6px; flex: none; margin: 0; }
+.pl-chatdrawer .cd-row { display: flex; gap: 6px; }
+.pl-chatdrawer .cd-input {
+  flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: var(--v6-r-xs); border: 1px solid var(--v6-line-strong); background: rgb(var(--v6-night-rgb) / 0.8); color: var(--v6-cream);
+  caret-color: var(--v6-bolt); font: 500 15px var(--font);
+}
+.pl-chatdrawer .cd-input::placeholder { color: var(--v6-faint); }
+.pl-chatdrawer .cd-input:focus { outline: none; border-color: var(--v6-bolt); }
+.pl-chatdrawer.desk .cd-input { min-height: 34px; font-size: 14px; }
+.pl-chatdrawer .cd-send {
+  min-height: 44px; padding: 0 14px; border-radius: var(--v6-r-xs); border: 0; background: var(--v6-grad-sky); color: var(--v6-navy); font: 700 13px var(--font); cursor: pointer;
+  box-shadow: inset 0 -3px 0 var(--v6-sky-deep); transition: transform var(--v6-dur-press) var(--v6-ease-out);
+}
+.pl-chatdrawer .cd-send:active { transform: translateY(2px); box-shadow: inset 0 -1px 0 var(--v6-sky-deep); }
+.pl-chatdrawer .cd-send:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pl-chatdrawer.desk .cd-send { min-height: 34px; }
+.pl-chatdrawer .cd-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.pl-chatdrawer .cd-chips::-webkit-scrollbar { display: none; }
+.pl-chatdrawer .cd-chip {
+  flex: none; min-height: 44px; padding: 0 12px; border-radius: var(--v6-r-xs); border: 1px solid rgb(var(--v6-sky-rgb) / 0.7); background: rgb(var(--v6-sky-rgb) / 0.12); color: var(--v6-ice);
+  font: 700 12.5px var(--font); cursor: pointer; white-space: nowrap; transition: background-color var(--v6-dur-fast) var(--v6-ease-out), transform var(--v6-dur-press) var(--v6-ease-out);
+}
+@media (hover: hover) { .pl-chatdrawer .cd-chip:hover { background: rgb(var(--v6-sky-rgb) / 0.24); } }
+.pl-chatdrawer .cd-chip:active { transform: translateY(2px); }
+.pl-chatdrawer .cd-chip:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+.pl-chatdrawer.desk .cd-chip { min-height: 30px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-social, .pl-chat, .pl-social-note, .pp-chat-drawer { animation: none; }
+  .pl-social-tab, .pl-social-row, .pl-av-tile, .pl-chat-chip, .pp-chat-strip, .pl-chatdrawer .cd-chip, .pl-chatdrawer .cd-send { transition: none; }
+}

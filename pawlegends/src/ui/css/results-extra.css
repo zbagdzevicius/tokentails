@@ -1,0 +1,210 @@
+/* Split from ui.css (facelift, cascade order unchanged: ui.css @imports these in the original order). Owner: area results: progression summary, ping edge, PvP report flags. */
+/* ------------------------------------------------------------------ lane F (F5): results progression summary
+   Per hero: medal, level, Toy timings (mm:ss chips), Fish and last hits; the player's Fish by source as one bar. */
+.pl-results .pl-prog { margin: 8px 0 0; font-size: 12px; max-width: 470px; }
+.pl-results .pl-prog table { border-collapse: collapse; width: 100%; }
+.pl-results .pl-prog th, .pl-results .pl-prog td { text-align: left; padding: 1px 5px; white-space: nowrap; }
+.pl-results .pl-prog th { color: var(--v6-muted); font-weight: 700; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.pl-results .pl-prog td.f { color: var(--v6-logo-gold-hi); font-weight: 700; font-variant-numeric: tabular-nums; }
+/* the self row's band is painted on the row: the name and toy cells are flex boxes (not table cells), so a per-cell
+   background left a gap in the Toys column */
+.pl-results .pl-prog tr.self { background: rgb(255 211 77 / 0.12); }
+.pl-results .pl-prog tr.self td { font-weight: 700; }
+.pl-results .pl-prog tr.self td:first-child { box-shadow: inset 3px 0 0 var(--v6-you); }
+.pl-results .pl-prog tr.self td.nm span { color: var(--v6-you); }
+.pl-results .pl-prog tr.enemy td.nm span { color: #ffa3a8; }
+.pl-results .pl-prog td.nm { display: flex; align-items: center; gap: 4px; max-width: 150px; }
+.pl-results .pl-prog td.nm span { overflow: hidden; text-overflow: ellipsis; }
+/* Audit UX-12: each row's hero portrait (a letter when no portrait is baked yet) */
+.pl-results .pl-prog .hp { flex: none; width: 18px; height: 18px; border-radius: 50%; object-fit: cover; background: var(--v6-night-3); box-shadow: inset 0 0 0 1px rgb(77 160 255 / 0.7); }
+.pl-results .pl-prog .hp.none { display: inline-grid; place-items: center; font: 700 10px/1 var(--font); font-style: normal; }
+.pl-results .pl-prog tr.self .hp { box-shadow: inset 0 0 0 1.5px var(--v6-you); }
+.pl-results .pl-prog tr.enemy .hp { box-shadow: inset 0 0 0 1px rgb(255 79 88 / 0.75); }
+.pl-results .pl-prog .tys { display: flex; gap: 2px; }
+.pl-results .pl-prog .tc { font-style: normal; font-size: 10px; line-height: 14px; min-width: 26px; text-align: center; border-radius: 2px; background: rgb(var(--v6-cream-rgb) / 0.06); opacity: 0.45; font-variant-numeric: tabular-nums; }
+.pl-results .pl-prog .tc.on { opacity: 1; background: rgb(var(--v6-logo-gold-rgb) / 0.16); color: var(--v6-logo-gold-hi); box-shadow: inset 0 -1px 0 rgb(var(--v6-logo-gold-rgb) / 0.5); }
+.pl-results .pl-prog .md { flex: none; display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; font-style: normal; font-size: 0; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25); }
+.pl-results .pl-prog .md.mvp { width: auto; padding: 0 5px; border-radius: 2px; font-size: 9px; font-weight: 800; letter-spacing: 0.04em; background: var(--v6-grad-gold); color: var(--v6-plum-deep); }
+.pl-results .pl-prog .md.gold { background: var(--v6-grad-gold); }
+.pl-results .pl-prog .md.silver { background: #d7dee8; }
+.pl-results .pl-prog .md.bronze { background: #d99560; }
+.pl-results .pl-prog .src { margin-top: 6px; display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; align-items: center; }
+.pl-results .pl-prog .src > b { font-size: 11px; color: var(--v6-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.pl-results .pl-prog .bar { display: flex; gap: 1px; height: 8px; border-radius: 2px; overflow: hidden; background: rgb(var(--v6-cream-rgb) / 0.08); }
+.pl-results .pl-prog .lg { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 10px; color: var(--v6-muted); }
+.pl-results .pl-prog .lg i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 3px; vertical-align: 0; }
+.pl-results .pl-prog .s-lastHit, .pl-results .pl-prog .s-lastHit i { background: var(--v6-logo-gold-hi); }
+.pl-results .pl-prog .s-minion, .pl-results .pl-prog .s-minion i { background: var(--v6-flame); }
+.pl-results .pl-prog .s-takedown, .pl-results .pl-prog .s-takedown i { background: var(--v6-rose); }
+.pl-results .pl-prog .s-camp, .pl-results .pl-prog .s-camp i { background: var(--v6-success); }
+.pl-results .pl-prog .s-objective, .pl-results .pl-prog .s-objective i { background: var(--v6-sky); }
+.pl-results .pl-prog .s-snack, .pl-results .pl-prog .s-snack i { background: var(--v6-rose-light); }
+.pl-results .pl-prog .s-trickle, .pl-results .pl-prog .s-trickle i { background: #8a6fa6; }
+.pl-results .pl-prog .lg span { background: none; }
+@media (max-height: 480px) {
+  .pl-results .pl-prog { font-size: 11px; margin-top: 6px; }
+  .pl-results .pl-prog td.nm { max-width: 96px; }
+  .pl-results .pl-prog .tc { min-width: 24px; font-size: 9px; line-height: 12px; }
+  .pl-results .pl-prog th, .pl-results .pl-prog td { padding: 1px 3px; }
+}
+/* fun pass (playtest #12): a header row per team */
+.pl-results .pl-prog tr.grp th { padding-top: 5px; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.8; border-bottom: 1px solid var(--v6-line); }
+.pl-results .pl-prog tr.grp.ours th { color: var(--v6-ally); }
+.pl-results .pl-prog tr.grp.enemy th { color: var(--v6-enemy); }
+/* the "Your Fish" legend clears the results column's bottom fade */
+.pl-results .pl-prog .src { margin-bottom: 14px; }
+
+/* MAP-GAPS A10: an off-screen ping's arrow at the screen edge (1 s) */
+.pl-pingedge {
+  position: fixed; width: 0; height: 0; z-index: 6; pointer-events: none; transform: rotate(var(--a));
+  animation: pl-pingedge 1s ease-out forwards;
+}
+.pl-pingedge::before {
+  content: ''; position: absolute; left: -14px; top: -10px; width: 0; height: 0;
+  border-left: 22px solid var(--c); border-top: 10px solid transparent; border-bottom: 10px solid transparent;
+  filter: drop-shadow(0 0 2px var(--v6-night)) drop-shadow(0 0 1px var(--v6-night));
+}
+@keyframes pl-pingedge { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pl-pingedge { animation: none; } }
+
+/* PERF-IOS: on a phone in a match, no infinite animation repaints a box-shadow every frame: the ready cues (ult,
+   talent, the charge ring, a tip, Sudden Death) keep their glow, held still. */
+html[data-phone='1'][data-screen='match'] .pl-slot.ult-ready,
+html[data-phone='1'][data-screen='match'][data-ult-ready='1'] .pl-tbtn.r {
+  animation: none; box-shadow: 0 0 0 5px rgba(255, 211, 77, 0.75), 0 0 18px 6px rgba(255, 211, 77, 0.5);
+}
+html[data-phone='1'][data-screen='match'] .pl-portrait.talent-ready { animation: none; box-shadow: 0 0 0 5px var(--butter), 0 0 18px 5px rgba(255, 211, 77, 0.65); }
+html[data-phone='1'][data-screen='match'] .pl-portrait .charge[data-state='charged'] { animation: none; }
+html[data-phone='1'][data-screen='match'] .pl-hud[data-phase='suddenDeath'] .pl-score { animation: none; box-shadow: 0 0 0 4px var(--enemy), 0 6px 18px rgba(0, 0, 0, 0.25); }
+html[data-phone='1'][data-screen='match'] *, html[data-phone='1'][data-screen='match'] *::before, html[data-phone='1'][data-screen='match'] *::after { animation-iteration-count: 1 !important; }
+/* the loading veil's spinner keeps turning (transform only, gone once the match shows): a stopped one reads as a hang */
+html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteration-count: infinite !important; }
+
+/* PvP reports (docs/plans/moba/SOCIAL-RANKED.md §8.1, §8.2): a 44 px flag at the end of a human row, the 2×2 reason
+   chips over it, and the results toast. DOM only while the scoreboard or the results are open. */
+.pl-flag {
+  min-width: 44px; min-height: 44px; margin-left: 6px; padding: 0; border: 0; border-radius: var(--v6-r-xs); vertical-align: middle;
+  background: rgb(var(--v6-night-rgb) / 0.08); color: var(--ink); font: 700 16px/1 var(--font); cursor: pointer; touch-action: manipulation;
+}
+.pl-flag:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pl-flag.done, .pl-flag[disabled] { opacity: 0.6; cursor: default; }
+/* In the scoreboard and the results table the flag must not grow the rows (the 3v3 board fits 667x375 only at its old
+   row height, and the 5v5 phone board clips its name cell at 132 px): a 34x28 chip pinned to the cell's right edge, its
+   hit area widened to 44 px by ::after (vertically kept inside the row, so a tap never lands on the next row's flag). */
+.pl-scoreboard tr td.sb-rp, .pl-table tr td.sb-rp { position: relative; padding-right: 44px; }
+.pl-scoreboard td.sb-rp .pl-flag, .pl-table td.sb-rp .pl-flag {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 34px; height: 28px; min-width: 0; min-height: 0; margin: 0;
+  box-sizing: border-box; font-size: 14px; line-height: 28px; pointer-events: auto;
+}
+.pl-scoreboard td.sb-rp .pl-flag { background: rgba(255, 255, 255, 0.12); color: inherit; }
+.pl-table td.sb-rp .pl-flag { background: rgb(var(--v6-cream-rgb) / 0.12); color: inherit; box-shadow: inset 0 0 0 1px var(--v6-line); }
+@media (hover: hover) { .pl-table td.sb-rp .pl-flag:not([disabled]):hover { background: rgb(255 79 88 / 0.22); } }
+.pl-scoreboard td.sb-rp .pl-flag::after, .pl-table td.sb-rp .pl-flag::after { content: ''; position: absolute; inset: -2px -5px; }
+.pl-report-pop {
+  width: min(300px, calc(100vw - 32px)); padding: 10px; border-radius: var(--v6-r-xs); background: var(--v6-night-2); color: var(--v6-cream);
+  border: 1px solid var(--v6-line-strong); box-shadow: inset 0 3px 0 var(--v6-enemy), var(--v6-shadow-2);
+}
+.pl-report-title { margin: 0 0 8px; font: 700 14px/1.2 var(--font); }
+.pl-report-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pl-report-chip {
+  min-height: 44px; padding: 6px 8px; border: 1px solid var(--v6-line); border-radius: var(--v6-r-xs); background: var(--v6-night-3); color: var(--v6-cream);
+  font: 700 13px/1.15 var(--font); cursor: pointer; touch-action: manipulation; box-shadow: inset 0 -3px 0 var(--v6-night-0);
+  transition: background-color var(--v6-dur-fast) var(--v6-ease-out), transform var(--v6-dur-press) var(--v6-ease-out);
+}
+@media (hover: hover) { .pl-report-chip:hover { background: rgb(var(--v6-sky-rgb) / 0.2); } }
+.pl-report-chip:active { background: rgb(var(--v6-sky-rgb) / 0.3); transform: translateY(2px); box-shadow: inset 0 -1px 0 var(--v6-night-0); }
+.pl-report-chip:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pl-report-toast {
+  position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70;
+  min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: var(--v6-r-xs); background: var(--v6-night-2); color: var(--v6-cream);
+  font: 700 14px/1.2 var(--font); border: 1px solid var(--v6-line); box-shadow: inset 4px 0 0 var(--v6-success), var(--v6-shadow-2); max-width: calc(100vw - 32px);
+}
+
+/* ------------------------------------------------------------------ v6 Lightning Rivalry facelift (area results)
+   Results pieces whose base rules sit in earlier split files (ui-feel.css, match.css): recoloured here, scoped under
+   .pl-results so this later file wins at equal specificity. Colours, radii and shadows only: no box grows. */
+
+/* the rivalry seam on the screen's left edge: rose (cats) | bolt | sky (dogs), a 4 px strip outside the column */
+.pl-results::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; pointer-events: none;
+  background: linear-gradient(180deg, var(--v6-rose) 0 47%, var(--v6-cream) 47% 53%, var(--v6-sky) 53% 100%);
+  opacity: 0.85;
+}
+
+/* grade (column) and the grade gem in the reward strip: a night tile with a hairline; A rings logo gold, S takes the gold bevel */
+.pl-results .pl-grade .letter, .pl-results .pl-reward .rw-grade b {
+  border-radius: var(--v6-r-xs); font-family: var(--v6-font-display); font-style: italic; font-weight: 900;
+  background: var(--v6-night-3); color: var(--v6-cream); box-shadow: inset 0 0 0 2px var(--v6-line-strong), inset 0 -3px 0 var(--v6-night-0);
+}
+.pl-results .pl-grade[data-grade="A"] .letter, .pl-results .pl-reward .rw-grade[data-grade='A'] b {
+  color: var(--v6-logo-gold-hi); box-shadow: inset 0 0 0 2px var(--v6-logo-gold), inset 0 -3px 0 var(--v6-night-0);
+}
+.pl-results .pl-grade[data-grade="S"] .letter, .pl-results .pl-reward .rw-grade[data-grade='S'] b {
+  background: var(--v6-grad-gold); color: var(--v6-plum-deep); box-shadow: inset 0 0 0 2px var(--v6-gold-3), 0 0 14px rgb(242 193 78 / 0.55);
+}
+.pl-results .pl-grade .what b { color: var(--v6-cream); }
+.pl-results .pl-grade .what small, .pl-results .pl-grade .who { color: var(--v6-muted); opacity: 1; }
+.pl-results .pl-grade .who b { color: var(--v6-logo-gold-hi); }
+
+/* best moment, bot ladder, personal best */
+.pl-results .pl-best .pl-icon, .pl-results .pl-personal .pl-icon { color: var(--v6-logo-gold); }
+.pl-results .pl-best b { color: var(--v6-logo-gold-hi); }
+.pl-results .pl-ladder b { color: var(--v6-cream); font-variant-numeric: tabular-nums; }
+.pl-results .pl-ladder .up, .pl-results .pl-ladder .down { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pl-results .pl-ladder .up { color: var(--v6-success); }
+.pl-results .pl-ladder .down { color: #ff8a90; }
+.pl-results .pl-ladder small { color: var(--v6-muted); }
+
+/* the folded scoreboard: relation reads (you gold, enemy red) and flat 2 px tags */
+.pl-results .pl-table summary { color: var(--v6-cream); letter-spacing: 0.04em; }
+.pl-results .pl-table summary:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
+.pl-results .pl-table th { color: var(--v6-muted); opacity: 1; text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em; }
+.pl-results .pl-table tr.self td { color: var(--v6-you); }
+.pl-results .pl-table tr.enemy td { color: #ffa3a8; }
+.pl-results .pl-table td em { border-radius: 2px; background: var(--v6-grad-gold); color: var(--v6-plum-deep); }
+.pl-results .pl-table td em.best { background: rgb(var(--v6-cream-rgb) / 0.85); color: var(--v6-night); }
+
+/* Treat Track (column) and the strip's Treat XP bar: a flat 2 px track, a striped logo-gold fill (one bolt per screen:
+   the VICTORY word keeps it) */
+.pl-results .pl-treats {
+  border-radius: var(--v6-r-xs); background: var(--v6-glass); border-color: var(--v6-line); box-shadow: inset 0 3px 0 var(--v6-logo-gold), var(--v6-shadow-1);
+}
+.pl-results .pl-treats .head b { color: var(--v6-cream); }
+.pl-results .pl-treats .head small, .pl-results .pl-reward .rw-treat small { color: var(--v6-logo-gold-hi); }
+.pl-results .pl-treats .bar, .pl-results .pl-reward .rw-treat .bar { border-radius: 2px; background: rgb(var(--v6-cream-rgb) / 0.12); box-shadow: inset 0 0 0 1px rgb(var(--v6-night-rgb) / 0.6); }
+.pl-results .pl-treats .fill, .pl-results .pl-reward .rw-treat .fill { border-radius: 2px; background: repeating-linear-gradient(118deg, var(--v6-logo-gold) 0 14px, var(--v6-logo-gold-hi) 14px 20px); }
+.pl-results .pl-treats .open .pl-icon, .pl-results .pl-reward .rw-chest .pl-icon { color: var(--v6-logo-gold); }
+.pl-results .pl-treats .next { color: var(--v6-muted); opacity: 1; }
+.pl-results .pl-treats .next b { color: var(--v6-cream); }
+.pl-results .pl-treats .next small, .pl-results .pl-treats .bonus { color: var(--v6-logo-gold-hi); }
+
+/* the reward strip pinned over Run it back: night glass, 4 px radius, a logo-gold top rule */
+.pl-results .pl-reward {
+  border-radius: var(--v6-r-xs); background: var(--v6-glass); border-color: var(--v6-line-strong);
+  box-shadow: inset 0 2px 0 rgb(var(--v6-logo-gold-rgb) / 0.7), var(--v6-shadow-2);
+}
+.pl-results .pl-reward small { color: var(--v6-muted); opacity: 1; }
+.pl-results .pl-reward .rw-chest { border-radius: var(--v6-r-xs); background: linear-gradient(90deg, rgb(var(--v6-logo-gold-rgb) / 0.22), transparent); }
+
+/* daily quests in the column: flat tiles, success ticks */
+.pl-results .pl-quests > b { color: var(--v6-muted); opacity: 1; text-transform: uppercase; letter-spacing: 0.06em; font-size: 12px; }
+.pl-results .pl-quests .q { border-radius: var(--v6-r-xs); background: rgb(var(--v6-cream-rgb) / 0.06); box-shadow: inset 0 0 0 1px var(--v6-line); }
+.pl-results .pl-quests .q .tick { border-color: var(--v6-line-strong); color: var(--v6-success-deep); }
+.pl-results .pl-quests .q.done .tick { background: var(--v6-success); border-color: var(--v6-success); }
+.pl-results .pl-quests .q.fresh { box-shadow: 0 0 0 2px var(--v6-success); }
+
+/* the pinned actions: Run it back stays the one rose slab, Switch cat and the next mode are sky ghosts; every sub-line
+   sits on its own line under the label ("Quick Blitz?" then "~3 min", never run together) */
+.pl-results .actions .pl-btn small { display: block; margin-top: 3px; font-size: 11px; font-weight: 600; font-family: var(--v6-font-ui); letter-spacing: 0.02em; }
+.pl-results .actions .pl-btn.big small { opacity: 1; }
+.pl-results .actions .pl-btn.ghost small { opacity: 0.85; }
+/* the pinned row sits over the scrolling column on phones: the sky ghosts are solid navy there, so no row shows through */
+.pl-results .actions .pl-btn.ghost { background: rgb(var(--v6-navy-rgb) / 0.96); }
+
+/* short landscape: match.css rounds the stat tiles to 10 px for phones; keep the v6 4 px slab. The pinned action row
+   (about 68 px from the bottom) overlaps the column's left half: pad the scrolling column by that height plus the foot
+   fade, so the last table rows scroll clear of the buttons (the buttons' boxes are unchanged). */
+@media (max-height: 480px) {
+  .pl-results .stats div { border-radius: var(--v6-r-xs); }
+  .pl-results-col { padding-bottom: 104px; }
+}

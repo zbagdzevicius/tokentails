@@ -1,0 +1,104 @@
+/* Split from ui.css (facelift, cascade order unchanged: ui.css @imports these in the original order). Owner: area results: .pl-screen, title column, results column. */
+/* ------------------------------------------------------------------------------------------ screens */
+.pl-screen { position: absolute; inset: 0; z-index: 20; color: var(--cream); pointer-events: none; }
+.pl-screen > * { pointer-events: auto; }
+/* v6 facelift (area results): night ground fading to the stage on the right */
+.pl-title, .pl-results {
+  background: linear-gradient(90deg, rgb(var(--v6-night-rgb) / 0.94) 0%, rgb(var(--v6-night-rgb) / 0.72) 38%, rgb(var(--v6-night-rgb) / 0) 62%);
+}
+.pl-title-col {
+  position: absolute; left: calc(56px + var(--safe-l)); top: 50%; transform: translateY(-50%); max-width: 460px;
+}
+.pl-title .logo { display: flex; align-items: center; gap: 12px; }
+.pl-title .logo .paw { width: 64px; height: 64px; color: var(--v6-rose); filter: drop-shadow(0 4px 0 var(--v6-rose-deep)); animation: pl-bob 2.4s ease-in-out infinite; }
+.pl-title h1 {
+  margin: 0; font-size: 72px; line-height: 0.95; font-weight: 900; font-family: var(--v6-font-display); font-style: italic;
+  text-transform: uppercase; letter-spacing: var(--v6-track-display); color: var(--v6-cream);
+  text-shadow: 0 5px 0 var(--v6-plum-deep), 0 12px 30px rgb(0 0 0 / 0.45);
+}
+.pl-title h1 b { color: var(--v6-bolt); }
+/* the PawLegends logo (ui/brandLogo.ts): an image, not text; the compact wordmark on short screens (<picture>) */
+.pl-title .brand-logo { margin: 0 0 0 -12px; line-height: 0; text-shadow: none; }
+.pl-title .brand-logo img { display: block; width: 380px; max-width: 100%; height: auto; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.4)); animation: pl-logo-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes pl-logo-in { from { opacity: 0; transform: translateY(-10px) scale(0.92); } }
+@media (max-height: 720px) { .pl-title .brand-logo img { width: 280px; } }
+@media (prefers-reduced-motion: reduce) { .pl-title .brand-logo img { animation: none; } }
+.pl-title .tag { font-size: 22px; margin: 14px 0 28px; color: var(--v6-cream); opacity: 0.92; text-shadow: var(--v6-ts-ui); }
+.pl-title .actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.pl-title .sub { color: var(--v6-muted); font-size: 14px; margin-top: 18px; }
+.pl-title .dare-line { width: 100%; margin: 6px 0 0; color: var(--v6-bolt); font-size: 16px; }
+.pl-mute {
+  position: absolute; right: calc(16px + var(--safe-r)); top: calc(14px + var(--safe-t)); font: 600 13px var(--font);
+  color: var(--v6-cream); background: var(--v6-glass); border: 1px solid var(--v6-line-strong); border-radius: var(--v6-r-xs); padding: 8px 14px; cursor: pointer;
+  box-shadow: inset 0 -2px 0 rgb(var(--v6-night-rgb) / 0.6);
+  transition: background-color var(--v6-dur-fast) var(--v6-ease-out), border-color var(--v6-dur-fast) var(--v6-ease-out), transform var(--v6-dur-press) var(--v6-ease-out);
+}
+@media (hover: hover) { .pl-mute:hover { background: var(--v6-night-3); border-color: rgb(var(--v6-sky-rgb) / 0.7); } }
+.pl-mute:active { transform: translateY(1px); }
+.pl-mute:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
+@keyframes pl-bob { 50% { transform: translateY(-6px) rotate(-6deg); } }
+.pl-portrait.pic { background-color: var(--hero); background-size: 118%; background-position: 50% 30%; background-repeat: no-repeat; }
+.chip {
+  font: 600 14px var(--font); color: var(--cream); background: var(--panel); border: 2px solid var(--line); border-radius: var(--v6-r-xs);
+  padding: 7px 14px 7px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.chip .pl-icon { width: 18px; height: 18px; color: var(--butter); }
+.chip.on { border-color: var(--v6-bolt); background: rgb(var(--v6-bolt-rgb) / 0.14); }
+
+.pl-results-col {
+  position: absolute; left: calc(56px + var(--safe-l)); top: 50%; transform: translateY(-50%); max-width: 520px;
+}
+.pl-results h1 {
+  position: relative; margin: 0; font-size: 76px; line-height: 0.92; font-family: var(--v6-font-display); font-style: italic; font-weight: 900;
+  text-transform: uppercase; letter-spacing: var(--v6-track-display); text-shadow: var(--v6-ts-display);
+  animation: v6-slam-l var(--v6-dur-slam) var(--v6-ease-slam) both;
+}
+/* the bolt under the title: rose | bolt | sky, painted outside the layout box (absolute), so the column does not grow */
+.pl-results h1::after {
+  content: ''; position: absolute; left: 2px; bottom: -3px; width: min(240px, 70%); height: 4px; border-radius: 1px;
+  /* rose | cream seam | sky: the one bolt on this screen is the VICTORY word (none on a defeat) */
+  background: linear-gradient(90deg, var(--v6-rose) 0 48%, var(--v6-cream) 48% 52%, var(--v6-sky) 52%); transform: skewX(var(--v6-slant)); transform-origin: left;
+}
+.pl-results.won h1 { color: var(--v6-bolt); }
+/* a defeat is neutral: cream with the plum display shadow (ice/sky would name the dog side) */
+.pl-results.lost h1 { color: var(--v6-cream); text-shadow: var(--v6-ts-display); }
+.pl-results .sub { font-size: 20px; margin: 4px 0 20px; color: var(--v6-cream); opacity: 0.92; }
+.pl-result-tip {
+  display: flex; gap: 10px; align-items: center; margin: 12px 0 0; padding: 8px 12px; border-radius: var(--v6-r-xs); background: var(--v6-glass-2);
+  border: 1px solid var(--v6-line); box-shadow: inset 3px 0 0 var(--v6-sky); font-size: 14px; line-height: 1.3; max-width: 440px;
+}
+.pl-results .pl-cause { margin: 4px 0 10px; font-size: 15px; line-height: 1.35; max-width: 520px; color: var(--v6-flame); font-weight: 600; }
+.pl-result-tip .pl-icon { width: 22px; height: 22px; flex: none; color: var(--v6-sky-top); }
+.pl-results .stats { display: grid; grid-template-columns: repeat(4, auto); gap: 10px; }
+.pl-results .stats div {
+  background: var(--v6-glass); border: 1px solid var(--v6-line); border-radius: var(--v6-r-xs); padding: 10px 14px;
+  box-shadow: inset 0 3px 0 var(--res-accent, var(--v6-bolt)), var(--v6-shadow-1);
+  animation: v6-pop-in var(--v6-dur-score) var(--v6-ease-pop) both;
+}
+.pl-results .stats div { --res-accent: var(--v6-logo-gold); }
+.pl-results.lost .stats div { --res-accent: var(--v6-line-strong); }
+.pl-results .stats div:nth-child(2) { animation-delay: 60ms; }
+.pl-results .stats div:nth-child(3) { animation-delay: 120ms; }
+.pl-results .stats div:nth-child(4) { animation-delay: 180ms; }
+.pl-results .stats b { font-size: 24px; display: block; color: var(--v6-cream); font-variant-numeric: tabular-nums; text-shadow: var(--v6-ts-ui); }
+.pl-results .stats small { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--v6-muted); }
+.pl-results .unlock {
+  margin-top: 16px; display: flex; gap: 12px; align-items: center; background: linear-gradient(90deg, rgb(var(--v6-bolt-rgb) / 0.2), transparent);
+  border-left: 4px solid var(--v6-bolt); padding: 10px 14px; border-radius: var(--v6-r-xs); animation: pl-pop 0.5s 0.4s both;
+}
+.pl-results .unlock .pl-icon { width: 36px; height: 36px; color: var(--v6-bolt); }
+.pl-results .unlock b { display: block; color: var(--v6-cream); }
+.pl-results .unlock small { color: var(--v6-muted); }
+.pl-results .dare { margin-top: 16px; opacity: 0; pointer-events: none; transition: opacity 0.4s; }
+.pl-results .dare p { margin: 0 0 8px; }
+.pl-results .dare p b { color: var(--v6-bolt); }
+.pl-results .dare.hidden { display: none; }
+.pl-results .actions {
+  display: flex; gap: 12px; margin-top: 22px; opacity: 0; pointer-events: none; transform: translateY(8px);
+  transition: opacity var(--v6-dur-screen) var(--v6-ease-out), transform var(--v6-dur-screen) var(--v6-ease-out);
+}
+.pl-results.dare-in .dare, .pl-results.actions-in .actions { opacity: 1; transform: none; pointer-events: auto; }
+@keyframes pl-pop { from { opacity: 0; transform: scale(0.9); } }
+@media (prefers-reduced-motion: reduce) {
+  .pl-results h1, .pl-results .stats div { animation: none; }
+}

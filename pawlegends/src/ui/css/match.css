@@ -1,0 +1,333 @@
+/* Split from ui.css (facelift, cascade order unchanged: ui.css @imports these in the original order). Owner: area hud-core: match HUD, ability bar, touch controls, small landscape. */
+/* ---------------------------------------------------------------------------------------------- match */
+.pl-match { position: absolute; inset: 0; pointer-events: none; z-index: 10; color: var(--cream); }
+.pl-match > * { pointer-events: none; }
+.pl-overhead { position: absolute; inset: 0; z-index: 1; }
+
+.pl-hud { position: absolute; inset: 0; z-index: 3; }
+.pl-top { position: absolute; top: calc(8px + var(--safe-t)); left: 50%; transform: translateX(-50%); }
+.pl-score {
+  display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 0 0 var(--v6-r-s) var(--v6-r-s);
+  padding: 6px 16px; font-weight: 700; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.pl-score .team { display: flex; align-items: center; gap: 8px; font-size: 26px; min-width: 64px; }
+.pl-score .team.t0 { color: var(--t0); justify-content: flex-end; }
+.pl-score .team.t1 { color: var(--t1); }
+.pl-score .team i em { font-style: normal; }
+.pl-score .team i svg { vertical-align: -1px; margin-right: 3px; opacity: 0.8; }
+.pl-score .team i { font-style: normal; font-size: 12px; background: rgb(var(--v6-cream-rgb) / 0.12); color: var(--cream); border-radius: var(--v6-r-xs); padding: 2px 6px; }
+.pl-score .mid { display: flex; flex-direction: column; align-items: center; min-width: 108px; }
+.pl-score .clock { font-size: 22px; letter-spacing: 0.02em; }
+.pl-score .phase { font-size: 11px; opacity: 0.75; font-weight: 500; white-space: nowrap; }
+.pl-hud[data-phase='sunset'] .pl-score { box-shadow: 0 0 0 2px var(--v6-flame), 0 6px 18px rgba(0, 0, 0, 0.25); }
+.pl-hud[data-phase='suddenDeath'] .pl-score { box-shadow: 0 0 0 2px var(--enemy), 0 6px 18px rgba(0, 0, 0, 0.25); animation: pl-throb 1s infinite; }
+@keyframes pl-throb { 50% { box-shadow: 0 0 0 4px var(--enemy), 0 6px 18px rgba(0, 0, 0, 0.25); } }
+
+.pl-bar {
+  position: absolute; left: 50%; bottom: calc(10px + var(--safe-b)); transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--v6-r-xs); padding: 8px 12px 8px 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+.pl-portrait {
+  width: 66px; height: 66px; border-radius: 50%; background: var(--hero); display: grid; place-items: center; position: relative; flex: none;
+  box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18), 0 0 0 3px var(--self);
+}
+.pl-portrait span { font-size: 32px; font-weight: 700; color: var(--ink); }
+.pl-portrait .lvl {
+  position: absolute; right: -4px; bottom: -4px; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--butter);
+  display: grid; place-items: center; font-size: 14px; box-shadow: 0 0 0 2px var(--self);
+}
+/* Round 2: XP to the next level on the portrait, and the level gap when the enemy team is ahead. */
+.pl-portrait .xpbar { position: absolute; left: 6px; right: 6px; bottom: -9px; height: 5px; border-radius: 3px; background: rgb(var(--v6-night-rgb) / 0.8); overflow: hidden; }
+.pl-portrait .xpbar > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, var(--v6-bolt-ledge), var(--v6-bolt)); transition: width 0.3s; }
+.pl-portrait .gap { position: absolute; left: 50%; top: -18px; transform: translateX(-50%); white-space: nowrap; font: 700 11px/1 var(--font); font-style: normal;
+  color: var(--v6-night); background: var(--v6-rose-light); border-radius: var(--v6-r-xs); padding: 2px 6px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+.pl-portrait .gap:empty { display: none; }
+/* Sim v9, Raspberry: the charge ring on the portrait (a spark ring while Charged, a grey ring and timer during the lockout). */
+.pl-portrait .charge { position: absolute; inset: -6px; border-radius: 50%; pointer-events: none; display: none; }
+.pl-portrait .charge[data-state='charged'] { display: block; box-shadow: 0 0 0 3px var(--v6-bolt), 0 0 14px 3px rgb(var(--v6-bolt-rgb) / 0.85); animation: pl-spark 0.5s ease-in-out infinite alternate; }
+.pl-portrait .charge[data-state='lockout'] {
+  display: block; background: conic-gradient(rgba(160, 156, 170, 0.95) calc(var(--left, 0) * 360deg), transparent 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+}
+.pl-portrait .charge-t { position: absolute; left: -6px; top: -6px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--v6-night-3); color: var(--v6-cream); font: 700 12px/20px var(--font); text-align: center; font-variant-numeric: tabular-nums; }
+.pl-portrait .charge-t:empty { display: none; }
+@keyframes pl-spark { from { box-shadow: 0 0 0 3px var(--v6-bolt), 0 0 8px 2px rgb(var(--v6-bolt-rgb) / 0.6); } to { box-shadow: 0 0 0 3px var(--v6-bolt-top), 0 0 18px 5px rgb(var(--v6-bolt-rgb) / 0.95); } }
+@media (prefers-reduced-motion: reduce) { .pl-portrait .charge[data-state='charged'] { animation: none; } }
+.pl-bar-main { display: flex; flex-direction: column; gap: 7px; }
+.pl-slots { display: flex; gap: 7px; align-items: flex-end; }
+.pl-slot {
+  position: relative; width: 52px; height: 52px; border-radius: var(--v6-r-xs); background: var(--v6-night-3); border: 2px solid rgb(var(--v6-cream-rgb) / 0.25); padding: 9px;
+  color: var(--butter); cursor: pointer; pointer-events: auto; overflow: hidden; transition: transform 0.08s;
+}
+.pl-slot.ult { width: 60px; height: 60px; border-color: rgb(var(--v6-bolt-rgb) / 0.55); }
+.pl-slot.small { width: 42px; height: 42px; padding: 7px; color: var(--sky); }
+.pl-slot.ready { box-shadow: 0 0 12px rgb(var(--v6-bolt-rgb) / 0.25); }
+.pl-slot.cooling { color: rgb(var(--v6-cream-rgb) / 0.4); }
+.pl-slot.locked { filter: grayscale(1); opacity: 0.5; }
+.pl-slot .sweep {
+  position: absolute; inset: 0; pointer-events: none;
+  background: conic-gradient(rgb(var(--v6-night-rgb) / 0.72) calc(var(--cd, 0) * 360deg), transparent 0);
+}
+.pl-slot .num { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; color: #fff; text-shadow: 0 2px 0 #000; }
+.pl-slot kbd { position: absolute; left: 2px; bottom: 2px; font-size: 9px; padding: 2px 3px; }
+.pl-slot.pulse { animation: pl-pulse 0.3s; }
+/* Audit CF-12: a refused cast on desktop flashes its slot red (the deny sound alone was easy to miss) */
+.pl-slot.deny { animation: pl-slotdeny 0.32s ease-out; }
+@keyframes pl-slotdeny { 0%, 45% { box-shadow: 0 0 0 3px var(--enemy), 0 0 14px rgb(255 79 88 / 0.7); } 100% { box-shadow: none; } }
+@keyframes pl-pulse { 40% { transform: scale(1.14); border-color: var(--butter); } }
+.pl-hp { position: relative; height: 16px; border-radius: 8px; background: rgb(var(--v6-night-rgb) / 0.8); overflow: hidden; }
+.pl-hp .fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #8ff07a, #4fc35f); transition: width 0.15s; }
+.pl-hud.low .pl-hp .fill { background: linear-gradient(180deg, #ff8a7a, #e5484d); }
+.pl-hp .shield { position: absolute; top: 0; bottom: 0; background: #f4f8ff; }
+.pl-hp .txt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; text-shadow: 0 1px 0 #000; }
+
+.pl-feed { position: absolute; right: calc(14px + var(--safe-r)); top: calc(14px + var(--safe-t)); display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.pl-feed-row {
+  display: flex; align-items: center; gap: 6px; background: var(--panel); border-radius: var(--v6-r-xs); padding: 5px 10px; font-size: 13px;
+  animation: pl-slide 0.25s; transition: opacity 0.5s;
+}
+.pl-feed-row span { width: 16px; height: 16px; color: var(--cream); opacity: 0.7; }
+.pl-feed-row.out { opacity: 0; }
+@keyframes pl-slide { from { transform: translateX(30px); opacity: 0; } }
+
+.pl-respawn {
+  /* A compact chip under the score bar, never over the hero (the old centre card hid the faint, then the respawn pop). */
+  position: absolute; left: 50%; top: calc(60px + var(--safe-t)); transform: translateX(-50%); text-align: center; display: none;
+  background: var(--panel); border-radius: var(--v6-r-s); padding: 4px 16px; border: 1px solid var(--line); white-space: nowrap;
+  box-shadow: inset 0 -2px 0 var(--v6-plum-deep), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.pl-respawn div { font-size: 15px; display: inline; }
+.pl-respawn b { color: var(--butter); font-size: 20px; font-variant-numeric: tabular-nums; }
+.pl-respawn small { opacity: 0.7; font-size: 12px; margin-left: 8px; }
+.pl-hud.dead .pl-respawn { display: block; }
+.pl-match:has(.pl-talents.on) .pl-respawn { display: none; }
+.pl-talents .head[data-respawn]::after {
+  content: attr(data-respawn); margin-left: 10px; padding: 1px 9px; border-radius: var(--v6-r-xs); background: var(--panel); color: var(--cream); font-size: 12px;
+}
+
+.pl-minimap {
+  /* Desktop: bottom right (LoL standard), clear of the top-right corner where Sunny Lane enemies come from.
+     MAP-GAPS A5: the S / M / L setting scales it (--mm-k, ui/minimapPrefs.ts). */
+  position: absolute; right: calc(12px + var(--safe-r)); bottom: calc(10px + var(--safe-b)); width: calc(196px * var(--mm-k, 1)); height: calc(118px * var(--mm-k, 1)); border-radius: var(--v6-r-xs); overflow: hidden;
+  border: 2px solid var(--v6-logo-plum); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); z-index: 4; pointer-events: auto !important;
+}
+.pl-minimap canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
+
+.pl-scoreboard { position: absolute; inset: 0; display: none; place-items: center; z-index: 8; }
+/* Audit UX-05 / UX-09: the pause card steps aside while its Scores or Settings are open; Back sits beside the scoreboard, above its tap layer */
+.pl-menu.under { visibility: hidden; }
+.pl-scores-back { position: absolute; right: calc(14px + var(--safe-r)); bottom: calc(14px + var(--safe-b)); z-index: 46; pointer-events: auto; min-width: 110px; }
+.pl-scoreboard.on { display: grid; }
+.pl-scoreboard .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--v6-r-xs); padding: 14px 20px; min-width: 520px; }
+.pl-scoreboard h3 { margin: 6px 0; font-size: 16px; }
+.pl-scoreboard h3.t0 { color: var(--t0); }
+.pl-scoreboard h3.t1 { color: var(--t1); }
+.pl-scoreboard table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pl-scoreboard th { text-align: left; font-weight: 500; opacity: 0.6; font-size: 11px; padding: 2px 8px; }
+.pl-scoreboard td { padding: 5px 8px; border-top: 1px solid var(--line); }
+.pl-scoreboard tr.me td { color: var(--butter); }
+.pl-scoreboard tr.dead td { opacity: 0.5; }
+.pl-scoreboard .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.pl-scoreboard .hint { text-align: center; font-size: 11px; opacity: 0.5; margin: 8px 0 0; }
+
+.pl-talents {
+  /* A compact strip above the ability bar: clear of the hero (centre screen) and its own nameplate. */
+  position: absolute; left: 50%; bottom: calc(118px + var(--safe-b)); transform: translateX(-50%) translateY(16px); display: flex; gap: 8px; opacity: 0;
+  transition: opacity 0.2s, transform 0.2s; z-index: 5; align-items: stretch; padding-top: 4px;
+}
+.pl-talents.on { opacity: 1; transform: translateX(-50%); pointer-events: auto !important; }
+.pl-talents .head {
+  position: absolute; left: 50%; top: -20px; transform: translateX(-50%); font-size: 13px; color: var(--butter); white-space: nowrap;
+  font-weight: 700; text-shadow: 0 2px 0 var(--v6-plum-deep), 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+/* Time left before option 1 is taken for the player. */
+.pl-talents .time { position: absolute; left: 6px; right: 6px; top: 0; height: 3px; border-radius: 2px; background: rgb(var(--v6-cream-rgb) / 0.18); overflow: hidden; }
+.pl-talents .time::after { content: ''; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--left, 1)); background: var(--butter); }
+.pl-talents button {
+  font: inherit; color: var(--cream); background: linear-gradient(180deg, var(--v6-night-3), var(--v6-night-2)); border: 2px solid rgb(var(--v6-cream-rgb) / 0.3); border-radius: var(--v6-r-xs); padding: 6px 10px;
+  width: 190px; text-align: left; cursor: pointer; display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: center;
+  box-shadow: inset 0 -3px 0 var(--v6-plum-deep), 0 6px 16px rgb(0 0 0 / 0.4);
+  animation: pl-pop 0.3s both; transition: border-color var(--v6-dur-fast), background var(--v6-dur-fast);
+}
+.pl-talents button:hover { border-color: var(--butter); background: linear-gradient(180deg, #33224f, var(--v6-night-3)); }
+.pl-talents button:active { border-color: var(--butter); box-shadow: inset 0 -1px 0 var(--v6-plum-deep), 0 3px 10px rgb(0 0 0 / 0.4); }
+.pl-talents button:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pl-talents button kbd { grid-row: span 2; }
+.pl-talents button b { font-size: 13px; color: var(--butter); }
+.pl-talents button span { font-size: 11px; opacity: 0.85; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* GAPS B6: level 6 lists the shape branch ("New shape" tag) or says one is coming for this hero */
+.pl-talents button.branch { border-color: var(--butter); }
+.pl-talents button .tag { font-style: normal; font-size: 10px; margin-left: 6px; padding: 0 6px; border-radius: var(--v6-r-xs); background: var(--butter); color: var(--v6-night); vertical-align: 1px; }
+.pl-talents .head .soon { margin-left: 8px; font-size: 11px; opacity: 0.75; color: var(--cream); }
+/* the own ability bar after the branch: a gold rim on the changed slot */
+.pl-slot.branch { box-shadow: 0 0 0 2px var(--butter) inset; }
+
+/* A touch tip names a skill: its button glows until the tip hides. */
+html[data-tip-key='q'] .pl-tbtn.q, html[data-tip-key='e'] .pl-tbtn.e, html[data-tip-key='r'] .pl-tbtn.r, html[data-tip-key='attack'] .pl-tbtn.attack {
+  border-color: var(--butter); animation: pl-tipglow 0.9s ease-in-out infinite;
+}
+@keyframes pl-tipglow { 50% { box-shadow: 0 0 0 6px rgb(var(--v6-bolt-rgb) / 0.55), 0 4px 12px rgba(0, 0, 0, 0.35); } }
+
+/* Touch pause button (top centre, left of the score bar) and the tap-to-close scoreboard. */
+.pl-pause { display: none; }
+html[data-touch='1'] .pl-pause {
+  position: absolute; top: calc(10px + var(--safe-t)); left: calc(50% - 168px); width: 40px; height: 40px; border-radius: 50%; z-index: 5;
+  display: flex; align-items: center; justify-content: center; gap: 5px; pointer-events: auto !important; background: var(--panel);
+  border: 1px solid rgb(var(--v6-cream-rgb) / 0.28); box-shadow: inset 0 -3px 0 var(--v6-plum-deep), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+html[data-touch='1'] .pl-pause i { width: 5px; height: 15px; border-radius: 2px; background: var(--cream); }
+html[data-touch='1'] .pl-score { pointer-events: auto; }
+.pl-scoreboard.tap { pointer-events: auto !important; z-index: 30; }
+
+/* The "Starter" emote chip (owned only): right of the score bar. */
+.pl-emote {
+  position: absolute; top: calc(10px + var(--safe-t)); left: calc(50% + 168px); z-index: 5; pointer-events: auto !important; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; font: 600 13px var(--font); color: var(--cream); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--v6-r-s); padding: 5px 10px 5px 7px; box-shadow: inset 0 -2px 0 var(--v6-plum-deep), 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform var(--v6-dur-press) var(--v6-ease-out), border-color var(--v6-dur-fast);
+}
+@media (hover: hover) and (pointer: fine) { .pl-emote:hover { border-color: rgb(var(--v6-rose-rgb) / 0.7); } }
+.pl-emote:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pl-emote .pl-icon { width: 18px; height: 18px; color: var(--rose); }
+.pl-emote kbd { font-size: 9px; padding: 1px 4px; }
+.pl-emote:active { transform: scale(0.94); }
+html[data-touch='1'] .pl-emote kbd { display: none; }
+
+/* A tower (or core) is hitting the player (new players): red, short, above the bar; never over the hero. */
+
+/* ---------------------------------------------------------------------------------------------- touch */
+.pl-touch { position: absolute; inset: 0; display: none; z-index: 4; }
+.pl-touch.on { display: block; }
+/* the touch buttons are drag surfaces (skill aim, ATK hold-to-select): the browser never takes a drag on them as a pan */
+.pl-touch .pl-tbtn { touch-action: none; }
+/* The stick reads over any VFX: a bright ring between two dark ink rings, and a cream knob with an ink rim and a gold
+   centre (the size stays 120 px, STICK.radius 60). */
+.pl-stick {
+  position: absolute; left: 0; top: 0; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; display: none;
+  background: radial-gradient(circle, rgb(var(--v6-night-rgb) / 0.28) 0 55%, rgb(var(--v6-night-rgb) / 0.42) 56% 100%); border: 3px solid rgb(var(--v6-cream-rgb) / 0.92);
+  box-shadow: 0 0 0 2px rgb(var(--v6-night-rgb) / 0.75), inset 0 0 0 2px rgb(var(--v6-night-rgb) / 0.6);
+}
+.pl-stick.on { display: block; }
+.pl-knob {
+  position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; border-radius: 50%; background: radial-gradient(circle, var(--self) 0 18%, var(--v6-cream) 20% 82%, #f2dcc6 100%);
+  border: 3px solid var(--v6-night); transform: translate(-50%, -50%); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+.pl-tcluster { position: absolute; right: calc(28px + var(--safe-r)); bottom: calc(24px + var(--safe-b)); width: 96px; height: 96px; }
+/* UX pass 2: the left-handed mirror: the cluster in the bottom-left corner (touchArc.ts arcStyle measures from its left) */
+.pl-touch.lefty .pl-tcluster { right: auto; left: calc(28px + var(--safe-l, 0px)); }
+.pl-tbtn {
+  position: absolute; pointer-events: auto; border-radius: 50%; border: 3px solid rgb(var(--v6-cream-rgb) / 0.55); background: rgb(var(--v6-night-2-rgb) / 0.66);
+  color: var(--cream); font: 700 16px var(--font); display: grid; place-items: center; touch-action: none; overflow: hidden;
+  width: 60px; height: 60px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.pl-tbtn span { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2; font-size: 20px; text-shadow: 0 2px 0 var(--v6-plum-deep), 0 0 4px #000; font-variant-numeric: tabular-nums; }
+.pl-tbtn .ico { position: absolute; inset: 22%; color: var(--v6-bolt-top); z-index: 0; }
+.pl-tbtn.trick .ico, .pl-tbtn.nap .ico { color: var(--v6-sky-top); }
+.pl-tbtn.cooling .ico { opacity: 0.45; }
+.pl-tbtn .cd { position: absolute; inset: 0; background: conic-gradient(rgb(var(--v6-night-rgb) / 0.75) calc(var(--cd, 0) * 360deg), transparent 0); }
+.pl-tbtn.down { transform: scale(0.92); border-color: var(--butter); }
+.pl-tbtn.deny { border-color: var(--enemy); }
+.pl-tbtn.locked { opacity: 0.4; filter: grayscale(1); }
+/* Audit CF-04: every button's place and size comes from input/touch/touchArc.ts (inline styles, scaled per screen) */
+/* ATK: the one rose button on the phone screen (v6: the main action is rose), an inset ledge inside the same box */
+.pl-tbtn.attack {
+  font-size: 18px; background: radial-gradient(circle at 50% 32%, var(--v6-rose-top), var(--v6-rose) 52%, var(--v6-rose-deep) 100%); border-color: rgb(var(--v6-cream-rgb) / 0.85);
+  box-shadow: inset 0 -4px 0 rgb(62 8 32 / 0.45), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.pl-tbtn.attack span { text-shadow: 0 2px 0 var(--v6-berry), 0 0 3px rgb(62 8 32 / 0.6); }
+.pl-tbtn.attack.down { border-color: var(--v6-cream); box-shadow: inset 0 -1px 0 rgb(62 8 32 / 0.45), 0 2px 6px rgba(0, 0, 0, 0.35); }
+.pl-tbtn.r { border-color: rgb(var(--v6-bolt-rgb) / 0.8); }
+.pl-tbtn.trick { font-size: 13px; }
+.pl-tbtn.nap { font-size: 12px; }
+/* C9: Nap is a 300 ms hold: a cream ring fills around the button while it is held */
+.pl-tbtn.nap::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgb(124 198 255 / 0.85) var(--napfill, 0deg), transparent 0); opacity: 0; }
+.pl-tbtn.nap.holding::before { opacity: 1; animation: pl-napfill 300ms linear forwards; }
+@property --napfill { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes pl-napfill { to { --napfill: 360deg; } }
+/* C5: Attack with nothing in reach flashes red (the ground ring flashes with it) */
+.pl-tbtn.attack.deny { animation: pl-atkdeny 300ms ease-out; }
+@keyframes pl-atkdeny { 0%, 40% { border-color: #fff; box-shadow: 0 0 0 4px var(--enemy), 0 4px 12px rgba(0, 0, 0, 0.35); } 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); } }
+.pl-cancel {
+  /* Audit CF-01: top centre, under the score bar, out of every skill's drag reach (it sat 86-91 px from E and W, so a
+     full-range up or up-left aim landed on it). It cancels only after a 120 ms rest (touchControls CANCEL_DWELL_MS). */
+  position: absolute; left: 50%; top: calc(72px + var(--safe-t)); width: 56px; height: 56px; border-radius: 50%; transform: translateX(-50%);
+  display: none; place-items: center; font-size: 30px; background: rgb(var(--v6-night-rgb) / 0.85); border: 3px solid rgb(var(--v6-cream-rgb) / 0.9); color: var(--cream);
+  box-shadow: 0 0 0 2px rgb(var(--v6-night-rgb) / 0.75); transition: background var(--v6-dur-press), transform var(--v6-dur-press) var(--v6-ease-pop);
+}
+.pl-cancel.on { display: grid; }
+/* Audit CF-06: the aim ring at the thumb: the smart-cast centre and the full-range ring of a ground or unit aim */
+.pl-aimring { position: absolute; left: 0; top: 0; width: 0; height: 0; display: none; pointer-events: none; z-index: 1; }
+.pl-aimring.on { display: block; }
+.pl-aimring i { position: absolute; left: 0; top: 0; border-radius: 50%; transform: translate(-50%, -50%); }
+.pl-aimring .full { width: var(--full, 180px); height: var(--full, 180px); border: 2px dashed rgb(var(--v6-cream-rgb) / 0.55); background: radial-gradient(circle, transparent 60%, rgb(var(--v6-bolt-rgb) / 0.09)); }
+.pl-aimring .smart { width: var(--smart, 48px); height: var(--smart, 48px); border: 2px solid rgb(var(--v6-cream-rgb) / 0.7); background: rgb(var(--v6-night-rgb) / 0.25); }
+.pl-aimring.dir .full { display: none; }
+.pl-aimring.back .smart { border-color: var(--butter); background: rgb(var(--v6-bolt-rgb) / 0.28); box-shadow: 0 0 10px rgb(var(--v6-bolt-rgb) / 0.6); }
+/* hold-to-select on Attack: the centre is the cancel zone (red with an x while the thumb is back in it) */
+.pl-aimring.atk .smart { border-color: rgb(var(--v6-cream-rgb) / 0.45); background: rgb(var(--v6-night-rgb) / 0.2); }
+.pl-aimring.atk.back .smart { border-color: var(--v6-enemy); background: rgb(255 79 88 / 0.32); box-shadow: 0 0 10px rgb(255 79 88 / 0.6); }
+.pl-aimring.atk.back .smart::before, .pl-aimring.atk.back .smart::after { content: ''; position: absolute; left: 50%; top: 50%; width: 55%; height: 2px; background: #fff; border-radius: 1px; transform: translate(-50%, -50%) rotate(45deg); }
+.pl-aimring.atk.back .smart::after { transform: translate(-50%, -50%) rotate(-45deg); }
+/* Audit CF-09: the locked ult says when it opens */
+.pl-tbtn .lv { display: none; position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); z-index: 4; padding: 0 6px; border-radius: var(--v6-r-xs); font: 800 10px/15px var(--font); font-style: normal; white-space: nowrap; background: var(--butter); color: var(--v6-night); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+.pl-tbtn.r.locked .lv { display: block; }
+/* the button dims its insides, not the badge */
+.pl-tbtn.r.locked { overflow: visible; opacity: 1; filter: none; }
+.pl-tbtn.r.locked > :not(.lv) { opacity: 0.4; filter: grayscale(1); }
+.pl-cancel.arming { border-color: #fff; transform: translateX(-50%) scale(1.06); }
+.pl-cancel.hot { background: var(--enemy); border-color: #fff; transform: translateX(-50%) scale(1.15); }
+html[data-touch='1'] .pl-slots { display: none; }
+html[data-touch='1'] .pl-bar { left: calc(16px + var(--safe-l)); transform: none; bottom: auto; top: calc(10px + var(--safe-t)); padding: 6px 10px 6px 6px; border-radius: var(--v6-r-xs); }
+html[data-touch='1'] .pl-portrait { width: 44px; height: 44px; }
+html[data-touch='1'] .pl-portrait span { font-size: 20px; }
+html[data-touch='1'] .pl-hp { width: 150px; }
+/* Touch: the ability cluster owns the bottom right, so the minimap stays top right. MAP-GAPS A5: 176 x 106 at 844
+   wide (160 x 96 on small phones, below), opaque with a dark border, scaled by the S / M / L setting; the paw, the
+   emote and chat chips, the enemy portraits and the kill feed are placed from its size (--mm-w, --mm-h). */
+html[data-touch='1'] { --mm-w: calc(176px * var(--mm-k, 1)); --mm-h: calc(106px * var(--mm-k, 1)); }
+html[data-touch='1'] .pl-minimap { width: var(--mm-w); height: var(--mm-h); bottom: auto; top: calc(10px + var(--safe-t)); opacity: 1; border-color: var(--v6-night); }
+/* 844 wide and up: the bigger minimap reaches where the enemy portraits sat right of the score, and the optional
+   last-hit and tower buttons sit under it, so the portraits stand in a column just left of the minimap (each a 44 px
+   tap area), the paw and the emote chip move left of them, and the kill feed (two rows) stays under the minimap. */
+html[data-touch='1'] .pl-top .pl-strip.enemy { left: auto; right: calc(50% - 50vw + 26px + var(--mm-w) + var(--safe-r)); top: 4px; transform: none; flex-direction: column; gap: 14px; }
+html[data-touch='1'] .pl-top .pl-strip.enemy .pp { width: 28px; height: 28px; }
+html[data-touch='1'] .pl-top .pl-strip.enemy .pp::after { inset: -8px; }
+html[data-touch='1'] .pl-feed { top: calc(var(--mm-h) + 18px + var(--safe-t)); }
+html[data-touch='1'][data-mm-size='l'] .pl-feed-row:nth-child(n + 2) { display: none; }
+/* Touch: under the hero box (top left), never over the hero in the middle of the screen. */
+html[data-touch='1'] .pl-talents { bottom: auto; top: calc(92px + var(--safe-t)); left: calc(16px + var(--safe-l)); transform: translateY(-8px); }
+html[data-touch='1'] .pl-talents.on { transform: none; }
+html[data-touch='1'] .pl-talents .head { left: 4px; transform: none; top: -18px; }
+html[data-touch='1'] .pl-talents button { width: 150px; padding: 8px 10px; }
+html[data-touch='1'] .pl-talents button kbd { display: none; }
+html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
+
+/* ----------------------------------------------------------------------------------- small landscape */
+@media (max-height: 480px) {
+  .pl-title h1 { font-size: 48px; }
+  .pl-title .logo .paw { width: 44px; height: 44px; }
+  .pl-title .brand-logo { margin-left: -6px; }
+  .pl-title .brand-logo img { width: 220px; }
+  .pl-title .tag { font-size: 16px; margin: 8px 0 16px; }
+  .pl-title-col, .pl-results-col { left: calc(24px + var(--safe-l)); }
+  .pl-btn.big { font-size: 19px; padding: 13px 28px; }
+  .pl-results h1 { font-size: 40px; }
+  .pl-results .sub { font-size: 14px; margin: 2px 0 8px; }
+  .pl-result-tip { font-size: 12px; padding: 5px 8px; margin-top: 6px; }
+  /* Short landscape: a narrow two-by-two stats block, so the hero turntable on the right stays clear. */
+  .pl-results-col { max-width: min(330px, 44vw); top: calc(8px + var(--safe-t)); bottom: calc(8px + var(--safe-b)); transform: none; overflow-y: auto; }
+  .pl-results .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .pl-results .stats div { padding: 5px 10px; border-radius: 10px; }
+  .pl-results .stats b { font-size: 17px; }
+  .pl-results .unlock { margin-top: 8px; padding: 6px 10px; }
+  .pl-results .unlock .pl-icon { width: 26px; height: 26px; }
+  .pl-results .dare { margin-top: 6px; }
+  .pl-results .dare p { display: none; }
+  .pl-results .dare .pl-btn { font-size: 14px; padding: 7px 14px; }
+  .pl-results .unlock small { display: none; }
+  .pl-results .actions { margin-top: 10px; }
+  .pl-results .actions .pl-btn.big { font-size: 17px; padding: 10px 22px; }
+  .pl-title-col { max-width: min(380px, 46vw); }
+  .pl-title .sub { max-width: 34ch; }
+  .pl-scoreboard .card { min-width: 0; padding: 10px 14px; }
+}

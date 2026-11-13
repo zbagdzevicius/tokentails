@@ -1,0 +1,31 @@
+/* Split from ui.css (facelift, cascade order unchanged: ui.css @imports these in the original order). Owner: foundation: the .pl-menu card (pause, settings, collection, book sheets share it). */
+.pl-menu { display: grid; place-items: center; background: var(--v6-scrim); pointer-events: auto !important; z-index: 40; }
+.pl-menu .card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--v6-r-xs); padding: 22px 26px; display: flex; flex-direction: column;
+  box-shadow: inset 0 4px 0 var(--v6-rose), var(--v6-shadow-3);
+  gap: 12px; min-width: 300px; max-width: 520px; text-align: center;
+}
+/* Feel pass A8: a soft cushion-fort backdrop under the pause / settings menus, faint enough that the match still
+   shows through (a party match keeps running behind the menu). */
+.pl-menu::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0.3;
+  background: url('/assets/screens/pause-1280.webp') center / cover no-repeat;
+}
+.pl-menu h2 { margin: 0 0 6px; font-family: var(--v6-font-display); font-style: italic; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--v6-cream); text-shadow: 0 3px 0 var(--v6-plum-deep); }
+.pl-menu .keys { font-size: 12px; opacity: 0.75; line-height: 2; margin: 6px 0 0; }
+/* GAPS B2: Forfeit is disabled until its time (Easy 3:00, Normal and Hard 4:00); the confirm step's line */
+.pl-menu .pl-btn[disabled] { opacity: 0.45; cursor: default; }
+.pl-menu .pl-forfeit .sub, .pl-menu .pl-leave .sub { margin: 0 0 4px; font-size: 14px; opacity: 0.85; line-height: 1.4; }
+/* Short phones: the pause card (Resume, Scores, Sound, Settings, the zoom row, Forfeit, Leave) was 475 px tall at
+   844x390, so Leave sat off screen. Two columns for the smaller buttons, tighter spacing, and a scroll as a safety net. */
+@media (max-height: 480px) {
+  .pl-menu:not(.pl-settings):not(.pl-collection):not(.pl-book) > .card {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 18px; width: min(560px, calc(100vw - 32px)); max-width: none;
+    max-height: calc(100dvh - 16px); overflow-y: auto; box-sizing: border-box;
+  }
+  .pl-menu:not(.pl-settings):not(.pl-collection):not(.pl-book) > .card > :is(h2, .pl-btn.big, .set-zoom, .keys, .sub) { grid-column: 1 / -1; }
+  /* the confirm cards (Forfeit, Leave): both buttons full width */
+  .pl-menu > .card:is(.pl-forfeit, .pl-leave) > .pl-btn { grid-column: 1 / -1; }
+  .pl-menu:not(.pl-settings):not(.pl-collection):not(.pl-book) > .card .pl-btn { padding-top: 9px; padding-bottom: 9px; }
+  .pl-menu h2 { margin: 0; font-size: 20px; }
+}
