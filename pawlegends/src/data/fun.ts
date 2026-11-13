@@ -26,10 +26,11 @@ export const CANNON = Object.freeze({
   /** The `cannonSoon` warning comes this many ticks before a spawn (10 s). */
   warn: 300,
   /**
-   * Pick-up reach from the hero's edge: sim v25 1000, so the pick-up (hero centre within reach + RADIUS.hero = 1.5 m)
-   * is the hero's body touching the drawn gold ring's outer edge. v21–v24: 1500 (2.0 m, past the ring).
+   * Pick-up reach from the hero's edge (hero centre within reach + RADIUS.hero = 2.0 m). Sim v25 keeps it: the gold
+   * ring is drawn out to it instead (funView CANNON_RING), so a hero's body touches the ring as it can take the cannon.
+   * (A 1.5 m reach moved Hearthwood's 5v5 balance: 12 of 20 heroes in band against 20 of 20 on the same seeds.)
    */
-  reach: 1000,
+  reach: 1500,
   /**
    * Sim v25: a walking hero takes it only when its move goal is within this of the cannon (a tap on the cannon, a touch
    * stick pushed at it, a bot walking to its spot); a hero stopped on it always does. A walk past to somewhere else does

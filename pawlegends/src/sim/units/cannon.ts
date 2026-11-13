@@ -5,10 +5,10 @@
  *
  * - Underdog Cannon: a team that meets the COMEBACK trigger at the warning (3+ structures or 8+ takedowns behind) gets
  *   it `underdog` mm toward its side, on the same line.
- * - Pick up: walk onto it. Sim v25: the hero's body touches the drawn ring (centre within CANNON.reach + RADIUS.hero =
- *   1.5 m; v21–v24 2.0 m) and it either stands there (Order.None) or walks with its goal within CANNON.aim of the cannon
- *   (a tap on it, a stick pushed at it, a bot walking to its spot); a walk past to somewhere else leaves it on the
- *   ground (v21–v24 picked it up from anyone in reach, and there is no drop). Of those heroes the one nearest its centre takes it; a tie between the teams goes to
+ * - Pick up: walk onto it. The hero's centre within CANNON.reach + RADIUS.hero (2.0 m: its body on the drawn ring). Sim
+ *   v25: and it either stands there (Order.None) or walks with its goal within CANNON.aim of the cannon (a tap on it, a
+ *   stick pushed at it, a bot walking to its spot); a walk past to somewhere else, or a fight beside it, leaves it on
+ *   the ground (v21–v24 picked it up from any hero in reach, and there is no drop). Of those heroes the one nearest its centre takes it; a tie between the teams goes to
  *   team (spawns so far & 1), so it alternates per spawn; a tie inside a team to the lower slot. The carrier moves CANNON.slowBp slower and both teams see it.
  * - Fuse: CANNON.fuse ticks while carried (paused on the ground and during the windup). At 0 it fizzles.
  * - Drop: the carrier's death or Nap drops it where it stood, for CANNON.dropTicks, takeable by either team, with at

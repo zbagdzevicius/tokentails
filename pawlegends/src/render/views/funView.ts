@@ -6,7 +6,7 @@
  * is near one a dotted arc and a ring show where it throws (BED_GUIDE); the launch's squash, puff and ring play on the
  * `boing` event itself.
  * Sim v25 (founder: "hard to navigate through them"): the drawn toys match the sim's reach. The cannon's gold ring ends
- * where a hero's body takes it (CANNON_RING), the ball is as big as a kick's contact (BALL_R), and the bed guide adds a
+ * where a hero's body takes it (CANNON_RING, out to 1.55 m), the ball is as big as a kick's contact (BALL_R), and the bed guide adds a
  * faint wedge behind the cushion: the 60° walk that throws (a walk across it from anywhere else does not).
  *
  * Original models built from primitives (a brass party cannon on a red-and-cream wheelbase, pastel cat beds with a paw
@@ -39,9 +39,10 @@ export function leapLift(t: number): number {
 
 /**
  * Sim v25: the cannon's ground ring (m): its outer edge is where a hero's body reaches when the sim lets it take the
- * cannon (centre within CANNON.reach + RADIUS.hero), plus a hairline so the touch reads.
+ * cannon (centre within CANNON.reach + RADIUS.hero, so the body's edge within CANNON.reach), plus a hairline so the touch
+ * reads. v21–v24 drew it to 1.35 m against a 1.5 m body reach.
  */
-export const CANNON_RING = Object.freeze({ inner: (CANNON.reach - 300) / 1000, outer: (CANNON.reach + 50) / 1000 });
+export const CANNON_RING = Object.freeze({ inner: (CANNON.reach - 350) / 1000, outer: (CANNON.reach + 50) / 1000 });
 /** Sim v25: the yarn ball's radius (m): a kick is a hero's body touching it (YARN.kickReach − RADIUS.hero). */
 export const BALL_R = (YARN.kickReach - RADIUS.hero) / 1000;
 /** Sim v25: the bed's throw wedge (m and rad): behind the cushion, ±60° around the way in that throws. */
