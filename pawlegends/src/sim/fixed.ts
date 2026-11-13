@@ -51,6 +51,16 @@ export function within60(ax: number, ay: number, bx: number, by: number): boolea
   return 2 * dot >= isqrt(ax * ax + ay * ay) * isqrt(bx * bx + by * by);
 }
 
+/**
+ * Sim v25: is vector (ax, ay) within the angle whose cosine is `cosBp` (bp of 1) of (bx, by)? 10000·dot ≥ cosBp·|a|·|b|
+ * with integer roots; false for a zero vector. Components up to the map's size keep every product below 2^53.
+ */
+export function withinCos(ax: number, ay: number, bx: number, by: number, cosBp: number): boolean {
+  const dot = ax * bx + ay * by;
+  if (dot <= 0) return false;
+  return 10000 * dot >= cosBp * isqrt(ax * ax + ay * ay) * isqrt(bx * bx + by * by);
+}
+
 export function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
 }

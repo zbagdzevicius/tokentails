@@ -81,8 +81,9 @@ interface Bed {
   dots: THREE.Mesh[];
   /** Bit h set = hero h was on the cushion last frame (a new bit wobbles the bed). */
   on: number;
-  /** Sim v25: the throw wedge's own material (fainter than the dots). */
+  /** Sim v25: the throw wedge's own material (fainter than the dots) and geometry (its sector faces this bed's way). */
   coneMat: THREE.MeshBasicMaterial;
+  coneGeo: THREE.RingGeometry;
 }
 
 interface Ball {
@@ -90,7 +91,15 @@ interface Ball {
   x: number;
   z: number;
   roll: number;
+  /** Render only: the drawn offset (m) a hero's body pushes a resting ball aside by (eased). */
+  nx: number;
+  nz: number;
+  /** Render only: seconds left of the shrink after it unravelled (a ball stopped at once by a tower still shows going). */
+  fade: number;
 }
+
+/** Render only (sim v25): how a resting ball reads as a toy a hero walks through without kicking it. */
+export const BALL_NUDGE = Object.freeze({ max: 0.45, ease: 10, fade: 0.35 });
 
 /** The fuse's sparks (one options object, reused: no allocation per frame). */
 const SPARK = { additive: true, n: 2, shape: SHAPE.STAR4, color: 0xffe14a, intensity: 2, size: [0.08, 0.14], life: [0.2, 0.35], speed: [0.5, 1.5], up: 1 };
@@ -182,7 +191,7 @@ export class FunView {
       }
       root.visible = false;
       this.group.add(root);
-      this.balls.push({ root, x: 0, z: 0, roll: 0 });
+      this.balls.push({ root, x: 0, z: 0, roll: 0, nx: 0, nz: 0, fade: 0 });
     }
   }
 
@@ -193,6 +202,7 @@ export class FunView {
       b.arrowMat.dispose();
       b.guideMat.dispose();
       b.coneMat.dispose();
+      b.coneGeo.dispose();
     }
     this.beds.length = 0;
     const rows = FUN_BY_MAP[index]?.beds ?? [];
@@ -267,7 +277,7 @@ export class FunView {
       guide.add(cone);
       guide.visible = false;
       this.group.add(root, guide);
-      this.beds.push({ root, squash: 0, bx: toX(bx), bz: toZ(by), lx: toX(lx), lz: toZ(ly), arrowMat, guide, guideMat, dots, on: 0, coneMat });
+      this.beds.push({ root, squash: 0, bx: toX(bx), bz: toZ(by), lx: toX(lx), lz: toZ(ly), arrowMat, guide, guideMat, dots, on: 0, coneMat, coneGeo });
     }
   }
 
@@ -446,8 +456,21 @@ export class FunView {
     for (let i = 0; i < this.balls.length; i++) {
       const b = this.balls[i];
       const y = yarn[i];
-      b.root.visible = !!y && y.state !== 'away';
-      if (!y || y.state === 'away') continue;
+      if (!y || y.state === 'away') {
+        // it just unravelled: shrink away where it was drawn instead of vanishing in one frame
+        if (b.root.visible && b.fade <= 0 && y) b.fade = BALL_NUDGE.fade;
+        if (b.fade > 0) {
+          b.fade = Math.max(0, b.fade - dt);
+          b.root.scale.setScalar(Math.max(0.01, b.fade / BALL_NUDGE.fade));
+        }
+        b.root.visible = b.fade > 0;
+        b.nx = 0;
+        b.nz = 0;
+        continue;
+      }
+      b.fade = 0;
+      b.root.scale.setScalar(1);
+      b.root.visible = true;
       const x = toX(y.x);
       const z = toZ(y.y);
       const moved = Math.hypot(x - b.x, z - b.z);
@@ -459,7 +482,36 @@ export class FunView {
       }
       b.x = x;
       b.z = z;
-      b.root.position.set(x, 0.85, z);
+      // a resting ball leans away from a hero's body inside it (a walk through it that does not kick, sim v25)
+      let tx = 0;
+      let tz = 0;
+      if (y.state === 'rest') {
+        const touch = BALL_R + RADIUS.hero / 1000;
+        for (let h = 0; h < HERO_SLOTS; h++) {
+          const p = heroAt(h);
+          if (!p) continue;
+          const dx = x - p.x;
+          const dz = z - p.z;
+          const d = Math.hypot(dx, dz);
+          if (d >= touch) continue;
+          const push = Math.min(BALL_NUDGE.max, touch - d);
+          if (d < 0.0001) {
+            tx += push;
+            continue;
+          }
+          tx += (dx / d) * push;
+          tz += (dz / d) * push;
+        }
+        const len = Math.hypot(tx, tz);
+        if (len > BALL_NUDGE.max) {
+          tx = (tx / len) * BALL_NUDGE.max;
+          tz = (tz / len) * BALL_NUDGE.max;
+        }
+      }
+      const k = Math.min(1, dt * BALL_NUDGE.ease);
+      b.nx += (tx - b.nx) * k;
+      b.nz += (tz - b.nz) * k;
+      b.root.position.set(x + b.nx, 0.85, z + b.nz);
     }
   }
 

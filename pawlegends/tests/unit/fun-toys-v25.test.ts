@@ -2,13 +2,15 @@
  * Sim v25 (founder report 2026-11-12: "fix in-game objects in fun mode (ball, cannonball, trampoline) as it's hard to
  * navigate through them"). The Kibble Cannon and the Mega Yarn Ball react only to a hero that means it, and only once
  * its body touches what is drawn:
- * - Cannon: the hero's centre within CANNON.reach + RADIUS.hero (2.0 m: its body on the gold ring) and stopped there,
- *   or walking with its goal within CANNON.aim of the cannon (a tap on it, a stick pushed at it, a bot fetching it).
- * - Yarn: the hero's centre within YARN.kickReach (1.35 m: its body on the ball), heading within 60° of the ball and
+ * - Cannon: the hero's centre within CANNON.reach + RADIUS.hero (2.0 m: its body on the gold ring) and stopped there
+ *   (a stick let go on it), or walking with its goal within CANNON.aim of it (a tap on it, a bot fetching it). The
+ *   touch stick steps its look-ahead past a grounded cannon (assist.ts stickAhead), so a stick walk over it passes.
+ * - Yarn: the hero's centre within YARN.kickReach (1.35 m: its body on the ball), heading within 45° of the ball and
  *   its goal within YARN.near of it; the ball rolls along the walk.
  * Plus the lane check: a champion walking a toy-dense line (Crossing's river crossing, cannon and both balls on it) or
  * past every toy of both maps never stalls, is never grabbed, and arrives as fast as with the toys gone.
- * Headless sim at 30 Hz, bots off; a touch stick is a move 2 m ahead every 100 ms through the input gate.
+ * Headless sim at 30 Hz, bots off; a touch stick is a move 2 m ahead (past a grounded cannon, as the client) every
+ * 100 ms through the input gate.
  */
 import { describe, expect, it } from 'vitest';
 import { BOING, CANNON, FUN_BY_MAP, YARN } from '../../src/data/fun';
@@ -24,6 +26,7 @@ import { yarnAt, yarnCount } from '../../src/sim/units/yarn';
 import { CANNON_STATE, FM, G, Order, YARN_STATE, YF } from '../../src/sim/world';
 import { SIM_VERSION } from '../../src/sim/version';
 import { CANNON_RING } from '../../src/render/views/funView';
+import { STICK_CANNON, stickAhead } from '../../src/input/touch/assist';
 import { hold, place } from './heroes/kit-helpers';
 
 const AHEAD = 2000;
@@ -62,6 +65,16 @@ function groundCannon(m: MatchHandle, x: number, y: number): void {
   w.globals[G.CannonDrop] = 0;
 }
 
+/** The client stick's goal toward (ex, ey): 2 m ahead, stepped past a grounded cannon (touchControls + stickAhead). */
+function stickGoal(m: MatchHandle, ex: number, ey: number): Command {
+  const w = m.world;
+  const rem = Math.sqrt(d2(w.x[0], w.y[0], ex, ey));
+  const a = Math.atan2(ey - w.y[0], ex - w.x[0]);
+  const cannon = w.globals[G.CannonState] === CANNON_STATE.Ground ? { x: w.globals[G.CannonX], y: w.globals[G.CannonY] } : null;
+  const k = Math.min(stickAhead(w.x[0], w.y[0], a, AHEAD, cannon), rem);
+  return { op: Op.Move, x: Math.round(w.x[0] + Math.cos(a) * k), y: Math.round(w.y[0] + Math.sin(a) * k) };
+}
+
 function restBall(m: MatchHandle, b: number, x: number, y: number): void {
   const w = m.world;
   w.globals[yarnAt(b, YF.State)] = YARN_STATE.Rest;
@@ -94,11 +107,7 @@ function walk(map: MapId, hero: HeroId, sx: number, sy: number, ex: number, ey: 
       const cmds: Command[] = [];
       if (style === 'click') {
         if (t === 0) cmds.push({ op: Op.Move, x: ex, y: ey });
-      } else if (t % EVERY === 0) {
-        const rem = Math.sqrt(d2(w.x[0], w.y[0], ex, ey));
-        const k = Math.min(AHEAD, rem) / Math.max(1, rem);
-        cmds.push({ op: Op.Move, x: Math.round(w.x[0] + (ex - w.x[0]) * k), y: Math.round(w.y[0] + (ey - w.y[0]) * k) });
-      }
+      } else if (t % EVERY === 0) cmds.push(stickGoal(m, ex, ey));
       const px = w.x[0];
       const py = w.y[0];
       step(m, cmds);
@@ -128,7 +137,7 @@ describe('sim v25: the Kibble Cannon is taken on purpose', () => {
     expect([CANNON.reach + RADIUS.hero, CANNON.aim]).toEqual([2000, 800]);
     // the drawn ring ends where the body reaches (render: funView CANNON_RING)
     expect((CANNON_RING.outer * 1000 - 50) + RADIUS.hero).toBe(CANNON.reach + RADIUS.hero);
-    expect([YARN.kickReach, YARN.near]).toEqual([1350, 3200]);
+    expect([YARN.kickReach, YARN.near, YARN.coneBp]).toEqual([1350, 3200, 7071]);
   });
 
   it('a hero stopped on it takes it within the ring; 2.1 m off it does not', () => {
@@ -144,10 +153,13 @@ describe('sim v25: the Kibble Cannon is taken on purpose', () => {
     }
   });
 
-  it('a walk past (a click to a far goal straight over it, a stick 1 m or more beside it) leaves it on the ground', () => {
+  it('a walk past (a click to a far goal or a stick, straight over it or beside it) leaves it on the ground', () => {
     for (const [style, off] of [
       ['click', 0],
       ['click', 1000],
+      ['stick', 0],
+      ['stick', 300],
+      ['stick', 600],
       ['stick', 1000],
       ['stick', 1200],
       ['stick', 1400],
@@ -157,11 +169,35 @@ describe('sim v25: the Kibble Cannon is taken on purpose', () => {
     }
   });
 
-  it('a stick pushed at it, a tap on it, or a stop on it takes it; a fight beside it does not until the hero stops', () => {
-    const stick = walk('crossing', 'clem', 44000, 36000, 52000, 36000, 'stick', (m) => groundCannon(m, 50000, 36000));
-    expect(stick.grabs.some((g) => g.startsWith('cannonPick'))).toBe(true);
-    const tap = walk('crossing', 'clem', 44000, 33000, 50000, 36500, 'click', (m) => groundCannon(m, 50000, 36000));
-    expect(tap.grabs.some((g) => g.startsWith('cannonPick'))).toBe(true);
+  it('a stick let go on it, a tap on it, or a stop on it takes it; a fight beside it does not until the hero stops', () => {
+    // the stick walks at it and is let go on the ring (the client sends Stop): taken there
+    {
+      const m = match('crossing');
+      const w = m.world;
+      place(m, 0, 44000, 36000, 0);
+      groundCannon(m, 50000, 36000);
+      let picked = -1;
+      for (let t = 0; t < 120 && picked < 0; t++) {
+        const near = d2(w.x[0], w.y[0], 50000, 36000) <= 1500 * 1500;
+        step(m, near ? [{ op: Op.Stop }] : t % EVERY === 0 ? [stickGoal(m, 60000, 36000)] : []);
+        if (!near) expect(m.events.some((e) => e.type === 'cannonPick'), `walking t ${t}`).toBe(false);
+        if (m.events.some((e) => e.type === 'cannonPick' && e.id === 0)) picked = t;
+      }
+      expect(picked).toBeGreaterThanOrEqual(0);
+    }
+    // the tap takes it as the body reaches the gold ring (centre within 2.0 m), before it gets there
+    // a tap just beside its middle (within CANNON.aim), from the south-west
+    const m0 = match('crossing');
+    place(m0, 0, 44000, 33000, 0);
+    groundCannon(m0, 50000, 36000);
+    step(m0, [{ op: Op.Move, x: 50000, y: 36500 }]);
+    let at = -1;
+    for (let t = 0; t < 120 && at < 0; t++) {
+      step(m0);
+      if (m0.events.some((e) => e.type === 'cannonPick' && e.id === 0)) at = Math.sqrt(d2(m0.world.x[0], m0.world.y[0], 50000, 36500));
+    }
+    expect(at).toBeGreaterThan(1500);
+    expect(at).toBeLessThanOrEqual(CANNON.reach + RADIUS.hero + CANNON.aim);
     const m = match('crossing');
     const w = m.world;
     place(m, 0, 49000, 36000, 0);
@@ -182,15 +218,36 @@ describe('sim v25: the Kibble Cannon is taken on purpose', () => {
 });
 
 describe('sim v25: the Mega Yarn Ball is kicked on purpose, along the walk', () => {
-  it('a click to a far goal through it, or a stick brushing past 1.3 m off, leaves it resting', () => {
+  it('a click to a far goal through it, or a stick passing 1 m or more off its centre, leaves it resting', () => {
     for (const [style, off] of [
       ['click', 0],
       ['click', 800],
+      ['stick', 1000],
+      ['stick', 1200],
       ['stick', 1300],
     ] as const) {
       const r = walk('crossing', 'clem', 50000 - 8000, 36000 + off, 50000 + 8000, 36000 + off, style, (m) => restBall(m, 0, 50000, 36000));
       expect(r.grabs, `${style} ${off}`).toEqual([]);
     }
+  });
+
+  it('the stick look-ahead never rests within CANNON.aim of a grounded cannon (every heading and offset)', () => {
+    expect(STICK_CANNON.clear).toBeGreaterThan(CANNON.aim);
+    const bad: string[] = [];
+    for (let h = 0; h < 72; h++) {
+      const a = (h * Math.PI * 2) / 72;
+      for (let off = -3000; off <= 3000; off += 100) {
+        for (let back = -4000; back <= 4000; back += 100) {
+          // the hero `back` mm before the cannon along the stick, `off` mm beside its line
+          const x = 50000 - Math.cos(a) * back - Math.sin(a) * off;
+          const y = 36000 - Math.sin(a) * back + Math.cos(a) * off;
+          const d = stickAhead(x, y, a, AHEAD, { x: 50000, y: 36000 });
+          if (d < AHEAD || Math.hypot(x + Math.cos(a) * d - 50000, y + Math.sin(a) * d - 36000) <= CANNON.aim) bad.push(`${h} ${off} ${back}`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+    expect(stickAhead(0, 0, 0, AHEAD, null)).toBe(AHEAD);
   });
 
   it('a stick into it at an angle kicks it along the stick, not centre to centre', () => {
@@ -221,9 +278,9 @@ describe('sim v25: a champion crossing the toys never stalls', { timeout: 600000
       groundCannon(m, 50000, 36000);
     };
     const none = () => {};
-    // 1.4 m east of the centre line: past the drawn ball (1.35 m), so a stick passes; a click walks the line itself
+    // 1.0 m east of the centre line: beside the drawn ball's middle, so a stick passes; a click walks the line itself
     for (const [style, x] of [
-      ['stick', 51400],
+      ['stick', 51000],
       ['click', 50000],
       ['click', 51400],
     ] as const) {
@@ -236,6 +293,25 @@ describe('sim v25: a champion crossing the toys never stalls', { timeout: 600000
           const base = walk('crossing', hero, x, sy, x, ey, style, none);
           const r = walk('crossing', hero, x, sy, x, ey, style, toys);
           const tag = `${style} x ${x} ${sy}→${ey} ${hero}`;
+          expect(r.grabs, tag).toEqual([]);
+          expect(r.stall, tag).toBeLessThan(STALL);
+          expect(r.ticks, tag).toBe(base.ticks);
+        }
+      }
+    }
+  });
+
+  it("a stick straight up Crossing's river centre line, over the cannon: never takes it, never stalls, no time lost", () => {
+    for (const [sy, ey] of [
+      [10000, 51000],
+      [51000, 10000],
+    ]) {
+      expect(clearLine('crossing', 50000, sy, 50000, ey)).toBe(true);
+      for (const spot of FUN_BY_MAP[0].cannon.spots) {
+        for (const hero of ['clem', 'brutus', 'rocket'] as const) {
+          const base = walk('crossing', hero, 50000, sy, 50000, ey, 'stick', () => {});
+          const r = walk('crossing', hero, 50000, sy, 50000, ey, 'stick', (m) => groundCannon(m, spot[0], spot[1]));
+          const tag = `${sy}→${ey} cannon ${spot.join(',')} ${hero}`;
           expect(r.grabs, tag).toEqual([]);
           expect(r.stall, tag).toBeLessThan(STALL);
           expect(r.ticks, tag).toBe(base.ticks);
@@ -272,12 +348,13 @@ describe('sim v25: a champion crossing the toys never stalls', { timeout: 600000
           const dx = Math.cos(a);
           const dy = Math.sin(a);
           // a bed: any walk more than 75° off its throw, straight over the paw print (closer to the throw is a use);
-          // the cannon and the ball: a stick just clear of the drawn ring or ball, a click straight over the middle
+          // the cannon: a stick and a click straight over the middle; the ball: a stick 1.2 m beside its middle (still
+          // inside the drawn ball's edge), a click straight over the middle
           let headOff = 180;
           if (c.throwA !== undefined) headOff = Math.abs(((a - c.throwA + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * (180 / Math.PI);
           if (c.toy === 'bed' && headOff < 75) continue;
           for (const style of ['stick', 'click'] as const) {
-            const lateral = c.toy === 'bed' ? 0 : style === 'click' ? 0 : c.toy === 'yarn' ? 1400 : 1600;
+            const lateral = c.toy === 'yarn' && style === 'stick' ? 1200 : 0;
             const px = c.x - dy * lateral;
             const py = c.y + dx * lateral;
             const [sx, sy, ex, ey] = [px - dx * 7000, py - dy * 7000, px + dx * 7000, py + dy * 7000].map(Math.round);

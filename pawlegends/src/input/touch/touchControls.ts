@@ -44,7 +44,7 @@ import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, leftHanded, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
 import { attackPreview, CHASE_LEEWAY_MM, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, talkBackDeters, towerTarget, type Unit } from '../targeting';
-import { ASSIST, AttackYield, autoAttackTarget, edgeGoal, laneMagnet, lockable, lockBreakMm, magnetOn, stickTowardTarget, stickyAttackTarget, TargetLock } from './assist';
+import { ASSIST, AttackYield, autoAttackTarget, edgeGoal, laneMagnet, stickAhead, lockable, lockBreakMm, magnetOn, stickTowardTarget, stickyAttackTarget, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
 import { HEROES } from '../../data/heroes';
@@ -1503,7 +1503,10 @@ export class TouchControls {
       const switched = kite !== this.lastStick.kite;
       if ((turn > STICK.turn || near || stalled || switched) && now - this.lastStick.at >= STICK.everyMs) {
         // the map edge and the enemy fountain stop the stick (null: the hero is already at the edge)
-        const goal = edgeGoal(o.x, o.y, o.x + Math.cos(a) * STICK.aheadMm, o.y + Math.sin(a) * STICK.aheadMm, this.h.view.myTeam);
+        // sim v25: never a look-ahead resting on a grounded cannon (a stick walk over it would take it)
+        const cn = this.h.view.frame?.latest.fun?.cannon;
+        const ahead = stickAhead(o.x, o.y, a, STICK.aheadMm, cn && cn.state === 'ground' ? cn : null);
+        const goal = edgeGoal(o.x, o.y, o.x + Math.cos(a) * ahead, o.y + Math.sin(a) * ahead, this.h.view.myTeam);
         if (goal) {
           this.lastStick = { a, at: now, tx: goal.x, ty: goal.y, kite };
           if (kite >= 0) {

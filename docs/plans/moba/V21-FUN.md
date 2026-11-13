@@ -313,15 +313,23 @@ only walked past, and each trigger reached past what is drawn. Headless sweep (s
 maps, 24 headings × 0 / 0.6 / 1.2 / 1.8 / 2.4 m off centre; a touch stick is a move 2 m ahead every 100 ms, a click is
 one move to the end):
 
-| Toy, input | v24 grabbed | v25 grabbed |
-|---|---|---|
-| Bed, Crossing, stick | 40.6% (1.09 s lost a walk) | 13.2% (0.30 s), every one a walk heading within 60° of the throw |
-| Bed, Hearthwood, stick | 42.6% (3.08 s, worst 12.1 s) | 0% |
-| Bed, click (both maps) | 0% | 0% |
-| Yarn, stick | 60% (100% up to 1.2 m off) | 46.7% (100% at 0–0.6 m, a walk into the ball; 33% at 1.2 m) |
-| Yarn, click (far goal) | 60% | 0% |
-| Cannon, stick | 80% (100% up to 1.8 m off) | 40% (only 0–0.6 m off, a walk onto it; reach unchanged) |
-| Cannon, click (far goal) | 80% | 0% |
+Grabbed at 0 / 0.6 / 1.2 / 1.8 / 2.4 m off centre. "v25 first cut" is commit 4ad0f76a; "v25" is the shipped rule after
+the QA re-run (`.toys/measure-v25c.json`; its stick is the client's, with the cannon look-ahead step below).
+
+| Toy, input | v24 | v25 first cut | v25 |
+|---|---|---|---|
+| Bed, Crossing, stick | 40.6% (84 / 83 / 43 / 0 / 0; 1.09 s lost a walk) | 13.2% | 13.2% (27 / 29 / 15 / 0 / 0; 0.30 s), every one a walk heading within 60° of the throw |
+| Bed, Hearthwood, stick | 42.6% (3.08 s, worst 12.1 s) | 0% | 0% |
+| Bed, click (both maps) | 0% | 0% | 0% |
+| Yarn, stick (both maps) | 60% (100 / 100 / 100 / 0 / 0) | 46.7% (100 / 100 / 33 / 0 / 0) | 40% (100 / 100 / **0** / 0 / 0): only a walk into the ball; no time lost |
+| Yarn, click (far goal) | 60% | 0% | 0% |
+| Cannon, stick (both maps) | 80% (100 / 100 / 100 / 100 / 0) | 40–41.7% (100 / 100 / 0 / 0 / 0) | **0%** at every offset, straight over it included |
+| Cannon, click (far goal) | 80% | 0% | 0% |
+
+The first cut still took the cannon from any stick walk 0–0.6 m off centre (a touch player on Crossing's river centre
+line, cannon at (50, 36) / (50, 24), had to steer 1.2 m around it) and kicked the ball on a third of stick passes 1.2 m
+off. The QA re-run fixed both (below). Moving the cannon spots off the river line (investigation option B) was not
+needed after that and would have re-opened the 3v3 balance gate the cannon respawn was tuned on.
 
 **v25 rule** (`units/boing.ts`, `units/cannon.ts`, `units/yarn.ts`, `data/fun.ts`; heading tests are `within60` in
 `fixed.ts`, integer roots, no floats):
@@ -345,15 +353,32 @@ one move to the end):
     - A 1.5 m sim reach was tried first and moved Hearthwood's 5v5 balance. On the same 600 seeds, 12 of 20 heroes
       were in band against v24's 20 of 20 (Marshmallow 42%, Aviete 56%), with cats at 53.3%.
     - Ablations: the v24 rule at 1.5 m also failed; the v25 rule at 2.0 m passes.
-  - The hero must also either stand there (Order.None) or walk with its goal within `CANNON.aim` (0.8 m) of the cannon:
-    a tap on it, a stick pushed at it, or a bot fetching its spot.
+  - The hero must also either stand there (Order.None: a touch stick let go on the ring sends Stop) or walk with its
+    goal within `CANNON.aim` (0.8 m) of the cannon: a tap on it, or a bot fetching its spot.
+  - **Touch stick (input only, QA re-run).** The stick's 2 m look-ahead swept over the cannon, so every stick walk
+    0–0.6 m off its centre counted as "walking at it". `input/touch/assist.ts` `stickAhead` now steps the look-ahead
+    further along the stick (250 mm steps, up to 5 m) until it is `STICK_CANNON.clear` (1.1 m) from a grounded cannon.
+    A stick walk over it passes; letting the stick go on the gold ring takes it. No sim change, so balance is the
+    first cut's. A client-like stick (re-sent once within 1 m of its goal) over the cannon in 24 headings × 0 / 0.3 /
+    0.6 m × 4 heroes takes it 0 / 288 times with an input lag of 0, 2 or 4 ticks; at 6+ ticks (200 ms) the hero reaches
+    its goal and stops on the ring, and a stop there takes it.
+  - A sim rule was tried first (`CANNON.arrive` 250 mm: a walking hero takes it only within 0.25 m of a goal on it).
+    It also fixed the stick, but moved Hearthwood's 5v5 balance through the pilots' cannon contests: on 600 seed pairs
+    from 6400001, Gabe 44.2% and Sage 45.1% against 20 / 20 in band without it (the yarn 45° rule alone, below).
   - A walk past it, or a fight beside it, leaves it on the ground. There is still no drop, only Fire.
+  - By design, a hero standing still within the ring takes it even when it was not after the cannon (all-bot matches:
+    3 of 23 Skirmish and 6 of 21 Classic pick-ups came from a bot whose goal was not the cannon, mostly standing).
 - **Mega Yarn Ball.**
   - It is kicked when the hero's body touches the ball: within `YARN.kickReach` 1.35 m (0.85 m ball + 0.5 m hero;
     v24: 1.6 m).
-  - The walk must also head within 60° of the ball, with its goal within `YARN.near` (3.2 m) of it.
+  - The walk must also head within 45° of the ball (`YARN.coneBp` 7071, `withinCos` in `fixed.ts`; first cut 60°),
+    with its goal within `YARN.near` (3.2 m) of it. With the 1.35 m contact a pass 0.95 m or more beside the ball's
+    centre never kicks it, stick or click; a stick walked into it (0–0.6 m off) still kicks it, which costs no time.
   - The ball rolls along the walk (goal − hero), so a stick aims it. A walk through it to a far goal passes.
-- **Enemy fountain.** A walking hero slides along its edge (the x step alone, else the y step) instead of stopping
+  - Render: a resting ball leans up to 0.45 m away from a hero body inside it (`BALL_NUDGE`), so a walk through it
+    that does not kick reads as brushing a toy rather than a missing hitbox; an unravelled ball shrinks away over
+    0.35 s instead of vanishing in one frame (a third kick against a tower stops in about one tick).
+- **Enemy fountain (general pathing, every mode and map; call it out in the PR and release notes).** A walking hero slides along its edge (the x step alone, else the y step) instead of stopping
   dead (`units/hero.ts` `walk`). A v25 bot match on Crossing (seed 6, `nav-v16.test.ts`) held a Brutus still for 119
   ticks against it. In 160 seeds this happened once on v25 and never on v24.
 - **Render** (`funView.ts`, no hash impact): the cannon ring ends where the body takes it (`CANNON_RING`, 1.15–1.55 m),
@@ -368,11 +393,16 @@ one move to the end):
   - A fight and then a pause on the cushion does not throw.
   - A tap from the side throws `stand` ticks after the stop.
 - `tests/unit/fun-toys-v25.test.ts`:
-  - Cannon pick-up radius and intent.
-  - Yarn kick contact, intent and kick direction.
+  - Cannon pick-up radius and intent: client stick walks straight over it and 0.3–1.4 m beside it never take it; a
+    stick let go on it, a tap on it (taken as the body reaches the ring) and a stop after a fight do. `stickAhead`
+    never leaves the look-ahead within `CANNON.aim` of the cannon (72 headings × ±3 m × ±4 m).
+  - Yarn kick contact, intent and kick direction: stick passes 1.0–1.3 m off never kick.
+  - A stick straight up Crossing's river centre line over either cannon spot, three heroes, both ways: never taken, no
+    stall, the same arrival tick as without the cannon.
   - Crossing's river line with the cannon and both balls on it, walked by stick and by click with three heroes: no
     grab, no still run of 3 ticks, the same arrival tick as without toys.
-  - Every toy of both maps walked past in 24 headings: the same checks.
+  - Every toy of both maps walked past in 24 headings: the same checks (the cannon by stick and click straight over its
+    middle; the ball by stick 1.2 m beside it, by click straight over it).
   - All-bot Blitz matches still take the cannon, kick a ball and take a bed.
 
 **Versioning.** `SIM_VERSION` 25. `tools/vendor-sim.mjs` freezes v24 at `73b6404e` (bundle `c12a7ae2…`, the same nine
@@ -394,18 +424,44 @@ starts from then (`pawlegends-live.ts`). A start that never gets ready is given 
 
 | Gate | Seeds | v25 | Notes |
 |---|---|---|---|
-| 3v3 Skirmish (`--gate balance`) | 8,000 from 6200001 | 35 / 35 pass: side 50.5%, cats 49.1%, heroes 47.4–53.6%, median 7:11, p95 8:31, 0 safety, 3.48 takedowns/min, trailing at 3:30 wins 27.5% | — |
-| Blitz (`--gate blitz`) | 4,000 from 6300001 + 4,000 from 6700001 | side 47.3% / 48.5%, cats 50.4% / 51.6%, every hero in band in both windows; trailing at 1:30 wins 13.3% / 15.5% | The trailing check also fails on v24 (16.0%) and v23 (15.4%). |
+| 3v3 Skirmish (`--gate balance`) | 8,000 from 6200001 | 35 / 35 pass: side 50.5%, cats 49.1%, heroes 47.6–53.5%, median 7:11, p95 8:31, 0 safety, 3.48 takedowns/min, trailing at 3:30 wins 27.5% | — |
+| Blitz (`--gate blitz`) | 4,000 from 6300001 + 4,000 from 6700001 | side 47.3% / 48.4%, cats 50.4% / 51.6%, every hero in band in both windows (Duchess 53.3% / 52.8%); trailing at 1:30 wins 13.3% / 15.5% | The trailing check also fails on v24 (16.0%) and v23 (15.4%). |
 | Classic (`hearth-gates --det 40`) | 600 seed pairs from 6400001 (1,200 matches) | side 51.3%, cats 50.6%, 20 / 20 heroes 46–53%, p50 13:06 / p95 13:13, 0 safety, determinism 120 / 120 | v24 on the same seeds: cats 50.1%, 20 / 20 |
 | Determinism (`determinism.mjs`) | 100 seeds + PvP, Blitz, Hearthwood every 4th | all identical | — |
 | `fun1` / `fun2` | 200 each | `fun1` win 93.5% (v24 97.0%); `fun2` win 71.5%, takedowns 2.49/min | v24's `fun2` also fails takedowns (2.50 shown). |
 
+**Watch: Blitz Duchess.** She is in band on the gate seeds, but sits high on every other window and higher than v24
+on the same seeds: 2,000 from 7200001 58.2% (v24 53.6%), 7300001 54.2% (v24 51.3%), 6300001 52.7% (v24 50.0%),
+6700001 52.3% (v24 54.0%). Over those 8,000 seeds she reads about 54.4% on v25 against 52.2% on v24, about one
+standard error over the band. Other single-window misses (Nugget, Stilts, Howler, Brutus on v25; Bravo, Brutus,
+Bengas on v24) do not repeat. No toy rule names her; the default is to ship and re-read her on the next Blitz gate.
+
+**Blitz comeback.** "Trailing at 1:30 wins 20–40%" fails on both versions (known). v25 is a little better on the same
+seeds: 17.2% / 15.9% against v24's 13.8% / 13.1% (windows 7200001 / 7300001).
+
 **Checks.**
-- Pawlegends: `tsc`, `lint:sim` (163 files), `vendor-sim --check` (v10–v24 frozen, v25), `vitest` (3155 pass; the two
-  `tools/trailer` copy-gate cases fail in this worktree only because its root has no `node_modules`), `build`,
-  `budget` (first load 410.4 KB gzip, party chunk 43.4 KB).
-- Backend: `tsc`; `jest src/pawlegends src/vendor` 1039 / 1040. The live spec passes 95 / 95 alone. The one miss in
-  the full run was not captured; the timing-based LoopGate case, which missed in earlier loaded runs, passes alone.
+- Pawlegends: `tsc`, `lint:sim` (163 files), `vendor-sim --check` (v10–v24 frozen, v25), `vitest` (3157 pass; the
+  three `tools/trailer` copy-gate cases fail in this worktree only because its root has no `node_modules`, so
+  `tools/copy-lint` cannot load `typescript`), `build`, `budget` (first load 410.5 KB gzip, party chunk 43.4 KB). Determinism: 100 seeds from 6600001 + PvP, Blitz, Hearthwood every 4th, all identical (re-run on the final tree).
+- Toy sweep `.toys/measure.test.ts` re-run on the final tree (`.toys/measure-v25d.json`) gives exactly the v25 column
+  above; all-bot stuck check (`.toys/stuck25.test.ts`, seeds 41–160, a moving hero still 3 s): 0. The Hearthwood
+  sweep's 1–2 capped walks are the same on v24 (map geometry, not a toy). The `.toys` harnesses print with
+  `console.log`; run them as `rtk proxy npx vitest run --config .toys/vitest.config.ts …` (the RTK hook swallows it).
+- Backend: `tsc`; `jest src/pawlegends` 1039 / 1040. `src/vendor/pawlegends-sim` holds no specs (the vendored
+  bundles are exercised by `pawlegends-live.spec.ts`, the party specs and `boards-live.spec.ts`), so naming it to
+  jest adds nothing. The live spec passes 95 / 95 alone. The one miss in the full run was not captured; the
+  timing-based LoopGate case, which missed in earlier loaded runs, passes alone.
+- Backend cold start: every replay worker now loads 16 vendored bundles. The ready handshake caps the load at
+  `PAWLEGENDS_REPLAY_START_MS` (60 s) and then gives the replay its own 10 s, so on a cold production start a `/live`
+  request can wait up to about 70 s before a 503.
+- Ship notes: `sim-stamp.json` simHash `581e7bab62d5c165` changed and `golden` stays `d03f02e3` (the golden replay
+  does not touch the toys or the fountain; party skew detection keys on simHash). The committed
+  `client/public/pawlegends-app` OTA bundle is still v24 and is rebuilt at ship time; v24 clients keep verifying
+  because v24 is frozen in the backend. Commit b2f00d99's message says the cannon reach is 1.5 m; 4ad0f76a restored
+  2.0 m. Squash or reword before the merge.
+- Bots: `bots/fun.ts` `bedHop` still walks to the bed centre. A bot coming from the side is thrown only after it stops
+  there for `BOING.stand` (15 ticks); a lane order inside that time walks it off. Bots use beds from the side less
+  often; "bots still use every toy" passes.
 - Touch e2e `tests/e2e/boing-touch.spec.ts` (844×390, Blitz, from behind each bed): 6 / 6 thrown in three of four
   runs (0.5–1.2 s after entering the disc). The first run had one miss, with backend jest loading the machine.
 - Not run: `npm run build:client` (the client bundle ships with the release), and a device check of the new bed wedge

@@ -6,14 +6,14 @@
  * home YARN.respawn ticks later. State lives in `globals` (G.Yarn rows), so it is hashed.
  *
  * Sim v25 (founder report 2026-11-12: "hard to navigate through them"): a kick is a walk into the ball. The hero's body
- * touches the drawn ball (centre within YARN.kickReach = 1.35 m; v21–v24 1.6 m), it heads within 60° of the ball and
+ * touches the drawn ball (centre within YARN.kickReach = 1.35 m; v21–v24 1.6 m), it heads within 45° of the ball and
  * its goal is within YARN.near of it (a touch stick's look-ahead, a tap on the ball, a bot walking to it). The ball rolls
  * along the walk (goal − hero), not centre to centre, so a stick aims it; a hero brushing past or walking through to a
  * far goal leaves it resting.
  */
 import { FUN_BY_MAP, YARN, YARN_BALLS } from '../../data/fun';
 import { PROJECTILE_KIND } from '../../data/towers';
-import { dist2, iatan2, within60 } from '../fixed';
+import { dist2, iatan2, withinCos } from '../fixed';
 import type { MatchHandle } from '../state';
 import { FM, G, Kind, Order, RANGE, YARN_ROW, YARN_STATE, YF, heroAt, type World } from '../world';
 import { PFLAG, fireSkillshot } from '../effects/projectile';
@@ -46,19 +46,19 @@ function kicker(w: World, id: number): boolean {
   return !(w.globals[G.CannonBy] === id && w.globals[G.CannonWind] > 0);
 }
 
-/** Sim v25: does hero `id`'s walk go into the ball at (x, y): a goal within YARN.near of it, heading within 60° of it? */
+/** Sim v25: does hero `id`'s walk go into the ball at (x, y): a goal within YARN.near of it, heading within 45° of it? */
 function into(w: World, id: number, x: number, y: number): boolean {
   if (dist2(w.moveX[id], w.moveY[id], x, y) > YARN.near * YARN.near) return false;
   // On the ball's very centre any walk counts (the kick then goes along it).
   if (x === w.x[id] && y === w.y[id]) return w.moveX[id] !== x || w.moveY[id] !== y;
-  return within60(w.moveX[id] - w.x[id], w.moveY[id] - w.y[id], x - w.x[id], y - w.y[id]);
+  return withinCos(w.moveX[id] - w.x[id], w.moveY[id] - w.y[id], x - w.x[id], y - w.y[id], YARN.coneBp);
 }
 
 function kick(m: MatchHandle, b: number, id: number): void {
   const w = m.world;
   const x = w.globals[yarnAt(b, YF.X)];
   const y = w.globals[yarnAt(b, YF.Y)];
-  // Sim v25: along the kicker's walk (`into` made sure it is under 60° off the ball and not zero).
+  // Sim v25: along the kicker's walk (`into` made sure it is under 45° off the ball and not zero).
   const angle = iatan2(w.moveY[id] - w.y[id], w.moveX[id] - w.x[id]);
   const p = fireSkillshot(w, id, { kind: PROJECTILE_KIND.yarn, angle, speed: YARN.speed, range: YARN.range, radius: YARN.radius, dmg: 0, flags: PFLAG.Pierce });
   if (p < 0) return;

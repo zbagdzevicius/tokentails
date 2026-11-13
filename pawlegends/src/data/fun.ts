@@ -32,9 +32,10 @@ export const CANNON = Object.freeze({
    */
   reach: 1500,
   /**
-   * Sim v25: a walking hero takes it only when its move goal is within this of the cannon (a tap on the cannon, a touch
-   * stick pushed at it, a bot walking to its spot); a hero stopped on it always does. A walk past to somewhere else does
-   * not pick it up (there is no drop, only Fire).
+   * Sim v25: a walking hero takes it only when its move goal is within this of the cannon (a tap on the cannon, a bot
+   * walking to its spot); a hero stopped on it always does. A walk past to somewhere else does not pick it up (there is
+   * no drop, only Fire). The touch stick never puts its look-ahead goal here (input/touch/assist.ts stickAhead steps it
+   * past the cannon), so a stick walk over it passes and a stick let go on the ring (Stop) takes it.
    */
   aim: 800,
   /** Fuse while carried: 20 s. It pauses while the cannon lies on the ground. */
@@ -155,10 +156,15 @@ export const YARN = Object.freeze({
    */
   kickReach: 1350,
   /**
-   * Sim v25: only a walk heading within 60° of the ball whose goal is within this of it (a touch stick's 2 m look-ahead,
-   * a tap on or just past the ball, a bot walking to it) kicks, along the walk. A walk to somewhere farther passes.
+   * Sim v25: only a walk heading within YARN.coneBp of the ball whose goal is within this of it (a touch stick's 2 m
+   * look-ahead, a tap on or just past the ball, a bot walking to it) kicks, along the walk. A walk farther passes.
    */
   near: 3200,
+  /**
+   * Sim v25 (QA re-run): the walk heads within 45° of the ball (cos in bp; first cut 60°). With the 1.35 m contact a
+   * pass 0.95 m or more beside the ball's centre never kicks it, stick or click.
+   */
+  coneBp: 7071,
   /** Rest between kicks (1.5 s). */
   rest: 45,
   /** Roll: speed (mm/s), range (mm), radius (mm). */
