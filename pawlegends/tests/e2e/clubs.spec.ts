@@ -138,7 +138,8 @@ test('Clubs: create with a generated name, the club card and chest, members, clu
   expect(reqs.find((r) => r.op === 'club.create')?.args.name).toMatch(/^\d{1,2}\.\d{1,2}$/);
   expect(reqs.some((r) => r.op === 'chat.open')).toBe(false);
   expect(reqs.find((r) => r.op === 'chat.history')?.args.thread).toBe(THREAD);
-  for (const r of reqs) expect(JSON.stringify(r)).not.toMatch(/https?:|accesstoken|fb[A-Za-z0-9]/);
+  // the random request id may contain "fb" by chance: only the op and args are checked
+  for (const r of reqs) expect(JSON.stringify({ op: r.op, args: r.args })).not.toMatch(/https?:|accesstoken|fb[A-Za-z0-9]/);
 });
 
 test('Clubs: join by code', async ({ context, page, baseURL }) => {
