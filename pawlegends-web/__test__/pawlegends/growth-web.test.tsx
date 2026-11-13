@@ -148,7 +148,8 @@ describe("invite links", () => {
   });
 
   it("the game's growth ops map to their routes, registered accounts only", () => {
-    expect(PAWLEGENDS_API_OPS.slice(-3)).toEqual(["growth.invite", "growth.redeem", "growth.claim"]);
+    // other packages append their own op blocks after this one (CLUBS-KUDOS.md), so only membership is checked
+    for (const op of ["growth.invite", "growth.redeem", "growth.claim"] as const) expect(PAWLEGENDS_API_OPS).toContain(op);
     expect(routeOf("growth.invite", {})).toEqual({ method: "GET", path: "/pawlegends/growth/invite", auth: "registered" });
     expect(routeOf("growth.redeem", { code: "K7QX2MP" })).toEqual({
       method: "POST",
