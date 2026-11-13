@@ -12,8 +12,8 @@ Heroes, minions, towers and the map are procedural geometry built in code (`src/
 Sounds are zzfx parameter arrays synthesised at runtime (`src/audio/`); zzfx is MIT (© 2019 Frank Force).
 
 Token Tails card art (`cards/`, about 0.7 MB, loaded only when a screen that shows a card is open): Token Tails' own
-client assets, copied from `client/public/cards/` and resized with `cwebp` (backgrounds, patterns, fx) or `ffmpeg`
-(icons, nearest-neighbour 64 px). No pack art, no NFT or host cat art.
+client assets, copied from `client/public/cards/` and resized with `cwebp` (backgrounds, patterns,
+fx). No pack art, no NFT or host cat art.
 
 | File | Source | Licence |
 |---|---|---|
@@ -22,7 +22,6 @@ client assets, copied from `client/public/cards/` and resized with `cwebp` (back
 | `cards/fx/{sparkle,legendary-sparkle,blue-sparkle,purple-sparkle,blue-paw,claw,whiskers-left,whiskers-right}.webp` | `client/public/cards/backgrounds/` (same names, unchanged) | Token Tails, all rights reserved |
 | `cards/fx/{epic-paw,legendary-paws,epic-claw}.webp` | `client/public/cards/backgrounds/` (256 px) | Token Tails, all rights reserved |
 | `cards/fx/golden-burst.webp`, `white-burst.webp`, `reveal-sparkle.webp`, `legendary-bg.webp`, `rare-swirl.webp` | `client/public/cards/backgrounds/golden-opening-sparkle`, `white-opening-sparkle`, `opening-reveal-sparkle1`, `legendary-bg`, `rare-swirl2` (384 px) | Token Tails, all rights reserved |
-| `cards/icons/<element>.webp` | `client/public/cards/icons/<element>.webp` (64 px) | Token Tails, all rights reserved |
 
 Lobby backgrounds (`lobby/`, UX pass 2, about 126 KB, loaded by the lobby only): painted scenes generated for
 Token Tails with Google Gemini (`gemini-3-pro-image-preview`, 2752 x 1536 masters, SynthID watermarked), edited
@@ -79,3 +78,13 @@ and notes in `~/Downloads/paw-legends/brandbook/v6-lightning-rivalry/skins/_work
 |---|---|---|
 | `faces/<hero>-256.webp` | generated, Gemini, 2026-11 (each champion's default-look head portrait) | Token Tails, all rights reserved |
 | `pawlegends-web/public/pawlegends-art/skins/<skin id>-{256,360,720}.webp` (served by pawlegends.app, not in this folder) | generated, Gemini, 2026-11 (one face and one 4:5 story splash per skin of the game's skins library) | Token Tails, all rights reserved |
+
+### Element badges (v6 Lightning Rivalry)
+
+Generated with gemini-3-pro-image-preview in the brand kit v6 icon-in-a-diamond style (one approved icon, fire, as the
+reference for the rest), cut out to alpha with PIL and encoded as 128 px WebP. Masters and prompts in
+`~/Downloads/paw-legends/element-icons/`. They replace the Token Tails pixel icons (`cards/icons/`, removed).
+
+| File | Source | Licence |
+|---|---|---|
+| `elements/{fire,ice,electric,wind,dark,water,grass,sand,fairy,stellar}.webp` | generated, Gemini, 2026-11 (element badges, about 3–5 KB each) | Token Tails, all rights reserved |
