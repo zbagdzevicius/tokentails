@@ -51,6 +51,12 @@ export const PAWLEGENDS_API_OPS = [
   // account progress (gap plan P2 rewards-cloud): the cosmetic-progress blob, max-merged by the server
   "progress.get",
   "progress.sync",
+  // live ops (docs/plans/moba/LIVEOPS.md): the Events calendar, the community goal, Winter Nap and the fan vote
+  "liveops.config",
+  "liveops.me",
+  "liveops.claim",
+  "liveops.nap",
+  "liveops.vote",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -89,6 +95,8 @@ const ARG_KEYS = [
   "dmPolicy",
   // rewards-cloud: the progress blob as one JSON string (up to 30,000 characters)
   "blob",
+  // live ops: the fan vote's choice ("a" | "b")
+  "option",
 ] as const;
 export type PawlegendsApiArgs = Partial<Record<(typeof ARG_KEYS)[number], string | number | boolean>>;
 
@@ -335,6 +343,19 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       return typeof a.blob === "string" && a.blob.length >= 2 && a.blob.length <= 30000
         ? { method: "POST", path: "/pawlegends/progress", body: { blob: a.blob }, auth: "any" }
         : null;
+    // live ops (LIVEOPS.md): the config is public; the claims and the vote take the session (guests too)
+    case "liveops.config":
+      return { method: "GET", path: "/pawlegends/config", auth: "none" };
+    case "liveops.me":
+      return { method: "GET", path: "/pawlegends/config/me", auth: "any" };
+    case "liveops.claim":
+      return { method: "POST", path: "/pawlegends/config/goal/claim", body: {}, auth: "any" };
+    case "liveops.nap":
+      return { method: "POST", path: "/pawlegends/config/nap/claim", body: {}, auth: "any" };
+    case "liveops.vote": {
+      const option = str(a.option, /^[ab]$/);
+      return option ? { method: "POST", path: "/pawlegends/config/vote", body: { option }, auth: "any" } : null;
+    }
     default:
       return null;
   }

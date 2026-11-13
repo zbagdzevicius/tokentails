@@ -49,6 +49,12 @@ export const API_OPS = Object.freeze([
   // account progress (gap plan P2 rewards-cloud): the cosmetic-progress blob, max-merged by the server
   'progress.get',
   'progress.sync',
+  // live ops (LIVEOPS.md): the Events calendar, the community goal, Winter Nap and the fan vote
+  'liveops.config',
+  'liveops.me',
+  'liveops.claim',
+  'liveops.nap',
+  'liveops.vote',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);
@@ -89,6 +95,8 @@ export const API_ARG_KEYS = Object.freeze([
   'dmPolicy',
   // rewards-cloud: the progress blob as one JSON string (up to BLOB_MAX)
   'blob',
+  // live ops: the fan vote's choice ('a' | 'b')
+  'option',
 ] as const);
 
 export type ApiArgs = Partial<Record<(typeof API_ARG_KEYS)[number], string | number | boolean>>;
