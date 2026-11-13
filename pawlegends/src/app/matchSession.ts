@@ -47,6 +47,7 @@ import { useMap } from './mapBinding';
 import { mapInfo } from '../sim/map/info';
 import { drawMapPreview } from '../ui/mapPreview';
 import { rolesOf } from '../sim/bots/roles';
+import { laneToastLine } from '../ui/history/laneToast';
 import { PING_KIND } from '../data/pings';
 import { TOWERS } from '../data/towers';
 import { HEROES } from '../data/heroes';
@@ -119,6 +120,8 @@ export interface MatchSetup {
   difficulty: Difficulty;
   seed?: number;
   speed?: number;
+  /** MATCH-MOMENTS.md §2: a replay (src/replay/viewer.ts): the view only, no input reaches the host. */
+  replay?: boolean;
   /** Sim v19: the map; omitted = 'crossing' (3v3 Skirmish), 'hearthwood' = 5v5 Classic. */
   map?: MapId;
   /** Sim v22: 'blitz' = the ~3-minute Crossing match (omitted = none). */
@@ -681,7 +684,7 @@ export class MatchSession {
       canvas: this.gr.renderer.domElement,
       view: this.view,
       orders: this.orders,
-      enabled: () => !this.ended && !this.paused && !this.talentsBlock(),
+      enabled: () => !this.ended && !this.paused && !this.talentsBlock() && !this.setup.replay,
       isTyping: () => this.chat?.isTyping() ?? false,
       units: () => this.units,
       onScoreboard: (on) => {
@@ -874,7 +877,8 @@ export class MatchSession {
       this.gateNote();
     };
     if (this.setup.emote) this.mountEmote();
-    if (this.setup.party?.rejoin) {
+    // MATCH-MOMENTS.md §2: a replay (it may start mid-match after a seek) has no countdown either
+    if (this.setup.party?.rejoin || this.setup.replay) {
       // party play (MULTIPLAYER.md §4.5): a rejoin mid-match has no countdown; the rail shows the catch-up instead
       this.vsDone = true;
       this.ui.querySelector('.tt-vs')?.classList.add('out');
@@ -908,7 +912,12 @@ export class MatchSession {
     el.dataset.side = hero && HEROES[hero]?.side === 'dog' ? 'dog' : 'cat';
     el.setAttribute('role', 'status');
     const turned = this.view.myTeam === 1;
-    el.innerHTML = `<i class="stk" aria-hidden="true"></i><span><b>Your base: bottom left</b>${turned ? '<small>(map turned)</small>' : ''}</span>`;
+    // MATCH-MOMENTS.md §4: the lane and role this hero plays ("Sunny Lane · marksman"), in the same toast
+    const map = this.setup.map ?? this.welcome?.map;
+    const lane = hero ? laneToastLine({ map, heroRole: HEROES[hero]?.role ?? '', role5: map === 'hearthwood' && this.welcome ? (rolesOf({ picks: this.welcome.picks, map: 'hearthwood' })[this.view.mySlot] ?? null) : null }) : '';
+    if (lane) el.dataset.lane = lane;
+    el.innerHTML = `<i class="stk" aria-hidden="true"></i><span><b>Your base: bottom left</b>${turned ? '<small>(map turned)</small>' : ''}${lane ? `<small class="lane">${lane}</small>` : ''}</span>`;
+    if (this.e2e && lane) document.documentElement.dataset.laneToast = lane;
     this.ui.appendChild(el);
     if (this.e2e) document.documentElement.dataset.baseToast = turned ? 'turned' : 'base';
     setTimeout(() => el.remove(), BASE_TOAST_MS);
@@ -1697,6 +1706,13 @@ export class MatchSession {
   }
 
   /** Host page pause/resume (bridge). */
+  /** MATCH-MOMENTS.md §2: the replay viewer's 1x / 2x / 4x (interpolation and effect timing follow it). */
+  setReplaySpeed(n: number): void {
+    if (!this.setup.replay) return;
+    this.buffer.speed = n;
+    this.view.juice.speed = n;
+  }
+
   setPaused(p: boolean): void {
     if (p) this.openMenu();
     else this.resume();
