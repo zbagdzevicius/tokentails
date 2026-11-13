@@ -19,10 +19,11 @@ export const LOBBY_BGS = ['castles', 'meadow', 'arena'] as const;
 /** Scenes tied to a screen (public/assets/screens/), not to the visit. */
 export const SCREEN_BGS = ['stage', 'win-cat', 'win-dog', 'lose-cat', 'lose-dog'] as const;
 /**
- * Home (docs/plans/moba/HOME-MODES.md §4): the key art behind the title screen on every visit. A sunset arena, cats
- * left and dogs right, an empty glowing ring in the middle where the 3D hero stands. One painting in two crops: 16:9
- * (`legends-*`) for desktop and 21:9 (`legends-wide-*`) for phones wider than ~1.9:1, so the ring and both teams stay
- * in frame under the cover fit.
+ * Home (docs/plans/moba/HOME-MODES.md §4): the key art behind the title screen on every visit, "Storm Clash Arena"
+ * (Nov 13): a midday comic arena, rose storm clouds and the cat castle with cats left, sky-blue clouds and the dog house
+ * with dogs right, a yellow bolt striking left of centre, and calm sand centre-lower where the 3D hero's pedestal stands.
+ * One painting in two crops: 16:9 (`legends-*`) for desktop and 21:9 (`legends-wide-*`) for phones wider than ~1.9:1,
+ * so the stage floor and both teams stay in frame under the cover fit.
  */
 export const HOME_BG = 'legends' as const;
 export type LobbyBg = (typeof LOBBY_BGS)[number] | (typeof SCREEN_BGS)[number] | typeof HOME_BG;

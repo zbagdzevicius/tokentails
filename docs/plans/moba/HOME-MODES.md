@@ -95,12 +95,14 @@ for a tree crown, so the crown layer was empty. An empty builder now gives an em
 
 ## Home layers, back to front
 
-1. **L0, key art.** A sunset arena. The cats stand on the left (Sage, Duchess, Clem) and the dogs on the right
-   (Brutus, Howler, Cacklejaw), with an empty glowing ring in the middle. The image is drawn by the 3D backdrop
+1. **L0, key art.** "Storm Clash Arena" (Nov 13), in the brand book's one style: a bright midday comic arena split
+   rose (cats, left: Duchess and Sage in front of the stands, the pink cat castle) and sky blue (dogs, right: Bravo and
+   Cacklejaw, the wooden dog house), with a yellow lightning bolt striking left of centre, clear of the hero and its
+   nameplate, and calm sand in the middle (no painted ring: the 3D pedestal is the stage). The image is drawn by the 3D backdrop
    shader with a cover fit, pointer parallax and an 18 s Ken Burns zoom from 1.00 to 1.035. The zoom is off on Low
    and with reduced motion.
 2. **L1, the 3D picked hero.** It is centred (`lobby.side = 0`) at 72% of its old size (`lobby.heroScale`), with its
-   feet on the painted ring (`lobby.footShare`).
+   feet on the stage floor (`lobby.footShare`).
 3. **L2, motes.** Pink and violet sparkles on the cat side, amber embers on the dog side. There are 24 on Med and 48
    on High, drawn at 30 fps. There are none on Low or with reduced motion.
 4. **L3, light.** Two CSS light shafts that breathe slowly. They are off on Low.
@@ -109,7 +111,7 @@ for a tree crown, so the crown layer was empty. An empty builder now gives an em
 | Zone | Content |
 |---|---|
 | Top left | Profile chip: avatar with a Season XP ring, name (account name, else the host's player name, else "Guest"), XP bar, tier. A tap opens the Treat Track and Pass. |
-| Top centre | Season XP and Tier chips. They show only when the server sent a season, and a tap opens the pass. Below them sits the champion nameplate over the hero's head (the painted ring is at the bottom, so the plate cannot sit under the hero). It is a label. |
+| Top centre | Season XP and Tier chips. They show only when the server sent a season, and a tap opens the pass. Below them sits the champion nameplate over the hero's head (the pedestal is at the bottom, so the plate cannot sit under the hero). It is a label. |
 | Top right (`.lb-corner`) | Friends and ranked (embedded), Settings, Sound. The account chip mounts here too. No "Games" button (Nov 12): Settings has "Back to Token Tails games" when embedded. |
 | Left edge | Round buttons: Events (glows when an event is live), Today (quests ring) and # (join with a code). |
 | Right edge | Promo rotator, changing every 5 s: Legends Pass season, Cannon Chaos and the Store (web only). |
