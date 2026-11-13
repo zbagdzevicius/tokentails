@@ -5,7 +5,8 @@
 # platform (updates/<ios|android>/<compat>/manifest-beta.json: TestFlight installs) and commits it to main; Vercel then
 # serves it from tokentails.com. The iOS and Android apps run the same bundle; each platform's manifest has its own
 # minNative and rollback state. The hourly `promote` job moves a beta bundle to STABLE (manifest.json: App Store and
-# Google Play installs): the newest bundle that is 24 h old, or, once stable is 24 h behind, the current beta after 2 quiet h. Apps pick an update up on their next launch or resume (on the
+# Google Play installs): the newest bundle that is 6 h old, or, when stable is missing or 6 h behind, the newest bundle out 2 h
+# (bundles younger than 12 h are never pruned, so a busy day still promotes). Apps pick an update up on their next launch or resume (on the
 # title screen, never mid-match). Pull requests run the checks only.
 #
 # Gates before publishing: the game's unit tests (wall-clock perf budgets skipped: shared runners) and typecheck,
@@ -59,7 +60,7 @@ on:
   workflow_dispatch:
     inputs:
       promote_now:
-        description: 'Promote the current beta bundle to stable (App Store installs) now, without the 24 h soak'
+        description: 'Promote the current beta bundle to stable (App Store installs) now, without the 6 h soak'
         type: boolean
         required: false
         default: false
@@ -243,7 +244,7 @@ jobs:
       contents: write
     env:
       OTA_PRIVATE_KEY: ${{ secrets.OTA_PRIVATE_KEY }}
-      SOAK: ${{ github.event.inputs.promote_now == 'true' && '0' || '24' }}
+      SOAK: ${{ github.event.inputs.promote_now == 'true' && '0' || '6' }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
     steps:

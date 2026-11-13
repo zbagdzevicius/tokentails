@@ -132,12 +132,22 @@ function minNativeFor(platform) {
   return arg(`--min-native-${platform}`, arg('--min-native', readManifest(platform, 'beta')?.minNative ?? readManifest(platform, 'stable')?.minNative ?? '1.0.0'));
 }
 
-/** Keep the newest `keep` bundles plus every one a manifest names. */
+/**
+ * Keep the newest `keep` bundles, every one a manifest names, and every one younger than twice the soak: on a busy day
+ * (many pushes) the newest-`keep` rule alone deleted each bundle before it could soak, so stable never moved.
+ */
 function prune(keep, current) {
+  const young = Date.now() - 2 * SOAK_HOURS * 3_600_000;
   const zips = readdirSync(bundlesDir)
     .filter((f) => f.endsWith('.zip'))
     .sort((a, b) => Number(b.split('-')[0]) - Number(a.split('-')[0]));
-  for (const f of zips.slice(keep)) if (!current.includes(f.replace(/\.zip$/, ''))) rmSync(join(bundlesDir, f));
+  for (const f of zips.slice(keep)) {
+    const name = f.replace(/\.zip$/, '');
+    if (current.includes(name) || seqTime(name.split('-')[0]) >= young) continue;
+    rmSync(join(bundlesDir, f));
+    const meta = join(bundlesDir, `${name}.json`);
+    if (existsSync(meta)) rmSync(meta);
+  }
 }
 
 /** A seq is the UTC build time, yyyymmddHHMM or yyyymmddHHMMSS: its epoch ms, or NaN. */
@@ -188,8 +198,8 @@ function keptRecords() {
  * Promote one platform to stable. Every push to main publishes a new beta bundle, so waiting for the CURRENT beta to
  * be --soak-hours old starved stable for days while main was busy. The rule now:
  * 1. the newest kept bundle newer than stable that has soaked --soak-hours (the current beta or an earlier one), else
- * 2. when stable is already --soak-hours behind beta, the current beta once it is --min-soak-hours old (a quiet spell
- *    after a busy day), so store installs are never more than about a day behind.
+ * 2. when stable is missing or already --soak-hours behind beta, the newest kept bundle that is --min-soak-hours old
+ *    (not only a quiet current beta: on a busy day there is no quiet spell), so store installs stay within hours.
  * --soak-hours 0 (a manual promote_now) promotes the current beta at once. Returns false on an error.
  */
 function promote(platform) {
@@ -221,10 +231,16 @@ function promote(platform) {
     if (soaked) {
       target = soaked.version === beta.version ? beta : fieldsFor(platform, soaked, beta.minNative, false);
       why = `soaked ${fmt(ageOf(soaked.seq))} h`;
-    } else if (stable && ageOf(stable.seq) - ageOf(beta.seq) >= soakHours && ageOf(beta.seq) >= minSoakHours) {
-      // 2. stable is a day behind and beta has been quiet for a while
-      target = beta;
-      why = `stable ${fmt(ageOf(stable.seq) - ageOf(beta.seq))} h behind, beta quiet ${fmt(ageOf(beta.seq))} h`;
+    } else if (!stable || ageOf(stable.seq) - ageOf(beta.seq) >= soakHours) {
+      // 2. stable is missing or --soak-hours behind: the newest kept bundle that has been out --min-soak-hours (on a
+      // busy day the current beta is never quiet that long, so an earlier bundle of the day goes instead)
+      const settled = keptRecords().find(
+        (r) => r.seq <= beta.seq && (!stable || r.seq > stable.seq) && ageOf(r.seq) >= minSoakHours && (platform === BUNDLES_PLATFORM || r[platform])
+      );
+      if (settled) {
+        target = settled.version === beta.version ? beta : fieldsFor(platform, settled, beta.minNative, false);
+        why = stable ? `stable ${fmt(ageOf(stable.seq) - ageOf(beta.seq))} h behind, ${settled.version} out ${fmt(ageOf(settled.seq))} h` : `no stable yet, ${settled.version} out ${fmt(ageOf(settled.seq))} h`;
+      }
     }
   }
   if (!target) {

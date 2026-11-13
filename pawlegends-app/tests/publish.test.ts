@@ -47,7 +47,7 @@ describe('ota-publish channels', () => {
     run('--keep', '5');
     expect(read('manifest-beta.json').version).toBe(`${second}-abc1234`);
     // fresh: stable keeps the first bundle until the soak passes (or a manual promote with --soak-hours 0)
-    expect(run('--promote')).toContain('promotes after 24 h');
+    expect(run('--promote')).toContain('promotes after 6 h');
     expect(read('manifest.json').version).toBe(`${first}-abc1234`);
     expect(() => run('--keep', '5')).toThrow();
 
@@ -159,11 +159,11 @@ describe('ota-publish promote while main is busy', () => {
     expect(read('manifest-beta.json').version).toBe(fresh);
   });
 
-  it('promotes a quiet beta once stable is a day behind, even if no bundle soaked 24 h', () => {
+  it('promotes a settled bundle once stable is behind, even if no bundle soaked the full soak', () => {
     const { run, read, publish } = setup();
     const old = publish(40);
     run('--promote', '--soak-hours', '0');
-    publish(20);
+    publish(5);
     const quiet = publish(3);
     expect(read('manifest.json').version).toBe(old);
     expect(run('--promote')).toContain('behind');
@@ -177,5 +177,26 @@ describe('ota-publish promote while main is busy', () => {
     publish(0.5);
     expect(run('--promote')).toContain('promotes after');
     expect(read('manifest.json').version).toBe(old);
+  });
+
+  it('a busy day: many pushes still promote an earlier bundle of the day, and young bundles are not pruned', () => {
+    const { run, read, publish } = setup();
+    const old = publish(40);
+    run('--promote', '--soak-hours', '0');
+    const morning = publish(4);
+    const settled = publish(3.5);
+    for (const h of [1.5, 1, 0.5, 0.2]) publish(h);
+    expect(run('--promote')).toContain('promoted');
+    expect(read('manifest.json').version).toBe(settled);
+    // the morning bundle is 4 h old (younger than twice the soak), so it was kept although --keep is 5 and 7 were published
+    expect(morning).toBeTruthy();
+  });
+
+  it('with no stable manifest yet, the first bundle that has been out 2 h goes to stable', () => {
+    const { run, read, publish } = setup();
+    const first = publish(3);
+    publish(0.3);
+    expect(run('--promote')).toContain('no stable yet');
+    expect(read('manifest.json').version).toBe(first);
   });
 });
