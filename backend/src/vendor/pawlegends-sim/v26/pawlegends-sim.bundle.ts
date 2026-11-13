@@ -12762,7 +12762,7 @@ function nearestInRange(w, id, from, to) {
 function chooseTarget(w, id) {
 	const cur = w.target[id];
 	if (cur >= 0 && targetable(w, cur, w.team[id]) && inAttackRange(w, id, cur)) {
-		if (w.forced[id] === 1 || w.kind[cur] === Kind.Minion || w.shotAt[id] === cur) return cur;
+		if (w.forced[id] === 1 || w.kind[cur] === Kind.Minion || w.shotAt[id] === cur && w.lockId[id] === cur && w.lockT[id] === 0) return cur;
 		const minion = nearestInRange(w, id, RANGE.minions, RANGE.towers);
 		return minion >= 0 ? minion : cur;
 	}

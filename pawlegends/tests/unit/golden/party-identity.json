@@ -4,9 +4,9 @@
   "rows": [
     {
       "key": "fixture:rookie-replay.fixture.json",
-      "finalHash": "347474a7",
-      "trail": "b2d0980d",
-      "ticks": 10378
+      "finalHash": "9733a1a6",
+      "trail": "dd328663",
+      "ticks": 10776
     },
     {
       "key": "fixture:champion-replay.fixture.json",
@@ -154,9 +154,9 @@
     },
     {
       "key": "bot:normal:13",
-      "finalHash": "4f46ff0b",
-      "trail": "fd3a9c43",
-      "ticks": 13753
+      "finalHash": "151d005d",
+      "trail": "22a67118",
+      "ticks": 13754
     },
     {
       "key": "bot:novice:14",

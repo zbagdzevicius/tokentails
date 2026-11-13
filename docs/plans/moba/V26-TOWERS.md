@@ -63,7 +63,9 @@ Brutus L9 12 → **8**. Rookie keeps its knockback for L1 and L2 players and `hu
 ### 1.E A tower keeps shooting a hero it has already hit (`units/tower.ts` `chooseTarget`)
 
 An unforced hero target no longer yields to a minion that walks in when the tower has already fired at it
-(`w.shotAt[id] === cur`) and it is still in range. A hero that is only being locked on still yields, as before. Forced
+(`w.shotAt[id] === cur`, with the lock-on on that hero finished) and it is still in range. A hero that is only being
+locked on still yields, as before, also when the tower shot it on an earlier visit (verification fix: `shotAt` outlives
+the visit, so without the lock-on check a returning hero held the tower during its new lock-on). Forced
 aggro and backdoor protection are unchanged.
 
 ### 1.F Render (no sim or hash impact)
