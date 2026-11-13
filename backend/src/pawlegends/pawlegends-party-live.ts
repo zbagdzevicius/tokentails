@@ -57,7 +57,7 @@ import {
 export const PARTY_DAILY_CAP = 30;
 
 export interface IPartyLiveDeps
-    extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger' | 'season' | 'growth'> {
+    extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger' | 'season' | 'growth' | 'rewards'> {
     rooms: {
         get(id: string): Promise<StoredRoom | null>;
         countEnded(accountId: string, since: Date): Promise<number>;
@@ -254,6 +254,8 @@ export async function savePawlegendsPartyMatch(
               ref: digest,
           })
         : null;
+    // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per room and slot
+    if (deps.rewards) await deps.rewards.applyLive(String(userId), { won, hero: room.config.picks?.[r.slot] ?? null });
     if (deps.mm && pvp) {
         const mmRoom = await deps.mm.rooms.get(r.room).catch(() => null);
         if (mmRoom?.queue === 'ranked') {
