@@ -718,7 +718,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     ${
       o.party
         ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">${esc(o.party.leave ?? 'Leave party')}</button>${o.party.change === false ? '' : '<button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button>'}<button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
-        : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button>${o.next ? `<button class="pl-btn ghost lb-next" data-a="next" data-testid="results-next">${esc(o.next.label)}<small>${esc(o.next.sub)}</small></button>` : ''}<button class="pl-btn big" data-a="again" data-testid="results-again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots${o.mode ? ` · ${esc(o.mode)}` : ''}</small></button></div>`
+        : `<div class="actions pinned"><button class="pl-btn ghost" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button>${o.next ? `<button class="pl-btn ghost lb-next" data-a="next" data-testid="results-next">${esc(o.next.label)}<small>${esc(o.next.sub)}</small></button>` : ''}<button class="pl-btn big" data-a="again" data-testid="results-again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots${o.mode ? ` · ${esc(o.mode)}` : ''}</small></button></div>`
     }`;
   root.addEventListener('click', (e) => {
     const flag = (e.target as HTMLElement).closest<HTMLElement>('[data-report]');
@@ -881,7 +881,7 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
 
 /** Portrait prompt on phones (§9: landscape only). Pure CSS decides when it shows. */
 export function rotatePrompt(parent: HTMLElement): HTMLElement {
-  const r = el('pl-rotate', `<div>${icon('paw')}<b>Turn your phone sideways</b><small>Pawlegends plays in landscape.</small></div>`);
+  const r = el('pl-rotate', `<div>${icon('paw')}<b>Turn your phone sideways</b><small>Paw Legends plays in landscape.</small></div>`);
   parent.appendChild(r);
   return r;
 }

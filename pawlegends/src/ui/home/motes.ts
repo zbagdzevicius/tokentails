@@ -1,6 +1,6 @@
 /**
- * Home layer L2 (docs/plans/moba/HOME-MODES.md §4): warm motes on a 2D canvas over the key art. Cat side (left) pink
- * and violet sparkles, dog side (right) amber embers, drifting upward. 24 on Med, 48 on High, none on Low or with
+ * Home layer L2 (docs/plans/moba/HOME-MODES.md §4): warm motes on a 2D canvas over the key art. v6 Lightning Rivalry:
+ * cat side (left) rose sparks, dog side (right) blue-white sky sparks, drifting upward. 24 on Med, 48 on High, none on Low or with
  * reduced motion (the caller does not start it). Drawn at most 30 times a second (the menu pacer), paused while the
  * tab is hidden, and the pointer parallax (±18 px) is applied by the caller through a CSS transform on the canvas.
  *
@@ -18,8 +18,8 @@ export interface Mote {
   tw: number;
 }
 
-const CAT_HUES = [328, 300, 276] as const;
-const DOG_HUES = [36, 28, 44] as const;
+const CAT_HUES = [339, 330, 346] as const;
+const DOG_HUES = [207, 212, 200] as const;
 
 /** A new mote somewhere along the bottom half (x, y in 0..1 of the canvas). `rnd` returns 0..1. Pure. */
 export function spawnMote(rnd: () => number, fresh = false): Mote {

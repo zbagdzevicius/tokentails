@@ -1,7 +1,7 @@
 /* Champion card bits outside the pick screen (the pick is ui/champSelect): the owner pill and the collection's
    champions row. */
-.champ-owned { display: inline-block; font-size: 10px; font-weight: 700; line-height: 1; padding: 3px 6px; border-radius: 999px; background: #ffd34d; color: #2a1a22; }
+.champ-owned { display: inline-block; font-size: 10px; font-weight: 700; line-height: 1; padding: 3px 6px; border-radius: var(--v6-r-xs); background: var(--v6-success); color: var(--v6-night); }
 .pl-collection .champs-row { margin: 0 0 8px; text-align: center; }
 .pl-collection .champs-row .pl-btn { display: inline-flex; align-items: center; gap: 6px; }
-.pl-collection .champs-row .pl-icon { width: 16px; height: 16px; color: var(--butter, #ffd34d); }
+.pl-collection .champs-row .pl-icon { width: 16px; height: 16px; color: var(--v6-bolt); }
 .pl-collection .postcard:not(.locked) { cursor: pointer; }

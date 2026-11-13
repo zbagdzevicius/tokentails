@@ -3,9 +3,11 @@
    Rule: the column never scrolls. When the height runs out, things are hidden in a fixed order (the hide ladder at the
    end of this file); nothing is pushed below the fold. */
 .pl-lobby {
-  --lb-el: #ff9f6b;
-  --lb-panel: rgba(30, 19, 35, 0.72);
-  --lb-line: rgba(255, 243, 220, 0.18);
+  /* v6 facelift: the scoped tokens map onto the v6 theme (night glass, cream hairline) */
+  --lb-el: var(--v6-flame);
+  --lb-panel: rgb(var(--v6-night-2-rgb) / 0.72);
+  --lb-panel-hi: color-mix(in srgb, var(--v6-night-3) 92%, transparent);
+  --lb-line: rgb(var(--v6-cream-rgb) / 0.18);
   --lb-pad-t: max(16px, var(--safe-t));
   --lb-pad-b: max(16px, var(--safe-b));
   --lb-left: calc(64px + var(--safe-l));
@@ -16,7 +18,7 @@
   --lb-online-h: 52px;
   --lb-ri-w: 72px;
   --lb-ri-h: 72px;
-  background: linear-gradient(90deg, rgba(27, 17, 31, 0.9) 0%, rgba(27, 17, 31, 0.62) 34%, rgba(27, 17, 31, 0) 56%);
+  background: linear-gradient(90deg, rgb(var(--v6-night-rgb) / 0.9) 0%, rgb(var(--v6-night-rgb) / 0.62) 34%, rgb(var(--v6-night-rgb) / 0) 56%);
   animation: lb-in 0.32s ease-out both;
 }
 @keyframes lb-in { from { opacity: 0; } }
@@ -43,26 +45,26 @@
 /* name block (a button for a returning player: it opens the champion select) */
 .lb-name {
   position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
-  padding: 4px 10px 4px 14px; margin: 0 0 0 -2px; border: 0; border-radius: 14px; background: none; color: inherit; font: inherit; min-height: 44px;
+  padding: 4px 10px 4px 14px; margin: 0 0 0 -2px; border: 0; border-radius: var(--v6-r-xs); background: none; color: inherit; font: inherit; min-height: 44px;
 }
 button.lb-name { cursor: pointer; transition: background 0.15s; }
-button.lb-name:hover { background: rgba(255, 243, 220, 0.08); }
+button.lb-name:hover { background: rgb(var(--v6-cream-rgb) / 0.08); }
 .lb-name::before {
-  content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; border-radius: 4px;
+  content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: var(--v6-bar); border-radius: 2px;
   background: linear-gradient(180deg, var(--lb-el), transparent);
 }
-.lb-eyebrow { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; }
+.lb-eyebrow { display: block; font-size: 12px; font-weight: 700; letter-spacing: var(--v6-track-cap); text-transform: uppercase; color: var(--v6-muted); }
 .lb-hero-row { display: flex; align-items: center; gap: 8px; max-width: 100%; }
 .lb-hero {
   min-width: 0; white-space: nowrap;
   margin: 0; font-size: 44px; line-height: 1.02; font-weight: 700; color: #fff;
-  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.28), 0 0 26px color-mix(in srgb, var(--lb-el) 55%, transparent);
+  text-shadow: 0 4px 0 var(--v6-plum-deep), 0 0 26px color-mix(in srgb, var(--lb-el) 55%, transparent);
 }
 /* a long cat name steps down instead of an ellipsis (an overflow clip cut the name's glow into a box) */
 .lb-name[data-long] .lb-hero { font-size: 34px; }
 .lb-swap {
   flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; font-size: 16px; border-radius: 50%;
-  background: rgba(255, 243, 220, 0.14); box-shadow: inset 0 0 0 1px var(--lb-line); text-shadow: none; color: var(--cream);
+  background: rgb(var(--v6-sky-rgb) / 0.22); box-shadow: inset 0 0 0 1px rgb(var(--v6-sky-rgb) / 0.55); text-shadow: none; color: var(--v6-ice);
 }
 .lb-gem { flex: none; width: 12px; height: 12px; transform: rotate(45deg); border-radius: 2px; background: #b8c4d6; box-shadow: 0 0 8px currentColor; }
 .lb-gem[data-rung='RARE'] { background: #7cc4ff; }
@@ -71,8 +73,8 @@ button.lb-name:hover { background: rgba(255, 243, 220, 0.08); }
 .lb-sub { display: none; font-size: 12px; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .lb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .lb-chip {
-  display: inline-flex; align-items: center; gap: 6px; font: 600 13px/1 var(--font); padding: 6px 10px; border-radius: 999px;
-  background: rgba(255, 243, 220, 0.1); box-shadow: inset 0 0 0 1px var(--lb-line);
+  display: inline-flex; align-items: center; gap: 6px; font: 600 13px/1 var(--font); padding: 6px 10px; border-radius: var(--v6-r-xs);
+  background: rgb(var(--v6-cream-rgb) / 0.08); box-shadow: inset 0 0 0 1px var(--lb-line);
 }
 .lb-chip.el i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
 .lb-chip.rung[data-rung='LEGENDARY'] { color: #ffe9a8; box-shadow: inset 0 0 0 1px rgba(255, 211, 77, 0.6); }
@@ -83,7 +85,7 @@ button.lb-name:hover { background: rgba(255, 243, 220, 0.08); }
 .pl-lobby .lb-play .pl-btn.big {
   width: 100%; max-width: 400px; height: var(--lb-play-h); min-width: 0; margin: 0; padding: 0 20px;
   font-size: 28px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  box-shadow: 0 6px 0 #b8456a, 0 14px 30px rgba(0, 0, 0, 0.35), 0 0 0 0 color-mix(in srgb, var(--lb-el) 50%, transparent);
+  box-shadow: var(--v6-ledge-rose), 0 14px 30px rgb(0 0 0 / 0.35), 0 0 0 0 color-mix(in srgb, var(--lb-el) 50%, transparent);
   animation: lb-pulse 2.6s ease-in-out infinite;
 }
 /* Low quality: the Play glow pulse animates a box shadow (a repaint every frame); still on Low */
@@ -98,23 +100,23 @@ html[data-phone='1']:not([data-quality='low']) .pl-lobby .lb-play .pl-btn.big::a
   animation: lb-pulse-o 2.6s ease-in-out 3;
 }
 @keyframes lb-pulse-o { 50% { opacity: 1; } }
-@keyframes lb-pulse { 50% { box-shadow: 0 6px 0 #b8456a, 0 14px 30px rgba(0, 0, 0, 0.35), 0 0 0 8px color-mix(in srgb, var(--lb-el) 22%, transparent); } }
+@keyframes lb-pulse { 50% { box-shadow: var(--v6-ledge-rose), 0 14px 30px rgb(0 0 0 / 0.35), 0 0 0 8px color-mix(in srgb, var(--lb-el) 22%, transparent); } }
 .lb-under { display: flex; align-items: center; gap: 10px; min-height: var(--lb-seg-h); margin-top: 4px; }
 .lb-line { margin: 0; font-size: 14px; font-weight: 600; opacity: 0.85; min-width: 0; }
 .lb-line:empty { display: none; }
 .lb-line.dare-line { color: var(--butter); opacity: 1; font-size: 15px; }
 
 .lb-seg {
-  flex: none; display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line);
+  flex: none; display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-navy-rgb) / 0.72); box-shadow: inset 0 0 0 1px var(--lb-line);
   height: var(--lb-seg-h); box-sizing: border-box;
 }
 .lb-seg button {
-  font: 700 14px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 999px; padding: 0 16px;
+  font: 700 14px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 2px; padding: 0 16px;
   cursor: pointer; position: relative;
 }
 /* 44 px tall tap targets on phones without a taller pill: the hit area reaches past the drawn button */
 .lb-seg button::after { content: ''; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
-.lb-seg button.on { background: var(--cream); color: #3a2440; }
+.lb-seg button.on { background: var(--cream); color: var(--v6-night); box-shadow: inset 0 -4px 0 var(--v6-bolt); }
 .lb-locked { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; opacity: 0.8; }
 .lb-lock { width: 14px; height: 14px; display: inline-block; }
 
@@ -130,8 +132,8 @@ html[data-phone='1']:not([data-quality='low']) .pl-lobby .lb-play .pl-btn.big::a
 .pl-lobby .lb-online-row small { font-size: max(11px, 0.8em); }
 /* Co-op stays a solid button (a new guest must see it as one: matchmaking e2e) but in butter, not pink: Play is the only
    filled pink button */
-.pl-lobby .lb-online-row .pl-btn.lb-online { background: rgba(255, 211, 77, 0.22); color: var(--cream); box-shadow: inset 0 0 0 2px rgba(255, 211, 77, 0.7); }
-.pl-lobby .lb-online-row .pl-btn.lb-online .lb-ico { color: var(--butter, #ffd34d); }
+.pl-lobby .lb-online-row .pl-btn.lb-online { background: var(--v6-grad-sky); color: var(--v6-navy); text-shadow: none; box-shadow: var(--v6-ledge-sky), var(--v6-shadow-1); }
+.pl-lobby .lb-online-row .pl-btn.lb-online .lb-ico { color: var(--v6-navy); }
 .pl-lobby .lb-pvp[aria-disabled='true'] { opacity: 0.6; filter: saturate(0.5); }
 .pl-lobby .lb-joincode { flex: 0 0 auto; }
 .pl-lobby .lb-joincode b { font-size: 20px; line-height: 1; }
@@ -142,41 +144,41 @@ html[data-phone='1']:not([data-quality='low']) .pl-lobby .lb-play .pl-btn.big::a
 .lb-ri {
   position: relative; width: var(--lb-ri-w); height: var(--lb-ri-h); flex: none; box-sizing: border-box;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px 2px;
-  border: 0; border-radius: 16px; cursor: pointer; color: var(--cream); background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line);
+  border: 0; border-radius: var(--v6-r-s); cursor: pointer; color: var(--cream); background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line);
   font: 600 13px/1 var(--font);
 }
-.lb-ri:hover, .lb-quests[open] > summary { background: rgba(60, 38, 68, 0.92); }
+.lb-ri:hover, .lb-quests[open] > summary { background: var(--lb-panel-hi); }
 .lb-ri > .pl-icon, .lb-ri > .lb-ico, .lb-ring .pl-icon { width: 26px; height: 26px; flex: none; color: var(--butter); }
 .lb-rl { white-space: nowrap; }
 .lb-rl b { font-weight: 700; opacity: 0.85; }
 .lb-ri .lb-count { position: absolute; top: 4px; right: 6px; }
 .lb-count {
-  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--lb-el); color: #2b1d2e;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--lb-el); color: var(--v6-night);
   font: 700 11px/18px var(--font); text-align: center; box-sizing: border-box;
 }
 /* Today: a details popover styled as a rail item; its list opens upward from the rail */
 /* the list anchors to the rail (not the item), so it stays inside the column, which clips (it never scrolls) */
 details.lb-quests.lb-ri { position: static; padding: 0; background: none; box-shadow: none; }
 .lb-quests > summary {
-  list-style: none; width: 100%; height: 100%; box-sizing: border-box; border-radius: 16px; cursor: pointer;
+  list-style: none; width: 100%; height: 100%; box-sizing: border-box; border-radius: var(--v6-r-s); cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line);
 }
 .lb-quests > summary::-webkit-details-marker { display: none; }
 .lb-ring {
   width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
-  background: radial-gradient(closest-side, rgba(30, 19, 35, 1) 76%, transparent 78%), conic-gradient(var(--butter) var(--p), rgba(255, 243, 220, 0.18) 0);
+  background: radial-gradient(closest-side, var(--v6-night-2) 76%, transparent 78%), conic-gradient(var(--v6-bolt) var(--p), rgb(var(--v6-cream-rgb) / 0.18) 0);
 }
-.lb-ring.all { background: radial-gradient(closest-side, rgba(30, 19, 35, 1) 76%, transparent 78%), conic-gradient(#9be3c4 100%, transparent 0); }
+.lb-ring.all { background: radial-gradient(closest-side, var(--v6-night-2) 76%, transparent 78%), conic-gradient(var(--v6-success) 100%, transparent 0); }
 .lb-ring .pl-icon { width: 18px; height: 18px; }
 .lb-qlist {
-  position: absolute; z-index: 5; left: 0; bottom: calc(100% + 8px); width: min(300px, var(--lb-w)); box-sizing: border-box; padding: 8px; border-radius: 14px;
-  background: rgba(30, 19, 35, 0.96); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 0 0 1px var(--lb-line);
+  position: absolute; z-index: 5; left: 0; bottom: calc(100% + 8px); width: min(300px, var(--lb-w)); box-sizing: border-box; padding: 8px; border-radius: var(--v6-r-xs);
+  background: rgb(var(--v6-night-2-rgb) / 0.96); box-shadow: var(--v6-shadow-2), inset 0 var(--v6-bar) 0 var(--v6-rose), inset 0 0 0 1px var(--lb-line);
   display: flex; flex-direction: column; gap: 4px;
 }
-.lb-qlist .q { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; border-radius: 10px; background: rgba(255, 243, 220, 0.06); }
-.lb-qlist .tick { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255, 243, 220, 0.3); display: grid; place-items: center; font-size: 11px; flex: none; }
-.lb-qlist .q.done .tick { background: #9be3c4; color: #2b1d2e; box-shadow: none; }
+.lb-qlist .q { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-cream-rgb) / 0.06); }
+.lb-qlist .tick { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--v6-line-strong); display: grid; place-items: center; font-size: 11px; flex: none; }
+.lb-qlist .q.done .tick { background: var(--v6-success); color: var(--v6-night); box-shadow: none; }
 .lb-qlist .t { flex: 1; }
 .lb-qlist .n { opacity: 0.7; font-weight: 600; }
 
@@ -184,8 +186,8 @@ details.lb-quests.lb-ri { position: static; padding: 0; background: none; box-sh
 /* the toast (PvP locked): over the rail, never in the flow */
 .lb-toast {
   position: absolute; left: 0; right: 0; bottom: calc(var(--lb-pad-b) + var(--lb-ri-h) + 8px); margin: 0; z-index: 6;
-  padding: 8px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; background: rgba(30, 19, 35, 0.96);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 0 0 1px var(--lb-line); opacity: 0; transform: translateY(6px);
+  padding: 8px 12px 8px 14px; border-radius: var(--v6-r-xs); font-size: 13px; font-weight: 600; background: rgb(var(--v6-night-2-rgb) / 0.96);
+  box-shadow: var(--v6-shadow-2), inset var(--v6-bar) 0 0 var(--v6-bolt), inset 0 0 0 1px var(--lb-line); opacity: 0; transform: translateY(6px);
   transition: opacity 0.2s, transform 0.2s; pointer-events: none;
 }
 .lb-toast.on { opacity: 1; transform: none; }
@@ -203,7 +205,7 @@ details.lb-quests.lb-ri { position: static; padding: 0; background: none; box-sh
 .lb-icon:not(.wide) span { display: none; }
 .lb-icon:not(.wide) { padding: 0; width: 44px; }
 .lb-icon .pl-icon, .lb-icon .lb-ico { width: 20px; height: 20px; }
-.lb-icon:hover { background: rgba(60, 38, 68, 0.9); }
+.lb-icon:hover { background: var(--lb-panel-hi); }
 .lb-icon[aria-pressed='false'] { opacity: 0.75; }
 .pl-lobby .lb-corner .lb-badge {
   display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px 0 4px; border-radius: 999px; font-size: 13px;
@@ -237,7 +239,7 @@ img.lb-cat { width: 100%; object-fit: contain; image-rendering: pixelated; }
   display: block; width: 48px; height: 48px; background-repeat: no-repeat; background-position: 0 -192px;
   image-rendering: pixelated; transform: scale(1.3);
 }
-.lb-noart { color: rgba(255, 243, 220, 0.5); }
+.lb-noart { color: var(--v6-faint); }
 .lb-noart .pl-icon { width: 40%; height: auto; }
 /* QA: the card frame's 13cqw name was 9 px here (6.5 px on a phone); a fixed readable size, cut with "…" */
 .lb-mini.tt-card .tt-in > .lb-mini-name { font: 700 12px/1.1 var(--font); max-width: 94%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
@@ -258,9 +260,9 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
 .lb-peek .pl-wearing { background: none; padding: 0; }
 .lb-peek.empty { align-items: center; }
 .lb-back {
-  width: 64px; height: 88px; border-radius: 10px; display: grid; place-items: center; color: rgba(255, 243, 220, 0.6);
-  background: repeating-linear-gradient(45deg, rgba(255, 243, 220, 0.06) 0 6px, transparent 6px 12px), var(--lb-panel);
-  box-shadow: inset 0 0 0 2px rgba(255, 243, 220, 0.3);
+  width: 64px; height: 88px; border-radius: var(--v6-r-s); display: grid; place-items: center; color: var(--v6-muted);
+  background: repeating-linear-gradient(118deg, rgb(var(--v6-cream-rgb) / 0.06) 0 6px, transparent 6px 12px), var(--lb-panel);
+  box-shadow: inset 0 0 0 2px var(--v6-line-strong);
 }
 .lb-back .pl-icon { width: 28px; height: 28px; }
 
@@ -361,16 +363,16 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
 /* Sim v19 (MAP-5V5.md §8.1): 3v3 Quick | 5v5 Classic, one tap, remembered. It sits in the row under Play, next to the
    bots (it replaces the "3v3 vs bots" line, which it says itself), so it costs no height in the no-scroll budget. */
 .pl-lobby .lb-map {
-  flex: none; display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--lb-panel);
+  flex: none; display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-navy-rgb) / 0.72);
   box-shadow: inset 0 0 0 1px var(--lb-line); height: var(--lb-seg-h); box-sizing: border-box;
 }
 .pl-lobby .lb-map button {
-  font: 600 14px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 999px; padding: 0 14px;
+  font: 600 14px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 2px; padding: 0 14px;
   cursor: pointer; position: relative; white-space: nowrap;
 }
 .pl-lobby .lb-map button b { font-weight: 800; letter-spacing: 0.02em; }
 .pl-lobby .lb-map button::after { content: ''; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
-.pl-lobby .lb-map button.on { background: var(--butter, #ffd34d); color: #3a2440; }
+.pl-lobby .lb-map button.on { background: var(--cream); color: var(--v6-night); box-shadow: inset 0 -4px 0 var(--v6-bolt); }
 @media (max-height: 480px) {
   /* phones: "3v3 | 5v5" (the full names stay in the aria-labels) */
   .pl-lobby .lb-map button { font-size: 13px; padding: 0 12px; }
@@ -381,7 +383,7 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
 .lb-social { position: relative; }
 .lb-social-badge {
   position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; box-sizing: border-box;
-  background: var(--rose, #e66); color: #fff; font: 700 11px/16px var(--font); font-style: normal; text-align: center; pointer-events: none;
+  background: var(--v6-rose); color: #fff; font: 700 11px/16px var(--font); font-style: normal; text-align: center; pointer-events: none;
 }
 
 /* The release watermark (ui/versionMark.ts): bottom right, under the card peek on desktop (the peek sits 22 px up) and
