@@ -30,6 +30,14 @@ const PINK = 0xff8fb1;
 const HALF_PI = Math.PI / 2;
 
 /**
+ * Living pass (P2): part ids the structure life patch moves (views/towerView.ts `structureLifeMaterial`). The rig shader
+ * leaves every part ≥ 8 still on a structure (its uCast / uSwing stay 0), so these ids only move under the life patch:
+ * a tower's orb bobs, turns and glows, the core's yarn ball turns, a camp monster's head sniffs and its tail sways, and
+ * the fountain's basin and spout water carry the ripple shader (views/fountainWater.ts). Render only.
+ */
+export const LIFE_PART = Object.freeze({ orb: 9, yarn: 10, head: 11, tail: 12, water: 13, spout: 14 } as const);
+
+/**
  * Overhead bar lift factor per hero (ui/overhead.ts multiplies its hero lift of 1.62 by it): the bar sits just above
  * the upright character's ear tips, bow or plume (HERO_TOP).
  */
@@ -103,14 +111,17 @@ export function minionGeometry(variant: MinionVariant, team: 0 | 1): THREE.Buffe
 
 export function ratGeometry(): THREE.BufferGeometry {
   const b = new ModelBuilder();
+  // living pass: the head (snout, nose, ears, eyes) sniffs about the neck, the tail sways about its root
+  const head = { part: LIFE_PART.head, pivot: [0.26, 0.4, 0] as const };
+  const tail = { part: LIFE_PART.tail, pivot: [-0.36, 0.3, 0] as const };
   b.sphere(1, 0x8c8a94, { at: [0, 0.32, 0], scale: [0.42, 0.28, 0.28] }, 12);
-  b.sphere(0.2, 0x8c8a94, { at: [0.38, 0.42, 0], scale: [1.3, 0.9, 0.9] }, 10);
-  b.sphere(0.04, PINK, { at: [0.64, 0.42, 0] }, 6);
+  b.sphere(0.2, 0x8c8a94, { at: [0.38, 0.42, 0], scale: [1.3, 0.9, 0.9], ...head }, 10);
+  b.sphere(0.04, PINK, { at: [0.64, 0.42, 0], ...head }, 6);
   for (const s of [-1, 1]) {
-    b.sphere(0.11, 0xffb3c8, { at: [0.3, 0.6, s * 0.14], scale: [0.4, 1, 1] }, 8);
-    b.sphere(0.035, EYE, { at: [0.55, 0.48, s * 0.08] }, 6);
+    b.sphere(0.11, 0xffb3c8, { at: [0.3, 0.6, s * 0.14], scale: [0.4, 1, 1], ...head }, 8);
+    b.sphere(0.035, EYE, { at: [0.55, 0.48, s * 0.08], ...head }, 6);
   }
-  for (let i = 0; i < 6; i++) b.sphere(0.035, 0xffb3c8, { at: [-0.4 - i * 0.1, 0.3 + Math.sin(i * 0.8) * 0.05, Math.sin(i) * 0.06] }, 5);
+  for (let i = 0; i < 6; i++) b.sphere(0.035, 0xffb3c8, { at: [-0.4 - i * 0.1, 0.3 + Math.sin(i * 0.8) * 0.05, Math.sin(i) * 0.06], ...tail }, 5);
   return b.build();
 }
 
@@ -162,15 +173,19 @@ export function towerGeometry(team: 0 | 1, tier: 'outer' | 'inner' | 'gate' | 'h
   }
   if (team === 0) {
     b.cone(1.45, 1.6, t.main, { at: [0, 4.4 + tall, 0] }, 12);
-    b.sphere(0.45, 0xffd27a, { at: [0, 5.45 + tall, 0] }, 12);
-    b.torus(0.43, 0.04, 0xff9f7a, { at: [0, 5.45 + tall, 0], rot: [0.7, 0, 0.3] });
-    b.torus(0.43, 0.04, 0xff9f7a, { at: [0, 5.45 + tall, 0], rot: [1.6, 0.6, 0] });
+    // living pass: the orb and its rings bob, turn and glow (LIFE_PART.orb, pivot at the orb's centre)
+    const orb = { part: LIFE_PART.orb, pivot: [0, 5.45 + tall, 0] as const };
+    b.sphere(0.45, 0xffd27a, { at: [0, 5.45 + tall, 0], ...orb }, 12);
+    b.torus(0.43, 0.04, 0xff9f7a, { at: [0, 5.45 + tall, 0], rot: [0.7, 0, 0.3], ...orb });
+    b.torus(0.43, 0.04, 0xff9f7a, { at: [0, 5.45 + tall, 0], rot: [1.6, 0.6, 0], ...orb });
     for (const s of [-1, 1]) b.cone(0.28, 0.5, t.main, { at: [0, 4.0 + tall, s * 1.1], rot: [s * 0.4, 0, 0] }, 6);
   } else {
     b.sphere(1.25, t.second, { at: [0, 3.65 + tall, 0], scale: [1, 0.75, 1] }, 14);
     b.cyl(0.08, 0.08, 0.9, t.second, { at: [0, 4.9 + tall, 0] }, 6);
-    b.box(0.7, 0.14, 0.14, 0xfff3dc, { at: [0, 5.4 + tall, 0] });
-    for (const x of [-0.35, 0.35]) for (const z of [-0.08, 0.08]) b.sphere(0.11, 0xfff3dc, { at: [x, 5.4 + tall, z] }, 8);
+    // living pass: the bone on the mast bobs and turns like the cat orb
+    const orb = { part: LIFE_PART.orb, pivot: [0, 5.4 + tall, 0] as const };
+    b.box(0.7, 0.14, 0.14, 0xfff3dc, { at: [0, 5.4 + tall, 0], ...orb });
+    for (const x of [-0.35, 0.35]) for (const z of [-0.08, 0.08]) b.sphere(0.11, 0xfff3dc, { at: [x, 5.4 + tall, z], ...orb }, 8);
   }
   if (tier === 'inner' || tier === 'gate') b.cyl(1.22, 1.22, 0.12, 0xffd34d, { at: [0, 3.45 + tall, 0] }, 12);
   return b.build();
@@ -195,12 +210,12 @@ function hearthGuardGeometry(team: 0 | 1): THREE.BufferGeometry {
   b.cyl(1.5, 1.5, 0.14, 0xffd34d, { at: [0, 3.0, 0] }, 14);
   if (team === 0) {
     b.cyl(0.42, 0.5, 0.9, 0x6e4a2e, { at: [0, 3.5, 0] }, 8);
-    b.sphere(0.55, 0xffc76b, { at: [0, 4.25, 0] }, 12);
+    b.sphere(0.55, 0xffc76b, { at: [0, 4.25, 0], part: LIFE_PART.orb, pivot: [0, 4.25, 0] }, 12);
     b.cone(0.6, 0.6, t.main, { at: [0, 4.95, 0] }, 8);
     for (const s of [-1, 1]) b.cone(0.16, 0.32, t.main, { at: [0, 5.15, s * 0.32], rot: [s * 0.4, 0, 0] }, 6);
   } else {
     b.cyl(0.7, 0.45, 0.6, 0x4e3524, { at: [0, 3.4, 0] }, 10);
-    b.sphere(0.5, 0xff9a3d, { at: [0, 3.9, 0], scale: [1, 1.3, 1] }, 10);
+    b.sphere(0.5, 0xff9a3d, { at: [0, 3.9, 0], scale: [1, 1.3, 1], part: LIFE_PART.orb, pivot: [0, 3.9, 0] }, 10);
     b.box(1.5, 0.16, 0.16, 0xfff3dc, { at: [0, 4.65, 0] });
     for (const x of [-0.75, 0.75]) for (const z of [-0.09, 0.09]) b.sphere(0.13, 0xfff3dc, { at: [x, 4.65, z] }, 8);
   }
@@ -221,9 +236,10 @@ export function hedgehogGeometry(): THREE.BufferGeometry {
     const y = 0.42 + Math.sin(el) * 0.36;
     b.cone(0.07, 0.42, i % 3 ? 0x6e4a2e : 0xc8642a, { at: [x, y, z], rot: [Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9 - 0.4] }, 5);
   }
-  b.sphere(0.22, 0xe7c9a4, { at: [0.5, 0.4, 0], scale: [1.4, 0.9, 0.9] }, 10);
-  b.sphere(0.06, EYE, { at: [0.8, 0.42, 0] }, 6);
-  for (const s of [-1, 1]) b.sphere(0.05, EYE, { at: [0.6, 0.52, s * 0.12] }, 6);
+  const head = { part: LIFE_PART.head, pivot: [0.36, 0.4, 0] as const };
+  b.sphere(0.22, 0xe7c9a4, { at: [0.5, 0.4, 0], scale: [1.4, 0.9, 0.9], ...head }, 10);
+  b.sphere(0.06, EYE, { at: [0.8, 0.42, 0], ...head }, 6);
+  for (const s of [-1, 1]) b.sphere(0.05, EYE, { at: [0.6, 0.52, s * 0.12], ...head }, 6);
   return b.build();
 }
 
@@ -231,13 +247,14 @@ export function hedgehogGeometry(): THREE.BufferGeometry {
 export function crowGeometry(): THREE.BufferGeometry {
   const b = new ModelBuilder();
   b.sphere(1, 0x2f2b3a, { at: [0, 0.7, 0], scale: [0.5, 0.45, 0.38] }, 14);
-  b.sphere(0.27, 0x3a3548, { at: [0.36, 1.15, 0] }, 12);
-  b.cone(0.1, 0.38, 0xe3b04b, { at: [0.66, 1.12, 0], rot: [0, 0, -HALF_PI] }, 6);
-  b.torus(0.08, 0.02, 0xd9a441, { at: [0.56, 1.22, 0.12], rot: [0, HALF_PI, 0] });
-  b.sphere(0.04, 0xffe9a8, { at: [0.6, 1.22, 0.12] }, 6);
-  b.sphere(0.04, EYE, { at: [0.56, 1.22, -0.12] }, 6);
+  const head = { part: LIFE_PART.head, pivot: [0.3, 0.98, 0] as const };
+  b.sphere(0.27, 0x3a3548, { at: [0.36, 1.15, 0], ...head }, 12);
+  b.cone(0.1, 0.38, 0xe3b04b, { at: [0.66, 1.12, 0], rot: [0, 0, -HALF_PI], ...head }, 6);
+  b.torus(0.08, 0.02, 0xd9a441, { at: [0.56, 1.22, 0.12], rot: [0, HALF_PI, 0], ...head });
+  b.sphere(0.04, 0xffe9a8, { at: [0.6, 1.22, 0.12], ...head }, 6);
+  b.sphere(0.04, EYE, { at: [0.56, 1.22, -0.12], ...head }, 6);
   for (const s of [-1, 1]) b.box(0.6, 0.08, 0.34, 0x24202e, { at: [-0.06, 0.8, s * 0.38], rot: [s * 0.35, 0, -0.2] });
-  b.box(0.4, 0.06, 0.26, 0x24202e, { at: [-0.5, 0.75, 0], rot: [0, 0, 0.25] });
+  b.box(0.4, 0.06, 0.26, 0x24202e, { at: [-0.5, 0.75, 0], rot: [0, 0, 0.25], part: LIFE_PART.tail, pivot: [-0.32, 0.78, 0] });
   b.cyl(0.03, 0.03, 0.4, 0xe3b04b, { at: [0.05, 0.2, 0.12] }, 4);
   b.cyl(0.03, 0.03, 0.4, 0xe3b04b, { at: [0.05, 0.2, -0.12] }, 4);
   b.torus(0.24, 0.05, 0x8a2a3a, { at: [0.25, 0.95, 0], rot: [0, HALF_PI, 0.4] });
@@ -250,8 +267,8 @@ export function toadGeometry(): THREE.BufferGeometry {
   b.sphere(1, 0x7aa65a, { at: [0, 0.3, 0], scale: [0.5, 0.3, 0.45] }, 12);
   b.sphere(1, 0xe8e0a8, { at: [0.12, 0.22, 0], scale: [0.38, 0.18, 0.34] }, 10);
   for (const s of [-1, 1]) {
-    b.sphere(0.12, 0x7aa65a, { at: [0.28, 0.55, s * 0.18] }, 8);
-    b.sphere(0.06, EYE, { at: [0.36, 0.58, s * 0.2] }, 6);
+    b.sphere(0.12, 0x7aa65a, { at: [0.28, 0.55, s * 0.18], part: LIFE_PART.head, pivot: [0.22, 0.42, 0] }, 8);
+    b.sphere(0.06, EYE, { at: [0.36, 0.58, s * 0.2], part: LIFE_PART.head, pivot: [0.22, 0.42, 0] }, 6);
     b.sphere(0.13, 0x6a9a4a, { at: [-0.2, 0.15, s * 0.42], scale: [1.4, 0.6, 0.8] }, 8);
   }
   b.cyl(0.3, 0.3, 0.03, 0x4f9a4a, { at: [0, 0.62, 0] }, 12);
@@ -300,8 +317,10 @@ export function coreGeometry(team: 0 | 1): THREE.BufferGeometry {
   b.cyl(3.25, 3.25, 0.16, team === 0 ? 0xffb3cd : 0xd9a441, { at: [0, 0.85, 0] }, 20);
   if (team === 0) {
     // the Great Yarn Ball
-    b.sphere(2.2, 0xffc7d9, { at: [0, 3.1, 0] }, 20);
-    for (let i = 0; i < 5; i++) b.torus(2.18, 0.07, 0xff86a5, { at: [0, 3.1, 0], rot: [i * 0.7, i * 1.1, i * 0.3] });
+    // living pass: the ball turns slowly on the spot (LIFE_PART.yarn); the loose strand stays put
+    const yarn = { part: LIFE_PART.yarn, pivot: [0, 3.1, 0] as const };
+    b.sphere(2.2, 0xffc7d9, { at: [0, 3.1, 0], ...yarn }, 20);
+    for (let i = 0; i < 5; i++) b.torus(2.18, 0.07, 0xff86a5, { at: [0, 3.1, 0], rot: [i * 0.7, i * 1.1, i * 0.3], ...yarn });
     b.cyl(0.12, 0.12, 2.2, 0xff86a5, { at: [1.8, 1.6, 1.2], rot: [0.6, 0, 1.1] }, 6);
   } else {
     // the Grand Doghouse with a golden bone
@@ -309,11 +328,15 @@ export function coreGeometry(team: 0 | 1): THREE.BufferGeometry {
     b.box(3.6, 2.6, 3.2, t.main, { at: [0, 2.15, 0] });
     b.cone(2.9, 1.9, t.deep, { at: [0, 4.4, 0], rot: [0, Math.PI / 4, 0], scale: [1.05, 1, 0.95] }, 4);
     b.box(1.2, 1.6, 0.1, 0x3a2414, { at: [1.81, 1.65, 0], rot: [0, HALF_PI, 0] });
-    b.box(2.4, 0.4, 0.4, 0xd9a441, { at: [0, 5.7, 0] });
-    for (const x of [-1.25, 1.25]) for (const z of [-0.25, 0.25]) b.sphere(0.36, 0xd9a441, { at: [x, 5.7, z] }, 10);
+    const bone = { part: LIFE_PART.orb, pivot: [0, 5.7, 0] as const };
+    b.box(2.4, 0.4, 0.4, 0xd9a441, { at: [0, 5.7, 0], ...bone });
+    for (const x of [-1.25, 1.25]) for (const z of [-0.25, 0.25]) b.sphere(0.36, 0xd9a441, { at: [x, 5.7, z], ...bone }, 10);
   }
   const g = b.build();
   g.scale(0.72, 0.72, 0.72);
+  // the pivots scale with the model (the life patch turns the yarn ball about its own centre)
+  const piv = g.getAttribute('aPivot');
+  for (let i = 0; i < piv.count; i++) piv.setXYZ(i, piv.getX(i) * 0.72, piv.getY(i) * 0.72, piv.getZ(i) * 0.72);
   return g;
 }
 
@@ -321,9 +344,11 @@ export function fountainGeometry(team: 0 | 1): THREE.BufferGeometry {
   const b = new ModelBuilder();
   const t = TEAM[team];
   b.torus(4.0, 0.28, team === 0 ? 0xf3ead8 : 0xc4ae8a, { at: [0, 0.12, 0], rot: [Math.PI / 2, 0, 0] });
-  b.cyl(3.85, 3.85, 0.04, 0x8fd6ff, { at: [0, 0.03, 0] }, 28);
+  // living pass: the basin and spout water are their own parts (views/fountainWater.ts draws the ripples, rim foam and
+  // spout churn on them in the structure's one draw; Low keeps the same program with the amplitude at 0)
+  b.cyl(3.85, 3.85, 0.04, 0x8fd6ff, { at: [0, 0.03, 0], part: LIFE_PART.water }, 40);
   b.cyl(0.22, 0.32, 0.9, t.second, { at: [-1.2, 0.45, 0] }, 8);
   b.sphere(0.34, t.main, { at: [-1.2, 1.05, 0] }, 10);
-  b.cyl(0.6, 0.6, 0.06, 0x8fd6ff, { at: [-1.2, 0.8, 0] }, 12);
+  b.cyl(0.6, 0.6, 0.06, 0x8fd6ff, { at: [-1.2, 0.8, 0], part: LIFE_PART.spout, pivot: [-1.2, 0.8, 0] }, 16);
   return b.build();
 }
