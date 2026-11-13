@@ -14,6 +14,7 @@ import { PawlegendsReplayDto } from './pawlegends-replay.dto';
 import { pawlegendsSimErrorDetail } from './pawlegends-sim-info';
 import type { SeasonXpGain, SeasonXpMatch } from './pawlegends-season.service';
 import { applyInviteProgress, type InviteProgressDep } from './growth/apply-invite-progress';
+import { applyCommunityGoal } from './liveops/liveops-live';
 
 export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-info';
 
@@ -504,6 +505,14 @@ export async function savePawlegendsMatch(
     await applyInviteProgress(deps.growth, String(userId), { ref: digest, ticks: result.ticks, forfeit: result.reason === 'forfeit' });
     // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per saved match
     if (deps.rewards) await deps.rewards.applyLive(String(userId), { won, hero: replay.hero });
+    // Live ops (LIVEOPS.md): the community goal and the Winter Nap day, once, from the re-sim's own numbers
+    await applyCommunityGoal({
+        accountId: String(userId),
+        won,
+        forfeit: result.reason === 'forfeit',
+        takedowns: takedownsOf((result as { stats?: unknown }).stats, 0),
+        now: (deps.now || (() => new Date()))(),
+    });
 
     return {
         difficulty,

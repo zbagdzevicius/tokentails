@@ -34,6 +34,7 @@ import {
     pawlegendsDuplicate,
     pawlegendsError,
 } from './pawlegends-live';
+import { applyCommunityGoal } from './liveops/liveops-live';
 
 /*
  * Party play scoring (docs/plans/moba/MULTIPLAYER.md §6, lane N8): the `v: 2` branch of the PAWLEGENDS save on
@@ -256,6 +257,14 @@ export async function savePawlegendsPartyMatch(
         : null;
     // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per room and slot
     if (deps.rewards) await deps.rewards.applyLive(String(userId), { won, hero: room.config.picks?.[r.slot] ?? null });
+    // Live ops (LIVEOPS.md): the community goal and the Winter Nap day, once per room and slot, from the verdict
+    await applyCommunityGoal({
+        accountId: String(userId),
+        won,
+        forfeit: v.reason === 'forfeit',
+        takedowns: takedownsOf(v.stats, r.slot),
+        now,
+    });
     if (deps.mm && pvp) {
         const mmRoom = await deps.mm.rooms.get(r.room).catch(() => null);
         if (mmRoom?.queue === 'ranked') {
