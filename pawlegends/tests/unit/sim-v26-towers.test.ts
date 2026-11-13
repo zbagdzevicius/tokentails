@@ -113,6 +113,25 @@ describe('sim v26 towers: a tower commits to a hero it has shot', () => {
     stepStructures(m);
     expect(w.target[t]).toBe(minion2);
   });
+  it('a hero it shot on an earlier visit still yields during a new lock-on (the old shotAt does not count)', () => {
+    const m = normal();
+    const w = m.world;
+    const t = towerId(0, 0);
+    const hero = putHero(m, 3, OUTER.x + 2000, OUTER.y);
+    for (let i = 0; i < TOWERS.lockOnTicks + 2; i++) stepStructures(m);
+    expect(w.shotAt[t]).toBe(hero);
+    // the hero leaves, the tower goes idle, the hero comes back alone: a new lock-on starts
+    w.x[hero] = OUTER.x + 20000;
+    for (let i = 0; i < 300; i++) stepStructures(m);
+    expect(w.target[t]).toBe(-1);
+    w.x[hero] = OUTER.x + 2000;
+    stepStructures(m);
+    expect(w.target[t]).toBe(hero);
+    expect(w.lockT[t]).toBeGreaterThan(0);
+    const minion = putMinion(m, 1, OUTER.x + 1000, OUTER.y);
+    stepStructures(m);
+    expect(w.target[t]).toBe(minion);
+  });
 });
 
 describe('sim v26 towers: Fortified', () => {
