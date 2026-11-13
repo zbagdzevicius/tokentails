@@ -56,6 +56,7 @@ import { ATK_SELECT, DragLock, dragZone, PickLock, releasePick, selectCandidates
 import { carriesCannon, dragFireAim, quickFireAim } from '../fireAim';
 import { CANNON, FUN_BY_MAP } from '../../data/fun';
 import { MAP } from '../../data/map';
+import { ATK_ART, pulse } from './atkArt';
 
 /**
  * Drag-lock: the unit a release falls back to (AtkHold.last) after this step. The selection when there is one; with
@@ -265,6 +266,8 @@ export class TouchControls {
   /** FIRE presses sent (e2e telemetry). */
   fires = 0;
   private wasCarrying = false;
+  /** The Attack button shows `armed` (a unit in reach). */
+  private armed = false;
   /**
    * When the button turned into FIRE (performance.now()). A press that lands within FIRE_ARM_MS of it, or before the
    * button showed FIRE, is ignored: a player tapping ATK over and over would otherwise fire the cannon by accident.
@@ -332,7 +335,7 @@ export class TouchControls {
       <div class="pl-aimring" aria-hidden="true"><i class="full"></i><i class="smart"></i></div>
       <div class="pl-cancel" aria-label="Cancel"><i aria-hidden="true"></i></div>
       <div class="pl-tcluster">
-        <button class="pl-tbtn attack" data-b="attack" aria-label="Attack"><span>ATK</span></button>
+        <button class="pl-tbtn attack" data-b="attack" aria-label="Attack"><span>ATK</span>${ATK_ART}</button>
         <button class="pl-tbtn q" data-b="q" aria-label="Q"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
         <button class="pl-tbtn w" data-b="w" aria-label="W"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
         <button class="pl-tbtn e" data-b="e" aria-label="E"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
@@ -408,6 +411,26 @@ export class TouchControls {
 
   get isEnabled(): boolean {
     return this.enabled;
+  }
+
+  /** The Attack button's swing beat: the press (or held repeat, or a target pick) sent an attack order. */
+  private swing(): void {
+    const atk = this.buttons.get('attack');
+    if (atk && !atk.classList.contains('fire')) pulse(atk, 'swing', 220);
+  }
+
+  private hitPulseAt = -1e9;
+  /**
+   * An own basic attack landed on an enemy: the Attack button's gold ring flashes (`hit`), or a big hit (the display
+   * "crit", combatVfx isBigHit) bursts the bolt core (`crit`). At most one every 120 ms; nothing while FIRE shows.
+   */
+  hitPulse(heavy: boolean): void {
+    const atk = this.buttons.get('attack');
+    if (!this.enabled || !atk || atk.classList.contains('fire')) return;
+    const now = performance.now();
+    if (now - this.hitPulseAt < 120) return;
+    this.hitPulseAt = now;
+    pulse(atk, heavy ? 'crit' : 'hit', heavy ? 320 : 180);
   }
 
   dispose(): void {
@@ -1144,6 +1167,7 @@ export class TouchControls {
     // the stick yields to the selected unit now, not to the one the press ordered (STICK_YIELD)
     this.atkYield.set(id);
     this.h.orders.attack(id);
+    this.swing();
   }
 
   /**
@@ -1273,6 +1297,7 @@ export class TouchControls {
     this.picks++;
     if (id !== null) {
       this.atkYield.set(id);
+      this.swing();
       // KITE-FIX: with the stick held away from it, the press (or held repeat) kites it: the stick's next order goes
       // now as a kite on this unit (an Attack would plant the hero until the next swing)
       if (this.stickKitesTo(me, id)) {
@@ -1293,12 +1318,7 @@ export class TouchControls {
     this.atkNone++;
     this.h.view.denyRing?.();
     const atk = this.buttons.get('attack');
-    if (atk) {
-      atk.classList.remove('deny');
-      void atk.offsetWidth;
-      atk.classList.add('deny');
-      setTimeout(() => atk.classList.remove('deny'), 300);
-    }
+    if (atk) pulse(atk, 'deny', 300);
     // fun pass (playtest #11): ATK said "Nothing in reach" next to minions it skips on purpose (under an untanked enemy
     // tower); it now says why, at most every 10 s
     const myTeam = this.h.view.myTeam;
@@ -1684,6 +1704,12 @@ export class TouchControls {
     this.h.view.lock = locked;
     if (atk) {
       atk.classList.toggle('locked-on', locked !== null);
+      // the bolt core glows while the press would hit a unit without walking (written on change only)
+      const armed = this.atkPreview !== null && !this.h.view.atkPreviewFar && !carrying;
+      if (armed !== this.armed) {
+        this.armed = armed;
+        atk.classList.toggle('armed', armed);
+      }
       atk.style.setProperty('--lock', (this.dragLock.id !== null ? 1 : this.lock.id !== null ? this.lock.left(now) : this.pick.left(now)).toFixed(3));
     }
   }

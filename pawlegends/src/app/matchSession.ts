@@ -35,6 +35,7 @@ import type { SkinFxMode } from '../render/skins/tierFx';
 import { portraitUrl, warmPortraits } from '../render/portraits';
 import { toX, toZ } from '../render/coords';
 import { FADE, SHAPE } from '../render/fx/Particles.js';
+import { isBigHit } from '../render/fx/combatVfx';
 import { LowHp } from '../render/fx/lowHp';
 import { GameView } from '../render/gameView';
 import { SnapBuffer, type ViewEntity, type ViewFrame } from '../render/interp';
@@ -2245,6 +2246,10 @@ export class MatchSession {
         if (ev.type === 'hit' && ev.src === this.view.mySlot) {
           const dst = frame.byId.get(ev.dst);
           if (dst && dst.kind === 'hero' && dst.team !== this.view.myTeam) this.dealtAt = performance.now();
+          // the touch Attack button's hit beat: an own basic attack landed on an enemy (a big one on a hero bursts the core)
+          if (ev.kind === 'basic' && dst && dst.team !== this.view.myTeam && this.touch?.isEnabled) {
+            this.touch.hitPulse(isBigHit(ev.amount, dst.maxHp, dst.kind === 'hero'));
+          }
         }
         if (ev.type === 'hit' && ev.dst === this.view.mySlot) {
           const src = frame.byId.get(ev.src);

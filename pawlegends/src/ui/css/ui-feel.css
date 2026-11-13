@@ -312,9 +312,11 @@ html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolut
 /* the owned emote chip moves under the enemy strip */
 .pl-emote { top: calc(56px + var(--safe-t)); }
 /* A5: the Attack button while a hero is locked, and the optional last-hit and tower buttons (off by default) */
-.pl-tbtn.attack.locked-on { border-color: #fff; box-shadow: 0 0 0 4px rgba(255, 77, 94, 0.75), 0 4px 12px rgba(0, 0, 0, 0.35); }
+.pl-tbtn.attack.locked-on { border-color: var(--v6-night); box-shadow: 0 0 0 2px var(--v6-cream), 0 0 0 5px var(--v6-enemy), 0 4px 12px rgb(0 0 0 / 0.35); }
+.pl-tbtn.attack.locked-on .ring { stroke: var(--v6-cream); }
+.pl-tbtn.attack.locked-on .core path { fill: var(--v6-cream); }
 .pl-tbtn.attack.locked-on::after {
-  content: ''; position: absolute; inset: 4px; border-radius: 50%; pointer-events: none;
+  content: ''; position: absolute; inset: 4px; border-radius: 50%; pointer-events: none; z-index: 3;
   background: conic-gradient(rgb(var(--v6-cream-rgb) / 0.85) calc(var(--lock, 0) * 360deg), transparent 0);
   -webkit-mask: radial-gradient(circle, transparent 60%, #000 62%); mask: radial-gradient(circle, transparent 60%, #000 62%);
 }

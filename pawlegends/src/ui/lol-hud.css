@@ -283,10 +283,11 @@ html[data-touch='1'] .lol-nap span { font-size: 11px; }
 /* ----------------------------------------------------------------------- touch buttons: the v6 look
    Night discs with a cream rim and a plum keyline inside, a 3 px inset ledge (the kit's 3D slab, kept inside the box),
    bolt-lemon glyphs; R wears the bolt rim; Paw Trick and Nap are sky (secondary). ATK (match.css) is the one rose
-   button on the screen. */
+   button on the screen. Nov 13 (ATK medallion): the same frame family as ATK: an ink outline inside a thin cream keyline
+   (box-shadow only, so no button grows), the gold inner line and the ledge. */
 .pl-tbtn:where(:not(.attack)) {
-  background: radial-gradient(circle at 50% 30%, rgb(40 26 66 / 0.92), rgb(var(--v6-night-rgb) / 0.9) 72%); border-color: rgb(var(--v6-cream-rgb) / 0.42);
-  box-shadow: inset 0 0 0 1px var(--hx-gold-dd), inset 0 -3px 0 rgb(var(--v6-night-rgb) / 0.75), 0 3px 10px rgba(0, 0, 0, 0.4);
+  background: radial-gradient(circle at 50% 30%, rgb(40 26 66 / 0.92), rgb(var(--v6-night-rgb) / 0.9) 72%); border-color: var(--v6-night);
+  box-shadow: 0 0 0 2px rgb(var(--v6-cream-rgb) / 0.6), inset 0 0 0 1.5px var(--hx-gold-dd), inset 0 -3px 0 rgb(var(--v6-night-rgb) / 0.75), 0 3px 10px rgba(0, 0, 0, 0.4);
 }
 .pl-tbtn:where(.r) { border-color: rgb(var(--v6-bolt-rgb) / 0.8); }
 .pl-tbtn .cd { background: conic-gradient(transparent calc((1 - var(--cd, 0)) * 360deg), rgb(var(--v6-night-rgb) / 0.74) 0); }
