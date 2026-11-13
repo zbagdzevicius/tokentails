@@ -1,5 +1,6 @@
 /** Rat camps and Pudding (POC.md §5, §7.3): spawns, leash, XP, the scared hop, the calm race and the escort. */
 import { describe, expect, it } from 'vitest';
+import { TOWERS } from '../../src/data/towers';
 import { RAT_CAMP_STATS } from '../../src/data/camps';
 import { RAT_CAMP, RADIUS, mirrorX } from '../../src/data/map';
 import { PUDDING, PUD_STATE } from '../../src/data/pudding';
@@ -183,7 +184,10 @@ describe('Pudding (§5)', () => {
     hold(m, keep);
     const hp = w.hp[t];
     steps(m, PUDDING.escortBreathEvery * 2);
-    expect(hp - w.hp[t]).toBe(2 * Math.trunc((PUDDING.escortBreathDamage * 100) / (100 + w.armour[t])));
+    // sim v26 (V26-TOWERS.md §1.B): while the towers are Fortified the breath deals TOWERS.fortifyMinionBp
+    const breath = Math.trunc((PUDDING.escortBreathDamage * 100) / (100 + w.armour[t]));
+    const fortified = w.globals[G.Tick] < TOWERS.fortifyUntil[0];
+    expect(hp - w.hp[t]).toBe(2 * (fortified ? Math.trunc((breath * TOWERS.fortifyMinionBp) / 10000) : breath));
     w.alive[keep] = 0;
     step(m);
     expect(w.alive[PUD]).toBe(0);

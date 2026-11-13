@@ -123,8 +123,12 @@ export function dealDamage(
   }
   if (structure && !opts.pure) {
     if (tick >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.structureDamageBp);
-    // Sim v21 Fortified: heroes deal TOWERS.fortifyBp to towers early (V21-FUN.md §3.1).
-    if (srcKind === Kind.Hero && w.kind[dst] === Kind.Tower && tick < fortifyUntilOf(w)) dmg = applyBp(dmg, TOWERS.fortifyBp);
+    // Sim v21 Fortified: heroes deal TOWERS.fortifyBp to towers early (V21-FUN.md §3.1); sim v26 (V26-TOWERS.md §1.B):
+    // minions and the escort Pudding's breath deal TOWERS.fortifyMinionBp.
+    if (w.kind[dst] === Kind.Tower && tick < fortifyUntilOf(w)) {
+      if (srcKind === Kind.Hero) dmg = applyBp(dmg, TOWERS.fortifyBp);
+      else if (srcKind === Kind.Minion || srcKind === Kind.Pudding) dmg = applyBp(dmg, TOWERS.fortifyMinionBp);
+    }
   }
   if (structure && (!opts.pure || opts.backdoor === true)) {
     // Backdoor protection: heroes deal half when no minion of their team is near the structure.
@@ -243,15 +247,22 @@ function clearOnDeath(w: World, id: number): void {
 function weakestTower(w: World, team: number): number {
   let best = -1;
   let bestBp = 0;
+  let floored = false;
   for (let id = RANGE.towers; id < RANGE.cores; id++) {
     if (w.alive[id] === 0 || w.team[id] !== team || w.hp[id] <= 0 || isInvulnerable(w, id)) continue;
     const bp = idiv(w.hp[id] * BP_ONE, Math.max(1, w.maxHp[id]));
+    // Sim v26 (V26-TOWERS.md §1.A): a tower at or below TOWERS.chipFloorBp takes no chip.
+    if (w.hp[id] <= applyBp(w.maxHp[id], TOWERS.chipFloorBp)) {
+      floored = true;
+      continue;
+    }
     if (best < 0 || bp < bestBp) {
       best = id;
       bestBp = bp;
     }
   }
   if (best >= 0) return best;
+  if (floored) return -1;
   const core = RANGE.cores + team;
   return w.alive[core] === 1 && !isInvulnerable(w, core) ? core : -1;
 }
@@ -321,9 +332,15 @@ export function resolveDeaths(m: MatchHandle): void {
         if (chip > 0 && (chips * chip <= rulesOf(m).takedownChipCapBp || coreExposed(w, victimTeam))) {
           const core = RANGE.cores + victimTeam;
           dealDamage(m, -1, enemy, Kind.None, core, applyBp(applyBp(w.maxHp[core], chip), mutOf(w).takedownCoreBp), 'chip', { pure: true, pierce: true });
-        } else if (chip > 0 && rulesOf(m).takedownTowerChipBp > 0) {
+        } else if (chip > 0 && rulesOf(m).takedownTowerChipBp > 0 && tick >= fortifyUntilOf(w)) {
+          // Sim v26 (V26-TOWERS.md §1.A): no tower chip while Fortified, and a chip never takes a tower below
+          // TOWERS.chipFloorBp (heroes and minions finish it).
           const t = weakestTower(w, victimTeam);
-          if (t >= 0) dealDamage(m, -1, enemy, Kind.None, t, applyBp(w.maxHp[t], rulesOf(m).takedownTowerChipBp), 'chip', { pure: true });
+          if (t >= 0) {
+            let amount = applyBp(w.maxHp[t], rulesOf(m).takedownTowerChipBp);
+            if (w.kind[t] === Kind.Tower) amount = Math.min(amount, w.hp[t] - applyBp(w.maxHp[t], TOWERS.chipFloorBp));
+            if (amount > 0) dealDamage(m, -1, enemy, Kind.None, t, amount, 'chip', { pure: true });
+          }
         }
       } else if (!isHumanSlot(w, id) || rulesOf(m).humanDeathCore) {
         // Sim v7: on Rookie the human's own deaths cost its core nothing (DifficultyRules.humanDeathCore).

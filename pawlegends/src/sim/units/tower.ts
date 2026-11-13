@@ -35,8 +35,9 @@ function nearestInRange(w: World, id: number, from: number, to: number): number 
 function chooseTarget(w: World, id: number): number {
   const cur = w.target[id];
   if (cur >= 0 && targetable(w, cur, w.team[id]) && inAttackRange(w, id, cur)) {
-    // A forced hero target holds; an unforced hero target yields to a minion as soon as one is in range.
-    if (w.forced[id] === 1 || w.kind[cur] === Kind.Minion) return cur;
+    // A forced hero target holds; an unforced hero target yields to a minion as soon as one is in range, unless (sim
+    // v26) the tower has already shot it: a tower that started on a diver keeps shooting it while it stays in range.
+    if (w.forced[id] === 1 || w.kind[cur] === Kind.Minion || w.shotAt[id] === cur) return cur;
     const minion = nearestInRange(w, id, RANGE.minions, RANGE.towers);
     return minion >= 0 ? minion : cur;
   }

@@ -26,6 +26,7 @@ import { companionCoat, kittenCoat } from '../../src/render/cosmetics';
 import { CAMERA_HEIGHTS } from '../../src/render/camera/height';
 import { TalentPicker, TALENT_AUTO_S } from '../../src/ui/talents';
 import { coreId, quietMatch } from './sim-helpers';
+import { TOWERS } from '../../src/data/towers';
 import { heroMatch, hold, place } from './heroes/kit-helpers';
 
 describe('sim v8: the takedown chip', () => {
@@ -38,7 +39,8 @@ describe('sim v8: the takedown chip', () => {
     const w = m.world;
     const core = coreId(1);
     const r = DIFFICULTY_RULES.normal;
-    w.globals[G.Tick] = 3000;
+    // sim v26: no tower chip while the towers are Fortified (V26-TOWERS.md §1.A)
+    w.globals[G.Tick] = TOWERS.fortifyUntil[0];
     const full = w.hp[core];
     const chips = r.takedownChipCapBp / r.takedownChipBp;
     for (let k = 0; k < chips + 3; k++) {
