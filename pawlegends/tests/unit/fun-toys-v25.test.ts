@@ -2,7 +2,7 @@
  * Sim v25 (founder report 2026-11-12: "fix in-game objects in fun mode (ball, cannonball, trampoline) as it's hard to
  * navigate through them"). The Kibble Cannon and the Mega Yarn Ball react only to a hero that means it, and only once
  * its body touches what is drawn:
- * - Cannon: the hero's centre within CANNON.reach + RADIUS.hero (1.5 m: its body on the gold ring) and stopped there,
+ * - Cannon: the hero's centre within CANNON.reach + RADIUS.hero (2.0 m: its body on the gold ring) and stopped there,
  *   or walking with its goal within CANNON.aim of the cannon (a tap on it, a stick pushed at it, a bot fetching it).
  * - Yarn: the hero's centre within YARN.kickReach (1.35 m: its body on the ball), heading within 60° of the ball and
  *   its goal within YARN.near of it; the ball rolls along the walk.
@@ -23,6 +23,7 @@ import { cannonData } from '../../src/sim/units/cannon';
 import { yarnAt, yarnCount } from '../../src/sim/units/yarn';
 import { CANNON_STATE, FM, G, Order, YARN_STATE, YF } from '../../src/sim/world';
 import { SIM_VERSION } from '../../src/sim/version';
+import { CANNON_RING } from '../../src/render/views/funView';
 import { hold, place } from './heroes/kit-helpers';
 
 const AHEAD = 2000;
@@ -122,16 +123,18 @@ function clearLine(map: MapId, ax: number, ay: number, bx: number, by: number): 
 }
 
 describe('sim v25: the Kibble Cannon is taken on purpose', () => {
-  it('SIM_VERSION is 25 or later; the pick-up is the hero body on the drawn ring (1.5 m), a goal within 0.8 m', () => {
+  it('SIM_VERSION is 25 or later; the pick-up is the hero body on the drawn ring (2.0 m), a goal within 0.8 m', () => {
     expect(SIM_VERSION).toBeGreaterThanOrEqual(25);
-    expect([CANNON.reach + RADIUS.hero, CANNON.aim]).toEqual([1500, 800]);
+    expect([CANNON.reach + RADIUS.hero, CANNON.aim]).toEqual([2000, 800]);
+    // the drawn ring ends where the body reaches (render: funView CANNON_RING)
+    expect((CANNON_RING.outer * 1000 - 50) + RADIUS.hero).toBe(CANNON.reach + RADIUS.hero);
     expect([YARN.kickReach, YARN.near]).toEqual([1350, 3200]);
   });
 
-  it('a hero stopped on it takes it within the ring; 1.6 m off it does not', () => {
+  it('a hero stopped on it takes it within the ring; 2.1 m off it does not', () => {
     for (const [off, want] of [
-      [1400, true],
-      [1600, false],
+      [1900, true],
+      [2100, false],
     ] as const) {
       const m = match('crossing');
       place(m, 0, 30000, 36000, 0);

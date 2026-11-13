@@ -40,9 +40,12 @@ describe('naive player-bot (fun gates)', { timeout: 300000 }, () => {
   });
 
   it('v4 bounds on a small sample: wins most Rookie matches, with few deaths and its own takedowns', () => {
-    const runs = [1, 2, 3, 4, 5, 6, 7, 8].map((s) => playNaive(s, 'rookie'));
+    // Sim v25 (deliberate fun toys): seeds 2 and 3 had been won after an accidental Boing Bed throw (a walk across the
+    // cushion), which v25 no longer makes; on seeds 1–8 alone that read 5 of 8. The fun1 gate (200 seeds, win ≥ 85%)
+    // reads 93.5% on v25 (97.0% on v24), so this sample is 24 seeds at the same margin below the gate as before.
+    const runs = Array.from({ length: 24 }, (_, i) => playNaive(i + 1, 'rookie'));
     const wins = runs.filter((r) => r.res.outcome === 'won').length;
-    expect(wins).toBeGreaterThanOrEqual(6);
+    expect(wins).toBeGreaterThanOrEqual(19);
     const deaths = runs.map((r) => r.res.stats[0].deaths).sort((a, b) => a - b);
     expect(deaths[Math.floor(deaths.length / 2)]).toBeLessThanOrEqual(3);
     const takedowns = runs.map((r) => r.res.stats[0].kills + r.res.stats[0].assists).sort((a, b) => a - b);
