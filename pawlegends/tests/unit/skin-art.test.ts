@@ -109,9 +109,11 @@ describe('no runtime renders on menus', () => {
     expect(src).not.toMatch(/from 'three'|WebGLRenderTarget|readRenderTargetPixels/);
   });
 
-  it('the app no longer builds the 3D lobby stage or bakes portraits', () => {
+  it('the app bakes no portraits; only Home builds the 3D lobby (founder, Nov 13: Home shows the 3D champion)', () => {
     const src = fs.readFileSync(path.join(ROOT, 'src/app/app.ts'), 'utf8');
-    expect(src).not.toMatch(/new Lobby\(|bakePortraits|bakeLooks|bakePortrait\(/);
+    expect(src).not.toMatch(/bakePortraits|bakeLooks|bakePortrait\(/);
     expect(src).toContain('new ArtStage(');
+    expect(src.match(/new Lobby\(/g)?.length).toBe(1);
+    expect(src).toMatch(/private enterHomeLobby\(\)[\s\S]*?new Lobby\(/);
   });
 });

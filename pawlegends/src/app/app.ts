@@ -28,6 +28,7 @@ import { CATALOG_SKUS, CHAMPION_IDS, STARTERS, catalogSku, champSkuOf, type Cata
 import { appHidden, canPlay, champStatus, localChampions, lockReason, openChampions, ownedCount, type ChampionsState } from '../meta/champions';
 import { PAID_COATS, bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { ArtStage } from '../ui/stage/artStage';
+import { Lobby } from '../render/lobby';
 import { onSkinArt } from '../ui/art';
 import { portraitUrl, warmPortraits } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
@@ -159,6 +160,12 @@ export class App {
   readonly gr: GameRenderer;
   /** The menu stage: the screen's painted scene and the hero's art (ui/stage/artStage.ts; no 3D on menus). */
   readonly stage: ArtStage;
+  /** Home's 3D hero on its pedestal (founder, Nov 13: "in homepage ... here we should show 3d champ"); null until Home. */
+  private lobby: Lobby | null = null;
+  /** The 3D lobby is up (Home only): the frame loop draws it. */
+  private lobbyOn = false;
+  /** The lobby's last frame is up behind the champion browser: no more lobby frames until it closes. */
+  private champFrozen = false;
   readonly ent = new Entitlements();
   readonly checkout: CheckoutBridge;
   readonly analytics: Analytics;
@@ -271,6 +278,8 @@ export class App {
     rotatePrompt(root);
     addEventListener('resize', () => {
       this.gr.resize();
+      // a resize clears the drawing buffer: the lobby frozen behind the champion browser draws once more
+      this.champFrozen = false;
     });
     // iOS Safari only lets a touch's end (touchend, pointerup, click) start or resume audio, not its pointerdown
     for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, () => sfx.unlock(), { capture: true });
@@ -531,7 +540,7 @@ export class App {
     p.looks[hero] = { coat, chroma: (p.looks[hero] as Partial<Look> | undefined)?.chroma ?? null };
     saveProfile(p);
     this.choice = { ...this.choice, hero };
-    this.stage.confetti(2.5);
+    this.celebrate(2.5);
     const name = sku === 'pl_founder' ? `Founder coat on ${HERO_NAME(hero)}` : sku === 'pl_starter' ? 'Pink Bow Clem' : 'Dawnblade Clem';
     const el = document.createElement('div');
     el.className = 'pl-new';
@@ -573,7 +582,7 @@ export class App {
     if (coatHero) this.choice = { ...this.choice, hero: coatHero };
     // a single champion goes on the lobby at once
     if (champ && def.hero && (HERO_IDS as readonly string[]).includes(def.hero)) this.choice = { ...this.choice, hero: def.hero as HeroId };
-    this.stage.confetti(2.5);
+    this.celebrate(2.5);
     const el = document.createElement('div');
     el.className = 'pl-new';
     el.setAttribute('role', 'status');
@@ -586,9 +595,36 @@ export class App {
     if (this.screen === 'pick' && coatHero) this.setLobbyHero(coatHero);
   }
 
+  /** Home: the painted stage goes, the 3D lobby (hero on its pedestal over the key art) comes up on the canvas. */
+  private enterHomeLobby(): void {
+    this.stage.leave();
+    if (!this.lobby) this.lobby = new Lobby(this.gr);
+    this.lobby.enter();
+    this.lobby.side = 0;
+    this.lobby.heroScale = 0.72;
+    this.lobby.footShare = 0.09;
+    this.lobbyOn = true;
+    this.champFrozen = false;
+    document.documentElement.dataset.stage = 'home3d';
+  }
+
+  private leaveHomeLobby(): void {
+    if (!this.lobbyOn) return;
+    this.lobbyOn = false;
+    this.lobby?.leave();
+    if (document.documentElement.dataset.stage === 'home3d') delete document.documentElement.dataset.stage;
+  }
+
+  /** Confetti on whichever stage is up (Home's 3D lobby or the painted stage). */
+  private celebrate(seconds: number): void {
+    if (this.lobbyOn && this.lobby) this.lobby.confetti(seconds);
+    else this.stage.confetti(seconds);
+  }
+
   private setLobbyHero(hero: HeroId): void {
     const look = this.lookFor(hero);
     this.stage.setHero(hero, look);
+    if (this.lobbyOn && this.lobby) this.lobby.setHero(hero, 0, look);
     document.documentElement.dataset.look = `${hero}:${lookKey(look)}`;
   }
 
@@ -792,7 +828,7 @@ export class App {
       // the match chunk loads during the 0.4 s dolly (it is usually prefetched already)
       playOut: () => {
         void loadMatch().catch(() => undefined);
-        return this.stage.playOut();
+        return this.lobbyOn && this.lobby ? this.lobby.playOut() : this.stage.playOut();
       },
       sound: (n) => sfx.play(n),
       onPlay: (c, seed) => {
@@ -854,8 +890,9 @@ export class App {
     // switch, an entitlement or progress refresh, an equip) patches the changed parts into the same Home. Rebuilding
     // it replayed every entrance animation behind the next panel and re-entered the 3D lobby.
     const patched = !first && patchHome(this.screenEl, opts);
-    // Home (HOME-MODES.md §4): the hero's art stands centred on the key art's ring
-    if (!patched) this.stage.enter('home');
+    // Home (HOME-MODES.md §4): the 3D hero stands centred on the key art's ring (founder, Nov 13: Home shows the 3D
+    // champion; the champion select, results, cards and HUD keep the painted art)
+    if (!patched) this.enterHomeLobby();
     this.setLobbyHero(this.dare?.hero ?? this.choice.hero);
     if (!patched) {
       // the entrance plays on the first Home of the visit and on the one after a match; every other Home is still
@@ -881,6 +918,7 @@ export class App {
       this.pickFromFlow = true;
     }
     const flow = (this.pickFromFlow ? this.pickMode : null) ?? modeById((this.modeChoiceNow ?? loadModeChoice()).mode, modeList()) ?? null;
+    this.leaveHomeLobby();
     this.stage.enter('pick');
     this.setLobbyHero(this.choice.hero);
     const p = loadProfile();
@@ -1225,6 +1263,7 @@ export class App {
     this.analytics.track('match_start', { hero, difficulty, trick, dare: false, party: true, load_ms: sinceLoadMs(), first_match: p.matches === 0 });
     const veil = loadingVeil(this.root, 'Into the Crossing...', match.mode === 'casual' ? 'PvP' : match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', { name: HERO_TEXT[hero].title, matches: p.heroMatches[hero] ?? 0 });
     this.setScreen('match', null);
+    this.leaveHomeLobby();
     this.stage.leave();
     this.session?.dispose();
     this.session = null;
@@ -1322,6 +1361,7 @@ export class App {
       matches: p.heroMatches[c.hero] ?? 0,
     });
     this.setScreen('match', null);
+    this.leaveHomeLobby();
     this.stage.leave();
     this.session?.dispose();
     this.session = null;
@@ -1533,6 +1573,7 @@ export class App {
     if (this.frameMs.length > 60) this.analytics.track('perf_sample', { ...framePcts(this.frameMs), tier: this.tier });
     this.session?.dispose();
     this.session = null;
+    this.leaveHomeLobby();
     this.stage.enter('results', { won });
     this.setLobbyHero(e.replay.hero);
     if (won) this.stage.confetti(3);
@@ -2035,14 +2076,21 @@ export class App {
     const paused = this.session?.isPaused ?? false;
     // founder, Nov 13: the menus are painted art in the DOM (ui/stage/artStage.ts), so no WebGL frame is drawn outside a
     // match: no GPU work behind Home, the champion select, the store or the results
-    if (!this.session) {
+    // Home is the exception: its 3D hero (founder, Nov 13) draws on the canvas at the menu rate
+    if (!this.session && !this.lobbyOn) {
       this.last = now;
       return;
     }
     const saver = batterySaver().on || this.gr.settings.fpsCap < MATCH_FPS;
-    // PERF-IOS §8 Track C: over a match the champion browser counts as a covering panel (its clip has its own canvas)
-    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champCovered(), saver });
-    if (!this.pacer.due(now, fps)) return;
+    // PERF-IOS §8 Track C: the champion browser covers the 3D view (its own clip runs on its own canvas): over Home the
+    // lobby is drawn once more and then not at all until it closes; over a match it counts as a covering panel
+    const champ = champCovered();
+    if (champ && !this.session) {
+      if (this.champFrozen) return;
+      this.champFrozen = true;
+    } else this.champFrozen = false;
+    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champ, saver });
+    if (!this.champFrozen && !this.pacer.due(now, fps)) return;
     const t0 = performance.now();
     const raw = Math.max(0, now - this.last);
     const dt = Math.min(0.1, raw / 1000);
@@ -2058,7 +2106,11 @@ export class App {
     if (inMatch && this.frameMs.length < 20000) this.frameMs.push(raw);
     // Draw calls for the perf check (POC.md §10): a plain data attribute, sampled once a second, no debug global.
     if ((this.frames = (this.frames + 1) % 60) === 0) document.documentElement.dataset.draws = String(this.gr.renderer.info.render.calls);
-    this.session.frame(dt);
+    if (this.session) this.session.frame(dt);
+    else if (this.lobby) {
+      this.lobby.update(dt);
+      this.gr.render();
+    }
     const work = performance.now() - t0;
     if (inMatch && !paused && !this.forcedTier) {
       const th = thermal().state;
