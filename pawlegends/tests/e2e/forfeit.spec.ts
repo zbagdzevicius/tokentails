@@ -64,6 +64,12 @@ test('Forfeit: disabled before 3:00 on Easy, then a confirm step, and the match 
   await expect(page.locator('.pl-results [data-cause]')).toHaveText('You forfeited the match.');
   await expect(page.locator('.pl-results .pl-treats .head small')).toHaveText('+20 Treat XP');
   await expect(page.locator('.pl-results')).not.toContainText(/catnip/i);
+  // founder, Nov 13: the results show the 3D hero (sulking on a Defeat) on the canvas, not the painted art card
+  await expect(page.locator('.pl-stage')).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.dataset.stage)).toBe('results3d');
+  expect(await page.locator('#game-canvas').evaluate((c) => getComputedStyle(c).visibility)).toBe('visible');
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: test.info().outputPath('results-3d.png') });
 });
 
 test('Forfeit: matches 1–3 have no Forfeit button', async ({ page }, info) => {

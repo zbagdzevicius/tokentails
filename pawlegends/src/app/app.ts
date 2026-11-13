@@ -595,24 +595,30 @@ export class App {
     if (this.screen === 'pick' && coatHero) this.setLobbyHero(coatHero);
   }
 
-  /** Home: the painted stage goes, the 3D lobby (hero on its pedestal over the key art) comes up on the canvas. */
-  private enterHomeLobby(): void {
+  /**
+   * Home and the results: the painted stage goes, the 3D lobby (hero on its pedestal over the screen's scene) comes up
+   * on the canvas. On the results the hero cheers on a Victory and sulks on a Defeat (render/lobby.ts \`mood\`; founder,
+   * Nov 13: "in this post-game screen let's show 3d character as well with emote which represent either defeat or
+   * victory").
+   */
+  private enterHomeLobby(mode: 'home' | 'results' = 'home'): void {
     this.stage.leave();
     if (!this.lobby) this.lobby = new Lobby(this.gr);
-    this.lobby.enter();
-    this.lobby.side = 0;
-    this.lobby.heroScale = 0.72;
-    this.lobby.footShare = 0.09;
+    if (!this.lobbyOn) this.lobby.enter();
+    const home = mode === 'home';
+    this.lobby.side = home ? 0 : 0.45;
+    this.lobby.heroScale = home ? 0.72 : 1;
+    this.lobby.footShare = home ? 0.09 : 0;
     this.lobbyOn = true;
     this.champFrozen = false;
-    document.documentElement.dataset.stage = 'home3d';
+    document.documentElement.dataset.stage = home ? 'home3d' : 'results3d';
   }
 
   private leaveHomeLobby(): void {
     if (!this.lobbyOn) return;
     this.lobbyOn = false;
     this.lobby?.leave();
-    if (document.documentElement.dataset.stage === 'home3d') delete document.documentElement.dataset.stage;
+    if (/^(home|results)3d$/.test(document.documentElement.dataset.stage ?? '')) delete document.documentElement.dataset.stage;
   }
 
   /** Confetti on whichever stage is up (Home's 3D lobby or the painted stage). */
@@ -1573,10 +1579,9 @@ export class App {
     if (this.frameMs.length > 60) this.analytics.track('perf_sample', { ...framePcts(this.frameMs), tier: this.tier });
     this.session?.dispose();
     this.session = null;
-    this.leaveHomeLobby();
-    this.stage.enter('results', { won });
+    this.enterHomeLobby('results');
     this.setLobbyHero(e.replay.hero);
-    if (won) this.stage.confetti(3);
+    if (won) this.celebrate(3);
     let link: string | null = null;
     // a party match has no dare link (its seed belongs to the party)
     if (won && !partyEnd && !blitz) {
