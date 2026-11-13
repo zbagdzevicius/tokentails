@@ -20,7 +20,7 @@ to the pre-Blitz v22 build (§5.3).
 | XP | ×1 | **×2** (every source) |
 | Towers | 2,250 / 2,750 (× the difficulty's scale) | **×0.45** |
 | Core | 1 × | **×0.5** |
-| Fortified | heroes deal 65% to towers until 3:00 | **never** (3:00 is the whole match) |
+| Fortified | heroes deal 65% to towers until 3:00 (sim v26: 55% heroes, 75% minions, bolts ×1.25, until 4:00) | **never** until sim v25 (3:00 is the whole match); **0:45** from sim v26 (V26-TOWERS.md) |
 | Respawn | level based, Sunset ×1.25, lead pressure | **6 s at 0:00 rising to 8 s at 3:15**; the difficulty's human and enemy edges still apply |
 | Kibble Cannon | 1:30, then 120 s after each shot | **0:20, then 40 s after each shot or fizzle**; none from Sudden Death on |
 | Underdog Cannon | a team 3 structures or 8 takedowns behind | 3 structures or **3 takedowns** behind |

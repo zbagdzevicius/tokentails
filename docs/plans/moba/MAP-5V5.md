@@ -131,6 +131,10 @@ Spots are for team 0. The other side lane is the `swap`, and team 1's spots are 
 
 - A structure that is not open yet is invulnerable. It shows the existing invulnerable buff bit, and the client draws a lock (§8.4).
 - The tower rules are the 3v3 ones: lock-on, damage ramp, backdoor protection, and the team XP for a fallen tower.
+  Sim v26 (V26-TOWERS.md): Fortified lasts until 5:30 here (5:00 in sim v21 to v25); while it lasts heroes deal 55%,
+  minions and the escort Pudding 75%, bolts hit 25% harder and no takedown chip lands on a tower. Bolts are 130 + 3% of the target's max HP
+  with a +30% ramp to +90%, the lock-on is 1.0 s, and a chip never takes a tower below 15% HP. The Hearthwood tower HP
+  in the spots is unchanged.
 - Sunset's `closedCoreBp` applies "while all of the victim's **gate** towers stand" (3v3: inner towers).
 - All numbers are first-pass tuning and live in the map's data row.
 

@@ -255,9 +255,11 @@ y=0  └────────────────────────
 Travel at 5 m/s: fountain to river about 9 s, fountain to the enemy outer tower about 13 s.
 
 **Tower rules:**
-- Targets the nearest enemy minion. Switches to an enemy hero that damages an allied hero in range.
-- Damage to heroes 90, +20% for each consecutive hit on the same hero, capped at +60% (sim v4; 150 / 25% / 100% before). Damage to minions 110 (a melee minion dies in 3 hits).
-- **Lock-on (sim v4):** a tower or core that switches to a hero marks it for 1.2 s first (a `windup` event, slot 4, drawn as a red line) and fires only after that; a hero that leaves range during the lock-on is not shot. Rookie: the first hit on a level 1 to 2 hero of the human's team knocks it back 3 m.
+- Targets the nearest enemy minion. Switches to an enemy hero that damages an allied hero in range. **Sim v26:** a tower that has already shot an (unforced) hero keeps shooting it while it stays in range, even when a minion walks in.
+- Damage to heroes: sim v26 (V26-TOWERS.md) 130 + 3% of the hero's max HP, +30% for each consecutive hit on the same hero, capped at +90%, and ×1.25 while Fortified (sim v4: 90 / 20% / 60%; sim v21 to v25: 120 / 25% / 80%). Damage to minions 110 (a melee minion dies in 3 hits). Cores shoot 120.
+- **Lock-on (sim v4):** a tower or core that switches to a hero marks it first (1.2 s until sim v25, **1.0 s from sim v26**; a `windup` event, slot 4, drawn as a red line) and fires only after that; a hero that leaves range during the lock-on is not shot. Rookie: the first hit on a level 1 to 2 hero of the human's team knocks it back 3 m.
+- **Fortified (sim v21; sim v26 numbers):** before 4:00 on Crossing, 5:30 on Hearthwood and 0:45 in Blitz, heroes deal 55% and minions and the escort Pudding 75% of their damage to towers, tower bolts at heroes hit 25% harder and no takedown chip lands on a tower. The Kibble Cannon and pure damage are not reduced; cores are never Fortified.
+- **Takedown chip (sim v26):** a chip never takes a tower below 15% of its max HP, and a tower at or below 15% takes none, so heroes and minions always finish a tower.
 - A fallen tower gives every living hero of the team that took it 120 XP (sim v4).
 - **Backdoor protection:** takes 50% less damage from heroes when no minion of the attacker's team is within 8 m.
 

@@ -485,6 +485,11 @@ cannot take an outer tower before the others reach it.
 | Crossing inner HP | 2,200 | **2,750** | +25% |
 | Hearthwood outer / inner / gate / hearth HP | 2,400 / 2,800 / 3,200 / 3,000 | **3,000 / 3,500 / 3,800 / 3,500** | +25% / +25% / +19% / +17% |
 | **Fortified** (new) | — | heroes deal **−35%** to towers before **3:00** (Crossing) / **5:00** (Hearthwood); minions and the Kibble Cannon are not reduced | |
+
+> **Superseded by sim v26** ([V26-TOWERS.md](V26-TOWERS.md)): Fortified now lasts until 4:00 (Crossing), 5:30
+> (Hearthwood) and 0:45 (Blitz); heroes deal 55% and minions and the escort Pudding 75% to a Fortified tower, its bolts hit 25% harder and no
+> takedown chip lands on it. Bolts are 130 + 3% of the target's max HP, +30% a shot to +90%, with a 1.0 s lock-on.
+
 | Armour, range, lock-on, backdoor, Sunset ×2 | | unchanged | |
 | Cores | 3,000 / 4,500 | unchanged | (Sunset and Sudden Death close the match) |
 
@@ -493,7 +498,7 @@ What a dive costs now (level 6 squishy, ~770 HP, armour ~30, before Toys): v19 t
 for 3–4 shots; a squishy that stays for five shots dies. Lock-on (1.2 s) keeps the warning.
 
 Fortified: shown as a soft ribbon wrap on the tower and a shield icon on its bar until it ends ("Towers are no longer
-fortified!" callout). It is applied in `dealDamage` right after the Sunset line, only when `srcKind === Kind.Hero`.
+fortified!" callout). It is applied in `dealDamage` right after the Sunset line, only when `srcKind === Kind.Hero`. (Sim v26: minions and the escort Pudding too, at 75%; see V26-TOWERS.md.)
 
 ### 3.2 Expected effect (probe; final numbers come from the gates)
 
