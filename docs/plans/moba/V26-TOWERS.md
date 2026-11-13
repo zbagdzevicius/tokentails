@@ -166,3 +166,20 @@ Every lever stayed inside the design's ranges. Probe windows were 200 seeds (3v3
     4537): all pass except `match-desktop.spec.ts:126`. That test's `[data-h="sage"]` locator now also matches the 3D
     hero stage's `<figure>` from main, so it is a selector clash and not a v26 change.
 - Not run: `npm run build:client` output is not committed. The client bundle ships with the release, as for v25.
+
+## 5. Adversarial verification (2026-11-13, after dd7f2ae5)
+
+- Fixed: the tower-focus hold (§1.E) also fired during a new lock-on on a hero the tower had shot on an earlier visit
+  (`shotAt` is never cleared). The hold now needs the lock-on on that hero to be done; v26 re-vendored, golden and
+  sim-stamp regenerated.
+- Determinism: `tools/determinism.mjs` 60 + 60 seeds (PvP, Blitz, Hearthwood) identical; `hearth-gates --det 20` 60 of 60;
+  `determinism-browser` e2e passes; backend `pawlegends-live` (v10 to v26 each verify on their own version only) passes.
+- Matches end on time: 3v3 Normal 600 unseen seeds median 7:47, p95 8:39, 0 safety ends; Blitz 400 seeds median 2:55,
+  100% core kills, 0 draws; Hearthwood median 13:05. No side wins every match (3v3 53.2 / 46.8, Blitz 50.8 / 49.3).
+- Still open: `map5v5-probe` seeds 60001–60120 flags 2 single 3–4 s stalls of a pushing bot near an enemy inner tower
+  (v25 on the same seeds: 0), so its `stuckSeeds === 0` bot check fails; the bots do not read tower numbers, so this is a
+  changed match flow, not a bot rule. Deficit gates as in §2: 3v3 down 10+ won 8.6% of 58, feeder vs Normal 5.5% of 146.
+- Not v26: e2e `match-desktop.spec.ts:126` (selector clash) and `match-touch.spec.ts:109` (flaky target pick) fail the
+  same way on the v25 base 9fd054db.
+- Open, older than v26: a tower's ramp streak also carries over to a hero's later visit (the first bolt of a new visit
+  already counts as a repeat). Unchanged here.
