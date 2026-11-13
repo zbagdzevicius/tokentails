@@ -12,7 +12,7 @@
  * shrinks into the death poof over 0.45 s. Nothing allocates per frame.
  */
 import * as THREE from 'three';
-import { CAPS } from '../../data/map';
+import { CAPS, CORE, MAP, mirrorX } from '../../data/map';
 import { MINIONS } from '../../data/minions';
 import type { ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
@@ -20,6 +20,8 @@ import { minionGeometry, type MinionVariant } from './models';
 import { RELATION } from '../palette';
 import { DecalLayer, ringTexture } from './decals';
 import { casterDepthMaterial, uprightMaterial } from './rig';
+import { contactFor, type ContactFx } from '../fx/contactFx';
+import type { Ambient, AmbientFx } from '../ambient';
 
 const VARIANTS: readonly MinionVariant[] = ['melee', 'ranged', 'siege'];
 /**
@@ -35,6 +37,24 @@ const WINDUP: Record<MinionVariant, number> = { melee: MINIONS.melee.windup * TI
 /** Arm shape: cocked back (anticipation), the strike, its overshoot and the follow-through (s); lunge / shove (m). */
 export const MINION_ANIM = Object.freeze({ cock: -0.45, strike: 1, over: 1.18, overAt: 0.05, settle: 0.38, lunge: 0.16, hitStop: 0.02, dieLen: 0.45, shove: 0.12 });
 const DIE_MAX = 24;
+
+/**
+ * Living pass (P3), Med and High only: an idle sway and breath while a minion stands (waiting at a tower, trading in a
+ * fight), and a spawn pop-in at its own core (a squash that springs up). Amplitudes scale with the ambient motion;
+ * reduce motion halves the squash. Matrix-only: 0 draws, no allocation.
+ */
+export const MINION_LIFE = Object.freeze({ sway: 0.045, breath: 0.03, popS: 0.32, popFrom: 0.5, popSquash: 0.14, popNear: 9 });
+/** The spawn pop-in's scale and squash at progress u 0..1 (pure): from popFrom up with a small overshoot, to 1. */
+export function popScale(u: number, out: { g: number; sq: number } = { g: 1, sq: 0 }): { g: number; sq: number } {
+  const t = Math.max(0, Math.min(1, u));
+  // back-out ease (overshoot ≈ 6%)
+  const c = 1.4;
+  const b = 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
+  out.g = MINION_LIFE.popFrom + (1 - MINION_LIFE.popFrom) * b;
+  out.sq = Math.sin(t * Math.PI) * MINION_LIFE.popSquash;
+  return out;
+}
+const _pop = { g: 1, sq: 0 };
 const MAX_IDS = 4096;
 
 interface Anim {
@@ -58,6 +78,10 @@ interface Anim {
   k: number;
   stamp: number;
   variant: MinionVariant;
+  /** Living pass: the last hop step (footfalls), the spawn pop progress (−1 none) and a per-minion phase offset. */
+  step: number;
+  pop: number;
+  seed: number;
 }
 
 interface Dying {
@@ -219,6 +243,10 @@ export class MinionInstances {
   heroes: { x: number; z: number }[] = [];
   /** Structure footprints (m): a minion is drawn outside them (a pup stood inside the doghouse wall, trailer review). */
   blocks: readonly { x: number; z: number; r: number }[] = [];
+  /** Living pass: the ambient level (render/ambient.ts) and the shared contact FX (wading splashes, High). */
+  private ambLevel: 0 | 1 | 2 = 0;
+  private ambMotion = 0;
+  contact: ContactFx | null = null;
 
   constructor() {
     this.group.name = 'minions';
@@ -247,6 +275,17 @@ export class MinionInstances {
 
   setShadows(on: boolean): void {
     for (const m of this.meshes) m.castShadow = on;
+  }
+
+  /** Living pass: the quality tier's ambient level (gameView, applyAmbient). */
+  setAmbient(a: Ambient): void {
+    this.ambLevel = a.level;
+    this.ambMotion = a.motion;
+  }
+
+  /** Living pass: the shared particle pools (gameView, attachAmbientFx): the minion wading splash rings. */
+  setAmbientFx(fx: AmbientFx): void {
+    this.contact = contactFor(fx);
   }
 
   /** A hit on minion `id`, from world (fromX, fromZ) when known: squash, lean away, a small shove, the hit-stop. */
@@ -297,6 +336,15 @@ export class MinionInstances {
     this.material.userData.rig.uTime.value = time;
     const stamp = ++this.stamp;
     const counts = this.counts;
+    // living pass: each team's core (a new minion near its own core pops in)
+    const point = MAP.point === 1;
+    const c0x = toX(CORE.x);
+    const c0z = toZ(CORE.y);
+    const c1x = toX(mirrorX(CORE.x));
+    const c1z = toZ(point ? MAP.height - CORE.y : CORE.y);
+    const life = this.ambLevel > 0;
+    const motion = this.ambMotion;
+    const contact = this.contact;
     counts.fill(0);
     this.rings.begin();
     const drawnAt = this.drawnAt;
@@ -326,8 +374,16 @@ export class MinionInstances {
       let a = this.anim.get(e.id);
       if (!a) {
         if (this.anim.size >= MAX_IDS) continue;
-        a = { phase: e.id * 0.7, walk: 0, hit: 0, flash: 0, strikeT: -1, attackT: 0, freeze: 0, hx: 1, hz: 0, shove: 0, x: 0, z: 0, yaw: 0, k, stamp, variant: v };
+        a = { phase: e.id * 0.7, walk: 0, hit: 0, flash: 0, strikeT: -1, attackT: 0, freeze: 0, hx: 1, hz: 0, shove: 0, x: 0, z: 0, yaw: 0, k, stamp, variant: v, step: NaN, pop: -1, seed: (e.id * 2.39996) % 6.2832 };
         this.anim.set(e.id, a);
+        // living pass: a minion that appears at its own core (a new wave, not the first frame) pops in
+        if (life && stamp > 1) {
+          const cx = team === 0 ? c0x : c1x;
+          const cz = team === 0 ? c0z : c1z;
+          const dx = toX(e.fx) - cx;
+          const dz = toZ(e.fy) - cz;
+          if (dx * dx + dz * dz < MINION_LIFE.popNear * MINION_LIFE.popNear) a.pop = 0;
+        }
       }
       a.stamp = stamp;
       a.k = k;
@@ -387,6 +443,10 @@ export class MinionInstances {
         }
       }
       const hop = upright ? Math.abs(Math.cos(a.phase)) * 0.06 * a.walk : moving ? Math.abs(Math.sin(a.phase * 0.5)) * 0.03 : 0;
+      // living pass: a footfall (the hop touches down) can splash on the river (ContactFx: High only, rate-capped)
+      const step = Math.floor(a.phase / Math.PI + 0.5);
+      if (contact && moving && a.step === a.step && step !== a.step) contact.minionStep(e, px, pz);
+      a.step = step;
       const sq = 1 - a.hit * 0.18;
       const s = SCALE[v];
       // aAnim.w packs the hit (0..1) and C11b's flash in 8 steps above it (rig.ts UPRIGHT_PARS unpacks it)
@@ -399,7 +459,29 @@ export class MinionInstances {
       aa[o4 + 2] = upright ? arm : Math.max(0, arm);
       aa[o4 + 3] = Math.min(1, a.hit) + 2 * Math.round(a.flash * 8);
       // body: lean into the strike, back on the cock (siege: the cart bucks on its shot)
-      const lean = upright ? -a.walk * 0.08 + a.hit * 0.15 - Math.max(0, arm) * 0.16 - Math.min(0, arm) * 0.22 : -Math.max(0, arm) * 0.3 + Math.sin(time * 2 + e.id) * 0.02;
+      let lean = upright ? -a.walk * 0.08 + a.hit * 0.15 - Math.max(0, arm) * 0.16 - Math.min(0, arm) * 0.22 : -Math.max(0, arm) * 0.3 + Math.sin(time * 2 + e.id) * 0.02;
+      // living pass: standing minions sway and breathe out of step with each other; a new one pops in at its core
+      let gx = 1;
+      let gy = 1;
+      if (life && upright) {
+        const idle = (1 - a.walk) * motion;
+        if (idle > 0.01) {
+          lean += Math.sin(time * 2.3 + a.seed) * MINION_LIFE.sway * idle;
+          const br = Math.sin(time * 3.1 + a.seed * 1.7) * MINION_LIFE.breath * idle;
+          gy += br;
+          gx -= br * 0.5;
+        }
+      }
+      if (a.pop >= 0) {
+        a.pop += dt / MINION_LIFE.popS;
+        if (a.pop >= 1 || !life) a.pop = -1;
+        else {
+          const p = popScale(a.pop, _pop);
+          const k = this.reduced ? 0.5 : 1;
+          gx *= p.g * (1 + p.sq * k);
+          gy *= p.g * (1 - p.sq * k);
+        }
+      }
       // the Euler (0, yaw, lean) in XYZ order as a quaternion
       const s2 = Math.sin(a.yaw / 2);
       const c2 = Math.cos(a.yaw / 2);
@@ -425,8 +507,8 @@ export class MinionInstances {
         qz = nz;
         qw = nw;
       }
-      const sw = s * (1 + a.hit * 0.15);
-      const sh2 = s * sq;
+      const sw = s * (1 + a.hit * 0.15) * gx;
+      const sh2 = s * sq * gy;
       const te = this.matArr[k];
       const o16 = i * 16;
       const x2 = qx + qx;

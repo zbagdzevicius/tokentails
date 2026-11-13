@@ -23,6 +23,9 @@ import type { CardFx } from '../skins/cardFx';
 import { skinFxFor } from '../skins/coatRung';
 import { emptyProfile, foilColor, stageOf } from '../skins/effectKit';
 import { STEADFAST_ALPHA, STEADFAST_OUTLINE, STEADFAST_RING_SCALE, isSteadfast } from '../steadfast';
+import type { Ambient, AmbientFx } from '../ambient';
+// type only: contactFx (and the particle pools it drives) loads with the match, never with the lobby's first load
+import type { ContactFx } from '../fx/contactFx';
 
 export type Relation = 'self' | 'ally' | 'enemy' | 'neutral';
 
@@ -61,7 +64,31 @@ interface HeroRig {
   kDetail: number;
   kOutline: boolean;
   kSelf: boolean;
+  /** Living pass: the hit flinch's time left and length (s), its lean (rad) and the world direction it leans to. */
+  flT: number;
+  flDur: number;
+  flA: number;
+  flX: number;
+  flZ: number;
+  /** Living pass: last frame's Boing Bed lift (m), for the landing squash. */
+  lift: number;
 }
+
+/**
+ * Living pass (P3): the hero hit flinch, a visual lean of the whole body away from the hit (never the hit box or the
+ * HP bar anchor: the drawn position is unchanged), ≤ 6° for 50–80 ms, on Med and High only and never under reduce
+ * motion. With no attacker position it leans back from the hero's facing.
+ */
+export const FLINCH = Object.freeze({ heavyDeg: 6, lightDeg: 4, heavyS: 0.08, lightS: 0.055 });
+/** The flinch lean (rad) `t` s into a flinch of `dur` s at peak `a` rad (pure): a single sine hump, 0 outside it. */
+export function flinchLean(t: number, dur: number, a: number): number {
+  if (!(t >= 0) || t >= dur || dur <= 0) return 0;
+  return a * Math.sin((t / dur) * Math.PI);
+}
+/** Splash rings the hero ring layer has room for on top of the relation rings (render/fx/contactFx.ts CONTACT.ringMax). */
+const SPLASH_RINGS = 12;
+/** The default ambient before gameView sets one: Low (off). */
+const AMB_OFF: Ambient = { level: 0, tier: 'low', reduced: false, phone: false, motion: 0, speed: 1, density: 0 };
 
 /**
  * Visual push-apart (render only; the sim lets units overlap): heroes closer than `min` m are drawn pushed apart along
@@ -425,7 +452,8 @@ export class HeroView {
     return r ? r.pos : null;
   }
   // Normal blending: an additive red ring on sand reads yellow, like an ally's (enemy rings must read red).
-  private rings = new DecalLayer(ringTexture(), 8, { additive: false, y: 0.05, name: 'hero-rings' });
+  // living pass: + SPLASH_RINGS for the wading splash rings (render/fx/contactFx.ts), drawn after the relation rings
+  private rings = new DecalLayer(ringTexture(), 8 + SPLASH_RINGS, { additive: false, y: 0.05, name: 'hero-rings' });
   /** Round 0: a chroma reads at match zoom: a soft element-coloured glow underfoot, pulsing with the stride. */
   private auras = new DecalLayer(discTexture(), 8, { additive: true, y: 0.045, renderOrder: 1, name: 'hero-chroma' });
   /**
@@ -496,11 +524,36 @@ export class HeroView {
   private readonly profHero: (HeroId | null)[] = new Array<HeroId | null>(16).fill(null);
   private readonly profHit: (CardFx | null)[] = new Array<CardFx | null>(16).fill(null);
 
+  /** Living pass: the ambient level (quality tier and reduce motion; render/ambient.ts) and the contact FX. */
+  private amb: Ambient = AMB_OFF;
+  contact: ContactFx | null = null;
+
   constructor() {
     this.group.name = 'heroes';
     this.group.add(this.rings.mesh, this.toyRings.mesh);
     this.group.add(this.auras.mesh);
     this.group.add(this.selfRing.mesh, this.selfPing.mesh);
+  }
+
+  /** Living pass: the quality tier's ambient level (gameView, applyAmbient). */
+  setAmbient(a: Ambient): void {
+    this.amb = a;
+    this.contact?.setAmbient(a);
+  }
+
+  /** Living pass: the shared particle pools (gameView, attachAmbientFx): footfall dust and wading splashes. */
+  setAmbientFx(fx: AmbientFx): void {
+    void import('../fx/contactFx')
+      .then((m) => {
+        this.contact = m.contactFor(fx);
+        this.contact.setAmbient(this.amb);
+      })
+      .catch(() => undefined);
+  }
+
+  /** Is the living-pass body motion (flinch lean, landing squash) on: Med or High. */
+  private get lifeOn(): boolean {
+    return this.amb.level > 0;
   }
 
   relationOf(e: { id: number; team: number }): Relation {
@@ -570,7 +623,9 @@ export class HeroView {
         ch.mesh.parent?.add(xray);
         xray.bind(ch.mesh.skeleton, ch.mesh.bindMatrix);
       }
-      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0, xray, alpha: 1, kLook: look, kDress: dress, kDetail: this.detail, kOutline: outline, kSelf: self };
+      // living pass: yaw first, then the flinch lean in the hero's own frame (x, z stay 0 outside a flinch)
+      ch.object.rotation.order = 'YXZ';
+      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0, xray, alpha: 1, kLook: look, kDress: dress, kDetail: this.detail, kOutline: outline, kSelf: self, flT: 0, flDur: 0, flA: 0, flX: NaN, flZ: NaN, lift: 0 };
       this.rigs.set(e.id, r);
     }
     return r;
@@ -601,11 +656,31 @@ export class HeroView {
     return true;
   }
 
-  hit(id: number, heavy = false): void {
+  /**
+   * A hit on hero `id`: the flash and the animator's flinch; on Med / High (not under reduce motion) a short lean away
+   * from (fromX, fromZ) m when known, else back from its facing (FLINCH).
+   */
+  hit(id: number, heavy = false, fromX = NaN, fromZ = NaN): void {
     const r = this.rigs.get(id);
     if (!r) return;
     r.flash = heavy ? 1 : 0.75;
     r.ch.anim.hit(heavy);
+    if (!this.lifeOn || this.amb.reduced) return;
+    r.flDur = heavy ? FLINCH.heavyS : FLINCH.lightS;
+    r.flT = r.flDur;
+    r.flA = ((heavy ? FLINCH.heavyDeg : FLINCH.lightDeg) * Math.PI) / 180;
+    const dx = r.pos.x - fromX;
+    const dz = r.pos.z - fromZ;
+    const l = Math.sqrt(dx * dx + dz * dz);
+    r.flX = l > 1e-3 ? dx / l : NaN;
+    r.flZ = l > 1e-3 ? dz / l : NaN;
+  }
+
+  /** Living pass: a landing squash on hero `id` (lifecycle's respawn drop and recall arrival), Med / High only. */
+  land(id: number, k = 1): void {
+    const r = this.rigs.get(id);
+    if (!r || !r.visible || !this.lifeOn) return;
+    r.ch.anim.land(this.amb.reduced ? k * 0.5 : k);
   }
 
   /** Last drawn position (m) of a hero, for FX. */
@@ -638,6 +713,8 @@ export class HeroView {
     this.auras.begin();
     this.selfRing.begin();
     this.selfPing.begin();
+    const contact = this.contact;
+    contact?.begin(dt, frame.entities, this.mySlot, this.myTeam, this.focus.x, this.focus.z);
     const fx = this.tierFx;
     if (fx) {
       let n = 0;
@@ -749,8 +826,13 @@ export class HeroView {
       const sink = dead ? Math.max(0, (r.deadT - 1.2) * 0.8) : 0;
       r.visible = !(dead && r.deadT > 2.6);
       ch.object.visible = r.visible;
-      ch.object.position.set(x, -sink + (this.liftOf ? this.liftOf(e.id) : 0), z);
+      const lift = this.liftOf ? this.liftOf(e.id) : 0;
+      ch.object.position.set(x, -sink + lift, z);
       ch.object.rotation.y = r.yaw + (this.spinOf ? this.spinOf(e.id) : 0);
+      // living pass: a Boing Bed touchdown squashes; the hit flinch leans the body (a visual offset only)
+      if (r.lift > 0.3 && lift < 0.05 && !dead) this.land(e.id, 1);
+      r.lift = lift;
+      this.lean(r, dt);
       r.flash = Math.max(0, r.flash - dt * 5);
       const u = ch.material.userData.u;
       const fall = dead ? Math.min(1, r.deadT / 0.35) : 0;
@@ -827,7 +909,10 @@ export class HeroView {
         if (isSteadfast(e.buffs) && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * STEADFAST_RING_SCALE, STEADFAST_OUTLINE, STEADFAST_ALPHA);
         if (e.charmed) this.auras.add(x, z, HERO_RING[r.hero] * 1.5, CHARM_GLOW, 0.7 + Math.sin(this.time * 6) * 0.2);
       }
+      // living pass: footfall dust and wading splashes (the hidden-enemy rule and the caps live in ContactFx)
+      if (contact && !dead && r.visible) contact.hero(e, x, z, r.yaw, ch.anim.stridePhase, mi.state === 'moving' && lift < 0.05);
     }
+    contact?.drawRings(this.rings);
     this.hideStamp = stamp;
     this.rigs.forEach(this.hideUnseen);
     fx?.end();
@@ -874,6 +959,25 @@ export class HeroView {
     p.low = low;
     p.stage = p.awakened ? stageOf(level) : 0;
     return p;
+  }
+
+  /** The hit flinch lean this frame (Euler order YXZ: the lean is in the hero's own frame after its yaw). */
+  private lean(r: HeroRig, dt: number): void {
+    const o = r.ch.object;
+    if (r.flT <= 0) {
+      if (o.rotation.x !== 0 || o.rotation.z !== 0) o.rotation.set(0, o.rotation.y, 0);
+      return;
+    }
+    r.flT = Math.max(0, r.flT - dt);
+    const a = flinchLean(r.flDur - r.flT, r.flDur, r.flA);
+    // the lean direction in the hero's frame (it faces +X): away from the attacker, else straight back
+    const cy = Math.cos(r.yaw);
+    const sy = Math.sin(r.yaw);
+    const lx = r.flX === r.flX ? r.flX * cy - r.flZ * sy : -1;
+    const lz = r.flX === r.flX ? r.flX * sy + r.flZ * cy : 0;
+    // top of the body moves along (lx, lz): about local Z by −lx·a, about local X by lz·a
+    o.rotation.x = lz * a;
+    o.rotation.z = -lx * a;
   }
 
   private hideStamp = 0;

@@ -15,6 +15,9 @@
  *   pop with feathers where it lands.
  * - Minion waves: a puff where each new minion appears and a soft march horn near the camera.
  * - Match end: confetti (won) or soft grey puffs (lost), and a paw wipe into the results.
+ * - Living pass (P3), Med and High only: a soft wisp in the team colour rises off a fallen hero (not under reduce
+ *   motion), and the respawn drop lands with a dust ring at the fountain and a small landing squash (reduce motion:
+ *   the ring only, fewer puffs).
  *
  * Budgets: one sprite draw (LifeSprites), one decal draw (pads and nap rings), two gate draws (gone once open). Bursts
  * go through the shared Particles / Shockwaves / MeshFx pools, scaled down on Low and under reduce motion.
@@ -40,6 +43,7 @@ import { glintColor } from '../skins/tierFx';
 import { tinted } from '../skins/cardFx';
 import { rungAtLeast } from '../skins/registry';
 import type { Element } from '../../meta/roster';
+import { ambientFor } from '../ambient';
 
 /** Replay-safe cosmetic hash in [0, 1) (the fun kit's funRand, inlined so this chunk does not pull the kit in). */
 function funHash(tick: number, src: number, salt: number): number {
@@ -112,6 +116,23 @@ const READY_TICKS = 20;
 /** Other heroes' death ghosts show only this close (m) to the camera focus, and fainter, so a team fight stays readable. */
 const GHOST_NEAR = 13;
 
+/**
+ * Living pass (P3): the death wisp's soft puffs (the player's own, another hero's near the camera), and the respawn
+ * landing: seconds after the respawn (the drop's touchdown, with the ring meshFx spawns at 0.3 s), its dust ring puffs.
+ */
+export const LIVING_LIFE = Object.freeze({ wispMine: 6, wispOther: 4, landAt: 0.32, ringMine: 10, ringOther: 7 });
+/** Death wisp puffs for this ambient level (pure): none on Low or under reduce motion. */
+export function wispCount(level: number, reduced: boolean, mine: boolean): number {
+  if (level <= 0 || reduced) return 0;
+  return mine ? LIVING_LIFE.wispMine : LIVING_LIFE.wispOther;
+}
+/** Respawn landing dust ring puffs (pure): none on Low; reduce motion keeps the ring with counts × 0.6. */
+export function landingRing(level: number, reduced: boolean, mine: boolean): number {
+  if (level <= 0) return 0;
+  const n = mine ? LIVING_LIFE.ringMine : LIVING_LIFE.ringOther;
+  return reduced ? Math.max(1, Math.round(n * 0.6)) : n;
+}
+
 interface Track {
   seen: boolean;
   dead: boolean;
@@ -158,6 +179,8 @@ export class Lifecycle {
   private readonly gs = { up: true, open: 0, secs: 0 };
   private readonly v = new THREE.Vector3();
   private readonly sp = { x: 0, z: 0 };
+  /** Living pass: pending respawn landings (seconds from now), at most one per hero slot. */
+  private readonly landings: { on: boolean; at: number; id: number; x: number; z: number; mine: boolean }[] = Array.from({ length: 16 }, () => ({ on: false, at: 0, id: 0, x: 0, z: 0, mine: false }));
   /** Pending end-of-match bursts (seconds from now). */
   private endBursts: { at: number; won: boolean }[] = [];
   /** Telemetry (e2e): how many lifecycle moments played. */
@@ -196,6 +219,11 @@ export class Lifecycle {
     return this.view.vfx.reduced;
   }
 
+  /** Living pass: the ambient level (0 Low, 1 Med, 2 High; render/ambient.ts). */
+  private get life(): number {
+    return ambientFor(this.view.gr.settings, this.reduced).level;
+  }
+
   /** Burst count under reduce motion (Particles scales every burst by the quality tier itself). */
   private n(base: number): number {
     return Math.max(1, Math.round(base * (this.reduced ? 0.6 : 1)));
@@ -218,6 +246,7 @@ export class Lifecycle {
       this.updateHeroes(frame);
       this.napRunes.end();
       this.updateMinions(frame);
+      this.updateLandings(this.dt);
       this.lastTick = frame.tick;
       this.first = false;
     }
@@ -375,6 +404,13 @@ export class Lifecycle {
       this.v.set(t.x, heroY(e.hero, 1.2), t.z);
       this.view.particles.burst(this.v, { additive: true, n: this.n(6), shape: SHAPE.STAR4, color: 0xfff1c4, intensity: 1.4, size: [0.12, 0.22], life: [0.6, 1], speed: [0.4, 1.2], up: 1.4, drag: 1.5 });
     }
+    // living pass: a soft wisp in the team colour lifts off the body and thins out (no wisp on Low or reduce motion)
+    const wisp = wispCount(this.life, this.reduced, mine);
+    if (wisp > 0) {
+      const tc = mine ? RELATION.self : e.team === this.view.myTeam ? RELATION.ally : RELATION.enemy;
+      this.v.set(t.x, heroY(e.hero, 0.7), t.z);
+      this.view.particles.burst(this.v, { n: wisp, exact: true, shape: SHAPE.SOFT, color: mix(tc, 0xffffff, 0.4), alpha: mine ? 0.55 : 0.4, size: [0.3, 0.45], sizeEnd: 1.7, life: [0.9, 1.3], speed: [0.15, 0.45], up: 0.9, drag: 1.2, jitter: 0.3 });
+    }
   }
 
   private pad(e: ViewEntity, r: number): void {
@@ -423,6 +459,16 @@ export class Lifecycle {
     t.shield = 1.1;
     t.sx = x;
     t.sz = z;
+    // living pass: the drop lands a moment later (dust ring, landing squash)
+    if (this.life > 0 && e.id >= 0 && e.id < this.landings.length) {
+      const l = this.landings[e.id];
+      l.on = true;
+      l.at = LIVING_LIFE.landAt;
+      l.id = e.id;
+      l.x = x;
+      l.z = z;
+      l.mine = mine;
+    }
     if (mine) {
       this.respawnedAt = this.time;
       this.view.juice.kick(0.1);
@@ -471,6 +517,8 @@ export class Lifecycle {
     this.sprites.spawn({ x, y: heroTop(e.hero) - 0.2, z, glyph: GLYPH.pillow, color: 0xfff1f7, size0: 1.9, size1: 1.5, life: 0.85, vy: 0.5, curve: 1 });
     this.v.set(x, heroY(e.hero, 1.8), z);
     p.burst(this.v, { n: this.n(mine ? 14 : 8), shape: SHAPE.FEATHER, color: 0xffffff, alpha: 0.95, size: [0.22, 0.34], life: [0.9, 1.4], speed: [1.5, 3.5], up: 2.2, gravity: 2.2, drag: 2.5, spin: 5 });
+    // living pass: the body lands on the pillow with a small squash (Med / High; halved under reduce motion)
+    if (this.life > 0) this.view.heroes.land(e.id, 0.8);
     const at = mine ? undefined : { x, z };
     sfx.play('poof', { vol: mine ? 0.6 : 0.35, ...(at ? { at } : {}) });
     sfx.play('squeak', { vol: mine ? 0.3 : 0.18, rate: 1.2, ...(at ? { at } : {}) });
@@ -506,6 +554,22 @@ export class Lifecycle {
         this.view.gr.focus.x = fx;
         this.view.gr.focus.z = fz;
       }
+    }
+  }
+
+  /** Living pass: due respawn landings: a low dust ring rolls out at the fountain and the hero squashes on touchdown. */
+  private updateLandings(dt: number): void {
+    for (const l of this.landings) {
+      if (!l.on) continue;
+      l.at -= dt;
+      if (l.at > 0) continue;
+      l.on = false;
+      const level = this.life;
+      const n = landingRing(level, this.reduced, l.mine);
+      if (n <= 0) continue;
+      this.v.set(l.x, 0.05, l.z);
+      this.view.particles.ring(this.v, { n, shape: SHAPE.PUFF, color: 0xf3ead8, alpha: 0.6, r0: 0.5, speed: [2.2, 3.2], size: [0.3, 0.45], sizeEnd: 2, life: [0.45, 0.65], drag: 3.5, up: 0.3, y: 0.1 });
+      if (!this.reduced) this.view.heroes.land(l.id, 1);
     }
   }
 
