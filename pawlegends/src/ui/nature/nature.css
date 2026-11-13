@@ -77,7 +77,7 @@
 /* Ice: shards and snow falling, frost in two corners */
 .pl-nature[data-nature='ICE'] { --nat-c: rgba(190, 240, 255, 0.85); --nat-dur: 6s; --nat-glow: radial-gradient(ellipse at 0 0, rgba(225, 248, 255, 0.5), transparent 32%), radial-gradient(ellipse at 100% 100%, rgba(225, 248, 255, 0.4), transparent 32%); }
 /* Spark: two stepped lightning flickers and a crackle of sparks */
-.pl-nature[data-nature='ELECTRIC'] { --nat-c: rgba(255, 226, 77, 0.8); --nat-dur: 1.2s; --nat-blink: pl-nat-zap 1.7s steps(1) infinite; }
+.pl-nature[data-nature='ELECTRIC'] { --nat-c: rgba(255, 225, 74, 0.8); --nat-dur: 1.2s; --nat-blink: pl-nat-zap 1.7s steps(1) infinite; }
 /* Grass: leaves drifting down (opaque, not screened) */
 .pl-nature[data-nature='GRASS'] { --nat-c: rgba(111, 211, 111, 0.7); --nat-dur: 7s; --nat-blend: normal; }
 /* Fairy: hearts and four-point twinkles */

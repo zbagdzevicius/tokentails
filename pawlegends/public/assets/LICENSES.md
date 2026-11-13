@@ -22,7 +22,6 @@ client assets, copied from `client/public/cards/` and resized with `cwebp` (back
 | `cards/fx/{sparkle,legendary-sparkle,blue-sparkle,purple-sparkle,blue-paw,claw,whiskers-left,whiskers-right}.webp` | `client/public/cards/backgrounds/` (same names, unchanged) | Token Tails, all rights reserved |
 | `cards/fx/{epic-paw,legendary-paws,epic-claw}.webp` | `client/public/cards/backgrounds/` (256 px) | Token Tails, all rights reserved |
 | `cards/fx/golden-burst.webp`, `white-burst.webp`, `reveal-sparkle.webp`, `legendary-bg.webp`, `rare-swirl.webp` | `client/public/cards/backgrounds/golden-opening-sparkle`, `white-opening-sparkle`, `opening-reveal-sparkle1`, `legendary-bg`, `rare-swirl2` (384 px) | Token Tails, all rights reserved |
-| `cards/back.webp` | `client/public/cards/backgrounds/card-placeholder.webp` (340 px) | Token Tails, all rights reserved |
 | `cards/icons/<element>.webp` | `client/public/cards/icons/<element>.webp` (64 px) | Token Tails, all rights reserved |
 
 Lobby backgrounds (`lobby/`, UX pass 2, about 126 KB, loaded by the lobby only): painted scenes generated for

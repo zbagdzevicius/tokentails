@@ -1,6 +1,6 @@
 /**
- * The VS intro (Token Tails card art): when the match is ready, both teams' champions as cards, your team on top and
- * the other below, a big "VS" between them. The cards lie face down (the Token Tails card back) and flip up one by
+ * The VS intro (champion card art): when the match is ready, both teams' champions as cards, your team on top and
+ * the other below, a big "VS" between them. The cards lie face down (the Paw Legends card back) and flip up one by
  * one at a 120 ms stagger, your own card with a golden burst behind it; then the whole screen fades into the match.
  * It never takes input (pointer-events: none) and is gone after VS_MS. Its own lazy chunk; it preloads the six
  * element backgrounds when it mounts. Reduced motion: no flips or spin, a 200 ms fade in and out.
@@ -10,7 +10,7 @@ import type { AvatarView } from '../../data/chatPhrases';
 import type { HeroId } from '../../sim/api';
 import type { CatTier } from '../../meta/roster';
 import { HERO_TEXT } from '../heroText';
-import { backUrl, elBg, fxUrl, heroElement, preloadCardArt } from './art';
+import { elBg, fxUrl, heroElement, preloadCardArt } from './art';
 import { flipCard, heroCard } from './hero';
 import './vs.css';
 
@@ -50,7 +50,7 @@ export interface VsIntroOpts {
 export function showVsIntro(parent: HTMLElement, o: VsIntroOpts): () => void {
   const calm = reduced();
   const myTeam = o.mySlot < 3 ? 0 : 1;
-  preloadCardArt([backUrl(), fxUrl('golden-burst'), fxUrl('sparkle'), ...o.picks.map((h) => elBg(heroElement(h)))]);
+  preloadCardArt([fxUrl('golden-burst'), fxUrl('sparkle'), ...o.picks.map((h) => elBg(heroElement(h)))]);
   const row = (team: 0 | 1, startIdx: number): string => {
     const cards = [0, 1, 2]
       .map((k) => {

@@ -1,4 +1,4 @@
-/** Pointer-follow foil and tilt for Token Tails cards (ui/cards/frame.ts); its own small chunk, loaded by the pick screen. */
+/** Pointer-follow foil and tilt for champion cards (ui/cards/frame.ts); its own small chunk, loaded by the pick screen. */
 const reduced = (): boolean => {
   try {
     return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;

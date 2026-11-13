@@ -1,5 +1,5 @@
 /**
- * The results screen's MVP card (GAPS A2 MVP, Token Tails card art): the MVP's hero as a full card (element frame,
+ * The results screen's MVP card (GAPS A2 MVP, champion card art): the MVP's hero as a full card (element frame,
  * portrait, name, "MVP" ribbon, the tier footer), a golden burst turning slowly behind it, and the foil sweeping by
  * itself. A Legendary card adds the legendary background and paws. It lies face down and flips 600 ms after the
  * screen opens (the companion card flip's timing in ui/cards.ts); the flip is pure CSS on `.pl-results.in`.
