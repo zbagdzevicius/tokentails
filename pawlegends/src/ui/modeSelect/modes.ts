@@ -13,6 +13,7 @@
  */
 import type { MapId } from '../../sim/api';
 import { loadMatchMode, type MatchMode } from '../lobby/matchMode';
+import { rankedGateText, RANKED_MAP, type RankedStatus } from '../../meta/ranked';
 
 export type ModeId = 'blitz' | 'skirmish' | 'classic' | 'ranked' | 'cannon' | (string & {});
 /** A mode's variant (the second step after PLAY): solo vs bots, co-op vs bots, PvP, or a party with friends. */
@@ -86,19 +87,9 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     queues: ['bots', 'pvp'],
     rules: ['5v5 on Hearthwood Divide: three lanes and a jungle.', 'Take towers and objectives, then the core.'],
   },
-  {
-    id: 'ranked',
-    name: 'Ranked',
-    map: 'hearthwood',
-    size: '5v5',
-    minutes: '~13 min',
-    queues: ['pvp'],
-    art: 'ranked',
-    state: 'locked',
-    lockText: 'Coming soon',
-    rank: { tier: 'Unranked' },
-    rules: ['5v5 Classic with a rank that rises as you win.', 'Opens in a later season.'],
-  },
+  // Gap plan P4: Ranked opens by itself when enough players are online (GET /pawlegends/ranked/status). Until the
+  // first answer it is locked with the fallback line; `rankedModeDef` replaces it with the live gate.
+  rankedModeDef(null),
   {
     id: 'cannon',
     name: 'Cannon Chaos',
@@ -110,6 +101,32 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     rules: ['A party event: cannons everywhere, cooldowns short.', 'Comes back for limited weekends.'],
   },
 ] satisfies ModeDef[]);
+
+/**
+ * The Ranked tile from the live gate (gap plan P4, SOCIAL-RANKED.md §7.1, §7.9): 3v3 on the Crossing, PvP only, solo
+ * or duo, never a bot. Live while the gate is open; locked with "Opens at 24 online · 9 now" while it is closed (and
+ * with the fallback line before the first answer). The gate is the switch: there is no flag. Pure.
+ */
+export function rankedModeDef(st: RankedStatus | null, rank?: ModeDef['rank']): ModeDef {
+  const open = !!st?.open;
+  return {
+    id: 'ranked',
+    name: 'Ranked',
+    map: RANKED_MAP,
+    size: '3v3',
+    minutes: '~7 min',
+    queues: ['pvp'],
+    art: 'ranked',
+    state: open ? 'live' : 'locked',
+    ...(open ? {} : { lockText: rankedGateText(st) }),
+    rank: rank ?? { tier: 'Unranked' },
+    rules: [
+      '3v3 on the Crossing against players only: no bots. Solo or duo.',
+      'Win to climb Kitten, Tabby, Alley, Lion and Legend. Kitten and Tabby never lose points.',
+      open ? `Open now · ${st!.online} players online.` : `Opens by itself at ${st?.need ?? 24} players online.`,
+    ],
+  };
+}
 
 const extra: ModeDef[] = [];
 
@@ -207,7 +224,7 @@ export function variantLock(q: Queue, available: readonly Queue[], pvpLock: stri
 }
 
 /** The old toggle's value for a mode (the app still saves it, so the pick and party screens keep their map). */
-export const legacyMode = (id: ModeId): MatchMode => (id === 'classic' || id === 'ranked' ? 'classic' : id === 'blitz' ? 'blitz' : 'skirmish');
+export const legacyMode = (id: ModeId): MatchMode => (id === 'classic' ? 'classic' : id === 'blitz' ? 'blitz' : 'skirmish');
 
 // ------------------------------------------------------------------------------------------ the saved selection
 

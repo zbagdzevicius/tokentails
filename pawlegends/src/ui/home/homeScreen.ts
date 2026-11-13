@@ -219,6 +219,14 @@ function promoHtml(o: HomeScreenOpts): string {
   return `<div class="hm-promo" role="region" aria-label="News" data-n="${ps.length}">${slides}${dots}</div>`;
 }
 
+/** The nav Ranked item (gap plan P4): live while the gate is open, else locked with the gate line. Pure. */
+export function rankedNavOpts(o: Pick<HomeScreenOpts, 'modes'>, returning: boolean): { locked?: string; extra?: string } {
+  const m = o.modes.find((x) => x.id === 'ranked');
+  if (m && returning && effectiveState(m, Date.now()) === 'live') return { extra: ' aria-label="Ranked: open now" data-live="1"' };
+  if (!returning) return { locked: 'Unlocks after your first match.' };
+  return { locked: m?.lockText ? `Ranked: ${m.lockText}.` : 'Ranked opens when enough players are online.' };
+}
+
 function navHtml(o: HomeScreenOpts, returning: boolean): string {
   const lockedFirst = o.firstTime;
   const item = (a: string, ico: string, label: string, opts: { extra?: string; badge?: string; locked?: string } = {}): string =>
@@ -227,7 +235,8 @@ function navHtml(o: HomeScreenOpts, returning: boolean): string {
   const items = [
     o.onHeroes ? item('heroes', icon('paw'), 'Heroes', lockedFirst || o.dare ? { locked: o.dare ? 'Finish the dare first.' : after } : { extra: ' aria-keyshortcuts="H" aria-haspopup="dialog" aria-label="Heroes: skills and lore"' }) : '',
     item('collection', TROPHY, 'Pass', o.onCollection && returning ? { badge: o.profile.tier !== null ? `<b class="hm-count tier" aria-hidden="true">${o.profile.tier}</b>` : '', extra: ' aria-label="Treat Track and Legends Pass"' } : { locked: o.onCollection ? 'Finish the dare first.' : after }),
-    item('ranked', crestSvg('ranked').replace('<svg ', '<svg class="hm-ico" '), 'Ranked', { locked: 'Ranked opens in a later season.' }),
+    // gap plan P4: the Ranked item follows the live gate (open: Mode Select on the Ranked tile; closed: the gate line)
+    item('ranked', crestSvg('ranked').replace('<svg ', '<svg class="hm-ico" '), 'Ranked', rankedNavOpts(o, returning)),
     o.storeOpen && !o.isApp ? item('store', BAG, 'Store', { extra: ' aria-label="Store"' }) : '',
   ].filter(Boolean);
   return `<nav class="hm-nav" aria-label="Menu" data-n="${items.length}">${items.join('')}</nav>`;
@@ -468,7 +477,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       o.sound?.('click');
       shake(btn!);
       toast(btn!.dataset.why ?? 'Locked.');
-    } else if (a === 'ranked') toast('Ranked opens in a later season.');
+    } else if (a === 'ranked') openModes('ranked', 'promo');
     else if (a === 'promo') {
       const act = btn!.dataset.act;
       o.sound?.('click');

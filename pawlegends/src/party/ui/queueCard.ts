@@ -13,7 +13,35 @@ import type { MmSide } from '../../net/proto';
 import { COPY, DIFF_LABEL, clockText, esc, sideText } from './copy';
 import { backfillHtml, type BackfillModel } from './backfillCard';
 
-export type QueueStop = 'away' | 'left' | 'party' | 'update' | 'locked' | 'busy' | 'declined' | 'timeout' | 'newbie';
+export type QueueStop =
+  | 'away'
+  | 'left'
+  | 'party'
+  | 'update'
+  | 'locked'
+  | 'busy'
+  | 'declined'
+  | 'timeout'
+  | 'newbie'
+  // Ranked (gap plan P4): the gate closed, a guest, too few matches, an unsaved ranked match, a trio
+  | 'ranked_closed'
+  | 'ranked_account'
+  | 'ranked_matches'
+  | 'ranked_pending'
+  | 'ranked_party';
+
+/** Ranked stops that Search again cannot fix now: the card offers Casual instead. */
+export const RANKED_TO_CASUAL: ReadonlySet<QueueStop> = new Set<QueueStop>(['ranked_closed', 'ranked_account', 'ranked_matches', 'ranked_party']);
+
+/** Ranked's queue numbers (gap plan P4): when the card offers Casual, and the refusal's counts. */
+export interface RankedQueueInfo {
+  /** Seconds after which the searching card offers "Play Casual instead". */
+  casualAfterS: number;
+  online?: number;
+  need?: number;
+  have?: number;
+  needMatches?: number;
+}
 
 export interface QueueModel {
   side: MmSide;
@@ -37,6 +65,8 @@ export interface QueueModel {
   offer: BackfillModel | null;
   /** Casual PvP (V16.md §5): the queue, the humans found on the other team, the 45 s move to co-op, a requeue. */
   pvp?: { theirs: number; toCoop: boolean; requeued: boolean };
+  /** Ranked (gap plan P4): no bots, solo or duo; Casual offered after a long wait. */
+  ranked?: RankedQueueInfo;
 }
 
 const SIDES: readonly MmSide[] = ['cat', 'dog', 'any'];
@@ -59,6 +89,16 @@ const stopText = (m: QueueModel): string => {
       return COPY.timeoutYou;
     case 'newbie':
       return COPY.pvpLocked;
+    case 'ranked_closed':
+      return COPY.rankedClosed(m.ranked?.online ?? 0, m.ranked?.need ?? 24);
+    case 'ranked_account':
+      return COPY.rankedAccount;
+    case 'ranked_matches':
+      return COPY.rankedMatches(m.ranked?.have ?? 0, m.ranked?.needMatches ?? 10);
+    case 'ranked_pending':
+      return COPY.rankedPending;
+    case 'ranked_party':
+      return COPY.rankedParty;
     default:
       return COPY.stoppedParty;
   }
@@ -98,13 +138,33 @@ export function queueCardHtml(m: QueueModel): string {
     const again =
       m.stopped === 'update' && !m.pvp
         ? `<button type="button" class="pl-btn big" data-p="reload">${COPY.reload}</button>`
-        : `<button type="button" class="pl-btn big" data-p="mm-again" data-testid="mm-again"${wait ? ' disabled' : ''}>${COPY.searchAgain}</button>`;
-    return `<div class="pp-card pp-narrow pp-queue" data-state="stopped" data-testid="mm-queue"><h2>${COPY.online}</h2><p class="pp-dim" role="status" data-testid="mm-stopped" data-reason="${m.stopped}"><span data-live="stop">${esc(stopText(m))}</span></p><div class="pp-col">${again}<button type="button" class="pl-btn ghost small" data-p="mm-cancel" data-testid="mm-cancel">${COPY.back}</button></div></div>`;
+        : RANKED_TO_CASUAL.has(m.stopped)
+          ? `<button type="button" class="pl-btn big" data-p="mm-casual" data-testid="mm-play-casual">${COPY.playCasual}</button>`
+          : `<button type="button" class="pl-btn big" data-p="mm-again" data-testid="mm-again"${wait ? ' disabled' : ''}>${COPY.searchAgain}</button>`;
+    return `<div class="pp-card pp-narrow pp-queue" data-state="stopped" data-testid="mm-queue"${m.ranked ? ' data-ranked="1"' : ''}><h2>${COPY.online}</h2><p class="pp-dim" role="status" data-testid="mm-stopped" data-reason="${m.stopped}"><span data-live="stop">${esc(stopText(m))}</span></p><div class="pp-col">${again}<button type="button" class="pl-btn ghost small" data-p="mm-cancel" data-testid="mm-cancel">${COPY.back}</button></div></div>`;
   }
   const est = m.estimateS !== null && m.estimateS > 0 ? ` · <span class="pp-dim">${esc(COPY.usually(clockText(m.estimateS)))}</span>` : '';
   const low = m.lowPriorityS > 0 ? `<p class="pp-hint pp-low" data-testid="mm-low"><span data-live="low">${esc(COPY.lowPriority(clockText(m.lowPriorityS)))}</span></p>` : '';
   const warn = m.warn && m.lowPriorityS <= 0 ? `<p class="pp-hint" data-testid="mm-warn">${COPY.leaverWarn}</p>` : '';
   const offer = m.offer ? backfillHtml(m.offer) : '';
+  if (m.ranked) {
+    // ranked: both teams' pips, never a bot; after a long wait the card offers Casual (the player's choice, never automatic)
+    const long = m.waitedS >= m.ranked.casualAfterS;
+    const note = long
+      ? `<p class="pp-hint" role="status" data-testid="mm-ranked-long">${COPY.rankedLong}</p><button type="button" class="pl-btn" data-p="mm-casual" data-testid="mm-play-casual">${COPY.playCasual}</button>`
+      : `<p class="pp-note" data-testid="mm-ranked-note">${COPY.rankedNote}</p>`;
+    const requeued = m.pvp?.requeued ? `<p class="pp-hint" data-testid="mm-requeued">${COPY.requeued}</p>` : '';
+    return `<div class="pp-card pp-narrow pp-queue" data-state="searching" data-mode="pvp" data-ranked="1" data-testid="mm-queue">
+    <h2>${m.party ? COPY.partyQueued : COPY.findingRanked}</h2>
+    ${low}${requeued}
+    <p class="pp-qtime" role="timer" aria-live="off"><b data-live="waited" data-testid="mm-timer">${clockText(m.waitedS)}</b>${est}</p>
+    ${pvpPipsHtml(m.found, m.pvp?.theirs ?? 0, 3)}
+    ${note}
+    ${sideChipHtml(m.side)}
+    ${warn}
+    <button type="button" class="pl-btn ghost" data-p="mm-cancel" data-testid="mm-cancel">${COPY.cancel}</button>
+  </div>`;
+  }
   if (m.pvp) {
     // casual PvP: both teams' pips; at the switch "playing Co-op vs bots" with Keep waiting
     const note = m.pvp.toCoop
