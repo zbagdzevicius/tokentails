@@ -164,9 +164,10 @@ export interface EffectsHooks {
   onStructureWindup?(id: number, seconds: number): void;
   /**
    * LoL pass (lane C): a tower or core shot landed on a unit at (x, y, z) m (`me`: the player): its targeting beam. Also
-   * a windup (`charge`, `seconds` long) toward (x, z): the charging line.
+   * a windup (`charge`, `seconds` long) toward (x, z): the charging line. `hero` (sim v26): the hero a landed shot hit,
+   * else −1 (the warming-up beams).
    */
-  onTowerShot?(src: number, x: number, y: number, z: number, me: boolean, charge: boolean, seconds: number): void;
+  onTowerShot?(src: number, x: number, y: number, z: number, me: boolean, charge: boolean, seconds: number, hero?: number): void;
   /** LoL pass (lane C): the player's basic attack landed on `dst` (the touch auto-attack target ring). */
   onMyBasic?(dst: number): void;
   /** A tower or core fell: its fall animation (render only). */
@@ -405,7 +406,7 @@ export class Effects {
     this.hooks.onHit(e.dst, dst.kind, heavy, e.src);
     const pos = this.at(dst, heroDst ? 0.9 : dst.kind === 'tower' || dst.kind === 'core' ? 2.4 : 0.6);
     // LoL pass (lane C): every tower / core shot draws its beam (red and thick on the player)
-    if (src && (src.kind === 'tower' || src.kind === 'core')) this.hooks.onTowerShot?.(e.src, pos.x, pos.y, pos.z, e.dst === me, false, 0);
+    if (src && (src.kind === 'tower' || src.kind === 'core')) this.hooks.onTowerShot?.(e.src, pos.x, pos.y, pos.z, e.dst === me, false, 0, heroDst ? e.dst : -1);
     if (e.src === me && e.kind === 'basic') this.hooks.onMyBasic?.(e.dst);
     const color = src ? (src.team === 0 ? 0xffd27a : 0xc9a8ff) : 0xffffff;
     // Wave C (C3): sparks and flash sized by the damage, element-tinted from a hero; a big hit on a hero pops
