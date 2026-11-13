@@ -486,6 +486,11 @@ export interface ResultsOpts {
   onHome?(): void;
   /** `text`: the dare line ("Beat my 7:12 vs Easy bots in Pawlegends!"), sent with the link to the share sheet (PUB-06). */
   onShare(url: string, text: string): void;
+  /**
+   * MATCH-MOMENTS.md: the Legend Moment share card (1200x630, src/share/card.ts) and, when this match's replay is kept
+   * and plays on this version, Watch replay (src/replay/viewer.ts).
+   */
+  moments?: { onCard(): void; onReplay?: (() => void) | null } | null;
   onStore?(): void;
   onNotify?(): void;
   /** The player's damage to enemy heroes (0 = never joined a fight). */
@@ -660,7 +665,7 @@ function gradeBlock(g: ResultGrade, won: boolean): string {
  * Audit UX-04: the rewards pinned beside Run it back (on phones the Treat Track, chest and share sat 600 px below the
  * fold): the grade, the Treat XP bar, a chest toast and the dare link. The full blocks stay in the column.
  */
-export function rewardStrip(o: Pick<ResultsOpts, 'grade' | 'treats' | 'dareLink'>): string {
+export function rewardStrip(o: Pick<ResultsOpts, 'grade' | 'treats' | 'dareLink' | 'moments'>): string {
   const parts: string[] = [];
   if (o.grade) parts.push(`<span class="rw-grade" data-grade="${o.grade.grade}" title="Grade ${o.grade.grade}"><b>${o.grade.grade}</b><small>Grade</small></span>`);
   const t = o.treats;
@@ -671,6 +676,8 @@ export function rewardStrip(o: Pick<ResultsOpts, 'grade' | 'treats' | 'dareLink'
     if (opened) parts.push(`<span class="rw-chest">${icon('crown')}<span><b>Chest opened</b><small>${esc(t.rewards.map((r) => r.name).join(', '))}</small></span></span>`);
   }
   if (o.dareLink) parts.push(`<button class="pl-btn ghost small rw-share" data-a="share" title="Copy dare link">Dare a friend</button>`);
+  // MATCH-MOMENTS.md: the share card beside the rewards (on phones the column's moments block sits below the fold)
+  if (o.moments) parts.push(`<button class="pl-btn ghost small rw-card" data-a="card" data-testid="results-card-strip" title="Share your Legend Moment card">Share card</button>`);
   return parts.length ? `<div class="pl-reward" data-reward>${parts.join('')}</div>` : '';
 }
 
@@ -710,6 +717,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.party ? o.party.rowsHtml : ''}
       ${o.grade ? gradeBlock(o.grade, o.won) : ''}
       ${o.bestMoment ? `<p class="pl-best">${icon('crown')}<span>Best moment: <b>${esc(o.bestMoment)}</b></span></p>` : ''}
+      ${o.moments ? `<div class="pl-moments" data-moments><button type="button" class="pl-btn small" data-a="card" data-testid="results-card">Share card</button>${o.moments.onReplay ? '<button type="button" class="pl-btn ghost small" data-a="replay" data-testid="results-replay">Watch replay</button>' : ''}</div>` : ''}
       ${o.ladder ? ladderLine(o.ladder, o.won) : ''}
       ${o.personal ? `<p class="pl-personal">${icon('crown')}<span>${esc(o.personal)}</span></p>` : ''}
       ${o.table && o.table.length ? resultTable(o.table) : ''}
@@ -749,6 +757,8 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     else if (a === 'home') o.onHome?.();
     else if (a === 'store') o.onStore?.();
     else if (a === 'notify') o.onNotify?.();
+    else if (a === 'card') o.moments?.onCard();
+    else if (a === 'replay') o.moments?.onReplay?.();
     else if (a === 'share' && o.dareLink) {
       o.onShare(o.dareLink, dareLine);
       for (const b of root.querySelectorAll<HTMLElement>('[data-a="share"]')) b.textContent = 'Link copied!';

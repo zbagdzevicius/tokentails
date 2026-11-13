@@ -21,6 +21,15 @@ export type AnalyticsEvent =
   | 'match_start'
   | 'match_end'
   | 'second_match'
+  // match moments (MATCH-MOMENTS.md): history, the replay viewer, the Legend Moment card
+  | 'history_open'
+  | 'replay_open'
+  | 'replay_error'
+  | 'replay_seek'
+  | 'replay_again'
+  | 'replay_death_jump'
+  | 'share_card_open'
+  | 'share_card'
   | 'rematch_click'
   | 'mode_link'
   // the one play path (HOME-MODES.md §5): PLAY opened Mode Select (`from`), and a mode and variant went on

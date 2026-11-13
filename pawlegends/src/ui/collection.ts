@@ -33,6 +33,8 @@ export interface CollectionOpts {
   onClose(): void;
   /** STORE-PASS.md §6: the Track's second tab, the Legends Pass (absent: no tab bar). */
   onPass?(): void;
+  /** MATCH-MOMENTS.md §1: the Match history pill (the last 20 matches and their replays). */
+  onHistory?(): void;
   /** CHAMPION-STORE.md §10: "Champions 9/20", and the Founders roster badge. */
   champions?: { owned: number; total: number; founders: boolean; yarn: number };
 }
@@ -123,7 +125,7 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
           <small data-togo="${n}">${esc(toGoText(n))}</small>
         </div>
       </section>
-      <p class="champs-row"><button type="button" class="bk-pill" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: skills &amp; lore</button>${o.champions ? `<small class="champ-count" data-champs="${o.champions.owned}">Champions ${o.champions.owned}/${o.champions.total} · ${o.champions.yarn.toLocaleString('en-US')} Yarn${o.champions.founders ? ' · <b class="founders-badge">Founders roster</b>' : ''}</small>` : ''}</p>
+      <p class="champs-row"><button type="button" class="bk-pill" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: skills &amp; lore</button>${o.onHistory ? `<button type="button" class="bk-pill" data-a="history" data-testid="open-history" aria-haspopup="dialog">${icon('arrows')}Match history</button>` : ''}${o.champions ? `<small class="champ-count" data-champs="${o.champions.owned}">Champions ${o.champions.owned}/${o.champions.total} · ${o.champions.yarn.toLocaleString('en-US')} Yarn${o.champions.founders ? ' · <b class="founders-badge">Founders roster</b>' : ''}</small>` : ''}</p>
       <h3 class="bk-h3">Pick your next target</h3>
       <div class="targets"><div class="md-row" role="group" aria-label="Pick your next target"><button type="button" class="target md order${s.target === null ? ' on' : ''}" data-target="" aria-pressed="${s.target === null}" aria-label="Track order, any hero"><span class="md-ring"><span class="md-face">${icon('arrows')}</span></span><b>Track order</b><small>Any hero</small></button><span class="grp" aria-hidden="true">Cats</span>${cats.map(medal).join('')}<span class="grp dog" aria-hidden="true">Dogs</span>${dogs.map(medal).join('')}</div></div>
       <h3 class="bk-h3">Meet the real cat</h3>
@@ -156,6 +158,11 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
     if (t.closest('[data-a="pass"]') && o.onPass) {
       close();
       o.onPass();
+      return;
+    }
+    if (t.closest('[data-a="history"]') && o.onHistory) {
+      close();
+      o.onHistory();
       return;
     }
     if (t.closest('[data-a="champions"]')) {

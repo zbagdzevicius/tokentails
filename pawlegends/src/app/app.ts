@@ -29,7 +29,9 @@ import { appHidden, canPlay, champStatus, localChampions, lockReason, openChampi
 import { PAID_COATS, bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { ArtStage } from '../ui/stage/artStage';
 import { Lobby } from '../render/lobby';
-import { onSkinArt } from '../ui/art';
+import { heroSplashUrl, onSkinArt, splashFor } from '../ui/art';
+import { loadHistory, newEntryId, recordMoment, replayOf, type HistoryEntry } from '../replay/store';
+
 import { portraitUrl, warmPortraits } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
 import { isPhone } from '../render/perf/device';
@@ -1572,6 +1574,8 @@ export class App {
   private showResults(e: MatchEnd): void {
     // UX pass 2: the username the match showed names the player's row (and the MVP / best lines)
     const userName = this.session?.playerName ?? null;
+    // MATCH-MOMENTS.md: the champion's name this match (a worn card's cat), for history and the share card
+    const momentName = this.session?.card?.name ?? null;
     const won = e.result.outcome === 'won';
     const seconds = Math.floor(e.result.ticks / 30);
     const setup = this.lastSetup;
@@ -1669,6 +1673,8 @@ export class App {
         link = null;
       }
     }
+    // MATCH-MOMENTS.md §1: the history row (this device) and, for a solo match, its replay record
+    const moment = this.saveMoment(e, { name: momentName, mode: partyEnd ? (setup?.party?.pvp ? 'pvp' : 'party') : practice ? 'practice' : playedMode, grade: e.result.reason === 'forfeit' ? null : myGrade, party: !!partyEnd });
     const s = this.ent.snapshot();
     const lp = loadProfile();
     if (e.fun.usedUlt && !lp.knowsUlt) {
@@ -1831,6 +1837,11 @@ export class App {
         },
         onStore: () => this.openStore('results'),
         onNotify: () => this.notify('results'),
+        // MATCH-MOMENTS.md §2, §3: the Legend Moment card and this match's replay
+        moments: {
+          onCard: () => this.openCard(moment, link, userName, setup?.look ?? null),
+          onReplay: moment.replay && moment.simVersion === SIM_VERSION ? () => this.openReplay(moment.id) : null,
+        },
         ...(party
           ? {
               party: {
@@ -1859,6 +1870,147 @@ export class App {
       setTimeout(() => {
         if (this.screen === 'results') this.maybeOffer('results');
       }, 2500);
+  }
+
+  // ------------------------------------------------------------------------------------- match moments
+
+  /** MATCH-MOMENTS.md §1: save the history row (and the replay of a solo match). Display only, on this device. */
+  private saveMoment(e: MatchEnd, o: { name: string | null; mode: HistoryEntry['mode']; grade: string | null; party: boolean }): HistoryEntry {
+    const at = Date.now();
+    return recordMoment(
+      {
+        id: newEntryId(at),
+        at,
+        hero: e.replay.hero,
+        heroName: o.name,
+        mode: o.mode,
+        difficulty: e.replay.difficulty,
+        outcome: e.result.draw ? 'draw' : e.result.outcome === 'won' ? 'won' : 'lost',
+        grade: o.grade,
+        k: e.kills,
+        d: e.deaths,
+        a: e.assists,
+        seconds: Math.floor(e.result.ticks / 30),
+        best: e.fun.best,
+        simVersion: e.replay.simVersion,
+        noReplay: o.party ? 'party' : null,
+      },
+      o.party ? null : e.replay,
+    );
+  }
+
+  /** MATCH-MOMENTS.md §3: the 1200x630 Legend Moment card (its own chunk) over the results. */
+  private openCard(m: HistoryEntry, link: string | null, player: string | null, look: Look | null): void {
+    sfx.play('click');
+    const hero = m.hero as HeroId;
+    void import('../share/card')
+      .then(({ openShareCard }) =>
+        openShareCard(this.root, {
+          data: {
+            won: m.outcome === 'won',
+            draw: m.outcome === 'draw',
+            heroName: m.heroName || HERO_TEXT[hero].title,
+            role: HERO_TEXT[hero].role,
+            side: HEROES[hero]?.side === 'dog' ? 'dog' : 'cat',
+            k: m.k,
+            d: m.d,
+            a: m.a,
+            grade: m.grade,
+            best: m.best ?? null,
+            line: `${MODE_NAME[m.mode as MatchMode] ?? (m.mode === 'pvp' ? 'PvP' : m.mode === 'party' ? 'Party' : 'Practice')} · ${Math.floor(m.seconds / 60)}:${String(m.seconds % 60).padStart(2, '0')}`,
+            player,
+            art: splashFor(hero, look ?? undefined, 720),
+            artFallback: heroSplashUrl(hero, 720),
+          },
+          url: link,
+          onLink: (url, text) => {
+            try {
+              void navigator.clipboard?.writeText(`${text} ${url}`).catch(() => undefined);
+            } catch {
+              /* no clipboard */
+            }
+            this.bridge.post('share', { kind: 'moment', url, text });
+          },
+          track: (ev, props) => this.analytics.track(ev as 'share_card', props),
+        }),
+      )
+      .catch((err: unknown) => reportCrash('window', err));
+  }
+
+  /** MATCH-MOMENTS.md §1: the last 20 matches (from the Treat Track's profile entry). */
+  private openHistory(): void {
+    if (this.overlay) this.overlay.close();
+    this.overlay = null;
+    this.analytics.track('history_open', { rows: loadHistory().length });
+    void import('../ui/history/historySheet')
+      .then(({ historySheet }) => {
+        const el = historySheet(this.root, {
+          onWatch: (id) => this.openReplay(id),
+          onClose: () => {
+            if (this.overlay?.close === close) this.overlay = null;
+          },
+        });
+        const close = (): void => el.remove();
+        this.overlay = { close };
+      })
+      .catch((err: unknown) => reportCrash('window', err));
+  }
+
+  /**
+   * MATCH-MOMENTS.md §2: watch a kept replay: the match view (MatchSession) over a ReplayHost, the sim re-running the
+   * stored inputs in the sim Worker. Back to Home when it closes.
+   */
+  private openReplay(id: string): void {
+    const record = replayOf(id);
+    const entry = loadHistory().find((r) => r.id === id);
+    if (!record || !entry) return;
+    sfx.play('click');
+    this.overlay?.close();
+    this.overlay = null;
+    this.setScreen('match', null);
+    this.leaveHomeLobby();
+    this.stage.leave();
+    this.session?.dispose();
+    this.session = null;
+    const token = ++this.matchToken;
+    void Promise.all([loadMatch(), import('../replay/viewer')])
+      .then(([{ MatchSession }, { openReplayViewer }]) => {
+        if (token !== this.matchToken) return;
+        openReplayViewer({
+          Session: MatchSession,
+          gr: this.gr,
+          root: this.root,
+          record,
+          entry,
+          muted: sfx.isMuted,
+          look: this.lookFor(record.hero),
+          playerName: this.integration.state().playerName,
+          setSession: (s) => {
+            this.session = s;
+            if (s) this.governor.hold(performance.now() + GOV.WARMUP_MS);
+          },
+          warm: (s) => {
+            const t0 = performance.now();
+            return warmMatch(
+              () => (this.session === s ? s.view.hasRoster : null),
+              () => s.view.warmup(t0 + WARM.totalMs),
+              (ms) => new Promise((r) => setTimeout(r, ms)),
+              () => performance.now() - t0,
+            ).then(() => undefined);
+          },
+          onExit: () => {
+            this.session = null;
+            if (token === this.matchToken) this.showTitle();
+          },
+          onMute: (m) => this.setMuted(m),
+          onSettings: (done) => this.openSettings(done),
+          track: (ev, props) => this.analytics.track(ev as 'replay_open', props),
+        });
+      })
+      .catch((err: unknown) => {
+        reportCrash('window', err);
+        this.showTitle();
+      });
   }
 
   // ------------------------------------------------------------------------------------- store and offers
@@ -2031,6 +2183,8 @@ export class App {
         saveProfile(q);
       },
       onPass: () => this.openPass(),
+      // MATCH-MOMENTS.md §1: the profile entry's Match history
+      onHistory: () => this.openHistory(),
       champions: { owned: ownedCount(this.champs(), this.isApp()), total: CHAMPION_IDS.length, founders: this.champs().founders, yarn: this.champs().yarn.balance },
       onClose: () => {
         this.overlay = null;
