@@ -123,7 +123,8 @@ const SPEAKER = (on: boolean): string =>
 
 /** Today's quests as "done/total". */
 export function questTally(qs: readonly QuestView[] | undefined): { done: number; total: number } {
-  const list = qs ?? [];
+  // the daily friend quest (meta/quests.ts FRIEND_QUEST) is a bonus: it never keeps a solo player's day from being done
+  const list = (qs ?? []).filter((q) => !q.quest.bonus);
   return { done: list.filter((q) => q.done).length, total: list.length };
 }
 

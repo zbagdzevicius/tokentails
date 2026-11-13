@@ -46,6 +46,9 @@ export const API_OPS = Object.freeze([
   'club.remove',
   'club.claim',
   'kudos.give',
+  // account progress (gap plan P2 rewards-cloud): the cosmetic-progress blob, max-merged by the server
+  'progress.get',
+  'progress.sync',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);
@@ -84,6 +87,8 @@ export const API_ARG_KEYS = Object.freeze([
   'frame',
   'title',
   'dmPolicy',
+  // rewards-cloud: the progress blob as one JSON string (up to BLOB_MAX)
+  'blob',
 ] as const);
 
 export type ApiArgs = Partial<Record<(typeof API_ARG_KEYS)[number], string | number | boolean>>;
@@ -91,6 +96,8 @@ export type ApiArgs = Partial<Record<(typeof API_ARG_KEYS)[number], string | num
 const MAX_STR = 140;
 /** A chat line's raw text (the server normalises and cuts to 120 characters, or refuses). */
 const MAX_TEXT = 240;
+/** rewards-cloud: the progress blob's JSON (the server takes at most 30,000 characters). */
+const MAX_BLOB = 30000;
 
 /** Flat args: known keys, short strings, finite numbers, booleans; anything else is dropped. Null when not an object. */
 export function cleanApiArgs(v: unknown): ApiArgs | null {
@@ -99,7 +106,7 @@ export function cleanApiArgs(v: unknown): ApiArgs | null {
   const out: ApiArgs = {};
   for (const k of API_ARG_KEYS) {
     const x = (v as Record<string, unknown>)[k];
-    if (typeof x === 'string' && x.length <= (k === 'text' ? MAX_TEXT : MAX_STR)) out[k] = x;
+    if (typeof x === 'string' && x.length <= (k === 'text' ? MAX_TEXT : k === 'blob' ? MAX_BLOB : MAX_STR)) out[k] = x;
     else if (typeof x === 'number' && Number.isFinite(x)) out[k] = x;
     else if (typeof x === 'boolean') out[k] = x;
   }

@@ -32,6 +32,7 @@ import { HERO_TEXT } from '../heroText';
 import { cardIcon, esc, skillCardHtml, slotKey } from './cardView';
 import { BROWSE_ORDER, DIFFICULTY_NAME, HERO_DIFFICULTY, stepHero } from './meta';
 import { setChampCovered } from './cover';
+import { masteryChipHtml } from '../rewards/rewards';
 
 export type BrowserTab = 'skills' | 'lore';
 type ClipSlot = 'q' | 'w' | 'e' | 'r';
@@ -277,6 +278,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
           <li class="role" data-role="${esc(x.role)}">${esc(x.role)}</li>
           <li class="atk">${esc(x.attack)}</li>
           <li class="diff" data-d="${d}" aria-label="Difficulty: ${DIFFICULTY_NAME[d]}"><span class="pips" aria-hidden="true">${'<i class="on"></i>'.repeat(d)}${'<i></i>'.repeat(3 - d)}</span>${DIFFICULTY_NAME[d]}</li>
+          ${masteryChipHtml(hero)}
         </ul>
         <p class="cb-hook">${esc(l.hook)}</p>
       </div>

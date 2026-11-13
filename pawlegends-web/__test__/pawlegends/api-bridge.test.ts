@@ -65,9 +65,22 @@ describe("pawlegends api bridge (host)", () => {
         k: "q",
         pid: 5,
         muted: true,
+        blob: '{"v":1}',
       });
       expect([op, r?.path.startsWith("/pawlegends/")]).toEqual([op, true]);
     }
+  });
+
+  it("progress routes (gap plan P2 rewards-cloud): the blob as one long string, guests with a session too", () => {
+    const blob = JSON.stringify({ v: 1, unlocks: Array.from({ length: 200 }, (_, i) => `coat.clem.loop.x${i}`) });
+    expect(blob.length).toBeGreaterThan(140);
+    expect(parseApiRequest({ id: "a1", op: "progress.sync", args: { blob } })?.args).toEqual({ blob });
+    expect(routeOf("progress.sync", { blob })).toEqual({ method: "POST", path: "/pawlegends/progress", body: { blob }, auth: "any" });
+    expect(routeOf("progress.sync", {})).toBeNull();
+    expect(routeOf("progress.sync", { blob: "x".repeat(30001) })).toBeNull();
+    expect(routeOf("progress.get", {})).toEqual({ method: "GET", path: "/pawlegends/progress", auth: "any" });
+    // only the blob may be long
+    expect(parseApiRequest({ id: "a1", op: "progress.sync", args: { name: "x".repeat(141) } })?.args).toEqual({});
   });
 
   it("chat routes (CHAT-AVATARS.md §4): opaque thread and message ids only, text up to 240, the avatar mapped", () => {

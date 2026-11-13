@@ -96,6 +96,8 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   openAt?: ModeChoice | null;
   /** Mode Select opened (analytics): from PLAY, the M key, a promo or an event row. */
   onModesOpen?(from: 'play' | 'key' | 'promo' | 'event' | 'back'): void;
+  /** Rewards cloud (ui/rewards): the Welcome Path and the Lucky Treat row, under Today's quests (markup, escaped there). */
+  todayExtra?: string;
 }
 
 const GEAR =
@@ -186,8 +188,8 @@ function leftHtml(o: HomeScreenOpts, live: boolean): string {
   const pct = Math.round((100 * t.done) / Math.max(1, t.total));
   const today = qs.length
     ? `<details class="hm-today"><summary class="hm-round" aria-label="${esc(`Today's quests: ${t.done} of ${t.total} done`)}"><span class="hm-qring${t.done === t.total ? ' all' : ''}" style="--p:${pct}%" aria-hidden="true">${SCROLL}</span><span class="hm-rl">${t.done}/${t.total}</span></summary><div class="hm-pop hm-qlist" role="list">${qs
-        .map((q) => `<div role="listitem" class="q ${q.done ? 'done' : ''}"><span class="tick" aria-hidden="true">${q.done ? '✓' : ''}</span><span class="t">${esc(q.quest.text)}</span><span class="n">${q.done ? 'Done' : `${q.value}/${q.quest.goal}`}</span></div>`)
-        .join('')}</div></details>`
+        .map((q) => `<div role="listitem" class="q ${q.done ? 'done' : ''}${q.quest.bonus ? ' bonus' : ''}"><span class="tick" aria-hidden="true">${q.done ? '✓' : ''}</span><span class="t">${esc(q.quest.text)}</span><span class="n">${q.done ? 'Done' : `${q.value}/${q.quest.goal}`}</span></div>`)
+        .join('')}${o.todayExtra ?? ''}</div></details>`
     : '';
   const events = `<details class="hm-events"><summary class="hm-round${live ? ' live' : ''}" aria-label="Events">${FLAG}<span class="hm-rl">Events</span>${live ? '<i class="hm-dot" aria-hidden="true"></i>' : ''}</summary><div class="hm-pop hm-evlist" role="list">${eventRows(o)}</div></details>`;
   const code = o.onJoinCode ? `<button type="button" class="hm-round hm-code" data-a="joincode" data-testid="join-code" aria-label="Join with code" title="Join with code"><b aria-hidden="true">#</b><span class="hm-rl">Code</span></button>` : '';
