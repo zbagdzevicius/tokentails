@@ -15,6 +15,15 @@
  * walls crack (the rig shader's `uDmg`) and a few chips fly off; below 33% it burns (smoke, flame licks and embers via
  * `fire`, render/fx/towerFire.ts, and the cracks glow); below 15% it blazes and wobbles. A tower leans toward the side
  * it will fall to. The state never goes back down; the rubble of a fallen one smoulders for its hold.
+ *
+ * Living pass (P2): the set pieces breathe. Every structure material carries the life patch (`structureLifeMaterial`,
+ * uniforms only, the same program on every tier): a tower's orb (or bone) bobs ±4 cm, turns and glows ±10%, the core's
+ * yarn ball turns, a camp monster sniffs (head), sways its tail, shuffles a few cm and shows a sleepy Zz while nobody
+ * bothers it, and the fountain's water ripples, foams at the rim and churns round the spout (views/fountainWater.ts) with
+ * droplets from the spout. Critters (views/critters.ts) flutter over the open ground away from the lanes. A falling core
+ * throws its chunks further, a light burst and confetti in the winner's colour, and leaves a low warm-grey mound. Low
+ * (ambient level 0) keeps only a half-amplitude orb bob (free) and still water; reduce motion scales it all down. The
+ * HP-bar anchor and hit box never move (they read the entity and the model's bounding box, not the life pose).
  */
 import * as THREE from 'three';
 import { CORE_STATS, TOWERS } from '../../data/towers';
@@ -29,6 +38,98 @@ import { coreGeometry, crowGeometry, fountainGeometry, grizzlechopGeometry, hedg
 import { rigMaterial, type RigUniforms, casterDepthMaterial } from './rig';
 import { CRACK_K, DAMAGE_POSE, EMBER_K, STAGE_HIT, nextStage, type DamageStage } from './towerDamage';
 import type { TowerFire } from '../fx/towerFire';
+import { MAP } from '../../data/map';
+import { mapInfo } from '../../sim/map/info';
+import type { Ambient, AmbientFx } from '../ambient';
+import { FADE, GROW, SHAPE } from '../fx/Particles.js';
+import { CritterLayer } from './critters';
+import { SPOUT, WATER_GLSL, spoutDrops } from './fountainWater';
+import { LIFE_PART } from './models';
+
+/**
+ * Living pass: the structure life pose (render only). `uLifeA` = (orb / yarn turn rad, orb bob m, head yaw rad, head nod
+ * rad), `uLifeB` = (tail yaw rad, orb glow −0.1..0.1, 0, 0), `uLifeW` = the fountain water (fountainWater.ts).
+ */
+export interface LifeUniforms {
+  uLifeA: { value: THREE.Vector4 };
+  uLifeB: { value: THREE.Vector4 };
+  uLifeW: { value: THREE.Vector4 };
+}
+
+/** The life knobs: orb bob (m) and glow (±), turn rates (rad/s), camp sniff / tail / shuffle, Zz cadence (s). */
+export const LIFE = Object.freeze({ bob: 0.04, glow: 0.1, orbTurn: 0.55, yarnTurn: 0.16, lowBob: 0.5, sniff: 0.38, nod: 0.1, tail: 0.45, shuffle: 0.05, zzEvery: 2.4, sleepAfter: 3 });
+
+const LIFE_VERT = /* glsl */ `
+uniform vec4 uLifeA;
+uniform vec4 uLifeB;
+varying vec3 vPlLObj;
+varying float vPlPart;
+mat3 plLife(float p){
+  if (p < ${LIFE_PART.orb - 0.5} || p > ${LIFE_PART.tail + 0.5}) return mat3(1.0);
+  if (p < ${LIFE_PART.yarn + 0.5}) return plRy(uLifeA.x);
+  if (p < ${LIFE_PART.head + 0.5}) return plRy(uLifeA.z) * plRz(uLifeA.w);
+  return plRy(uLifeB.x);
+}
+`;
+
+const LIFE_FRAG = /* glsl */ `
+uniform vec4 uLifeB;
+uniform vec4 uLifeW;
+varying vec3 vPlLObj;
+varying float vPlPart;
+${WATER_GLSL}
+`;
+
+/**
+ * Chain the life patch onto a structure's rig material (views/rig.ts rigMaterial): uniforms only, so every tier runs
+ * the same program (Low sets the amplitudes to 0). The cache key gains `-life1`.
+ */
+export function structureLifeMaterial<M extends THREE.MeshLambertMaterial>(m: M): M & { userData: { life: LifeUniforms } } {
+  const life: LifeUniforms = { uLifeA: { value: new THREE.Vector4() }, uLifeB: { value: new THREE.Vector4() }, uLifeW: { value: new THREE.Vector4() } };
+  const out = m as M & { userData: { life: LifeUniforms } };
+  out.userData.life = life;
+  const base = m.onBeforeCompile;
+  const key = m.customProgramCacheKey;
+  m.onBeforeCompile = (shader, r) => {
+    base.call(m, shader, r);
+    Object.assign(shader.uniforms, life);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <uv_pars_vertex>', `#include <uv_pars_vertex>\n${LIFE_VERT}`)
+      .replace('objectNormal = plR * objectNormal;', 'objectNormal = plR * objectNormal;\nmat3 plL = plLife(aPart);\nobjectNormal = plL * objectNormal;')
+      .replace(
+        'transformed = plR * (transformed - aPivot) + aPivot;',
+        `vPlLObj = transformed;\nvPlPart = aPart;\ntransformed = plR * (transformed - aPivot) + aPivot;\ntransformed = plL * (transformed - aPivot) + aPivot;\nif (aPart > ${LIFE_PART.orb - 0.5} && aPart < ${LIFE_PART.orb + 0.5}) transformed.y += uLifeA.y;`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <uv_pars_fragment>', `#include <uv_pars_fragment>\n${LIFE_FRAG}`)
+      .replace(
+        '#include <opaque_fragment>',
+        `#include <opaque_fragment>\nif (vPlPart > ${LIFE_PART.orb - 0.5} && vPlPart < ${LIFE_PART.orb + 0.5}) gl_FragColor.rgb *= 1.0 + uLifeB.y;\nelse if (vPlPart > ${LIFE_PART.water - 0.5}) gl_FragColor.rgb = plWater(gl_FragColor.rgb, vPlLObj, step(${LIFE_PART.spout - 0.5}, vPlPart));`,
+      );
+  };
+  m.customProgramCacheKey = () => `${key.call(m)}-life1`;
+  return out;
+}
+
+/** Confetti colours by the winner's species (0 cats: rose, 1 dogs: sky), with cream paper; v6 Lightning Rivalry. */
+export const CONFETTI = Object.freeze({ max: 60, cat: Object.freeze([0xff3d7f, 0xff86a5, 0xffb3cd, 0xfff3e3]), dog: Object.freeze([0x39a6ff, 0x7cc6ff, 0xd6ecff, 0xfff3e3]) });
+export function confettiColors(winnerSpecies: 0 | 1): readonly number[] {
+  return winnerSpecies === 1 ? CONFETTI.dog : CONFETTI.cat;
+}
+/** Confetti pieces a core fall throws (≤ CONFETTI.max × the debris share; none with reduce motion). */
+export function confettiCount(debris: number): number {
+  return Math.round(CONFETTI.max * Math.max(0, Math.min(1, debris)));
+}
+
+/**
+ * The orb and camp life amplitude for an ambient (0..1): Low keeps a half bob (free; none with reduce motion),
+ * Med / High follow the ambient motion.
+ */
+export function lifeAmp(a: Pick<Ambient, 'level' | 'motion' | 'reduced'> | null): number {
+  if (!a) return LIFE.lowBob;
+  if (a.level === 0) return a.reduced ? 0 : LIFE.lowBob;
+  return a.motion;
+}
 
 interface Structure {
   id: number;
@@ -71,6 +172,10 @@ interface Structure {
   fallenAt: number;
   /** Fire emit accumulators: smoke, flame, ember, smoulder (towers and cores only). */
   fireAcc: Float32Array | null;
+  /** Living pass: the life uniforms, a seed (rad), and the spout-drop / Zz accumulators. */
+  life: LifeUniforms;
+  seed: number;
+  lifeAcc: Float32Array;
   /** The base's style: the dog doghouse (chunk colours, smoke tint). */
   dog: boolean;
   /** The model's half-width (m): where the flames lick out. */
@@ -143,7 +248,7 @@ export const FALL_SHAPE = Object.freeze({ crack: 0.12, hit: 0.6, settle: 0.7, to
  * launch speed (m/s) and chunk size (m). Trailer review: the core threw 26 big unit boxes that filled the frame, hung in
  * the sky and read as placeholder primitives; now fewer, smaller, faceted chunks on a short, low arc.
  */
-export const DEBRIS = Object.freeze({ pool: 48, tower: 12, core: 14, gravity: 22, life: 1.0, coreSpeed: 6, coreSize: 0.42, towerSize: 0.42 });
+export const DEBRIS = Object.freeze({ pool: 48, tower: 12, core: 14, gravity: 22, life: 1.0, coreSpeed: 8, coreSize: 0.42, towerSize: 0.42 });
 
 /** LoL pass (lane C): the idle tower range ring is a pale warm white; it turns red only while the tower is on you. */
 const RANGE_IDLE = 0xffe2c4;
@@ -173,6 +278,9 @@ export const BUBBLE = Object.freeze({ rim: 0.42, core: 0.02 });
 /** Chunk colours per side (walls, trim, roof) and scratch objects (no per-frame allocation). */
 const DEBRIS_CAT = [0xfff3e3, 0xe6d6b8, 0xff3d7f, 0xc8135b, 0xffe14a];
 const DEBRIS_DOG = [0x9a8366, 0xb5762b, 0x6e4520, 0xd9a441, 0x7a6448];
+/** Living pass: a fallen core's rubble mound (warm grey; was a cool grey ring of stones). */
+const RUBBLE_WARM = 0xa8977c;
+const MOUND_WARM = 0xb5a488;
 const _col = new THREE.Color();
 const _m4 = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
@@ -203,7 +311,14 @@ export class StructureView {
     transparent: true,
     depthWrite: false,
   });
-  private rubbleMat = new THREE.MeshLambertMaterial({ color: 0x9a8f80 });
+  private rubbleMat = new THREE.MeshLambertMaterial({ color: RUBBLE_WARM });
+  private moundMat = new THREE.MeshLambertMaterial({ color: MOUND_WARM });
+  /** Living pass: the ambient level (null until gameView applies one: Low-like, a half bob only), the shared pools. */
+  private amb: Ambient | null = null;
+  private fx: AmbientFx | null = null;
+  private lifeT = 0;
+  /** Living pass: the critters over the open ground (one draw on Med / High; hidden on Low). */
+  readonly critters: CritterLayer | null = null;
   private ranges = new DecalLayer(dashRingTexture(), 8, { additive: true, y: 0.06, name: 'tower-ranges' });
   /** LoL pass (lane C): the red aggro ring, normal blending (an additive red washed out to pink on the pale paths). */
   private aggroRings = new DecalLayer(dashRingTexture(), 6, { y: 0.065, name: 'tower-aggro' });
@@ -272,6 +387,173 @@ export class StructureView {
     this.debrisMesh.customDepthMaterial = casterDepthMaterial('instanced-color');
     for (let i = 0; i < DEBRIS.pool; i++) this.debrisMesh.setColorAt(i, _col.setHex(0xffffff));
     this.group.add(this.debrisMesh);
+    // living pass: the critter layer for the bound map (built now, so the match build compiles it; nothing is drawn
+    // until an ambient level asks for critters)
+    try {
+      const layer = new CritterLayer(mapInfo(MAP.point === 1 ? 'hearthwood' : 'crossing'));
+      layer.setAmbient({ level: 1, tier: 'med', reduced: false, phone: false, motion: 0, speed: 1, density: 0 });
+      layer.mesh.visible = true;
+      this.group.add(layer.mesh);
+      (this as { critters: CritterLayer | null }).critters = layer;
+    } catch {
+      /* no map bound (a bare unit test): no critters */
+    }
+  }
+
+  /** Living pass: the ambient level for this tier (ambient.ts). */
+  setAmbient(a: Ambient): void {
+    this.amb = a;
+    this.critters?.setAmbient(a);
+  }
+
+  /** Living pass: the shared particle pools (spout drops, Zz, camp dust, the core-fall confetti and light burst). */
+  setAmbientFx(fx: AmbientFx): void {
+    this.fx = fx;
+  }
+
+  /** Living pass: the ambient level now (tests). */
+  get ambient(): Ambient | null {
+    return this.amb;
+  }
+
+  /**
+   * Living pass: the idle life pose of one standing structure (uniforms and, for camps, a few cm of shuffle): orb bob,
+   * turn and glow, yarn turn, camp sniff and tail, fountain water and spout drops, a sleepy Zz.
+   */
+  private live(s: Structure, e: ViewEntity, dt: number): void {
+    const a = this.amb;
+    const k = lifeAmp(a);
+    const t = this.lifeT + s.seed;
+    const A = s.life.uLifeA.value;
+    const B = s.life.uLifeB.value;
+    const on = !!a && a.level > 0;
+    if (s.kind === 'tower' || s.kind === 'core') {
+      A.x = s.seed + this.lifeT * (s.kind === 'core' && !s.dog ? LIFE.yarnTurn : LIFE.orbTurn) * Math.max(k, 0.2);
+      A.y = LIFE.bob * k * Math.sin(t * 1.6);
+      B.y = on ? LIFE.glow * (a.reduced ? 0.3 : 1) * Math.sin(t * 1.9 + 0.7) : 0;
+      return;
+    }
+    if (s.kind === 'fountain') {
+      const W = s.life.uLifeW.value;
+      W.x = on ? Math.max(0.35, a.motion) : 0;
+      W.y = this.lifeT;
+      W.z = on ? 1 : 0;
+      if (on && this.fx && a.density > 0) {
+        const n = spoutDrops(s.lifeAcc, dt, a.density);
+        const p = this.fx.particles;
+        if (n > 0 && p.room(false, n)) this.spout(s, n);
+      }
+      return;
+    }
+    if (s.kind !== 'camp' && s.kind !== 'boss') return;
+    const asleep = e.hp >= e.maxHp && e.speed < 0.5 && this.time - s.hitAt > LIFE.sleepAfter && (e.state === 'idle' || e.state === 'napping');
+    const idle = asleep ? 1 : 0.25;
+    // sniff: a slow look about with quick nose twitches in bursts
+    const burst = Math.max(0, Math.sin(t * 0.9) - 0.4) / 0.6;
+    A.z = k * idle * (LIFE.sniff * Math.sin(t * 1.3) + 0.06 * Math.sin(t * 11) * burst);
+    A.w = k * LIFE.nod * (Math.sin(t * 9) * burst * idle + (asleep ? -0.6 : 0));
+    B.x = k * LIFE.tail * Math.sin(t * (asleep ? 2.2 : 5.5));
+    if (asleep && on) {
+      // a shuffle of a few cm along its facing, a small turn
+      const off = LIFE.shuffle * k * Math.sin(t * 0.7) * (Math.sin(t * 0.23) > 0 ? 1 : 0.3);
+      s.mesh.position.x += Math.cos(e.yaw) * off;
+      s.mesh.position.z -= Math.sin(e.yaw) * off;
+      s.mesh.rotation.y = e.yaw + 0.12 * k * Math.sin(t * 0.5);
+      // a sleepy Zz now and then (fewer at a lower density)
+      s.lifeAcc[1] += dt * Math.min(1, a.density + 0.2);
+      if (s.lifeAcc[1] >= LIFE.zzEvery && this.fx) {
+        s.lifeAcc[1] = 0;
+        const sc = s.mesh.scale.y;
+        if (this.fx.particles.room(false, 1)) this.zz(s.x, (e.kind === 'boss' ? 2.2 : 0.9) * sc, s.z);
+      }
+    } else s.lifeAcc[1] = Math.min(s.lifeAcc[1], LIFE.zzEvery * 0.5);
+  }
+
+  /** Spout droplets: little arcs from the spout ball falling back into the basin. */
+  private spout(s: Structure, n: number): void {
+    const p = this.fx!.particles;
+    const sx = s.x + (s.team === 1 ? 1.2 : -1.2);
+    for (let i = 0; i < n; i++) {
+      const sp = p.begin() as Record<string, number>;
+      const ang = this.rand() * Math.PI * 2;
+      const out = SPOUT.out * (0.6 + this.rand() * 0.6);
+      sp.x = sx + Math.cos(ang) * 0.12;
+      sp.y = 1.38;
+      sp.z = s.z + Math.sin(ang) * 0.12;
+      sp.vx = Math.cos(ang) * out;
+      sp.vz = Math.sin(ang) * out;
+      sp.vy = SPOUT.up * (0.8 + this.rand() * 0.4);
+      sp.gravity = 9;
+      sp.life = SPOUT.life;
+      sp.size0 = SPOUT.size;
+      sp.size1 = SPOUT.size * 0.7;
+      sp.shape = SHAPE.DROPLET;
+      sp.fade = FADE.HOLD;
+      sp.floor = 0.08;
+      sp.bounce = 0;
+      _col.setHex(SPOUT.color);
+      sp.r = _col.r;
+      sp.g = _col.g;
+      sp.b = _col.b;
+      sp.a = 0.85;
+      p.emit(false);
+    }
+  }
+
+  /** A sleepy Zz rising off a camp monster (soft lilac, small: it reads on sand and grass, never a team colour). */
+  private zz(x: number, y: number, z: number): void {
+    const p = this.fx!.particles;
+    const sp = p.begin() as Record<string, number>;
+    sp.x = x + 0.15;
+    sp.y = y;
+    sp.z = z;
+    sp.vx = 0.18;
+    sp.vy = 0.45;
+    sp.life = 1.6;
+    sp.size0 = 0.32;
+    sp.size1 = 0.5;
+    sp.grow = GROW.OUT;
+    sp.fade = FADE.IN_OUT;
+    sp.shape = SHAPE.ZED;
+    sp.rot = -0.2;
+    _col.setHex(0xa898e6);
+    sp.r = _col.r;
+    sp.g = _col.g;
+    sp.b = _col.b;
+    sp.a = 0.9;
+    p.emit(false);
+  }
+
+  /** A camp monster (re)appears: a small dust puff where it stands. */
+  private campDust(x: number, z: number): void {
+    const p = this.fx?.particles;
+    if (!p || !this.amb || this.amb.level === 0 || !p.room(false, 6)) return;
+    _v.set(x, 0.3, z);
+    p.burst(_v, { n: 6, exact: true, shape: SHAPE.PUFF, color: 0xf2ddbb, alpha: 0.7, size: [0.4, 0.7], sizeEnd: 1.8, life: [0.5, 0.8], speed: [0.8, 1.8], up: 0.5, drag: 2 });
+  }
+
+  /**
+   * Living pass: a core's burst. A short light burst (FALL_FLASH colour) and confetti in the winner's colour (≤
+   * CONFETTI.max × debris, through the pool guard); none with reduce motion (debris 0).
+   */
+  private coreCelebrate(s: Structure): void {
+    const p = this.fx?.particles;
+    if (!p) return;
+    _v.set(s.x, s.height * 0.5, s.z);
+    if (p.room(true, 2)) {
+      p.single(_v, { shape: SHAPE.SOFT, color: FALL_FLASH.color, intensity: 1.0, size0: 2.5, size1: 7.5, life: 0.4, alpha: 0.5 });
+      p.single(_v, { shape: SHAPE.STAR8, color: 0xfff6da, intensity: 1.6, size0: 4, size1: 0.6, life: 0.32, rot: 0.3 });
+    }
+    const winner = ((s.team === 1 ? 0 : 1) ^ (this.styleSwap ? 1 : 0)) as 0 | 1;
+    const cols = confettiColors(winner);
+    const n = p.claim(false, confettiCount(this.debris));
+    if (n <= 0) return;
+    _v.set(s.x, s.height * 0.75, s.z);
+    for (let c = 0; c < cols.length; c++) {
+      const m = Math.floor(n / cols.length) + (c < n % cols.length ? 1 : 0);
+      if (m > 0)
+        p.burst(_v, { n: m, exact: true, shape: SHAPE.CONFETTI, color: cols[c], size: [0.22, 0.34], life: [2.2, 3.2], speed: [4, 9], dir: _up, spread: 0.95, gravity: 5, drag: 1.1, spin: 7, fade: FADE.HOLD, jitter: 0.8, floor: true, bounce: 0.1 });
+    }
   }
 
   /** A deterministic 0..1 (render only: the chunks' spread). */
@@ -388,7 +670,7 @@ export class StructureView {
   private ensure(e: ViewEntity): Structure {
     let s = this.items.get(e.id);
     if (!s) {
-      const material = rigMaterial({ cracks: e.kind === 'tower' || e.kind === 'core' });
+      const material = structureLifeMaterial(rigMaterial({ cracks: e.kind === 'tower' || e.kind === 'core' }));
       const mesh = new THREE.Mesh(this.geo(e), material);
       mesh.name = `${e.kind}-${e.id}`;
       mesh.castShadow = e.kind !== 'fountain';
@@ -411,8 +693,9 @@ export class StructureView {
       const radius = e.kind === 'tower' || e.kind === 'core' ? structureClearRadius(e.kind) : bb ? Math.min(Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z), 3.2) : 1.2;
       const struct = e.kind === 'tower' || e.kind === 'core';
       const dog = ((e.team === 1 ? 1 : 0) ^ (this.styleSwap ? 1 : 0)) === 1;
-      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: fallDirOf(e.team), height, team: e.team, stamp: 0, impacted: false, hitAt: -99, heat: 0, fallen: false, radius, stage: -1, fallenAt: -99, fireAcc: struct ? new Float32Array(4) : null, dog, girth: bb ? Math.max(bb.max.x, -bb.min.x, bb.max.z, -bb.min.z) * 0.85 : 1.3 };
+      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: fallDirOf(e.team), height, team: e.team, stamp: 0, impacted: false, hitAt: -99, heat: 0, fallen: false, radius, stage: -1, fallenAt: -99, fireAcc: struct ? new Float32Array(4) : null, life: material.userData.life, seed: ((e.id * 2654435761) >>> 0) / 683565275.6, lifeAcc: new Float32Array(2), dog, girth: bb ? Math.max(bb.max.x, -bb.min.x, bb.max.z, -bb.min.z) * 0.85 : 1.3 };
       this.items.set(e.id, s);
+      if ((e.kind === 'camp' || e.kind === 'boss') && this.time > 1.5) this.campDust(toX(e.fx), toZ(e.fy));
     }
     return s;
   }
@@ -494,6 +777,8 @@ export class StructureView {
 
   update(frame: ViewFrame, dt: number): void {
     this.time += dt;
+    this.lifeT += dt * (this.amb ? this.amb.speed : 1);
+    this.critters?.update(dt);
     const stamp = ++this.stamp;
     this.ranges.begin();
     this.aggroRings.begin();
@@ -553,6 +838,7 @@ export class StructureView {
           this.damage(s, e, dt);
         }
       }
+      this.live(s, e, dt);
       if (e.kind === 'tower' || e.kind === 'core') {
         const scale = e.kind === 'core' ? 1.6 : 1;
         let hides = false;
@@ -747,6 +1033,7 @@ export class StructureView {
       if (!s.impacted && u >= F.burst) {
         s.impacted = true;
         this.throwChunks(DEBRIS.core, s.x, s.z, 0, 0, 0, 0.8, s.height * 0.6, colors, DEBRIS.coreSpeed, DEBRIS.coreSize);
+        this.coreCelebrate(s);
         this.onImpact?.(s.x, s.z, 0, 0, 0, true);
         if (!s.rubbled) this.rubbleFor(s, dx, dz, true);
       }
@@ -803,6 +1090,8 @@ export class StructureView {
     s.rubbled = true;
     const from = grow ? this.time : -Infinity;
     if (s.kind === 'core' || this.reduced) this.addRubble(s.x, s.z, s.kind === 'core' ? 2.4 : 1.4, 0, 0, 0, s.kind === 'core' ? Infinity : this.time + RUBBLE.hold + 0.4, from);
+    // living pass: a fallen core leaves a low warm-grey mound under its stones (not a flat disc)
+    if (s.kind === 'core') this.addMound(s.x, s.z, from);
     else {
       // the line of rubble the tower fell along sinks away after RUBBLE.hold s (it lay across the lane: carts
       // drove through it); a small pile stays on its base
@@ -877,6 +1166,22 @@ export class StructureView {
     }
   }
 
+  /** A low, flattened mound (warm grey) under a fallen core's stones, growing in with them. */
+  private addMound(x: number, z: number, growFrom: number): void {
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 1), this.moundMat);
+    m.position.set(x, 0.02, z);
+    m.rotation.set(0, 0.4, 0);
+    m.userData.flat = [2.3, 0.42, 2.1];
+    m.userData.size = 1;
+    m.userData.sinkAt = Infinity;
+    m.userData.growFrom = growFrom;
+    const k = Number.isFinite(growFrom) ? 0.001 : 1;
+    m.scale.set(2.3 * k, 0.42 * k, 2.1 * k);
+    m.receiveShadow = true;
+    this.group.add(m);
+    this.rubble.push(m);
+  }
+
   /** Rubble past its hold sinks into the ground over RUBBLE.sink s and is removed (its geometry freed with the last piece). */
   private updateRubble(): void {
     let gone = false;
@@ -884,7 +1189,10 @@ export class StructureView {
       const g0 = m.userData.growFrom as number;
       if (Number.isFinite(g0)) {
         const k = Math.min(1, Math.max(0, (this.time - g0) / RUBBLE_GROW));
-        m.scale.setScalar(Math.max(0.001, (m.userData.size as number) * (1 - (1 - k) * (1 - k))));
+        const f = Math.max(0.001, (m.userData.size as number) * (1 - (1 - k) * (1 - k)));
+        const flat = m.userData.flat as [number, number, number] | undefined;
+        if (flat) m.scale.set(flat[0] * f, flat[1] * f, flat[2] * f);
+        else m.scale.setScalar(f);
         if (k >= 1) m.userData.growFrom = -Infinity;
       }
       const at = m.userData.sinkAt as number;
@@ -927,6 +1235,8 @@ export class StructureView {
     (this.debrisMesh.material as THREE.Material).dispose();
     this.debrisMesh.dispose();
     this.rubbleMat.dispose();
+    this.moundMat.dispose();
+    this.critters?.dispose();
     this.ranges.dispose();
   }
 }
