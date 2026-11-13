@@ -8,7 +8,7 @@ import { FOV, PITCH, frameDist, isPhoneLandscape, viewOffsetX, viewOffsetY } fro
 import { cameraYaw } from './coords';
 import { RENDER } from './ppk/core/config.js';
 import { installToon } from './toon.js';
-import { setOutlineViewport } from './chars/charMaterial';
+import { LOBBY_OUTLINE_CSS_PX, MATCH_OUTLINE_PX, setOutlineViewport, setOutlineWidth } from './chars/charMaterial';
 import { tierSettings, type QualityTier, type TierSettings } from './quality';
 import { isPhone } from './perf/device';
 import { dynRes } from './perf/governor';
@@ -325,6 +325,8 @@ export function createRenderer(container: HTMLElement, tier: QualityTier, opts: 
         gr.resize();
       }
       setOutlineViewport(renderer.domElement.width, renderer.domElement.height);
+      // the lobby turntable (Home, pick, results) gets the key art's thick ink line; a match keeps its thin hull
+      setOutlineWidth(gr.place ? LOBBY_OUTLINE_CSS_PX * renderer.getPixelRatio() : MATCH_OUTLINE_PX);
       if (gr.place) {
         camera.clearViewOffset();
         gr.place(camera);
