@@ -56,10 +56,10 @@ describe('sim v21 version and data', () => {
     expect(SIM_VERSION).toBeGreaterThanOrEqual(21);
   });
 
-  it('stronger towers: 120 a shot, +25% a shot up to +80%, outer and inner +25%, Fortified until 3:00 / 5:00', () => {
-    expect([TOWERS.heroDamage, TOWERS.rampBp, TOWERS.rampCapBp]).toEqual([120, 2500, 8000]);
+  it('stronger towers: outer and inner +25% (sim v21); sim v26 shots 130 + 3% max HP, +30% a shot up to +90%, Fortified 55% until 4:00 / 5:30', () => {
+    expect([TOWERS.heroDamage, TOWERS.heroMaxHpBp, TOWERS.rampBp, TOWERS.rampCapBp]).toEqual([130, 300, 3000, 9000]);
     expect([TOWERS.outer.hp, TOWERS.inner.hp]).toEqual([2250, 2750]);
-    expect([TOWERS.fortifyBp, ...TOWERS.fortifyUntil]).toEqual([6500, 5400, 9000]);
+    expect([TOWERS.fortifyBp, ...TOWERS.fortifyUntil]).toEqual([5500, 7200, 9900]);
   });
 
   it('every cannon, bed, landing and yarn spot is walkable, and the cannon spots are equally far from both cores', () => {
@@ -291,7 +291,7 @@ describe('Kibble Cannon (sim v21)', () => {
     expect(w.kWT[2]).toBe(0);
   });
 
-  it('Fortified: before 3:00 a hero deals 65% to a tower; minions are not reduced', () => {
+  it('Fortified: before 4:00 a hero deals 55% to a tower (sim v26; 65% before 3:00 in v21 to v25)', () => {
     const m = heroMatch(['clem', 'sage', 'brutus', 'sage', 'brutus', 'cacklejaw']);
     const w = m.world;
     const t = towerId(1, 0);

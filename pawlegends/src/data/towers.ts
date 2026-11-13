@@ -10,25 +10,38 @@ export const TOWERS = Object.freeze({
   gate: Object.freeze({ hp: 3200, armour: 55, range: 7000, attackEvery: 30 }),
   hearth: Object.freeze({ hp: 3000, armour: 55, range: 7000, attackEvery: 30 }),
   /**
-   * Damage to heroes, +25% per consecutive hit on the same hero, capped at +80% (v4: 90 / 20% / 60%, was 150 / 25% /
-   * 100%; sim v21: 120 / 25% / 80%, five shots 876 instead of 468, so a squishy that stays under a tower dies). The plan's
-   * +100% cap put the 3v3 gate at 3.49–3.50 takedowns a minute against its 3.5 ceiling (V21-FUN §3.3 step 2).
+   * A tower bolt at a hero: (heroDamage + heroMaxHpBp of the target's max HP) × (1 + streak × rampBp, at most
+   * rampCapBp), × fortifyBoltBp while Fortified, then armour. Cores keep CORE_STATS.damage. History: v4 90 / 20% / 60%
+   * (was 150 / 25% / 100%); sim v21 120 / 25% / 80%, so a squishy that stays under a tower dies. Sim v26
+   * (docs/plans/moba/V26-TOWERS.md, "make towers more durable and hit harder, especially in early game"): 130 + 3% of
+   * the target's max HP, +30% a shot to +90% (multipliers 1.0, 1.3, 1.6, 1.9, 1.9 …), ×1.25 while Fortified: a level 1
+   * Sage dies to 3 shots (4 in v25), a level 9 Brutus to 8 (12).
    */
-  heroDamage: 120,
-  rampBp: 2500,
-  rampCapBp: 8000,
+  heroDamage: 130,
+  heroMaxHpBp: 300,
+  rampBp: 3000,
+  rampCapBp: 9000,
   /**
-   * Sim v21 Fortified: heroes deal fortifyBp of their damage to towers before fortifyUntil[map] (Crossing 3:00,
-   * Hearthwood 5:00), so one strong lane cannot take an outer tower before the others reach it. Minions, the Kibble
-   * Cannon and the takedown chips are not reduced. Cores are never Fortified.
+   * Fortified (sim v21; sim v26 V26-TOWERS.md §1.B): before fortifyUntil[map] (Crossing 4:00, Hearthwood 5:30; v21 to
+   * v25 3:00 and 5:00; Blitz has its own, data/mutators.ts) heroes deal fortifyBp (v26 55%, was 65%) and minions and
+   * the escort Pudding's breath fortifyMinionBp (v26 75%, was 100%) of their damage to towers, and tower bolts at
+   * heroes hit fortifyBoltBp harder. The Kibble Cannon and pure damage are not reduced; v26: no takedown chip lands on
+   * a Fortified tower. Cores are never Fortified.
    */
-  fortifyBp: 6500,
-  fortifyUntil: Object.freeze([5400, 9000]) as readonly number[],
+  fortifyBp: 5500,
+  fortifyMinionBp: 7500,
+  fortifyBoltBp: 12500,
+  fortifyUntil: Object.freeze([7200, 9900]) as readonly number[],
   /**
-   * Lock-on (v4): a tower or core that switches to a hero first marks it for 1.2 s (a `windup` event, slot 4) and
-   * only then fires; a hero that leaves its range during the lock-on is not shot.
+   * Sim v26: a takedown chip (DifficultyRules.takedownTowerChipBp) never takes a tower below chipFloorBp of its max HP,
+   * and towers at or below it are skipped, so heroes and minions finish every tower.
    */
-  lockOnTicks: 36,
+  chipFloorBp: 1500,
+  /**
+   * Lock-on (v4): a tower or core that switches to a hero first marks it (a `windup` event, slot 4) and only then
+   * fires; a hero that leaves its range during the lock-on is not shot. 1.2 s until sim v25, 1.0 s from sim v26.
+   */
+  lockOnTicks: 30,
   /** Rookie: the first hit on a hero of level ≤ rookieKnockLevel (the human's team) knocks it back this far. */
   rookieKnockback: 3000,
   rookieKnockLevel: 2,

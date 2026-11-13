@@ -58,17 +58,29 @@ describe('towers (§5 tower rules, §15 item 8)', () => {
     stepStructures(m);
     expect(m.world.target[t]).toBe(minion);
   });
-  it('hero damage (sim v21): 120, +25% per consecutive hit, capped at +80%; minions take 110', () => {
+  it('hero damage (sim v26): 130 + 3% of max HP, +30% per consecutive hit, capped at +90%, ×1.25 while Fortified; minions take 110', () => {
     const m = quietMatch();
+    const w = m.world;
     const t = towerId(0, 0);
-    putHero(m, 3, OUTER.x + 2000, OUTER.y);
+    const hero = putHero(m, 3, OUTER.x + 2000, OUTER.y);
+    const base = 130 + Math.trunc((w.maxHp[hero] * 300) / 10000);
+    const at = (mult: number, fort: boolean) => {
+      const d = Math.trunc((base * mult) / 10000);
+      return fort ? Math.trunc((d * 12500) / 10000) : d;
+    };
     const shots = [0, 1, 2, 3, 4, 5].map(() => nextShot(m, t));
-    expect(shots).toEqual([120, 150, 180, 210, 216, 216]);
-    // Switching target resets the ramp.
+    expect(shots).toEqual([10000, 13000, 16000, 19000, 19000, 19000].map((k) => at(k, true)));
+    // An unforced hero the tower has already shot stays its target when a minion walks in (sim v26).
     const minion = putMinion(m, 1, OUTER.x + 1000, OUTER.y);
+    expect(nextShot(m, t)).toBe(at(19000, true));
+    // Out of its range, the hero is dropped: the minion takes 110, and the ramp starts over on the hero's return.
+    w.x[hero] = OUTER.x + 20000;
     expect(nextShot(m, t)).toBe(TOWERS.minionDamage);
-    m.world.alive[minion] = 0;
-    expect(nextShot(m, t)).toBe(120);
+    w.alive[minion] = 0;
+    w.x[hero] = OUTER.x + 2000;
+    // after Fortified: no ×1.25
+    w.globals[G.Tick] = TOWERS.fortifyUntil[0];
+    expect(nextShot(m, t)).toBe(at(10000, false));
   });
   it('a melee minion dies in 3 tower hits', () => {
     const m = quietMatch();
@@ -102,7 +114,7 @@ describe('towers (§5 tower rules, §15 item 8)', () => {
     w.hp[outer] = 0;
     resolveDeaths(m);
     expect(w.globals[G.Towers0]).toBe(2);
-    expect(dealDamage(m, minion, 0, Kind.Minion, inner, 100, 'basic')).toBe(66); // 100 × 100 / 150
+    expect(dealDamage(m, minion, 0, Kind.Minion, inner, 100, 'basic')).toBe(49); // 100 × 100 / 150, × 75% Fortified (sim v26)
     expect(dealDamage(m, minion, 0, Kind.Minion, core, 100, 'basic')).toBe(0);
     w.hp[inner] = 0;
     resolveDeaths(m);
@@ -123,7 +135,7 @@ describe('towers (§5 tower rules, §15 item 8)', () => {
     const w = m.world;
     const outer = towerId(1, 0);
     const hero = putHero(m, 0, w.x[outer] - 2000, w.y[outer]);
-    // after Fortified (sim v21: heroes deal 65% to towers before 3:00), so the halving reads alone
+    // after Fortified (sim v26: heroes deal 50% to towers before 4:00), so the halving reads alone
     w.globals[G.Tick] = TOWERS.fortifyUntil[0];
     const alone = dealDamage(m, hero, 0, Kind.Hero, outer, 100, 'basic');
     expect(alone).toBe(35); // idiv(100 × 100, 140) = 71, halved

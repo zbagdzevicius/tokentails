@@ -15,6 +15,7 @@ import { BP_ONE, applyBp, dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
 import { G, Kind, MG, RANGE, UnitState, allocProjectile, heroAt, type World } from '../world';
 import { dealDamage } from './damage';
+import { fortifyUntilOf } from '../mutator';
 import { cancelSwing } from './swing';
 import { disabled } from '../effects/status';
 import { kitBusy, kitOf } from '../heroes/kit';
@@ -143,10 +144,14 @@ function resolveSwing(m: MatchHandle, id: number): void {
   kit.afterBasic?.(m, id, dst);
 }
 
-/** Tower / core shot damage at `dst` (§5): heroes 150 with the ramp, minions 110; cores 120 at anything. */
+/**
+ * Tower / core shot damage at `dst` (§5): heroes heroDamage + heroMaxHpBp of their max HP with the ramp (× fortifyBoltBp
+ * while Fortified, sim v26), minions 110; cores 120 at anything.
+ */
 export function structureShot(w: World, id: number, dst: number): number {
   if (w.kind[id] === Kind.Core) return CORE_STATS.damage;
   if (w.kind[dst] !== Kind.Hero) return TOWERS.minionDamage;
   const ramp = Math.min(w.streak[id] * TOWERS.rampBp, TOWERS.rampCapBp);
-  return applyBp(TOWERS.heroDamage, BP_ONE + ramp);
+  const dmg = applyBp(TOWERS.heroDamage + applyBp(w.maxHp[dst], TOWERS.heroMaxHpBp), BP_ONE + ramp);
+  return w.globals[G.Tick] < fortifyUntilOf(w) ? applyBp(dmg, TOWERS.fortifyBoltBp) : dmg;
 }

@@ -85,8 +85,10 @@ const BLITZ: MutatorRules = Object.freeze({
   respawnTo: 240,
   // 0:20, then 40 s after each shot or fizzle (none from Sudden Death on, as on every map)
   cannon: Object.freeze({ ...CROSSING_CANNON, first: 600, respawn: 1200 }),
-  // Crossing's Fortified 3:00 would cover the whole match: no Fortify, so towers fall inside 3 minutes
-  fortifyUntil: 0,
+  // Crossing's Fortified would cover the whole match. Sim v21 to v25: no Fortify; sim v26 (V26-TOWERS.md §1.B): a
+  // short one, 0:45, so the first tower does not fall in the opening minute (0:30 gave a 1:14 median first tower for an
+  // Easy novice, under the 1:15 floor; V26-TOWERS.md §2)
+  fortifyUntil: 1350,
   // Normal's catch-up starts at 3:00 (never in Blitz): from 0:45
   catchUpFrom: 1350,
   // takedowns 3.5 a minute at ×1; the Blitz band is 4 to 6 (BLITZ.md §4)
