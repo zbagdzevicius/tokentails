@@ -35,7 +35,7 @@ export const MANIFEST_URL = `${UPDATES_URL}/ios/${NATIVE_COMPAT}/manifest.json`;
 export const LOCAL_PORT = 8787;
 export const LOCAL_UPDATES_URL = `http://localhost:${LOCAL_PORT}/pawlegends-app/updates`;
 /** How long a bundle stays on the beta channel (TestFlight) before the scheduled job promotes it to stable. */
-export const SOAK_HOURS = 24;
+export const SOAK_HOURS = 6;
 /** OTA_UPDATES_DIR overrides it (a dry run into a scratch folder). */
 export const UPDATES_DIR = process.env.OTA_UPDATES_DIR ? resolve(process.env.OTA_UPDATES_DIR) : resolve(REPO_DIR, 'client/public/pawlegends-app/updates');
 
