@@ -1,0 +1,111 @@
+/*
+ * Live ops cards in Home's Events popover (docs/plans/moba/LIVEOPS.md, ui/events/eventsPanel.ts). v6 Lightning Rivalry
+ * tokens only: night glass, the bolt gradient for progress and calls to action, rose and sky accents, chamfered
+ * 4 px corners. CSS only, no images. 44 px targets. On a short landscape phone the popover widens into two columns so
+ * the whole calendar fits above the fold (it scrolls inside itself only as a last resort).
+ */
+
+.hm-evlist { max-height: calc(100dvh - var(--hm-t, 12px) - 84px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.lo-cards { display: flex; flex-direction: column; gap: 6px; }
+.lo-cards:empty { display: none; }
+.lo-card {
+  display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: var(--v6-r-xs, 4px);
+  background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.06);
+  box-shadow: inset 0 0 0 1px var(--v6-line, rgb(255 243 227 / 0.14));
+}
+.lo-h { display: flex; align-items: center; gap: 10px; }
+.lo-h .t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lo-h .t b { font: 700 14px/1.15 var(--font, sans-serif); }
+.lo-h .t small { font: 600 11px/1.2 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.85; }
+.lo-hint { font: 600 11px/1.3 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.8; }
+.lo-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
+.lo-done { font: 800 12px/1 var(--font, sans-serif); color: var(--v6-success, #9be3c4); }
+
+/* the community goal: a bolt-yellow bar on night glass, the count inside it */
+.lo-bar {
+  position: relative; height: 18px; border-radius: 9px; overflow: hidden;
+  background: rgb(var(--v6-night-rgb, 18 9 31) / 0.7); box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb, 255 243 227) / 0.18);
+}
+.lo-bar i {
+  position: absolute; inset: 0 auto 0 0; border-radius: inherit; min-width: 4px;
+  background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a));
+  box-shadow: 0 0 10px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.55);
+  transition: width var(--v6-dur-score, 600ms) var(--v6-ease-out, ease-out);
+}
+.lo-bar.full i { background: linear-gradient(90deg, var(--v6-bolt, #ffe14a), var(--v6-flame, #ff8a3d), var(--v6-rose, #ff3d7f)); }
+.lo-bar span {
+  position: relative; display: block; text-align: center; font: 800 11px/18px var(--font, sans-serif); font-variant-numeric: tabular-nums;
+  color: var(--v6-cream, #fff3e3); text-shadow: 0 1px 0 rgb(0 0 0 / 0.7), 0 0 4px rgb(0 0 0 / 0.6);
+}
+
+/* the call to action: the kit's bolt button */
+.lo-btn {
+  min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--v6-r-xs, 4px); cursor: pointer;
+  font: italic 900 13px/1 var(--v6-font-display, var(--font, sans-serif)); letter-spacing: 0.02em; text-transform: uppercase;
+  color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a));
+  box-shadow: 0 3px 0 var(--v6-bolt-ledge, #c79a00), var(--v6-glow-bolt, 0 0 12px rgb(255 225 74 / 0.5));
+  transition: transform var(--v6-dur-press, 90ms) ease-out;
+}
+.lo-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--v6-bolt-ledge, #c79a00); }
+.lo-btn:disabled { opacity: 0.6; cursor: default; }
+.lo-btn:focus-visible, .lo-opt:focus-visible { outline: var(--v6-focus-ring, 2px solid #39a6ff); outline-offset: 2px; }
+
+/* Winter Nap: one pip per gift, the last one the coat */
+.lo-pips { display: flex; gap: 4px; }
+.lo-pip {
+  flex: 1; height: 26px; display: grid; place-items: center; border-radius: var(--v6-r-xs, 4px);
+  font: 800 11px/1 var(--font, sans-serif); font-style: normal; color: rgb(var(--v6-cream-rgb, 255 243 227) / 0.7);
+  background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.12); box-shadow: inset 0 0 0 1px rgb(var(--v6-sky-rgb, 57 166 255) / 0.3);
+}
+.lo-pip svg { width: 15px; height: 15px; }
+.lo-pip.last { color: var(--v6-rose, #ff3d7f); }
+.lo-pip.ready { color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a)); box-shadow: none; animation: lo-glow 1.4s ease-in-out infinite; }
+.lo-pip.got { color: var(--v6-night, #12091f); background: var(--v6-success, #9be3c4); box-shadow: none; }
+@keyframes lo-glow { 50% { box-shadow: 0 0 10px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.8); } }
+
+/* the fan vote: two concept cards, three swatches each; after voting, each fills to its share */
+.lo-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.lo-opt {
+  position: relative; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px; box-sizing: border-box; overflow: hidden;
+  border: 0; border-radius: var(--v6-r-xs, 4px); text-align: left; color: inherit; font: inherit;
+  background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.06); box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb, 255 243 227) / 0.16);
+}
+button.lo-opt { cursor: pointer; transition: background var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out); }
+button.lo-opt:hover { background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.2); }
+div.lo-opt::before {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: var(--share, 0%); background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.22);
+  transition: width var(--v6-dur-score, 600ms) var(--v6-ease-out, ease-out);
+}
+.lo-opt.mine { box-shadow: inset 0 0 0 2px var(--v6-bolt, #ffe14a); }
+.lo-opt.mine::before { background: rgb(var(--v6-bolt-rgb, 255 225 74) / 0.22); }
+.lo-opt > * { position: relative; }
+.lo-opt .t { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.lo-opt .t b { font: 700 12px/1.15 var(--font, sans-serif); }
+.lo-opt .t small { font: 600 10px/1 var(--font, sans-serif); opacity: 0.75; }
+.lo-sw { display: grid; grid-template-columns: repeat(2, 9px); gap: 2px; flex: none; }
+.lo-sw i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); }
+.lo-sw i:first-child { grid-column: span 2; width: 20px; border-radius: 5px; }
+.lo-share { font: 800 12px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; }
+
+.lo-toast {
+  margin: 0; padding: 6px 8px; border-radius: var(--v6-r-xs, 4px); font: 700 12px/1.3 var(--font, sans-serif);
+  color: var(--v6-night, #12091f); background: var(--v6-success, #9be3c4);
+}
+
+/* the featured mode's row in the list */
+.hm-evlist .ev.ev-feat { box-shadow: inset 3px 0 0 var(--v6-rose, #ff3d7f); }
+.hm-evlist .ev.ev-feat small { color: var(--v6-bolt, #ffe14a); opacity: 1; }
+
+/* a short landscape phone: two columns, so the calendar fits without scrolling */
+@media (max-height: 500px) and (min-width: 640px) {
+  .hm-pop.hm-evlist { width: min(540px, calc(100vw - var(--hm-l, 12px) - 96px)); display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 4px 6px; }
+  .hm-evlist .lo-cards { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .hm-evlist .lo-cards .lo-toast { grid-column: 1 / -1; }
+  .hm-evlist .ev-none { grid-column: 1 / -1; }
+  .lo-card { padding: 6px 8px; gap: 5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lo-pip.ready { animation: none; }
+  .lo-bar i, div.lo-opt::before { transition: none; }
+}

@@ -40,10 +40,12 @@ import { icon } from '../icons';
 import type { Choice } from '../screens';
 import { bindVersionMark, versionMarkHtml } from '../versionMark';
 import type { ModeSelectHandle } from '../modeSelect/modeSelect';
-import { effectiveState, modeById, playable, queueFor, type ModeChoice, type ModeDef, type Queue } from '../modeSelect/modes';
+import { countdownText, effectiveState, modeById, playable, queueFor, type ModeChoice, type ModeDef, type Queue } from '../modeSelect/modes';
 import { crestSvg } from '../modeSelect/crest';
 import { startMotes } from './motes';
 import { HEROES } from '../../data/heroes';
+import { bindEvents, featuredModeId, liveopsCardsHtml, needsTap } from '../events/eventsPanel';
+import { liveopsState } from '../../meta/liveops';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 /** Absolute art URL (a relative url() in a custom property would resolve against the CSS chunk); quotes dropped. */
@@ -196,16 +198,22 @@ function leftHtml(o: HomeScreenOpts, live: boolean): string {
   return `<div class="hm-left">${events}${today}${code}</div>`;
 }
 
+/**
+ * The Events list (LIVEOPS.md): the live-ops cards (community goal, Winter Nap, fan vote; ui/events), the Legends Pass
+ * season, then the timed and coming-soon modes, the featured one tagged with its end.
+ */
 function eventRows(o: HomeScreenOpts): string {
   const now = Date.now();
+  const featured = featuredModeId();
   const rows = o.modes
     .filter((m) => typeof m.state === 'object' || m.id === 'cannon')
     .map((m) => {
       const st = effectiveState(m, now);
-      return `<button type="button" role="listitem" class="ev" data-a="modes" data-mode="${esc(m.id)}"><span class="ev-crest" aria-hidden="true">${crestSvg(m.id)}</span><span class="t"><b>${esc(m.name)}</b><small>${st === 'event' ? 'Live now' : 'Coming soon'}</small></span></button>`;
+      const tag = st === 'event' && m.id === featured && typeof m.state === 'object' ? `Featured · ${countdownText(m.state.event.endsAt - now)} left` : st === 'event' ? 'Live now' : 'Coming soon';
+      return `<button type="button" role="listitem" class="ev${m.id === featured && st === 'event' ? ' ev-feat' : ''}" data-a="modes" data-mode="${esc(m.id)}"><span class="ev-crest" aria-hidden="true">${crestSvg(m.id)}</span><span class="t"><b>${esc(m.name)}</b><small>${esc(tag)}</small></span></button>`;
     });
   if (o.seasonEnd) rows.unshift(`<button type="button" role="listitem" class="ev" data-a="pass"><span class="ev-crest" aria-hidden="true">${icon('crown')}</span><span class="t"><b>Legends Pass season</b><small>${esc(o.seasonEnd)}</small></span></button>`);
-  return rows.join('') || '<p class="ev-none">No events right now.</p>';
+  return liveopsCardsHtml() + (rows.join('') || '<p class="ev-none">No events right now.</p>');
 }
 
 function promoHtml(o: HomeScreenOpts): string {
@@ -333,7 +341,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       ${profileHtml(o, elColor)}
       ${returning ? currencyHtml(o) : ''}
     </header>`,
-      '.hm-left': leftHtml(o, o.modes.some((m) => effectiveState(m, now()) === 'event')),
+      '.hm-left': leftHtml(o, o.modes.some((m) => effectiveState(m, now()) === 'event') || needsTap(liveopsState())),
       '.hm-promo': returning ? promoHtml(o) : '',
       '.hm-stage': `<div class="hm-stage">${plateHtml()}</div>`,
       '.hm-nav': navHtml(o, returning),
@@ -486,7 +494,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       if (act === 'pass') o.onCollection?.();
       else if (act === 'store') o.onStore?.();
       else if (act === 'heroes') o.onHeroes?.();
-      else openModes(o.modes.find((m) => typeof m.state === 'object')?.id, 'promo');
+      else openModes(o.modes.find((m) => typeof m.state === 'object' && m.id !== featuredModeId())?.id, 'promo');
     } else if (a === 'mute') {
       const b = root.querySelector<HTMLElement>('[data-a="mute"]');
       if (!b) return;
@@ -511,6 +519,8 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     }
   };
   bindDetails(root);
+  // live ops (LIVEOPS.md): the Events cards' buttons and their in-place redraw
+  bindEvents(root, ac?.signal);
   const onKey = (e: KeyboardEvent): void => {
     if (!root.isConnected) {
       disposeHome(root);
