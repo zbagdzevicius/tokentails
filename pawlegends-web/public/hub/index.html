@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Paw Legends Hub</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@1,900&family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--night:#12091F;--night2:#1c1230;--cream:#FFF3E3;--rose:#FF3D7F;--sky:#39A6FF;--bolt:#FFE14A;--muted:#c9b9d6;--line:#3a2a52}
+*{box-sizing:border-box}
+body{margin:0;background:var(--night);color:var(--cream);font:16px/1.5 Fredoka,system-ui,sans-serif;padding:32px 16px 64px}
+main{max-width:1100px;margin:0 auto}
+h1{font:italic 900 clamp(32px,6vw,56px)/1 Rubik,sans-serif;text-transform:uppercase;margin:0 0 6px;letter-spacing:.01em}
+.stripe{height:5px;width:220px;background:linear-gradient(90deg,var(--rose) 0 45%,var(--bolt) 45% 55%,var(--sky) 55%);margin:10px 0 14px;transform:skewX(-20deg)}
+.lead{color:var(--muted);margin:0 0 28px;max-width:70ch}
+h2{font:italic 900 22px Rubik,sans-serif;text-transform:uppercase;margin:36px 0 12px;display:flex;align-items:center;gap:10px}
+h2::before{content:"";width:10px;height:22px;background:var(--bolt);transform:skewX(-20deg)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{background:var(--night2);border:1px solid var(--line);border-top:4px solid var(--rose);border-radius:6px;padding:14px 16px;min-width:0}
+.card:nth-child(even){border-top-color:var(--sky)}
+.card h3{margin:0 0 4px;font-size:17px;font-weight:600}
+.card p{margin:0 0 10px;color:var(--muted);font-size:14px}
+a{color:var(--bolt);text-decoration:none;word-break:break-all}
+a:hover{text-decoration:underline}
+code{font-size:12.5px;color:var(--cream);background:#0c0616;padding:2px 6px;border-radius:4px;word-break:break-all;display:inline-block}
+.tag{display:inline-block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:1px 7px;border-radius:3px;margin-left:6px;vertical-align:2px;background:#2b1d44;color:var(--muted)}
+.tag.live{background:var(--rose);color:#fff}
+.tag.local{background:#2b1d44}
+footer{margin-top:40px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body><main>
+<h1>Paw Legends Hub</h1>
+<div class="stripe"></div>
+<p class="lead">Everything we've made for Paw Legends in one place: the live game, the brand kit, art, video and research. Live links open anywhere. Local paths only work on Žygimantas' Mac.</p>
+
+<h2>Game</h2>
+<div class="grid">
+ <div class="card"><h3>Play Paw Legends <span class="tag live">live</span></h3><p>The live web game.</p><a href="https://pawlegends.app/play">pawlegends.app/play</a></div>
+ <div class="card"><h3>Website <span class="tag live">live</span></h3><p>Landing page, legends, account, support.</p><a href="https://pawlegends.app">pawlegends.app</a></div>
+ <div class="card"><h3>Tower changes (sim v26) patch notes <span class="tag local">local</span></h3><p>Stronger, longer-lasting towers early.</p><code>~/Downloads/paw-legends/patch-notes/towers.md</code></div>
+ <div class="card"><h3>Signed Android build (.aab) <span class="tag local">local</span></h3><p>v1.1.0, ready for Play Console Internal testing.</p><code>~/Downloads/paw-legends/android-aab/pawlegends-android-2/app-release.aab</code></div>
+</div>
+
+<h2>Brand kit</h2>
+<div class="grid">
+ <div class="card"><h3>Brand book: v6 Lightning Rivalry <span class="tag live">live</span></h3><p>The selected brand kit: identity, voice, audio, legal, creator kit, element icons.</p><a href="https://pawlegends-brandbook.vercel.app/v6-lightning-rivalry/index.html">pawlegends-brandbook.vercel.app</a></div>
+ <div class="card"><h3>Art style lock <span class="tag live">live</span></h3><p>One art style: rules, do/don't, Home screen spec, prompt block.</p><a href="https://pawlegends-brandbook.vercel.app/v6-lightning-rivalry/index.html#lock">…/index.html#lock</a></div>
+ <div class="card"><h3>Skins chapter <span class="tag live">live</span></h3><p>Brand hero art, 20 base champions, all 233 skins, skin lines, guardrails.</p><a href="https://pawlegends-brandbook.vercel.app/v6-lightning-rivalry/skins/index.html">…/skins/index.html</a></div>
+</div>
+
+<h2>Champion looks and skins</h2>
+<div class="grid">
+ <div class="card"><h3>Style directions: anime, cartoon, kawaii <span class="tag live">live</span></h3><p>Decision summary, real in-game prototypes, all champions and skins in 3 styles, pick and vote.</p><a href="https://pawlegends-style-variants.vercel.app">pawlegends-style-variants.vercel.app</a></div>
+ <div class="card"><h3>Skins that match the in-game champion <span class="tag local">local</span></h3><p>Paint-over vs model-locked splash for 6 champions, with slider.</p><code>~/Downloads/paw-legends/skin-fidelity/index.html</code></div>
+ <div class="card"><h3>Funny skin concepts <span class="tag local">local</span></h3><p>Club Sandwich Clem, Kebab King Frankie, Brutus MK-II, Dragon Empress Duchess…</p><code>~/Downloads/paw-legends/skin-concepts/index.html</code></div>
+ <div class="card"><h3>Element icons <span class="tag local">local</span></h3><p>The 10 brand-kit element badges vs the old pixel icons.</p><code>~/Downloads/paw-legends/element-icons/index.html</code></div>
+</div>
+
+<h2>Home screen and UI</h2>
+<div class="grid">
+ <div class="card"><h3>20 Home background variants <span class="tag local">local</span></h3><p>Each behind the real Home UI, desktop / phone / wide (Storm Clash Arena shipped).</p><code>~/Downloads/paw-legends/home-bg-variants/index.html</code></div>
+ <div class="card"><h3>One art style comparison <span class="tag local">local</span></h3><p>Live Home vs brand key art.</p><code>~/Downloads/paw-legends/onestyle/compare.html</code></div>
+ <div class="card"><h3>Attack button redesign <span class="tag local">local</span></h3><p>Before, shipped claw-slash medallion, Gemini concepts, live shots.</p><code>~/Downloads/paw-legends/attack-button/index.html</code></div>
+ <div class="card"><h3>Living match before/after <span class="tag local">local</span></h3><p>Wind, water, critters, footsteps and impacts.</p><code>~/Downloads/paw-legends/living/index.html</code></div>
+ <div class="card"><h3>No pixel art before/after <span class="tag local">local</span></h3><p>Real shelter cat photos replace the pixel sprites.</p><code>~/Downloads/paw-legends/no-pixel/index.html</code></div>
+</div>
+
+<h2>Video and social</h2>
+<div class="grid">
+ <div class="card"><h3>Clip library (100 clips) <span class="tag live">live</span></h3><p>Vertical + horizontal gameplay clips with audio, captions and hashtags. Videos in the Google Cloud bucket.</p><a href="https://pawlegends-clips.vercel.app">pawlegends-clips.vercel.app</a></div>
+ <div class="card"><h3>Clip files (bucket) <span class="tag live">live</span></h3><p>The raw MP4s and posters.</p><code>gs://pawlegends-clips</code></div>
+</div>
+
+<h2>Research</h2>
+<div class="grid">
+ <div class="card"><h3>Lessons for Paw Legends <span class="tag local">local</span></h3><p>Cross-game table, top growth moves, skin strategy, gaps, what not to copy.</p><code>~/Downloads/paw-legends/research/paw-legends-lessons.md</code></div>
+ <div class="card"><h3>Competitor game designs <span class="tag local">local</span></h3><p>Wild Rift, Mobile Legends, Brawl Stars: GDD, growth and top skins (fact-checked).</p><code>~/Downloads/paw-legends/research/README.md</code></div>
+ <div class="card"><h3>Gaps vs competitors <span class="tag local">local</span></h3><p>Gap table and what shipped (being built now).</p><code>~/Downloads/paw-legends/research/gaps.md</code></div>
+ <div class="card"><h3>Art style audience and ROI research <span class="tag local">local</span></h3><p>Anime vs cartoon vs kawaii: audience, monetization, measured cost.</p><code>~/Downloads/paw-legends/style-variants/proto/research.md</code></div>
+</div>
+
+<footer>Updated 13 Nov 2026. Source: <code>pawlegends-web/public/hub/index.html</code></footer>
+</main></body></html>

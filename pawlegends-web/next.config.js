@@ -81,6 +81,11 @@ const nextConfig = {
   async headers() {
     return headers;
   },
+  // The team hub (founder, Nov 13: "it must be in pawlegends.app/index page"): every link we made for Paw Legends,
+  // a static page in public/hub (noindex). beforeFiles so it wins over the pages router's reserved /index.
+  async rewrites() {
+    return { beforeFiles: [{ source: "/index", destination: "/hub/index.html" }] };
+  },
 };
 
 module.exports = nextConfig;
