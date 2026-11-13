@@ -36,6 +36,10 @@ export const PAWLEGENDS_API_OPS = [
   "chat.read",
   "chat.mute",
   "chat.report",
+  // invite and comeback codes (backend pawlegends/growth): free, so the apps may call them too
+  "growth.invite",
+  "growth.redeem",
+  "growth.claim",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -280,6 +284,12 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       if (typeof a.note === "string" && a.note.length <= 140) body.note = a.note;
       return { method: "POST", path: "/pawlegends/social/chat/report", body, auth: "registered" };
     }
+    case "growth.invite":
+      return { method: "GET", path: "/pawlegends/growth/invite", auth: "registered" };
+    case "growth.redeem":
+      return code ? { method: "POST", path: "/pawlegends/growth/invite/redeem", body: { code }, auth: "registered" } : null;
+    case "growth.claim":
+      return { method: "POST", path: "/pawlegends/growth/invite/claim", body: {}, auth: "registered" };
     default:
       return null;
   }

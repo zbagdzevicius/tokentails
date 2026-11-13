@@ -34,6 +34,10 @@ export const API_OPS = Object.freeze([
   'chat.read',
   'chat.mute',
   'chat.report',
+  // invite and comeback codes (backend pawlegends/growth): free, so the apps may call them too
+  'growth.invite',
+  'growth.redeem',
+  'growth.claim',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);

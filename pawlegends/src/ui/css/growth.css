@@ -1,0 +1,4 @@
+/* Invite and comeback codes (share/invite.ts): the Friends tab's first row, marked with the bolt keyline like "me" rows. */
+.pl-invite-row { background: rgb(var(--v6-bolt-rgb) / 0.1); box-shadow: inset 4px 0 0 var(--v6-bolt); }
+.pl-invite-row .pl-social-st b { color: var(--v6-bolt); letter-spacing: 0.08em; }
+.pl-invite-row.pl-social-add input { min-width: 0; flex: 1 1 auto; text-transform: uppercase; }
