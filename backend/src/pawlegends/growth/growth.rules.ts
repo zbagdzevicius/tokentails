@@ -113,7 +113,11 @@ export interface InviteMatch {
 
 /** A save counts toward an invite when it is a real match: not a forfeit and at least INVITE_MIN_TICKS long. */
 export const inviteMatchCounts = (m: InviteMatch): boolean =>
-    typeof m.ref === 'string' && m.ref.length > 0 && !m.forfeit && Number.isFinite(m.ticks) && m.ticks >= INVITE_MIN_TICKS;
+    typeof m.ref === 'string' &&
+    m.ref.length > 0 &&
+    !m.forfeit &&
+    Number.isFinite(m.ticks) &&
+    m.ticks >= INVITE_MIN_TICKS;
 
 export const inviteExpiresAt = (now: Date) => new Date(now.getTime() + INVITE_WINDOW_DAYS * DAY);
 
@@ -158,7 +162,10 @@ export interface CreatorPayoutLine {
 }
 
 /** The payout report: paid orders per code, gross and the creator's share per currency. */
-export function creatorPayouts(rows: readonly CreatorPayoutRow[], shareOf: (code: string) => number): CreatorPayoutLine[] {
+export function creatorPayouts(
+    rows: readonly CreatorPayoutRow[],
+    shareOf: (code: string) => number
+): CreatorPayoutLine[] {
     const by = new Map<string, CreatorPayoutLine>();
     for (const r of rows) {
         if (!r.code || !Number.isFinite(r.amountCents) || r.amountCents <= 0) continue;
@@ -171,7 +178,8 @@ export function creatorPayouts(rows: readonly CreatorPayoutRow[], shareOf: (code
         line.gross[r.currency] = (line.gross[r.currency] ?? 0) + Math.round(r.amountCents);
     }
     for (const line of by.values())
-        for (const [cur, cents] of Object.entries(line.gross)) line.payout[cur] = Math.floor((cents * line.shareBps) / 10_000);
+        for (const [cur, cents] of Object.entries(line.gross))
+            line.payout[cur] = Math.floor((cents * line.shareBps) / 10_000);
     return [...by.values()].sort((a, b) => a.code.localeCompare(b.code));
 }
 

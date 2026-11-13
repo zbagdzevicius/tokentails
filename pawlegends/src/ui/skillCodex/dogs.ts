@@ -402,7 +402,7 @@ export const DOG_WORDS: Readonly<Partial<Record<HeroId, HeroWords>>> = Object.fr
     r: {
       what: 'Stretch super long. Grab the first enemy hero you reach, stun it and snap to it.',
       tags: ['skillshot', 'line'],
-      facts: [F.pct('A miss refunds', 'r', 'missRefundBp', ' of the cooldown')],
+      facts: [F.pct('A miss gives back', 'r', 'missRefundBp', ' of the cooldown')],
       tip: 'Stretch at a hero with no minions in front.',
       counter: (c) => `Sidestep during the ${sec(c.n('r', 'windup'))} wind-up, or keep a minion between you.`,
     },

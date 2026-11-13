@@ -606,6 +606,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       .join('');
     const view = tab === 'champions' ? championsView() : tab === 'featured' ? featuredView() : cosmeticsView();
     const inert = detail ? ' inert' : '';
+    // copy-lint-ignore R10 'cst-wallet' is a CSS class (the yarn chip), never shown as text
     const html = `<div class="card cst-frame">
       <header class="cst-top"${inert}>
         <button type="button" class="cst-back" data-a="close" data-k="close" aria-label="Back">${BACK_SVG}</button>

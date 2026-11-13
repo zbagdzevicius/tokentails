@@ -138,7 +138,7 @@ const SHELTER_NAME = 'Pink Paw (Rožinė pėdutė)';
 const SHELTER_SHORT = 'Pink Paw';
 const SHELTER_LOCAL = 'Rožinė pėdutė';
 const LATEST = 8;
-// claim: custody (since 16 Oct 2026 the splits pay Pink Paw's wallet; same words as /shelter-payouts)
+// claim: C-001 custody (campaign.wallets: since 16 Oct 2026 the splits pay Pink Paw's wallet; same words as /shelter-payouts)
 const PAYOUTS_CUSTODY = "Payouts go to Pink Paw's wallet. Before 16 Oct 2026 they went to a wallet Token Tails held for the shelter.";
 
 // ---------- the Pink Paw goal meter (fact C-001) ----------

@@ -110,7 +110,7 @@ export const NATURE: Readonly<Record<Nature, NatureRecipe>> = Object.freeze({
     vfx: { shape: 'SPARK', motion: 'crescent sweeps across the exact cone, stretched sparks fly outward along it', timing: '0.18 s sweep, 0.12 s fade', mark: 'crescent + scratches' },
   },
   impact: {
-    label: 'Impact',
+    label: 'Impact', // copy-lint-ignore R13 the VFX family of a hit landing (slam, knockback), not a real-world impact claim
     reads: 'Slam, landing, bump or knockback: weight hitting the ground.',
     cast: [0.5, 0, 80, 0.005, 0.05, 0.2, 0, 2, -1, 0, 0, 0, 0, 0.6, 0, 0.15, 0, 0.6, 0.04, 0, -900],
     travel: null,

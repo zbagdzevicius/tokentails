@@ -29,7 +29,7 @@ const ShelterPayoutsPage = () => {
     <div className="bg-tt-night-900">
       <SeoHead
         title="Token Tails - Shelter Payouts"
-        description="Every Token Tails payout to cat shelters: public on-chain events, each linked to its transaction."
+        description="Every Token Tails payout to cat shelters, each one public and linked to its transaction."
         path="/shelter-payouts"
       />
       {chrome && <Header />}

@@ -66,8 +66,7 @@ export const GROWTH_ERRORS = {
         ),
     inviterFull: () =>
         pawlegendsError(HttpStatus.CONFLICT, 'PAWLEGENDS_INVITE_FULL', 'This player has too many open invites'),
-    needAccount: () =>
-        pawlegendsError(HttpStatus.FORBIDDEN, 'PAWLEGENDS_NEED_ACCOUNT', 'Sign in to use invites'),
+    needAccount: () => pawlegendsError(HttpStatus.FORBIDDEN, 'PAWLEGENDS_NEED_ACCOUNT', 'Sign in to use invites'),
     creatorUnknown: () =>
         pawlegendsError(HttpStatus.BAD_REQUEST, 'PAWLEGENDS_CREATOR_UNKNOWN', 'No creator with this code'),
     giftUnavailable: () =>
@@ -288,7 +287,9 @@ export class GrowthService {
                 { $set: { [flag]: true, ...(coat ? { [`${side}Coat`]: coat } : {}) } }
             );
             if (!won?.modifiedCount || !coat) return;
-            await grantItems({ owned: this.owned }, accountId, [coat], 'invite', { claim: `invite:${String(id)}:${side}` });
+            await grantItems({ owned: this.owned }, accountId, [coat], 'invite', {
+                claim: `invite:${String(id)}:${side}`,
+            });
             granted.push(coat);
         };
         const accepted = (await this.referrals.findOne({ inviteeId: accountId, status: 'done' }).lean()) as any;
@@ -320,7 +321,11 @@ export class GrowthService {
      * account's live link, else none. A typed code that is unknown or inactive refuses the checkout (400), so the buyer
      * knows their creator was not credited.
      */
-    async checkoutCreator(accountId: string | null | undefined, raw: unknown, now = this.now()): Promise<string | null> {
+    async checkoutCreator(
+        accountId: string | null | undefined,
+        raw: unknown,
+        now = this.now()
+    ): Promise<string | null> {
         const typed = raw !== undefined && raw !== null && raw !== '';
         if (typed) {
             const found = await this.creator(raw);
@@ -350,21 +355,34 @@ export class GrowthService {
     }
 
     /** Admin: add or change a creator. */
-    async upsertCreator(body: Record<string, unknown>): Promise<{ code: string; name: string; active: boolean; shareBps: number }> {
+    async upsertCreator(
+        body: Record<string, unknown>
+    ): Promise<{ code: string; name: string; active: boolean; shareBps: number }> {
         const code = normalizeCreatorCode(body?.code);
         const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 40) : '';
         if (!code || !name || /[<>]/.test(name))
-            throw pawlegendsError(HttpStatus.BAD_REQUEST, 'PAWLEGENDS_INVALID', 'code (3-16 letters or digits) and name are required');
+            throw pawlegendsError(
+                HttpStatus.BAD_REQUEST,
+                'PAWLEGENDS_INVALID',
+                'code (3-16 letters or digits) and name are required'
+            );
         const bps = Number(body?.shareBps ?? CREATOR_DEFAULT_SHARE_BPS);
         if (!Number.isInteger(bps) || bps < 0 || bps > CREATOR_MAX_SHARE_BPS)
-            throw pawlegendsError(HttpStatus.BAD_REQUEST, 'PAWLEGENDS_INVALID', `shareBps must be 0-${CREATOR_MAX_SHARE_BPS}`);
+            throw pawlegendsError(
+                HttpStatus.BAD_REQUEST,
+                'PAWLEGENDS_INVALID',
+                `shareBps must be 0-${CREATOR_MAX_SHARE_BPS}`
+            );
         const active = body?.active !== false;
         await this.creators.updateOne({ code }, { $set: { name, active, shareBps: bps } }, { upsert: true });
         return { code, name, active, shareBps: bps };
     }
 
     /** Admin: every creator and the payout report for paid orders in [from, to). Refunded orders are not owed. */
-    async report(from: Date, to: Date): Promise<{ from: string; to: string; creators: any[]; payouts: CreatorPayoutLine[] }> {
+    async report(
+        from: Date,
+        to: Date
+    ): Promise<{ from: string; to: string; creators: any[]; payouts: CreatorPayoutLine[] }> {
         const creators = (await this.creators.find({}).lean()) as any[];
         const share = new Map(creators.map(c => [String(c.code), Number(c.shareBps) || 0]));
         const rows = (await this.purchases
@@ -377,7 +395,11 @@ export class GrowthService {
                 .map(c => ({ code: c.code, name: c.name, active: !!c.active, shareBps: c.shareBps }))
                 .sort((a, b) => String(a.code).localeCompare(String(b.code))),
             payouts: creatorPayouts(
-                rows.map(r => ({ code: String(r.creatorCode), currency: String(r.currency), amountCents: Number(r.amountCents) })),
+                rows.map(r => ({
+                    code: String(r.creatorCode),
+                    currency: String(r.currency),
+                    amountCents: Number(r.amountCents),
+                })),
                 code => share.get(code) ?? CREATOR_DEFAULT_SHARE_BPS
             ),
         };

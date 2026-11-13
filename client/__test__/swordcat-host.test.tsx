@@ -7,6 +7,7 @@
  * screens; and the page redirects to /game while its flag is off.
  */
 import React from "react";
+import { apiUrl } from "@/api/api";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
 jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}` }));
@@ -345,7 +346,8 @@ describe("SwordcatHost treats", () => {
     await h.settle();
     expect(treatFetch).toHaveBeenCalledTimes(1);
     const [url, init] = treatFetch.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://api.test.invalid/shelter/donate/guest");
+    // the API base is read when api/api.ts loads (CI sets NEXT_PUBLIC_BE_URL before that), else at call time
+    expect(url).toBe(`${apiUrl || "https://api.test.invalid"}/shelter/donate/guest`);
     expect(JSON.parse(String(init.body))).toEqual({ source: "page" });
     const results = h.ofType("treat-result");
     expect(results[0]).toEqual({

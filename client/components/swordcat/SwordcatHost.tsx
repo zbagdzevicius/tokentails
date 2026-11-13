@@ -476,7 +476,7 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
         <div
           role="alert"
           data-testid="swordcat-timeout"
-          className="fixed inset-0 z-[9] flex flex-col items-center justify-center gap-4 bg-tt-night-900/95 px-4 text-center"
+          className="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-tt-night-900/95 px-4 text-center"
         >
           <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is taking too long to load.</p>
           <div className="flex flex-wrap items-center justify-center gap-3">

@@ -51,6 +51,7 @@ export const SWORDCAT_PICKER_HREF = "/swordcat";
 /** The Swordcat card's key: a free string, not a GameType (Phase 1 saves nothing). */
 export const SWORDCAT_CARD_KEY = "SWORDCAT";
 /** The Swordcat card's line (plan §12.3 E): the kittens carry real Pink Paw cats' names and photos. */
+// claim:fiction the save is an in-game rescue of kittens named after Pink Paw cats, no money moves
 export const SWORDCAT_PICKER_DESCRIPTION = "Every cat you save is a real Pink Paw cat";
 
 /**

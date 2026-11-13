@@ -39,7 +39,8 @@ describe("next.config.js", () => {
     const config = loadWithAppFlag(undefined, () =>
       require("../next.config.js"),
     );
-    expect(config.output).toBeUndefined();
+    // a Node server either way: Vercel's own output, or `standalone` for the container image (GCP)
+    expect([undefined, "standalone"]).toContain(config.output);
     expect(typeof config.redirects).toBe("function");
   });
 });

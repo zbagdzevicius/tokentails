@@ -116,7 +116,8 @@ export class PawlegendsGrowthController {
     @Get('creators-report')
     async report(@Query('from') from?: string, @Query('to') to?: string) {
         const end = to && Number.isFinite(Date.parse(to)) ? new Date(to) : new Date();
-        const start = from && Number.isFinite(Date.parse(from)) ? new Date(from) : new Date(end.getTime() - 30 * DAY_MS);
+        const start =
+            from && Number.isFinite(Date.parse(from)) ? new Date(from) : new Date(end.getTime() - 30 * DAY_MS);
         return this.growth.report(start, end);
     }
 }
