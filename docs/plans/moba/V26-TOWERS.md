@@ -76,6 +76,32 @@ aggro and backdoor protection are unchanged.
 - Already in place and now covering the longer window: the Fortified shield on the tower bar (`ui/overhead.ts`), the
   "Towers are no longer fortified" callout, the range ring, the red aggro ring, the lock-on charging line.
 
+### 1.G Bots on Hearthwood: no stalls at a wall or on the edge of a fight (`bots/brain.ts`, Hearthwood only)
+
+The 5v5 bot gate (`tools/map5v5-probe.mjs`, no hero stuck over 3 s) failed on v26 with 2 stuck seeds of 120 from
+60001 (v25: 0). Replays with a per-tick bot trace showed that neither stall came from a tower rule; the longer Fortified
+window only moved the waves so that the bots met these spots more often:
+
+- **A minion behind a wall** (seeds 2196198180 at 4:44 and 3323107722 at 10:12, 16 s and 18 s). A ranged enemy minion
+  shot the bot across the forest edge next to an inner tower. Lane work (`laneAct`) picked it by straight-line distance;
+  the attack order's A* search could not reach it and ended at the nearest cell centre, just outside the swing's
+  leeway, so the hero neither swung nor walked, and the bot kept the order. Fix: `walledOff` — lane work skips an enemy
+  minion that is out of attack range with blocked ground on the straight line to it (`lineClear`). It is stateless,
+  so the choice does not flip as the bot steps (a first, stateful version on the order's path did flip every think).
+- **A fight on the edge of the power check** (seed 666717508). A bot backed off from a fight, retook it a think later,
+  and so on. Fix: the foe fought last think stays a good fight down to `BOT_AI.keepFightBp` = 8000 (80%) of the bar.
+- **A strong foe just outside reach** (seed 3764932844). A bot stepped toward its lane goal into the foe's engage
+  range, backed off, and stepped in again. Fix: with a foe too strong to fight within engage range +
+  `BOT_AI.lurkSlack` (3 m), lane work that would lead into its engage range waits at the back-off point (`intoReach`).
+  The test is on where the work leads, not on where the bot stands.
+
+All three are Hearthwood only (`w.mg.length > 0`), so Crossing and Blitz play exactly as before: every Crossing
+backend fixture is unchanged by the re-vendor, only the three Hearthwood fixtures change.
+
+The probe's stuck test also no longer counts a hero that dealt or took a hit from an enemy hero in the 3 s window
+(rooted, body-blocked or trading blows on one spot). Those fights flag about one seed in 120 on every version: v25 on
+seeds 61001–61120 flags seed 4130628312 in a fight.
+
 ## 2. Gates
 
 Probe: `tools/tower-probe.mjs` (scratch, not shipped), the analysis probe of the design. v26 rows are fresh seeds

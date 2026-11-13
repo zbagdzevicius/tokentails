@@ -422,6 +422,16 @@ export const BOT_AI = Object.freeze({
   chaseSlack: 5000,
   /** Count heroes within this distance of the foe for the fight power check. */
   powerRange: 10000,
+  /**
+   * Sim v26 (Hearthwood, V26-TOWERS.md §1.G): the foe the bot fought last think stays a good fight down to this share of
+   * BotParams.fightPowerBp, so a fight on the edge of the power check is not left and taken again every think.
+   */
+  keepFightBp: 8000,
+  /**
+   * Sim v26 (Hearthwood): a foe too strong to fight within engageRange + this lurks: lane work that leads into its
+   * engageRange waits at the back-off point (bots/brain.ts intoReach) instead of stepping in and backing off in turn.
+   */
+  lurkSlack: 3000,
   /** Power of a hero in the fight check (BotParams.fightPowerBp): HP + powerPerLevel × level. */
   powerPerLevel: 40,
   /** Sim v12: + this per Toy tier owned that adds no HP (data/toys.ts TOY_POWER_TIERS; HP tiers already raise HP). */

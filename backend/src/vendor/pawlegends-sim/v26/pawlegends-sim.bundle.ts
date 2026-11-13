@@ -367,6 +367,16 @@ var BOT_AI = Object.freeze({
 	chaseSlack: 5e3,
 	/** Count heroes within this distance of the foe for the fight power check. */
 	powerRange: 1e4,
+	/**
+	* Sim v26 (Hearthwood, V26-TOWERS.md §1.G): the foe the bot fought last think stays a good fight down to this share of
+	* BotParams.fightPowerBp, so a fight on the edge of the power check is not left and taken again every think.
+	*/
+	keepFightBp: 8e3,
+	/**
+	* Sim v26 (Hearthwood): a foe too strong to fight within engageRange + this lurks: lane work that leads into its
+	* engageRange waits at the back-off point (bots/brain.ts intoReach) instead of stepping in and backing off in turn.
+	*/
+	lurkSlack: 3e3,
 	/** Power of a hero in the fight check (BotParams.fightPowerBp): HP + powerPerLevel × level. */
 	powerPerLevel: 40,
 	/** Sim v12: + this per Toy tier owned that adds no HP (data/toys.ts TOY_POWER_TIERS; HP tiers already raise HP). */
@@ -19093,6 +19103,19 @@ function walkGoal(w, id, mem) {
 	walkPt[1] = w.y[t];
 	return true;
 }
+/** The nav grid of the match being thought about (set by `think`; the brain is single-threaded). */
+var thinkGrid = null;
+/**
+* Sim v26 (Hearthwood, V26-TOWERS.md §1.G): is enemy unit `e` behind a wall from bot `id`: out of its attack range
+* with blocked ground on the straight line to it? A ranged minion shooting over the forest edge is one; the bot's
+* attack order on it walks a path that cannot reach it (A* stops at the nearest cell centre, which may lie just outside
+* the swing's leeway) and then stands there for good. Lane work leaves such a unit (a lane minion is never worth a
+* walk round the forest). Stateless and without the chase leeway, so the choice does not flip as the bot steps.
+*/
+function walledOff(w, id, e) {
+	if (w.mg.length === 0 || thinkGrid === null || inAttackRange(w, id, e)) return false;
+	return !lineClear(thinkGrid, w.x[id], w.y[id], w.x[e], w.y[e], MAP.point === 1 && w.team[id] === 1);
+}
 /**
 * Sim v22 (Hearthwood): should a new walk to (x, y) wait? A goal more than JUNGLE_BOT.goalFar from the walk given less
 * than JUNGLE_BOT.goalHold ago keeps that walk (not when retreating), so two rules that take turns cannot hold a bot
@@ -19163,7 +19186,7 @@ function sidePower(w, team, x, y, enemy) {
 	}
 	return sum;
 }
-function goodFight(w, id, foe, p) {
+function goodFight(w, id, foe, p, kept = false) {
 	const team = w.team[id];
 	const fx = w.x[foe];
 	const fy = w.y[foe];
@@ -19171,7 +19194,8 @@ function goodFight(w, id, foe, p) {
 	let theirs = sidePower(w, team, fx, fy, true);
 	if (ownCover(w, team, fx, fy)) ours += BOT_AI.towerPower;
 	if (untankedThreat(w, team, fx, fy, 0) >= 0) theirs += BOT_AI.towerPower;
-	if (ours * 1e4 >= theirs * p.fightPowerBp) return true;
+	const bar = kept && w.mg.length > 0 ? applyBp(p.fightPowerBp, BOT_AI.keepFightBp) : p.fightPowerBp;
+	if (ours * 1e4 >= theirs * bar) return true;
 	if (p.hunts && huntable(w, team, foe) && hpBp(w, id) > BOT_AI.objectiveHpBp) return true;
 	return hpBp(w, foe) < BOT_AI.finishHpBp && hpBp(w, id) > BOT_AI.objectiveHpBp;
 }
@@ -19194,6 +19218,8 @@ function leaveToHuman(w, e) {
 /** The enemy hero to fight now, or −1. Sets `bad` to an aware enemy that is too strong to fight here. */
 function pickFoe(w, id, mem, p, tick, slip, out, carry, brave, spare, focus = -1) {
 	out[0] = -1;
+	out[1] = -1;
+	let lurkD = 0;
 	const team = w.team[id];
 	const truce = team !== w.team[0] && !brave && tick < truceUntil;
 	const lead = leadOf(w, team);
@@ -19207,10 +19233,17 @@ function pickFoe(w, id, mem, p, tick, slip, out, carry, brave, spare, focus = -1
 		const d = isqrt(dist2(w.x[id], w.y[id], w.x[e], w.y[e]));
 		if (w.mg.length > 0 && d > attackRange(w, id) + radiusOf(w, e) && inOwnFountain(w, e)) continue;
 		const peel = carry && w.target[e] === 0 && w.alive[0] === 1;
-		if (d > BOT_AI.engageRange + (e === mem.foe[id] || peel || brave || committed ? BOT_AI.chaseSlack : 0) + (slip ? BOT_AI.chaseSlack : 0)) continue;
+		const reach = BOT_AI.engageRange + (e === mem.foe[id] || peel || brave || committed ? BOT_AI.chaseSlack : 0) + (slip ? BOT_AI.chaseSlack : 0);
+		if (d > reach) {
+			if (w.mg.length > 0 && !brave && d <= reach + BOT_AI.lurkSlack && (out[1] < 0 || d < lurkD) && !goodFight(w, id, e, p)) {
+				out[1] = e;
+				lurkD = d;
+			}
+			continue;
+		}
 		if (carry && leaveToHuman(w, e)) continue;
 		if (!slip && !brave && hpBp(w, e) > BOT_AI.finishHpBp && untankedThreat(w, team, w.x[e], w.y[e], 0) >= 0) continue;
-		if (!peel && !brave && !committed && !goodFight(w, id, e, p)) {
+		if (!peel && !brave && !committed && !goodFight(w, id, e, p, e === mem.foe[id])) {
 			if (out[0] < 0) out[0] = e;
 			continue;
 		}
@@ -19231,7 +19264,8 @@ function inOwnFountain(w, e) {
 	const fy = w.team[e] === 0 ? FOUNTAIN.y : mirrorY(FOUNTAIN.y);
 	return dist2(w.x[e], w.y[e], fx, fy) <= FOUNTAIN.radius * FOUNTAIN.radius;
 }
-var scratch = /* @__PURE__ */ new Int32Array(1);
+/** pickFoe's outputs: [0] a bad fight within reach, [1] (Hearthwood) the nearest bad fight just outside it (lurking). */
+var scratch = /* @__PURE__ */ new Int32Array(2);
 /** DifficultyRules.truceUntil of the match being thought about (set before pickFoe; the brain is single-threaded). */
 var truceUntil = 0;
 /** Heroes of `team` alive within BOT_AI.powerRange of hero `id` (itself included); −1: all of `team` alive. */
@@ -19466,6 +19500,7 @@ function laneAct(w, id, mem, lane, slip, p, carry = false, noSiege = false) {
 		const r = reach + radiusOf(w, e);
 		if (dist2(w.x[id], w.y[id], w.x[e], w.y[e]) > r * r) continue;
 		if (untankedThreat(w, team, w.x[e], w.y[e], 0) >= 0) continue;
+		if (walledOff(w, id, e)) continue;
 		const dealt = idiv(hit * HERO_RULES.armourBase, HERO_RULES.armourBase + w.armour[e]);
 		if (w.hp[e] <= dealt && (lastHit < 0 || w.hp[e] < w.hp[lastHit])) lastHit = e;
 		if (weakest < 0 || w.hp[e] < w.hp[weakest]) weakest = e;
@@ -19780,6 +19815,7 @@ function think(m, id, p, mem, rng, mine = null) {
 	const tick = w.globals[G.Tick];
 	thinkingCarry = false;
 	thinkingGrouped = false;
+	thinkGrid = m.grid;
 	if (w.alive[id] === 0) {
 		mem.mode[id] = BOT_MODE.Lane;
 		mem.foe[id] = -1;
@@ -19850,7 +19886,10 @@ function think(m, id, p, mem, rng, mine = null) {
 		return moveTo(w, id, mem, funPt[0], funPt[1]);
 	}
 	const foe = low ? -1 : pickFoe(w, id, mem, p, tick, slip === SLIP.Chase, scratch, carry, script, w.team[id] === w.team[0] ? 0 : rules.spareHuman, focus);
-	if (low) scratch[0] = -1;
+	if (low) {
+		scratch[0] = -1;
+		scratch[1] = -1;
+	}
 	if (foe >= 0) {
 		mem.mode[id] = BOT_MODE.Fight;
 		mem.foe[id] = foe;
@@ -19899,15 +19938,9 @@ function think(m, id, p, mem, rng, mine = null) {
 	for (let s = RANGE.towers; s < RANGE.fountains; s++) if (w.alive[s] === 1 && w.target[s] === id && w.team[s] !== team) shotBy = s;
 	const shot = shotBy >= 0 && !tanked(w, shotBy, team) && !(targetable(w, shotBy, team) && mayDive(w, id, shotBy, p));
 	const exposed = p.hunts && !grouped && overextended(w, id, lane);
-	if (!(ordered && (ord === PING_KIND.Group || isPush(ord)) && beside(w, id)) && (bad >= 0 && dist2(w.x[id], w.y[id], w.x[bad], w.y[bad]) <= BOT_AI.engageRange * BOT_AI.engageRange || exposed) || shot) {
-		const own = laneStructure(w, team, lane, true);
-		mem.mode[id] = BOT_MODE.Lane;
-		if (MAP.point === 1) {
-			alongLane(team, lane, w.x[own], w.y[own], BOT_AI.holdAhead, goal);
-			return moveTo(w, id, mem, goal[0], goal[1]);
-		}
-		return moveTo(w, id, mem, w.x[own] + sign(team) * BOT_AI.holdAhead, w.y[own]);
-	}
+	const backed = ordered && (ord === PING_KIND.Group || isPush(ord)) && beside(w, id);
+	if (!backed && (bad >= 0 && dist2(w.x[id], w.y[id], w.x[bad], w.y[bad]) <= BOT_AI.engageRange * BOT_AI.engageRange || exposed) || shot) return backOff(w, id, mem, lane);
+	const lurk = backed ? -1 : scratch[1];
 	if (ordered) return orderAct(m, id, mem, ord, p, slip === SLIP.LastHit);
 	if (p.jungle >= 1 && !carry && holding(w, id, mem, jgOut)) {
 		mem.mode[id] = BOT_MODE.Pudding;
@@ -19968,7 +20001,41 @@ function think(m, id, p, mem, rng, mine = null) {
 			return moveTo(w, id, mem, goal[0], goal[1]);
 		}
 	}
-	return laneAct(w, id, mem, lane, slip === SLIP.LastHit, p, carry, noSiege);
+	const work = laneAct(w, id, mem, lane, slip === SLIP.LastHit, p, carry, noSiege);
+	if (lurk >= 0 && intoReach(w, id, mem, work, lurk)) return backOff(w, id, mem, lane);
+	return work;
+}
+/** Back off to cover: `team`'s outermost structure in `lane`, BOT_AI.holdAhead in front of it. */
+function backOff(w, id, mem, lane) {
+	const team = w.team[id];
+	const own = laneStructure(w, team, lane, true);
+	mem.mode[id] = BOT_MODE.Lane;
+	if (MAP.point === 1) {
+		alongLane(team, lane, w.x[own], w.y[own], BOT_AI.holdAhead, goal);
+		return moveTo(w, id, mem, goal[0], goal[1]);
+	}
+	return moveTo(w, id, mem, w.x[own] + sign(team) * BOT_AI.holdAhead, w.y[own]);
+}
+/**
+* Sim v26 (Hearthwood): does lane work `c` of bot `id` (null: it keeps its current walk) lead within BOT_AI.engageRange
+* of enemy hero `e`: a walk there, or an attack on a unit there that it must walk to?
+*/
+function intoReach(w, id, mem, c, e) {
+	let x;
+	let y;
+	if (c === null) {
+		if (!walkGoal(w, id, mem)) return false;
+		x = walkPt[0];
+		y = walkPt[1];
+	} else if (c.op === Op.Move) {
+		x = c.x;
+		y = c.y;
+	} else if (c.op === Op.Attack) {
+		if (inAttackRange(w, id, c.id)) return false;
+		x = w.x[c.id];
+		y = w.y[c.id];
+	} else return false;
+	return dist2(x, y, w.x[e], w.y[e]) <= BOT_AI.engageRange * BOT_AI.engageRange;
 }
 //#endregion
 //#region src/sim/bots/mem.ts

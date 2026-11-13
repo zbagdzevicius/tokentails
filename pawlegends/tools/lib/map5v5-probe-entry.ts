@@ -10,7 +10,9 @@
  * - gank takedown: a hero death whose killing team's Prowl was ganking within the last 10 s and stands within 15 m.
  * - stuck: a living hero walking (state moving, no cast) to a goal over 2 m away whose positions over the last 3 s
  *   (sampled each 1 s) all lie within 1 m of where it is now (sim v22 balance pass: was "under 0.3 m between two
- *   samples 3 s apart", which also flagged a lane dance that came back to the same spot).
+ *   samples 3 s apart", which also flagged a lane dance that came back to the same spot). Sim v26: a hero that dealt or
+ *   took a hit from an enemy hero in those 3 s is in a fight, not stuck (rooted, body-blocked or trading blows on the
+ *   spot; such fights flagged about one seed in 120 on every version, v25 included), so it is not counted.
  * - calm: a living hero with no enemy hero within 14 m and no PvP hit dealt or taken in the last 3 s.
  */
 import type { HeroId, MatchConfig, TrickId } from '../../src/sim/api';
@@ -261,7 +263,7 @@ export function probe5v5(seed: number): ProbeRow {
         // taking turns), not a lane dance that happens to come back to where it was 3 s ago.
         let still = n > 3;
         for (let k = n - 4; still && k < n - 1; k++) if ((histX[h][n - 1] - histX[h][k]) ** 2 + (histY[h][n - 1] - histY[h][k]) ** 2 >= 1000 ** 2) still = false;
-        if (still && goal && w.castPhase[h] === 0 && w.state[h] === UnitState.Moving) {
+        if (still && goal && w.castPhase[h] === 0 && w.state[h] === UnitState.Moving && tick - lastPvp[h] > 90) {
           stuckFor[h] += 30;
           if (stuckFor[h] === 90) {
             row.stuck++;
