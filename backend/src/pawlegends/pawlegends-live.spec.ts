@@ -545,6 +545,20 @@ describe('PAWLEGENDS /live branch', () => {
             expect(verdict.result).toEqual(expect.objectContaining({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' }));
         }, 60_000);
 
+        it('a cold worker answers even when loading its sims takes longer than a replay may (the timeout starts at ready)', async () => {
+            // a 2 s replay budget: from TypeScript sources the worker alone loads its 16 sims in about 10 s
+            const cold = new PawlegendsReplayWorker(2_000);
+            try {
+                const verdict = await cold.verify({ ...genuine(), hero: 'nobody' } as any);
+                expect(verdict.threadId).not.toBe(mainThreadId);
+                expect(verdict.result).toEqual(
+                    expect.objectContaining({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' })
+                );
+            } finally {
+                await cold.close();
+            }
+        }, 90_000);
+
         it('the default /live path re-sims in the worker and refuses a forged record without writing', async () => {
             const users = new FakeUsers();
             const games = new FakeGames();
