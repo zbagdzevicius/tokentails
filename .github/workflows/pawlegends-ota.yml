@@ -193,7 +193,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A client/public/pawlegends-app/updates
           if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
-          version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/1/manifest-beta.json').version)")
+          version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/'+require('fs').readFileSync('pawlegends-app/scripts/lib/app-config.mjs','utf8').match(/NATIVE_COMPAT = (\\d+)/)[1]+'/manifest-beta.json').version)")
           if [ -n "$ROLLBACK" ]; then msg="OTA rollback to ${version} (beta and stable)"; else msg="OTA bundle ${version} (beta)"; fi
           git commit -m "chore(pawlegends-app): ${msg}"
           for i in 1 2 3 4 5; do
@@ -208,7 +208,7 @@ jobs:
             fi
             git add -A client/public/pawlegends-app/updates
             if git diff --cached --quiet; then echo "main already has this bundle"; exit 0; fi
-            version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/1/manifest-beta.json').version)")
+            version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/'+require('fs').readFileSync('pawlegends-app/scripts/lib/app-config.mjs','utf8').match(/NATIVE_COMPAT = (\\d+)/)[1]+'/manifest-beta.json').version)")
             git commit -m "chore(pawlegends-app): OTA bundle ${version} (beta)"
             sleep $((i * 5))
           done
@@ -278,7 +278,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A client/public/pawlegends-app/updates
           if git diff --cached --quiet; then echo "nothing to promote"; exit 0; fi
-          version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/1/manifest.json').version)")
+          version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/'+require('fs').readFileSync('pawlegends-app/scripts/lib/app-config.mjs','utf8').match(/NATIVE_COMPAT = (\\d+)/)[1]+'/manifest.json').version)")
           git commit -m "chore(pawlegends-app): OTA ${version} promoted to stable"
           for _ in 1 2 3; do
             if git pull --rebase origin main && git push origin HEAD:main; then echo "promoted=true" >> "$GITHUB_ENV"; exit 0; fi
