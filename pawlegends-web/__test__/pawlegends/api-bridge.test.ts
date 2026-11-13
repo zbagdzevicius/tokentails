@@ -66,6 +66,7 @@ describe("pawlegends api bridge (host)", () => {
         pid: 5,
         muted: true,
         blob: '{"v":1}',
+        option: "a",
       });
       expect([op, r?.path.startsWith("/pawlegends/")]).toEqual([op, true]);
     }
@@ -81,6 +82,16 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("progress.get", {})).toEqual({ method: "GET", path: "/pawlegends/progress", auth: "any" });
     // only the blob may be long
     expect(parseApiRequest({ id: "a1", op: "progress.sync", args: { name: "x".repeat(141) } })?.args).toEqual({});
+  });
+
+  it("live ops routes (LIVEOPS.md): a public config, session claims and a one-letter vote", () => {
+    expect(routeOf("liveops.config", {})).toEqual({ method: "GET", path: "/pawlegends/config", auth: "none" });
+    expect(routeOf("liveops.me", {})).toEqual({ method: "GET", path: "/pawlegends/config/me", auth: "any" });
+    expect(routeOf("liveops.claim", {})).toMatchObject({ method: "POST", path: "/pawlegends/config/goal/claim", auth: "any" });
+    expect(routeOf("liveops.nap", {})).toMatchObject({ method: "POST", path: "/pawlegends/config/nap/claim", auth: "any" });
+    expect(routeOf("liveops.vote", { option: "b" })).toEqual({ method: "POST", path: "/pawlegends/config/vote", body: { option: "b" }, auth: "any" });
+    expect(routeOf("liveops.vote", { option: "c" })).toBeNull();
+    expect(routeOf("liveops.vote", {})).toBeNull();
   });
 
   it("chat routes (CHAT-AVATARS.md §4): opaque thread and message ids only, text up to 240, the avatar mapped", () => {
