@@ -194,6 +194,9 @@ import { PawlegendsAccountService } from './pawlegends/pawlegends-account.servic
 import { PAWLEGENDS_CAT_SALE, PawlegendsOfferService } from './pawlegends/pawlegends-offer.service';
 import { PawlegendsSeasonService } from './pawlegends/pawlegends-season.service';
 import { PawlegendsCheckoutGuard } from './pawlegends/pawlegends-checkout-guard.service';
+import { PAWLEGENDS_GROWTH_SCHEMAS } from './pawlegends/growth/growth.schema';
+import { GrowthService } from './pawlegends/growth/growth.service';
+import { PawlegendsGrowthController } from './pawlegends/growth/growth.controller';
 import { RaveController } from './rave/rave.controller';
 import { RaveOrder, RaveOrderSchema, RaveWebhookEvent, RaveWebhookEventSchema } from './rave/rave.schema';
 import { RaveService } from './rave/rave.service';
@@ -323,6 +326,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             // Motored × Stripe (one gift per real paid order): open once its secrets are set.
             { name: MotoredWallet.name, schema: MotoredWalletSchema },
             { name: MotoredGift.name, schema: MotoredGiftSchema },
+            // Paw Legends growth: invites, creator codes, the first-purchase gift (pawlegends/growth).
+            ...PAWLEGENDS_GROWTH_SCHEMAS,
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -379,6 +384,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         ClubController,
         // Motored × Stripe: one gift to Pink Paw per real paid Motored order.
         MotoredStripeController,
+        // Paw Legends growth: invites, creator codes, the first-purchase gift (pawlegends/growth).
+        PawlegendsGrowthController,
     ],
     providers: [
         UserRepository,
@@ -490,6 +497,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         // Motored × Stripe.
         MotoredStripeService,
         MotoredGiftService,
+        // Paw Legends growth (pawlegends/growth).
+        GrowthService,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
         { provide: BACKEND_ROLE, useValue: role },
     ],

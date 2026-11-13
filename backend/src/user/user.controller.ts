@@ -63,6 +63,7 @@ import {
 import { HeistReplayIpThrottleGuard } from './heist/heist-ip-throttle.guard';
 import { saveHeistRun } from './heist/heist-live';
 import { saveBadcatRun } from 'src/badcat/badcat-live';
+import { GrowthService } from 'src/pawlegends/growth/growth.service';
 import { savePawlegendsMatch } from 'src/pawlegends/pawlegends-live';
 import { isPartyResult, savePawlegendsPartyMatch } from 'src/pawlegends/pawlegends-party-live';
 import { PawlegendsReplayDto } from 'src/pawlegends/pawlegends-replay.dto';
@@ -205,7 +206,9 @@ export class UserController {
         // Quick Play (M1A-IMPL.md §4.2): the mm room records and the hidden rating `/live` writes.
         @Optional() private mm?: MmService,
         // Legends Pass Season XP (STORE-PASS.md §5): added by /live after the Game row exists.
-        @Optional() private pawlegendsSeason?: PawlegendsSeasonService
+        @Optional() private pawlegendsSeason?: PawlegendsSeasonService,
+        // Growth (growth/apply-invite-progress.ts): an accepted invite counts verified matches, inside /live only.
+        @Optional() private pawlegendsGrowth?: GrowthService
     ) {
         // this.getUsers();
         // this.getTwitters();
@@ -1457,6 +1460,7 @@ export class UserController {
                     rooms: this.partyRooms,
                     mm: this.mm?.liveDeps() as any,
                     season: this.pawlegendsSeason,
+                    growth: this.pawlegendsGrowth,
                 },
                 userId,
                 body as any
@@ -1466,7 +1470,12 @@ export class UserController {
             // Pawlegends matches (POC.md §11.5): re-simulated in a worker thread through their own bounded queue.
             try {
                 return await savePawlegendsMatch(
-                    { users: this.repository as any, games: this.gameRepository as any, season: this.pawlegendsSeason },
+                    {
+                        users: this.repository as any,
+                        games: this.gameRepository as any,
+                        season: this.pawlegendsSeason,
+                        growth: this.pawlegendsGrowth,
+                    },
                     userId,
                     body as LiveGameDto & { pawlegends?: PawlegendsReplayDto }
                 );

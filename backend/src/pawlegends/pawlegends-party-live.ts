@@ -24,6 +24,7 @@ import { rankedSettleCheck } from './ranked/settlement';
 import { AFK_REASONS } from './party/room';
 import type { StoredRoom } from './party/room-store';
 import { PawlegendsPartyResultDto } from './pawlegends-replay.dto';
+import { applyInviteProgress } from './growth/apply-invite-progress';
 import {
     IPawlegendsLiveDeps,
     IPawlegendsSeasonAnswer,
@@ -55,7 +56,7 @@ import {
 
 export const PARTY_DAILY_CAP = 30;
 
-export interface IPartyLiveDeps extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger' | 'season'> {
+export interface IPartyLiveDeps extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger' | 'season' | 'growth'> {
     rooms: {
         get(id: string): Promise<StoredRoom | null>;
         countEnded(accountId: string, since: Date): Promise<number>;
@@ -271,6 +272,7 @@ export async function savePawlegendsPartyMatch(
             });
     } else if (deps.mm)
         await applyCoopRating(deps.mm, String(userId), r.room, v.outcome as 'won' | 'lost', difficulty, now, log);
+    await applyInviteProgress(deps.growth, String(userId), { ref: digest, ticks: v.ticks, forfeit: v.reason === 'forfeit' }, now);
     return {
         party: true,
         difficulty,

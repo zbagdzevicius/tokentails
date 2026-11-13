@@ -106,6 +106,14 @@ export class PawlegendsPurchase extends CommonSchema {
     /** The lost chargeback (`charge.dispute.closed`, status `lost`) that ended this purchase. */
     @Prop()
     disputeId?: string;
+
+    /** The creator code the order is attributed to (growth: typed at checkout, or the account's 30-day link). */
+    @Prop({ index: true, sparse: true })
+    creatorCode?: string;
+
+    /** The first-purchase gift coat chosen at checkout; the webhook grants it once when the order is paid. */
+    @Prop()
+    giftCoat?: string;
 }
 export type PawlegendsPurchaseDocument = PawlegendsPurchase & Document;
 export const PawlegendsPurchaseSchema = SchemaFactory.createForClass(PawlegendsPurchase);
@@ -225,7 +233,17 @@ PawlegendsWebhookEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 
  * How an item was got: a web purchase, a pass reward, the presale, and for champions (CHAMPION-STORE.md) the
  * Founders roster grant, a Yarn unlock or a free Champion Pick; a ranked season reward (ranked/season-rewards.ts).
  */
-export type PawlegendsOwnedSource = 'purchase' | 'pass' | 'legacy' | 'founders' | 'yarn' | 'milestone' | 'ranked';
+export type PawlegendsOwnedSource =
+    | 'purchase'
+    | 'pass'
+    | 'legacy'
+    | 'founders'
+    | 'yarn'
+    | 'milestone'
+    | 'ranked'
+    // growth: an invite reward and the first-purchase gift
+    | 'invite'
+    | 'gift';
 
 @Schema({ collection: 'pawlegendsowned', timestamps: true })
 export class PawlegendsOwned extends CommonSchema {
