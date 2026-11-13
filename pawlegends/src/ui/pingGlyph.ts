@@ -10,7 +10,7 @@ import { PING_TEXT } from './pingText';
 const cache = new Map<string, HTMLCanvasElement | null>();
 
 /** The glyph of `kind` in `color`, `px` device pixels square, or null while it loads (or without a DOM). */
-export function pingGlyph(kind: PingKind, px: number, color = '#fff3dc'): HTMLCanvasElement | null {
+export function pingGlyph(kind: PingKind, px: number, color = '#fff3e3'): HTMLCanvasElement | null {
   const key = `${kind}|${px}|${color}`;
   if (cache.has(key)) return cache.get(key) ?? null;
   if (typeof document === 'undefined' || typeof Image === 'undefined') return null;

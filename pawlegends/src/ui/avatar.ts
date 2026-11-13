@@ -25,7 +25,7 @@ export function frameRing(f: string | undefined): string | null {
   if (!f) return null;
   if (FRAME_RING[f]) return FRAME_RING[f];
   if (f.startsWith('frame.s1.')) return '#7ee08a';
-  if (f.startsWith('frame.ranked.')) return '#9fd3ff';
+  if (f.startsWith('frame.ranked.')) return '#39a6ff';
   return '#ffd166';
 }
 

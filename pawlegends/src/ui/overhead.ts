@@ -244,6 +244,45 @@ const FONT = (weight: number, px: number): string => `${weight} ${px}px Fredoka,
 const DANGER_RGB = '#ff3b4d';
 const FOUNTAIN_RGB = '#ff4d5e';
 const GUIDE_RGB = '#ffd34d';
+/**
+ * v6 facelift (Lightning Rivalry): the plates' own inks, scoped here (canvas code cannot read CSS tokens). Night
+ * #12091F replaces the old cocoa ink, the plum-deep #471F5D level badge and the gold bevel come from the logo, cream is
+ * v6 cream. Relation colours (ally / enemy / you / danger) stay RELATION_CSS: team colours leave the match at the door.
+ */
+const V6 = Object.freeze({
+  night: '#12091f',
+  night0: '#0a0612',
+  night2: '#1c1230',
+  night3: '#281a42',
+  plum: '#633077',
+  plumDeep: '#471f5d',
+  cream: '#fff3e3',
+  bolt: '#ffe14a',
+  boltTop: '#fff08a',
+  flame: '#ff8a1e',
+  ice: '#d6ecff',
+  gold1: '#fff1b8',
+  gold2: '#f2c14e',
+  gold3: '#a8741c',
+  gold4: '#5e3d0c',
+  logoGold: '#f7bc3c',
+  xp: '#c9a8ff',
+  /** rgba() of night at alpha a. */
+  ink: (a: number): string => `rgba(18,9,31,${a})`,
+});
+/** v6 facelift: the −8° lean (px of horizontal shift per px of height) of name pills and status chips. */
+const LEAN = Math.tan((8 * Math.PI) / 180);
+
+/** v6 facelift: a parallelogram leaning −8° (top edge shifted right), centred like roundRect's box. */
+function leanRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  const d = (h * LEAN) / 2;
+  g.beginPath();
+  g.moveTo(x + d, y);
+  g.lineTo(x + w + d, y);
+  g.lineTo(x + w - d, y + h);
+  g.lineTo(x - d, y + h);
+  g.closePath();
+}
 
 export class Overhead {
   private readonly atlas = new StampAtlas();
@@ -573,7 +612,7 @@ export class Overhead {
       g.closePath();
       g.lineJoin = 'round';
       g.lineWidth = 3.5;
-      g.strokeStyle = '#1d1018';
+      g.strokeStyle = V6.night;
       g.stroke();
       g.fillStyle = RELATION_CSS.self;
       g.fill();
@@ -583,7 +622,7 @@ export class Overhead {
     const disc = this.atlas.get(`sdisc|${sc}`, 2 * (1.2 * s + 3), 2 * (1.2 * s + 3), (g) => {
       g.beginPath();
       g.arc(0, 0, s * 1.2, 0, Math.PI * 2);
-      g.fillStyle = 'rgba(29,16,24,0.92)';
+      g.fillStyle = V6.ink(0.92);
       g.fill();
       g.lineWidth = 2.5;
       g.strokeStyle = RELATION_CSS.self;
@@ -623,8 +662,8 @@ export class Overhead {
       const s = this.atlas.get(`chg|${rr.toFixed(2)}|${lvl}|${sc}`, box, box, (g) => {
         g.lineCap = 'round';
         g.lineWidth = 3 * sc;
-        g.strokeStyle = '#ffe14d';
-        g.shadowColor = '#fff6a8';
+        g.strokeStyle = V6.bolt;
+        g.shadowColor = V6.boltTop;
         g.shadowBlur = blur;
         g.beginPath();
         g.arc(0, 0, rr, 0, Math.PI * 2);
@@ -651,16 +690,16 @@ export class Overhead {
       g.quadraticCurveTo(0, -s * 1.5, s * 1.4, 0);
       g.quadraticCurveTo(0, s * 1.5, -s * 1.4, 0);
       g.closePath();
-      g.fillStyle = '#fff3dc';
+      g.fillStyle = V6.cream;
       g.fill();
       g.lineWidth = 2;
-      g.strokeStyle = '#2a1a22';
+      g.strokeStyle = V6.night;
       g.stroke();
       g.beginPath();
       g.arc(0, 0, s * 0.62, 0, Math.PI * 2);
-      g.fillStyle = '#ff6a3d';
+      g.fillStyle = V6.flame;
       g.fill();
-      g.fillStyle = '#2a1a22';
+      g.fillStyle = V6.night;
       g.font = FONT(800, Math.round(11 * sc));
       g.fillText('!', 0, 0.5);
     });
@@ -680,7 +719,7 @@ export class Overhead {
       g.closePath();
       g.lineJoin = 'round';
       g.lineWidth = 3;
-      g.strokeStyle = '#1d1018';
+      g.strokeStyle = V6.night;
       g.stroke();
       g.fillStyle = RELATION_CSS.self;
       g.fill();
@@ -712,11 +751,11 @@ export class Overhead {
       const { x, y } = clearOfRects(p0, s * 1.9, this.sideRects, this.h, this.w);
       const label = (e.hero ? HERO_TEXT[e.hero].title.replace('Sir ', '') : '?').slice(0, 2);
       const disc = this.atlas.get(`edisc|${label}|${sc}`, 2 * s * 1.15 + 4, 2 * s * 1.15 + 4, (g) => {
-        g.fillStyle = 'rgba(42,26,34,0.85)';
+        g.fillStyle = V6.ink(0.88);
         g.beginPath();
         g.arc(0, 0, s * 1.15, 0, Math.PI * 2);
         g.fill();
-        g.fillStyle = '#fff3dc';
+        g.fillStyle = V6.cream;
         g.font = FONT(700, Math.round(10 * sc));
         g.fillText(label, 0, 0.5);
       });
@@ -754,8 +793,8 @@ export class Overhead {
     const s = 9 * this.scale;
     const bob = Math.sin(performance.now() / 220) * 1.5;
     const st = this.atlas.get(`crown|${this.scale}`, 2 * s + 6, 1.4 * s + 6, (g) => {
-      g.fillStyle = '#ffd34d';
-      g.strokeStyle = '#4a2a1f';
+      g.fillStyle = V6.logoGold;
+      g.strokeStyle = V6.plumDeep;
       g.lineWidth = 2;
       crownPath(g, 0, 0, s);
       g.stroke();
@@ -773,12 +812,12 @@ export class Overhead {
     const half = Math.max(0.7 * s, 0.5 * s + 4 * sc + d) + 2;
     const st = this.atlas.get(`fed|${pips}|${sc}`, Math.max(2 * s, pips * gap) + 6, 2 * half + 2, (g) => {
       g.fillStyle = '#ff7a59';
-      g.strokeStyle = '#2a1a22';
+      g.strokeStyle = V6.night;
       g.lineWidth = 1.5;
       crownPath(g, 0, 0, s);
       g.stroke();
       g.fill();
-      g.fillStyle = '#ffd34d';
+      g.fillStyle = V6.logoGold;
       for (let i = 0; i < pips; i++) {
         const px = (i - (pips - 1) / 2) * gap;
         const py = s * 0.5 + 4 * sc;
@@ -805,10 +844,10 @@ export class Overhead {
     const gap = 3 * s;
     const st = this.atlas.get(`dis|${lit}|${max}|${this.scale}`, (max - 1) * gap + 2 * s + 6, 1.4 * s + 6, (g) => {
       g.lineWidth = 1.5;
-      g.strokeStyle = 'rgba(42,26,34,0.9)';
+      g.strokeStyle = V6.ink(0.9);
       for (let i = 0; i < max; i++) {
         crownPath(g, (i - (max - 1) / 2) * gap, 0, s);
-        g.fillStyle = i < lit ? '#b98cff' : 'rgba(42,26,34,0.55)';
+        g.fillStyle = i < lit ? '#b98cff' : V6.ink(0.55);
         g.fill();
         g.stroke();
       }
@@ -827,7 +866,7 @@ export class Overhead {
     const st = this.atlas.get(`spots|${n}|${this.scale}`, (n - 1) * gap + 2 * r + 5, 2 * r + 5, (g) => {
       g.lineWidth = 1.5;
       g.strokeStyle = 'rgba(255,255,255,0.95)';
-      g.fillStyle = '#16141a';
+      g.fillStyle = V6.night;
       for (let i = 0; i < n; i++) {
         g.beginPath();
         g.arc((i - (n - 1) / 2) * gap, 0, r, 0, Math.PI * 2);
@@ -1028,20 +1067,23 @@ export class Overhead {
     const bs = bh + 6;
     const bx = x - bs - 1;
     // outline, then the dark gap
-    q.rect(bx - 2, y - 3, bw + bs + 5, bh + 6, '#05070b');
-    q.rect(bx - 1, y - 2, bw + bs + 3, bh + 4, '#1a1f2a');
+    // v6 facelift: a night-0 outline, a plum gap (the logo's outline colour), a plum-deep level badge, a night-2 track
+    q.rect(bx - 2, y - 3, bw + bs + 5, bh + 6, V6.night0);
+    q.rect(bx - 1, y - 2, bw + bs + 3, bh + 4, V6.plum);
     // the level badge (square) and the empty bar
-    q.rect(bx, y - 1, bs - 1, bh + 2, '#0d1018');
-    q.rect(x, y, bw, bh, '#10131a');
+    q.rect(bx, y - 1, bs - 1, bh + 2, V6.plumDeep);
+    q.rect(x, y, bw, bh, V6.night2);
     q.rect(x, y, hpW, bh, this.color(e));
     // a lighter top half reads as a lit bar
     q.rect(x, y, hpW, Math.max(1, bh * 0.35), 'rgba(255,255,255,0.18)');
     if (shW > 0) q.rect(x + hpW, y, shW, bh, '#f4f8ff');
-    if (chW > 0.5) q.rect(x + hpW + shW, y, Math.min(chW, bw - hpW - shW), bh, 'rgba(255,246,206,0.92)');
+    if (chW > 0.5) q.rect(x + hpW + shW, y, Math.min(chW, bw - hpW - shW), bh, 'rgba(255,241,184,0.92)');
+    // a 1 px lower shade: the bar reads as a lit slab (the kit's ledge), inside the bar's own box
+    if (hpW > 0 && bh >= 6) q.rect(x, y + bh - 1, hpW, 1, V6.ink(0.35));
     for (let k = 100; k < total; k += 100) {
       const tx = Math.round(x + (k / total) * bw);
-      if (k % 1000 === 0) q.rect(tx - 1, y, 2, bh, 'rgba(5,7,11,0.95)');
-      else q.rect(tx, y, 1, bh * 0.5, 'rgba(5,7,11,0.6)');
+      if (k % 1000 === 0) q.rect(tx - 1, y, 2, bh, 'rgba(10,6,18,0.95)');
+      else q.rect(tx, y, 1, bh * 0.5, 'rgba(10,6,18,0.6)');
     }
     return { bx, bs };
   }
@@ -1064,11 +1106,11 @@ export class Overhead {
     const shW = (Math.max(0, e.shield) / total) * bw;
     if (p.dy < 0 && hero) {
       // a short leader line from a lifted plate down to its hero
-      q.line(sx, sy + bh / 2 + 3, sx, p.sy - bh / 2, 1.5, 'rgba(42,26,34,0.7)');
+      q.line(sx, sy + bh / 2 + 3, sx, p.sy - bh / 2, 1.5, V6.ink(0.7));
     }
     if (e.kind === 'minion') {
       // minions: no frame, no chunk (cheap): a dark track and the fill
-      q.rect(x - 1, y - 1, bw + 2, bh + 2, 'rgba(10,12,18,0.85)');
+      q.rect(x - 1, y - 1, bw + 2, bh + 2, V6.ink(0.85));
       q.rect(x, y, hpW, bh, this.color(e));
       return;
     }
@@ -1076,7 +1118,7 @@ export class Overhead {
       const tw = bw + 4;
       const th = bh + 4;
       const bg = this.atlas.get(`rr|${tw.toFixed(2)}|${th.toFixed(2)}`, tw + 2, th + 2, (g) => {
-        g.fillStyle = 'rgba(42,26,34,0.82)';
+        g.fillStyle = V6.ink(0.84);
         roundRect(g, -tw / 2, -th / 2, tw, th, 3);
         g.fill();
       });
@@ -1086,12 +1128,12 @@ export class Overhead {
       if (e.kind === 'tower' || e.kind === 'core' || e.kind === 'pudding') {
         // structures: the trailing chunk, and tick marks every 500 HP
         const chW = (Math.min(this.chunkOf(e), total - Math.max(0, e.hp)) / total) * bw;
-        if (chW > 0.5) q.rect(x + hpW + shW, y, Math.min(chW, bw - hpW - shW), bh, 'rgba(255,246,206,0.92)');
+        if (chW > 0.5) q.rect(x + hpW + shW, y, Math.min(chW, bw - hpW - shW), bh, 'rgba(255,241,184,0.92)');
       }
       if (e.kind === 'tower' || e.kind === 'core') {
-        for (let k = 500; k < total; k += 500) q.rect(x + (k / total) * bw, y, 1, k % 2500 === 0 ? bh : bh * 0.55, 'rgba(42,26,34,0.5)');
+        for (let k = 500; k < total; k += 500) q.rect(x + (k / total) * bw, y, 1, k % 2500 === 0 ? bh : bh * 0.55, V6.ink(0.5));
       }
-      if ((e.buffs & BuffFlag.Invulnerable) !== 0) q.strokeRect(x - 1, y - 1, bw + 2, bh + 2, 1.5, '#9fd3ff');
+      if ((e.buffs & BuffFlag.Invulnerable) !== 0) q.strokeRect(x - 1, y - 1, bw + 2, bh + 2, 1.5, V6.ice);
       // V21-FUN §4.2: a burning tower or core (below 33% HP) wears the minimap's flame glyph left of its bar
       if ((e.kind === 'tower' || e.kind === 'core') && damageState(e.maxHp > 0 ? e.hp / e.maxHp : 1) >= 2) {
         const fs = Math.round(13 * sc);
@@ -1113,8 +1155,8 @@ export class Overhead {
       q.strokeRect(bx - 3.25, y - 4.25, bw + bs + 7.5, bh + 8.5, 1.5, RELATION_CSS.self);
       // feel pass B3: the touch HUD has no hero box any more: the own XP is a 3 px line under this bar
       const xf = ownXpFrac(e.level ?? 1, e.xp ?? 0);
-      q.rect(x, y + bh + 2, bw, 3, 'rgba(5,7,11,0.85)');
-      q.rect(x, y + bh + 2, bw * xf, 3, '#b48cff');
+      q.rect(x, y + bh + 2, bw, 3, V6.ink(0.85));
+      q.rect(x, y + bh + 2, bw * xf, 3, V6.xp);
     }
     const lv = String(e.level ?? 1);
     const r = bs / 2;
@@ -1125,12 +1167,12 @@ export class Overhead {
     const stride = strideMeter(e);
     if (stride >= 0) {
       // Stilts's Stride under her bar (own team): sand while it builds, a hot terracotta when full (the pounce is ready)
-      q.rect(x - 1, y + bh + 3, bw + 2, 4 * sc, 'rgba(5,7,11,0.9)');
-      q.rect(x, y + bh + 4, bw * stride, 2.5 * sc, stride >= 1 ? '#ff8a5c' : '#e8c27a');
+      q.rect(x - 1, y + bh + 3, bw + 2, 4 * sc, V6.ink(0.9));
+      q.rect(x, y + bh + 4, bw * stride, 2.5 * sc, stride >= 1 ? V6.flame : '#e8c27a');
     }
     const lvPx = Math.min(12, bh + 3);
     const lvSt = this.atlas.get(`lv|${lv}|${lvPx}`, lvPx * 1.4 + 6, lvPx + 6, (g) => {
-      g.fillStyle = '#f0e6d2';
+      g.fillStyle = V6.cream;
       g.font = FONT(800, lvPx);
       g.fillText(lv, 0, 0.5);
     });
@@ -1151,39 +1193,43 @@ export class Overhead {
       const ring = seat ? (seat.bot ? 'rgba(150,150,160,0.95)' : seat.ring) : '';
       const bot = !!seat?.bot;
       const rg = 7 * sc;
-      const half = tw / 2 + 8 + (bot ? 15 * sc + rg + 3 : 0);
+      const half = tw / 2 + 10 + (bot ? 15 * sc + rg + 3 : 0); // v6: +2 for the lean
       const pill = this.atlas.get(`pill|${name}|${col}|${nf}|${ring}|${bot ? 1 : 0}|${sc}`, 2 * half, Math.max(nf + 12, 2 * rg + 8), (g) => {
+        // v6 facelift: the pill leans −8° (the kit's slant) with a night keyline under its lower edge
         g.fillStyle = col;
-        roundRect(g, -tw / 2 - 4, -nf / 2 - 2, tw + 8, nf + 4, 4);
+        leanRect(g, -tw / 2 - 4, -nf / 2 - 2, tw + 8, nf + 4);
         g.fill();
+        g.fillStyle = V6.ink(0.28);
+        g.fillRect(-tw / 2 - 4 - ((nf + 4) * LEAN) / 2 + 1, nf / 2 + 1, tw + 7, 1);
         if (ring) {
           // a friend: the slot ring around the pill (greyed while a bot flies it, with a robot glyph)
           g.strokeStyle = ring;
           g.lineWidth = 2.5;
-          roundRect(g, -tw / 2 - 6, -nf / 2 - 4, tw + 12, nf + 8, 6);
+          leanRect(g, -tw / 2 - 6, -nf / 2 - 4, tw + 12, nf + 8);
           g.stroke();
           if (bot) robotGlyph(g, tw / 2 + 15 * sc, 0, rg);
         }
         g.font = font;
-        g.fillStyle = '#2a1a22';
+        g.fillStyle = V6.night;
         g.fillText(name, 0, 0.5);
       });
       q.stamp(pill, sx, ny);
     } else if (!name) {
       // feel pass B5: no own name after the first seconds (the gold ring marks the hero)
     } else if (this.goldPlate) {
-      const gold = this.atlas.get(`gold|${name}|${nf}`, tw + 16, nf + 10, (g) => {
+      const gold = this.atlas.get(`gold|${name}|${nf}`, tw + 20, nf + 10, (g) => {
         const grad = g.createLinearGradient(0, -nf / 2 - 3, 0, nf / 2 + 3);
-        grad.addColorStop(0, '#fff1a8');
-        grad.addColorStop(1, '#e0a92e');
+        // v6 facelift: the gold bevel (gold-1 → gold-2, gold-3 rim) on the −8° lean, gold-4 text
+        grad.addColorStop(0, V6.gold1);
+        grad.addColorStop(1, V6.gold2);
         g.fillStyle = grad;
-        roundRect(g, -tw / 2 - 6, -nf / 2 - 3, tw + 12, nf + 6, 5);
+        leanRect(g, -tw / 2 - 6, -nf / 2 - 3, tw + 12, nf + 6);
         g.fill();
-        g.strokeStyle = '#7a4a12';
+        g.strokeStyle = V6.gold3;
         g.lineWidth = 1.5;
         g.stroke();
         g.font = font;
-        g.fillStyle = '#4a2a1f';
+        g.fillStyle = V6.gold4;
         g.fillText(name, 0, 0.5);
       });
       q.stamp(gold, sx, ny);
@@ -1192,7 +1238,7 @@ export class Overhead {
       const own = this.atlas.get(`own|${name}|${col}|${nf}`, tw + 10, nf + 10, (g) => {
         g.font = font;
         g.lineWidth = 3;
-        g.strokeStyle = 'rgba(10,12,18,0.9)';
+        g.strokeStyle = V6.ink(0.9);
         g.strokeText(name, 0, 0);
         g.fillStyle = col;
         g.fillText(name, 0, 0);
@@ -1210,9 +1256,9 @@ export class Overhead {
       const st = this.atlas.get(`cat|${cat}|${sc}`, cw + 10, 9 * sc + 10, (g) => {
         g.font = cf;
         g.lineWidth = 3;
-        g.strokeStyle = 'rgba(42,26,34,0.85)';
+        g.strokeStyle = V6.ink(0.85);
         g.strokeText(cat, 0, 0);
-        g.fillStyle = '#fff3dc';
+        g.fillStyle = V6.cream;
         g.fillText(cat, 0, 0);
       });
       q.stamp(st, sx, cy);
@@ -1223,7 +1269,7 @@ export class Overhead {
       const gr = 4 * sc;
       const st = this.atlas.get(`gem|${gem}|${sc}`, 1.5 * gr + 5, 2 * gr + 5, (g) => {
         g.fillStyle = gem;
-        g.strokeStyle = 'rgba(42,26,34,0.9)';
+        g.strokeStyle = V6.ink(0.9);
         g.lineWidth = 1.5;
         g.beginPath();
         g.moveTo(0, -gr);
@@ -1248,10 +1294,10 @@ export class Overhead {
     if (p.chip) {
       // another hero's plate sits right above this one: say so (left of the level badge; status takes the right)
       const st = this.atlas.get(`x2|${sc}`, 22 * sc + 4, 14 * sc + 4, (g) => {
-        g.fillStyle = 'rgba(42,26,34,0.92)';
-        roundRect(g, -11 * sc, -7 * sc, 22 * sc, 14 * sc, 6);
+        g.fillStyle = V6.ink(0.92);
+        roundRect(g, -11 * sc, -7 * sc, 22 * sc, 14 * sc, 4);
         g.fill();
-        g.fillStyle = '#fff3dc';
+        g.fillStyle = V6.cream;
         g.font = FONT(700, Math.round(10 * sc));
         g.fillText('×2', 0, 0.5);
       });
@@ -1273,14 +1319,14 @@ export class Overhead {
     if (this.phone) {
       const r = 7 * sc;
       const st = this.atlas.get(`stp|${status}|${sc}`, 2 * r + 5, 2 * r + 5, (g) => {
-        g.fillStyle = 'rgba(255,224,102,0.95)';
+        g.fillStyle = 'rgba(255,225,74,0.95)';
         g.beginPath();
         g.arc(0, 0, r, 0, Math.PI * 2);
         g.fill();
-        g.strokeStyle = 'rgba(42,26,34,0.9)';
+        g.strokeStyle = V6.ink(0.9);
         g.lineWidth = 1.5;
         g.stroke();
-        g.fillStyle = '#2a1a22';
+        g.fillStyle = V6.night;
         g.font = font;
         g.fillText(statusGlyph(status), 0, 0.5);
       });
@@ -1289,10 +1335,11 @@ export class Overhead {
     }
     const tw = this.atlas.measure(status, font) + 8 * sc;
     const st = this.atlas.get(`std|${status}|${sc}`, tw + 4, 14 * sc + 4, (g) => {
-      g.fillStyle = 'rgba(255,224,102,0.95)';
-      roundRect(g, -tw / 2, -7 * sc, tw, 14 * sc, 6);
+      // v6 facelift: a bolt chip on the −8° lean (it warns, so it may wear the bolt), night text
+      g.fillStyle = 'rgba(255,225,74,0.95)';
+      leanRect(g, -tw / 2 + 1, -7 * sc, tw - 2, 14 * sc);
       g.fill();
-      g.fillStyle = '#2a1a22';
+      g.fillStyle = V6.night;
       g.font = font;
       g.textAlign = 'left';
       g.fillText(status, -tw / 2 + 4 * sc, 0.5);
@@ -1366,14 +1413,14 @@ export function statusWord(b: number): string {
 /** Party play (M4): a small robot head (a bot flies this friend's hero), centred on (x, y), half-size r. */
 function robotGlyph(g: CanvasRenderingContext2D, x: number, y: number, r: number): void {
   g.save();
-  g.fillStyle = 'rgba(42,26,34,0.92)';
+  g.fillStyle = V6.ink(0.92);
   roundRect(g, x - r - 2, y - r - 2, 2 * r + 4, 2 * r + 4, 4);
   g.fill();
-  g.fillStyle = '#c9d3e0';
+  g.fillStyle = V6.ice;
   roundRect(g, x - r, y - r * 0.7, 2 * r, 1.6 * r, 2);
   g.fill();
   g.fillRect(x - 0.6, y - r - 1, 1.2, r * 0.35);
-  g.fillStyle = '#2a1a22';
+  g.fillStyle = V6.night;
   g.fillRect(x - r * 0.55, y - r * 0.25, r * 0.35, r * 0.35);
   g.fillRect(x + r * 0.2, y - r * 0.25, r * 0.35, r * 0.35);
   g.restore();
@@ -1403,11 +1450,11 @@ function drawFortShield(g: CanvasRenderingContext2D, s: number): void {
   g.quadraticCurveTo(w / 2, s * 0.35, 0, s / 2);
   g.quadraticCurveTo(-w / 2, s * 0.35, -w / 2, 0);
   g.closePath();
-  g.fillStyle = '#fff1d6';
+  g.fillStyle = V6.cream;
   g.fill();
   g.lineWidth = 1.5;
-  g.strokeStyle = '#d9a441';
+  g.strokeStyle = V6.logoGold;
   g.stroke();
-  g.fillStyle = '#ff7eb6';
+  g.fillStyle = '#ff86a5';
   g.fillRect(-w / 2 + 1, -s * 0.12, w - 2, s * 0.18);
 }

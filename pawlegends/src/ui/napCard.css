@@ -1,72 +1,78 @@
 /*
- * The nap card (ui/napCard.ts), Hearth Storybook: a painted page in a gilt frame with an ink keyline, plum night
- * under candle amber, the champion in a gold ring, Fredoka throughout, rose kept off (nothing here is a tap target).
+ * The nap card (ui/napCard.ts), v6 Lightning Rivalry: a night-2 slab (4 px radius) with a cream hairline and a plum
+ * keyline, a bolt rule on top, the champion in the gold bevel ring (avatars stay round), the countdown in Rubik italic
+ * bolt, Fredoka for every line. In a match, so no team rose / sky: the bolt celebrates, flame is the candle, the
+ * rival keeps the enemy red. Nothing here is a tap target.
  * Placement: desktop top centre under the announcer rail; phones in the middle band between the minimap (top left),
  * the rail (top centre) and the touch buttons (right). pointer-events: none, so it never takes a tap.
  */
 .pl-napcard {
   --nc-w: 420px; --nc-hero: 104px; --nc-num: 46px;
-  --nc-gold-1: #FFF1B8; --nc-gold-2: #F2C14E; --nc-gold-3: #A8741C; --nc-ink: #1B1022; --nc-candle: #FFB35C; --nc-vellum: #FFF3DC;
+  --nc-gold-1: var(--v6-gold-1); --nc-gold-2: var(--v6-gold-2); --nc-gold-3: var(--v6-gold-3); --nc-gold-4: var(--v6-gold-4);
+  --nc-ink: var(--v6-night-0); --nc-candle: var(--v6-flame); --nc-vellum: var(--v6-cream);
   position: absolute; left: 50%; top: max(176px, 24%); width: var(--nc-w); max-width: calc(100vw - 32px); z-index: 6;
   transform: translateX(-50%); pointer-events: none; display: none; box-sizing: border-box;
   grid-template-columns: var(--nc-hero) 1fr; grid-template-areas: 'hero body' 'line line'; column-gap: 14px; row-gap: 8px;
-  padding: 12px 14px 10px; border-radius: 16px; overflow: hidden; isolation: isolate;
+  padding: 12px 14px 10px; border-radius: var(--v6-r-s); overflow: hidden; isolation: isolate;
   color: var(--nc-vellum); font-family: 'Fredoka', ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif;
-  background: #1B1022;
-  box-shadow: 0 0 0 2px rgba(242, 193, 78, 0.75), 0 0 0 3.5px var(--nc-ink), 0 10px 26px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: var(--v6-night);
+  box-shadow: 0 0 0 1px var(--v6-line-strong), 0 0 0 3px var(--v6-plum-deep), 0 10px 26px rgb(0 0 0 / 0.5), inset 0 -3px 0 var(--nc-ink);
 }
 .pl-napcard.on { display: grid; animation: pl-nc-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.pl-napcard.on { animation-duration: var(--v6-dur-slam); animation-timing-function: var(--v6-ease-pop); }
 @keyframes pl-nc-in { from { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.94); } }
 .pl-match:has(.pl-talents.on) .pl-napcard, html[data-crest] .pl-napcard { display: none; }
 
 /* the painted backdrop (fountain and cushion on the right), dimmed on the left where the words sit */
 .pl-napcard .nc-art {
-  position: absolute; inset: 0; z-index: -1; background: #2B1D2E center right / cover no-repeat;
+  position: absolute; inset: 0; z-index: -1; background: var(--v6-night-2) center right / cover no-repeat;
 }
 .pl-napcard .nc-art::after {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(90deg, rgba(27, 16, 34, 0.9) 0%, rgba(27, 16, 34, 0.72) 48%, rgba(27, 16, 34, 0.1) 100%),
-    linear-gradient(0deg, rgba(27, 16, 34, 0.92) 0%, rgba(27, 16, 34, 0) 42%);
+  background: linear-gradient(90deg, rgb(var(--v6-night-rgb) / 0.92) 0%, rgb(var(--v6-night-rgb) / 0.74) 48%, rgb(var(--v6-night-rgb) / 0.12) 100%),
+    linear-gradient(0deg, rgb(var(--v6-night-rgb) / 0.94) 0%, rgb(var(--v6-night-rgb) / 0) 42%);
 }
-/* a 1.5 px gilt rule on the top edge (glass panel rule) */
+/* the bolt rule on the top edge: a 3 px leaning slash from the left (the one bolt of this card) */
 .pl-napcard::before {
-  content: ''; position: absolute; left: 12px; right: 12px; top: 0; height: 1.5px;
-  background: linear-gradient(90deg, transparent, var(--nc-gold-2), var(--nc-gold-1), var(--nc-gold-2), transparent);
+  content: ''; position: absolute; left: 0; top: 0; width: 46%; height: 3px;
+  background: linear-gradient(90deg, var(--v6-bolt) 0 82%, transparent);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
 }
 
 /* the champion napping: the splash in a bevelled gold ring with an ink keyline, greyed a little (asleep) */
 .pl-napcard .nc-hero {
   grid-area: hero; align-self: center; width: var(--nc-hero); height: var(--nc-hero); border-radius: 50%; padding: 3px; box-sizing: border-box;
-  background: conic-gradient(from 210deg, #FFF1B8, #F2C14E 18%, #A8741C 34%, #FFF1B8 50%, #F2C14E 66%, #5E3D0C 84%, #FFF1B8);
+  background: var(--v6-grad-gold-ring);
   box-shadow: 0 0 0 2px var(--nc-ink), 0 6px 14px rgba(0, 0, 0, 0.45); position: relative;
 }
 .pl-napcard .nc-hero img {
   display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; object-position: 50% 22%;
-  box-shadow: 0 0 0 1.5px var(--nc-ink); filter: saturate(0.7) brightness(0.86); background: #2B1D2E;
+  box-shadow: 0 0 0 1.5px var(--nc-ink); filter: saturate(0.7) brightness(0.86); background: var(--v6-night-2);
 }
 /* a small sleepy moon badge on the ring (CSS, no text) */
 .pl-napcard .nc-hero::after {
   content: ''; position: absolute; right: -2px; top: 2px; width: 26%; height: 26%; border-radius: 50%;
-  background: radial-gradient(circle at 64% 38%, #2B1D2E 0 44%, transparent 46%), radial-gradient(circle at 50% 50%, #FFE9A8 0 58%, transparent 60%), #2B1D2E;
-  box-shadow: 0 0 0 2px var(--nc-gold-2), 0 0 0 3.5px var(--nc-ink), 0 0 12px rgba(255, 179, 92, 0.6);
+  background: radial-gradient(circle at 64% 38%, var(--v6-night-2) 0 44%, transparent 46%), radial-gradient(circle at 50% 50%, var(--v6-bolt-top) 0 58%, transparent 60%), var(--v6-night-2);
+  box-shadow: 0 0 0 2px var(--v6-plum-deep), 0 0 0 3.5px var(--nc-ink), 0 0 12px rgb(var(--v6-bolt-rgb) / 0.45);
 }
 
 .pl-napcard .nc-body { grid-area: body; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; }
 .pl-napcard .nc-kicker {
-  font-weight: 600; font-size: 12px; line-height: 1.1; letter-spacing: 0.16em; text-transform: uppercase; color: var(--nc-candle);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  font-weight: 700; font-size: 12px; line-height: 1.1; letter-spacing: var(--v6-track-cap); text-transform: uppercase; color: var(--nc-candle);
+  text-shadow: 0 2px 4px rgb(0 0 0 / 0.6);
 }
 .pl-napcard .nc-back { display: flex; align-items: baseline; gap: 8px; }
 .pl-napcard .nc-back > span { font-weight: 700; font-size: 18px; line-height: 1; color: var(--nc-vellum); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
 .pl-napcard .nc-secs {
-  font-weight: 700; font-size: var(--nc-num); line-height: 1; font-variant-numeric: tabular-nums; color: var(--nc-gold-1);
-  text-shadow: 0 3px 0 var(--nc-gold-4, #5E3D0C), 0 0 18px rgba(255, 179, 92, 0.55);
+  font-family: var(--v6-font-display); font-style: italic; font-weight: 900;
+  font-size: var(--nc-num); line-height: 1; font-variant-numeric: tabular-nums; color: var(--v6-bolt);
+  text-shadow: 0 3px 0 var(--v6-plum-deep), 0 0 18px rgb(var(--v6-bolt-rgb) / 0.35);
 }
 .pl-napcard .nc-by { display: flex; align-items: center; gap: 7px; min-width: 0; margin-top: 2px; }
 /* who did it: their champion medallion in a red keyline (the rival read), or a tower / paw glyph */
 .pl-napcard .nc-medal {
   flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: var(--nc-gold-1);
-  background: #3A2740 50% 22% / cover no-repeat; box-shadow: 0 0 0 1.5px #FF4F58, 0 0 0 3px var(--nc-ink);
+  background: var(--v6-night-3) 50% 22% / cover no-repeat; box-shadow: 0 0 0 1.5px var(--v6-enemy), 0 0 0 3px var(--nc-ink);
 }
 .pl-napcard .nc-medal svg { width: 62%; height: 62%; }
 /* no knockout seen yet (rejoined while out): no empty ring */
@@ -75,11 +81,11 @@
   font-weight: 600; font-size: 13px; line-height: 1.25; color: var(--nc-vellum); opacity: 0.92; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-/* the tip or lore line: a parchment ribbon in story ink (never black) */
+/* the tip or lore line: a raised night strip with a flame (candle) bar on the left, cream type */
 .pl-napcard .nc-line {
-  grid-area: line; display: block; padding: 6px 10px; border-radius: 10px; font-weight: 600; font-size: 13px; line-height: 1.3; color: #4A1D08;
-  background: linear-gradient(180deg, rgba(247, 230, 184, 0.96), rgba(233, 207, 143, 0.96));
-  box-shadow: inset 0 0 0 1px rgba(122, 74, 34, 0.45), 0 2px 0 rgba(113, 63, 18, 0.7);
+  grid-area: line; display: block; padding: 6px 10px; border-radius: var(--v6-r-xs); font-weight: 600; font-size: 13px; line-height: 1.3; color: var(--v6-cream);
+  background: rgb(40 26 66 / 0.94);
+  box-shadow: inset 3px 0 0 var(--nc-candle), inset 0 0 0 1px var(--v6-line), 0 2px 0 var(--nc-ink);
   animation: pl-nc-line 0.3s ease-out both;
 }
 .pl-napcard .nc-line:empty { display: none; }
@@ -88,7 +94,7 @@
 /* phones (landscape): smaller, in the middle band under the rail, nudged left of the ult and dash buttons, clear of
    the minimap and the Fish chip (top left) */
 html[data-touch='1'] .pl-napcard {
-  --nc-w: 300px; --nc-hero: 62px; --nc-num: 30px; top: calc(50% - 78px); left: calc(50% - 16px); padding: 8px 10px 7px; column-gap: 10px; row-gap: 6px; border-radius: 14px;
+  --nc-w: 300px; --nc-hero: 62px; --nc-num: 30px; top: calc(50% - 78px); left: calc(50% - 16px); padding: 8px 10px 7px; column-gap: 10px; row-gap: 6px; border-radius: var(--v6-r-s);
 }
 html[data-touch='1'] .pl-napcard .nc-kicker { font-size: 10px; letter-spacing: 0.12em; }
 html[data-touch='1'] .pl-napcard .nc-back > span { font-size: 14px; }

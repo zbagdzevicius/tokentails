@@ -49,7 +49,7 @@ describe('ftue-3: the Pudding beat and the standing chip agree', () => {
 });
 
 describe('ftue-4: phones keep the instruction line (LoL pass: on the top rail)', () => {
-  const css = readFileSync(resolve(__dirname, '../../src/ui/ui.css'), 'utf8');
+  const css = readFileSync(resolve(__dirname, '../../src/ui/css/rail.css'), 'utf8');
 
   it('a beat on touch says the how-to as its rail note, and the goal stays on the resting line', () => {
     const notes: Note[] = [];
