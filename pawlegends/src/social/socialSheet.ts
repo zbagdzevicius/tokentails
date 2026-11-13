@@ -11,6 +11,7 @@ import { HERO_IDS } from '../data/heroes';
 import { isAvatarView, previewText, type AvatarView } from '../data/chatPhrases';
 import { avatarHtml, titleText } from '../ui/avatar';
 import { ChatSheet } from './chatSheet';
+import { InviteRow } from '../share/invite';
 
 export type SocialTab = 'friends' | 'requests' | 'recent' | 'ranked' | 'boards';
 export const SOCIAL_TABS: readonly SocialTab[] = Object.freeze(['friends', 'requests', 'recent', 'ranked', 'boards']);
@@ -162,6 +163,8 @@ export class SocialSheet {
   private chat: ChatSheet | null = null;
   /** The avatar picker (Me): its page and the choice not saved yet. */
   private picking: { avatarKind: string; avatarRef: string; frame: string } | null = null;
+  /** Invite and comeback codes (share/invite.ts): the first row of the Friends tab. */
+  private readonly invite: InviteRow;
 
   constructor(
     parent: HTMLElement,
@@ -176,13 +179,28 @@ export class SocialSheet {
     this.root.addEventListener('click', (e) => this.onClick(e));
     this.root.addEventListener('submit', (e) => {
       e.preventDefault();
-      void this.addByCode();
+      const form = e.target as HTMLFormElement | null;
+      if (form?.dataset?.form === 'invite') void this.invite.redeem(form.querySelector<HTMLInputElement>('input[name="invite"]')?.value ?? '');
+      else void this.addByCode();
+    });
+    this.invite = new InviteRow({
+      api: (op, args) => this.deps.api(op, args),
+      render: () => this.render(),
+      note: (text) => {
+        this.note = text;
+      },
+      track: (event, props) => this.deps.track?.(event, props),
     });
     parent.appendChild(this.root);
     this.deps.track?.('social_open', { tab });
     this.render();
     void this.load();
     this.pulseTimer = setInterval(() => void this.pulse(), 30_000);
+  }
+
+  /** Friend rows per page: one row fewer while the invite row shows. */
+  private get friendsPer(): number {
+    return Math.max(1, this.per - (this.invite.state || this.invite.entering ? 1 : 0));
   }
 
   private get per(): number {
@@ -193,6 +211,7 @@ export class SocialSheet {
     if (this.tab === 'ranked') return this.loadRanked();
     if (this.tab === 'boards') return this.loadBoard();
     if (!this.deps.signedIn()) return this.render();
+    if (this.tab === 'friends') void this.invite.load();
     if (this.tab === 'recent') {
       const r = await this.deps.api('social.recent');
       this.recent = r.ok ? ((r.body as { players?: SocialSheet['recent'] })?.players ?? []) : [];
@@ -248,7 +267,7 @@ export class SocialSheet {
     if (this.picking) return;
     // an open DM thread polls itself; its Back reloads the list, so nothing renders under it meanwhile
     if (this.chat && !this.chat.closed) return;
-    if (this.adding || this.tab === 'ranked' || this.tab === 'boards') return;
+    if (this.adding || this.invite.entering || this.tab === 'ranked' || this.tab === 'boards') return;
     await this.load();
   }
 
@@ -307,8 +326,10 @@ export class SocialSheet {
     if (!s.me.ageBand) return this.agePanel();
     if (this.picking) return this.pickerBody();
     if (this.tab === 'friends') {
-      if (!s.friends.length) return `<p class="pl-social-empty">No friends yet. Share your code or add theirs.</p>`;
-      const { rows } = pageOf(friendOrder(s.friends), this.page, this.per);
+      // the invite row (share/invite.ts) takes the first row's place
+      const inv = this.invite.html();
+      if (!s.friends.length) return `${inv}<p class="pl-social-empty">No friends yet. Share your code or add theirs.</p>`;
+      const { rows } = pageOf(friendOrder(s.friends), this.page, this.friendsPer);
       const inParty = !!this.deps.partyCode();
       return rows
         .map((f) => {
@@ -325,7 +346,7 @@ export class SocialSheet {
           const sub = t?.unread && !t.muted ? `<small class="pl-social-st pl-social-preview" data-name="${this.esc(previewText(t.lastPreview))}"></small>` : `<small class="pl-social-st">${PRESENCE_TEXT[f.presence.state]}</small>`;
           return `<div class="pl-social-row" data-state="${f.presence.state}" data-code="${this.esc(f.code)}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i><span class="pl-social-who"><span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${sub}</span>${btn}${chat}</div>`;
         })
-        .join('');
+        .reduce((html, row) => html + row, inv);
     }
     if (this.tab === 'requests') {
       const list = [...s.requests.in.map((r) => ({ ...r, dir: 'in' as const })), ...s.requests.out.map((r) => ({ ...r, dir: 'out' as const }))];
@@ -397,7 +418,7 @@ export class SocialSheet {
       this.tab === 'boards'
         ? Math.max(1, Number(this.board.data?.pages ?? 1))
         : this.tab === 'friends'
-          ? pageOf(this.state?.friends ?? [], 0, this.per).pages
+          ? pageOf(this.state?.friends ?? [], 0, this.friendsPer).pages
           : this.tab === 'requests'
             ? pageOf([...(this.state?.requests.in ?? []), ...(this.state?.requests.out ?? [])], 0, this.per).pages
             : this.tab === 'recent'
@@ -460,6 +481,12 @@ export class SocialSheet {
     const a = el?.dataset.a;
     if (!a || !el || el.hasAttribute('disabled')) return;
     const code = el.dataset.code ?? '';
+    if (a.startsWith('inv-')) {
+      void this.invite.act(a).then(() => {
+        if (this.invite.entering) this.root.querySelector<HTMLInputElement>('input[name="invite"]')?.focus();
+      });
+      return;
+    }
     switch (a) {
       case 'close':
         this.dispose();
