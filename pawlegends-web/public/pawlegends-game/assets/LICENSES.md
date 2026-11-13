@@ -69,3 +69,14 @@ No text or logo is drawn in any image; titles are set in HTML. Each file has a s
 | `pass/book{,-lo}.webp` | generated, Gemini, 2026-11 (blank open-book parchment spread) | Token Tails, all rights reserved |
 | `pass/chest{,-lo}.webp`, `pass/sealed{,-lo}.webp` | generated, Gemini, 2026-11 (treat chest; wax-sealed postcard envelope), green screen keyed | Token Tails, all rights reserved |
 | `pass/node-{free,premium,now}{,-lo}.webp` | generated, Gemini, 2026-11 (tier node emblems), green screen keyed | Token Tails, all rights reserved |
+
+### Champion faces and skin art (v6 Lightning Rivalry skins library)
+
+Generated with gemini-3-pro-image-preview from each champion's in-game reference art (splash, model render), prompts
+and notes in `~/Downloads/paw-legends/brandbook/v6-lightning-rivalry/skins/_work/`. Imported by
+`tools/import-skin-art.mjs` (webp q78).
+
+| File | Source | Licence |
+|---|---|---|
+| `faces/<hero>-256.webp` | generated, Gemini, 2026-11 (each champion's default-look head portrait) | Token Tails, all rights reserved |
+| `pawlegends-web/public/pawlegends-art/skins/<skin id>-{256,360,720}.webp` (served by pawlegends.app, not in this folder) | generated, Gemini, 2026-11 (one face and one 4:5 story splash per skin of the game's skins library) | Token Tails, all rights reserved |
