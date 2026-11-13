@@ -43,7 +43,7 @@ Home ── PLAY ──> Mode Select: mode ──Next──> Mode Select: varian
 | Skirmish 3v3 | vs Bots, Co-op, PvP, With Friends |
 | Classic 5v5 | vs Bots, PvP (the matchmaker's co-op queue and friend parties are 3v3; PROTO 4's `classic` queue is PvP) |
 | Blitz | vs Bots (party and PvP later) |
-| Ranked | locked ("Coming soon") |
+| Ranked | follows the live gate (gap plan P4): locked "Opens at 24 online · 9 now", live while `ranked/status` is open |
 | Cannon Chaos | coming soon |
 
 The separate "Co-op vs Bots" tile is gone: it was Skirmish's Co-op. A saved `{ mode: 'coop' }` loads as Skirmish,
@@ -115,7 +115,7 @@ for a tree crown, so the crown layer was empty. An empty builder now gives an em
 | Top right (`.lb-corner`) | Friends and ranked (embedded), Settings, Sound. The account chip mounts here too. No "Games" button (Nov 12): Settings has "Back to Token Tails games" when embedded. |
 | Left edge | Round buttons: Events (glows when an event is live), Today (quests ring) and # (join with a code). |
 | Right edge | Promo rotator, changing every 5 s: Legends Pass season, Cannon Chaos and the Store (web only). |
-| Bottom | Glass nav: Heroes (browse only), Cards, Pass, Ranked (locked), Store (web only). It also shows on the first visit, with Heroes, Cards and Pass locked. |
+| Bottom | Glass nav: Heroes (browse only), Cards, Pass, Ranked (live while the gate is open: opens Mode Select on Ranked; else locked with the gate line), Store (web only). It also shows on the first visit, with Heroes, Cards and Pass locked. |
 | Bottom right | The round PLAY, alone for a returning player. The first visit and a dare keep one line above it. |
 
 **PLAY.** It opens Mode Select (the one play path above). On the first visit PLAY starts the guided Clem match. On a
@@ -158,7 +158,7 @@ scrolls sideways with snap. This is the only scroll region.
 |---|---|---|---|
 | Skirmish | 3v3 Purrhaven Crossing | bots, coop, pvp, friends | live |
 | Classic | 5v5 Hearthwood Divide | bots, pvp | live |
-| Ranked | 5v5 | pvp | locked ("Coming soon", Unranked) |
+| Ranked | 3v3 (Crossing) | pvp | the live gate: locked "Opens at 24 online · 9 now", live while open; the player's tier on the tile |
 | Blitz | 3v3 Purrhaven Crossing, the `blitz` mutator (sim v22, BLITZ.md) | bots (party and PvP later) | live since sim v22 (~3 min; Skirmish ~7 min, Classic ~13 min from the v22 probe) |
 | Cannon Chaos | 3v3 | bots, coop | soon (becomes an event only when given a real `endsAt`) |
 
@@ -191,7 +191,7 @@ scrolls sideways with snap. This is the only scroll region.
 2. **PLAY.** Superseded Nov 12: PLAY opens Mode Select (the founder asked for one path, at the cost of a tap or
    two: Enter, Enter, Enter, LOCK IN on a keyboard).
 3. **Nav on the first visit.** The nav shows, with the items that need a match locked.
-4. **Ranked.** It shows as a locked "Coming soon" tile.
+4. **Ranked.** It opens by itself while `GET /pawlegends/ranked/status` is open (gap plan P4); otherwise a locked tile says the gate ("Opens at 24 online · 9 now").
 5. **Cannon Chaos.** It does not exist in the game yet, so it is "coming soon", not a fake countdown.
 6. **Quick Co-op and PvP.** Removed Nov 12 (the one play path). A brand-new guest's first match stays the guided
    one; co-op opens from match 2. The multiplayer e2e goes through the path (`tests/e2e/mp/party.helpers.ts`
