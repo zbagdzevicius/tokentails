@@ -70,6 +70,7 @@ import { PawlegendsReplayDto } from 'src/pawlegends/pawlegends-replay.dto';
 import { MongoRoomStore } from 'src/pawlegends/party/room-store';
 import { MmService } from 'src/pawlegends/mm/mm.service';
 import { PawlegendsSeasonService } from 'src/pawlegends/pawlegends-season.service';
+import { ClubsService } from 'src/pawlegends/clubs/clubs.service';
 import { HEIST_SIM_INFO, IHeistSimInfo } from './heist/heist-sim-info';
 import { heistReplayQueue, ReplayQueueFullException } from './heist/replay-queue';
 import { UserRepository } from './user.repository';
@@ -208,7 +209,9 @@ export class UserController {
         // Legends Pass Season XP (STORE-PASS.md §5): added by /live after the Game row exists.
         @Optional() private pawlegendsSeason?: PawlegendsSeasonService,
         // Growth (growth/apply-invite-progress.ts): an accepted invite counts verified matches, inside /live only.
-        @Optional() private pawlegendsGrowth?: GrowthService
+        @Optional() private pawlegendsGrowth?: GrowthService,
+        // Clubs (CLUBS-KUDOS.md §4): the weekly club chest, filled only by this save.
+        @Optional() private pawlegendsClubs?: ClubsService
     ) {
         // this.getUsers();
         // this.getTwitters();
@@ -1461,6 +1464,7 @@ export class UserController {
                     mm: this.mm?.liveDeps() as any,
                     season: this.pawlegendsSeason,
                     growth: this.pawlegendsGrowth,
+                    clubs: this.pawlegendsClubs,
                 },
                 userId,
                 body as any

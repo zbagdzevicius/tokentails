@@ -56,7 +56,8 @@ import {
 
 export const PARTY_DAILY_CAP = 30;
 
-export interface IPartyLiveDeps extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger' | 'season' | 'growth'> {
+export interface IPartyLiveDeps
+    extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger' | 'season' | 'growth'> {
     rooms: {
         get(id: string): Promise<StoredRoom | null>;
         countEnded(accountId: string, since: Date): Promise<number>;
@@ -75,6 +76,19 @@ export interface IPartyLiveDeps extends Pick<IPawlegendsLiveDeps, 'users' | 'gam
         boards?: PawlegendsBoardModel;
         /** Sanctions in force (find only): `board_exclude` and `pvp_ban` keep a player off the boards. */
         sanctions?: { countDocuments(filter: Record<string, unknown>): Promise<number> };
+    };
+    /**
+     * Clubs (CLUBS-KUDOS.md §4): the weekly club chest grows ONLY here (`applyClubChest`), after the Game row exists,
+     * from a verified win of a registered member; it never fails the save.
+     */
+    clubs?: {
+        applyClubChest(input: {
+            accountId: string;
+            room: string;
+            won: boolean;
+            registered: boolean;
+            now: Date;
+        }): Promise<unknown>;
     };
 }
 
@@ -272,7 +286,21 @@ export async function savePawlegendsPartyMatch(
             });
     } else if (deps.mm)
         await applyCoopRating(deps.mm, String(userId), r.room, v.outcome as 'won' | 'lost', difficulty, now, log);
-    await applyInviteProgress(deps.growth, String(userId), { ref: digest, ticks: v.ticks, forfeit: v.reason === 'forfeit' }, now);
+    await applyInviteProgress(
+        deps.growth,
+        String(userId),
+        { ref: digest, ticks: v.ticks, forfeit: v.reason === 'forfeit' },
+        now
+    );
+    // CLUBS-KUDOS.md §4: a verified win fills the member's weekly club chest (capped per day, once per room)
+    if (deps.clubs)
+        await deps.clubs.applyClubChest({
+            accountId: String(userId),
+            room: r.room,
+            won: won && !daily,
+            registered: !user.isGuest,
+            now,
+        });
     return {
         party: true,
         difficulty,

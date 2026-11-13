@@ -231,7 +231,8 @@ PawlegendsWebhookEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 
 
 /**
  * How an item was got: a web purchase, a pass reward, the presale, and for champions (CHAMPION-STORE.md) the
- * Founders roster grant, a Yarn unlock or a free Champion Pick; a ranked season reward (ranked/season-rewards.ts).
+ * Founders roster grant, a Yarn unlock or a free Champion Pick; a ranked season reward (ranked/season-rewards.ts); a
+ * club or good-teammate chest.
  */
 export type PawlegendsOwnedSource =
     | 'purchase'
@@ -243,7 +244,10 @@ export type PawlegendsOwnedSource =
     | 'ranked'
     // growth: an invite reward and the first-purchase gift
     | 'invite'
-    | 'gift';
+    | 'gift'
+    // CLUBS-KUDOS.md: a weekly club chest tier and a monthly good-teammate chest tier (earned, never bought)
+    | 'club'
+    | 'kudos';
 
 @Schema({ collection: 'pawlegendsowned', timestamps: true })
 export class PawlegendsOwned extends CommonSchema {

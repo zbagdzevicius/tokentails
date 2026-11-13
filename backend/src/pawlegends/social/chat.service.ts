@@ -42,6 +42,10 @@ import {
  * both sides are registered and 16+), phrase scope, rate limits, then the text filter. Rejected text is never stored.
  * Clients never see an account id: threads are opaque ids, the other side is a player code and a derived name, and a
  * message says only whether it is `mine`. Party chat goes through the relay (party-relay.ts `chat.say`, ChatSink).
+ *
+ * Club threads (CLUBS-KUDOS.md, kind `club`): the same routes, filter, limits, sanctions and reports. A member of the
+ * thread (the club keeps `members` in sync) may read and write; the tier is the strictest of every member (one
+ * under-16 or guest makes the club quick-chat only); lines from anyone blocked either way are hidden from the reader.
  */
 
 const DAY = 86_400_000;
@@ -78,7 +82,7 @@ export const CHAT_ERRORS = {
 
 export interface ThreadRow {
     _id: string;
-    kind: 'dm' | 'party';
+    kind: 'dm' | 'party' | 'club';
     members: string[];
     tier?: ChatTier;
     lastAt: Date;
@@ -198,6 +202,21 @@ export class ChatService {
         return (await this.blocks.countDocuments({ _id: { $in: [`${a}:${b}`, `${b}:${a}`] } })) > 0;
     }
 
+    /** Accounts `me` blocked or that blocked `me`, among `ids` (club lines from them are hidden). */
+    async blockedAmong(me: string, ids: readonly string[]): Promise<Set<string>> {
+        const others = ids.filter(id => id !== me);
+        if (!others.length) return new Set();
+        const rows = (await this.blocks
+            .find({
+                $or: [
+                    { blocker: me, blocked: { $in: others } },
+                    { blocker: { $in: others }, blocked: me },
+                ],
+            })
+            .lean()) as Array<{ blocker: string; blocked: string }>;
+        return new Set(rows.map(b => (b.blocker === me ? b.blocked : b.blocker)));
+    }
+
     private async friendsNow(a: string, b: string): Promise<boolean> {
         const edge = await this.friends.findById(pairId(a, b)).lean();
         return edge?.state === 'accepted';
@@ -224,6 +243,8 @@ export class ChatService {
     ): Promise<{ thread: ThreadRow; other: string; readOnly: boolean }> {
         if (typeof threadId !== 'string' || !THREAD_RE.test(threadId)) throw CHAT_ERRORS.unavailable();
         const thread = (await this.threads.findById(threadId).lean()) as ThreadRow | null;
+        // a club thread: any current member (no friendship, no DM policy); `other` stays empty
+        if (thread?.kind === 'club' && thread.members.includes(me)) return { thread, other: '', readOnly: false };
         if (!thread || thread.kind !== 'dm' || !thread.members.includes(me)) throw CHAT_ERRORS.unavailable();
         const other = thread.members.find(m => m !== me);
         if (!other || (await this.blockedEither(me, other))) throw CHAT_ERRORS.unavailable();
@@ -404,6 +425,32 @@ export class ChatService {
             .lean()) as MessageRow[];
         const more = rows.length > limit;
         const page = rows.slice(0, limit).reverse();
+        if (thread.kind === 'club') {
+            const [{ tier }, hidden, social] = await Promise.all([
+                this.tierOf(thread.members),
+                this.blockedAmong(me, thread.members),
+                this.profileOf(me),
+            ]);
+            return {
+                thread: {
+                    id: thread._id,
+                    kind: 'club' as const,
+                    with: { code: '', name: '' },
+                    tier,
+                    muted: (thread.muted ?? []).includes(me),
+                    readOnly: false,
+                    cooldownUntil:
+                        social?.chatCooldownUntil && new Date(social.chatCooldownUntil).getTime() > this.now().getTime()
+                            ? social.chatCooldownUntil
+                            : null,
+                },
+                messages: await this.clubViews(
+                    page.filter(m => !hidden.has(m.from)),
+                    me
+                ),
+                more,
+            };
+        }
         const [{ tier }, profile, names, social] = await Promise.all([
             this.tierOf([me, other]),
             this.profileOf(other),
@@ -440,8 +487,22 @@ export class ChatService {
             .sort({ at: -1 })
             .limit(CHAT_LIMITS.historyPage)
             .lean()) as MessageRow[];
-        const fresh = rows.filter(m => String(m._id) !== after).reverse();
+        let fresh = rows.filter(m => String(m._id) !== after).reverse();
+        if (thread.kind === 'club') {
+            const hidden = await this.blockedAmong(me, thread.members);
+            fresh = fresh.filter(m => !hidden.has(m.from));
+            return fresh.length ? { messages: await this.clubViews(fresh, me) } : null;
+        }
         return fresh.length ? { messages: fresh.map(m => viewOf(m, me)) } : null;
+    }
+
+    /** Club lines carry the sender's display name (`who`; never an account id), as the member list shows it. */
+    private async clubViews(rows: MessageRow[], me: string): Promise<Array<MessageView & { who?: string }>> {
+        const names = await displayNames(
+            { social: this.social, cats: this.cats },
+            rows.filter(m => m.from !== me).map(m => m.from)
+        );
+        return rows.map(m => (m.from === me ? viewOf(m, me) : { ...viewOf(m, me), who: names.get(m.from) ?? '' }));
     }
 
     async markRead(me: string, threadId: unknown, upTo: unknown) {
@@ -479,12 +540,14 @@ export class ChatService {
         }
         const { thread, other, readOnly } = await this.access(me, threadId);
         if (readOnly) throw CHAT_ERRORS.unavailable();
-        const [mine, theirs] = await Promise.all([this.profileOf(me), this.profileOf(other)]);
-        if (mine?.dmPolicy === 'off' || theirs?.dmPolicy === 'off') throw CHAT_ERRORS.unavailable();
+        const club = thread.kind === 'club';
+        const [mine, theirs] = await Promise.all([this.profileOf(me), club ? null : this.profileOf(other)]);
+        if (!club && (mine?.dmPolicy === 'off' || theirs?.dmPolicy === 'off')) throw CHAT_ERRORS.unavailable();
         const mute = await this.chatMute(me);
         if (mute !== false) throw CHAT_ERRORS.muted(mute);
         const now = this.now();
-        const { tier, probes } = await this.tierOf([me, other]);
+        // a club: the strictest tier of every member (one under-16 or guest makes it quick chat only)
+        const { tier, probes } = await this.tierOf(club ? thread.members : [me, other]);
         let text: string | undefined;
         if (body.k === 't') {
             const cd = mine?.chatCooldownUntil ? new Date(mine.chatCooldownUntil) : null;
@@ -526,7 +589,11 @@ export class ChatService {
                 },
             }
         );
-        if (!(thread.muted ?? []).includes(other)) {
+        if (club) {
+            // club lines poke open club sheets only (no pulse rev bump: the DM badge counts DMs)
+            for (const m of thread.members)
+                if (m !== me && !(thread.muted ?? []).includes(m)) this.bus?.publish({ to: m, thread: thread._id });
+        } else if (!(thread.muted ?? []).includes(other)) {
             await this.social.updateOne({ _id: other }, { $inc: { rev: 1 } });
             this.bus?.publish({ to: other, thread: thread._id });
         }
