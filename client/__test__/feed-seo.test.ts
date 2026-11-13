@@ -189,6 +189,16 @@ describe("titles and dates", () => {
 });
 
 describe("article meta tags", () => {
+  // the canonical origin comes from NEXT_PUBLIC_DOMAIN (CI sets it to a localhost origin): pin it here
+  const savedDomain = process.env.NEXT_PUBLIC_DOMAIN;
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_DOMAIN = ORIGIN;
+  });
+  afterEach(() => {
+    if (savedDomain === undefined) delete process.env.NEXT_PUBLIC_DOMAIN;
+    else process.env.NEXT_PUBLIC_DOMAIN = savedDomain;
+  });
+
   it("sends the share title, article dates, section and one tag per keyword", () => {
     const tags = buildSeoTags({
       title: "Guide | Token Tails",

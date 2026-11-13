@@ -68,10 +68,10 @@ export const skinArtUrl = (id: string, size: 256 | 360 | 720): string => `${artR
  * made-up characters (no dog is a shelter dog), so they have no photo.
  */
 export const REAL_PHOTOS: Readonly<Partial<Record<HeroId, { alt: string }>>> = Object.freeze({
-  lambo: { alt: 'Lambo, a real dark brown tabby cat, resting in his kennel at the Pink Paw shelter' },
-  aviete: { alt: 'Aviete, a real black-and-white tuxedo cat, lying on a grey blanket next to a pink toy at the Pink Paw shelter' },
-  bengas: { alt: 'Bengas, a real Bengal cat with a spotted golden coat, licking his nose in his crate at the Pink Paw shelter' },
-  gabe: { alt: 'Gabe, a real seal-point Siamese cat with blue eyes, peeking out of a cat house at the Pink Paw shelter' },
+  lambo: { alt: 'Lambo, a real dark brown tabby cat, resting in his kennel at the Pink Paw shelter' }, // copy-lint-ignore R13 photo alt text naming the real cat's home, no donation or money claim
+  aviete: { alt: 'Aviete, a real black-and-white tuxedo cat, lying on a grey blanket next to a pink toy at the Pink Paw shelter' }, // copy-lint-ignore R13 photo alt text naming the real cat's home, no donation or money claim
+  bengas: { alt: 'Bengas, a real Bengal cat with a spotted golden coat, licking his nose in his crate at the Pink Paw shelter' }, // copy-lint-ignore R13 photo alt text naming the real cat's home, no donation or money claim
+  gabe: { alt: 'Gabe, a real seal-point Siamese cat with blue eyes, peeking out of a cat house at the Pink Paw shelter' }, // copy-lint-ignore R13 photo alt text naming the real cat's home, no donation or money claim
 });
 
 /** Photo sizes on pawlegends.app: square (256, 512) and 4:5 portrait (`4x5-256` is 204×256, `4x5-512` is 409×512). */

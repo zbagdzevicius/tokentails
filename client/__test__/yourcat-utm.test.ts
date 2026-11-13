@@ -28,7 +28,16 @@ describe("share URL", () => {
   });
 
   it("uses the site origin by default and carries only the random share id, never a record or user id", () => {
-    const url = new URL(buildShareUrl("card", "story", SHARE));
+    // the site origin comes from NEXT_PUBLIC_DOMAIN (CI sets it to a localhost origin): pin it for this test
+    const saved = process.env.NEXT_PUBLIC_DOMAIN;
+    process.env.NEXT_PUBLIC_DOMAIN = "https://tokentails.com";
+    let url: URL;
+    try {
+      url = new URL(buildShareUrl("card", "story", SHARE));
+    } finally {
+      if (saved === undefined) delete process.env.NEXT_PUBLIC_DOMAIN;
+      else process.env.NEXT_PUBLIC_DOMAIN = saved;
+    }
     expect(url.origin).toBe("https://tokentails.com");
     expect(Array.from(url.searchParams.keys()).sort()).toEqual(["cat", "utm_campaign", "utm_content", "utm_medium", "utm_source"]);
     expect(url.searchParams.get("cat")).toBe(SHARE);

@@ -177,7 +177,7 @@ export function openLuckyChest(g: Grant, table: LuckyTable, onDone?: () => void,
     const tag = daily ? 'Daily Treat' : `${RARITY_NAME[g.rarity ?? 'common']}${g.floor ? ' · lucky 10th' : ''}`;
     (card.querySelector('.rw-kick') as HTMLElement).textContent = tag;
     (card.querySelector('.rw-title') as HTMLElement).textContent = what;
-    (card.querySelector('.rw-what') as HTMLElement).textContent = g.item ? 'Added to your collection.' : g.xp && !daily ? 'You had every look in this tier, so it pays Treat XP.' : 'Added to your Treat Track.';
+    (card.querySelector('.rw-what') as HTMLElement).textContent = g.item ? 'Added to your collection.' : g.xp && !daily ? 'You had every look in this tier, so you get Treat XP instead.' : 'Added to your Treat Track.';
     const chest = card.querySelector('.rw-chest') as HTMLButtonElement;
     chest.disabled = true;
     chest.setAttribute('aria-label', what);

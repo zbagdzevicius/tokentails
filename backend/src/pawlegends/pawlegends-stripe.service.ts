@@ -118,7 +118,13 @@ export function checkoutMetadata(
     req: Pick<PawlegendsCheckoutRequest, 'sku' | 'currency' | 'ageBand' | 'consentVersion' | 'deviceId' | 'consent'>,
     holdId: string,
     accountId?: string | null,
-    extra: { band?: AgeBand; ageSource?: 'answer' | 'default'; consentAt?: string; creator?: string; giftCoat?: string } = {}
+    extra: {
+        band?: AgeBand;
+        ageSource?: 'answer' | 'default';
+        consentAt?: string;
+        creator?: string;
+        giftCoat?: string;
+    } = {}
 ): Record<string, string> {
     const store = isCatalogSku(req.sku);
     const band = extra.band ?? req.ageBand;
@@ -481,7 +487,8 @@ export class PawlegendsStripeService {
         const amountCents = champ?.cents ?? def.cents[req.currency];
         // growth: a typed creator code is checked (400 when unknown) and kept 30 days; the gift coat must be one of the 5,
         // not owned, not in this order, and this must be the account's first order (409 otherwise)
-        const creator = store && this.growth ? await this.growth.checkoutCreator(accountId, req.creatorCode, this.now()) : null;
+        const creator =
+            store && this.growth ? await this.growth.checkoutCreator(accountId, req.creatorCode, this.now()) : null;
         const giftCoat =
             store && this.growth && req.giftCoat !== undefined && req.giftCoat !== null && req.giftCoat !== ''
                 ? await this.growth.checkGift(accountId!, req.giftCoat, champ?.items ?? def.items)

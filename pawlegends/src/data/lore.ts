@@ -78,6 +78,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     epithet: 'Knight of the Golden Hour',
     home: 'Purrhaven Isle',
     hook: 'Clem is the smallest knight Purrhaven has ever had, and always the first to run toward trouble. She swings first, asks later, and shines brighter the longer a fight goes on.',
+    // copy-lint-ignore R3 storybook lore: a paw tap that sends a healing gust or a swipe, no money moves
     bio: 'Clem grew up in the stables at the foot of the Great Cat Tree, polishing armour that was far too big for her and practising sword swipes on falling leaves. When the Hound Legion marched, she was only a squire. On the coldest morning of the quarrel she found a shivering pug knight on the beach, and she shared her sunbeam with him. That small kindness started the talks that became the Truce.\n\nNow she is a full knight, and she fights the way she does everything: all at once. Every swipe builds her Valor, and when it is full her next move lands like a thunderclap. Her favourite time is the golden hour before Sunset, when the light is warm, her paws feel quick and every third swing sends a wave of light rolling down the lane. She still ties her old squire\'s ribbon bow to her helmet, for luck.',
     rival: { hero: 'brutus', line: 'Sir Brutus was the cold pug on the beach. They have duelled at every Truce Game since, and the score is tied at four hundred and twelve each.' },
     friend: { hero: 'sage', line: 'Sage taught her to take one breath before she charges. Clem has never once remembered to.' },
@@ -148,6 +149,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     epithet: 'The Blue-Eyed Breeze',
     home: 'Purrhaven Isle',
     hook: 'One look from Gabby\'s blue eyes and you are under her spell. She once chased the wind across all of Purrhaven; it turned out to be a balloon.',
+    // copy-lint-ignore R3 storybook lore: a paw tap that sends a healing gust or a swipe, no money moves
     bio: 'Gabby is the gentlest cat in the Lantern House and the fastest to notice when someone is sad. On her first sunny day there, she saw something red bobbing over the hill and was sure it was the wind itself, come to play. She chased it across fields, over a bridge and up the Great Cat Tree. It was a balloon. She caught it anyway, and she has kept a bunch of heart balloons ever since.\n\nIn a match she floats along behind her friends like a warm breeze. Every tap of her paw on a dog sends a little healing gust to whichever friend needs it most. She lobs heart balloons that pop on dogs and patch up cats in the same burst, wraps friends in a shield of soft wings, and when dogs come too close she simply looks at them. Nobody knows exactly what happens next. The dogs just walk over, smiling.',
     rival: { hero: 'nugget', line: 'Both of them say they are the team\'s best friend. They are keeping count of thank-yous, and the count is very close.' },
     friend: { hero: 'stilts', line: 'Stilts helped her chase that first balloon. Now they go balloon-chasing every windy evening.' },

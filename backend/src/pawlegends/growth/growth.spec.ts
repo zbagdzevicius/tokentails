@@ -5,7 +5,16 @@ import { ReplayQueue } from 'src/user/heist/replay-queue';
 import { FailedReplayCache } from 'src/user/heist/failed-replay-cache';
 import { SIM_VERSION } from 'src/vendor/pawlegends-sim';
 import { coatSkuOf, STORE_COATS, STORE_TERMS_VERSION } from '../pawlegends-catalog';
-import { buildHarness, codeOf, completedEvent, DEVICE, Harness, NOW, ON_ENV, signedEvent } from '../pawlegends-harness.helper-spec';
+import {
+    buildHarness,
+    codeOf,
+    completedEvent,
+    DEVICE,
+    Harness,
+    NOW,
+    ON_ENV,
+    signedEvent,
+} from '../pawlegends-harness.helper-spec';
 import { PAWLEGENDS_REPLAY_QUEUE, savePawlegendsMatch } from '../pawlegends-live';
 import { ownedItemsOf } from '../pawlegends-season.service';
 import { PawlegendsStripeService } from '../pawlegends-stripe.service';
@@ -72,7 +81,12 @@ const veteran = (id: string, lastDays: number) => ({
     lastPlayedAt: ago(lastDays),
     pawlegendsMatches: { easy: 40, hard: 3 },
 });
-const match = (ref: string, over: Record<string, unknown> = {}) => ({ ref, ticks: INVITE_MIN_TICKS + 1, forfeit: false, ...over });
+const match = (ref: string, over: Record<string, unknown> = {}) => ({
+    ref,
+    ticks: INVITE_MIN_TICKS + 1,
+    forfeit: false,
+    ...over,
+});
 
 describe('growth rules', () => {
     it('codes: 7 characters, no look-alikes, typed in any case', () => {
@@ -93,7 +107,9 @@ describe('growth rules', () => {
         expect(inviteKindOf({ createdAt: ago(200), lastPlayedAt: ago(COMEBACK_DAYS), matches: { easy: 9 } }, NOW)).toBe(
             'comeback'
         );
-        expect(inviteKindOf({ createdAt: ago(200), lastPlayedAt: ago(COMEBACK_DAYS - 1), matches: { easy: 9 } }, NOW)).toBeNull();
+        expect(
+            inviteKindOf({ createdAt: ago(200), lastPlayedAt: ago(COMEBACK_DAYS - 1), matches: { easy: 9 } }, NOW)
+        ).toBeNull();
         expect(inviteKindOf({ createdAt: ago(200), matches: { easy: 9 } }, NOW)).toBeNull();
     });
     it('a match counts only when it is real: no forfeit, at least a minute', () => {
@@ -148,7 +164,12 @@ describe('invites', () => {
     });
 
     it('accepts a friend away 21+ days as a comeback, refuses an active player and a guest', async () => {
-        const g = growthOf(undefined, [fresh(A), veteran(B, COMEBACK_DAYS + 1), veteran(C, 3), { _id: D, isGuest: true }]);
+        const g = growthOf(undefined, [
+            fresh(A),
+            veteran(B, COMEBACK_DAYS + 1),
+            veteran(C, 3),
+            { _id: D, isGuest: true },
+        ]);
         const code = await g.codeOf(A);
         expect((await g.redeem(B, code, undefined)).accepted).toMatchObject({ kind: 'comeback', matches: 0, need: 3 });
         expect(await codeOf(g.redeem(C, code, undefined))).toBe('PAWLEGENDS_INVITE_NOT_ELIGIBLE');
@@ -227,7 +248,7 @@ describe('invites', () => {
                 inputs: 'AQIDBA==',
                 outcome: 'won',
                 finalHash: '0badc0de',
-            }) as any;
+            } as any);
         const deps = {
             users,
             games,
@@ -238,11 +259,15 @@ describe('invites', () => {
             growth: g,
         };
         await savePawlegendsMatch(deps as any, userId, { pawlegends: record(1) });
-        expect(await codeOf(savePawlegendsMatch(deps as any, userId, { pawlegends: record(1) }))).toBe('PAWLEGENDS_DUPLICATE');
+        expect(await codeOf(savePawlegendsMatch(deps as any, userId, { pawlegends: record(1) }))).toBe(
+            'PAWLEGENDS_DUPLICATE'
+        );
         expect((await g.state(String(userId))).accepted?.matches).toBe(1);
         // a broken counter is logged, the save still answers
         const broken = { ...deps, growth: { progress: async () => Promise.reject(new Error('db down')) } };
-        await expect(savePawlegendsMatch(broken as any, userId, { pawlegends: record(2) })).resolves.toMatchObject({ outcome: 'won' });
+        await expect(savePawlegendsMatch(broken as any, userId, { pawlegends: record(2) })).resolves.toMatchObject({
+            outcome: 'won',
+        });
         await expect(applyInviteProgress(undefined, 'x', match('y'))).resolves.toBeUndefined();
     });
 });
@@ -289,9 +314,9 @@ describe('creator codes at the web checkout', () => {
     it('checks the code, writes it into the Stripe metadata and the purchase row, and keeps it 30 days', async () => {
         const h = storeHarness();
         await h.growth.upsertCreator({ code: 'pixel-queen', name: 'Pixel Queen' });
-        expect(await codeOf(h.stripe.createCheckout(request(CLEM_SKU, { creatorCode: 'NOBODY' }) as any, ON_ENV, ACCOUNT))).toBe(
-            'PAWLEGENDS_CREATOR_UNKNOWN'
-        );
+        expect(
+            await codeOf(h.stripe.createCheckout(request(CLEM_SKU, { creatorCode: 'NOBODY' }) as any, ON_ENV, ACCOUNT))
+        ).toBe('PAWLEGENDS_CREATOR_UNKNOWN');
         const first = await pay(h, CLEM_SKU, { creatorCode: 'Pixel-Queen' });
         expect(first.params.metadata).toMatchObject({ creator: 'PIXELQUEEN', sku: CLEM_SKU, pawlegends: '1' });
         expect((first.params.payment_intent_data as any).metadata.creator).toBe('PIXELQUEEN');
@@ -307,9 +332,15 @@ describe('creator codes at the web checkout', () => {
         expect(third.params.metadata?.creator).toBeUndefined();
         // a creator taken out of the program stops earning at once
         await h.growth.upsertCreator({ code: 'PIXELQUEEN', name: 'Pixel Queen', active: false });
-        expect(await codeOf(h.stripe.createCheckout(request('pl_frame_moonlit', { creatorCode: 'PIXELQUEEN' }) as any, ON_ENV, ACCOUNT))).toBe(
-            'PAWLEGENDS_CREATOR_UNKNOWN'
-        );
+        expect(
+            await codeOf(
+                h.stripe.createCheckout(
+                    request('pl_frame_moonlit', { creatorCode: 'PIXELQUEEN' }) as any,
+                    ON_ENV,
+                    ACCOUNT
+                )
+            )
+        ).toBe('PAWLEGENDS_CREATOR_UNKNOWN');
         const report = await h.growth.report(NOW, new Date(NOW.getTime() + 60 * DAY));
         expect(report.payouts).toEqual([
             { code: 'PIXELQUEEN', orders: 2, gross: { eur: 598 }, shareBps: 2000, payout: { eur: 119 } },
@@ -318,7 +349,9 @@ describe('creator codes at the web checkout', () => {
     it('admin input is checked', async () => {
         const h = storeHarness();
         expect(await codeOf(h.growth.upsertCreator({ code: 'ok', name: '' }))).toBe('PAWLEGENDS_INVALID');
-        expect(await codeOf(h.growth.upsertCreator({ code: 'GOOD', name: 'A', shareBps: 9000 }))).toBe('PAWLEGENDS_INVALID');
+        expect(await codeOf(h.growth.upsertCreator({ code: 'GOOD', name: 'A', shareBps: 9000 }))).toBe(
+            'PAWLEGENDS_INVALID'
+        );
         expect(await h.growth.creator('good')).toBeNull();
     });
 });
@@ -328,12 +361,24 @@ describe('the first-purchase gift', () => {
         const h = storeHarness();
         expect((await h.growth.giftOffer(ACCOUNT)).coats.map(c => c.id)).toEqual(FIRST_GIFT_COATS);
         // not one of the 5, or a coat this very order contains
-        expect(await codeOf(h.stripe.createCheckout(request(SAGE_SKU, { giftCoat: 'coat.sage.store_silver_tabby' }) as any, ON_ENV, ACCOUNT))).toBe(
-            'PAWLEGENDS_GIFT_UNAVAILABLE'
-        );
-        expect(await codeOf(h.stripe.createCheckout(request(CLEM_SKU, { giftCoat: 'coat.clem.store_calico' }) as any, ON_ENV, ACCOUNT))).toBe(
-            'PAWLEGENDS_GIFT_UNAVAILABLE'
-        );
+        expect(
+            await codeOf(
+                h.stripe.createCheckout(
+                    request(SAGE_SKU, { giftCoat: 'coat.sage.store_silver_tabby' }) as any,
+                    ON_ENV,
+                    ACCOUNT
+                )
+            )
+        ).toBe('PAWLEGENDS_GIFT_UNAVAILABLE');
+        expect(
+            await codeOf(
+                h.stripe.createCheckout(
+                    request(CLEM_SKU, { giftCoat: 'coat.clem.store_calico' }) as any,
+                    ON_ENV,
+                    ACCOUNT
+                )
+            )
+        ).toBe('PAWLEGENDS_GIFT_UNAVAILABLE');
         const gift = FIRST_GIFT_COATS[1];
         const { sessionId, params, event } = await pay(h, SAGE_SKU, { giftCoat: gift });
         expect(params.metadata?.gift_coat).toBe(gift);
@@ -346,9 +391,11 @@ describe('the first-purchase gift', () => {
         expect(await h.growth.gifts.countDocuments({ accountId: ACCOUNT })).toBe(1);
         // the offer is gone after the first order, and a later order cannot ask for it
         expect(await h.growth.giftOffer(ACCOUNT)).toEqual({ eligible: false, coats: [] });
-        expect(await codeOf(h.stripe.createCheckout(request(CLEM_SKU, { giftCoat: FIRST_GIFT_COATS[2] }) as any, ON_ENV, ACCOUNT))).toBe(
-            'PAWLEGENDS_GIFT_UNAVAILABLE'
-        );
+        expect(
+            await codeOf(
+                h.stripe.createCheckout(request(CLEM_SKU, { giftCoat: FIRST_GIFT_COATS[2] }) as any, ON_ENV, ACCOUNT)
+            )
+        ).toBe('PAWLEGENDS_GIFT_UNAVAILABLE');
         // granted directly again (a second session): refused
         expect(await h.growth.grantGift(ACCOUNT, FIRST_GIFT_COATS[3], 'cs_other_session')).toBe(false);
         const row = (await h.models.purchases.findOne({ sessionId }).lean()) as any;
@@ -356,8 +403,16 @@ describe('the first-purchase gift', () => {
     });
     it('two first orders paid together give one gift', async () => {
         const h = storeHarness();
-        const a = await h.stripe.createCheckout(request(SAGE_SKU, { giftCoat: FIRST_GIFT_COATS[0] }) as any, ON_ENV, ACCOUNT);
-        const b = await h.stripe.createCheckout(request('pl_frame_bone', { giftCoat: FIRST_GIFT_COATS[1] }) as any, ON_ENV, ACCOUNT);
+        const a = await h.stripe.createCheckout(
+            request(SAGE_SKU, { giftCoat: FIRST_GIFT_COATS[0] }) as any,
+            ON_ENV,
+            ACCOUNT
+        );
+        const b = await h.stripe.createCheckout(
+            request('pl_frame_bone', { giftCoat: FIRST_GIFT_COATS[1] }) as any,
+            ON_ENV,
+            ACCOUNT
+        );
         const calls = h.stripeClient.checkout.sessions.create.mock.calls;
         for (const [i, s] of [a, b].entries()) {
             const params = calls[i][0] as Stripe.Checkout.SessionCreateParams;
@@ -374,7 +429,15 @@ describe('the first-purchase gift', () => {
         const refund = {
             id: 'evt_refund_gift',
             type: 'charge.refunded',
-            data: { object: { id: 'ch_gift', object: 'charge', refunded: true, payment_intent: `pi_${sessionId}`, metadata: {} } },
+            data: {
+                object: {
+                    id: 'ch_gift',
+                    object: 'charge',
+                    refunded: true,
+                    payment_intent: `pi_${sessionId}`,
+                    metadata: {},
+                },
+            },
         };
         const { rawBody, signature } = signedEvent(refund);
         await h.webhooks.handle(h.webhooks.verify(rawBody, signature, ON_ENV), ON_ENV);

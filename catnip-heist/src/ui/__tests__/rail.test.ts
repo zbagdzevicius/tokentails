@@ -319,8 +319,9 @@ describe('runtime config', () => {
     // An explicit meta or host-page value wins over the host default.
     expect(heistRuntimeConfig({ location: { host: 'tokentails.com' } }, doc({ 'heist:api-url': 'https://b' })).apiUrl).toBe('https://b');
   });
-  it('every host default is an origin the backend allows (backend/src/main.ts CORS list)', () => {
-    const main = readFileSync(resolve(__dirname, '../../../../backend/src/main.ts'), 'utf8');
+  it('every host default is an origin the backend allows (backend/src/shared/cors-origins.ts, used by main.ts)', () => {
+    // the CORS list moved out of main.ts into its own module; read both so neither move breaks the check
+    const main = ['main.ts', 'shared/cors-origins.ts'].map((f) => readFileSync(resolve(__dirname, '../../../../backend/src', f), 'utf8')).join('\n');
     const origins = new Set([...main.matchAll(/'(https?:\/\/[^']+)'/g)].map((m) => m[1]));
     for (const host of Object.keys(DEFAULT_API_BY_HOST)) {
       const origin = `${host.startsWith('localhost') ? 'http' : 'https'}://${host}`;

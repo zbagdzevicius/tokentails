@@ -196,7 +196,7 @@ export function championInfo(m: ChampionInfoModel): HTMLElement {
   panel.appendChild(
     catCard(
       photo
-        ? { name: real, type: m.type, art: photo.src, srcset: photo.srcset, alt: photo.alt, fallback: photo.fallback, photo: true, sub: 'Pink Paw shelter' }
+        ? { name: real, type: m.type, art: photo.src, srcset: photo.srcset, alt: photo.alt, fallback: photo.fallback, photo: true, sub: 'Pink Paw shelter' } // copy-lint-ignore R13 credits the real cat's home, no donation or money claim
         : { name: real, type: m.type, art: heroSplashUrl(m.hero, 360), sub: elementName(m.type) },
       { small: true },
     ),
@@ -204,8 +204,8 @@ export function championInfo(m: ChampionInfoModel): HTMLElement {
   const body = h('div', 'plc-champ-body');
   body.appendChild(h('small', 'plc-kicker', 'Pawlegends champion'));
   const line = real === m.name
-    ? `${m.name} is a real cat from the Pink Paw shelter. Every player can pick ${them}.`
-    : `${m.name} is based on ${real}, a real cat from the Pink Paw shelter. Every player can pick ${them}.`;
+    ? `${m.name} is a real cat from the Pink Paw shelter. Every player can pick ${them}.` // copy-lint-ignore R13 credits the real cat's home, no donation or money claim
+    : `${m.name} is based on ${real}, a real cat from the Pink Paw shelter. Every player can pick ${them}.`; // copy-lint-ignore R13 credits the real cat's home, no donation or money claim
   body.appendChild(h('p', 'plc-champ-line', line));
   if (m.flavour) body.appendChild(h('p', 'plc-champ-flavour', m.flavour));
   panel.appendChild(body);

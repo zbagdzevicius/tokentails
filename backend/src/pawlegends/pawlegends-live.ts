@@ -502,7 +502,11 @@ export async function savePawlegendsMatch(
               hero: replay.hero,
           })
         : null;
-    await applyInviteProgress(deps.growth, String(userId), { ref: digest, ticks: result.ticks, forfeit: result.reason === 'forfeit' });
+    await applyInviteProgress(deps.growth, String(userId), {
+        ref: digest,
+        ticks: result.ticks,
+        forfeit: result.reason === 'forfeit',
+    });
     // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per saved match
     if (deps.rewards) await deps.rewards.applyLive(String(userId), { won, hero: replay.hero });
     // Live ops (LIVEOPS.md): the community goal and the Winter Nap day, once, from the re-sim's own numbers
