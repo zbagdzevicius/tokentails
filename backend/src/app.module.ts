@@ -197,6 +197,11 @@ import { PawlegendsCheckoutGuard } from './pawlegends/pawlegends-checkout-guard.
 import { PAWLEGENDS_GROWTH_SCHEMAS } from './pawlegends/growth/growth.schema';
 import { GrowthService } from './pawlegends/growth/growth.service';
 import { PawlegendsGrowthController } from './pawlegends/growth/growth.controller';
+import { PAWLEGENDS_CLUB_SCHEMAS } from './pawlegends/clubs/clubs.schema';
+import { ClubsService } from './pawlegends/clubs/clubs.service';
+import { PawlegendsClubsController } from './pawlegends/clubs/clubs.controller';
+import { KudosService } from './pawlegends/kudos/kudos.service';
+import { PawlegendsKudosController } from './pawlegends/kudos/kudos.controller';
 import { RaveController } from './rave/rave.controller';
 import { RaveOrder, RaveOrderSchema, RaveWebhookEvent, RaveWebhookEventSchema } from './rave/rave.schema';
 import { RaveService } from './rave/rave.service';
@@ -304,6 +309,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             ...PAWLEGENDS_MM_SCHEMAS,
             // Pawlegends social, ranked and PvP reports (docs/plans/moba/SOCIAL-RANKED.md section 11).
             ...PAWLEGENDS_SOCIAL_SCHEMAS,
+            // Pawlegends clubs, weekly club chests and good-teammate kudos (docs/plans/moba/CLUBS-KUDOS.md).
+            ...PAWLEGENDS_CLUB_SCHEMAS,
             // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveOrder.name, schema: RaveOrderSchema },
             { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
@@ -368,6 +375,9 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         ClubController,
         // Paw Legends growth: invites, creator codes, the first-purchase gift (pawlegends/growth).
         PawlegendsGrowthController,
+        // Pawlegends clubs (create, join by code, chest) and good-teammate kudos (CLUBS-KUDOS.md).
+        PawlegendsClubsController,
+        PawlegendsKudosController,
     ],
     providers: [
         UserRepository,
@@ -475,6 +485,9 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         ClubWebhookService,
         // Paw Legends growth (pawlegends/growth).
         GrowthService,
+        // Pawlegends clubs and good-teammate kudos (CLUBS-KUDOS.md).
+        ClubsService,
+        KudosService,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
         { provide: BACKEND_ROLE, useValue: role },
     ],

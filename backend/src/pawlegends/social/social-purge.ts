@@ -26,6 +26,10 @@ export const SOCIAL_PURGE_COLLECTIONS = Object.freeze({
     invites: 'pawlegendsinvites',
     threads: CHAT_THREADS_COLLECTION,
     messages: CHAT_MESSAGES_COLLECTION,
+    // CLUBS-KUDOS.md: the club seat (the club's size drops by one) and the kudos the account gave or got
+    clubMembers: 'pawlegendsclubmembers',
+    clubs: 'pawlegendsclubs',
+    kudos: 'pawlegendskudos',
 });
 
 export async function purgePawlegendsSocial(db: PurgeDb, accountIdIn: unknown): Promise<{ threads: number }> {
@@ -56,6 +60,12 @@ export async function purgePawlegendsSocial(db: PurgeDb, accountIdIn: unknown): 
     await c('friends').deleteMany({ $or: [{ a: id }, { b: id }] });
     await c('blocks').deleteMany({ $or: [{ blocker: id }, { blocked: id }] });
     await c('invites').deleteMany({ $or: [{ from: id }, { to: id }] });
+    const seat = await c('clubMembers')
+        .find({ _id: id }, { projection: { club: 1 } })
+        .toArray();
+    if (seat[0]?.club) await c('clubs').updateMany({ _id: seat[0].club }, { $inc: { size: -1 } });
+    await c('clubMembers').deleteMany({ _id: id });
+    await c('kudos').deleteMany({ $or: [{ from: id }, { to: id }] });
     await c('presence').deleteMany({ _id: id });
     await c('social').deleteMany({ _id: id });
     return { threads: dmIds.length };

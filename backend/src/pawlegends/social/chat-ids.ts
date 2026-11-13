@@ -14,5 +14,8 @@ export const dmThreadId = (a: string, b: string): string => `d${hash(`dm|${pairI
 /** The party thread of one party lifetime (its relay id is random per party, so a new party is a new thread). */
 export const partyThreadId = (partyId: string): string => `p${hash(`party|${partyId}`)}`;
 
-export const THREAD_ID_RE = /^[dp][A-Za-z0-9_-]{22}$/;
+/** A club's chat thread (CLUBS-KUDOS.md): one per club lifetime, members kept in sync on join and leave. */
+export const clubThreadId = (clubId: string): string => `c${hash(`club|${clubId}`)}`;
+
+export const THREAD_ID_RE = /^[dpc][A-Za-z0-9_-]{22}$/;
 export const MESSAGE_ID_RE = /^[a-f0-9]{24}$/;
