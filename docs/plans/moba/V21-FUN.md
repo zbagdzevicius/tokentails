@@ -404,9 +404,12 @@ starts from then (`pawlegends-live.ts`). A start that never gets ready is given 
 - Pawlegends: `tsc`, `lint:sim` (163 files), `vendor-sim --check` (v10–v24 frozen, v25), `vitest` (3155 pass; the two
   `tools/trailer` copy-gate cases fail in this worktree only because its root has no `node_modules`), `build`,
   `budget` (first load 410.4 KB gzip, party chunk 43.4 KB).
-- Backend: `tsc`, `jest src/pawlegends src/vendor`.
-- Not run: `npm run build:client` (the client bundle ships with the release), the touch e2e
-  `tests/e2e/boing-touch.spec.ts`, and a device check of the new bed wedge and cannon ring.
+- Backend: `tsc`; `jest src/pawlegends src/vendor` 1039 / 1040. The live spec passes 95 / 95 alone. The one miss in
+  the full run was not captured; the timing-based LoopGate case, which missed in earlier loaded runs, passes alone.
+- Touch e2e `tests/e2e/boing-touch.spec.ts` (844×390, Blitz, from behind each bed): 6 / 6 thrown in three of four
+  runs (0.5–1.2 s after entering the disc). The first run had one miss, with backend jest loading the machine.
+- Not run: `npm run build:client` (the client bundle ships with the release), and a device check of the new bed wedge
+  and cannon ring.
 
 ## 3. Stronger towers (sim v21)
 
