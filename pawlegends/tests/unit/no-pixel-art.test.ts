@@ -69,6 +69,13 @@ describe('no pixel art in Paw Legends', () => {
     expect(scan(WEB_SRC, SPRITE)).toEqual([]);
   });
 
+  it('pawlegends.app chrome has no notched pixel corners (four 2 px offset shadows on cards and buttons)', () => {
+    const css = readFileSync(join(WEB, 'styles/globals.scss'), 'utf8');
+    expect(css).not.toMatch(/-2px 0 0 0 var\(--tt-(card|btn)-edge\)/);
+    expect(css).toMatch(/\.tt-card \{\s*border-radius/);
+    expect(css).toMatch(/\.tt-btn \{\s*border-radius/);
+  });
+
   it('the game build ships no pixel asset (no GIF, no tier foil tiles)', () => {
     const assets = files(join(ROOT, 'public'), /./).map((f) => relative(ROOT, f));
     expect(assets.filter((f) => /\.gif$/i.test(f) || /cards\/(tier|icons)\//.test(f) || /sprites\/cats\//.test(f))).toEqual([]);
