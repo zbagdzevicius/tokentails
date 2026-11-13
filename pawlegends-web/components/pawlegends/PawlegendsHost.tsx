@@ -14,6 +14,7 @@ import { GameType } from "@/models/game";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { frameMatchProbe, noteGameEvent, registerMatchProbe, setInMatch } from "./matchPresence";
 import {
   createPawlegendsBridge,
   PAWLEGENDS_HELLO_TIMEOUT_MS,
@@ -497,7 +498,11 @@ export const PawlegendsHost = ({
       origin: origin && origin !== "null" ? origin : null,
       target: () => frameRef.current?.contentWindow ?? null,
       handlers: {
-        onReady: () => setBridgeState("ready"),
+        onReady: () => {
+          // a fresh game (a reload) starts on Home
+          setInMatch(false);
+          setBridgeState("ready");
+        },
         onSlow: () => setBridgeState((s) => (s === "connecting" ? "slow" : s)),
         onTimeout: () => {
           // The frame never answered: nothing inside it can report, so the host does (launch finding R1).
@@ -520,9 +525,14 @@ export const PawlegendsHost = ({
             sim: e.sim,
           }),
         // The game's own events (PUB-02): sent like the host's, so they follow the site's policy and share its id.
-        onGameEvent: (name, properties) => track({ name, properties }),
+        // matchPresence.ts: the match start and end events also hold the consent bar off the match (gaps.md F1)
+        onGameEvent: (name, properties) => {
+          noteGameEvent(name);
+          track({ name, properties });
+        },
         onMatchResult: (replay, _summary, matchId) =>
           void (async () => {
+            setInMatch(false);
             // On the device before the Firebase wait and the POST: a page closed in between keeps it (R3).
             saver.hold(matchId, replay);
             await authKnown();
@@ -540,6 +550,7 @@ export const PawlegendsHost = ({
           })(),
         onPartyResult: (result) =>
           void (async () => {
+            setInMatch(false);
             await authKnown();
             await partySaves.submit(result);
           })(),
@@ -564,9 +575,13 @@ export const PawlegendsHost = ({
       },
     });
     bridgeRef.current = bridge;
+    // the game frame's own match flag (same origin): the consent bar's fallback when the game relays no events
+    registerMatchProbe(frameMatchProbe(() => frameRef.current));
     return () => {
       bridge.dispose();
       bridgeRef.current = null;
+      registerMatchProbe(null);
+      setInMatch(false);
     };
   }, [authKnown, saver, partySaves, partyTickets, pawlegendsApi]);
 
