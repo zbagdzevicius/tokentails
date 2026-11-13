@@ -203,16 +203,3 @@ export const cardsGradient: Record<CatAbilityType, string> = {
   [CatAbilityType.FAIRY]:
     "linear-gradient(135deg, #FF6FC6 0%, #F9BA88 20%, #FFE371 40%, #68D0B6 60%, #008CFF 80%, #8B7CFF 100%)",
 };
-
-export const cardsIcon: Record<CatAbilityType, string> = {
-  [CatAbilityType.DARK]: "/cards/icons/dark.webp",
-  [CatAbilityType.ELECTRIC]: "/cards/icons/electric.webp",
-  [CatAbilityType.FIRE]: "/cards/icons/fire.webp",
-  [CatAbilityType.ICE]: "/cards/icons/ice.webp",
-  [CatAbilityType.SAND]: "/cards/icons/sand.webp",
-  [CatAbilityType.WATER]: "/cards/icons/water.webp",
-  [CatAbilityType.WIND]: "/cards/icons/wind.webp",
-  [CatAbilityType.GRASS]: "/cards/icons/grass.webp",
-  [CatAbilityType.STELLAR]: "/cards/icons/stellar.webp",
-  [CatAbilityType.FAIRY]: "/cards/icons/fairy.webp",
-};
