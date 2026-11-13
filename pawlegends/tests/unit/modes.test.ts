@@ -99,7 +99,8 @@ describe('mode registry', () => {
   it('meta line: size and length, the lock text, or Coming soon', () => {
     expect(metaLine(modeById('classic')!, NOW)).toBe('5v5 · ~13 min');
     expect(metaLine(modeById('blitz')!, NOW)).toBe('3v3 · ~3 min');
-    expect(metaLine(modeById('ranked')!, NOW)).toBe('Coming soon');
+    // gap plan P4: before the gate answers, the fallback line (never "later season")
+    expect(metaLine(modeById('ranked')!, NOW)).toBe('Opens at 24 players online');
     expect(metaLine(modeById('cannon')!, NOW)).toBe('Coming soon');
   });
 
@@ -123,7 +124,8 @@ describe('mode registry', () => {
 
   it('maps a mode to the old toggle value (the pick and party screens still read it)', () => {
     expect(legacyMode('classic')).toBe('classic');
-    expect(legacyMode('ranked')).toBe('classic');
+    // ranked is 3v3 on the Crossing (SOCIAL-RANKED.md §7.1)
+    expect(legacyMode('ranked')).toBe('skirmish');
     expect(legacyMode('skirmish')).toBe('skirmish');
     expect(legacyMode('coop')).toBe('skirmish');
     expect(legacyMode('blitz')).toBe('blitz');

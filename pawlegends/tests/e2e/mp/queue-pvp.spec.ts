@@ -150,3 +150,39 @@ test('667x375 phone: the mode chip and the Accept card fit; a decline is a dodge
   await expect(b.page.locator('[data-testid="mm-requeued"]')).toBeVisible({ timeout: 10_000 });
   await tap(b, b.page.locator('[data-testid="mm-cancel"]'));
 });
+
+/*
+ * Ranked (gap plan P4) against the relay harness, whose test fixture holds the liquidity gate open (30 online, 24
+ * needed; backend/test/party-relay.harness.ts). The tile is live, PLAY → Ranked offers PvP only, Find match queues
+ * ranked (no bots, solo or duo), and Cancel goes home. Five players never get a match: no bot ever fills ranked
+ * (backend ranked-relay.spec.ts checks that and a six-player ranked match).
+ */
+for (const kind of ['phone', 'desktop'] as const) {
+  test(`${kind}: ranked opens with the gate: PLAY → Ranked → PvP queues ranked with no bots, Cancel goes home`, async ({ browser }) => {
+    test.setTimeout(300_000);
+    const p = await player(browser, kind);
+    await title(p);
+    // the nav Ranked item is live (the gate is open)
+    await expect(p.page.locator('.hm-nav [data-a="ranked"][data-live="1"]')).toBeVisible({ timeout: 30_000 });
+    await tap(p, p.page.locator('[data-testid="home-play"]'));
+    const tile = p.page.locator('[data-testid="mode-ranked"]');
+    await expect(tile).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(tile).toContainText('3v3');
+    await tap(p, tile);
+    await tap(p, p.page.locator('[data-testid="mode-next"]'));
+    // PvP only
+    for (const v of ['bots', 'coop', 'friends']) await expect(p.page.locator(`[data-testid="variant-${v}"]`)).toHaveCount(0);
+    await tap(p, p.page.locator('[data-testid="variant-pvp"]'));
+    await shot(p, 'ranked', '01-variant-pvp');
+    await tap(p, p.page.locator('[data-testid="mode-go"]'));
+    const q = p.page.locator('[data-testid="mm-queue"][data-ranked="1"]');
+    await expect(q).toBeVisible({ timeout: 15_000 });
+    await expect(q).toContainText('Finding a Ranked match');
+    await expect(q.locator('[data-testid="mm-ranked-note"]')).toContainText('no bots');
+    expect(await tappable(p.page, '[data-testid="mm-cancel"]', 44)).toBe(true);
+    expect(await noSideScroll(p.page)).toBe(true);
+    await shot(p, 'ranked', '02-queue');
+    await tap(p, p.page.locator('[data-testid="mm-cancel"]'));
+    await p.page.waitForSelector('html[data-screen="title"] .pl-home', { timeout: 15_000 });
+  });
+}

@@ -16,6 +16,8 @@ export interface AcceptModel {
   accepted: boolean;
   yes: number;
   need: number;
+  /** Ranked (gap plan P4): the same card, titled for ranked. */
+  ranked?: boolean;
 }
 
 export function acceptCardHtml(m: AcceptModel): string {
@@ -23,8 +25,9 @@ export function acceptCardHtml(m: AcceptModel): string {
   const actions = m.accepted
     ? `<p class="pp-dim" role="status" data-testid="mm-accepted">${esc(COPY.accepted(m.yes, m.need))}</p>`
     : `<div class="pp-col pp-accept-row"><button type="button" class="pl-btn big pp-accept" data-p="mm-accept" data-testid="mm-accept">${COPY.accept}</button><button type="button" class="pl-btn ghost small" data-p="mm-decline" data-testid="mm-decline">${COPY.decline}</button></div>`;
-  return `<div class="pp-card pp-narrow pp-queue pp-acceptcard" data-state="accept" data-testid="mm-accept-card" role="alertdialog" aria-label="${COPY.pvpFound}">
-    <h2>${COPY.pvpFound}</h2>
+  const title = m.ranked ? COPY.rankedFound : COPY.pvpFound;
+  return `<div class="pp-card pp-narrow pp-queue pp-acceptcard" data-state="accept" data-testid="mm-accept-card"${m.ranked ? ' data-ranked="1"' : ''} role="alertdialog" aria-label="${title}">
+    <h2>${title}</h2>
     <span class="pp-ring" style="--pp-ring:${pct}%" aria-hidden="true"><b data-live="accept">${Math.max(0, Math.ceil(m.leftS))}</b></span>
     <p class="pp-found" data-testid="mm-found"><span>${esc(COPY.pvpFoundLine(m.mine, m.theirs, sideText(m.side)))}</span></p>
     ${actions}

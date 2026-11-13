@@ -102,6 +102,25 @@ test('Home → PLAY → Skirmish → vs Bots Hard → champion select → LOCK I
   await page.waitForSelector('html[data-match="live"]', { timeout: 90_000 });
 });
 
+test('Ranked (gap plan P4): locked with the gate line, never "later season"; the nav item says the same', async ({ page }) => {
+  await seed(page);
+  await page.goto('/?e2e=1');
+  await page.waitForSelector('html[data-screen="title"] .pl-home');
+  // standalone (no relay): no gate answer, so the fallback line, never a guessed count
+  const nav = page.locator('.hm-nav [data-why^="Ranked"]');
+  await expect(nav).toHaveAttribute('data-why', 'Ranked: Opens at 24 players online.');
+  await expect(page.locator('.pl-home')).not.toContainText(/later season/i);
+  await page.locator('[data-testid="home-play"]').click();
+  const ms = page.locator('[data-testid="mode-select"]');
+  const tile = ms.locator('[data-testid="mode-ranked"]');
+  await expect(tile).toHaveAttribute('aria-disabled', 'true');
+  await expect(tile).toContainText('Opens at 24 players online');
+  // a locked tile still answers a tap (aria-disabled only): the toast says the gate
+  await tile.click({ force: true });
+  await expect(ms.locator('.ms-toast')).toContainText('Ranked: Opens at 24 players online');
+  await shot(page, 'r1-ranked-locked');
+});
+
 test('Classic → vs Bots → LOCK IN → a live 5v5 match on Hearthwood (it never started before, Nov 12)', async ({ page }) => {
   test.setTimeout(180_000);
   await seed(page);

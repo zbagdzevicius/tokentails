@@ -147,6 +147,17 @@ export const COPY = Object.freeze({
   keepWaiting: 'Keep waiting',
   requeued: 'A player declined. You are back at the front of the queue',
   pvpFound: 'PvP match found',
+  // Ranked (gap plan P4): 3v3, solo or duo, never a bot
+  findingRanked: 'Finding a Ranked match…',
+  rankedNote: 'Ranked: players only, no bots. Solo or duo.',
+  rankedLong: 'Ranked is quiet right now',
+  playCasual: 'Play Casual instead',
+  rankedFound: 'Ranked match found',
+  rankedClosed: (online: number, need: number) => `Ranked opens at ${need} players online · ${online} online now`,
+  rankedAccount: 'Sign in to play Ranked',
+  rankedMatches: (have: number, need: number) => `Ranked unlocks after ${need} matches · ${have}/${need}`,
+  rankedPending: 'Saving your last Ranked match. Search again in a moment',
+  rankedParty: 'Ranked is solo or duo',
   pvpFoundLine: (mine: [number, number], theirs: [number, number], side: string) =>
     `You: ${side} · ${mine[0]} ${mine[0] === 1 ? 'player' : 'players'}${mine[1] ? ` + ${mine[1]} ${mine[1] === 1 ? 'bot' : 'bots'}` : ''} vs ${theirs[0]}${theirs[1] ? ` + ${theirs[1]} ${theirs[1] === 1 ? 'bot' : 'bots'}` : ''}`,
   accept: 'Accept',

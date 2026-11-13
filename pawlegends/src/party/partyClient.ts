@@ -17,6 +17,7 @@ import { TRICK_IDS } from '../data/tricks';
 import { HERO_IDS, HEROES } from '../data/heroes';
 import { COPY, clockText, errorText, esc } from './ui/copy';
 import { queueCardHtml, type QueueStop } from './ui/queueCard';
+import { RANKED_CASUAL_AFTER_S } from '../meta/ranked';
 import { acceptCardHtml } from './ui/acceptCard';
 import { lobbyHtml, qrSheetHtml, shownName } from './ui/partyLobby';
 import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
@@ -73,6 +74,8 @@ export interface QueueState {
   requeued?: boolean;
   /** Casual: humans found on the other team. */
   theirs?: number;
+  /** Ranked (gap plan P4): the relay's counts on a refusal (the gate, the saved matches). */
+  ranked?: { online?: number; need?: number; have?: number; needMatches?: number };
   status: QueueStatus | null;
   /** The search stopped (the card offers Search again), or null while searching. */
   stopped: QueueStop | null;
@@ -106,9 +109,13 @@ export interface AcceptState {
   accepted: boolean;
   yes: number;
   need: number;
+  /** Ranked (gap plan P4): the same card, titled for ranked. */
+  ranked?: boolean;
 }
 
 export interface PartyState {
+  /** Gap plan P4: the last match the queue found is ranked (its results show the ranked block). */
+  rankedMatch?: boolean;
   mode: OpenMode;
   /** Casual PvP: the Accept card, or null. */
   accept: AcceptState | null;
@@ -229,6 +236,7 @@ export const initialParty = (mode: OpenMode, code: string | null = null, side: M
   joining: null,
   joinTries: 0,
   rejoin: false,
+  rankedMatch: false,
 });
 
 /** This player is a stranger in a Quick Play party (a stranger's view never carries the code). */
@@ -446,7 +454,8 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       const matched = !!m.mm && (m.phase === 'pick' || m.phase === 'loading' || m.phase === 'match');
       if (queue && !queue.found && matched) queue = null;
       // the app ends a match (`matchOver`) once its results are done; the view keeps updating meanwhile
-      return { state: { ...s, view: m, error, asked: true, code: m.code || s.code, queue, accept: matched ? null : s.accept, joining: null, joinTries: 0, rejoin: false }, effects: fx };
+      // a friend party's own match (no matchmaker) is never ranked
+      return { state: { ...s, view: m, error, asked: true, code: m.code || s.code, queue, accept: matched ? null : s.accept, joining: null, joinTries: 0, rejoin: false, rankedMatch: m.mm ? s.rankedMatch : false }, effects: fx };
     }
     case 'mm.status': {
       const status: QueueStatus = {
@@ -459,7 +468,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       const base = s.queue && !s.queue.found ? s.queue : searching(m.side, { party: !!s.view && !isStranger(s.view), mode: m.queue });
       // casual: the 45 s move to co-op (`from: 'casual'`), a requeue after a decline, the other team's humans
       const toCoop = m.from === 'casual' && m.queue === 'coop';
-      const pvp = m.queue === 'casual' || m.queue === 'classic' || toCoop;
+      const pvp = m.queue === 'casual' || m.queue === 'classic' || m.queue === 'ranked' || toCoop;
       return {
         state: {
           ...s,
@@ -467,7 +476,8 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
           queue: {
             ...base,
             // 5v5 Classic stays 'classic' (a reconnect re-sends the same queue); 3v3 PvP and its co-op move stay 'casual'
-            mode: m.queue === 'classic' ? 'classic' : pvp ? 'casual' : 'coop',
+            // ranked stays 'ranked' (never moved to co-op; a reconnect re-sends ranked)
+            mode: m.queue === 'classic' || m.queue === 'ranked' ? m.queue : pvp ? 'casual' : 'coop',
             side: m.side,
             status,
             stopped: null,
@@ -491,15 +501,16 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
           accepted: false,
           yes: 0,
           need: m.teams[0][0] + m.teams[1][0],
+          ...(m.queue === 'ranked' ? { ranked: true } : {}),
         };
         const found: MmFound = { side: m.side, humans: m.humans, bots: m.bots, difficulty: m.difficulty };
         fx.push({ t: 'accept-clock' }, { t: 'vibrate' });
-        return { state: { ...s, accept, found, offer: null }, effects: fx };
+        return { state: { ...s, accept, found, offer: null, rankedMatch: m.queue === 'ranked' }, effects: fx };
       }
       const found: MmFound = { side: m.side, humans: m.humans, bots: m.bots, difficulty: m.difficulty };
       const q = s.queue ?? searching(m.side);
       fx.push({ t: 'found-hold' }, { t: 'vibrate' });
-      return { state: { ...s, queue: { ...q, found }, found, offer: null }, effects: fx };
+      return { state: { ...s, queue: { ...q, found }, found, offer: null, rankedMatch: false }, effects: fx };
     }
     case 'mm.accepted': {
       if (!s.accept || s.accept.match !== m.match) return { state: s, effects: [] };
@@ -562,6 +573,18 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
           ? { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'room_over' }, asked: false, joining: null, rejoin: false }, effects: [{ t: 'seat-taken' }] }
           : { state: s, effects: [] };
       if (s.inMatch) return { state: s, effects: [] }; // NetHost shows in-match errors on the rail
+      // ranked refused (gap plan P4): the gate, an account, the saved matches, an unsaved ranked match, a trio
+      if (s.queue && !s.queue.found) {
+        const stop = rankedStop(m.code, m.reason);
+        if (stop) {
+          const ranked = {
+            ...(m.online !== undefined ? { online: m.online } : {}),
+            ...(m.need !== undefined ? { need: m.need, needMatches: m.need } : {}),
+            ...(m.have !== undefined ? { have: m.have } : {}),
+          };
+          return { state: { ...s, queue: { ...s.queue, stopped: stop, status: null, ranked }, offer: null }, effects: [{ t: 'track', event: 'ranked_refused', props: { why: stop } }] };
+        }
+      }
       // casual PvP refused: the relay's match-count lock (lifted for now), or a game without PvP
       if (s.queue && m.code === 'mm_locked' && m.reason === 'pvp_newbie')
         return { state: { ...s, queue: { ...s.queue, stopped: 'newbie', status: null }, offer: null }, effects: [] };
@@ -589,6 +612,16 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
     default:
       return { state: s, effects: [] };
   }
+}
+
+/** The queue stop of a ranked refusal (gap plan P4), or null for any other error. Pure. */
+export function rankedStop(code: string, reason?: string): QueueStop | null {
+  if (code === 'mm_ranked_closed') return 'ranked_closed';
+  if (code === 'mm_need_account') return 'ranked_account';
+  if (code === 'mm_ranked_matches') return 'ranked_matches';
+  if (code === 'mm_ranked_pending') return 'ranked_pending';
+  if (code === 'party_full' && reason === 'ranked_party') return 'ranked_party';
+  return null;
 }
 
 /** The in-match seats of a party view (lane M1): name and connection per human slot (0..5 in PvP); no cat card art
@@ -620,7 +653,7 @@ export interface PartyHooks {
   /** Start loading the match chunk and assets (during the lobby and the pick). */
   preload?(): Promise<unknown>;
   /** Start the party match in the app (a MatchSession on this NetHost). `backfill`: this player took a leaver's seat. */
-  startMatch(host: () => NetHost, match: MatchMsg, view: PartyView, info?: { backfill: boolean }): void;
+  startMatch(host: () => NetHost, match: MatchMsg, view: PartyView, info?: { backfill: boolean; ranked?: boolean }): void;
   /** Quick Play: the side of the first search ("Play online"; the last one this viewer used). */
   queueSide?: MmSide;
   /** Casual PvP: the first search's queue (the title's mode chip). */
@@ -872,7 +905,7 @@ export class PartyClient {
           },
           f.match,
           this.state.view!,
-          { backfill: this.backfilled },
+          { backfill: this.backfilled, ...(this.state.rankedMatch ? { ranked: true } : {}) },
         );
         return;
       case 'note':
@@ -1033,7 +1066,9 @@ export class PartyClient {
   }
 
   /** The PvP queue to search again after a PvP match or a remake: 5v5 Classic after a Hearthwood room, else 3v3. */
-  private pvpQueue(): 'casual' | 'classic' {
+  private pvpQueue(): 'casual' | 'classic' | 'ranked' {
+    // ranked: Play again searches ranked again (this chunk was opened for ranked)
+    if (this.state.queue?.mode === 'ranked' || this.h.queueMode === 'ranked') return 'ranked';
     const mm = this.state.view?.mm;
     if (mm) return mm.map === 'hearthwood' || mm.teamSize === 5 ? 'classic' : 'casual';
     return this.state.queue?.mode === 'classic' || this.h.queueMode === 'classic' ? 'classic' : 'casual';
@@ -1058,6 +1093,12 @@ export class PartyClient {
       if (el && el.textContent !== text) el.textContent = text;
     };
     set('waited', clockText(this.waitedS()));
+    // ranked: the card offers Casual once the wait passes the line (one redraw at that moment)
+    if (q.mode === 'ranked' && !q.stopped && !q.found && this.waitedS() >= RANKED_CASUAL_AFTER_S && !this.card.querySelector('[data-testid="mm-play-casual"]')) {
+      this.drawn = '';
+      this.render();
+      return;
+    }
     if (this.state.accept) {
       const left = this.acceptLeftS();
       set('accept', String(Math.ceil(left)));
@@ -1094,6 +1135,7 @@ export class PartyClient {
       match: q.found ? { humans: q.found.humans, bots: q.found.bots, side: q.found.side, difficulty: q.found.difficulty } : null,
       ...(q.mode === 'classic' ? { teamSize: 5 } : {}),
       ...(q.mode !== 'coop' ? { pvp: { theirs: q.theirs ?? 0, toCoop: !!q.toCoop, requeued: !!q.requeued } } : {}),
+      ...(q.mode === 'ranked' ? { ranked: { casualAfterS: RANKED_CASUAL_AFTER_S, ...(q.ranked ?? {}) } } : {}),
       offer: s.offer ? { clockS: s.offer.clockS + Math.floor((this.now() - this.offerAt) / 1000), score: s.offer.score, leftS: this.offerLeftS(), totalS: s.offer.expiresMs / 1000 } : null,
     };
   }
@@ -1467,6 +1509,15 @@ export class PartyClient {
       case 'mm-decline':
         this.dispatch({ e: 'accept', yes: false });
         return;
+      case 'mm-casual': {
+        // ranked (gap plan P4): the player chose Casual (after a long wait, or ranked is closed for them): one search
+        // stops, a casual 3v3 search starts on the same card
+        const waited = this.waitedS();
+        if (this.state.queue && !this.state.queue.stopped) this.dispatch({ e: 'unqueue' });
+        this.queueNow(false, 'casual');
+        this.h.analytics?.('ranked_to_casual', { waited_s: waited });
+        return;
+      }
       case 'mm-keep':
         this.dispatch({ e: 'keep' });
         this.h.analytics?.('mm_keep_waiting', { waited_s: this.waitedS() });
@@ -1643,7 +1694,7 @@ export class PartyClient {
         break;
       case 'accept': {
         const a = s.accept!;
-        html = acceptCardHtml({ side: a.side, mine: a.mine, theirs: a.theirs, leftS: this.acceptLeftS(), totalS: a.totalMs / 1000, accepted: a.accepted, yes: a.yes, need: a.need });
+        html = acceptCardHtml({ side: a.side, mine: a.mine, theirs: a.theirs, leftS: this.acceptLeftS(), totalS: a.totalMs / 1000, accepted: a.accepted, yes: a.yes, need: a.need, ...(a.ranked ? { ranked: true } : {}) });
         break;
       }
       case 'void':

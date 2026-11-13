@@ -51,11 +51,12 @@ import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
-import { loadingVeil, pickScreen, refreshPickChamps, refreshPickFaces, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
+import { loadingVeil, pickScreen, rankedBlockHtml, refreshPickChamps, refreshPickFaces, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
 import { botsChoice, disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
-import { legacyMode, loadModeChoice, modeById, modeList, pillText, saveModeChoice, type ModeChoice, type ModeDef } from '../ui/modeSelect/modes';
+import { legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef } from '../ui/modeSelect/modes';
+import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard } from '../meta/ranked';
 import { heroElement } from '../ui/cards/el';
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel, type StoreTab } from '../ui/store';
@@ -700,6 +701,73 @@ export class App {
     this.openParty('queue');
   }
 
+  /** Gap plan P4: the ranked match being played (its card before the match, read through the host). */
+  private rankedRun: { before: Promise<RankedCard | null> } | null = null;
+
+  /** The signed-in player's ranked card (`GET /pawlegends/ranked/me` through the host), or null. */
+  private rankedCard(): Promise<RankedCard | null> {
+    if (!this.bridge.active || !accountState().signedIn) return Promise.resolve(null);
+    return this.integration
+      .api('ranked.me')
+      .then((r) => (r.ok ? parseRankedCard(r.body) : null))
+      .catch(() => null);
+  }
+
+  /**
+   * Gap plan P4: fill the results' ranked block once the save lands: the card is read again every 3 s (up to 45 s)
+   * until it moved from the one before the match; then tier, points or the shield show. Never a guessed number.
+   */
+  private fillRanked(resultsEl: HTMLElement, won: boolean): void {
+    const run = this.rankedRun;
+    this.rankedRun = null;
+    if (!run) return;
+    const slot = resultsEl.querySelector<HTMLElement>('[data-slot="ranked"]');
+    if (!slot) return;
+    const same = (a: RankedCard | null, b: RankedCard | null) => JSON.stringify(a) === JSON.stringify(b);
+    void run.before.then(async (before) => {
+      for (let i = 0; i < 15; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        if (!resultsEl.isConnected) return;
+        const after = await this.rankedCard();
+        if (!after || same(before, after)) continue;
+        slot.innerHTML = rankedBlockHtml(rankedResult(before, after, won));
+        this.analytics.track('ranked_result' as never, { won, tier: after.tierIdx ?? -1 } as never);
+        return;
+      }
+      if (resultsEl.isConnected) slot.innerHTML = `<p class="pl-rk-wait">Ranked points update when the match saves.</p>`;
+    });
+  }
+
+  /** The Ranked tile's last gate and rank line (a change redraws Home once). */
+  private rankedKey = '';
+
+  /**
+   * Gap plan P4: read the ranked gate (and, signed in through the host, the player's tier) and register the Ranked tile
+   * from it. Home redraws only when the tile changed and no Mode Select is open (it would close mid-choice).
+   */
+  private refreshRanked(api: string): void {
+    const me = this.bridge.active && accountState().signedIn ? this.integration.api('ranked.me').catch(() => null) : Promise.resolve(null);
+    void Promise.all([fetchRankedStatus(api), me]).then(([st, mine]) => {
+      const r = mine?.ok ? ((mine.body as { ranked?: { tierIdx?: number; points?: number; placementsLeft?: number; placementsOf?: number } } | null)?.ranked ?? null) : null;
+      const rank =
+        r && typeof r.tierIdx === 'number'
+          ? r.tierIdx >= 12
+            ? { tier: rankedLabel(r.tierIdx, r.points ?? 0) }
+            : { tier: rankedLabel(r.tierIdx), ...(typeof r.points === 'number' ? { lp: r.points } : {}) }
+          : r && typeof r.placementsLeft === 'number'
+            ? { tier: `Placements ${Math.max(0, (r.placementsOf ?? 5) - r.placementsLeft)}/${r.placementsOf ?? 5}` }
+            : undefined;
+      const def = rankedModeDef(st, rank);
+      const key = JSON.stringify([def.state, def.lockText ?? '', def.rank ?? null]);
+      registerMode(def);
+      if (key === this.rankedKey) return;
+      const first = this.rankedKey === '';
+      this.rankedKey = key;
+      if (first && def.state !== 'live' && !st) return;
+      if (this.screen === 'title' && !this.party && !this.root.querySelector('.ms-overlay')) this.showTitle(false);
+    });
+  }
+
   /** The next Home plays its entrance animations (the first of the visit, and after each match). */
   private homeIntro = true;
 
@@ -720,6 +788,8 @@ export class App {
       if (!lm.known) notice = `Update to play ${lm.asked.charAt(0).toUpperCase()}${lm.asked.slice(1)}. Playing Skirmish for now.`;
       this.analytics.track('mode_link', { mode: lm.known ? lm.mode : 'unknown', asked: lm.asked });
     }
+    // gap plan P4: the Ranked tile follows the live gate (GET /pawlegends/ranked/status, 30 s cache)
+    if (this.partyApi) this.refreshRanked(this.partyApi);
     // casual PvP: ask the backend once; the title redraws with the mode chip when it answers yes
     if (this.partyApi && pvpKnown() === null)
       void pvpAvailable(this.partyApi).then((yes) => {
@@ -1027,8 +1097,10 @@ export class App {
    * picks it (no match-count lock; the toggle shows after the guided first match), else 3v3 casual (no match-count
    * lock either while PVP_UNLOCK_MATCHES is 0).
    */
-  private queueModeFor(matches: number): 'coop' | 'casual' | 'classic' {
+  private queueModeFor(matches: number): 'coop' | 'casual' | 'classic' | 'ranked' {
     if (pvpKnown() !== true) return 'coop';
+    // gap plan P4: PLAY → Ranked → PvP queues ranked (the relay checks the gate and the account)
+    if (this.onlineMode === 'pvp' && (this.modeChoiceNow ?? loadModeChoice()).mode === 'ranked') return 'ranked';
     return pvpQueueFor(this.onlineMode ?? onlineMode(matches), matches, (this.matchModeNow ?? loadMatchMode()) === 'classic');
   }
 
@@ -1067,7 +1139,11 @@ export class App {
             ticket: () => this.integration.partyTicket(),
             guestKey: () => partyGuestKey(),
             preload: () => loadMatch(),
-            startMatch: (host, match, _view, info) => this.startPartyMatch(host, match, info?.backfill === true),
+            startMatch: (host, match, _view, info) => {
+              // gap plan P4: a ranked match remembers the ranked card before it, for the results block
+              this.rankedRun = info?.ranked ? { before: this.rankedCard() } : null;
+              this.startPartyMatch(host, match, info?.backfill === true);
+            },
             // Quick Play: the remembered side, the analytics context and the pick's default hero per side
             // a brand-new player searches as Cats by default (DOGS is the solo title's unlock after match 1)
             queueSide: p.matches === 0 ? 'cat' : lastQueueSide(),
@@ -1638,6 +1714,8 @@ export class App {
       ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf, (h, slot) => (slot === mySlot && setup?.look ? portraitUrl(h, setup.look) : portraitUrl(h, null))), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
       : null;
     const resultsEl = resultsScreen(this.root, {
+        // gap plan P4: a scored ranked match shows the ranked block (filled once the save lands)
+        ...(party && this.rankedRun && partyEnd?.scored !== false ? { ranked: true } : {}),
         ...(reportBook
           ? {
               onReport: (slot: number, anchor: HTMLElement) =>
@@ -1770,6 +1848,7 @@ export class App {
       });
     this.setScreen('results', resultsEl);
     party?.bindResults(resultsEl, () => this.backToParty());
+    if (party && this.rankedRun) this.fillRanked(resultsEl, won);
     // the offer card waits for the staged results reveal, and shows only after a win (never on a Defeat screen),
     // never after the Rookie match (fun plan F4)
     if (won && !isRookie(e.replay.difficulty))
