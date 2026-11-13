@@ -45,6 +45,12 @@ export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-
 export const PAWLEGENDS_REPLAY_QUEUE = { concurrency: 1, maxQueued: 8 };
 /** A re-sim that takes longer than this kills its worker (a fresh one starts for the next replay). */
 export const PAWLEGENDS_REPLAY_TIMEOUT_MS = 10_000;
+/**
+ * A fresh worker loads every vendored sim (16 bundles from sim v25) before it can answer; a replay's own timeout starts
+ * once it reports ready, and a worker that is not ready within this long is given up (503, a fresh one next time).
+ * From TypeScript sources (jest, ts-node) the load alone takes about 10 s.
+ */
+export const PAWLEGENDS_REPLAY_START_MS = 60_000;
 
 export const PAWLEGENDS_CATNIP_FIELD = 'pawlegendsCatnip';
 export const PAWLEGENDS_FASTEST_FIELD = 'pawlegendsFastestWin';
@@ -129,17 +135,28 @@ interface IPending {
     worker: Worker;
 }
 
+/** Per worker: has it loaded its sims (its `ready` message), and the replays waiting for that to start their timeout. */
+interface IWorkerStart {
+    ready: boolean;
+    waiting: (() => void)[];
+}
+
 /**
  * One long-lived worker thread that runs `verifyReplay`. Built JavaScript (`dist/`) loads the compiled worker file;
  * from TypeScript sources (jest, ts-node) the worker registers ts-node first. A crash or a timeout rejects the
- * replays in flight with 503 and the next replay starts a fresh worker.
+ * replays in flight with 503 and the next replay starts a fresh worker. A replay's timeout runs from when the worker
+ * reported its sims loaded (`ready`), so a cold start does not eat it; the start itself is capped by `startMs`.
  */
 export class PawlegendsReplayWorker {
     private worker?: Worker;
     private seq = 0;
     private readonly pending = new Map<number, IPending>();
+    private readonly starts = new WeakMap<Worker, IWorkerStart>();
 
-    constructor(private readonly timeoutMs = PAWLEGENDS_REPLAY_TIMEOUT_MS) {}
+    constructor(
+        private readonly timeoutMs = PAWLEGENDS_REPLAY_TIMEOUT_MS,
+        private readonly startMs = PAWLEGENDS_REPLAY_START_MS
+    ) {}
 
     private spawn(): Worker {
         const js = join(__dirname, 'pawlegends-replay.worker.js');
@@ -152,9 +169,22 @@ export class PawlegendsReplayWorker {
               );
         // Never keeps the process alive (shutdown, jest).
         worker.unref();
+        const start: IWorkerStart = { ready: false, waiting: [] };
+        this.starts.set(worker, start);
         worker.on(
             'message',
-            (message: { id: number; result?: PawlegendsVerifyResult; error?: string; threadId: number }) => {
+            (message: {
+                id: number;
+                ready?: boolean;
+                result?: PawlegendsVerifyResult;
+                error?: string;
+                threadId: number;
+            }) => {
+                if (message.ready) {
+                    start.ready = true;
+                    for (const arm of start.waiting.splice(0)) arm();
+                    return;
+                }
                 const entry = this.pending.get(message.id);
                 if (!entry) return;
                 this.pending.delete(message.id);
@@ -186,15 +216,32 @@ export class PawlegendsReplayWorker {
         if (!this.worker) this.worker = this.spawn();
         const worker = this.worker;
         const id = ++this.seq;
+        const start = this.starts.get(worker);
         return new Promise<IWorkerVerdict>((resolve, reject) => {
-            const timer = setTimeout(() => {
+            const giveUp = (why: string) => () => {
+                if (!this.pending.has(id)) return;
                 this.pending.delete(id);
-                reject(new ServiceUnavailableException('Replay check timed out'));
+                reject(new ServiceUnavailableException(why));
                 if (this.worker === worker) this.worker = undefined;
                 void worker.terminate();
-            }, this.timeoutMs);
+            };
+            const ready = !start || start.ready;
+            const timer = setTimeout(
+                giveUp(ready ? 'Replay check timed out' : 'Replay worker did not start'),
+                ready ? this.timeoutMs : this.startMs
+            );
             timer.unref?.();
-            this.pending.set(id, { resolve, reject, timer, worker });
+            const entry: IPending = { resolve, reject, timer, worker };
+            this.pending.set(id, entry);
+            if (!ready) {
+                // The worker loads its sims first: this replay's own timeout starts once it is ready.
+                start!.waiting.push(() => {
+                    if (this.pending.get(id) !== entry) return;
+                    clearTimeout(entry.timer);
+                    entry.timer = setTimeout(giveUp('Replay check timed out'), this.timeoutMs);
+                    entry.timer.unref?.();
+                });
+            }
             worker.postMessage({ id, record });
         });
     }

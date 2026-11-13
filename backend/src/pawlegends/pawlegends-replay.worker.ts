@@ -30,3 +30,6 @@ parentPort?.on('message', (message: { id: number; record: unknown }) => {
         parentPort!.postMessage({ id: message.id, error: String((error as Error)?.message || error), threadId });
     }
 });
+
+// Every vendored sim is loaded (the imports above): replays sent from now on start their own timeout.
+parentPort?.postMessage({ ready: true, threadId });
