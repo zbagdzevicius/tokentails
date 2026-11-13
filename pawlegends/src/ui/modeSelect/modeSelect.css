@@ -1,12 +1,15 @@
 /* Mode Select (docs/plans/moba/HOME-MODES.md §5). Full screen, never scrolls vertically; the tile row is the only scroll
    region (sideways, with snap) when more tiles exist than fit. Two stages: the mode tiles, then the variant cards.
-   Frames, rings, crests and buttons are CSS/SVG only. */
+   Frames, rings, crests and buttons are CSS/SVG only.
+   v6 Lightning Rivalry facelift (pawlegends/.facelift/GUIDE.md): night ground with a rose (cats, left) and sky (dogs,
+   right) wash; mode rings carry the logo split (rose | bolt | sky); the selected ring, the selected card and the focus
+   ring are the bolt; Next / the variant action is the one rose ledged slab. Leaning faces are drawn on a skewed
+   ::before, so every layout box, hit area and test bound stays exactly as it was. */
 .ms-overlay {
-  --ms-gold-1: #fff1b8;
-  --ms-gold-2: #f2c14e;
-  --ms-gold-3: #a8741c;
-  --ms-gold-4: #5e3d0c;
-  --ms-ink: #1b1022;
+  /* scoped play-flow tokens (mapped onto the v6 theme) */
+  --ms-ink: var(--v6-night-0);
+  --ms-line-strong: var(--v6-line-strong);
+  --ms-sel: var(--v6-bolt);
   --ms-tile: clamp(84px, 26dvh, 132px);
   --ms-gap: clamp(10px, 2vw, 22px);
   --ms-pad-l: max(16px, var(--safe-l, 0px));
@@ -15,21 +18,21 @@
   --ms-pad-b: max(10px, var(--safe-b, 0px));
   position: fixed; inset: 0; z-index: 40; box-sizing: border-box; overflow: hidden;
   display: flex; flex-direction: column; padding: var(--ms-pad-t) var(--ms-pad-r) var(--ms-pad-b) var(--ms-pad-l);
-  color: var(--cream, #fff3dc); font-family: var(--font, 'Fredoka', system-ui, sans-serif);
-  background: rgba(14, 8, 20, 0.55);
-  animation: ms-in 0.3s ease-out both;
+  color: var(--v6-cream); font-family: var(--v6-font-ui);
+  background: rgb(var(--v6-night-rgb) / 0.55);
+  animation: ms-in var(--v6-dur-screen) var(--v6-ease-out) both;
 }
 .ms-overlay.out { animation: ms-out 0.2s ease-in both; }
 @keyframes ms-in { from { opacity: 0; } }
 @keyframes ms-out { to { opacity: 0; } }
-/* no backdrop-filter: .ms-bg is opaque (#1a1024 under the art), so a blur of the live 3D canvas behind would never show
-   and still cost a full-screen re-blur every frame on phones */
+/* no backdrop-filter: .ms-bg is opaque (night under the art), so a blur of the live 3D canvas behind would never show
+   and still cost a full-screen re-blur every frame on phones. The rivalry wash: rose from the left, sky from the right. */
 .ms-bg {
   position: absolute; inset: -12px; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 45% at 50% 55%, rgba(255, 196, 120, 0.18), transparent 70%),
-    linear-gradient(180deg, rgba(10, 6, 16, 0.55) 0%, rgba(10, 6, 16, 0) 20%, rgba(10, 6, 16, 0) 72%, rgba(10, 6, 16, 0.8) 100%),
-    var(--ms-bg) center / cover no-repeat, #1a1024;
+    linear-gradient(118deg, rgb(var(--v6-rose-rgb) / 0.26) 0%, rgb(var(--v6-rose-rgb) / 0) 34%, rgb(var(--v6-sky-rgb) / 0) 66%, rgb(var(--v6-sky-rgb) / 0.26) 100%),
+    linear-gradient(180deg, rgb(var(--v6-night-rgb) / 0.72) 0%, rgb(var(--v6-night-rgb) / 0.08) 22%, rgb(var(--v6-night-rgb) / 0.08) 70%, rgb(var(--v6-night-rgb) / 0.9) 100%),
+    var(--ms-bg) center / cover no-repeat, var(--v6-night);
   animation: ms-bg-in 0.5s ease-out both, ms-drift 22s ease-in-out 0.5s infinite alternate;
 }
 @keyframes ms-bg-in { from { opacity: 0; transform: scale(1.05); } }
@@ -37,25 +40,30 @@
 
 /* header */
 .ms-head { flex: none; display: flex; align-items: center; gap: 12px; height: 44px; }
+/* Back (secondary): a navy glass slab with a sky hairline (the kit's secondary is sky/navy) */
 .ms-btn {
-  flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer;
-  color: var(--cream, #fff3dc); background: rgba(27, 16, 34, 0.72);
-  box-shadow: inset 0 0 0 1.5px rgba(242, 193, 78, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+  flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--v6-r-s); cursor: pointer;
+  color: var(--v6-ice); background: rgb(var(--v6-navy-rgb) / 0.78);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--v6-sky-rgb) / 0.6), 0 3px 0 var(--v6-sky-deep), var(--v6-shadow-1);
+  transition: transform var(--v6-dur-press) ease-out, box-shadow var(--v6-dur-press) ease-out, background var(--v6-dur-fast);
 }
-.ms-btn:hover { background: rgba(60, 38, 68, 0.9); }
+.ms-btn:hover { background: rgb(var(--v6-sky-rgb) / 0.32); color: #fff; }
+.ms-btn:active { transform: translateY(2px); box-shadow: inset 0 0 0 1.5px rgb(var(--v6-sky-rgb) / 0.6), 0 1px 0 var(--v6-sky-deep); }
 .ms-ico { width: 22px; height: 22px; flex: none; }
 .ms-ttl { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.ms-sub { margin: 0; font: 600 13px/1.2 var(--font, sans-serif); opacity: 0.85; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+.ms-sub { margin: 0; font: 600 13px/1.2 var(--v6-font-ui); color: var(--v6-muted); text-shadow: 0 1px 3px rgb(0 0 0 / 0.7); }
 .ms-sub:empty { display: none; }
+/* the screen title: Rubik 900 italic caps with the plum drop (kit display) */
 .ms-title {
-  position: relative; margin: 0; text-align: center; font: 800 clamp(20px, 6dvh, 30px)/1 var(--font, 'Fredoka', sans-serif);
-  letter-spacing: 0.02em; color: #fff7e0; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45), 0 0 18px rgba(242, 193, 78, 0.45);
+  position: relative; margin: 0; text-align: center; font: italic 900 clamp(20px, 6dvh, 30px)/1 var(--v6-font-display);
+  letter-spacing: var(--v6-track-display); text-transform: uppercase; color: var(--v6-cream);
+  text-shadow: 0 3px 0 var(--v6-plum-deep), 0 8px 20px rgb(0 0 0 / 0.5);
 }
+/* under the title: the split rule (rose | cream | sky; the screen's one bolt is the selection), leaning like the logo slash */
 .ms-title::after {
-  content: ''; position: absolute; left: 50%; bottom: -8px; width: min(220px, 50%); height: 6px; transform: translateX(-50%);
-  background:
-    radial-gradient(circle at 50% 50%, var(--ms-gold-1) 0 2.5px, transparent 3px),
-    linear-gradient(90deg, transparent, var(--ms-gold-2) 30%, var(--ms-gold-2) 45%, transparent 47%, transparent 53%, var(--ms-gold-2) 55%, var(--ms-gold-2) 70%, transparent) center / 100% 2px no-repeat;
+  content: ''; position: absolute; left: 50%; bottom: -9px; width: min(220px, 50%); height: 4px;
+  transform: translateX(-50%) skewX(var(--v6-slant));
+  background: linear-gradient(90deg, var(--v6-rose) 0 48%, var(--v6-cream) 48% 52%, var(--v6-sky) 52%);
 }
 .ms-head-r { width: 44px; flex: none; }
 
@@ -64,41 +72,65 @@
 .ms-head { margin-bottom: 4px; }
 .ms-overlay[data-stage='variant'] .ms-head { height: 52px; }
 
-/* the variant stage: four cards in a row (vs Bots, Co-op, PvP, With Friends), only the mode's own */
+/* the variant stage: four cards in a row (vs Bots, Co-op, PvP, With Friends), only the mode's own.
+   The card's face is a skewed ::before (the kit's -8° lean); the button box, its hit area and its text stay upright. */
 .ms-vwrap { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
 .ms-vrow { display: flex; gap: clamp(10px, 1.6vw, 22px); justify-content: center; max-width: 100%; }
 .ms-var {
-  position: relative; flex: 0 1 clamp(124px, 19vw, 230px); min-height: clamp(112px, 34dvh, 230px); box-sizing: border-box;
+  --ms-c: var(--v6-rose); --ms-c-rgb: var(--v6-rose-rgb); --ms-c-face: var(--v6-grad-rose); --ms-c-ink: #fff;
+  position: relative; isolation: isolate; flex: 0 1 clamp(124px, 19vw, 230px); min-height: clamp(112px, 34dvh, 230px); box-sizing: border-box;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px 10px; border: 0;
-  border-radius: 18px; cursor: pointer; color: var(--cream, #fff3dc); font: inherit; text-align: center;
-  background: linear-gradient(180deg, rgba(48, 30, 58, 0.92), rgba(24, 14, 32, 0.94));
-  box-shadow: 0 0 0 2px var(--ms-ink), inset 0 0 0 1.5px rgba(242, 193, 78, 0.5), 0 10px 22px rgba(0, 0, 0, 0.45);
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s, opacity 0.2s;
-  animation: ms-tile-in 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(var(--i, 0) * 40ms);
+  border-radius: var(--v6-r-s); cursor: pointer; color: var(--v6-cream); font: inherit; text-align: center;
+  background: none;
+  transition: transform var(--v6-dur-fast) var(--v6-ease-pop), opacity 0.2s;
+  animation: ms-tile-in 0.36s var(--v6-ease-pop) both; animation-delay: calc(var(--i, 0) * 40ms);
+}
+/* the variant cards are not a side: every card takes the same neutral cream bar and a cream disc with night ink (the
+   old rose/sky alternation carried no meaning) */
+.ms-var { --ms-c: var(--v6-cream); --ms-c-rgb: var(--v6-cream-rgb); --ms-c-face: linear-gradient(180deg, var(--v6-cream), #e9d9c4); --ms-c-ink: var(--v6-night); }
+.ms-var::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: var(--v6-r-xs); pointer-events: none;
+  transform: skewX(var(--v6-slant));
+  background:
+    linear-gradient(180deg, rgb(var(--ms-c-rgb) / 0.16), rgb(var(--ms-c-rgb) / 0) 46%),
+    linear-gradient(180deg, rgb(var(--v6-night-2-rgb) / 0.94), rgb(var(--v6-night-rgb) / 0.96));
+  box-shadow: inset 0 var(--v6-bar) 0 var(--ms-c), inset 0 0 0 1px var(--ms-line-strong), 0 var(--v6-ledge) 0 var(--ms-ink), var(--v6-shadow-2);
+  transition: box-shadow var(--v6-dur-fast);
 }
 .ms-var-i {
-  position: relative; width: clamp(44px, 12dvh, 72px); height: clamp(44px, 12dvh, 72px); border-radius: 50%; display: grid; place-items: center;
-  color: #3a2410; background: radial-gradient(circle at 35% 30%, var(--ms-gold-1), var(--ms-gold-2) 58%, var(--ms-gold-3));
-  box-shadow: 0 0 0 2px var(--ms-ink), 0 4px 10px rgba(0, 0, 0, 0.45);
+  position: relative; width: clamp(44px, 12dvh, 72px); height: clamp(44px, 12dvh, 72px); display: grid; place-items: center;
+  color: var(--ms-c-ink);
 }
-.ms-var-i .ms-ico { width: 55%; height: 55%; }
+/* the icon in a diamond disc (kit): a night keyline diamond, the side's face inside; the lock badge stays unclipped */
+.ms-var-i::before, .ms-var-i::after { content: ''; position: absolute; pointer-events: none; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.ms-var-i::before { inset: -4px; background: var(--ms-ink); }
+.ms-var-i::after { inset: 0; background: linear-gradient(180deg, rgb(255 255 255 / 0.25), rgb(255 255 255 / 0) 50%), var(--ms-c-face); }
+.ms-var-i .ms-ico { position: relative; z-index: 1; width: 50%; height: 50%; }
 .ms-var-lk {
-  position: absolute; right: -6px; bottom: -6px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
-  color: #fff3dc; background: #2b1d2e; box-shadow: 0 0 0 2px var(--ms-gold-2);
+  position: absolute; right: -22px; top: -8px; z-index: 2; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  color: var(--v6-cream); background: var(--v6-night-2); box-shadow: 0 0 0 2px var(--ms-line-strong), 0 2px 6px rgb(0 0 0 / 0.5);
 }
 .ms-var-lk svg { width: 13px; height: 13px; }
-.ms-var-n { font: 800 clamp(15px, 4.6dvh, 22px)/1.1 var(--font, sans-serif); letter-spacing: 0.04em; text-transform: uppercase; color: #fff; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
-.ms-var-l { font: 600 clamp(11px, 3.2dvh, 14px)/1.25 var(--font, sans-serif); opacity: 0.85; max-width: 100%; }
+.ms-var-n { font: 700 clamp(15px, 4.6dvh, 22px)/1.1 var(--v6-font-ui); letter-spacing: 0.04em; text-transform: uppercase; color: #fff; text-shadow: var(--v6-ts-ui), 0 2px 6px rgb(0 0 0 / 0.5); }
+.ms-var-l { font: 600 clamp(11px, 3.2dvh, 14px)/1.25 var(--v6-font-ui); color: var(--v6-muted); max-width: 100%; }
 .ms-var:hover:not(.locked):not(.on) { transform: translateY(-2px); }
-.ms-var.on {
-  transform: translateY(-4px) scale(1.03);
-  background: linear-gradient(180deg, rgba(96, 54, 92, 0.96), rgba(46, 24, 52, 0.96));
-  box-shadow: 0 0 0 2px var(--ms-ink), 0 0 0 4px rgba(255, 236, 170, 0.95), 0 0 24px 6px rgba(255, 200, 100, 0.45), 0 12px 24px rgba(0, 0, 0, 0.5);
+.ms-var:hover:not(.locked):not(.on)::before { box-shadow: inset 0 var(--v6-bar) 0 var(--ms-c), inset 0 0 0 1.5px rgb(var(--ms-c-rgb) / 0.7), 0 var(--v6-ledge) 0 var(--ms-ink), var(--v6-shadow-2); }
+/* selected: the bolt ring and glow on the leaning face, the side's tint deeper */
+.ms-var.on { transform: translateY(-4px) scale(1.03); }
+.ms-var.on::before {
+  background:
+    linear-gradient(180deg, rgb(var(--ms-c-rgb) / 0.38), rgb(var(--ms-c-rgb) / 0.08) 62%),
+    linear-gradient(180deg, var(--v6-night-3), var(--v6-night-2));
+  box-shadow: inset 0 var(--v6-bar) 0 var(--ms-c), 0 0 0 2px var(--ms-ink), 0 0 0 5px var(--ms-sel), 0 0 24px 6px rgb(var(--v6-bolt-rgb) / 0.35), 0 12px 24px rgb(0 0 0 / 0.5);
 }
-.ms-var.on .ms-var-n { color: #ffe9a8; }
-.ms-var.locked { cursor: not-allowed; opacity: 0.62; }
-.ms-var.locked .ms-var-i { filter: grayscale(0.8); }
-.ms-var:focus-visible { outline: 3px solid var(--butter, #ffd34d); outline-offset: 4px; }
+.ms-var.on .ms-var-l { color: var(--v6-cream); }
+/* locked: a solid night-2 card, muted text (about 6:1), the disc greyed; the lock badge sits off the diamond's corner */
+.ms-var.locked { cursor: not-allowed; }
+.ms-var.locked::before { background: var(--v6-night-2); box-shadow: inset 0 var(--v6-bar) 0 var(--ms-line-strong), inset 0 0 0 1px var(--ms-line-strong), 0 var(--v6-ledge) 0 var(--ms-ink), var(--v6-shadow-2); }
+.ms-var.locked .ms-var-n { color: var(--v6-muted); }
+.ms-var.locked .ms-var-l { color: var(--v6-muted); }
+.ms-var.locked .ms-var-i::after { filter: grayscale(0.85) brightness(0.8); }
+.ms-var:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 4px; }
 
 /* the tile row: centred; a sideways scroller with snap only when it overflows */
 .ms-rowwrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; }
@@ -113,13 +145,13 @@
 .ms-rowwrap::before, .ms-rowwrap::after {
   content: ''; position: absolute; top: 0; bottom: 0; width: 36px; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 0.2s;
 }
-.ms-rowwrap::before { left: 0; background: linear-gradient(90deg, rgba(14, 8, 20, 0.85), transparent); }
-.ms-rowwrap::after { right: 0; background: linear-gradient(-90deg, rgba(14, 8, 20, 0.85), transparent); }
+.ms-rowwrap::before { left: 0; background: linear-gradient(90deg, rgb(var(--v6-night-rgb) / 0.88), transparent); }
+.ms-rowwrap::after { right: 0; background: linear-gradient(-90deg, rgb(var(--v6-night-rgb) / 0.88), transparent); }
 .ms-rowwrap.fade-l::before, .ms-rowwrap.fade-r::after { opacity: 1; }
 
 .ms-tile {
   position: relative; flex: none; width: var(--ms-tile); scroll-snap-align: center;
-  animation: ms-tile-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: calc(var(--i, 0) * 40ms + 80ms);
+  animation: ms-tile-in 0.42s var(--v6-ease-pop) both; animation-delay: calc(var(--i, 0) * 40ms + 80ms);
 }
 @keyframes ms-tile-in { from { opacity: 0; transform: translateY(20px) scale(0.8); } }
 .ms-pick {
@@ -128,136 +160,167 @@
 }
 .ms-ring {
   position: relative; width: var(--ms-tile); height: var(--ms-tile); border-radius: 50%; display: block;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s;
+  transition: transform 0.25s var(--v6-ease-pop), filter 0.2s;
 }
-/* the gold bevelled ring: a conic metal band, a dark keyline and two inset shadows */
+/* the ring: the logo split as a band (rose | bolt | sky, top right to bottom left), a night keyline and inset shade.
+   Portraits stay round (kit: avatars, gems and discs stay round). */
 .ms-frame {
   position: absolute; inset: 0; border-radius: 50%; overflow: hidden; padding: 5px; box-sizing: border-box;
-  background: conic-gradient(from 210deg, var(--ms-gold-1), var(--ms-gold-2) 18%, var(--ms-gold-3) 34%, var(--ms-gold-1) 50%, var(--ms-gold-2) 66%, var(--ms-gold-4) 84%, var(--ms-gold-1));
-  box-shadow: 0 0 0 2px var(--ms-ink), 0 8px 18px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.32), rgb(255 255 255 / 0) 40%),
+    linear-gradient(118deg, var(--v6-rose) 0 47%, var(--v6-cream) 47% 53%, var(--v6-sky) 53%);
+  box-shadow: 0 0 0 2px var(--ms-ink), 0 8px 18px rgb(0 0 0 / 0.55);
 }
 .ms-frame::after {
   content: ''; position: absolute; inset: 5px; border-radius: 50%; pointer-events: none;
-  box-shadow: inset 0 0 0 2px var(--ms-ink), inset 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 -10px 22px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 2px var(--ms-ink), inset 0 6px 14px rgb(0 0 0 / 0.45), inset 0 -10px 22px rgb(var(--v6-night-rgb) / 0.4);
 }
-.ms-art { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #2b1d2e; transition: filter 0.2s; }
-/* a slow rune ring behind live tiles */
+.ms-art { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: var(--v6-night-2); transition: filter 0.2s; }
+/* a slow spark ring behind live tiles (cream ticks) */
 .ms-runes {
   position: absolute; inset: -9px; border-radius: 50%; pointer-events: none;
-  background: repeating-conic-gradient(from 0deg, rgba(255, 214, 140, 0.55) 0 2deg, transparent 2deg 15deg);
+  background: repeating-conic-gradient(from 0deg, rgb(var(--v6-cream-rgb) / 0.55) 0 2deg, transparent 2deg 15deg);
   -webkit-mask: radial-gradient(closest-side, transparent 86%, #000 88%, #000 98%, transparent 100%);
   mask: radial-gradient(closest-side, transparent 86%, #000 88%, #000 98%, transparent 100%);
-  opacity: 0.55; animation: ms-spin 12s linear infinite;
+  opacity: 0.5; animation: ms-spin 12s linear infinite;
 }
 .ms-tile:not([data-state='live']):not([data-state='event']) .ms-runes { display: none; }
-@keyframes ms-spin { to { transform: rotate(360deg); } }
-.ms-crest {
-  position: absolute; left: 50%; top: -10px; width: 28px; height: 28px; transform: translateX(-50%); border-radius: 50%; z-index: 2;
-  display: grid; place-items: center; color: #3a2410;
-  background: radial-gradient(circle at 35% 30%, var(--ms-gold-1), var(--ms-gold-2) 55%, var(--ms-gold-3));
-  box-shadow: 0 0 0 2px var(--ms-ink), 0 3px 6px rgba(0, 0, 0, 0.5);
+/* coming soon / locked: the split dims toward night (the art greys below) */
+.ms-tile[data-state='locked'] .ms-frame, .ms-tile[data-state='soon'] .ms-frame {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0) 40%),
+    linear-gradient(118deg, rgb(var(--v6-rose-rgb) / 0.45) 0 47%, rgb(var(--v6-cream-rgb) / 0.4) 47% 53%, rgb(var(--v6-sky-rgb) / 0.45) 53%), var(--v6-night-3);
 }
-.ms-crest svg { width: 16px; height: 16px; }
+@keyframes ms-spin { to { transform: rotate(360deg); } }
+/* the crest at 12 o'clock: the kit's icon-in-a-diamond, logo gold on a night keyline (the bolt is the selection) */
+.ms-crest {
+  position: absolute; left: 50%; top: -12px; width: 32px; height: 32px; transform: translateX(-50%); z-index: 2;
+  display: grid; place-items: center; color: var(--v6-night);
+  background: var(--ms-ink); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.ms-crest::before {
+  content: ''; position: absolute; inset: 3px; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: linear-gradient(180deg, var(--v6-logo-gold-hi), var(--v6-logo-gold));
+}
+.ms-crest svg { position: relative; width: 15px; height: 15px; }
 .ms-band {
   position: absolute; left: -6%; right: -6%; top: 50%; height: 24px; margin-top: -12px; z-index: 2; transform: rotate(-12deg);
-  display: grid; place-items: center; font: 800 13px/1 var(--font, sans-serif); letter-spacing: 0.22em; color: #2a1830;
-  background: linear-gradient(90deg, transparent, #f2c14e 12%, #ffe08a 50%, #f2c14e 88%, transparent);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  display: grid; place-items: center; font: italic 900 13px/1 var(--v6-font-display); letter-spacing: 0.22em; color: var(--v6-night);
+  background: linear-gradient(90deg, transparent, rgb(var(--v6-cream-rgb) / 0.92) 12%, var(--v6-cream) 50%, rgb(var(--v6-cream-rgb) / 0.92) 88%, transparent);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
 }
 .ms-lock {
   position: absolute; left: 2px; bottom: 6px; z-index: 2; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
-  color: #fff3dc; background: #2b1d2e; box-shadow: 0 0 0 2px var(--ms-gold-2), 0 3px 8px rgba(0, 0, 0, 0.5);
+  color: var(--v6-cream); background: var(--v6-night-2); box-shadow: 0 0 0 2px var(--ms-line-strong), 0 3px 8px rgb(0 0 0 / 0.5);
 }
 .ms-lock svg { width: 16px; height: 16px; }
-.ms-tile[data-state='locked'] .ms-art, .ms-tile[data-state='soon'] .ms-art { filter: grayscale(0.6) brightness(0.7); }
+.ms-tile[data-state='locked'] .ms-art, .ms-tile[data-state='soon'] .ms-art { filter: grayscale(0.7) brightness(0.65); }
 .ms-tile[data-state='soon'] .ms-pick, .ms-tile[data-state='locked'] .ms-pick { cursor: not-allowed; }
-.ms-name { margin-top: 8px; max-width: calc(var(--ms-tile) + 20px); overflow: hidden; text-overflow: ellipsis; font: 800 15px/1.1 var(--font, sans-serif); color: #fff; white-space: nowrap; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7); }
-.ms-meta { font: 600 11px/1.2 var(--font, sans-serif); opacity: 0.85; white-space: nowrap; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
-.ms-rank { font: 700 11px/1.2 var(--font, sans-serif); color: #9fd0ff; white-space: nowrap; }
+.ms-name { margin-top: 8px; max-width: calc(var(--ms-tile) + 20px); overflow: hidden; text-overflow: ellipsis; font: 700 15px/1.1 var(--v6-font-ui); letter-spacing: 0.02em; color: #fff; white-space: nowrap; text-shadow: var(--v6-ts-ui), 0 2px 6px rgb(0 0 0 / 0.7); }
+.ms-meta { font: 600 12px/1.2 var(--v6-font-ui); color: var(--v6-muted); white-space: nowrap; text-shadow: 0 1px 3px rgb(0 0 0 / 0.8); font-variant-numeric: tabular-nums; }
+.ms-rank { font: 700 11px/1.2 var(--v6-font-ui); color: var(--v6-sky-top); white-space: nowrap; }
+/* flags over the ring (kit .mtile .flag): Rubik italic, square-cornered, leaning */
 .ms-chip {
-  position: absolute; left: 50%; top: -14px; transform: translateX(-50%); z-index: 3; white-space: nowrap;
-  padding: 3px 8px; border-radius: 999px; font: 800 11px/1.2 var(--font, sans-serif); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  position: absolute; left: 50%; top: -14px; transform: translateX(-50%) skewX(var(--v6-slant)); z-index: 3; white-space: nowrap;
+  padding: 4px 9px 4px 8px; border-radius: 2px; font: italic 800 11px/1.2 var(--v6-font-display); letter-spacing: 0.06em; box-shadow: 0 0 0 2px var(--ms-ink), 0 2px 6px rgb(0 0 0 / 0.5);
 }
-.ms-chip.ev { background: linear-gradient(180deg, #ff7a45, #d9381e); color: #fff; }
-.ms-chip.new { background: linear-gradient(180deg, #8ff0c8, #2fae7a); color: #10261c; letter-spacing: 0.08em; }
+.ms-chip.ev { background: linear-gradient(180deg, var(--v6-flame), var(--v6-rose-deep)); color: #fff; }
+.ms-chip.new { background: var(--v6-cream); color: var(--v6-night); letter-spacing: 0.1em; }
 .ms-tile:has(.ms-chip) .ms-crest { display: none; }
-/* the "i": a 24 px glyph at 4 o'clock on the ring with a 44 px hit area */
+/* the "i": a 24 px glyph at 4 o'clock on the ring with a 44 px hit area (secondary: sky) */
 .ms-info {
   position: absolute; z-index: 4; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
   left: calc(var(--ms-tile) * 0.933 - 22px); top: calc(var(--ms-tile) * 0.75 - 22px);
   display: grid; place-items: center;
 }
 .ms-info i {
-  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: italic 800 14px/1 Georgia, serif; color: #3a2410;
-  background: radial-gradient(circle at 35% 30%, var(--ms-gold-1), var(--ms-gold-2) 60%, var(--ms-gold-3));
-  box-shadow: 0 0 0 2px var(--ms-ink), 0 2px 6px rgba(0, 0, 0, 0.5);
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: italic 900 14px/1 var(--v6-font-display); color: var(--v6-navy);
+  background: var(--v6-grad-sky);
+  box-shadow: 0 0 0 2px var(--ms-ink), 0 2px 6px rgb(0 0 0 / 0.5);
+  transition: transform var(--v6-dur-press) ease-out;
 }
-/* selection: the picked ring brightens and lifts, a burst glows under it, the others dim */
+.ms-info:hover i { transform: scale(1.1); }
+/* selection: the picked ring takes the bolt and lifts, a burst glows under it, the others dim */
 .ms-row.has-sel .ms-pick:not(.on) { opacity: 0.7; }
 /* the picked ring: a round box-shadow glow on the frame (cheaper than a filter on the whole ring) */
 .ms-pick.on .ms-ring { transform: scale(1.1); }
 .ms-pick.on .ms-frame {
-  box-shadow: 0 0 0 2px var(--ms-ink), 0 0 0 4px rgba(255, 236, 170, 0.95), 0 0 26px 8px rgba(255, 200, 100, 0.6), 0 8px 18px rgba(0, 0, 0, 0.55),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 2px var(--ms-ink), 0 0 0 5px var(--ms-sel), 0 0 26px 8px rgb(var(--v6-bolt-rgb) / 0.5), 0 8px 18px rgb(0 0 0 / 0.55);
 }
 .ms-pick.on .ms-art { filter: brightness(1.1) saturate(1.12); }
-.ms-pick.on .ms-name { color: #ffe9a8; }
+.ms-pick.on .ms-name { color: var(--v6-cream); }
 .ms-pick.on .ms-ring::before {
   content: ''; position: absolute; inset: -22%; border-radius: 50%; z-index: -1;
-  background: radial-gradient(closest-side, rgba(255, 214, 120, 0.55), rgba(255, 140, 90, 0.18) 60%, transparent);
-  animation: ms-burst 0.45s ease-out both;
+  background: radial-gradient(closest-side, rgb(var(--v6-bolt-rgb) / 0.45), rgb(var(--v6-rose-rgb) / 0.16) 60%, transparent);
+  animation: ms-burst 0.45s var(--v6-ease-out) both;
 }
 @keyframes ms-burst { from { transform: scale(0.6); opacity: 0; } }
 .ms-pick:hover:not(.on):not([aria-disabled='true']) .ms-ring { transform: scale(1.04); }
 .ms-pick:focus-visible { outline: none; }
-.ms-pick:focus-visible .ms-ring { outline: 3px solid var(--butter, #ffd34d); outline-offset: 5px; }
+.ms-pick:focus-visible .ms-ring { outline: 3px solid var(--v6-bolt); outline-offset: 5px; }
 .shake { animation: ms-shake 0.36s ease both !important; }
 @keyframes ms-shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 
 /* footer: the mode's summary or the bots difficulty, and Next or the variant's action */
 .ms-foot { flex: none; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 0 8px; }
+/* segmented controls: a navy glass track; the picked one is cream with a bolt underline (kit tabs) */
 .ms-queues, .ms-seg {
-  flex: none; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; height: 50px; box-sizing: border-box;
-  background: rgba(27, 16, 34, 0.78); box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.4);
+  flex: none; display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--v6-r-xs); height: 50px; box-sizing: border-box;
+  background: rgb(var(--v6-navy-rgb) / 0.78); box-shadow: inset 0 0 0 1px var(--ms-line-strong);
 }
 .ms-queues button, .ms-seg button {
-  position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border: 0; border-radius: 999px; cursor: pointer;
-  background: transparent; color: var(--cream, #fff3dc); font: 700 14px/1 var(--font, sans-serif); white-space: nowrap;
+  position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border: 0; border-radius: 2px; cursor: pointer;
+  background: transparent; color: var(--v6-cream); font: 700 14px/1 var(--v6-font-ui); white-space: nowrap;
+  transition: background var(--v6-dur-fast), color var(--v6-dur-fast);
 }
+.ms-queues button:hover:not(.on), .ms-seg button:hover:not(.on) { background: rgb(var(--v6-cream-rgb) / 0.1); }
 .ms-queues button::after, .ms-seg button::after { content: ''; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px; }
-.ms-queues button.on { background: linear-gradient(180deg, #ffe08a, #f2c14e); color: #3a2410; }
-.ms-seg button.on { background: var(--cream, #fff3dc); color: #3a2440; }
-.ms-seg-l { align-self: center; padding: 0 8px 0 12px; font: 800 12px/1 var(--font, sans-serif); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.8; }
-.ms-sum b { color: #ffe9a8; }
+.ms-queues button.on, .ms-seg button.on { background: var(--v6-cream); color: var(--v6-night); box-shadow: inset 0 -4px 0 var(--v6-bolt); }
+.ms-seg-l { align-self: center; padding: 0 8px 0 12px; font: 700 12px/1 var(--v6-font-ui); letter-spacing: var(--v6-track-cap); text-transform: uppercase; color: var(--v6-muted); }
+.ms-sum b { color: var(--v6-cream); }
 .ms-queues button[aria-disabled='true'] { opacity: 0.55; }
 .ms-qlock { font-style: normal; font-size: 11px; }
 .ms-diff { flex: 1 1 auto; min-width: 0; display: flex; justify-content: center; }
-.ms-qline { margin: 0; font: 600 13px/1.2 var(--font, sans-serif); opacity: 0.85; text-align: center; }
+.ms-qline { margin: 0; font: 600 13px/1.2 var(--v6-font-ui); color: var(--v6-muted); text-align: center; font-variant-numeric: tabular-nums; }
+/* Next / the variant's action: the screen's one rose button, a ledged slab drawn on ::before (upright, like the
+   foundation .pl-btn used by LOCK IN and Run it back, so every main action has the same face) */
 .ms-confirm {
-  flex: none; position: relative; min-width: 160px; height: 52px; padding: 0 28px; border: 0; border-radius: 999px; cursor: pointer;
-  font: 900 20px/1 var(--font, sans-serif); letter-spacing: 0.06em; text-transform: uppercase; color: #fff;
-  text-shadow: 0 2px 0 rgba(120, 30, 60, 0.6);
-  background: radial-gradient(ellipse 80% 70% at 50% 30%, #ff9fc2, #f0568a 55%, #b8285e);
-  box-shadow: 0 0 0 3px #f2c14e, 0 0 0 5px var(--ms-ink), 0 6px 0 5px #6d1838, 0 12px 24px rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.4);
-  transition: transform 0.09s;
+  flex: none; position: relative; isolation: isolate; min-width: 160px; height: 52px; padding: 0 28px; border: 0; border-radius: var(--v6-r-s); cursor: pointer;
+  font: 700 20px/1 var(--v6-font-ui); letter-spacing: 0.06em; text-transform: uppercase; color: #fff;
+  text-shadow: var(--v6-ts-rose);
+  background: none;
+  transition: transform var(--v6-dur-press) ease-out;
 }
-.ms-confirm:active { transform: scale(0.95); }
-.ms-confirm:disabled { filter: grayscale(0.8); opacity: 0.6; cursor: not-allowed; }
-.ms-overlay button:focus-visible:not(.ms-pick) { outline: 3px solid var(--butter, #ffd34d); outline-offset: 3px; }
+.ms-confirm::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: var(--v6-r-s); pointer-events: none;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.22), rgb(255 255 255 / 0) 46%), var(--v6-grad-rose);
+  box-shadow: var(--v6-ledge-rose), 0 0 0 2px var(--ms-ink), 0 calc(var(--v6-ledge) + 2px) 0 var(--ms-ink), 0 12px 24px rgb(0 0 0 / 0.45), inset 0 2px 0 rgb(255 255 255 / 0.35);
+  transition: box-shadow var(--v6-dur-press) ease-out;
+}
+.ms-confirm:hover:not(:disabled)::before { background: linear-gradient(180deg, rgb(255 255 255 / 0.3), rgb(255 255 255 / 0) 52%), var(--v6-grad-rose); }
+.ms-confirm:active:not(:disabled) { transform: translateY(3px); }
+.ms-confirm:active:not(:disabled)::before { box-shadow: 0 2px 0 var(--v6-rose-deep), 0 0 0 2px var(--ms-ink), 0 4px 0 var(--ms-ink), 0 6px 14px rgb(0 0 0 / 0.4), inset 0 2px 0 rgb(255 255 255 / 0.35); }
+.ms-confirm:disabled { cursor: not-allowed; color: var(--v6-faint); text-shadow: none; }
+.ms-confirm:disabled::before { background: var(--v6-night-3); box-shadow: var(--v6-ledge-night), 0 0 0 2px var(--ms-ink), inset 0 0 0 1px var(--ms-line-strong); }
+.ms-overlay button:focus-visible:not(.ms-pick) { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
 
-/* the info popover and the toast */
+/* the info popover and the toast: night glass panels, 4 px radius, a rose top bar / a bolt note bar */
 .ms-pop {
-  position: fixed; z-index: 5; box-sizing: border-box; padding: 12px 40px 12px 14px; border-radius: 14px; transform: translateY(-100%);
-  background: rgba(27, 16, 34, 0.97); box-shadow: 0 0 0 1.5px rgba(242, 193, 78, 0.6), 0 12px 30px rgba(0, 0, 0, 0.55);
+  position: fixed; z-index: 5; box-sizing: border-box; padding: 14px 40px 12px 14px; border-radius: var(--v6-r-xs); transform: translateY(-100%);
+  background: rgb(var(--v6-night-2-rgb) / 0.97);
+  box-shadow: inset 0 var(--v6-bar) 0 var(--v6-rose), inset 0 0 0 1px var(--ms-line-strong), var(--v6-shadow-3);
 }
-.ms-pop h3 { margin: 0 0 2px; font: 800 16px/1.2 var(--font, sans-serif); color: #ffe08a; }
-.ms-pop .ms-facts { margin: 0 0 6px; font: 600 12px/1.2 var(--font, sans-serif); opacity: 0.8; }
-.ms-pop ul { margin: 0; padding-left: 16px; font: 500 13px/1.35 var(--font, sans-serif); }
-.ms-pop .ms-pop-x { position: absolute; right: 2px; top: 2px; width: 36px; height: 36px; box-shadow: none; background: none; }
+.ms-pop h3 { margin: 0 0 4px; font: italic 800 17px/1.15 var(--v6-font-display); text-transform: uppercase; color: var(--v6-cream); }
+.ms-pop .ms-facts { margin: 0 0 6px; font: 600 12px/1.2 var(--v6-font-ui); color: var(--v6-sky-top); }
+.ms-pop ul { margin: 0; padding-left: 16px; font: 500 13px/1.35 var(--v6-font-ui); }
+.ms-pop li::marker { color: var(--v6-rose); }
+.ms-pop .ms-pop-x { position: absolute; right: 2px; top: 2px; width: 36px; height: 36px; box-shadow: none; background: none; color: var(--v6-cream); }
+.ms-pop .ms-pop-x:hover { background: rgb(var(--v6-cream-rgb) / 0.1); }
 .ms-toast {
   position: absolute; left: 50%; bottom: calc(var(--ms-pad-b) + 64px); transform: translate(-50%, 6px); margin: 0; z-index: 6;
-  padding: 8px 14px; border-radius: 12px; font: 600 13px/1.2 var(--font, sans-serif); background: rgba(27, 16, 34, 0.96);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(242, 193, 78, 0.4); opacity: 0; transition: opacity 0.2s, transform 0.2s;
+  padding: 8px 14px 8px 16px; border-radius: var(--v6-r-xs); font: 600 13px/1.2 var(--v6-font-ui); background: rgb(var(--v6-night-2-rgb) / 0.96);
+  box-shadow: var(--v6-shadow-2), inset var(--v6-bar) 0 0 var(--v6-bolt), inset 0 0 0 1px var(--ms-line-strong); opacity: 0;
+  transition: opacity 0.2s, transform 0.2s var(--v6-ease-out);
   pointer-events: none; white-space: nowrap;
 }
 .ms-toast.on { opacity: 1; transform: translate(-50%, 0); }
@@ -266,12 +329,14 @@
    grow with the viewport (6 tiles still fit the width) */
 @media (min-height: 600px) and (min-width: 1000px) {
   .ms-overlay { --ms-tile: clamp(132px, min(24dvh, 12.5vw), 200px); --ms-gap: clamp(18px, 2vw, 30px); }
-  .ms-crest { width: 36px; height: 36px; top: -14px; }
-  .ms-crest svg { width: 20px; height: 20px; }
+  .ms-crest { width: 40px; height: 40px; top: -16px; }
+  .ms-crest svg { width: 19px; height: 19px; }
   .ms-name { font-size: 19px; margin-top: 12px; }
-  .ms-meta, .ms-rank { font-size: 13px; }
+  .ms-overlay .ms-meta, .ms-overlay .ms-rank { font-size: 14px; }
+  .ms-overlay .ms-qline { font-size: 15px; }
   .ms-band { height: 30px; margin-top: -15px; font-size: 16px; }
   .ms-title { font-size: 36px; }
+  .ms-title::after { bottom: -11px; height: 5px; }
 }
 
 /* phones (landscape): 104 px tiles, labels trimmed */
@@ -279,8 +344,9 @@
   .ms-overlay { --ms-tile: clamp(72px, 26.5dvh, 104px); --ms-gap: 14px; }
   .ms-ttl { gap: 6px; }
   .ms-sub { font-size: 12px; }
-  .ms-var { flex-basis: clamp(118px, 22vw, 180px); padding: 8px 8px; gap: 4px; border-radius: 14px; }
+  .ms-var { flex-basis: clamp(118px, 22vw, 180px); padding: 8px 8px; gap: 4px; }
   .ms-title { font-size: 22px; }
+  .ms-title::after { bottom: -7px; height: 3px; }
   .ms-name { font-size: 14px; margin-top: 6px; }
   .ms-queues button, .ms-seg button { padding: 0 11px; font-size: 13px; }
   .ms-confirm { min-width: 140px; height: 48px; font-size: 18px; }
@@ -302,5 +368,5 @@
 html[data-quality='low'] .ms-tile, html[data-quality='low'] .ms-runes, html[data-quality='low'] .ms-bg { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .ms-tile, .ms-var, .ms-runes, .ms-bg, .ms-pick.on .ms-ring::before, .ms-overlay, .ms-overlay.out { animation: none; }
-  .ms-ring { transition: none; }
+  .ms-ring, .ms-var, .ms-confirm, .ms-btn, .ms-info i { transition: none; }
 }

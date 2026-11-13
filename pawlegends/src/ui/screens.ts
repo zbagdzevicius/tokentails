@@ -791,11 +791,15 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
 =======
         ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">${esc(o.party.leave ?? 'Leave party')}</button>${o.party.change === false ? '' : '<button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button>'}<button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
 <<<<<<< HEAD
+<<<<<<< HEAD
         : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`
 >>>>>>> 01c6bb96c (feat(pawlegends): M1a Quick Play co-op client (Play online, queue card, locked-side pick, backfill, analytics))
 =======
         : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button>${o.next ? `<button class="pl-btn ghost lb-next" data-a="next" data-testid="results-next">${esc(o.next.label)}<small>${esc(o.next.sub)}</small></button>` : ''}<button class="pl-btn big" data-a="again" data-testid="results-again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots${o.mode ? ` · ${esc(o.mode)}` : ''}</small></button></div>`
 >>>>>>> 9c098621f (feat(pawlegends): sim v22, the standard 5v5 Hearthwood and Blitz (on v21))
+=======
+        : `<div class="actions pinned"><button class="pl-btn ghost" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button>${o.next ? `<button class="pl-btn ghost lb-next" data-a="next" data-testid="results-next">${esc(o.next.label)}<small>${esc(o.next.sub)}</small></button>` : ''}<button class="pl-btn big" data-a="again" data-testid="results-again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots${o.mode ? ` · ${esc(o.mode)}` : ''}</small></button></div>`
+>>>>>>> 224d5f44e (feat(pawlegends): v6 Home, mode, variant and champion select restyle)
     }`;
 =======
     <div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`;
@@ -967,7 +971,7 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
 
 /** Portrait prompt on phones (§9: landscape only). Pure CSS decides when it shows. */
 export function rotatePrompt(parent: HTMLElement): HTMLElement {
-  const r = el('pl-rotate', `<div>${icon('paw')}<b>Turn your phone sideways</b><small>Pawlegends plays in landscape.</small></div>`);
+  const r = el('pl-rotate', `<div>${icon('paw')}<b>Turn your phone sideways</b><small>Paw Legends plays in landscape.</small></div>`);
   parent.appendChild(r);
   return r;
 }

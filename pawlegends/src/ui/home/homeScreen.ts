@@ -43,6 +43,7 @@ import type { ModeSelectHandle } from '../modeSelect/modeSelect';
 import { effectiveState, modeById, playable, queueFor, type ModeChoice, type ModeDef, type Queue } from '../modeSelect/modes';
 import { crestSvg } from '../modeSelect/crest';
 import { startMotes } from './motes';
+import { HEROES } from '../../data/heroes';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 /** Absolute art URL (a relative url() in a custom property would resolve against the CSS chunk); quotes dropped. */
@@ -286,6 +287,9 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
   const cur = (): { mode: ModeDef; queue: Queue } => resolveChoice(o.modes, choice, avail, now());
   const elColorOf = (): string => cssHex(ELEMENT_COLOR[o.identity.element]);
   root.style.setProperty('--hm-el', elColorOf());
+  // v6 facelift: the Home hero's side (cats rose, dogs sky) for the nameplate and profile accents (home.css)
+  const sideOf = (x: HomeScreenOpts): string => HEROES[x.dare?.hero ?? x.last.hero]?.side ?? 'cat';
+  root.dataset.side = sideOf(o);
   const plateHtml = (): string => {
     const id = o.identity;
     const elName = ELEMENT_NAME[id.element];
@@ -630,6 +634,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     // from here on nothing replays its entrance (a region that changes is swapped in place, already settled)
     root.classList.add('hm-still');
     root.style.setProperty('--hm-el', elColorOf());
+    root.dataset.side = sideOf(o);
     const want = regionHtml();
     for (let r = 0; r < REGIONS.length; r++) {
       const sel = REGIONS[r]!;

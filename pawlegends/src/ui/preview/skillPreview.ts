@@ -240,12 +240,12 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
       const y = (-v.y * 0.5 + 0.5) * h;
       const hp = Math.max(0, Math.min(1, e.hp / Math.max(1, e.maxHp)));
       const sh = Math.max(0, Math.min(1 - hp, e.shield / Math.max(1, e.maxHp)));
-      g.fillStyle = 'rgba(20,12,22,0.75)';
+      g.fillStyle = 'rgba(18,9,31,0.75)'; // v6 night
       g.fillRect(x - 1, y - 1, bw + 2, 7);
       g.fillStyle = e.id === ME ? RELATION_CSS.self : e.team === 0 ? RELATION_CSS.ally : RELATION_CSS.enemy;
       g.fillRect(x, y, bw * hp, 5);
       if (sh > 0) {
-        g.fillStyle = '#f4f1ea';
+        g.fillStyle = '#fff3e3'; // v6 cream (shield)
         g.fillRect(x + bw * hp, y, bw * sh, 5);
       }
     }
