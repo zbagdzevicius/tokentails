@@ -363,8 +363,8 @@ export class GameView {
         onCoreDown: hooks.onCoreDown,
         onStructureWindup: (id, sec) => this.structures.windup(id, sec),
         // LoL pass (lane C): tower beams, charging lines and the red aggro ring
-        onTowerShot: (src, x, y, z, me, charge, sec) => {
-          if (!charge) this.structures.shotAt(src, x, y, z, me);
+        onTowerShot: (src, x, y, z, me, charge, sec, hero) => {
+          if (!charge) this.structures.shotAt(src, x, y, z, me, hero ?? -1);
           else if (me) this.structures.markAggro(src);
           else this.structures.chargeAt(src, x, z, sec, false);
         },

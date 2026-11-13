@@ -1140,7 +1140,7 @@ export class Overhead {
         const fl = this.atlas.get(`flame|${fs}`, fs + 6, fs + 6, (g) => drawFlame(g, 0, 0, fs));
         q.stamp(fl, x - fs * 0.5 - 4, sy);
       }
-      // Sim v21 (V21-FUN.md §3.1): a Fortified tower (heroes deal 35% less before 3:00 / 5:00): a small shield right of its bar
+      // Sim v21 (V21-FUN.md §3.1): a Fortified tower (sim v26, V26-TOWERS.md: heroes deal 45% less, minions 25% less and its bolts hit 25% harder before 4:00 / 5:30, Blitz 0:45): a small shield right of its bar
       if (e.kind === 'tower' && (e.buffs & BuffFlag.Fortified) !== 0) {
         const ss = Math.round(11 * sc);
         const sh = this.atlas.get(`fort|${ss}`, ss + 4, ss + 4, (g) => drawFortShield(g, ss));

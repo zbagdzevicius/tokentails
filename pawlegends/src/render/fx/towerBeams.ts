@@ -23,7 +23,20 @@ export const BEAM = Object.freeze({
   pulseHz: 2,
   /** Seconds the impact flare lasts. */
   flareLife: 0.22,
+  /**
+   * Sim v26 (V26-TOWERS.md §4): warming-up shots. Each consecutive tower shot at the same hero hits 30% harder (to
+   * +90%), so the beam grows by heatWidth a step (up to heatMax steps) and turns hot orange; from the third shot on a
+   * hit hero gets the impact flare too.
+   */
+  heatWidth: 0.35,
+  heatMax: 3,
+  heatColor: 0xff7a1f,
 });
+
+/** Sim v26: the warming-up step (0 to BEAM.heatMax) of a tower shot that is the `streak`-th in a row at one hero (0 = first). Pure. */
+export function beamHeat(streak: number): number {
+  return streak > 0 ? Math.min(BEAM.heatMax, Math.floor(streak)) : 0;
+}
 
 /** Aggro ring opacity at `since` seconds after the last tower hit or aim on the player (0 = not aggro). Pure. */
 export function aggroPulse(since: number, time: number): number {
@@ -99,9 +112,10 @@ export class TowerBeams {
 
   /**
    * A beam from (x0, y0, z0) to (x1, y1, z1) m. `me`: it hit the player (red, thicker, a flare); `charge`: a thin
-   * charging line for `life` s (a windup), else a hit beam.
+   * charging line for `life` s (a windup), else a hit beam. `heat` (sim v26, beamHeat): a warmed-up shot is thicker and
+   * hotter.
    */
-  shot(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, color: number, me: boolean, charge = false, life: number = BEAM.hitLife): void {
+  shot(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, color: number, me: boolean, charge = false, life: number = BEAM.hitLife, heat = 0): void {
     const b = this.beams[this.next];
     this.next = (this.next + 1) % this.beams.length;
     _a.set(x0, y0, z0);
@@ -110,23 +124,23 @@ export class TowerBeams {
     const len = _d.length();
     if (len < 0.05) return;
     const k = TowerBeams.phone() ? BEAM.phone : 1;
-    b.w = (charge ? BEAM.charge : me ? BEAM.widthMe : BEAM.width) * k;
+    b.w = (charge ? BEAM.charge : me ? BEAM.widthMe : BEAM.width) * k * (charge ? 1 : 1 + BEAM.heatWidth * heat);
     b.mesh.position.addVectors(_a, _b).multiplyScalar(0.5);
     b.mesh.quaternion.setFromUnitVectors(UP, _d.multiplyScalar(1 / len));
     b.mesh.scale.set(b.w, len, b.w);
-    b.mat.color.setHex(me && !charge ? 0xff3b3b : color);
+    b.mat.color.setHex(me && !charge ? 0xff3b3b : !charge && heat > 0 ? lerpHex(color, BEAM.heatColor, heat / BEAM.heatMax) : color);
     b.mat.opacity = charge ? 0.15 : 1;
     b.t = 0;
     b.life = Math.max(0.05, life);
     b.charge = charge;
     b.mesh.visible = true;
     this.shots++;
-    if (me && !charge) {
+    if (!charge && (me || heat >= 2)) {
       const f = this.flares[this.nextFlare];
       this.nextFlare = (this.nextFlare + 1) % this.flares.length;
       f.mesh.position.copy(_b);
       f.t = 0;
-      f.size = 0.55 * k;
+      f.size = 0.55 * k * (1 + 0.15 * heat);
       f.mesh.visible = true;
     }
   }
@@ -178,4 +192,11 @@ export class TowerBeams {
     for (const b of this.beams) b.mat.dispose();
     for (const f of this.flares) f.mat.dispose();
   }
+}
+
+/** Mix two 0xRRGGBB colours (t 0..1). Pure. */
+function lerpHex(a: number, b: number, t: number): number {
+  const u = t <= 0 ? 0 : t >= 1 ? 1 : t;
+  const ch = (sh: number) => Math.round(((a >> sh) & 255) * (1 - u) + ((b >> sh) & 255) * u) << sh;
+  return ch(16) | ch(8) | ch(0);
 }

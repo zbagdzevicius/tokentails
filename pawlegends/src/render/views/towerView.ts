@@ -33,7 +33,7 @@ import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { RELATION } from '../palette';
 import { DecalLayer, dashRingTexture } from './decals';
-import { aggroPulse, TowerBeams } from '../fx/towerBeams';
+import { aggroPulse, beamHeat, TowerBeams } from '../fx/towerBeams';
 import { coreGeometry, crowGeometry, fountainGeometry, grizzlechopGeometry, hedgehogGeometry, puddingGeometry, ratGeometry, toadGeometry, towerGeometry } from './models';
 import { rigMaterial, type RigUniforms, casterDepthMaterial } from './rig';
 import { CRACK_K, DAMAGE_POSE, EMBER_K, STAGE_HIT, nextStage, type DamageStage } from './towerDamage';
@@ -147,6 +147,9 @@ interface Structure {
   alive: boolean;
   /** Last shot (render s), a lock-on windup (start, length s), the fall clock (s, −1 = standing). */
   shotAt: number;
+  /** Sim v26 warming-up shots: the hero its last shots hit (−1: none) and how many in a row. */
+  heatDst: number;
+  heatN: number;
   lockAt: number;
   lockLen: number;
   dieT: number;
@@ -693,7 +696,7 @@ export class StructureView {
       const radius = e.kind === 'tower' || e.kind === 'core' ? structureClearRadius(e.kind) : bb ? Math.min(Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z), 3.2) : 1.2;
       const struct = e.kind === 'tower' || e.kind === 'core';
       const dog = ((e.team === 1 ? 1 : 0) ^ (this.styleSwap ? 1 : 0)) === 1;
-      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: fallDirOf(e.team), height, team: e.team, stamp: 0, impacted: false, hitAt: -99, heat: 0, fallen: false, radius, stage: -1, fallenAt: -99, fireAcc: struct ? new Float32Array(4) : null, life: material.userData.life, seed: ((e.id * 2654435761) >>> 0) / 683565275.6, lifeAcc: new Float32Array(2), dog, girth: bb ? Math.max(bb.max.x, -bb.min.x, bb.max.z, -bb.min.z) * 0.85 : 1.3 };
+      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, heatDst: -1, heatN: 0, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: fallDirOf(e.team), height, team: e.team, stamp: 0, impacted: false, hitAt: -99, heat: 0, fallen: false, radius, stage: -1, fallenAt: -99, fireAcc: struct ? new Float32Array(4) : null, life: material.userData.life, seed: ((e.id * 2654435761) >>> 0) / 683565275.6, lifeAcc: new Float32Array(2), dog, girth: bb ? Math.max(bb.max.x, -bb.min.x, bb.max.z, -bb.min.z) * 0.85 : 1.3 };
       this.items.set(e.id, s);
       if ((e.kind === 'camp' || e.kind === 'boss') && this.time > 1.5) this.campDust(toX(e.fx), toZ(e.fy));
     }
@@ -732,13 +735,17 @@ export class StructureView {
 
   /**
    * LoL pass (lane C): tower / core `id` hit a unit at (x, y, z) m: a beam from its tip; `me` = the player (red, thick,
-   * a flare, and the tower's range ring turns red for a moment).
+   * a flare, and the tower's range ring turns red for a moment). `hero` (sim v26): the hero it hit, −1 for anything
+   * else; a tower's consecutive shots at one hero warm up (thicker, hotter beams, as its damage ramps).
    */
-  shotAt(id: number, x: number, y: number, z: number, me: boolean): void {
+  shotAt(id: number, x: number, y: number, z: number, me: boolean, hero = -1): void {
     const s = this.items.get(id);
     if (!s || !s.alive || (s.kind !== 'tower' && s.kind !== 'core')) return;
     const col = s.team === this.myTeam ? 0xffd34d : 0xff7a5c;
-    this.beams.shot(s.x, s.height * 0.85, s.z, x, y, z, col, me);
+    const towerHero = s.kind === 'tower' && hero >= 0;
+    s.heatN = towerHero && hero === s.heatDst ? s.heatN + 1 : 0;
+    s.heatDst = towerHero ? hero : -1;
+    this.beams.shot(s.x, s.height * 0.85, s.z, x, y, z, col, me, false, undefined, beamHeat(s.heatN));
     if (me) this.aggroAt.set(id, this.time);
   }
 
