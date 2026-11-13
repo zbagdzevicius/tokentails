@@ -32,6 +32,14 @@ const OUTLINE = { uPx: { value: new THREE.Vector2(2 / 1280, 2 / 720) }, uWidth: 
 export function setOutlineViewport(w: number, h: number): void {
   if (w > 0 && h > 0) OUTLINE.uPx.value.set(2 / w, 2 / h);
 }
+/** The match's hull width (drawing-buffer px). */
+export const MATCH_OUTLINE_PX = 1.6;
+/** The lobby's hull width (CSS px): the comic key art's thick ink line on the big turntable hero (v6 style lock §5). */
+export const LOBBY_OUTLINE_CSS_PX = 3.2;
+/** The hull width in drawing-buffer px, set once per frame by the view (the lobby draws a thicker line than a match). */
+export function setOutlineWidth(px: number): void {
+  if (px > 0) OUTLINE.uWidth.value = px;
+}
 
 let compiled = 0;
 export const charCompileCount = (): number => compiled;
