@@ -28,7 +28,8 @@ export const ACTION_LABEL = Object.freeze({
 });
 
 // ------------------------------------------------------------------ colours
-const INK = '#3A2A1F', CREAM = '#FFFDF6', LIT = '#FF7AA2', LIT_RIM = '#C2457A';
+// v6: night ink, cream keycaps, rose lit state (pad face colours stay the platforms' own)
+const INK = '#12091F', CREAM = '#FFF3E3', LIT = '#FF3D7F', LIT_RIM = '#C8135B';
 const XBOX = { A: '#5DB13E', B: '#E2574C', X: '#3D8FE0', Y: '#E8B21E' };
 const PS = { A: ['cross', '#5C8DE0'], B: ['circle', '#E2574C'], X: ['square', '#E27BB8'], Y: ['triangle', '#3FB59A'] };
 

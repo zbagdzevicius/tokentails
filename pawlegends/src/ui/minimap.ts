@@ -75,13 +75,20 @@ const heroPair = (h: HeroId): string => {
 
 /** The minimap's ground colours. */
 /** MAP-GAPS A7: bushes a light catnip green with an outline and dots, forest darker, the jungle rocks grey-brown. */
-export const MM_GROUND = Object.freeze({ grass: '#7fb86a', river: '#6fb7e0', lane: '#e6cf98', forest: '#2f4f2c', wall: '#6e6458', bush: '#5fae4a', bushEdge: '#2f5a26' });
+/** v6 facelift: lanes a paler cream-sand (they read against grass at 80 % opacity), the forest a cooler night green. */
+export const MM_GROUND = Object.freeze({ grass: '#7fb86a', river: '#6fb7e0', lane: '#f1dcab', forest: '#243d2c', wall: '#6e6458', bush: '#5fae4a', bushEdge: '#2f5a26' });
+
+/**
+ * v6 facelift (Lightning Rivalry): the minimap skin's own inks, scoped here (canvas code cannot read CSS tokens): the
+ * night ground round the inset map, a logo-plum keyline and a cream hairline inside the frame, cream text.
+ */
+export const MM_V6 = Object.freeze({ night: '#12091f', night2: '#1c1230', plum: '#633077', cream: '#fff3e3', ice: '#d6ecff', bolt: '#ffe14a', skyTop: '#7cc6ff' });
 
 /** MAP-GAPS A20: a cleared bush (an ally in it), lighter than an unscouted one. */
 export const MM_BUSH_CLEARED = 'rgba(190,240,160,0.85)';
 
 /** MAP-GAPS A4: the dark outline every unit mark wears (towers, heroes, minions, Pudding). */
-export const MM_OUTLINE = '#2a1a22';
+export const MM_OUTLINE = '#12091f';
 /** MAP-GAPS A4: the enemy hue with colour-blind colours on (orange: apart from ally blue under every CVD). */
 export const MM_ENEMY_CVD = '#ff8a00';
 
@@ -240,7 +247,7 @@ function drawPudding(g: CanvasRenderingContext2D, x: number, y: number, s: numbe
   g.fillStyle = MM_OBJECTIVE;
   roundRectPath(g, x - s / 2, y - s / 2, s, s, 1.8);
   g.fill();
-  g.fillStyle = '#fff3dc';
+  g.fillStyle = MM_V6.cream;
   g.beginPath();
   const r = s * 0.17;
   g.arc(x - r, y - r * 0.4, r, 0, Math.PI * 2);
@@ -486,8 +493,18 @@ export class Minimap {
     const g = c.getContext('2d')!;
     g.scale(this.dpr, this.dpr);
     // MAP-GAPS A6: the forest frames the inset map, so a unit at the edge is drawn whole
-    g.fillStyle = MM_GROUND.forest;
+    // v6 facelift: the canvas edge round the turned map is night-2 (the frame's ground), the forest inside the map
+    g.fillStyle = MM_V6.night2;
     g.fillRect(0, 0, this.w, this.h);
+    this.turned(g, () => {
+      g.fillStyle = MM_GROUND.forest;
+      const fx0 = this.X(0);
+      const fx1 = this.X(MAP.width);
+      const fy0 = this.Y(MAP.height);
+      const fy1 = this.Y(0);
+      const fp = MM_PAD - 1;
+      g.fillRect(Math.min(fx0, fx1) - fp, Math.min(fy0, fy1) - fp, Math.abs(fx1 - fx0) + 2 * fp, Math.abs(fy1 - fy0) + 2 * fp);
+    });
     this.turned(g, () => {
       const x0 = this.X(0);
       const x1 = this.X(MAP.width);
@@ -590,7 +607,7 @@ export class Minimap {
         g.fill();
         g.globalAlpha = 1;
         const [fx, fy] = basePt(team, FOUNTAIN);
-        g.fillStyle = '#bfe8ff';
+        g.fillStyle = MM_V6.ice;
         g.beginPath();
         g.arc(this.X(fx), this.Y(fy), 3, 0, Math.PI * 2);
         g.fill();
@@ -635,11 +652,11 @@ export class Minimap {
       g.arc(x, y, r + 2, 0, Math.PI * 2);
       g.fill();
       if (lane === 'sunny') {
-        g.fillStyle = '#ffd166';
+        g.fillStyle = MM_V6.bolt;
         g.beginPath();
         g.arc(x, y, r * 0.55, 0, Math.PI * 2);
         g.fill();
-        g.strokeStyle = '#ffd166';
+        g.strokeStyle = MM_V6.bolt;
         g.lineWidth = 1;
         g.beginPath();
         for (let i = 0; i < 8; i++) {
@@ -649,7 +666,7 @@ export class Minimap {
         }
         g.stroke();
       } else {
-        g.fillStyle = '#7fd4ff';
+        g.fillStyle = MM_V6.skyTop;
         g.beginPath();
         g.moveTo(x, y - r);
         g.quadraticCurveTo(x + r * 0.9, y + r * 0.1, x, y + r * 0.8);
@@ -664,10 +681,18 @@ export class Minimap {
         g.strokeStyle = MM_OUTLINE;
         const name = lane === 'sunny' ? 'Sunny' : 'Puddle';
         g.strokeText(name, x + r + 4, y + 0.5);
-        g.fillStyle = '#fff3dc';
+        g.fillStyle = MM_V6.cream;
         g.fillText(name, x + r + 4, y + 0.5);
       }
     }
+    // v6 facelift: the frame's inside: a logo-plum keyline and a cream hairline (painted once, inside the canvas: the
+    // minimap box does not grow)
+    g.lineWidth = 2;
+    g.strokeStyle = MM_V6.plum;
+    g.strokeRect(1, 1, this.w - 2, this.h - 2);
+    g.lineWidth = 1;
+    g.strokeStyle = 'rgba(255,243,227,0.22)';
+    g.strokeRect(2.5, 2.5, this.w - 5, this.h - 5);
     return c;
   }
 
@@ -870,11 +895,11 @@ export class Minimap {
       const secs = Math.ceil(t.left / 30);
       this.blit(
         this.sprite(`t|${color}|${done}|${secs <= 99 ? secs : ''}|${r}`, 2 * r + 6, 2 * r + 6, (g) => {
-          g.fillStyle = 'rgba(42,26,34,0.75)';
+          g.fillStyle = 'rgba(18,9,31,0.78)';
           g.beginPath();
           g.arc(0, 0, r + 2, 0, Math.PI * 2);
           g.fill();
-          g.strokeStyle = 'rgba(255,243,220,0.35)';
+          g.strokeStyle = 'rgba(255,243,227,0.35)';
           g.lineWidth = 2;
           g.beginPath();
           g.arc(0, 0, r, 0, Math.PI * 2);
@@ -884,7 +909,7 @@ export class Minimap {
           g.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
           g.stroke();
           if (secs <= 99) {
-            g.fillStyle = '#fff3dc';
+            g.fillStyle = MM_V6.cream;
             g.font = '700 7px Fredoka, system-ui, sans-serif';
             g.textAlign = 'center';
             g.textBaseline = 'middle';
@@ -941,7 +966,7 @@ export class Minimap {
       for (const f of this.flashes) {
         const left = (f.until - now) / LANE_FLASH_MS;
         g.globalAlpha = 0.25 + 0.55 * Math.abs(Math.sin(left * Math.PI * 3));
-        this.strokeLane(g, f.lane, '#fff3dc', 4 * this.k);
+        this.strokeLane(g, f.lane, MM_V6.cream, 4 * this.k);
         g.globalAlpha = 1;
         this.lanesFlashed++;
       }
@@ -1053,7 +1078,7 @@ export class Minimap {
       g.beginPath();
       g.arc(x, y, r + 1 + 3 * left, 0, Math.PI * 2);
       g.stroke();
-      g.fillStyle = '#fff3dc';
+      g.fillStyle = MM_V6.cream;
       g.font = `800 ${(r * 1.5).toFixed(1)}px Fredoka, system-ui, sans-serif`;
       g.textAlign = 'center';
       g.textBaseline = 'middle';
@@ -1279,7 +1304,7 @@ export class Minimap {
       g.beginPath();
       g.arc(d / 2, d / 2, d / 2, 0, Math.PI * 2);
       g.clip();
-      g.fillStyle = HERO_COLOR_CSS[hero] ?? '#fff3dc';
+      g.fillStyle = HERO_COLOR_CSS[hero] ?? MM_V6.cream;
       g.fillRect(0, 0, d, d);
       // the portrait frames head and shoulders: crop to the face
       g.drawImage(img, img.width * 0.14, img.height * 0.08, img.width * 0.72, img.height * 0.72, 0, 0, d, d);
@@ -1305,13 +1330,13 @@ export class Minimap {
     if (pic) {
       g.drawImage(pic, x - inner, y - inner, inner * 2, inner * 2);
     } else {
-      g.fillStyle = hero ? (HERO_COLOR_CSS[hero] ?? '#fff3dc') : '#fff3dc';
+      g.fillStyle = hero ? (HERO_COLOR_CSS[hero] ?? MM_V6.cream) : MM_V6.cream;
       g.beginPath();
       g.arc(x, y, inner, 0, Math.PI * 2);
       g.fill();
       if (hero) {
         const t = heroInitial(hero, team);
-        g.fillStyle = '#2a1a22';
+        g.fillStyle = MM_OUTLINE;
         g.font = `800 ${(inner * (t.length > 1 ? 1.15 : 1.5)).toFixed(1)}px Fredoka, system-ui, sans-serif`;
         g.textAlign = 'center';
         g.textBaseline = 'middle';

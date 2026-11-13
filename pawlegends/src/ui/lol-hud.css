@@ -1,17 +1,25 @@
-/* ================================================================ LoL pass, lane B: the hextech HUD chrome
+/* ================================================================ LoL pass, lane B: the HUD chrome (v6 Lightning Rivalry skin)
    (ui/hud.ts, ui/scoreboard.ts). A dark navy plate with a gold bevel behind Q W E R (R bigger, Paw Trick and Nap as two
    round "summoner" slots), keycaps under each slot on desktop, a conic cooldown sweep with a lit edge, the XP ring and
    level badge round the portrait, the split score plate, a portrait kill feed, the death wash, the Nap channel bar and
    the VICTORY / DEFEAT crest. Loaded with the match chunk, after ui.css. Positions of the top band (score, feed) stay
    where lane A put them, so the notification rail keeps its slot. */
+/* v6 facelift (hud-core): the old hextech navy + gold names now point at the v6 night ground, cream hairlines and the
+   logo-plum keyline; --hx-icon (ability glyphs), --hx-hot (ready / sweep edge / XP: the bolt) and --hx-sum (Paw Trick and
+   Nap: sky, the secondary colour) are the area's own extra tokens. In-match ally / enemy / you colours are untouched. */
 .pl-hud, .pl-scoreboard, .pl-crest, .pl-tbtn, .pl-fish {
-  --hx-navy: #0b1220; --hx-navy2: #070b14; --hx-gold: #c8aa6e; --hx-gold-d: #785a28; --hx-gold-dd: #463714; --hx-ink: #f0e6d2;
+  --hx-navy: var(--v6-night-2); --hx-navy2: var(--v6-night-0); --hx-gold: rgb(var(--v6-cream-rgb) / 0.62); --hx-gold-d: rgb(var(--v6-cream-rgb) / 0.22);
+  --hx-gold-dd: var(--v6-plum-deep); --hx-ink: var(--v6-cream);
+  --hx-icon: var(--v6-bolt-top); --hx-hot: var(--v6-bolt); --hx-sum: var(--v6-sky-top);
+  --hx-face: radial-gradient(circle at 50% 28%, var(--v6-night-3), var(--v6-night-2) 72%);
+  --hx-plate: linear-gradient(180deg, rgb(var(--v6-night-2-rgb) / 0.95), rgb(var(--v6-night-rgb) / 0.95));
 }
 
 /* ------------------------------------------------------------------------------------- self panel / ability bar */
 .pl-hud .pl-bar {
-  background: linear-gradient(180deg, rgba(17, 26, 44, 0.94), rgba(7, 11, 20, 0.94)); border: 1px solid var(--hx-gold-d); border-radius: 8px;
-  box-shadow: inset 0 1px 0 rgba(200, 170, 110, 0.55), inset 0 -1px 0 var(--hx-gold-dd), 0 8px 24px rgba(0, 0, 0, 0.45);
+  /* night plate, cream hairline, the brand split (rose | bolt | sky) as a 3 px rule along the top edge */
+  background: var(--v6-split-rule) 0 0 / 100% 3px no-repeat, var(--hx-plate); border: 1px solid var(--hx-gold-d); border-radius: var(--v6-r-xs);
+  box-shadow: inset 0 -1px 0 var(--hx-gold-dd), 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 html:not([data-touch='1']) .pl-hud .pl-bar { padding: 10px 14px 10px 12px; gap: 14px; align-items: center; }
 html:not([data-touch='1']) .pl-hud .pl-bar-main { gap: 0; }
@@ -21,80 +29,90 @@ html:not([data-touch='1']) .pl-hud .pl-bar-main .pl-res { margin-top: 3px; }
 html:not([data-touch='1']) .pl-hud .pl-rankup { bottom: calc(150px + var(--safe-b, 0px)); }
 .pl-hud .pl-slots { gap: 6px; align-items: center; }
 .pl-hud .pl-slot {
-  width: 56px; height: 56px; border-radius: 4px; padding: 9px; overflow: visible; color: #f0d58a;
-  background: radial-gradient(circle at 50% 30%, #1a2a46, var(--hx-navy) 70%); border: 2px solid var(--hx-gold-d);
-  box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 2px 6px rgba(0, 0, 0, 0.45);
+  width: 56px; height: 56px; border-radius: var(--v6-r-xs); padding: 9px; overflow: visible; color: var(--hx-icon);
+  background: var(--hx-face); border: 2px solid var(--hx-gold-d);
+  box-shadow: inset 0 0 0 1px var(--hx-gold-dd), inset 0 -3px 0 rgb(var(--v6-night-rgb) / 0.55), 0 2px 6px rgba(0, 0, 0, 0.45);
+  transition: transform var(--v6-dur-press) var(--v6-ease-out), border-color var(--v6-dur-fast);
 }
+/* hover / press / keyboard focus (desktop): a brighter hairline, a 1 px press, the bolt focus ring */
+@media (hover: hover) and (pointer: fine) {
+  .pl-hud .pl-slot:not(.locked):hover { border-color: rgb(var(--v6-cream-rgb) / 0.5); }
+}
+.pl-hud .pl-slot:not(.locked):active { transform: translateY(1px); }
+.pl-hud .pl-slot:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 .pl-hud .pl-slot > svg { position: relative; z-index: 0; }
 .pl-hud .pl-slot.ult {
-  width: 64px; height: 64px; border: 3px solid var(--hx-gold);
-  box-shadow: inset 0 0 0 1px #f0d58a55, 0 0 0 1px var(--hx-gold-dd), 0 0 10px rgba(200, 170, 110, 0.35);
+  width: 64px; height: 64px; border: 3px solid rgb(var(--v6-bolt-rgb) / 0.7);
+  box-shadow: inset 0 0 0 1px var(--hx-gold-dd), inset 0 -3px 0 rgb(var(--v6-night-rgb) / 0.55), 0 0 0 1px var(--hx-gold-dd), 0 0 10px rgb(var(--v6-bolt-rgb) / 0.22);
 }
 /* Paw Trick (D) and Nap (B): two round summoner slots right of R, 6 px apart */
-.pl-hud .pl-slot.sum { width: 40px; height: 40px; border-radius: 10px; padding: 7px; color: #9fd0ff; }
+.pl-hud .pl-slot.sum { width: 40px; height: 40px; border-radius: var(--v6-r-s); padding: 7px; color: var(--hx-sum); }
 .pl-hud .pl-slot.sum.first { margin-left: 6px; }
-.pl-hud .pl-slot.ready { box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 0 10px rgba(240, 213, 138, 0.22); }
-.pl-hud .pl-slot.ult.ready { box-shadow: inset 0 0 0 1px #f0d58a55, 0 0 14px rgba(240, 213, 138, 0.5); }
-.pl-hud .pl-slot.cooling { color: rgba(240, 230, 210, 0.45); }
+.pl-hud .pl-slot.ready { box-shadow: inset 0 0 0 1px var(--hx-gold-dd), inset 0 -3px 0 rgb(var(--v6-night-rgb) / 0.55), 0 0 10px rgb(var(--v6-bolt-rgb) / 0.2); }
+.pl-hud .pl-slot.ult.ready { border-color: var(--v6-bolt); box-shadow: inset 0 0 0 1px var(--hx-gold-dd), inset 0 -3px 0 rgb(var(--v6-night-rgb) / 0.55), 0 0 14px rgb(var(--v6-bolt-rgb) / 0.45); }
+.pl-hud .pl-slot.cooling { color: rgb(var(--v6-cream-rgb) / 0.42); }
 /* the sweep: the lit part grows clockwise from 12 o'clock, a gold line on its edge */
 .pl-hud .pl-slot .sweep {
   border-radius: inherit; z-index: 1;
-  background: conic-gradient(transparent calc((1 - var(--cd, 0)) * 360deg), rgba(4, 8, 16, 0.72) 0);
+  background: conic-gradient(transparent calc((1 - var(--cd, 0)) * 360deg), rgb(var(--v6-night-rgb) / 0.74) 0);
 }
 .pl-hud .pl-slot.cooling .sweep::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit;
-  background: conic-gradient(from calc((1 - var(--cd, 0)) * 360deg - 2.5deg), rgba(255, 226, 150, 0.95) 0 2.5deg, transparent 2.5deg);
+  background: conic-gradient(from calc((1 - var(--cd, 0)) * 360deg - 2.5deg), rgb(var(--v6-bolt-rgb) / 0.95) 0 2.5deg, transparent 2.5deg);
 }
-.pl-hud .pl-slot .num { z-index: 2; font: 800 20px/1 var(--font); color: #fff; text-shadow: 0 1px 0 #000, 0 0 4px #000; }
+.pl-hud .pl-slot .num { z-index: 2; font: 800 20px/1 var(--font); color: var(--v6-cream); text-shadow: 0 2px 0 var(--v6-plum-deep), 0 0 4px #000; font-variant-numeric: tabular-nums; }
 .pl-hud .pl-slot.ult .num { font-size: 22px; }
 .pl-hud .pl-slot .rk { z-index: 3; bottom: 3px; }
 /* keycaps under each slot (desktop; touch hides the whole bar of slots) */
 .pl-hud .pl-slot kbd {
   left: 50%; right: auto; bottom: auto; top: calc(100% + 4px); transform: translateX(-50%); height: 16px; min-width: 16px; padding: 0 4px; box-sizing: border-box;
-  font: 700 10px/14px var(--font); color: var(--hx-ink); background: var(--hx-navy2); border: 1px solid var(--hx-gold-d); border-radius: 3px; box-shadow: 0 1px 0 #000;
+  font: 700 11px/14px var(--font); color: var(--hx-ink); background: var(--hx-navy2); border: 1px solid var(--hx-gold-d); border-radius: var(--v6-r-xs); box-shadow: 0 1px 0 var(--v6-plum-deep);
   text-align: center; z-index: 3;
 }
 html[data-touch='1'] .pl-hud .pl-slot kbd { display: none; }
 /* the 300 ms ready flash (once per cooldown end); the touch buttons share it */
 .pl-hud .pl-slot.cdflash, .pl-tbtn.cdflash { animation: lol-cdflash 0.3s ease-out; }
 @keyframes lol-cdflash {
-  0% { box-shadow: 0 0 0 0 rgba(255, 248, 220, 0.95), 0 0 0 0 rgba(240, 213, 138, 0.8); }
-  40% { box-shadow: 0 0 0 3px rgba(255, 248, 220, 0.95), 0 0 16px 5px rgba(240, 213, 138, 0.8); }
-  100% { box-shadow: 0 0 0 6px rgba(255, 248, 220, 0), 0 0 22px 8px rgba(240, 213, 138, 0); }
+  0% { box-shadow: 0 0 0 0 rgb(var(--v6-cream-rgb) / 0.95), 0 0 0 0 rgb(var(--v6-bolt-rgb) / 0.8); }
+  40% { box-shadow: 0 0 0 3px rgb(var(--v6-cream-rgb) / 0.95), 0 0 16px 5px rgb(var(--v6-bolt-rgb) / 0.75); }
+  100% { box-shadow: 0 0 0 6px rgb(var(--v6-cream-rgb) / 0), 0 0 22px 8px rgb(var(--v6-bolt-rgb) / 0); }
 }
 
-/* the health bar: LoL green for the own hero, white shield, a pale trailing chunk; the resource / XP line under it */
-.pl-hud .pl-hp { height: 15px; border-radius: 2px; background: #0d1018; box-shadow: 0 0 0 1px #000, inset 0 0 0 1px rgba(255, 255, 255, 0.05); }
-.pl-hud .pl-hp .fill { background: linear-gradient(180deg, #74e07a 0%, #3fae4f 55%, #2c8a3c 100%); z-index: 1; }
-.pl-hud.low .pl-hp .fill { background: linear-gradient(180deg, #ff8a7a, #d63b3f); }
-.pl-hud .pl-hp .shield { z-index: 1; background: linear-gradient(180deg, #ffffff, #d6dde8); }
-.pl-hud .pl-hp .chunk { position: absolute; top: 0; bottom: 0; width: 0; background: #f6edc9; opacity: 0.92; z-index: 0; }
-.pl-hud .pl-hp .txt { z-index: 2; }
-.pl-hud .pl-res { position: relative; height: 4px; margin-top: -4px; flex: none; border-radius: 1px; background: #0d1018; box-shadow: 0 0 0 1px #000; overflow: hidden; }
-.pl-hud .pl-res > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #7a5cff, #b9a2ff); transition: width 0.3s; }
+/* the health bar: green for the own hero (a v6 mint top), white shield, a cream trailing chunk; the XP line under it
+   fills with the bolt (v6: the bolt is the XP colour) */
+.pl-hud .pl-hp { height: 15px; border-radius: 2px; background: var(--v6-night-0); box-shadow: 0 0 0 1px #000, inset 0 0 0 1px rgb(var(--v6-plum-rgb) / 0.8); }
+.pl-hud .pl-hp .fill { background: linear-gradient(180deg, #9cf2b4 0%, #3fc46c 50%, var(--v6-success-deep) 100%); z-index: 1; }
+.pl-hud.low .pl-hp .fill { background: linear-gradient(180deg, #ff9aa0, var(--v6-enemy) 55%, #c41f35); }
+.pl-hud .pl-hp .shield { z-index: 1; background: linear-gradient(180deg, #ffffff, var(--v6-ice)); }
+.pl-hud .pl-hp .chunk { position: absolute; top: 0; bottom: 0; width: 0; background: var(--v6-cream); opacity: 0.92; z-index: 0; }
+.pl-hud .pl-hp .txt { z-index: 2; color: #fff; font-size: 12px; text-shadow: 0 1px 0 var(--v6-night), 0 0 2px var(--v6-night); font-variant-numeric: tabular-nums; }
+/* phones: 11 px inside the same bar (the bar's height is unchanged) */
+html[data-touch='1'] .pl-match .pl-hud .pl-hp .txt { font-size: 11px; line-height: 1; }
+.pl-hud .pl-res { position: relative; height: 4px; margin-top: -4px; flex: none; border-radius: 1px; background: var(--v6-night-0); box-shadow: 0 0 0 1px #000; overflow: hidden; }
+.pl-hud .pl-res > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, var(--v6-bolt-ledge), var(--v6-bolt) 70%, var(--v6-bolt-top)); transition: width 0.3s; }
 .pl-hud .pl-res.stride { height: 5px; }
-.pl-hud .pl-res.stride > i { background: linear-gradient(90deg, #2f7fe0, #6fc3ff); transition: width 0.15s; }
+.pl-hud .pl-res.stride > i { background: linear-gradient(90deg, var(--v6-sky-deep), var(--v6-sky-top)); transition: width 0.15s; }
 html[data-touch='1'] .pl-hud .pl-res { margin-top: -5px; height: 3px; }
 
 /* ------------------------------------------------------------------------- portrait: XP ring and level badge */
-.pl-hud .pl-portrait { box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18), 0 0 0 2px var(--hx-gold); }
+.pl-hud .pl-portrait { box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18), 0 0 0 2px var(--v6-plum-deep); }
 .pl-hud .pl-portrait .xpring {
   position: absolute; inset: -7px; border-radius: 50%; pointer-events: none; z-index: 0;
-  background: conic-gradient(#8f7bff calc(var(--xp, 0) * 360deg), rgba(14, 20, 36, 0.9) 0);
+  background: conic-gradient(var(--hx-hot) calc(var(--xp, 0) * 360deg), rgb(var(--v6-night-rgb) / 0.9) 0);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
   transition: background 0.2s;
 }
-.pl-hud .pl-portrait.xpflash .xpring { background: #f0d58a; filter: drop-shadow(0 0 5px #f0d58a); }
+.pl-hud .pl-portrait.xpflash .xpring { background: var(--v6-bolt-top); filter: drop-shadow(0 0 5px var(--v6-bolt)); }
 .pl-hud .pl-portrait .lvl {
   width: 20px; height: 20px; right: -7px; bottom: -7px; z-index: 2; box-sizing: border-box; font: 800 11px/1 var(--font);
-  background: var(--hx-navy); color: var(--hx-ink); border: 2px solid var(--hx-gold); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  background: var(--v6-night); color: var(--hx-ink); border: 2px solid var(--hx-hot); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); font-variant-numeric: tabular-nums;
 }
 .pl-hud .pl-portrait.xpflash .lvl { animation: lol-badge 0.4s cubic-bezier(0.2, 1.6, 0.4, 1); }
-@keyframes lol-badge { 0% { transform: scale(1.25); background: #f0d58a; color: #2b1d0e; } 100% { transform: scale(1); } }
+@keyframes lol-badge { 0% { transform: scale(1.25); background: var(--v6-bolt); color: var(--v6-night); } 100% { transform: scale(1); } }
 html[data-touch='1'] .pl-hud .pl-portrait .xpring { inset: -5px; -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); }
 html[data-touch='1'] .pl-hud .pl-portrait .lvl { width: 18px; height: 18px; right: -6px; bottom: -6px; font-size: 10px; }
 /* while out: the portrait greys, the respawn seconds sit big over it */
-.pl-hud .pl-portrait .dsec { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; font: 800 28px/1 var(--font); color: #fff; text-shadow: 0 2px 0 #000, 0 0 6px #000; }
+.pl-hud .pl-portrait .dsec { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; font: 800 28px/1 var(--font); color: var(--v6-cream); text-shadow: 0 2px 0 var(--v6-plum-deep), 0 0 6px #000; font-variant-numeric: tabular-nums; }
 .pl-hud .pl-portrait .dsec:empty { display: none; }
 html[data-touch='1'] .pl-hud .pl-portrait .dsec { font-size: 20px; }
 .pl-hud.dead .pl-portrait { filter: grayscale(1) brightness(0.75); }
@@ -104,11 +122,30 @@ html[data-touch='1'] .pl-hud .pl-portrait .dsec { font-size: 20px; }
 /* ------------------------------------------------------------------------------- top score plate (B4) */
 .pl-hud .pl-score.lol {
   display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto auto; align-items: center; column-gap: 10px; row-gap: 0;
-  min-width: 300px; box-sizing: border-box; padding: 4px 12px 0; border: 1px solid var(--hx-gold-d); border-top: 0; border-radius: 0 0 10px 10px;
-  background: linear-gradient(180deg, rgba(17, 26, 44, 0.95), rgba(7, 11, 20, 0.95));
+  min-width: 300px; box-sizing: border-box; padding: 4px 12px 0; border: 1px solid var(--hx-gold-d); border-top: 0; border-radius: 0 0 var(--v6-r-s) var(--v6-r-s);
+  /* the kit's scorebug: your side tinted ally on the left, the rival side enemy on the right (relation colours, never
+     team colours), the night middle with the clock */
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--t0) 30%, transparent) 0, transparent 34%, transparent 66%, color-mix(in srgb, var(--t1) 30%, transparent) 100%),
+    var(--hx-plate);
   box-shadow: inset 0 -1px 0 var(--hx-gold), inset 0 -2px 0 var(--hx-gold-dd), 0 6px 18px rgba(0, 0, 0, 0.4);
+  position: relative;
 }
-.pl-hud .pl-score.lol .team { gap: 8px; min-width: 0; font: 800 24px/26px var(--font); }
+/* desktop: the plate hangs from the top edge as a leaning trapezoid (both lower corners cut, like the kit's angled
+   scorebug segments); phones keep their strip shape (feel.css) */
+html:not([data-touch='1']) .pl-hud .pl-score.lol { clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 12px 100%); border-radius: 0; }
+/* sunset and sudden death read on the plate itself (inset rings: the clip and the footprint stay) */
+.pl-hud[data-phase='sunset'] .pl-score.lol { box-shadow: inset 0 -3px 0 var(--v6-flame), inset 0 0 0 1px rgb(255 138 30 / 0.55), 0 6px 18px rgba(0, 0, 0, 0.4); }
+.pl-hud[data-phase='sunset'] .pl-score.lol .clock { color: var(--v6-flame); }
+.pl-hud[data-phase='suddenDeath'] .pl-score.lol { animation: none; box-shadow: inset 0 -3px 0 var(--v6-enemy), inset 0 0 0 1px var(--v6-enemy), 0 6px 18px rgba(0, 0, 0, 0.4); }
+.pl-hud[data-phase='suddenDeath'] .pl-score.lol .clock { color: var(--v6-enemy); }
+.pl-hud[data-phase='suddenDeath'] .pl-score.lol::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 14px 2px rgb(255 79 88 / 0.75);
+  animation: lol-sd 1s ease-in-out infinite;
+}
+@keyframes lol-sd { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pl-hud[data-phase='suddenDeath'] .pl-score.lol::after { animation: none; opacity: 0.8; } }
+.pl-hud .pl-score.lol .team { gap: 8px; min-width: 0; font: 800 24px/26px var(--font); font-variant-numeric: tabular-nums; text-shadow: 0 2px 0 rgb(0 0 0 / 0.45); }
 .pl-hud .pl-score.lol .team.t0 { justify-content: flex-end; }
 .pl-hud .pl-score.lol .team.t1 { justify-content: flex-start; }
 .pl-hud .pl-score.lol .team i { font: 700 11px/1 var(--font); color: var(--hx-gold); background: none; padding: 0; display: inline-flex; align-items: center; gap: 2px; }
@@ -116,19 +153,36 @@ html[data-touch='1'] .pl-hud .pl-portrait .dsec { font-size: 20px; }
 .pl-hud .pl-score.lol .sw { color: var(--hx-gold); display: grid; place-items: center; }
 .pl-hud .pl-score.lol .mid {
   grid-column: 1 / -1; justify-self: center; display: flex; flex-direction: row; align-items: baseline; gap: 6px; min-width: 0; max-width: 100%;
-  padding: 1px 10px 2px; margin-bottom: -1px; border: 1px solid var(--hx-gold-dd); border-bottom: 0; border-radius: 6px 6px 0 0; background: var(--hx-navy2);
+  padding: 1px 10px 2px; margin-bottom: -1px; border: 1px solid var(--hx-gold-dd); border-bottom: 0; border-radius: var(--v6-r-xs) var(--v6-r-xs) 0 0; background: var(--hx-navy2);
   white-space: nowrap; overflow: hidden;
 }
-.pl-hud .pl-score.lol .clock { font: 700 12px/14px var(--font); letter-spacing: 0.04em; color: var(--hx-ink); }
-.pl-hud .pl-score.lol .phase { font: 600 10px/14px var(--font); opacity: 0.8; color: #f0d58a; overflow: hidden; text-overflow: ellipsis; }
+.pl-hud .pl-score.lol .clock { font: 700 12px/14px var(--font); letter-spacing: 0.04em; color: var(--v6-bolt); font-variant-numeric: tabular-nums; }
+.pl-hud .pl-score.lol .phase { font: 600 10px/14px var(--font); opacity: 0.8; color: var(--v6-bolt-top); overflow: hidden; text-overflow: ellipsis; }
 .pl-hud .pl-score.lol .phase:not(:empty)::before { content: '· '; color: var(--hx-ink); opacity: 0.6; }
 /* the own K / D / A, first in the clock tab (founder ask 2026-11-12); phones restyle it in feel.css */
 .pl-hud .pl-score .kda { display: inline-flex; align-items: baseline; gap: 2px; flex: none; font: 800 13px/14px var(--font); color: var(--hx-ink); font-variant-numeric: tabular-nums; }
 .pl-hud .pl-score .kda .ki { display: none; }
-.pl-hud .pl-score .kda .kl { font: 800 9px/14px var(--font); letter-spacing: 0.06em; color: var(--hx-gold); margin-right: 3px; }
+.pl-hud .pl-score .kda .kl { font: 800 11px/14px var(--font); letter-spacing: 0.06em; color: var(--hx-gold); margin-right: 3px; }
 .pl-hud .pl-score .kda .ks { font: 700 11px/14px var(--font); opacity: 0.45; padding: 0 1px; }
-.pl-hud .pl-score .kda .kd { color: #ff8a80; }
+.pl-hud .pl-score .kda .kd { color: #ff8a90; }
 .pl-hud .pl-score.lol .kda + .clock::before { content: '·'; margin-right: 6px; color: var(--hx-ink); opacity: 0.6; }
+/* phones: the cream v6 strip. feel.css drew it with a raster wood frame (border-image); the frame is now a ::before plate
+   (cream face, logo-plum rim, a bolt rule underneath), which paints in the same box, so the HUD-area count is unchanged
+   (pseudo-elements and border images are not elements). Dark text: night / plum instead of wood brown. */
+html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score.lol { border-image: none; position: relative; }
+html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score.lol::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: 0 0 var(--v6-r-s) var(--v6-r-s);
+  background: linear-gradient(180deg, #fffaf2 0, var(--v6-cream) 55%, #f4dfc9 100%);
+  box-shadow: inset 0 0 0 1.5px var(--v6-plum-deep), inset 0 -3.5px 0 var(--v6-plum-deep), inset 0 -5px 0 var(--v6-bolt);
+}
+html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score.lol :is(.sw, .clock) { color: var(--v6-night); }
+html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score.lol .team i { color: var(--v6-plum-deep); }
+html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score .kda, html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score .kda .ki { color: var(--v6-night); }
+html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score .kda .kl { color: var(--v6-logo-plum); }
+html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score .kda .kd { color: #c41f35; }
+html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score.lol .team b { text-shadow: 0 1.5px 0 var(--v6-night); }
+html[data-touch='1'] .pl-match .pl-hud[data-phase='sunset'] .pl-top .pl-score.lol .clock { color: #c45a00; }
+html[data-touch='1'] .pl-match .pl-hud[data-phase='suddenDeath'] .pl-top .pl-score.lol .clock { color: #c41f35; }
 /* phones keep today's footprint: 294 × ≤ 45 at 844 × 390, 204 × ≤ 39 at 667 × 375 (lane A's rail sits under it) */
 html[data-touch='1'] .pl-hud .pl-score.lol { width: 294px; min-width: 0; height: 45px; padding: 3px 10px 0; column-gap: 8px; align-content: space-between; }
 html[data-touch='1'] .pl-hud .pl-score.lol .team { font-size: 22px; line-height: 26px; gap: 6px; }
@@ -146,18 +200,26 @@ html[data-touch='1'] .pl-hud .pl-score.lol .phase { font-size: 10px; line-height
 
 /* Tab / tap scoreboard: the same plate */
 .pl-scoreboard .card.lol {
-  background: linear-gradient(180deg, rgba(17, 26, 44, 0.96), rgba(7, 11, 20, 0.96)); border: 1px solid var(--hx-gold-d); border-radius: 6px; color: var(--hx-ink);
-  box-shadow: inset 0 1px 0 rgba(200, 170, 110, 0.55), inset 0 0 0 1px var(--hx-gold-dd), 0 12px 32px rgba(0, 0, 0, 0.55);
+  background: var(--v6-split-rule) 0 0 / 100% 4px no-repeat, linear-gradient(180deg, rgb(var(--v6-night-2-rgb) / 0.97), rgb(var(--v6-night-rgb) / 0.97));
+  border: 1px solid var(--hx-gold-d); border-radius: var(--v6-r-xs); color: var(--hx-ink);
+  box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 12px 32px rgba(0, 0, 0, 0.55);
 }
-.pl-scoreboard .card.lol h3 { border-bottom: 1px solid var(--hx-gold-dd); padding-bottom: 4px; letter-spacing: 0.03em; }
-.pl-scoreboard .card.lol td { border-top-color: rgba(120, 90, 40, 0.45); vertical-align: middle; }
-.pl-scoreboard .card.lol tr.me td { color: #f0d58a; background: rgba(200, 170, 110, 0.08); }
-.pl-scoreboard .card.lol td.lv { font-weight: 800; }
+/* team headings: the round-tag type (Rubik 800 italic caps), still in the ally / enemy relation colour */
+.pl-scoreboard .card.lol h3 {
+  border-bottom: 1px solid rgb(var(--v6-cream-rgb) / 0.14); padding-bottom: 4px; font-family: var(--v6-font-display); font-style: italic; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.pl-scoreboard .card.lol th { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--v6-muted); opacity: 1; }
+.pl-scoreboard .card.lol td { border-top-color: rgb(var(--v6-cream-rgb) / 0.1); vertical-align: middle; }
+.pl-scoreboard .card.lol tr.me td { color: var(--v6-you); background: rgb(255 211 77 / 0.08); }
+.pl-scoreboard .card.lol tr.me td:first-child { box-shadow: inset 3px 0 0 var(--v6-you); }
+.pl-scoreboard .card.lol .hint { color: var(--v6-muted); opacity: 1; }
+.pl-scoreboard .card.lol td.lv { font-weight: 800; font-variant-numeric: tabular-nums; }
 .pl-scoreboard .card.lol td.kda { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pl-scoreboard .tal { white-space: nowrap; }
 .pl-scoreboard .tc {
   display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 3px; box-sizing: border-box; font: 800 10px/1 var(--font); font-style: normal;
-  color: #f0d58a; background: var(--hx-navy); border: 1px solid var(--hx-gold-d); border-radius: 3px; vertical-align: middle;
+  color: var(--v6-bolt-top); background: var(--hx-navy); border: 1px solid var(--hx-gold-d); border-radius: var(--v6-r-xs); vertical-align: middle;
 }
 .pl-scoreboard .tc.none { border-style: dashed; opacity: 0.55; }
 .pl-scoreboard .tc.unk { opacity: 0.35; color: var(--hx-ink); }
@@ -165,22 +227,23 @@ html[data-touch='1'] .pl-hud .pl-score.lol .phase { font-size: 10px; line-height
 /* ------------------------------------------------------------------------------------ kill feed (B5) */
 .pl-hud .pl-feed-row.kill, .pl-hud .pl-feed-row.note {
   height: 30px; box-sizing: border-box; padding: 0 9px 0 7px; gap: 6px; border-radius: 2px; font: 700 12px/1 var(--font);
-  background: linear-gradient(90deg, rgba(8, 12, 22, 0.9), rgba(8, 12, 22, 0.78)); border-left: 3px solid var(--edge, var(--hx-gold-d));
+  background: linear-gradient(90deg, rgb(var(--v6-night-2-rgb) / 0.92), rgb(var(--v6-night-rgb) / 0.8)); border-left: 3px solid var(--edge, var(--hx-gold-d));
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 .pl-hud .pl-feed-row .tt-kf { position: relative; width: 24px; height: 24px; margin: 0; box-shadow: 0 0 0 2px var(--rel, var(--ring)), 0 0 0 3px rgba(0, 0, 0, 0.8); }
-.pl-hud .pl-feed-row .tt-kf.glyph { display: grid; place-items: center; background: #1a2236; color: var(--rel); }
+.pl-hud .pl-feed-row .tt-kf.glyph { display: grid; place-items: center; background: var(--v6-night-3); color: var(--rel); }
 .pl-hud .pl-feed-row .tt-kf.glyph svg { width: 70%; height: 70%; }
 .pl-hud .pl-feed-row .tt-kf.victim { filter: grayscale(1) brightness(0.7); }
 .pl-hud .pl-feed-row .tt-kf.victim::after {
   content: ''; position: absolute; inset: 1px; border-radius: 50%;
-  background: linear-gradient(45deg, transparent 43%, #ff4d4d 43% 57%, transparent 57%), linear-gradient(-45deg, transparent 43%, #ff4d4d 43% 57%, transparent 57%);
+  background: linear-gradient(45deg, transparent 43%, var(--v6-enemy) 43% 57%, transparent 57%), linear-gradient(-45deg, transparent 43%, var(--v6-enemy) 43% 57%, transparent 57%);
 }
 .pl-hud .pl-feed-row .claw { width: 14px; height: 14px; color: var(--hx-gold); opacity: 1; display: grid; place-items: center; }
+.pl-hud .pl-feed-row.kill { animation-timing-function: var(--v6-ease-out); }
 .pl-hud .pl-feed-row .claw svg { width: 14px; height: 14px; }
 .pl-hud .pl-feed-row.kill b { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-hud .pl-feed-row.kill b + .claw + .tt-kf { margin-left: 2px; }
-.pl-hud .pl-feed-row.note { --edge: var(--hx-gold); color: #f0d58a; }
+.pl-hud .pl-feed-row.note { --edge: var(--v6-bolt); color: var(--v6-bolt-top); }
 /* touch: 22 px rows, 18 px faces, no names, at most 120 px wide and two rows */
 html[data-touch='1'] .pl-hud .pl-feed { gap: 2px; }
 html[data-touch='1'] .pl-hud .pl-feed-row.kill, html[data-touch='1'] .pl-hud .pl-feed-row.note { height: 22px; max-width: 120px; padding: 0 6px 0 4px; gap: 4px; font-size: 11px; }
@@ -206,27 +269,30 @@ html[data-pl-dead='1'] #game-canvas { filter: saturate(0.15) brightness(0.78); t
 /* ------------------------------------------------------------------------------- Nap channel bar (B7) */
 .lol-nap {
   position: absolute; left: 50%; bottom: calc(158px + var(--safe-b, 0px)); transform: translateX(-50%); width: 220px; height: 16px; box-sizing: border-box; z-index: 4;
-  border: 1px solid var(--hx-gold-d); border-radius: 3px; background: rgba(7, 11, 20, 0.9); box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 3px 10px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--hx-gold-d); border-radius: var(--v6-r-xs); background: rgb(var(--v6-night-rgb) / 0.9); box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 3px 10px rgba(0, 0, 0, 0.45);
   opacity: 0; transition: opacity 0.15s; overflow: hidden; pointer-events: none;
 }
 .lol-nap.on { opacity: 1; }
-.lol-nap .fill { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--left, 1) * 100%); background: linear-gradient(90deg, #3d7be0, #8fc8ff 60%, #f0d58a); }
-.lol-nap span { position: absolute; inset: 0; display: grid; place-items: center; font: 700 12px/1 var(--font); color: #fff; text-shadow: 0 1px 0 #000, 0 0 3px #000; white-space: nowrap; }
+.lol-nap .fill { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--left, 1) * 100%); background: linear-gradient(90deg, var(--v6-sky-deep), var(--v6-sky) 55%, var(--v6-sky-top) 85%, var(--v6-ice)); }
+.lol-nap span { position: absolute; inset: 0; display: grid; place-items: center; font: 700 12px/1 var(--font); color: #fff; text-shadow: 0 1px 0 var(--v6-navy), 0 0 3px #000; white-space: nowrap; }
 /* phones: no bar of slots at the bottom; the channel bar sits low in the middle, clear of the hero, the stick and the
    talent chips */
 html[data-touch='1'] .lol-nap { width: 150px; height: 14px; bottom: calc(70px + var(--safe-b, 0px)); }
 html[data-touch='1'] .lol-nap span { font-size: 11px; }
 
-/* ----------------------------------------------------------------------- touch buttons: the hextech look */
+/* ----------------------------------------------------------------------- touch buttons: the v6 look
+   Night discs with a cream rim and a plum keyline inside, a 3 px inset ledge (the kit's 3D slab, kept inside the box),
+   bolt-lemon glyphs; R wears the bolt rim; Paw Trick and Nap are sky (secondary). ATK (match.css) is the one rose
+   button on the screen. */
 .pl-tbtn:where(:not(.attack)) {
-  background: radial-gradient(circle at 50% 32%, rgba(26, 42, 70, 0.9), rgba(7, 11, 20, 0.88) 72%); border-color: var(--hx-gold-d);
-  box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 3px 10px rgba(0, 0, 0, 0.4);
+  background: radial-gradient(circle at 50% 30%, rgb(40 26 66 / 0.92), rgb(var(--v6-night-rgb) / 0.9) 72%); border-color: rgb(var(--v6-cream-rgb) / 0.42);
+  box-shadow: inset 0 0 0 1px var(--hx-gold-dd), inset 0 -3px 0 rgb(var(--v6-night-rgb) / 0.75), 0 3px 10px rgba(0, 0, 0, 0.4);
 }
-.pl-tbtn:where(.r) { border-color: var(--hx-gold); }
-.pl-tbtn .cd { background: conic-gradient(transparent calc((1 - var(--cd, 0)) * 360deg), rgba(4, 8, 16, 0.72) 0); }
+.pl-tbtn:where(.r) { border-color: rgb(var(--v6-bolt-rgb) / 0.8); }
+.pl-tbtn .cd { background: conic-gradient(transparent calc((1 - var(--cd, 0)) * 360deg), rgb(var(--v6-night-rgb) / 0.74) 0); }
 .pl-tbtn:where(.cooling) .cd::after {
   content: ''; position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(from calc((1 - var(--cd, 0)) * 360deg - 3deg), rgba(255, 226, 150, 0.95) 0 3deg, transparent 3deg);
+  background: conic-gradient(from calc((1 - var(--cd, 0)) * 360deg - 3deg), rgb(var(--v6-bolt-rgb) / 0.95) 0 3deg, transparent 3deg);
 }
 
 /* ------------------------------------------------------------------------------ VICTORY / DEFEAT crest (B8) */
@@ -238,34 +304,35 @@ html:not([data-touch='1']) .pl-crest { width: 760px; }
 .pl-crest.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 .pl-crest::before {
   content: ''; position: absolute; left: -12%; right: -12%; top: 4%; bottom: 4%; z-index: -1;
-  background: radial-gradient(ellipse at center, rgba(5, 8, 16, 0.82) 0%, rgba(5, 8, 16, 0.55) 45%, transparent 72%);
+  background: radial-gradient(ellipse at center, rgb(var(--v6-night-rgb) / 0.82) 0%, rgb(var(--v6-night-rgb) / 0.55) 45%, transparent 72%);
 }
 /* QA v2 #4: a LoL end band behind the word, the full screen wide, with gold rules and a dim over the field: the gold
    VICTORY washed out on the dust at ?quality=low and the grey DEFEAT vanished into the grey explosion */
 .pl-crest::after {
   content: ''; position: absolute; left: calc(50% - 50vw); width: 100vw; top: 50%; height: 1.5em; transform: translateY(-50%); z-index: -2;
   font-size: clamp(46px, 11vw, 112px);
-  background: linear-gradient(90deg, transparent 0, rgba(5, 8, 16, 0.9) 18%, rgba(5, 8, 16, 0.94) 50%, rgba(5, 8, 16, 0.9) 82%, transparent 100%);
-  border-top: 2px solid rgba(200, 170, 110, 0.85); border-bottom: 2px solid rgba(120, 90, 40, 0.9);
-  box-shadow: 0 0 0 100vmax rgba(4, 6, 12, 0.42);
+  background: linear-gradient(90deg, transparent 0, rgb(var(--v6-night-2-rgb) / 0.9) 18%, rgb(var(--v6-night-rgb) / 0.94) 50%, rgb(var(--v6-night-2-rgb) / 0.9) 82%, transparent 100%);
+  border-top: 3px solid var(--v6-bolt); border-bottom: 2px solid var(--v6-logo-plum);
+  box-shadow: 0 0 0 100vmax rgb(var(--v6-night-rgb) / 0.42);
 }
 html:not([data-touch='1']) .pl-crest::after { font-size: 112px; }
-.pl-crest.lost::after { border-top-color: rgba(150, 180, 220, 0.75); border-bottom-color: rgba(60, 80, 110, 0.9); }
+.pl-crest.lost::after { border-top-color: rgb(var(--v6-sky-rgb) / 0.8); border-bottom-color: var(--v6-navy); }
 /* while the crest is up the field is over: the touch buttons, the rail, the talent chips and the pops step back */
 html[data-crest] .pl-touch, html[data-crest] .pl-rail, html[data-crest] .pl-talents, html[data-crest] .pl-pops, html[data-crest] .tt-respawn {
   opacity: 0 !important; visibility: hidden; transition: opacity 0.2s, visibility 0s linear 0.2s;
 }
 .pl-crest b {
-  display: block; position: relative; font: 900 clamp(46px, 11vw, 112px)/1.05 var(--font); letter-spacing: 0.08em; padding: 0.12em 0;
-  background: linear-gradient(105deg, #7a5a24 0%, #c8aa6e 28%, #fff7dc 44%, #f0d58a 52%, #a8823e 72%, #785a28 100%);
+  /* v6 display: Rubik 900 italic caps, the wordmark gold with a plum drop (the kit's display shadow) */
+  display: block; position: relative; font: italic 900 clamp(46px, 11vw, 112px)/1.05 var(--v6-font-display); letter-spacing: 0.02em; padding: 0.12em 0.1em;
+  background: linear-gradient(105deg, #d98e1e 0%, #f7bc3c 26%, #fff6cf 44%, #fdd35a 52%, #f7bc3c 70%, #d98e1e 100%);
   background-size: 260% 100%; background-position: 100% 0; -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 3px 0 #2a1c08) drop-shadow(0 0 14px rgba(240, 213, 138, 0.45));
+  filter: drop-shadow(0 4px 0 var(--v6-plum-deep)) drop-shadow(0 0 14px rgb(var(--v6-bolt-rgb) / 0.4));
   background-position: 30% 0; animation: lol-crest-sweep 0.7s ease-out 0.05s both;
 }
 html:not([data-touch='1']) .pl-crest b { font-size: 112px; }
 .pl-crest.lost b {
-  background-image: linear-gradient(105deg, #2b3d55 0%, #6d8bb0 28%, #eef6ff 44%, #a9c3e2 52%, #4a6585 72%, #22324a 100%);
-  filter: drop-shadow(0 3px 0 #0b1422) drop-shadow(0 0 14px rgba(150, 190, 235, 0.4));
+  background-image: linear-gradient(105deg, #0d4fb8 0%, #39a6ff 26%, #f4faff 44%, #d6ecff 52%, #7cc6ff 70%, #0d4fb8 100%);
+  filter: drop-shadow(0 4px 0 var(--v6-navy)) drop-shadow(0 0 14px rgb(var(--v6-sky-rgb) / 0.35));
 }
 @keyframes lol-crest-sweep { from { background-position: 100% 0; } to { background-position: 30% 0; } }
 /* won: laurel cat ears over the word; lost: a crack through it */
@@ -274,15 +341,15 @@ html:not([data-touch='1']) .pl-crest b { font-size: 112px; }
 html:not([data-touch='1']) .pl-crest.won .ears { font-size: 112px; }
 .pl-crest.won .ears::before, .pl-crest.won .ears::after {
   content: ''; position: absolute; bottom: -0.1em; width: 0.4em; height: 0.42em;
-  background: linear-gradient(180deg, #fff1c4, #c8aa6e 55%, #785a28); clip-path: polygon(50% 0, 100% 100%, 0 100%);
-  filter: drop-shadow(0 2px 0 #2a1c08);
+  background: linear-gradient(180deg, #fff6cf, var(--v6-logo-gold) 55%, #d98e1e); clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 2px 0 var(--v6-plum-deep));
 }
 .pl-crest.won .ears::before { left: calc(50% - 0.62em); transform: rotate(-16deg); }
 .pl-crest.won .ears::after { left: calc(50% + 0.22em); transform: rotate(16deg); }
 .pl-crest .crack { display: none; }
 .pl-crest.lost .crack {
-  display: block; position: absolute; left: 18%; right: 20%; top: 44%; height: 0.16em; font-size: clamp(46px, 11vw, 112px); background: rgba(220, 235, 255, 0.85);
-  filter: drop-shadow(0 1px 0 #0b1422);
+  display: block; position: absolute; left: 18%; right: 20%; top: 44%; height: 0.16em; font-size: clamp(46px, 11vw, 112px); background: rgb(214 236 255 / 0.88);
+  filter: drop-shadow(0 1px 0 var(--v6-navy));
   clip-path: polygon(0 40%, 18% 10%, 30% 70%, 46% 20%, 58% 80%, 72% 30%, 86% 75%, 100% 45%, 100% 60%, 86% 95%, 72% 50%, 58% 100%, 46% 45%, 30% 95%, 18% 35%, 0 60%);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -296,8 +363,8 @@ html:not([data-touch='1']) .pl-crest.won .ears { font-size: 112px; }
 .pl-scoreboard .sb-conn { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 3px; vertical-align: middle; background: #7fe0a6; }
 .pl-scoreboard .sb-conn[data-conn='away'] { background: #f0d58a; }
 .pl-scoreboard .sb-conn[data-conn='off'] { background: #8a8a96; }
-.pl-scoreboard .sb-bot, .pl-scoreboard .sb-muted { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 6px; font-size: 10px; font-weight: 800; line-height: 15px; background: #3a4258; color: #c9d3e0; vertical-align: middle; }
-.pl-scoreboard .sb-muted { background: #4a2a32; color: #ffc9c9; }
+.pl-scoreboard .sb-bot, .pl-scoreboard .sb-muted { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: var(--v6-r-xs); font-size: 10px; font-weight: 800; line-height: 15px; background: var(--v6-night-3); color: var(--v6-ice); vertical-align: middle; }
+.pl-scoreboard .sb-muted { background: #4a1a2c; color: #ffc9cf; }
 .pl-scoreboard .sb-name { all: unset; cursor: pointer; text-decoration: underline dotted; min-height: 28px; pointer-events: auto; }
 .pl-strip .pp[data-ring] { box-shadow: 0 0 0 2px var(--ring); }
 .pl-strip .pp[data-bot='1'] { filter: grayscale(0.7); }
@@ -313,11 +380,11 @@ html:not([data-touch='1']) .pl-crest.won .ears { font-size: 112px; }
   border-radius: 999px; padding: 5px 10px 5px 7px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); touch-action: none;
 }
 .pl-chatbtn svg { width: 18px; height: 18px; color: #7fd4ff; }
-.pl-chatbtn kbd { font-size: 9px; padding: 1px 4px; }
+.pl-chatbtn kbd { font-size: 10px; padding: 1px 4px; }
 .pl-chatbtn.cool { opacity: 0.45; }
 html[data-touch='1'] .pl-chatbtn {
   left: auto; bottom: auto; right: calc(68px + var(--mm-w, 132px) + var(--safe-r)); top: calc(118px + var(--safe-t)); width: 44px; height: 44px; padding: 0; justify-content: center;
-  border-radius: 50%; border: 2px solid rgba(255, 243, 220, 0.55);
+  border-radius: 50%; border: 2px solid rgb(var(--v6-cream-rgb) / 0.55);
 }
 html[data-touch='1'] .pl-chatbtn span, html[data-touch='1'] .pl-chatbtn kbd { display: none; }
 html[data-touch='1'] .pl-chatbtn svg { width: 22px; height: 22px; }
@@ -326,7 +393,7 @@ html[data-touch='1']:has(.pl-chatbtn) .pl-feed-row { max-width: 128px; }
 .pl-chatwheel.on { display: block; }
 .pl-chatwheel::before {
   content: ''; position: absolute; left: var(--x); top: var(--y); width: 290px; height: 290px; transform: translate(-50%, -50%);
-  border-radius: 50%; background: radial-gradient(circle, rgba(43, 29, 46, 0.2) 0 12%, rgba(43, 29, 46, 0.55) 13% 38%, rgba(43, 29, 46, 0.75) 39% 100%);
+  border-radius: 50%; background: radial-gradient(circle, rgb(var(--v6-night-2-rgb) / 0.2) 0 12%, rgb(var(--v6-night-2-rgb) / 0.55) 13% 38%, rgb(var(--v6-night-2-rgb) / 0.75) 39% 100%);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); pointer-events: none;
 }
 .pl-chatwheel .cw {
@@ -346,8 +413,8 @@ html[data-touch='1']:has(.pl-chatbtn) .pl-feed-row { max-width: 128px; }
 .pl-rail-line.has-act { pointer-events: auto; padding-right: 6px; }
 .pl-rail-line.has-act:not(.on) { pointer-events: none; }
 .pl-rail-act {
-  pointer-events: auto; min-width: 52px; min-height: 40px; padding: 0 12px; border: 1px solid #c8aa6e; border-radius: 6px;
-  background: linear-gradient(180deg, #2a3a5c, #1a2440); color: #f0e6d2; font: 800 15px/1 var(--font); cursor: pointer;
+  pointer-events: auto; min-width: 52px; min-height: 40px; padding: 0 12px; border: 1px solid rgb(var(--v6-cream-rgb) / 0.42); border-radius: var(--v6-r-s);
+  background: linear-gradient(180deg, var(--v6-night-3), var(--v6-night-2)); color: var(--v6-cream); font: 800 15px/1 var(--font); cursor: pointer;
   touch-action: manipulation;
 }
 .pl-rail-act[data-act$='-no'] { border-color: #8a5a5a; color: #ffc9c9; }
@@ -366,18 +433,18 @@ html[data-touch='1']:has(.pl-chatbtn) .pl-feed-row { max-width: 128px; }
    is bought (Hud.toyBurst). The selectors are `.pl-fish`, not `.pl-hud .pl-fish`, so they hold in both homes. */
 .pl-fish {
   position: absolute; display: flex; align-items: center; gap: 5px; padding: 3px 8px 3px 3px; border-radius: 14px; pointer-events: none; z-index: 3;
-  background: linear-gradient(180deg, rgba(17, 26, 44, 0.94), rgba(7, 11, 20, 0.94)); border: 1px solid var(--hx-gold-d);
-  box-shadow: inset 0 1px 0 rgba(200, 170, 110, 0.45), 0 3px 8px rgba(0, 0, 0, 0.4); color: #ffd34d;
+  background: var(--hx-plate); border: 1px solid var(--hx-gold-d);
+  box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 3px 8px rgba(0, 0, 0, 0.4); color: #ffd34d;
 }
 html:not([data-touch='1']) .pl-fish { bottom: calc(100% + 6px); right: 10px; pointer-events: auto; }
 .pl-fish .ring {
   position: relative; width: 24px; height: 24px; border-radius: 50%; flex: none; display: grid; place-items: center;
   background: conic-gradient(#ffd34d calc(var(--p, 0) * 360deg), rgba(255, 211, 77, 0.16) 0);
 }
-.pl-fish .ring::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: #0b1220; }
+.pl-fish .ring::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--v6-night); }
 .pl-fish .ring svg { position: relative; width: 15px; height: 15px; }
 .pl-fish .col { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 22px; }
-.pl-fish .n { font: 800 13px/1 var(--font); color: #fff1c4; text-shadow: 0 1px 0 #000; font-variant-numeric: tabular-nums; }
+.pl-fish .n { font: 800 13px/1 var(--font); color: var(--v6-cream); text-shadow: 0 1px 0 var(--v6-plum-deep); font-variant-numeric: tabular-nums; }
 .pl-fish .pips { display: flex; gap: 2px; }
 .pl-fish .pips i { width: 5px; height: 5px; border-radius: 1px; background: rgba(255, 211, 77, 0.22); transform: rotate(45deg); }
 .pl-fish .pips i.on { background: #ffd34d; box-shadow: 0 0 4px rgba(255, 211, 77, 0.8); }
@@ -406,7 +473,7 @@ html[data-touch='1'] .pl-fish .n { font-size: 11px; }
 html[data-touch='1'] .pl-fish .pips i { width: 4px; height: 4px; }
 /* F3: phones show the thin XP bar under the health (it flashes gold on a level-up) instead of the portrait ring */
 html[data-touch='1'] .pl-hud .pl-portrait .xpring { display: none; }
-html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-gradient(90deg, #f0d58a, #fff1c4); box-shadow: 0 0 6px #f0d58a; }
+html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-gradient(90deg, var(--v6-bolt), var(--v6-bolt-top)); box-shadow: 0 0 6px var(--v6-bolt); }
 @media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
   html[data-touch='1'] .pl-match > .pl-fish { top: calc(8px + var(--safe-t, 0px) + var(--mm-h) - 13px); padding: 1px 5px 1px 1px; }
   html[data-touch='1'] .pl-fish .ring { width: 20px; height: 20px; }
@@ -432,7 +499,7 @@ html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-grad
 
 /* Sim v19 (MAP-5V5.md §8.4): 5v5 Classic, 10 rows. Both teams side by side, a role chip per hero; on short phones the
    talents, Toys and damage columns fold away so the board fits 667x375 without a scroll. */
-.pl-scoreboard .sb-role { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 5px; background: rgba(240, 213, 138, 0.18); vertical-align: -3px; }
+.pl-scoreboard .sb-role { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-cream-rgb) / 0.14); color: var(--v6-cream); vertical-align: -3px; }
 .pl-scoreboard .sb-role .pl-icon { width: 12px; height: 12px; }
 .pl-scoreboard[data-size='5'] .card {
   display: grid; grid-template-rows: auto auto auto; grid-auto-flow: column; column-gap: 18px; align-items: start;
@@ -464,8 +531,8 @@ html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-grad
 .pl-hud .pl-score .mp-ping[data-tone='warn']::before { background: #ffd34d; }
 .pl-hud .pl-score .mp-ping[data-tone='bad']::before { background: #ff5a4f; }
 .pl-hud .pl-score .mp-ping[data-tone='bad'] { color: #ff8a80; opacity: 1; }
-html[data-touch='1'] .pl-match .pl-hud .pl-score .mp-ping { font-size: 9px; line-height: 24px; color: #3b2417; }
-html[data-touch='1'] .pl-match .pl-hud .pl-score .mp-ping[data-tone='bad'] { color: #a3261c; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .mp-ping { font-size: 9px; line-height: 24px; color: var(--v6-night); }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .mp-ping[data-tone='bad'] { color: var(--v6-rose-deep); }
 
 /* MATCH-CHAT.md §4.1: the wheel's centre (Type / More: the chat drawer) and the All chip (the next pick to both teams) */
 .pl-chatwheel .cw.centre { width: 56px; height: 56px; padding: 0; border-radius: 50%; border-color: var(--butter, #ffd34d); font-size: 12px; }
@@ -473,3 +540,19 @@ html[data-touch='1'] .pl-match .pl-hud .pl-score .mp-ping[data-tone='bad'] { col
 .pl-chatwheel .cw.allchip.on { background: #ff9f43; color: var(--ink); border-color: #ff9f43; opacity: 1; }
 .pl-chatwheel .cw.off { opacity: 0.35; pointer-events: none; }
 .pl-chatwheel .cw[hidden] { display: none; }
+
+/* ================================================================ v6 facelift (hud-core): slot tooltip, talent card,
+   rank pips. The base rules sit in css/ui-feel.css; lol-hud.css loads after it, so these restyle at equal or one-class
+   higher specificity (no layout values change). */
+.pl-hud .pl-slot-tip {
+  background: rgb(var(--v6-night-2-rgb) / 0.97); border: 1px solid var(--v6-line-strong); border-radius: var(--v6-r-xs);
+  box-shadow: inset 0 3px 0 var(--v6-bolt), 0 10px 24px rgb(0 0 0 / 0.45);
+}
+.pl-hud .pl-slot-tip .nm { color: var(--v6-bolt-top); }
+.pl-hud .pl-slot-tip dl { border-top-color: var(--v6-line); }
+.pl-hud .pl-slot-tip dt { opacity: 1; color: var(--v6-muted); }
+.pl-hud .pl-slot-tip dd { color: var(--v6-bolt-top); font-variant-numeric: tabular-nums; }
+.pl-hud .pl-slot-tip .st { color: var(--v6-success); }
+.pl-hud .pl-slot-tip .st.no { color: #ff9aa0; }
+.pl-slot .rk b.on, .pl-tbtn .rk b.on { background: var(--v6-bolt); box-shadow: 0 0 4px rgb(var(--v6-bolt-rgb) / 0.8); }
+.pl-slot .rk b, .pl-tbtn .rk b { border-radius: 1px; }
