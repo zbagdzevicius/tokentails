@@ -23,6 +23,7 @@ export const PAWLEGENDS_EVENTS = {
   LANDING_CTA: "pawlegends_landing_cta",
   STORE_INTENT: "pawlegends_store_intent",
   CHAMP_UNLOCK: "pawlegends_champ_unlock",
+  INVITE_REDEEM: "pawlegends_invite_redeem",
 } as const;
 
 export type PawlegendsEventName = (typeof PAWLEGENDS_EVENTS)[keyof typeof PAWLEGENDS_EVENTS];
@@ -53,6 +54,8 @@ export interface PawlegendsEventProperties {
   pawlegends_store_intent: { sku: string };
   /** CHAMPION-STORE.md §12: a champion unlock with Yarn or a Champion Pick was asked (`ok`: the server took it). */
   pawlegends_champ_unlock: { hero: string; via: "yarn" | "pick"; ok: boolean };
+  /** An invite link (`?ref=`) was redeemed after sign-in (`code`: the backend's refusal code, null when it worked). */
+  pawlegends_invite_redeem: { ok: boolean; code: string | null };
   /**
    * The game frame never answered `hello` within `waitedMs` (the "taking too long to load" panel; launch finding R1).
    * `reloads` counts the player's Reload presses before it on this page.
