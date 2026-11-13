@@ -32,33 +32,19 @@
 .pl-home > .hm-fx, .pl-home > .hm-stage { pointer-events: none; }
 .pl-home > .hm-stage > * { pointer-events: auto; }
 
-/* L2 + L3: light shafts and motes over the 3D, under the UI; a soft shade top and bottom for contrast */
+/* L2: motes over the 3D, under the UI. One-style pass (Nov 13): the key art is bright midday comic art, so no dusty
+   light shafts and only a thin shade at the top and bottom edges where the bars sit (the art keeps its colour) */
 .hm-fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; --px: 0; --py: 0; }
 .hm-shade {
   position: absolute; inset: 0;
   background:
-    linear-gradient(180deg, rgb(var(--v6-night-rgb, 18 9 31) / 0.66) 0%, rgb(var(--v6-night-rgb, 18 9 31) / 0) 22%),
-    linear-gradient(0deg, rgb(var(--v6-night-rgb, 18 9 31) / 0.74) 0%, rgb(var(--v6-night-rgb, 18 9 31) / 0) 26%),
-    radial-gradient(ellipse 60% 55% at 100% 100%, rgb(var(--v6-night-rgb, 18 9 31) / 0.55), transparent 70%);
+    linear-gradient(180deg, rgb(var(--v6-navy-rgb, 7 19 52) / 0.32) 0%, rgb(var(--v6-navy-rgb, 7 19 52) / 0) 12%),
+    linear-gradient(0deg, rgb(var(--v6-navy-rgb, 7 19 52) / 0.3) 0%, rgb(var(--v6-navy-rgb, 7 19 52) / 0) 12%);
 }
 .hm-motes {
   position: absolute; inset: -20px; width: calc(100% + 40px); height: calc(100% + 40px);
   transform: translate3d(calc(var(--px) * -18px), calc(var(--py) * -10px), 0);
 }
-.hm-shaft {
-  position: absolute; top: -30%; width: 22vw; height: 150%; mix-blend-mode: screen; opacity: 0.32; filter: blur(6px);
-  background: linear-gradient(90deg, transparent, rgb(var(--v6-rose-rgb, 255 61 127) / 0.4) 45%, rgb(255 236 244 / 0.62) 50%, rgb(var(--v6-rose-rgb, 255 61 127) / 0.4) 55%, transparent);
-  -webkit-mask: linear-gradient(180deg, #000 0%, #000 45%, transparent 85%);
-  mask: linear-gradient(180deg, #000 0%, #000 45%, transparent 85%);
-  animation: hm-breathe 8s ease-in-out infinite;
-  translate: calc(var(--px) * -10px) 0;
-}
-.hm-shaft.a { left: 30%; transform: rotate(18deg); }
-.hm-shaft.b {
-  left: 52%; width: 12vw; transform: rotate(24deg); animation-delay: -4s; opacity: 0.25;
-  background: linear-gradient(90deg, transparent, rgb(var(--v6-sky-rgb, 57 166 255) / 0.42) 45%, rgb(232 244 255 / 0.62) 50%, rgb(var(--v6-sky-rgb, 57 166 255) / 0.42) 55%, transparent);
-}
-@keyframes hm-breathe { 50% { opacity: 0.4; } }
 
 /* ------------------------------------------------------------------------------------- top left: profile */
 .hm-top {

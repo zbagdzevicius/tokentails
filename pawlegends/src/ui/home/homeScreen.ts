@@ -5,7 +5,7 @@
  *
  * Layers, back to front: L0 the painted key art (ui/stage/artStage.ts, render/lobby/lobbyBg.ts `legends`), L1 the
  * picked hero as painted art in its gold card (its splash, or the worn skin's splash; no 3D on menus, founder Nov 13),
- * centred, L2 warm motes on a canvas (motes.ts; Med/High only), L3 two CSS light shafts (off on Low), L4 this UI:
+ * centred, L2 rose stars and sky sparks on a canvas (motes.ts; Med/High only), L4 this UI:
  * - top left: the profile chip (avatar in its frame ring with the Season XP ring, name, XP bar, tier);
  * - top centre: Season XP and tier chips (only numbers that exist; tap opens the pass);
  * - top right (`.lb-corner`, where the account chip mounts): Friends and ranked (embedded), Settings, Sound (the old
@@ -332,7 +332,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
   let shown = regionHtml();
   root.innerHTML = `
     <div class="hm-fx" aria-hidden="true">
-      ${low || reduced ? '' : '<i class="hm-shaft a"></i><i class="hm-shaft b"></i>'}
       ${low || reduced ? '' : '<canvas class="hm-motes"></canvas>'}
       <i class="hm-shade"></i>
     </div>

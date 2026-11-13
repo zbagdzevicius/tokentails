@@ -115,8 +115,8 @@ export function createPedestal(): Pedestal {
     disposables.push(x);
     return x;
   };
-  // lower base: dark plum stone with a lighter chamfer (v6 logo plum-deep)
-  const baseMat = keep(new THREE.MeshLambertMaterial({ color: 0x471f5d }));
+  // lower base: v6 logo plum stone (one-style pass: a step lighter so it reads as a solid piece in the midday key art)
+  const baseMat = keep(new THREE.MeshLambertMaterial({ color: 0x633077 }));
   const base = new THREE.Mesh(keep(new THREE.CylinderGeometry(PEDESTAL_R - 0.05, PEDESTAL_R, 0.3, 40)), baseMat);
   base.position.y = PEDESTAL_BOTTOM + 0.15;
   base.receiveShadow = true;
@@ -173,12 +173,12 @@ export function createPedestal(): Pedestal {
     update(dt, frozen) {
       cur.lerp(tint, Math.min(1, dt * 3));
       runeMat.color.copy(cur);
-      coneU.uTint.value.copy(cur);
+      coneU.uTint.value.copy(cur).lerp(WHITE, 0.55);
       trimMat.color.copy(cur).lerp(WHITE, 0.15);
       if (!frozen) rune.rotation.z += dt * 0.12;
       pulse = Math.max(0, pulse - dt * 1.6);
       runeMat.opacity = 0.75 + pulse * 0.25;
-      coneU.uAlpha.value = 0.36 + pulse * 0.6;
+      coneU.uAlpha.value = 0.2 + pulse * 0.6;
       rune.scale.setScalar(1 + pulse * 0.04);
     },
     dispose() {

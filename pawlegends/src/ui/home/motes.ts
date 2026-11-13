@@ -1,6 +1,6 @@
 /**
- * Home layer L2 (docs/plans/moba/HOME-MODES.md §4): warm motes on a 2D canvas over the key art. v6 Lightning Rivalry:
- * cat side (left) rose sparks, dog side (right) blue-white sky sparks, drifting upward. 24 on Med, 48 on High, none on Low or with
+ * Home layer L2 (docs/plans/moba/HOME-MODES.md §4): motes on a 2D canvas over the key art. v6 one style (Nov 13): cat
+ * side (left) rose four-point stars like the key art's sparkles, dog side (right) blue-white sky sparks, drifting upward. 24 on Med, 48 on High, none on Low or with
  * reduced motion (the caller does not start it). Drawn at most 30 times a second (the menu pacer), paused while the
  * tab is hidden, and the pointer parallax (±18 px) is applied by the caller through a CSS transform on the canvas.
  *
@@ -75,7 +75,20 @@ export function startMotes(canvas: HTMLCanvasElement, count: number, rnd: () => 
     g.addColorStop(0.35, `hsla(${hue}, 95%, 65%, 0.5)`);
     g.addColorStop(1, `hsla(${hue}, 90%, 55%, 0)`);
     g2.fillStyle = g;
-    g2.fillRect(0, 0, SPR, SPR);
+    if ((CAT_HUES as readonly number[]).includes(hue)) {
+      // a four-point star (the key art's cat-side sparkle): a soft glow under a crisp pale core
+      g2.globalAlpha = 0.55;
+      g2.fillRect(0, 0, SPR, SPR);
+      g2.globalAlpha = 1;
+      g2.fillStyle = `hsl(${hue}, 100%, 92%)`;
+      g2.beginPath();
+      g2.moveTo(h, 1);
+      g2.quadraticCurveTo(h, h, SPR - 1, h);
+      g2.quadraticCurveTo(h, h, h, SPR - 1);
+      g2.quadraticCurveTo(h, h, 1, h);
+      g2.quadraticCurveTo(h, h, h, 1);
+      g2.fill();
+    } else g2.fillRect(0, 0, SPR, SPR);
     sprites.set(hue, c);
     return c;
   };
