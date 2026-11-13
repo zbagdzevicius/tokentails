@@ -17,6 +17,8 @@ export const SHAPE = Object.freeze({ SOFT: 0, PUFF: 1, STAR4: 2, STAR5: 3, RING:
 export const FADE = Object.freeze({ LINEAR: 0, POP: 1, HOLD: 2, TWINKLE: 3, IN_OUT: 4 });
 /** Size-over-life curves (size0 → size1). */
 export const GROW = Object.freeze({ LINEAR: 0, OUT: 1, BACK: 2, PULSE: 3 });
+/** pawlegends: (living pass) ambient emitters may fill a pool up to this share of its limit (`room`, `claim`). */
+export const AMBIENT_FRAC = 0.8;
 
 const VERT = /* glsl */`
 attribute vec3 iPos;
@@ -253,6 +255,19 @@ export class Particles {
   }
 
   get live() { return this.add.count + this.alpha.count; }
+
+  /**
+   * pawlegends: (living pass) the ambient guard. Ambient and cosmetic emitters (dust, splashes, drips, impact grit)
+   * only spawn while the pool stays under `frac` of its quality limit after their `n` particles, so combat VFX always
+   * keep the last 20 % of the pool. `room` answers yes / no; `claim` returns how many of `n` fit (0..n).
+   */
+  room(additive, n = 1, frac = AMBIENT_FRAC) { return this.claim(additive, n, frac) >= n; }
+
+  claim(additive, n = 1, frac = AMBIENT_FRAC) {
+    const p = additive ? this.add : this.alpha;
+    const free = Math.floor(p.limit * frac) - p.count;
+    return Math.max(0, Math.min(n | 0, free));
+  }
 
   update(dt) { this.add.update(dt); this.alpha.update(dt); }
 
