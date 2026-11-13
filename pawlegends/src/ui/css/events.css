@@ -96,9 +96,9 @@ div.lo-opt::before {
 .hm-evlist .ev.ev-feat { box-shadow: inset 3px 0 0 var(--v6-rose, #ff3d7f); }
 .hm-evlist .ev.ev-feat small { color: var(--v6-bolt, #ffe14a); opacity: 1; }
 
-/* a short landscape phone: two columns, so the calendar fits without scrolling */
+/* two columns on a short landscape phone; the width stops short of PLAY (bottom right, ~120 px), so the open popover never covers it */
 @media (max-height: 500px) and (min-width: 640px) {
-  .hm-pop.hm-evlist { width: min(540px, calc(100vw - var(--hm-l, 12px) - 96px)); display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 4px 6px; }
+  .hm-pop.hm-evlist { width: min(540px, calc(100vw - var(--hm-l, 12px) - 232px)); display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 4px 6px; }
   .hm-evlist .lo-cards { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .hm-evlist .lo-cards .lo-toast { grid-column: 1 / -1; }
   .hm-evlist .ev-none { grid-column: 1 / -1; }
