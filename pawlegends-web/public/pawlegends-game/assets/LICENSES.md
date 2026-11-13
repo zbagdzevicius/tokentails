@@ -18,7 +18,6 @@ fx). No pack art, no NFT or host cat art.
 | File | Source | Licence |
 |---|---|---|
 | `cards/el/{fire,ice,electric,grass,fairy,dark,wind,sand,stellar,water}.webp` | `client/public/cards/backgrounds/<element>.webp` (384 px, q62) | Token Tails, all rights reserved |
-| `cards/tier/{COMMON,RARE,EPIC,LEGENDARY}.webp` | `client/public/cards/backgrounds/pattern-<TIER>.webp` (320 px) | Token Tails, all rights reserved |
 | `cards/fx/{sparkle,legendary-sparkle,blue-sparkle,purple-sparkle,blue-paw,claw,whiskers-left,whiskers-right}.webp` | `client/public/cards/backgrounds/` (same names, unchanged) | Token Tails, all rights reserved |
 | `cards/fx/{epic-paw,legendary-paws,epic-claw}.webp` | `client/public/cards/backgrounds/` (256 px) | Token Tails, all rights reserved |
 | `cards/fx/golden-burst.webp`, `white-burst.webp`, `reveal-sparkle.webp`, `legendary-bg.webp`, `rare-swirl.webp` | `client/public/cards/backgrounds/golden-opening-sparkle`, `white-opening-sparkle`, `opening-reveal-sparkle1`, `legendary-bg`, `rare-swirl2` (384 px) | Token Tails, all rights reserved |
