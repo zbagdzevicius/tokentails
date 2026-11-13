@@ -229,13 +229,81 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
 .pl-tbtn.deny { border-color: var(--enemy); }
 .pl-tbtn.locked { opacity: 0.4; filter: grayscale(1); }
 /* Audit CF-04: every button's place and size comes from input/touch/touchArc.ts (inline styles, scaled per screen) */
-/* ATK: the one rose button on the phone screen (v6: the main action is rose), an inset ledge inside the same box */
+/* ATK (founder ask Nov 13, "looks basic, make it extraordinary"): the v6 claw-slash medallion with a bolt core, the
+   one rose button on the phone screen (dog side: sky). The art is one inline SVG (input/touch/atkArt.ts) inside the
+   same box: size, place and hit area come from touchArc.ts as before, nothing draws outside the circle (overflow
+   hidden; outside it only box-shadow keylines). Layers: drop shadow, cream keyline, ink outline, cel two-tone face,
+   cel highlight, ledge, halftone quadrant, armed glow, gold ring, three claw slashes, crit burst, bolt core. States
+   animate once (press, swing, hit, crit, deny); the one loop is `armed` (off on Low and under reduced motion). */
 .pl-tbtn.attack {
-  font-size: 18px; background: radial-gradient(circle at 50% 32%, var(--v6-rose-top), var(--v6-rose) 52%, var(--v6-rose-deep) 100%); border-color: rgb(var(--v6-cream-rgb) / 0.85);
-  box-shadow: inset 0 -4px 0 rgb(62 8 32 / 0.45), 0 4px 12px rgba(0, 0, 0, 0.35);
+  --atk-face: var(--v6-rose); --atk-face-deep: var(--v6-rose-deep); --atk-ring: var(--v6-gold-2); --atk-ring-hi: var(--v6-gold-1);
+  --atk-core: var(--v6-bolt); --atk-claw: var(--v6-cream);
+  font-size: 18px; border: 3px solid var(--v6-night);
+  background:
+    radial-gradient(ellipse 64% 40% at 44% 22%, rgb(255 255 255 / 0.26) 0 98%, transparent 100%),
+    radial-gradient(circle at 50% 50%, var(--atk-face) 0 64%, var(--atk-face-deep) 65.5%);
+  box-shadow: 0 0 0 2px rgb(var(--v6-cream-rgb) / 0.92), inset 0 -5px 0 rgb(var(--v6-berry-rgb) / 0.42), 0 4px 12px rgb(0 0 0 / 0.35);
+  transition: transform 70ms ease-out;
 }
 .pl-tbtn.attack span { text-shadow: 0 2px 0 var(--v6-berry), 0 0 3px rgb(62 8 32 / 0.6); }
-.pl-tbtn.attack.down { border-color: var(--v6-cream); box-shadow: inset 0 -1px 0 rgb(62 8 32 / 0.45), 0 2px 6px rgba(0, 0, 0, 0.35); }
+.pl-tbtn.attack > span { opacity: 0; }
+.pl-tbtn.attack.fire > span { opacity: 1; }
+.pl-tbtn.attack.fire .atk-art { opacity: 0; }
+.atk-art { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden; }
+.atk-art .ht { fill: url(#pl-atk-ht); }
+.atk-art .ring { fill: none; stroke: var(--atk-ring); stroke-width: 4.5; }
+.atk-art .ring-ink { fill: none; stroke: var(--v6-night); stroke-width: 8; opacity: 0.85; }
+.atk-art .ring-hi { fill: none; stroke: var(--atk-ring-hi); stroke-width: 1.6; stroke-dasharray: 40 200; stroke-dashoffset: 70; }
+.atk-art .claws, .atk-art .core, .atk-art .glow, .atk-art .burst { transform-box: view-box; transform-origin: 50% 50%; }
+.atk-art .claws path { fill: var(--atk-claw); stroke: var(--v6-night); stroke-width: 2.6; stroke-linejoin: round; paint-order: stroke; }
+.atk-art .core circle { fill: var(--v6-night); stroke: var(--v6-night); }
+.atk-art .core .rim { fill: none; stroke: var(--atk-core); stroke-width: 2; opacity: 0.9; }
+.atk-art .core path { fill: var(--atk-core); stroke: var(--v6-night); stroke-width: 1.4; stroke-linejoin: round; paint-order: stroke; }
+.atk-art .glow { fill: var(--atk-core); opacity: 0; }
+.atk-art .burst { opacity: 0; }
+.atk-art .burst path { fill: var(--v6-bolt); stroke: var(--v6-night); stroke-width: 1.6; paint-order: stroke; }
+/* press: a squash and the ledge sinks (70 ms) */
+.pl-tbtn.attack.down {
+  transform: scale(1.04, 0.9); border-color: var(--v6-night);
+  box-shadow: 0 0 0 2px var(--v6-cream), inset 0 -1px 0 rgb(var(--v6-berry-rgb) / 0.42), 0 2px 6px rgb(0 0 0 / 0.35);
+}
+.pl-tbtn.attack.down .atk-art { transform: translateY(2%); }
+/* an attack order went out: pop, the claws slide in along the slash, the core pumps */
+.pl-tbtn.attack.swing { animation: atk-pop 160ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pl-tbtn.attack.swing .claws { animation: atk-slash 220ms ease-out; }
+.pl-tbtn.attack.swing .core { animation: atk-core 220ms ease-out; }
+/* an own basic attack landed: the gold ring flashes cream; a big one bursts a bolt star and flashes the face */
+.pl-tbtn.attack.hit .ring { animation: atk-ring-hit 180ms ease-out; }
+.pl-tbtn.attack.crit .ring { animation: atk-ring-hit 320ms ease-out; }
+.pl-tbtn.attack.crit .burst { animation: atk-burst 320ms ease-out; }
+.pl-tbtn.attack.crit .core { animation: atk-core 320ms ease-out; }
+.pl-tbtn.attack.crit:not(.fire)::before {
+  content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--v6-bolt); opacity: 0; pointer-events: none; z-index: 2;
+  animation: atk-flash 240ms ease-out;
+}
+/* a unit is in reach: the bolt core breathes (the one idle loop) */
+.pl-tbtn.attack.armed .glow { animation: atk-armed 1.2s ease-in-out infinite; }
+.pl-tbtn.attack.armed .core .rim { stroke: var(--v6-bolt-top); opacity: 1; }
+/* dog side: sky face, ice claws; the ring and core stay gold and bolt */
+[data-side='dog'] .pl-tbtn.attack { --atk-face: var(--v6-sky); --atk-face-deep: var(--v6-sky-deep); --atk-claw: var(--v6-ice); }
+[data-side='dog'] .pl-tbtn.attack.deny .claws path { fill: rgb(214 236 255 / 0.6); }
+/* Low tier: no blurred shadow, no loop */
+html[data-quality='low'] .pl-tbtn.attack:not(.locked-on) { box-shadow: 0 0 0 2px rgb(var(--v6-cream-rgb) / 0.92), inset 0 -5px 0 rgb(var(--v6-berry-rgb) / 0.42), 0 3px 0 rgb(0 0 0 / 0.3); }
+html[data-quality='low'] .pl-tbtn.attack.down:not(.locked-on) { box-shadow: 0 0 0 2px var(--v6-cream), inset 0 -1px 0 rgb(var(--v6-berry-rgb) / 0.42), 0 1px 0 rgb(0 0 0 / 0.3); }
+html[data-quality='low'] .pl-tbtn.attack.armed .glow { animation: none; opacity: 0.3; }
+@keyframes atk-pop { 0% { transform: scale(1.04, 0.9); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@keyframes atk-slash { 0% { transform: translate(6%, -10%); opacity: 0.2; } 45% { transform: translate(-2%, 3%); opacity: 1; } 100% { transform: none; } }
+@keyframes atk-core { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.25); } }
+@keyframes atk-ring-hit { 0%, 35% { stroke: var(--v6-cream); } 100% { stroke: var(--atk-ring); } }
+@keyframes atk-burst { 0% { opacity: 1; transform: scale(0.55) rotate(-8deg); } 70% { opacity: 1; } 100% { opacity: 0; transform: scale(1.12) rotate(6deg); } }
+@keyframes atk-flash { 0% { opacity: 0.55; } 100% { opacity: 0; } }
+@keyframes atk-armed { 0%, 100% { opacity: 0.15; transform: scale(0.9); } 50% { opacity: 0.5; transform: scale(1.08); } }
+@keyframes atk-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-4%); } 45% { transform: translateX(4%); } 70% { transform: translateX(-2%); } }
+@media (prefers-reduced-motion: reduce) {
+  .pl-tbtn.attack:not(.fire), .pl-tbtn.attack:not(.fire) *, .pl-tbtn.attack:not(.fire)::before { animation: none !important; transition: none !important; }
+  .pl-tbtn.attack.down { transform: none; }
+  .pl-tbtn.attack.armed .glow { opacity: 0.3; }
+}
 .pl-tbtn.r { border-color: rgb(var(--v6-bolt-rgb) / 0.8); }
 .pl-tbtn.trick { font-size: 13px; }
 .pl-tbtn.nap { font-size: 12px; }
@@ -245,8 +313,13 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
 @property --napfill { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 @keyframes pl-napfill { to { --napfill: 360deg; } }
 /* C5: Attack with nothing in reach flashes red (the ground ring flashes with it) */
-.pl-tbtn.attack.deny { animation: pl-atkdeny 300ms ease-out; }
-@keyframes pl-atkdeny { 0%, 40% { border-color: #fff; box-shadow: 0 0 0 4px var(--enemy), 0 4px 12px rgba(0, 0, 0, 0.35); } 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); } }
+.pl-tbtn.attack.deny { animation: atk-deny 300ms ease-out; }
+.pl-tbtn.attack.deny .atk-art { animation: atk-shake 300ms ease-out; }
+.pl-tbtn.attack.deny .claws path { fill: rgb(var(--v6-cream-rgb) / 0.6); }
+@keyframes atk-deny {
+  0%, 40% { box-shadow: 0 0 0 4px var(--v6-enemy), 0 4px 12px rgb(0 0 0 / 0.35); }
+  100% { box-shadow: 0 0 0 2px rgb(var(--v6-cream-rgb) / 0.92), 0 4px 12px rgb(0 0 0 / 0.35); }
+}
 .pl-cancel {
   /* Audit CF-01: top centre, under the score bar, out of every skill's drag reach (it sat 86-91 px from E and W, so a
      full-range up or up-left aim landed on it). It cancels only after a 120 ms rest (touchControls CANCEL_DWELL_MS). */
