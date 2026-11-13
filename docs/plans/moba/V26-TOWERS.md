@@ -202,10 +202,43 @@ Every lever stayed inside the design's ranges. Probe windows were 200 seeds (3v3
   `determinism-browser` e2e passes; backend `pawlegends-live` (v10 to v26 each verify on their own version only) passes.
 - Matches end on time: 3v3 Normal 600 unseen seeds median 7:47, p95 8:39, 0 safety ends; Blitz 400 seeds median 2:55,
   100% core kills, 0 draws; Hearthwood median 13:05. No side wins every match (3v3 53.2 / 46.8, Blitz 50.8 / 49.3).
-- Still open: `map5v5-probe` seeds 60001–60120 flags 2 single 3–4 s stalls of a pushing bot near an enemy inner tower
-  (v25 on the same seeds: 0), so its `stuckSeeds === 0` bot check fails; the bots do not read tower numbers, so this is a
-  changed match flow, not a bot rule. Deficit gates as in §2: 3v3 down 10+ won 8.6% of 58, feeder vs Normal 5.5% of 146.
+- Was open, fixed in §1.G and §6: `map5v5-probe` seeds 60001–60120 flagged 2 stalls of a pushing bot near an enemy inner
+  tower (v25 on the same seeds: 0). Deficit gates as in §2: 3v3 down 10+ won 8.6% of 58, feeder vs Normal 5.5% of 146.
 - Not v26: e2e `match-desktop.spec.ts:126` (selector clash) and `match-touch.spec.ts:109` (flaky target pick) fail the
   same way on the v25 base 9fd054db.
 - Open, older than v26: a tower's ramp streak also carries over to a hero's later visit (the first bolt of a new visit
   already counts as a repeat). Unchanged here.
+
+## 6. Bot fix verification (§1.G, on origin/main f61f1bcd)
+
+All runs on the final tree after the rebase. Crossing and Blitz are bit-identical to §2 (the rules are Hearthwood only,
+and every Crossing backend fixture is unchanged), so the 3v3, Blitz, balance and `fun1` rows of §2 stand.
+
+| Check | v25 | v26 before §1.G | v26 final |
+|---|---|---|---|
+| `map5v5-probe` stuck seeds, 60001 / 61001 / 62001 (120 each, §1.G stuck test) | 0 / 0 / 0 | 2 on 60001 (old test) | **0 / 0 / 0** (pass) |
+| `map5v5-probe` first tower p50, same windows | 4:06 / 4:06 / 4:06 | 7:20 / 7:02 / – | 7:00 / 6:47 / 6:54 |
+| T1 first tower, 5v5 Normal / Hard / PvP (tower probe, 160 seeds from 400001) | 2:59 / 4:49 / 4:03 | 7:00 / 7:34 / 7:18 | **6:37 / 7:23 / 6:58** (Normal, PvP pass; Hard fail) |
+| T2 5v5 Easy novice | 2:31 | 3:19 | 3:34 (fail, as before) |
+| T6 towers down by 5:00, 5v5 Normal | 3.79 | 0.05 | 0.14 (pass) |
+| T7 first towers killed mostly by chip, 5v5 Normal / Hard / PvP | 100 / 98 / 99% | 46 / 32 / 44% | 34 / 38 / 32% (fail, closer) |
+| T8 hero and minion share, 5v5 Normal / Hard / PvP | 4 / 13 / 11% | 60 / 64 / 59% | 65 / 61 / 65% |
+| T12 tower killing blows, 5v5 Normal / Hard / PvP | 10.5 / 13.0 / 11.2% | 17.0 / 19.6 / 17.1% | 16.9 / 19.5 / 17.2% (pass) |
+| T14 5v5 match length p50 | 13:04 | 13:06 | 13:05, 0 safety ends |
+| `hearth-gates --det 40` (300 seeds) | side 47.8% (fail), cats 46.5% (fail) | side 44.8% (fail), cats 47.8%, 5 heroes out | side 45.2% (fail, 48–52), **cats 49.5%** (pass), 4 heroes out (aviete, bengas, rocket, sage), p50 13:06, 0 safety ends, determinism 120 / 120 |
+| `pvp-symmetry` (2,000 seeds) | | side 49.6%, cats 52.2% | side 49.5%, cats 52.0% (pass) |
+| `determinism.mjs` (100 seeds + PvP + Blitz + Hearthwood) | | identical | identical |
+
+The probe's G8 down-10 row (< 5%) fails on every window for v25 and v26 alike (7.8% to 15.8%); its 7:00 comeback row is
+14.3% on 62001 (v25 25.6%) and 20.3% / 21.9% on the other two (20–40%). Neither is a bot check.
+
+Other checks: `tsc`, `lint:sim` (163 files), `vendor-sim --check` (v10–v25 frozen, sim-stamp `6235dae134d83591`,
+golden `d03f02e3` unchanged), new `tests/unit/bot-unreachable-v26.test.ts` (fails without `walledOff`). `vitest`
+3,250 of 3,256 pass; the 2 failures are the `tools/trailer` copy-gate cases (no root `node_modules` in a worktree).
+Backend `nest build` passes; `jest src/pawlegends src/vendor` 1,043 of 1,044, and the one failure (`loop-gate`, idle
+timing under load) passes alone. e2e (`first-match`, `match-desktop`, `match-touch`, `objectives-lock`,
+`determinism-browser`; desktop, landscape and WebKit): 26 pass, 2 fail, and both fail the same way on origin/main
+f61f1bcd: `match-desktop` "an out-of-range point cast walks in first" (the `[data-h="sage"]` selector also matches the
+hero stage) and `match-touch` "Attack picks by priority" (target pick). `build:client` passes (output not committed,
+as for v25) and `budget` passes (first load 415.2 KB gzip, party chunk 43.4 KB).
+
