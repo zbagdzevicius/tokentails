@@ -56,7 +56,7 @@ export function look(kind: number, team: number): Look {
       return set(0.42, 3.6, dt === 0 ? 0xff9fc0 : 0x8fb4ff, 0.3);
     // v3.3: 0.6 drew a 2 m flat yellow slab over the heroes at the doghouse (trailer v3.2 review)
     case PROJECTILE_KIND.core:
-      return set(BOLT_CORE_SIZE, 3.0, team === 0 ? 0xff6f91 : 0xffd34d, 0.35);
+      return set(BOLT_CORE_SIZE, 3.0, team === 0 ? 0xff3d7f : 0xffd34d, 0.35);
     // sim v9: Lambo's tuna can and Bengal's burnt toast
     case PROJECTILE_KIND.tuna:
       return set(0.36, 1.0, 0xc8d4e0, 0.16);

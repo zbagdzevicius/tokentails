@@ -8,6 +8,9 @@ import { pingGlyph } from '../../ui/pingGlyph';
 import { DecalLayer, boldRingTexture } from './decals';
 
 export const PING_LIFE = 2.6;
+/** v6 facelift: the light pillar leans a quarter toward v6 cream #FFF3E3 (a lit column over the relation-coloured ring). */
+const PILLAR_LIGHT = new THREE.Color('#fff3e3');
+export const PILLAR_LIFT = 0.25;
 export const PING_SLOTS = 4;
 
 interface Slot {
@@ -83,7 +86,7 @@ export class PingMarkers {
       this.rings.add(s.x, s.z, 1.6, s.hex, fade);
       this.rings.add(s.x, s.z, 1.6 + pulse * 2.4, s.hex, fade * (1 - pulse) * 0.8);
       const pm = s.pillar.material as THREE.MeshBasicMaterial;
-      pm.color.copy(s.color);
+      pm.color.copy(s.color).lerp(PILLAR_LIGHT, PILLAR_LIFT);
       pm.opacity = 0.55 * fade;
       s.pillar.position.set(s.x, 1.6, s.z);
       s.pillar.visible = true;

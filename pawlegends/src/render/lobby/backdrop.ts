@@ -35,6 +35,7 @@ uniform float uImgAspect;
 uniform vec2 uRes;
 uniform vec2 uPar;
 uniform float uZoom;
+uniform float uSplit;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -67,7 +68,7 @@ void main() {
   // bokeh in two depths (skipped at strength 0: Low tier, a uniform branch, so no per-pixel cost)
   if (uBokeh > 0.001) {
     float b = bokeh(uv, 7.0, 0.018, 0.0) * 0.55 + bokeh(uv + 0.37, 4.0, 0.010, 11.0) * 0.35;
-    col += mix(vec3(1.0, 0.95, 0.88), uTint, 0.55) * b * uBokeh * (0.35 + 0.65 * uv.y);
+    col += mix(vec3(1.0, 0.95, 0.89), uTint, 0.55) * b * uBokeh * (0.35 + 0.65 * uv.y);
   }
   // the painted scene: screen-space cover fit (the camera moves; the picture must not), zoomed 5% so the parallax
   // shift never shows an edge; dimmed and pulled toward the tint a touch so a card's element still colours the room
@@ -80,6 +81,17 @@ void main() {
     vec3 img = texture2D(uImg, s).rgb * 0.86;
     img = mix(img, img * (0.75 + uTint * 0.5), 0.18);
     img += uTint * glow * 0.12;
+    // v6 rivalry grade (Home only, uSplit 1): rose on the cat side, sky on the dog side, a soft seam along the logo's
+    // slash (top right to bottom left); a few ALU ops in the existing pass, nothing on screens that keep uSplit 0
+    if (uSplit > 0.001) {
+      float d = (s.x - 0.5) - (s.y - 0.5) * 0.53;
+      float side = smoothstep(-0.18, 0.18, d);
+      vec3 rose = vec3(1.0, 0.046, 0.212);
+      vec3 sky = vec3(0.04, 0.38, 1.0);
+      vec3 wash = mix(rose, sky, side);
+      float edge = smoothstep(0.12, 0.55, abs(d));
+      img = mix(img, img * (0.72 + wash * 0.5), 0.42 * edge * uSplit);
+    }
     col = mix(col, img, uImgMix);
   }
   // vignette
@@ -97,6 +109,8 @@ export interface Backdrop {
   setBokeh(k: number): void;
   /** Advance; `frozen` keeps the picture still (Low tier or reduced motion). */
   update(dt: number, frozen: boolean): void;
+  /** The v6 rivalry grade over the painted scene, 0..1 (Home's key art: 1). */
+  setSplit(k: number): void;
   /** Lay a painted scene over the gradient (loaded async; it fades in, at once when `instant`). */
   setImage(url: string, instant?: boolean): void;
   /** Parallax target in -1..1 (pointer position); eased. */
@@ -112,7 +126,8 @@ export function createBackdrop(): Backdrop {
   const target = new THREE.Color(0xff9f6b);
   const uniforms = {
     uTint: { value: new THREE.Color(0xff9f6b) },
-    uBase: { value: new THREE.Color(0x2b1d2e) },
+    // v6: the night-2 ground under the gradient (the old plum #2b1d2e)
+    uBase: { value: new THREE.Color(0x1c1230) },
     uTime: { value: 0 },
     uBokeh: { value: 1 },
     // the hero stands a little right of the plane's centre; the glow sits behind it
@@ -125,6 +140,7 @@ export function createBackdrop(): Backdrop {
     uPar: { value: new THREE.Vector2(0, 0) },
     // Home (HOME-MODES.md §4): a slow Ken Burns push, 1.00 to 1.035 over 18 s (0 when frozen)
     uZoom: { value: 0 },
+    uSplit: { value: 0 },
   };
   /** When the image arrived (performance.now ms; -1 = not yet): a 0.5 s wall-clock fade, so a slow first frame rate
    *  (clamped dt) never leaves it half in. */
@@ -147,6 +163,9 @@ export function createBackdrop(): Backdrop {
     mesh,
     setTint(hex) {
       target.setHex(hex);
+    },
+    setSplit(k) {
+      uniforms.uSplit.value = Math.max(0, Math.min(1, k));
     },
     setBokeh(k) {
       uniforms.uBokeh.value = Math.max(0, Math.min(1, k));

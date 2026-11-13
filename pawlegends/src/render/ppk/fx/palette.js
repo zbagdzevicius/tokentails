@@ -17,13 +17,14 @@ export const FX_COLORS = Object.freeze({
   blob: '#5A4E7A',                          // ART TONE.blob: contact blobs, bolt shadows, the landing disc
   cream: '#FFF6E8', creamRim: '#FFF6E8',    // ART §8.4 telegraph cream rim
   sand: '#C49A6C', sandLight: '#F2DDBB', sandPale: '#EFD8B4', sandDust: '#D9B48A',   // WA §2.7 Shockwaves debris / dust
-  dust: '#FFF4E0', dustWarm: '#E6C590',     // ART §8.4 poof dust (never grey)
+  dust: '#FFF3E3', dustWarm: '#E6C590',     // pawlegends: v6 cream     // ART §8.4 poof dust (never grey)
   feather: '#6A5A8A',                       // WA §2.7 crow feathers
   horde: '#5A3E6A', hordeDust: '#F2DDBB',   // WA §2.7 CS-02 horde silhouettes + the cream dust band at their feet
   plum: TELEGRAPH.colors?.shadow ?? '#3A2346',
   pink: CLASS_MARKS.hero?.color ?? '#FF8FB1', heart: CLASS_MARKS.heroHearts?.full ?? '#FF6F9C',
   mint: CLASS_MARKS.interact?.color ?? '#9BE3C4', sky: CLASS_MARKS.companion?.color ?? '#8FD3FF',
-  butter: '#FFD84A', star: '#FFE066', gold: '#FFD34D', goldCore: '#FFF6DA', lilac: '#C9A8FF', mistLilac: '#D8C8F4',
+  // pawlegends: v6 Lightning Rivalry: butter / star = the brand bolt, goldCore = bolt-top, gold = logo gold (not the "you" gold)
+  butter: '#FFE14A', star: '#FFE14A', gold: '#F7BC3C', goldCore: '#FFF08A', lilac: '#C9A8FF', mistLilac: '#D8C8F4',
   twinkle: CLASS_MARKS.pickup?.twinkle ?? '#FFF1C4', twinkleGold: CLASS_MARKS.pickup?.gold ?? '#FFD57A',
   light: '#FFF4E0',                          // ART §8.1 ground light pools: warm cream (the multiplicative tint; never lime)
   stone: '#C9B8A8', warmGrey: '#D9C7B4',     // warm "grey" (never HSV sat < 0.08 cold greys)
@@ -31,7 +32,8 @@ export const FX_COLORS = Object.freeze({
 });
 
 /** ART §8.6 rescue / celebration confetti colours. */
-export const CONFETTI_COLORS = Object.freeze(['#FF8FB1', '#FFD84A', '#8FD3FF', '#9BE3C4', '#FFFFFF', '#C9A8FF']);
+// pawlegends: v6 Lightning Rivalry confetti: rose, bolt, sky, success mint, cream, rose-light
+export const CONFETTI_COLORS = Object.freeze(['#FF3D7F', '#FFE14A', '#39A6FF', '#9BE3C4', '#FFF3E3', '#FFB3CD']);
 
 /** '#RGB' | '#RGBA' | '#RRGGBB' | '#RRGGBBAA' → [r, g, b] in 0..1 (sRGB), or null. */
 export function hexRgb(hex) {

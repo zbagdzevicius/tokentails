@@ -77,7 +77,7 @@ interface Ball {
 }
 
 /** The fuse's sparks (one options object, reused: no allocation per frame). */
-const SPARK = { additive: true, n: 2, shape: SHAPE.STAR4, color: 0xffd34d, intensity: 2, size: [0.08, 0.14], life: [0.2, 0.35], speed: [0.5, 1.5], up: 1 };
+const SPARK = { additive: true, n: 2, shape: SHAPE.STAR4, color: 0xffe14a, intensity: 2, size: [0.08, 0.14], life: [0.2, 0.35], speed: [0.5, 1.5], up: 1 };
 
 /** No yarn balls (a snapshot without the `fun` block, e.g. an older sim's replay): shared, not allocated per frame. */
 const NO_YARN: FunSnap['yarn'] = [];
@@ -122,16 +122,16 @@ export class FunView {
     this.cannon = makeCannon();
     this.group.add(this.cannon);
     const ringGeo = new THREE.RingGeometry(1.0, 1.35, 32);
-    this.cannonRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    this.cannonRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     this.cannonRing.rotation.x = -Math.PI / 2;
     this.cannonRing.position.y = 0.06;
     this.cannonBeam = new THREE.Mesh(
       new THREE.CylinderGeometry(0.16, 0.42, 7, 8, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: PICKUP_BEAM.opacity, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
+      new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: PICKUP_BEAM.opacity, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
     );
     this.cannonBeam.position.y = 3.5;
-    this.fuseSpark = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe066, toneMapped: false }));
-    this.soonRing = new THREE.Mesh(new THREE.RingGeometry(1.6, 1.9, 40), new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }));
+    this.fuseSpark = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe14a, toneMapped: false }));
+    this.soonRing = new THREE.Mesh(new THREE.RingGeometry(1.6, 1.9, 40), new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }));
     this.soonRing.rotation.x = -Math.PI / 2;
     this.soonRing.position.y = 0.05;
     this.soonRing.visible = false;
@@ -300,40 +300,40 @@ export class FunView {
         _p.set(x + _d.x * 1.1, 1.0, z + _d.z * 1.1);
         // the muzzle cloud: a big puff of cream smoke and a few sparks down the lane
         this.particles.burst(_p, { n: 10, shape: SHAPE.PUFF, color: 0xfaf3e6, size: [0.6, 1.0], life: [0.6, 1.0], speed: [1, 3], dir: _d, spread: 0.9, drag: 2 });
-        this.particles.burst(_p, { additive: true, n: 10, shape: SHAPE.STAR4, color: 0xffd34d, intensity: 2, size: [0.18, 0.3], life: [0.3, 0.5], speed: [5, 9], dir: _d, spread: 0.35 });
-        this.shock.start(_p.setY(0), { r1: 2.2, dur: 0.25, color: '#FFE7A8', height: 0.4 });
+        this.particles.burst(_p, { additive: true, n: 10, shape: SHAPE.STAR4, color: 0xffe14a, intensity: 2, size: [0.18, 0.3], life: [0.3, 0.5], speed: [5, 9], dir: _d, spread: 0.35 });
+        this.shock.start(_p.setY(0), { r1: 2.2, dur: 0.25, color: '#FFF08A', height: 0.4 });
         return;
       }
       case 'kaboom': {
         const w = who(e.dst);
         if (!w) return;
         _p.set(w.x, 1.0, w.z);
-        this.shock.start(_p.setY(0), { r1: 5, dur: 0.45, color: '#FFD34D', height: 1 });
+        this.shock.start(_p.setY(0), { r1: 5, dur: 0.45, color: '#FFE14A', height: 1 });
         _p.y = 1.2;
         this.particles.burst(_p, { n: 18, shape: SHAPE.CONFETTI, color: KIBBLE, size: [0.16, 0.3], life: [0.7, 1.1], speed: [3, 7], up: 4, gravity: -9 });
-        this.particles.burst(_p, { additive: true, n: 14, shape: SHAPE.STAR4, color: 0xffe066, intensity: 2.2, size: [0.25, 0.4], life: [0.4, 0.7], speed: [3, 6], up: 2 });
+        this.particles.burst(_p, { additive: true, n: 14, shape: SHAPE.STAR4, color: 0xffe14a, intensity: 2.2, size: [0.25, 0.4], life: [0.4, 0.7], speed: [3, 6], up: 2 });
         return;
       }
       case 'cannonParry': {
         const w = who(e.id);
         if (!w) return;
         _p.set(w.x, 1.2, w.z);
-        this.particles.ring(_p, { n: 16, r0: 0.6, speed: [2, 3.5], up: 1, color: 0xffd34d, alpha: 1, additive: true, size: [0.2, 0.3], shape: SHAPE.STAR4, intensity: 2 });
+        this.particles.ring(_p, { n: 16, r0: 0.6, speed: [2, 3.5], up: 1, color: 0xffe14a, alpha: 1, additive: true, size: [0.2, 0.3], shape: SHAPE.STAR4, intensity: 2 });
         return;
       }
       case 'cannonBlock': {
         _p.set(toX(e.x), 1.2, toZ(e.y));
-        this.shock.start(_p.setY(0), { r1: 3, dur: 0.35, color: '#9FD3FF', height: 1 });
+        this.shock.start(_p.setY(0), { r1: 3, dur: 0.35, color: '#7CC6FF', height: 1 });
         _p.y = 1.2;
         this.particles.burst(_p, { n: 12, shape: SHAPE.CONFETTI, color: KIBBLE, size: [0.14, 0.26], life: [0.5, 0.9], speed: [2, 5], up: 3, gravity: -9 });
-        this.particles.ring(_p, { n: 12, r0: 0.5, speed: [2, 3], up: 0.6, color: 0x9fd3ff, alpha: 1, additive: true, size: [0.2, 0.3], shape: SHAPE.STAR4, intensity: 1.8 });
+        this.particles.ring(_p, { n: 12, r0: 0.5, speed: [2, 3], up: 0.6, color: 0x7cc6ff, alpha: 1, additive: true, size: [0.2, 0.3], shape: SHAPE.STAR4, intensity: 1.8 });
         return;
       }
       case 'cannonFizzle':
       case 'cannonDrop': {
         _p.set(toX(e.x), 0.8, toZ(e.y));
         this.particles.burst(_p, { n: 6, shape: SHAPE.PUFF, color: 0xbdb5a8, size: [0.4, 0.7], life: [0.5, 0.9], speed: [0.5, 1.4], up: 1.2 });
-        if (e.type === 'cannonFizzle') this.particles.burst(_p, { n: 10, shape: SHAPE.CONFETTI, color: 0xff8fb1, size: [0.12, 0.2], life: [0.6, 1], speed: [1, 2.5], up: 2.5, gravity: -6 });
+        if (e.type === 'cannonFizzle') this.particles.burst(_p, { n: 10, shape: SHAPE.CONFETTI, color: 0xff3d7f, size: [0.12, 0.2], life: [0.6, 1], speed: [1, 2.5], up: 2.5, gravity: -6 });
         return;
       }
       case 'yarnUnravel': {

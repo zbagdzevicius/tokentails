@@ -354,7 +354,7 @@ export class Shockwaves {
 }
 
 /** The colour per named slam style (enemies may pass `style` instead of a colour). */
-export const SLAM_COLORS = Object.freeze({ red: '#FF5A36', boss: '#FF7A3A', jeer: '#B07CFF', goo: '#7FD38A', gold: '#FFD34D', white: '#F4F8FF' });
+export const SLAM_COLORS = Object.freeze({ red: '#FF5A36', boss: '#FF7A3A', jeer: '#B07CFF', goo: '#7FD38A', gold: '#FFE14A', white: '#F4F8FF' });
 
 /** Resolve a colour option: a SLAM_COLORS key, any THREE colour string, or the default (pure). */
 export function slamColor(c, fallback = SLAM_COLORS.red) {

@@ -562,7 +562,7 @@ export function createHearthwoodView(info: MapInfo): MapView {
     if (nearBridge(x, y) || x < 4 || y < 4 || x > W - 4 || y > H - 4) continue;
     const r = 0.35 + rnd() * 0.35;
     props.cyl(r, r, 0.02, rnd() < 0.5 ? 0x6f9a4e : 0x86ad5a, { at: [x, 0.04, -y] }, 10);
-    if (rnd() < 0.3) props.sphere(0.12, rnd() < 0.5 ? 0xffd0e0 : 0xfff3dc, { at: [x + 0.1, 0.1, -y] }, 6);
+    if (rnd() < 0.3) props.sphere(0.12, rnd() < 0.5 ? 0xffb3cd : 0xfff3e3, { at: [x + 0.1, 0.1, -y] }, 6);
   }
   // plank bridges where the lanes cross the river (decks flush with the water)
   const deck = new ModelBuilder();
@@ -829,7 +829,7 @@ export function createHearthwoodView(info: MapInfo): MapView {
       ] as const) {
         const x = cx + dx * s;
         const z = -(cy + dy * s);
-        b.cyl(0.09, 0.11, 4.2, 0xfff3dc, { at: [x, 2.1, z] }, 6);
+        b.cyl(0.09, 0.11, 4.2, 0xfff3e3, { at: [x, 2.1, z] }, 6);
         b.box(1.2, 1.7, 0.06, t.main, { at: [x + 0.6, 3.3, z] });
         b.box(1.2, 0.25, 0.07, t.second, { at: [x + 0.6, 2.4, z] });
         b.sphere(0.16, t.second, { at: [x, 4.3, z] }, 8);

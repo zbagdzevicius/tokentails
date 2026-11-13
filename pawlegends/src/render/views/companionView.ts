@@ -66,7 +66,7 @@ function nameTag(name: string, color: number, tier = 'COMMON'): THREE.Sprite {
     g.beginPath();
     g.arc((256 - w) / 2 + 16, 32, 6, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = '#fff3dc';
+    g.fillStyle = '#fff3e3';
     const stars = tier === 'LEGENDARY' ? ' ✦✦' : tier === 'EPIC' || tier === 'RARE' ? ' ✦' : '';
     g.fillText(name, 128 + 6 - (stars ? 10 : 0), 33);
     if (stars) {

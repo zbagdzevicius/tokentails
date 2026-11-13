@@ -483,7 +483,7 @@ export class GameView {
     this.structures.onCalmed = (x, z) => {
       sv.set(x, 1, z);
       this.particles.burst(sv, { n: 16, shape: SHAPE.PUFF, color: 0xffe6f0, alpha: 0.8, size: [0.6, 1.1], sizeEnd: 1.8, life: [0.5, 0.8], speed: [1.5, 3.5], up: 1.2, drag: 2 });
-      this.particles.burst(sv, { additive: true, n: 14, shape: SHAPE.STAR5, color: 0xff9ec0, intensity: 1.6, size: [0.18, 0.32], life: [0.5, 0.8], speed: [2, 4.5], up: 3, gravity: 5 });
+      this.particles.burst(sv, { additive: true, n: 14, shape: SHAPE.STAR5, color: 0xff86a5, intensity: 1.6, size: [0.18, 0.32], life: [0.5, 0.8], speed: [2, 4.5], up: 3, gravity: 5 });
     };
     this.structures.onFallen = (x, z, core) => {
       sv.set(x, 0.4, z);

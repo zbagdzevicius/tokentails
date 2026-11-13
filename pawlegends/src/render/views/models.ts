@@ -295,12 +295,14 @@ export function coreGeometry(team: 0 | 1): THREE.BufferGeometry {
   // QA 2026-11-07: the Woof base is dark walnut with a brass rim, so the ochre doghouse stands off its ochre plaza
   // (a mid-tone base on the sandstone plaza read as one blob)
   b.cyl(3.2, 3.6, 0.8, team === 0 ? 0xf3ead8 : 0x4e3524, { at: [0, 0.4, 0] }, 20);
-  b.cyl(3.25, 3.25, 0.16, team === 0 ? t.main : 0xd9a441, { at: [0, 0.85, 0] }, 20);
+  // v6 facelift review: the cat base is rose-light with rose-top wraps, not the saturated brand rose, so it never sits
+  // next to the enemy red (#FF4F58) in hue and lightness; the relation read stays on the HP bar and the minimap
+  b.cyl(3.25, 3.25, 0.16, team === 0 ? 0xffb3cd : 0xd9a441, { at: [0, 0.85, 0] }, 20);
   if (team === 0) {
     // the Great Yarn Ball
-    b.sphere(2.2, 0xff6f91, { at: [0, 3.1, 0] }, 20);
-    for (let i = 0; i < 5; i++) b.torus(2.18, 0.07, 0xc94a72, { at: [0, 3.1, 0], rot: [i * 0.7, i * 1.1, i * 0.3] });
-    b.cyl(0.12, 0.12, 2.2, 0xc94a72, { at: [1.8, 1.6, 1.2], rot: [0.6, 0, 1.1] }, 6);
+    b.sphere(2.2, 0xffc7d9, { at: [0, 3.1, 0] }, 20);
+    for (let i = 0; i < 5; i++) b.torus(2.18, 0.07, 0xff86a5, { at: [0, 3.1, 0], rot: [i * 0.7, i * 1.1, i * 0.3] });
+    b.cyl(0.12, 0.12, 2.2, 0xff86a5, { at: [1.8, 1.6, 1.2], rot: [0.6, 0, 1.1] }, 6);
   } else {
     // the Grand Doghouse with a golden bone
     // audit GFX-01: the Woof cloth is ochre and brown (TEAM[1]), never the ally blue

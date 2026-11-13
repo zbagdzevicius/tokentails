@@ -16,7 +16,7 @@ import { ELEMENT_COLOR, lookKey, mixColor, type Look } from './cosmetics';
 import type { CatTier, Element } from '../meta/roster';
 import { HERO_COLOR_CSS } from './palette';
 import { createBackdrop, type Backdrop } from './lobby/backdrop';
-import { lobbyBgFor, lobbyBgOverride, lobbyBgUrl, lobbyBgVisit, screenBg, type LobbyBg } from './lobby/lobbyBg';
+import { HOME_BG, lobbyBgFor, lobbyBgOverride, lobbyBgUrl, lobbyBgVisit, screenBg, type LobbyBg } from './lobby/lobbyBg';
 import { HEROES } from '../data/heroes';
 import { createPedestal, PEDESTAL_BOTTOM, PEDESTAL_R, type Pedestal } from './lobby/pedestal';
 import { reducedMotion, StageFx } from './lobby/stageFx';
@@ -99,9 +99,10 @@ export class Lobby {
 
   constructor(private readonly gr: GameRenderer) {
     const s = this.scene;
-    s.background = new THREE.Color(0x2b1d2e);
+    // v6 Lightning Rivalry: night ground, a plum sky bounce and a rose rim from the cat side (left)
+    s.background = new THREE.Color(0x12091f);
     s.fog = null;
-    s.add(new THREE.HemisphereLight(0xfff4e0, 0x5a3f6e, 1.7));
+    s.add(new THREE.HemisphereLight(0xfff3e3, 0x553069, 1.7));
     const key = new THREE.DirectionalLight(0xffffff, 2.4);
     key.position.set(4, 8, 6);
     key.castShadow = true;
@@ -112,7 +113,7 @@ export class Lobby {
     sc.top = 4;
     sc.bottom = -4;
     s.add(key);
-    const rim = new THREE.DirectionalLight(0xff9fc0, 1.6);
+    const rim = new THREE.DirectionalLight(0xffa3c4, 1.6);
     rim.position.set(-5, 4, -6);
     s.add(rim);
     // backdrop, two-tier pedestal and rune ring (render/lobby/*)
@@ -131,6 +132,9 @@ export class Lobby {
   }
 
   setHero(hero: HeroId, team: 0 | 1 = 0, look: Look | null = null): void {
+    // v6 facelift: outside the match a dog hero wears its own side's cloth (Woof ochre, team 1; never sky, GFX-01), not
+    // the cat team's rose: the menus show the species rivalry, the match keeps its relation colours
+    if (team === 0 && HEROES[hero]?.side === 'dog') team = 1;
     const key = lookKey(look);
     if (hero === this.heroId && team === this.team && key === this.look && this.hero) return;
     if (this.hero) {
@@ -171,7 +175,7 @@ export class Lobby {
     this.scene.add(this.hero.object);
     this.hero.ch.anim.respawn();
     this.hop = 0;
-    this.particles.burst(new THREE.Vector3(0, 0.6, 0), { additive: true, n: 18, shape: SHAPE.STAR4, color: 0xffd34d, intensity: 1.6, size: [0.08, 0.16], life: [0.4, 0.7], speed: [1.5, 3], up: 1.5 });
+    this.particles.burst(new THREE.Vector3(0, 0.6, 0), { additive: true, n: 18, shape: SHAPE.STAR4, color: 0xffe14a, intensity: 1.6, size: [0.08, 0.16], life: [0.4, 0.7], speed: [1.5, 3], up: 1.5 });
   }
 
   /** Celebrate (results screen win). */
@@ -360,6 +364,8 @@ export class Lobby {
       aspect: (window.innerWidth || 16) / (window.innerHeight || 9),
     });
     document.documentElement.dataset.lobbyBg = bg;
+    // v6: Home's key art gets the rivalry grade (rose cat side left, sky dog side right); other scenes stay as painted
+    this.backdrop.setSplit(bg === HOME_BG ? 1 : 0);
     this.backdrop.setImage(url, reducedMotion());
   }
 

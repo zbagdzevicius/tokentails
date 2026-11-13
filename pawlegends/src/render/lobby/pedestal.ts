@@ -115,22 +115,22 @@ export function createPedestal(): Pedestal {
     disposables.push(x);
     return x;
   };
-  // lower base: dark plum stone with a lighter chamfer
-  const baseMat = keep(new THREE.MeshLambertMaterial({ color: 0x4a2f55 }));
+  // lower base: dark plum stone with a lighter chamfer (v6 logo plum-deep)
+  const baseMat = keep(new THREE.MeshLambertMaterial({ color: 0x471f5d }));
   const base = new THREE.Mesh(keep(new THREE.CylinderGeometry(PEDESTAL_R - 0.05, PEDESTAL_R, 0.3, 40)), baseMat);
   base.position.y = PEDESTAL_BOTTOM + 0.15;
   base.receiveShadow = true;
   group.add(base);
-  const lip = new THREE.Mesh(keep(new THREE.TorusGeometry(PEDESTAL_R - 0.05, 0.035, 6, 56)), keep(new THREE.MeshBasicMaterial({ color: 0xffd34d })));
+  const lip = new THREE.Mesh(keep(new THREE.TorusGeometry(PEDESTAL_R - 0.05, 0.035, 6, 56)), keep(new THREE.MeshBasicMaterial({ color: 0xf7bc3c })));
   lip.rotation.x = Math.PI / 2;
   lip.position.y = PEDESTAL_BOTTOM + 0.3;
   group.add(lip);
   // upper disc: cream, where the hero stands (its top at y = 0)
-  const top = new THREE.Mesh(keep(new THREE.CylinderGeometry(1.5, 1.58, 0.22, 40)), keep(new THREE.MeshLambertMaterial({ color: 0xfff3dc })));
+  const top = new THREE.Mesh(keep(new THREE.CylinderGeometry(1.5, 1.58, 0.22, 40)), keep(new THREE.MeshLambertMaterial({ color: 0xfff3e3 })));
   top.position.y = -0.11;
   top.receiveShadow = true;
   group.add(top);
-  const trimMat = keep(new THREE.MeshBasicMaterial({ color: 0xff6f91 }));
+  const trimMat = keep(new THREE.MeshBasicMaterial({ color: 0xff3d7f }));
   const trim = new THREE.Mesh(keep(new THREE.TorusGeometry(1.53, 0.045, 6, 56)), trimMat);
   trim.rotation.x = Math.PI / 2;
   trim.position.y = -0.005;

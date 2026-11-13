@@ -64,7 +64,8 @@ const CAP = 64;
 const IMMEDIATE = 24;
 /** Floats per transient sprite. */
 const S = 20;
-const INK = '#3a2433';
+/** Glyph outline ink: the v6 logo plum family, deepened (was cocoa #3a2433). */
+const INK = '#2e1240';
 
 const VERT = /* glsl */ `
 attribute vec3 iPos;

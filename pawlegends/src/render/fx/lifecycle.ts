@@ -282,7 +282,7 @@ export class Lifecycle {
       for (let i = 0; i < steps; i++) {
         const t = -g.len / 2 + (g.len * (i + 0.5)) / steps;
         this.v.set(g.cx + g.dx * t, 0.8, g.cz + g.dz * t);
-        p.burst(this.v, { n: this.n(mine ? 6 : 3), shape: SHAPE.CONFETTI, color: i % 2 ? col : 0xff9ec0, size: [0.16, 0.26], life: [0.9, 1.4], speed: [2, 4.5], up: 4.5, gravity: 7, drag: 1.2, spin: 8 });
+        p.burst(this.v, { n: this.n(mine ? 6 : 3), shape: SHAPE.CONFETTI, color: i % 2 ? col : 0xff86a5, size: [0.16, 0.26], life: [0.9, 1.4], speed: [2, 4.5], up: 4.5, gravity: 7, drag: 1.2, spin: 8 });
         p.burst(this.v, { additive: true, n: this.n(3), shape: SHAPE.STAR5, color: col, intensity: 1.8, size: [0.2, 0.34], life: [0.5, 0.8], speed: [1.5, 3.5], up: 2.5, drag: 2 });
       }
       this.v.set(g.x, 0.15, g.z);
@@ -558,8 +558,8 @@ export class Lifecycle {
       const ox = (funHash(this.lastTick, i, 1) - 0.5) * 14;
       this.v.set(fx + ox, b.won ? 7 : 2, fz + (funHash(this.lastTick, i, 2) - 0.5) * 6);
       if (b.won) {
-        this.view.particles.burst(this.v, { n: this.n(26), shape: SHAPE.CONFETTI, color: [0xffd34d, 0xff9ec0, 0x8fd0ff, 0x7dff8a][Math.floor(funHash(this.lastTick, i, 3) * 4)], size: [0.2, 0.32], life: [1.4, 2], speed: [2, 5], up: 2, gravity: 5, drag: 1.2, spin: 9 });
-        this.sprites.spawn({ x: fx + ox * 0.5, y: 3, z: fz, glyph: funHash(this.lastTick, i, 4) < 0.5 ? GLYPH.star : GLYPH.heart, color: 0xffd34d, size0: 0.9, size1: 1.2, life: 1.2, vy: 1.6, curve: 1 });
+        this.view.particles.burst(this.v, { n: this.n(26), shape: SHAPE.CONFETTI, color: [0xffe14a, 0xff3d7f, 0x39a6ff, 0x9be3c4][Math.floor(funHash(this.lastTick, i, 3) * 4)], size: [0.2, 0.32], life: [1.4, 2], speed: [2, 5], up: 2, gravity: 5, drag: 1.2, spin: 9 });
+        this.sprites.spawn({ x: fx + ox * 0.5, y: 3, z: fz, glyph: funHash(this.lastTick, i, 4) < 0.5 ? GLYPH.star : GLYPH.heart, color: 0xffe14a, size0: 0.9, size1: 1.2, life: 1.2, vy: 1.6, curve: 1 });
       } else {
         this.view.particles.burst(this.v, { n: this.n(10), shape: SHAPE.PUFF, color: 0xb9b4c8, alpha: 0.6, size: [0.8, 1.3], sizeEnd: 2, life: [1, 1.5], speed: [0.5, 1.5], up: 0.6, drag: 1.5 });
       }

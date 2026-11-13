@@ -182,9 +182,12 @@ export function createRenderer(container: HTMLElement, tier: QualityTier, opts: 
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(RENDER.background ?? '#F6E4C0');
-  const hemi = new THREE.HemisphereLight(0xfff4e0, 0x7a8f6a, 1.6);
+  // v6 Lightning Rivalry light mood: a cream sky, a plum-tinted bounce (the logo plum family) instead of the green one,
+  // and a sun a touch warm, so the shade side of every model leans plum like the brand's display shadow. Same
+  // intensities: tints only, no new lights.
+  const hemi = new THREE.HemisphereLight(0xfff3e3, 0x7b7792, 1.6);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+  const sun = new THREE.DirectionalLight(0xfff8ee, 2.2);
   sun.position.set(-20, 40, 25);
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.bias = -0.0006;
