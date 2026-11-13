@@ -48,6 +48,9 @@ export const PAWLEGENDS_API_OPS = [
   "club.remove",
   "club.claim",
   "kudos.give",
+  // account progress (gap plan P2 rewards-cloud): the cosmetic-progress blob, max-merged by the server
+  "progress.get",
+  "progress.sync",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -84,6 +87,8 @@ const ARG_KEYS = [
   "frame",
   "title",
   "dmPolicy",
+  // rewards-cloud: the progress blob as one JSON string (up to 30,000 characters)
+  "blob",
 ] as const;
 export type PawlegendsApiArgs = Partial<Record<(typeof ARG_KEYS)[number], string | number | boolean>>;
 
@@ -106,7 +111,8 @@ export function parseApiRequest(data: Record<string, unknown>): PawlegendsApiReq
   for (const k of ARG_KEYS) {
     const v = raw[k];
     // a chat line's raw text may be up to 240 code units (the server normalises and cuts to 120, or refuses)
-    if (typeof v === "string" && v.length <= (k === "text" ? 240 : 140)) args[k] = v;
+    // the progress blob (rewards-cloud) is one JSON string of up to 30,000 characters
+    if (typeof v === "string" && v.length <= (k === "text" ? 240 : k === "blob" ? 30000 : 140)) args[k] = v;
     else if (typeof v === "number" && Number.isFinite(v)) args[k] = v;
     else if (typeof v === "boolean") args[k] = v;
   }
@@ -322,6 +328,13 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       const slot = int(a.slot, 0, 9);
       return room && slot !== null ? { method: "POST", path: "/pawlegends/kudos", body: { room, slot }, auth: "registered" } : null;
     }
+    // account progress (gap plan P2 rewards-cloud): guests with a session too ("any"); the server max-merges, never scores
+    case "progress.get":
+      return { method: "GET", path: "/pawlegends/progress", auth: "any" };
+    case "progress.sync":
+      return typeof a.blob === "string" && a.blob.length >= 2 && a.blob.length <= 30000
+        ? { method: "POST", path: "/pawlegends/progress", body: { blob: a.blob }, auth: "any" }
+        : null;
     default:
       return null;
   }

@@ -84,6 +84,7 @@ import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast,
 import { kudosMates, mountKudos } from '../social/kudos';
 import { suddenDeathS } from '../ui/screens';
 import { assetRev } from '../ui/assetRev';
+import { RewardsCloud, todayExtraHtml } from '../ui/rewards/rewards';
 
 type Screen = 'title' | 'pick' | 'match' | 'results';
 
@@ -175,6 +176,8 @@ export class App {
   readonly analytics: Analytics;
   /** Sign-in, save chip and the champion info (embed/integrate.ts). */
   readonly integration: Integration;
+  /** Gap plan P2 rewards-cloud: account progress sync, the Lucky Treat and the Welcome Path (ui/rewards). */
+  private readonly rewards: RewardsCloud;
   private readonly human = new HumanFilter();
   private screen: Screen = 'title';
   private screenEl: HTMLElement | null = null;
@@ -295,6 +298,13 @@ export class App {
       root,
       lobbyHero: () => this.choice.hero,
     });
+    // rewards-cloud: the account's progress (signed in, or a guest whose /live saves made an account)
+    this.rewards = new RewardsCloud({
+      api: (op, args) => this.integration.api(op, args),
+      eligible: () => bridge.active && (this.integration.state().signedIn || loadProfile().matches > 0),
+      onChange: () => this.refreshMeta(false),
+      root,
+    });
     bridge.on((m) => this.onHost(m));
     // a sprite probe finished: the palette changed, so the pick tiles, the lobby hero and the portraits follow
     // (debounced; the pick screen is never rebuilt, so the trick, bots, a running Preview and the strip scroll stay)
@@ -359,6 +369,8 @@ export class App {
   private onHost(m: HostMessage): void {
     // PUB-02: events tracked before the first hello were held; the host can take them now
     if (m.type === 'hello') this.analytics.flush();
+    // rewards-cloud: a session or a saved match syncs the account's progress (and shows a Lucky Treat it paid)
+    this.rewards.onHost(m);
     if (m.type === 'pause' || m.type === 'resume') {
       this.session?.setPaused(m.type === 'pause');
       // correctness QA: a pause sent while the match chunk loads was lost (the bridge said paused, the match ran)
@@ -964,6 +976,8 @@ export class App {
       // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
       // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
       quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined) : undefined,
+      // rewards-cloud: the Welcome Path and the Lucky Treat odds under Today's quests
+      todayExtra: p.matches > 0 ? todayExtraHtml() : '',
     };
     // The Home re-render fix (Nov 12): a redraw of the Home on screen (a panel closed, a Treat Track | Legends Pass tab
     // switch, an entitlement or progress refresh, an equip) patches the changed parts into the same Home. Rebuilding
@@ -1639,7 +1653,7 @@ export class App {
           const state = loadQuests();
           return { state, views: questViews(state, follow ? e.replay.hero : undefined), xp: 0 };
         })()
-      : progressQuests(loadQuests(), { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos }, follow);
+      : progressQuests(loadQuests(), { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos, party: !!partyEnd && !setup?.party?.coop }, follow);
     if (!forfeit) saveQuests(quests.state);
     const prof = loadProfile();
     const ownedIds = new Set<string>([...prof.unlocks, ...this.ent.snapshot().items]);

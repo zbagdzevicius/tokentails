@@ -7,7 +7,7 @@ import type { HeroId } from '../sim/api';
 import { HERO_IDS } from '../data/heroes';
 import { CHAMPION_IDS } from '../data/heroes/shelter';
 
-export type QuestMetric = 'takedowns' | 'pudding' | 'win' | 'matches' | 'towers' | 'combos' | 'champion';
+export type QuestMetric = 'takedowns' | 'pudding' | 'win' | 'matches' | 'towers' | 'combos' | 'champion' | 'party';
 
 export interface Quest {
   id: string;
@@ -16,6 +16,8 @@ export interface Quest {
   metric: QuestMetric;
   /** `win` with this hero only. */
   hero?: HeroId;
+  /** The daily friend quest: shown on Home's Today list every day, but outside the 3-quest tally. */
+  bonus?: true;
 }
 
 export const QUEST_XP = 50;
@@ -58,6 +60,13 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
 ] as Quest[]);
 
 /**
+ * Gap plan P2 (Brawl Stars social quests): a 4th quest every day, "Play 2 matches with a friend". A party match counts
+ * (friends from a party code or invite; Quick Play strangers do not). It sits outside QUEST_POOL, so the three daily
+ * picks keep their order, and outside the Today tally (`bonus`), so a solo player's day can still be complete.
+ */
+export const FRIEND_QUEST: Quest = Object.freeze({ id: 'party2', text: 'Play 2 matches with a friend', goal: 2, metric: 'party', bonus: true }) as Quest;
+
+/**
  * Matches played before which the hero quest follows the hero being played (the guided first matches, app/firstSession
  * PICK_DIFFICULTY_FROM); from then on it is the day's round-robin hero, so it can lead to any hero.
  */
@@ -82,6 +91,8 @@ export interface MatchFacts {
   /** Towers our team took. */
   towers: number;
   combos: number;
+  /** A party match with a friend (not Quick Play strangers). */
+  party?: boolean;
 }
 
 const KEY = 'tt.pawlegends.quests.v1';
@@ -151,7 +162,7 @@ export function parseQuests(raw: string | null, day: string): QuestState {
   try {
     const o = JSON.parse(raw) as Partial<QuestState>;
     if (o.day !== day) return freshQuests(day);
-    const ids = new Set(QUEST_POOL.map((q) => q.id));
+    const ids = new Set([...QUEST_POOL, FRIEND_QUEST].map((q) => q.id));
     const progress: Record<string, number> = {};
     if (o.progress && typeof o.progress === 'object') {
       for (const [k, v] of Object.entries(o.progress)) if (ids.has(k) && typeof v === 'number' && Number.isFinite(v) && v >= 0) progress[k] = Math.min(1000, Math.floor(v));
@@ -195,6 +206,8 @@ function amount(q: Quest, m: MatchFacts): number {
       return m.combos;
     case 'champion':
       return (CHAMPION_IDS as readonly HeroId[]).includes(m.hero) ? 1 : 0;
+    case 'party':
+      return m.party ? 1 : 0;
   }
 }
 
@@ -206,12 +219,16 @@ export interface QuestView {
   fresh: boolean;
 }
 
-/** Count one match toward today's quests. Pure. Returns the new state, each quest's view and the XP earned. */
+/**
+ * Count one match toward today's quests (the three daily ones and the friend quest). Pure. Returns the new state, each
+ * quest's view (the friend quest only when this match was a party match or finished it, so a solo results screen keeps
+ * its three rows) and the XP earned.
+ */
 export function progressQuests(s: QuestState, m: MatchFacts, followHero = false): { state: QuestState; views: QuestView[]; xp: number } {
   const state: QuestState = { v: 1, day: s.day, progress: { ...s.progress }, done: [...s.done] };
   const views: QuestView[] = [];
   let xp = 0;
-  for (const q of dailyQuests(s.day, followHero ? m.hero : undefined)) {
+  for (const q of [...dailyQuests(s.day, followHero ? m.hero : undefined), FRIEND_QUEST]) {
     const was = state.done.includes(q.id);
     const value = Math.min(q.goal, (state.progress[q.id] ?? 0) + (was ? 0 : amount(q, m)));
     state.progress[q.id] = value;
@@ -221,12 +238,12 @@ export function progressQuests(s: QuestState, m: MatchFacts, followHero = false)
       state.done.push(q.id);
       xp += QUEST_XP;
     }
-    views.push({ quest: q, value, done, fresh });
+    if (!q.bonus || m.party || fresh) views.push({ quest: q, value, done, fresh });
   }
   return { state, views, xp };
 }
 
-/** Today's quests as they stand (title screen). Pure. */
+/** Today's quests as they stand (title screen): the three daily ones, then the friend quest. Pure. */
 export function questViews(s: QuestState, hero?: HeroId): QuestView[] {
-  return dailyQuests(s.day, hero).map((q) => ({ quest: q, value: Math.min(q.goal, s.progress[q.id] ?? 0), done: s.done.includes(q.id), fresh: false }));
+  return [...dailyQuests(s.day, hero), FRIEND_QUEST].map((q) => ({ quest: q, value: Math.min(q.goal, s.progress[q.id] ?? 0), done: s.done.includes(q.id), fresh: false }));
 }

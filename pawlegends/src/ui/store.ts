@@ -35,6 +35,7 @@ import { SKU_LOOK } from '../render/portraits';
 import { artImgAttrs, artLayers, skinArtId } from './art';
 import { HERO_IDS } from '../data/heroes';
 import { assetRev } from './assetRev';
+import { masteryRibbonHtml } from './rewards/rewards';
 
 /** Plain words for the planned extras the pack lines name (they are not on sale yet). */
 const GLOSSARY: readonly [RegExp, string][] = [
@@ -289,6 +290,8 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       c.status === 'free' ? '<i class="cst-rib free">Free this week</i>' : '',
       c.status === 'starter' ? '<i class="cst-rib starter">Starter</i>' : '',
       isNewHero(c.hero) ? '<i class="cst-rib new">New</i>' : '',
+      // rewards-cloud: champion mastery from verified matches
+      masteryRibbonHtml(c.hero),
     ].join('');
     const st = c.hidden ? 'locked' : c.status;
     const poor = c.unlockable && c.toGo > 0 && c.status !== 'owned' ? ' poor' : '';
