@@ -224,6 +224,13 @@ export interface PawlegendsCheckoutRequest {
     deviceId: string;
     /** An entitlement token the host holds (proves Founder ownership for the upgrade). */
     token?: string;
+    /**
+     * Store and pass SKUs (growth/growth.rules.ts): a creator code typed at checkout. Checked (400 when unknown), kept
+     * on the account for 30 days, written into the Stripe metadata and onto the purchase row.
+     */
+    creatorCode?: string;
+    /** The first-purchase gift: one of FIRST_GIFT_COATS, granted once by the webhook when the order is paid. */
+    giftCoat?: string;
 }
 
 export interface PawlegendsCheckoutResponse {

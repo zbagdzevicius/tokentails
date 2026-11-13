@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { normalizeEmail } from 'src/badcat/badcat-util';
 import { STRIPE_API_VERSION } from 'src/payments/stripe-payment.service';
@@ -38,6 +38,7 @@ import {
 import { verifyPawlegendsToken } from './pawlegends-token';
 import { catalogSku, CATALOG_SKUS, championBundleCents, conflictsOf } from './pawlegends-catalog';
 import { ownedItemsOf } from './pawlegends-season.service';
+import { GrowthService } from './growth/growth.service';
 
 /*
  * Pawlegends Checkout (POC.md §8.2, §8.5). Key: `PAWLEGENDS_STRIPE_SECRET_KEY`, else the shared `STRIPE_SECRET_KEY`.
@@ -117,7 +118,7 @@ export function checkoutMetadata(
     req: Pick<PawlegendsCheckoutRequest, 'sku' | 'currency' | 'ageBand' | 'consentVersion' | 'deviceId' | 'consent'>,
     holdId: string,
     accountId?: string | null,
-    extra: { band?: AgeBand; ageSource?: 'answer' | 'default'; consentAt?: string } = {}
+    extra: { band?: AgeBand; ageSource?: 'answer' | 'default'; consentAt?: string; creator?: string; giftCoat?: string } = {}
 ): Record<string, string> {
     const store = isCatalogSku(req.sku);
     const band = extra.band ?? req.ageBand;
@@ -137,6 +138,9 @@ export function checkoutMetadata(
         device: req.deviceId,
         hold: holdId,
         ...(accountId ? { account: accountId } : {}),
+        // growth (growth/growth.rules.ts): the creator the order is attributed to, and the first-purchase gift coat
+        ...(extra.creator ? { creator: extra.creator } : {}),
+        ...(extra.giftCoat ? { gift_coat: extra.giftCoat } : {}),
     };
 }
 
@@ -156,6 +160,10 @@ export function buildCheckoutParams(
         ageSource?: 'answer' | 'default';
         /** ISO time the purchase button (the consent) was pressed, as the server received it. */
         consentAt?: string;
+        /** The creator code the order is attributed to (checked by GrowthService.checkoutCreator). */
+        creator?: string | null;
+        /** The first-purchase gift coat (checked by GrowthService.checkGift). */
+        giftCoat?: string | null;
     }
 ): Stripe.Checkout.SessionCreateParams {
     const def = PAWLEGENDS_SKUS[req.sku];
@@ -163,6 +171,8 @@ export function buildCheckoutParams(
         band: options.band,
         ageSource: options.ageSource,
         consentAt: options.consentAt,
+        ...(options.creator ? { creator: options.creator } : {}),
+        ...(options.giftCoat ? { giftCoat: options.giftCoat } : {}),
     });
     const description = def.kind
         ? `${def.deliveredNow}.`
@@ -203,7 +213,11 @@ export class PawlegendsStripeService {
     /** Specs of the presale flow only: the retired `pl_*` SKUs are refused at checkout everywhere else. */
     sellRetired = false;
 
-    constructor(private readonly store: PawlegendsStore) {}
+    constructor(
+        private readonly store: PawlegendsStore,
+        // growth: creator codes and the first-purchase gift (absent in the older specs: neither applies then)
+        @Optional() private readonly growth?: GrowthService
+    ) {}
 
     /** The Pawlegends Stripe client; 503 without a usable key (missing, unknown prefix, or the wrong mode here). */
     stripe(env: Env = process.env): Stripe {
@@ -465,6 +479,13 @@ export class PawlegendsStripeService {
         // champion SKUs: the prorated price and only the champions not owned yet (CHAMPION-STORE.md §5)
         const champ = store ? await this.championPrice(req.sku, req.currency, accountId!) : null;
         const amountCents = champ?.cents ?? def.cents[req.currency];
+        // growth: a typed creator code is checked (400 when unknown) and kept 30 days; the gift coat must be one of the 5,
+        // not owned, not in this order, and this must be the account's first order (409 otherwise)
+        const creator = store && this.growth ? await this.growth.checkoutCreator(accountId, req.creatorCode, this.now()) : null;
+        const giftCoat =
+            store && this.growth && req.giftCoat !== undefined && req.giftCoat !== null && req.giftCoat !== ''
+                ? await this.growth.checkGift(accountId!, req.giftCoat, champ?.items ?? def.items)
+                : null;
         const capCents = champ ? champ.cents : capCentsOf(req.sku, req.currency);
         if (capCents > (await this.capLeftCents(owners, band))) throw PAWLEGENDS_ERRORS.spendCap();
         if (def.legendSeat && (await this.legendSeatsLeft()) <= 0) throw PAWLEGENDS_ERRORS.soldOut();
@@ -486,6 +507,8 @@ export class PawlegendsStripeService {
             ageSource,
             ...(consentAt ? { consentAt } : {}),
             items: champ?.items ?? def.items,
+            ...(creator ? { creatorCode: creator } : {}),
+            ...(giftCoat ? { giftCoat } : {}),
             holdUntil: new Date(now + SESSION_TTL_MS + HOLD_MARGIN_MS),
         });
         const release = () => this.store.purchases.deleteMany({ sessionId: holdId });
@@ -515,6 +538,8 @@ export class PawlegendsStripeService {
             band,
             ageSource,
             ...(consentAt ? { consentAt: consentAt.toISOString() } : {}),
+            creator,
+            giftCoat,
         });
         let session: Stripe.Checkout.Session;
         try {

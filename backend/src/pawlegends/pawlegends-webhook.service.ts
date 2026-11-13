@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { normalizeEmail } from 'src/badcat/badcat-util';
 import { isDuplicateKeyError } from 'src/shared/jobs/lease';
 import Stripe from 'stripe';
@@ -27,6 +27,7 @@ import {
     PawlegendsStripeService,
 } from './pawlegends-stripe.service';
 import { grantPurchase, revokeSession, syncPremium } from './pawlegends-season.service';
+import { GrowthService } from './growth/growth.service';
 
 /*
  * Two ways in, one handler. The store runs on the Token Tails Stripe account: the Token Tails endpoint
@@ -54,7 +55,18 @@ export class PawlegendsWebhookService {
     private readonly logger = new Logger(PawlegendsWebhookService.name);
     now: () => Date = () => new Date();
 
-    constructor(private readonly store: PawlegendsStore, private readonly checkout: PawlegendsStripeService) {}
+    constructor(
+        private readonly store: PawlegendsStore,
+        private readonly checkout: PawlegendsStripeService,
+        // growth: the first-purchase gift (absent in the older specs)
+        @Optional() private readonly growth?: GrowthService
+    ) {}
+
+    /** The first-purchase gift of a paid store order: once per account (GrowthService.grantGift). Idempotent. */
+    private async grantGift(row: any, sessionId: string): Promise<void> {
+        if (!this.growth || !row?.giftCoat || !row.accountId) return;
+        await this.growth.grantGift(String(row.accountId), row.giftCoat, sessionId);
+    }
 
     /** Verifies the signature (400) and returns the event; 503 only without the webhook secret. */
     verify(rawBody: Buffer | string | undefined, signature: string | undefined, env: Env = process.env): Stripe.Event {
@@ -156,8 +168,10 @@ export class PawlegendsWebhookService {
         if (row?.status === 'refunded' || row?.status === 'voided' || row?.status === 'review') return 'ignored';
         // A store grant is idempotent: a retried delivery heals a grant that failed after the row was marked paid.
         if (row?.status === 'paid') {
-            if (isCatalogSku(sku) && row.accountId)
+            if (isCatalogSku(sku) && row.accountId) {
                 await grantPurchase(this.store, row.accountId, sku, session.id, this.now(), row.items);
+                await this.grantGift(row, session.id);
+            }
             return 'processed';
         }
 
@@ -242,8 +256,10 @@ export class PawlegendsWebhookService {
         });
         // Store and pass SKUs: the items and the pass row (read from the paid rows). Idempotent: if this fails, the
         // event id is not recorded, Stripe retries, and the `paid` branch above grants again.
-        if (isCatalogSku(sku))
+        if (isCatalogSku(sku)) {
             await grantPurchase(this.store, buyer.accountId!, sku, session.id, this.now(), row?.items);
+            await this.grantGift(row, session.id);
+        }
         return 'processed';
     }
 

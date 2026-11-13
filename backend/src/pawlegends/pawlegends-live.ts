@@ -13,6 +13,7 @@ import { Worker } from 'worker_threads';
 import { PawlegendsReplayDto } from './pawlegends-replay.dto';
 import { pawlegendsSimErrorDetail } from './pawlegends-sim-info';
 import type { SeasonXpGain, SeasonXpMatch } from './pawlegends-season.service';
+import { applyInviteProgress, type InviteProgressDep } from './growth/apply-invite-progress';
 
 export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-info';
 
@@ -290,6 +291,8 @@ export interface IPawlegendsLiveDeps {
      * created, so a duplicate save never pays. Cosmetic progress only; never fails the save.
      */
     season?: { addXp(userId: string, m: SeasonXpMatch): Promise<SeasonXpGain | null> };
+    /** Growth (growth/apply-invite-progress.ts): an accepted invite counts this verified match. Never fails the save. */
+    growth?: InviteProgressDep;
 }
 
 /** Kills plus assists of one slot in a stats list (the re-sim's or a party verdict's), 0 when absent. */
@@ -493,6 +496,7 @@ export async function savePawlegendsMatch(
               hero: replay.hero,
           })
         : null;
+    await applyInviteProgress(deps.growth, String(userId), { ref: digest, ticks: result.ticks, forfeit: result.reason === 'forfeit' });
 
     return {
         difficulty,
