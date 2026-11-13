@@ -22,11 +22,17 @@ import {
     type Species,
 } from './casual';
 import { difficultyAllowed, matchDifficulty, matchSide, partyRating, sidesCompatible } from './fill';
-import { fillAtMs, MM_CASUAL, MM_CLASSIC, MM_LIMITS, pairFillMs } from './mm-limits';
+import { fillAtMs, MM_CASUAL, MM_CLASSIC, MM_LIMITS, MM_RANKED, pairFillMs } from './mm-limits';
 
-/** The PvP queues (two teams of humans): casual 3v3 and classic 5v5 (MAP-5V5.md §9.3). */
-export type MmPvpQueue = 'casual' | 'classic';
-export const isPvpQueue = (q: string | undefined): q is MmPvpQueue => q === 'casual' || q === 'classic';
+/**
+ * The PvP queues (two teams of humans): casual 3v3, classic 5v5 (MAP-5V5.md §9.3) and ranked 3v3 (SOCIAL-RANKED.md
+ * §7.1: solo or duo, never a bot).
+ */
+export type MmPvpQueue = 'casual' | 'classic' | 'ranked';
+export const isPvpQueue = (q: string | undefined): q is MmPvpQueue =>
+    q === 'casual' || q === 'classic' || q === 'ranked';
+/** The most members one entry may hold in a queue (ranked: solo or duo; other PvP: a trio; co-op: a duo). */
+export const maxPartyOf = (q: string): number => (q === 'ranked' ? MM_RANKED.maxParty : isPvpQueue(q) ? 3 : 2);
 
 export type MmSideChoice = 'cat' | 'dog' | 'any';
 
@@ -87,6 +93,8 @@ export interface MmMatch {
     fill: 'quiet' | 'normal' | 'busy' | null;
     /** Casual PvP: two teams (team 0 plays on the left, slots 0..2; team 1 slots 3..5). Absent for co-op. */
     mode?: 'casual';
+    /** The PvP queue the match formed in (absent for co-op). */
+    queue?: MmPvpQueue;
     teams?: [MmTeam, MmTeam];
     /** 5v5 Classic (queue 'classic'): Hearthwood Divide, slots 0..4 and 5..9. Absent: Crossing, 3 a team. */
     map?: 'hearthwood';
@@ -209,7 +217,7 @@ export class Matchmaker {
     }
 
     join(e: MmEntry): 'ok' | 'already_queued' | 'queue_full' | 'bad_entry' {
-        const max = isPvpQueue(e.queue) ? 3 : 2;
+        const max = maxPartyOf(e.queue);
         if (e.members.length < 1 || e.members.length > max || (e.queue !== 'coop' && !isPvpQueue(e.queue)))
             return 'bad_entry';
         if (this.entries.has(e.id)) return 'already_queued';
@@ -250,7 +258,7 @@ export class Matchmaker {
     /** Keep waiting (casual): back to the casual pool, never moved to co-op by itself again. */
     keepCasual(entryId: string): boolean {
         const e = this.entries.get(entryId);
-        if (!e || e.members.length > 3 || e.queue === 'classic') return false;
+        if (!e || e.members.length > 3 || e.queue === 'classic' || e.queue === 'ranked') return false;
         e.queue = 'casual';
         e.keepCasual = true;
         if (e.penaltyUntilMs !== undefined) e.notBeforeMs = e.penaltyUntilMs;
@@ -355,7 +363,15 @@ export class Matchmaker {
         const pvpFill = e.queue === 'classic' ? MM_CLASSIC.fillMs : MM_CASUAL.fillMs;
         const toFill = Math.max(0, (isPvpQueue(e.queue) ? pvpFill : fillAtMs(lambda)) - waitedMs);
         const toArrival = lambda > 0 ? 60_000 / lambda : Infinity;
-        const raw = Math.max(lowPriorityMs, Math.min(toFill, toArrival));
+        // ranked never fills: the estimate is the arrival of the five other humans (at least a minute, never "never")
+        const rankedMs =
+            lambda > 0
+                ? Math.max(60_000, (5 * 60_000) / lambda - waitedMs)
+                : Math.max(30_000, MM_RANKED.offerCasualMs - waitedMs);
+        const raw =
+            e.queue === 'ranked'
+                ? Math.max(lowPriorityMs, Math.min(rankedMs, 10 * 60_000))
+                : Math.max(lowPriorityMs, Math.min(toFill, toArrival));
         const estimateMs = Math.max(3000, Math.ceil(raw / 5000) * 5000);
         return { waitedMs, estimateMs, found: this.found.get(entryId) ?? e.members.length, lowPriorityMs };
     }
@@ -588,6 +604,7 @@ export class Matchmaker {
             waitedMs,
             fill: plan.fill ? 'normal' : null,
             mode: 'casual',
+            queue: rules.queue,
             teams,
             ...(rules.queue === 'classic' ? { map: 'hearthwood' as const } : {}),
         };

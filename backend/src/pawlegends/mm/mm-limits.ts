@@ -172,3 +172,28 @@ export const MM_CLASSIC = Object.freeze({
     /** A Hearthwood room is this many referee units (a 3v3 room is 1) until G9 measures the real ratio (§9.2). */
     refereeUnits: 3,
 });
+
+/**
+ * Ranked (docs/plans/moba/SOCIAL-RANKED.md §7.1, gap plan P4): 3v3 on Purrhaven Crossing, solo or duo, and never a bot.
+ * Only full teams of humans match (`fillMs` Infinity keeps `bestCasual` on the 3v3 shape), a search never moves to
+ * co-op by itself, and the rating window widens from ±150 to ±400 over 120 s. After `offerCasualMs` the queue card
+ * offers "Play Casual instead" (the client reads its own wait). `mm.join {queue:'ranked'}` is refused while the
+ * liquidity gate (ranked/status.ts) is closed.
+ */
+export const MM_RANKED = Object.freeze({
+    ...MM_CASUAL,
+    /** Never: ranked is never filled with bots. */
+    fillMs: Number.POSITIVE_INFINITY,
+    /** Never: a ranked search stays ranked (the player chooses Casual on the card). */
+    switchMs: Number.POSITIVE_INFINITY,
+    /** Duos face duos until 60 s, then any mix of solos and duos. */
+    partiesUntilMs: 60_000,
+    /** ±150 → ±400 over 120 s (§7.1). */
+    window: Object.freeze({ base: 150, perSecond: 250 / 120, max: 400, rdFree: 200 }),
+    /** Every ranked match is fair: predicted 40..60 % for the first 60 s, then 35..65 %. */
+    fairUntilMs: 60_000,
+    /** Members per entry: solo or duo only. */
+    maxParty: 2,
+    /** The queue card offers Casual after this long (3:00). */
+    offerCasualMs: 180_000,
+});

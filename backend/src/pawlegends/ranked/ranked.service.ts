@@ -15,6 +15,7 @@ import { PawlegendsOwned } from '../pawlegends.schema';
 import { PawlegendsBoard, PawlegendsFriend, PawlegendsSanction, PawlegendsSocial } from '../social/social.schema';
 import { BOARD_PAGE, HERO_MIN_GAMES, isoWeek } from './boards';
 import { decayedPoints, ladderOf, legendInactive } from './points';
+import { pendingRoomsFilter } from './settlement';
 import { RankedStatusService } from './status';
 import { LEGEND_IDX, PLACEMENTS, RANKED_MIN_MATCHES, tierIdOf, tierLabel } from './tiers';
 
@@ -24,7 +25,6 @@ import { LEGEND_IDX, PLACEMENTS, RANKED_MIN_MATCHES, tierIdOf, tierLabel } from 
  */
 
 type AnyModel = any;
-const DAY = 86_400_000;
 
 export const BOARD_KINDS = ['global', 'friends', 'hero', 'weekly'] as const;
 export type BoardKind = typeof BOARD_KINDS[number];
@@ -334,14 +334,9 @@ export class RankedService {
                 .lean() as Promise<Array<{ kind: string; until: Date | null }>>,
         ]);
         const matches = playedOf(user?.pawlegendsMatches).matches;
+        // the same rooms `mm.join ranked` waits for (settlement.ts)
         const pending = (await this.rooms
-            .find({
-                'members.accountId': accountId,
-                queue: 'ranked',
-                endedAt: { $gte: new Date(now.getTime() - 30 * DAY) },
-                void: { $ne: 'remake' },
-                ...(row?.appliedRooms?.length ? { _id: { $nin: row.appliedRooms } } : {}),
-            })
+            .find(pendingRoomsFilter(accountId, row?.appliedRooms ?? [], now))
             .select({ _id: 1 })
             .limit(10)
             .lean()) as Array<Pick<MmRoomRecord, '_id'>>;

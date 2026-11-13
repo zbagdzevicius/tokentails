@@ -186,6 +186,7 @@ import { ChatService } from './pawlegends/social/chat.service';
 import { ChatBus } from './pawlegends/social/chat-bus';
 import { RankedService } from './pawlegends/ranked/ranked.service';
 import { RankedStatusService } from './pawlegends/ranked/status';
+import { RankedSeasonRewardsService } from './pawlegends/ranked/season-rewards';
 import { PawlegendsRankedController } from './pawlegends/ranked/ranked.controller';
 import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
@@ -455,6 +456,7 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         ChatBus,
         RankedStatusService,
         RankedService,
+        RankedSeasonRewardsService,
         // role all (DigitalOcean today): the relay counters as one log line a minute too (LATENCY-PLAN R4)
         ...(role === 'all' ? [PartyRelayService, RelayStatsReporter] : []),
         // Moon Rave checkout.

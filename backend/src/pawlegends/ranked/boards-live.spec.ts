@@ -20,6 +20,10 @@ function setup(
         sanction?: boolean;
         dailyWins?: number;
         casualRow?: boolean;
+        /** Overrides on the mm room record (ranked settlement specs). */
+        rec?: Partial<MmRoomRecord>;
+        /** An existing ranked row of the account (a season reward already recorded, a new season). */
+        rankedRow?: Record<string, unknown>;
     } = {}
 ) {
     const users = new FakeUsers();
@@ -98,6 +102,7 @@ function setup(
         members: [member(0, a), member(1, 'mate'), member(3, c), ...(foes > 1 ? [member(4, d)] : [])],
         createdAt: NOW,
         endedAt: NOW,
+        ...(opts.rec ?? {}),
     };
     void mmRooms.create(rec);
     const ratings = new SocialMemoryModel([], [{ fields: ['_id'] }], () => NOW);
@@ -115,6 +120,7 @@ function setup(
             appliedRooms: [],
             v: 3,
         });
+    if (opts.rankedRow) ratings.docs.push({ _id: `${a}:ranked`, accountId: a, queue: 'ranked', ...opts.rankedRow });
     const boards = new SocialMemoryModel([], [{ fields: ['_id'] }], () => NOW);
     if (opts.dailyWins)
         boards.docs.push({
@@ -211,5 +217,56 @@ describe('ranked points through /live (SOCIAL-RANKED.md §7.3)', () => {
         const s = setup({ queue: 'ranked', guest: true });
         await s.save(s.a, 0);
         expect(s.ratings.docs.find(d => String(d._id).endsWith(':ranked'))).toBeUndefined();
+    });
+});
+
+describe('ranked settlement through /live (gap plan P4)', () => {
+    it.each([
+        ['an unended room record', { endedAt: null }],
+        ['a remade room', { void: 'remake' as const }],
+        ['a room record without a season', { season: undefined }],
+        ['a 5v5 map', { map: 'hearthwood' as const }],
+    ])('%s moves no ranked point (the save itself still counts)', async (_why, rec) => {
+        const s = setup({ queue: 'ranked', casualRow: true, rec });
+        const out = await s.save(s.a, 0);
+        expect(out.outcome).toBe('won');
+        expect(s.ratings.docs.find(d => d._id === `${s.a}:ranked`)).toBeUndefined();
+    });
+
+    it('a seat the room record does not give this account moves nothing', async () => {
+        const s = setup({ queue: 'ranked', casualRow: true, rec: { members: [] } });
+        await s.save(s.a, 0);
+        expect(s.ratings.docs.find(d => d._id === `${s.a}:ranked`)).toBeUndefined();
+    });
+
+    it('a room of a season the catalog does not know moves nothing: the row and its recorded peaks stay', async () => {
+        const s = setup({
+            queue: 'ranked',
+            rec: { season: 's2' } as Partial<MmRoomRecord>,
+            rankedRow: {
+                season: 's1',
+                r: 1600,
+                rd: 90,
+                sigma: 0.06,
+                games: 40,
+                wins: 25,
+                lastAt: NOW,
+                appliedRooms: [],
+                v: 4,
+                tierIdx: 7,
+                points: 40,
+                shield: 1,
+                placementsLeft: 0,
+                peakIdx: 8,
+                peaks: [{ season: 's1', peakIdx: 8, finalIdx: 7, rewarded: true }],
+                ladder: 740,
+                dodgesApplied: [],
+                lastRankedAt: NOW,
+            },
+        });
+        await s.save(s.a, 0);
+        const row = s.ratings.docs.find(d => d._id === `${s.a}:ranked`)!;
+        expect(row.peaks).toEqual([{ season: 's1', peakIdx: 8, finalIdx: 7, rewarded: true }]);
+        expect(row.v).toBe(4);
     });
 });

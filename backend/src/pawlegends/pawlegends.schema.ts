@@ -223,9 +223,9 @@ PawlegendsWebhookEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 
 
 /**
  * How an item was got: a web purchase, a pass reward, the presale, and for champions (CHAMPION-STORE.md) the
- * Founders roster grant, a Yarn unlock or a free Champion Pick.
+ * Founders roster grant, a Yarn unlock or a free Champion Pick; a ranked season reward (ranked/season-rewards.ts).
  */
-export type PawlegendsOwnedSource = 'purchase' | 'pass' | 'legacy' | 'founders' | 'yarn' | 'milestone';
+export type PawlegendsOwnedSource = 'purchase' | 'pass' | 'legacy' | 'founders' | 'yarn' | 'milestone' | 'ranked';
 
 @Schema({ collection: 'pawlegendsowned', timestamps: true })
 export class PawlegendsOwned extends CommonSchema {
