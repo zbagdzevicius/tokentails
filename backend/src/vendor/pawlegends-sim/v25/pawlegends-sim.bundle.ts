@@ -5777,6 +5777,15 @@ function within60(ax, ay, bx, by) {
 	if (dot <= 0) return false;
 	return 2 * dot >= isqrt(ax * ax + ay * ay) * isqrt(bx * bx + by * by);
 }
+/**
+* Sim v25: is vector (ax, ay) within the angle whose cosine is `cosBp` (bp of 1) of (bx, by)? 10000·dot ≥ cosBp·|a|·|b|
+* with integer roots; false for a zero vector. Components up to the map's size keep every product below 2^53.
+*/
+function withinCos(ax, ay, bx, by, cosBp) {
+	const dot = ax * bx + ay * by;
+	if (dot <= 0) return false;
+	return 1e4 * dot >= cosBp * isqrt(ax * ax + ay * ay) * isqrt(bx * bx + by * by);
+}
 function clamp(v, lo, hi) {
 	return v < lo ? lo : v > hi ? hi : v;
 }
@@ -6766,9 +6775,10 @@ var CANNON = Object.freeze({
 	*/
 	reach: 1500,
 	/**
-	* Sim v25: a walking hero takes it only when its move goal is within this of the cannon (a tap on the cannon, a touch
-	* stick pushed at it, a bot walking to its spot); a hero stopped on it always does. A walk past to somewhere else does
-	* not pick it up (there is no drop, only Fire).
+	* Sim v25: a walking hero takes it only when its move goal is within this of the cannon (a tap on the cannon, a bot
+	* walking to its spot); a hero stopped on it always does. A walk past to somewhere else does not pick it up (there is
+	* no drop, only Fire). The touch stick never puts its look-ahead goal here (input/touch/assist.ts stickAhead steps it
+	* past the cannon), so a stick walk over it passes and a stick let go on the ring (Stop) takes it.
 	*/
 	aim: 800,
 	/** Fuse while carried: 20 s. It pauses while the cannon lies on the ground. */
@@ -6887,10 +6897,15 @@ var YARN = Object.freeze({
 	*/
 	kickReach: 1350,
 	/**
-	* Sim v25: only a walk heading within 60° of the ball whose goal is within this of it (a touch stick's 2 m look-ahead,
-	* a tap on or just past the ball, a bot walking to it) kicks, along the walk. A walk to somewhere farther passes.
+	* Sim v25: only a walk heading within YARN.coneBp of the ball whose goal is within this of it (a touch stick's 2 m
+	* look-ahead, a tap on or just past the ball, a bot walking to it) kicks, along the walk. A walk farther passes.
 	*/
 	near: 3200,
+	/**
+	* Sim v25 (QA re-run): the walk heads within 45° of the ball (cos in bp; first cut 60°). With the 1.35 m contact a
+	* pass 0.95 m or more beside the ball's centre never kicks it, stick or click.
+	*/
+	coneBp: 7071,
 	/** Rest between kicks (1.5 s). */
 	rest: 45,
 	/** Roll: speed (mm/s), range (mm), radius (mm). */
@@ -12148,7 +12163,7 @@ function aimHunt(m, id) {
 * home YARN.respawn ticks later. State lives in `globals` (G.Yarn rows), so it is hashed.
 *
 * Sim v25 (founder report 2026-11-12: "hard to navigate through them"): a kick is a walk into the ball. The hero's body
-* touches the drawn ball (centre within YARN.kickReach = 1.35 m; v21–v24 1.6 m), it heads within 60° of the ball and
+* touches the drawn ball (centre within YARN.kickReach = 1.35 m; v21–v24 1.6 m), it heads within 45° of the ball and
 * its goal is within YARN.near of it (a touch stick's look-ahead, a tap on the ball, a bot walking to it). The ball rolls
 * along the walk (goal − hero), not centre to centre, so a stick aims it; a hero brushing past or walking through to a
 * far goal leaves it resting.
@@ -12176,11 +12191,11 @@ function kicker(w, id) {
 	if (w.fmKind[id] !== FM.None || disabled(w, id) || w.napT[id] > 0) return false;
 	return !(w.globals[G.CannonBy] === id && w.globals[G.CannonWind] > 0);
 }
-/** Sim v25: does hero `id`'s walk go into the ball at (x, y): a goal within YARN.near of it, heading within 60° of it? */
+/** Sim v25: does hero `id`'s walk go into the ball at (x, y): a goal within YARN.near of it, heading within 45° of it? */
 function into(w, id, x, y) {
 	if (dist2(w.moveX[id], w.moveY[id], x, y) > YARN.near * YARN.near) return false;
 	if (x === w.x[id] && y === w.y[id]) return w.moveX[id] !== x || w.moveY[id] !== y;
-	return within60(w.moveX[id] - w.x[id], w.moveY[id] - w.y[id], x - w.x[id], y - w.y[id]);
+	return withinCos(w.moveX[id] - w.x[id], w.moveY[id] - w.y[id], x - w.x[id], y - w.y[id], YARN.coneBp);
 }
 function kick(m, b, id) {
 	const w = m.world;

@@ -9,6 +9,7 @@
  *   casts' target for 5 s, or until it dies, hides or gets more than 9 m away.
  * All in sim mm and radians (0 = +x, counter-clockwise).
  */
+import { CANNON } from '../../data/fun';
 import { FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../../data/map';
 import { ATTACK_SEEK_MM, attackPreview, CHASE_LEEWAY_MM, edgeGap, inAttackReach, isEnemy, type Unit } from '../targeting';
 import type { TargetFirst } from '../presets';
@@ -99,6 +100,26 @@ export function edgeGoal(meX: number, meY: number, tx: number, ty: number, myTea
   }
   if (Math.hypot(x - meX, y - meY) < ASSIST.minStep) return null;
   return { x, y };
+}
+
+/**
+ * Sim v25 QA re-run (founder: the toys are "hard to navigate through"): the touch stick's look-ahead goal never rests on
+ * a Kibble Cannon lying on the ground. The sim lets a walking hero take the cannon when its goal is within CANNON.aim of
+ * it (a tap on the cannon), so a stick goal sweeping over the cannon took it on every stick walk 0–0.6 m off its centre.
+ * Here the look-ahead is stepped further along the stick until the goal is `clear` from the cannon: a stick walk over it
+ * passes, and letting the stick go on the gold ring (a Stop) takes it, as a tap on it does. Input only (no sim change).
+ */
+export const STICK_CANNON = Object.freeze({ clear: CANNON.aim + 300, step: 250, max: 5000 });
+
+/** The stick's look-ahead (mm) from (x, y) at angle `a`: `ahead`, or past a grounded cannon at `cannon` (null: none). */
+export function stickAhead(x: number, y: number, a: number, ahead: number, cannon: { x: number; y: number } | null): number {
+  if (!cannon) return ahead;
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  const clear2 = STICK_CANNON.clear * STICK_CANNON.clear;
+  let d = ahead;
+  while (d < STICK_CANNON.max && (x + c * d - cannon.x) ** 2 + (y + s * d - cannon.y) ** 2 < clear2) d += STICK_CANNON.step;
+  return d;
 }
 
 /**
