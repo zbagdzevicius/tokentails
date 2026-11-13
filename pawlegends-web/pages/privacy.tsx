@@ -113,7 +113,15 @@ export default function PawlegendsPrivacyPage() {
               <li>an account id from our sign-in provider (Google Firebase Authentication);</li>
               <li>
                 your profile: a player name, your match results and grades, the Treat Track (Legends Pass)
-                progress you earn by playing, and, if you use them, your friends, ranked results and reports.
+                progress you earn by playing, and, if you use them, your friends, ranked results and reports;
+              </li>
+              <li>
+                if you use an invite: whose invite you accepted (or who accepted yours), how many of the 3 matches are
+                done, and the random device id of the browser that accepted it, so one device accepts one invite;
+              </li>
+              <li>
+                on the web store only: a creator code you type at checkout (kept with your purchases for 30 days, so we
+                can pay that creator their share) and the coat you pick as your first-purchase gift.
               </li>
             </ul>
             <p>

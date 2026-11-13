@@ -15,6 +15,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { frameMatchProbe, noteGameEvent, registerMatchProbe, setInMatch } from "./matchPresence";
+import { captureRef, clearPendingRef, readPendingRef, redeemNote } from "./invite";
 import {
   createPawlegendsBridge,
   PAWLEGENDS_HELLO_TIMEOUT_MS,
@@ -28,6 +29,7 @@ import {
 import {
   browserStorage,
   createPawlegendsApi,
+  deviceId,
   isEmail,
   readToken,
   RETURN_QUERY_KEYS,
@@ -684,6 +686,32 @@ export const PawlegendsHost = ({
     setFrameKey((k) => k + 1);
     bridgeRef.current?.reconnect();
   }, []);
+
+  // Invite links (invite.ts): `?ref=` is kept on this device and dropped from the address bar; once the visitor is
+  // signed in it is redeemed once (invites are free: the app may redeem too, from the Social sheet's code field).
+  useEffect(() => {
+    const next = captureRef(window.location.href, browserStorage());
+    if (next !== null) window.history.replaceState({ ...(window.history.state ?? {}), as: next, url: next }, "", next);
+  }, []);
+  useEffect(() => {
+    if (!signedIn || typeof api.redeemInvite !== "function") return;
+    const storage = browserStorage();
+    const code = readPendingRef(storage);
+    if (!code) return;
+    let live = true;
+    void api
+      .redeemInvite(code, deviceId())
+      .then((result) => {
+        const { text, done } = redeemNote(result);
+        if (done) clearPendingRef(storage);
+        if (live && text) setNote(text);
+        track(buildPawlegendsEvent("pawlegends_invite_redeem", { ok: result.ok, code: pawlegendsSaveCode(result.code) }));
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [signedIn, api]);
 
   const reloadClass =
     "inline-flex min-h-[44px] items-center justify-center rounded-md border-2 border-tt-night-950 bg-tt-gold-400 px-4 font-sans text-p6 font-bold text-tt-night-950 shadow-[0_2px_0_rgb(var(--tt-night-950))] outline-none focus-visible:ring-4 focus-visible:ring-tt-cream";

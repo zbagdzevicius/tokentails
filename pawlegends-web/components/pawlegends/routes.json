@@ -2,5 +2,5 @@
   "landingPath": "/",
   "legendsPath": "/legends",
   "playPath": "/play",
-  "playQueryKeys": ["party", "dare", "checkout", "restore", "notify", "from", "mode"]
+  "playQueryKeys": ["party", "dare", "checkout", "restore", "notify", "from", "mode", "ref"]
 }

@@ -268,6 +268,46 @@ export interface StoreCheckoutRequest {
   email: string;
   deviceId: string;
   consent: true;
+  /** A creator code typed in the sheet (the backend checks it, keeps it 30 days and puts it in the Stripe metadata). */
+  creatorCode?: string;
+  /** The first-purchase gift coat picked in the sheet (one of the 5 the backend offered). */
+  giftCoat?: string;
+}
+
+/**
+ * What the store sheet shows besides the price (`GET /pawlegends/growth/checkout`): the first-purchase gift (5 Rare
+ * coats, a fixed choice, offered only before the account's first order) and the creator code its purchases support now.
+ */
+export interface GrowthCheckout {
+  gift: { eligible: boolean; coats: { id: string; owned: boolean }[] };
+  creator: { code: string; name: string; until: string } | null;
+}
+
+const COAT_ID = /^coat\.[a-z]+\.store_[a-z_]+$/;
+const CREATOR_NAME = /^[^<>]{1,40}$/;
+const CREATOR_CODE = /^[A-Z0-9]{3,16}$/;
+
+/** `GET /pawlegends/growth/checkout`, cleaned (a bad row is dropped; a bad body reads as "no gift, no creator"). */
+export function growthCheckoutOf(body: unknown): GrowthCheckout {
+  const b = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const g = b.gift && typeof b.gift === "object" ? (b.gift as Record<string, unknown>) : {};
+  const coats = (Array.isArray(g.coats) ? g.coats : [])
+    .map((c) => (c && typeof c === "object" ? (c as Record<string, unknown>) : {}))
+    .filter((c) => typeof c.id === "string" && COAT_ID.test(c.id))
+    .slice(0, 5)
+    .map((c) => ({ id: c.id as string, owned: c.owned === true }));
+  const c = b.creator && typeof b.creator === "object" ? (b.creator as Record<string, unknown>) : null;
+  const creator =
+    c && typeof c.code === "string" && CREATOR_CODE.test(c.code) && typeof c.name === "string" && CREATOR_NAME.test(c.name)
+      ? { code: c.code, name: c.name, until: typeof c.until === "string" ? c.until : "" }
+      : null;
+  return { gift: { eligible: g.eligible === true && coats.length > 0, coats }, creator };
+}
+
+/** A creator code as typed (case, spaces and dashes ignored), or null. Mirror of the backend's normalizeCreatorCode. */
+export function creatorCodeOf(value: string): string | null {
+  const code = value.replace(/[\s_-]/g, "").toUpperCase();
+  return CREATOR_CODE.test(code) ? code : null;
 }
 
 export interface ApiResult<T> {
@@ -511,6 +551,27 @@ export function createPawlegendsApi(
       const init = postJson({ ...request, consentVersion: PAWLEGENDS_STORE_CONSENT_VERSION });
       return call("/checkout/account", { ...init, headers: { ...(init.headers as Record<string, string>), accesstoken: session } }, parse);
     },
+    /** The store sheet's gift offer and creator link (`GET /pawlegends/growth/checkout`, signed in only). */
+    growthCheckout: () => {
+      const session = sessionToken();
+      if (!session.startsWith("fb")) return Promise.resolve({ ok: false, status: 401, code: null, message: null, body: null } as ApiResult<GrowthCheckout>);
+      return call("/growth/checkout", { method: "GET", headers: { accesstoken: session } }, growthCheckoutOf);
+    },
+    /** Is this a creator code? `GET /pawlegends/growth/creators/:code` answers `{code, name}`, 404 when not. */
+    creator: (code: string) =>
+      call(`/growth/creators/${encodeURIComponent(code)}`, { method: "GET" }, (b) => {
+        const o = okBody(b);
+        return typeof o.code === "string" && CREATOR_CODE.test(o.code) && typeof o.name === "string" && CREATOR_NAME.test(o.name)
+          ? { code: o.code, name: o.name }
+          : null;
+      }),
+    /** Accept a friend's invite (`POST /pawlegends/growth/invite/redeem`), signed in only (invite.ts). */
+    redeemInvite: (code: string, device: string) => {
+      const session = sessionToken();
+      if (!session.startsWith("fb")) return Promise.resolve({ ok: false, status: 401, code: null, message: null, body: null } as ApiResult<Record<string, unknown>>);
+      const init = postJson({ code, deviceId: device });
+      return call("/growth/invite/redeem", { ...init, headers: { ...(init.headers as Record<string, string>), accesstoken: session } }, (b) => okBody(b));
+    },
     /** STORE-PASS.md §3 step 5: `GET /pawlegends/me`, the account's owned store and pass items and its pass row. */
     me: () => {
       const session = sessionToken();
@@ -615,6 +676,10 @@ export function checkoutErrorLine(
     case "PAWLEGENDS_ENTITLEMENT_UNAVAILABLE":
     case "PAWLEGENDS_WEBHOOK_UNAVAILABLE":
       return "The store is closed right now. The game still plays.";
+    case "PAWLEGENDS_CREATOR_UNKNOWN":
+      return "That creator code is not in the program. Check it or leave it empty.";
+    case "PAWLEGENDS_GIFT_UNAVAILABLE":
+      return "The first-purchase gift is no longer available. Try again.";
   }
   if (result.status === 0) return "No connection. Try again.";
   if (result.status === 429)
