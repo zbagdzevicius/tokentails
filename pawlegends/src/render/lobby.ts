@@ -64,7 +64,7 @@ export class Lobby {
   side = 0.42;
   /**
    * Home (HOME-MODES.md §4): the hero's height as a share of the framing band (1 = the full band; Home 0.72, so the
-   * key art's teams stay visible) and the share of the screen height under its feet (Home: the painted ring).
+   * key art's teams stay visible) and the share of the screen height under its feet (Home: the key art's sand floor).
    */
   heroScale = 1;
   footShare = 0;
