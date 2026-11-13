@@ -249,13 +249,13 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
     const hero = deps.lobbyHero?.();
     const champ = hero ? championOf(hero) : null;
     if (!hero || !champ) return null;
-    const card = s.champions.find((c) => c.catalogId === champ.catalogId);
+    // the real cat's photo (ui/art.ts), never the host's Token Tails card sprite (`catImg`, pixel art)
     return championInfo({
       name: champ.name,
       realName: champ.cardName,
       pronoun: champ.pronoun,
       type: HEROES[champ.hero].element,
-      art: card?.art,
+      hero: champ.hero,
       flavour: HERO_TEXT[champ.hero].flavour,
     });
   };

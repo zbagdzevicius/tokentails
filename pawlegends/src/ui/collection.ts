@@ -1,7 +1,7 @@
 /**
  * Collection (GAPS A1): the Treat Track's chest screen and the player's profile shelf. "Pick your next target"
  * chooses the hero whose next reward the next chest holds ("N matches to go"; the order inside each hero is fixed),
- * the champions' "Meet the real cat" postcards show the champion's splash art and a short story, and the track titles
+ * the champions' "Meet the real cat" postcards show the real cat's photo (the splash art while it cannot load) and a short story, and the track titles
  * and frames can be worn. Free and local: no price, no buy button, no link, and nothing here opens an offer.
  * Copy follows docs/CLAIMS.md: the stories are the cards' own jokes, with no money or impact words.
  */
@@ -14,6 +14,7 @@ import { icon } from './icons';
 import { openChampInfo } from './champBrowser/open';
 import { bookClose, bookTabs, focusTab, isCat, wireTabs } from './passBook';
 import { splashUrl } from './champStore/model';
+import { installArtFallback, realPhotoImgAttrs } from './art';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
@@ -21,7 +22,7 @@ export interface CollectionOpts {
   treats: TreatState;
   /** Free unlocks and owned items (a reward in here is collected). */
   owned: ReadonlySet<string>;
-  /** The champions' card art from the host (`champions`). Unused: the game shows no Token Tails art; postcards use the splash. */
+  /** The champions' card art from the host (`champions`). Unused: the game shows no Token Tails art; postcards use the real photo. */
   art: Partial<Record<HeroId, string>>;
   /** A hero portrait (the fallback picture of a postcard), or null. */
   portrait(hero: HeroId): string | null;
@@ -52,6 +53,7 @@ export function postcardStory(hero: HeroId): string {
 export const toGoText = (n: number): string => `about ${n} ${n === 1 ? 'match' : 'matches'} to go`;
 
 export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLElement {
+  installArtFallback();
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-collection pl-book';
   root.setAttribute('role', 'dialog');
@@ -85,9 +87,15 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       const have = o.owned.has(`postcard.${h}`);
       if (!have)
         return `<div class="postcard locked" data-postcard="${h}" style="--i:${i}"><span class="pic sealed" role="img" aria-label="A sealed postcard"></span><b>${esc(c.cardName)}</b><small>Earn ${esc(c.name)}'s real-cat postcard on the Treat Track.</small></div>`;
-      // Paw Legends art only (no Token Tails card art in the game): the champion's splash
+      // founder, Nov 13: the REAL cat's photo (pawlegends.app, ui/art.ts), the champion's splash when it cannot load;
+      // never Token Tails card art (pixel sprites)
+      const photo = realPhotoImgAttrs(h, { square: true, sizes: '(max-height: 500px) 160px, 240px' });
       const pic = splashUrl(String(import.meta.env.BASE_URL ?? './'), h, 360);
-      const img = pic ? `<img src="${esc(pic)}" alt="${esc(c.cardName)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : `<span class="pic">${icon('paw')}</span>`;
+      const img = photo
+        ? `<img ${photo} referrerpolicy="no-referrer" class="real">`
+        : pic
+          ? `<img src="${esc(pic)}" alt="${esc(c.cardName)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">`
+          : `<span class="pic">${icon('paw')}</span>`;
       return `<div class="postcard" data-postcard="${h}" style="--i:${i}" tabindex="0" role="button" aria-label="${esc(`${c.cardName}: meet the real cat`)}"><span class="pc-photo">${img}<span class="stamp" aria-hidden="true">${icon('paw')}</span></span><b>${esc(c.cardName)}</b><small>${esc(postcardStory(h))}</small></div>`;
     };
     // Treat Track titles and frames, plus store and Legends Pass ones the account owns (STORE-PASS.md §4)

@@ -2,7 +2,7 @@ import { expect, test, type Frame } from '@playwright/test';
 import { toChampSelect } from './helpers';
 import { art, mockHost, openHost, received } from './host';
 
-// Sim v9 shelter champions (sim v15: 20 pick tiles, 10 a side behind the All · Cats · Dogs tabs), the champion's art
+// Sim v9 shelter champions (sim v15: 20 pick tiles, 10 a side behind the All · Cats · Dogs tabs), the real cat's photo
 // in the lobby info panel (information only: a real Pink Paw cat), no owner badge and no Meet link anywhere
 // (NO-TOKENTAILS.md: the player's Token Tails cats are never shown), and the English champion names in the UI
 // font.
@@ -30,6 +30,12 @@ test('20 pick tiles (10 cats, 10 dogs), no owner badge even for an owned card; n
   await expect(info).toBeVisible();
   await info.locator('[data-a="champion-info"]').click();
   await expect(info).toContainText('a real cat from the Pink Paw shelter');
+  // founder, Nov 13: the REAL cat's photo (pawlegends.app), never the host's Token Tails pixel sprite (catImg)
+  const pic = info.locator('.plc-card.photo .plc-art img, .plc-card .plc-art img').first();
+  await expect(pic).toHaveAttribute('src', /pawlegends-art\/real\/lambo-4x5-512\.webp|assets\/splash\/lambo-360\.webp/);
+  await expect(pic).toHaveAttribute('alt', /real dark brown tabby/);
+  await expect(info.locator('img[src*="tokentails-nfts"]')).toHaveCount(0);
+  await expect(info).toContainText('Pink Paw shelter');
   await expect(info).not.toContainText(/token ?tails|\bcard\b/i);
   await expect(info.locator('[data-a="champion-meet"], .plc-meet-go')).toHaveCount(0);
   await expect(info).not.toContainText(/\$|€|price|pack|donat|fund|adopt/i);

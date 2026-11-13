@@ -305,6 +305,12 @@ export const LEGENDS_CSS = `@font-face{font-family:"Fredoka";src:url("${LEGENDS_
 .lgb .shelter .card{display:grid;grid-template-columns:auto 1fr;gap:clamp(16px,2.4vw,30px);align-items:center;max-width:820px;margin-left:auto}
 .lgb .masc{position:relative;width:clamp(110px,14vw,180px);aspect-ratio:269/350}
 .lgb .masc img{position:absolute;inset:0;width:100%;height:100%}
+.lgb .realcats{list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(8px,1.2vw,14px);margin:18px 0 0;padding:0;max-width:520px}
+.lgb .realcats li{display:flex;flex-direction:column;align-items:center;gap:5px;background:#fff;border:3px solid var(--ink);border-radius:14px;padding:5px 5px 7px;box-shadow:4px 5px 0 var(--ink)}
+.lgb .realcats li:nth-child(odd){transform:rotate(-2deg)}
+.lgb .realcats li:nth-child(even){transform:rotate(2deg)}
+.lgb .realcats img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#3a2a33}
+.lgb .realcats b{font:700 clamp(12px,1vw,15px)/1 var(--disp);color:var(--ink)}
 .lgb .masc .mb{clip-path:polygon(0 56%,100% 52%,100% 100%,0 100%)}
 .lgb .masc .mh{clip-path:polygon(0 0,100% 0,100% 60%,62% 62%,40% 64%,0 63%);transform-origin:50% 58%}
 .lgb .masc .mp{clip-path:circle(13% at 27% 50%)}

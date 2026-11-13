@@ -88,7 +88,7 @@ html[data-zoom="locked"] body {
 
 
 /* ---------- Modal system (components/ui/GameModal.tsx, components/ui/modal/*) ----------
- * The panel's "night sky": a lilac top light, a dusk glow at the foot, two tiles of crisp pixel
+ * The panel's "night sky": a lilac top light, a dusk glow at the foot, two tiles of soft round
  * stars and an inner vignette, all painted on PixelFrame's clipped decorative layers (never on the
  * content box). The twinkle runs only with motion allowed and never in low-effects mode. */
 .tt-panel-sky {
@@ -103,7 +103,6 @@ html[data-zoom="locked"] body {
 .tt-panel-stars,
 .tt-panel-stars-twinkle {
   background-repeat: repeat;
-  image-rendering: pixelated;
 }
 .tt-panel-stars {
   background-image:

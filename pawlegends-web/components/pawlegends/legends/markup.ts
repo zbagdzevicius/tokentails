@@ -18,6 +18,7 @@ import {
   landingDogs,
   liveRoster,
   newcomers,
+  realCatsStrip,
   SHELTER_REAL_NAMES,
   type LandingHero,
 } from "../landing/roster";
@@ -139,6 +140,7 @@ function shelterSection(champions: LandingHero[]): string {
         <div>
           <h2 class="kin" id="lgb-h-shelter">Real cats, <em>drawn as heroes.</em></h2>
           <p class="lede rv">${and(champions.map((h) => shown(h.name)))} are real cats from the <strong>Pink Paw</strong> shelter, drawn as heroes.</p>
+          ${realCatsStrip(champions.map((h) => h.id), "realcats")}
         </div>
       </div>
     </div>

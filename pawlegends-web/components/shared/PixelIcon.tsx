@@ -1,11 +1,14 @@
 import clsx from "clsx";
 import { CUSTOM_ICONS } from "./icons/custom";
 import { PIXELARTICONS } from "./icons/pixelarticons";
+import { SMOOTH_ICONS } from "./icons/smooth";
 
 // Replaces boxicons, whose stylesheet was never loaded, so every `bx` icon
 // rendered empty (plan F3.6). Glyphs come from pixelarticons (MIT, decision
 // #63) through scripts/codemods/sync-pixel-icons.mjs; missing ones are
-// hand-drawn in icons/custom.ts.
+// hand-drawn in icons/custom.ts. Founder, Nov 13 ("we must drop pixel art"): a
+// name with a smooth line icon (icons/smooth.ts, the v6 style) draws that one;
+// the pixel glyph is only the fallback for a name smooth.ts lacks.
 const GLYPHS: Record<string, readonly string[]> = {
   ...PIXELARTICONS,
   ...CUSTOM_ICONS,
@@ -31,6 +34,7 @@ interface IProps {
 }
 
 export const PixelIcon = ({ name, label, size = "1em", className }: IProps) => {
+  const smooth = SMOOTH_ICONS[name];
   const paths = GLYPHS[name];
   return (
     <svg
@@ -39,18 +43,36 @@ export const PixelIcon = ({ name, label, size = "1em", className }: IProps) => {
       width={size}
       height={size}
       fill="currentColor"
-      shapeRendering="crispEdges"
+      shapeRendering={smooth ? "geometricPrecision" : "crispEdges"}
       focusable="false"
       data-icon={name}
+      data-smooth={smooth ? "" : undefined}
       className={clsx("inline-block shrink-0 align-[-0.125em]", className)}
       {...(label
         ? { role: "img", "aria-label": label }
         : { "aria-hidden": true })}
     >
       {label && <title>{label}</title>}
-      {paths.map((d, i) => (
-        <path key={i} d={d} />
-      ))}
+      {smooth ? (
+        <>
+          {smooth.fill?.map((d, i) => (
+            <path key={`f${i}`} d={d} />
+          ))}
+          {smooth.stroke?.map((d, i) => (
+            <path
+              key={`s${i}`}
+              d={d}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+        </>
+      ) : (
+        paths.map((d, i) => <path key={i} d={d} />)
+      )}
     </svg>
   );
 };

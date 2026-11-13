@@ -59,6 +59,59 @@ export const heroSplashUrl = (hero: HeroId, w: 360 | 720 = 720): string => abs(`
 /** A skin's face (256²) or splash (4:5, 360 or 720 wide) on pawlegends.app. */
 export const skinArtUrl = (id: string, size: 256 | 360 | 720): string => `${artRoot()}skins/${encodeURIComponent(id)}-${size}.webp${assetRev()}`;
 
+// ------------------------------------------------------------------------------------------------- real-cat photos
+/**
+ * The real Pink Paw shelter cats behind the four shelter champions (founder, Nov 13: "we must drop pixel art, if we
+ * have real cat photo, we should use it"): one photo each, cropped on the face, served by pawlegends.app beside the
+ * skin art (`pawlegends-web/public/pawlegends-art/real/<hero>-<size>.webp`, ≤ 34 KB each), outside the game bundle.
+ * `alt` describes the real animal (screen readers hear the cat, not the champion drawing). The other heroes are
+ * made-up characters (no dog is a shelter dog), so they have no photo.
+ */
+export const REAL_PHOTOS: Readonly<Partial<Record<HeroId, { alt: string }>>> = Object.freeze({
+  lambo: { alt: 'Lambo, a real dark brown tabby cat, resting in his kennel at the Pink Paw shelter' },
+  aviete: { alt: 'Aviete, a real black-and-white tuxedo cat, lying on a grey blanket next to a pink toy at the Pink Paw shelter' },
+  bengas: { alt: 'Bengas, a real Bengal cat with a spotted golden coat, licking his nose in his crate at the Pink Paw shelter' },
+  gabe: { alt: 'Gabe, a real seal-point Siamese cat with blue eyes, peeking out of a cat house at the Pink Paw shelter' },
+});
+
+/** Photo sizes on pawlegends.app: square (256, 512) and 4:5 portrait (`4x5-256` is 204×256, `4x5-512` is 409×512). */
+export type RealPhotoSize = 256 | 512 | '4x5-256' | '4x5-512';
+
+/** Whether `hero` is one of the real shelter cats that have a photo. */
+export const hasRealPhoto = (hero: string): hero is HeroId => Object.prototype.hasOwnProperty.call(REAL_PHOTOS, hero);
+
+/** The real cat's photo of `hero` on pawlegends.app, or null for a made-up hero (no photo exists). */
+export function realPhotoUrl(hero: string, size: RealPhotoSize = '4x5-512'): string | null {
+  return hasRealPhoto(hero) ? `${artRoot()}real/${hero}-${size}.webp${assetRev()}` : null;
+}
+
+export interface RealPhoto {
+  src: string;
+  srcset: string;
+  alt: string;
+  /** The champion's painted splash (bundle): shown when the photo cannot load (offline, before a deploy). */
+  fallback: string;
+}
+
+/** A real cat's photo as `<img>` values (4:5 unless `square`), or null for a hero without one. */
+export function realPhoto(hero: string, o: { square?: boolean } = {}): RealPhoto | null {
+  if (!hasRealPhoto(hero)) return null;
+  const small = realPhotoUrl(hero, o.square ? 256 : '4x5-256') as string;
+  const big = realPhotoUrl(hero, o.square ? 512 : '4x5-512') as string;
+  const [ws, wb] = o.square ? [256, 512] : [204, 409];
+  return { src: big, srcset: `${small} ${ws}w, ${big} ${wb}w`, alt: REAL_PHOTOS[hero]?.alt ?? '', fallback: heroSplashUrl(hero, 360) };
+}
+
+/**
+ * `<img>` attributes for a real cat's photo: lazy, the real-cat `alt`, and the champion's painted splash as
+ * `data-fallback` (`installArtFallback` swaps it in on a load error). Null without a photo.
+ */
+export function realPhotoImgAttrs(hero: string, o: { square?: boolean; sizes?: string } = {}): string | null {
+  const p = realPhoto(hero, o);
+  if (!p) return null;
+  return `src="${attr(p.src)}" srcset="${attr(p.srcset)}" sizes="${attr(o.sizes ?? '160px')}" alt="${attr(p.alt)}" loading="lazy" decoding="async" draggable="false" data-fallback="${attr(p.fallback)}"`;
+}
+
 // ------------------------------------------------------------------------------------------------- loading state
 /** Skin faces known to have loaded / to have failed (missing on the server, offline). */
 const loaded = new Set<string>();

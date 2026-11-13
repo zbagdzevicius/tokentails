@@ -12,6 +12,8 @@ import type { Progress, SaveResult } from '../embed/bridge';
 import { PROGRESS_LEVELS, type ProgressLevel } from '../embed/bridge';
 import { ELEMENT_NAME, type Element } from '../meta/roster';
 import { ELEMENT_COLOR } from '../render/cosmetics';
+import type { HeroId } from '../sim/api';
+import { heroSplashUrl, realPhoto } from './art';
 import { icon } from './icons';
 import './cards.css';
 
@@ -40,6 +42,14 @@ export interface CardCat {
   name: string;
   type: string;
   art?: string;
+  /** `srcset` of `art` (with `sizes` from the card's CSS width). */
+  srcset?: string;
+  /** The picture's alt text (default: the name). */
+  alt?: string;
+  /** Shown once when `art` fails to load (else the element-tinted paw stays). */
+  fallback?: string;
+  /** `art` is a real photo (not drawn): a photo frame and caption, no foil. */
+  photo?: boolean;
   /** Small ribbon in the corner ("Guest", "New!"). */
   ribbon?: string;
   /** The line under the name (default "<Element> chroma"). */
@@ -62,15 +72,27 @@ export function catCard(c: CardCat, opts: { flip?: boolean; delay?: number; gues
   const paw = h('span', 'plc-paw');
   paw.innerHTML = icon('paw');
   art.appendChild(paw);
+  if (c.photo) card.classList.add('photo');
   if (c.art) {
     const img = h('img');
-    img.alt = c.name;
+    img.alt = c.alt ?? c.name;
     img.decoding = 'async';
     img.loading = 'lazy';
     img.referrerPolicy = 'no-referrer';
     img.draggable = false;
     img.addEventListener('load', () => art.classList.add('has-img'));
-    img.addEventListener('error', () => img.remove());
+    let fb = c.fallback ?? null;
+    img.addEventListener('error', () => {
+      if (!fb) return img.remove();
+      img.removeAttribute('srcset');
+      img.src = fb;
+      fb = null;
+      card.classList.remove('photo');
+    });
+    if (c.srcset) {
+      img.sizes = '120px';
+      img.srcset = c.srcset;
+    }
     img.src = c.art;
     art.appendChild(img);
   }
@@ -149,12 +171,14 @@ export interface ChampionInfoModel {
   realName?: string;
   pronoun: 'he' | 'she';
   type: string;
-  art?: string;
+  /** The champion's hero id: its real cat's photo (pawlegends.app), the painted splash when that fails to load. */
+  hero: HeroId;
   flavour?: string;
 }
 
 /**
- * The lobby's champion info (sim v9): an "About <name>" chip that opens a panel with the champion's art and where the
+ * The lobby's champion info (sim v9): an "About <name>" chip that opens a panel with the REAL cat's photo (founder,
+ * Nov 13: no pixel art; never the Token Tails card sprite) captioned "<cat>, Pink Paw shelter", and where the
  * champion comes from (a real Pink Paw shelter cat). Information only: nothing to buy. Never on pick, loading, in a
  * match or on results.
  */
@@ -168,7 +192,15 @@ export function championInfo(m: ChampionInfoModel): HTMLElement {
   panel.hidden = true;
   const real = m.realName ?? m.name;
   const them = m.pronoun === 'she' ? 'her' : 'him';
-  panel.appendChild(catCard({ name: real, type: m.type, art: m.art, sub: elementName(m.type) }, { small: true }));
+  const photo = realPhoto(m.hero);
+  panel.appendChild(
+    catCard(
+      photo
+        ? { name: real, type: m.type, art: photo.src, srcset: photo.srcset, alt: photo.alt, fallback: photo.fallback, photo: true, sub: 'Pink Paw shelter' }
+        : { name: real, type: m.type, art: heroSplashUrl(m.hero, 360), sub: elementName(m.type) },
+      { small: true },
+    ),
+  );
   const body = h('div', 'plc-champ-body');
   body.appendChild(h('small', 'plc-kicker', 'Pawlegends champion'));
   const line = real === m.name

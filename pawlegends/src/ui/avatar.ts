@@ -1,9 +1,9 @@
 /**
- * Player avatars (docs/plans/moba/CHAT-AVATARS.md §7.4): an icon (a champion portrait, one of the player's own Token
- * Tails cats, or an earned icon) inside a CSS ring for the border (frame), with the title as a tooltip line. Menus never
- * render WebGL for this: a hero icon uses the portrait the game already baked when there is one, else a medallion of
- * the hero's initial in its side's colour. Cat art comes only from the NFT bucket (`isAvatarView`); anything else, or
- * no data, shows the default; a guest shows a paw. Pure markup or a DOM node; nothing per frame.
+ * Player avatars (docs/plans/moba/CHAT-AVATARS.md §7.4): an icon (a champion portrait or an earned icon) inside a CSS
+ * ring for the border (frame), with the title as a tooltip line. Menus never render WebGL for this: a hero icon uses the
+ * portrait the game already baked when there is one, else a medallion of the hero's initial in its side's colour. A
+ * Token Tails cat avatar (`c:<id>` with NFT art) shows the hero face instead: its art is a pixel sprite (founder,
+ * Nov 13: no pixel art in Paw Legends). No data shows the default; a guest shows a paw. Pure markup or a DOM node.
  */
 import { HEROES, type HeroId } from '../data/heroes';
 import { isAvatarView, type AvatarView } from '../data/chatPhrases';
@@ -42,9 +42,8 @@ const PAW =
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
 export interface AvatarParts {
-  kind: 'hero' | 'cat' | 'icon' | 'guest';
+  kind: 'hero' | 'icon' | 'guest';
   hero?: HeroId;
-  img?: string;
   letter: string;
   side: 'cat' | 'dog' | null;
   ring: string | null;
@@ -57,7 +56,7 @@ export function avatarParts(av: unknown, opts: { guest?: boolean; fallbackHero?:
   const v: AvatarView | null = isAvatarView(av) ? av : null;
   const ring = frameRing(v?.f);
   const title = titleText(v?.t);
-  if (v?.i.startsWith('c:') && v.img) return { kind: 'cat', img: v.img, letter: '', side: null, ring, title };
+  // `c:` (a Token Tails cat, pixel art) falls through to the hero face
   if (v?.i.startsWith('i:')) return { kind: 'icon', letter: '★', side: null, ring, title };
   const raw = v?.i.startsWith('h:') ? v.i.slice(2) : (opts.fallbackHero ?? 'clem');
   const hero = (raw in HEROES ? raw : 'clem') as HeroId;
@@ -71,8 +70,7 @@ export function avatarHtml(av: unknown, size: AvatarSize, opts: { guest?: boolea
   const style: string[] = [`--av:${size}px`];
   if (p.ring) style.push(`--av-ring:${p.ring}`);
   let inner = '';
-  if (p.kind === 'cat' && p.img) inner = `<img src="${esc(p.img)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`;
-  else if (p.kind === 'hero' && p.hero) {
+  if (p.kind === 'hero' && p.hero) {
     const pic = portraitUrl(p.hero);
     inner = pic ? `<img src="${esc(pic)}" alt="" decoding="async">` : `<b>${esc(p.letter)}</b>`;
   } else if (p.kind === 'guest') inner = PAW;

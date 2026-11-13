@@ -23,6 +23,30 @@ export type LandingSide = "cat" | "dog";
  */
 export const SHELTER_REAL_NAMES: Readonly<Record<string, string>> = Object.freeze({ lambo: "Lambo", aviete: "Aviete", bengas: "Bengas", gabe: "Gabe" });
 
+/**
+ * The real cats' photos (founder, Nov 13: "we must drop pixel art, if we have real cat photo, we should use it"):
+ * `public/pawlegends-art/real/<id>-256|512.webp` (square, face crop; the game's ui/art.ts reads the same files). The
+ * alt text describes the real animal. Keep in step with the game's `REAL_PHOTOS`.
+ */
+export const SHELTER_PHOTO_ALT: Readonly<Record<string, string>> = Object.freeze({
+  lambo: "Lambo, a real dark brown tabby cat, resting in his kennel at the Pink Paw shelter",
+  aviete: "Aviete, a real black-and-white tuxedo cat, lying on a grey blanket next to a pink toy at the Pink Paw shelter",
+  bengas: "Bengas, a real Bengal cat with a spotted golden coat, licking his nose in his crate at the Pink Paw shelter",
+  gabe: "Gabe, a real seal-point Siamese cat with blue eyes, peeking out of a cat house at the Pink Paw shelter",
+});
+
+/** The photo files the strip loads (square 256 and 512 px per cat). */
+export const SHELTER_PHOTO_FILES: readonly string[] = Object.freeze(
+  Object.keys(SHELTER_PHOTO_ALT).flatMap((id) => [`/pawlegends-art/real/${id}-256.webp`, `/pawlegends-art/real/${id}-512.webp`]),
+);
+
+/** A strip of the real cats' photos with their real names (`class` styles it per page). Constant text only. */
+export function realCatsStrip(ids: readonly string[], cls: string): string {
+  const li = (id: string) =>
+    `<li><img src="/pawlegends-art/real/${id}-512.webp" srcset="/pawlegends-art/real/${id}-256.webp 256w, /pawlegends-art/real/${id}-512.webp 512w" sizes="(max-width: 820px) 22vw, 140px" alt="${SHELTER_PHOTO_ALT[id] ?? ""}" width="512" height="512" loading="lazy" decoding="async"><b>${SHELTER_REAL_NAMES[id] ?? id}</b></li>`;
+  return `<ul class="${cls}" role="list" aria-label="The real Pink Paw cats">${ids.filter((id) => id in SHELTER_PHOTO_ALT).map(li).join("")}</ul>`;
+}
+
 export interface LandingHero {
   id: string;
   /** As the game writes it (English names; the shelter champions were renamed from Avietė, Gabė, Bengas in Nov 2026). */

@@ -2,36 +2,13 @@ import clsx from "clsx";
 import type { CSSProperties, ReactNode } from "react";
 
 /**
- * Stepped "pixel" corners as a clip-path polygon: two steps of `unit` px at each corner.
- * Used only on decorative layers, never on the content box, so focus rings, tooltips and
- * overflowing badges inside a frame are not clipped.
+ * Rounded corners as a clip-path (v6 brand chrome; founder, Nov 13: no pixel art in Paw Legends, so the stepped
+ * "pixel" corners are gone). Each nested layer sits `unit` px further in and rounds a little less, so the outline,
+ * rim and fill read as one smooth bevelled panel. Used only on decorative layers, never on the content box, so focus
+ * rings, tooltips and overflowing badges inside a frame are not clipped.
  */
-export function pixelCorners(unit: number): string {
-  const u = `${unit}px`;
-  const u2 = `${unit * 2}px`;
-  const r = (v: string) => `calc(100% - ${v})`;
-  return `polygon(${[
-    `${u2} 0`,
-    `${r(u2)} 0`,
-    `${r(u2)} ${u}`,
-    `${r(u)} ${u}`,
-    `${r(u)} ${u2}`,
-    `100% ${u2}`,
-    `100% ${r(u2)}`,
-    `${r(u)} ${r(u2)}`,
-    `${r(u)} ${r(u)}`,
-    `${r(u2)} ${r(u)}`,
-    `${r(u2)} 100%`,
-    `${u2} 100%`,
-    `${u2} ${r(u)}`,
-    `${u} ${r(u)}`,
-    `${u} ${r(u2)}`,
-    `0 ${r(u2)}`,
-    `0 ${u2}`,
-    `${u} ${u2}`,
-    `${u} ${u}`,
-    `${u2} ${u}`,
-  ].join(", ")})`;
+export function roundedCorners(unit: number, inset = 0): string {
+  return `inset(0 round ${Math.max(unit, unit * 4 - inset)}px)`;
 }
 
 export type PixelFrameTone = "night" | "parchment";
@@ -95,7 +72,7 @@ export const PixelFrame = ({
     <span
       aria-hidden="true"
       className={clsx("pointer-events-none absolute", extra)}
-      style={{ inset, clipPath: pixelCorners(unit) }}
+      style={{ inset, clipPath: roundedCorners(unit, inset) }}
     />
   );
 
@@ -116,9 +93,9 @@ export const PixelFrame = ({
         {layer(unit * 2, sky ? "tt-panel-sky" : colors.fill)}
         {sky && layer(unit * 2, "tt-panel-stars")}
         {sky && layer(unit * 2, "tt-panel-stars-twinkle")}
-        {/* Top glint: one pixel row of light under the rim, the bevel the landing buttons use. */}
+        {/* Top glint: a thin rounded line of light under the rim, the bevel the landing buttons use. */}
         <span
-          className={clsx("pointer-events-none absolute h-[2px]", colors.glint)}
+          className={clsx("pointer-events-none absolute h-[2px] rounded-full", colors.glint)}
           style={{ top: unit * 2, left: unit * 4, right: unit * 4 }}
         />
       </span>

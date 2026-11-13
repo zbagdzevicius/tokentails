@@ -125,7 +125,7 @@ describe('copy (final spec)', () => {
   });
 
   it('the lobby champion panel is information only (no buy link)', () => {
-    const el = championInfo({ name: 'Lambo', pronoun: 'he', type: 'STELLAR' });
+    const el = championInfo({ name: 'Lambo', pronoun: 'he', type: 'STELLAR', hero: 'lambo' });
     expect(el.querySelector('[data-a="champion-meet"], .plc-meet-go')).toBeNull();
     expect(el.textContent).toContain('Lambo is a real cat from the Pink Paw shelter. Every player can pick him.');
     expect(el.textContent).not.toMatch(/token ?tails|\bcard\b/i);

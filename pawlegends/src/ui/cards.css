@@ -232,4 +232,19 @@
 .plc-champ-line { margin: 0; font-size: 12px; line-height: 1.35; }
 .plc-champ-flavour { margin: 0; font-size: 12px; font-style: italic; opacity: 0.8; }
 .plc-champ-badge { align-self: flex-start; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #ffd34d; color: #2a1a22; }
-@media (max-height: 430px) { .plc-champ-panel > .plc-card { display: none; } }
+/* founder, Nov 13: the About panel shows the REAL cat's photo (ui/art.ts realPhoto), in a cream photo frame with the
+   caption "<cat> / Pink Paw shelter"; no foil shine over a real photo. Short screens keep it, smaller. */
+.plc-card.photo .plc-face.front { background: var(--v6-cream, #fff3e3); box-shadow: 0 0 0 2px rgba(255, 243, 227, 0.9), 0 8px 22px rgba(0, 0, 0, 0.38); padding: 4px 4px 6px; }
+.plc-card.photo .plc-art { inset: 4px 4px 32px; border-radius: 10px; overflow: hidden; background: #3a2a33; }
+.plc-card.photo .plc-art img { object-position: 50% 35%; }
+.plc-card.photo .plc-name { color: var(--v6-night, #12091f); text-shadow: none; }
+.plc-card.photo .plc-el { color: rgb(var(--v6-night-rgb, 18 9 31) / 0.72); font-size: 9px; }
+.plc-card.photo .plc-shine { display: none; }
+@media (max-height: 430px) { .plc-champ-panel > .plc-card:not(.photo) { display: none; } }
+@media (max-height: 520px) {
+  .plc-champ-panel > .plc-card.photo { width: 72px; height: 100px; }
+  .plc-champ-panel > .plc-card.photo .plc-art { inset: 3px 3px 30px; }
+  .plc-champ-panel > .plc-card.photo .plc-face.front { padding: 3px 2px 5px; }
+  .plc-champ-panel > .plc-card.photo .plc-name { font-size: 11px; }
+  .plc-champ-panel > .plc-card.photo .plc-el { font-size: 8px; white-space: nowrap; }
+}
