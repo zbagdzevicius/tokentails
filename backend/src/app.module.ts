@@ -202,6 +202,9 @@ import { ClubsService } from './pawlegends/clubs/clubs.service';
 import { PawlegendsClubsController } from './pawlegends/clubs/clubs.controller';
 import { KudosService } from './pawlegends/kudos/kudos.service';
 import { PawlegendsKudosController } from './pawlegends/kudos/kudos.controller';
+import { PAWLEGENDS_PROGRESS_SCHEMAS } from './pawlegends/progress/progress.schema';
+import { PawlegendsProgressService } from './pawlegends/progress/progress.service';
+import { PawlegendsProgressController } from './pawlegends/progress/progress.controller';
 import { RaveController } from './rave/rave.controller';
 import { RaveOrder, RaveOrderSchema, RaveWebhookEvent, RaveWebhookEventSchema } from './rave/rave.schema';
 import { RaveService } from './rave/rave.service';
@@ -321,6 +324,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             { name: ClubWebhookEvent.name, schema: ClubWebhookEventSchema },
             // Paw Legends growth: invites, creator codes, the first-purchase gift (pawlegends/growth).
             ...PAWLEGENDS_GROWTH_SCHEMAS,
+            // Pawlegends account progress, Lucky Treat, Welcome Path and mastery (gap plan P2 rewards-cloud).
+            ...PAWLEGENDS_PROGRESS_SCHEMAS,
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -378,6 +383,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         // Pawlegends clubs (create, join by code, chest) and good-teammate kudos (CLUBS-KUDOS.md).
         PawlegendsClubsController,
         PawlegendsKudosController,
+        // Pawlegends account progress (gap plan P2 rewards-cloud): GET/POST /pawlegends/progress.
+        PawlegendsProgressController,
     ],
     providers: [
         UserRepository,
@@ -490,6 +497,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         KudosService,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
         { provide: BACKEND_ROLE, useValue: role },
+        // Pawlegends account progress, Lucky Treat, Welcome Path and mastery (gap plan P2 rewards-cloud).
+        PawlegendsProgressService,
     ],
 });
 

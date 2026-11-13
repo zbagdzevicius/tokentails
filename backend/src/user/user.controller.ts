@@ -71,6 +71,7 @@ import { MongoRoomStore } from 'src/pawlegends/party/room-store';
 import { MmService } from 'src/pawlegends/mm/mm.service';
 import { PawlegendsSeasonService } from 'src/pawlegends/pawlegends-season.service';
 import { ClubsService } from 'src/pawlegends/clubs/clubs.service';
+import { PawlegendsProgressService } from 'src/pawlegends/progress/progress.service';
 import { HEIST_SIM_INFO, IHeistSimInfo } from './heist/heist-sim-info';
 import { heistReplayQueue, ReplayQueueFullException } from './heist/replay-queue';
 import { UserRepository } from './user.repository';
@@ -211,7 +212,9 @@ export class UserController {
         // Growth (growth/apply-invite-progress.ts): an accepted invite counts verified matches, inside /live only.
         @Optional() private pawlegendsGrowth?: GrowthService,
         // Clubs (CLUBS-KUDOS.md §4): the weekly club chest, filled only by this save.
-        @Optional() private pawlegendsClubs?: ClubsService
+        @Optional() private pawlegendsClubs?: ClubsService,
+        // Account progress (gap plan P2): mastery, the Welcome Path and the Lucky Treat, added by /live.
+        @Optional() private pawlegendsProgress?: PawlegendsProgressService
     ) {
         // this.getUsers();
         // this.getTwitters();
@@ -1465,6 +1468,7 @@ export class UserController {
                     season: this.pawlegendsSeason,
                     growth: this.pawlegendsGrowth,
                     clubs: this.pawlegendsClubs,
+                    rewards: this.pawlegendsProgress,
                 },
                 userId,
                 body as any
@@ -1479,6 +1483,7 @@ export class UserController {
                         games: this.gameRepository as any,
                         season: this.pawlegendsSeason,
                         growth: this.pawlegendsGrowth,
+                        rewards: this.pawlegendsProgress,
                     },
                     userId,
                     body as LiveGameDto & { pawlegends?: PawlegendsReplayDto }

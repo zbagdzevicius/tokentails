@@ -293,6 +293,11 @@ export interface IPawlegendsLiveDeps {
     season?: { addXp(userId: string, m: SeasonXpMatch): Promise<SeasonXpGain | null> };
     /** Growth (growth/apply-invite-progress.ts): an accepted invite counts this verified match. Never fails the save. */
     growth?: InviteProgressDep;
+    /**
+     * Account progress (gap plan P2, progress/progress.service.ts `applyLive`): champion mastery, the Welcome Path day
+     * and the Lucky Treat, after the Game row exists. Cosmetic only; never fails the save.
+     */
+    rewards?: { applyLive(userId: string, m: { won: boolean; hero?: string | null }): Promise<unknown> };
 }
 
 /** Kills plus assists of one slot in a stats list (the re-sim's or a party verdict's), 0 when absent. */
@@ -497,6 +502,8 @@ export async function savePawlegendsMatch(
           })
         : null;
     await applyInviteProgress(deps.growth, String(userId), { ref: digest, ticks: result.ticks, forfeit: result.reason === 'forfeit' });
+    // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per saved match
+    if (deps.rewards) await deps.rewards.applyLive(String(userId), { won, hero: replay.hero });
 
     return {
         difficulty,

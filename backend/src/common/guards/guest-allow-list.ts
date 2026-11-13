@@ -29,6 +29,10 @@ export const GUEST_ALLOW_LIST: Readonly<Record<string, Readonly<AllowGuestOption
     'POST /pawlegends/party/ticket': {},
     // Pawlegends PvP reports (SOCIAL-RANKED.md section 8.3): guests sit in PvP on guest accounts; tighter caps (3 a day).
     'POST /pawlegends/reports': {},
+    // Pawlegends account progress (gap plan P2 rewards-cloud): a guest's own cosmetic progress (Treat Track, quests,
+    // settings), max-merged; no score, no draw (the Lucky Treat is drawn only by /live).
+    'GET /pawlegends/progress': {},
+    'POST /pawlegends/progress': {},
     // Feeding the guest's own cat. The reward goes to pendingTails, never spendable Tails (G1).
     'PUT /cat/:id': {},
     // Read-only previews of the guest's own progress ("you would be #N").
