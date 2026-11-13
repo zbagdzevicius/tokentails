@@ -57,7 +57,8 @@ describe("pawlegends api bridge (host)", () => {
         reason: "afk",
         kind: op === "chat.report" ? "spam" : "global",
         ageBand: "18+",
-        to: "PL-7KQ2-M9XR",
+        to: op === "club.remove" ? "0123456789ab" : "PL-7KQ2-M9XR",
+        name: "3.7",
         thread,
         after: mid,
         msg: mid,
@@ -94,6 +95,23 @@ describe("pawlegends api bridge (host)", () => {
       frame: null,
     });
     expect(routeOf("social.me", { avatarKind: "photo", avatarRef: "https://x" })?.body).toEqual({});
+  });
+
+  it("club and kudos routes (CLUBS-KUDOS.md §3, §5): registered only, names are list positions, club threads chat", () => {
+    expect(routeOf("club.get", {})).toEqual({ method: "GET", path: "/pawlegends/clubs/me", auth: "registered" });
+    expect(routeOf("club.create", { name: "3.7" })?.body).toEqual({ name: "3.7" });
+    expect(routeOf("club.create", { name: "Rude words" })).toBeNull();
+    expect(routeOf("club.join", { code: "CL-7KQ2M9" })?.body).toEqual({ code: "CL-7KQ2M9" });
+    expect(routeOf("club.join", { code: "../x" })).toBeNull();
+    expect(routeOf("club.remove", { to: "0123456789ab" })?.body).toEqual({ to: "0123456789ab" });
+    expect(routeOf("club.remove", { to: "PL-7KQ2-M9XR" })).toBeNull();
+    expect(routeOf("club.claim", {})).toMatchObject({ method: "POST", path: "/pawlegends/clubs/chest/claim" });
+    expect(routeOf("kudos.give", { room: "r1", slot: 2 })).toEqual({ method: "POST", path: "/pawlegends/kudos", body: { room: "r1", slot: 2 }, auth: "registered" });
+    expect(routeOf("kudos.give", { room: "r1", slot: 12 })).toBeNull();
+    const club = "cAAAAAAAAAAAAAAAAAAAAAA";
+    expect(routeOf("chat.history", { thread: club })?.path).toBe(`/pawlegends/social/chat/${club}`);
+    for (const op of ["club.get", "club.create", "club.join", "club.leave", "club.remove", "club.claim", "kudos.give"] as const)
+      expect(routeOf(op, { name: "3.7", code: "CL-7KQ2M9", to: "0123456789ab", room: "r1", slot: 1 })?.auth).toBe("registered");
   });
 
   function api(signedIn: boolean) {

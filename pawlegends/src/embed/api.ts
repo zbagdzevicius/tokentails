@@ -38,6 +38,14 @@ export const API_OPS = Object.freeze([
   'growth.invite',
   'growth.redeem',
   'growth.claim',
+  // clubs and good-teammate kudos (CLUBS-KUDOS.md §3, §5); club chat uses the chat ops with the club's thread
+  'club.get',
+  'club.create',
+  'club.join',
+  'club.leave',
+  'club.remove',
+  'club.claim',
+  'kudos.give',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);
