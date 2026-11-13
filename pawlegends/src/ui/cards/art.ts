@@ -41,8 +41,18 @@ export const elBg = (e: Element): string => cardUrl(`el/${lower(e)}.webp`);
  * about 3–5 KB). The one URL map for element icons; `vars.css` mirrors it for markup that only sets `data-tt-el`.
  */
 export const elIcon = (e: Element): string => assetUrl(`elements/${lower(e)}.webp`);
-/** The tier's foil pattern (shown through a color-dodge glare). */
-export const tierPattern = (t: CatTier): string => cardUrl(`tier/${t}.webp`);
+/**
+ * The tier's foil sheen (a CSS image shown through a color-dodge glare): a smooth painted light band per tier. It was
+ * a tiled pixel-paw image (`cards/tier/*.webp`), dropped with all pixel art (founder, Nov 13). Keep in step with
+ * `--tt-pat` in vars.css.
+ */
+export const TIER_SHEEN: Readonly<Record<CatTier, string>> = Object.freeze({
+  COMMON: 'linear-gradient(115deg, rgba(255, 255, 255, 0) 22%, rgba(255, 255, 255, 0.55) 50%, rgba(255, 255, 255, 0) 78%)',
+  RARE: 'linear-gradient(115deg, rgba(110, 190, 255, 0) 15%, rgba(110, 190, 255, 0.7) 40%, rgba(255, 255, 255, 0.85) 50%, rgba(110, 190, 255, 0.7) 60%, rgba(110, 190, 255, 0) 85%)',
+  EPIC: 'linear-gradient(115deg, rgba(214, 120, 255, 0) 15%, rgba(214, 120, 255, 0.7) 40%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 120, 200, 0.7) 60%, rgba(214, 120, 255, 0) 85%)',
+  LEGENDARY: 'linear-gradient(115deg, rgba(255, 205, 90, 0) 12%, rgba(255, 205, 90, 0.8) 38%, rgba(255, 255, 255, 0.9) 50%, rgba(255, 134, 165, 0.75) 62%, rgba(255, 205, 90, 0) 88%)',
+});
+export const tierPattern = (t: CatTier): string => TIER_SHEEN[t];
 /** fx art: sparkle, legendary-sparkle, golden-burst, white-burst, reveal-sparkle, legendary-bg, legendary-paws, ... */
 export const fxUrl = (name: string): string => cardUrl(`fx/${name}.webp`);
 
@@ -100,7 +110,7 @@ export const TIER_GLOW: Readonly<Record<CatTier, string>> = Object.freeze({
 export function cardVars(el: Element, tier: CatTier | null | undefined): string {
   const t = tier ?? 'COMMON';
   const x = t === 'RARE' ? `;--tt-x:url(${fxUrl('blue-sparkle')})` : t === 'EPIC' ? `;--tt-x:url(${fxUrl('purple-sparkle')})` : t === 'LEGENDARY' ? `;--tt-x:url(${fxUrl('legendary-sparkle')});--tt-lp:url(${fxUrl('legendary-paws')})` : '';
-  return `--tt-bg:url(${elBg(el)});--tt-border:${CARD_BORDER[el]};--tt-grad:${CARD_GRADIENT[el]};--tt-accent:${CARD_ACCENT[el]};--tt-pat:url(${tierPattern(t)});--tt-glow:${TIER_GLOW[t]};--tt-ico:url(${elIcon(el)});--tt-sparkle:url(${fxUrl('sparkle')})${x}`;
+  return `--tt-bg:url(${elBg(el)});--tt-border:${CARD_BORDER[el]};--tt-grad:${CARD_GRADIENT[el]};--tt-accent:${CARD_ACCENT[el]};--tt-pat:${tierPattern(t)};--tt-glow:${TIER_GLOW[t]};--tt-ico:url(${elIcon(el)});--tt-sparkle:url(${fxUrl('sparkle')})${x}`;
 }
 
 const warmed = new Set<string>();

@@ -362,6 +362,12 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
 .pll .shelter p{font-size:clamp(17px,1.4vw,20px);font-weight:600;max-width:44ch;margin-top:14px}
 .pll .shelter p strong{background:linear-gradient(var(--pink-l),var(--pink-l)) 0 88%/100% 42% no-repeat;font-weight:900}
 .pll .shelter .kicker{color:var(--pink-d)}
+.pll .realcats{list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(8px,1.2vw,16px);max-width:560px;margin:22px 0 0;padding:0}
+.pll .realcats li{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--white);border:3px solid var(--ink);border-radius:16px;padding:6px 6px 8px;box-shadow:5px 6px 0 var(--ink)}
+.pll .realcats li:nth-child(odd){transform:rotate(-2deg)}
+.pll .realcats li:nth-child(even){transform:rotate(2deg)}
+.pll .realcats img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:11px;background:#3a2a33}
+.pll .realcats b{font-family:var(--disp);font-weight:700;font-size:clamp(13px,1.1vw,16px);line-height:1}
 .pll .shelter .ctas{justify-content:flex-start;margin-top:28px}
 /* =========================================================
    CONTINUE

@@ -1,4 +1,3 @@
-import { cdnFile } from "@/constants/utils";
 import { ICollectibleProperty, IToastMessage } from "@/context/ToastContext";
 
 // Paw Legends shows no Tails balance, so a symbol has no picture.
@@ -21,24 +20,16 @@ export const Toast = ({ message, isError, symbol, img }: IToastMessage) => {
         key={message}
         className="animate-bounceWithFade rem:w-[360px] min-h-16 relative flex flex-col items-center justify-center"
       >
-        {/* Pixel-style side borders */}
-        <div className="h-6 w-1 bg-yellow-900 absolute -left-1 top-1/2 -translate-y-1/2"></div>
-        <div className="h-8 w-1 bg-yellow-800 absolute -left-2 top-1/2 -translate-y-1/2"></div>
-        <div className="h-6 w-1 bg-yellow-900 absolute -right-1 top-1/2 -translate-y-1/2"></div>
-        <div className="h-8 w-1 bg-yellow-800 absolute -right-2 top-1/2 -translate-y-1/2"></div>
-
         {/* Main toast container */}
         <div
           className={`relative w-full min-h-16 px-4 py-3 rounded-xl glow-box flex flex-col items-center justify-center border-4 ${
             isError ? "border-red-700" : "border-yellow-900"
           }`}
           style={{
-            backgroundImage: `url(${cdnFile(
-              "pixel-rescue/images/bg-paws.webp"
-            )})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
+            // v6 chrome, no pixel art (founder, Nov 13): a smooth warm gradient, no tiled pixel-paw picture
+            backgroundImage: isError
+              ? "linear-gradient(160deg, #fff3e3 0%, #ffd6d6 100%)"
+              : "linear-gradient(160deg, #fff3e3 0%, #ffe9a8 100%)",
           }}
         >
           {/* Overlay for readability */}

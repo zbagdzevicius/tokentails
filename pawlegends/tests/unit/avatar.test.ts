@@ -1,14 +1,14 @@
 // @vitest-environment happy-dom
-/** Player avatars (CHAT-AVATARS.md §7.4): every kind, the fallbacks, bucket-only art, escaped titles, CSS rings. */
+/** Player avatars (CHAT-AVATARS.md §7.4): every kind, the fallbacks, no Token Tails cat art, escaped titles, CSS rings. */
 import { describe, expect, it } from 'vitest';
 import { avatarEl, avatarHtml, avatarParts, frameRing, titleText } from '../../src/ui/avatar';
 
 const ART = 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/cats/a.png';
 
 describe('avatar', () => {
-  it('hero, cat, icon and guest', () => {
+  it('hero, icon and guest; a Token Tails cat (pixel art) shows the hero face', () => {
     expect(avatarParts({ i: 'h:sage' })).toMatchObject({ kind: 'hero', hero: 'sage', side: 'cat' });
-    expect(avatarParts({ i: 'c:0123456789abcdef01234567', img: ART })).toMatchObject({ kind: 'cat', img: ART });
+    expect(avatarParts({ i: 'c:0123456789abcdef01234567', img: ART }, { fallbackHero: 'sage' })).toMatchObject({ kind: 'hero', hero: 'sage' });
     expect(avatarParts({ i: 'i:s1.paw' })).toMatchObject({ kind: 'icon' });
     expect(avatarParts({ i: 'h:sage' }, { guest: true }).kind).toBe('guest');
   });
@@ -32,6 +32,7 @@ describe('avatar', () => {
     expect(el.getAttribute('aria-label')).toBe('Mira <b>');
     expect(el.style.getPropertyValue('--av')).toBe('56px');
     const cat = avatarEl(document, { i: 'c:0123456789abcdef01234567', img: ART }, 40);
-    expect(cat.querySelector('img')!.getAttribute('src')).toBe(ART);
+    expect(cat.dataset.kind).toBe('hero');
+    expect(cat.outerHTML).not.toContain(ART);
   });
 });

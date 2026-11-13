@@ -6,7 +6,7 @@
  * Copy rules: no player counts, no ratings, no claims about features that are not in the game. The roster numbers
  * come from roster.ts, never from literals.
  */
-import { countWord, gridHeroes, isReleased, justReleased, landingCats, landingDogs, LANDING_ROSTER, liveRoster, newcomers, rolesOf, SHELTER_REAL_NAMES, type LandingHero, type LandingSide } from "./roster";
+import { countWord, gridHeroes, isReleased, justReleased, landingCats, landingDogs, LANDING_ROSTER, liveRoster, newcomers, realCatsStrip, rolesOf, SHELTER_PHOTO_FILES, SHELTER_REAL_NAMES, type LandingHero, type LandingSide } from "./roster";
 import { variantPlayHref } from "../landingVariant";
 import { PAWLEGENDS_TERMS_PATH } from "../flags";
 
@@ -63,6 +63,7 @@ export const LANDING_FILES: readonly string[] = Object.freeze([
   ...Object.entries(SMALLER).map(([src, w]) => sized(src, w)),
   ...LANDING_ROSTER.map((h) => h.portrait).filter((p): p is string => !!p),
   ...gridHeroes().map((h) => h.portrait).filter((p): p is string => !!p).map((p) => sized(p, TILE_PORTRAIT_WIDTH)),
+  ...SHELTER_PHOTO_FILES,
 ]);
 
 /** Play links carry the landing A/B arm (`lv=A`; components/pawlegends/landingVariant.ts). */
@@ -258,6 +259,7 @@ function shelterSection(champions: LandingHero[]): string {
       <p class="kicker">The real title belt</p>
       <h2 class="disp" id="sh-h"><span class="ital">Cats win off the map too</span></h2>
       <p>${names} are real cats from the <strong>Pink Paw</strong> shelter, drawn as heroes.</p>
+      ${realCatsStrip(champions.map((h) => h.id), "realcats")}
     </div>
   </div>
   <div class="dotband" aria-hidden="true" style="--c:#000"><i></i><i></i><i></i><i></i></div>
