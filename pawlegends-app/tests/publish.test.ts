@@ -181,7 +181,7 @@ describe('ota-publish promote while main is busy', () => {
 
   it('a busy day: many pushes still promote an earlier bundle of the day, and young bundles are not pruned', () => {
     const { run, read, publish } = setup();
-    const old = publish(40);
+    publish(40);
     run('--promote', '--soak-hours', '0');
     const morning = publish(4);
     const settled = publish(3.5);
