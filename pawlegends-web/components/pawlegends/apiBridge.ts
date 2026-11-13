@@ -40,6 +40,14 @@ export const PAWLEGENDS_API_OPS = [
   "growth.invite",
   "growth.redeem",
   "growth.claim",
+  // clubs and good-teammate kudos (docs/plans/moba/CLUBS-KUDOS.md §3, §5); club chat uses the chat ops
+  "club.get",
+  "club.create",
+  "club.join",
+  "club.leave",
+  "club.remove",
+  "club.claim",
+  "kudos.give",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -135,8 +143,8 @@ export interface PawlegendsApiRoute {
 }
 
 const CODE = /^[A-Za-z0-9 -]{4,20}$/;
-/** An opaque chat thread id and a message id (CHAT-AVATARS.md §3). */
-const THREAD = /^[dp][A-Za-z0-9_-]{22}$/;
+/** An opaque chat thread id (DM, party or club: CLUBS-KUDOS.md) and a message id (CHAT-AVATARS.md §3). */
+const THREAD = /^[dpc][A-Za-z0-9_-]{22}$/;
 const MID = /^[a-f0-9]{24}$/;
 const ROOM = /^[A-Za-z0-9_-]{1,64}$/;
 const str = (v: unknown, re: RegExp) => (typeof v === "string" && re.test(v) ? v : null);
@@ -290,6 +298,30 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       return code ? { method: "POST", path: "/pawlegends/growth/invite/redeem", body: { code }, auth: "registered" } : null;
     case "growth.claim":
       return { method: "POST", path: "/pawlegends/growth/invite/claim", body: {}, auth: "registered" };
+    // clubs and good-teammate kudos (CLUBS-KUDOS.md §3, §5): registered accounts only
+    case "club.get":
+      return { method: "GET", path: "/pawlegends/clubs/me", auth: "registered" };
+    case "club.create": {
+      const name = str(a.name, /^\d{1,2}\.\d{1,2}$/);
+      return name ? { method: "POST", path: "/pawlegends/clubs", body: { name }, auth: "registered" } : null;
+    }
+    case "club.join": {
+      const c = str(a.code, /^[A-Za-z0-9 -]{6,12}$/);
+      return c ? { method: "POST", path: "/pawlegends/clubs/join", body: { code: c }, auth: "registered" } : null;
+    }
+    case "club.leave":
+      return { method: "POST", path: "/pawlegends/clubs/leave", body: {}, auth: "registered" };
+    case "club.remove": {
+      const to = str(a.to, /^[a-f0-9]{12}$/);
+      return to ? { method: "POST", path: "/pawlegends/clubs/remove", body: { to }, auth: "registered" } : null;
+    }
+    case "club.claim":
+      return { method: "POST", path: "/pawlegends/clubs/chest/claim", body: {}, auth: "registered" };
+    case "kudos.give": {
+      const room = str(a.room, ROOM);
+      const slot = int(a.slot, 0, 9);
+      return room && slot !== null ? { method: "POST", path: "/pawlegends/kudos", body: { room, slot }, auth: "registered" } : null;
+    }
     default:
       return null;
   }
