@@ -713,6 +713,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.ladder ? ladderLine(o.ladder, o.won) : ''}
       ${o.personal ? `<p class="pl-personal">${icon('crown')}<span>${esc(o.personal)}</span></p>` : ''}
       ${o.table && o.table.length ? resultTable(o.table) : ''}
+      ${o.table && o.table.some((r) => r.flag) ? '<div data-slot="kudos"></div>' : ''}
       ${tip ? `<p class="pl-result-tip">${icon('paw')}<span>${esc(tip)}</span></p>` : ''}
       <div data-slot="save"></div>
       ${o.ranked ? `<div class="pl-rk" data-slot="ranked" data-testid="ranked-result" role="status">${rankedBlockHtml(null)}</div>` : ''}

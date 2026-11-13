@@ -79,6 +79,7 @@ import { collectionPanel } from '../ui/collection';
 import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
+import { kudosMates, mountKudos } from '../social/kudos';
 import { suddenDeathS } from '../ui/screens';
 import { assetRev } from '../ui/assetRev';
 
@@ -1849,6 +1850,9 @@ export class App {
     this.setScreen('results', resultsEl);
     party?.bindResults(resultsEl, () => this.backToParty());
     if (party && this.rankedRun) this.fillRanked(resultsEl, won);
+    // CLUBS-KUDOS.md §5: a PvP match's results offer a thumbs-up to each human teammate (signed-in players only)
+    if (reportBook && partyNames && accountState().signedIn)
+      mountKudos(resultsEl, { mates: kudosMates(mySlot, partyNames, e.welcome.picks.length), send: (slot) => this.integration.api('kudos.give', { room: reportBook.room, slot }) });
     // the offer card waits for the staged results reveal, and shows only after a win (never on a Defeat screen),
     // never after the Rookie match (fun plan F4)
     if (won && !isRookie(e.replay.difficulty))

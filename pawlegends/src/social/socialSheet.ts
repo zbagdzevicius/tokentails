@@ -12,13 +12,15 @@ import { isAvatarView, previewText, type AvatarView } from '../data/chatPhrases'
 import { avatarHtml, titleText } from '../ui/avatar';
 import { ChatSheet } from './chatSheet';
 import { InviteRow } from '../share/invite';
+import { ClubsPanel } from './clubs/clubsPanel';
 
-export type SocialTab = 'friends' | 'requests' | 'recent' | 'ranked' | 'boards';
-export const SOCIAL_TABS: readonly SocialTab[] = Object.freeze(['friends', 'requests', 'recent', 'ranked', 'boards']);
+export type SocialTab = 'friends' | 'requests' | 'recent' | 'clubs' | 'ranked' | 'boards';
+export const SOCIAL_TABS: readonly SocialTab[] = Object.freeze(['friends', 'requests', 'recent', 'clubs', 'ranked', 'boards']);
 const TAB_LABEL: Readonly<Record<SocialTab, string>> = Object.freeze({
   friends: 'Friends',
   requests: 'Requests',
   recent: 'Recent',
+  clubs: 'Clubs',
   ranked: 'Ranked',
   boards: 'Boards',
 });
@@ -165,6 +167,16 @@ export class SocialSheet {
   private picking: { avatarKind: string; avatarRef: string; frame: string } | null = null;
   /** Invite and comeback codes (share/invite.ts): the first row of the Friends tab. */
   private readonly invite: InviteRow;
+  /** CLUBS-KUDOS.md §6: the Clubs tab (its own module; the sheet only hosts it). */
+  private readonly clubs = new ClubsPanel({
+    api: (op, args) => this.deps.api(op, args),
+    render: () => this.render(),
+    note: (text) => {
+      this.note = text;
+    },
+    openChat: (thread, title) => this.openClubChat(thread, title),
+    track: (e, p) => this.deps.track?.(e, p),
+  });
 
   constructor(
     parent: HTMLElement,
@@ -179,6 +191,11 @@ export class SocialSheet {
     this.root.addEventListener('click', (e) => this.onClick(e));
     this.root.addEventListener('submit', (e) => {
       e.preventDefault();
+      const club = (e.target as HTMLElement).closest?.('.pl-club-join');
+      if (club) {
+        void this.clubs.join(club.querySelector<HTMLInputElement>('input[name="club"]')?.value ?? '');
+        return;
+      }
       const form = e.target as HTMLFormElement | null;
       if (form?.dataset?.form === 'invite') void this.invite.redeem(form.querySelector<HTMLInputElement>('input[name="invite"]')?.value ?? '');
       else void this.addByCode();
@@ -219,6 +236,7 @@ export class SocialSheet {
     const [s, threads] = await Promise.all([
       this.deps.api('social.get'),
       this.tab === 'friends' ? this.deps.api('chat.list') : Promise.resolve(null),
+      this.tab === 'clubs' ? this.clubs.load() : Promise.resolve(),
     ]);
     if (s.ok && s.body) {
       this.state = s.body as SocialState;
@@ -267,7 +285,7 @@ export class SocialSheet {
     if (this.picking) return;
     // an open DM thread polls itself; its Back reloads the list, so nothing renders under it meanwhile
     if (this.chat && !this.chat.closed) return;
-    if (this.adding || this.invite.entering || this.tab === 'ranked' || this.tab === 'boards') return;
+    if (this.adding || this.invite.entering || this.tab === 'ranked' || this.tab === 'boards' || this.tab === 'clubs') return;
     await this.load();
   }
 
@@ -325,6 +343,7 @@ export class SocialSheet {
     if (!s) return `<p class="pl-social-empty">Loading…</p>`;
     if (!s.me.ageBand) return this.agePanel();
     if (this.picking) return this.pickerBody();
+    if (this.tab === 'clubs') return this.clubs.body(this.per);
     if (this.tab === 'friends') {
       // the invite row (share/invite.ts) takes the first row's place
       const inv = this.invite.html();
@@ -428,6 +447,7 @@ export class SocialSheet {
     const pager = pages > 1 ? `<span class="pl-pager"><button type="button" class="pl-btn ghost small" data-a="prev" aria-label="Previous page"${page <= 0 ? ' disabled' : ''}>&lsaquo;</button><small>${page + 1}/${pages}</small><button type="button" class="pl-btn ghost small" data-a="next" aria-label="Next page"${page >= pages - 1 ? ' disabled' : ''}>&rsaquo;</button></span>` : '';
     if (this.picking)
       return `<button type="button" class="pl-btn ghost small" data-a="pick-cancel">Cancel</button><button type="button" class="pl-btn small" data-a="pick-save" data-testid="avatar-save">Save</button>`;
+    if (this.tab === 'clubs' && this.state?.me.ageBand && this.deps.signedIn()) return this.clubs.footer(this.per);
     if (this.tab !== 'friends' || !this.state || !this.deps.signedIn() || !this.state.me.ageBand) return pager;
     if (this.adding)
       return `<form class="pl-social-add"><input name="code" maxlength="14" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="PL-XXXX-XXXX" aria-label="Friend code" inputmode="text"><button type="submit" class="pl-btn small">Add</button><button type="button" class="pl-btn ghost small" data-a="add-cancel" aria-label="Cancel">&times;</button></form>`;
@@ -472,6 +492,8 @@ export class SocialSheet {
       void this.loadBoard();
       return;
     }
+    const club = t.closest<HTMLElement>('[data-club]');
+    if (club && this.clubs.click(club)) return;
     const age = t.closest<HTMLElement>('[data-age]')?.dataset.age;
     if (age) {
       void this.act('social.age', { ageBand: age });
@@ -659,6 +681,22 @@ export class SocialSheet {
       },
       onBlocked: () => {
         this.note = 'Blocked';
+      },
+    });
+  }
+
+  /** The club chat (CLUBS-KUDOS.md §6): the DM thread sheet on the club's thread; Back returns to the Clubs tab. */
+  private openClubChat(thread: string, title: string): void {
+    if (!this.root.parentElement) return;
+    this.chat?.dispose();
+    this.chat = new ChatSheet(this.root.parentElement, {
+      api: (op, args) => this.deps.api(op, args),
+      friend: { code: '', name: title },
+      thread,
+      inMatch: () => this.deps.inMatch?.() ?? false,
+      track: this.deps.track,
+      onClose: () => {
+        this.chat = null;
       },
     });
   }

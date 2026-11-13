@@ -31,11 +31,15 @@ export interface ChatMessage {
   text?: string;
   id?: number;
   at: string | number;
+  /** A club line: the sender's display name (CLUBS-KUDOS.md; absent on DMs and own lines). */
+  who?: string;
 }
 
 export interface ChatSheetDeps {
   api(op: ApiOp, args?: ApiArgs): Promise<ApiResult>;
   friend: { code: string; name: string; av?: AvatarView };
+  /** A club chat (CLUBS-KUDOS.md §6): open this thread directly (no `chat.open`), lines name their sender, no Block. */
+  thread?: string;
   /** Back to the Social sheet (the sheet removed itself). */
   onClose(): void;
   /** A match is running: the poll pauses. */
@@ -140,6 +144,11 @@ export class ChatSheet {
   }
 
   private async open(): Promise<void> {
+    if (this.deps.thread) {
+      this.thread = this.deps.thread;
+      await this.loadHistory();
+      return;
+    }
     const r = await this.deps.api('chat.open', { code: this.deps.friend.code });
     const body = r.body as { thread?: string; tier?: ChatTier; code?: string } | undefined;
     if (!r.ok || !body?.thread) {
@@ -194,7 +203,7 @@ export class ChatSheet {
       if (!fresh.length) return;
       this.messages = mergeMessages(this.messages, fresh);
       const theirs = fresh.filter((m) => !m.mine).pop();
-      if (theirs) this.announce = `${this.deps.friend.name}: ${bubbleText(theirs)}`;
+      if (theirs) this.announce = `${theirs.who || this.deps.friend.name}: ${bubbleText(theirs)}`;
       // stays at the bottom only when the player was there (render keeps a scrolled-up reader in place)
       this.render();
       this.markRead();
@@ -306,7 +315,7 @@ export class ChatSheet {
     const list = this.root.querySelector<HTMLElement>('.pl-chat-list');
     const atBottom = !list || list.scrollHeight - list.scrollTop - list.clientHeight < 40;
     const menu = this.menu
-      ? `<div class="pl-chat-menu" role="menu"><button type="button" class="pl-btn ghost small" data-a="mute" role="menuitem">${this.muted ? 'Unmute' : 'Mute'}</button><button type="button" class="pl-btn ghost small" data-a="block" role="menuitem">Block</button></div>`
+      ? `<div class="pl-chat-menu" role="menu"><button type="button" class="pl-btn ghost small" data-a="mute" role="menuitem">${this.muted ? 'Unmute' : 'Mute'}</button>${this.deps.thread ? '' : '<button type="button" class="pl-btn ghost small" data-a="block" role="menuitem">Block</button>'}</div>`
       : '';
     const bubbles = this.messages
       .map((m) => {
@@ -316,12 +325,13 @@ export class ChatSheet {
             ? `<span class="pl-chat-report">${CHAT_REPORT_KINDS.map((k) => `<button type="button" class="pl-report-chip" data-a="report-kind" data-kind="${k}" data-mid="${this.esc(m.mid)}">${this.esc(CHAT_REPORT_LABELS[k])}</button>`).join('')}</span>`
             : '';
         const more = m.mine ? '' : `<button type="button" class="pl-chat-more" data-a="report" data-mid="${this.esc(m.mid)}" aria-label="Report this message">&hellip;</button>`;
-        return `<li class="${cls}" data-mid="${this.esc(m.mid)}"><span class="pl-chat-bubble" data-text="${this.esc(bubbleText(m))}"></span>${more}${report}</li>`;
+        const who = m.who && !m.mine ? `<small class="pl-chat-who" data-name="${this.esc(m.who)}"></small>` : '';
+        return `<li class="${cls}" data-mid="${this.esc(m.mid)}">${who}<span class="pl-chat-bubble" data-text="${this.esc(bubbleText(m))}"></span>${more}${report}</li>`;
       })
       .join('');
     const empty = !this.messages.length ? `<li class="pl-chat-empty">${this.loading ? 'Loading…' : 'Say hi! 👋'}</li>` : '';
     const earlier = this.more ? `<li><button type="button" class="pl-btn ghost small pl-chat-earlier" data-a="earlier">Load earlier</button></li>` : '';
-    const html = `<header class="pl-chat-head"><button type="button" class="pl-social-x" data-a="back" aria-label="Back">&lsaquo;</button>${avatarHtml(f.av, 40)}<span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${this.muted ? '<small class="pl-social-st">Muted</small>' : ''}<button type="button" class="pl-social-x" data-a="menu" aria-label="More" aria-expanded="${this.menu}">&hellip;</button></header><div class="pl-chat-menuwrap">${menu}</div><ul class="pl-chat-list" data-testid="chat-list">${earlier}${empty}${bubbles}</ul><p class="pl-sr" aria-live="polite" data-name="${this.esc(this.announce)}"></p><footer class="pl-chat-foot">${this.composerHtml()}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</footer>`;
+    const html = `<header class="pl-chat-head"><button type="button" class="pl-social-x" data-a="back" aria-label="Back">&lsaquo;</button>${this.deps.thread ? '<span class="pl-club-crest" aria-hidden="true">' + this.esc(f.name.slice(0, 1)) + '</span>' : avatarHtml(f.av, 40)}<span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${this.muted ? '<small class="pl-social-st">Muted</small>' : ''}<button type="button" class="pl-social-x" data-a="menu" aria-label="More" aria-expanded="${this.menu}">&hellip;</button></header><div class="pl-chat-menuwrap">${menu}</div><ul class="pl-chat-list" data-testid="chat-list">${earlier}${empty}${bubbles}</ul><p class="pl-sr" aria-live="polite" data-name="${this.esc(this.announce)}"></p><footer class="pl-chat-foot">${this.composerHtml()}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</footer>`;
     morphHtml(this.root, html, (tree) => {
       for (const el of tree.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
       for (const el of tree.querySelectorAll<HTMLElement>('[data-text]')) el.textContent = el.dataset.text ?? '';
