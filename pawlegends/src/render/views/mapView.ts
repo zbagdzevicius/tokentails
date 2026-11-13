@@ -14,6 +14,11 @@ import { ModelBuilder } from './rig';
 import { isPhone } from '../perf/device';
 import { orthoFrustum } from '../chars';
 import { NX, NY, createGrid, onPlayfield } from '../../sim/map/grid';
+import type { Ambient, AmbientFx } from '../ambient';
+import { WIND, patchWind, stepWind, windUniforms } from './env/wind';
+import { cloudUniforms, patchCloudShadow, stepClouds } from './env/clouds';
+import { RIVER_LIFE_GLSL, riverLifeUniforms, stepWater } from './env/waterLife';
+import { LIVE_KIND, livingMaterial, livingUniforms, stepLiving } from './env/banner';
 
 const W = MAP.width / 1000;
 const H = MAP.height / 1000;
@@ -413,6 +418,8 @@ void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; g
 const RIVER_FRAG = /* glsl */ `
 uniform float uTime;
 uniform float uH;
+uniform float uWidth;
+${RIVER_LIFE_GLSL}
 uniform float uFade;
 varying vec2 vUv;
 varying vec3 vW;
@@ -427,6 +434,8 @@ void main(){
   col += sparkle * 0.35;
   float foam = smoothstep(0.09, 0.0, edge);
   col = mix(col, vec3(0.97, 0.99, 1.0), foam * 0.85);
+  // living pass: flow streaks, bank foam and foam against the bridge decks and log jams (off on Low); downstream is +z
+  col = plRiverLife(col, vW.z, vW.x, edge * uWidth);
   // MAP-GAPS A15: past the map's north and south edges the river fades out under the closing forest
   float out_ = max(-vW.z - uH, vW.z);
   float fade = 1.0 - smoothstep(uFade * 0.35, uFade, out_);
@@ -552,6 +561,16 @@ export function riverMarkers(): { y: number; out: 1 | -1 }[] {
   ];
 }
 
+/**
+ * Living pass: where foam piles up in the river (render z along the flow, m; half length along it): both edges of each
+ * bridge deck and the log jams at the playfield rim.
+ */
+export function riverWeirs(): { at: number; half: number }[] {
+  const out = bridgeParts().map((b) => ({ at: -b.deckY, half: b.width / 2 }));
+  for (const m of riverMarkers()) out.push({ at: -(m.y + m.out * 0.69), half: 0.65 });
+  return out;
+}
+
 /** MAP-GAPS A13: the fountain basin's outer rim (m, the rim torus of models.ts fountainGeometry) plus a gap. */
 /** The fountain plaza ring's inner radius (m): under the basin rim torus (4.0 m, tube 0.28 m), outside the water. */
 export const PLAZA_HOLE = FOUNTAIN.radius / 1000 - 0.25;
@@ -626,6 +645,10 @@ export interface MapView {
   setShadows(on: boolean): void;
   /** Round 2: team 0 is the dogs: the plazas and base banners wear each side's species colours. */
   setStyleSwap(on: boolean): void;
+  /** Living pass: the ambient level (wind, clouds, water, banners); Low is level 0 (all still, same programs). */
+  setAmbient?(a: Ambient): void;
+  /** Living pass: the shared particle pools (unused by the map so far: its life is all in the shaders). */
+  setAmbientFx?(fx: AmbientFx): void;
   /** lifecycle: false once the start-gate fence (render/fx/lifecycleGate.ts) draws the gates; the ground strip hides. */
   gateStrip: boolean;
   dispose(): void;
@@ -698,6 +721,12 @@ export function createMapView(): MapView {
   const standIns: CasterBlob[] = [];
   const proxyCasters: THREE.Object3D[] = [];
   const rnd = lcg(11);
+  // living pass (render only): one breeze, the cloud shadows, the water life and the banner cloth; still until
+  // `setAmbient` says otherwise (Low stays level 0: every uniform 0, the same programs)
+  let amb: Pick<Ambient, 'level' | 'motion' | 'speed' | 'phone'> = { level: 0, motion: 0, speed: 1, phone: false };
+  const windU = windUniforms();
+  const cloudU = cloudUniforms();
+  const liveU = livingUniforms();
 
   // outside grass. MAP-GAPS A22: a tileable grass texture at the playfield's 20 px/m in its colours (the flat green
   // left a seam at the map edge), darkening with the distance from the map
@@ -720,6 +749,7 @@ export function createMapView(): MapView {
     );
   };
   outerMat.customProgramCacheKey = () => 'pl-outer-grass-v1';
+  patchCloudShadow(outerMat, cloudU);
   const outer = new THREE.Mesh(outerGeo, outerMat);
   outer.position.set(W / 2, -0.02, -H / 2);
   outer.receiveShadow = true;
@@ -730,7 +760,7 @@ export function createMapView(): MapView {
   let texSwap = false;
   const groundGeo = keep(new THREE.PlaneGeometry(W, H));
   groundGeo.rotateX(-Math.PI / 2);
-  const groundMat = keep(new THREE.MeshLambertMaterial({ color: 0xffffff, map: tex }));
+  const groundMat = keep(patchCloudShadow(new THREE.MeshLambertMaterial({ color: 0xffffff, map: tex }), cloudU));
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.position.set(W / 2, 0, -H / 2);
   ground.receiveShadow = true;
@@ -766,9 +796,9 @@ export function createMapView(): MapView {
   }
 
   // river
-  const riverU = { uTime: { value: 0 }, uH: { value: H }, uFade: { value: RIVER_RUN } };
   const r0 = MAP.riverX[0] / 1000;
   const r1 = MAP.riverX[1] / 1000;
+  const riverU = { uTime: { value: 0 }, uH: { value: H }, uFade: { value: RIVER_RUN }, uWidth: { value: r1 - r0 }, ...riverLifeUniforms(riverWeirs()) };
   const riverGeo = keep(new THREE.PlaneGeometry(r1 - r0, H + 2 * RIVER_RUN, 1, 1));
   riverGeo.rotateX(-Math.PI / 2);
   const river = new THREE.Mesh(
@@ -779,7 +809,7 @@ export function createMapView(): MapView {
   river.renderOrder = 1;
   group.add(river);
   // MAP-GAPS A15: the sand banks run on with the river past the map edge (strips under the painted ground inside it)
-  const bankMat = keep(new THREE.MeshLambertMaterial({ color: 0xe8d6a0 }));
+  const bankMat = keep(patchCloudShadow(new THREE.MeshLambertMaterial({ color: 0xe8d6a0 }), cloudU));
   for (const [x0, x1] of [
     [r0 - 1.1, r0 + 0.05],
     [r1 - 0.05, r1 + 1.1],
@@ -846,6 +876,8 @@ export function createMapView(): MapView {
   addMerged(props, 'props');
 
   // base banners: one mesh per style (round 2 swaps them when team 0 is the dogs)
+  // living pass: the cloth waves (pinned at the pole) in the banner mesh's own material: no extra draw
+  const bannerMat = keep(livingMaterial(liveU, 'pl-living-v1'));
   const bannerMesh = (swap: boolean): THREE.Mesh => {
   const props = new ModelBuilder();
   for (const team of [0, 1] as const) {
@@ -860,12 +892,13 @@ export function createMapView(): MapView {
       const x = bx + dx;
       const z = -(CORE.y / 1000 + dy);
       props.cyl(0.09, 0.11, 4.2, 0xfff3e3, { at: [x, 2.1, z] }, 6);
-      props.box(1.2, 1.7, 0.06, t.main, { at: [x + 0.6, 3.3, z] });
-      props.box(1.2, 0.25, 0.07, t.second, { at: [x + 0.6, 2.4, z] });
+      const cloth = { part: LIVE_KIND.cloth, pivot: [x, 3.3, z] as const };
+      props.add(new THREE.BoxGeometry(1.2, 1.7, 0.06, 6, 1, 1), t.main, { at: [x + 0.6, 3.3, z], ...cloth });
+      props.add(new THREE.BoxGeometry(1.2, 0.25, 0.07, 6, 1, 1), t.second, { at: [x + 0.6, 2.4, z], ...cloth });
       props.sphere(0.16, t.second, { at: [x, 4.3, z] }, 8);
     }
   }
-  addMerged(props, swap ? 'banners-swapped' : 'banners');
+  addMerged(props, swap ? 'banners-swapped' : 'banners', true, bannerMat);
   return group.children[group.children.length - 1] as THREE.Mesh;
   };
   const banners = bannerMesh(false);
@@ -889,13 +922,15 @@ export function createMapView(): MapView {
       const hw = b.w / 2000;
       const hh = b.h / 2000;
       const leaves: [number, number, number, number][] = [];
+      // living pass: the whole bush sways from its base (top-weighted, under 3 cm: never past its outline)
+      const sway = { part: WIND.bushCm, pivot: [cxm, 0.15, -cym] as const };
       for (let i = 0; i < 16; i++) {
         const x = cxm + (rnd() * 2 - 1) * hw * 0.85;
         const y = cym + (rnd() * 2 - 1) * hh * 0.88;
         const r = 0.7 + rnd() * 0.45;
         const h = 0.45 + rnd() * 0.25;
         leaves.push([x, h, y, r]);
-        bush.sphere(r, i % 3 ? 0x4f9a5a : 0x5fb06a, { at: [x, h, -y], scale: [1, 0.85, 1] }, 9);
+        bush.sphere(r, i % 3 ? 0x4f9a5a : 0x5fb06a, { at: [x, h, -y], scale: [1, 0.85, 1], ...sway }, 9);
       }
       // berries sit on the leaves (trailer review: placed anywhere in the box, some hovered in the air)
       for (let i = 0; i < 12; i++) {
@@ -903,7 +938,7 @@ export function createMapView(): MapView {
         const a = rnd() * Math.PI * 2;
         const el = 0.5 + rnd() * 0.6;
         const k = lr * 0.98;
-        bush.sphere(0.12, 0xb98cff, { at: [lx + Math.cos(a) * Math.cos(el) * k, lh + Math.sin(el) * k * 0.85, -(ly + Math.sin(a) * Math.cos(el) * k)] }, 6);
+        bush.sphere(0.12, 0xb98cff, { at: [lx + Math.cos(a) * Math.cos(el) * k, lh + Math.sin(el) * k * 0.85, -(ly + Math.sin(a) * Math.cos(el) * k)], ...sway }, 6);
       }
     }
   }
@@ -945,6 +980,7 @@ export function createMapView(): MapView {
       );
   })(bushMat.onBeforeCompile);
   bushMat.customProgramCacheKey = () => 'pl-bush-cut-v2';
+  patchWind(bushMat, windU);
   addMerged(bush, 'bushes', false, bushMat);
 
   // forest ring outside the playfield, plus a hedge on the edge
@@ -952,8 +988,10 @@ export function createMapView(): MapView {
   const tree = (x: number, z: number, s: number): void => {
     trees.cyl(0.25 * s, 0.35 * s, 1.6 * s, 0x8a5a3a, { at: [x, 0.8 * s, z] }, 6);
     const green = [0x5aa35a, 0x4f9a4a, 0x6bb565][(rnd() * 3) | 0];
-    trees.add(new THREE.IcosahedronGeometry(1.5 * s, 0), green, { at: [x, 2.3 * s, z] });
-    trees.add(new THREE.IcosahedronGeometry(1.05 * s, 0), 0x7cc46e, { at: [x + 0.2 * s, 3.2 * s, z - 0.1 * s] });
+    // living pass: the crown bends from the trunk's top (the trunk stays put)
+    const sway = { part: WIND.treeCm, pivot: [x, 1.2 * s, z] as const };
+    trees.add(new THREE.IcosahedronGeometry(1.5 * s, 0), green, { at: [x, 2.3 * s, z], ...sway });
+    trees.add(new THREE.IcosahedronGeometry(1.05 * s, 0), 0x7cc46e, { at: [x + 0.2 * s, 3.2 * s, z - 0.1 * s], ...sway });
     // the shadow stand-in: the canopy (both crowns) as one tall blob down to the trunk's top
     standIns.push({ x: x + 0.05 * s, y: 2.35 * s, z: z - 0.03 * s, rx: 1.45 * s, ry: 1.95 * s, rz: 1.45 * s });
   };
@@ -1021,7 +1059,7 @@ export function createMapView(): MapView {
     mat.customProgramCacheKey = () => key;
     return mat;
   };
-  const forestMat = canopyMat(CANOPY_CUT.minY, 'pl-forest-cut-v1');
+  const forestMat = patchWind(canopyMat(CANOPY_CUT.minY, 'pl-forest-cut-v1'), windU);
   addMerged(trees, 'forest', true, forestMat);
 
   // MAP-GAPS A1: the 8 jungle walls the nav grid blocks, as rock-and-root clusters filled to their edges (they were
@@ -1064,8 +1102,9 @@ export function createMapView(): MapView {
   // MAP-GAPS A12: the far forest out to the camera's reach at max zoom, one instanced tree (Low keeps half)
   const farB = new ModelBuilder();
   farB.cyl(0.25, 0.35, 1.6, 0x8a5a3a, { at: [0, 0.8, 0] }, 6);
-  farB.add(new THREE.IcosahedronGeometry(1.5, 0), 0x55a055, { at: [0, 2.3, 0] });
-  farB.add(new THREE.IcosahedronGeometry(1.05, 0), 0x7cc46e, { at: [0.2, 3.2, -0.1] });
+  const farSway = { part: WIND.farCm, pivot: [0, 1.2, 0] as const };
+  farB.add(new THREE.IcosahedronGeometry(1.5, 0), 0x55a055, { at: [0, 2.3, 0], ...farSway });
+  farB.add(new THREE.IcosahedronGeometry(1.05, 0), 0x7cc46e, { at: [0.2, 3.2, -0.1], ...farSway });
   const farGeo = keep(farB.build());
   // PERF-IOS P2-1: the 1,231 trees in FAR_CHUNK m square chunks, one InstancedMesh each with its own bounding sphere,
   // so three.js frustum-culls the chunks the fixed camera cannot see (one mesh over the whole map was never culled:
@@ -1087,7 +1126,7 @@ export function createMapView(): MapView {
   const tc = new THREE.Color();
   // PERF-IOS §8 Track B: an own material for the instanced far forest, so it does not flip `sceneryMat`'s program
   // variant (instancing on / off) against the merged meshes twice a frame.
-  const farMat = keep(sceneryMat.clone());
+  const farMat = keep(patchWind(sceneryMat.clone(), windU));
   const farMeshes: { mesh: THREE.InstancedMesh; all: number; low: number }[] = [];
   for (const list of chunks.values()) {
     list.sort((a, b) => Number(b.low) - Number(a.low) || a.i - b.i);
@@ -1110,15 +1149,16 @@ export function createMapView(): MapView {
   const hedge = new ModelBuilder();
   for (const h of hedgeSpots()) {
     if (h.kind === 'rock') hedge.add(new THREE.DodecahedronGeometry(h.r, 0), h.color, { at: [h.x, h.r * 0.45, -h.y], rot: [h.x, h.y, h.r * 7], scale: [1, 0.7, 1] });
-    else if (h.r < 0.2) hedge.sphere(h.r, h.color, { at: [h.x, 0.95, -h.y] }, 5);
-    else hedge.sphere(h.r / 1.2, h.color, { at: [h.x, 0.4, -h.y], scale: [1.2, 0.8, 1.2] }, 8);
+    else if (h.r < 0.2) hedge.sphere(h.r, h.color, { at: [h.x, 0.95, -h.y], part: WIND.hedgeCm * 1.6, pivot: [h.x, 0.1, -h.y] }, 5);
+    else hedge.sphere(h.r / 1.2, h.color, { at: [h.x, 0.4, -h.y], scale: [1.2, 0.8, 1.2], part: WIND.hedgeCm, pivot: [h.x, 0, -h.y] }, 8);
   }
   // MAP-GAPS A13: a low stone wall arcs behind each fountain basin where the hedge stops
   for (const st of fountainWall()) hedge.add(new THREE.DodecahedronGeometry(st.r, 0), st.color, { at: [st.x, st.r * 0.55, -st.y], rot: [st.x, st.y, st.r * 5], scale: [1, 0.75, 1] });
   // MAP-GAPS A1: low pebbles round the rat camps (under 0.25 m, outside the clearing, off the footpaths): the old
   // loop asked for rocks on unwalkable ground only, of which there is none there, and placed 0 of 400
   for (const k of campPebbles()) hedge.add(new THREE.DodecahedronGeometry(k.r, 0), 0xb9b2a6, { at: [k.x, 0, -k.y], rot: [k.x, k.y, k.r * 9], scale: [1, k.h / k.r, 1] });
-  addMerged(hedge, 'hedge', false);
+  // living pass: the hedge's bushes and flowers sway (its rocks, the fountain wall and the pebbles stay put: part 0)
+  addMerged(hedge, 'hedge', false, keep(patchWind(new THREE.MeshLambertMaterial({ vertexColors: true }), windU)));
 
   // gate barriers (up until the gates open): a glowing line on the ground across the walkable part of each base
   // exit. Trailer review: a full-height vertical plane spanning the whole map read as a thin yellow light stripe
@@ -1161,6 +1201,10 @@ export function createMapView(): MapView {
       const on = bushU.uBushOn.value;
       for (let i = 0; i < BUSH_COUNT; i++) on[i] += ((cleared[i] ? 1 : 0) - on[i]) * Math.min(1, dt * 6);
       riverU.uTime.value = time;
+      stepWind(windU, amb, dt);
+      stepClouds(cloudU, amb, dt);
+      stepWater(riverU, amb, dt);
+      stepLiving(liveU, amb, dt);
       const up = !frame || frame.latest.clock.phase === 'gate';
       gateMat.opacity = up ? 0.5 + Math.sin(time * 4) * 0.12 : Math.max(0, gateMat.opacity - dt * 2);
       for (const g of gates) g.visible = this.gateStrip && gateMat.opacity > 0.01;
@@ -1174,6 +1218,9 @@ export function createMapView(): MapView {
     },
     setTeam(team) {
       myTeam = team;
+    },
+    setAmbient(a) {
+      amb = a;
     },
     clearedTint() {
       return bushU.uBushOn.value.slice();
