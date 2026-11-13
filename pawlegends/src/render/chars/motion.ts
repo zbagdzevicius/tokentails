@@ -151,6 +151,13 @@ export class Animator {
     this.hold = { name, t };
     this.squash.kick(2.6);
   }
+  /**
+   * Living pass: a landing squash (a Boing Bed touchdown, the respawn drop, a recall arriving), `k` 0..1 (render only;
+   * the caller gates it by quality tier and halves it under reduce motion).
+   */
+  land(k = 1): void {
+    if (k > 0) this.squash.kick(-2.6 * Math.min(1, k));
+  }
   /** Respawn pop (squash, then a short cheer). */
   respawn(): void {
     this.popT = 0;
