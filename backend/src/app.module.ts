@@ -205,6 +205,9 @@ import { PawlegendsKudosController } from './pawlegends/kudos/kudos.controller';
 import { PAWLEGENDS_PROGRESS_SCHEMAS } from './pawlegends/progress/progress.schema';
 import { PawlegendsProgressService } from './pawlegends/progress/progress.service';
 import { PawlegendsProgressController } from './pawlegends/progress/progress.controller';
+import { PAWLEGENDS_LIVEOPS_SCHEMAS } from './pawlegends/liveops/liveops.schema';
+import { LiveopsService } from './pawlegends/liveops/liveops.service';
+import { PawlegendsLiveopsController } from './pawlegends/liveops/liveops.controller';
 import { RaveController } from './rave/rave.controller';
 import { RaveOrder, RaveOrderSchema, RaveWebhookEvent, RaveWebhookEventSchema } from './rave/rave.schema';
 import { RaveService } from './rave/rave.service';
@@ -314,6 +317,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             ...PAWLEGENDS_SOCIAL_SCHEMAS,
             // Pawlegends clubs, weekly club chests and good-teammate kudos (docs/plans/moba/CLUBS-KUDOS.md).
             ...PAWLEGENDS_CLUB_SCHEMAS,
+            // Pawlegends live ops: Events, the community goal, Winter Nap and the fan vote (docs/plans/moba/LIVEOPS.md).
+            ...PAWLEGENDS_LIVEOPS_SCHEMAS,
             // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveOrder.name, schema: RaveOrderSchema },
             { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
@@ -372,6 +377,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsChatController,
         // Pawlegends ranked status, the ranked card and the leaderboards (SOCIAL-RANKED.md sections 6, 7).
         PawlegendsRankedController,
+        // Pawlegends live ops: GET /pawlegends/config and its claims and vote (LIVEOPS.md).
+        PawlegendsLiveopsController,
         // Moon Rave checkout: name your cats, pay in place, payout to Pink Paw on-chain.
         RaveController,
         // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject.
@@ -481,6 +488,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         RankedStatusService,
         RankedService,
         RankedSeasonRewardsService,
+        // Pawlegends live ops (LIVEOPS.md): also the /live sink of the community goal and the Winter Nap days.
+        LiveopsService,
         // role all (DigitalOcean today): the relay counters as one log line a minute too (LATENCY-PLAN R4)
         ...(role === 'all' ? [PartyRelayService, RelayStatsReporter] : []),
         // Moon Rave checkout.
