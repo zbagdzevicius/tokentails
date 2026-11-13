@@ -49,13 +49,13 @@ const lin = (hex: number): [number, number, number] => {
   const c = new THREE.Color().setHex(hex);
   return [c.r, c.g, c.b];
 };
-const SMOKE_CAT = lin(0x8d7f86);
+const SMOKE_CAT = lin(0x8a7890);
 const SMOKE_DOG = lin(0x857865);
 const SMOKE_DARK = lin(0x3e3a3d);
-const FLAME_OUT = lin(0xff6a10);
-const FLAME_CORE = lin(0xffc040);
+const FLAME_OUT = lin(0xff8a1e);
+const FLAME_CORE = lin(0xffe14a);
 const FLAME_RED = lin(0xe8401a);
-const EMBER = lin(0xffb347);
+const EMBER = lin(0xf7bc3c);
 const DUST = lin(0x5e5652);
 
 export class TowerFire {

@@ -321,7 +321,7 @@ function paintGround(swap = false): THREE.Texture {
     disc(fx, FOUNTAIN.y / 1000, FOUNTAIN.radius / 1000 + 1.6, edge);
     disc(fx, FOUNTAIN.y / 1000, FOUNTAIN.radius / 1000 + 1.0, stone);
     // team-coloured paw print in the plaza
-    g.fillStyle = style === 0 ? 'rgba(255,111,145,0.35)' : 'rgba(150,92,30,0.38)';
+    g.fillStyle = style === 0 ? 'rgba(255,61,127,0.32)' : 'rgba(150,92,30,0.38)';
     const px = bx + (team === 0 ? 5.5 : -5.5);
     disc(px, cy - 5.5, 1.2, g.fillStyle as string);
     for (let k = 0; k < 4; k++) disc(px - 1.2 + k * 0.8, cy - 5.5 + 1.5 + (k === 0 || k === 3 ? -0.3 : 0), 0.45, g.fillStyle as string);
@@ -343,7 +343,7 @@ function paintGround(swap = false): THREE.Texture {
     }
   }
   // flowers
-  const petals = ['#ffffff', '#ffd27a', '#ff9fc0', '#c7a6ff'];
+  const petals = ['#ffffff', '#ffe14a', '#ffb3cd', '#7cc6ff'];
   for (let i = 0; i < 520; i++) {
     const x = rnd() * W;
     const y = rnd() * H;
@@ -567,7 +567,7 @@ export function hedgeSpots(): { x: number; y: number; r: number; color: number; 
   const r1 = MAP.riverX[1] / 1000;
   const fountains = [FOUNTAIN.x / 1000, W - FOUNTAIN.x / 1000].map((x) => [x, FOUNTAIN.y / 1000] as const);
   const out: { x: number; y: number; r: number; color: number; kind: 'bush' | 'rock' | 'flower' }[] = [];
-  const petals = [0xffffff, 0xffd27a, 0xff9fc0, 0xc7a6ff];
+  const petals = [0xffffff, 0xffe14a, 0xffb3cd, 0x7cc6ff];
   // MAP-GAPS A22: a natural hedge: jittered ±0.5 m, varied sizes, ~15% gaps, a rock or a flowering bush now and then
   const at = (x0: number, y0: number, nx: number, ny: number): void => {
     const gap = rnd() < 0.15;
@@ -859,7 +859,7 @@ export function createMapView(): MapView {
     ] as const) {
       const x = bx + dx;
       const z = -(CORE.y / 1000 + dy);
-      props.cyl(0.09, 0.11, 4.2, 0xfff3dc, { at: [x, 2.1, z] }, 6);
+      props.cyl(0.09, 0.11, 4.2, 0xfff3e3, { at: [x, 2.1, z] }, 6);
       props.box(1.2, 1.7, 0.06, t.main, { at: [x + 0.6, 3.3, z] });
       props.box(1.2, 0.25, 0.07, t.second, { at: [x + 0.6, 2.4, z] });
       props.sphere(0.16, t.second, { at: [x, 4.3, z] }, 8);
@@ -1123,7 +1123,7 @@ export function createMapView(): MapView {
   // gate barriers (up until the gates open): a glowing line on the ground across the walkable part of each base
   // exit. Trailer review: a full-height vertical plane spanning the whole map read as a thin yellow light stripe
   // running top to bottom through the plaza (the gameplay camera sees it edge-on).
-  const gateMat = keep(new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.35, depthWrite: false, toneMapped: false }));
+  const gateMat = keep(new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: 0.35, depthWrite: false, toneMapped: false }));
   const gates: THREE.Mesh[] = [];
   for (const x of [MAP.barrierX / 1000, W - MAP.barrierX / 1000]) {
     for (const [y0, y1] of gateSpans(x)) {

@@ -129,7 +129,7 @@ export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30
  * review: the tower's crack flash (0.8 of white) turned the navy dog tower pale and see-through-looking on one frame
  * two frames before it toppled; a tower now cracks with the same warm tint at `tower`.
  */
-export const FALL_FLASH = Object.freeze({ core: 0.05, tower: 0.08, color: 0xffc85a });
+export const FALL_FLASH = Object.freeze({ core: 0.05, tower: 0.08, color: 0xffe14a });
 /**
  * v3.9: the core is crushed flat and gone by this fraction of its fall (STRUCT_ANIM.fallCore 1.3 s: 0.18 s, about 7
  * frames after the burst at 60 fps); it never sinks through the plaza (the dust over a sunk roof read as a see-through
@@ -171,7 +171,7 @@ export const RUBBLE = Object.freeze({ hold: 4, sink: 1.5 });
 export const BUBBLE = Object.freeze({ rim: 0.42, core: 0.02 });
 
 /** Chunk colours per side (walls, trim, roof) and scratch objects (no per-frame allocation). */
-const DEBRIS_CAT = [0xf3ead8, 0xe6d6b8, 0xff6f91, 0xc94a72, 0xffd27a];
+const DEBRIS_CAT = [0xfff3e3, 0xe6d6b8, 0xff3d7f, 0xc8135b, 0xffe14a];
 const DEBRIS_DOG = [0x9a8366, 0xb5762b, 0x6e4520, 0xd9a441, 0x7a6448];
 const _col = new THREE.Color();
 const _m4 = new THREE.Matrix4();
@@ -197,7 +197,7 @@ export class StructureView {
    * flat additive sphere that washed the pale plaza round the core and towers to a white glare.
    */
   private bubbleMat = new THREE.ShaderMaterial({
-    uniforms: { uColor: { value: new THREE.Color(0x9fd3ff) }, uRim: { value: BUBBLE.rim }, uCore: { value: BUBBLE.core } },
+    uniforms: { uColor: { value: new THREE.Color(0x7cc6ff) }, uRim: { value: BUBBLE.rim }, uCore: { value: BUBBLE.core } },
     vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
     fragmentShader: 'uniform vec3 uColor; uniform float uRim, uCore; varying vec3 vN; varying vec3 vV; void main(){ float f = 1.0 - abs(dot(normalize(vN), normalize(vV))); gl_FragColor = vec4(uColor, uCore + uRim * f * f * f); }',
     transparent: true,

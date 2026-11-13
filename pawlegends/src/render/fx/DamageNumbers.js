@@ -7,7 +7,7 @@
 //            rises 0.6 m and drifts ±0.25 m sideways (alternating per hit); colours normal white, heavy cream, crit gold,
 //            heal mint, hurt-to-her pink; hits on one target within 0.35 s MERGE into one node (bump ×1.15, count up);
 //   words    her combo / skill words ("Snip!", "Snap!", "Swoosh!", "Shine!", "Bonk!" …): #FFF6DA, 30 px, a pink
-//            under-stroke, skewed −4°, 0.25 m above HER head, at most one per 0.25 s, off with settings.hitWords false;
+//            under-stroke, skewed −8° (v6 slant; was −4°), 0.25 m above HER head, at most one per 0.25 s, off with settings.hitWords false;
 //   pops     comic pops over the TARGET ("BONK!", "PARRY!", "CLANK!", "BOING!"): butter fill, cocoa stroke, 40 px,
 //            scale 0 → 1.2 → 1 in 180 ms, rise 0.6 m, faded by 0.7 s.
 // TT5 (TOKENTAILS-PLAN §13.1): at most DAMAGE_FX.wordCap words and pops on screen at once (a new one retires the
@@ -21,16 +21,16 @@ import * as THREE from 'three';
 // `size` is the desktop px; `phone` the phone px (short landscape or touch).
 export const DAMAGE_STYLE = Object.freeze({
   normal: { color: '#FFFFFF', size: 18, phone: 13 },
-  heavy: { color: '#FFF1C4', size: 24, phone: 16 },
+  heavy: { color: '#FFF1B8', size: 24, phone: 16 }, // pawlegends (v6 facelift): gold-1
   crit: { color: '#FFD34D', size: 32, phone: 20 },
   heal: { color: '#7DFF8A', size: 18, phone: 13 },
   hurt: { color: '#FF4D4D', size: 16, phone: 12 },
   shielded: { color: '#B9C2CF', size: 16, phone: 12 },
-  info: { color: '#F4E7C9', size: 16, phone: 12 },
+  info: { color: '#FFF3E3', size: 16, phone: 12 }, // pawlegends (v6 facelift): v6 cream
   // pawlegends (lane F, F1): the player's Fish ("+7" over a last-hit minion, "+170" on First Blood), gold with a fish
   fish: { color: '#FFD34D', size: 22, phone: 16 },
-  word: { color: '#FFF6DA', size: 36, phone: 24, under: '#FF9EC0', every: 0.25 },
-  pop: { color: '#FFE066', fill: '#FFE066', stroke: '#4A2A1F', size: 36, phone: 24 },
+  word: { color: '#FFF3E3', size: 36, phone: 24, under: '#FF86A5', every: 0.25 }, // pawlegends (v6 facelift): cream, rose-top under
+  pop: { color: '#FFE14A', fill: '#FFE14A', stroke: '#12091F', size: 36, phone: 24 }, // pawlegends (v6 facelift): bolt on night
 });
 
 /** pawlegends (LoL pass): a phone (short landscape or touch): the smaller sizes, one word on screen at once. */
@@ -139,21 +139,26 @@ const NUMERIC = new Set(['normal', 'heavy', 'crit', 'hurt', 'info', 'shielded', 
 const PREFIX = { fish: '+' };
 const RANK = { normal: 0, heavy: 1, crit: 2 };
 
+// pawlegends (v6 facelift, Lightning Rivalry): a night #12091F stroke with the logo's plum-deep #471F5D drop (the
+// kit's UI-display shadow) instead of cocoa; Fish on gold-4; words keep a rose-top under-shadow and lean −8°; comic pops
+// in Rubik 900 italic caps (the display face; glyphs outside its Latin subset fall through to Fredoka).
 const CSS = `
 .fx-dmg-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:8;contain:strict}
 .fx-dmg{position:absolute;left:0;top:0;white-space:nowrap;
-  font-family:'Fredoka','SwordcatFredoka',system-ui,sans-serif;font-weight:700;line-height:1;letter-spacing:.01em;
-  color:#fff;-webkit-text-stroke:5px #4A2A1F;paint-order:stroke fill;text-shadow:0 3px 0 #4A2A1F;opacity:0}
+  font-family:'Fredoka','SwordcatFredoka',system-ui,sans-serif;font-weight:700;line-height:1;letter-spacing:.01em;font-variant-numeric:tabular-nums;
+  color:#fff;-webkit-text-stroke:5px #12091F;paint-order:stroke fill;text-shadow:0 3px 0 #471F5D;opacity:0}
 .fx-dmg.crit::after{content:'!';margin-left:.04em;color:#FFD34D}
-.fx-dmg.fish{-webkit-text-stroke:4px #5a3a00;text-shadow:0 2px 0 #5a3a00,0 0 8px rgba(255,211,77,.55)}
+.fx-dmg.crit{text-shadow:0 3px 0 #471F5D,0 0 10px rgba(255,225,74,.45)}
+.fx-dmg.fish{-webkit-text-stroke:4px #5E3D0C;text-shadow:0 2px 0 #5E3D0C,0 0 8px rgba(247,188,60,.55)}
 .fx-dmg.fish::after{content:'';display:inline-block;width:.9em;height:.7em;margin-left:.12em;vertical-align:.02em;background:#FFD34D;
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='3 6 20 12'%3E%3Cpath d='M3 12c2.6-3.6 6-5.4 9.6-5.4 3.2 0 5.6 1.5 7 3.4L22.5 7v10L19.6 14c-1.4 1.9-3.8 3.4-7 3.4C9 17.4 5.6 15.6 3 12z'/%3E%3C/svg%3E") center/contain no-repeat;
   mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='3 6 20 12'%3E%3Cpath d='M3 12c2.6-3.6 6-5.4 9.6-5.4 3.2 0 5.6 1.5 7 3.4L22.5 7v10L19.6 14c-1.4 1.9-3.8 3.4-7 3.4C9 17.4 5.6 15.6 3 12z'/%3E%3C/svg%3E") center/contain no-repeat}
 .fx-dmg.shielded::before{content:'';display:inline-block;width:.78em;height:.9em;margin-right:.14em;vertical-align:-.08em;
-  background:#B9C2CF;border:2px solid #22262e;border-radius:.1em .1em .45em .45em}
-html[data-touch='1'] .fx-dmg,.fx-dmg.ph{-webkit-text-stroke-width:3px;text-shadow:0 2px 0 #4A2A1F}
-.fx-dmg.word{-webkit-text-stroke:4px #4A2A1F;text-shadow:0 4px 0 #FF9EC0}
-.fx-dmg.pop{-webkit-text-stroke:6px #4A2A1F;text-shadow:0 4px 0 #4A2A1F;letter-spacing:.03em}
+  background:#D6ECFF;border:2px solid #12091F;border-radius:.1em .1em .45em .45em}
+html[data-touch='1'] .fx-dmg,.fx-dmg.ph{-webkit-text-stroke-width:3px;text-shadow:0 2px 0 #471F5D}
+.fx-dmg.word{-webkit-text-stroke:4px #12091F;text-shadow:0 4px 0 #FF86A5}
+.fx-dmg.pop{font-family:'Rubik','Fredoka','SwordcatFredoka',system-ui,sans-serif;font-style:italic;font-weight:900;text-transform:uppercase;
+  -webkit-text-stroke:6px #12091F;text-shadow:0 4px 0 #471F5D;letter-spacing:.02em}
 @keyframes fxdmgtw{from{transform:scale(.7) rotate(-12deg)}to{transform:scale(1.15) rotate(12deg)}}`;
 
 export class DamageNumbers {
@@ -426,7 +431,7 @@ export class DamageNumbers {
       const yMax = text && this._touch ? h * 0.6 : h - 24;
       const x = Math.min(w - hx, Math.max(hx, sx)), y = Math.min(yMax, Math.max(24, sy));
       n.el.style.opacity = c.alpha.toFixed(3);
-      n.el.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) translate(-50%,-50%) scale(${s.toFixed(3)})${n.kind === 'word' ? ' skewX(-4deg)' : ''}`;
+      n.el.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) translate(-50%,-50%) scale(${s.toFixed(3)})${n.kind === 'word' ? ' skewX(-8deg)' : ''}`;
     }
   }
 

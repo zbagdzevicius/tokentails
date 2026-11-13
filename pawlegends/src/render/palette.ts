@@ -13,8 +13,8 @@ import { COLOR_CSS as FRANKIE_CSS } from './chars/heroes/frankie';
 import { COLOR_CSS as DOMINO_CSS } from './chars/heroes/domino';
 
 export const TEAM = Object.freeze({
-  /** Purrhaven: cream and rose. */
-  0: Object.freeze({ main: 0xff6f91, second: 0xfff3dc, deep: 0xc94a72, name: 'Purrhaven' }),
+  /** Purrhaven: cream and rose (v6 Lightning Rivalry: brand rose #FF3D7F, rose-deep #C8135B, cream #FFF3E3). */
+  0: Object.freeze({ main: 0xff3d7f, second: 0xfff3e3, deep: 0xc8135b, name: 'Purrhaven' }),
   /**
    * Woof: ochre mustard and brown (audit GFX-01: the old navy 0x3d5a9e sat next to RELATION.ally blue, so enemy dog
    * towers read as ours; blue and red stay the relation colours only). The main stays just under the gold "you" hue
@@ -24,6 +24,34 @@ export const TEAM = Object.freeze({
   /** Neutral (rats, Pudding). */
   2: Object.freeze({ main: 0xb8a27a, second: 0xf0e2c0, deep: 0x7d6b4c, name: 'Wild' }),
 });
+
+/**
+ * v6 Lightning Rivalry render tints (brand book v6): decoration only (celebration sparks, rune fills, dust, trims). Never
+ * a relation read: ally / enemy / you / danger stay RELATION. Bolt yellow celebrates or divides; the dogs never turn sky
+ * in 3D (audit GFX-01), so `sky` / `ice` are for neutral magic and water only.
+ */
+export const V6 = Object.freeze({
+  rose: 0xff3d7f,
+  roseDeep: 0xc8135b,
+  roseLight: 0xffb3cd,
+  roseTop: 0xff86a5,
+  sky: 0x39a6ff,
+  skyTop: 0x7cc6ff,
+  ice: 0xd6ecff,
+  bolt: 0xffe14a,
+  boltTop: 0xfff08a,
+  flame: 0xff8a1e,
+  logoGold: 0xf7bc3c,
+  plum: 0x633077,
+  plumDeep: 0x471f5d,
+  cream: 0xfff3e3,
+  success: 0x9be3c4,
+});
+
+/** `V6` as '#RRGGBB' strings (shockwave and canvas colours). */
+export const V6_CSS = Object.freeze(
+  Object.fromEntries(Object.entries(V6).map(([k, v]) => [k, '#' + v.toString(16).padStart(6, '0').toUpperCase()])) as Record<keyof typeof V6, string>,
+);
 
 /**
  * Relation colours, ONE encoding everywhere (rings, nameplates, bars, minimap, towers, kill feed), the MOBA convention:

@@ -3,19 +3,18 @@
 /* the low-health vignette: an edge mask with a clear centre (55%), never over the hero */
 .pl-lowhp {
   position: absolute; inset: 0; pointer-events: none; z-index: 2; opacity: 0;
-  background: radial-gradient(ellipse closest-side at 50% 50%, rgba(255, 0, 0, 0) 55%, rgba(225, 22, 34, 0.62) 84%, rgba(170, 0, 14, 0.95) 100%);
+  background: radial-gradient(ellipse closest-side at 50% 50%, rgba(255, 79, 88, 0) 55%, rgba(236, 46, 62, 0.6) 84%, rgba(120, 6, 30, 0.95) 100%);
 }
 .pl-lowhp:not([data-on='1']) { display: none; }
 
 /* XP pops (lane C, C7): a small purple gem and "+N XP" where the minion fell, like LoL gold pops but honestly XP */
 .pl-pops .pl-pop.xp {
-  font-size: 14px; color: #d9c2ff; -webkit-text-stroke: 3px #2a1640; text-shadow: 0 2px 0 #2a1640;
+  font-size: 14px; color: #dcc8ff; -webkit-text-stroke: 3px var(--v6-plum-deep, #471f5d); text-shadow: 0 2px 0 var(--v6-plum-deep, #471f5d);
   display: inline-flex; align-items: center; gap: 3px;
 }
 .pl-pops .pl-pop.xp::before {
   content: ''; width: 0.62em; height: 0.78em; flex: none;
-  background: linear-gradient(160deg, #f0e2ff 0%, #b98cff 45%, #6c3fd1 100%);
-  clip-path: polygon(50% 0, 100% 38%, 50% 100%, 0 38%);
-  filter: drop-shadow(0 1px 0 #2a1640);
+  background: var(--v6-xp-gem, linear-gradient(160deg, #f0e2ff 0%, #b98cff 45%, #6c3fd1 100%));
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
 html[data-touch='1'] .pl-pops .pl-pop.xp { font-size: 12px; -webkit-text-stroke-width: 2px; }

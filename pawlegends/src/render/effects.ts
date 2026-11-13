@@ -26,7 +26,7 @@ import type { Shockwaves } from './fx/Shockwaves.js';
 import { HITSTOP_MS, type Juice } from './juice';
 /** Feel pass B5: at most one own-hit hitstop this often (s), so a combo does not stutter. */
 const HITSTOP_GAP_S = 0.3;
-import { RELATION, TEAM, dressTeam } from './palette';
+import { RELATION, TEAM, V6, V6_CSS, dressTeam } from './palette';
 import { HERO_TOP } from './chars/specs';
 import { heroY } from './chars/visualSize';
 import * as MEATBALL from './chars/heroes/meatball';
@@ -352,9 +352,9 @@ export class Effects {
       case 'pickupSpawn': {
         this.hooks.onPickupSpawn?.(e.index, e.kind, e.x, e.y);
         _p.set(e.x / 1000, 0.4, -e.y / 1000);
-        const c = e.kind === 'frenzy' ? 0x7dff8a : 0xffa64d;
+        const c = e.kind === 'frenzy' ? 0x7dff8a : V6.flame;
         this.particles.burst(_p, { additive: true, n: 14, shape: SHAPE.STAR4, color: c, intensity: 1.8, size: [0.18, 0.3], life: [0.5, 0.8], speed: [1, 3], up: 3 });
-        this.shock.start(_p.setY(0), { r1: 2.5, dur: 0.35, color: e.kind === 'frenzy' ? '#7DFF8A' : '#FFA64D', height: 0.3 });
+        this.shock.start(_p.setY(0), { r1: 2.5, dur: 0.35, color: e.kind === 'frenzy' ? '#7DFF8A' : V6_CSS.flame, height: 0.3 });
         if (e.kind === 'frenzy') sfx.play('pickup', { at: { x: e.x / 1000, z: -e.y / 1000 }, rate: 0.7 });
         return;
       }
@@ -363,9 +363,9 @@ export class Effects {
         this.hooks.onPickupTaken?.(e.kind, who);
         // like levelup: a hero in brush keeps a last-seen place, so its ring would show where it hides
         if (!who || this.hooks.visible?.(e.id) === false) return;
-        const c = e.kind === 'frenzy' ? 0x7dff8a : 0xffa64d;
+        const c = e.kind === 'frenzy' ? 0x7dff8a : V6.flame;
         this.particles.ring(this.at(who, 0.2), { n: 16, r0: 0.4, speed: [2, 3.5], up: 2, color: c, alpha: 0.95, additive: true, size: [0.2, 0.32], shape: SHAPE.STAR4, intensity: 1.8 });
-        if (e.kind === 'snack') this.particles.burst(this.at(who, 1.2), { n: 8, shape: SHAPE.HEART, color: 0xff8fb1, size: [0.22, 0.32], life: [0.6, 0.9], speed: [0.5, 1.2], up: 1.6, gravity: -0.5 });
+        if (e.kind === 'snack') this.particles.burst(this.at(who, 1.2), { n: 8, shape: SHAPE.HEART, color: V6.rose, size: [0.22, 0.32], life: [0.6, 0.9], speed: [0.5, 1.2], up: 1.6, gravity: -0.5 });
         sfx.play('pickup', { at: who, rate: e.kind === 'frenzy' ? 1 : 1.3 });
         if (e.id === this.hooks.mySlot) this.juice.kick(0.12);
         return;
@@ -607,7 +607,7 @@ export class Effects {
         for (let i = 0; i < 10; i++) {
           const t = i / 9;
           _p.set(src.x + Math.cos(yaw) * range * t * away, 0.3, src.z - Math.sin(yaw) * range * t * away);
-          this.particles.burst(_p, { n: 2, exact: true, shape: SHAPE.PUFF, color: 0xfff4e0, alpha: 0.7, size: [0.3, 0.5], sizeEnd: 1.8, life: [0.35, 0.5], speed: [0.2, 0.8], up: 0.5, drag: 2 });
+          this.particles.burst(_p, { n: 2, exact: true, shape: SHAPE.PUFF, color: V6.cream, alpha: 0.7, size: [0.3, 0.5], sizeEnd: 1.8, life: [0.35, 0.5], speed: [0.2, 0.8], up: 0.5, drag: 2 });
         }
         if (!heroCast) sfx.play('dash', { at: src });
         break;
@@ -650,7 +650,7 @@ export class Effects {
       for (let i = 0; i < 24; i++) {
         const t = i / 23;
         _p.set(src.x + Math.cos(yaw) * len * t, 0.95, src.z - Math.sin(yaw) * len * t);
-        this.particles.single(_p, { shape: SHAPE.SPARK, color: 0xe8fff4, intensity: 2, size0: 0.5, size1: 0.1, life: 0.18 + t * 0.14 });
+        this.particles.single(_p, { shape: SHAPE.SPARK, color: V6.ice, intensity: 2, size0: 0.5, size1: 0.1, life: 0.18 + t * 0.14 });
       }
       if (mine) this.juice.kick(0.08);
       return true;
@@ -668,17 +668,17 @@ export class Effects {
   private trick(src: Who, x: number, y: number, mine: boolean): void {
     const trick = this.hooks.trickOf(src.id);
     if (trick === 'pounce') {
-      this.particles.burst(this.at(src, 0.5), { n: 12, shape: SHAPE.PUFF, color: 0xfff4e0, size: [0.4, 0.6], sizeEnd: 1.6, life: [0.3, 0.5], speed: [1, 3] });
+      this.particles.burst(this.at(src, 0.5), { n: 12, shape: SHAPE.PUFF, color: V6.cream, size: [0.4, 0.6], sizeEnd: 1.6, life: [0.3, 0.5], speed: [1, 3] });
       _p.set(x / 1000, 0.5, -y / 1000);
       this.particles.burst(_p, { additive: true, n: 12, shape: SHAPE.STAR4, color: 0xffd34d, intensity: 1.8, size: [0.15, 0.3], life: [0.3, 0.5], speed: [1.5, 3.5] });
       sfx.play('dash', { at: src, rate: 1.3 });
     } else if (trick === 'snack') {
-      this.particles.burst(this.at(src, 1.2), { n: 10, shape: SHAPE.HEART, color: 0xff8fb1, size: [0.25, 0.35], life: [0.7, 1], speed: [0.5, 1.4], up: 1.8, gravity: -0.5 });
+      this.particles.burst(this.at(src, 1.2), { n: 10, shape: SHAPE.HEART, color: V6.rose, size: [0.25, 0.35], life: [0.7, 1], speed: [0.5, 1.4], up: 1.8, gravity: -0.5 });
       sfx.play('coin', { at: src, rate: 0.8 });
     } else if (trick === 'purrify') {
       // Sim v10 (GAPS B5): a soft gold ring and rising stars, the CC shaken off
-      this.shock.start(this.at(src, 0), { r1: 1.4, dur: 0.3, color: '#FFE066', height: 0.6 });
-      this.particles.ring(this.at(src, 0.6), { n: 14, r0: 0.5, speed: [1, 2], up: 2.2, color: 0xffe066, alpha: 0.95, additive: true, size: [0.18, 0.28], shape: SHAPE.STAR4, intensity: 1.6, drag: 1.5 });
+      this.shock.start(this.at(src, 0), { r1: 1.4, dur: 0.3, color: V6_CSS.bolt, height: 0.6 });
+      this.particles.ring(this.at(src, 0.6), { n: 14, r0: 0.5, speed: [1, 2], up: 2.2, color: V6.bolt, alpha: 0.95, additive: true, size: [0.18, 0.28], shape: SHAPE.STAR4, intensity: 1.6, drag: 1.5 });
       this.numbers.show(this.at(src, 2.2), 'Purr-ified!', 'word');
       sfx.play('shieldUp', { at: src, rate: 1.2 });
     } else {
@@ -795,7 +795,7 @@ export class Effects {
     if (e.reason === 'lastHit') {
       // audio pass 2: the last-hit ping (two pings and a shimmer) and a small gold sparkle where the minion fell
       sfx.fishPing();
-      this.particles.burst(pos, { additive: true, n: 8, shape: SHAPE.STAR4, color: 0xffd34d, intensity: 1.9, size: [0.1, 0.2], life: [0.3, 0.45], speed: [1.5, 3], up: 2, drag: 2 });
+      this.particles.burst(pos, { additive: true, n: 8, shape: SHAPE.STAR4, color: V6.bolt, intensity: 1.9, size: [0.1, 0.2], life: [0.3, 0.45], speed: [1.5, 3], up: 2, drag: 2 });
     }
   }
 
@@ -804,10 +804,10 @@ export class Effects {
     const v = this.hooks.who(e.id);
     if (!v || this.hooks.visible?.(e.id) === false) return;
     const mine = e.id === this.hooks.mySlot;
-    this.particles.ring(this.at(v, 0.15), { n: mine ? 20 : 10, r0: 0.5, speed: [1.6, 2.6], up: 1.8, color: 0xffd34d, alpha: 0.95, additive: true, size: [0.18, 0.28], shape: SHAPE.STAR4, intensity: 1.8, drag: 1.5 });
+    this.particles.ring(this.at(v, 0.15), { n: mine ? 20 : 10, r0: 0.5, speed: [1.6, 2.6], up: 1.8, color: V6.bolt, alpha: 0.95, additive: true, size: [0.18, 0.28], shape: SHAPE.STAR4, intensity: 1.8, drag: 1.5 });
     if (!mine) return;
-    this.particles.single(this.at(v, 0.05), { shape: SHAPE.RING, color: 0xffd34d, intensity: 1.8, size0: 0.6, size1: 4, life: 0.5, grow: GROW.OUT });
-    this.shock.start(this.at(v, 0), { r1: 3.5, dur: 0.4, color: '#FFD34D', height: 0.4 });
+    this.particles.single(this.at(v, 0.05), { shape: SHAPE.RING, color: V6.bolt, intensity: 1.8, size0: 0.6, size1: 4, life: 0.5, grow: GROW.OUT });
+    this.shock.start(this.at(v, 0), { r1: 3.5, dur: 0.4, color: V6_CSS.bolt, height: 0.4 });
     sfx.play('buy');
   }
 
@@ -820,9 +820,9 @@ export class Effects {
     if (!v) return;
     const pos = this.at(v, 0.6);
     if (v.kind === 'hero') {
-      this.particles.burst(pos, { n: 26, shape: SHAPE.PUFF, color: 0xfff4e0, alpha: 0.9, size: [0.45, 0.8], sizeEnd: 1.8, life: [0.5, 0.8], speed: [2, 4.5], up: 1, drag: 2.5 });
+      this.particles.burst(pos, { n: 26, shape: SHAPE.PUFF, color: V6.cream, alpha: 0.9, size: [0.45, 0.8], sizeEnd: 1.8, life: [0.5, 0.8], speed: [2, 4.5], up: 1, drag: 2.5 });
       this.particles.burst(pos, { additive: true, n: 18, shape: SHAPE.STAR5, color: this.rel(v.team, v.id), intensity: 1.8, size: [0.2, 0.36], life: [0.5, 0.9], speed: [3, 6], up: 3, gravity: 7 });
-      this.shock.start(this.at(v, 0), { r1: 3, dur: 0.35, color: '#FFE0C8', height: 0.3 });
+      this.shock.start(this.at(v, 0), { r1: 3, dur: 0.35, color: V6_CSS.cream, height: 0.3 });
       this.vfx?.debris(v.x, v.z, 1.3);
       // Wave C (C4) + CARD-SKINS.md: the killer's skin stamps the fallen hero (Epic+ motif stamp, Legendary flourish;
       // only for a hero seen now); a Legendary skin's multi-kill card shows on the killer's own screen only
@@ -840,9 +840,9 @@ export class Effects {
       }
       if (e.id === this.hooks.mySlot) this.juice.kick(0.35);
     } else {
-      this.particles.burst(pos, { n: v.kind === 'minion' ? 9 : 16, shape: SHAPE.PUFF, color: 0xfff4e0, alpha: 0.8, size: [0.3, 0.5], sizeEnd: 1.6, life: [0.35, 0.55], speed: [1.2, 2.8], up: 0.6, drag: 3 });
+      this.particles.burst(pos, { n: v.kind === 'minion' ? 9 : 16, shape: SHAPE.PUFF, color: V6.cream, alpha: 0.8, size: [0.3, 0.5], sizeEnd: 1.6, life: [0.35, 0.55], speed: [1.2, 2.8], up: 0.6, drag: 3 });
       if (e.killer === this.hooks.mySlot) {
-        this.particles.burst(this.at(v, 1), { additive: true, n: 6, shape: SHAPE.STAR4, color: 0xffd34d, intensity: 2, size: [0.15, 0.25], life: [0.4, 0.6], speed: [1, 2], up: 2.5, gravity: 3 });
+        this.particles.burst(this.at(v, 1), { additive: true, n: 6, shape: SHAPE.STAR4, color: V6.bolt, intensity: 2, size: [0.15, 0.25], life: [0.4, 0.6], speed: [1, 2], up: 2.5, gravity: 3 });
         sfx.play('coin', { at: v, vol: 0.6 });
       } else sfx.play('poof', { at: v, vol: 0.5 });
       // The sim announces a fallen tower with a 'tower' event but a core only with its 'death' (the match ends on that
@@ -861,16 +861,16 @@ export class Effects {
     if (v && v.kind === 'hero' && v.hero && seen) this.vfx?.levelSpike(v.x, v.z, e.level, auraColor(v.hero, e.id === this.hooks.mySlot));
     if (v && seen && v.kind === 'hero') this.anim?.levelFired?.(e.id);
     if (v && seen) {
-      this.particles.ring(this.at(v, 0.1), { n: 18, r0: 0.6, speed: [1.5, 2.5], up: 2.4, color: 0xffd34d, alpha: 0.95, additive: true, size: [0.2, 0.3], shape: SHAPE.STAR4, intensity: 1.8, drag: 1.5 });
-      this.particles.single(this.at(v, 0.05), { shape: SHAPE.RING, color: 0xffd34d, intensity: 1.6, size0: 0.5, size1: 3.5, life: 0.45, grow: GROW.OUT });
+      this.particles.ring(this.at(v, 0.1), { n: 18, r0: 0.6, speed: [1.5, 2.5], up: 2.4, color: V6.bolt, alpha: 0.95, additive: true, size: [0.2, 0.3], shape: SHAPE.STAR4, intensity: 1.8, drag: 1.5 });
+      this.particles.single(this.at(v, 0.05), { shape: SHAPE.RING, color: V6.bolt, intensity: 1.6, size0: 0.5, size1: 3.5, life: 0.45, grow: GROW.OUT });
     }
     if (e.id === this.hooks.mySlot) {
       sfx.play('levelup');
       const guided = this.hooks.onLevel?.(e.level) === true;
       // the satisfying level-up (fun plan F2 item 6): a gold shockwave, a fountain of stars and a rim flash
       if (v) {
-        this.shock.start(this.at(v, 0), { r1: 5, dur: 0.5, color: '#FFD34D', height: 0.5 });
-        this.particles.burst(this.at(v, 0.4), { additive: true, n: 26, shape: SHAPE.STAR5, color: 0xffd34d, intensity: 2, size: [0.2, 0.36], life: [0.6, 1], speed: [2, 4.5], up: 5, gravity: 6 });
+        this.shock.start(this.at(v, 0), { r1: 5, dur: 0.5, color: V6_CSS.bolt, height: 0.5 });
+        this.particles.burst(this.at(v, 0.4), { additive: true, n: 26, shape: SHAPE.STAR5, color: V6.bolt, intensity: 2, size: [0.2, 0.36], life: [0.6, 1], speed: [2, 4.5], up: 5, gravity: 6 });
       }
       this.juice.flash('gold');
       this.juice.kick(0.12);
@@ -911,7 +911,7 @@ export class Effects {
     }
     // one ring at the crack; the fall's own impact (towerView onImpact) adds the big one (trailer review: three rings
     // here plus the burst's made four thick white rings over the pale plaza)
-    this.shock.start(this.at(v, 0), { r1: 4, dur: 0.4, color: '#FFD34D', height: 0.6 });
+    this.shock.start(this.at(v, 0), { r1: 4, dur: 0.4, color: V6_CSS.bolt, height: 0.6 });
     this.particles.burst(this.at(v, 2.5), { n: 40, shape: SHAPE.SHARD, color: 0xc9b8a8, tint: 0.2, size: [0.15, 0.35], life: [0.8, 1.3], speed: [4, 9], up: 5, gravity: 14, spin: 10, floor: true, fade: FADE.HOLD });
     this.particles.burst(this.at(v, 2.5), { additive: true, n: 30, shape: SHAPE.STAR5, color: TEAM[dressTeam(v.team)].main, intensity: 2, size: [0.25, 0.45], life: [0.6, 1], speed: [3, 7], up: 4, gravity: 6 });
     this.particles.burst(this.at(v, 1.5), { n: 30, shape: SHAPE.PUFF, color: 0xf2ddbb, alpha: 0.85, size: [0.8, 1.4], sizeEnd: 2.2, life: [0.9, 1.4], speed: [1.5, 4], up: 1, drag: 1.5 });
