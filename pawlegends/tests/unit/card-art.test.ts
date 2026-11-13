@@ -27,15 +27,15 @@ describe('card frame and pick tiles', () => {
     for (const h of HERO_IDS) expect(['ICE', 'ELECTRIC', 'FIRE', 'WIND', 'DARK', 'WATER', 'GRASS', 'SAND', 'FAIRY', 'STELLAR']).toContain(heroElement(h));
     const html = cardFrame({ el: 'FIRE', tier: 'EPIC', inner: '<b>x</b>', foot: true, sparkles: true, icon: true });
     expect(html).toContain(cardAttrs('FIRE', 'EPIC'));
-    expect(html).toContain('Epic · PAWLEGENDS');
+    expect(html).toContain('Epic · Paw Legends');
     expect(html.match(/tt-sp /g)).toHaveLength(4);
     expect(html).not.toMatch(/url\(/);
   });
   it('an Awakened footer names the stage once (stage 0 says Awakened, never "Awakened · Awakened")', () => {
     const foot = (aw: 0 | 1 | 2 | 3) => cardFrame({ el: 'FIRE', tier: 'LEGENDARY', inner: '', foot: true, awakened: aw });
-    expect(foot(0)).toContain('>Awakened · PAWLEGENDS<');
+    expect(foot(0)).toContain('>Awakened · Paw Legends<');
     expect(foot(0)).not.toContain('Awakened · Awakened');
-    expect(foot(3)).toContain('Legend · Awakened · PAWLEGENDS');
+    expect(foot(3)).toContain('Legend · Awakened · Paw Legends');
   });
   it('pick (champion select): a portrait tile per hero (20), one name each; a worn card never renames or borders a tile (NO-TOKENTAILS.md)', () => {
     document.body.innerHTML = '';

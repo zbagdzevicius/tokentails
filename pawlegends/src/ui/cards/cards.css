@@ -1,6 +1,6 @@
-/* Token Tails card art in Pawlegends (ui/cards/). The frame follows client/components/tailsCard/CardWrapper.tsx:
-   aspect 17/23, corners 5cqw, the element art as the card, a #0b0b2a inset at 6 %, sparkle stars on the inner
-   edges, the tier pattern through a color-dodge glare, the tier and PAWLEGENDS in the footer. Everything in cqw. */
+/* Champion cards in Paw Legends (ui/cards/): aspect 17/23, corners 5cqw, the element art as the card, a night inset
+   at 6 %, sparkle stars on the inner edges, the tier pattern through a color-dodge glare, the tier and "Paw Legends"
+   in the footer (hidden on cards under 200 px, where it would be unreadable). Everything in cqw. */
 
 .tt-card {
   --mx: 50cqw; --my: 40cqw; --rx: 0deg; --ry: 0deg;
@@ -14,13 +14,13 @@
   pointer-events: none;
 }
 .tt-card > .tt-in {
-  position: absolute; inset: 6%; border-radius: 4cqw; background: #0b0b2a; overflow: hidden;
+  position: absolute; inset: 6%; border-radius: 4cqw; background: var(--v6-night-0, #0a0612); overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 1cqw; padding: 0 0 3cqw;
 }
 .tt-card .tt-pic {
   position: absolute; inset: 0 0 auto; height: 76%; display: grid; place-items: center;
   background-image: var(--tt-grad); background-size: auto 112%, cover; background-position: 50% 24%, center;
-  background-repeat: no-repeat; font: 700 28cqw/1 var(--font); font-style: normal; color: #2b1d2e;
+  background-repeat: no-repeat; font: 700 28cqw/1 var(--font); font-style: normal; color: var(--v6-night, #12091f);
   -webkit-mask-image: linear-gradient(#000 80%, transparent); mask-image: linear-gradient(#000 80%, transparent);
 }
 .tt-card .tt-name, .tt-card .tt-sub, .tt-card .tt-in > b {
@@ -51,9 +51,11 @@
   -webkit-mask-position: calc(var(--mx) - 44cqw) calc(var(--my) - 44cqw); mask-position: calc(var(--mx) - 44cqw) calc(var(--my) - 44cqw);
 }
 .tt-card > .tt-foot {
-  position: absolute; left: 0; right: 0; bottom: 0.6%; z-index: 3; font: 700 4.6cqw/1 var(--font); letter-spacing: 0.08em;
+  position: absolute; left: 0; right: 0; bottom: 0.6%; z-index: 3; font: italic 800 max(9px, 4.6cqw)/1 var(--v6-font-display, var(--font)); letter-spacing: 0.08em; text-transform: uppercase;
   color: #fff; text-shadow: 0 0 0.6cqw rgba(0, 0, 0, 0.85), 0 0.3cqw 0 rgba(0, 0, 0, 0.6); white-space: nowrap; pointer-events: none;
 }
+/* the footer is 9 px at least, so it only shows on cards 200 px wide or more (the MVP card); smaller cards drop it */
+@container (max-width: 199.98px) { .tt-card > .tt-foot { display: none; } }
 /* Rare+: a small tier twinkle in the inset's top-right corner (blue, purple, gold sparkle art) */
 .tt-card:not([data-tier='COMMON']) > .tt-in::after {
   content: ''; position: absolute; right: 4%; top: 3%; width: 20%; aspect-ratio: 1; z-index: 2; pointer-events: none;
@@ -83,7 +85,7 @@
 .tt-card[data-tier='EPIC'] { animation: tt-glow-epic 2.6s ease-in-out infinite; }
 .tt-card[data-tier='LEGENDARY'] { animation: tt-glow-leg 2.2s ease-in-out infinite; }
 @keyframes tt-glow-epic { 50% { box-shadow: 0 0 0 2px var(--tt-border), 0 0 16px 5px rgba(214, 120, 255, 0.75); } }
-@keyframes tt-glow-leg { 50% { box-shadow: 0 0 0 2px var(--tt-border), 0 0 20px 6px rgba(255, 205, 90, 0.9); } }
+@keyframes tt-glow-leg { 50% { box-shadow: 0 0 0 2px var(--tt-border), 0 0 20px 6px rgba(247, 188, 60, 0.9); } }
 
 /* ------------------------------------------------------------------------------------------- the flip */
 .tt-flip { position: relative; width: var(--tt-w, 112px); container-type: inline-size; perspective: calc(var(--tt-w, 112px) * 5); }
@@ -93,8 +95,8 @@
 .tt-face-back { transform: rotateY(180deg); }
 .tt-face-front > .tt-card { width: 100%; height: 100%; }
 .tt-back {
-  position: absolute; inset: 0; border-radius: 5cqw; background: #ff7a9a center / cover no-repeat; display: grid; place-items: center;
-  box-shadow: 0 0 0 max(1px, 1.1cqw) rgba(255, 243, 220, 0.85), 0 2cqw 5cqw rgba(0, 0, 0, 0.4);
+  position: absolute; inset: 0; border-radius: 5cqw; background: var(--v6-rose, #ff3d7f) center / cover no-repeat; display: grid; place-items: center;
+  box-shadow: 0 0 0 max(1px, 1.1cqw) rgb(var(--v6-cream-rgb, 255 243 227) / 0.85), 0 2cqw 5cqw rgba(0, 0, 0, 0.4);
 }
 
 /* ----------------------------------------------------------------------------------------- the reveal */
@@ -123,9 +125,9 @@
 @keyframes tt-flash { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(0deg); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.35) rotate(40deg); } }
 @keyframes tt-spin { from { rotate: 0deg; } to { rotate: 360deg; } }
 .tt-reveal > .tt-ribbon {
-  position: absolute; left: 0; top: calc(var(--tt-w, 112px) * 0.68 + 4px); transform: translateX(-50%); white-space: nowrap;
-  font: 700 13px/1 var(--font); color: #2b1d2e; background: var(--tt-accent, #ffd34d); padding: 5px 10px; border-radius: 999px;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25); opacity: 0; transition: opacity 0.2s 0.3s;
+  position: absolute; left: 0; top: calc(var(--tt-w, 112px) * 0.68 + 4px); transform: translateX(-50%) skewX(var(--v6-slant, -8deg)); white-space: nowrap;
+  font: 700 13px/1 var(--font); color: var(--v6-night, #12091f); background: var(--tt-accent, var(--v6-bolt, #ffe14a)); padding: 5px 10px; border-radius: var(--v6-r-xs, 4px);
+  box-shadow: 0 0 0 2px var(--v6-night, #12091f), 0 4px 0 rgb(0 0 0 / 0.35); opacity: 0; transition: opacity var(--v6-dur-fast, 180ms) 0.3s;
 }
 .tt-reveal.anchored > .tt-ribbon { top: 6px; }
 .tt-reveal.up > .tt-ribbon { opacity: 1; }
@@ -148,7 +150,7 @@
 .tt-respawn.fly > .tt-flip { transform: translateX(-50%) var(--tt-fly, scale(0.5)); opacity: 0.15; transition: transform 0.44s cubic-bezier(0.55, 0, 0.75, 0.4), opacity 0.44s ease-in; }
 .tt-respawn.out > .tt-flip { opacity: 0; transform: translate(-50%, -18px) scale(0.9); }
 .tt-respawn > .tt-flash { top: calc(var(--tt-w) * 0.68 * var(--tt-big)); width: calc(var(--tt-w) * 2 * var(--tt-big)); }
-.tt-respawn .tt-back-paw { width: 52%; height: auto; fill: rgba(255, 243, 220, 0.92); filter: drop-shadow(0 1px 0 rgba(74, 42, 31, 0.6)); }
+.tt-respawn .tt-back-paw { width: 52%; height: auto; fill: rgb(var(--v6-cream-rgb, 255 243 227) / 0.92); filter: drop-shadow(0 1px 0 rgb(var(--v6-plum-rgb, 71 31 93) / 0.7)); }
 .tt-respawn .tt-card .tt-pic { height: 100%; -webkit-mask-image: none; mask-image: none; }
 /* the glow is a box-shadow keyframe: it never runs on the small HUD card (only its big reveal moment shows the tier) */
 .tt-respawn .tt-card[data-tier] { animation: none; }
@@ -198,16 +200,20 @@ html[data-touch='1'] .tt-respawn.on:not(.up) { opacity: 0; visibility: hidden; }
 }
 .tt-mvp-leg { width: 150%; --to: 0.6; animation: tt-fade-to 0.6s ease-out 1s both, tt-spin 40s linear infinite reverse; }
 .tt-mvp-leg.rare { width: 170%; --to: 0.5; }
+/* v6: a night tag in Rubik 900 italic caps, leaning -8deg, with a bolt keyline (never a bolt fill: the results screen
+   keeps its one bolt for the VICTORY word). It sits above the card and overlaps the frame by about 6 px at most. */
 .tt-mvp-ribbon {
-  position: absolute; left: 50%; top: -14px; z-index: 5; translate: -50% 0; rotate: -4deg;
-  font: 700 20px/1 var(--font); letter-spacing: 0.08em; color: #4a2a1f; background: linear-gradient(180deg, #ffe58a, #ffc23d);
-  padding: 7px 18px; border-radius: 999px; box-shadow: 0 3px 0 #b07a1c, 0 6px 16px rgba(0, 0, 0, 0.35);
-  animation: tt-ribbon 0.45s cubic-bezier(0.2, 1.8, 0.4, 1) 1.15s both;
+  position: absolute; left: 50%; top: -28px; z-index: 5; translate: -50% 0; rotate: -4deg; transform: skewX(var(--v6-slant, -8deg));
+  font: italic 900 20px/1 var(--v6-font-display, var(--font)); letter-spacing: 0.06em; text-transform: uppercase; color: var(--v6-cream, #fff3e3);
+  background: var(--v6-night-2, #1c1230); text-shadow: 0 2px 0 var(--v6-plum-deep, #471f5d);
+  padding: 7px 18px; border-radius: var(--v6-r-xs, 4px);
+  box-shadow: inset 0 0 0 2px var(--v6-bolt, #ffe14a), 0 0 0 2px var(--v6-logo-plum, #633077), 0 5px 0 var(--v6-night-0, #0a0612), 0 10px 18px rgba(0, 0, 0, 0.4);
+  animation: tt-ribbon var(--v6-dur-punch, 500ms) var(--v6-ease-pop, cubic-bezier(0.34, 1.56, 0.64, 1)) 1.15s both;
 }
 @keyframes tt-ribbon { from { opacity: 0; scale: 0.4; } to { opacity: 1; scale: 1; } }
 /* a defeat's "TEAM BEST" ribbon: one line, a touch smaller */
 .tt-mvp-ribbon { white-space: nowrap; }
-.tt-mvp.lost .tt-mvp-ribbon { font-size: 16px; padding: 6px 14px; }
+.tt-mvp.lost .tt-mvp-ribbon { font-size: 16px; padding: 6px 14px; top: -22px; }
 .tt-mvp-deco { position: absolute; z-index: 3; background: center / contain no-repeat; pointer-events: none; animation: tt-fade-in 0.4s ease-out 1.2s both; }
 .tt-mvp-deco.wl { left: -24%; top: 40%; width: 34%; aspect-ratio: 1; }
 .tt-mvp-deco.wr { right: -24%; top: 40%; width: 34%; aspect-ratio: 1; }
@@ -216,7 +222,7 @@ html[data-touch='1'] .tt-respawn.on:not(.up) { opacity: 0; visibility: hidden; }
 @media (max-width: 1000px) { .tt-mvp { --tt-w: 170px; right: calc(4vw + var(--safe-r, 0px)); } }
 @media (max-height: 520px) {
   .tt-mvp { --tt-w: 112px; top: calc(20px + var(--safe-t, 0px)); transform: none; right: calc(16px + var(--safe-r, 0px)); }
-  .tt-mvp-ribbon { font-size: 13px; padding: 4px 10px; top: -8px; }
+  .tt-mvp-ribbon, .tt-mvp.lost .tt-mvp-ribbon { font-size: 13px; padding: 4px 10px; top: -15px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .tt-mvp, .tt-mvp-deco, .tt-mvp-ribbon { animation: tt-fade-in 0.2s ease-out both; }
@@ -232,7 +238,7 @@ html[data-touch='1'] .tt-respawn.on:not(.up) { opacity: 0; visibility: hidden; }
 /* --------------------------------------------------------------------- title: the badge's card ring */
 .pl-badge .ring.tt-ring {
   position: relative; background-color: transparent; background-size: 118%; background-position: 50% 30%;
-  box-shadow: 0 0 0 3px var(--tt-border), 0 0 0 5px rgba(43, 29, 46, 0.6), 0 0 14px var(--tt-accent);
+  box-shadow: 0 0 0 3px var(--tt-border), 0 0 0 5px rgb(var(--v6-night-rgb, 18 9 31) / 0.6), 0 0 14px var(--tt-accent);
 }
 .pl-badge .ring.tt-ring::after {
   content: ''; position: absolute; inset: -7px; border-radius: 50%; z-index: -1; pointer-events: none;
@@ -241,8 +247,8 @@ html[data-touch='1'] .tt-respawn.on:not(.up) { opacity: 0; visibility: hidden; }
 
 /* ----------------------------------------------------- HUD: kill-feed faces, ult-ready and level-up glints */
 .pl-feed-row .tt-kf {
-  --ring: var(--tt-accent, #fff3dc); flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--ring) 50% 28% / 118% no-repeat; font-style: normal;
-  box-shadow: 0 0 0 2px var(--ring), 0 0 0 3px rgba(20, 12, 22, 0.7); margin-right: -2px;
+  --ring: var(--tt-accent, var(--v6-cream, #fff3e3)); flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--ring) 50% 28% / 118% no-repeat; font-style: normal;
+  box-shadow: 0 0 0 2px var(--ring), 0 0 0 3px rgb(var(--v6-night-rgb, 18 9 31) / 0.7); margin-right: -2px;
 }
 .pl-feed-row b + span + .tt-kf { margin-left: 2px; }
 html[data-touch='1'] .pl-feed-row .tt-kf { width: 16px; height: 16px; }
@@ -277,6 +283,16 @@ html[data-touch='1'] .pl-feed-row .tt-kf { width: 16px; height: 16px; }
   box-shadow: 0 0 0 1.5px var(--tt-border), 0 2px 4px rgba(0, 0, 0, 0.35);
 }
 @media (min-height: 600px) { .pl-scoreboard .dot.tt-sb { width: 32px; height: 44px; border-radius: 5px; } }
-.tt-back { background-image: url('/assets/cards/back.webp'); }
+/* the Paw Legends card back, drawn in CSS: night-2 with the rose | bolt | sky split and the wordmark (the logo file
+   Home already loads; no card-back raster) */
+.tt-back {
+  background:
+    url('/assets/brand/logo-compact-640.webp') 50% 50% / 86% auto no-repeat,
+    linear-gradient(118deg, transparent 0 48.6%, rgb(var(--v6-bolt-rgb, 255 225 74) / 0.9) 48.6% 51.4%, transparent 51.4%),
+    linear-gradient(118deg, rgb(var(--v6-rose-rgb, 255 61 127) / 0.34) 0 49%, rgb(var(--v6-sky-rgb, 57 166 255) / 0.34) 51%),
+    var(--v6-night-2, #1c1230);
+}
+/* the respawn card's back carries the paw glyph: no wordmark under it */
+.tt-respawn .tt-back { background-image: linear-gradient(118deg, transparent 0 48.6%, rgb(var(--v6-bolt-rgb, 255 225 74) / 0.9) 48.6% 51.4%, transparent 51.4%), linear-gradient(118deg, rgb(var(--v6-rose-rgb, 255 61 127) / 0.34) 0 49%, rgb(var(--v6-sky-rgb, 57 166 255) / 0.34) 51%); }
 .tt-mvp .tt-card .tt-name { font-size: 10.5cqw; white-space: normal; line-height: 1.05; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .tt-mvp .tt-card .tt-in { padding-bottom: 7cqw; }

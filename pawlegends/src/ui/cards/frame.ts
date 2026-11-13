@@ -1,7 +1,7 @@
 /**
- * The Token Tails card frame, rebuilt in plain CSS from `client/components/tailsCard/CardWrapper.tsx`: the element
- * art as the card, a navy inset at 6 %, the element border, four sparkle stars on the inner edges, the tier pattern
- * through a color-dodge glare that follows the pointer (or sweeps by itself on touch), and the "PAWLEGENDS" footer.
+ * The champion card frame in plain CSS: the element art as the card, a night inset at 6 %, the element border, four
+ * sparkle stars on the inner edges, the tier pattern through a color-dodge glare that follows the pointer (or sweeps
+ * by itself on touch), and the "Paw Legends" footer (shown only on cards 200 px wide or more).
  * Sized in `cqw` like the client, so a 64 px pick tile is a scale model of the 220 px MVP card.
  *
  * Reduced motion: no tilt, no sweep, no twinkle; the still tier glow (STATIC_TIER_GLOW) instead. The pointer tilt is
@@ -33,7 +33,7 @@ export interface CardFrameOpts {
   sparkles?: boolean;
   /** The element icon in the inset corner. */
   icon?: boolean;
-  /** Footer text ("Legendary · PAWLEGENDS"); true = the tier and PAWLEGENDS; omitted = none. */
+  /** Footer text ("Legendary · Paw Legends"); true = the tier and "Paw Legends"; omitted = none. */
   foot?: string | true;
   /**
    * CARD-SKINS.md Awakened form (a Legendary card with bond 30): 0 awakened, 1–3 the in-match stage (hero level 4, 7,
@@ -54,7 +54,7 @@ export function cardFrame(o: CardFrameOpts): string {
   const sp = o.sparkles ? '<span class="tt-sp t"></span><span class="tt-sp b"></span><span class="tt-sp l"></span><span class="tt-sp r"></span>' : '';
   const ico = o.icon ? '<span class="tt-ico" aria-hidden="true"></span>' : '';
   const aw = o.awakened ?? null;
-  const footText = o.foot === true ? `${aw !== null ? (aw === 0 ? 'Awakened' : `${AWAKEN_STAGE_WORD[aw]} · Awakened`) : TIER_NAME[tier]} · PAWLEGENDS` : (o.foot ?? '');
+  const footText = o.foot === true ? `${aw !== null ? (aw === 0 ? 'Awakened' : `${AWAKEN_STAGE_WORD[aw]} · Awakened`) : TIER_NAME[tier]} · Paw Legends` : (o.foot ?? '');
   const foot = footText ? `<span class="tt-foot">${esc(footText)}</span>` : '';
   const type = tag === 'button' ? ' type="button"' : '';
   const awAttr = aw !== null ? ` data-awakened="${aw}"` : '';

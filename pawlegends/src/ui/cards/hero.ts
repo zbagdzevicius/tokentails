@@ -1,5 +1,5 @@
 /**
- * A champion as a Token Tails card: the hero's element frame, its portrait on the element's body gradient in the navy
+ * A champion as a card: the hero's element frame, its portrait on the element's body gradient in the navy
  * inset, and its name. Shared by the VS screen, the respawn card, the scoreboard and the MVP card.
  */
 import type { HeroId } from '../../sim/api';
@@ -49,7 +49,7 @@ export function heroCard(hero: HeroId, o: HeroCardOpts = {}): string {
   });
 }
 
-/** The card back (the Token Tails card placeholder art); `inner` sits on top (a countdown number). */
+/** The card back (the CSS-drawn Paw Legends back, cards.css `.tt-back`); `inner` sits on top (a countdown number). */
 export function cardBack(inner = ''): string {
   return `<div class="tt-back">${inner}</div>`;
 }

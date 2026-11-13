@@ -1,8 +1,8 @@
 /* Token Tails cat cards in the game (ui/cards.ts). Uses the game tokens from ui.css (--font, --panel, --self). */
-.plc { --plc-cream: #fff3dc; --plc-ink: #2b1d2e; display: flex; flex-direction: column; gap: 10px; margin-top: 12px; pointer-events: auto; }
+.plc { --plc-cream: var(--v6-cream, #fff3e3); --plc-ink: var(--v6-night, #12091f); display: flex; flex-direction: column; gap: 10px; margin-top: 12px; pointer-events: auto; }
 .plc-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
 .plc-head b { display: block; color: var(--plc-cream); font-size: 15px; letter-spacing: 0.02em; }
-.plc-head small { color: rgba(255, 243, 220, 0.72); font-size: 12px; }
+.plc-head small { color: rgba(255, 243, 227, 0.72); font-size: 12px; }
 
 /* ---------------------------------------------------------------- the card */
 .plc-card {
@@ -22,11 +22,11 @@
 }
 .plc-face.front {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 6px 6px 8px;
-  background: radial-gradient(120% 90% at 50% 20%, color-mix(in srgb, var(--el) 55%, #fff) 0%, color-mix(in srgb, var(--el) 40%, #2b1d2e) 70%);
+  background: radial-gradient(120% 90% at 50% 20%, color-mix(in srgb, var(--el) 55%, #fff) 0%, color-mix(in srgb, var(--el) 40%, var(--v6-night, #12091f)) 70%);
 }
 .plc-face.back {
   transform: rotateY(180deg); display: grid; place-items: center; color: rgba(255, 255, 255, 0.85);
-  background: repeating-linear-gradient(45deg, #ff7a9a 0 10px, #ff6f91 10px 20px);
+  background: repeating-linear-gradient(118deg, var(--v6-rose-top, #ff86a5) 0 10px, var(--v6-rose, #ff3d7f) 10px 20px);
 }
 .plc-face.back .pl-icon { width: 46%; height: auto; }
 .plc-art { position: absolute; inset: 0 0 34px; display: grid; place-items: center; }
@@ -47,7 +47,7 @@
 }
 .plc-ribbon {
   position: absolute; top: 8px; right: -26px; transform: rotate(35deg); z-index: 2; padding: 2px 28px;
-  background: var(--plc-cream); color: var(--plc-ink); font: 700 10px/1.4 var(--font); letter-spacing: 0.06em; text-transform: uppercase;
+  background: var(--v6-bolt, #ffe14a); color: var(--plc-ink); font: 700 10px/1.4 var(--font); letter-spacing: 0.06em; text-transform: uppercase;
 }
 .plc-card.guest .plc-face.front { filter: saturate(0.85); }
 @media (hover: hover) { .plc-card:hover .plc-card-in { transition-duration: 0.12s; } }
@@ -56,7 +56,7 @@
 .plc-levels { display: flex; gap: 8px; flex-wrap: wrap; }
 .plc-level {
   display: flex; flex-direction: column; gap: 1px; padding: 6px 12px; border-radius: 12px;
-  background: var(--panel-2, rgba(43, 29, 46, 0.66)); border: 1px solid var(--line, rgba(255, 243, 220, 0.16));
+  background: var(--panel-2, rgb(var(--v6-night-2-rgb, 28 18 48) / 0.66)); border: 1px solid var(--line, rgba(255, 243, 227, 0.16));
   color: var(--plc-cream); font: 600 12px/1.2 var(--font);
 }
 .plc-level b { font-size: 13px; }
@@ -75,7 +75,7 @@
 /* ---------------------------------------------------------------- the Meet card */
 .plc-meet {
   position: relative; display: flex; gap: 12px; align-items: center; padding: 10px 14px 10px 10px; max-width: 360px;
-  background: linear-gradient(135deg, rgba(255, 122, 154, 0.95), rgba(111, 143, 224, 0.92)); border-radius: 18px;
+  background: linear-gradient(118deg, rgb(var(--v6-rose-rgb, 255 61 127) / 0.95) 0 49%, rgb(var(--v6-sky-rgb, 57 166 255) / 0.92) 51%); border-radius: var(--v6-r-s, 6px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); color: #fff; transform: translateY(12px) scale(0.96); opacity: 0;
   transition: transform 0.45s cubic-bezier(0.2, 1.5, 0.4, 1), opacity 0.3s;
 }
@@ -95,7 +95,7 @@
 
 /* ---------------------------------------------------------------- pick */
 .plc-pick { margin-top: 10px; }
-.plc-trails { display: flex; gap: 6px; align-items: center; color: rgba(255, 243, 220, 0.75); font-size: 11px; }
+.plc-trails { display: flex; gap: 6px; align-items: center; color: rgba(255, 243, 227, 0.75); font-size: 11px; }
 .plc-swatch {
   --el: #ffd34d; width: 18px; height: 18px; border-radius: 50%; background: var(--el);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 10px var(--el); animation: plc-glow 2s ease-in-out infinite;
@@ -105,7 +105,7 @@
 .plc-save { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 6px 0 2px; }
 .plc-chip {
   display: inline-flex; gap: 8px; align-items: center; padding: 6px 12px; border-radius: 999px;
-  background: var(--panel-2, rgba(43, 29, 46, 0.66)); color: var(--plc-cream); font: 600 13px/1.2 var(--font);
+  background: var(--panel-2, rgb(var(--v6-night-2-rgb, 28 18 48) / 0.66)); color: var(--plc-cream); font: 600 13px/1.2 var(--font);
 }
 .plc-dot { width: 9px; height: 9px; border-radius: 50%; background: #ffd34d; }
 .state-waiting .plc-dot, .state-saving .plc-dot { animation: plc-blink 0.9s ease-in-out infinite; }
@@ -120,12 +120,12 @@
 .plc-catnip-n { font: 700 26px/1 var(--font); }
 .plc-catnip-n.done { animation: plc-thump 0.35s ease-out; }
 .plc-catnip span { font: 700 15px/1 var(--font); }
-.plc-catnip small { color: rgba(255, 243, 220, 0.7); font-size: 11px; }
+.plc-catnip small { color: rgba(255, 243, 227, 0.7); font-size: 11px; }
 .plc-stamp {
   font: 700 15px/1 var(--font); color: var(--plc-ink); background: var(--self, #ffd34d); padding: 6px 12px; border-radius: 8px;
   transform: rotate(-6deg); box-shadow: 0 4px 0 #c99a1d; animation: plc-stamp 0.7s cubic-bezier(0.2, 1.8, 0.4, 1) 0.4s both;
 }
-.plc-with { display: flex; flex-direction: column; align-items: center; gap: 6px; color: rgba(255, 243, 220, 0.85); font-size: 12px; }
+.plc-with { display: flex; flex-direction: column; align-items: center; gap: 6px; color: rgba(255, 243, 227, 0.85); font-size: 12px; }
 .plc-notify { align-self: flex-start; }
 
 @keyframes plc-bob { 50% { transform: translateY(-4px); } }
@@ -169,7 +169,7 @@
 .plc-dock.dock-results { bottom: calc(92px + var(--safe-b, 0px)); }
 .plc-pick {
   align-items: stretch !important; padding: 10px 12px; border-radius: 16px; width: 100%; box-sizing: border-box;
-  background: var(--panel-2, rgba(43, 29, 46, 0.66)); border: 1px solid var(--line, rgba(255, 243, 220, 0.16));
+  background: var(--panel-2, rgb(var(--v6-night-2-rgb, 28 18 48) / 0.66)); border: 1px solid var(--line, rgba(255, 243, 227, 0.16));
 }
 .plc-pick .plc-row { justify-content: flex-start; }
 @media (max-height: 520px) {
@@ -188,15 +188,15 @@
 }
 
 /* Round 0: the pick screen's swap row, the title's read-only squad strip, the Meet card's "where it goes" cue. */
-.plc-bench { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; color: rgba(255, 243, 220, 0.72); font-size: 12px; pointer-events: auto; }
+.plc-bench { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; color: rgba(255, 243, 227, 0.72); font-size: 12px; pointer-events: auto; }
 .plc-bench-cat, .plc-squad-cat {
-  font: 600 12px var(--font, system-ui); color: var(--plc-cream, #fff3dc); background: rgba(42, 26, 34, 0.72); border: 2px solid var(--el, #fff3dc);
+  font: 600 12px var(--font, system-ui); color: var(--plc-cream, #fff3e3); background: rgb(var(--v6-night-rgb, 18 9 31) / 0.72); border: 2px solid var(--el, #fff3e3);
   border-radius: 999px; padding: 3px 10px; cursor: pointer;
 }
 .plc-bench-cat:active { transform: scale(0.95); }
 .plc-bench-cat[data-tier]::after, .plc-squad-cat[data-tier]::after { content: ' ✦'; color: #ffd34d; }
 .plc-bench-cat[data-tier='legendary']::after, .plc-squad-cat[data-tier='legendary']::after { content: ' ✦✦'; }
-.plc-squad { display: flex; gap: 6px; align-items: center; margin: 6px 0; color: rgba(255, 243, 220, 0.72); font-size: 12px; }
+.plc-squad { display: flex; gap: 6px; align-items: center; margin: 6px 0; color: rgba(255, 243, 227, 0.72); font-size: 12px; }
 .plc-squad-cat { cursor: default; }
 .plc-meet-where { display: block; margin-top: 4px; font-size: 11px; opacity: 0.75; }
 
@@ -226,7 +226,7 @@
 /* Sim v9: the lobby's shelter champion info (title screen only): an "About" chip, a panel with the card, where the
    champion comes from and the player-pulled Meet link. */
 .plc-champ { pointer-events: auto; margin: 6px 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.plc-champ-panel { display: flex; gap: 10px; align-items: flex-start; max-width: min(360px, calc(100vw - 32px)); padding: 8px 10px; border-radius: 14px; background: rgba(42, 26, 34, 0.86); border: 2px solid rgba(255, 243, 220, 0.25); color: var(--plc-cream, #fff3dc); }
+.plc-champ-panel { display: flex; gap: 10px; align-items: flex-start; max-width: min(360px, calc(100vw - 32px)); padding: 8px 10px; border-radius: 14px; background: rgb(var(--v6-night-rgb, 18 9 31) / 0.86); border: 2px solid rgba(255, 243, 227, 0.25); color: var(--plc-cream, #fff3e3); }
 .plc-champ-panel[hidden] { display: none; }
 .plc-champ-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .plc-champ-line { margin: 0; font-size: 12px; line-height: 1.35; }

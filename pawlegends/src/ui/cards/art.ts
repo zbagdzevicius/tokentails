@@ -1,5 +1,5 @@
 /**
- * Token Tails card art in Pawlegends: the asset paths under `public/assets/cards/` (copied and shrunk from
+ * Champion card art in Paw Legends: the asset paths under `public/assets/cards/` (copied and shrunk from
  * `client/public/cards/`, LICENSES.md) and the per-element card colours from `client/models/cats.ts`
  * (`cardsBorderColor`, `cardsGradient`). Pure: no DOM writes, nothing loads until a screen puts a URL in a style.
  *
@@ -20,7 +20,7 @@ const BASE: string = (() => {
   }
 })();
 
-/** The absolute URL of a card asset (`el/fire.webp`, `fx/sparkle.webp`, `back.webp`, ...). */
+/** The absolute URL of a card asset (`el/fire.webp`, `fx/sparkle.webp`, ...). */
 export function cardUrl(path: string): string {
   const rel = `${BASE.endsWith('/') ? BASE : `${BASE}/`}assets/cards/${path}`;
   try {
@@ -39,8 +39,6 @@ export const elIcon = (e: Element): string => cardUrl(`icons/${lower(e)}.webp`);
 export const tierPattern = (t: CatTier): string => cardUrl(`tier/${t}.webp`);
 /** fx art: sparkle, legendary-sparkle, golden-burst, white-burst, reveal-sparkle, legendary-bg, legendary-paws, ... */
 export const fxUrl = (name: string): string => cardUrl(`fx/${name}.webp`);
-/** The card back (the Token Tails card placeholder). */
-export const backUrl = (): string => cardUrl('back.webp');
 
 /** `cardsBorderColor` (client/models/cats.ts). */
 export const CARD_BORDER: Readonly<Record<Element, string>> = Object.freeze({

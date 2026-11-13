@@ -1,27 +1,36 @@
 /* The account chip (ui/account.ts): top-right corner of the title, its panel, and the Settings row. */
 .pl-acct-chip { max-width: 168px; }
 .pl-acct-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pl-acct-chip[data-signed-in='0'] { color: #2b1d2e; background: var(--self); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
-.pl-acct-chip[data-signed-in='0']:hover { background: #ffe07a; }
+.pl-acct-chip[data-signed-in='0'] { color: var(--v6-night); background: var(--v6-grad-bolt); box-shadow: 0 3px 0 var(--v6-bolt-ledge); text-shadow: none; }
+.pl-acct-chip[data-signed-in='0']:hover { background: var(--v6-bolt-top); }
+.pl-acct-chip[data-signed-in='0']:active { box-shadow: 0 1px 0 var(--v6-bolt-ledge); }
 .pl-acct-ico { flex: none; }
 
 .pl-acct-panel {
   position: absolute; z-index: 40; right: max(16px, var(--safe-r)); top: calc(max(14px, var(--safe-t)) + 52px);
-  width: min(300px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 16px;
-  color: var(--cream); background: rgba(43, 29, 46, 0.96); box-shadow: inset 0 0 0 1px var(--line), 0 10px 30px rgba(0, 0, 0, 0.45);
-  font: 600 14px/1.35 var(--font);
+  width: min(300px, calc(100vw - 32px)); padding: 14px 16px; border-radius: var(--v6-r-xs);
+  color: var(--v6-cream); background: rgb(var(--v6-night-2-rgb) / 0.97); box-shadow: inset 0 4px 0 var(--v6-sky), inset 0 0 0 1px var(--v6-line-strong), var(--v6-shadow-3);
+  font: 600 14px/1.35 var(--font); animation: pl-acct-in var(--v6-dur-fast) var(--v6-ease-out) both;
 }
+@keyframes pl-acct-in { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .pl-acct-panel { animation: none; } }
 .pl-acct-name { display: block; font-size: 17px; margin-bottom: 2px; overflow-wrap: anywhere; }
-.pl-acct-line { margin: 0 0 12px; opacity: 0.85; }
+.pl-acct-line { margin: 0 0 12px; color: var(--v6-muted); }
 .pl-acct-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .pl-acct-actions .pl-btn { min-height: 44px; }
 .pl-acct-danger { color: #ffb3b6; }
+.pl-btn.ghost.pl-acct-danger { box-shadow: inset 0 0 0 2px rgb(255 79 88 / 0.55); }
+.pl-btn.ghost.pl-acct-danger:hover { box-shadow: inset 0 0 0 2px var(--v6-enemy); }
 
 .set-acct { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 6px 0; }
-.set-acct-h { font-weight: 700; }
+.set-acct-h { font: italic 800 14px/1.1 var(--v6-font-display); text-transform: uppercase; letter-spacing: 0.04em; color: var(--v6-rose-light); }
 .set-acct .pl-acct-line { margin: 0; }
 
 @media (max-height: 480px) {
   .pl-acct-chip { max-width: 120px; }
   .pl-acct-panel { top: calc(max(8px, var(--safe-t)) + 48px); }
 }
+
+/* v6: one rose action per screen (PLAY, or Settings' Done): the account's main button is a sky slab */
+.pl-acct-actions .pl-btn:not(.ghost) { background: var(--v6-grad-sky); color: var(--v6-navy); text-shadow: none; box-shadow: 0 4px 0 var(--v6-sky-deep), var(--v6-shadow-1); }
+.pl-acct-actions .pl-btn:not(.ghost):active { box-shadow: 0 1px 0 var(--v6-sky-deep); }

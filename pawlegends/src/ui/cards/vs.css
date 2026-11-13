@@ -2,7 +2,12 @@
 .tt-vs {
   position: absolute; inset: 0; z-index: 8; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; padding: calc(10px + var(--safe-t, 0px)) 16px calc(10px + var(--safe-b, 0px));
-  background: radial-gradient(120% 90% at 50% 50%, rgba(43, 22, 58, 0.82), rgba(18, 10, 26, 0.94)); opacity: 0; transition: opacity 0.25s ease-out;
+  /* v6 (facelift): night ground with a halftone dot overlay, a plum glow at the centre where the VS lands */
+  background:
+    radial-gradient(60% 40% at 50% 50%, rgb(var(--v6-plum-rgb, 71 31 93) / 0.55), transparent 70%),
+    var(--v6-halftone, radial-gradient(rgb(0 0 0 / 0.22) 1.2px, transparent 1.7px) 0 0 / 9px 9px),
+    radial-gradient(120% 90% at 50% 50%, rgb(var(--v6-night-2-rgb, 28 18 48) / 0.86), rgb(var(--v6-night-rgb, 18 9 31) / 0.96));
+  opacity: 0; transition: opacity 0.25s ease-out;
   font-family: var(--font);
 }
 .tt-vs.in { opacity: 1; }
@@ -10,8 +15,12 @@
 .tt-vs.calm, .tt-vs.calm.out { transition-duration: 0.2s; }
 .tt-vs-row { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .tt-vs-row.theirs { flex-direction: column-reverse; }
-.tt-vs-team { font: 700 14px/1 var(--font); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 243, 220, 0.75); }
-.tt-vs-row.mine .tt-vs-team { color: var(--butter, #ffd27a); }
+/* team labels: Rubik 800 italic caps, like the kit's team chips; your row reads "you" gold, the rivals' muted cream */
+.tt-vs-team {
+  font: italic 800 14px/1 var(--v6-font-display, var(--font)); letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--v6-muted, rgba(255, 243, 227, 0.68)); text-shadow: 0 2px 0 var(--v6-plum-deep, #471f5d);
+}
+.tt-vs-row.mine .tt-vs-team { color: var(--v6-you, #ffd34d); }
 .tt-vs-cards { display: flex; gap: clamp(10px, 2vw, 22px); }
 .tt-vs-slot { --tt-w: clamp(84px, min(11vw, 17vh), 150px); position: relative; transform: translateY(14px) scale(0.92); opacity: 0; transition: transform 0.4s cubic-bezier(0.2, 1.4, 0.4, 1), opacity 0.25s; transition-delay: calc(var(--d) - 220ms); }
 .tt-vs.in .tt-vs-slot { transform: none; opacity: 1; }
@@ -26,9 +35,20 @@
 }
 .tt-vs-slot.up .tt-vs-burst { opacity: 0.9; transform: translate(-50%, -50%) scale(1); animation: tt-spin 9s linear infinite; }
 .tt-vs-mid { position: relative; height: clamp(30px, 7vh, 56px); display: grid; place-items: center; z-index: 2; }
+/* the bolt divides: a leaning bolt rule across the middle, drawn in as the VS lands (transform only) */
+.tt-vs-mid::before {
+  content: ''; position: absolute; left: 50%; top: 50%; width: min(720px, 84vw); height: 4px; margin: -2px 0 0 calc(min(720px, 84vw) / -2);
+  background: linear-gradient(90deg, transparent, var(--v6-bolt, #ffe14a) 22% 78%, transparent); transform: skewX(-20deg) scaleX(0); opacity: 0.9;
+  transition: transform var(--v6-dur-slam, 380ms) var(--v6-ease-slam, ease-out) 0.85s;
+}
+.tt-vs.in .tt-vs-mid::before { transform: skewX(-20deg) scaleX(1); }
+/* VS punch (kit Round 09): Rubik 900 italic bolt, plum drop, from scale 2.2 with the -6deg wobble, 500 ms ease-pop */
 .tt-vs-mid b {
-  font: 700 clamp(30px, 6vh, 56px)/1 var(--font); color: #fff; letter-spacing: 0.04em; transform: rotate(-6deg) scale(0.3); opacity: 0;
-  text-shadow: 0 4px 0 #b4386a, 0 0 22px rgba(255, 111, 145, 0.85); transition: transform 0.38s cubic-bezier(0.2, 1.8, 0.4, 1) 0.9s, opacity 0.2s 0.9s;
+  position: relative; padding: 0 0.12em;
+  font: italic 900 clamp(30px, 6vh, 56px)/1 var(--v6-font-display, var(--font)); color: var(--v6-bolt, #ffe14a); letter-spacing: -0.02em;
+  transform: rotate(-6deg) scale(2.2); opacity: 0;
+  text-shadow: 0 4px 0 var(--v6-plum-deep, #471f5d), 0 0 3px var(--v6-plum-deep, #471f5d), 0 0 24px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.55);
+  transition: transform var(--v6-dur-punch, 500ms) var(--v6-ease-pop, cubic-bezier(0.34, 1.56, 0.64, 1)) 0.9s, opacity 0.16s 0.9s;
 }
 .tt-vs.in .tt-vs-mid b { transform: rotate(-6deg) scale(1); opacity: 1; }
 .tt-vs .tt-card .tt-name { font-size: 12cqw; }
@@ -44,6 +64,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .tt-vs-slot, .tt-vs-mid b { transition: opacity 0.2s; transform: none; }
+  .tt-vs-mid::before, .tt-vs.in .tt-vs-mid::before { transition: none; transform: skewX(-20deg); }
   .tt-vs-slot.up .tt-vs-burst { animation: none; }
 }
 /* the VS screen is the "3, 2" of the countdown (app/matchSession.ts countdown): the rail's count hides under it */
