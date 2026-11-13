@@ -36,6 +36,7 @@ import { hideNames, setHideNames } from '../meta/partyPrefs';
 import { bindCameraHeightRow, cameraHeightRowHtml } from './cameraHeightRow';
 import { MINIMAP_SIZES, colourBlind, minimapSize, setColourBlind, setMinimapSize, type MinimapSize } from './minimapPrefs';
 import { accountActionOf, accountRowHtml, type AccountModel, type AccountSend } from './account';
+import { menuText, menuTextRowHtml, setMenuText, type MenuText } from './history/textScale';
 
 export interface SettingsState {
   muted: boolean;
@@ -102,7 +103,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), cvd: colourBlind(), mm: minimapSize() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), cvd: colourBlind(), mm: minimapSize(), menuText: menuText() };
   const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
@@ -141,6 +142,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
         .join('')}</span></div>` : ''}
       <div class="set-row"><span>Minimap size</span><span class="chips">${MINIMAP_SIZES.map((m) => `<button class="chip ${ctl.mm === m ? 'on' : ''}" data-mm="${m}">${m.toUpperCase()}</button>`).join('')}</span></div>
       ${row('Colour-blind map colours', 'cvd', ctl.cvd)}
+      ${menuTextRowHtml(ctl.menuText)}
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${row('Hide friends\' names (party)', 'hidenames', ctl.hide)}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
@@ -170,7 +172,11 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     const tsize = t.closest<HTMLElement>('[data-tsize]')?.dataset.tsize as TouchSize | undefined;
     const shake = t.closest<HTMLElement>('[data-shake]')?.dataset.shake as ShakePref | undefined;
     const mm = t.closest<HTMLElement>('[data-mm]')?.dataset.mm as MinimapSize | undefined;
-    if (mm) {
+    const mt = t.closest<HTMLElement>('[data-menutext]')?.dataset.menutext as MenuText | undefined;
+    if (mt) {
+      ctl.menuText = mt;
+      setMenuText(mt);
+    } else if (mm) {
       ctl.mm = mm;
       setMinimapSize(mm);
     } else if (shake) {
