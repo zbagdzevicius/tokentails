@@ -35,6 +35,12 @@ import { REDUCED_COUNT } from './vfxPrefs';
 
 // ------------------------------------------------------------------------------------------------ budgets
 
+/** fx/impactLife.ts ImpactLife, as CombatVfx calls it. */
+export interface ImpactLifeLike {
+  impact(x: number, z: number, k: number, biome: Biome, color: number, dir?: number): void;
+  castGlow(x: number, z: number, k?: number): void;
+}
+
 export interface VfxTier {
   /** Particle cap across both pools (Particles.setBudget). */
   particles: number;
@@ -365,6 +371,15 @@ export class CombatVfx {
   readonly sugar = new DecalLayer(ringTexture(), SUGAR_SLOTS, { additive: true, y: 0.043, renderOrder: 1, name: 'sugar-rush' });
   /** Most live particles seen (perf checks). */
   peak = 0;
+  /**
+   * Living pass (fx/impactLife.ts): heavy ground impacts leave scuffs, sparks and grit there, big casts a warm glow.
+   * Every debris call is a heavy ground impact; null = none (tests, the lobby).
+   */
+  life: ImpactLifeLike | null = null;
+  /** The colour of the latest hit, dash or ultimate (the impact sparks take it). */
+  private tint = 0xfff1d0;
+  /** The dash direction (rad, three.js yaw) while a dash throws its debris, else NaN (scuffs become scratches). */
+  private dashYaw = NaN;
   private time = 0;
   private readonly moteT = new Float32Array(AURA_SLOTS);
   private readonly o = new Burst();
@@ -401,6 +416,7 @@ export class CombatVfx {
    */
   impact(pos: THREE.Vector3, amount: number, color: number, ability: boolean, big: boolean): void {
     const k = impactScale(amount);
+    this.tint = color;
     const o = this.o.reset();
     o.additive = true;
     o.n = Math.round(4 + 6 * k);
@@ -593,7 +609,10 @@ export class CombatVfx {
       _a.y = 0.9;
       this.particles.single(_a, g);
     }
+    this.tint = color;
+    this.dashYaw = Math.atan2(-(z1 - z0), x1 - x0);
     this.debris(x0, z0, 0.7 * k);
+    this.dashYaw = NaN;
   }
 
   // ---------------------------------------------------------------------------------------------- ground
@@ -602,6 +621,7 @@ export class CombatVfx {
   debris(x: number, z: number, k = 1): void {
     if (this.tier.debris <= 0) return;
     const b = biomeAt(x, z);
+    this.life?.impact(x, z, k, b, this.tint, this.dashYaw);
     const d = DEBRIS[b];
     _a.set(x, 0.15, z);
     const o = this.o.reset();
@@ -693,6 +713,7 @@ export class CombatVfx {
    * star burst, no pillar, cracks or debris that would compete with (or misplace) the hero's own shape.
    */
   ultimateMark(x: number, z: number, color: number, relation: number): void {
+    this.life?.castGlow(x, z, 1);
     _a.set(x, 0, z);
     this.shock.start(_a, { r1: 3.2, dur: 0.38, color: css(relation), height: 0.8, intensity: 1.4 });
     _a.set(x, 0.15, z);
@@ -719,6 +740,8 @@ export class CombatVfx {
     this.shock.start(_a, { r1, dur: 0.45, color: css(relation), height: 1.1, intensity: 1.6 });
     this.shock.start(_a, { r1: r1 * 0.6, dur: 0.3, color: css(color), height: 0.6 });
     this.pillar(x, z, color, 1 + 0.25 * (k - 1));
+    this.tint = color;
+    this.life?.castGlow(x, z, k);
     _a.set(x, 0.15, z);
     const o = this.o.reset();
     o.additive = true;

@@ -10,6 +10,7 @@ import { RENDER } from './ppk/core/config.js';
 import { installToon } from './toon.js';
 import { LOBBY_OUTLINE_CSS_PX, MATCH_OUTLINE_PX, setOutlineViewport, setOutlineWidth } from './chars/charMaterial';
 import { tierSettings, type QualityTier, type TierSettings } from './quality';
+import { DRIFT, driftAt } from './ambient';
 import { isPhone } from './perf/device';
 import { dynRes } from './perf/governor';
 import { shellPlatform } from '../app/platform';
@@ -160,6 +161,11 @@ export interface GameRenderer {
   readonly cssH: number;
   resize(): void;
   render(): void;
+  /**
+   * Living pass (fx/impactLife.ts driftAt): the sun and sky drift ±3 % in warmth and intensity at view time `t` (s)
+   * while `on` (High, no reduce motion); off puts the base light back. The sun's direction never changes.
+   */
+  lightDrift?(t: number, on: boolean): void;
   dispose(): void;
 }
 
@@ -198,6 +204,10 @@ export function createRenderer(container: HTMLElement, tier: QualityTier, opts: 
   sc.top = 30;
   sc.bottom = -30;
   scene.add(sun, sun.target);
+  // living pass: the base light the drift swings around (and returns to when it is off)
+  const base = { sun: sun.color.clone(), sunI: sun.intensity, sky: hemi.color.clone(), hemiI: hemi.intensity };
+  const drift = { k: 1, warm: 0 };
+  let drifting = false;
   // the view's ground corners (NDC → ground plane), reused every frame
   const ndc = [new THREE.Vector3(-1, 1, 0.5), new THREE.Vector3(1, 1, 0.5), new THREE.Vector3(1, -1, 0.5), new THREE.Vector3(-1, -1, 0.5)];
   const ray = new THREE.Vector3();
@@ -348,6 +358,25 @@ export function createRenderer(container: HTMLElement, tier: QualityTier, opts: 
         if (shadowFrame++ % gr.settings.shadowEvery === 0) renderer.shadowMap.needsUpdate = true;
       }
       draw(gr.active);
+    },
+    lightDrift(t, on) {
+      if (!on) {
+        if (!drifting) return;
+        drifting = false;
+        sun.color.copy(base.sun);
+        sun.intensity = base.sunI;
+        hemi.color.copy(base.sky);
+        hemi.intensity = base.hemiI;
+        return;
+      }
+      drifting = true;
+      driftAt(t, drift);
+      // warmth as a red-up / blue-down tilt (±3 %), the sky at half of it; intensities ±3 % (sky at half)
+      const w = DRIFT.amp * drift.warm;
+      sun.color.setRGB(base.sun.r * (1 + w), base.sun.g * (1 + w * 0.35), base.sun.b * (1 - w));
+      sun.intensity = base.sunI * drift.k;
+      hemi.color.setRGB(base.sky.r * (1 + w * 0.5), base.sky.g, base.sky.b * (1 - w * 0.5));
+      hemi.intensity = base.hemiI * (1 + (drift.k - 1) * 0.5);
     },
     dispose() {
       if (live === renderer) live = null;

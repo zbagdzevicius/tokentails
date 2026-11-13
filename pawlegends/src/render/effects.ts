@@ -598,6 +598,7 @@ export class Effects {
         this.shock.start(this.at(src, 0), { r1: Math.min(8, ((aim?.radius ?? 3000) / 1000) * (0.9 + 0.1 * rk)), dur: 0.3, color: '#' + accent.toString(16).padStart(6, '0'), height: 0.4 * rk });
         this.shock.thud(this.at(src, 0), rk);
         vfx?.debris(src.x, src.z, 1.2 * rk);
+        vfx?.life?.castGlow(src.x, src.z, rk);
         if (!heroCast) sfx.play('slam', { at: src });
         if (mine || src.kind === 'hero') this.juice.kick(mine ? 0.2 : 0.08);
         break;

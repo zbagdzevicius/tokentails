@@ -21,6 +21,8 @@ import { reducedMotion, shakePref, shakeScaleFor } from './fx/vfxPrefs';
 import { Shockwaves } from './fx/Shockwaves.js';
 import type { ViewEntity, ViewFrame } from './interp';
 import { Juice } from './juice';
+import { ambientFor, applyAmbient, attachAmbientFx, type Ambient } from './ambient';
+import { ImpactLife } from './fx/impactLife';
 import { RELATION, setSideSwap, setTeam0Dogs } from './palette';
 import type { GameRenderer } from './renderer';
 import { poseWatchers, TelegraphPool, type TelegraphSpec } from './telegraph';
@@ -243,6 +245,10 @@ export class GameView {
   readonly ghosts = new Ghosts();
   readonly fightCam: FightCam;
   readonly ultMoment: UltMoment;
+  /** Living pass: scuffs, sparks and grit under heavy hits, the warm glow under big casts (fx/impactLife.ts). */
+  readonly impactLife: ImpactLife;
+  /** Living pass: the ambient-life level for this tier and reduce motion (render/ambient.ts); Low is level 0. */
+  amb: Ambient = ambientFor({ tier: 'low', phone: false }, false);
   /** Pending events ahead of the render clock (matchSession sets it to SnapBuffer.peekEvents). */
   peek: ((horizonTicks: number, out: SimEvent[]) => SimEvent[]) | null = null;
   private readonly fightHeroes: FightHero[] = Array.from({ length: 12 }, () => ({ x: 0, z: 0, team: 0, dead: true }));
@@ -334,7 +340,11 @@ export class GameView {
           if (!this.director) this.heroes.cast(id);
         },
         onHit: (id, kind, heavy, src) => {
-          if (kind === 'hero') this.heroes.hit(id, heavy);
+          if (kind === 'hero') {
+            // living pass (P3): the flinch leans away from the attacker
+            const w = src !== undefined ? this.who.get(src) : undefined;
+            this.heroes.hit(id, heavy, w ? w.x : NaN, w ? w.z : NaN);
+          }
           else if (kind === 'minion') {
             const w = src !== undefined ? this.who.get(src) : undefined;
             this.minions.hit(id, w ? w.x : NaN, w ? w.z : NaN);
@@ -379,6 +389,14 @@ export class GameView {
     this.effects.vfx = this.vfx;
     // ANIM-SPEC §2: the director, the skill FX kit (one material, compiled at load), ribbons, ghosts, fight camera
     this.linger = new Linger(this.meshFx.uniforms);
+    this.impactLife = new ImpactLife(this.linger, this.particles, this.meshFx);
+    this.vfx.life = this.impactLife;
+    // living pass: the views that emit ambient bits (dust, splashes, drips) share the particle pools and shockwaves
+    const ambFx = { particles: this.particles, shock: this.shock };
+    attachAmbientFx(this.map, ambFx);
+    attachAmbientFx(this.heroes, ambFx);
+    attachAmbientFx(this.minions, ambFx);
+    attachAmbientFx(this.structures, ambFx);
     this.fightCam = new FightCam(this.juice);
     // feel pass B1: the own punch is a short darkening vignette over the view (CSS), never a zoom
     if (typeof document !== 'undefined') {
@@ -699,9 +717,17 @@ export class GameView {
   private applyAnimTier(): void {
     const t = this.gr.settings.tier;
     const red = this.vfx.reduced;
-    const k = `${t}:${red}`;
+    const phone = this.gr.settings.phone;
+    const k = `${t}:${red}:${phone}`;
     if (k === this.animTier) return;
     this.animTier = k;
+    // living pass: one ambient level for the map, the units, the structures and the impact life (Low = 0, off)
+    const amb = (this.amb = ambientFor(this.gr.settings, red));
+    applyAmbient(this.map, amb);
+    applyAmbient(this.heroes, amb);
+    applyAmbient(this.minions, amb);
+    applyAmbient(this.structures, amb);
+    applyAmbient(this.impactLife, amb);
     this.meshFx.tier = t;
     this.meshFx.reduced = red;
     this.linger.tier = t;
@@ -724,6 +750,11 @@ export class GameView {
     this.ghosts.update(dt);
     this.meshFx.update(dt, this.time);
     this.linger.update(dt);
+    // living pass: the scuffs' alpha cap (after the glyph pool's update), the near test's focus, the light drift
+    this.impactLife.focus.x = this.gr.focus.x;
+    this.impactLife.focus.z = this.gr.focus.z;
+    this.impactLife.update(this.time);
+    this.gr.lightDrift?.(this.time, this.amb.level === 2 && !this.amb.reduced);
     // readability: enemy windups dim any mesh FX over them; own / ally FX fade past the coverage budget
     packTele(this.effects.windups, (id) => this.who.get(id) ?? null, this.myTeam, this.meshFx.uniforms.uTele.value);
     const d = this.gr.dist;
@@ -1402,6 +1433,7 @@ export class GameView {
 
   dispose(): void {
     this.gone = true;
+    this.gr.lightDrift?.(0, false);
     for (const ch of this.warmKeep) ch.dispose();
     this.warmKeep.length = 0;
     this.gr.preRender = null;
