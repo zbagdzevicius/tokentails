@@ -27,6 +27,27 @@ export const MODE_LABEL: Readonly<Record<MatchMode, string>> = Object.freeze({
 });
 const ICON: Readonly<Record<MatchMode, string>> = Object.freeze({ blitz: '⚡', skirmish: '🐾', classic: '🏰' });
 
+/** Sim v27 (V27.md): the Mode Select tile (analytics `mode`) a match of each mutator came from. */
+export const MUTATOR_MODE: Readonly<Record<Mutator, string>> = Object.freeze({
+  none: 'skirmish',
+  blitz: 'blitz',
+  cannon: 'cannon',
+  practice: 'practice',
+  toybox: 'twist',
+  rapid: 'twist',
+  bounty: 'twist',
+});
+/** Sim v27: the loading line of a mutator match. */
+export const MUTATOR_VEIL: Readonly<Record<Mutator, string>> = Object.freeze({
+  none: 'Into the Crossing...',
+  blitz: 'Blitz! Into the Crossing...',
+  cannon: 'Cannon Chaos! Into the Crossing...',
+  practice: 'Into the Practice ground...',
+  toybox: 'Weekly Twist: Toy Box...',
+  rapid: 'Weekly Twist: Rapid Paws...',
+  bounty: 'Weekly Twist: Bounty Hunt...',
+});
+
 export const modeOfMap = (map: MapId | undefined, mutator?: Mutator): MatchMode =>
   map === 'hearthwood' ? 'classic' : mutator === 'blitz' ? 'blitz' : 'skirmish';
 

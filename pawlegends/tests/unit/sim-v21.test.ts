@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { BOING, CANNON, CROSSING_BEDS, CROSSING_CANNON, CROSSING_YARN, HEARTHWOOD_BEDS, HEARTHWOOD_CANNON, HEARTHWOOD_YARN, YARN } from '../../src/data/fun';
 import { TOWERS } from '../../src/data/towers';
+import { DIFFICULTY_RULES } from '../../src/data/bots';
 import { TIMELINE } from '../../src/data/timeline';
 import { Op, type Command, type MapId } from '../../src/sim/api';
 import { decodeCommand, encodeCommand, quantize } from '../../src/sim/commands';
@@ -59,7 +60,7 @@ describe('sim v21 version and data', () => {
   it('stronger towers: outer and inner +25% (sim v21); sim v26 shots 130 + 3% max HP, +30% a shot up to +90%, Fortified 55% until 4:00 / 5:30', () => {
     expect([TOWERS.heroDamage, TOWERS.heroMaxHpBp, TOWERS.rampBp, TOWERS.rampCapBp]).toEqual([130, 300, 3000, 9000]);
     expect([TOWERS.outer.hp, TOWERS.inner.hp]).toEqual([2250, 2750]);
-    expect([TOWERS.fortifyBp, ...TOWERS.fortifyUntil]).toEqual([5500, 7200, 9900]);
+    expect([DIFFICULTY_RULES.normal.fortifyHeroBp, ...TOWERS.fortifyUntil]).toEqual([5500, 7200, 9000]);
   });
 
   it('every cannon, bed, landing and yarn spot is walkable, and the cannon spots are equally far from both cores', () => {
@@ -299,7 +300,7 @@ describe('Kibble Cannon (sim v21)', () => {
     const a = dealDamage(m, 0, 0, Kind.Hero, t, 1000, 'basic');
     w.globals[G.Tick] = TOWERS.fortifyUntil[0];
     const b = dealDamage(m, 0, 0, Kind.Hero, t, 1000, 'basic');
-    expect(a).toBe(Math.trunc((b * TOWERS.fortifyBp) / 10000));
+    expect(a).toBe(Math.trunc((b * DIFFICULTY_RULES.normal.fortifyHeroBp) / 10000));
     step(m);
     expect(w.buffs[t] & Buff.Fortified).toBe(0);
     w.globals[G.Tick] = 300;

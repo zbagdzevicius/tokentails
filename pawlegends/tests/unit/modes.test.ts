@@ -40,7 +40,7 @@ afterEach(() => {
 const NOW = Date.UTC(2026, 10, 11, 12);
 
 describe('mode registry', () => {
-  it('ships the default table: Blitz, Skirmish and Classic live (sim v22), Ranked locked, Cannon Chaos soon', () => {
+  it('ships the default table: Blitz, Skirmish and Classic live (sim v22), Ranked locked, Cannon Chaos and Practice live (sim v27)', () => {
     const s = (id: string): string => effectiveState(modeById(id)!, NOW);
     expect(s('skirmish')).toBe('live');
     expect(s('classic')).toBe('live');
@@ -48,7 +48,12 @@ describe('mode registry', () => {
     expect(modeById('coop')).toBeUndefined();
     expect(s('ranked')).toBe('locked');
     expect(s('blitz')).toBe('live');
-    expect(s('cannon')).toBe('soon');
+    expect(s('cannon')).toBe('live');
+    expect(s('practice')).toBe('live');
+    // sim v27 (V27.md §2, §3): each plays its mutator on the Crossing vs bots; Practice saves nothing
+    expect(modeById('cannon')).toMatchObject({ map: 'crossing', mutator: 'cannon', queues: ['bots'] });
+    expect(modeById('practice')).toMatchObject({ map: 'crossing', mutator: 'practice', practice: true, queues: ['bots'] });
+    expect(modeById('blitz')!.mutator).toBe('blitz');
     expect(modeById('classic')!.map).toBe('hearthwood');
     expect(modeById('skirmish')!.map).toBe('crossing');
     // sim v22 Blitz: the Crossing, solo against bots at launch (WR-BS-PLAN.md §3a), tiles with the probe minutes
@@ -67,7 +72,10 @@ describe('mode registry', () => {
   });
 
   it('lists playable modes first, then locked, then coming soon (registry order inside each group)', () => {
-    expect(modeList(NOW).map((m) => m.id)).toEqual(['blitz', 'skirmish', 'classic', 'ranked', 'cannon']);
+    expect(modeList(NOW).map((m) => m.id)).toEqual(['blitz', 'skirmish', 'classic', 'cannon', 'practice', 'ranked']);
+    registerMode({ id: 'later', name: 'Later', size: '3v3', minutes: '~5 min', queues: ['bots'], art: 'cannon', state: 'soon', rules: ['a', 'b'] });
+    expect(modeList(NOW).map((m) => m.id).at(-1)).toBe('later');
+    resetModes();
   });
 
   it('a mode registered by another worktree replaces the base entry by id (v22 Blitz goes live)', () => {
@@ -101,7 +109,8 @@ describe('mode registry', () => {
     expect(metaLine(modeById('blitz')!, NOW)).toBe('3v3 · ~3 min');
     // gap plan P4: before the gate answers, the fallback line (never "later season")
     expect(metaLine(modeById('ranked')!, NOW)).toBe('Opens at 24 players online');
-    expect(metaLine(modeById('cannon')!, NOW)).toBe('Coming soon');
+    expect(metaLine(modeById('cannon')!, NOW)).toBe('3v3 · ~5 min');
+    expect(metaLine({ ...modeById('cannon')!, state: 'soon' }, NOW)).toBe('Coming soon');
   });
 
   it('pill text and queue fallback', () => {

@@ -70,20 +70,51 @@ export interface LiveopsEvent {
     mode?: string;
 }
 
+/**
+ * Sim v27 (docs/plans/moba/V27.md §4): the week's twist, a rule set (a sim mutator) played on the Crossing vs bots
+ * from the "Weekly Twist" tile. `id` is one of the game sim's WEEKLY_TWISTS.
+ */
+export interface LiveopsTwist {
+    id: LiveopsTwistId;
+    name: string;
+    rules: string[];
+    endsAt: string;
+}
+
 export interface LiveopsDefs {
     goal: LiveopsGoalDef | null;
     vote: LiveopsVoteDef | null;
     nap: LiveopsNapDef | null;
     featuredMode: LiveopsFeatured | null;
     featuredQuests: string[];
+    twist: LiveopsTwist | null;
 }
+
+/** Sim v27: the weekly twists, in the baked rotation's order (the sim's WEEKLY_TWISTS, pawlegends/src/sim/api.ts). */
+export const WEEKLY_TWISTS = ['toybox', 'rapid', 'bounty'] as const;
+export type LiveopsTwistId = typeof WEEKLY_TWISTS[number];
+/** Each twist's tile name and its two rule lines (the game shows them in the mode's "i" popover). */
+export const TWIST_INFO: Readonly<Record<LiveopsTwistId, { name: string; rules: string[] }>> = Object.freeze({
+    toybox: {
+        name: 'Toy Box',
+        rules: ['Fish comes twice as fast, so Toys arrive sooner.', 'Frenzy Catnip and Fish Snacks spawn twice as often.'],
+    },
+    rapid: { name: 'Rapid Paws', rules: ['Every ability and Paw Trick cools down 40% faster.'] },
+    bounty: {
+        name: 'Bounty Hunt',
+        rules: ['A hero on a takedown streak is worth three times the bounty.', 'Ending a streak pays three times the Fish.'],
+    },
+});
 
 /** The modes the baked rotation features, one per ISO week (live modes only: never Ranked or a coming-soon mode). */
 export const FEATURED_ROTATION: readonly string[] = Object.freeze(['blitz', 'skirmish', 'classic']);
+/** The modes a config doc may feature: the rotation's, plus sim v27's Weekly Twist tile. */
+export const FEATURABLE: readonly string[] = Object.freeze([...FEATURED_ROTATION, 'twist']);
 export const MODE_NAMES: Readonly<Record<string, string>> = Object.freeze({
     blitz: 'Blitz',
     skirmish: 'Skirmish',
     classic: 'Classic 5v5',
+    twist: 'Weekly Twist',
 });
 
 export const DEFAULT_GOAL: LiveopsGoalDef = Object.freeze({
@@ -161,6 +192,23 @@ export function rotationFeatured(now: Date): LiveopsFeatured {
     return { id: FEATURED_ROTATION[weeks % FEATURED_ROTATION.length], endsAt: end.toISOString() };
 }
 
+/** Sim v27: the baked twist rotation, one twist per ISO week ending Monday 00:00 UTC. Pure. */
+export function rotationTwist(now: Date): LiveopsTwist {
+    const end = nextMonday(now);
+    const weeks = Math.floor(end.getTime() / (7 * DAY));
+    const id = WEEKLY_TWISTS[weeks % WEEKLY_TWISTS.length];
+    return { id, ...TWIST_INFO[id], endsAt: end.toISOString() };
+}
+
+/** A config doc's `twist` (`{ id, endsAt }`): a known twist that has not ended yet, else null. Pure. */
+export function cleanTwist(v: unknown, now: Date): LiveopsTwist | null {
+    if (!isRecord(v) || typeof v.id !== 'string' || !(WEEKLY_TWISTS as readonly string[]).includes(v.id)) return null;
+    const endsAt = iso(v.endsAt);
+    if (!endsAt || Date.parse(endsAt) <= now.getTime()) return null;
+    const id = v.id as LiveopsTwistId;
+    return { id, ...TWIST_INFO[id], endsAt };
+}
+
 export function cleanGoal(v: unknown): LiveopsGoalDef | null {
     if (!isRecord(v)) return null;
     const id = typeof v.id === 'string' && ID.test(v.id) ? v.id : null;
@@ -219,7 +267,7 @@ export function cleanNap(v: unknown): LiveopsNapDef | null {
 
 export function cleanFeatured(v: unknown, now: Date): LiveopsFeatured | null {
     if (!isRecord(v) || typeof v.id !== 'string' || !MODE.test(v.id)) return null;
-    if (!FEATURED_ROTATION.includes(v.id)) return null;
+    if (!FEATURABLE.includes(v.id)) return null;
     const endsAt = iso(v.endsAt);
     if (!endsAt || Date.parse(endsAt) <= now.getTime()) return null;
     return { id: v.id, endsAt };
@@ -242,12 +290,19 @@ export function resolveDefs(doc: Record<string, unknown> | null | undefined, now
               .filter((q): q is string => !!q)
               .slice(0, 3)
         : [];
+    // Sim v27: the week's twist is the featured mode (a doc's `featuredMode` still wins; `twist: null` turns it off and
+    // the baked mode rotation comes back). A doc's `featuredMode: 'twist'` with no twist falls back too.
+    const twist = 'twist' in d && d.twist === null ? null : cleanTwist(d.twist, now) ?? rotationTwist(now);
+    const featured = cleanFeatured(d.featuredMode, now);
     return {
         goal: pick('goal', cleanGoal, DEFAULT_GOAL),
         vote: pick('vote', cleanVote, DEFAULT_VOTE),
         nap: pick('nap', cleanNap, DEFAULT_NAP),
-        featuredMode: cleanFeatured(d.featuredMode, now) ?? rotationFeatured(now),
+        featuredMode:
+            (featured && (featured.id !== 'twist' || twist) ? featured : null) ??
+            (twist ? { id: 'twist', endsAt: twist.endsAt } : rotationFeatured(now)),
         featuredQuests: quests,
+        twist,
     };
 }
 
@@ -263,7 +318,10 @@ export function eventsOf(defs: LiveopsDefs, now: Date): LiveopsEvent[] {
             id: `mode-${defs.featuredMode.id}`,
             kind: 'mode',
             mode: defs.featuredMode.id,
-            title: `Featured: ${MODE_NAMES[defs.featuredMode.id] ?? defs.featuredMode.id}`,
+            title:
+                defs.featuredMode.id === 'twist' && defs.twist
+                    ? `Weekly Twist: ${defs.twist.name}`
+                    : `Featured: ${MODE_NAMES[defs.featuredMode.id] ?? defs.featuredMode.id}`,
             sub: `Until ${DATE_FMT(defs.featuredMode.endsAt)}`,
             startsAt: new Date(Date.parse(defs.featuredMode.endsAt) - 7 * DAY).toISOString(),
             endsAt: defs.featuredMode.endsAt,

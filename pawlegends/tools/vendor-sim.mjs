@@ -32,7 +32,7 @@
  *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
  * 10. pvp-replay.fixture.json (sim v16, S-PvP, docs/plans/moba/V16.md §1.3): one genuine PvP match (PvpReplayRecord v3,
  *    Hard rules, two humans a side flown by player-bots, one bot each side), for the backend's casual /live spec.
- * backend/src/vendor/pawlegends-sim/v10/ to v25/: those files, frozen (FROZEN below; sim v26 is live).
+ * backend/src/vendor/pawlegends-sim/v10/ to v26/: those files, frozen (FROZEN below; sim v27 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -101,6 +101,9 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * Sim v26 (stronger towers early: a longer, stronger Fortified, harder bolts, no takedown chip that finishes a tower,
  * docs/plans/moba/V26-TOWERS.md) froze the released v25 (deliberate fun toys) at d83f5743 and keeps v10 to v24, so the
  * backend verifies 10 to 26.
+ * Sim v27 (executions, Cannon Chaos, the Practice ground and the weekly twists, docs/plans/moba/V27.md) froze the
+ * released v26 (stronger towers early) at cf039638, its last commit on main, and keeps v10 to v25, so the backend
+ * verifies 10 to 27.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -278,6 +281,23 @@ export const FROZEN = Object.freeze([
       'kite-replay.fixture.json',
     ]),
   }),
+  Object.freeze({
+    simVersion: 26,
+    commit: 'cf039638d3b5725b7bd0b0010f06e32d6979941d',
+    from: 'backend/src/vendor/pawlegends-sim/v26',
+    bundle: '766d348091bab6b3c48d3ce6a9ecad67333e12a9c86672ed7034277401a0c292',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+      'blitz-replay.fixture.json',
+      'kite-replay.fixture.json',
+    ]),
+  }),
 ]);
 
 /** One frozen version's files, byte for byte from git. Throws when git is missing or the bundle sha differs. */
@@ -430,8 +450,9 @@ export type PawlegendsHeroId =
 export type PawlegendsTrickId = string;
 export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
-/** Sim v10: only 'none' exists. Sim v22: 'blitz' (the ~3-minute Crossing match; WR-BS-PLAN.md §4). */
-export type PawlegendsMutator = 'none' | 'blitz';
+/** Sim v10: only 'none' exists. Sim v22: 'blitz' (the ~3-minute Crossing match; WR-BS-PLAN.md §4). Sim v27: Cannon
+ *  Chaos, the Practice ground and the weekly twists (docs/plans/moba/V27.md). */
+export type PawlegendsMutator = 'none' | 'blitz' | 'cannon' | 'practice' | 'toybox' | 'rapid' | 'bounty';
 /** Sim v19: the maps ('crossing' 3v3, 'hearthwood' 5v5 Classic); a record without \`map\` is Crossing. */
 export type PawlegendsMapId = 'crossing' | 'hearthwood';
 

@@ -19,6 +19,7 @@ import type { Team } from '../api';
 import { applyBp, dist2, idiv, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
 import { G, RANGE, TEAM_NEUTRAL, type World } from '../world';
+import { mutOf } from '../mutator';
 
 const FRENZY = 0;
 const SNACK = 1;
@@ -46,8 +47,8 @@ export const PICKUP_SNACK = SNACK;
 
 /** Match start: the first spawns are due. */
 export function initPickups(w: World): void {
-  w.globals[G.FrenzyAt] = PICKUPS.frenzy.first;
-  w.globals[G.SnackAt] = PICKUPS.snack.first;
+  w.globals[G.FrenzyAt] = applyBp(PICKUPS.frenzy.first, mutOf(w).pickupEveryBp);
+  w.globals[G.SnackAt] = applyBp(PICKUPS.snack.first, mutOf(w).pickupEveryBp);
 }
 
 function place(m: MatchHandle, i: number, kind: number, team: number, x: number, y: number): void {
@@ -99,7 +100,7 @@ export function spawnPickups(m: MatchHandle): void {
     const s = FRENZY_SPOTS[n % FRENZY_SPOTS.length];
     place(m, 0, FRENZY, TEAM_NEUTRAL, s[0], s[1]);
     place(m, 1, FRENZY, TEAM_NEUTRAL, s[2], s[3]);
-    w.globals[G.FrenzyAt] = tick + PICKUPS.frenzy.every;
+    w.globals[G.FrenzyAt] = tick + applyBp(PICKUPS.frenzy.every, mutOf(w).pickupEveryBp);
   }
   if (tick === w.globals[G.SnackAt]) {
     // Sim v19: the lanes in turn (Crossing: Sunny, Puddle; Hearthwood: all three).
@@ -109,7 +110,7 @@ export function spawnPickups(m: MatchHandle): void {
       snackSpot(w, team, lane, spot);
       place(m, SNACK_SLOT + team, SNACK, team, spot[0], spot[1]);
     }
-    w.globals[G.SnackAt] = tick + PICKUPS.snack.every;
+    w.globals[G.SnackAt] = tick + applyBp(PICKUPS.snack.every, mutOf(w).pickupEveryBp);
   }
 }
 

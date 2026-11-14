@@ -19,7 +19,7 @@ import { onStructureDestroyed } from '../units/tower';
 import { clearStatus } from '../effects/status';
 import { endArena } from '../effects/tether';
 import { kitOf } from '../heroes/kit';
-import { campKilled, heroKilled, minionKilled } from '../progression/xp';
+import { campKilled, executed, heroKilled, minionKilled } from '../progression/xp';
 import { campReward, onRatDied, packBuff, stealJungleBuffs } from '../units/camp';
 import { HEARTHWOOD_PVP, HEARTHWOOD_RULES } from '../../data/maps/hearthwood';
 import { onPuddingDown } from '../units/pudding';
@@ -65,6 +65,10 @@ function minionNear(w: World, team: number, x: number, y: number): boolean {
  * Hit `dst` for `raw` damage from `src` (an entity id, or −1 for the map) of `srcTeam`. `srcKind` is the source's
  * Kind (it may have died since it fired). Returns the damage dealt to HP.
  */
+
+/** Sim v26 chip floor (TOWERS.chipFloorBp); sim v27 (V27.md §1.B): Hearthwood's own, HEARTHWOOD_RULES.chipFloorBp. */
+const chipFloorOf = (w: World): number => (w.mg.length > 0 ? HEARTHWOOD_RULES.chipFloorBp : TOWERS.chipFloorBp);
+
 export function dealDamage(
   m: MatchHandle,
   src: number,
@@ -123,10 +127,10 @@ export function dealDamage(
   }
   if (structure && !opts.pure) {
     if (tick >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.structureDamageBp);
-    // Sim v21 Fortified: heroes deal TOWERS.fortifyBp to towers early (V21-FUN.md §3.1); sim v26 (V26-TOWERS.md §1.B):
+    // Sim v21 Fortified: heroes deal TOWERS.fortifyBp (sim v27: DifficultyRules.fortifyHeroBp) to towers early (V21-FUN.md §3.1); sim v26 (V26-TOWERS.md §1.B):
     // minions and the escort Pudding's breath deal TOWERS.fortifyMinionBp.
     if (w.kind[dst] === Kind.Tower && tick < fortifyUntilOf(w)) {
-      if (srcKind === Kind.Hero) dmg = applyBp(dmg, TOWERS.fortifyBp);
+      if (srcKind === Kind.Hero) dmg = applyBp(dmg, rulesOf(m).fortifyHeroBp);
       else if (srcKind === Kind.Minion || srcKind === Kind.Pudding) dmg = applyBp(dmg, TOWERS.fortifyMinionBp);
     }
   }
@@ -252,7 +256,7 @@ function weakestTower(w: World, team: number): number {
     if (w.alive[id] === 0 || w.team[id] !== team || w.hp[id] <= 0 || isInvulnerable(w, id)) continue;
     const bp = idiv(w.hp[id] * BP_ONE, Math.max(1, w.maxHp[id]));
     // Sim v26 (V26-TOWERS.md §1.A): a tower at or below TOWERS.chipFloorBp takes no chip.
-    if (w.hp[id] <= applyBp(w.maxHp[id], TOWERS.chipFloorBp)) {
+    if (w.hp[id] <= applyBp(w.maxHp[id], chipFloorOf(w))) {
       floored = true;
       continue;
     }
@@ -298,7 +302,9 @@ export function resolveDeaths(m: MatchHandle): void {
       else if (w.team[id] !== teamOfSlot(HUMAN_SLOT)) w.timer[id] = applyBp(w.timer[id], rulesOf(m).enemyRespawnBp);
       m.stats[id].deaths++;
       const enemy = 1 - w.team[id];
-      w.globals[enemy === 0 ? G.Kills0 : G.Kills1]++;
+      // Sim v27 (V27.md §1.A): an execution (no enemy hero credited) is not a takedown: no kill score, no chip.
+      const takedown = !executed(m, id);
+      if (takedown) w.globals[enemy === 0 ? G.Kills0 : G.Kills1]++;
       // Sim v7: a team that keeps losing fights stays down longer (DifficultyRules.leadPressure).
       // Fun pass (playtest #10): a struggling human (RESPAWN.humanStreakFrom+ deaths in a row) waits RESPAWN.humanStreakBp
       // of the wait and no lead pressure. Not on Rookie, whose human respawn has its own rule (humanRespawnBp), nor in
@@ -322,8 +328,10 @@ export function resolveDeaths(m: MatchHandle): void {
       // SUNSET.closedCoreBp), so towers still decide most matches; the human's core is spared while
       // the human's core keeps its DifficultyRules floor before humanCoreOpenAt (Rookie, in dealDamage).
       const victimTeam = w.team[id];
-      const chip = rulesOf(m).takedownChipBp;
-      if (tick < w.globals[G.Sunset]) {
+      const chip = takedown ? rulesOf(m).takedownChipBp : 0;
+      if (!takedown) {
+        // Sim v27: an execution deals no takedown core or tower damage.
+      } else if (tick < w.globals[G.Sunset]) {
         // Sim v7: every takedown chips the victim's core (DifficultyRules.takedownChipBp). Sim v8: only until the chips
         // total takedownChipCapBp; before Sunset each takedown of this team so far was a chip, so its takedown count
         // (this one included) is the number of chips.
@@ -338,7 +346,7 @@ export function resolveDeaths(m: MatchHandle): void {
           const t = weakestTower(w, victimTeam);
           if (t >= 0) {
             let amount = applyBp(w.maxHp[t], rulesOf(m).takedownTowerChipBp);
-            if (w.kind[t] === Kind.Tower) amount = Math.min(amount, w.hp[t] - applyBp(w.maxHp[t], TOWERS.chipFloorBp));
+            if (w.kind[t] === Kind.Tower) amount = Math.min(amount, w.hp[t] - applyBp(w.maxHp[t], chipFloorOf(w)));
             if (amount > 0) dealDamage(m, -1, enemy, Kind.None, t, amount, 'chip', { pure: true });
           }
         }

@@ -13,7 +13,8 @@
  */
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import { FREE_COATS } from '../render/cosmetics';
-import { BASE_MODES, registerMode } from '../ui/modeSelect/modes';
+import { BASE_MODES, registerMode, twistModeDef, unregisterMode } from '../ui/modeSelect/modes';
+import { WEEKLY_TWISTS, type Mutator } from '../sim/api';
 import { loadProfile, saveProfile, UNLOCKS_MAX } from './profile';
 
 export interface LiveopsGoal {
@@ -63,11 +64,21 @@ export interface LiveopsEvent {
   mode?: string;
 }
 
+/** Sim v27 (docs/plans/moba/V27.md §4): the week's twist (a sim mutator of WEEKLY_TWISTS) and its tile's text. */
+export interface LiveopsTwist {
+  id: Mutator;
+  name: string;
+  rules: string[];
+  endsAt: number;
+}
+
 export interface LiveopsConfig {
   /** True when the server answered (the goal and vote exist only then). */
   live: boolean;
   events: LiveopsEvent[];
   featuredMode: { id: string; endsAt: number } | null;
+  /** Sim v27: the Weekly Twist tile's rule set (the baked rotation offline), or null when the server turned it off. */
+  twist: LiveopsTwist | null;
   featuredQuests: string[];
   goal: LiveopsGoal | null;
   vote: LiveopsVote | null;
@@ -104,6 +115,8 @@ const HEX = /^#[0-9a-f]{6}$/i;
 
 /** The modes the baked rotation features (the server's FEATURED_ROTATION). */
 export const FEATURED_ROTATION: readonly string[] = Object.freeze(['blitz', 'skirmish', 'classic']);
+/** The modes the server may feature: the rotation's and sim v27's Weekly Twist tile. */
+export const FEATURABLE: readonly string[] = Object.freeze([...FEATURED_ROTATION, 'twist']);
 
 /** The Monday 00:00 UTC after `now`. Pure. */
 export function nextMonday(now: number): number {
@@ -119,6 +132,29 @@ export function rotationFeatured(now: number): { id: string; endsAt: number } {
   return { id: FEATURED_ROTATION[Math.floor(end / (7 * DAY)) % FEATURED_ROTATION.length], endsAt: end };
 }
 
+/** Sim v27: the twists' names and rule lines (the server's TWIST_INFO), for the baked rotation offline. */
+export const TWIST_INFO: Readonly<Record<string, { name: string; rules: string[] }>> = Object.freeze({
+  toybox: { name: 'Toy Box', rules: ['Fish comes twice as fast, so Toys arrive sooner.', 'Frenzy Catnip and Fish Snacks spawn twice as often.'] },
+  rapid: { name: 'Rapid Paws', rules: ['Every ability and Paw Trick cools down 40% faster.'] },
+  bounty: { name: 'Bounty Hunt', rules: ['A hero on a takedown streak is worth three times the bounty.', 'Ending a streak pays three times the Fish.'] },
+});
+
+/** Sim v27: the baked twist rotation, one twist a week (the same as the server's `rotationTwist`). Pure. */
+export function rotationTwist(now: number): LiveopsTwist {
+  const end = nextMonday(now);
+  const id = WEEKLY_TWISTS[Math.floor(end / (7 * DAY)) % WEEKLY_TWISTS.length];
+  return { id, ...TWIST_INFO[id], rules: [...TWIST_INFO[id].rules], endsAt: end };
+}
+
+function parseTwist(v: unknown, now: number): LiveopsTwist | null {
+  if (!isRec(v) || typeof v.id !== 'string' || !(WEEKLY_TWISTS as readonly string[]).includes(v.id)) return null;
+  const endsAt = time(v.endsAt);
+  if (endsAt === null || endsAt <= now) return null;
+  const info = TWIST_INFO[v.id];
+  const rules = Array.isArray(v.rules) ? v.rules.map((r) => str(r, 120)).filter((r): r is string => !!r).slice(0, 3) : [];
+  return { id: v.id as Mutator, name: str(v.name, 32) ?? info.name, rules: rules.length ? rules : [...info.rules], endsAt };
+}
+
 /** Winter Nap's dates, shown even offline (the server's DEFAULT_NAP). */
 export const NAP_FALLBACK: LiveopsNap = Object.freeze({
   id: 'nap-2026',
@@ -130,7 +166,9 @@ export const NAP_FALLBACK: LiveopsNap = Object.freeze({
 
 /** The config before (or without) a server answer. Pure. */
 export function fallbackConfig(now: number): LiveopsConfig {
-  return { live: false, events: [], featuredMode: rotationFeatured(now), featuredQuests: [], goal: null, vote: null, nap: now < NAP_FALLBACK.endsAt ? NAP_FALLBACK : null };
+  // sim v27: offline, the baked twist is the featured mode (as on the server)
+  const twist = rotationTwist(now);
+  return { live: false, events: [], featuredMode: { id: 'twist', endsAt: twist.endsAt }, twist, featuredQuests: [], goal: null, vote: null, nap: now < NAP_FALLBACK.endsAt ? NAP_FALLBACK : null };
 }
 
 function parseGoal(v: unknown): LiveopsGoal | null {
@@ -184,7 +222,10 @@ function parseNap(v: unknown): LiveopsNap | null {
 /** `GET /pawlegends/config` as a clean copy, or null. Pure. */
 export function parseConfig(body: unknown, now: number): LiveopsConfig | null {
   if (!isRec(body) || body.v !== 1) return null;
-  const fm = isRec(body.featuredMode) && typeof body.featuredMode.id === 'string' && FEATURED_ROTATION.includes(body.featuredMode.id) ? { id: body.featuredMode.id, endsAt: time(body.featuredMode.endsAt) ?? 0 } : null;
+  const twist = parseTwist(body.twist, now);
+  const fm0 = isRec(body.featuredMode) && typeof body.featuredMode.id === 'string' && FEATURABLE.includes(body.featuredMode.id) ? { id: body.featuredMode.id, endsAt: time(body.featuredMode.endsAt) ?? 0 } : null;
+  // a featured twist needs its twist
+  const fm = fm0 && (fm0.id !== 'twist' || twist) ? fm0 : null;
   const events = Array.isArray(body.events)
     ? body.events
         .filter(isRec)
@@ -203,7 +244,8 @@ export function parseConfig(body: unknown, now: number): LiveopsConfig | null {
   return {
     live: true,
     events,
-    featuredMode: fm && fm.endsAt > now ? fm : rotationFeatured(now),
+    featuredMode: fm && fm.endsAt > now ? fm : twist ? { id: 'twist', endsAt: twist.endsAt } : rotationFeatured(now),
+    twist,
     featuredQuests: Array.isArray(body.featuredQuests) ? body.featuredQuests.map((q) => str(q, 60)).filter((q): q is string => !!q).slice(0, 3) : [],
     goal: parseGoal(body.goal),
     vote: parseVote(body.vote),
@@ -293,6 +335,11 @@ export function applyFeatured(f: { id: string; endsAt: number } | null, now = Da
   const prevBase = BASE_MODES.find((m) => m.id === prev);
   if (prevBase) registerMode(prevBase);
   featuredKey = '';
+  // sim v27: the Weekly Twist tile is a timed event by itself (applyTwist): featuring it is only its ribbon
+  if (f && f.id === 'twist' && f.endsAt > now) {
+    featuredKey = key;
+    return true;
+  }
   const base = f ? BASE_MODES.find((m) => m.id === f.id) : undefined;
   if (!f || !base || base.state !== 'live' || f.endsAt <= now) return !!prevBase;
   registerMode({ ...base, state: { event: { endsAt: f.endsAt } } });
@@ -301,8 +348,26 @@ export function applyFeatured(f: { id: string; endsAt: number } | null, now = Da
   // a tab open across the end: the mode stays playable (setTimeout caps at ~24.8 days)
   if (ms < 2 ** 31 - 1)
     featuredTimer = setTimeout(() => {
-      if (applyFeatured(rotationFeatured(Date.now()))) onModesChanged();
+      const t = Date.now();
+      const twist = applyTwist(rotationTwist(t), t);
+      if (applyFeatured({ id: 'twist', endsAt: rotationTwist(t).endsAt }, t) || twist) onModesChanged();
     }, ms + 50);
+  return true;
+}
+
+let twistKey = '';
+
+/**
+ * Sim v27 (V27.md §4): the Weekly Twist tile, registered with its week's mutator and a countdown to its end; gone when
+ * the server turned the twist off. Returns whether the mode list changed.
+ */
+export function applyTwist(t: LiveopsTwist | null, now = Date.now()): boolean {
+  const live = t && t.endsAt > now ? t : null;
+  const key = live ? `${live.id}@${live.endsAt}@${live.name}` : '';
+  if (key === twistKey) return false;
+  twistKey = key;
+  if (live) registerMode(twistModeDef(live));
+  else unregisterMode('twist');
   return true;
 }
 
@@ -317,6 +382,7 @@ export function initLiveops(call: Api, account: () => boolean, modesChanged?: ()
   api = call;
   hasAccount = account;
   if (modesChanged) onModesChanged = modesChanged;
+  applyTwist(state.config.twist);
   applyFeatured(state.config.featuredMode);
 }
 
@@ -352,7 +418,8 @@ export function refreshLiveops(maxAgeMs = 60_000): Promise<void> {
         }, 1500 * retries);
       }
       if (me) grant(me.items);
-      const modes = config ? applyFeatured(config.featuredMode, now) : false;
+      const twisted = config ? applyTwist(config.twist, now) : false;
+      const modes = (config ? applyFeatured(config.featuredMode, now) : false) || twisted;
       emit({ ...(config ? { config } : {}), ...(me ? { me } : {}) });
       if (modes) onModesChanged();
     } catch {
@@ -406,6 +473,7 @@ export function resetLiveops(now = Date.now()): void {
   if (featuredTimer) clearTimeout(featuredTimer);
   featuredTimer = null;
   featuredKey = '';
+  twistKey = '';
   onModesChanged = () => undefined;
   subs.clear();
 }

@@ -18,6 +18,7 @@ import type { MatchHandle } from '../state';
 import { G, Kind, RANGE, type World } from '../world';
 import { rulesOf } from '../rules';
 import { heroHp } from './levels';
+import { mutOf } from '../mutator';
 
 /** The summed stats of the Toys hero `id` owns. */
 export const toyStats = (w: World, id: number): Readonly<ToyStats> => TOY_SUM[HEROES[HERO_IDS[w.sub[id]]].role][w.toy[id]];
@@ -26,6 +27,9 @@ export const toyStats = (w: World, id: number): Readonly<ToyStats> => TOY_SUM[HE
 export function grantFish(m: MatchHandle, id: number, amount: number, reason: FishReason | null): number {
   const w = m.world;
   if (amount <= 0 || w.kind[id] !== Kind.Hero) return 0;
+  // Sim v27: the Toy Box twist and the Practice ground scale every Fish grant (mutOf(w).fishBp).
+  const fishBp = mutOf(w).fishBp;
+  if (fishBp !== BP_ONE) amount = applyBp(amount, fishBp);
   const before = w.fishRaw[id];
   w.fishRaw[id] = before + amount;
   const rules = rulesOf(m);

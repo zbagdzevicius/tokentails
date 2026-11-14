@@ -110,6 +110,8 @@ describe('sim v5 Rookie core floor and Sunset', () => {
     w.globals[G.Tick] = w.globals[G.Sunset] + 30;
     const full = w.hp[core];
     w.hp[3] = 0;
+
+    w.lastHitBy[3] = 0; // sim v27: a takedown (an enemy hero credited), not an execution
     resolveDeaths(m);
     expect(full - w.hp[core]).toBe(applyBp(w.maxHp[core], SUNSET.closedCoreBp));
     const inner = towerId(1, 1);
@@ -117,6 +119,8 @@ describe('sim v5 Rookie core floor and Sunset', () => {
     resolveDeaths(m);
     const before = w.hp[core];
     w.hp[4] = 0;
+
+    w.lastHitBy[4] = 0; // sim v27: a takedown (an enemy hero credited), not an execution
     resolveDeaths(m);
     expect(before - w.hp[core]).toBe(applyBp(w.maxHp[core], SUNSET.takedownCoreBp));
   });

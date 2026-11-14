@@ -31,7 +31,7 @@ import { heroMatch, hold, place } from './heroes/kit-helpers';
 
 describe('sim v8: the takedown chip', () => {
   it('SIM_VERSION is 15 (sim v9 to v15 kept the chip)', () => {
-    expect(SIM_VERSION).toBe(26);
+    expect(SIM_VERSION).toBe(27);
   });
 
   it('stops at the cap before Sunset, then chips the weakest tower that can be hit', () => {
@@ -47,6 +47,8 @@ describe('sim v8: the takedown chip', () => {
       // the victim respawns at once so the same slot can fall again
       w.alive[3] = 1;
       w.hp[3] = 0;
+
+      w.lastHitBy[3] = 0; // sim v27: a takedown (an enemy hero credited), not an execution
       resolveDeaths(m);
     }
     expect(full - w.hp[core]).toBe(chips * applyBp(w.maxHp[core], r.takedownChipBp));
@@ -66,6 +68,8 @@ describe('sim v8: the takedown chip', () => {
     w.globals[G.Kills0] = 20;
     const before = w.hp[core];
     w.hp[3] = 0;
+
+    w.lastHitBy[3] = 0; // sim v27: a takedown (an enemy hero credited), not an execution
     resolveDeaths(m);
     expect(before - w.hp[core]).toBe(applyBp(w.maxHp[core], DIFFICULTY_RULES.normal.takedownChipBp));
   });
@@ -74,6 +78,8 @@ describe('sim v8: the takedown chip', () => {
     const m = quietMatch(1, false, 'normal');
     m.world.globals[G.Tick] = 3000;
     m.world.hp[3] = 0;
+
+    m.world.lastHitBy[3] = 0; // sim v27: a takedown (an enemy hero credited), not an execution
     m.events.length = 0;
     resolveDeaths(m);
     const hit = m.events.find((e) => e.type === 'hit' && e.dst === coreId(1));

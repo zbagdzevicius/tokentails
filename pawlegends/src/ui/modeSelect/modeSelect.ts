@@ -111,8 +111,8 @@ export function tileHtml(m: ModeDef, o: { selected: boolean; now: number; base: 
 }
 
 /** One variant card's markup. `lock`: why it cannot start (shown instead of its line). Pure. */
-export function variantHtml(q: Queue, o: { selected: boolean; lock: string | null; i: number }): string {
-  const line = o.lock ?? VARIANT_LINE[q];
+export function variantHtml(q: Queue, o: { selected: boolean; lock: string | null; i: number; line?: string }): string {
+  const line = o.lock ?? o.line ?? VARIANT_LINE[q];
   return `<button type="button" role="radio" class="ms-var${o.selected ? ' on' : ''}${o.lock ? ' locked' : ''}" aria-checked="${o.selected}" tabindex="${o.selected ? 0 : -1}" data-v="${q}" data-testid="variant-${q}"${o.lock ? ` aria-disabled="true" data-why="${esc(o.lock)}"` : ''} aria-label="${esc(`${QUEUE_LABEL[q]}. ${line}`)}" style="--i:${o.i}">
     <span class="ms-var-i" aria-hidden="true">${QUEUE_ICON[q]}${o.lock ? `<span class="ms-var-lk">${LOCK}</span>` : ''}</span>
     <b class="ms-var-n">${esc(QUEUE_LABEL[q])}</b>
@@ -207,7 +207,8 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
     const vrow = el.querySelector<HTMLElement>('.ms-vrow')!;
     if (vrow.dataset.mode !== sel) {
       vrow.dataset.mode = sel;
-      vrow.innerHTML = qs.map((q, i) => variantHtml(q, { selected: q === queue, lock: lockOf(m, q), i })).join('');
+      // sim v27: the Practice ground's one card is the sandbox, not a bots match
+      vrow.innerHTML = qs.map((q, i) => variantHtml(q, { selected: q === queue, lock: lockOf(m, q), i, ...(m?.practice ? { line: 'Solo with training dummies' } : {}) })).join('');
     } else
       for (const b of vrow.querySelectorAll<HTMLElement>('.ms-var')) {
         const on = b.dataset.v === queue;
@@ -215,7 +216,7 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
         b.setAttribute('aria-checked', String(on));
         b.tabIndex = on ? 0 : -1;
       }
-    d.innerHTML = queue === 'bots' ? diffHtml() : `<p class="ms-qline">${esc(VARIANT_LINE[queue])}</p>`;
+    d.innerHTML = m?.practice ? '<p class="ms-qline">Any champion · no rewards · leave any time</p>' : queue === 'bots' ? diffHtml() : `<p class="ms-qline">${esc(VARIANT_LINE[queue])}</p>`;
     c.dataset.a = 'ms-go';
     c.dataset.testid = 'mode-go';
     c.innerHTML = `<span>${esc(goLabel(queue))}</span>`;

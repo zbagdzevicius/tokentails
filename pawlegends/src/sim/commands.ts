@@ -8,7 +8,7 @@
  */
 import { MAP } from '../data/map';
 import { CROSSING_PING_KINDS, PING_KINDS } from '../data/pings';
-import { Op, type CastSlot, type Command, type TalentTier, type TimedCommand } from './api';
+import { Op, PRACTICE_KINDS, type CastSlot, type Command, type TalentTier, type TimedCommand } from './api';
 import { clamp, idiv } from './fixed';
 
 /** mm per coordinate unit in the stream. */
@@ -36,6 +36,7 @@ export const OP_SIZE: Readonly<Record<number, number>> = Object.freeze({
   [Op.Forfeit]: 1,
   [Op.Fire]: 5,
   [Op.Kite]: 6,
+  [Op.Practice]: 2,
 });
 
 /** The command exactly as a decode of its encoding gives it back (coordinates snapped, ids masked). */
@@ -56,6 +57,8 @@ export function quantize(cmd: Command): Command {
       return { op: cmd.op, kind: clamp(cmd.kind, 0, pingKinds() - 1), x: qx(cmd.x) * COORD_QUANTUM, y: qy(cmd.y) * COORD_QUANTUM, id: cmd.id & 0xff };
     case Op.Kite:
       return { op: cmd.op, x: qx(cmd.x) * COORD_QUANTUM, y: qy(cmd.y) * COORD_QUANTUM, id: cmd.id & 0xff };
+    case Op.Practice:
+      return { op: cmd.op, kind: clamp(cmd.kind, 0, PRACTICE_KINDS.length - 1) };
     default:
       return { op: cmd.op };
   }
@@ -134,6 +137,9 @@ function writeCommand(w: ByteWriter, cmd: Command): void {
       w.u16(qy(cmd.y));
       w.u8(cmd.id);
       break;
+    case Op.Practice:
+      w.u8(clamp(cmd.kind, 0, PRACTICE_KINDS.length - 1));
+      break;
     default:
       break;
   }
@@ -192,6 +198,12 @@ export function readCommand(bytes: Uint8Array, at: number): { cmd: Command; next
     case Op.Kite: {
       const c = coord(1);
       cmd = { op, x: c.x, y: c.y, id: bytes[at + 5] };
+      break;
+    }
+    case Op.Practice: {
+      const kind = bytes[at + 1];
+      if (kind >= PRACTICE_KINDS.length) throw new DecodeError(`bad practice kind at ${at}`);
+      cmd = { op, kind };
       break;
     }
     default:

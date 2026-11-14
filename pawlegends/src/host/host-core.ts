@@ -6,7 +6,7 @@
  */
 import { decodeCommand } from '../sim/commands';
 import { createMatch, fillPicks, replayRecord, result, snapshot, step, tickOf, SIM_VERSION } from '../sim/index';
-import { HUMAN_SLOT, teamOfSlot, type Command, type Match, type SimEvent, type Team } from '../sim/api';
+import { HUMAN_SLOT, MUTATORS, teamOfSlot, type Command, type Match, type SimEvent, type Team } from '../sim/api';
 import { encodeSnap, type EndMsg, type EventsMsg, type HostMsg, type JoinMsg, type SnapMsg, type WelcomeMsg } from './protocol';
 
 /** A uint32 seed from the platform RNG (never used inside the sim; the seed is an input like any other). */
@@ -51,8 +51,9 @@ export class HostCore {
   join(msg: JoinMsg): WelcomeMsg {
     const seed = typeof msg.seed === 'number' && Number.isInteger(msg.seed) && msg.seed >= 0 && msg.seed <= 0xffffffff ? msg.seed >>> 0 : drawSeed();
     const map = msg.map === 'hearthwood' ? 'hearthwood' : undefined;
-    // Sim v22: Blitz is a Crossing mutator (anything else is a plain match)
-    const mutator = msg.mutator === 'blitz' && !map ? 'blitz' : undefined;
+    // Sim v22: Blitz is a Crossing mutator (anything else is a plain match); sim v27: Cannon Chaos, the Practice ground
+    // and the weekly twists too
+    const mutator = msg.mutator && msg.mutator !== 'none' && MUTATORS.includes(msg.mutator) && !map ? msg.mutator : undefined;
     const { picks, tricks } = fillPicks(seed, msg.hero, msg.trick, map);
     this.match = createMatch({ seed, picks, tricks, difficulty: msg.difficulty, ...(map ? { map } : {}), ...(mutator ? { mutator } : {}) });
     this.team = teamOfSlot(HUMAN_SLOT, map);

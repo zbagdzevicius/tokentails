@@ -13,7 +13,8 @@
 import { XP } from '../../data/xp';
 import { BRUSH_ATTACK_REVEAL_TICKS } from '../../data/map';
 import { NO_TARGET, type CastSlot, type SimEvent } from '../api';
-import { ANGLE_STEPS, BP_ONE, dist2, iatan2, idiv } from '../fixed';
+import { ANGLE_STEPS, BP_ONE, applyBp, dist2, iatan2, idiv } from '../fixed';
+import { mutOf } from '../mutator';
 import type { MatchHandle } from '../state';
 import { COOLDOWN_SLOTS, FM, G, Kind, MG, RANGE, UnitState, heroAt, type World } from '../world';
 import { JUNGLE_BUFF } from '../../data/camps';
@@ -318,7 +319,9 @@ export function resolveCasts(m: MatchHandle): void {
     if (s.aim !== Aim.Self && (x !== w.x[id] || y !== w.y[id])) w.facing[id] = iatan2(y - w.y[id], x - w.x[id]);
     const cd = slot === TRICK_SLOT ? castTrick(m, id, x, y) : kitOf(w, id).cast(m, id, slot, x, y, t);
     if (cd < 0) continue;
-    if (cd > 0 || slot === TRICK_SLOT) w.cooldowns[cdIndex(id, slot)] = cd;
+    // Sim v27: Cannon Chaos and the Rapid Paws twist shorten every cooldown (mutOf(w).cooldownBp, at least one tick).
+    const cdBp = mutOf(w).cooldownBp;
+    if (cd > 0 || slot === TRICK_SLOT) w.cooldowns[cdIndex(id, slot)] = cd > 0 && cdBp !== BP_ONE ? Math.max(1, applyBp(cd, cdBp)) : cd;
     if (w.state[id] === UnitState.Casting) w.state[id] = UnitState.Idle;
     m.events.push({ type: 'cast', tick, src: id, slot: slot as CastSlot | 4, x, y, target: t });
   }

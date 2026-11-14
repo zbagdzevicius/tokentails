@@ -26,6 +26,8 @@ function takedownPastCap(m: ReturnType<typeof normal>): void {
   w.globals[G.Kills0] = 20;
   w.alive[3] = 1;
   w.hp[3] = 0;
+
+  w.lastHitBy[3] = 0; // sim v27: a takedown (an enemy hero credited), not an execution
   resolveDeaths(m);
 }
 
@@ -38,8 +40,8 @@ const woofTowerLoss = (w: ReturnType<typeof normal>['world']): number => {
 describe('sim v26 towers: data', () => {
   it('the v26 numbers', () => {
     expect([TOWERS.heroDamage, TOWERS.heroMaxHpBp, TOWERS.rampBp, TOWERS.rampCapBp, TOWERS.fortifyBoltBp]).toEqual([130, 300, 3000, 9000, 12500]);
-    expect([TOWERS.fortifyBp, TOWERS.fortifyMinionBp, TOWERS.chipFloorBp, TOWERS.lockOnTicks]).toEqual([5500, 7500, 1500, 30]);
-    expect(TOWERS.fortifyUntil).toEqual([7200, 9900]);
+    expect([DIFFICULTY_RULES.normal.fortifyHeroBp, TOWERS.fortifyMinionBp, TOWERS.chipFloorBp, TOWERS.lockOnTicks]).toEqual([5500, 7500, 1500, 30]);
+    expect(TOWERS.fortifyUntil).toEqual([7200, 9000]); // sim v27: Hearthwood 5:00 (V27.md §1.C)
     expect(TOWERS.minionDamage).toBe(110);
     expect(MUTATOR_RULES.blitz.fortifyUntil).toBe(1350);
     expect([DIFFICULTY_RULES.rookie.structureHpBp, DIFFICULTY_RULES.easy.structureHpBp, DIFFICULTY_RULES.normal.structureHpBp, DIFFICULTY_RULES.hard.structureHpBp]).toEqual([11000, 11500, 13500, 13500]);
@@ -149,15 +151,15 @@ describe('sim v26 towers: Fortified', () => {
     const heroLate = dealDamage(m, hero, 0, Kind.Hero, t, 1000, 'basic');
     const puddingLate = dealDamage(m, RANGE.pudding, 0, Kind.Pudding, t, 1000, 'ability');
     expect(minionEarly).toBe(applyBp(minionLate, TOWERS.fortifyMinionBp));
-    expect(heroEarly).toBe(applyBp(heroLate, TOWERS.fortifyBp));
+    expect(heroEarly).toBe(applyBp(heroLate, DIFFICULTY_RULES.normal.fortifyHeroBp));
     expect(puddingEarly).toBe(applyBp(puddingLate, TOWERS.fortifyMinionBp));
   });
 
-  it('the windows: Crossing 4:00, Hearthwood 5:30, Blitz 0:45', () => {
+  it('the windows: Crossing 4:00, Hearthwood 5:00 (sim v27; 5:30 in v26), Blitz 0:45', () => {
     const m = normal();
     expect(fortifyUntilOf(m.world)).toBe(7200);
     m.world.map = 1;
-    expect(fortifyUntilOf(m.world)).toBe(9900);
+    expect(fortifyUntilOf(m.world)).toBe(9000);
     m.world.map = 0;
     m.world.mutator = 1;
     expect(fortifyUntilOf(m.world)).toBe(1350);

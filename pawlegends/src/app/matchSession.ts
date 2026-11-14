@@ -612,7 +612,7 @@ export class MatchSession {
       end: (result, replay) => this.onEnd(result, replay),
       error: (m) => hooks.onError(m),
     });
-    this.host.join({ hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty, seed: setup.seed, speed: setup.speed, ...(setup.map === 'hearthwood' ? { map: setup.map } : {}), ...(setup.mutator === 'blitz' && setup.map !== 'hearthwood' ? { mutator: setup.mutator } : {}) });
+    this.host.join({ hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty, seed: setup.seed, speed: setup.speed, ...(setup.map === 'hearthwood' ? { map: setup.map } : {}), ...(setup.mutator && setup.mutator !== 'none' && setup.map !== 'hearthwood' ? { mutator: setup.mutator } : {}) });
     // Hold the sim until the scene has drawn and the countdown ran (the clock read 0:25 on a slow first load).
     this.host.pause(true);
     document.documentElement.dataset.match = 'loading';
@@ -796,8 +796,13 @@ export class MatchSession {
     this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 =======
+=======
+    // Sim v27 (V27.md §2): the Practice ground's Reset / Level +1 / Cooldowns (Op.Practice)
+    if (w.mutator === 'practice') this.hud.practiceBar((kind) => this.host.send({ op: Op.Practice, kind }));
+>>>>>>> 9c5c82e4b (feat(pawlegends): sim v27, executions, Practice ground, Cannon Chaos, Weekly Twist (v26 frozen))
     // champion browser: hold an own skill button to read its card (no pause, the input is untouched); own chunk
     void import('../ui/champBrowser/skillPeek')
       .then((m) => {

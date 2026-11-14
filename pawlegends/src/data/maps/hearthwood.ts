@@ -112,9 +112,10 @@ const SOUTH_CAMPS = [
 ];
 
 /** Gutterway towers (outer, inner, gate), team 0; Fenceline is their swap, Yarn Road on the diagonal. */
-// Sim v21 (V21-FUN.md §3.1, stronger towers): 2,400 / 2,800 / 3,200 / 3,000 before.
+// Sim v21 (V21-FUN.md §3.1, stronger towers): 2,400 / 2,800 / 3,200 / 3,000 before. Sim v27 (V27.md §1.E): outer
+// 3,000 → 2,300, so a 5v5 Normal or PvP first tower falls by 7:00 once chips no longer carry it (V26-TOWERS.md T1).
 const TOWER_STATS = Object.freeze({
-  outer: Object.freeze({ hp: 3000, armour: 40 }),
+  outer: Object.freeze({ hp: 2300, armour: 40 }),
   inner: Object.freeze({ hp: 3500, armour: 50 }),
   gate: Object.freeze({ hp: 3800, armour: 55 }),
   hearth: Object.freeze({ hp: 3500, armour: 55 }),
@@ -262,6 +263,13 @@ export const HEARTHWOOD_RULES = Object.freeze({
    */
   campHpBp: 6000,
   campDmgBp: 6000,
+  /**
+   * Sim v27 (V27.md §1.B): on Hearthwood a takedown chip never takes a tower below this share of its max HP (Crossing:
+   * TOWERS.chipFloorBp, 15%). Five heroes a side score about 5/3 the takedowns of the 3v3 match the chip was tuned for,
+   * so 32% to 38% of 5v5 first towers fell mostly to chips (V26-TOWERS.md T7, gate ≤ 20%); now chips soften a tower
+   * and heroes and minions take it.
+   */
+  chipFloorBp: 5500,
 });
 
 /** The fixed camera's yaw per map (degrees; render only): Crossing's −38°, Hearthwood's 0° (its diagonal climbs). */

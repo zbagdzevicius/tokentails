@@ -114,6 +114,13 @@ export interface HudHost {
   onHover?(slot: number | null): void;
 }
 
+/** Sim v27 (V27.md §2): the Practice ground's controls (Op.Practice kinds, sim/api.ts PRACTICE_KINDS order). */
+export const PRACTICE_BUTTONS: readonly { kind: number; label: string; title: string }[] = Object.freeze([
+  { kind: 0, label: 'Reset', title: 'Dummies back on their spots, your HP and cooldowns full, towers repaired' },
+  { kind: 1, label: 'Level +1', title: 'Your champion gains a level (up to 10)' },
+  { kind: 2, label: 'Cooldowns', title: 'Every cooldown ready again' },
+]);
+
 /** Desktop skill tooltips: ui/slotTip.ts, loaded on the first desktop hover (touch never downloads it). */
 type TipMod = typeof import('./slotTip');
 let tipMod: TipMod | null = null;
@@ -391,6 +398,29 @@ export class Hud {
     // cards: the worn card skin's rung gives the glints their foil (Common when none)
     const rung = getSkin(look?.coat)?.rung ?? 'COMMON';
     root.dataset.ttTier = rung;
+  }
+
+  /**
+   * Sim v27 (V27.md §2): the Practice ground's three controls take the score's place in the top bar (team kills and
+   * towers mean nothing there), so the phone HUD keeps its footprint. `onAction` gets the Op.Practice kind.
+   */
+  practiceBar(onAction: (kind: number) => void): void {
+    this.root.dataset.practice = '1';
+    const score = this.root.querySelector('.pl-score');
+    if (!score || score.querySelector('.pl-practice')) return;
+    const bar = document.createElement('span');
+    bar.className = 'pl-practice';
+    bar.setAttribute('role', 'group');
+    bar.setAttribute('aria-label', 'Practice controls');
+    bar.innerHTML = PRACTICE_BUTTONS.map((b) => `<button type="button" data-k="${b.kind}" title="${b.title}">${b.label}</button>`).join('');
+    bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+    bar.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-k]');
+      if (!b) return;
+      e.stopPropagation();
+      onAction(Number(b.dataset.k));
+    });
+    score.prepend(bar);
   }
 
   /**

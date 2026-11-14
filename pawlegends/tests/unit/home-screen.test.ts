@@ -114,8 +114,8 @@ describe('home screen: one play path', () => {
     play(root);
     const ms = await modesOpen();
     expect(ms.getAttribute('aria-modal')).toBe('true');
-    // five tiles: the separate "Co-op vs Bots" tile is gone (co-op is Skirmish's variant)
-    expect(Array.from(ms.querySelectorAll<HTMLElement>('.ms-pick')).map((b) => b.dataset.mode)).toEqual(['blitz', 'skirmish', 'classic', 'ranked', 'cannon']);
+    // the separate "Co-op vs Bots" tile is gone (co-op is Skirmish's variant); sim v27: Cannon Chaos and Practice live
+    expect(Array.from(ms.querySelectorAll<HTMLElement>('.ms-pick')).map((b) => b.dataset.mode)).toEqual(['blitz', 'skirmish', 'classic', 'cannon', 'practice', 'ranked']);
     expect(ms.querySelector('.ms-pick.on')?.getAttribute('data-mode')).toBe('skirmish');
     click(ms, 'mode-next');
     expect(ms.dataset.stage).toBe('variant');

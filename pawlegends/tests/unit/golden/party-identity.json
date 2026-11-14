@@ -1,6 +1,6 @@
 {
-  "base": "v26",
-  "simVersion": 26,
+  "base": "v27",
+  "simVersion": 27,
   "rows": [
     {
       "key": "fixture:rookie-replay.fixture.json",
@@ -10,9 +10,9 @@
     },
     {
       "key": "fixture:champion-replay.fixture.json",
-      "finalHash": "9f298557",
-      "trail": "7839a1a2",
-      "ticks": 11353
+      "finalHash": "0512b94a",
+      "trail": "8e46066a",
+      "ticks": 14191
     },
     {
       "key": "fixture:forfeit-replay.fixture.json",
@@ -46,27 +46,27 @@
     },
     {
       "key": "fuzz:4",
-      "finalHash": "fc1b2fa0",
-      "trail": "67798cee",
-      "ticks": 12425
+      "finalHash": "868387c3",
+      "trail": "14bd39fc",
+      "ticks": 12094
     },
     {
       "key": "fuzz:5",
-      "finalHash": "47043a95",
-      "trail": "a665640b",
-      "ticks": 10999
+      "finalHash": "a3ab5617",
+      "trail": "4b208d61",
+      "ticks": 12161
     },
     {
       "key": "fuzz:6",
-      "finalHash": "bf6fadfd",
-      "trail": "b48b5945",
+      "finalHash": "dae67a16",
+      "trail": "f259a757",
       "ticks": 8522
     },
     {
       "key": "fuzz:7",
-      "finalHash": "77e8030c",
-      "trail": "50929173",
-      "ticks": 12501
+      "finalHash": "32ae89ed",
+      "trail": "d3871a7c",
+      "ticks": 12596
     },
     {
       "key": "fuzz:8",
@@ -94,9 +94,9 @@
     },
     {
       "key": "fuzz:12",
-      "finalHash": "898e6932",
-      "trail": "3a1eef2e",
-      "ticks": 11257
+      "finalHash": "ee39f063",
+      "trail": "5852efae",
+      "ticks": 12557
     },
     {
       "key": "fuzz:13",
@@ -112,21 +112,21 @@
     },
     {
       "key": "fuzz:15",
-      "finalHash": "fd897aa8",
-      "trail": "f51a494c",
-      "ticks": 9396
+      "finalHash": "ffa42843",
+      "trail": "c09bcab1",
+      "ticks": 8698
     },
     {
       "key": "fuzz:16",
-      "finalHash": "9ad2d70b",
-      "trail": "526a9d02",
-      "ticks": 11188
+      "finalHash": "a6c2c10e",
+      "trail": "4193bf1d",
+      "ticks": 12540
     },
     {
       "key": "fuzz:17",
-      "finalHash": "477606d3",
-      "trail": "068ed7ff",
-      "ticks": 12383
+      "finalHash": "8bbb3c9c",
+      "trail": "a1e2bcbe",
+      "ticks": 12611
     },
     {
       "key": "fuzz:18",
@@ -142,9 +142,9 @@
     },
     {
       "key": "bot:pinger:11",
-      "finalHash": "d31bfb2f",
-      "trail": "c62a7ce3",
-      "ticks": 13147
+      "finalHash": "ea4852d5",
+      "trail": "44abc020",
+      "ticks": 15391
     },
     {
       "key": "bot:pinger:12",
@@ -154,9 +154,9 @@
     },
     {
       "key": "bot:normal:13",
-      "finalHash": "151d005d",
-      "trail": "22a67118",
-      "ticks": 13754
+      "finalHash": "33cd5793",
+      "trail": "602d0815",
+      "ticks": 13904
     },
     {
       "key": "bot:novice:14",

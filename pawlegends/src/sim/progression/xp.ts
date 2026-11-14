@@ -29,6 +29,7 @@ import { grantXp } from './levels';
 import { grantFish } from './fish';
 import { FISH } from '../../data/fish';
 import { HEARTHWOOD_RULES } from '../../data/maps/hearthwood';
+import { mutOf } from '../mutator';
 
 // Sim v19: sized for the largest map (10 heroes). `RANGE` is bound to the active map, and at module load it is
 // Crossing's (6 heroes): on Hearthwood, team 1's slots 6 to 9 fell outside these tables, so `helpedBy[h] === 0` was
@@ -59,6 +60,28 @@ export function shareOf(amount: number, n: number): number {
   return applyBp(amount, XP.shareBp[Math.min(n, XP.shareBp.length) - 1]);
 }
 
+/**
+ * Sim v27 (V27.md §1.A, Wild Rift and LoL "executed"): a hero that dies with no enemy hero credited (no enemy hero
+ * landed the last hit or hit it within XP.assistWindow; on a nearAssists difficulty, none alive within XP.shareRange)
+ * was executed by a tower, a minion, a camp or the map. An execution is not a takedown for the other team: it adds
+ * nothing to the kill score and deals no takedown chip or core damage. Before v27 every death counted, so a team that
+ * dived towers fed the trailing team "takedowns" (v26's harder bolts raised "down 10+ wins" from 1.7% to 6.6%).
+ */
+export function executed(m: MatchHandle, victim: number): boolean {
+  const w = m.world;
+  const enemy = 1 - w.team[victim];
+  const last = w.lastHitBy[victim];
+  if (last >= 0 && last < RANGE.minions && w.kind[last] === Kind.Hero && w.team[last] === enemy) return false;
+  const near = rulesOf(m).nearAssists;
+  const r2 = XP.shareRange * XP.shareRange;
+  for (let h = RANGE.heroes; h < RANGE.minions; h++) {
+    if (w.kind[h] !== Kind.Hero || w.team[h] !== enemy) continue;
+    if (assisted(w, victim, h)) return false;
+    if (near && w.alive[h] === 1 && dist2(w.x[h], w.y[h], w.x[victim], w.y[victim]) <= r2) return false;
+  }
+  return true;
+}
+
 /** Enemy hero `victim` died (step 7). Credits the kill, the assists, XP and the takedown hooks. */
 export function heroKilled(m: MatchHandle, victim: number): void {
   const w = m.world;
@@ -77,7 +100,9 @@ export function heroKilled(m: MatchHandle, victim: number): void {
       }
     }
   }
-  const bounty = bountyOf(w.killStreak[victim]);
+  // Sim v27: the Bounty Hunt twist scales the bounty and the shutdown Fish (mutOf(w).bountyBp).
+  const bountyBp = mutOf(w).bountyBp;
+  const bounty = applyBp(bountyOf(w.killStreak[victim]), bountyBp);
   let reward = XP.killBase + XP.killPerLevel * w.level[victim];
   if (killer >= 0 && w.level[victim] > w.level[killer] + 1) reward = applyBp(reward, XP.upsetBp);
   // Fun pass (playtest #2): a victim on a death streak is worth less XP (its kill Fish drops the same way)
@@ -105,7 +130,7 @@ export function heroKilled(m: MatchHandle, victim: number): void {
   // Sim v12 Fish: the victim's death streak before this death sets the kill value.
   const killFish = killFishOf(w.deathStreak[victim]);
   w.deathStreak[victim]++;
-  const shutdownFish = killer >= 0 ? shutdownFishOf(w.killStreak[victim]) : 0;
+  const shutdownFish = killer >= 0 ? applyBp(shutdownFishOf(w.killStreak[victim]), bountyBp) : 0;
   let firstBlood = false;
   if (w.globals[G.FirstBlood] === 0) {
     w.globals[G.FirstBlood] = 1;
@@ -135,7 +160,7 @@ export function heroKilled(m: MatchHandle, victim: number): void {
     const before = bountyOf(w.killStreak[h]);
     w.killStreak[h]++;
     // Only when the bounty appears or grows (it is capped at XP.killStreakMax).
-    if (bountyOf(w.killStreak[h]) > before) m.events.push({ type: 'bounty', tick, id: h, value: bountyOf(w.killStreak[h]) });
+    if (bountyOf(w.killStreak[h]) > before) m.events.push({ type: 'bounty', tick, id: h, value: applyBp(bountyOf(w.killStreak[h]), bountyBp) });
     if (w.alive[h] === 1 && w.hp[h] > 0 && TAKEDOWN_HEAL.healBp > 0) {
       w.hp[h] = Math.min(w.maxHp[h], w.hp[h] + applyBp(w.maxHp[h], TAKEDOWN_HEAL.healBp));
       m.events.push({ type: 'buff', tick, id: h, kind: 'takedown', ticks: 0 });

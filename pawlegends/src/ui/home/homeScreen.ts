@@ -146,10 +146,12 @@ export function resolveChoice(modes: readonly ModeDef[], c: ModeChoice, avail: r
  * The bots match `Choice` for a mode: the 3v3 default map carries no `map`; sim v22 Blitz is the Crossing with the
  * 'blitz' mutator (WR-BS-PLAN.md §5). Pure.
  */
-export function botsChoice(last: Choice, diff: Difficulty, mode: Pick<ModeDef, 'map'> & { id?: ModeDef['id'] }): Choice {
+export function botsChoice(last: Choice, diff: Difficulty, mode: Pick<ModeDef, 'map'> & { id?: ModeDef['id']; mutator?: ModeDef['mutator'] }): Choice {
   const c: Choice = { ...last, difficulty: diff };
   delete c.map;
   delete c.mutator;
+  // Sim v22 Blitz; sim v27 Cannon Chaos, the Practice ground and the weekly twist: the Crossing with the mode's mutator
+  if (mode.mutator && mode.mutator !== 'none') return { ...c, mutator: mode.mutator };
   if (mode.id === 'blitz') return { ...c, mutator: 'blitz' };
   return mode.map && mode.map !== 'crossing' ? { ...c, map: mode.map } : c;
 }
