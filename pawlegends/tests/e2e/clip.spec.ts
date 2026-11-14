@@ -80,7 +80,10 @@ test('clip: the Legend Moment card records a vertical clip; Record again records
   expect((await videoSize(page)).size).toBeGreaterThan(10_000);
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
-  // the wide clip ran to the end of the replay: Back on the Replay over card
+  // Record rewound to 3 s more than the clip before the end, and a finished clip pauses the replay under its sheet:
+  // play the rest (unless a slow machine already ran to the end), then Back on the Replay over card
+  if (!(await page.locator('.mm-end').isVisible())) await press(page, touch, '[data-testid="replay-play"]');
+  await expect(page.locator('.mm-end')).toBeVisible({ timeout: 30_000 });
   await press(page, touch, '.mm-end [data-r="exit"]');
   await page.waitForSelector('html[data-screen="title"]', { timeout: 20_000 });
   expect(await page.evaluate(() => document.documentElement.dataset.clip ?? '')).toBe('');
