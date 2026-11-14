@@ -7,6 +7,7 @@ import {
     SIM_VERSIONS,
     simFor,
 } from 'src/vendor/pawlegends-sim';
+import { PROTO } from 'src/vendor/pawlegends-net/pawlegends-net.bundle';
 
 /**
  * Which Pawlegends sim this backend replays with. Served by `GET /pawlegends/sim` (the game's deploy runs
@@ -28,6 +29,8 @@ export const PAWLEGENDS_SIM_INFO = Object.freeze({
      * when its own sim is in `simVersions` and >= this (a capability check, no flag).
      */
     pvpSince: simFor(SIM_VERSION)?.party?.PVP_SINCE ?? null,
+    /** The newest relay wire protocol (pawlegends/src/net/proto.ts PROTO): the game's deploy gate waits for it. */
+    proto: PROTO,
 });
 
 /** The part of `PAWLEGENDS_SIM_INFO` a 400 body carries. */
