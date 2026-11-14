@@ -96,6 +96,28 @@ describe('web push crypto', () => {
         );
     });
 
+    it('a private key with a leading zero byte (31 bytes, ~1 in 256) is padded: valid, signs, and the env accepts it', () => {
+        // find such a key the way the documented one-liner makes one (getPrivateKey drops leading zeros)
+        let pub = '';
+        let short = '';
+        for (let i = 0; i < 5000 && !short; i++) {
+            const e = createECDH('prime256v1');
+            e.generateKeys();
+            if (e.getPrivateKey().length < 32) {
+                pub = b64u(e.getPublicKey());
+                short = b64u(e.getPrivateKey());
+            }
+        }
+        expect(short.length).toBeGreaterThan(0);
+        expect(short.length).toBeLessThan(43);
+        expect(vapidKeysValid(pub, short)).toBe(true);
+        const keys = pushVapid({ PAWLEGENDS_VAPID_PUBLIC_KEY: pub, PAWLEGENDS_VAPID_PRIVATE_KEY: short });
+        expect(keys?.privateKey).toHaveLength(43);
+        expect(vapidAuthorization(FCM, keys!, 1_800_000_000)).toMatch(/^vapid t=[^,]+, k=/);
+        // the generator always gives 43 characters
+        for (let i = 0; i < 600; i++) expect(generateVapidKeys().privateKey).toHaveLength(43);
+    });
+
     it('maps the push service answer: 201 sent, 410 gone, 500 failed; sends TTL, encoding and topic', async () => {
         const k = { ...generateVapidKeys(), subject: 'https://pawlegends.app' };
         const { sub } = browserKeys();

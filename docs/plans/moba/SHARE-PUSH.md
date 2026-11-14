@@ -84,6 +84,8 @@ Web push to pawlegends.app's service worker, for five categories, each of which 
   `GET /pawlegends/push/key` answers `{key: null}`, the game shows no opt-in and no Settings rows, and nothing is sent.
   Make a pair with:
   `node -e "const e=require('crypto').createECDH('prime256v1');e.generateKeys();console.log(e.getPublicKey('base64url'),e.getPrivateKey('base64url'))"`.
+  About 1 key in 256 prints a 42-character private key (a leading zero byte dropped); the server pads it to 32 bytes
+  (fixed in the round 3 review; before that such a pair was refused and push stayed off).
   Rotating the pair invalidates every subscription (the browsers subscribed with the old public key): the game sees
   no subscription at the next launch and the player turns it on again.
 - Analytics: `push_prompt` (asks), `push_optin` (result on / denied / unavailable / failed / later, from card or
