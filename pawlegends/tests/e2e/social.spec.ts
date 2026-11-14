@@ -48,6 +48,7 @@ test('Social sheet: friends with presence, add a friend by code through the host
   const reqs = (await received(page)).filter((m: any) => m.type === 'api-request');
   // the game never sends a URL or a token, only allowlisted ops
   for (const r of reqs as any[]) {
-    expect(JSON.stringify(r)).not.toMatch(/https?:|accesstoken|fb[A-Za-z0-9]/);
+    // op and args only: the request id is random and can contain "fb" + letters (a false token hit, QA flaky-qa)
+    expect(JSON.stringify({ op: r.op, args: r.args })).not.toMatch(/https?:|accesstoken|fb[A-Za-z0-9]/);
   }
 });

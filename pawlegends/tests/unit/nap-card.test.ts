@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Hud } from '../../src/ui/hud';
-import { NAP_ART, NAP_LINE_MS, NapCard, _resetNapLines, napLines } from '../../src/ui/napCard';
+import { NAP_ART, NAP_LINE_MS, NapCard, RECAP_WAIT_MS, _resetNapLines, napLines } from '../../src/ui/napCard';
 import { HERO_IDS } from '../../src/data/heroes';
 import type { EntitySnap, MatchClock } from '../../src/sim/api';
 
@@ -75,6 +75,7 @@ describe('nap card in the HUD', () => {
 describe('NapCard', () => {
   it('rotates the line every NAP_LINE_MS of a long nap and starts the next knockout on a new line', () => {
     const c = new NapCard(document.body, 'sage');
+    c.knockedOut('Knocked out by Sir Brutus');
     c.show(20, false, 1000);
     const first = c.el.querySelector('.nc-line')!.textContent;
     c.show(19, false, 1000 + NAP_LINE_MS - 1);
@@ -83,8 +84,29 @@ describe('NapCard', () => {
     const second = c.el.querySelector('.nc-line')!.textContent;
     expect(second).not.toBe(first);
     c.hide();
+    c.knockedOut('Knocked out by minions');
     c.show(10, false, 99999);
     expect(c.el.querySelector('.nc-line')!.textContent).not.toBe(first);
+    c.dispose();
+  });
+
+  it('waits for its knockout recap (the death event plays after the dead state), at most RECAP_WAIT_MS', () => {
+    const c = new NapCard(document.body, 'clem');
+    // dead state first: no card on the stock line yet
+    c.show(9, false, 1000);
+    expect(c.shown).toBe(false);
+    // the event lands: the card opens on its recap
+    c.knockedOut('Knocked out by Sir Brutus', { kind: 'hero', hero: 'brutus' });
+    c.show(9, false, 1100);
+    expect(c.shown).toBe(true);
+    expect(c.el.querySelector('.nc-recap')!.textContent).toBe('Knocked out by Sir Brutus');
+    c.hide();
+    // no event at all (a reconnect mid-nap): the stock line after RECAP_WAIT_MS
+    c.show(5, false, 5000);
+    expect(c.shown).toBe(false);
+    c.show(5, false, 5000 + RECAP_WAIT_MS);
+    expect(c.shown).toBe(true);
+    expect(c.el.querySelector('.nc-recap')!.textContent).toBe('Your team is still fighting!');
     c.dispose();
   });
 

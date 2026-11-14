@@ -161,6 +161,8 @@ describe('HUD chrome', () => {
     document.body.innerHTML = '<div class="pl-match"></div>';
     const root = document.querySelector('.pl-match') as HTMLElement;
     const hud = new Hud(root, 'sage', 'pounce', { onSlot: () => undefined });
+    // the death event's recap (matchSession.onKill) opens the nap card with the dead state
+    hud.recap('Knocked out by Sir Brutus', { kind: 'hero', hero: 'brutus' });
     hud.update(me({ state: 'dead', hp: 0, respawnIn: 200 }), CLOCK, { kills: [0, 0], towers: [0, 0] }, 0);
     expect(root.classList.contains('dead')).toBe(true);
     expect(document.documentElement.dataset.plDead).toBe('1');
@@ -172,6 +174,7 @@ describe('HUD chrome', () => {
     expect(document.querySelector('.pl-napcard.on')).toBeNull();
     expect(document.documentElement.dataset.plDead).toBeUndefined();
     hud.lowQuality = true;
+    hud.recap('Knocked out by minions', { kind: 'minion' });
     hud.update(me({ state: 'dead', hp: 0, respawnIn: 60 }), CLOCK, { kills: [0, 0], towers: [0, 0] }, 0);
     expect(root.classList.contains('dead-low')).toBe(true);
     hud.update(me({ state: 'napping' }), CLOCK, { kills: [0, 0], towers: [0, 0] }, 0);

@@ -35,6 +35,9 @@ async function aMove(page: Page, to: { x: number; y: number } | null): Promise<v
 const TIP_ON = '.pl-rail-line.on[data-key^="tip:"]';
 
 test('first match is one tap away and the move tip fires', async ({ page }, info) => {
+  // boot + the veil's program warm-up under swiftshader took 55-65 s on a loaded machine (QA flaky-qa): the match-start
+  // budget the other match specs use
+  test.setTimeout(120_000);
   await page.goto('/?e2e=1');
   await expect(page.locator('.pl-btn.big')).toHaveAttribute('aria-label', 'Play as Clem');
   await startFirstMatch(page);
