@@ -53,6 +53,7 @@ references, no text and no third-party characters, encoded to WebP. Prompts and 
 | `lobby/legends-{1280,1920}.webp`, `lobby/legends-wide-{1280,1920}.webp` | generated, Gemini, 2026-11 (Home key art "Storm Clash Arena", Nov 13: cats left, dogs right, a bolt left of centre, calm sand centre; side champions cut from a generated green-screen sheet; 16:9 desktop, 21:9 phones; scripts in `~/Downloads/paw-legends/home-bg-variants/`) | Token Tails, all rights reserved |
 | `lobby/promo-{pass,cannon}.webp` | crops of the Home key art and the Cannon Chaos tile | Token Tails, all rights reserved |
 | `modes/{blitz,skirmish,classic,coop,ranked,cannon}-{256,512}.webp` | generated, Gemini, 2026-11 (round mode tiles) | Token Tails, all rights reserved |
+| `modes/{onelane,duel,boss}-256.webp` | composited 2026-11-14 from the mode tiles and the splash portraits above (sim v28 modes) | Token Tails, all rights reserved |
 | `screens/modes-{1280,1920}.webp` | generated, Gemini, 2026-11 (Mode Select backdrop: a moonlit hall of banners) | Token Tails, all rights reserved |
 
 ### Treat Track and Legends Pass art (Hearth Storybook, brandbook v1)
