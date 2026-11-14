@@ -1,6 +1,6 @@
 /**
  * Every champion's sound and motif layer (audio/champ/<hero>.ts), one file per hero so parallel work never shares a
- * file. Add a hero: write its file and add it here (the test checks all 20).
+ * file. Add a hero: write its file and add it here (the test checks every hero).
  */
 import type { HeroId } from '../../data/heroes/types';
 import type { ChampAudio } from './types';
@@ -24,6 +24,10 @@ import { howler } from './howler';
 import { rocket } from './rocket';
 import { frankie } from './frankie';
 import { domino } from './domino';
+import { mochi } from './mochi';
+import { ziggy } from './ziggy';
+import { biscuit } from './biscuit';
+import { champ } from './champ';
 
 export type { ChampAudio, ChampFx, MotifPainter, SkillPhase, SkillSound, SkillSoundOverride } from './types';
 
@@ -48,4 +52,8 @@ export const CHAMP_AUDIO: Readonly<Record<HeroId, ChampAudio>> = Object.freeze({
   rocket,
   frankie,
   domino,
+  mochi,
+  ziggy,
+  biscuit,
+  champ,
 });

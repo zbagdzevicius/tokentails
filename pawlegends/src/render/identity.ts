@@ -629,6 +629,83 @@ export const IDENTITY: Readonly<Record<HeroId, ChampIdentity>> = Object.freeze({
       r: { name: 'CONNECT THE DOTS!', nature: 'arcane', motif: 'star lines draw from spot to spot, nearest first' },
     },
   }),
+  // Sim v29 roster (docs/plans/moba/ROSTER-V29.md §3).
+  mochi: id({
+    hero: 'mochi',
+    trait: 'Nap-time ragdoll: pillow feathers and sleepy Zzz',
+    motif: { shape: 'FEATHER', sprite: 'a soft white pillow feather; a lilac Zzz' },
+    colors: { primary: 0xc9a8ff, secondary: 0x5a2a7a },
+    timbre: 'music-box chime (soft sine bell)',
+    voice: {
+      basic: { zzfx: [0.3, 0, 1046, 0.004, 0.03, 0.1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.03, 0.6, 0.02, 0, 0] },
+      ult: { zzfx: [0.45, 0, 523, 0.04, 0.3, 0.45, 0, 1, 0, 0, 392, 0.12, 0.12, 0, 0, 0, 0.08, 0.7, 0.05, 0.2, 0] },
+    },
+    skills: {
+      basic: { name: 'Pillow bop', nature: 'impact', motif: 'two feathers puff off the bop' },
+      passive: { name: 'Warm Lap', nature: 'guard', motif: 'a feather ring glows on a hurt friend she shields' },
+      q: { name: 'Pillow Toss', nature: 'projectile', motif: 'feathers trail the pillow; a shield feather flies to her friend' },
+      w: { name: 'Cuddle Bubble', nature: 'guard', motif: 'a soft bubble with feathers floating inside' },
+      e: { name: 'Purr Wave', nature: 'mobility', motif: 'warm purr rings with speed feathers' },
+      r: { name: 'LULLABY', nature: 'heal', motif: 'lilac notes and Zzz drift over the dogs; the sleepers snore' },
+    },
+  }),
+  ziggy: id({
+    hero: 'ziggy',
+    trait: 'Lightning Bengal: zig-zag bolts and static',
+    motif: { shape: 'SPARK', sprite: 'a yellow zig-zag bolt with a cyan glow' },
+    colors: { primary: 0x48f0ff, secondary: 0xffe14a },
+    timbre: 'electric guitar pluck (square, quick bend)',
+    voice: {
+      basic: { zzfx: [0.32, 0, 660, 0.002, 0.02, 0.08, 2, 1, -12, 0, 0, 0, 0, 0.3, 0, 0.1, 0, 0.6, 0.01, 0, 0] },
+      ult: { zzfx: [0.5, 0, 220, 0.005, 0.25, 0.35, 2, 1, 20, 0, 0, 0, 0.06, 0.8, 0, 0.25, 0, 0.6, 0.03, 0, 0] },
+    },
+    skills: {
+      basic: { name: 'Spark claw', nature: 'slash', motif: 'a tiny bolt on the scratch' },
+      passive: { name: 'Static Step', nature: 'electric', motif: 'his claws crackle after a dash; the charged hit snaps a bolt' },
+      q: { name: 'Zig', nature: 'mobility', motif: 'a zig-zag bolt trail along each dash' },
+      w: { name: 'Spark Swipe', nature: 'electric', motif: 'a ring of short bolts at the true radius' },
+      e: { name: 'Tail Flick', nature: 'guard', motif: 'a crackling shield and a bolt off the tail' },
+      r: { name: 'ZIGZAG STORM', nature: 'electric', motif: 'a bolt joins every strike, foe to foe' },
+    },
+  }),
+  biscuit: id({
+    hero: 'biscuit',
+    trait: 'Golden retriever: tennis balls and a red leash',
+    motif: { shape: 'SOFT', sprite: 'a yellow-green tennis ball; a red leash line' },
+    colors: { primary: 0xc8f040, secondary: 0xe0323a },
+    timbre: 'squeaky toy and happy woof (pitched square)',
+    voice: {
+      basic: { zzfx: [0.32, 0, 520, 0.003, 0.03, 0.07, 2, 1.5, 6, 0, 0, 0, 0, 0.1, 0, 0, 0, 0.7, 0.02, 0, 0] },
+      ult: { zzfx: [0.5, 0, 330, 0.01, 0.2, 0.3, 2, 1.2, 4, 0, 165, 0.1, 0.1, 0.2, 0, 0, 0.04, 0.7, 0.04, 0, 0] },
+    },
+    skills: {
+      basic: { name: 'Paw swat', nature: 'impact', motif: 'a ball bounces off the swat' },
+      passive: { name: 'Good Boy', nature: 'guard', motif: 'a gold tag glints and a shield wraps him and a friend' },
+      q: { name: 'Fetch!', nature: 'projectile', motif: 'the ball flies on a red leash; the catch yanks it home' },
+      w: { name: 'Tail Wag', nature: 'impact', motif: 'a fan of wag lines and bouncing balls' },
+      e: { name: 'Stubborn', nature: 'guard', motif: 'paws dug in, dust and a bark ring' },
+      r: { name: 'WALKIES!', nature: 'sonic', motif: 'red leashes snap to every cat and tug them in' },
+    },
+  }),
+  champ: id({
+    hero: 'champ',
+    trait: 'Boxer: red gloves, a ring bell and star-burst punches',
+    motif: { shape: 'STAR5', sprite: 'a comic punch star in glove red; a brass ring bell' },
+    colors: { primary: 0xb01860, secondary: 0xffffff },
+    timbre: 'ring bell and punch thud',
+    voice: {
+      basic: { zzfx: [0.38, 0, 140, 0.002, 0.02, 0.08, 4, 1, -4, 0, 0, 0, 0, 0.8, 0, 0, 0, 0.6, 0.02, 0, -1500] },
+      ult: { zzfx: [0.55, 0, 1320, 0.002, 0.05, 0.6, 0, 1, 0, 0, 0, 0, 0.12, 0, 0, 0, 0, 0.6, 0.05, 0.3, 0] },
+    },
+    skills: {
+      basic: { name: 'Jab', nature: 'impact', motif: 'a small punch star on the hit' },
+      passive: { name: 'One-Two', nature: 'impact', motif: 'the Cross lands with a big punch star and a bell ding' },
+      q: { name: 'Haymaker', nature: 'slash', motif: 'a red glove arc across the cone' },
+      w: { name: 'Rope-a-Dope', nature: 'guard', motif: 'gloves up, ropes shimmer round him; the heal ticks back as hearts' },
+      e: { name: 'Bob and Weave', nature: 'mobility', motif: 'glove afterimages along the dash' },
+      r: { name: 'KNOCKOUT!', nature: 'impact', motif: 'a huge punch star, the bell rings; a wall hit spins stars round the cat' },
+    },
+  }),
 });
 
 /** Ability slot index (0..3 = q, w, e, r) to its key. */

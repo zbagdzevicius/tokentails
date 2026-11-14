@@ -93,6 +93,11 @@ export const LANDING_ROSTER: readonly LandingHero[] = Object.freeze([
   { id: "rocket", name: "Rocket", side: "dog", role: "Marksman", breed: "Greyhound", blurb: "Fastest dog on the island. Hits hardest from far away, then needs a nap.", portrait: P("rocket", "246b1c99"), since: 15 },
   { id: "frankie", name: "Frankie", side: "dog", role: "Assassin", breed: "Dachshund in a hot-dog costume", blurb: "A sausage dog dressed as a hot dog. Digs, rolls, and stretches across half the map.", portrait: P("frankie", "01cab27c"), since: 15 },
   { id: "domino", name: "Domino", side: "dog", role: "Mage", breed: "Dalmatian puppy", blurb: "Throws his own spots at cats. Then connects the dots.", portrait: P("domino", "8bfe11ac"), since: 15 },
+  // sim v29 (ROSTER-V29.md): the second fighter and support of each side
+  { id: "mochi", name: "Mochi", side: "cat", role: "Support", blurb: "A round ragdoll with a pillow. Shields her friends, speeds them up and sings the dogs to sleep.", portrait: P("mochi", "48e8d7e2"), since: 29 },
+  { id: "ziggy", name: "Ziggy", side: "cat", role: "Fighter", blurb: "A lightning Bengal who never runs in a straight line. Dashes three times, then becomes the storm.", portrait: P("ziggy", "a5577a87"), since: 29 },
+  { id: "biscuit", name: "Biscuit", side: "dog", role: "Support", breed: "Golden retriever", blurb: "A golden retriever who plays fetch with cats. Reels them in on his leash and guards his friends.", portrait: P("biscuit", "be811ffe"), since: 29 },
+  { id: "champ", name: "Champ", side: "dog", role: "Fighter", breed: "Boxer", blurb: "A boxer in boxing gloves. Jab, jab, cross, and a knockout that sends cats into walls.", portrait: P("champ", "7e1f149d"), since: 29 },
 ] as LandingHero[]);
 
 export const isReleased = (h: LandingHero): boolean => h.since <= GAME_SIM_VERSION;

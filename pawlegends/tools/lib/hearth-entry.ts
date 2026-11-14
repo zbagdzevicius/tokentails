@@ -14,8 +14,8 @@ import { runReplay } from '../../src/sim/replay';
 import { Rng } from '../../src/sim/rng';
 import { randomCommand } from '../../tests/unit/helpers';
 
-const CAT_IDS: readonly HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess', 'aviete', 'bengas', 'lambo', 'pixel', 'stilts'];
-const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino'];
+const CAT_IDS: readonly HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess', 'aviete', 'bengas', 'lambo', 'pixel', 'stilts', 'mochi', 'ziggy'];
+const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'biscuit', 'champ'];
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss', 'purrify'];
 const MAP = 'hearthwood' as const;
 
@@ -57,7 +57,7 @@ function drive(m: MatchHandle, humans: readonly number[], r: Rng): void {
 /** G2: a solo 5v5 match (slot 0 piloted), its v:1 record and the re-sim. */
 export function hearthSoloPlay(seed: number): { ok: boolean; finalHash: string; trail: string; ticks: number } {
   const r = new Rng(seed ^ 0x5a5a);
-  const { picks, tricks } = fillPicks(seed, CAT_IDS[r.int(10)], TRICKS[r.int(4)], MAP);
+  const { picks, tricks } = fillPicks(seed, CAT_IDS[r.int(CAT_IDS.length)], TRICKS[r.int(4)], MAP);
   const m = createMatch({ seed, picks, tricks, difficulty: (['easy', 'normal', 'hard'] as const)[r.int(3)], map: MAP });
   drive(m, [0], r);
   const res = result(m)!;
@@ -71,7 +71,7 @@ export function hearthSoloPlay(seed: number): { ok: boolean; finalHash: string; 
 export function hearthPartyPlay(seed: number): { ok: boolean; finalHash: string; trail: string; ticks: number } {
   const r = new Rng(seed ^ 0x7a7a);
   const humans = [0, 1, 3];
-  const seats = humans.map((slot, k) => ({ slot, hero: DOG_IDS[(r.int(10) + k * 3) % 10], trick: TRICKS[r.int(4)] }));
+  const seats = humans.map((slot, k) => ({ slot, hero: DOG_IDS[(r.int(DOG_IDS.length) + k * 3) % DOG_IDS.length], trick: TRICKS[r.int(4)] }));
   const { picks, tricks } = fillPicksParty(seed, seats, MAP);
   const m = createMatch({ seed, picks, tricks, difficulty: 'normal', humans, map: MAP });
   drive(m, humans, r);
@@ -86,10 +86,10 @@ export function hearthPartyPlay(seed: number): { ok: boolean; finalHash: string;
 export function hearthPvpPlay(seed: number): { ok: boolean; finalHash: string; trail: string; ticks: number; winner: number } {
   const r = new Rng(seed ^ 0x3c3c);
   const humans = [0, 1, 5, 6];
-  const seats = humans.map((slot) => ({ slot, hero: (slot < 5 ? CAT_IDS : DOG_IDS)[(r.int(10) + slot) % 10], trick: TRICKS[r.int(4)] }));
+  const seats = humans.map((slot) => ({ slot, hero: (slot < 5 ? CAT_IDS : DOG_IDS)[(r.int(CAT_IDS.length) + slot) % CAT_IDS.length], trick: TRICKS[r.int(4)] }));
   // Two humans a team must be distinct heroes of the team's species.
-  if (seats[1].hero === seats[0].hero) seats[1] = { ...seats[1], hero: CAT_IDS[(CAT_IDS.indexOf(seats[0].hero) + 1) % 10] };
-  if (seats[3].hero === seats[2].hero) seats[3] = { ...seats[3], hero: DOG_IDS[(DOG_IDS.indexOf(seats[2].hero) + 1) % 10] };
+  if (seats[1].hero === seats[0].hero) seats[1] = { ...seats[1], hero: CAT_IDS[(CAT_IDS.indexOf(seats[0].hero) + 1) % CAT_IDS.length] };
+  if (seats[3].hero === seats[2].hero) seats[3] = { ...seats[3], hero: DOG_IDS[(DOG_IDS.indexOf(seats[2].hero) + 1) % DOG_IDS.length] };
   const { picks, tricks } = fillPicksParty(seed, seats, MAP);
   const m = createMatch({ seed, picks, tricks, difficulty: 'hard', humans, mode: 'pvp', map: MAP });
   drive(m, humans, r);

@@ -478,8 +478,12 @@ export type SimEvent =
   /** Sim v28 (V28.md §4): Boss Weekend's boss (hero `id`) entered phase 1 or 2 (0-based; it roars and calls pups). */
   | { type: 'bossPhase'; tick: number; id: number; phase: number };
 
-/** Sim v14: what a `clip` event shows. Sim v15: Rocket's nap (`zzz`), Frankie's grab (`footlong`), Domino's R (`dots`). */
-export type ClipKind = 'flop' | 'bigdog' | 'scream' | 'frozen' | 'zzz' | 'footlong' | 'dots';
+/**
+ * Sim v14: what a `clip` event shows. Sim v15: Rocket's nap (`zzz`), Frankie's grab (`footlong`), Domino's R (`dots`).
+ * Sim v29: Mochi's LULLABY (`lullaby`), Ziggy's ZIGZAG STORM (`zigzag`), Biscuit's catch (`fetch`), Champ's wall KO (`ko`: on
+ * the dazed victim, like `frozen`).
+ */
+export type ClipKind = 'flop' | 'bigdog' | 'scream' | 'frozen' | 'zzz' | 'footlong' | 'dots' | 'lullaby' | 'zigzag' | 'fetch' | 'ko';
 
 export type SimEventType = SimEvent['type'];
 

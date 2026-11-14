@@ -57,6 +57,11 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
   { id: 'win_rocket', text: 'Win with Rocket', goal: 1, metric: 'win', hero: 'rocket' },
   { id: 'win_frankie', text: 'Win with Frankie', goal: 1, metric: 'win', hero: 'frankie' },
   { id: 'win_domino', text: 'Win with Domino', goal: 1, metric: 'win', hero: 'domino' },
+  // sim v29: the roster four
+  { id: 'win_mochi', text: 'Win with Mochi', goal: 1, metric: 'win', hero: 'mochi' },
+  { id: 'win_ziggy', text: 'Win with Ziggy', goal: 1, metric: 'win', hero: 'ziggy' },
+  { id: 'win_biscuit', text: 'Win with Biscuit', goal: 1, metric: 'win', hero: 'biscuit' },
+  { id: 'win_champ', text: 'Win with Champ', goal: 1, metric: 'win', hero: 'champ' },
 ] as Quest[]);
 
 /**
@@ -73,7 +78,7 @@ export const FRIEND_QUEST: Quest = Object.freeze({ id: 'party2', text: 'Play 2 m
 export const QUEST_FOLLOW_UNTIL = 3;
 export const followsHero = (matchesBefore: number): boolean => matchesBefore < QUEST_FOLLOW_UNTIL;
 
-/** The hero slot's order: one hero a day, round-robin, so each hero comes up every 17 days (sim v14; 12 in v11). */
+/** The hero slot's order: one hero a day, round-robin, so each hero comes up every 24 days (sim v29; 20 in v15, 17 in v14, 12 in v11). */
 export const QUEST_HEROES: readonly HeroId[] = HERO_IDS;
 
 export interface QuestState {

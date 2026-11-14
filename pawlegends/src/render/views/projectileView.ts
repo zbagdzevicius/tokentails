@@ -16,6 +16,8 @@ import { DecalLayer, discTexture } from './decals';
 import { tinted, type CardFx } from '../skins/cardFx';
 import { SHOT as PIXEL_SHOT } from '../chars/heroes/pixel';
 import { SHOT as DUCHESS_SHOT } from '../chars/heroes/duchess';
+import { SHOT as MOCHI_SHOT } from '../chars/heroes/mochi';
+import { SHOT as BISCUIT_SHOT } from '../chars/heroes/biscuit';
 
 interface Look {
   size: number;
@@ -118,6 +120,9 @@ const OWNER_SHOT: Partial<Record<string, readonly [number, number, number, numbe
   rocket: [0.22, 1.1, 0xf6f0e6, 0.12],
   frankie: [0.5, 0.75, 0x9c4a1f, 0.1],
   domino: [0.34, 1.0, 0x16141a, 0.16],
+  // sim v29: Mochi's Pillow Toss (a cream pillow) and Biscuit's Fetch! (a tennis ball; skill FX draws the leash)
+  mochi: MOCHI_SHOT,
+  biscuit: BISCUIT_SHOT,
 };
 
 /** Sim v9: a hero bolt takes its shooter's colour where the kit has one (Gabby's heart bolts). */

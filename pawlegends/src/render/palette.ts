@@ -11,6 +11,10 @@ import { COLOR_CSS as HOWLER_CSS } from './chars/heroes/howler';
 import { COLOR_CSS as ROCKET_CSS } from './chars/heroes/rocket';
 import { COLOR_CSS as FRANKIE_CSS } from './chars/heroes/frankie';
 import { COLOR_CSS as DOMINO_CSS } from './chars/heroes/domino';
+import { COLOR_CSS as MOCHI_CSS } from './chars/heroes/mochi';
+import { COLOR_CSS as ZIGGY_CSS } from './chars/heroes/ziggy';
+import { COLOR_CSS as BISCUIT_CSS } from './chars/heroes/biscuit';
+import { COLOR_CSS as CHAMP_CSS } from './chars/heroes/champ';
 
 export const TEAM = Object.freeze({
   /** Purrhaven: cream and rose (v6 Lightning Rivalry: brand rose #FF3D7F, rose-deep #C8135B, cream #FFF3E3). */
@@ -118,6 +122,10 @@ export const HERO_COLOR_CSS = Object.freeze({
   rocket: ROCKET_CSS,
   frankie: FRANKIE_CSS,
   domino: DOMINO_CSS,
+  mochi: MOCHI_CSS,
+  ziggy: ZIGGY_CSS,
+  biscuit: BISCUIT_CSS,
+  champ: CHAMP_CSS,
 });
 
 let team0Dogs = false;

@@ -64,6 +64,13 @@ The dogs stay locked until the first match is done ("Dogs unlock after your firs
 
 There are 6 rotating champions each week: 3 cats and 3 dogs, drawn only from the 14 non-starters, 7 per species.
 
+**Sim v29 (ROSTER-V29.md §5):** the four roster champions joined the cycles, which are now 9 a species, and each
+week takes a fixed third of each cycle (entries 3w..3w+2 mod 9), ordered so that each third is three roles:
+cats `[meatball, pixel, ziggy | aviete, duchess, mochi | lambo, stilts, bengas]`, dogs
+`[howler, chili, bravo | nugget, domino, cacklejaw | champ, rocket, biscuit]` (dogs one week ahead). Every
+non-starter is free 1 week in 3 and never waits more than 2 weeks. The table below is the v28 design, kept for
+history.
+
 **Schedule**
 - Weeks start Monday 00:00 UTC, counted from `ROTATION_EPOCH` = the first Monday on or after release (the default is 2026-11-16).
 - `w = floor((now − epoch) / 7 days) mod 7`. Cats take entries 3w, 3w+1 and 3w+2 (mod 7) of the cat cycle. Dogs take the same entries of the dog cycle, shifted by one week.

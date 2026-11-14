@@ -23,6 +23,8 @@
  * the live v26 fixtures and the golden was regenerated from the v26 sim the same way.
  * Sim v27 (executions, V27.md §1): a death to a tower no longer scores a takedown, so VENDOR points at the live v27
  * fixtures and the golden was regenerated from the v27 sim the same way.
+ * Sim v29 (the roster release, ROSTER-V29.md): the four new heroes change every seed's bot picks, so VENDOR points at
+ * the live v29 fixtures and the golden was regenerated from the v29 sim the same way.
  * Part of the merge checklist.
  *
  * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
@@ -39,7 +41,7 @@ import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
 import { SIM_VERSION } from '../../src/sim/version';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v27');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v29');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {

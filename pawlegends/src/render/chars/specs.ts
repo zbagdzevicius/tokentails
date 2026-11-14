@@ -40,6 +40,10 @@ import * as HOWLER from './heroes/howler';
 import * as ROCKET from './heroes/rocket';
 import * as FRANKIE from './heroes/frankie';
 import * as DOMINO from './heroes/domino';
+import * as MOCHI from './heroes/mochi';
+import * as ZIGGY from './heroes/ziggy';
+import * as BISCUIT from './heroes/biscuit';
+import * as CHAMP from './heroes/champ';
 import { HERO_BUILD } from './heroSize';
 import { coatParts, type CoatPartsDef } from './coatParts';
 
@@ -118,6 +122,11 @@ export const POSES_PL: Record<string, PoseDef> = {
   ...ROCKET.POSES,
   ...FRANKIE.POSES,
   ...DOMINO.POSES,
+  // sim v29 roster (pillow hug, sprinter's crouch, happy stand, boxing guard)
+  ...MOCHI.POSES,
+  ...ZIGGY.POSES,
+  ...BISCUIT.POSES,
+  ...CHAMP.POSES,
 };
 
 const ALL_POSES: Record<string, PoseDef | null> = { ...PPK_POSES, ...POSES_PL };
@@ -161,6 +170,11 @@ export const HERO_MOTION: Readonly<Record<HeroId, MotionProfile>> = Object.freez
   rocket: ROCKET.MOTION,
   frankie: FRANKIE.MOTION,
   domino: DOMINO.MOTION,
+  // sim v29 roster
+  mochi: MOCHI.MOTION,
+  ziggy: ZIGGY.MOTION,
+  biscuit: BISCUIT.MOTION,
+  champ: CHAMP.MOTION,
 });
 
 /** Standing height (m, ear tips / helmet) of each hero in the match (authored × heroSize.ts HERO_BUILD.h, render only): big enough that the upright chibi reads at ~45+ px on 844×390 Low (the iso lens sees mostly the head and shoulders). */
@@ -169,6 +183,7 @@ const HEIGHT_AUTHORED: Readonly<Record<HeroId, number>> = {
   meatball: MEATBALL.HEIGHT, pixel: PIXEL.HEIGHT, duchess: DUCHESS.HEIGHT, stilts: STILTS.HEIGHT,
   nugget: NUGGET.HEIGHT, marshmallow: MARSHMALLOW.HEIGHT, bravo: BRAVO.HEIGHT, chili: CHILI.HEIGHT, howler: HOWLER.HEIGHT,
   rocket: ROCKET.HEIGHT, frankie: FRANKIE.HEIGHT, domino: DOMINO.HEIGHT,
+  mochi: MOCHI.HEIGHT, ziggy: ZIGGY.HEIGHT, biscuit: BISCUIT.HEIGHT, champ: CHAMP.HEIGHT,
 };
 /** Per-hero visual build (heroSize.ts, render only): the authored height and top × `h`, rounded to the centimetre. */
 const byBuild = (t: Readonly<Record<HeroId, number>>): Readonly<Record<HeroId, number>> =>
@@ -181,6 +196,7 @@ export const HERO_TOP: Readonly<Record<HeroId, number>> = byBuild({
   meatball: MEATBALL.TOP, pixel: PIXEL.TOP, duchess: DUCHESS.TOP, stilts: STILTS.TOP,
   nugget: NUGGET.TOP, marshmallow: MARSHMALLOW.TOP, bravo: BRAVO.TOP, chili: CHILI.TOP, howler: HOWLER.TOP,
   rocket: ROCKET.TOP, frankie: FRANKIE.TOP, domino: DOMINO.TOP,
+  mochi: MOCHI.TOP, ziggy: ZIGGY.TOP, biscuit: BISCUIT.TOP, champ: CHAMP.TOP,
 });
 
 const IVORY: CoatSpec = { pattern: 'solid', base: PAL.furIvory, deep: PAL.furIvoryShade, light: PAL.furIvoryLight, cream: PAL.furIvoryLight };
@@ -548,6 +564,15 @@ function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Omi
       return FRANKIE.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('frankie', look) });
     case 'domino':
       return DOMINO.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('domino', look) });
+    // sim v29 roster: each builds its chibi in its own module (./heroes/<hero>.ts)
+    case 'mochi':
+      return MOCHI.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('mochi', look) });
+    case 'ziggy':
+      return ZIGGY.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('ziggy', look) });
+    case 'biscuit':
+      return BISCUIT.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('biscuit', look) });
+    case 'champ':
+      return CHAMP.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('champ', look) });
     case 'gabe': {
       return {
         rig: { width: 0.92, tier: 'hero', headScale: CAT_HEAD * 0.98, earSplay: 0.14 },

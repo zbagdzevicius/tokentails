@@ -32,6 +32,8 @@ const EXEMPT: Readonly<Record<string, string>> = Object.freeze({
   'meatball.e': 'peel knockback without a stun (Big Brother)',
   'meatball.r': 'peel bumps without a stun (Unstoppable Chonk)',
   'frankie.q': 'peel knockback without a stun (Weenie Roll)',
+  'biscuit.w': 'peel knockback without a stun (Tail Wag), centred on him',
+  'biscuit.passive': 'Good Boy: a melee swat every 9 s; he has to walk up and land a basic first',
   'domino.e': 'self-peel push without a stun (Shake It Off)',
 });
 

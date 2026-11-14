@@ -39,12 +39,13 @@ const roles = (side: 'cat' | 'dog'): Record<HeroRole, number> => {
 
 describe('sim v15: ten dogs', { timeout: 300000 }, () => {
   it('SIM_VERSION 15, PARTY_SINCE 13; 20 heroes, 10 a side with the same roles; the three new dogs at 17..19', () => {
-    expect(SIM_VERSION).toBe(28);
+    expect(SIM_VERSION).toBe(29);
     expect(PARTY_SINCE).toBe(13);
-    expect(HERO_IDS).toHaveLength(20);
-    expect(HERO_IDS.slice(17)).toEqual([...NEW_DOGS]);
-    expect(HERO_IDS.filter((h) => HEROES[h].side === 'cat')).toHaveLength(10);
-    expect(HERO_IDS.filter((h) => HEROES[h].side === 'dog')).toHaveLength(10);
+    expect(HERO_IDS).toHaveLength(24);
+    // sim v29 appended the roster four (20..23) after them
+    expect(HERO_IDS.slice(17, 20)).toEqual([...NEW_DOGS]);
+    expect(HERO_IDS.filter((h) => HEROES[h].side === 'cat')).toHaveLength(12);
+    expect(HERO_IDS.filter((h) => HEROES[h].side === 'dog')).toHaveLength(12);
     expect(roles('dog')).toEqual(roles('cat'));
     expect([HEROES.rocket.role, HEROES.frankie.role, HEROES.domino.role]).toEqual(['marksman', 'assassin', 'mage']);
   });

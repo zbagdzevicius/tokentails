@@ -36,6 +36,10 @@ import * as howlerBot from './heroes/howler';
 import * as rocketBot from './heroes/rocket';
 import * as frankieBot from './heroes/frankie';
 import * as dominoBot from './heroes/domino';
+import * as mochiBot from './heroes/mochi';
+import * as ziggyBot from './heroes/ziggy';
+import * as biscuitBot from './heroes/biscuit';
+import * as champBot from './heroes/champ';
 
 /** Scratch hit list for `collect` (shared with ./heroes/*: read it right after the call that filled it). */
 export const hits = new Int32Array(MAX_ENTITIES);
@@ -259,6 +263,15 @@ function heroFightCast(w: World, id: number, foe: number, p: BotParams, rng: Rng
       return frankieBot.fight(w, id, foe, p, rng);
     case 'domino':
       return dominoBot.fight(w, id, foe, p, rng);
+    // Sim v29: the second fighter and support of each side.
+    case 'mochi':
+      return mochiBot.fight(w, id, foe, p, rng);
+    case 'ziggy':
+      return ziggyBot.fight(w, id, foe, p, rng);
+    case 'biscuit':
+      return biscuitBot.fight(w, id, foe, p, rng);
+    case 'champ':
+      return champBot.fight(w, id, foe, p, rng);
     default:
       return null;
   }
@@ -350,6 +363,14 @@ export function clearCast(w: World, id: number, t: number): Command | null {
       return frankieBot.clear(w, id, t, need);
     case 'domino':
       return dominoBot.clear(w, id, t, need);
+    case 'mochi':
+      return mochiBot.clear(w, id, t, need);
+    case 'ziggy':
+      return ziggyBot.clear(w, id, t, need);
+    case 'biscuit':
+      return biscuitBot.clear(w, id, t, need);
+    case 'champ':
+      return champBot.clear(w, id, t, need);
     default:
       return null;
   }
@@ -483,6 +504,27 @@ export function escapeCast(w: World, id: number, foe: number, p: BotParams): Com
     }
     case 'domino': {
       const c = dominoBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    // Sim v29.
+    case 'mochi': {
+      const c = mochiBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'ziggy': {
+      const c = ziggyBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'biscuit': {
+      const c = biscuitBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'champ': {
+      const c = champBot.escape(w, id, foe, hx, hy);
       if (c) return c;
       break;
     }

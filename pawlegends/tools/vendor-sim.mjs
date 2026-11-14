@@ -32,7 +32,9 @@
  *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
  * 10. pvp-replay.fixture.json (sim v16, S-PvP, docs/plans/moba/V16.md §1.3): one genuine PvP match (PvpReplayRecord v3,
  *    Hard rules, two humans a side flown by player-bots, one bot each side), for the backend's casual /live spec.
- * backend/src/vendor/pawlegends-sim/v10/ to v27/: those files, frozen (FROZEN below; sim v28 is live).
+ * 11. roster-replay.fixture.json (sim v29): one genuine Easy match played as a roster hero (Biscuit), so the spec shows
+ *    a v29 roster replay verifies and the same record labelled v28 is refused.
+ * backend/src/vendor/pawlegends-sim/v10/ to v28/: those files, frozen (FROZEN below; sim v29 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -107,6 +109,8 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * Sim v28 (bot pushes on Hard and no tower chases when ahead on Hearthwood, One Lane Brawl, the Duel and Boss Weekend,
  * docs/plans/moba/V28.md) froze the released v27 at 9c5c82e4, its last commit on main, and keeps v10 to v26, so the
  * backend verifies 10 to 28.
+ * Sim v29 (the roster release: Mochi, Ziggy, Biscuit and Champ, docs/plans/moba/ROSTER-V29.md) froze the released
+ * v28 at 806918b6, its last commit on main, and keeps v10 to v27, so the backend verifies 10 to 29.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -318,6 +322,23 @@ export const FROZEN = Object.freeze([
       'kite-replay.fixture.json',
     ]),
   }),
+  Object.freeze({
+    simVersion: 28,
+    commit: '806918b64b8730ccb49d7f438da00cb2b7119ec3',
+    from: 'backend/src/vendor/pawlegends-sim/v28',
+    bundle: '8cd34c1ca6102328ec8fa00661d77a52f036ca799668a065ed967096cfe35d31',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+      'blitz-replay.fixture.json',
+      'kite-replay.fixture.json',
+    ]),
+  }),
 ]);
 
 /** One frozen version's files, byte for byte from git. Throws when git is missing or the bundle sha differs. */
@@ -466,7 +487,11 @@ export type PawlegendsHeroId =
     | 'howler'
     | 'rocket'
     | 'frankie'
-    | 'domino';
+    | 'domino'
+    | 'mochi'
+    | 'ziggy'
+    | 'biscuit'
+    | 'champ';
 export type PawlegendsTrickId = string;
 export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
@@ -754,6 +779,20 @@ export async function newDogFixture(seed = NEW_DOG_FIXTURE_SEED) {
   return sim.replayRecord(m);
 }
 
+/** Seed and hero of the recorded roster fixture (sim v29, docs/plans/moba/ROSTER-V29.md §6). */
+export const ROSTER_FIXTURE_SEED = 2929;
+export const ROSTER_FIXTURE_HERO = 'biscuit';
+
+/** Play one Easy match as a sim v29 roster hero with the naive player-bot and return its replay record. */
+export async function rosterFixture(seed = ROSTER_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/index.ts');
+  const { picks, tricks } = sim.fillPicks(seed, ROSTER_FIXTURE_HERO, 'pounce');
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'easy' });
+  const bot = sim.createPlayerBot(m, 'naive');
+  while (!sim.result(m)) sim.step(m, sim.playerBotCommands(m, bot));
+  return sim.replayRecord(m);
+}
+
 /** Seed and forfeit tick of the recorded forfeit fixture (sim v10, GAPS B2): a Normal match forfeited at 4:00. */
 export const FORFEIT_FIXTURE_SEED = 1010;
 export const FORFEIT_FIXTURE_TICK = 7200;
@@ -1011,6 +1050,7 @@ export async function buildFiles() {
   const hearthPvp = JSON.stringify(await hearthwoodPvpFixture(), null, 2) + '\n';
   const blitz = JSON.stringify(await blitzFixture(), null, 2) + '\n';
   const kite = JSON.stringify(await kiteFixture(), null, 2) + '\n';
+  const roster = JSON.stringify(await rosterFixture(), null, 2) + '\n';
   const live = {
     'pawlegends-sim.bundle.ts': text,
     'index.ts': face,
@@ -1033,6 +1073,8 @@ export async function buildFiles() {
     'blitz-replay.fixture.json': blitz,
     // Sim v23 (KITE-FIX): a record with Op.Kite (frozen v23 lists it in `extra`)
     'kite-replay.fixture.json': kite,
+    // Sim v29 (the roster release): a roster-hero human (Biscuit); a later freeze lists it in `extra`
+    'roster-replay.fixture.json': roster,
   };
   const files = {};
   for (const entry of FROZEN) for (const [name, body] of Object.entries(frozenFiles(entry))) files[`v${entry.simVersion}/${name}`] = body;

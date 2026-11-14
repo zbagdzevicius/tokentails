@@ -167,9 +167,18 @@ export async function ensureFounders(
     return hasBadge();
 }
 
-/** The Founders roster grant itself (the migration and the lazy check): every champion and the badge. Idempotent. */
+/**
+ * The Founders roster: the 20 champions of the store release ("you keep all 20 champions"). Champions released later
+ * (sim v29: Mochi, Ziggy, Biscuit, Champ; ROSTER-V29.md §5) are earned like everyone else's, so a lazily checked
+ * account gets the same roster as one checked on release day.
+ */
+export const FOUNDERS_ROSTER: readonly string[] = Object.freeze(
+    CHAMPION_IDS.filter(h => !['mochi', 'ziggy', 'biscuit', 'champ'].includes(h))
+);
+
+/** The Founders roster grant itself (the migration and the lazy check): the release's 20 and the badge. Idempotent. */
 export async function grantFoundersRoster(models: Pick<Models, 'owned'>, accountId: string): Promise<void> {
-    for (const hero of CHAMPION_IDS) await grantFree(models, accountId, champItem(hero), 'founders');
+    for (const hero of FOUNDERS_ROSTER) await grantFree(models, accountId, champItem(hero), 'founders');
     await grantFree(models, accountId, FOUNDERS_BADGE, 'founders');
 }
 

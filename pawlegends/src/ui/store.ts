@@ -264,7 +264,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const cards = allCards(c, app());
     const by = (h: string): ChampCard | undefined => cards.find((x) => x.hero === h);
     const free = c.rotation.heroes.map(by).filter((x): x is ChampCard => !!x);
-    const fresh = newestHeroes(3)
+    const fresh = newestHeroes(4)
       .map(by)
       .filter((x): x is ChampCard => !!x);
     const sec = (title: string, body: string, k: string): string => (body ? `<section class="cst-sec" data-sec="${k}"><h3>${title}</h3><div class="cst-row">${body}</div></section>` : '');

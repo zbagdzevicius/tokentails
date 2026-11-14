@@ -53,6 +53,7 @@ describe('hero lore', () => {
       aviete: 'Short Circuit', bengas: 'Curtains Up', gabe: 'Under Her Spell', meatball: 'Chonk', pixel: 'BOXBOT',
       duchess: 'Royal Decree', stilts: 'Zoomies', nugget: 'Herding Time', marshmallow: 'SNOW DAY', bravo: 'ENCORE',
       chili: 'BIG DOG', howler: 'THE SCREAM', rocket: 'ZOOM', frankie: 'FOOTLONG', domino: 'CONNECT THE DOTS',
+      mochi: 'LULLABY', ziggy: 'ZIGZAG STORM', biscuit: 'WALKIES', champ: 'KNOCKOUT',
     };
     for (const id of HERO_IDS) expect(LORE[id].howTheyFight.normalize('NFC')).toContain(ult[id]);
   });

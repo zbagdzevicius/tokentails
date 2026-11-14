@@ -3,7 +3,7 @@
  * through the fact builders (./facts.ts) when a card is built; nothing here copies a number from src/data.
  */
 import type { HeroId } from '../../sim/api';
-import { F, metres, sec, type HeroWords } from './facts';
+import { F, metres, pct, sec, type HeroWords } from './facts';
 
 export const CAT_WORDS: Readonly<Partial<Record<HeroId, HeroWords>>> = Object.freeze({
   clem: {
@@ -452,6 +452,94 @@ export const CAT_WORDS: Readonly<Partial<Record<HeroId, HeroWords>>> = Object.fr
       facts: [F.sec('High Leap cooldown per pounce', 'r', 'refund', ' less')],
       tip: 'Pounce from target to target: each one brings High Leap back sooner.',
       counter: (c) => `Group up and hold your slows for the ${sec(c.n('r', 'duration'))} of Zoomies.`,
+    },
+  },
+  // sim v29 roster (docs/plans/moba/ROSTER-V29.md §2)
+  mochi: {
+    passive: {
+      tags: ['shield', 'ally'],
+      facts: [F.pct('On a friend below', 'passive', 'lowBp', ' HP'), F.bonus('Shield', 'passive', 'bonusBp')],
+      what: 'Her shields are stronger on a friend below half health.',
+      tip: 'Save your shields for the friend who is already hurt.',
+      counter: 'Burst her friends from full health; the bonus only starts at half.',
+    },
+    basic: {
+      what: 'A ranged pillow bop.',
+      tags: ['on-hit'],
+      tip: 'Poke from behind your team.',
+      counter: 'She is soft up close: dive her when her bubble is down.',
+    },
+    q: {
+      what: 'A pillow that stops at the first unit and slows it; a hit on a hero shields her most hurt friend.',
+      tags: ['skillshot', 'line', 'ally'],
+      facts: [F.m('Shields a friend within', 'q', 'shieldRange')],
+      labels: { duration: 'Shield lasts' },
+      tip: 'Throw past your minions at the dog your friend is fighting.',
+      counter: 'Stand behind a minion: the pillow stops at the first unit.',
+    },
+    w: {
+      what: 'Shield a friend near the aim (or herself) and make them attack faster.',
+      tags: ['ally'],
+      facts: [F.fmt('Attack speed', 'w', 'asBp', (v) => `+${pct(v)}`), F.sec('Attack speed for', 'w', 'as')],
+      tip: 'Bubble the friend who is about to fight, not the one already dead.',
+      counter: 'Wait out the bubble before you commit your burst.',
+    },
+    e: {
+      what: 'She and nearby friends run faster; she shakes off slows.',
+      tags: ['self', 'ally', 'cleanse'],
+      facts: [F.text('Removes', 'her slows')],
+      tip: 'Purr to chase a low dog or to run from a dive.',
+      counter: 'Stun or root the team before they start running.',
+    },
+    r: {
+      what: 'Heal nearby friends; nearby dogs get drowsy and the ones still near her at the end fall asleep.',
+      tags: ['area', 'ally'],
+      facts: [F.m('Heals friends within', 'r', 'allyRadius'), F.sec('Drowsy for', 'r', 'drowsy'), F.m('Asleep if still within', 'r', 'sleepRadius'), F.sec('Asleep', 'r', 'sleep')],
+      labels: { radius: 'Drowsy radius', slowBp: 'Drowsy slow' },
+      skip: ['slow'],
+      tip: 'Sing when the dogs dive onto your team: they have to leave or sleep.',
+      counter: (c) => `Walk more than ${metres(c.n('r', 'sleepRadius'))} from her before the drowsiness ends, or Purr-ify.`,
+    },
+  },
+  ziggy: {
+    passive: {
+      tags: ['damage', 'on-hit'],
+      facts: [F.sec('After a dash, within', 'passive', 'window'), F.grow('Extra damage', 'passive', 'dmg')],
+      what: 'After a dash, his next basic deals extra damage.',
+      tip: 'Zig, scratch, Zig, scratch.',
+      counter: 'Step back after his dash: the charged hit has to reach you.',
+    },
+    basic: {
+      what: 'A quick claw rake. Static Step charges it after a dash.',
+      tags: ['on-hit'],
+      tip: 'Hit once between every dash.',
+      counter: 'Kite him; he has to stay close.',
+    },
+    q: {
+      what: 'Dash and hit every enemy he passes. He can Zig three times in a row.',
+      tags: ['line', 'recast'],
+      tip: 'Zig in, Zig through, Zig out.',
+      counter: 'Save your stun for the third Zig: he has none left.',
+    },
+    w: {
+      what: 'A short wind-up, then a spark swipe that stuns the enemy heroes close to him.',
+      tags: ['area'],
+      tip: 'Zig into their back line, then swipe.',
+      counter: (c) => `Step ${metres(c.n('w', 'radius'))} away when he coils.`,
+    },
+    e: {
+      what: 'Hop away and get a shield.',
+      tags: ['self'],
+      tip: 'Flick out when they focus you, then Zig back in.',
+      counter: 'Wait out the shield; the hop is short.',
+    },
+    r: {
+      what: 'Untargetable, he strikes the enemy heroes near him one after another. A hero struck again takes less.',
+      tags: ['targeted', 'untargetable', 'area'],
+      facts: [F.m('Cast range', 'r', 'reach'), F.n('Strikes', 'r', 'strikes'), F.m('Next target within', 'r', 'range'), F.pct('A repeat strike deals', 'r', 'repeatBp')],
+      skip: ['range'],
+      tip: 'Storm a low hero, or a group: more heroes, more full strikes.',
+      counter: 'Spread out: alone you take only one full strike.',
     },
   },
 });

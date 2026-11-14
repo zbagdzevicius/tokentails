@@ -331,5 +331,12 @@ export const HEARTHWOOD_PVP = Object.freeze({
     frankie: { dmgBp: 10106, takenBp: 10170 },
     // sim v22 (carved jungle, on the v21 row 9912 / 10360): 42.9% of 1,200 → +3%
     domino: { dmgBp: 10212, takenBp: 10060 },
+    // sim v29 roster (ROSTER-V29.md §4): first rows from hearth-gates 72001 (300 seeds, n ≈ 250 each): Mochi 61.4%,
+    // Ziggy 58.4%, Biscuit 40.4%, Champ 45.2% → about 2.3 points per 1% (the domino and marshmallow refits); on 74001
+    // (300 seeds) 50.0% / 50.0% / 52.1% / 44.9%, so Champ +2% more
+    mochi: { dmgBp: 9550, takenBp: 10450 },
+    ziggy: { dmgBp: 9650, takenBp: 10350 },
+    biscuit: { dmgBp: 10450, takenBp: 9550 },
+    champ: { dmgBp: 10400, takenBp: 9600 },
   }) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
 });
