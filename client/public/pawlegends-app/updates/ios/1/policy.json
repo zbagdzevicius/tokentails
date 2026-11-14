@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "kind": "policy",
+  "platform": "ios",
+  "compat": 1,
+  "minCompat": 2,
+  "minSim": 0,
+  "channels": {
+    "stable": {
+      "version": "20261114083532-c87335f",
+      "seq": 20261114083532,
+      "simVersion": 0,
+      "minNative": "1.0.0",
+      "rollback": false,
+      "requiredFrom": "2026-11-14T08:35:32.727Z"
+    },
+    "beta": {
+      "version": "20261114083532-c87335f",
+      "seq": 20261114083532,
+      "simVersion": 0,
+      "minNative": "1.0.0",
+      "rollback": false,
+      "requiredFrom": "2026-11-14T08:35:32.694Z"
+    }
+  },
+  "store": "https://apps.apple.com/app/id6832032981",
+  "web": "https://pawlegends.app/play",
+  "maintenance": null,
+  "issuedAt": "2026-11-14T08:35:32.727Z",
+  "signature": "ZrJiotJUDvuI4h+VMV+PDeh24Z+6a/gc1EDurJ3r7AxjRs/u9lFLbjQCb3+5Ebq/tEbVJUNpBg8zOVUlUhb05JYVLIuMnnyQzXKnykgnJTW4hv4qdVilUmfjJXQXxzNdhOTejmgxWZWlO76JPLzKHC/lGFf7Lj8icPoLfm+pqQYoR+fr+FDTI5/YHPcR+m7z1U+Q81A/mrDbYvjK/JN3Ufj/Yq1DDpOBUiKAoqMx3UKnoQUCDEizllLXv77EVWogfWjLXdCKb0bKI2pP8xl4dddOmFpusb6Kvo3c4gnIIfWgx4SDatEGFBv2AqkXMq39Or0gyykSTzZfn671oHgMIA=="
+}
