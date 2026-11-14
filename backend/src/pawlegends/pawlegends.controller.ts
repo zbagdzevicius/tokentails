@@ -41,6 +41,8 @@ import { PartyTicketService } from './party/party-ticket.service';
 import { AllowGuest } from 'src/common/decorators/allow-guest.decorator';
 import { PawlegendsSeasonService } from './pawlegends-season.service';
 import { CATALOG_SKUS, CURRENT_SEASON_ID, SEASONS, STORE_TERMS_VERSION } from './pawlegends-catalog';
+import { PawlegendsClientPolicyService } from './client-policy/client-policy.service';
+import { ClientPolicyAnswer, parseClientPolicyQuery } from 'src/shared-contracts/client-policy';
 
 /*
  * Pawlegends store routes (POC.md §8.3). Every route is always on; a route whose secret is missing answers 503 and
@@ -74,6 +76,9 @@ export const PAWLEGENDS_THROTTLES: Record<string, ClientIpThrottleOptions> = {
     passClaim: { limit: 30, ttl: MINUTE },
     // Champion store (CHAMPION-STORE.md §8.6)
     champUnlock: { limit: 20, ttl: MINUTE },
+    // Force update (FORCE-UPDATE.md §3.2): every app launch, resume and title asks; a 429 makes the client use its
+    // signed static fallback, so nothing blocks on it.
+    clientPolicy: { limit: 120, ttl: MINUTE },
 };
 
 @Controller('pawlegends')
@@ -91,7 +96,9 @@ export class PawlegendsController {
         // Party play tickets (MULTIPLAYER.md §5.2).
         @Optional() private readonly partyTickets?: PartyTicketService,
         // Store ownership and the Legends Pass (STORE-PASS.md).
-        @Optional() private readonly season?: PawlegendsSeasonService
+        @Optional() private readonly season?: PawlegendsSeasonService,
+        // Force update (FORCE-UPDATE.md §3.2): the client policy (pure, so a default instance stands in).
+        @Optional() private clientPolicyService?: PawlegendsClientPolicyService
     ) {}
 
     private seasonService(): PawlegendsSeasonService {
@@ -224,6 +231,24 @@ export class PawlegendsController {
     @Get('sim')
     sim() {
         return PAWLEGENDS_SIM_INFO;
+    }
+
+    /**
+     * Force update (docs/plans/moba/FORCE-UPDATE.md §3.2): may this client build start (`ok`), or must it `update`,
+     * go to the `store`, or wait out `maintenance`? Query `platform, compat, channel, bundle, seq, sim, native`, all
+     * optional (a client that sends nothing gets `ok`). Public, no database: the signed policy.json and the game's
+     * version.json (cached) plus this backend's SIM_VERSIONS.
+     */
+    @Header('Cache-Control', 'public, max-age=60, stale-if-error=86400')
+    @Get('client-policy')
+    async clientPolicy(
+        @Query() query: Record<string, unknown>,
+        @Req() req: any,
+        @Res({ passthrough: true }) res: any
+    ): Promise<ClientPolicyAnswer> {
+        await this.throttle('clientPolicy', req, res);
+        this.clientPolicyService ??= new PawlegendsClientPolicyService();
+        return this.clientPolicyService.answer(parseClientPolicyQuery(query));
     }
 
     @Post('checkout')

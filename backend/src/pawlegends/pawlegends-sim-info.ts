@@ -41,3 +41,16 @@ export const pawlegendsSimErrorDetail = () => ({
         simVersions: PAWLEGENDS_SIM_INFO.simVersions,
     },
 });
+
+/**
+ * Force update (docs/plans/moba/FORCE-UPDATE.md §5.3): a PAWLEGENDS_SIM_VERSION 400 also says what to do, so the
+ * game shows "Update needed" instead of a silent rejection (additive: older hosts and games ignore it).
+ */
+export const pawlegendsUpdateDetail = () => ({
+    update: {
+        action: 'update' as const,
+        minSim: Math.min(...PAWLEGENDS_SIM_INFO.simVersions),
+        liveSim: PAWLEGENDS_SIM_INFO.simVersion,
+        web: 'https://pawlegends.app/play',
+    },
+});

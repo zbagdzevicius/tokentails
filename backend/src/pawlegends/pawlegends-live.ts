@@ -11,7 +11,7 @@ import { ILiveGameRow, recomputeCatnipCount } from 'src/user/utils/live-game';
 import { PawlegendsReplayRecord, PawlegendsVerifyResult, SIM_VERSIONS } from 'src/vendor/pawlegends-sim';
 import { Worker } from 'worker_threads';
 import { PAWLEGENDS_V27_MUTATORS, PawlegendsReplayDto } from './pawlegends-replay.dto';
-import { pawlegendsSimErrorDetail } from './pawlegends-sim-info';
+import { pawlegendsSimErrorDetail, pawlegendsUpdateDetail } from './pawlegends-sim-info';
 import type { SeasonXpGain, SeasonXpMatch } from './pawlegends-season.service';
 import { applyInviteProgress, type InviteProgressDep } from './growth/apply-invite-progress';
 import { applyCommunityGoal } from './liveops/liveops-live';
@@ -68,6 +68,7 @@ export const pawlegendsError = (code: string, message: string) =>
         ...(code === ErrorCode.PAWLEGENDS_SIM_VERSION || code === ErrorCode.PAWLEGENDS_REPLAY_INVALID
             ? pawlegendsSimErrorDetail()
             : {}),
+        ...(code === ErrorCode.PAWLEGENDS_SIM_VERSION ? pawlegendsUpdateDetail() : {}),
     });
 
 export const pawlegendsDuplicate = () =>

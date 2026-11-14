@@ -171,6 +171,7 @@ import { BadcatOnlineService } from './badcat/badcat-online.service';
 import { BadcatLinksService } from './badcat/badcat-links.service';
 import { BadcatPushService } from './badcat/badcat-push.service';
 import { PawlegendsController } from './pawlegends/pawlegends.controller';
+import { PawlegendsClientPolicyService } from './pawlegends/client-policy/client-policy.service';
 import { PAWLEGENDS_SCHEMAS, PawlegendsStore } from './pawlegends/pawlegends.schema';
 import { PAWLEGENDS_PARTY_SCHEMAS, MongoRoomStore } from './pawlegends/party/room-store';
 import { PartyRelayService } from './pawlegends/party/party-relay.service';
@@ -473,6 +474,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsOfferService,
         // Store ownership and the Legends Pass (docs/plans/moba/STORE-PASS.md).
         PawlegendsSeasonService,
+        // Force update: GET /pawlegends/client-policy (docs/plans/moba/FORCE-UPDATE.md §3.2).
+        PawlegendsClientPolicyService,
         { provide: PAWLEGENDS_CAT_SALE, useExisting: ShelterCatSaleService },
         // Age band and spend cap on the Token Tails cat checkout when it opens from Pawlegends.
         PawlegendsCheckoutGuard,
