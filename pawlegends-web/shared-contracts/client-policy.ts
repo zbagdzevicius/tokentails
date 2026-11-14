@@ -204,7 +204,8 @@ function parseLatest(v: unknown): ClientPolicyLatest | null {
     if (!v || typeof v !== 'object') return null;
     const l = v as Record<string, unknown>;
     if (typeof l.version !== 'string' || !VERSION.test(l.version)) return null;
-    if (!isInt(l.seq) || !isInt(l.simVersion) || typeof l.minNative !== 'string' || !SEMVER.test(l.minNative)) return null;
+    if (!isInt(l.seq) || !isInt(l.simVersion) || typeof l.minNative !== 'string' || !SEMVER.test(l.minNative))
+        return null;
     return { version: l.version, seq: l.seq, simVersion: l.simVersion, minNative: l.minNative };
 }
 
@@ -364,7 +365,8 @@ const toLatest = (e: PolicyChannelEntry): ClientPolicyLatest => ({
  * The decision (FORCE-UPDATE.md §3.3), in order:
  * 1. a maintenance window is on → `maintenance`;
  * 2. the native shell is below `minCompat` → `store`;
- * 3. the client's sim is not replayed by the backend, or is below the floor → `update` when the channel's latest
+ * 3. the client's sim is not replayed by the backend (and is not newer than every sim it replays), or is below the
+ *    floor → `update` when the channel's latest
  *    bundle fixes it and this native shell may run it (the web always reloads), else `store`;
  * 4. the channel's latest is another bundle that is newer (or a rollback) and required by now → `update` (`store`
  *    when it needs a newer native shell);
@@ -374,7 +376,8 @@ const toLatest = (e: PolicyChannelEntry): ClientPolicyLatest => ({
 export function decidePolicy(o: DecidePolicyInput): ClientPolicyDecision {
     const { policy, client, now } = o;
     const accepted = o.acceptedSims && o.acceptedSims.length ? o.acceptedSims : null;
-    if (policy && maintenanceOn(policy.maintenance, now)) return { action: 'maintenance', reason: 'maintenance', latest: null };
+    if (policy && maintenanceOn(policy.maintenance, now))
+        return { action: 'maintenance', reason: 'maintenance', latest: null };
     const entry: PolicyChannelEntry | null =
         o.latest !== undefined ? o.latest : policy ? policy.channels[policyChannel(client.channel)] ?? null : null;
     const latest = entry ? toLatest(entry) : null;
@@ -385,7 +388,10 @@ export function decidePolicy(o: DecidePolicyInput): ClientPolicyDecision {
         client.native === undefined || compareNative(client.native, e.minNative) >= 0;
     const minSim = effectiveMinSim(policy ? policy.minSim : null, accepted);
     if (client.sim !== undefined) {
-        const notAccepted = accepted !== null && accepted.indexOf(client.sim) < 0;
+        // a client AHEAD of this backend (a newer sim than it replays: a backend redeploy or rollback in flight) is
+        // never sent away: no update or store fixes that, and its matches queue until the backend catches up
+        const ahead = accepted !== null && client.sim > Math.max(...accepted);
+        const notAccepted = accepted !== null && !ahead && accepted.indexOf(client.sim) < 0;
         const tooOld = minSim !== null && client.sim < minSim;
         if (notAccepted || tooOld) {
             const reason: ClientPolicyReason = notAccepted ? 'sim-not-accepted' : 'sim-too-old';

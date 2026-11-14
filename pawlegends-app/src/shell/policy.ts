@@ -154,7 +154,8 @@ export function offlineVerdict(cache: CachedPolicy | null, q: ClientPolicyQuery,
   if (!file && answer?.reason === 'compat-retired') return 'block';
   if (q.sim === undefined) return 'play';
   const accepted = answer?.acceptedSims ?? null;
-  if (accepted && accepted.length && !accepted.includes(q.sim)) return 'block';
+  // a sim newer than every one the backend replays is the backend lagging (shared decidePolicy): never a block
+  if (accepted && accepted.length && !accepted.includes(q.sim) && q.sim < Math.max(...accepted)) return 'block';
   const minSim = effectiveMinSim(file?.minSim ?? answer?.minSim ?? null, accepted);
   return minSim !== null && q.sim < minSim ? 'block' : 'play';
 }

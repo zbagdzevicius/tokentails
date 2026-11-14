@@ -165,16 +165,15 @@ export class Gate {
 
   private async runOnce(trigger: string): Promise<GateResult> {
     this.clearRetry();
-    if (!this.d.atTitle()) {
-      this.owedRun = true;
-      this.hide();
-      return 'deferred';
-    }
+    if (!this.d.atTitle()) return this.defer();
     this.owedRun = false;
     this.lastRun = this.d.now();
     this.log(`check (${trigger})`);
     if (!this.blocking) this.show('checking');
     const out = await this.d.policy();
+    // the game left the title while the policy was in flight (a party invite or a resumed seat needs no tap): the
+    // answer waits for the next title, never a blocking screen or a reload over a pick or a match
+    if (!this.d.atTitle()) return this.defer();
     if (out.source === 'none') return this.offline();
     const { action, latest } = out.decision;
     this.log(`${out.source}: ${action} (${out.decision.reason}${latest ? `, latest ${latest.version}` : ''})`);
@@ -188,6 +187,13 @@ export class Gate {
   }
 
   // ------------------------------------------------------------------------------------------------ outcomes
+
+  /** Not on the title (or not any more): the check is owed to the next title, and the layer goes. */
+  private defer(): GateResult {
+    this.owedRun = true;
+    this.hide();
+    return 'deferred';
+  }
 
   private offline(): GateResult {
     if (this.d.offline() === 'play') {
@@ -254,6 +260,8 @@ export class Gate {
       this.setProgress(100);
       this.setText('Starting…');
       await this.d.ready();
+      // applyNow skips the title check (the layer covers the game): check here, after the download and the boot
+      if (!this.d.atTitle()) return this.defer();
       if (await ota.applyNow()) return 'applying';
       this.bump(target);
       return this.retrying();
