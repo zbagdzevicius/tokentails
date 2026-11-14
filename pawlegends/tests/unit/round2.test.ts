@@ -210,6 +210,18 @@ describe('round 2 client: names, cats and controls', () => {
     expect(slotNames(picks, 43, 0)).not.toEqual(a);
   });
 
+  it('two friends in one party name every bot the same (each client passes its own slot)', () => {
+    const picks = ['sage', 'lambo', 'aviete', 'brutus', 'marshmallow', 'biscuit'] as const;
+    for (const seed of [1, 42, 977, 123456789]) {
+      const a = slotNames(picks, seed, 0);
+      const b = slotNames(picks, seed, 1);
+      // the bots (slots 2..5) read the same on both screens; each player keeps its own hero's title
+      expect(b.slice(2)).toEqual(a.slice(2));
+      expect(a[0]).toBe('Sage');
+      expect(b[1]).toBe('Lambo');
+    }
+  });
+
   it('adopting a cat keeps the Legendary adopted by name over a pack Legendary', () => {
     const cats: RosterCat[] = [
       { id: 'blaze', name: 'Blaze', type: 'FIRE', tier: 'LEGENDARY', isStarter: false, origin: 'pack' },
