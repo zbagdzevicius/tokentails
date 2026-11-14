@@ -185,10 +185,11 @@ describe('shared pick (P7)', () => {
     expect(el.querySelector('[data-testid="party-hero-clem"] .pp-try')!.textContent).toBe('New? Try this');
   });
 
-  it('locked in: every hero is view-only, every trick disabled, and the button says so', () => {
+  it('locked in: free heroes stay tappable (a tap moves the lock), every trick disabled, and the button says so', () => {
     const v = pick({ you: 'a' });
     const el = mount(pickHtml({ view: v, hover: 'clem', trick: 'pounce', secondsLeft: 20, error: null }));
-    expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="hero"]')].every((b) => b.getAttribute('aria-disabled') === 'true')).toBe(true);
+    // the founder's 2026-11-14 report: after "Play again together" a tap on another champion did nothing
+    expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="hero"]')].some((b) => b.getAttribute('aria-disabled') === 'true')).toBe(false);
     expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="trick"]')].every((b) => b.disabled)).toBe(true);
     expect(el.querySelector('[data-testid="party-lock"]')!.textContent).toBe('Locked in');
     expect(el.querySelector('[data-testid="party-unlock"]')!.textContent).toBe('Change hero');
