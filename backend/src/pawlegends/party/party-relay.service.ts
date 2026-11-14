@@ -132,7 +132,8 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
             () => relay.presenceSnapshot(),
             this.presenceModel ?? null,
             Date.now,
-            (event, props) => this.logger.warn(`${event} ${JSON.stringify(props)}`)
+            (event, props) => this.logger.warn(`${event} ${JSON.stringify(props)}`),
+            () => relay.liveFeatured()
         );
         this.presence.start();
         try {

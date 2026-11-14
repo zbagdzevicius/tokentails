@@ -15,6 +15,7 @@ import { ChatService } from './chat.service';
 import { RANKED_MIN_MATCHES } from '../ranked/tiers';
 import { displayNames } from './display-name';
 import { PresenceRow, presenceUpdate, PresenceView, readPresence } from './presence';
+import { LIVE_PRESENCE_ID } from '../party/presence-sink';
 import {
     BLOCKS_CAP,
     CODE_ROTATIONS_PER_DAY,
@@ -286,7 +287,21 @@ export class SocialService {
             blocks: blockRows.map(b => row(b.blocked)),
             invites: await this.pendingInvites(me),
             rev: await this.revToken(me, profile, accepted),
+            live: { featured: await this.featuredLive() },
         };
+    }
+
+    /** SPECTATE.md: a featured live match can be watched now (the relay's `~live` presence row, fresh). */
+    private async featuredLive(): Promise<boolean> {
+        try {
+            const row = (await this.presence.findById(LIVE_PRESENCE_ID).lean()) as {
+                live?: { rooms?: number; at?: Date };
+            } | null;
+            const at = row?.live?.at ? new Date(row.live.at).getTime() : 0;
+            return (row?.live?.rooms ?? 0) > 0 && this.now().getTime() - at < PRESENCE.relayFreshMs;
+        } catch {
+            return false;
+        }
     }
 
     /** A short token over the caller's rev, the friends' revs and their presence: the pulse answers 204 while equal. */

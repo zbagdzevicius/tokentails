@@ -16,6 +16,20 @@ export function partyFromUrl(search: string = typeof location !== 'undefined' ? 
   }
 }
 
+/**
+ * SPECTATE.md §1: `?watch=<room>` (a room id a friend's Watch carries, 12 characters base36) or `?watch=featured`
+ * opens the live spectate view; anything else is ignored. Pure.
+ */
+export function watchFromUrl(search: string = typeof location !== 'undefined' ? location.search : ''): { room: string; name: string } | { featured: true } | null {
+  try {
+    const raw = new URLSearchParams(search).get('watch') ?? '';
+    if (raw === 'featured') return { featured: true };
+    return /^[a-z0-9]{12}$/.test(raw) ? { room: raw, name: '' } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The invite link for a code: always Paw Legends' own page that embeds the game (D12; `/?party=` goes on to `/play`). */
 export const inviteUrl = (code: string): string => `https://pawlegends.app/?party=${code}`;
 

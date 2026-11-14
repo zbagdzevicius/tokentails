@@ -29,6 +29,8 @@ export interface Presence {
   state: 'offline' | 'online' | 'party' | 'queue' | 'match';
   joinable?: boolean;
   party?: string;
+  /** SPECTATE.md: a watchable live match (absent when the friend keeps matches private, or an older backend). */
+  room?: string;
 }
 export interface FriendRow {
   code: string;
@@ -62,6 +64,8 @@ export interface SocialState {
   rev: string;
   /** CHAT-AVATARS §4: unread DMs (the Friends tab and the landing badge). */
   chat?: { unread: number; top?: { thread: string; fromName: string; preview: string } };
+  /** SPECTATE.md: a featured live match can be watched now (the Friends tab's "Watch live" row). */
+  live?: { featured?: boolean };
 }
 
 /** One DM thread as `chat.list` returns it. */
@@ -106,9 +110,13 @@ export const PRESENCE_TEXT: Readonly<Record<Presence['state'], string>> = Object
   match: 'In match',
 });
 
-/** The friend row's one action (§14.2): Join a joinable party, Invite when you are in one, else the "…" menu. Pure. */
-export function rowAction(p: Presence, inParty: boolean): 'join' | 'invite' | 'more' {
+/**
+ * The friend row's one action (§14.2): Join a joinable party, Watch a friend's live match (SPECTATE.md, when the
+ * friend lets friends watch and this player is not in a party), Invite when you are in one, else the "…" menu. Pure.
+ */
+export function rowAction(p: Presence, inParty: boolean): 'join' | 'watch' | 'invite' | 'more' {
   if (p.state === 'party' && p.joinable && p.party) return 'join';
+  if (p.state === 'match' && p.room && /^[a-z0-9]{12}$/.test(p.room) && !inParty) return 'watch';
   if (inParty && p.state !== 'offline' && p.state !== 'match') return 'invite';
   return 'more';
 }
@@ -120,6 +128,8 @@ export interface SocialSheetDeps {
   partyCode(): string | null;
   /** Join a friend's party by its code (the existing `party.join`). */
   joinParty(code: string): void;
+  /** SPECTATE.md: watch a friend's live match (its room), or the featured live match; absent: no Watch buttons. */
+  watch?(target: { room: string; name: string } | { featured: true }): void;
   signIn(): void;
   /** Ranked closed: Play Casual (the PvP queue). */
   playCasual(): void;
@@ -215,9 +225,15 @@ export class SocialSheet {
     this.pulseTimer = setInterval(() => void this.pulse(), 30_000);
   }
 
-  /** Friend rows per page: one row fewer while the invite row shows. */
+  /** Friend rows per page: one row fewer while the invite row shows, and one fewer for the "Watch live" row. */
   private get friendsPer(): number {
-    return Math.max(1, this.per - (this.invite.state || this.invite.entering ? 1 : 0));
+    return Math.max(1, this.per - (this.invite.state || this.invite.entering ? 1 : 0) - (this.liveRow() ? 1 : 0));
+  }
+
+  /** SPECTATE.md: the featured live match row (only when one is live and the host can open the viewer). */
+  private liveRow(): string {
+    if (!this.deps.watch || !this.state?.live?.featured || this.deps.partyCode()) return '';
+    return `<div class="pl-social-row pl-social-live" data-testid="social-watch-live"><i class="pl-live-dot" aria-hidden="true"></i><span class="pl-social-who"><b>A match is live</b><small class="pl-social-st">Watch the featured match</small></span><button type="button" class="pl-btn small" data-a="watch-live">Watch live</button></div>`;
   }
 
   private get per(): number {
@@ -346,7 +362,7 @@ export class SocialSheet {
     if (this.tab === 'clubs') return this.clubs.body(this.per);
     if (this.tab === 'friends') {
       // the invite row (share/invite.ts) takes the first row's place
-      const inv = this.invite.html();
+      const inv = this.invite.html() + this.liveRow();
       if (!s.friends.length) return `${inv}<p class="pl-social-empty">No friends yet. Share your code or add theirs.</p>`;
       const { rows } = pageOf(friendOrder(s.friends), this.page, this.friendsPer);
       const inParty = !!this.deps.partyCode();
@@ -356,7 +372,9 @@ export class SocialSheet {
           const btn =
             act === 'join'
               ? `<button type="button" class="pl-btn small" data-a="join" data-party="${this.esc(f.presence.party ?? '')}">Join</button>`
-              : act === 'invite'
+              : act === 'watch' && this.deps.watch
+                ? `<button type="button" class="pl-btn small" data-a="watch" data-room="${this.esc(f.presence.room ?? '')}" data-code="${this.esc(f.code)}" data-testid="social-watch" aria-label="${this.esc(`Watch ${f.name}'s match`)}">Watch</button>`
+                : act === 'invite'
                 ? `<button type="button" class="pl-btn ghost small" data-a="invite" data-code="${this.esc(f.code)}">Invite</button>`
                 : `<button type="button" class="pl-btn ghost small pl-more" data-a="more" data-code="${this.esc(f.code)}" aria-label="More">&hellip;</button>`;
           const t = this.threads.get(f.code);
@@ -554,6 +572,19 @@ export class SocialSheet {
         this.deps.joinParty(party);
         return;
       }
+      case 'watch': {
+        const room = el.dataset.room ?? '';
+        const name = this.state?.friends.find((f) => f.code === code)?.name ?? '';
+        if (!/^[a-z0-9]{12}$/.test(room) || !this.deps.watch) return;
+        this.dispose();
+        this.deps.watch({ room, name });
+        return;
+      }
+      case 'watch-live':
+        if (!this.deps.watch) return;
+        this.dispose();
+        this.deps.watch({ featured: true });
+        return;
       case 'invite':
         this.deps.track?.('party_invite', { action: 'sent' });
         void this.act('invite.send', { to: code }, 'Invite sent');

@@ -78,7 +78,7 @@ const E2E = (() => {
 
 const golden = (): string => (typeof __SIM_GOLDEN__ !== 'undefined' ? __SIM_GOLDEN__ : '');
 
-function workerTransport(onMsg: (m: CoreOut | { t: 'error'; message: string }) => void, onFail: (msg: string) => void) {
+export function workerTransport(onMsg: (m: CoreOut | { t: 'error'; message: string }) => void, onFail: (msg: string) => void) {
   if (typeof Worker === 'undefined') return null;
   try {
     const w = new Worker(new URL('./net-host.worker.ts', import.meta.url), { type: 'module', name: 'pawlegends-net' });
@@ -93,7 +93,7 @@ function workerTransport(onMsg: (m: CoreOut | { t: 'error'; message: string }) =
   }
 }
 
-function inlineTransport(onMsg: (m: CoreOut) => void, now: () => number) {
+export function inlineTransport(onMsg: (m: CoreOut) => void, now: () => number) {
   const core = new NetCore((m) => onMsg(m), now);
   const pacer = new Pacer(core, { now, setTimer: (fn, ms) => setTimeout(fn, ms), clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) }, (err) => {
     throw err;
@@ -279,6 +279,8 @@ export class NetHost implements PartyLink {
     this.humans = [...match.config.humans];
     // ?e2e=1: a new match starts its own hash trail (a rematch never shows the last match's ticks)
     if (E2E) delete document.documentElement.dataset.mpTrail;
+    // ?e2e=1 (spectate.spec.ts): the room a third client watches
+    if (E2E) document.documentElement.dataset.mpRoom = match.room;
     this.endInfo = { room: match.room, slot: match.you.slot, record: null, scored: null };
     this.coalescer = new MoveCoalescer((cmd) => this.sent(this.socket.sendCmd(encodeCommand(cmd))), {
       now: this.now,

@@ -1,0 +1,31 @@
+/* Live spectating (docs/plans/moba/SPECTATE.md): the spectate bar over the match view (moments.css gives the base
+   .mm-bar, .mm-b, .mm-veil, .mm-drag and .mm-title). v6 Lightning Rivalry tokens only. The bar replaces the touch
+   controls (hidden by .pl-replaying), so the phone HUD keeps its footprint. */
+.sp-bar { flex-wrap: nowrap; }
+.sp-live { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 4px; white-space: nowrap; }
+.sp-live i { width: 9px; height: 9px; border-radius: 50%; background: var(--v6-enemy, #ff4f58); box-shadow: 0 0 0 3px rgb(255 79 88 / 0.25); animation: sp-pulse 1.4s ease-in-out infinite; }
+.sp-live b { font: italic 900 14px/1 var(--v6-font-display, sans-serif); letter-spacing: 0.06em; color: var(--v6-cream); }
+.sp-live small { font-size: 12px; color: var(--v6-muted); }
+.sp-viewers { flex: none; font-size: 12px; color: var(--v6-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sp-heroes { flex: 1 1 auto; min-width: 0; display: flex; gap: 4px; justify-content: center; overflow: hidden; }
+.sp-hero {
+  flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--v6-line-strong); padding: 0; cursor: pointer;
+  background: rgb(var(--v6-navy-rgb) / 0.8); color: var(--v6-ice); font: 700 12px/1 var(--font); text-transform: uppercase;
+}
+.sp-hero.t0 { border-color: var(--v6-sky, #5ab8ff); }
+.sp-hero.t1 { border-color: var(--v6-enemy, #ff4f58); }
+.sp-hero.t0 + .sp-hero.t1 { margin-left: 8px; }
+.sp-hero.human { box-shadow: inset 0 -3px 0 var(--v6-bolt); }
+.sp-hero.on, .sp-hero[aria-pressed='true'] { background: var(--v6-cream); color: var(--v6-night); }
+.sp-hero.down { opacity: 0.4; }
+.sp-hero:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pl-match.pl-spectating .pl-pause { display: none !important; }
+@keyframes sp-pulse { 50% { opacity: 0.35; } }
+@media (max-height: 500px) {
+  .sp-hero { width: 30px; height: 30px; font-size: 11px; }
+  .sp-live small { display: none; }
+}
+@media (max-width: 760px) {
+  .sp-viewers { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .sp-live i { animation: none; } }

@@ -16,7 +16,7 @@
  * bytes for every frame type).
  */
 
-export const PROTO = 6;
+export const PROTO = 7;
 /**
  * The oldest PROTO the relay still accepts (M1a, docs/plans/moba/M1A-IMPL.md §5.5). PROTO 2 only adds the `mm.*`
  * JSON frames (Quick Play co-op); the binary frames and the framing are unchanged, so the subprotocol stays `pl.1`. The
@@ -52,6 +52,14 @@ export const PROTO_CHAT = 5;
  * or 5 socket gets in-match phrases with a legacy wheel id as the old `social` chat frame, and nothing else.
  */
 export const PROTO_MATCH_CHAT = 6;
+/**
+ * PROTO 7 (live spectating, docs/plans/moba/SPECTATE.md): `spectate{room | featured}` and `spectate.leave` from a
+ * socket with no seat; the relay answers `match` with `you.slot = -1` and a `watch` block, a CATCHUP to the delayed
+ * turn and then delayed TURN frames, `spectate{viewers}` while the count changes, and the delayed `end`. New error
+ * codes `watch_none`, `watch_full` and `watch_update` (never sent to an older socket). `hello.hint.watch: false` keeps
+ * this player's matches out of every spectator's reach. TURN bytes are unchanged.
+ */
+export const PROTO_WATCH = 7;
 export const SUBPROTOCOL = 'pl.1';
 /**
  * Quick Play queues: co-op (M1a), casual PvP (M1b, PROTO 3 on a sim >= PVP_SINCE) and 5v5 Classic (PROTO 4 on a sim
@@ -518,6 +526,12 @@ export const ERROR_CODES = [
   'mm_ranked_matches',
   /** Ranked: an ended ranked match of this account is not saved yet (`rooms`); save it, then search again. */
   'mm_ranked_pending',
+  /** PROTO 7: nothing to watch (the match ended, moved, is not watchable, or no featured match is live now). */
+  'watch_none',
+  /** PROTO 7: the match already has the most spectators it takes (`max`). */
+  'watch_full',
+  /** PROTO 7: the match runs another game version than this client: update to watch it. */
+  'watch_update',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -575,7 +589,7 @@ export interface HelloMsg {
   guestKey?: string;
   resume?: { token: string };
   /** `matches` (PROTO 3): completed matches, the casual PvP newbie lock (a hint: matching only, never trusted). */
-  hint?: { maxDifficulty: string; newbie: boolean; matches?: number };
+  hint?: { maxDifficulty: string; newbie: boolean; matches?: number; watch?: boolean };
 }
 
 export type ClientJson =
@@ -615,7 +629,11 @@ export type ClientJson =
    * every member is a registered 16+ account, filtered text (`t`, at most CHAT_SAY_MAX_TEXT characters before the
    * server's normalisation).
    */
-  | { t: 'chat.say'; k: ChatKind; id?: number; text?: string; ch?: MatchChannel };
+  | { t: 'chat.say'; k: ChatKind; id?: number; text?: string; ch?: MatchChannel }
+  /** PROTO 7: watch a live match (a friend's room id from presence, or the relay's featured match). */
+  | { t: 'spectate'; room?: string; featured?: boolean }
+  /** PROTO 7: stop watching (the socket stays). */
+  | { t: 'spectate.leave' };
 
 export type ClientJsonType = ClientJson['t'];
 
@@ -649,6 +667,8 @@ const isBool: FieldCheck = (v) => typeof v === 'boolean';
 const ID = /^[a-z][a-z0-9]{0,23}$/;
 const TOKEN = /^[A-Za-z0-9_.\-]{8,512}$/;
 const MEMBER = /^[a-zA-Z0-9_-]{6,32}$/;
+/** A room id (party-relay.ts `roomId`: 12 characters base36). */
+const ROOM = /^[a-z0-9]{12}$/;
 
 /** Field rules per message type: [check, optional]. Any key not listed is refused. */
 const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [FieldCheck, boolean]>>>> = {
@@ -663,10 +683,11 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
     hint: [
       (v) =>
         isPlain(v) &&
-        keysOnly(v as object, ['maxDifficulty', 'newbie', 'matches']) &&
+        keysOnly(v as object, ['maxDifficulty', 'newbie', 'matches', 'watch']) &&
         isStr(ID)((v as { maxDifficulty: unknown }).maxDifficulty) &&
         isBool((v as { newbie: unknown }).newbie) &&
-        ((v as { matches?: unknown }).matches === undefined || isInt(0, 1_000_000)((v as { matches: unknown }).matches)),
+        ((v as { matches?: unknown }).matches === undefined || isInt(0, 1_000_000)((v as { matches: unknown }).matches)) &&
+        ((v as { watch?: unknown }).watch === undefined || isBool((v as { watch: unknown }).watch)),
       true,
     ],
   },
@@ -713,6 +734,8 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
     text: [(v) => typeof v === 'string' && v.length >= 1 && v.length <= CHAT_SAY_MAX_TEXT, true],
     ch: [(v) => v === 'team' || v === 'all', true],
   },
+  spectate: { room: [isStr(ROOM), true], featured: [(v) => v === true, true] },
+  'spectate.leave': {},
 };
 
 /** JSON frame types that only a PROTO 2 socket may send or receive. */
@@ -753,6 +776,8 @@ export function parseClientJson(text: string): ClientJson {
   }
   for (const k of Object.keys(rules)) if (!rules[k][1] && !Object.prototype.hasOwnProperty.call(o, k)) throw new ProtoError('missing field');
   if (t === 'party.join') o.code = normalizeCode(o.code);
+  // PROTO 7: exactly one target
+  if (t === 'spectate' && (o.room === undefined) === (o.featured === undefined)) throw new ProtoError('bad field');
   return o as unknown as ClientJson;
 }
 
@@ -852,7 +877,33 @@ export interface MatchMsg {
   /** PROTO 4 classic: the map and seats per team (absent: Crossing, 3). */
   map?: MapId;
   teamSize?: 3 | 5;
+  /**
+   * PROTO 7: a spectator's `match` (`you.slot` is -1): the delay behind live, the hero the view follows first (the
+   * friend's seat, else the first human), the spectators now and the most the room takes, and whether the relay
+   * picked it as the featured match.
+   */
+  watch?: SpectateInfo;
 }
+
+/** PROTO 7: what a spectator's `match` says about the watch. */
+export interface SpectateInfo {
+  delayMs: number;
+  follow: number;
+  viewers: number;
+  max: number;
+  featured?: boolean;
+  /** 'ranked' when the room is a ranked match (the longest delay). */
+  kind: 'party' | 'coop' | 'casual' | 'ranked';
+}
+
+/**
+ * PROTO 7 spectate delays (SPECTATE.md §2): long enough that a spectator cannot call out what an opponent does in time
+ * to matter (anti-ghosting, as LoL's 3 minutes; shorter because matches are 7 to 15 minutes). A co-op or friend party
+ * match has no human opponent to ghost.
+ */
+export const SPECTATE_DELAY_MS: Readonly<Record<SpectateInfo['kind'], number>> = Object.freeze({ party: 15_000, coop: 15_000, casual: 45_000, ranked: 90_000 });
+/** PROTO 7 caps: spectators per room, per relay, and spectating sockets per identity. */
+export const SPECTATE_LIMITS = Object.freeze({ perRoom: 20, perRelay: 500, perIdentity: 2 });
 
 export type ServerJson =
   | { t: 'welcome'; proto: number; member: string; resumeToken: string; serverMs: number; lastSeq?: number }
@@ -930,7 +981,9 @@ export type ServerJson =
   /** PROTO 5: your `chat.say` was not sent (`why`: words, contact, link, charset, long, rate, quick_only, phase, muted, cooldown, scope). */
   | { t: 'chat.reject'; why: string; until?: number }
   /** PROTO 5: a friend sent you a DM (no body: read it over the API). Held in loading and match, sent on results. */
-  | { t: 'chat.notice'; thread: string };
+  | { t: 'chat.notice'; thread: string }
+  /** PROTO 7: the spectator count of the watched match changed. */
+  | { t: 'spectate'; viewers: number };
 
 export type ServerJsonType = ServerJson['t'];
 const SERVER_TYPES: readonly ServerJsonType[] = [
@@ -956,6 +1009,7 @@ const SERVER_TYPES: readonly ServerJsonType[] = [
   'chat.msg',
   'chat.reject',
   'chat.notice',
+  'spectate',
 ];
 
 /** Parse a server JSON frame (the client trusts the relay's fields but still refuses unknown types). */

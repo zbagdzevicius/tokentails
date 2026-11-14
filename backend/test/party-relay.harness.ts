@@ -77,6 +77,8 @@ const relay = new PartyRelay({
     tickets: new PartyTicketService(),
     referee: new RefereePool({ inline: process.env.REFEREE_INLINE === '1' }),
     allowNoOrigin: true,
+    // SPECTATE.md: e2e spectators run a short delay (production: SPECTATE_DELAY_MS per room kind)
+    spectateDelayMs: () => Number(process.env.PAWLEGENDS_SPECTATE_DELAY_MS ?? 4000),
     // the e2e browsers have no server history: the casual newbie lock reads their hint here (never in production)
     mm: memoryMm({ rooms: new MemoryMmRoomStore(), ratings: null, trustHintMatches: true, ranked: rankedFixture }),
     originAllowed: o => origins.includes(o),
