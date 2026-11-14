@@ -295,12 +295,14 @@ describe('budgets and pooling', () => {
 });
 
 describe('rung bands (CARD-SKINS.md §5)', () => {
-  it('the six effect coats carry their rung and element; store and premium pass coats are Rare; free rows Common', () => {
+  it('the effect coats carry their rung and element; store and premium pass coats are Rare; free rows Common', () => {
     const want: Record<string, [CatTier, string]> = {
       'coat.duchess.s1_eclipse': ['EPIC', 'DARK'],
       'coat.clem.s1_sunforged': ['LEGENDARY', 'FIRE'],
       'coat.pixel.store_moonwhisker': ['EPIC', 'STELLAR'],
       'coat.marshmallow.store_frostbell': ['EPIC', 'ICE'],
+      'coat.clem.store_club_sandwich': ['EPIC', 'SAND'],
+      'coat.frankie.store_kebab_king': ['EPIC', 'FIRE'],
       'coat.brutus.store_thunderpaw': ['LEGENDARY', 'ELECTRIC'],
       'coat.sage.store_bloomtail': ['LEGENDARY', 'GRASS'],
     };
@@ -310,6 +312,6 @@ describe('rung bands (CARD-SKINS.md §5)', () => {
     expect(PAID_COATS['coat.clem.s1_honey_tabby'].rung).toBe('COMMON');
     const counts = { COMMON: 0, RARE: 0, EPIC: 0, LEGENDARY: 0 };
     for (const c of Object.values(PAID_COATS)) counts[c.rung]++;
-    expect(counts).toEqual({ COMMON: 6, RARE: 16 + 21, EPIC: 3, LEGENDARY: 3 });
+    expect(counts).toEqual({ COMMON: 6, RARE: 16 + 21, EPIC: 5, LEGENDARY: 3 });
   });
 });

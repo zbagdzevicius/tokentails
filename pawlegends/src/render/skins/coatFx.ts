@@ -11,6 +11,8 @@
  * | Eclipse (Epic)           | a violet corona, a gold ring    | an orb circles, the eclipse ring  | a dark ring, gold motes   |
  * | Moonwhisker (Epic)       | a star shower under a moon      | stars twinkle, stars fall         | stars fall on the fallen  |
  * | Frostbell (Epic)         | ice shards, snow and a bell     | snow falls, a frost ring          | shards burst, the bell    |
+ * | Club Sandwich (Epic)     | a sandwich stacks up, crumbs fly| crumbs drift, a sandwich lands    | a toothpick flag, crumbs  |
+ * | Kebab King (Epic)        | sizzling skewers, grill flames  | steam rises, a flame ring         | a skewer drops, spice     |
  * | every Rare coat          | a motif ring in the coat colour | (the kit's motif nap) a motif ring| a 3-motif stamp           |
  *
  * Rules (as render/skins/cardFx.ts and tierFx.ts; CARD-SKINS.md §4):
@@ -63,10 +65,18 @@ export const COAT_COST: Readonly<Record<CoatTheme | 'rare', Readonly<Record<'ult
   eclipse: { ult: [11, 6], nap: [3, 2], land: [8, 5], takedown: [6, 4] },
   moon: { ult: [12, 6], nap: [3, 2], land: [8, 5], takedown: [6, 4] },
   frost: { ult: [14, 7], nap: [3, 2], land: [10, 5], takedown: [7, 4] },
+  deli: { ult: [13, 7], nap: [3, 2], land: [10, 5], takedown: [7, 4] },
+  grill: { ult: [15, 8], nap: [3, 2], land: [9, 5], takedown: [7, 4] },
   rare: { ult: [7, 4], nap: [0, 0], land: [6, 4], takedown: [3, 2] },
 });
 
 const hexCss = (c: number): string => '#' + c.toString(16).padStart(6, '0');
+
+/** gaps4 food coats: the sandwich's bread and tomato, the kebab's meat and pepper (team-safe through `safe`). */
+const BREAD = 0xe0a85a;
+const TOMATO = 0xe8603a;
+const MEAT = 0x9a4420;
+const PEPPER = 0x5fbf3a;
 const GOLDEN = 2.39996;
 
 export class CoatVfx {
@@ -288,6 +298,29 @@ export class CoatVfx {
         if (!low) this.sprite(x, 2.5, z, SHAPE.RING, t, 0.6, 0.5, 0, 0.8, 0, GROW.OUT, FADE.LINEAR, 4);
         break;
       }
+      case 'deli': {
+        // the club sandwich stacks up over the caster (bread, lettuce, tomato, cheese rising at their own speeds, normal
+        // blending so bread reads as bread), a toothpick goes in on top, crumbs fly out along the ground
+        const bread = safe(BREAD, p.self, p.team, p.mate);
+        const tomato = safe(TOMATO, p.self, p.team, p.mate);
+        const layers = low ? [bread, t] : [bread, a, tomato, t];
+        layers.forEach((c, i) => this.sprite(x, 0.4, z, SHAPE.SOFT, c, 1.5 - i * 0.08, 0.85, 0, 0.7 + i * 0.55, 0, GROW.BACK, FADE.HOLD, 1, 0, false));
+        this.circle(x, 0.3, z, low ? 4 : 7, 0.5, SHAPE.CONFETTI, bread, t, 0.3, 0.7, r * 1.4, 1.2, 1.5);
+        this.streak(x, 2.2, z, cr, 1, 0.35);
+        if (!low) this.sprite(x, 3, z, SHAPE.SOFT, a, 0.45, 0.8, 0, 0.6, 0, GROW.BACK, FADE.HOLD, 1, 0, false);
+        break;
+      }
+      case 'grill': {
+        // a ring of skewer chunks (meat and pepper) spins round the caster, grill flames lick up and steam rises, the
+        // king's gold star tops it
+        const meat = safe(MEAT, p.self, p.team, p.mate);
+        const pepper = safe(PEPPER, p.self, p.team, p.mate);
+        this.circle(x, 0.6, z, low ? 4 : 8, r * 0.5, SHAPE.SOFT, meat, pepper, 0.48, 0.8, 0.3, 0.2, 4.5, 0.3, false);
+        this.circle(x, 0.3, z, low ? 2 : 4, r * 0.35, SHAPE.SPARK, t, a, 0.4, 0.6, 0.4, 3, 0, 0.8);
+        this.circle(x, 1.2, z, low ? 1 : 2, 0.3, SHAPE.PUFF, cr, cr, 0.9, 0.9, 0.3, 1.2, 0, 1.6, false);
+        this.sprite(x, 2.4, z, SHAPE.STAR8, a, low ? 0.9 : 1.2, 0.6, 0, 0.5, 0, GROW.BACK, FADE.HOLD, 1, 2);
+        break;
+      }
       default: {
         // Rare: a ring of the element motif in the coat colours, flat on the ground inside the ultimate's wave
         this.kit.emit(this.particles, p, x, 0.15, z, low ? 3 : 6, r * 0.6, 0.6, true, 0.8);
@@ -330,6 +363,14 @@ export class CoatVfx {
         break;
       case 'frost':
         this.fall(x, z, low ? 2 : 3, 1, 2.4, SHAPE.STAR8, cr, t, 0.3, 0.95, 1);
+        break;
+      case 'deli':
+        // crumbs drift down round the napping hero
+        this.fall(x, z, low ? 2 : 3, 1, 2.2, SHAPE.CONFETTI, safe(BREAD, p.self, p.team, p.mate), t, 0.26, 0.95, 1.1);
+        break;
+      case 'grill':
+        // steam rises off the grill
+        this.circle(x, 1.1, z, low ? 2 : 3, 0.5, SHAPE.PUFF, cr, cr, 0.6, 0.95, 0.1, 0.9, 0.4, ph, false);
         break;
     }
     this.claim(g.n, 0.95, p);
@@ -379,6 +420,21 @@ export class CoatVfx {
         this.sprite(x, 2.3, z, SHAPE.NOTE, a, 0.75, 0.8, 0, 0.6, 0, GROW.BACK, FADE.HOLD, 1);
         if (!low) this.sprite(x, 0.4, z, SHAPE.RING, t, 0.7, 0.5, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
         break;
+      case 'deli': {
+        // a sandwich lands with her: the layers pop in place, crumbs burst out
+        const bread = safe(BREAD, p.self, p.team, p.mate);
+        const layers = low ? [bread, t] : [bread, a, t];
+        layers.forEach((c, i) => this.sprite(x, 0.3 + i * 0.22, z, SHAPE.SOFT, c, 1.2, 0.7, 0, 0.3, 0, GROW.BACK, FADE.HOLD, 1, 0, false));
+        this.circle(x, 0.3, z, low ? 3 : 6, 0.4, SHAPE.CONFETTI, bread, t, 0.3, 0.6, 3.5, 1.2, 1.2);
+        if (!low) this.sprite(x, 0.4, z, SHAPE.RING, t, 0.7, 0.5, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
+        break;
+      }
+      case 'grill':
+        // a ring of grill flame round the landing, a puff of steam
+        this.circle(x, 0.25, z, low ? 3 : 6, 0.5, SHAPE.SPARK, t, a, 0.42, 0.55, 3.8, 1.6);
+        this.sprite(x, 0.4, z, SHAPE.RING, t, 0.7, 0.55, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
+        this.circle(x, 0.9, z, low ? 1 : 2, 0.3, SHAPE.PUFF, cr, cr, 0.8, 0.8, 0.3, 1, 0, 0.5, false);
+        break;
       default:
         this.kit.emit(this.particles, p, x, 0.15, z, low ? 3 : 5, 1.3, 0.7, true, 0.9);
         this.sprite(x, 0.4, z, SHAPE.RING, t, 0.6, 0.5, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
@@ -424,6 +480,19 @@ export class CoatVfx {
         this.circle(x, 1, z, low ? 3 : 5, 0.25, SHAPE.SHARD, t, cr, 0.44, 0.55, 2.4, 2.4);
         this.sprite(x, 2.3, z, SHAPE.NOTE, a, 0.65, 0.7, 0, 0.6, 0, GROW.BACK, FADE.HOLD, 1);
         if (!low) this.sprite(x, 1.4, z, SHAPE.STAR8, cr, 0.9, 0.45, 0, 0.4, 0, GROW.OUT, FADE.POP, 0.5);
+        break;
+      case 'deli':
+        // a toothpick flag drops in and pins the fallen, crumbs rain round it
+        this.streak(x, 2.6, z, cr, -1, 0.35);
+        this.sprite(x, 1.7, z, SHAPE.FEATHER, t, 0.7, 0.8, 0, 0.1, 0, GROW.BACK, FADE.HOLD, 1, 0, false);
+        this.fall(x, z, low ? 2 : 4, 0.8, 2.4, SHAPE.CONFETTI, safe(BREAD, p.self, p.team, p.mate), a, 0.3, 0.7, 1.5);
+        if (!low) this.sprite(x, 1.2, z, SHAPE.STAR8, cr, 0.8, 0.4, 0, 0.3, 0, GROW.OUT, FADE.POP, 0.5);
+        break;
+      case 'grill':
+        // a skewer drops on the fallen, chunks tumble off it and spice flies
+        this.streak(x, 2.8, z, a, -1, 0.4);
+        this.fall(x, z, low ? 2 : 3, 0.6, 2.4, SHAPE.SOFT, safe(MEAT, p.self, p.team, p.mate), safe(PEPPER, p.self, p.team, p.mate), 0.36, 0.7, 2.2);
+        this.circle(x, 1.2, z, low ? 1 : 3, 0.3, SHAPE.CONFETTI, t, a, 0.3, 0.55, 2.2, 1.8);
         break;
       default:
         this.kit.emit(this.particles, p, x, 1.6, z, low ? 2 : 3, 0.8, 0.7);

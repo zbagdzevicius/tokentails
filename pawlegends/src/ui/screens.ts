@@ -11,7 +11,7 @@ import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
 import { HEROES } from '../data/heroes';
 import type { Difficulty, HeroId, MapId, Mutator, TrickId } from '../sim/api';
-import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, type FrameId, type Look, type Owned } from '../render/cosmetics';
+import { chromaOptions, coatDyes, coatPalette, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, type FrameId, type Look, type Owned } from '../render/cosmetics';
 import { ELEMENT_NAME } from '../meta/roster';
 import type { CatTier, Element } from '../meta/roster';
 import type { Dare } from '../share/dare';
@@ -28,7 +28,6 @@ import type { QuestView } from '../meta/quests';
 import { TREAT_XP, type TreatGain } from '../meta/treats';
 import type { Grade } from '../meta/grade';
 import { rankedKindLine, type RankedKind, type RankedResult } from '../meta/ranked';
-import { toGoText } from './collection';
 // card art (ui/cards/): pick tiles as collectible cards, the title badge, the MVP card
 import { cardAttrs, heroElement } from './cards/el';
 import { openChampInfo } from './champBrowser/open';
@@ -38,6 +37,7 @@ import { champSelectHtml, openChampSelect, patchChampSelect, refreshFaces, wireC
 import { appHidden, champStatus, lockReason, matchesFor, rotationEndText, unlockInfo, yarnText, type ChampionsState } from '../meta/champions';
 import { browserCurrency } from '../money/skus';
 import { soloSeats } from './champSelect/seats';
+import { CHROMAS, chromaDef, chromaPalette, cssHex } from '../render/skins/coatChromas';
 
 function el(cls: string, html = ''): HTMLElement {
   const d = document.createElement('div');
@@ -269,7 +269,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     o.owned ? { coats: wardrobe(h, o.owned), chromas: chromaOptions(o.owned) } : { coats: [], chromas: [] };
   const hasLookChoices = (h: HeroId): boolean => {
     const { coats, chromas } = lookChoices(h);
-    return coats.length > 1 || chromas.length > 1;
+    return coats.length > 1 || chromas.length > 1 || !!coatPalette(lookOf(h)?.coat);
   };
   const sheetHtml = (): string => {
     if (!lookOpen) return '';
@@ -279,8 +279,21 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     // pawlegends (QA): the swatches are colour tints, said so ("Ice colour tint, looks only")
     const tint = (k: { id: Element | null }): string => (k.id ? `${ELEMENT_NAME[k.id]} colour tint, looks only` : 'No colour tint');
     const coatChips = coats.length > 1 ? `<div class="cs-ls-row" role="group" aria-label="Coats">${coats.map((k) => `<button type="button" class="chip ${k.id === (l?.coat ?? null) ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" aria-pressed="${k.id === (l?.coat ?? null)}">${esc(k.name)}</button>`).join('')}</div>` : '';
+    // gaps4: the worn coat's chromas (its own colours first; locked ones say how many matches earn them)
+    const pal = coatPalette(l?.coat);
+    const earned = l?.coat && o.owned ? coatDyes(l.coat, o.owned) : [];
+    const dyes = pal && l?.coat
+      ? `<div class="cs-ls-row swatches dyes" role="group" aria-label="Chromas">${[null, ...CHROMAS.map((d) => d.key)]
+          .map((k) => {
+            const d = chromaDef(k);
+            const locked = !!d && !earned.includes(d.key);
+            const name = d ? `${d.name} chroma${locked ? `, ${d.plays} ${d.plays === 1 ? 'match' : 'matches'} in this coat` : ''}` : 'Own colours';
+            return `<button type="button" class="chip chroma${k === (l.dye ?? null) ? ' on' : ''}${locked ? ' locked' : ''}" data-dye="${k ?? ''}"${locked ? ' aria-disabled="true"' : ''} title="${esc(name)}" aria-label="${esc(name)}" style="--el:${cssHex(d ? chromaPalette(pal, d.key).base : pal.base)}"></button>`;
+          })
+          .join('')}</div>`
+      : '';
     const sw = chromas.length > 1 ? `<div class="cs-ls-row swatches" role="group" aria-label="Colour tints">${chromas.map((k) => `<button type="button" class="chip chroma ${k.id === (l?.chroma ?? null) ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(tint(k))}" aria-label="${esc(tint(k))}" style="--el:${k.id ? hex(ELEMENT_COLOR[k.id]) : 'transparent'}"></button>`).join('')}</div>` : '';
-    return `<div class="cs-looksheet" role="dialog" aria-label="${esc(`Look: ${HERO_TEXT[h].title}`)}"><div class="cs-ls-head"><b>Look</b><button type="button" class="cs-ls-x" data-a="lookclose" aria-label="Close">✕</button></div>${coatChips}${sw}${hasLookChoices(h) ? '' : `<p class="cs-ls-none">${esc(`No other coats for ${HERO_TEXT[h].title} yet.`)}</p>`}</div>`;
+    return `<div class="cs-looksheet" role="dialog" aria-label="${esc(`Look: ${HERO_TEXT[h].title}`)}"><div class="cs-ls-head"><b>Look</b><button type="button" class="cs-ls-x" data-a="lookclose" aria-label="Close">✕</button></div>${coatChips}${dyes}${sw}${hasLookChoices(h) ? '' : `<p class="cs-ls-none">${esc(`No other coats for ${HERO_TEXT[h].title} yet.`)}</p>`}</div>`;
   };
   const botsHtml = (): string => {
     if (o.difficultyNote)
@@ -414,11 +427,16 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     }
     const coat = t.closest<HTMLElement>('.cs-looksheet [data-coat]')?.dataset.coat;
     const chroma = t.closest<HTMLElement>('.cs-looksheet [data-chroma]')?.dataset.chroma;
-    if (coat !== undefined || chroma !== undefined) {
+    const dyeEl = t.closest<HTMLElement>('.cs-looksheet [data-dye]');
+    if (dyeEl?.getAttribute('aria-disabled') === 'true') return;
+    const dye = dyeEl?.dataset.dye;
+    if (coat !== undefined || chroma !== undefined || dye !== undefined) {
       const cur = lookOf(c.hero);
       if (!cur) return;
       const nextCoat = coat !== undefined ? coat || null : cur.coat;
-      const next: Look = { coat: nextCoat, chroma: chroma !== undefined ? ((chroma || null) as Look['chroma']) : cur.chroma };
+      // gaps4: a chroma belongs to its coat: a new coat starts in its own colours
+      const nextDye = dye !== undefined ? dye || null : nextCoat === cur.coat ? (cur.dye ?? null) : null;
+      const next: Look = { coat: nextCoat, chroma: chroma !== undefined ? ((chroma || null) as Look['chroma']) : cur.chroma, ...(nextDye ? { dye: nextDye } : {}) };
       looks[c.hero] = next;
       o.onLook?.(c.hero, next);
       return render();
@@ -499,6 +517,8 @@ export interface ResultsOpts {
   bestMoment?: string | null;
   /** Treat Track progress from this match (fun plan F4). */
   treats?: TreatGain | null;
+  /** gaps4: a coat chroma this match earned (playing in the coat), named under the Treat Track. */
+  chromaEarned?: { name: string; coat: string } | null;
   /** Today's quests after this match. */
   quests?: readonly QuestView[];
   /** Per-player rows (round 0: a veteran wants to see why it lost): own team first. */
@@ -685,6 +705,9 @@ export function rewardStrip(o: Pick<ResultsOpts, 'grade' | 'treats' | 'dareLink'
   return parts.length ? `<div class="pl-reward" data-reward>${parts.join('')}</div>` : '';
 }
 
+/** "about 3 matches to go" (the results' Treat Track block and the Treat Track panel, ui/collection.ts). */
+export const toGoText = (n: number): string => `about ${n} ${n === 1 ? 'match' : 'matches'} to go`;
+
 function treatBlock(t: TreatGain): string {
   const pct = (v: number): string => `${Math.round(v * 100)}%`;
   const opened = t.rewards.length > 0;
@@ -729,7 +752,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${tip ? `<p class="pl-result-tip">${icon('paw')}<span>${esc(tip)}</span></p>` : ''}
       <div data-slot="save"></div>
       ${o.ranked ? `<div class="pl-rk" data-slot="ranked" data-testid="ranked-result" role="status">${rankedBlockHtml(null, o.rankedKind)}</div>` : ''}
-      ${o.treats ? treatBlock(o.treats) : ''}
+      ${o.treats ? treatBlock(o.treats) : ''}${o.chromaEarned ? `<p class="pl-chroma-earned" data-chroma-earned="${esc(o.chromaEarned.name)}">New chroma: <b>${esc(`${o.chromaEarned.name} ${o.chromaEarned.coat}`)}</b>. Wear it in Heroes, Coats.</p>` : ''}
       ${o.quests && o.quests.length ? `<div class="pl-quests"><b>Daily quests</b>${o.quests.map((q) => questRow(q)).join('')}</div>` : ''}
       ${o.firstWin ? `<div class="unlock">${icon('crown')}<span><b>Sir Brutus Biscuit coat unlocked</b><small>Free, yours to keep.</small></span></div>` : ''}
       <div class="dare ${o.dareLink ? '' : 'hidden'}">

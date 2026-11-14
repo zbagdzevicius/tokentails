@@ -488,3 +488,5 @@ html[data-quality='low'] .cs-tile .cs-sf.cs-face { transition: none; }
 .cs-champ .pl-btn { min-height: 32px; padding: 4px 10px; font-size: 12px; }
 .cs-champ .cs-togo { font-size: 12px; opacity: 0.9; }
 .cs-new.champ-free { background: var(--v6-success-deep, #0e8f5b); color: #fff; }
+/* gaps4 chromas: a not-yet-earned chroma (its swatch shows the colour; the title says how to earn it) */
+.cs-ls-row .chip.chroma.locked { opacity: 0.45; cursor: default; }

@@ -19,14 +19,15 @@ import { onSkinsChanged } from '../render/skins/registry';
 import { recordLadder } from '../meta/ladder';
 import { GRADE_TREAT_XP, gradeMatch } from '../meta/grade';
 import { HERO_IDS, HEROES } from '../data/heroes';
-import { accountState, heroForSide, loadProfile, noteChampionMatch, noteHeroMatch, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
+import { accountState, heroForSide, loadProfile, noteChampionMatch, noteCoatMatch, noteHeroMatch, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, pickOffer, type Offer, type OfferScreen } from '../money/offer';
 import { isSku, type SkuId } from '../money/skus';
 import { CATALOG_SKUS, CHAMPION_IDS, STARTERS, catalogSku, champSkuOf, type CatalogSku } from '../money/catalog';
 import { appHidden, canPlay, champStatus, localChampions, lockReason, openChampions, ownedCount, type ChampionsState } from '../meta/champions';
-import { PAID_COATS, bestFrame, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
+import { PAID_COATS, bestFrame, coatDyes, coatPalette, hasChromas, lookItems, lookKey, resolveLook, titleOf, wardrobe, type Look, type Owned } from '../render/cosmetics';
+import { chromaDef, chromasEarned } from '../render/skins/coatChromas';
 import { ArtStage } from '../ui/stage/artStage';
 import { Lobby } from '../render/lobby';
 import { heroSplashUrl, onSkinArt, splashFor } from '../ui/art';
@@ -66,9 +67,8 @@ import { initLiveops, liveopsState } from '../meta/liveops';
 import { legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef } from '../ui/modeSelect/modes';
 import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard, type RankedKind } from '../meta/ranked';
 import { heroElement } from '../ui/cards/el';
-import { consentPrompt, settingsPanel } from '../ui/settings';
-import { notePurchase, storePanel, type StoreTab } from '../ui/store';
-import { passPanel } from '../ui/passPanel';
+import { consentPrompt } from '../ui/consentPrompt';
+import { notePurchase, type StoreTab } from '../ui/storeCore';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { selfNames } from '../meta/cardName';
 import type { MatchEnd, MatchSession, MatchSetup } from './matchSession';
@@ -83,7 +83,6 @@ const loadMatch = (): Promise<typeof import('./matchSession')> => import('./matc
 import { canPickDifficulty, difficultyFor, forfeitTick, guideMode, isRookie, pickable, PICK_DIFFICULTY_FROM, rookieAvailable } from './firstSession';
 import { dayKey, followsHero, loadQuests, progressQuests, questViews, saveQuests } from '../meta/quests';
 import { addTreatXp, loadTreats, loadTreatsRaw, migrateTreats, perMinuteShare, saveTreats, treatXpFor } from '../meta/treats';
-import { collectionPanel } from '../ui/collection';
 import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
@@ -464,7 +463,27 @@ export class App {
   private owned(): Owned {
     const s = this.ent.snapshot();
     // Paw Legends stands on its own: no Token Tails cats, so no cat coats, tints or tier frames (NO-TOKENTAILS.md)
-    return { items: s.items, unlocks: new Set(loadProfile().unlocks), roster: EMPTY_ROSTER };
+    const p = loadProfile();
+    return { items: s.items, unlocks: new Set(p.unlocks), roster: EMPTY_ROSTER, coatPlays: p.coatPlays };
+  }
+
+  /**
+   * gaps4 chromas: what the Heroes browser's Coats tab needs to wear a coat in one of its chromas (the coats this
+   * player owns on a hero, the chromas earned on each, the look worn now) and to put one on. Visual only.
+   */
+  private coatWear(): import('../ui/champBrowser/champBrowser').CoatWear {
+    return {
+      owns: (h, coat) => wardrobe(h, this.owned()).some((c) => c.id === coat),
+      dyes: (coat) => coatDyes(coat, this.owned()),
+      plays: (coat) => loadProfile().coatPlays[coat] ?? 0,
+      worn: (h) => this.lookFor(h),
+      wear: (h, look) => {
+        const q = loadProfile();
+        q.looks[h] = { coat: look.coat, chroma: look.chroma, ...(look.dye ? { dye: look.dye } : {}) };
+        saveProfile(q);
+        this.setLobbyHero(h);
+      },
+    };
   }
 
   private artTimer: ReturnType<typeof setTimeout> | null = null;
@@ -971,6 +990,7 @@ export class App {
           hero: h,
           within: this.screenEl,
           look: (x) => this.lookFor(x),
+          coatWear: this.coatWear(),
           onBrowse: (x) => this.setLobbyHero(x),
           onClose: () => this.setLobbyHero(this.dare?.hero ?? this.choice.hero),
           action: { state: (x) => this.heroAction(x), on: (x, kind) => (kind === 'select' ? this.selectHomeHero(x) : this.openStore('lobby', 'champions', x)) },
@@ -1133,7 +1153,7 @@ export class App {
         playerName: this.integration.state().playerName ?? null,
         onLook: (h, look) => {
           const q = loadProfile();
-          q.looks[h] = { coat: look.coat, chroma: look.chroma };
+          q.looks[h] = { coat: look.coat, chroma: look.chroma, ...(look.dye ? { dye: look.dye } : {}) };
           saveProfile(q);
           this.setLobbyHero(h);
         },
@@ -1750,9 +1770,19 @@ export class App {
       this.showTitle();
       return;
     }
+    // gaps4 chromas: a finished match in a coat with chromas counts toward them (a new one is named on the results)
+    let chromaEarned: { name: string; coat: string } | null = null;
     if (!sandbox) {
       noteChampionMatch(e.replay.hero);
       noteHeroMatch(e.replay.hero);
+      const worn = this.lookFor(e.replay.hero).coat;
+      if (worn && hasChromas(worn) && !practice) {
+        const before = chromasEarned(loadProfile().coatPlays[worn] ?? 0);
+        const after = chromasEarned(noteCoatMatch(worn));
+        const fresh = chromaDef(after.find((k) => !before.includes(k)));
+        const coatName = wardrobe(e.replay.hero, this.owned()).find((c) => c.id === worn)?.name ?? null;
+        if (fresh && coatName && coatPalette(worn)) chromaEarned = { name: fresh.name, coat: coatName };
+      }
     }
     // Treat Track and daily quests (local, free, fixed order); recordMatch counted this match already.
     // GAPS B2: a forfeit pays TREAT_XP.forfeit only: no quest progress, no grade or first-win XP, a full ladder loss.
@@ -1882,6 +1912,7 @@ export class App {
         heroDamage: e.fun.heroDamage,
         bestMoment: e.fun.best,
         treats,
+        chromaEarned,
         quests: quests.views,
         table,
         progress,
@@ -2204,42 +2235,46 @@ export class App {
     this.offerEl?.close();
     this.offerEl = null;
     this.analytics.track('store_open', { from });
-    const panel = storePanel(this.root, {
-      snapshot: () => this.ent.snapshot(),
-      termsUrl: this.termsUrl(),
-      checkout: this.checkout,
-      onClose: () => {
-        this.overlay = null;
-        this.refreshMeta(false);
-      },
-      onNotify: () => this.notify('store'),
-      onBuy: (sku) => {
-        this.pendingReveal = sku;
-        this.analytics.track('checkout_start', { sku });
-      },
-      // a face (ui/art.ts) for the frame previews; the coat cards show the skin's painted splash (store.ts `coatImg`)
-      preview: (hero, coat) => ((HERO_IDS as readonly string[]).includes(hero) ? portraitUrl(hero as HeroId, { coat, chroma: null }) : null),
-      equipped: () => {
-        const p = loadProfile();
-        const worn = new Set<string>();
-        for (const l of Object.values(p.looks)) if (l?.coat) worn.add(l.coat);
-        if (p.wornFrame) worn.add(p.wornFrame);
-        if (p.wornTitle) worn.add(p.wornTitle);
-        return worn;
-      },
-      onEquip: (def) => this.equipStore(def),
-      onPass: () => this.openPass(),
-      tab,
-      ...(hero ? { hero } : {}),
-      // CHAMPION-STORE.md §10: the champion grid reads the same champions the pick does, and unlocks the same way
-      champs: () => this.champs(),
-      isApp: this.isApp(),
-      onUnlock: (h, via) => this.unlockChamp(h, via),
-      onInfo: (h, within) => void openChampInfo({ hero: h, within, parent: within }),
-      // gaps3 coat-fx: the coat's ultimate, recall and takedown clips, in the champion browser's Coats tab
-      onCoatFx: (h, coat, within) => void openChampInfo({ hero: h, within, parent: within, coat }),
+    // gaps4 first-load JS: the store panel, its CSS and card art load when it first opens
+    void import('../ui/store').then(({ storePanel }) => {
+      if (this.overlay) return;
+      const panel = storePanel(this.root, {
+        snapshot: () => this.ent.snapshot(),
+        termsUrl: this.termsUrl(),
+        checkout: this.checkout,
+        onClose: () => {
+          this.overlay = null;
+          this.refreshMeta(false);
+        },
+        onNotify: () => this.notify('store'),
+        onBuy: (sku) => {
+          this.pendingReveal = sku;
+          this.analytics.track('checkout_start', { sku });
+        },
+        // a face (ui/art.ts) for the frame previews; the coat cards show the skin's painted splash (store.ts `coatImg`)
+        preview: (hero, coat) => ((HERO_IDS as readonly string[]).includes(hero) ? portraitUrl(hero as HeroId, { coat, chroma: null }) : null),
+        equipped: () => {
+          const p = loadProfile();
+          const worn = new Set<string>();
+          for (const l of Object.values(p.looks)) if (l?.coat) worn.add(l.coat);
+          if (p.wornFrame) worn.add(p.wornFrame);
+          if (p.wornTitle) worn.add(p.wornTitle);
+          return worn;
+        },
+        onEquip: (def) => this.equipStore(def),
+        onPass: () => this.openPass(),
+        tab,
+        ...(hero ? { hero } : {}),
+        // CHAMPION-STORE.md §10: the champion grid reads the same champions the pick does, and unlocks the same way
+        champs: () => this.champs(),
+        isApp: this.isApp(),
+        onUnlock: (h, via) => this.unlockChamp(h, via),
+        onInfo: (h, within) => void openChampInfo({ hero: h, within, parent: within }),
+        // gaps3 coat-fx: the coat's ultimate, recall and takedown clips, in the champion browser's Coats tab
+        onCoatFx: (h, coat, within, dye) => void openChampInfo({ hero: h, within, parent: within, coat, ...(dye ? { dye } : {}), coatWear: this.coatWear() }),
     });
     this.overlay = Object.assign(panel, { kind: 'store' as const });
+    });
   }
 
   /** Equip an owned store item (STORE-PASS.md §4): a coat on its hero, a frame and its title worn. Visual only. */
@@ -2260,29 +2295,32 @@ export class App {
   private openPass(): void {
     if (this.overlay) return;
     this.analytics.track('pass_open', {});
-    const panel = passPanel(this.root, {
-      snapshot: () => this.ent.snapshot(),
-      claim: (row, tier) => {
-        const ok = this.bridge.post('pass-claim', row ? { row, tier } : { all: true });
-        if (ok) this.analytics.track('pass_claim', { row: row ?? 'all', tier: tier ?? 0 });
-        return ok;
-      },
-      buy: (sku) => {
-        const ok = this.checkout.buy(sku);
-        if (ok) {
-          this.pendingReveal = sku;
-          this.analytics.track('checkout_start', { sku });
-        }
-        return ok;
-      },
-      portrait: (h, item) => portraitUrl(h, { coat: item, chroma: null }),
-      onTrack: () => this.openCollection(),
-      onClose: () => {
-        this.overlay = null;
-        this.refreshMeta(false);
-      },
+    void import('../ui/passPanel').then(({ passPanel }) => {
+      if (this.overlay) return;
+      const panel = passPanel(this.root, {
+        snapshot: () => this.ent.snapshot(),
+        claim: (row, tier) => {
+          const ok = this.bridge.post('pass-claim', row ? { row, tier } : { all: true });
+          if (ok) this.analytics.track('pass_claim', { row: row ?? 'all', tier: tier ?? 0 });
+          return ok;
+        },
+        buy: (sku) => {
+          const ok = this.checkout.buy(sku);
+          if (ok) {
+            this.pendingReveal = sku;
+            this.analytics.track('checkout_start', { sku });
+          }
+          return ok;
+        },
+        portrait: (h, item) => portraitUrl(h, { coat: item, chroma: null }),
+        onTrack: () => this.openCollection(),
+        onClose: () => {
+          this.overlay = null;
+          this.refreshMeta(false);
+        },
     });
     this.overlay = Object.assign(panel, { kind: 'pass' as const });
+    });
   }
 
   private notify(where: 'store' | 'results'): void {
@@ -2396,35 +2434,38 @@ export class App {
       const a = tiles[h]?.art;
       if (a) art[h] = a;
     }
-    const el = collectionPanel(this.root, {
-      treats: loadTreats(),
-      owned: new Set<string>([...p.unlocks, ...this.ent.snapshot().items]),
-      art,
-      portrait: (h) => portraitUrl(h, null),
-      wornTitle: p.wornTitle,
-      wornFrame: p.wornFrame,
-      onTarget: (h) => {
-        const t = loadTreats();
-        t.target = h;
-        saveTreats(t);
-      },
-      onWear: (kind, id) => {
-        const q = loadProfile();
-        if (kind === 'title') q.wornTitle = id;
-        else q.wornFrame = id;
-        saveProfile(q);
-      },
-      onPass: () => this.openPass(),
-      // MATCH-MOMENTS.md §1: the profile entry's Match history
-      onHistory: () => this.openHistory(),
-      champions: { owned: ownedCount(this.champs(), this.isApp()), total: CHAMPION_IDS.length, founders: this.champs().founders, yarn: this.champs().yarn.balance },
-      onClose: () => {
-        this.overlay = null;
-        // one redraw, without the offer check: the Treat Track panel never leads to an offer
-        this.refreshMeta(false);
-      },
+    void import('../ui/collection').then(({ collectionPanel }) => {
+      if (this.overlay) return;
+      const el = collectionPanel(this.root, {
+        treats: loadTreats(),
+        owned: new Set<string>([...p.unlocks, ...this.ent.snapshot().items]),
+        art,
+        portrait: (h) => portraitUrl(h, null),
+        wornTitle: p.wornTitle,
+        wornFrame: p.wornFrame,
+        onTarget: (h) => {
+          const t = loadTreats();
+          t.target = h;
+          saveTreats(t);
+        },
+        onWear: (kind, id) => {
+          const q = loadProfile();
+          if (kind === 'title') q.wornTitle = id;
+          else q.wornFrame = id;
+          saveProfile(q);
+        },
+        onPass: () => this.openPass(),
+        // MATCH-MOMENTS.md §1: the profile entry's Match history
+        onHistory: () => this.openHistory(),
+        champions: { owned: ownedCount(this.champs(), this.isApp()), total: CHAMPION_IDS.length, founders: this.champs().founders, yarn: this.champs().yarn.balance },
+        onClose: () => {
+          this.overlay = null;
+          // one redraw, without the offer check: the Treat Track panel never leads to an offer
+          this.refreshMeta(false);
+        },
     });
     this.overlay = { close: () => el.remove() };
+    });
   }
 
   private openSettings(after?: () => void): void {
@@ -2432,75 +2473,79 @@ export class App {
       after?.();
       return;
     }
-    const p = loadProfile();
-    const account = this.integration.accountModel();
-    const el = settingsPanel(this.root, {
-      state: {
-        muted: sfx.isMuted,
-        tier: this.tier,
-        tipsOn: tipsDue(p),
-        stats: this.analytics.configured ? this.analytics.live : null,
-        skinFx: p.skinFx,
-        saver: batterySaver().on,
-        saverAuto: batterySaver().by === 'auto',
-        warm: this.governor.step > 0,
-        fps: matchFps(),
-        fpsChoices: fpsChoicesFor(refreshHz()),
-      },
-      onFps: (f) => {
-        setMatchFps(f);
-        this.pacer.reset();
-        this.analytics.track('quality_tier', { tier: this.tier, fps: f, by: 'user' });
-      },
-      onSaver: (on) => {
-        setBatterySaver(on);
-        this.analytics.track('quality_tier', { tier: this.tier, saver: on, by: 'user' });
-      },
-      onSkinFx: (m) => {
-        const q = loadProfile();
-        q.skinFx = m;
-        saveProfile(q);
-      },
-      onMute: (m) => this.setMuted(m),
-      onTier: (t) => this.setTier(t),
-      onTips: (on) => {
-        const q = loadProfile();
-        q.tipsOff = !on;
-        q.tipsNext = on;
-        saveProfile(q);
-      },
-      onStats: (on) => this.analytics.setConsent(on),
-      termsUrl: this.termsUrl(),
-      ...(account ? { account: { model: account, send: (a) => void this.integration.account(a) } } : {}),
-      ...(this.pushKey && pushSupported()
-        ? {
-            push: {
-              state: () => {
-                const q = loadPushPrefs();
-                return { on: q.on, cats: q.cats, blocked: permission() === 'denied' };
+    // gaps4 first-load JS: the Settings panel loads when it first opens
+    void import('../ui/settings').then(({ settingsPanel }) => {
+      if (this.overlay) return;
+      const p = loadProfile();
+      const account = this.integration.accountModel();
+      const el = settingsPanel(this.root, {
+        state: {
+          muted: sfx.isMuted,
+          tier: this.tier,
+          tipsOn: tipsDue(p),
+          stats: this.analytics.configured ? this.analytics.live : null,
+          skinFx: p.skinFx,
+          saver: batterySaver().on,
+          saverAuto: batterySaver().by === 'auto',
+          warm: this.governor.step > 0,
+          fps: matchFps(),
+          fpsChoices: fpsChoicesFor(refreshHz()),
+        },
+        onFps: (f) => {
+          setMatchFps(f);
+          this.pacer.reset();
+          this.analytics.track('quality_tier', { tier: this.tier, fps: f, by: 'user' });
+        },
+        onSaver: (on) => {
+          setBatterySaver(on);
+          this.analytics.track('quality_tier', { tier: this.tier, saver: on, by: 'user' });
+        },
+        onSkinFx: (m) => {
+          const q = loadProfile();
+          q.skinFx = m;
+          saveProfile(q);
+        },
+        onMute: (m) => this.setMuted(m),
+        onTier: (t) => this.setTier(t),
+        onTips: (on) => {
+          const q = loadProfile();
+          q.tipsOff = !on;
+          q.tipsNext = on;
+          saveProfile(q);
+        },
+        onStats: (on) => this.analytics.setConsent(on),
+        termsUrl: this.termsUrl(),
+        ...(account ? { account: { model: account, send: (a) => void this.integration.account(a) } } : {}),
+        ...(this.pushKey && pushSupported()
+          ? {
+              push: {
+                state: () => {
+                  const q = loadPushPrefs();
+                  return { on: q.on, cats: q.cats, blocked: permission() === 'denied' };
+                },
+                names: PUSH_CAT_NAME,
+                toggle: (on: boolean) => {
+                  if (on) return this.pushTurnOn('settings');
+                  this.analytics.track('push_prefs', { on: false });
+                  return disablePush(this.pushApi).then(() => null);
+                },
+                setCat: (cat: string, on: boolean) => {
+                  const cats = loadPushPrefs().cats.filter((c) => c !== cat);
+                  if (on) cats.push(cat as PushCat);
+                  this.analytics.track('push_prefs', { cat, on });
+                  return setPushCats(this.pushApi, PUSH_CATS.filter((c) => cats.includes(c)));
+                },
               },
-              names: PUSH_CAT_NAME,
-              toggle: (on: boolean) => {
-                if (on) return this.pushTurnOn('settings');
-                this.analytics.track('push_prefs', { on: false });
-                return disablePush(this.pushApi).then(() => null);
-              },
-              setCat: (cat: string, on: boolean) => {
-                const cats = loadPushPrefs().cats.filter((c) => c !== cat);
-                if (on) cats.push(cat as PushCat);
-                this.analytics.track('push_prefs', { cat, on });
-                return setPushCats(this.pushApi, PUSH_CATS.filter((c) => cats.includes(c)));
-              },
-            },
-          }
-        : {}),
-      onClose: () => {
-        this.overlay = null;
-        if (this.screen === 'title') this.showTitle();
-        after?.();
-      },
+            }
+          : {}),
+        onClose: () => {
+          this.overlay = null;
+          if (this.screen === 'title') this.showTitle();
+          after?.();
+        },
     });
     this.overlay = { close: () => el.remove() };
+    });
   }
 
   private consentEl: HTMLElement | null = null;

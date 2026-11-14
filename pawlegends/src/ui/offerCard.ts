@@ -6,7 +6,7 @@
 import type { CheckoutBridge } from '../money/checkoutBridge';
 import { endsText, type Offer } from '../money/offer';
 import { browserCurrency, type SkuId } from '../money/skus';
-import { skuCard } from './store';
+import { skuCard } from './storeCore';
 
 export interface OfferCardOpts {
   offer: Offer;

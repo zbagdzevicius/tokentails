@@ -18,9 +18,8 @@
  */
 import { CheckoutBridge } from '../money/checkoutBridge';
 import type { StoreSnapshot } from '../money/entitlements';
-import { MVP_TARGET, SKUS, priceText, type Currency, type SkuId } from '../money/skus';
 import { CATALOG_SKUS, CHAMPIONS, CHAMP_BUNDLE_SKUS, EFFECT_COATS, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU, STORE_COATS, STORE_FRAMES, champSkuOf, championDef, coatSkuOf, frameSkuOf, isStarter, type CatalogFrame, type CatalogSku, type CoatRung } from '../money/catalog';
-import { champStatus, localChampions, matchesFor, rotationEndText, unlockInfo, yarnText, type ChampionsState } from '../meta/champions';
+import { champStatus, matchesFor, rotationEndText, unlockInfo, yarnText, type ChampionsState } from '../meta/champions';
 import type { ChampTier } from '../money/catalog';
 import type { HeroId, HeroRole } from '../data/heroes/types';
 import { ROLE_NAME, ROLE_ORDER, isNewHero } from './champSelect/roles';
@@ -28,119 +27,21 @@ import { HERO_TEXT } from './heroText';
 import { DIFFICULTY_NAME, HERO_DIFFICULTY } from './champBrowser/meta';
 import { DEFAULT_FILTER, SORT_KEYS, SORT_LABEL, allCards, champCard, loadSort, newestHeroes, saveSort, splashAttrs, visibleCards, type ChampCard, type ChampFilter, type SideFilter, type SortKey } from './champStore/model';
 import './champStore/champStore.css';
-import { PAID_COATS } from '../render/cosmetics';
+import { PAID_COATS, coatPalette } from '../render/cosmetics';
+import { CHROMAS, chromaPalette, cssHex } from '../render/skins/coatChromas';
 import { coatPartsLine } from '../render/skins/coatVfx';
 import { coatTheme } from '../render/skins/coatThemes';
 import { browserCurrency } from '../money/skus';
 import { icon } from './icons';
-import { SKU_LOOK } from '../render/portraits';
-import { artImgAttrs, artLayers, skinArtId } from './art';
+import { artImgAttrs, skinArtId } from './art';
 import { HERO_IDS } from '../data/heroes';
 import { assetRev } from './assetRev';
 import { masteryRibbonHtml } from './rewards/rewards';
 
-/** Plain words for the planned extras the pack lines name (they are not on sale yet). */
-const GLOSSARY: readonly [RegExp, string][] = [
-  [/Pride Club/, 'Pride Club: a planned monthly membership, not on sale yet.'],
-  [/Legends Pass\+/, 'Legends Pass+: the planned season pass with extra rewards.'],
-  [/Legends Pass(?!\+)/, 'Legends Pass: the planned season pass (free and paid tracks).'],
-];
-
-export function glossaryFor(text: string): string[] {
-  return GLOSSARY.filter(([re]) => re.test(text)).map(([, line]) => line);
-}
-
-/**
- * Spending safeguards shown in the store (POC.md §8.5): VAT and the 30-day cap. The sheets no longer ask the age
- * (founder, Nov 12): the server holds an unknown buyer to the 16-17 cap and keeps a stored 18+ answer's cap.
- */
-export function safeguardsLine(currency: Currency): string {
-  const c = currency === 'eur' ? '€' : '$';
-  return `Prices include VAT. Spending limit ${c}30 per 30 days (${c}200 if you told us earlier you are 18 or older).`;
-}
-
-/** Purchases made in this page session: the store then hides the upsell (no "€20 more" right after a purchase). */
-let boughtThisSession = false;
-export const purchasedThisSession = (): boolean => boughtThisSession;
-export function notePurchase(ok: boolean): void {
-  if (ok) boughtThisSession = true;
-}
+export * from './storeCore';
+import { catalogPrice, champsOf, champsOwned, itemState, notePurchase, priceFor, safeguardsLine, type ItemState, type StoreTab } from './storeCore';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
-
-const LAUNCH = (() => {
-  const d = new Date(`${MVP_TARGET}T12:00:00Z`);
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-})();
-
-/** One SKU card (also used by the offer card). */
-export function skuCard(sku: SkuId, currency: Currency, opts: { compact?: boolean } = {}): string {
-  const d = SKUS[sku];
-  // the painted art of the look the pack is named after (the skin's splash over Clem's own)
-  const art = `<div class="pl-sku-art pic sku-${sku}" style="background-image:${artLayers('clem', SKU_LOOK[sku], 360)}" role="img" aria-label="${esc(d.tag)}"></div>`;
-  const gloss = opts.compact ? [] : glossaryFor(d.deliveredAtMvp);
-  return `<div class="pl-sku ${opts.compact ? 'compact' : ''}" data-sku="${sku}">
-    ${art}
-    <div class="pl-sku-body">
-      <b class="name">${esc(d.name)}</b>
-      <small class="tag">${esc(d.tag)}</small>
-      ${
-        opts.compact
-          ? `<p class="now"><i>Now</i> ${esc(d.deliveredNow)}</p>`
-          : `<p class="now"><i>Now</i> ${esc(d.deliveredNow)}</p><p class="later"><i>At full launch (target ${esc(LAUNCH)})</i> ${esc(d.deliveredAtMvp)}</p>${gloss.map((g) => `<p class="gloss">${esc(g)}</p>`).join('')}`
-      }
-    </div>
-    <button class="pl-btn small buy" data-buy="${sku}">${esc(priceText(sku, currency))}</button>
-  </div>`;
-}
-
-export type StoreTab = 'featured' | 'champions' | 'coats' | 'frames' | 'sets' | 'pass';
-
-/** "$2.99" / "€2.99" for a catalogue SKU (display only). */
-export function catalogPrice(def: Pick<CatalogSku, 'cents'>, currency: Currency): string {
-  const c = def.cents[currency];
-  const v = `${Math.floor(c / 100)}.${String(c % 100).padStart(2, '0')}`;
-  return currency === 'eur' ? `€${v}` : `$${v}`;
-}
-
-export type ItemState = 'buy' | 'owned' | 'partly' | 'locked';
-
-/** The champions state the store reads (the host's, else starters and the rotation). */
-const champsOf = (s: Partial<Pick<StoreSnapshot, 'champions'>>): ChampionsState => s.champions ?? localChampions();
-
-/** Champions in a champion SKU the player owns (starters count; the store runs on the web only). */
-export function champsOwned(def: CatalogSku, s: Partial<Pick<StoreSnapshot, 'champions'>>): number {
-  const c = champsOf(s);
-  return def.items.filter((i) => {
-    const st = champStatus(i.slice('champ.'.length), c);
-    return st === 'owned' || st === 'starter';
-  }).length;
-}
-
-/** What a catalogue SKU costs this player: a champion bundle's prorated price (the server's), else the list price. */
-export function priceFor(def: CatalogSku, s: Partial<Pick<StoreSnapshot, 'champions'>>): CatalogSku['cents'] {
-  if (def.kind !== 'champion' || !def.bundleOf) return def.cents;
-  return s.champions?.bundles.find((b) => b.sku === def.sku)?.cents ?? def.cents;
-}
-
-/**
- * A catalogue SKU's state for this player: owned (every item owned), partly (a set with some items owned: the singles
- * are sold instead, no prorated price), locked (the Pass+ upgrade without the Pass, or Pass when Pass+ is owned), or buy.
- */
-export function itemState(def: CatalogSku, s: Pick<StoreSnapshot, 'items' | 'season'> & Partial<Pick<StoreSnapshot, 'champions'>>): ItemState {
-  // champions (CHAMPION-STORE.md §5): owned when every champion in it is; a bundle over some is sold prorated
-  if (def.kind === 'champion') return champsOwned(def, s) === def.items.length ? 'owned' : 'buy';
-  const premium = s.season?.premium ?? 'none';
-  if (def.kind === 'pass') {
-    if (def.sku === PASS_SKU) return premium === 'none' ? 'buy' : 'owned';
-    if (def.sku === PASS_PLUS_SKU) return premium === 'plus' ? 'owned' : premium === 'pass' ? 'locked' : 'buy';
-    return premium === 'plus' ? 'owned' : premium === 'pass' ? 'buy' : 'locked';
-  }
-  const have = def.items.filter((i) => s.items.has(i)).length;
-  if (have === def.items.length) return 'owned';
-  if (def.kind === 'bundle' && have > 0) return 'partly';
-  return 'buy';
-}
 
 /** The SKUs of a tab, in shelf order. */
 export function tabSkus(tab: StoreTab): CatalogSku[] {
@@ -207,7 +108,7 @@ export interface StoreOpts {
   /** Open the champion browser (skills and lore) for `hero` over the store. */
   onInfo?(hero: HeroId, within: HTMLElement): void;
   /** gaps3 coat-fx: open the champion browser's Coats tab on `coat` (its ultimate, recall and takedown clips). */
-  onCoatFx?(hero: HeroId, coat: string, within: HTMLElement): void;
+  onCoatFx?(hero: HeroId, coat: string, within: HTMLElement, dye?: string | null): void;
   /** The cosmetic items the player wears now (coats on their heroes, the frame and title): the Equipped state. */
   equipped?(): ReadonlySet<string>;
 }
@@ -421,6 +322,16 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
    * A coat's painted art: the brand-book skin splash (pawlegends.app, lazy; the hero's splash when it fails to load),
    * else the hero's splash. No 3D render.
    */
+  /**
+   * gaps4 chromas: the coat's four chromas as swatches (earned by playing in the coat, never sold). A tap previews
+   * that chroma in the Heroes browser's Coats tab, where an owned coat is worn in it.
+   */
+  const chromaRow = (coat: string): string => {
+    const pal = coatPalette(coat);
+    if (!pal || !o.onCoatFx) return '';
+    const sw = CHROMAS.map((d) => `<button type="button" class="cst-dye" data-a="coat-fx" data-coat="${esc(coat)}" data-dye="${d.key}" data-k="dye:${d.key}" style="--dye:${cssHex(chromaPalette(pal, d.key).base)}" aria-label="${esc(`Preview the ${d.name} chroma`)}" title="${esc(`${d.name}: ${d.plays} ${d.plays === 1 ? 'match' : 'matches'} in this coat`)}"></button>`).join('');
+    return `<div class="cst-dyes"><span class="cst-dyes-t"><b>${CHROMAS.length} chromas</b> earned by playing in it</span><span class="cst-dye-row">${sw}</span></div>`;
+  };
   const coatImg = (coat: string, sizes: string): string => {
     const h = heroOfCoat(coat);
     const look = { coat };
@@ -521,6 +432,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
           <p class="cst-tags">${esc(tags)}</p>
           <p class="cst-blurb">${esc(what)}</p>
           ${list}
+          ${coat ? chromaRow(coat) : ''}
           <div class="cst-acts">${action}${coat && r && r !== 'COMMON' && o.onCoatFx ? `<button type="button" class="pl-btn ghost small" data-a="coat-fx" data-coat="${esc(coat)}" data-k="coat-fx">Preview effects</button>` : ''}</div>
           <p class="fine">Cosmetic only: nothing here changes a match. Checkout opens on a secure web page.</p>
           ${st === 'buy' ? fine : ''}
@@ -767,7 +679,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     } else if (a === 'coat-fx') {
       const c = t.closest<HTMLElement>('[data-coat]')?.dataset.coat;
       const pc = c ? PAID_COATS[c] : null;
-      if (c && pc) o.onCoatFx?.(pc.hero, c, root);
+      if (c && pc) o.onCoatFx?.(pc.hero, c, root, t.closest<HTMLElement>('[data-dye]')?.dataset.dye || null);
       return;
     } else if (a === 'pass') {
       close();

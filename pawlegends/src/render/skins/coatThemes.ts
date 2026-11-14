@@ -6,7 +6,7 @@ import type { CatTier } from '../../meta/roster';
 import { S1_PLUS_COAT } from '../../money/catalog';
 
 export type CoatFxKind = 'ult' | 'recall' | 'takedown';
-export type CoatTheme = 'thunder' | 'sun' | 'bloom' | 'eclipse' | 'moon' | 'frost';
+export type CoatTheme = 'thunder' | 'sun' | 'bloom' | 'eclipse' | 'moon' | 'frost' | 'deli' | 'grill';
 
 /** Each themed coat: its theme, and the words the store and the Heroes browser show (looks only, never a number). */
 export interface CoatThemeDef {
@@ -23,6 +23,8 @@ export const COAT_THEMES: Readonly<Record<string, CoatThemeDef>> = Object.freeze
   [S1_PLUS_COAT]: { theme: 'eclipse', ult: 'A violet corona and a gold eclipse ring', recall: 'An eclipse orb circles, then the ring', takedown: 'A dark ring and gold motes' },
   'coat.pixel.store_moonwhisker': { theme: 'moon', ult: 'A star shower under a pale moon', recall: 'Stars twinkle round her, then fall', takedown: 'Stars fall on the fallen' },
   'coat.marshmallow.store_frostbell': { theme: 'frost', ult: 'Ice shards, snow and the frost bell', recall: 'Snow falls round her, then a frost ring', takedown: 'Shards burst and the bell rings' },
+  'coat.clem.store_club_sandwich': { theme: 'deli', ult: 'A giant club sandwich stacks up, crumbs fly', recall: 'Crumbs drift down, and a sandwich lands with her', takedown: 'A toothpick flag pins the fallen' },
+  'coat.frankie.store_kebab_king': { theme: 'grill', ult: 'A ring of sizzling skewers and grill flames', recall: 'Steam rises from the grill, then a flame ring', takedown: 'A skewer drops on the fallen, spice flies' },
 });
 
 /** The shared Rare set's words. */

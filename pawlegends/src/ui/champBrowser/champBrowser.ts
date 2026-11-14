@@ -36,7 +36,8 @@ import { cardIcon, esc, skillCardHtml, slotKey } from './cardView';
 import { BROWSE_ORDER, DIFFICULTY_NAME, HERO_DIFFICULTY, stepHero } from './meta';
 import { setChampCovered } from './cover';
 import { masteryChipHtml } from '../rewards/rewards';
-import { PAID_COATS } from '../../render/cosmetics';
+import { PAID_COATS, coatPalette } from '../../render/cosmetics';
+import { CHROMAS, chromaDef, chromaPalette, cssHex, nextChroma } from '../../render/skins/coatChromas';
 import type { CatTier } from '../../meta/roster';
 import { coatFxWords } from '../../render/skins/coatThemes';
 import { coatPartsLine } from '../../render/skins/coatVfx';
@@ -60,6 +61,22 @@ export function effectCoats(h: HeroId): { id: string; name: string; rung: CatTie
 }
 
 export type BrowserTab = 'skills' | 'lore' | 'coats';
+
+/**
+ * gaps4 chromas: what the Coats tab needs to put a coat on in one of its chromas (app.ts `coatWear`). Without it the
+ * tab previews only.
+ */
+export interface CoatWear {
+  /** The player owns `coat` on hero `h`. */
+  owns(h: HeroId, coat: string): boolean;
+  /** The chromas earned on `coat` (keys). */
+  dyes(coat: string): readonly string[];
+  /** Finished matches wearing `coat`. */
+  plays(coat: string): number;
+  /** The look hero `h` wears now. */
+  worn(h: HeroId): Look;
+  wear(h: HeroId, look: Look): void;
+}
 type ClipSlot = 'q' | 'w' | 'e' | 'r';
 
 /** The part of the preview player the browser drives (ui/preview/skillPreview.ts `SkillPreview`). */
@@ -119,6 +136,10 @@ export interface ChampBrowserOpts {
   look?(h: HeroId): Look | null;
   /** gaps3 coat-fx: open on the Coats tab with this coat (the store's coat detail, "Preview effects"). */
   coat?: string | null;
+  /** gaps4: open the Coats tab's coat in this chroma. */
+  dye?: string | null;
+  /** gaps4: wear coats and chromas from the Coats tab (absent: preview only). */
+  coatWear?: CoatWear;
 }
 
 export interface ChampBrowser {
@@ -155,15 +176,20 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   const order = o.order?.length ? o.order : BROWSE_ORDER;
   const portrait = o.portrait ?? ((h: HeroId) => portraitUrl(h));
   // the Coats tab dresses the clip in the chosen coat; the other tabs in the player's own look
-  const lookNow = (h: HeroId): Look | null => (tab === 'coats' && coatSel ? { coat: coatSel, chroma: null } : (o.look?.(h) ?? null));
+  const lookNow = (h: HeroId): Look | null => (tab === 'coats' && coatSel ? { coat: coatSel, chroma: null, ...(dyeSel ? { dye: dyeSel } : {}) } : (o.look?.(h) ?? null));
   const clipFactory = o.clips === undefined ? clipsWith(lookNow) : o.clips;
   const opener = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
   let hero = o.hero;
   let slot: SkillSlot = o.slot ?? 'q';
   let tab: BrowserTab = o.coat ? 'coats' : (o.tab ?? 'skills');
   /** The Coats tab: the chosen coat and clip. */
-  let coatSel: string | null = o.coat && PAID_COATS[o.coat]?.hero === o.hero ? o.coat : (effectCoats(o.hero)[0]?.id ?? null);
+  // the store's coat, else the coat the hero wears (when it has effects), else its best coat
+  const wornNow = o.coat ? null : (o.coatWear?.worn(o.hero) ?? null);
+  const wornFx = wornNow?.coat && effectCoats(o.hero).some((c) => c.id === wornNow.coat) ? wornNow.coat : null;
+  let coatSel: string | null = o.coat && PAID_COATS[o.coat]?.hero === o.hero ? o.coat : (wornFx ?? effectCoats(o.hero)[0]?.id ?? null);
   let coatClip: CoatClipKind = 'r';
+  /** gaps4: the chroma previewed on the chosen coat (null: its own colours). */
+  let dyeSel: string | null = coatSel && o.coat === coatSel && chromaDef(o.dye) ? (o.dye as string) : wornFx && chromaDef(wornNow?.dye) ? (wornNow?.dye as string) : null;
   if (tab === 'coats' && !coatSel) tab = 'skills';
   let codex: HeroCodex = heroCodex(hero);
   let open = true;
@@ -242,7 +268,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   /** Show the clip (or the still) for the current hero and slot. A newer call wins over an older one still loading. */
   let clipSeq = 0;
   /** What a player shows: the hero, the slot, the coat clip and the look it wears. */
-  const clipKey = (h: HeroId, s: ClipSlot, clip: CoatClipKind | null): string => `${h}:${s}:${clip ?? '-'}:${tab === 'coats' ? (coatSel ?? '-') : '-'}`;
+  const clipKey = (h: HeroId, s: ClipSlot, clip: CoatClipKind | null): string => `${h}:${s}:${clip ?? '-'}:${tab === 'coats' ? `${coatSel ?? '-'}~${dyeSel ?? '-'}` : '-'}`;
   const syncClip = (): void => {
     const seq = ++clipSeq;
     const h = hero;
@@ -351,6 +377,33 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       .join('');
   };
 
+  /**
+   * gaps4 chromas: the coat's own colours and its four chromas (any one previews on the clip), and Wear for an owned
+   * coat in an earned chroma; a locked one says how many matches in the coat earn it.
+   */
+  const chromaHtml = (coat: string): string => {
+    const pal = coatPalette(coat);
+    if (!pal) return '';
+    const w = o.coatWear;
+    const owned = !!w?.owns(hero, coat);
+    const earned = owned && w ? w.dyes(coat) : [];
+    const plays = owned && w ? w.plays(coat) : 0;
+    const sw = (key: string | null, name: string, fill: number, locked: boolean): string =>
+      `<button type="button" class="cb-dye${key === dyeSel ? ' on' : ''}${locked ? ' locked' : ''}" data-dye="${key ?? ''}" aria-pressed="${key === dyeSel}" aria-label="${esc(`${name}${locked ? ', not earned yet' : ''}`)}" title="${esc(name)}" style="--dye:${cssHex(fill)}"></button>`;
+    const swatches = [sw(null, 'Own colours', pal.base, false), ...CHROMAS.map((d) => sw(d.key, `${d.name} chroma`, chromaPalette(pal, d.key).base, !earned.includes(d.key)))].join('');
+    const def = chromaDef(dyeSel);
+    const worn = w?.worn(hero);
+    const wearing = !!worn && worn.coat === coat && (worn.dye ?? null) === dyeSel;
+    let line: string;
+    if (!w) line = '';
+    else if (!owned) line = `<p class="cb-dye-note">Preview. Own the coat, then play in it to earn its chromas.</p>`;
+    else if (def && !earned.includes(def.key)) line = `<p class="cb-dye-note" data-dye-left="${def.plays - plays}">${esc(`${def.name}: play ${def.plays - plays} more ${def.plays - plays === 1 ? 'match' : 'matches'} in this coat to earn it.`)}</p>`;
+    else line = `<button type="button" class="pl-btn small cb-dye-wear" data-a="wear"${wearing ? ' aria-disabled="true"' : ''} data-testid="coat-wear">${wearing ? 'Wearing' : `Wear${def ? ` in ${esc(def.name)}` : ''}`}</button>`;
+    const next = owned ? nextChroma(plays) : null;
+    const nextLine = owned && next && !(def && !earned.includes(def.key)) ? `<small class="cb-dye-next">${esc(`Next chroma, ${next.def.name}: ${next.left} more ${next.left === 1 ? 'match' : 'matches'} in this coat.`)}</small>` : '';
+    return `<div class="cb-dyes"><p class="cb-dyes-h"><b>Chromas</b><small>Earned by playing in the coat</small></p><div class="cb-dye-row" role="group" aria-label="Chromas">${swatches}</div>${line}${nextLine}</div>`;
+  };
+
   const drawCard = (): void => {
     if (tab === 'coats') {
       const c = coatSel ? PAID_COATS[coatSel] : null;
@@ -361,7 +414,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       }
       const parts = coatPartsLine(coatSel);
       const rows = COAT_CLIPS.map((k) => `<li${k.k === coatClip ? ' class="on"' : ''}><b>${k.label}</b> ${esc(words[k.key])}</li>`).join('');
-      cardEl.innerHTML = `<h3 class="cb-coat-name">${esc(c.name.replace(/\s*\((Epic|Legendary|Rare)\)$/, ''))}</h3><p class="cb-coat-rung" data-rung="${c.rung}">${RUNG_WORD[c.rung]} coat${c.rung === 'RARE' ? ': the shared Rare effects in its colours' : ': its own effects'}</p><ul class="cb-coat-fx">${rows}</ul>${parts ? `<p class="cb-coat-parts">On the model: ${esc(parts)}.</p>` : ''}<p class="cb-coat-fine">Looks only: nothing in a match changes.</p>`;
+      cardEl.innerHTML = `<h3 class="cb-coat-name">${esc(c.name.replace(/\s*\((Epic|Legendary|Rare)\)$/, ''))}</h3><p class="cb-coat-rung" data-rung="${c.rung}">${RUNG_WORD[c.rung]} coat${c.rung === 'RARE' ? ': the shared Rare effects in its colours' : ': its own effects'}</p><ul class="cb-coat-fx">${rows}</ul>${parts ? `<p class="cb-coat-parts">On the model: ${esc(parts)}.</p>` : ''}${chromaHtml(coatSel as string)}<p class="cb-coat-fine">Looks only: nothing in a match changes.</p>`;
       cardEl.dataset.slot = 'coat';
       cardEl.scrollTop = 0;
       return;
@@ -438,6 +491,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       codex = heroCodex(h);
       if (changed) {
         coatSel = effectCoats(h)[0]?.id ?? null;
+        dyeSel = null;
         if (tab === 'coats' && !coatSel) tab = 'skills';
       }
       if (s) slot = s;
@@ -498,10 +552,29 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       return;
     }
     if (t === root) return api.close();
+    const dyeBtn = t.closest<HTMLElement>('[data-dye]')?.dataset.dye;
+    if (dyeBtn !== undefined && tab === 'coats') {
+      dyeSel = chromaDef(dyeBtn) ? dyeBtn : null;
+      clipPaused = false;
+      drawCard();
+      syncClip();
+      return;
+    }
+    if (a === 'wear' && tab === 'coats' && coatSel && o.coatWear) {
+      const w = o.coatWear;
+      if (!w.owns(hero, coatSel) || (dyeSel && !w.dyes(coatSel).includes(dyeSel))) return;
+      const worn = w.worn(hero);
+      w.wear(hero, { coat: coatSel, chroma: worn.chroma, ...(dyeSel ? { dye: dyeSel } : {}) });
+      drawCard();
+      return;
+    }
     const coatBtn = t.closest<HTMLElement>('[data-coat]')?.dataset.coat;
     const cfx = t.closest<HTMLElement>('[data-cfx]')?.dataset.cfx as CoatClipKind | undefined;
     if (coatBtn || cfx) {
-      if (coatBtn && PAID_COATS[coatBtn]) coatSel = coatBtn;
+      if (coatBtn && PAID_COATS[coatBtn] && coatBtn !== coatSel) {
+        coatSel = coatBtn;
+        dyeSel = null;
+      }
       if (cfx) coatClip = cfx;
       clipPaused = false;
       drawIcons();

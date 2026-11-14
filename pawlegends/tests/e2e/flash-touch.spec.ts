@@ -21,13 +21,20 @@ const screenAngle = (a: number): number => {
  * a run (the press fires, along the way the hero last ran, before the finger lifts).
  *
  * Pounce's cooldown is 2 minutes, so each direction is its own match (a fresh page, speed ×1, so the hero barely moves
- * between the press and the blink). The hero first walks (a minimap move order) to open ground at (25 m, 29 m), clear
- * of walls for 5 m in every direction. The blink is read per sim tick from the e2e track of the own hero
+ * between the press and the blink). The hero first walks (a minimap move order) to open ground round (25 m, 29 m),
+ * clear of walls for 5 m in every direction: for a run-up it stops 3 m short of that spot, back along the stick, and
+ * the press goes in as soon as the run has started (watched per frame in the page, everything else read before the
+ * stick moves), so the blink starts 2 to 3 m short of the spot and lands just past it whatever the machine's load. (gaps4: the old fixed 6-tick run-up let a loaded machine run the hero up to 5 m before the press, so
+ * one direction with a wall about 6 m off, usually S, came within the joystick's 2.4 m wall-slide probe and the game
+ * rightly turned the blink along the wall: the test, not the game, picked a different spot each run.) The blink is read per sim tick from the e2e track of the own hero
  * (`window.__plTrack`, `?e2e=1` only), so a slow frame on a loaded machine (many ticks in one frame) cannot hide it
  * in the running; the frame trace then checks when the drawn hero shows it.
  */
 
 const SPOT = { x: 25000, y: 29000 };
+/** How far back along the stick a run-up starts (mm), and how far the hero runs before the press goes in. */
+const RUN_UP_MM = 3000;
+const RUN_START_MM = 300;
 const DIRS = ['E', 'NE', 'N', 'NW', 'W', 'SW', 'S', 'SE'];
 /** Pounce's blink (data/tricks.ts) and the most a hero runs in one tick (Clem: 5 m/s at 30 Hz, a little over). */
 const BLINK_MM = 4000;
@@ -45,21 +52,48 @@ async function frames(page: Page, n: number): Promise<void> {
   }), n);
 }
 
-async function walkToSpot(page: Page): Promise<void> {
+async function walkTo(page: Page, at: { x: number; y: number }): Promise<void> {
   // feel pass B2: the minimap is turned with the diagonal camera
-  const { x: mx, y: my } = await minimapPoint(page, SPOT.x, SPOT.y);
+  const { x: mx, y: my } = await minimapPoint(page, at.x, at.y);
   // a right-click on the minimap is a move order (the sim paths around the base walls)
   await page.mouse.click(mx, my, { button: 'right' });
   await expect
     .poll(
       async () => {
         const m = await me(page);
-        if (Math.hypot(m.x - SPOT.x, m.y - SPOT.y) > 1200 && m.state === 'idle') await page.mouse.click(mx, my, { button: 'right' });
-        return Math.hypot(m.x - SPOT.x, m.y - SPOT.y);
+        if (Math.hypot(m.x - at.x, m.y - at.y) > 1200 && m.state === 'idle') await page.mouse.click(mx, my, { button: 'right' });
+        return Math.hypot(m.x - at.x, m.y - at.y);
       },
       { timeout: 20000, intervals: [100] },
     )
     .toBeLessThan(1200);
+  // the hero stands where the order put it (the run-up below measures from here)
+  await expect.poll(async () => (await me(page)).state, { timeout: 10000, intervals: [100] }).toBe('idle');
+}
+
+/** The run-up start for map direction `a` (rad): RUN_UP_MM back from the spot (inside its clear 5 m). */
+const runUpFrom = (a: number): { x: number; y: number } => ({ x: Math.round(SPOT.x - Math.cos(a) * RUN_UP_MM), y: Math.round(SPOT.y - Math.sin(a) * RUN_UP_MM) });
+
+/** Notes where the hero stands (call before the stick moves; ranAlong measures from here). */
+async function markRun(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const t = (window as unknown as { __plTrack: number[][] }).__plTrack;
+    (window as unknown as { __runFrom: number[] }).__runFrom = t[t.length - 1];
+  });
+}
+
+/** Waits (per frame, in the page) until the hero has run `mm` along map direction `a` from the markRun spot. */
+async function ranAlong(page: Page, a: number, mm: number): Promise<void> {
+  await page.waitForFunction(
+    ([ux, uy, d]) => {
+      const t = (window as unknown as { __plTrack: number[][] }).__plTrack;
+      const f = (window as unknown as { __runFrom: number[] }).__runFrom;
+      const l = t[t.length - 1];
+      return !!l && !!f && (l[1] - f[1]) * ux + (l[2] - f[2]) * uy >= d;
+    },
+    [Math.cos(a), Math.sin(a), mm] as const,
+    { polling: 'raf', timeout: 20000 },
+  );
 }
 
 interface Shot {
@@ -76,10 +110,10 @@ interface Shot {
 
 type Touch = (type: string, pts: { x: number; y: number; id: number }[]) => Promise<unknown>;
 
-async function setup(page: Page): Promise<{ touch: Touch; stickAt: (dir: number) => { x: number; y: number; id: number }; base: { x: number; y: number; id: number }; trick: { x: number; y: number; id: number } }> {
+async function setup(page: Page, at: { x: number; y: number } = SPOT): Promise<{ touch: Touch; stickAt: (dir: number) => { x: number; y: number; id: number }; base: { x: number; y: number; id: number }; trick: { x: number; y: number; id: number } }> {
   await startFirstMatch(page);
   expect(await attr(page, 'team')).toBe('0');
-  await walkToSpot(page);
+  await walkTo(page, at);
   const trickEl = page.locator('.pl-tbtn.trick');
   await expect(trickEl).not.toHaveClass(/cooling|locked/);
   const tb = (await trickEl.boundingBox())!;
@@ -190,15 +224,17 @@ function checkBlink(shot: Shot, a: number, label: string): number {
 
 /** Joystick held toward `dir`, one real tap on Pounce (only the trick finger lifts), the stick held on. */
 async function flashHeld(page: Page, dir: number): Promise<void> {
-  const { touch, stickAt, base, trick } = await setup(page);
   const a = (dir * Math.PI) / 4;
+  const { touch, stickAt, base, trick } = await setup(page, runUpFrom(a));
   const stick = stickAt(dir);
-  await touch('touchStart', [base]);
-  await touch('touchMove', [stick]);
-  await waitTicks(page, 6);
+  // read before the stick moves: from the run starting to the press is one round trip, so the press spot holds
   const heads0 = await heads(page);
   const tapAt = await traceLen(page);
   const t0 = await tickNow(page);
+  await markRun(page);
+  await touch('touchStart', [base]);
+  await touch('touchMove', [stick]);
+  await ranAlong(page, a, RUN_START_MM);
   await touch('touchStart', [stick, trick]);
   const pressTick = await tickNow(page);
   // a real tap: the trick finger lifts (touchEnd lists the points that lift), the stick thumb stays down
@@ -245,16 +281,17 @@ test.describe('flash on touch at 844x390: the other thumb', () => {
   test.use({ viewport: { width: 844, height: 390 } });
   test('the stick let go in the same breath as the press: the flash still goes, then the hero stops', async ({ page }) => {
     test.setTimeout(150_000);
-    const { touch, stickAt, base, trick } = await setup(page);
     const dir = 0;
     const a = (dir * Math.PI) / 4;
+    const { touch, stickAt, base, trick } = await setup(page, runUpFrom(a));
     const stick = stickAt(dir);
-    await touch('touchStart', [base]);
-    await touch('touchMove', [stick]);
-    await waitTicks(page, 8);
     const heads0 = await heads(page);
     const tapAt = await traceLen(page);
     const t0 = await tickNow(page);
+    await markRun(page);
+    await touch('touchStart', [base]);
+    await touch('touchMove', [stick]);
+    await ranAlong(page, a, RUN_START_MM);
     // press flash and lift the stick thumb in one go (the stick's Stop lands next to the cast)
     await touch('touchStart', [stick, trick]);
     const pressTick = await tickNow(page);
@@ -271,12 +308,14 @@ test.describe('flash on touch at 844x390: the other thumb', () => {
   });
   test('no stick held, after a run: the press fires along the way the hero ran, before the finger lifts', async ({ page }) => {
     test.setTimeout(150_000);
-    const { touch, stickAt, base, trick } = await setup(page);
     const dir = 5;
     const a = (dir * Math.PI) / 4;
+    const { touch, stickAt, base, trick } = await setup(page, runUpFrom(a));
+    await markRun(page);
     await touch('touchStart', [base]);
     await touch('touchMove', [stickAt(dir)]);
-    await waitTicks(page, 20);
+    // a real run (1.2 m), then the stick lets go
+    await ranAlong(page, a, 1200);
     await touch('touchEnd', [stickAt(dir)]);
     // the hero stops and stands
     await waitTicks(page, 12);

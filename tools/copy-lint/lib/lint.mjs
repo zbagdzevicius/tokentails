@@ -58,7 +58,7 @@ export const TARGETS = [
     ruleset: 'client',
     app: true,
     gameCopy: true,
-    storeFiles: ['pawlegends/src/money/**', 'pawlegends/src/ui/store.ts', 'pawlegends/src/ui/offerCard.ts'],
+    storeFiles: ['pawlegends/src/money/**', 'pawlegends/src/ui/store.ts', 'pawlegends/src/ui/storeCore.ts', 'pawlegends/src/ui/offerCard.ts'],
   },
   {
     name: 'backend',

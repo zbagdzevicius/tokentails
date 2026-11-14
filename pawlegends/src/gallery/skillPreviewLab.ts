@@ -26,7 +26,9 @@ const bar = document.getElementById('bar') as HTMLElement;
 const out = document.getElementById('stats') as HTMLElement;
 
 const coatQ = q.get('coat');
-const look: Look | null = coatQ ? { coat: coatQ, chroma: null } : null;
+// gaps4: `&dye=<chroma>` wears the coat in one of its chromas
+const dyeQ = q.get('dye');
+const look: Look | null = coatQ ? { coat: coatQ, chroma: null, ...(dyeQ ? { dye: dyeQ } : {}) } : null;
 
 const { mountSkillPreview } = await import('../ui/preview/skillPreview');
 const level = Number(q.get('level') ?? 0) || undefined;
