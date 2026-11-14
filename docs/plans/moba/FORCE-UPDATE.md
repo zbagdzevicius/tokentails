@@ -1,6 +1,9 @@
 # Paw Legends: force update (OTA, app shells, web)
 
-Status: implemented 2026-11-14 (not yet pushed or published). Worktree `tokentails-pawlegends-ota`.
+Status: live 2026-11-14. Backend `GET /pawlegends/client-policy` on api.tokentails.com (1ef73a3c, 325a3f8a); game build
+325a3f8 on pawlegends.app; compat-2 bundle 20261114083310-a88b5e5 (the first with the update gate) promoted to stable
+on iOS and Android with `promote_now`; the compat-1 bridge 20261114083532-c87335f published to beta and stable on both
+platforms; signed `policy.json` live for ios/android × 1/2. Founder note: https://storage.googleapis.com/pawlegends-pages/ota/index.html
 
 What landed, and where it differs from the design below:
 
@@ -30,7 +33,9 @@ What landed, and where it differs from the design below:
   it applies (a party invite could pull the player into a pick while it downloaded, and the apply would have reloaded
   that pick); and a client whose sim is NEWER than every sim the answering backend replays (a backend instance behind a
   redeploy) is never sent to update or the store (§3.3), online or offline.
-- Not done here: the device drills (§8.3), the first bridge publish (run the workflow with `bridge: beta`).
+- Still open: the device drills (§8.3), above all the bridge on a real 1.0.x phone (store and browser buttons). The
+  bridge went straight to stable (`bridge: stable`) after the emulated check; a broken bridge is reverted by the
+  updater's 30 s watchdog, and a later compat-1 bundle (a rollback) applies on its "title".
 
 Founder's ask (verbatim): "ultracode fix OTA, force update and don't allow to start without syncing to latest
 version ( e.g. API call / etc ). must be backward compatible in some way"
