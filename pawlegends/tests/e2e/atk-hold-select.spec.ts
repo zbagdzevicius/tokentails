@@ -195,10 +195,16 @@ for (const [w, h] of [
       await page.waitForTimeout(120);
     }
     expect(await attr(page, 'atkHold')).toBe('drag');
-    await page.waitForTimeout(600);
-    const after = await me(page);
+    // both fingers stay down while it walks: wait for the walk instead of a fixed 600 ms (a loaded swiftshader run drew
+    // too few frames in that window and read 0 m, QA flaky-qa)
+    await expect
+      .poll(async () => {
+        const p = await me(page);
+        return Math.hypot(p.x - before.x, p.y - before.y);
+      }, { message: 'the hero moved while ATK was held', timeout: 10_000 })
+      .toBeGreaterThan(300);
+    expect(await attr(page, 'atkHold')).toBe('drag');
     await send('touchEnd', []);
-    expect(Math.hypot(after.x - before.x, after.y - before.y), 'the hero moved while ATK was held').toBeGreaterThan(300);
 
     // 6. no conflict with a skill hold-aim or the flash: with the selector up (ATK dragged), a second finger drags Q
     // (its own aim takes the shared ring, never the ATK styling) and the release casts; a tap on the Paw Trick casts

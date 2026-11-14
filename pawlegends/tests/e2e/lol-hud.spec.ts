@@ -94,10 +94,24 @@ test('desktop: keycaps, a decimal under 1 s and one ready flash, the Nap bar, Ta
   await expect(page.locator('.lol-nap.on')).toHaveCount(0, { timeout: 10_000 });
   // Q on cooldown: a decimal under 1 s, then exactly one ready flash for it
   const before = Number((await attr(page, 'cdFlash')) || 0);
+  // every text the Q timer shows, recorded in the page (the sub-second decimal lasts ~0.5 s at speed 2: polling it from
+  // the test missed it on a loaded machine, QA flaky-qa)
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { __qNums: string[] }).__qNums = seen;
+    const slot = document.querySelector('.pl-slot[data-i="0"]')!;
+    const note = () => {
+      const t = slot.querySelector('.num')?.textContent ?? '';
+      if (t && seen[seen.length - 1] !== t) seen.push(t);
+    };
+    new MutationObserver(note).observe(slot, { subtree: true, childList: true, characterData: true });
+  });
   await page.mouse.move(900, 400);
   await page.keyboard.press('q');
   await expect(page.locator('.pl-slot[data-i="0"].cooling')).toBeVisible({ timeout: 5_000 });
-  await expect.poll(async () => (await page.locator('.pl-slot[data-i="0"] .num').textContent()) ?? '', { timeout: 20_000, intervals: [30] }).toMatch(/^0\.\d$/);
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __qNums: string[] }).__qNums.join(' ')), { timeout: 20_000 })
+    .toMatch(/(^| )0\.\d( |$)/);
   await expect.poll(async () => Number((await attr(page, 'cdFlash')) || 0), { timeout: 10_000 }).toBe(before + 1);
   await page.waitForTimeout(600);
   expect(Number((await attr(page, 'cdFlash')) || 0)).toBe(before + 1);

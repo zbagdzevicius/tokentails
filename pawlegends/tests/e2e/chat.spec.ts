@@ -155,7 +155,8 @@ test('two friends: a phrase and text DM, the unread badge, the reply in the open
   for (const p of [a.page, b.page]) {
     const reqs = (await received(p)).filter((m) => m.type === 'api-request');
     expect(reqs.length).toBeGreaterThan(0);
-    for (const r of reqs) expect(JSON.stringify(r)).not.toMatch(/https?:|accesstoken|fb[A-Za-z0-9]{6}/);
+    // op and args only: the request id is random and can contain "fb" + letters (a false token hit, QA flaky-qa)
+    for (const r of reqs) expect(JSON.stringify({ op: r.op, args: r.args })).not.toMatch(/https?:|accesstoken|fb[A-Za-z0-9]{6}/);
   }
 });
 

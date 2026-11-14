@@ -32,6 +32,8 @@ export const NAP_ART = Object.freeze({ hi: 'nap/fountain-960.webp', lo: 'nap/fou
 export const splashOf = (hero: HeroId): string => asset(`splash/${hero}-360.webp`);
 /** How long one tip or lore line stays (ms) on a long nap. */
 export const NAP_LINE_MS = 6000;
+/** The most the card waits (ms) for its knockout's recap after the dead state shows (the event's render-clock lag). */
+export const RECAP_WAIT_MS = 600;
 
 /** Who knocked the player out: a hero (its medallion), a tower or core, or minions and the rest. */
 export interface NapKiller {
@@ -96,6 +98,14 @@ export class NapCard {
   private lineAt = 0;
   private on = false;
   private secs = '';
+  /**
+   * This knockout's recap arrived (knockedOut). The dead state reaches the HUD from the newest snapshot, while the death
+   * event plays on the render clock a little later, so the card waited for it: otherwise it opened on the stock line
+   * and swapped to "Knocked out by ..." a few frames later (QA flaky-qa: nap-card.spec read the stock line).
+   */
+  private recapFresh = false;
+  /** When the dead state was first seen without its recap (ms), or -1. */
+  private deadAt = -1;
   private art = '';
   private readonly calm = reduced();
 
@@ -128,6 +138,11 @@ export class NapCard {
   show(secs: number, low = false, now = Date.now()): void {
     const s = String(Math.max(1, Math.ceil(secs)));
     if (!this.on) {
+      if (!this.recapFresh) {
+        if (this.deadAt < 0) this.deadAt = now;
+        // never more than RECAP_WAIT_MS: a knockout with no death event (a reconnect mid-nap) still shows the card
+        if (now - this.deadAt < RECAP_WAIT_MS) return;
+      }
       this.on = true;
       // the art loads on the first knockout only; Low quality takes the light file
       const art = `url("${asset(low ? NAP_ART.lo : NAP_ART.hi)}")`;
@@ -155,6 +170,7 @@ export class NapCard {
 
   /** Who knocked the player out ("Knocked out by Chomp the Domino") and their medallion. */
   knockedOut(text: string, killer: NapKiller | null = null): void {
+    this.recapFresh = true;
     this.recapEl.textContent = text || 'Your team is still fighting!';
     const m = this.medalEl;
     m.className = 'nc-medal';
@@ -173,8 +189,12 @@ export class NapCard {
 
   /** Back in the fight (or the match ended). */
   hide(): void {
+    this.deadAt = -1;
     if (!this.on) return;
     this.on = false;
+    this.recapFresh = false;
+    // the next knockout never opens on this one's killer
+    this.recapEl.textContent = 'Your team is still fighting!';
     this.secs = '';
     this.el.classList.remove('on');
   }

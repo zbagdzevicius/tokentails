@@ -14,18 +14,23 @@ const heroPx = (page: Page): Promise<[number, number] | null> =>
   });
 
 /**
- * The own hero MODEL's screen px: where its rig was drawn this frame (after the visual push-apart), so a camera that
- * drifted off the model (a lead, a lag) shows, not only the follow point the camera is built on.
+ * The own hero MODEL's screen px: where its rig was drawn this frame, less the render-only push-apart offset (heroes and
+ * structures crowding the spawn are drawn up to SEPARATION.cap + OBSTACLE_CLEAR.cap m apart, easing out as they part),
+ * so a camera that drifted off the model (a lead, a lag) shows, not only the follow point the camera is built on.
+ * QA flaky-qa: with the push-apart left in, a fast run walked off the spawn with the model 1.3-2 m (50-90 px) aside and
+ * failed on origin/main; a slow run had let the crowd part first and passed. Also returns the push-apart (m).
  */
-const modelPx = (page: Page): Promise<[number, number] | null> =>
+const modelPx = (page: Page): Promise<[number, number, number] | null> =>
   page.evaluate(() => {
     type P = { x: number; z: number };
-    const v = (window as unknown as { __plWorld: { view: { lastMe: { id: number } | null; heroes: { drawnAt(id: number): P | null }; gr: { camera: { position: { constructor: new () => { set(x: number, y: number, z: number): { project(c: unknown): { x: number; y: number } } } } } } } } }).__plWorld.view;
+    type Rig = { sepX: number; sepZ: number };
+    const v = (window as unknown as { __plWorld: { view: { lastMe: { id: number } | null; heroes: { drawnAt(id: number): P | null; rigs: Map<number, Rig> }; gr: { camera: { position: { constructor: new () => { set(x: number, y: number, z: number): { project(c: unknown): { x: number; y: number } } } } } } } } }).__plWorld.view;
     const at = v.lastMe ? v.heroes.drawnAt(v.lastMe.id) : null;
-    if (!at) return null;
+    const rig = v.lastMe ? v.heroes.rigs.get(v.lastMe.id) : null;
+    if (!at || !rig) return null;
     const cam = v.gr.camera;
-    const p = new cam.position.constructor().set(at.x, 0, at.z).project(cam);
-    return [((p.x + 1) / 2) * innerWidth, ((1 - p.y) / 2) * innerHeight];
+    const p = new cam.position.constructor().set(at.x - rig.sepX, 0, at.z - rig.sepZ).project(cam);
+    return [((p.x + 1) / 2) * innerWidth, ((1 - p.y) / 2) * innerHeight, Math.hypot(rig.sepX, rig.sepZ)];
   });
 
 for (const [w, h] of [
@@ -51,7 +56,7 @@ for (const [w, h] of [
     for (let i = 1; i <= 5; i++) await send('touchMove', x0 + i * 12, y0 - i * 8);
     const xs: number[] = [];
     const ys: number[] = [];
-    const models: [number, number][] = [];
+    const models: [number, number, number][] = [];
     for (let i = 0; i < 20; i++) {
       const s = await heroPx(page);
       if (s) {
@@ -70,12 +75,12 @@ for (const [w, h] of [
     expect(Math.hypot(end.x - start.x, end.z - start.z), 'the hero walked').toBeGreaterThan(2);
     for (const x of xs) expect(Math.abs(x - w * 0.5)).toBeLessThanOrEqual(2);
     for (const y of ys) expect(Math.abs(y - h * 0.54)).toBeLessThanOrEqual(2);
-    // the drawn model too. It sits up to ~1 m off the follow point while the visual push-apart (heroes crowding the
-    // fountain) eases out, so: within 32 px of the spot, and never drifting away while walking (a lead or a lag would
-    // grow from the first sample as the hero speeds up)
+    // the drawn model too, less its render-only push-apart: on the spot, and never drifting away while walking (a lead
+    // or a lag would grow from the first sample as the hero speeds up). The push-apart itself stays within its caps.
     expect(models.length).toBeGreaterThan(10);
     const offs = models.map(([x, y]) => Math.hypot(x - w * 0.5, y - h * 0.54));
-    for (const o of offs) expect(o, `model offsets ${JSON.stringify(offs)}`).toBeLessThanOrEqual(32);
+    for (const o of offs) expect(o, `model offsets ${JSON.stringify(offs)}`).toBeLessThanOrEqual(6);
     expect(offs.at(-1)!, `model offsets ${JSON.stringify(offs)}`).toBeLessThanOrEqual(offs[0] + 4);
+    for (const [, , sep] of models) expect(sep, 'push-apart (m)').toBeLessThanOrEqual(1.2 + 3.2);
   });
 }

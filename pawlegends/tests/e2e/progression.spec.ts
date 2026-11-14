@@ -97,9 +97,11 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   await page
     .waitForFunction(() => ![...document.querySelectorAll<HTMLElement>('.fx-dmg.fish')].some((e) => Number(getComputedStyle(e).opacity) > 0.05), null, { timeout: 15_000, polling: 'raf' })
     .catch(() => {});
-  const popMs = await page.evaluate(
+  // Measured in drawn frames as well as ms: 300 ms is ~18 frames at 60 fps, but swiftshader on a loaded machine draws a
+  // frame every 200-600 ms, so the wall clock alone failed with the pop on the very next frame (QA flaky-qa: 647 ms)
+  const pop = await page.evaluate(
     () =>
-      new Promise<number>((resolve) => {
+      new Promise<{ ms: number; frames: number }>((resolve) => {
         const w = (window as unknown as { __plWorld: W }).__plWorld;
         const tick = w.view.frame?.latest.clock.tick ?? 0;
         const num = (e: HTMLElement): number => Number((e.textContent ?? '').replace(/[^0-9]/g, '')) || 0;
@@ -107,19 +109,25 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
         // that grew by 7 or more, is the injected Fish shown
         const before = new Map([...document.querySelectorAll<HTMLElement>('.fx-dmg.fish')].map((e) => [e, num(e)] as const));
         const t0 = performance.now();
+        let frames = 0;
         w.inject({ type: 'fish', tick, id: w.view.mySlot, amount: 7, reason: 'lastHit' });
         const look = (): void => {
           const el = [...document.querySelectorAll<HTMLElement>('.fx-dmg.fish')].find(
             (e) => Number(getComputedStyle(e).opacity) > 0.1 && (before.has(e) ? num(e) >= before.get(e)! + 7 : e.textContent === '+7'),
           );
-          if (el) resolve(performance.now() - t0);
-          else if (performance.now() - t0 > 2000) resolve(9999);
-          else requestAnimationFrame(look);
+          if (el) resolve({ ms: performance.now() - t0, frames });
+          else if (performance.now() - t0 > 5000) resolve({ ms: 9999, frames });
+          else {
+            frames++;
+            requestAnimationFrame(look);
+          }
         };
         look();
       }),
   );
-  expect(popMs, '+7 within 300 ms').toBeLessThanOrEqual(300);
+  expect(pop.ms, '+7 shown at all').toBeLessThan(9999);
+  // within 300 ms on a real display (60 fps: 18 frames); the render path shows it within a few drawn frames
+  expect(Math.min(pop.ms, pop.frames * 16.7), `+7 within 300 ms (${Math.round(pop.ms)} ms, ${pop.frames} frames)`).toBeLessThanOrEqual(300);
 
   // F2: the player's Toy: a rail item with its name and stat, the chip's ring burst
   await page.evaluate(() => {
