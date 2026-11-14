@@ -40,6 +40,8 @@ describe("next.config.js", () => {
     const of = (source: string) => headers.find((h) => h.source === source)?.headers;
     expect(of("/pawlegends-game/build/:path*")).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);
     expect(of("/pawlegends-game/index.html")).toContainEqual({ key: "Cache-Control", value: "public, max-age=0, must-revalidate" });
+    // force update: open tabs compare their build with version.json, which revalidates like index.html
+    expect(of("/pawlegends-game/version.json")).toEqual(of("/pawlegends-game/index.html"));
     expect(of("/:path*")).toEqual([{ key: "x-pawlegends-web", value: "1" }]);
   });
 });

@@ -11,7 +11,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import React from "react";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}` }));
 const mockTrack = jest.fn();
@@ -533,6 +533,30 @@ describe("PawlegendsHost: account and saves", () => {
     h2.fromGame({ type: "match-result", replay: REPLAY, matchId: "m10" });
     await settle();
     expect(saves()).toEqual([{ status: "failed", catnipPaid: 0, code: "OTHER", httpStatus: 502 }]);
+  });
+
+  it("force update: a save refused for the sim shows New version ready; Reload and reload-request start the frame on the latest build", async () => {
+    mockAuth.mockReturnValue(account());
+    mockProfile.mockReturnValue({ profile: { cats: [] } });
+    const stale = jest.fn(async () => ({ ok: false, status: 400, code: "PAWLEGENDS_SIM_VERSION", body: null }));
+    const h = await mount({ saveMatch: stale as never });
+    expect(screen.queryByTestId("pawlegends-update")).toBeNull();
+    h.fromGame({ type: "match-result", replay: REPLAY, matchId: "m11" });
+    await settle();
+    expect(h.last("save-result")).toMatchObject({ matchId: "m11", status: "rejected", code: "PAWLEGENDS_SIM_VERSION" });
+    expect(screen.getByTestId("pawlegends-update").textContent).toContain("New version ready");
+    act(() => {
+      fireEvent.click(within(screen.getByTestId("pawlegends-update")).getByRole("button", { name: "Reload" }));
+    });
+    await settle();
+    expect(screen.queryByTestId("pawlegends-update")).toBeNull();
+    expect((screen.getByTestId(PAWLEGENDS_FRAME_TESTID) as HTMLIFrameElement).getAttribute("src")).toMatch(/^\/pawlegends-game\/index\.html\?embed=1&v=[0-9a-z]+$/);
+    // a game build with the update watch asks for the reload itself, naming the new build
+    cleanup();
+    const g = await mount();
+    g.fromGame({ type: "reload-request", reason: "outdated", version: "9c5c82e" });
+    await settle();
+    expect((screen.getByTestId(PAWLEGENDS_FRAME_TESTID) as HTMLIFrameElement).getAttribute("src")).toBe("/pawlegends-game/index.html?embed=1&v=9c5c82e");
   });
 
   it("without a user the match is kept on the device (queued); after sign-in ADD YOUR MATCHES? sends it", async () => {

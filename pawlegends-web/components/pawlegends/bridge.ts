@@ -421,6 +421,11 @@ export type PawlegendsToHostMessage =
   | { type: "pass-claim"; row: "f" | "p" | null; tier: number | null }
   /** CHAMPION-STORE.md §8.6: unlock a champion with Yarn or a Champion Pick (the app too: no money). */
   | { type: "champ-unlock"; hero: string; via: "yarn" | "pick" }
+  /**
+   * Force update (docs/plans/moba/FORCE-UPDATE.md §5.1): the game is outdated and on its title; start the frame again
+   * on the latest build (`version`: its sha, or null).
+   */
+  | { type: "reload-request"; reason: "outdated" | "sim"; version: string | null }
   | { type: "share"; kind: string; url: string; text: string | null }
   | { type: "paused"; paused: boolean }
   /** The player turned the game's Sound on or off: the host's one mute follows (tt:audio:v1). */
@@ -871,6 +876,13 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
       return typeof data.hero === "string" && CHAMP_HERO.test(data.hero) && (data.via === "yarn" || data.via === "pick")
         ? { type: "champ-unlock", hero: data.hero, via: data.via }
         : null;
+    case "reload-request":
+      if (data.reason !== "outdated" && data.reason !== "sim") return null;
+      return {
+        type: "reload-request",
+        reason: data.reason,
+        version: typeof data.version === "string" && /^[0-9a-z]{4,40}$/.test(data.version) ? data.version : null,
+      };
     case "share": {
       const kind = shortId(data.kind, 24);
       // The url is checked against the page origin by the host (`shareUrlOf`); the text is optional (older builds).
@@ -986,6 +998,8 @@ export interface PawlegendsBridgeHandlers {
   onPassClaim?(row: "f" | "p" | null, tier: number | null): void;
   /** CHAMPION-STORE.md §8.6: unlock a champion with Yarn or a Champion Pick; answer a fresh `store`. */
   onChampUnlock?(hero: string, via: "yarn" | "pick"): void;
+  /** Force update (FORCE-UPDATE.md §5.1): the game is outdated and on its title; start the frame on the latest build. */
+  onReloadRequest?(reason: "outdated" | "sim", version: string | null): void;
   /** SOCIAL-RANKED.md §13: one allowlisted API op; answer with `apiResult`. */
   onApiRequest?(request: PawlegendsApiRequest): void;
 }
@@ -1172,6 +1186,9 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
         break;
       case "champ-unlock":
         handlers.onChampUnlock?.(message.hero, message.via);
+        break;
+      case "reload-request":
+        handlers.onReloadRequest?.(message.reason, message.version);
         break;
       case "share":
         handlers.onShare?.(message.kind, message.url, message.text);
