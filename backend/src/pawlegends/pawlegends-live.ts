@@ -399,7 +399,10 @@ export async function savePawlegendsMatch(
             `mutator ${replay.mutator} needs simVersion ${PAWLEGENDS_MUTATOR_PLAY_SINCE} or later`
         );
     }
-    if (PAWLEGENDS_V27_MUTATORS.includes(replay.mutator ?? 'none') && replay.simVersion < PAWLEGENDS_V27_MUTATOR_SINCE) {
+    if (
+        PAWLEGENDS_V27_MUTATORS.includes(replay.mutator ?? 'none') &&
+        replay.simVersion < PAWLEGENDS_V27_MUTATOR_SINCE
+    ) {
         throw reject(
             ErrorCode.PAWLEGENDS_REPLAY_INVALID,
             `mutator ${replay.mutator} needs simVersion ${PAWLEGENDS_V27_MUTATOR_SINCE} or later`
