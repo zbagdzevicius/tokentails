@@ -13,7 +13,7 @@
  */
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import { FREE_COATS } from '../render/cosmetics';
-import { BASE_MODES, registerMode, twistModeDef, unregisterMode } from '../ui/modeSelect/modes';
+import { BASE_MODES, bossModeDef, bossWeekend, registerMode, twistModeDef, unregisterMode } from '../ui/modeSelect/modes';
 import { WEEKLY_TWISTS, type Mutator } from '../sim/api';
 import { loadProfile, saveProfile, UNLOCKS_MAX } from './profile';
 
@@ -79,6 +79,11 @@ export interface LiveopsConfig {
   featuredMode: { id: string; endsAt: number } | null;
   /** Sim v27: the Weekly Twist tile's rule set (the baked rotation offline), or null when the server turned it off. */
   twist: LiveopsTwist | null;
+  /**
+   * Sim v28 (docs/plans/moba/V28.md §4): Boss Weekend's window (running now, else the next one; the baked Friday to
+   * Monday schedule offline), or null when the server turned it off.
+   */
+  boss: { startsAt: number; endsAt: number } | null;
   featuredQuests: string[];
   goal: LiveopsGoal | null;
   vote: LiveopsVote | null;
@@ -115,8 +120,8 @@ const HEX = /^#[0-9a-f]{6}$/i;
 
 /** The modes the baked rotation features (the server's FEATURED_ROTATION). */
 export const FEATURED_ROTATION: readonly string[] = Object.freeze(['blitz', 'skirmish', 'classic']);
-/** The modes the server may feature: the rotation's and sim v27's Weekly Twist tile. */
-export const FEATURABLE: readonly string[] = Object.freeze([...FEATURED_ROTATION, 'twist']);
+/** The modes the server may feature: the rotation's, sim v27's Weekly Twist tile and sim v28's Boss Weekend. */
+export const FEATURABLE: readonly string[] = Object.freeze([...FEATURED_ROTATION, 'twist', 'boss']);
 
 /** The Monday 00:00 UTC after `now`. Pure. */
 export function nextMonday(now: number): number {
@@ -166,9 +171,21 @@ export const NAP_FALLBACK: LiveopsNap = Object.freeze({
 
 /** The config before (or without) a server answer. Pure. */
 export function fallbackConfig(now: number): LiveopsConfig {
-  // sim v27: offline, the baked twist is the featured mode (as on the server)
+  // sim v27: offline, the baked twist is the featured mode (as on the server); sim v28: Boss Weekend on its weekends
   const twist = rotationTwist(now);
-  return { live: false, events: [], featuredMode: { id: 'twist', endsAt: twist.endsAt }, twist, featuredQuests: [], goal: null, vote: null, nap: now < NAP_FALLBACK.endsAt ? NAP_FALLBACK : null };
+  const boss = bossWeekend(now);
+  const featuredMode = now >= boss.startsAt ? { id: 'boss', endsAt: boss.endsAt } : { id: 'twist', endsAt: twist.endsAt };
+  return { live: false, events: [], featuredMode, twist, boss, featuredQuests: [], goal: null, vote: null, nap: now < NAP_FALLBACK.endsAt ? NAP_FALLBACK : null };
+}
+
+/** Sim v28: the server's Boss Weekend window (absent: the baked schedule; null: turned off). Pure. */
+function parseBoss(v: unknown, now: number): { startsAt: number; endsAt: number } | null {
+  if (v === undefined) return bossWeekend(now);
+  if (!isRec(v)) return null;
+  const startsAt = time(v.startsAt);
+  const endsAt = time(v.endsAt);
+  if (startsAt === null || endsAt === null || endsAt <= now || endsAt <= startsAt) return null;
+  return { startsAt, endsAt };
 }
 
 function parseGoal(v: unknown): LiveopsGoal | null {
@@ -224,8 +241,9 @@ export function parseConfig(body: unknown, now: number): LiveopsConfig | null {
   if (!isRec(body) || body.v !== 1) return null;
   const twist = parseTwist(body.twist, now);
   const fm0 = isRec(body.featuredMode) && typeof body.featuredMode.id === 'string' && FEATURABLE.includes(body.featuredMode.id) ? { id: body.featuredMode.id, endsAt: time(body.featuredMode.endsAt) ?? 0 } : null;
-  // a featured twist needs its twist
-  const fm = fm0 && (fm0.id !== 'twist' || twist) ? fm0 : null;
+  const boss = parseBoss(body.boss, now);
+  // a featured twist needs its twist; sim v28: a featured Boss Weekend needs its weekend running
+  const fm = fm0 && (fm0.id !== 'twist' || twist) && (fm0.id !== 'boss' || (boss && now >= boss.startsAt)) ? fm0 : null;
   const events = Array.isArray(body.events)
     ? body.events
         .filter(isRec)
@@ -246,6 +264,7 @@ export function parseConfig(body: unknown, now: number): LiveopsConfig | null {
     events,
     featuredMode: fm && fm.endsAt > now ? fm : twist ? { id: 'twist', endsAt: twist.endsAt } : rotationFeatured(now),
     twist,
+    boss,
     featuredQuests: Array.isArray(body.featuredQuests) ? body.featuredQuests.map((q) => str(q, 60)).filter((q): q is string => !!q).slice(0, 3) : [],
     goal: parseGoal(body.goal),
     vote: parseVote(body.vote),
@@ -335,8 +354,9 @@ export function applyFeatured(f: { id: string; endsAt: number } | null, now = Da
   const prevBase = BASE_MODES.find((m) => m.id === prev);
   if (prevBase) registerMode(prevBase);
   featuredKey = '';
-  // sim v27: the Weekly Twist tile is a timed event by itself (applyTwist): featuring it is only its ribbon
-  if (f && f.id === 'twist' && f.endsAt > now) {
+  // sim v27: the Weekly Twist tile is a timed event by itself (applyTwist): featuring it is only its ribbon. Sim v28:
+  // so is Boss Weekend (applyBoss).
+  if (f && (f.id === 'twist' || f.id === 'boss') && f.endsAt > now) {
     featuredKey = key;
     return true;
   }
@@ -356,6 +376,20 @@ export function applyFeatured(f: { id: string; endsAt: number } | null, now = Da
 }
 
 let twistKey = '';
+let bossKey = '';
+
+/**
+ * Sim v28 (V28.md §4): the Boss Weekend tile, registered with its window (an event: playable inside it, "Next: Fri"
+ * before it); "Coming soon" when the server turned it off. Returns whether the mode list changed.
+ */
+export function applyBoss(b: { startsAt: number; endsAt: number } | null): boolean {
+  const key = b ? `${b.startsAt}@${b.endsAt}` : '';
+  if (key === bossKey) return false;
+  bossKey = key;
+  // turned off: the tile stays, as "Coming soon"
+  registerMode(b ? bossModeDef(b) : { ...bossModeDef(bossWeekend(Date.now())), state: 'soon' });
+  return true;
+}
 
 /**
  * Sim v27 (V27.md §4): the Weekly Twist tile, registered with its week's mutator and a countdown to its end; gone when
@@ -383,6 +417,7 @@ export function initLiveops(call: Api, account: () => boolean, modesChanged?: ()
   hasAccount = account;
   if (modesChanged) onModesChanged = modesChanged;
   applyTwist(state.config.twist);
+  applyBoss(state.config.boss);
   applyFeatured(state.config.featuredMode);
 }
 
@@ -418,7 +453,7 @@ export function refreshLiveops(maxAgeMs = 60_000): Promise<void> {
         }, 1500 * retries);
       }
       if (me) grant(me.items);
-      const twisted = config ? applyTwist(config.twist, now) : false;
+      const twisted = config ? applyTwist(config.twist, now) || applyBoss(config.boss) : false;
       const modes = (config ? applyFeatured(config.featuredMode, now) : false) || twisted;
       emit({ ...(config ? { config } : {}), ...(me ? { me } : {}) });
       if (modes) onModesChanged();

@@ -150,6 +150,12 @@ const C_PLAYFIELD = Object.freeze({
   clearings: Object.freeze([]) as readonly (readonly [number, number, number])[],
   corridors: Object.freeze([]) as readonly (readonly [number, number, number, number, number])[],
   pits: Object.freeze([]) as readonly (readonly [number, number, number])[],
+  /**
+   * Sim v28 (docs/plans/moba/V28.md §2): 1 = the Sunny Lane strip of the Crossing (One Lane Brawl, the Duel, Boss
+   * Weekend): only the first lane's band and the two base plazas are walkable; the other lane, the jungle and the river
+   * between them are forest. 0 = the whole playfield.
+   */
+  strip: 0 as 0 | 1,
 });
 
 /** Footprint radii (mm): range checks use centre distance ≤ range + target radius. Structures also block the nav grid. */
@@ -207,6 +213,8 @@ export interface CampSpot {
  */
 export interface MapDef {
   readonly id: 'crossing' | 'hearthwood';
+  /** Sim v28: a variant of the map (its nav grid and drawing are cached apart): 'strip', the Sunny Lane strip. */
+  readonly variant?: 'strip';
   readonly name: string;
   readonly MAP: Widen<typeof C_MAP>;
   readonly CAPS: Widen<typeof C_CAPS>;
@@ -263,6 +271,17 @@ export const CROSSING: MapDef = Object.freeze({
   NAV: C_NAV,
   coreHp: 0,
   coreArmour: 0,
+});
+
+/**
+ * Sim v28 (V28.md §2): Purrhaven Crossing cut down to its Sunny Lane strip (PLAYFIELD.strip). The same lanes, towers,
+ * cores and spots; the mutators that play it (data/mutators.ts `strip`) keep everything off the strip out of the match.
+ */
+export const CROSSING_STRIP: MapDef = Object.freeze({
+  ...CROSSING,
+  variant: 'strip' as const,
+  name: 'Sunny Lane',
+  PLAYFIELD: Object.freeze({ ...C_PLAYFIELD, strip: 1 as 0 | 1 }),
 });
 
 // The live bindings (sim v19): the active match's map. Crossing until `setMapData` says otherwise.

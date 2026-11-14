@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { BuffFlag, type HeroId } from '../../sim/api';
 import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
-import { NX, NY, createGrid } from '../../sim/map/grid';
+import { NX, NY, createGrid, gridKey } from '../../sim/map/grid';
 import { RELATION } from '../palette';
 import { ELEMENT_COLOR, lookKey, type Look } from '../cosmetics';
 import { boldRingTexture, dashRingTexture, DecalLayer, discTexture, ringTexture } from './decals';
@@ -313,11 +313,18 @@ export function clearOfObstacles(
  * rock or the trees. A body on the next cell's centre is not pushed (1 m ≥ the body's 0.5 + 0.5).
  */
 export const WALL_CELL_R = 0.5;
+/** Sim v28: Boss Weekend's boss model scale (render only). */
+const BOSS_SCALE = 2.4;
 let wallGrid: Uint8Array | null = null;
+let wallGridKey = '';
 const wallSeen = new Set<number>();
 /** Reused wall-cell records (wallObstacles' default output is fresh objects; the per-frame caller passes `pool`). */
 export function wallObstacles(pts: readonly { x: number; z: number }[], out: { x: number; z: number; r: number }[] = [], pool: { x: number; z: number; r: number }[] | null = null): { x: number; z: number; r: number }[] {
-  wallGrid ??= createGrid().walls;
+  // sim v28: rebuilt when another map or variant is bound (the Sunny Lane strip has its own walls)
+  if (!wallGrid || wallGridKey !== gridKey()) {
+    wallGrid = createGrid().walls;
+    wallGridKey = gridKey();
+  }
   out.length = 0;
   const seen = wallSeen;
   seen.clear();
@@ -829,6 +836,9 @@ export class HeroView {
       const lift = this.liftOf ? this.liftOf(e.id) : 0;
       ch.object.position.set(x, -sink + lift, z);
       ch.object.rotation.y = r.yaw + (this.spinOf ? this.spinOf(e.id) : 0);
+      // sim v28 (V28.md §4): Boss Weekend's boss stands BOSS_SCALE tall, a touch bigger each phase
+      const bossK = e.boss ? BOSS_SCALE + (e.boss - 1) * 0.15 : 1;
+      if (ch.object.scale.x !== bossK) ch.object.scale.setScalar(bossK);
       // living pass: a Boing Bed touchdown squashes; the hit flinch leans the body (a visual offset only)
       if (r.lift > 0.3 && lift < 0.05 && !dead) this.land(e.id, 1);
       r.lift = lift;

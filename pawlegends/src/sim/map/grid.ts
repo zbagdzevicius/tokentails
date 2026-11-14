@@ -98,7 +98,15 @@ export function onPlayfield(x: number, y: number): boolean {
   if (PLAYFIELD.open === 2) return onCarved(x, y);
   const [b0, b1, b2, b3] = PLAYFIELD.base;
   if (y >= b1 && y <= b3 && ((x >= b0 && x <= b2) || (x >= mirrorX(b2) && x <= mirrorX(b0)))) return true;
+  // Sim v28 (V28.md §2): the Sunny Lane strip, the first lane's band only (no other lane, no loop).
+  if (PLAYFIELD.strip === 1) return nearLine(LINES[0], x, y, PLAYFIELD.laneHalf);
   return nearLane(x, y, PLAYFIELD.laneHalf) || insideRing(x, y, LOOP);
+}
+
+/** Is (x, y) within `r` of one lane centre line? */
+function nearLine(lane: readonly number[], x: number, y: number, r: number): boolean {
+  for (let k = 0; k + 3 < lane.length; k += 2) if (nearSegment(x, y, lane[k], lane[k + 1], lane[k + 2], lane[k + 3], r)) return true;
+  return false;
 }
 
 /**
@@ -139,9 +147,7 @@ let LINES: readonly (readonly number[])[] = [];
 
 /** Is (x, y) within `r` of any lane's centre line? */
 export function nearLane(x: number, y: number, r: number): boolean {
-  for (const lane of LINES) {
-    for (let k = 0; k + 3 < lane.length; k += 2) if (nearSegment(x, y, lane[k], lane[k + 1], lane[k + 2], lane[k + 3], r)) return true;
-  }
+  for (const lane of LINES) if (nearLine(lane, x, y, r)) return true;
   return false;
 }
 
@@ -188,6 +194,9 @@ function loopOf(): readonly number[] {
   return ring;
 }
 
+/** Sim v28: the cache key of the bound map (a variant such as the Sunny Lane strip has its own walls). */
+export const gridKey = (): string => (ACTIVE_MAP.variant ? `${ACTIVE_MAP.id}:${ACTIVE_MAP.variant}` : ACTIVE_MAP.id);
+
 /** Per map: the lane lines, the loop and the static walls, built once (src/sim/map/runtime.ts bindMap). */
 const BUILT: { id: string; lines: readonly (readonly number[])[]; loop: readonly number[]; walls: Uint8Array; foe: readonly Uint8Array[] }[] = [];
 
@@ -196,8 +205,9 @@ export function rebindGrid(): void {
   NX = idiv(MAP.width, MAP.navCell);
   NY = idiv(MAP.height, MAP.navCell);
   HALF = idiv(MAP.navCell, 2);
+  const key = gridKey();
   for (let i = 0; i < BUILT.length; i++) {
-    if (BUILT[i].id === ACTIVE_MAP.id) {
+    if (BUILT[i].id === key) {
       LINES = BUILT[i].lines;
       LOOP = BUILT[i].loop;
       return;
@@ -208,7 +218,7 @@ export function rebindGrid(): void {
   LINES = lines;
   LOOP = loopOf();
   const walls = staticWalls();
-  BUILT.push({ id: ACTIVE_MAP.id, lines, loop: LOOP, walls, foe: foeDiscs() });
+  BUILT.push({ id: key, lines, loop: LOOP, walls, foe: foeDiscs() });
 }
 
 function staticWalls(): Uint8Array {
@@ -277,7 +287,8 @@ function foeDiscs(): Uint8Array[] {
 }
 
 function built(): (typeof BUILT)[number] {
-  for (let i = 0; i < BUILT.length; i++) if (BUILT[i].id === ACTIVE_MAP.id) return BUILT[i];
+  const key = gridKey();
+  for (let i = 0; i < BUILT.length; i++) if (BUILT[i].id === key) return BUILT[i];
   rebindGrid();
   return built();
 }

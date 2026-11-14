@@ -9,6 +9,7 @@ import { CAMP_KINDS } from '../../data/camps';
 import { BP_ONE, applyBp, idiv } from '../fixed';
 import { Buff, G, Kind, RANGE, type World } from '../world';
 import { bonusSpeedBp } from '../effects/bonus';
+import { mutOf } from '../mutator';
 
 const RADIUS_BY_KIND: readonly number[] = [0, RADIUS.hero, RADIUS.minion, RADIUS.tower, RADIUS.core, RADIUS.fountain, RADIUS.camp, RADIUS.pudding];
 
@@ -113,6 +114,8 @@ const TIER_PREV: readonly string[] = ['', 'outer', 'inner', ''];
  */
 export function isInvulnerable(w: World, id: number): boolean {
   const k = w.kind[id];
+  // Sim v28: Boss Weekend's structures take no damage (`structures`).
+  if ((k === Kind.Tower || k === Kind.Core) && !mutOf(w).structures) return true;
   if (k === Kind.Tower) {
     const local = id - RANGE.towers;
     const perTeam = TOWER_SPOTS.length;

@@ -23,6 +23,8 @@ import { chooseTalent } from '../heroes/talents';
 import { attackRange, moveSpeed, radiusOf, targetable } from './kinds';
 import { cannonWinding, orderFire } from './cannon';
 import { dummySpot, isDummy } from './practice';
+import { benched } from './boss';
+import { mutOf } from '../mutator';
 
 const out = new Int32Array(3);
 
@@ -195,7 +197,8 @@ export function applyOrder(m: MatchHandle, id: number, cmd: Command): void {
       orderFire(m, id, cmd.x, cmd.y);
       break;
     case Op.Nap:
-      if (disabled(w, id) || w.fmKind[id] !== FM.None || w.castPhase[id] === 2) break;
+      // Sim v28: no Nap where the mode has no recall (One Lane Brawl, the Duel).
+      if (disabled(w, id) || w.fmKind[id] !== FM.None || w.castPhase[id] === 2 || mutOf(w).noRecall) break;
       interrupt(w, id, false);
       w.order[id] = Order.None;
       w.target[id] = -1;
@@ -449,6 +452,8 @@ function stepHero(m: MatchHandle, id: number): void {
   const w = m.world;
   if (w.kind[id] !== Kind.Hero) return;
   if (w.alive[id] === 0) {
+    // Sim v28: a benched hero (the Duel's, Boss Weekend's) never comes in.
+    if (benched(w, id)) return;
     if (w.timer[id] > 0) w.timer[id]--;
     if (w.timer[id] === 0) {
       placeAtFountain(w, id);

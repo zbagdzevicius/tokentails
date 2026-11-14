@@ -88,6 +88,17 @@ export interface LiveopsDefs {
     featuredMode: LiveopsFeatured | null;
     featuredQuests: string[];
     twist: LiveopsTwist | null;
+    /** Sim v28: Boss Weekend's window (running now, else the next one), or null when the doc turned it off. */
+    boss: LiveopsBoss | null;
+}
+
+/**
+ * Sim v28 (docs/plans/moba/V28.md §4): Boss Weekend, the co-op boss fight ('boss' mutator) on the game's "Boss Weekend"
+ * tile, playable inside the window (by default Friday 00:00 to Monday 00:00 UTC every week).
+ */
+export interface LiveopsBoss {
+    startsAt: string;
+    endsAt: string;
 }
 
 /** Sim v27: the weekly twists, in the baked rotation's order (the sim's WEEKLY_TWISTS, pawlegends/src/sim/api.ts). */
@@ -115,12 +126,13 @@ export const TWIST_INFO: Readonly<Record<LiveopsTwistId, { name: string; rules: 
 /** The modes the baked rotation features, one per ISO week (live modes only: never Ranked or a coming-soon mode). */
 export const FEATURED_ROTATION: readonly string[] = Object.freeze(['blitz', 'skirmish', 'classic']);
 /** The modes a config doc may feature: the rotation's, plus sim v27's Weekly Twist tile. */
-export const FEATURABLE: readonly string[] = Object.freeze([...FEATURED_ROTATION, 'twist']);
+export const FEATURABLE: readonly string[] = Object.freeze([...FEATURED_ROTATION, 'twist', 'boss']);
 export const MODE_NAMES: Readonly<Record<string, string>> = Object.freeze({
     blitz: 'Blitz',
     skirmish: 'Skirmish',
     classic: 'Classic 5v5',
     twist: 'Weekly Twist',
+    boss: 'Boss Weekend',
 });
 
 export const DEFAULT_GOAL: LiveopsGoalDef = Object.freeze({
@@ -204,6 +216,30 @@ export function rotationTwist(now: Date): LiveopsTwist {
     const weeks = Math.floor(end.getTime() / (7 * DAY));
     const id = WEEKLY_TWISTS[weeks % WEEKLY_TWISTS.length];
     return { id, ...TWIST_INFO[id], endsAt: end.toISOString() };
+}
+
+/**
+ * Sim v28: the baked Boss Weekend, Friday 00:00 UTC to Monday 00:00 UTC: the one running at `now`, else the next.
+ * The game's `bossWeekend` (ui/modeSelect/modes.ts) is the same. Pure.
+ */
+export function bossWeekend(now: Date): LiveopsBoss {
+    const day = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const sinceFri = (new Date(day).getUTCDay() + 2) % 7; // Friday 0
+    const fri = day - sinceFri * DAY;
+    const mon = fri + 3 * DAY;
+    const t = now.getTime();
+    const [a, b] = t < mon ? [fri, mon] : [fri + 7 * DAY, mon + 7 * DAY];
+    return { startsAt: new Date(a).toISOString(), endsAt: new Date(b).toISOString() };
+}
+
+/** Sim v28: a config doc's `boss` (`{ startsAt, endsAt }`): a window that has not ended, else null. Pure. */
+export function cleanBoss(v: unknown, now: Date): LiveopsBoss | null {
+    if (!isRecord(v)) return null;
+    const startsAt = iso(v.startsAt);
+    const endsAt = iso(v.endsAt);
+    if (!startsAt || !endsAt || Date.parse(endsAt) <= Date.parse(startsAt) || Date.parse(endsAt) <= now.getTime())
+        return null;
+    return { startsAt, endsAt };
 }
 
 /** A config doc's `twist` (`{ id, endsAt }`): a known twist that has not ended yet, else null. Pure. */
@@ -300,15 +336,20 @@ export function resolveDefs(doc: Record<string, unknown> | null | undefined, now
     // the baked mode rotation comes back). A doc's `featuredMode: 'twist'` with no twist falls back too.
     const twist = 'twist' in d && d.twist === null ? null : cleanTwist(d.twist, now) ?? rotationTwist(now);
     const featured = cleanFeatured(d.featuredMode, now);
+    // Sim v28: Boss Weekend (`boss: null` turns it off); while it runs it is the featured mode, unless the doc names one
+    const boss = 'boss' in d && d.boss === null ? null : cleanBoss(d.boss, now) ?? bossWeekend(now);
+    const bossOn = !!boss && Date.parse(boss.startsAt) <= now.getTime();
     return {
         goal: pick('goal', cleanGoal, DEFAULT_GOAL),
         vote: pick('vote', cleanVote, DEFAULT_VOTE),
         nap: pick('nap', cleanNap, DEFAULT_NAP),
         featuredMode:
-            (featured && (featured.id !== 'twist' || twist) ? featured : null) ??
+            (featured && (featured.id !== 'twist' || twist) && (featured.id !== 'boss' || bossOn) ? featured : null) ??
+            (bossOn && boss ? { id: 'boss', endsAt: boss.endsAt } : null) ??
             (twist ? { id: 'twist', endsAt: twist.endsAt } : rotationFeatured(now)),
         featuredQuests: quests,
         twist,
+        boss,
     };
 }
 
@@ -329,7 +370,10 @@ export function eventsOf(defs: LiveopsDefs, now: Date): LiveopsEvent[] {
                     ? `Weekly Twist: ${defs.twist.name}`
                     : `Featured: ${MODE_NAMES[defs.featuredMode.id] ?? defs.featuredMode.id}`,
             sub: `Until ${DATE_FMT(defs.featuredMode.endsAt)}`,
-            startsAt: new Date(Date.parse(defs.featuredMode.endsAt) - 7 * DAY).toISOString(),
+            startsAt:
+                defs.featuredMode.id === 'boss' && defs.boss
+                    ? defs.boss.startsAt
+                    : new Date(Date.parse(defs.featuredMode.endsAt) - 7 * DAY).toISOString(),
             endsAt: defs.featuredMode.endsAt,
         });
     }

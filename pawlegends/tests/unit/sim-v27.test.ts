@@ -37,10 +37,10 @@ const kill = (m: MatchHandle, victim: number, by: number): void => {
 };
 
 describe('sim v27: version and data', () => {
-  it('is v27 with the new mutators appended (the index of none and blitz unchanged)', () => {
-    expect(SIM_VERSION).toBe(27);
+  it('is v27 or later with the new mutators appended (the index of none and blitz unchanged)', () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(27);
     expect(MUTATORS.slice(0, 2)).toEqual(['none', 'blitz']);
-    expect(MUTATORS).toEqual(['none', 'blitz', 'cannon', 'practice', 'toybox', 'rapid', 'bounty']);
+    expect(MUTATORS.slice(0, 7)).toEqual(['none', 'blitz', 'cannon', 'practice', 'toybox', 'rapid', 'bounty']);
     expect(WEEKLY_TWISTS).toEqual(['toybox', 'rapid', 'bounty']);
     for (const id of MUTATORS) expect(MUTATOR_RULES[id]).toBeDefined();
     const none = MUTATOR_RULES.none;

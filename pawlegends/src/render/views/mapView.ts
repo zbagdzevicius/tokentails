@@ -13,7 +13,7 @@ import { BUSH_COUNT, clearedBushes } from '../bushClear';
 import { ModelBuilder } from './rig';
 import { isPhone } from '../perf/device';
 import { orthoFrustum } from '../chars';
-import { NX, NY, createGrid, onPlayfield } from '../../sim/map/grid';
+import { NX, NY, createGrid, gridKey, onPlayfield } from '../../sim/map/grid';
 import type { Ambient, AmbientFx } from '../ambient';
 import { WIND, patchWind, stepWind, windUniforms } from './env/wind';
 import { cloudUniforms, patchCloudShadow, stepClouds } from './env/clouds';
@@ -70,8 +70,11 @@ export interface WallCluster {
   y1: number;
 }
 let clusterCache: WallCluster[] | null = null;
+let clusterKey = '';
 export function wallClusters(): WallCluster[] {
-  if (clusterCache) return clusterCache;
+  // sim v28: per bound map variant (the Sunny Lane strip has its own walls)
+  if (clusterCache && clusterKey === gridKey()) return clusterCache;
+  clusterKey = gridKey();
   const walls = createGrid().walls;
   const cellM = MAP.navCell / 1000;
   const isWall = (c: number): boolean => walls[c] === 1 && onPlayfield((c % NX) * MAP.navCell + MAP.navCell / 2, Math.floor(c / NX) * MAP.navCell + MAP.navCell / 2);

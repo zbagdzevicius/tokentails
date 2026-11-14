@@ -37,7 +37,9 @@ export interface EndCauseInput {
   won: boolean;
   /** GAPS B2: 'forfeit' = the player forfeited. */
   /** Sim v22: 'timeUp' = a Blitz match reached 3:15 (`draw`: every tie-break was equal). */
-  reason: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp';
+  reason: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp' | 'goal';
+  /** Sim v28: the mutator the match played (the Duel's and Boss Weekend's own lines). */
+  mutator?: string;
   draw?: boolean;
   /** The phase the match ended in. */
   phase: 'play' | 'sunset' | 'suddenDeath' | string;
@@ -63,6 +65,14 @@ const WHO: Record<CoreSource, [string, string]> = {
 /** One sentence: what decided the match, from the player's side. */
 export function endCause(i: EndCauseInput): string {
   if (i.reason === 'forfeit') return 'You forfeited the match.';
+  // Sim v28 (V28.md §3, §4): a mode's own goal, and Boss Weekend's time up (the boss outlasted us)
+  if (i.reason === 'goal') {
+    if (i.mutator === 'boss') return i.won ? 'The boss is down! The bridge is ours.' : 'The boss stood.';
+    const [ourT, theirT] = i.towers;
+    if (ourT !== theirT) return i.won ? 'First tower! The duel is ours.' : 'They took the first tower.';
+    return i.won ? `First to ${Math.max(i.kills[0], i.kills[1])} takedowns: the duel is ours.` : `They got to ${Math.max(i.kills[0], i.kills[1])} takedowns first.`;
+  }
+  if (i.reason === 'timeUp' && i.mutator === 'boss') return i.won ? 'Time! The boss fell back.' : 'Time! The boss outlasted us. Try again with more Fish spent on Toys.';
   if (i.reason === 'timeUp') {
     if (i.draw) return 'Time! Dead even on towers, core and takedowns: a draw.';
     const [ourT, theirT] = i.towers;

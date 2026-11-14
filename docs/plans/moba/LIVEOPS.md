@@ -23,6 +23,11 @@ Home → **Events** (left stack) opens one popover:
   `GET /pawlegends/config` answers `twist: {id, name, rules, endsAt}` and `featuredMode: {id: 'twist'}`. A doc's
   `twist: {id, endsAt}` picks the twist, `twist: null` turns it off (the mode rotation above comes back), and a doc's
   `featuredMode` still wins. Offline the game plays the same baked rotation.
+- **Boss Weekend** (sim v28, `docs/plans/moba/V28.md` §4): the co-op boss fight on its own Mode Select tile, playable
+  Friday 00:00 to Monday 00:00 UTC every week and the featured mode while it runs. `GET /pawlegends/config` answers
+  `boss: {startsAt, endsAt}` (the running weekend, else the next); a doc's `boss: {startsAt, endsAt}` moves it (an
+  extra boss day), `boss: null` turns it off (the tile shows "Coming soon" and the twist is featured again). Offline the
+  game uses the same baked Friday to Monday schedule.
 
 The Events button gets its dot when a reward waits (reached goal, earned gift) or an open vote is not cast.
 

@@ -4,18 +4,22 @@
  * input's nav and aim checks, the minimap) binds the same map itself before it builds anything, and goes back to
  * Purrhaven Crossing when the match ends. Also sets the fixed camera's yaw for the map (Crossing −38°, Hearthwood 0°).
  */
-import type { MapId } from '../sim/api';
+import type { MapId, Mutator } from '../sim/api';
+import { MUTATOR_RULES } from '../data/mutators';
 import { bindMap, mapIndex } from '../sim/map/runtime';
 import { mapInfo, type MapInfo } from '../sim/map/info';
 import { setMapYaw } from '../render/coords';
 
 let current: MapId = 'crossing';
 
-/** Bind `map` for the main thread (render, input, minimap) and set its camera yaw. */
-export function useMap(map: MapId | undefined): MapInfo {
+/**
+ * Bind `map` for the main thread (render, input, minimap) and set its camera yaw. Sim v28: a mutator that plays the
+ * Sunny Lane strip (data/mutators.ts `strip`) binds the strip variant, so the forest and the minimap match its walls.
+ */
+export function useMap(map: MapId | undefined, mutator?: Mutator): MapInfo {
   const id: MapId = map === 'hearthwood' ? 'hearthwood' : 'crossing';
   const info = mapInfo(id);
-  bindMap(mapIndex(id));
+  bindMap(mapIndex(id), mutator && MUTATOR_RULES[mutator]?.strip ? 1 : 0);
   setMapYaw(info.camera.yawDeg);
   current = id;
   return info;

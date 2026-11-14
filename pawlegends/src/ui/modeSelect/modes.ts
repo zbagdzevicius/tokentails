@@ -15,7 +15,7 @@ import type { MapId, Mutator } from '../../sim/api';
 import { loadMatchMode, type MatchMode } from '../lobby/matchMode';
 import { rankedGateText, RANKED_MAP, type RankedStatus } from '../../meta/ranked';
 
-export type ModeId = 'blitz' | 'skirmish' | 'classic' | 'ranked' | 'cannon' | 'practice' | 'twist' | (string & {});
+export type ModeId = 'blitz' | 'skirmish' | 'classic' | 'ranked' | 'cannon' | 'practice' | 'twist' | 'onelane' | 'duel' | 'boss' | (string & {});
 /** A mode's variant (the second step after PLAY): solo vs bots, co-op vs bots, PvP, or a party with friends. */
 export type Queue = 'bots' | 'coop' | 'pvp' | 'friends';
 export type Variant = Queue;
@@ -28,13 +28,15 @@ export interface ModeDef {
   name: string;
   /** The map a match of this mode plays (undefined: the default 3v3 map). */
   map?: MapId;
-  size: '3v3' | '5v5' | '';
+  size: '3v3' | '5v5' | '1v1' | '';
   /** "~8 min". */
   minutes: string;
   /** The variants this mode supports (the others are not shown). */
   queues: readonly Queue[];
   /** File stem under assets/modes/ (`<art>-256.webp`, `<art>-512.webp`). */
   art: string;
+  /** Sim v28: the art ships in this one size only (`<art>-<artPx>.webp`), for every quality tier. */
+  artPx?: number;
   state: ModeState;
   /** Replaces the meta line when locked ("Unlocks after 5 matches"). */
   lockText?: string;
@@ -123,7 +125,72 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     practice: true,
     rules: ['Your champion on the Crossing with three training dummies: one stands, one walks, one waits under a tower.', 'Reset, level up and refresh cooldowns any time. Any champion, no rewards.'],
   },
+  {
+    // Sim v28 (docs/plans/moba/V28.md §2): ARAM-like, one lane, no recall
+    id: 'onelane',
+    name: 'One Lane Brawl',
+    map: 'crossing',
+    size: '3v3',
+    minutes: '~6 min',
+    queues: ['bots'],
+    art: 'onelane',
+    artPx: 256,
+    state: 'live',
+    isNew: true,
+    mutator: 'onelane',
+    rules: ['3v3 on Sunny Lane only: one lane, nonstop fights.', 'Start at level 3, Fish twice as fast. No Nap and no fountain heal: grab the Fish Snacks.', 'Sunset 5:00, time up 8:00.'],
+  },
+  {
+    // Sim v28 (V28.md §3): 1v1, first to 2 takedowns or the first tower
+    id: 'duel',
+    name: 'Duel',
+    map: 'crossing',
+    size: '1v1',
+    minutes: '~3 min',
+    queues: ['bots'],
+    art: 'duel',
+    artPx: 256,
+    state: 'live',
+    isNew: true,
+    mutator: 'duel',
+    rules: ['1v1 on Sunny Lane with its minions.', 'First to 2 takedowns or the first tower wins.', 'Start at level 3; no Nap, Fish Snacks heal. Time up at 5:00.'],
+  },
+  // Sim v28 (V28.md §4): Boss Weekend, Friday to Monday 00:00 UTC; meta/liveops.ts re-registers it from the server
+  bossModeDef(bossWeekend(Date.now())),
 ] satisfies ModeDef[]);
+
+
+/**
+ * Sim v28 (V28.md §4): Boss Weekend's baked schedule (the server's `bossWeekend`): Friday 00:00 UTC to Monday 00:00 UTC
+ * every week. Returns the weekend running now, else the next one. Pure.
+ */
+export function bossWeekend(now: number): { startsAt: number; endsAt: number } {
+  const DAY_MS = 86_400_000;
+  const d = new Date(now);
+  const day = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  // days since the last Friday (Friday 0 … Thursday 6)
+  const sinceFri = (new Date(day).getUTCDay() + 2) % 7;
+  const fri = day - sinceFri * DAY_MS;
+  const mon = fri + 3 * DAY_MS;
+  return now < mon ? { startsAt: fri, endsAt: mon } : { startsAt: fri + 7 * DAY_MS, endsAt: mon + 7 * DAY_MS };
+}
+
+/** Sim v28: the Boss Weekend tile for a weekend window (an event: live inside it, "Next: Fri" before it). Pure. */
+export function bossModeDef(win: { startsAt: number; endsAt: number }): ModeDef {
+  return {
+    id: 'boss',
+    name: 'Boss Weekend',
+    map: 'crossing',
+    size: '3v3',
+    minutes: '~5 min',
+    queues: ['bots'],
+    art: 'boss', artPx: 256,
+    state: { event: { startsAt: win.startsAt, endsAt: win.endsAt } },
+    mutator: 'boss',
+    short: 'Co-op vs Mega Brutus',
+    rules: ['Your team of three against Mega Brutus on the Sunny Lane bridge.', 'Red circles are his Ground Pound and Meteor Paw: step out before they fill.', 'He calls pups at 66% and 33% and enrages at 5:30. Fell him before 6:30.'],
+  };
+}
 
 /**
  * Sim v27 (V27.md §4): the Weekly Twist tile, from the server's live-ops `twist` (meta/liveops.ts registers it with a
@@ -195,7 +262,8 @@ const ORDER = { event: 0, live: 1, locked: 2, soon: 3 } as const;
 
 /** Every mode, in display order: live and event tiles first (registry order), then locked, then coming soon. */
 export function modeList(now = Date.now()): ModeDef[] {
-  const all = BASE_MODES.map((b) => extra.find((x) => x.id === b.id) ?? b);
+  // sim v28: the base Boss Weekend tile follows the baked schedule at `now` (live ops re-registers it from the server)
+  const all = BASE_MODES.map((b) => extra.find((x) => x.id === b.id) ?? (b.id === 'boss' ? bossModeDef(bossWeekend(now)) : b));
   for (const x of extra) if (!all.some((m) => m.id === x.id)) all.push(x);
   const rank = (m: ModeDef): number => {
     const s = effectiveState(m, now);

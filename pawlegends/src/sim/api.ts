@@ -85,17 +85,20 @@ export const BOT_TALENT_MODES: readonly BotTalentMode[] = Object.freeze(['first'
  * Sim v10 (GAPS B0): the match mutator. Only 'none' existed until v21. Sim v22 (WR-BS-PLAN.md §4): 'blitz', the
  * ~3-minute Crossing match (data/mutators.ts); a record of an earlier sim version may only carry 'none'.
  */
-export type Mutator = 'none' | 'blitz' | 'cannon' | 'practice' | 'toybox' | 'rapid' | 'bounty';
+export type Mutator = 'none' | 'blitz' | 'cannon' | 'practice' | 'toybox' | 'rapid' | 'bounty' | 'onelane' | 'duel' | 'boss';
 /**
  * Append only (the world stores the index). Sim v27 (docs/plans/moba/V27.md §2 to §4): 'cannon' (Cannon Chaos),
  * 'practice' (the Practice ground) and the weekly twists 'toybox', 'rapid' and 'bounty' (WEEKLY_TWISTS), all Crossing
- * only and never in PvP.
+ * only and never in PvP. Sim v28 (docs/plans/moba/V28.md §2 to §4): 'onelane' (One Lane Brawl), 'duel' (the 1v1 Duel)
+ * and 'boss' (Boss Weekend), on the Crossing's Sunny Lane strip.
  */
-export const MUTATORS: readonly Mutator[] = Object.freeze(['none', 'blitz', 'cannon', 'practice', 'toybox', 'rapid', 'bounty'] as Mutator[]);
+export const MUTATORS: readonly Mutator[] = Object.freeze(['none', 'blitz', 'cannon', 'practice', 'toybox', 'rapid', 'bounty', 'onelane', 'duel', 'boss'] as Mutator[]);
 /** Sim v27: the weekly twists (V27.md §4), in rotation order; the server's live-ops config picks the week's one. */
 export const WEEKLY_TWISTS: readonly Mutator[] = Object.freeze(['toybox', 'rapid', 'bounty'] as Mutator[]);
 /** Sim v27: the first sim version that plays 'cannon', 'practice' or a weekly twist. */
 export const MUTATOR_V27_SINCE = 27; // lint-sim: allow (a version number)
+/** Sim v28: the first sim version that plays 'onelane', 'duel' or 'boss'. */
+export const MUTATOR_V28_SINCE = 28; // lint-sim: allow (a version number)
 /** Sim v22: the first sim version that plays a mutator other than 'none'. */
 export const MUTATOR_PLAY_SINCE = 22; // lint-sim: allow (a version number)
 
@@ -341,6 +344,8 @@ export interface EntitySnap {
   toy?: number;
   /** Heroes only (sim v4): takedowns since the last death; 3+ means a bounty is on the hero (a crown). */
   bountyStreak?: number;
+  /** Sim v28 (V28.md §4): Boss Weekend's boss, its phase + 1 (1 to 3); absent on every other hero. */
+  boss?: number;
   /** Pickups only (sim v4): which pickup. `team` 2 = anyone may take it, else only that team (Fish Snack). */
   sub?: PickupKind;
 }
@@ -396,7 +401,7 @@ export type SimEvent =
    * A cast (or a tower lock-on) winds up for `ticks`. Sim v17: `dst` (when set) is the unit it is aimed at, decided at
    * the windup's start (Cacklejaw's Pack Hunt victim), so the client can mark it.
    */
-  | { type: 'windup'; tick: number; src: number; slot: CastSlot | 4 | 5; x: number; y: number; ticks: number; dst?: number }
+  | { type: 'windup'; tick: number; src: number; slot: CastSlot | 4 | 5 | 6 | 7; x: number; y: number; ticks: number; dst?: number }
   | { type: 'death'; tick: number; id: number; killer: number }
   | { type: 'levelup'; tick: number; id: number; level: number }
   | { type: 'talentOffer'; tick: number; slot: number; tier: TalentTier }
@@ -469,7 +474,9 @@ export type SimEvent =
   /** The towers are no longer Fortified. */
   | { type: 'fortifyEnd'; tick: number }
   /** Sim v27: a Practice ground control applied (`kind` = PRACTICE_KINDS index). */
-  | { type: 'practice'; tick: number; kind: number };
+  | { type: 'practice'; tick: number; kind: number }
+  /** Sim v28 (V28.md §4): Boss Weekend's boss (hero `id`) entered phase 1 or 2 (0-based; it roars and calls pups). */
+  | { type: 'bossPhase'; tick: number; id: number; phase: number };
 
 /** Sim v14: what a `clip` event shows. Sim v15: Rocket's nap (`zzz`), Frankie's grab (`footlong`), Domino's R (`dots`). */
 export type ClipKind = 'flop' | 'bigdog' | 'scream' | 'frozen' | 'zzz' | 'footlong' | 'dots';
@@ -570,8 +577,9 @@ export interface MatchResult {
   /**
    * Sim v10 (GAPS B2): 'forfeit' = the human forfeited (outcome 'lost'). Sim v22: 'timeUp' = a Blitz match reached its
    * designed end (data/mutators.ts hardEnd), decided on structures, core HP, takedowns, structure damage, else a draw.
+   * Sim v28: 'goal' = a mode's own goal was reached (the Duel's 2 takedowns or first tower, the Boss Weekend boss down).
    */
-  reason: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp';
+  reason: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp' | 'goal';
   /** Sim v22: a 'timeUp' end with every tie-break equal; `winner` is −1 and `outcome` 'lost' for both teams. */
   draw?: true;
   ticks: number;

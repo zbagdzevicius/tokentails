@@ -24,7 +24,7 @@ const talentsOf = (m: ReturnType<typeof play>): number[][] =>
 
 describe('sim v10 (GAPS B0)', () => {
   it('SIM_VERSION is 15 (sim v11 to v15 kept the v10 rules)', () => {
-    expect(SIM_VERSION).toBe(27);
+    expect(SIM_VERSION).toBe(28);
   });
 
   it("a bot's talent is draw number `tier` of its own stream fork('talent:' + slot), from the seed alone", () => {

@@ -20,6 +20,7 @@ import { applyBp, dist2, idiv, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
 import { G, RANGE, TEAM_NEUTRAL, type World } from '../world';
 import { mutOf } from '../mutator';
+import { isBoss } from './boss';
 
 const FRENZY = 0;
 const SNACK = 1;
@@ -97,15 +98,17 @@ export function spawnPickups(m: MatchHandle): void {
   const tick = w.globals[G.Tick];
   if (tick === w.globals[G.FrenzyAt]) {
     const n = w.globals[G.FrenzySpawns]++;
-    const s = FRENZY_SPOTS[n % FRENZY_SPOTS.length];
+    // Sim v28: on the Sunny Lane strip one Frenzy Catnip, always on its river crossing (the first pair's first spot).
+    const strip = mutOf(w).strip;
+    const s = FRENZY_SPOTS[strip ? 0 : n % FRENZY_SPOTS.length];
     place(m, 0, FRENZY, TEAM_NEUTRAL, s[0], s[1]);
-    place(m, 1, FRENZY, TEAM_NEUTRAL, s[2], s[3]);
+    if (!strip) place(m, 1, FRENZY, TEAM_NEUTRAL, s[2], s[3]);
     w.globals[G.FrenzyAt] = tick + applyBp(PICKUPS.frenzy.every, mutOf(w).pickupEveryBp);
   }
   if (tick === w.globals[G.SnackAt]) {
     // Sim v19: the lanes in turn (Crossing: Sunny, Puddle; Hearthwood: all three).
     const n = w.globals[G.SnackSpawns]++;
-    const lane = LANES.length === 2 ? n & 1 : n % LANES.length;
+    const lane = mutOf(w).strip ? 0 : LANES.length === 2 ? n & 1 : n % LANES.length;
     for (let team = 0; team < 2; team++) {
       snackSpot(w, team, lane, spot);
       place(m, SNACK_SLOT + team, SNACK, team, spot[0], spot[1]);
@@ -120,7 +123,8 @@ export function collectPickups(m: MatchHandle): void {
   const tick = w.globals[G.Tick];
   const reach = PICKUPS.radius + RADIUS.hero;
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
-    if (w.alive[id] === 0 || w.hp[id] <= 0) continue;
+    // Sim v28: Boss Weekend's boss never takes a pickup (its arena is the Frenzy Catnip's river crossing).
+    if (w.alive[id] === 0 || w.hp[id] <= 0 || isBoss(w, id)) continue;
     const i = nearestPickup(w, id, reach);
     if (i < 0) continue;
     w.pkAlive[i] = 0;

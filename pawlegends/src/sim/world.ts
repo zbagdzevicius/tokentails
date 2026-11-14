@@ -109,7 +109,7 @@ export const G = Object.freeze({
   TowerDamage0: 6,
   TowerDamage1: 7,
   Wave: 8,
-  EndReason: 9, // 0 running, 1 core kill, 2 safety end, 3 forfeit (sim v10), 4 time up (sim v22 Blitz)
+  EndReason: 9, // 0 running, 1 core kill, 2 safety end, 3 forfeit (sim v10), 4 time up (sim v22 Blitz), 5 goal (sim v28)
   InputHash: 10, // FNV-1a of every applied (tick, command): the final hash commits to the whole input stream
   SiegeWaves: 11, // waves spawned since TIMELINE.siegeFrom (every 3rd one, counting from the first, adds a siege)
   /** 1 = the in-sim bots (slots 1..5) do not think. Tests only; a real match never sets it. */
@@ -184,7 +184,18 @@ export const G = Object.freeze({
   Yarn: 55, // lint-sim: allow
   /** Sim v21: the team the Underdog Cannon favoured at the warning (−1 none), so `cannonSpawn` reports where it lies. */
   CannonUnder: 67, // lint-sim: allow
-  Count: 68, // lint-sim: allow
+  /**
+   * Sim v28 (V28.md §4) Boss Weekend (units/boss.ts): the boss's phase (0 to 2), the tick of its next Ground Pound and
+   * the ticks left on its telegraph, the same for Meteor Paw, and where the meteor lands.
+   */
+  BossPhase: 68, // lint-sim: allow
+  BossPoundAt: 69, // lint-sim: allow
+  BossPoundT: 70, // lint-sim: allow
+  BossMeteorAt: 71, // lint-sim: allow
+  BossMeteorT: 72, // lint-sim: allow
+  BossMeteorX: 73, // lint-sim: allow
+  BossMeteorY: 74, // lint-sim: allow
+  Count: 75, // lint-sim: allow
 } as const);
 export type G = (typeof G)[keyof typeof G];
 

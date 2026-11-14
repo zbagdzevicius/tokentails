@@ -64,6 +64,26 @@ export interface MutatorRules {
    * the enemy heroes are training dummies (data/practice.ts) that stand or walk on their spots and never strike.
    */
   practice: boolean;
+  /**
+   * Sim v28 (docs/plans/moba/V28.md §2): the match plays on the Crossing's Sunny Lane strip (data/map.ts
+   * CROSSING_STRIP). One lane of waves, every bot in it; no rat camps, Pudding, Kibble Cannon, yarn balls or Boing Beds
+   * (they stand off the strip); Frenzy Catnip and Fish Snacks only on the strip.
+   */
+  strip: boolean;
+  /** Sim v28: no Nap (recall) and the fountain heals nobody: heal from Fish Snacks, Frenzy Catnip and respawns. */
+  noRecall: boolean;
+  /** Sim v28: heroes in play per team (0: all). The others sit out the match (never spawn, never think). */
+  playing: readonly [number, number];
+  /** Sim v28: lane waves spawn (false: no lane minions at all). */
+  waves: boolean;
+  /** Sim v28: towers and cores can be damaged (false: no structure takes damage, takedowns chip nothing). */
+  structures: boolean;
+  /** Sim v28: the first team to this many takedowns wins ('goal'; 0: none). */
+  goalTakedowns: number;
+  /** Sim v28: the first team to destroy a tower wins ('goal'). */
+  goalTower: boolean;
+  /** Sim v28 (V28.md §4): Boss Weekend. The enemy team's one hero is the boss (data/boss.ts); felling it wins ('goal'). */
+  boss: boolean;
 }
 
 const NONE: MutatorRules = Object.freeze({
@@ -92,6 +112,14 @@ const NONE: MutatorRules = Object.freeze({
   bountyBp: 10000,
   forfeitFrom: -1,
   practice: false,
+  strip: false,
+  noRecall: false,
+  playing: Object.freeze([0, 0] as [number, number]),
+  waves: true,
+  structures: true,
+  goalTakedowns: 0,
+  goalTower: false,
+  boss: false,
 });
 
 const BLITZ: MutatorRules = Object.freeze({
@@ -157,6 +185,14 @@ const BLITZ: MutatorRules = Object.freeze({
   bountyBp: 10000,
   forfeitFrom: -1,
   practice: false,
+  strip: false,
+  noRecall: false,
+  playing: Object.freeze([0, 0] as [number, number]),
+  waves: true,
+  structures: true,
+  goalTakedowns: 0,
+  goalTower: false,
+  boss: false,
 });
 
 /**
@@ -215,6 +251,85 @@ const RAPID: MutatorRules = Object.freeze({ ...NONE, maps: Object.freeze(['cross
  */
 const BOUNTY: MutatorRules = Object.freeze({ ...NONE, maps: Object.freeze(['crossing'] as MapId[]), bountyBp: 30000 });
 
+/**
+ * Sim v28 (V28.md §2): One Lane Brawl, ARAM-like. 3v3 on the Sunny Lane strip, any champion: start at level 3, XP ×1.5
+ * and Fish ×2 (Toys come fast), no Nap and no fountain heal (Fish Snacks every 15 s are the heals), towers ×0.7 and
+ * cores ×0.8 HP, Fortified until 0:45, respawns 8 s rising to 14 s, Sunset 5:00, Sudden Death 7:00, time up at 8:00.
+ */
+const ONELANE: MutatorRules = Object.freeze({
+  ...NONE,
+  maps: Object.freeze(['crossing'] as MapId[]),
+  startLevel: 3,
+  xpBp: 15000,
+  fishBp: 20000,
+  towerHpBp: 7000,
+  coreHpBp: 8000,
+  respawnFrom: 240,
+  respawnTo: 420,
+  fortifyUntil: 1350,
+  catchUpFrom: 1800,
+  pickupEveryBp: 5000,
+  sunset: 9000,
+  suddenDeath: 12600,
+  hardEnd: 14400,
+  strip: true,
+  noRecall: true,
+});
+
+/**
+ * Sim v28 (V28.md §3): the Duel, 1v1 on the Sunny Lane strip with its waves. The first to 2 takedowns or to the first
+ * tower wins. Start at level 3, XP ×1.5, Fish ×1.5, outer towers ×0.6 HP, Fortified until 0:30, respawn 5 s, no Nap and
+ * no fountain heal (Fish Snacks every 15 s), time up at 5:00 (towers, then core HP, then takedowns).
+ */
+const DUEL: MutatorRules = Object.freeze({
+  ...NONE,
+  maps: Object.freeze(['crossing'] as MapId[]),
+  startLevel: 3,
+  xpBp: 15000,
+  fishBp: 15000,
+  towerHpBp: 6000,
+  respawnFrom: 150,
+  respawnTo: 150,
+  fortifyUntil: 900,
+  catchUpFrom: 30000,
+  pickupEveryBp: 5000,
+  // past the time up: no Sunset or Sudden Death in a Duel
+  sunset: 30000,
+  suddenDeath: 30000,
+  hardEnd: 9000,
+  strip: true,
+  noRecall: true,
+  playing: Object.freeze([1, 1] as [number, number]),
+  goalTakedowns: 2,
+  goalTower: true,
+});
+
+/**
+ * Sim v28 (V28.md §4): Boss Weekend, co-op against one huge bot-driven boss (data/boss.ts) on the Sunny Lane strip. No
+ * waves, no structure takes damage; heroes start at level 6 with XP ×2 and Fish ×2, respawns 8 s rising to 12 s. Fell
+ * the boss before 6:30 to win; at 6:30 the boss wins (time up).
+ */
+const BOSS: MutatorRules = Object.freeze({
+  ...NONE,
+  maps: Object.freeze(['crossing'] as MapId[]),
+  startLevel: 6,
+  xpBp: 20000,
+  fishBp: 20000,
+  respawnFrom: 240,
+  respawnTo: 360,
+  fortifyUntil: 0,
+  catchUpFrom: 30000,
+  truceUntil: 0,
+  sunset: 30000,
+  suddenDeath: 30000,
+  hardEnd: 11700,
+  strip: true,
+  playing: Object.freeze([0, 1] as [number, number]),
+  waves: false,
+  structures: false,
+  boss: true,
+});
+
 export const MUTATOR_RULES: Readonly<Record<Mutator, MutatorRules>> = Object.freeze({
   none: NONE,
   blitz: BLITZ,
@@ -223,4 +338,7 @@ export const MUTATOR_RULES: Readonly<Record<Mutator, MutatorRules>> = Object.fre
   toybox: TOYBOX,
   rapid: RAPID,
   bounty: BOUNTY,
+  onelane: ONELANE,
+  duel: DUEL,
+  boss: BOSS,
 });

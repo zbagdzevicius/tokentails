@@ -16,7 +16,7 @@
  */
 import * as THREE from 'three';
 import { BOING, CANNON, FUN_BY_MAP, YARN, YARN_BALLS } from '../../data/fun';
-import { RADIUS, mirrorX, mirrorY } from '../../data/map';
+import { PLAYFIELD, RADIUS, mirrorX, mirrorY } from '../../data/map';
 import type { FunSnap, SimEvent } from '../../sim/api';
 import { toX, toZ } from '../coords';
 import { RELATION } from '../palette';
@@ -205,7 +205,8 @@ export class FunView {
       b.coneGeo.dispose();
     }
     this.beds.length = 0;
-    const rows = FUN_BY_MAP[index]?.beds ?? [];
+    // sim v28: the Sunny Lane strip has no Boing Beds (they stand off its one lane)
+    const rows = PLAYFIELD.strip === 1 ? [] : (FUN_BY_MAP[index]?.beds ?? []);
     const cushion = new THREE.CylinderGeometry(0.95, 1.05, 0.38, 20);
     const rim = new THREE.TorusGeometry(0.95, 0.2, 8, 24);
     const pad = new THREE.CircleGeometry(0.22, 12);

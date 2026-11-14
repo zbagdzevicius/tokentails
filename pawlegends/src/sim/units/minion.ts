@@ -19,6 +19,7 @@ import { fleeStep } from '../effects/fear';
 import { stepForced } from '../effects/dash';
 import { inAttackRange, startAttack } from '../combat/attack';
 import { isStructure, moveSpeed, radiusOf, targetable } from './kinds';
+import { mutOf } from '../mutator';
 
 const out = new Int32Array(3);
 
@@ -44,7 +45,9 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
     const ranged = w.mg.length > 0 ? HEARTHWOOD_RULES.waveRanged : WAVE.ranged;
     for (let i = 0; i < ranged; i++) order.push('ranged');
     if (withSiege || (boost && COMEBACK.siege)) for (let i = 0; i < WAVE.siege; i++) order.push('siege');
-    for (let lane = 0; lane < LANES.length; lane++) {
+    // Sim v28 (V28.md §2): the Sunny Lane strip has the first lane's waves only.
+    const lanes = mutOf(w).strip ? 1 : LANES.length;
+    for (let lane = 0; lane < lanes; lane++) {
       const path = LANE_PATHS[team][lane];
       const ax = path.x[0];
       const ay = path.y[0];

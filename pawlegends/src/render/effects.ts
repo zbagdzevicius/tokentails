@@ -76,7 +76,8 @@ export interface Who {
 
 export interface ActiveWindup {
   src: number;
-  slot: CastSlot | 4;
+  /** Sim v28: 6 and 7 are Boss Weekend's Ground Pound and Meteor Paw (data/boss.ts). */
+  slot: CastSlot | 4 | 6 | 7;
   x: number;
   y: number;
   start: number;
@@ -287,8 +288,9 @@ export class Effects {
     }
   }
 
-  aimOf(who: Who | null, slot: CastSlot | 4): AimSpec | null {
+  aimOf(who: Who | null, slot: CastSlot | 4 | 6 | 7): AimSpec | null {
     if (!who) return null;
+    if (slot === 6 || slot === 7) return null;
     if (who.kind === 'pudding') return { kind: 'self', shape: 'ring', range: PUDDING.hopRadius, radius: PUDDING.hopRadius, smart: 'none' };
     if (who.kind !== 'hero' || !who.hero) return null;
     return slot === 4 ? trickAim(this.hooks.trickOf(who.id)) : aimFor(who.hero, slot, who.branch === true);

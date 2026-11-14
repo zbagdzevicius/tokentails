@@ -91,6 +91,7 @@ import { MUTATOR_RULES } from '../data/mutators';
 import { endTickOf, fortifyUntilOf, mutOf, mutatorIndex, mutatorOf } from './mutator';
 import { XP } from '../data/xp';
 import { isPractice, practiceAction, stepPractice } from './units/practice';
+import { benched, initModeHeroes, isBoss, stepBoss } from './units/boss';
 
 export * from './api';
 export { SIM_VERSION } from './version';
@@ -267,12 +268,17 @@ export function createMatch(config: MatchConfig): MatchHandle {
     const roles = assignRoles(config);
     for (let slot = 0; slot < SLOT_COUNT; slot++) w.mg[MG.Role + slot] = roles[slot];
   }
-  initCamps(w, TIMELINE.campsUp);
+  // Sim v28 (V28.md §2): the Sunny Lane strip (its own nav grid) has no camps, Pudding, cannon or yarn balls.
+  bindWorld(w);
+  initCamps(w, mut.strip ? -2 : TIMELINE.campsUp);
   initPudding(w);
   initPickups(w);
   // Sim v21 (V21-FUN.md): the Kibble Cannon and the Mega Yarn Balls.
   initCannon(w);
+  if (mut.strip) w.globals[G.CannonAt] = -1;
   initYarn(w);
+  // Sim v28: benched heroes leave the map; Boss Weekend's boss takes its hero and arena.
+  initModeHeroes(w);
   const m: MatchHandle = { config, world: w, grid: createGrid(), log: [], gate: createGate(), trail: [], events: [], ended: null, stats, rules };
   // Party play (MULTIPLAYER.md §1.1): human slots >= 1 get their own gate and log; the mask is not hashed.
   if (config.humans !== undefined && config.humans.length > 1) {
@@ -348,7 +354,9 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   else stepBots(m);
   // 3. Timeline: waves, rat camps, Pudding, phase events, per-second map rules. Sim v27: no waves or Pudding on the
   //    Practice ground.
-  const wave = practice ? -1 : waveAt(tick, w.globals[G.SiegeWaves]);
+  // Sim v28: no waves in Boss Weekend (`waves`), and the strip's Pudding never comes.
+  const strip = mutOf(w).strip;
+  const wave = practice || !mutOf(w).waves ? -1 : waveAt(tick, w.globals[G.SiegeWaves]);
   if (wave >= 0) {
     if (tick >= TIMELINE.siegeFrom) w.globals[G.SiegeWaves]++;
     checkComeback(m);
@@ -359,8 +367,10 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   spawnCamps(m);
   spawnPickups(m);
   spawnCannon(m);
+  // Sim v28 (V28.md §4): Boss Weekend's phases and telegraphed attacks.
+  stepBoss(m);
   if (tick > 0 && tick === fortifyUntilOf(w)) m.events.push({ type: 'fortifyEnd', tick });
-  if (!practice) stepPuddingTimeline(m, wave >= 0);
+  if (!practice && !strip) stepPuddingTimeline(m, wave >= 0);
   if (tick === w.globals[G.Sunset]) m.events.push({ type: 'sunset', tick });
   if (tick === w.globals[G.SuddenDeath]) m.events.push({ type: 'suddenDeath', tick });
   stepSeconds(m);
@@ -386,8 +396,11 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   collectPickups(m);
   // Sim v21: the cannon is taken, Boing Beds launch, yarn balls are kicked (after movement, before the status timers).
   collectCannon(m);
-  stepBoing(m);
-  stepYarn(m);
+  // Sim v28: the Boing Beds and the yarn balls stand off the strip.
+  if (!strip) {
+    stepBoing(m);
+    stepYarn(m);
+  }
   stepBonuses(w);
   tickStatus(w);
   carryCannon(m);
@@ -468,6 +481,8 @@ export function snapshot(match: Match, team: Team): Snapshot {
     if (k === Kind.None) continue;
     const isHero = k === Kind.Hero;
     if (!isHero && w.alive[id] === 0) continue;
+    // Sim v28: a hero a mode benches (the Duel's, Boss Weekend's) is not in the match at all.
+    if (isHero && benched(w, id)) continue;
     if (!visibleTo(w, id, team)) continue;
     // Sim v19: Captain Grizzlechop is a camp monster that snapshots as 'boss'.
     const kind = k === Kind.Camp && w.sub[id] === 4 ? 'boss' : KIND_NAME[k];
@@ -513,6 +528,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
       if (w.dotN[id] > 0) e.dots = w.dotN[id];
       if (w.alive[id] === 0) e.respawnIn = w.timer[id];
       e.bountyStreak = w.killStreak[id];
+      if (isBoss(w, id)) e.boss = w.globals[G.BossPhase] + 1;
       // Sim v12: Toy tiers (both teams: enemy spikes show), unspent Fish (own team only).
       e.toy = w.toy[id];
       if (w.team[id] === team) e.fish = w.fish[id];

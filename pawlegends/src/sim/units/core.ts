@@ -16,6 +16,7 @@ import { fishTick } from '../progression/fish';
 import { HUMAN_SLOT } from '../api';
 import { rulesOf } from '../rules';
 import { mutOf } from '../mutator';
+import { isBoss } from './boss';
 
 export function stepSeconds(m: MatchHandle): void {
   const w = m.world;
@@ -27,8 +28,10 @@ export function stepSeconds(m: MatchHandle): void {
     for (let id = 0; id < RANGE.towers; id++) {
       if (w.alive[id] === 0 || w.team[id] > 1) continue;
       if (dist2(w.x[f], w.y[f], w.x[id], w.y[id]) > r2) continue;
-      if (w.team[id] === team) w.hp[id] = Math.min(w.maxHp[id], w.hp[id] + applyBp(w.maxHp[id], FOUNTAIN.healBpPerSecond));
-      else {
+      // Sim v28: no fountain heal where the mode has no recall.
+      if (w.team[id] === team) {
+        if (!mutOf(w).noRecall) w.hp[id] = Math.min(w.maxHp[id], w.hp[id] + applyBp(w.maxHp[id], FOUNTAIN.healBpPerSecond));
+      } else {
         const dmg = w.kind[id] === Kind.Hero ? applyBp(w.maxHp[id], FOUNTAIN.heroDamageBpPerSecond) : FOUNTAIN.damagePerSecond;
         dealDamage(m, f, team, Kind.Fountain, id, dmg, 'tower', { pure: true });
       }
@@ -42,6 +45,8 @@ export function stepSeconds(m: MatchHandle): void {
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
     // v4: "out of combat" = no damage from an enemy hero for HERO_RULES.outOfCombat (minion and tower chip does not stop it).
     if (w.alive[id] === 0 || w.hp[id] <= 0 || tick - w.kHurt[id] < HERO_RULES.outOfCombat) continue;
+    // Sim v28: Boss Weekend's boss never regenerates (every hit counts).
+    if (isBoss(w, id)) continue;
     const regen = id === HUMAN_SLOT ? applyBp(HERO_RULES.regenBpPerSecond, rulesOf(m).humanRegenBp) : HERO_RULES.regenBpPerSecond;
     w.hp[id] = Math.min(w.maxHp[id], w.hp[id] + applyBp(w.maxHp[id], regen));
   }

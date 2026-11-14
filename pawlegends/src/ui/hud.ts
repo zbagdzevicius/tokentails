@@ -423,6 +423,40 @@ export class Hud {
     score.prepend(bar);
   }
 
+  /** Sim v28 (V28.md §4): Boss Weekend's boss bar in the team score's place (the same footprint as Practice's bar). */
+  private boss: { fill: HTMLElement; phase: HTMLElement; pct: number; ph: number } | null = null;
+  bossBar(name: string): void {
+    this.root.dataset.practice = '1';
+    this.root.dataset.boss = '1';
+    const score = this.root.querySelector('.pl-score');
+    if (!score || score.querySelector('.pl-bossbar')) return;
+    const bar = document.createElement('span');
+    bar.className = 'pl-bossbar';
+    bar.setAttribute('role', 'meter');
+    bar.setAttribute('aria-label', `${name} HP`);
+    bar.innerHTML = `<b class="n">${name}</b><i class="hp"><i class="fill"></i></i><em class="ph">Phase 1</em>`;
+    score.prepend(bar);
+    this.boss = { fill: bar.querySelector('.fill') as HTMLElement, phase: bar.querySelector('.ph') as HTMLElement, pct: -1, ph: 0 };
+  }
+
+  /** Sim v28: the boss bar's fill and phase from the boss entity (absent: unchanged). */
+  bossUpdate(e: EntitySnap | undefined): void {
+    const b = this.boss;
+    if (!b || !e) return;
+    const pct = e.state === 'dead' ? 0 : Math.max(0, Math.min(100, Math.round((100 * e.hp) / Math.max(1, e.maxHp))));
+    if (pct !== b.pct) {
+      b.pct = pct;
+      b.fill.style.width = `${pct}%`;
+      b.fill.parentElement?.parentElement?.setAttribute('aria-valuenow', String(pct));
+    }
+    const ph = e.boss ?? 1;
+    if (ph !== b.ph) {
+      b.ph = ph;
+      b.phase.textContent = ph >= 3 ? 'Phase 3 · Rage' : `Phase ${ph}`;
+      b.fill.dataset.ph = String(ph);
+    }
+  }
+
   /**
    * GAPS A4: the portrait strip for the other five heroes (allies and enemies, by slot). `names` are the slot labels
    * (ui/heroText.ts slotNames). Enemy portraits are buttons: a tap locks that hero on touch (A5).

@@ -115,7 +115,8 @@ describe('home screen: one play path', () => {
     const ms = await modesOpen();
     expect(ms.getAttribute('aria-modal')).toBe('true');
     // the separate "Co-op vs Bots" tile is gone (co-op is Skirmish's variant); sim v27: Cannon Chaos and Practice live
-    expect(Array.from(ms.querySelectorAll<HTMLElement>('.ms-pick')).map((b) => b.dataset.mode)).toEqual(['blitz', 'skirmish', 'classic', 'cannon', 'practice', 'ranked']);
+    // sim v28: One Lane Brawl and the Duel; Boss Weekend's place depends on the weekday (live Friday to Monday)
+    expect(Array.from(ms.querySelectorAll<HTMLElement>('.ms-pick')).map((b) => b.dataset.mode).filter((m) => m !== 'boss')).toEqual(['blitz', 'skirmish', 'classic', 'cannon', 'practice', 'onelane', 'duel', 'ranked']);
     expect(ms.querySelector('.ms-pick.on')?.getAttribute('data-mode')).toBe('skirmish');
     click(ms, 'mode-next');
     expect(ms.dataset.stage).toBe('variant');
