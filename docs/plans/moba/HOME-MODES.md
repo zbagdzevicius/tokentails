@@ -152,6 +152,23 @@ Tile states:
 A tap on a tile that cannot be played shakes it and explains why. When there are more tiles than fit, the row
 scrolls sideways with snap. This is the only scroll region.
 
+**Mode unlocking (Nov 15, [MODE-UNLOCKS.md](MODE-UNLOCKS.md)).** Never more than 3 big tiles: Skirmish, Classic and a
+spotlight (a live event or featured mode, a just-unlocked mode marked NEW, the last mode chosen, the Weekly Twist from 4
+matches, else Practice). Every other mode is a small icon in the "More modes" strip under them, locked (grey, padlock,
+progress ring, "1/2 matches") until the player reaches its goal:
+
+| Mode | Unlocks when |
+|---|---|
+| Skirmish, Classic, Practice | open from the start |
+| Blitz | finish 1 match |
+| Duel | finish 2 matches |
+| One Lane Brawl | win 1 match |
+| Cannon Chaos | finish 4 matches |
+| Ranked | finish 10 matches and win 3 |
+| Boss Weekend, Weekly Twist, featured modes | never locked while live |
+
+Veterans (10+ matches or "played MOBAs before") and anyone who already played a mode keep it.
+
 **Footer.**
 - Mode stage: the mode's name, size and length, and **Next**.
 - Variant stage: the bots difficulty (vs Bots) or the variant's line, and the action (Choose champion, Find match,

@@ -105,7 +105,16 @@ test('Home → PLAY → Skirmish → vs Bots Hard → champion select → LOCK I
 });
 
 test('Ranked (round 4, SOCIAL-RANKED.md §7.11): always open, the rules say bots honestly; standalone says PvP is offline', async ({ page }) => {
-  await seed(page);
+  // mode unlocking (MODE-UNLOCKS.md): Ranked opens at 10 matches and 3 wins; last chosen, it is the third big tile
+  await page.addInitScript(() => {
+    // midweek, so Boss Weekend does not take the spotlight
+    const real = Date.now.bind(Date);
+    const off = Date.parse('2026-11-18T12:00:00Z') - real();
+    Date.now = () => real() + off;
+    if (localStorage.getItem('tt.pawlegends.profile.v1')) return;
+    localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify({ v: 1, sessions: 5, matches: 12, wins: 4, firstWinDone: true, hero: 'sage', firstPlaySession: 1 }));
+    localStorage.setItem('pawlegends.mode.v1', JSON.stringify({ mode: 'ranked', queue: 'pvp' }));
+  });
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
   // a returning player: the nav Ranked item is live (never a gate line, never "later season")

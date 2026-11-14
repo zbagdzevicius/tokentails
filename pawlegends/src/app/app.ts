@@ -64,7 +64,21 @@ import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobb
 import { botsChoice, disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
 import { initLiveops, liveopsState } from '../meta/liveops';
-import { legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef } from '../ui/modeSelect/modes';
+import { legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef, type ModeId } from '../ui/modeSelect/modes';
+import {
+  isUnlocked,
+  loadModeLocal,
+  markModesMigrated,
+  migrateUnlocks,
+  modesMigrated,
+  newlyUnlocked,
+  notePlayed,
+  playerModes,
+  saveModeLocal,
+  silentUnlocks,
+  unlockId,
+  unseenFresh,
+} from '../ui/modeSelect/unlocks';
 import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard, type RankedKind } from '../meta/ranked';
 import { heroElement } from '../ui/cards/el';
 import { consentPrompt } from '../ui/consentPrompt';
@@ -799,6 +813,96 @@ export class App {
   private pickFromFlow = false;
 
   /**
+   * Mode unlocking (MODE-UNLOCKS.md): the profile records every mode open to the player as `mode.<id>` in `unlocks`
+   * (synced). First run of this build on a device: the player keeps every mode they had (saved choice, history, a
+   * veteran gets all). Every time: modes whose condition is met (a server merge raised the counts) and, for an account
+   * with VETERAN_MATCHES+ matches and no `mode.` id yet, all of them. Silent: no banner, no NEW.
+   */
+  private syncModeUnlocks(): void {
+    const p = loadProfile();
+    const all = modeList();
+    let add: string[] = [];
+    if (!modesMigrated()) {
+      let saved: string | null = null;
+      try {
+        const raw = localStorage.getItem('pawlegends.mode.v1');
+        saved = raw ? String((JSON.parse(raw) as { mode?: unknown }).mode ?? '') || null : null;
+      } catch {
+        saved = null;
+      }
+      let history: string[] = [];
+      try {
+        history = loadHistory().map((h) => h.mode);
+      } catch {
+        history = [];
+      }
+      add = migrateUnlocks(p, { saved, history }, all);
+      markModesMigrated();
+      if (add.length) this.analytics.track('mode_unlock', { mode: add.join(','), matches: p.matches, wins: p.wins, via: 'migrate' });
+    }
+    const merged = { ...p, unlocks: [...p.unlocks, ...add] };
+    const s = silentUnlocks(merged, all);
+    if (s.add.length && (s.veteran || add.length === 0)) this.analytics.track('mode_unlock', { mode: s.add.join(','), matches: p.matches, wins: p.wins, via: 'sync' });
+    add = [...add, ...s.add];
+    if (!add.length) return;
+    const q = loadProfile();
+    for (const u of add) if (!q.unlocks.includes(u)) q.unlocks.push(u);
+    saveProfile(q);
+  }
+
+  /** Grant one mode silently (a ranked card that shows games: the player played Ranked before mode unlocking). */
+  private grantMode(id: ModeId): boolean {
+    const q = loadProfile();
+    const u = unlockId(id);
+    if (q.unlocks.includes(u)) return false;
+    q.unlocks.push(u);
+    saveProfile(q);
+    return true;
+  }
+
+  /** The registry as this player sees it (locks, NEW, 3 big + the strip). */
+  private playerModeList(choice?: ModeId | null): ModeDef[] {
+    const all = modeList();
+    const c = choice ?? this.modeChoiceNow?.mode ?? loadModeChoice(all).mode;
+    return playerModes(all, loadProfile(), loadModeLocal(), Date.now(), c);
+  }
+
+  /** Is this mode open to the player now (the results' "Quick Blitz?" and the promos)? */
+  private modeOpen(id: ModeId): boolean {
+    const m = modeById(id, modeList());
+    return !!m && isUnlocked(m, loadProfile(), Date.now());
+  }
+
+  /** The mode a finished match played (for the NEW state). */
+  private playedModeId(replay: { mutator?: string }, setup: MatchSetup | null): ModeId {
+    const mu = replay.mutator ?? 'none';
+    if (['blitz', 'cannon', 'onelane', 'duel', 'boss', 'practice'].includes(mu)) return mu;
+    if (mu !== 'none') return 'twist';
+    if (setup?.map === 'hearthwood') return 'classic';
+    if (this.rankedRun) return 'ranked';
+    return 'skirmish';
+  }
+
+  /** After recordMatch: the played mode loses NEW; modes this match unlocked are recorded and the first is announced. */
+  private noteModeResult(played: ModeId, before: { matches: number; wins: number }): { name: string; line: string; art: string } | null {
+    const local = notePlayed(loadModeLocal(), played);
+    const p = loadProfile();
+    const fresh = newlyUnlocked(before, p);
+    if (fresh.length) {
+      for (const id of fresh) if (!p.unlocks.includes(unlockId(id))) p.unlocks.push(unlockId(id));
+      saveProfile(p);
+      local.fresh = [...new Set([...local.fresh, ...fresh])];
+      for (const id of fresh) this.analytics.track('mode_unlock', { mode: id, matches: p.matches, wins: p.wins, via: 'play' });
+    }
+    saveModeLocal(local);
+    const m = fresh.length ? modeById(fresh[0], modeList()) : undefined;
+    if (!m) return null;
+    sfx.play('magic');
+    const base = import.meta.env.BASE_URL ?? './';
+    return { name: m.name, line: [m.size, m.minutes].filter(Boolean).join(' in '), art: `${base}assets/modes/${m.art}-${m.artPx ?? 256}.webp` };
+  }
+
+  /**
    * The one play path's last step (HOME-MODES.md §5): Mode Select chose a mode and a variant. vs Bots opens the
    * champion select (its LOCK IN starts the match on the mode's map), Co-op and PvP join the queue (the champion select
    * follows the match found), With Friends opens the party lobby.
@@ -874,8 +978,11 @@ export class App {
           : r && typeof r.placementsLeft === 'number'
             ? { tier: `Placements ${Math.max(0, (r.placementsOf ?? 5) - r.placementsLeft)}/${r.placementsOf ?? 5}` }
             : undefined;
+      // mode unlocking: a ranked card that shows games keeps Ranked open for a player who played it before
+      const played = !!r && (typeof r.tierIdx === 'number' || (typeof r.placementsLeft === 'number' && r.placementsLeft < (r.placementsOf ?? 5)));
+      const granted = played && this.grantMode('ranked');
       const def = rankedModeDef(st, rank);
-      const key = JSON.stringify([def.state, def.liveLine ?? '', def.rank ?? null]);
+      const key = JSON.stringify([def.state, def.liveLine ?? '', def.rank ?? null, granted]);
       registerMode(def);
       if (key === this.rankedKey) return;
       const first = this.rankedKey === '';
@@ -963,17 +1070,34 @@ export class App {
           ]
         : []),
       // sim v27: Cannon Chaos is live; the slide opens Mode Select on it
-      { id: 'cannon', title: 'Cannon Chaos', sub: 'Live now · start at level 3', art: `${base}assets/lobby/promo-cannon.webp${assetRev()}`, action: 'modes', mode: 'cannon' },
+      // mode unlocking: never a promo of a mode the player has not unlocked
+      ...(this.modeOpen('cannon') ? [{ id: 'cannon', title: 'Cannon Chaos', sub: 'Live now · start at level 3', art: `${base}assets/lobby/promo-cannon.webp${assetRev()}`, action: 'modes' as const, mode: 'cannon' }] : []),
       { id: 'store', title: 'Store', sub: 'Champions, coats and frames', art: `${base}assets/lobby/promo-store${this.tier === 'low' ? '-lo' : ''}.webp${assetRev()}`, action: 'store' },
     ];
     // live ops (LIVEOPS.md): Events reads the server through the host; the featured mode registers before modeList
     initLiveops((op, args) => this.integration.api(op, args), () => loadProfile().matches > 0, () => this.screen === 'title' && this.refreshMeta(false));
     this.pushBoot();
-    const modes = modeList();
+    // mode unlocking (MODE-UNLOCKS.md): 3 big tiles and the strip, per player
+    this.syncModeUnlocks();
+    const modes = this.playerModeList();
+    const modeLocal = loadModeLocal();
     const opts: HomeScreenOpts = {
       profile,
       modes,
-      modeChoice: this.modeChoiceNow ?? loadModeChoice(modes),
+      // a mode just unlocked and not announced yet: Mode Select opens on it (its big tile, preselected)
+      modeChoice: ((): ModeChoice => {
+        const f = modes.find((m) => m.fresh && m.slot === 'big');
+        return f ? { mode: f.id, queue: f.queues[0] ?? 'bots' } : (this.modeChoiceNow ?? loadModeChoice(modes));
+      })(),
+      playNew: unseenFresh(modeLocal).some((id) => modes.some((m) => m.id === id)),
+      onModesSeen: (ids) => {
+        const l = loadModeLocal();
+        saveModeLocal({ ...l, seen: [...new Set([...l.seen, ...ids])] });
+      },
+      onLockedMode: (m) => {
+        const q = loadProfile();
+        this.analytics.track('mode_locked_tap', { mode: m.id, matches: q.matches, wins: q.wins });
+      },
       // Mode Select's Confirm: saved, and the old 3v3 | 5v5 key follows (the pick, party queue and rematch read it)
       onModeChoice: (c) => {
         this.modeChoiceNow = c;
@@ -1705,7 +1829,8 @@ export class App {
       this.analytics.track('rematch_click', { kind: 'mode', hero, mode, from: played });
       this.startMatch({ ...(setup ? { hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty } : this.choice), ...this.modeChoice(mode) });
     };
-    if (played !== 'blitz' && !won) return { label: 'Quick Blitz?', sub: `~${MODE_MINUTES.blitz} min`, onNext: () => go('blitz') };
+    // mode unlocking: only offered once Blitz is open (it opens at the first match, so it nearly always is)
+    if (played !== 'blitz' && !won && this.modeOpen('blitz')) return { label: 'Quick Blitz?', sub: `~${MODE_MINUTES.blitz} min`, onNext: () => go('blitz') };
     if (played === 'blitz' && this.blitzRun >= 2) return { label: `Take ${HERO_TEXT[hero].title} into Skirmish`, sub: `~${MODE_MINUTES.skirmish} min`, onNext: () => go('skirmish') };
     return null;
   }
@@ -1728,7 +1853,11 @@ export class App {
     const draw = e.result.draw === true;
     const playedMode: MatchMode = setup?.map === 'hearthwood' ? 'classic' : e.replay.mutator === 'blitz' ? 'blitz' : 'skirmish';
     this.blitzRun = e.replay.mutator === 'blitz' ? this.blitzRun + 1 : 0;
+    const countsBefore = (({ matches, wins }) => ({ matches, wins }))(loadProfile());
     const rec = sandbox ? { firstWin: false, best: false, second: false } : recordMatch(won, seconds, e.replay.difficulty, !blitz);
+    // mode unlocking (MODE-UNLOCKS.md §3.3): this match finished a mode's NEW state, and may have crossed a threshold;
+    // the first crossed mode gets the results banner, every crossed one is recorded (no device announces it twice)
+    const modeUnlocked = sandbox ? null : this.noteModeResult(this.playedModeId(e.replay, setup), countsBefore);
     this.matchesThisSession++;
     this.human.match(seconds);
     // Bridge: the replay is the record; the summary is display only (host `summaryOf`).
@@ -1922,6 +2051,7 @@ export class App {
         highlights: !partyEnd && !practice && moment.replay && moment.simVersion === SIM_VERSION,
         treats,
         chromaEarned,
+        modeUnlocked,
         quests: quests.views,
         table,
         progress,

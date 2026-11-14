@@ -555,3 +555,15 @@ html[data-touch='1'] .pl-home .hm-round.live::after, html[data-phone='1'] .pl-ho
   .hm-play-glow.b { opacity: 0.9; transform: none; }
   .hm-round.live::after { opacity: 0.8; }
 }
+
+/* mode unlocking (MODE-UNLOCKS.md): a NEW tag on PLAY while a just-unlocked mode waits in Mode Select (inside PLAY's
+   own box, so the HUD-free Home footprint does not grow) */
+.hm-play-new {
+  position: absolute; right: 2px; top: 2px; z-index: 3; padding: 2px 6px; border-radius: 2px; pointer-events: none;
+  transform: skewX(var(--v6-slant, -8deg)); font: italic 800 11px/1.2 var(--v6-font-display, sans-serif); letter-spacing: 0.08em;
+  color: var(--v6-night, #12091f); background: var(--v6-bolt, #ffe14a); box-shadow: 0 0 0 2px var(--hm-ink), 0 2px 6px rgb(0 0 0 / 0.5);
+  animation: hm-new-pulse 1.6s ease-in-out infinite;
+}
+@keyframes hm-new-pulse { 50% { transform: skewX(var(--v6-slant, -8deg)) scale(1.12); } }
+.pl-home.low .hm-play-new { animation: none; }
+@media (prefers-reduced-motion: reduce) { .hm-play-new { animation: none; } }

@@ -521,6 +521,8 @@ export interface ResultsOpts {
   treats?: TreatGain | null;
   /** gaps4: a coat chroma this match earned (playing in the coat), named under the Treat Track. */
   chromaEarned?: { name: string; coat: string } | null;
+  /** Mode unlocking (MODE-UNLOCKS.md §3.3): the mode this match unlocked ("New mode unlocked: Blitz"), or null. */
+  modeUnlocked?: { name: string; line: string; art: string } | null;
   /** Today's quests after this match. */
   quests?: readonly QuestView[];
   /** Per-player rows (round 0: a veteran wants to see why it lost): own team first. */
@@ -736,6 +738,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       <h1>${o.won ? 'Victory!' : 'Defeat'}</h1>
       <p class="sub">${esc(resultLine(o))}</p>
       ${o.cause ? `<p class="pl-cause" data-cause>${esc(o.cause)}</p>` : ''}
+      ${o.modeUnlocked ? `<div class="pl-mode-unlock" role="status" data-testid="results-mode-unlock"><img src="${esc(o.modeUnlocked.art)}" alt="" width="48" height="48" decoding="async"><span><small>New mode unlocked</small><b>${esc(o.modeUnlocked.name)}</b>${o.modeUnlocked.line ? `<em>${esc(o.modeUnlocked.line)} · find it under PLAY</em>` : '<em>Find it under PLAY</em>'}</span></div>` : ''}
       <div class="stats">
         <div><b>${m}:${s}</b><small>Match time${o.won && o.best && o.seconds < sd ? ' · best!' : ''}</small></div>
         <div data-kda="${o.kills}/${o.deaths}/${o.assists ?? 0}"><b>${o.kills} / ${o.deaths} / ${o.assists ?? 0}</b><small>K / D / A</small></div>

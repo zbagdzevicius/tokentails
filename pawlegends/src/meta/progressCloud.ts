@@ -50,6 +50,10 @@ export const SYNCED_KEYS: readonly string[] = Object.freeze([
   'pl.party.hideNames',
   // gaps round 3 (hud-controls): the per-ability touch cast mode and aim sensitivity
   ...TCAST_KEYS,
+  // mode unlocking (MODE-UNLOCKS.md): which modes are NEW (unlocked by a match, not played yet) and already announced
+  // (short comma lists; the unlocks themselves ride `unlocks` as `mode.<id>`)
+  'pawlegends.modes.new',
+  'pawlegends.modes.seen',
 ]);
 
 /** Profile choices that follow the account (never counters: those merge by max in `counts`). */
