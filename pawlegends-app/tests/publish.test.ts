@@ -200,3 +200,95 @@ describe('ota-publish promote while main is busy', () => {
     expect(read('manifest.json').version).toBe(first);
   });
 });
+
+describe('ota-publish policy.json (FORCE-UPDATE.md §3.1)', () => {
+  const setup = () => {
+    const dir = mkdtempSync(join(tmpdir(), 'plpub-policy-'));
+    const keys = generateKeys() as { privatePem: string; publicPem: string };
+    writeFileSync(join(dir, 'private.pem'), keys.privatePem);
+    writeFileSync(join(dir, 'public.pem'), keys.publicPem);
+    const www = join(dir, 'www');
+    mkdirSync(www);
+    writeFileSync(join(www, 'index.html'), '<!doctype html><title>t</title>');
+    const updates = join(dir, 'updates');
+    const env = { ...process.env, OTA_PRIVATE_KEY: '', OTA_PRIVATE_KEY_PATH: join(dir, 'private.pem'), OTA_PUBLIC_KEY_PATH: join(dir, 'public.pem'), OTA_WWW_DIR: www, OTA_UPDATES_DIR: updates };
+    const run = (...a: string[]) => execFileSync(process.execPath, [script, ...a], { env, encoding: 'utf8' });
+    const read = (f: string, platform = 'ios') => JSON.parse(readFileSync(join(updates, platform, String(NATIVE_COMPAT), f), 'utf8'));
+    const publish = (hoursAgo: number, sim = 26, ...extra: string[]) => {
+      const seq = utc(new Date(Date.now() - hoursAgo * 3_600_000));
+      writeFileSync(join(www, 'bundle.json'), JSON.stringify({ version: `${seq}-abc1234`, seq, compat: NATIVE_COMPAT, simVersion: sim }));
+      run('--keep', '5', ...extra);
+      return `${seq}-abc1234`;
+    };
+    return { run, read, publish, keys, updates };
+  };
+
+  it('is written and signed on publish, promote and rollback; each entry mirrors its manifest', async () => {
+    const { run, read, publish, keys } = setup();
+    const first = publish(30);
+    let p = read('policy.json');
+    expect(p).toMatchObject({ kind: 'policy', platform: 'ios', compat: NATIVE_COMPAT, minCompat: 2, minSim: 26, maintenance: null });
+    expect(p.channels.beta).toMatchObject({ version: first, rollback: false });
+    expect(p.channels.stable).toBeUndefined();
+    expect(Date.parse(p.channels.beta.requiredFrom)).toBeLessThanOrEqual(Date.now());
+    run('--promote', '--soak-hours', '0');
+    p = read('policy.json');
+    expect(p.channels.stable).toMatchObject({ version: first });
+    const second = publish(1, 27);
+    p = read('policy.json');
+    // minSim: the lowest sim of the live channels (stable 26, beta 27)
+    expect(p).toMatchObject({ minSim: 26, channels: { stable: { version: first, simVersion: 26 }, beta: { version: second, simVersion: 27 } } });
+    run('--rollback', first);
+    p = read('policy.json');
+    expect(p.channels.stable).toMatchObject({ version: first, rollback: true });
+    expect(p.channels.beta).toMatchObject({ version: first, rollback: true });
+    expect(p.minSim).toBe(26);
+    // signed with the OTA key, verified as the shell and the backend do; Android has its own
+    const { verifiedPolicyFile } = await import('../src/shell/policy');
+    const { spkiPem } = await import('../scripts/lib/capgo-crypto.mjs');
+    const pem = spkiPem(keys.publicPem) as string;
+    expect(await verifiedPolicyFile(p, { platform: 'ios', compat: NATIVE_COMPAT }, pem)).not.toBeNull();
+    const a = read('policy.json', 'android');
+    expect(a.platform).toBe('android');
+    expect(a.store).toContain('play.google.com');
+    expect(await verifiedPolicyFile(a, { platform: 'android', compat: NATIVE_COMPAT }, pem)).not.toBeNull();
+  });
+
+  it('is rewritten only when its content changes (an idle hourly promote leaves it alone)', () => {
+    const { run, read, publish } = setup();
+    publish(30);
+    run('--promote', '--soak-hours', '0');
+    const before = read('policy.json');
+    run('--promote');
+    run('--write-policy');
+    expect(read('policy.json')).toEqual(before);
+  });
+
+  it('--grace-hours keeps a release optional for n hours; a new sim is required at once anyway', () => {
+    const { read, publish } = setup();
+    publish(30, 26);
+    const graced = publish(2, 26, '--grace-hours', '24');
+    const p = read('policy.json');
+    expect(p.channels.beta.version).toBe(graced);
+    const hours = (Date.parse(p.channels.beta.requiredFrom) - Date.now()) / 3_600_000;
+    expect(hours).toBeGreaterThan(23);
+    expect(hours).toBeLessThanOrEqual(24);
+    publish(1, 27, '--grace-hours', '24');
+    expect(Date.parse(read('policy.json').channels.beta.requiredFrom)).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('--maintenance switches the maintenance screen on (with an end) and off, without touching the manifests', () => {
+    const { run, read, publish } = setup();
+    publish(30);
+    const manifest = read('manifest-beta.json');
+    run('--maintenance', 'Moving servers', '--until', '2099-01-01T00:00:00Z');
+    expect(read('policy.json').maintenance).toEqual({ message: 'Moving servers', until: '2099-01-01T00:00:00.000Z' });
+    expect(read('policy.json', 'android').maintenance).toMatchObject({ message: 'Moving servers' });
+    expect(read('manifest-beta.json')).toEqual(manifest);
+    // a publish keeps the window
+    publish(1);
+    expect(read('policy.json').maintenance).toMatchObject({ message: 'Moving servers' });
+    run('--maintenance', 'off');
+    expect(read('policy.json').maintenance).toBeNull();
+  });
+});

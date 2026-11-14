@@ -63,3 +63,27 @@ export function canonicalManifest(m) {
 export function signManifest(m, privatePem) {
   return sign('sha256', Buffer.from(canonicalManifest(m)), { key: privatePem, padding: constants.RSA_PKCS1_PADDING }).toString('base64');
 }
+
+function sortDeep(v) {
+  if (Array.isArray(v)) return v.map(sortDeep);
+  if (!v || typeof v !== 'object') return v;
+  const out = {};
+  for (const k of Object.keys(v).sort()) out[k] = sortDeep(v[k]);
+  return out;
+}
+
+/**
+ * The bytes a policy signature covers (docs/plans/moba/FORCE-UPDATE.md §3.1): every field but the top-level
+ * `signature`, keys sorted at every depth (a policy has nested channel entries), no whitespace. The twin of
+ * shared/client-policy.ts canonicalPolicy, which the shell and the backend verify with.
+ */
+export function canonicalPolicy(p) {
+  const out = {};
+  for (const k of Object.keys(p).sort()) if (k !== 'signature') out[k] = sortDeep(p[k]);
+  return JSON.stringify(out);
+}
+
+/** Sign a policy file (base64 RSASSA-PKCS1-v1_5 SHA-256 over canonicalPolicy), with the manifests' key. */
+export function signPolicy(p, privatePem) {
+  return sign('sha256', Buffer.from(canonicalPolicy(p)), { key: privatePem, padding: constants.RSA_PKCS1_PADDING }).toString('base64');
+}

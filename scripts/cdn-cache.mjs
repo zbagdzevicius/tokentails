@@ -3,9 +3,10 @@
  * Cloudflare cache steps for the Paw Legends game and its OTA files (LATENCY-PLAN C5, infra/gcp/RUNBOOK.md
  * "Latency: Cloudflare cache"). No dependencies.
  *
- *   node scripts/cdn-cache.mjs ota  --file manifest-beta.json [--compat 1] [--platform ios]
- *     Waits until the origin serves the committed manifest (its `version`), then purges that manifest URL from
- *     Cloudflare, so apps see a new bundle at once instead of after the edge TTL.
+ *   node scripts/cdn-cache.mjs ota  --file manifest-beta.json|manifest.json|policy.json [--compat <n>] [--platform ios]
+ *     Waits until the origin serves the committed file (its `signature`), then purges that URL from Cloudflare, so
+ *     apps see a new bundle or update policy (docs/plans/moba/FORCE-UPDATE.md) at once instead of after the edge TTL.
+ *     --compat defaults to NATIVE_COMPAT (pawlegends-app/scripts/lib/app-config.mjs).
  *   node scripts/cdn-cache.mjs game --since <git sha> [--root client/public] [--no-purge]
  *     Purges /pawlegends-game/index.html (bare and `?embed=1`, the URL the game iframe loads) and fetches it until it
  *     serves the committed build, purges once more, then fetches the page and every build/ file added since <sha>
@@ -32,6 +33,13 @@ const GAME_SITE = (process.env.SITE ?? 'https://pawlegends.app').replace(/\/+$/,
 
 export const otaPath = (file, platform = 'ios', compat = '1') => `/pawlegends-app/updates/${platform}/${compat}/${file}`;
 export const GAME_INDEX = '/pawlegends-game/index.html';
+
+/** The app's native compat level, the folder the live manifests are in (pawlegends-app/scripts/lib/app-config.mjs). */
+export function nativeCompat(src = readFileSync(join(REPO, 'pawlegends-app/scripts/lib/app-config.mjs'), 'utf8')) {
+    const n = Number(/NATIVE_COMPAT = (\d+)/.exec(src)?.[1]);
+    if (!Number.isInteger(n)) throw new Error('cdn-cache: NATIVE_COMPAT not found in app-config.mjs');
+    return n;
+}
 
 /** The folder that holds the committed game build (pawlegends-web, served on pawlegends.app). */
 export const DEFAULT_GAME_ROOT = 'pawlegends-web/public';
@@ -129,13 +137,16 @@ async function main() {
     if (mode === 'ota') {
         const file = arg('file', 'manifest-beta.json');
         const platform = arg('platform', 'ios');
-        const compat = arg('compat', '1');
+        const compat = arg('compat', String(nativeCompat()));
         const path = otaPath(file, platform, compat);
-        const local = JSON.parse(readFileSync(join(REPO, 'client/public', path), 'utf8')).version;
-        console.log(`waiting for ${SITE}${path} to serve ${local}`);
+        const committed = JSON.parse(readFileSync(join(REPO, 'client/public', path), 'utf8'));
+        // manifests and policy.json are both signed: the signature names the exact committed content
+        const local = committed.signature ?? committed.version;
+        console.log(`waiting for ${SITE}${path} to serve ${committed.version ?? committed.issuedAt ?? 'the committed file'}`);
         const live = await waitForOrigin(`${SITE}${path}`, body => {
             try {
-                return JSON.parse(body).version === local;
+                const j = JSON.parse(body);
+                return (j.signature ?? j.version) === local;
             } catch {
                 return false;
             }
