@@ -94,9 +94,9 @@ const PROFILE = {
 
 /** The client's public Firebase web config key (from source, not env), used as the auth storage key. */
 function firebaseApiKey(): string {
-  const source = readFileSync(join(__dirname, "..", "context", "FirebaseAuthContext.tsx"), "utf8");
+  const source = readFileSync(join(__dirname, "..", "context", "auth", "firebaseConfig.ts"), "utf8");
   const match = /apiKey:\s*"([^"]+)"/.exec(source);
-  if (!match) throw new Error("Firebase apiKey not found in FirebaseAuthContext.tsx");
+  if (!match) throw new Error("Firebase apiKey not found in context/auth/firebaseConfig.ts");
   return match[1];
 }
 

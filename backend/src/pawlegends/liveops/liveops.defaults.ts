@@ -97,12 +97,18 @@ export type LiveopsTwistId = typeof WEEKLY_TWISTS[number];
 export const TWIST_INFO: Readonly<Record<LiveopsTwistId, { name: string; rules: string[] }>> = Object.freeze({
     toybox: {
         name: 'Toy Box',
-        rules: ['Fish comes twice as fast, so Toys arrive sooner.', 'Frenzy Catnip and Fish Snacks spawn twice as often.'],
+        rules: [
+            'Fish comes twice as fast, so Toys arrive sooner.',
+            'Frenzy Catnip and Fish Snacks spawn twice as often.',
+        ],
     },
     rapid: { name: 'Rapid Paws', rules: ['Every ability and Paw Trick cools down 40% faster.'] },
     bounty: {
         name: 'Bounty Hunt',
-        rules: ['A hero on a takedown streak is worth three times the bounty.', 'Ending a streak pays three times the Fish.'],
+        rules: [
+            'A hero on a takedown streak is worth three times the bounty.',
+            'Ending a streak pays three times the Fish.',
+        ],
     },
 });
 

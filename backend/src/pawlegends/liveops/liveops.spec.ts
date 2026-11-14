@@ -184,12 +184,16 @@ describe('liveops config', () => {
         expect(doc.featuredMode).toEqual({ id: 'twist', endsAt: '2026-11-22T00:00:00.000Z' });
         expect(eventsOf(doc, now).find(e => e.kind === 'mode')?.title).toBe('Weekly Twist: Bounty Hunt');
         // an unknown or ended twist keeps the rotation's
-        expect(resolveDefs({ twist: { id: 'giants', endsAt: '2026-11-22T00:00:00Z' } }, now).twist?.id).toBe(rotationTwist(now).id);
+        expect(resolveDefs({ twist: { id: 'giants', endsAt: '2026-11-22T00:00:00Z' } }, now).twist?.id).toBe(
+            rotationTwist(now).id
+        );
         const off = resolveDefs({ twist: null }, now);
         expect(off.twist).toBeNull();
         expect(off.featuredMode).toEqual(rotationFeatured(now));
         // a doc may still feature a mode over the twist
-        expect(resolveDefs({ featuredMode: { id: 'classic', endsAt: '2026-11-27T00:00:00Z' } }, now).featuredMode?.id).toBe('classic');
+        expect(
+            resolveDefs({ featuredMode: { id: 'classic', endsAt: '2026-11-27T00:00:00Z' } }, now).featuredMode?.id
+        ).toBe('classic');
     });
 
     it('drops past windows from the calendar', () => {

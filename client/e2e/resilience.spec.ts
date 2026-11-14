@@ -146,9 +146,11 @@ test.describe("storefront resilience: marketplace (/cats)", () => {
 // replies, so nothing reaches Google and no real account is touched.
 
 const FIREBASE_API_KEY = (() => {
-  const source = readFileSync(join(__dirname, "..", "context", "FirebaseAuthContext.tsx"), "utf8");
+  // the public web config moved out of FirebaseAuthContext.tsx into context/auth/firebaseConfig.ts (shared with the
+  // Paw Legends app host)
+  const source = readFileSync(join(__dirname, "..", "context", "auth", "firebaseConfig.ts"), "utf8");
   const match = /apiKey:\s*"([^"]+)"/.exec(source);
-  if (!match) throw new Error("Firebase web config not found in FirebaseAuthContext.tsx");
+  if (!match) throw new Error("Firebase web config not found in context/auth/firebaseConfig.ts");
   return match[1];
 })();
 
