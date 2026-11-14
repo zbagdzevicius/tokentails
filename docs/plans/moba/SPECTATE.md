@@ -44,11 +44,12 @@ unblocked friends only (as the party code). The relay also writes the `~live` pr
 
 ## 4. Client (`src/spectate/`)
 
-- `host.ts` `SpectateHost`: a MatchHost over the same net-host worker (NetCore + Pacer) as party play, started on the
-  followed slot (its team's fog and events). Sends only `sync` (start, gaps, reconnect) and `spectate.leave`.
+- `NetHost` in spectate mode (`NetHostOptions.spectate`): the same host and worker (NetCore + Pacer) as party play,
+  started on the followed slot (its team's fog and events). It sends no command, hash, vote, social, chat, away or
+  back; only `sync` (start, gaps, reconnect, a visible tab) and `spectate.leave`.
 - `viewer.ts`: own `PartySocket` (no stored resume token), a `MatchSession` with `replay: true` and
   `spectate: {names}` (relay names on plates, no match chat), and the spectate bar: Leave, LIVE + delay, viewer
-  count, one chip per hero of both teams (follow; downed heroes dimmed), Free cam (drag), Scores (Tab on desktop).
+  count, one chip per hero of both teams (follow; downed heroes dimmed), Free cam (drag), Scores (or hold Tab).
   The bar replaces the touch controls, so the phone HUD footprint does not grow. Esc leaves.
 - Errors show a card (Nothing to watch / Match is full / Update to watch / Already watching / Lost the live view).
 

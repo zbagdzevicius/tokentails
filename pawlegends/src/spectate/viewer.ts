@@ -1,7 +1,7 @@
 /**
  * Live spectating (docs/plans/moba/SPECTATE.md), its own lazy chunk: watch a friend's live match (Watch on their row in
  * Social) or the featured live match ("Watch live"), a short delay behind the players. The normal match view draws it:
- * a MatchSession over a SpectateHost that re-simulates the relay's delayed TURN stream with this build's frozen sim
+ * a MatchSession over a NetHost in spectate mode that re-simulates the relay's delayed TURN stream with this build's frozen sim
  * (the same NetCore the players run). Its own relay socket (never the party's), so watching never touches a party.
  *
  * The spectate bar (replaces the controls, so the phone HUD keeps its footprint): Leave, LIVE with the delay and the
@@ -18,7 +18,7 @@ import type { HeroId, MatchResult, Snapshot } from '../sim/api';
 import { SIM_VERSION } from '../sim/version';
 import { PartySocket, browserSocketEnv, type SocketEnv } from '../net/socket';
 import { PROTO_WATCH, WS_PATH, type MatchMsg, type ServerJson, type SpectateInfo } from '../net/proto';
-import { SpectateHost } from './host';
+import { NetHost } from '../net/net-host';
 import '../ui/css/moments.css';
 import './spectate.css';
 
@@ -49,16 +49,16 @@ export interface SpectateContext {
 export type SpectateError = 'watch_none' | 'watch_full' | 'watch_update' | 'rate_limited' | 'old' | 'lost' | 'crash';
 
 export const SPECTATE_ERROR_TEXT: Readonly<Record<SpectateError, { title: string; body: string }>> = Object.freeze({
-  watch_none: { title: 'Nothing to watch', body: 'This match is not live any more, or its players keep their matches private.' },
-  watch_full: { title: 'Match is full', body: 'This match already has the most spectators it takes. Try again in a minute.' },
-  watch_update: { title: 'Update to watch', body: 'This match runs another version of Paw Legends. Update the game to watch it.' },
-  rate_limited: { title: 'Already watching', body: 'You are watching on another screen. Close it to watch here.' },
-  old: { title: 'Watching is not ready', body: 'The game servers are being updated. Try again in a minute.' },
+  watch_none: { title: 'Nothing to watch', body: 'This match ended, or its players keep matches private.' },
+  watch_full: { title: 'Match is full', body: 'Try again in a minute.' },
+  watch_update: { title: 'Update to watch', body: 'This match runs another game version.' },
+  rate_limited: { title: 'Already watching', body: 'Close the other screen to watch here.' },
+  old: { title: 'Not ready yet', body: 'The servers are updating. Try again in a minute.' },
   lost: { title: 'Lost the live view', body: 'The connection to the match was lost.' },
-  crash: { title: 'The live view stopped', body: 'Something went wrong. Try again.' },
+  crash: { title: 'The live view stopped', body: 'Try again.' },
 });
 
-const FEATURED_NONE = { title: 'No live match right now', body: 'When a match is on, you can watch it here.' };
+const FEATURED_NONE = { title: 'No live match right now', body: 'Try again soon.' };
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 const simHash = (): string => (typeof __SIM_HASH__ !== 'undefined' ? __SIM_HASH__ : '0000000000000000');
@@ -72,11 +72,8 @@ export function followSlot(m: Pick<MatchMsg, 'names'> & { watch?: Pick<SpectateI
   return m.watch?.follow ?? 0;
 }
 
-/** "15 s behind live" / "1:30 behind live". Pure. */
-export function delayText(ms: number): string {
-  const s = Math.round(ms / 1000);
-  return s < 60 ? `${s} s behind live` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} behind live`;
-}
+/** "15 s behind live". Pure. */
+export const delayText = (ms: number): string => `${Math.round(ms / 1000)} s behind live`;
 
 /** The winner line of the end card. Pure. */
 export function winnerText(r: Pick<MatchResult, 'winner'>, sides: readonly ['cat' | 'dog', 'cat' | 'dog']): string {
@@ -94,7 +91,9 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
   const featured = 'featured' in ctx.target;
   const friend = 'room' in ctx.target ? ctx.target.name : undefined;
   let session: MatchSession | null = null;
-  let host: SpectateHost | null = null;
+  let host: NetHost | null = null;
+  /** The hero the session (and the fog) follows. */
+  let own = -1;
   let match: MatchMsg | null = null;
   let closed = false;
   let ended = false;
@@ -107,27 +106,24 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
   let viewers = 0;
   ctx.track?.('spectate_open', { featured });
 
-  const title = document.createElement('div');
-  title.className = 'mm-title sp-title';
-  title.innerHTML = `<b>Live</b><span>${featured ? 'Featured match' : esc(friend ? `Watching ${friend}` : 'Watching a friend')}</span>`;
   const bar = document.createElement('div');
   bar.className = 'mm-bar sp-bar';
   bar.setAttribute('role', 'toolbar');
   bar.setAttribute('aria-label', 'Spectator controls');
   bar.innerHTML = `
-    <button type="button" class="mm-b mm-x" data-r="exit" aria-label="Stop watching" title="Stop watching" data-testid="spectate-exit">✕</button>
+    <button type="button" class="mm-b mm-x" data-r="exit" aria-label="Stop watching" data-testid="spectate-exit">✕</button>
     <span class="sp-live" data-testid="spectate-live"><i aria-hidden="true"></i><b>LIVE</b><small class="sp-delay"></small></span>
     <span class="sp-viewers" data-testid="spectate-viewers" aria-live="polite"></span>
     <span class="sp-heroes" role="group" aria-label="Follow a hero"></span>
-    <button type="button" class="mm-b" data-r="cam" data-testid="spectate-cam" aria-pressed="false" title="Free camera: drag the map">Free cam</button>
-    <button type="button" class="mm-b" data-r="scores" data-testid="spectate-scores" aria-pressed="false" title="Both teams' scores">Scores</button>`;
+    <button type="button" class="mm-b" data-r="cam" data-testid="spectate-cam" aria-pressed="false">Free cam</button>
+    <button type="button" class="mm-b" data-r="scores" data-testid="spectate-scores" aria-pressed="false">Scores</button>`;
   const drag = document.createElement('div');
   drag.className = 'mm-drag';
   drag.hidden = true;
   const veil = document.createElement('div');
   veil.className = 'mm-veil';
   veil.innerHTML = `<span class="mm-spin" aria-hidden="true"></span><b>${featured ? 'Finding a live match…' : 'Joining the live match…'}</b>`;
-  ctx.root.append(title, drag, bar, veil);
+  ctx.root.append(drag, bar, veil);
   html.dataset.spectate = 'loading';
 
   const $ = <T extends HTMLElement>(sel: string): T => bar.querySelector<T>(sel)!;
@@ -142,9 +138,9 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
     { ...(ctx.env ?? browserSocketEnv()), store: undefined },
   );
 
-  const showCard = (t: { title: string; body: string }, again: boolean): void => {
+  const showCard = (t: { title: string; body: string }): void => {
     veil.classList.remove('out');
-    veil.innerHTML = `<div class="mm-err" role="alert"><b>${esc(t.title)}</b><p>${esc(t.body)}</p><div class="mm-row"><button type="button" class="pl-btn ghost" data-r="exit">Back</button>${again ? '<button type="button" class="pl-btn" data-r="again" data-testid="spectate-again">Try again</button>' : ''}</div></div>`;
+    veil.innerHTML = `<div class="mm-err" role="alert"><b>${esc(t.title)}</b><p>${esc(t.body)}</p><button type="button" class="pl-btn" data-r="exit">Back</button></div>`;
   };
 
   const fail = (why: SpectateError): void => {
@@ -154,7 +150,7 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
     ctx.track?.('spectate_error', { why, featured });
     teardownSession();
     socket.close();
-    showCard(featured && why === 'watch_none' ? FEATURED_NONE : SPECTATE_ERROR_TEXT[why], why !== 'watch_update' && why !== 'rate_limited');
+    showCard(featured && why === 'watch_none' ? FEATURED_NONE : SPECTATE_ERROR_TEXT[why]);
   };
 
   const teardownSession = (): void => {
@@ -191,7 +187,7 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
       const hero = m.config.picks[slot] as HeroId;
       const name = m.names[slot] ?? HERO_TEXT[hero]?.title ?? hero;
       const label = (HERO_TEXT[hero]?.title ?? hero).slice(0, 2);
-      chips.push(`<button type="button" class="sp-hero t${slot < n ? 0 : 1}${m.names[slot] ? ' human' : ''}" data-slot="${slot}" aria-pressed="false" title="Follow ${esc(name)}" aria-label="Follow ${esc(name)}">${esc(label)}</button>`);
+      chips.push(`<button type="button" class="sp-hero t${slot < n ? 0 : 1}${m.names[slot] ? ' human' : ''}" data-slot="${slot}" aria-pressed="false" title="${esc(name)}">${esc(label)}</button>`);
     }
     heroesEl.innerHTML = chips.join('');
   };
@@ -209,14 +205,14 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
     }
     html.dataset.spectateFollow = String(slot);
     // the session's own hero: its normal camera (no hold)
-    if (host && slot === host.follow) {
+    if (slot === own) {
       cam = null;
       session?.view.peekEnd();
     }
   };
 
   const setFree = (on: boolean): void => {
-    if (!on) return setFollow(host?.follow ?? 0);
+    if (!on) return setFollow(own);
     const f = session?.view.follow;
     free = cam ? { ...cam } : { x: (f?.x ?? 0) + (session?.view.camOff.x ?? 0), z: (f?.z ?? 0) + (session?.view.camOff.z ?? 0) };
     follow = -1;
@@ -249,9 +245,8 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
   const build = (m: MatchMsg): void => {
     match = m;
     const slot = followSlot(m, friend);
-    const h = new SpectateHost(socket, m, slot);
-    host = h;
-    h.events = {
+    own = slot;
+    const h = new NetHost(socket, { ...m, you: { slot } }, { lost: () => fail('lost'), spectate: {
       progress: (pct, done) => {
         ff = !done;
         if (done) return reveal();
@@ -266,9 +261,8 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
           if (!ff) reveal();
         }
       },
-      ended: (r) => endCard(r),
-      update: () => fail('watch_update'),
-    };
+    } });
+    host = h;
     const hero = m.config.picks[slot] as HeroId;
     const setup: MatchSetup = {
       hero,
@@ -293,7 +287,7 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
       host: () => h,
     };
     const s = new ctx.Session(ctx.gr, ctx.root, setup, {
-      onEnd: (_e: MatchEnd) => undefined,
+      onEnd: (e: MatchEnd) => endCard(e.result),
       onLeave: () => close(),
       onMute: (mu) => ctx.onMute(mu),
       ...(ctx.onSettings ? { onSettings: ctx.onSettings } : {}),
@@ -302,7 +296,7 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
     session = s;
     s.ui.classList.add('pl-replaying', 'pl-spectating');
     ctx.setSession(s);
-    ctx.root.append(title, drag, bar, veil);
+    ctx.root.append(drag, bar, veil);
     drawHeroes(m);
     setFollow(slot);
     setViewers(m.watch?.viewers ?? 1);
@@ -326,21 +320,16 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
     html.dataset.spectate = 'live';
   };
 
-  socket.listen({
+  // the viewer's own tap (the NetHost listens to the turns, `end` and a reconnect's `match` itself)
+  socket.tap({
     json: (m: ServerJson) => {
       if (closed) return;
       switch (m.t) {
-        case 'welcome':
-          return;
         case 'match':
-          if (m.you.slot !== -1) return;
-          if (!host) return build(m);
-          return host.json(m);
+          if (m.you.slot === -1 && !host) build(m);
+          return;
         case 'spectate':
           return setViewers(m.viewers);
-        case 'end':
-        case 'paused':
-          return host?.json(m);
         case 'error':
           if (m.code === 'watch_none' || m.code === 'watch_full' || m.code === 'watch_update' || m.code === 'rate_limited') return fail(m.code);
           if (m.code === 'update_required') return fail('watch_update');
@@ -353,18 +342,13 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
           return;
       }
     },
-    binary: (f, raw) => host?.binary(f, raw),
     state: (st) => {
-      if (closed) return;
-      if (st === 'open') {
-        // an older relay (before PROTO 7) answered as PROTO 1: it cannot stream a match to a spectator
-        if (socket.proto < PROTO_WATCH) return fail('old');
-        socket.sendJson('room' in ctx.target ? { t: 'spectate', room: ctx.target.room } : { t: 'spectate', featured: true });
-      } else if (st === 'reconnecting') lostSince ??= performance.now();
-      if (st === 'open') lostSince = null;
+      if (closed || st !== 'open') return;
+      // an older relay (before PROTO 7) answered as PROTO 1: it cannot stream a match to a spectator
+      if (socket.proto < PROTO_WATCH) return fail('old');
+      socket.sendJson('room' in ctx.target ? { t: 'spectate', room: ctx.target.room } : { t: 'spectate', featured: true });
     },
   });
-  let lostSince: number | null = null;
   socket.connect(ctx.ticket());
 
   // free camera: drag the map (as the replay viewer)
@@ -411,10 +395,6 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
     if (r === 'exit') return close();
     if (r === 'cam') return setFree(!free);
     if (r === 'scores') return setScores(!scoresOn);
-    if (r === 'again') {
-      close(false);
-      openSpectateViewer(ctx);
-    }
   };
   bar.addEventListener('click', onClick);
   veil.addEventListener('click', onClick);
@@ -425,13 +405,6 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
       e.preventDefault();
       e.stopPropagation();
       close();
-    } else if (free && e.key.startsWith('Arrow')) {
-      e.preventDefault();
-      const k = 40;
-      pan(e.key === 'ArrowLeft' ? -k : e.key === 'ArrowRight' ? k : 0, e.key === 'ArrowUp' ? -k : e.key === 'ArrowDown' ? k : 0);
-    } else if (e.key === 'Tab') {
-      e.preventDefault();
-      setScores(!scoresOn);
     }
   };
   document.addEventListener('keydown', onKey, true);
@@ -444,7 +417,7 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
     raf = requestAnimationFrame(loop);
     if (!session) return;
     if (free) session.view.peekHold(free.x, free.z);
-    else if (host && follow >= 0 && follow !== host.follow) {
+    else if (follow >= 0 && follow !== own) {
       const p = lastAt.get(follow);
       if (p) {
         const want = { x: toX(p.x), z: toZ(p.y) };
@@ -456,13 +429,13 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
       chipsAt = now;
       for (const b of heroesEl.querySelectorAll<HTMLElement>('[data-slot]')) b.classList.toggle('down', lastAt.get(Number(b.dataset.slot))?.dead === true);
       if (snap) html.dataset.spectateTick = String(snap.clock.tick);
-      // a socket down for 45 s of visible time: the live view is lost
-      if (lostSince !== null && !document.hidden && now - lostSince > 45_000) fail('lost');
+      // this build's sim failed the golden self-test: it cannot re-run the match
+      if (host?.ready === false) fail('watch_update');
     }
   };
   raf = requestAnimationFrame(loop);
 
-  function close(exit = true): void {
+  function close(): void {
     if (closed) return;
     closed = true;
     cancelAnimationFrame(raf);
@@ -470,9 +443,9 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
     if (!ended && !failed) host?.leave();
     teardownSession();
     socket.close();
-    for (const n of [bar, title, drag, veil]) n.remove();
+    for (const n of [bar, drag, veil]) n.remove();
     for (const k of ['spectate', 'spectateViewers', 'spectateFollow', 'spectateTick']) delete html.dataset[k];
-    if (exit) ctx.onExit();
+    ctx.onExit();
   }
 
   return { close };

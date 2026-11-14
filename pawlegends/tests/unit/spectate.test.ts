@@ -56,7 +56,7 @@ describe('spectate bar helpers', () => {
 
   it('says the delay and the winner', () => {
     expect(delayText(15_000)).toBe('15 s behind live');
-    expect(delayText(90_000)).toBe('1:30 behind live');
+    expect(delayText(90_000)).toBe('90 s behind live');
     expect(winnerText({ winner: 1 }, ['cat', 'dog'])).toBe('Dogs win');
     expect(winnerText({ winner: 0 }, ['cat', 'cat'])).toBe('Team Blue wins');
     expect(winnerText({ winner: -1 as never }, ['cat', 'dog'])).toBe('Draw');

@@ -53,6 +53,12 @@ export interface NetHostOptions {
    * never came back, or no relay knows the seat any more). The party client leaves the match screen and says so.
    */
   lost?: () => void;
+  /**
+   * SPECTATE.md: a spectator's host (the `match` is the relay's spectator frame with `you.slot` set to the followed
+   * hero). Nothing that could reach the match is sent: no commands, hashes, votes, social, chat, away or back; Leave
+   * sends `spectate.leave`. The viewer hears each snapshot (hero chips, camera) and the catch-up progress.
+   */
+  spectate?: { snap?(s: import('../sim/api').Snapshot): void; progress?(pct: number, done: boolean): void };
 }
 
 /** The party result a NetHost hands to MatchSession's `end` (display only: the score posts as v:2, §6). */
@@ -202,6 +208,7 @@ export class NetHost implements PartyLink {
 
   /** A social message (§7 M2-M3): enumerated ids only, clamped integer points, the relay's rate limit mirrored. */
   social(kind: SocialKind, id: number, x?: number, y?: number, target?: number): boolean {
+    if (this.opts.spectate) return false;
     if (!socialIdOk(kind, id) || !this.limiter.allow(this.now())) return false;
     const msg: { t: 'social'; kind: SocialKind; id: number; x?: number; y?: number; target?: number } = { t: 'social', kind, id };
     if (x !== undefined && y !== undefined) Object.assign(msg, clampSocialPoint(x, y, this.match.config.map));
@@ -211,6 +218,7 @@ export class NetHost implements PartyLink {
   }
 
   vote(kind: VoteKind, yes: boolean): void {
+    if (this.opts.spectate) return;
     this.socket.sendJson({ t: 'vote', kind, yes });
   }
 
@@ -218,6 +226,7 @@ export class NetHost implements PartyLink {
   private chatSent: number[] = [];
   chatTier: 'text' | 'quick' = 'quick';
   chat(ch: 'team' | 'all', body: { k: 't'; text: string } | { k: 'q'; id: number }): boolean {
+    if (this.opts.spectate) return false;
     const now = this.now();
     this.chatSent = this.chatSent.filter((t) => now - t < CHAT_SAY_RATE.windowMs);
     if (this.chatSent.length >= CHAT_SAY_RATE.perWindow) return false;
@@ -314,7 +323,7 @@ export class NetHost implements PartyLink {
       this.unwatch = watchVisibility({
         hidden: () => {
           this.lostAt(this.now(), 'hidden');
-          this.socket.sendJson({ t: 'away' });
+          if (!this.opts.spectate) this.socket.sendJson({ t: 'away' });
           this.transport.post({ t: 'hidden', hidden: true });
         },
         visible: () => {
@@ -350,6 +359,7 @@ export class NetHost implements PartyLink {
    * is 5 per second: a `back` per joystick command used to earn strikes and close the socket, a drop loop.
    */
   private askBack(): void {
+    if (this.opts.spectate) return;
     const now = this.now();
     if (now - this.lastBackMs < 1000) return;
     this.lastBackMs = now;
@@ -426,6 +436,7 @@ export class NetHost implements PartyLink {
 
   /** The player's command: own commands reach the local sim only through the relay's TURNs (§1.4). */
   send(cmd: Command): void {
+    if (this.opts.spectate) return;
     if (cmd.op === Op.Forfeit) {
       // a forfeit is a vote in party play (§4.6)
       this.socket.sendJson({ t: 'vote', kind: 'surrender', yes: true });
@@ -455,6 +466,7 @@ export class NetHost implements PartyLink {
   }
 
   leave(): void {
+    if (this.opts.spectate) return this.socket.sendJson({ t: 'spectate.leave' });
     this.socket.sendJson({ t: 'bye' });
   }
 
@@ -638,15 +650,18 @@ export class NetHost implements PartyLink {
         this.selftestOk = m.ok;
         if (!m.ok) this.note({ key: 'mp-update', title: 'Update to play together', tone: 'bad', ttl: 10_000 });
         return;
-      case 'snap':
-        this.listener.snap?.(decodeSnap(m.buf));
+      case 'snap': {
+        const snap = decodeSnap(m.buf);
+        this.listener.snap?.(snap);
+        this.opts.spectate?.snap?.(snap);
         return;
+      }
       case 'events':
         this.actions.confirm(m.list as SimEvent[], this.mySlot);
         this.listener.events?.(m.tick, m.list as SimEvent[]);
         return;
       case 'hash':
-        if (!this.catching) this.socket.sendHash(m.tick, m.hash);
+        if (!this.catching && !this.opts.spectate) this.socket.sendHash(m.tick, m.hash);
         if (E2E) {
           const d = document.documentElement.dataset;
           const trail = (d.mpTrail ?? '').split(' ').filter(Boolean);
@@ -698,6 +713,7 @@ export class NetHost implements PartyLink {
       case 'progress':
         if (!this.catching) this.catchups++;
         this.note({ key: 'mp-catchup', title: `Catching up ${m.pct}%`, tone: 'info', ttl: m.done ? 1200 : 4000 });
+        this.opts.spectate?.progress?.(m.pct, m.done);
         if (m.done) this.caughtUp();
         return;
       case 'gap': {
