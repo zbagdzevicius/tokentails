@@ -78,6 +78,8 @@ export interface Promo {
   sub: string;
   art?: string;
   action: 'pass' | 'modes' | 'store' | 'heroes';
+  /** `modes` only: the mode Mode Select opens on (default: the first timed event that is not featured). */
+  mode?: string;
 }
 
 export interface HomeScreenOpts extends LobbyScreenOpts {
@@ -224,7 +226,7 @@ function promoHtml(o: HomeScreenOpts): string {
   const slides = ps
     .map(
       (p, i) =>
-        `<button type="button" class="hm-slide${i === 0 ? ' on' : ''}" data-a="promo" data-act="${p.action}" data-i="${i}" tabindex="${i === 0 ? 0 : -1}" aria-label="${esc(`${p.title}. ${p.sub}`)}"${p.art ? ` style="--art:url('${esc(absArt(p.art))}')"` : ''}><span class="hm-slide-t"><b>${esc(p.title)}</b><small>${esc(p.sub)}</small></span></button>`,
+        `<button type="button" class="hm-slide${i === 0 ? ' on' : ''}" data-a="promo" data-act="${p.action}"${p.mode ? ` data-mode="${esc(p.mode)}"` : ''} data-i="${i}" tabindex="${i === 0 ? 0 : -1}" aria-label="${esc(`${p.title}. ${p.sub}`)}"${p.art ? ` style="--art:url('${esc(absArt(p.art))}')"` : ''}><span class="hm-slide-t"><b>${esc(p.title)}</b><small>${esc(p.sub)}</small></span></button>`,
     )
     .join('');
   const dots = ps.length > 1 ? `<span class="hm-dots" aria-hidden="true">${ps.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</span>` : '';
@@ -496,7 +498,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       if (act === 'pass') o.onCollection?.();
       else if (act === 'store') o.onStore?.();
       else if (act === 'heroes') o.onHeroes?.();
-      else openModes(o.modes.find((m) => typeof m.state === 'object' && m.id !== featuredModeId())?.id, 'promo');
+      else openModes(btn!.dataset.mode ?? o.modes.find((m) => typeof m.state === 'object' && m.id !== featuredModeId())?.id, 'promo');
     } else if (a === 'mute') {
       const b = root.querySelector<HTMLElement>('[data-a="mute"]');
       if (!b) return;

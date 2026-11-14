@@ -309,6 +309,12 @@ describe('home screen: one play path', () => {
     expect(root.querySelector('[data-act="store"]')).toBeTruthy();
   });
 
+  it('a modes promo names the mode it opens on (sim v27: the Cannon Chaos slide opens on Cannon Chaos)', () => {
+    const promos = [{ id: 'cannon', title: 'Cannon Chaos', sub: 'Live now', action: 'modes' as const, mode: 'cannon' }];
+    const root = mount(base({ promos }));
+    expect(root.querySelector<HTMLElement>('[data-act="modes"]')?.dataset.mode).toBe('cannon');
+  });
+
   it('escapes host names (profile, champion, title)', () => {
     const x = '<img src=x onerror=alert(1)>';
     const root = mount(base({ profile: { name: x, tier: 2, pct: 0.5, xp: 120, matches: 3 }, identity: { ...base().identity, name: x }, title: x }));
