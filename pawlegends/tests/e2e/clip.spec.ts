@@ -57,10 +57,12 @@ test('clip: the Legend Moment card records a vertical clip; Record again records
   // Save video downloads the file
   const dl = page.waitForEvent('download');
   await press(page, touch, '[data-testid="clip-save"]');
-  expect((await dl).suggestedFilename()).toMatch(/^paw-legends-clip-\d{8}\.(mp4|webm)$/);
+  // HIGHLIGHTS.md: the Legend Moment is the match's top highlight (a highlight file) when the reel is cached, else the
+  // busiest takedown window (a clip file)
+  expect((await dl).suggestedFilename()).toMatch(/^paw-legends-(clip|highlight)-\d{8}\.(mp4|webm)$/);
 
-  // Record again (the Legend Moment ran to the end of this forfeited match): the panel over the Replay over card;
-  // Record rewinds to the last 10 s and records a wide clip
+  // Record again: the panel over the replay; Record takes 10 s from the play head (rewinding when too close to the
+  // end) and records a wide clip
   await press(page, touch, '[data-testid="clip-again"]');
   await expect(sheet).toHaveCount(0);
   const panel = page.locator('[data-testid="clip-panel"]');
@@ -82,9 +84,12 @@ test('clip: the Legend Moment card records a vertical clip; Record again records
   await expect(sheet).toHaveCount(0);
   // Record rewound to 3 s more than the clip before the end, and a finished clip pauses the replay under its sheet:
   // play the rest (unless a slow machine already ran to the end), then Back on the Replay over card
-  if (!(await page.locator('.mm-end').isVisible())) await press(page, touch, '[data-testid="replay-play"]');
-  await expect(page.locator('.mm-end')).toBeVisible({ timeout: 30_000 });
-  await press(page, touch, '.mm-end [data-r="exit"]');
+  if (!(await page.locator('.mm-end').isVisible())) {
+    await press(page, touch, '.mm-bar [data-speed="4"]');
+    await press(page, touch, '[data-testid="replay-play"]');
+  }
+  await expect(page.locator('.mm-end:not(.mm-hlend)')).toBeVisible({ timeout: 120_000 });
+  await press(page, touch, '.mm-end:not(.mm-hlend) [data-r="exit"]');
   await page.waitForSelector('html[data-screen="title"]', { timeout: 20_000 });
   expect(await page.evaluate(() => document.documentElement.dataset.clip ?? '')).toBe('');
   expect(errors).toEqual([]);
