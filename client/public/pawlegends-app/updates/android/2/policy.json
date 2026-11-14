@@ -4,15 +4,15 @@
   "platform": "android",
   "compat": 2,
   "minCompat": 2,
-  "minSim": 26,
+  "minSim": 27,
   "channels": {
     "stable": {
-      "version": "20261114000348-d4e754c",
-      "seq": 20261114000348,
-      "simVersion": 26,
+      "version": "20261114083310-a88b5e5",
+      "seq": 20261114083310,
+      "simVersion": 27,
       "minNative": "1.0.0",
       "rollback": false,
-      "requiredFrom": "2026-11-14T08:17:52.971Z"
+      "requiredFrom": "2026-11-14T08:34:54.808Z"
     },
     "beta": {
       "version": "20261114083310-a88b5e5",
@@ -26,6 +26,6 @@
   "store": "https://play.google.com/store/apps/details?id=com.tokentails.pawlegends",
   "web": "https://pawlegends.app/play",
   "maintenance": null,
-  "issuedAt": "2026-11-14T08:33:15.215Z",
-  "signature": "or9XKrORavUTrIzci3OJkA0QT+PsIEH+X+LaA/+uhIofdqm1KYHX5bPPyGPnhbkFelx0gb45Vw1zxu72Ts2c3sNXIN2b/kgXmE1Tpb+446P+QDP9Mx2bfom/Na4Cli4wLYTJvWB5GOqezY2vomMJlLR2/MzTxS1lzLzdQxXDrC+MpOF0phvvVCDE391Yx/dc+eDmpDp0JRDVkc1iEdag2AXO8GumQ6mkoN7nz7ZgsKLVo+0eJufkf5Z61+zUwkX6d1nVZtdKFKibqrA+7sR/cRwx77EITrNp58EFrEmZXyTfqsc5ICXjIQxtPTdBJ5ooLyVusJcVSiIjGS/EjRnFbA=="
+  "issuedAt": "2026-11-14T08:34:54.808Z",
+  "signature": "DKFRm0DJl0dPR6v+UVaxmmFaluObC0Hlhl9ksnPLxS1i8g622i+rFFjLQdABlF+x2cHchBOjnhxOnDW/ZJW6Q5jZ80ZFPE9ctSIvESt8Ee03YT7U0IOdV5Z4rQxBjAj6+VsxSETAe/Kce9oRTNoAFpWeXVfgM2mdOgvFmKZMJdIYI+YYNLRCLOUoQA5u7QVeKj+kVEBqXrb4SuHobPGUdbDpFXK7rQuLwsaM969MralxyPrPchLBKracALQtG92ow3Qg49Jrtfn5tqO/8GMzXvmyotnJEEcP18C5aSQy4y4G4HpaDHcrNQ5RduimMbwP088JSVzia7XM/4vUjgBObQ=="
 }
