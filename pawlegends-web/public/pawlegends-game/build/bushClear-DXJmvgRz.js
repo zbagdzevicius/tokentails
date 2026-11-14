@@ -1,1 +1,0 @@
-import{k as e}from"./world-BU0DnUQ_.js";import{t}from"./brush-BHvmMoVP.js";var n=e.length*2,r=()=>e.length*2;function i(e,n,i=[]){i.length=r(),i.fill(!1);for(let r of e){if(r.team!==n||r.state===`dead`||r.kind!==`hero`&&r.kind!==`minion`)continue;let e=t(Math.round(r.fx??r.x),Math.round(r.fy??r.y));e>=0&&(i[e]=!0)}return i}export{i as n,n as t};
