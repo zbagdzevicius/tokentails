@@ -546,16 +546,19 @@ export function slotNames(picks: readonly HeroId[], seed?: number, humanSlot = 0
   }
   // Round 2 ("three matches show the same faces: Clem 2, Cacklejaw 2, Sir Brutus 2"): every bot gets a persona name
   // from the match seed ("Biscuit the Clem"), never twice in one match; the human keeps the hero's title.
+  // The draw never depends on whose screen it is: slot 0 is skipped on every client (as in a solo match, where it is
+  // the player), so two friends in one party name every bot the same. Before, each client skipped its own slot, and
+  // the same bot read "Noodle" on one friend's screen and "Tofu" on the other's (2026-11-15 live co-op check)
   const used = new Set<string>();
   return picks.map((h, s) => {
     const t = HERO_TEXT[h]?.title ?? 'A hero';
-    if (s === humanSlot) return t;
+    if (s === 0) return t;
     const pool = HEROES[h]?.side === 'dog' ? DOG_NAMES : CAT_NAMES;
     let k = (Math.imul((seed >>> 0) ^ (s * 0x9e3779b1), 0x85ebca6b) >>> 0) % pool.length;
     while (used.has(pool[k])) k = (k + 1) % pool.length;
     used.add(pool[k]);
     return `${pool[k]} the ${t.replace('Sir ', '')}`;
-  });
+  }).map((n, s) => (s === humanSlot ? (HERO_TEXT[picks[s]]?.title ?? 'A hero') : n));
 }
 
 /** Bot persona names (round 2), by side. Generic pet names, not any real Token Tails cat. */
