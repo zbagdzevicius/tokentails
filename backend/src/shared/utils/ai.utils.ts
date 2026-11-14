@@ -103,9 +103,10 @@ const editions = {
     saiyan: 'saiyan',
 };
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+// Created on first use: the OpenAI SDK throws at construction without a key, and this module is imported by the cat,
+// image and checkout services, so a module-level client failed every spec (and any process) that has no OPENAI_API_KEY.
+let openaiClient: OpenAI | null = null;
+const openai = (): OpenAI => (openaiClient ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
 
 const getAbilityType = () => {
     return getRandomProperty(CatAbilityType);
@@ -286,7 +287,7 @@ export async function generateCat(
     try {
         const combinedPrompt = buildCatPrompt(abilityType, !!options.screen);
 
-        const response = await openai.chat.completions.create(
+        const response = await openai().chat.completions.create(
             {
                 model: 'gpt-4o-mini',
                 messages: [

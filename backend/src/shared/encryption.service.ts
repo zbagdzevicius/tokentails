@@ -5,7 +5,11 @@ import { IEncryptedMessage } from 'src/user/user.schema';
 @Injectable()
 export class EncryptionService {
     static algorithm = 'aes-128-ctr';
-    static key = scryptSync(process.env.INVALIDATE_CACHE_SECRET!, 'salt', 16);
+    private static derived: Buffer | null = null;
+    /** Derived on first use, so importing this module (every service that imports UserService) needs no secret. */
+    static get key(): Buffer {
+        return (EncryptionService.derived ??= scryptSync(process.env.INVALIDATE_CACHE_SECRET!, 'salt', 16));
+    }
 
     encrypt(text: string): IEncryptedMessage {
         const iv = randomBytes(16);

@@ -33,6 +33,16 @@ export const GUEST_ALLOW_LIST: Readonly<Record<string, Readonly<AllowGuestOption
     // settings), max-merged; no score, no draw (the Lucky Treat is drawn only by /live).
     'GET /pawlegends/progress': {},
     'POST /pawlegends/progress': {},
+    // Pawlegends store and Legends Pass (STORE-PASS.md §3): a guest's owned items and pass row, its free-row claims and
+    // its Yarn champion unlocks (earned through its own /live saves; no money moves, the premium row needs an account).
+    'GET /pawlegends/me': {},
+    'POST /pawlegends/champions/unlock': {},
+    'POST /pawlegends/pass/claim': {},
+    // Pawlegends live ops (Events: community goal, Winter Nap, fan vote): a guest's own event state, claims and one vote.
+    'GET /pawlegends/config/me': {},
+    'POST /pawlegends/config/goal/claim': {},
+    'POST /pawlegends/config/nap/claim': {},
+    'POST /pawlegends/config/vote': {},
     // Feeding the guest's own cat. The reward goes to pendingTails, never spendable Tails (G1).
     'PUT /cat/:id': {},
     // Read-only previews of the guest's own progress ("you would be #N").
