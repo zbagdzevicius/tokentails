@@ -2032,25 +2032,7 @@ export class App {
           muted: sfx.isMuted,
           look: this.lookFor(record.hero),
           playerName: this.integration.state().playerName,
-          setSession: (s) => {
-            this.session = s;
-            if (s) this.governor.hold(performance.now() + GOV.WARMUP_MS);
-          },
-          warm: (s) => {
-            const t0 = performance.now();
-            return warmMatch(
-              () => (this.session === s ? s.view.hasRoster : null),
-              () => s.view.warmup(t0 + WARM.totalMs),
-              (ms) => new Promise((r) => setTimeout(r, ms)),
-              () => performance.now() - t0,
-            ).then(() => undefined);
-          },
-          onExit: () => {
-            this.session = null;
-            if (token === this.matchToken) this.showTitle();
-          },
-          onMute: (m) => this.setMuted(m),
-          onSettings: (done) => this.openSettings(done),
+          ...this.viewerHooks(token),
           track: (ev, props) => this.analytics.track(ev as 'replay_open', props),
         });
       })
@@ -2058,6 +2040,31 @@ export class App {
         reportCrash('window', err);
         this.showTitle();
       });
+  }
+
+  /** The replay and spectate viewers' shared plumbing: the session slot, the warm-up, Home on exit, mute, Settings. */
+  private viewerHooks(token: number) {
+    return {
+      setSession: (s: MatchSession | null) => {
+        this.session = s;
+        if (s) this.governor.hold(performance.now() + GOV.WARMUP_MS);
+      },
+      warm: (s: MatchSession) => {
+        const t0 = performance.now();
+        return warmMatch(
+          () => (this.session === s ? s.view.hasRoster : null),
+          () => s.view.warmup(t0 + WARM.totalMs),
+          (ms) => new Promise((r) => setTimeout(r, ms)),
+          () => performance.now() - t0,
+        ).then(() => undefined);
+      },
+      onExit: () => {
+        this.session = null;
+        if (token === this.matchToken) this.showTitle();
+      },
+      onMute: (m: boolean) => this.setMuted(m),
+      onSettings: (done: () => void) => this.openSettings(done),
+    };
   }
 
   /**
@@ -2088,25 +2095,7 @@ export class App {
           ticket: () => this.integration.partyTicket(),
           guestKey: () => partyGuestKey(),
           muted: sfx.isMuted,
-          setSession: (s) => {
-            this.session = s;
-            if (s) this.governor.hold(performance.now() + GOV.WARMUP_MS);
-          },
-          warm: (s) => {
-            const t0 = performance.now();
-            return warmMatch(
-              () => (this.session === s ? s.view.hasRoster : null),
-              () => s.view.warmup(t0 + WARM.totalMs),
-              (ms) => new Promise((r) => setTimeout(r, ms)),
-              () => performance.now() - t0,
-            ).then(() => undefined);
-          },
-          onExit: () => {
-            this.session = null;
-            if (token === this.matchToken) this.showTitle();
-          },
-          onMute: (m) => this.setMuted(m),
-          onSettings: (done) => this.openSettings(done),
+          ...this.viewerHooks(token),
           track: (ev, props) => this.analytics.track(ev as 'spectate_open', props),
         });
       })
