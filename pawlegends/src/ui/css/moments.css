@@ -218,3 +218,43 @@ html[data-touch='1'] .mm-bar { width: calc(100vw - 24px - var(--safe-l, 0px) - v
 .mm-cliprow { align-items: center; }
 .mm-cliprow > span { font-size: 13px; color: var(--v6-muted); }
 .mm-clip-pic { width: fit-content; max-width: 100%; margin: 0 auto; }
+
+/* ------------------------------------------------------------------------- highlights (HIGHLIGHTS.md §5.2) */
+/* seek-bar bands under the death and takedown dots: gold epic, sky teamfight, bolt clutch/objective, rose funny */
+.mm-band { position: absolute; top: 50%; height: 14px; margin-top: -7px; min-width: 4px; border-radius: 4px; opacity: 0.55; }
+.mm-band.epic { background: var(--v6-logo-gold, #f7bc3c); }
+.mm-band.fight { background: var(--v6-sky, #5ec8ff); }
+.mm-band.bolt { background: var(--v6-bolt, #ffe14a); }
+.mm-band.funny { background: var(--v6-rose, #ff4f9a); }
+.mm-hlb .mm-star { color: var(--v6-bolt); margin-right: 4px; }
+.mm-hlb b { color: var(--v6-bolt); margin-left: 2px; }
+/* the chip row: one scrolling row just over the bar (the bar itself keeps its height) */
+.mm-hlrow {
+  position: absolute; z-index: 31; left: 50%; transform: translateX(-50%); bottom: calc(66px + var(--safe-b, 0px));
+  width: min(900px, calc(100vw - 24px)); display: flex; gap: 6px; padding: 4px; overflow-x: auto; overscroll-behavior-x: contain;
+  scrollbar-width: none; border-radius: 12px; background: rgb(var(--v6-night-rgb) / 0.8);
+}
+.mm-hlrow::-webkit-scrollbar { display: none; }
+.mm-hlrow[hidden] { display: none; }
+.mm-chip {
+  flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 200px; padding: 5px 10px; border-radius: 10px;
+  border: 1px solid var(--v6-line-strong); background: rgb(var(--v6-navy-rgb) / 0.85); color: var(--v6-cream); font: 600 13px/1.1 var(--font); cursor: pointer;
+  box-shadow: inset 3px 0 0 var(--v6-logo-gold, #f7bc3c); text-align: left;
+}
+.mm-chip b { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.mm-chip small { font-size: 11px; color: var(--v6-muted); font-variant-numeric: tabular-nums; }
+.mm-chip.fight { box-shadow: inset 3px 0 0 var(--v6-sky, #5ec8ff); }
+.mm-chip.bolt { box-shadow: inset 3px 0 0 var(--v6-bolt, #ffe14a); }
+.mm-chip.funny { box-shadow: inset 3px 0 0 var(--v6-rose, #ff4f9a); }
+.mm-chip.on { border-color: var(--v6-bolt); background: rgb(var(--v6-navy-rgb) / 1); }
+.mm-chip.mm-only { justify-content: center; align-self: stretch; background: var(--v6-rose); border-color: var(--v6-rose-deep, #c8135b); box-shadow: none; font-weight: 700; }
+.mm-chip.mm-only[aria-pressed='true'] { background: var(--v6-cream); color: var(--v6-night); }
+.mm-hlend .mm-row .pl-btn { min-width: 0; }
+/* Highlights only: a bolt wipe between highlights */
+.mm-veil.mm-wipe { background: linear-gradient(105deg, var(--v6-night) 40%, var(--v6-bolt) 40% 46%, var(--v6-night) 46%); }
+@media (max-height: 500px) {
+  .mm-hlb .mm-hll { display: none; }
+  .mm-hlrow { bottom: calc(58px + var(--safe-b, 0px)); }
+  .mm-chip { padding: 3px 8px; font-size: 12px; }
+}
+@media (max-width: 700px) { .mm-hlb .mm-hll { display: none; } }

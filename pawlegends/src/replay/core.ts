@@ -13,9 +13,12 @@
  */
 import { decodeStream, fromBase64 } from '../sim/commands';
 import { createMatch, fillPicks, result, snapshot, step, tickOf, SIM_VERSION } from '../sim/index';
+import { HighlightDetector } from './highlights/detect';
+import { kindOf, probe } from './highlights/probe';
+import { HZ, SAMPLE, type HighlightReel } from './highlights/rules';
 import { bindMap, mapIndex } from '../sim/map/runtime';
 import { LIMITS_BY_MAP } from '../data/limits';
-import { HUMAN_SLOT, teamOfSlot, type Command, type Match, type MatchResult, type ReplayRecord, type SimEvent, type Team, type TimedCommand } from '../sim/api';
+import { HUMAN_SLOT, teamOfSlot, teamSizeOf, type Command, type Match, type MatchResult, type ReplayRecord, type SimEvent, type Team, type TimedCommand } from '../sim/api';
 import { encodeSnap, type EndMsg, type EventsMsg, type HostMsg, type SnapMsg, type WelcomeMsg } from '../host/protocol';
 import { deepClone } from './clone';
 
@@ -42,6 +45,14 @@ export interface ReplayInfo {
   ok: boolean | null;
   /** The device is too slow for seeking within SEEK_CAP_MS. */
   slow: boolean;
+}
+
+/** HIGHLIGHTS.md §1: what the detector needs beyond the record (names come from the main thread's hero copy). */
+export interface HighlightLoad {
+  /** Display name per hero slot. */
+  names?: readonly string[];
+  /** Ticks of the player's emotes (the optional sidecar). */
+  emotes?: readonly number[];
 }
 
 export type ReplayRecordLike = Pick<ReplayRecord, 'seed' | 'difficulty' | 'hero' | 'trick' | 'inputs' | 'ticks' | 'map' | 'mutator' | 'simVersion' | 'finalHash' | 'outcome'> & { party?: unknown };
@@ -79,12 +90,18 @@ export class ReplayCore {
 
   /** The loaded record's identity (the same record loads once, so its keyframes survive a seek). */
   key: string | null = null;
+  /** HIGHLIGHTS.md: the detector riding the scout, and its reel once the scout reached the end. */
+  private detector: HighlightDetector | null = null;
+  reel: HighlightReel | null = null;
+  /** A scan (the results strip): the scout keeps no keyframes. */
+  private scanOnly = false;
 
-  load(record: ReplayRecordLike, simVersion = SIM_VERSION): ReplayError | null {
+  load(record: ReplayRecordLike, simVersion = SIM_VERSION, o: { highlights?: HighlightLoad | null; scanOnly?: boolean } = {}): ReplayError | null {
     const why = replayable(record, simVersion);
     if (why) return why;
     const key = `${record.seed}:${record.finalHash}:${record.ticks}`;
     if (key === this.key && this.record) return null;
+    this.scanOnly = !!o.scanOnly;
     try {
       bindMap(mapIndex(record.map));
       const max = LIMITS_BY_MAP[record.map === 'hearthwood' ? 'hearthwood' : 'crossing'].maxTicks;
@@ -99,8 +116,35 @@ export class ReplayCore {
     this.team = teamOfSlot(HUMAN_SLOT, record.map);
     this.keys = new Map();
     const fresh = this.fresh();
-    this.keys.set(0, deepClone(fresh));
+    if (!this.scanOnly) this.keys.set(0, deepClone(fresh));
     this.scout = { m: fresh, ci: 0 };
+    this.reel = null;
+    this.detector = null;
+    if (o.highlights) {
+      const { picks, tricks } = this.picks;
+      const map = record.map ?? 'crossing';
+      try {
+        this.detector = new HighlightDetector({
+          seed: record.seed,
+          key,
+          simVersion: record.simVersion,
+          slots: picks.length,
+          teamSize: teamSizeOf(map),
+          ticks: this.limit,
+          mutator: record.mutator ?? 'none',
+          tricks,
+          names: picks.map((h, s) => o.highlights?.names?.[s] ?? h),
+          // a kept record is a solo match: every other slot is a bot
+          bots: picks.map((_, s) => s !== HUMAN_SLOT),
+          vsBots: true,
+          me: HUMAN_SLOT,
+          kindOf: kindOf(fresh),
+          ...(o.highlights.emotes ? { emotes: o.highlights.emotes } : {}),
+        });
+      } catch {
+        this.detector = null;
+      }
+    }
     this.play = null;
     this.measured = 0;
     this.msPerTick = 0;
@@ -152,7 +196,16 @@ export class ReplayCore {
       this.stepRun(s);
       n++;
       const t = tickOf(s.m);
-      for (const e of eventsOf(s.m)) {
+      const evs = eventsOf(s.m);
+      if (this.detector) {
+        try {
+          this.detector.feed(t, evs, t % SAMPLE === 0 ? probe(s.m, this.picks!.picks.length, t % HZ === 0) : null);
+        } catch {
+          // a detector fault never stops the replay: the strip falls back to the best moment
+          this.detector = null;
+        }
+      }
+      for (const e of evs) {
         if (e.type !== 'death') continue;
         if (e.id === HUMAN_SLOT) {
           this.info.deaths.push(e.tick);
@@ -162,7 +215,7 @@ export class ReplayCore {
           changed = true;
         }
       }
-      if (t % KEYFRAME_TICKS === 0) this.keys.set(t, deepClone(s.m));
+      if (!this.scanOnly && t % KEYFRAME_TICKS === 0) this.keys.set(t, deepClone(s.m));
       if ((n & 31) === 0 && now() - t0 > budgetMs) break;
     }
     const ms = now() - t0;
@@ -181,6 +234,14 @@ export class ReplayCore {
       const r = result(s.m);
       this.info.done = true;
       this.info.ok = r ? r.finalHash === this.record!.finalHash : false;
+      if (this.detector) {
+        try {
+          this.reel = this.detector.finish({ winner: r ? r.winner : -1, reason: r ? r.reason : 'safetyEnd', ticks: tickOf(s.m) });
+        } catch {
+          this.reel = null;
+        }
+        this.detector = null;
+      }
       changed = true;
     }
     return changed || n > 0;

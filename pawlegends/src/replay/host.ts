@@ -6,7 +6,8 @@
 import type { Command, MatchResult, ReplayRecord, SimEvent, Snapshot } from '../sim/api';
 import type { HostListener, JoinOptions } from '../host/local-host';
 import { decodeSnap, type MatchHost, type WelcomeMsg } from '../host/protocol';
-import type { ReplayError, ReplayInfo, ReplayRecordLike } from './core';
+import type { HighlightLoad, ReplayError, ReplayInfo, ReplayRecordLike } from './core';
+import type { HighlightReel } from './highlights/rules';
 import { ReplayLoop, clampReplaySpeed, isReplayHostMsg, type ReplayClientMsg, type ReplayHostMsg, type ReplaySpeed } from './loop';
 
 interface Transport {
@@ -52,6 +53,8 @@ function workerTransport(onMsg: (m: unknown) => void, onFail: () => void): Trans
 
 export interface EngineListener {
   info?(i: ReplayInfo): void;
+  /** HIGHLIGHTS.md: the scout reached the end and the detector's reel is ready (null: it failed). */
+  reel?(r: HighlightReel | null): void;
   error?(why: ReplayError | 'crash'): void;
 }
 
@@ -67,7 +70,13 @@ export class ReplayEngine {
   speed: ReplaySpeed = 1;
   listener: EngineListener = {};
 
-  constructor(private readonly record: ReplayRecordLike, opts: { worker?: boolean } = {}) {
+  private readonly hl: HighlightLoad | null;
+
+  constructor(
+    private readonly record: ReplayRecordLike,
+    opts: { worker?: boolean; hl?: HighlightLoad | null } = {},
+  ) {
+    this.hl = opts.hl ?? null;
     this.transport = (opts.worker !== false ? workerTransport(this.onMsg, () => this.workerFailed()) : null) ?? inlineTransport(this.onMsg);
   }
 
@@ -98,6 +107,10 @@ export class ReplayEngine {
       this.listener.error?.(msg.why);
       return;
     }
+    if (msg.t === 'r:hl') {
+      this.listener.reel?.(msg.reel);
+      return;
+    }
     this.host?.receive(msg);
   };
 
@@ -125,7 +138,7 @@ export class ReplayEngine {
   load(host: ReplayHost, at: number): void {
     if (host !== this.host) return;
     this.hostPaused = true;
-    this.lastLoad = { t: 'r:load', record: this.record, at, speed: this.speed };
+    this.lastLoad = { t: 'r:load', record: this.record, at, speed: this.speed, ...(this.hl ? { hl: this.hl } : {}) };
     this.transport.send(this.lastLoad);
   }
 
@@ -220,7 +233,7 @@ export class ReplayHost implements MatchHost {
   }
 
   /** @internal a host message from the engine */
-  receive(msg: Exclude<ReplayHostMsg, { t: 'r:info' } | { t: 'r:error' }>): void {
+  receive(msg: Exclude<ReplayHostMsg, { t: 'r:info' } | { t: 'r:error' } | { t: 'r:hl' }>): void {
     if (!this.attached) return;
     switch (msg.t) {
       case 'welcome':

@@ -38,6 +38,13 @@ export type AnalyticsEvent =
   | 'clip_moment'
   | 'clip_made'
   | 'clip_share'
+  // HIGHLIGHTS.md: the scan (ms, count, ok), a highlight opened (type, from results|viewer), clipped, the montage,
+  // Highlights only toggled
+  | 'hl_scan'
+  | 'hl_open'
+  | 'hl_clip'
+  | 'hl_montage'
+  | 'hl_only'
   | 'push_prompt'
   | 'push_optin'
   | 'push_prefs'
