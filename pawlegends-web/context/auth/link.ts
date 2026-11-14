@@ -177,7 +177,24 @@ async function nativeOAuth(auth: Auth, name: OAuthProviderName): Promise<AuthOut
     await signInWithCredential(auth, credential);
     return { kind: "done", linked: false, provider: name };
   } catch (error) {
-    return afterOAuthError(auth, name, error, guest, credential, true);
+    const outcome = await afterOAuthError(auth, name, error, guest, credential, true);
+    // An Apple ID token is single use (its nonce): when the Apple ID already has an account, signing in to it again
+    // with the credential the link just spent is refused ("Duplicate credential received",
+    // auth/missing-or-invalid-nonce). Ask Apple once more for a fresh token and sign in to that account with it.
+    if (
+      name === "apple" &&
+      guest?.isAnonymous &&
+      IN_USE.has(authErrorCode(error)) &&
+      outcome.kind === "error" &&
+      authErrorCode(outcome.error) === "auth/missing-or-invalid-nonce"
+    ) {
+      try {
+        return await signInToExisting(auth, name, await nativeCredential(name), guest);
+      } catch (retryError) {
+        return afterOAuthError(auth, name, retryError, guest, null, true);
+      }
+    }
+    return outcome;
   }
 }
 

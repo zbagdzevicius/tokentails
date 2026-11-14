@@ -77,10 +77,28 @@ export function isAuthCancel(error: unknown): boolean {
   return CANCEL_CODES.has(authErrorCode(error));
 }
 
+/**
+ * The generic copy with a short reference the player can quote to support ("... Please try again. (auth/internal-error)"),
+ * so a report of "something went wrong" names the cause. Only an error code or an Apple status number, never a
+ * message that could carry personal data.
+ */
+export function unknownCopy(ref: string): AuthErrorCopy {
+  const safe = ref.replace(/[^\w/.:-]/g, "").slice(0, 60);
+  return { message: safe ? `${AUTH_COPY.unknown} (${safe})` : AUTH_COPY.unknown, field: null };
+}
+
 /** Web SDK error to copy. Returns null for a cancel (show nothing). */
 export function mapAuthError(error: unknown): AuthErrorCopy | null {
   if (isAuthCancel(error)) return null;
-  return CODE_COPY[authErrorCode(error)] ?? { message: AUTH_COPY.unknown, field: null };
+  const code = authErrorCode(error);
+  return CODE_COPY[code] ?? unknownCopy(code);
+}
+
+/** A support reference for a native error: its code, else Apple's `AuthorizationError error <n>` as `apple-<n>`. */
+function nativeRef(code: string, text: string): string {
+  if (code) return code;
+  const apple = /authorizationerror error (\d+)/.exec(text);
+  return apple ? `apple-${apple[1]}` : "";
 }
 
 /**
@@ -95,7 +113,7 @@ export function mapNativeAuthError(error: unknown): AuthErrorCopy | null {
   }`.toLowerCase();
   if (/cancel|12501|1001|sign_in_cancelled|user denied/.test(text)) return null;
   if (/network|offline|7:/.test(text)) return { message: AUTH_COPY.network, field: null };
-  return { message: AUTH_COPY.unknown, field: null };
+  return unknownCopy(nativeRef(code, text));
 }
 
 /** Codes that mean "this email and password did not work": a returning player may have used another way. */
