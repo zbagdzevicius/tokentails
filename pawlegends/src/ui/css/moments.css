@@ -182,3 +182,39 @@ html[data-touch='1'] .mm-bar { width: calc(100vw - 24px - var(--safe-l, 0px) - v
   .mm-share-pic { max-height: calc(100dvh - 140px); }
   .mm-share-pic canvas { width: auto; max-width: 100%; max-height: calc(100dvh - 146px); margin: 0 auto; }
 }
+
+/* ------------------------------------------------------------------------------------------- highlight clips */
+/* SHARE-PUSH.md §1: the replay bar's Clip button (a red dot; the running time while it records), its panel and the
+   clip sheet. Menus only: nothing here is in the match HUD. */
+.mm-clipb { display: inline-flex; align-items: center; gap: 6px; }
+.mm-clipb[hidden] { display: none; }
+.mm-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--v6-enemy, #ff4f58); box-shadow: 0 0 0 2px rgb(var(--v6-night-rgb) / 0.8); }
+.mm-clipb.rec { background: var(--v6-enemy, #ff4f58); color: #fff; border-color: #fff; font-variant-numeric: tabular-nums; }
+.mm-clipb.rec .mm-dot { background: #fff; border-radius: 2px; }
+@media (prefers-reduced-motion: no-preference) { .mm-clipb.rec .mm-dot { animation: mm-blink 1s steps(2, start) infinite; } }
+@keyframes mm-blink { to { visibility: hidden; } }
+.mm-clippanel {
+  /* over the veil too: Record again from the Replay over card */
+  position: absolute; z-index: 36; left: 50%; transform: translateX(-50%); bottom: calc(66px + var(--safe-b, 0px));
+  width: min(420px, calc(100vw - 24px)); display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 14px;
+  background: rgb(var(--v6-night-rgb) / 0.94); border: 1px solid var(--v6-line-strong); box-shadow: inset 0 3px 0 var(--v6-bolt), 0 8px 24px rgb(0 0 0 / 0.4);
+  color: var(--v6-cream); text-align: center;
+}
+.mm-clippanel[hidden] { display: none; }
+.mm-clippanel > b { font: italic 900 18px/1 var(--v6-font-display, sans-serif); text-transform: uppercase; letter-spacing: 0.03em; }
+.mm-clippanel p { margin: 0; font-size: 13px; color: var(--v6-muted); }
+.mm-seg { display: flex; gap: 4px; justify-content: center; padding: 3px; border-radius: 12px; background: rgb(var(--v6-navy-rgb) / 0.6); }
+.mm-seg .mm-b { flex: 1 1 0; border: 0; background: transparent; }
+.mm-seg .mm-b[aria-pressed='true'] { background: var(--v6-cream); color: var(--v6-night); }
+.mm-clip-pic { display: grid; place-items: center; border-radius: 12px; overflow: hidden; border: 3px solid var(--v6-night); box-shadow: 0 0 0 2px var(--v6-logo-gold); background: #000; }
+.mm-clip-pic video { display: block; max-width: 100%; max-height: calc(100dvh - 210px); }
+.mm-clip-card[data-framing='vertical'] { width: min(440px, calc(100vw - 24px)); }
+.mm-clip-meta { margin: 0; text-align: center; font-size: 12px; color: var(--v6-muted); }
+@media (max-height: 500px) {
+  .mm-clippanel { bottom: calc(52px + var(--safe-b, 0px)); padding: 10px 12px; gap: 6px; }
+  .mm-clip-pic video { max-height: calc(100dvh - 150px); }
+  .mm-clip-card[data-framing='vertical'] { width: min(560px, calc(100vw - 24px)); }
+}
+.mm-cliprow { align-items: center; }
+.mm-cliprow > span { font-size: 13px; color: var(--v6-muted); }
+.mm-clip-pic { width: fit-content; max-width: 100%; margin: 0 auto; }

@@ -42,7 +42,11 @@ import type { HeroActionState } from '../ui/champBrowser/champBrowser';
 import { GOV, GOV_NAMES, GOV_STEP, ThermalGovernor } from '../render/perf/governor';
 import { autoBatterySaver, batterySaver, releaseAutoSaver, savePerfStep, savedPerfStep, setBatterySaver } from '../render/perf/prefs';
 import { thermal } from '../render/perf/thermal';
-import { createRenderer, type GameRenderer } from '../render/renderer';
+import { createRenderer, runFrameTap, type GameRenderer } from '../render/renderer';
+import { PUSH_CAT_NAME, PUSH_CATS, disablePush, enablePush, loadPushPrefs, permission, pushSupported, resyncPush, savePushPrefs, serverKey, setPushCats, shouldAsk, type PushCat } from '../social/push';
+import { pushAskCard } from '../ui/pushAsk';
+import { clipSupported } from '../share/clipSupport';
+import type { ApiArgs, ApiOp } from '../embed/api';
 import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { inviteUrl, partyApi, partyFromUrl, watchFromUrl } from '../share/partyLink';
@@ -185,6 +189,10 @@ export class App {
   private screenEl: HTMLElement | null = null;
   private overlay: { close(): void; refresh?(): void; kind?: 'store' | 'pass' } | null = null;
   private offerEl: { close(): void } | null = null;
+  /** SHARE-PUSH.md §2: the server's push key once known (null: no web push here), the notifications card, the boot sync. */
+  private pushKey: string | null = null;
+  private pushAskEl: { close(): void } | null = null;
+  private pushBooted = false;
   private session: MatchSession | null = null;
   private tier: QualityTier;
   private probe: FpsProbe | null;
@@ -720,6 +728,11 @@ export class App {
     // force update: an outdated build reloads on the title only (never in a pick, a match or on results)
     if (s === 'title') this.updates.onTitle();
     else this.updates.offTitle();
+    // the notifications card belongs to the results it came with
+    if (s !== 'results') {
+      this.pushAskEl?.close();
+      this.pushAskEl = null;
+    }
     if (s === 'pick' || s === 'match') {
       this.offerEl?.close();
       this.offerEl = null;
@@ -918,6 +931,7 @@ export class App {
     ];
     // live ops (LIVEOPS.md): Events reads the server through the host; the featured mode registers before modeList
     initLiveops((op, args) => this.integration.api(op, args), () => loadProfile().matches > 0, () => this.screen === 'title' && this.refreshMeta(false));
+    this.pushBoot();
     const modes = modeList();
     const opts: HomeScreenOpts = {
       profile,
@@ -1966,6 +1980,8 @@ export class App {
       mountKudos(resultsEl, { mates: kudosMates(mySlot, partyNames, e.welcome.picks.length), send: (slot) => this.integration.api('kudos.give', { room: reportBook.room, slot }) });
     // the offer card waits for the staged results reveal, and shows only after a win (never on a Defeat screen),
     // never after the Rookie match (fun plan F4)
+    // SHARE-PUSH.md §2: the notifications card after a win (never the first launch); it takes the corner before the offer
+    if (won && !partyEnd) this.maybePushAsk();
     if (won && !isRookie(e.replay.difficulty))
       setTimeout(() => {
         if (this.screen === 'results') this.maybeOffer('results');
@@ -2032,6 +2048,8 @@ export class App {
             this.bridge.post('share', { kind: 'moment', url, text });
           },
           track: (ev, props) => this.analytics.track(ev as 'share_card', props),
+          // SHARE-PUSH.md §1: a video of the best moment, recorded from the kept replay
+          onClip: m.replay && m.simVersion === SIM_VERSION && clipSupported() ? (framing) => this.openReplay(m.id, { clip: framing, clipTitle: m.best ?? null }) : null,
         }),
       )
       .catch((err: unknown) => reportCrash('window', err));
@@ -2060,7 +2078,7 @@ export class App {
    * MATCH-MOMENTS.md §2: watch a kept replay: the match view (MatchSession) over a ReplayHost, the sim re-running the
    * stored inputs in the sim Worker. Back to Home when it closes.
    */
-  private openReplay(id: string): void {
+  private openReplay(id: string, o: { clip?: 'vertical' | 'wide'; clipTitle?: string | null } = {}): void {
     const record = replayOf(id);
     const entry = loadHistory().find((r) => r.id === id);
     if (!record || !entry) return;
@@ -2087,6 +2105,16 @@ export class App {
           playerName: this.integration.state().playerName,
           ...this.viewerHooks(token),
           track: (ev, props) => this.analytics.track(ev as 'replay_open', props),
+          clip: o.clip ?? null,
+          clipTitle: o.clipTitle ?? entry.best ?? null,
+          onShareLink: (url, text) => {
+            try {
+              void navigator.clipboard?.writeText(`${text} ${url}`).catch(() => undefined);
+            } catch {
+              /* no clipboard */
+            }
+            this.bridge.post('share', { kind: 'moment', url, text });
+          },
         });
       })
       .catch((err: unknown) => {
@@ -2250,8 +2278,55 @@ export class App {
     if (this.bridge.post('notify', { where })) this.analytics.track('notify_signup', { where });
   }
 
+  // ------------------------------------------------------------------------------------------ push notifications
+
+  private pushApi = (op: ApiOp, args?: ApiArgs) => this.integration.api(op, args);
+
+  /** Once a page: learn the server key (no key: no opt-in, no Settings rows) and re-send an existing subscription. */
+  private pushBoot(): void {
+    if (this.pushBooted || !pushSupported()) return;
+    this.pushBooted = true;
+    void serverKey(this.pushApi).then((k) => {
+      this.pushKey = k;
+      if (k) void resyncPush(this.pushApi);
+      else this.pushBooted = false;
+    });
+  }
+
+  /** The card's and Settings' "Turn on": a note for the player, or null when on. Call it straight from the tap. */
+  private async pushTurnOn(from: 'card' | 'settings'): Promise<string | null> {
+    const key = this.pushKey;
+    if (!key) return 'Notifications are not available right now.';
+    const r = await enablePush(this.pushApi, key);
+    this.analytics.track('push_optin', { result: r, from });
+    if (r === 'on') return null;
+    return r === 'denied' ? 'Allow notifications for pawlegends.app in your browser to turn them on.' : 'Could not turn notifications on. Try again later.';
+  }
+
+  private maybePushAsk(): void {
+    if (this.pushAskEl) return;
+    const prefs = loadPushPrefs();
+    const ask = (): void => {
+      if (!this.pushKey || this.screen !== 'results' || this.overlay || this.offerEl || this.pushAskEl) return;
+      if (!shouldAsk({ won: true, session: this.sessionNo, supported: pushSupported(), perm: permission(), prefs: loadPushPrefs(), now: Date.now() })) return;
+      const p = loadPushPrefs();
+      savePushPrefs({ ...p, asks: p.asks + 1, lastAsk: Date.now() });
+      this.analytics.track('push_prompt', { asks: p.asks + 1 });
+      this.pushAskEl = pushAskCard(this.root, {
+        onYes: () => this.pushTurnOn('card'),
+        onNo: () => this.analytics.track('push_optin', { result: 'later', from: 'card' }),
+        onClose: () => (this.pushAskEl = null),
+      });
+    };
+    if (!shouldAsk({ won: true, session: this.sessionNo, supported: pushSupported(), perm: permission(), prefs, now: Date.now() })) return;
+    void serverKey(this.pushApi).then((k) => {
+      this.pushKey = k;
+      setTimeout(ask, 1800);
+    });
+  }
+
   private maybeOffer(screen: OfferScreen): void {
-    if (this.offerEl || this.overlay) return;
+    if (this.offerEl || this.overlay || this.pushAskEl) return;
     const p = loadProfile();
     const s = this.ent.snapshot();
     const now = Date.now();
@@ -2378,6 +2453,28 @@ export class App {
       onStats: (on) => this.analytics.setConsent(on),
       termsUrl: this.termsUrl(),
       ...(account ? { account: { model: account, send: (a) => void this.integration.account(a) } } : {}),
+      ...(this.pushKey && pushSupported()
+        ? {
+            push: {
+              state: () => {
+                const q = loadPushPrefs();
+                return { on: q.on, cats: q.cats, blocked: permission() === 'denied' };
+              },
+              names: PUSH_CAT_NAME,
+              toggle: (on: boolean) => {
+                if (on) return this.pushTurnOn('settings');
+                this.analytics.track('push_prefs', { on: false });
+                return disablePush(this.pushApi).then(() => null);
+              },
+              setCat: (cat: string, on: boolean) => {
+                const cats = loadPushPrefs().cats.filter((c) => c !== cat);
+                if (on) cats.push(cat as PushCat);
+                this.analytics.track('push_prefs', { cat, on });
+                return setPushCats(this.pushApi, PUSH_CATS.filter((c) => cats.includes(c)));
+              },
+            },
+          }
+        : {}),
       onClose: () => {
         this.overlay = null;
         if (this.screen === 'title') this.showTitle();
@@ -2498,6 +2595,7 @@ export class App {
       this.lobby.update(dt);
       this.gr.render();
     }
+    runFrameTap();
     const work = performance.now() - t0;
     if (inMatch && !paused && !this.forcedTier) {
       const th = thermal().state;

@@ -207,6 +207,9 @@ import { PAWLEGENDS_PROGRESS_SCHEMAS } from './pawlegends/progress/progress.sche
 import { PawlegendsProgressService } from './pawlegends/progress/progress.service';
 import { PawlegendsProgressController } from './pawlegends/progress/progress.controller';
 import { PAWLEGENDS_LIVEOPS_SCHEMAS } from './pawlegends/liveops/liveops.schema';
+import { PAWLEGENDS_PUSH_SCHEMAS } from './pawlegends/push/push.schema';
+import { PushService } from './pawlegends/push/push.service';
+import { PawlegendsPushController } from './pawlegends/push/push.controller';
 import { LiveopsService } from './pawlegends/liveops/liveops.service';
 import { PawlegendsLiveopsController } from './pawlegends/liveops/liveops.controller';
 import { RaveController } from './rave/rave.controller';
@@ -320,6 +323,7 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             ...PAWLEGENDS_CLUB_SCHEMAS,
             // Pawlegends live ops: Events, the community goal, Winter Nap and the fan vote (docs/plans/moba/LIVEOPS.md).
             ...PAWLEGENDS_LIVEOPS_SCHEMAS,
+            ...PAWLEGENDS_PUSH_SCHEMAS,
             // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveOrder.name, schema: RaveOrderSchema },
             { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
@@ -380,6 +384,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsRankedController,
         // Pawlegends live ops: GET /pawlegends/config and its claims and vote (LIVEOPS.md).
         PawlegendsLiveopsController,
+        // Pawlegends push notifications: the VAPID key and the device subscriptions (SHARE-PUSH.md section 2).
+        PawlegendsPushController,
         // Moon Rave checkout: name your cats, pay in place, payout to Pink Paw on-chain.
         RaveController,
         // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject.
@@ -493,6 +499,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         RankedSeasonRewardsService,
         // Pawlegends live ops (LIVEOPS.md): also the /live sink of the community goal and the Winter Nap days.
         LiveopsService,
+        // Pawlegends web push (SHARE-PUSH.md section 2): the push sink of invites, club chests, ranked, events and Winter Nap.
+        PushService,
         // role all (DigitalOcean today): the relay counters as one log line a minute too (LATENCY-PLAN R4)
         ...(role === 'all' ? [PartyRelayService, RelayStatsReporter] : []),
         // Moon Rave checkout.

@@ -4,6 +4,7 @@ import { Cron } from '@nestjs/schedule';
 import { JOB_RUNS_COLLECTION, runLeased } from 'src/shared/jobs/lease';
 import { PawlegendsPresence, PawlegendsStatus } from '../social/social.schema';
 import { RANKED_CLOSE_AFTER_MS, RANKED_CLOSE_BELOW, RANKED_OPEN_AT } from './tiers';
+import { pushBroadcast } from '../push/push-sink';
 
 /*
  * The ranked liquidity gate (docs/plans/moba/SOCIAL-RANKED.md §7.9): ranked opens when 24 ranked-eligible players are
@@ -74,8 +75,18 @@ export class RankedStatusService {
         const prev = (await this.status.findById('ranked').lean()) as RankedGate | null;
         const gate = nextGate(prev, online, now);
         await this.status.updateOne({ _id: 'ranked' }, { $set: { ...gate, at: now } }, { upsert: true });
-        if (!!prev?.open !== gate.open)
+        if (!!prev?.open !== gate.open) {
             this.logger.log(`pl_ranked_gate ${JSON.stringify({ open: gate.open, online })}`);
+            // SHARE-PUSH.md §2: ranked just opened (each device at most once in 12 h, however often the gate flaps)
+            if (gate.open)
+                pushBroadcast({
+                    cat: 'ranked',
+                    title: 'Ranked is open',
+                    body: `${online} players are online. Queue up and climb.`,
+                    path: '/play',
+                    tag: 'ranked',
+                });
+        }
         this.cache = { atMs: now.getTime(), gate };
         return gate;
     }

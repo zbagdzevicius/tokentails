@@ -14,6 +14,7 @@ import { checkAvatarChoice, liveHeroIds, resolveAvatars } from './avatar';
 import { ChatService } from './chat.service';
 import { RANKED_MIN_MATCHES } from '../ranked/tiers';
 import { displayNames } from './display-name';
+import { pushNotify } from '../push/push-sink';
 import { PresenceRow, presenceUpdate, PresenceView, readPresence } from './presence';
 import { LIVE_PRESENCE_ID } from '../party/presence-sink';
 import {
@@ -719,6 +720,18 @@ export class SocialService {
             createdAt: now,
         });
         await this.bump([target._id]);
+        // SHARE-PUSH.md §2: a push to the friend's devices (their rules decide; never waits, never fails the invite)
+        void displayNames({ social: this.social, cats: this.cats }, [me])
+            .then(names =>
+                pushNotify([String(target._id)], {
+                    cat: 'invite',
+                    title: 'Party invite',
+                    body: `${names.get(me) ?? 'A friend'} invited you to their party. Tap to join.`,
+                    path: '/play',
+                    tag: 'invite',
+                })
+            )
+            .catch(() => undefined);
         return { ok: true };
     }
 

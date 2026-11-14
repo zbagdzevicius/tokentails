@@ -67,6 +67,11 @@ describe("pawlegends api bridge (host)", () => {
         muted: true,
         blob: '{"v":1}',
         option: "a",
+        endpoint: "https://fcm.googleapis.com/fcm/send/abc123",
+        pushKey: "B".repeat(87),
+        pushAuth: "A".repeat(22),
+        cats: "invite,club",
+        tz: -120,
       });
       expect([op, r?.path.startsWith("/pawlegends/")]).toEqual([op, true]);
     }
@@ -92,6 +97,27 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("liveops.vote", { option: "b" })).toEqual({ method: "POST", path: "/pawlegends/config/vote", body: { option: "b" }, auth: "any" });
     expect(routeOf("liveops.vote", { option: "c" })).toBeNull();
     expect(routeOf("liveops.vote", {})).toBeNull();
+  });
+
+  it("push routes (SHARE-PUSH.md §2): a public key, a device subscription with a long endpoint, prefs and off", () => {
+    const endpoint = `https://fcm.googleapis.com/fcm/send/${"x".repeat(300)}`;
+    const args = { endpoint, pushKey: "B".repeat(87), pushAuth: "A".repeat(22), cats: "invite,nap", tz: -180 };
+    expect(parseApiRequest({ id: "a1", op: "push.subscribe", args })?.args).toEqual(args);
+    expect(routeOf("push.key", {})).toEqual({ method: "GET", path: "/pawlegends/push/key", auth: "none" });
+    expect(routeOf("push.subscribe", args)).toEqual({
+      method: "POST",
+      path: "/pawlegends/push/subscribe",
+      body: { endpoint, p256dh: "B".repeat(87), auth: "A".repeat(22), cats: "invite,nap", tz: -180 },
+      auth: "any",
+    });
+    expect(routeOf("push.subscribe", { ...args, endpoint: "http://fcm.googleapis.com/x" })).toBeNull();
+    expect(routeOf("push.subscribe", { ...args, pushKey: "short" })).toBeNull();
+    expect(routeOf("push.subscribe", { ...args, cats: "invite,spam" })).toMatchObject({ body: { cats: "" } });
+    expect(routeOf("push.prefs", { endpoint, cats: "" })).toEqual({ method: "POST", path: "/pawlegends/push/prefs", body: { endpoint, cats: "" }, auth: "any" });
+    expect(routeOf("push.off", { endpoint })).toEqual({ method: "POST", path: "/pawlegends/push/unsubscribe", body: { endpoint }, auth: "any" });
+    expect(routeOf("push.off", {})).toBeNull();
+    // only the endpoint may be that long
+    expect(parseApiRequest({ id: "a1", op: "push.off", args: { endpoint: "x".repeat(1001) } })?.args).toEqual({});
   });
 
   it("chat routes (CHAT-AVATARS.md §4): opaque thread and message ids only, text up to 240, the avatar mapped", () => {

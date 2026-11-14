@@ -507,6 +507,38 @@ export class Sfx {
     return this.musicIn;
   }
 
+  /**
+   * SHARE-PUSH.md §1: a copy of everything the game plays (the master, after mute and volume) as a MediaStream, for a
+   * highlight clip's sound track. Null before the first gesture unlocked the audio or without stream support.
+   */
+  tap(): MediaStream | null {
+    const ac = this.ac;
+    if (!ac || !this.master || typeof ac.createMediaStreamDestination !== 'function') return null;
+    try {
+      const d = ac.createMediaStreamDestination();
+      this.master.connect(d);
+      this.taps.set(d.stream, d);
+      return d.stream;
+    } catch {
+      return null;
+    }
+  }
+
+  /** End a tap(). */
+  untap(stream: MediaStream | null): void {
+    const d = stream ? this.taps.get(stream) : undefined;
+    if (!d || !stream) return;
+    this.taps.delete(stream);
+    try {
+      this.master?.disconnect(d);
+    } catch {
+      /* already gone */
+    }
+    for (const t of stream.getTracks()) t.stop();
+  }
+
+  private readonly taps = new Map<MediaStream, MediaStreamAudioDestinationNode>();
+
   /** Lines whose clip actually started on the speakers (not muted, context running); e2e reads `data-voice`. */
   readonly voiced: string[] = [];
 

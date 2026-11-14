@@ -17,6 +17,8 @@ import { ReplayEngine, type ReplayHost } from './host';
 import type { ReplayError, ReplayInfo } from './core';
 import { REPLAY_SPEEDS } from './loop';
 import { clock, MODE_LABEL, type HistoryEntry } from './store';
+import { sfx } from '../audio/sfx';
+import { CLIP_DEFAULT_SECONDS, CLIP_LENGTHS, clipSupported, defaultFraming, momentTick, openClipSheet, startClip, type ClipRecorder, type Framing } from '../share/clip';
 import '../ui/css/moments.css';
 
 /** "Jump to my death" lands this many ticks before it (5 s), so the fight leading to it is seen. */
@@ -39,6 +41,15 @@ export interface ViewerContext {
   onMute(m: boolean): void;
   onSettings?(done: () => void): void;
   track?(event: string, props: Record<string, string | number | boolean>): void;
+  /**
+   * SHARE-PUSH.md §1, the results' Legend Moment: open straight on the match's best moment and record a clip of it in
+   * this framing (the scout finds the window with the most takedowns first).
+   */
+  clip?: Framing | null;
+  /** The banner headline of a clip (the match's best moment, "Shut down!"), else LEGEND MOMENT. */
+  clipTitle?: string | null;
+  /** Send the game link through the share bridge (a device that cannot share a video file). */
+  onShareLink?(url: string, text: string): void;
 }
 
 export const ERROR_TEXT: Readonly<Record<ReplayError | 'crash' | 'slow', string>> = Object.freeze({
@@ -95,7 +106,8 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
     </div>
     <span class="mm-time" data-testid="replay-time">0:00 / ${clock(rec.ticks / 30)}</span>
     <button type="button" class="mm-b mm-death" data-r="death" data-testid="replay-death" disabled title="Jump to my next knockout">My deaths <b>0</b></button>
-    <button type="button" class="mm-b mm-cam" data-r="cam" data-testid="replay-cam" aria-pressed="false" title="Free camera: drag the map">Free cam</button>`;
+    <button type="button" class="mm-b mm-cam" data-r="cam" data-testid="replay-cam" aria-pressed="false" title="Free camera: drag the map">Free cam</button>
+    <button type="button" class="mm-b mm-clipb" data-r="clip" data-testid="replay-clip" title="Record a 10-20 s clip from here" hidden><i class="mm-dot" aria-hidden="true"></i><span>Clip</span></button>`;
   const title = document.createElement('div');
   title.className = 'mm-title';
   title.innerHTML = `<b>Replay</b><span>${esc(heroName)} · ${esc(MODE_LABEL[ctx.entry.mode] ?? '')} · ${ctx.entry.outcome === 'won' ? 'Victory' : ctx.entry.outcome === 'draw' ? 'Draw' : 'Defeat'}</span>`;
@@ -105,7 +117,22 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
   const veil = document.createElement('div');
   veil.className = 'mm-veil';
   veil.innerHTML = '<span class="mm-spin" aria-hidden="true"></span><b>Loading replay…</b>';
-  ctx.root.append(title, drag, bar, veil);
+  // SHARE-PUSH.md §1: the clip panel (framing and length), over the view above the bar
+  const canClip = clipSupported();
+  let framing: Framing = ctx.clip ?? defaultFraming({ touch: html.dataset.touch === '1', w: innerWidth, h: innerHeight });
+  let clipLen = CLIP_DEFAULT_SECONDS;
+  const panel = document.createElement('div');
+  panel.className = 'mm-clippanel';
+  panel.hidden = true;
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-label', 'Record a clip');
+  panel.dataset.testid = 'clip-panel';
+  panel.innerHTML = `<b>Record a clip</b>
+    <div class="mm-seg" role="group" aria-label="Framing"><button type="button" class="mm-b" data-f="vertical" data-testid="clip-vertical">Vertical 9:16</button><button type="button" class="mm-b" data-f="wide" data-testid="clip-wide">Wide 16:9</button></div>
+    <div class="mm-seg" role="group" aria-label="Length">${CLIP_LENGTHS.map((n) => `<button type="button" class="mm-b" data-len="${n}">${n} s</button>`).join('')}</div>
+    <p>From here, at 1x, with the game's sound.</p>
+    <div class="mm-row"><button type="button" class="pl-btn ghost small" data-k="cancel">Cancel</button><button type="button" class="pl-btn small" data-k="rec" data-testid="clip-record">Record</button></div>`;
+  ctx.root.append(title, drag, bar, panel, veil);
   html.dataset.replay = 'loading';
 
   const $ = <T extends HTMLElement>(sel: string): T => bar.querySelector<T>(sel)!;
@@ -113,6 +140,45 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
   const playBtn = $('.mm-play');
   const deathBtn = $<HTMLButtonElement>('.mm-death');
   const camBtn = $('.mm-cam');
+  const clipBtn = $<HTMLButtonElement>('.mm-clipb');
+  clipBtn.hidden = !canClip;
+  let clipRec: ClipRecorder | null = null;
+  let tapStream: MediaStream | null = null;
+  /** The Legend Moment run: cue the best moment once the scout has seen the whole match, then record. */
+  let auto: { framing: Framing; cued: boolean; seconds: number } | null = ctx.clip && canClip ? { framing: ctx.clip, cued: false, seconds: CLIP_DEFAULT_SECONDS } : null;
+  if (auto) html.dataset.clip = 'finding';
+
+  const paintPanel = (): void => {
+    for (const b of panel.querySelectorAll<HTMLElement>('[data-f]')) b.setAttribute('aria-pressed', String(b.dataset.f === framing));
+    for (const b of panel.querySelectorAll<HTMLElement>('[data-len]')) b.setAttribute('aria-pressed', String(Number(b.dataset.len) === clipLen));
+  };
+  const showPanel = (on: boolean): void => {
+    panel.hidden = !on;
+    clipBtn.setAttribute('aria-expanded', String(on));
+    if (on) {
+      paintPanel();
+      panel.querySelector<HTMLElement>('[data-k="rec"]')?.focus({ preventScroll: true });
+    }
+  };
+  const clipLabel = (sec: number | null): void => {
+    const sp = clipBtn.querySelector('span')!;
+    sp.textContent = sec === null ? 'Clip' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    clipBtn.classList.toggle('rec', sec !== null);
+    clipBtn.title = sec === null ? 'Record a 10-20 s clip from here' : 'Stop recording';
+    clipBtn.setAttribute('aria-label', sec === null ? 'Record a clip' : 'Stop recording');
+  };
+  const endTap = (): void => {
+    sfx.untap(tapStream);
+    tapStream = null;
+  };
+  /** Stop a recording: keep it (the clip sheet opens) or throw it away. */
+  const stopRec = (keep: boolean): void => {
+    const r = clipRec;
+    if (!r) return;
+    clipRec = null;
+    if (keep) r.stop();
+    else r.cancel();
+  };
 
   const fail = (why: ReplayError | 'crash' | 'slow'): void => {
     if (closed) return;
@@ -142,6 +208,11 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
       info = i;
       if (i.slow) return fail('slow');
       drawMarks();
+      if (auto && !auto.cued && i.done && i.ok !== false) {
+        auto.cued = true;
+        ctx.track?.('clip_moment', { takedowns: i.takedowns.length });
+        seek(momentTick(i, CLIP_DEFAULT_SECONDS), 'Cueing your Legend Moment…');
+      }
     },
     error: (why) => fail(why),
   };
@@ -162,6 +233,7 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
   };
 
   const endCard = (): void => {
+    stopRec(true);
     ended = true;
     setPlayIcon();
     veil.classList.remove('out');
@@ -217,18 +289,80 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
     s.setReplaySpeed(engine.speed);
     ctx.setSession(s);
     // the bar and the title stay over the newly built view
-    ctx.root.append(title, drag, bar, veil);
+    ctx.root.append(title, drag, bar, panel, veil);
     void (ctx.warm ? ctx.warm(s) : Promise.resolve()).then(() => {
       if (closed || token !== building || s !== session) return;
+      // the Legend Moment run keeps the veil until the scout found the moment and the view stands on it
+      if (auto && !auto.cued) return;
       veil.classList.add('out');
       html.dataset.replay = 'playing';
       engine.setPaused(false);
       setPlayIcon();
+      if (auto?.cued) {
+        const { framing: f, seconds } = auto;
+        auto = null;
+        startRec(f, seconds);
+      }
     });
   };
 
+  /** Record `seconds` from the play head at 1x, then the clip sheet. */
+  function startRec(f: Framing, seconds: number): void {
+    if (clipRec || closed || !session || ended) return;
+    showPanel(false);
+    setSpeed(1);
+    if (engine.paused) {
+      engine.setPaused(false);
+      setPlayIcon();
+    }
+    tapStream = sfx.tap();
+    const r = startClip({
+      source: ctx.gr.renderer.domElement,
+      framing: f,
+      seconds,
+      title: ctx.clipTitle?.replace(/\s*\+\d+\s*(fish|xp)\b.*$/i, '').trim() || 'Legend Moment',
+      sub: `${heroName} · ${MODE_LABEL[ctx.entry.mode] ?? 'Paw Legends'}`,
+      audio: tapStream,
+      onTick: (sec) => {
+        if (clipRec === r) clipLabel(sec);
+      },
+    });
+    clipRec = r;
+    html.dataset.clip = 'recording';
+    clipLabel(0);
+    for (const b of bar.querySelectorAll<HTMLButtonElement>('[data-speed]')) b.disabled = true;
+    ctx.track?.('clip_start', { framing: f, seconds, auto: !!ctx.clip });
+    void r.done.then((clip) => {
+      endTap();
+      if (clipRec === r) clipRec = null;
+      clipLabel(null);
+      for (const b of bar.querySelectorAll<HTMLButtonElement>('[data-speed]')) b.disabled = false;
+      if (closed) return;
+      if (!clip) {
+        html.dataset.clip = 'none';
+        return;
+      }
+      html.dataset.clip = 'done';
+      engine.setPaused(true);
+      setPlayIcon();
+      openClipSheet(ctx.root, {
+        clip,
+        heroName,
+        title: ctx.clipTitle ?? null,
+        onLink: (url, text) => ctx.onShareLink?.(url, text),
+        onAgain: () => showPanel(true),
+        onClose: () => {
+          if (html.dataset.clip === 'done') delete html.dataset.clip;
+        },
+        ...(ctx.track ? { track: ctx.track } : {}),
+      });
+    });
+  }
+
   const seek = (tick: number, label = 'Rewinding…'): void => {
     if (closed) return;
+    // a seek rebuilds the view: a recording in progress is thrown away
+    stopRec(false);
     const t = Math.max(0, Math.min(tick, Math.max(0, info.scouted - 1)));
     ctx.track?.('replay_seek', { tick: t });
     build(t, label);
@@ -315,6 +449,7 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
     if (r === 'play') {
       if (ended) return seek(0, 'Loading replay…');
       engine.setPaused(!engine.paused);
+      clipRec?.pause(engine.paused);
       return setPlayIcon();
     }
     if (r === 'death') {
@@ -326,12 +461,35 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
       return;
     }
     if (r === 'cam') return setFree(!free);
+    if (r === 'clip') {
+      if (clipRec) return stopRec(true);
+      return showPanel(!!panel.hidden);
+    }
   };
+  panel.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const f = t.closest<HTMLElement>('[data-f]')?.dataset.f;
+    const len = t.closest<HTMLElement>('[data-len]')?.dataset.len;
+    const k = t.closest<HTMLElement>('[data-k]')?.dataset.k;
+    if (f === 'vertical' || f === 'wide') framing = f;
+    if (len) clipLen = Number(len);
+    if (f || len) return paintPanel();
+    if (k === 'cancel') return showPanel(false);
+    if (k === 'rec') {
+      // at the very end there is nothing left to record: start the length before the end
+      if (ended || (host?.tick ?? 0) > info.total - clipLen * 30) {
+        auto = { framing, cued: true, seconds: clipLen };
+        showPanel(false);
+        return seek(Math.max(0, info.total - clipLen * 30 - 90), 'Rewinding…');
+      }
+      startRec(framing, clipLen);
+    }
+  });
   bar.addEventListener('click', onBar);
   veil.addEventListener('click', onBar);
 
   const onKey = (e: KeyboardEvent): void => {
-    if (closed || (e.target as HTMLElement)?.closest?.('input, textarea')) return;
+    if (closed || (e.target as HTMLElement)?.closest?.('input, textarea') || !!html.dataset.clipSheet) return;
     if (e.key === ' ' && html.dataset.replay !== 'loading') {
       e.preventDefault();
       e.stopPropagation();
@@ -369,17 +527,19 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
   function close(): void {
     if (closed) return;
     closed = true;
+    stopRec(false);
+    endTap();
     cancelAnimationFrame(raf);
     document.removeEventListener('keydown', onKey, true);
     teardownSession();
     engine.dispose();
-    for (const n of [bar, title, drag, veil]) n.remove();
-    for (const k of ['replay', 'replayTick', 'replayDeaths', 'replayScouted', 'replayOk', 'replaySpeed', 'replayCam']) delete html.dataset[k];
+    for (const n of [bar, title, drag, panel, veil]) n.remove();
+    for (const k of ['replay', 'replayTick', 'replayDeaths', 'replayScouted', 'replayOk', 'replaySpeed', 'replayCam', 'clip']) delete html.dataset[k];
     ctx.onExit();
   }
 
   setSpeed(1);
   setFree(false);
-  build(0, 'Loading replay…');
+  build(0, auto ? 'Finding your Legend Moment…' : 'Loading replay…');
   return { close };
 }

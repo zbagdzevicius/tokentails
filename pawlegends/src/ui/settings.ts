@@ -66,6 +66,20 @@ export interface SettingsOpts {
   termsUrl?: string | null;
   /** Sign-in: the Account row (absent without a host: the plain standalone game has no accounts). */
   account?: { model: AccountModel; send: AccountSend };
+  /**
+   * SHARE-PUSH.md §2: Notifications on this device and each category (absent where web push cannot work: the app
+   * shells, a browser without push, or a server without keys).
+   */
+  push?: PushSettings;
+}
+
+export interface PushSettings {
+  /** On, the categories left on, and whether the browser blocks notifications. */
+  state(): { on: boolean; cats: readonly string[]; blocked: boolean };
+  names: Readonly<Record<string, string>>;
+  /** Straight from the tap (the permission prompt needs the gesture): a note to show, or null. */
+  toggle(on: boolean): Promise<string | null>;
+  setCat(cat: string, on: boolean): Promise<void>;
 }
 
 /**
@@ -105,6 +119,11 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const s = { ...o.state };
   const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), watch: allowWatch(), cvd: colourBlind(), mm: minimapSize(), menuText: menuText() };
   const showControls = keyboardDevice();
+  let pushNote = '';
+  const pushRows = (p: PushSettings): string => {
+    const st = p.state();
+    return `${row('Notifications', 'push', st.on)}${st.on ? Object.keys(p.names).map((c) => `<div class="set-row sub"><span>${p.names[c]}</span><button class="chip ${st.cats.includes(c) ? 'on' : ''}" data-pushcat="${c}" aria-pressed="${st.cats.includes(c)}">${st.cats.includes(c) ? 'On' : 'Off'}</button></div>`).join('') : ''}${st.blocked ? '<p class="fine" data-testid="push-blocked">Notifications are blocked for pawlegends.app in this browser\'s site settings.</p>' : ''}${pushNote ? `<p class="fine" data-testid="push-note">${pushNote}</p>` : ''}`;
+  };
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
   const render = (): void => {
@@ -146,6 +165,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${row('Hide friends\' names (party)', 'hidenames', ctl.hide)}
       ${row('Let friends watch my matches', 'watch', ctl.watch)}
+      ${o.push ? pushRows(o.push) : ''}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
       ${accountRowHtml(o.account?.model ?? null)}
       <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
@@ -174,6 +194,16 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     const shake = t.closest<HTMLElement>('[data-shake]')?.dataset.shake as ShakePref | undefined;
     const mm = t.closest<HTMLElement>('[data-mm]')?.dataset.mm as MinimapSize | undefined;
     const mt = t.closest<HTMLElement>('[data-menutext]')?.dataset.menutext as MenuText | undefined;
+    const pc = t.closest<HTMLElement>('[data-pushcat]')?.dataset.pushcat;
+    if ((a === 'push' || pc) && o.push) {
+      const p = o.push;
+      const job = pc ? p.setCat(pc, !p.state().cats.includes(pc)).then(() => null) : p.toggle(!p.state().on);
+      void job.then((note) => {
+        pushNote = note ?? '';
+        if (root.isConnected) render();
+      });
+      return;
+    }
     if (mt) {
       ctl.menuText = mt;
       setMenuText(mt);

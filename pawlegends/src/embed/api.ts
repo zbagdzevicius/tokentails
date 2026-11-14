@@ -55,6 +55,11 @@ export const API_OPS = Object.freeze([
   'liveops.claim',
   'liveops.nap',
   'liveops.vote',
+  // push notifications (SHARE-PUSH.md §2): the public key, and this device's subscription and categories
+  'push.key',
+  'push.subscribe',
+  'push.prefs',
+  'push.off',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);
@@ -97,6 +102,12 @@ export const API_ARG_KEYS = Object.freeze([
   'blob',
   // live ops: the fan vote's choice ('a' | 'b')
   'option',
+  // push (SHARE-PUSH.md §2): the push service endpoint (up to 1,000 characters), its keys, categories, UTC offset
+  'endpoint',
+  'pushKey',
+  'pushAuth',
+  'cats',
+  'tz',
 ] as const);
 
 export type ApiArgs = Partial<Record<(typeof API_ARG_KEYS)[number], string | number | boolean>>;
@@ -106,6 +117,8 @@ const MAX_STR = 140;
 const MAX_TEXT = 240;
 /** rewards-cloud: the progress blob's JSON (the server takes at most 30,000 characters). */
 const MAX_BLOB = 30000;
+/** push: a push service endpoint URL. */
+const MAX_ENDPOINT = 1000;
 
 /** Flat args: known keys, short strings, finite numbers, booleans; anything else is dropped. Null when not an object. */
 export function cleanApiArgs(v: unknown): ApiArgs | null {
@@ -114,7 +127,7 @@ export function cleanApiArgs(v: unknown): ApiArgs | null {
   const out: ApiArgs = {};
   for (const k of API_ARG_KEYS) {
     const x = (v as Record<string, unknown>)[k];
-    if (typeof x === 'string' && x.length <= (k === 'text' ? MAX_TEXT : k === 'blob' ? MAX_BLOB : MAX_STR)) out[k] = x;
+    if (typeof x === 'string' && x.length <= (k === 'text' ? MAX_TEXT : k === 'blob' ? MAX_BLOB : k === 'endpoint' ? MAX_ENDPOINT : MAX_STR)) out[k] = x;
     else if (typeof x === 'number' && Number.isFinite(x)) out[k] = x;
     else if (typeof x === 'boolean') out[k] = x;
   }

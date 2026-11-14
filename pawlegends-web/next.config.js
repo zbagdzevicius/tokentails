@@ -72,6 +72,8 @@ const headers = [
   // The skin art (pawlegends tools/import-skin-art.mjs, outside the game's 10 MB budget): the game asks for it lazily
   // with the build's `?v=` and falls back to the hero's own picture when it is missing. A day in the browser.
   cache("/pawlegends-art/:path*", "public, max-age=86400, stale-while-revalidate=604800"),
+  // The push service worker (docs/plans/moba/SHARE-PUSH.md §2): browsers check it for updates; never cached for long.
+  cache("/push-sw.js", REVALIDATE),
 ];
 
 /** @type {import('next').NextConfig} */
