@@ -1,0 +1,625 @@
+{
+ "record": {
+  "v": 1,
+  "simVersion": 29,
+  "seed": 2,
+  "difficulty": "easy",
+  "hero": "clem",
+  "trick": "pounce",
+  "ticks": 11010,
+  "inputs": "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",
+  "outcome": "lost",
+  "finalHash": "7bcd5c72",
+  "mutator": "none"
+ },
+ "names": [
+  "Clem",
+  "Sage",
+  "Rex",
+  "Bravo",
+  "Chili",
+  "Howler"
+ ],
+ "reel": {
+  "v": 1,
+  "detector": 1,
+  "simVersion": 29,
+  "key": "2:7bcd5c72:11010",
+  "list": [
+   {
+    "id": "clutch:1179",
+    "type": "clutch",
+    "category": "clutch",
+    "start": 1179,
+    "end": 1449,
+    "peak": 1299,
+    "score": 65,
+    "funny": 0,
+    "title": "Eight lives left",
+    "sub": "Sage (bot) · 7% HP · vs bots",
+    "actors": [
+     1
+    ],
+    "victims": [],
+    "side": 0,
+    "mine": "none",
+    "bots": true,
+    "cam": {
+     "mode": "follow",
+     "slot": 1,
+     "keys": [
+      [
+       1179,
+       473,
+       91,
+       80
+      ],
+      [
+       1269,
+       605,
+       90,
+       80
+      ],
+      [
+       1359,
+       542,
+       140,
+       80
+      ],
+      [
+       1449,
+       433,
+       157,
+       80
+      ]
+     ]
+    },
+    "tags": []
+   },
+   {
+    "id": "clutch:2096",
+    "type": "clutch",
+    "category": "clutch",
+    "start": 2096,
+    "end": 2366,
+    "peak": 2216,
+    "score": 45,
+    "funny": 0,
+    "title": "Saved by Nine Lives",
+    "sub": "Chili (bot) · 23% HP · vs bots",
+    "actors": [
+     4
+    ],
+    "victims": [],
+    "side": 1,
+    "mine": "none",
+    "bots": true,
+    "cam": {
+     "mode": "follow",
+     "slot": 4,
+     "keys": [
+      [
+       2096,
+       408,
+       102,
+       80
+      ],
+      [
+       2186,
+       425,
+       101,
+       80
+      ],
+      [
+       2276,
+       485,
+       88,
+       80
+      ],
+      [
+       2366,
+       636,
+       81,
+       80
+      ]
+     ]
+    },
+    "tags": []
+   },
+   {
+    "id": "clutch:2233",
+    "type": "clutch",
+    "category": "clutch",
+    "start": 2233,
+    "end": 2503,
+    "peak": 2353,
+    "score": 45,
+    "funny": 0,
+    "title": "Nine Lives, used one",
+    "sub": "Sage (bot) · 14% HP · vs bots",
+    "actors": [
+     1
+    ],
+    "victims": [],
+    "side": 0,
+    "mine": "none",
+    "bots": true,
+    "cam": {
+     "mode": "follow",
+     "slot": 1,
+     "keys": [
+      [
+       2233,
+       427,
+       94,
+       80
+      ],
+      [
+       2323,
+       558,
+       89,
+       80
+      ],
+      [
+       2413,
+       643,
+       78,
+       80
+      ],
+      [
+       2503,
+       559,
+       207,
+       80
+      ]
+     ]
+    },
+    "tags": []
+   },
+   {
+    "id": "firstBlood:2414",
+    "type": "firstBlood",
+    "category": "story",
+    "start": 2414,
+    "end": 2624,
+    "peak": 2564,
+    "score": 35,
+    "funny": 0,
+    "title": "First takedown",
+    "sub": "Howler (bot) · on Sage (bot) · vs bots",
+    "actors": [
+     5
+    ],
+    "victims": [
+     1
+    ],
+    "side": 1,
+    "mine": "none",
+    "bots": true,
+    "cam": {
+     "mode": "follow",
+     "slot": 5,
+     "keys": [
+      [
+       2414,
+       436,
+       388,
+       80
+      ],
+      [
+       2504,
+       538,
+       294,
+       80
+      ],
+      [
+       2594,
+       528,
+       237,
+       80
+      ]
+     ]
+    },
+    "tags": []
+   },
+   {
+    "id": "clutch:2920",
+    "type": "clutch",
+    "category": "clutch",
+    "start": 2920,
+    "end": 3190,
+    "peak": 3040,
+    "score": 45,
+    "funny": 0,
+    "title": "Nine Lives, used one",
+    "sub": "Chili (bot) · 32% HP · vs bots",
+    "actors": [
+     4
+    ],
+    "victims": [],
+    "side": 1,
+    "mine": "none",
+    "bots": true,
+    "cam": {
+     "mode": "follow",
+     "slot": 4,
+     "keys": [
+      [
+       2920,
+       368,
+       96,
+       80
+      ],
+      [
+       3010,
+       375,
+       96,
+       80
+      ],
+      [
+       3100,
+       466,
+       88,
+       80
+      ],
+      [
+       3190,
+       523,
+       83,
+       80
+      ]
+     ]
+    },
+    "tags": []
+   },
+   {
+    "id": "clipKind:3756",
+    "type": "clipKind",
+    "category": "funny",
+    "start": 3756,
+    "end": 3936,
+    "peak": 3864,
+    "score": 25,
+    "funny": 30,
+    "title": "ZIGZAG STORM",
+    "sub": "Sage (bot) · vs bots",
+    "actors": [
+     1
+    ],
+    "victims": [],
+    "side": 0,
+    "mine": "none",
+    "bots": true,
+    "cam": {
+     "mode": "follow",
+     "slot": 1,
+     "keys": [
+      [
+       3756,
+       532,
+       93,
+       80
+      ],
+      [
+       3846,
+       523,
+       139,
+       80
+      ],
+      [
+       3936,
+       569,
+       258,
+       80
+      ]
+     ]
+    },
+    "tags": []
+   },
+   {
+    "id": "clutch:3770",
+    "type": "clutch",
+    "category": "clutch",
+    "start": 3770,
+    "end": 4040,
+    "peak": 3890,
+    "score": 45,
+    "funny": 0,
+    "title": "Saved by Nine Lives",
+    "sub": "Howler (bot) · 34% HP · vs bots",
+    "actors": [
+     5
+    ],
+    "victims": [],
+    "side": 1,
+    "mine": "none",
+    "bots": true,
+    "cam": {
+     "mode": "follow",
+     "slot": 5,
+     "keys": [
+      [
+       3770,
+       672,
+       255,
+       80
+      ],
+      [
+       3860,
+       586,
+       142,
+       80
+      ],
+      [
+       3950,
+       581,
+       282,
+       80
+      ],
+      [
+       4040,
+       614,
+       437,
+       80
+      ]
+     ]
+    },
+    "tags": []
+   },
+   {
+    "id": "clutch:5683",
+    "type": "clutch",
+    "category": "clutch",
+    "start": 5683,
+    "end": 5953,
+    "peak": 5803,
+    "score": 45,
+    "funny": 0,
+    "title": "Nine Lives, used one",
+    "sub": "Bravo (bot) · 19% HP · vs bots",
+    "actors": [
+     3
+    ],
+    "victims": [],
+    "side": 1,
+    "mine": "none",
+    "bots": true,
+    "cam": {
+     "mode": "follow",
+     "slot": 3,
+     "keys": [
+      [
+       5683,
+       522,
+       525,
+       80
+      ],
+      [
+       5773,
+       489,
+       405,
+       80
+      ],
+      [
+       5863,
+       535,
+       395,
+       80
+      ],
+      [
+       5953,
+       608,
+       491,
+       80
+      ]
+     ]
+    },
+    "tags": []
+   },
+   {
+    "id": "napFail:6044",
+    "type": "napFail",
+    "category": "funny",
+    "start": 6044,
+    "end": 6232,
+    "peak": 6172,
+    "score": 58,
+    "funny": 45,
+    "title": "Worst nap ever",
+    "sub": "Clem · vs bots",
+    "actors": [
+     0,
+     4,
+     5
+    ],
+    "victims": [],
+    "side": 0,
+    "mine": "actor",
+    "bots": true,
+    "cam": {
+     "mode": "follow",
+     "slot": 0,
+     "keys": [
+      [
+       6044,
+       498,
+       316,
+       80
+      ],
+      [
+       6134,
+       508,
+       301,
+       80
+      ],
+      [
+       6224,
+       520,
+       308,
+       80
+      ]
+     ]
+    },
+    "tags": [
+     "clipKind"
+    ]
+   },
+   {
+    "id": "kaboom:6363",
+    "type": "kaboom",
+    "category": "epic",
+    "start": 6363,
+    "end": 6543,
+    "peak": 6461,
+    "score": 65,
+    "funny": 0,
+    "title": "One-shot from the Cannon",
+    "sub": "Chili (bot) · on Sage (bot) · vs bots",
+    "actors": [
+     4
+    ],
+    "victims": [
+     1
+    ],
+    "side": 1,
+    "mine": "none",
+    "bots": true,
+    "cam": {
+     "mode": "frame",
+     "keys": [
+      [
+       6363,
+       566,
+       262,
+       184
+      ],
+      [
+       6453,
+       521,
+       258,
+       80
+      ],
+      [
+       6543,
+       495,
+       190,
+       110
+      ]
+     ]
+    },
+    "tags": []
+   },
+   {
+    "id": "teamfight:8090",
+    "type": "teamfight",
+    "category": "teamfight",
+    "start": 8090,
+    "end": 8309,
+    "peak": 8249,
+    "score": 60,
+    "funny": 0,
+    "title": "Teamfight won",
+    "sub": "4 heroes · 3 s · Purrhaven win · vs bots",
+    "actors": [
+     1,
+     2
+    ],
+    "victims": [
+     3
+    ],
+    "side": 0,
+    "mine": "none",
+    "bots": true,
+    "cam": {
+     "mode": "frame",
+     "keys": [
+      [
+       8090,
+       357,
+       156,
+       89
+      ],
+      [
+       8180,
+       309,
+       112,
+       80
+      ],
+      [
+       8270,
+       414,
+       103,
+       80
+      ]
+     ]
+    },
+    "tags": []
+   },
+   {
+    "id": "finale:10650",
+    "type": "finale",
+    "category": "story",
+    "start": 10650,
+    "end": 11010,
+    "peak": 10980,
+    "score": 45,
+    "funny": 0,
+    "title": "The last stand",
+    "sub": "Woof win · vs bots",
+    "actors": [],
+    "victims": [],
+    "side": 1,
+    "mine": "none",
+    "bots": false,
+    "cam": {
+     "mode": "frame",
+     "keys": [
+      [
+       10650,
+       297,
+       265,
+       213
+      ],
+      [
+       10740,
+       285,
+       285,
+       220
+      ],
+      [
+       10830,
+       293,
+       314,
+       244
+      ],
+      [
+       10920,
+       309,
+       309,
+       259
+      ],
+      [
+       11010,
+       294,
+       308,
+       258
+      ]
+     ]
+    },
+    "tags": []
+   }
+  ],
+  "top": [
+   "clutch:1179",
+   "kaboom:6363",
+   "napFail:6044"
+  ],
+  "funniest": "clipKind:3756",
+  "montage": [
+   "clutch:1179",
+   "clipKind:3756",
+   "napFail:6044",
+   "kaboom:6363"
+  ]
+ }
+}

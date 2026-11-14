@@ -5,6 +5,8 @@
  * from it (match-derived counters are written only inside the server's /live save).
  */
 import type { ReplayRecord } from '../sim/api';
+import { DETECTOR_V } from './highlights/version';
+import type { HighlightReel } from './highlights/rules';
 
 export const HISTORY_KEY = 'tt.pawlegends.history.v1';
 export const REPLAYS_KEY = 'tt.pawlegends.replays.v1';
@@ -37,6 +39,8 @@ export interface HistoryEntry {
   replay: boolean;
   /** The reason a match has no replay ('party': party matches; else none kept). */
   noReplay?: 'party' | null;
+  /** HIGHLIGHTS.md: the match's highlight reel (cached; recomputed when the detector or the record changes). */
+  highlights?: HighlightReel | null;
 }
 
 export interface KVStore {
@@ -129,6 +133,30 @@ export function recordMoment(entry: Omit<HistoryEntry, 'replay'>, record: Replay
   }
   write(s, HISTORY_KEY, next);
   return next[0];
+}
+
+/** The record key a reel belongs to (`seed:finalHash:ticks`). Pure. */
+export const recordKey = (r: Pick<ReplayRecord, 'seed' | 'finalHash' | 'ticks'>): string => `${r.seed}:${r.finalHash}:${r.ticks}`;
+
+/** A cached reel that still holds: this detector version, this record. Pure. */
+export function reelValid(reel: HighlightReel | null | undefined, record: Pick<ReplayRecord, 'seed' | 'finalHash' | 'ticks'> | null): reel is HighlightReel {
+  return !!reel && !!record && reel.v === 1 && reel.detector === DETECTOR_V && reel.key === recordKey(record) && Array.isArray(reel.list);
+}
+
+/** The row's cached reel when it is still valid, else null (recompute). */
+export function reelOf(id: string, s: KVStore | null = store()): HighlightReel | null {
+  const row = loadHistory(s).find((r) => r.id === id);
+  const record = replayOf(id, s);
+  return row && reelValid(row.highlights, record) ? row.highlights : null;
+}
+
+/** Cache a reel on its row (written after the row; a full storage only means it is computed again). */
+export function saveReel(id: string, reel: HighlightReel, s: KVStore | null = store()): boolean {
+  const rows = loadHistory(s);
+  const row = rows.find((r) => r.id === id);
+  if (!row) return false;
+  row.highlights = reel;
+  return write(s, HISTORY_KEY, rows);
 }
 
 /** "2:05". */

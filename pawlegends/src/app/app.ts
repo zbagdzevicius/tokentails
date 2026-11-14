@@ -31,7 +31,7 @@ import { chromaDef, chromasEarned } from '../render/skins/coatChromas';
 import { ArtStage } from '../ui/stage/artStage';
 import { Lobby } from '../render/lobby';
 import { heroSplashUrl, onSkinArt, splashFor } from '../ui/art';
-import { loadHistory, newEntryId, recordMoment, replayOf, type HistoryEntry } from '../replay/store';
+import { loadHistory, newEntryId, recordMoment, reelOf, replayOf, saveReel, type HistoryEntry } from '../replay/store';
 
 import { portraitUrl, warmPortraits } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
@@ -186,6 +186,9 @@ export class App {
   private readonly human = new HumanFilter();
   private screen: Screen = 'title';
   private screenEl: HTMLElement | null = null;
+  /** HIGHLIGHTS.md §5.1: the results' highlights strip (its scan stops when the results close) and the names it used. */
+  private hlStrip: { dispose(): void } | null = null;
+  private hlNames: { id: string; names: string[] } | null = null;
   private overlay: { close(): void; refresh?(): void; kind?: 'store' | 'pass' } | null = null;
   private offerEl: { close(): void } | null = null;
   /** SHARE-PUSH.md §2: the server's push key once known (null: no web push here), the notifications card, the boot sync. */
@@ -739,6 +742,11 @@ export class App {
   // ---------------------------------------------------------------------------------------------- screens
 
   private setScreen(s: Screen, el: HTMLElement | null): void {
+    // the highlights scan belongs to the results it came with (a replay computes and caches its own)
+    if (this.hlStrip && el !== this.screenEl) {
+      this.hlStrip.dispose();
+      this.hlStrip = null;
+    }
     // QA: the lobby's document key listener left with its screen (it piled up, one per redraw, holding old screens)
     disposeLobby(this.screenEl);
     disposeHome(this.screenEl);
@@ -1911,6 +1919,7 @@ export class App {
         deathsBy: e.deathsBy,
         heroDamage: e.fun.heroDamage,
         bestMoment: e.fun.best,
+        highlights: !partyEnd && !practice && moment.replay && moment.simVersion === SIM_VERSION,
         treats,
         chromaEarned,
         quests: quests.views,
@@ -2014,6 +2023,35 @@ export class App {
           : {}),
       });
     this.setScreen('results', resultsEl);
+    // HIGHLIGHTS.md §5.1: a solo match's highlights strip (the scan runs in a sim Worker; its own lazy chunk)
+    const hlSlot = resultsEl.querySelector<HTMLElement>('[data-slot="highlights"]');
+    if (hlSlot) {
+      // the player's hero by its own name (a worn card's cat name); the bots by their seed names ("(bot)" is added by the titles)
+      const hlNames = e.welcome.picks.map((h, slot) => (slot === mySlot ? momentName || HERO_TEXT[h]?.title : names[slot]) ?? HERO_TEXT[h]?.title ?? 'A hero');
+      this.hlNames = { id: moment.id, names: hlNames };
+      const record = replayOf(moment.id);
+      void import('../replay/strip')
+        .then(({ mountHighlights }) => {
+          if (this.screenEl !== resultsEl || !record) return;
+          this.hlStrip = mountHighlights({
+            slot: hlSlot,
+            record,
+            names: hlNames,
+            picks: e.welcome.picks,
+            cached: reelOf(moment.id),
+            portrait: (h, slot) => (slot === mySlot && setup?.look ? portraitUrl(h, setup.look) : portraitUrl(h, null)),
+            onOpen: (h) => {
+              this.analytics.track('hl_open', { type: h.type, from: 'results' });
+              this.openReplay(moment.id, { highlight: h.id });
+            },
+            onClip: (h, framing) => this.openReplay(moment.id, { highlight: h.id, clip: framing ?? (document.documentElement.dataset.touch === '1' || innerHeight > innerWidth ? 'vertical' : 'wide') }),
+            onMontage: (framing) => this.openReplay(moment.id, { montage: framing ?? (document.documentElement.dataset.touch === '1' || innerHeight > innerWidth ? 'vertical' : 'wide') }),
+            onReel: (reel) => saveReel(moment.id, reel),
+            track: (ev, props) => this.analytics.track(ev as 'hl_scan', props),
+          });
+        })
+        .catch((err: unknown) => reportCrash('window', err));
+    }
     party?.bindResults(resultsEl, () => this.backToParty());
     if (party && this.rankedRun) this.fillRanked(resultsEl, won);
     // CLUBS-KUDOS.md §5: a PvP match's results offer a thumbs-up to each human teammate (signed-in players only)
@@ -2060,6 +2098,10 @@ export class App {
   private openCard(m: HistoryEntry, link: string | null, player: string | null, look: Look | null): void {
     sfx.play('click');
     const hero = m.hero as HeroId;
+    // HIGHLIGHTS.md §5.2: the Legend Moment is the reel's top highlight when it is known, else the announcer's best
+    const reel = reelOf(m.id);
+    const topHl = reel ? (reel.list.find((h) => h.id === reel.top[0]) ?? null) : null;
+    const bestLine = topHl?.title ?? m.best ?? null;
     void import('../share/card')
       .then(({ openShareCard }) =>
         openShareCard(this.root, {
@@ -2073,7 +2115,7 @@ export class App {
             d: m.d,
             a: m.a,
             grade: m.grade,
-            best: m.best ?? null,
+            best: bestLine,
             line: `${MODE_NAME[m.mode as MatchMode] ?? (m.mode === 'pvp' ? 'PvP' : m.mode === 'party' ? 'Party' : 'Practice')} · ${Math.floor(m.seconds / 60)}:${String(m.seconds % 60).padStart(2, '0')}`,
             player,
             art: splashFor(hero, look ?? undefined, 720),
@@ -2090,7 +2132,7 @@ export class App {
           },
           track: (ev, props) => this.analytics.track(ev as 'share_card', props),
           // SHARE-PUSH.md §1: a video of the best moment, recorded from the kept replay
-          onClip: m.replay && m.simVersion === SIM_VERSION && clipSupported() ? (framing) => this.openReplay(m.id, { clip: framing, clipTitle: m.best ?? null }) : null,
+          onClip: m.replay && m.simVersion === SIM_VERSION && clipSupported() ? (framing) => this.openReplay(m.id, { clip: framing, clipTitle: bestLine, ...(topHl ? { highlight: topHl.id } : {}) }) : null,
         }),
       )
       .catch((err: unknown) => reportCrash('window', err));
@@ -2119,7 +2161,7 @@ export class App {
    * MATCH-MOMENTS.md §2: watch a kept replay: the match view (MatchSession) over a ReplayHost, the sim re-running the
    * stored inputs in the sim Worker. Back to Home when it closes.
    */
-  private openReplay(id: string, o: { clip?: 'vertical' | 'wide'; clipTitle?: string | null } = {}): void {
+  private openReplay(id: string, o: { clip?: 'vertical' | 'wide'; clipTitle?: string | null; highlight?: string | null; montage?: 'vertical' | 'wide' | null } = {}): void {
     const record = replayOf(id);
     const entry = loadHistory().find((r) => r.id === id);
     if (!record || !entry) return;
@@ -2148,6 +2190,12 @@ export class App {
           track: (ev, props) => this.analytics.track(ev as 'replay_open', props),
           clip: o.clip ?? null,
           clipTitle: o.clipTitle ?? entry.best ?? null,
+          // HIGHLIGHTS.md: the cached reel, the highlight or montage the results asked for, the results' names
+          reel: reelOf(id),
+          highlight: o.highlight ?? null,
+          montage: o.montage ?? null,
+          names: this.hlNames?.id === id ? this.hlNames.names : null,
+          onReel: (reel) => saveReel(id, reel),
           onShareLink: (url, text) => {
             try {
               void navigator.clipboard?.writeText(`${text} ${url}`).catch(() => undefined);

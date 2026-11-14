@@ -5,7 +5,8 @@
  * that builds keyframes ahead. Timing never reaches the sim: it only decides how many ticks run.
  */
 import type { HostMsg } from '../host/protocol';
-import { ReplayCore, type ReplayError, type ReplayInfo, type ReplayRecordLike } from './core';
+import { ReplayCore, type HighlightLoad, type ReplayError, type ReplayInfo, type ReplayRecordLike } from './core';
+import type { HighlightReel } from './highlights/rules';
 
 export const REPLAY_HZ = 30;
 export const REPLAY_SPEEDS = Object.freeze([1, 2, 4] as const);
@@ -16,21 +17,23 @@ const SCOUT_PLAYING_MS = 6;
 const SCOUT_IDLE_MS = 24;
 
 export type ReplayClientMsg =
-  | { t: 'r:load'; record: ReplayRecordLike; at?: number; speed?: number }
+  | { t: 'r:load'; record: ReplayRecordLike; at?: number; speed?: number; hl?: HighlightLoad | null }
+  /** HIGHLIGHTS.md §1: run the record once to the end, no keyframes, and answer one `r:hl`. */
+  | { t: 'r:scan'; record: ReplayRecordLike; hl: HighlightLoad }
   | { t: 'r:pause'; paused: boolean }
   | { t: 'r:speed'; speed: number }
   | { t: 'r:leave' };
 
-export type ReplayHostMsg = HostMsg | { t: 'r:info'; info: ReplayInfo } | { t: 'r:error'; why: ReplayError };
+export type ReplayHostMsg = HostMsg | { t: 'r:info'; info: ReplayInfo } | { t: 'r:error'; why: ReplayError } | { t: 'r:hl'; key: string; reel: HighlightReel | null; ms: number };
 
 export const isReplayClientMsg = (m: unknown): m is ReplayClientMsg => {
   const t = (m as { t?: unknown } | null)?.t;
-  return t === 'r:load' || t === 'r:pause' || t === 'r:speed' || t === 'r:leave';
+  return t === 'r:load' || t === 'r:pause' || t === 'r:speed' || t === 'r:leave' || t === 'r:scan';
 };
 
 export const isReplayHostMsg = (m: unknown): m is ReplayHostMsg => {
   const t = (m as { t?: unknown } | null)?.t;
-  return t === 'r:info' || t === 'r:error' || t === 'welcome' || t === 'snap' || t === 'events' || t === 'end';
+  return t === 'r:info' || t === 'r:error' || t === 'r:hl' || t === 'welcome' || t === 'snap' || t === 'events' || t === 'end';
 };
 
 export const clampReplaySpeed = (s: unknown): ReplaySpeed => (s === 2 || s === 4 ? s : 1);
@@ -50,15 +53,22 @@ export class ReplayLoop {
   private timer: unknown = null;
   private idle: unknown = null;
   private left = false;
+  private hlSent = false;
+  /** A results-strip scan runs on its own core, so a viewer in the same Worker is never disturbed. */
+  private scan: { core: ReplayCore; t0: number; timer: unknown } | null = null;
 
   constructor(private readonly env: ReplayLoopEnv) {}
 
   handle(msg: ReplayClientMsg): void {
     switch (msg.t) {
+      case 'r:scan':
+        this.startScan(msg.record, msg.hl);
+        break;
       case 'r:load': {
         this.stop();
         this.left = false;
-        const why = this.core.load(msg.record);
+        this.hlSent = false;
+        const why = this.core.load(msg.record, undefined, { highlights: msg.hl ?? null });
         if (why) {
           this.env.post({ t: 'r:error', why });
           return;
@@ -69,6 +79,7 @@ export class ReplayLoop {
         while (this.core.info.scouted < at && !this.core.info.done) this.core.scoutFor(KEY_CHUNK, 1e9, this.env.now);
         for (const m of this.core.start(at)) this.env.post(m);
         this.env.post({ t: 'r:info', info: { ...this.core.info, deaths: this.core.info.deaths.slice(), takedowns: this.core.info.takedowns.slice() } });
+        this.postReel();
         this.paused = true;
         this.scheduleIdle();
         break;
@@ -88,8 +99,43 @@ export class ReplayLoop {
       case 'r:leave':
         this.left = true;
         this.stop();
+        if (this.scan) this.env.clearTimer(this.scan.timer);
+        this.scan = null;
         break;
     }
+  }
+
+  private startScan(record: ReplayRecordLike, hl: HighlightLoad): void {
+    if (this.scan) this.env.clearTimer(this.scan.timer);
+    const core = new ReplayCore();
+    const t0 = this.env.now();
+    const why = core.load(record, undefined, { highlights: hl, scanOnly: true });
+    const key = `${record.seed}:${record.finalHash}:${record.ticks}`;
+    if (why) {
+      this.scan = null;
+      this.env.post({ t: 'r:hl', key, reel: null, ms: 0 });
+      return;
+    }
+    const scan = { core, t0, timer: null as unknown };
+    this.scan = scan;
+    const slice = (): void => {
+      if (this.scan !== scan) return;
+      core.scoutFor(KEY_CHUNK * 8, SCOUT_IDLE_MS, this.env.now);
+      if (core.info.done) {
+        this.scan = null;
+        this.env.post({ t: 'r:hl', key, reel: core.reel, ms: Math.round(this.env.now() - t0) });
+        return;
+      }
+      scan.timer = this.env.setTimer(slice, 0);
+    };
+    scan.timer = this.env.setTimer(slice, 0);
+  }
+
+  /** The viewer's scout reached the end: its reel goes up once. */
+  private postReel(): void {
+    if (this.hlSent || !this.core.info.done || !this.core.key) return;
+    this.hlSent = true;
+    this.env.post({ t: 'r:hl', key: this.core.key, reel: this.core.reel, ms: 0 });
   }
 
   private restart(): void {
@@ -131,6 +177,7 @@ export class ReplayLoop {
     // the bar's buffered part moves in 1 s steps (and on any marker or verdict change)
     if (i.deaths.length + i.takedowns.length !== before || i.done !== wasDone || i.slow !== wasSlow || Math.floor(i.scouted / 30) !== Math.floor(lastScouted / 30))
       this.env.post({ t: 'r:info', info: { ...i, deaths: i.deaths.slice(), takedowns: i.takedowns.slice() } });
+    this.postReel();
   }
 
   private wake(): void {

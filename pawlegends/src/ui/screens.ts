@@ -515,6 +515,8 @@ export interface ResultsOpts {
   heroDamage?: number;
   /** The best moment's title ("Triple Pounce"), or null. */
   bestMoment?: string | null;
+  /** HIGHLIGHTS.md §5.1: a solo match with a kept replay: the highlights strip's slot (filled by src/replay/strip.ts). */
+  highlights?: boolean;
   /** Treat Track progress from this match (fun plan F4). */
   treats?: TreatGain | null;
   /** gaps4: a coat chroma this match earned (playing in the coat), named under the Treat Track. */
@@ -744,6 +746,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.party ? o.party.rowsHtml : ''}
       ${o.grade ? gradeBlock(o.grade, o.won) : ''}
       ${o.bestMoment ? `<p class="pl-best">${icon('crown')}<span>Best moment: <b>${esc(o.bestMoment)}</b></span></p>` : ''}
+      ${o.highlights ? '<div class="pl-hl-slot" data-slot="highlights"></div>' : ''}
       ${o.moments ? `<div class="pl-moments" data-moments><button type="button" class="pl-btn small" data-a="card" data-testid="results-card">Share card</button>${o.moments.onReplay ? '<button type="button" class="pl-btn ghost small" data-a="replay" data-testid="results-replay">Watch replay</button>' : ''}</div>` : ''}
       ${o.ladder ? ladderLine(o.ladder, o.won) : ''}
       ${o.personal ? `<p class="pl-personal">${icon('crown')}<span>${esc(o.personal)}</span></p>` : ''}
