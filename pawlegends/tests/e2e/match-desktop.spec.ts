@@ -129,7 +129,7 @@ test('an out-of-range point cast walks in first (Sage W, cast on release; quick 
   await page.evaluate(() => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify({ v: 1, matches: 1, hero: 'sage' })));
   await page.reload();
   await toChampSelect(page);
-  await page.locator('[data-h="sage"]').click();
+  await page.locator('.cs-tile[data-h="sage"]').click();
   await page.locator('[data-a="start"]').click();
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   // Past the gate barrier (it drops at 0:10), so nothing but range stands between Sage and the point.

@@ -69,9 +69,11 @@ test('joystick moves, Attack picks a target, drag-aim onto the cancel casts noth
 const BODY: Record<string, number> = { hero: 500, minion: 400, tower: 1300, core: 3000, fountain: 0, camp: 500, pudding: 2000 };
 const TOWER_RANGE = 7000;
 type Seen = { id: number; kind: string; team: number; x: number; y: number; hp: number; maxHp: number };
-function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]; allyMinions: { x: number; y: number }[]; killable?: number[]; lock?: number | null; deterred?: number[] }): { id: number | null; why: string } {
+function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]; allyMinions: { x: number; y: number }[]; killable?: number[]; lock?: number | null; deterred?: number[]; sticky?: number | null }): { id: number | null; why: string } {
   // GAPS A5: a held lock wins; feel pass B4: an arguing Howler (Talk Back) is skipped by the auto-targeting
   if (p.lock != null) return { id: p.lock, why: 'locked hero' };
+  // V20-CHASE.md I2: a press keeps the hero it is already attacking while it is within the lock-break distance
+  if (p.sticky != null) return { id: p.sticky, why: 'chased hero' };
   const seen = p.seen.filter((u) => !(p.deterred ?? []).includes(u.id));
   const dd = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
   const guarded = (u: Seen) =>
@@ -82,7 +84,9 @@ function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]
         dd(t, u) <= TOWER_RANGE + BODY.hero + BODY[t.kind] &&
         !p.allyMinions.some((m) => dd(m, t) <= TOWER_RANGE + BODY.tower),
     );
-  const d = (u: Seen) => Math.hypot(u.x - p.me.x, u.y - p.me.y) - BODY[u.kind];
+  // edge to edge (V20-CHASE.md I1): both bodies off the centre distance, the player's hero's included (the old model
+  // left the hero's 500 mm in, so a minion 0.5 to 1 m past the farm reach read as out of reach: the flaky picks)
+  const d = (u: Seen) => Math.hypot(u.x - p.me.x, u.y - p.me.y) - BODY.hero - BODY[u.kind];
   const inRange = seen.filter((u) => d(u) <= p.range + 300);
   const by = <T,>(xs: T[], key: (x: T) => number) => xs.reduce<T | null>((b, x) => (b === null || key(x) < key(b) ? x : b), null);
   // input/targeting.ts attackPriority: an enemy hero in range first (lowest HP share), then a last hit, then a hero just

@@ -541,6 +541,14 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 .pl-home.low .hm-play-glow { opacity: 0.5; transform: scale(1.08); }
 .pl-home.low .hm-play-glow.b { opacity: 0.9; transform: none; }
 .pl-home.low .hm-round.live::after { opacity: 0.8; }
+/* PERF-IOS §8 Track C: a phone's title runs at most one infinite animation (each one keeps the compositor and, for
+   the sheen's left, layout busy for the whole visit). Touch keeps the PLAY ring's pulse; the spark ring, the paw
+   beat, the sheen and the live-event halo hold still, drawn as they look at rest. */
+html[data-touch='1'] .pl-home .hm-play-glow.b, html[data-phone='1'] .pl-home .hm-play-glow.b,
+html[data-touch='1'] .pl-home .hm-paw, html[data-phone='1'] .pl-home .hm-paw,
+html[data-touch='1'] .pl-home .hm-sheen, html[data-phone='1'] .pl-home .hm-sheen,
+html[data-touch='1'] .pl-home .hm-round.live::after, html[data-phone='1'] .pl-home .hm-round.live::after { animation: none; }
+html[data-touch='1'] .pl-home .hm-round.live::after, html[data-phone='1'] .pl-home .hm-round.live::after { opacity: 0.8; }
 @media (prefers-reduced-motion: reduce) {
   .pl-home *, .pl-home *::before, .pl-home *::after { animation: none !important; transition: none !important; }
   .hm-play-glow { opacity: 0.5; transform: scale(1.08); }

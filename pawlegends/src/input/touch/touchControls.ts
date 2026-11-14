@@ -1019,8 +1019,10 @@ export class TouchControls {
     ring: number | null;
     /** C5: the minions and camp monsters the next basic would kill (by the client estimate). */
     killable: number[];
-    /** Feel pass B4: the arguing Howlers the auto-targeting skipped (Talk Back). */
+    /** Feel pass B4: the arguing Howlers the auto-targeting skipped (Talk Back): the ids `targets()` left out. */
     deterred: number[];
+    /** V20-CHASE.md I2: the hero the press kept chasing (stickyAttackTarget), else null. */
+    sticky: number | null;
   } | null = null;
   picks = 0;
 
@@ -1276,10 +1278,10 @@ export class TouchControls {
     const kill = this.killFn();
     // V20-CHASE.md I2 (Wild Rift: an attack order keeps its champion): with no lock, the hero this ATK is already attacking
     // stays the pick while it is within the lock-break distance (no last hit, minion or tower guard steals the chase)
-    const sticky = locked === null ? stickyAttackTarget(this.targets(), me, this.h.view.myTeam, range, this.atkYield.check(units, me, this.h.view.myTeam, range)) : null;
+    const targets = this.targets();
+    const sticky = locked === null ? stickyAttackTarget(targets, me, this.h.view.myTeam, range, this.atkYield.check(units, me, this.h.view.myTeam, range)) : null;
     // UX pass 2: the ringed unit is the tap's own pick (attackPreview), so the two never disagree
-    const id = sticky ?? attackPreview(this.targets(), me, this.h.view.myTeam, range, this.first, kill, locked);
-    const lockId = this.lock.id;
+    const id = sticky ?? attackPreview(targets, me, this.h.view.myTeam, range, this.first, kill, locked);
     // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play). `ring`: what the
     // field had ringed before this tap (the last preview drawn, at most 100 ms old)
     this.lastPick = {
@@ -1292,7 +1294,8 @@ export class TouchControls {
       seen: units.filter((u) => u.id !== me.id && u.team !== this.h.view.myTeam && u.state !== 'dead').map((u) => ({ id: u.id, kind: u.kind, team: u.team, x: u.x, y: u.y, hp: u.hp, maxHp: u.maxHp })),
       allyMinions: units.filter((u) => u.kind === 'minion' && u.team === this.h.view.myTeam && u.state !== 'dead').map((u) => ({ x: u.x, y: u.y })),
       killable: kill ? units.filter((u) => (u.kind === 'minion' || u.kind === 'camp') && u.team !== this.h.view.myTeam && u.state !== 'dead' && u.hp <= kill(u)).map((u) => u.id) : [],
-      deterred: [...this.deter.keys()].filter((d) => d !== lockId),
+      deterred: targets === units ? [] : units.filter((u) => !targets.includes(u)).map((u) => u.id),
+      sticky,
     };
     this.picks++;
     if (id !== null) {

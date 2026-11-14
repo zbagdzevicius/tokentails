@@ -52,7 +52,7 @@ test('20 pick tiles (10 cats, 10 dogs), no owner badge even for an owned card; n
   // NO-TOKENTAILS.md: owning Gabby's Token Tails card shows nothing in the game
   await expect(game.locator('.champ-owned')).toHaveCount(0);
   // GDD §8.1 #5: no offer on hero pick
-  await game.locator('[data-h="aviete"]').click();
+  await game.locator('.cs-tile[data-h="aviete"]').click();
   await expect(game.locator('.cs-panel .cs-name')).toHaveText('Raspberry');
   await expect(game.locator('.pl-pick [data-a="champion-meet"], .pl-pick .plc-meet, .pl-pick .plc-champ')).toHaveCount(0);
   await expect(game.locator('.pl-pick')).not.toContainText(/\$|€|price|pack|donat|fund|adopt/i);

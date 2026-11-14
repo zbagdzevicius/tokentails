@@ -27,7 +27,7 @@ test('Heroes → Sir Brutus → LOCK IN starts the match (LOCK IN is never cover
   await page.waitForSelector('html[data-screen="pick"]');
   // sim v14: Sir Brutus is behind the Dogs tab
   await page.locator('.side-tab.dog').click();
-  await page.locator('[data-h="brutus"]').click();
+  await page.locator('.cs-tile[data-h="brutus"]').click();
   await expect(page.locator('.cs-fc [data-a="start"]')).toBeVisible();
   expect(await topmost(page, '.cs-fc [data-a="start"]')).toBe(true);
   // the Paw Trick row fits above the fold at 844×390; sim v10 (GAPS B5): the 4th trick, Purr-ify, too, marked for

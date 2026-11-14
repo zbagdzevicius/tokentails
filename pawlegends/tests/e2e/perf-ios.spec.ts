@@ -4,7 +4,7 @@ import { seedSide, playFromHome, toChampSelect } from './helpers';
 /**
  * PERF-IOS §8 Track C (docs/plans/moba/PERF-IOS.md), project `landscape` (touch, 844x390):
  * - the boot splash leaves the page (its infinite animations ran for the whole session) and the title runs at most
- *   one infinite CSS animation;
+ *   one infinite CSS animation; Home's 3D champion draws at the menu rate (30 fps), never faster;
  * - the champion browser: no backdrop blur on touch, the game canvas draws nothing behind it (menus are painted art), the skill clip draws at
  *   the menu rate (≤ 30 fps), and the clip adds no DOM damage numbers;
  * - a match: the loading veil stays up until the warm-up linked the match's programs (no program links after it in
@@ -46,10 +46,13 @@ test('boot splash, champion browser and preview pacing', async ({ page }) => {
   await expect(page.locator('#boot')).toHaveCount(0, { timeout: 5_000 });
   const infinite = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity).length);
   expect(infinite).toBeLessThanOrEqual(1);
-  // founder, Nov 13: Home and the champion select are painted art; the game canvas draws nothing behind them
+  // founder, Nov 13 (eef8457d, after the painted-menu pass): Home shows the 3D champion on its pedestal, drawn at the
+  // menu rate (MENU_FPS 30, render/perf/pacer.ts), never the match's 60; the champion select stays painted art
   const h0 = await clears(page, 'game-canvas');
+  const t0 = Date.now();
   await page.waitForTimeout(1500);
-  expect(await clears(page, 'game-canvas')).toBe(h0);
+  const homeFrames = (await clears(page, 'game-canvas')) - h0;
+  expect(homeFrames).toBeLessThanOrEqual(Math.ceil(((Date.now() - t0) / 1000) * 30) + 3);
 
   await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
