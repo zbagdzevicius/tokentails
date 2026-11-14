@@ -6,7 +6,7 @@ card art under `cards/` (copied from the Token Tails client and shrunk, see belo
 
 | File | Source | Licence |
 |---|---|---|
-| `fonts/Fredoka-Latin.woff2` | Fredoka (Google Fonts, https://fonts.google.com/specimen/Fredoka), copied from `swordcat/public/assets/fonts/` | SIL Open Font License 1.1, `fonts/licenses/Fredoka-OFL.txt` |
+| `fonts/Fredoka-Ext.woff2` | Fredoka (Google Fonts, https://fonts.google.com/specimen/Fredoka), the whole font (Basic Latin, Latin Extended, combining marks); the Latin-only cut copied from `swordcat/public/assets/fonts/` now lives in `art-src/fonts/` for the store-art tool and does not ship | SIL Open Font License 1.1, `fonts/licenses/Fredoka-OFL.txt` |
 
 Heroes, minions, towers and the map are procedural geometry built in code (`src/render/views/`), not baked assets.
 Sounds are zzfx parameter arrays synthesised at runtime (`src/audio/`); zzfx is MIT (© 2019 Frank Force).
