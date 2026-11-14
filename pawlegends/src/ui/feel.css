@@ -317,3 +317,24 @@ html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='grizzlechop'] .i
 }
 .pl-practice button:hover { border-color: #ffd678; }
 .pl-practice button:active { transform: translateY(1px); background: rgba(255, 214, 120, 0.25); }
+
+/* Gaps round 3 (hud-controls), the match side: a custom HUD layout (input/touch/hudLayout.ts) moves the minimap group and sizes the joystick; with
+   no layout saved neither variable is set and every rule below is a no-op */
+html[data-touch='1'][data-hud-mm='1'] .pl-match :is(.pl-minimap, .pl-pingbtn, .pl-fish, .pl-emote, .pl-chatbtn) {
+  translate: var(--hud-mm-dx, 0px) var(--hud-mm-dy, 0px);
+}
+.pl-touch .pl-stick { width: calc(120px * var(--stick-k, 1)); height: calc(120px * var(--stick-k, 1)); margin: calc(-60px * var(--stick-k, 1)) 0 0 calc(-60px * var(--stick-k, 1)); }
+html[data-touch='1'] .pl-match .pl-touch .pl-knob { width: calc(52px * var(--stick-k, 1)); height: calc(52px * var(--stick-k, 1)); }
+/* normal cast: the armed skill glows until the tap on the field */
+.pl-touch .pl-tbtn.armed-cast { border-color: var(--v6-bolt); box-shadow: 0 0 0 3px rgb(var(--v6-night-rgb) / 0.7), 0 0 16px var(--v6-bolt); }
+
+/* Settings: the per-ability casting rows (ui/settings.ts), folded under one summary line */
+.pl-settings .set-tcast { background: linear-gradient(var(--v6-line), var(--v6-line)) left bottom / 100% 1px no-repeat; padding-bottom: 6px; }
+.pl-settings .set-tcast > summary { cursor: pointer; padding: 12px 0; font-weight: 600; color: var(--v6-cream); list-style-position: inside; }
+.pl-settings .set-tcast > summary:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pl-settings .set-tcast > .fine { margin: 0 0 6px; }
+.pl-settings .tcast { flex-wrap: wrap; row-gap: 6px; padding: 6px 0; }
+.pl-settings .tcast > span:first-child { min-width: 48px; }
+.pl-settings .tcast .sens { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--v6-muted); }
+.pl-settings .tcast .sens input { width: 110px; accent-color: var(--v6-bolt); }
+.pl-settings .tcast .sens output { min-width: 40px; color: var(--v6-cream); font-variant-numeric: tabular-nums; }

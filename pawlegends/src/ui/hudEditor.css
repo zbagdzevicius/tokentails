@@ -1,0 +1,56 @@
+/* Gaps round 3 (hud-controls): the HUD layout editor (ui/hudEditor.ts). A night field with a faint grid; the score bar
+   band (the toolbar) and the hero disc are the two places no control may go. Every control is drawn at its real size. */
+.pl-hudedit {
+  position: fixed; inset: 0; z-index: 60; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none;
+  background:
+    linear-gradient(rgb(var(--v6-cream-rgb) / 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgb(var(--v6-cream-rgb) / 0.05) 1px, transparent 1px) 0 0 / 24px 24px,
+    radial-gradient(ellipse at 50% 55%, #2c5a3a 0%, #1d3a29 55%, var(--v6-night) 100%);
+  color: var(--v6-cream); font: 600 13px/1.2 var(--font);
+}
+.pl-hudedit .he-hero {
+  position: absolute; border-radius: 50%; display: grid; place-items: center; pointer-events: none;
+  border: 2px dashed rgb(var(--v6-cream-rgb) / 0.45); background: rgb(var(--v6-night-rgb) / 0.35);
+}
+.pl-hudedit .he-hero span { font-size: 11px; color: var(--v6-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.pl-hudedit .he-band {
+  position: absolute; top: 0; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+  background: repeating-linear-gradient(135deg, rgb(var(--v6-night-rgb) / 0.75) 0 8px, rgb(var(--v6-night-rgb) / 0.55) 8px 16px);
+  border-radius: 0 0 var(--v6-r-xs) var(--v6-r-xs); border: 1px solid rgb(var(--v6-cream-rgb) / 0.18); border-top: 0;
+}
+.pl-hudedit .he-bar { display: flex; align-items: center; gap: 4px; padding: 4px; }
+.pl-hudedit .he-tool {
+  min-width: 34px; height: 34px; padding: 0 8px; border-radius: var(--v6-r-xs); border: 1px solid rgb(var(--v6-sky-rgb) / 0.4);
+  background: rgb(var(--v6-navy-rgb) / 0.85); color: var(--v6-ice); font: 700 15px/1 var(--font); cursor: pointer;
+}
+.pl-hudedit .he-tool.txt { font-size: 12px; }
+.pl-hudedit .he-tool.save { background: var(--v6-cream); color: var(--v6-night); border-color: var(--v6-cream); box-shadow: inset 0 -3px 0 var(--v6-bolt); }
+.pl-hudedit .he-tool:disabled { opacity: 0.4; cursor: default; }
+.pl-hudedit .he-tool:focus-visible, .pl-hudedit .he-ctl:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pl-hudedit .he-size { min-width: 64px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--v6-cream); }
+.pl-hudedit .he-hint {
+  position: absolute; left: 50%; top: calc(50% + 66px); transform: translateX(-50%); margin: 0; max-width: min(70vw, 420px);
+  text-align: center; font-size: 12px; color: var(--v6-cream); text-shadow: 0 1px 2px var(--v6-night); pointer-events: none;
+}
+.pl-hudedit .he-ctl {
+  position: absolute; box-sizing: border-box; border-radius: 50%; padding: 0; display: grid; place-items: center; cursor: grab; touch-action: none;
+  border: 3px solid rgb(var(--v6-cream-rgb) / 0.7); background: rgb(var(--v6-night-2-rgb) / 0.8); color: var(--v6-cream); font: 800 14px/1 var(--font);
+  transition: border-color var(--v6-dur-fast), box-shadow var(--v6-dur-fast);
+}
+.pl-hudedit .he-ctl b { pointer-events: none; }
+.pl-hudedit .he-ctl.attack { background: radial-gradient(circle, var(--v6-rose, #e2557a) 0 55%, rgb(var(--v6-night-2-rgb) / 0.9) 56%); }
+.pl-hudedit .he-ctl.stick { border-style: double; border-width: 6px; background: radial-gradient(circle, rgb(var(--v6-cream-rgb) / 0.85) 0 22%, rgb(var(--v6-night-rgb) / 0.35) 23%); color: var(--v6-night); }
+.pl-hudedit .he-ctl.minimap {
+  border-radius: var(--v6-r-xs); align-items: start; padding-top: 6px; border: 2px dashed rgb(var(--v6-cream-rgb) / 0.45);
+  background: linear-gradient(to bottom, #3f7b4f 0 var(--mm-box, 104px), transparent var(--mm-box, 104px));
+}
+.pl-hudedit .he-ctl.sel { border-color: var(--v6-bolt); box-shadow: 0 0 0 3px rgb(var(--v6-night-rgb) / 0.8), 0 0 14px var(--v6-bolt); }
+.pl-hudedit .he-ctl.drag { cursor: grabbing; z-index: 2; }
+.pl-hudedit .he-ctl.bad { border-color: #ff4d4d; box-shadow: 0 0 0 3px rgb(255 77 77 / 0.35); }
+.pl-hudedit .he-ctl.deny { animation: he-shake 0.28s ease-out; }
+@keyframes he-shake { 25% { translate: -4px 0; } 50% { translate: 4px 0; } 75% { translate: -2px 0; } }
+@media (prefers-reduced-motion: reduce) { .pl-hudedit .he-ctl.deny { animation: none; } }
+.pl-hudedit .he-guide { position: absolute; display: none; pointer-events: none; background: var(--v6-bolt); opacity: 0.8; }
+.pl-hudedit .he-guide.on { display: block; }
+.pl-hudedit .he-guide.gx { top: 0; bottom: 0; width: 1px; }
+.pl-hudedit .he-guide.gy { left: 0; right: 0; height: 1px; }

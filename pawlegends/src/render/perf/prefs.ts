@@ -85,7 +85,77 @@ export function savePerfStep(step: number): void {
   }
 }
 
+/**
+ * Gaps round 3 (hud-controls): the match frame rate the player picks, 30 / 60 / 90 / 120 fps (Settings "Frame rate").
+ * Per device (a display's refresh rate is the device's own, so it does not follow the account). 60 by default, as
+ * before; Battery saver and the governor's 30 fps step still hold the match at 30 (app.ts). 90 and 120 are offered only
+ * where the display refreshes that fast (`refreshHz`, measured from requestAnimationFrame at boot).
+ */
+export const FPS_CHOICES = Object.freeze([30, 60, 90, 120] as const);
+export type FpsChoice = (typeof FPS_CHOICES)[number];
+const FPS_KEY = 'pawlegends.fps';
+const HZ_KEY = 'pawlegends.displayHz';
+let fpsMem: FpsChoice | null = null;
+
+export function matchFps(): FpsChoice {
+  if (fpsMem) return fpsMem;
+  try {
+    const n = Number(localStorage.getItem(FPS_KEY));
+    if ((FPS_CHOICES as readonly number[]).includes(n)) return (fpsMem = n as FpsChoice);
+  } catch {
+    /* blocked */
+  }
+  return (fpsMem = 60);
+}
+
+export function setMatchFps(f: FpsChoice): void {
+  fpsMem = f;
+  try {
+    localStorage.setItem(FPS_KEY, String(f));
+  } catch {
+    /* storage blocked */
+  }
+}
+
+/**
+ * The display's refresh rate (Hz) from requestAnimationFrame intervals (ms): the median, snapped to a common rate
+ * (60, 90, 120, 144; anything under 50 reads as 60, the floor every target supports). Pure.
+ */
+export function refreshFromIntervals(ms: readonly number[]): number {
+  const ok = ms.filter((x) => x > 2 && x < 50).sort((a, b) => a - b);
+  if (ok.length < 10) return 60;
+  const hz = 1000 / ok[Math.floor(ok.length / 2)];
+  const rates = [60, 75, 90, 120, 144, 165];
+  let best = 60;
+  for (const r of rates) if (Math.abs(hz - r) < Math.abs(hz - best)) best = r;
+  return hz < 50 ? 60 : best;
+}
+
+/** The measured refresh rate this device last reported (60 until measured). */
+export function refreshHz(): number {
+  try {
+    const n = Number(localStorage.getItem(HZ_KEY));
+    return Number.isFinite(n) && n >= 60 && n <= 240 ? n : 60;
+  } catch {
+    return 60;
+  }
+}
+
+export function saveRefreshHz(hz: number): void {
+  try {
+    localStorage.setItem(HZ_KEY, String(Math.round(hz)));
+  } catch {
+    /* storage blocked */
+  }
+}
+
+/** The frame rates Settings offers on a display of `hz`: 30 and 60 always, 90 and 120 when the display keeps up. */
+export function fpsChoicesFor(hz: number): FpsChoice[] {
+  return FPS_CHOICES.filter((f) => f <= 60 || hz >= f - 5);
+}
+
 /** Tests: forget the in-memory copy. */
 export function resetPerfPrefs(): void {
   mem = null;
+  fpsMem = null;
 }
