@@ -40,7 +40,7 @@ import { icon } from '../icons';
 import type { Choice } from '../screens';
 import { bindVersionMark, versionMarkHtml } from '../versionMark';
 import type { ModeSelectHandle } from '../modeSelect/modeSelect';
-import { countdownText, effectiveState, modeById, playable, queueFor, type ModeChoice, type ModeDef, type Queue } from '../modeSelect/modes';
+import { countdownText, effectiveState, metaLine, modeById, playable, queueFor, type ModeChoice, type ModeDef, type Queue } from '../modeSelect/modes';
 import { crestSvg } from '../modeSelect/crest';
 import { startMotes } from './motes';
 import { HEROES } from '../../data/heroes';
@@ -213,7 +213,8 @@ function eventRows(o: HomeScreenOpts): string {
     .filter((m) => typeof m.state === 'object' || m.id === 'cannon')
     .map((m) => {
       const st = effectiveState(m, now);
-      const tag = st === 'event' && m.id === featured && typeof m.state === 'object' ? `Featured · ${countdownText(m.state.event.endsAt - now)} left` : st === 'event' ? 'Live now' : 'Coming soon';
+      // a live mode (Cannon Chaos since sim v27) reads Live now; a timed one before its window its next day ("Next: Fri")
+      const tag = st === 'event' && m.id === featured && typeof m.state === 'object' ? `Featured · ${countdownText(m.state.event.endsAt - now)} left` : st === 'event' || st === 'live' ? 'Live now' : metaLine(m, now);
       return `<button type="button" role="listitem" class="ev${m.id === featured && st === 'event' ? ' ev-feat' : ''}" data-a="modes" data-mode="${esc(m.id)}"><span class="ev-crest" aria-hidden="true">${crestSvg(m.id)}</span><span class="t"><b>${esc(m.name)}</b><small>${esc(tag)}</small></span></button>`;
     });
   if (o.seasonEnd) rows.unshift(`<button type="button" role="listitem" class="ev" data-a="pass"><span class="ev-crest" aria-hidden="true">${icon('crown')}</span><span class="t"><b>Legends Pass season</b><small>${esc(o.seasonEnd)}</small></span></button>`);

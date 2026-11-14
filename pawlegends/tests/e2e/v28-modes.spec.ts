@@ -70,6 +70,21 @@ test('Mode Select lists One Lane Brawl, the Duel and (on a weekend) Boss Weekend
   await shot(page, 'modes');
 });
 
+test('on a weekend the Home promo leads with Boss Weekend and opens Mode Select on it', async ({ page }, info) => {
+  const touch = info.project.name === 'landscape';
+  await seed(page);
+  await page.goto('/?e2e=1');
+  await page.waitForSelector('html[data-screen="title"] .pl-home');
+  const slide = page.locator('.hm-promo .hm-slide').first();
+  await expect(slide).toHaveAttribute('data-mode', 'boss');
+  await expect(slide).toContainText('Boss Weekend');
+  await tap(page, '.hm-promo .hm-slide.on', touch);
+  const ms = page.locator('[data-testid="mode-select"]');
+  await expect(ms).toBeVisible();
+  await expect(ms.locator('[data-testid="mode-boss"]')).toHaveAttribute('aria-checked', 'true');
+  await shot(page, 'promo-boss');
+});
+
 test('One Lane Brawl: a live match on the Sunny Lane strip at level 3, no Nap', async ({ page }, info) => {
   test.setTimeout(150_000);
   const errors: string[] = [];

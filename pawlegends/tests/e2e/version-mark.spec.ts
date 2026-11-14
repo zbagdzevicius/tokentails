@@ -25,6 +25,9 @@ async function problems(page: Page): Promise<string[]> {
     const sel = 'button, a[href], summary, input, select, textarea, [role="button"], [role="radio"], [tabindex]:not([tabindex="-1"])';
     for (const e of document.querySelectorAll<HTMLElement>(sel)) {
       if (e === mark || mark.contains(e) || e.contains(mark)) continue;
+      // the body of a closed <details> (the Events and quests popovers) is not drawn, though Chrome still lays it out
+      const d = e.closest('details');
+      if (d && !d.open && !e.closest('summary')) continue;
       const cs = getComputedStyle(e);
       if (e.offsetParent === null && cs.position !== 'fixed') continue;
       if (cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
