@@ -810,6 +810,7 @@ export class MatchSession {
     this.ui.dataset.side = HEROES[w.picks[w.slot]]?.side === 'dog' ? 'dog' : 'cat';
     // a renamed champion's row reads "Simas · Clem (you)": the hero title takes the cat column (the VS keeps the cat)
     this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames.map((c, slot) => (slot === w.slot && (this.myCard || this.selfName) ? heroTitle : c)));
+    if (this.setup.spectate) this.scoreboard.spectator = true;
     if (this.e2e) e2eHook('Scoreboard', this.scoreboard);
     // sim v19 (Hearthwood): each slot's role (the bots' role solver, pure), as a chip on the scoreboard
     if ((this.setup.map ?? w.map) === 'hearthwood') this.scoreboard.roles = rolesOf({ picks: w.picks, map: 'hearthwood' });
