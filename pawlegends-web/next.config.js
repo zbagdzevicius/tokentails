@@ -58,6 +58,16 @@ const headers = [
       { key: "Cloudflare-CDN-Cache-Control", value: "max-age=60, stale-while-revalidate=300" },
     ],
   },
+  // Force update (docs/plans/moba/FORCE-UPDATE.md §5.1): the live build's sha and sim. Open tabs read it on the title
+  // and reload when it changed, so it follows index.html exactly (a tab never sees a newer version.json than index.html
+  // for longer than the edge copy).
+  {
+    source: "/pawlegends-game/version.json",
+    headers: [
+      { key: "Cache-Control", value: REVALIDATE },
+      { key: "Cloudflare-CDN-Cache-Control", value: "max-age=60, stale-while-revalidate=300" },
+    ],
+  },
   cache("/pawlegends-game/assets/:path*", "public, max-age=3600, stale-while-revalidate=604800"),
   // The skin art (pawlegends tools/import-skin-art.mjs, outside the game's 10 MB budget): the game asks for it lazily
   // with the build's `?v=` and falls back to the hero's own picture when it is missing. A day in the browser.

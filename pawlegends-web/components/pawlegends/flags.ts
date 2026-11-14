@@ -56,6 +56,15 @@ export function pawlegendsFrameSrc(search: string): string {
   return src;
 }
 
+/**
+ * Force update (docs/plans/moba/FORCE-UPDATE.md §5.1): the frame's src for a fresh start on the latest build. `?v=`
+ * makes the game's index.html a new URL (no cached copy of the old one anywhere); a one-time dare or party is not
+ * forwarded again.
+ */
+export function pawlegendsFrameSrcFor(version: string | null): string {
+  return version && /^[0-9a-z]{4,40}$/.test(version) ? `${PAWLEGENDS_FRAME_SRC}&v=${version}` : `${PAWLEGENDS_FRAME_SRC}&v=${Date.now().toString(36)}`;
+}
+
 /** A well-formed `mode` of the page URL (lowercase letters, at most 16), or null. */
 export function modeOf(search: string): string | null {
   try {

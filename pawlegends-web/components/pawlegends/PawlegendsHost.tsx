@@ -47,6 +47,7 @@ import {
   PAWLEGENDS_PARTY_LINK,
   PAWLEGENDS_TERMS_PATH,
   pawlegendsFrameSrc,
+  pawlegendsFrameSrcFor,
   withoutParty,
 } from "./flags";
 import { PartySaves, PartyTickets } from "./partySaves";
@@ -152,6 +153,14 @@ export const PawlegendsHost = ({
   // The stored token is never rendered, so reading it on the first client render cannot break hydration.
   const [token, setToken] = useState<string | null>(() => (typeof window === "undefined" ? null : readToken()));
   const [note, setNote] = useState<string | null>(null);
+  /**
+   * Force update (docs/plans/moba/FORCE-UPDATE.md §5.1): the backend refused a save because the game in the frame is
+   * an old build. A game build with the update watch reloads itself on its title; an older one never would, so the host
+   * offers "New version ready · Reload" (the player's action: the host cannot see the old game's screen).
+   */
+  const [updateReady, setUpdateReady] = useState(false);
+  /** Starts the frame again on the latest build (`?v=`): the game's `reload-request`, or the update bar's Reload. */
+  const remountLatestRef = useRef<(version: string | null) => void>(() => undefined);
   const [unclaimed, setUnclaimed] = useState(0);
   const [claimDismissed, setClaimDismissed] = useState(false);
   const [notifyWhere, setNotifyWhere] = useState<PawlegendsNotifyWhere | null>(null);
@@ -241,6 +250,7 @@ export const PawlegendsHost = ({
             if (answer.catnipPaid > 0) void authNow?.refreshProfile?.().catch(() => undefined);
           }
           if (saveStatus === "queued" && detail.outcome === "device") setNote(null);
+          if (detail.outcome === "stale") setUpdateReady(true);
         },
         onStalePurged: () => setNote("An older match could not be saved after an update"),
         onChange: () => setUnclaimed(saver.unclaimed().length),
@@ -265,6 +275,7 @@ export const PawlegendsHost = ({
             ...(answer?.season ? { season: answer.season } : {}),
           });
           if (saveStatus === "saved" && answer?.season) void refreshStoreRef.current?.();
+          if (detail.outcome === "stale") setUpdateReady(true);
           if (saveStatus !== "saving")
             track(
               buildPawlegendsEvent("pawlegends_save", {
@@ -562,6 +573,8 @@ export const PawlegendsHost = ({
         onStoreIntent: (sku) => handlers.current.onStoreIntent(sku),
         onPassClaim: (row, tier) => handlers.current.onPassClaim(row, tier),
         onChampUnlock: (hero, via) => handlers.current.onChampUnlock(hero, via),
+        // force update: the game is outdated and on its title; start the frame again on the latest build
+        onReloadRequest: (_reason, version) => remountLatestRef.current(version),
         // the player's own Sound switch in the game is the site's one mute (it was lost on the next visit)
         onSound: (muted) => setMuted(muted),
         onShare: (kind, url, text) => {
@@ -667,6 +680,15 @@ export const PawlegendsHost = ({
   const onFrameLoad = useCallback(() => {
     if (bridgeRef.current?.ready) bridgeRef.current.reconnect();
   }, []);
+  useEffect(() => {
+    remountLatestRef.current = (version) => {
+      setUpdateReady(false);
+      setBridgeState("connecting");
+      setFrameSrc(pawlegendsFrameSrcFor(version));
+      setFrameKey((k) => k + 1);
+      bridgeRef.current?.reconnect();
+    };
+  }, []);
   const reload = () => {
     reloads.current += 1;
     setBridgeState("connecting");
@@ -761,6 +783,18 @@ export const PawlegendsHost = ({
           <a href={homePath} data-testid="pawlegends-slow-exit" className="px-2 font-sans text-p6 font-bold text-tt-gold-400 underline underline-offset-4">
             Back
           </a>
+        </div>
+      )}
+      {updateReady && (
+        <div
+          role="status"
+          data-testid="pawlegends-update"
+          className="fixed left-1/2 top-14 z-10 flex w-max max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-lg border-2 border-tt-night-950 bg-tt-night-900/90 py-1 pl-3 pr-1 font-sans text-p6 font-bold text-tt-cream"
+        >
+          <span>New version ready</span>
+          <button type="button" onClick={() => remountLatestRef.current(null)} className={reloadClass}>
+            Reload
+          </button>
         </div>
       )}
       {bridgeState === "timeout" && (
