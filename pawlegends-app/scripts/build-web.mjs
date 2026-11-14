@@ -11,8 +11,12 @@
  * 3. `www/bundle.json`: the stamp (version, seq, compat, simVersion), read by the OTA publish job.
  *
  * Usage: node scripts/build-web.mjs [--seq <n>] [--skip-game]
+ *        node scripts/build-web.mjs --bridge [--compat 1] [--seq <n>]
  *   --seq: publish order (default: UTC yyyymmddHHMMSS now). The bundle version is `<seq>-<git short sha>`.
  *   --skip-game: reuse ../pawlegends/dist-app (shell-only rebuild).
+ *   --bridge: the compat-1 bridge bundle into `www-bridge/` (docs/plans/moba/FORCE-UPDATE.md §6.1): bridge/index.html
+ *     ("Update Paw Legends", the store and web links), the logo, and shell.js (OTA, haptics and back handling only:
+ *     no game, no host.js, nothing Firebase, which the 1.0.x binaries do not have). Stamp `simVersion: 0, bridge: true`.
  */
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -20,12 +24,11 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { spkiPem } from './lib/capgo-crypto.mjs';
-import { NATIVE_COMPAT, UPDATES_URL, LOCAL_UPDATES_URL, PUBLIC_KEY_PATH, API_ORIGIN } from './lib/app-config.mjs';
+import { BRIDGE_COMPAT, NATIVE_COMPAT, UPDATES_URL, LOCAL_UPDATES_URL, PUBLIC_KEY_PATH, API_ORIGIN } from './lib/app-config.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appDir = resolve(here, '..');
 const gameDir = resolve(appDir, '../pawlegends');
-const www = join(appDir, 'www');
 const gameOut = join(gameDir, 'dist-app');
 
 const args = process.argv.slice(2);
@@ -33,6 +36,8 @@ const arg = (name) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;
 };
+const bridge = args.includes('--bridge');
+const www = join(appDir, bridge ? 'www-bridge' : 'www');
 
 function utcSeq(d = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
@@ -57,7 +62,63 @@ function simVersion() {
 const seq = Number(arg('--seq') ?? utcSeq());
 if (!Number.isSafeInteger(seq) || seq <= 0) throw new Error(`build-web: bad --seq ${arg('--seq')}`);
 const version = `${seq}-${gitSha()}`;
-const stamp = { version, seq, compat: NATIVE_COMPAT, simVersion: simVersion() };
+const compat = bridge ? Number(arg('--compat') ?? BRIDGE_COMPAT) : NATIVE_COMPAT;
+if (bridge && !(Number.isInteger(compat) && compat >= 1 && compat < NATIVE_COMPAT)) throw new Error(`build-web: --bridge needs --compat below ${NATIVE_COMPAT}`);
+const stamp = bridge ? { version, seq, compat, simVersion: 0, bridge: true } : { version, seq, compat: NATIVE_COMPAT, simVersion: simVersion() };
+const publicPem = readFileSync(PUBLIC_KEY_PATH, 'utf8');
+// The web host lives in pawlegends-web/ (Paw Legends' own Next app, docs/plans/moba/PAWLEGENDS-WEB.md).
+const clientDir = resolve(appDir, '../pawlegends-web');
+
+/**
+ * `@/…` is pawlegends-web (the web host's React-free modules: bridge, saves, party, api ops, auth flows, and the
+ * shared client-policy contract the shell's update gate decides with); a package those files import resolves from
+ * this app (one firebase and one Capacitor, never pawlegends-web/node_modules).
+ */
+const clientModules = {
+  name: 'pl-client-modules',
+  setup(b) {
+    b.onResolve({ filter: /^@\// }, (args) => b.resolve(`./${args.path.slice(2)}`, { resolveDir: clientDir, kind: args.kind }));
+    b.onResolve({ filter: /^(?:[^./@]|@[^/]+\/)/ }, (args) => {
+      if (args.pluginData?.fromApp || !args.importer.startsWith(clientDir)) return undefined;
+      return b.resolve(args.path, { resolveDir: appDir, kind: args.kind, pluginData: { fromApp: true } });
+    });
+  },
+};
+
+/** shell.js: the OTA, the update gate (not in the bridge), haptics, back handling, the host channel. */
+async function buildShell(outfile) {
+  await build({
+    entryPoints: [join(appDir, 'src/shell/main.ts')],
+    bundle: true,
+    format: 'iife',
+    target: ['safari15'],
+    minify: true,
+    legalComments: 'none',
+    outfile,
+    define: {
+      __PL_STAMP__: JSON.stringify(stamp),
+      __PL_SPKI__: JSON.stringify(spkiPem(publicPem)),
+      __PL_UPDATES_URL__: JSON.stringify(UPDATES_URL),
+      __PL_LOCAL_UPDATES_URL__: JSON.stringify(LOCAL_UPDATES_URL),
+      __PL_API_ORIGIN__: JSON.stringify(API_ORIGIN),
+      __PL_BRIDGE__: JSON.stringify(bridge),
+    },
+    plugins: [clientModules],
+    logLevel: 'warning',
+  });
+}
+
+if (bridge) {
+  rmSync(www, { recursive: true, force: true });
+  mkdirSync(www, { recursive: true });
+  cpSync(join(appDir, 'bridge/index.html'), join(www, 'index.html'));
+  // the brand logo of the game build (no new binary in git)
+  cpSync(join(gameDir, 'public/assets/brand/logo-720.webp'), join(www, 'logo.webp'));
+  await buildShell(join(www, 'shell.js'));
+  writeFileSync(join(www, 'bundle.json'), `${JSON.stringify(stamp, null, 2)}\n`);
+  console.log(`build-web: bridge ${version} (compat ${compat}) -> ${www}`);
+  process.exit(0);
+}
 
 if (!args.includes('--skip-game')) {
   if (!existsSync(join(gameDir, 'node_modules'))) execFileSync('npm', ['ci'], { cwd: gameDir, stdio: 'inherit' });
@@ -80,40 +141,7 @@ rmSync(www, { recursive: true, force: true });
 mkdirSync(www, { recursive: true });
 cpSync(gameOut, www, { recursive: true });
 
-const publicPem = readFileSync(PUBLIC_KEY_PATH, 'utf8');
-// The web host lives in pawlegends-web/ (Paw Legends' own Next app, docs/plans/moba/PAWLEGENDS-WEB.md).
-const clientDir = resolve(appDir, '../pawlegends-web');
-
-/**
- * `@/…` is pawlegends-web (the web host's React-free modules: bridge, saves, party, api ops, auth flows); a package
- * those files import resolves from this app (one firebase and one Capacitor, never pawlegends-web/node_modules).
- */
-const clientModules = {
-  name: 'pl-client-modules',
-  setup(b) {
-    b.onResolve({ filter: /^@\// }, (args) => b.resolve(`./${args.path.slice(2)}`, { resolveDir: clientDir, kind: args.kind }));
-    b.onResolve({ filter: /^(?:[^./@]|@[^/]+\/)/ }, (args) => {
-      if (args.pluginData?.fromApp || !args.importer.startsWith(clientDir)) return undefined;
-      return b.resolve(args.path, { resolveDir: appDir, kind: args.kind, pluginData: { fromApp: true } });
-    });
-  },
-};
-await build({
-  entryPoints: [join(appDir, 'src/shell/main.ts')],
-  bundle: true,
-  format: 'iife',
-  target: ['safari15'],
-  minify: true,
-  legalComments: 'none',
-  outfile: join(www, 'shell.js'),
-  define: {
-    __PL_STAMP__: JSON.stringify(stamp),
-    __PL_SPKI__: JSON.stringify(spkiPem(publicPem)),
-    __PL_UPDATES_URL__: JSON.stringify(UPDATES_URL),
-    __PL_LOCAL_UPDATES_URL__: JSON.stringify(LOCAL_UPDATES_URL),
-  },
-  logLevel: 'warning',
-});
+await buildShell(join(www, 'shell.js'));
 
 await build({
   entryPoints: [join(appDir, 'src/host/main.ts')],

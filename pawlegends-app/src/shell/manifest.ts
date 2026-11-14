@@ -45,6 +45,8 @@ export interface BundleStamp {
   seq: number;
   compat: number;
   simVersion: number;
+  /** The compat-1 bridge bundle (no game: an "Update Paw Legends" page, docs/plans/moba/FORCE-UPDATE.md §6.1). */
+  bridge?: boolean;
 }
 
 const VERSION = /^[0-9]{1,14}-[0-9a-z]{1,40}$/;
@@ -166,18 +168,26 @@ function b64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * Check the manifest signature with the SPKI public key. `'unavailable'` when this WebView has no WebCrypto (then
- * the native RSA checksum of the bundle is still enforced by the updater before anything is unzipped).
+ * Check an RSASSA-PKCS1-v1_5 / SHA-256 signature over `data` with the SPKI public key (the OTA key). `'unavailable'`
+ * when this WebView has no WebCrypto.
  */
-export async function verifyManifest(m: OtaManifest, spkiPem: string, subtle: SubtleCrypto | null | undefined = globalThis.crypto?.subtle): Promise<'ok' | 'bad' | 'unavailable'> {
+export async function verifySigned(data: string, signature: string, spkiPem: string, subtle: SubtleCrypto | null | undefined = globalThis.crypto?.subtle): Promise<'ok' | 'bad' | 'unavailable'> {
   if (!subtle) return 'unavailable';
   const pem = PEM.exec(spkiPem);
   if (!pem) return 'bad';
   try {
     const key = await subtle.importKey('spki', b64ToBytes(pem[1]), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
-    const ok = await subtle.verify('RSASSA-PKCS1-v1_5', key, b64ToBytes(m.signature), new TextEncoder().encode(canonicalManifest(m)));
+    const ok = await subtle.verify('RSASSA-PKCS1-v1_5', key, b64ToBytes(signature), new TextEncoder().encode(data));
     return ok ? 'ok' : 'bad';
   } catch {
     return 'bad';
   }
+}
+
+/**
+ * Check the manifest signature with the SPKI public key. `'unavailable'` when this WebView has no WebCrypto (then
+ * the native RSA checksum of the bundle is still enforced by the updater before anything is unzipped).
+ */
+export function verifyManifest(m: OtaManifest, spkiPem: string, subtle: SubtleCrypto | null | undefined = globalThis.crypto?.subtle): Promise<'ok' | 'bad' | 'unavailable'> {
+  return verifySigned(canonicalManifest(m), m.signature, spkiPem, subtle);
 }

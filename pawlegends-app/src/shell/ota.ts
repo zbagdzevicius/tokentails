@@ -36,6 +36,8 @@ export interface UpdaterLike {
   set(o: { id: string }): Promise<unknown>;
   list(): Promise<{ bundles: BundleRef[] }>;
   delete(o: { id: string }): Promise<unknown>;
+  /** Download progress (`percent` 0..100); @capgo/capacitor-updater 7 has it, a fake may leave it out. */
+  addListener?(event: 'download', cb: (e: { percent?: number }) => void): Promise<{ remove(): Promise<void> | void }> | { remove(): Promise<void> | void };
 }
 
 export interface KV {
@@ -184,15 +186,60 @@ export class Ota {
     }
   }
 
+  /** The version downloaded and waiting to be applied, or null. */
+  pendingVersion(): string | null {
+    const pending = readJson<BundleRef | null>(this.d.kv, KEYS.pending, null);
+    return pending && pending.version !== this.d.stamp.version ? pending.version : null;
+  }
+
+  /** Allow one failed version to be tried again (the update gate's manual Try again, at most once a day). */
+  forgetFailed(version: string): void {
+    writeJson(this.d.kv, KEYS.failed, this.failedVersions().filter((v) => v !== version));
+  }
+
+  /** Follow the download progress (percent). Returns an unsubscribe; a no-op where the updater has no events. */
+  onProgress(cb: (percent: number) => void): () => void {
+    const add = this.d.updater.addListener;
+    if (typeof add !== 'function') return () => undefined;
+    let handle: { remove(): Promise<void> | void } | null = null;
+    let gone = false;
+    try {
+      void Promise.resolve(add.call(this.d.updater, 'download', (e) => {
+        if (!gone && typeof e?.percent === 'number') cb(Math.max(0, Math.min(100, e.percent)));
+      })).then((h) => {
+        handle = h;
+        if (gone) void handle?.remove();
+      }, () => undefined);
+    } catch {
+      return () => undefined;
+    }
+    return () => {
+      gone = true;
+      void handle?.remove();
+    };
+  }
+
   /** Swap to the downloaded bundle if it is safe now. The plugin reloads the WebView into it. */
-  async applyIfSafe(): Promise<boolean> {
+  applyIfSafe(): Promise<boolean> {
+    return this.apply(true);
+  }
+
+  /**
+   * Swap to the downloaded bundle now, without the title-screen check: the update gate (gate.ts) covers the game, so
+   * nothing is playable behind it, and it only runs on the title or at boot.
+   */
+  applyNow(): Promise<boolean> {
+    return this.apply(false);
+  }
+
+  private async apply(onlyWhenSafe: boolean): Promise<boolean> {
     const pending = readJson<BundleRef | null>(this.d.kv, KEYS.pending, null);
     if (!pending || pending.version === this.d.stamp.version) return false;
     if (this.failedVersions().includes(pending.version)) {
       this.d.kv.removeItem(KEYS.pending);
       return false;
     }
-    if (!safeToApply(this.d.gameState())) return false;
+    if (onlyWhenSafe && !safeToApply(this.d.gameState())) return false;
     if (!(await this.hasBundle(pending.id))) {
       this.d.kv.removeItem(KEYS.pending);
       return false;
