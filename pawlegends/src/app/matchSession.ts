@@ -25,7 +25,8 @@ import { ObjectiveClock, Objectives, type BeatId } from '../onboarding/objective
 import { Announcer, XpPops, towerBurningMoment, type Moment } from '../render/announcer';
 import { isFun, type AnyEvent } from '../render/feelEvents';
 import type { GuideMode } from './firstSession';
-import { cardLook, ELEMENT_COLOR, lookKey, type FrameId, type Look } from '../render/cosmetics';
+import { cardLook, ELEMENT_COLOR, lookKey, PAID_COATS, type FrameId, type Look } from '../render/cosmetics';
+import { COAT_THEMES } from '../render/skins/coatThemes';
 import { setProbeBlocked } from '../render/skins/spriteProbe';
 import { cardIdentity, cutName, heroSub, selfNames, tidyName, type CardIdentity } from '../meta/cardName';
 import { coarsePointer } from './platform';
@@ -192,15 +193,22 @@ const PING_TIP_STALE_MS = 60_000;
 /** Seconds the ping tip stays up: its text runs ~19 words, an ordinary banner's 2.1 s is too short to read it. */
 const PING_TIP_HOLD = 5.5;
 
-/** `?e2e=1&skins=legendary` (perf.spec.ts): every hero in a synthetic Legendary card skin. Never outside e2e. */
-function e2eLegendary(): boolean {
+/**
+ * `?e2e=1&skins=legendary` (perf.spec.ts): every hero in a synthetic Legendary card skin; `skins=legendary,coats`: a
+ * hero with a themed Epic or Legendary coat (render/skins/coatThemes.ts) wears that coat instead (gaps3 coat-fx: the
+ * coats' ultimate, recall and takedown effects in the numbers). Never outside e2e.
+ */
+function e2eSkins(): { legendary: boolean; coats: boolean } {
   try {
     const q = new URLSearchParams(location.search);
-    return q.get('e2e') === '1' && q.get('skins') === 'legendary';
+    const k = q.get('e2e') === '1' ? (q.get('skins') ?? '').split(',') : [];
+    return { legendary: k.includes('legendary'), coats: k.includes('coats') };
   } catch {
-    return false;
+    return { legendary: false, coats: false };
   }
 }
+/** The themed coat a hero wears in the `skins=coats` e2e run (null: none). */
+const e2eCoat = (hero: string): string | null => Object.keys(COAT_THEMES).find((id) => PAID_COATS[id]?.hero === hero) ?? null;
 
 function e2eSkin(slot: number): CatSkin {
   const els = ['FIRE', 'ICE', 'GRASS', 'WATER', 'DARK', 'STELLAR'] as const;
@@ -633,8 +641,15 @@ export class MatchSession {
     const shown = this.view.dressBots(w.seed, w.picks, this.setup.showcase ?? []);
     this.view.dress(this.setup.look ?? null, this.setup.companions ?? []);
     this.view.setSkinFx(this.setup.skinFx ?? 'all');
-    if (this.e2e && e2eLegendary()) {
+    const e2s = this.e2e ? e2eSkins() : null;
+    if (e2s && (e2s.legendary || e2s.coats)) {
       for (let slot = 0; slot < w.picks.length; slot++) {
+        const coat = e2s.coats ? e2eCoat(w.picks[slot]) : null;
+        if (coat) {
+          this.view.heroes.looks.set(slot, { coat, chroma: null });
+          continue;
+        }
+        if (!e2s.legendary) continue;
         const sk = e2eSkin(slot);
         putSkin(sk);
         this.view.heroes.looks.set(slot, cardLook(sk.id));
@@ -2370,6 +2385,7 @@ export class MatchSession {
       document.documentElement.dataset.stage = this.stage.top(nowMs) ?? '';
       // Wave C (C4): card-tier effect particles started so far (perf and skins specs)
       document.documentElement.dataset.cardFx = String(this.view.effects.cards?.emitted ?? 0);
+      document.documentElement.dataset.coatFx = String(this.view.effects.coats?.emitted ?? 0);
     }
     if (frame && this.hud && this.welcome) {
       const me = frame.byId.get(this.welcome.slot) ?? null;

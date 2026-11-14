@@ -38,6 +38,7 @@ import { SHAPE } from '../fx/Particles.js';
 import { mixHex } from './classify';
 import { AWAKEN_FOIL, LiveBudget, MotifEmitter, type SkinFxProfile } from './effectKit';
 import { isGoldFamily, rungAtLeast } from './registry';
+import type { CoatVfx } from './coatFx';
 
 export type SkinFxMode = 'all' | 'mine' | 'off';
 
@@ -139,6 +140,14 @@ export class TierFx {
   private fight = false;
   private readonly live = new LiveBudget(COSMETIC_MAX);
   private readonly kit = new MotifEmitter();
+  /** gaps3 coat-fx: a coat's themed nap and landing (render/skins/coatFx.ts; the GameView's, shared with Effects). */
+  coats: CoatVfx | null = null;
+  /** Heroes whose recall should land on their next frame (`landAt`: the preview, which never teleports). */
+  private readonly forced = new Set<number>();
+  /** Play hero `id`'s recall landing on its next frame where it stands (the Heroes browser's recall clip). */
+  landAt(id: number): void {
+    this.forced.add(id);
+  }
   /** CARD-SKINS.md Legendary: the recall landed (gameView plays the purr layer). */
   onRecallLand: ((h: FxHero) => void) | null = null;
   private readonly tracks = new Map<number, Track>();
@@ -227,9 +236,15 @@ export class TierFx {
       this.claim(1, 0.4);
     }
     t.step = step;
-    // the Nap recall lands: a jump of more than 8 m right after napping
+    // the Nap recall lands: a jump of more than 8 m right after napping (or a preview's `landAt`)
     const jumped = (h.x - t.x) * (h.x - t.x) + (h.z - t.z) * (h.z - t.z) > 64;
-    if (ok && rungAtLeast(h.rung, 'LEGENDARY') && jumped && t.napped && this.room()) {
+    const forced = this.forced.size > 0 && this.forced.delete(h.id);
+    const landed = (jumped && t.napped) || forced;
+    const prof = h.profile ?? null;
+    // gaps3 coat-fx: a Rare+ coat lands in its own theme (render/skins/coatFx.ts); a Legendary one purrs too
+    if (ok && landed && this.coats?.land(h.x, h.z, prof)) {
+      if (prof?.rung === 'LEGENDARY') this.onRecallLand?.(h);
+    } else if (ok && rungAtLeast(h.rung, 'LEGENDARY') && landed && this.room()) {
       this.at.set(h.x, 0.2, h.z);
       this.ringOpts.color = CREAM;
       this.particles?.ring(this.at, this.ringOpts);
@@ -238,10 +253,11 @@ export class TierFx {
       this.claim(16, 0.7);
       this.onRecallLand?.(h);
     }
-    const prof = h.profile ?? null;
     const kp = this.kitPool;
-    // CARD-SKINS.md Rare+: the recall nap, one motif ring at the feet a second; Legendary: + the spinning card glyph
-    if (ok && prof && kp && h.napping && this.time - t.lastNap >= NAP_GAP) {
+    // CARD-SKINS.md Rare+: the recall nap, one motif ring at the feet a second; Legendary: + the spinning card glyph.
+    // An Epic or Legendary coat naps in its own theme instead (coatFx.ts: a sun halo, storm crackle, falling petals)
+    if (ok && prof && kp && h.napping && this.time - t.lastNap >= NAP_GAP && this.coats?.nap(h.x, h.z, prof)) t.lastNap = this.time;
+    else if (ok && prof && kp && h.napping && this.time - t.lastNap >= NAP_GAP) {
       const leg = prof.rung === 'LEGENDARY';
       const n = (prof.low ? 4 : 6) + (leg ? 1 : 0);
       if (this.room(n, h.id, prof.rung)) {

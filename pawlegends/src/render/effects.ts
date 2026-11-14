@@ -46,6 +46,7 @@ import { auraColor, elementColor, impactScale, isBigHit, maxedRank, rankScale, t
 import { mixHex } from './skins/classify';
 import { isGoldFamily } from './skins/registry';
 import { hasSparkle, tinted, type CardFx, type CardVfx } from './skins/cardFx';
+import type { CoatVfx } from './skins/coatFx';
 
 /** "Press R" on a keyboard; touch buttons carry icons, not letters, so name the button there. */
 export function ultHint(): string {
@@ -221,6 +222,8 @@ export class Effects {
   vfx: CombatVfx | null = null;
   /** Wave C (C4) card-tier extras (paw bursts, sparkles, flourishes); null = none (tests, the lobby). */
   cards: CardVfx | null = null;
+  /** gaps3 coat-fx: the coats' own ultimate, recall and takedown effects (render/skins/coatFx.ts). */
+  coats: CoatVfx | null = null;
   /** ANIM-SPEC: authored animation and skill FX (render/anim/); null = the older looks (tests, the lobby). */
   anim: AnimFxHooks | null = null;
   /** Champion identity VFX (CHAMP-IDENTITY.md): the skill's nature effect and the hero's motif. */
@@ -562,7 +565,8 @@ export class Effects {
         // a hero whose own skill FX draws the ult keeps only the relation mark (no generic pillar or cracks over it)
         if (owned) vfx.ultimateMark(src.x, src.z, accent, rel);
         else vfx.ultimate(src.x, src.z, accent, rel, r, rk);
-        this.cards?.signature(src.x, src.z, ultWaveRadius(r, rk), card);
+        // gaps3 coat-fx: a coat's own ultimate (render/skins/coatFx.ts) replaces the card paw wave
+        if (!this.coats?.ult(src.x, src.z, ultWaveRadius(r, rk), card)) this.cards?.signature(src.x, src.z, ultWaveRadius(r, rk), card);
       } else this.particles.ring(this.at(src, 0.1), { n: 22, r0: 0.5, speed: [4, 6], up: 1.2, color: accent, alpha: 0.9, additive: true, size: [0.3, 0.45], shape: SHAPE.STAR4, intensity: 1.6 });
       const name = src.hero ? ultName(src.hero) : 'Ultimate!';
       const me = this.hooks.who(this.hooks.mySlot);
@@ -829,7 +833,7 @@ export class Effects {
       // Wave C (C4) + CARD-SKINS.md: the killer's skin stamps the fallen hero (Epic+ motif stamp, Legendary flourish;
       // only for a hero seen now); a Legendary skin's multi-kill card shows on the killer's own screen only
       const kc = this.cardOf(k);
-      if (this.vfx && this.hooks.visible?.(e.id) !== false) this.cards?.takedown(v.x, v.z, kc);
+      if (this.vfx && this.hooks.visible?.(e.id) !== false && !this.coats?.takedown(v.x, v.z, kc)) this.cards?.takedown(v.x, v.z, kc);
       if (e.killer === this.hooks.mySlot && k && this.vfx) this.cards?.multiKill(k.x, k.z, e.tick, kc);
       if (kc && kc.rung === 'LEGENDARY' && k) sfx.cardLayer('takedown', k.id, kc.self, v);
       sfx.play('death', { at: v });
@@ -956,6 +960,7 @@ export class Effects {
     this.time += dt;
     this.natureFx.tick(dt);
     this.cards?.tick(dt);
+    this.coats?.tick(dt);
     this.numbers.render(dt);
   }
 

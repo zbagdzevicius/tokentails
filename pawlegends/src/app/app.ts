@@ -2226,6 +2226,8 @@ export class App {
       isApp: this.isApp(),
       onUnlock: (h, via) => this.unlockChamp(h, via),
       onInfo: (h, within) => void openChampInfo({ hero: h, within, parent: within }),
+      // gaps3 coat-fx: the coat's ultimate, recall and takedown clips, in the champion browser's Coats tab
+      onCoatFx: (h, coat, within) => void openChampInfo({ hero: h, within, parent: within, coat }),
     });
     this.overlay = Object.assign(panel, { kind: 'store' as const });
   }

@@ -9,7 +9,9 @@
  * clip always matches the shipped skill: windups, dashes, projectiles, zones, crowd control and damage numbers.
  *
  * The world is touched only here, at setup, on this sandbox's own private match (positions, level, HP): never the
- * sim code, never a live match.
+ * sim code, never a live match. gaps3 coat-fx adds two coat clips (`CoatClip`): 'recall' (the hero naps the whole
+ * channel, and the sandbox puts it back where it napped the tick the sim sends it home, so the landing plays in the
+ * box) and 'takedown' (the hero swings, then casts Q and E, at a dummy one hit from down; the ultimate has its own clip).
  */
 import { HERO_IDS, HEROES } from '../../data/heroes';
 import type { CastSlot, Command, HeroId, MatchConfig, SimEvent, Snapshot, TrickId } from '../../sim/api';
@@ -17,11 +19,19 @@ import { NO_TARGET, Op } from '../../sim/api';
 import { canCast, createMatch, snapshot, step, type MatchHandle } from '../../sim';
 import { levelUp } from '../../sim/progression/levels';
 import { G, Order, UnitState } from '../../sim/world';
-import { XP } from '../../data/xp';
+import { HERO_RULES, XP } from '../../data/xp';
 import { aimFor, type AimSpec } from '../../input/abilities';
 import { SIM_TIMING } from '../../render/anim/timing';
 
 export type PreviewSlot = 'q' | 'w' | 'e' | 'r';
+/** gaps3 coat-fx: the coat clips besides the ultimate ('r'): the recall nap and its landing, and a takedown. */
+export type CoatClip = 'recall' | 'takedown';
+/** The recall clip: the dummy stands this far off (mm), out of its reach, so nothing breaks the nap. */
+export const RECALL_GAP = 11000;
+/** The takedown clip: the dummy's HP share at the start (‰): it reads hurt before the cast. */
+export const TAKEDOWN_HP_PERMILLE = 120;
+/** The takedown clip's hero ↔ dummy gap (mm): a short walk, then the swing. */
+export const TAKEDOWN_GAP = 2600;
 export const PREVIEW_SLOTS: readonly PreviewSlot[] = Object.freeze(['q', 'w', 'e', 'r'] as PreviewSlot[]);
 const SLOT_INDEX: Readonly<Record<PreviewSlot, CastSlot>> = { q: 0, w: 1, e: 2, r: 3 };
 
@@ -126,6 +136,17 @@ export interface SandboxFrame {
   t: number;
   /** True on the tick the sim emitted the previewed slot's `cast` event for the hero. */
   cast: boolean;
+  /** The recall clip: true on the tick the nap finished (the hero is back where it napped). */
+  landed: boolean;
+}
+
+/** A coat clip's scenario: the ultimate's, with the recall's or the takedown's timing. */
+export function coatScenario(hero: HeroId, clip: CoatClip): SkillScenario {
+  const base = scenarioFor(hero, 'r');
+  if (clip === 'recall') return { ...base, at: 'self', gap: RECALL_GAP, castAt: CAST_AT, recastAt: -1, loop: CAST_AT + HERO_RULES.napChannel + 45 };
+  // the takedown: a basic attack on a dummy one hit from down (an ultimate can be a duel or a shield, a swing always
+  // lands), then the fall and the stamp; the ultimate has its own clip
+  return { ...base, at: 'enemy', gap: TAKEDOWN_GAP, castAt: CAST_AT, recastAt: -1, loop: CAST_AT + 96 };
 }
 
 /**
@@ -143,13 +164,21 @@ export class SkillSandbox {
   /** Every cast tick of the current loop (relative), for the tests. */
   readonly castTicks: number[] = [];
 
+  /** Recall clip: where the hero napped (mm), to put it back when the sim sends it home. */
+  private napX = 0;
+  private napY = 0;
+  /** Landings this loop (the recall clip). */
+  lands = 0;
+
   constructor(
     readonly hero: HeroId,
     readonly slot: PreviewSlot,
     /** The previewed hero's level (never below PREVIEW_LEVEL; the ally and the dummy stay at PREVIEW_LEVEL). */
     readonly level = PREVIEW_LEVEL,
+    /** gaps3 coat-fx: a coat clip instead of the slot's (the slot is then 'r'). */
+    readonly clip: CoatClip | null = null,
   ) {
-    this.scenario = scenarioFor(hero, slot);
+    this.scenario = clip ? coatScenario(hero, clip) : scenarioFor(hero, slot);
     this.reset();
   }
 
@@ -159,6 +188,7 @@ export class SkillSandbox {
     this.setup();
     this.t = 0;
     this.casts = 0;
+    this.lands = 0;
     this.castTicks.length = 0;
   }
 
@@ -192,6 +222,9 @@ export class SkillSandbox {
     this.place(ALLY, ARENA.x - half - 2200, ARENA.y + 3000, 0);
     w.hp[ALLY] = Math.round((w.maxHp[ALLY] * 55) / 100);
     w.hp[ME] = Math.round((w.maxHp[ME] * 80) / 100);
+    if (this.clip === 'takedown') w.hp[DUMMY] = Math.max(1, Math.round((w.maxHp[DUMMY] * TAKEDOWN_HP_PERMILLE) / 1000));
+    this.napX = w.x[ME];
+    this.napY = w.y[ME];
     // the setup's own events (level-ups, talent offers) are not part of the clip
     m.events = [];
     w.globals[G.HumanActAt] = START_TICK;
@@ -217,9 +250,33 @@ export class SkillSandbox {
     const sc = this.scenario;
     const t = this.t;
     let cmds: Command[] | undefined;
-    if (t === sc.castAt || (t === sc.recastAt && canCast(this.m.world, ME, SLOT_INDEX[sc.slot]))) cmds = [this.command()];
+    const w = this.m.world;
+    if (this.clip === 'recall') {
+      if (t === sc.castAt) cmds = [{ op: Op.Nap }];
+    } else if (this.clip === 'takedown') {
+      // a swing; a hero whose swing does not hurt (a support's) finishes with its Q, then its E
+      if (t === sc.castAt) cmds = [{ op: Op.Attack, id: DUMMY }];
+      else if ((t === sc.castAt + 30 || t === sc.castAt + 50) && w.hp[DUMMY] > 0) {
+        const slot: CastSlot = t === sc.castAt + 30 ? 0 : 2;
+        const aim = aimFor(this.hero, slot);
+        cmds = [{ op: Op.Cast, slot, x: w.x[DUMMY], y: w.y[DUMMY], id: aim.kind === 'unit' ? DUMMY : NO_TARGET }];
+      }
+    } else if (t === sc.castAt || (t === sc.recastAt && canCast(w, ME, SLOT_INDEX[sc.slot]))) cmds = [this.command()];
+    // the takedown clip: from the swing on, the dummy is one hit from down (out-of-combat regen would outheal a swing,
+    // the tank dummy's shield would soak it)
+    if (this.clip === 'takedown' && t >= sc.castAt && w.hp[DUMMY] > 0) {
+      if (w.hp[DUMMY] > 1) w.hp[DUMMY] = 1;
+      w.shield[DUMMY] = 0;
+    }
     // every other seat idles (an empty stream: the human gates see no command)
     step(this.m, cmds, undefined);
+    // the recall clip: the sim sent the hero home; put it back where it napped so the landing plays in the box
+    let landed = false;
+    if (this.clip === 'recall' && Math.hypot(w.x[ME] - this.napX, w.y[ME] - this.napY) > 8000) {
+      this.place(ME, this.napX, this.napY, 0);
+      landed = true;
+      this.lands++;
+    }
     const snap = snapshot(this.m, 0);
     let cast = false;
     const want = SLOT_INDEX[sc.slot];
@@ -231,7 +288,7 @@ export class SkillSandbox {
       }
     }
     this.t = t + 1;
-    return { snap, t, cast };
+    return { snap, t, cast, landed };
   }
 
   /** Relative tick of the next `next()`. */

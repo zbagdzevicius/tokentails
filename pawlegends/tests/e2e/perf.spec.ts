@@ -6,7 +6,8 @@ import { attr, playFromHome } from './helpers';
 
 /**
  * POC.md §10 and §15 item 23 (Chromium, project `desktop`):
- * - every hero wears a Legendary card skin (`&skins=legendary`, e2e only), so the cosmetics are in the numbers;
+ * - every hero wears a Legendary card skin, or its themed Epic / Legendary coat when it has one (`&skins=legendary,coats`,
+ *   e2e only; gaps3 coat-fx), so the cosmetics are in the numbers;
  * - draw calls on Low ≤ 90 (≤ 70 without the §6.9 fallback; the POC heroes ARE the fallback, README "Hero art")
  *   and on Med ≤ 110, at the busiest frame of a real match: the most units alive at once, at least 6 heroes,
  *   24 minions and 4 towers. `?quality=` forces the tier (the governor does not step it down then);
@@ -30,12 +31,14 @@ interface Peak {
   samples: number;
   /** Wave C (C4): card-tier effect particles started in the match (every hero Legendary). */
   cardFx: number;
+  /** gaps3 coat-fx: coat signature sprites started in the match (the heroes with a themed coat). */
+  coatFx: number;
 }
 
 /** Play the first match at `speed` on a forced tier; sample draws and live units until the results screen. */
 async function busiest(page: Page, quality: 'low' | 'med'): Promise<Peak> {
   // GDD §7.2: every hero in a Legendary card skin (foil, glints, the recall flourish): the worst case for cosmetics
-  await page.goto(`/?e2e=1&quality=${quality}&speed=6&skins=legendary`);
+  await page.goto(`/?e2e=1&quality=${quality}&speed=6&skins=legendary,coats`);
   await page.waitForSelector('html[data-screen="title"]');
   await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
@@ -46,6 +49,7 @@ async function busiest(page: Page, quality: 'low' | 'med'): Promise<Peak> {
     most: [0, 0, 0],
     samples: 0,
     cardFx: 0,
+    coatFx: 0,
   };
   let busiestUnits = -1;
   const deadline = Date.now() + 150_000;
@@ -66,6 +70,7 @@ async function busiest(page: Page, quality: 'low' | 'med'): Promise<Peak> {
       }
     }
     peak.cardFx = Math.max(peak.cardFx, Number(await attr(page, 'cardFx')) || 0);
+    peak.coatFx = Math.max(peak.coatFx, Number(await attr(page, 'coatFx')) || 0);
     await page.waitForTimeout(250);
   }
   return peak;
@@ -95,7 +100,7 @@ test('draw calls on Med ≤ 110 at the busiest frame', async ({ page }) => {
   const p = await busiest(page, 'med');
   console.log(
     `perf med: busiest frame ${p.units.join('/')} heroes/minions/towers at ${p.draws} draws; most at once ${p.most.join('/')}; ` +
-      `max ${p.maxDraws} draws over ${p.samples} samples; ${p.cardFx} card-effect particles`,
+      `max ${p.maxDraws} draws over ${p.samples} samples; ${p.cardFx} card-effect particles; ${p.coatFx} coat-effect sprites`,
   );
   expect(p.most[1]).toBeGreaterThanOrEqual(20);
   expect(p.maxDraws).toBeLessThanOrEqual(110);

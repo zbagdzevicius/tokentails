@@ -30,6 +30,7 @@ import { DEFAULT_FILTER, SORT_KEYS, SORT_LABEL, allCards, champCard, loadSort, n
 import './champStore/champStore.css';
 import { PAID_COATS } from '../render/cosmetics';
 import { coatPartsLine } from '../render/skins/coatVfx';
+import { coatTheme } from '../render/skins/coatThemes';
 import { browserCurrency } from '../money/skus';
 import { icon } from './icons';
 import { SKU_LOOK } from '../render/portraits';
@@ -158,9 +159,9 @@ const RUNG_WORD: Readonly<Record<CoatRung, string>> = Object.freeze({ COMMON: 'C
 /** What a coat's effect rung adds in a match (docs/plans/moba/CARD-SKINS.md §3). Looks only, never a number. */
 const RUNG_ADDS: Readonly<Record<CoatRung, string>> = Object.freeze({
   COMMON: '',
-  RARE: 'Rare effects: trails, ribbons and hits take the coat colour.',
-  EPIC: 'Epic effects: coat-colour skill effects, element motifs on hits, a takedown stamp in the coat pattern.',
-  LEGENDARY: 'Legendary effects: paw-print bursts, an element foil, a recall card glyph, a multi-kill card and a purr.',
+  RARE: 'Rare effects: trails, ribbons and hits take the coat colour, with a coat-colour ultimate ring, recall and takedown stamp.',
+  EPIC: 'Epic effects: coat-colour skill effects, element motifs on hits, and its own ultimate, recall and takedown effects.',
+  LEGENDARY: 'Legendary effects: its own ultimate, recall and takedown effects, paw-print bursts, an element foil, a multi-kill card and a purr.',
 });
 const coatRungOf = (id: string | undefined): CoatRung | null => (id ? (PAID_COATS[id]?.rung ?? null) : null);
 /** The store line for a coat: the pattern and what its rung adds. */
@@ -169,7 +170,10 @@ export function coatLine(id: string | null): string {
   // Epic and Legendary coats change the model too (render/chars/coatParts.ts): say what they add
   const parts = coatPartsLine(id);
   const look = parts ? ` In a match it adds ${parts}.` : '';
-  return `A patterned coat for one hero.${look}${r && RUNG_ADDS[r] ? ` ${RUNG_ADDS[r]}` : ''}`;
+  // gaps3 coat-fx: an Epic or Legendary coat's own ultimate in words (the Preview shows all three)
+  const t = r === 'EPIC' || r === 'LEGENDARY' ? coatTheme(id) : null;
+  const ult = t ? ` Ultimate: ${t.ult.charAt(0).toLowerCase()}${t.ult.slice(1)}.` : '';
+  return `A patterned coat for one hero.${look}${r && RUNG_ADDS[r] ? ` ${RUNG_ADDS[r]}` : ''}${ult}`;
 }
 
 export interface StoreOpts {
@@ -202,6 +206,8 @@ export interface StoreOpts {
   onUnlock?(hero: HeroId, via: 'yarn' | 'pick'): void;
   /** Open the champion browser (skills and lore) for `hero` over the store. */
   onInfo?(hero: HeroId, within: HTMLElement): void;
+  /** gaps3 coat-fx: open the champion browser's Coats tab on `coat` (its ultimate, recall and takedown clips). */
+  onCoatFx?(hero: HeroId, coat: string, within: HTMLElement): void;
   /** The cosmetic items the player wears now (coats on their heroes, the frame and title): the Equipped state. */
   equipped?(): ReadonlySet<string>;
 }
@@ -515,7 +521,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
           <p class="cst-tags">${esc(tags)}</p>
           <p class="cst-blurb">${esc(what)}</p>
           ${list}
-          <div class="cst-acts">${action}</div>
+          <div class="cst-acts">${action}${coat && r && r !== 'COMMON' && o.onCoatFx ? `<button type="button" class="pl-btn ghost small" data-a="coat-fx" data-coat="${esc(coat)}" data-k="coat-fx">Preview effects</button>` : ''}</div>
           <p class="fine">Cosmetic only: nothing here changes a match. Checkout opens on a secure web page.</p>
           ${st === 'buy' ? fine : ''}
         </div></div></div>`;
@@ -710,6 +716,9 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     if (t.closest('label.cst-toggle, select')) return; // the change event handles these
+    // the champion browser opened over the store (Skills & lore, Preview effects) handles its own taps: its tabs carry
+    // data-tab too, and the store read them as its own (switching the store tab under it and closing it)
+    if (t.closest('.pl-champ')) return;
     const tb = t.closest<HTMLElement>('[data-tab]')?.dataset.tab as StoreTab | undefined;
     const sel = t.closest<HTMLElement>('[data-sel]')?.dataset.sel;
     const buy = t.closest<HTMLElement>('[data-buy]')?.dataset.buy;
@@ -754,6 +763,11 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       closeDetail();
     } else if (a === 'info' && detail?.hero) {
       o.onInfo?.(detail.hero, root);
+      return;
+    } else if (a === 'coat-fx') {
+      const c = t.closest<HTMLElement>('[data-coat]')?.dataset.coat;
+      const pc = c ? PAID_COATS[c] : null;
+      if (c && pc) o.onCoatFx?.(pc.hero, c, root);
       return;
     } else if (a === 'pass') {
       close();
