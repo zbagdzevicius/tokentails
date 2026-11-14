@@ -10,7 +10,7 @@ import { ReplayQueue, ReplayQueueFullException } from 'src/user/heist/replay-que
 import { ILiveGameRow, recomputeCatnipCount } from 'src/user/utils/live-game';
 import { PawlegendsReplayRecord, PawlegendsVerifyResult, SIM_VERSIONS } from 'src/vendor/pawlegends-sim';
 import { Worker } from 'worker_threads';
-import { PAWLEGENDS_V27_MUTATORS, PawlegendsReplayDto } from './pawlegends-replay.dto';
+import { PAWLEGENDS_V27_MUTATORS, PAWLEGENDS_V28_MUTATORS, PawlegendsReplayDto } from './pawlegends-replay.dto';
 import { pawlegendsSimErrorDetail, pawlegendsUpdateDetail } from './pawlegends-sim-info';
 import type { SeasonXpGain, SeasonXpMatch } from './pawlegends-season.service';
 import { applyInviteProgress, type InviteProgressDep } from './growth/apply-invite-progress';
@@ -99,6 +99,8 @@ export const PAWLEGENDS_MUTATOR_SINCE = 10;
 export const PAWLEGENDS_MUTATOR_PLAY_SINCE = 22;
 /** Sim v27: the first sim version that plays Cannon Chaos and the weekly twists (PAWLEGENDS_V27_MUTATORS). */
 export const PAWLEGENDS_V27_MUTATOR_SINCE = 27;
+/** Sim v28: the first sim version that plays One Lane Brawl, the Duel and Boss Weekend (PAWLEGENDS_V28_MUTATORS). */
+export const PAWLEGENDS_V28_MUTATOR_SINCE = 28;
 
 /**
  * The record with its fields in a fixed order and nothing else: what the worker gets and the digest covers. From
@@ -356,8 +358,8 @@ export interface IPawlegendsLiveResult {
     /** Fastest win held for the difficulty after this save, in ticks (null without a win). */
     fastestWin: number | null;
     /** Sim v10 (GAPS B2): how the re-simmed match ended ('forfeit': the player forfeited; sim v22 'timeUp': a Blitz match
-     *  reached 3:15); absent for v9 replays. */
-    reason?: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp';
+     *  reached 3:15; sim v28 'goal': the Duel's or Boss Weekend's goal); absent for v9 replays. */
+    reason?: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp' | 'goal';
     /** Legends Pass Season XP this save paid (absent when the pass service is not wired). */
     season?: IPawlegendsSeasonAnswer;
 }
@@ -407,6 +409,15 @@ export async function savePawlegendsMatch(
         throw reject(
             ErrorCode.PAWLEGENDS_REPLAY_INVALID,
             `mutator ${replay.mutator} needs simVersion ${PAWLEGENDS_V27_MUTATOR_SINCE} or later`
+        );
+    }
+    if (
+        PAWLEGENDS_V28_MUTATORS.includes(replay.mutator ?? 'none') &&
+        replay.simVersion < PAWLEGENDS_V28_MUTATOR_SINCE
+    ) {
+        throw reject(
+            ErrorCode.PAWLEGENDS_REPLAY_INVALID,
+            `mutator ${replay.mutator} needs simVersion ${PAWLEGENDS_V28_MUTATOR_SINCE} or later`
         );
     }
 

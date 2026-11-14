@@ -5,7 +5,7 @@
  * or an Alt-click (desktop) pings "Go here" at that spot.
  */
 import { NX, NY, createGrid, onPlayfield } from '../sim/map/grid';
-import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PUDDING_SPOT, RAT_CAMP, mirrorX, type LaneId } from '../data/map';
+import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PLAYFIELD, PUDDING_SPOT, RAT_CAMP, mirrorX, type LaneId } from '../data/map';
 import type { ViewFrame } from '../render/interp';
 import { HERO_COLOR_CSS, RELATION_CSS, sidesSwapped } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
@@ -569,7 +569,8 @@ export class Minimap {
       g.lineCap = 'round';
       g.lineJoin = 'round';
       g.lineWidth = MAP.laneWidth * this.map.k * 0.7;
-      for (const lane of isPoint() ? (['fence', 'yarn', 'gutter'] as const) : (['sunny', 'puddle'] as const)) {
+      // sim v28: the Sunny Lane strip draws its one lane
+      for (const lane of isPoint() ? (['fence', 'yarn', 'gutter'] as const) : PLAYFIELD.strip === 1 ? (['sunny'] as const) : (['sunny', 'puddle'] as const)) {
         const pts = lanePoints(lane);
         g.beginPath();
         pts.forEach(([x, y], i) => (i ? g.lineTo(this.X(x), this.Y(y)) : g.moveTo(this.X(x), this.Y(y))));

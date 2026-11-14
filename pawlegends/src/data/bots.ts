@@ -644,6 +644,19 @@ export const BOT_AI = Object.freeze({
   overextend: 6000,
   /** Sim v7 Hard: a huntable foe (under crowd control, or inside our tower's reach) scores this much better (HP). */
   huntKey: 400,
+  /**
+   * Sim v28 (V28.md §2): with no recall (One Lane Brawl, the Duel) a retreating bot walks to its Fish Snack within
+   * noRecallSnackRange, and goes back to work at noRecallExitBp of its HP (nothing heals it to retreatExitBp).
+   */
+  noRecallSnackRange: 30000,
+  noRecallExitBp: 6500,
+  /**
+   * Sim v28 (V28.md §1.2, Hearthwood): a team BOT_AI.leadGroup or more ahead starts a new fight on the enemy half only
+   * with at least this many of its heroes near (itself included): no trickling in one by one to throw the lead.
+   */
+  leadFightAllies: 3,
+  /** Sim v28 (V28.md §4): Boss Weekend, a bot steps this far past a boss telegraph's edge (mm). */
+  bossDodgePad: 800,
 });
 
 /** Bot modes (`World.botMode`). */

@@ -253,10 +253,15 @@ describe('sim v27: the Weekly Twist', () => {
     resetLiveops(NOW);
   });
 
-  it('offline, the baked twist is the featured mode (the same weeks as the server)', () => {
+  it('offline, the baked twist is the featured mode (the same weeks as the server); sim v28: Boss Weekend on its weekends', () => {
     const c = fallbackConfig(NOW);
     expect(c.twist).toEqual(rotationTwist(NOW));
-    expect(c.featuredMode).toEqual({ id: 'twist', endsAt: c.twist!.endsAt });
+    // NOW is a Friday: Boss Weekend (Friday to Monday 00:00 UTC) is featured
+    expect(c.featuredMode).toEqual({ id: 'boss', endsAt: Date.parse('2026-11-23T00:00:00Z') });
+    expect(c.boss).toEqual({ startsAt: Date.parse('2026-11-20T00:00:00Z'), endsAt: Date.parse('2026-11-23T00:00:00Z') });
+    const wed = Date.parse('2026-11-18T10:00:00Z');
+    expect(fallbackConfig(wed).featuredMode).toEqual({ id: 'twist', endsAt: rotationTwist(wed).endsAt });
+    expect(fallbackConfig(wed).boss).toEqual({ startsAt: Date.parse('2026-11-20T00:00:00Z'), endsAt: Date.parse('2026-11-23T00:00:00Z') });
     expect(c.twist!.endsAt).toBe(Date.parse('2026-11-23T00:00:00Z'));
     const ids = [NOW, NOW + 7 * 86_400_000, NOW + 14 * 86_400_000].map((t) => rotationTwist(t).id);
     expect(new Set(ids).size).toBe(3);

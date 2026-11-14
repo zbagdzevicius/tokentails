@@ -33,6 +33,8 @@ import { HUMAN_SLOT, teamOfSlot } from '../api';
 import { isHumanSlot } from '../humans';
 import { rulesOf } from '../rules';
 import { fortifyUntilOf, mutOf, mutatorRespawn } from '../mutator';
+import { BOSS } from '../../data/boss';
+import { bossDamageBp, isBoss } from '../units/boss';
 
 export { respawnTicks } from '../progression/respawn';
 
@@ -115,6 +117,11 @@ export function dealDamage(
       const md = mut.hero[HERO_IDS[w.sub[dst]]];
       if (ms) raw = applyBp(raw, ms.dmgBp);
       if (md) raw = applyBp(raw, md.takenBp);
+      // Sim v28 (V28.md §4): Boss Weekend's boss hits harder (and enraged), and takes its own share.
+      if (mut.boss) {
+        if (isBoss(w, src)) raw = applyBp(raw, bossDamageBp(w));
+        if (isBoss(w, dst)) raw = applyBp(raw, BOSS.takenBp);
+      }
     }
     if (isHumanSlot(w, src)) raw = applyBp(raw, rulesOf(m).humanDamageBp);
   }
@@ -329,7 +336,8 @@ export function resolveDeaths(m: MatchHandle): void {
       // the human's core keeps its DifficultyRules floor before humanCoreOpenAt (Rookie, in dealDamage).
       const victimTeam = w.team[id];
       const chip = takedown ? rulesOf(m).takedownChipBp : 0;
-      if (!takedown) {
+      // Sim v28: where no structure takes damage (Boss Weekend), takedowns chip nothing.
+      if (!takedown || !mutOf(w).structures) {
         // Sim v27: an execution deals no takedown core or tower damage.
       } else if (tick < w.globals[G.Sunset]) {
         // Sim v7: every takedown chips the victim's core (DifficultyRules.takedownChipBp). Sim v8: only until the chips

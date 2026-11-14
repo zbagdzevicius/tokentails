@@ -153,7 +153,7 @@ export type HostMsgType = HostMsg['t'];
 //                u8 flags (1 cooldowns present, 2 respawnIn present, 4 hero extras present),
 //                u8 bountyStreak (heroes, sim v4; was padding), u16 xp, u8 resource, u8 talents (2 bits per tier:
 //                choice + 1), u8 pickup sub (sim v4: index into PICKUP_SUBS + 1, 0 = none), u8 fx (sim v9: 1 charged,
-//                2 charmed; sim v11: 4 form, 8 channel), u8 lockout (sim v9: Raspberry's charge lockout ticks, own team,
+//                2 charmed; sim v11: 4 form, 8 channel; sim v28: bits 4-5 boss phase + 1), u8 lockout (sim v9: Raspberry's charge lockout ticks, own team,
 //                0 = none), u8 stacks (sim v11: stacks on the hero, Duchess's Disdain; was reserved),
 //                u16 fish (sim v12: unspent Fish, own team; 0 for enemies), u8 toy (sim v12: Toy tiers owned, heroes,
 //                both teams), u8 dots (sim v15: Domino's Spots on the hero, both teams; was reserved)
@@ -259,7 +259,8 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
     v.setUint8(o + 46, (cd ? HAS_COOLDOWNS : 0) | (e.respawnIn !== undefined ? HAS_RESPAWN : 0) | (extra ? HAS_EXTRA : 0));
     v.setUint8(o + 47, Math.min(255, e.bountyStreak ?? 0));
     v.setUint8(o + 52, e.sub ? PICKUP_SUBS.indexOf(e.sub) + 1 : 0);
-    v.setUint8(o + 53, (e.charged ? FX_CHARGED : 0) | (e.charmed ? FX_CHARMED : 0) | (e.form ? FX_FORM : 0) | (e.channel ? FX_CHANNEL : 0));
+    // sim v28: bits 4 and 5 carry Boss Weekend's boss phase + 1 (0: not the boss)
+    v.setUint8(o + 53, (e.charged ? FX_CHARGED : 0) | (e.charmed ? FX_CHARMED : 0) | (e.form ? FX_FORM : 0) | (e.channel ? FX_CHANNEL : 0) | ((Math.min(3, e.boss ?? 0) & 3) << 4));
     v.setUint8(o + 55, Math.min(255, Math.max(0, e.stacks ?? 0)));
     v.setUint16(o + 56, Math.min(0xffff, Math.max(0, e.fish ?? 0)), true);
     v.setUint8(o + 58, Math.min(255, Math.max(0, e.toy ?? 0)));
@@ -391,6 +392,7 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
     if (fx & FX_CHARMED) e.charmed = true;
     if (fx & FX_FORM) e.form = true;
     if (fx & FX_CHANNEL) e.channel = true;
+    if ((fx >> 4) & 3) e.boss = (fx >> 4) & 3;
     const stacks = v.getUint8(o + 55);
     if (stacks > 0) e.stacks = stacks;
     const dots = v.getUint8(o + 59);

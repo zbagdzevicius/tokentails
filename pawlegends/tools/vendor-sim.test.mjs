@@ -16,8 +16,11 @@ describe('vendor-sim', () => {
     // GAPS B0 dual verifier: v10 to v26 (v19: 5v5 Classic on Hearthwood Divide; v20: Wild Rift basic attacks; v21: the
     // Kibble Cannon; v22: the standard 5v5 layout and Blitz; v23: Op.Kite; v24: instant Boing Beds; v25: deliberate fun
     // toys; v26: stronger towers early) stay frozen beside the live sim v27 (executions, Cannon Chaos, the Practice
-    // ground and the weekly twists, docs/plans/moba/V27.md; v9 retired), and the root index dispatches by simVersion.
-    expect(SIM_VERSION).toBe(27);
+    // ground and the weekly twists, docs/plans/moba/V27.md) stays frozen too beside the live sim v28 (One Lane Brawl, the
+    // Duel, Boss Weekend, docs/plans/moba/V28.md; v9 retired), and the root index dispatches by simVersion.
+    expect(SIM_VERSION).toBe(28);
+    expect(JSON.parse(files['v27/pawlegends-sim.sha256.json']).simVersion).toBe(27);
+    expect(files['v27/kite-replay.fixture.json']).toBeDefined();
     expect(JSON.parse(files['v26/pawlegends-sim.sha256.json']).simVersion).toBe(26);
     expect(files['v26/kite-replay.fixture.json']).toBeDefined();
     expect(JSON.parse(files['v20/pawlegends-sim.sha256.json']).simVersion).toBe(20);

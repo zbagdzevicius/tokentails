@@ -72,7 +72,11 @@ describe('mode registry', () => {
   });
 
   it('lists playable modes first, then locked, then coming soon (registry order inside each group)', () => {
-    expect(modeList(NOW).map((m) => m.id)).toEqual(['blitz', 'skirmish', 'classic', 'cannon', 'practice', 'ranked']);
+    // sim v28: One Lane Brawl and the Duel live; on a Wednesday Boss Weekend is "Next: Fri" (coming soon, last)
+    expect(modeList(NOW).map((m) => m.id)).toEqual(['blitz', 'skirmish', 'classic', 'cannon', 'practice', 'onelane', 'duel', 'ranked', 'boss']);
+    expect(metaLine(modeById('boss', modeList(NOW))!, NOW)).toBe('Next: Fri');
+    const sat = Date.UTC(2026, 10, 14, 12);
+    expect(effectiveState(modeById('boss', modeList(sat))!, sat)).toBe('event');
     registerMode({ id: 'later', name: 'Later', size: '3v3', minutes: '~5 min', queues: ['bots'], art: 'cannon', state: 'soon', rules: ['a', 'b'] });
     expect(modeList(NOW).map((m) => m.id).at(-1)).toBe('later');
     resetModes();

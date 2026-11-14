@@ -11,6 +11,7 @@ import { Rng } from './rng';
 import type { MatchHandle } from './state';
 import { G, RANGE, TEAM_PURRHAVEN, TEAM_WOOF, hashWorld, type World } from './world';
 import { mutOf } from './mutator';
+import { bossOf } from './units/boss';
 
 /** Lower core HP loses; tie-break total tower damage dealt; then a seeded coin. */
 export function tieBreakWinner(w: World, seed: number): Team {
@@ -45,7 +46,31 @@ export function timeUpWinner(w: World): Team | -1 {
   return -1;
 }
 
-const END_REASON: Readonly<Record<MatchResult['reason'], number>> = Object.freeze({ core: 1, safetyEnd: 2, forfeit: 3, timeUp: 4 });
+const END_REASON: Readonly<Record<MatchResult['reason'], number>> = Object.freeze({ core: 1, safetyEnd: 2, forfeit: 3, timeUp: 4, goal: 5 });
+
+/**
+ * Sim v28 (V28.md §3, §4): the team that reached its mode's goal, or −1. The Duel: the first to `goalTakedowns`
+ * takedowns or to a tower (both on one tick: towers first, then takedowns, then team 0). Boss Weekend: the boss is down.
+ */
+function goalWinner(w: World): number {
+  const r = mutOf(w);
+  if (r.boss) {
+    const b = bossOf(w);
+    return w.alive[b] === 0 ? 1 - w.team[b] : -1;
+  }
+  if (r.goalTower) {
+    const t0 = w.globals[G.Towers0] > 0;
+    const t1 = w.globals[G.Towers1] > 0;
+    if (t0 !== t1) return t0 ? 0 : 1;
+  }
+  if (r.goalTakedowns > 0) {
+    const k0 = w.globals[G.Kills0] >= r.goalTakedowns;
+    const k1 = w.globals[G.Kills1] >= r.goalTakedowns;
+    if (k0 !== k1) return k0 ? 0 : 1;
+    if (k0 && k1) return w.globals[G.Kills0] >= w.globals[G.Kills1] ? 0 : 1;
+  }
+  return -1;
+}
 
 export function endMatch(m: MatchHandle, winner: Team | -1, reason: MatchResult['reason']): void {
   const w = m.world;
@@ -72,6 +97,7 @@ export function checkWin(m: MatchHandle): void {
   if (dead0 && dead1) endMatch(m, tieBreakWinner(w, m.config.seed), 'core');
   else if (dead0) endMatch(m, TEAM_WOOF, 'core');
   else if (dead1) endMatch(m, TEAM_PURRHAVEN, 'core');
+  else if (goalWinner(w) >= 0) endMatch(m, goalWinner(w) as Team, 'goal');
   else if (m.pvp) {
     // Sim v16 S-PvP (V16.md §3.1.5): each team's lead carries its team's surrender. Both on one tick: the tie-break.
     const ff0 = m.gate.forfeit;
@@ -82,6 +108,8 @@ export function checkWin(m: MatchHandle): void {
     else if (w.globals[G.Tick] >= TIMELINE.safetyEnd) endMatch(m, tieBreakWinner(w, m.config.seed), 'safetyEnd');
   } else if (m.gate.forfeit) endMatch(m, teamOfSlot(HUMAN_SLOT) === TEAM_PURRHAVEN ? TEAM_WOOF : TEAM_PURRHAVEN, 'forfeit');
   // Sim v22: a mutator's designed end (Blitz 3:15); PvP never plays a mutator.
+  // Sim v28: Boss Weekend's time up is the boss's win.
+  else if (mutOf(w).boss && w.globals[G.Tick] >= mutOf(w).hardEnd) endMatch(m, w.team[bossOf(w)] as Team, 'timeUp');
   else if (mutOf(w).hardEnd > 0 && w.globals[G.Tick] >= mutOf(w).hardEnd) endMatch(m, timeUpWinner(w), 'timeUp');
   else if (w.globals[G.Tick] >= TIMELINE.safetyEnd) endMatch(m, tieBreakWinner(w, m.config.seed), 'safetyEnd');
 }

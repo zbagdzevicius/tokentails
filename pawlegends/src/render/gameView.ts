@@ -65,6 +65,7 @@ import { UltMoment } from './anim/ultMoment';
 import { talentIdsOf } from './anim/timing';
 import { HERO_NAME } from './effects';
 import type { Lifecycle } from './fx/lifecycle'; // lifecycle: start gate, respawn, nap, waves, match end (own chunk)
+import { BOSS } from '../data/boss';
 
 export interface AimPreview {
   spec: AimSpec;
@@ -1339,6 +1340,13 @@ export class GameView {
     this.watchers.clear();
     for (const w of fx.windups) {
       const who = this.who.get(w.src);
+      // Sim v28 (V28.md §4): Boss Weekend's Ground Pound and Meteor Paw, a red disc that fills to the moment it lands
+      if (who && (w.slot === 6 || w.slot === 7)) {
+        const fill = Math.max(0, Math.min(1, (frame.tick - w.start) / w.ticks));
+        const r = (w.slot === 6 ? BOSS.poundRadius : BOSS.meteorRadius) / 1000;
+        this.telegraphs.draw({ shape: 'circle', x: w.x / 1000, z: -w.y / 1000, yaw: 0, length: r, color: who.team === this.myTeam ? RELATION.ally : RELATION.danger, fill, alpha: 0.95, over: true });
+        continue;
+      }
       const aim = fx.aimOf(who ?? null, w.slot);
       if (!who || !aim) continue;
       if (who.hero === 'bengas' && w.slot === 1) {

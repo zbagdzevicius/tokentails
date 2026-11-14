@@ -50,6 +50,8 @@ import { JG, PLAN, holdObjective, holding, inDanger, noteEnemyProwl, noteHold, p
 import { JUNGLE_BOT } from '../../data/maps/hearthwoodGraph';
 import { isHumanSlot, leadOf } from '../humans';
 import { mutOf } from '../mutator';
+import { BOSS } from '../../data/boss';
+import { bossHomeX, bossHomeY, bossOf, bossPrey, isBoss } from '../units/boss';
 import {
   fountainX,
   fountainY,
@@ -281,8 +283,15 @@ function pickFoe(
       continue;
     }
     if (carry && leaveToHuman(w, e)) continue;
-    // Never chase into an untanked enemy tower, unless the foe is nearly dead or this is a mistake.
-    if (!slip && !brave && hpBp(w, e) > BOT_AI.finishHpBp && untankedThreat(w, team, w.x[e], w.y[e], 0) >= 0) continue;
+    // Never chase into an untanked enemy tower, unless the foe is nearly dead or this is a mistake. Sim v28 (V28.md
+    // §1.2, Hearthwood): a team BOT_AI.leadGroup or more ahead never does, not even for a low foe (no thrown leads).
+    if (!slip && !brave && (hpBp(w, e) > BOT_AI.finishHpBp || protectsLead(w, team)) && untankedThreat(w, team, w.x[e], w.y[e], 0) >= 0) continue;
+    // Sim v28 (V28.md §1.2): a team protecting a lead does not trickle in: on the enemy half it starts no new fight with
+    // fewer than BOT_AI.leadFightAllies of its heroes near (a fight already on is kept).
+    if (!peel && !brave && !committed && e !== mem.foe[id] && protectsLead(w, team) && alliesNear(w, team, id) < BOT_AI.leadFightAllies && enemyHalf(w, team, e)) {
+      if (out[0] < 0) out[0] = e;
+      continue;
+    }
     if (!peel && !brave && !committed && !goodFight(w, id, e, p, e === mem.foe[id])) {
       if (out[0] < 0) out[0] = e;
       continue;
@@ -340,9 +349,22 @@ function raiders(w: World, team: number, lane: number): number {
  * ahead groups and sieges from BOT_AI.leadGroupFrom on, so a lead in fights becomes map pressure.
  */
 function groupedNow(m: MatchHandle, team: number, tick: number, p: BotParams): boolean {
-  // Sim v22 (Hearthwood, balance pass): the five-a-side teams lane and jungle until JUNGLE_BOT.groupAt.
-  if (tick >= (m.world.mg.length > 0 ? Math.max(p.groupAt, JUNGLE_BOT.groupAt) : p.groupAt)) return true;
+  // Sim v22 (Hearthwood, balance pass): the five-a-side teams lane and jungle until JUNGLE_BOT.groupAt. Sim v28
+  // (V28.md §1.1): Hard teams group and push with their waves from JUNGLE_BOT.groupAtHard, once Fortified ends.
+  if (tick >= (m.world.mg.length > 0 ? Math.max(p.groupAt, p.hunts ? JUNGLE_BOT.groupAtHard : JUNGLE_BOT.groupAt) : p.groupAt)) return true;
   return rulesOf(m).leadPressure && tick >= BOT_AI.leadGroupFrom && -scoreBehind(m.world, team) >= BOT_AI.leadGroup;
+}
+
+/**
+ * Sim v28 (V28.md §1.2): does `team` protect a lead (Hearthwood, BOT_AI.leadGroup or more ahead)? Its bots never chase
+ * a foe into an untanked enemy tower: the dives that fed the trailing team takedowns, catch-up XP and Sunset core damage.
+ */
+const protectsLead = (w: World, team: number): boolean => w.mg.length > 0 && -scoreBehind(w, team) >= BOT_AI.leadGroup;
+
+/** Sim v28: does hero `e` stand on `team`'s enemy half (past the midpoint of `team`'s progress to the enemy core)? */
+function enemyHalf(w: World, team: number, e: number): boolean {
+  const core = RANGE.cores + 1 - team;
+  return progressOf(team, w.x[e], w.y[e]) > progressOf(team, w.x[core], w.y[core]) >> 1;
 }
 
 /** How far `team` trails: the enemy's takedowns minus ours, plus 3 per tower the enemy took more (≤ 0: not behind). */
@@ -435,6 +457,8 @@ const humanLane = (w: World): number => (MAP.point === 1 ? nearestLane(w.x[HUMAN
 /** The lane bot `id` plays now. */
 function laneFor(m: MatchHandle, id: number, tick: number, p: BotParams, carry: boolean, hunt: boolean): number {
   const w = m.world;
+  // Sim v28 (V28.md §2): the Sunny Lane strip has one lane.
+  if (mutOf(w).strip) return 0;
   const team = w.team[id];
   if (carry || hunt) return humanLane(w);
   if (groupedNow(m, team, tick, p)) return pushLane(w, team, id, p.pressAhead);
@@ -614,6 +638,15 @@ function retreat(w: World, id: number, mem: BotMem, p: BotParams): Command | nul
   }
   if (w.napT[id] > 0) return null;
   const team = w.team[id];
+  // Sim v28 (V28.md §2): with no recall (no Nap, no fountain heal) a bot heals at its Fish Snack, else waits behind its
+  // outermost structure of the lane (out-of-combat regen) instead of walking to a fountain that does not heal.
+  if (mutOf(w).noRecall) {
+    const sn = nearestPickup(w, id, BOT_AI.noRecallSnackRange, PICKUP_SNACK);
+    if (sn >= 0) return moveTo(w, id, mem, w.pkX[sn], w.pkY[sn]);
+    const own = laneStructure(w, team, 0, true);
+    towardBase(team, w.x[own], w.y[own], radiusOf(w, own) + BOT_AI.holdAhead, goal);
+    return moveTo(w, id, mem, goal[0], goal[1]);
+  }
   const hx = fountainX(team);
   const hy = fountainY(team);
   const far = dist2(w.x[id], w.y[id], hx, hy) > BOT_AI.napMinDist * BOT_AI.napMinDist;
@@ -659,7 +692,8 @@ function bossFor(w: World, id: number, mem: BotMem, p: BotParams, rng: Rng, hp: 
   if (w.alive[b] === 0 || hp < BOT_AI.objectiveHpBp) return -1;
   const role = w.mg[MG.Role + id];
   const near = dist2(w.x[id], w.y[id], w.x[b], w.y[b]) <= BOT_AI.awareRange * BOT_AI.awareRange;
-  if (!near && role !== ROLE.Prowl && role !== ROLE.Guard && role !== ROLE.Fish) return -1;
+  // Sim v28 (V28.md §1.2): with a lead to protect every role goes (the whole team takes it).
+  if (!near && role !== ROLE.Prowl && role !== ROLE.Guard && role !== ROLE.Fish && !protectsLead(w, w.team[id])) return -1;
   const spawn = w.mg[MG.Takes0] + w.mg[MG.Takes1];
   // Decided once per spawn, in the bot's own memory (an outside pilot's never touches the world).
   const dec = mem.boss[id];
@@ -973,8 +1007,11 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   // Sim v21 (V21-FUN.md §1.4): the Kibble Cannon's carrier fires before anything else (a retreating carrier too).
   if (cannonShot(m, id, funPt)) return { op: Op.Fire, x: funPt[0], y: funPt[1] };
   const hp = hpBp(w, id);
+  // Sim v28 (V28.md §4): Boss Weekend's boss holds its arena and never retreats.
+  if (isBoss(w, id)) return bossThink(m, id, p, mem, rng);
   if (mem.mode[id] === BOT_MODE.Retreat) {
-    if (hp < BOT_AI.retreatExitBp) return retreat(w, id, mem, p);
+    // Sim v28: with no recall a bot comes back once it is healthy enough to trade again (nothing heals it to 90%).
+    if (hp < (mutOf(w).noRecall ? BOT_AI.noRecallExitBp : BOT_AI.retreatExitBp)) return retreat(w, id, mem, p);
     mem.mode[id] = BOT_MODE.Lane;
   }
   // The scripted first fight is fought to the end (DifficultyRules.scriptFrom).
@@ -1013,6 +1050,11 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   if (ord === PING_KIND.Defend) return defend(w, id, mem, baseThreat(w, w.team[id]), p, rng);
   const snack = snackCast(w, id, p);
   if (snack) return snack;
+  // Sim v28 (V28.md §4): Boss Weekend, the heroes' side: step out of a telegraphed boss attack, else fight the boss.
+  if (mutOf(w).boss && w.team[id] !== w.team[bossOf(w)]) {
+    const c = bossFight(m, id, p, mem, rng, ord);
+    if (c !== undefined) return c;
+  }
   const ordered = ord >= 0 && ord !== PING_KIND.Focus;
   const focus = ord === PING_KIND.Focus ? orderPt[2] : -1;
 
@@ -1119,7 +1161,8 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
     const spawns = w.globals[G.PudSpawns];
     if (mem.pud[id] < 0 || mem.pud[id] >> 1 !== spawns) mem.pud[id] = spawns * 2 + (rng.chanceBp(p.contestPuddingBp) ? 1 : 0);
     const withHuman = !carry || dist2(w.x[HUMAN_SLOT], w.y[HUMAN_SLOT], w.x[pud], w.y[pud]) <= BOT_AI.awareRange * BOT_AI.awareRange;
-    if ((mem.pud[id] & 1) === 1 && withHuman && hp >= BOT_AI.objectiveHpBp && healthyAllies(w, id) >= BOT_AI.pudAllies && (!grouped || !sieging(w, id))) {
+    // Sim v28 (V28.md §1.2): a team protecting a lead leaves a siege for it (objectives turn a lead into a win).
+    if ((mem.pud[id] & 1) === 1 && withHuman && hp >= BOT_AI.objectiveHpBp && healthyAllies(w, id) >= BOT_AI.pudAllies && (!grouped || !sieging(w, id) || protectsLead(w, team))) {
       mem.mode[id] = BOT_MODE.Pudding;
       // Sim v22 (Hearthwood, BotParams.jungle ≥ 1): outnumbered at the pit, hold at the mouth bush (unless stealing).
       if (p.jungle >= 1 && holdObjective(w, id, w.x[pud], w.y[pud], unitHpBp(w, pud), jgOut)) {
@@ -1219,4 +1262,89 @@ function intoReach(w: World, id: number, mem: BotMem, c: Command | null, e: numb
     y = w.y[c.id];
   } else return false;
   return dist2(x, y, w.x[e], w.y[e]) <= BOT_AI.engageRange * BOT_AI.engageRange;
+}
+
+/**
+ * Sim v28 (V28.md §4): Boss Weekend's boss bot. It hunts the nearest hero within BOSS.aggro of its arena with its own kit
+ * (every ability it has ready, BotParams.abilityUseBp) and basics, never leaves BOSS.leash of the arena centre (a cast
+ * or chase that would is dropped, it walks back), and stands still while a Ground Pound winds up.
+ */
+function bossThink(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng: Rng): Command | null {
+  const w = m.world;
+  mem.mode[id] = BOT_MODE.Fight;
+  if (w.globals[G.BossPoundT] > 0) return moveTo(w, id, mem, w.x[id], w.y[id]);
+  const hx = bossHomeX(w);
+  const hy = bossHomeY();
+  const leash2 = BOSS.leash * BOSS.leash;
+  if (dist2(w.x[id], w.y[id], hx, hy) > leash2) {
+    mem.foe[id] = -1;
+    return moveTo(w, id, mem, hx, hy);
+  }
+  const prey = bossPrey(w);
+  if (prey < 0) {
+    mem.foe[id] = -1;
+    return moveTo(w, id, mem, hx, hy);
+  }
+  mem.foe[id] = prey;
+  let c = rng.chanceBp(p.abilityUseBp) ? fightCast(w, id, prey, p, rng) : null;
+  if (c !== null && c.op === Op.Move && dist2(c.x, c.y, hx, hy) > leash2) c = null;
+  return c ?? attack(w, id, mem, prey);
+}
+
+/** Is (x, y) inside a boss telegraph that lands within `soon` ticks (Ground Pound round the boss, Meteor Paw)? Writes its centre and radius. */
+function inBossTelegraph(w: World, x: number, y: number, out: Int32Array): boolean {
+  const b = bossOf(w);
+  const pad = BOT_AI.bossDodgePad;
+  if (w.globals[G.BossPoundT] > 0) {
+    const r = BOSS.poundRadius + pad;
+    if (dist2(x, y, w.x[b], w.y[b]) <= r * r) {
+      out[0] = w.x[b];
+      out[1] = w.y[b];
+      out[2] = r;
+      return true;
+    }
+  }
+  if (w.globals[G.BossMeteorT] > 0) {
+    const r = BOSS.meteorRadius + pad;
+    if (dist2(x, y, w.globals[G.BossMeteorX], w.globals[G.BossMeteorY]) <= r * r) {
+      out[0] = w.globals[G.BossMeteorX];
+      out[1] = w.globals[G.BossMeteorY];
+      out[2] = r;
+      return true;
+    }
+  }
+  return false;
+}
+
+const tele = new Int32Array(3);
+
+/**
+ * Sim v28 (V28.md §4): a hero bot against the boss. It steps out of a telegraph it stands in (after its reaction time:
+ * the telegraph must have run BotParams.reactionTicks), then fights the boss (abilities, basics) whatever the odds;
+ * a ping order other than Focus is worked on as usual (undefined: fall through to the normal think).
+ */
+function bossFight(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng: Rng, ord: number): Command | null | undefined {
+  const w = m.world;
+  const b = bossOf(w);
+  const poundRun = BOSS.poundTelegraph - w.globals[G.BossPoundT];
+  const meteorRun = BOSS.meteorTelegraph - w.globals[G.BossMeteorT];
+  const seen = (w.globals[G.BossPoundT] > 0 && poundRun >= p.reactionTicks) || (w.globals[G.BossMeteorT] > 0 && meteorRun >= p.reactionTicks);
+  if (seen && inBossTelegraph(w, w.x[id], w.y[id], tele)) {
+    mem.mode[id] = BOT_MODE.Retreat;
+    awayFrom(w, id, tele[0], tele[1], tele[2] + BOT_AI.bossDodgePad);
+    return moveTo(w, id, mem, pt[0], pt[1]);
+  }
+  if (ord >= 0 && ord !== PING_KIND.Focus) return undefined;
+  if (w.alive[b] === 0) return undefined;
+  // out of sight: walk to its arena
+  if (!targetable(w, b, w.team[id])) {
+    mem.mode[id] = BOT_MODE.Lane;
+    return moveTo(w, id, mem, bossHomeX(w), bossHomeY());
+  }
+  mem.mode[id] = BOT_MODE.Fight;
+  mem.foe[id] = b;
+  let c = rng.chanceBp(p.abilityUseBp) ? fightCast(w, id, b, p, rng) : null;
+  // never a kite or dodge step into a telegraph
+  if (c !== null && c.op === Op.Move && inBossTelegraph(w, c.x, c.y, tele)) c = null;
+  return c ?? attack(w, id, mem, b);
 }

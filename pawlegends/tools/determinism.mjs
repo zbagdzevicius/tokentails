@@ -39,6 +39,13 @@ async function worker() {
       row.blitzOk = b.ok;
       row.ok = row.ok && b.ok;
     }
+    // sim v28: every 3rd seed also plays one of the Sunny Lane strip modes, in turn
+    if (blitz && i % 3 === 1) {
+      const v = ['onelane', 'duel', 'boss'][Math.floor(i / 3) % 3];
+      const s = fz.fuzzMatch(fz.fuzzSeed(i), v);
+      row.stripOk = s.ok;
+      row.ok = row.ok && s.ok;
+    }
     if (hearthwood && i % 4 === 0) {
       const h = fz.fuzzMatch(fz.fuzzSeed(i), 'hearthwood');
       row.hearthwoodOk = h.ok;
@@ -85,10 +92,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     const bad = rows.filter((r) => !r.ok);
     if (json) console.log(JSON.stringify({ rows, failures: bad.length }, null, 2));
     else {
-      for (const b of bad) console.error(`seed ${b.seed} (${b.hero}, ${b.difficulty}): ${b.pvpOk === false ? 'PvP record → replay differs' : b.blitzOk === false ? 'Blitz record → replay differs' : b.hearthwoodOk === false ? 'Hearthwood record → replay differs' : `first differing hash at tick ${b.firstDiff * 30}`}`);
+      for (const b of bad) console.error(`seed ${b.seed} (${b.hero}, ${b.difficulty}): ${b.pvpOk === false ? 'PvP record → replay differs' : b.blitzOk === false ? 'Blitz record → replay differs' : b.stripOk === false ? 'Sunny Lane strip mode record → replay differs' : b.hearthwoodOk === false ? 'Hearthwood record → replay differs' : `first differing hash at tick ${b.firstDiff * 30}`}`);
       const cmds = rows.reduce((s, r) => s + r.commands, 0);
       console.log(
-        `determinism: ${rows.length} seeds${pvp ? ' (+ as many PvP matches)' : ''}${blitz ? ' (+ as many Blitz)' : ''}${hearthwood ? ' (+ Hearthwood every 4th)' : ''}, ${cmds} commands, record → replay hash trails every 30 ticks: ` +
+        `determinism: ${rows.length} seeds${pvp ? ' (+ as many PvP matches)' : ''}${blitz ? ' (+ as many Blitz, a strip mode every 3rd)' : ''}${hearthwood ? ' (+ Hearthwood every 4th)' : ''}, ${cmds} commands, record → replay hash trails every 30 ticks: ` +
           `${bad.length === 0 ? 'all identical' : `${bad.length} MISMATCH`} (${procs} processes, ${((Date.now() - t0) / 1000).toFixed(0)} s)`,
       );
     }

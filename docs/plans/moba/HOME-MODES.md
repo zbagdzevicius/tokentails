@@ -47,6 +47,9 @@ Home ── PLAY ──> Mode Select: mode ──Next──> Mode Select: varian
 | Cannon Chaos | vs Bots (sim v27, V27.md §3) |
 | Practice | the one card "Solo with training dummies", no difficulty (sim v27, V27.md §2) |
 | Weekly Twist | vs Bots; a timed event tile from live ops, the week's featured mode (sim v27, V27.md §4) |
+| One Lane Brawl | vs Bots (sim v28, V28.md §2) |
+| Duel | vs Bots, 1v1 (sim v28, V28.md §3) |
+| Boss Weekend | vs Bots (co-op against the boss); a timed event tile, Friday to Monday UTC (sim v28, V28.md §4) |
 
 The separate "Co-op vs Bots" tile is gone: it was Skirmish's Co-op. A saved `{ mode: 'coop' }` loads as Skirmish,
 Co-op.
@@ -165,6 +168,9 @@ scrolls sideways with snap. This is the only scroll region.
 | Cannon Chaos | 3v3 Purrhaven Crossing, the `cannon` mutator (sim v27) | bots | live (~5 min) |
 | Practice | Purrhaven Crossing, the `practice` mutator (sim v27): three training dummies, Reset / Level +1 / Cooldowns in the top plate | bots (the sandbox) | live; any champion, saves nothing, Leave goes Home |
 | Weekly Twist | 3v3 Purrhaven Crossing, the week's twist mutator (`toybox`, `rapid`, `bounty`) | bots | event until Monday 00:00 UTC; registered from `GET /pawlegends/config` `twist` (the baked rotation offline) |
+| One Lane Brawl | 3v3 on the Crossing's Sunny Lane strip, the `onelane` mutator (sim v28) | bots | live (~6 min); no Nap, no fountain heal |
+| Duel | 1v1 on the Sunny Lane strip, the `duel` mutator (sim v28) | bots | live (~3 min); first to 2 takedowns or the first tower |
+| Boss Weekend | 3 heroes vs Mega Brutus on the Sunny Lane strip, the `boss` mutator (sim v28) | bots | event Friday 00:00 to Monday 00:00 UTC ("Next: Fri" midweek); `GET /pawlegends/config` `boss` (the baked schedule offline) |
 
 **Saved choice.** It is stored as `pawlegends.mode.v1` in localStorage.
 - Migration: when no new key exists, the old `pawlegends.matchMode` maps `quick` to Skirmish and `classic` to Classic

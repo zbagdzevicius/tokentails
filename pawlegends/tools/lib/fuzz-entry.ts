@@ -38,8 +38,16 @@ export interface FuzzResult {
  * Sim v22: the match variant a fuzz seed plays (default: a plain Crossing match, unchanged since v10). 'blitz' is the
  * Blitz mutator on Crossing; 'hearthwood' the 5v5 Classic map (tools/determinism.mjs runs both beside the plain one).
  */
-export type FuzzVariant = 'plain' | 'blitz' | 'hearthwood';
-const VARIANT_CONFIG: Readonly<Record<FuzzVariant, { map?: MapId; mutator?: Mutator }>> = { plain: {}, blitz: { mutator: 'blitz' }, hearthwood: { map: 'hearthwood' } };
+export type FuzzVariant = 'plain' | 'blitz' | 'hearthwood' | 'onelane' | 'duel' | 'boss';
+const VARIANT_CONFIG: Readonly<Record<FuzzVariant, { map?: MapId; mutator?: Mutator }>> = {
+  plain: {},
+  blitz: { mutator: 'blitz' },
+  hearthwood: { map: 'hearthwood' },
+  // sim v28 (V28.md §5): the Sunny Lane strip modes
+  onelane: { mutator: 'onelane' },
+  duel: { mutator: 'duel' },
+  boss: { mutator: 'boss' },
+};
 
 /** Play one fuzz match (no replay). `trail` folds the whole hash trail (one hash every 30 ticks) into one hex. */
 export function fuzzPlay(seed: number, variant: FuzzVariant = 'plain') {

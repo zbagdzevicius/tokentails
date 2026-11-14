@@ -78,6 +78,8 @@ import { menuScreen, RESULTS_AFTER_END_MS } from '../ui/screens';
 import { CoreLog, endCause, type CoreSource } from './endCause';
 import { TalentPicker } from '../ui/talents';
 import { MatchChat } from './matchChat';
+import { MUTATOR_RULES } from '../data/mutators';
+import { BOSS } from '../data/boss';
 
 /** LoL pass (lane B): the end crest shows this long after the core falls (the camera eases there first), holds
  * CREST_HOLD_MS (QA v2 #4: 1.6 s was too short to read), and the results wait CREST_EXTRA_MS longer than
@@ -466,7 +468,7 @@ export class MatchSession {
   ) {
     this.muted = setup.muted;
     // Sim v19: the map's tables and camera yaw for everything built below (5v5 Classic: Hearthwood Divide)
-    useMap(setup.map);
+    useMap(setup.map, setup.mutator);
     this.ui = document.createElement('div');
     this.ui.className = 'pl-match';
     parent.appendChild(this.ui);
@@ -794,9 +796,21 @@ export class MatchSession {
       },
     }, this.setup.look ?? null, this.setup.difficulty);
     // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
-    this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
+    // Sim v28 (V28.md §3, §4): heroes a mode benches (the Duel's, Boss Weekend's) get no portrait
+    const play = MUTATOR_RULES[w.mutator ?? 'none']?.playing ?? [0, 0];
+    const per = Math.max(1, w.picks.length >> 1);
+    const inPlay = w.picks.map((h, s) => {
+      const t = s < per ? 0 : 1;
+      return play[t] > 0 && s - t * per >= play[t] ? ('' as HeroId) : h;
+    });
+    this.hud.mountStrip(inPlay, w.slot, w.team, this.names);
     // Sim v27 (V27.md §2): the Practice ground's Reset / Level +1 / Cooldowns (Op.Practice)
     if (w.mutator === 'practice') this.hud.practiceBar((kind) => this.host.send({ op: Op.Practice, kind }));
+    // Sim v28 (V28.md §4): Boss Weekend's boss bar takes the team score's place in the top plate
+    if (w.mutator === 'boss') this.hud.bossBar(BOSS.name);
+    // Sim v28 (V28.md §2): no Nap where the mode has no recall (One Lane Brawl, the Duel): its buttons are hidden
+    if (MUTATOR_RULES[w.mutator ?? 'none']?.noRecall) document.documentElement.dataset.norecall = '1';
+    else delete document.documentElement.dataset.norecall;
     // champion browser: hold an own skill button to read its card (no pause, the input is untouched); own chunk
     void import('../ui/champBrowser/skillPeek')
       .then((m) => {
@@ -1855,6 +1869,7 @@ export class MatchSession {
     return endCause({
       won,
       reason: result.reason,
+      ...(this.setup.mutator ? { mutator: this.setup.mutator } : {}),
       ...(result.draw ? { draw: true } : {}),
       phase: this.lastPhase,
       top: this.coreLog.top(loser, result.ticks),
@@ -2406,7 +2421,8 @@ export class MatchSession {
       const mine = this.welcome.slot;
       if (sb) this.hud.kda(sb.kills[mine] ?? 0, sb.deaths[mine] ?? 0, sb.assists(mine));
       const lock = this.touch?.isEnabled ? this.touch.lockedId() : null;
-      this.hud.stripUpdate(frame.byId, frame.tick, lock, this.nearEnemies(frame, me, lock));
+      if (this.setup.mutator === 'boss') this.hud.bossUpdate(frame.byId.get(SLOTS_PER_TEAM));
+    this.hud.stripUpdate(frame.byId, frame.tick, lock, this.nearEnemies(frame, me, lock));
       this.objStrip(frame);
       this.overhead.myToy = me?.toy ?? 0;
       this.underdogLine(frame);
@@ -2958,6 +2974,7 @@ export class MatchSession {
   }
 
   dispose(): void {
+    delete document.documentElement.dataset.norecall;
     this.peekOff?.();
     this.peekOff = null;
     this.camHeightOff?.();

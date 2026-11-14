@@ -8,6 +8,7 @@ import {
     goalAmount,
     napEarned,
     resolveDefs,
+    bossWeekend,
     rotationFeatured,
     rotationTwist,
     TWIST_INFO,
@@ -103,7 +104,8 @@ afterEach(() => setCommunityGoalSink(null));
 
 describe('liveops config', () => {
     it('answers the code defaults with no config doc', async () => {
-        const { svc } = make('2026-11-20T10:00:00Z');
+        // a Wednesday (sim v28: from Friday to Monday Boss Weekend is the featured mode)
+        const { svc } = make('2026-11-18T10:00:00Z');
         const c = await svc.config();
         expect(c.v).toBe(1);
         expect(c.goal).toMatchObject({ id: DEFAULT_GOAL.id, target: DEFAULT_GOAL.target, progress: 0, reached: false });
@@ -136,7 +138,7 @@ describe('liveops config', () => {
     });
 
     it('never features Ranked or a mode that is not live, and refuses a non-coat reward', () => {
-        const now = at('2026-11-20T10:00:00Z');
+        const now = at('2026-11-18T10:00:00Z');
         const defs = resolveDefs(
             {
                 featuredMode: { id: 'ranked', endsAt: '2026-11-27T00:00:00Z' },
@@ -178,7 +180,7 @@ describe('liveops config', () => {
         expect(new Set([a.id, b.id, c.id]).size).toBe(3);
         expect(a.endsAt).toBe('2026-11-23T00:00:00.000Z');
         expect(a.name).toBe(TWIST_INFO[a.id].name);
-        const now = at('2026-11-20T10:00:00Z');
+        const now = at('2026-11-18T10:00:00Z');
         const doc = resolveDefs({ twist: { id: 'bounty', endsAt: '2026-11-22T00:00:00Z' } }, now);
         expect(doc.twist).toMatchObject({ id: 'bounty', name: 'Bounty Hunt', endsAt: '2026-11-22T00:00:00.000Z' });
         expect(doc.featuredMode).toEqual({ id: 'twist', endsAt: '2026-11-22T00:00:00.000Z' });
@@ -194,6 +196,37 @@ describe('liveops config', () => {
         expect(
             resolveDefs({ featuredMode: { id: 'classic', endsAt: '2026-11-27T00:00:00Z' } }, now).featuredMode?.id
         ).toBe('classic');
+    });
+
+    it('sim v28: Boss Weekend runs Friday to Monday UTC, is featured while it runs, and a doc may move it or turn it off', () => {
+        expect(bossWeekend(at('2026-11-18T10:00:00Z'))).toEqual({
+            startsAt: '2026-11-20T00:00:00.000Z',
+            endsAt: '2026-11-23T00:00:00.000Z',
+        });
+        expect(bossWeekend(at('2026-11-22T23:59:00Z'))).toEqual({
+            startsAt: '2026-11-20T00:00:00.000Z',
+            endsAt: '2026-11-23T00:00:00.000Z',
+        });
+        expect(bossWeekend(at('2026-11-23T00:00:00Z')).startsAt).toBe('2026-11-27T00:00:00.000Z');
+        const fri = at('2026-11-20T10:00:00Z');
+        const on = resolveDefs({}, fri);
+        expect(on.boss).toEqual(bossWeekend(fri));
+        expect(on.featuredMode).toEqual({ id: 'boss', endsAt: '2026-11-23T00:00:00.000Z' });
+        const ev = eventsOf(on, fri).find(e => e.kind === 'mode');
+        expect(ev).toMatchObject({ title: 'Featured: Boss Weekend', startsAt: '2026-11-20T00:00:00.000Z' });
+        // midweek the twist stays featured and the weekend is announced as the next window
+        const wed = resolveDefs({}, at('2026-11-18T10:00:00Z'));
+        expect(wed.featuredMode?.id).toBe('twist');
+        expect(wed.boss?.startsAt).toBe('2026-11-20T00:00:00.000Z');
+        // a doc window wins; null turns it off (the twist comes back)
+        const moved = resolveDefs(
+            { boss: { startsAt: '2026-11-18T00:00:00Z', endsAt: '2026-11-19T00:00:00Z' } },
+            at('2026-11-18T10:00:00Z')
+        );
+        expect(moved.featuredMode).toEqual({ id: 'boss', endsAt: '2026-11-19T00:00:00.000Z' });
+        const off = resolveDefs({ boss: null }, fri);
+        expect(off.boss).toBeNull();
+        expect(off.featuredMode?.id).toBe('twist');
     });
 
     it('drops past windows from the calendar', () => {

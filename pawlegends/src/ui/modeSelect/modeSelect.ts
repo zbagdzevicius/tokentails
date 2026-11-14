@@ -83,7 +83,8 @@ export const goLabel = (q: Queue): string => (q === 'bots' ? 'Choose champion' :
 export function tileHtml(m: ModeDef, o: { selected: boolean; now: number; base: string; low: boolean; i: number }): string {
   const st = effectiveState(m, o.now);
   const can = playable(m, o.now);
-  const art = `${o.base}assets/modes/${m.art}-${o.low ? 256 : 512}.webp`;
+  // sim v28: a tile with one art size (`artPx`) uses it on every tier (the build's 10 MB budget)
+  const art = `${o.base}assets/modes/${m.art}-${m.artPx ?? (o.low ? 256 : 512)}.webp`;
   const chip =
     st === 'event' && typeof m.state === 'object'
       ? `<span class="ms-chip ev" data-ends="${m.state.event.endsAt}">⏱ ${esc(countdownText(m.state.event.endsAt - o.now))}</span>`

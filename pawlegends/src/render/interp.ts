@@ -359,6 +359,8 @@ class ViewRecord {
   fish: number | undefined = undefined;
   toy: number | undefined = undefined;
   bountyStreak: number | undefined = undefined;
+  /** Sim v28: Boss Weekend's boss (its phase + 1). */
+  boss: number | undefined = undefined;
   sub: EntitySnap['sub'] = undefined;
   fx = 0.5;
   fy = 0.5;
@@ -425,5 +427,6 @@ function copySnap(v: ViewEntity, e: EntitySnap): void {
   v.fish = e.fish;
   v.toy = e.toy;
   v.bountyStreak = e.bountyStreak;
+  v.boss = e.boss;
   v.sub = e.sub;
 }

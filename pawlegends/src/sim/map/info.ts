@@ -17,7 +17,7 @@ import type { MapId, Team } from '../api';
 import { MAP_IDS } from '../api';
 import { NX, NY, createGrid } from './grid';
 import { LANE_PATHS } from './lanes';
-import { activeMap, bindMap, mapIndex } from './runtime';
+import { activeKey, bindKey, bindMap, mapIndex } from './runtime';
 
 export type LaneKey = 'sunny' | 'puddle' | 'fence' | 'yarn' | 'gutter';
 export type LaneRole = 'solo' | 'mid' | 'fish' | 'sunny' | 'puddle';
@@ -241,10 +241,10 @@ export function mapInfo(id: MapId = 'crossing'): MapInfo {
   const i = mapIndex(id);
   const hit = built[i];
   if (hit) return hit;
-  const was = activeMap();
+  const was = activeKey();
   bindMap(i);
   const info = build(MAP_IDS[i]);
-  bindMap(was);
+  bindKey(was);
   built[i] = info;
   return info;
 }

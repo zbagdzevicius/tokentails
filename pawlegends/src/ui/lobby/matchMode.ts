@@ -36,6 +36,9 @@ export const MUTATOR_MODE: Readonly<Record<Mutator, string>> = Object.freeze({
   toybox: 'twist',
   rapid: 'twist',
   bounty: 'twist',
+  onelane: 'onelane',
+  duel: 'duel',
+  boss: 'boss',
 });
 /** Sim v27: the loading line of a mutator match. */
 export const MUTATOR_VEIL: Readonly<Record<Mutator, string>> = Object.freeze({
@@ -46,6 +49,9 @@ export const MUTATOR_VEIL: Readonly<Record<Mutator, string>> = Object.freeze({
   toybox: 'Weekly Twist: Toy Box...',
   rapid: 'Weekly Twist: Rapid Paws...',
   bounty: 'Weekly Twist: Bounty Hunt...',
+  onelane: 'One Lane Brawl! Onto Sunny Lane...',
+  duel: 'Duel! Onto Sunny Lane...',
+  boss: 'Boss Weekend! Mega Brutus waits on the bridge...',
 });
 
 export const modeOfMap = (map: MapId | undefined, mutator?: Mutator): MatchMode =>

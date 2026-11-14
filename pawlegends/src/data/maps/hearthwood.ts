@@ -294,7 +294,10 @@ export const HEARTHWOOD_CAMERA_YAW = 0;
 export const HEARTHWOOD_PVP = Object.freeze({
   // sim v21 on the released v20 base: the v20 cat row (the +1% trial row, 10020 / 10290, gave cats 54.3% on seeds
   // 30001-32000; this row gives 50.6% on fit seeds 6001-7000)
-  cat: Object.freeze({ dmgBp: 9920, takenBp: 10390 }),
+  // sim v28 (V28.md §1.4): with leads held, cats fell to 43.7% / 42.3% (600 from 72001, 400 from 74001). +1% damage
+  // and -1% taken (10020 / 10290): 54.0% / 51.0%, pooled 52.8% (the v27 row was 9920 / 10390). +0.7% gave 49.0% / 50.0%
+  // but lifted the map5v5-probe down-10 row to 8.2% / 3.2% (6.1% pooled over three windows, against 4.2% here).
+  cat: Object.freeze({ dmgBp: 10020, takenBp: 10290 }),
   dog: Object.freeze({ dmgBp: 10000, takenBp: 10310 }),
   hero: Object.freeze({
     clem: { dmgBp: 12048, takenBp: 8220 },

@@ -31,7 +31,7 @@ import { heroMatch, hold, place } from './heroes/kit-helpers';
 
 describe('sim v8: the takedown chip', () => {
   it('SIM_VERSION is 15 (sim v9 to v15 kept the chip)', () => {
-    expect(SIM_VERSION).toBe(27);
+    expect(SIM_VERSION).toBe(28);
   });
 
   it('stops at the cap before Sunset, then chips the weakest tower that can be hit', () => {

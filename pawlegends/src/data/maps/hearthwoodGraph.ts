@@ -95,6 +95,12 @@ export const JUNGLE_BOT = Object.freeze({
    * Crossing's); before it, a team BOT_AI.leadGroup takedowns ahead still groups (leadPressure).
    */
   groupAt: 14400,
+  /**
+   * Sim v28 (docs/plans/moba/V28.md §1.1): a Hard team (BotParams.hunts) groups and pushes with its waves from 5:30,
+   * just after Fortified (5:00) ends: Hard teams traded poke for minutes without committing, so the first 5v5 tower
+   * fell at a 7:29 median (target 5:00 to 7:00).
+   */
+  groupAtHard: 9900,
   /** A bot keeps a walk goal at least this long (1.5 s) before a goal more than goalFar away replaces it. */
   goalHold: 45,
   goalFar: 5000,
