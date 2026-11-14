@@ -68,6 +68,24 @@ let live: THREE.WebGLRenderer | null = null;
 export const liveRenderer = (): THREE.WebGLRenderer | null => live;
 
 /**
+ * SHARE-PUSH.md §1: one callback the app runs right after each drawn frame (the highlight clip copies the canvas there,
+ * while the WebGL drawing buffer still holds the frame). Null when no clip records.
+ */
+let frameTap: (() => void) | null = null;
+export const setFrameTap = (fn: (() => void) | null): void => {
+  frameTap = fn;
+};
+/** The app's frame loop calls this after the session (or the lobby) drew. */
+export const runFrameTap = (): void => {
+  if (!frameTap) return;
+  try {
+    frameTap();
+  } catch {
+    frameTap = null;
+  }
+};
+
+/**
  * PERF-IOS §8 Track A: the overdraw view (`?overdraw=1`, a debug view, not a setting). Every fragment that passes the
  * depth test adds 1/51 to red (opaque draws keep writing depth, blended ones do not, as in the real frame), so
  * red × 51 is how many times a pixel was shaded this frame. Every 20th

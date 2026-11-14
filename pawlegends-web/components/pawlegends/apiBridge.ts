@@ -57,6 +57,11 @@ export const PAWLEGENDS_API_OPS = [
   "liveops.claim",
   "liveops.nap",
   "liveops.vote",
+  // push notifications (docs/plans/moba/SHARE-PUSH.md §2): the public key, and this device's subscription and categories
+  "push.key",
+  "push.subscribe",
+  "push.prefs",
+  "push.off",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -97,6 +102,12 @@ const ARG_KEYS = [
   "blob",
   // live ops: the fan vote's choice ("a" | "b")
   "option",
+  // push (SHARE-PUSH.md §2): the push service endpoint (up to 1,000 characters), its keys, categories, UTC offset
+  "endpoint",
+  "pushKey",
+  "pushAuth",
+  "cats",
+  "tz",
 ] as const;
 export type PawlegendsApiArgs = Partial<Record<(typeof ARG_KEYS)[number], string | number | boolean>>;
 
@@ -120,7 +131,8 @@ export function parseApiRequest(data: Record<string, unknown>): PawlegendsApiReq
     const v = raw[k];
     // a chat line's raw text may be up to 240 code units (the server normalises and cuts to 120, or refuses)
     // the progress blob (rewards-cloud) is one JSON string of up to 30,000 characters
-    if (typeof v === "string" && v.length <= (k === "text" ? 240 : k === "blob" ? 30000 : 140)) args[k] = v;
+    // a push service endpoint URL is up to 1,000 characters
+    if (typeof v === "string" && v.length <= (k === "text" ? 240 : k === "blob" ? 30000 : k === "endpoint" ? 1000 : 140)) args[k] = v;
     else if (typeof v === "number" && Number.isFinite(v)) args[k] = v;
     else if (typeof v === "boolean") args[k] = v;
   }
@@ -161,6 +173,9 @@ const CODE = /^[A-Za-z0-9 -]{4,20}$/;
 const THREAD = /^[dpc][A-Za-z0-9_-]{22}$/;
 const MID = /^[a-f0-9]{24}$/;
 const ROOM = /^[A-Za-z0-9_-]{1,64}$/;
+/** A push service endpoint (the backend allows only the known push services) and a category list. */
+const PUSH_ENDPOINT = /^https:\/\/[A-Za-z0-9.-]+(:443)?\/[A-Za-z0-9/_.:~%+=-]{1,980}$/;
+const PUSH_CATS = /^((invite|club|ranked|event|nap)(,(invite|club|ranked|event|nap)){0,4})?$/;
 const str = (v: unknown, re: RegExp) => (typeof v === "string" && re.test(v) ? v : null);
 const int = (v: unknown, lo: number, hi: number) => (typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi ? v : null);
 const pick = (a: PawlegendsApiArgs, keys: readonly (keyof PawlegendsApiArgs)[]) => {
@@ -355,6 +370,32 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
     case "liveops.vote": {
       const option = str(a.option, /^[ab]$/);
       return option ? { method: "POST", path: "/pawlegends/config/vote", body: { option }, auth: "any" } : null;
+    }
+    // push notifications (SHARE-PUSH.md §2): the key is public; a device's subscription takes the session (guests too).
+    // The server accepts only push-service endpoints; here only the shape is checked.
+    case "push.key":
+      return { method: "GET", path: "/pawlegends/push/key", auth: "none" };
+    case "push.subscribe": {
+      const endpoint = str(a.endpoint, PUSH_ENDPOINT);
+      const p256dh = str(a.pushKey, /^[A-Za-z0-9_-]{80,100}$/);
+      const auth = str(a.pushAuth, /^[A-Za-z0-9_-]{16,48}$/);
+      if (!endpoint || !p256dh || !auth) return null;
+      const body: Record<string, unknown> = { endpoint, p256dh, auth, cats: str(a.cats, PUSH_CATS) ?? "" };
+      const tz = int(a.tz, -840, 720);
+      if (tz !== null) body.tz = tz;
+      return { method: "POST", path: "/pawlegends/push/subscribe", body, auth: "any" };
+    }
+    case "push.prefs": {
+      const endpoint = str(a.endpoint, PUSH_ENDPOINT);
+      if (!endpoint) return null;
+      const body: Record<string, unknown> = { endpoint, cats: str(a.cats, PUSH_CATS) ?? "" };
+      const tz = int(a.tz, -840, 720);
+      if (tz !== null) body.tz = tz;
+      return { method: "POST", path: "/pawlegends/push/prefs", body, auth: "any" };
+    }
+    case "push.off": {
+      const endpoint = str(a.endpoint, PUSH_ENDPOINT);
+      return endpoint ? { method: "POST", path: "/pawlegends/push/unsubscribe", body: { endpoint }, auth: "any" } : null;
     }
     default:
       return null;

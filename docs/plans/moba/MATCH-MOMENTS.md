@@ -66,5 +66,6 @@ the share sheet. The match HUD never scales. Stored per device (`tt.pawlegends.m
 
 - Party and PvP replays: the viewer needs every human's inputs (the relay's room log) and a party replay runner.
 - History in the cloud progress blob (P2), so it follows the player across devices.
-- A highlight clip (video) from the replay; kill-cam style auto-jumps to multi-kills.
+- ~~A highlight clip (video) from the replay~~: shipped, SHARE-PUSH.md §1 (Clip in the replay bar; the Legend Moment
+  card records the busiest takedown window). Kill-cam style auto-jumps to multi-kills while watching are still open.
 - Spectate a friend's live match (needs the relay to fan out snapshots).

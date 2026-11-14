@@ -328,6 +328,11 @@ export interface ShareCardOpts {
   onLink(url: string, text: string): void;
   onClose?(): void;
   track?(event: string, props: Record<string, string | number | boolean>): void;
+  /**
+   * SHARE-PUSH.md §1: record a video clip of this match's best moment from its replay, in this framing. Null when the
+   * replay is not kept (a party match) or this browser cannot record.
+   */
+  onClip?: ((framing: 'vertical' | 'wide') => void) | null;
 }
 
 /** Open the card sheet over `parent`. Draws at once without art, then again when the picture arrives. */
@@ -348,6 +353,7 @@ export function openShareCard(parent: HTMLElement, o: ShareCardOpts): HTMLElemen
       <button type="button" class="pl-btn ghost small" data-s="link" data-testid="share-card-link">Copy link</button>
       <button type="button" class="pl-btn small" data-s="share" data-testid="share-card-share">Share</button>
     </div>
+    ${o.onClip ? `<div class="mm-row mm-cliprow" role="group" aria-label="Video clip"><span>Video clip</span><button type="button" class="pl-btn ghost small" data-s="clip-vertical" data-testid="share-card-clip-vertical">Vertical 9:16</button><button type="button" class="pl-btn ghost small" data-s="clip-wide" data-testid="share-card-clip-wide">Wide 16:9</button></div>` : ''}
     <p class="mm-share-note" aria-live="polite"></p>
   </div>`;
   parent.appendChild(root);
@@ -436,6 +442,12 @@ export function openShareCard(parent: HTMLElement, o: ShareCardOpts): HTMLElemen
     const a = t.closest<HTMLElement>('[data-s]')?.dataset.s;
     if (a === 'close' || t === root) close();
     else if (a === 'save') void save();
+    else if ((a === 'clip-vertical' || a === 'clip-wide') && o.onClip) {
+      const f = a === 'clip-vertical' ? 'vertical' : 'wide';
+      o.track?.('share_card', { via: 'clip' });
+      close();
+      o.onClip(f);
+    }
     else if (a === 'share') void share();
     else if (a === 'link') {
       o.onLink(url, text);

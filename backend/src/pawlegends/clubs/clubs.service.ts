@@ -11,6 +11,7 @@ import { ChatService } from '../social/chat.service';
 import { SocialService } from '../social/social.service';
 import { displayNames } from '../social/display-name';
 import { payChest, previewReward, rewardName } from './club-rewards';
+import { pushNotify } from '../push/push-sink';
 import {
     CLUB_CHEST_TIERS,
     CLUB_CHEST_YARN,
@@ -362,7 +363,20 @@ export class ClubsService {
                     { upsert: true, new: true }
                 )
                 .lean();
-            return { week, wins: Number(wk?.wins) || 0, counted: true };
+            const wins = Number(wk?.wins) || 0;
+            // SHARE-PUSH.md §2: this win reached a new chest tier: the members who added a win this week can claim it
+            if (tiersReached(CLUB_CHEST_TIERS, wins).length > tiersReached(CLUB_CHEST_TIERS, wins - 1).length) {
+                const by = (wk?.by ?? {}) as Record<string, number>;
+                const who = Object.keys(by).filter(a => Number(by[a]) > 0 && a !== acc);
+                pushNotify(who, {
+                    cat: 'club',
+                    title: 'Club chest ready',
+                    body: `Your club reached ${wins} wins this week. Open your chest reward.`,
+                    path: '/play',
+                    tag: 'club',
+                });
+            }
+            return { week, wins, counted: true };
         } catch (error) {
             this.logger.warn(`club chest failed: ${String((error as Error)?.message || error).slice(0, 200)}`);
             return null;

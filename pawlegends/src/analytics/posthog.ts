@@ -34,6 +34,13 @@ export type AnalyticsEvent =
   | 'spectate_end'
   | 'share_card_open'
   | 'share_card'
+  | 'clip_start'
+  | 'clip_moment'
+  | 'clip_made'
+  | 'clip_share'
+  | 'push_prompt'
+  | 'push_optin'
+  | 'push_prefs'
   | 'rematch_click'
   | 'mode_link'
   // the one play path (HOME-MODES.md §5): PLAY opened Mode Select (`from`), and a mode and variant went on

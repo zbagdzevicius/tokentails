@@ -43,6 +43,11 @@ export const GUEST_ALLOW_LIST: Readonly<Record<string, Readonly<AllowGuestOption
     'POST /pawlegends/config/goal/claim': {},
     'POST /pawlegends/config/nap/claim': {},
     'POST /pawlegends/config/vote': {},
+    // Pawlegends push notifications (SHARE-PUSH.md section 2): a guest's own device subscription and its categories
+    // (Winter Nap, events and ranked are for every player). No score, no reward.
+    'POST /pawlegends/push/subscribe': {},
+    'POST /pawlegends/push/prefs': {},
+    'POST /pawlegends/push/unsubscribe': {},
     // Feeding the guest's own cat. The reward goes to pendingTails, never spendable Tails (G1).
     'PUT /cat/:id': {},
     // Read-only previews of the guest's own progress ("you would be #N").
