@@ -71,7 +71,7 @@ describe("pawlegends bridge fixture: host to game", () => {
 describe("pawlegends bridge fixture: game to host", () => {
   it("covers every game message type", () => {
     expect(Object.keys(fixture.gameToHost).sort()).toEqual(
-      ["account", "analytics", "api-request", "champ-unlock", "champion-offer", "client-error", "exit", "match-result", "notify", "offer-seen", "open-cat", "party-result", "party-ticket-request", "pass-claim", "paused", "purchase-intent", "ready", "request-sign-in", "share", "skin-preview", "sound"].sort()
+      ["account", "analytics", "api-request", "champ-unlock", "champion-offer", "client-error", "exit", "match-result", "notify", "offer-seen", "open-cat", "party-result", "party-ticket-request", "pass-claim", "paused", "purchase-intent", "ready", "reload-request", "request-sign-in", "share", "skin-preview", "sound"].sort()
     );
   });
 
