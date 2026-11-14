@@ -76,6 +76,8 @@ export class Scoreboard {
   private readonly per: number;
   /** Sim v19 (Hearthwood): each slot's bot role (rolesOf), shown as a glyph; empty on Crossing. */
   roles: readonly string[] = [];
+  /** SPECTATE.md: a spectator's board never says "(you)" (the followed hero is not the viewer's). */
+  spectator = false;
   private names: string[];
   /**
    * Party play (MULTIPLAYER.md §7 M1, M3): friends' rows get a ring badge, a connection dot and a "bot" chip while a
@@ -191,12 +193,12 @@ export class Scoreboard {
           const t = HERO_TEXT[hero];
           const flag = this.flag(slot);
           return `<tr class="${slot === this.mySlot ? 'me' : ''}${dead ? ' dead' : ''}${this.seats?.has(slot) ? ' friend' : ''}" data-slot="${slot}">
-            <td${flag ? ' class="sb-rp"' : ''}><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${this.nameHtml(slot, this.names[slot] ?? t.title)}${this.seatHtml(slot)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot ? ' <small>(you)</small>' : ''}${flag}</td>
+            <td${flag ? ' class="sb-rp"' : ''}><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${this.nameHtml(slot, this.names[slot] ?? t.title)}${this.seatHtml(slot)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot && !this.spectator ? ' <small>(you)</small>' : ''}${flag}</td>
             <td>${role ? `${roleChip(this.roles[slot])} ` : ''}${t.role}</td><td class="lv">${e?.level ?? '-'}</td><td class="kda">${this.kills[slot]} / ${this.deaths[slot]} / ${this.assists(slot)}</td><td class="tal">${talentChips(hero, e?.talents)}</td><td class="toy">${toyPips(e?.toy)}</td><td>${this.heroDmg[slot]}</td></tr>`;
         })
         .join('');
     const head = '<tr><th>Hero</th><th>Role</th><th>Lv</th><th title="Knockouts / knocked out / assists">K / D / A</th><th>Talents</th><th>Toys</th><th>Hero dmg</th></tr>';
-    this.root.innerHTML = `<div class="card lol"><h3 class="t0">${teamLabel(this.picks, 0)}${this.mySlot < this.per ? ' (you)' : ''}</h3><table>${head}${rows(0)}</table><h3 class="t1">${teamLabel(this.picks, 1)}</h3><table>${head}${rows(1)}</table><p class="hint">${document.documentElement.dataset.touch === '1' ? 'Tap to close' : 'Hold Tab'}</p></div>`;
+    this.root.innerHTML = `<div class="card lol"><h3 class="t0">${teamLabel(this.picks, 0)}${this.mySlot < this.per && !this.spectator ? ' (you)' : ''}</h3><table>${head}${rows(0)}</table><h3 class="t1">${teamLabel(this.picks, 1)}</h3><table>${head}${rows(1)}</table><p class="hint">${document.documentElement.dataset.touch === '1' ? 'Tap to close' : 'Hold Tab'}</p></div>`;
   }
 
   dispose(): void {

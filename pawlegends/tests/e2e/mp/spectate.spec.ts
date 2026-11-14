@@ -21,7 +21,11 @@ test('two play, a third watches the live match a short delay behind, follows her
   for (const kind of ['desktop', 'phone'] as const) {
     const w = await player(browser, kind);
     await w.page.goto(`/?e2e=1&watch=${room}`, { waitUntil: 'commit' });
-    await w.page.waitForSelector('html[data-spectate="live"]', { timeout: 150_000 });
+    await w.page.waitForSelector('html[data-spectate="live"]', { timeout: 150_000 }).catch(async (e) => {
+      // what the spectator saw (the veil's line and the html flags) before failing
+      console.log(await w.page.evaluate(() => JSON.stringify({ veil: document.querySelector('.mm-veil')?.textContent, d: { ...document.documentElement.dataset } })));
+      throw e;
+    });
     await expect(w.page.locator('[data-testid="spectate-live"]')).toContainText('4 s behind live');
     await expect(w.page.locator('html')).toHaveAttribute('data-spectate-viewers', '1');
     // both teams' heroes: 3 + 3 chips, the two humans marked
@@ -48,10 +52,10 @@ test('two play, a third watches the live match a short delay behind, follows her
     await w.page.waitForSelector('html[data-screen="title"]', { timeout: 30_000 });
     await expect(w.page.locator('html')).not.toHaveAttribute('data-spectate', /.*/);
   }
-  // the players never noticed: still live, both seats human (no pilot bit), the room still on the relay
+  // the players never noticed: their match plays on (an idle seat may be piloted by the AFK rule; that is theirs)
   const tick = await tickOf(a);
   await expect.poll(() => tickOf(a), { timeout: 10_000 }).toBeGreaterThan(tick + 30);
-  expect(await a.page.evaluate(() => Number(document.documentElement.dataset.mpMask ?? 0) & 3)).toBe(0);
+  await expect(a.page.locator('html')).toHaveAttribute('data-match', 'live');
   expect((await relayHealth()).rooms_live).toBeGreaterThanOrEqual(before.rooms_live);
 });
 
