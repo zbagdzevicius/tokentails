@@ -205,6 +205,8 @@ describe('PAWLEGENDS /live branch', () => {
                     simVersion: SIM_VERSION,
                     simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27],
                 },
+                // force update (FORCE-UPDATE.md §5.3): the game shows "Update needed" instead of a silent rejection
+                update: { action: 'update', minSim: 10, liveSim: SIM_VERSION, web: 'https://pawlegends.app/play' },
             });
             expect(verify).not.toHaveBeenCalled();
             expect(games.rows).toHaveLength(0);

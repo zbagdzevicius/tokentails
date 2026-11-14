@@ -108,6 +108,10 @@
     "chat-filter.ts": [
       "backend",
       "client"
+    ],
+    "client-policy.ts": [
+      "backend",
+      "pawlegends-web"
     ]
   }
 }
