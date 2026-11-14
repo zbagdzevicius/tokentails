@@ -341,25 +341,31 @@ test.describe('flash on touch at 844x390: the other thumb', () => {
     // feel pass B2: map south as it shows on the diagonal screen
     const sa = screenAngle(-Math.PI / 2);
     const south = { ...base, x: Math.round(base.x + Math.cos(sa) * 18), y: Math.round(base.y - Math.sin(sa) * 18) };
-    await touch('touchStart', [base]);
-    await touch('touchMove', [south]);
-    // watched every frame in the page (a poll from here can miss the slide on a loaded machine)
-    const slid = await page.waitForFunction(
-      (spotY) => {
-        const t = (window as unknown as { __plTrack: number[][] }).__plTrack.slice(-4);
-        if (t.length < 4) return null;
-        const dx = t[3][1] - t[0][1];
-        const dy = t[3][2] - t[0][2];
-        if (t[3][2] < spotY - 6000) return 'went past';
-        return t[3][2] < spotY - 1000 && dx < -250 && Math.abs(dx) > 0.5 * Math.abs(dy) ? 'sliding' : null;
-      },
-      SPOT.y,
-      { polling: 'raf', timeout: 20000 },
-    );
-    expect(await slid.jsonValue(), 'the hero walked south without meeting the wall').toBe('sliding');
+    // read before the stick moves: from the slide showing to the press is one round trip
     const heads0 = await heads(page);
     const tapAt = await traceLen(page);
     const t0 = await tickNow(page);
+    await touch('touchStart', [base]);
+    await touch('touchMove', [south]);
+    // watched in the page every 20 ms over the last 10 ticks (gaps4: a loaded machine draws a frame only every few
+    // ticks, and a raf poll over the last 4 ticks could miss the whole slide and see the hero already past the corner)
+    const slid = await page.waitForFunction(
+      (spotY) => {
+        const t = (window as unknown as { __plTrack: number[][] }).__plTrack.slice(-10);
+        if (t.length < 4) return null;
+        const last = t[t.length - 1];
+        if (last[2] < spotY - 6000) return 'went past';
+        for (let i = t.length - 4; i >= 0; i--) {
+          const dx = t[i + 3][1] - t[i][1];
+          const dy = t[i + 3][2] - t[i][2];
+          if (t[i + 3][2] < spotY - 1000 && dx < -250 && Math.abs(dx) > 0.5 * Math.abs(dy)) return 'sliding';
+        }
+        return null;
+      },
+      SPOT.y,
+      { polling: 20, timeout: 20000 },
+    );
+    expect(await slid.jsonValue(), 'the hero walked south without meeting the wall').toBe('sliding');
     await touch('touchStart', [south, trick]);
     const pressTick = await tickNow(page);
     await touch('touchEnd', [trick]);
