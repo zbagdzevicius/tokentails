@@ -945,7 +945,11 @@ describe('PAWLEGENDS /live branch', () => {
         it('sim v29 (the roster release, ROSTER-V29.md): a replay played as a roster hero (Biscuit) verifies; the same record labelled v28 is refused (no Biscuit there); v28 stays frozen and verifies its own', () => {
             const roster = fixture(29, 'roster');
             expect(roster).toMatchObject({ hero: 'biscuit', simVersion: 29, difficulty: 'easy' });
-            expect(verifyBySimVersion(roster)).toMatchObject({ ok: true, finalHash: roster.finalHash, ticks: roster.ticks });
+            expect(verifyBySimVersion(roster)).toMatchObject({
+                ok: true,
+                finalHash: roster.finalHash,
+                ticks: roster.ticks,
+            });
             expect(verifyBySimVersion({ ...roster, simVersion: 28 }).ok).toBe(false);
             for (const name of ['rookie', 'hearthwood'] as const) {
                 const v28 = fixture(28, name);
