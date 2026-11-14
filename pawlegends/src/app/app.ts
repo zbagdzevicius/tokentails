@@ -912,7 +912,8 @@ export class App {
               : { id: 'track', title: 'Treat Track', sub: 'Pick your next reward', art: `${base}assets/lobby/promo-pass.webp${assetRev()}`, action: 'pass' as const },
           ]
         : []),
-      { id: 'cannon', title: 'Cannon Chaos', sub: 'Party event, coming soon', art: `${base}assets/lobby/promo-cannon.webp${assetRev()}`, action: 'modes' },
+      // sim v27: Cannon Chaos is live; the slide opens Mode Select on it
+      { id: 'cannon', title: 'Cannon Chaos', sub: 'Live now · start at level 3', art: `${base}assets/lobby/promo-cannon.webp${assetRev()}`, action: 'modes', mode: 'cannon' },
       { id: 'store', title: 'Store', sub: 'Champions, coats and frames', art: `${base}assets/lobby/promo-store${this.tier === 'low' ? '-lo' : ''}.webp${assetRev()}`, action: 'store' },
     ];
     // live ops (LIVEOPS.md): Events reads the server through the host; the featured mode registers before modeList

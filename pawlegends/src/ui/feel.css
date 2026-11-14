@@ -300,6 +300,9 @@ html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='grizzlechop'] .i
 .pl-hud[data-practice='1'] .pl-score .sw,
 .pl-hud[data-practice='1'] .pl-score .kda { display: none; }
 .pl-practice { display: inline-flex; gap: 4px; align-items: center; pointer-events: auto; }
+/* desktop: the bar spans the plate's row (in the 1fr | auto | 1fr grid it doubled the plate's width under the portrait
+   strips, which covered Reset at 1440×900) */
+.pl-hud[data-practice='1'] .pl-score.lol .pl-practice { grid-column: 1 / -1; justify-self: center; }
 .pl-practice button {
   font: 700 11px/1 var(--font-ui, system-ui, sans-serif);
   letter-spacing: 0.02em;
