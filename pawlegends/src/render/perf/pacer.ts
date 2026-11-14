@@ -3,7 +3,8 @@
  * is only simulated and drawn once `1000 / fps` ms have passed since the last drawn one, with a TOLERANCE_MS slack so
  * a 60 Hz display never drops a 60 fps target to 30 by jitter, and a 120 Hz display draws every second refresh.
  *
- * Targets (`paceTarget`): the match 60 (30 with Battery saver or when the governor reached its 30 fps step); every
+ * Targets (`paceTarget`): the match 60, or the player's Frame rate setting (30 / 90 / 120; 30 with Battery saver or
+ * when the governor reached its 30 fps step, whatever the setting); every
  * menu, the lobby turntable, the pick and results screens 30; a paused match and a full-screen panel over the lobby
  * PAUSED_FPS. Animation speed never changes: the caller passes the real time since the last drawn frame as `dt`.
  * Pure (no globals), unit-tested.
@@ -21,12 +22,14 @@ export interface PaceInput {
   covered: boolean;
   /** Battery saver on, or the thermal governor's 30 fps step. */
   saver: boolean;
+  /** Gaps round 3: the player's match frame rate (Settings "Frame rate": 30, 60, 90, 120); MATCH_FPS when unset. */
+  matchFps?: number;
 }
 
 export function paceTarget(p: PaceInput): number {
   if (p.inMatch) {
     if (p.paused || p.covered) return PAUSED_FPS;
-    return p.saver ? SAVER_FPS : MATCH_FPS;
+    return p.saver ? SAVER_FPS : (p.matchFps ?? MATCH_FPS);
   }
   return p.covered ? PAUSED_FPS : MENU_FPS;
 }

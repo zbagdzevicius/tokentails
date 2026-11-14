@@ -40,7 +40,7 @@ import { champCovered } from '../ui/champBrowser/cover';
 import { openChampInfo } from '../ui/champBrowser/open';
 import type { HeroActionState } from '../ui/champBrowser/champBrowser';
 import { GOV, GOV_NAMES, GOV_STEP, ThermalGovernor } from '../render/perf/governor';
-import { autoBatterySaver, batterySaver, releaseAutoSaver, savePerfStep, savedPerfStep, setBatterySaver } from '../render/perf/prefs';
+import { autoBatterySaver, batterySaver, fpsChoicesFor, matchFps, refreshFromIntervals, refreshHz, releaseAutoSaver, savePerfStep, savedPerfStep, saveRefreshHz, setBatterySaver, setMatchFps } from '../render/perf/prefs';
 import { thermal } from '../render/perf/thermal';
 import { createRenderer, runFrameTap, type GameRenderer } from '../render/renderer';
 import { PUSH_CAT_NAME, PUSH_CATS, disablePush, enablePush, loadPushPrefs, permission, pushSupported, resyncPush, savePushPrefs, serverKey, setPushCats, shouldAsk, type PushCat } from '../social/push';
@@ -200,6 +200,9 @@ export class App {
   private readonly governor = new ThermalGovernor(Math.max(0, savedPerfStep() - 1));
   /** PERF-IOS P1-1: draws at 60 in the match, 30 in menus, 15 paused or behind a full-screen panel. */
   private readonly pacer = new FramePacer();
+  /** Gaps round 3: requestAnimationFrame intervals (ms) sampled at boot to measure the display's refresh rate. */
+  private hzProbe: number[] | null = [];
+  private hzPrev = 0;
   private readonly phone = isPhone();
   /** PERF-IOS P1-6: the loop is stopped while the page is hidden or the app is in the background. */
   private suspended = false;
@@ -2434,6 +2437,13 @@ export class App {
         saver: batterySaver().on,
         saverAuto: batterySaver().by === 'auto',
         warm: this.governor.step > 0,
+        fps: matchFps(),
+        fpsChoices: fpsChoicesFor(refreshHz()),
+      },
+      onFps: (f) => {
+        setMatchFps(f);
+        this.pacer.reset();
+        this.analytics.track('quality_tier', { tier: this.tier, fps: f, by: 'user' });
       },
       onSaver: (on) => {
         setBatterySaver(on);
@@ -2554,10 +2564,26 @@ export class App {
     }
   }
 
+  /** Gaps round 3: one rAF interval toward the refresh measure; after 120 of them the rate is saved and the probe ends. */
+  private sampleHz(now: number): void {
+    const probe = this.hzProbe;
+    if (!probe) return;
+    if (this.hzPrev > 0 && !document.hidden) probe.push(now - this.hzPrev);
+    this.hzPrev = now;
+    if (probe.length < 120) return;
+    this.hzProbe = null;
+    const hz = refreshFromIntervals(probe);
+    // the highest rate seen on this device stays offered (a phone in Low Power Mode measures 60 for a while)
+    saveRefreshHz(Math.max(hz, refreshHz()));
+  }
+
   private frame(now: number): void {
     this.raf = 0;
     if (this.suspended) return;
     this.raf = requestAnimationFrame(this.frameCb);
+    // Gaps round 3: every rAF callback counts toward the refresh measure (the pacer below may skip drawing it), so
+    // Settings offers 90 / 120 fps only on a display that really refreshes that fast
+    if (this.hzProbe) this.sampleHz(now);
     const inMatch = this.screen === 'match' && !!this.session;
     const paused = this.session?.isPaused ?? false;
     // founder, Nov 13: the menus are painted art in the DOM (ui/stage/artStage.ts), so no WebGL frame is drawn outside a
@@ -2575,14 +2601,14 @@ export class App {
       if (this.champFrozen) return;
       this.champFrozen = true;
     } else this.champFrozen = false;
-    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champ, saver });
+    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champ, saver, matchFps: matchFps() });
     if (!this.champFrozen && !this.pacer.due(now, fps)) return;
     const t0 = performance.now();
     const raw = Math.max(0, now - this.last);
     const dt = Math.min(0.1, raw / 1000);
     this.last = now;
     // P1-2: the probe measures the first seconds of a running match at the full 60 fps target (never the title)
-    if (this.probe && inMatch && !paused && fps === MATCH_FPS) {
+    if (this.probe && inMatch && !paused && fps >= MATCH_FPS) {
       const r = this.probe.sample(dt);
       if (r) {
         this.probe = null;
@@ -2601,7 +2627,9 @@ export class App {
     const work = performance.now() - t0;
     if (inMatch && !paused && !this.forcedTier) {
       const th = thermal().state;
-      const next = this.governor.sample({ frameMs: raw, workMs: work, targetMs: 1000 / fps, now, thermal: th });
+      // a 90 / 120 fps choice never costs quality: the governor judges the frames against 60 fps (frames the display
+      // cannot fit at the higher rate just come at 60), so it steps down only for what it stepped down for before
+      const next = this.governor.sample({ frameMs: raw, workMs: work, targetMs: 1000 / Math.min(fps, MATCH_FPS), now, thermal: th });
       if (next !== null) {
         this.applyProfile();
         savePerfStep(next);

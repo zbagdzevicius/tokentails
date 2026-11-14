@@ -21,6 +21,8 @@ import { loadProfile, saveProfile, UNLOCKS_MAX, BISCUIT_UNLOCK, parseProfile, ty
 import { dayKey, loadQuests, parseQuests, saveQuests, type QuestState } from './quests';
 import { addTreatXp, loadTreats, saveTreats, TREAT_STEP, type TreatReward, type TreatState } from './treats';
 import { parseWelcome, type WelcomeState } from './welcome';
+import { TCAST_KEYS } from '../input/presets';
+import { hudStoreTouched, loadHudStore, parseStore, saveHudStore, type HudStore } from '../input/touch/hudLayout';
 
 export interface CloudBlob {
   v: 1;
@@ -29,7 +31,7 @@ export interface CloudBlob {
   counts: { matches: number; wins: number; firstWin: number; heroMatches: Record<string, number> };
   unlocks: string[];
   applied: string[];
-  prefs: { at: number; data: { profile?: Record<string, unknown>; keys?: Record<string, string> } };
+  prefs: { at: number; data: { profile?: Record<string, unknown>; keys?: Record<string, string>; hud?: HudStore } };
 }
 
 /** Device settings that follow the account (Settings rows). Applied values take effect from the next page load. */
@@ -46,6 +48,8 @@ export const SYNCED_KEYS: readonly string[] = Object.freeze([
   'pawlegends.minimap.cvd',
   'pawlegends.minimap.size',
   'pl.party.hideNames',
+  // gaps round 3 (hud-controls): the per-ability touch cast mode and aim sensitivity
+  ...TCAST_KEYS,
 ]);
 
 /** Profile choices that follow the account (never counters: those merge by max in `counts`). */
@@ -119,7 +123,9 @@ function readKeys(): Record<string, string> {
 function prefsData(p: Profile): CloudBlob['prefs']['data'] {
   const profile: Record<string, unknown> = {};
   for (const k of PROFILE_PREFS) profile[k] = p[k];
-  return { profile, keys: readKeys() };
+  // gaps round 3 (hud-controls): the HUD layouts, one per device class (a phone keeps the phone layout); sent only once
+  // this device saved or reset one, so the settings of a player who never opened the editor hash as before
+  return { profile, keys: readKeys(), ...(hudStoreTouched() ? { hud: loadHudStore() } : {}) };
 }
 
 /** This device's blob (and the local sync state with the settings change time brought up to date). */
@@ -297,8 +303,10 @@ export function applyView(v: CloudView, local: CloudLocal, now = Date.now()): Ap
   const { profile, prefsTaken } = mergeProfile(p0, b, local.prefsAt);
   saveProfile(profile);
   if (prefsTaken) {
-    const prefs = b.prefs as { at?: number; data?: { keys?: unknown } };
+    const prefs = b.prefs as { at?: number; data?: { keys?: unknown; hud?: unknown } };
     writeKeys(prefs.data?.keys);
+    // an answer from a build before the HUD editor has no `hud`: the layouts here stay (an empty map is a reset)
+    if (prefs.data && 'hud' in prefs.data) saveHudStore(parseStore(prefs.data.hud));
     local.prefsAt = n(prefs.at, Number.MAX_SAFE_INTEGER);
     local.prefsHash = hash(JSON.stringify(prefsData(loadProfile())));
   }

@@ -3,7 +3,9 @@
  * (ui/cameraHeightRow.ts), the desktop controls (cast on key release, the default, or quick cast,
  * trackpad mode Auto / On / Off, cursor size Normal / Large; input/presets.ts keeps them), the touch controls (GAPS
  * A5: Target first Heroes / Lowest HP % / Closest, the optional last-hit and tower buttons), first-match tips and anonymous play stats (the
- * analytics consent, shared with tokentails.com). Plus the small consent prompt shown on the title from the second
+ * analytics consent, shared with tokentails.com). Gaps round 3 (hud-controls): the frame rate (30 / 60 / 90 / 120 where
+ * the display keeps up), and on touch the HUD layout editor (ui/hudEditor.ts) and the per-ability cast mode and aim
+ * sensitivity (input/presets.ts slotCast). Plus the small consent prompt shown on the title from the second
  * session when the choice is still open and the game runs outside the Token Tails page (the page asks on its own).
  */
 import {
@@ -23,6 +25,15 @@ import {
   targetFirst,
   towerButton,
   trackpadPref,
+  AIM_SENS,
+  CAST_SLOTS,
+  clampSens,
+  setSlotCast,
+  slotCast,
+  TOUCH_CASTS,
+  type CastSlot,
+  type SlotCast,
+  type TouchCast,
   type CastMode,
   type CursorSize,
   type TargetFirst,
@@ -37,6 +48,7 @@ import { bindCameraHeightRow, cameraHeightRowHtml } from './cameraHeightRow';
 import { MINIMAP_SIZES, colourBlind, minimapSize, setColourBlind, setMinimapSize, type MinimapSize } from './minimapPrefs';
 import { accountActionOf, accountRowHtml, type AccountModel, type AccountSend } from './account';
 import { menuText, menuTextRowHtml, setMenuText, type MenuText } from './history/textScale';
+import { FPS_CHOICES, type FpsChoice } from '../render/perf/prefs';
 
 export interface SettingsState {
   muted: boolean;
@@ -51,6 +63,9 @@ export interface SettingsState {
   saverAuto?: boolean;
   /** The thermal governor has lightened the graphics for now. */
   warm?: boolean;
+  /** Gaps round 3: the match frame rate and the rates this display offers (render/perf/prefs.ts). */
+  fps?: FpsChoice;
+  fpsChoices?: readonly FpsChoice[];
 }
 
 export interface SettingsOpts {
@@ -61,6 +76,7 @@ export interface SettingsOpts {
   onStats(on: boolean): void;
   onSkinFx?(m: 'all' | 'mine' | 'off'): void;
   onSaver?(on: boolean): void;
+  onFps?(f: FpsChoice): void;
   onClose(): void;
   /** The host's terms page (null without a host page: the link hides). */
   termsUrl?: string | null;
@@ -103,6 +119,13 @@ const CURSOR_NAME: Record<CursorSize, string> = { normal: 'Normal', large: 'Larg
 const TARGET_NAME: Record<TargetFirst, string> = { heroes: 'Heroes', lowest: 'Lowest HP %', closest: 'Closest' };
 const SHAKE_NAME: Record<ShakePref, string> = { full: 'Full', low: 'Low', off: 'Off' };
 const TSIZE_NAME: Record<TouchSize, string> = { normal: 'Normal', large: 'Large' };
+const TCAST_NAME: Record<TouchCast, string> = { quick: 'Quick', indicator: 'Indicator', normal: 'Normal' };
+const TCAST_HELP: Record<TouchCast, string> = {
+  quick: 'tap casts at the best target',
+  indicator: 'shows the aim as you press; lift to cast',
+  normal: 'tap arms it, then tap the field to cast there',
+};
+const SLOT_NAME: Record<CastSlot, string> = { q: 'Q', w: 'W', e: 'E', r: 'R', trick: 'Trick' };
 
 /** Phones and tablets have no keys or cursor: the controls rows hide. */
 const keyboardDevice = (): boolean => {
@@ -117,6 +140,15 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
+  const casts = Object.fromEntries(CAST_SLOTS.map((k) => [k, slotCast(k)])) as Record<CastSlot, SlotCast>;
+  let castOpen = false;
+  const castRows = (): string =>
+    CAST_SLOTS.map((k) => {
+      const c = casts[k];
+      return `<div class="set-row tcast" data-slot="${k}"><span>${SLOT_NAME[k]}</span><span class="chips">${TOUCH_CASTS.map(
+        (m) => `<button class="chip ${c.mode === m ? 'on' : ''}" data-tcast="${m}" aria-pressed="${c.mode === m}" title="${TCAST_HELP[m]}">${TCAST_NAME[m]}</button>`,
+      ).join('')}</span><label class="sens">Aim<input type="range" min="${AIM_SENS.min}" max="${AIM_SENS.max}" step="${AIM_SENS.step}" value="${c.sens}" data-sens="${k}" aria-label="${SLOT_NAME[k]} aim sensitivity"><output>${c.sens}%</output></label></div>`;
+    }).join('');
   const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), watch: allowWatch(), cvd: colourBlind(), mm: minimapSize(), menuText: menuText() };
   const showControls = keyboardDevice();
   let pushNote = '';
@@ -133,7 +165,10 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       <div class="set-row"><span>Graphics</span><span class="chips">${(['low', 'med', 'high'] as const)
         .map((t) => `<button class="chip ${s.tier === t ? 'on' : ''}" data-t="${t}">${TIER_NAME[t]}</button>`)
         .join('')}</span></div>
-      ${o.onSaver ? `${row('Battery saver (30 fps)', 'saver', !!s.saver)}${s.saver && s.saverAuto ? '<p class="fine" data-testid="saver-auto">Turned on because the device got warm. Turn it off for 60 fps.</p>' : ''}` : ''}
+      ${o.onFps && s.fps ? `<div class="set-row" data-testid="fps-row"><span>Frame rate (matches)</span><span class="chips">${FPS_CHOICES.filter((f) => (s.fpsChoices ?? [30, 60]).includes(f) || f === s.fps)
+        .map((f) => `<button class="chip ${s.fps === f ? 'on' : ''}" data-fps="${f}" aria-pressed="${s.fps === f}">${f}</button>`)
+        .join('')}</span></div>${s.saver && s.fps !== 30 ? '<p class="fine" data-testid="fps-saver">Battery saver holds matches at 30 fps while it is on.</p>' : ''}` : ''}
+      ${o.onSaver ? `${row('Battery saver (30 fps)', 'saver', !!s.saver)}${s.saver && s.saverAuto ? `<p class="fine" data-testid="saver-auto">Turned on because the device got warm. Turn it off for ${s.fps ?? 60} fps.</p>` : ''}` : ''}
       ${s.warm ? '<p class="fine" data-testid="perf-warm">The device is warm: graphics are lighter for now and come back once it cools.</p>' : ''}
       <div class="set-row"><span>Screen shake</span><span class="chips">${(['full', 'low', 'off'] as const)
         .map((m) => `<button class="chip ${ctl.shake === m ? 'on' : ''}" data-shake="${m}">${SHAKE_NAME[m]}</button>`)
@@ -155,7 +190,11 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${row('Left-handed (buttons left, stick right)', 'lefty', ctl.lefty)}
       <div class="set-row"><span>Button size</span><span class="chips">${(['normal', 'large'] as const)
         .map((m) => `<button class="chip ${ctl.tsize === m ? 'on' : ''}" data-tsize="${m}">${TSIZE_NAME[m]}</button>`)
-        .join('')}</span></div>`}
+        .join('')}</span></div>
+      <div class="set-row"><span>HUD layout (buttons, minimap, joystick)</span><button class="chip" data-a="hudedit" data-testid="hud-edit">Edit</button></div>
+      <details class="set-tcast" data-testid="tcast"${castOpen ? ' open' : ''}><summary>Ability casting and aim</summary>
+        <p class="fine">Quick: a tap casts at the best target. Indicator: the aim shows as you press, lift to cast. Normal: a tap arms the skill, then tap the field to cast there. Dashes always go on the press. Aim: how little thumb travel reaches full range.</p>
+        ${castRows()}</details>`}
       ${o.onSkinFx ? `<div class="set-row"><span>Skin effects</span><span class="chips">${(['all', 'mine', 'off'] as const)
         .map((m) => `<button class="chip ${(s.skinFx ?? 'all') === m ? 'on' : ''}" data-skinfx="${m}">${SKIN_FX_NAME[m]}</button>`)
         .join('')}</span></div>` : ''}
@@ -174,6 +213,16 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   };
   render();
   bindCameraHeightRow(root);
+  // per-ability aim sensitivity: the slider saves as it moves (no redraw, so the thumb keeps its drag)
+  root.addEventListener('input', (e) => {
+    const inp = e.target as HTMLInputElement;
+    const k = inp.dataset?.sens as CastSlot | undefined;
+    if (!k || !casts[k]) return;
+    casts[k] = { ...casts[k], sens: clampSens(Number(inp.value)) };
+    setSlotCast(k, casts[k]);
+    const out = inp.parentElement?.querySelector('output');
+    if (out) out.textContent = `${casts[k].sens}%`;
+  });
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     const acct = accountActionOf(t);
@@ -204,7 +253,28 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       });
       return;
     }
-    if (mt) {
+    const fps = Number(t.closest<HTMLElement>('[data-fps]')?.dataset.fps ?? 0) as FpsChoice | 0;
+    const tc = t.closest<HTMLElement>('[data-tcast]')?.dataset.tcast as TouchCast | undefined;
+    const tcSlot = t.closest<HTMLElement>('[data-slot]')?.dataset.slot as CastSlot | undefined;
+    if (t.closest('summary')) {
+      // the <details> toggles itself; remember it so a redraw keeps it open
+      castOpen = !(t.closest('details') as HTMLDetailsElement | null)?.open;
+      return;
+    }
+    if (tc && tcSlot) {
+      casts[tcSlot] = { ...casts[tcSlot], mode: tc };
+      setSlotCast(tcSlot, casts[tcSlot]);
+    } else if (fps && o.onFps) {
+      s.fps = fps;
+      o.onFps(fps);
+    } else if (a === 'hudedit') {
+      // the editor loads on first use (it is not part of the first load)
+      const host = root.parentElement ?? document.body;
+      void import('./hudEditor').then((m) => {
+        if (root.isConnected && !document.querySelector('.pl-hudedit')) m.openHudEditor(host, { returnFocus: t });
+      });
+      return;
+    } else if (mt) {
       ctl.menuText = mt;
       setMenuText(mt);
     } else if (mm) {
@@ -287,6 +357,8 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       document.removeEventListener('keydown', onKey, true);
       return;
     }
+    // the HUD layout editor over Settings owns the keys while it is open
+    if (document.querySelector('.pl-hudedit')) return;
     if (e.key === 'Tab') {
       // pawlegends (QA): a modal keeps focus: Tab and Shift+Tab wrap inside the panel (they reached Play behind it)
       const f = Array.from(root.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((n) => !(n as HTMLButtonElement).disabled && n.getClientRects().length > 0);

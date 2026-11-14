@@ -41,8 +41,12 @@ import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
 import { basicRange, minionHitEstimate, ULT_LEVEL, type AimSpec } from '../abilities';
 import { slideAngle, type CastIndex } from '../orders';
-import { lastHitButton, leftHanded, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type TargetFirst } from '../presets';
-import { project } from '../screen';
+import { lastHitButton, leftHanded, slotCast, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type CastSlot, type TargetFirst, type TouchCast } from '../presets';
+import { groundAt, project, toSimX, toSimY } from '../screen';
+import { cursorCast } from '../targeting';
+import { defaultLayout, fromStored, HUD_CTLS, HUD_EVENT, readInsets, storedFor, type HudCtl, type HudLayout } from './hudLayout';
+import { MINIMAP_SIZE_K, minimapSize } from '../../ui/minimapPrefs';
+import * as THREE from 'three';
 import { attackPreview, CHASE_LEEWAY_MM, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, talkBackDeters, towerTarget, type Unit } from '../targeting';
 import { ASSIST, AttackYield, autoAttackTarget, edgeGoal, laneMagnet, stickAhead, lockable, lockBreakMm, magnetOn, stickTowardTarget, stickyAttackTarget, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
@@ -50,7 +54,7 @@ import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, Retu
 import { HEROES } from '../../data/heroes';
 import { TICK_HZ } from '../../data/timeline';
 import type { SimEvent } from '../../sim/api';
-import { arcLayout, arcStyle, type ArcButton } from './touchArc';
+import { ARC_MAIN, arcLayout, arcStyle, type ArcButton } from './touchArc';
 import { applySweep, newSweep, type SweepRec } from '../../ui/cdSweep';
 import { ATK_SELECT, DragLock, dragZone, PickLock, releasePick, selectCandidates, selectReach, snapTarget } from './attackSelect';
 import { carriesCannon, dragFireAim, quickFireAim } from '../fireAim';
@@ -97,8 +101,7 @@ const DRAG_FULL_MIN_PX = 40;
 export const STICK_EDGE_PX = 66;
 
 /** CF-14: the joystick base for a touch at (x, y): the touch point, pulled in so the whole ring is on screen. */
-export function stickBase(x: number, y: number, w: number, h: number): { x: number; y: number } {
-  const m = STICK_EDGE_PX;
+export function stickBase(x: number, y: number, w: number, h: number, m = STICK_EDGE_PX): { x: number; y: number } {
   return { x: Math.max(m, Math.min(Math.max(m, w - m), x)), y: Math.max(m, Math.min(Math.max(m, h - m), y)) };
 }
 
@@ -177,10 +180,21 @@ export type TouchPt = { x: number; y: number; x0: number; y0: number };
 export const STICK_IDLE_MS = 3000;
 /** Feel pass B3: the joystick zone: the left 40% × bottom 70% of the screen (mirrored for the left-handed layout). */
 export const STICK_ZONE = Object.freeze({ w: 0.4, h: 0.7 });
-export function inStickZone(x: number, y: number, w: number, h: number, lefty = false): boolean {
-  const side = lefty ? x >= w * (1 - STICK_ZONE.w) : x < w * STICK_ZONE.w;
-  return side && y >= h * (1 - STICK_ZONE.h);
+export function inStickZone(x: number, y: number, w: number, h: number, lefty = false, shift: { dx: number; dy: number } | null = null): boolean {
+  // hud-controls: a joystick moved in the HUD layout editor moves its whole zone with it
+  if (shift) {
+    x -= shift.dx;
+    y -= shift.dy;
+  }
+  const side = lefty ? x >= w * (1 - STICK_ZONE.w) && x <= w : x >= 0 && x < w * STICK_ZONE.w;
+  return side && y >= h * (1 - STICK_ZONE.h) && y <= h;
 }
+
+/** hud-controls (normal cast): an armed skill waits this long (ms) for the tap on the field, then puts itself away. */
+export const ARM_MS = 6000;
+
+/** Full-range thumb travel (px) for an aim sensitivity in percent (100 = DRAG_FULL_PX's edge-aware length). Pure. */
+export const sensFull = (full: number, sens: number): number => full * (100 / Math.max(10, sens));
 
 type ButtonId = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'lasthit' | 'tower';
 const SLOT_OF: Partial<Record<ButtonId, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
@@ -221,6 +235,9 @@ interface Drag {
   fired?: boolean;
   /** Feel pass B4: the cancel bubble's centre (px) for this press, once shown. */
   bubble?: { x: number; y: number } | null;
+  /** hud-controls: this slot's cast mode and aim sensitivity (%) at the press. */
+  mode: TouchCast;
+  sens: number;
 }
 
 export class TouchControls {
@@ -369,21 +386,44 @@ export class TouchControls {
     // UX pass 2: Settings' left-handed mirror and button size apply at once, mid-match too
     window.addEventListener(TOUCH_PREFS_EVENT, fit);
     this.off.push(() => window.removeEventListener(TOUCH_PREFS_EVENT, fit));
+    // hud-controls: a layout saved in the HUD editor (or brought by the account) applies at once too
+    window.addEventListener(HUD_EVENT, fit);
+    this.off.push(() => window.removeEventListener(HUD_EVENT, fit));
     this.layoutArc();
   }
 
-  /** CF-04: place every button from touchArc.ts for this viewport (no two touch at 667, 844 or 932 px wide). */
+  /**
+   * CF-04: place every button from touchArc.ts for this viewport (no two touch at 667, 844 or 932 px wide).
+   * hud-controls: a layout saved in the HUD editor (hudLayout.ts) for this device class moves and sizes the buttons,
+   * the minimap group and the joystick; with none (or one that does not fit this screen) the default arc stands.
+   */
   private layoutArc(): void {
     const lefty = leftHanded();
     this.lefty = lefty;
     this.root.classList.toggle('lefty', lefty);
-    const l = arcLayout(window.innerWidth, window.innerHeight, touchSize() === 'large');
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const large = touchSize() === 'large';
+    const l = arcLayout(w, h, large);
+    const custom = this.customLayout(w, h, large, lefty);
     let reach = 0;
+    const safe = custom ? custom.safe : lefty ? readInsets() : null;
     for (const [id, el] of this.buttons) {
-      const spot = l[id as ArcButton];
+      let spot = l[id as ArcButton];
+      const c = custom?.l[id as HudCtl];
+      if (c && safe) {
+        // the custom centre in the cluster's own frame (right/bottom from its corner; left/bottom when mirrored)
+        const rx = lefty ? c.x - (safe.l + 28) : w - safe.r - 28 - c.x;
+        spot = { rx, by: h - safe.b - 24 - c.y, d: c.d };
+      } else if (lefty && safe && !ARC_MAIN.includes(id as ArcButton)) {
+        // hud-controls: the right-edge column (Nap, last-hit, tower) stays on the right edge in the left-handed mirror;
+        // mirrored, it sat on the minimap (Nap covered the map's top-left corner)
+        spot = { ...spot, rx: w - safe.r - 28 - spot.rx - (safe.l + 28) };
+      }
       Object.assign(el.style, arcStyle(spot, lefty));
-      reach = Math.max(reach, spot.rx + spot.d / 2);
+      reach = Math.max(reach, l[id as ArcButton].rx + l[id as ArcButton].d / 2);
     }
+    this.applyCustomExtras(custom);
     // how far the arc reaches in from its corner (px): the phone talent card docks just past it (ui.css), clear of the
     // last-hit and tower buttons at every size, mirrored with the arc
     const html = document.documentElement;
@@ -391,9 +431,58 @@ export class TouchControls {
     // feel pass B3: the arc's scale, for the pieces placed beside it (the target-lock row)
     html.style.setProperty('--arc-k', (l.attack.d / 92).toFixed(3));
     // the locked R is a 44 px ghost chip in its slot
-    html.style.setProperty('--r-ghost', (44 / l.r.d).toFixed(4));
+    html.style.setProperty('--r-ghost', (44 / (custom?.l.r.d ?? l.r.d)).toFixed(4));
     html.dataset.lefty = lefty ? '1' : '';
   }
+
+  /** hud-controls: the saved layout for this screen (null = the default), with the safe insets it was fitted to. */
+  private customLayout(w: number, h: number, large: boolean, lefty: boolean): { l: HudLayout; def: HudLayout; safe: { t: number; r: number; b: number; l: number } } | null {
+    const stored = storedFor(w, h);
+    if (!stored) return null;
+    const safe = readInsets();
+    const view = { w, h, safe, large, lefty, mmK: MINIMAP_SIZE_K[minimapSize()] };
+    const ids = HUD_CTLS.filter((id) => id === 'minimap' || id === 'stick' || this.buttons.has(id as ButtonId));
+    const l = fromStored(stored, view, ids);
+    this.layoutFallback = !l;
+    return l ? { l, def: defaultLayout(view), safe } : null;
+  }
+
+  /** The minimap group's offset and the joystick's zone shift and size from a custom layout (none: the defaults). */
+  private applyCustomExtras(c: { l: HudLayout; def: HudLayout } | null): void {
+    const html = document.documentElement;
+    const mdx = c ? Math.round(c.l.minimap.x - c.def.minimap.x) : 0;
+    const mdy = c ? Math.round(c.l.minimap.y - c.def.minimap.y) : 0;
+    if (mdx || mdy) {
+      html.style.setProperty('--hud-mm-dx', `${mdx}px`);
+      html.style.setProperty('--hud-mm-dy', `${mdy}px`);
+      html.dataset.hudMm = '1';
+    } else {
+      html.style.removeProperty('--hud-mm-dx');
+      html.style.removeProperty('--hud-mm-dy');
+      delete html.dataset.hudMm;
+    }
+    const sdx = c ? c.l.stick.x - c.def.stick.x : 0;
+    const sdy = c ? c.l.stick.y - c.def.stick.y : 0;
+    this.stickShift = sdx || sdy ? { dx: sdx, dy: sdy } : null;
+    this.stickK = c ? c.l.stick.k : 1;
+    if (this.stickK !== 1) this.root.style.setProperty('--stick-k', this.stickK.toFixed(2));
+    else this.root.style.removeProperty('--stick-k');
+    this.root.dataset.hudLayout = c ? 'custom' : this.layoutFallback ? 'fallback' : 'default';
+  }
+
+  /** hud-controls: the joystick zone's shift (px) and the stick's size factor from the HUD layout. */
+  private stickShift: { dx: number; dy: number } | null = null;
+  private stickK = 1;
+  /** A saved layout did not fit this screen, so the default stands (e2e telemetry). */
+  layoutFallback = false;
+  private get stickR(): number {
+    return STICK.radius * this.stickK;
+  }
+
+  /** hud-controls (normal cast): the armed skill waiting for a tap on the field, and its telemetry (e2e). */
+  private armedCast: { btn: ButtonId; slot: CastIndex; until: number } | null = null;
+  castModes = { armed: 0, tapCast: 0, indicator: 0 };
+  private readonly groundV = new THREE.Vector3();
 
   /** UX pass 2: the left-handed mirror is on (the joystick takes the right side of the screen). */
   private lefty = false;
@@ -441,6 +530,8 @@ export class TouchControls {
     this.h.view.atkSelect = null;
     this.h.view.atkAim = null;
     if (this.ringOn) this.h.view.attackRange = false;
+    // hud-controls: the minimap group's offset belongs to this match's HUD
+    this.applyCustomExtras(null);
   }
 
   /** The attack range ring: on while Attack is held or a skill button is down (and the input is live). */
@@ -469,7 +560,7 @@ export class TouchControls {
     this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
     // feel pass B3: the floating joystick lands where the thumb does, in the left 40% × bottom 70% of the screen (the
     // right 40% in the left-handed mirror)
-    if (inStickZone(e.clientX, e.clientY, window.innerWidth, window.innerHeight, this.lefty) && !this.stick) {
+    if (inStickZone(e.clientX, e.clientY, window.innerWidth, window.innerHeight, this.lefty, this.stickShift) && !this.stick) {
       e.preventDefault();
       this.grabStick(e.pointerId, e.clientX, e.clientY, e.timeStamp);
     }
@@ -478,7 +569,7 @@ export class TouchControls {
   /** A finger at (x, y) takes the joystick: the ring shows under it, still (it steers once it moves). */
   private grabStick(id: number, x: number, y: number, at: number): void {
     // CF-14: the ring never hangs off the screen edge (a thumb at the edge pushes the knob from a base inside it)
-    const b = stickBase(x, y, window.innerWidth, window.innerHeight);
+    const b = stickBase(x, y, window.innerWidth, window.innerHeight, Math.round(STICK_EDGE_PX - STICK.radius + this.stickR));
     this.stick = { id, bx: b.x, by: b.y, x, y, moved: false, at };
     this.stickEl.style.transform = `translate(${b.x}px, ${b.y}px)`;
     this.stickEl.classList.remove('idle');
@@ -533,6 +624,15 @@ export class TouchControls {
     }
     const slot = SLOT_OF[btn];
     if (slot === undefined) return;
+    // hud-controls (normal cast): a tap on the armed skill's own button puts it away
+    if (this.armedCast) {
+      const same = this.armedCast.btn === btn;
+      this.disarm();
+      if (same) {
+        el.classList.remove('down');
+        return;
+      }
+    }
     // V20-CHASE.md I3: a skill press is a new command: the stick stops yielding to a tapped Attack order
     if (this.attackHeld === null) this.atkYield.clear();
     // C2: a press within a few ticks of the cooldown ending goes into the cast buffer instead of a deny
@@ -540,7 +640,8 @@ export class TouchControls {
       this.deny(slot);
       return;
     }
-    const g: Drag = { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, cancelIn: null, at: performance.now() };
+    const sc = slotCast(btn as CastSlot);
+    const g: Drag = { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, cancelIn: null, at: performance.now(), mode: sc.mode, sens: sc.sens };
     // heading casts fire on the press, stick held or not (no aim step, no wait for the release, no cancel)
     if (this.h.orders.aimSpec(slot).heading) {
       g.fired = true;
@@ -548,6 +649,12 @@ export class TouchControls {
       if (me && this.headingCast(slot, me)) this.heads.press++;
     }
     this.drags.set(e.pointerId, g);
+    // hud-controls: "Quick cast with indicator" and "Normal" show the range and the aim the moment the button goes down
+    if (!g.fired && g.mode !== 'quick' && this.h.enabled()) {
+      this.previewHold(g);
+      this.showBubble(g);
+      if (g.mode === 'indicator') this.castModes.indicator++;
+    }
     this.syncRing();
   }
 
@@ -564,9 +671,9 @@ export class TouchControls {
       let dy = e.clientY - this.stick.by;
       const d = Math.hypot(dx, dy);
       if (d > STICK.dead) this.stick.moved = true;
-      if (d > STICK.radius) {
+      if (d > this.stickR) {
         // the base follows a thumb that runs past the ring
-        const k = (d - STICK.radius) / d;
+        const k = (d - this.stickR) / d;
         this.stick.bx += dx * k;
         this.stick.by += dy * k;
         this.stickEl.style.transform = `translate(${this.stick.bx}px, ${this.stick.by}px)`;
@@ -623,7 +730,7 @@ export class TouchControls {
     const kind = this.h.orders.aimSpec(slot).kind;
     const el = this.aimRingEl;
     el.style.transform = `translate(${g.x0}px, ${g.y0}px)`;
-    el.style.setProperty('--full', `${DRAG_FULL_PX * 2}px`);
+    el.style.setProperty('--full', `${Math.round(sensFull(DRAG_FULL_PX, g.sens) * 2)}px`);
     el.style.setProperty('--smart', `${AIM_BACK_PX * 2}px`);
     el.classList.toggle('dir', kind !== 'point' && kind !== 'unit');
     // (the ring is shared with the Attack selector: a skill aim never keeps its cancel styling)
@@ -667,7 +774,11 @@ export class TouchControls {
     const tp = this.tap;
     if (tp && tp.id === e.pointerId) {
       this.tap = null;
-      if (!cancelled && e.timeStamp - tp.at <= TAP.ms && Math.hypot(e.clientX - tp.x, e.clientY - tp.y) <= TAP.px) this.tapAt(tp.x, tp.y);
+      if (!cancelled && e.timeStamp - tp.at <= TAP.ms && Math.hypot(e.clientX - tp.x, e.clientY - tp.y) <= TAP.px) {
+        // hud-controls (normal cast): with a skill armed, the tap on the field casts it there
+        if (this.armedCast) this.castArmedAt(tp.x, tp.y);
+        else this.tapAt(tp.x, tp.y);
+      }
     }
     if (this.stick && e.pointerId === this.stick.id) {
       const s = this.stick;
@@ -753,6 +864,12 @@ export class TouchControls {
     const me = this.me();
     if (!me) return;
     if (!g.dragging || this.aimBack(g)) {
+      // hud-controls (normal cast): a tap arms the skill (its aim stays up) and the next tap on the field casts it;
+      // a self cast has nothing to aim, so it goes at once
+      if (g.mode === 'normal' && this.h.orders.aimSpec(slot).kind !== 'self') {
+        this.arm(g.btn, slot);
+        return;
+      }
       const p = this.tapAim(slot, me);
       if (!this.h.orders.cast(slot, p.x, p.y, p.id)) this.refused(slot);
       return;
@@ -971,7 +1088,8 @@ export class TouchControls {
     if (len < 1) return null;
     // the reach follows the thumb's screen distance (screenToSim stretches the up part into ground units)
     const screenLen = Math.hypot(g.x - g.x0, g.y - g.y0);
-    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, screenLen / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
+    const full = sensFull(dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight), g.sens);
+    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, screenLen / full) : 1;
     const x = me.x + (dx / len) * aim.range * k;
     const y = me.y + (dy / len) * aim.range * k;
     if (aim.kind === 'unit') {
@@ -1224,6 +1342,54 @@ export class TouchControls {
   }
 
   /** A tap on the field: the enemy hero under it (within TAP.pickPx on screen) is locked. */
+  /** hud-controls (normal cast): arm `slot`: its button glows, its range and smart aim stay up until the field tap. */
+  private arm(btn: ButtonId, slot: CastIndex): void {
+    this.disarm();
+    this.armedCast = { btn, slot, until: performance.now() + ARM_MS };
+    this.buttons.get(btn)?.classList.add('armed-cast');
+    this.castModes.armed++;
+    haptic('cast');
+  }
+
+  private disarm(): void {
+    const a = this.armedCast;
+    if (!a) return;
+    this.armedCast = null;
+    this.buttons.get(a.btn)?.classList.remove('armed-cast');
+    if (![...this.drags.values()].some((g) => !g.fired)) this.h.view.aim = null;
+  }
+
+  /** hud-controls (normal cast): cast the armed skill at the field point under (x, y) (client px). */
+  private castArmedAt(x: number, y: number): void {
+    const a = this.armedCast;
+    const me = this.me();
+    this.disarm();
+    if (!a || !me || !this.h.enabled()) return;
+    const g = groundAt(this.h.view.gr.camera, this.h.canvas, x, y, this.groundV);
+    const spec = this.h.orders.aimSpec(a.slot);
+    const pt = g ? { x: toSimX(g.x), y: toSimY(g.z) } : null;
+    const t = cursorCast(spec, me, pt, null, this.targets(), this.h.view.myTeam, true, this.facing());
+    if (!t || !this.h.orders.cast(a.slot, t.x, t.y, t.id)) {
+      this.refused(a.slot);
+      return;
+    }
+    this.castModes.tapCast++;
+  }
+
+  /** hud-controls (normal cast): the armed skill keeps its aim drawn, and puts itself away after ARM_MS or on death. */
+  private updateArmed(me: Unit | null, now: number): void {
+    const a = this.armedCast;
+    if (!a) return;
+    if (!me || me.state === 'dead' || !this.h.enabled() || now >= a.until || !this.h.orders.canQueue(a.slot)) {
+      this.disarm();
+      return;
+    }
+    if ([...this.drags.values()].some((g) => !g.fired)) return;
+    const spec = this.h.orders.aimSpec(a.slot);
+    const p = this.tapAim(a.slot, me);
+    this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: p.id, valid: spec.kind !== 'unit' || p.id !== 0xff };
+  }
+
   private tapAt(x: number, y: number): void {
     const me = this.me();
     if (!me || !this.h.enabled()) return;
@@ -1413,7 +1579,7 @@ export class TouchControls {
   private walkAngle(me: Unit, o: { x: number; y: number }, dx: number, dy: number): number {
     const v = screenToSim(dx, dy);
     const raw = Math.atan2(v.y, v.x);
-    const tilt = Math.min(1, Math.hypot(dx, dy) / STICK.radius);
+    const tilt = Math.min(1, Math.hypot(dx, dy) / this.stickR);
     return slideAngle(o.x, o.y, magnetOn(tilt, me, this.h.units(), this.h.view.myTeam) ? laneMagnet(o.x, o.y, raw) : raw);
   }
 
@@ -1622,12 +1788,13 @@ export class TouchControls {
       this.stickEl.classList.remove('idle');
     }
     this.updateExtras(me, now);
+    this.updateArmed(me, now);
     if (this.ghostUntil > 0 && now >= this.ghostUntil) {
       this.ghostUntil = 0;
       if (![...this.drags.values()].some((g) => !g.fired && g.dragging)) this.h.view.aim = null;
     }
     for (const g of this.drags.values()) {
-      if (!g.fired && !g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) {
+      if (!g.fired && !g.dragging && (g.mode !== 'quick' || now - g.at >= HOLD_PREVIEW_MS) && this.h.enabled()) {
         this.previewHold(g);
         this.showBubble(g);
       }

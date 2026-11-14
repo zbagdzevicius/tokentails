@@ -225,8 +225,66 @@ export function setTouchSize(t: TouchSize): void {
   touchPrefsChanged();
 }
 
+// ---------------------------------------------------------------------------------------- touch cast options
+
+/**
+ * Gaps round 3 (hud-controls, Wild Rift parity): how each touch skill button casts, per slot (Q, W, E, R, the trick).
+ *   quick      (default, today's behaviour): a tap casts at the smart target; a drag aims; holding still shows the
+ *              range and the smart aim after HOLD_PREVIEW_MS.
+ *   indicator  the range and the aim show the moment the button goes down; the release casts (a tap at the smart aim).
+ *   normal     a tap only arms the skill: its range and aim stay up, and the next tap on the field casts there (a tap
+ *              on the same button again, or the ✕, puts it away). A drag still aims and casts on the release.
+ * Heading casts (the dashes, Pounce) fire on the press in every mode (founder: "there can't be any friction").
+ * Aim sensitivity scales how far the thumb travels for full range (DRAG_FULL_PX / sensitivity): 50% to 200%.
+ * One short key per slot (`pawlegends.tcast.<slot>` = mode letter + percent, "q100"), synced with the account.
+ */
+export type TouchCast = 'quick' | 'indicator' | 'normal';
+export type CastSlot = 'q' | 'w' | 'e' | 'r' | 'trick';
+export const CAST_SLOTS: readonly CastSlot[] = Object.freeze(['q', 'w', 'e', 'r', 'trick'] as CastSlot[]);
+export const TOUCH_CASTS: readonly TouchCast[] = Object.freeze(['quick', 'indicator', 'normal'] as TouchCast[]);
+export const AIM_SENS = Object.freeze({ min: 50, max: 200, step: 10, def: 100 });
+export interface SlotCast {
+  mode: TouchCast;
+  /** Percent (AIM_SENS.min..max). */
+  sens: number;
+}
+const TCAST_KEY = (s: CastSlot): string => `pawlegends.tcast.${s}`;
+const CAST_LETTER: Record<TouchCast, string> = { quick: 'q', indicator: 'i', normal: 'n' };
+
+/** A stored slot value ("i140") to its option; anything else is the default. Pure. */
+export function parseSlotCast(v: string | null | undefined): SlotCast {
+  const m = typeof v === 'string' ? /^([qin])(\d{2,3})$/.exec(v) : null;
+  if (!m) return { mode: 'quick', sens: AIM_SENS.def };
+  const mode = (Object.keys(CAST_LETTER) as TouchCast[]).find((k) => CAST_LETTER[k] === m[1]) ?? 'quick';
+  return { mode, sens: clampSens(Number(m[2])) };
+}
+
+export function clampSens(n: number): number {
+  if (!Number.isFinite(n)) return AIM_SENS.def;
+  const s = Math.round(n / AIM_SENS.step) * AIM_SENS.step;
+  return Math.max(AIM_SENS.min, Math.min(AIM_SENS.max, s));
+}
+
+export const formatSlotCast = (c: SlotCast): string => `${CAST_LETTER[c.mode]}${clampSens(c.sens)}`;
+
+const castMem: Partial<Record<CastSlot, SlotCast>> = {};
+
+export function slotCast(s: CastSlot): SlotCast {
+  return castMem[s] ?? parseSlotCast(read(TCAST_KEY(s)));
+}
+
+export function setSlotCast(s: CastSlot, c: SlotCast): void {
+  const v = { mode: c.mode, sens: clampSens(c.sens) };
+  castMem[s] = v;
+  write(TCAST_KEY(s), formatSlotCast(v));
+}
+
+/** Every stored slot key (the account sync list). */
+export const TCAST_KEYS: readonly string[] = Object.freeze(CAST_SLOTS.map(TCAST_KEY));
+
 /** Tests: forget the in-memory copy (storage is read again). */
 export function resetControlPrefs(): void {
+  for (const s of CAST_SLOTS) delete castMem[s];
   delete mem.cast;
   delete mem.pad;
   delete mem.seen;

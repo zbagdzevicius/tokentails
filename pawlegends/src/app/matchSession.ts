@@ -2672,6 +2672,8 @@ export class MatchSession {
     d.atkAim = this.view.atkAim ? (this.view.atkAim.ok ? 'ok' : 'none') : '';
     // heading casts (Pounce and the escape dashes) sent on the touch press and on the release (heading.ts)
     d.heads = this.touch ? `${this.touch.heads.press},${this.touch.heads.fired},${this.orders?.holds ?? 0}` : '';
+    // hud-controls: the cast modes (normal-cast arms, field-tap casts, indicator presses)
+    d.castModes = this.touch ? `${this.touch.castModes.armed},${this.touch.castModes.tapCast},${this.touch.castModes.indicator}` : '';
     d.lastHits = String(this.lastHitsSeen);
     if (me) d.meF = `${Math.round(me.fx)},${Math.round(me.fy)}`;
     d.hits = String(this.hitsLanded);
