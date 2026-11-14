@@ -1,5 +1,7 @@
 import { Matchmaker, maxPartyOf, type MmEntry, type MmMember, type MmMatch } from './matchmaker';
 import { MM_LIMITS, MM_RANKED } from './mm-limits';
+import { RANKED_BOTS } from '../ranked/tiers';
+import { inPrimeTime } from '../ranked/windows';
 
 /*
  * The ranked pool (gap plan P4, SOCIAL-RANKED.md §7.1) on a fake clock: 3v3, solo or duo, full teams of humans only:
@@ -139,5 +141,79 @@ describe('ranked matchmaker pool', () => {
         expect(matchesOf(advance(10_000))).toHaveLength(1);
         expect(MM_RANKED.window.base + MM_RANKED.window.perSecond * 120).toBeCloseTo(MM_RANKED.window.max);
         expect(MM_RANKED.window.base).toBe(150);
+    });
+
+    // ------------------------------------------------------------------------- round 4: low population (§7.11)
+
+    it('the bot timings match the rules the game shows (RANKED_BOTS)', () => {
+        expect(MM_RANKED.fillMs).toBe(RANKED_BOTS.fillS * 1000);
+        expect(MM_RANKED.primeFillMs).toBe(RANKED_BOTS.primeFillS * 1000);
+        expect(MM_RANKED.aiAfterMs).toBe(RANKED_BOTS.aiAfterS * 1000);
+    });
+
+    it('players first: two opted-in solos wait for players until the fill, then a fair 1v1 with labelled bots', () => {
+        const { clock, mm, advance } = make();
+        expect(inPrimeTime(clock.now)).toBe(false);
+        mm.join(entry(clock, ['a'], { bots: true }));
+        mm.join(entry(clock, ['b'], { bots: true }));
+        expect(matchesOf(advance(MM_RANKED.fillMs - 1000))).toHaveLength(0);
+        const [m] = matchesOf(advance(2000));
+        expect(m).toMatchObject({ mode: 'casual', queue: 'ranked', humans: 2, bots: 4, fill: 'normal' });
+        expect(m.teams!.map(t => [t.humans, t.bots])).toEqual([
+            [1, 2],
+            [1, 2],
+        ]);
+        expect(m.vsAi).toBeUndefined();
+    });
+
+    it('never bots for a game that does not label them: an opted-in and a plain solo wait, the plain one never fills', () => {
+        const { clock, mm, advance } = make();
+        const plain = entry(clock, ['p']);
+        mm.join(entry(clock, ['a'], { bots: true }));
+        mm.join(plain);
+        const ms = matchesOf(advance(10 * 60_000));
+        // the opted-in one plays vs AI on its own; the plain one is never in a match with a bot
+        expect(ms).toHaveLength(1);
+        expect(ms[0]).toMatchObject({ vsAi: true, queue: 'ranked', humans: 1 });
+        expect(ms[0].entries).not.toContain(plain.id);
+        expect(mm.entry(plain.id)).not.toBeNull();
+    });
+
+    it('vs AI: a lone opted-in solo plays its team against bots at fill + 30 s, at Normal or harder', () => {
+        const { clock, mm, advance } = make();
+        const e = entry(clock, [member('a', { rating: { r: 1100, rd: 80 } })], { bots: true });
+        mm.join(e);
+        const at = MM_RANKED.fillMs + MM_RANKED.aiAfterMs;
+        expect(matchesOf(advance(at - 1000))).toHaveLength(0);
+        const st = mm.status(e.id)!;
+        expect(st.searching).toBe(1);
+        expect(st.estimateMs).toBeLessThanOrEqual(5000);
+        const [m] = matchesOf(advance(2000));
+        expect(m).toMatchObject({ queue: 'ranked', vsAi: true, humans: 1, bots: 2, difficulty: 'normal' });
+        expect(m.teams).toBeUndefined();
+        expect(mm.size).toBe(0);
+    });
+
+    it('vs AI groups waiting opted-in players into one team (a duo and a solo)', () => {
+        const { clock, mm, advance } = make();
+        mm.join(entry(clock, ['d1', 'd2'], { bots: true, side: 'cat' }));
+        mm.join(entry(clock, ['s'], { bots: true, side: 'dog' }));
+        mm.join(entry(clock, ['t'], { bots: true, side: 'cat' }));
+        const ms = matchesOf(advance(MM_RANKED.fillMs + MM_RANKED.aiAfterMs + 2000));
+        // whatever forms (a fair bot-filled match or vs AI), every opted-in player is in a match
+        expect(mm.size).toBe(0);
+        expect(ms.reduce((n, m) => n + m.humans, 0)).toBe(4);
+        for (const m of ms) expect(m.queue).toBe('ranked');
+    });
+
+    it('Prime Time: bots wait longer (75 s) so players find each other first', () => {
+        const { clock, mm, advance } = make();
+        // Wednesday 2026-11-18 19:00 UTC: inside the daily window
+        clock.now = Date.UTC(2026, 10, 18, 19);
+        expect(inPrimeTime(clock.now)).toBe(true);
+        mm.join(entry(clock, ['a'], { bots: true }));
+        mm.join(entry(clock, ['b'], { bots: true }));
+        expect(matchesOf(advance(MM_RANKED.fillMs + 5000))).toHaveLength(0);
+        expect(matchesOf(advance(MM_RANKED.primeFillMs - MM_RANKED.fillMs))).toHaveLength(1);
     });
 });

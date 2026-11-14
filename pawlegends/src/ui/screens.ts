@@ -27,7 +27,7 @@ import type { CameraHeight } from '../render/camera/height';
 import type { QuestView } from '../meta/quests';
 import { TREAT_XP, type TreatGain } from '../meta/treats';
 import type { Grade } from '../meta/grade';
-import type { RankedResult } from '../meta/ranked';
+import { rankedKindLine, type RankedKind, type RankedResult } from '../meta/ranked';
 import { toGoText } from './collection';
 // card art (ui/cards/): pick tiles as collectible cards, the title badge, the MVP card
 import { cardAttrs, heroElement } from './cards/el';
@@ -532,15 +532,19 @@ export interface ResultsOpts {
   progress?: ProgressSummary | null;
   /** Gap plan P4: a ranked match: the ranked block (tier, points, shield) fills in once the save lands. */
   ranked?: boolean;
+  /** Round 4 (§7.11): who the ranked match was against (the block says what it pays). */
+  rankedKind?: RankedKind;
 }
 
 /**
  * The ranked results block (gap plan P4): the tier and its points, what the match changed and the shield, or a
  * "saving" line before the save lands. Pure; the app fills `[data-slot="ranked"]` with it.
  */
-export function rankedBlockHtml(r: RankedResult | null): string {
-  if (!r) return `<p class="pl-rk-wait" data-testid="ranked-wait">Ranked · saving the match…</p>`;
-  return `<p class="pl-rk-tier"><b data-testid="ranked-tier">${esc(r.tier)}</b><span class="pl-rk-change" data-tone="${r.tone}" data-testid="ranked-change">${esc(r.change)}</span></p>${r.shield ? `<p class="pl-rk-shield" data-testid="ranked-shield">${esc(r.shield)}</p>` : ''}`;
+export function rankedBlockHtml(r: RankedResult | null, kind?: RankedKind): string {
+  // round 4 (SOCIAL-RANKED.md §7.11): what this kind of ranked match pays (bot-filled half, vs AI a quarter)
+  const k = kind && kind !== 'players' ? `<p class="pl-rk-kind" data-testid="ranked-kind" data-kind="${kind}">${esc(rankedKindLine(kind))}</p>` : '';
+  if (!r) return `<p class="pl-rk-wait" data-testid="ranked-wait">Ranked · saving the match…</p>${k}`;
+  return `<p class="pl-rk-tier"><b data-testid="ranked-tier">${esc(r.tier)}</b><span class="pl-rk-change" data-tone="${r.tone}" data-testid="ranked-change">${esc(r.change)}</span></p>${r.shield ? `<p class="pl-rk-shield" data-testid="ranked-shield">${esc(r.shield)}</p>` : ''}${k}`;
 }
 
 export interface ResultGrade {
@@ -724,7 +728,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.table && o.table.some((r) => r.flag) ? '<div data-slot="kudos"></div>' : ''}
       ${tip ? `<p class="pl-result-tip">${icon('paw')}<span>${esc(tip)}</span></p>` : ''}
       <div data-slot="save"></div>
-      ${o.ranked ? `<div class="pl-rk" data-slot="ranked" data-testid="ranked-result" role="status">${rankedBlockHtml(null)}</div>` : ''}
+      ${o.ranked ? `<div class="pl-rk" data-slot="ranked" data-testid="ranked-result" role="status">${rankedBlockHtml(null, o.rankedKind)}</div>` : ''}
       ${o.treats ? treatBlock(o.treats) : ''}
       ${o.quests && o.quests.length ? `<div class="pl-quests"><b>Daily quests</b>${o.quests.map((q) => questRow(q)).join('')}</div>` : ''}
       ${o.firstWin ? `<div class="unlock">${icon('crown')}<span><b>Sir Brutus Biscuit coat unlocked</b><small>Free, yours to keep.</small></span></div>` : ''}

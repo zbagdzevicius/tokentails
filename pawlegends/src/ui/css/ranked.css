@@ -12,3 +12,7 @@
 .pl-results .pl-rk-change[data-tone='flat'] { color: var(--v6-muted); }
 .pl-results .pl-rk-shield, .pl-results .pl-rk-wait { color: var(--v6-muted); font-size: 13px; }
 .pp-queue[data-ranked] h2 { color: var(--v6-logo-gold-hi); }
+/* Round 4 (SOCIAL-RANKED.md §7.11): what a bot-filled or vs AI ranked match pays, the live count and the vs AI line. */
+.pl-results .pl-rk-kind { color: var(--v6-muted); font-size: 12px; }
+.pp-queue[data-ranked] .pp-rk-live { margin: 2px 0 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pp-queue[data-ai] .pp-ai { display: block; margin-top: 4px; color: var(--v6-muted); font-size: 12px; }

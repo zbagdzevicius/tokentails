@@ -1,4 +1,12 @@
-import { FIRST_SEASON_CAP, LEGEND_IDX, PLACEMENTS, RANKED_POINTS, RANKED_TIERS, TIER_ANCHORS } from './tiers';
+import {
+    FIRST_SEASON_CAP,
+    LEGEND_IDX,
+    PLACEMENTS,
+    RANKED_BOTS,
+    RANKED_POINTS,
+    RANKED_TIERS,
+    TIER_ANCHORS,
+} from './tiers';
 
 /*
  * Visible ranked points (docs/plans/moba/SOCIAL-RANKED.md §7.3–§7.8), pure. The hidden Glicko row is stepped exactly
@@ -15,7 +23,19 @@ export interface RankedPoints {
     shield: number;
     placementsLeft: number;
     peakIdx: number;
+    /** Placement matches of this run played against at least one player (none: placed at most at Alley III). */
+    vsPlayers?: number;
 }
+
+/**
+ * Who a ranked match was against (§7.11): `players` (six players), `filled` (players on both teams, labelled bots in
+ * the empty seats) or `ai` (one team of players against bots).
+ */
+export type RankedMatchKind = 'players' | 'filled' | 'ai';
+
+/** The share of the points a match of this kind moves (§7.11). */
+export const kindShare = (kind: RankedMatchKind): number =>
+    kind === 'ai' ? RANKED_BOTS.aiShare : kind === 'filled' ? RANKED_BOTS.filledShare : 1;
 
 export const anchorOf = (tierIdx: number): number => TIER_ANCHORS[Math.max(0, Math.min(LEGEND_IDX, tierIdx))];
 
@@ -44,6 +64,7 @@ export const freshPoints = (placements: number = PLACEMENTS.first): RankedPoints
     shield: RANKED_POINTS.shield,
     placementsLeft: placements,
     peakIdx: -1,
+    vsPlayers: 0,
 });
 
 export interface RankedStepInput {
@@ -59,6 +80,8 @@ export interface RankedStepInput {
     firstSeason: boolean;
     /** A returning season's placement floor (at most 2 divisions under last season's finish). */
     floorIdx?: number;
+    /** Who the match was against (§7.11); default `players`. */
+    kind?: RankedMatchKind;
 }
 
 export interface RankedStepResult {
@@ -71,19 +94,27 @@ export interface RankedStepResult {
 
 export function rankedStep(input: RankedStepInput): RankedStepResult {
     const s = { ...input.state };
+    const kind = input.kind ?? 'players';
     if (s.placementsLeft > 0) {
         s.placementsLeft -= 1;
+        if (kind !== 'ai') s.vsPlayers = (s.vsPlayers ?? 0) + 1;
         if (s.placementsLeft > 0) return { state: s, delta: 0 };
-        const cap = input.firstSeason ? FIRST_SEASON_CAP : LEGEND_IDX;
+        let cap = input.firstSeason ? FIRST_SEASON_CAP : LEGEND_IDX;
+        // §7.11: placements played only against bots place at most at Alley III
+        if (!s.vsPlayers) cap = Math.min(cap, RANKED_BOTS.aiCapIdx);
         s.tierIdx = Math.max(input.floorIdx ?? 0, Math.min(cap, tierOfRating(input.r)));
         s.points = 0;
         s.shield = RANKED_POINTS.shield;
         s.peakIdx = Math.max(s.peakIdx, s.tierIdx);
+        s.vsPlayers = 0;
         return { state: s, delta: 0, placed: true };
     }
+    // §7.11: from Alley III up a vs AI match moves no points (it still counts for the Pass and the placements)
+    if (kind === 'ai' && s.tierIdx >= RANKED_BOTS.aiCapIdx) return { state: s, delta: 0 };
+    const share = kindShare(kind);
     const c = convergence(input.r, s.tierIdx);
     if (input.won) {
-        const delta = Math.round(RANKED_POINTS.win * c);
+        const delta = Math.max(1, Math.round(RANKED_POINTS.win * c * share));
         s.points += delta;
         let promoted = false;
         while (s.tierIdx < LEGEND_IDX && s.points >= RANKED_POINTS.division) {
@@ -96,8 +127,8 @@ export function rankedStep(input: RankedStepInput): RankedStepResult {
         return { state: s, delta, ...(promoted ? { promoted } : {}) };
     }
     if (input.free || isProtected(s.tierIdx)) return { state: s, delta: 0 };
-    const share = Math.min(1, Math.max(0, input.gradeShare ?? 1));
-    const delta = -Math.round(RANKED_POINTS.loss * (2 - c) * share);
+    const gradeShare = Math.min(1, Math.max(0, input.gradeShare ?? 1));
+    const delta = -Math.round(RANKED_POINTS.loss * (2 - c) * gradeShare * share);
     s.points += delta;
     if (s.points >= 0) return { state: s, delta };
     if (s.shield > 0) {

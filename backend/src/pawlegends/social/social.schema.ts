@@ -141,6 +141,8 @@ export class PawlegendsPresence {
     @Prop({ type: Object, default: undefined })
     relay?: {
         state: 'party' | 'queue' | 'match';
+        /** 'ranked' while the account searches ranked (SOCIAL-RANKED.md §7.11, the searching count). */
+        q?: string;
         party?: string;
         joinable?: boolean;
         mode?: string;
@@ -156,7 +158,7 @@ export class PawlegendsPresence {
     @Prop({ type: Object, default: undefined })
     api?: { at: Date };
 
-    /** 1: ranked-eligible (the liquidity count). */
+    /** 1: ranked-eligible (the online count `ranked/status` shows). */
     @Prop({ default: 0 })
     rk: number;
 
@@ -335,15 +337,13 @@ export class PawlegendsStatus {
     @Prop({ default: 0 })
     online: number;
 
+    /** Round 4 (SOCIAL-RANKED.md §7.11): registered accounts searching ranked now. */
     @Prop({ default: 0 })
-    need: number;
+    searching: number;
 
-    /** When the state last changed, and when the count first fell below the close line (null above it). */
-    @Prop({ type: Date, default: null })
-    since: Date | null;
-
-    @Prop({ type: Date, default: null })
-    lowSince: Date | null;
+    /** Prime Time was active at the last count (ranked/windows.ts). */
+    @Prop({ default: false })
+    prime: boolean;
 
     @Prop({ type: Date, default: null })
     at: Date | null;

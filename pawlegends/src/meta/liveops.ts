@@ -361,7 +361,8 @@ export function applyFeatured(f: { id: string; endsAt: number } | null, now = Da
     return true;
   }
   const base = f ? BASE_MODES.find((m) => m.id === f.id) : undefined;
-  if (!f || !base || base.state !== 'live' || f.endsAt <= now) return !!prevBase;
+  // round 4: Ranked is always open with its own live tile (counts, Prime Time); it is never turned into a timed event
+  if (!f || !base || base.state !== 'live' || base.id === 'ranked' || f.endsAt <= now) return !!prevBase;
   registerMode({ ...base, state: { event: { endsAt: f.endsAt } } });
   featuredKey = key;
   const ms = f.endsAt - now;

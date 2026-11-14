@@ -164,9 +164,9 @@ describe('featured mode ribbon', () => {
     expect(playable(after, end + 100)).toBe(true);
   });
 
-  it('never features a locked or coming-soon mode', () => {
+  it('never features Ranked (its own always-open tile) or a mode this build does not have', () => {
     applyFeatured({ id: 'ranked', endsAt: NOW + 86_400_000 }, NOW);
-    expect(modeById('ranked', modeList(NOW))!.state).toBe('locked');
+    expect(modeById('ranked', modeList(NOW))!.state).toBe('live');
     // a mode that is not in this build's base table (or not live there) is never featured
     applyFeatured({ id: 'arena', endsAt: NOW + 86_400_000 }, NOW);
     expect(modeById('arena', modeList(NOW))).toBeUndefined();

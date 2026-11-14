@@ -7,7 +7,6 @@ import { User } from '../../user/user.schema';
 import { MmRatingReader, PawlegendsRating, PawlegendsRatingSchema } from './rating.schema';
 import { PawlegendsBoard, PawlegendsSanction } from '../social/social.schema';
 import { SanctionReader } from './sanction-reader';
-import { RankedStatusService } from '../ranked/status';
 import { rankedJoinSource } from '../ranked/ranked-join';
 import type { RankedJoinSource } from './mm-bridge';
 
@@ -26,7 +25,7 @@ export class MmService implements MmHookFactory {
     readonly rooms: MongoMmRoomStore;
     readonly reader: MmRatingReader;
     readonly sanctions: SanctionReader;
-    /** Ranked's join checks: the liquidity gate, saved matches, unsettled ranked rooms (SOCIAL-RANKED.md §7). */
+    /** Ranked's join checks: saved matches and unsettled ranked rooms (SOCIAL-RANKED.md §7; always open since round 4). */
     readonly ranked: RankedJoinSource;
 
     constructor(
@@ -36,15 +35,12 @@ export class MmService implements MmHookFactory {
         @Optional() @InjectModel(User.name) userModel?: Model<User>,
         // the boards `/live` writes (SOCIAL-RANKED.md §6.1) and the sanctions `/live` and `mm.join` read
         @Optional() @InjectModel(PawlegendsBoard.name) private readonly boardModel?: Model<PawlegendsBoard>,
-        @Optional() @InjectModel(PawlegendsSanction.name) private readonly sanctionModel?: Model<PawlegendsSanction>,
-        // the ranked liquidity gate (ranked/status.ts): `mm.join ranked` is refused while it is closed
-        @Optional() rankedStatus?: RankedStatusService
+        @Optional() @InjectModel(PawlegendsSanction.name) private readonly sanctionModel?: Model<PawlegendsSanction>
     ) {
         this.rooms = new MongoMmRoomStore(mmRoomModel);
         this.reader = new MmRatingReader(ratingModel ?? null, Date.now, userModel ?? null);
         this.sanctions = new SanctionReader(sanctionModel ?? null);
         this.ranked = rankedJoinSource({
-            gate: rankedStatus ?? null,
             played: acct => this.reader.played(acct),
             rooms: (mmRoomModel as never) ?? null,
             ratings: (ratingModel as never) ?? null,

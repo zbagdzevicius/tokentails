@@ -17,7 +17,7 @@ import { TRICK_IDS } from '../data/tricks';
 import { HERO_IDS, HEROES } from '../data/heroes';
 import { COPY, clockText, errorText, esc } from './ui/copy';
 import { queueCardHtml, type QueueStop } from './ui/queueCard';
-import { RANKED_CASUAL_AFTER_S } from '../meta/ranked';
+import { measureRegionPings, RANKED_BOTS, RANKED_CASUAL_AFTER_S, rankedStatusNow, regionPingsNow, type RankedKind } from '../meta/ranked';
 import { acceptCardHtml } from './ui/acceptCard';
 import { lobbyHtml, qrSheetHtml, shownName } from './ui/partyLobby';
 import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
@@ -52,6 +52,8 @@ export interface MmFound {
   humans: number;
   bots: number;
   difficulty: string;
+  /** Ranked vs AI (SOCIAL-RANKED.md §7.11): this team against bots. */
+  ai?: boolean;
 }
 
 /** The last `mm.status`. */
@@ -61,6 +63,8 @@ export interface QueueStatus {
   found: number;
   lowPriorityMs?: number;
   warn?: 'leaver';
+  /** Ranked (SOCIAL-RANKED.md §7.11): players searching this pool now. */
+  searching?: number;
 }
 
 /** Quick Play: this player (or its friend party) searching, matched, or stopped. */
@@ -116,6 +120,8 @@ export interface AcceptState {
 export interface PartyState {
   /** Gap plan P4: the last match the queue found is ranked (its results show the ranked block). */
   rankedMatch?: boolean;
+  /** Round 4 (SOCIAL-RANKED.md §7.11): who that ranked match is against (players, bot-filled, vs AI). */
+  rankedKind?: RankedKind;
   mode: OpenMode;
   /** Casual PvP: the Accept card, or null. */
   accept: AcceptState | null;
@@ -238,6 +244,13 @@ export const initialParty = (mode: OpenMode, code: string | null = null, side: M
   rejoin: false,
   rankedMatch: false,
 });
+
+/**
+ * The `mm.join` frame. Ranked carries `bots: true` (SOCIAL-RANKED.md §7.11): this game labels bots, so a quiet ranked
+ * queue may fill the search with them or play it vs AI.
+ */
+export const mmJoinMsg = (queue: MmQueue, side: MmSide): ClientJson =>
+  queue === 'ranked' ? { t: 'mm.join', queue, side, bots: true } : { t: 'mm.join', queue, side };
 
 /** This player is a stranger in a Quick Play party (a stranger's view never carries the code). */
 export const isStranger = (v: PartyView | null): boolean => !!v?.mm && v.code === '';
@@ -372,7 +385,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       const base = { ...s, voided: false, accept: null };
       if (!s.welcomed) return { state: { ...base, queue, error: null, offer: null }, effects: [] };
       if (!s.mmOk || (mode !== 'coop' && !s.pvpOk)) return { state: { ...base, queue: { ...queue, stopped: 'update' } }, effects: [] };
-      send({ t: 'mm.join', queue: mode, side: ev.side });
+      send(mmJoinMsg(mode, ev.side));
       return { state: { ...base, queue, error: null, offer: null, asked: true }, effects: fx };
     }
     case 'accept': {
@@ -430,7 +443,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       // the player sees one continuous search. A friend party's search is the leader's to re-send.
       if (q && !q.stopped && !q.found && !s.accept && (!s.view || isStranger(s.view) || s.view.leader === s.view.you)) {
         if (!mmOk || (q.mode !== 'coop' && !pvpOk)) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true, queue: { ...q, stopped: 'update' } }, effects: [] };
-        return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [{ t: 'send', msg: { t: 'mm.join', queue: q.toCoop ? 'coop' : q.mode, side: q.side } }] };
+        return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [{ t: 'send', msg: mmJoinMsg(q.toCoop ? 'coop' : q.mode, q.side) }] };
       }
       if (q && !s.view) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [] };
       // a reconnect keeps the view (the relay re-sends the party right after welcome)
@@ -464,6 +477,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         found: m.found,
         ...(m.lowPriorityMs ? { lowPriorityMs: m.lowPriorityMs } : {}),
         ...(m.warn ? { warn: m.warn } : {}),
+        ...(typeof m.searching === 'number' ? { searching: m.searching } : {}),
       };
       const base = s.queue && !s.queue.found ? s.queue : searching(m.side, { party: !!s.view && !isStranger(s.view), mode: m.queue });
       // casual: the 45 s move to co-op (`from: 'casual'`), a requeue after a decline, the other team's humans
@@ -505,12 +519,17 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         };
         const found: MmFound = { side: m.side, humans: m.humans, bots: m.bots, difficulty: m.difficulty };
         fx.push({ t: 'accept-clock' }, { t: 'vibrate' });
-        return { state: { ...s, accept, found, offer: null, rankedMatch: m.queue === 'ranked' }, effects: fx };
+        const ranked = m.queue === 'ranked';
+        // §7.11: a bot in any seat of either team makes it a bot-filled ranked match (half points)
+        const rankedKind: RankedKind | undefined = ranked ? (m.teams[0][1] + m.teams[1][1] > 0 ? 'filled' : 'players') : undefined;
+        return { state: { ...s, accept, found, offer: null, rankedMatch: ranked, rankedKind }, effects: fx };
       }
-      const found: MmFound = { side: m.side, humans: m.humans, bots: m.bots, difficulty: m.difficulty };
+      const found: MmFound = { side: m.side, humans: m.humans, bots: m.bots, difficulty: m.difficulty, ...(m.queue === 'ranked' && m.ai ? { ai: true } : {}) };
       const q = s.queue ?? searching(m.side);
       fx.push({ t: 'found-hold' }, { t: 'vibrate' });
-      return { state: { ...s, queue: { ...q, found }, found, offer: null, rankedMatch: false }, effects: fx };
+      // §7.11: ranked vs AI (a co-op shaped match from the ranked queue) is ranked: the results show the ranked block
+      const ai = m.queue === 'ranked' && m.ai === true;
+      return { state: { ...s, queue: { ...q, found }, found, offer: null, rankedMatch: ai, rankedKind: ai ? 'ai' : undefined }, effects: fx };
     }
     case 'mm.accepted': {
       if (!s.accept || s.accept.match !== m.match) return { state: s, effects: [] };
@@ -653,7 +672,7 @@ export interface PartyHooks {
   /** Start loading the match chunk and assets (during the lobby and the pick). */
   preload?(): Promise<unknown>;
   /** Start the party match in the app (a MatchSession on this NetHost). `backfill`: this player took a leaver's seat. */
-  startMatch(host: () => NetHost, match: MatchMsg, view: PartyView, info?: { backfill: boolean; ranked?: boolean }): void;
+  startMatch(host: () => NetHost, match: MatchMsg, view: PartyView, info?: { backfill: boolean; ranked?: boolean; rankedKind?: RankedKind }): void;
   /** Quick Play: the side of the first search ("Play online"; the last one this viewer used). */
   queueSide?: MmSide;
   /** Casual PvP: the first search's queue (the title's mode chip). */
@@ -906,7 +925,7 @@ export class PartyClient {
           },
           f.match,
           this.state.view!,
-          { backfill: this.backfilled, ...(this.state.rankedMatch ? { ranked: true } : {}) },
+          { backfill: this.backfilled, ...(this.state.rankedMatch ? { ranked: true, ...(this.state.rankedKind ? { rankedKind: this.state.rankedKind } : {}) } : {}) },
         );
         return;
       case 'note':
@@ -1094,6 +1113,12 @@ export class PartyClient {
       if (el && el.textContent !== text) el.textContent = text;
     };
     set('waited', clockText(this.waitedS()));
+    // ranked (§7.11): the bot fill countdown
+    if (q.mode === 'ranked' && !q.stopped && !q.found) {
+      const fillS = rankedStatusNow()?.primeTime?.active ? RANKED_BOTS.primeFillS : RANKED_BOTS.fillS;
+      const w = this.waitedS();
+      set('rkbots', w < fillS ? COPY.rankedBotsAt(fillS - Math.floor(w), fillS + RANKED_BOTS.aiAfterS) : COPY.rankedBotsNow);
+    }
     // ranked: the card offers Casual once the wait passes the line (one redraw at that moment)
     if (q.mode === 'ranked' && !q.stopped && !q.found && this.waitedS() >= RANKED_CASUAL_AFTER_S && !this.card.querySelector('[data-testid="mm-play-casual"]')) {
       this.drawn = '';
@@ -1119,9 +1144,22 @@ export class PartyClient {
     }
   }
 
+  /** The region ping was started this visit (the ranked queue card shows it; SOCIAL-RANKED.md §7.11 groundwork). */
+  private pinged = false;
+
   private queueModel() {
     const s = this.state;
     const q = s.queue!;
+    if (q.mode === 'ranked' && !this.pinged) {
+      this.pinged = true;
+      const regions = rankedStatusNow()?.regions ?? [];
+      if (regions.length)
+        void measureRegionPings(this.h.api, regions).then(() => {
+          if (this.state.queue?.mode !== 'ranked') return;
+          this.drawn = '';
+          this.render();
+        });
+    }
     const retryS = q.retryMs ? Math.max(0, Math.ceil((q.retryMs - (this.now() - this.stoppedAt)) / 1000)) : 0;
     return {
       side: q.side,
@@ -1133,10 +1171,21 @@ export class PartyClient {
       party: q.party,
       stopped: q.stopped,
       retryS,
-      match: q.found ? { humans: q.found.humans, bots: q.found.bots, side: q.found.side, difficulty: q.found.difficulty } : null,
+      match: q.found ? { humans: q.found.humans, bots: q.found.bots, side: q.found.side, difficulty: q.found.difficulty, ...(q.found.ai ? { ai: true } : {}) } : null,
       ...(q.mode === 'classic' ? { teamSize: 5 } : {}),
       ...(q.mode !== 'coop' ? { pvp: { theirs: q.theirs ?? 0, toCoop: !!q.toCoop, requeued: !!q.requeued } } : {}),
-      ...(q.mode === 'ranked' ? { ranked: { casualAfterS: RANKED_CASUAL_AFTER_S, ...(q.ranked ?? {}) } } : {}),
+      ...(q.mode === 'ranked'
+        ? {
+            ranked: {
+              casualAfterS: RANKED_CASUAL_AFTER_S,
+              ...(q.ranked ?? {}),
+              // §7.11: the live count, Prime Time and the region ping (groundwork: one region today)
+              ...(typeof q.status?.searching === 'number' ? { searching: q.status.searching } : {}),
+              prime: !!rankedStatusNow()?.primeTime?.active,
+              ...(regionPingsNow()[0] ? { region: regionPingsNow()[0] } : {}),
+            },
+          }
+        : {}),
       offer: s.offer ? { clockS: s.offer.clockS + Math.floor((this.now() - this.offerAt) / 1000), score: s.offer.score, leftS: this.offerLeftS(), totalS: s.offer.expiresMs / 1000 } : null,
     };
   }

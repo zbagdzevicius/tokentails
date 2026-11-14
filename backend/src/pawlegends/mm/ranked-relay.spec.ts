@@ -4,18 +4,16 @@ import type { RankedJoinSource, RankedRefusal } from './mm-bridge';
 import type { TestClient } from '../party/relay-test-client.helper-spec';
 
 /*
- * Ranked over real sockets (gap plan P4, SOCIAL-RANKED.md §7.1, §7.6, §7.9): `mm.join {queue:'ranked'}` is refused
- * while the liquidity gate is closed, for a guest, below the saved matches and with an unsaved ranked match; with the
- * gate open six registered accounts get a ranked Accept card (no bots) and a ranked room record of the season.
+ * Ranked over real sockets (SOCIAL-RANKED.md §7.1, §7.6, §7.11): always open since round 4. `mm.join {queue:'ranked'}`
+ * is refused for a guest, below the saved matches and with an unsaved ranked match; six registered accounts get a
+ * ranked Accept card (no bots) and a ranked room record of the season; a quiet queue fills with labelled bots or plays
+ * vs AI, but only for a game that sent `bots: true`.
  */
 
 const VET = { hint: { maxDifficulty: 'normal', newbie: false, matches: 12 } };
 
-function source(
-    over: Partial<RankedJoinSource> & { open?: boolean; why?: RankedRefusal | null } = {}
-): RankedJoinSource {
+function source(over: Partial<RankedJoinSource> & { why?: RankedRefusal | null } = {}): RankedJoinSource {
     return {
-        gate: async () => ({ open: over.open ?? true, online: over.open === false ? 9 : 30, need: 24 }),
         check: async () => over.why ?? null,
         ...(over.allowGuests ? { allowGuests: true } : {}),
     };
@@ -35,30 +33,18 @@ async function accounts(b: Awaited<ReturnType<typeof bootMm>>, n: number, prefix
 
 let nets = 0;
 const join = (c: TestClient) => c.send({ t: 'mm.join', queue: 'ranked', side: 'any' });
+/** A game that labels bots (§7.11). */
+const joinBots = (c: TestClient) => c.send({ t: 'mm.join', queue: 'ranked', side: 'any', bots: true });
 
-describe('ranked relay (gap plan P4)', () => {
+describe('ranked relay (gap plan P4, round 4 low population)', () => {
     jest.setTimeout(120_000);
 
-    it('a closed gate refuses the join with the count and the line; nothing is queued', async () => {
-        const b = await bootMm({ ranked: source({ open: false }) });
-        try {
-            const [a] = await accounts(b, 1);
-            join(a);
-            const err = await a.until(() => a.last('error'));
-            expect(err).toMatchObject({ code: 'mm_ranked_closed', online: 9, need: 24 });
-            await nextTick();
-            expect(a.last('mm.status')).toBeUndefined();
-        } finally {
-            await b.stop();
-        }
-    });
-
-    it('without a ranked source (no gate wired) ranked is closed', async () => {
+    it('without a ranked source (no account checks wired) ranked is closed', async () => {
         const b = await bootMm();
         try {
             const [a] = await accounts(b, 1);
             join(a);
-            expect(await a.until(() => a.last('error'))).toMatchObject({ code: 'mm_ranked_closed', need: 24 });
+            expect(await a.until(() => a.last('error'))).toMatchObject({ code: 'mm_ranked_closed' });
         } finally {
             await b.stop();
         }
@@ -143,7 +129,51 @@ describe('ranked relay (gap plan P4)', () => {
         }
     });
 
-    it('five accounts never get a match: no bot ever fills ranked, even after ten minutes', async () => {
+    it('a lone account with bots: the card counts it searching, then it plays vs AI (a ranked room of the season)', async () => {
+        const b = await bootMm({ ranked: source() });
+        try {
+            const [a] = await accounts(b, 1);
+            joinBots(a);
+            expect(await a.until(() => a.last('mm.status'))).toMatchObject({ queue: 'ranked', searching: 1 });
+            b.skew.ms += 10 * 60_000;
+            const f = await a.until(() => a.last('mm.found'));
+            expect(f).toMatchObject({ queue: 'ranked', ai: true, humans: 1, bots: 2 });
+            expect(f.mode).toBeUndefined();
+            expect(['normal', 'hard']).toContain(f.difficulty);
+            const view = await a.until(() => (a.last('party')?.phase === 'pick' ? a.last('party') : null));
+            a.send({ t: 'pick.lock', hero: heroesOf(view.mm.side)[0], trick: TRICK });
+            await a.until(() => (a.last('party')?.phase === 'loading' ? true : null), 15_000);
+            a.send({ t: 'loaded' });
+            await a.until(() => a.last('match'), 15_000);
+            const rec = await a.until(() => [...b.mmRooms.rooms.values()][0] ?? null);
+            expect(rec).toMatchObject({ queue: 'ranked', season: CURRENT_SEASON_ID, vsAi: true });
+            expect(rec.teams).toBeUndefined();
+        } finally {
+            await b.stop();
+        }
+    });
+
+    it('two accounts with bots: after the fill a fair 1v1 with labelled bots on both teams (Accept card counts them)', async () => {
+        const b = await bootMm({ ranked: source() });
+        try {
+            const cs = await accounts(b, 2);
+            cs.forEach(joinBots);
+            await cs[0].until(() => cs[0].last('mm.status'));
+            b.skew.ms += 80_000;
+            const found = await Promise.all(cs.map(c => c.until(() => c.last('mm.found'))));
+            for (const f of found) {
+                expect(f).toMatchObject({ mode: 'casual', queue: 'ranked', humans: 1, bots: 2 });
+                expect(f.teams).toEqual([
+                    [1, 2],
+                    [1, 2],
+                ]);
+            }
+        } finally {
+            await b.stop();
+        }
+    });
+
+    it('five accounts of a game that does not label bots never get a match: no bot, even after ten minutes', async () => {
         const b = await bootMm({ ranked: source() });
         try {
             const cs = await accounts(b, 5);

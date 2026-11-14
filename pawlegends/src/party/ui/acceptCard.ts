@@ -30,6 +30,7 @@ export function acceptCardHtml(m: AcceptModel): string {
     <h2>${title}</h2>
     <span class="pp-ring" style="--pp-ring:${pct}%" aria-hidden="true"><b data-live="accept">${Math.max(0, Math.ceil(m.leftS))}</b></span>
     <p class="pp-found" data-testid="mm-found"><span>${esc(COPY.pvpFoundLine(m.mine, m.theirs, sideText(m.side)))}</span></p>
+    ${m.ranked && m.mine[1] + m.theirs[1] > 0 ? `<p class="pp-note" data-testid="mm-ranked-filled">${esc(COPY.rankedFilled)}</p>` : ''}
     ${actions}
   </div>`;
 }

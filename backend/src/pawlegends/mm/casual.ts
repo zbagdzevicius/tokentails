@@ -26,18 +26,32 @@ export interface PvpQueueRules {
     limits: PvpLimits;
     /** Ranked (SOCIAL-RANKED.md §7.1): opposite teams never share a /24 (/48) network, not only an address. */
     apartByNet?: boolean;
+    /** Ranked (§7.11): bots fill a match only when every entry in it sent `bots: true` (a game that labels them). */
+    fillNeedsOptIn?: boolean;
 }
 export const CASUAL_RULES: PvpQueueRules = Object.freeze({ queue: 'casual', teamSize: 3, limits: MM_CASUAL });
 export const CLASSIC_RULES: PvpQueueRules = Object.freeze({ queue: 'classic', teamSize: 5, limits: MM_CLASSIC });
-/** Ranked: 3v3 on the Crossing, full teams of humans only (no bot fill), the network rule across teams. */
+/** Ranked: 3v3 on the Crossing, players first, labelled bots after the fill (opted-in entries only), the network rule. */
 export const RANKED_RULES: PvpQueueRules = Object.freeze({
     queue: 'ranked',
     teamSize: 3,
     limits: MM_RANKED,
     apartByNet: true,
+    fillNeedsOptIn: true,
 });
-export const pvpRulesOf = (queue: string): PvpQueueRules =>
-    queue === 'classic' ? CLASSIC_RULES : queue === 'ranked' ? RANKED_RULES : CASUAL_RULES;
+/** Ranked inside Prime Time (§7.11): the same rules, bots wait `primeFillMs`. */
+export const RANKED_PRIME_RULES: PvpQueueRules = Object.freeze({
+    ...RANKED_RULES,
+    limits: Object.freeze({ ...MM_RANKED, fillMs: MM_RANKED.primeFillMs }),
+});
+export const pvpRulesOf = (queue: string, prime = false): PvpQueueRules =>
+    queue === 'classic'
+        ? CLASSIC_RULES
+        : queue === 'ranked'
+        ? prime
+            ? RANKED_PRIME_RULES
+            : RANKED_RULES
+        : CASUAL_RULES;
 
 export type Species = 'cat' | 'dog';
 
@@ -223,6 +237,8 @@ export function bestCasual(
             const hb = humansOf(teamB);
             const rank = shapeRankN(ha, hb, n);
             if (rank !== 0 && !fillOk) continue;
+            // ranked (§7.11): never a bot for an entry whose game does not label them
+            if (rank !== 0 && rules.fillNeedsOptIn && ![...teamA, ...teamB].every(e => e.bots === true)) continue;
             if (rank >= 99) continue;
             // a lone human never faces a full team while a 2-human team can still form (15 s after the fill)
             if (Math.min(ha, hb) === 1 && Math.max(ha, hb) === n && waited < c.fillMs + c.loneVsThreeMs) continue;

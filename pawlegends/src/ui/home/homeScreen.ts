@@ -234,12 +234,12 @@ function promoHtml(o: HomeScreenOpts): string {
   return `<div class="hm-promo" role="region" aria-label="News" data-n="${ps.length}">${slides}${dots}</div>`;
 }
 
-/** The nav Ranked item (gap plan P4): live while the gate is open, else locked with the gate line. Pure. */
+/** The nav Ranked item (round 4, SOCIAL-RANKED.md §7.11: always open): live for a returning player. Pure. */
 export function rankedNavOpts(o: Pick<HomeScreenOpts, 'modes'>, returning: boolean): { locked?: string; extra?: string } {
   const m = o.modes.find((x) => x.id === 'ranked');
-  if (m && returning && effectiveState(m, Date.now()) === 'live') return { extra: ' aria-label="Ranked: open now" data-live="1"' };
+  if (m && returning && effectiveState(m, Date.now()) === 'live') return { extra: ` aria-label="${esc(`Ranked: open now${m.liveLine ? `, ${m.liveLine}` : ''}`)}" data-live="1"` };
   if (!returning) return { locked: 'Unlocks after your first match.' };
-  return { locked: m?.lockText ? `Ranked: ${m.lockText}.` : 'Ranked opens when enough players are online.' };
+  return { locked: m?.lockText ? `Ranked: ${m.lockText}.` : 'Ranked is not available right now.' };
 }
 
 function navHtml(o: HomeScreenOpts, returning: boolean): string {

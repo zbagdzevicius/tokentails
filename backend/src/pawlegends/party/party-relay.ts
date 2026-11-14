@@ -1958,9 +1958,7 @@ export class PartyRelay {
             const h = this.byMember.get(m)?.hint;
             return !!h && (h.matches === 0 || (h.matches === undefined && h.newbie));
         });
-        const ranked =
-            (live.config as { mode?: string }).mode === 'ranked' ||
-            (p?.mm as { queue?: string } | undefined)?.queue === 'ranked';
+        const ranked = (live.config as { mode?: string }).mode === 'ranked' || !!p?.mm?.ranked;
         const keys = new Map<number, string>();
         for (const o of live.occupants) {
             if (o.ticketed && o.accountId) keys.set(o.slot, `a:${o.accountId}`);
@@ -2138,6 +2136,7 @@ export class PartyRelay {
                                   strangers: [...party.mm.strangers],
                                   host: party.mm.host,
                                   ...(party.mm.casual ? { casual: party.mm.casual } : {}),
+                                  ...(party.mm.ranked ? { ranked: true } : {}),
                               },
                           }
                         : {}),
@@ -3374,6 +3373,7 @@ export class PartyRelay {
                 strangers: string[];
                 host: boolean;
                 casual?: import('./party.service').PartyCasual;
+                ranked?: boolean;
             };
         };
         const leaderDoc = doc.members.find(m => m.id === doc.leader) ?? doc.members[0];
@@ -3592,11 +3592,7 @@ export class PartyRelay {
     /** The kind of a live room for its spectate delay: ranked, casual PvP (incl. 5v5), Quick Play co-op or a party. */
     private watchKindOf(live: LiveRoom): WatchKind {
         const p = this.parties.byId(live.party);
-        if (
-            (live.config as { mode?: string }).mode === 'ranked' ||
-            (p?.mm as { queue?: string } | undefined)?.queue === 'ranked'
-        )
-            return 'ranked';
+        if ((live.config as { mode?: string }).mode === 'ranked' || !!p?.mm?.ranked) return 'ranked';
         if (live.casual || live.config.mode === 'pvp') return 'casual';
         return live.coop ? 'coop' : 'party';
     }
@@ -3794,10 +3790,10 @@ export class PartyRelay {
                     state: 'match',
                     ...(live && !this.watchableOf(live).closed ? { room: live.room.id } : {}),
                 };
-            } else if (s.memberId && this.mm.queued(s.memberId)) e = { accountId: id.accountId, state: 'queue' };
+            } else if (s.memberId && this.mm.queued(s.memberId)) e = this.queuePresence(id.accountId, s.memberId);
             else {
                 const p = s.memberId ? this.parties.partyOf(s.memberId) : null;
-                if (p && p.queued) e = { accountId: id.accountId, state: 'queue' };
+                if (p && p.queued) e = this.queuePresence(id.accountId, s.memberId!);
                 else if (p && (!p.mm || p.mm.host))
                     e = {
                         accountId: id.accountId,
@@ -3811,6 +3807,15 @@ export class PartyRelay {
             if (!prev || rank[e.state] > rank[prev.state]) out.set(e.accountId, e);
         }
         return [...out.values()];
+    }
+
+    /** A queued account's presence: `q: 'ranked'` while it searches ranked (the ranked searching count). */
+    private queuePresence(accountId: string, member: string): PresenceEntry {
+        return {
+            accountId,
+            state: 'queue',
+            ...(this.mm.queueOf?.(member) === 'ranked' ? { q: 'ranked' as const } : {}),
+        };
     }
 
     /** Counters for logs and the load test. */

@@ -6,7 +6,7 @@
  * Polling: one pulse every 30 s while the sheet or the title is shown and the tab is visible; never in a match.
  */
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
-import { RANKED_OPEN_FALLBACK, rankedLabel } from '../meta/ranked';
+import { parseRankedStatus, primeTimeText, rankedLabel, rankedLiveText } from '../meta/ranked';
 import { HERO_IDS } from '../data/heroes';
 import { isAvatarView, previewText, type AvatarView } from '../data/chatPhrases';
 import { avatarHtml, titleText } from '../ui/avatar';
@@ -422,10 +422,10 @@ export class SocialSheet {
     else if (me?.why === 'pending') card = `<p class="pl-ranked-line">Saving your last ranked match…</p>`;
     else if (me?.ranked?.label) card = `<p class="pl-ranked-tier" data-tier="${this.esc(String(me.ranked.tier))}">${this.esc(rankedLabel(me.ranked.tierIdx, me.ranked.points))}</p><p class="pl-ranked-line">Peak: ${this.esc(String(me.ranked.peak ?? ''))}</p>`;
     else if (me?.ranked) card = `<p class="pl-ranked-line">Placement ${Math.max(0, (me.ranked.placementsOf ?? 5) - (me.ranked.placementsLeft ?? 5))} / ${me.ranked.placementsOf ?? 5}</p>`;
-    const open = !!st?.open;
-    const gate = open
-      ? `<p class="pl-ranked-line">Ranked is open · ${Number(st?.online ?? 0)} players online</p>`
-      : `<p class="pl-ranked-line">Ranked opens at ${Number(st?.need ?? RANKED_OPEN_FALLBACK)} players online · ${Number(st?.online ?? 0)} online now</p>`;
+    // round 4 (SOCIAL-RANKED.md §7.11): always open; the searching count and Prime Time when the server sends them
+    const parsed = st ? parseRankedStatus(st) : null;
+    const prime = primeTimeText(parsed);
+    const gate = `<p class="pl-ranked-line" data-testid="ranked-live">Ranked is open · ${this.esc(rankedLiveText(parsed))}${prime && !parsed?.primeTime?.active ? ` · ${this.esc(prime)}` : ''}</p>`;
     return `${season}${card}${gate}<button type="button" class="pl-btn big" data-a="casual">Play Casual</button>`;
   }
 

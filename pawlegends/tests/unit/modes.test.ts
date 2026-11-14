@@ -40,13 +40,13 @@ afterEach(() => {
 const NOW = Date.UTC(2026, 10, 11, 12);
 
 describe('mode registry', () => {
-  it('ships the default table: Blitz, Skirmish and Classic live (sim v22), Ranked locked, Cannon Chaos and Practice live (sim v27)', () => {
+  it('ships the default table: Blitz, Skirmish and Classic live (sim v22), Ranked live (round 4: always open), Cannon Chaos and Practice live (sim v27)', () => {
     const s = (id: string): string => effectiveState(modeById(id)!, NOW);
     expect(s('skirmish')).toBe('live');
     expect(s('classic')).toBe('live');
     // Nov 12: no separate "Co-op vs Bots" tile (co-op is Skirmish's variant)
     expect(modeById('coop')).toBeUndefined();
-    expect(s('ranked')).toBe('locked');
+    expect(s('ranked')).toBe('live');
     expect(s('blitz')).toBe('live');
     expect(s('cannon')).toBe('live');
     expect(s('practice')).toBe('live');
@@ -73,7 +73,7 @@ describe('mode registry', () => {
 
   it('lists playable modes first, then locked, then coming soon (registry order inside each group)', () => {
     // sim v28: One Lane Brawl and the Duel live; on a Wednesday Boss Weekend is "Next: Fri" (coming soon, last)
-    expect(modeList(NOW).map((m) => m.id)).toEqual(['blitz', 'skirmish', 'classic', 'cannon', 'practice', 'onelane', 'duel', 'ranked', 'boss']);
+    expect(modeList(NOW).map((m) => m.id)).toEqual(['blitz', 'skirmish', 'classic', 'ranked', 'cannon', 'practice', 'onelane', 'duel', 'boss']);
     expect(metaLine(modeById('boss', modeList(NOW))!, NOW)).toBe('Next: Fri');
     const sat = Date.UTC(2026, 10, 14, 12);
     expect(effectiveState(modeById('boss', modeList(sat))!, sat)).toBe('event');
@@ -111,8 +111,9 @@ describe('mode registry', () => {
   it('meta line: size and length, the lock text, or Coming soon', () => {
     expect(metaLine(modeById('classic')!, NOW)).toBe('5v5 · ~13 min');
     expect(metaLine(modeById('blitz')!, NOW)).toBe('3v3 · ~3 min');
-    // gap plan P4: before the gate answers, the fallback line (never "later season")
-    expect(metaLine(modeById('ranked')!, NOW)).toBe('Opens at 24 players online');
+    // round 4 (SOCIAL-RANKED.md §7.11): Ranked is always open; before the status answers, no count is guessed
+    expect(metaLine(modeById('ranked')!, NOW)).toBe('3v3 · Always open');
+    expect(metaLine({ ...modeById('cannon')!, state: 'locked', lockText: 'Unlocks after 5 matches' }, NOW)).toBe('Unlocks after 5 matches');
     expect(metaLine(modeById('cannon')!, NOW)).toBe('3v3 · ~5 min');
     expect(metaLine({ ...modeById('cannon')!, state: 'soon' }, NOW)).toBe('Coming soon');
   });
@@ -166,7 +167,8 @@ describe('saved mode choice', () => {
   it('round-trips, and a saved mode that cannot be played falls back to Skirmish', () => {
     saveModeChoice({ mode: 'classic', queue: 'pvp' });
     expect(loadModeChoice(modeList(NOW), NOW)).toEqual({ mode: 'classic', queue: 'pvp' });
-    saveModeChoice({ mode: 'ranked', queue: 'pvp' });
+    registerMode({ id: 'vault', name: 'Vault', size: '3v3', minutes: '~5 min', queues: ['pvp'], art: 'cannon', state: 'locked', rules: ['a', 'b'] });
+    saveModeChoice({ mode: 'vault', queue: 'pvp' });
     expect(loadModeChoice(modeList(NOW), NOW)).toEqual({ mode: 'skirmish', queue: 'pvp' });
     saveModeChoice({ mode: 'gone', queue: 'bots' });
     expect(loadModeChoice(modeList(NOW), NOW).mode).toBe('skirmish');

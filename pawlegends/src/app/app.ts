@@ -64,7 +64,7 @@ import { botsChoice, disposeHome, homeScreen, patchHome, type HomeProfile, type 
 import { currentSeason, seasonEndText } from '../meta/pass';
 import { initLiveops, liveopsState } from '../meta/liveops';
 import { legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef } from '../ui/modeSelect/modes';
-import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard } from '../meta/ranked';
+import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard, type RankedKind } from '../meta/ranked';
 import { heroElement } from '../ui/cards/el';
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel, type StoreTab } from '../ui/store';
@@ -792,7 +792,7 @@ export class App {
   }
 
   /** Gap plan P4: the ranked match being played (its card before the match, read through the host). */
-  private rankedRun: { before: Promise<RankedCard | null> } | null = null;
+  private rankedRun: { before: Promise<RankedCard | null>; kind?: RankedKind } | null = null;
 
   /** The signed-in player's ranked card (`GET /pawlegends/ranked/me` through the host), or null. */
   private rankedCard(): Promise<RankedCard | null> {
@@ -820,8 +820,8 @@ export class App {
         if (!resultsEl.isConnected) return;
         const after = await this.rankedCard();
         if (!after || same(before, after)) continue;
-        slot.innerHTML = rankedBlockHtml(rankedResult(before, after, won));
-        this.analytics.track('ranked_result' as never, { won, tier: after.tierIdx ?? -1 } as never);
+        slot.innerHTML = rankedBlockHtml(rankedResult(before, after, won), run.kind);
+        this.analytics.track('ranked_result' as never, { won, tier: after.tierIdx ?? -1, kind: run.kind ?? 'players' } as never);
         return;
       }
       if (resultsEl.isConnected) slot.innerHTML = `<p class="pl-rk-wait">Ranked points update when the match saves.</p>`;
@@ -832,7 +832,7 @@ export class App {
   private rankedKey = '';
 
   /**
-   * Gap plan P4: read the ranked gate (and, signed in through the host, the player's tier) and register the Ranked tile
+   * Gap plan P4 / round 4: read the ranked status (and, signed in through the host, the player's tier) and register the Ranked tile
    * from it. Home redraws only when the tile changed and no Mode Select is open (it would close mid-choice).
    */
   private refreshRanked(api: string): void {
@@ -848,12 +848,12 @@ export class App {
             ? { tier: `Placements ${Math.max(0, (r.placementsOf ?? 5) - r.placementsLeft)}/${r.placementsOf ?? 5}` }
             : undefined;
       const def = rankedModeDef(st, rank);
-      const key = JSON.stringify([def.state, def.lockText ?? '', def.rank ?? null]);
+      const key = JSON.stringify([def.state, def.liveLine ?? '', def.rank ?? null]);
       registerMode(def);
       if (key === this.rankedKey) return;
       const first = this.rankedKey === '';
       this.rankedKey = key;
-      if (first && def.state !== 'live' && !st) return;
+      if (first && !st) return;
       if (this.screen === 'title' && !this.party && !this.root.querySelector('.ms-overlay')) this.showTitle(false);
     });
   }
@@ -1244,7 +1244,7 @@ export class App {
             preload: () => loadMatch(),
             startMatch: (host, match, _view, info) => {
               // gap plan P4: a ranked match remembers the ranked card before it, for the results block
-              this.rankedRun = info?.ranked ? { before: this.rankedCard() } : null;
+              this.rankedRun = info?.ranked ? { before: this.rankedCard(), ...(info.rankedKind ? { kind: info.rankedKind } : {}) } : null;
               this.startPartyMatch(host, match, info?.backfill === true);
             },
             // Quick Play: the remembered side, the analytics context and the pick's default hero per side
@@ -1846,7 +1846,7 @@ export class App {
       : null;
     const resultsEl = resultsScreen(this.root, {
         // gap plan P4: a scored ranked match shows the ranked block (filled once the save lands)
-        ...(party && this.rankedRun && partyEnd?.scored !== false ? { ranked: true } : {}),
+        ...(party && this.rankedRun && partyEnd?.scored !== false ? { ranked: true, ...(this.rankedRun.kind ? { rankedKind: this.rankedRun.kind } : {}) } : {}),
         ...(reportBook
           ? {
               onReport: (slot: number, anchor: HTMLElement) =>
