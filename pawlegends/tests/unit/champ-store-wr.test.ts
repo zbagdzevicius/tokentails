@@ -191,7 +191,7 @@ describe('store panel', () => {
     expect(el.querySelector('.cst-detail [data-buy="pl_champs_all_s1"]')).not.toBeNull();
     click(el.querySelector('[data-a="detail-close"]'));
     click(el.querySelector('.cst-tabs [data-tab="coats"]'));
-    expect(el.querySelectorAll('.cst-card[data-sel]')).toHaveLength(20);
+    expect(el.querySelectorAll('.cst-card[data-sel]')).toHaveLength(22);
     // Coats / Sets sit in the top bar; Sets keeps the Coats tab lit
     click(el.querySelector('.cst-top [data-tab="sets"]'));
     expect(el.querySelector('.cst-top [data-tab="sets"]')!.getAttribute('aria-pressed')).toBe('true');
@@ -200,7 +200,7 @@ describe('store panel', () => {
 
   it('every tab is one vertical grid of the same cards (no sideways shelf, no old preview and buy bar)', () => {
     const { el } = open(state());
-    for (const [tab, n] of [['champions', 20], ['featured', 13], ['coats', 20], ['frames', 4]] as const) {
+    for (const [tab, n] of [['champions', 20], ['featured', 13], ['coats', 22], ['frames', 4]] as const) {
       click(el.querySelector(`.cst-tabs [data-tab="${tab}"]`));
       const grids = el.querySelectorAll('[data-scroll]');
       expect(grids, tab).toHaveLength(1);
@@ -237,7 +237,7 @@ describe('store panel', () => {
   it('the coat grid renders nothing at runtime: every coat card is a painted <img>, none is a data: bake', () => {
     const { el } = open(state(), { tab: 'coats' });
     const imgs = [...el.querySelectorAll<HTMLImageElement>('img[data-coat]')];
-    expect(imgs).toHaveLength(20);
+    expect(imgs).toHaveLength(22);
     for (const i of imgs) expect(i.getAttribute('src')).toMatch(/^(https?:|\.?\/)[^ ]*\.webp/);
     expect(el.innerHTML).not.toContain('data:image');
   });

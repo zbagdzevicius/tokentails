@@ -95,7 +95,7 @@ describe('store catalogue', () => {
         for (const def of CATALOG_SKUS) expect(PAWLEGENDS_SKUS[def.sku].oncePerAccount).toBe(true);
         expect(STORE_COATS).toHaveLength(16);
         // CARD-SKINS.md effect coats: Epic $7.99, Legendary $14.99, sold singly (never inside a set)
-        expect(EFFECT_COATS).toHaveLength(4);
+        expect(EFFECT_COATS).toHaveLength(6);
         for (const c of EFFECT_COATS) {
             expect(PAWLEGENDS_SKUS[coatSkuOf(c)].cents.usd).toBe(c.rung === 'EPIC' ? 799 : 1499);
             for (const d of CATALOG_SKUS.filter(s => s.kind === 'bundle')) expect(d.items).not.toContain(c.id);

@@ -12,7 +12,31 @@
 // as copy. `webOnly` marks text in an `isApp ? app : web` web branch (or a `// copy-lint: web-only`
 // file); app-build rules skip it.
 
-import ts from 'typescript';
+import { createRequire } from 'node:module';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// The TypeScript compiler API. The lint's own install (tools/copy-lint/node_modules, CI) comes first. A git worktree
+// usually has no install there, and a test runner (vitest) would then hand a bare `typescript` import the package's
+// own TypeScript, which may be the native compiler (7.x) with no JS API. So the lint asks Node's resolver directly
+// and, failing that, borrows the compiler of a sibling package (backend/, client/, cms/, pawlegends-web/), taking
+// the first one that has `createSourceFile`.
+const ts = loadTs();
+
+function loadTs() {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const root = resolve(here, '../../..');
+  const from = [join(here, 'extract.mjs'), ...['backend', 'client', 'cms', 'pawlegends-web'].map((p) => join(root, p, 'package.json'))];
+  for (const f of from) {
+    try {
+      const t = createRequire(f)('typescript');
+      if (typeof t?.createSourceFile === 'function') return t;
+    } catch {
+      // not installed there
+    }
+  }
+  throw new Error('copy-lint needs the TypeScript compiler API (5.x): run `npm install` in tools/copy-lint');
+}
 
 // JSX attributes that carry user-visible text.
 const TEXT_ATTRS = new Set([

@@ -30,7 +30,9 @@ export interface Profile {
   unlocks: string[];
   lastMatchAt: number;
   /** Chosen look per hero (coat item id or null, chroma element or null); resolved against what is owned. */
-  looks: Partial<Record<HeroId, { coat: string | null; chroma: string | null }>>;
+  looks: Partial<Record<HeroId, { coat: string | null; chroma: string | null; dye?: string | null }>>;
+  /** gaps4 chromas: finished matches wearing each coat (coat id → count, at most COAT_PLAYS_MAX entries). */
+  coatPlays: Record<string, number>;
   /** Offer card history (money/offer.ts). */
   offers: OfferHistory;
   /** First-match tips off (settings). */
@@ -113,7 +115,7 @@ const HEROES: readonly HeroId[] = HERO_IDS;
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss', 'purrify'];
 
 export function freshProfile(): Profile {
-  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, audioV: 2, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [], skinFx: 'all', previewsSeen: { session: 0, n: 0 }, bond: {}, skinAuto: null, heroMatches: {}, wornTitle: null, wornFrame: null, side: 'cat', lastBySide: {} };
+  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, audioV: 2, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [], skinFx: 'all', previewsSeen: { session: 0, n: 0 }, bond: {}, skinAuto: null, heroMatches: {}, coatPlays: {}, wornTitle: null, wornFrame: null, side: 'cat', lastBySide: {} };
 }
 
 /** Parse untrusted stored JSON into a valid profile (unknown fields dropped, bad ones defaulted). */
@@ -159,6 +161,14 @@ export function parseProfile(raw: string | null): Profile {
         if (c > 0) p.championMatches[h] = Math.min(c, 9999);
       }
     }
+    if (o.coatPlays && typeof o.coatPlays === 'object') {
+      const rows = Object.entries(o.coatPlays as Record<string, unknown>)
+        .filter(([k, v]) => /^coat\.[A-Za-z0-9_.-]{1,72}$/.test(k) && n(v) > 0)
+        .map(([k, v]) => [k, Math.min(n(v), 99999)] as const)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, COAT_PLAYS_MAX);
+      for (const [k, v] of rows) p.coatPlays[k] = v;
+    }
     if (o.heroMatches && typeof o.heroMatches === 'object') {
       for (const h of HEROES) {
         const c = n((o.heroMatches as Record<string, unknown>)[h]);
@@ -201,7 +211,11 @@ export function parseProfile(raw: string | null): Profile {
     if (o.looks && typeof o.looks === 'object') {
       for (const h of HEROES) {
         const l = (o.looks as Record<string, unknown>)[h];
-        if (l && typeof l === 'object') p.looks[h] = { coat: id((l as Record<string, unknown>).coat), chroma: id((l as Record<string, unknown>).chroma) };
+        if (l && typeof l === 'object') {
+          const r = l as Record<string, unknown>;
+          const dye = typeof r.dye === 'string' && /^[a-z]{1,16}$/.test(r.dye) ? r.dye : null;
+          p.looks[h] = { coat: id(r.coat), chroma: id(r.chroma), ...(dye ? { dye } : {}) };
+        }
       }
     }
     if (o.offers && typeof o.offers === 'object') {
@@ -297,6 +311,26 @@ export function noteHeroMatch(hero: HeroId): number {
   const p = loadProfile();
   const c = Math.min((p.heroMatches[hero] ?? 0) + 1, 99999);
   p.heroMatches[hero] = c;
+  saveProfile(p);
+  return c;
+}
+
+/** Most coats whose finished matches are kept (the lowest counts drop first). */
+export const COAT_PLAYS_MAX = 200;
+
+/**
+ * gaps4 chromas: one more finished match wearing coat `coatId` (render/skins/coatChromas.ts unlocks its chromas at 1,
+ * 3, 6 and 10). Returns the new count (0: no coat).
+ */
+export function noteCoatMatch(coatId: string | null | undefined): number {
+  if (!coatId || !/^coat\.[A-Za-z0-9_.-]{1,72}$/.test(coatId)) return 0;
+  const p = loadProfile();
+  const c = Math.min((p.coatPlays[coatId] ?? 0) + 1, 99999);
+  p.coatPlays[coatId] = c;
+  const keys = Object.keys(p.coatPlays);
+  if (keys.length > COAT_PLAYS_MAX) {
+    for (const k of keys.sort((a, b) => p.coatPlays[a] - p.coatPlays[b]).slice(0, keys.length - COAT_PLAYS_MAX)) if (k !== coatId) delete p.coatPlays[k];
+  }
   saveProfile(p);
   return c;
 }

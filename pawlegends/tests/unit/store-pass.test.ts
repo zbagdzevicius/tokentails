@@ -154,7 +154,7 @@ describe('store states and the pass', () => {
     const s = { id: 's1', xp: 0, tier: 0, skips: 0, claimed: [], endsAt: '' };
     expect(itemState(up, { items: new Set(), season: { ...s, premium: 'none' } })).toBe('locked');
     expect(itemState(up, { items: new Set(), season: { ...s, premium: 'pass' } })).toBe('buy');
-    expect(tabSkus('coats')).toHaveLength(20);
+    expect(tabSkus('coats')).toHaveLength(22);
     expect(tabSkus('coats').slice(0, 4).map((d) => d.cents.usd)).toEqual([799, 799, 1499, 1499]);
     expect(tabSkus('frames')).toHaveLength(4);
   });

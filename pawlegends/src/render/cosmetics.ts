@@ -18,6 +18,7 @@ import { isCardSkinId, skinRev } from './skins/skinStore';
 import { LOOP_PALETTES, LOOP_REWARDS, TRACK_TITLES } from '../meta/treats';
 import { SHELTER_CHAMPIONS } from '../data/heroes/shelter';
 import { EFFECT_COATS, S1_PLUS_COAT, SEASONS, STORE_COATS, STORE_FRAMES, SEASON_ITEM_NAMES } from '../money/catalog';
+import { chromaPalette, chromasEarned, isChromaKey } from './skins/coatChromas';
 
 const SHELTER_NAME = Object.fromEntries(SHELTER_CHAMPIONS.map((c) => [c.hero, c.name])) as Record<'lambo' | 'aviete' | 'bengas' | 'gabe', string>;
 
@@ -39,6 +40,11 @@ export interface Coat {
 export interface Look {
   coat: string | null;
   chroma: Element | null;
+  /**
+   * gaps4: the coat's chroma (render/skins/coatChromas.ts CHROMAS key, earned by playing in the coat), null or absent
+   * for the coat's own colours. Belongs to `coat`: a new coat starts in its own colours.
+   */
+  dye?: string | null;
 }
 
 export const DEFAULT_LOOK: Look = Object.freeze({ coat: null, chroma: null }) as Look;
@@ -50,7 +56,7 @@ export const DEFAULT_LOOK: Look = Object.freeze({ coat: null, chroma: null }) as
 export const lookKey = (l: Look | null | undefined): string => {
   if (!l) return '-|-';
   const coat = l.coat ?? '-';
-  return `${isCardSkinId(l.coat) ? `${coat}@${skinRev(coat)}` : coat}|${l.chroma ?? '-'}`;
+  return `${isCardSkinId(l.coat) ? `${coat}@${skinRev(coat)}` : coat}|${l.chroma ?? '-'}${l.dye ? `|${l.dye}` : ''}`;
 };
 
 /** A card skin look (`cat.<id>`): never with a chroma (card skins never use the chroma path). */
@@ -119,9 +125,12 @@ export interface Owned {
   /** Free unlock ids from the local profile. */
   unlocks: ReadonlySet<string>;
   roster: RosterCosmetics;
+  /** gaps4 chromas: finished matches per coat id (meta/profile.ts `coatPlays`); absent: none earned. */
+  coatPlays?: Readonly<Record<string, number>>;
 }
 
 export const FREE_BISCUIT = 'coat.brutus.biscuit';
+const BISCUIT_COAT: Coat = Object.freeze({ base: 0xc98a4b, light: 0xfbe6c4, dark: 0x7a4a24, accent: 0x7a4a24 });
 
 /** Loop palette colours (meta/treats.ts LOOP_PALETTES), the same on every original hero. */
 const LOOP_COAT: Readonly<Record<string, Coat>> = Object.freeze({
@@ -288,6 +297,10 @@ const EFFECT_COAT_PAL: Readonly<Record<string, Pal>> = Object.freeze({
   'coat.marshmallow.store_frostbell': [0xeef6ff, 0xffffff, 0x7ab8e8, 0x9fe8ff, 'calico', 0xc8e8ff],
   'coat.brutus.store_thunderpaw': [0x26262e, 0xfff6c8, 0x121218, 0xffe24d, 'tuxedo'],
   'coat.sage.store_bloomtail': [0x7fb069, 0xeaf6d8, 0x3e6a2e, 0xff9fd6, 'tabby'],
+  // gaps4: toasted bread with crust shade and cheese patches; lettuce green accent
+  'coat.clem.store_club_sandwich': [0xe2ac62, 0xfff2d2, 0x8a501e, 0x7ccf4a, 'calico', 0xffcf3a],
+  // gaps4: grilled meat with char stripes and a pita-pale belly; a king's gold accent
+  'coat.frankie.store_kebab_king': [0xa8522a, 0xffe2b4, 0x4a1e0e, 0xffd34d, 'tabby'],
 });
 
 /**
@@ -302,6 +315,8 @@ const COAT_FX: Readonly<Record<string, { rung: CatTier; element: Element }>> = O
   'coat.marshmallow.store_frostbell': { rung: 'EPIC', element: 'ICE' },
   'coat.brutus.store_thunderpaw': { rung: 'LEGENDARY', element: 'ELECTRIC' },
   'coat.sage.store_bloomtail': { rung: 'LEGENDARY', element: 'GRASS' },
+  'coat.clem.store_club_sandwich': { rung: 'EPIC', element: 'SAND' },
+  'coat.frankie.store_kebab_king': { rung: 'EPIC', element: 'FIRE' },
 });
 
 /** The hue (degrees) and saturation of 0xRRGGBB (no import: classify.ts imports this file's neighbours). */
@@ -417,7 +432,26 @@ export function resolveLook(hero: HeroId, o: Owned, chosen?: Partial<Look> | nul
   if (chosen && chosen.chroma !== undefined && (chosen.chroma === null || chromas.includes(chosen.chroma))) chroma = chosen.chroma;
   // round 0: the first squad mate's element (the newest adoption or the chosen squad), not the first in ELEMENTS order
   else chroma = o.roster.companions.find((c) => chromas.includes(c.element))?.element ?? chromas[0] ?? null;
-  return { coat, chroma };
+  // gaps4: the coat's chroma while it is still earned on that coat (else the coat's own colours)
+  const dye = chosen && chosen.coat === coat && chosen.dye && coat && coatDyes(coat, o).includes(chosen.dye) ? chosen.dye : null;
+  return dye ? { coat, chroma, dye } : { coat, chroma };
+}
+
+/** gaps4: a coat's own palette by id, whoever wears it (null: no palette of its own, so no chromas). */
+export function coatPalette(id: string | null | undefined): Coat | null {
+  if (!id) return null;
+  const c = FREE_COATS[id]?.coat ?? PAID_COATS[id]?.coat;
+  if (c) return c;
+  if (id === FREE_BISCUIT) return BISCUIT_COAT;
+  return null;
+}
+
+/** gaps4: does the coat have chromas (every coat with a palette of its own: Treat Track, store, pass, effect coats)? */
+export const hasChromas = (id: string | null | undefined): boolean => coatPalette(id) !== null;
+
+/** gaps4: the chromas `o` has earned on coat `id` (keys, unlock order); none for a coat without chromas. */
+export function coatDyes(id: string, o: Pick<Owned, 'coatPlays'>): string[] {
+  return hasChromas(id) ? chromasEarned(o.coatPlays?.[id] ?? 0) : [];
 }
 
 export type FrameId = TierFrame | 'frame.founder' | 'frame.legend' | TrackFrame | `frame.store.${string}` | `frame.s1.${string}`;
@@ -481,8 +515,13 @@ export function companionCoat(c: StarterBreed | number, element: Element): Coat 
   return { base: mixColor(base.base, el, 0.55), light: mixColor(base.light, el, 0.2), dark: mixColor(base.dark, el, 0.35), accent: base.accent };
 }
 
-/** The coat palette for a hero's look (null = the hero's own default palette). */
+/** The coat palette for a hero's look (null = the hero's own default palette), in its chroma when it wears one. */
 export function lookCoat(hero: HeroId, l: Look): Coat | null {
+  const c = ownCoat(hero, l);
+  return c && l.dye && isChromaKey(l.dye) && hasChromas(l.coat) ? chromaPalette(c, l.dye) : c;
+}
+
+function ownCoat(hero: HeroId, l: Look): Coat | null {
   const id = l.coat;
   if (!id) return null;
   if (id.startsWith('coat.breed.')) {
@@ -493,7 +532,7 @@ export function lookCoat(hero: HeroId, l: Look): Coat | null {
   if (free) return free.hero === hero ? free.coat : null;
   const paid = PAID_COATS[id];
   if (paid) return paid.hero === hero ? paid.coat : null;
-  if (id === FREE_BISCUIT && hero === 'brutus') return { base: 0xc98a4b, light: 0xfbe6c4, dark: 0x7a4a24, accent: 0x7a4a24 };
+  if (id === FREE_BISCUIT && hero === 'brutus') return BISCUIT_COAT;
   if (id === 'skin.clem.pink_bow' && hero === 'clem') return { base: 0xffb3c4, light: 0xfff4f6, dark: 0xe5788f, accent: 0xff6f91 };
   if (id === 'skin.clem.dawnblade' && hero === 'clem') return { base: 0xfff0d0, light: 0xffffff, dark: 0xf0b84a, accent: 0xffd34d };
   return null;

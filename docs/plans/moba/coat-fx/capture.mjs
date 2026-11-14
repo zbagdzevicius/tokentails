@@ -30,6 +30,8 @@ const COATS = [
   { name: 'eclipse', hero: 'duchess', coat: 'coat.duchess.s1_eclipse' },
   { name: 'moonwhisker', hero: 'pixel', coat: 'coat.pixel.store_moonwhisker' },
   { name: 'frostbell', hero: 'marshmallow', coat: 'coat.marshmallow.store_frostbell' },
+  { name: 'club-sandwich', hero: 'clem', coat: 'coat.clem.store_club_sandwich' },
+  { name: 'kebab-king', hero: 'frankie', coat: 'coat.frankie.store_kebab_king' },
   { name: 'rare-calico', hero: 'clem', coat: 'coat.clem.store_calico' },
 ];
 /** Each clip: where to start (s) and the gap between the 8 frames (s). Recall lands at ~4.6 s; takedown ~1.4-1.8 s. */

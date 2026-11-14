@@ -177,6 +177,8 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
 .pl-results .pl-treats .next { color: var(--v6-muted); opacity: 1; }
 .pl-results .pl-treats .next b { color: var(--v6-cream); }
 .pl-results .pl-treats .next small, .pl-results .pl-treats .bonus { color: var(--v6-logo-gold-hi); }
+.pl-results .pl-chroma-earned { margin: 8px 0 0; max-width: 440px; font-size: 13px; color: var(--v6-muted); }
+.pl-results .pl-chroma-earned b { color: var(--v6-logo-gold-hi); }
 
 /* the reward strip pinned over Run it back: night glass, 4 px radius, a logo-gold top rule */
 .pl-results .pl-reward {

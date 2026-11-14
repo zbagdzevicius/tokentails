@@ -350,3 +350,32 @@ runs with `skins=legendary,coats` (the heroes with a themed coat wear it). Captu
 | New Epic and Legendary store coat prices | $7.99 / $14.99 (no new model parts yet) |
 | Coat names for the 4 new effect coats | as in §6.3 |
 | Multi-kill card visible to the killer only | Yes |
+
+## Chromas and the food coats (gaps4 coats-tests, 2026-11-14)
+
+**Chromas** (`render/skins/coatChromas.ts`): every coat with its own palette (Treat Track, store, Legends Pass and
+effect coats, about 90) has four chromas, Rose, Jade, Amethyst and Gilded. A chroma keeps the coat's pattern, model
+parts and effects and dyes the fur: base, shade and patch take the chroma's hue at their own lightness (clamped so a
+white or black coat still shows it), the belly fur keeps most of its colour, the accent takes the chroma's second
+colour.
+
+- Earned only, never sold, the same on the web and in the apps: finished matches wearing the coat (not Practice)
+  unlock them at 1, 3, 6 and 10 matches. The counts are local (`Profile.coatPlays`, at most 200 coats); a chroma only
+  recolours a coat the player owns (`resolveLook` drops it otherwise), so a faked count never unlocks a sold look.
+- The look carries it as `Look.dye` (profile `looks[hero].dye`); `lookKey` adds `|<dye>` so the geometry cache, the
+  lobby and the portraits rebuild. A new coat starts in its own colours.
+- Where: the pick screen's Look sheet (swatches under the coats; a locked one is greyed and says how many matches
+  earn it), Heroes → Coats (preview any chroma on the clip; Wear an earned one on an owned coat), the store's coat
+  detail (four swatches; a tap previews that chroma in Heroes → Coats), and the results ("New chroma: Rose
+  Patchwork Calico coat").
+- Render only: the sim, the replay and the hash never see a chroma.
+
+**Food coats** (Epic, $7.99 in the web store like the other Epic effect coats; nothing sold in the apps):
+
+| Coat | Model parts (`render/chars/coatParts.ts`) | Ultimate | Recall | Takedown |
+|---|---|---|---|---|
+| Club Sandwich Clem | a club sandwich hat with a toothpick flag and olive, a lettuce ruff, toast pauldrons, a pickle on the blade | a sandwich stacks up, crumbs fly | crumbs drift, a sandwich lands | a toothpick flag pins the fallen |
+| Kebab King Frankie | a gold crown with a little skewer, a kebab skewer along his back, a chili on his tail | sizzling skewers spin, grill flames, steam | steam rises, a flame ring | a skewer drops, spice flies |
+
+Painted store art was made with Gemini (gemini-3-pro-image-preview, the brand-book skin splashes as style references)
+and encoded like `tools/import-skin-art.mjs` does (`pawlegends-web/public/pawlegends-art/skins/`).

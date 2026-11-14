@@ -15,6 +15,8 @@ import { openChampInfo } from './champBrowser/open';
 import { bookClose, bookTabs, focusTab, isCat, wireTabs } from './passBook';
 import { splashUrl } from './champStore/model';
 import { installArtFallback, realPhotoImgAttrs } from './art';
+// gaps4 first-load JS: the line lives in ui/screens.ts (first load), so the results never pull this panel in
+import { toGoText } from './screens';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
@@ -52,7 +54,7 @@ export function postcardStory(hero: HeroId): string {
 }
 
 /** "about N matches to go" (1: "1 match"). */
-export const toGoText = (n: number): string => `about ${n} ${n === 1 ? 'match' : 'matches'} to go`;
+export { toGoText };
 
 export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLElement {
   installArtFallback();

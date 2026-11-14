@@ -13,7 +13,7 @@ import { catalogSku, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU } from '../money/
 import type { StoreSnapshot } from '../money/entitlements';
 import { browserCurrency } from '../money/skus';
 import { claimKey, currentSeason, matchesToNextText, readyRewards, seasonEndText, seasonTier, type PassRow, type PassState } from '../meta/pass';
-import { catalogPrice, itemState } from './store';
+import { catalogPrice, itemState } from './storeCore';
 import type { HeroId } from '../sim/api';
 import { PAID_COATS } from '../render/cosmetics';
 import { icon } from './icons';

@@ -285,3 +285,13 @@ html[data-quality='low'] .cst-card.st-owned .cst-art, html[data-quality='low'] .
 html[data-quality='low'] .cst-tab.on { text-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .cst-card { transition: none; } .cst-card:hover { transform: none; } .cst-dpanel { animation: none; } }
 .cst-passart.pic { background: center / cover no-repeat; }
+/* gaps4 chromas: the coat's four chromas under its blurb (a tap previews one in the Heroes browser) */
+.cst-dyes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 0 6px; }
+.cst-dyes-t { font-size: 12px; color: var(--v6-muted); }
+.cst-dyes-t b { color: var(--v6-cream); }
+.cst-dye-row { display: flex; gap: 8px; }
+.cst-dye {
+  width: 30px; height: 30px; padding: 0; border-radius: 50%; cursor: pointer; touch-action: manipulation; background: var(--dye);
+  border: 2px solid rgb(var(--v6-cream-rgb, 255 243 227) / 0.45); box-shadow: inset 0 -6px 0 rgb(0 0 0 / 0.18);
+}
+.cst-dye:hover, .cst-dye:focus-visible { border-color: var(--v6-bolt); }

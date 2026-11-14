@@ -93,6 +93,9 @@ export const EFFECT_COATS: readonly EffectCoat[] = Object.freeze([
     { id: 'coat.marshmallow.store_frostbell', hero: 'marshmallow', name: 'Frostbell coat', rung: 'EPIC' },
     { id: 'coat.brutus.store_thunderpaw', hero: 'brutus', name: 'Thunderpaw coat', rung: 'LEGENDARY' },
     { id: 'coat.sage.store_bloomtail', hero: 'sage', name: 'Bloomtail coat', rung: 'LEGENDARY' },
+    // gaps4 coats-tests: the first two coats of the funny food concepts (model parts and their own effects)
+    { id: 'coat.clem.store_club_sandwich', hero: 'clem', name: 'Club Sandwich coat', rung: 'EPIC' },
+    { id: 'coat.frankie.store_kebab_king', hero: 'frankie', name: 'Kebab King coat', rung: 'EPIC' },
 ] as EffectCoat[]);
 
 /** Effect coat prices by rung. */
