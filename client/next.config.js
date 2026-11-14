@@ -138,6 +138,8 @@ const pawlegendsOtaHeaders = [
   cache(`${OTA}/bundles/:file*`, IMMUTABLE),
   edge(`${OTA}/manifest.json`, REVALIDATE, "max-age=30, stale-while-revalidate=60"),
   edge(`${OTA}/manifest-beta.json`, REVALIDATE, "max-age=30, stale-while-revalidate=60"),
+  // force update (docs/plans/moba/FORCE-UPDATE.md §3.1): the signed policy next to the manifests, the same rule
+  edge(`${OTA}/policy.json`, REVALIDATE, "max-age=30, stale-while-revalidate=60"),
 ];
 
 // Paw Legends moved to its own app and domain, pawlegends.app (pawlegends-web/, docs/plans/moba/PAWLEGENDS-WEB.md).

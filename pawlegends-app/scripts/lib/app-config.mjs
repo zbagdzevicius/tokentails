@@ -21,6 +21,29 @@ export const APP_ID = 'com.tokentails.pawlegends';
 export const NATIVE_COMPAT = 2;
 
 /**
+ * Force update (docs/plans/moba/FORCE-UPDATE.md). Native shells below MIN_COMPAT are sent to the store (policy.json
+ * `minCompat`); compat 1 (the 1.0.x binaries) gets the final bridge bundle (bridge/, `build-web.mjs --bridge`).
+ */
+export const MIN_COMPAT = 2;
+/** The compat level of the bridge bundle (the native shells that predate sign-in). */
+export const BRIDGE_COMPAT = 1;
+/**
+ * Hours a release stays optional after it goes live on a channel (policy.json `requiredFrom`). 0: every release is
+ * required at once (stable has already soaked on beta); `ota-publish.mjs --grace-hours <n>` delays one release, and a
+ * release with a new sim is always required at once.
+ */
+export const REQUIRED_GRACE_HOURS = 0;
+/** The store pages (App Store id: pawlegends-web landing markup PAWLEGENDS_APP_STORE_ID) and the web game. */
+export const STORE_URLS = Object.freeze({
+  ios: 'https://apps.apple.com/app/id6832032981',
+  android: `https://play.google.com/store/apps/details?id=${APP_ID}`,
+  mac: 'https://apps.apple.com/app/id6832032981',
+});
+export const WEB_PLAY_URL = 'https://pawlegends.app/play';
+/** The signed policy next to each platform's manifests: `updates/<platform>/<compat>/policy.json`. */
+export const POLICY_FILE = 'policy.json';
+
+/**
  * The platforms that take OTA updates. Each has its own signed manifests in `updates/<platform>/<compat>/` (its own
  * minNative and rollback state); the bundles are shared and stay in `updates/ios/<compat>/bundles/`, where the first
  * iOS binaries require them (src/shell/manifest.ts HTTPS_TT).

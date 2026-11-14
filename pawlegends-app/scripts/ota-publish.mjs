@@ -23,6 +23,22 @@
  *   node scripts/ota-publish.mjs --rollback <version>         point beta AND stable at a kept bundle (signed again);
  *                                                             Android only when the bundle's record says android: true
  *   --platform ios|android                                    any of the above for one platform only
+ *   --grace-hours <n>                                         (publish) this release is optional for n hours on each
+ *                                                             channel before it is required (default 0; a new sim is
+ *                                                             always required at once)
+ *   --compat <n> [--force]                                    work on another native compat level's manifests: only
+ *                                                             the bridge bundle (`build-web.mjs --bridge`, OTA_WWW_DIR
+ *                                                             or --www www-bridge) may be published below
+ *                                                             NATIVE_COMPAT, and only once unless --force
+ *   --www <dir>                                               the built bundle to publish (default www/)
+ *   --maintenance "<message>" [--until <iso>] | --maintenance off
+ *                                                             switch the maintenance screen on or off (policy only)
+ *   --write-policy                                            (re)write and sign policy.json from the manifests
+ *
+ * Every action also writes `updates/<platform>/<compat>/policy.json` (docs/plans/moba/FORCE-UPDATE.md §3.1): the
+ * channels' versions and sims, when each becomes required, the store links and any maintenance window, signed with
+ * the same key and read by the shell's update gate and by GET /pawlegends/client-policy. It is rewritten only when its
+ * content changes, so an hourly promote that moves nothing leaves it alone.
  *
  * --min-native sets both platforms; the per-platform flags win. Without them each platform keeps its current value.
  * The private key: OTA_PRIVATE_KEY (PEM text, CI), else OTA_PRIVATE_KEY_PATH, else ota/.keys/private-key.pem.
@@ -30,10 +46,26 @@
  * The workflow also runs the stricter `npm run vendor-sim:check-remote` in pawlegends/ (same sim bundle sha256).
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { encryptBundle, publicPemOf, signManifest } from './lib/capgo-crypto.mjs';
+import { join, resolve } from 'node:path';
+import { encryptBundle, publicPemOf, signManifest, signPolicy } from './lib/capgo-crypto.mjs';
 import { zipDir } from './lib/zip.mjs';
-import { API_ORIGIN, APP_DIR, BUNDLES_PLATFORM, LOCAL_PRIVATE_KEY_PATH, NATIVE_COMPAT, OTA_PLATFORMS, PUBLIC_KEY_PATH, SOAK_HOURS, UPDATES_DIR, UPDATES_URL as SITE_UPDATES_URL } from './lib/app-config.mjs';
+import {
+  API_ORIGIN,
+  APP_DIR,
+  BUNDLES_PLATFORM,
+  LOCAL_PRIVATE_KEY_PATH,
+  MIN_COMPAT,
+  NATIVE_COMPAT,
+  OTA_PLATFORMS,
+  POLICY_FILE,
+  PUBLIC_KEY_PATH,
+  REQUIRED_GRACE_HOURS,
+  SOAK_HOURS,
+  STORE_URLS,
+  UPDATES_DIR,
+  UPDATES_URL as SITE_UPDATES_URL,
+  WEB_PLAY_URL,
+} from './lib/app-config.mjs';
 
 /** OTA_UPDATES_URL overrides where the bundles are served (scripts/ota-local.mjs: the local test server). */
 const UPDATES_URL = process.env.OTA_UPDATES_URL || SITE_UPDATES_URL;
@@ -62,9 +94,16 @@ if (publicPemOf(key).trim() !== committed) {
   process.exit(2);
 }
 
-const bundlesDir = join(UPDATES_DIR, BUNDLES_PLATFORM, String(NATIVE_COMPAT), 'bundles');
+/** The native compat level this run works on: NATIVE_COMPAT, or a lower one for the bridge bundle (--compat). */
+const COMPAT = Number(arg('--compat', NATIVE_COMPAT));
+if (!Number.isInteger(COMPAT) || COMPAT < 1 || COMPAT > NATIVE_COMPAT) {
+  console.error(`ota-publish: --compat must be 1..${NATIVE_COMPAT}`);
+  process.exit(2);
+}
+const bundlesDir = join(UPDATES_DIR, BUNDLES_PLATFORM, String(COMPAT), 'bundles');
 /** The manifest files per platform: `updates/<platform>/<compat>/manifest(-beta).json`. */
-const manifestPath = (platform, channel) => join(UPDATES_DIR, platform, String(NATIVE_COMPAT), channel === 'stable' ? 'manifest.json' : 'manifest-beta.json');
+const manifestPath = (platform, channel) => join(UPDATES_DIR, platform, String(COMPAT), channel === 'stable' ? 'manifest.json' : 'manifest-beta.json');
+const policyPath = (platform) => join(UPDATES_DIR, platform, String(COMPAT), POLICY_FILE);
 const PLATFORMS = (() => {
   const only = arg('--platform');
   if (!only) return OTA_PLATFORMS;
@@ -107,7 +146,7 @@ function writeManifest(platform, channel, fields) {
   const m = { ...fields };
   delete m.signature;
   m.signature = signManifest(m, key);
-  mkdirSync(join(UPDATES_DIR, platform, String(NATIVE_COMPAT)), { recursive: true });
+  mkdirSync(join(UPDATES_DIR, platform, String(COMPAT)), { recursive: true });
   writeFileSync(manifestPath(platform, channel), `${JSON.stringify(m, null, 2)}\n`);
   return m;
 }
@@ -118,6 +157,86 @@ function readManifest(platform, channel) {
   } catch {
     return null;
   }
+}
+
+function readJsonFile(path) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** A kept bundle's record (bundles/<version>.json), or null. */
+function recordOf(version) {
+  return readJsonFile(join(bundlesDir, `${version}.json`));
+}
+
+/** --maintenance "<message>" [--until <iso>] | off: the new window, `null` (off) or undefined (leave it). */
+function maintenanceArg() {
+  const m = arg('--maintenance');
+  if (m === undefined) return undefined;
+  if (m === 'off' || m === '') return null;
+  const until = arg('--until', null);
+  if (until !== null && Number.isNaN(Date.parse(until))) throw new Error(`ota-publish: bad --until ${until}`);
+  if (m.length > 280) throw new Error('ota-publish: the maintenance message is longer than 280 characters');
+  return { message: m, until: until ? new Date(until).toISOString() : null };
+}
+
+const iso = (ms) => new Date(ms).toISOString();
+const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Write and sign `policy.json` for one platform from its manifests (FORCE-UPDATE.md §3.1). Each channel entry mirrors
+ * its manifest. `requiredFrom` is kept while the entry's version and rollback state do not change; a new entry is
+ * required at its publish time + the release's grace (its record's `graceHours`, else REQUIRED_GRACE_HOURS), and at
+ * once when it changes the sim or is a rollback. Written only when the content changed.
+ */
+function writePolicy(platform, maintenance = undefined) {
+  const prev = readJsonFile(policyPath(platform));
+  const now = Date.now();
+  const channels = {};
+  for (const channel of ['stable', 'beta']) {
+    const m = readManifest(platform, channel);
+    if (!m) continue;
+    const before = prev?.channels?.[channel];
+    let requiredFrom;
+    if (before && before.version === m.version && before.rollback === m.rollback && typeof before.requiredFrom === 'string') {
+      requiredFrom = before.requiredFrom;
+    } else {
+      const graceHours = Number(recordOf(m.version)?.graceHours ?? REQUIRED_GRACE_HOURS);
+      const newSim = !before || before.simVersion !== m.simVersion;
+      const grace = m.rollback || (newSim && before) || !(graceHours > 0) ? 0 : graceHours;
+      requiredFrom = iso(now + grace * 3_600_000);
+    }
+    channels[channel] = { version: m.version, seq: m.seq, simVersion: m.simVersion, minNative: m.minNative, rollback: m.rollback, requiredFrom };
+  }
+  if (!Object.keys(channels).length) return null;
+  let window = maintenance === undefined ? prev?.maintenance ?? null : maintenance;
+  // an ended window is dropped on the next write
+  if (window?.until && Date.parse(window.until) <= now) window = null;
+  const body = {
+    schema: 1,
+    kind: 'policy',
+    platform,
+    compat: COMPAT,
+    minCompat: MIN_COMPAT,
+    minSim: Math.min(...Object.values(channels).map((c) => c.simVersion)),
+    channels,
+    store: STORE_URLS[platform],
+    web: WEB_PLAY_URL,
+    maintenance: window,
+  };
+  if (prev) {
+    const { issuedAt: _i, signature: _s, ...old } = prev;
+    if (sameJson(old, body)) return prev;
+  }
+  const p = { ...body, issuedAt: iso(now) };
+  p.signature = signPolicy(p, key);
+  mkdirSync(join(UPDATES_DIR, platform, String(COMPAT)), { recursive: true });
+  writeFileSync(policyPath(platform), `${JSON.stringify(p, null, 2)}\n`);
+  console.log(`ota-publish: ${platform}: policy ${policyPath(platform)} (minSim ${p.minSim}, ${Object.entries(channels).map(([c, e]) => `${c} ${e.version} from ${e.requiredFrom}`).join(', ')}${window ? `, maintenance until ${window.until ?? 'switched off'}` : ''})`);
+  return p;
 }
 
 /** Every bundle version a manifest of any platform names (never pruned). */
@@ -160,6 +279,14 @@ function seqTime(seq) {
 const keep = Math.max(1, Number(arg('--keep', 3)));
 const rollbackTo = arg('--rollback');
 
+if (args.includes('--write-policy') || (args.includes('--maintenance') && !rollbackTo && !args.includes('--promote'))) {
+  const window = maintenanceArg();
+  let wrote = 0;
+  for (const platform of PLATFORMS) if (writePolicy(platform, window)) wrote++;
+  if (!wrote) console.log(`ota-publish: no manifests for compat ${COMPAT}: no policy written`);
+  process.exit(0);
+}
+
 if (rollbackTo) {
   const meta = join(bundlesDir, `${rollbackTo}.json`);
   if (!existsSync(meta)) {
@@ -181,6 +308,8 @@ if (rollbackTo) {
     writeManifest(platform, 'beta', fieldsFor(platform, prev, minNative, true));
     const m = writeManifest(platform, 'stable', fieldsFor(platform, prev, minNative, true));
     console.log(`ota-publish: ${platform} beta and stable rolled back to ${m.version}`);
+    // the rollback is required at once: gated phones move to it on their next check or retry
+    writePolicy(platform, maintenanceArg());
     rolled++;
   }
   process.exit(rolled > 0 ? 0 : 1);
@@ -211,6 +340,7 @@ function promote(platform) {
   }
   if (stable && stable.version === beta.version) {
     console.log(`ota-publish: ${platform}: stable is already ${beta.version}`);
+    writePolicy(platform);
     return true;
   }
   const soakHours = Number(arg('--soak-hours', SOAK_HOURS));
@@ -245,6 +375,7 @@ function promote(platform) {
   }
   if (!target) {
     console.log(`ota-publish: ${platform}: beta ${beta.version} is ${fmt(ageOf(beta.seq))} h old; promotes after ${soakHours} h (or ${minSoakHours} h once stable is ${soakHours} h behind)`);
+    writePolicy(platform);
     return true;
   }
   if (!existsSync(join(bundlesDir, `${target.version}.zip`))) {
@@ -254,6 +385,7 @@ function promote(platform) {
   // an older seq than the live stable (a beta rollback) must be marked so store installs accept it
   const m = writeManifest(platform, 'stable', { ...target, rollback: target.rollback || (stable ? target.seq <= stable.seq : false) });
   console.log(`ota-publish: ${platform}: promoted ${m.version} to stable (${why})`);
+  writePolicy(platform);
   return true;
 }
 
@@ -263,16 +395,30 @@ if (args.includes('--promote')) {
   process.exit(ok ? 0 : 1);
 }
 
-const www = process.env.OTA_WWW_DIR || join(APP_DIR, 'www');
+const wwwArg = arg('--www');
+const www = wwwArg ? resolve(APP_DIR, wwwArg) : process.env.OTA_WWW_DIR || join(APP_DIR, 'www');
 const stamp = JSON.parse(readFileSync(join(www, 'bundle.json'), 'utf8'));
-if (stamp.compat !== NATIVE_COMPAT) throw new Error(`ota-publish: www was built for compat ${stamp.compat}, not ${NATIVE_COMPAT}`);
+if (stamp.compat !== COMPAT) throw new Error(`ota-publish: www was built for compat ${stamp.compat}, not ${COMPAT} (pass --compat ${stamp.compat})`);
+// below the shell's own level only the bridge bundle (no game, simVersion 0) may go out: a game bundle built for
+// today's shell must never reach an older binary
+const bridge = stamp.bridge === true && stamp.simVersion === 0;
+if (COMPAT < NATIVE_COMPAT && !bridge) throw new Error(`ota-publish: only the bridge bundle (build-web.mjs --bridge) may be published to compat ${COMPAT}`);
+if (bridge && !args.includes('--force')) {
+  const live = PLATFORMS.map((p) => readManifest(p, 'beta')).filter(Boolean);
+  if (live.length === PLATFORMS.length && live.every((m) => recordOf(m.version)?.bridge === true)) {
+    console.log(`ota-publish: compat ${COMPAT} beta already runs the bridge ${live[0].version}: nothing published (--force to publish again)`);
+    process.exit(0);
+  }
+}
+const graceHours = Number(arg('--grace-hours', REQUIRED_GRACE_HOURS));
+if (!(graceHours >= 0 && graceHours <= 24 * 14)) throw new Error('ota-publish: --grace-hours must be 0..336');
 for (const platform of PLATFORMS) {
   for (const p of [readManifest(platform, 'beta'), readManifest(platform, 'stable')]) {
     if (p && p.seq >= stamp.seq && !p.rollback) throw new Error(`ota-publish: seq ${stamp.seq} is not newer than the live ${platform} ${p.seq}`);
   }
 }
 
-if (args.includes('--check-sim')) {
+if (args.includes('--check-sim') && !bridge) {
   const sims = await acceptedSims();
   if (!sims) {
     console.error(`ota-publish: cannot read the accepted sims from ${API_ORIGIN}/pawlegends/sim`);
@@ -292,18 +438,22 @@ const minNative = Object.fromEntries(PLATFORMS.map((p) => [p, minNativeFor(p)]))
 // rebuilding. `android: true` (outside the signed fields) marks a bundle that runs in the Android shell: a rollback
 // re-points the Android manifests only at such bundles.
 const record = fieldsFor(BUNDLES_PLATFORM, {
-  compat: NATIVE_COMPAT,
+  compat: COMPAT,
   version: stamp.version,
   seq: stamp.seq,
-  url: `${UPDATES_URL}/${BUNDLES_PLATFORM}/${NATIVE_COMPAT}/bundles/${stamp.version}.zip`,
+  url: `${UPDATES_URL}/${BUNDLES_PLATFORM}/${COMPAT}/bundles/${stamp.version}.zip`,
   checksum: enc.checksum,
   sessionKey: enc.sessionKey,
   simVersion: stamp.simVersion,
 }, minNative.ios ?? minNativeFor('ios'), false);
-writeFileSync(join(bundlesDir, `${stamp.version}.json`), `${JSON.stringify({ ...record, android: true }, null, 2)}\n`);
+// `graceHours` (outside the signed fields): how long this release stays optional on each channel (policy.json);
+// `bridge`: the compat-1 bridge bundle (never a game)
+const extra = { android: true, ...(graceHours > 0 ? { graceHours } : {}), ...(bridge ? { bridge: true } : {}) };
+writeFileSync(join(bundlesDir, `${stamp.version}.json`), `${JSON.stringify({ ...record, ...extra }, null, 2)}\n`);
 for (const platform of PLATFORMS) {
   const m = writeManifest(platform, 'beta', fieldsFor(platform, record, minNative[platform], false));
   console.log(`ota-publish: ${m.version} (${(enc.data.length / 1024 / 1024).toFixed(1)} MB, sim ${m.simVersion}, minNative ${m.minNative}) -> ${manifestPath(platform, 'beta')}`);
+  writePolicy(platform, maintenanceArg());
 }
 prune(keep, namedVersions());
 for (const f of readdirSync(bundlesDir).filter((x) => x.endsWith('.json'))) {

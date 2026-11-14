@@ -20,7 +20,13 @@
 # TTL (30 s with the cache rule in infra/gcp/RUNBOOK.md "Latency"). Without them the step is skipped.
 #
 # Manual runs: `rollback_to` = a kept version (see the bundles folder) points beta AND stable at it (signed again);
-# `promote_now` moves the current beta bundle to stable without waiting for the 24 h.
+# `promote_now` moves the current beta bundle to stable without waiting for the soak.
+#
+# Force update (docs/plans/moba/FORCE-UPDATE.md): every publish, promote and rollback also writes a signed
+# `updates/<platform>/<compat>/policy.json`; the apps' update gate (and GET /pawlegends/client-policy) read it, and a
+# release is required at once. `grace_hours` keeps one new release optional for n hours. `maintenance` = a message
+# shows the maintenance screen (`off` ends it). `bridge` = beta | stable publishes the compat-1 bridge bundle (the
+# "Update Paw Legends" page for the 1.0.x apps) once: beta first, then stable after a check on a 1.0.x phone.
 name: Pawlegends OTA
 
 on:
@@ -30,6 +36,7 @@ on:
       - 'pawlegends/**'
       - 'pawlegends-app/src/**'
       - 'pawlegends-app/scripts/**'
+      - 'pawlegends-app/bridge/**'
       - 'pawlegends-app/package-lock.json'
       # the web host modules the app bundles (scripts/build-web.mjs resolves `@/` to pawlegends-web). Only the
       # React-free top-level modules and what they import: the landing pages (components/pawlegends/landing, legends)
@@ -76,6 +83,23 @@ on:
         description: 'Lowest Android app version (versionName) that may run the new bundle (empty = keep the current value)'
         required: false
         default: ''
+      grace_hours:
+        description: 'Force update: hours the new bundle stays optional before phones must update (empty = 0, required at once; a new sim is always required at once)'
+        required: false
+        default: ''
+      maintenance:
+        description: 'Force update: show the maintenance screen with this message (`off` ends it); only the policy is rewritten'
+        required: false
+        default: ''
+      maintenance_until:
+        description: 'With maintenance: when it ends (ISO time, e.g. 2026-11-20T18:00:00Z; empty = until `off`)'
+        required: false
+        default: ''
+      bridge:
+        description: 'Publish the compat-1 bridge bundle (the 1.0.x apps): beta (TestFlight first) or stable (after a device check)'
+        type: choice
+        options: [none, beta, stable]
+        default: none
 
 permissions:
   contents: read
@@ -91,7 +115,7 @@ jobs:
   check:
     name: game + shell checks
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'schedule' && !github.event.inputs.rollback_to && github.event.inputs.promote_now != 'true' }}
+    if: ${{ github.event_name != 'schedule' && !github.event.inputs.rollback_to && github.event.inputs.promote_now != 'true' && !github.event.inputs.maintenance && (github.event.inputs.bridge == '' || github.event.inputs.bridge == 'none' || github.event.inputs.bridge == null) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -129,7 +153,7 @@ jobs:
   publish:
     name: publish OTA bundle
     needs: check
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.promote_now != 'true')) && github.ref == 'refs/heads/main' && (needs.check.result == 'success' || needs.check.result == 'skipped')
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.promote_now != 'true' && github.event.inputs.maintenance == '' && (github.event.inputs.bridge == '' || github.event.inputs.bridge == 'none'))) && github.ref == 'refs/heads/main' && (needs.check.result == 'success' || needs.check.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -140,6 +164,7 @@ jobs:
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
       MIN_NATIVE_ANDROID: ${{ github.event.inputs.min_native_android || '' }}
+      GRACE_HOURS: ${{ github.event.inputs.grace_hours || '' }}
     steps:
       - name: Secret present
         id: secret
@@ -183,6 +208,7 @@ jobs:
           args="--check-sim --keep 3"
           if [ -n "$MIN_NATIVE" ]; then args="$args --min-native-ios $MIN_NATIVE"; fi
           if [ -n "$MIN_NATIVE_ANDROID" ]; then args="$args --min-native-android $MIN_NATIVE_ANDROID"; fi
+          if [ -n "$GRACE_HOURS" ]; then args="$args --grace-hours $GRACE_HOURS"; fi
           echo "PUBLISH_ARGS=$args" >> "$GITHUB_ENV"
           # shellcheck disable=SC2086 # $args is a flag list, split on purpose
           node scripts/ota-publish.mjs $args
@@ -218,19 +244,23 @@ jobs:
         run: |
           echo "### Pawlegends OTA" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          compat=$(node -e "console.log(require('fs').readFileSync('pawlegends-app/scripts/lib/app-config.mjs','utf8').match(/NATIVE_COMPAT = (\\d+)/)[1])")
           for p in ios android; do
-            f="./client/public/pawlegends-app/updates/$p/1/manifest-beta.json"
-            if [ -f "$f" ]; then node -e "const m=require('$f');delete m.checksum;delete m.sessionKey;delete m.signature;console.log(JSON.stringify(m,null,2))" >> "$GITHUB_STEP_SUMMARY"; fi
+            for f in "./client/public/pawlegends-app/updates/$p/$compat/manifest-beta.json" "./client/public/pawlegends-app/updates/$p/$compat/policy.json"; do
+              if [ -f "$f" ]; then node -e "const m=require('$f');delete m.checksum;delete m.sessionKey;delete m.signature;console.log(JSON.stringify(m,null,2))" >> "$GITHUB_STEP_SUMMARY"; fi
+            done
           done
           echo '```' >> "$GITHUB_STEP_SUMMARY"
       - name: Purge the new manifest from Cloudflare (once Vercel serves it)
         if: steps.secret.outputs.ok == 'true' && env.CF_API_TOKEN != '' && env.CF_ZONE_ID != ''
         timeout-minutes: 12
         run: |
+          # the live compat level (NATIVE_COMPAT), not a hard-coded 1: compat-2 manifests were never purged before
           for p in ios android; do
-            [ -f "client/public/pawlegends-app/updates/$p/1/manifest-beta.json" ] || continue
+            [ -f "client/public/pawlegends-app/updates/$p/$(node -e "console.log(require('fs').readFileSync('pawlegends-app/scripts/lib/app-config.mjs','utf8').match(/NATIVE_COMPAT = (\\d+)/)[1])")/manifest-beta.json" ] || continue
             node scripts/cdn-cache.mjs ota --platform "$p" --file manifest-beta.json
-            if [ -n "$ROLLBACK" ] && [ -f "client/public/pawlegends-app/updates/$p/1/manifest.json" ]; then
+            node scripts/cdn-cache.mjs ota --platform "$p" --file policy.json
+            if [ -n "$ROLLBACK" ]; then
               node scripts/cdn-cache.mjs ota --platform "$p" --file manifest.json
             fi
           done
@@ -289,7 +319,89 @@ jobs:
         if: steps.secret.outputs.ok == 'true' && env.promoted == 'true' && env.CF_API_TOKEN != '' && env.CF_ZONE_ID != ''
         timeout-minutes: 12
         run: |
+          compat=$(node -e "console.log(require('fs').readFileSync('pawlegends-app/scripts/lib/app-config.mjs','utf8').match(/NATIVE_COMPAT = (\\d+)/)[1])")
           for p in ios android; do
-            [ -f "client/public/pawlegends-app/updates/$p/1/manifest.json" ] || continue
+            [ -f "client/public/pawlegends-app/updates/$p/$compat/manifest.json" ] || continue
             node scripts/cdn-cache.mjs ota --platform "$p" --file manifest.json
+            node scripts/cdn-cache.mjs ota --platform "$p" --file policy.json
+          done
+
+  policy:
+    name: maintenance screen and the compat-1 bridge
+    # manual only: `maintenance` rewrites and re-signs policy.json; `bridge` publishes the compat-1 bridge bundle once
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && (github.event.inputs.maintenance != '' || github.event.inputs.bridge == 'beta' || github.event.inputs.bridge == 'stable')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      OTA_PRIVATE_KEY: ${{ secrets.OTA_PRIVATE_KEY }}
+      MAINTENANCE: ${{ github.event.inputs.maintenance || '' }}
+      MAINTENANCE_UNTIL: ${{ github.event.inputs.maintenance_until || '' }}
+      BRIDGE: ${{ github.event.inputs.bridge || 'none' }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+    steps:
+      - name: Secret present
+        id: secret
+        run: |
+          if [ -z "$OTA_PRIVATE_KEY" ]; then
+            echo "::notice::OTA_PRIVATE_KEY is not set: nothing changed."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.secret.outputs.ok == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.secret.outputs.ok == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install (the bridge's shell.js is bundled with esbuild)
+        if: steps.secret.outputs.ok == 'true' && env.BRIDGE != 'none'
+        working-directory: pawlegends-app
+        run: npm ci
+      - name: Maintenance screen
+        if: steps.secret.outputs.ok == 'true' && env.MAINTENANCE != ''
+        working-directory: pawlegends-app
+        run: |
+          if [ -n "$MAINTENANCE_UNTIL" ]; then
+            node scripts/ota-publish.mjs --maintenance "$MAINTENANCE" --until "$MAINTENANCE_UNTIL"
+          else
+            node scripts/ota-publish.mjs --maintenance "$MAINTENANCE"
+          fi
+      - name: Build and publish the compat-1 bridge (once; beta, then stable)
+        if: steps.secret.outputs.ok == 'true' && env.BRIDGE != 'none'
+        working-directory: pawlegends-app
+        run: |
+          node scripts/build-web.mjs --bridge --compat 1 --seq "$(date -u +%Y%m%d%H%M%S)"
+          node scripts/ota-publish.mjs --compat 1 --www www-bridge --keep 5
+          if [ "$BRIDGE" = "stable" ]; then node scripts/ota-publish.mjs --compat 1 --promote --soak-hours 0; fi
+      - name: Commit to main (Vercel serves it)
+        if: steps.secret.outputs.ok == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A client/public/pawlegends-app/updates
+          if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
+          if [ "$BRIDGE" != "none" ]; then msg="OTA compat-1 bridge ($BRIDGE)"; else msg="OTA maintenance: ${MAINTENANCE}"; fi
+          git commit -m "chore(pawlegends-app): ${msg}"
+          for _ in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then echo "changed=true" >> "$GITHUB_ENV"; exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Purge the changed files from Cloudflare (once Vercel serves them)
+        if: steps.secret.outputs.ok == 'true' && env.changed == 'true' && env.CF_API_TOKEN != '' && env.CF_ZONE_ID != ''
+        timeout-minutes: 12
+        run: |
+          compat=$(node -e "console.log(require('fs').readFileSync('pawlegends-app/scripts/lib/app-config.mjs','utf8').match(/NATIVE_COMPAT = (\\d+)/)[1])")
+          for p in ios android; do
+            if [ -n "$MAINTENANCE" ] && [ -f "client/public/pawlegends-app/updates/$p/$compat/policy.json" ]; then
+              node scripts/cdn-cache.mjs ota --platform "$p" --compat "$compat" --file policy.json
+            fi
+            if [ "$BRIDGE" != "none" ]; then
+              for f in manifest-beta.json manifest.json; do
+                [ -f "client/public/pawlegends-app/updates/$p/1/$f" ] && node scripts/cdn-cache.mjs ota --platform "$p" --compat 1 --file "$f"
+              done
+            fi
           done

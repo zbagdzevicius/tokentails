@@ -7,10 +7,16 @@
  * client/public) and serves it there, signed with the real key (ota/.keys/private-key.pem), so the app checks the
  * same signature and checksum as in production.
  *
- *   node scripts/ota-local.mjs publish            publish www/ (build it first: node scripts/build-web.mjs)
+ *   node scripts/ota-local.mjs publish [flags]    publish www/ (build it first: node scripts/build-web.mjs)
  *   node scripts/ota-local.mjs rollback <version> point the local manifest at a kept bundle
+ *   node scripts/ota-local.mjs policy [flags]     rewrite policy.json only (e.g. --maintenance "…" | off)
  *   node scripts/ota-local.mjs serve              serve the folder on :8787 (Ctrl-C to stop)
  *   --dir <path>                                  the scratch folder (default build/ota-local/updates)
+ *   other flags go to ota-publish.mjs: --grace-hours <n>, --compat 1 --www www-bridge (the bridge drill), …
+ *
+ * The update gate (docs/plans/moba/FORCE-UPDATE.md §4, §8.3): a Debug build reads only the LOCAL policy.json (no API
+ * on the dev channel), which every publish here writes next to the manifests. A publish is required at once unless
+ * --grace-hours is given, so relaunching the app after a publish shows "Updating Paw Legends".
  *
  * Drill: build-sim --run (title up) → build-web --seq <newer> → publish → serve → background and reopen the app
  * (or relaunch) → the shell downloads, then swaps on the title. For a rollback drill publish a bundle that never
@@ -32,12 +38,16 @@ const i = args.indexOf('--dir');
 const dir = resolve(i >= 0 ? args[i + 1] : join(APP_DIR, 'build/ota-local/updates'));
 const env = { ...process.env, OTA_UPDATES_DIR: dir, OTA_UPDATES_URL: LOCAL_UPDATES_URL };
 const publish = join(APP_DIR, 'scripts/ota-publish.mjs');
+/** The flags after the command, without --dir (passed on to ota-publish.mjs). */
+const rest = args.slice(cmd === 'rollback' ? 2 : 1).filter((_, j, a) => a[j] !== '--dir' && a[j - 1] !== '--dir');
 
 if (cmd === 'publish') {
-  execFileSync(process.execPath, [publish, '--keep', '5'], { env, stdio: 'inherit' });
+  execFileSync(process.execPath, [publish, '--keep', '5', ...rest], { env, stdio: 'inherit' });
 } else if (cmd === 'rollback') {
   if (!args[1]) throw new Error('ota-local: rollback <version>');
-  execFileSync(process.execPath, [publish, '--rollback', args[1]], { env, stdio: 'inherit' });
+  execFileSync(process.execPath, [publish, '--rollback', args[1], ...rest], { env, stdio: 'inherit' });
+} else if (cmd === 'policy') {
+  execFileSync(process.execPath, [publish, '--write-policy', ...rest], { env, stdio: 'inherit' });
 } else if (cmd === 'serve') {
   const prefix = '/pawlegends-app/updates/';
   createServer((req, res) => {
@@ -54,6 +64,6 @@ if (cmd === 'publish') {
     console.log(`200 ${path}`);
   }).listen(LOCAL_PORT, () => console.log(`ota-local: serving ${dir} at ${LOCAL_UPDATES_URL}/`));
 } else {
-  console.error('usage: node scripts/ota-local.mjs publish | rollback <version> | serve [--dir <path>]');
+  console.error('usage: node scripts/ota-local.mjs publish [flags] | rollback <version> | policy [flags] | serve [--dir <path>]');
   process.exit(1);
 }

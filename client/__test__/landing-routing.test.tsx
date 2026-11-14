@@ -526,6 +526,7 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
       "/pawlegends-app/updates/:platform/:compat/bundles/:file*",
       "/pawlegends-app/updates/:platform/:compat/manifest.json",
       "/pawlegends-app/updates/:platform/:compat/manifest-beta.json",
+      "/pawlegends-app/updates/:platform/:compat/policy.json",
     ]);
     // Moon Rave's second track: every file name is versioned, so the folder is immutable.
     const music = headers.find((h: { source: string }) => h.source === "/music/back-on-track-v1/:path*");
@@ -537,7 +538,7 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     const entry = (source: string) => headers.find((h: { source: string }) => h.source === source)?.headers;
     const value = (source: string) => entry(source)?.[0].value;
     expect(value("/pawlegends-app/updates/:platform/:compat/bundles/:file*")).toBe("public, max-age=31536000, immutable");
-    for (const m of ["manifest.json", "manifest-beta.json"])
+    for (const m of ["manifest.json", "manifest-beta.json", "policy.json"])
       expect(entry(`/pawlegends-app/updates/:platform/:compat/${m}`)).toEqual([
         { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
         { key: "Cloudflare-CDN-Cache-Control", value: "max-age=30, stale-while-revalidate=60" },
