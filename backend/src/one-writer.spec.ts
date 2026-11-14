@@ -123,6 +123,8 @@ describe('one writer for game scores', () => {
             expect(mentions).toEqual(
                 [
                     'impact/impact.service.ts', // reads: active30d
+                    'pawlegends/growth/growth.rules.ts', // reads: the comeback invite kind (inviteKindOf)
+                    'pawlegends/growth/growth.service.ts', // reads: a projection for inviteKindOf
                     'badcat/badcat-live.ts', // /live, Bad Cat branch: $set
                     'pawlegends/pawlegends-live.ts', // /live, Pawlegends branch: $set
                     'pawlegends/pawlegends-party-live.ts', // /live, Pawlegends party branch: $set
@@ -140,6 +142,13 @@ describe('one writer for game scores', () => {
                 .split('\n')
                 .filter(line => line.includes('lastPlayedAt'))
                 .forEach(line => expect(line).toMatch(/lastPlayedAt: \{ \$(exists|gte)/));
+            // the invite rules only read it: no assignment and no update operator on the line
+            for (const file of ['pawlegends/growth/growth.rules.ts', 'pawlegends/growth/growth.service.ts']) {
+                FILES.find(f => f.file === file)!
+                    .text.split('\n')
+                    .filter(line => line.includes('lastPlayedAt'))
+                    .forEach(line => expect(line).not.toMatch(/lastPlayedAt\s*=(?!=)|\$(set|max|inc|setOnInsert)/));
+            }
             const merge = FILES.find(({ file }) => file === 'user/guest/guest-lifecycle.ts')!.text;
             expect(merge.match(/lastPlayedAt\s*=(?!=)/g)).toEqual(['lastPlayedAt =']);
             expect(merge).toMatch(/max\.lastPlayedAt = new Date\(guest\.lastPlayedAt\)/);
