@@ -1,6 +1,10 @@
 node_modules/
 # built by scripts/build-web.mjs (the app copies it into ios/App/App/public on cap sync)
 www/
+# the compat-1 bridge bundle (scripts/build-web.mjs --bridge)
+www-bridge/
+# the node_modules symlink of a worktree
+node_modules
 # OTA signing private key: never commit (GitHub secret OTA_PRIVATE_KEY)
 ota/.keys/
 *.pem.private

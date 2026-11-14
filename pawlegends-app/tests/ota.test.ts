@@ -189,6 +189,53 @@ describe('Ota.booted (the watchdog bookkeeping)', () => {
   });
 });
 
+describe('Ota.applyNow, progress and forgetFailed (the update gate, FORCE-UPDATE.md §4)', () => {
+  it('applyNow swaps off the title too (the gate covers the game), but never into a failed version', async () => {
+    const s = setup();
+    await s.ota.check();
+    s.state.screen = 'match';
+    expect(await s.ota.applyIfSafe()).toBe(false);
+    expect(s.ota.pendingVersion()).toBe('202611071530-abc1234');
+    expect(await s.ota.applyNow()).toBe(true);
+    expect(s.updater.setTo).toBe('id-202611071530-abc1234');
+    const t = setup();
+    await t.ota.check();
+    t.store.m.set(KEYS.failed, JSON.stringify(['202611071530-abc1234']));
+    expect(await t.ota.applyNow()).toBe(false);
+    expect(t.ota.pendingVersion()).toBeNull();
+  });
+  it('reports the download progress from the updater, and stops after unsubscribe', async () => {
+    const updater = new FakeUpdater() as FakeUpdater & { addListener: UpdaterLike['addListener']; emit?: (p: number) => void; removed?: boolean };
+    updater.addListener = async (_e, cb) => {
+      updater.emit = (p) => cb({ percent: p });
+      return { remove: () => void (updater.removed = true) };
+    };
+    const { ota } = setup({ updater });
+    const seen: number[] = [];
+    const off = ota.onProgress((p) => seen.push(p));
+    await Promise.resolve();
+    await Promise.resolve();
+    updater.emit!(42);
+    updater.emit!(140);
+    off();
+    updater.emit!(90);
+    expect(seen).toEqual([42, 100]);
+    await Promise.resolve();
+    expect(updater.removed).toBe(true);
+    // an updater without events: a no-op
+    expect(() => setup().ota.onProgress(() => undefined)()).not.toThrow();
+  });
+  it('forgetFailed lets one failed version be downloaded again', async () => {
+    const store = kv();
+    store.m.set(KEYS.failed, JSON.stringify(['202611071530-abc1234', 'other']));
+    const { ota } = setup({ store });
+    expect(await ota.check(true)).toBe('failed-before');
+    ota.forgetFailed('202611071530-abc1234');
+    expect(ota.failedVersions()).toEqual(['other']);
+    expect(await ota.check(true)).toBe('downloaded');
+  });
+});
+
 describe('takesOtaUpdates', () => {
   it('the iPhone app takes updates; the Mac app never does (guideline 2.4.5)', () => {
     expect(takesOtaUpdates('ios')).toBe(true);

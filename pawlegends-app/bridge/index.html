@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en" data-ready="1" data-screen="title">
+  <!--
+    The compat-1 bridge bundle (docs/plans/moba/FORCE-UPDATE.md §6.1): the last OTA bundle the 1.0.x iPhone and
+    Android apps (native compat 1: no sign-in plugin) ever get. It replaces the old game with this page. No game
+    and no in-page host: only shell.js (built by `scripts/build-web.mjs --bridge`: OTA, haptics, back handling), so
+    the bridge itself can still be rolled back or replaced. html[data-ready] and [data-screen=title] are set at once:
+    the shell tells the updater the bundle booted, and a later bundle (a rollback) applies on this "title".
+    Capacitor hands a link to another site to the system: the App Store, Google Play or the browser.
+  -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#12091f" />
+    <title>Update Paw Legends</title>
+    <style>
+      :root { --bg: #12091f; --cream: #fff3e3; --butter: #ffe14a; --rose: #ff3d7f; --sky: #39a6ff; --ink: #12091f; }
+      html, body {
+        margin: 0; height: 100%; background: var(--bg); color: var(--cream); overflow: hidden;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; -webkit-text-size-adjust: 100%;
+      }
+      main {
+        position: fixed; inset: 0; display: grid; place-items: center; box-sizing: border-box;
+        padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+        background: radial-gradient(circle at 50% 42%, rgba(18, 9, 31, 0) 30%, var(--bg) 72%), linear-gradient(118deg, #3a0f2a 0 49.6%, rgba(255, 225, 74, 0.55) 49.6% 50.4%, #0c1f4a 50.4%);
+      }
+      .card { display: grid; justify-items: center; gap: 14px; max-width: min(420px, 100%); text-align: center; }
+      img { width: min(240px, 60vw); height: auto; }
+      h1 { margin: 4px 0 0; font-size: 24px; font-weight: 800; font-style: italic; text-transform: uppercase; letter-spacing: 0.01em; }
+      p { margin: 0; font-size: 16px; line-height: 1.45; color: rgba(255, 243, 227, 0.88); }
+      .actions { display: grid; gap: 12px; width: min(300px, 100%); margin-top: 8px; }
+      a.btn {
+        display: flex; align-items: center; justify-content: center; min-height: 50px; border-radius: 6px; border: 2px solid var(--ink);
+        font-weight: 800; font-size: 17px; text-decoration: none; transform: skewX(-6deg); background: var(--butter); color: var(--ink);
+        box-shadow: 0 3px 0 var(--ink);
+      }
+      a.btn.ghost { background: transparent; color: var(--cream); border-color: rgba(255, 243, 227, 0.5); box-shadow: none; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="card">
+        <img src="./logo.webp" alt="Paw Legends" width="720" height="454" />
+        <h1>Update Paw Legends</h1>
+        <p>This version can't play any more. Get the new Paw Legends with accounts, PvP and the latest champions.</p>
+        <div class="actions">
+          <a class="btn" id="store" data-store href="https://apps.apple.com/app/id6832032981">Open the App Store</a>
+          <a class="btn ghost" id="web" href="https://pawlegends.app/play">Play in your browser</a>
+        </div>
+      </div>
+    </main>
+    <script>
+      // the platform: the native shell's own key (Android's ShellPlugin, newer iPhone binaries), else Capacitor's name
+      (function () {
+        var p = window.__PL_PLATFORM__;
+        try {
+          if (!p && window.Capacitor && typeof window.Capacitor.getPlatform === 'function') p = window.Capacitor.getPlatform();
+        } catch (e) {}
+        if (p === 'android') {
+          var a = document.getElementById('store');
+          a.href = 'https://play.google.com/store/apps/details?id=com.tokentails.pawlegends';
+          a.textContent = 'Open Google Play';
+        }
+      })();
+    </script>
+    <script src="./shell.js"></script>
+  </body>
+</html>

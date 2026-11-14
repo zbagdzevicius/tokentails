@@ -24,7 +24,8 @@ Play Console answers and founder steps: [`docs/plans/moba/PLAY-STORE.md`](../doc
 | Path | What |
 |---|---|
 | `capacitor.config.ts` | App id, WebView settings, the updater in manual self-hosted mode, the OTA public key |
-| `src/shell/` | `shell.js`, loaded before the game: OTA (`ota.ts`, `manifest.ts`) and native haptics (`haptics.ts`) |
+| `src/shell/` | `shell.js`, loaded before the game: OTA (`ota.ts`, `manifest.ts`), the update gate (`gate.ts`, `policy.ts`) and native haptics (`haptics.ts`) |
+| `bridge/` | The compat-1 bridge bundle (`build-web.mjs --bridge`): the "Update Paw Legends" page the 1.0.x apps get as their last OTA |
 | `scripts/build-web.mjs` | Builds `../pawlegends` for the app into `www/` (app build flag, production API, no analytics key) and adds `shell.js` |
 | `scripts/ota-publish.mjs` | Zips, encrypts and signs `www/` into `client/public/pawlegends-app/updates/ios/<compat>/` |
 | `scripts/ota-local.mjs` | Publishes into a scratch folder and serves it on `localhost:8787` for a Debug build (try an update before it ships) |
@@ -162,15 +163,32 @@ Gradle release tasks (`-PplAllowNoFirebase` skips it), and the fastlane `build` 
   - App Store installs read `https://tokentails.com/pawlegends-app/updates/ios/<compat>/manifest.json` (stable);
   - TestFlight installs read `manifest-beta.json` (beta): every push to `main` lands here first;
   - Debug builds read `http://localhost:8787/pawlegends-app/updates/ios/<compat>/manifest-beta.json` (dev, below).
-  The hourly job in *Pawlegends OTA* promotes to stable the newest kept bundle that is 24 h old; when stable is already 24 h behind beta, it promotes the current beta once it is 2 h old (busy days on `main` no longer starve stable). `promote_now` promotes the current beta at once.
-- The app reads its manifest on launch and on resume (at most every 30 minutes; no device id, no cookies), downloads
-  a newer bundle in the background, and switches to it only on the title screen with no party open: at the next
-  launch or resume. Never mid-match. The console shows `[ota] <version>: check <result> (channel <name>)`.
+  The hourly job in *Pawlegends OTA* promotes to stable the newest kept bundle that is 6 h old; when stable is missing or already 6 h behind beta, the newest bundle that is 2 h old (busy days on `main` no longer starve stable). `promote_now` promotes the current beta at once.
+- **Force update** (`docs/plans/moba/FORCE-UPDATE.md`). Every publish, promote and rollback also writes a signed
+  `updates/<platform>/<compat>/policy.json`; `GET api.tokentails.com/pawlegends/client-policy` merges it with the sims
+  the backend replays. The update gate in `shell.js` (`src/shell/gate.ts`) asks at launch, on resume while on the
+  title, whenever the game returns to the title, and when the game says the server refused this version. A required
+  update shows **Updating Paw Legends** with progress and reloads into the new bundle: the app does not start on an
+  outdated bundle. Releases are required at once (`--grace-hours <n>`, workflow input `grace_hours`, delays one).
+  Offline or with the API down: the signed `policy.json`, else the last kept answer decides (play with a notice while
+  the backend still accepts this sim, else a retry screen with backoff). A version that failed to boot is never retried
+  automatically; any error in the gate lets the game start. The console shows `[gate] …` lines.
+- Otherwise (an optional newer bundle) the app downloads in the background (at most every 30 minutes; no device id, no
+  cookies) and switches only on the title screen with no party open, at the next launch or resume. Never mid-match.
+  The console shows `[ota] <version>: check <result> (channel <name>)`.
 - The new bundle must reach the title screen within 30 s (`notifyAppReady`), or the updater goes back to the last
   good bundle and the app never tries that version again.
 - Rollback: Actions → *Pawlegends OTA* → `rollback_to` = a kept version (the last 3 plus the live stable one are kept
-  in `client/public/pawlegends-app/updates/ios/1/bundles/`); it points beta and stable at it. Locally:
-  `node scripts/ota-publish.mjs --rollback <version>`.
+  in `client/public/pawlegends-app/updates/ios/<compat>/bundles/`); it points beta and stable at it, and the policy
+  makes it a required update, so gated phones move to it on their next check. Locally:
+  `node scripts/ota-publish.mjs --rollback <version>`. A gate that blocks by mistake: republish with `grace_hours`, or
+  `node scripts/ota-publish.mjs --maintenance off`.
+- Maintenance screen: `node scripts/ota-publish.mjs --maintenance "Back at 18:00 UTC" --until 2026-11-20T18:00:00Z`
+  (workflow input `maintenance`; `off` ends it). It rewrites and re-signs `policy.json` only.
+- The 1.0.x apps (compat 1, no sign-in) can never run a compat-2 bundle. Their last OTA is the bridge: Actions →
+  *Pawlegends OTA* → `bridge` = `beta` (TestFlight 1.0.x first), then `stable` after a device check. Locally:
+  `node scripts/build-web.mjs --bridge && node scripts/ota-publish.mjs --compat 1 --www www-bridge`. It publishes once
+  (`--force` to publish again). Undo: `node scripts/ota-publish.mjs --compat 1 --rollback 20261111112457-ef22d35`.
 - Try an update on the Mac first (simulator, Debug build, the real key in `ota/.keys/`):
 
   ```sh
@@ -181,7 +199,10 @@ Gradle release tasks (`-PplAllowNoFirebase` skips it), and the fastlane `build` 
   xcrun simctl launch --console-pty booted com.tokentails.pawlegends   # watch the [ota] lines
   ```
 
-  The first relaunch downloads, the next one swaps on the title. For a rollback drill, publish a bundle whose
+  With the gate (a Debug build reads only the local `policy.json`), a relaunch after a publish shows **Updating Paw
+  Legends** and swaps at once; `ota-local.mjs publish --grace-hours 1` makes it optional (the old flow: the first
+  relaunch downloads, the next one swaps on the title). Offline drill: stop `serve` and relaunch (a notice chip, or the
+  retry screen once the local policy's sim floor is above the installed sim). For a rollback drill, publish a bundle whose
   `www/index.html` has no game script: it never reaches the title and the updater returns to the last good bundle
   after 30 s. Checks are throttled to one per 30 minutes; reinstall the app (`xcrun simctl uninstall`) to reset.
 - `NATIVE_COMPAT` (`scripts/lib/app-config.mjs`): raise it with any native change a bundle relies on (a new plugin,
