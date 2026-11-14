@@ -123,11 +123,14 @@ test('cast modes: Indicator shows the aim on the press; Normal arms, then a fiel
     void (await cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 7 }] }));
   // Indicator (W): the aim goes up on the press (Quick waits for a 180 ms hold)
   const w = await centre(page, '.pl-tbtn.w');
+  const castsW = Number(await attr(page, 'casts'));
   await touch('touchStart', w.x, w.y);
   // the press itself drew the aim (counted on the press; a loaded machine may be slow to paint the next frame)
   await expect.poll(async () => (await attr(page, 'castModes')).split(',')[2], { timeout: 10_000 }).toBe('1');
   await expect.poll(async () => attr(page, 'aim'), { timeout: 10_000 }).toBe('1');
   await touch('touchEnd', w.x, w.y);
+  // the release cast W (wait for it, so it is not counted against Q below)
+  await expect.poll(async () => Number(await attr(page, 'casts')), { timeout: 10_000 }).toBeGreaterThan(castsW);
   // Normal (Q): a tap arms it (the button glows, no cast yet), a tap on the field casts it
   await page.waitForTimeout(400);
   const casts0 = Number(await attr(page, 'casts'));
