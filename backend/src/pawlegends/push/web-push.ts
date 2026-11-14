@@ -31,14 +31,32 @@ export interface PushSubscriptionKeys {
 export function generateVapidKeys(): { publicKey: string; privateKey: string } {
     const ecdh = createECDH('prime256v1');
     ecdh.generateKeys();
-    return { publicKey: b64u(ecdh.getPublicKey()), privateKey: b64u(ecdh.getPrivateKey()) };
+    return { publicKey: b64u(ecdh.getPublicKey()), privateKey: b64u(pad32(ecdh.getPrivateKey())) };
+}
+
+/**
+ * The private scalar as 32 bytes. Node's `getPrivateKey()` drops leading zero bytes (about 1 key in 256 comes out 31
+ * bytes, 42 base64url characters), and the JWT signer's JWK `d` needs all 32.
+ */
+const pad32 = (d: Buffer): Buffer => (d.length >= 32 ? d : Buffer.concat([Buffer.alloc(32 - d.length), d]));
+
+/** The private key in its 32-byte base64url form (a short one from an older one-liner is padded), or null. */
+export function normalPrivateKey(privateKey: string): string | null {
+    try {
+        const d = unb64u(privateKey);
+        return d.length >= 1 && d.length <= 32 ? b64u(pad32(d)) : null;
+    } catch {
+        return null;
+    }
 }
 
 /** The keys are a P-256 pair (public point 65 bytes from 0x04, private 32 bytes, the private matches). */
 export function vapidKeysValid(publicKey: string, privateKey: string): boolean {
     try {
         const pub = unb64u(publicKey);
-        const d = unb64u(privateKey);
+        const n = normalPrivateKey(privateKey);
+        if (!n) return false;
+        const d = unb64u(n);
         if (pub.length !== 65 || pub[0] !== 4 || d.length !== 32) return false;
         const ecdh = createECDH('prime256v1');
         ecdh.setPrivateKey(d);
