@@ -67,6 +67,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "158850509760-0ja636fhe1nl2ercc9hlgftjunmth3a8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tokentails.pawlegends",
+            "certificate_hash": "c0a731b3fc477dfb06534e91e304c85177c801fc"
+          }
+        },
+        {
           "client_id": "158850509760-guo3a7dkg3sj1t5d854d109khjokfm3s.apps.googleusercontent.com",
           "client_type": 3
         }
