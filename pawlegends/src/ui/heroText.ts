@@ -15,6 +15,10 @@ import { TEXT as HOWLER_TEXT } from './heroText/howler';
 import { TEXT as ROCKET_TEXT } from './heroText/rocket';
 import { TEXT as FRANKIE_TEXT } from './heroText/frankie';
 import { TEXT as DOMINO_TEXT } from './heroText/domino';
+import { TEXT as MOCHI_TEXT } from './heroText/mochi';
+import { TEXT as ZIGGY_TEXT } from './heroText/ziggy';
+import { TEXT as BISCUIT_TEXT } from './heroText/biscuit';
+import { TEXT as CHAMP_TEXT } from './heroText/champ';
 
 export interface AbilityText {
   name: string;
@@ -34,7 +38,10 @@ export type IconId =
   | 'frisbee' | 'bestfriend' | 'sploot' | 'herd' | 'snowball' | 'snowpatch' | 'slide' | 'blizzard' | 'tear' | 'spotlight' | 'stagedive' | 'encore'
   | 'yap' | 'purse' | 'bigdog' | 'howl' | 'derpdash' | 'talkback' | 'scream' | 'bone'
   // sim v15 dogs (drawn in ./icons/<hero>.ts)
-  | 'lure' | 'photofinish' | 'squirrel' | 'sprint' | 'weenieroll' | 'dig' | 'bunhop' | 'footlong' | 'spot' | 'splatter' | 'shake' | 'dots';
+  | 'lure' | 'photofinish' | 'squirrel' | 'sprint' | 'weenieroll' | 'dig' | 'bunhop' | 'footlong' | 'spot' | 'splatter' | 'shake' | 'dots'
+  // sim v29 roster (drawn in ./icons/<hero>.ts)
+  | 'pillow' | 'bubble' | 'purrwave' | 'lullaby' | 'zig' | 'sparkswipe' | 'tailflick' | 'storm' | 'fetch' | 'tailwag' | 'stubborn' | 'walkies'
+  | 'haymaker' | 'ropeadope' | 'weave' | 'knockout';
 
 export interface HeroText {
   title: string;
@@ -242,6 +249,10 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
   rocket: ROCKET_TEXT,
   frankie: FRANKIE_TEXT,
   domino: DOMINO_TEXT,
+  mochi: MOCHI_TEXT,
+  ziggy: ZIGGY_TEXT,
+  biscuit: BISCUIT_TEXT,
+  champ: CHAMP_TEXT,
 });
 
 export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze({

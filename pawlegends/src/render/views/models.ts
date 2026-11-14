@@ -19,6 +19,10 @@ import { RING as CHILI_RING } from '../chars/heroes/chili';
 import { RING as HOWLER_RING } from '../chars/heroes/howler';
 import { RING as ROCKET_RING } from '../chars/heroes/rocket';
 import { RING as FRANKIE_RING } from '../chars/heroes/frankie';
+import { RING as MOCHI_RING } from '../chars/heroes/mochi';
+import { RING as ZIGGY_RING } from '../chars/heroes/ziggy';
+import { RING as BISCUIT_RING } from '../chars/heroes/biscuit';
+import { RING as CHAMP_RING } from '../chars/heroes/champ';
 import { RING as DOMINO_RING } from '../chars/heroes/domino';
 import { RING as DUCHESS_RING } from '../chars/heroes/duchess';
 import { PLATE_HEADROOM as STILTS_PLATE_HEADROOM, RING as STILTS_RING } from '../chars/heroes/stilts';
@@ -62,6 +66,10 @@ export const HERO_SCALE: Readonly<Record<HeroId, number>> = Object.freeze({
   rocket: (HERO_TOP.rocket + 0.15) / 1.62,
   frankie: (HERO_TOP.frankie + 0.15) / 1.62,
   domino: (HERO_TOP.domino + 0.15) / 1.62,
+  mochi: (HERO_TOP.mochi + 0.15) / 1.62,
+  ziggy: (HERO_TOP.ziggy + 0.15) / 1.62,
+  biscuit: (HERO_TOP.biscuit + 0.15) / 1.62,
+  champ: (HERO_TOP.champ + 0.15) / 1.62,
 });
 
 /**
@@ -74,6 +82,7 @@ export const HERO_RING: Readonly<Record<HeroId, number>> = Object.freeze({
   meatball: MEATBALL_RING, pixel: PIXEL_RING, duchess: DUCHESS_RING, stilts: STILTS_RING,
   nugget: NUGGET_RING, marshmallow: MARSHMALLOW_RING, bravo: BRAVO_RING, chili: CHILI_RING, howler: HOWLER_RING,
   rocket: ROCKET_RING, frankie: FRANKIE_RING, domino: DOMINO_RING,
+  mochi: MOCHI_RING, ziggy: ZIGGY_RING, biscuit: BISCUIT_RING, champ: CHAMP_RING,
 });
 
 // ------------------------------------------------------------------------------------------------ minions

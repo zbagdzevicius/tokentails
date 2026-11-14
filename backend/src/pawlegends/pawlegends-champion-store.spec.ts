@@ -103,7 +103,7 @@ describe('starters and the rotation', () => {
         }
         expect(new Set(starters.map(c => c.role)).size).toBe(6);
         expect(STARTERS).toContain('clem');
-        expect(CHAMPION_IDS).toHaveLength(20);
+        expect(CHAMPION_IDS).toHaveLength(24);
     });
 
     it('every week: 3 cats and 3 dogs, no role twice per species, never a starter', () => {
@@ -120,11 +120,12 @@ describe('starters and the rotation', () => {
         }
     });
 
-    it('every non-starter is free 3 weeks in 7 and never waits more than 2 weeks', () => {
+    it('every non-starter is free 1 week in 3 and never waits more than 2 weeks (sim v29: 9 a species)', () => {
         const cycle = [...ROTATION_CATS, ...ROTATION_DOGS];
-        expect(new Set(cycle).size).toBe(14);
+        expect(new Set(cycle).size).toBe(18);
+        expect(new Set(cycle)).toEqual(new Set(CHAMPION_IDS.filter(h => !STARTERS.includes(h))));
         for (const h of cycle) {
-            const free = [0, 1, 2, 3, 4, 5, 6].filter(w => rotationOf(w).includes(h));
+            const free = [0, 1, 2, 3, 4, 5, 6, 7, 8].filter(w => rotationOf(w).includes(h));
             expect(free).toHaveLength(3);
             let gap = 0;
             let worst = 0;
@@ -149,8 +150,9 @@ describe('starters and the rotation', () => {
     });
 
     it('matches the design table for week 0 and weeks start on Monday 00:00 UTC', () => {
-        expect(rotationOf(0)).toEqual(['meatball', 'pixel', 'aviete', 'domino', 'cacklejaw', 'rocket']);
-        expect(rotationOf(6)).toEqual(['lambo', 'stilts', 'bengas', 'howler', 'chili', 'nugget']);
+        expect(rotationOf(0)).toEqual(['meatball', 'pixel', 'ziggy', 'nugget', 'domino', 'cacklejaw']);
+        expect(rotationOf(1)).toEqual(['aviete', 'duchess', 'mochi', 'champ', 'rocket', 'biscuit']);
+        expect(rotationOf(2)).toEqual(['lambo', 'stilts', 'bengas', 'howler', 'chili', 'bravo']);
         expect(new Date(ROTATION_EPOCH).getUTCDay()).toBe(1);
         expect(rotationWeek(Date.parse(ROTATION_EPOCH))).toBe(0);
         expect(rotationWeek(Date.parse(ROTATION_EPOCH) - 1)).toBe(-1);
@@ -162,9 +164,12 @@ describe('starters and the rotation', () => {
 });
 
 describe('catalogue', () => {
-    it('14 singles by tier, 3 bundles cheaper than their singles, every SKU once per account', () => {
+    it('18 singles by tier (the roster four at the launch price), 3 bundles cheaper than their singles, every SKU once per account', () => {
         const singles = CATALOG_SKUS.filter(s => s.kind === 'champion' && !s.bundleOf);
-        expect(singles).toHaveLength(14);
+        expect(singles).toHaveLength(18);
+        for (const h of ['mochi', 'ziggy', 'biscuit', 'champ'])
+            expect(PAWLEGENDS_SKUS[champSkuOf(h)].cents.usd).toBe(TIER_PRICE.launch.cents.usd);
+        expect(PAWLEGENDS_SKUS.pl_champs_all_s1.bundleOf).toHaveLength(14);
         expect(PAWLEGENDS_SKUS[champSkuOf('meatball')].cents.usd).toBe(TIER_PRICE.t1.cents.usd);
         expect(PAWLEGENDS_SKUS[champSkuOf('pixel')].cents.usd).toBe(399);
         expect(PAWLEGENDS_SKUS[champSkuOf('aviete')].cents.usd).toBe(499);

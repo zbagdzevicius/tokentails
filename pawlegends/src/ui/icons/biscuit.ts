@@ -1,0 +1,7 @@
+/** Biscuit's ability icons (sim v29), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. */
+export const ICONS = {
+  fetch: '<circle cx="36" cy="14" r="8" fill="currentColor"/><path d="M29 11 Q36 16 43 11" stroke="#0005" stroke-width="2" fill="none"/><path d="M6 40 Q14 26 30 20" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="4 3"/><path d="M10 30 L6 40 L16 38" stroke="currentColor" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  tailwag: '<path d="M24 40 C20 30 22 20 30 12" stroke="currentColor" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M12 14 Q8 24 12 34 M36 26 Q40 32 36 40" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/>',
+  stubborn: '<path d="M10 40 H38" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><ellipse cx="24" cy="30" rx="9" ry="7" fill="currentColor"/><circle cx="14" cy="21" r="4" fill="currentColor"/><circle cx="21" cy="16" r="4" fill="currentColor"/><circle cx="28" cy="16" r="4" fill="currentColor"/><circle cx="35" cy="21" r="4" fill="currentColor"/><path d="M6 10 L10 14 M42 10 L38 14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>',
+  walkies: '<circle cx="24" cy="24" r="6" fill="currentColor"/><path d="M24 18 V6 M24 30 V42 M18 24 H6 M30 24 H42" stroke="currentColor" stroke-width="3" stroke-dasharray="3 3"/><path d="M8 10 L14 16 M40 10 L34 16 M8 38 L14 32 M40 38 L34 32" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>',
+} as const;

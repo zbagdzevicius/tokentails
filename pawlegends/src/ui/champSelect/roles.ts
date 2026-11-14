@@ -30,5 +30,5 @@ export const ROLE_NAME: Readonly<Record<HeroRole, string>> = Object.freeze(
  * Sim v15 (DOGS-V15 §2): the sim version each newer hero shipped in. A tile is tagged New while its hero's version is
  * the live SIM_VERSION; the tag goes away in the next sim version.
  */
-const HERO_SINCE: Readonly<Partial<Record<HeroId, number>>> = { rocket: 15, frankie: 15, domino: 15 };
+const HERO_SINCE: Readonly<Partial<Record<HeroId, number>>> = { rocket: 15, frankie: 15, domino: 15, mochi: 29, ziggy: 29, biscuit: 29, champ: 29 };
 export const isNewHero = (h: HeroId): boolean => HERO_SINCE[h] === SIM_VERSION;

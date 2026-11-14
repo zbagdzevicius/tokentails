@@ -65,7 +65,7 @@ describe('Treat Track storybook', () => {
     const ids = [...root.querySelectorAll<HTMLElement>('.md-row [data-target]')].map((b) => b.dataset.target as HeroId | '');
     expect(ids[0]).toBe('');
     const heroes = ids.slice(1) as HeroId[];
-    expect(heroes).toHaveLength(20);
+    expect(heroes).toHaveLength(24);
     const firstDog = heroes.findIndex((h) => !isCat(h));
     expect(heroes.slice(0, firstDog).every(isCat)).toBe(true);
     expect(heroes.slice(firstDog).some(isCat)).toBe(false);

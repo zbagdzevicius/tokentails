@@ -23,6 +23,10 @@ import { SPRINGS as HOWLER_SPRINGS } from '../chars/heroes/howler';
 import { SPRINGS as ROCKET_SPRINGS } from '../chars/heroes/rocket';
 import { SPRINGS as FRANKIE_SPRINGS } from '../chars/heroes/frankie';
 import { SPRINGS as DOMINO_SPRINGS } from '../chars/heroes/domino';
+import { SPRINGS as MOCHI_SPRINGS } from '../chars/heroes/mochi';
+import { SPRINGS as ZIGGY_SPRINGS } from '../chars/heroes/ziggy';
+import { SPRINGS as BISCUIT_SPRINGS } from '../chars/heroes/biscuit';
+import { SPRINGS as CHAMP_SPRINGS } from '../chars/heroes/champ';
 import { Prio, type Anchor, type ClipDef, type Cue, type GaitProfile, type Key, type Mask, type MoveSet, type ScalarKey, type SkillFxSet, type SlotMoves, type SpringTuning } from './types';
 
 /** The basic contact time (s) every basic clip pins to `contact` / `release`. */
@@ -70,6 +74,10 @@ export const HERO_SPRINGS: Readonly<Record<HeroId, SpringTuning>> = Object.freez
   rocket: ROCKET_SPRINGS,
   frankie: FRANKIE_SPRINGS,
   domino: DOMINO_SPRINGS,
+  mochi: MOCHI_SPRINGS,
+  ziggy: ZIGGY_SPRINGS,
+  biscuit: BISCUIT_SPRINGS,
+  champ: CHAMP_SPRINGS,
 });
 
 // ------------------------------------------------------------------------------------------------ templates

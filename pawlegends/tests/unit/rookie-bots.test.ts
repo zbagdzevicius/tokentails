@@ -64,7 +64,8 @@ describe('Rookie and Easy bots (sim v4)', () => {
     const where = (difficulty: 'rookie' | 'normal'): number => {
       // Seed 4 (sim v15; 3 before): on seed 3 the v15 picks put Domino in slot 3, and his Normal wave front sits 0.2 m
       // past the river at 0:28 (lane work, not the script).
-      const m = quietMatch(4, true, difficulty);
+      // sim v29: seed 5 (the roster four changed seed 4's picks)
+      const m = quietMatch(5, true, difficulty);
       let minX = 1e9;
       let fought = false;
       while (m.world.globals[G.Tick] < DIFFICULTY_RULES.rookie.scriptFrom + 600) {

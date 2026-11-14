@@ -3,7 +3,8 @@
  * dispatch to the bespoke hero modules (clem.ts, sage.ts, brutus.ts, cacklejaw.ts, the sim v9 shelter champions
  * lambo.ts, aviete.ts, bengas.ts, gabe.ts, the sim v11 original cats meatball.ts, pixel.ts, duchess.ts, stilts.ts, and
  * the sim v14 original dogs nugget.ts, marshmallow.ts, bravo.ts, chili.ts, howler.ts, and the sim v15 dogs rocket.ts,
- * frankie.ts, domino.ts) for their abilities, passives and damage hooks.
+ * frankie.ts, domino.ts, and the sim v29 roster mochi.ts, ziggy.ts, biscuit.ts, champ.ts) for their abilities, passives
+ * and damage hooks.
  *
  * Cast flow: a `cast`/`trick` command checks readiness (cooldown or an open recast window, level 4 for R, not
  * disabled, no mobility cast while rooted) and either walks in (a unit or ground target out of reach) or starts the
@@ -41,6 +42,10 @@ import { HOWLER_KIT } from './howler';
 import { ROCKET_KIT } from './rocket';
 import { FRANKIE_KIT } from './frankie';
 import { DOMINO_KIT } from './domino';
+import { MOCHI_KIT } from './mochi';
+import { ZIGGY_KIT } from './ziggy';
+import { BISCUIT_KIT } from './biscuit';
+import { CHAMP_KIT } from './champ';
 import { castsThroughCc, castTrick, trickAim } from './tricks';
 
 /** How a slot is aimed. */
@@ -131,7 +136,7 @@ export type WindupEvent = Extract<SimEvent, { type: 'windup' }>;
 
 /**
  * HERO_IDS order: clem, sage, brutus, cacklejaw, lambo, aviete, bengas, gabe, meatball, pixel, duchess, stilts, nugget,
- * marshmallow, bravo, chili, howler, rocket, frankie, domino.
+ * marshmallow, bravo, chili, howler, rocket, frankie, domino, mochi, ziggy, biscuit, champ.
  */
 const KITS: readonly HeroKit[] = [
   CLEM_KIT,
@@ -154,6 +159,10 @@ const KITS: readonly HeroKit[] = [
   ROCKET_KIT,
   FRANKIE_KIT,
   DOMINO_KIT,
+  MOCHI_KIT,
+  ZIGGY_KIT,
+  BISCUIT_KIT,
+  CHAMP_KIT,
 ];
 
 export const kitOf = (w: World, id: number): HeroKit => KITS[w.sub[id]];

@@ -29,6 +29,10 @@ import { aims as howlerAims } from './aims/howler';
 import { aims as rocketAims } from './aims/rocket';
 import { aims as frankieAims } from './aims/frankie';
 import { aims as dominoAims } from './aims/domino';
+import { aims as mochiAims } from './aims/mochi';
+import { aims as ziggyAims } from './aims/ziggy';
+import { aims as biscuitAims } from './aims/biscuit';
+import { aims as champAims } from './aims/champ';
 
 export type AimKind = 'self' | 'dir' | 'point' | 'unit';
 export type AimShape = 'cone' | 'line' | 'dash' | 'circle' | 'ring' | 'none';
@@ -161,6 +165,14 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
       return frankieAims(a);
     case 'domino':
       return dominoAims(a);
+    case 'mochi':
+      return mochiAims(a);
+    case 'ziggy':
+      return ziggyAims(a);
+    case 'biscuit':
+      return biscuitAims(a);
+    case 'champ':
+      return champAims(a);
   }
 }
 

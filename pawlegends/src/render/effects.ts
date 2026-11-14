@@ -41,6 +41,10 @@ import * as HOWLER from './chars/heroes/howler';
 import * as ROCKET from './chars/heroes/rocket';
 import * as FRANKIE from './chars/heroes/frankie';
 import * as DOMINO from './chars/heroes/domino';
+import * as MOCHI from './chars/heroes/mochi';
+import * as ZIGGY from './chars/heroes/ziggy';
+import * as BISCUIT from './chars/heroes/biscuit';
+import * as CHAMP from './chars/heroes/champ';
 import { isFun, isNineLives, type AnyEvent, type FunEvent, type PickupKind } from './feelEvents';
 import { auraColor, elementColor, impactScale, isBigHit, maxedRank, rankScale, type CombatVfx } from './fx/combatVfx';
 import { mixHex } from './skins/classify';
@@ -1020,6 +1024,14 @@ function heroAccentRaw(h: HeroId): number {
       return FRANKIE.ACCENT ?? elementColor(h);
     case 'domino':
       return DOMINO.ACCENT ?? elementColor(h);
+    case 'mochi':
+      return MOCHI.ACCENT ?? elementColor(h);
+    case 'ziggy':
+      return ZIGGY.ACCENT ?? elementColor(h);
+    case 'biscuit':
+      return BISCUIT.ACCENT ?? elementColor(h);
+    case 'champ':
+      return CHAMP.ACCENT ?? elementColor(h);
     // Wave C (C3): the champions cast in their own element colour (they all fell back to Cacklejaw's purple)
     default:
       return elementColor(h);
@@ -1066,6 +1078,14 @@ function ultName(h: HeroId): string {
       return FRANKIE.ULT_NAME;
     case 'domino':
       return DOMINO.ULT_NAME;
+    case 'mochi':
+      return MOCHI.ULT_NAME;
+    case 'ziggy':
+      return ZIGGY.ULT_NAME;
+    case 'biscuit':
+      return BISCUIT.ULT_NAME;
+    case 'champ':
+      return CHAMP.ULT_NAME;
     default:
       return 'Pack Hunt!';
   }

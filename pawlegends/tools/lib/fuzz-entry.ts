@@ -10,7 +10,7 @@ import { runReplay } from '../../src/sim/replay';
 import { Rng } from '../../src/sim/rng';
 import { randomCommand } from '../../tests/unit/helpers';
 
-const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino'];
+const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'mochi', 'ziggy', 'biscuit', 'champ'];
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss', 'purrify'];
 const LEVELS: readonly Difficulty[] = ['easy', 'normal', 'hard'];
 
@@ -175,15 +175,15 @@ export function fuzzPartyMatch(seed: number): { seed: number; ok: boolean; final
 // flipping between a pilot and a random stream; both leads send pings and forfeits (some before 4:00, dropped).
 // Recorded as a PvpReplayRecord and replayed from it; trails must match.
 
-const CAT_IDS: readonly HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess', 'aviete', 'bengas', 'lambo', 'pixel', 'stilts'];
-const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino'];
+const CAT_IDS: readonly HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess', 'aviete', 'bengas', 'lambo', 'pixel', 'stilts', 'mochi', 'ziggy'];
+const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'mochi', 'ziggy', 'biscuit', 'champ'];
 const PVP_HUMANS: readonly number[] = [0, 1, 3, 4];
 
 export function fuzzPvpPlay(seed: number) {
   const r = new Rng(seed ^ 0x9f9f);
   const side0 = r.int(2) === 0 ? CAT_IDS : DOG_IDS;
   const side1 = side0 === CAT_IDS ? DOG_IDS : CAT_IDS;
-  const seats = PVP_HUMANS.map((slot) => ({ slot, hero: (slot < 3 ? side0 : side1)[(fuzzIndex(seed) + (slot % 3) * 3) % 10], trick: TRICKS[r.int(TRICKS.length)] }));
+  const seats = PVP_HUMANS.map((slot) => ({ slot, hero: (slot < 3 ? side0 : side1)[(fuzzIndex(seed) + (slot % 3) * 3) % side0.length], trick: TRICKS[r.int(TRICKS.length)] }));
   const fill: [Difficulty, Difficulty] = [LEVELS[r.int(LEVELS.length)], LEVELS[r.int(LEVELS.length)]];
   const { picks, tricks } = fillPicksParty(seed, seats);
   const m = createMatch({ seed, picks, tricks, difficulty: 'hard', humans: PVP_HUMANS, mode: 'pvp', fillDifficulty: fill });

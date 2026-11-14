@@ -1,9 +1,11 @@
 /** Hero table. Order is the HeroId index used by the sim and the command stream. */
 import { AVIETE } from './aviete';
+import { BISCUIT } from './biscuit';
 import { BENGAS } from './bengas';
 import { BRAVO } from './bravo';
 import { BRUTUS } from './brutus';
 import { CACKLEJAW } from './cacklejaw';
+import { CHAMP } from './champ';
 import { CHILI } from './chili';
 import { CLEM } from './clem';
 import { DOMINO } from './domino';
@@ -14,11 +16,13 @@ import { HOWLER } from './howler';
 import { LAMBO } from './lambo';
 import { MARSHMALLOW } from './marshmallow';
 import { MEATBALL } from './meatball';
+import { MOCHI } from './mochi';
 import { NUGGET } from './nugget';
 import { PIXEL } from './pixel';
 import { ROCKET } from './rocket';
 import { SAGE } from './sage';
 import { STILTS } from './stilts';
+import { ZIGGY } from './ziggy';
 import type { HeroData, HeroId } from './types';
 
 export { GROWTH_FLOOR, RANK_KEYS, RANK_LEVELS, ROLE_GROWTH, type Growth } from './growth';
@@ -31,6 +35,8 @@ export type { AbilityData, AbilitySlot, Element, HeroBase, HeroData, HeroId, Her
  * docs/plans/moba/DOGS-V13.md).
  * Sim v15: three more dogs make the sides 10 v 10 with the same roles (Rocket 17, Frankie 18, Domino 19;
  * docs/plans/moba/DOGS-V15.md).
+ * Sim v29: two cats and two dogs fill the second fighter and support of each side (Mochi 20, Ziggy 21, Biscuit 22,
+ * Champ 23; docs/plans/moba/ROSTER-V29.md).
  */
 export const HERO_IDS: readonly HeroId[] = Object.freeze([
   'clem',
@@ -53,6 +59,10 @@ export const HERO_IDS: readonly HeroId[] = Object.freeze([
   'rocket',
   'frankie',
   'domino',
+  'mochi',
+  'ziggy',
+  'biscuit',
+  'champ',
 ] as HeroId[]);
 
 export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
@@ -76,6 +86,10 @@ export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
   rocket: ROCKET,
   frankie: FRANKIE,
   domino: DOMINO,
+  mochi: MOCHI,
+  ziggy: ZIGGY,
+  biscuit: BISCUIT,
+  champ: CHAMP,
 });
 
 /**
@@ -103,6 +117,10 @@ export const BRANCH_TALENT: Readonly<Record<HeroId, string | null>> = Object.fre
   rocket: null,
   frankie: null,
   domino: null,
+  mochi: null,
+  ziggy: null,
+  biscuit: null,
+  champ: null,
 });
 
 /** Heroes with a level-6 shape branch, HERO_IDS order. */

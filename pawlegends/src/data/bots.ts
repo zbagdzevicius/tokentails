@@ -608,6 +608,25 @@ export const BOT_AI = Object.freeze({
   frankieDigHpBp: 6000,
   frankieFootlongHpBp: 4500,
   frankieDiveAllyRange: 8000,
+  /**
+   * Sim v29 roster (sim/bots/heroes/{mochi,ziggy,biscuit,champ}.ts; docs/plans/moba/ROSTER-V29.md §2). Mochi sings
+   * LULLABY on mochiLullabyFoes enemy heroes in her drowsy ring (or one beside a hurt friend) and bubbles the friend
+   * nearest a foe within mochiBubbleFoeRange of it. Ziggy storms a foe below ziggyStormHpBp (or two together) and
+   * flicks away below ziggyFlickHpBp when focused. Biscuit calls WALKIES! on biscuitWalkiesFoes enemy heroes (or one below
+   * biscuitWalkiesHpBp), fetches beyond biscuitFetchMin with an ally within biscuitFetchAllyRange (or a foe below
+   * biscuitFetchHpBp). Champ knocks out a foe below champKoHpBp and guards below champGuardHpBp when focused.
+   */
+  mochiLullabyFoes: 2,
+  mochiBubbleFoeRange: 6000,
+  ziggyStormHpBp: 5500,
+  ziggyFlickHpBp: 4000,
+  biscuitWalkiesFoes: 2,
+  biscuitWalkiesHpBp: 4500,
+  biscuitFetchMin: 3000,
+  biscuitFetchAllyRange: 7000,
+  biscuitFetchHpBp: 3500,
+  champKoHpBp: 5500,
+  champGuardHpBp: 6000,
   dominoShakeRange: 2600,
   dominoDotsMin: 2,
   dominoDotsHpBp: 5000,

@@ -48,6 +48,10 @@ export const HERO_LABEL: Readonly<Record<string, string>> = Object.freeze({
     rocket: 'Rocket',
     frankie: 'Frankie',
     domino: 'Domino',
+    mochi: 'Mochi',
+    ziggy: 'Ziggy',
+    biscuit: 'Biscuit',
+    champ: 'Champ',
 });
 
 export interface CatalogCoat {
@@ -236,6 +240,11 @@ export const CHAMPIONS: readonly ChampionDef[] = Object.freeze([
     { hero: 'marshmallow', name: 'Marshmallow', side: 'dog', role: 'mage' },
     { hero: 'domino', name: 'Domino', side: 'dog', role: 'mage' },
     { hero: 'nugget', name: 'Nugget', side: 'dog', role: 'support' },
+    // sim v29 roster (docs/plans/moba/ROSTER-V29.md)
+    { hero: 'ziggy', name: 'Ziggy', side: 'cat', role: 'fighter' },
+    { hero: 'mochi', name: 'Mochi', side: 'cat', role: 'support' },
+    { hero: 'champ', name: 'Champ', side: 'dog', role: 'fighter' },
+    { hero: 'biscuit', name: 'Biscuit', side: 'dog', role: 'support' },
 ] as ChampionDef[]);
 
 export const CHAMPION_IDS: readonly string[] = Object.freeze(CHAMPIONS.map(c => c.hero));
@@ -252,17 +261,20 @@ export const heroOfChampItem = (item: string): string | null =>
     item.startsWith('champ.') && CHAMPION_IDS.includes(item.slice(6)) ? item.slice(6) : null;
 export const FOUNDERS_BADGE = 'badge.founders_roster';
 
-// Weekly free rotation: weeks start Monday 00:00 UTC from ROTATION_EPOCH. Cats take entries 3w..3w+2 (mod 7) of
+// Weekly free rotation: weeks start Monday 00:00 UTC from ROTATION_EPOCH. Cats take entries 3w..3w+2 (mod 9) of
 // their cycle, dogs the same entries one week ahead, so every week has 3 cats and 3 dogs, no two of one role per
-// species, and every non-starter is free 3 weeks in 7.
+// species, and every non-starter is free 1 week in 3. Sim v29 (ROSTER-V29.md §5): the four roster heroes joined the
+// cycles (7 a species before), ordered so each week's three are three roles.
 
 export const ROTATION_EPOCH = '2026-11-16T00:00:00.000Z';
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export const ROTATION_CATS: readonly string[] = Object.freeze([
     'meatball',
     'pixel',
+    'ziggy',
     'aviete',
     'duchess',
+    'mochi',
     'lambo',
     'stilts',
     'bengas',
@@ -270,11 +282,13 @@ export const ROTATION_CATS: readonly string[] = Object.freeze([
 export const ROTATION_DOGS: readonly string[] = Object.freeze([
     'howler',
     'chili',
+    'bravo',
     'nugget',
     'domino',
     'cacklejaw',
+    'champ',
     'rocket',
-    'bravo',
+    'biscuit',
 ]);
 
 /** The rotation week of a time (weeks before the epoch count down: -1, -2, ...). */
@@ -323,9 +337,13 @@ export const CHAMP_TIER: Readonly<Record<string, Exclude<ChampTier, 'launch'>>> 
     chili: 't3',
     rocket: 't3',
     domino: 't3',
+    mochi: 't2',
+    champ: 't2',
+    ziggy: 't3',
+    biscuit: 't3',
 });
-/** Champions in their launch window (their first sim version): the launch price, then their tier. None today. */
-export const CHAMP_LAUNCH: readonly string[] = Object.freeze([]);
+/** Champions in their launch window (their first sim version): the launch price, then their tier. Sim v29: the roster four. */
+export const CHAMP_LAUNCH: readonly string[] = Object.freeze(['mochi', 'ziggy', 'biscuit', 'champ']);
 export const TIER_PRICE: Readonly<Record<ChampTier, { yarn: number; cents: { usd: number; eur: number } }>> =
     Object.freeze({
         t1: { yarn: 2500, cents: { usd: 299, eur: 299 } },
@@ -367,6 +385,11 @@ export const CHAMP_PICK_TIERS: readonly ChampTier[] = Object.freeze(['t1', 't2']
 
 export const champSkuOf = (hero: string): string => `pl_champ_${hero}`;
 const UNLOCKABLE = CHAMPION_IDS.filter(h => !STARTERS.includes(h));
+/**
+ * The Season 1 champion bundles keep the 14 champions they were priced for (sim v29: the roster four are sold one by
+ * one; adding them to a bundle is a pricing call, ROSTER-V29.md §5).
+ */
+const BUNDLE_S1 = UNLOCKABLE.filter(h => !['mochi', 'ziggy', 'biscuit', 'champ'].includes(h));
 
 const champSkus: CatalogSku[] = UNLOCKABLE.map(hero => ({
     sku: champSkuOf(hero),
@@ -394,16 +417,16 @@ const champBundles: CatalogSku[] = [
     champBundle(
         'pl_champs_cats_s1',
         'Cat Champions: all 7 cats to unlock',
-        UNLOCKABLE.filter(h => championDef(h)!.side === 'cat'),
+        BUNDLE_S1.filter(h => championDef(h)!.side === 'cat'),
         1699
     ),
     champBundle(
         'pl_champs_dogs_s1',
         'Dog Champions: all 7 dogs to unlock',
-        UNLOCKABLE.filter(h => championDef(h)!.side === 'dog'),
+        BUNDLE_S1.filter(h => championDef(h)!.side === 'dog'),
         1699
     ),
-    champBundle('pl_champs_all_s1', 'Every Champion: all 14 to unlock', UNLOCKABLE, 2999),
+    champBundle('pl_champs_all_s1', 'Every Champion: all 14 to unlock', BUNDLE_S1, 2999),
 ];
 
 export const SEASON_PLUS_SKIPS = 15;

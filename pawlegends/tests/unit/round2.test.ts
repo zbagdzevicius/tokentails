@@ -31,7 +31,7 @@ import { heroMatch, hold, place } from './heroes/kit-helpers';
 
 describe('sim v8: the takedown chip', () => {
   it('SIM_VERSION is 15 (sim v9 to v15 kept the chip)', () => {
-    expect(SIM_VERSION).toBe(28);
+    expect(SIM_VERSION).toBe(29);
   });
 
   it('stops at the cap before Sunset, then chips the weakest tower that can be hit', () => {
@@ -178,10 +178,12 @@ describe('round 2 client: why the match ended', () => {
     expect(tryHeroFor('clem', { sage: { fastest: 1, takedowns: 1 } })).toBe('lambo');
     expect(tryHeroFor('cacklejaw', { clem: {}, sage: {}, brutus: {} })).toBe('nugget');
     expect(tryHeroFor('gabe', {})).toBe('meatball');
-    // the side's list wraps: after Stilts comes Clem, after Domino (sim v15) Sir Brutus
-    expect(tryHeroFor('stilts', {})).toBe('clem');
+    // the side's list wraps: after Ziggy (sim v29) comes Clem, after Champ Sir Brutus
+    expect(tryHeroFor('stilts', {})).toBe('mochi');
+    expect(tryHeroFor('ziggy', {})).toBe('clem');
     expect(tryHeroFor('howler', {})).toBe('rocket');
-    expect(tryHeroFor('domino', {})).toBe('brutus');
+    expect(tryHeroFor('domino', {})).toBe('biscuit');
+    expect(tryHeroFor('champ', {})).toBe('brutus');
     expect(tryHeroFor('nugget', { marshmallow: {}, bravo: {} })).toBe('chili');
   });
 

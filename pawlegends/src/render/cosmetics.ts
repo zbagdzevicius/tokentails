@@ -205,6 +205,19 @@ export const FREE_COATS: Readonly<Record<string, { hero: HeroId; name: string; c
   'coat.domino.liver': { hero: 'domino', name: 'Liver Spot coat', coat: { base: 0xf7f5f2, light: 0xffffff, dark: 0x6a3a24, accent: 0xd8c8ff } },
   'coat.domino.lemon': { hero: 'domino', name: 'Lemon Spot coat', coat: { base: 0xfaf6ec, light: 0xffffff, dark: 0xd8b860, accent: 0xd8c8ff } },
   'coat.domino.firehouse': { hero: 'domino', name: 'Firehouse coat', coat: { base: 0xf7f5f2, light: 0xffffff, dark: 0x1a1a1e, accent: 0xff4a3a } },
+  // sim v29 roster (docs/plans/moba/ROSTER-V29.md §3): Mochi's points, Ziggy's spots, Biscuit's gold, Champ's fawn
+  'coat.mochi.seal': { hero: 'mochi', name: 'Seal Point coat', coat: { base: 0xf2e6d4, light: 0xffffff, dark: 0x3a2618, accent: 0xc9a8ff } },
+  'coat.mochi.lilac': { hero: 'mochi', name: 'Lilac Point coat', coat: { base: 0xf6eef4, light: 0xffffff, dark: 0x9a86a8, accent: 0xc9a8ff } },
+  'coat.mochi.cloud': { hero: 'mochi', name: 'Storm Cloud coat', coat: { base: 0xc8ccd6, light: 0xf4f6fa, dark: 0x5a6070, accent: 0x8fc8ff } },
+  'coat.ziggy.snow': { hero: 'ziggy', name: 'Snow coat', coat: { base: 0xf4f0e6, light: 0xffffff, dark: 0x8a7a68, accent: 0x7fe8ff } },
+  'coat.ziggy.charcoal': { hero: 'ziggy', name: 'Charcoal coat', coat: { base: 0x6a6460, light: 0xd8d0c8, dark: 0x1e1a18, accent: 0x7fe8ff } },
+  'coat.ziggy.sunburst': { hero: 'ziggy', name: 'Sunburst coat', coat: { base: 0xf0782a, light: 0xffe0b0, dark: 0x6a2410, accent: 0x7fe8ff } },
+  'coat.biscuit.cream': { hero: 'biscuit', name: 'English Cream coat', coat: { base: 0xf2e2c4, light: 0xfffaf0, dark: 0xc8b088, accent: 0xff5a5a } },
+  'coat.biscuit.red': { hero: 'biscuit', name: 'Red Golden coat', coat: { base: 0xb8602a, light: 0xf0b888, dark: 0x6a3014, accent: 0xff5a5a } },
+  'coat.biscuit.muddy': { hero: 'biscuit', name: 'Muddy Paws coat', coat: { base: 0xa08050, light: 0xe0c898, dark: 0x4a3420, accent: 0xff5a5a } },
+  'coat.champ.brindle': { hero: 'champ', name: 'Brindle coat', coat: { base: 0x8a5a34, light: 0xfff4e6, dark: 0x3a2414, accent: 0xff4a3a } },
+  'coat.champ.white': { hero: 'champ', name: 'White Flash coat', coat: { base: 0xf6f2ec, light: 0xffffff, dark: 0xc8b8a8, accent: 0xff4a3a } },
+  'coat.champ.midnight': { hero: 'champ', name: 'Midnight coat', coat: { base: 0x2a2630, light: 0xb8b0c0, dark: 0x121016, accent: 0xff4a3a } },
   ...loopCoats(),
 });
 

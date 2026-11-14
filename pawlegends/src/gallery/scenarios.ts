@@ -158,8 +158,8 @@ const FORM_R: ReadonlySet<HeroId> = new Set<HeroId>(['meatball', 'pixel', 'stilt
  */
 export const DUMMY_BUFFS = { bits: 0, shield: 0, branch: false };
 
-/** Sim v15 dogs: their own projectile kind (Lure Shot, FOOTLONG! and Spot Shot all fly as `fluff`). */
-const FLUFF_SHOTS: ReadonlySet<HeroId> = new Set<HeroId>(['rocket', 'frankie', 'domino', 'marshmallow', 'bravo']);
+/** Sim v15 dogs: their own projectile kind (Lure Shot, FOOTLONG! and Spot Shot all fly as `fluff`); sim v29 Mochi's Pillow Toss and Biscuit's Fetch!. */
+const FLUFF_SHOTS: ReadonlySet<HeroId> = new Set<HeroId>(['rocket', 'frankie', 'domino', 'marshmallow', 'bravo', 'mochi', 'biscuit']);
 
 /** The scenario list for a hero. */
 export function scenarioNames(hero: HeroId): string[] {
@@ -206,6 +206,8 @@ export function makeScenario(name: string, hero: HeroId, vs: HeroId): Scenario {
     const casts = name === 'q-recast' ? 1 + st.recasts : 1;
     // Frankie's dig and FOOTLONG! travel: the dummy stands well away (a melee hero's dummy is at 1.5 m)
     if (hero === 'frankie' && (sl === 'w' || sl === 'r')) du.x = me.x + 6000;
+    // sim v29: Biscuit's Fetch! catches from far away
+    if (hero === 'biscuit' && sl === 'q') du.x = me.x + 6000;
     /** A scenario's own last tick (Rocket's nap). */
     let tail = 0;
     let t = T0;
