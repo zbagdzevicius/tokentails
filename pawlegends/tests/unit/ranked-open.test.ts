@@ -16,10 +16,10 @@ import {
   rankedBotsRule,
   rankedLiveText,
   rankedResult,
-  regionText,
   type RankedCard,
   type RankedStatus,
 } from '../../src/meta/ranked';
+import { regionText } from '../../src/meta/rankedPing';
 import { initialParty, mmJoinMsg, reduceParty, rankedStop } from '../../src/party/partyClient';
 import { queueCardHtml, type QueueModel } from '../../src/party/ui/queueCard';
 import { acceptCardHtml } from '../../src/party/ui/acceptCard';

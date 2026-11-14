@@ -12,7 +12,8 @@
 import type { MmSide } from '../../net/proto';
 import { COPY, DIFF_LABEL, clockText, esc, sideText } from './copy';
 import { backfillHtml, type BackfillModel } from './backfillCard';
-import { RANKED_BOTS, regionText } from '../../meta/ranked';
+import { RANKED_BOTS } from '../../meta/ranked';
+import { regionText } from '../../meta/rankedPing';
 
 export type QueueStop =
   | 'away'
