@@ -85,8 +85,17 @@ export const BOT_TALENT_MODES: readonly BotTalentMode[] = Object.freeze(['first'
  * Sim v10 (GAPS B0): the match mutator. Only 'none' existed until v21. Sim v22 (WR-BS-PLAN.md §4): 'blitz', the
  * ~3-minute Crossing match (data/mutators.ts); a record of an earlier sim version may only carry 'none'.
  */
-export type Mutator = 'none' | 'blitz';
-export const MUTATORS: readonly Mutator[] = Object.freeze(['none', 'blitz'] as Mutator[]);
+export type Mutator = 'none' | 'blitz' | 'cannon' | 'practice' | 'toybox' | 'rapid' | 'bounty';
+/**
+ * Append only (the world stores the index). Sim v27 (docs/plans/moba/V27.md §2 to §4): 'cannon' (Cannon Chaos),
+ * 'practice' (the Practice ground) and the weekly twists 'toybox', 'rapid' and 'bounty' (WEEKLY_TWISTS), all Crossing
+ * only and never in PvP.
+ */
+export const MUTATORS: readonly Mutator[] = Object.freeze(['none', 'blitz', 'cannon', 'practice', 'toybox', 'rapid', 'bounty'] as Mutator[]);
+/** Sim v27: the weekly twists (V27.md §4), in rotation order; the server's live-ops config picks the week's one. */
+export const WEEKLY_TWISTS: readonly Mutator[] = Object.freeze(['toybox', 'rapid', 'bounty'] as Mutator[]);
+/** Sim v27: the first sim version that plays 'cannon', 'practice' or a weekly twist. */
+export const MUTATOR_V27_SINCE = 27; // lint-sim: allow (a version number)
 /** Sim v22: the first sim version that plays a mutator other than 'none'. */
 export const MUTATOR_PLAY_SINCE = 22; // lint-sim: allow (a version number)
 
@@ -166,6 +175,11 @@ export const Op = Object.freeze({
    * chase leeway; a windup in progress on `id` is kept. Gated like a move (spaced, gives way to a cast).
    */
   Kite: 12,
+  /**
+   * Sim v27 (V27.md §2): a Practice ground control, `kind` = PRACTICE_KINDS index (0 reset the dummies and the hero, 1
+   * level up, 2 reset cooldowns). Ignored outside the 'practice' mutator.
+   */
+  Practice: 13,
 } as const);
 export type Op = (typeof Op)[keyof typeof Op];
 
@@ -193,7 +207,12 @@ export type Command =
   | { op: typeof Op.Forfeit }
   | { op: typeof Op.Fire; x: number; y: number }
   /** KITE-FIX: `id` the unit to keep attacking; (x, y) where to walk between swings. */
-  | { op: typeof Op.Kite; x: number; y: number; id: number };
+  | { op: typeof Op.Kite; x: number; y: number; id: number }
+  /** Sim v27: a Practice ground control (PRACTICE_KINDS index). */
+  | { op: typeof Op.Practice; kind: number };
+
+/** Sim v27: the Practice ground's controls, by Op.Practice `kind`. */
+export const PRACTICE_KINDS = Object.freeze(['reset', 'level', 'cooldowns'] as const);
 
 export const NO_TARGET = 0xff;
 
@@ -448,7 +467,9 @@ export type SimEvent =
   | { type: 'yarnStrike'; tick: number; id: number; n: number }
   | { type: 'yarnUnravel'; tick: number; ball: number; x: number; y: number }
   /** The towers are no longer Fortified. */
-  | { type: 'fortifyEnd'; tick: number };
+  | { type: 'fortifyEnd'; tick: number }
+  /** Sim v27: a Practice ground control applied (`kind` = PRACTICE_KINDS index). */
+  | { type: 'practice'; tick: number; kind: number };
 
 /** Sim v14: what a `clip` event shows. Sim v15: Rocket's nap (`zzz`), Frankie's grab (`footlong`), Domino's R (`dots`). */
 export type ClipKind = 'flop' | 'bigdog' | 'scream' | 'frozen' | 'zzz' | 'footlong' | 'dots';

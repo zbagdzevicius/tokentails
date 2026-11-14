@@ -184,7 +184,7 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
       difficulty: rec.difficulty,
       seed: rec.seed,
       ...(rec.map === 'hearthwood' ? { map: 'hearthwood' as const } : {}),
-      ...(rec.mutator === 'blitz' ? { mutator: 'blitz' as const } : {}),
+      ...(rec.mutator && rec.mutator !== 'none' ? { mutator: rec.mutator } : {}),
       replay: true,
       speed: 1,
       firstMatch: false,

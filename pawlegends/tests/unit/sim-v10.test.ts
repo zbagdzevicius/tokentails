@@ -24,7 +24,7 @@ const talentsOf = (m: ReturnType<typeof play>): number[][] =>
 
 describe('sim v10 (GAPS B0)', () => {
   it('SIM_VERSION is 15 (sim v11 to v15 kept the v10 rules)', () => {
-    expect(SIM_VERSION).toBe(26);
+    expect(SIM_VERSION).toBe(27);
   });
 
   it("a bot's talent is draw number `tier` of its own stream fork('talent:' + slot), from the seed alone", () => {
@@ -86,7 +86,7 @@ describe('sim v10 (GAPS B0)', () => {
 
   it("replay records carry mutator 'none'; the server accepts no field or 'none' and refuses any other", { timeout: 60000 }, () => {
     // sim v22: 'blitz' joined (tests/unit/blitz.test.ts covers it)
-    expect(MUTATORS).toEqual(['none', 'blitz']);
+    expect(MUTATORS.slice(0, 2)).toEqual(['none', 'blitz']);
     const m = play(5, 'gabe', undefined, 'easy');
     const rec = replayRecord(m)!;
     expect(rec).toMatchObject({ simVersion: SIM_VERSION, mutator: 'none' });

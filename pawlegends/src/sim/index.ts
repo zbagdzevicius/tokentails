@@ -90,6 +90,7 @@ import { CANNON } from '../data/fun';
 import { MUTATOR_RULES } from '../data/mutators';
 import { endTickOf, fortifyUntilOf, mutOf, mutatorIndex, mutatorOf } from './mutator';
 import { XP } from '../data/xp';
+import { isPractice, practiceAction, stepPractice } from './units/practice';
 
 export * from './api';
 export { SIM_VERSION } from './version';
@@ -221,7 +222,8 @@ export function createMatch(config: MatchConfig): MatchHandle {
   // Sim v22: a mutator may set its own Sunset and Sudden Death (Blitz 1:30 and 2:30).
   w.globals[G.Sunset] = mut.sunset || phases.sunset;
   w.globals[G.SuddenDeath] = mut.suddenDeath || phases.suddenDeath;
-  w.globals[G.CoreOpenAt] = rules.coreOpenAt;
+  // Sim v27: the Practice ground's cores never open (it ends when the player leaves, or at the safety end).
+  w.globals[G.CoreOpenAt] = mut.practice ? TIMELINE.safetyEnd : rules.coreOpenAt;
   w.globals[G.HumanPanic] = rules.humanPanicBp;
   w.globals[G.HumanCoreOpenAt] = rules.humanCoreOpenAt;
   w.globals[G.SideEdge] = rules.sideEdge ? 1 : 0;
@@ -322,11 +324,15 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   if (cmd) {
     m.log.push({ tick, cmd });
     w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(cmd)) | 0;
-    applyOrder(m, HUMAN_SLOT, cmd);
+    // Sim v27: a Practice ground control (ignored on any other match)
+    if (cmd.op === Op.Practice) practiceAction(m, cmd.kind);
+    else applyOrder(m, HUMAN_SLOT, cmd);
     w.globals[G.HumanActAt] = tick;
   }
   // Sim v10 (GAPS B2): a forfeit is logged last; the tick still runs and the win check (step 9) ends the match.
-  if (gateForfeit(m.gate, tick, commands, rulesOf(m).forfeitFrom)) {
+  // Sim v27: a mutator may open the forfeit earlier (the Practice ground: at once, to leave it).
+  const forfeitFrom = mutOf(w).forfeitFrom;
+  if (gateForfeit(m.gate, tick, commands, forfeitFrom >= 0 ? forfeitFrom : rulesOf(m).forfeitFrom)) {
     const ff: Command = { op: Op.Forfeit };
     m.log.push({ tick, cmd: ff });
     w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(ff)) | 0;
@@ -335,10 +341,14 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   if (m.pvp) applyLeadInputs(m, tick, others);
   // 1b. Party play: human slots 1 and 2 (PvP: 1 to 5), in slot order (after the forfeit block, MULTIPLAYER.md §1.2).
   if (m.party) applyPartyInputs(m, tick, others);
-  // 2. Bots think (every 6 ticks, staggered by slot).
-  stepBots(m);
-  // 3. Timeline: waves, rat camps, Pudding, phase events, per-second map rules.
-  const wave = waveAt(tick, w.globals[G.SiegeWaves]);
+  // 2. Bots think (every 6 ticks, staggered by slot). Sim v27: on the Practice ground they never do; its walking
+  //    dummy paces instead.
+  const practice = isPractice(w);
+  if (practice) stepPractice(m);
+  else stepBots(m);
+  // 3. Timeline: waves, rat camps, Pudding, phase events, per-second map rules. Sim v27: no waves or Pudding on the
+  //    Practice ground.
+  const wave = practice ? -1 : waveAt(tick, w.globals[G.SiegeWaves]);
   if (wave >= 0) {
     if (tick >= TIMELINE.siegeFrom) w.globals[G.SiegeWaves]++;
     checkComeback(m);
@@ -350,7 +360,7 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   spawnPickups(m);
   spawnCannon(m);
   if (tick > 0 && tick === fortifyUntilOf(w)) m.events.push({ type: 'fortifyEnd', tick });
-  stepPuddingTimeline(m, wave >= 0);
+  if (!practice) stepPuddingTimeline(m, wave >= 0);
   if (tick === w.globals[G.Sunset]) m.events.push({ type: 'sunset', tick });
   if (tick === w.globals[G.SuddenDeath]) m.events.push({ type: 'suddenDeath', tick });
   stepSeconds(m);

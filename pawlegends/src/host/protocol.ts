@@ -46,7 +46,7 @@ export interface JoinMsg {
   speed?: number;
   /** Sim v19: the map (omitted = 'crossing', 3v3 Skirmish; 'hearthwood' = 5v5 Classic). */
   map?: MapId;
-  /** Sim v22: the mutator (omitted = 'none'; 'blitz' on Crossing). */
+  /** Sim v22: the mutator (omitted = 'none'; on Crossing: 'blitz', sim v27 'cannon', 'practice' and the weekly twists). */
   mutator?: Mutator;
 }
 

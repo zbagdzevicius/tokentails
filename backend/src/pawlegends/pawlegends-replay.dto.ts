@@ -10,7 +10,12 @@ import {
  * ~3-minute Crossing match; a record of an earlier sim version with any mutator but 'none' is refused
  * (PAWLEGENDS_MUTATOR_PLAY_SINCE in pawlegends-live.ts).
  */
-export const PAWLEGENDS_MUTATORS = ['none', 'blitz'] as const;
+export const PAWLEGENDS_MUTATORS = ['none', 'blitz', 'cannon', 'toybox', 'rapid', 'bounty'] as const;
+/**
+ * Sim v27 (docs/plans/moba/V27.md §3, §4): Cannon Chaos and the weekly twists play from v27 on. The Practice ground
+ * ('practice') saves nothing, so it is never posted and not listed above.
+ */
+export const PAWLEGENDS_V27_MUTATORS: readonly string[] = ['cannon', 'toybox', 'rapid', 'bounty'];
 export type PawlegendsMutatorId = typeof PAWLEGENDS_MUTATORS[number];
 
 /**
@@ -64,7 +69,7 @@ export class PawlegendsReplayDto {
     @Matches(/^[0-9a-f]{8}$/)
     finalHash: string;
 
-    /** Sim v10 (GAPS B0): the match mutator; v9 records have no field. Sim v22: or 'blitz'. */
+    /** Sim v10 (GAPS B0): the match mutator; v9 records have no field. Sim v22: or 'blitz'; sim v27: Cannon Chaos and the weekly twists. */
     @IsOptional()
     @IsIn(PAWLEGENDS_MUTATORS)
     mutator?: PawlegendsMutatorId;

@@ -10,7 +10,7 @@ import { ReplayQueue, ReplayQueueFullException } from 'src/user/heist/replay-que
 import { ILiveGameRow, recomputeCatnipCount } from 'src/user/utils/live-game';
 import { PawlegendsReplayRecord, PawlegendsVerifyResult, SIM_VERSIONS } from 'src/vendor/pawlegends-sim';
 import { Worker } from 'worker_threads';
-import { PawlegendsReplayDto } from './pawlegends-replay.dto';
+import { PAWLEGENDS_V27_MUTATORS, PawlegendsReplayDto } from './pawlegends-replay.dto';
 import { pawlegendsSimErrorDetail } from './pawlegends-sim-info';
 import type { SeasonXpGain, SeasonXpMatch } from './pawlegends-season.service';
 import { applyInviteProgress, type InviteProgressDep } from './growth/apply-invite-progress';
@@ -96,6 +96,8 @@ const RECORD_KEYS: (keyof PawlegendsReplayRecord)[] = [
 export const PAWLEGENDS_MUTATOR_SINCE = 10;
 /** Sim v22 (WR-BS-PLAN.md §4): the first sim version that plays a mutator other than 'none' (Blitz). */
 export const PAWLEGENDS_MUTATOR_PLAY_SINCE = 22;
+/** Sim v27: the first sim version that plays Cannon Chaos and the weekly twists (PAWLEGENDS_V27_MUTATORS). */
+export const PAWLEGENDS_V27_MUTATOR_SINCE = 27;
 
 /**
  * The record with its fields in a fixed order and nothing else: what the worker gets and the digest covers. From
@@ -395,6 +397,12 @@ export async function savePawlegendsMatch(
         throw reject(
             ErrorCode.PAWLEGENDS_REPLAY_INVALID,
             `mutator ${replay.mutator} needs simVersion ${PAWLEGENDS_MUTATOR_PLAY_SINCE} or later`
+        );
+    }
+    if (PAWLEGENDS_V27_MUTATORS.includes(replay.mutator ?? 'none') && replay.simVersion < PAWLEGENDS_V27_MUTATOR_SINCE) {
+        throw reject(
+            ErrorCode.PAWLEGENDS_REPLAY_INVALID,
+            `mutator ${replay.mutator} needs simVersion ${PAWLEGENDS_V27_MUTATOR_SINCE} or later`
         );
     }
 

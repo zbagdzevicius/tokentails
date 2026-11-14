@@ -11,11 +11,11 @@
  *
  * Pure apart from the guarded localStorage helpers at the end.
  */
-import type { MapId } from '../../sim/api';
+import type { MapId, Mutator } from '../../sim/api';
 import { loadMatchMode, type MatchMode } from '../lobby/matchMode';
 import { rankedGateText, RANKED_MAP, type RankedStatus } from '../../meta/ranked';
 
-export type ModeId = 'blitz' | 'skirmish' | 'classic' | 'ranked' | 'cannon' | (string & {});
+export type ModeId = 'blitz' | 'skirmish' | 'classic' | 'ranked' | 'cannon' | 'practice' | 'twist' | (string & {});
 /** A mode's variant (the second step after PLAY): solo vs bots, co-op vs bots, PvP, or a party with friends. */
 export type Queue = 'bots' | 'coop' | 'pvp' | 'friends';
 export type Variant = Queue;
@@ -46,6 +46,10 @@ export interface ModeDef {
   isNew?: boolean;
   /** Short line under the mode pill on Home ("vs Bots" is added by the queue). */
   short?: string;
+  /** Sim v22+: the sim mutator a match of this mode plays (Blitz 'blitz'; sim v27 Cannon Chaos, Practice, the twist). */
+  mutator?: Mutator;
+  /** Sim v27: the Practice ground: no rewards, any champion, nothing saved. */
+  practice?: boolean;
 }
 
 /** The modes this build ships (HOME-MODES.md §5 default table; sim v22 made Blitz live, minutes from the v22 probe). */
@@ -60,7 +64,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     queues: ['bots'],
     art: 'blitz',
     state: 'live',
-    isNew: true,
+    mutator: 'blitz',
     rules: ['3v3 on the Crossing in about 3 minutes: start at level 4, double XP.', 'Kibble Cannon at 0:20, Sudden Death at 2:30.'],
   },
   {
@@ -91,16 +95,55 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
   // first answer it is locked with the fallback line; `rankedModeDef` replaces it with the live gate.
   rankedModeDef(null),
   {
+    // Sim v27 (docs/plans/moba/V27.md §3): the Kibble Cannon every 20 s, short cooldowns, about 5 minutes
     id: 'cannon',
     name: 'Cannon Chaos',
+    map: 'crossing',
     size: '3v3',
-    minutes: '~6 min',
-    queues: ['bots', 'coop'],
+    minutes: '~5 min',
+    queues: ['bots'],
     art: 'cannon',
-    state: 'soon',
-    rules: ['A party event: cannons everywhere, cooldowns short.', 'Comes back for limited weekends.'],
+    state: 'live',
+    isNew: true,
+    mutator: 'cannon',
+    rules: ['The Kibble Cannon from 0:15 and again 20 s after every shot: grab it, blast towers and heroes.', 'Start at level 3, cooldowns 30% shorter, about 5 minutes.'],
+  },
+  {
+    // Sim v27 (V27.md §2): the solo sandbox, no rewards
+    id: 'practice',
+    name: 'Practice',
+    map: 'crossing',
+    size: '',
+    minutes: 'Sandbox',
+    queues: ['bots'],
+    art: 'coop',
+    state: 'live',
+    isNew: true,
+    mutator: 'practice',
+    practice: true,
+    rules: ['Your champion on the Crossing with three training dummies: one stands, one walks, one waits under a tower.', 'Reset, level up and refresh cooldowns any time. Any champion, no rewards.'],
   },
 ] satisfies ModeDef[]);
+
+/**
+ * Sim v27 (V27.md §4): the Weekly Twist tile, from the server's live-ops `twist` (meta/liveops.ts registers it with a
+ * timed event state). Skirmish on the Crossing vs bots under the week's rule set. Pure.
+ */
+export function twistModeDef(t: { id: Mutator; name: string; rules: readonly string[]; endsAt: number }): ModeDef {
+  return {
+    id: 'twist',
+    name: t.name,
+    map: 'crossing',
+    size: '3v3',
+    minutes: '~8 min',
+    queues: ['bots'],
+    art: 'skirmish',
+    state: { event: { endsAt: t.endsAt } },
+    mutator: t.id,
+    short: 'Weekly Twist',
+    rules: ['Weekly Twist: Skirmish on the Crossing with this week’s rule.', ...t.rules],
+  };
+}
 
 /**
  * The Ranked tile from the live gate (gap plan P4, SOCIAL-RANKED.md §7.1, §7.9): 3v3 on the Crossing, PvP only, solo
@@ -135,6 +178,12 @@ export function registerMode(m: ModeDef): void {
   const i = extra.findIndex((x) => x.id === m.id);
   if (i >= 0) extra[i] = m;
   else extra.push(m);
+}
+
+/** Sim v27: drop a registered mode (the Weekly Twist when the server turns it off); a base entry comes back. */
+export function unregisterMode(id: ModeId): void {
+  const i = extra.findIndex((x) => x.id === id);
+  if (i >= 0) extra.splice(i, 1);
 }
 
 /** Tests only. */
@@ -205,7 +254,9 @@ export const VARIANT_LINE: Readonly<Record<Queue, string>> = Object.freeze({
 });
 
 /** The mode pill on Home: "Classic 5v5 · vs Bots". Pure. */
-export function pillText(m: Pick<ModeDef, 'name' | 'size'>, q: Queue): string {
+export function pillText(m: Pick<ModeDef, 'name' | 'size'> & { practice?: boolean }, q: Queue): string {
+  // sim v27: the Practice ground is a sandbox, not a bots match
+  if (m.practice) return `${m.name} · Sandbox`;
   return `${m.name}${m.size ? ` ${m.size}` : ''} · ${QUEUE_LABEL[q]}`;
 }
 

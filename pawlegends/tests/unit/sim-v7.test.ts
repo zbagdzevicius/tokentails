@@ -20,7 +20,7 @@ import { coreId, putHero, quietMatch } from './sim-helpers';
 
 describe('sim v7 lead pressure', () => {
   it('is on for Normal and Hard only; SIM_VERSION is 15 (sim v8 to v15 kept it)', () => {
-    expect(SIM_VERSION).toBe(26);
+    expect(SIM_VERSION).toBe(27);
     expect(DIFFICULTY_RULES.normal.leadPressure && DIFFICULTY_RULES.hard.leadPressure).toBe(true);
     expect(DIFFICULTY_RULES.easy.leadPressure || DIFFICULTY_RULES.rookie.leadPressure).toBe(false);
   });
@@ -32,6 +32,8 @@ describe('sim v7 lead pressure', () => {
       w.globals[G.Tick] = 4000;
       w.globals[G.Kills0] = 10;
       w.hp[4] = 0;
+
+      w.lastHitBy[4] = 0; // sim v27: a takedown (an enemy hero credited), not an execution
       resolveDeaths(m);
       const base = respawnTicks(w.level[4], 4000, w.globals[G.Sunset]);
       const gap = 11 - RESPAWN.gapFree;
@@ -49,11 +51,15 @@ describe('sim v7 lead pressure', () => {
     w.globals[G.Tick] = 3000;
     const full = w.hp[core];
     w.hp[3] = 0;
+
+    w.lastHitBy[3] = 0; // sim v27: a takedown (an enemy hero credited), not an execution
     resolveDeaths(m);
     expect(full - w.hp[core]).toBe(applyBp(w.maxHp[core], DIFFICULTY_RULES.normal.takedownChipBp));
     w.globals[G.Tick] = w.globals[G.Sunset] + 30;
     const before = w.hp[core];
     w.hp[4] = 0;
+
+    w.lastHitBy[4] = 0; // sim v27: a takedown (an enemy hero credited), not an execution
     resolveDeaths(m);
     expect(before - w.hp[core]).toBe(applyBp(w.maxHp[core], SUNSET.closedCoreBp));
   });
@@ -116,6 +122,8 @@ describe('sim v7 Rookie protection', () => {
       w.globals[G.Tick] = w.globals[G.Sunset] + 30;
       const before = w.hp[core];
       w.hp[0] = 0;
+
+      w.lastHitBy[0] = 3; // sim v27: a takedown (an enemy hero credited), not an execution
       resolveDeaths(m);
       expect(before - w.hp[core]).toBe(d === 'rookie' ? 0 : applyBp(w.maxHp[core], SUNSET.closedCoreBp));
     }

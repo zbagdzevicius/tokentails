@@ -67,8 +67,8 @@ import { passPanel } from '../ui/passPanel';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { selfNames } from '../meta/cardName';
 import type { MatchEnd, MatchSession, MatchSetup } from './matchSession';
-import { MODE_MAP, MODE_MINUTES, MODE_MUTATOR, MODE_NAME, loadMatchMode, modeFromUrl, saveMatchMode, type MatchMode } from '../ui/lobby/matchMode';
-import type { MapId } from '../sim/api';
+import { MODE_MAP, MODE_MINUTES, MODE_MUTATOR, MODE_NAME, MUTATOR_MODE, MUTATOR_VEIL, loadMatchMode, modeFromUrl, saveMatchMode, type MatchMode } from '../ui/lobby/matchMode';
+import { MUTATORS, type MapId, type Mutator } from '../sim/api';
 
 /**
  * The match (session, game view, effects, HUD) is its own chunk: the title and menus load without it (first-load JS
@@ -222,6 +222,8 @@ export class App {
   private lastSetup: MatchSetup | null = null;
   /** CHAMPION-STORE.md §6: the match on screen is Practice (a locked champion): it saves nothing. */
   private practice = false;
+  /** Sim v27: the match on screen is the Practice ground (saves nothing, counts as no match). */
+  private sandbox = false;
   /** Locked champions already reported as viewed this session (analytics, once each). */
   private lockedSeen = new Set<string>();
   private frames = 0;
@@ -1397,21 +1399,29 @@ export class App {
     this.swapped = null;
     // CHAMPION-STORE.md §6: a locked champion plays only as Practice (asked for on the pick, or a dare's hero): the
     // match saves nothing. Any other start swaps a locked hero for a playable one (the lobby's quick Play).
-    if (!this.playable(pick.hero)) {
+    // Sim v27 (V27.md §2): the Practice ground plays any champion and saves nothing, like Practice
+    const sandbox = seed === undefined && pick.mutator === 'practice';
+    if (sandbox) practice = true;
+    else if (!this.playable(pick.hero)) {
       if (seed !== undefined) practice = true;
       else if (!practice) pick = { ...pick, hero: this.playableHero(pick.hero) };
     } else practice = false;
     this.practice = practice;
+    this.sandbox = sandbox;
     if (practice) this.analytics.track('practice_try', { hero: pick.hero });
     const p = loadProfile();
     // the first-session script (fun plan F1): match 1 is Rookie, matches 2 and 3 Easy, then the player's pick;
     // a dare keeps its own bots (the seed and the difficulty make the dare)
-    const c: Choice = { ...pick, difficulty: seed !== undefined ? pick.difficulty : difficultyFor(p.matches, pick.difficulty, undefined, undefined, p.veteran) };
+    // the Practice ground plays Normal's towers and never counts as a match of the script
+    const c: Choice = { ...pick, difficulty: sandbox ? 'normal' : seed !== undefined ? pick.difficulty : difficultyFor(p.matches, pick.difficulty, undefined, undefined, p.veteran) };
     // Sim v19: 5v5 Classic is the toggle's choice (a rematch keeps it); the first match and a dare stay 3v3
     const stored = this.matchModeNow ?? loadMatchMode();
-    const map: MapId | undefined = seed === undefined && p.matches > 0 && (pick.map ?? (pick.mutator === 'blitz' ? 'crossing' : MODE_MAP[stored])) === 'hearthwood' ? 'hearthwood' : undefined;
-    // Sim v22: Blitz is the 3v3 tile's mutator (never on the first match, a dare or Classic)
-    const mutator = seed === undefined && p.matches > 0 && !map && (pick.mutator ?? (pick.map ? 'none' : MODE_MUTATOR[stored])) === 'blitz' ? ('blitz' as const) : undefined;
+    const picked = pick.mutator && pick.mutator !== 'none' ? pick.mutator : undefined;
+    const map: MapId | undefined = seed === undefined && p.matches > 0 && (pick.map ?? (picked ? 'crossing' : MODE_MAP[stored])) === 'hearthwood' ? 'hearthwood' : undefined;
+    // Sim v22: Blitz is the 3v3 tile's mutator (never on the first match, a dare or Classic). Sim v27: so are Cannon
+    // Chaos and the weekly twist; the Practice ground is open from the first visit.
+    const wanted = pick.mutator ?? (pick.map ? 'none' : MODE_MUTATOR[stored]);
+    const mutator: Mutator | undefined = seed === undefined && !map && wanted !== 'none' && MUTATORS.includes(wanted) && (p.matches > 0 || wanted === 'practice') ? wanted : undefined;
     delete c.map;
     delete c.mutator;
     this.choice = isRookie(c.difficulty) ? { ...c, difficulty: pick.difficulty } : c;
@@ -1449,16 +1459,17 @@ export class App {
       // GAPS B1: the ping tip in the player's second match
       pingTip: p.matches === 1 && !p.tipsOff,
       // GAPS B2: Forfeit in the pause menu from this tick (never in matches 1–3 or on Rookie)
-      forfeitFrom: forfeitTick(p.matches, c.difficulty),
+      // sim v27: the Practice ground has no Forfeit (Leave goes home and counts nothing)
+      forfeitFrom: sandbox ? 0 : forfeitTick(p.matches, c.difficulty),
       skinFx: p.skinFx,
       showcase: [],
     };
     this.lastSetup = setup;
-    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined, load_ms: sinceLoadMs(), first_match: p.matches === 0, mode: map ? 'classic' : mutator ? 'blitz' : 'skirmish', map: map ?? 'crossing', mutator: mutator ?? 'none' });
+    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined, load_ms: sinceLoadMs(), first_match: p.matches === 0, mode: map ? 'classic' : mutator ? MUTATOR_MODE[mutator] : 'skirmish', map: map ?? 'crossing', mutator: mutator ?? 'none' });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
     // GAPS A6: the loading screen names this hero's match count
-    const veil = loadingVeil(this.root, map ? 'Into Hearthwood Divide...' : mutator ? 'Blitz! Into the Crossing...' : 'Into the Crossing...', undefined, {
+    const veil = loadingVeil(this.root, map ? 'Into Hearthwood Divide...' : mutator ? MUTATOR_VEIL[mutator] : 'Into the Crossing...', undefined, {
       name: HERO_TEXT[c.hero].title,
       matches: p.heroMatches[c.hero] ?? 0,
     });
@@ -1598,11 +1609,15 @@ export class App {
     const setup = this.lastSetup;
     // Sim v22: a Blitz match counts as a match but sets no fastest win, moves no ladder and has no dare link; its
     // Treat XP is paid per minute like Skirmish (WR-BS-PLAN.md §9)
-    const blitz = e.replay.mutator === 'blitz';
+    // Sim v27: Cannon Chaos and the weekly twists count like Blitz (a mutator match: per-minute pay, no ladder, no
+    // fastest win, no dare); the Practice ground counts as nothing at all
+    const sandbox = this.sandbox && !(e.replay as { party?: unknown }).party;
+    this.sandbox = false;
+    const blitz = (e.replay.mutator ?? 'none') !== 'none';
     const draw = e.result.draw === true;
-    const playedMode: MatchMode = setup?.map === 'hearthwood' ? 'classic' : blitz ? 'blitz' : 'skirmish';
-    this.blitzRun = blitz ? this.blitzRun + 1 : 0;
-    const rec = recordMatch(won, seconds, e.replay.difficulty, !blitz);
+    const playedMode: MatchMode = setup?.map === 'hearthwood' ? 'classic' : e.replay.mutator === 'blitz' ? 'blitz' : 'skirmish';
+    this.blitzRun = e.replay.mutator === 'blitz' ? this.blitzRun + 1 : 0;
+    const rec = sandbox ? { firstWin: false, best: false, second: false } : recordMatch(won, seconds, e.replay.difficulty, !blitz);
     this.matchesThisSession++;
     this.human.match(seconds);
     // Bridge: the replay is the record; the summary is display only (host `summaryOf`).
@@ -1645,8 +1660,17 @@ export class App {
       pl_match_len_s: seconds,
       pl_rookie: isRookie(e.replay.difficulty),
     });
-    noteChampionMatch(e.replay.hero);
-    noteHeroMatch(e.replay.hero);
+    // Sim v27: leaving the Practice ground (or its 11:00 end) goes straight back Home: no results, nothing saved
+    if (sandbox) {
+      this.session?.dispose();
+      this.session = null;
+      this.showTitle();
+      return;
+    }
+    if (!sandbox) {
+      noteChampionMatch(e.replay.hero);
+      noteHeroMatch(e.replay.hero);
+    }
     // Treat Track and daily quests (local, free, fixed order); recordMatch counted this match already.
     // GAPS B2: a forfeit pays TREAT_XP.forfeit only: no quest progress, no grade or first-win XP, a full ladder loss.
     const forfeit = e.result.reason === 'forfeit' || practice;

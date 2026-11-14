@@ -44,7 +44,9 @@ Home ── PLAY ──> Mode Select: mode ──Next──> Mode Select: varian
 | Classic 5v5 | vs Bots, PvP (the matchmaker's co-op queue and friend parties are 3v3; PROTO 4's `classic` queue is PvP) |
 | Blitz | vs Bots (party and PvP later) |
 | Ranked | follows the live gate (gap plan P4): locked "Opens at 24 online · 9 now", live while `ranked/status` is open |
-| Cannon Chaos | coming soon |
+| Cannon Chaos | vs Bots (sim v27, V27.md §3) |
+| Practice | the one card "Solo with training dummies", no difficulty (sim v27, V27.md §2) |
+| Weekly Twist | vs Bots; a timed event tile from live ops, the week's featured mode (sim v27, V27.md §4) |
 
 The separate "Co-op vs Bots" tile is gone: it was Skirmish's Co-op. A saved `{ mode: 'coop' }` loads as Skirmish,
 Co-op.
@@ -160,7 +162,9 @@ scrolls sideways with snap. This is the only scroll region.
 | Classic | 5v5 Hearthwood Divide | bots, pvp | live |
 | Ranked | 3v3 (Crossing) | pvp | the live gate: locked "Opens at 24 online · 9 now", live while open; the player's tier on the tile |
 | Blitz | 3v3 Purrhaven Crossing, the `blitz` mutator (sim v22, BLITZ.md) | bots (party and PvP later) | live since sim v22 (~3 min; Skirmish ~7 min, Classic ~13 min from the v22 probe) |
-| Cannon Chaos | 3v3 | bots, coop | soon (becomes an event only when given a real `endsAt`) |
+| Cannon Chaos | 3v3 Purrhaven Crossing, the `cannon` mutator (sim v27) | bots | live (~5 min) |
+| Practice | Purrhaven Crossing, the `practice` mutator (sim v27): three training dummies, Reset / Level +1 / Cooldowns in the top plate | bots (the sandbox) | live; any champion, saves nothing, Leave goes Home |
+| Weekly Twist | 3v3 Purrhaven Crossing, the week's twist mutator (`toybox`, `rapid`, `bounty`) | bots | event until Monday 00:00 UTC; registered from `GET /pawlegends/config` `twist` (the baked rotation offline) |
 
 **Saved choice.** It is stored as `pawlegends.mode.v1` in localStorage.
 - Migration: when no new key exists, the old `pawlegends.matchMode` maps `quick` to Skirmish and `classic` to Classic
@@ -192,7 +196,7 @@ scrolls sideways with snap. This is the only scroll region.
    two: Enter, Enter, Enter, LOCK IN on a keyboard).
 3. **Nav on the first visit.** The nav shows, with the items that need a match locked.
 4. **Ranked.** It opens by itself while `GET /pawlegends/ranked/status` is open (gap plan P4); otherwise a locked tile says the gate ("Opens at 24 online · 9 now").
-5. **Cannon Chaos.** It does not exist in the game yet, so it is "coming soon", not a fake countdown.
+5. **Cannon Chaos.** Live since sim v27 (V27.md §3); before that it was "coming soon", never a fake countdown.
 6. **Quick Co-op and PvP.** Removed Nov 12 (the one play path). A brand-new guest's first match stays the guided
    one; co-op opens from match 2. The multiplayer e2e goes through the path (`tests/e2e/mp/party.helpers.ts`
    `playVariant`).

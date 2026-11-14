@@ -22,16 +22,17 @@ export const TOWERS = Object.freeze({
   rampBp: 3000,
   rampCapBp: 9000,
   /**
-   * Fortified (sim v21; sim v26 V26-TOWERS.md §1.B): before fortifyUntil[map] (Crossing 4:00, Hearthwood 5:30; v21 to
-   * v25 3:00 and 5:00; Blitz has its own, data/mutators.ts) heroes deal fortifyBp (v26 55%, was 65%) and minions and
+   * Fortified (sim v21; sim v26 V26-TOWERS.md §1.B): before fortifyUntil[map] (Crossing 4:00, Hearthwood 5:00 since sim
+   * v27, 5:30 in v26; v21 to
+   * v25 3:00 and 5:00; Blitz has its own, data/mutators.ts) heroes deal fortifyBp (v26 55%, was 65%; sim v27: per
+   * difficulty, DifficultyRules.fortifyHeroBp) and minions and
    * the escort Pudding's breath fortifyMinionBp (v26 75%, was 100%) of their damage to towers, and tower bolts at
    * heroes hit fortifyBoltBp harder. The Kibble Cannon and pure damage are not reduced; v26: no takedown chip lands on
    * a Fortified tower. Cores are never Fortified.
    */
-  fortifyBp: 5500,
   fortifyMinionBp: 7500,
   fortifyBoltBp: 12500,
-  fortifyUntil: Object.freeze([7200, 9900]) as readonly number[],
+  fortifyUntil: Object.freeze([7200, 9000]) as readonly number[],
   /**
    * Sim v26: a takedown chip (DifficultyRules.takedownTowerChipBp) never takes a tower below chipFloorBp of its max HP,
    * and towers at or below it are skipped, so heroes and minions finish every tower.

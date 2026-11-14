@@ -174,7 +174,9 @@ export function probe5v5(seed: number): ProbeRow {
       }
       if (e.type === 'death' && e.id >= 0 && e.id < 10) {
         const kt = 1 - w.team[e.id];
-        kills[kt]++;
+        // Sim v27 (V27.md §1.A): the score is the sim's own (an execution by a tower, minion or camp is no takedown)
+        kills[0] = w.globals[G.Kills0];
+        kills[1] = w.globals[G.Kills1];
         row.takedowns++;
         if (row.firstBlood < 0) row.firstBlood = e.tick;
         if (PITS.some(([px, py]) => (w.x[e.id] - px) ** 2 + (w.y[e.id] - py) ** 2 <= 15000 ** 2)) row.pitDeaths++;

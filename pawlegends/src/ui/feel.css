@@ -294,3 +294,23 @@ html[data-touch='1'] .pl-match .pl-tbtn.nap span { inset: auto 0 1px 0; font-siz
 .pl-pingwheel[data-slices='8']::before { width: 248px; height: 248px; }
 .pl-pingwheel[data-slices='8'] .slice { width: 70px; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-92px) rotate(calc(-1 * var(--a))); font-size: 10.5px; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='grizzlechop'] .ic { background: #e0703a; }
+
+/* Sim v27 (V27.md §2): the Practice ground's controls take the team score's place in the top plate (same footprint) */
+.pl-hud[data-practice='1'] .pl-score .team,
+.pl-hud[data-practice='1'] .pl-score .sw,
+.pl-hud[data-practice='1'] .pl-score .kda { display: none; }
+.pl-practice { display: inline-flex; gap: 4px; align-items: center; pointer-events: auto; }
+.pl-practice button {
+  font: 700 11px/1 var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0.02em;
+  color: #fff7e6;
+  background: rgba(20, 16, 40, 0.72);
+  border: 1px solid rgba(255, 214, 120, 0.55);
+  border-radius: 6px;
+  padding: 5px 7px;
+  min-height: 24px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.pl-practice button:hover { border-color: #ffd678; }
+.pl-practice button:active { transform: translateY(1px); background: rgba(255, 214, 120, 0.25); }

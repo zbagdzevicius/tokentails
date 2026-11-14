@@ -33,7 +33,8 @@ function runToEnd(m: MatchHandle): void {
 
 describe('Blitz rule table', () => {
   it('is Crossing only, sim v22, and its none row is neutral', () => {
-    expect(MUTATORS).toEqual(['none', 'blitz']);
+    // sim v27 appended Cannon Chaos, the Practice ground and the weekly twists after these two
+    expect(MUTATORS.slice(0, 2)).toEqual(['none', 'blitz']);
     expect(MUTATOR_PLAY_SINCE).toBe(22);
     expect(SIM_VERSION).toBeGreaterThanOrEqual(22);
     const none = MUTATOR_RULES.none;

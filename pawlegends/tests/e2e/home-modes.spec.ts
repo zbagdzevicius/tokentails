@@ -83,7 +83,8 @@ test('Home → PLAY → Skirmish → vs Bots Hard → champion select → LOCK I
   await page.locator('[data-testid="home-play"]').click();
   const ms = page.locator('[data-testid="mode-select"]');
   await expect(ms).toBeVisible();
-  await expect(ms.locator('.ms-pick')).toHaveCount(5);
+  // sim v27: Blitz, Skirmish, Classic, Cannon Chaos, Practice, Ranked and the Weekly Twist (the baked one offline)
+  await expect(ms.locator('.ms-pick')).toHaveCount(7);
   await ms.locator('[data-testid="mode-skirmish"]').click();
   await ms.locator('[data-testid="mode-next"]').click();
   await expect(ms).toHaveAttribute('data-stage', 'variant');

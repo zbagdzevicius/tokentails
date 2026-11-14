@@ -22,6 +22,7 @@ import { planted } from '../heroes/brutus';
 import { chooseTalent } from '../heroes/talents';
 import { attackRange, moveSpeed, radiusOf, targetable } from './kinds';
 import { cannonWinding, orderFire } from './cannon';
+import { dummySpot, isDummy } from './practice';
 
 const out = new Int32Array(3);
 
@@ -37,8 +38,10 @@ const spawnY = (w: World, id: number): number => {
 
 /** Send hero `id` to its fountain spawn point (respawn, Nap). */
 function toSpawn(w: World, id: number): void {
-  w.x[id] = spawnX(w, id);
-  w.y[id] = spawnY(w, id);
+  // Sim v27: a Practice ground dummy (re)spawns on its own spot (data/practice.ts).
+  const spot = dummySpot(w, id);
+  w.x[id] = spot ? spot[0] : spawnX(w, id);
+  w.y[id] = spot ? spot[1] : spawnY(w, id);
   w.moveX[id] = w.x[id];
   w.moveY[id] = w.y[id];
   w.moveCarry[id] = 0;
@@ -541,6 +544,12 @@ function stepHero(m: MatchHandle, id: number): void {
       w.order[id] = Order.None;
       w.state[id] = UnitState.Idle;
     }
+    return;
+  }
+  // Sim v27: a Practice ground dummy never strikes.
+  if (isDummy(w, id)) {
+    w.target[id] = -1;
+    w.state[id] = UnitState.Idle;
     return;
   }
   // Idle: hit whatever is already in attack range (no chasing).

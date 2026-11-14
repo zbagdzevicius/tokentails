@@ -18,6 +18,12 @@ Home → **Events** (left stack) opens one popover:
   `registerMode` as a timed event on the live mode, so it stays on the one play path (PLAY → mode → variant →
   champion) and stays playable; the base entry comes back when the week ends.
 
+- **Weekly Twist** (sim v27, `docs/plans/moba/V27.md` §4): a rule set played as Skirmish vs bots from its own Mode
+  Select tile (Toy Box, Rapid Paws, Bounty Hunt; one a week, Monday 00:00 UTC). It is the featured mode by default:
+  `GET /pawlegends/config` answers `twist: {id, name, rules, endsAt}` and `featuredMode: {id: 'twist'}`. A doc's
+  `twist: {id, endsAt}` picks the twist, `twist: null` turns it off (the mode rotation above comes back), and a doc's
+  `featuredMode` still wins. Offline the game plays the same baked rotation.
+
 The Events button gets its dot when a reward waits (reached goal, earned gift) or an open vote is not cast.
 
 ## Server

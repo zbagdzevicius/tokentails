@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyFeatured,
+  applyTwist,
   castVote,
   claimGoal,
   fallbackConfig,
@@ -19,6 +20,7 @@ import {
   refreshLiveops,
   resetLiveops,
   rotationFeatured,
+  rotationTwist,
   unlocksToAdd,
   voteShares,
 } from '../../src/meta/liveops';
@@ -165,8 +167,9 @@ describe('featured mode ribbon', () => {
   it('never features a locked or coming-soon mode', () => {
     applyFeatured({ id: 'ranked', endsAt: NOW + 86_400_000 }, NOW);
     expect(modeById('ranked', modeList(NOW))!.state).toBe('locked');
-    applyFeatured({ id: 'cannon', endsAt: NOW + 86_400_000 }, NOW);
-    expect(modeById('cannon', modeList(NOW))!.state).toBe('soon');
+    // a mode that is not in this build's base table (or not live there) is never featured
+    applyFeatured({ id: 'arena', endsAt: NOW + 86_400_000 }, NOW);
+    expect(modeById('arena', modeList(NOW))).toBeUndefined();
   });
 });
 
@@ -241,5 +244,43 @@ describe('the store and the cards', () => {
     expect(html).toContain('lo-pip got');
     expect(html).toContain('lo-pip ready');
     expect(html).toContain('Open your gift');
+  });
+});
+
+describe('sim v27: the Weekly Twist', () => {
+  beforeEach(() => {
+    resetModes();
+    resetLiveops(NOW);
+  });
+
+  it('offline, the baked twist is the featured mode (the same weeks as the server)', () => {
+    const c = fallbackConfig(NOW);
+    expect(c.twist).toEqual(rotationTwist(NOW));
+    expect(c.featuredMode).toEqual({ id: 'twist', endsAt: c.twist!.endsAt });
+    expect(c.twist!.endsAt).toBe(Date.parse('2026-11-23T00:00:00Z'));
+    const ids = [NOW, NOW + 7 * 86_400_000, NOW + 14 * 86_400_000].map((t) => rotationTwist(t).id);
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  it('takes the server twist; a featured twist needs one', () => {
+    const body = { ...CONFIG, featuredMode: { id: 'twist', endsAt: '2026-11-22T00:00:00.000Z' }, twist: { id: 'bounty', name: 'Bounty Hunt', rules: ['x'], endsAt: '2026-11-22T00:00:00.000Z' } };
+    const c = parseConfig(body, NOW)!;
+    expect(c.twist).toEqual({ id: 'bounty', name: 'Bounty Hunt', rules: ['x'], endsAt: Date.parse('2026-11-22T00:00:00Z') });
+    expect(c.featuredMode).toEqual({ id: 'twist', endsAt: Date.parse('2026-11-22T00:00:00Z') });
+    const off = parseConfig({ ...body, twist: null }, NOW)!;
+    expect(off.twist).toBeNull();
+    expect(off.featuredMode?.id).not.toBe('twist');
+    expect(parseConfig({ ...body, twist: { id: 'giants', endsAt: '2026-11-22T00:00:00.000Z' } }, NOW)!.twist).toBeNull();
+  });
+
+  it('registers the Weekly Twist tile with its mutator and countdown, and drops it when turned off', () => {
+    expect(applyTwist({ id: 'rapid', name: 'Rapid Paws', rules: ['r'], endsAt: NOW + 86_400_000 }, NOW)).toBe(true);
+    const t = modeById('twist', modeList(NOW))!;
+    expect(t).toMatchObject({ name: 'Rapid Paws', mutator: 'rapid', map: 'crossing', queues: ['bots'] });
+    expect(effectiveState(t, NOW)).toBe('event');
+    expect(playable(t, NOW)).toBe(true);
+    expect(applyFeatured({ id: 'twist', endsAt: NOW + 86_400_000 }, NOW)).toBe(true);
+    expect(applyTwist(null, NOW)).toBe(true);
+    expect(modeById('twist', modeList(NOW))).toBeUndefined();
   });
 });

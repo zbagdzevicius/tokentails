@@ -9,6 +9,9 @@ import {
     napEarned,
     resolveDefs,
     rotationFeatured,
+    rotationTwist,
+    TWIST_INFO,
+    WEEKLY_TWISTS,
     utcDay,
 } from './liveops.defaults';
 import { applyCommunityGoal, setCommunityGoalSink } from './liveops-live';
@@ -106,7 +109,10 @@ describe('liveops config', () => {
         expect(c.goal).toMatchObject({ id: DEFAULT_GOAL.id, target: DEFAULT_GOAL.target, progress: 0, reached: false });
         expect(c.vote).toMatchObject({ id: DEFAULT_VOTE.id, open: true, tallies: { a: 0, b: 0 } });
         expect(c.nap).toMatchObject({ id: DEFAULT_NAP.id, open: false });
-        expect(c.featuredMode && ['blitz', 'skirmish', 'classic']).toContain(c.featuredMode!.id);
+        // sim v27: the week's twist is the featured mode by default
+        expect(c.featuredMode?.id).toBe('twist');
+        expect(c.twist && (WEEKLY_TWISTS as readonly string[])).toContain(c.twist!.id);
+        expect(c.featuredMode!.endsAt).toBe(c.twist!.endsAt);
         expect(c.events.map(e => e.kind).sort()).toEqual(['goal', 'mode', 'nap', 'vote']);
     });
 
@@ -138,7 +144,7 @@ describe('liveops config', () => {
             },
             now
         );
-        expect(defs.featuredMode).toEqual(rotationFeatured(now));
+        expect(defs.featuredMode).toEqual({ id: 'twist', endsAt: rotationTwist(now).endsAt });
         expect(defs.goal).toEqual(DEFAULT_GOAL);
     });
 
@@ -163,6 +169,27 @@ describe('liveops config', () => {
         expect(a.id).toBe('skirmish');
         // Sunday 23:59 is still the same week
         expect(rotationFeatured(at('2026-11-22T23:59:00Z'))).toEqual(a);
+    });
+
+    it('sim v27: rotates the weekly twist, takes a doc twist, and null brings the mode rotation back', () => {
+        const a = rotationTwist(at('2026-11-18T12:00:00Z'));
+        const b = rotationTwist(at('2026-11-25T12:00:00Z'));
+        const c = rotationTwist(at('2026-12-02T12:00:00Z'));
+        expect(new Set([a.id, b.id, c.id]).size).toBe(3);
+        expect(a.endsAt).toBe('2026-11-23T00:00:00.000Z');
+        expect(a.name).toBe(TWIST_INFO[a.id].name);
+        const now = at('2026-11-20T10:00:00Z');
+        const doc = resolveDefs({ twist: { id: 'bounty', endsAt: '2026-11-22T00:00:00Z' } }, now);
+        expect(doc.twist).toMatchObject({ id: 'bounty', name: 'Bounty Hunt', endsAt: '2026-11-22T00:00:00.000Z' });
+        expect(doc.featuredMode).toEqual({ id: 'twist', endsAt: '2026-11-22T00:00:00.000Z' });
+        expect(eventsOf(doc, now).find(e => e.kind === 'mode')?.title).toBe('Weekly Twist: Bounty Hunt');
+        // an unknown or ended twist keeps the rotation's
+        expect(resolveDefs({ twist: { id: 'giants', endsAt: '2026-11-22T00:00:00Z' } }, now).twist?.id).toBe(rotationTwist(now).id);
+        const off = resolveDefs({ twist: null }, now);
+        expect(off.twist).toBeNull();
+        expect(off.featuredMode).toEqual(rotationFeatured(now));
+        // a doc may still feature a mode over the twist
+        expect(resolveDefs({ featuredMode: { id: 'classic', endsAt: '2026-11-27T00:00:00Z' } }, now).featuredMode?.id).toBe('classic');
     });
 
     it('drops past windows from the calendar', () => {

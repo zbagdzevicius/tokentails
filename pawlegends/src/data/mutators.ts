@@ -49,6 +49,21 @@ export interface MutatorRules {
   suddenDeath: number;
   /** The designed end (0: none, only the map's safety end). At this tick the match ends with reason 'timeUp'. */
   hardEnd: number;
+  /** Sim v27: ability and Paw Trick cooldowns × this (bp; at least one tick). */
+  cooldownBp: number;
+  /** Sim v27: Fish from every source × this (bp), so Toys come sooner. */
+  fishBp: number;
+  /** Sim v27: the waits of Frenzy Catnip and Fish Snacks × this (bp; their first spawn too). */
+  pickupEveryBp: number;
+  /** Sim v27: the takedown-streak bounty (XP.killPerStreak, killStreakMax) and the shutdown Fish × this (bp). */
+  bountyBp: number;
+  /** Sim v27: the human may forfeit (leave) from this tick (−1: the difficulty's DifficultyRules.forfeitFrom). */
+  forfeitFrom: number;
+  /**
+   * Sim v27 (V27.md §2): the Practice ground. No lane waves and no Pudding, the cores never open, the bots never think;
+   * the enemy heroes are training dummies (data/practice.ts) that stand or walk on their spots and never strike.
+   */
+  practice: boolean;
 }
 
 const NONE: MutatorRules = Object.freeze({
@@ -71,6 +86,12 @@ const NONE: MutatorRules = Object.freeze({
   sunset: 0,
   suddenDeath: 0,
   hardEnd: 0,
+  cooldownBp: 10000,
+  fishBp: 10000,
+  pickupEveryBp: 10000,
+  bountyBp: 10000,
+  forfeitFrom: -1,
+  practice: false,
 });
 
 const BLITZ: MutatorRules = Object.freeze({
@@ -130,6 +151,76 @@ const BLITZ: MutatorRules = Object.freeze({
   sunset: 2700,
   suddenDeath: 4500,
   hardEnd: 5850,
+  cooldownBp: 10000,
+  fishBp: 10000,
+  pickupEveryBp: 10000,
+  bountyBp: 10000,
+  forfeitFrom: -1,
+  practice: false,
 });
 
-export const MUTATOR_RULES: Readonly<Record<Mutator, MutatorRules>> = Object.freeze({ none: NONE, blitz: BLITZ });
+/**
+ * Sim v27 (V27.md §3): Cannon Chaos, a ~5-minute Crossing party match built on the Kibble Cannon. The cannon is up at
+ * 0:15 and back 20 s after every shot or fizzle (the Underdog Cannon still favours a team 3 takedowns behind), heroes
+ * start at level 3 with XP ×1.5 and cooldowns ×0.7, towers ×0.7 and cores ×0.8 HP, Fortified until 1:00, respawns 5 s
+ * rising to 7 s, Sunset at 3:00, Sudden Death at 4:15 and time up at 5:15.
+ */
+const CANNON_CHAOS: MutatorRules = Object.freeze({
+  ...NONE,
+  maps: Object.freeze(['crossing'] as MapId[]),
+  startLevel: 3,
+  xpBp: 15000,
+  towerHpBp: 7000,
+  coreHpBp: 8000,
+  respawnFrom: 150,
+  respawnTo: 210,
+  cannon: Object.freeze({ ...CROSSING_CANNON, first: 450, respawn: 600 }),
+  fortifyUntil: 1800,
+  catchUpFrom: 1800,
+  decayLead: false,
+  underdogTakedowns: 3,
+  takedownCoreBp: 7500,
+  sunset: 5400,
+  suddenDeath: 7650,
+  hardEnd: 9450,
+  cooldownBp: 7000,
+});
+
+/**
+ * Sim v27 (V27.md §2): the Practice ground. One hero on the Crossing against three training dummies (data/practice.ts);
+ * respawns take 2 s, Fish comes three times as fast for trying Toys, and the hero may leave at once. The match ends at
+ * the map's safety end (11:00) if the player stays that long.
+ */
+const PRACTICE: MutatorRules = Object.freeze({
+  ...NONE,
+  maps: Object.freeze(['crossing'] as MapId[]),
+  respawnFrom: 60,
+  respawnTo: 60,
+  // never: the safety end comes first
+  sunset: 30000,
+  suddenDeath: 30000,
+  fortifyUntil: 0,
+  fishBp: 30000,
+  forfeitFrom: 1,
+  practice: true,
+});
+
+/** Sim v27 weekly twist (V27.md §4): Toy Box. Fish ×2 (Toys come twice as fast), Frenzy Catnip and Fish Snacks twice as often. */
+const TOYBOX: MutatorRules = Object.freeze({ ...NONE, maps: Object.freeze(['crossing'] as MapId[]), fishBp: 20000, pickupEveryBp: 5000 });
+/** Sim v27 weekly twist: Rapid Paws. Every ability and Paw Trick cooldown ×0.6. */
+const RAPID: MutatorRules = Object.freeze({ ...NONE, maps: Object.freeze(['crossing'] as MapId[]), cooldownBp: 6000 });
+/**
+ * Sim v27 weekly twist: Bounty Hunt. A takedown streak's bounty XP and the shutdown Fish ×3: a hero on a streak is
+ * worth hunting, and the team that ends it catches up.
+ */
+const BOUNTY: MutatorRules = Object.freeze({ ...NONE, maps: Object.freeze(['crossing'] as MapId[]), bountyBp: 30000 });
+
+export const MUTATOR_RULES: Readonly<Record<Mutator, MutatorRules>> = Object.freeze({
+  none: NONE,
+  blitz: BLITZ,
+  cannon: CANNON_CHAOS,
+  practice: PRACTICE,
+  toybox: TOYBOX,
+  rapid: RAPID,
+  bounty: BOUNTY,
+});

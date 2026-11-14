@@ -42,6 +42,7 @@ const SYMMETRIC: readonly (keyof DifficultyRules)[] = [
   'sideEdge',
   'nineLivesLossBp',
   'structureHpBp',
+  'fortifyHeroBp',
   'coreHpBp',
   'nearAssists',
   'leadPressure',
