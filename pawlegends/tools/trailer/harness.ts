@@ -1073,7 +1073,7 @@ function installFonts(): Promise<unknown> {
   if (fonts) return fonts;
   const base = import.meta.env.BASE_URL ?? '/';
   const faces = [
-    new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Latin.woff2") format("woff2")`, { weight: '300 700' }),
+    new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Ext.woff2") format("woff2")`, { weight: '300 700' }),
     new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Ext.woff2") format("woff2")`, { weight: '300 700', unicodeRange: 'U+0000-024F, U+0300-036F, U+1E00-1EFF' }),
   ];
   fonts = Promise.all(faces.map((f) => f.load().then((x) => document.fonts.add(x)).catch(() => undefined)));

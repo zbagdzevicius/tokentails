@@ -28,7 +28,8 @@ REPO = APP.parent
 ART = APP / "store" / "art"
 CAP = APP / "store" / "raw-captures"
 BRAND = REPO / "brand" / "pawlegends"
-FONT = REPO / "pawlegends" / "public" / "assets" / "fonts" / "Fredoka-Latin.woff2"
+# the Latin-only Fredoka is a tool font: it lives outside public/ so the game build never ships it (budget)
+FONT = REPO / "pawlegends" / "art-src" / "fonts" / "Fredoka-Latin.woff2"
 
 YELLOW, PURPLE, DEEP, ORANGE, PINK = (255, 210, 63), (75, 31, 122), (42, 15, 74), (255, 138, 31), (240, 107, 138)
 
