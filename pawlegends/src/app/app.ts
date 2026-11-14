@@ -45,7 +45,7 @@ import { thermal } from '../render/perf/thermal';
 import { createRenderer, type GameRenderer } from '../render/renderer';
 import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
-import { inviteUrl, partyApi, partyFromUrl } from '../share/partyLink';
+import { inviteUrl, partyApi, partyFromUrl, watchFromUrl } from '../share/partyLink';
 import type { PartyClient } from '../party';
 import { PVP_UNLOCK_MATCHES, hideNames, lastQueueSide, onlineMode, pvpQueueFor, setLastQueueSide, setOnlineMode, type OnlineMode } from '../meta/partyPrefs';
 import { pvpAvailable, pvpKnown } from '../meta/pvpCapability';
@@ -349,7 +349,11 @@ export class App {
     this.analytics.track('quality_tier', { tier: this.tier });
     this.showTitle();
     // a `?party=` link joins at once; a reload with a party seat (a stored resume token) rejoins it
+    // SPECTATE.md §1: a `?watch=` link opens the live view (a party link wins)
+    const watch = this.partyCode ? null : watchFromUrl();
+    if (watch) stripParam('watch');
     if (this.partyApi && this.partyCode) this.openParty('join', this.partyCode);
+    else if (this.partyApi && watch) this.openSpectate(watch);
     else if (this.partyApi && hasPartySeat()) this.openParty('resume');
     // a closed tab (no resume token left) still in a party: rejoin it by its code (the relay gives this player their
     // own seat back; a party that ended meanwhile closes quietly)
@@ -1252,6 +1256,8 @@ export class App {
               return v && v.phase === 'lobby' && !this.party?.state.inMatch ? v.code : null;
             },
             joinParty: (code) => this.openParty('join', code),
+            // SPECTATE.md: Watch on a friend's row, and the featured "Watch live" row (needs the relay)
+            ...(this.partyApi ? { watch: (target: { room: string; name: string } | { featured: true }) => this.openSpectate(target) } : {}),
             signIn: () => this.integration.requestSignIn('save-progress'),
             // the one play path: Play Casual opens Mode Select on Skirmish's PvP variant (Find match is one tap)
             playCasual: () => {
@@ -2054,6 +2060,62 @@ export class App {
       });
   }
 
+  /**
+   * SPECTATE.md: watch a friend's live match or the featured one, a short delay behind the players: the match view over
+   * a SpectateHost (the relay's delayed turns re-simulated with this build's sim). Back to Home when it closes. Never
+   * while in a party (its own socket would compete for the identity's caps; the Social sheet hides Watch then).
+   */
+  private openSpectate(target: { room: string; name: string } | { featured: true }): void {
+    const api = this.partyApi;
+    if (!api || this.session) return;
+    sfx.play('click');
+    this.overlay?.close();
+    this.overlay = null;
+    this.setScreen('match', null);
+    this.leaveHomeLobby();
+    this.stage.leave();
+    const token = ++this.matchToken;
+    void Promise.all([loadMatch(), import('../spectate/viewer')])
+      .then(([{ MatchSession }, { openSpectateViewer }]) => {
+        if (token !== this.matchToken) return;
+        openSpectateViewer({
+          Session: MatchSession,
+          gr: this.gr,
+          root: this.root,
+          target,
+          api,
+          build: String(import.meta.env.VITE_PAWLEGENDS_BUILD ?? 'dev').toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 32) || 'dev',
+          ticket: () => this.integration.partyTicket(),
+          guestKey: () => partyGuestKey(),
+          muted: sfx.isMuted,
+          setSession: (s) => {
+            this.session = s;
+            if (s) this.governor.hold(performance.now() + GOV.WARMUP_MS);
+          },
+          warm: (s) => {
+            const t0 = performance.now();
+            return warmMatch(
+              () => (this.session === s ? s.view.hasRoster : null),
+              () => s.view.warmup(t0 + WARM.totalMs),
+              (ms) => new Promise((r) => setTimeout(r, ms)),
+              () => performance.now() - t0,
+            ).then(() => undefined);
+          },
+          onExit: () => {
+            this.session = null;
+            if (token === this.matchToken) this.showTitle();
+          },
+          onMute: (m) => this.setMuted(m),
+          onSettings: (done) => this.openSettings(done),
+          track: (ev, props) => this.analytics.track(ev as 'spectate_open', props),
+        });
+      })
+      .catch((err: unknown) => {
+        reportCrash('window', err);
+        this.showTitle();
+      });
+  }
+
   // ------------------------------------------------------------------------------------- store and offers
 
   private openStore(from: 'lobby' | 'results', tab?: StoreTab, hero?: HeroId): void {
@@ -2456,6 +2518,17 @@ function lastMmMatch(): boolean {
 }
 
 /** Drop `?party=` from the address bar once read, so a later reload does not rejoin an old party by code. */
+function stripParam(key: string): void {
+  try {
+    const u = new URL(location.href);
+    if (!u.searchParams.has(key)) return;
+    u.searchParams.delete(key);
+    history.replaceState(history.state, '', `${u.pathname}${u.search}${u.hash}`);
+  } catch {
+    /* sandboxed */
+  }
+}
+
 function stripPartyParam(): void {
   try {
     const u = new URL(location.href);

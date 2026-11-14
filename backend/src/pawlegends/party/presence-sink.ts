@@ -13,7 +13,12 @@ export interface PresenceEntry {
     state: 'party' | 'queue' | 'match';
     party?: string;
     joinable?: boolean;
+    /** SPECTATE.md: a watchable match's room id (accepted friends read it to watch). */
+    room?: string;
 }
+
+/** SPECTATE.md: the row that says how many live matches a featured spectate could pick now (not an account). */
+export const LIVE_PRESENCE_ID = '~live';
 
 export interface PresenceWriter {
     bulkWrite(
@@ -27,11 +32,12 @@ export interface PresenceWriter {
 export const PRESENCE_FLUSH_MS = 5_000;
 export const PRESENCE_REFRESH_MS = 60_000;
 
-const keyOf = (e: PresenceEntry) => `${e.state}|${e.party ?? ''}|${e.joinable ? 1 : 0}`;
+const keyOf = (e: PresenceEntry) => `${e.state}|${e.party ?? ''}|${e.joinable ? 1 : 0}|${e.room ?? ''}`;
 
 export class PresenceSink {
     private last = new Map<string, string>();
     private lastRefreshMs = -Infinity;
+    private lastLive = -1;
     private timer: NodeJS.Timeout | null = null;
     private busy = false;
     errors = 0;
@@ -41,7 +47,9 @@ export class PresenceSink {
         private readonly snapshot: () => PresenceEntry[],
         private readonly writer: PresenceWriter | null,
         private readonly now: () => number = Date.now,
-        private readonly log: (event: string, props: Record<string, unknown>) => void = () => undefined
+        private readonly log: (event: string, props: Record<string, unknown>) => void = () => undefined,
+        /** SPECTATE.md: featured-watchable live matches on this relay (written as the `~live` row). */
+        private readonly live: (() => number) | null = null
     ) {}
 
     start(): void {
@@ -80,6 +88,7 @@ export class PresenceSink {
                                     state: e.state,
                                     at,
                                     ...(e.party ? { party: e.party, joinable: !!e.joinable } : {}),
+                                    ...(e.room ? { room: e.room } : {}),
                                 },
                             },
                             $max: { exp },
@@ -92,6 +101,15 @@ export class PresenceSink {
             for (const id of this.last.keys())
                 if (!next.has(id))
                     ops.push({ updateOne: { filter: { _id: id }, update: { $unset: { relay: 1 } }, upsert: false } });
+            const live = this.live ? Math.max(0, Math.floor(this.live())) : -1;
+            if (live >= 0 && (refresh || live !== this.lastLive))
+                ops.push({
+                    updateOne: {
+                        filter: { _id: LIVE_PRESENCE_ID },
+                        update: { $set: { live: { rooms: live, at } }, $max: { exp } },
+                        upsert: true,
+                    },
+                });
             if (refresh) this.lastRefreshMs = nowMs;
             if (!ops.length) {
                 this.last = next;
@@ -101,6 +119,7 @@ export class PresenceSink {
                 await this.writer.bulkWrite(ops, { ordered: false });
                 this.writes += ops.length;
                 this.last = next;
+                if (live >= 0) this.lastLive = live;
             } catch (error) {
                 this.errors++;
                 this.log('presence_write_errors', {

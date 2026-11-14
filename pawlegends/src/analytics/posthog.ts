@@ -28,6 +28,10 @@ export type AnalyticsEvent =
   | 'replay_seek'
   | 'replay_again'
   | 'replay_death_jump'
+  // live spectating (SPECTATE.md §6): opened (friend or featured), refused or lost, watched to the end
+  | 'spectate_open'
+  | 'spectate_error'
+  | 'spectate_end'
   | 'share_card_open'
   | 'share_card'
   | 'rematch_click'

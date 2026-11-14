@@ -122,6 +122,11 @@ export interface MatchSetup {
   speed?: number;
   /** MATCH-MOMENTS.md §2: a replay (src/replay/viewer.ts): the view only, no input reaches the host. */
   replay?: boolean;
+  /**
+   * SPECTATE.md: a live spectate (src/spectate/viewer.ts, with `replay: true`): the relay's display names per slot
+   * (null = a bot keeps its persona name), and no match chat (a spectator neither reads nor writes it).
+   */
+  spectate?: { names: readonly (string | null)[] };
   /** Sim v19: the map; omitted = 'crossing' (3v3 Skirmish), 'hearthwood' = 5v5 Classic. */
   map?: MapId;
   /** Sim v22: 'blitz' = the ~3-minute Crossing match (omitted = none). */
@@ -722,6 +727,9 @@ export class MatchSession {
     this.goals.names = { q: ht.abilities[0].name, r: ht.abilities[3].name };
     // sim v5 species teams: a hero twice in one team, the second one is "Sage 2" (one table for every label)
     this.names = selfNames(slotNames(w.picks, w.seed, w.slot), w.slot, user ? { name: user } : myCard);
+    // SPECTATE.md: the players' own names (as their teammates see them); bots keep their persona names
+    const watched = this.setup.spectate?.names;
+    if (watched) this.names = this.names.map((n, i) => watched[i] ?? n);
     if (this.e2e) document.documentElement.dataset.plateNames = this.names.join('|');
     this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A hero', (s) => w.picks[s]);
     // LoL pass (lane B): an Ace reads who is out from the latest snapshot (an enemy out of sight counts by its timer)
@@ -826,7 +834,7 @@ export class MatchSession {
       this.showScores(false);
     });
     this.mountTouchChrome();
-    this.mountChat(w);
+    if (!this.setup.spectate) this.mountChat(w);
     if (this.setup.party) this.mountParty(w);
     this.talents = new TalentPicker(this.ui, hero, (tier, choice) => {
       this.orders?.talent(tier, choice);
@@ -1672,7 +1680,8 @@ export class MatchSession {
   /** Closes the pause menu's scoreboard (UX-05), if it is open. */
   private scoresBack: (() => void) | null = null;
 
-  private showScores(on: boolean): void {
+  /** The scoreboard over the match (Tab on desktop, a tap on the score plate on phones; the spectate bar's Scores). */
+  showScores(on: boolean): void {
     this.scoreOn = on;
     this.scoreboard?.root.classList.toggle('tap', on);
     this.scoreboard?.show(on, this.frameNow);

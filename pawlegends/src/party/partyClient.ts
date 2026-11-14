@@ -30,7 +30,7 @@ import { closeChampInfo, openChampInfo } from '../ui/champBrowser/open';
 import type { HeroId } from '../sim/api';
 import { loadingHtml } from './ui/partyLoading';
 import { qrSvg } from './qr';
-import { hideNames } from '../meta/partyPrefs';
+import { allowWatch, hideNames } from '../meta/partyPrefs';
 import type { SeatInfo } from '../app/mpTypes';
 import type { SlotStats } from '../sim/api';
 import { againLabel, partyRows, partyRowsHtml } from './ui/partyResults';
@@ -777,7 +777,8 @@ export class PartyClient {
         simHash: simHash(),
         build: h.build,
         guestKey: h.guestKey(),
-        hint: { maxDifficulty: h.maxDifficulty, newbie: h.newbie, ...(h.matches !== undefined ? { matches: Math.max(0, Math.min(1_000_000, Math.floor(h.matches))) } : {}) },
+        // SPECTATE.md §5: only an opted-out player says so (an older relay never sees the key otherwise)
+        hint: { maxDifficulty: h.maxDifficulty, newbie: h.newbie, ...(h.matches !== undefined ? { matches: Math.max(0, Math.min(1_000_000, Math.floor(h.matches))) } : {}), ...(allowWatch() ? {} : { watch: false }) },
       },
       h.env ?? browserSocketEnv(),
     );

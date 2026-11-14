@@ -30,6 +30,9 @@ import {
     PROTO_PVP,
     PROTO_CHAT,
     PROTO_MATCH_CHAT,
+    PROTO_WATCH,
+    SPECTATE_LIMITS,
+    turnFromBody,
     CHAT_SAY_RATE,
     ProtoError,
     SUBPROTOCOL,
@@ -85,6 +88,15 @@ import { filterChatText, normalizeChatText } from '../../shared-contracts/chat-f
 import { BotChat, BotSeenStore, type BotSeen } from './bot-chat';
 import { isProbe } from '../../vendor/pawlegends-chat/botChatter';
 import type { MemberChat } from './party.service';
+import {
+    delayTurns,
+    featuredCount,
+    pickFeatured,
+    releasedTo,
+    watchRefusal,
+    type WatchableRoom,
+    type WatchKind,
+} from './spectate';
 
 export interface RelayOptions {
     server: Server;
@@ -138,6 +150,8 @@ export interface RelayOptions {
      * quick tier with a default avatar and nothing is stored.
      */
     chat?: RelayChatHooks;
+    /** Specs and the e2e harness only (a constructor option): the spectate delay per room kind (SPECTATE.md §2). */
+    spectateDelayMs?: (kind: WatchKind) => number;
 }
 
 /** What the relay learns about an account for chat: never from the client. */
@@ -231,7 +245,7 @@ interface Sock {
     helloTimer: NodeJS.Timeout | null;
     identity: MemberIdentity | null;
     /** `hello.hint`: UI defaults only (the lowest member tier, the newbie hero); never trusted for anything else. */
-    hint: { maxDifficulty: string; newbie: boolean; matches?: number } | undefined;
+    hint: { maxDifficulty: string; newbie: boolean; matches?: number; watch?: boolean } | undefined;
     memberId: string | null;
     sim: { version: number; hash: string } | null;
     /** The `hello.proto` of this socket (PROTO_MIN..PROTO): no `mm.*` frame or new error code ever reaches a PROTO 1. */
@@ -269,6 +283,23 @@ interface Sock {
     pending?: boolean;
     /** A `party.join` looking for its party in the store (LIVE-MATCH-DEPLOYS.md §14): one lookup at a time. */
     joining?: boolean;
+    /** PROTO 7: the live match this socket watches (SPECTATE.md); never a seat. */
+    watch?: Watch | null;
+}
+
+/** A spectator's stream: the room, its delay, the next turn to send and the paced catch-up state. */
+interface Watch {
+    live: LiveRoom;
+    delay: number;
+    /** The next turn this spectator gets. */
+    sent: number;
+    /** `sync` asked for turns from here (null: none pending). */
+    from: number | null;
+    lastSyncMs: number;
+    endSent: boolean;
+    /** CATCHUP bytes sent in the current minute (the same 1 MB a minute a player's catch-up gets). */
+    bytes: number;
+    windowMs: number;
 }
 
 interface LiveRoom {
@@ -308,6 +339,12 @@ interface LiveRoom {
     chatBots?: number[];
     /** When the referee ended the room (the bot end window). */
     endedAtMs?: number;
+    /** SPECTATE.md: a seated player turned "Let friends watch" off (sticky for the match). */
+    noWatch?: boolean;
+    /** SPECTATE.md: the sockets watching this room. */
+    watchers?: Set<Sock>;
+    /** SPECTATE.md: the end as the spectators get it, once the delayed stream reaches it. */
+    watchEnd?: { atMs: number; turn: number; msg: Record<string, unknown> } | null;
 }
 
 /** Seats per team of a live room (5v5 Classic on Hearthwood: 5). */
@@ -430,6 +467,10 @@ export class PartyRelay {
     private readonly botSeen: BotSeenStore;
     /** CHAMPION-STORE.md §8.1: owned champions per ticketed account, and when they were read. */
     private readonly champs = new Map<string, { heroes: Set<string>; atMs: number; loading: Promise<void> | null }>();
+    /** SPECTATE.md: spectators on this relay, and the pacing timer that runs while there are any. */
+    private watching = 0;
+    private watchTimer: NodeJS.Timeout | null = null;
+    private readonly watchCounts = new Set<LiveRoom>();
 
     constructor(private readonly opts: RelayOptions) {
         this.now = opts.now ?? Date.now;
@@ -740,6 +781,12 @@ export class PartyRelay {
             return;
         // PROTO 4 and older never get a chat frame
         if (s.proto < PROTO_CHAT && String(msg.t).startsWith('chat.')) return;
+        // PROTO 6 and older never get a spectate frame or code
+        if (
+            s.proto < PROTO_WATCH &&
+            (msg.t === 'spectate' || (msg.t === 'error' && String(msg.code).startsWith('watch_')))
+        )
+            return;
         // PROTO 5 never gets an in-match chat line (deliverMatchChat sends it the legacy wheel line instead)
         if (s.proto < PROTO_MATCH_CHAT && msg.t === 'chat.msg' && msg.ch !== undefined) return;
         if (s.ws.readyState === WebSocket.OPEN) s.ws.send(JSON.stringify(msg));
@@ -1213,6 +1260,7 @@ export class PartyRelay {
 
     private onClose(s: Sock): void {
         s.closed = true;
+        this.stopWatch(s, false);
         this.socks.delete(s);
         if (s.helloTimer) clearTimeout(s.helloTimer);
         if (s.pingTimer) clearInterval(s.pingTimer);
@@ -1319,9 +1367,24 @@ export class PartyRelay {
                 return;
             }
         }
+        if (s.watch) {
+            // a spectator: its socket keeps no seat; a party or queue frame ends the watch first
+            if (msg.t.startsWith('party.') || msg.t.startsWith('mm.')) this.stopWatch(s, false);
+            else if (msg.t === 'sync') return this.watchSync(s, msg.fromTurn);
+            else if (msg.t === 'away' || msg.t === 'back' || msg.t === 'bye') return;
+        }
         switch (msg.t) {
             case 'hello':
                 return this.strike(s);
+            case 'spectate':
+            case 'spectate.leave':
+                // PROTO 7 only: an older socket sending one is a malformed frame
+                if (s.proto < PROTO_WATCH) {
+                    this.error(s, 'bad_message');
+                    return this.strike(s);
+                }
+                if (msg.t === 'spectate.leave') return this.stopWatch(s, false);
+                return this.spectate(s, msg);
             case 'party.create': {
                 if (this.mm.queued(member)) this.mm.onJson(member, { t: 'mm.leave' });
                 // leaving the old party first is part of create: count only the parties this create would keep
@@ -2363,6 +2426,11 @@ export class PartyRelay {
         if (slot === undefined) return;
         s.seatRoom = live.room.id;
         s.seatSlot = slot;
+        // SPECTATE.md: a player who keeps their matches private closes the room to spectators (who are told so)
+        if (s.hint?.watch === false && !live.noWatch) {
+            live.noWatch = true;
+            this.dropWatchers(live);
+        }
         if (s.pingTimer) clearInterval(s.pingTimer);
         s.pingTimer = setInterval(() => this.ping(s), PARTY_LIMITS.pingMatchMs);
         s.pingTimer.unref?.();
@@ -2552,6 +2620,8 @@ export class PartyRelay {
     // Binary frames
 
     private onBinary(s: Sock, f: ReturnType<typeof decodeClientBinary>): void {
+        // a spectator never plays: a command from one is a strike (BEATs and HASHes are ignored)
+        if (s.watch && f.type === Frame.CMD) return this.strike(s);
         const live = this.seatOf(s);
         if (!live) return;
         const now = this.now();
@@ -2644,6 +2714,7 @@ export class PartyRelay {
             s.seatRoom = null;
             s.seatSlot = -1;
         }
+        this.dropWatchers(live);
         this.parties.matchEnded(live.party);
         this.rooms.delete(room.id);
         this.log('room_abandoned', { why });
@@ -2702,6 +2773,20 @@ export class PartyRelay {
             reason: end.reason,
         });
         this.scheduler.remove(room);
+        // SPECTATE.md: spectators play the delayed tail out at match pace, then get this end (never scored)
+        live.watchEnd = {
+            atMs: this.now(),
+            turn: room.nextTurn,
+            msg: {
+                t: 'end',
+                winner: end.winner,
+                outcome: end.outcome,
+                ticks: end.ticks,
+                finalHash: end.finalHash,
+                scored: false,
+                why: 'spectator',
+            },
+        };
         // the tail first: a client whose last received turn is behind the log gets the rest now (a stalled stream at
         // the very end otherwise leaves it short of the end turn, frozen without a results screen)
         for (const s of this.socketsOf(live)) {
@@ -2868,6 +2953,8 @@ export class PartyRelay {
         const room = live.room;
         this.scheduler.remove(room);
         for (const s of this.socketsOf(live)) this.error(s, 'room_gone', 0);
+        // spectators watch it again on the relay that claims it (their socket reconnects there)
+        this.dropWatchers(live, 'room_gone');
         await live.inflight?.catch(() => false);
         const party = this.parties.byId(live.party);
         if (party) await this.saveParty(party);
@@ -2917,6 +3004,7 @@ export class PartyRelay {
             live.moving = true;
             if (live.hold) clearTimeout(live.hold.timer);
             for (const s of this.socketsOf(live)) this.error(s, 'room_gone', 0);
+            this.dropWatchers(live, 'room_gone');
         }
         const lobby = this.parties.all().filter(p => !(p.room && this.rooms.has(p.room)));
         const inRooms = this.parties.all().filter(p => p.room && this.rooms.has(p.room));
@@ -2929,6 +3017,8 @@ export class PartyRelay {
             this.log('relay_handoff', { reason: wasDraining ? 'deadline' : 'sigterm', rooms: this.rooms.size });
         if (this.partyTimer) clearInterval(this.partyTimer);
         if (this.partyFlush) clearTimeout(this.partyFlush);
+        if (this.watchTimer) clearInterval(this.watchTimer);
+        this.watchTimer = null;
         for (const s of this.socks) s.ws.close(1012, 'restart');
         this.opts.server.off('upgrade', this.upgradeHandler);
         this.wss.close();
@@ -3496,6 +3586,193 @@ export class PartyRelay {
         return false;
     }
 
+    // -----------------------------------------------------------------------------------------------------------
+    // Spectating (SPECTATE.md, PROTO 7)
+
+    /** The kind of a live room for its spectate delay: ranked, casual PvP (incl. 5v5), Quick Play co-op or a party. */
+    private watchKindOf(live: LiveRoom): WatchKind {
+        const p = this.parties.byId(live.party);
+        if (
+            (live.config as { mode?: string }).mode === 'ranked' ||
+            (p?.mm as { queue?: string } | undefined)?.queue === 'ranked'
+        )
+            return 'ranked';
+        if (live.casual || live.config.mode === 'pvp') return 'casual';
+        return live.coop ? 'coop' : 'party';
+    }
+
+    /** The pure view of a live room (spectate.ts). */
+    private watchableOf(live: LiveRoom): WatchableRoom {
+        return {
+            id: live.room.id,
+            kind: this.watchKindOf(live),
+            humans: live.config.humans,
+            sim: live.sim,
+            nextTurn: live.room.nextTurn,
+            closed:
+                !!live.noWatch ||
+                live.ending ||
+                !!live.moving ||
+                !live.room.live ||
+                this.rooms.get(live.room.id) !== live,
+            viewers: live.watchers?.size ?? 0,
+            classic: live.config.map === 'hearthwood',
+            keys: live.keys,
+        };
+    }
+
+    /** Live rooms here a featured pick may choose (the Social sheet's "Watch live" row reads the count). */
+    liveFeatured(): number {
+        return featuredCount([...this.rooms.values()].map(l => this.watchableOf(l)));
+    }
+
+    /** `spectate{room | featured}`: watch a live match from a socket without a seat. */
+    private spectate(s: Sock, msg: Extract<ClientJson, { t: 'spectate' }>): void {
+        this.stopWatch(s, false);
+        const member = s.memberId!;
+        // a player in a party, a queue or a match watches from its own spectate socket, never from the party's
+        if (this.seatOf(s) || this.parties.partyOf(member) || this.mm.queued(member))
+            return this.error(s, 'watch_none');
+        const key = s.identity!.key;
+        let mine = 0;
+        for (const o of this.socks) if (o.watch && o.identity?.key === key) mine++;
+        if (mine >= SPECTATE_LIMITS.perIdentity) return this.error(s, 'rate_limited', 10_000);
+        const viewer = { sim: s.sim, key };
+        let live: LiveRoom | undefined;
+        if (msg.room) live = this.rooms.get(msg.room);
+        else {
+            const pick = pickFeatured(
+                [...this.rooms.values()].map(l => this.watchableOf(l)),
+                viewer
+            );
+            live = pick ? this.rooms.get(pick.id) : undefined;
+        }
+        const why = watchRefusal(live ? this.watchableOf(live) : undefined, viewer, this.watching);
+        if (why || !live) {
+            this.log('spectate_refused', { why: why ?? 'watch_none', featured: !msg.room });
+            return this.error(s, why ?? 'watch_none');
+        }
+        const kind = this.watchKindOf(live);
+        const delay = delayTurns(kind, this.opts.spectateDelayMs);
+        s.watch = { live, delay, sent: 0, from: null, lastSyncMs: 0, endSent: false, bytes: 0, windowMs: this.now() };
+        (live.watchers ??= new Set()).add(s);
+        this.watching++;
+        if (s.pingTimer) clearInterval(s.pingTimer);
+        s.pingTimer = setInterval(() => this.ping(s), PARTY_LIMITS.pingMatchMs);
+        s.pingTimer.unref?.();
+        // the view follows the first human (the client picks its friend's seat by name)
+        const follow = live.config.humans[0] ?? 0;
+        const base = this.matchMsg(live, follow, 0);
+        this.sendJson(s, {
+            ...(base as unknown as Record<string, unknown>),
+            you: { slot: -1 },
+            lastSeq: 0,
+            watch: {
+                delayMs: Math.round(delay * TURN_MS),
+                follow,
+                viewers: live.watchers.size,
+                max: SPECTATE_LIMITS.perRoom,
+                kind,
+                ...(msg.room ? {} : { featured: true }),
+            },
+        });
+        this.viewersChanged(live);
+        this.log('spectate_start', { kind, featured: !msg.room, viewers: live.watchers.size });
+        if (!this.watchTimer) {
+            this.watchTimer = setInterval(() => this.watchTick(), Math.round(TURN_MS / 2));
+            this.watchTimer.unref?.();
+        }
+    }
+
+    /** Stop a socket's watch (`tell`: send `watch_none`, the room went away). */
+    private stopWatch(s: Sock, tell: boolean, code: 'watch_none' | 'room_gone' = 'watch_none'): void {
+        const w = s.watch;
+        if (!w) return;
+        s.watch = null;
+        this.watching = Math.max(0, this.watching - 1);
+        w.live.watchers?.delete(s);
+        if (tell && !s.closed)
+            this.error(s, code === 'room_gone' ? 'room_gone' : 'watch_none', code === 'room_gone' ? 250 : undefined);
+        if (!s.closed) this.viewersChanged(w.live);
+        if (this.watching === 0 && this.watchTimer) {
+            clearInterval(this.watchTimer);
+            this.watchTimer = null;
+        }
+    }
+
+    /** Every spectator of a room that closed to them (abandoned, moved, made private) is told and let go. */
+    private dropWatchers(live: LiveRoom, code: 'watch_none' | 'room_gone' = 'watch_none'): void {
+        for (const s of [...(live.watchers ?? [])]) this.stopWatch(s, true, code);
+    }
+
+    /** The spectator count changed: the room's spectators hear it on the next watch tick (coalesced). */
+    private viewersChanged(live: LiveRoom): void {
+        this.watchCounts.add(live);
+    }
+
+    /** `sync{fromTurn}` from a spectator: its stream restarts there (at most every sync interval). */
+    private watchSync(s: Sock, fromTurn: number): void {
+        const w = s.watch!;
+        const now = this.now();
+        if (w.lastSyncMs !== 0 && now - w.lastSyncMs < PARTY_LIMITS.syncEveryMs) return;
+        w.lastSyncMs = now;
+        w.from = Math.max(0, Math.min(fromTurn, w.live.room.nextTurn));
+        this.pumpWatch(s);
+    }
+
+    /** Send a spectator what is released to it: a catch-up in CATCHUP chunks, then TURN frames at the live pace. */
+    private pumpWatch(s: Sock): void {
+        const w = s.watch;
+        if (!w || s.closed || s.ws.readyState !== WebSocket.OPEN) return;
+        if (w.from === null) return; // nothing asked yet: the client's first `sync` starts the stream
+        if (w.from !== w.sent) w.sent = w.from;
+        const room = w.live.room;
+        const now = this.now();
+        if (now - w.windowMs >= 60_000) {
+            w.windowMs = now;
+            w.bytes = 0;
+        }
+        const target = Math.min(room.log.length, releasedTo(room, w.delay, w.live.watchEnd ?? null, now));
+        while (w.sent < target && s.ws.bufferedAmount < PARTY_LIMITS.catchupSendBelowBytes) {
+            if (target - w.sent <= 2) {
+                s.ws.send(turnFromBody(room.log[w.sent]));
+                w.sent++;
+                continue;
+            }
+            if (w.bytes >= PARTY_LIMITS.catchupBytesPerMinute) break;
+            let size = room.log[w.sent].length;
+            let n = 1;
+            while (w.sent + n < target && size + room.log[w.sent + n].length <= CATCHUP_CHUNK)
+                size += room.log[w.sent + n++].length;
+            const buf = new Uint8Array(size);
+            let at = 0;
+            for (let i = 0; i < n; i++) {
+                buf.set(room.log[w.sent + i], at);
+                at += room.log[w.sent + i].length;
+            }
+            s.ws.send(encodeCatchup(w.sent, w.sent + n, w.sent + n >= target, buf));
+            w.bytes += size;
+            w.sent += n;
+        }
+        w.from = w.sent;
+        const end = w.live.watchEnd;
+        if (end && !w.endSent && w.sent >= end.turn) {
+            w.endSent = true;
+            this.sendJson(s, end.msg);
+            this.stopWatch(s, false);
+        }
+    }
+
+    /** The watch pacing tick (every half turn while anyone watches): release turns, send coalesced counts. */
+    private watchTick(): void {
+        for (const live of this.watchCounts) {
+            const viewers = live.watchers?.size ?? 0;
+            for (const o of live.watchers ?? []) this.sendJson(o, { t: 'spectate', viewers });
+        }
+        this.watchCounts.clear();
+        for (const s of this.socks) if (s.watch) this.pumpWatch(s);
+    }
+
     /**
      * Presence (SOCIAL-RANKED.md §4.3): the registered (ticketed, non-guest) accounts on this relay and their phase,
      * the most important one per account (match > queue > party). Read by the PresenceSink timer every 5 s, never on
@@ -3509,8 +3786,15 @@ export class PartyRelay {
             const id = s.identity;
             if (!s.helloed || s.closed || !id?.ticketed || id.guest || !id.accountId) continue;
             let e: PresenceEntry | null = null;
-            if (s.seatRoom) e = { accountId: id.accountId, state: 'match' };
-            else if (s.memberId && this.mm.queued(s.memberId)) e = { accountId: id.accountId, state: 'queue' };
+            if (s.seatRoom) {
+                // SPECTATE.md: a watchable match carries its room id (accepted friends only read it, as a party code)
+                const live = this.rooms.get(s.seatRoom);
+                e = {
+                    accountId: id.accountId,
+                    state: 'match',
+                    ...(live && !this.watchableOf(live).closed ? { room: live.room.id } : {}),
+                };
+            } else if (s.memberId && this.mm.queued(s.memberId)) e = { accountId: id.accountId, state: 'queue' };
             else {
                 const p = s.memberId ? this.parties.partyOf(s.memberId) : null;
                 if (p && p.queued) e = { accountId: id.accountId, state: 'queue' };

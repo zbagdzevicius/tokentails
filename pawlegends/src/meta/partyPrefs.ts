@@ -23,6 +23,30 @@ export function setHideNames(on: boolean): void {
 }
 
 /**
+ * SPECTATE.md §5: "Let friends watch my matches" (on by default). Off, every relay `hello` says `hint.watch: false`
+ * and the relay closes any match this player sits in to spectators (friends and the featured pick alike). Per device;
+ * blocked storage reads as on.
+ */
+const WATCH_KEY = 'pl.party.noWatch';
+
+export function allowWatch(): boolean {
+  try {
+    return localStorage.getItem(WATCH_KEY) !== '1';
+  } catch {
+    return true;
+  }
+}
+
+export function setAllowWatch(on: boolean): void {
+  try {
+    if (on) localStorage.removeItem(WATCH_KEY);
+    else localStorage.setItem(WATCH_KEY, '1');
+  } catch {
+    /* blocked storage: this session only */
+  }
+}
+
+/**
  * Quick Play (M1A-IMPL.md §6): the side this viewer last queued for (cats, dogs or either), the default of the next
  * "Play online". A per-viewer convenience only: blocked storage falls back to "either".
  */

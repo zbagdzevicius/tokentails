@@ -9,7 +9,14 @@ import { PRESENCE, PresenceState } from './social.contracts';
 
 export interface PresenceRow {
     _id: string;
-    relay?: { state: 'party' | 'queue' | 'match'; party?: string; joinable?: boolean; mode?: string; at: Date } | null;
+    relay?: {
+        state: 'party' | 'queue' | 'match';
+        party?: string;
+        joinable?: boolean;
+        mode?: string;
+        room?: string;
+        at: Date;
+    } | null;
     api?: { at: Date } | null;
     rk?: number;
     exp?: Date;
@@ -21,6 +28,8 @@ export interface PresenceView {
     joinable?: boolean;
     /** The party code: only for accepted, unblocked friends (the caller decides). */
     party?: string;
+    /** SPECTATE.md: a watchable match's room id (Watch on the friend row): accepted, unblocked friends only. */
+    room?: string;
 }
 
 const ms = (d: Date | string | undefined | null) => (d ? new Date(d).getTime() : 0);
@@ -33,6 +42,8 @@ export function readPresence(row: PresenceRow | null | undefined, nowMs: number,
             v.party = row.relay.party;
             v.joinable = !!row.relay.joinable;
         }
+        if (row.relay.state === 'match' && typeof row.relay.room === 'string' && /^[a-z0-9]{12}$/.test(row.relay.room))
+            v.room = row.relay.room;
         return v;
     }
     if (row.api && nowMs - ms(row.api.at) < PRESENCE.apiFreshMs) return { state: 'online' };

@@ -32,7 +32,7 @@ import {
 import type { QualityTier } from '../render/quality';
 import { APP_ENV } from '../app/platform';
 import { setShakePref, shakePref, type ShakePref } from '../render/fx/vfxPrefs';
-import { hideNames, setHideNames } from '../meta/partyPrefs';
+import { allowWatch, hideNames, setAllowWatch, setHideNames } from '../meta/partyPrefs';
 import { bindCameraHeightRow, cameraHeightRowHtml } from './cameraHeightRow';
 import { MINIMAP_SIZES, colourBlind, minimapSize, setColourBlind, setMinimapSize, type MinimapSize } from './minimapPrefs';
 import { accountActionOf, accountRowHtml, type AccountModel, type AccountSend } from './account';
@@ -103,7 +103,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), cvd: colourBlind(), mm: minimapSize(), menuText: menuText() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), watch: allowWatch(), cvd: colourBlind(), mm: minimapSize(), menuText: menuText() };
   const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
@@ -145,6 +145,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${menuTextRowHtml(ctl.menuText)}
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${row('Hide friends\' names (party)', 'hidenames', ctl.hide)}
+      ${row('Let friends watch my matches', 'watch', ctl.watch)}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
       ${accountRowHtml(o.account?.model ?? null)}
       <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
@@ -194,6 +195,9 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     } else if (a === 'hidenames') {
       ctl.hide = !ctl.hide;
       setHideNames(ctl.hide);
+    } else if (a === 'watch') {
+      ctl.watch = !ctl.watch;
+      setAllowWatch(ctl.watch);
     } else if (a === 'tower') {
       ctl.tower = !ctl.tower;
       setTowerButton(ctl.tower);

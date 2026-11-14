@@ -139,7 +139,18 @@ export class PawlegendsPresence {
 
     /** Written by the relay's PresenceSink. */
     @Prop({ type: Object, default: undefined })
-    relay?: { state: 'party' | 'queue' | 'match'; party?: string; joinable?: boolean; mode?: string; at: Date };
+    relay?: {
+        state: 'party' | 'queue' | 'match';
+        party?: string;
+        joinable?: boolean;
+        mode?: string;
+        room?: string;
+        at: Date;
+    };
+
+    /** SPECTATE.md: only on the `~live` row: featured-watchable live matches, written by the relay's PresenceSink. */
+    @Prop({ type: Object, default: undefined })
+    live?: { rooms: number; at: Date };
 
     /** Written by the API pulse. */
     @Prop({ type: Object, default: undefined })

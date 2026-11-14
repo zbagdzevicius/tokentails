@@ -42,8 +42,8 @@ const turn: TurnFrame = {
 };
 
 describe('net-proto', () => {
-  it('PROTO is 6 (PROTO_MIN 1) and the command size table equals the sim\'s', () => {
-    expect(PROTO).toBe(6);
+  it('PROTO is 7 (PROTO_MIN 1) and the command size table equals the sim\'s', () => {
+    expect(PROTO).toBe(7);
     for (let op = 1; op < CMD_SIZE.length; op++) expect(CMD_SIZE[op]).toBe(OP_SIZE[op]);
     // sim v27: Op.Practice (13) is the solo Practice ground's only: it never crosses the wire (cmdSize 0 refuses it)
     expect(Object.keys(OP_SIZE)).toHaveLength(CMD_SIZE.length);

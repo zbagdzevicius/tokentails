@@ -360,3 +360,10 @@ html:not([data-touch='1']) .pl-chatline .cl-row { background: rgb(var(--v6-night
   .pl-social, .pl-chat, .pl-social-note, .pp-chat-drawer { animation: none; }
   .pl-social-tab, .pl-social-row, .pl-av-tile, .pl-chat-chip, .pp-chat-strip, .pl-chatdrawer .cd-chip, .pl-chatdrawer .cd-send { transition: none; }
 }
+
+/* SPECTATE.md: the featured live match row and a friend's Watch button */
+.pl-social-live { box-shadow: inset 4px 0 0 var(--v6-enemy, #ff4f58); }
+.pl-social-live b { font-weight: 800; }
+.pl-live-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--v6-enemy, #ff4f58); box-shadow: 0 0 0 3px rgb(255 79 88 / 0.25); animation: pl-live-pulse 1.4s ease-in-out infinite; }
+@keyframes pl-live-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .pl-live-dot { animation: none; } }

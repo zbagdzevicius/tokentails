@@ -75,7 +75,7 @@ export interface HelloInfo {
   build: string;
   ticket?: string;
   guestKey?: string;
-  hint?: { maxDifficulty: string; newbie: boolean };
+  hint?: { maxDifficulty: string; newbie: boolean; matches?: number; watch?: boolean };
 }
 
 export interface SocketListener {
