@@ -261,6 +261,64 @@
 .shake { animation: ms-shake 0.36s ease both !important; }
 @keyframes ms-shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 
+/* mode unlocking (MODE-UNLOCKS.md, layout A): the 3 big tiles centred over the "More modes" strip, one screen, no
+   vertical scroll. The strip: 44 px round icons with a short name and one line; a locked icon is grey with a padlock
+   and a bolt progress ring; an open one takes its art in colour and selects like a tile. */
+.ms-modes { flex: 1 1 auto; min-width: 0; max-width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; }
+.has-more .ms-modes .ms-row { margin-bottom: -14px; }
+.ms-more { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 14px; max-width: 100%; }
+.ms-more-h {
+  flex: none; font: italic 800 11px/1 var(--v6-font-display); letter-spacing: var(--v6-track-cap); text-transform: uppercase;
+  color: var(--v6-muted); text-shadow: 0 1px 3px rgb(0 0 0 / 0.8); white-space: nowrap;
+}
+.ms-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 6px; min-width: 0; }
+.ms-pick.ms-mini {
+  position: relative; width: 74px; min-height: 44px; gap: 1px; padding: 2px 0;
+  animation: ms-tile-in 0.36s var(--v6-ease-pop) both; animation-delay: calc(var(--i, 0) * 30ms + 120ms);
+}
+.ms-mring {
+  position: relative; width: 44px; height: 44px; border-radius: 50%; display: block; box-sizing: border-box; padding: 3px;
+  /* the ring: the logo split when open; a bolt arc of the unlock progress on a night track when locked */
+  background: linear-gradient(118deg, var(--v6-rose) 0 47%, var(--v6-cream) 47% 53%, var(--v6-sky) 53%);
+  box-shadow: 0 0 0 2px var(--ms-ink), 0 4px 10px rgb(0 0 0 / 0.5);
+  transition: transform 0.2s var(--v6-ease-pop), box-shadow 0.2s;
+}
+.ms-mart { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: var(--v6-night-2); }
+.ms-mini[data-state='locked'] .ms-mring {
+  background: conic-gradient(var(--v6-bolt) calc(var(--p, 0) * 360deg), rgb(var(--v6-cream-rgb) / 0.16) 0), var(--v6-night-2);
+}
+.ms-mini[data-state='locked'] .ms-mart, .ms-mini[data-state='soon'] .ms-mart { filter: grayscale(1) brightness(0.6); }
+.ms-mini[data-state='soon'] .ms-mring { background: rgb(var(--v6-cream-rgb) / 0.25); }
+.ms-mlock {
+  position: absolute; right: -5px; bottom: -3px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  color: var(--v6-cream); background: var(--v6-night-2); box-shadow: 0 0 0 2px var(--ms-line-strong), 0 2px 5px rgb(0 0 0 / 0.5);
+}
+.ms-mlock svg { width: 11px; height: 11px; }
+.ms-mnew {
+  position: absolute; left: 50%; top: -9px; transform: translateX(-50%) skewX(var(--v6-slant)); padding: 1px 5px; border-radius: 2px;
+  font: italic 800 9px/1.2 var(--v6-font-display); letter-spacing: 0.08em; color: var(--v6-night); background: var(--v6-cream);
+  box-shadow: 0 0 0 2px var(--ms-ink);
+}
+.ms-mname { max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12px/1.15 var(--v6-font-ui); color: #fff; text-shadow: var(--v6-ts-ui), 0 1px 4px rgb(0 0 0 / 0.7); }
+.ms-mline { max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 10.5px/1.15 var(--v6-font-ui); color: var(--v6-muted); font-variant-numeric: tabular-nums; text-shadow: 0 1px 3px rgb(0 0 0 / 0.8); }
+.ms-mini[data-state='locked'] .ms-mname { color: var(--v6-muted); }
+.ms-mini:hover:not([aria-disabled='true']) .ms-mring { transform: scale(1.08); }
+.ms-mini.on .ms-mring { transform: scale(1.1); box-shadow: 0 0 0 2px var(--ms-ink), 0 0 0 4px var(--ms-sel), 0 0 14px 4px rgb(var(--v6-bolt-rgb) / 0.45); }
+.ms-mini.on .ms-mname { color: var(--v6-cream); }
+.ms-mini[data-state='locked'] { cursor: pointer; }
+.ms-mini:focus-visible .ms-mring { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
+/* a just-unlocked mode grows into the third tile and its padlock pops (once; none on low tier or reduced motion) */
+.ms-tile.ms-fresh { animation: ms-grow 0.6s var(--v6-ease-pop) both; animation-delay: 0.2s; }
+@keyframes ms-grow { from { opacity: 0.2; transform: translateY(70%) scale(0.34); } }
+.ms-unlk { animation: ms-unlk 0.55s ease-in both; animation-delay: 0.75s; pointer-events: none; }
+@keyframes ms-unlk { 0% { transform: scale(1); opacity: 1; } 40% { transform: scale(1.35) rotate(-12deg); opacity: 1; } 100% { transform: scale(0.2) translateY(-30px) rotate(20deg); opacity: 0; } }
+/* the lock sheet (a locked icon's tap): how to unlock and a bolt progress bar */
+.ms-pop .ms-how { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; font: 700 13px/1.25 var(--v6-font-ui); color: var(--v6-cream); }
+.ms-how-i { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--v6-night-3); box-shadow: 0 0 0 1.5px var(--ms-line-strong); }
+.ms-how-i svg { width: 12px; height: 12px; }
+.ms-pbar { height: 8px; margin: 0 0 8px; border-radius: 4px; overflow: hidden; background: rgb(var(--v6-cream-rgb) / 0.14); box-shadow: inset 0 0 0 1px var(--ms-line-strong); }
+.ms-pbar i { display: block; height: 100%; min-width: 4px; background: linear-gradient(90deg, var(--v6-logo-gold), var(--v6-bolt)); }
+
 /* footer: the mode's summary or the bots difficulty, and Next or the variant's action */
 .ms-foot { flex: none; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 0 8px; }
 /* segmented controls: a navy glass track; the picked one is cream with a bolt underline (kit tabs) */
@@ -358,15 +416,35 @@
   .ms-queues button { padding: 0 12px; }
   .ms-confirm { min-width: 120px; padding: 0 18px; }
 }
+/* mode unlocking on phones: the tiles give the strip its row (24dvh, down from 26.5) */
+@media (max-height: 480px) {
+  .ms-overlay.has-more { --ms-tile: clamp(64px, 22dvh, 92px); }
+  .has-more .ms-name { margin-top: 4px; }
+  .has-more .ms-foot { min-height: 52px; padding: 2px 0 4px; }
+}
+@media (max-height: 480px) and (max-width: 700px) {
+  .ms-more-h { display: none; }
+}
+@media (min-height: 600px) and (min-width: 1000px) {
+  .ms-pick.ms-mini { width: 92px; }
+  .ms-mring { width: 56px; height: 56px; }
+  .ms-mname { max-width: 92px; font-size: 14px; }
+  .ms-mline { max-width: 92px; font-size: 12px; }
+  .ms-more-h { font-size: 13px; }
+  .ms-more { gap: 20px; }
+  .has-more .ms-modes { gap: 18px; }
+}
 @media (max-height: 340px) {
   .ms-meta, .ms-rank, .ms-sub, .ms-var-l { display: none; }
   .ms-title::after { display: none; }
 }
 
 /* Low tier and reduced motion: a fade only */
-.ms-overlay.low .ms-var, .ms-overlay.low .ms-tile, .ms-overlay.low .ms-runes, .ms-overlay.low .ms-bg, .ms-overlay.low .ms-pick.on .ms-ring::before { animation: none; }
+.ms-overlay.low .ms-var, .ms-overlay.low .ms-tile, .ms-overlay.low .ms-mini, .ms-overlay.low .ms-unlk, .ms-overlay.low .ms-runes, .ms-overlay.low .ms-bg, .ms-overlay.low .ms-pick.on .ms-ring::before { animation: none; }
+.ms-overlay.low .ms-unlk { display: none; }
 html[data-quality='low'] .ms-tile, html[data-quality='low'] .ms-runes, html[data-quality='low'] .ms-bg { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .ms-tile, .ms-var, .ms-runes, .ms-bg, .ms-pick.on .ms-ring::before, .ms-overlay, .ms-overlay.out { animation: none; }
+  .ms-tile, .ms-var, .ms-runes, .ms-bg, .ms-pick.on .ms-ring::before, .ms-overlay, .ms-overlay.out, .ms-mini, .ms-unlk { animation: none; }
+  .ms-unlk { display: none; }
   .ms-ring, .ms-var, .ms-confirm, .ms-btn, .ms-info i { transition: none; }
 }

@@ -102,6 +102,12 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   onModesOpen?(from: 'play' | 'key' | 'promo' | 'event' | 'back'): void;
   /** Rewards cloud (ui/rewards): the Welcome Path and the Lucky Treat row, under Today's quests (markup, escaped there). */
   todayExtra?: string;
+  /** Mode unlocking (MODE-UNLOCKS.md): a mode unlocked that Mode Select has not shown yet: a NEW dot on PLAY. */
+  playNew?: boolean;
+  /** Mode unlocking: Mode Select announced these fresh modes (the dot and the unlock animation are done). */
+  onModesSeen?(ids: string[]): void;
+  /** Mode unlocking: a locked mode icon was tapped (analytics). */
+  onLockedMode?(m: ModeDef): void;
 }
 
 const GEAR =
@@ -331,9 +337,10 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     return `<div class="hm-playc lb-play">
       ${line}
       <div class="hm-playrow">
-        <button type="button" class="pl-btn big hm-play" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'play'}" data-testid="home-play" aria-keyshortcuts="Enter M"${returning ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(returning ? 'Play: choose a mode' : playLabel(o))}">
+        <button type="button" class="pl-btn big hm-play" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'play'}" data-testid="home-play" aria-keyshortcuts="Enter M"${returning ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(returning ? `Play: choose a mode${o.playNew ? '. New mode unlocked' : ''}` : playLabel(o))}">
           <span class="hm-play-glow" aria-hidden="true"></span><span class="hm-play-glow b" aria-hidden="true"></span>
           <span class="hm-play-face" aria-hidden="true">${PAW}<b>${dare ? 'DARE' : 'PLAY'}</b><span class="hm-sheen"></span></span>
+          ${returning && o.playNew ? '<span class="hm-play-new" data-testid="play-new" aria-hidden="true">NEW</span>' : ''}
         </button>
       </div>
     </div>`;
@@ -434,8 +441,12 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
         // a modal: Home behind it leaves the tab order and the accessibility tree (aria-modal alone does not)
         const behind = Array.from(root.children) as HTMLElement[];
         for (const n of behind) n.inert = true;
+        // mode unlocking: opening Mode Select is seeing the new mode (the PLAY dot goes)
+        root.querySelector('.hm-play-new')?.remove();
         modeSel = openModeSelect(root, {
           modes: o.modes,
+          ...(o.onModesSeen ? { onSeen: (ids: string[]) => o.onModesSeen?.(ids) } : {}),
+          ...(o.onLockedMode ? { onLockedTap: (m: ModeDef) => o.onLockedMode?.(m) } : {}),
           choice: start,
           ...(at ? { stage: 'variant' as const } : {}),
           available: avail,

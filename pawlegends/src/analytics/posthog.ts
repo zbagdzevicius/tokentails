@@ -53,6 +53,8 @@ export type AnalyticsEvent =
   // the one play path (HOME-MODES.md §5): PLAY opened Mode Select (`from`), and a mode and variant went on
   | 'play_open'
   | 'play_start'
+  | 'mode_unlock'
+  | 'mode_locked_tap'
   | 'talent_pick'
   | 'tip_done'
   | 'dare_open'

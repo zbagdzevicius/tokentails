@@ -12,6 +12,11 @@
  *
  * Back (or Esc) steps back one stage, then closes. The choice is remembered (`onConfirm`) when the player goes.
  * Never scrolls vertically; with more tiles than fit, the tile row scrolls sideways with snap (its only scroll).
+ *
+ * Mode unlocking (MODE-UNLOCKS.md, Nov 14): at most 3 big tiles (`slot` 'big'); every other mode is a 44 px icon in
+ * the "More modes" strip under them (`slot` 'more'). An open icon selects like a tile; a locked one (grey, padlock,
+ * a progress ring, "1/2 matches") shakes and opens a small sheet saying how to unlock it. A mode just unlocked at a
+ * results screen (`fresh`) pops its padlock and grows into the third tile, once.
  * Low tier or reduced motion: no stagger, no rune rotation. Mode art loads lazily when the overlay opens.
  */
 import './modeSelect.css';
@@ -58,6 +63,10 @@ export interface ModeSelectOpts {
   low?: boolean;
   /** Clock (tests). */
   now?(): number;
+  /** Mode unlocking: the fresh modes this open announced (their animation and the PLAY dot are done). */
+  onSeen?(ids: string[]): void;
+  /** Mode unlocking: a locked icon was tapped (analytics `mode_locked_tap`). */
+  onLockedTap?(m: ModeDef): void;
 }
 
 export interface ModeSelectHandle {
@@ -93,13 +102,14 @@ export function tileHtml(m: ModeDef, o: { selected: boolean; now: number; base: 
         : '';
   const meta = metaLine(m, o.now);
   const name = `${m.name}${st === 'locked' ? ', locked' : st === 'soon' ? ', coming soon' : ''}`;
-  return `<div class="ms-tile" role="presentation" data-state="${st}" style="--i:${o.i}">
+  return `<div class="ms-tile${m.fresh ? ' ms-fresh' : ''}" role="presentation" data-state="${st}" style="--i:${o.i}">
     <button type="button" class="ms-pick${o.selected ? ' on' : ''}" role="radio" aria-checked="${o.selected}" tabindex="${o.selected ? 0 : -1}" data-mode="${esc(m.id)}"${can ? '' : ' aria-disabled="true"'} aria-label="${esc(`${name}. ${meta}`)}" data-testid="mode-${esc(m.id)}">
       <span class="ms-ring" aria-hidden="true">
         <span class="ms-runes"></span>
         <span class="ms-frame"><img class="ms-art" src="${esc(art)}" alt="" loading="lazy" decoding="async" draggable="false"></span>
         ${st === 'soon' ? '<span class="ms-band">SOON</span>' : ''}
         ${st === 'locked' ? `<span class="ms-lock">${LOCK}</span>` : ''}
+        ${m.fresh ? `<span class="ms-lock ms-unlk">${LOCK}</span>` : ''}
         <span class="ms-crest">${crestSvg(m.id)}</span>
       </span>
       ${chip}
@@ -109,6 +119,30 @@ export function tileHtml(m: ModeDef, o: { selected: boolean; now: number; base: 
     </button>
     <button type="button" class="ms-info" data-info="${esc(m.id)}" aria-label="${esc(`About ${m.name}`)}" aria-haspopup="dialog"><i aria-hidden="true">i</i></button>
   </div>`;
+}
+
+/**
+ * One "More modes" icon (mode unlocking): a 44 px round icon, its short name and one line (the size or time when open,
+ * the progress when locked, "Next: Fri" between event windows). A locked icon keeps a Tab stop and stays actionable
+ * (its tap opens the lock sheet, so it is not aria-disabled) but has no arrow-key stop. Pure (given `now`).
+ */
+export function miniHtml(m: ModeDef, o: { selected: boolean; now: number; base: string; i: number }): string {
+  const st = effectiveState(m, o.now);
+  const can = playable(m, o.now);
+  const locked = st === 'locked';
+  const art = `${o.base}assets/modes/${m.art}-${m.artPx ?? 256}.webp`;
+  const line = locked ? (m.progress?.line ?? metaLine(m, o.now)) : st === 'event' && typeof m.state === 'object' ? `⏱ ${countdownText(m.state.event.endsAt - o.now)}` : metaLine(m, o.now);
+  const label = locked ? `${m.name}, locked. ${m.lockText ?? ''}` : `${m.name}${st === 'soon' ? ', coming soon' : ''}. ${metaLine(m, o.now)}`;
+  const pct = locked ? Math.max(0, Math.min(1, m.progress?.pct ?? 0)) : 1;
+  return `<button type="button" class="ms-pick ms-mini${o.selected ? ' on' : ''}" role="radio" aria-checked="${o.selected}" tabindex="${o.selected || locked ? 0 : -1}" data-mode="${esc(m.id)}" data-state="${st}"${can || locked ? '' : ' aria-disabled="true"'} aria-label="${esc(label.trim())}" data-testid="mode-${esc(m.id)}" style="--i:${o.i};--p:${pct.toFixed(3)}">
+    <span class="ms-mring" aria-hidden="true">
+      <img class="ms-mart" src="${esc(art)}" alt="" loading="lazy" decoding="async" draggable="false">
+      ${locked ? `<span class="ms-mlock">${LOCK}</span>` : ''}
+      ${m.isNew && can ? '<span class="ms-mnew">NEW</span>' : ''}
+    </span>
+    <span class="ms-mname">${esc(m.name.replace(/ (Brawl|Chaos|Weekend)$/, ''))}</span>
+    <span class="ms-mline"${st === 'event' && typeof m.state === 'object' ? ` data-ends="${m.state.event.endsAt}"` : ''}>${esc(line)}</span>
+  </button>`;
 }
 
 /** One variant card's markup. `lock`: why it cannot start (shown instead of its line). Pure. */
@@ -143,7 +177,17 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
   const w = (window.innerWidth || 1280) * Math.min(2, window.devicePixelRatio || 1);
   // absolute: a relative url() in a custom property resolves against the stylesheet that uses it (the CSS chunk)
   el.style.setProperty('--ms-bg', `url("${absUrl(`${o.base}assets/screens/modes-${!low && w > 1400 ? 1920 : 1280}.webp`)}")`);
-  const tiles = (): string => o.modes.map((m, i) => tileHtml(m, { selected: m.id === sel, now: now(), base: o.base, low, i })).join('');
+  // mode unlocking: the big tiles (at most 3 when laid out per player) and the "More modes" strip
+  const bigModes = o.modes.filter((m) => m.slot !== 'more');
+  const moreModes = o.modes.filter((m) => m.slot === 'more');
+  const tiles = (): string => bigModes.map((m, i) => tileHtml(m, { selected: m.id === sel, now: now(), base: o.base, low, i })).join('');
+  const strip = (): string =>
+    moreModes.length
+      ? `<div class="ms-more" role="group" aria-label="More modes" data-testid="mode-more"><span class="ms-more-h" aria-hidden="true">More modes</span><div class="ms-strip">${moreModes
+          .map((m, i) => miniHtml(m, { selected: m.id === sel, now: now(), base: o.base, i: i + bigModes.length }))
+          .join('')}</div></div>`
+      : '';
+  if (moreModes.length) el.classList.add('has-more');
   el.innerHTML = `
     <div class="ms-bg" aria-hidden="true"></div>
     <header class="ms-head">
@@ -151,7 +195,7 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
       <div class="ms-ttl"><h2 id="ms-title" class="ms-title">Choose your battle</h2><p class="ms-sub"></p></div>
       <span class="ms-head-r"></span>
     </header>
-    <div class="ms-rowwrap"><div class="ms-row" role="radiogroup" aria-label="Game mode">${tiles()}</div></div>
+    <div class="ms-rowwrap"><div class="ms-modes" role="radiogroup" aria-label="Game mode"><div class="ms-row" data-testid="mode-big">${tiles()}</div>${strip()}</div></div>
     <div class="ms-vwrap" hidden><div class="ms-vrow" role="radiogroup" aria-label="How to play"></div></div>
     <footer class="ms-foot">
       <div class="ms-diff"></div>
@@ -241,7 +285,7 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
   const focusStage = (): void => {
     const t = stage === 'mode' ? (el.querySelector<HTMLElement>('.ms-pick.on') ?? el.querySelector<HTMLElement>('.ms-pick')) : (el.querySelector<HTMLElement>('.ms-var.on') ?? el.querySelector<HTMLElement>('.ms-var'));
     t?.focus({ preventScroll: true });
-    if (stage === 'mode') t?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
+    if (stage === 'mode' && t?.closest('.ms-row')) t.scrollIntoView?.({ block: 'nearest', inline: 'center' });
   };
   const select = (id: string, focus = false): boolean => {
     const m = modeOf(id);
@@ -250,7 +294,11 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
       const b = el.querySelector<HTMLElement>(`.ms-pick[data-mode="${CSS.escape(id)}"]`);
       if (b) shake(b);
       o.sound?.('click');
-      toast(`${m.name}: ${metaLine(m, now())}.`);
+      // mode unlocking: a locked icon opens its sheet (how to unlock, the progress); anything else says why in a toast
+      if (effectiveState(m, now()) === 'locked' && b?.classList.contains('ms-mini')) {
+        o.onLockedTap?.(m);
+        openLock(m, b);
+      } else toast(`${m.name}: ${metaLine(m, now())}.`);
       return false;
     }
     if (id !== sel) o.sound?.('magic');
@@ -316,6 +364,7 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
     if (!m) return;
     popFor = btn;
     const facts = [m.map === 'hearthwood' ? 'Hearthwood Divide' : m.map === 'crossing' ? 'Purrhaven Crossing' : '', m.size, m.minutes].filter(Boolean).join(' · ');
+    pop.dataset.testid = 'mode-info';
     pop.innerHTML = `<h3>${esc(m.name)}</h3>${facts ? `<p class="ms-facts">${esc(facts)}</p>` : ''}<ul>${m.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ul><button type="button" class="ms-btn ms-pop-x" data-a="ms-pop-x" aria-label="Close">✕</button>`;
     pop.hidden = false;
     const r = btn.getBoundingClientRect();
@@ -324,6 +373,25 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
     pop.style.width = `${pw}px`;
     pop.style.left = `${Math.max(16, Math.min(W - pw - 16, r.left + r.width / 2 - pw / 2))}px`;
     pop.style.top = `${Math.max(8, r.top - 8)}px`;
+    pop.querySelector<HTMLElement>('.ms-pop-x')?.focus();
+  };
+  /** Mode unlocking: a locked icon's sheet: what the mode is, how to unlock it and how far along the player is. */
+  const openLock = (m: ModeDef, btn: HTMLElement): void => {
+    popFor = btn;
+    const facts = [m.size, m.minutes].filter(Boolean).join(' · ');
+    const pct = Math.round(Math.max(0, Math.min(1, m.progress?.pct ?? 0)) * 100);
+    pop.innerHTML = `<h3>${esc(m.name)}</h3>${facts ? `<p class="ms-facts">${esc(facts)}</p>` : ''}<p class="ms-how" data-testid="mode-lock-how"><span class="ms-how-i" aria-hidden="true">${LOCK}</span><span>${esc(m.lockText ? `Unlocks: ${m.lockText.replace(/^./, (c) => c.toLowerCase())}.` : 'Locked.')}</span></p><div class="ms-pbar" role="progressbar" aria-label="Unlock progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div><ul>${m.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ul><button type="button" class="ms-btn ms-pop-x" data-a="ms-pop-x" aria-label="Close">✕</button>`;
+    pop.dataset.testid = 'mode-lock-sheet';
+    pop.hidden = false;
+    const r = btn.getBoundingClientRect();
+    const W = window.innerWidth || 844;
+    const pw = Math.min(280, W - 32);
+    pop.style.width = `${pw}px`;
+    pop.style.left = `${Math.max(16, Math.min(W - pw - 16, r.left + r.width / 2 - pw / 2))}px`;
+    pop.style.top = `${Math.max(8, r.top - 8)}px`;
+    // the sheet sits above the icon; one taller than the room above drops below the header instead
+    const h = pop.getBoundingClientRect().height;
+    if (h && r.top - 8 - h < 8) pop.style.top = `${Math.min(window.innerHeight - 8, 8 + h)}px`;
     pop.querySelector<HTMLElement>('.ms-pop-x')?.focus();
   };
   /** Back one step: the popover, the variant stage, then the overlay. */
@@ -399,12 +467,12 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
       }
       return;
     }
-    if (step && t.closest('.ms-row')) {
+    if (step && t.closest('.ms-modes')) {
       e.preventDefault();
       const ids = o.modes.filter((m) => playable(m, now())).map((m) => m.id);
       const i = ids.indexOf(sel);
       select(ids[(i + step + ids.length) % ids.length], true);
-      el.querySelector<HTMLElement>('.ms-pick.on')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      el.querySelector<HTMLElement>('.ms-row .ms-pick.on')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     } else if (step && t.closest('.ms-vrow')) {
       e.preventDefault();
       const qs = open(modeOf(sel));
@@ -442,7 +510,7 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
   document.addEventListener('keydown', onKey, true);
   // event countdowns tick once a minute
   const tick = setInterval(() => {
-    for (const c of el.querySelectorAll<HTMLElement>('.ms-chip.ev[data-ends]')) c.textContent = `⏱ ${countdownText(Number(c.dataset.ends) - now())}`;
+    for (const c of el.querySelectorAll<HTMLElement>('.ms-chip.ev[data-ends], .ms-mline[data-ends]')) c.textContent = `⏱ ${countdownText(Number(c.dataset.ends) - now())}`;
   }, 60_000);
   // the row's edge fades follow its scroll position (only when it overflows)
   const row = el.querySelector<HTMLElement>('.ms-row')!;
@@ -474,6 +542,9 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
 
   parent.appendChild(el);
   render();
+  // mode unlocking: the fresh modes on screen are announced now (the unlock animation and the PLAY dot play once)
+  const fresh = o.modes.filter((m) => m.fresh).map((m) => m.id);
+  if (fresh.length) o.onSeen?.(fresh);
   if (sel) row.classList.add('has-sel');
   requestAnimationFrame(() => {
     if (closed) return;

@@ -56,6 +56,15 @@ export interface ModeDef {
   mutator?: Mutator;
   /** Sim v27: the Practice ground: no rewards, any champion, nothing saved. */
   practice?: boolean;
+  /**
+   * Mode unlocking (MODE-UNLOCKS.md, ui/modeSelect/unlocks.ts `playerModes`): a big tile (at most 3) or a small icon
+   * in the "More modes" strip. Absent: a big tile (a list that was not laid out per player).
+   */
+  slot?: 'big' | 'more';
+  /** A locked mode's progress toward its unlock: the ring (0..1) and the strip line ("1/2 matches"). */
+  progress?: { pct: number; line: string };
+  /** Unlocked at a results screen and not announced in Mode Select yet: the unlock animation plays once. */
+  fresh?: boolean;
 }
 
 /** The modes this build ships (HOME-MODES.md §5 default table; sim v22 made Blitz live, minutes from the v22 probe). */

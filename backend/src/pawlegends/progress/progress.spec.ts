@@ -167,6 +167,27 @@ describe('progress blob: max-merge, progress only goes up', () => {
         expect(sanitizeBlob('nope')).toEqual(emptyBlob());
     });
 
+    it('mode unlocks (MODE-UNLOCKS.md) ride the unlocks union and the device settings as they are', () => {
+        const a = sanitizeBlob({
+            unlocks: ['mode.blitz', 'mode.duel'],
+            prefs: {
+                at: 3,
+                data: { keys: { 'pawlegends.modes.new': 'blitz,duel', 'pawlegends.modes.seen': 'blitz' } },
+            },
+        });
+        const b = sanitizeBlob({ unlocks: ['mode.ranked', 'coat.clem.marmalade'] });
+        expect(a.unlocks).toEqual(['mode.blitz', 'mode.duel']);
+        expect(a.prefs.data).toEqual({
+            keys: { 'pawlegends.modes.new': 'blitz,duel', 'pawlegends.modes.seen': 'blitz' },
+        });
+        expect(mergeBlobs(b, a).unlocks.sort()).toEqual([
+            'coat.clem.marmalade',
+            'mode.blitz',
+            'mode.duel',
+            'mode.ranked',
+        ]);
+    });
+
     it('the route takes an object or its JSON string, and refuses a huge or broken one', () => {
         expect(parseBlob({ v: 1 })).toEqual({ v: 1 });
         expect(parseBlob('{"v":1}')).toEqual({ v: 1 });
