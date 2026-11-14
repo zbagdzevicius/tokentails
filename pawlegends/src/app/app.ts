@@ -62,7 +62,7 @@ import { loadingVeil, pickScreen, rankedBlockHtml, refreshPickChamps, refreshPic
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
 import { botsChoice, disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
-import { initLiveops } from '../meta/liveops';
+import { initLiveops, liveopsState } from '../meta/liveops';
 import { legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef } from '../ui/modeSelect/modes';
 import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard } from '../meta/ranked';
 import { heroElement } from '../ui/cards/el';
@@ -920,7 +920,14 @@ export class App {
     };
     const ends = season ? seasonEndText(season.endsAt) : '';
     const base = import.meta.env.BASE_URL ?? './';
+    // sim v28: while Boss Weekend runs (the server's window, else the baked Friday to Monday one), it leads the promo
+    // rotator and opens Mode Select on it, as the featured event it is
+    const boss = liveopsState().config.boss;
+    const bossNow = !!boss && Date.now() >= boss.startsAt && Date.now() < boss.endsAt;
     const promos: Promo[] = [
+      ...(bossNow && p.matches > 0
+        ? [{ id: 'boss', title: 'Boss Weekend', sub: 'Live now · co-op vs Mega Brutus', art: `${base}assets/modes/boss-256.webp${assetRev()}`, action: 'modes' as const, mode: 'boss' }]
+        : []),
       ...(p.matches > 0
         ? [
             season

@@ -417,3 +417,20 @@ describe('home patch (no rebuild under modals)', () => {
     expect(still.classList.contains('hm-still')).toBe(true);
   });
 });
+
+describe('Events list rows (round 3 review)', () => {
+  it('a live mode reads Live now (Cannon Chaos was "Coming soon" there since sim v27); Boss Weekend off its window reads Next: Fri', () => {
+    // a Wednesday: Boss Weekend's window is ahead
+    const wed = Date.parse('2026-11-18T12:00:00Z');
+    vi.useFakeTimers({ now: wed, toFake: ['Date'] });
+    try {
+      const root = mount(base({ modes: modeList(wed) }));
+      const row = (id: string) => root.querySelector<HTMLElement>(`.hm-evlist .ev[data-mode="${id}"]`);
+      expect(row('cannon')?.textContent).toContain('Live now');
+      expect(root.querySelector('.hm-evlist')?.textContent).not.toContain('Coming soon');
+      expect(row('boss')?.textContent).toContain('Next: Fri');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
