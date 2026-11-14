@@ -27,6 +27,8 @@ export const AUTH_COPY = {
     "This sign-in option doesn't work in this app's browser. Use email, or copy the link and open it in Safari or Chrome.",
   disabled: "This sign-in option isn't available right now. Try another one.",
   expired: "For your security, please sign in again.",
+  appleUnavailable:
+    "Sign in with Apple isn't available on this device right now. Check that you're signed in to iCloud in Settings, then try again, or use email.",
   unknown: "Something went wrong while signing in. Please try again.",
 } as const;
 
@@ -94,11 +96,17 @@ export function mapAuthError(error: unknown): AuthErrorCopy | null {
   return CODE_COPY[code] ?? unknownCopy(code);
 }
 
-/** A support reference for a native error: its code, else Apple's `AuthorizationError error <n>` as `apple-<n>`. */
-function nativeRef(code: string, text: string): string {
+/**
+ * A support reference for a native error: its code, else Apple's `AuthorizationError error <n>` as `apple-<n>`, else a
+ * fixed name for the Android Google errors that come without a code. Never the message itself (it can name an account).
+ */
+export function nativeRef(code: string, text: string): string {
   if (code) return code;
   const apple = /authorizationerror error (\d+)/.exec(text);
-  return apple ? `apple-${apple[1]}` : "";
+  if (apple) return `apple-${apple[1]}`;
+  if (/28444|developer console is not set up|developer_error|(^|\s)10:/.test(text)) return "google-config";
+  if (/no ?credential/.test(text)) return "google-no-credential";
+  return "";
 }
 
 /**
@@ -112,8 +120,11 @@ export function mapNativeAuthError(error: unknown): AuthErrorCopy | null {
     error && typeof error === "object" ? String((error as { message?: unknown }).message ?? "") : String(error ?? "")
   }`.toLowerCase();
   if (/cancel|12501|1001|sign_in_cancelled|user denied/.test(text)) return null;
-  if (/network|offline|7:/.test(text)) return { message: AUTH_COPY.network, field: null };
-  return unknownCopy(nativeRef(code, text));
+  if (/network|offline|(^|\s)7:/.test(text)) return { message: AUTH_COPY.network, field: null };
+  const ref = nativeRef(code, text);
+  // ASAuthorizationError.unknown (1000): no iCloud account, no two-factor, or this build lacks the capability.
+  if (ref === "apple-1000") return { message: `${AUTH_COPY.appleUnavailable} (${ref})`, field: null };
+  return unknownCopy(ref);
 }
 
 /** Codes that mean "this email and password did not work": a returning player may have used another way. */
