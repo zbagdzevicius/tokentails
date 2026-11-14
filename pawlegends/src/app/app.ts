@@ -49,6 +49,7 @@ import { inviteUrl, partyApi, partyFromUrl, watchFromUrl } from '../share/partyL
 import type { PartyClient } from '../party';
 import { PVP_UNLOCK_MATCHES, hideNames, lastQueueSide, onlineMode, pvpQueueFor, setLastQueueSide, setOnlineMode, type OnlineMode } from '../meta/partyPrefs';
 import { pvpAvailable, pvpKnown } from '../meta/pvpCapability';
+import { showUpdateCard, UpdateWatch } from '../meta/clientPolicy';
 import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
@@ -237,6 +238,8 @@ export class App {
   private readonly perf: PerfReadout | null;
   private readonly sessionNo: number;
   private readonly dayN: number;
+  /** Force update (FORCE-UPDATE.md §5): an outdated web build reloads on the title; the app hands over to its shell. */
+  private readonly updates: UpdateWatch;
 
   constructor(
     private readonly root: HTMLElement,
@@ -300,6 +303,48 @@ export class App {
       onRosterChange: () => this.refreshMeta(),
       root,
       lobbyHero: () => this.choice.hero,
+      // a save refused because this build's sim is too old: update (web: on the next title; app: the shell's gate)
+      onUpdateNeeded: () => void this.updates.check('rejected'),
+    });
+    this.updates = new UpdateWatch({
+      mode: inAppShell() || bridge.kind === 'native' ? 'app' : bridge.kind === 'frame' ? 'frame' : 'web',
+      api: this.partyApi,
+      versionUrl: `${import.meta.env.BASE_URL ?? './'}version.json`,
+      own: { sha: typeof __PL_BUILD__ !== 'undefined' ? __PL_BUILD__.sha : 'local', sim: SIM_VERSION },
+      fetchJson: async (url) => {
+        const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = setTimeout(() => ctl?.abort(), 5000);
+        try {
+          const r = await fetch(url, { cache: 'no-store', credentials: 'omit', signal: ctl?.signal ?? undefined });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return await r.json();
+        } finally {
+          clearTimeout(timer);
+        }
+      },
+      // the bare title: no party, and no overlay over it (Mode Select, a sheet): the player is not on the way to a match
+      atTitle: () =>
+        this.screen === 'title' && !this.party && !this.overlay && !this.root.querySelector('.ms-overlay') && !document.querySelector('.pl-party') && !hasPartySeat(),
+      now: () => Date.now(),
+      setTimeout: (fn, ms) => setTimeout(fn, ms),
+      clearTimeout: (t) => clearTimeout(t as ReturnType<typeof setTimeout>),
+      storage: (() => {
+        try {
+          return sessionStorage;
+        } catch {
+          return null;
+        }
+      })(),
+      showCard: (o) => showUpdateCard(document, o),
+      reload: (reason, version) => {
+        // framed: the host starts the frame again on the latest build; an older host ignores the message, so the
+        // frame reloads itself shortly after (the host reconnects on the frame's load either way)
+        if (bridge.kind === 'frame') {
+          bridge.post('reload-request', { reason, ...(version ? { version } : {}) });
+          setTimeout(() => location.reload(), 2500);
+        } else location.reload();
+      },
+      dispatch: (type) => dispatchEvent(new Event(type)),
     });
     // rewards-cloud: the account's progress (signed in, or a guest whose /live saves made an account)
     this.rewards = new RewardsCloud({
@@ -342,7 +387,11 @@ export class App {
         if (!this.lastSetup?.party || this.screen !== 'match') this.session?.setPaused(true);
         // the match chunk may still be loading: pause the session the moment it exists
         if (!this.session && this.screen === 'match') this.pendingPause = true;
-      } else this.analytics.refreshConsent();
+      } else {
+        this.analytics.refreshConsent();
+        // a tab that comes back after hours: is this build still the live one?
+        void this.updates.check('visible');
+      }
     });
     this.gr.resize();
     if (this.dare) this.analytics.track('dare_open', { hero: this.dare.hero, difficulty: this.dare.difficulty });
@@ -668,6 +717,9 @@ export class App {
     this.screen = s;
     document.documentElement.dataset.screen = s;
     if (s === 'match') this.homeIntro = true;
+    // force update: an outdated build reloads on the title only (never in a pick, a match or on results)
+    if (s === 'title') this.updates.onTitle();
+    else this.updates.offTitle();
     if (s === 'pick' || s === 'match') {
       this.offerEl?.close();
       this.offerEl = null;

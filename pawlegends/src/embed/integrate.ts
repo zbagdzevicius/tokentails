@@ -65,6 +65,12 @@ export interface IntegrationDeps {
   root?: HTMLElement | null;
   /** Sim v9: the hero on the lobby turntable (the title's champion info follows it). */
   lobbyHero?: () => HeroId;
+  /**
+   * Force update (docs/plans/moba/FORCE-UPDATE.md §5.3): the backend refused a save because this build's sim is too
+   * old (`save-result {status: 'rejected', code: 'PAWLEGENDS_SIM_VERSION'}`). The app asks its shell to update; the web
+   * reloads to the latest build on the next title (meta/clientPolicy.ts).
+   */
+  onUpdateNeeded?: () => void;
 }
 
 export interface MatchInfo {
@@ -145,10 +151,13 @@ export function isNewFastest(save: SaveResult | null, before: Progress | null, m
   return !Object.values(before.fastestWin).includes(save.fastestWin);
 }
 
+/** The save code of a match refused because this build's sim is too old (force update: "Update needed"). */
+export const SIM_VERSION_CODE = 'PAWLEGENDS_SIM_VERSION';
+
 /** The results chip state for this match. Pure. */
 export function chipState(embedded: boolean, save: SaveResult | null, waitedOut: boolean): ChipState | null {
   if (!embedded) return 'local';
-  if (save) return save.status;
+  if (save) return save.status === 'rejected' && save.code === SIM_VERSION_CODE ? 'update' : save.status;
   return waitedOut ? null : 'waiting';
 }
 
@@ -380,6 +389,8 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       }
       case 'save-result': {
         const v = parseSaveResult(m);
+        // a refused sim is never silent, even for an older queued match: this build must update
+        if (v?.status === 'rejected' && v.code === SIM_VERSION_CODE) deps.onUpdateNeeded?.();
         if (!v || (s.matchId !== null && v.matchId !== s.matchId)) return;
         s.save = v;
         redraw(false, true);

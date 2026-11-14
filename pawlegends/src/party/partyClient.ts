@@ -1470,6 +1470,13 @@ export class PartyClient {
         this.render();
         return;
       case 'reload':
+        // force update (FORCE-UPDATE.md §5.2): in the app a reload alone reloads the same bundle; the event tells the
+        // shell's update gate, which also runs on the reloaded page's boot and installs the latest bundle first
+        try {
+          dispatchEvent(new Event('pl:update-required'));
+        } catch {
+          /* no window events */
+        }
         location.reload();
         return;
       // Quick Play

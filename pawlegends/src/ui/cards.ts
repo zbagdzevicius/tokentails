@@ -248,7 +248,8 @@ export function titleCards(m: TitleCardsModel, on: { signIn(): void }): HTMLElem
 
 // ----------------------------------------------------------------------------------------------- results
 
-export type ChipState = 'waiting' | 'local' | SaveResult['status'];
+/** `update`: refused because this build is too old (force update): the game updates on the next title. */
+export type ChipState = 'waiting' | 'local' | 'update' | SaveResult['status'];
 
 export interface SaveChipModel {
   state: ChipState;
@@ -267,6 +268,7 @@ const CHIP_TEXT: Readonly<Record<ChipState, string>> = Object.freeze({
   local: 'Kept on this device',
   failed: 'Not saved yet. Trying again soon.',
   rejected: "This match didn't count",
+  update: 'Update needed to save matches',
 });
 
 /** Animate a number from 0 to `to` (ease out) into `el`. */

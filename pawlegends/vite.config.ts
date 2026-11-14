@@ -39,15 +39,40 @@ const base = normalizeBase(process.env.PAWLEGENDS_BASE);
  * The release watermark on the title screen (src/ui/versionMark.ts): package version, git short sha and the UTC build
  * time, baked in so nothing is fetched. Outside a git checkout the sha is "local".
  */
-function buildDefines(): Record<string, string> {
+function buildStamp(): { version: string; sha: string; builtAt: string } {
   let sha = 'local';
   try {
     sha = execFileSync('git', ['rev-parse', '--short=7', 'HEAD'], { cwd: __dirname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().toLowerCase() || 'local';
   } catch {
     sha = 'local';
   }
+  // PAWLEGENDS_BUILD_SHA: tests only (tests/e2e/force-update.spec.ts builds an "older" and a "newer" game)
+  if (process.env.PAWLEGENDS_BUILD_SHA && /^[0-9a-z]{4,40}$/.test(process.env.PAWLEGENDS_BUILD_SHA)) sha = process.env.PAWLEGENDS_BUILD_SHA;
   const version = (JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')) as { version?: string }).version ?? '0.0.0';
-  return { __PL_BUILD__: JSON.stringify({ version, sha, builtAt: new Date().toISOString() }) };
+  return { version, sha, builtAt: new Date().toISOString() };
+}
+const stamp = buildStamp();
+
+function buildDefines(): Record<string, string> {
+  return { __PL_BUILD__: JSON.stringify(stamp) };
+}
+
+/**
+ * Force update (docs/plans/moba/FORCE-UPDATE.md §5.1): `version.json` next to index.html names the live build (its
+ * sha, its sim). An open tab asks for it on the title (src/meta/clientPolicy.ts) and reloads to the latest build when
+ * it is outdated; the backend reads it for `GET /pawlegends/client-policy?platform=web`. Served `no-cache`
+ * (pawlegends-web/next.config.js), like index.html.
+ */
+function versionJsonPlugin(): Plugin {
+  return {
+    name: 'pawlegends-version-json',
+    apply: 'build',
+    generateBundle() {
+      const src = readFileSync(path.resolve(__dirname, 'src/sim/version.ts'), 'utf8');
+      const simVersion = Number(/SIM_VERSION\s*=\s*(\d+)/.exec(src)?.[1]);
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: `${JSON.stringify({ sha: stamp.sha, builtAt: stamp.builtAt, version: stamp.version, simVersion })}\n` });
+    },
+  };
 }
 
 /**
@@ -90,7 +115,7 @@ export default defineConfig({
   server: { port: 5176, host: '127.0.0.1', strictPort: true },
   preview: { port: 4176, host: '127.0.0.1' },
   worker: { format: 'es' },
-  plugins: keepReleases > 0 ? [keepReleasesPlugin(keepReleases)] : [],
+  plugins: [versionJsonPlugin(), ...(keepReleases > 0 ? [keepReleasesPlugin(keepReleases)] : [])],
   build: {
     emptyOutDir: keepReleases > 0 ? false : undefined,
     target: 'es2022',

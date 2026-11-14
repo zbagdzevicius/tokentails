@@ -113,6 +113,7 @@
 .state-queued .plc-dot, .state-local .plc-dot { background: #9fe8ff; }
 .state-failed .plc-dot { background: #ffb36b; }
 .state-rejected .plc-dot { background: #ff4d5e; }
+.state-update .plc-dot { background: #ffe14a; }
 .plc-catnip {
   display: inline-flex; gap: 6px; align-items: baseline; color: #b6f0c8; animation: plc-pop 0.6s cubic-bezier(0.2, 1.8, 0.4, 1);
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
