@@ -1062,7 +1062,13 @@ async function main() {
       console.error(`vendor-sim: ${url} serves bundle ${servedSha}, this build is ${bundleSha}`);
       process.exit(1);
     }
-    console.log(`vendor-sim: ${url} serves this sim (${bundleSha.slice(0, 12)})`);
+    // the relay wire protocol too (SPECTATE.md: a PROTO 7 game on an older relay would fall back to PROTO 1)
+    const localProto = Number(/export const PROTO = (\d+);/.exec(readFileSync(join(repo, 'pawlegends/src/net/proto.ts'), 'utf8'))?.[1] ?? 0);
+    if (!(typeof served.proto === 'number' && served.proto >= localProto)) {
+      console.error(`vendor-sim: ${url} speaks relay PROTO ${served.proto ?? '(unknown)'}, this build needs ${localProto}`);
+      process.exit(1);
+    }
+    console.log(`vendor-sim: ${url} serves this sim (${bundleSha.slice(0, 12)}) and PROTO ${served.proto}`);
     return;
   }
   if (check) {
