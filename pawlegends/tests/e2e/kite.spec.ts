@@ -31,6 +31,7 @@ const nearestMinion = (page: Page): Promise<{ d: number; sx: number; sy: number 
       const d = Math.hypot(e.fx - m.fx, e.fy - m.fy);
       const s = scr(e);
       // NDC → px (the two axes scale differently on a wide screen)
+      // screen px from the hero, y down like the touch points (NDC y is up)
       if (!best || d < best.d) best = { d, sx: ((s.x - ms.x) * innerWidth) / 2, sy: (-(s.y - ms.y) * innerHeight) / 2 };
     }
     return best;
@@ -50,6 +51,7 @@ test('844x390: ATK held, the stick strafes beside a minion: the hero walks and t
 
   /** Walk up Sunny Lane (minimap right-click, then the stick) until an enemy minion stands within `within` mm. */
   let goalX = 30000;
+  let guarded = 0;
   const toWave = async (within: number) => {
     const end = Date.now() + 150_000;
     while (Date.now() < end) {
@@ -63,13 +65,27 @@ test('844x390: ATK held, the stick strafes beside a minion: the hero walks and t
       // enemy tower is skipped on purpose)
       if (n && n.d < within && (await page.evaluate(() => document.documentElement.dataset.atkTarget ?? '')) !== '') return n;
       if (n && n.d < within) {
-        await page.waitForTimeout(400);
+        // in reach but ATK skips it: it stands under an enemy tower no allied minion tanks (on purpose). Waiting there
+        // can last the whole budget (the wave dies under the tower, the next one walks into the same spot), so after
+        // 2 s fall back down the lane and meet the next wave in the open (QA flaky-qa: 2 of 3 runs timed out here)
+        if (++guarded < 5) {
+          await page.waitForTimeout(400);
+          continue;
+        }
+        guarded = 0;
+        goalX = Math.max(30000, goalX - 7500);
+        const back = await minimapPoint(page, goalX, 52500).catch(() => null);
+        if (back) await page.mouse.click(back.x, back.y, { button: 'right' });
+        await page.waitForTimeout(1500);
         continue;
       }
+      guarded = 0;
       if (n && n.d < 12000) {
         const l = Math.hypot(n.sx, n.sy) || 1;
         await send('touchStart', [S]);
-        await send('touchMove', [{ x: Math.round(S.x + (n.sx / l) * 50), y: Math.round(S.y - (n.sy / l) * 50), id: 1 }]);
+        // toward the minion on screen. QA flaky-qa: this pushed the stick's y the wrong way (S.y - sy), so the walk-in
+        // closed only the x gap and drifted off on y; the minion came into reach only when its wave walked into the hero
+        await send('touchMove', [{ x: Math.round(S.x + (n.sx / l) * 50), y: Math.round(S.y + (n.sy / l) * 50), id: 1 }]);
         await page.waitForTimeout(250);
         await send('touchEnd', []);
         continue;
@@ -87,10 +103,10 @@ test('844x390: ATK held, the stick strafes beside a minion: the hero walks and t
     const n = await toWave(4500);
     expect(n, 'an enemy minion in reach').not.toBeNull();
     const l = Math.hypot(n!.sx, n!.sy) || 1;
-    // stick space: toward the minion is (sx, -sy); "beside and a little back" is that turned 105° either way (more
+    // stick space (screen px, y down like the touch points): toward the minion is (sx, sy); "beside and a little back" is that turned 105° either way (more
     // than the 90° within which the stick yields to the Attack order instead)
     let tx = n!.sx / l;
-    let ty = -n!.sy / l;
+    let ty = n!.sy / l;
     const side = (k: 1 | -1): Pt => {
       const c = Math.cos(k * 1.83);
       const s = Math.sin(k * 1.83);
@@ -138,7 +154,7 @@ test('844x390: ATK held, the stick strafes beside a minion: the hero walks and t
         if (m) {
           const ml = Math.hypot(m.sx, m.sy) || 1;
           tx = m.sx / ml;
-          ty = -m.sy / ml;
+          ty = m.sy / ml;
         }
         await send('touchMove', [A, side(k)]);
       }

@@ -54,7 +54,7 @@ const probe = (page: Page): Promise<Probe> =>
     return { starts: w.__entr, churn: w.__churn, same: document.querySelector('.pl-home') === w.__home && !!w.__home?.isConnected };
   });
 
-test('Home stays mounted and still while the Treat Track, Legends Pass, Cards and Settings come and go', async ({ page }) => {
+test('Home stays mounted and still while the Treat Track, Legends Pass and Settings come and go', async ({ page }) => {
   test.setTimeout(120_000);
   await seed(page);
   await page.goto('/?e2e=1');
@@ -90,13 +90,8 @@ test('Home stays mounted and still while the Treat Track, Legends Pass, Cards an
   await expect(page.locator('.pl-collection')).toHaveCount(0);
   await still('treat track via profile, Esc');
 
-  // Cards
-  await page.locator('.hm-nav [data-a="cards"]').click();
-  await expect(page.locator('.pl-deck')).toBeVisible();
-  await still('cards open');
-  await page.locator('.dk-close').click();
-  await expect(page.locator('.pl-deck')).toHaveCount(0);
-  await still('cards closed');
+  // (the Cards drawer and its nav item were removed with every Token Tails mention, NO-TOKENTAILS.md, Nov 12)
+  await expect(page.locator('.hm-nav [data-a="cards"]')).toHaveCount(0);
 
   // Settings: turning Sound off there patches Home's Sound switch, nothing else
   const mute = page.locator('.pl-home [data-a="mute"]');

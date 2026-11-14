@@ -46,7 +46,7 @@ test('DOGS shows the 10 dogs and plays the dog side with no duplicate on the tea
   const ids = await visibleTiles(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(ids.sort()).toEqual([...DOGS].sort());
   // one tap on Chili selects it (and the dog side)
-  await tapOrClick(page, '[data-h="chili"]', touch);
+  await tapOrClick(page, '.cs-tile[data-h="chili"]', touch);
   await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'chili');
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
   await expect(page.locator('.cs-panel')).toHaveAttribute('data-hero', 'chili');
@@ -78,7 +78,7 @@ test('the side and the hero are remembered across a reload; the pick opens on th
   await toPick(page);
   await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'sage');
   await page.locator('.side-tab.dog').click();
-  await page.locator('[data-h="bravo"]').click();
+  await page.locator('.cs-tile[data-h="bravo"]').click();
   await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'bravo');
   const saved = await page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? '{}') as { side?: string; lastBySide?: Record<string, string> }, PROFILE_KEY);
   expect(saved.side).toBe('dog');
@@ -86,7 +86,8 @@ test('the side and the hero are remembered across a reload; the pick opens on th
 
   await page.reload();
   await page.waitForSelector('html[data-screen="title"]');
-  await expect(page.locator('.pl-btn.big').first()).toContainText('Bravo');
+  // the round PLAY button says only PLAY (v6 Home); the remembered hero is on Home's nameplate
+  await expect(page.locator('[data-testid="home-plate"] .hm-plate-n')).toContainText('Bravo');
   await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
@@ -94,7 +95,7 @@ test('the side and the hero are remembered across a reload; the pick opens on th
   await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-checked', 'true');
 
   await page.locator('.side-tab.cat').click();
-  await page.locator('[data-h="sage"]').click();
+  await page.locator('.cs-tile[data-h="sage"]').click();
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'cat');
   await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'sage');
   await expect(visibleTiles(page)).toHaveCount(10);

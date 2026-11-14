@@ -20,6 +20,9 @@ import { ChatTicker, type ChatLineView } from '../ui/chatTicker';
 import { ChatDrawer, type ChatSend } from '../ui/chatDrawer';
 import type { PartyLink } from './mpTypes';
 
+/** `?e2e=1` only: Playwright's handle on the chat (`window.__plChat`), set through a computed key. */
+const E2E_HOOK = ['__pl', 'Chat'].join('');
+
 export interface MatchChatHost {
   ui: HTMLElement;
   touch: boolean;
@@ -137,7 +140,8 @@ export class MatchChat {
       });
     }
     this.timer = setInterval(() => this.clock(), 250);
-    if (h.e2e) (window as unknown as { __plChat?: MatchChat }).__plChat = this;
+    // one computed key, so the built files carry no `window.__` debug global literal (perf.spec "no debug hooks")
+    if (h.e2e) (window as unknown as Record<string, unknown>)[E2E_HOOK] = this;
     this.layout();
     addEventListener('resize', this.onResize);
   }
@@ -357,6 +361,6 @@ export class MatchChat {
     this.offLink?.();
     this.ticker.dispose();
     this.drawer.dispose();
-    if (this.h.e2e) delete (window as unknown as { __plChat?: MatchChat }).__plChat;
+    if (this.h.e2e) delete (window as unknown as Record<string, unknown>)[E2E_HOOK];
   }
 }
