@@ -97,6 +97,8 @@ export interface SkinFxProfile {
   /** Awakened stage from the hero level (0 when not awakened). */
   stage: Stage;
   source: 'card' | 'coat';
+  /** A store or pass coat's id (render/skins/coatFx.ts picks its signature theme by it); null for a card. */
+  coatId: string | null;
   /** The cat's or coat's name. */
   name: string;
   self: boolean;
@@ -109,7 +111,7 @@ export interface SkinFxProfile {
   low: boolean;
 }
 
-export const emptyProfile = (): SkinFxProfile => ({ id: 0, rung: 'COMMON', element: 'STELLAR', motif: 'ring', tint: 0xffffff, accent: 0xffffff, elementTint: 0xffffff, cream: 0xfff3dc, awakened: false, stage: 0, source: 'card', name: '', self: false, team: 0, mate: null, extras: false, low: false });
+export const emptyProfile = (): SkinFxProfile => ({ id: 0, rung: 'COMMON', element: 'STELLAR', motif: 'ring', tint: 0xffffff, accent: 0xffffff, elementTint: 0xffffff, cream: 0xfff3dc, awakened: false, stage: 0, source: 'card', coatId: null, name: '', self: false, team: 0, mate: null, extras: false, low: false });
 
 const CREAM = 0xfff3dc;
 
@@ -158,6 +160,7 @@ export function profileFromCard(skin: CatSkin | null, id: number, self: boolean,
   o.awakened = skin.awakened === true && skin.rung === 'LEGENDARY';
   o.stage = o.awakened ? stageOf(level) : 0;
   o.source = 'card';
+  o.coatId = null;
   o.name = skin.name;
   o.self = self;
   o.team = team;
@@ -181,6 +184,7 @@ export function profileFromCoatSpec(coat: Coat, name: string, rung: CatTier, ele
   o.awakened = false;
   o.stage = 0;
   o.source = 'coat';
+  o.coatId = null;
   o.name = name;
   o.self = self;
   o.team = team;

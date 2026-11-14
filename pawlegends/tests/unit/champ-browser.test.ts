@@ -513,3 +513,56 @@ describe('the in-match skill peek', () => {
     }
   });
 });
+
+describe('gaps3 coat-fx: the Coats tab', () => {
+  const clipsWithCoat = (): FakeClips => {
+    const f = fakeClips();
+    const base = f.factory;
+    f.factory = async (el, hero, slot) => {
+      const p = await base(el, hero, slot);
+      const set = p.set.bind(p);
+      p.set = (h, s, clip) => {
+        f.log.push(`clip ${clip ?? '-'}`);
+        return set(h, s);
+      };
+      return p;
+    };
+    return f;
+  };
+  it('opens on a coat (the store "Preview effects"), plays its Ultimate, then the Recall and Takedown clips', async () => {
+    const f = clipsWithCoat();
+    const b = openChampBrowser({ hero: 'brutus', clips: f.factory, coat: 'coat.brutus.store_thunderpaw' });
+    await flush();
+    expect(b.tab()).toBe('coats');
+    expect(b.root.querySelector('.cb-coat-chip.on')?.textContent).toContain('Thunderpaw');
+    expect(b.root.querySelector('.cb-card')?.textContent).toContain('Three lightning bolts strike the ring');
+    expect(b.root.textContent).not.toMatch(/\$|€|Buy/);
+    expect(f.log[0]).toBe('mount brutus:r');
+    click(b.root.querySelector('[data-cfx="recall"]'));
+    await flush();
+    expect(f.log).toContain('clip recall');
+    click(b.root.querySelector('[data-cfx="takedown"]'));
+    await flush();
+    expect(f.log).toContain('clip takedown');
+    expect(b.root.querySelector('.cb-coat-fx li.on')?.textContent).toContain('Takedown');
+    // a Rare coat: the shared Rare set
+    click(b.root.querySelector('.cb-coat-chip[data-rung="RARE"]'));
+    await flush();
+    expect(b.root.querySelector('.cb-coat-rung')?.textContent).toContain('Rare coat');
+  });
+  it('hides the tab for a champion without Rare+ coats and falls back to Skills when browsing to one', async () => {
+    const f = clipsWithCoat();
+    const b = openChampBrowser({ hero: 'lambo' as HeroId, clips: f.factory, tab: 'coats' });
+    await flush();
+    const tab = b.root.querySelector<HTMLElement>('.cb-tab[data-tab="coats"]')!;
+    // Lambo is a shelter champion: no store or pass coats
+    expect(tab.hidden).toBe(true);
+    expect(b.tab()).toBe('skills');
+    b.show('brutus');
+    expect((b.root.querySelector('.cb-tab[data-tab="coats"]') as HTMLElement).hidden).toBe(false);
+    b.setTab('coats');
+    expect(b.tab()).toBe('coats');
+    b.show('lambo' as HeroId);
+    expect(b.tab()).toBe('skills');
+  });
+});

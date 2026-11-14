@@ -27,9 +27,9 @@ import type { QualityTier } from '../../render/quality';
 import type { Look } from '../../render/cosmetics';
 import { sfx } from '../../audio/sfx';
 import { FramePacer, MENU_FPS } from '../../render/perf/pacer';
-import { ALLY, DUMMY, ME, SkillSandbox, allyFor, dummyFor, type PreviewSlot } from './skillSandbox';
+import { ALLY, DUMMY, ME, SkillSandbox, allyFor, dummyFor, type CoatClip, type PreviewSlot } from './skillSandbox';
 
-export type { PreviewSlot } from './skillSandbox';
+export type { CoatClip, PreviewSlot } from './skillSandbox';
 
 export interface SkillPreviewOptions {
   /** Render tier; default: low on touch or narrow screens, med otherwise. */
@@ -47,6 +47,8 @@ export interface SkillPreviewOptions {
   look?: (hero: HeroId) => Look | null;
   /** The previewed hero's level (default PREVIEW_LEVEL): an Awakened card's stage follows it (dev lab, captures). */
   level?: number;
+  /** gaps3 coat-fx: start on a coat clip (the recall or a takedown) instead of the slot's. */
+  clip?: CoatClip | null;
 }
 
 export interface SkillPreviewStats {
@@ -63,6 +65,9 @@ export interface SkillPreviewStats {
   firstFrameMs: number;
   playing: boolean;
   tier: QualityTier;
+  /** gaps3 coat-fx: the coat clip playing (null: the slot's), and the recall landings so far. */
+  clip: CoatClip | null;
+  lands: number;
 }
 
 export interface SkillPreview {
@@ -71,8 +76,8 @@ export interface SkillPreview {
   readonly canvas: HTMLCanvasElement;
   play(): void;
   stop(): void;
-  /** Switch to another hero or slot on the same canvas (restarts the loop). */
-  set(hero: HeroId, slot: PreviewSlot): Promise<void>;
+  /** Switch to another hero or slot (or a coat clip: the recall, a takedown) on the same canvas (restarts the loop). */
+  set(hero: HeroId, slot: PreviewSlot, clip?: CoatClip | null): Promise<void>;
   /** Tools and tests: advance `seconds` by hand in 1/30 s frames (while stopped) and draw. */
   advance(seconds: number): void;
   stats(): SkillPreviewStats;
@@ -145,7 +150,8 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   const buffer = new SnapBuffer();
   view.peek = (h, out) => buffer.peekEvents(h, out);
 
-  let sb = new SkillSandbox(hero, slot, opts.level);
+  let sb = new SkillSandbox(hero, slot, opts.level, opts.clip ?? null);
+  let totalLands = 0;
   let raf = 0;
   let wantPlay = opts.autoplay !== false;
   let onScreen = true;
@@ -184,6 +190,11 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
       restartView();
     }
     const f = sb.next();
+    // the recall clip: the nap finished where the hero napped (the sandbox never sends it home): play the landing
+    if (f.landed) {
+      view.heroes.tierFx?.landAt(ME);
+      totalLands++;
+    }
     buffer.push(f.snap);
     buffer.pushEvents(f.snap.events);
   };
@@ -371,13 +382,14 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
       wantPlay = false;
       halt();
     },
-    set(h: HeroId, s: PreviewSlot) {
+    set(h: HeroId, s: PreviewSlot, clip: CoatClip | null = null) {
       if (disposed) return Promise.resolve();
       halt();
       const same = h === sb.hero;
       totalCasts = 0;
       totalLoops = 0;
-      sb = new SkillSandbox(h, s, opts.level);
+      totalLands = 0;
+      sb = new SkillSandbox(h, s, opts.level, clip);
       setAt = performance.now();
       firstFrameMs = -1;
       cam.init = false;
@@ -416,6 +428,8 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
         firstFrameMs,
         playing: raf !== 0,
         tier,
+        clip: sb.clip,
+        lands: totalLands,
       };
     },
     dispose() {

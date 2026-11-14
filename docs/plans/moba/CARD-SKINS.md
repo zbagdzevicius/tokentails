@@ -287,6 +287,36 @@ colours team-safe (`trimForTeam`). The store's coat line names the parts. Test: 
 `tests/e2e/coat-parts.spec.ts` (the coat is worn in a bot match; `COAT_SHOTS=<dir>` saves screenshots). Dev views:
 `/landing-portrait.html?hero=<hero>&coat=<id>&turn=<rad>` and `/gallery.html?hero=<hero>&coat=<id>&cam=game`.
 
+### 6.7 Coat signature effects: ultimate, recall and takedown per coat (2026-11-14, gaps3 coat-fx)
+
+Wild Rift and Mobile Legends skins change the ultimate, the recall and the takedown, not only the colours. Every Epic
+and Legendary coat now has its own three effects in its theme, and every Rare coat the shared Rare set in its own
+colours and element motif (render/skins/coatFx.ts; words in render/skins/coatThemes.ts):
+
+| Coat | Ultimate | Recall (nap, landing) | Takedown |
+|---|---|---|---|
+| Thunderpaw (L) | three bolts strike round the ring, sparks run out, a storm ring | storm crackle; a bolt brings him home | a bolt strikes the fallen |
+| Sunforged (L) | a sun rises, rays sweep out, magenta embers | a flame halo over the head; a sunrise | a sunburst |
+| Bloomtail (L) | a petal storm swirls out of an opening bloom | petals drift down; a bloom | a flower opens, leaves fall |
+| Eclipse (E) | a violet corona, a gold ring, gold motes | an eclipse orb circles; the eclipse ring | a dark ring, gold motes |
+| Moonwhisker (E) | a star shower under a pale moon | stars twinkle; stars fall | stars fall on the fallen |
+| Frostbell (E) | ice shards, snow, the frost bell | snow falls; a frost ring and the bell | shards burst, the bell |
+| every Rare coat | a motif ring in the coat colour | (the kit's motif nap); a motif ring on landing | a 3-motif stamp |
+
+A coat's ultimate replaces the card paw wave and its takedown replaces the card stamp (a card skin keeps those).
+Budgets: every sprite goes through the two pooled particle meshes (no draw call); a Legendary ultimate adds at most
+one pooled shockwave (the paw wave's); each effect has a declared cost inside the hero's rung cap (Legendary 24,
+Epic 16, Rare 8; `COAT_COST`), COAT_MAX 48 live in all, skipped above 80 % of a pool. Low draws about half, no
+shockwave, bolts on the player's own hero only; another player's hero only with `extras` (Med / High, outside a team
+fight, not stealthed, the Skin effects setting). Colours are the profile's team-safe ones.
+
+Preview: the champion browser has a Coats tab (Home → Heroes, and the store coat detail's "Preview effects"): the
+champion's Rare+ coats as chips, and Ultimate, Recall and Takedown clips in the live preview (ui/preview/skillSandbox.ts
+`CoatClip`: the recall naps the full channel and lands back in the box; the takedown swings at a dummy one hit from
+down). No price in the browser. Tests: `tests/unit/coat-fx.test.ts`, `tests/e2e/coat-fx.spec.ts`; the perf spec
+runs with `skins=legendary,coats` (the heroes with a themed coat wear it). Captures:
+`docs/plans/moba/coat-fx/capture.mjs` (stills and animations of every coat and clip, and a Low-tier A/B).
+
 ## 7. Phase 2 (not in the MVP)
 
 - Peer looks in PvP/party: read the relay's `cosmetics.heroSkins` and the planned `party.look` so others see your card

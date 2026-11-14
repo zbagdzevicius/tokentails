@@ -9,6 +9,9 @@
  *   basic attack have no clip: a still of the hero and the icon.
  * - Lore: the hook, the bio, the rival and the friend (a tap jumps to that champion), the quote, how they fight, and
  *   the world (The Truce Games).
+ * - Coats (gaps3 coat-fx; only for a champion with a Rare, Epic or Legendary coat): the coat chips, and Ultimate, Recall
+ *   and Takedown clips of the champion wearing it (the same live canvas), so its signature effects are seen before
+ *   wearing or buying it. No price and no buy button here: the store sells (web only), this shows.
  *
  * Opened from the "i" on a pick card, the detail's "Skills & lore" button, the party pick, the collection and the
  * lobby. Home's Heroes and its nameplate pass `action`: one button under the description, SELECT (the Home hero and the
@@ -33,8 +36,30 @@ import { cardIcon, esc, skillCardHtml, slotKey } from './cardView';
 import { BROWSE_ORDER, DIFFICULTY_NAME, HERO_DIFFICULTY, stepHero } from './meta';
 import { setChampCovered } from './cover';
 import { masteryChipHtml } from '../rewards/rewards';
+import { PAID_COATS } from '../../render/cosmetics';
+import type { CatTier } from '../../meta/roster';
+import { coatFxWords } from '../../render/skins/coatThemes';
+import { coatPartsLine } from '../../render/skins/coatVfx';
 
-export type BrowserTab = 'skills' | 'lore';
+/** gaps3 coat-fx: a coat clip ('r' is the ultimate). */
+export type CoatClipKind = 'r' | 'recall' | 'takedown';
+const COAT_CLIPS: readonly { k: CoatClipKind; label: string; key: 'ult' | 'recall' | 'takedown' }[] = Object.freeze([
+  { k: 'r', label: 'Ultimate', key: 'ult' },
+  { k: 'recall', label: 'Recall', key: 'recall' },
+  { k: 'takedown', label: 'Takedown', key: 'takedown' },
+]);
+const RUNG_ORDER: Readonly<Record<CatTier, number>> = Object.freeze({ LEGENDARY: 0, EPIC: 1, RARE: 2, COMMON: 3 });
+const RUNG_WORD: Readonly<Record<CatTier, string>> = Object.freeze({ LEGENDARY: 'Legendary', EPIC: 'Epic', RARE: 'Rare', COMMON: 'Common' });
+
+/** A champion's coats with effects (Rare and up), Legendary first, then Epic, then Rare (by name). */
+export function effectCoats(h: HeroId): { id: string; name: string; rung: CatTier }[] {
+  return Object.entries(PAID_COATS)
+    .filter(([, c]) => c.hero === h && c.rung !== 'COMMON')
+    .map(([id, c]) => ({ id, name: c.name.replace(/\s*\((Epic|Legendary|Rare)\)$/, ''), rung: c.rung }))
+    .sort((a, b) => RUNG_ORDER[a.rung] - RUNG_ORDER[b.rung] || a.name.localeCompare(b.name));
+}
+
+export type BrowserTab = 'skills' | 'lore' | 'coats';
 type ClipSlot = 'q' | 'w' | 'e' | 'r';
 
 /** The part of the preview player the browser drives (ui/preview/skillPreview.ts `SkillPreview`). */
@@ -42,7 +67,7 @@ export interface ClipPlayer {
   readonly ready: Promise<void>;
   play(): void;
   stop(): void;
-  set(hero: HeroId, slot: ClipSlot): Promise<void>;
+  set(hero: HeroId, slot: ClipSlot, clip?: 'recall' | 'takedown' | null): Promise<void>;
   dispose(): void;
 }
 export type ClipFactory = (el: HTMLElement, hero: HeroId, slot: ClipSlot) => ClipPlayer | Promise<ClipPlayer>;
@@ -92,6 +117,8 @@ export interface ChampBrowserOpts {
   portrait?(h: HeroId): string | null;
   /** CARD-SKINS.md: the look a hero's clip wears (the player's card skin or coat), so the clip shows its skin effects. */
   look?(h: HeroId): Look | null;
+  /** gaps3 coat-fx: open on the Coats tab with this coat (the store's coat detail, "Preview effects"). */
+  coat?: string | null;
 }
 
 export interface ChampBrowser {
@@ -127,11 +154,17 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   current?.close();
   const order = o.order?.length ? o.order : BROWSE_ORDER;
   const portrait = o.portrait ?? ((h: HeroId) => portraitUrl(h));
-  const clipFactory = o.clips === undefined ? clipsWith(o.look ? (h) => o.look!(h) : undefined) : o.clips;
+  // the Coats tab dresses the clip in the chosen coat; the other tabs in the player's own look
+  const lookNow = (h: HeroId): Look | null => (tab === 'coats' && coatSel ? { coat: coatSel, chroma: null } : (o.look?.(h) ?? null));
+  const clipFactory = o.clips === undefined ? clipsWith(lookNow) : o.clips;
   const opener = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
   let hero = o.hero;
   let slot: SkillSlot = o.slot ?? 'q';
-  let tab: BrowserTab = o.tab ?? 'skills';
+  let tab: BrowserTab = o.coat ? 'coats' : (o.tab ?? 'skills');
+  /** The Coats tab: the chosen coat and clip. */
+  let coatSel: string | null = o.coat && PAID_COATS[o.coat]?.hero === o.hero ? o.coat : (effectCoats(o.hero)[0]?.id ?? null);
+  let coatClip: CoatClipKind = 'r';
+  if (tab === 'coats' && !coatSel) tab = 'skills';
   let codex: HeroCodex = heroCodex(hero);
   let open = true;
   let world = false;
@@ -147,6 +180,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       <div class="cb-tabs" role="tablist" aria-label="Champion pages">
         <button type="button" class="cb-tab" role="tab" data-tab="skills" id="cb-tab-skills" aria-controls="cb-skills">Skills</button>
         <button type="button" class="cb-tab" role="tab" data-tab="lore" id="cb-tab-lore" aria-controls="cb-lore">Lore</button>
+        <button type="button" class="cb-tab" role="tab" data-tab="coats" id="cb-tab-coats" aria-controls="cb-skills">Coats</button>
       </div>
       <button type="button" class="cb-x" data-a="close" aria-label="Close">✕</button>
       <div class="cb-skills" id="cb-skills" role="tabpanel" aria-labelledby="cb-tab-skills">
@@ -196,7 +230,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
           return null;
         }
         player = p;
-        playerAt = `${h}:${s}`;
+        playerAt = clipKey(h, s, tab === 'coats' ? 'r' : null);
         return p;
       })
       .catch(() => {
@@ -207,11 +241,15 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   };
   /** Show the clip (or the still) for the current hero and slot. A newer call wins over an older one still loading. */
   let clipSeq = 0;
+  /** What a player shows: the hero, the slot, the coat clip and the look it wears. */
+  const clipKey = (h: HeroId, s: ClipSlot, clip: CoatClipKind | null): string => `${h}:${s}:${clip ?? '-'}:${tab === 'coats' ? (coatSel ?? '-') : '-'}`;
   const syncClip = (): void => {
     const seq = ++clipSeq;
     const h = hero;
-    const s = slot;
-    const wantClip = tab === 'skills' && isClip(s) && !clipFailed;
+    const coats = tab === 'coats';
+    const s: SkillSlot = coats ? 'r' : slot;
+    const cc: 'recall' | 'takedown' | null = coats && coatClip !== 'r' ? coatClip : null;
+    const wantClip = (tab === 'skills' || coats) && isClip(s) && !clipFailed;
     stillHtml(h, s);
     if (!wantClip) {
       player?.stop();
@@ -219,16 +257,16 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       return;
     }
     setClipState('loading');
-    void ensurePlayer(h, s).then(async (p) => {
+    void ensurePlayer(h, s as ClipSlot).then(async (p) => {
       if (!p || seq !== clipSeq || !open) {
         if (!p && seq === clipSeq && open) setClipState('off');
         return;
       }
       try {
-        const want = `${h}:${s}`;
+        const want = clipKey(h, s as ClipSlot, cc ?? (coats ? 'r' : null));
         if (playerAt !== want) {
           playerAt = want;
-          await p.set(h, s);
+          await p.set(h, s as ClipSlot, cc);
         } else await p.ready;
       } catch {
         clipFailed = true;
@@ -296,6 +334,15 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   };
 
   const drawIcons = (): void => {
+    if (tab === 'coats') {
+      // the coat chips, then the three clips (a tab list each: the arrow keys walk the clips)
+      const chips = effectCoats(hero)
+        .map((c) => `<button type="button" class="cb-coat-chip${c.id === coatSel ? ' on' : ''}" data-coat="${esc(c.id)}" data-rung="${c.rung}" aria-pressed="${c.id === coatSel}"><b>${esc(c.name)}</b><small>${RUNG_WORD[c.rung]}</small></button>`)
+        .join('');
+      const clips = COAT_CLIPS.map((c) => `<button type="button" class="cb-cfx-btn${c.k === coatClip ? ' on' : ''}" role="tab" data-cfx="${c.k}" aria-selected="${c.k === coatClip}" tabindex="${c.k === coatClip ? 0 : -1}">${c.label}</button>`).join('');
+      iconsEl.innerHTML = `<div class="cb-coat-chips" role="group" aria-label="Coats">${chips}</div><div class="cb-cfx" role="tablist" aria-label="Coat effects">${clips}</div>`;
+      return;
+    }
     iconsEl.innerHTML = codex.cards
       .map((c) => {
         const on = c.slot === slot;
@@ -305,6 +352,20 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   };
 
   const drawCard = (): void => {
+    if (tab === 'coats') {
+      const c = coatSel ? PAID_COATS[coatSel] : null;
+      const words = c ? coatFxWords(coatSel, c.rung) : null;
+      if (!c || !words) {
+        cardEl.innerHTML = '';
+        return;
+      }
+      const parts = coatPartsLine(coatSel);
+      const rows = COAT_CLIPS.map((k) => `<li${k.k === coatClip ? ' class="on"' : ''}><b>${k.label}</b> ${esc(words[k.key])}</li>`).join('');
+      cardEl.innerHTML = `<h3 class="cb-coat-name">${esc(c.name.replace(/\s*\((Epic|Legendary|Rare)\)$/, ''))}</h3><p class="cb-coat-rung" data-rung="${c.rung}">${RUNG_WORD[c.rung]} coat${c.rung === 'RARE' ? ': the shared Rare effects in its colours' : ': its own effects'}</p><ul class="cb-coat-fx">${rows}</ul>${parts ? `<p class="cb-coat-parts">On the model: ${esc(parts)}.</p>` : ''}<p class="cb-coat-fine">Looks only: nothing in a match changes.</p>`;
+      cardEl.dataset.slot = 'coat';
+      cardEl.scrollTop = 0;
+      return;
+    }
     const card = codex.cards.find((c) => c.slot === slot) ?? codex.cards[0];
     if (!card) return;
     cardEl.innerHTML = skillCardHtml(card, { ranged: codex.attack === 'Ranged' });
@@ -337,13 +398,16 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   };
 
   const drawTabs = (): void => {
+    const hasCoats = effectCoats(hero).length > 0;
     for (const b of root.querySelectorAll<HTMLElement>('.cb-tab')) {
       const on = b.dataset.tab === tab;
       b.classList.toggle('on', on);
       b.setAttribute('aria-selected', String(on));
       b.tabIndex = on ? 0 : -1;
+      if (b.dataset.tab === 'coats') b.hidden = !hasCoats;
     }
-    skillsEl.hidden = tab !== 'skills';
+    skillsEl.hidden = tab === 'lore';
+    skillsEl.dataset.view = tab === 'coats' ? 'coats' : 'skills';
     loreEl.hidden = tab !== 'lore';
     root.dataset.tab = tab;
   };
@@ -372,6 +436,10 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       const changed = h !== hero;
       hero = h;
       codex = heroCodex(h);
+      if (changed) {
+        coatSel = effectCoats(h)[0]?.id ?? null;
+        if (tab === 'coats' && !coatSel) tab = 'skills';
+      }
       if (s) slot = s;
       else if (changed && !isClip(slot)) slot = 'q';
       world = false;
@@ -394,8 +462,11 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
     },
     setTab(t: BrowserTab) {
       if (!open || t === tab) return;
+      if (t === 'coats' && !coatSel) return;
       tab = t;
       drawTabs();
+      drawIcons();
+      drawCard();
       syncClip();
     },
     close() {
@@ -427,6 +498,17 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       return;
     }
     if (t === root) return api.close();
+    const coatBtn = t.closest<HTMLElement>('[data-coat]')?.dataset.coat;
+    const cfx = t.closest<HTMLElement>('[data-cfx]')?.dataset.cfx as CoatClipKind | undefined;
+    if (coatBtn || cfx) {
+      if (coatBtn && PAID_COATS[coatBtn]) coatSel = coatBtn;
+      if (cfx) coatClip = cfx;
+      clipPaused = false;
+      drawIcons();
+      drawCard();
+      syncClip();
+      return;
+    }
     if (s) return api.setSlot(s);
     if (tb) return api.setTab(tb);
     if (link) {
@@ -470,7 +552,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
         if (world) root.querySelector('.cb-world')?.scrollIntoView({ block: 'start' });
         return;
       case 'clip':
-        if (!player || !isClip(slot)) return;
+        if (!player || (tab !== 'coats' && !isClip(slot))) return;
         clipPaused = !clipPaused;
         if (clipPaused) {
           player.stop();
@@ -515,13 +597,22 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
     if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
     let used = true;
     if (k === 'Escape') api.close();
-    else if ((k === 'ArrowLeft' || k === 'ArrowRight') && inIcons) {
+    else if ((k === 'ArrowLeft' || k === 'ArrowRight') && inIcons && tab !== 'coats') {
       const slots = codex.cards.map((c) => c.slot);
       const i = slots.indexOf(slot);
       api.setSlot(slots[(i + (k === 'ArrowLeft' ? -1 : 1) + slots.length) % slots.length] as SkillSlot);
       root.querySelector<HTMLElement>('.cb-skill-btn.on')?.focus();
+    } else if ((k === 'ArrowLeft' || k === 'ArrowRight') && inIcons && tab === 'coats') {
+      const i = COAT_CLIPS.findIndex((c) => c.k === coatClip);
+      coatClip = COAT_CLIPS[(i + (k === 'ArrowLeft' ? -1 : 1) + COAT_CLIPS.length) % COAT_CLIPS.length].k;
+      drawIcons();
+      drawCard();
+      syncClip();
+      root.querySelector<HTMLElement>('.cb-cfx-btn.on')?.focus();
     } else if ((k === 'ArrowLeft' || k === 'ArrowRight') && inTabs) {
-      api.setTab(tab === 'skills' ? 'lore' : 'skills');
+      const tabs: BrowserTab[] = coatSel ? ['skills', 'lore', 'coats'] : ['skills', 'lore'];
+      const i = tabs.indexOf(tab);
+      api.setTab(tabs[(i + (k === 'ArrowLeft' ? -1 : 1) + tabs.length) % tabs.length]);
       root.querySelector<HTMLElement>('.cb-tab.on')?.focus();
     } else if (k === 'ArrowLeft') step(-1);
     else if (k === 'ArrowRight') step(1);

@@ -4,7 +4,8 @@
  * stats line. window.__preview exposes the player for tools and screenshots. Never part of `build`.
  *
  * CARD-SKINS.md: `&coat=<store or pass coat id>` dresses the hero in a coat (its fixed rung's effects), and
- * `&card=<demo cat>` (ficus Legendary, pinkie Epic, rascal Rare, pickles Common) in a demo card skin; `&bond=30` with
+ * `&card=<demo cat>` (ficus Legendary, pinkie Epic, rascal Rare, pickles Common) in a demo card skin; gaps3 coat-fx:
+ * `&clip=recall|takedown` plays a coat clip (the recall nap and landing, a takedown) instead of the slot's; `&bond=30` with
  * `card=ficus` makes it Awakened; `&level=10` sets the hero level (its Awakened stage). Tools: docs/plans/moba/card-skins/capture.mjs.
  */
 import { HERO_IDS } from '../data/heroes';
@@ -29,7 +30,8 @@ const look: Look | null = coatQ ? { coat: coatQ, chroma: null } : null;
 
 const { mountSkillPreview } = await import('../ui/preview/skillPreview');
 const level = Number(q.get('level') ?? 0) || undefined;
-const p = mountSkillPreview(box, hero, slot, { tier, autoplay: q.get('capture') !== '1', ...(look ? { look: () => look } : {}), ...(level ? { level } : {}) });
+const clip = q.get('clip') === 'recall' || q.get('clip') === 'takedown' ? (q.get('clip') as 'recall' | 'takedown') : null;
+const p = mountSkillPreview(box, hero, clip ? 'r' : slot, { tier, autoplay: q.get('capture') !== '1', clip, ...(look ? { look: () => look } : {}), ...(level ? { level } : {}) });
 (window as unknown as { __preview: typeof p }).__preview = p;
 for (const h of HERO_IDS)
   for (const s of PREVIEW_SLOTS) {

@@ -36,6 +36,7 @@ import { getSkin } from './skins/skinStore';
 import { mixHex } from './skins/classify';
 import { TierFx, type SkinFxMode } from './skins/tierFx';
 import { CardVfx, tinted } from './skins/cardFx';
+import { CoatVfx } from './skins/coatFx';
 import { CompanionView } from './views/companionView';
 import { AUTO_TARGET_HOLD, CHEVRON_LIFE, chevronSize, chevronTexture, MOVE_RING_LIFE, TARGET_MARK_LIFE, targetMarkAlpha } from './fx/orderMarks';
 import { boldRingTexture, crosshairTexture, dashRingTexture, DecalLayer, ringTexture } from './views/decals';
@@ -555,6 +556,12 @@ export class GameView {
     this.linger.mesh.visible = this.ribbons.mesh.visible = false;
     // Wave C (C4): card-tier effects, cosmetic only (render/skins/cardFx.ts)
     this.effects.cards = new CardVfx(this.particles, this.shock as never);
+    // gaps3 coat-fx: the coats' own ultimate, recall and takedown effects (pooled particles, CombatVfx's bolts)
+    const coats = new CoatVfx(this.particles as never, this.shock as never);
+    const vfx = this.vfx;
+    coats.bolt = (ax, ay, az, bx, by, bz, c) => vfx.lightning(ax, ay, az, bx, by, bz, c);
+    this.effects.coats = coats;
+    this.heroes.tierFx.coats = coats;
     this.projectiles.card = (id) => this.heroes.cardOf(id);
     const shake = this.juice.shake as unknown as { apply(cam: THREE.Camera, dt: number, scale: number, mix: object): void };
     // feel pass B1: the shake is the only camera motion besides the follow, capped at SHAKE_MAX_M on the ground (the

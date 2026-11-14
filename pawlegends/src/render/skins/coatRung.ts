@@ -24,7 +24,9 @@ export function profileFromCoat(coatId: string | null | undefined, hero: HeroId 
   if (!coatId) return null;
   const c = PAID_COATS[coatId];
   if (!c || (hero && c.hero !== hero)) return null;
-  return profileFromCoatSpec(c.coat, c.name, c.rung, c.element, id, self, team, extras, low, out, mate, coatSig(coatId));
+  const o = profileFromCoatSpec(c.coat, c.name, c.rung, c.element, id, self, team, extras, low, out, mate, coatSig(coatId));
+  if (o) o.coatId = coatId;
+  return o;
 }
 
 /**

@@ -176,6 +176,44 @@ html[data-champ] .tt-card > .tt-sp, html[data-champ] .tt-card > .tt-glare, html[
 .pl-champ[data-clip='paused'] .cb-clip-state { display: block; }
 .pl-champ[data-clip='paused'] .cb-clip-state::after { width: 0; height: 0; border-style: solid; border-width: 6px 0 6px 10px; border-color: transparent transparent transparent var(--v6-cream); transform: translateX(1px); }
 @keyframes cb-spin { to { transform: rotate(1turn); } }
+/* ---------------------------------------------------------------- Coats (gaps3 coat-fx): chips, the three clips, the effect card */
+.cb-tab[hidden] { display: none; }
+.cb-skills[data-view='coats'] .cb-icons { align-items: center; gap: 8px; padding-bottom: 2px; }
+.cb-coat-chips { flex: 1 1 auto; min-width: 0; display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; }
+.cb-coat-chips::-webkit-scrollbar { display: none; }
+.cb-coat-chip {
+  flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 36px; padding: 3px 10px; border-radius: var(--v6-r-xs);
+  border: 2px solid var(--v6-line-strong); background: var(--v6-night-2); color: var(--v6-cream); font: 700 12.5px/1.1 var(--font); cursor: pointer; touch-action: manipulation;
+}
+.cb-coat-chip small { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--v6-muted); }
+.cb-coat-chip[data-rung='LEGENDARY'] small { color: var(--v6-logo-gold, #f7bc3c); }
+.cb-coat-chip[data-rung='EPIC'] small { color: #c9a8ff; }
+.cb-coat-chip[data-rung='RARE'] small { color: #8fd8ff; }
+.cb-coat-chip.on { border-color: var(--v6-bolt); background: color-mix(in srgb, var(--cb-side) 30%, var(--v6-night-2)); }
+.cb-cfx { flex: none; display: flex; gap: 4px; }
+@media (max-width: 600px) { .cb-skills[data-view='coats'] .cb-icons { flex-direction: column; align-items: stretch; gap: 4px; } }
+@media (max-height: 420px) {
+  .cb-skills[data-view='coats'] .cb-icons { gap: 6px; }
+  .cb-coat-chip { min-height: 32px; padding: 2px 8px; }
+  .cb-cfx-btn { min-height: 32px; padding: 2px 7px; font-size: 12px; }
+  .cb-coat-fx { gap: 2px; }
+}
+.cb-cfx-btn {
+  flex: none; min-height: 34px; padding: 3px 10px; border-radius: var(--v6-r-xs); border: 2px solid var(--v6-line-strong); background: var(--v6-night-2);
+  color: var(--v6-muted); font: 700 13px var(--font); cursor: pointer; touch-action: manipulation;
+}
+.cb-cfx-btn.on { background: var(--v6-cream); border-color: var(--v6-cream); color: var(--v6-night); }
+.cb-coat-name { margin: 0; font-size: 16px; line-height: 1.15; }
+.cb-coat-rung { margin: 1px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--v6-muted); }
+.cb-coat-rung[data-rung='LEGENDARY'] { color: var(--v6-logo-gold, #f7bc3c); }
+.cb-coat-rung[data-rung='EPIC'] { color: #c9a8ff; }
+.cb-coat-fx { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 4px; }
+.cb-coat-fx li { padding: 3px 6px; border-radius: var(--v6-r-xs); border-left: 3px solid transparent; }
+.cb-coat-fx li.on { border-left-color: var(--v6-bolt); background: rgb(var(--v6-navy-rgb) / 0.5); }
+.cb-coat-fx b { display: block; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--v6-bolt); }
+.cb-coat-parts { margin: 0 0 4px; }
+.cb-coat-fine { margin: 0; font-size: 11px; color: var(--v6-muted); }
+
 @media (prefers-reduced-motion: reduce) { .pl-champ[data-clip='loading'] .cb-clip-state::after { animation: none; } }
 
 .cb-card {
