@@ -394,6 +394,11 @@
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "champ-unlock", "hero": "pixel", "via": "yarn" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "champ-unlock", "hero": "pixel", "via": "cash" }
     },
+    "reload-request": {
+      "$comment": "Force update (docs/plans/moba/FORCE-UPDATE.md §5.1): this build is outdated and the player is on the title; the host starts the frame again on the latest build (`?v=<version>`). `reason` is outdated or sim; `version` (optional) is the new build's sha.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "reload-request", "reason": "outdated", "version": "9c5c82e" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "reload-request", "reason": "nuke" }
+    },
     "party-ticket-request": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket-request", "id": "k2j9x8" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket-request", "id": "BAD ID" }

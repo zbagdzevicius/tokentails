@@ -44,8 +44,11 @@ export type HostType = (typeof HOST_TYPES)[number];
  * `exit{}`: the player tapped the lobby's "Games" button; the host leaves for its games page (it lays no close
  * button of its own over the game any more). `sound{muted}`: the player switched the game's Sound; the host makes it
  * its own mute (tt:audio:v1), so the next `audio` it sends agrees (a host mute is never saved into the game profile).
+ * `reload-request{reason, version?}` (force update, docs/plans/moba/FORCE-UPDATE.md §5.1): this build is outdated and
+ * the player is on the title; the host starts the frame again on the latest build (`?v=<version>`). An older host
+ * ignores it, and the game then reloads its own frame.
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'sound', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit', 'purchase-intent', 'pass-claim', 'api-request', 'account', 'champ-unlock'] as const);
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'sound', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit', 'purchase-intent', 'pass-claim', 'api-request', 'account', 'champ-unlock', 'reload-request'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
 /*
  * Store and Legends Pass (docs/plans/moba/STORE-PASS.md, web only): `purchase-intent{sku}` is back for the catalogue
