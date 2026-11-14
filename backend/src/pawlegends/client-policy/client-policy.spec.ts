@@ -194,6 +194,21 @@ describe('GET /pawlegends/client-policy: the decision', () => {
             reason: 'sim-not-accepted',
         });
     });
+    it('a client AHEAD of this backend (a newer sim: a redeploy or rollback in flight) is never sent away', async () => {
+        const { q } = setup({ sims: [26] });
+        // the beta bundle (sim 27) asks an instance that replays only 26: no update or store fixes that
+        expect(
+            await q(
+                'platform=ios&compat=2&channel=beta&native=1.1.0&bundle=20261114031325-9c5c82e&seq=20261114031325&sim=27'
+            )
+        ).toMatchObject({ action: 'ok', reason: 'current' });
+        expect(await q('platform=mac&sim=27')).toMatchObject({ action: 'ok' });
+        // an older sim on the same instance still updates
+        expect(await q(`${APP}&bundle=x1&seq=1&sim=20`)).toMatchObject({
+            action: 'update',
+            reason: 'sim-not-accepted',
+        });
+    });
     it('mac (no OTA): ok, or the store when its sim is not replayed', async () => {
         const { q } = setup();
         expect(await q('platform=mac&sim=26')).toMatchObject({ action: 'ok' });

@@ -20,6 +20,16 @@ What landed, and where it differs from the design below:
 - Web host: `reload-request` remounts the frame with `?v=<sha>`; a `stale` save shows "New version ready · Reload".
 - Workflow: compat read from `app-config.mjs` in the summary and purges, `policy.json` purged, inputs `grace_hours`,
   `maintenance` (+ `maintenance_until`) and `bridge` (none, beta, stable) in a separate `policy` job.
+- Verified 2026-11-14 by an adversarial pass: `pawlegends-app/tests/update-drill.test.ts` runs the real shell
+  modules against a local stand-in for tokentails.com (manifests, bundles and `policy.json` from the real
+  `ota-publish.mjs` under a throwaway key), an emulated native updater (the capgo RSA/AES/SHA-256 check) and an API
+  stand-in. Scenarios: one bundle behind, up to date (< 1 s), offline accepted and rejected, API down, forged or edited
+  `policy.json`, corrupted bundle, tampered manifest, rollback, stale API, a lagging backend, a match started while the
+  gate runs, and the bridge against the 1.0.x shell code (`tests/fixtures/manifest-compat1.ts`, frozen from
+  `ccd7ca75~1`). Two fixes came out of it: the gate re-checks "on the title" after the policy answer and again before
+  it applies (a party invite could pull the player into a pick while it downloaded, and the apply would have reloaded
+  that pick); and a client whose sim is NEWER than every sim the answering backend replays (a backend instance behind a
+  redeploy) is never sent to update or the store (§3.3), online or offline.
 - Not done here: the device drills (§8.3), the first bridge publish (run the workflow with `bridge: beta`).
 
 Founder's ask (verbatim): "ultracode fix OTA, force update and don't allow to start without syncing to latest
@@ -181,7 +191,8 @@ sync like the other shared contracts, and the shell imports the web copy through
 1. `maintenance` set and `now < until` → `maintenance`.
 2. `compat < minCompat` → `store` (`compat-retired`).
 3. `sim` known and `sim < minSim` (or not in `acceptedSims`) → `update` if the channel's latest has
-   `simVersion ≥ minSim` and `native ≥ latest.minNative`, else `store`.
+   `simVersion ≥ minSim` and `native ≥ latest.minNative`, else `store`. A sim newer than every accepted one is the
+   backend lagging (an instance behind a redeploy), not the client: no action from this rule.
 4. The channel's latest is newer (`latest.seq > seq`), or it is a `rollback` with `latest.version ≠ bundle`, and
    `now ≥ requiredFrom` → `update` (or `store` when `native < latest.minNative`).
 5. Otherwise → `ok` (with `latest`, so a newer, not yet required bundle still downloads in the background).
@@ -244,6 +255,8 @@ All of it ships **in `shell.js`**, so every compat-2 phone gets it with its next
 - `pl.gate.attempts` counts download or apply failures per target. After 3 within 10 min the gate behaves as above
   instead of spinning.
 - Any exception inside the gate removes the gate and logs `[gate] failed open` (fail open, principle 2).
+- "On the title" is checked when a run starts, again when the policy answers, and again right before `applyNow`: a
+  game that left the title meanwhile (an invite needs no tap) gets no screen and no reload; the check is owed.
 - `channel === 'dev'` uses the local server like today. The Mac shows only `store` and `maintenance` screens.
 
 ### 4.4 Launch-time budget
@@ -371,6 +384,8 @@ platform). **There is no `FirebaseAuthentication`**, so the bridge must not load
   target in `failed` produces no loop; 3 failures switch to the fallback; an exception fails open; a retry re-reads
   the manifest.
 - `pawlegends-app/tests/ota.test.ts`: `applyNow` and `addListener` on the fake updater.
+- `pawlegends-app/tests/update-drill.test.ts` (happy-dom): the drill of §8.3 without a device, end to end over HTTP
+  (see the status note at the top).
 - `pawlegends-app/tests/publish.test.ts`: `policy.json` is written and signed on publish, promote and rollback;
   `minSim` follows the live channels; `--grace-hours`; `--compat 1` bridge publish writes ios/1 and android/1 (both
   channels) and leaves compat 2 byte-identical; prune keeps the policy-named bundles; maintenance on and off.
