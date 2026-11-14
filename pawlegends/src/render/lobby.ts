@@ -22,6 +22,7 @@ import { createPedestal, PEDESTAL_BOTTOM, PEDESTAL_R, type Pedestal } from './lo
 import { reducedMotion, StageFx } from './lobby/stageFx';
 import { FOIL_STRENGTH, setCharTime } from './chars/charMaterial';
 import { coatRung } from './skins/coatRung';
+import { coatSig } from './skins/coatVfx';
 import { AWAKEN_FOIL } from './skins/effectKit';
 import { getSkin, isCardSkinId } from './skins/skinStore';
 import type { GameRenderer } from './renderer';
@@ -160,7 +161,8 @@ export class Lobby {
     const fel = skin?.element ?? coatFx?.element;
     if (fel) u.uFoilColor.value.setHex(mixColor(0xffffff, ELEMENT_COLOR[fel], 0.75));
     // the stage takes the card's element colour (else the hero's own) and its Nature motes
-    this.tint = skin ? ELEMENT_COLOR[skin.element] : cssToHex(HERO_COLOR_CSS[hero] ?? '#ff9f6b');
+    // (an Epic or Legendary coat: its signature glow, skins/coatVfx.ts)
+    this.tint = skin ? ELEMENT_COLOR[skin.element] : ((coatFx ? coatSig(look?.coat)?.glow : undefined) ?? cssToHex(HERO_COLOR_CSS[hero] ?? '#ff9f6b'));
     this.backdrop.setTint(this.tint);
     this.pedestal.setTint(this.tint);
     this.setNature(skin ? skin.element : null, skin ? skin.rung : null);

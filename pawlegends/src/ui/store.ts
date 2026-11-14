@@ -29,6 +29,7 @@ import { DIFFICULTY_NAME, HERO_DIFFICULTY } from './champBrowser/meta';
 import { DEFAULT_FILTER, SORT_KEYS, SORT_LABEL, allCards, champCard, loadSort, newestHeroes, saveSort, splashAttrs, visibleCards, type ChampCard, type ChampFilter, type SideFilter, type SortKey } from './champStore/model';
 import './champStore/champStore.css';
 import { PAID_COATS } from '../render/cosmetics';
+import { coatPartsLine } from '../render/skins/coatVfx';
 import { browserCurrency } from '../money/skus';
 import { icon } from './icons';
 import { SKU_LOOK } from '../render/portraits';
@@ -165,7 +166,10 @@ const coatRungOf = (id: string | undefined): CoatRung | null => (id ? (PAID_COAT
 /** The store line for a coat: the pattern and what its rung adds. */
 export function coatLine(id: string | null): string {
   const r = coatRungOf(id ?? undefined);
-  return `A patterned coat for one hero.${r && RUNG_ADDS[r] ? ` ${RUNG_ADDS[r]}` : ''}`;
+  // Epic and Legendary coats change the model too (render/chars/coatParts.ts): say what they add
+  const parts = coatPartsLine(id);
+  const look = parts ? ` In a match it adds ${parts}.` : '';
+  return `A patterned coat for one hero.${look}${r && RUNG_ADDS[r] ? ` ${RUNG_ADDS[r]}` : ''}`;
 }
 
 export interface StoreOpts {

@@ -1,7 +1,7 @@
 /**
  * DEV ONLY: the landing roster portrait (client/public/pawlegends/landing/portrait-<hero>.<hash>.webp, 420 × 574,
  * transparent). `npm run dev` → /landing-portrait.html?hero=nugget; tools/landing-portraits.mjs captures every hero
- * it is given. The hero in its idle pose, a little turned, on a pale pink disc, lit like the lobby turntable.
+ * it is given (`coat=` dresses it). The hero in its idle pose, a little turned, on a pale pink disc, lit like the lobby turntable.
  * Never part of `build` / `build:client` (vite builds index.html only).
  */
 import * as THREE from 'three';
@@ -55,7 +55,9 @@ disc.rotation.x = -Math.PI / 2;
 disc.position.y = 0.005;
 scene.add(disc);
 
-const h = lobbyHero(hero, 0, null, { outline: true });
+// `coat=<coat item id>`: the hero in that coat (gaps2 coats-models: the Epic and Legendary coat parts)
+const coat = q.get('coat');
+const h = lobbyHero(hero, 0, coat ? { coat, chroma: null } : null, { outline: true });
 h.object.rotation.y = -Math.PI * 0.5 + turn;
 scene.add(h.object);
 h.object.updateMatrixWorld(true);

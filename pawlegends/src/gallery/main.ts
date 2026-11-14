@@ -9,7 +9,7 @@
  *
  * Query: hero, vs (dummy hero), set=hero|demo (hero, the default: the hero's own file; demo: the template demo set),
  * tier=low|med|high, reduced=1, cam=close|game, scenario=<name>, capture=1 (no UI, no rAF; driven by __animlab),
- * w, h (viewport px), branch=1 (the level-6 branch flag on the hero), buffs=<BuffFlag bits on the dummy>,
+ * w, h (viewport px), coat=<coat item id> (the hero's look), orbit=<deg> (the close camera's turn round the hero), branch=1 (the level-6 branch flag on the hero), buffs=<BuffFlag bits on the dummy>,
  * shield=<dummy shield hp>. Scenarios: the sim-driven moves, then `clip:<id>` for every shared clip and every clip in
  * the hero's own move set (idle, fidgets, victory, emote, level-up, branch, recasts, holds, ends, extras).
  * window.__animlab: { ready, scenarios(), start(name), step(n), done(), stats(), tick() } for tools/anim/capture.mjs.
@@ -37,6 +37,7 @@ const set = q.get('set') === 'demo' ? 'demo' : 'hero';
 DUMMY_BUFFS.branch = q.get('branch') === '1';
 DUMMY_BUFFS.bits = Number(q.get('buffs') ?? 0) | 0;
 DUMMY_BUFFS.shield = Number(q.get('shield') ?? 0) | 0;
+const orbit = (Number(q.get('orbit') ?? 0) * Math.PI) / 180;
 const camMode = q.get('cam') === 'game' ? 'game' : 'close';
 const W = Number(q.get('w') ?? 960);
 const H = Number(q.get('h') ?? 540);
@@ -60,6 +61,9 @@ const view = new GameView(gr, ui);
 const TRICKS: TrickId[] = ['pounce', 'pounce', 'pounce', 'pounce', 'pounce', 'pounce'];
 view.setTeam(0, 0, TRICKS);
 view.juice.shakeScale = q.get('shake') === '0' ? 0 : 1;
+// gaps2 coats-models: `coat=<item id>` dresses the hero in a store or pass coat (screenshots of the coat parts)
+const coatQ = q.get('coat');
+if (coatQ) view.heroes.looks.set(0, { coat: coatQ, chroma: null });
 const buffer = new SnapBuffer();
 view.peek = (h, out) => buffer.peekEvents(h, out);
 
@@ -94,7 +98,7 @@ gr.place =
         const r = rig();
         const x = r ? r.pos.x : toX(36000);
         const z = r ? r.pos.z : toZ(30000);
-        cam.position.set(x + 0.9, 6.4, z + 12.5);
+        cam.position.set(x + 0.9 + Math.sin(orbit) * 12.5, 6.4, z + Math.cos(orbit) * 12.5);
         cam.lookAt(x + 0.9, 1.3, z);
       }
     : null;

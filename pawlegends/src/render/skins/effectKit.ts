@@ -171,7 +171,7 @@ export function profileFromCard(skin: CatSkin | null, id: number, self: boolean,
 }
 
 /** A coat's profile from its fixed rung (null below Rare). Never Awakened: coats never read bond. */
-export function profileFromCoatSpec(coat: Coat, name: string, rung: CatTier, element: Element, id: number, self: boolean, team: 0 | 1, extras: boolean, low: boolean, out?: SkinFxProfile, mate: boolean | null = null): SkinFxProfile | null {
+export function profileFromCoatSpec(coat: Coat, name: string, rung: CatTier, element: Element, id: number, self: boolean, team: 0 | 1, extras: boolean, low: boolean, out?: SkinFxProfile, mate: boolean | null = null, sig: { glow: number; accent: number } | null = null): SkinFxProfile | null {
   if (!rungAtLeast(rung, 'RARE')) return null;
   const o = out ?? emptyProfile();
   o.id = id;
@@ -187,7 +187,9 @@ export function profileFromCoatSpec(coat: Coat, name: string, rung: CatTier, ele
   o.mate = mate;
   o.extras = extras;
   o.low = low;
-  paint(o, glowOf(coat.patch !== undefined ? [coat.base, coat.light, coat.dark, coat.accent, coat.patch] : [coat.base, coat.light, coat.dark, coat.accent]), coat.accent);
+  // an Epic or Legendary coat's signature colours from its painted art (skins/coatVfx.ts), else the palette's glow
+  if (sig) paint(o, sig.glow, sig.accent);
+  else paint(o, glowOf(coat.patch !== undefined ? [coat.base, coat.light, coat.dark, coat.accent, coat.patch] : [coat.base, coat.light, coat.dark, coat.accent]), coat.accent);
   return o;
 }
 

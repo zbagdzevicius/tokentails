@@ -41,6 +41,7 @@ import * as ROCKET from './heroes/rocket';
 import * as FRANKIE from './heroes/frankie';
 import * as DOMINO from './heroes/domino';
 import { HERO_BUILD } from './heroSize';
+import { coatParts, type CoatPartsDef } from './coatParts';
 
 const GOLD = 0xffd34d;
 /** Cat hero head scale on top of PPK's hero tier, and the ear size: the squire head-to-ear ratio at hero size. */
@@ -265,11 +266,14 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number, 
   const capeHem = founder || dawn ? GOLD : chroma !== null ? chroma : guarded ? t.deep : (skinTrim ?? t.deep);
   const gem = chroma ?? skinEl;
   const band = chroma ?? skinTrim;
+  // gaps2 coats-models: an Epic or Legendary coat's own parts (./coatParts.ts), on every hero through `extras`
+  const parts = skin ? null : coatParts(look.coat, hero);
   const extras = (A: Parameters<NonNullable<ChibiSpec['gear']>>[0]): void => {
     if (gem !== null) A.add('chest', new THREE.OctahedronGeometry(0.03, 0), { m: mat([0, 0.12, 0.17], [0, 0, 0], [0.8, 1.1, 0.6]), color: gem });
     if (band !== null) G.armband(A, band);
+    parts?.build(A);
   };
-  const spec = heroBase(hero, team, look, detail, { t, skin, skinCoat, founder, dawn, pinkBow, chroma, capeColor, trim, capeHem, extras });
+  const spec = heroBase(hero, team, look, detail, { t, skin, skinCoat, founder, dawn, pinkBow, chroma, capeColor, trim, capeHem, extras, parts });
   if (!skin || !skinCoat || spec.head !== 'cat') return spec;
   // a cat champion in a card skin: the cat's coat, eyes, inner ears and nose (the hero's own eye size)
   const eyes: EyeSpec = { ...skin.eyes, ...(spec.eyes.size !== undefined ? { size: spec.eyes.size } : {}) };
@@ -292,6 +296,8 @@ export interface HeroDress {
   trim: number | null;
   capeHem: number;
   extras: (A: Assembly) => void;
+  /** The worn Epic or Legendary coat's parts (./coatParts.ts; `extras` builds them), null otherwise. */
+  parts: CoatPartsDef | null;
   /** The pose library (PPK + Pawlegends poses) for ChibiSpec.poses. */
   poses: Record<string, PoseDef | null>;
   /** The look's Treat Track or breed coat for this hero (null = the hero's default coat). */
@@ -365,7 +371,7 @@ function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Omi
           G.cape(A, founder || chroma !== null ? capeColor : t.deep, founder ? GOLD : (chroma ?? trim ?? 0x6fbf7f), { len: 0.3, bot: 0.2 });
           G.quiver(A);
           G.shortBow(A, undefined, undefined, 'bowIdle', new THREE.Vector3(0.2, 0.31, 0.17), -0.52);
-          G.pauldrons(A, t.main, 0x6fbf7f, 0.8);
+          if (!dr.parts?.drops?.includes('pauldrons')) G.pauldrons(A, t.main, 0x6fbf7f, 0.8);
           extras(A);
         },
       };
