@@ -8,7 +8,7 @@
  * top notification rail through `notify` (never mid-screen on phones).
  */
 import { encodeCommand } from '../sim/commands';
-import { Op, type Command, type HeroId, type MatchResult, type PartyReplayRecord, type PvpReplayRecord, type ReplayRecord, type SimEvent } from '../sim/api';
+import { Op, type Command, type HeroId, type MatchResult, type PartyReplayRecord, type PvpReplayRecord, type ReplayRecord, type SimEvent, type Snapshot } from '../sim/api';
 import { SIM_VERSION } from '../sim/version';
 import { decodeSnap, type WelcomeMsg } from '../host/protocol';
 import type { HostListener } from '../host/local-host';
@@ -84,6 +84,29 @@ const E2E = (() => {
 
 const golden = (): string => (typeof __SIM_GOLDEN__ !== 'undefined' ? __SIM_GOLDEN__ : '');
 
+/** `?e2e=1` (coop-sync.spec.ts): the world each client drew at every MP_PROBE_EVERY ticks, to compare across clients. */
+const MP_PROBE_EVERY = 150;
+function mpProbe(snap: Snapshot): void {
+  const d = document.documentElement.dataset;
+  let all: Record<string, unknown> = {};
+  try {
+    all = JSON.parse(d.mpProbe ?? '{}') as Record<string, unknown>;
+  } catch {
+    all = {};
+  }
+  const r = (n: number) => Math.round(n);
+  all[snap.clock.tick] = {
+    kills: snap.score.kills,
+    towers: snap.score.towers,
+    // every tower and core (both teams see them all) and every enemy unit this team sees
+    hp: snap.entities.filter((e) => e.kind === 'tower' || e.kind === 'core').map((e) => `${e.id}:${r(e.hp)}`).join(' '),
+    enemies: snap.entities.filter((e) => e.team === 1 && (e.kind === 'hero' || e.kind === 'minion')).map((e) => `${e.id}:${r(e.x)},${r(e.y)},${r(e.hp)}`).join(' '),
+  };
+  const keys = Object.keys(all).map(Number).sort((a, b) => a - b);
+  for (const k of keys.slice(0, Math.max(0, keys.length - 12))) delete all[k];
+  d.mpProbe = JSON.stringify(all);
+}
+
 export function workerTransport(onMsg: (m: CoreOut | { t: 'error'; message: string }) => void, onFail: (msg: string) => void) {
   if (typeof Worker === 'undefined') return null;
   try {
@@ -127,6 +150,10 @@ export class NetHost implements PartyLink {
   private lastMask = 0;
   private lastTurn = -1;
   private catching = false;
+  /** A TURN or CATCHUP arrived since `catching` was set (a status from before it says nothing about the catch-up). */
+  private catchFed = false;
+  /** The referee stopped resyncing this client (`room_gone` with `watch`): a bot flies its hero. */
+  desynced = false;
   private waitingShown = false;
   /** "Reconnecting…" waits this timer (LIVE-MATCH-DEPLOYS.md §6): a deploy move that rebinds sooner shows nothing. */
   private reconnectNoteTimer: ReturnType<typeof setTimeout> | null = null;
@@ -288,8 +315,11 @@ export class NetHost implements PartyLink {
     this.humans = [...match.config.humans];
     // ?e2e=1: a new match starts its own hash trail (a rematch never shows the last match's ticks)
     if (E2E) delete document.documentElement.dataset.mpTrail;
+    if (E2E) delete document.documentElement.dataset.mpProbe;
     // ?e2e=1 (spectate.spec.ts): the room a third client watches
     if (E2E) document.documentElement.dataset.mpRoom = match.room;
+    // ?e2e=1 (coop-sync.spec.ts): the room's heroes per slot (a rematch plays the heroes picked for it)
+    if (E2E) document.documentElement.dataset.mpPicks = match.config.picks.join(',');
     this.endInfo = { room: match.room, slot: match.you.slot, record: null, scored: null };
     this.coalescer = new MoveCoalescer((cmd) => this.sent(this.socket.sendCmd(encodeCommand(cmd))), {
       now: this.now,
@@ -328,7 +358,7 @@ export class NetHost implements PartyLink {
         },
         visible: () => {
           this.transport.post({ t: 'hidden', hidden: false });
-          this.catching = true;
+          this.startCatching();
           this.lastSyncMs = this.now();
           this.socket.sendJson({ t: 'sync', fromTurn: this.lastTurn + 1 });
         },
@@ -531,7 +561,12 @@ export class NetHost implements PartyLink {
   }
 
   private fromBinary(f: ServerBinary, raw: Uint8Array): void {
-    if (f.type === Frame.TURN || f.type === Frame.CATCHUP) this.bound();
+    // a disposed host (the last match, until the rematch's host takes the socket) never touches the socket again
+    if (this.disposed) return;
+    if (f.type === Frame.TURN || f.type === Frame.CATCHUP) {
+      this.catchFed = true;
+      this.bound();
+    }
     if (f.type === Frame.TURN) {
       // forward the body (without the type byte) as a transferable buffer
       const body = raw.slice(1);
@@ -539,11 +574,15 @@ export class NetHost implements PartyLink {
     } else if (f.type === Frame.CATCHUP) {
       const body = catchupBodies(raw);
       this.transport.post({ t: 'turns', bytes: body.buffer as ArrayBuffer, catchup: true }, [body.buffer as ArrayBuffer]);
-      if (f.f.turns.length > 30) this.catching = true;
+      if (f.f.turns.length > 30) this.startCatching();
     }
   }
 
   private fromJson(m: ServerJson): void {
+    // the last match's host must never answer the rematch's `match` with a sync from its own turn count (the relay
+    // then rebuilt the new room from turn 0 and HASH reporting stayed off for the whole rematch)
+    if (this.disposed) return;
+    if (m.t === 'match' && m.room !== this.match.room) return;
     if (m.t === 'match' && m.room === this.match.room) this.bound();
     switch (m.t) {
       case 'slot': {
@@ -567,7 +606,7 @@ export class NetHost implements PartyLink {
       case 'resync':
         this.transport.post({ t: 'rebuild' });
         this.lastTurn = -1;
-        this.catching = true;
+        this.startCatching();
         this.note({ key: 'mp-resync', title: 'Re-syncing…', tone: 'info' });
         return;
       case 'afk':
@@ -619,7 +658,13 @@ export class NetHost implements PartyLink {
       case 'error':
         if (m.code === 'seat_elsewhere') this.note({ key: 'mp-tab', title: 'Playing in another tab', tone: 'bad', ttl: 8000 });
         // a relay move (a deploy): the socket comes back by itself, quietly unless it takes longer than 1.5 s
-        else if (m.code === 'room_gone' || m.code === 'server_moving' || m.code === 'room_elsewhere') {
+        // the referee gave up resyncing this client (its world kept drifting): a bot flies the hero from here on. Say
+        // so plainly instead of a "Reconnecting…" that never ends (never a silent divergence)
+        else if (m.code === 'room_gone' && (m as { watch?: boolean }).watch === true) {
+          this.desynced = true;
+          this.note({ key: 'mp-desync', title: 'Out of sync with the match · a bot plays your hero', tone: 'bad', ttl: 15_000 });
+          this.opts.track?.('mp_desync', { abort: true, turn: this.lastTurn });
+        } else if (m.code === 'room_gone' || m.code === 'server_moving' || m.code === 'room_elsewhere') {
           this.quietUntil = this.now() + QUIET_WAIT_MS;
           this.noteReconnectLater();
         }
@@ -652,6 +697,7 @@ export class NetHost implements PartyLink {
         return;
       case 'snap': {
         const snap = decodeSnap(m.buf);
+        if (E2E && snap.clock.tick > 0 && snap.clock.tick % MP_PROBE_EVERY === 0) mpProbe(snap);
         this.listener.snap?.(snap);
         this.opts.spectate?.snap?.(snap);
         return;
@@ -687,6 +733,10 @@ export class NetHost implements PartyLink {
         this.acked(m.acks[this.mySlot]);
         this.lastTurn = m.lastTurn;
         this.socket.lastTurn = m.lastTurn;
+        // a catch-up short of a fast-forward (a resync, a 31–45 turn CATCHUP, a brief hide) ends when the core holds
+        // every turn the socket received and has stepped all but its jitter buffer: HASH reporting resumes. Before
+        // this, only a fast-forward's `progress done` cleared it, so the referee never heard from this client again
+        if (this.catching && this.catchFed && m.lastTurn >= 0 && (m.queue ?? 0) <= m.B && (m.high ?? m.lastTurn) >= (this.socket.receivedTurn ?? -1)) this.caughtUp();
         this.buffer = m.B;
         this.holds = m.holds;
         if (typeof m.margin === 'number') this.marginMs = m.margin;
@@ -783,6 +833,16 @@ export class NetHost implements PartyLink {
     if (this.outage) return;
     this.outage = { at: now, turn: this.lastTurn, via: 'resume' };
     this.opts.track?.('mp_disconnect', { cause });
+  }
+
+  private startCatching(): void {
+    this.catching = true;
+    this.catchFed = false;
+  }
+
+  /** HASH frames are paused while catching up (tests and the e2e diagnostics). */
+  get catchingUp(): boolean {
+    return this.catching;
   }
 
   private caughtUp(): void {

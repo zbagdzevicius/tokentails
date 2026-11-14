@@ -263,6 +263,16 @@ const ENDED = new Set(['party_not_found', 'party_ended', 'party_full', 'party_lo
 /** Out of a match with no seat to go back to: the ended screen says why (never a "Connecting…" that never ends). */
 const OUT_OF_MATCH = new Set(['seat_taken', 'room_over', 'match_lost']);
 const FATAL = new Set(['update_required', 'seat_elsewhere']);
+/** This build's sim source hash (the `hello.simHash`; the relay pins a party's room to the leader's). */
+const simHash = (): string => (typeof __SIM_HASH__ !== 'undefined' ? __SIM_HASH__ : '0000000000000000');
+
+/**
+ * The room runs this client's sim (version, and source hash when the relay sends it). Pure. A mismatch means this
+ * client would step bots, towers and takedowns with other code than its teammates and the referee.
+ */
+export function matchBuildOk(m: Pick<MatchMsg, 'simVersion' | 'simHash'>, version: number, hash: string): boolean {
+  return (m.simVersion === undefined || m.simVersion === version) && (m.simHash === undefined || m.simHash === hash);
+}
 
 export function screenOf(s: PartyState): PartyScreen {
   if (s.inMatch || s.solo) return 'match';
@@ -566,6 +576,11 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
     }
     case 'match':
       if (s.inMatch) return { state: s, effects: [] };
+      // a fatal error (update_required) is never cleared by a match, and a room on another build than this client's is
+      // never played: its world would drift from everyone else's (the founder's 2026-11-14 co-op report). Give the seat
+      // back (a bot flies it) and show Update
+      if (s.error?.code === 'update_required' || !matchBuildOk(m, SIM_VERSION, simHash()))
+        return { state: { ...s, inMatch: false, error: { code: 'update_required' } }, effects: [{ t: 'send', msg: { t: 'bye' } }] };
       return { state: { ...s, inMatch: true, solo: false, error: null }, effects: [{ t: 'match', match: m }] };
     case 'local':
       return { state: { ...s, solo: true }, effects: [{ t: 'solo', difficulty: m.difficulty }] };
@@ -588,6 +603,10 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       const retried = joinRetry(s, m.code);
       if (retried) return retried;
       if (m.code === 'party_elsewhere') return { state: s, effects: [] };
+      // a teammate runs another build: nothing starts until they update (the relay told them `update_required`)
+      if (m.code === 'party_update') return { state: s, effects: [{ t: 'note', note: { key: 'pp-update', title: COPY.teammateUpdate, tone: 'bad', ttl: 8000 } }] };
+      // the live build asked for a seat in a room started on an older one: it plays the party's next match
+      if (m.code === 'room_over' && !s.inMatch && s.view) return { state: s, effects: [{ t: 'note', note: { key: 'pp-room-old', title: COPY.roomOldBuild, tone: 'info', ttl: 8000 } }] };
       if (m.code === 'room_over')
         return s.inMatch
           ? { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'room_over' }, asked: false, joining: null, rejoin: false }, effects: [{ t: 'seat-taken' }] }
@@ -734,7 +753,6 @@ const SIDE_EVERY_MS = 2100;
 /** `mm.cancel{server}` with no restart welcome after this long: search again on the same socket. */
 export const SERVER_WAIT_MS = 6000;
 
-const simHash = (): string => (typeof __SIM_HASH__ !== 'undefined' ? __SIM_HASH__ : '0000000000000000');
 const DIFFS = ['easy', 'normal', 'hard'] as const;
 
 export class PartyClient {
@@ -745,6 +763,8 @@ export class PartyClient {
   state: PartyState;
   private host: NetHost | null = null;
   private hover: string;
+  /** A hero tapped only to read its skills (it cannot be locked by this player now): the panel shows it. */
+  private peek = '';
   private trick: string;
   private timer: ReturnType<typeof setInterval> | null = null;
   private decideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1200,6 +1220,7 @@ export class PartyClient {
   private enteredPick(): void {
     const v = this.state.view!;
     const me = v.members.find((m) => m.id === v.you);
+    this.peek = '';
     // rematch prefills the last pick; otherwise the title's hero, when free
     if (me?.hero) this.hover = me.hero;
     if (me?.trick) this.trick = me.trick;
@@ -1226,8 +1247,22 @@ export class PartyClient {
     const taker = lockedByOthers(v).get(this.hover);
     if (!taker && !heroBlock(v, this.hover)) return;
     if (taker) this.note({ key: 'pp-taken', title: COPY.heroTaken(heroName(this.hover), taker), tone: 'info', ttl: 3500 });
+    // the panel keeps showing the hero that was just taken (LOCK IN says "Taken by …") until the player taps another
+    this.peek = this.hover;
     this.hover = me?.hero && !heroBlock(v, me.hero) ? me.hero : '';
     this.drawn = '';
+  }
+
+  /** Move this player's lock to `hero` (unlock, then lock: the relay takes them in socket order). */
+  private swapLock(hero: string): void {
+    this.unlocking = true;
+    this.peek = '';
+    this.hover = hero;
+    this.socket.sendJson({ t: 'pick.unlock' });
+    this.socket.sendJson({ t: 'pick.lock', hero, trick: this.trick });
+    this.h.analytics?.('party_pick', { hero, locked_s_left: Math.max(0, Math.round((this.deadlineAt - this.now()) / 1000)), auto: false, newbie: this.h.newbie });
+    this.drawn = '';
+    this.render();
   }
 
   // -------------------------------------------------------------------------------------------- results together (M6)
@@ -1269,6 +1304,8 @@ export class PartyClient {
     this.resultsEl = el;
     this.resultsDone = done;
     this.againPressed = false;
+    // a "Play again together" from an earlier results screen whose vote never passed keeps nothing
+    this.keepHero = false;
   }
 
   /** "Play again together" (keep the hero) or "Change hero" (the pick stays open). */
@@ -1418,13 +1455,31 @@ export class PartyClient {
         this.render();
         return;
       }
-      case 'hero':
+      case 'hero': {
         if (!HERO_IDS.includes(t.dataset.v as never)) return;
-        this.hover = t.dataset.v!;
+        const hero = t.dataset.v!;
+        const me = v?.members.find((m) => m.id === v.you);
+        const why = v ? heroBlock(v, hero, hideNames()) : '';
+        // locked in (the hero "Play again together" kept, or an earlier LOCK IN) and a free champion tapped: the lock
+        // moves to it at once. Before, the tap only showed its skills and the rematch started on the old hero 5 s later
+        if (v && v.phase === 'pick' && me?.locked && !why && hero !== me.hero) {
+          this.swapLock(hero);
+          return;
+        }
+        // a hero this player cannot lock now (taken, the other side, or the one already locked in): show its skills only
+        if (v && (me?.locked || why)) {
+          this.peek = hero;
+          this.drawn = '';
+          this.render();
+          return;
+        }
+        this.peek = '';
+        this.hover = hero;
         s.sendJson({ t: 'pick.hover', hero: this.hover });
         this.drawn = '';
         this.render();
         return;
+      }
       case 'info': {
         // champion browser: skills and lore; Select hovers the hero as a tap on its card does (the pick timer runs on)
         if (!HERO_IDS.includes(t.dataset.v as never)) return;
@@ -1442,6 +1497,7 @@ export class PartyClient {
               return heroBlock(view, h, hideNames());
             },
             on: (h) => {
+              this.peek = '';
               this.hover = h;
               this.socket.sendJson({ t: 'pick.hover', hero: h });
               this.drawn = '';
@@ -1458,6 +1514,13 @@ export class PartyClient {
         this.render();
         return;
       case 'lock':
+        // the panel's hero is what LOCK IN locks: a viewed hero that became free (its taker changed, the leader
+        // switched side) is hovered first
+        if (v && this.peek && !heroBlock(v, this.peek)) {
+          this.hover = this.peek;
+          s.sendJson({ t: 'pick.hover', hero: this.hover });
+        }
+        this.peek = '';
         if (!v || !this.hover || heroBlock(v, this.hover)) return;
         s.sendJson({ t: 'pick.lock', hero: this.hover, trick: this.trick });
         this.h.analytics?.('party_pick', { hero: this.hover, locked_s_left: Math.max(0, Math.round((this.deadlineAt - this.now()) / 1000)), auto: false, newbie: this.h.newbie });
@@ -1761,8 +1824,13 @@ export class PartyClient {
         break;
       case 'pick':
         // a new pick opens on the hovered hero's side, the role filter cleared (champion select §B2)
-        if (!this.card.querySelector(':scope > .cs')) openChampSelect(this.hover && this.hover in HEROES ? (this.hover as HeroId) : null);
-        html = pickHtml({ view: s.view!, hover: this.hover, trick: this.trick, secondsLeft: this.secondsLeft(), error: err, hideNames: hideNames(), found: s.found }, { numbers: profileNumbers() });
+        if (!this.card.querySelector(':scope > .cs')) {
+          // a member opens on the leader's side (the only side it can lock), else on its hovered hero's side
+          const v = s.view!;
+          const lead = v.leader !== v.you && !v.mm ? v.members.find((m) => m.id === v.leader)?.hero : undefined;
+          openChampSelect(this.hover && this.hover in HEROES ? (this.hover as HeroId) : null, lead && lead in HEROES ? HEROES[lead as HeroId].side : null);
+        }
+        html = pickHtml({ view: s.view!, hover: this.hover, peek: this.peek, trick: this.trick, secondsLeft: this.secondsLeft(), error: err, hideNames: hideNames(), found: s.found }, { numbers: profileNumbers() });
         break;
       case 'loading':
         html = loadingHtml(s.view!);

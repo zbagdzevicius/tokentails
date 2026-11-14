@@ -144,7 +144,9 @@ describe('shared pick (P7)', () => {
     const v = pick();
     const el = mount(pickHtml({ view: v, hover: 'sage', trick: 'pounce', secondsLeft: 20, error: null }));
     const clem = el.querySelector('[data-testid="party-hero-clem"]') as HTMLButtonElement;
-    expect(clem.disabled).toBe(true);
+    // not lockable, still tappable to read its skills (Wild Rift: any champion can be inspected)
+    expect(clem.getAttribute('aria-disabled')).toBe('true');
+    expect(clem.disabled).toBe(false);
     expect(clem.querySelector('.pp-taken')!.textContent).toBe('Taken: Sunny Tabby');
     expect(heroBlock(v, 'clem')).toBe('Sunny Tabby');
   });
@@ -153,7 +155,7 @@ describe('shared pick (P7)', () => {
     const v = pick();
     const el = mount(pickHtml({ view: v, hover: 'sage', trick: 'pounce', secondsLeft: 20, error: null }));
     const brutus = el.querySelector('[data-testid="party-hero-brutus"]') as HTMLButtonElement;
-    expect(brutus.disabled).toBe(true);
+    expect(brutus.getAttribute('aria-disabled')).toBe('true');
     expect(brutus.classList.contains('locked')).toBe(true);
     expect(brutus.getAttribute('aria-label')).toContain('Leader chose cats');
     expect(el.querySelector('[data-testid="party-side-note"]')!.textContent).toBe('Leader chose cats');
@@ -183,13 +185,33 @@ describe('shared pick (P7)', () => {
     expect(el.querySelector('[data-testid="party-hero-clem"] .pp-try')!.textContent).toBe('New? Try this');
   });
 
-  it('locked in: every hero and trick is disabled and the button says so', () => {
+  it('locked in: free heroes stay tappable (a tap moves the lock), every trick disabled, and the button says so', () => {
     const v = pick({ you: 'a' });
     const el = mount(pickHtml({ view: v, hover: 'clem', trick: 'pounce', secondsLeft: 20, error: null }));
-    expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="hero"]')].every((b) => b.disabled)).toBe(true);
+    // the founder's 2026-11-14 report: after "Play again together" a tap on another champion did nothing
+    expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="hero"]')].some((b) => b.getAttribute('aria-disabled') === 'true')).toBe(false);
     expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="trick"]')].every((b) => b.disabled)).toBe(true);
     expect(el.querySelector('[data-testid="party-lock"]')!.textContent).toBe('Locked in');
     expect(el.querySelector('[data-testid="party-unlock"]')!.textContent).toBe('Change hero');
+  });
+
+  it('a viewed hero (taken, the other side) fills the panel; LOCK IN says why and the seat keeps the hover', () => {
+    const v = pick();
+    const el = mount(pickHtml({ view: v, hover: 'sage', peek: 'brutus', trick: 'pounce', secondsLeft: 20, error: null }));
+    expect(el.querySelector('.cs-panel')!.getAttribute('data-hero')).toBe('brutus');
+    expect(el.querySelector('[data-testid="party-hero-brutus"]')!.classList.contains('on')).toBe(true);
+    const lock = el.querySelector<HTMLButtonElement>('[data-testid="party-lock"]')!;
+    expect(lock.disabled).toBe(true);
+    expect(lock.textContent).toContain('Leader chose cats');
+    expect(el.querySelector('.cs-seat[data-me="1"]')!.getAttribute('data-hero')).toBe('sage');
+  });
+
+  it('5v5: five seats, the own team by slot, and teammate dots for slots 3 and 4', () => {
+    const members = [0, 1, 2, 3, 4].map((i) => ({ id: `m${i}`, name: `P${i}`, guest: false, conn: 'on' as const, slot: i, hero: i === 4 ? 'rocket' : undefined }));
+    const v = pick({ members, you: 'm0', leader: 'm0', mm: { side: 'cat', team: 0, mode: 'classic', teamSize: 5 } as never });
+    const el = mount(pickHtml({ view: v, hover: 'sage', trick: 'pounce', secondsLeft: 20, error: null }));
+    expect(el.querySelectorAll('.cs-team .cs-seat')).toHaveLength(5);
+    expect(el.querySelector('.cs')!.getAttribute('data-seats')).toBe('5');
   });
 });
 

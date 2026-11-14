@@ -132,6 +132,8 @@ export const COPY = Object.freeze({
   seatTaken: 'Your seat was taken',
   seatTakenNote: 'Another player took your seat after you left',
   roomOver: 'The match ended while you were away',
+  teammateUpdate: 'A teammate runs an older game version: they must update before you play together',
+  roomOldBuild: 'Your team started on an older game version: you join their next match',
   playAgainOnline: 'Play again',
   backToParty: 'Back to party',
   coopLeave: 'Leaving early adds a short wait before your next online match. Another player or a bot takes your place.',
