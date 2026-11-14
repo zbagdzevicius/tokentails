@@ -8,6 +8,7 @@ import type { CatTier, Element } from '../../meta/roster';
 import type { HeroId } from '../../sim/api';
 import { PAID_COATS } from '../cosmetics';
 import { profileFromCard, profileFromCoatSpec, type SkinFxProfile } from './effectKit';
+import { coatSig } from './coatVfx';
 import type { CatSkin } from './skinStore';
 
 /** A coat's rung and element (null: not a store or pass coat, or not this hero's). */
@@ -23,7 +24,7 @@ export function profileFromCoat(coatId: string | null | undefined, hero: HeroId 
   if (!coatId) return null;
   const c = PAID_COATS[coatId];
   if (!c || (hero && c.hero !== hero)) return null;
-  return profileFromCoatSpec(c.coat, c.name, c.rung, c.element, id, self, team, extras, low, out, mate);
+  return profileFromCoatSpec(c.coat, c.name, c.rung, c.element, id, self, team, extras, low, out, mate, coatSig(coatId));
 }
 
 /**

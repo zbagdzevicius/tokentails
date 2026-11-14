@@ -264,6 +264,29 @@ Evidence: tier stills and 6-frame loops in `docs/plans/moba/card-skins/` (`<tier
 Brutus (Thunderpaw): his armour, jacket, cape and mantle cover most of the body, so any coat (store or free) shows on
 the pug head and tail only; the team cloth (Woof ochre) is what reads orange. The coat is applied (`lookCoat`). Perf numbers are in the branch's hand-off note; the real-phone PERF-IOS §8 check is still open.
 
+### 6.6 Coat parts: Epic and Legendary coats change the model (2026-11-14)
+
+Before this, a coat in a match only recoloured the model (Dawnblade and Pink Bow excepted). Now every Epic and
+Legendary coat adds code-built parts that follow its painted art in the skins library (brandbook v6 `skins/img`), plus
+its own effect colours:
+
+| Coat | Parts (render/chars/coatParts.ts) | Effect glow / accent (render/skins/coatVfx.ts) |
+|---|---|---|
+| Sunforged Clem | sun halo with flame rays behind the head, sun medallion on the plate, sun-ray pauldron flares, magenta battle skirt | sunrise orange / magenta |
+| Thunderpaw Brutus | gold bolt across the shield face, bolt crests on the helmet sides, bolt emblem on the cape back, bolt on the blade | volt yellow / storm blue |
+| Eclipse Duchess | eclipse orb with a gold corona and rays at her shoulder, amethyst tiara crest, rose brooch | violet / gold |
+| Frostbell Marshmallow | ribbed mustard knit cuff on the hat, snowflake pin, frost bell on the scarf, ice crystal on the tail | ice blue / mustard |
+| Moonwhisker Pixel | crescent moon round the antenna bead, gold stars on the box front and sides, tail star | lavender / moon gold |
+| Bloomtail Sage | flower crown on the hood, leaf pauldrons (replacing the plate domes), bloom on the tail tip | petal pink / leaf green |
+
+Rules: parts are vertex-coloured pieces on the hero's one skinned mesh (no extra draw call); ≤ 6k triangles at Med
+with a chroma on top; Low (detail < 0.9) keeps the signature pieces and drops the trims (≤ 260 extra triangles); the
+team colour stays on hoods, helmets, mantles, capes, hat crowns and box flaps. Another player's hero draws the effect
+colours team-safe (`trimForTeam`). The store's coat line names the parts. Test: `tests/unit/coat-parts.test.ts`
+(every Epic+ coat declares parts and colours, the mesh changes, budgets, a Rare coat stays a palette swap); e2e
+`tests/e2e/coat-parts.spec.ts` (the coat is worn in a bot match; `COAT_SHOTS=<dir>` saves screenshots). Dev views:
+`/landing-portrait.html?hero=<hero>&coat=<id>&turn=<rad>` and `/gallery.html?hero=<hero>&coat=<id>&cam=game`.
+
 ## 7. Phase 2 (not in the MVP)
 
 - Peer looks in PvP/party: read the relay's `cosmetics.heroSkins` and the planned `party.look` so others see your card
