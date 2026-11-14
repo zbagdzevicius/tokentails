@@ -69,9 +69,13 @@ test('the editor: drag, refuse an overlap, save; the match lays out what was sav
 
   await live(page);
   await expect(page.locator('.pl-touch')).toHaveAttribute('data-hud-layout', 'custom');
-  const qm = await centre(page, '.pl-tbtn.q');
-  expect(Math.abs(qm.x - q1.x)).toBeLessThanOrEqual(2);
-  expect(Math.abs(qm.y - q1.y)).toBeLessThanOrEqual(2);
+  // polled: the cluster can still be settling for a frame or two after the controls show
+  await expect
+    .poll(async () => {
+      const qm = await centre(page, '.pl-tbtn.q');
+      return Math.max(Math.abs(qm.x - q1.x), Math.abs(qm.y - q1.y));
+    }, { timeout: 5000 })
+    .toBeLessThanOrEqual(2);
   const mm = (await page.locator('.pl-minimap').boundingBox())!;
   // the editor's group is the box plus the Fish chip's 18 px under it; its top-left is the box's
   const groupTop = m1.y - (mm.height + 18) / 2;
