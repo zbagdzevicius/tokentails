@@ -129,29 +129,39 @@ Ship Pawlegends to the Apple App Store as its own iPhone app.
 
 ### OTA flow
 
-We use Capgo in manual mode: `autoUpdate: false`, `statsUrl: ""`, `resetWhenUpdate: true`, `autoDeletePrevious: true`, `appReadyTimeout: 10000`, plus a `publicKey`.
+The current flow, the update policy and the force update are in `docs/plans/moba/FORCE-UPDATE.md` and
+`pawlegends-app/README.md` ("Over-the-air updates"). In short:
 
-1. The release job builds the app web bundle, zips it and encrypts it with our private key. It gets the checksum and `session_key`.
-2. It writes the zip and a manifest to `client/public/pawlegends-app/ios/<compat>/`:
-   `manifest.json = { version, url, checksum, session_key, simVersion, minNative }`.
-   Vercel serves it as static files.
-3. On launch and on resume, `ota.ts` GETs the manifest for its own `<compat>`. No device id is sent.
-4. If `version` is newer, it calls `CapacitorUpdater.download(...)`, then `next()`. The new bundle applies on the next background or launch. The player is never interrupted in a match.
-5. The new bundle calls `notifyAppReady()` once the title screen renders. If it does not within 10 s, Capgo reverts to the last good bundle or the built-in one, and deletes the failed one.
+- Capgo runs in manual mode: `autoUpdate: false`, `statsUrl: ""`, `resetWhenUpdate: true`, `autoDeletePrevious: true`,
+  `appReadyTimeout: 30000`, plus a `publicKey`.
+- `scripts/ota-publish.mjs` (workflow *Pawlegends OTA*) zips, encrypts and signs the bundle into
+  `client/public/pawlegends-app/updates/ios/<compat>/bundles/`, writes the signed manifests
+  `updates/<ios|android>/<compat>/manifest(-beta).json` (beta on every push, stable after a soak) and the signed
+  `policy.json` next to them. The key is the `OTA_PRIVATE_KEY` GitHub secret.
+- The shell's update gate (`src/shell/gate.ts`) asks `GET /pawlegends/client-policy` (or the signed `policy.json` when
+  the API is down) at launch, on resume on the title, and whenever the game returns to the title. A required update
+  downloads with progress and reloads into the new bundle before play; never mid-match. A bundle that does not reach
+  the title within 30 s is reverted by the updater and never tried again.
+- The 1.0.x apps (compat 1) get the compat-1 bridge bundle: an "Update Paw Legends" page with the store links.
 
 Rules:
 
-- `<compat>` is the native compat version, for example `1`. It changes only when the native shell changes (new plugin, new Info.plist key). A bundle is only offered to shells with the same compat. A new native build drops old OTA bundles (`resetWhenUpdate`).
-- OTA carries JS, HTML, CSS and assets only. It never adds a native plugin, purchases, a storefront or a new purpose. Big features ship as a native release so App Review sees them.
-- Rollback: re-point `manifest.json` at an older version folder and push. Devices with a broken bundle revert by themselves through the watchdog.
-- The encryption key pair is made once with `npx @capgo/cli key create`. The public key is in the app config. The private key lives only in the `CAPGO_PRIVATE_KEY` GitHub secret.
+- `<compat>` is the native compat version (`NATIVE_COMPAT`, 2 today). It changes only when the native shell changes (a
+  new plugin, a new Info.plist key). A bundle is only offered to shells with the same compat. A new native build drops
+  old OTA bundles (`resetWhenUpdate`).
+- OTA carries JS, HTML, CSS and assets only. It never adds a native plugin, purchases, a storefront or a new purpose. Big
+  features ship as a native release so App Review sees them.
+- Rollback: workflow input `rollback_to`, or `node scripts/ota-publish.mjs --rollback <version>`. The policy makes the
+  rollback a required update.
 
 ### Sim compatibility
 
-- The relay refuses an unknown `SIM_VERSION` with `update_required`. Live today: sim 14, accepted 10 to 14.
+- The relay refuses an unknown `SIM_VERSION` with `update_required`; `/live` refuses it with `400 PAWLEGENDS_SIM_VERSION`
+  and an `update` block, which the game shows as "Update needed" and turns into an update (FORCE-UPDATE.md §5.3).
 - The OTA publish job runs `npm run vendor-sim:check-remote` and fails if the backend does not accept the bundle's sim.
-- Order of release: deploy the backend with the new sim first, then publish OTA, and drop the old sim from the backend only after OTA has been out for 14 days.
-- On `update_required` the app asks for an OTA check and shows "Updating…". Offline bot play always works whatever the sim.
+- Order of release: deploy the backend with the new sim first, then publish OTA. A release with a new sim is required at
+  once on every phone of its channel.
+- Offline bot play works while the backend still accepts the installed sim (the gate's offline rule).
 
 ## Review-risk register
 
