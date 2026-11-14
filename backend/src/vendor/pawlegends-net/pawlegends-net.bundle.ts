@@ -532,6 +532,11 @@ export const ERROR_CODES = [
   'watch_full',
   /** PROTO 7: the match runs another game version than this client: update to watch it. */
   'watch_update',
+  /**
+   * A teammate runs another game version (sim) than this client, so the party cannot start or rematch: the teammate
+   * on the older build is told `update_required`; everyone else gets this (non-fatal: the lobby stays).
+   */
+  'party_update',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -875,6 +880,11 @@ export interface MatchMsg {
   startInMs: number;
   lastSeq: number;
   simVersion: number;
+  /**
+   * The room's sim source hash (`hello.simHash` of the leader that pinned it). A client whose own build differs never
+   * plays the room: its world would drift from everyone else's (a desync no resync can mend). Absent from older relays.
+   */
+  simHash?: string;
   /** PROTO 2: 'coop' for a Quick Play room (absent for a friend party); PROTO 3: 'casual' for a PvP room. */
   mode?: 'coop' | 'casual';
   /** PROTO 3 casual: the species of each team ([team 0, team 1]). */

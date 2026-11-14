@@ -335,7 +335,9 @@ describe('party relay lane P', () => {
         }
     });
 
-    it('in a party a v13 leader pins, a v14 member cannot lock a v14 dog', async () => {
+    it('a v13 leader with a live-build member: no pick and no room (one build per party), the leader must update', async () => {
+        // before 2026-11-14 the party started pinned to v13 and the live member played its own world (the founder's
+        // co-op report); now a mixed party is refused at the start
         const b = await boot();
         try {
             const a = await b.client();
@@ -349,12 +351,9 @@ describe('party relay lane P', () => {
             c.send({ t: 'party.join', code: pa.code });
             await a.until(() => a.last('party')?.members.length === 2);
             a.send({ t: 'party.start' });
-            await a.until(() => a.last('party')?.phase === 'pick');
-            a.send({ t: 'pick.lock', hero: 'brutus', trick: 'pounce' });
-            c.send({ t: 'pick.lock', hero: 'nugget', trick: 'pounce' });
-            c.send({ t: 'pick.lock', hero: 'cacklejaw', trick: 'pounce' });
-            const v = await a.until(() => (a.last('party')?.phase === 'loading' ? a.last('party') : null));
-            expect(v.members.map((x: { hero?: string }) => x.hero)).toEqual(['brutus', 'cacklejaw']);
+            await a.until(() => a.json.some(j => j.t === 'error' && j.code === 'update_required'));
+            await c.until(() => c.json.some(j => j.t === 'error' && j.code === 'party_update'));
+            expect(a.last('party')?.phase).toBe('lobby');
         } finally {
             await b.stop();
         }

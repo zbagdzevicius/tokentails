@@ -1420,6 +1420,9 @@ export class PartyRelay {
             case 'party.card':
                 return void this.card(s, msg.catId);
             case 'party.start': {
+                // a mixed-build party never reaches the pick (checked again when the room starts)
+                const sp = p.partyOf(member);
+                if (sp && sp.leader === member && this.refuseSimSkew(sp)) return;
                 const r = p.start(member);
                 if (r === 'pick' && this.gate.busy()) {
                     this.error(s, 'server_busy', 15_000);
@@ -1444,7 +1447,11 @@ export class PartyRelay {
                 return;
             }
             case 'vote': {
-                if (msg.kind === 'rematch') return p.rematch(member, msg.yes);
+                if (msg.kind === 'rematch') {
+                    const rp = p.partyOf(member);
+                    if (msg.yes && rp && rp.phase === 'results' && !rp.mm && this.refuseSimSkew(rp)) return;
+                    return p.rematch(member, msg.yes);
+                }
                 const live = this.seatOf(s);
                 if (live) live.room.castVote(s.seatSlot, msg.kind, msg.yes, this.now());
                 return;
@@ -2208,11 +2215,11 @@ export class PartyRelay {
         for (const ip of ipsHere) if (this.liveRoomsOf('', ip).ip >= PARTY_LIMITS.roomsLivePerIp) return refuse();
         const entry = partySimFor(sim.version, sim.hash);
         if (!entry?.party) return refuse();
-        // every member must run the leader's sim (the party is pinned to it)
-        for (const m of party.members) {
-            const ms = this.byMember.get(m.id)?.sim;
-            if (ms && (ms.version !== sim.version || ms.hash !== sim.hash))
-                this.sendJsonTo(m.id, { t: 'error', code: 'update_required' });
+        // every member must run the leader's sim (the party is pinned to it): a member on another build would play its
+        // own world (bots, towers, takedowns) while the others play theirs. Never seat a mixed party
+        if (this.refuseSimSkew(party)) {
+            this.parties.matchEnded(party.id);
+            return;
         }
         const ps = entry.party;
         // the lobby only offers the pinned sim's heroes (PartyRules.heroesOf), so a seat with a hero that sim lacks is a
@@ -2414,15 +2421,45 @@ export class PartyRelay {
             startInMs: Math.max(0, startInMs),
             lastSeq: live.room.slots[slot]?.lastSeq ?? 0,
             simVersion: live.sim.version,
+            simHash: live.sim.hash,
             ...(live.coop ? { mode: 'coop' as const } : {}),
             ...(live.casual ? { mode: 'casual' as const, species: live.casual.species } : {}),
             ...(live.config.map ? { map: live.config.map, teamSize: teamSizeOfLive(live) } : {}),
         };
     }
 
+    /**
+     * Mixed builds (the founder's 2026-11-14 co-op report): every connected member must run the same sim, version and
+     * source hash. When they do not, the members not on the live sim are told `update_required` (fatal: the client shows
+     * Reload) and the others `party_update` (a teammate must update first); nothing starts. True when refused.
+     */
+    private refuseSimSkew(party: Party): boolean {
+        const sims = party.members
+            .map(m => ({ id: m.id, sim: this.byMember.get(m.id)?.sim ?? null }))
+            .filter((x): x is { id: string; sim: { version: number; hash: string } } => !!x.sim);
+        if (new Set(sims.map(x => `${x.sim.version}:${x.sim.hash}`)).size <= 1) return false;
+        const liveHash = simFor(LIVE_SIM_VERSION)?.SIM_SOURCE_HASH;
+        const onLive = (x: { sim: { version: number; hash: string } }) =>
+            x.sim.version === LIVE_SIM_VERSION && x.sim.hash === liveHash;
+        for (const x of sims)
+            this.sendJsonTo(x.id, { t: 'error', code: onLive(x) ? 'party_update' : 'update_required' });
+        this.log('refused_sim_skew', { sims: new Set(sims.map(x => x.sim.version)).size });
+        return true;
+    }
+
     private bindSeat(s: Sock, live: LiveRoom, memberId: string, startInMs = 0): void {
         const slot = live.seats.get(memberId);
         if (slot === undefined) return;
+        // a seat runs the room's sim or none: a reload or a rejoin on another build would play a world of its own
+        if (s.sim && (s.sim.version !== live.sim.version || s.sim.hash !== live.sim.hash)) {
+            // a build behind the live one updates; the live one (the room started on an older build) waits for the
+            // next match, which the party starts on one build again
+            const liveSim =
+                s.sim.version === LIVE_SIM_VERSION && s.sim.hash === simFor(LIVE_SIM_VERSION)?.SIM_SOURCE_HASH;
+            this.error(s, liveSim ? 'room_over' : 'update_required');
+            this.log('refused_seat_sim', { room: live.sim.version, seat: s.sim.version });
+            return;
+        }
         s.seatRoom = live.room.id;
         s.seatSlot = slot;
         // SPECTATE.md: a player who keeps their matches private closes the room to spectators (who are told so)

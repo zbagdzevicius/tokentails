@@ -9,7 +9,7 @@
  */
 import { createHash } from 'crypto';
 import { clientIpKey } from '../../shared/client-ip';
-import { partySimFor } from '../../vendor/pawlegends-sim';
+import { partySimFor, simFor, SIM_VERSION as LIVE_SIM_VERSION } from '../../vendor/pawlegends-sim';
 import type { MemberIdentity, Party, PartyService } from '../party/party.service';
 import { AFK_REASONS } from '../party/room';
 import { PROTO_CLASSIC, teamOfSlot } from '../party/net';
@@ -533,6 +533,22 @@ export class MmBridge implements MmHooks {
         }
         const socks = memberIds.map(id => api.sock(id)).filter((x): x is MmSock => !!x);
         if (socks.length !== memberIds.length) return this.refuse(member, 'party_busy', undefined, 'party_away');
+        // one build per entry: the queue groups by the joiner's sim, so a teammate on another build would play a world
+        // of its own in the matched room. Members off the live build update; the others hear that a teammate must
+        if (new Set(socks.map(s => `${s.sim.version}:${s.sim.hash}`)).size > 1) {
+            const liveHash = simFor(LIVE_SIM_VERSION)?.SIM_SOURCE_HASH;
+            this.tally.mm_refused++;
+            this.api.log('mm_refused', { reason: 'party_sim' });
+            for (const s of socks)
+                api.send(s.member, {
+                    t: 'error',
+                    code:
+                        s.sim.version === LIVE_SIM_VERSION && s.sim.hash === liveHash
+                            ? 'party_update'
+                            : 'update_required',
+                });
+            return;
+        }
         if (queue === 'ranked' && (await this.rankedRefusal(member, socks))) return;
         // the live-room caps (1 per identity, 4 per IP) are checked now, not after the fill: a seat this identity
         // still holds from a closed tab is given up; anything else is refused with a time (never a silent cancel)
