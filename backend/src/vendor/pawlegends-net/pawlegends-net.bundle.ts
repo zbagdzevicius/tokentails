@@ -616,7 +616,11 @@ export type ClientJson =
   | { t: 'back' }
   | { t: 'bye' }
   // PROTO 2 (Quick Play co-op)
-  | { t: 'mm.join'; queue: MmQueue; side: MmSide; region?: string }
+  /**
+   * `bots` (ranked only, SOCIAL-RANKED.md §7.11): this game labels bots, so a quiet ranked queue may fill the search
+   * with them or play it vs AI. Additive (no PROTO bump): the relay that understands it ships before the game sends it.
+   */
+  | { t: 'mm.join'; queue: MmQueue; side: MmSide; region?: string; bots?: true }
   | { t: 'mm.leave' }
   | { t: 'mm.side'; side: MmSide }
   | { t: 'mm.backfill'; offer: string; yes: boolean }
@@ -722,6 +726,7 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
     queue: [(v) => typeof v === 'string' && (MM_QUEUES as readonly string[]).includes(v), false],
     side: [(v) => typeof v === 'string' && (MM_SIDES as readonly string[]).includes(v), false],
     region: [isStr(/^[a-z0-9-]{1,16}$/), true],
+    bots: [(v) => v === true, true],
   },
   'mm.leave': {},
   'mm.side': { side: [(v) => typeof v === 'string' && (MM_SIDES as readonly string[]).includes(v), false] },
@@ -951,6 +956,8 @@ export type ServerJson =
       from?: 'casual';
       /** PROTO 3: back at the front after someone declined a found match. */
       requeued?: boolean;
+      /** Ranked (SOCIAL-RANKED.md §7.11): players searching this pool now (bots never counted). */
+      searching?: number;
     }
   | {
       t: 'mm.found';
@@ -968,6 +975,8 @@ export type ServerJson =
       teamSize?: 3 | 5;
       /** Ranked: the found match is ranked (the Accept card says so). */
       queue?: 'ranked';
+      /** Ranked vs AI (SOCIAL-RANKED.md §7.11): your team against bots (no Accept card; quarter points). */
+      ai?: true;
     }
   /** PROTO 3 casual: who accepted so far (counts only). */
   | { t: 'mm.accepted'; match: string; yes: number; need: number }

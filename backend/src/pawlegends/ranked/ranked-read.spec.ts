@@ -1,32 +1,9 @@
 import { SocialMemoryModel, TestClock } from '../social/social-model.helper-spec';
 import { isoWeek } from './boards';
 import { RankedService } from './ranked.service';
-import { nextGate, RankedStatusService } from './status';
+import { RankedStatusService } from './status';
 
-const MIN = 60_000;
-
-describe('ranked liquidity gate (SOCIAL-RANKED.md §7.9)', () => {
-    it('opens at 24 online and closes only after 10 minutes under 16', () => {
-        const t0 = new Date(Date.UTC(2026, 10, 12, 12));
-        const at = (m: number) => new Date(t0.getTime() + m * MIN);
-        let g = nextGate(null, 23, at(0));
-        expect(g.open).toBe(false);
-        g = nextGate(g, 24, at(1));
-        expect(g).toMatchObject({ open: true, online: 24, need: 24 });
-        g = nextGate(g, 18, at(2));
-        expect(g.open).toBe(true);
-        g = nextGate(g, 15, at(3));
-        expect(g).toMatchObject({ open: true, lowSince: at(3) });
-        g = nextGate(g, 16, at(5));
-        expect(g).toMatchObject({ open: true, lowSince: null });
-        g = nextGate(g, 10, at(6));
-        g = nextGate(g, 10, at(15.9));
-        expect(g.open).toBe(true);
-        g = nextGate(g, 10, at(16));
-        expect(g.open).toBe(false);
-        expect(nextGate(g, 20, at(17)).open).toBe(false);
-    });
-
+describe('ranked live numbers (SOCIAL-RANKED.md §7.9, §7.11)', () => {
     it('the service counts ranked-eligible presence rows that have not expired', async () => {
         const clock = new TestClock();
         const presence = new SocialMemoryModel(
@@ -40,8 +17,32 @@ describe('ranked liquidity gate (SOCIAL-RANKED.md §7.9)', () => {
         );
         const status = new SocialMemoryModel([], [{ fields: ['_id'] }], clock.now);
         const svc = new RankedStatusService(status, presence, clock);
-        expect(await svc.refresh()).toMatchObject({ open: true, online: 24 });
+        expect(await svc.refresh()).toMatchObject({ open: true, online: 24, searching: 0 });
         expect(status.docs[0]).toMatchObject({ _id: 'ranked', open: true, online: 24 });
+    });
+
+    it('always open with a few players: counts only accounts searching ranked (round 4, no gate)', async () => {
+        const clock = new TestClock();
+        const exp = new Date(clock.ms + 60_000);
+        const presence = new SocialMemoryModel(
+            [
+                { _id: 'a', rk: 1, exp, relay: { state: 'queue', q: 'ranked', at: clock.now() } },
+                { _id: 'b', rk: 1, exp, relay: { state: 'queue', at: clock.now() } },
+                { _id: 'c', rk: 1, exp, relay: { state: 'match', at: clock.now() } },
+                {
+                    _id: 'd',
+                    rk: 1,
+                    exp: new Date(clock.ms - 1),
+                    relay: { state: 'queue', q: 'ranked', at: clock.now() },
+                },
+            ],
+            [],
+            clock.now
+        );
+        const status = new SocialMemoryModel([], [{ fields: ['_id'] }], clock.now);
+        const svc = new RankedStatusService(status, presence, clock);
+        expect(await svc.refresh()).toMatchObject({ open: true, online: 3, searching: 1 });
+        expect(await svc.read()).toMatchObject({ open: true, online: 3, searching: 1 });
     });
 });
 
@@ -143,7 +144,7 @@ describe('board reads (SOCIAL-RANKED.md §6.3)', () => {
         ]);
     });
 
-    it('ranked/me: eligibility from saved matches, closed status passes through', async () => {
+    it('ranked/me: eligibility from saved matches, the status (always open since round 4) passes through', async () => {
         const { svc } = harness();
         expect(await svc.me('B', false)).toMatchObject({
             eligible: false,
@@ -154,7 +155,7 @@ describe('board reads (SOCIAL-RANKED.md §6.3)', () => {
         expect(a).toMatchObject({
             eligible: true,
             ranked: { label: 'Alley II', points: 40 },
-            status: { open: false, online: 3 },
+            status: { open: true, online: 3 },
         });
         expect(await svc.me('G', true)).toMatchObject({ eligible: false, why: 'sign_in' });
     });

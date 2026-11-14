@@ -49,11 +49,41 @@ export const PLACEMENTS = Object.freeze({ first: 5, season: 3 });
 export const FIRST_SEASON_CAP = 11;
 export const LEGEND_IDX = 12;
 
-/** Ranked eligibility and the liquidity gate (§7.1, §7.9). The game shows the server's values; no copy there. */
+/**
+ * Low-population ranked (SOCIAL-RANKED.md §7.11, round 4): who fills a quiet queue and what it pays. Players first;
+ * labelled bots fill the empty seats after `fillS` (`primeFillS` inside Prime Time) when each team has a player, and a
+ * search with no opponent player by `fillS + aiAfterS` plays its team against bots ("vs AI"). A bot-filled match pays
+ * `filledShare` of the points both ways, a vs AI match `aiShare`, and vs AI pays nothing from `aiCapIdx` (Alley III) up;
+ * placements with no match against players place at most there. The hidden rating never moves in a vs AI match.
+ */
+export const RANKED_BOTS = Object.freeze({
+    fillS: 40,
+    primeFillS: 75,
+    aiAfterS: 30,
+    filledShare: 0.5,
+    aiShare: 0.25,
+    aiCapIdx: 6,
+});
+
+/**
+ * Prime Time (§7.11): the hours ranked players are asked to come together (UTC). Every day `daily`, and on Saturday
+ * and Sunday also `weekend`; the windows of one day never overlap. Inside one, bots wait `primeFillS` instead of `fillS`.
+ */
+export const RANKED_PRIME_TIME = Object.freeze({
+    daily: Object.freeze({ fromH: 18, toH: 22 }),
+    weekend: Object.freeze({ fromH: 12, toH: 18 }),
+});
+
+/** Ranked eligibility (§7.1). The game shows the server's values; no copy there. */
 export const RANKED_MIN_MATCHES = 10;
-export const RANKED_OPEN_AT = 24;
-export const RANKED_CLOSE_BELOW = 16;
-export const RANKED_CLOSE_AFTER_MS = 10 * 60_000;
+
+/**
+ * Queue regions (§7.11, groundwork): the game times `ping` (a path on the API) for each and shows the result. One
+ * region today (the matchmaker's MM_HOME_REGION); a second one adds a row here and a relay there.
+ */
+export const RANKED_REGIONS: readonly { id: string; name: string; ping: string }[] = Object.freeze([
+    Object.freeze({ id: 'eu', name: 'Europe', ping: '/pawlegends/ping' }),
+]);
 
 /** Every division's anchor, index 0..12. */
 export const TIER_ANCHORS: readonly number[] = Object.freeze(RANKED_TIERS.flatMap(t => t.anchors));

@@ -174,16 +174,22 @@ export const MM_CLASSIC = Object.freeze({
 });
 
 /**
- * Ranked (docs/plans/moba/SOCIAL-RANKED.md §7.1, gap plan P4): 3v3 on Purrhaven Crossing, solo or duo, and never a bot.
- * Only full teams of humans match (`fillMs` Infinity keeps `bestCasual` on the 3v3 shape), a search never moves to
- * co-op by itself, and the rating window widens from ±150 to ±400 over 120 s. After `offerCasualMs` the queue card
- * offers "Play Casual instead" (the client reads its own wait). `mm.join {queue:'ranked'}` is refused while the
- * liquidity gate (ranked/status.ts) is closed.
+ * Ranked (docs/plans/moba/SOCIAL-RANKED.md §7.1, §7.11): 3v3 on Purrhaven Crossing, solo or duo, players first. Full
+ * teams of players match at once; after `fillMs` (`primeFillMs` inside Prime Time, ranked/windows.ts) labelled bots
+ * fill the empty seats when each team has a player, and after `fillMs + aiAfterMs` a search with no opponent player
+ * plays its team against bots (vs AI, a co-op room in the ranked queue). Only entries that sent `bots: true` (a game
+ * that labels them) are ever filled or sent vs AI; the others wait for players as before. A search never moves to
+ * casual or co-op by itself, and the rating window widens from ±150 to ±400 over 120 s. Ranked is always open (round
+ * 4: the 24-online gate is retired).
  */
 export const MM_RANKED = Object.freeze({
     ...MM_CASUAL,
-    /** Never: ranked is never filled with bots. */
-    fillMs: Number.POSITIVE_INFINITY,
+    /** Bots fill the empty seats (players on both teams) after this long, outside Prime Time (RANKED_BOTS.fillS). */
+    fillMs: 40_000,
+    /** Inside Prime Time players get longer to find each other first (RANKED_BOTS.primeFillS). */
+    primeFillMs: 75_000,
+    /** No opponent player this long after the fill: the search plays vs AI (RANKED_BOTS.aiAfterS). */
+    aiAfterMs: 30_000,
     /** Never: a ranked search stays ranked (the player chooses Casual on the card). */
     switchMs: Number.POSITIVE_INFINITY,
     /** Duos face duos until 60 s, then any mix of solos and duos. */
@@ -194,6 +200,6 @@ export const MM_RANKED = Object.freeze({
     fairUntilMs: 60_000,
     /** Members per entry: solo or duo only. */
     maxParty: 2,
-    /** The queue card offers Casual after this long (3:00). */
+    /** A search without bots (an older game) is offered Casual after this long (3:00). */
     offerCasualMs: 180_000,
 });

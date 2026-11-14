@@ -17,7 +17,8 @@ import { BOARD_PAGE, HERO_MIN_GAMES, isoWeek } from './boards';
 import { decayedPoints, ladderOf, legendInactive } from './points';
 import { pendingRoomsFilter } from './settlement';
 import { RankedStatusService } from './status';
-import { LEGEND_IDX, PLACEMENTS, RANKED_MIN_MATCHES, tierIdOf, tierLabel } from './tiers';
+import { primeTime } from './windows';
+import { LEGEND_IDX, PLACEMENTS, RANKED_BOTS, RANKED_MIN_MATCHES, RANKED_REGIONS, tierIdOf, tierLabel } from './tiers';
 
 /*
  * Ranked and board reads (docs/plans/moba/SOCIAL-RANKED.md §6.3, §7.9, §10). Read only: nothing here writes a score, a
@@ -65,7 +66,7 @@ export class RankedService {
         @InjectModel(PawlegendsSocial.name) private readonly social: AnyModel,
         @InjectModel(PawlegendsMmRoom.name) private readonly rooms: AnyModel,
         @InjectModel(User.name) private readonly users: AnyModel,
-        private readonly gate: RankedStatusService,
+        private readonly live: RankedStatusService,
         @Optional() @InjectModel(Cat.name) private readonly cats?: AnyModel,
         @Optional() private readonly clock?: { now(): Date },
         @Optional() @InjectModel(PawlegendsOwned.name) private readonly owned?: AnyModel
@@ -92,9 +93,24 @@ export class RankedService {
         return { id: s.id, name: s.name, startsAt: s.startsAt, endsAt: s.endsAt };
     }
 
+    /**
+     * `GET ranked/status` (SOCIAL-RANKED.md §7.9, §7.11): always open since round 4. The online and searching counts
+     * (30 s), Prime Time (the current or next window), the bot rules the game explains and the regions with the path
+     * the game times for its ping. `need` stays 0 for older games (they read it only while closed).
+     */
     async status() {
-        const g = await this.gate.read();
-        return { open: g.open, online: g.online, need: g.need, season: this.season() };
+        const g = await this.live.read();
+        const pt = primeTime(this.now().getTime());
+        return {
+            open: true,
+            online: g.online,
+            need: 0,
+            searching: g.searching,
+            primeTime: { active: pt.active, startsAt: pt.startsAt, endsAt: pt.endsAt },
+            bots: { ...RANKED_BOTS },
+            regions: RANKED_REGIONS.map(r => ({ ...r })),
+            season: this.season(),
+        };
     }
 
     /** Accounts kept off every board now (a sanction in force). */

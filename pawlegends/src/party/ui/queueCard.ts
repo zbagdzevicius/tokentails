@@ -12,6 +12,7 @@
 import type { MmSide } from '../../net/proto';
 import { COPY, DIFF_LABEL, clockText, esc, sideText } from './copy';
 import { backfillHtml, type BackfillModel } from './backfillCard';
+import { RANKED_BOTS, regionText } from '../../meta/ranked';
 
 export type QueueStop =
   | 'away'
@@ -33,14 +34,20 @@ export type QueueStop =
 /** Ranked stops that Search again cannot fix now: the card offers Casual instead. */
 export const RANKED_TO_CASUAL: ReadonlySet<QueueStop> = new Set<QueueStop>(['ranked_closed', 'ranked_account', 'ranked_matches', 'ranked_party']);
 
-/** Ranked's queue numbers (gap plan P4): when the card offers Casual, and the refusal's counts. */
+/** Ranked's queue numbers (gap plan P4, round 4 §7.11): the refusal's counts and the low-population lines. */
 export interface RankedQueueInfo {
-  /** Seconds after which the searching card offers "Play Casual instead". */
+  /** Seconds after which the searching card offers "Play Casual instead" (a relay that never fills ranked). */
   casualAfterS: number;
   online?: number;
   need?: number;
   have?: number;
   needMatches?: number;
+  /** Players searching this pool now (the relay's count; bots never counted). */
+  searching?: number;
+  /** Prime Time is on: bots wait longer. */
+  prime?: boolean;
+  /** The region and its measured ping (groundwork: one region today). */
+  region?: { name: string; ms: number | null };
 }
 
 export interface QueueModel {
@@ -61,7 +68,7 @@ export interface QueueModel {
   stopped: QueueStop | null;
   /** Seconds before Search again works (locked or busy), or 0. */
   retryS: number;
-  match: { humans: number; bots: number; side: string; difficulty: string } | null;
+  match: { humans: number; bots: number; side: string; difficulty: string; ai?: boolean } | null;
   offer: BackfillModel | null;
   /** Casual PvP (V16.md §5): the queue, the humans found on the other team, the 45 s move to co-op, a requeue. */
   pvp?: { theirs: number; toCoop: boolean; requeued: boolean };
@@ -131,7 +138,9 @@ export function queueCardHtml(m: QueueModel): string {
     const diff = DIFF_LABEL[m.match.difficulty] ?? m.match.difficulty;
     // a friend party's match is the party's: its members leave from the pick (two taps), not from this strip
     const cancel = m.party ? '' : `<button type="button" class="pl-btn ghost small" data-p="mm-found-cancel" data-testid="mm-cancel">${COPY.cancel}</button>`;
-    return `<div class="pp-card pp-narrow pp-queue" data-state="found" data-testid="mm-queue"><h2>${COPY.online}</h2><p class="pp-found" role="status" data-testid="mm-found"><b>${COPY.matchFound}</b><span>${esc(COPY.foundLine(m.match.humans, m.match.bots, sideText(m.match.side), diff))}</span></p>${cancel}</div>`;
+    // ranked vs AI (§7.11): say so before the pick (your team against bots, quarter points)
+    const ai = m.match.ai ? `<span class="pp-ai" data-testid="mm-found-ai">${esc(COPY.rankedAiFound)}</span>` : '';
+    return `<div class="pp-card pp-narrow pp-queue" data-state="found" data-testid="mm-queue"${m.match.ai ? ' data-ranked="1" data-ai="1"' : ''}><h2>${m.match.ai ? COPY.rankedFoundAi : COPY.online}</h2><p class="pp-found" role="status" data-testid="mm-found"><b>${COPY.matchFound}</b><span>${esc(COPY.foundLine(m.match.humans, m.match.bots, sideText(m.match.side), diff))}</span>${ai}</p>${cancel}</div>`;
   }
   if (m.stopped) {
     const wait = m.retryS > 0;
@@ -148,17 +157,27 @@ export function queueCardHtml(m: QueueModel): string {
   const warn = m.warn && m.lowPriorityS <= 0 ? `<p class="pp-hint" data-testid="mm-warn">${COPY.leaverWarn}</p>` : '';
   const offer = m.offer ? backfillHtml(m.offer) : '';
   if (m.ranked) {
-    // ranked: both teams' pips, never a bot; after a long wait the card offers Casual (the player's choice, never automatic)
+    // ranked (round 4, §7.11): players first; the card says when labelled bots fill and when it becomes vs AI, how many
+    // players search, and the region's ping. After a long wait (only a relay that never fills) it offers Casual.
     const long = m.waitedS >= m.ranked.casualAfterS;
+    const fillS = m.ranked.prime ? RANKED_BOTS.primeFillS : RANKED_BOTS.fillS;
+    const bots = m.waitedS < fillS ? COPY.rankedBotsAt(fillS - Math.floor(m.waitedS), fillS + RANKED_BOTS.aiAfterS) : COPY.rankedBotsNow;
+    const live = [
+      typeof m.ranked.searching === 'number' ? COPY.rankedSearching(m.ranked.searching) : '',
+      m.ranked.prime ? COPY.rankedPrime : '',
+      m.ranked.region ? regionText(m.ranked.region) : '',
+    ].filter(Boolean);
+    const liveLine = live.length ? `<p class="pp-dim pp-rk-live" data-testid="mm-ranked-live">${esc(live.join(' · '))}</p>` : '';
     const note = long
       ? `<p class="pp-hint" role="status" data-testid="mm-ranked-long">${COPY.rankedLong}</p><button type="button" class="pl-btn" data-p="mm-casual" data-testid="mm-play-casual">${COPY.playCasual}</button>`
-      : `<p class="pp-note" data-testid="mm-ranked-note">${COPY.rankedNote}</p>`;
+      : `<p class="pp-note" data-testid="mm-ranked-note"><span data-live="rkbots">${esc(bots)}</span></p>`;
     const requeued = m.pvp?.requeued ? `<p class="pp-hint" data-testid="mm-requeued">${COPY.requeued}</p>` : '';
     return `<div class="pp-card pp-narrow pp-queue" data-state="searching" data-mode="pvp" data-ranked="1" data-testid="mm-queue">
     <h2>${m.party ? COPY.partyQueued : COPY.findingRanked}</h2>
     ${low}${requeued}
     <p class="pp-qtime" role="timer" aria-live="off"><b data-live="waited" data-testid="mm-timer">${clockText(m.waitedS)}</b>${est}</p>
     ${pvpPipsHtml(m.found, m.pvp?.theirs ?? 0, 3)}
+    ${liveLine}
     ${note}
     ${sideChipHtml(m.side)}
     ${warn}

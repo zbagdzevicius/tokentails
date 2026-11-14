@@ -43,7 +43,7 @@ Home ── PLAY ──> Mode Select: mode ──Next──> Mode Select: varian
 | Skirmish 3v3 | vs Bots, Co-op, PvP, With Friends |
 | Classic 5v5 | vs Bots, PvP (the matchmaker's co-op queue and friend parties are 3v3; PROTO 4's `classic` queue is PvP) |
 | Blitz | vs Bots (party and PvP later) |
-| Ranked | follows the live gate (gap plan P4): locked "Opens at 24 online · 9 now", live while `ranked/status` is open |
+| Ranked | always open (round 4, SOCIAL-RANKED.md §7.11): live with "3 searching · Prime Time now" from `ranked/status` (nothing guessed before it answers) |
 | Cannon Chaos | vs Bots (sim v27, V27.md §3) |
 | Practice | the one card "Solo with training dummies", no difficulty (sim v27, V27.md §2) |
 | Weekly Twist | vs Bots; a timed event tile from live ops, the week's featured mode (sim v27, V27.md §4) |
@@ -163,7 +163,7 @@ scrolls sideways with snap. This is the only scroll region.
 |---|---|---|---|
 | Skirmish | 3v3 Purrhaven Crossing | bots, coop, pvp, friends | live |
 | Classic | 5v5 Hearthwood Divide | bots, pvp | live |
-| Ranked | 3v3 (Crossing) | pvp | the live gate: locked "Opens at 24 online · 9 now", live while open; the player's tier on the tile |
+| Ranked | 3v3 (Crossing) | pvp | always open (round 4): the searching count and Prime Time on the tile; the player's tier on the tile |
 | Blitz | 3v3 Purrhaven Crossing, the `blitz` mutator (sim v22, BLITZ.md) | bots (party and PvP later) | live since sim v22 (~3 min; Skirmish ~7 min, Classic ~13 min from the v22 probe) |
 | Cannon Chaos | 3v3 Purrhaven Crossing, the `cannon` mutator (sim v27) | bots | live (~5 min) |
 | Practice | Purrhaven Crossing, the `practice` mutator (sim v27): three training dummies, Reset / Level +1 / Cooldowns in the top plate | bots (the sandbox) | live; any champion, saves nothing, Leave goes Home |
@@ -201,7 +201,7 @@ scrolls sideways with snap. This is the only scroll region.
 2. **PLAY.** Superseded Nov 12: PLAY opens Mode Select (the founder asked for one path, at the cost of a tap or
    two: Enter, Enter, Enter, LOCK IN on a keyboard).
 3. **Nav on the first visit.** The nav shows, with the items that need a match locked.
-4. **Ranked.** It opens by itself while `GET /pawlegends/ranked/status` is open (gap plan P4); otherwise a locked tile says the gate ("Opens at 24 online · 9 now").
+4. **Ranked.** Always open since round 4 (SOCIAL-RANKED.md §7.11): players first, labelled bots fill a quiet queue (half points) or it plays vs AI (quarter points). The tile shows the searching count and Prime Time; the variant stage names Prime Time; the rules say the bot rule.
 5. **Cannon Chaos.** Live since sim v27 (V27.md §3); before that it was "coming soon", never a fake countdown.
 6. **Quick Co-op and PvP.** Removed Nov 12 (the one play path). A brand-new guest's first match stays the guided
    one; co-op opens from match 2. The multiplayer e2e goes through the path (`tests/e2e/mp/party.helpers.ts`

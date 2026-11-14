@@ -5,8 +5,9 @@ import { ClientIpThrottlerGuard } from 'src/shared/guards/client-ip-throttler.gu
 import { needAccount, RankedService } from './ranked.service';
 
 /*
- * Ranked and leaderboard reads (docs/plans/moba/SOCIAL-RANKED.md §10). `ranked/status`, and the global, hero and weekly
- * boards are public (60 a minute per client IP); the friends board and `ranked/me` need a token. Nothing here writes.
+ * Ranked and leaderboard reads (docs/plans/moba/SOCIAL-RANKED.md §10). `ranked/status`, `ping` (§7.11) and the global,
+ * hero and weekly boards are public (60 a minute per client IP); the friends board and `ranked/me` need a token.
+ * Nothing here writes.
  */
 
 const MINUTE = 60_000;
@@ -21,6 +22,17 @@ export class PawlegendsRankedController {
     async status(@Req() req: any, @Res({ passthrough: true }) res: any) {
         await this.ipThrottler.consume('PawlegendsRanked.status', req, { limit: 60, ttl: MINUTE }, res);
         return this.ranked.status();
+    }
+
+    /**
+     * The region ping (SOCIAL-RANKED.md §7.11, groundwork): the game times a few of these per region and shows the
+     * median. Never cached, nothing read or written.
+     */
+    @Header('Cache-Control', 'no-store')
+    @Get('ping')
+    async ping(@Req() req: any, @Res({ passthrough: true }) res: any) {
+        await this.ipThrottler.consume('PawlegendsRanked.ping', req, { limit: 60, ttl: MINUTE }, res);
+        return { ok: true };
     }
 
     @UseGuards(AppAuthGuard)

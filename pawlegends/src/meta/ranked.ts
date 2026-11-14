@@ -1,8 +1,9 @@
 /**
  * Ranked tiers (docs/plans/moba/SOCIAL-RANKED.md §7.2, §11.1): the game's copy of
  * `backend/src/pawlegends/ranked/tiers.ts` (names, anchors, protection and the point constants), deep-compared by
- * tests/unit/ranked-tiers.test.ts. The server computes every number; the game only labels them. The liquidity gate's
- * thresholds are shown from the server's answer (`RANKED_OPEN_FALLBACK` only before it arrives).
+ * tests/unit/ranked-tiers.test.ts. The server computes every number; the game only labels them. Since round 4
+ * (SOCIAL-RANKED.md §7.11) ranked is always open: a quiet queue fills with labelled bots (`RANKED_BOTS`), Prime Time
+ * (`RANKED_PRIME_TIME`) asks players to come together, and the status answer carries the searching count and regions.
  *
  * Naming: "Kitten" and "Legend" are also card awaken words, so a ranked label always carries its division or points
  * ("Kitten III", "Legend · 240 pts").
@@ -41,8 +42,36 @@ export const RANKED_POINTS = Object.freeze({
 
 export const PLACEMENTS = Object.freeze({ first: 5, season: 3 });
 export const LEGEND_IDX = 12;
-/** Shown only until the server's `ranked/status` answers. */
-export const RANKED_OPEN_FALLBACK = 24;
+
+/**
+ * Low-population ranked (SOCIAL-RANKED.md §7.11): the backend's RANKED_BOTS. Labelled bots fill the empty seats after
+ * `fillS` (`primeFillS` in Prime Time) when each team has a player; no opponent player by `fillS + aiAfterS` plays vs AI.
+ * Bot-filled matches move `filledShare` of the points, vs AI `aiShare`, and vs AI nothing from `aiCapIdx` (Alley III).
+ */
+export const RANKED_BOTS = Object.freeze({
+  fillS: 40,
+  primeFillS: 75,
+  aiAfterS: 30,
+  filledShare: 0.5,
+  aiShare: 0.25,
+  aiCapIdx: 6,
+});
+
+/** Prime Time (UTC hours): every day, and on Saturday and Sunday also the weekend window. The backend's copy. */
+export const RANKED_PRIME_TIME = Object.freeze({
+  daily: Object.freeze({ fromH: 18, toH: 22 }),
+  weekend: Object.freeze({ fromH: 12, toH: 18 }),
+});
+
+/** Who a ranked match was against: six players, players with labelled bots in the empty seats, or bots (vs AI). */
+export type RankedKind = 'players' | 'filled' | 'ai';
+
+/** The one line that says what a ranked match of this kind pays. Pure. */
+export function rankedKindLine(kind: RankedKind): string {
+  if (kind === 'ai') return 'Ranked vs AI · quarter points (none from Alley III)';
+  if (kind === 'filled') return 'Bots filled empty seats · half points';
+  return 'Six players · full points';
+}
 
 /** "Tabby II", or "Legend · 240 pts". Pure. */
 export function rankedLabel(tierIdx: number, points?: number): string {
@@ -59,11 +88,16 @@ export const RANKED_CASUAL_AFTER_S = 180;
 /** Ranked plays 3v3 on the Crossing in Season 1 (SOCIAL-RANKED.md §7.1). */
 export const RANKED_MAP = 'crossing' as const;
 
-/** `GET /pawlegends/ranked/status`: the liquidity gate and the season. */
+/** `GET /pawlegends/ranked/status` (always open since round 4): live counts, Prime Time, the regions and the season. */
 export interface RankedStatus {
   open: boolean;
   online: number;
-  need: number;
+  /** Players searching ranked now (null: an older server that does not send it). */
+  searching: number | null;
+  /** The current (active) or next Prime Time window, epoch ms. */
+  primeTime?: { active: boolean; startsAt: number; endsAt: number };
+  /** Queue regions (one today) and the API path the game times for each one's ping. */
+  regions: { id: string; name: string; ping: string }[];
   season?: { id: string; name?: string; endsAt?: string };
 }
 
@@ -73,35 +107,113 @@ export function parseRankedStatus(v: unknown): RankedStatus | null {
   const o = v as Record<string, unknown>;
   const n = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) && x >= 0 && x < 1e7 ? Math.floor(x) : null);
   const online = n(o.online);
-  const need = n(o.need);
-  if (typeof o.open !== 'boolean' || online === null || need === null) return null;
+  if (typeof o.open !== 'boolean' || online === null) return null;
   const s = o.season && typeof o.season === 'object' ? (o.season as Record<string, unknown>) : null;
   const season =
     s && typeof s.id === 'string' && /^s\d{1,3}$/.test(s.id)
       ? { id: s.id, ...(typeof s.name === 'string' ? { name: s.name.slice(0, 60) } : {}), ...(typeof s.endsAt === 'string' ? { endsAt: s.endsAt } : {}) }
       : undefined;
-  return { open: o.open, online, need, ...(season ? { season } : {}) };
+  const p = o.primeTime && typeof o.primeTime === 'object' ? (o.primeTime as Record<string, unknown>) : null;
+  const ms = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) && x > 0 ? x : null);
+  const startsAt = p ? ms(p.startsAt) : null;
+  const endsAt = p ? ms(p.endsAt) : null;
+  const primeTime = p && typeof p.active === 'boolean' && startsAt !== null && endsAt !== null ? { active: p.active, startsAt, endsAt } : undefined;
+  const regions = Array.isArray(o.regions)
+    ? (o.regions as unknown[])
+        .filter((r): r is Record<string, unknown> => !!r && typeof r === 'object')
+        .filter((r) => typeof r.id === 'string' && /^[a-z0-9-]{1,16}$/.test(r.id) && typeof r.name === 'string' && typeof r.ping === 'string' && /^\/[a-z0-9/_-]{1,64}$/.test(r.ping))
+        .slice(0, 8)
+        .map((r) => ({ id: r.id as string, name: (r.name as string).slice(0, 24), ping: r.ping as string }))
+    : [];
+  return { open: o.open, online, searching: n(o.searching), regions, ...(primeTime ? { primeTime } : {}), ...(season ? { season } : {}) };
 }
 
-/** The locked tile's line: "Opens at 24 online · 9 now" (before the answer: the fallback line, no count). Pure. */
-export function rankedGateText(st: RankedStatus | null): string {
-  if (!st) return `Opens at ${RANKED_OPEN_FALLBACK} players online`;
-  return `Opens at ${st.need} online · ${st.online} now`;
+/** "18:00" in the player's own time. */
+const hhmm = (ms: number): string => {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+/** The Prime Time line: "Prime Time now · until 22:00" or "Prime Time 20:00–00:00" (the player's time), or ''. */
+export function primeTimeText(st: RankedStatus | null): string {
+  const p = st?.primeTime;
+  if (!p) return '';
+  return p.active ? `Prime Time now · until ${hhmm(p.endsAt)}` : `Prime Time ${hhmm(p.startsAt)}–${hhmm(p.endsAt)}`;
 }
 
-/** The longer line for the rules and the Home nav ("Ranked opens at 24 players online. 9 online now."). Pure. */
-export function rankedGateSentence(st: RankedStatus | null): string {
-  if (!st) return `Ranked opens at ${RANKED_OPEN_FALLBACK} players online.`;
-  if (st.open) return `Ranked is open · ${st.online} players online.`;
-  return `Ranked opens at ${st.need} players online. ${st.online} online now.`;
+/** The tile's live line: "3 searching · Prime Time now" (counts only when the server sent them). Pure. */
+export function rankedLiveText(st: RankedStatus | null): string {
+  if (!st) return 'Always open';
+  const parts = [st.searching !== null ? `${st.searching} searching` : `${st.online} online`];
+  if (st.primeTime?.active) parts.push('Prime Time now');
+  return parts.join(' · ');
+}
+
+/** The rules' line about a quiet queue (the honest bot rule). Pure. */
+export function rankedBotsRule(prime = false): string {
+  const fill = prime ? RANKED_BOTS.primeFillS : RANKED_BOTS.fillS;
+  return `Quiet queue: labelled bots fill after ${fill} s (half points); alone after ${fill + RANKED_BOTS.aiAfterS} s, vs AI (quarter points, none from Alley III).`;
+}
+
+// ------------------------------------------------------------------------------------------ region ping (§7.11)
+
+/** One region's measured ping (ms), or null when it could not be measured. */
+export interface RegionPing {
+  id: string;
+  name: string;
+  ms: number | null;
+}
+
+let pings: { atMs: number; api: string; value: RegionPing[] } | null = null;
+let pinging: Promise<RegionPing[]> | null = null;
+
+/**
+ * Time each region's ping path three times (no-store) and keep the median, cached 60 s. Groundwork for region choice:
+ * one region today. Never throws; an unreachable region reads null.
+ */
+export function measureRegionPings(api: string, regions: RankedStatus['regions'], now = Date.now()): Promise<RegionPing[]> {
+  const base = api.replace(/\/+$/, '');
+  if (pings && pings.api === base && now - pings.atMs < 60_000) return Promise.resolve(pings.value);
+  if (pinging) return pinging;
+  pinging = (async () => {
+    const out: RegionPing[] = [];
+    for (const r of regions) {
+      const samples: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        try {
+          const t0 = performance.now();
+          const res = await fetch(`${base}${r.ping}`, { cache: 'no-store', credentials: 'omit' });
+          if (!res.ok) break;
+          await res.text();
+          samples.push(performance.now() - t0);
+        } catch {
+          break;
+        }
+      }
+      samples.sort((a, b) => a - b);
+      out.push({ id: r.id, name: r.name, ms: samples.length ? Math.round(samples[Math.floor(samples.length / 2)]) : null });
+    }
+    pings = { atMs: Date.now(), api: base, value: out };
+    pinging = null;
+    return out;
+  })();
+  return pinging;
+}
+
+/** The last measured pings this visit (empty before any). */
+export const regionPingsNow = (): RegionPing[] => pings?.value ?? [];
+
+/** "Europe · 48 ms" (one region), "Europe · …" while measuring. Pure. */
+export function regionText(r: RegionPing | { name: string; ms?: number | null }): string {
+  return `${r.name} · ${typeof r.ms === 'number' ? `${r.ms} ms` : '…'}`;
 }
 
 let cache: { atMs: number; api: string; value: RankedStatus | null } | null = null;
 let inflight: Promise<RankedStatus | null> | null = null;
 
 /**
- * The gate from the API (public, cached 30 s here as on the server). Null when it cannot be read: the tile stays
- * locked with the fallback line, never opens on a guess.
+ * The ranked status from the API (public, cached 30 s here as on the server). Null when it cannot be read: the tile
+ * stays live (ranked is always open) without counts, never a guessed number.
  */
 export function fetchRankedStatus(api: string, now = Date.now()): Promise<RankedStatus | null> {
   const base = api.replace(/\/+$/, '');
@@ -133,6 +245,8 @@ export const rankedStatusNow = (): RankedStatus | null => cache?.value ?? null;
 export function resetRankedStatus(): void {
   cache = null;
   inflight = null;
+  pings = null;
+  pinging = null;
 }
 
 // ------------------------------------------------------------------------------------------ the results block (P4)

@@ -54,6 +54,8 @@ export interface RankedFields {
     dodgesApplied: string[];
     /** A returning season's placement floor. */
     floorIdx?: number;
+    /** Placement matches of this run against players (SOCIAL-RANKED.md §7.11; none: placed at most at Alley III). */
+    vsPlayers?: number;
 }
 
 export const ratingId = (accountId: string, queue: MmRatingQueue = 'coop'): string => `${accountId}:${queue}`;
@@ -126,6 +128,9 @@ export class PawlegendsRating {
 
     @Prop({ type: Number, default: undefined })
     floorIdx?: number;
+
+    @Prop({ type: Number, default: undefined })
+    vsPlayers?: number;
 }
 export const PawlegendsRatingSchema = SchemaFactory.createForClass(PawlegendsRating);
 // the global ranked board (SOCIAL-RANKED.md §6.2)

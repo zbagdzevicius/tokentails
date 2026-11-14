@@ -147,9 +147,15 @@ export const COPY = Object.freeze({
   keepWaiting: 'Keep waiting',
   requeued: 'A player declined. You are back at the front of the queue',
   pvpFound: 'PvP match found',
-  // Ranked (gap plan P4): 3v3, solo or duo, never a bot
+  // Ranked (gap plan P4; round 4, SOCIAL-RANKED.md §7.11): 3v3, solo or duo, players first, labelled bots when quiet
   findingRanked: 'Finding a Ranked match…',
-  rankedNote: 'Ranked: players only, no bots. Solo or duo.',
+  rankedBotsAt: (fillInS: number, aiAtS: number) => `Players first. Bots fill empty seats in ${fillInS}s (half points); vs AI at ${Math.floor(aiAtS / 60)}:${String(aiAtS % 60).padStart(2, '0')} if no one else is searching`,
+  rankedBotsNow: 'Quiet queue: bots fill empty seats (half points), or vs AI (quarter points)',
+  rankedSearching: (n: number) => `${n} searching`,
+  rankedPrime: 'Prime Time',
+  rankedFoundAi: 'Ranked vs AI',
+  rankedFilled: 'Bots fill the empty seats (labelled) · half points',
+  rankedAiFound: 'No other players searching: your team against bots · quarter points',
   rankedLong: 'Ranked is quiet right now',
   playCasual: 'Play Casual instead',
   rankedFound: 'Ranked match found',

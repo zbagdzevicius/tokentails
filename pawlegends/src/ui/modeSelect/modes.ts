@@ -13,7 +13,7 @@
  */
 import type { MapId, Mutator } from '../../sim/api';
 import { loadMatchMode, type MatchMode } from '../lobby/matchMode';
-import { rankedGateText, RANKED_MAP, type RankedStatus } from '../../meta/ranked';
+import { primeTimeText, rankedBotsRule, rankedLiveText, RANKED_MAP, type RankedStatus } from '../../meta/ranked';
 
 export type ModeId = 'blitz' | 'skirmish' | 'classic' | 'ranked' | 'cannon' | 'practice' | 'twist' | 'onelane' | 'duel' | 'boss' | (string & {});
 /** A mode's variant (the second step after PLAY): solo vs bots, co-op vs bots, PvP, or a party with friends. */
@@ -42,6 +42,10 @@ export interface ModeDef {
   lockText?: string;
   /** Ranked: the player's rank line under the name. */
   rank?: { tier: string; lp?: number };
+  /** A live tile's line instead of size and minutes (Ranked: "3 searching · Prime Time now"). */
+  liveLine?: string;
+  /** The variant stage's summary line for the mode (Ranked: Prime Time and the bot rule). */
+  variantNote?: string;
   /** The "i" popover: two or three short rule lines. */
   rules: readonly string[];
   /** A "NEW" ribbon. */
@@ -93,8 +97,8 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     queues: ['bots', 'pvp'],
     rules: ['5v5 on Hearthwood Divide: three lanes and a jungle.', 'Take towers and objectives, then the core.'],
   },
-  // Gap plan P4: Ranked opens by itself when enough players are online (GET /pawlegends/ranked/status). Until the
-  // first answer it is locked with the fallback line; `rankedModeDef` replaces it with the live gate.
+  // Round 4 (SOCIAL-RANKED.md §7.11): Ranked is always open; `rankedModeDef` adds the live counts and Prime Time once
+  // GET /pawlegends/ranked/status answers.
   rankedModeDef(null),
   {
     // Sim v27 (docs/plans/moba/V27.md §3): the Kibble Cannon every 20 s, short cooldowns, about 5 minutes
@@ -213,12 +217,13 @@ export function twistModeDef(t: { id: Mutator; name: string; rules: readonly str
 }
 
 /**
- * The Ranked tile from the live gate (gap plan P4, SOCIAL-RANKED.md §7.1, §7.9): 3v3 on the Crossing, PvP only, solo
- * or duo, never a bot. Live while the gate is open; locked with "Opens at 24 online · 9 now" while it is closed (and
- * with the fallback line before the first answer). The gate is the switch: there is no flag. Pure.
+ * The Ranked tile (SOCIAL-RANKED.md §7.1, §7.11): 3v3 on the Crossing, PvP, solo or duo. Always live since round 4:
+ * players first, and a quiet queue fills with labelled bots (half points) or plays vs AI (quarter points). The tile
+ * shows the searching count and Prime Time from `ranked/status` (nothing before it answers: never a guessed number).
+ * Pure.
  */
 export function rankedModeDef(st: RankedStatus | null, rank?: ModeDef['rank']): ModeDef {
-  const open = !!st?.open;
+  const prime = primeTimeText(st);
   return {
     id: 'ranked',
     name: 'Ranked',
@@ -227,13 +232,13 @@ export function rankedModeDef(st: RankedStatus | null, rank?: ModeDef['rank']): 
     minutes: '~7 min',
     queues: ['pvp'],
     art: 'ranked',
-    state: open ? 'live' : 'locked',
-    ...(open ? {} : { lockText: rankedGateText(st) }),
+    state: 'live',
+    liveLine: rankedLiveText(st),
+    ...(prime ? { variantNote: `${prime} · players first, bots only when the queue is quiet` } : {}),
     rank: rank ?? { tier: 'Unranked' },
     rules: [
-      '3v3 on the Crossing against players only: no bots. Solo or duo.',
-      'Win to climb Kitten, Tabby, Alley, Lion and Legend. Kitten and Tabby never lose points.',
-      open ? `Open now · ${st!.online} players online.` : `Opens by itself at ${st?.need ?? 24} players online.`,
+      `3v3, solo or duo. Players first: full points.${prime ? ` ${prime}.` : ''}`,
+      rankedBotsRule(!!st?.primeTime?.active),
     ],
   };
 }
@@ -308,7 +313,7 @@ export function metaLine(m: ModeDef, now: number): string {
       return `Next: ${new Date(m.state.event.startsAt).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })}`;
     return 'Coming soon';
   }
-  return [m.size, m.minutes].filter(Boolean).join(' · ');
+  return [m.size, m.liveLine ?? m.minutes].filter(Boolean).join(' · ');
 }
 
 export const QUEUE_LABEL: Readonly<Record<Queue, string>> = Object.freeze({ bots: 'vs Bots', coop: 'Co-op', pvp: 'PvP', friends: 'With Friends' });

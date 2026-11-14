@@ -19,8 +19,9 @@ import {
     WEEKLY_KEEP_DAYS,
     weeklyId,
 } from './ranked/boards';
-import { decayedPoints, freshPoints, ladderOf, rankedStep, softReset } from './ranked/points';
-import { rankedSettleCheck } from './ranked/settlement';
+import { decayedPoints, freshPoints, ladderOf, rankedStep, softReset, type RankedMatchKind } from './ranked/points';
+import { rankedKindOf, rankedSettleCheck } from './ranked/settlement';
+import { DEFAULT_GLICKO } from './mm/glicko2';
 import { AFK_REASONS } from './party/room';
 import type { StoredRoom } from './party/room-store';
 import { PawlegendsPartyResultDto } from './pawlegends-replay.dto';
@@ -273,7 +274,8 @@ export async function savePawlegendsPartyMatch(
             // before any point moves
             const settle = rankedSettleCheck(mmRoom, String(userId), r.slot);
             if (!settle.ok) log.warn(`pawlegends ranked settle skipped: why=${settle.why}`);
-            else if (!user.isGuest) await applyRankedRating(deps.mm, String(userId), r.room, won, now, log);
+            else if (!user.isGuest)
+                await applyRankedRating(deps.mm, String(userId), r.room, won, now, log, rankedKindOf(mmRoom));
         } else
             await applyCasualRating(
                 deps.mm,
@@ -295,8 +297,17 @@ export async function savePawlegendsPartyMatch(
                 excluded: !!user.boardExcludedAt || !!user.deletedAt,
                 log,
             });
-    } else if (deps.mm)
-        await applyCoopRating(deps.mm, String(userId), r.room, v.outcome as 'won' | 'lost', difficulty, now, log);
+    } else if (deps.mm) {
+        // SOCIAL-RANKED.md §7.11: a ranked vs AI room is a co-op room in the ranked queue: it settles ranked at the vs
+        // AI share (the hidden rating does not move), never the co-op rating
+        const mmRoom = await deps.mm.rooms.get(r.room).catch(() => null);
+        if (mmRoom?.queue === 'ranked') {
+            const settle = rankedSettleCheck(mmRoom, String(userId), r.slot);
+            if (!settle.ok) log.warn(`pawlegends ranked settle skipped: why=${settle.why}`);
+            else if (!user.isGuest) await applyRankedRating(deps.mm, String(userId), r.room, won, now, log, 'ai');
+        } else
+            await applyCoopRating(deps.mm, String(userId), r.room, v.outcome as 'won' | 'lost', difficulty, now, log);
+    }
     await applyInviteProgress(
         deps.growth,
         String(userId),
@@ -374,7 +385,8 @@ async function applyRankedRating(
     roomId: string,
     won: boolean,
     now: Date,
-    log: Pick<Logger, 'warn'>
+    log: Pick<Logger, 'warn'>,
+    kind: RankedMatchKind = 'players'
 ): Promise<void> {
     const casual = ((await mm.ratings.findById(`${accountId}:casual`).lean()) as MmRatingRow | null) ?? null;
     await writeRating(mm, roomId, `${accountId}:ranked`, 'ranked', log, (room, row) => {
@@ -389,6 +401,7 @@ async function applyRankedRating(
                       shield: prev.shield ?? 1,
                       placementsLeft: prev.placementsLeft ?? 0,
                       peakIdx: prev.peakIdx ?? prev.tierIdx,
+                      vsPlayers: prev.vsPlayers ?? 0,
                   }
                 : freshPoints();
         const peaks = [...(prev?.peaks ?? [])];
@@ -420,12 +433,20 @@ async function applyRankedRating(
         }
         const step = casualRatingStep({ room, accountId, won, row: base, nowMs: now.getTime() });
         if (!step.row) return {};
+        // §7.11: a vs AI match never moves the hidden rating (only the points, at the vs AI share)
+        if (kind === 'ai') {
+            const keep = base ?? null;
+            step.row = keep
+                ? { ...step.row, r: keep.r, rd: keep.rd, sigma: keep.sigma }
+                : { ...step.row, ...DEFAULT_GLICKO };
+        }
         const next = rankedStep({
             state: points,
             won,
             r: step.row.r,
             firstSeason: !peaks.length,
             floorIdx,
+            kind,
         });
         const fields: RankedFields = {
             season,

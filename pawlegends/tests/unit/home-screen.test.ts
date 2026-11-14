@@ -67,7 +67,10 @@ describe('home state logic', () => {
   it('resolves the remembered choice: a variant this build offers, Skirmish when the mode cannot be played', () => {
     const modes = modeList(NOW);
     expect(resolveChoice(modes, { mode: 'classic', queue: 'pvp' }, ['bots'], NOW)).toMatchObject({ mode: { id: 'classic' }, queue: 'bots' });
-    expect(resolveChoice(modes, { mode: 'ranked', queue: 'pvp' }, ['bots', 'pvp'], NOW)).toMatchObject({ mode: { id: 'skirmish' }, queue: 'pvp' });
+    const vault = { id: 'vault', name: 'Vault', size: '3v3' as const, minutes: '~5 min', queues: ['pvp' as const], art: 'cannon', state: 'locked' as const, rules: ['a', 'b'] };
+    expect(resolveChoice([...modes, vault], { mode: 'vault', queue: 'pvp' }, ['bots', 'pvp'], NOW)).toMatchObject({ mode: { id: 'skirmish' }, queue: 'pvp' });
+    // round 4: Ranked is always open, so a remembered Ranked stays Ranked
+    expect(resolveChoice(modes, { mode: 'ranked', queue: 'pvp' }, ['bots', 'pvp'], NOW)).toMatchObject({ mode: { id: 'ranked' }, queue: 'pvp' });
   });
 
   it('a bots match carries the map only off the default 3v3 map', () => {
@@ -116,7 +119,7 @@ describe('home screen: one play path', () => {
     expect(ms.getAttribute('aria-modal')).toBe('true');
     // the separate "Co-op vs Bots" tile is gone (co-op is Skirmish's variant); sim v27: Cannon Chaos and Practice live
     // sim v28: One Lane Brawl and the Duel; Boss Weekend's place depends on the weekday (live Friday to Monday)
-    expect(Array.from(ms.querySelectorAll<HTMLElement>('.ms-pick')).map((b) => b.dataset.mode).filter((m) => m !== 'boss')).toEqual(['blitz', 'skirmish', 'classic', 'cannon', 'practice', 'onelane', 'duel', 'ranked']);
+    expect(Array.from(ms.querySelectorAll<HTMLElement>('.ms-pick')).map((b) => b.dataset.mode).filter((m) => m !== 'boss')).toEqual(['blitz', 'skirmish', 'classic', 'ranked', 'cannon', 'practice', 'onelane', 'duel']);
     expect(ms.querySelector('.ms-pick.on')?.getAttribute('data-mode')).toBe('skirmish');
     click(ms, 'mode-next');
     expect(ms.dataset.stage).toBe('variant');
@@ -206,12 +209,13 @@ describe('home screen: one play path', () => {
 
   it('locked tiles never select; Back and Esc step back one stage, then close', async () => {
     const onStart = vi.fn();
-    const root = mount(online({ onStart }));
+    const vault = { id: 'vault', name: 'Vault', size: '3v3' as const, minutes: '~5 min', queues: ['pvp' as const], art: 'cannon', state: 'locked' as const, lockText: 'Unlocks after 5 matches', rules: ['a', 'b'] };
+    const root = mount(online({ onStart, modes: [...modeList(NOW), vault] }));
     play(root);
     const ms = await modesOpen();
-    ms.querySelector<HTMLElement>('[data-testid="mode-ranked"]')!.click();
+    ms.querySelector<HTMLElement>('[data-testid="mode-vault"]')!.click();
     expect(ms.querySelector('.ms-pick.on')?.getAttribute('data-mode')).toBe('skirmish');
-    expect(ms.querySelector('.ms-toast')?.textContent).toContain('Ranked');
+    expect(ms.querySelector('.ms-toast')?.textContent).toContain('Vault');
     click(ms, 'mode-next');
     expect(ms.dataset.stage).toBe('variant');
     click(ms, 'mode-back');

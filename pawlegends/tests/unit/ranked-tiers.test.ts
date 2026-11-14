@@ -1,7 +1,7 @@
 /** The game's ranked constants equal the backend's (SOCIAL-RANKED.md §11.1); labels always carry a division or points. */
 import { describe, expect, it } from 'vitest';
 import * as backend from '../../../backend/src/pawlegends/ranked/tiers';
-import { DIVISION_NUMERALS, LEGEND_IDX, PLACEMENTS, RANKED_POINTS, RANKED_TIERS, rankedLabel } from '../../src/meta/ranked';
+import { DIVISION_NUMERALS, LEGEND_IDX, PLACEMENTS, RANKED_BOTS, RANKED_POINTS, RANKED_PRIME_TIME, RANKED_TIERS, rankedLabel } from '../../src/meta/ranked';
 
 describe('ranked tiers mirror', () => {
   it('deep-equals backend/src/pawlegends/ranked/tiers.ts', () => {
@@ -10,6 +10,9 @@ describe('ranked tiers mirror', () => {
     expect(PLACEMENTS).toEqual(backend.PLACEMENTS);
     expect(DIVISION_NUMERALS).toEqual(backend.DIVISION_NUMERALS);
     expect(LEGEND_IDX).toBe(backend.LEGEND_IDX);
+    // round 4 (SOCIAL-RANKED.md §7.11): the bot rules and Prime Time the game explains are the server's
+    expect(RANKED_BOTS).toEqual(backend.RANKED_BOTS);
+    expect(RANKED_PRIME_TIME).toEqual(backend.RANKED_PRIME_TIME);
   });
 
   it('labels never read as a bare card word', () => {

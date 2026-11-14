@@ -24,6 +24,8 @@ function setup(
         rec?: Partial<MmRoomRecord>;
         /** An existing ranked row of the account (a season reward already recorded, a new season). */
         rankedRow?: Record<string, unknown>;
+        /** Ranked vs AI (§7.11): a co-op room (slot 0 human, Normal bots) recorded in the ranked queue. */
+        vsAi?: boolean;
     } = {}
 ) {
     const users = new FakeUsers();
@@ -40,9 +42,8 @@ function setup(
             seed: 1,
             picks: ['clem', 'brutus', 'sage', 'gabe', 'pixel', 'stilts'],
             tricks: [],
-            difficulty: 'hard',
-            humans: [0, 3, 4],
-            mode: 'pvp',
+            difficulty: opts.vsAi ? 'normal' : 'hard',
+            ...(opts.vsAi ? { humans: [0] } : { humans: [0, 3, 4], mode: 'pvp' as const }),
         },
         occupants: [
             { slot: 0, accountId: a, guestKeyHash: null, name: 'Sunny Tabby', ticketed: true },
@@ -104,6 +105,11 @@ function setup(
         endedAt: NOW,
         ...(opts.rec ?? {}),
     };
+    if (opts.vsAi) {
+        delete rec.teams;
+        delete rec.mode;
+        Object.assign(rec, { vsAi: true, difficulty: 'normal', fill: [1, 2], members: [member(0, a)] });
+    }
     void mmRooms.create(rec);
     const ratings = new SocialMemoryModel([], [{ fields: ['_id'] }], () => NOW);
     if (opts.casualRow)
@@ -268,5 +274,58 @@ describe('ranked settlement through /live (gap plan P4)', () => {
         const row = s.ratings.docs.find(d => d._id === `${s.a}:ranked`)!;
         expect(row.peaks).toEqual([{ season: 's1', peakIdx: 8, finalIdx: 7, rewarded: true }]);
         expect(row.v).toBe(4);
+    });
+});
+
+describe('low-population ranked through /live (SOCIAL-RANKED.md §7.11)', () => {
+    const placedRow = (tierIdx: number) => ({
+        season: 's1',
+        r: 1450,
+        rd: 60,
+        sigma: 0.06,
+        games: 40,
+        wins: 25,
+        lastAt: NOW,
+        appliedRooms: [],
+        v: 4,
+        tierIdx,
+        points: 40,
+        shield: 1,
+        placementsLeft: 0,
+        peakIdx: tierIdx,
+        peaks: [],
+    });
+
+    it('a bot-filled ranked win pays half of what the same win against six players pays', async () => {
+        const filled = setup({ queue: 'ranked', rankedRow: placedRow(6) });
+        await filled.save(filled.a, 0);
+        const full = setup({ queue: 'ranked', rankedRow: placedRow(6), rec: { fill: [] } });
+        await full.save(full.a, 0);
+        const pts = (s: ReturnType<typeof setup>) =>
+            Number(s.ratings.docs.find(d => d._id === `${s.a}:ranked`)!.points);
+        const dFilled = pts(filled) - 40;
+        const dFull = pts(full) - 40;
+        expect(dFilled).toBeGreaterThan(0);
+        expect(Math.abs(dFilled - dFull / 2)).toBeLessThanOrEqual(1);
+    });
+
+    it('vs AI: the ranked row moves a quarter, the hidden rating stays, no co-op row and no PvP board', async () => {
+        const s = setup({ queue: 'ranked', rankedRow: placedRow(2), vsAi: true });
+        const out = await s.save(s.a, 0);
+        expect(out.outcome).toBe('won');
+        const row = s.ratings.docs.find(d => d._id === `${s.a}:ranked`)!;
+        expect(row).toMatchObject({ r: 1450, rd: 60, appliedRooms: ['room1'], tierIdx: 2 });
+        expect(Number(row.points) - 40).toBeGreaterThanOrEqual(3);
+        expect(Number(row.points) - 40).toBeLessThanOrEqual(8);
+        expect(s.ratings.docs.find(d => d._id === `${s.a}:coop`)).toBeUndefined();
+        expect(s.boards.docs.filter(d => d.acc === s.a)).toHaveLength(0);
+        // once only
+        await expect(s.save(s.a, 0)).rejects.toBeTruthy();
+    });
+
+    it('vs AI from Alley III up moves no points (still saved and counted)', async () => {
+        const s = setup({ queue: 'ranked', rankedRow: placedRow(7), vsAi: true });
+        await s.save(s.a, 0);
+        expect(s.ratings.docs.find(d => d._id === `${s.a}:ranked`)).toMatchObject({ tierIdx: 7, points: 40 });
     });
 });

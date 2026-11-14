@@ -11,6 +11,8 @@ import { PRESENCE } from '../social/social.contracts';
 export interface PresenceEntry {
     accountId: string;
     state: 'party' | 'queue' | 'match';
+    /** `queue`: the queue searched when it is ranked (the ranked searching count, SOCIAL-RANKED.md §7.11). */
+    q?: 'ranked';
     party?: string;
     joinable?: boolean;
     /** SPECTATE.md: a watchable match's room id (accepted friends read it to watch). */
@@ -32,7 +34,7 @@ export interface PresenceWriter {
 export const PRESENCE_FLUSH_MS = 5_000;
 export const PRESENCE_REFRESH_MS = 60_000;
 
-const keyOf = (e: PresenceEntry) => `${e.state}|${e.party ?? ''}|${e.joinable ? 1 : 0}|${e.room ?? ''}`;
+const keyOf = (e: PresenceEntry) => `${e.state}|${e.q ?? ''}|${e.party ?? ''}|${e.joinable ? 1 : 0}|${e.room ?? ''}`;
 
 export class PresenceSink {
     private last = new Map<string, string>();
@@ -87,6 +89,7 @@ export class PresenceSink {
                                 relay: {
                                     state: e.state,
                                     at,
+                                    ...(e.q ? { q: e.q } : {}),
                                     ...(e.party ? { party: e.party, joinable: !!e.joinable } : {}),
                                     ...(e.room ? { room: e.room } : {}),
                                 },

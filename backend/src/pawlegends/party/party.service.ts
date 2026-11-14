@@ -129,6 +129,8 @@ export interface PartyMm {
     /** Co-op: the side of everyone. Casual: team 0's species (each member's own is `casual.species[team]`). */
     side: 'cat' | 'dog';
     casual?: PartyCasual;
+    /** A ranked match (SOCIAL-RANKED.md §7.11: 3v3 PvP, or vs AI as a co-op room): no bot chatter, the ranked delay. */
+    ranked?: true;
     strangers: Set<string>;
     host: boolean;
     resultsSinceMs?: number;
@@ -1041,7 +1043,7 @@ export class PartyService {
      */
     createMatched(
         members: { id: string; identity: MemberIdentity; hint?: { maxDifficulty: string; newbie: boolean } }[],
-        opts: { match: string; side: 'cat' | 'dog'; difficulty: string; casual?: PartyCasual }
+        opts: { match: string; side: 'cat' | 'dog'; difficulty: string; casual?: PartyCasual; ranked?: boolean }
     ): Party {
         for (const m of members) this.leave(m.id);
         const id = randomBytes(12).toString('base64url');
@@ -1070,6 +1072,7 @@ export class PartyService {
                 strangers: new Set(members.map(m => m.id)),
                 host: false,
                 ...(opts.casual ? { casual: opts.casual } : {}),
+                ...(opts.ranked ? { ranked: true as const } : {}),
             },
         };
         this.rename(p);
@@ -1112,7 +1115,7 @@ export class PartyService {
      */
     startMatched(
         p: Party,
-        opts: { match: string; side: 'cat' | 'dog'; difficulty: string; casual?: PartyCasual },
+        opts: { match: string; side: 'cat' | 'dog'; difficulty: string; casual?: PartyCasual; ranked?: boolean },
         strangers: { id: string; identity: MemberIdentity; hint?: { maxDifficulty: string; newbie: boolean } }[]
     ): void {
         delete p.queued;
@@ -1123,6 +1126,7 @@ export class PartyService {
             strangers: new Set(),
             host: true,
             ...(opts.casual ? { casual: opts.casual } : {}),
+            ...(opts.ranked ? { ranked: true as const } : {}),
         };
         p.difficulty = this.rules.difficulties.includes(opts.difficulty) ? opts.difficulty : p.difficulty;
         p.openSeats = false;
@@ -1134,7 +1138,16 @@ export class PartyService {
     /** Restore helper (N9): the Quick Play state of a stored party. */
     restoreMm(
         p: Party,
-        mm: { match: string; side: 'cat' | 'dog'; strangers: string[]; host: boolean; casual?: PartyCasual } | undefined
+        mm:
+            | {
+                  match: string;
+                  side: 'cat' | 'dog';
+                  strangers: string[];
+                  host: boolean;
+                  casual?: PartyCasual;
+                  ranked?: boolean;
+              }
+            | undefined
     ): void {
         if (!mm) return;
         p.mm = {
@@ -1144,6 +1157,7 @@ export class PartyService {
             strangers: new Set(mm.strangers),
             host: mm.host,
             ...(mm.casual ? { casual: mm.casual } : {}),
+            ...(mm.ranked ? { ranked: true as const } : {}),
         };
         p.side = mm.side;
     }

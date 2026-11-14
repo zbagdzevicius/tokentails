@@ -217,7 +217,7 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
         b.setAttribute('aria-checked', String(on));
         b.tabIndex = on ? 0 : -1;
       }
-    d.innerHTML = m?.practice ? '<p class="ms-qline">Any champion · no rewards · leave any time</p>' : queue === 'bots' ? diffHtml() : `<p class="ms-qline">${esc(VARIANT_LINE[queue])}</p>`;
+    d.innerHTML = m?.practice ? '<p class="ms-qline">Any champion · no rewards · leave any time</p>' : queue === 'bots' ? diffHtml() : `<p class="ms-qline"${m?.variantNote ? ' data-testid="mode-variant-note"' : ''}>${esc(m?.variantNote ?? VARIANT_LINE[queue])}</p>`;
     c.dataset.a = 'ms-go';
     c.dataset.testid = 'mode-go';
     c.innerHTML = `<span>${esc(goLabel(queue))}</span>`;

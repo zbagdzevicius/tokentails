@@ -42,6 +42,8 @@ export interface MmRoomRecord {
     queue: 'coop' | 'casual' | 'classic' | 'ranked';
     /** Ranked: the Legends Pass season the room counts for. */
     season?: string;
+    /** Ranked vs AI (SOCIAL-RANKED.md §7.11): one team of players against bots (a co-op room in the ranked queue). */
+    vsAi?: boolean;
     /** Casual PvP: both teams (team 0 on the left), and why the room was voided (a remake: no rating, no catnip). */
     mode?: 'casual';
     /** 5v5 Classic (queue 'classic'): Hearthwood Divide, five seats a team. Absent: Crossing. */
@@ -145,6 +147,10 @@ export class PawlegendsMmRoom {
     /** Ranked: the season the room counts for. */
     @Prop({ type: String, default: undefined })
     season?: string;
+
+    /** Ranked vs AI (SOCIAL-RANKED.md §7.11). */
+    @Prop({ type: Boolean, default: undefined })
+    vsAi?: boolean;
 
     /** 5v5 Classic: 'hearthwood' (absent for Crossing rooms). */
     @Prop({ type: String, default: undefined })

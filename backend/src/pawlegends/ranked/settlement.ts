@@ -1,5 +1,6 @@
 import type { MmRoomRecord } from '../mm/mm-room.schema';
 import { seasonDef } from '../pawlegends-catalog';
+import type { RankedMatchKind } from './points';
 
 /*
  * Ranked settlement (docs/plans/moba/SOCIAL-RANKED.md §7.6, §7.7, gap plan P4). Pure helpers shared by `mm.join
@@ -53,4 +54,14 @@ export function rankedSettleCheck(
     if (!seat.length) return { ok: false, why: 'not_member' };
     if (seat.every(m => m.backfill)) return { ok: false, why: 'backfill' };
     return { ok: true, season: mmRoom.season };
+}
+
+/**
+ * Who a ranked room was against (§7.11), from its record: `ai` when one team of players played bots (a vs AI room has
+ * no teams: it is a co-op room in the ranked queue), `filled` when a seat of either team was a bot at the start, else
+ * `players`.
+ */
+export function rankedKindOf(mmRoom: Pick<MmRoomRecord, 'teams' | 'fill' | 'vsAi'>): RankedMatchKind {
+    if (mmRoom.vsAi || !mmRoom.teams) return 'ai';
+    return (mmRoom.fill?.length ?? 0) > 0 ? 'filled' : 'players';
 }

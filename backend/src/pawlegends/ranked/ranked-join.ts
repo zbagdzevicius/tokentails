@@ -1,12 +1,12 @@
 import type { RankedJoinSource, RankedRefusal } from '../mm/mm-bridge';
 import type { MmPlayed } from '../mm/rating.schema';
 import { pendingRoomsFilter } from './settlement';
-import { RANKED_MIN_MATCHES, RANKED_OPEN_AT } from './tiers';
+import { RANKED_MIN_MATCHES } from './tiers';
 
 /*
- * What `mm.join {queue:'ranked'}` reads in production (SOCIAL-RANKED.md §7.1, §7.6, §7.9; gap plan P4), built by
- * MmService. Read only: the gate row the leased status job writes, the account's saved matches, and its ended ranked
- * rooms not yet applied to its ranked row. A failed read refuses (ranked never opens on a guess).
+ * What `mm.join {queue:'ranked'}` reads in production (SOCIAL-RANKED.md §7.1, §7.6, §7.11), built by MmService. Read
+ * only: the account's saved matches and its ended ranked rooms not yet applied to its ranked row. A failed read
+ * refuses. Ranked is always open since round 4 (the 24-online gate is retired; low population fills with bots).
  */
 
 interface FindQuery {
@@ -16,7 +16,6 @@ interface FindQuery {
 }
 
 export interface RankedJoinDeps {
-    gate: { read(): Promise<{ open: boolean; online: number; need: number }> } | null;
     played: (accountId: string) => Promise<MmPlayed | null>;
     rooms: { find(filter: Record<string, unknown>): FindQuery } | null;
     ratings: { findById(id: string): { lean(): Promise<unknown> } } | null;
@@ -26,11 +25,6 @@ export interface RankedJoinDeps {
 export function rankedJoinSource(deps: RankedJoinDeps): RankedJoinSource {
     const now = () => deps.now?.() ?? new Date();
     return {
-        async gate() {
-            if (!deps.gate) return { open: false, online: 0, need: RANKED_OPEN_AT };
-            const g = await deps.gate.read();
-            return { open: !!g.open, online: Number(g.online) || 0, need: Number(g.need) || RANKED_OPEN_AT };
-        },
         async check(accountId: string): Promise<RankedRefusal | null> {
             const played = await deps.played(accountId);
             const have = played?.matches ?? 0;

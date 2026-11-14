@@ -233,8 +233,8 @@ This builds on PARITY §4, with the founder's additions: liquidity gate, decay a
 - **Matchmaker** (`mm/matchmaker.ts`): a new pool `queue: 'ranked'`, so `MmPvpQueue` gains `'ranked'`.
   - Pool key: region + `ranked` + sim. Party rating: `mean + 0.25·(max−mean)` (existing).
   - The rating window widens from ±150 to ±400 over 120 s.
-  - **No backfill.** Bot fill only for the **third seat of both teams at once** (symmetric Hard bots) after 90 s. With fewer than 2 humans per team there is no match.
-  - A ranked entry never falls back to casual or co-op on its own. The queue card offers "Play Casual instead" after 3:00.
+  - **No backfill.** Round 4 replaced the fill rule with §7.11: players first, labelled bots after 40 s (75 s in Prime Time) when each team has a player, vs AI after another 30 s.
+  - A ranked entry never falls back to casual or co-op on its own. The queue card offers "Play Casual instead" after 3:00 only for a game that does not send `bots` (an older build).
   - The same-network rule widens to `/24 netKey` on opposite teams.
 - **Pick:** blind pick within each team, unique heroes per team (existing casual pick). Bans come later, at 24 heroes (PARITY §4.1).
 - **Protocol:** `mm.join {queue:'ranked'}` needs **PROTO 5** (bump from 4; older clients keep casual).
@@ -313,7 +313,11 @@ This builds on PARITY §4, with the founder's additions: liquidity gate, decay a
   - 4 or more: locked 72 h.
   - Computed by `leaverStatus()` over mm rooms (existing), with the ranked windows added.
 
-### 7.9 Liquidity gate ("ranked opens at N players online")
+### 7.9 Liquidity gate ("ranked opens at N players online") — retired in round 4
+
+> **Round 4 (Nov 14):** the gate never opened at today's player counts (0 of 24), so it is retired. Ranked is always
+> open (§7.11). The status job still counts `online`, and now also `searching`; `open` is always `true` and `need` is 0
+> (older games read them only while closed). The text below is the original design, kept for the record.
 
 - **Count:** `online = countDocuments({rk:1, exp:{$gt:now}})` on `pawlegendspresence`.
   - Computed by the API role every 30 s with the existing Mongo job lease pattern (`shared/jobs`).
@@ -324,6 +328,66 @@ This builds on PARITY §4, with the founder's additions: liquidity gate, decay a
 - **Game:** `GET /pawlegends/ranked/status` (public, cached 30 s) returns `{open, online, need, season: {id, endsAt}, estMs}`.
   - Closed state: "Ranked opens at 24 players online · 17 online now" with one button, **Play Casual**. Casual is always on.
 - **[infra]:** until relays share one queue, ranked runs per relay. With today's single relay that is the same thing.
+
+### 7.11 Low-population ranked (round 4, Nov 14)
+
+Ranked must work with a handful of players online, without ever passing a bot off as a player.
+
+**Always open.** No liquidity gate. Eligibility is unchanged (§7.1): a registered account, 10 saved matches, no
+unsettled ranked room, solo or duo.
+
+**Players first, then labelled bots, then vs AI** (`mm/matchmaker.ts`, `mm/casual.ts`, `MM_RANKED` in
+`mm/mm-limits.ts`, `RANKED_BOTS` in `ranked/tiers.ts`):
+
+| Wait (outside / inside Prime Time) | What can form | Points |
+|---|---|---|
+| 0 s | Six players (3v3), the fair band as before | full |
+| 40 s / 75 s | Players on **both** teams, bots in the empty seats (fair on the whole team, both sides' bots at one level) | half (`filledShare` 0.5) |
+| 70 s / 105 s | No opponent player: the search's team (with up to two more waiting ranked players) against 3 bots, Normal or harder | a quarter (`aiShare` 0.25); **none from Alley III up** (`aiCapIdx` 6) |
+
+- **Opt-in, so a bot is never a surprise.** Only an entry whose game sent `mm.join {queue:'ranked', bots: true}`
+  (the game that shows these labels, PROTO unchanged: the field is optional and the relay ships first) is ever filled or
+  sent vs AI. Every entry in a bot-filled match must have opted in. An older game keeps the humans-only queue.
+- **Labels everywhere.** The queue card counts down to the fill ("Players first. Bots fill empty seats in 28s (half
+  points); vs AI at 1:10 if no one else is searching"), the Accept card counts players and bots per team and says "Bots
+  fill the empty seats (labelled) · half points", the vs AI strip says "your team against bots · quarter points", the
+  pick seats say Bot, the scoreboard tags bots, and the results block names the kind and its share. Bot chatter never
+  runs in a ranked room (the party now carries `mm.ranked`, so the old `queue === 'ranked'` check finally works).
+- **Vs AI is a co-op room in the ranked queue** (`MmMatch.vsAi`, room record `queue: 'ranked', vsAi: true`, no teams):
+  the PvP replay needs a human lead on team 1, so a humans-vs-bots ranked match uses the verified co-op path. `/live`
+  settles it as ranked (`rankedSettleCheck`, then `applyRankedRating(kind 'ai')`), never as co-op.
+- **Settlement.** `rankedKindOf(room)` reads the room record: `ai` (vsAi or no teams), `filled` (any fill seat), else
+  `players`. `rankedStep` multiplies the win and the loss by the kind's share (a win pays at least 1). The hidden rating
+  steps as before for `players` and `filled` (casual's step already weights by the human share of the opponents) and
+  **does not move** for `ai`.
+- **Placements.** Vs AI matches count as placement matches. A placement run with no match against players
+  (`vsPlayers` 0) places at most at Alley III; one match against players lifts that ceiling (the first-season cap stays
+  Lion I). A returning season's floor still applies.
+- **Farming.** Vs AI pays 5 points a win at c = 1 and nothing from Alley III, so it can only walk Kitten and Tabby
+  (which never lose points anyway). Season rewards are unchanged (from the peak tier).
+
+**Prime Time** (`ranked/windows.ts`, `RANKED_PRIME_TIME`): every day 18:00–22:00 UTC, and Saturday and Sunday
+12:00–22:00 UTC. Inside it bots wait 75 s instead of 40 s, so players find each other first. The tile, the variant stage
+and the rules show the window in the player's own time; when it starts the status job sends the ranked push once (each
+device at most once in 12 h; push is off on live until the VAPID keys are set).
+
+**Players searching.** The relay's presence rows carry `relay.q: 'ranked'` while an account searches ranked; the status
+job counts them every 30 s (`ranked/status.searching`, the tile's "3 searching"). The queue card shows the live pool
+count from the matchmaker (`mm.status.searching`, members of entries in the same pool; bots are never counted).
+
+**Regions (groundwork).** `ranked/status.regions` lists `{id, name, ping}` (one today: `eu`, Europe,
+`/pawlegends/ping`). The game times three no-store `GET /pawlegends/ping` calls per region and shows the median on the
+ranked queue card ("Europe · 48 ms"). A second region adds a row in `RANKED_REGIONS` and a relay; the region picker
+comes with it. `mm.join.region` already exists (the relay pins every entry to `MM_HOME_REGION` today).
+
+**`GET /pawlegends/ranked/status`** now answers `{open: true, online, need: 0, searching, primeTime: {active,
+startsAt, endsAt}, bots: RANKED_BOTS, regions, season}`.
+
+**Tests.** `mm/matchmaker-ranked.spec.ts` (fill, opt-in, vs AI, Prime Time), `mm/ranked-relay.spec.ts` (real sockets:
+vs AI room record, bot-filled 1v1 Accept card, no fill without `bots`), `ranked/lowpop.spec.ts` (shares, the vs AI
+ceiling, placements, Prime Time), `ranked/boards-live.spec.ts` (half points through `/live`, vs AI keeps the hidden
+rating), and in the game `tests/unit/ranked-open.test.ts`, `ranked-tiers.test.ts` (RANKED_BOTS and Prime Time mirror the
+backend), `tests/e2e/home-modes.spec.ts` and `tests/e2e/mp/queue-pvp.spec.ts` (alone, a vs AI match starts).
 
 ### 7.10 Rewards (cosmetic only)
 

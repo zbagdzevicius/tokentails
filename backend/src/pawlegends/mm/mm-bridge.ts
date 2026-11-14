@@ -28,7 +28,7 @@ import {
 } from './matchmaker';
 import { MM_CASUAL, MM_HOME_REGION, MM_LIMITS, MM_RANKED } from './mm-limits';
 import { CURRENT_SEASON_ID } from '../pawlegends-catalog';
-import { RANKED_MIN_MATCHES, RANKED_OPEN_AT } from '../ranked/tiers';
+import { RANKED_MIN_MATCHES } from '../ranked/tiers';
 import { identityHash, type MmRoomMember, type MmRoomStore } from './mm-room.schema';
 import type { MmRatingSource } from './rating.schema';
 import type { SanctionSource } from './sanction-reader';
@@ -129,6 +129,8 @@ export interface MmHooks {
     onPartyChanged(party: Party): void;
     /** The member holds a queued entry (its resume token is kept while its socket is gone). */
     queued(member: string): boolean;
+    /** The queue this member searches in, or null (presence: the ranked searching count, SOCIAL-RANKED.md §7.11). */
+    queueOf?(member: string): string | null;
     shutdown(): void;
     /** A drain was called off (LIVE-MATCH-DEPLOYS.md §4.4: the newer relay went away): queue again. */
     resume(): void;
@@ -147,8 +149,8 @@ export interface MmDeps {
     /** Moderator sanctions (SOCIAL-RANKED.md §8.4): queue, PvP and ranked locks, read at `mm.join`. */
     sanctions?: SanctionSource | null;
     /**
-     * Ranked (SOCIAL-RANKED.md §7.1, §7.6, §7.9): the liquidity gate and the per-account checks `mm.join {queue:
-     * 'ranked'}` reads. Without it ranked is closed (every join answers `mm_ranked_closed`).
+     * Ranked (SOCIAL-RANKED.md §7.1, §7.6, §7.11): the per-account checks `mm.join {queue:'ranked'}` reads. Without it
+     * ranked is closed (every join answers `mm_ranked_closed`).
      */
     ranked?: RankedJoinSource | null;
 }
@@ -158,10 +160,8 @@ export type RankedRefusal =
     | { code: 'mm_ranked_matches'; have: number; need: number }
     | { code: 'mm_ranked_pending'; rooms: string[] };
 
-/** What `mm.join ranked` reads. MmService builds it from the gate row, the saved matches and the ended ranked rooms. */
+/** What `mm.join ranked` reads. MmService builds it from the saved matches and the ended ranked rooms. */
 export interface RankedJoinSource {
-    /** The liquidity gate (`pawlegendsstatus {_id:'ranked'}`, cached 30 s). */
-    gate(): Promise<{ open: boolean; online: number; need: number }>;
     /** Saved matches below the line, or an ended ranked room not settled yet (§7.6). */
     check(accountId: string): Promise<RankedRefusal | null>;
     /**
@@ -281,6 +281,7 @@ export class MmBridge implements MmHooks {
         mm_casual_accepted: 0,
         mm_ranked_joins: 0,
         mm_ranked_matches: 0,
+        mm_ranked_ai: 0,
     };
     private readonly waits: number[] = [];
     private stopped = false;
@@ -300,7 +301,9 @@ export class MmBridge implements MmHooks {
                     member,
                     msg.side as MmSideChoice,
                     msg.region as string | undefined,
-                    msg.queue === 'casual' || msg.queue === 'classic' || msg.queue === 'ranked' ? msg.queue : 'coop'
+                    msg.queue === 'casual' || msg.queue === 'classic' || msg.queue === 'ranked' ? msg.queue : 'coop',
+                    // ranked (SOCIAL-RANKED.md §7.11): the game labels bots, so a quiet queue may fill with them
+                    msg.queue === 'ranked' && msg.bots === true
                 ).catch(e => this.api.log('mm_error', { message: String((e as Error)?.message || e).slice(0, 200) }));
             case 'mm.leave':
                 return this.leaveQueue(member, 'left');
@@ -321,6 +324,11 @@ export class MmBridge implements MmHooks {
         return this.byMember.has(member) || this.joining.has(member);
     }
 
+    queueOf(member: string): string | null {
+        const id = this.byMember.get(member);
+        return id ? this.entries.get(id)?.queue ?? null : null;
+    }
+
     private refuse(
         member: string,
         code: string,
@@ -337,9 +345,9 @@ export class MmBridge implements MmHooks {
     }
 
     /**
-     * Ranked's own checks at `mm.join` (SOCIAL-RANKED.md §7.1, §7.6, §7.9), for every member of the entry: the gate is
-     * open, each member is a registered account (never a guest), has the saved matches, and has no ended ranked room
-     * still unsettled. Answers the refusal sent, or null when the entry may queue. Never bots, so nothing else differs.
+     * Ranked's own checks at `mm.join` (SOCIAL-RANKED.md §7.1, §7.6, §7.11), for every member of the entry: each member
+     * is a registered account (never a guest), has the saved matches, and has no ended ranked room still unsettled.
+     * Answers the refusal sent, or null when the entry may queue. Ranked is always open (the 24-online gate is retired).
      */
     private async rankedRefusal(member: string, socks: MmSock[]): Promise<boolean> {
         const src = this.deps.ranked;
@@ -347,12 +355,10 @@ export class MmBridge implements MmHooks {
             this.refuse(member, 'party_full', undefined, 'ranked_party');
             return true;
         }
-        const gate = src ? await src.gate().catch(() => null) : null;
-        if (!src || !gate?.open) {
-            this.refuse(member, 'mm_ranked_closed', undefined, 'ranked_closed', {
-                online: gate?.online ?? 0,
-                need: gate?.need ?? RANKED_OPEN_AT,
-            });
+        // round 4 (§7.11): ranked is always open; only a relay built without the ranked source (no account checks)
+        // answers closed
+        if (!src) {
+            this.refuse(member, 'mm_ranked_closed', undefined, 'ranked_closed', { online: 0, need: 0 });
             return true;
         }
         for (const s of socks) {
@@ -436,7 +442,8 @@ export class MmBridge implements MmHooks {
         member: string,
         side: MmSideChoice,
         region?: string,
-        queue: 'coop' | MmPvpQueue = 'coop'
+        queue: 'coop' | MmPvpQueue = 'coop',
+        bots = false
     ): Promise<void> {
         const api = this.api;
         const sock = api.sock(member);
@@ -613,6 +620,7 @@ export class MmBridge implements MmHooks {
             enqueuedMs: now,
             notBeforeMs: wait > 0 ? now + wait : 0,
             awaySinceMs: socks.some(s => s.conn !== 'on') ? now : null,
+            ...(bots ? { bots: true } : {}),
         };
         const r = this.mm.join(entry);
         if (r === 'queue_full') return this.refuse(member, 'server_busy', 15_000, 'queue_full');
@@ -631,7 +639,13 @@ export class MmBridge implements MmHooks {
         this.tally.mm_joins++;
         if (queue === 'ranked') this.tally.mm_ranked_joins++;
         const level = Math.max(...ladders.map(l => l.level));
-        api.log('mm_join', { queue, side, party_size: members.length, ...(level ? { penalty: level } : {}) });
+        api.log('mm_join', {
+            queue,
+            side,
+            party_size: members.length,
+            ...(level ? { penalty: level } : {}),
+            ...(bots ? { bots: 1 } : {}),
+        });
         this.sendStatus(entry, true);
     }
 
@@ -907,7 +921,7 @@ export class MmBridge implements MmHooks {
         if (!st) return;
         const now = this.api.now();
         const warn = e.members.some(m => this.warnOf.get(m.member));
-        const key = `${e.queue}|${e.side}|${st.found}|${st.lowPriorityMs > 0}|${warn}`;
+        const key = `${e.queue}|${e.side}|${st.found}|${st.lowPriorityMs > 0}|${warn}|${st.searching ?? ''}`;
         const last = this.lastStatus.get(e.id);
         if (!force && last && last.key === key && now - last.ms < MM_LIMITS.statusEveryMs) return;
         this.lastStatus.set(e.id, { ms: now, key });
@@ -921,6 +935,8 @@ export class MmBridge implements MmHooks {
             found: Math.min(e.queue === 'classic' ? 5 : 3, Math.max(1, st.found)),
         };
         if (isPvpQueue(e.queue)) msg.teams = [msg.found as number, 0];
+        // ranked (§7.11): how many players search this pool now (the card shows it; never counts a bot)
+        if (e.queue === 'ranked' && st.searching !== undefined) msg.searching = st.searching;
         if (this.switched.has(e.id)) msg.from = 'casual';
         if (st.lowPriorityMs > 0) msg.lowPriorityMs = st.lowPriorityMs;
         if (warn) msg.warn = 'leaver';
@@ -987,7 +1003,15 @@ export class MmBridge implements MmHooks {
                   };
               })()
             : undefined;
-        const opts = { match: match.id, side: match.side, difficulty: match.difficulty, ...(casual ? { casual } : {}) };
+        // ranked (PvP or vs AI): the party knows it (no bot chatter, the ranked spectate delay)
+        const ranked = match.vsAi === true || (!!match.teams && queueOfMatch(match) === 'ranked');
+        const opts = {
+            match: match.id,
+            side: match.side,
+            difficulty: match.difficulty,
+            ...(casual ? { casual } : {}),
+            ...(ranked ? { ranked: true } : {}),
+        };
         const seatOf = (m: MmMember) => {
             const s = api.sock(m.member)!;
             return { id: m.member, identity: s.identity, hint: s.hint };
@@ -1030,6 +1054,8 @@ export class MmBridge implements MmHooks {
                 humans: match.humans,
                 bots: match.bots,
                 difficulty: match.difficulty,
+                // ranked vs AI (§7.11): only a ranked search (a game that sent `bots`) ever gets one
+                ...(match.vsAi ? { queue: 'ranked', ai: true } : {}),
             });
         }
         if (this.waits.length > 1000) this.waits.splice(0, this.waits.length - 1000);
@@ -1042,7 +1068,9 @@ export class MmBridge implements MmHooks {
             difficulty: match.difficulty,
             side: match.side,
             ...(match.mode ? { mode: match.mode } : {}),
+            ...(match.vsAi ? { queue: 'ranked', ai: 1 } : {}),
         });
+        if (match.vsAi) this.tally.mm_ranked_ai++;
     }
 
     // -----------------------------------------------------------------------------------------------------------
@@ -1224,7 +1252,7 @@ export class MmBridge implements MmHooks {
         };
         this.live.set(roomId, live);
         const casual = pend.match.teams;
-        const queue = casual ? queueOfMatch(pend.match) : 'coop';
+        const queue = casual ? queueOfMatch(pend.match) : pend.match.vsAi ? 'ranked' : 'coop';
         if (queue === 'ranked') this.tally.mm_ranked_matches++;
         void this.deps.rooms
             .create({
@@ -1232,6 +1260,8 @@ export class MmBridge implements MmHooks {
                 queue,
                 // ranked: the season the room counts for (its settlement and the season rewards read it)
                 ...(queue === 'ranked' ? { season: CURRENT_SEASON_ID } : {}),
+                // ranked vs AI (§7.11): one team of players against bots, settled at the vs AI share
+                ...(pend.match.vsAi ? { vsAi: true } : {}),
                 ...(casual
                     ? {
                           mode: 'casual' as const,

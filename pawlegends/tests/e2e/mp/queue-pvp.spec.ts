@@ -152,22 +152,23 @@ test('667x375 phone: the mode chip and the Accept card fit; a decline is a dodge
 });
 
 /*
- * Ranked (gap plan P4) against the relay harness, whose test fixture holds the liquidity gate open (30 online, 24
- * needed; backend/test/party-relay.harness.ts). The tile is live, PLAY → Ranked offers PvP only, Find match queues
- * ranked (no bots, solo or duo), and Cancel goes home. Five players never get a match: no bot ever fills ranked
- * (backend ranked-relay.spec.ts checks that and a six-player ranked match).
+ * Ranked (round 4, SOCIAL-RANKED.md §7.11) against the relay harness (backend/test/party-relay.harness.ts: always open,
+ * guests allowed, a fixed status answer). The tile is live with the searching count, PLAY → Ranked offers PvP only,
+ * Find match queues ranked with `bots: true`; the card says when labelled bots fill, the searching count and the
+ * region ping. Alone, the search becomes Ranked vs AI after the fill + 30 s (the strip says so), and the match starts.
+ * The backend ranked-relay.spec.ts checks six players, the bot-filled 1v1 and that a game without `bots` never fills.
  */
 for (const kind of ['phone', 'desktop'] as const) {
-  test(`${kind}: ranked opens with the gate: PLAY → Ranked → PvP queues ranked with no bots, Cancel goes home`, async ({ browser }) => {
+  test(`${kind}: ranked is always open: PLAY → Ranked → PvP queues ranked; the card is honest about bots; alone it plays vs AI`, async ({ browser }) => {
     test.setTimeout(300_000);
     const p = await player(browser, kind);
     await title(p);
-    // the nav Ranked item is live (the gate is open)
     await expect(p.page.locator('.hm-nav [data-a="ranked"][data-live="1"]')).toBeVisible({ timeout: 30_000 });
     await tap(p, p.page.locator('[data-testid="home-play"]'));
     const tile = p.page.locator('[data-testid="mode-ranked"]');
     await expect(tile).not.toHaveAttribute('aria-disabled', 'true');
-    await expect(tile).toContainText('3v3');
+    await expect(tile).toContainText('searching', { timeout: 15_000 });
+    await shot(p, 'ranked', '00-tile');
     await tap(p, tile);
     await tap(p, p.page.locator('[data-testid="mode-next"]'));
     // PvP only
@@ -178,11 +179,24 @@ for (const kind of ['phone', 'desktop'] as const) {
     const q = p.page.locator('[data-testid="mm-queue"][data-ranked="1"]');
     await expect(q).toBeVisible({ timeout: 15_000 });
     await expect(q).toContainText('Finding a Ranked match');
-    await expect(q.locator('[data-testid="mm-ranked-note"]')).toContainText('no bots');
+    await expect(q.locator('[data-testid="mm-ranked-note"]')).toContainText('Players first. Bots fill empty seats in');
+    await expect(q.locator('[data-testid="mm-ranked-live"]')).toContainText('1 searching');
+    await expect(q.locator('[data-testid="mm-ranked-live"]')).toContainText(/Europe · \d+ ms/, { timeout: 15_000 });
     expect(await tappable(p.page, '[data-testid="mm-cancel"]', 44)).toBe(true);
     expect(await noSideScroll(p.page)).toBe(true);
     await shot(p, 'ranked', '02-queue');
-    await tap(p, p.page.locator('[data-testid="mm-cancel"]'));
-    await p.page.waitForSelector('html[data-screen="title"] .pl-home', { timeout: 15_000 });
+    if (kind === 'phone') {
+      // the phone run stops here: Cancel goes home
+      await tap(p, p.page.locator('[data-testid="mm-cancel"]'));
+      await p.page.waitForSelector('html[data-screen="title"] .pl-home', { timeout: 15_000 });
+      return;
+    }
+    // alone: after the fill + 30 s (75 + 30 s in Prime Time) the search plays vs AI, and the strip says so
+    const ai = p.page.locator('[data-testid="mm-found-ai"]');
+    await expect(ai).toBeVisible({ timeout: 150_000 });
+    await expect(ai).toContainText('against bots · quarter points');
+    await shot(p, 'ranked', '03-vs-ai-found');
+    await p.page.waitForSelector('html[data-screen="pick"], .pp-pick, .cs', { timeout: 30_000 });
+    await shot(p, 'ranked', '04-vs-ai-pick');
   });
 }

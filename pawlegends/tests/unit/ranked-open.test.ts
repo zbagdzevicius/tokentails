@@ -1,21 +1,26 @@
 // @vitest-environment happy-dom
 /**
- * Ranked opens by itself (gap plan P4): the tile follows GET /pawlegends/ranked/status (locked with the live gate line,
- * live while open, PvP only), the party client turns the relay's ranked refusals into stops that offer Casual, the queue
- * card says "no bots" and offers Casual after 3:00, and the results block reads points, the shield and the tier.
+ * Ranked (gap plan P4; round 4 low population, SOCIAL-RANKED.md §7.11): always open, the tile shows the searching count
+ * and Prime Time from GET /pawlegends/ranked/status, the party client sends `bots: true` and turns the relay's ranked
+ * refusals into stops, the queue card says when labelled bots fill and when it becomes vs AI, and the results block
+ * reads points, the shield, the tier and what a bot-filled or vs AI match pays.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { effectiveState, metaLine, modeById, modeList, playable, rankedModeDef, registerMode, resetModes } from '../../src/ui/modeSelect/modes';
 import {
   parseRankedCard,
   parseRankedStatus,
+  primeTimeText,
+  RANKED_BOTS,
   RANKED_CASUAL_AFTER_S,
-  rankedGateSentence,
-  rankedGateText,
+  rankedBotsRule,
+  rankedLiveText,
   rankedResult,
+  regionText,
   type RankedCard,
+  type RankedStatus,
 } from '../../src/meta/ranked';
-import { initialParty, reduceParty, rankedStop } from '../../src/party/partyClient';
+import { initialParty, mmJoinMsg, reduceParty, rankedStop } from '../../src/party/partyClient';
 import { queueCardHtml, type QueueModel } from '../../src/party/ui/queueCard';
 import { acceptCardHtml } from '../../src/party/ui/acceptCard';
 import { rankedBlockHtml } from '../../src/ui/screens';
@@ -24,45 +29,77 @@ import { rankedNavOpts } from '../../src/ui/home/homeScreen';
 const NOW = Date.UTC(2026, 10, 20, 12);
 afterEach(() => resetModes());
 
-describe('the Ranked tile follows the live gate', () => {
-  it('closed: locked with "Opens at 24 online · 9 now"; open: live, PvP only, 3v3 on the Crossing', () => {
-    const closed = rankedModeDef({ open: false, online: 9, need: 24 });
-    expect(closed.state).toBe('locked');
-    expect(metaLine(closed, NOW)).toBe('Opens at 24 online · 9 now');
-    expect(playable(closed, NOW)).toBe(false);
-    const open = rankedModeDef({ open: true, online: 31, need: 24 });
-    expect(open).toMatchObject({ state: 'live', queues: ['pvp'], map: 'crossing', size: '3v3' });
-    expect(open.lockText).toBeUndefined();
-    expect(open.rules.join(' ')).toMatch(/no bots/i);
-    registerMode(open);
+const status = (o: Partial<RankedStatus> = {}): RankedStatus => ({ open: true, online: 4, searching: 2, regions: [], ...o });
+
+describe('the Ranked tile: always open (round 4)', () => {
+  it('live before and after the status answers; PvP only, 3v3 on the Crossing; never a guessed number', () => {
+    const none = rankedModeDef(null);
+    expect(none).toMatchObject({ state: 'live', queues: ['pvp'], map: 'crossing', size: '3v3' });
+    expect(metaLine(none, NOW)).toBe('3v3 · Always open');
+    const live = rankedModeDef(status({ searching: 3 }));
+    expect(playable(live, NOW)).toBe(true);
+    expect(metaLine(live, NOW)).toBe('3v3 · 3 searching');
+    expect(live.lockText).toBeUndefined();
+    registerMode(live);
     expect(effectiveState(modeById('ranked', modeList(NOW))!, NOW)).toBe('live');
-    // a live Ranked sits with the live tiles
     expect(modeList(NOW).findIndex((m) => m.id === 'ranked')).toBeLessThan(modeList(NOW).findIndex((m) => m.id === 'cannon'));
   });
 
-  it('no answer yet: the fallback line, never a guessed count', () => {
-    expect(rankedGateText(null)).toBe('Opens at 24 players online');
-    expect(rankedGateSentence({ open: false, online: 3, need: 24 })).toBe('Ranked opens at 24 players online. 3 online now.');
-    expect(rankedGateSentence({ open: true, online: 30, need: 24 })).toMatch(/open/);
+  it('the rules say bots honestly: when they fill, what they pay, and vs AI', () => {
+    const rules = rankedModeDef(status()).rules.join(' ');
+    expect(rules).toMatch(/Players first/);
+    expect(rules).toContain(`labelled bots fill after ${RANKED_BOTS.fillS} s (half points)`);
+    expect(rules).toContain(`alone after ${RANKED_BOTS.fillS + RANKED_BOTS.aiAfterS} s, vs AI (quarter points, none from Alley III)`);
+    expect(rankedBotsRule(true)).toContain(`after ${RANKED_BOTS.primeFillS} s`);
+    expect(rules).not.toMatch(/no bots/i);
   });
 
-  it('status answers are validated', () => {
-    expect(parseRankedStatus({ open: true, online: 30, need: 24, season: { id: 's1', endsAt: '2027-01-05' } })).toEqual({
+  it('Prime Time: the tile and the variant stage name it (in the player time)', () => {
+    const at = new Date(2026, 10, 20, 20, 0).getTime();
+    const on = status({ primeTime: { active: true, startsAt: at - 3_600_000, endsAt: at + 3_600_000 } });
+    expect(rankedLiveText(on)).toBe('2 searching · Prime Time now');
+    expect(primeTimeText(on)).toBe('Prime Time now · until 21:00');
+    const next = status({ primeTime: { active: false, startsAt: at, endsAt: at + 4 * 3_600_000 } });
+    expect(primeTimeText(next)).toBe('Prime Time 20:00–00:00');
+    expect(rankedModeDef(next).variantNote).toMatch(/^Prime Time 20:00–00:00 · players first/);
+    expect(primeTimeText(status())).toBe('');
+  });
+
+  it('status answers are validated (an older server without searching reads null, never a guess)', () => {
+    expect(
+      parseRankedStatus({
+        open: true,
+        online: 30,
+        need: 0,
+        searching: 3,
+        primeTime: { active: false, startsAt: 1, endsAt: 2 },
+        regions: [{ id: 'eu', name: 'Europe', ping: '/pawlegends/ping' }, { id: 'BAD', name: 'x', ping: 'http://evil' }],
+        season: { id: 's1', endsAt: '2027-01-05' },
+      }),
+    ).toEqual({
       open: true,
       online: 30,
-      need: 24,
+      searching: 3,
+      primeTime: { active: false, startsAt: 1, endsAt: 2 },
+      regions: [{ id: 'eu', name: 'Europe', ping: '/pawlegends/ping' }],
       season: { id: 's1', endsAt: '2027-01-05' },
     });
-    expect(parseRankedStatus({ open: 'yes', online: 30, need: 24 })).toBeNull();
-    expect(parseRankedStatus({ open: true, online: -1, need: 24 })).toBeNull();
+    expect(parseRankedStatus({ open: true, online: 30, need: 24 })).toMatchObject({ searching: null, regions: [] });
+    expect(rankedLiveText(parseRankedStatus({ open: true, online: 30, need: 24 }))).toBe('30 online');
+    expect(parseRankedStatus({ open: 'yes', online: 30 })).toBeNull();
+    expect(parseRankedStatus({ open: true, online: -1 })).toBeNull();
     expect(parseRankedStatus(null)).toBeNull();
   });
 
-  it('Home nav Ranked: live opens Mode Select; locked says the gate', () => {
-    const closed = [rankedModeDef({ open: false, online: 9, need: 24 })];
-    expect(rankedNavOpts({ modes: closed }, true)).toEqual({ locked: 'Ranked: Opens at 24 online · 9 now.' });
-    expect(rankedNavOpts({ modes: closed }, false).locked).toMatch(/first match/);
-    expect(rankedNavOpts({ modes: [rankedModeDef({ open: true, online: 30, need: 24 })] }, true).locked).toBeUndefined();
+  it('Home nav Ranked: live for a returning player (with the count), first-match lock for a new one', () => {
+    const modes = [rankedModeDef(status({ searching: 5 }))];
+    expect(rankedNavOpts({ modes }, true)).toEqual({ extra: ' aria-label="Ranked: open now, 5 searching" data-live="1"' });
+    expect(rankedNavOpts({ modes }, false).locked).toMatch(/first match/);
+  });
+
+  it('the region line: name and the measured ping (or … while measuring)', () => {
+    expect(regionText({ name: 'Europe', ms: 48 })).toBe('Europe · 48 ms');
+    expect(regionText({ name: 'Europe', ms: null })).toBe('Europe · …');
   });
 });
 
@@ -77,12 +114,39 @@ describe('ranked in the party client', () => {
     expect(rankedStop('mm_locked')).toBeNull();
   });
 
-  it('a ranked search: mm.join ranked goes out; a closed gate stops it with the counts', () => {
+  it('a ranked search: mm.join ranked goes out with bots: true (this game labels them); other queues never send it', () => {
     let s = { ...initialParty('queue', null, 'any', 'ranked'), welcomed: true, mmOk: true, pvpOk: true };
     const r = reduceParty(s, { e: 'queue', side: 'any', mode: 'ranked' });
-    expect(r.effects).toContainEqual({ t: 'send', msg: { t: 'mm.join', queue: 'ranked', side: 'any' } });
-    s = reduceParty(r.state, { e: 'server', m: { t: 'error', code: 'mm_ranked_closed', online: 9, need: 24 } as never }).state;
-    expect(s.queue).toMatchObject({ stopped: 'ranked_closed', ranked: { online: 9, need: 24 } });
+    expect(r.effects).toContainEqual({ t: 'send', msg: { t: 'mm.join', queue: 'ranked', side: 'any', bots: true } });
+    expect(mmJoinMsg('casual', 'cat')).toEqual({ t: 'mm.join', queue: 'casual', side: 'cat' });
+    // an older relay without the account checks still answers closed: the card stops and offers Casual
+    s = reduceParty(r.state, { e: 'server', m: { t: 'error', code: 'mm_ranked_closed', online: 0, need: 0 } as never }).state;
+    expect(s.queue).toMatchObject({ stopped: 'ranked_closed' });
+  });
+
+  it('mm.status ranked carries the searching count', () => {
+    let s = { ...initialParty('queue', null, 'any', 'ranked'), welcomed: true, mmOk: true, pvpOk: true };
+    s = reduceParty(s, { e: 'server', m: { t: 'mm.status', queue: 'ranked', side: 'any', waitedMs: 2000, estimateMs: 60000, found: 1, teams: [1, 0], searching: 3 } as never }).state;
+    expect(s.queue?.status?.searching).toBe(3);
+  });
+
+  it('vs AI: mm.found ranked ai is a ranked match of kind ai (no Accept card); a bot-filled Accept card is kind filled', () => {
+    let s = { ...initialParty('queue', null, 'any', 'ranked'), welcomed: true, mmOk: true, pvpOk: true };
+    s = reduceParty(s, { e: 'server', m: { t: 'mm.found', side: 'cat', humans: 1, bots: 2, difficulty: 'normal', queue: 'ranked', ai: true } as never }).state;
+    expect(s.accept).toBeNull();
+    expect(s.rankedMatch).toBe(true);
+    expect(s.rankedKind).toBe('ai');
+    expect(s.queue?.found).toMatchObject({ ai: true, humans: 1, bots: 2 });
+    let f = { ...initialParty('queue', null, 'any', 'ranked'), welcomed: true, mmOk: true, pvpOk: true };
+    f = reduceParty(f, {
+      e: 'server',
+      m: { t: 'mm.found', mode: 'casual', queue: 'ranked', match: 'abcdefghijkl', side: 'cat', humans: 1, bots: 2, difficulty: 'hard', teams: [[1, 2], [1, 2]], acceptByMs: 10000 } as never,
+    }).state;
+    expect(f.rankedKind).toBe('filled');
+    // a plain co-op found is never ranked
+    let c = { ...initialParty('queue', null, 'any', 'coop'), welcomed: true, mmOk: true, pvpOk: true };
+    c = reduceParty(c, { e: 'server', m: { t: 'mm.found', side: 'cat', humans: 1, bots: 2, difficulty: 'normal' } as never }).state;
+    expect(c.rankedMatch).toBe(false);
   });
 
   it('mm.status ranked keeps the ranked mode; mm.found ranked marks the accept card and the match', () => {
@@ -95,6 +159,7 @@ describe('ranked in the party client', () => {
     }).state;
     expect(s.accept?.ranked).toBe(true);
     expect(s.rankedMatch).toBe(true);
+    expect(s.rankedKind).toBe('players');
   });
 });
 
@@ -106,28 +171,44 @@ describe('the ranked queue card', () => {
     return el;
   };
 
-  it('says no bots; offers Casual only after 3:00', () => {
-    const early = card({});
+  it('players first: says when labelled bots fill and when it becomes vs AI; the live count and the region', () => {
+    const early = card({ ranked: { casualAfterS: RANKED_CASUAL_AFTER_S, searching: 2, region: { name: 'Europe', ms: 41 } } });
     expect(early.querySelector('[data-ranked]')).not.toBeNull();
-    expect(early.textContent).toMatch(/no bots/i);
+    expect(early.querySelector('[data-testid="mm-ranked-note"]')?.textContent).toBe(`Players first. Bots fill empty seats in ${RANKED_BOTS.fillS - 12}s (half points); vs AI at 1:10 if no one else is searching`);
+    expect(early.querySelector('[data-testid="mm-ranked-live"]')?.textContent).toBe('2 searching · Europe · 41 ms');
     expect(early.querySelector('[data-testid="mm-play-casual"]')).toBeNull();
-    const late = card({ waitedS: RANKED_CASUAL_AFTER_S });
-    expect(late.querySelector('[data-testid="mm-play-casual"]')).not.toBeNull();
+    const prime = card({ ranked: { casualAfterS: RANKED_CASUAL_AFTER_S, prime: true } });
+    expect(prime.textContent).toContain(`in ${RANKED_BOTS.primeFillS - 12}s`);
+    expect(prime.querySelector('[data-testid="mm-ranked-live"]')?.textContent).toBe('Prime Time');
+    const quiet = card({ waitedS: 50 });
+    expect(quiet.querySelector('[data-testid="mm-ranked-note"]')?.textContent).toMatch(/^Quiet queue: bots fill/);
+    // only a relay that never fills ranked keeps a search this long: the card then offers Casual
+    expect(card({ waitedS: RANKED_CASUAL_AFTER_S }).querySelector('[data-testid="mm-play-casual"]')).not.toBeNull();
   });
 
-  it('a closed gate stops with the count and offers Casual (Search again cannot help)', () => {
-    const el = card({ stopped: 'ranked_closed', ranked: { casualAfterS: 180, online: 9, need: 24 } });
-    expect(el.querySelector('[data-testid="mm-stopped"]')?.textContent).toBe('Ranked opens at 24 players online · 9 online now');
+  it('vs AI found: the strip says your team against bots and quarter points', () => {
+    const el = card({ match: { humans: 1, bots: 2, side: 'cat', difficulty: 'normal', ai: true } });
+    expect(el.querySelector('[data-ai]')).not.toBeNull();
+    expect(el.querySelector('h2')?.textContent).toBe('Ranked vs AI');
+    expect(el.querySelector('[data-testid="mm-found-ai"]')?.textContent).toMatch(/against bots · quarter points/);
+  });
+
+  it('an older relay (no ranked source) stops closed and offers Casual (Search again cannot help)', () => {
+    const el = card({ stopped: 'ranked_closed', ranked: { casualAfterS: 180, online: 0, need: 0 } });
     expect(el.querySelector('[data-testid="mm-play-casual"]')).not.toBeNull();
     expect(el.querySelector('[data-testid="mm-again"]')).toBeNull();
     // an unsaved ranked match: Search again (the save lands in a moment)
     expect(card({ stopped: 'ranked_pending' }).querySelector('[data-testid="mm-again"]')).not.toBeNull();
   });
 
-  it('the Accept card is titled for ranked', () => {
+  it('the Accept card is titled for ranked; bot-filled says so with its half points', () => {
     const html = acceptCardHtml({ side: 'cat', mine: [3, 0], theirs: [3, 0], leftS: 9, totalS: 10, accepted: false, yes: 0, need: 6, ranked: true });
     expect(html).toContain('Ranked match found');
     expect(html).toContain('data-ranked="1"');
+    expect(html).not.toContain('mm-ranked-filled');
+    const filled = acceptCardHtml({ side: 'cat', mine: [1, 2], theirs: [1, 2], leftS: 9, totalS: 10, accepted: false, yes: 0, need: 2, ranked: true });
+    expect(filled).toContain('1 player + 2 bots vs 1 + 2 bots');
+    expect(filled).toContain('Bots fill the empty seats (labelled) · half points');
   });
 });
 
@@ -156,5 +237,8 @@ describe('the ranked results block', () => {
     const html = rankedBlockHtml(rankedResult(card({ tierIdx: 7, points: 40, shield: 1 }), card({ tierIdx: 7, points: 58, shield: 1 }), true));
     expect(html).toContain('data-tone="up"');
     expect(html).toContain('+18 pts');
+    expect(html).not.toContain('ranked-kind');
+    expect(rankedBlockHtml(null, 'filled')).toContain('Bots filled empty seats · half points');
+    expect(rankedBlockHtml(null, 'ai')).toContain('Ranked vs AI · quarter points (none from Alley III)');
   });
 });

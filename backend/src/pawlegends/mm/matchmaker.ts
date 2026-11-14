@@ -21,12 +21,21 @@ import {
     type PvpQueueRules,
     type Species,
 } from './casual';
-import { difficultyAllowed, matchDifficulty, matchSide, partyRating, sidesCompatible } from './fill';
+import {
+    difficultyAllowed,
+    matchDifficulty,
+    matchSide,
+    MM_DIFFICULTIES,
+    partyRating,
+    sidesCompatible,
+    type MmDifficulty,
+} from './fill';
 import { fillAtMs, MM_CASUAL, MM_CLASSIC, MM_LIMITS, MM_RANKED, pairFillMs } from './mm-limits';
+import { inPrimeTime } from '../ranked/windows';
 
 /**
  * The PvP queues (two teams of humans): casual 3v3, classic 5v5 (MAP-5V5.md §9.3) and ranked 3v3 (SOCIAL-RANKED.md
- * §7.1: solo or duo, never a bot).
+ * §7.1: solo or duo; §7.11: labelled bots after the fill, vs AI after that, only for entries that sent `bots`).
  */
 export type MmPvpQueue = 'casual' | 'classic' | 'ranked';
 export const isPvpQueue = (q: string | undefined): q is MmPvpQueue =>
@@ -74,6 +83,8 @@ export interface MmEntry {
     notBeforeMs: number;
     /** Tab hidden since (skipped; cancelled after awayCancelMs), else null. */
     awaySinceMs: number | null;
+    /** Ranked (§7.11): the game labels bots, so a quiet queue may fill this search with them or play it vs AI. */
+    bots?: boolean;
 }
 
 export interface MmMatch {
@@ -98,6 +109,11 @@ export interface MmMatch {
     teams?: [MmTeam, MmTeam];
     /** 5v5 Classic (queue 'classic'): Hearthwood Divide, slots 0..4 and 5..9. Absent: Crossing, 3 a team. */
     map?: 'hearthwood';
+    /**
+     * Ranked vs AI (SOCIAL-RANKED.md §7.11): a co-op shaped match (no teams) from the ranked queue: one team of players
+     * against bots. `queue` is 'ranked'.
+     */
+    vsAi?: boolean;
 }
 
 export interface MmTeam {
@@ -153,6 +169,8 @@ export interface MmStatus {
     estimateMs: number;
     found: number;
     lowPriorityMs: number;
+    /** Ranked: players searching in this pool now (this entry included). */
+    searching?: number;
 }
 
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -363,17 +381,43 @@ export class Matchmaker {
         const pvpFill = e.queue === 'classic' ? MM_CLASSIC.fillMs : MM_CASUAL.fillMs;
         const toFill = Math.max(0, (isPvpQueue(e.queue) ? pvpFill : fillAtMs(lambda)) - waitedMs);
         const toArrival = lambda > 0 ? 60_000 / lambda : Infinity;
-        // ranked never fills: the estimate is the arrival of the five other humans (at least a minute, never "never")
-        const rankedMs =
+        // ranked: the arrival of the five other players (at least a minute, never "never"); with bots, at most the vs AI
+        // line (§7.11)
+        const rankedPlayersMs =
             lambda > 0
                 ? Math.max(60_000, (5 * 60_000) / lambda - waitedMs)
                 : Math.max(30_000, MM_RANKED.offerCasualMs - waitedMs);
+        const rankedMs = e.bots
+            ? Math.min(rankedPlayersMs, Math.max(0, this.rankedAiAtMs(now) - waitedMs))
+            : rankedPlayersMs;
         const raw =
             e.queue === 'ranked'
                 ? Math.max(lowPriorityMs, Math.min(rankedMs, 10 * 60_000))
                 : Math.max(lowPriorityMs, Math.min(toFill, toArrival));
         const estimateMs = Math.max(3000, Math.ceil(raw / 5000) * 5000);
+        if (e.queue === 'ranked') {
+            let searching = 0;
+            const key = poolKey(e);
+            for (const o of this.entries.values()) if (poolKey(o) === key) searching += o.members.length;
+            return {
+                waitedMs,
+                estimateMs,
+                found: this.found.get(entryId) ?? e.members.length,
+                lowPriorityMs,
+                searching,
+            };
+        }
         return { waitedMs, estimateMs, found: this.found.get(entryId) ?? e.members.length, lowPriorityMs };
+    }
+
+    /** Ranked (§7.11): when the bot fill starts (longer inside Prime Time). */
+    rankedFillAtMs(now: number): number {
+        return inPrimeTime(now) ? MM_RANKED.primeFillMs : MM_RANKED.fillMs;
+    }
+
+    /** Ranked (§7.11): when a search with no opponent player plays vs AI. */
+    rankedAiAtMs(now: number): number {
+        return this.rankedFillAtMs(now) + MM_RANKED.aiAfterMs;
     }
 
     private eligible(e: MmEntry, now: number): boolean {
@@ -494,16 +538,30 @@ export class Matchmaker {
             out.switched.push(e);
         }
         const used = new Set<string>();
-        // PvP first (casual 3v3, classic 5v5): two teams, oldest anchor first
+        const prime = inPrimeTime(now);
+        // PvP first (casual 3v3, classic 5v5, ranked 3v3): two teams, oldest anchor first
         for (const a of sorted) {
             if (!isPvpQueue(a.queue) || used.has(a.id) || !this.eligible(a, now)) continue;
-            const rules = pvpRulesOf(a.queue);
+            const rules = pvpRulesOf(a.queue, prime);
             const pool = sorted.filter(o => o.queue === a.queue && !used.has(o.id) && this.eligible(o, now));
             const plan = bestCasual(a, pool, now, order, rules);
             this.found.set(a.id, a.members.length + (plan ? plan.humans[0] - a.members.length : 0));
             if (!plan) continue;
             for (const t of plan.teams) for (const e of t) used.add(e.id);
             out.matches.push(this.makeCasual(plan, now, rules));
+        }
+        // ranked vs AI (§7.11): an opted-in search with no opponent player by the vs AI line plays its team (with up to
+        // two more such ranked players) against bots
+        const aiAt = this.rankedAiAtMs(now);
+        for (const a of sorted) {
+            if (a.queue !== 'ranked' || !a.bots || used.has(a.id) || !this.eligible(a, now)) continue;
+            if (now - a.enqueuedMs < aiAt) continue;
+            const pool = sorted.filter(
+                o => o.queue === 'ranked' && o.bots === true && !used.has(o.id) && this.eligible(o, now)
+            );
+            const group = this.best(a, pool, order, now);
+            for (const e of group) used.add(e.id);
+            out.matches.push(this.makeVsAi(group, now));
         }
         // 2-4. co-op: full teams, then pair fill, then solo fill, oldest first
         for (const a of sorted) {
@@ -640,5 +698,16 @@ export class Matchmaker {
             waitedMs,
             fill,
         };
+    }
+
+    /**
+     * Ranked vs AI (§7.11): the group's team against bots, as a co-op match from the ranked queue. The bots play at
+     * least Normal (never Rookie or Easy: the points are earned), from the players' ranked ratings.
+     */
+    private makeVsAi(group: MmEntry[], now: number): MmMatch {
+        const m = this.makeMatch(group, now, 'quiet');
+        const floor = MM_DIFFICULTIES.indexOf('normal');
+        const d = Math.max(floor, MM_DIFFICULTIES.indexOf(m.difficulty as MmDifficulty));
+        return { ...m, difficulty: MM_DIFFICULTIES[d], queue: 'ranked', vsAi: true };
     }
 }

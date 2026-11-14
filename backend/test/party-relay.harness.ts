@@ -16,15 +16,16 @@ import { MemoryRoomStore } from '../src/pawlegends/party/room-store';
 import { PAWLEGENDS_SIM_INFO } from '../src/pawlegends/pawlegends-sim-info';
 import { CURRENT_SEASON_ID, seasonDef } from '../src/pawlegends/pawlegends-catalog';
 import type { RankedJoinSource } from '../src/pawlegends/mm/mm-bridge';
+import { RANKED_BOTS, RANKED_REGIONS } from '../src/pawlegends/ranked/tiers';
+import { primeTime } from '../src/pawlegends/ranked/windows';
 
 /*
- * Ranked (gap plan P4) in the e2e harness: a test fixture with the liquidity gate held open (30 online, 24 needed), so
- * the game's Ranked tile is live and `mm.join ranked` queues. The harness browsers have no accounts or saved matches,
- * so the fixture lets guests queue. Production (MmService) reads the real gate row and the real account checks.
+ * Ranked in the e2e harness (SOCIAL-RANKED.md §7.11: always open since round 4): the harness browsers have no accounts
+ * or saved matches, so the fixture lets guests queue. Production (MmService) reads the real account checks. The status
+ * answer mirrors GET /pawlegends/ranked/status with fixed counts and the real Prime Time and bot rules.
  */
-const RANKED_OPEN_FIXTURE = { open: true, online: 30, need: 24 };
+const RANKED_STATUS_FIXTURE = { open: true, online: 30, need: 0, searching: 2 };
 const rankedFixture: RankedJoinSource = {
-    gate: async () => RANKED_OPEN_FIXTURE,
     check: async () => null,
     allowGuests: true,
 };
@@ -48,13 +49,24 @@ const server = createServer((req, res) => {
         res.end(JSON.stringify(PAWLEGENDS_SIM_INFO));
         return;
     }
+    // the region ping (SOCIAL-RANKED.md §7.11)
+    if (req.url === '/pawlegends/ping') {
+        res.setHeader('content-type', 'application/json');
+        res.setHeader('access-control-allow-origin', '*');
+        res.setHeader('cache-control', 'no-store');
+        res.end('{"ok":true}');
+        return;
+    }
     // the game's Ranked tile (pawlegends/src/meta/ranked.ts): the same answer as GET /pawlegends/ranked/status
     if (req.url === '/pawlegends/ranked/status') {
         res.setHeader('content-type', 'application/json');
         res.setHeader('access-control-allow-origin', '*');
         res.end(
             JSON.stringify({
-                ...RANKED_OPEN_FIXTURE,
+                ...RANKED_STATUS_FIXTURE,
+                primeTime: primeTime(Date.now()),
+                bots: { ...RANKED_BOTS },
+                regions: RANKED_REGIONS.map(r => ({ ...r })),
                 season: { id: season.id, name: season.name, startsAt: season.startsAt, endsAt: season.endsAt },
             })
         );
