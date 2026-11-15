@@ -107,8 +107,15 @@ export const landingCats = (): LandingHero[] => liveRoster().filter((h) => h.sid
 export const landingDogs = (): LandingHero[] => liveRoster().filter((h) => h.side === "dog");
 /** The pick grid: released heroes with real in-game art. */
 export const gridHeroes = (): LandingHero[] => liveRoster().filter((h) => !!h.portrait);
-/** Heroes new in the game build this page links to (released in GAME_SIM_VERSION, with real art): the New tags. */
-export const justReleased = (): LandingHero[] => gridHeroes().filter((h) => h.since === GAME_SIM_VERSION);
+/**
+ * The newest heroes in the game build this page links to (with real art): the New tags. They keep the tag through
+ * later sim versions that add no hero (a balance release such as v30), until the next roster release.
+ */
+export const justReleased = (): LandingHero[] => {
+  const grid = gridHeroes();
+  const newest = Math.max(...grid.map((h) => h.since));
+  return grid.filter((h) => h.since === newest && h.since > 1);
+};
 /** The new-dogs strip: everyone not in the grid (no art yet, or not released yet). */
 export const newcomers = (): LandingHero[] => LANDING_ROSTER.filter((h) => !isReleased(h) || !h.portrait);
 

@@ -34,7 +34,7 @@
  *    Hard rules, two humans a side flown by player-bots, one bot each side), for the backend's casual /live spec.
  * 11. roster-replay.fixture.json (sim v29): one genuine Easy match played as a roster hero (Biscuit), so the spec shows
  *    a v29 roster replay verifies and the same record labelled v28 is refused.
- * backend/src/vendor/pawlegends-sim/v10/ to v28/: those files, frozen (FROZEN below; sim v29 is live).
+ * backend/src/vendor/pawlegends-sim/v10/ to v29/: those files, frozen (FROZEN below; sim v30 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -111,6 +111,8 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * backend verifies 10 to 28.
  * Sim v29 (the roster release: Mochi, Ziggy, Biscuit and Champ, docs/plans/moba/ROSTER-V29.md) froze the released
  * v28 at 806918b6, its last commit on main, and keeps v10 to v27, so the backend verifies 10 to 29.
+ * Sim v30 (the 5v5 balance pass: Hearthwood hero and species rows, docs/plans/moba/V30-BALANCE.md) froze the released
+ * v29 at f921c5ef, its last commit on main, and keeps v10 to v28, so the backend verifies 10 to 30.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -337,6 +339,24 @@ export const FROZEN = Object.freeze([
       'hearthwood-pvp.fixture.json',
       'blitz-replay.fixture.json',
       'kite-replay.fixture.json',
+    ]),
+  }),
+  Object.freeze({
+    simVersion: 29,
+    commit: 'f921c5effbee8fdcffae203397328afd8881741e',
+    from: 'backend/src/vendor/pawlegends-sim/v29',
+    bundle: '6ec5a82f39bfa035ad9523f0d993279e0f6891b3cd2cdc275eaa5f58102aab0c',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+      'blitz-replay.fixture.json',
+      'kite-replay.fixture.json',
+      'roster-replay.fixture.json',
     ]),
   }),
 ]);

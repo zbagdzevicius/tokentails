@@ -4,7 +4,7 @@
  * the sim never reads this file.
  */
 import { HERO_IDS, HEROES } from '../../data/heroes';
-import type { HeroId, HeroRole } from '../../data/heroes/types';
+import type { HeroId, HeroRole, HeroSide } from '../../data/heroes/types';
 import { HERO_TEXT, type IconId } from '../heroText';
 import { SIM_VERSION } from '../../sim/version';
 
@@ -27,8 +27,14 @@ export const ROLE_NAME: Readonly<Record<HeroRole, string>> = Object.freeze(
 );
 
 /**
- * Sim v15 (DOGS-V15 §2): the sim version each newer hero shipped in. A tile is tagged New while its hero's version is
- * the live SIM_VERSION; the tag goes away in the next sim version.
+ * Sim v15 (DOGS-V15 §2): the sim version each newer hero shipped in. A tile is tagged New while its hero is in the
+ * newest roster release the live SIM_VERSION has; sim v30 (a balance-only version) keeps the v29 four tagged, so the tag
+ * goes away with the next roster release.
  */
 const HERO_SINCE: Readonly<Partial<Record<HeroId, number>>> = { rocket: 15, frankie: 15, domino: 15, mochi: 29, ziggy: 29, biscuit: 29, champ: 29 };
-export const isNewHero = (h: HeroId): boolean => HERO_SINCE[h] === SIM_VERSION;
+const NEWEST_ROSTER = Math.max(...Object.values(HERO_SINCE).filter((v): v is number => v !== undefined && v <= SIM_VERSION));
+export const isNewHero = (h: HeroId): boolean => HERO_SINCE[h] === NEWEST_ROSTER;
+
+/** The side tabs' and side badges' species colours: neutral, never an ally / enemy relation hue (side-colors.test).
+ * The champion select draws them from here (`--side` on each tab and badge). */
+export const SIDE_TAB_CSS: Readonly<Record<HeroSide, string>> = Object.freeze({ cat: '#f28bb0', dog: '#e8c27a' });

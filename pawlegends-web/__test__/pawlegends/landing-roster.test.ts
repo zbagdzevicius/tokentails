@@ -137,7 +137,8 @@ describe("Pawlegends landing roster", () => {
     const html = landingMarkup();
     const four = ["mochi", "ziggy", "biscuit", "champ"];
     if (GAME_SIM_VERSION >= 29) {
-      if (GAME_SIM_VERSION === 29) expect(justReleased().map((h) => h.id).sort()).toEqual([...four].sort());
+      // the newest roster keeps its New tags through a balance-only sim (v30) until the next roster release
+      if (!LANDING_ROSTER.some((h) => h.since > 29 && h.since <= GAME_SIM_VERSION)) expect(justReleased().map((h) => h.id).sort()).toEqual([...four].sort());
       expect(html).toContain("Twelve cats, twelve dogs.");
       expect(liveRoster()).toHaveLength(24);
       expect(gridHeroes()).toHaveLength(24);
