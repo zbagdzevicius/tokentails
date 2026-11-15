@@ -302,7 +302,8 @@ test.describe("north-star first session (plan 1.3, task 7b)", () => {
       const curtainBg = await curtain
         .evaluate((el) => getComputedStyle(el).backgroundColor, undefined, { timeout: 1000 })
         .catch(() => null);
-      if (curtainBg !== null) {
+      // "" is a curtain read while it was being removed (a detached element has no computed style): it had lifted
+      if (curtainBg) {
         expect(curtainBg).toBe("rgb(11, 8, 32)");
         await shot(page, "02-curtain");
       }

@@ -85,7 +85,7 @@ async function isTopmost(page: Page, name: string): Promise<boolean> {
 }
 
 test.use({ allowUnmocked: true });
-test.setTimeout(240_000);
+test.setTimeout(360_000);
 
 test.describe("MY HOME: the Cat Yard", () => {
   test("opens with the player's cats; GO BACK and SHELTER are reachable; FEED saves EAT", async ({ page, backend }, info) => {
@@ -112,8 +112,10 @@ test.describe("MY HOME: the Cat Yard", () => {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/home-yard-hungry-${info.project.name}.png` });
 
     await page.getByRole("button", { name: "FEED Scout" }).click();
-    // The cat walks to the bowls and eats (about 2 s), then EAT is saved and the panel hides.
-    await expect(page.getByTestId("home-yard-feed")).toHaveCount(0, { timeout: 60_000 });
+    // The cat walks to the bowls and eats (about 2 s), then EAT is saved and the panel hides. The yard advances at most
+    // 0.1 s per drawn frame (catnip-heist yard/Yard.ts), and software WebGL on the 4-core CI runner draws about one
+    // frame a second, so those 2 s can take over a minute there: the wait is on the state, with room for that.
+    await expect(page.getByTestId("home-yard-feed")).toHaveCount(0, { timeout: 180_000 });
     expect(saves.some((body) => /"EAT"\s*:\s*4/.test(body))).toBe(true);
     expect(saves).not.toContain("SCORE");
 
