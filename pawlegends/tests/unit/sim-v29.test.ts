@@ -18,8 +18,8 @@ const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pa
 const TRICKS: TrickId[] = ['pounce', 'snack', 'hiss', 'purrify', 'pounce', 'snack'];
 
 describe('sim v29: the roster release', { timeout: 600000 }, () => {
-  it('SIM_VERSION 29; 24 heroes, 12 a side, two of each role; the roster four at 20..23', () => {
-    expect(SIM_VERSION).toBe(29);
+  it('SIM_VERSION 29 or later; 24 heroes, 12 a side, two of each role; the roster four at 20..23', () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(29);
     expect(HERO_IDS).toHaveLength(24);
     expect(HERO_IDS.slice(20)).toEqual([...ROSTER]);
     for (const h of ROSTER) expect(HEROES[h].talents.flat().length, h).toBe(6);
@@ -59,13 +59,15 @@ describe('sim v29: the roster release', { timeout: 600000 }, () => {
     const m = createMatch({ seed: 2929, picks, tricks, difficulty: 'easy', map: 'hearthwood' });
     while (!result(m)) step(m);
     const rec = replayRecord(m)!;
-    expect(rec.simVersion).toBe(29);
+    expect(rec.simVersion).toBe(SIM_VERSION);
     expect(verifyReplay(rec).ok).toBe(true);
   });
 
-  it('the vendored v29 roster fixture is a Biscuit replay that verifies; frozen v28 has no roster hero', () => {
-    const live = JSON.parse(readFileSync(join(VENDOR, 'v29', 'roster-replay.fixture.json'), 'utf8')) as ReplayRecord;
-    expect(live.simVersion).toBe(29);
+  it('the vendored live roster fixture is a Biscuit replay that verifies (v29 froze it in sim v30); frozen v28 has no roster hero', () => {
+    const live = JSON.parse(readFileSync(join(VENDOR, `v${SIM_VERSION}`, 'roster-replay.fixture.json'), 'utf8')) as ReplayRecord;
+    expect(live.simVersion).toBe(SIM_VERSION);
+    const v29 = JSON.parse(readFileSync(join(VENDOR, 'v29', 'roster-replay.fixture.json'), 'utf8')) as ReplayRecord;
+    expect(v29).toMatchObject({ simVersion: 29, hero: 'biscuit' });
     expect(live.hero).toBe('biscuit');
     expect(verifyReplay(live).ok).toBe(true);
     const v28 = readFileSync(join(VENDOR, 'v28', 'index.ts'), 'utf8');

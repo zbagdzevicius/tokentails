@@ -299,44 +299,68 @@ export const HEARTHWOOD_PVP = Object.freeze({
   // but lifted the map5v5-probe down-10 row to 8.2% / 3.2% (6.1% pooled over three windows, against 4.2% here).
   cat: Object.freeze({ dmgBp: 10020, takenBp: 10290 }),
   dog: Object.freeze({ dmgBp: 10000, takenBp: 10310 }),
+  // sim v30 (docs/plans/moba/V30-BALANCE.md): the first full 8,000-match per-hero pass on the 24-hero roster. A step of
+  // x% moves dmgBp up and takenBp down by x × 100 (a whole or half step, nothing finer). Fitted with a logistic model on
+  // 6,000 matches (seeds 100001-103000, about 0.06 logit per 1%), then judged on 8,000 unseen matches (seeds 20001-24000):
+  // every hero 47.5%-53.5%, cats 50.5%, side 50.5%. v29 on 100001: Ziggy 45.1%, Biscuit 45.4%, Clem 57.3%, Cacklejaw 56.3%.
   hero: Object.freeze({
-    clem: { dmgBp: 12048, takenBp: 8220 },
+    // sim v30 (V30-BALANCE.md): −6% (12048 / 8220 → 11448 / 8820)
+    clem: { dmgBp: 11448, takenBp: 8820 },
     sage: { dmgBp: 10045, takenBp: 10180 },
-    gabe: { dmgBp: 8727, takenBp: 11470 },
+    // sim v30 (V30-BALANCE.md): +3.5% (8727 / 11470 → 9077 / 11120)
+    gabe: { dmgBp: 9077, takenBp: 11120 },
     // sim v22 (carved jungle, on the v21 row 9581 / 10637): 54.1% of 1,200 → −1%
-    meatball: { dmgBp: 9481, takenBp: 10737 },
+    // sim v30 (V30-BALANCE.md): +3% (9481 / 10737 → 9781 / 10437)
+    meatball: { dmgBp: 9781, takenBp: 10437 },
     // sim v22 (carved jungle, on the v21 row 9891 / 10361): 46.4% of 600 → +1%
-    duchess: { dmgBp: 9991, takenBp: 10261 },
-    aviete: { dmgBp: 10870, takenBp: 9351 },
+    // sim v30 (V30-BALANCE.md): −1% (9991 / 10261 → 9891 / 10361)
+    duchess: { dmgBp: 9891, takenBp: 10361 },
+    // sim v30 (V30-BALANCE.md): −5% (10870 / 9351 → 10370 / 9851)
+    aviete: { dmgBp: 10370, takenBp: 9851 },
     bengas: { dmgBp: 10118, takenBp: 10110 },
-    lambo: { dmgBp: 11172, takenBp: 9080 },
-    pixel: { dmgBp: 10178, takenBp: 10050 },
+    // sim v30 (V30-BALANCE.md): +3% (11172 / 9080 → 11472 / 8780)
+    lambo: { dmgBp: 11472, takenBp: 8780 },
+    // sim v30 (V30-BALANCE.md): +2% (10178 / 10050 → 10378 / 9850)
+    pixel: { dmgBp: 10378, takenBp: 9850 },
     // sim v22 on main's v20 + v21 (fresh windows 3200001-3400300, 1,800 matches): 54.7% → the v21 row −1% (the +2%
     // fitted without v20 overshot)
-    stilts: { dmgBp: 10217, takenBp: 10009 },
+    // sim v30 (V30-BALANCE.md): −4.5% (10217 / 10009 → 9767 / 10459)
+    stilts: { dmgBp: 9767, takenBp: 10459 },
     // sim v22 (carved jungle, on the v21 row 11867 / 8435): 53.4% of 600 → −1%
     brutus: { dmgBp: 11767, takenBp: 8535 },
-    cacklejaw: { dmgBp: 10782, takenBp: 9511 },
-    nugget: { dmgBp: 9200, takenBp: 11058 },
+    // sim v30 (V30-BALANCE.md): −7% (10782 / 9511 → 10082 / 10211)
+    cacklejaw: { dmgBp: 10082, takenBp: 10211 },
+    // sim v30 (V30-BALANCE.md): +3% (9200 / 11058 → 9500 / 10758)
+    nugget: { dmgBp: 9500, takenBp: 10758 },
     // sim v21: −1% on the v20 row (9190 / 10810 before); sim v22: 46.3% of 1,800 (windows 3200001-3400300), then 44.2%
     // on 3600001 → +2%
-    marshmallow: { dmgBp: 9531, takenBp: 10692 },
+    // sim v30 (V30-BALANCE.md): +1% (9531 / 10692 → 9631 / 10592)
+    marshmallow: { dmgBp: 9631, takenBp: 10592 },
     // sim v22 (carved jungle, on the v21 row 11023 / 9280): 54.2% of 600 → −1%
-    bravo: { dmgBp: 10923, takenBp: 9380 },
-    chili: { dmgBp: 9494, takenBp: 10770 },
+    // sim v30 (V30-BALANCE.md): +1% (10923 / 9380 → 11023 / 9280)
+    bravo: { dmgBp: 11023, takenBp: 9280 },
+    // sim v30 (V30-BALANCE.md): +3% (9494 / 10770 → 9794 / 10470)
+    chili: { dmgBp: 9794, takenBp: 10470 },
     // sim v22 (carved jungle, on the v21 row 10702 / 9590): 53.5% of 600 → −1%
-    howler: { dmgBp: 10602, takenBp: 9690 },
+    // sim v30 (V30-BALANCE.md): −3% (10602 / 9690 → 10302 / 9990)
+    howler: { dmgBp: 10302, takenBp: 9990 },
     // sim v22 (carved jungle, on the v21 row 9225 / 11030): 45.5% of 1,200 → +1.5%
-    rocket: { dmgBp: 9375, takenBp: 10880 },
-    frankie: { dmgBp: 10106, takenBp: 10170 },
+    // sim v30 (V30-BALANCE.md): +1% (9375 / 10880 → 9475 / 10780)
+    rocket: { dmgBp: 9475, takenBp: 10780 },
+    // sim v30 (V30-BALANCE.md): +2.5% (10106 / 10170 → 10356 / 9920)
+    frankie: { dmgBp: 10356, takenBp: 9920 },
     // sim v22 (carved jungle, on the v21 row 9912 / 10360): 42.9% of 1,200 → +3%
-    domino: { dmgBp: 10212, takenBp: 10060 },
+    // sim v30 (V30-BALANCE.md): −3.5% (10212 / 10060 → 9862 / 10410)
+    domino: { dmgBp: 9862, takenBp: 10410 },
     // sim v29 roster (ROSTER-V29.md §4): first rows from hearth-gates 72001 (300 seeds, n ≈ 250 each): Mochi 61.4%,
     // Ziggy 58.4%, Biscuit 40.4%, Champ 45.2% → about 2.3 points per 1% (the domino and marshmallow refits); on 74001
     // (300 seeds) 50.0% / 50.0% / 52.1% / 44.9%, so Champ +2% more
     mochi: { dmgBp: 9550, takenBp: 10450 },
-    ziggy: { dmgBp: 9650, takenBp: 10350 },
-    biscuit: { dmgBp: 10450, takenBp: 9550 },
-    champ: { dmgBp: 10400, takenBp: 9600 },
+    // sim v30 (V30-BALANCE.md): +4% (9650 / 10350 → 10050 / 9950)
+    ziggy: { dmgBp: 10050, takenBp: 9950 },
+    // sim v30 (V30-BALANCE.md): +3.5% (10450 / 9550 → 10800 / 9200)
+    biscuit: { dmgBp: 10800, takenBp: 9200 },
+    // sim v30 (V30-BALANCE.md): −1% (10400 / 9600 → 10300 / 9700)
+    champ: { dmgBp: 10300, takenBp: 9700 },
   }) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
 });

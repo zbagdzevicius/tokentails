@@ -167,7 +167,7 @@ function newDogs(list: LandingHero[]): string {
 }
 
 /**
- * The heroes new in this game build (released in GAME_SIM_VERSION with real art): one line over the grid, by name.
+ * The newest heroes in this game build (the latest roster release, with real art): one line over the grid, by name.
  * They are in the grid like everyone else; their tiles carry a New tag.
  */
 function freshLine(list: LandingHero[]): string {

@@ -41,7 +41,7 @@ test('DOGS shows the 12 dogs and plays the dog side with no duplicate on the tea
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'cat');
   await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-checked', 'true');
   await expect(visibleTiles(page)).toHaveCount(12);
-  // the New tag marks heroes added in the current SIM_VERSION (isNewHero): sim v29 adds Biscuit and Champ to the dogs
+  // the New tag marks the newest roster release (isNewHero): sim v29 added Biscuit and Champ to the dogs (still New in v30)
   const fresh = await page.locator('.cs-grid .cs-tile:not([hidden])[data-new="1"]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(fresh.sort()).toEqual(['biscuit', 'champ']);
   const ids = await visibleTiles(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));

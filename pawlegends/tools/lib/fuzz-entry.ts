@@ -176,7 +176,7 @@ export function fuzzPartyMatch(seed: number): { seed: number; ok: boolean; final
 // Recorded as a PvpReplayRecord and replayed from it; trails must match.
 
 const CAT_IDS: readonly HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess', 'aviete', 'bengas', 'lambo', 'pixel', 'stilts', 'mochi', 'ziggy'];
-const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'mochi', 'ziggy', 'biscuit', 'champ'];
+const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'biscuit', 'champ'];
 const PVP_HUMANS: readonly number[] = [0, 1, 3, 4];
 
 export function fuzzPvpPlay(seed: number) {
