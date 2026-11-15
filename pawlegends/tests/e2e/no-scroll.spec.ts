@@ -138,7 +138,7 @@ for (const size of SIZES) {
     });
 
     if (size.name === '667x375' || size.name === '844x390')
-      test('champion select with notch insets: ten heroes of a side, every tab, no scroll', async ({ page }) => {
+      test('champion select with notch insets: the twelve heroes of a side, every tab, no scroll', async ({ page }) => {
         test.setTimeout(120_000);
         await page.addInitScript(([k, v]) => {
           if (!localStorage.getItem(k)) localStorage.setItem(k, v);
