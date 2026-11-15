@@ -143,7 +143,7 @@ function people(over: { friends?: string[][]; blocks?: string[][] } = {}): Histo
         byCode: async code => CODES[code] ?? null,
         friends: async (a, b) => pair(a, b, over.friends),
         blockedEither: async (a, b) => pair(a, b, over.blocks),
-        names: async ids => new Map(ids.map(id => [id, `Name of ${id.replace("acc-", "")}`])),
+        names: async ids => new Map(ids.map(id => [id, `Name of ${id.replace('acc-', '')}`])),
     };
 }
 
@@ -250,7 +250,13 @@ describe('match history: the store and the reads', () => {
         expect(await core.record(input())).toBe(true);
         expect(await core.record(input())).toBe(false);
         expect(store.rows).toHaveLength(1);
-        expect(store.statsRows.get('acc-a:s1')).toMatchObject({ m: 1, w: 1, k: 9, mvp: 1, heroes: { clem: { m: 1, w: 1 } } });
+        expect(store.statsRows.get('acc-a:s1')).toMatchObject({
+            m: 1,
+            w: 1,
+            k: 9,
+            mvp: 1,
+            heroes: { clem: { m: 1, w: 1 } },
+        });
     });
 
     it(`keeps the newest ${HISTORY_KEEP} rows`, async () => {
@@ -275,7 +281,9 @@ describe('match history: the store and the reads', () => {
     it('pages newest first, filters by mode, season stats and the choice on the first page only', async () => {
         const { core } = setup();
         for (let i = 0; i < HISTORY_PAGE + 3; i++)
-            await core.record(input({ matchId: `m${i}`, mode: i % 2 ? 'blitz' : 'skirmish', mutator: i % 2 ? 'blitz' : 'none' }));
+            await core.record(
+                input({ matchId: `m${i}`, mode: i % 2 ? 'blitz' : 'skirmish', mutator: i % 2 ? 'blitz' : 'none' })
+            );
         const first = await core.list('acc-a', {}, false);
         expect(first.rows).toHaveLength(HISTORY_PAGE);
         expect(first.owner).toEqual({ name: 'Name of a', self: true });
@@ -321,7 +329,14 @@ describe('match history: the store and the reads', () => {
 
     it('the match detail: both teams, names for humans, bots as bots, never an account id', async () => {
         const { core, store } = setup({ friends: [['acc-a', 'acc-b']] });
-        await core.record(input({ humans: new Map([[0, 'acc-a'], [1, 'acc-b']]) }));
+        await core.record(
+            input({
+                humans: new Map([
+                    [0, 'acc-a'],
+                    [1, 'acc-b'],
+                ]),
+            })
+        );
         const id = String(store.rows[0]._id);
         const m = await core.match('acc-b', { code: 'ABCD2345', id }, true);
         expect(m.players).toHaveLength(6);
@@ -339,8 +354,24 @@ describe('match history: the store and the reads', () => {
 
     it('account deletion: the rows, stats and choice go; the seat in other rows loses its id', async () => {
         const { core, store } = setup();
-        await core.record(input({ humans: new Map([[0, 'acc-a'], [1, 'acc-b']]) }));
-        await core.record(input({ accountId: 'acc-b', slot: 1, humans: new Map([[0, 'acc-a'], [1, 'acc-b']]) }));
+        await core.record(
+            input({
+                humans: new Map([
+                    [0, 'acc-a'],
+                    [1, 'acc-b'],
+                ]),
+            })
+        );
+        await core.record(
+            input({
+                accountId: 'acc-b',
+                slot: 1,
+                humans: new Map([
+                    [0, 'acc-a'],
+                    [1, 'acc-b'],
+                ]),
+            })
+        );
         await core.setVisibility('acc-a', 'me');
         await core.purge('acc-a');
         expect(store.rows.map(r => r.accountId)).toEqual(['acc-b']);
@@ -451,10 +482,26 @@ describe('match history: written by the /live saves', () => {
             logger: { warn: () => undefined, log: () => undefined },
             history: core,
         };
-        const body = { pawlegends: { v: 2 as const, room: 'room1', slot: 1, simVersion: SIM_VERSION, ticks: 8000, outcome: 'won' as const, finalHash: 'abcdef12' } };
+        const body = {
+            pawlegends: {
+                v: 2 as const,
+                room: 'room1',
+                slot: 1,
+                simVersion: SIM_VERSION,
+                ticks: 8000,
+                outcome: 'won' as const,
+                finalHash: 'abcdef12',
+            },
+        };
         await savePawlegendsPartyMatch(deps as any, String(b), body as any);
         expect(store.rows).toHaveLength(1);
-        expect(store.rows[0]).toMatchObject({ accountId: String(b), matchId: 'party:room1', mode: 'coop', slot: 1, hero: 'sage' });
+        expect(store.rows[0]).toMatchObject({
+            accountId: String(b),
+            matchId: 'party:room1',
+            mode: 'coop',
+            slot: 1,
+            hero: 'sage',
+        });
         expect(store.rows[0].players.filter(p => p.u).map(p => p.u)).toEqual([String(a), String(b)]);
     });
 });

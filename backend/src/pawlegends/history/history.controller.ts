@@ -1,4 +1,16 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    ForbiddenException,
+    Get,
+    HttpCode,
+    Param,
+    Post,
+    Query,
+    Req,
+    Res,
+    UseGuards,
+} from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { AllowGuest } from 'src/common/decorators/allow-guest.decorator';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
@@ -18,7 +30,11 @@ import { HISTORY_ERRORS, MatchHistoryService } from './history.service';
 const MINUTE = 60_000;
 
 const needSession = () =>
-    new ForbiddenException({ statusCode: 403, code: 'need_account', message: 'Match history needs an account session' });
+    new ForbiddenException({
+        statusCode: 403,
+        code: 'need_account',
+        message: 'Match history needs an account session',
+    });
 
 @Controller('pawlegends/history')
 @SkipThrottle()
