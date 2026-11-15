@@ -570,7 +570,7 @@ export function rankedBlockHtml(r: RankedResult | null, kind?: RankedKind): stri
   // round 4 (SOCIAL-RANKED.md §7.11): what this kind of ranked match pays (bot-filled half, vs AI a quarter)
   const k = kind && kind !== 'players' ? `<p class="pl-rk-kind" data-testid="ranked-kind" data-kind="${kind}">${esc(rankedKindLine(kind))}</p>` : '';
   if (!r) return `<p class="pl-rk-wait" data-testid="ranked-wait">Ranked · saving the match…</p>${k}`;
-  return `<p class="pl-rk-tier"><b data-testid="ranked-tier">${esc(r.tier)}</b><span class="pl-rk-change" data-tone="${r.tone}" data-testid="ranked-change">${esc(r.change)}</span></p>${r.shield ? `<p class="pl-rk-shield" data-testid="ranked-shield">${esc(r.shield)}</p>` : ''}${k}`;
+  return `<p class="pl-rk-tier"><b data-testid="ranked-tier">${esc(r.tier)}</b><span class="pl-rk-change" data-tone="${r.tone}" data-testid="ranked-change">${esc(r.change)}</span></p>${r.shield ? `<p class="pl-rk-shield" data-testid="ranked-shield">${esc(r.shield)}</p>` : ''}${r.grade ? `<p class="pl-rk-grade" data-testid="ranked-grade"><b>S</b> ${esc(r.grade)}</p>` : ''}${k}`;
 }
 
 export interface ResultGrade {

@@ -43,4 +43,17 @@ describe('rankedJoinSource', () => {
         });
         expect(await clean.check('a')).toBeNull();
     });
+
+    it('tier (§7.13 draft): the placed tier this season, null in placements, another season or no row', async () => {
+        const src = (row: unknown) =>
+            rankedJoinSource({
+                played: async () => ({ matches: 40, top: 'hard' }),
+                rooms: null,
+                ratings: { findById: () => ({ lean: async () => row }) },
+            });
+        expect(await src({ season: 's1', tierIdx: 4, placementsLeft: 0 }).tier!('a')).toBe(4);
+        expect(await src({ season: 's1', tierIdx: 0, placementsLeft: 2 }).tier!('a')).toBeNull();
+        expect(await src({ season: 's0', tierIdx: 9, placementsLeft: 0 }).tier!('a')).toBeNull();
+        expect(await src(null).tier!('a')).toBeNull();
+    });
 });

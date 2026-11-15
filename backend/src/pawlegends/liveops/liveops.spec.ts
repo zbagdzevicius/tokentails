@@ -4,6 +4,9 @@ import {
     DEFAULT_GOAL,
     DEFAULT_NAP,
     DEFAULT_VOTE,
+    DROP_CALENDAR,
+    cleanDrop,
+    dropAt,
     eventsOf,
     goalAmount,
     napEarned,
@@ -99,6 +102,60 @@ function make(nowIso: string, configDoc?: Doc) {
 }
 
 afterEach(() => setCommunityGoalSink(null));
+
+// ------------------------------------------------------------------ gaps6: the monthly coat drop
+
+describe('liveops coat drop (gaps6)', () => {
+    it("the config answers the month's drop with its coats and window; next only when scheduled", async () => {
+        const { svc } = make('2026-11-18T10:00:00Z');
+        const c = await svc.config();
+        expect(c.drop).toEqual({ ...DROP_CALENDAR[0], next: null });
+        expect(c.drop!.coats).toEqual([
+            'coat.brutus.store_chairman',
+            'coat.meatball.store_double_stack',
+            'coat.meatball.store_mega_meal',
+        ]);
+        // before the first drop: none; with a later calendar entry: next names it
+        expect(dropAt(DROP_CALENDAR, at('2026-11-01T00:00:00Z'))).toBeNull();
+        const two = [
+            ...DROP_CALENDAR,
+            {
+                ...DROP_CALENDAR[0],
+                id: 'drop-2026-12',
+                name: 'December Drop',
+                startsAt: '2026-12-01T00:00:00.000Z',
+                endsAt: '2027-01-01T00:00:00.000Z',
+            },
+        ];
+        expect(dropAt(two, at('2026-11-20T00:00:00Z'))!.next).toEqual({
+            startsAt: '2026-12-01T00:00:00.000Z',
+            name: 'December Drop',
+        });
+        expect(dropAt(two, at('2026-12-02T00:00:00Z'))!.id).toBe('drop-2026-12');
+    });
+
+    it('a doc drop overrides (bad fields fall back), null hides it', () => {
+        const now = at('2026-11-20T10:00:00Z');
+        const doc = {
+            id: 'drop-x',
+            name: 'Test Drop',
+            coats: ['coat.sage.store_bloomtail', 'not a coat'],
+            startsAt: '2026-11-19T00:00:00Z',
+            endsAt: '2026-12-19T00:00:00Z',
+            next: { startsAt: '2026-12-19T00:00:00Z', name: 'Winter Drop' },
+        };
+        expect(resolveDefs({ drop: doc }, now).drop).toEqual({
+            ...doc,
+            coats: ['coat.sage.store_bloomtail'],
+            startsAt: '2026-11-19T00:00:00.000Z',
+            endsAt: '2026-12-19T00:00:00.000Z',
+            next: { startsAt: '2026-12-19T00:00:00.000Z', name: 'Winter Drop' },
+        });
+        expect(cleanDrop({ ...doc, coats: [] })).toBeNull();
+        expect(resolveDefs({ drop: { id: 'bad' } }, now).drop?.id).toBe('drop-2026-11');
+        expect(resolveDefs({ drop: null }, now).drop).toBeNull();
+    });
+});
 
 // ------------------------------------------------------------------ config defaults and fallback
 

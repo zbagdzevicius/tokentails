@@ -418,3 +418,24 @@ design (Mochi is the white cat in the pink nightcap the game draws, not the Siam
 
 Founder calls: the Mythic price band (the gallery suggested $34.99; it sells at $14.99 until a band is set), and
 whether Mythic becomes a tier word elsewhere (Signature tier stays untouched).
+
+## Round 6 coat drop: the next three of the skins v2 gallery (gaps6, 2026-11-15)
+
+After the top five, the next-highest scores were Chairman of the Board Sir Brutus (19), Double Stack Meatball (18),
+Mega Meal Meatball (18) and Hoard Lord Bengas (18). Bengas is a shelter champion (Pink Paw's card cats wear card coats
+and chromas only, `render/cosmetics.ts` SHELTER_HEROES), so Hoard Lord is not built; the other three are the November
+coat drop (LIVEOPS.md "Coat drop"). **The Brutus ladder issue is fixed**: the gallery's Head of HR step had dropped his
+helmet and plume; its in-game view is repainted (Gemini paint-over keeping everything else) and republished, and the
+Chairman keeps the grey helmet and pink plume in the game.
+
+| Coat (tier) | Model parts | Evolving form / trail | Ultimate | Recall | Takedown |
+|---|---|---|---|---|---|
+| Chairman of the Board Sir Brutus (**Mythic**, Legendary band) | gold helmet band and crest ridge (plume stays), red power tie, gold fountain pen, gold cufflinks | new hire → a green stock-chart arrow (level 4) → the gold office-chair back (7) → the full gold chair mech with five wheels and a giant fountain pen (10); or 2, 4, 6 takedowns | the chart bolts up, gold coins rain, memos flutter | he spins in his chair, a board-meeting gong | a "You're fired" memo stamps down |
+| Double Stack Meatball (Epic) | sesame bun helmet (in place of the sweatband), cheese-slice collar, bottom bun shell, lettuce cape, ketchup bottle | a ketchup trail | a ketchup and mustard splash | sesame seeds, a double patty lands | a ketchup splat |
+| Mega Meal Meatball (**Mythic**, Legendary band) | slider bun hat with a patty, cheddar and a team toothpick flag, gold napkin bib | slider ring → the double (bun, lettuce, cheese) → three patties → five patties, a floating top bun with flags and the golden tray | supersize: patties stack, fries rain | the tray glints, an order bell | a toothpick flag plants |
+
+The evolving forms (`render/skins/coatForms.ts`) are one geometry per stage in one instanced mesh round the hero
+(`coatTrail.ts` kinds `board` and `tower`), sized from the drawn hero's bounds and capped inside his relation ring;
+the tower stops under his chin so his face reads. Store art is cropped from the gallery splashes. Prices: the existing
+bands (Epic $7.99, Legendary $14.99; web store only).
+

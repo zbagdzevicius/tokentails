@@ -308,6 +308,9 @@ describe('rung bands (CARD-SKINS.md §5)', () => {
       'coat.meatball.store_drive_thru': ['LEGENDARY', 'SAND'],
       'coat.frankie.store_paper_parade': ['LEGENDARY', 'STELLAR'],
       'coat.marshmallow.store_soft_serve': ['EPIC', 'ICE'],
+      'coat.brutus.store_chairman': ['LEGENDARY', 'STELLAR'],
+      'coat.meatball.store_double_stack': ['EPIC', 'FIRE'],
+      'coat.meatball.store_mega_meal': ['LEGENDARY', 'SAND'],
       'coat.brutus.store_thunderpaw': ['LEGENDARY', 'ELECTRIC'],
       'coat.sage.store_bloomtail': ['LEGENDARY', 'GRASS'],
     };
@@ -317,6 +320,6 @@ describe('rung bands (CARD-SKINS.md §5)', () => {
     expect(PAID_COATS['coat.clem.s1_honey_tabby'].rung).toBe('COMMON');
     const counts = { COMMON: 0, RARE: 0, EPIC: 0, LEGENDARY: 0 };
     for (const c of Object.values(PAID_COATS)) counts[c.rung]++;
-    expect(counts).toEqual({ COMMON: 6, RARE: 16 + 21, EPIC: 7, LEGENDARY: 6 });
+    expect(counts).toEqual({ COMMON: 6, RARE: 16 + 21, EPIC: 8, LEGENDARY: 8 });
   });
 });

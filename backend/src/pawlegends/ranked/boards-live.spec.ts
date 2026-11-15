@@ -26,6 +26,8 @@ function setup(
         rankedRow?: Record<string, unknown>;
         /** Ranked vs AI (§7.11): a co-op room (slot 0 human, Normal bots) recorded in the ranked queue. */
         vsAi?: boolean;
+        /** The referee's verified per-slot stats (§7.12: the server grade). */
+        stats?: unknown[];
     } = {}
 ) {
     const users = new FakeUsers();
@@ -64,6 +66,7 @@ function setup(
             winner: opts.winner ?? 0,
             reason: 'core',
             verified: true,
+            ...(opts.stats ? { stats: opts.stats } : {}),
         },
         owner: 'boot',
         epoch: 0,
@@ -327,5 +330,84 @@ describe('low-population ranked through /live (SOCIAL-RANKED.md §7.11)', () => 
         const s = setup({ queue: 'ranked', rankedRow: placedRow(7), vsAi: true });
         await s.save(s.a, 0);
         expect(s.ratings.docs.find(d => d._id === `${s.a}:ranked`)).toMatchObject({ tierIdx: 7, points: 40 });
+    });
+});
+
+describe('S-grade loss protection through /live (SOCIAL-RANKED.md §7.12)', () => {
+    const placedRow = (tierIdx: number) => ({
+        season: 's1',
+        r: 1525,
+        rd: 60,
+        sigma: 0.06,
+        games: 40,
+        wins: 25,
+        lastAt: NOW,
+        appliedRooms: [],
+        v: 4,
+        tierIdx,
+        points: 60,
+        shield: 1,
+        placementsLeft: 0,
+        peakIdx: tierIdx,
+        peaks: [],
+    });
+    const row = (slot: number, hero: string, k: number, d: number, a: number, dmg: number, tower: number) => ({
+        slot,
+        hero,
+        kills: k,
+        deaths: d,
+        assists: a,
+        heroDamage: dmg,
+        towerDamage: tower,
+        damageTaken: 0,
+        healShield: 0,
+        level: 9,
+    });
+    // slot 0 (Clem) carried the losing team: every kill, most of the damage, no deaths (an S on any threshold)
+    const carried = [
+        row(0, 'clem', 6, 0, 2, 9000, 3000),
+        row(1, 'brutus', 0, 4, 1, 800, 100),
+        row(2, 'sage', 0, 5, 1, 900, 100),
+        row(3, 'gabe', 3, 1, 4, 3000, 2000),
+        row(4, 'pixel', 4, 2, 3, 4000, 3000),
+        row(5, 'stilts', 2, 3, 3, 3000, 1500),
+    ];
+    // slot 0 did nothing (a C)
+    const quiet = carried.map(r => (r.slot === 0 ? row(0, 'clem', 0, 6, 0, 100, 0) : r));
+
+    it('an S grade in a loss loses half the points; the row says what the grade kept', async () => {
+        const s = setup({ queue: 'ranked', rankedRow: placedRow(7), winner: 1, rec: { fill: [] }, stats: carried });
+        const c = setup({ queue: 'ranked', rankedRow: placedRow(7), winner: 1, rec: { fill: [] }, stats: quiet });
+        await s.save(s.a, 0, 'lost');
+        await c.save(c.a, 0, 'lost');
+        const sRow = s.ratings.docs.find(d => d._id === `${s.a}:ranked`)!;
+        const cRow = c.ratings.docs.find(d => d._id === `${c.a}:ranked`)!;
+        const sLost = 60 - sRow.points;
+        const cLost = 60 - cRow.points;
+        expect(cLost).toBeGreaterThan(0);
+        expect(sLost).toBe(Math.round(cLost / 2));
+        expect(sRow.lastStep).toMatchObject({ room: 'room1', won: false, grade: 'S', delta: -sLost, kind: 'players' });
+        expect(sRow.lastStep.saved).toBe(cLost - sLost);
+        expect(cRow.lastStep).toMatchObject({ grade: 'C', delta: -cLost });
+        expect(cRow.lastStep.saved).toBeUndefined();
+    });
+
+    it('a win, a protected tier and stats the verdict lacks never use the grade', async () => {
+        const win = setup({ queue: 'ranked', rankedRow: placedRow(7), rec: { fill: [] }, stats: carried });
+        await win.save(win.a, 0);
+        expect(win.ratings.docs.find(d => d._id === `${win.a}:ranked`)!.lastStep).toMatchObject({
+            won: true,
+            grade: 'S',
+        });
+        const kitten = setup({ queue: 'ranked', rankedRow: placedRow(2), winner: 1, stats: carried });
+        await kitten.save(kitten.a, 0, 'lost');
+        const k = kitten.ratings.docs.find(d => d._id === `${kitten.a}:ranked`)!;
+        expect(k.points).toBe(60);
+        expect(k.lastStep.saved).toBeUndefined();
+        const none = setup({ queue: 'ranked', rankedRow: placedRow(7), winner: 1, rec: { fill: [] } });
+        await none.save(none.a, 0, 'lost');
+        const n = none.ratings.docs.find(d => d._id === `${none.a}:ranked`)!;
+        expect(n.lastStep.grade).toBeUndefined();
+        expect(n.points).toBeLessThan(60);
     });
 });

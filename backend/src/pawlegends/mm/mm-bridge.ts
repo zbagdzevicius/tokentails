@@ -12,7 +12,8 @@ import { clientIpKey } from '../../shared/client-ip';
 import { partySimFor, simFor, SIM_VERSION as LIVE_SIM_VERSION } from '../../vendor/pawlegends-sim';
 import type { MemberIdentity, Party, PartyService } from '../party/party.service';
 import { AFK_REASONS } from '../party/room';
-import { PROTO_CLASSIC, teamOfSlot } from '../party/net';
+import { PROTO_CLASSIC, PROTO_DRAFT, teamOfSlot } from '../party/net';
+import { RANKED_DRAFT } from '../ranked/draft';
 import { DEFAULT_GLICKO, growRd, seedRating, type Glicko } from './glicko2';
 import { CLEAN, leaverStatus, roomEvents, type LeaverStatus, type SeatEnd } from './leaver';
 import {
@@ -165,6 +166,11 @@ export interface RankedJoinSource {
     /** Saved matches below the line, or an ended ranked room not settled yet (§7.6). */
     check(accountId: string): Promise<RankedRefusal | null>;
     /**
+     * The placed tier index of this account this season (§7.13: the draft runs from RANKED_DRAFT.fromIdx), or null
+     * while in placements or unknown. The harness keys it by identity key (its browsers have no accounts).
+     */
+    tier?(key: string): Promise<number | null>;
+    /**
      * The e2e relay harness only (browsers there have no accounts): a guest identity may queue. Production never sets
      * it: ranked is for registered accounts (a ticket that is not a guest's).
      */
@@ -239,6 +245,8 @@ export class MmBridge implements MmHooks {
     private readonly entries = new Map<string, MmEntry>();
     private readonly byMember = new Map<string, string>();
     private readonly ratingOf = new Map<string, Glicko>();
+    /** Ranked (§7.13): each queued member's placed tier index, read at join (the draft decision at the seat). */
+    private readonly tierOf = new Map<string, number>();
     private readonly warnOf = new Map<string, boolean>();
     private readonly lastSide = new Map<string, number>();
     private readonly lastStatus = new Map<string, { ms: number; key: string }>();
@@ -380,6 +388,14 @@ export class MmBridge implements MmHooks {
             this.refuse(member, code, undefined, code, fields);
             return true;
         }
+        // §7.13: the tiers decide whether the match drafts (read once here; a failed read is the entry tier)
+        if (src.tier)
+            for (const s of socks) {
+                const key = s.identity.accountId ?? s.identity.key;
+                const t = await src.tier(key).catch(() => null);
+                if (typeof t === 'number' && t >= 0) this.tierOf.set(s.member, t);
+                else this.tierOf.delete(s.member);
+            }
         return false;
     }
 
@@ -1021,12 +1037,19 @@ export class MmBridge implements MmHooks {
             : undefined;
         // ranked (PvP or vs AI): the party knows it (no bot chatter, the ranked spectate delay)
         const ranked = match.vsAi === true || (!!match.teams && queueOfMatch(match) === 'ranked');
+        // ranked draft (§7.13): from Tabby III for the best player in the match, when every player's game knows it
+        const allMembers = group.flatMap(e => e.members);
+        const draft =
+            ranked &&
+            allMembers.every(m => (api.sock(m.member)?.proto ?? 0) >= PROTO_DRAFT) &&
+            Math.max(-1, ...allMembers.map(m => this.tierOf.get(m.member) ?? -1)) >= RANKED_DRAFT.fromIdx;
         const opts = {
             match: match.id,
             side: match.side,
             difficulty: match.difficulty,
             ...(casual ? { casual } : {}),
             ...(ranked ? { ranked: true } : {}),
+            ...(draft ? { draft: true } : {}),
         };
         const seatOf = (m: MmMember) => {
             const s = api.sock(m.member)!;
@@ -1060,6 +1083,7 @@ export class MmBridge implements MmHooks {
         }
         for (const m of members) {
             this.ratingOf.delete(m.member);
+            this.tierOf.delete(m.member);
             this.warnOf.delete(m.member);
             this.waits.push(m.queueMs);
             // casual: `mm.found` went out with the Accept card already

@@ -6,7 +6,7 @@ import type { CatTier } from '../../meta/roster';
 import { S1_PLUS_COAT } from '../../money/catalog';
 
 export type CoatFxKind = 'ult' | 'recall' | 'takedown';
-export type CoatTheme = 'thunder' | 'sun' | 'bloom' | 'eclipse' | 'moon' | 'frost' | 'deli' | 'grill' | 'pizza' | 'vac' | 'burger' | 'parade' | 'softserve';
+export type CoatTheme = 'thunder' | 'sun' | 'bloom' | 'eclipse' | 'moon' | 'frost' | 'deli' | 'grill' | 'pizza' | 'vac' | 'burger' | 'parade' | 'softserve' | 'board' | 'stack' | 'megameal';
 
 /** Each themed coat: its theme, and the words the store and the Heroes browser show (looks only, never a number). */
 export interface CoatThemeDef {
@@ -30,6 +30,10 @@ export const COAT_THEMES: Readonly<Record<string, CoatThemeDef>> = Object.freeze
   'coat.nugget.store_robo_vac': { theme: 'vac', ult: 'The vacuum whirls and sucks up dust in a spiral', recall: 'He parks on the charging dock, then zooms home', takedown: 'A dust bunny poofs off the fallen' },
   'coat.meatball.store_drive_thru': { theme: 'burger', ult: 'A burst of fries and a sizzling patty', recall: 'A drive-thru window, ding, order up', takedown: 'Fries burst from the fallen' },
   'coat.frankie.store_paper_parade': { theme: 'parade', ult: 'The paper dragon stretches to twelve lanterns, fireworks pop', recall: 'Paper lanterns rise, then fireworks where he lands', takedown: 'A firework bursts over the fallen' },
+  // gaps6 coat drop (the next three of the skins v2 gallery)
+  'coat.brutus.store_chairman': { theme: 'board', ult: 'A stock chart bolts up, gold coins and memos rain', recall: 'He spins in his office chair, then a board-meeting gong', takedown: 'A "You\'re fired" memo stamps the fallen' },
+  'coat.meatball.store_double_stack': { theme: 'stack', ult: 'A ketchup and mustard splash round the bun', recall: 'Sesame seeds drift, then a double-patty stack lands', takedown: 'A ketchup splat on the fallen' },
+  'coat.meatball.store_mega_meal': { theme: 'megameal', ult: 'Supersize: the tower stacks to five patties, fries rain', recall: 'A tray slides in, then a golden order bell', takedown: 'A toothpick flag plants on the fallen' },
   'coat.marshmallow.store_soft_serve': { theme: 'softserve', ult: 'A brain-freeze swirl of rainbow sprinkles', recall: 'Sprinkles fall, then a melty puddle where she lands', takedown: 'A scoop drops on the fallen' },
 });
 

@@ -36,6 +36,7 @@ import {
     pawlegendsError,
 } from './pawlegends-live';
 import { applyCommunityGoal } from './liveops/liveops-live';
+import { lossShareOf, slotGrade, type Grade, type GradeStats } from './ranked/grade';
 
 /*
  * Party play scoring (docs/plans/moba/MULTIPLAYER.md §6, lane N8): the `v: 2` branch of the PAWLEGENDS save on
@@ -275,7 +276,10 @@ export async function savePawlegendsPartyMatch(
             const settle = rankedSettleCheck(mmRoom, String(userId), r.slot);
             if (!settle.ok) log.warn(`pawlegends ranked settle skipped: why=${settle.why}`);
             else if (!user.isGuest)
-                await applyRankedRating(deps.mm, String(userId), r.room, won, now, log, rankedKindOf(mmRoom));
+                await applyRankedRating(deps.mm, String(userId), r.room, won, now, log, rankedKindOf(mmRoom), {
+                    // §7.12: the grade from the referee's verified stats (never the client's), for the S-grade loss rule
+                    grade: slotGrade(v.stats as GradeStats[] | undefined, r.slot),
+                });
         } else
             await applyCasualRating(
                 deps.mm,
@@ -304,7 +308,10 @@ export async function savePawlegendsPartyMatch(
         if (mmRoom?.queue === 'ranked') {
             const settle = rankedSettleCheck(mmRoom, String(userId), r.slot);
             if (!settle.ok) log.warn(`pawlegends ranked settle skipped: why=${settle.why}`);
-            else if (!user.isGuest) await applyRankedRating(deps.mm, String(userId), r.room, won, now, log, 'ai');
+            else if (!user.isGuest)
+                await applyRankedRating(deps.mm, String(userId), r.room, won, now, log, 'ai', {
+                    grade: slotGrade(v.stats as GradeStats[] | undefined, r.slot),
+                });
         } else
             await applyCoopRating(deps.mm, String(userId), r.room, v.outcome as 'won' | 'lost', difficulty, now, log);
     }
@@ -386,8 +393,10 @@ async function applyRankedRating(
     won: boolean,
     now: Date,
     log: Pick<Logger, 'warn'>,
-    kind: RankedMatchKind = 'players'
+    kind: RankedMatchKind = 'players',
+    extra: { grade?: Grade | null } = {}
 ): Promise<void> {
+    const grade = extra.grade ?? null;
     const casual = ((await mm.ratings.findById(`${accountId}:casual`).lean()) as MmRatingRow | null) ?? null;
     await writeRating(mm, roomId, `${accountId}:ranked`, 'ranked', log, (room, row) => {
         const prev = row as (MmRatingRow & Partial<RankedFields>) | null;
@@ -440,14 +449,12 @@ async function applyRankedRating(
                 ? { ...step.row, r: keep.r, rd: keep.rd, sigma: keep.sigma }
                 : { ...step.row, ...DEFAULT_GLICKO };
         }
-        const next = rankedStep({
-            state: points,
-            won,
-            r: step.row.r,
-            firstSeason: !peaks.length,
-            floorIdx,
-            kind,
-        });
+        const stepIn = { state: points, won, r: step.row.r, firstSeason: !peaks.length, floorIdx, kind };
+        // §7.12 S-grade loss protection: an S grade in a loss costs `RANKED_GRADE.sLossShare` of the points
+        const gradeShare = won ? 1 : lossShareOf(grade);
+        const next = rankedStep({ ...stepIn, gradeShare });
+        // what the S grade kept (the full loss minus the charged one), for the honest results line
+        const saved = gradeShare < 1 ? Math.max(0, next.delta - rankedStep(stepIn).delta) : 0;
         const fields: RankedFields = {
             season,
             ...next.state,
@@ -456,6 +463,14 @@ async function applyRankedRating(
             ladder: ladderOf(next.state),
             dodgesApplied: prev?.dodgesApplied ?? [],
             ...(floorIdx !== undefined && next.state.placementsLeft > 0 ? { floorIdx } : {}),
+            lastStep: {
+                room: roomId,
+                won,
+                delta: next.delta,
+                kind,
+                ...(grade ? { grade } : {}),
+                ...(saved > 0 ? { saved } : {}),
+            },
         };
         // keep the stored row's version (writeRating updates by it)
         return { row: { ...step.row, ...fields, v: (row?.v ?? 0) + 1 } as MmRatingRow };

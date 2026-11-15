@@ -4,13 +4,26 @@
  */
 import { isMythicCoat } from '../../money/catalog';
 
-export type TrailKind = 'parade' | 'stripes' | 'drips';
+/**
+ * 'parade' (the Mythic paper dragon's body), the ground trails 'stripes', 'drips' and 'ketchup', and gaps6's two evolving
+ * forms drawn round the hero: 'board' (Chairman of the Board: the stock-chart arrow, then the gold office-chair mech)
+ * and 'tower' (Mega Meal: the slider ring, the double, then the five-patty tower on a golden tray).
+ */
+export type TrailKind = 'parade' | 'stripes' | 'drips' | 'ketchup' | 'board' | 'tower';
+/** The trails drawn on the ground (effects: the Skin effects setting decides). */
+export const GROUND_TRAILS: readonly TrailKind[] = Object.freeze(['stripes', 'drips', 'ketchup']);
+/** The evolving forms (the coat itself: always drawn, like the parade body). */
+export const FORM_TRAILS: readonly TrailKind[] = Object.freeze(['board', 'tower']);
 
 /** The coats with a trail. */
 export const COAT_TRAILS: Readonly<Record<string, TrailKind>> = Object.freeze({
   'coat.frankie.store_paper_parade': 'parade',
   'coat.nugget.store_robo_vac': 'stripes',
   'coat.marshmallow.store_soft_serve': 'drips',
+  // gaps6 coat drop
+  'coat.meatball.store_double_stack': 'ketchup',
+  'coat.brutus.store_chairman': 'board',
+  'coat.meatball.store_mega_meal': 'tower',
 });
 
 export const trailOf = (coatId: string | null | undefined): TrailKind | null => (coatId ? (COAT_TRAILS[coatId] ?? null) : null);
@@ -35,9 +48,22 @@ export function paradeStage(level: number, takedowns: number): number {
 
 /** Words for the store and the Heroes browser (looks only). */
 export const PARADE_STAGE_WORDS = 'Starts as a lantern head; the parade body grows at levels 4, 7 and 10 (or 2, 4 and 6 takedowns) and stretches to twelve lanterns during his ultimate.';
+/** gaps6: the Chairman's and the Mega Meal's evolving forms, in words (the same stages as the parade). */
+export const BOARD_STAGE_WORDS = 'Starts as the new hire; a stock-chart arrow rises at level 4, the gold office chair rolls in at 7 and becomes the full Chairman mech at 10 (or 2, 4 and 6 takedowns).';
+export const TOWER_STAGE_WORDS = 'Starts as a slider; becomes a Double at level 4, a three-patty tower at 7 and the five-patty Mega Meal on a golden tray at 10 (or 2, 4 and 6 takedowns).';
+
+/** The evolving forms' trail kinds (the parade body and gaps6's two). */
+const EVOLVING_KINDS: readonly TrailKind[] = ['parade', 'board', 'tower'];
 
 /** Is this a coat whose form evolves in a match? */
-export const isEvolving = (coatId: string | null | undefined): boolean => isMythicCoat(coatId) && trailOf(coatId) === 'parade';
+export const isEvolving = (coatId: string | null | undefined): boolean => isMythicCoat(coatId) && EVOLVING_KINDS.includes(trailOf(coatId) as TrailKind);
+
+/** The evolving form's words for a coat ('' when it does not evolve). */
+export function evolveWords(coatId: string | null | undefined): string {
+  if (!isEvolving(coatId)) return '';
+  const k = trailOf(coatId);
+  return k === 'board' ? BOARD_STAGE_WORDS : k === 'tower' ? TOWER_STAGE_WORDS : PARADE_STAGE_WORDS;
+}
 
 /**
  * The Heroes browser's Evolve clip: while on, every parade cycles through its four stages (a stage every

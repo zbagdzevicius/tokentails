@@ -2,6 +2,7 @@ import type { RankedJoinSource, RankedRefusal } from '../mm/mm-bridge';
 import type { MmPlayed } from '../mm/rating.schema';
 import { pendingRoomsFilter } from './settlement';
 import { RANKED_MIN_MATCHES } from './tiers';
+import { CURRENT_SEASON_ID } from '../pawlegends-catalog';
 
 /*
  * What `mm.join {queue:'ranked'}` reads in production (SOCIAL-RANKED.md §7.1, §7.6, §7.11), built by MmService. Read
@@ -39,6 +40,17 @@ export function rankedJoinSource(deps: RankedJoinDeps): RankedJoinSource {
                 .limit(5)
                 .lean()) as Array<{ _id: string }>;
             return pending.length ? { code: 'mm_ranked_pending', rooms: pending.map(p => String(p._id)) } : null;
+        },
+        // §7.13: the placed tier this season (the draft rule); null in placements, another season or no row
+        async tier(accountId: string): Promise<number | null> {
+            if (!deps.ratings) return null;
+            const row = (await deps.ratings.findById(`${accountId}:ranked`).lean()) as {
+                season?: string;
+                tierIdx?: number;
+                placementsLeft?: number;
+            } | null;
+            if (!row || row.season !== CURRENT_SEASON_ID || (row.placementsLeft ?? 1) > 0) return null;
+            return typeof row.tierIdx === 'number' ? row.tierIdx : null;
         },
     };
 }

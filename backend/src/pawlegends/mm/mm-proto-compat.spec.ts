@@ -8,7 +8,7 @@ import { bootMm, heroesOf, TRICK } from './mm-relay.helper-spec';
 describe('Quick Play protocol compatibility', () => {
     jest.setTimeout(90_000);
 
-    it('hello proto 1 → welcome proto 1; proto 2 → 2; proto 3 → 3; proto 4 → 4 (5v5 Classic); proto 5 → 5 (chat); proto 6 → 6 (match chat); proto 7 → 7 (spectate); proto 8 → update_required', async () => {
+    it('hello proto 1 → welcome proto 1; proto 2 → 2; proto 3 → 3; proto 4 → 4 (5v5 Classic); proto 5 → 5 (chat); proto 6 → 6 (match chat); proto 7 → 7 (spectate); proto 8 → 8 (ranked draft); proto 9 → update_required', async () => {
         const b = await bootMm();
         try {
             const one = await b.guest({ proto: 1 });
@@ -25,9 +25,11 @@ describe('Quick Play protocol compatibility', () => {
             expect(six.last('welcome')!.proto).toBe(6);
             const seven = await b.guest({ proto: 7 });
             expect(seven.last('welcome')!.proto).toBe(7);
-            const eight = await b.client();
-            eight.hello({ proto: 8 });
-            expect((await eight.until(() => eight.last('error'))).code).toBe('update_required');
+            const eight = await b.guest({ proto: 8 });
+            expect(eight.last('welcome')!.proto).toBe(8);
+            const nine = await b.client();
+            nine.hello({ proto: 9 });
+            expect((await nine.until(() => nine.last('error'))).code).toBe('update_required');
         } finally {
             await b.stop();
         }

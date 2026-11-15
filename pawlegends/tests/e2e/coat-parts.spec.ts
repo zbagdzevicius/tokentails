@@ -20,12 +20,16 @@ const COATS: [hero: string, coat: string, side: 'cat' | 'dog'][] = [
   ['meatball', 'coat.meatball.store_drive_thru', 'cat'],
   ['frankie', 'coat.frankie.store_paper_parade', 'dog'],
   ['marshmallow', 'coat.marshmallow.store_soft_serve', 'dog'],
+  // gaps6 coat drop
+  ['brutus', 'coat.brutus.store_chairman', 'dog'],
+  ['meatball', 'coat.meatball.store_double_stack', 'cat'],
+  ['meatball', 'coat.meatball.store_mega_meal', 'cat'],
 ];
 const SHOTS = process.env.COAT_SHOTS;
 const ONLY = process.env.COAT_ONLY;
 
 for (const [hero, coat, side] of COATS) {
-  if (!SHOTS && hero !== 'clem' && hero !== 'brutus' && coat !== 'coat.frankie.store_paper_parade' && !ONLY) continue; // CI: one cat, one dog and the Mythic
+  if (!SHOTS && hero !== 'clem' && hero !== 'brutus' && coat !== 'coat.frankie.store_paper_parade' && coat !== 'coat.meatball.store_mega_meal' && !ONLY) continue; // CI: one cat, one dog and the Mythics
   if (ONLY && !ONLY.split(',').includes(hero)) continue;
   test(`${coat} is worn in a bot match`, async ({ context, page, baseURL }) => {
     test.setTimeout(180_000);

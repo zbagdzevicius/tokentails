@@ -107,13 +107,18 @@ export const EFFECT_COATS: readonly EffectCoat[] = Object.freeze([
     { id: 'coat.meatball.store_drive_thru', hero: 'meatball', name: 'Drive-Thru Deluxe coat', rung: 'LEGENDARY' },
     { id: 'coat.frankie.store_paper_parade', hero: 'frankie', name: 'Paper Parade Dragon coat', rung: 'LEGENDARY' },
     { id: 'coat.marshmallow.store_soft_serve', hero: 'marshmallow', name: 'Soft Serve coat', rung: 'EPIC' },
+    // gaps6 coat drop (November 2026): the next three of the skins v2 gallery; Chairman of the Board and Mega Meal are
+    // Mythic coats (evolving forms) sold in the Legendary band until a Mythic band is set
+    { id: 'coat.brutus.store_chairman', hero: 'brutus', name: 'Chairman of the Board coat', rung: 'LEGENDARY' },
+    { id: 'coat.meatball.store_double_stack', hero: 'meatball', name: 'Double Stack coat', rung: 'EPIC' },
+    { id: 'coat.meatball.store_mega_meal', hero: 'meatball', name: 'Mega Meal coat', rung: 'LEGENDARY' },
 ] as EffectCoat[]);
 
 /**
  * gaps5 skins: Mythic coats (an evolving form that changes during a match). Effects run at the Legendary rung and the
  * coat sells in the Legendary band; the store and the Heroes browser call it Mythic.
  */
-export const MYTHIC_COATS: ReadonlySet<string> = new Set(['coat.frankie.store_paper_parade']);
+export const MYTHIC_COATS: ReadonlySet<string> = new Set(['coat.frankie.store_paper_parade', 'coat.brutus.store_chairman', 'coat.meatball.store_mega_meal']);
 export const isMythicCoat = (id: string | null | undefined): boolean => !!id && MYTHIC_COATS.has(id);
 
 /** Effect coat prices by rung. */

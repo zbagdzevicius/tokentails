@@ -30,7 +30,8 @@ import './champStore/champStore.css';
 import { PAID_COATS, coatPalette } from '../render/cosmetics';
 import { CHROMAS, chromaPalette, cssHex } from '../render/skins/coatChromas';
 import { coatPartsLine } from '../render/skins/coatVfx';
-import { PARADE_STAGE_WORDS, isEvolving } from '../render/skins/coatTrailData';
+import { evolveWords, isEvolving } from '../render/skins/coatTrailData';
+import { inDrop } from '../meta/liveops';
 import { coatTheme } from '../render/skins/coatThemes';
 import { browserCurrency } from '../money/skus';
 import { icon } from './icons';
@@ -51,7 +52,8 @@ export function tabSkus(tab: StoreTab): CatalogSku[] {
       ...CHAMP_BUNDLE_SKUS.map((sku) => CATALOG_SKUS.find((d) => d.sku === sku)!),
       ...CHAMPIONS.filter((c) => !isStarter(c.hero)).map((c) => CATALOG_SKUS.find((d) => d.sku === champSkuOf(c.hero))!),
     ];
-  if (tab === 'coats') return [...EFFECT_COATS, ...STORE_COATS].map((c) => CATALOG_SKUS.find((d) => d.sku === coatSkuOf(c))!);
+  // gaps6: the month's coat drop leads the coats while it is new (a stable sort keeps the rest in catalog order)
+  if (tab === 'coats') return [...EFFECT_COATS, ...STORE_COATS].sort((a, b) => Number(inDrop(b.id)) - Number(inDrop(a.id))).map((c) => CATALOG_SKUS.find((d) => d.sku === coatSkuOf(c))!);
   if (tab === 'frames') return STORE_FRAMES.map((f) => CATALOG_SKUS.find((d) => d.sku === frameSkuOf(f))!);
   if (tab === 'sets') return CATALOG_SKUS.filter((d) => d.kind === 'bundle');
   return CATALOG_SKUS.filter((d) => d.kind === 'pass');
@@ -76,7 +78,8 @@ export function coatLine(id: string | null): string {
   const t = r === 'EPIC' || r === 'LEGENDARY' ? coatTheme(id) : null;
   const ult = t ? ` Ultimate: ${t.ult.charAt(0).toLowerCase()}${t.ult.slice(1)}.` : '';
   // gaps5 Mythic: the evolving form, in words
-  const evolve = isEvolving(id) ? ` Mythic: ${PARADE_STAGE_WORDS.charAt(0).toLowerCase()}${PARADE_STAGE_WORDS.slice(1)}` : '';
+  const words = evolveWords(id);
+  const evolve = isEvolving(id) ? ` Mythic: ${words.charAt(0).toLowerCase()}${words.slice(1)}` : '';
   return `A patterned coat for one hero.${look}${r && RUNG_ADDS[r] ? ` ${RUNG_ADDS[r]}` : ''}${ult}${evolve}`;
 }
 
@@ -365,6 +368,8 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const eq = ds === 'owned' && isEquipped(def);
     const r = def.group === 'coats' ? coatRungOf(coatOf(def) ?? undefined) : null;
     const ribbons = [
+      // gaps6: the month's coat drop marks its coats while they are new
+      coatOf(def) && inDrop(coatOf(def)!) ? '<i class="cst-rib new" data-testid="store-drop-new">New drop</i>' : '',
       isMythicCoat(coatOf(def)) ? '<i class="cst-rib rung-mythic">Mythic</i>' : r === 'EPIC' || r === 'LEGENDARY' ? `<i class="cst-rib rung-${r.toLowerCase()}">${RUNG_WORD[r]}</i>` : '',
       def.kind === 'bundle' ? '<i class="cst-rib bundle">Set</i>' : '',
       eq ? '<i class="cst-rib starter">Equipped</i>' : '',

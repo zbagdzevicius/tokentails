@@ -37,6 +37,9 @@ const COATS = [
   { name: 'drive-thru', hero: 'meatball', coat: 'coat.meatball.store_drive_thru' },
   { name: 'paper-parade', hero: 'frankie', coat: 'coat.frankie.store_paper_parade' },
   { name: 'soft-serve', hero: 'marshmallow', coat: 'coat.marshmallow.store_soft_serve' },
+  { name: 'chairman', hero: 'brutus', coat: 'coat.brutus.store_chairman' },
+  { name: 'double-stack', hero: 'meatball', coat: 'coat.meatball.store_double_stack' },
+  { name: 'mega-meal', hero: 'meatball', coat: 'coat.meatball.store_mega_meal' },
   { name: 'rare-calico', hero: 'clem', coat: 'coat.clem.store_calico' },
 ];
 /** Each clip: where to start (s) and the gap between the 8 frames (s). Recall lands at ~4.6 s; takedown ~1.4-1.8 s. */

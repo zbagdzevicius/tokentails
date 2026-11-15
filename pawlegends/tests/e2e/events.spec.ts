@@ -136,3 +136,63 @@ test('Events: a reached goal is claimed with one tap and the coat is kept', asyn
   const unlocks = await game.evaluate(() => JSON.parse(localStorage.getItem('tt.pawlegends.profile.v1') ?? '{}').unlocks ?? []);
   expect(unlocks).toContain('coat.clem.loop.honey');
 });
+
+/*
+ * gaps6 the monthly coat drop (LIVEOPS.md "Coat drop"): Home's promo rotator leads with the drop ("3 new coats · new
+ * for 12d"); on the web its tap opens the store's coats with the drop first, ribboned "New drop"; in the app (no store)
+ * it previews the lead coat in Heroes → Coats (the Chairman's Evolve clip). Screenshots go to
+ * ~/Downloads/paw-legends/gaps6/ranked-coats/ when that folder exists (never in CI).
+ */
+const drop = {
+  id: 'drop-2026-11',
+  name: 'November Drop: Boardroom & Lunch Rush',
+  coats: ['coat.brutus.store_chairman', 'coat.meatball.store_double_stack', 'coat.meatball.store_mega_meal'],
+  startsAt: iso(now - day),
+  endsAt: iso(now + 12 * day),
+  next: null,
+};
+for (const isApp of [false, true])
+  test(`Coat drop: Home's slide ${isApp ? 'previews the Mythic in the app' : 'opens the store with the drop first'}`, async ({ context, page, baseURL }, info) => {
+    test.setTimeout(240_000);
+    await mockHost(context, baseURL!, {
+      app: { isApp, store: !isApp },
+      signedIn: true,
+      profile,
+      store: { items: [], season: { id: 's1', xp: 0, tier: 0, premium: 'none', skips: 0, claimed: [], endsAt: '2027-01-05T00:00:00.000Z' } },
+      api: {
+        'liveops.config': { status: 200, body: { ...config(1500), drop } },
+        'liveops.me': { status: 200, body: me(false, null) },
+        'social.pulse': { status: 204 },
+      },
+    });
+    const game = await openHost(page);
+    const slide = game.locator('[data-testid="promo-drop"]');
+    await expect(slide).toBeVisible({ timeout: 60_000 });
+    await expect(slide).toContainText('November Drop');
+    await expect(slide).toContainText(/3 new coats · new for 1[12]d/);
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const fs = await import('node:fs');
+    const dir = path.join(os.homedir(), 'Downloads', 'paw-legends', 'gaps6', 'ranked-coats');
+    const shots = fs.existsSync(dir) && !process.env.CI;
+    const tag = `${info.project.name}${isApp ? '-app' : ''}`;
+    if (shots) await page.screenshot({ path: `${dir}/${tag}-drop-home.png` });
+    await slide.click();
+    if (isApp) {
+      const dlg = game.locator('.pl-champ[data-ready="1"]');
+      await expect(dlg).toBeVisible({ timeout: 30_000 });
+      await expect(dlg).toHaveAttribute('data-tab', 'coats');
+      await expect(dlg.locator('.cb-coat-rung')).toContainText('Mythic coat');
+      await expect(dlg.locator('.cb-cfx-btn[data-cfx="evolve"]')).toHaveCount(1);
+      await expect(dlg).not.toContainText(/\$|€|Buy/);
+      if (shots) await page.screenshot({ path: `${dir}/${tag}-drop-preview.png` });
+    } else {
+      const shop = game.locator('.pl-shop');
+      await expect(shop).toBeVisible({ timeout: 30_000 });
+      const first = shop.locator('[data-sel^="pl_coat_"]').first();
+      await expect(first).toHaveAttribute('data-sel', 'pl_coat_brutus_chairman');
+      await expect(first.locator('[data-testid="store-drop-new"]')).toHaveText('New drop');
+      await expect(first).toContainText(/Mythic · (\$|€)14\.99/);
+      if (shots) await page.screenshot({ path: `${dir}/${tag}-drop-store.png` });
+    }
+  });

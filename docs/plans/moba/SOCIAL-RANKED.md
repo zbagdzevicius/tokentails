@@ -236,7 +236,7 @@ This builds on PARITY §4, with the founder's additions: liquidity gate, decay a
   - **No backfill.** Round 4 replaced the fill rule with §7.11: players first, labelled bots after 40 s (75 s in Prime Time) when each team has a player, vs AI after another 30 s.
   - A ranked entry never falls back to casual or co-op on its own. The queue card offers "Play Casual instead" after 3:00 only for a game that does not send `bots` (an older build).
   - The same-network rule widens to `/24 netKey` on opposite teams.
-- **Pick:** blind pick within each team, unique heroes per team (existing casual pick). Bans come later, at 24 heroes (PARITY §4.1).
+- **Pick:** blind pick within each team, unique heroes per team (existing casual pick). From Tabby III the pick opens on a ban phase (round 6, §7.13).
 - **Protocol:** `mm.join {queue:'ranked'}` needs **PROTO 5** (bump from 4; older clients keep casual).
   - New error codes: `mm_ranked_closed {online, need}`, `mm_ranked_pending {rooms}` (PARITY), `mm_need_account`, `mm_locked {untilMs, why}` (existing).
   - `MmRoomRecord.queue` and `mode` gain `'ranked'` and `season`.
@@ -388,6 +388,42 @@ vs AI room record, bot-filled 1v1 Accept card, no fill without `bots`), `ranked/
 ceiling, placements, Prime Time), `ranked/boards-live.spec.ts` (half points through `/live`, vs AI keeps the hidden
 rating), and in the game `tests/unit/ranked-open.test.ts`, `ranked-tiers.test.ts` (RANKED_BOTS and Prime Time mirror the
 backend), `tests/e2e/home-modes.spec.ts` and `tests/e2e/mp/queue-pvp.spec.ts` (alone, a vs AI match starts).
+
+### 7.12 S-grade loss protection (round 6, Nov 15)
+
+- **Rule:** an **S grade in a loss loses half the points** (`RANKED_GRADE.sLossShare` 0.5, `ranked/grade.ts`). Only S
+  (about 12% of matches); A, B and C lose the full amount. Wins are unchanged. Kitten and Tabby still never lose points,
+  placements still move none, and the shield and demotion rules apply to the halved loss.
+- **The grade is the server's:** `/live` grades the slot from the referee's **verified** per-slot stats
+  (`room.verdict.stats`), never from the client. `backend/src/pawlegends/ranked/grade.ts` is a copy of the game's
+  `meta/grade.ts` (weights, per-role thresholds, hero roles); `pawlegends/tests/unit/ranked-draft.test.ts` deep-compares the constants, checks every hero's role, and grades 40 random stat sets both
+  ways. A new champion must be added to `HERO_ROLES` (the test fails until it is; a missing hero grades as a fighter).
+  No sim change.
+- **Honest UI:** the ranked row keeps `lastStep {room, won, delta, kind, grade, saved}`; `GET /pawlegends/ranked/me`
+  answers it as `ranked.last`, and the results block shows "S grade: lost 7 instead of 15" from those numbers only.
+  The Ranked mode's rules list the rule ("An S grade in a loss loses half the points (Alley and up; checked by the
+  server)").
+
+### 7.13 Draft: bans from Tabby III (round 6, Nov 15)
+
+- **When:** a ranked match drafts when the best player in it is placed at **Tabby III or higher**
+  (`RANKED_DRAFT.fromIdx` 3; placement players count as the entry tier) and **every** player's game speaks
+  **PROTO 8** (an older build keeps the blind pick it knows). `mm.join ranked` reads each account's placed tier
+  (`RankedJoinSource.tier`), the bridge passes `draft` to the matched party.
+- **Ban phase (15 s):** the pick opens on bans. Each team bans **one** champion of the **other team's species**
+  (cats ban a dog; a mirror bans its own species, never the hero the other team already banned). Every player votes
+  (`pick.ban{hero}`, changeable until the phase ends); the team's ban is the most-voted hero, a tie going to the lowest
+  seat's vote; no votes: no ban. The phase ends early when everyone voted. The other team's ban stays hidden until the
+  phase ends; the own team's votes show as badges.
+- **Bots:** a team of bots (Ranked vs AI's opponents) bans too, labelled **"Bot ban"**: the highest sim v30 win rate
+  of the target species, preferring a champion free to everyone this week (`botBan`, `BOT_BAN_ORDER`). Bot-filled
+  seats on a team of players do not vote. The sim draws bot heroes from the seed, so the relay takes the first seed
+  whose bot seats field no banned champion (`draftSeed`, up to 400 re-rolls; logged `draft_seed_miss` if none).
+- **Pick (30 s):** as before, with the banned champions off the grid for both teams, the timeout auto-lock and the
+  pilots. **Why one ban:** each species has six free champions any week, heroes are unique within a team, and a mirror
+  can put both bans on one species: four stay free for three players.
+- **Wire:** PROTO 8 (`PROTO_DRAFT`): `pick.ban{hero}` and `PartyView.draft {stage, target, bans[], votes?}`. Release
+  order: backend first (a PROTO 8 game on an older relay is told to update).
 
 ### 7.10 Rewards (cosmetic only)
 

@@ -5,8 +5,9 @@
  * drips) are dropped while moving and fade.
  */
 import { describe, expect, it } from 'vitest';
-import { CoatTrail, PARADE_LOW_MAX, PARADE_SEGMENTS, PARADE_ULT_SEGMENTS, isEvolving, paradeStage, setTrailPreview, trailOf, type TrailInput } from '../../src/render/skins/coatTrail';
+import { CoatTrail, PARADE_LOW_MAX, PARADE_SEGMENTS, PARADE_ULT_SEGMENTS, evolveWords, isEvolving, paradeStage, setTrailPreview, trailOf, type TrailInput } from '../../src/render/skins/coatTrail';
 import { EFFECT_COATS, MYTHIC_COATS } from '../../src/money/catalog';
+import { formGeometry } from '../../src/render/skins/coatForms';
 import { COAT_PARTS } from '../../src/render/chars/coatParts';
 
 const input = (o: Partial<TrailInput> = {}): TrailInput => ({ x: 0, z: 0, hidden: false, level: 1, takedowns: 0, sinceUlt: 1e9, self: true, low: false, moving: true, yaw: 0, ...o });
@@ -29,8 +30,16 @@ describe('coat trails', () => {
     }
     expect(trailOf('coat.frankie.store_paper_parade')).toBe('parade');
     expect(trailOf('coat.frankie.store_kebab_king')).toBeNull();
-    expect([...MYTHIC_COATS]).toEqual(['coat.frankie.store_paper_parade']);
+    expect([...MYTHIC_COATS]).toEqual(['coat.frankie.store_paper_parade', 'coat.brutus.store_chairman', 'coat.meatball.store_mega_meal']);
     expect(isEvolving('coat.frankie.store_paper_parade')).toBe(true);
+    // gaps6 coat drop: the Chairman and Mega Meal evolve too; Double Stack leaves a ketchup trail
+    expect(isEvolving('coat.brutus.store_chairman')).toBe(true);
+    expect(isEvolving('coat.meatball.store_mega_meal')).toBe(true);
+    expect(trailOf('coat.meatball.store_double_stack')).toBe('ketchup');
+    expect(isEvolving('coat.meatball.store_double_stack')).toBe(false);
+    expect(evolveWords('coat.brutus.store_chairman')).toContain('office chair');
+    expect(evolveWords('coat.meatball.store_mega_meal')).toContain('five-patty');
+    expect(evolveWords('coat.domino.store_pizzaiolo')).toBe('');
     expect(isEvolving('coat.domino.store_pizzaiolo')).toBe(false);
   });
 
@@ -111,5 +120,45 @@ describe('coat trails', () => {
       t.dispose();
       o.dispose();
     }
+  });
+
+  it('gaps6 forms: one instance, its geometry swapped per stage; the Chairman shows nothing as the new hire', () => {
+    for (const kind of ['board', 'tower'] as const) {
+      const t = new CoatTrail(kind, { h: 3, r: 1.2 });
+      const stages: number[] = [];
+      t.onStage = (s) => stages.push(s);
+      walk(t, 0.5);
+      expect([kind, t.stage, t.shown]).toEqual([kind, 1, kind === 'board' ? 0 : 1]);
+      const geos = new Set<unknown>();
+      for (const level of [4, 7, 10]) {
+        walk(t, 0.3, { level });
+        expect(t.shown).toBe(1);
+        geos.add(t.mesh.geometry);
+      }
+      expect(geos.size).toBe(3);
+      expect(stages).toEqual([2, 3, 4]);
+      walk(t, 0.2, { level: 10, hidden: true });
+      expect(t.shown).toBe(0);
+      t.dispose();
+    }
+  });
+
+  it('gaps6 forms stay inside the hero ring: the chair and the tray are capped', () => {
+    for (const kind of ['board', 'tower'] as const) {
+      const g = formGeometry(kind, 4, { h: 3, r: 1.2 })!;
+      g.computeBoundingBox();
+      const b = g.boundingBox!;
+      expect(Math.max(-b.min.x, b.max.x, -b.min.z, b.max.z)).toBeLessThan(2.2);
+      expect(b.max.y).toBeLessThan(3 * 1.6);
+    }
+    expect(formGeometry('board', 1, { h: 3, r: 1.2 })).toBeNull();
+  });
+
+  it('the ketchup trail drops red splats while he moves and fades them', () => {
+    const t = new CoatTrail('ketchup');
+    walk(t, 1, { moving: true });
+    expect(t.shown).toBeGreaterThan(2);
+    for (let i = 0; i < 4 * 60; i++) t.update(1 / 60, input({ x: 99, moving: false }));
+    expect(t.shown).toBe(0);
   });
 });

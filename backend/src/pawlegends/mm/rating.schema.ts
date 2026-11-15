@@ -56,6 +56,20 @@ export interface RankedFields {
     floorIdx?: number;
     /** Placement matches of this run against players (SOCIAL-RANKED.md §7.11; none: placed at most at Alley III). */
     vsPlayers?: number;
+    /**
+     * The last applied ranked match (SOCIAL-RANKED.md §7.12), for the results line: the points it moved, the server grade
+     * of the slot, and `saved`, the points the S-grade loss protection kept.
+     */
+    lastStep?: RankedLastStep;
+}
+
+export interface RankedLastStep {
+    room: string;
+    won: boolean;
+    delta: number;
+    kind: 'players' | 'filled' | 'ai';
+    grade?: 'S' | 'A' | 'B' | 'C';
+    saved?: number;
 }
 
 export const ratingId = (accountId: string, queue: MmRatingQueue = 'coop'): string => `${accountId}:${queue}`;
@@ -128,6 +142,9 @@ export class PawlegendsRating {
 
     @Prop({ type: Number, default: undefined })
     floorIdx?: number;
+
+    @Prop({ type: Object, default: undefined })
+    lastStep?: RankedLastStep;
 
     @Prop({ type: Number, default: undefined })
     vsPlayers?: number;

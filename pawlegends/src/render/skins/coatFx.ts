@@ -72,6 +72,9 @@ export const COAT_COST: Readonly<Record<CoatTheme | 'rare', Readonly<Record<'ult
   burger: { ult: [15, 8], nap: [3, 2], land: [10, 5], takedown: [7, 4] },
   parade: { ult: [22, 7], nap: [3, 2], land: [12, 6], takedown: [7, 4] },
   softserve: { ult: [12, 7], nap: [3, 2], land: [10, 5], takedown: [7, 4] },
+  board: { ult: [18, 9], nap: [3, 2], land: [11, 6], takedown: [7, 4] },
+  stack: { ult: [13, 7], nap: [3, 2], land: [10, 5], takedown: [6, 4] },
+  megameal: { ult: [19, 9], nap: [3, 2], land: [10, 5], takedown: [6, 4] },
   rare: { ult: [7, 4], nap: [0, 0], land: [6, 4], takedown: [3, 2] },
 });
 
@@ -93,6 +96,13 @@ const PATTY = 0x7a4222;
 const LANTERN = 0xff4a3a;
 const CONE = 0xe0a454;
 const SOFT_CREAM = 0xfff4e2;
+/** gaps6 coat drop: boardroom gold and the stock-chart green; ketchup and mustard; the golden tray. */
+const COIN = 0xffc83a;
+const CHART = 0x3ad06a;
+const MEMO = 0xf8f4ea;
+const KETCHUP = 0xd8202a;
+const MUSTARD = 0xf2c21a;
+const SESAME = 0xfff4dc;
 /** A Mythic coat's stage-up burst (a firework and lanterns): sprites, full and Low. */
 export const EVOLVE_COST: readonly [number, number] = [12, 6];
 const GOLDEN = 2.39996;
@@ -395,6 +405,35 @@ export class CoatVfx {
         this.fall(x, z, low ? 2 : 4, r * 0.6, 3, SHAPE.CONFETTI, safe(LANTERN, p.self, p.team, p.mate), a, 0.3, 1, 1.4);
         break;
       }
+      case 'board': {
+        // the stock chart bolts up (a green streak), gold coins rain round him, memos flutter, a gold gong ring
+        const coin = safe(COIN, p.self, p.team, p.mate);
+        this.streak(x, 0.4, z, safe(CHART, p.self, p.team, p.mate), 1, 0.45);
+        this.fall(x, z, low ? 3 : 7, r * 0.7, 3.2, SHAPE.STAR8, coin, a, 0.3, 1, 1.6);
+        if (!low) this.circle(x, 1.4, z, 3, r * 0.5, SHAPE.CONFETTI, safe(MEMO, p.self, p.team, p.mate), cr, 0.4, 1, 0.6, 0.8, 1.5, 0.4, false);
+        this.sprite(x, 2.6, z, SHAPE.STAR8, t, low ? 0.9 : 1.3, 0.6, 0, 0.4, 0, GROW.BACK, FADE.POP, 0.5, 2);
+        this.sprite(x, 0.2, z, SHAPE.RING, coin, 0.8, 0.6, 0, 0, 0, GROW.OUT, FADE.LINEAR, Math.min(6, r * 1.4));
+        break;
+      }
+      case 'stack': {
+        // a ketchup and mustard splash fans out round the bun, sesame seeds fly
+        const ketchup = safe(KETCHUP, p.self, p.team, p.mate);
+        const mustard = safe(MUSTARD, p.self, p.team, p.mate);
+        this.circle(x, 0.4, z, low ? 3 : 6, r * 0.4, SHAPE.DROPLET, ketchup, ketchup, 0.45, 0.7, 2.6, 1.2, 0, 0.1, false);
+        this.circle(x, 0.5, z, low ? 2 : 4, r * 0.3, SHAPE.DROPLET, mustard, mustard, 0.38, 0.65, 2.2, 1.4, 0, 0.6, false);
+        if (!low) this.circle(x, 1, z, 2, 0.4, SHAPE.SOFT, safe(SESAME, p.self, p.team, p.mate), cr, 0.18, 0.6, 1.5, 2, 0, 0.2, false);
+        this.sprite(x, 0.15, z, SHAPE.SOFT, ketchup, Math.min(2.4, r), 0.7, 0, 0, 0, GROW.BACK, FADE.HOLD, 1.05, 0, false);
+        break;
+      }
+      case 'megameal': {
+        // supersize: the tower's patties stack up in a column of puffs, fries rain round him, a golden tray ring
+        const fries = safe(FRIES, p.self, p.team, p.mate);
+        for (let i = 0; i < (low ? 2 : 4); i++) this.sprite(x, 0.8 + i * 0.45, z, SHAPE.SOFT, safe(PATTY, p.self, p.team, p.mate), 0.9 - i * 0.08, 0.7 + i * 0.08, 0, 0.3, 0, GROW.BACK, FADE.HOLD, 1, 0, false);
+        this.fall(x, z, low ? 3 : 7, r * 0.7, 3, SHAPE.SPARK, fries, t, 0.3, 0.9, 1.8);
+        this.sprite(x, 0.15, z, SHAPE.RING, safe(COIN, p.self, p.team, p.mate), 0.8, 0.6, 0, 0, 0, GROW.OUT, FADE.LINEAR, Math.min(6, r * 1.4));
+        this.sprite(x, 2.9, z, SHAPE.STAR8, a, low ? 0.9 : 1.2, 0.55, 0, 0.5, 0, GROW.BACK, FADE.POP, 0.5, 2);
+        break;
+      }
       case 'softserve': {
         // a brain-freeze swirl: rainbow sprinkles spin round her, soft-serve puffs, a little headache star
         this.circle(x, 0.9, z, low ? 4 : 8, r * 0.45, SHAPE.CONFETTI, t, a, 0.32, 0.9, 0.9, 0.9, 5, 0.3);
@@ -472,6 +511,19 @@ export class CoatVfx {
       case 'parade':
         // paper lanterns float up round him
         this.circle(x, 0.9, z, low ? 2 : 3, 0.6, SHAPE.SOFT, safe(LANTERN, p.self, p.team, p.mate), a, 0.38, 0.95, 0, 1.3, 0.5, ph, false);
+        break;
+      case 'board':
+        // he spins in his office chair: gold coins twinkle round him
+        this.circle(x, 1, z, low ? 2 : 3, 0.7, SHAPE.STAR8, safe(COIN, p.self, p.team, p.mate), a, 0.3, 0.8, 0, 0.8, 3, ph);
+        break;
+      case 'stack':
+        // sesame seeds drift down
+        this.fall(x, z, low ? 2 : 3, 0.8, 2.2, SHAPE.SOFT, safe(SESAME, p.self, p.team, p.mate), cr, 0.16, 0.9, 1);
+        break;
+      case 'megameal':
+        // the golden tray glints
+        this.sprite(x, 0.2, z, SHAPE.RING, safe(COIN, p.self, p.team, p.mate), 0.6, 0.8, 0, 0, 0, GROW.PULSE, FADE.IN_OUT, 3);
+        if (!low) this.sprite(x + 0.6, 1.8, z, SHAPE.STAR4, t, 0.4, 0.6, 0, 0.3, 0, GROW.BACK, FADE.TWINKLE, 0.6, 2);
         break;
       case 'softserve':
         // rainbow sprinkles fall round her
@@ -563,6 +615,24 @@ export class CoatVfx {
         this.sprite(x, 0.3, z, SHAPE.RING, a, 0.7, 0.55, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
         if (!low) this.fall(x, z, 2, 0.8, 2.6, SHAPE.CONFETTI, safe(LANTERN, p.self, p.team, p.mate), cr, 0.3, 0.9, 1.3);
         break;
+      case 'board':
+        // a board-meeting gong: a gold ring, coins hop out, a green chart spark
+        this.sprite(x, 0.3, z, SHAPE.RING, safe(COIN, p.self, p.team, p.mate), 0.8, 0.55, 0, 0, 0, GROW.OUT, FADE.LINEAR, 6);
+        this.circle(x, 0.6, z, low ? 3 : 6, 0.35, SHAPE.STAR8, safe(COIN, p.self, p.team, p.mate), t, 0.34, 0.6, 2.4, 3);
+        if (!low) this.streak(x, 0.5, z, safe(CHART, p.self, p.team, p.mate), 1, 0.3);
+        break;
+      case 'stack':
+        // a double-patty stack lands: a bun puff, ketchup drops
+        this.sprite(x, 0.4, z, SHAPE.SOFT, safe(PATTY, p.self, p.team, p.mate), 1.4, 0.7, 0, 0, 0, GROW.BACK, FADE.HOLD, 1, 0, false);
+        this.circle(x, 0.5, z, low ? 3 : 6, 0.35, SHAPE.DROPLET, safe(KETCHUP, p.self, p.team, p.mate), t, 0.32, 0.55, 2.2, 2.6, 0, 0.2, false);
+        this.sprite(x, 0.2, z, SHAPE.RING, a, 0.6, 0.5, 0, 0, 0, GROW.OUT, FADE.LINEAR, 4.5);
+        break;
+      case 'megameal':
+        // order up: the golden tray rings out, fries hop
+        this.sprite(x, 0.2, z, SHAPE.RING, safe(COIN, p.self, p.team, p.mate), 0.8, 0.55, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5.5);
+        this.circle(x, 0.5, z, low ? 3 : 6, 0.35, SHAPE.SPARK, safe(FRIES, p.self, p.team, p.mate), t, 0.36, 0.6, 2.2, 3);
+        if (!low) this.sprite(x, 2.1, z, SHAPE.STAR8, a, 0.9, 0.5, 0, 0.4, 0, GROW.BACK, FADE.POP, 0.5, 3);
+        break;
       case 'softserve':
         // a melty puddle where she lands: a cream pool, drips splash out, sprinkles
         this.sprite(x, 0.1, z, SHAPE.SOFT, safe(SOFT_CREAM, p.self, p.team, p.mate), 2.2, 0.95, 0, 0, 0, GROW.BACK, FADE.HOLD, 1.1, 0, false);
@@ -652,6 +722,23 @@ export class CoatVfx {
         this.streak(x, 0.5, z, a, 1, 0.3);
         this.circle(x, 2.4, z, low ? 3 : 6, 0.2, SHAPE.STAR4, t, a, 0.4, 0.65, 2.4, 0.2);
         break;
+      case 'board':
+        // a "You're fired" memo stamps down on the fallen: a white sheet drops, a red stamp star
+        this.streak(x, 2.6, z, safe(MEMO, p.self, p.team, p.mate), -1, 0.35);
+        this.sprite(x, 1.4, z, SHAPE.SOFT, safe(MEMO, p.self, p.team, p.mate), 0.8, 0.6, 0, -2, 0, GROW.BACK, FADE.HOLD, 1, 0, false);
+        this.sprite(x, 1, z, SHAPE.STAR8, a, 0.8, 0.45, 0, 0.3, 0, GROW.BACK, FADE.POP, 0.5, 2);
+        if (!low) this.circle(x, 0.8, z, 3, 0.3, SHAPE.STAR8, safe(COIN, p.self, p.team, p.mate), t, 0.25, 0.5, 1.8, 2);
+        break;
+      case 'stack':
+        // a ketchup splat on the fallen
+        this.sprite(x, 0.2, z, SHAPE.SOFT, safe(KETCHUP, p.self, p.team, p.mate), 1.1, 0.8, 0, 0, 0, GROW.BACK, FADE.HOLD, 1, 0, false);
+        this.circle(x, 0.6, z, low ? 2 : 4, 0.25, SHAPE.DROPLET, safe(KETCHUP, p.self, p.team, p.mate), t, 0.3, 0.5, 2, 2.4, 0, 0.3, false);
+        break;
+      case 'megameal':
+        // a toothpick flag plants on the fallen, fries scatter
+        this.streak(x, 2.4, z, a, -1, 0.3);
+        this.circle(x, 0.6, z, low ? 2 : 4, 0.25, SHAPE.SPARK, safe(FRIES, p.self, p.team, p.mate), t, 0.32, 0.5, 2, 2.6);
+        break;
       case 'softserve':
         // a scoop of soft serve drops on the fallen, sprinkles rain
         this.streak(x, 2.6, z, a, -1, 0.35);
@@ -679,7 +766,7 @@ export class CoatVfx {
    */
   evolve(x: number, z: number, stage: number, p: SkinFxProfile | null | undefined): boolean {
     const theme = this.themeOf(p);
-    if (!p || theme !== 'parade') return false;
+    if (!p || (theme !== 'parade' && theme !== 'board' && theme !== 'megameal')) return false;
     const n = EVOLVE_COST[p.low ? 1 : 0];
     if (!this.room(n, p)) return false;
     const low = p.low;
@@ -687,7 +774,9 @@ export class CoatVfx {
     const a = p.accent;
     this.streak(x, 0.6, z, a, 1, 0.35);
     this.circle(x, 3.2, z, low ? 3 : 7, 0.25, SHAPE.STAR4, t, a, stage >= 4 ? 0.55 : 0.42, 0.8, stage >= 4 ? 3.4 : 2.6, 0.2);
-    this.circle(x, 1, z, low ? 1 : 3, 0.7, SHAPE.SOFT, safe(LANTERN, p.self, p.team, p.mate), a, 0.38, 1, 0, 1.4, 0.5, 0.2, false);
+    // gaps6: the boardroom promotion rains coins, the Mega Meal supersize pops fries; the parade lifts lanterns
+    const rise = theme === 'board' ? COIN : theme === 'megameal' ? FRIES : LANTERN;
+    this.circle(x, 1, z, low ? 1 : 3, 0.7, theme === 'parade' ? SHAPE.SOFT : SHAPE.STAR8, safe(rise, p.self, p.team, p.mate), a, 0.38, 1, 0, 1.4, 0.5, 0.2, false);
     this.sprite(x, 0.2, z, SHAPE.RING, a, 0.7, 0.55, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
     this.claim(n, 1, p);
     this.drawn.evolve++;

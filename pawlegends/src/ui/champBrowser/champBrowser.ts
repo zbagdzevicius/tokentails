@@ -41,7 +41,7 @@ import { CHROMAS, chromaDef, chromaPalette, cssHex, nextChroma } from '../../ren
 import type { CatTier } from '../../meta/roster';
 import { coatFxWords } from '../../render/skins/coatThemes';
 import { coatPartsLine } from '../../render/skins/coatVfx';
-import { PARADE_STAGE_WORDS, isEvolving, setTrailPreview } from '../../render/skins/coatTrailData';
+import { evolveWords, isEvolving, setTrailPreview } from '../../render/skins/coatTrailData';
 import { isMythicCoat } from '../../money/catalog';
 
 /** gaps3 coat-fx: a coat clip ('r' is the ultimate). */
@@ -438,7 +438,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       }
       const parts = coatPartsLine(coatSel);
       const rows = clipsOf(coatSel)
-        .map((k) => `<li${k.k === coatClip ? ' class="on"' : ''}><b>${k.label}</b> ${esc(k.key === 'evolve' ? PARADE_STAGE_WORDS : words[k.key])}</li>`)
+        .map((k) => `<li${k.k === coatClip ? ' class="on"' : ''}><b>${k.label}</b> ${esc(k.key === 'evolve' ? evolveWords(coatSel) : words[k.key])}</li>`)
         .join('');
       cardEl.innerHTML = `<h3 class="cb-coat-name">${esc(c.name.replace(/\s*\((Epic|Legendary|Rare)\)$/, ''))}</h3><p class="cb-coat-rung" data-rung="${c.rung}"${isMythicCoat(coatSel) ? ' data-mythic="1"' : ''}>${tierWord(coatSel, c.rung)} coat${c.rung === 'RARE' ? ': the shared Rare effects in its colours' : ': its own effects'}</p><ul class="cb-coat-fx">${rows}</ul>${parts ? `<p class="cb-coat-parts">On the model: ${esc(parts)}.</p>` : ''}${chromaHtml(coatSel as string)}<p class="cb-coat-fine">Looks only: nothing in a match changes.</p>`;
       cardEl.dataset.slot = 'coat';

@@ -81,7 +81,23 @@ export interface LiveopsTwist {
     endsAt: string;
 }
 
+/**
+ * The monthly coat drop (gaps6, LIVEOPS.md "Coat drop"): the month's new store coats, featured with a countdown until the
+ * drop's window ends. `next` names the next drop only when it is scheduled (never a guessed date). The coats are sold in
+ * the web store at the existing bands; the apps show them as previews only.
+ */
+export interface LiveopsDrop {
+    id: string;
+    name: string;
+    /** Store coat ids (`coat.<hero>.<key>`, the game's money/catalog.ts EFFECT_COATS or STORE_COATS). */
+    coats: string[];
+    startsAt: string;
+    endsAt: string;
+    next: { startsAt: string; name: string } | null;
+}
+
 export interface LiveopsDefs {
+    drop: LiveopsDrop | null;
     goal: LiveopsGoalDef | null;
     vote: LiveopsVoteDef | null;
     nap: LiveopsNapDef | null;
@@ -176,6 +192,65 @@ export const DEFAULT_NAP: LiveopsNapDef = Object.freeze({
 
 const DAY = 86_400_000;
 const COAT = /^coat\.[a-z]{2,16}\.[a-z0-9._-]{1,40}$/;
+
+/**
+ * The baked drop calendar (gaps6): one entry a month, the game's copy is pawlegends/src/meta/liveops.ts DROP_CALENDAR
+ * (tests/unit/liveops-drop.test.ts deep-compares). A config doc's `drop` overrides the current one; `drop: null` hides it.
+ */
+export const DROP_CALENDAR: readonly Omit<LiveopsDrop, 'next'>[] = Object.freeze([
+    {
+        id: 'drop-2026-11',
+        name: 'November Drop: Boardroom & Lunch Rush',
+        coats: ['coat.brutus.store_chairman', 'coat.meatball.store_double_stack', 'coat.meatball.store_mega_meal'],
+        startsAt: '2026-11-15T00:00:00.000Z',
+        endsAt: '2026-12-01T00:00:00.000Z',
+    },
+]);
+
+/** The drop running at `now` (or the latest one that started), with the next scheduled one, from a calendar. Pure. */
+export function dropAt(cal: readonly Omit<LiveopsDrop, 'next'>[], now: Date): LiveopsDrop | null {
+    const t = now.getTime();
+    const started = cal
+        .filter(d => Date.parse(d.startsAt) <= t)
+        .sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt));
+    const cur = started[0];
+    if (!cur) return null;
+    const next = cal
+        .filter(d => Date.parse(d.startsAt) > t)
+        .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0];
+    return { ...cur, coats: [...cur.coats], next: next ? { startsAt: next.startsAt, name: next.name } : null };
+}
+
+/** A config doc's `drop` (`{id, name, coats, startsAt, endsAt, next?}`), else null. Pure. */
+export function cleanDrop(v: unknown): LiveopsDrop | null {
+    if (!isRecordEarly(v)) return null;
+    const id = typeof v.id === 'string' && /^[a-z0-9-]{1,40}$/.test(v.id) ? v.id : null;
+    const name = typeof v.name === 'string' && v.name.trim().length >= 1 && v.name.length <= 60 ? v.name.trim() : null;
+    const coats = Array.isArray(v.coats)
+        ? v.coats.filter((c): c is string => typeof c === 'string' && COAT.test(c)).slice(0, 6)
+        : [];
+    const at = (x: unknown) =>
+        typeof x === 'string' && Number.isFinite(Date.parse(x)) ? new Date(Date.parse(x)).toISOString() : null;
+    const startsAt = at(v.startsAt);
+    const endsAt = at(v.endsAt);
+    if (!id || !name || !coats.length || !startsAt || !endsAt || Date.parse(endsAt) <= Date.parse(startsAt))
+        return null;
+    const n = isRecordEarly(v.next) ? v.next : null;
+    const nextAt = n ? at(n.startsAt) : null;
+    const nextName = n && typeof n.name === 'string' && n.name.length <= 60 ? n.name : 'The next drop';
+    return {
+        id,
+        name,
+        coats,
+        startsAt,
+        endsAt,
+        next: nextAt && Date.parse(nextAt) >= Date.parse(startsAt) ? { startsAt: nextAt, name: nextName } : null,
+    };
+}
+
+function isRecordEarly(v: unknown): v is Record<string, unknown> {
+    return !!v && typeof v === 'object' && !Array.isArray(v);
+}
 const ID = /^[a-z0-9-]{1,40}$/;
 const HEX = /^#[0-9a-f]{6}$/i;
 const MODE = /^[a-z0-9-]{1,24}$/;
@@ -340,6 +415,8 @@ export function resolveDefs(doc: Record<string, unknown> | null | undefined, now
     const boss = 'boss' in d && d.boss === null ? null : cleanBoss(d.boss, now) ?? bossWeekend(now);
     const bossOn = !!boss && Date.parse(boss.startsAt) <= now.getTime();
     return {
+        // gaps6: the month's coat drop (the doc's, else the baked calendar's; `drop: null` hides it)
+        drop: 'drop' in d && d.drop === null ? null : cleanDrop(d.drop) ?? dropAt(DROP_CALENDAR, now),
         goal: pick('goal', cleanGoal, DEFAULT_GOAL),
         vote: pick('vote', cleanVote, DEFAULT_VOTE),
         nap: pick('nap', cleanNap, DEFAULT_NAP),

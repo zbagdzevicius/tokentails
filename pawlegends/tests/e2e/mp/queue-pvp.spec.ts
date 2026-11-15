@@ -155,7 +155,8 @@ test('667x375 phone: the mode chip and the Accept card fit; a decline is a dodge
  * Ranked (round 4, SOCIAL-RANKED.md §7.11) against the relay harness (backend/test/party-relay.harness.ts: always open,
  * guests allowed, a fixed status answer). The tile is live with the searching count, PLAY → Ranked offers PvP only,
  * Find match queues ranked with `bots: true`; the card says when labelled bots fill, the searching count and the
- * region ping. Alone, the search becomes Ranked vs AI after the fill + 30 s (the strip says so), and the match starts.
+ * region ping. Alone, the search becomes Ranked vs AI after the fill + 30 s (the strip says so), and the pick opens on
+ * the draft's ban phase (round 6, §7.13): one ban vote, then the bots' ban shows labelled.
  * The backend ranked-relay.spec.ts checks six players, the bot-filled 1v1 and that a game without `bots` never fills.
  */
 for (const kind of ['phone', 'desktop'] as const) {
@@ -197,6 +198,20 @@ for (const kind of ['phone', 'desktop'] as const) {
     await expect(ai).toContainText('against bots · quarter points');
     await shot(p, 'ranked', '03-vs-ai-found');
     await p.page.waitForSelector('html[data-screen="pick"], .pp-pick, .cs', { timeout: 30_000 });
-    await shot(p, 'ranked', '04-vs-ai-pick');
+    // round 6 draft (SOCIAL-RANKED.md §7.13): the harness places everyone at Tabby II, so the pick opens on the bans:
+    // the other species on the grid, BAN; one vote ends the phase, the bots ban one of ours (labelled Bot ban)
+    const bans = p.page.locator('[data-testid="draft-bans"]');
+    await expect(bans).toHaveAttribute('data-stage', 'ban', { timeout: 15_000 });
+    await expect(p.page.locator('[data-testid="draft-rule"]')).toContainText('Ranked draft');
+    await shot(p, 'ranked', '04-draft-ban');
+    const banTile = p.page.locator('.pp-draft .pp-heroes [data-h]').first();
+    const banned = await banTile.getAttribute('data-h');
+    await tap(p, banTile);
+    await tap(p, p.page.locator('[data-testid="party-lock"]'));
+    await expect(bans).toHaveAttribute('data-stage', 'pick', { timeout: 20_000 });
+    await expect(p.page.locator('[data-testid="draft-ban-ours"]')).toHaveAttribute('data-ban', banned!);
+    await expect(p.page.locator('[data-testid="draft-ban-theirs"]')).toContainText('Bot ban');
+    await shot(p, 'ranked', '05-draft-pick');
+    expect(await noSideScroll(p.page)).toBe(true);
   });
 }

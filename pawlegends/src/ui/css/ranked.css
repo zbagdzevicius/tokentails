@@ -16,3 +16,7 @@
 .pl-results .pl-rk-kind { color: var(--v6-muted); font-size: 12px; }
 .pp-queue[data-ranked] .pp-rk-live { margin: 2px 0 0; font-size: 12px; font-variant-numeric: tabular-nums; }
 .pp-queue[data-ai] .pp-ai { display: block; margin-top: 4px; color: var(--v6-muted); font-size: 12px; }
+/* Round 6 (SOCIAL-RANKED.md §7.12): the S-grade loss protection line, the server's numbers. */
+.pl-results .pl-rk-grade { font-size: 13px; font-weight: 700; color: var(--v6-ice); }
+.pl-results .pl-rk-grade b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 6px;
+  background: var(--v6-grad-gold); color: var(--v6-night); font-family: var(--v6-font-display); }
