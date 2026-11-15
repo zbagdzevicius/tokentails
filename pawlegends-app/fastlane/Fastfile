@@ -319,11 +319,25 @@ def mac_metadata_dir
 end
 
 desc "Mac: archive for Mac Catalyst and export the signed App Store .pkg (run `npm run build` first)"
+# Xcode's archive step signs a Mac Catalyst app with Sign in with Apple through a development profile, and Apple
+# makes none for a team without a registered Mac ("Your team has no devices"). When the team has no enabled Mac, the
+# build registers the Mac it runs on (once: later runs find it).
+def ensure_mac_device!
+  macs = Spaceship::ConnectAPI::Device.all(filter: { platform: "MAC_OS", status: "ENABLED" })
+  return unless macs.empty?
+
+  udid = `system_profiler SPHardwareDataType`[/Provisioning UDID:\s*(\S+)/, 1]
+  UI.user_error!("No Mac is registered for the team and this Mac has no provisioning UDID: register a Mac in Certificates, Identifiers & Profiles") if udid.to_s.empty?
+  Spaceship::ConnectAPI::Device.create(name: "Pawlegends build Mac", platform: "MAC_OS", udid: udid)
+  UI.success("Registered this build Mac for the Mac Catalyst development profile")
+end
+
 private_lane :mac_build do |options|
   api_key = options[:api_key] || asc_api_key
   require_web_bundle!
 
   build_number = next_build_number(api_key, platform: "osx")
+  ensure_mac_device!
   manual_cert = import_dist_cert([%w[DIST_CERT_P12 DIST_CERT_PASSWORD], %w[MAC_INSTALLER_P12 MAC_INSTALLER_PASSWORD]])
 
   build_app(
@@ -418,7 +432,6 @@ lane :mac_submit do
   )
 end
 
-desc "Switch the iOS and macOS versions waiting for review to release automatically as soon as Apple approves them"
 desc "Print what players get from App Store Connect today: every iOS/macOS version and its state, the newest builds (changes nothing)"
 lane :status do
   asc_api_key
@@ -437,6 +450,7 @@ lane :status do
   end
 end
 
+desc "Switch the iOS and macOS versions waiting for review to release automatically as soon as Apple approves them"
 lane :auto_release do
   asc_api_key
   app = Spaceship::ConnectAPI::App.find(APP_ID)
