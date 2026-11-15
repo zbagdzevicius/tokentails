@@ -47,10 +47,10 @@ async function fits(root: Root): Promise<{ scroll: boolean; btn: { w: number; h:
   });
 }
 
-/** Walk the browser's arrows until the button says `word` (at most once round the 20 champions). */
+/** Walk the browser's arrows until the button says `word` (at most once round the 24 champions). */
 async function walkTo(root: Root, word: string): Promise<string> {
   const dlg = root.locator('.pl-champ[data-ready="1"]');
-  for (let i = 0; i < 21; i++) {
+  for (let i = 0; i < 25; i++) {
     if ((await dlg.locator('[data-testid="hero-action"]').count()) && (await dlg.locator('[data-testid="hero-action"]').textContent()) === word) return (await dlg.getAttribute('data-hero')) ?? '';
     await dlg.locator('.cb-next').click();
   }

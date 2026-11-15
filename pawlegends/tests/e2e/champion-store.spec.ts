@@ -15,19 +15,29 @@ async function toPick(game: Frame): Promise<void> {
   await game.waitForSelector('.pl-pick .cs');
 }
 
-/** The week's rotation as the game computes it (the e2e clock is real time). */
+const STARTERS = ['clem', 'sage', 'gabe', 'brutus', 'frankie', 'marshmallow'];
+
+/**
+ * The week's rotation as the game computes it (the e2e clock is real time): the open tiles that are not starters. A
+ * champion new in this sim version wears its New tag instead of the Free one (sim v29: Ziggy is free in week 0).
+ */
 async function freeThisWeek(game: Frame): Promise<string[]> {
-  return game.evaluate(() => [...document.querySelectorAll('.cs-tile .champ-free')].map((e) => (e.closest('.cs-tile') as HTMLElement).dataset.h ?? ''));
+  const open = await game.evaluate(() => [...document.querySelectorAll('.cs-grid .cs-tile:not(.locked)')].map((e) => (e as HTMLElement).dataset.h ?? ''));
+  return open.filter((h) => !STARTERS.includes(h));
 }
 
 test('a new guest: 12 open tiles (starters and the free 6), the rest locked with Yarn to go and Practice', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: false, profile: PLAYED, champState: NEW_GUEST });
   const game = await openHost(page);
   await toPick(game);
-  await expect(game.locator('.cs-grid .cs-tile')).toHaveCount(20);
+  // sim v29: 24 champions (ROSTER-V29.md)
+  await expect(game.locator('.cs-grid .cs-tile')).toHaveCount(24);
   await expect(game.locator('.cs-grid .cs-tile:not(.locked)')).toHaveCount(12);
-  for (const h of ['clem', 'sage', 'gabe', 'brutus', 'frankie', 'marshmallow']) await expect(game.locator(`.cs-tile[data-h="${h}"]`)).not.toHaveClass(/locked/);
-  expect(await freeThisWeek(game)).toHaveLength(6);
+  for (const h of STARTERS) await expect(game.locator(`.cs-tile[data-h="${h}"]`)).not.toHaveClass(/locked/);
+  const free = await freeThisWeek(game);
+  expect(free).toHaveLength(6);
+  // every free champion is tagged: Free, or New in its first sim version
+  for (const h of free) await expect(game.locator(`.cs-tile[data-h="${h}"] .champ-free, .cs-tile[data-h="${h}"] .new-tag`)).toHaveCount(1);
   // a locked champion: its skills show, LOCK IN is Practice, the unlock row says how far the Yarn is
   const locked = await game.evaluate(() => (document.querySelector('.cs-grid .cs-tile.locked[data-side="cat"]') as HTMLElement).dataset.h ?? '');
   await game.locator(`.cs-grid [data-h="${locked}"]`).click();
@@ -37,11 +47,17 @@ test('a new guest: 12 open tiles (starters and the free 6), the rest locked with
   await expect(game.locator('[data-testid="champ-buy"]')).toHaveCount(1);
 });
 
-test('an existing player with the Founders roster keeps every champion', async ({ context, page, baseURL }) => {
+test('an existing player with the Founders roster keeps every champion it was given', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, profile: PLAYED });
   const game = await openHost(page);
   await toPick(game);
-  await expect(game.locator('.cs-grid .cs-tile.locked')).toHaveCount(0);
+  // the Founders roster is the 20 champions of its time; the sim v29 four are sold on their own (ROSTER-V29.md §5), so
+  // only those can be locked (one of them may be in this week's rotation)
+  await expect(game.locator('.cs-grid .cs-tile')).toHaveCount(24);
+  const locked = await game.locator('.cs-grid .cs-tile.locked').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
+  for (const h of locked) expect(['mochi', 'ziggy', 'biscuit', 'champ']).toContain(h);
+  await expect(game.locator('.cs-grid .cs-tile:not(.locked)')).toHaveCount(24 - locked.length);
+  expect(24 - locked.length).toBeGreaterThanOrEqual(20);
 });
 
 test('a Yarn unlock is asked of the host; the app build shows no price', async ({ context, page, baseURL }) => {
@@ -66,17 +82,18 @@ test('store Champions: splash grid, filters, sort remembered, detail unlock and 
   await game.locator('.hm-nav [data-a="store"]').click();
   const shop = game.locator('.pl-shop');
   await expect(shop.locator('.cst-tab.on')).toHaveAttribute('data-tab', 'champions');
-  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(20);
+  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(24);
   // the splash art loads (lazy, 360 or 720 by width)
   await expect.poll(() => shop.locator('.cst-card[data-hero="clem"] img.cst-art').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
   await shop.locator('[data-side="dog"]').click();
-  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(10);
+  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(12);
   await shop.locator('[data-role="mage"]').click();
   await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(2);
   await shop.locator('[data-side="all"]').click();
   await shop.locator('[data-role="mage"]').click();
   await shop.locator('[data-a="unowned"]').check();
-  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(14);
+  // 24 champions less the 6 starters
+  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(18);
   await shop.locator('[data-a="sort"]').selectOption('name');
   await expect(shop.locator('.cst-card[data-hero]').first()).toHaveAttribute('data-hero', 'bengas'); // English names (Nov 12): Bengal first
   // detail: a locked champion (not in this week's rotation) unlocks with Yarn through the host, or buys on the web

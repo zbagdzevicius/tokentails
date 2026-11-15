@@ -31,7 +31,10 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
 
   // every Home promo slide has its picture (the Store slide was a bare gradient), and each one loads
   const slides = game.locator('.hm-slide');
-  await expect(slides).toHaveCount(3);
+  // 3 slides, plus Boss Weekend's first while it runs (Friday to Monday UTC, from the live-ops config)
+  await expect.poll(() => slides.count()).toBeGreaterThanOrEqual(3);
+  const boss = await game.locator('.hm-slide[data-mode="boss"]').count();
+  await expect(slides).toHaveCount(3 + boss);
   const arts = await slides.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.getPropertyValue('--art')));
   expect(arts.every((a) => /url\(.+\.webp/.test(a))).toBe(true);
   expect(arts.some((a) => a.includes('promo-store'))).toBe(true);
@@ -55,10 +58,11 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   await expect(shop.locator('[data-sel] .cst-frameart[data-frame] .cst-ring')).toHaveCount(4);
   await expect(shop).toContainText('Cosmetic only: nothing here changes a match');
   await shop.locator('.cst-tabs [data-tab="coats"]').click();
-  // CARD-SKINS.md: 4 effect coats (Epic $7.99, Legendary $14.99, tier word on the tile) and the 16 Rare coats
-  await expect(shop.locator('[data-sel]')).toHaveCount(20);
+  // CARD-SKINS.md: 6 effect coats (Epic $7.99, Legendary $14.99, tier word on the tile; gaps4 added Club Sandwich and
+  // Kebab King) and the 16 Rare coats
+  await expect(shop.locator('[data-sel]')).toHaveCount(22);
   // every coat card shows the coat on its hero (a picture, never a text-only tile)
-  await expect.poll(() => shop.locator('[data-sel] img.cst-art').evaluateAll((els) => els.filter((e) => (e as HTMLImageElement).getAttribute('src') || (e as HTMLImageElement).getAttribute('srcset')).length)).toBe(20);
+  await expect.poll(() => shop.locator('[data-sel] img.cst-art').evaluateAll((els) => els.filter((e) => (e as HTMLImageElement).getAttribute('src') || (e as HTMLImageElement).getAttribute('srcset')).length)).toBe(22);
   await expect(shop.locator('[data-sel][data-rung="LEGENDARY"]')).toHaveCount(2);
   await expect(shop.locator('[data-sel="pl_coat_brutus_thunderpaw"]')).toContainText(/Legendary · (\$|€)14\.99/);
   // a card opens its detail (the coat on its hero) with the buy button

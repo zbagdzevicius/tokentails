@@ -2,15 +2,16 @@ import { expect, test, type Page } from '@playwright/test';
 import { attr, PROFILE_KEY, seedSide, startFirstMatch, toChampSelect } from './helpers';
 
 // Sim v14 (DOGS-V13 §2, gate 13; DOGS-V15 §2: 10 v 10), champion select (LANDING-PICK-UX §B2.3): the All · Cats ·
-// Dogs tabs filter the grid (cats 10, dogs 10); picking a dog plays the dog side (the bots fill both teams by species,
+// Dogs tabs filter the grid (cats 12, dogs 12 since sim v29); picking a dog plays the dog side (the bots fill both teams by species,
 // a dog team never fields a hero twice), the hero and its side are remembered across a reload, the arrow keys move the
 // tabs, and at 667x375 and 844x390 the tabs, the grid, the Paw Trick row and LOCK IN sit inside the viewport with LOCK
 // IN in the same place on both sides.
 // The DOGS lock before match 1 has no UI path in e2e (a first-time player only sees "Play as Clem"); it is covered by
 // tests/unit/side-switch.test.ts, and first-match.spec still checks match 1 opens on Clem.
 
-const DOGS = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino'];
-const CATS = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'];
+// sim v29 (ROSTER-V29.md): 12 a side, Biscuit and Champ join the dogs, Mochi and Ziggy the cats
+const DOGS = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'biscuit', 'champ'];
+const CATS = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'mochi', 'ziggy'];
 
 const visibleTiles = (page: Page) => page.locator('.cs-grid .cs-tile:not([hidden])');
 
@@ -26,23 +27,23 @@ async function tapOrClick(page: Page, sel: string, touch: boolean): Promise<void
   else await page.locator(sel).click();
 }
 
-test('DOGS shows the 10 dogs and plays the dog side with no duplicate on the team', async ({ page }, info) => {
+test('DOGS shows the 12 dogs and plays the dog side with no duplicate on the team', async ({ page }, info) => {
   test.setTimeout(120_000);
   const touch = info.project.name === 'landscape';
   await seedSide(page, 'cat');
   await toPick(page);
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'cat');
-  await expect(visibleTiles(page)).toHaveCount(10);
-  await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-label', /Dogs, 10 heroes$/);
+  await expect(visibleTiles(page)).toHaveCount(12);
+  await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-label', /Dogs, 12 heroes$/);
 
   await tapOrClick(page, '.side-tab.dog', touch);
   // a tab filters only; the side follows the hero picked
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'cat');
   await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-checked', 'true');
-  await expect(visibleTiles(page)).toHaveCount(10);
-  // the New tag marks heroes added in the current SIM_VERSION (isNewHero); sim v16 adds none, so the v15 dogs lost it
+  await expect(visibleTiles(page)).toHaveCount(12);
+  // the New tag marks heroes added in the current SIM_VERSION (isNewHero): sim v29 adds Biscuit and Champ to the dogs
   const fresh = await page.locator('.cs-grid .cs-tile:not([hidden])[data-new="1"]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
-  expect(fresh.sort()).toEqual([]);
+  expect(fresh.sort()).toEqual(['biscuit', 'champ']);
   const ids = await visibleTiles(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(ids.sort()).toEqual([...DOGS].sort());
   // one tap on Chili selects it (and the dog side)
@@ -98,7 +99,7 @@ test('the side and the hero are remembered across a reload; the pick opens on th
   await page.locator('.cs-tile[data-h="sage"]').click();
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'cat');
   await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'sage');
-  await expect(visibleTiles(page)).toHaveCount(10);
+  await expect(visibleTiles(page)).toHaveCount(12);
   const ids = await visibleTiles(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(ids.sort()).toEqual([...CATS].sort());
 });
@@ -112,7 +113,7 @@ test('the arrow keys move the side tabs (a radio group)', async ({ page }, info)
   await page.keyboard.press('ArrowRight');
   await expect(page.locator('.side-tab.dog')).toBeFocused();
   await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-checked', 'true');
-  await expect(visibleTiles(page)).toHaveCount(10);
+  await expect(visibleTiles(page)).toHaveCount(12);
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('.side-tab.cat')).toBeFocused();
   await expect(page.locator('.side-tab.cat')).toHaveAttribute('aria-checked', 'true');
