@@ -341,7 +341,8 @@ test.describe("/heist host (G2 layers 1 and 3)", () => {
     await expect(page.getByTestId("heist-frame")).toHaveAttribute("inert", "");
     await page.evaluate(() => (window as unknown as { __ttE2EAuth: { signIn: () => void } }).__ttE2EAuth.signIn());
     const claim = page.getByRole("dialog", { name: "ADD YOUR HEISTS?" });
-    await expect(claim).toBeVisible({ timeout: 20_000 });
+    // after the sign-in the profile loads and the device queue is read: a state wait, with room for a busy CI runner
+    await expect(claim).toBeVisible({ timeout: 60_000 });
     await expect(claim).toContainText("Add 1 heist played on this device to your account?");
     expect(saves).toHaveLength(0); // nothing leaves the device before the answer
     await claim.getByRole("button", { name: "ADD THEM" }).click();

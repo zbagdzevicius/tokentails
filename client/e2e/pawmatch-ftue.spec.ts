@@ -349,8 +349,11 @@ test.describe("Paw Match first run", () => {
     await expect.poll(async () => (await sceneState(page)).tutorial!.stroke?.toLowerCase(), { timeout: 10_000 }).toBe("#111827");
 
     const detourMs = Date.now() - detourFrom;
-    // Follow the glove: the hinted pair.
+    // Follow the glove: the hinted pair. The drag itself is the harness's gesture (CDP round trips, seconds on a slow
+    // CI runner), not time the game makes the player wait, so it is left out like the detours.
+    const dragFrom = Date.now();
     await dragCells(page, first, move.from, move.to);
+    const dragMs = Date.now() - dragFrom;
     // The clock starts as soon as the swap lands (before its cascade resolves); the tutorial ends
     // once the cascade settles.
     await page.waitForFunction(
@@ -361,8 +364,8 @@ test.describe("Paw Match first run", () => {
       null,
       { timeout: 10_000 },
     );
-    const playerMs = Date.now() - shownAt - detourMs;
-    console.log(`[pawmatch-ftue] ${info.project.name}: first valid swap after ${playerMs} ms of player time (detours ${detourMs} ms)`);
+    const playerMs = Date.now() - shownAt - detourMs - dragMs;
+    console.log(`[pawmatch-ftue] ${info.project.name}: first valid swap after ${playerMs} ms of player time (detours ${detourMs} ms, drag ${dragMs} ms)`);
     expect(playerMs, "first valid swap within 10 s").toBeLessThan(10_000);
     await page.waitForFunction(
       () => {

@@ -178,7 +178,8 @@ jobs:
       - name: End-to-end tests
         # CI=true makes playwright.config.ts serve the build with `next start` on :3001 and run the
         # CI subset: all of mobile-390 plus the `@ci-desktop` tests on desktop-1440 (see the config).
-        timeout-minutes: 35
+        # A green run took 30 min on Nov 15, 2026 (218 tests, 2 workers, software WebGL): 45 leaves room.
+        timeout-minutes: 45
         run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
