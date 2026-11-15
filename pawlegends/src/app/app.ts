@@ -73,8 +73,11 @@ import {
   isUnlocked,
   loadModeLocal,
   markModesMigrated,
+  markModesPlayedScanned,
   migrateUnlocks,
   modesMigrated,
+  modesPlayedScanned,
+  playedBefore,
   newlyUnlocked,
   notePlayed,
   playerModes,
@@ -850,6 +853,20 @@ export class App {
       add = migrateUnlocks(p, { saved, history }, all);
       markModesMigrated();
       if (add.length) this.analytics.track('mode_unlock', { mode: add.join(','), matches: p.matches, wins: p.wins, via: 'migrate' });
+    }
+    // the modes the kept replays played before mode unlocking shipped (history rows do not name Duel, One Lane Brawl
+    // or Cannon Chaos): once per device, also on devices that ran the first migration already
+    if (!modesPlayedScanned()) {
+      let played: string[] = [];
+      try {
+        played = playedBefore(loadHistory(), (id) => replayOf(id)?.mutator);
+      } catch {
+        played = [];
+      }
+      const more = played.length ? migrateUnlocks({ ...p, unlocks: [...p.unlocks, ...add] }, { history: played }, all) : [];
+      markModesPlayedScanned();
+      if (more.length) this.analytics.track('mode_unlock', { mode: more.join(','), matches: p.matches, wins: p.wins, via: 'migrate' });
+      add = [...add, ...more];
     }
     const merged = { ...p, unlocks: [...p.unlocks, ...add] };
     const s = silentUnlocks(merged, all);

@@ -364,6 +364,15 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
   const endCard = (): void => {
     // a montage segment reaching the match's end: the montage goes on to its next segment and its end card
     if (montaging) return;
+    // a results card's highlight that runs to the match's end keeps its own end card (Clip it · Next highlight ·
+    // Watch full match) instead of "Replay over" (a recording of it still stops and opens the clip sheet)
+    if (!clipRec && (html.dataset.replay === 'highlight-end' || (dir && dirStop === 'card'))) {
+      const h = dir ?? lastHl;
+      ended = true;
+      if (dir) setDir(null);
+      if (h && html.dataset.replay !== 'highlight-end') hlEndCard(h);
+      return;
+    }
     stopRec(true);
     ended = true;
     setPlayIcon();

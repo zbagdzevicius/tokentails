@@ -98,6 +98,11 @@ level, so the ladder uses match and win counts, which already sync and only go u
 - **First run of this build on a device** (silent, no banner): a player with 10+ matches, or the "played MOBAs
   before" setting, gets every mode. Anyone else keeps the modes in their saved choice and their match history
   (Blitz), plus every mode whose goal they already met.
+- **Kept replays** (second pass, `pawlegends.modes.v2`, once per device, also where the first pass already ran):
+  history rows only name Skirmish, Classic and Blitz, so the mutator of each kept replay that ended before the ship
+  (`MODE_UNLOCKS_SHIPPED`, Nov 14 23:30 UTC) keeps Duel, One Lane Brawl and Cannon Chaos open. Found in the Nov 15
+  live check: a 3-match player who had played One Lane Brawl and Cannon Chaos saw both locked again. A featured mode
+  played after the ship still does not unlock it.
 - **Ranked card:** a signed-in player whose `ranked/me` card shows placements or a tier keeps Ranked open.
 - **Every Home** writes the modes whose goal is now met (a server merge raised the counts) silently. An account with
   10+ matches and no `mode.` id at all, for example one that just signed in on a new device, played before this build

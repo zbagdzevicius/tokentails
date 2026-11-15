@@ -205,6 +205,20 @@ describe('highlights: fights', () => {
     expect(f.title).toMatch(/even|trade/i);
   });
 
+  it('an ace inside a teamfight titles it over a double (live check Nov 15: an ace was shown as "Double Pounce")', () => {
+    const h = harness();
+    h.set(900, (p) => near({ pos: p } as Harness, [0, 1, 3, 4, 5], 50_000));
+    brawl(h, [0, 1, 3, 4, 5], 1000, 1500);
+    h.kill(1200, 3, 0, 2800);
+    h.kill(1300, 4, 0, 2800);
+    h.kill(1400, 5, 1, 2800);
+    const r = h.finish();
+    const fights = r.list.filter((x) => x.type === 'teamfight' || x.type === 'multikill' || x.type === 'ace');
+    expect(fights).toHaveLength(1);
+    expect(fights[0].title).not.toMatch(/Double/);
+    expect(['Ace!', 'Clean sweep', 'Team wiped']).toContain(fights[0].title);
+  });
+
   it('Hearthwood: a fight needs 6 heroes (5 do not open one)', () => {
     const five = harness({ teamSize: 5 });
     five.set(900, (p) => near({ pos: p } as Harness, [0, 1, 2, 5, 6], 50_000));

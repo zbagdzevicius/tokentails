@@ -303,3 +303,38 @@ export function modesMigrated(): boolean {
 export function markModesMigrated(): void {
   write(MODES_MIGRATED_KEY, '1');
 }
+
+/**
+ * Mode unlocking went live with build 8a52bf9 (Nov 14, 23:31 UTC). A match that ended before it was played with every
+ * mode open, so its mode stays open to the player.
+ */
+export const MODE_UNLOCKS_SHIPPED = Date.parse('2026-11-14T23:30:00Z');
+/** The second migration (the modes in kept replays) ran on this device. */
+export const MODES_PLAYED_KEY = 'pawlegends.modes.v2';
+
+/**
+ * The modes a player's kept replays played before mode unlocking shipped. History rows only know Skirmish, Classic
+ * and Blitz, so Duel, One Lane Brawl and Cannon Chaos are read from the replay record's mutator. Pure.
+ */
+export function playedBefore(rows: readonly { id: string; at: number }[], mutatorOf: (id: string) => string | null | undefined, cutoff = MODE_UNLOCKS_SHIPPED): string[] {
+  const out = new Set<string>();
+  for (const r of rows) {
+    if (!(r.at < cutoff)) continue;
+    const m = mutatorOf(r.id);
+    if (m && m !== 'none') out.add(m);
+  }
+  return [...out];
+}
+
+export function modesPlayedScanned(): boolean {
+  try {
+    const s = globalThis.localStorage;
+    return !s || s.getItem(MODES_PLAYED_KEY) === '1';
+  } catch {
+    return true;
+  }
+}
+
+export function markModesPlayedScanned(): void {
+  write(MODES_PLAYED_KEY, '1');
+}
