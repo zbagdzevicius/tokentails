@@ -1578,6 +1578,8 @@ export class App {
               this.chatUnread = Math.max(0, n);
               this.paintSocialBadge();
             },
+            // MATCH-HISTORY.md: a friend's match history from their row
+            history: (friend) => this.openHistory(friend),
           },
           tab,
         );
@@ -2323,6 +2325,8 @@ export class App {
         simVersion: e.replay.simVersion,
         noReplay: o.party ? 'party' : null,
         ...(!o.party && e.emotes?.length ? { emotes: e.emotes } : {}),
+        // MATCH-HISTORY.md: the account's row for this match carries the same key
+        key: `${e.result.finalHash}:${e.result.ticks}`,
       },
       o.party ? null : e.replay,
     );
@@ -2372,14 +2376,21 @@ export class App {
       .catch((err: unknown) => reportCrash('window', err));
   }
 
-  /** MATCH-MOMENTS.md §1: the last 20 matches (from the Treat Track's profile entry). */
-  private openHistory(): void {
+  /**
+   * MATCH-MOMENTS.md §1, MATCH-HISTORY.md: the match history (the Profile's entry), or a friend's (their row in Social):
+   * the account's rows with this device's replays, season stats, filters and each match's scoreboard.
+   */
+  private openHistory(friend: { code: string; name: string } | null = null): void {
     if (this.overlay) this.overlay.close();
     this.overlay = null;
-    this.analytics.track('history_open', { rows: loadHistory().length });
+    this.analytics.track('history_open', { rows: loadHistory().length, friend: !!friend });
     void import('../ui/history/historySheet')
       .then(({ historySheet }) => {
         const el = historySheet(this.root, {
+          api: (op, args) => this.integration.api(op, args),
+          friend,
+          signedIn: accountState().signedIn,
+          track: (ev, props) => this.analytics.track(ev as 'history_open', props),
           onWatch: (id) => this.openReplay(id),
           onClose: () => {
             if (this.overlay?.close === close) this.overlay = null;

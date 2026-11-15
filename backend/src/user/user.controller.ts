@@ -65,6 +65,7 @@ import { saveHeistRun } from './heist/heist-live';
 import { saveBadcatRun } from 'src/badcat/badcat-live';
 import { GrowthService } from 'src/pawlegends/growth/growth.service';
 import { savePawlegendsMatch } from 'src/pawlegends/pawlegends-live';
+import { MatchHistoryService } from 'src/pawlegends/history/history.service';
 import { isPartyResult, savePawlegendsPartyMatch } from 'src/pawlegends/pawlegends-party-live';
 import { PawlegendsReplayDto } from 'src/pawlegends/pawlegends-replay.dto';
 import { MongoRoomStore } from 'src/pawlegends/party/room-store';
@@ -214,7 +215,9 @@ export class UserController {
         // Clubs (CLUBS-KUDOS.md §4): the weekly club chest, filled only by this save.
         @Optional() private pawlegendsClubs?: ClubsService,
         // Account progress (gap plan P2): mastery, the Welcome Path and the Lucky Treat, added by /live.
-        @Optional() private pawlegendsProgress?: PawlegendsProgressService
+        @Optional() private pawlegendsProgress?: PawlegendsProgressService,
+        // Match history (MATCH-HISTORY.md): the per-match row, written by /live after the Game row exists.
+        @Optional() private pawlegendsHistory?: MatchHistoryService
     ) {
         // this.getUsers();
         // this.getTwitters();
@@ -673,7 +676,12 @@ export class UserController {
                 cats: this.catRepository.model,
                 firebase: this.firebase,
                 audit: this.repository.model.db.collection(ACCOUNT_DELETIONS_COLLECTION) as any,
-                purgeSocial: id => purgePawlegendsSocial(this.repository.model.db as any, id),
+                purgeSocial: async id => {
+                    const purged = await purgePawlegendsSocial(this.repository.model.db as any, id);
+                    // MATCH-HISTORY.md: the account's rows, season stats and choice; its seat in others' rows loses the id
+                    await this.pawlegendsHistory?.purge(String(id));
+                    return purged;
+                },
             },
             userId,
             body?.appleAuthorizationCode,
@@ -1469,6 +1477,7 @@ export class UserController {
                     growth: this.pawlegendsGrowth,
                     clubs: this.pawlegendsClubs,
                     rewards: this.pawlegendsProgress,
+                    history: this.pawlegendsHistory,
                 },
                 userId,
                 body as any
@@ -1484,6 +1493,7 @@ export class UserController {
                         season: this.pawlegendsSeason,
                         growth: this.pawlegendsGrowth,
                         rewards: this.pawlegendsProgress,
+                        history: this.pawlegendsHistory,
                     },
                     userId,
                     body as LiveGameDto & { pawlegends?: PawlegendsReplayDto }

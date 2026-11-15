@@ -73,6 +73,8 @@ describe("pawlegends api bridge (host)", () => {
         cats: "invite,club",
         tz: -120,
         hideFlag: true,
+        match: mid,
+        visibility: "friends",
       });
       expect([op, r?.path.startsWith("/pawlegends/")]).toEqual([op, true]);
     }
@@ -83,6 +85,21 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("flag.set", { hideFlag: false })?.body).toEqual({ hideFlag: false });
     expect(routeOf("flag.set", { hideFlag: "yes" })).toBeNull();
     expect(routeOf("flag.set", {})).toBeNull();
+  });
+
+  it("match history routes (MATCH-HISTORY.md): yours with the session, a friend's by code (registered)", () => {
+    const id = "0123456789abcdef01234567";
+    expect(routeOf("history.list", {})).toEqual({ method: "GET", path: "/pawlegends/history", auth: "any" });
+    expect(routeOf("history.list", { mode: "ranked", before: id })).toEqual({ method: "GET", path: `/pawlegends/history?mode=ranked&before=${id}`, auth: "any" });
+    // an unknown filter or cursor is dropped, never forwarded
+    expect(routeOf("history.list", { mode: "admin", before: "../x" })?.path).toBe("/pawlegends/history");
+    expect(routeOf("history.list", { code: "PL-7KQ2-M9XR" })).toEqual({ method: "GET", path: "/pawlegends/history/u/PL-7KQ2-M9XR", auth: "registered" });
+    expect(routeOf("history.list", { code: "../../x" })).toBeNull();
+    expect(routeOf("history.match", { match: id })).toEqual({ method: "GET", path: `/pawlegends/history/match/${id}`, auth: "any" });
+    expect(routeOf("history.match", { match: id, code: "PL-7KQ2-M9XR" })?.path).toBe(`/pawlegends/history/u/PL-7KQ2-M9XR/match/${id}`);
+    expect(routeOf("history.match", { match: "../admin" })).toBeNull();
+    expect(routeOf("history.privacy", { visibility: "me" })).toEqual({ method: "POST", path: "/pawlegends/history/privacy", body: { visibility: "me" }, auth: "any" });
+    expect(routeOf("history.privacy", { visibility: "public" })).toBeNull();
   });
 
   it("gaps5: a party invite forwards only the Ranked duo mode", () => {

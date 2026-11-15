@@ -25,6 +25,10 @@ export type AnalyticsEvent =
   | 'second_match'
   // match moments (MATCH-MOMENTS.md): history, the replay viewer, the Legend Moment card
   | 'history_open'
+  // MATCH-HISTORY.md: a match opened (friend, local), a filter chip, the privacy choice
+  | 'history_match'
+  | 'history_filter'
+  | 'history_privacy'
   | 'replay_open'
   | 'replay_error'
   | 'replay_seek'

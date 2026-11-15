@@ -114,6 +114,9 @@
 .pl-av b { font: inherit; }
 .pl-social-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .pl-social-who .pl-social-st { font-size: 11px; }
+/* MATCH-HISTORY.md: the friend's name opens their match history (a 44 px target, the row keeps its look) */
+.pl-social-hist { appearance: none; background: none; border: 0; padding: 0; margin: 0; min-height: 44px; justify-content: center; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
+.pl-social-hist:focus-visible { outline: 2px solid var(--v6-bolt); outline-offset: 2px; }
 .pl-social-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; opacity: 1; color: var(--v6-rose-light); }
 .pl-chat-btn { position: relative; }
 .pl-chat-unread {

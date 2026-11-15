@@ -43,6 +43,8 @@ export interface HistoryEntry {
   highlights?: HighlightReel | null;
   /** gaps5 polish 3: ticks of the player's emotes (the detector's optional sidecar; solo matches with a replay). */
   emotes?: number[];
+  /** MATCH-HISTORY.md: `finalHash:ticks`, the key the account's history row carries (its replay is found by it). */
+  key?: string;
 }
 
 /** Most emote ticks a row keeps. */
