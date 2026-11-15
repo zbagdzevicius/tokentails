@@ -189,6 +189,7 @@ html[data-champ] .tt-card > .tt-sp, html[data-champ] .tt-card > .tt-glare, html[
 .cb-coat-chip[data-rung='LEGENDARY'] small { color: var(--v6-logo-gold, #f7bc3c); }
 .cb-coat-chip[data-rung='EPIC'] small { color: #c9a8ff; }
 .cb-coat-chip[data-rung='RARE'] small { color: #8fd8ff; }
+.cb-coat-chip small[data-mythic='1'] { color: #ff7a9a; }
 .cb-coat-chip.on { border-color: var(--v6-bolt); background: color-mix(in srgb, var(--cb-side) 30%, var(--v6-night-2)); }
 .cb-cfx { flex: none; display: flex; gap: 4px; }
 /* gaps5 polish 6: four coats or more: the chips get the whole row (a fade marks more to scroll), the tabs go under it */
@@ -213,6 +214,7 @@ html[data-champ] .tt-card > .tt-sp, html[data-champ] .tt-card > .tt-glare, html[
 .cb-coat-rung { margin: 1px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--v6-muted); }
 .cb-coat-rung[data-rung='LEGENDARY'] { color: var(--v6-logo-gold, #f7bc3c); }
 .cb-coat-rung[data-rung='EPIC'] { color: #c9a8ff; }
+.cb-coat-rung[data-mythic='1'] { color: #ff7a9a; }
 .cb-coat-fx { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 4px; }
 .cb-coat-fx li { padding: 3px 6px; border-radius: var(--v6-r-xs); border-left: 3px solid transparent; }
 .cb-coat-fx li.on { border-left-color: var(--v6-bolt); background: rgb(var(--v6-navy-rgb) / 0.5); }

@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import type { HeroId } from '../../sim/api';
 import { DEFAULT_LOOK, lookKey, type Coat, type Look } from '../cosmetics';
 import { buildChibi } from './chibi';
+import { coatPartsRev, hasCoatParts } from './coatParts';
 import { charMaterial, outlineMaterial, type CharMaterial } from './charMaterial';
 import { Animator } from './motion';
 import { BONE_INDEX, Rig, type BoneName, type Layout } from './skeleton';
@@ -63,7 +64,8 @@ export const DETAIL = Object.freeze({ low: 0.62, med: 1, high: 1, lobby: 1.5 });
 
 /** The cached hero geometry (indexed, skinned) for a team, look and detail. */
 export function heroBuilt(hero: HeroId, team: 0 | 1, look: Look | null = DEFAULT_LOOK, detail = 1, ctx: HeroCtx = {}): Built {
-  const k = `${hero}:${team}:${lookKey(look)}:${detail}${ctx.match ? (ctx.self ? ':ms' : ':m') : ''}`;
+  // gaps5: a coat with parts keys on the builders' load state (render/chars/coatParts.ts), so it rebuilds once they land
+  const k = `${hero}:${team}:${lookKey(look)}:${detail}${ctx.match ? (ctx.self ? ':ms' : ':m') : ''}${hasCoatParts(look?.coat) ? `:p${coatPartsRev()}` : ''}`;
   let b = heroCache.get(k);
   if (b) {
     // most recently used last

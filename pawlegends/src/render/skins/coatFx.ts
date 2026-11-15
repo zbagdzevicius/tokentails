@@ -67,6 +67,11 @@ export const COAT_COST: Readonly<Record<CoatTheme | 'rare', Readonly<Record<'ult
   frost: { ult: [14, 7], nap: [3, 2], land: [10, 5], takedown: [7, 4] },
   deli: { ult: [13, 7], nap: [3, 2], land: [10, 5], takedown: [7, 4] },
   grill: { ult: [15, 8], nap: [3, 2], land: [9, 5], takedown: [7, 4] },
+  pizza: { ult: [16, 8], nap: [3, 2], land: [12, 6], takedown: [7, 4] },
+  vac: { ult: [13, 7], nap: [3, 2], land: [9, 5], takedown: [7, 4] },
+  burger: { ult: [15, 8], nap: [3, 2], land: [10, 5], takedown: [7, 4] },
+  parade: { ult: [22, 7], nap: [3, 2], land: [12, 6], takedown: [7, 4] },
+  softserve: { ult: [12, 7], nap: [3, 2], land: [10, 5], takedown: [7, 4] },
   rare: { ult: [7, 4], nap: [0, 0], land: [6, 4], takedown: [3, 2] },
 });
 
@@ -77,13 +82,26 @@ const BREAD = 0xe0a85a;
 const TOMATO = 0xe8603a;
 const MEAT = 0x9a4420;
 const PEPPER = 0x5fbf3a;
+/** gaps5 skins v2: mozzarella, pepperoni and the pizza box; dust and the dock cyan; fries and the patty; the lantern red; soft serve. */
+const MOZZ = 0xffe08a;
+const PEPPERONI = 0xd0402e;
+const BOX = 0xd8b07a;
+const DUST = 0xc8bcae;
+const DOCK = 0x3fd8ff;
+const FRIES = 0xffc83a;
+const PATTY = 0x7a4222;
+const LANTERN = 0xff4a3a;
+const CONE = 0xe0a454;
+const SOFT_CREAM = 0xfff4e2;
+/** A Mythic coat's stage-up burst (a firework and lanterns): sprites, full and Low. */
+export const EVOLVE_COST: readonly [number, number] = [12, 6];
 const GOLDEN = 2.39996;
 
 export class CoatVfx {
   /** Sprites started so far (tests). */
   emitted = 0;
   /** Effects drawn so far by kind (tests, e2e). */
-  readonly drawn = { ult: 0, nap: 0, land: 0, takedown: 0 };
+  readonly drawn = { ult: 0, nap: 0, land: 0, takedown: 0, evolve: 0 };
   /** CombatVfx.lightning, set by the GameView (null: no bolts, e.g. in tests). */
   bolt: CoatBolt | null = null;
   private time = 0;
@@ -106,6 +124,20 @@ export class CoatVfx {
 
   tick(dt: number): void {
     this.time += dt;
+  }
+
+  /** gaps5 Mythic: takedowns per hero slot this match and the time of each slot's last ultimate (coatTrail.ts reads them). */
+  readonly takedowns = new Uint16Array(64);
+  private readonly ultT = new Float64Array(64).fill(-1e9);
+  noteTakedown(id: number): void {
+    if (id >= 0 && id < 64) this.takedowns[id]++;
+  }
+  noteUlt(id: number): void {
+    if (id >= 0 && id < 64) this.ultT[id] = this.time;
+  }
+  /** Seconds since slot `id` cast its ultimate (a large number when it has not). */
+  sinceUlt(id: number): number {
+    return id >= 0 && id < 64 ? this.time - this.ultT[id] : 1e9;
   }
 
   /** Living coat sprites (all heroes, or hero slot `id`). */
@@ -321,6 +353,55 @@ export class CoatVfx {
         this.sprite(x, 2.4, z, SHAPE.STAR8, a, low ? 0.9 : 1.2, 0.6, 0, 0.5, 0, GROW.BACK, FADE.HOLD, 1, 2);
         break;
       }
+      case 'pizza': {
+        // stretchy cheese strings shoot out, a pepperoni storm swirls, a pizza spreads under him
+        const mozz = safe(MOZZ, p.self, p.team, p.mate);
+        const pep = safe(PEPPERONI, p.self, p.team, p.mate);
+        this.rays(x, 0.6, z, low ? 4 : 8, mozz, t, r * 0.9);
+        this.circle(x, 0.9, z, low ? 3 : 6, r * 0.4, SHAPE.SOFT, pep, pep, 0.42, 0.9, 0.6, 0.8, 4, 0.2, false);
+        this.sprite(x, 0.15, z, SHAPE.SOFT, mozz, Math.min(3.2, r * 1.3), 0.9, 0, 0, 0, GROW.BACK, FADE.HOLD, 1.05, 0, false);
+        if (!low) this.sprite(x, 1.6, z, SHAPE.STAR8, a, 1.1, 0.5, 0, 0.6, 0, GROW.BACK, FADE.POP, 0.5, 2);
+        break;
+      }
+      case 'vac': {
+        // the vacuum whirls: dust spirals in toward him, cyan sparks with it, the bumper light rings out
+        const dust = safe(DUST, p.self, p.team, p.mate);
+        this.circle(x, 0.35, z, low ? 4 : 8, r * 0.9, SHAPE.PUFF, dust, cr, 0.7, 0.8, -r * 0.9, 0.3, 4, 0.1, false);
+        this.circle(x, 0.25, z, low ? 2 : 4, r * 0.7, SHAPE.SPARK, t, a, 0.35, 0.6, -r, 0.2, 5);
+        this.sprite(x, 0.3, z, SHAPE.RING, t, 0.8, 0.5, 0, 0, 0, GROW.OUT, FADE.LINEAR, Math.min(6, r * 1.4));
+        break;
+      }
+      case 'burger': {
+        // a burst of fries fans out, a sizzling patty under him, steam, a cheese star
+        const fries = safe(FRIES, p.self, p.team, p.mate);
+        const patty = safe(PATTY, p.self, p.team, p.mate);
+        this.rays(x, 0.8, z, low ? 5 : 10, fries, t, r * 0.8, 0.2);
+        this.sprite(x, 0.15, z, SHAPE.SOFT, patty, Math.min(2.6, r), 0.8, 0, 0, 0, GROW.BACK, FADE.HOLD, 1.05, 0, false);
+        this.circle(x, 0.8, z, low ? 1 : 3, 0.4, SHAPE.PUFF, cr, cr, 0.8, 0.9, 0.3, 1.2, 0, 0.6, false);
+        this.sprite(x, 2.2, z, SHAPE.STAR8, a, low ? 0.9 : 1.2, 0.55, 0, 0.5, 0, GROW.BACK, FADE.POP, 0.5, 2);
+        break;
+      }
+      case 'parade': {
+        // fireworks over the parade: one burst on Low, three round him otherwise; paper confetti and rising trails
+        const bursts = low ? 1 : 3;
+        for (let i = 0; i < bursts; i++) {
+          const ang = (i / 3) * Math.PI * 2 + 0.8;
+          const k = bursts === 1 ? 0 : r * 0.55;
+          const bx = x + Math.cos(ang) * k;
+          const bz = z + Math.sin(ang) * k;
+          this.circle(bx, 3.1, bz, low ? 4 : 5, 0.2, SHAPE.STAR4, i % 2 ? a : t, cr, 0.4, 0.7, 2.6, 0.2, 0, i);
+          if (!low || i === 0) this.streak(bx, 0.4, bz, i % 2 ? t : a, 1, 0.3);
+        }
+        this.fall(x, z, low ? 2 : 4, r * 0.6, 3, SHAPE.CONFETTI, safe(LANTERN, p.self, p.team, p.mate), a, 0.3, 1, 1.4);
+        break;
+      }
+      case 'softserve': {
+        // a brain-freeze swirl: rainbow sprinkles spin round her, soft-serve puffs, a little headache star
+        this.circle(x, 0.9, z, low ? 4 : 8, r * 0.45, SHAPE.CONFETTI, t, a, 0.32, 0.9, 0.9, 0.9, 5, 0.3);
+        this.circle(x, 0.5, z, low ? 2 : 3, r * 0.3, SHAPE.PUFF, safe(SOFT_CREAM, p.self, p.team, p.mate), cr, 0.9, 0.8, 1.2, 0.4, 2, 0.5, false);
+        this.sprite(x, 2.3, z, SHAPE.STAR4, a, 0.8, 0.5, 0, 0.3, 0, GROW.PULSE, FADE.POP, 1, 6);
+        break;
+      }
       default: {
         // Rare: a ring of the element motif in the coat colours, flat on the ground inside the ultimate's wave
         this.kit.emit(this.particles, p, x, 0.15, z, low ? 3 : 6, r * 0.6, 0.6, true, 0.8);
@@ -371,6 +452,30 @@ export class CoatVfx {
       case 'grill':
         // steam rises off the grill
         this.circle(x, 1.1, z, low ? 2 : 3, 0.5, SHAPE.PUFF, cr, cr, 0.6, 0.95, 0.1, 0.9, 0.4, ph, false);
+        break;
+      case 'pizza':
+        // he spins pizza dough overhead, flour drifts
+        this.sprite(x, 2.5, z, SHAPE.SOFT, safe(MOZZ, p.self, p.team, p.mate), 0.9, 0.95, 0, 0, 0, GROW.PULSE, FADE.HOLD, 1, 8, false);
+        this.circle(x, 2.3, z, low ? 1 : 2, 0.45, SHAPE.CONFETTI, cr, t, 0.2, 0.9, 0.4, -0.6, 2, ph);
+        break;
+      case 'vac':
+        // parked on the charging dock: a cyan ring pulses at his feet, charge sparks rise
+        this.sprite(x, 0.12, z, SHAPE.RING, t, 0.9, 0.9, 0, 0, 0, GROW.PULSE, FADE.IN_OUT, 1.3);
+        this.circle(x, 0.4, z, low ? 1 : 2, 0.35, SHAPE.PLUS, t, a, 0.22, 0.9, 0, 1.2, 0, ph);
+        break;
+      case 'burger':
+        // the drive-thru window glows warm, a bell twinkle
+        this.sprite(x, 1.7, z, SHAPE.SOFT, a, 1.2, 0.95, 0, 0, 0, GROW.PULSE, FADE.IN_OUT, 1, 0);
+        this.sprite(x + 0.5, 2.2, z, SHAPE.STAR4, t, 0.4, 0.6, 0, 0.3, 0, GROW.BACK, FADE.TWINKLE, 0.6, 2);
+        if (!low) this.sprite(x - 0.5, 2.1, z, SHAPE.NOTE, cr, 0.4, 0.9, 0, 0.5, 0, GROW.OUT, FADE.LINEAR, 0.8);
+        break;
+      case 'parade':
+        // paper lanterns float up round him
+        this.circle(x, 0.9, z, low ? 2 : 3, 0.6, SHAPE.SOFT, safe(LANTERN, p.self, p.team, p.mate), a, 0.38, 0.95, 0, 1.3, 0.5, ph, false);
+        break;
+      case 'softserve':
+        // rainbow sprinkles fall round her
+        this.fall(x, z, low ? 2 : 3, 0.9, 2.2, SHAPE.CONFETTI, t, a, 0.24, 0.95, 1.1);
         break;
     }
     this.claim(g.n, 0.95, p);
@@ -429,6 +534,42 @@ export class CoatVfx {
         if (!low) this.sprite(x, 0.4, z, SHAPE.RING, t, 0.7, 0.5, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
         break;
       }
+      case 'pizza': {
+        // he lands on a pizza: the pie spreads, pepperoni hops out, a flour ring
+        const pep = safe(PEPPERONI, p.self, p.team, p.mate);
+        this.sprite(x, 0.12, z, SHAPE.SOFT, safe(MOZZ, p.self, p.team, p.mate), 2.4, 0.9, 0, 0, 0, GROW.BACK, FADE.HOLD, 1.05, 0, false);
+        this.circle(x, 0.3, z, low ? 3 : 6, 0.5, SHAPE.SOFT, pep, pep, 0.36, 0.7, 2.6, 2, 0, 0.3, false);
+        this.circle(x, 0.4, z, low ? 2 : 4, 0.3, SHAPE.CONFETTI, cr, t, 0.24, 0.6, 2.2, 1.6);
+        if (!low) this.sprite(x, 0.3, z, SHAPE.RING, t, 0.7, 0.5, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
+        break;
+      }
+      case 'vac':
+        // he zooms home: dust puffs out, the bumper ring, cyan sparks
+        this.circle(x, 0.25, z, low ? 3 : 5, 0.5, SHAPE.PUFF, safe(DUST, p.self, p.team, p.mate), cr, 0.6, 0.7, 3, 0.4, 0, 0.3, false);
+        this.sprite(x, 0.2, z, SHAPE.RING, t, 0.7, 0.5, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
+        this.circle(x, 0.4, z, low ? 1 : 3, 0.3, SHAPE.STAR4, t, a, 0.32, 0.5, 3.4, 0.8);
+        break;
+      case 'burger':
+        // order up: a bell ding, fries hop out of the bag, a puff of steam
+        this.sprite(x, 0.3, z, SHAPE.RING, a, 0.7, 0.5, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
+        this.circle(x, 0.5, z, low ? 3 : 6, 0.35, SHAPE.SPARK, safe(FRIES, p.self, p.team, p.mate), t, 0.36, 0.6, 2.2, 3);
+        this.sprite(x, 2.1, z, SHAPE.STAR8, t, 0.9, 0.5, 0, 0.4, 0, GROW.BACK, FADE.POP, 0.5, 3);
+        if (!low) this.circle(x, 1, z, 2, 0.3, SHAPE.PUFF, cr, cr, 0.7, 0.8, 0.3, 1, 0, 0.5, false);
+        break;
+      case 'parade':
+        // fireworks where he lands: a rising trail, a burst, a gold ring and paper confetti
+        this.streak(x, 0.4, z, a, 1, 0.35);
+        this.circle(x, 2.6, z, low ? 4 : 8, 0.25, SHAPE.STAR4, t, a, 0.42, 0.7, 2.8, 0.2);
+        this.sprite(x, 0.3, z, SHAPE.RING, a, 0.7, 0.55, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
+        if (!low) this.fall(x, z, 2, 0.8, 2.6, SHAPE.CONFETTI, safe(LANTERN, p.self, p.team, p.mate), cr, 0.3, 0.9, 1.3);
+        break;
+      case 'softserve':
+        // a melty puddle where she lands: a cream pool, drips splash out, sprinkles
+        this.sprite(x, 0.1, z, SHAPE.SOFT, safe(SOFT_CREAM, p.self, p.team, p.mate), 2.2, 0.95, 0, 0, 0, GROW.BACK, FADE.HOLD, 1.1, 0, false);
+        this.circle(x, 0.3, z, low ? 3 : 6, 0.4, SHAPE.DROPLET, cr, t, 0.3, 0.6, 2.4, 1.8, 0, 0.3, false);
+        this.circle(x, 0.5, z, low ? 1 : 2, 0.3, SHAPE.CONFETTI, t, a, 0.26, 0.6, 1.8, 1.4);
+        if (!low) this.sprite(x, 0.3, z, SHAPE.RING, a, 0.7, 0.5, 0, 0, 0, GROW.OUT, FADE.LINEAR, 4.5);
+        break;
       case 'grill':
         // a ring of grill flame round the landing, a puff of steam
         this.circle(x, 0.25, z, low ? 3 : 6, 0.5, SHAPE.SPARK, t, a, 0.42, 0.55, 3.8, 1.6);
@@ -488,6 +629,36 @@ export class CoatVfx {
         this.fall(x, z, low ? 2 : 4, 0.8, 2.4, SHAPE.CONFETTI, safe(BREAD, p.self, p.team, p.mate), a, 0.3, 0.7, 1.5);
         if (!low) this.sprite(x, 1.2, z, SHAPE.STAR8, cr, 0.8, 0.4, 0, 0.3, 0, GROW.OUT, FADE.POP, 0.5);
         break;
+      case 'pizza':
+        // a pizza box drops on the fallen, pepperoni flies
+        this.streak(x, 2.8, z, a, -1, 0.4);
+        this.sprite(x, 2.2, z, SHAPE.SOFT, safe(BOX, p.self, p.team, p.mate), 1.1, 0.7, 0, -2.6, 0, GROW.BACK, FADE.HOLD, 1, 0, false);
+        this.fall(x, z, low ? 2 : 4, 0.7, 2.2, SHAPE.SOFT, safe(PEPPERONI, p.self, p.team, p.mate), t, 0.3, 0.7, 2);
+        if (!low) this.sprite(x, 1, z, SHAPE.STAR8, cr, 0.8, 0.4, 0, 0.3, 0, GROW.OUT, FADE.POP, 0.5);
+        break;
+      case 'vac':
+        // a dust bunny poofs off the fallen, cyan sparks
+        this.circle(x, 0.6, z, low ? 2 : 4, 0.3, SHAPE.PUFF, safe(DUST, p.self, p.team, p.mate), cr, 0.6, 0.7, 1.5, 0.8, 0, 0.3, false);
+        this.sprite(x, 1.3, z, SHAPE.SOFT, cr, 0.6, 0.7, 0, 0.6, 0, GROW.BACK, FADE.HOLD, 0.8, 0, false);
+        this.circle(x, 1, z, low ? 1 : 2, 0.2, SHAPE.SPARK, safe(DOCK, p.self, p.team, p.mate), t, 0.3, 0.5, 2, 1.5);
+        break;
+      case 'burger':
+        // fries burst out of the fallen
+        this.circle(x, 0.8, z, low ? 3 : 6, 0.25, SHAPE.SPARK, safe(FRIES, p.self, p.team, p.mate), t, 0.36, 0.6, 2.4, 3.4);
+        this.sprite(x, 0.8, z, SHAPE.PUFF, cr, 1, 0.5, 0, 0.6, 0, GROW.OUT, FADE.LINEAR, 1.4, 0, false);
+        break;
+      case 'parade':
+        // a firework bursts over the fallen
+        this.streak(x, 0.5, z, a, 1, 0.3);
+        this.circle(x, 2.4, z, low ? 3 : 6, 0.2, SHAPE.STAR4, t, a, 0.4, 0.65, 2.4, 0.2);
+        break;
+      case 'softserve':
+        // a scoop of soft serve drops on the fallen, sprinkles rain
+        this.streak(x, 2.6, z, a, -1, 0.35);
+        this.sprite(x, 1.8, z, SHAPE.SOFT, safe(SOFT_CREAM, p.self, p.team, p.mate), 0.9, 0.7, 0, -2.2, 0, GROW.BACK, FADE.HOLD, 1, 0, false);
+        this.fall(x, z, low ? 2 : 4, 0.7, 2.4, SHAPE.CONFETTI, t, a, 0.26, 0.7, 1.5);
+        if (!low) this.sprite(x, 1, z, SHAPE.STAR8, safe(CONE, p.self, p.team, p.mate), 0.7, 0.4, 0, 0.3, 0, GROW.OUT, FADE.POP, 0.5);
+        break;
       case 'grill':
         // a skewer drops on the fallen, chunks tumble off it and spice flies
         this.streak(x, 2.8, z, a, -1, 0.4);
@@ -499,6 +670,27 @@ export class CoatVfx {
     }
     this.claim(g.n, 0.85, p);
     this.drawn.takedown++;
+    return true;
+  }
+
+  /**
+   * gaps5 Mythic: the coat's evolving form reached a new stage (render/skins/coatTrail.ts): a firework over the hero and
+   * lanterns rising, bigger at the last stage. Same gates and budgets as the other effects. True when drawn.
+   */
+  evolve(x: number, z: number, stage: number, p: SkinFxProfile | null | undefined): boolean {
+    const theme = this.themeOf(p);
+    if (!p || theme !== 'parade') return false;
+    const n = EVOLVE_COST[p.low ? 1 : 0];
+    if (!this.room(n, p)) return false;
+    const low = p.low;
+    const t = p.tint;
+    const a = p.accent;
+    this.streak(x, 0.6, z, a, 1, 0.35);
+    this.circle(x, 3.2, z, low ? 3 : 7, 0.25, SHAPE.STAR4, t, a, stage >= 4 ? 0.55 : 0.42, 0.8, stage >= 4 ? 3.4 : 2.6, 0.2);
+    this.circle(x, 1, z, low ? 1 : 3, 0.7, SHAPE.SOFT, safe(LANTERN, p.self, p.team, p.mate), a, 0.38, 1, 0, 1.4, 0.5, 0.2, false);
+    this.sprite(x, 0.2, z, SHAPE.RING, a, 0.7, 0.55, 0, 0, 0, GROW.OUT, FADE.LINEAR, 5);
+    this.claim(n, 1, p);
+    this.drawn.evolve++;
     return true;
   }
 }

@@ -6,7 +6,7 @@ import type { CatTier } from '../../meta/roster';
 import { S1_PLUS_COAT } from '../../money/catalog';
 
 export type CoatFxKind = 'ult' | 'recall' | 'takedown';
-export type CoatTheme = 'thunder' | 'sun' | 'bloom' | 'eclipse' | 'moon' | 'frost' | 'deli' | 'grill';
+export type CoatTheme = 'thunder' | 'sun' | 'bloom' | 'eclipse' | 'moon' | 'frost' | 'deli' | 'grill' | 'pizza' | 'vac' | 'burger' | 'parade' | 'softserve';
 
 /** Each themed coat: its theme, and the words the store and the Heroes browser show (looks only, never a number). */
 export interface CoatThemeDef {
@@ -25,6 +25,12 @@ export const COAT_THEMES: Readonly<Record<string, CoatThemeDef>> = Object.freeze
   'coat.marshmallow.store_frostbell': { theme: 'frost', ult: 'Ice shards, snow and the frost bell', recall: 'Snow falls round her, then a frost ring', takedown: 'Shards burst and the bell rings' },
   'coat.clem.store_club_sandwich': { theme: 'deli', ult: 'A giant club sandwich stacks up, crumbs fly', recall: 'Crumbs drift down, and a sandwich lands with her', takedown: 'A toothpick flag pins the fallen' },
   'coat.frankie.store_kebab_king': { theme: 'grill', ult: 'A ring of sizzling skewers and grill flames', recall: 'Steam rises from the grill, then a flame ring', takedown: 'A skewer drops on the fallen, spice flies' },
+  // gaps5 skins v2 (the gallery's top five)
+  'coat.domino.store_pizzaiolo': { theme: 'pizza', ult: 'Stretchy cheese strings and a pepperoni storm', recall: 'He spins pizza dough overhead, then lands on a pizza', takedown: 'A pizza box drops on the fallen' },
+  'coat.nugget.store_robo_vac': { theme: 'vac', ult: 'The vacuum whirls and sucks up dust in a spiral', recall: 'He parks on the charging dock, then zooms home', takedown: 'A dust bunny poofs off the fallen' },
+  'coat.meatball.store_drive_thru': { theme: 'burger', ult: 'A burst of fries and a sizzling patty', recall: 'A drive-thru window, ding, order up', takedown: 'Fries burst from the fallen' },
+  'coat.frankie.store_paper_parade': { theme: 'parade', ult: 'The paper dragon stretches to twelve lanterns, fireworks pop', recall: 'Paper lanterns rise, then fireworks where he lands', takedown: 'A firework bursts over the fallen' },
+  'coat.marshmallow.store_soft_serve': { theme: 'softserve', ult: 'A brain-freeze swirl of rainbow sprinkles', recall: 'Sprinkles fall, then a melty puddle where she lands', takedown: 'A scoop drops on the fallen' },
 });
 
 /** The shared Rare set's words. */

@@ -105,8 +105,8 @@ export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
       bandanaKnot(A, t.main);
       // the bandana's short tail down his back (a full cape hid the ball from the side)
       G.cape(A, founder || chroma !== null ? capeColor : t.main, capeHem, { len: 0.16, top: 0.13, bot: 0.17 });
-      sweatband(A, t.main);
-      fishLunchbox(A, TIN);
+      if (!dr.parts?.drops?.includes('hat')) sweatband(A, t.main);
+      if (!dr.parts?.drops?.includes('prop')) fishLunchbox(A, TIN);
       extras(A);
     },
   };

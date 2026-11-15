@@ -314,6 +314,16 @@ const EFFECT_COAT_PAL: Readonly<Record<string, Pal>> = Object.freeze({
   'coat.clem.store_club_sandwich': [0xe2ac62, 0xfff2d2, 0x8a501e, 0x7ccf4a, 'calico', 0xffcf3a],
   // gaps4: grilled meat with char stripes and a pita-pale belly; a king's gold accent
   'coat.frankie.store_kebab_king': [0xa8522a, 0xffe2b4, 0x4a1e0e, 0xffd34d, 'tabby'],
+  // gaps5 skins v2: mozzarella fur with pepperoni spots (Domino's spots take the dark), basil accent
+  'coat.domino.store_pizzaiolo': [0xf4dca0, 0xfff4d8, 0xb8322a, 0xff5a3a, 'solid'],
+  // the corgi stays a corgi on his robot vacuum; bumper-light cyan accent
+  'coat.nugget.store_robo_vac': [0xd9782e, 0xfff6ec, 0x8a4418, 0x3fd8ff, 'solid'],
+  // a toasted-bun orange tabby with patty-brown stripes; melted cheese accent
+  'coat.meatball.store_drive_thru': [0xe0903e, 0xfde4bc, 0x7a3a16, 0xffcf3a, 'tabby'],
+  // festival red-brown dachshund, paper-lantern red accent
+  'coat.frankie.store_paper_parade': [0x9a4a22, 0xf6d0a0, 0x4e1e0c, 0xe8302a, 'solid'],
+  // vanilla soft serve with a caramel shade; strawberry sprinkle accent
+  'coat.marshmallow.store_soft_serve': [0xfff2d8, 0xffffff, 0xe0c08a, 0xff6f91, 'solid'],
 });
 
 /**
@@ -330,6 +340,11 @@ const COAT_FX: Readonly<Record<string, { rung: CatTier; element: Element }>> = O
   'coat.sage.store_bloomtail': { rung: 'LEGENDARY', element: 'GRASS' },
   'coat.clem.store_club_sandwich': { rung: 'EPIC', element: 'SAND' },
   'coat.frankie.store_kebab_king': { rung: 'EPIC', element: 'FIRE' },
+  'coat.domino.store_pizzaiolo': { rung: 'LEGENDARY', element: 'FIRE' },
+  'coat.nugget.store_robo_vac': { rung: 'EPIC', element: 'ELECTRIC' },
+  'coat.meatball.store_drive_thru': { rung: 'LEGENDARY', element: 'SAND' },
+  'coat.frankie.store_paper_parade': { rung: 'LEGENDARY', element: 'STELLAR' },
+  'coat.marshmallow.store_soft_serve': { rung: 'EPIC', element: 'ICE' },
 });
 
 /** The hue (degrees) and saturation of 0xRRGGBB (no import: classify.ts imports this file's neighbours). */

@@ -132,7 +132,7 @@ export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
     poses,
     gear: (A) => {
       samoyedHead(A, coat);
-      bobbleHat(A, t.main);
+      if (!dr.parts?.drops?.includes('hat')) bobbleHat(A, t.main);
       scarf(A, t.main);
       if (founder || chroma !== null) G.cape(A, capeColor, capeHem, { len: 0.2, top: 0.14, bot: 0.2 });
       extras(A);

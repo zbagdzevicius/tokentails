@@ -18,7 +18,7 @@
  */
 import { CheckoutBridge } from '../money/checkoutBridge';
 import type { StoreSnapshot } from '../money/entitlements';
-import { CATALOG_SKUS, CHAMPIONS, CHAMP_BUNDLE_SKUS, EFFECT_COATS, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU, STORE_COATS, STORE_FRAMES, champSkuOf, championDef, coatSkuOf, frameSkuOf, isStarter, type CatalogFrame, type CatalogSku, type CoatRung } from '../money/catalog';
+import { CATALOG_SKUS, CHAMPIONS, CHAMP_BUNDLE_SKUS, EFFECT_COATS, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU, STORE_COATS, STORE_FRAMES, champSkuOf, championDef, coatSkuOf, frameSkuOf, isMythicCoat, isStarter, type CatalogFrame, type CatalogSku, type CoatRung } from '../money/catalog';
 import { champStatus, matchesFor, rotationEndText, unlockInfo, yarnText, type ChampionsState } from '../meta/champions';
 import type { ChampTier } from '../money/catalog';
 import type { HeroId, HeroRole } from '../data/heroes/types';
@@ -30,6 +30,7 @@ import './champStore/champStore.css';
 import { PAID_COATS, coatPalette } from '../render/cosmetics';
 import { CHROMAS, chromaPalette, cssHex } from '../render/skins/coatChromas';
 import { coatPartsLine } from '../render/skins/coatVfx';
+import { PARADE_STAGE_WORDS, isEvolving } from '../render/skins/coatTrailData';
 import { coatTheme } from '../render/skins/coatThemes';
 import { browserCurrency } from '../money/skus';
 import { icon } from './icons';
@@ -74,7 +75,9 @@ export function coatLine(id: string | null): string {
   // gaps3 coat-fx: an Epic or Legendary coat's own ultimate in words (the Preview shows all three)
   const t = r === 'EPIC' || r === 'LEGENDARY' ? coatTheme(id) : null;
   const ult = t ? ` Ultimate: ${t.ult.charAt(0).toLowerCase()}${t.ult.slice(1)}.` : '';
-  return `A patterned coat for one hero.${look}${r && RUNG_ADDS[r] ? ` ${RUNG_ADDS[r]}` : ''}${ult}`;
+  // gaps5 Mythic: the evolving form, in words
+  const evolve = isEvolving(id) ? ` Mythic: ${PARADE_STAGE_WORDS.charAt(0).toLowerCase()}${PARADE_STAGE_WORDS.slice(1)}` : '';
+  return `A patterned coat for one hero.${look}${r && RUNG_ADDS[r] ? ` ${RUNG_ADDS[r]}` : ''}${ult}${evolve}`;
 }
 
 export interface StoreOpts {
@@ -354,7 +357,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     if (ds === 'partly') return `<span class="cst-have locked">Own some</span>`;
     if (ds === 'locked') return `<span class="cst-have locked">${LOCK_SVG}${def.sku === PASS_UPGRADE_SKU ? 'Pass owners' : 'Upgrade instead'}</span>`;
     const r = def.group === 'coats' ? coatRungOf(coatOf(def) ?? undefined) : null;
-    return `<span class="cst-cash">${esc(`${r && r !== 'COMMON' ? `${RUNG_WORD[r]} · ` : ''}${catalogPrice({ cents: priceFor(def, o.snapshot()) }, currency)}`)}</span>`;
+    return `<span class="cst-cash">${esc(`${r && r !== 'COMMON' ? `${isMythicCoat(coatOf(def)) ? 'Mythic' : RUNG_WORD[r]} · ` : ''}${catalogPrice({ cents: priceFor(def, o.snapshot()) }, currency)}`)}</span>`;
   };
   const cosCardHtml = (def: CatalogSku): string => {
     const s = o.snapshot();
@@ -362,7 +365,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const eq = ds === 'owned' && isEquipped(def);
     const r = def.group === 'coats' ? coatRungOf(coatOf(def) ?? undefined) : null;
     const ribbons = [
-      r === 'EPIC' || r === 'LEGENDARY' ? `<i class="cst-rib rung-${r.toLowerCase()}">${RUNG_WORD[r]}</i>` : '',
+      isMythicCoat(coatOf(def)) ? '<i class="cst-rib rung-mythic">Mythic</i>' : r === 'EPIC' || r === 'LEGENDARY' ? `<i class="cst-rib rung-${r.toLowerCase()}">${RUNG_WORD[r]}</i>` : '',
       def.kind === 'bundle' ? '<i class="cst-rib bundle">Set</i>' : '',
       eq ? '<i class="cst-rib starter">Equipped</i>' : '',
     ].join('');

@@ -4,10 +4,10 @@
  * a chroma on top), and Low builds fewer of them.
  */
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { HeroId } from '../../src/sim/api';
 import { PAID_COATS } from '../../src/render/cosmetics';
-import { COAT_PARTS, coatParts } from '../../src/render/chars/coatParts';
+import { COAT_PARTS, coatParts, loadCoatParts } from '../../src/render/chars/coatParts';
 import { DETAIL, heroBuilt, makeHero } from '../../src/render/chars';
 import { COAT_VFX } from '../../src/render/skins/coatVfx';
 import { profileFromCoat } from '../../src/render/skins/coatRung';
@@ -25,6 +25,8 @@ const shapeSum = (g: THREE.BufferGeometry): number => {
 const EPIC_PLUS = Object.entries(PAID_COATS).filter(([, c]) => rungAtLeast(c.rung, 'EPIC'));
 
 describe('Epic and Legendary coats change the model (coat parts)', () => {
+  beforeAll(() => loadCoatParts());
+
   it('there are Epic+ coats, and every one declares parts for its own hero', () => {
     expect(EPIC_PLUS.length).toBeGreaterThanOrEqual(6);
     for (const [id, c] of EPIC_PLUS) {

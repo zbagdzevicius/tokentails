@@ -41,17 +41,25 @@ import { CHROMAS, chromaDef, chromaPalette, cssHex, nextChroma } from '../../ren
 import type { CatTier } from '../../meta/roster';
 import { coatFxWords } from '../../render/skins/coatThemes';
 import { coatPartsLine } from '../../render/skins/coatVfx';
+import { PARADE_STAGE_WORDS, isEvolving, setTrailPreview } from '../../render/skins/coatTrailData';
+import { isMythicCoat } from '../../money/catalog';
 
 /** gaps3 coat-fx: a coat clip ('r' is the ultimate). */
-export type CoatClipKind = 'r' | 'recall' | 'takedown';
+export type CoatClipKind = 'r' | 'recall' | 'takedown' | 'evolve';
 /** gaps5 polish 6: from this many coats the chips take a row of their own above the effect tabs. */
 export const COAT_ROW_ALONE = 4;
 
-const COAT_CLIPS: readonly { k: CoatClipKind; label: string; key: 'ult' | 'recall' | 'takedown' }[] = Object.freeze([
+type CoatClipDef = { k: CoatClipKind; label: string; key: 'ult' | 'recall' | 'takedown' | 'evolve' };
+const COAT_CLIPS: readonly CoatClipDef[] = Object.freeze([
   { k: 'r', label: 'Ultimate', key: 'ult' },
   { k: 'recall', label: 'Recall', key: 'recall' },
   { k: 'takedown', label: 'Takedown', key: 'takedown' },
 ]);
+/** gaps5 Mythic: an evolving coat adds the Evolve clip (the parade grows through its four stages on the clip). */
+const EVOLVE_CLIP: CoatClipDef = Object.freeze({ k: 'evolve', label: 'Evolve', key: 'evolve' });
+const clipsOf = (coat: string | null): readonly CoatClipDef[] => (isEvolving(coat) ? [...COAT_CLIPS, EVOLVE_CLIP] : COAT_CLIPS);
+/** A coat's tier word: Mythic for an evolving coat, else its rung. */
+const tierWord = (id: string | null, rung: CatTier): string => (isMythicCoat(id) ? 'Mythic' : RUNG_WORD[rung]);
 const RUNG_ORDER: Readonly<Record<CatTier, number>> = Object.freeze({ LEGENDARY: 0, EPIC: 1, RARE: 2, COMMON: 3 });
 const RUNG_WORD: Readonly<Record<CatTier, string>> = Object.freeze({ LEGENDARY: 'Legendary', EPIC: 'Epic', RARE: 'Rare', COMMON: 'Common' });
 
@@ -277,7 +285,9 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
     const h = hero;
     const coats = tab === 'coats';
     const s: SkillSlot = coats ? 'r' : slot;
-    const cc: 'recall' | 'takedown' | null = coats && coatClip !== 'r' ? coatClip : null;
+    const cc: 'recall' | 'takedown' | null = coats && (coatClip === 'recall' || coatClip === 'takedown') ? coatClip : null;
+    // gaps5 Mythic: the Evolve clip plays the ultimate's loop while the parade steps through its stages
+    setTrailPreview(coats && coatClip === 'evolve');
     const wantClip = (tab === 'skills' || coats) && isClip(s) && !clipFailed;
     stillHtml(h, s);
     if (!wantClip) {
@@ -367,9 +377,9 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
     if (tab === 'coats') {
       // the coat chips, then the three clips (a tab list each: the arrow keys walk the clips)
       const chips = effectCoats(hero)
-        .map((c) => `<button type="button" class="cb-coat-chip${c.id === coatSel ? ' on' : ''}" data-coat="${esc(c.id)}" data-rung="${c.rung}" aria-pressed="${c.id === coatSel}"><b>${esc(c.name)}</b><small>${RUNG_WORD[c.rung]}</small></button>`)
+        .map((c) => `<button type="button" class="cb-coat-chip${c.id === coatSel ? ' on' : ''}" data-coat="${esc(c.id)}" data-rung="${c.rung}" aria-pressed="${c.id === coatSel}"><b>${esc(c.name)}</b><small${isMythicCoat(c.id) ? ' data-mythic="1"' : ''}>${tierWord(c.id, c.rung)}</small></button>`)
         .join('');
-      const clips = COAT_CLIPS.map((c) => `<button type="button" class="cb-cfx-btn${c.k === coatClip ? ' on' : ''}" role="tab" data-cfx="${c.k}" aria-selected="${c.k === coatClip}" tabindex="${c.k === coatClip ? 0 : -1}">${c.label}</button>`).join('');
+      const clips = clipsOf(coatSel).map((c) => `<button type="button" class="cb-cfx-btn${c.k === coatClip ? ' on' : ''}" role="tab" data-cfx="${c.k}" aria-selected="${c.k === coatClip}" tabindex="${c.k === coatClip ? 0 : -1}">${c.label}</button>`).join('');
       iconsEl.innerHTML = `<div class="cb-coat-chips" role="group" aria-label="Coats">${chips}</div><div class="cb-cfx" role="tablist" aria-label="Coat effects">${clips}</div>`;
       // gaps5 polish 6: four coats or more get their own row (Clem's 5th chip ran under the effect tabs)
       if (effectCoats(hero).length >= COAT_ROW_ALONE) iconsEl.dataset.many = '1';
@@ -427,8 +437,10 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
         return;
       }
       const parts = coatPartsLine(coatSel);
-      const rows = COAT_CLIPS.map((k) => `<li${k.k === coatClip ? ' class="on"' : ''}><b>${k.label}</b> ${esc(words[k.key])}</li>`).join('');
-      cardEl.innerHTML = `<h3 class="cb-coat-name">${esc(c.name.replace(/\s*\((Epic|Legendary|Rare)\)$/, ''))}</h3><p class="cb-coat-rung" data-rung="${c.rung}">${RUNG_WORD[c.rung]} coat${c.rung === 'RARE' ? ': the shared Rare effects in its colours' : ': its own effects'}</p><ul class="cb-coat-fx">${rows}</ul>${parts ? `<p class="cb-coat-parts">On the model: ${esc(parts)}.</p>` : ''}${chromaHtml(coatSel as string)}<p class="cb-coat-fine">Looks only: nothing in a match changes.</p>`;
+      const rows = clipsOf(coatSel)
+        .map((k) => `<li${k.k === coatClip ? ' class="on"' : ''}><b>${k.label}</b> ${esc(k.key === 'evolve' ? PARADE_STAGE_WORDS : words[k.key])}</li>`)
+        .join('');
+      cardEl.innerHTML = `<h3 class="cb-coat-name">${esc(c.name.replace(/\s*\((Epic|Legendary|Rare)\)$/, ''))}</h3><p class="cb-coat-rung" data-rung="${c.rung}"${isMythicCoat(coatSel) ? ' data-mythic="1"' : ''}>${tierWord(coatSel, c.rung)} coat${c.rung === 'RARE' ? ': the shared Rare effects in its colours' : ': its own effects'}</p><ul class="cb-coat-fx">${rows}</ul>${parts ? `<p class="cb-coat-parts">On the model: ${esc(parts)}.</p>` : ''}${chromaHtml(coatSel as string)}<p class="cb-coat-fine">Looks only: nothing in a match changes.</p>`;
       cardEl.dataset.slot = 'coat';
       cardEl.scrollTop = 0;
       return;
@@ -540,6 +552,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
     close() {
       if (!open) return;
       open = false;
+      setTrailPreview(false);
       clipSeq++;
       document.removeEventListener('keydown', onKey, true);
       clearInterval(watch);
@@ -590,6 +603,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
         dyeSel = null;
       }
       if (cfx) coatClip = cfx;
+      if (coatClip === 'evolve' && !isEvolving(coatSel)) coatClip = 'r';
       clipPaused = false;
       drawIcons();
       drawCard();
@@ -690,8 +704,9 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       api.setSlot(slots[(i + (k === 'ArrowLeft' ? -1 : 1) + slots.length) % slots.length] as SkillSlot);
       root.querySelector<HTMLElement>('.cb-skill-btn.on')?.focus();
     } else if ((k === 'ArrowLeft' || k === 'ArrowRight') && inIcons && tab === 'coats') {
-      const i = COAT_CLIPS.findIndex((c) => c.k === coatClip);
-      coatClip = COAT_CLIPS[(i + (k === 'ArrowLeft' ? -1 : 1) + COAT_CLIPS.length) % COAT_CLIPS.length].k;
+      const cl = clipsOf(coatSel);
+      const i = cl.findIndex((c) => c.k === coatClip);
+      coatClip = cl[(i + (k === 'ArrowLeft' ? -1 : 1) + cl.length) % cl.length].k;
       drawIcons();
       drawCard();
       syncClip();

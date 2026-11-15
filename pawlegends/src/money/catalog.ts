@@ -100,7 +100,21 @@ export const EFFECT_COATS: readonly EffectCoat[] = Object.freeze([
     // gaps4 coats-tests: the first two coats of the funny food concepts (model parts and their own effects)
     { id: 'coat.clem.store_club_sandwich', hero: 'clem', name: 'Club Sandwich coat', rung: 'EPIC' },
     { id: 'coat.frankie.store_kebab_king', hero: 'frankie', name: 'Kebab King coat', rung: 'EPIC' },
+    // gaps5 skins: the top five of the skins v2 gallery (model parts, their own ultimate, recall and takedown effects);
+    // Paper Parade Dragon is the Mythic coat (an evolving form) sold in the Legendary band until a Mythic band is set
+    { id: 'coat.domino.store_pizzaiolo', hero: 'domino', name: 'Pizzaiolo coat', rung: 'LEGENDARY' },
+    { id: 'coat.nugget.store_robo_vac', hero: 'nugget', name: 'Robo-Vac coat', rung: 'EPIC' },
+    { id: 'coat.meatball.store_drive_thru', hero: 'meatball', name: 'Drive-Thru Deluxe coat', rung: 'LEGENDARY' },
+    { id: 'coat.frankie.store_paper_parade', hero: 'frankie', name: 'Paper Parade Dragon coat', rung: 'LEGENDARY' },
+    { id: 'coat.marshmallow.store_soft_serve', hero: 'marshmallow', name: 'Soft Serve coat', rung: 'EPIC' },
 ] as EffectCoat[]);
+
+/**
+ * gaps5 skins: Mythic coats (an evolving form that changes during a match). Effects run at the Legendary rung and the
+ * coat sells in the Legendary band; the store and the Heroes browser call it Mythic.
+ */
+export const MYTHIC_COATS: ReadonlySet<string> = new Set(['coat.frankie.store_paper_parade']);
+export const isMythicCoat = (id: string | null | undefined): boolean => !!id && MYTHIC_COATS.has(id);
 
 /** Effect coat prices by rung. */
 export const EFFECT_COAT_CENTS: Readonly<Record<EffectCoat['rung'], { usd: number; eur: number }>> = Object.freeze({

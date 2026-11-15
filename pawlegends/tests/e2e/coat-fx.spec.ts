@@ -104,3 +104,48 @@ test('store coat detail → Preview effects opens the Coats tab on that coat', a
   await expect(game.locator('.pl-champ')).toHaveCount(0);
   await expect(shop.locator('.cst-detail')).toBeVisible();
 });
+
+// gaps5 skins v2: the Mythic Paper Parade Dragon (Frankie) in the store opens Heroes → Coats with its Evolve clip (the
+// parade body grows through its four stages on the clip); the other four new coats show their own effects there.
+// Screenshots go to ~/Downloads/paw-legends/gaps5/skins/ when that folder exists (never in CI).
+const SHOTS5 = path.join(os.homedir(), 'Downloads', 'paw-legends', 'gaps5', 'skins');
+test('the Mythic coat: store ribbon, Preview effects, the Evolve clip', async ({ context, page, baseURL }, info) => {
+  test.setTimeout(240_000);
+  const touch = info.project.name === 'landscape';
+  await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, profile: VETERAN, store: { items: [], season: SEASON } });
+  const game = await openHost(page);
+  const tap = tapper(game, touch);
+  await tap('.hm-nav [data-a="store"]');
+  const shop = game.locator('.pl-shop');
+  await expect(shop).toBeVisible();
+  await tap('.cst-tabs [data-tab="coats"]');
+  const card = shop.locator('[data-sel="pl_coat_frankie_paper_parade"]');
+  await expect(card.locator('.cst-rib.rung-mythic')).toHaveText('Mythic');
+  await expect(card).toContainText(/Mythic · (\$|€)14\.99/);
+  for (const sku of ['pl_coat_domino_pizzaiolo', 'pl_coat_meatball_drive_thru']) await expect(shop.locator(`[data-sel="${sku}"]`)).toContainText(/Legendary · (\$|€)14\.99/);
+  for (const sku of ['pl_coat_nugget_robo_vac', 'pl_coat_marshmallow_soft_serve']) await expect(shop.locator(`[data-sel="${sku}"]`)).toContainText(/Epic · (\$|€)7\.99/);
+  await tap('[data-sel="pl_coat_frankie_paper_parade"]');
+  await expect(shop.locator('.cst-detail')).toContainText('the parade body grows at levels 4, 7 and 10');
+  const shots = fs.existsSync(path.dirname(SHOTS5)) && !process.env.CI;
+  if (shots) fs.mkdirSync(SHOTS5, { recursive: true });
+  const shot = async (name: string): Promise<void> => {
+    if (shots) await page.screenshot({ path: path.join(SHOTS5, `${info.project.name}-${name}.png`) });
+  };
+  await shot('store-parade');
+  await tap('.cst-detail [data-a="coat-fx"]');
+  const dlg = game.locator('.pl-champ[data-ready="1"]');
+  await expect(dlg).toBeVisible({ timeout: 30_000 });
+  await expect(dlg).toHaveAttribute('data-tab', 'coats');
+  await expect(dlg.locator('.cb-coat-chip.on')).toContainText('Paper Parade Dragon');
+  await expect(dlg.locator('.cb-coat-rung')).toContainText('Mythic coat');
+  await tap('.cb-cfx-btn[data-cfx="evolve"]');
+  await expect(dlg.locator('.cb-coat-fx li.on')).toContainText('Evolve');
+  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: 60_000 }).toBe('playing');
+  await page.waitForTimeout(6000);
+  await shot('coats-parade-evolve');
+  // another coat: no Evolve clip
+  await tap('.cb-coat-chip[data-coat="coat.frankie.store_kebab_king"]');
+  await expect(dlg.locator('.cb-cfx-btn[data-cfx="evolve"]')).toHaveCount(0);
+  await expect(dlg.locator('.cb-cfx-btn.on')).toHaveAttribute('data-cfx', 'r');
+  expect(await game.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1)).toBe(true);
+});
