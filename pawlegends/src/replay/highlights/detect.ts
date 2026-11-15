@@ -98,6 +98,9 @@ interface Fight {
 const NEG = -1e9;
 const d2 = (ax: number, ay: number, bx: number, by: number): number => (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
 const within = (a: { x: number; y: number }, x: number, y: number, r: number): boolean => d2(a.x, a.y, x, y) <= r * r;
+/** How strongly a merged moment's facts should title a teamfight (0: not a kill streak). */
+const titleWeight = (f: TitleFacts): number => (f.type === 'ace' ? 25 : f.type === 'multikill' ? Math.max(2, f.n ?? 2) * 10 : 0);
+
 const FRAME_TYPES: ReadonlySet<HighlightType> = new Set(['teamfight', 'ace', 'steal', 'strike', 'kaboom', 'comeback', 'finale', 'bossDown']);
 
 export class HighlightDetector {
@@ -720,8 +723,13 @@ export class HighlightDetector {
       const lose = winA ? s.c : into.c;
       const tag = lose.type === 'multikill' ? `multikill:${lose.victims.length}` : lose.type;
       const tags = [...new Set([...into.c.tags, ...s.c.tags, tag])].filter((t) => t !== keep.type);
-      // a teamfight with a triple inside is titled by the triple
-      const title = keep.type === 'teamfight' && lose.type === 'multikill' ? { ...lose.facts } : winA ? into.title : s.c.facts;
+      // a teamfight is titled by the biggest moment inside it: a triple or more, then an ace, then a double
+      // (an ace inside a fight was titled "Double Pounce" by the double that merged after it)
+      let title = winA ? into.title : s.c.facts;
+      if (keep.type === 'teamfight') {
+        const best = [into.title, s.c.facts, lose.facts].reduce((a, b) => (titleWeight(b) > titleWeight(a) ? b : a));
+        if (titleWeight(best) > 0) title = { ...best };
+      }
       const c: Cand = {
         ...keep,
         start: Math.min(into.c.start, s.c.start),

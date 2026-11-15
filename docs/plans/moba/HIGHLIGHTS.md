@@ -29,6 +29,9 @@ Shipped as specified below, with these differences:
 - **Viewer**: a cached reel spares the Worker the detector; without one the viewer's scout computes it and caches it
   on the history row. Tapping a results card opens the viewer straight on that highlight (the scout runs to it on
   load), plays it with the director, then the end card (Clip it · Next highlight · Watch full match).
+- **Live check fixes (Nov 15, detector 2)**: a teamfight is titled by its biggest moment, a triple or more, then an
+  ace, then a double (an ace was shown as "Double Pounce"); a results card's highlight that runs to the match's end
+  keeps its end card (Clip it · Next highlight · Watch full match) instead of "Replay over".
 - **Legend Moment card**: its headline and its video clip use `reel.top[0]` when the reel is cached; else the
   announcer's best moment and `momentTick` as before.
 - Measured (Node, M-series): a full 3v3 scan ≈ 1.0-1.1 s for 11-12k ticks; a 25k-tick Hearthwood match ≈ 10.5 s, so

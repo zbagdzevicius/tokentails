@@ -12,6 +12,8 @@ import {
   lockLine,
   migrateUnlocks,
   MODE_UNLOCKS,
+  MODE_UNLOCKS_SHIPPED,
+  playedBefore,
   needOf,
   needText,
   newlyUnlocked,
@@ -199,6 +201,23 @@ describe('veterans and migration', () => {
     // the met conditions are recorded too (and a new account marks itself so the veteran rule never fires later)
     expect(migrateUnlocks(prof(6, 3), {}).sort()).toEqual(['mode.blitz', 'mode.cannon', 'mode.duel', 'mode.onelane']);
     expect(migrateUnlocks(prof(0, 0), { saved: 'skirmish', history: ['classic', 'practice'] })).toEqual([]);
+  });
+
+  it('modes played in kept replays before the ship stay open (history rows only name Skirmish, Classic and Blitz)', () => {
+    const before = MODE_UNLOCKS_SHIPPED - 60_000;
+    const rows = [
+      { id: 'a', at: before },
+      { id: 'b', at: before - 1 },
+      { id: 'c', at: before - 2 },
+      // a featured One Lane Brawl after the ship does not unlock it
+      { id: 'd', at: MODE_UNLOCKS_SHIPPED + 60_000 },
+      { id: 'e', at: before - 3 },
+    ];
+    const mut: Record<string, string | undefined> = { a: 'none', b: 'cannon', c: 'duel', d: 'onelane', e: undefined };
+    const played = playedBefore(rows, (id) => mut[id]);
+    expect(played.sort()).toEqual(['cannon', 'duel']);
+    // 3 matches, no win: Cannon Chaos (4) would be locked, it stays open; Duel is met anyway
+    expect(migrateUnlocks(prof(3, 0, ['mode.blitz', 'mode.duel']), { history: played }).sort()).toEqual(['mode.cannon']);
   });
 
   it('an account merged onto a new device: 10+ matches and no mode ids yet gets everything; otherwise only met goals', () => {

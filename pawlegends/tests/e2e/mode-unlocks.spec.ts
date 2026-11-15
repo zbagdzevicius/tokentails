@@ -151,6 +151,24 @@ test('a veteran keeps every mode: 3 big tiles, every icon open, Ranked live', as
   await shot(page, 'veteran-modes');
 });
 
+test('a player who played One Lane Brawl and Cannon Chaos before the ship keeps them (read from the kept replays)', async ({ page }, info) => {
+  const touch = touchOf(info.project.name);
+  // live check Nov 15: history rows only name Skirmish, Classic and Blitz, so these two were locked again at 3 matches
+  const at = Date.parse('2026-11-13T12:00:00Z');
+  const row = (id: string) => ({ id, at, hero: 'sage', mode: 'skirmish', difficulty: 'easy', outcome: 'lost', grade: 'C', k: 1, d: 2, a: 0, seconds: 300, simVersion: 28, replay: true });
+  const rec = (mutator: string) => ({ seed: 7, difficulty: 'easy', hero: 'sage', trick: 'hiss', inputs: '', ticks: 9000, map: 'crossing', mutator, simVersion: 28, finalHash: 1, outcome: 'lost' });
+  await seed(page, { v: 1, sessions: 3, matches: 3, wins: 0, hero: 'sage', firstPlaySession: 1 }, WEDNESDAY, {
+    'tt.pawlegends.history.v1': JSON.stringify([row('a'), row('b'), row('c')]),
+    'tt.pawlegends.replays.v1': JSON.stringify({ a: rec('none'), b: rec('onelane'), c: rec('cannon') }),
+    // the first migration already ran on this device (the build before this fix)
+    'pawlegends.modes.v1': '1',
+  });
+  await openModes(page, touch);
+  expect((await bigIds(page)).length).toBe(3);
+  for (const id of ['onelane', 'cannon', 'duel', 'blitz']) await expect(page.locator(`[data-testid="mode-${id}"]`)).not.toHaveAttribute('data-state', 'locked');
+  await expect(page.locator('[data-testid="mode-ranked"]')).toHaveAttribute('data-state', 'locked');
+});
+
 test('a finished match unlocks the next mode: results banner, NEW on PLAY, it grows into the third tile; playing it clears NEW', async ({ page }, info) => {
   test.setTimeout(480_000);
   const touch = touchOf(info.project.name);
