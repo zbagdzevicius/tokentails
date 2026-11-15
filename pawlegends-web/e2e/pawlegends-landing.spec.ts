@@ -12,9 +12,9 @@ test.describe("/ landing", () => {
     await gotoAndSettle(page, "/?utm_source=e2e");
     await expect(page).toHaveURL(/\/\?utm_source=e2e$/);
     await expect(page.getByRole("heading", { level: 1, name: "Pawlegends" })).toBeVisible();
-    // "Ten cats, ten dogs" in one grid since the 2026-11-12 landing (no Cats / Dogs switch any more)
-    await expect(page.locator(".pll .grid .tile.cat")).toHaveCount(10);
-    await expect(page.locator(".pll .grid .tile.dog")).toHaveCount(10);
+    // One grid since the 2026-11-12 landing (no Cats / Dogs switch any more); twelve a side since the v29 four
+    await expect(page.locator(".pll .grid .tile.cat")).toHaveCount(12);
+    await expect(page.locator(".pll .grid .tile.dog")).toHaveCount(12);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });
