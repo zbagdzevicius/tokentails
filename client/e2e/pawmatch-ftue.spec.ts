@@ -378,10 +378,16 @@ test.describe("Paw Match first run", () => {
     const after = await sceneState(page);
     expect(after.moves).toBe(1);
     expect(after.tutorial).toBeNull();
-    // No idle hint the moment the plate goes: the idle clock restarts when the cascade ends.
-    expect(after.hint).toBeNull();
-    // The idle clock was restarted at the end of the cascade (HINT_IDLE_MS is 3.8 s).
-    expect(after.idle.nextHintAt - after.idle.now, "idle clock restarted").toBeGreaterThan(3000);
+    // No idle hint the moment the plate goes: the idle clock restarts when the cascade ends (HINT_IDLE_MS is 3.8 s).
+    // Checked in scene time, like the check below: on a slow runner this read can come after the idle delay, when a
+    // hint is due, and the hint then moves nextHintAt on by HINT_REPEAT_MS.
+    const sinceAction = after.idle.now - after.idle.lastActionAt;
+    if (sinceAction < 3800) {
+      expect(after.hint, "no idle hint before the idle delay").toBeNull();
+      expect(after.idle.nextHintAt - after.idle.lastActionAt, "idle clock restarted").toBeCloseTo(3800, 3);
+    } else {
+      expect(after.idle.nextHintAt - after.idle.lastActionAt, "idle clock restarted").toBeGreaterThan(3799);
+    }
     // The clock now runs.
     await page.waitForTimeout(2300);
     const ticking = await sceneState(page);
