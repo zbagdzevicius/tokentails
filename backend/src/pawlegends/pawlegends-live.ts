@@ -53,6 +53,12 @@ export const PAWLEGENDS_REPLAY_TIMEOUT_MS = 10_000;
  * From TypeScript sources (jest, ts-node) the load alone takes about 10 s.
  */
 export const PAWLEGENDS_REPLAY_START_MS = 60_000;
+/**
+ * The start cap for a worker run from TypeScript sources (jest, ts-node; production runs the built `dist/` worker and
+ * keeps PAWLEGENDS_REPLAY_START_MS): every vendored sim goes through ts-node first, about 10 s on an idle machine and
+ * past 60 s on a busy CI runner (Nov 15, 2026: a cold start was given up and the replays waiting on it failed).
+ */
+export const PAWLEGENDS_REPLAY_START_SOURCES_MS = 300_000;
 
 export const PAWLEGENDS_CATNIP_FIELD = 'pawlegendsCatnip';
 export const PAWLEGENDS_FASTEST_FIELD = 'pawlegendsFastestWin';
@@ -146,6 +152,8 @@ interface IPending {
 interface IWorkerStart {
     ready: boolean;
     waiting: (() => void)[];
+    /** Loaded from TypeScript sources through ts-node (never in production). */
+    fromSources: boolean;
 }
 
 /**
@@ -167,7 +175,8 @@ export class PawlegendsReplayWorker {
 
     private spawn(): Worker {
         const js = join(__dirname, 'pawlegends-replay.worker.js');
-        const worker = existsSync(js)
+        const fromSources = !existsSync(js);
+        const worker = !fromSources
             ? new Worker(js)
             : new Worker(
                   `require('ts-node').register({ transpileOnly: true, compilerOptions: { module: 'commonjs' } });` +
@@ -176,7 +185,7 @@ export class PawlegendsReplayWorker {
               );
         // Never keeps the process alive (shutdown, jest).
         worker.unref();
-        const start: IWorkerStart = { ready: false, waiting: [] };
+        const start: IWorkerStart = { ready: false, waiting: [], fromSources };
         this.starts.set(worker, start);
         worker.on(
             'message',
@@ -235,7 +244,11 @@ export class PawlegendsReplayWorker {
             const ready = !start || start.ready;
             const timer = setTimeout(
                 giveUp(ready ? 'Replay check timed out' : 'Replay worker did not start'),
-                ready ? this.timeoutMs : this.startMs
+                ready
+                    ? this.timeoutMs
+                    : start?.fromSources
+                    ? Math.max(this.startMs, PAWLEGENDS_REPLAY_START_SOURCES_MS)
+                    : this.startMs
             );
             timer.unref?.();
             const entry: IPending = { resolve, reject, timer, worker };
