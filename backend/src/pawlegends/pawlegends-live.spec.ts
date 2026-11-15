@@ -576,6 +576,12 @@ describe('PAWLEGENDS /live branch', () => {
 
     describe('the worker thread', () => {
         const worker = new PawlegendsReplayWorker(60_000);
+        // Both workers start cold here, from TypeScript sources: every vendored sim through ts-node, about 10 s idle and
+        // past 60 s on a busy CI runner. Warm them once so the tests below time the replays, not the start.
+        beforeAll(async () => {
+            const malformed = { ...genuine(), hero: 'nobody' } as any;
+            await Promise.all([worker.verify(malformed), pawlegendsReplayWorker.verify(malformed)]);
+        }, 330_000);
         afterAll(() => Promise.all([worker.close(), pawlegendsReplayWorker.close()]));
 
         it('runs verifyReplay off the main thread', async () => {
@@ -598,7 +604,8 @@ describe('PAWLEGENDS /live branch', () => {
             } finally {
                 await cold.close();
             }
-        }, 90_000);
+            // a third cold start in this file (from sources, see beforeAll): the limit leaves room for a busy runner
+        }, 330_000);
 
         it('the default /live path re-sims in the worker and refuses a forged record without writing', async () => {
             const users = new FakeUsers();

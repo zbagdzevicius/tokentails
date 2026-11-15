@@ -354,7 +354,8 @@ test.describe("/heist host (G2 layers 1 and 3)", () => {
     await claim.getByRole("button", { name: "ADD THEM" }).click();
     await expect.poll(() => saves.length).toBe(1);
     expect(isUserToken(saves[0].token)).toBe(true);
-    await expect.poll(() => queueOf(page)).toBeNull();
+    // the device queue is cleared once the save's answer is handled: a state wait, with room for a busy CI runner
+    await expect.poll(() => queueOf(page), { timeout: 45_000 }).toBeNull();
     await expect(page.getByTestId("heist-frame")).not.toHaveAttribute("inert", "");
   });
 });
