@@ -10,6 +10,7 @@ import { createMatch, createPlayerBotFor, playerBotCommands, step, result } from
 import { fillPicksParty } from '../../src/sim/party';
 import { decodeCommand } from '../../src/sim/commands';
 import type { Command } from '../../src/sim/api';
+import { cpuBudget, threadCpuMs } from './cpu-budget';
 
 function cfg(seed: number) {
   const seats = [
@@ -108,7 +109,8 @@ describe('net rejoin (N7)', { timeout: 300_000 }, () => {
     expect(core.worldHash).toBe(ref.worldHash);
   });
 
-  // a wall-clock budget: skipped where the cores are shared and slow (the OTA publish gate on GitHub runners)
+  // a CPU-time budget (wall time grows with every other process on the machine; CPU time only with a slower core,
+  // cpu-budget.ts): skipped where the cores are shared and slow (the OTA publish gate on GitHub runners)
   it.skipIf(process.env.PAWLEGENDS_SKIP_TIMING === '1')('perf-ff: fast-forward runs at least 19,800 ticks in 1.5 s on Node, without snapshots or HASH posts', async () => {
     // timed on the bundled core (as the worker ships it): vitest's transform runs the sim ~2.5x slower (perf-sim.test.ts)
     const { importSim } = await import('../../tools/lib/sim-bundle.mjs');
@@ -117,14 +119,20 @@ describe('net rejoin (N7)', { timeout: 300_000 }, () => {
     const core = new mod.NetCore((m) => out.push(m));
     core.start({ config: c, slot: 0 });
     out.length = 0;
+    const c0 = threadCpuMs();
     const t0 = performance.now();
     core.turns(concat(log));
     drain(core);
-    const ms = performance.now() - t0;
+    const wall = performance.now() - t0;
+    const ms = threadCpuMs() - c0;
     const ticks = core.tick;
     const perTick = ms / ticks;
-    console.log(`perf-ff: ${ticks} ticks in ${ms.toFixed(0)} ms (${(perTick * 19_800).toFixed(0)} ms per 19,800 ticks)`);
-    expect(perTick * 19_800).toBeLessThan(1500);
+    const budget = cpuBudget(1500);
+    console.log(
+      `perf-ff: ${ticks} ticks in ${ms.toFixed(0)} cpu ms (${(perTick * 19_800).toFixed(0)} ms per 19,800 ticks; wall ` +
+        `${wall.toFixed(0)} ms), ${budget.note}`,
+    );
+    expect(perTick * 19_800).toBeLessThan(budget.ms);
     // no HASH during the fast-forward; the last B turns (2 ticks each) are stepped live and may post one (sim v21: this
     // log ends on tick 12720, a trail tick inside that live tail)
     const liveTail = 2 * core.runner.B;

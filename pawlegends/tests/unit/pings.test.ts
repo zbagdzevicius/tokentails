@@ -295,5 +295,6 @@ describe('pinger player-bot (GAPS B1 measure)', () => {
       expect(verifyReplay(rec)).toMatchObject({ ok: true });
     }
     expect(pinged).toBeGreaterThan(0);
-  }, 60_000);
+    // three whole matches and their replays on the transformed sim: past 60 s on a loaded machine (Nov 15, 2026)
+  }, 240_000);
 });

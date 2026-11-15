@@ -5,7 +5,9 @@ import { createMatch, fillPicks, replayRecord, result, step } from '../src/sim/i
 import { SIM_VERSION } from '../src/sim/version';
 
 describe('vendor-sim', () => {
-  it('bundles src/sim/server.ts into one import-free module whose verifyReplay accepts a live replay', { timeout: 60000 }, async () => {
+  // A time limit, not a budget: esbuild bundles every frozen sim and a match is replayed (seconds when idle, past
+  // 60 s with the machine at load 75 on 12 cores, Nov 15, 2026), so the limit leaves room for a loaded machine.
+  it('bundles src/sim/server.ts into one import-free module whose verifyReplay accepts a live replay', { timeout: 180000 }, async () => {
     const { files, modules, simVersion } = await buildFiles();
     expect(simVersion).toBe(SIM_VERSION);
     const bundle = files[`v${SIM_VERSION}/pawlegends-sim.bundle.ts`];

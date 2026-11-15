@@ -11,6 +11,19 @@ export async function me(page: Page): Promise<{ x: number; y: number; state: str
 }
 
 /** The local profile key (meta/profile.ts). */
+/**
+ * The match's sim tick (30 per game second, data/timeline.ts TICK_HZ), 0 before the first frame. Specs that wait for
+ * something to happen in the game count ticks, not wall time: on a loaded machine the sim runs slower than the clock.
+ */
+export const simTick = (page: Page): Promise<number> =>
+  page.evaluate(() => (window as unknown as { __plWorld?: { view: { frame: { latest: { clock: { tick: number } } } | null } } }).__plWorld?.view.frame?.latest.clock.tick ?? 0);
+
+/** Waits until the sim has run `seconds` of game time past `from` (a `simTick`), or `wallMs` passed. */
+export async function waitGameSeconds(page: Page, from: number, seconds: number, wallMs = 120_000): Promise<void> {
+  const until = Date.now() + wallMs;
+  while (Date.now() < until && (await simTick(page)) - from < seconds * 30) await page.waitForTimeout(100);
+}
+
 export const PROFILE_KEY = 'tt.pawlegends.profile.v1';
 
 /**

@@ -42,13 +42,15 @@ const boxes = (page: Page, sel: string) =>
   }, sel);
 
 test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast on the rail, "Ultimate unlocked!"', async ({ page }, info) => {
-  test.setTimeout(240_000);
+  // the waits below are for game events at speed 8; on a loaded machine the sim falls far behind 8x (level 4 once took
+  // over 150 s of wall time), so the limits are wide and the checks themselves unchanged
+  test.setTimeout(600_000);
   const touch = info.project.name === 'landscape';
   const sizes = touch ? PHONES : ([{ w: 1440, h: 900 }] as const);
   await page.setViewportSize({ width: sizes[0].w, height: sizes[0].h });
   await start(page, 8);
   // F1: the chip counts the passive Fish
-  await expect.poll(async () => Number(await page.locator('.pl-fish').getAttribute('data-fish')), { timeout: 60_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => Number(await page.locator('.pl-fish').getAttribute('data-fish')), { timeout: 180_000 }).toBeGreaterThan(0);
   // feel pass B3 hid the hero box on phones and the chip with it; Hud.placeFish puts it back on the minimap's rim
   // phones: at every minimap size (Settings S / M / L, minimapPrefs.ts), since the chip is placed from the minimap's size
   const mmSizes = touch ? (['m', 's', 'l'] as const) : (['m'] as const);
@@ -116,7 +118,8 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
             (e) => Number(getComputedStyle(e).opacity) > 0.1 && (before.has(e) ? num(e) >= before.get(e)! + 7 : e.textContent === '+7'),
           );
           if (el) resolve({ ms: performance.now() - t0, frames });
-          else if (performance.now() - t0 > 5000) resolve({ ms: 9999, frames });
+          // give up after 60 drawn frames (1 s at 60 fps) and 5 s: on a loaded machine 5 s can be under ten frames
+          else if (frames > 60 && performance.now() - t0 > 5000) resolve({ ms: 9999, frames });
           else {
             frames++;
             requestAnimationFrame(look);
@@ -136,12 +139,12 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   });
   await expect(page.locator('.pl-fish.burst')).toHaveCount(1);
   // it may wait behind a busier line (an announcer banner, a tip): the rail's said list records it once shown
-  await expect.poll(async () => (await said(page)).some((t) => /^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I — \+\d+|^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I \+\d+.* · Lv \d+$/.test(t)), { timeout: 20_000 }).toBe(true);
+  await expect.poll(async () => (await said(page)).some((t) => /^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I — \+\d+|^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I \+\d+.* · Lv \d+$/.test(t)), { timeout: 60_000 }).toBe(true);
   await page.screenshot({ path: `${SHOTS}/${sizes[0].w}x${sizes[0].h}-toy.png` });
 
   // F3: the level-up line says what is new; level 4 unlocks the ultimate (the XP trickle gets the player there). When the
   // ult tip or goal chip guides it, that line ("Level 4! ...") is the only one (fun pass, playtest #5)
-  await expect.poll(async () => (await said(page)).some((t) => /^Level 4 — Ultimate unlocked!| · Lv 4$|^Level 4! /.test(t)), { timeout: 150_000 }).toBe(true);
+  await expect.poll(async () => (await said(page)).some((t) => /^Level 4 — Ultimate unlocked!| · Lv 4$|^Level 4! /.test(t)), { timeout: 420_000 }).toBe(true);
   await page.screenshot({ path: `${SHOTS}/${sizes[0].w}x${sizes[0].h}-level.png` });
   for (const t of await said(page)) expect(t, 'rail text').not.toMatch(/treat/i);
 });
