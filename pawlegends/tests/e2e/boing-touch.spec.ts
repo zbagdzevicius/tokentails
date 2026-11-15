@@ -34,11 +34,15 @@ const toward = (page: Page, x: number, y: number): Promise<{ sx: number; sy: num
     [x, y] as const,
   );
 
-test('844x390 Blitz: walking onto a Boing Bed with the stick (or letting go on it) throws the hero every time', async ({ page }) => {
+// The Practice ground (sim v27): the same Crossing beds as Blitz, with training dummies that never strike. In a Blitz bot
+// match a bot's stun, or the hero auto-attacking a bot on the cushion (which v25 rightly does not launch), decided some
+// tries depending on where the bots happened to be (2 of 6 at load 50, Nov 15, 2026); the bed and the stick are what
+// this checks.
+test('844x390 Crossing beds: walking onto a Boing Bed with the stick (or letting go on it) throws the hero every time', async ({ page }) => {
   test.setTimeout(600_000);
   await page.setViewportSize({ width: W, height: H });
   await seedSide(page, 'cat', { difficulty: 'easy', hero: 'clem' });
-  await startFirstMatch(page, '&speed=1&mode=blitz');
+  await startFirstMatch(page, '&speed=1&mode=practice');
   const cdp = await page.context().newCDPSession(page);
   const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', pts: Pt[]) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts });
   await page.touchscreen.tap(W * 0.25, H * 0.85);
