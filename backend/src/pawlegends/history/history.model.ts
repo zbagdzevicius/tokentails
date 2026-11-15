@@ -17,14 +17,14 @@ export const HISTORY_KEEP = 100;
 export const HISTORY_PAGE = 15;
 
 export const HISTORY_MODES = ['skirmish', 'classic', 'blitz', 'pvp', 'ranked', 'coop', 'practice', 'arcade'] as const;
-export type HistoryMode = (typeof HISTORY_MODES)[number];
+export type HistoryMode = typeof HISTORY_MODES[number];
 
 /** The list's filter chips: Ranked, PvP, vs AI, Blitz, Arcade (Practice and the weekend modes). */
 export const HISTORY_GROUPS = ['ranked', 'pvp', 'ai', 'blitz', 'arcade'] as const;
-export type HistoryGroup = (typeof HISTORY_GROUPS)[number];
+export type HistoryGroup = typeof HISTORY_GROUPS[number];
 
 export const HISTORY_VISIBILITY = ['everyone', 'friends', 'me'] as const;
-export type HistoryVisibility = (typeof HISTORY_VISIBILITY)[number];
+export type HistoryVisibility = typeof HISTORY_VISIBILITY[number];
 /** Friends see a player's history unless the player chose otherwise. */
 export const DEFAULT_VISIBILITY: HistoryVisibility = 'friends';
 

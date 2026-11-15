@@ -128,7 +128,8 @@ export class MatchHistoryCore {
         ]);
         // a block reads as "no player": the blocked side learns nothing more
         if (blocked) throw HISTORY_ERRORS.noPlayer();
-        if (!canView(visibility ?? DEFAULT_VISIBILITY, { self: false, friends, blocked })) throw HISTORY_ERRORS.hidden();
+        if (!canView(visibility ?? DEFAULT_VISIBILITY, { self: false, friends, blocked }))
+            throw HISTORY_ERRORS.hidden();
         return { id, self: false };
     }
 
@@ -256,7 +257,10 @@ export class MatchHistoryService extends MatchHistoryCore {
                 const p = (await social.findOne({ code }).select({ _id: 1 }).lean()) as { _id: unknown } | null;
                 if (!p) return null;
                 // a deleted account has no history to show
-                const u = await users.findOne({ _id: p._id, deletedAt: { $exists: false } }).select({ _id: 1 }).lean();
+                const u = await users
+                    .findOne({ _id: p._id, deletedAt: { $exists: false } })
+                    .select({ _id: 1 })
+                    .lean();
                 return u ? String(p._id) : null;
             },
             async friends(a, b) {

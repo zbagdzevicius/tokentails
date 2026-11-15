@@ -61,7 +61,10 @@ import { lossShareOf, slotGrade, type Grade, type GradeStats } from './ranked/gr
 export const PARTY_DAILY_CAP = 30;
 
 export interface IPartyLiveDeps
-    extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger' | 'season' | 'growth' | 'rewards' | 'history'> {
+    extends Pick<
+        IPawlegendsLiveDeps,
+        'users' | 'games' | 'now' | 'logger' | 'season' | 'growth' | 'rewards' | 'history'
+    > {
     rooms: {
         get(id: string): Promise<StoredRoom | null>;
         countEnded(accountId: string, since: Date): Promise<number>;
