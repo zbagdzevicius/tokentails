@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "platform": "ios",
+  "compat": 2,
+  "version": "20261115100810-9851ddb",
+  "seq": 20261115100810,
+  "url": "https://tokentails.com/pawlegends-app/updates/ios/2/bundles/20261115100810-9851ddb.zip",
+  "checksum": "6dcf959eff573c6d3d75ec6a433ab0258c435c46decbb566ec7028594e17f9601d90d952b4ac321987aa583aa43c73258e4caada7a8f4bfa4a0c6d6de792bbb68c2e6fddc7503cffa6aa0fdf8b55919bcb8042481986358881b550de11c172a097fd617e45af208ab5ff487c8568255eb8dfe9035e7c1dd505d38d06510c71ef62b6e2ee0ca3b614cb44d526017ead74188b8b6e00e34e13e1d666e15819943619711abe6144570e7aa73e383269a508263883bf0a30af519fa32f47380df091c71cc75e8da588ade79426fd571c7b6b45796e139b040498da7e5d6565d876dc435121b319b3d068e689f0e1363120a8d508911e2f853c1b1f1da7cb5a588486",
+  "sessionKey": "qzkMkWVLYgk4AUD6SJXnIQ==:fLEtHEwQq0q36kJG5HSsAtVtHVjP16Sklr859w6KvKOHm/rG7rK207fcpBQe5OXncpoYHwgngfX27tigF9P2cS7Yai66jg0220drNRW3K38drLSVsayyv90+yDdt7SJMXnGcImfLSe76DudECnou+5KjnD2clvO+GiWNP9gj5ZcryTeOmzozWiic+WseC+wKtOBgwTjCt1F3FtqLePYJdI1tHgaoZOwB1eWYe/I5B5SdIy8zHcJ7QZ4+7doxTyOxRnYAdDZbqZhw63sIEJbSHPdv276OtAuL4Pfagti+/EfC0TPeoxMBixu7WYWNMr7NLvqnp1gzRwlNQVbTLPTj+A==",
+  "simVersion": 30,
+  "minNative": "1.0.0",
+  "rollback": false,
+  "android": true
+}
