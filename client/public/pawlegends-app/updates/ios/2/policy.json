@@ -15,17 +15,17 @@
       "requiredFrom": "2026-11-14T22:57:57.028Z"
     },
     "beta": {
-      "version": "20261115003822-0a28f05",
-      "seq": 20261115003822,
+      "version": "20261115004930-e3071c7",
+      "seq": 20261115004930,
       "simVersion": 29,
       "minNative": "1.0.0",
       "rollback": false,
-      "requiredFrom": "2026-11-15T00:38:29.161Z"
+      "requiredFrom": "2026-11-15T00:49:37.197Z"
     }
   },
   "store": "https://apps.apple.com/app/id6832032981",
   "web": "https://pawlegends.app/play",
   "maintenance": null,
-  "issuedAt": "2026-11-15T00:38:29.161Z",
-  "signature": "pZTMtp/k0U7nnQK/E4c6oaqu43CuLtAofKHEU7h4qBeGbXvdR5VR0PFTTynIFyuRbycJnDHTjO2dDm61T6PQ1INUWYi6o1kPCvGGnVikcwKv9XhEi/zPuqyqXSiX+V6hJzMU6PIM1y1kqYfQZqlTCMTULqs4Zx0FVvyV0CaPuM8Zg6Hr5yoOzLQg9dxuB87PgcEkzBK5xnNQN6ffy1+J4DibwwCQsat9fDvPys8D1aojI1nrCBNn0gdga8ypnOLw/YyvakQz1yyb+oXM63382rZCiCROihVKonAxxwV/9ZIUIodGbR+FxoM9B6pqugWdvfON4p8J3FyvQHR1pAD+ow=="
+  "issuedAt": "2026-11-15T00:49:37.197Z",
+  "signature": "f7c5ZEFr6vSJxpqy6Qi8TL7FhDDddhc358h8eX7bPZPEBGsaE51ya2hQcosP4OSBDckLwKY3Bp0wXw/3N5xfVodj9vLlhvMO8pUEp3eNRwt2yvlMagzp72R+3iA2ZmZfDLyqRWr2xOtHJ8RSxQyRvjQvujGd49ybVT7CKw9BuOYOhAEwCfdjt+aTj9a4mta1qvaFITpdjlZguCSEMhe4IqgtR5udSxSIFbenvbzq9v+5fE8eR7+u5ZIdxrcgaTA841rvEl9LaCRuERHHE3j9XGGHa4Oa2/YJwzINhFTvEnRGOT963JXErkmX/lq0tlrlZAfTszMLO50N7lMVrdgeaQ=="
 }
