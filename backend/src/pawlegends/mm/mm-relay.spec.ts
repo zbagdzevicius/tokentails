@@ -143,7 +143,7 @@ describe('Quick Play relay (M1a co-op)', () => {
             const all = a.json.filter(j => j.t === 'mm.status');
             expect(all.length).toBeGreaterThanOrEqual(3);
             expect(a.last('mm.status')!.side).toBe('dog');
-            expect(a.last('mm.status')!.waitedMs).toBeGreaterThan(2000);
+            expect(a.last('mm.status')!.waitedMs).toBeGreaterThanOrEqual(2000); // the side change can land in the same ms as the join, so exactly 2000 is a valid reading
         } finally {
             await b.stop();
         }
