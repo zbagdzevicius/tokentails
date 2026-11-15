@@ -226,7 +226,8 @@ test.describe("Cupid Cat first run (G10)", () => {
     const afterTour = await snapshot(page);
     expect(afterTour?.pauseReasons).not.toContain("tutorial");
     expect(afterTour?.hintsShown).toContain("shield");
-    await expect.poll(async () => (await snapshot(page))?.time ?? 0, { timeout: 5_000 }).toBeLessThan(afterTour!.time);
+    // the level clock ticks in game time; a loaded machine runs the scene late, so the wait is on state, not 5 s
+    await expect.poll(async () => (await snapshot(page))?.time ?? 0, { timeout: 30_000 }).toBeLessThan(afterTour!.time);
     await shot(page, "03-playing");
 
     // A first hit is absorbed by the starter shield: health unchanged, shield gone.

@@ -3,7 +3,7 @@ import { join } from "path";
 import type { Page } from "@playwright/test";
 // Type-only: brings in the global `Phaser` namespace for the page.evaluate callbacks.
 import type {} from "phaser";
-import { expect, gotoAndSettle, openFirstLevel, test, type BackendMock } from "./fixtures";
+import { CUPID_SEASON_NOW, expect, gotoAndSettle, openFirstLevel, test, usePhaserHome, type BackendMock } from "./fixtures";
 
 /**
  * G7 world runtime (plan G7 "Camera", "Light and presence", "Render tiers", "Look presets";
@@ -158,6 +158,7 @@ async function setup(page: Page, backend: BackendMock, options: SetupOptions = {
 }
 
 async function enterMode(page: Page, mode: Mode) {
+  if (mode === "home" || mode === "shelter") await usePhaserHome(page);
   await gotoAndSettle(page, "/game", 2500);
   const click = async (locator: ReturnType<Page["locator"]>) => {
     await locator.first().click();
@@ -259,7 +260,8 @@ const WORLD_PROJECTS = ["desktop-1440", "mobile-390", "landscape-844"];
 
 test.describe("G7 world look", () => {
   test.describe.configure({ mode: "default" });
-  test.use({ allowUnmocked: true });
+  // Cupid Cat is seasonal (January to March, components/game/seasons.ts): the picker offers it only then.
+  test.use({ allowUnmocked: true, now: CUPID_SEASON_NOW });
 
   test.beforeEach(() => {
     test.skip(!WORLD_PROJECTS.includes(test.info().project.name), "1440x900, 390x844 and 844x390");

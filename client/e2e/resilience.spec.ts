@@ -78,7 +78,8 @@ test.describe("storefront resilience: marketplace (/cats)", () => {
   test.beforeEach(async ({ page, backend }) => {
     await signIn(page, backend);
   });
-  const cards = (page: Page) => page.locator('#social-farming-results a[href^="/cats/"]');
+  // One list item per cat (components/cats/CatsGallery.tsx); while loading the list is aria-busy with skeletons.
+  const cards = (page: Page) => page.locator('[data-testid="cats-grid"][aria-busy="false"] > li');
 
   test("current shape lists every partner cat, duplicate names included", async ({ page, backend }) => {
     backend.on("GET", "/cat/sale", {
@@ -88,7 +89,8 @@ test.describe("storefront resilience: marketplace (/cats)", () => {
     });
     await openCats(page);
     await expect(cards(page)).toHaveCount(3);
-    await expect(page.getByAltText("Mia")).toHaveCount(2);
+    // Two cards named Mia (each card shows its name on the art and under it).
+    await expect(cards(page).filter({ hasText: "Mia" })).toHaveCount(2);
     await expect(page.getByTestId("storefront-degraded")).toHaveCount(0);
   });
 
@@ -98,7 +100,7 @@ test.describe("storefront resilience: marketplace (/cats)", () => {
     await expect(page.getByTestId("storefront-empty")).toContainText("All adopted, thank you!");
     await expect(cards(page)).toHaveCount(0);
     // Famous cats still come from the fallback house slug.
-    await page.getByRole("button", { name: "FAMOUS CATS" }).click();
+    await page.getByRole("tab", { name: "Famous cats" }).click();
     await expect(cards(page)).toHaveCount(1);
   });
 

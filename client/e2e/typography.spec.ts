@@ -24,7 +24,24 @@ async function loadedBrandFaces(page: Page): Promise<boolean[]> {
   }, BRAND_FACES);
 }
 
-for (const path of ["/", "/game"]) {
+// The web landing ("/") is the static home page since Oct 22, 2026 (public/home): it self-hosts its own
+// faces (Passion One and Nunito from /fonts), outside _document, so it is checked for that below and the
+// brand faces are checked on Next pages.
+test("/ (the static home) loads its faces from /fonts and nothing from Google Fonts", async ({ page }) => {
+  const urls = recordRequests(page);
+  await gotoAndSettle(page, "/", 2500);
+  const loaded = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return Array.from(document.fonts)
+      .filter((face) => face.status === "loaded")
+      .map((face) => face.family.replace(/"/g, ""));
+  });
+  expect(loaded).toEqual(expect.arrayContaining(["Passion One", "Nunito"]));
+  expect(urls.filter((url) => GOOGLE_FONTS.test(url))).toEqual([]);
+  expect(urls.some((url) => new URL(url).pathname.startsWith("/fonts/"))).toBe(true);
+});
+
+for (const path of ["/game", "/impact"]) {
   test(`${path} loads the three brand faces and nothing from Google Fonts`, async ({ page }) => {
     const urls = recordRequests(page);
     await gotoAndSettle(page, path, 2500);
@@ -42,7 +59,7 @@ for (const path of ["/", "/game"]) {
 
 test("a Lithuanian shelter name requests the latin-ext subset", async ({ page }) => {
   const urls = recordRequests(page);
-  await gotoAndSettle(page, "/", 1000);
+  await gotoAndSettle(page, "/impact", 1000);
   await page.evaluate(async () => {
     const probe = document.createElement("div");
     probe.textContent = "Rozinė pėdutė ąčęėįšųūž";

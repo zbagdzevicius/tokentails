@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { API_ORIGIN, type BackendMock, expect, gotoAndSettle, openFirstLevel, test } from "./fixtures";
+import { API_ORIGIN, type BackendMock, CUPID_SEASON_NOW, expect, gotoAndSettle, openFirstLevel, test } from "./fixtures";
 
 /**
  * Real guest play (plan G1, F5.7): /game opens the game for a new visitor with no sign-in wall, the
@@ -134,17 +134,19 @@ async function startCupid(page: Page) {
 }
 
 test.describe("guest play (G1)", () => {
-  test.use({ allowUnmocked: true });
+  // Cupid Cat (the mode these start) is seasonal, January to March (components/game/seasons.ts).
+  test.use({ allowUnmocked: true, now: CUPID_SEASON_NOW });
   // Several of these boot a Phaser scene in software WebGL; one at a time keeps them reliable.
   test.describe.configure({ mode: "serial" });
 
-  test("PLAY GAME from the landing opens a playable game (5 s in CI), with no sign-in wall", async ({ page, backend }) => {
+  // The web landing is the static home page since Oct 22, 2026 (public/home): it links the games
+  // (Heist, Moon Rave, Pink Paw Knight, Pawlegends) and Sign in, not /game, so the guest arrives on
+  // /game straight (the game picker, the app and shared links all open it).
+  test("opening /game gives a playable game (5 s in CI), with no sign-in wall", async ({ page, backend }) => {
     mockGuestBackend(backend);
     await useFakeFirebase(page);
-    await gotoAndSettle(page, "/", 500);
     const started = Date.now();
-    await page.locator('a[href^="/game"]:not([data-testid="landing-sign-in"])').first().click();
-    await page.waitForURL(/\/game/, { waitUntil: "commit" });
+    await page.goto("/game", { waitUntil: "commit" });
     // The lobby is live: its PLAY control answers, and no dialog covers it.
     const play = page.getByText("PLAY", { exact: true }).first();
     await expect(play).toBeVisible({ timeout: PLAYABLE_BUDGET_MS });
@@ -216,8 +218,8 @@ test.describe("guest play (G1)", () => {
     const referrer = "64e2e00000000000000000aa";
     await gotoAndSettle(page, `/?ref=${referrer}`, 500);
     await expect.poll(() => page.evaluate(() => localStorage.getItem("tt.pendingRef"))).toBe(referrer);
-    await page.locator('a[href^="/game"]:not([data-testid="landing-sign-in"])').first().click();
-    await page.waitForURL(/\/game/, { waitUntil: "commit" });
+    // The static home links no bare /game (see the first test); the referrer waits for whichever game page comes next.
+    await gotoAndSettle(page, "/game", 500);
     // Stored once; only sent when a profile reports promotedNow (never by a guest).
     expect(await page.evaluate(() => localStorage.getItem("tt.pendingRef"))).toBe(referrer);
     expect(backend.requests().filter((call) => call.path === "/user/catbassadors/referral")).toHaveLength(0);
@@ -334,12 +336,13 @@ test.describe("guest play (G1)", () => {
 test.describe("optional pages never force the sheet (F5.7)", () => {
   test.use({ allowUnmocked: true });
 
-  test("a returning guest on /feed: a forbidden background write opens nothing and creates nothing", async ({ page, backend }) => {
+  // /cats mounts auth in optional mode. (The blog, /feed, has had no auth at all since its Oct 19, 2026 rebuild.)
+  test("a returning guest on /cats: a forbidden background write opens nothing and creates nothing", async ({ page, backend }) => {
     mockGuestBackend(backend, { persisted: true });
     const forbidden = { status: 403, body: { statusCode: 403, code: "GUEST_FORBIDDEN", message: "Create an account to do this" } };
-    backend.on("POST", "/user/entity-metadata", forbidden).on("POST", "/shelter/donate", forbidden);
+    backend.on("POST", "/user/entity-metadata", forbidden).on("POST", "/ticket", forbidden);
     await useFakeFirebase(page, { user: { uid: "guest-returning", isAnonymous: true } });
-    await gotoAndSettle(page, "/feed", 1500);
+    await gotoAndSettle(page, "/cats", 1500);
 
     const status = await page.evaluate(
       async (origin) =>
@@ -357,13 +360,14 @@ test.describe("optional pages never force the sheet (F5.7)", () => {
     await expect(sheet(page)).toHaveCount(0);
     expect(backend.requests().filter((call) => call.path === "/user/guest/session")).toHaveLength(0);
 
-    // A player action on the same page does open it, named by the action.
+    // A player action on the same page does open it, named by the action (a support ticket; treats need no
+    // account since Oct 8, 2026, api/api.ts GATED_ACTIONS).
     void page.evaluate(
       (origin) =>
-        fetch(`${origin}/shelter/donate`, {
+        fetch(`${origin}/ticket`, {
           method: "POST",
           headers: { "Content-Type": "application/json", accesstoken: sessionStorage.getItem("accesstoken") || "" },
-          body: JSON.stringify({ source: "web" }),
+          body: JSON.stringify({ message: "e2e" }),
         }),
       API_ORIGIN,
     );

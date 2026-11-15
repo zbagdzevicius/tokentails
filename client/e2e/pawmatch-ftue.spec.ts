@@ -345,8 +345,8 @@ test.describe("Paw Match first run", () => {
     expect(wrong.tutorial!.stroke?.toLowerCase()).toBe("#b91c1c");
     expect(wrong.clockStarted).toBe(false);
     checkLayout(wrong, viewport);
-    await page.waitForTimeout(400);
-    expect((await sceneState(page)).tutorial!.stroke?.toLowerCase()).toBe("#111827");
+    // the red goes after 300 ms of the scene's clock: wait for it on state (a loaded machine runs the scene late)
+    await expect.poll(async () => (await sceneState(page)).tutorial!.stroke?.toLowerCase(), { timeout: 10_000 }).toBe("#111827");
 
     const detourMs = Date.now() - detourFrom;
     // Follow the glove: the hinted pair.

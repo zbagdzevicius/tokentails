@@ -20,8 +20,8 @@ const ICONS = `
   <link rel="manifest" href="/manifest.webmanifest"/>
   <meta name="theme-color" content="#0b0820"/>`;
 
-function page(pathname: string, extraHead = "", { image = `${ORIGIN}/logo/og-v2-1200x630.jpg`, w = 1200, h = 630 } = {}) {
-  const url = `${ORIGIN}${pathname}`;
+function page(pathname: string, extraHead = "", { image = `${ORIGIN}/logo/og-v2-1200x630.jpg`, w = 1200, h = 630, origin = ORIGIN } = {}) {
+  const url = `${origin}${pathname}`;
   return `<!DOCTYPE html><html><head>${ICONS}
   <title>Token Tails</title>
   <meta name="description" content="Play"/>
@@ -105,6 +105,22 @@ describe("check-meta (plan G14)", () => {
     expect(errors).toEqual(Object.fromEntries(Object.keys(errors).map((k) => [k, []])));
     expect(ok).toBe(true);
     expect(status).toBe(0);
+  });
+
+  it("checks the static home against production and the Next pages against their own (staging) origin", async () => {
+    const STAGING = "http://localhost:3001";
+    const routes = goodRoutes();
+    for (const key of ["/game", "/heist", "/packs", "/shelter-payouts", "/impact", "/yourcat"]) {
+      routes[key] = { body: page(key, "", { origin: STAGING }) };
+    }
+    expect((await check(routes)).ok).toBe(true);
+    // the static home never takes the build's origin, and the Next pages must agree with each other
+    routes["/"] = { body: page("/", "", { origin: STAGING }) };
+    routes["/impact"] = { body: page("/impact") };
+    const { ok, errors } = await check(routes);
+    expect(ok).toBe(false);
+    expect(errors["/"].join()).toMatch(/canonical origin http:\/\/localhost:3001, expected https:\/\/tokentails.com/);
+    expect(errors["/impact"].join()).toMatch(/canonical origin https:\/\/tokentails.com, expected http:\/\/localhost:3001/);
   });
 
   it("fails a redirecting /heist, a stray per-page favicon and a ?ref= canonical", async () => {

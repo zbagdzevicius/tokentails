@@ -281,16 +281,15 @@ test.describe("north-star first session (plan 1.3, task 7b)", () => {
     await routeStatic(page);
     await fakeFirebase(page);
 
-    await test.step("1. landing: night sky, the altar tabby, PLAY GAME", async () => {
+    await test.step("1. landing, then /game", async () => {
+      // The web landing is the static home page since Oct 22, 2026 (public/home, its own checks in
+      // __test__/home-static.test.ts): it links the games hub, not /game, so the session goes on to /game.
       await gotoAndSettle(page, "/", 2000);
-      const cta = page.getByTestId("hero-cta");
-      await expect(cta).toBeVisible();
-      await expect(cta).toHaveAttribute("href", "/game?from=landing_hero");
-      // The landing reads an existing session only: it creates no guest and writes nothing.
+      await expect(page).toHaveTitle(/Token Tails/);
+      // The landing creates no guest and writes nothing.
       expect(api.writes()).toEqual([]);
       await shot(page, "01-landing");
-      await expectCleanCopy(page, "landing");
-      await cta.click();
+      await page.goto("/game?from=landing_hero", { waitUntil: "commit" });
     });
 
     await test.step("2. /game: night intro curtain, no sign-in wall", async () => {
@@ -443,6 +442,11 @@ test.describe("north-star first session (plan 1.3, task 7b)", () => {
       expect(await rows.count()).toBeGreaterThan(5);
       // The retired "3 taps" claim (decision #75) is gone from the public list.
       await expect(registry.locator('[data-claim-row="P-001"]')).toHaveCount(0);
+      // With nothing paid out yet the money section (and its tier legend) folds under "Opening soon".
+      const soon = page.getByTestId("opening-soon");
+      if ((await soon.count()) > 0 && !(await soon.evaluate((el) => (el as HTMLDetailsElement).open))) {
+        await soon.locator("summary").click();
+      }
       await expect(page.getByTestId("tier-legend")).toBeVisible();
       await shot(page, "14-impact");
       await expectCleanCopy(page, "/impact");

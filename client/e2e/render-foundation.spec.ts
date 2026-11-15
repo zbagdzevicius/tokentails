@@ -3,7 +3,7 @@ import { join } from "path";
 import type { Page } from "@playwright/test";
 // Type-only: brings in the global `Phaser` namespace for the page.evaluate callbacks.
 import type {} from "phaser";
-import { expect, gotoAndSettle, openFirstLevel, test, type BackendMock } from "./fixtures";
+import { CUPID_SEASON_NOW, expect, gotoAndSettle, openFirstLevel, test, usePhaserHome, type BackendMock } from "./fixtures";
 
 /**
  * F10 render foundation and G13 step 6 (plan F10, G7 "Render tiers", G13; task 2e).
@@ -162,6 +162,7 @@ async function signInFakePlayer(page: Page, backend: BackendMock) {
 }
 
 async function enterMode(page: Page, mode: Mode) {
+  if (mode === "home" || mode === "shelter") await usePhaserHome(page);
   await gotoAndSettle(page, "/game", 2500);
   const click = async (locator: ReturnType<Page["locator"]>) => {
     await locator.first().click();
@@ -257,6 +258,8 @@ const loopFrame = (page: Page) =>
 const consoleTypeErrors = new WeakMap<Page, string[]>();
 
 test.describe("F10 render foundation", () => {
+  // Cupid Cat is seasonal (January to March, components/game/seasons.ts): the picker offers it only then.
+  test.use({ now: CUPID_SEASON_NOW });
   // Paw Match's resize polls were flaky under many parallel workers (2e review). The Phaser
   // modes are heavy (software WebGL), so within a project this file runs its tests one after
   // another ("default", not "serial": a failure does not skip the rest).

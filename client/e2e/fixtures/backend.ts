@@ -21,6 +21,21 @@ interface MockRoute {
   handler: MockHandler;
 }
 
+/**
+ * The static home page (public/home, served at "/", scripts/sync-home.mjs `API_PATHS`) is not built
+ * with `NEXT_PUBLIC_BE_URL`: it reads its live numbers from the production API by design. The mock
+ * answers exactly these GETs on that host like any backend call (recorded, mock required), so the
+ * page renders from mocks; any other request to a production API host still fails the test
+ * (`NetworkGuard`).
+ */
+export const STATIC_HOME_API_ORIGIN = "https://api.tokentails.com";
+export const STATIC_HOME_API_READS: readonly string[] = [
+  "/shelter/goal/C-001",
+  "/shelter/rozine-pedute/gallery",
+  "/rave/status",
+  "/club/status",
+];
+
 /** One backend call the page made, for assertions. */
 export interface RecordedCall {
   method: string;
@@ -96,6 +111,11 @@ export class BackendMock {
     this.on("GET", "/shelter/donate/status", () => ({
       body: { enabled: false, railState: "not-deployed", treatsLeftToday: 0, resetsAt: FIXED_NOW.toISOString() },
     }));
+    // Live reads of the home page and /impact. Unavailable by default: the pages then show their
+    // offline figures (the static home's WAIT_FALLBACK, the snapshot), which is what the specs check.
+    for (const path of [...STATIC_HOME_API_READS, "/shelter/payouts"]) {
+      this.on("GET", path, () => ({ status: 503, body: { statusCode: 503, message: "Unavailable in e2e" } }));
+    }
   }
 
   on(method: HttpMethod, path: string | RegExp, handler: MockHandler | MockResponse): this {
@@ -116,6 +136,14 @@ export class BackendMock {
 
   async install(page: Page): Promise<void> {
     await page.route(`${API_ORIGIN}/**`, (route) => this.handle(route));
+    await page.route(
+      (url) =>
+        url.origin === STATIC_HOME_API_ORIGIN && STATIC_HOME_API_READS.includes(url.pathname),
+      (route) =>
+        route.request().method() === "GET" || route.request().method() === "OPTIONS"
+          ? this.handle(route, STATIC_HOME_API_ORIGIN)
+          : route.fallback(),
+    );
   }
 
   private match(method: string, path: string): MockRoute | undefined {
@@ -126,10 +154,10 @@ export class BackendMock {
     );
   }
 
-  private async handle(route: Route): Promise<void> {
+  private async handle(route: Route, origin: string = API_ORIGIN): Promise<void> {
     const request = route.request();
     const method = request.method();
-    const path = new URL(request.url()).pathname.slice(new URL(API_ORIGIN).pathname.replace(/\/$/, "").length) || "/";
+    const path = new URL(request.url()).pathname.slice(new URL(origin).pathname.replace(/\/$/, "").length) || "/";
     if (method === "OPTIONS") {
       await route.fulfill({ status: 204, headers: corsHeaders(request) });
       return;
