@@ -18,7 +18,9 @@ test('an old track migrates once, the chest screen picks a target and a champion
   }, V1);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  const unlocks = (): Promise<string[]> => page.evaluate(() => JSON.parse(localStorage.getItem('tt.pawlegends.profile.v1') ?? '{}').unlocks ?? []);
+  // the track's rewards only: a 6-match profile also unlocks its modes on boot (MODE-UNLOCKS.md, `mode.*`)
+  const unlocks = (): Promise<string[]> =>
+    page.evaluate(() => ((JSON.parse(localStorage.getItem('tt.pawlegends.profile.v1') ?? '{}').unlocks ?? []) as string[]).filter((u) => !u.startsWith('mode.')));
   const after = await unlocks();
   expect(after).toEqual(expect.arrayContaining(['postcard.lambo', 'coat.clem.lilac', 'postcard.aviete', 'coat.sage.fern']));
   expect(after).toHaveLength(V1.length + 4);
