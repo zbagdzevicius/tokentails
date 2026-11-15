@@ -130,6 +130,7 @@
 .cst-rib.bundle { background: linear-gradient(180deg, var(--cst-gold-2), var(--cst-gold-3)); color: #2a1704; }
 .cst-rib.rung-epic { background: linear-gradient(180deg, #c58cff, #7a43c4); }
 .cst-rib.rung-legendary { background: linear-gradient(180deg, #ffc46b, #d9741c); color: #2a1704; }
+.cst-rib.rung-mythic { background: linear-gradient(180deg, #ff7a6b, #c8135b 60%, #6a2bd8); color: #fff6e6; }
 .cst-foot { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; flex-direction: column; gap: 2px; padding: 28px 8px 6px; background: linear-gradient(180deg, transparent, rgb(var(--v6-night-rgb) / 0.86) 40%, rgb(var(--v6-night-rgb) / 0.96)); }
 .cst-name { font: 700 15px/1.1 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; }
 .cst-meta { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--v6-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

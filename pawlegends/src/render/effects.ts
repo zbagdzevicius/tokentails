@@ -565,6 +565,7 @@ export class Effects {
     const card = e.slot <= 3 ? this.cardOf(src) : null;
     if (vfx && hasSparkle(card)) this.cards?.castSparkle(src.x, src.z, card);
     if (ult) {
+      if (src.kind === 'hero') this.coats?.noteUlt(src.id);
       if (vfx) {
         const rel = mine ? RELATION.self : src.team === this.hooks.myTeam ? RELATION.ally : RELATION.danger;
         const r = ((aim?.radius ?? aim?.range ?? 4000) / 1000) * (aim?.shape === 'ring' ? 1 : 0.6);
@@ -829,6 +830,8 @@ export class Effects {
     if (v && v.kind === 'minion' && e.killer === this.hooks.mySlot) this.lastHitAt = { tick: e.tick, x: v.x, y: 1.2, z: v.z };
     this.hooks.onKill?.(e, v, k);
     if (v?.kind === 'hero') this.anim?.deathFired(e);
+    // gaps5 Mythic: a takedown grows the killer's evolving coat (render/skins/coatTrail.ts)
+    if (v?.kind === 'hero' && k?.kind === 'hero') this.coats?.noteTakedown(e.killer);
     if (!v) return;
     const pos = this.at(v, 0.6);
     if (v.kind === 'hero') {

@@ -165,9 +165,9 @@ export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
     gear: (A) => {
       dalmatianHead(A, coat);
       for (const [b, d, r] of SPOTS) spot(A, b, d, r, spotCol);
-      beret(A, t.main, trim ?? t.second);
+      if (!dr.parts?.drops?.includes('hat')) beret(A, t.main, trim ?? t.second);
       shawl(A, t.main, trim ?? t.second, { r: 0.17, y: 0.15, low: 0.5 });
-      crayon(A);
+      if (!dr.parts?.drops?.includes('prop')) crayon(A);
       if (founder || chroma !== null) G.cape(A, capeColor, capeHem, { len: 0.2, top: 0.13, bot: 0.18 });
       extras(A);
     },

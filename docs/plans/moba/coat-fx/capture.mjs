@@ -32,6 +32,11 @@ const COATS = [
   { name: 'frostbell', hero: 'marshmallow', coat: 'coat.marshmallow.store_frostbell' },
   { name: 'club-sandwich', hero: 'clem', coat: 'coat.clem.store_club_sandwich' },
   { name: 'kebab-king', hero: 'frankie', coat: 'coat.frankie.store_kebab_king' },
+  { name: 'pizzaiolo', hero: 'domino', coat: 'coat.domino.store_pizzaiolo' },
+  { name: 'robo-vac', hero: 'nugget', coat: 'coat.nugget.store_robo_vac' },
+  { name: 'drive-thru', hero: 'meatball', coat: 'coat.meatball.store_drive_thru' },
+  { name: 'paper-parade', hero: 'frankie', coat: 'coat.frankie.store_paper_parade' },
+  { name: 'soft-serve', hero: 'marshmallow', coat: 'coat.marshmallow.store_soft_serve' },
   { name: 'rare-calico', hero: 'clem', coat: 'coat.clem.store_calico' },
 ];
 /** Each clip: where to start (s) and the gap between the 8 frames (s). Recall lands at ~4.6 s; takedown ~1.4-1.8 s. */
@@ -65,7 +70,7 @@ try {
     await page.evaluate(() => window.__preview.ready);
     return page;
   };
-  for (const c of COATS.filter((x) => !process.env.ONLY || x.name === process.env.ONLY)) {
+  for (const c of COATS.filter((x) => !process.env.ONLY || process.env.ONLY.split(',').includes(x.name))) {
     for (const k of CLIPS) {
       const page = await open(c.hero, `&coat=${c.coat}${k.q}`, W, H, TIER);
       const box = await page.locator('#box').boundingBox();

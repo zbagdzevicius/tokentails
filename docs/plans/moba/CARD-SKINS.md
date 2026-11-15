@@ -379,3 +379,42 @@ colour.
 
 Painted store art was made with Gemini (gemini-3-pro-image-preview, the brand-book skin splashes as style references)
 and encoded like `tools/import-skin-art.mjs` does (`pawlegends-web/public/pawlegends-art/skins/`).
+
+## The skins v2 top five and the Mythic coat (gaps5 skins, 2026-11-15)
+
+The founder's "Build these 5 first" from the skins v2 gallery
+(https://storage.googleapis.com/pawlegends-pages/skins-v2/index.html) are real coats now: model parts
+(`render/chars/coatPartsBuild.ts`), their own palette, chromas (as every coat with a palette), their own ultimate,
+recall and takedown (`render/skins/coatFx.ts`), painted store art cropped from the gallery splashes
+(`pawlegends-web/public/pawlegends-art/skins/`). Prices are the existing bands (web store only, nothing sold in the
+apps): Epic $7.99 / €7.99, Legendary $14.99 / €14.99.
+
+| Coat (tier) | Model parts | Ultimate | Recall | Takedown | Trail |
+|---|---|---|---|---|---|
+| Pizzaiolo Domino (Legendary) | chef hat with a team band (in place of the beret), pepperoni spots, a pizza cutter (in place of the crayon), mozzarella strings | cheese strings shoot out, a pepperoni storm, a pizza spreads | he spins dough overhead, lands on a pizza | a pizza box drops | – |
+| Robo-Vac Nugget (Epic) | the robot vacuum he rides (glowing bumper, panel, dock antenna, side brushes), aviator goggles | dust spirals in, the bumper light rings out | parked on the dock, zooms home | a dust bunny poofs | mowed stripes |
+| Drive-Thru Deluxe Meatball (Legendary) | sesame bun hat (in place of the sweatband), patty, tomato, melting cheddar, lettuce, bottom bun, pickle pads, a paper takeout bag (in place of the lunchbox) | a burst of fries, a sizzling patty | the drive-thru window glows, order up | fries burst | – |
+| Paper Parade Dragon Frankie (**Mythic**) | paper dragon mask with antlers, mane and whiskers, two paper lanterns | the parade stretches to twelve lanterns, fireworks | lanterns rise, fireworks on landing | a firework | **the parade body** |
+| Soft Serve Marshmallow (Epic) | soft serve swirl with sprinkles and a cherry (in place of the bobble hat), waffle cone collar with a team ribbon | a brain-freeze sprinkle swirl | sprinkles fall, a melty puddle | a scoop drops | melty drips |
+
+**Mythic (evolving form).** `MYTHIC_COATS` (money/catalog.ts): effects at the Legendary rung, sold in the Legendary
+band, called Mythic in the store (ribbon and price line) and the Heroes browser. The parade body
+(`render/skins/coatTrail.ts`, one instanced mesh) follows his path: none at first (a lantern head), 3, 6 and 10 lantern
+segments at hero levels 4, 7 and 10 or 2, 4 and 6 takedowns (whichever comes first), twelve for 5 s after his ultimate;
+each new stage pops a firework (`CoatVfx.evolve`). Heroes → Coats has an Evolve clip that steps through the stages.
+Low draws at most 6 segments; a jump (recall, blink) restarts the path.
+
+**Trails** (render only): one instanced mesh per hero wearing a trail coat; the ground trails follow the Skin effects
+setting and, on Low, only the player's own hero draws them.
+
+**First-load JS.** The coat part builders are their own chunk (`coatParts.ts` holds ids, heroes and drops; the app
+preloads the builders 1.5 s after boot; a coat hero built before they land is rebuilt once they do), the trail module
+loads on the first trail coat, and the lobby turntable's `lobbyHero` left `heroView.ts` so the match's HeroView is no
+longer in the entry: 448.2 → 431.8 KB gzip.
+
+**Art pass on the v29 four.** Mochi, Ziggy, Biscuit and Champ's splash (360/720) and face (256) are Gemini paint-overs
+(gemini-3-pro-image-preview) of their in-game model renders in the painted look of the other twenty, keeping the model's
+design (Mochi is the white cat in the pink nightcap the game draws, not the Siamese of the old splash).
+
+Founder calls: the Mythic price band (the gallery suggested $34.99; it sells at $14.99 until a band is set), and
+whether Mythic becomes a tier word elsewhere (Signature tier stays untouched).

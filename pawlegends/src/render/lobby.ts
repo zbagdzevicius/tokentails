@@ -26,8 +26,9 @@ import { coatSig } from './skins/coatVfx';
 import { AWAKEN_FOIL } from './skins/effectKit';
 import { getSkin, isCardSkinId } from './skins/skinStore';
 import type { GameRenderer } from './renderer';
-import { lobbyHero, type LobbyHero } from './views/heroView';
+import { lobbyHero, type LobbyHero } from './views/lobbyHero';
 import { HERO_TOP } from './chars/specs';
+import { coatPartsRev, hasCoatParts, onCoatParts } from './chars/coatParts';
 
 /** The hero-select frame's reference top (m): the tallest hero's drawn top, so relative sizes show. */
 const LOBBY_REF_TOP = Math.max(...Object.values(HERO_TOP));
@@ -56,6 +57,8 @@ export class Lobby {
   private heroId: HeroId | null = null;
   private team: 0 | 1 = 0;
   private look = '';
+  /** gaps5: the look last set (a coat with parts rebuilds when the part builders land). */
+  private lastLook: Look | null = null;
   private t = 0;
   private spin = 0;
   private hop = 1;
@@ -99,6 +102,10 @@ export class Lobby {
   private tint = 0xff9f6b;
 
   constructor(private readonly gr: GameRenderer) {
+    // gaps5: the lobby lives as long as the app; a coat with parts rebuilds when the part builders land
+    onCoatParts(() => {
+      if (this.heroId && hasCoatParts(this.lastLook?.coat)) this.setHero(this.heroId, this.team, this.lastLook);
+    });
     const s = this.scene;
     // v6 one style (Nov 13): bright midday stadium light to match the comic key art: a clear sky over warm pale sand,
     // a white key from the front, a rose rim from the cat side (left) and a sky rim from the dog side (right)
@@ -140,7 +147,8 @@ export class Lobby {
     // v6 facelift: outside the match a dog hero wears its own side's cloth (Woof ochre, team 1; never sky, GFX-01), not
     // the cat team's rose: the menus show the species rivalry, the match keeps its relation colours
     if (team === 0 && HEROES[hero]?.side === 'dog') team = 1;
-    const key = lookKey(look);
+    const key = `${lookKey(look)}${hasCoatParts(look?.coat) ? `:p${coatPartsRev()}` : ''}`;
+    this.lastLook = look;
     if (hero === this.heroId && team === this.team && key === this.look && this.hero) return;
     if (this.hero) {
       this.scene.remove(this.hero.object);

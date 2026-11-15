@@ -22,6 +22,13 @@ import { TierFx, type FxHero } from '../skins/tierFx';
 import type { CardFx } from '../skins/cardFx';
 import { skinFxFor } from '../skins/coatRung';
 import { emptyProfile, foilColor, stageOf } from '../skins/effectKit';
+import { trailOf } from '../skins/coatTrailData';
+import type { CoatTrail } from '../skins/coatTrail';
+
+/** gaps5: the coat trail module (three.js meshes), loaded on the first hero that wears a trail coat (first-load JS). */
+let trailMod: typeof import('../skins/coatTrail') | null = null;
+let trailLoad: Promise<unknown> | null = null;
+import { coatPartsRev, hasCoatParts } from '../chars/coatParts';
 import { STEADFAST_ALPHA, STEADFAST_OUTLINE, STEADFAST_RING_SCALE, isSteadfast } from '../steadfast';
 import type { Ambient, AmbientFx } from '../ambient';
 // type only: contactFx (and the particle pools it drives) loads with the match, never with the lobby's first load
@@ -64,6 +71,8 @@ interface HeroRig {
   kDetail: number;
   kOutline: boolean;
   kSelf: boolean;
+  /** gaps5: the coat part builders' load state this rig was built at (render/chars/coatParts.ts coatPartsRev). */
+  kParts: number;
   /** Living pass: the hit flinch's time left and length (s), its lean (rad) and the world direction it leans to. */
   flT: number;
   flDur: number;
@@ -582,7 +591,60 @@ export class HeroView {
     return sc === 'all' || (sc === 'own' && self) || (sc === 'key' && (self || team !== this.myTeam));
   }
 
+  /** gaps5 skins v2: coat trails per hero slot (the Mythic parade body, Robo-Vac stripes, Soft Serve drips). */
+  private readonly trails = new Map<number, CoatTrail>();
+  private readonly trailIn = { x: 0, z: 0, hidden: false, level: 1, takedowns: 0, sinceUlt: 1e9, self: false, low: false, moving: false, yaw: 0 };
+  /** Tests and e2e: the trail drawn for hero slot `id`, if any. */
+  trailOf(id: number): CoatTrail | null {
+    return this.trails.get(id) ?? null;
+  }
+
+  /** The hero's coat trail this frame (created on first need, dropped when the coat changes). */
+  private trail(r: HeroRig, e: ViewEntity, x: number, z: number, hidden: boolean, moving: boolean, dt: number): void {
+    const coat = this.looks.get(e.id)?.coat ?? null;
+    const kind = coat && coat.startsWith(`coat.${r.hero}.`) ? trailOf(coat) : null;
+    let t = this.trails.get(e.id);
+    if (t && t.kind !== kind) {
+      t.dispose();
+      this.trails.delete(e.id);
+      t = undefined;
+    }
+    if (!kind) return;
+    if (!trailMod) {
+      trailLoad ??= import('../skins/coatTrail')
+        .then((m) => (trailMod = m))
+        .catch(() => (trailLoad = null));
+      return;
+    }
+    if (!t) {
+      t = new trailMod.CoatTrail(kind);
+      const id = e.id;
+      t.onStage = (stage, sx, sz) => void this.tierFx?.coats?.evolve(sx, sz, stage, this.cardOf(id));
+      this.group.add(t.mesh);
+      this.trails.set(e.id, t);
+    }
+    const fx = this.tierFx;
+    const q = this.trailIn;
+    q.x = x;
+    q.z = z;
+    // the ground trails are effects (the Skin effects setting); the parade body is the coat itself
+    q.hidden = hidden || (kind !== 'parade' && (fx?.mode === 'off' || (fx?.mode === 'mine' && e.id !== this.mySlot)));
+    q.level = e.level ?? 1;
+    q.takedowns = fx?.coats?.takedowns[e.id] ?? 0;
+    q.sinceUlt = fx?.coats?.sinceUlt(e.id) ?? 1e9;
+    q.self = e.id === this.mySlot;
+    q.low = this.detail < DETAIL.med;
+    q.moving = moving;
+    q.yaw = r.yaw;
+    t.update(dt, q);
+  }
+
   private drop(r: HeroRig): void {
+    const t = this.trails.get(r.id);
+    if (t) {
+      t.dispose();
+      this.trails.delete(r.id);
+    }
     this.group.remove(r.ch.object);
     r.ch.dispose();
     this.rigs.delete(r.id);
@@ -598,14 +660,17 @@ export class HeroView {
     const self = e.id === this.mySlot;
     const outline = this.outlineFor(e.team, self);
     // a steady frame: the same inputs as the rig's key (no key string built)
-    if (r && r.hero === hero && r.kLook === look && r.kDress === dress && r.kDetail === this.detail && r.kOutline === outline && r.kSelf === self) return r;
-    const key = `${hero}:${dress}:${lookKey(look)}:${this.detail}:${outline ? 1 : 0}:${self ? 1 : 0}`;
+    const prev = coatPartsRev();
+    if (r && r.hero === hero && r.kLook === look && r.kDress === dress && r.kDetail === this.detail && r.kOutline === outline && r.kSelf === self && r.kParts === prev) return r;
+    // gaps5: a coat with parts rebuilds once the part builders land (render/chars/coatParts.ts)
+    const key = `${hero}:${dress}:${lookKey(look)}:${this.detail}:${outline ? 1 : 0}:${self ? 1 : 0}${hasCoatParts(look?.coat) ? `:p${prev}` : ''}`;
     if (r && r.key === key) {
       r.kLook = look;
       r.kDress = dress;
       r.kDetail = this.detail;
       r.kOutline = outline;
       r.kSelf = self;
+      r.kParts = prev;
     }
     if (r && r.key !== key) {
       this.drop(r);
@@ -632,7 +697,7 @@ export class HeroView {
       }
       // living pass: yaw first, then the flinch lean in the hero's own frame (x, z stay 0 outside a flinch)
       ch.object.rotation.order = 'YXZ';
-      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0, xray, alpha: 1, kLook: look, kDress: dress, kDetail: this.detail, kOutline: outline, kSelf: self, flT: 0, flDur: 0, flA: 0, flX: NaN, flZ: NaN, lift: 0 };
+      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0, xray, alpha: 1, kLook: look, kDress: dress, kDetail: this.detail, kOutline: outline, kSelf: self, kParts: prev, flT: 0, flDur: 0, flA: 0, flX: NaN, flZ: NaN, lift: 0 };
       this.rigs.set(e.id, r);
     }
     return r;
@@ -919,6 +984,8 @@ export class HeroView {
         if (isSteadfast(e.buffs) && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * STEADFAST_RING_SCALE, STEADFAST_OUTLINE, STEADFAST_ALPHA);
         if (e.charmed) this.auras.add(x, z, HERO_RING[r.hero] * 1.5, CHARM_GLOW, 0.7 + Math.sin(this.time * 6) * 0.2);
       }
+      // gaps5 skins v2: the coat's trail (the Mythic parade body grows with level and takedowns)
+      this.trail(r, e, x, z, dead || stealth || !r.visible, mi.state === 'moving', dt);
       // living pass: footfall dust and wading splashes (the hidden-enemy rule and the caps live in ContactFx)
       if (contact && !dead && r.visible) contact.hero(e, x, z, r.yaw, ch.anim.stridePhase, mi.state === 'moving' && lift < 0.05);
     }
@@ -995,6 +1062,8 @@ export class HeroView {
     if (r.seen !== this.hideStamp) {
       r.ch.object.visible = false;
       r.visible = false;
+      const t = this.trails.get(r.id);
+      if (t) t.mesh.count = 0;
     }
   };
 
@@ -1010,16 +1079,4 @@ export class HeroView {
   }
 }
 
-export interface LobbyHero {
-  /** Place and turn this (it faces +X at rotation.y 0, like the match models). */
-  object: THREE.Group;
-  /** The character (animator, mesh) for idle life and the hop. */
-  ch: Character;
-  dispose(): void;
-}
-
-/** A standalone hero for the lobby turntable, the results screen and the portraits (full detail, outlined). */
-export function lobbyHero(hero: HeroId, team: 0 | 1 = 0, look?: Look | null, o: { outline?: boolean } = {}): LobbyHero {
-  const ch = makeHero(hero, team, look ?? null, { detail: DETAIL.lobby, outline: o.outline ?? true, shadows: true });
-  return { object: ch.object, ch, dispose: () => ch.dispose() };
-}
+export { lobbyHero, type LobbyHero } from './lobbyHero';

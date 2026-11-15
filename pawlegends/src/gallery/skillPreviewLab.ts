@@ -31,6 +31,8 @@ const dyeQ = q.get('dye');
 const look: Look | null = coatQ ? { coat: coatQ, chroma: null, ...(dyeQ ? { dye: dyeQ } : {}) } : null;
 
 const { mountSkillPreview } = await import('../ui/preview/skillPreview');
+// gaps5 Mythic: `evolve=1` plays the Heroes browser's Evolve clip (the parade cycles through its stages)
+if (q.get('evolve') === '1') (await import('../render/skins/coatTrailData')).setTrailPreview(true);
 const level = Number(q.get('level') ?? 0) || undefined;
 const clip = q.get('clip') === 'recall' || q.get('clip') === 'takedown' ? (q.get('clip') as 'recall' | 'takedown') : null;
 const p = mountSkillPreview(box, hero, clip ? 'r' : slot, { tier, autoplay: q.get('capture') !== '1', clip, ...(look ? { look: () => look } : {}), ...(level ? { level } : {}) });

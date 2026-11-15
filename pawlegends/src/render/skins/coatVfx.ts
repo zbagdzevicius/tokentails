@@ -34,6 +34,13 @@ export const COAT_VFX: Readonly<Record<string, CoatSig>> = Object.freeze({
   'coat.clem.store_club_sandwich': { glow: 0xffcf3a, accent: 0x7ccf4a, parts: ['a club sandwich hat with a toothpick flag', 'a lettuce ruff', 'toast pauldrons', 'a pickle on her blade'] },
   // Kebab King (gaps4): grill flame orange and a king's gold
   'coat.frankie.store_kebab_king': { glow: 0xff8a3a, accent: 0xffd34d, parts: ['a gold kebab crown', 'a kebab skewer along his back', 'a pepper on his tail'] },
+  // gaps5 skins v2: pepperoni red and basil; bumper cyan and dock white; cheese and pickle; lantern red and festival
+  // gold; strawberry pink and sprinkle blue
+  'coat.domino.store_pizzaiolo': { glow: 0xff5a3a, accent: 0xffd34d, parts: ['a chef hat', 'pepperoni spots', 'a pizza cutter', 'cheese strings'] },
+  'coat.nugget.store_robo_vac': { glow: 0x3fd8ff, accent: 0xf4f8ff, parts: ['a robot vacuum he rides', 'aviator goggles', 'a dock antenna'] },
+  'coat.meatball.store_drive_thru': { glow: 0xffcf3a, accent: 0x7ccf4a, parts: ['a sesame bun hat', 'a patty, tomato, lettuce and melting cheese', 'pickle shoulder pads', 'a paper takeout bag'] },
+  'coat.frankie.store_paper_parade': { glow: 0xff4a3a, accent: 0xffd34d, parts: ['a paper dragon mask with antlers and a mane', 'paper lanterns', 'a parade dragon body that grows during the match'] },
+  'coat.marshmallow.store_soft_serve': { glow: 0xff8fc8, accent: 0x8fd8ff, parts: ['a soft serve swirl with a cherry', 'rainbow sprinkles', 'a waffle cone collar'] },
 });
 
 export const coatSig = (coatId: string | null | undefined): CoatSig | null => (coatId ? (COAT_VFX[coatId] ?? null) : null);

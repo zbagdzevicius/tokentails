@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { HERO_IDS } from '../data/heroes';
 import type { HeroId } from '../data/heroes/types';
-import { lobbyHero } from '../render/views/heroView';
+import { lobbyHero } from '../render/views/lobbyHero';
 
 const W = 420;
 const H = 574;

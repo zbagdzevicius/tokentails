@@ -59,11 +59,13 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   await expect(shop).toContainText('Cosmetic only: nothing here changes a match');
   await shop.locator('.cst-tabs [data-tab="coats"]').click();
   // CARD-SKINS.md: 6 effect coats (Epic $7.99, Legendary $14.99, tier word on the tile; gaps4 added Club Sandwich and
-  // Kebab King) and the 16 Rare coats
-  await expect(shop.locator('[data-sel]')).toHaveCount(22);
+  // Kebab King, gaps5 the skins v2 five) and the 16 Rare coats
+  await expect(shop.locator('[data-sel]')).toHaveCount(27);
   // every coat card shows the coat on its hero (a picture, never a text-only tile)
-  await expect.poll(() => shop.locator('[data-sel] img.cst-art').evaluateAll((els) => els.filter((e) => (e as HTMLImageElement).getAttribute('src') || (e as HTMLImageElement).getAttribute('srcset')).length)).toBe(22);
-  await expect(shop.locator('[data-sel][data-rung="LEGENDARY"]')).toHaveCount(2);
+  await expect.poll(() => shop.locator('[data-sel] img.cst-art').evaluateAll((els) => els.filter((e) => (e as HTMLImageElement).getAttribute('src') || (e as HTMLImageElement).getAttribute('srcset')).length)).toBe(27);
+  // Thunderpaw, Bloomtail, Pizzaiolo, Drive-Thru Deluxe and the Mythic Paper Parade Dragon (Legendary band)
+  await expect(shop.locator('[data-sel][data-rung="LEGENDARY"]')).toHaveCount(5);
+  await expect(shop.locator('[data-sel="pl_coat_frankie_paper_parade"]')).toContainText(/Mythic · (\$|€)14\.99/);
   await expect(shop.locator('[data-sel="pl_coat_brutus_thunderpaw"]')).toContainText(/Legendary · (\$|€)14\.99/);
   // a card opens its detail (the coat on its hero) with the buy button
   await shop.locator(`[data-sel="${SKU}"]`).click();

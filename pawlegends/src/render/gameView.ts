@@ -37,6 +37,7 @@ import { mixHex } from './skins/classify';
 import { TierFx, type SkinFxMode } from './skins/tierFx';
 import { CardVfx, tinted } from './skins/cardFx';
 import { CoatVfx } from './skins/coatFx';
+import { loadCoatParts } from './chars/coatParts';
 import { CompanionView } from './views/companionView';
 import { AUTO_TARGET_HOLD, CHEVRON_LIFE, chevronSize, chevronTexture, MOVE_RING_LIFE, TARGET_MARK_LIFE, targetMarkAlpha } from './fx/orderMarks';
 import { boldRingTexture, crosshairTexture, dashRingTexture, DecalLayer, ringTexture } from './views/decals';
@@ -559,6 +560,8 @@ export class GameView {
     this.effects.cards = new CardVfx(this.particles, this.shock as never);
     // gaps3 coat-fx: the coats' own ultimate, recall and takedown effects (pooled particles, CombatVfx's bolts)
     const coats = new CoatVfx(this.particles as never, this.shock as never);
+    // gaps5: the coat part builders (their own chunk), in case the boot preload has not landed yet
+    void loadCoatParts();
     const vfx = this.vfx;
     coats.bolt = (ax, ay, az, bx, by, bz, c) => vfx.lightning(ax, ay, az, bx, by, bz, c);
     this.effects.coats = coats;

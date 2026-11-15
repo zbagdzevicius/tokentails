@@ -30,6 +30,8 @@ function boot(): void {
   const app = document.getElementById('app');
   if (!app) throw new Error('no #app element');
   new App(app, bridge);
+  // gaps5: the coat part builders are their own chunk (render/chars/coatParts.ts); fetch them once the first screen is up
+  setTimeout(() => void import('./render/chars/coatParts').then((m) => m.loadCoatParts()), 1500);
 }
 
 try {

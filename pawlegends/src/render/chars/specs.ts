@@ -287,7 +287,7 @@ export function heroSpec(hero: HeroId, team: 0 | 1, look: Look, detail: number, 
   const extras = (A: Parameters<NonNullable<ChibiSpec['gear']>>[0]): void => {
     if (gem !== null) A.add('chest', new THREE.OctahedronGeometry(0.03, 0), { m: mat([0, 0.12, 0.17], [0, 0, 0], [0.8, 1.1, 0.6]), color: gem });
     if (band !== null) G.armband(A, band);
-    parts?.build(A);
+    parts?.build(A, t);
   };
   const spec = heroBase(hero, team, look, detail, { t, skin, skinCoat, founder, dawn, pinkBow, chroma, capeColor, trim, capeHem, extras, parts });
   if (!skin || !skinCoat || spec.head !== 'cat') return spec;
