@@ -40,8 +40,14 @@ export const ICON_FAMILY = [
  * The pages and what their canonical must be. `request` may add a query the canonical must drop.
  * `noindex` pages have no canonical.
  */
+/**
+ * `staticOrigin`: the web home page is the static landing in public/home (scripts/sync-home.mjs), whose canonical is
+ * always production; the Next pages build theirs from NEXT_PUBLIC_DOMAIN. So "/" is checked against production and the
+ * site origin the other pages must share is learned from the first Next page (a staging or e2e build differs).
+ */
+export const PRODUCTION_ORIGIN = "https://tokentails.com";
 export const PAGES = [
-  { request: "/", canonical: "/" },
+  { request: "/", canonical: "/", staticOrigin: PRODUCTION_ORIGIN },
   { request: "/game?ref=check-meta", canonical: "/game" },
   { request: "/heist", canonical: "/heist" },
   { request: "/packs", canonical: "/packs" },
@@ -280,8 +286,8 @@ export async function runCheckMeta({ base, fetchOg = false, fetcher = fetchRaw }
       continue;
     }
     const html = res.body.toString("utf8");
-    const checked = checkPageHtml(html, { canonical: page.canonical, origin });
-    if (!origin && checked.canonical) {
+    const checked = checkPageHtml(html, { canonical: page.canonical, origin: page.staticOrigin ?? origin });
+    if (!origin && !page.staticOrigin && checked.canonical) {
       try {
         origin = new URL(checked.canonical).origin;
       } catch {

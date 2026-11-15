@@ -4,7 +4,7 @@ import { CHAINS } from 'src/shelter/onchain/wallet.config';
 import { ENV_MAINNET_KEEPER, ENV_ON, expectRaveError, raveHarness, T0 } from './rave.harness-spec';
 import { readShelterConfig } from 'src/shelter/onchain/shelter-onchain.config';
 import { RAVE_PUBLIC_STRIPE_PK_LIVE, readRaveConfig, stripeKeyAccountHint } from './rave.config';
-import { raveDefaultNames } from './rave-names';
+import { RAVE_DEFAULT_NAMES, resolveRaveNames } from './rave-names';
 import { isRaveAmount, publicOrder, raveMemo, raveMemo32, RAVE_SYSTEM_USER, usdcPaidToShelters } from './rave.service';
 
 /*
@@ -179,7 +179,16 @@ describe('RaveService checkout', () => {
             card({ names: ['Mochi', '', 'Disco Paws'], x: 'https://x.com/SomeOne', clientKey: '8f6c1c0e-aaaa-bbbb' }),
             T0
         );
-        const defaults = raveDefaultNames(res.orderId, 5);
+        // The surprise slots come from the random order id; one whose default is a name the buyer typed
+        // ("Mochi" is also a default name) moves to a fresh one, so the expected list is resolved the same way.
+        const resolved = resolveRaveNames({ cats: 5, names: ['Mochi', '', 'Disco Paws'] }, res.orderId);
+        if (!resolved.ok) throw new Error('names refused');
+        const surprise = [1, 3, 4].map(i => resolved.value.names[i]);
+        for (const name of surprise) {
+            expect(RAVE_DEFAULT_NAMES).toContain(name);
+            expect(['Mochi', 'Disco Paws']).not.toContain(name);
+        }
+        expect(new Set(surprise).size).toBe(3);
         expect(res).toEqual({
             orderId: expect.stringMatching(/^rv_[0-9a-f]{16}$/),
             clientSecret: 'pi_test_1_secret_fake',
@@ -187,7 +196,7 @@ describe('RaveService checkout', () => {
             donationCents: 500,
             feeCents: 46,
             cats: 5,
-            names: ['Mochi', defaults[1], 'Disco Paws', defaults[3], defaults[4]],
+            names: ['Mochi', surprise[0], 'Disco Paws', surprise[1], surprise[2]],
             x: 'SomeOne',
             country: null,
             countrySource: null,

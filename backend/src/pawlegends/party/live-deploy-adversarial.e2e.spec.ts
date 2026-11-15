@@ -633,9 +633,16 @@ describe('live-match deploys, adversarial (LIVE-MATCH-DEPLOYS.md §9)', () => {
         A.kill('SIGTERM');
         await m.a.until(() => m.a.closed, 15_000);
         stop1();
+        // Redial the way the client does (the relay's retryMs, as in the SIGTERM case above). This case is about the room
+        // keeping its sim version across the move, not how fast the seat binds (the SIGTERM case asserts that), so the
+        // window is wider: on a CI runner whose cores the other jest workers share, one restore once took over 15 s.
+        const retryMs = (c: Player) => {
+            const e = [...c.json].reverse().find(j => j.t === 'error' && typeof j.retryMs === 'number');
+            return e?.retryMs ?? 250;
+        };
         const [ra, rb] = await Promise.all([
-            reconnect(B.port, m.wa.resumeToken, 'player-a-key-0001', 0, 15_000, OLD_SIM),
-            reconnect(B.port, m.wb.resumeToken, 'player-b-key-0001', 0, 15_000, OLD_SIM),
+            reconnect(B.port, m.wa.resumeToken, 'player-a-key-0001', retryMs(m.a), 45_000, OLD_SIM),
+            reconnect(B.port, m.wb.resumeToken, 'player-b-key-0001', retryMs(m.b), 45_000, OLD_SIM),
         ]);
         clients.push(ra.c, rb.c);
         const last = m.a.turns[m.a.turns.length - 1].turn;

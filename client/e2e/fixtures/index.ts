@@ -99,6 +99,18 @@ export async function gotoAndSettle(page: Page, path: string, settleMs = 1500): 
   await page.waitForTimeout(settleMs);
 }
 
+/**
+ * MY HOME is the Cat Yard (components/home/HomeYard.tsx) since Oct 5, 2026; the Phaser HOME scene is
+ * its fallback when the yard module cannot load. Specs about the Phaser HOME and Shelter scenes
+ * (render foundation, world look) call this before opening /game: the yard module answers 404, so
+ * HOME falls back to Phaser, the path a browser without the yard takes.
+ */
+export async function usePhaserHome(page: Page): Promise<void> {
+  await page.route(/\/heist-game\/build\/home-[^/]*\.js(\?.*)?$/, (route) =>
+    route.fulfill({ status: 404, contentType: "text/plain", body: "not found" }),
+  );
+}
+
 /** The level map's first-level control and the in-level marker, per routed mode. */
 const FIRST_LEVEL = {
   cupid: {

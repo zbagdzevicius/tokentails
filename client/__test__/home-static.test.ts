@@ -122,6 +122,30 @@ describe("public/home/index.html", () => {
     }
   });
 
+  it("keeps a ?ref referrer under tt.pendingRef, first referrer wins, user ids only (F5.7)", () => {
+    const script = /<script>(try\{var r=\(new URLSearchParams[^<]*)<\/script>/.exec(html)?.[1];
+    expect(script).toBeTruthy();
+    const run = (search: string, stored: string | null) => {
+      const store = new Map<string, string>(stored ? [["tt.pendingRef", stored]] : []);
+      const localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) };
+      new Function("location", "localStorage", script!)({ search }, localStorage);
+      return store.get("tt.pendingRef") ?? null;
+    };
+    const id = "64e2e00000000000000000aa";
+    expect(run(`?ref=${id}`, null)).toBe(id);
+    expect(run(`?ref=${id}`, "64e2e00000000000000000bb")).toBe("64e2e00000000000000000bb");
+    expect(run("?ref=not-an-id", null)).toBeNull();
+    expect(run("", null)).toBeNull();
+  });
+
+  it("cites only registry facts with data-claim, so /impact has a row for each (plan G11)", () => {
+    const registry = fs.readFileSync(path.resolve(__dirname, "../lib/facts.generated.ts"), "utf8");
+    const ids = new Set(Array.from(registry.matchAll(/"id": "([^"]+)"/g), (m) => m[1]));
+    const cited = Array.from(html.matchAll(/data-claim="([^"]*)"/g), (m) => m[1]);
+    expect(cited.length).toBeGreaterThan(0);
+    expect(cited.filter((id) => !ids.has(id))).toEqual([]);
+  });
+
   it("ships no dev comments (internal paths and plan names stay in the landing source)", () => {
     expect(html).not.toMatch(/<!--|\/\*/);
     expect(html).not.toMatch(/landing-poc|STORYBOARD|deck-assets|v16c1/);

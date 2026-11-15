@@ -3,6 +3,8 @@ import { expect, gotoAndSettle, test } from "./fixtures";
 
 // Plan G11 / F7.6: every claim the landing cites is listed on /impact; the ProofDrawer is an
 // accessible bottom sheet (axe, Esc, focus return); /proof redirects to /impact on web.
+// The web landing ("/") is the static home page since Oct 22, 2026 (public/home): it cites claims
+// with data-claim but has no drawer, so the drawer is checked on /cats, whose claim button opens it.
 
 test.describe("impact", () => {
   test("every data-claim id on / appears on /impact", async ({ page }) => {
@@ -32,14 +34,14 @@ test.describe("impact", () => {
   test("the proof drawer opens, passes axe, closes on Escape and returns focus", async ({
     page,
   }) => {
-    await gotoAndSettle(page, "/");
-    const claim = page.locator('button[data-claim="F-011"]');
+    await gotoAndSettle(page, "/cats");
+    const claim = page.locator('button[data-claim="F-026"]');
     await claim.scrollIntoViewIfNeeded();
     await claim.click();
     const dialog = page.getByRole("dialog", { name: "About this number" });
     await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText("180K+ on X (Sep 2026)");
-    await expect(dialog.locator('a[href="/impact#F-011"]')).toBeVisible();
+    await expect(dialog).toContainText("donated directly in crypto and goods");
+    await expect(dialog.locator('a[href="/impact#F-026"]')).toBeVisible();
 
     const results = await new AxeBuilder({ page })
       .include('[role="dialog"]')

@@ -20,6 +20,8 @@
  * - fails on the wallet button layout Stripe rejects (overflow never needs maxRows 0);
  * - strips HTML comments and the block comments in <style> and <script> (dev notes that name internal
  *   files and plans; they never reach visitors);
+ * - keeps a `?ref=` referrer for the game (REF_CAPTURE), like the Next pages;
+ * - drops `data-claim` tags that name no registry fact (each cited claim has a row on /impact);
  * - turns off the click beacon (POST /api/evt is a landing-poc Vercel function with no
  *   tokentails.com counterpart), so the page sends nothing and logs nothing.
  * It fails when a referenced file is missing or a known pattern was not found, so a changed
@@ -48,6 +50,12 @@ export const API_PATHS = Object.freeze({
   "/api/impact.json": `${API}/impact`,
   "/api/treats.json": `${API}/shelter/donate/status`,
 });
+
+/**
+ * Referral capture (plan F5.7, context/auth/pendingRef.ts): `?ref=<user id>` on the home page is stored once under
+ * `tt.pendingRef` (the first referrer wins), as every Next page does, so /game sends it when the guest becomes an account.
+ */
+export const REF_CAPTURE = "<script>try{var r=(new URLSearchParams(location.search).get('ref')||'').trim(),k='tt.pendingRef',o=/^[a-f0-9]{24}$/i;if(o.test(r)&&!o.test(localStorage.getItem(k)||''))localStorage.setItem(k,r)}catch(e){}</script>";
 
 /** The icon family and manifest pages/_document.js renders on every Next page. */
 const ICON_HEAD = [
@@ -116,6 +124,20 @@ export function stripComments(html) {
     .replace(/\n{3,}/g, "\n\n");
 }
 
+/** Fact ids in the claims registry (lib/facts.generated.ts, generated from the private registry). */
+export function registryClaimIds(source = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../lib/facts.generated.ts"), "utf8")) {
+  return new Set([...source.matchAll(/"id": "([A-Z]+-\d+[a-z]?)"/g)].map((m) => m[1]));
+}
+
+/**
+ * A `data-claim` attribute names a registry fact, which /impact lists (docs/CLAIMS.md "Citing a claim in code").
+ * The landing source also tags copy that is a price rule rather than a fact (Tails Club's 50/50 split,
+ * `club-5050`): those tags are dropped, so the page never cites a claim /impact cannot show.
+ */
+export function dropUnknownClaims(html, ids = registryClaimIds()) {
+  return html.replace(/ data-claim="([^"]*)"/g, (tag, id) => (ids.has(id) ? tag : ""));
+}
+
 export function rewriteHtml(html) {
   for (const v of SIBLINGS) html = html.split(`../${v}/media/`).join(`${BASE}${v}/`);
   html = must(html, /(['"(])media\//g, `$1${BASE}`, "own media paths");
@@ -123,12 +145,14 @@ export function rewriteHtml(html) {
   html = must(html, /var API_EVT='\/api\/evt\/'/, "var API_EVT=''", "beacon endpoint", 1);
   html = must(html, /function track\(evt,cta\)\{/, "function track(evt,cta){if(!API_EVT)return;", "beacon guard", 1);
   html = must(html, /<link rel="icon" href="[^"]*">/, ICON_HEAD, "favicon link", 1);
+  html = must(html, /<\/head>/, `${REF_CAPTURE}\n</head>`, "head end", 1);
   for (const [path, url] of Object.entries(API_PATHS)) html = html.split(`'${path}'`).join(`'${url}'`);
   if (/['"]\/api\//.test(html)) fail("a same-origin /api/ path is left in the page (add it to API_PATHS)");
   // Stripe throws on overflow 'never' unless maxRows is 0 ("only supported when options.layout.maxRows is 0"),
   // and the Apple Pay / Google Pay buttons then never mount.
   if (/overflow:'never'/.test(html) && !/maxRows:0,overflow:'never'/.test(html)) fail("wallet layout: overflow 'never' needs maxRows:0");
   html = stripComments(html);
+  html = dropUnknownClaims(html);
   // Same-origin links and assets; the tags that must name the production origin stay absolute.
   html = html
     .split("\n")

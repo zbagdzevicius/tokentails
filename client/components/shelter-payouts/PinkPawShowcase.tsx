@@ -182,7 +182,7 @@ export const PinkPawCatsSection = ({ target, title = true }: { target?: string; 
   <div className="flex flex-col gap-3 scroll-mt-28" id="pink-paw-cats" data-testid="pink-paw-cats-section">
     {title && (
       <h3 className="font-primary text-p3 md:text-p2 uppercase leading-none text-white">
-        Meet the cats <span className="glow text-tt-cream">your treats help</span>
+        Meet the cats <span className="glow text-white">your treats help</span>
       </h3>
     )}
     <p className="text-p6 md:text-p5 text-tt-cream/75">

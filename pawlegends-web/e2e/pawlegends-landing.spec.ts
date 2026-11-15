@@ -1,3 +1,4 @@
+import { gridHeroes } from "../components/pawlegends/landing/roster";
 import { expect, gotoAndSettle, test } from "./fixtures";
 
 /**
@@ -12,9 +13,12 @@ test.describe("/ landing", () => {
     await gotoAndSettle(page, "/?utm_source=e2e");
     await expect(page).toHaveURL(/\/\?utm_source=e2e$/);
     await expect(page.getByRole("heading", { level: 1, name: "Pawlegends" })).toBeVisible();
-    // One grid since the 2026-11-12 landing (no Cats / Dogs switch any more); twelve a side since the v29 four
-    await expect(page.locator(".pll .grid .tile.cat")).toHaveCount(12);
-    await expect(page.locator(".pll .grid .tile.dog")).toHaveCount(12);
+    // One grid since the 2026-11-12 landing (no Cats / Dogs switch any more). The counts follow the released roster
+    // (the shipped game build's sim version), so a roster release changes the page and this check together.
+    const grid = gridHeroes();
+    await expect(page.locator(".pll .grid .tile.cat")).toHaveCount(grid.filter((h) => h.side === "cat").length);
+    await expect(page.locator(".pll .grid .tile.dog")).toHaveCount(grid.filter((h) => h.side === "dog").length);
+    expect(grid.length).toBeGreaterThanOrEqual(24);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });
