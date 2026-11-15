@@ -87,6 +87,12 @@ async function isTopmost(page: Page, name: string): Promise<boolean> {
 test.use({ allowUnmocked: true });
 test.setTimeout(360_000);
 
+// Leave the WebGL page inside this test's time: tearing a software-WebGL scene down when the context closes held up
+// the next test's browser.newContext on the same worker past its 60 s (impact.spec, CI Nov 15, 2026).
+test.afterEach(async ({ page }) => {
+  await page.goto("about:blank").catch(() => undefined);
+});
+
 test.describe("MY HOME: the Cat Yard", () => {
   test("opens with the player's cats; GO BACK and SHELTER are reachable; FEED saves EAT", async ({ page, backend }, info) => {
     test.skip(info.project.name === "mobile-360", "covered by mobile-390");

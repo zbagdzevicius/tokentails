@@ -166,6 +166,12 @@ async function useQaHeist(page: Page) {
 
 const queueOf = (page: Page) => page.evaluate(() => localStorage.getItem("tt.heist.queue.v1"));
 
+// Leave the WebGL page inside this test's time: tearing a software-WebGL scene down when the context closes held up
+// the next test's browser.newContext on the same worker past its 60 s (impact.spec, CI Nov 15, 2026).
+test.afterEach(async ({ page }) => {
+  await page.goto("about:blank").catch(() => undefined);
+});
+
 test.describe("game picker (G2 layer 1, G14)", () => {
   test.use({ allowUnmocked: true });
 
