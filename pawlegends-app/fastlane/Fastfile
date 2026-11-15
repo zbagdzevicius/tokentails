@@ -20,6 +20,7 @@
 #   mac_submit    submit the latest macOS build for review; only with SUBMIT=yes; Apple releases it as soon as it is approved
 #   mac_certs     make the Mac Installer Distribution certificate once and print the secret steps (MAC_INSTALLER_P12)
 #   auto_release  switch every version waiting for review (iOS and macOS) to release automatically on approval
+#   status        print every iOS/macOS version and its review state and the newest builds (changes nothing)
 # Run them as `bundle exec fastlane mac_beta` (not under `ios`). The macOS platform must be added to the app record
 # in App Store Connect first (App Information → Add platform → macOS). Optional, only if cloud signing cannot make
 # the Mac installer certificate: MAC_INSTALLER_P12 (base64) and MAC_INSTALLER_PASSWORD, made once by `fastlane mac_certs`.
@@ -418,6 +419,24 @@ lane :mac_submit do
 end
 
 desc "Switch the iOS and macOS versions waiting for review to release automatically as soon as Apple approves them"
+desc "Print what players get from App Store Connect today: every iOS/macOS version and its state, the newest builds (changes nothing)"
+lane :status do
+  asc_api_key
+  app = Spaceship::ConnectAPI::App.find(APP_ID)
+  UI.user_error!("No App Store Connect app record for #{APP_ID}") unless app
+  [Spaceship::ConnectAPI::Platform::IOS, Spaceship::ConnectAPI::Platform::MAC_OS].each do |platform|
+    versions = app.get_app_store_versions(filter: { platform: platform }, includes: "build")
+    UI.message("#{platform}: no versions") if versions.empty?
+    versions.each do |v|
+      build = v.build ? "build #{v.build.version}" : "no build attached"
+      UI.message("#{platform} #{v.version_string}: #{v.app_store_state}, #{v.release_type}, #{build}, created #{v.created_date}")
+    end
+  end
+  Spaceship::ConnectAPI.get_builds(filter: { app: app.id }, sort: "-uploadedDate", limit: 8).each do |b|
+    UI.message("build #{b.app_version} (#{b.version}): #{b.processing_state}, uploaded #{b.uploaded_date}, expired #{b.expired}")
+  end
+end
+
 lane :auto_release do
   asc_api_key
   app = Spaceship::ConnectAPI::App.find(APP_ID)
@@ -462,6 +481,7 @@ end
 #   build     the signed release bundle (.aab); the web bundle must be built and synced first: npm run build:android
 #   internal  build (or AAB_PATH) + upload to the internal testing track (or PLAY_TRACK), with the changelog
 #   metadata  upload the listing: text, icon, feature graphic, phone screenshots (fastlane/metadata_android; no binary)
+#   status    print every track's releases (version codes, status, rollout); changes nothing
 #   promote   copy the latest internal release to production as a DRAFT (a person rolls it out in Play Console)
 #
 # The listing lives in fastlane/metadata_android, not fastlane/metadata/android: the iOS lanes read fastlane/metadata,
@@ -553,6 +573,28 @@ platform :android do
       skip_upload_changelogs: true,
       sync_image_upload: true
     )
+  end
+
+  desc "Print every Play track and its releases: name, version codes, status, rollout fraction (changes nothing)"
+  lane :status do
+    require "supply"
+    Supply.config = FastlaneCore::Configuration.create(Supply::Options.available_options, { package_name: APP_ID, json_key_data: play_json_key! })
+    client = Supply::Client.make_from_config
+    client.begin_edit(package_name: APP_ID)
+    begin
+      tracks = client.tracks
+      UI.message("No tracks") if tracks.empty?
+      tracks.each do |t|
+        releases = t.releases || []
+        UI.message("#{t.track}: no releases") if releases.empty?
+        releases.each do |r|
+          fraction = r.user_fraction ? ", rollout #{(r.user_fraction * 100).round}%" : ""
+          UI.message("#{t.track}: #{r.name} codes #{(r.version_codes || []).join(',')} status #{r.status}#{fraction}")
+        end
+      end
+    ensure
+      client.abort_current_edit
+    end
   end
 
   desc "Copy the latest internal release to production as a draft (roll it out by hand in Play Console)"

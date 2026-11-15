@@ -7,6 +7,7 @@
 #             draft in Play Console)
 #   metadata  listing text, icon, feature graphic, phone screenshots (fastlane/metadata_android)
 #   promote   copy the latest internal release to production as a draft (type PROMOTE; roll it out in Play Console)
+#   status    print every track's releases, version codes, status and rollout (read only)
 #
 # Secrets (Settings → Secrets and variables → Actions), created by the founder (docs/plans/moba/PLAY-STORE.md "Secrets"):
 #   ANDROID_UPLOAD_KEYSTORE_B64 (base64 of the upload .jks), ANDROID_UPLOAD_KEYSTORE_PASSWORD, ANDROID_UPLOAD_KEY_ALIAS,
@@ -22,11 +23,11 @@ on:
   workflow_dispatch:
     inputs:
       lane:
-        description: 'build = signed .aab artifact only, upload = build + upload to the track, metadata = listing only, promote = internal → production draft'
+        description: 'build = signed .aab artifact only, upload = build + upload to the track, metadata = listing only, promote = internal → production draft, status = print every track (read only)'
         required: true
         default: upload
         type: choice
-        options: [build, upload, metadata, promote]
+        options: [build, upload, metadata, promote, status]
       track:
         description: 'Play track for upload'
         required: true
@@ -182,6 +183,7 @@ jobs:
             upload) AAB_PATH="$PWD/android/app/build/outputs/bundle/release/app-release.aab" bundle exec fastlane android internal ;;
             metadata) bundle exec fastlane android metadata ;;
             promote) bundle exec fastlane android promote ;;
+            status) bundle exec fastlane android status ;;
           esac
       - name: Remove the upload key
         if: always()
