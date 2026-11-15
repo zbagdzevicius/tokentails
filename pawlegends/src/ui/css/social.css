@@ -91,6 +91,8 @@
 }
 .pl-ranked-line { margin: 4px; color: var(--v6-cream); }
 .pl-invite-toast { gap: 10px; box-shadow: inset 4px 0 0 var(--v6-rose), var(--v6-shadow-2); }
+/* gaps5: a Ranked duo invite to a player who has not unlocked Ranked: the lock line under the name */
+.pl-invite-toast .pl-invite-lock { display: inline-block; margin-top: 2px; font-size: 12px; line-height: 1.25; color: var(--v6-muted); max-width: 34ch; }
 @media (max-height: 340px) { .pl-social-row { min-height: 44px; } }
 @media (max-height: 300px) { .pl-social-st { display: none; } }
 

@@ -41,6 +41,18 @@ export interface HistoryEntry {
   noReplay?: 'party' | null;
   /** HIGHLIGHTS.md: the match's highlight reel (cached; recomputed when the detector or the record changes). */
   highlights?: HighlightReel | null;
+  /** gaps5 polish 3: ticks of the player's emotes (the detector's optional sidecar; solo matches with a replay). */
+  emotes?: number[];
+}
+
+/** Most emote ticks a row keeps. */
+export const EMOTES_MAX = 60;
+
+/** The emote sidecar a row may keep: whole non-negative ticks, sorted, at most EMOTES_MAX (else undefined). Pure. */
+export function cleanEmotes(v: unknown): number[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out = v.filter((t): t is number => typeof t === 'number' && Number.isInteger(t) && t >= 0 && t < 1e7).slice(0, EMOTES_MAX);
+  return out.length ? out.sort((a, b) => a - b) : undefined;
 }
 
 export interface KVStore {
@@ -115,7 +127,9 @@ export function recordMoment(entry: Omit<HistoryEntry, 'replay'>, record: Replay
     replays[entry.id] = record;
     kept = true;
   }
-  const row: HistoryEntry = { ...entry, replay: kept };
+  const emotes = kept ? cleanEmotes(entry.emotes) : undefined;
+  const { emotes: _drop, ...rest } = entry;
+  const row: HistoryEntry = { ...rest, replay: kept, ...(emotes ? { emotes } : {}) };
   const next = [row, ...rows.filter((r) => r.id !== row.id)].slice(0, HISTORY_MAX);
   // newest REPLAY_MAX replays only, and only of rows still listed
   const order = next.filter((r) => replays[r.id]).map((r) => r.id);

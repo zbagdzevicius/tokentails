@@ -126,8 +126,12 @@ level, so the ladder uses match and win counts, which already sync and only go u
 
 ## Not done yet
 
-- A Ranked duo invite to a friend who has not unlocked Ranked is not checked yet (the spec asks for the lock line
-  there). Party invites for every other mode are deliberately not gated.
+- Ranked duo (gaps5): an invite sent from a Ranked party carries `mode: 'ranked'` (Social sheet → host bridge →
+  `POST /pawlegends/social/invite`), and the friend's game checks its own Ranked unlock: the invite toast reads
+  "Sam invites you to a Ranked duo" and, when locked, "Ranked is locked for you: Finish 10 matches and win 3 (4/10,
+  1/3). Join to play Casual together". The relay still checks every member's saved matches; when the leader has them
+  and the friend does not, the queue card says "Your duo partner has not unlocked Ranked yet · 4/10 matches". Party
+  invites for every other mode are deliberately not gated.
 - `MODE_UNLOCKS` is client-only. To tune it without a release, live ops could send it in `GET /pawlegends/config`.
 - Once players have been through it for a week, read `mode_unlock` (via `play`) and `mode_locked_tap` and tune the
   ladder.

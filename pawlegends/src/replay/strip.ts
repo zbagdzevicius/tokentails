@@ -21,6 +21,8 @@ export interface StripOpts {
   record: ReplayRecord;
   /** Display name per slot (the results' names). */
   names: readonly string[];
+  /** gaps5 polish 3: ticks of the player's emotes (the "Emote storm" highlight). */
+  emotes?: readonly number[];
   /** Heroes per slot (the welcome's picks). */
   picks: readonly HeroId[];
   /** The history row's cached reel when it is still valid. */
@@ -112,7 +114,7 @@ export function mountHighlights(o: StripOpts): { dispose(): void } {
 
   if (o.cached) done(o.cached, 0, true);
   else {
-    scan = scanReel(o.record, { names: o.names.slice() });
+    scan = scanReel(o.record, { names: o.names.slice(), ...(o.emotes?.length ? { emotes: o.emotes.slice() } : {}) });
     void scan.done.then((r) => done(r.reel, r.ms || performance.now() - t0, false));
     timer = setTimeout(() => fallback('slow'), SCAN_CAP_MS);
   }

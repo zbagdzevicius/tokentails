@@ -108,6 +108,8 @@ const ARG_KEYS = [
   "pushAuth",
   "cats",
   "tz",
+  // gaps5: a Ranked duo invite ("ranked")
+  "mode",
 ] as const;
 export type PawlegendsApiArgs = Partial<Record<(typeof ARG_KEYS)[number], string | number | boolean>>;
 
@@ -246,7 +248,9 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       return { method: "GET", path: "/pawlegends/social/recent", auth: "registered" };
     case "invite.send": {
       const to = str(a.to, CODE);
-      return to ? { method: "POST", path: "/pawlegends/social/invite", body: { to }, auth: "registered" } : null;
+      // gaps5: only "ranked" rides along (the friend's game checks its own Ranked unlock)
+      const mode = a.mode === "ranked" ? { mode: "ranked" } : {};
+      return to ? { method: "POST", path: "/pawlegends/social/invite", body: { to, ...mode }, auth: "registered" } : null;
     }
     case "ranked.status":
       return { method: "GET", path: "/pawlegends/ranked/status", auth: "none" };

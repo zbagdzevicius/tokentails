@@ -164,6 +164,8 @@ export const COPY = Object.freeze({
   rankedClosed: (online: number, need: number) => `Ranked opens at ${need} players online · ${online} online now`,
   rankedAccount: 'Sign in to play Ranked',
   rankedMatches: (have: number, need: number) => `Ranked unlocks after ${need} matches · ${have}/${need}`,
+  // gaps5 polish 4: a Ranked duo whose friend has not unlocked Ranked yet
+  rankedMate: (have: number, need: number) => `Your duo partner has not unlocked Ranked yet · ${have}/${need} matches. Queue solo or play Casual together`,
   rankedPending: 'Saving your last Ranked match. Search again in a moment',
   rankedParty: 'Ranked is solo or duo',
   pvpFoundLine: (mine: [number, number], theirs: [number, number], side: string) =>

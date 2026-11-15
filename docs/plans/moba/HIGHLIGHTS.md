@@ -22,8 +22,12 @@ Shipped as specified below, with these differences:
 - **Bots in titles.** A bot's funny moment has its own "Bot ..." title (`Bot vs tower: tower wins`, `Bot lost to a
   minion`); persona names shorten to the first name in subs (`Muffin (bot)`); every solo sub ends `vs bots`.
 - **Clutch via Nine Lives** gets its own titles (`Nine Lives, used one`), never an "Escaped on 32% HP".
-- **Emote spam**: the rule exists (`DetectorMeta.emotes`), the MatchSession emote log is not built yet (follow-up),
-  so it stays silent in shipped matches.
+- **Emote spam** (gaps5): MatchSession logs the player's Wave ticks into `HistoryEntry.emotes`; the window is 270
+  ticks because the solo Wave has a 3 s cooldown (3 in 150 ticks could never happen).
+- **One title per reel** (gaps5, detector 3): a repeated title moves to the next variant of its list, then "… again"
+  ("Nine Lives, used one" showed up to 4 times in a bots match).
+- **Back to the results** (gaps5): a replay opened from the results (a card, Clip, Montage, Watch replay, the Legend
+  Moment's clip) goes back to those results when it closes, with the strip drawn again from the cached reel.
 - **Montage**: the first segment is cued before the recorder starts (the opening card runs straight into it); later
   cuts pause the recorder while the view rebuilds. The Montage button sits in the strip's header (always visible).
 - **Viewer**: a cached reel spares the Worker the detector; without one the viewer's scout computes it and caches it
@@ -147,7 +151,7 @@ Units: ticks (30/s), mm. `S = SLOT_COUNT` (6 Crossing, 10 Hearthwood); `side(id)
 | `clipKind` | sim `clip` events (the sim's own viral markers): `ko` 50, `flop` 45, `bigdog` 40, `frozen` 35, others 30 | as listed |
 | `botBlunder` | Any of the above where the actor is a bot, plus: a bot dying alone to ≥ 3 enemy heroes it walked into (no ally within 10 m) | +0 (bot), title says "Bot" |
 | `pingSpam` | ≥ 4 slot-0 `Ping` commands in 300 ticks (the sim gap is 45 ticks, so 4 is the realistic burst) | 25 |
-| `emoteSpam` | Not in the record. Optional sidecar: MatchSession logs emote ticks (max 20) into `HistoryEntry.notes.emotes` at match end; ≥ 3 in 150 ticks ⇒ 25. Without the sidecar the rule is silent. | 25 |
+| `emoteSpam` | Not in the record. Sidecar (gaps5): MatchSession logs the player's Wave ticks (max 60) into `HistoryEntry.emotes` for a solo match with a replay; ≥ 3 in 270 ticks (the solo Wave has a 3 s cooldown) ⇒ 25. Without the sidecar the rule is silent. | 25 |
 
 ### 2.5 Ranking, merging, picking
 
@@ -339,7 +343,7 @@ framing, seconds), `hl_montage` (segments, seconds), `hl_only` (on).
 
 ## Follow-ups
 
-- The MatchSession emote log (`HistoryEntry.notes.emotes`) so `emoteSpam` can fire.
+- ~~The MatchSession emote log~~ Built in gaps5 (`HistoryEntry.emotes`, detector 3).
 - Party / PvP highlights once party replays exist (MATCH-MOMENTS.md follow-up).
 - A p95 scan-time measurement on an iPhone 12-class device (the 2,000-seed headless runner), and a lighter probe for
   10-minute Hearthwood matches if it passes 4 s.

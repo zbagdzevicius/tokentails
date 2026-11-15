@@ -653,6 +653,16 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
   }
 }
 
+/**
+ * gaps5 polish 4: a Ranked "not enough matches" refusal of a duo is about the friend when this player already has the
+ * matches the relay asks for (the relay checks every member and answers the one who searched). Pure.
+ */
+export function rankedMate(q: Pick<QueueState, 'stopped' | 'ranked'>, view: Pick<PartyView, 'members'> | null, myMatches: number): boolean {
+  if (q.stopped !== 'ranked_matches' || !view || view.members.length < 2) return false;
+  const need = q.ranked?.needMatches ?? q.ranked?.need ?? 10;
+  return myMatches >= need && (q.ranked?.have ?? 0) < need;
+}
+
 /** The queue stop of a ranked refusal (gap plan P4), or null for any other error. Pure. */
 export function rankedStop(code: string, reason?: string): QueueStop | null {
   if (code === 'mm_ranked_closed') return 'ranked_closed';
@@ -1198,6 +1208,7 @@ export class PartyClient {
             ranked: {
               casualAfterS: RANKED_CASUAL_AFTER_S,
               ...(q.ranked ?? {}),
+              ...(rankedMate(q, s.view, this.h.mmInfo?.().matches ?? this.h.matches ?? 0) ? { mate: true } : {}),
               // §7.11: the live count, Prime Time and the region ping (groundwork: one region today)
               ...(typeof q.status?.searching === 'number' ? { searching: q.status.searching } : {}),
               prime: !!rankedStatusNow()?.primeTime?.active,

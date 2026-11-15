@@ -7,6 +7,9 @@ import { flagHtml } from '../social/report';
 import { logoHtml } from './brandLogo';
 import { progressBlock, type ProgressSummary } from './progressSummary';
 import './champions.css';
+import { suddenDeathS } from './screensCore';
+// gaps5 polish 8: the first-load helpers live in screensCore (this module is a lazy chunk); old import paths still work
+export { loadingVeil, rotatePrompt, suddenDeathS, SUDDEN_DEATH_S, type VeilHero } from './screensCore';
 import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
 <<<<<<< HEAD
@@ -39,7 +42,6 @@ import { dareText, kaboomDare } from '../share/dare';
 import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, trickHint } from './heroText';
 import { portraitUrl } from '../render/portraits';
 import { icon } from './icons';
-import * as TL from '../data/timeline';
 import { rookieAvailable } from '../app/firstSession';
 import { castMode, trackpadOn } from '../input/presets';
 import { bindCameraHeightRow, cameraHeightRowHtml } from './cameraHeightRow';
@@ -678,9 +680,6 @@ function resultTable(rows: readonly ResultRow[]): string {
   return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Hero</th><th>K/D/A</th><th>Hero dmg</th><th>Tower dmg</th>${graded ? '<th>Grade</th>' : ''}</tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
 }
 
-/** A fallback Sudden Death second (10:00). The real one is per difficulty (`suddenDeathS`, data/timeline.ts TIMELINE_BY;
- *  sim v12: Rookie 6:30, Easy 7:45, Normal and Hard 8:30): after it the clock, not the player, ends the match. */
-export const SUDDEN_DEATH_S = 600;
 
 /**
  * Audit GP-05: below this share of the team's takedowns (K + A over the team's) and of its hero damage, a win says
@@ -728,12 +727,6 @@ export function resultTip(o: Pick<ResultsOpts, 'won' | 'kills' | 'deaths' | 'lev
   return null;
 }
 
-/** The Sudden Death second for a difficulty (data/timeline.ts, with the fun plan's per-difficulty overrides). */
-export function suddenDeathS(difficulty: Difficulty): number {
-  const by = (TL as unknown as { TIMELINE_BY?: Record<string, { suddenDeath?: number }> }).TIMELINE_BY;
-  const t = by?.[difficulty]?.suddenDeath ?? TL.TIMELINE.suddenDeath;
-  return Math.floor(t / TL.TICK_HZ);
-}
 
 /** "Bot ladder 1012 +12", "Placement 2 of 3: no points lost", "+4 (small share: more takedowns, fewer knockouts)". */
 function ladderLine(l: NonNullable<ResultsOpts['ladder']>, won: boolean): string {
@@ -1032,28 +1025,4 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
   });
   parent.appendChild(root);
   return root;
-}
-
-/** Portrait prompt on phones (§9: landscape only). Pure CSS decides when it shows. */
-export function rotatePrompt(parent: HTMLElement): HTMLElement {
-  const r = el('pl-rotate', `<div>${icon('paw')}<b>Turn your phone sideways</b><small>Paw Legends plays in landscape.</small></div>`);
-  parent.appendChild(r);
-  return r;
-}
-
-/** Loading veil between screens. */
-/** GAPS A6: the loading screen's line for this hero: matches played on it. */
-export interface VeilHero {
-  name: string;
-  /** Finished matches on this hero before this one. */
-  matches: number;
-}
-
-export function loadingVeil(parent: HTMLElement, text: string, sub?: string, hero?: VeilHero | null): HTMLElement {
-  const line = hero
-    ? `<p class="hero-line" data-hero-matches="${hero.matches}"><span>${hero.matches === 0 ? `First match as ${esc(hero.name)}` : `${hero.matches} ${hero.matches === 1 ? 'match' : 'matches'} as ${esc(hero.name)}`}</span></p>`
-    : '';
-  const r = el('pl-loading', `<div class="spin">${icon('paw')}</div><b>${esc(text)}</b>${sub ? `<small class="squad">${esc(sub)}</small>` : ''}${line}`);
-  parent.appendChild(r);
-  return r;
 }

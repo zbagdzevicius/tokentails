@@ -170,8 +170,12 @@ export class PawlegendsSocialController {
     @UseGuards(AppAuthGuard)
     @HttpCode(200)
     @Post('invite')
-    async invite(@Body() body: { to?: unknown }, @Req() req: any, @Res({ passthrough: true }) res: any) {
-        return this.social.invite(await this.gate('invite', req, res, true), body?.to);
+    async invite(
+        @Body() body: { to?: unknown; mode?: unknown },
+        @Req() req: any,
+        @Res({ passthrough: true }) res: any
+    ) {
+        return this.social.invite(await this.gate('invite', req, res, true), body?.to, body?.mode);
     }
 
     @UseGuards(AppAuthGuard)

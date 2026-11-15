@@ -181,6 +181,10 @@ export class PawlegendsInvite {
     @Prop({ required: true })
     party: string;
 
+    /** gaps5: 'ranked' when the inviter's party is a Ranked duo (the friend's game checks its own Ranked unlock). */
+    @Prop({ type: String, required: false })
+    mode?: 'ranked';
+
     @Prop({ type: Date, required: true })
     exp: Date;
 

@@ -77,6 +77,16 @@ describe("pawlegends api bridge (host)", () => {
     }
   });
 
+  it("gaps5: a party invite forwards only the Ranked duo mode", () => {
+    const to = "PAW-ABCD-EFGH";
+    const plain = routeOf("invite.send", { to })!;
+    const ranked = routeOf("invite.send", { to, mode: "ranked" })!;
+    const odd = routeOf("invite.send", { to, mode: "admin" })!;
+    expect(ranked.body).toEqual({ ...(plain.body as object), mode: "ranked" });
+    expect(odd.body).toEqual(plain.body);
+    expect(parseApiRequest({ id: "a1", op: "invite.send", args: { to, mode: "ranked" } })?.args).toMatchObject({ mode: "ranked" });
+  });
+
   it("progress routes (gap plan P2 rewards-cloud): the blob as one long string, guests with a session too", () => {
     const blob = JSON.stringify({ v: 1, unlocks: Array.from({ length: 200 }, (_, i) => `coat.clem.loop.x${i}`) });
     expect(blob.length).toBeGreaterThan(140);

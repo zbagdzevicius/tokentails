@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { recordRelease } from './tools/lib/keep-releases.mjs';
 import { simSourceHash } from './tools/lib/sim-source-hash.mjs';
+import { chunkRetryPlugin } from './tools/lib/chunk-retry.mjs';
 
 /**
  * Party play (MULTIPLAYER.md §2.1): __SIM_HASH__ is the sim source closure's hash, computed from the sources now;
@@ -115,7 +116,8 @@ export default defineConfig({
   server: { port: 5176, host: '127.0.0.1', strictPort: true },
   preview: { port: 4176, host: '127.0.0.1' },
   worker: { format: 'es' },
-  plugins: [versionJsonPlugin(), ...(keepReleases > 0 ? [keepReleasesPlugin(keepReleases)] : [])],
+  // gaps5 polish 1: every lazy chunk import is retried once before the crash card (tools/lib/chunk-retry.mjs)
+  plugins: [chunkRetryPlugin(path.resolve(__dirname, 'src')), versionJsonPlugin(), ...(keepReleases > 0 ? [keepReleasesPlugin(keepReleases)] : [])],
   build: {
     emptyOutDir: keepReleases > 0 ? false : undefined,
     target: 'es2022',

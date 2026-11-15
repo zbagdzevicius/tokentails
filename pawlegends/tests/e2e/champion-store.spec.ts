@@ -36,8 +36,8 @@ test('a new guest: 12 open tiles (starters and the free 6), the rest locked with
   for (const h of STARTERS) await expect(game.locator(`.cs-tile[data-h="${h}"]`)).not.toHaveClass(/locked/);
   const free = await freeThisWeek(game);
   expect(free).toHaveLength(6);
-  // every free champion is tagged: Free, or New in its first sim version
-  for (const h of free) await expect(game.locator(`.cs-tile[data-h="${h}"] .champ-free, .cs-tile[data-h="${h}"] .new-tag`)).toHaveCount(1);
+  // every free champion is tagged Free, a new one too (gaps5 polish 7: Free wins over New)
+  for (const h of free) await expect(game.locator(`.cs-tile[data-h="${h}"] .champ-free`)).toHaveText('Free');
   // a locked champion: its skills show, LOCK IN is Practice, the unlock row says how far the Yarn is
   const locked = await game.evaluate(() => (document.querySelector('.cs-grid .cs-tile.locked[data-side="cat"]') as HTMLElement).dataset.h ?? '');
   await game.locator(`.cs-grid [data-h="${locked}"]`).click();

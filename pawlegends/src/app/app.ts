@@ -10,7 +10,8 @@ import { askConsent, createAnalytics, type Analytics } from '../analytics/postho
 import { retentionDay, sinceLoadMs } from '../analytics/kpi';
 import { sfx } from '../audio/sfx';
 import { nameLine } from '../audio/voiceLines';
-import { crashSender, reportCrash, setCrashHook } from './crash';
+import { crashSender, reportCrash, setCrashHook, showCrash } from './crash';
+import { setChunkRetryEnv } from './chunkRetry';
 import { SIM_VERSION } from '../sim/version';
 import { inAppShell, shareBase } from './platform';
 import type { Bridge, HostMessage } from '../embed/bridge';
@@ -59,7 +60,10 @@ import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
-import { loadingVeil, pickScreen, rankedBlockHtml, refreshPickChamps, refreshPickFaces, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
+import { loadingVeil, rotatePrompt, suddenDeathS } from '../ui/screensCore';
+import type { Choice } from '../ui/screens';
+/** gaps5 polish 8: the champion select, the results and the pause menu are one lazy chunk (ui/screens.ts). */
+type ScreensMod = typeof import('../ui/screens');
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
 <<<<<<< HEAD
 import { disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
@@ -72,6 +76,7 @@ import { legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef
 import {
   isUnlocked,
   loadModeLocal,
+  lockLine,
   markModesMigrated,
   markModesPlayedScanned,
   migrateUnlocks,
@@ -115,7 +120,6 @@ import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
 import { kudosMates, mountKudos } from '../social/kudos';
-import { suddenDeathS } from '../ui/screens';
 import { assetRev } from '../ui/assetRev';
 import { RewardsCloud, todayExtraHtml } from '../ui/rewards/rewards';
 
@@ -216,6 +220,22 @@ export class App {
   private screenEl: HTMLElement | null = null;
   /** HIGHLIGHTS.md §5.1: the results' highlights strip (its scan stops when the results close) and the names it used. */
   private hlStrip: { dispose(): void } | null = null;
+  /** gaps5 polish 8: the lazy screens chunk once loaded (the pick and the results draw from it). */
+  private screensMod: ScreensMod | null = null;
+  private screensLoad: Promise<ScreensMod> | null = null;
+  private loadScreens(): Promise<ScreensMod> {
+    if (this.screensMod) return Promise.resolve(this.screensMod);
+    this.screensLoad ??= import('../ui/screens').then(
+      (m) => (this.screensMod = m),
+      (err: unknown) => {
+        this.screensLoad = null;
+        throw err;
+      },
+    );
+    return this.screensLoad;
+  }
+  /** gaps5 polish 2: the solo results a replay was opened from (a highlight, a clip, the montage, Watch replay). */
+  private resultsBack: { id: string; el: HTMLElement; remount: () => void } | null = null;
   private hlNames: { id: string; names: string[] } | null = null;
   private overlay: { close(): void; refresh?(): void; kind?: 'store' | 'pass' } | null = null;
   private offerEl: { close(): void } | null = null;
@@ -324,6 +344,8 @@ export class App {
         context: () => ({ screen: this.screen, tier: this.tier, sim: SIM_VERSION }),
       }),
     );
+    // gaps5 polish 1: a lazy chunk that failed once and was retried (ok: the retry loaded it)
+    setChunkRetryEnv({ onRetry: (ok) => this.analytics.track('chunk_retry', { ok, screen: this.screen }) });
     this.checkout = new CheckoutBridge(bridge, this.ent);
     this.checkout.onResult((sku, ok) => {
       notePurchase(ok);
@@ -404,7 +426,7 @@ export class App {
         skinsTimer = null;
         if (this.screen === 'match') return;
         if (this.screen !== 'pick') return this.refreshMeta();
-        if (this.screenEl) refreshPickFaces(this.screenEl);
+        if (this.screenEl) this.screensMod?.refreshPickFaces(this.screenEl);
         if (!document.documentElement.dataset.skinPreview) this.setLobbyHero(this.choice.hero);
       }, 120);
     });
@@ -452,6 +474,8 @@ export class App {
     else if (this.partyApi && lastMmMatch()) this.openParty('back');
     if (this.partyCode) stripPartyParam();
     // the party chunk is fetched while idle once the title is up (never part of the first load, §11)
+    // gaps5 polish 8: warm the champion select and results chunk once the title is up (PLAY then opens it at once)
+    idle(() => void this.loadScreens().catch(() => undefined));
     if (this.partyApi) idle(() => void import('../party').catch(() => undefined));
     this.onThermal();
     this.raf = requestAnimationFrame(this.frameCb);
@@ -524,7 +548,7 @@ export class App {
     this.artTimer = setTimeout(() => {
       this.artTimer = null;
       if (this.screen === 'title') this.refreshMeta(false);
-      else if (this.screen === 'pick' && this.screenEl) refreshPickFaces(this.screenEl);
+      else if (this.screen === 'pick' && this.screenEl) this.screensMod?.refreshPickFaces(this.screenEl);
     }, 150);
   }
 
@@ -560,7 +584,7 @@ export class App {
     else if (this.screen === 'pick') {
       this.setLobbyHero(this.choice.hero);
       // CHAMPION-STORE.md: an unlock or a purchase landed while the pick is up
-      if (this.screenEl) refreshPickChamps(this.screenEl);
+      if (this.screenEl) this.screensMod?.refreshPickChamps(this.screenEl);
     }
   }
 
@@ -615,7 +639,7 @@ export class App {
   /** CHAMPION-STORE.md §8.6: ask the host to unlock `h` with Yarn or a Champion Pick (it answers a fresh `store`). */
   private unlockChamp(h: HeroId, via: 'yarn' | 'pick'): void {
     this.analytics.track('champ_unlock', { hero: h, via });
-    if (!this.bridge.post('champ-unlock', { hero: h, via }) && this.screenEl) refreshPickChamps(this.screenEl);
+    if (!this.bridge.post('champ-unlock', { hero: h, via }) && this.screenEl) this.screensMod?.refreshPickChamps(this.screenEl);
   }
 
   /**
@@ -778,6 +802,8 @@ export class App {
     // QA: the lobby's document key listener left with its screen (it piled up, one per redraw, holding old screens)
     disposeLobby(this.screenEl);
     disposeHome(this.screenEl);
+    // the results a replay returns to live until another screen than the replay's match takes over
+    if (s !== 'match' && el !== this.resultsBack?.el) this.resultsBack = null;
     this.screenEl?.remove();
     this.screenEl = el;
     this.screen = s;
@@ -979,7 +1005,7 @@ export class App {
         if (!resultsEl.isConnected) return;
         const after = await this.rankedCard();
         if (!after || same(before, after)) continue;
-        slot.innerHTML = rankedBlockHtml(rankedResult(before, after, won), run.kind);
+        slot.innerHTML = (await this.loadScreens()).rankedBlockHtml(rankedResult(before, after, won), run.kind);
         this.analytics.track('ranked_result' as never, { won, tier: after.tierIdx ?? -1, kind: run.kind ?? 'players' } as never);
         return;
       }
@@ -1398,6 +1424,17 @@ export class App {
 
   /** The champion select. `mode`: the play path's vs Bots mode (else the remembered one, as after a match). */
   showPick(mode?: ModeDef): void {
+    // gaps5 polish 8: the champion select is in the lazy screens chunk (warmed on idle, so this wait is rare)
+    const screens = this.screensMod;
+    if (!screens) {
+      const from = this.screen;
+      void this.loadScreens()
+        .then(() => {
+          if (this.screen === from && !this.session) this.showPick(mode);
+        })
+        .catch((err: unknown) => reportCrash('window', err));
+      return;
+    }
     if (mode) {
       this.pickMode = mode;
       this.pickFromFlow = true;
@@ -1409,10 +1446,14 @@ export class App {
     const p = loadProfile();
     this.setScreen(
       'pick',
+<<<<<<< HEAD
       pickScreen(this.root, {
 <<<<<<< HEAD
         initial: this.choice,
 =======
+=======
+      screens.pickScreen(this.root, {
+>>>>>>> 98733cc20 (feat(pawlegends): gaps5 polish: chunk retry, back to results, varied highlight titles, emote storm, Ranked duo lock line, docked consent strip, coat chip row, Free tag, first-load 433 KB)
         // the play path: the mode's map (Classic: Hearthwood) or mutator (Blitz) rides on the choice LOCK IN starts
         initial: flow && p.matches > 0 ? botsChoice(this.choice, this.choice.difficulty, flow) : this.choice,
         // Sim v19: the seats match the match it starts (startMatch's rule: 5v5 Classic after the first match)
@@ -1643,6 +1684,7 @@ export class App {
               return v && v.phase === 'lobby' && !this.party?.state.inMatch ? v.code : null;
             },
             joinParty: (code) => this.openParty('join', code),
+            partyMode: () => (this.party && this.queueModeFor(loadProfile().matches) === 'ranked' ? 'ranked' : null),
             // SPECTATE.md: Watch on a friend's row, and the featured "Watch live" row (needs the relay)
             ...(this.partyApi ? { watch: (target: { room: string; name: string } | { featured: true }) => this.openSpectate(target) } : {}),
             signIn: () => this.integration.requestSignIn('save-progress'),
@@ -1676,7 +1718,7 @@ export class App {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const r = await this.integration.api('social.pulse', this.socialRev ? { rev: this.socialRev } : {});
       if (!r.ok || r.status === 204 || !r.body) return;
-      const body = r.body as { rev?: string; invites?: { id?: string; from?: { name?: string }; party?: string }[]; chat?: { unread?: number } };
+      const body = r.body as { rev?: string; invites?: { id?: string; from?: { name?: string }; party?: string; mode?: string }[]; chat?: { unread?: number } };
       this.socialRev = typeof body.rev === 'string' ? body.rev : undefined;
       this.socialBadge = body.invites?.length ?? 0;
       this.chatUnread = typeof body.chat?.unread === 'number' ? Math.max(0, body.chat.unread) : this.chatUnread;
@@ -1686,7 +1728,10 @@ export class App {
       if (inv?.id) this.socialToasted.add(inv.id);
       if (inv?.party && typeof inv.from?.name === 'string') {
         const { inviteToast } = await import('../social/socialSheet');
-        inviteToast(document, inv.from.name, () => this.openParty('join', inv.party!));
+        // gaps5 polish 4: a Ranked duo invite checks this player's own Ranked unlock and shows the lock line
+        const ranked = inv.mode === 'ranked';
+        const locked = ranked && !this.modeOpen('ranked') ? lockLine('ranked', loadProfile()) : null;
+        inviteToast(document, inv.from.name, () => this.openParty('join', inv.party!), undefined, { ranked, locked });
       }
     };
     this.socialPulse = setInterval(() => void beat(), 30_000);
@@ -1994,6 +2039,17 @@ export class App {
   }
 
   private showResults(e: MatchEnd): void {
+    // gaps5 polish 8: the results are in the lazy screens chunk; the match loaded it already (matchSession imports it)
+    const screens = this.screensMod;
+    if (!screens) {
+      void this.loadScreens()
+        .then(() => this.showResults(e))
+        .catch((err: unknown) => {
+          reportCrash('window', err);
+          showCrash(err);
+        });
+      return;
+    }
     // UX pass 2: the username the match showed names the player's row (and the MVP / best lines)
     const userName = this.session?.playerName ?? null;
     // MATCH-MOMENTS.md: the champion's name this match (a worn card's cat), for history and the share card
@@ -2169,7 +2225,7 @@ export class App {
     const progress = e.result.stats.some((st) => typeof st.fish === 'number')
       ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf, (h, slot) => (slot === mySlot && setup?.look ? portraitUrl(h, setup.look) : portraitUrl(h, null))), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
       : null;
-    const resultsEl = resultsScreen(this.root, {
+    const resultsEl = screens.resultsScreen(this.root, {
         // gap plan P4: a scored ranked match shows the ranked block (filled once the save lands)
         ...(party && this.rankedRun && partyEnd?.scored !== false ? { ranked: true, ...(this.rankedRun.kind ? { rankedKind: this.rankedRun.kind } : {}) } : {}),
         ...(reportBook
@@ -2318,28 +2374,36 @@ export class App {
       const hlNames = e.welcome.picks.map((h, slot) => (slot === mySlot ? momentName || HERO_TEXT[h]?.title : names[slot]) ?? HERO_TEXT[h]?.title ?? 'A hero');
       this.hlNames = { id: moment.id, names: hlNames };
       const record = replayOf(moment.id);
-      void import('../replay/strip')
-        .then(({ mountHighlights }) => {
-          if (this.screenEl !== resultsEl || !record) return;
-          this.hlStrip = mountHighlights({
-            slot: hlSlot,
-            record,
-            names: hlNames,
-            picks: e.welcome.picks,
-            cached: reelOf(moment.id),
-            portrait: (h, slot) => (slot === mySlot && setup?.look ? portraitUrl(h, setup.look) : portraitUrl(h, null)),
-            onOpen: (h) => {
-              this.analytics.track('hl_open', { type: h.type, from: 'results' });
-              this.openReplay(moment.id, { highlight: h.id });
-            },
-            onClip: (h, framing) => this.openReplay(moment.id, { highlight: h.id, clip: framing ?? (document.documentElement.dataset.touch === '1' || innerHeight > innerWidth ? 'vertical' : 'wide') }),
-            onMontage: (framing) => this.openReplay(moment.id, { montage: framing ?? (document.documentElement.dataset.touch === '1' || innerHeight > innerWidth ? 'vertical' : 'wide') }),
-            onReel: (reel) => saveReel(moment.id, reel),
-            track: (ev, props) => this.analytics.track(ev as 'hl_scan', props),
-          });
-        })
-        .catch((err: unknown) => reportCrash('window', err));
-    }
+      const emotes = moment.emotes;
+      // gaps5 polish 2: a highlight, a clip or the montage opened from here comes back to these results
+      const mountStrip = (): void => {
+        void import('../replay/strip')
+          .then(({ mountHighlights }) => {
+            if (this.screenEl !== resultsEl || !record) return;
+            this.hlStrip?.dispose();
+            this.hlStrip = mountHighlights({
+              slot: hlSlot,
+              record,
+              names: hlNames,
+              ...(emotes ? { emotes } : {}),
+              picks: e.welcome.picks,
+              cached: reelOf(moment.id),
+              portrait: (h, slot) => (slot === mySlot && setup?.look ? portraitUrl(h, setup.look) : portraitUrl(h, null)),
+              onOpen: (h) => {
+                this.analytics.track('hl_open', { type: h.type, from: 'results' });
+                this.openReplay(moment.id, { highlight: h.id });
+              },
+              onClip: (h, framing) => this.openReplay(moment.id, { highlight: h.id, clip: framing ?? (document.documentElement.dataset.touch === '1' || innerHeight > innerWidth ? 'vertical' : 'wide') }),
+              onMontage: (framing) => this.openReplay(moment.id, { montage: framing ?? (document.documentElement.dataset.touch === '1' || innerHeight > innerWidth ? 'vertical' : 'wide') }),
+              onReel: (reel) => saveReel(moment.id, reel),
+              track: (ev, props) => this.analytics.track(ev as 'hl_scan', props),
+            });
+          })
+          .catch((err: unknown) => reportCrash('window', err));
+      };
+      mountStrip();
+      this.resultsBack = party ? null : { id: moment.id, el: resultsEl, remount: mountStrip };
+    } else this.resultsBack = null;
     party?.bindResults(resultsEl, () => this.backToParty());
     if (party && this.rankedRun) this.fillRanked(resultsEl, won);
     // CLUBS-KUDOS.md §5: a PvP match's results offer a thumbs-up to each human teammate (signed-in players only)
@@ -2377,6 +2441,7 @@ export class App {
         best: e.fun.best,
         simVersion: e.replay.simVersion,
         noReplay: o.party ? 'party' : null,
+        ...(!o.party && e.emotes?.length ? { emotes: e.emotes } : {}),
       },
       o.party ? null : e.replay,
     );
@@ -2453,6 +2518,8 @@ export class App {
     const record = replayOf(id);
     const entry = loadHistory().find((r) => r.id === id);
     if (!record || !entry) return;
+    // gaps5 polish 2: opened from this match's results (a highlight card, Clip, Montage, Watch replay): back there
+    const back = this.screen === 'results' && this.resultsBack?.id === id && this.resultsBack.el === this.screenEl ? this.resultsBack : null;
     sfx.play('click');
     this.overlay?.close();
     this.overlay = null;
@@ -2474,7 +2541,7 @@ export class App {
           muted: sfx.isMuted,
           look: this.lookFor(record.hero),
           playerName: this.integration.state().playerName,
-          ...this.viewerHooks(token),
+          ...this.viewerHooks(token, back),
           track: (ev, props) => this.analytics.track(ev as 'replay_open', props),
           clip: o.clip ?? null,
           clipTitle: o.clipTitle ?? entry.best ?? null,
@@ -2500,8 +2567,15 @@ export class App {
       });
   }
 
+  /** gaps5 polish 2: leave a replay opened from the results back onto those results (the strip mounts again from its cached reel). */
+  private backToResults(back: { id: string; el: HTMLElement; remount: () => void }): void {
+    this.root.appendChild(back.el);
+    this.setScreen('results', back.el);
+    back.remount();
+  }
+
   /** The replay and spectate viewers' shared plumbing: the session slot, the warm-up, Home on exit, mute, Settings. */
-  private viewerHooks(token: number) {
+  private viewerHooks(token: number, back: { id: string; el: HTMLElement; remount: () => void } | null = null) {
     return {
       setSession: (s: MatchSession | null) => {
         this.session = s;
@@ -2518,7 +2592,9 @@ export class App {
       },
       onExit: () => {
         this.session = null;
-        if (token === this.matchToken) this.showTitle();
+        if (token !== this.matchToken) return;
+        if (back && this.resultsBack === back) this.backToResults(back);
+        else this.showTitle();
       },
       onMute: (m: boolean) => this.setMuted(m),
       onSettings: (done: () => void) => this.openSettings(done),

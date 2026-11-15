@@ -18,6 +18,8 @@
 
 export type AnalyticsEvent =
   | 'title_view'
+  // gaps5 polish 1: a lazy chunk failed once and was retried (app/chunkRetry.ts)
+  | 'chunk_retry'
   | 'match_start'
   | 'match_end'
   | 'second_match'

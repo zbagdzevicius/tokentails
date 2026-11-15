@@ -60,7 +60,7 @@ export interface SocialState {
   friends: FriendRow[];
   requests: { in: PersonRow[]; out: PersonRow[] };
   blocks: PersonRow[];
-  invites: { id: string; from: { code: string; name: string }; party: string }[];
+  invites: { id: string; from: { code: string; name: string }; party: string; mode?: 'ranked' }[];
   rev: string;
   /** CHAT-AVATARS §4: unread DMs (the Friends tab and the landing badge). */
   chat?: { unread: number; top?: { thread: string; fromName: string; preview: string } };
@@ -126,6 +126,8 @@ export interface SocialSheetDeps {
   signedIn(): boolean;
   /** The player's party code when in a friend party lobby (Invite shows), else null. */
   partyCode(): string | null;
+  /** gaps5 polish 4: 'ranked' while this player's party is a Ranked duo (the invite says so; the friend checks its unlock). */
+  partyMode?(): 'ranked' | null;
   /** Join a friend's party by its code (the existing `party.join`). */
   joinParty(code: string): void;
   /** SPECTATE.md: watch a friend's live match (its room), or the featured live match; absent: no Watch buttons. */
@@ -587,7 +589,7 @@ export class SocialSheet {
         return;
       case 'invite':
         this.deps.track?.('party_invite', { action: 'sent' });
-        void this.act('invite.send', { to: code }, 'Invite sent');
+        void this.act('invite.send', { to: code, ...(this.deps.partyMode?.() === 'ranked' ? { mode: 'ranked' } : {}) }, 'Invite sent');
         return;
       case 'accept':
         this.deps.track?.('friend_accept');
@@ -790,13 +792,26 @@ export class SocialSheet {
 }
 
 /** "Mira invites you to a party · Join" (§14.6): 44 px, 30 s, one at a time. Names by textContent. */
-export function inviteToast(doc: Document, from: string, onJoin: () => void, ms = 30_000): HTMLElement {
+/**
+ * A friend's party invite (the title pulse). gaps5 polish 4: a Ranked duo invite names Ranked, and when this player has
+ * not unlocked Ranked yet it carries the lock line (`locked`, from MODE-UNLOCKS.md's ladder): joining still works, the
+ * party can play Casual together.
+ */
+export function inviteToast(doc: Document, from: string, onJoin: () => void, ms = 30_000, o: { ranked?: boolean; locked?: string | null } = {}): HTMLElement {
   doc.querySelector('.pl-invite-toast')?.remove();
   const el = doc.createElement('div');
   el.className = 'pl-invite-toast pl-report-toast';
   el.setAttribute('role', 'status');
+  if (o.ranked) el.dataset.ranked = o.locked ? 'locked' : 'open';
   const text = doc.createElement('span');
-  text.textContent = `${from} invites you to a party`;
+  text.textContent = o.ranked ? `${from} invites you to a Ranked duo` : `${from} invites you to a party`;
+  if (o.ranked && o.locked) {
+    const why = doc.createElement('small');
+    why.className = 'pl-invite-lock';
+    why.dataset.testid = 'invite-ranked-lock';
+    why.textContent = `Ranked is locked for you: ${o.locked}. Join to play Casual together`;
+    text.append(doc.createElement('br'), why);
+  }
   const join = doc.createElement('button');
   join.type = 'button';
   join.className = 'pl-btn small';

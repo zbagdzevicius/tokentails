@@ -21,6 +21,7 @@ import {
   MONTAGE_MAX,
   MONTAGE_MIN,
   RULES,
+  TITLE_MAX,
   TOP_MAX,
   segmentOf,
   type CamKey,
@@ -748,6 +749,8 @@ export class HighlightDetector {
     // lengths 6 to 20 s, enemy-only moments the player's team could not see dropped
     const all: Highlight[] = [];
     const ctx = this.titleCtx();
+    // gaps5 polish 3: one title per reel where the variants allow ("Nine Lives, used one" showed 4 times in a bots match)
+    const used = new Set<string>();
     for (const m of merged) {
       const c = m.c;
       [c.start, c.end] = clampWindow(c.start, c.end, c.peak, total);
@@ -758,7 +761,7 @@ export class HighlightDetector {
       // the title's own hero decides "Bot ..." (a merged moment may hold another hero)
       const lead = m.title.actors[0] ?? c.actors[0] ?? -1;
       const funnyBot = CATEGORY[m.title.type] === 'funny' && lead >= 0 && !!this.meta.bots[lead];
-      const { title, sub } = titleFor({ ...m.title, start: c.start }, ctx, funnyBot);
+      const { title, sub } = distinctTitle((k) => titleFor({ ...m.title, start: c.start + k }, ctx, funnyBot), used);
       all.push({
         id: `${c.type}:${c.start}`,
         type: c.type,
@@ -856,6 +859,25 @@ export class HighlightDetector {
 const SAMPLE_SLACK = 5;
 
 const uniq = (a: number[]): number[] => [...new Set(a)];
+
+/** Title variants tried before a repeat (every list has at most this many). */
+const TITLE_TRIES = 4;
+
+/**
+ * gaps5 polish 3: a title the reel has not used yet. `make(k)` titles the moment with its variant pick moved by k; when
+ * every variant is taken, "… again" when it fits, else the repeat. Adds the title to `used`. Pure apart from `used`.
+ */
+export function distinctTitle(make: (k: number) => { title: string; sub: string }, used: Set<string>): { title: string; sub: string } {
+  const first = make(0);
+  let out = first;
+  for (let k = 1; used.has(out.title) && k < TITLE_TRIES; k++) out = make(k);
+  if (used.has(out.title)) {
+    const again = `${first.title.replace(/[!.…]+$/, '')} again`;
+    out = again.length <= TITLE_MAX && !used.has(again) ? { title: again, sub: first.sub } : first;
+  }
+  used.add(out.title);
+  return out;
+}
 const allSlots = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
 const median = (v: number[]): number => {
   const s = v.slice().sort((a, b) => a - b);

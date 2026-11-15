@@ -22,7 +22,7 @@
  ],
  "reel": {
   "v": 1,
-  "detector": 2,
+  "detector": 3,
   "simVersion": 29,
   "key": "2:7bcd5c72:11010",
   "list": [
@@ -231,7 +231,7 @@
     "peak": 3040,
     "score": 45,
     "funny": 0,
-    "title": "Nine Lives, used one",
+    "title": "Nine Lives, used one again",
     "sub": "Chili (bot) · 32% HP · vs bots",
     "actors": [
      4
@@ -325,7 +325,7 @@
     "peak": 3890,
     "score": 45,
     "funny": 0,
-    "title": "Saved by Nine Lives",
+    "title": "Saved by Nine Lives again",
     "sub": "Howler (bot) · 34% HP · vs bots",
     "actors": [
      5

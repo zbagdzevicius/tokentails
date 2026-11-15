@@ -6,7 +6,7 @@ import { HERO_IDS, HEROES } from '../../src/data/heroes';
 import { canPlay, champStatus, localChampions, lockReason, ownedCount, parseChampionsState, unlockInfo } from '../../src/meta/champions';
 import { Entitlements } from '../../src/money/entitlements';
 import { parseSaveResult, parseStoreState } from '../../src/embed/bridge';
-import { champBarHtml, pickScreen, type Choice } from '../../src/ui/screens';
+import { champBarHtml, isNewHero, pickScreen, type Choice } from '../../src/ui/screens';
 import { itemState, priceFor, tabSkus } from '../../src/ui/store';
 import { heroBlock, setPickChampLock } from '../../src/party/ui/partyPick';
 import { resetAppBuild } from '../../src/meta/roster';
@@ -135,6 +135,18 @@ describe('pick screen', () => {
     (el.querySelector('[data-h="clem"]') as HTMLElement).click();
     (el.querySelector('[data-a="start"]') as HTMLElement).click();
     expect(started.pop()?.practice).toBeUndefined();
+  });
+
+  it('gaps5: a champion that is new and free this week says Free (the New tag stays on the tile data)', () => {
+    const { el } = open();
+    const state = localChampions(WEEK0);
+    const freeNew = HERO_IDS.filter((h) => isNewHero(h) && champStatus(h, state, false) === 'free');
+    expect(freeNew.length).toBeGreaterThan(0);
+    for (const h of freeNew) {
+      expect(el.querySelector(`[data-h="${h}"] .champ-free`)?.textContent).toBe('Free');
+      expect(el.querySelector(`[data-h="${h}"] .new-tag`)).toBeNull();
+      expect((el.querySelector(`[data-h="${h}"]`) as HTMLElement).dataset.new).toBe('1');
+    }
   });
 
   it('the unlock row: Yarn to go, a Champion Pick, the price on the web only', () => {

@@ -217,7 +217,8 @@ export const RULES = Object.freeze({
   pingWindow: 300,
   pingSpam: 25,
   emoteBurst: 3,
-  emoteWindow: 150,
+  // gaps5: the solo Wave emote has a 3 s cooldown, so 3 in 5 s could never happen; 3 in 9 s can
+  emoteWindow: 270,
   emoteSpam: 25,
   /** A funny highlight's place in the main ranking: its funny score × this. */
   funnyToScore: 0.5,

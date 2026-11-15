@@ -15,7 +15,7 @@ jest.mock("@/analytics", () => ({ analytics: { init: jest.fn() }, reportAppError
 jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}` }));
 
 import { CONSENT_STORAGE_KEY } from "@/analytics/gtm";
-import { PawlegendsConsent } from "@/components/pawlegends/PawlegendsConsent";
+import { CONSENT_HEIGHT_VAR, DOCK_HEIGHT_PX, PawlegendsConsent } from "@/components/pawlegends/PawlegendsConsent";
 import {
   frameMatchProbe,
   isInMatch,
@@ -100,6 +100,26 @@ describe("the consent bar waits while a match runs (gaps.md F1)", () => {
     frame.remove();
   });
 
+  it("gaps5: on the game page it docks above the game, which moves down by its height until the choice", () => {
+    window.history.replaceState(null, "", "/play");
+    const root = document.documentElement;
+    render(<PawlegendsConsent gtm={fakeGtm()} asks={() => true} />);
+    const bar = screen.getByTestId("pawlegends-consent");
+    expect(bar.getAttribute("data-dock")).toBe("1");
+    expect(bar.style.height).toBe(`${DOCK_HEIGHT_PX}px`);
+    expect(bar.style.bottom).toBe("");
+    expect(root.style.getPropertyValue(CONSENT_HEIGHT_VAR)).toBe(`${DOCK_HEIGHT_PX}px`);
+    // a match hides it and gives the game its full height back
+    act(() => noteGameEvent("match_start"));
+    expect(screen.queryByTestId("pawlegends-consent")).toBeNull();
+    expect(root.style.getPropertyValue(CONSENT_HEIGHT_VAR)).toBe("");
+    act(() => noteGameEvent("match_end"));
+    expect(root.style.getPropertyValue(CONSENT_HEIGHT_VAR)).toBe(`${DOCK_HEIGHT_PX}px`);
+    fireEvent.click(screen.getByTestId("pawlegends-consent-allow"));
+    expect(screen.queryByTestId("pawlegends-consent")).toBeNull();
+    expect(root.style.getPropertyValue(CONSENT_HEIGHT_VAR)).toBe("");
+  });
+
   it("on a phone it is a one-line strip at the top, never a card over the bottom bar", () => {
     const mm = jest.fn().mockImplementation((q: string) => ({
       matches: true,
@@ -109,7 +129,7 @@ describe("the consent bar waits while a match runs (gaps.md F1)", () => {
     }));
     Object.defineProperty(window, "matchMedia", { configurable: true, value: mm });
     try {
-      window.history.replaceState(null, "", "/play");
+      window.history.replaceState(null, "", "/privacy");
       render(<PawlegendsConsent gtm={fakeGtm()} asks={() => true} />);
       const bar = screen.getByTestId("pawlegends-consent");
       expect(bar.getAttribute("data-compact")).toBe("1");
