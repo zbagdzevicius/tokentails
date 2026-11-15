@@ -1,12 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 import { CROSSING_BEDS } from '../../src/data/fun';
-import { minimapPoint, seedSide, startFirstMatch } from './helpers';
+import { minimapPoint, seedSide, simTick, startFirstMatch, waitGameSeconds } from './helpers';
 
 /**
  * Sim v24 instant Boing Beds (docs/plans/moba/V21-FUN.md §2.1; founder report 2026-11-12 "these in Blitz are glitchy,
  * they must be better, more sensitive"). 844x390 emulated touch, a Blitz bot match on the cat side: the minimap walks
  * the hero to a spot 4.5 m behind one of its beds, then the touch stick is held toward the bed (re-aimed as a thumb
  * would) or let go on the cushion. Every try must throw the hero to the landing.
+ * Windows are game time (sim ticks, 30 a second), not wall time: on a loaded machine the match runs slower than the
+ * clock, and a 6 s wall window once ended before the hero had walked onto any bed.
  */
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'landscape', 'touch controls'));
 
@@ -54,7 +56,9 @@ test('844x390 Blitz: walking onto a Boing Bed with the stick (or letting go on i
     const stx = Math.round(bx - ux * 4500);
     const sty = Math.round(by - uy * 4500);
     let ready = false;
-    for (const end = Date.now() + 40_000; Date.now() < end; ) {
+    const walk0 = await simTick(page);
+    // 40 s of game time (wall guard 4 min)
+    for (const end = Date.now() + 240_000; Date.now() < end && (await simTick(page)) - walk0 < 40 * 30; ) {
       const p = await toward(page, stx, sty);
       if (p && p.state !== 'dead' && Math.hypot(p.mx - stx, p.my - sty) < 900) {
         ready = true;
@@ -74,14 +78,20 @@ test('844x390 Blitz: walking onto a Boing Bed with the stick (or letting go on i
     let thrown = -1;
     let released = false;
     const t0 = Date.now();
+    const tick0 = await simTick(page);
     // the thumb aims 2 m past the bed along its throw (from behind it, straight at the bed), wobbling ±12° per send
     const ax = bx + ux * 2000;
     const ay = by + uy * 2000;
     let k = 0;
     await send('touchStart', [S]);
-    while (Date.now() - t0 < 6000) {
+    // 6 s of game time (wall guard 2 min)
+    while (Date.now() - t0 < 120_000 && (await simTick(page)) - tick0 < 6 * 30) {
       const p = await toward(page, ax, ay);
-      if (!p) break;
+      // no frame for my hero at this instant (a busy main thread between two frames): look again, do not end the try
+      if (!p) {
+        await page.waitForTimeout(60);
+        continue;
+      }
       const dBed = Math.hypot(p.mx - bx, p.my - by);
       const dLand = Math.hypot(p.mx - lx, p.my - ly);
       if (entered < 0 && dBed <= 1200) entered = Date.now();
@@ -105,7 +115,8 @@ test('844x390 Blitz: walking onto a Boing Bed with the stick (or letting go on i
     const ok = thrown >= 0;
     if (!ok) fails++;
     results.push(`bed ${i % 3} ${letGo ? 'let go' : 'stick'}: ${ok ? `thrown ${entered >= 0 ? thrown - entered : '?'} ms after entering the disc` : `NOT thrown (entered ${entered >= 0})`}`);
-    await page.waitForTimeout(3500);
+    // past the bed's 3 s cooldown, in game time
+    await waitGameSeconds(page, await simTick(page), 3.5);
   }
   console.log(`BOING touch: ${results.join(' | ')}`);
   expect(tries).toBeGreaterThanOrEqual(4);

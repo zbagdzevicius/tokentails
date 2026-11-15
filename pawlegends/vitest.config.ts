@@ -15,6 +15,11 @@ export default defineConfig({
           exclude: ['tests/unit/perf-sim.test.ts'],
           // Node by default. A DOM test opts in with `// @vitest-environment happy-dom` on its first line.
           environment: 'node',
+          // A time limit, not a budget: many tests play whole matches on the transformed sim (seconds when idle), and a
+          // loaded machine stretched those past vitest's 5 s default (skins-determinism at load 50, Nov 15, 2026).
+          // Tests that time something assert it themselves (perf-sim, perf-ff).
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
           sequence: { groupOrder: 0 },
         },
       },

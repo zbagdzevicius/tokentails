@@ -53,8 +53,9 @@ describe('root motion', { timeout: 180000 }, () => {
       const ch = makeHero(h, 0, null, { detail: 0.62 });
       for (const c of clips) {
         const bin = compileClip(c, ch.rig, ch.anim.profile.idle);
-        for (let i = 0; i < bin.q.length; i++) expect(Number.isFinite(bin.q[i])).toBe(true);
-        for (let i = 0; i < bin.p.length; i++) expect(Number.isFinite(bin.p[i])).toBe(true);
+        // one expect per clip, not per number: a million expect calls made this test take minutes on a loaded machine
+        expect(bin.q.findIndex((v) => !Number.isFinite(v)), `${h} ${c.id} quaternion`).toBe(-1);
+        expect(bin.p.findIndex((v) => !Number.isFinite(v)), `${h} ${c.id} position`).toBe(-1);
       }
       ch.dispose();
     }

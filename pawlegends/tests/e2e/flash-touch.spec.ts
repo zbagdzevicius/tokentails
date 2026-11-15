@@ -240,7 +240,9 @@ async function flashHeld(page: Page, dir: number): Promise<void> {
   // a real tap: the trick finger lifts (touchEnd lists the points that lift), the stick thumb stays down
   await touch('touchEnd', [trick]);
   const liftTick = await tickNow(page);
-  await waitTicks(page, 50);
+  // the run-on check reads 40 ticks past the landing, and on a loaded machine the blink itself may land up to 45 ticks
+  // after the press (checkBlink): wait for both, counted in sim ticks (50 left only ~10 ticks after a late blink)
+  await waitTicks(page, 95);
   const shot = await collect(page, { tapAt, t0, heads0, pressTick, liftTick });
   await touch('touchEnd', [stick]);
   // the press fired the blink (one press, one cast out)
@@ -259,7 +261,13 @@ async function flashHeld(page: Page, dir: number): Promise<void> {
     expect(along, `${DIRS[dir]}: walked back at tick ${t[0]}: ${JSON.stringify(after)}`).toBeGreaterThan(-600);
     best = Math.max(best, along);
   }
-  expect(best, `${DIRS[dir]}: the run did not go on from the landing: ${JSON.stringify(after)}`).toBeGreaterThan(1000);
+  // On a loaded machine the press reaches the sim late and the hero has run on further before the blink (once 4.8 m
+  // instead of 0.3 m), so it can land next to a wall. The room ahead is the sim's own wall clip from the landing
+  // (the client's copy, as the ghost check uses): the run must go on 1 m, or up to the wall when it is closer.
+  const ahead = landing(trickAim('pounce'), { x: land[1], y: land[2] }, a);
+  const room = (ahead.x - land[1]) * ux + (ahead.y - land[2]) * uy;
+  const need = Math.min(1000, room - 400);
+  expect(best, `${DIRS[dir]}: the run did not go on from the landing (room ${Math.round(room)} mm): ${JSON.stringify(after)}`).toBeGreaterThan(need);
 }
 
 for (const vp of [
