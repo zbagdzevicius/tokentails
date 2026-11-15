@@ -13,7 +13,7 @@
  */
 import type { MapId, Mutator } from '../../sim/api';
 import { loadMatchMode, type MatchMode } from '../lobby/matchMode';
-import { primeTimeText, rankedBotsRule, rankedLiveText, RANKED_MAP, type RankedStatus } from '../../meta/ranked';
+import { primeTimeText, rankedBotsRule, rankedLiveText, RANKED_DRAFT_RULE, RANKED_GRADE_RULE, RANKED_MAP, type RankedStatus } from '../../meta/ranked';
 
 export type ModeId = 'blitz' | 'skirmish' | 'classic' | 'ranked' | 'cannon' | 'practice' | 'twist' | 'onelane' | 'duel' | 'boss' | (string & {});
 /** A mode's variant (the second step after PLAY): solo vs bots, co-op vs bots, PvP, or a party with friends. */
@@ -248,6 +248,8 @@ export function rankedModeDef(st: RankedStatus | null, rank?: ModeDef['rank']): 
     rules: [
       `3v3, solo or duo. Players first: full points.${prime ? ` ${prime}.` : ''}`,
       rankedBotsRule(!!st?.primeTime?.active),
+      RANKED_DRAFT_RULE,
+      RANKED_GRADE_RULE,
     ],
   };
 }

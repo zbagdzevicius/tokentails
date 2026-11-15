@@ -29,6 +29,14 @@ Home → **Events** (left stack) opens one popover:
   extra boss day), `boss: null` turns it off (the tile shows "Coming soon" and the twist is featured again). Offline the
   game uses the same baked Friday to Monday schedule.
 
+- **Coat drop** (gaps6, Nov 15): the month's new store coats on the Events card's first row: the painted tiles, "3 new
+  coats · new for 15d" and, when it is scheduled, the next drop ("December Drop in 4d"). A tile previews the coat in
+  Heroes → Coats (its effects and the Mythic Evolve clip); on the web a "See the coats" button opens the store's coats
+  with the drop first and ribboned "New drop". The apps never show a price or a store link (preview only). The baked
+  calendar is `DROP_CALENDAR` (backend `liveops.defaults.ts`, the game's `meta/liveops.ts`, deep-compared); the config
+  answers `drop {id, name, coats, startsAt, endsAt, next}`; a doc's `drop` overrides it, `drop: null` hides it. Next
+  month: add an entry (or a doc `drop`) with that month's coats once they are built; nothing is guessed.
+
 The Events button gets its dot when a reward waits (reached goal, earned gift) or an open vote is not cast.
 
 ## Server

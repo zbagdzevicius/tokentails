@@ -28,6 +28,8 @@ const RANKED_STATUS_FIXTURE = { open: true, online: 30, need: 0, searching: 2 };
 const rankedFixture: RankedJoinSource = {
     check: async () => null,
     allowGuests: true,
+    // §7.13: every harness player is placed at Tabby II, so a ranked pick drafts (the ban phase, a bot ban vs AI)
+    tier: async () => 4,
 };
 const season = seasonDef(CURRENT_SEASON_ID)!;
 

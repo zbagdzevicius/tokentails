@@ -11,6 +11,7 @@ import {
     LiveopsGoalDef,
     LiveopsNapDef,
     LiveopsBoss,
+    LiveopsDrop,
     LiveopsTwist,
     LiveopsVoteDef,
     napEarned,
@@ -36,6 +37,8 @@ export interface LiveopsConfigAnswer {
     events: LiveopsEvent[];
     featuredMode: LiveopsFeatured | null;
     featuredQuests: string[];
+    /** gaps6: the month's coat drop (LIVEOPS.md "Coat drop"), or null. */
+    drop: LiveopsDrop | null;
     /** Sim v27: the week's twist (the Weekly Twist tile's rules), or null. */
     twist: LiveopsTwist | null;
     /** Sim v28: Boss Weekend's window, or null. */
@@ -123,6 +126,7 @@ export class LiveopsService implements CommunityGoalSink, OnModuleInit, OnModule
             events: eventsOf(defs, now),
             featuredMode: defs.featuredMode,
             featuredQuests: defs.featuredQuests,
+            drop: defs.drop,
             twist: defs.twist,
             boss: defs.boss,
             goal: defs.goal ? { ...defs.goal, progress, reached: progress >= defs.goal.target } : null,

@@ -16,6 +16,7 @@ function source(over: Partial<RankedJoinSource> & { why?: RankedRefusal | null }
     return {
         check: async () => over.why ?? null,
         ...(over.allowGuests ? { allowGuests: true } : {}),
+        ...(over.tier ? { tier: over.tier } : {}),
     };
 }
 
@@ -207,6 +208,51 @@ describe('ranked relay (gap plan P4, round 4 low population)', () => {
                 code: 'party_full',
                 reason: 'ranked_party',
             });
+        } finally {
+            await b.stop();
+        }
+    });
+
+    it('draft (§7.13): from Tabby III a vs AI pick opens on the ban phase; the bots never field a banned champion', async () => {
+        const b = await bootMm({ ranked: source({ tier: async () => 4 }) });
+        try {
+            const [a] = await accounts(b, 1);
+            joinBots(a);
+            await a.until(() => a.last('mm.status'));
+            b.skew.ms += 10 * 60_000;
+            const ban = await a.until(() => (a.last('party')?.draft?.stage === 'ban' ? a.last('party') : null));
+            const target = ban.draft.target as 'cat' | 'dog';
+            expect(target).not.toBe(ban.mm.side);
+            // the lock is refused while the bans run
+            a.send({ t: 'pick.lock', hero: heroesOf(ban.mm.side)[0], trick: TRICK });
+            const banned = heroesOf(target)[0];
+            a.send({ t: 'pick.ban', hero: banned });
+            const pick = await a.until(() => (a.last('party')?.draft?.stage === 'pick' ? a.last('party') : null));
+            expect(pick.members[0].locked).toBe(false);
+            expect(pick.draft.bans[0]).toEqual({ team: 0, by: 'team', hero: banned });
+            expect(pick.draft.bans[1].by).toBe('bot');
+            const botBanned = pick.draft.bans[1].hero as string;
+            const mine = heroesOf(pick.mm.side).find(h => h !== botBanned)!;
+            a.send({ t: 'pick.lock', hero: mine, trick: TRICK });
+            await a.until(() => (a.last('party')?.phase === 'loading' ? true : null), 15_000);
+            a.send({ t: 'loaded' });
+            const m = await a.until(() => a.last('match'), 15_000);
+            expect(m.config.picks).not.toContain(banned);
+            expect(m.config.picks).not.toContain(botBanned);
+        } finally {
+            await b.stop();
+        }
+    });
+
+    it('draft (§7.13): below Tabby III (or in placements) the ranked pick stays blind', async () => {
+        const b = await bootMm({ ranked: source({ tier: async () => 2 }) });
+        try {
+            const [a] = await accounts(b, 1);
+            joinBots(a);
+            await a.until(() => a.last('mm.status'));
+            b.skew.ms += 10 * 60_000;
+            const view = await a.until(() => (a.last('party')?.phase === 'pick' ? a.last('party') : null));
+            expect(view.draft).toBeUndefined();
         } finally {
             await b.stop();
         }

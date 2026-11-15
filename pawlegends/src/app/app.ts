@@ -31,7 +31,7 @@ import { PAID_COATS, bestFrame, coatDyes, coatPalette, hasChromas, lookItems, lo
 import { chromaDef, chromasEarned } from '../render/skins/coatChromas';
 import { ArtStage } from '../ui/stage/artStage';
 import { Lobby } from '../render/lobby';
-import { heroSplashUrl, onSkinArt, splashFor } from '../ui/art';
+import { heroSplashUrl, onSkinArt, skinArtUrl, splashFor } from '../ui/art';
 import { loadHistory, newEntryId, recordMoment, reelOf, replayOf, saveReel, type HistoryEntry } from '../replay/store';
 
 import { portraitUrl, warmPortraits } from '../render/portraits';
@@ -71,8 +71,8 @@ import { disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOp
 import { botsChoice, disposeHome, homeScreen, type HomeProfile, type Promo } from '../ui/home/homeScreen';
 >>>>>>> 30de28040 (feat(pawlegends): one play path: PLAY, mode, variant, champion select)
 import { currentSeason, seasonEndText } from '../meta/pass';
-import { initLiveops, liveopsState } from '../meta/liveops';
-import { legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef, type ModeId } from '../ui/modeSelect/modes';
+import { dropLine, initLiveops, liveopsState, setDropAction } from '../meta/liveops';
+import { countdownText, legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef, type ModeId } from '../ui/modeSelect/modes';
 import {
   isUnlocked,
   loadModeLocal,
@@ -1112,7 +1112,13 @@ export class App {
     // rotator and opens Mode Select on it, as the featured event it is
     const boss = liveopsState().config.boss;
     const bossNow = !!boss && Date.now() >= boss.startsAt && Date.now() < boss.endsAt;
+    // gaps6 the monthly coat drop leads the rotator while its coats are new (the countdown in its line)
+    const drop = liveopsState().config.drop;
+    const dropNow = !!drop && Date.now() >= drop.startsAt && Date.now() < drop.endsAt;
     const promos: Promo[] = [
+      ...(dropNow && drop
+        ? [{ id: 'drop', title: drop.name.replace(/:.*$/, ''), sub: dropLine(drop, Date.now(), countdownText), art: skinArtUrl(drop.coats[0], 360), action: 'drop' as const, coat: drop.coats[0] }]
+        : []),
       ...(bossNow && p.matches > 0
         ? [{ id: 'boss', title: 'Boss Weekend', sub: 'Live now · co-op vs Mega Brutus', art: `${base}assets/modes/boss-256.webp${assetRev()}`, action: 'modes' as const, mode: 'boss' }]
         : []),
@@ -1130,6 +1136,15 @@ export class App {
     ];
     // live ops (LIVEOPS.md): Events reads the server through the host; the featured mode registers before modeList
     initLiveops((op, args) => this.integration.api(op, args), () => loadProfile().matches > 0, () => this.screen === 'title' && this.refreshMeta(false));
+    // gaps6 coat drop: a tile previews the coat in Heroes → Coats (everywhere); the web also opens the store's coats
+    setDropAction({
+      preview: (coat) => {
+        const hero = coat.split('.')[1] as HeroId;
+        if (HERO_IDS.includes(hero)) void openChampInfo({ hero, coat, coatWear: this.coatWear() });
+      },
+      store: () => this.openStore('lobby', 'coats'),
+      canStore: () => this.ent.snapshot().storeOpen && !this.isApp(),
+    });
     this.pushBoot();
 <<<<<<< HEAD
     const modes = modeList();

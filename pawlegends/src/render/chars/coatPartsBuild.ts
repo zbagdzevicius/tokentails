@@ -623,6 +623,103 @@ function softServe(A: Assembly, team: PartTeam): void {
   A.add('head', new THREE.CylinderGeometry(0.004, 0.004, 0.05, 3), { m: at.clone().multiply(mat([-0.035, 0.26, 0.02], [0, 0, 0.4])), color: 0x5a7a2a });
 }
 
+const BOARD_GOLD = 0xf4c23a;
+const BOARD_GOLD_DEEP = 0xc8902a;
+const TIE_RED = 0xd8283e;
+const TIE_DEEP = 0x8a1424;
+const PEN_BLACK = 0x26222e;
+
+/**
+ * Chairman of the Board (Sir Brutus, Mythic; skins v2 "Nine-to-Five", the ladder's last step): the grey helmet and the
+ * pink plume STAY (the ladder's identity: the gallery's Head of HR step lost them, CARD-SKINS.md round 6), a gold band
+ * and a gold crest ridge on the helmet, a red power tie down his breastplate, a gold fountain pen clipped on it and gold
+ * cufflinks. The evolving pieces (the stock-chart arrow, then the gold office-chair mech) are drawn by
+ * render/skins/coatTrail.ts, not in this mesh.
+ */
+function chairman(A: Assembly): void {
+  const f = full(A);
+  // the helmet band (specs.ts Sir Brutus: G.helmet at head y 0.245, r 0.165): a gold ring round its brim, a crest ridge
+  A.add('head', new THREE.TorusGeometry(0.168, 0.016, 4, A.seg(18, 10)), { m: mat([0, 0.2, 0], [Math.PI / 2 - 0.08, 0, 0]), color: BOARD_GOLD });
+  A.add('head', new THREE.BoxGeometry(0.03, 0.05, 0.3), { m: mat([0, 0.4, -0.01], [-0.15, 0, 0]), color: BOARD_GOLD_DEEP });
+  // the power tie: a knot under the chin, then the blade down the breastplate (front of the chest, z ~0.2)
+  A.add('chest', new THREE.ConeGeometry(0.035, 0.05, 4).rotateX(Math.PI), { m: mat([0, 0.21, 0.205], [-0.2, Math.PI / 4, 0]), color: TIE_DEEP });
+  const blade = new THREE.Shape();
+  blade.moveTo(-0.028, 0);
+  blade.lineTo(0.028, 0);
+  blade.lineTo(0.045, -0.2);
+  blade.lineTo(0, -0.25);
+  blade.lineTo(-0.045, -0.2);
+  blade.closePath();
+  A.add('chest', slab(blade, 0.012), { m: mat([0, 0.19, 0.225], [-0.22, 0, 0]), color: (_v, _n, lp) => (Math.abs(Math.sin(lp.y * 60 + lp.x * 40)) > 0.85 ? rgb(TIE_DEEP) : rgb(TIE_RED)) });
+  if (!f) return;
+  // a gold fountain pen clipped at the breastplate's left, gold cufflinks
+  A.add('chest', new THREE.CylinderGeometry(0.012, 0.012, 0.14, 6), { m: mat([-0.13, 0.12, 0.2], [0.2, 0, 0.1]), color: PEN_BLACK });
+  A.add('chest', new THREE.ConeGeometry(0.012, 0.035, 6).rotateX(Math.PI), { m: mat([-0.123, 0.035, 0.212], [0.2, 0, 0.1]), color: BOARD_GOLD });
+  A.add('chest', new THREE.BoxGeometry(0.008, 0.07, 0.01), { m: mat([-0.13, 0.15, 0.215], [0.2, 0, 0.1]), color: BOARD_GOLD });
+  for (const b of ['pawL', 'pawR'] as const) A.add(b, new THREE.BoxGeometry(0.03, 0.03, 0.03), { m: mat([0, 0.06, 0.05], [0.6, 0.6, 0]), color: BOARD_GOLD });
+}
+
+const KETCHUP = 0xd8202a;
+const MUSTARD_Y = 0xf2c21a;
+const SLICE = 0xffc23a;
+
+/**
+ * Double Stack (Meatball, Epic; skins v2 "Lunch Rush"): bun-shell armour. A sesame bun helmet with his ears poking out
+ * (in place of the sweatband), a cheese slice draped over his shoulders as a collar, a lettuce-leaf cape, the bottom
+ * bun shell round his belly and a ketchup bottle in his paw. The ketchup trail behind him is render/skins/coatTrail.ts.
+ */
+function doubleStack(A: Assembly): void {
+  const f = full(A);
+  const w = A.w;
+  const ws = A.seg(12, 8);
+  // the bun helmet: a dome over his crown, toasted gold, pale at its rim (bigger than Drive-Thru's hat: it is armour)
+  const top = mat([0, 0.265, -0.02], [0.02, 0, 0]);
+  A.add('head', new THREE.SphereGeometry(0.16, ws, A.seg(7, 4), 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1.3, 0.72, 1.18), { m: top, color: (_v, n) => (n.y > 0.2 ? rgb(BUN_GOLD) : rgb(BUN_PALE)) });
+  A.add('head', new THREE.TorusGeometry(0.16 * 1.24, 0.016, 3, ws), { m: top.clone().multiply(mat([0, 0, 0], [Math.PI / 2, 0, 0], [1, 0.95, 1])), color: BUN_DEEP });
+  if (f) for (let i = 0; i < 10; i++) {
+    const a = i * 2.39996;
+    const k = 0.13 * Math.sqrt((i + 0.5) / 10);
+    A.add('head', new THREE.SphereGeometry(0.011, 4, 3).scale(1, 0.5, 1.7), { m: top.clone().multiply(mat([Math.cos(a) * k * 1.25, 0.115 * Math.sqrt(Math.max(0, 1 - (k / 0.17) ** 2)) + 0.003, Math.sin(a) * k * 1.15], [0, a, 0])), color: SESAME_W });
+  }
+  // the cheese-slice collar: a square slice over his shoulders, one corner hanging down his chest
+  A.add('chest', new THREE.BoxGeometry(0.4 * w, 0.014, 0.4).rotateY(Math.PI / 4), { m: mat([0, 0.3, 0.03], [0.12, 0, 0]), color: SLICE });
+  A.add('chest', new THREE.ConeGeometry(0.09, 0.14, 4).rotateX(Math.PI).scale(1, 1, 0.25), { m: mat([0, 0.23, 0.23], [-0.4, Math.PI / 4, 0]), color: SLICE });
+  // the bottom bun shell: a half shell round the lower belly (meatball.ts belly: r 0.27 × (1.42w, 0.92, 1.08) at y 0.08)
+  A.add('hips', new THREE.SphereGeometry(0.29, ws, A.seg(7, 4), 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.42).scale(1.42 * w, 0.95, 1.1), { m: mat([0, 0.06, 0]), color: (_v, n) => (n.y < -0.4 ? rgb(BUN_DEEP) : rgb(BUN_GOLD)) });
+  // the ketchup bottle in his left paw
+  A.add('pawL', new THREE.CylinderGeometry(0.035, 0.04, 0.12, A.seg(8, 5)), { m: mat([0, 0.02, 0.05]), color: KETCHUP });
+  A.add('pawL', new THREE.ConeGeometry(0.02, 0.05, 6), { m: mat([0, 0.1, 0.05]), color: KETCHUP });
+  if (!f) return;
+  // the lettuce cape: frilly leaves down his back
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI + (i - 2.5) * 0.32;
+    leaf(A, 'chest', mat([Math.sin(a) * 0.22 * w, 0.16 - (i % 2) * 0.03, Math.cos(a) * 0.2], [0, a, 0]).multiply(mat([0, 0, 0], [0.9, 0, 0])), 0.16, i % 2 ? LETTUCE : LETTUCE_DEEP);
+  }
+  // a mustard drip on the bun shell and the bottle's cap
+  A.add('hips', new THREE.ConeGeometry(0.02, 0.07, 5).rotateX(Math.PI), { m: mat([0.12 * w, 0.06, 0.28]), color: MUSTARD_Y });
+  A.add('pawL', new THREE.CylinderGeometry(0.022, 0.022, 0.02, 6), { m: mat([0, 0.135, 0.05]), color: 0xfbf6ee });
+}
+
+/**
+ * Mega Meal (Meatball, Mythic; skins v2 "Lunch Rush", the ladder's last step): a slider bun hat with a little patty and a
+ * toothpick flag in place of the sweatband, and a gold napkin bib. The evolving form (the slider ring, then the double,
+ * then the tower of five patties on a golden tray) is drawn by render/skins/coatTrail.ts round his body, not here.
+ */
+function megaMeal(A: Assembly, team: PartTeam): void {
+  const f = full(A);
+  const ws = A.seg(10, 7);
+  const top = mat([0, 0.29, 0], [-0.1, 0, 0]);
+  A.add('head', new THREE.CylinderGeometry(0.095, 0.1, 0.03, ws), { m: top, color: PATTY });
+  A.add('head', new THREE.SphereGeometry(0.105, ws, A.seg(6, 4), 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 0.7, 1), { m: top.clone().multiply(mat([0, 0.015, 0])), color: (_v, n) => (n.y > 0.3 ? rgb(BUN_GOLD) : rgb(BUN_PALE)) });
+  A.add('head', new THREE.CylinderGeometry(0.11, 0.11, 0.008, ws), { m: top.clone().multiply(mat([0, -0.002, 0])), color: CHEDDAR });
+  // the toothpick flag in the team colour
+  A.add('head', new THREE.CylinderGeometry(0.005, 0.005, 0.16, 3), { m: top.clone().multiply(mat([0.02, 0.1, 0])), color: PICK });
+  A.add('head', new THREE.BoxGeometry(0.06, 0.035, 0.004), { m: top.clone().multiply(mat([0.05, 0.16, 0])), color: team.main });
+  if (!f) return;
+  // a gold napkin bib under his chin
+  A.add('chest', new THREE.ConeGeometry(0.09, 0.1, 3).rotateX(Math.PI).scale(1.4, 1, 0.3), { m: mat([0, 0.17, 0.2], [-0.3, 0, 0]), color: BOARD_GOLD });
+}
+
 /** The builders by coat id (render/chars/coatParts.ts COAT_PARTS holds the hero and the dropped gear). */
 export const COAT_BUILDERS: Readonly<Record<string, (A: Assembly, team: PartTeam) => void>> = Object.freeze({
   'coat.clem.s1_sunforged': sunforged,
@@ -638,4 +735,7 @@ export const COAT_BUILDERS: Readonly<Record<string, (A: Assembly, team: PartTeam
   'coat.meatball.store_drive_thru': driveThru,
   'coat.frankie.store_paper_parade': paperParade,
   'coat.marshmallow.store_soft_serve': softServe,
+  'coat.brutus.store_chairman': chairman,
+  'coat.meatball.store_double_stack': doubleStack,
+  'coat.meatball.store_mega_meal': megaMeal,
 });

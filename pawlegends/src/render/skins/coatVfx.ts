@@ -40,6 +40,10 @@ export const COAT_VFX: Readonly<Record<string, CoatSig>> = Object.freeze({
   'coat.nugget.store_robo_vac': { glow: 0x3fd8ff, accent: 0xf4f8ff, parts: ['a robot vacuum he rides', 'aviator goggles', 'a dock antenna'] },
   'coat.meatball.store_drive_thru': { glow: 0xffcf3a, accent: 0x7ccf4a, parts: ['a sesame bun hat', 'a patty, tomato, lettuce and melting cheese', 'pickle shoulder pads', 'a paper takeout bag'] },
   'coat.frankie.store_paper_parade': { glow: 0xff4a3a, accent: 0xffd34d, parts: ['a paper dragon mask with antlers and a mane', 'paper lanterns', 'a parade dragon body that grows during the match'] },
+  // gaps6 coat drop: boardroom gold and power-tie red; ketchup and mustard; golden tray and cheddar
+  'coat.brutus.store_chairman': { glow: 0xffc83a, accent: 0xe8304a, parts: ['a gold helmet band (the plume stays)', 'a power tie and a gold pen', 'a stock-chart arrow and a gold office-chair mech that grow during the match'] },
+  'coat.meatball.store_double_stack': { glow: 0xe8302a, accent: 0xffc83a, parts: ['a sesame bun helmet', 'a bun shell over his belly', 'a cheese-slice collar', 'a lettuce cape', 'a ketchup trail'] },
+  'coat.meatball.store_mega_meal': { glow: 0xffcf3a, accent: 0xe8304a, parts: ['a slider bun hat', 'a burger tower that stacks to five patties during the match', 'a golden tray'] },
   'coat.marshmallow.store_soft_serve': { glow: 0xff8fc8, accent: 0x8fd8ff, parts: ['a soft serve swirl with a cherry', 'rainbow sprinkles', 'a waffle cone collar'] },
 });
 

@@ -63,6 +63,19 @@ export const RANKED_PRIME_TIME = Object.freeze({
   weekend: Object.freeze({ fromH: 12, toH: 18 }),
 });
 
+/**
+ * Ranked draft (SOCIAL-RANKED.md §7.13): the backend's RANKED_DRAFT (ranked/draft.ts), deep-compared by
+ * tests/unit/ranked-draft.test.ts. From `fromIdx` (Tabby III) the pick opens on a `banMs` ban phase, one ban a team.
+ */
+export const RANKED_DRAFT = Object.freeze({ fromIdx: 3, banMs: 15_000, bansPerTeam: 1 });
+/** §7.12: the backend's RANKED_GRADE (ranked/grade.ts): an S grade in a loss loses this share of the points. */
+export const RANKED_GRADE = Object.freeze({ sLossShare: 0.5 });
+
+/** The Ranked rules' draft line. */
+export const RANKED_DRAFT_RULE = `From Tabby III: draft. Each team bans one champion first (15 s), then picks.`;
+/** The Ranked rules' grade line (the honest S-grade loss protection). */
+export const RANKED_GRADE_RULE = `An S grade in a loss loses half the points (Alley and up; checked by the server).`;
+
 /** Who a ranked match was against: six players, players with labelled bots in the empty seats, or bots (vs AI). */
 export type RankedKind = 'players' | 'filled' | 'ai';
 
@@ -204,6 +217,8 @@ export interface RankedCard {
   points?: number;
   shield?: number;
   peak?: string;
+  /** §7.12: the last applied match: the points it moved, the server grade, the points an S grade kept. */
+  last?: { won: boolean; delta: number; grade?: 'S' | 'A' | 'B' | 'C'; saved?: number };
 }
 
 /** The `ranked` object of a `ranked/me` answer, or null. Pure. */
@@ -222,7 +237,17 @@ export function parseRankedCard(body: unknown): RankedCard | null {
     ...(int(o.points, 1e6) !== undefined ? { points: int(o.points, 1e6) } : {}),
     ...(int(o.shield, 9) !== undefined ? { shield: int(o.shield, 9) } : {}),
     ...(typeof o.peak === 'string' ? { peak: o.peak.slice(0, 40) } : {}),
+    ...(parseLast(o.last) ? { last: parseLast(o.last)! } : {}),
   };
+}
+
+function parseLast(v: unknown): RankedCard['last'] | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  if (typeof o.won !== 'boolean' || typeof o.delta !== 'number' || !Number.isFinite(o.delta) || Math.abs(o.delta) > 1000) return null;
+  const grade = o.grade === 'S' || o.grade === 'A' || o.grade === 'B' || o.grade === 'C' ? o.grade : undefined;
+  const saved = typeof o.saved === 'number' && Number.isFinite(o.saved) && o.saved > 0 && o.saved < 1000 ? Math.round(o.saved) : undefined;
+  return { won: o.won, delta: Math.round(o.delta), ...(grade ? { grade } : {}), ...(saved ? { saved } : {}) };
 }
 
 export interface RankedResult {
@@ -233,6 +258,16 @@ export interface RankedResult {
   tone: 'up' | 'down' | 'flat';
   /** The shield line for a placed non-protected tier ("Shield ready" | "Shield used"), else ''. */
   shield: string;
+  /** §7.12: "S grade: lost 8 instead of 15" when the server's S grade halved this loss, else ''. */
+  grade?: string;
+}
+
+/** The S-grade line from the card's last match (the server's numbers, never the client's grade). Pure. */
+export function rankedGradeLine(after: RankedCard | null): string {
+  const l = after?.last;
+  if (!l || l.won || l.grade !== 'S' || !l.saved) return '';
+  const lost = Math.abs(l.delta);
+  return `S grade: lost ${lost} instead of ${lost + l.saved}`;
 }
 
 const tierName = (idx: number): string => rankedLabel(idx);
@@ -243,6 +278,12 @@ const tierName = (idx: number): string => rankedLabel(idx);
  */
 export function rankedResult(before: RankedCard | null, after: RankedCard | null, won: boolean): RankedResult | null {
   if (!after) return null;
+  const r = rankedResultCore(before, after, won);
+  const grade = rankedGradeLine(after);
+  return grade ? { ...r, grade } : r;
+}
+
+function rankedResultCore(before: RankedCard | null, after: RankedCard, won: boolean): RankedResult {
   if (after.tierIdx === undefined) {
     const done = Math.max(0, after.placementsOf - after.placementsLeft);
     return { tier: `Placement ${done} / ${after.placementsOf}`, change: won ? 'Placement win' : 'Placement match played', tone: won ? 'up' : 'flat', shield: '' };

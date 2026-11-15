@@ -45,7 +45,7 @@ import { crestSvg } from '../modeSelect/crest';
 import { startMotes } from './motes';
 import { HEROES } from '../../data/heroes';
 import { bindEvents, featuredModeId, liveopsCardsHtml, needsTap } from '../events/eventsPanel';
-import { liveopsState } from '../../meta/liveops';
+import { dropAction, liveopsState } from '../../meta/liveops';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 /** Absolute art URL (a relative url() in a custom property would resolve against the CSS chunk); quotes dropped. */
@@ -77,9 +77,11 @@ export interface Promo {
   title: string;
   sub: string;
   art?: string;
-  action: 'pass' | 'modes' | 'store' | 'heroes';
+  action: 'pass' | 'modes' | 'store' | 'heroes' | 'drop';
   /** `modes` only: the mode Mode Select opens on (default: the first timed event that is not featured). */
   mode?: string;
+  /** gaps6 `drop` only: the coat the slide previews where the store is closed (the apps). */
+  coat?: string;
 }
 
 export interface HomeScreenOpts extends LobbyScreenOpts {
@@ -233,7 +235,7 @@ function promoHtml(o: HomeScreenOpts): string {
   const slides = ps
     .map(
       (p, i) =>
-        `<button type="button" class="hm-slide${i === 0 ? ' on' : ''}" data-a="promo" data-act="${p.action}"${p.mode ? ` data-mode="${esc(p.mode)}"` : ''} data-i="${i}" tabindex="${i === 0 ? 0 : -1}" aria-label="${esc(`${p.title}. ${p.sub}`)}"${p.art ? ` style="--art:url('${esc(absArt(p.art))}')"` : ''}><span class="hm-slide-t"><b>${esc(p.title)}</b><small>${esc(p.sub)}</small></span></button>`,
+        `<button type="button" class="hm-slide${i === 0 ? ' on' : ''}" data-a="promo" data-act="${p.action}"${p.mode ? ` data-mode="${esc(p.mode)}"` : ''}${p.coat ? ` data-coat="${esc(p.coat)}" data-testid="promo-drop"` : ''} data-i="${i}" tabindex="${i === 0 ? 0 : -1}" aria-label="${esc(`${p.title}. ${p.sub}`)}"${p.art ? ` style="--art:url('${esc(absArt(p.art))}')"` : ''}><span class="hm-slide-t"><b>${esc(p.title)}</b><small>${esc(p.sub)}</small></span></button>`,
     )
     .join('');
   const dots = ps.length > 1 ? `<span class="hm-dots" aria-hidden="true">${ps.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</span>` : '';
@@ -510,6 +512,12 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       if (act === 'pass') o.onCollection?.();
       else if (act === 'store') o.onStore?.();
       else if (act === 'heroes') o.onHeroes?.();
+      // gaps6 the coat drop: the web store's coats (the drop first), else a preview of the drop's lead coat
+      else if (act === 'drop') {
+        const d = dropAction();
+        if (d.store && d.canStore?.()) d.store();
+        else if (btn!.dataset.coat) d.preview?.(btn!.dataset.coat);
+      }
       else openModes(btn!.dataset.mode ?? o.modes.find((m) => typeof m.state === 'object' && m.id !== featuredModeId())?.id, 'promo');
     } else if (a === 'mute') {
       const b = root.querySelector<HTMLElement>('[data-a="mute"]');

@@ -7,7 +7,7 @@
  * Framework-free on purpose: `PartyRelayService` (party-relay.service.ts) wires it into Nest, and the e2e harness
  * and the specs construct it directly with their own HTTP server, store and options.
  */
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, randomInt } from 'crypto';
 import type { IncomingMessage, Server } from 'http';
 import type { Duplex } from 'stream';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
@@ -77,6 +77,10 @@ import { memoryMm, type MmHookFactory, type MmHooks, type MmRelayApi, type MmRoo
 import { MemoryMmRoomStore } from '../mm/mm-room.schema';
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+import { draftSeed } from '../ranked/draft';
+>>>>>>> 016d8f7d5 (feat(pawlegends): ranked draft and S-grade loss protection; the November coat drop with three new coats)
 import { CHAMPION_IDS, isFreeChampion, rotationWeek } from '../pawlegends-catalog';
 =======
 import { crossesAdultLine, isStickerId, phraseInScope, type ChatAgeBand } from '../../shared-contracts/chat';
@@ -524,6 +528,8 @@ export class PartyRelay {
                 sideOf: h => sim.heroSideOf(h),
                 newbieHero: 'clem',
                 allowed: (p, m, hero) => this.championAllowed(p.rotationWeek, m.identity, hero),
+                // ranked draft (§7.13): a bot ban prefers a champion every player has this week
+                free: (p, hero) => isFreeChampion(hero, p.rotationWeek ?? rotationWeek(this.now())),
             },
             {
                 changed: p => {
@@ -1467,6 +1473,9 @@ export class PartyRelay {
                 return this.pickChamp(s, member, msg.hero, () => p.lock(member, msg.hero, msg.trick));
             case 'pick.unlock':
                 return p.unlock(member);
+            case 'pick.ban':
+                // PROTO 8 ranked draft (§7.13): a ban vote (the party service checks the phase and the species)
+                return p.ban(member, msg.hero);
             case 'load':
                 return p.load(member, msg.pct);
             case 'loaded': {
@@ -2298,11 +2307,27 @@ export class PartyRelay {
                 return;
             }
         }
-        const { picks, tricks } = map
-            ? ps.fillPicksParty(plan.seed, plan.seats as never, map)
-            : ps.fillPicksParty(plan.seed, plan.seats as never);
+        const picksOf = (seed: number) =>
+            map ? ps.fillPicksParty(seed, plan.seats as never, map) : ps.fillPicksParty(seed, plan.seats as never);
+        // ranked draft (§7.13): the sim draws the bots' heroes from the seed, so the room takes the first seed whose bot
+        // seats field no banned champion (a human seat never holds one: the pick refuses it)
+        let seed = plan.seed;
+        if (plan.bans?.length) {
+            const human = new Set(plan.seats.map(x => x.slot));
+            const bots = [...Array(2 * n).keys()].filter(x => !human.has(x));
+            const clean = draftSeed(
+                plan.seed,
+                plan.bans,
+                bots,
+                x => picksOf(x).picks as string[],
+                () => randomInt(0, 2 ** 32 - 1) >>> 0
+            );
+            if (clean === null) this.log('draft_seed_miss', { bans: plan.bans.length });
+            else seed = clean;
+        }
+        const { picks, tricks } = picksOf(seed);
         const config: StoredRoom['config'] = {
-            seed: plan.seed,
+            seed,
             picks: picks as string[],
             tricks: tricks as string[],
             difficulty: plan.difficulty,

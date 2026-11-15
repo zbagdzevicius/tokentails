@@ -22,7 +22,19 @@ import { TierFx, type FxHero } from '../skins/tierFx';
 import type { CardFx } from '../skins/cardFx';
 import { skinFxFor } from '../skins/coatRung';
 import { emptyProfile, foilColor, stageOf } from '../skins/effectKit';
-import { trailOf } from '../skins/coatTrailData';
+import { GROUND_TRAILS, trailOf } from '../skins/coatTrailData';
+
+/** gaps6 evolving forms: the drawn hero's height and half width (its unrotated bounds), measured once per trail. */
+function formSizeOf(o: THREE.Object3D): { h: number; r: number } {
+  const ry = o.rotation.y;
+  o.rotation.y = 0;
+  o.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(o);
+  o.rotation.y = ry;
+  o.updateMatrixWorld(true);
+  const sz = b.getSize(new THREE.Vector3());
+  return { h: Math.max(1, sz.y), r: Math.max(0.4, Math.max(sz.x, sz.z) / 2) };
+}
 import type { CoatTrail } from '../skins/coatTrail';
 
 /** gaps5: the coat trail module (three.js meshes), loaded on the first hero that wears a trail coat (first-load JS). */
@@ -617,7 +629,7 @@ export class HeroView {
       return;
     }
     if (!t) {
-      t = new trailMod.CoatTrail(kind);
+      t = new trailMod.CoatTrail(kind, formSizeOf(r.ch.object));
       const id = e.id;
       t.onStage = (stage, sx, sz) => void this.tierFx?.coats?.evolve(sx, sz, stage, this.cardOf(id));
       this.group.add(t.mesh);
@@ -628,7 +640,7 @@ export class HeroView {
     q.x = x;
     q.z = z;
     // the ground trails are effects (the Skin effects setting); the parade body is the coat itself
-    q.hidden = hidden || (kind !== 'parade' && (fx?.mode === 'off' || (fx?.mode === 'mine' && e.id !== this.mySlot)));
+    q.hidden = hidden || (GROUND_TRAILS.includes(kind) && (fx?.mode === 'off' || (fx?.mode === 'mine' && e.id !== this.mySlot)));
     q.level = e.level ?? 1;
     q.takedowns = fx?.coats?.takedowns[e.id] ?? 0;
     q.sinceUlt = fx?.coats?.sinceUlt(e.id) ?? 1e9;

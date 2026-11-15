@@ -16,7 +16,7 @@
  * bytes for every frame type).
  */
 
-export const PROTO = 7;
+export const PROTO = 8;
 /**
  * The oldest PROTO the relay still accepts (M1a, docs/plans/moba/M1A-IMPL.md §5.5). PROTO 2 only adds the `mm.*`
  * JSON frames (Quick Play co-op); the binary frames and the framing are unchanged, so the subprotocol stays `pl.1`. The
@@ -60,6 +60,13 @@ export const PROTO_MATCH_CHAT = 6;
  * this player's matches out of every spectator's reach. TURN bytes are unchanged.
  */
 export const PROTO_WATCH = 7;
+/**
+ * PROTO 8 (ranked draft, docs/plans/moba/SOCIAL-RANKED.md §7.13): `pick.ban{hero}` (a ban vote in the ban phase of a
+ * ranked pick) and `PartyView.draft` (the phase, the species this team bans, each team's ban and the own team's votes).
+ * The relay drafts a ranked match only when every human socket is PROTO 8 or newer; an older game keeps the blind pick.
+ * No binary frame changes.
+ */
+export const PROTO_DRAFT = 8;
 export const SUBPROTOCOL = 'pl.1';
 /**
  * Quick Play queues: co-op (M1a), casual PvP (M1b, PROTO 3 on a sim >= PVP_SINCE) and 5v5 Classic (PROTO 4 on a sim
@@ -612,6 +619,8 @@ export type ClientJson =
   | { t: 'pick.hover'; hero: string }
   | { t: 'pick.lock'; hero: string; trick: string }
   | { t: 'pick.unlock' }
+  /** PROTO 8: a ban vote in a ranked draft's ban phase (a champion of the other team's species). */
+  | { t: 'pick.ban'; hero: string }
   | { t: 'load'; pct: number }
   | { t: 'loaded' }
   | { t: 'vote'; kind: VoteKind; yes: boolean }
@@ -713,6 +722,7 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
   'pick.hover': { hero: [isStr(ID), false] },
   'pick.lock': { hero: [isStr(ID), false], trick: [isStr(ID), false] },
   'pick.unlock': {},
+  'pick.ban': { hero: [isStr(ID), false] },
   load: { pct: [isInt(0, 100), false] },
   loaded: {},
   vote: { kind: [(v) => v === 'surrender' || v === 'pause' || v === 'resume' || v === 'rematch' || v === 'remake', false], yes: [isBool, false] },
@@ -851,6 +861,21 @@ export interface PartyView {
   chat?: { tier: 'text' | 'quick'; thread: string; match?: 'text' | 'quick' };
   /** PROTO 5: member ids the recipient blocked (only in the recipient's own copy): their chat lines are hidden. */
   blocks?: string[];
+  /** PROTO 8: a ranked draft pick (SOCIAL-RANKED.md §7.13). */
+  draft?: DraftView;
+}
+
+/**
+ * PROTO 8 ranked draft: `stage` 'ban' (votes, `PartyView.deadlineMs` is the ban timer) then 'pick' (the bans hold);
+ * `target` the species the recipient's team bans; `bans` one per team (team 0, team 1): `open` while the ban phase
+ * runs (the other team's choice stays hidden), then the hero and who banned it ('team', 'bot' for a team of bots, or
+ * 'none' when a team cast no vote); `votes` the recipient's own team's ban votes in the ban phase.
+ */
+export interface DraftView {
+  stage: 'ban' | 'pick';
+  target: 'cat' | 'dog';
+  bans: { team: 0 | 1; by: 'open' | 'team' | 'bot' | 'none'; hero?: string }[];
+  votes?: { member: string; hero: string }[];
 }
 
 export interface MatchConfigView {

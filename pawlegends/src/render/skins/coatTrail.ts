@@ -10,6 +10,12 @@
  * |                             | seconds after his ultimate. Each new stage pops a firework (coatFx.ts evolve).   |
  * | Robo-Vac (Epic)             | mowed stripes: pale strips left on the ground behind the vacuum, fading out      |
  * | Soft Serve (Epic)           | melty drips: little cream puddles behind her, shrinking away                     |
+ * | Double Stack (Epic, gaps6)  | a ketchup trail: red splats behind him, fading                                   |
+ * | Chairman (Mythic, gaps6)    | the evolving form round him (one mesh, its geometry swapped per stage): nothing, |
+ * |                             | a green stock-chart arrow over his helmet, the gold office-chair back, then the  |
+ * |                             | full gold chair mech (seat, armrests, five wheels) he rides                      |
+ * | Mega Meal (Mythic, gaps6)   | the evolving form round him: a slider patty ring, the double (bun, lettuce,      |
+ * |                             | cheese), a three-patty tower, then five patties on a golden tray with flags      |
  *
  * Rules: render only (the sim, the replay and the hash never see it); hidden while the hero is dead, stealthed or not
  * drawn; Low keeps the parade (the Mythic's signature, at most 6 segments) and draws the ground trails only for the
@@ -17,6 +23,7 @@
  */
 import * as THREE from 'three';
 import { PARADE_LOW_MAX, PARADE_SEGMENTS, PARADE_ULT_S, PARADE_ULT_SEGMENTS, PREVIEW_STAGE_S, paradeStage, trailPreview, type TrailKind } from './coatTrailData';
+import { formGeometry, FORM_STAGES, type FormSize } from './coatForms';
 
 export * from './coatTrailData';
 
@@ -62,8 +69,9 @@ function segmentGeometry(): THREE.BufferGeometry {
   return mergeSimple(parts);
 }
 
-/** A flat ground strip (stripes) or puddle (drips), facing up, unit size. */
-function groundGeometry(kind: 'stripes' | 'drips'): THREE.BufferGeometry {
+type GroundKind = 'stripes' | 'drips' | 'ketchup';
+/** A flat ground strip (stripes) or puddle (drips, ketchup), facing up, unit size. */
+function groundGeometry(kind: GroundKind): THREE.BufferGeometry {
   const g = kind === 'stripes' ? new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2) : new THREE.CircleGeometry(0.5, 10).rotateX(-Math.PI / 2);
   return g;
 }
@@ -92,7 +100,7 @@ function mergeSimple(gs: THREE.BufferGeometry[]): THREE.BufferGeometry {
 }
 
 let SEG_GEO: THREE.BufferGeometry | null = null;
-const GROUND_GEO: Partial<Record<'stripes' | 'drips', THREE.BufferGeometry>> = {};
+const GROUND_GEO: Partial<Record<GroundKind, THREE.BufferGeometry>> = {};
 
 /** What a trail needs from its hero each frame. */
 export interface TrailInput {
@@ -110,6 +118,8 @@ export interface TrailInput {
   /** The hero's facing (rad, 0 = +x, counter-clockwise from above: ViewEntity.yaw). */
   yaw: number;
 }
+
+const isForm = (k: TrailKind): k is 'board' | 'tower' => k === 'board' || k === 'tower';
 
 
 /** One hero's trail. */
@@ -144,16 +154,23 @@ export class CoatTrail {
   private readonly v = new THREE.Vector3();
   private readonly s = new THREE.Vector3();
 
-  constructor(kind: TrailKind) {
+  /** gaps6 evolving forms: one geometry per stage (index 1..4; null = nothing at that stage). */
+  private readonly forms: (THREE.BufferGeometry | null)[] = [];
+
+  constructor(kind: TrailKind, size: FormSize = { h: 2.6, r: 2.2 }) {
     this.kind = kind;
-    if (kind === 'parade') {
+    if (isForm(kind)) {
+      for (let st = 0; st <= FORM_STAGES; st++) this.forms.push(st ? formGeometry(kind, st, size) : null);
+      this.mesh = new THREE.InstancedMesh(this.forms[1] ?? this.forms[FORM_STAGES]!, new THREE.MeshLambertMaterial({ vertexColors: true }), 1);
+      this.mesh.castShadow = false;
+    } else if (kind === 'parade') {
       SEG_GEO ??= segmentGeometry();
       this.mesh = new THREE.InstancedMesh(SEG_GEO, new THREE.MeshLambertMaterial({ vertexColors: true }), PARADE_ULT_SEGMENTS);
       this.mesh.castShadow = false;
     } else {
-      const geo = (GROUND_GEO[kind] ??= groundGeometry(kind));
-      const color = kind === 'stripes' ? 0xd8ffb0 : 0xfff0d8;
-      this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: kind === 'stripes' ? 0.32 : 0.75, depthWrite: false }), GROUND_MAX);
+      const geo = (GROUND_GEO[kind as GroundKind] ??= groundGeometry(kind as GroundKind));
+      const color = kind === 'stripes' ? 0xd8ffb0 : kind === 'ketchup' ? 0xd8202a : 0xfff0d8;
+      this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: kind === 'stripes' ? 0.32 : kind === 'ketchup' ? 0.8 : 0.75, depthWrite: false }), GROUND_MAX);
       this.mesh.renderOrder = -1;
     }
     this.mesh.name = `coat-trail-${kind}`;
@@ -220,7 +237,33 @@ export class CoatTrail {
   update(dt: number, h: TrailInput): void {
     this.time += dt;
     if (this.kind === 'parade') this.parade(dt, h);
+    else if (isForm(this.kind)) this.form(h);
     else this.ground(h);
+  }
+
+  /** gaps6: the evolving form round the hero, its geometry the stage's (Evolve preview cycles them). */
+  private form(h: TrailInput): void {
+    const stage = trailPreview() ? 1 + (Math.floor(this.time / PREVIEW_STAGE_S) % 4) : paradeStage(h.level, h.takedowns);
+    if (this.stage > 0 && stage > this.stage) this.onStage?.(stage, h.x, h.z);
+    this.stage = stage;
+    const geo = this.forms[stage];
+    if (h.hidden || !geo) {
+      this.mesh.count = 0;
+      this.shown = 0;
+      return;
+    }
+    if (this.mesh.geometry !== geo) this.mesh.geometry = geo;
+    // a little bob (the chair rolls, the tower wobbles) and his facing
+    const bob = this.kind === 'board' ? Math.sin(this.time * 2.4) * 0.03 : Math.abs(Math.sin(this.time * 5)) * (h.moving ? 0.05 : 0.015);
+    this.v.set(h.x, bob, h.z);
+    this.e.set(0, h.yaw, this.kind === 'tower' && h.moving ? Math.sin(this.time * 7) * 0.025 : 0);
+    this.q.setFromEuler(this.e);
+    this.s.setScalar(1);
+    this.m.compose(this.v, this.q, this.s);
+    this.mesh.setMatrixAt(0, this.m);
+    this.mesh.count = 1;
+    this.shown = 1;
+    this.mesh.instanceMatrix.needsUpdate = true;
   }
 
   private parade(dt: number, h: TrailInput): void {
@@ -269,8 +312,8 @@ export class CoatTrail {
   }
 
   private ground(h: TrailInput): void {
-    const life = this.kind === 'stripes' ? 3.2 : 2.4;
-    const step = this.kind === 'stripes' ? 0.55 : 0.85;
+    const life = this.kind === 'stripes' ? 3.2 : this.kind === 'ketchup' ? 2.8 : 2.4;
+    const step = this.kind === 'stripes' ? 0.55 : this.kind === 'ketchup' ? 0.7 : 0.85;
     const on = !h.hidden && (h.self || !h.low);
     if (on && h.moving) {
       if (!(this.lastX === this.lastX) || Math.hypot(h.x - this.lastX, h.z - this.lastZ) > JUMP) {
@@ -312,6 +355,8 @@ export class CoatTrail {
   dispose(): void {
     this.mesh.removeFromParent();
     (this.mesh.material as THREE.Material).dispose();
+    // InstancedMesh.dispose keeps the geometry (the shared segment and ground ones); the form geometries are this trail's
+    for (const g of this.forms) g?.dispose();
     this.mesh.dispose();
   }
 }

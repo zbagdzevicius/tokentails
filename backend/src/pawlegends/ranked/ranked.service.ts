@@ -388,6 +388,19 @@ export class RankedService {
                           peak: tierLabel(row?.peakIdx ?? shown.tierIdx),
                       }
                     : {}),
+                // §7.12: the last applied match (the results screen's "S grade kept 8 pts" line), this season only
+                ...(current && row?.lastStep
+                    ? {
+                          last: {
+                              room: row.lastStep.room,
+                              won: row.lastStep.won,
+                              delta: row.lastStep.delta,
+                              kind: row.lastStep.kind,
+                              ...(row.lastStep.grade ? { grade: row.lastStep.grade } : {}),
+                              ...(row.lastStep.saved ? { saved: row.lastStep.saved } : {}),
+                          },
+                      }
+                    : {}),
                 pendingRewards: (row?.peaks ?? [])
                     .filter(p => !p.rewarded)
                     .map(p => ({ season: p.season, tier: tierLabel(p.peakIdx) })),

@@ -154,8 +154,10 @@ describe('store states and the pass', () => {
     const s = { id: 's1', xp: 0, tier: 0, skips: 0, claimed: [], endsAt: '' };
     expect(itemState(up, { items: new Set(), season: { ...s, premium: 'none' } })).toBe('locked');
     expect(itemState(up, { items: new Set(), season: { ...s, premium: 'pass' } })).toBe('buy');
-    expect(tabSkus('coats')).toHaveLength(27);
-    expect(tabSkus('coats').slice(0, 4).map((d) => d.cents.usd)).toEqual([799, 799, 1499, 1499]);
+    expect(tabSkus('coats')).toHaveLength(30);
+    // gaps6: while the month's coat drop is new its coats lead (meta/liveops.ts inDrop); the rest keep catalog order
+    const drop = new Set(['pl_coat_brutus_chairman', 'pl_coat_meatball_double_stack', 'pl_coat_meatball_mega_meal']);
+    expect(tabSkus('coats').filter((d) => !drop.has(d.sku)).slice(0, 4).map((d) => d.cents.usd)).toEqual([799, 799, 1499, 1499]);
     expect(tabSkus('frames')).toHaveLength(4);
   });
   it('tier math and the "matches to go" line', () => {

@@ -51,6 +51,12 @@ export const COPY = Object.freeze({
   connecting: 'Connecting…',
   // pick
   pickTitle: 'Choose your legend',
+  /** Ranked draft (SOCIAL-RANKED.md §7.13). */
+  banTitle: 'Ban a champion',
+  banLock: 'BAN',
+  banTap: 'Tap a champion to vote',
+  banVoted: (name: string) => `Your vote: ${name}`,
+  banRule: (side: string) => `Ranked draft: your team bans one of the ${side}. Most votes wins; bots ban too.`,
   lockIn: 'Lock in',
   skillsLore: 'Skills & lore',
   lockedIn: 'Locked in',

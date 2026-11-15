@@ -22,7 +22,7 @@ import { measureRegionPings, regionPingsNow } from '../meta/rankedPing';
 import { acceptCardHtml } from './ui/acceptCard';
 import { lobbyHtml, qrSheetHtml, shownName } from './ui/partyLobby';
 import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
-import { firstFree, heroBlock, lockedByOthers, pickHtml, setPickChampLock } from './ui/partyPick';
+import { banBlock, banPhase, firstFree, heroBlock, lockedByOthers, pickHtml, setPickChampLock } from './ui/partyPick';
 import { openChampSelect, patchChampSelect, timerText, wireChampSelect } from '../ui/champSelect/champSelect';
 import { loadProfile, saveProfile } from '../meta/profile';
 import type { SkillSlot } from '../ui/skillCodex/facts';
@@ -1232,6 +1232,11 @@ export class PartyClient {
     const v = this.state.view!;
     const me = v.members.find((m) => m.id === v.you);
     this.peek = '';
+    // ranked draft (§7.13): the pick opens on the ban phase; the hover waits for the pick
+    if (banPhase(v)) {
+      this.hover = '';
+      return;
+    }
     // rematch prefills the last pick; otherwise the title's hero, when free
     if (me?.hero) this.hover = me.hero;
     if (me?.trick) this.trick = me.trick;
@@ -1250,6 +1255,14 @@ export class PartyClient {
    */
   private unlocking = false;
   private pickChanged(prev: PartyView, v: PartyView): void {
+    // ranked draft (§7.13): the bans are in, the pick opens (the ban-phase hover was a champion of the other team)
+    if (banPhase(prev) && !banPhase(v)) {
+      this.hover = '';
+      this.enteredPick();
+      this.drawn = '';
+      return;
+    }
+    if (banPhase(v)) return;
     const me = v.members.find((m) => m.id === v.you);
     const was = prev.members.find((m) => m.id === prev.you);
     if (was?.locked && me && !me.locked && !this.unlocking) this.note({ key: 'pp-side', title: COPY.sideSwitched, tone: 'info', ttl: 4000 });
@@ -1469,6 +1482,14 @@ export class PartyClient {
       case 'hero': {
         if (!HERO_IDS.includes(t.dataset.v as never)) return;
         const hero = t.dataset.v!;
+        // ranked draft (§7.13): in the ban phase a tap chooses the champion BAN votes for (local until BAN)
+        if (banPhase(v)) {
+          this.peek = '';
+          this.hover = hero;
+          this.drawn = '';
+          this.render();
+          return;
+        }
         const me = v?.members.find((m) => m.id === v.you);
         const why = v ? heroBlock(v, hero, hideNames()) : '';
         // locked in (the hero "Play again together" kept, or an earlier LOCK IN) and a free champion tapped: the lock
@@ -1525,6 +1546,13 @@ export class PartyClient {
         this.render();
         return;
       case 'lock':
+        // ranked draft (§7.13): BAN sends this player's vote (it can change until everyone voted)
+        if (banPhase(v)) {
+          if (!v || !this.hover || banBlock(v, this.hover)) return;
+          s.sendJson({ t: 'pick.ban', hero: this.hover });
+          this.h.analytics?.('party_pick', { hero: this.hover, stage: 'ban', newbie: this.h.newbie });
+          return;
+        }
         // the panel's hero is what LOCK IN locks: a viewed hero that became free (its taker changed, the leader
         // switched side) is hovered first
         if (v && this.peek && !heroBlock(v, this.peek)) {

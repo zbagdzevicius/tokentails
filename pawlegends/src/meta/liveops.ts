@@ -72,9 +72,86 @@ export interface LiveopsTwist {
   endsAt: number;
 }
 
+/**
+ * gaps6 (LIVEOPS.md "Coat drop"): the month's new store coats, featured until `endsAt` (the Events card's countdown).
+ * `next` only when the next drop is scheduled (never a guessed date).
+ */
+export interface LiveopsDrop {
+  id: string;
+  name: string;
+  coats: string[];
+  startsAt: number;
+  endsAt: number;
+  next: { startsAt: number; name: string } | null;
+}
+
+/** The baked drop calendar: the backend's liveops.defaults.ts DROP_CALENDAR (tests/unit/liveops-drop.test.ts). */
+export const DROP_CALENDAR: readonly { id: string; name: string; coats: string[]; startsAt: string; endsAt: string }[] = Object.freeze([
+  {
+    id: 'drop-2026-11',
+    name: 'November Drop: Boardroom & Lunch Rush',
+    coats: ['coat.brutus.store_chairman', 'coat.meatball.store_double_stack', 'coat.meatball.store_mega_meal'],
+    startsAt: '2026-11-15T00:00:00.000Z',
+    endsAt: '2026-12-01T00:00:00.000Z',
+  },
+]);
+
+/** The baked drop at `now` (the latest started) and the next scheduled one; the server's `dropAt`. Pure. */
+export function dropAt(now: number): LiveopsDrop | null {
+  const started = DROP_CALENDAR.filter((d) => Date.parse(d.startsAt) <= now).sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt));
+  const cur = started[0];
+  if (!cur) return null;
+  const next = DROP_CALENDAR.filter((d) => Date.parse(d.startsAt) > now).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0];
+  return { id: cur.id, name: cur.name, coats: [...cur.coats], startsAt: Date.parse(cur.startsAt), endsAt: Date.parse(cur.endsAt), next: next ? { startsAt: Date.parse(next.startsAt), name: next.name } : null };
+}
+
+/** A server `drop`: absent keeps the baked one, null hides it, a malformed one keeps the baked one. Pure. */
+export function parseDrop(v: unknown, now: number): LiveopsDrop | null {
+  if (v === null) return null;
+  if (!isRec(v)) return dropAt(now);
+  const id = str(v.id, 40);
+  const name = str(v.name, 60);
+  const coats = Array.isArray(v.coats) ? v.coats.filter((c): c is string => typeof c === 'string' && COAT.test(c)).slice(0, 6) : [];
+  const startsAt = time(v.startsAt);
+  const endsAt = time(v.endsAt);
+  if (!id || !name || !coats.length || startsAt === null || endsAt === null || endsAt <= startsAt) return dropAt(now);
+  const n = isRec(v.next) ? v.next : null;
+  const nextAt = n ? time(n.startsAt) : null;
+  return { id, name, coats, startsAt, endsAt, next: n && nextAt !== null ? { startsAt: nextAt, name: str(n.name, 60) ?? 'The next drop' } : null };
+}
+
+/** The drop card's countdown line: "New for 15d 4h" while the window runs, then the next drop's date or ''. Pure. */
+export function dropLine(d: LiveopsDrop | null, now: number, countdown: (ms: number) => string): string {
+  if (!d) return '';
+  if (now < d.endsAt) return `${d.coats.length} new coat${d.coats.length === 1 ? '' : 's'} · new for ${countdown(d.endsAt - now)}`;
+  if (d.next && d.next.startsAt > now) return `${d.next.name} in ${countdown(d.next.startsAt - now)}`;
+  return '';
+}
+
+/** What a drop tile and the drop's Store button do (set by the app: the Heroes preview always, the store on the web). */
+export interface DropActions {
+  preview?: (coat: string) => void;
+  store?: () => void;
+  /** The web store is open here (never in the apps). */
+  canStore?: () => boolean;
+}
+let dropActs: DropActions = {};
+export const dropAction = (): DropActions => dropActs;
+export function setDropAction(a: DropActions): void {
+  dropActs = a;
+}
+
+/** Is this coat in the running drop's window (the store's "New" ribbon)? */
+export function inDrop(coatId: string, now = Date.now()): boolean {
+  const d = state.config.drop;
+  return !!d && now >= d.startsAt && now < d.endsAt && d.coats.includes(coatId);
+}
+
 export interface LiveopsConfig {
   /** True when the server answered (the goal and vote exist only then). */
   live: boolean;
+  /** gaps6: the month's coat drop (the baked calendar offline), or null. */
+  drop: LiveopsDrop | null;
   events: LiveopsEvent[];
   featuredMode: { id: string; endsAt: number } | null;
   /** Sim v27: the Weekly Twist tile's rule set (the baked rotation offline), or null when the server turned it off. */
@@ -175,7 +252,7 @@ export function fallbackConfig(now: number): LiveopsConfig {
   const twist = rotationTwist(now);
   const boss = bossWeekend(now);
   const featuredMode = now >= boss.startsAt ? { id: 'boss', endsAt: boss.endsAt } : { id: 'twist', endsAt: twist.endsAt };
-  return { live: false, events: [], featuredMode, twist, boss, featuredQuests: [], goal: null, vote: null, nap: now < NAP_FALLBACK.endsAt ? NAP_FALLBACK : null };
+  return { live: false, drop: dropAt(now), events: [], featuredMode, twist, boss, featuredQuests: [], goal: null, vote: null, nap: now < NAP_FALLBACK.endsAt ? NAP_FALLBACK : null };
 }
 
 /** Sim v28: the server's Boss Weekend window (absent: the baked schedule; null: turned off). Pure. */
@@ -261,6 +338,7 @@ export function parseConfig(body: unknown, now: number): LiveopsConfig | null {
     : [];
   return {
     live: true,
+    drop: parseDrop(body.drop, now),
     events,
     featuredMode: fm && fm.endsAt > now ? fm : twist ? { id: 'twist', endsAt: twist.endsAt } : rotationFeatured(now),
     twist,

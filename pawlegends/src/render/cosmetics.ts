@@ -324,6 +324,12 @@ const EFFECT_COAT_PAL: Readonly<Record<string, Pal>> = Object.freeze({
   'coat.frankie.store_paper_parade': [0x9a4a22, 0xf6d0a0, 0x4e1e0c, 0xe8302a, 'solid'],
   // vanilla soft serve with a caramel shade; strawberry sprinkle accent
   'coat.marshmallow.store_soft_serve': [0xfff2d8, 0xffffff, 0xe0c08a, 0xff6f91, 'solid'],
+  // gaps6 coat drop: a boardroom-gold pug (his tan, a richer gold), the power-tie red accent
+  'coat.brutus.store_chairman': [0xd8a85a, 0xf8e2b4, 0x8a5a24, 0xe8304a, 'solid'],
+  // a sesame-toasted tabby, ketchup accent
+  'coat.meatball.store_double_stack': [0xc8823a, 0xf6d6a4, 0x6a3a1a, 0xe8302a, 'tabby'],
+  // a flame-grilled orange tabby, golden-tray accent
+  'coat.meatball.store_mega_meal': [0xe07a2e, 0xfde0b0, 0x7a3410, 0xffcf3a, 'tabby'],
 });
 
 /**
@@ -345,6 +351,9 @@ const COAT_FX: Readonly<Record<string, { rung: CatTier; element: Element }>> = O
   'coat.meatball.store_drive_thru': { rung: 'LEGENDARY', element: 'SAND' },
   'coat.frankie.store_paper_parade': { rung: 'LEGENDARY', element: 'STELLAR' },
   'coat.marshmallow.store_soft_serve': { rung: 'EPIC', element: 'ICE' },
+  'coat.brutus.store_chairman': { rung: 'LEGENDARY', element: 'STELLAR' },
+  'coat.meatball.store_double_stack': { rung: 'EPIC', element: 'FIRE' },
+  'coat.meatball.store_mega_meal': { rung: 'LEGENDARY', element: 'SAND' },
 });
 
 /** The hue (degrees) and saturation of 0xRRGGBB (no import: classify.ts imports this file's neighbours). */

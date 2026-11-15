@@ -35,7 +35,10 @@ test('Home → Heroes → Coats: every clip plays and the page fits', async ({ p
   await expect(dlg.locator('.cb-name')).toHaveText('Sir Brutus');
   await tap('.cb-tab[data-tab="coats"]');
   await expect(dlg).toHaveAttribute('data-tab', 'coats');
-  await expect(dlg.locator('.cb-coat-chip').first()).toContainText('Thunderpaw');
+  // gaps6: the Mythic Chairman of the Board leads Sir Brutus's coats; Thunderpaw is next
+  await expect(dlg.locator('.cb-coat-chip').first()).toContainText('Chairman of the Board');
+  await tap('.cb-coat-chip[data-coat="coat.brutus.store_thunderpaw"]');
+  await expect(dlg.locator('.cb-coat-chip.on')).toContainText('Thunderpaw');
   await expect(dlg.locator('.cb-card')).toContainText('Three lightning bolts strike the ring');
   await expect(dlg).not.toContainText(/\$|€|Buy/);
   await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: 60_000 }).toBe('playing');
@@ -48,7 +51,9 @@ test('Home → Heroes → Coats: every clip plays and the page fits', async ({ p
   // the chips and the clip buttons share one row on a phone held sideways
   const chipBox = (await dlg.locator('.cb-coat-chip').first().boundingBox())!;
   const cfxBox = (await dlg.locator('.cb-cfx-btn').first().boundingBox())!;
-  if (touch) expect(Math.abs(chipBox.y - cfxBox.y)).toBeLessThan(12);
+  // (gaps5 polish 6: from COAT_ROW_ALONE coats the chips take a row of their own; Sir Brutus has that many since gaps6)
+  const many = (await dlg.locator('.cb-icons[data-many="1"]').count()) > 0;
+  if (touch && !many) expect(Math.abs(chipBox.y - cfxBox.y)).toBeLessThan(12);
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1)).toBe(true);
   const shots = fs.existsSync(path.dirname(SHOTS)) && !process.env.CI;
   if (shots) fs.mkdirSync(SHOTS, { recursive: true });

@@ -86,6 +86,9 @@ export const COAT_PARTS: Readonly<Record<string, CoatPartsDef>> = Object.freeze(
   'coat.meatball.store_drive_thru': { hero: 'meatball', drops: ['hat', 'prop'], build: lazy('coat.meatball.store_drive_thru') },
   'coat.frankie.store_paper_parade': { hero: 'frankie', build: lazy('coat.frankie.store_paper_parade') },
   'coat.marshmallow.store_soft_serve': { hero: 'marshmallow', drops: ['hat'], build: lazy('coat.marshmallow.store_soft_serve') },
+  'coat.brutus.store_chairman': { hero: 'brutus', build: lazy('coat.brutus.store_chairman') },
+  'coat.meatball.store_double_stack': { hero: 'meatball', drops: ['hat'], build: lazy('coat.meatball.store_double_stack') },
+  'coat.meatball.store_mega_meal': { hero: 'meatball', drops: ['hat'], build: lazy('coat.meatball.store_mega_meal') },
 });
 
 /** Does the coat have parts (whatever the load state)? */

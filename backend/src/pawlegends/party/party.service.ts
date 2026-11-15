@@ -12,6 +12,7 @@ import { CODE_ALPHABET, type MemberView, type PartyPhase, type PartyView } from 
 import { dedupeNames, memberName } from './party-names';
 import { rotationWeek } from '../pawlegends-catalog';
 import { partyThreadId } from '../social/chat-ids';
+import { botBan, RANKED_DRAFT, teamBan, type DraftBanBy } from '../ranked/draft';
 
 export const PARTY_TIMING = Object.freeze({
     pickMs: 30_000,
@@ -121,6 +122,17 @@ export interface Party {
     mm?: PartyMm;
     /** A friend party queued for Quick Play (every member shows the queue card). */
     queued?: { sinceMs: number; side: 'cat' | 'dog' | 'any' };
+    /** Ranked draft (SOCIAL-RANKED.md §7.13): the ban votes and each team's ban, while this pick drafts. */
+    draft?: PartyDraft;
+}
+
+/** The ban phase of a ranked pick (ranked/draft.ts). */
+export interface PartyDraft {
+    stage: 'ban' | 'pick';
+    /** Ban stage: member id → the hero it votes to ban. */
+    votes: Map<string, string>;
+    /** Each team's ban once the ban stage is over (team 0, team 1). */
+    bans: [{ hero: string | null; by: DraftBanBy }, { hero: string | null; by: DraftBanBy }];
 }
 
 export interface PartyMm {
@@ -131,6 +143,8 @@ export interface PartyMm {
     casual?: PartyCasual;
     /** A ranked match (SOCIAL-RANKED.md §7.11: 3v3 PvP, or vs AI as a co-op room): no bot chatter, the ranked delay. */
     ranked?: true;
+    /** Ranked draft (§7.13): the pick opens with the ban phase. */
+    draft?: true;
     strangers: Set<string>;
     host: boolean;
     resultsSinceMs?: number;
@@ -145,6 +159,8 @@ export interface StartPlan {
     difficulty: string;
     /** Casual PvP: the sim runs `mode: 'pvp'` with these fill profiles; `species` per team; `map` for 5v5 Classic. */
     pvp?: { fillDifficulty: [string, string]; species: [Species, Species]; premade?: number[][]; map?: 'hearthwood' };
+    /** Ranked draft (§7.13): the banned heroes; the relay re-rolls the seed until no bot seat fields one. */
+    bans?: string[];
 }
 
 export interface PartyEvents {
@@ -189,6 +205,8 @@ export interface PartyRules {
      * every hero (specs and the harness). Bots and pilots never ask.
      */
     allowed?(p: Party, m: Member, hero: string): boolean;
+    /** Free to everyone in this pick's week (a starter or on rotation): a bot ban prefers these. Absent: every hero. */
+    free?(p: Party, hero: string): boolean;
 }
 
 export type PartyError =
@@ -579,6 +597,84 @@ export class PartyService {
         const lead = ordered[0];
         if (p.mm) p.side = p.mm.side;
         else if (lead.hero) p.side = this.rules.sideOf(lead.hero);
+        // ranked draft (§7.13): the ban phase first (never on a rematch: Quick Play parties have none)
+        if (p.mm?.draft && !rematch) {
+            p.draft = {
+                stage: 'ban',
+                votes: new Map(),
+                bans: [
+                    { hero: null, by: 'none' },
+                    { hero: null, by: 'none' },
+                ],
+            };
+            p.deadlineMs = this.now() + RANKED_DRAFT.banMs;
+            for (const m of p.members) m.hero = undefined;
+        } else delete p.draft;
+        this.touch(p);
+    }
+
+    /** Both teams' species in a draft (co-op vs AI: the players' side, then the other). */
+    private draftSpecies(p: Party): [Species, Species] {
+        const c = p.mm?.casual;
+        if (c) return [c.species[0], c.species[1]];
+        const side = (p.mm?.side ?? 'cat') as Species;
+        return [side, side === 'cat' ? 'dog' : 'cat'];
+    }
+
+    /** The banned heroes of this pick (none outside a draft or before its ban phase ends). */
+    bannedOf(p: Party): string[] {
+        if (!p.draft || p.draft.stage !== 'pick') return [];
+        return p.draft.bans.map(b => b.hero).filter((h): h is string => !!h);
+    }
+
+    /** The species a member's team bans: the other team's (§7.13). */
+    banTarget(p: Party, m: Member): Species {
+        const sp = this.draftSpecies(p);
+        return sp[1 - this.teamOfMember(p, m)];
+    }
+
+    /** A ban vote (`pick.ban`): one champion of the other team's species; it can change until the phase ends. */
+    ban(memberId: string, hero: string): void {
+        const p = this.partyOf(memberId);
+        const m = p?.members.find(x => x.id === memberId);
+        if (!p || !m || p.phase !== 'pick' || p.draft?.stage !== 'ban') return;
+        if (!this.heroesOf(p).includes(hero) || this.rules.sideOf(hero) !== this.banTarget(p, m)) return;
+        p.draft.votes.set(memberId, hero);
+        this.touch(p);
+        if (p.members.every(x => p.draft!.votes.has(x.id))) this.endBans(p);
+    }
+
+    /** The ban phase is over: each team's ban (players' votes, a bot team's own), then the 30 s pick. */
+    private endBans(p: Party): void {
+        const d = p.draft;
+        if (!d || d.stage !== 'ban') return;
+        const species = this.draftSpecies(p);
+        const banned: string[] = [];
+        for (const team of [0, 1] as const) {
+            const players = p.members.filter(m => this.teamOfMember(p, m) === team);
+            if (players.length) {
+                const votes = players
+                    .filter(m => d.votes.has(m.id))
+                    .map(m => ({ slot: m.slot ?? 9, hero: d.votes.get(m.id)! }))
+                    // a hero the other team already banned (a mirror) is never banned twice
+                    .filter(v => !banned.includes(v.hero));
+                const hero = teamBan(votes);
+                d.bans[team] = { hero, by: hero ? 'team' : 'none' };
+            } else {
+                const hero = botBan(
+                    species[1 - team],
+                    this.heroesOf(p),
+                    h => this.rules.sideOf(h),
+                    banned,
+                    h => (this.rules.free ? this.rules.free(p, h) : true)
+                );
+                d.bans[team] = { hero, by: hero ? 'bot' : 'none' };
+            }
+            if (d.bans[team].hero) banned.push(d.bans[team].hero!);
+        }
+        d.stage = 'pick';
+        d.votes.clear();
+        p.deadlineMs = this.now() + PARTY_TIMING.pickMs;
         this.touch(p);
     }
 
@@ -586,7 +682,7 @@ export class PartyService {
         const p = this.partyOf(memberId);
         const m = p?.members.find(x => x.id === memberId);
         if (!p || !m || p.phase !== 'pick' || m.locked || !this.heroesOf(p).includes(hero)) return;
-        if (!this.heroAllowed(p, m, hero)) return;
+        if (p.draft?.stage === 'ban' || !this.heroAllowed(p, m, hero)) return;
         m.hero = hero;
         if (memberId === p.leader) this.leaderSide(p, this.rules.sideOf(hero));
         this.touch(p);
@@ -624,6 +720,8 @@ export class PartyService {
     }
 
     private heroAllowed(p: Party, m: Member, hero: string): boolean {
+        // ranked draft (§7.13): a banned champion is off for both teams
+        if (this.bannedOf(p).includes(hero)) return false;
         // heroes are unique within a team (casual PvP: the other team may pick the same hero... of its own species)
         const team = this.teamOfMember(p, m);
         if (p.members.some(o => o.id !== m.id && o.locked && o.hero === hero && this.teamOfMember(p, o) === team))
@@ -644,7 +742,7 @@ export class PartyService {
     lock(memberId: string, hero: string, trick: string): void {
         const p = this.partyOf(memberId);
         const m = p?.members.find(x => x.id === memberId);
-        if (!p || !m || p.phase !== 'pick' || m.locked) return;
+        if (!p || !m || p.phase !== 'pick' || m.locked || p.draft?.stage === 'ban') return;
         if (!this.heroesOf(p).includes(hero) || !this.rules.tricks.includes(trick) || !this.heroAllowed(p, m, hero))
             return;
         m.hero = hero;
@@ -657,7 +755,7 @@ export class PartyService {
 
     /** Everyone locked: loading (a rematch pick waits for its minimum time, then `tick` moves it on). */
     private maybeLoad(p: Party): void {
-        if (p.phase !== 'pick' || !p.members.every(x => x.locked)) return;
+        if (p.phase !== 'pick' || p.draft?.stage === 'ban' || !p.members.every(x => x.locked)) return;
         if (p.pickMinUntilMs !== undefined && this.now() < p.pickMinUntilMs) return;
         this.toLoading(p);
     }
@@ -745,7 +843,16 @@ export class PartyService {
         p.phase = 'match';
         p.deadlineMs = undefined;
         this.touch(p);
-        this.events.startMatch({ party: p, seed, humans, occupied, seats, difficulty: p.difficulty });
+        const bans = this.bannedOf(p);
+        this.events.startMatch({
+            party: p,
+            seed,
+            humans,
+            occupied,
+            seats,
+            difficulty: p.difficulty,
+            ...(bans.length ? { bans } : {}),
+        });
     }
 
     /**
@@ -763,7 +870,7 @@ export class PartyService {
         for (const s of humans) {
             if (seats.some(x => x.slot === s)) continue;
             const team = teamOfSeat(s);
-            const used = seats.filter(x => teamOfSeat(x.slot) === team).map(x => x.hero);
+            const used = [...seats.filter(x => teamOfSeat(x.slot) === team).map(x => x.hero), ...this.bannedOf(p)];
             const hero =
                 heroes.find(h => !used.includes(h) && this.rules.sideOf(h) === casual.species[team]) ?? heroes[0];
             seats.push({ slot: s, hero, trick: this.rules.tricks[s % this.rules.tricks.length] });
@@ -783,6 +890,7 @@ export class PartyService {
             occupied,
             seats,
             difficulty: 'hard',
+            ...(this.bannedOf(p).length ? { bans: this.bannedOf(p) } : {}),
             pvp: {
                 fillDifficulty: [...casual.fillDifficulty] as [string, string],
                 species: [...casual.species] as [Species, Species],
@@ -826,7 +934,9 @@ export class PartyService {
         for (const [code, r] of this.retiredCodes) if (r.until <= now) this.retiredCodes.delete(code);
         for (const p of this.parties.values()) for (const [k, until] of p.bans) if (until <= now) p.bans.delete(k);
         for (const p of [...this.parties.values()]) {
-            if (p.phase === 'pick' && p.deadlineMs !== undefined && now >= p.deadlineMs) this.autoLock(p);
+            if (p.phase === 'pick' && p.draft?.stage === 'ban') {
+                if (p.deadlineMs !== undefined && now >= p.deadlineMs) this.endBans(p);
+            } else if (p.phase === 'pick' && p.deadlineMs !== undefined && now >= p.deadlineMs) this.autoLock(p);
             else if (p.phase === 'pick') this.maybeLoad(p);
             else if (p.phase === 'loading' && p.deadlineMs !== undefined && now >= p.deadlineMs) this.launch(p);
             if (p.phase === 'lobby' || p.phase === 'results') {
@@ -1014,6 +1124,24 @@ export class PartyService {
             };
         else if (p.mm) view.mm = { side: p.mm.side, strangers: p.mm.strangers.size > 0 };
         if (p.queued) view.queue = { sinceMs: Math.max(0, this.now() - p.queued.sinceMs), side: p.queued.side };
+        // PROTO 8 ranked draft (§7.13): each team's ban (the other team's stays hidden until the ban phase ends) and,
+        // in the ban phase, the recipient's own team's votes
+        if (p.draft && p.phase === 'pick' && me) {
+            const d = p.draft;
+            view.draft = {
+                stage: d.stage,
+                target: this.banTarget(p, me),
+                bans: d.bans.map((b, team) =>
+                    d.stage === 'ban'
+                        ? { team, by: 'open' as const }
+                        : { team, by: b.by, ...(b.hero ? { hero: b.hero } : {}) }
+                ) as NonNullable<PartyView['draft']>['bans'],
+            };
+            if (d.stage === 'ban')
+                view.draft.votes = p.members
+                    .filter(m => this.teamOfMember(p, m) === this.teamOfMember(p, me) && d.votes.has(m.id))
+                    .map(m => ({ member: m.id, hero: d.votes.get(m.id)! }));
+        }
         view.chat = { tier: this.chatTier(p), thread: this.chatThread(p) };
         // PROTO 6: the recipient's team tier in the match (its composer swaps to phrases when it is quick)
         if (me?.slot !== undefined) view.chat.match = this.matchChatTier(p, this.teamOfMember(p, me));
@@ -1043,7 +1171,14 @@ export class PartyService {
      */
     createMatched(
         members: { id: string; identity: MemberIdentity; hint?: { maxDifficulty: string; newbie: boolean } }[],
-        opts: { match: string; side: 'cat' | 'dog'; difficulty: string; casual?: PartyCasual; ranked?: boolean }
+        opts: {
+            match: string;
+            side: 'cat' | 'dog';
+            difficulty: string;
+            casual?: PartyCasual;
+            ranked?: boolean;
+            draft?: boolean;
+        }
     ): Party {
         for (const m of members) this.leave(m.id);
         const id = randomBytes(12).toString('base64url');
@@ -1073,6 +1208,7 @@ export class PartyService {
                 host: false,
                 ...(opts.casual ? { casual: opts.casual } : {}),
                 ...(opts.ranked ? { ranked: true as const } : {}),
+                ...(opts.ranked && opts.draft ? { draft: true as const } : {}),
             },
         };
         this.rename(p);
@@ -1115,7 +1251,14 @@ export class PartyService {
      */
     startMatched(
         p: Party,
-        opts: { match: string; side: 'cat' | 'dog'; difficulty: string; casual?: PartyCasual; ranked?: boolean },
+        opts: {
+            match: string;
+            side: 'cat' | 'dog';
+            difficulty: string;
+            casual?: PartyCasual;
+            ranked?: boolean;
+            draft?: boolean;
+        },
         strangers: { id: string; identity: MemberIdentity; hint?: { maxDifficulty: string; newbie: boolean } }[]
     ): void {
         delete p.queued;
@@ -1127,6 +1270,7 @@ export class PartyService {
             host: true,
             ...(opts.casual ? { casual: opts.casual } : {}),
             ...(opts.ranked ? { ranked: true as const } : {}),
+            ...(opts.ranked && opts.draft ? { draft: true as const } : {}),
         };
         p.difficulty = this.rules.difficulties.includes(opts.difficulty) ? opts.difficulty : p.difficulty;
         p.openSeats = false;
