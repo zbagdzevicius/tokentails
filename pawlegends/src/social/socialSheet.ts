@@ -148,6 +148,8 @@ export interface SocialSheetDeps {
   inMatch?(): boolean;
   /** The unread DM count changed (the landing badge). */
   onUnread?(n: number): void;
+  /** MATCH-HISTORY.md: open a friend's match history (their row's name, or History in the row menu). */
+  history?(friend: { code: string; name: string }): void;
 }
 
 const errorText = (r: ApiResult): string => {
@@ -386,7 +388,7 @@ export class SocialSheet {
           const dot = t?.unread && !t.muted ? `<i class="pl-chat-unread" data-testid="chat-unread">${Math.min(99, t.unread)}</i>` : '';
           const chat = `<button type="button" class="pl-btn ghost small pl-chat-btn" data-a="chat" data-code="${this.esc(f.code)}" aria-label="${this.esc(`Chat with ${f.name}${dot ? `, ${t!.unread} unread` : ''}`)}">💬${dot}</button>`;
           const sub = t?.unread && !t.muted ? `<small class="pl-social-st pl-social-preview" data-name="${this.esc(previewText(t.lastPreview))}"></small>` : `<small class="pl-social-st">${PRESENCE_TEXT[f.presence.state]}</small>`;
-          return `<div class="pl-social-row" data-state="${f.presence.state}" data-code="${this.esc(f.code)}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i><span class="pl-social-who"><span class="pl-social-nm">${ccHtml(f.cc)}<span class="pl-social-name" data-name="${this.esc(f.name)}"></span></span>${sub}</span>${btn}${chat}</div>`;
+          return `<div class="pl-social-row" data-state="${f.presence.state}" data-code="${this.esc(f.code)}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i>${this.deps.history ? `<button type="button" class="pl-social-who pl-social-hist" data-a="history" data-code="${this.esc(f.code)}" aria-label="${this.esc(`${f.name}: match history`)}">` : '<span class="pl-social-who">'}<span class="pl-social-nm">${ccHtml(f.cc)}<span class="pl-social-name" data-name="${this.esc(f.name)}"></span></span>${sub}${this.deps.history ? '</button>' : '</span>'}${btn}${chat}</div>`;
         })
         .reduce((html, row) => html + row, inv);
     }
@@ -608,6 +610,14 @@ export class SocialSheet {
       case 'more':
         this.moreMenu(el, code);
         return;
+      case 'history': {
+        const name = this.state?.friends.find((f) => f.code === code)?.name ?? '';
+        if (!code || !this.deps.history) return;
+        this.deps.track?.('friend_history');
+        this.dispose();
+        this.deps.history({ code, name });
+        return;
+      }
       case 'chat':
         this.openChat(code);
         return;
@@ -656,7 +666,7 @@ export class SocialSheet {
     row.querySelector('.pl-social-menu')?.remove();
     const m = row.ownerDocument.createElement('span');
     m.className = 'pl-social-menu';
-    m.innerHTML = `<button type="button" class="pl-btn ghost small" data-a="remove" data-code="${this.esc(code)}">Remove</button><button type="button" class="pl-btn ghost small" data-a="block" data-code="${this.esc(code)}">Block</button>`;
+    m.innerHTML = `${this.deps.history ? `<button type="button" class="pl-btn ghost small" data-a="history" data-code="${this.esc(code)}">History</button>` : ''}<button type="button" class="pl-btn ghost small" data-a="remove" data-code="${this.esc(code)}">Remove</button><button type="button" class="pl-btn ghost small" data-a="block" data-code="${this.esc(code)}">Block</button>`;
     row.appendChild(m);
   }
 

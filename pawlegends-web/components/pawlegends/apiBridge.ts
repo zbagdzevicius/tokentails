@@ -65,6 +65,10 @@ export const PAWLEGENDS_API_OPS = [
   // country flags (docs/plans/moba/FLAGS.md): the caller's flag (the server reads the country, never stores the IP) and the hide choice
   "flag.get",
   "flag.set",
+  // match history (docs/plans/moba/MATCH-HISTORY.md): the list (own, or a friend's by `code`), one match, who may see it
+  "history.list",
+  "history.match",
+  "history.privacy",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -111,10 +115,13 @@ const ARG_KEYS = [
   "pushAuth",
   "cats",
   "tz",
-  // gaps5: a Ranked duo invite ("ranked")
+  // gaps5: a Ranked duo invite ("ranked"); match history: the filter chip
   "mode",
   // FLAGS.md: hide the player's country flag (a boolean)
   "hideFlag",
+  // match history: a match's id, and who may see the history ("everyone" | "friends" | "me")
+  "match",
+  "visibility",
 ] as const;
 export type PawlegendsApiArgs = Partial<Record<(typeof ARG_KEYS)[number], string | number | boolean>>;
 
@@ -410,6 +417,22 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       return { method: "GET", path: "/pawlegends/flag", auth: "any" };
     case "flag.set":
       return typeof a.hideFlag === "boolean" ? { method: "POST", path: "/pawlegends/flag", body: { hideFlag: a.hideFlag }, auth: "any" } : null;
+    // match history (MATCH-HISTORY.md): your own with the session (guests too); another player's by code (registered)
+    case "history.list": {
+      const query = q({ mode: str(a.mode, /^(ranked|pvp|ai|blitz|arcade)$/), before: str(a.before, MID) });
+      if (a.code === undefined) return { method: "GET", path: `/pawlegends/history${query}`, auth: "any" };
+      return code ? { method: "GET", path: `/pawlegends/history/u/${enc(code)}${query}`, auth: "registered" } : null;
+    }
+    case "history.match": {
+      const id = str(a.match, MID);
+      if (!id) return null;
+      if (a.code === undefined) return { method: "GET", path: `/pawlegends/history/match/${id}`, auth: "any" };
+      return code ? { method: "GET", path: `/pawlegends/history/u/${enc(code)}/match/${id}`, auth: "registered" } : null;
+    }
+    case "history.privacy": {
+      const visibility = str(a.visibility, /^(everyone|friends|me)$/);
+      return visibility ? { method: "POST", path: "/pawlegends/history/privacy", body: { visibility }, auth: "any" } : null;
+    }
     default:
       return null;
   }

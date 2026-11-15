@@ -209,6 +209,9 @@ import { PawlegendsFlag, PawlegendsFlagSchema } from './pawlegends/flags/flags.s
 import { PAWLEGENDS_PROGRESS_SCHEMAS } from './pawlegends/progress/progress.schema';
 import { PawlegendsProgressService } from './pawlegends/progress/progress.service';
 import { PawlegendsProgressController } from './pawlegends/progress/progress.controller';
+import { PAWLEGENDS_HISTORY_SCHEMAS } from './pawlegends/history/history.schema';
+import { MatchHistoryService } from './pawlegends/history/history.service';
+import { PawlegendsHistoryController } from './pawlegends/history/history.controller';
 import { PAWLEGENDS_LIVEOPS_SCHEMAS } from './pawlegends/liveops/liveops.schema';
 import { PAWLEGENDS_PUSH_SCHEMAS } from './pawlegends/push/push.schema';
 import { PushService } from './pawlegends/push/push.service';
@@ -355,6 +358,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             ...PAWLEGENDS_GROWTH_SCHEMAS,
             // Pawlegends account progress, Lucky Treat, Welcome Path and mastery (gap plan P2 rewards-cloud).
             ...PAWLEGENDS_PROGRESS_SCHEMAS,
+            // Pawlegends match history: per-match rows, season stats, who may see them (MATCH-HISTORY.md).
+            ...PAWLEGENDS_HISTORY_SCHEMAS,
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -424,6 +429,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsFlagsController,
         // Pawlegends account progress (gap plan P2 rewards-cloud): GET/POST /pawlegends/progress.
         PawlegendsProgressController,
+        // Pawlegends match history (MATCH-HISTORY.md): GET /pawlegends/history, a friend's, the privacy choice.
+        PawlegendsHistoryController,
     ],
     providers: [
         UserRepository,
@@ -551,6 +558,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         { provide: BACKEND_ROLE, useValue: role },
         // Pawlegends account progress, Lucky Treat, Welcome Path and mastery (gap plan P2 rewards-cloud).
         PawlegendsProgressService,
+        // Pawlegends match history (MATCH-HISTORY.md), written only by /live.
+        MatchHistoryService,
     ],
 });
 

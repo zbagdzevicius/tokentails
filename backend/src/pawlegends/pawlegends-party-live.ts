@@ -36,6 +36,7 @@ import {
     pawlegendsError,
 } from './pawlegends-live';
 import { applyCommunityGoal } from './liveops/liveops-live';
+import { partyMode } from './history/history.model';
 import { lossShareOf, slotGrade, type Grade, type GradeStats } from './ranked/grade';
 
 /*
@@ -60,7 +61,7 @@ import { lossShareOf, slotGrade, type Grade, type GradeStats } from './ranked/gr
 export const PARTY_DAILY_CAP = 30;
 
 export interface IPartyLiveDeps
-    extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger' | 'season' | 'growth' | 'rewards'> {
+    extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger' | 'season' | 'growth' | 'rewards' | 'history'> {
     rooms: {
         get(id: string): Promise<StoredRoom | null>;
         countEnded(accountId: string, since: Date): Promise<number>;
@@ -259,6 +260,29 @@ export async function savePawlegendsPartyMatch(
         : null;
     // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per room and slot
     if (deps.rewards) await deps.rewards.applyLive(String(userId), { won, hero: room.config.picks?.[r.slot] ?? null });
+    // MATCH-HISTORY.md: the history row from the referee's verified stats; the human seats by account (names are
+    // resolved when read), every other seat a bot. Never fails the save.
+    if (deps.history) {
+        const mmRoom = deps.mm ? await deps.mm.rooms.get(r.room).catch(() => null) : null;
+        await deps.history.record({
+            accountId: String(userId),
+            matchId: `party:${r.room}`,
+            at: now,
+            mode: partyMode(pvp, mmRoom?.queue),
+            map: room.config.map,
+            mutator: null,
+            difficulty,
+            outcome: slotOutcome as 'won' | 'lost',
+            draw: v.winner === -1,
+            reason: v.reason,
+            ticks: v.ticks,
+            finalHash: v.finalHash,
+            slot: r.slot,
+            stats: v.stats,
+            humans: new Map(room.occupants.filter(o => !!o.accountId).map(o => [o.slot, o.accountId as string])),
+            winner: v.winner,
+        });
+    }
     // Live ops (LIVEOPS.md): the community goal and the Winter Nap day, once per room and slot, from the verdict
     await applyCommunityGoal({
         accountId: String(userId),

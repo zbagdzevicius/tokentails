@@ -63,6 +63,10 @@ export const API_OPS = Object.freeze([
   // country flags (FLAGS.md): the caller's flag (the server reads the country, never stores the IP) and the hide choice
   'flag.get',
   'flag.set',
+  // match history (MATCH-HISTORY.md): the list (own, or a friend's by `code`), one match, who may see it
+  'history.list',
+  'history.match',
+  'history.privacy',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);
@@ -111,10 +115,13 @@ export const API_ARG_KEYS = Object.freeze([
   'pushAuth',
   'cats',
   'tz',
-  // gaps5: a Ranked duo invite ('ranked')
+  // gaps5: a Ranked duo invite ('ranked'); match history: the filter chip
   'mode',
   // FLAGS.md: hide the player's country flag (a boolean)
   'hideFlag',
+  // match history: a match's id, and who may see the history ('everyone' | 'friends' | 'me')
+  'match',
+  'visibility',
 ] as const);
 
 export type ApiArgs = Partial<Record<(typeof API_ARG_KEYS)[number], string | number | boolean>>;

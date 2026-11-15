@@ -14,6 +14,7 @@ import { PAWLEGENDS_V27_MUTATORS, PAWLEGENDS_V28_MUTATORS, PawlegendsReplayDto }
 import { pawlegendsSimErrorDetail, pawlegendsUpdateDetail } from './pawlegends-sim-info';
 import type { SeasonXpGain, SeasonXpMatch } from './pawlegends-season.service';
 import { applyInviteProgress, type InviteProgressDep } from './growth/apply-invite-progress';
+import { soloMode, type BuildInput as HistoryInput } from './history/history.model';
 import { applyCommunityGoal } from './liveops/liveops-live';
 
 export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-info';
@@ -317,6 +318,11 @@ export interface IPawlegendsLiveDeps {
      * and the Lucky Treat, after the Game row exists. Cosmetic only; never fails the save.
      */
     rewards?: { applyLive(userId: string, m: { won: boolean; hero?: string | null }): Promise<unknown> };
+    /**
+     * Match history (MATCH-HISTORY.md, history/history.service.ts `record`): the compact per-match row, from the
+     * re-sim's (or the referee's) verified stats, once, after the Game row exists. Display only; never fails the save.
+     */
+    history?: { record(input: HistoryInput): Promise<unknown> };
 }
 
 /** Kills plus assists of one slot in a stats list (the re-sim's or a party verdict's), 0 when absent. */
@@ -545,6 +551,27 @@ export async function savePawlegendsMatch(
     });
     // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per saved match
     if (deps.rewards) await deps.rewards.applyLive(String(userId), { won, hero: replay.hero });
+    // MATCH-HISTORY.md: the history row, from the re-sim's own stats (the human is slot 0, every other seat a bot)
+    if (deps.history)
+        await deps.history.record({
+            accountId: String(userId),
+            matchId: digest,
+            at: (deps.now || (() => new Date()))(),
+            // the verified record (the digest's fields): the re-sim plays the Crossing, so that is the map shown
+            mode: soloMode('crossing', record.mutator),
+            map: 'crossing',
+            mutator: record.mutator,
+            difficulty,
+            outcome: result.outcome,
+            draw: !!(result as { draw?: boolean }).draw,
+            reason: result.reason,
+            ticks: result.ticks,
+            finalHash: result.finalHash,
+            slot: 0,
+            stats: (result as { stats?: unknown }).stats,
+            humans: new Map([[0, String(userId)]]),
+            winner: (result as { winner?: unknown }).winner,
+        });
     // Live ops (LIVEOPS.md): the community goal and the Winter Nap day, once, from the re-sim's own numbers
     await applyCommunityGoal({
         accountId: String(userId),
