@@ -30,8 +30,8 @@ test('a new guest: 12 open tiles (starters and the free 6), the rest locked with
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: false, profile: PLAYED, champState: NEW_GUEST });
   const game = await openHost(page);
   await toPick(game);
-  // sim v29: 24 champions (ROSTER-V29.md)
-  await expect(game.locator('.cs-grid .cs-tile')).toHaveCount(24);
+  // sim v31: 28 champions (ROSTER-V31.md)
+  await expect(game.locator('.cs-grid .cs-tile')).toHaveCount(28);
   await expect(game.locator('.cs-grid .cs-tile:not(.locked)')).toHaveCount(12);
   for (const h of STARTERS) await expect(game.locator(`.cs-tile[data-h="${h}"]`)).not.toHaveClass(/locked/);
   const free = await freeThisWeek(game);
@@ -51,13 +51,13 @@ test('an existing player with the Founders roster keeps every champion it was gi
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, profile: PLAYED });
   const game = await openHost(page);
   await toPick(game);
-  // the Founders roster is the 20 champions of its time; the sim v29 four are sold on their own (ROSTER-V29.md §5), so
-  // only those can be locked (one of them may be in this week's rotation)
-  await expect(game.locator('.cs-grid .cs-tile')).toHaveCount(24);
+  // the Founders roster is the 20 champions of its time; the sim v29 and v31 fours are sold on their own (ROSTER-V29.md
+  // §5, ROSTER-V31.md §5), so only those can be locked (some of them may be in this week's rotation)
+  await expect(game.locator('.cs-grid .cs-tile')).toHaveCount(28);
   const locked = await game.locator('.cs-grid .cs-tile.locked').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
-  for (const h of locked) expect(['mochi', 'ziggy', 'biscuit', 'champ']).toContain(h);
-  await expect(game.locator('.cs-grid .cs-tile:not(.locked)')).toHaveCount(24 - locked.length);
-  expect(24 - locked.length).toBeGreaterThanOrEqual(20);
+  for (const h of locked) expect(['mochi', 'ziggy', 'biscuit', 'champ', 'nova', 'dusty', 'barkula', 'ranger']).toContain(h);
+  await expect(game.locator('.cs-grid .cs-tile:not(.locked)')).toHaveCount(28 - locked.length);
+  expect(28 - locked.length).toBeGreaterThanOrEqual(20);
 });
 
 test('a Yarn unlock is asked of the host; the app build shows no price', async ({ context, page, baseURL }) => {
@@ -82,20 +82,20 @@ test('store Champions: splash grid, filters, sort remembered, detail unlock and 
   await game.locator('.hm-nav [data-a="store"]').click();
   const shop = game.locator('.pl-shop');
   await expect(shop.locator('.cst-tab.on')).toHaveAttribute('data-tab', 'champions');
-  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(24);
+  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(28);
   // the splash art loads (lazy, 360 or 720 by width)
   await expect.poll(() => shop.locator('.cst-card[data-hero="clem"] img.cst-art').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
   await shop.locator('[data-side="dog"]').click();
-  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(12);
+  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(14);
   await shop.locator('[data-role="mage"]').click();
-  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(2);
+  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(3);
   await shop.locator('[data-side="all"]').click();
   await shop.locator('[data-role="mage"]').click();
   await shop.locator('[data-a="unowned"]').check();
-  // 24 champions less the 6 starters
-  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(18);
+  // 28 champions less the 6 starters
+  await expect(shop.locator('.cst-card[data-hero]')).toHaveCount(22);
   await shop.locator('[data-a="sort"]').selectOption('name');
-  await expect(shop.locator('.cst-card[data-hero]').first()).toHaveAttribute('data-hero', 'bengas'); // English names (Nov 12): Bengal first
+  await expect(shop.locator('.cst-card[data-hero]').first()).toHaveAttribute('data-hero', 'barkula'); // English names (Nov 12): Barkula first (sim v31), then Bengal
   // detail: a locked champion (not in this week's rotation) unlocks with Yarn through the host, or buys on the web
   const locked = await game.evaluate(() => (document.querySelector('.cst-card.st-locked[data-hero]') as HTMLElement).dataset.hero ?? '');
   await shop.locator(`.cst-card[data-hero="${locked}"]`).click();

@@ -12,7 +12,7 @@ const ROSTER = [
   { id: 'c1', name: 'Pickles', type: 'GRASS', tier: 'COMMON', isStarter: false, origin: 'adopt', art: art('pickles'), sprite: `${CDN}/assets/PICKLES/base.png` },
   { id: 'c2', name: 'Ficus', type: 'FIRE', tier: 'LEGENDARY', isStarter: false, origin: 'adopt', art: art('ficus'), sprite: `${CDN}/assets/FICUS/base.png` },
 ];
-const FEATURED = [{ catalogId: '65a1b2c3d4e5f6a7b8c9d0e1', name: 'Nova', type: 'STELLAR', art: art('nova'), sprite: `${CDN}/assets/OREO/base.png`, tier: 'RARE' }];
+const FEATURED = [{ catalogId: '65a1b2c3d4e5f6a7b8c9d0e1', name: 'Pepperoni', type: 'STELLAR', art: art('nova'), sprite: `${CDN}/assets/OREO/base.png`, tier: 'RARE' }];
 const PLAYED = { v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true, hero: 'lambo', firstPlaySession: 1 };
 
 test('no cards anywhere: Home, the champion select and a saved card look from an older build', async ({ context, page, baseURL }) => {
@@ -33,7 +33,7 @@ test('no cards anywhere: Home, the champion select and a saved card look from an
   await toChampSelect(game);
   await game.waitForSelector('.pl-pick .cs');
   await expect(game.locator('.cs-looksheet [data-a="deck"], .cs-ls-cards, [data-preview], .champ-owned')).toHaveCount(0);
-  await expect(game.locator('.pl-pick')).not.toContainText(/Ficus|Pickles|Nova|Cards dress/);
+  await expect(game.locator('.pl-pick')).not.toContainText(/Ficus|Pickles|Pepperoni|Cards dress/);
   expect((await received(page)).some((m) => m.type === 'skin-preview' || m.type === 'open-cat')).toBe(false);
 });
 

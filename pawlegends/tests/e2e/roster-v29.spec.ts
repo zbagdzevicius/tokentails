@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { attr, seedSide, startFirstMatch, toChampSelect } from './helpers';
 
-// Sim v29 roster (docs/plans/moba/ROSTER-V29.md): the four new champions are in the champion select and the champion
+// Sim v29 roster (docs/plans/moba/ROSTER-V29.md): the four v29 champions are in the champion select and the champion
 // browser (with their art and words), and each one starts a match as itself on its own side; on touch a plain tap on
 // Q casts at once (founder rule: zero friction).
 
@@ -12,7 +12,7 @@ const ROSTER = [
   { hero: 'champ', name: 'Champ', side: 'dog' as const, sides: 'dogs', ult: 'KNOCKOUT!' },
 ];
 
-test('the champion select and browser show the four new champions, tagged New, with their kit', async ({ page }, info) => {
+test('the champion select and browser show the four v29 champions with their kit', async ({ page }, info) => {
   test.setTimeout(300_000);
   const touch = info.project.name === 'landscape';
   for (const r of ROSTER) {
@@ -27,7 +27,8 @@ test('the champion select and browser show the four new champions, tagged New, w
     if (touch) await tab.tap();
     else await tab.click();
     await expect(tile).toBeVisible();
-    await expect(tile).toHaveAttribute('data-new', '1');
+    // sim v31: the New tag moved to the next roster release (roster-v31.spec.ts)
+    await expect(tile).not.toHaveAttribute('data-new', '1');
     if (touch) await tile.tap();
     else await tile.click();
     await expect(page.locator('.cs-panel')).toHaveAttribute('data-hero', r.hero);

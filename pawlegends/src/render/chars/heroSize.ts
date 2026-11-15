@@ -77,4 +77,13 @@ export const HERO_BUILD: Readonly<Record<HeroId, HeroBuild>> = Object.freeze({
   biscuit: { h: 1.04, w: 1.12, ring: 2.3 },
   // the broad boxer in the gloves
   champ: { h: 1.04, w: 1.1, ring: 2.3 },
+  // sim v31 roster
+  // the slim stargazer with the telescope
+  nova: { h: 0.98, w: 0.95, ring: 2.0 },
+  // the cowgirl under the big hat
+  dusty: { h: 0.98, w: 0.95, ring: 2.0 },
+  // the tall Doberman count in the collar
+  barkula: { h: 1.04, w: 1.02, ring: 2.2 },
+  // the beagle in the leaves
+  ranger: { h: 1.0, w: 1.02, ring: 2.1 },
 });

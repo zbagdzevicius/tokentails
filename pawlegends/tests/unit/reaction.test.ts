@@ -35,6 +35,7 @@ const EXEMPT: Readonly<Record<string, string>> = Object.freeze({
   'biscuit.w': 'peel knockback without a stun (Tail Wag), centred on him',
   'biscuit.passive': 'Good Boy: a melee swat every 9 s; he has to walk up and land a basic first',
   'domino.e': 'self-peel push without a stun (Shake It Off)',
+  'ranger.w': 'self-peel knockback without a stun (Warning Bark), a 3 m cone in front of him',
 });
 
 /** Abilities whose kit delays the CC itself by `a.windup` after an instant cast (Rocket's toy sits there first). */

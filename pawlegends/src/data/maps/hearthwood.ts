@@ -305,13 +305,16 @@ export const HEARTHWOOD_PVP = Object.freeze({
   // every hero 47.5%-53.5%, cats 50.5%, side 50.5%. v29 on 100001: Ziggy 45.1%, Biscuit 45.4%, Clem 57.3%, Cacklejaw 56.3%.
   hero: Object.freeze({
     // sim v30 (V30-BALANCE.md): −6% (12048 / 8220 → 11448 / 8820)
-    clem: { dmgBp: 11448, takenBp: 8820 },
+    // sim v31 (ROSTER-V31.md §7): −2% (11448 / 8820), 52.0% pooled over 18,000 matches with the v31 four
+    clem: { dmgBp: 11248, takenBp: 9020 },
     sage: { dmgBp: 10045, takenBp: 10180 },
     // sim v30 (V30-BALANCE.md): +3.5% (8727 / 11470 → 9077 / 11120)
-    gabe: { dmgBp: 9077, takenBp: 11120 },
+    // sim v31 (ROSTER-V31.md §7): +1% (9077 / 11120)
+    gabe: { dmgBp: 9177, takenBp: 11020 },
     // sim v22 (carved jungle, on the v21 row 9581 / 10637): 54.1% of 1,200 → −1%
     // sim v30 (V30-BALANCE.md): +3% (9481 / 10737 → 9781 / 10437)
-    meatball: { dmgBp: 9781, takenBp: 10437 },
+    // sim v31 (ROSTER-V31.md §7): +4% (9781 / 10437), 44.3% on the first 8,000 verify with the v31 four
+    meatball: { dmgBp: 10181, takenBp: 10037 },
     // sim v22 (carved jungle, on the v21 row 9891 / 10361): 46.4% of 600 → +1%
     // sim v30 (V30-BALANCE.md): −1% (9991 / 10261 → 9891 / 10361)
     duchess: { dmgBp: 9891, takenBp: 10361 },
@@ -319,9 +322,11 @@ export const HEARTHWOOD_PVP = Object.freeze({
     aviete: { dmgBp: 10370, takenBp: 9851 },
     bengas: { dmgBp: 10118, takenBp: 10110 },
     // sim v30 (V30-BALANCE.md): +3% (11172 / 9080 → 11472 / 8780)
-    lambo: { dmgBp: 11472, takenBp: 8780 },
+    // sim v31 (ROSTER-V31.md §7): +1% (11472 / 8780)
+    lambo: { dmgBp: 11572, takenBp: 8680 },
     // sim v30 (V30-BALANCE.md): +2% (10178 / 10050 → 10378 / 9850)
-    pixel: { dmgBp: 10378, takenBp: 9850 },
+    // sim v31 (ROSTER-V31.md §7): −3% (10378 / 9850) in two steps of 1.5%
+    pixel: { dmgBp: 10078, takenBp: 10150 },
     // sim v22 on main's v20 + v21 (fresh windows 3200001-3400300, 1,800 matches): 54.7% → the v21 row −1% (the +2%
     // fitted without v20 overshot)
     // sim v30 (V30-BALANCE.md): −4.5% (10217 / 10009 → 9767 / 10459)
@@ -340,7 +345,8 @@ export const HEARTHWOOD_PVP = Object.freeze({
     // sim v30 (V30-BALANCE.md): +1% (10923 / 9380 → 11023 / 9280)
     bravo: { dmgBp: 11023, takenBp: 9280 },
     // sim v30 (V30-BALANCE.md): +3% (9494 / 10770 → 9794 / 10470)
-    chili: { dmgBp: 9794, takenBp: 10470 },
+    // sim v31 (ROSTER-V31.md §7): −1.5% (9794 / 10470) after his 3v3 row's +2% (it applies here too)
+    chili: { dmgBp: 9644, takenBp: 10620 },
     // sim v22 (carved jungle, on the v21 row 10702 / 9590): 53.5% of 600 → −1%
     // sim v30 (V30-BALANCE.md): −3% (10602 / 9690 → 10302 / 9990)
     howler: { dmgBp: 10302, takenBp: 9990 },
@@ -357,10 +363,21 @@ export const HEARTHWOOD_PVP = Object.freeze({
     // (300 seeds) 50.0% / 50.0% / 52.1% / 44.9%, so Champ +2% more
     mochi: { dmgBp: 9550, takenBp: 10450 },
     // sim v30 (V30-BALANCE.md): +4% (9650 / 10350 → 10050 / 9950)
-    ziggy: { dmgBp: 10050, takenBp: 9950 },
+    // sim v31 (ROSTER-V31.md §7): +5% (10050 / 9950): 43.4% on the first window with the v31 four, +3.5%, then 46.7%
+    // on the first 8,000 verify, +1.5%
+    ziggy: { dmgBp: 10550, takenBp: 9450 },
     // sim v30 (V30-BALANCE.md): +3.5% (10450 / 9550 → 10800 / 9200)
     biscuit: { dmgBp: 10800, takenBp: 9200 },
     // sim v30 (V30-BALANCE.md): −1% (10400 / 9600 → 10300 / 9700)
     champ: { dmgBp: 10300, takenBp: 9700 },
+    // sim v31 roster (ROSTER-V31.md §7): from neutral rows on hearth-gates 110001 (2,000 matches: Nova 59.7%, Dusty
+    // 56.0%, Barkula 44.1%, Ranger 55.3%, cats 53.7%) −5 / −5 / +2.5 / −5%; on 112001 (2,000) a joint logistic fit
+    // moved Dusty −1.5% and Ranger −2% more; the first 8,000 verify (24001–28000: Nova 51.3%, Dusty 47.3%, Barkula
+    // 54.8% after his 3v3 row's +1%, Ranger 53.1%) moved Dusty +1%, Barkula −3%, Ranger −1.5%; the second (28001–32000:
+    // Nova 54.4%) moved Nova −2.5%
+    nova: { dmgBp: 9250, takenBp: 10750 },
+    dusty: { dmgBp: 9450, takenBp: 10550 },
+    barkula: { dmgBp: 9950, takenBp: 10050 },
+    ranger: { dmgBp: 9150, takenBp: 10850 },
   }) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
 });

@@ -542,4 +542,87 @@ export const CAT_WORDS: Readonly<Partial<Record<HeroId, HeroWords>>> = Object.fr
       counter: 'Spread out: alone you take only one full strike.',
     },
   },
+  // sim v31 roster (docs/plans/moba/ROSTER-V31.md)
+  nova: {
+    passive: {
+      tags: ['damage'],
+      facts: [F.m('From', 'passive', 'range', ' or further'), F.bonus('Damage', 'passive', 'bonusBp')],
+      what: 'Her hits on a dog far away from her deal more damage.',
+      tip: 'Stay back: every star hits harder from far away.',
+      counter: (c) => `Get within ${metres(c.n('passive', 'range'))} of her and her stars lose their edge.`,
+    },
+    basic: {
+      what: 'A flick of starlight.',
+      tags: [],
+      tip: 'Your basics are weak: let the stars do the work.',
+      counter: 'Dive her: she is fragile up close.',
+    },
+    q: {
+      what: 'A star falls on a spot a moment later, hurting and slowing the dogs there.',
+      tags: ['area', 'zone', 'slow'],
+      tip: 'Aim where the dog is going, not where it is.',
+      counter: 'Walk out of the glowing circle before the star lands.',
+    },
+    w: {
+      what: 'A long star that flies through everything and lights up the dogs it hits.',
+      tags: ['skillshot', 'line', 'reveal'],
+      tip: 'Throw it down a lane: it hits every dog on the line.',
+      counter: 'Step sideways out of the line.',
+    },
+    e: {
+      what: 'Hop away. The moonbeam she leaves behind slows the dogs that follow.',
+      tags: ['mobility', 'zone', 'slow'],
+      tip: 'Hop away from a diver: it walks into the moonbeam.',
+      counter: 'Go round the glowing spot she hopped from.',
+    },
+    r: {
+      what: 'From very far away, meteors rain on a big circle, one after another.',
+      tags: ['area', 'zone', 'slow', 'windup'],
+      facts: [F.n('Meteors', 'r', 'pulses')],
+      tip: 'Drop it on a fight or a group that cannot leave.',
+      counter: 'Leave the big circle as soon as it glows.',
+    },
+  },
+  dusty: {
+    passive: {
+      tags: ['damage', 'slow', 'on-hit'],
+      facts: [F.n('Every', 'passive', 'every', ' shots'), F.bonus('Big Cork damage', 'passive', 'bonusBp'), F.slow('Big Cork slow', 'passive'), F.sec('Reload', 'passive', 'reload')],
+      what: 'Every fourth shot is a Big Cork: it hits much harder and slows, then she reloads.',
+      tip: 'Count your corks: save the fourth for a dog.',
+      counter: 'Dive her right after the Big Cork: she is reloading.',
+    },
+    basic: {
+      what: 'A popgun cork. Every fourth is a Big Cork.',
+      tags: ['on-hit'],
+      tip: 'Keep shooting: the corks count on anything.',
+      counter: 'Stay out of her range while the fourth cork is loaded.',
+    },
+    q: {
+      what: 'A cork at an enemy that bounces to the nearest other enemy, a dog first.',
+      tags: ['targeted', 'damage'],
+      facts: [F.m('Range', 'q', 'reach'), F.m('Bounces within', 'q', 'bounce'), F.pct('The bounce deals', 'q', 'bounceBp')],
+      tip: 'Shoot a minion next to a dog: the bounce finds the dog.',
+      counter: 'Do not stand next to your minions.',
+    },
+    w: {
+      what: 'After a short swing, a lasso ropes the first dog in a line: hurt and unable to walk.',
+      tags: ['skillshot', 'line', 'root', 'windup'],
+      tip: 'Rope a diver, then back off and shoot.',
+      counter: 'Sidestep when she swings the rope.',
+    },
+    e: {
+      what: 'Dash; her next shot is a Big Cork, ready to fire at once.',
+      tags: ['mobility'],
+      facts: [F.sec('Big Cork ready for', 'e', 'window')],
+      tip: 'Dash out of a fight and turn round with a Big Cork.',
+      counter: 'Do not chase her straight after the dash.',
+    },
+    r: {
+      what: 'She plants her boots and fires big corks down a line, one after another. The last hits hardest.',
+      tags: ['skillshot', 'line', 'channel', 'windup'],
+      facts: [F.n('Corks', 'r', 'shots'), F.sec('Between corks', 'r', 'gap'), F.pct('The last cork deals', 'r', 'lastBp'), F.deg('Spread', 'r', 'spread')],
+      tip: 'Fire down a lane at a dog that cannot dodge.',
+      counter: 'Step out of the line, or stun her: it ends at once.',
+    },
+  },
 });

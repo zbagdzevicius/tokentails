@@ -16,6 +16,10 @@ import { ICONS as MOCHI_ICONS } from './icons/mochi';
 import { ICONS as ZIGGY_ICONS } from './icons/ziggy';
 import { ICONS as BISCUIT_ICONS } from './icons/biscuit';
 import { ICONS as CHAMP_ICONS } from './icons/champ';
+import { ICONS as NOVA_ICONS } from './icons/nova';
+import { ICONS as DUSTY_ICONS } from './icons/dusty';
+import { ICONS as BARKULA_ICONS } from './icons/barkula';
+import { ICONS as RANGER_ICONS } from './icons/ranger';
 
 const P: Record<IconId, string> = {
   sword: '<path d="M38 6 L42 10 L20 32 L16 28 Z" fill="currentColor"/><path d="M12 30 L22 40 M14 36 L8 42" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>',
@@ -78,6 +82,11 @@ const P: Record<IconId, string> = {
   ...ZIGGY_ICONS,
   ...BISCUIT_ICONS,
   ...CHAMP_ICONS,
+  // sim v31 roster
+  ...NOVA_ICONS,
+  ...DUSTY_ICONS,
+  ...BARKULA_ICONS,
+  ...RANGER_ICONS,
   // sim v14: the DOGS tab of the pick screen (the CATS tab uses `paw`), a dog bone
   bone: '<path d="M14 18 L34 30" stroke="currentColor" stroke-width="7" stroke-linecap="round"/><g fill="currentColor"><circle cx="9" cy="17" r="5"/><circle cx="14" cy="11" r="5"/><circle cx="34" cy="37" r="5"/><circle cx="39" cy="31" r="5"/></g>',
 };

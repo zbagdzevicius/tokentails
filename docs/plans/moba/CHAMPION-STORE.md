@@ -71,6 +71,14 @@ cats `[meatball, pixel, ziggy | aviete, duchess, mochi | lambo, stilts, bengas]`
 non-starter is free 1 week in 3 and never waits more than 2 weeks. The table below is the v28 design, kept for
 history.
 
+**Sim v31 (ROSTER-V31.md §5):** Nova, Dusty, Barkula and Ranger joined the cycles, now 11 a species (entries
+3w..3w+2 mod 11), ordered so that every three in a row are three roles and the four are free in the first week:
+cats `[nova, dusty, meatball, ziggy, pixel, duchess, aviete, mochi, bengas, lambo, stilts]`, dogs
+`[howler, chili, bravo, barkula, ranger, nugget, domino, cacklejaw, champ, rocket, biscuit]` (dogs one week ahead).
+Every non-starter is free 3 weeks in 11 and never waits more than 3 weeks. The four are at the launch price in sim v31
+(`CHAMP_LAUNCH`), then Nova and Ranger T3, Dusty and Barkula T2; the sim v29 four left the launch window for their
+tiers. The Season 1 bundles keep their 14 (a pricing call to add any later champion).
+
 **Schedule**
 - Weeks start Monday 00:00 UTC, counted from `ROTATION_EPOCH` = the first Monday on or after release (the default is 2026-11-16).
 - `w = floor((now − epoch) / 7 days) mod 7`. Cats take entries 3w, 3w+1 and 3w+2 (mod 7) of the cat cycle. Dogs take the same entries of the dog cycle, shifted by one week.

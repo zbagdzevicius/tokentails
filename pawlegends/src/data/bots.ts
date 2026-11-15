@@ -627,6 +627,22 @@ export const BOT_AI = Object.freeze({
   biscuitFetchHpBp: 3500,
   champKoHpBp: 5500,
   champGuardHpBp: 6000,
+  /**
+   * Sim v31 roster (sim/bots/heroes/{nova,dusty,barkula,ranger}.ts; docs/plans/moba/ROSTER-V31.md §2). Nova drops
+   * METEOR SHOWER on a foe below novaMeteorHpBp (or two together) and hops away from a foe within novaHopRange. Dusty
+   * fires HIGH NOON at a foe below dustyNoonHpBp and quick-draws away from a foe within dustyDrawRange. Barkula raises
+   * RED MOON on barkulaMoonFoes heroes (or one below barkulaMoonHpBp) and mists when focused below barkulaMistHpBp.
+   * Ranger takes a LONG SHOT at a foe below rangerShotHpBp with no enemy hero within rangerShotSafe of him.
+   */
+  novaMeteorHpBp: 5500,
+  novaHopRange: 3500,
+  dustyNoonHpBp: 5500,
+  dustyDrawRange: 2800,
+  barkulaMoonFoes: 2,
+  barkulaMoonHpBp: 4500,
+  barkulaMistHpBp: 4500,
+  rangerShotHpBp: 5000,
+  rangerShotSafe: 4000,
   dominoShakeRange: 2600,
   dominoDotsMin: 2,
   dominoDotsHpBp: 5000,

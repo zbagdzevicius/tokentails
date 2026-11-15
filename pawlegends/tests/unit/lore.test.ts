@@ -54,6 +54,7 @@ describe('hero lore', () => {
       duchess: 'Royal Decree', stilts: 'Zoomies', nugget: 'Herding Time', marshmallow: 'SNOW DAY', bravo: 'ENCORE',
       chili: 'BIG DOG', howler: 'THE SCREAM', rocket: 'ZOOM', frankie: 'FOOTLONG', domino: 'CONNECT THE DOTS',
       mochi: 'LULLABY', ziggy: 'ZIGZAG STORM', biscuit: 'WALKIES', champ: 'KNOCKOUT',
+      nova: 'METEOR SHOWER', dusty: 'HIGH NOON', barkula: 'RED MOON', ranger: 'LONG SHOT',
     };
     for (const id of HERO_IDS) expect(LORE[id].howTheyFight.normalize('NFC')).toContain(ult[id]);
   });

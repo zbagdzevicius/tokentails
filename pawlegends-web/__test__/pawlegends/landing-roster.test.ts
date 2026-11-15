@@ -88,7 +88,7 @@ describe("Pawlegends landing roster", () => {
   });
 
   it("keeps blurbs word for word with the game where the game has them", () => {
-    const own = ["meatball", "pixel", "duchess", "stilts", "nugget", "marshmallow", "bravo", "chili", "howler", "rocket", "frankie", "domino", "mochi", "ziggy", "biscuit", "champ"];
+    const own = ["meatball", "pixel", "duchess", "stilts", "nugget", "marshmallow", "bravo", "chili", "howler", "rocket", "frankie", "domino", "mochi", "ziggy", "biscuit", "champ", "nova", "dusty", "barkula", "ranger"];
     const text = read("ui/heroText.ts") + own.map((h) => read(`ui/heroText/${h}.ts`)).join("\n");
     for (const h of LANDING_ROSTER.filter((x) => x.since <= simVersion)) expect(text).toContain(h.blurb);
   });
@@ -139,9 +139,24 @@ describe("Pawlegends landing roster", () => {
     if (GAME_SIM_VERSION >= 29) {
       // the newest roster keeps its New tags through a balance-only sim (v30) until the next roster release
       if (!LANDING_ROSTER.some((h) => h.since > 29 && h.since <= GAME_SIM_VERSION)) expect(justReleased().map((h) => h.id).sort()).toEqual([...four].sort());
-      expect(html).toContain("Twelve cats, twelve dogs.");
-      expect(liveRoster()).toHaveLength(24);
-      expect(gridHeroes()).toHaveLength(24);
+      // sim v31 adds two more cats and two more dogs (the next test)
+      if (GAME_SIM_VERSION < 31) expect(html).toContain("Twelve cats, twelve dogs.");
+      if (GAME_SIM_VERSION < 31) expect(liveRoster()).toHaveLength(24);
+      if (GAME_SIM_VERSION < 31) expect(gridHeroes()).toHaveLength(24);
+      for (const id of four) expect(html).toContain(`data-id="${id}"`);
+    } else {
+      for (const id of four) expect(html).not.toContain(`data-id="${id}"`);
+    }
+  });
+
+  it("shows Nova, Dusty, Barkula and Ranger once a v31 game build is committed: 14 v 14, New tags in their first build", () => {
+    const html = landingMarkup();
+    const four = ["nova", "dusty", "barkula", "ranger"];
+    if (GAME_SIM_VERSION >= 31) {
+      if (!LANDING_ROSTER.some((h) => h.since > 31 && h.since <= GAME_SIM_VERSION)) expect(justReleased().map((h) => h.id).sort()).toEqual([...four].sort());
+      expect(html).toContain("Fourteen cats, fourteen dogs.");
+      expect(liveRoster()).toHaveLength(28);
+      expect(gridHeroes()).toHaveLength(28);
       for (const id of four) expect(html).toContain(`data-id="${id}"`);
     } else {
       for (const id of four) expect(html).not.toContain(`data-id="${id}"`);

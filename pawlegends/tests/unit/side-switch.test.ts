@@ -31,12 +31,12 @@ afterEach(() => {
 });
 
 describe('side tabs (All · Cats · Dogs)', () => {
-  it('the roster has 12 cats and 12 dogs; the screen opens on the selected hero side (ten tiles, no scroll)', () => {
-    expect(cats).toHaveLength(12);
-    expect(dogs).toHaveLength(12);
+  it('the roster has 14 cats and 14 dogs; the screen opens on the selected hero side (ten tiles, no scroll)', () => {
+    expect(cats).toHaveLength(14);
+    expect(dogs).toHaveLength(14);
     const root = mount();
     expect(visible(root)).toEqual(cats);
-    expect(root.querySelectorAll('.cs-grid [data-h]')).toHaveLength(24);
+    expect(root.querySelectorAll('.cs-grid [data-h]')).toHaveLength(28);
     expect(document.documentElement.dataset.pickSide).toBe('cat');
     expect(tab(root, 'cat').getAttribute('aria-checked')).toBe('true');
     expect(tab(root, 'dog').getAttribute('aria-checked')).toBe('false');

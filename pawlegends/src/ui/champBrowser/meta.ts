@@ -35,6 +35,10 @@ export const HERO_DIFFICULTY: Readonly<Record<HeroId, Difficulty>> = Object.free
   ziggy: 3,
   biscuit: 2,
   champ: 2,
+  nova: 2,
+  dusty: 2,
+  barkula: 2,
+  ranger: 3,
 } as Record<HeroId, Difficulty>);
 
 export const DIFFICULTY_NAME: Readonly<Record<Difficulty, string>> = Object.freeze({ 1: 'Easy', 2: 'Medium', 3: 'Hard' });

@@ -43,7 +43,7 @@ describe('server grade (§7.12)', () => {
             )
         );
         expect(roleOf('not-a-hero')).toBe('fighter');
-        expect(Object.keys(HERO_ROLES)).toHaveLength(24);
+        expect(Object.keys(HERO_ROLES)).toHaveLength(28);
     });
 
     it('thresholds: S at the line, C below B', () => {

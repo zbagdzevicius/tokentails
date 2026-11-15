@@ -50,10 +50,10 @@ describe('filters and sort', () => {
   const s = state({ owned: [{ hero: 'pixel', source: 'yarn' }] });
   const cards = allCards(s, false);
   it('side, role and Unowned', () => {
-    expect(visibleCards(cards, { ...DEFAULT_FILTER, side: 'dog' })).toHaveLength(12);
+    expect(visibleCards(cards, { ...DEFAULT_FILTER, side: 'dog' })).toHaveLength(14);
     expect(visibleCards(cards, { ...DEFAULT_FILTER, side: 'cat', role: 'tank' }).map((c) => c.hero)).toEqual(['lambo', 'meatball']);
     const un = visibleCards(cards, { ...DEFAULT_FILTER, unowned: true });
-    expect(un).toHaveLength(17); // 18 non-starters (sim v29: the roster four joined) minus Pixel
+    expect(un).toHaveLength(21); // 22 non-starters (sim v29 and v31: the roster fours joined) minus Pixel
     expect(un.some((c) => STARTERS.includes(c.hero) || c.hero === 'pixel')).toBe(false);
   });
   it('Default is catalogue order; Price cheapest first with starters last; Name A to Z; Newest by release', () => {
@@ -119,11 +119,11 @@ describe('store panel', () => {
     }
   });
 
-  it('opens on Champions: 4 bottom tabs, 24 tall cards with lazy splash art, a Yarn chip', () => {
+  it('opens on Champions: 4 bottom tabs, 28 tall cards with lazy splash art, a Yarn chip', () => {
     const { el } = open(state({ yarn: { balance: 1234, matches: 3, picksLeft: 0, nextPickAt: 5 } }));
     expect([...el.querySelectorAll('.cst-tabs [data-tab]')].map((b) => b.textContent)).toEqual(['Featured', 'Champions', 'Coats', 'Frames & Titles']);
     expect(el.querySelector('.cst-tab.on')!.getAttribute('data-tab')).toBe('champions');
-    expect(el.querySelectorAll('.cst-card[data-hero]')).toHaveLength(24);
+    expect(el.querySelectorAll('.cst-card[data-hero]')).toHaveLength(28);
     const img = el.querySelector('.cst-card img.cst-art') as HTMLImageElement;
     expect(img.getAttribute('loading')).toBe('lazy');
     expect(img.getAttribute('srcset')).toContain('720w');
@@ -133,15 +133,15 @@ describe('store panel', () => {
   it('filters: Dogs, a role toggled on and off, Unowned, and the sort (remembered)', () => {
     const { el } = open(state());
     click(el.querySelector('[data-side="dog"]'));
-    expect(el.querySelectorAll('.cst-card[data-hero]')).toHaveLength(12);
+    expect(el.querySelectorAll('.cst-card[data-hero]')).toHaveLength(14);
     click(el.querySelector('[data-role="tank"]'));
     expect([...el.querySelectorAll('.cst-card[data-hero]')].map((c) => c.getAttribute('data-hero'))).toEqual(['brutus', 'bravo']);
     click(el.querySelector('[data-role="tank"]'));
-    expect(el.querySelectorAll('.cst-card[data-hero]')).toHaveLength(12);
+    expect(el.querySelectorAll('.cst-card[data-hero]')).toHaveLength(14);
     const un = el.querySelector('[data-a="unowned"]') as HTMLInputElement;
     un.checked = true;
     un.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(el.querySelectorAll('.cst-card[data-hero]')).toHaveLength(9);
+    expect(el.querySelectorAll('.cst-card[data-hero]')).toHaveLength(11);
     const sel = el.querySelector('[data-a="sort"]') as HTMLSelectElement;
     sel.value = 'name';
     sel.dispatchEvent(new Event('change', { bubbles: true }));
@@ -200,7 +200,7 @@ describe('store panel', () => {
 
   it('every tab is one vertical grid of the same cards (no sideways shelf, no old preview and buy bar)', () => {
     const { el } = open(state());
-    for (const [tab, n] of [['champions', 24], ['featured', 14], ['coats', 30], ['frames', 4]] as const) {
+    for (const [tab, n] of [['champions', 28], ['featured', 14], ['coats', 30], ['frames', 4]] as const) {
       click(el.querySelector(`.cst-tabs [data-tab="${tab}"]`));
       const grids = el.querySelectorAll('[data-scroll]');
       expect(grids, tab).toHaveLength(1);

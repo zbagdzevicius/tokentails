@@ -18,6 +18,10 @@ import { SHOT as PIXEL_SHOT } from '../chars/heroes/pixel';
 import { SHOT as DUCHESS_SHOT } from '../chars/heroes/duchess';
 import { SHOT as MOCHI_SHOT } from '../chars/heroes/mochi';
 import { SHOT as BISCUIT_SHOT } from '../chars/heroes/biscuit';
+import { SHOT as NOVA_SHOT } from '../chars/heroes/nova';
+import { SHOT as DUSTY_SHOT } from '../chars/heroes/dusty';
+import { SHOT as BARKULA_SHOT } from '../chars/heroes/barkula';
+import { SHOT as RANGER_SHOT } from '../chars/heroes/ranger';
 
 interface Look {
   size: number;
@@ -123,14 +127,19 @@ const OWNER_SHOT: Partial<Record<string, readonly [number, number, number, numbe
   // sim v29: Mochi's Pillow Toss (a cream pillow) and Biscuit's Fetch! (a tennis ball; skill FX draws the leash)
   mochi: MOCHI_SHOT,
   biscuit: BISCUIT_SHOT,
+  // sim v31: Nova's Shooting Star, Dusty's HIGH NOON corks, Barkula's Bat Bite, Ranger's tennis balls
+  nova: NOVA_SHOT,
+  dusty: DUSTY_SHOT,
+  barkula: BARKULA_SHOT,
+  ranger: RANGER_SHOT,
 };
 
 /** Sim v9: a hero bolt takes its shooter's colour where the kit has one (Gabby's heart bolts). */
-const BOLT_TINT: Partial<Record<string, number>> = { gabe: 0xff7aa8, bengas: 0xffa04a };
+const BOLT_TINT: Partial<Record<string, number>> = { gabe: 0xff7aa8, bengas: 0xffa04a, nova: 0xc8d4ff, dusty: 0xd8a868, barkula: 0xd8204a, ranger: 0xd8f24a };
 /** Sim v10 (GAPS B6): Guard Post domes drawn at once (more than the heroes on a team never stand). */
 const DOMES = 4;
 /** Sim v9 burst discs by owner: Bengal's stage fire and Gabby's heart balloon. */
-const BURST_COLOR: Partial<Record<string, number>> = { bengas: 0xff6a3d, gabe: 0xff8fb8 };
+const BURST_COLOR: Partial<Record<string, number>> = { bengas: 0xff6a3d, gabe: 0xff8fb8, nova: 0x8fa8ff };
 
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();

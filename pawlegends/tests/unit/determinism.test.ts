@@ -149,17 +149,17 @@ describe('determinism with abilities (§15 items 1 and 10)', { timeout: 120000 }
 
 /**
  * §15 item 1 at scale: random command streams over full matches, recorded then replayed from the record alone, hash
- * trails compared every 30 ticks (tools/lib/fuzz-entry.ts on the bundled sim). Per commit: 24 seeds spread over the
+ * trails compared every 30 ticks (tools/lib/fuzz-entry.ts on the bundled sim). Per commit: 28 seeds (one a hero) over the
  * uint32 range (0 and 0xffffffff included). Nightly (PAWLEGENDS_NIGHTLY=1): 1,000 seeds in parallel processes
  * (tools/determinism.mjs; also `npm run determinism -- --seeds 1000`).
  */
 type Fuzz = typeof import('../../tools/lib/fuzz-entry');
 describe('determinism fuzz (§15 item 1)', { timeout: 600000 }, () => {
-  it('24 seeds × random command streams: record → replay gives identical hash trails and results', async () => {
+  it('28 seeds × random command streams: record → replay gives identical hash trails and results', async () => {
     const { importSim } = await import('../../tools/lib/sim-bundle.mjs');
     const fz = (await importSim('tools/lib/fuzz-entry.ts')) as Fuzz;
     const rows = [];
-    for (let i = 0; i < 24; i++) rows.push(fz.fuzzMatch(fz.fuzzSeed(i)));
+    for (let i = 0; i < HERO_IDS.length; i++) rows.push(fz.fuzzMatch(fz.fuzzSeed(i)));
     expect(rows.filter((r) => !r.ok)).toEqual([]);
     expect(new Set(rows.map((r) => r.hero)).size).toBe(HERO_IDS.length);
     expect(new Set(rows.map((r) => r.difficulty)).size).toBe(3);

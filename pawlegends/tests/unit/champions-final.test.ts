@@ -23,7 +23,8 @@ describe('hero-fight tuning (final spec, species balance nudges)', () => {
     expect(HEROES.lambo.pvp).toEqual({ dmgBp: 9310, takenBp: 7250 }); // sim v21: takes 7250; refit on the v20 base
     expect(HEROES.aviete.pvp).toEqual({ dmgBp: 11000, takenBp: 7930 });
     expect(HEROES.gabe.pvp).toEqual({ dmgBp: 7565, takenBp: 10295 });
-    expect(HEROES.bengas.pvp).toEqual({ dmgBp: 9770, takenBp: 8370 });
+    // sim v31 (ROSTER-V31.md §4): −2% on the v20 row
+    expect(HEROES.bengas.pvp).toEqual({ dmgBp: 9570, takenBp: 8570 });
   });
 });
 

@@ -33,6 +33,10 @@ import { aims as mochiAims } from './aims/mochi';
 import { aims as ziggyAims } from './aims/ziggy';
 import { aims as biscuitAims } from './aims/biscuit';
 import { aims as champAims } from './aims/champ';
+import { aims as novaAims } from './aims/nova';
+import { aims as dustyAims } from './aims/dusty';
+import { aims as barkulaAims } from './aims/barkula';
+import { aims as rangerAims } from './aims/ranger';
 
 export type AimKind = 'self' | 'dir' | 'point' | 'unit';
 export type AimShape = 'cone' | 'line' | 'dash' | 'circle' | 'ring' | 'none';
@@ -164,6 +168,15 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
       return biscuitAims(a);
     case 'champ':
       return champAims(a);
+    // sim v31 roster
+    case 'nova':
+      return novaAims(a);
+    case 'dusty':
+      return dustyAims(a);
+    case 'barkula':
+      return barkulaAims(a);
+    case 'ranger':
+      return rangerAims(a);
   }
 }
 

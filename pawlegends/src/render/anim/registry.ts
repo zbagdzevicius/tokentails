@@ -39,6 +39,10 @@ export const HERO_ANIM: Readonly<Record<HeroId, HeroAnimEntry>> = Object.freeze(
   ziggy: { moves: () => import('../moves/ziggy'), fx: () => import('../skillfx/ziggy') },
   biscuit: { moves: () => import('../moves/biscuit'), fx: () => import('../skillfx/biscuit') },
   champ: { moves: () => import('../moves/champ'), fx: () => import('../skillfx/champ') },
+  nova: { moves: () => import('../moves/nova'), fx: () => import('../skillfx/nova') },
+  dusty: { moves: () => import('../moves/dusty'), fx: () => import('../skillfx/dusty') },
+  barkula: { moves: () => import('../moves/barkula'), fx: () => import('../skillfx/barkula') },
+  ranger: { moves: () => import('../moves/ranger'), fx: () => import('../skillfx/ranger') },
 });
 
 const STUB_MOVES = new Map<HeroId, MoveSet>(HERO_IDS.map((h) => [h, stubMoves(h)]));

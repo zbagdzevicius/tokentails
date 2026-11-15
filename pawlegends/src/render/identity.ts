@@ -706,6 +706,83 @@ export const IDENTITY: Readonly<Record<HeroId, ChampIdentity>> = Object.freeze({
       r: { name: 'KNOCKOUT!', nature: 'impact', motif: 'a huge punch star, the bell rings; a wall hit spins stars round the cat' },
     },
   }),
+  // sim v31 roster (ROSTER-V31.md §3)
+  nova: id({
+    hero: 'nova',
+    trait: 'Stargazer: falling stars, a brass telescope and a night-sky shimmer',
+    motif: { shape: 'STAR4', sprite: 'a small gold four-point star; a white shooting-star streak' },
+    colors: { primary: 0x8fa8ff, secondary: 0x1e2a6a },
+    timbre: 'glass chime and a soft whoosh',
+    voice: {
+      basic: { zzfx: [0.28, 0, 1568, 0.003, 0.02, 0.08, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.03, 0.6, 0.02, 0, 0] },
+      ult: { zzfx: [0.5, 0, 392, 0.03, 0.3, 0.5, 0, 1, -0.5, 0, 0, 0, 0.1, 0, 0, 0.1, 0.06, 0.7, 0.05, 0.3, 0] },
+    },
+    skills: {
+      basic: { name: 'Starlight flick', nature: 'arcane', motif: 'a twinkle flies from her paw' },
+      passive: { name: 'Starlight', nature: 'arcane', motif: 'a far hit sparkles with a gold star' },
+      q: { name: 'Starfall', nature: 'arcane', motif: 'a star drops out of the sky onto the circle' },
+      w: { name: 'Shooting Star', nature: 'projectile', motif: 'a white star streaks across with a long tail' },
+      e: { name: 'Moon Hop', nature: 'mobility', motif: 'a crescent glow where she stood' },
+      r: { name: 'METEOR SHOWER', nature: 'fire', motif: 'meteors rain into the big circle one after another' },
+    },
+  }),
+  dusty: id({
+    hero: 'dusty',
+    trait: 'Cowgirl gunslinger: popping corks, spurs and a desert sunset',
+    motif: { shape: 'STAR5', sprite: 'a tan cork; a sheriff star in sunset orange' },
+    colors: { primary: 0xff8a3d, secondary: 0x6a2410 },
+    timbre: 'cork pop and spur jingle',
+    voice: {
+      basic: { zzfx: [0.3, 0, 600, 0.001, 0.01, 0.05, 3, 1, -10, 0, 0, 0, 0, 0.3, 0, 0, 0, 0.5, 0.01, 0, 0] },
+      ult: { zzfx: [0.5, 0, 330, 0.02, 0.2, 0.4, 0, 1, 0, 0, 165, 0.1, 0.1, 0, 0, 0, 0.04, 0.6, 0.04, 0.2, 0] },
+    },
+    skills: {
+      basic: { name: 'Popgun', nature: 'projectile', motif: 'a little cork pop at the muzzle' },
+      passive: { name: 'Four Corks', nature: 'impact', motif: 'the Big Cork lands with a sheriff star' },
+      q: { name: 'Trick Shot', nature: 'projectile', motif: 'a cork line to the target and a bounce line to the next' },
+      w: { name: 'Lasso', nature: 'empower', motif: 'a rope loop round the roped dog' },
+      e: { name: 'Quick Draw', nature: 'mobility', motif: 'a dust cloud along the slide' },
+      r: { name: 'HIGH NOON', nature: 'projectile', motif: 'the sun flares behind her; big corks fly one after another' },
+    },
+  }),
+  barkula: id({
+    hero: 'barkula',
+    trait: 'Doberman count: bats, a red moon and a swirl of cape',
+    motif: { shape: 'HEART', sprite: 'a little dark bat; a wine-red drop' },
+    colors: { primary: 0x9a1a5a, secondary: 0x2a1030 },
+    timbre: 'organ swell and bat flutter',
+    voice: {
+      basic: { zzfx: [0.28, 0, 196, 0.005, 0.04, 0.08, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.02, 0.6, 0.03, 0.1, 0] },
+      ult: { zzfx: [0.5, 0, 110, 0.05, 0.3, 0.5, 2, 1, 0, 0, 55, 0.15, 0.1, 0, 0, 0, 0.04, 0.7, 0.06, 0.3, 0] },
+    },
+    skills: {
+      basic: { name: 'Cape flick', nature: 'shadow', motif: 'a little bat flits to the target' },
+      passive: { name: 'Night Thirst', nature: 'heal', motif: 'red drops float back to him on an ability hit' },
+      q: { name: 'Bat Bite', nature: 'projectile', motif: 'a bat flaps along the line and bites' },
+      w: { name: 'Bat Swarm', nature: 'shadow', motif: 'a ring of bats circles him' },
+      e: { name: 'Mist Form', nature: 'mobility', motif: 'he dissolves into a red-grey mist' },
+      r: { name: 'RED MOON', nature: 'shadow', motif: 'a red moon rises over him; marked cats pop with red drops' },
+    },
+  }),
+  ranger: id({
+    hero: 'ranger',
+    trait: 'Beagle park ranger: leaves, a tennis-ball thwump and a quiet sniff',
+    motif: { shape: 'FEATHER', sprite: 'a green leaf; a yellow tennis ball' },
+    colors: { primary: 0x6ad04a, secondary: 0x1e4a1a },
+    timbre: 'launcher thwump and leaf rustle',
+    voice: {
+      basic: { zzfx: [0.28, 0, 200, 0.002, 0.02, 0.06, 1, 1, -6, 0, 0, 0, 0, 0.4, 0, 0, 0, 0.5, 0.02, 0, -600] },
+      ult: { zzfx: [0.5, 0, 440, 0.01, 0.2, 0.4, 0, 1, 0, 0, 0, 0, 0.12, 0, 0, 0, 0.05, 0.6, 0.04, 0.2, 0] },
+    },
+    skills: {
+      basic: { name: 'Ball launcher', nature: 'projectile', motif: 'a ball thwumps out with a puff' },
+      passive: { name: 'Camouflage', nature: 'shadow', motif: 'leaves swirl as he fades into the grass' },
+      q: { name: 'Tracer Ball', nature: 'projectile', motif: 'a bright ball with a green tracer tail' },
+      w: { name: 'Warning Bark', nature: 'sonic', motif: 'a bark cone with leaves blown back' },
+      e: { name: 'Bush Dive', nature: 'mobility', motif: 'a leaf burst where he lands and fades' },
+      r: { name: 'LONG SHOT', nature: 'projectile', motif: 'a scope ring locks on the cat; balls home in one by one' },
+    },
+  }),
 });
 
 /** Ability slot index (0..3 = q, w, e, r) to its key. */

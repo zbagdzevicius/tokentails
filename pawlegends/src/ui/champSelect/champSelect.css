@@ -166,8 +166,8 @@
 
 .cs-gridwrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .cs-grid {
-  /* at least six columns (sim v29: the twelve heroes of a side in two rows, no scroll), even in a narrow centre */
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--cs-tile), calc((100% - 20px) / 6)), 1fr)); gap: 4px; align-content: start;
+  /* at least seven columns (sim v31: the fourteen heroes of a side in two rows, no scroll), even in a narrow centre */
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--cs-tile), calc((100% - 24px) / 7)), 1fr)); gap: 4px; align-content: start;
   overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; min-height: 0; max-height: 100%; padding: 3px 4px 4px 3px;
   scrollbar-width: thin; scrollbar-color: rgb(var(--v6-cream-rgb, 255 243 227) / 0.55) transparent;
 }
@@ -207,12 +207,13 @@
 .cs-tile.on .cs-face {
   box-shadow: 0 0 0 2px var(--cs-gold), 0 0 0 4px var(--v6-night, #12091f), 0 0 14px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.55);
 }
-/* sim v29: six columns can make a tile 43 px wide at 667x375; the name shrinks with the tile so "Raspberry" still fits
+/* sim v29: six columns can make a tile 43 px wide at 667x375 (sim v31: seven columns, about 37 px); the name shrinks
+   with the tile so "Raspberry" and "Marshmallow" still fit (a long name down to 7 px)
    (the tile is the container; at 52 px and wider the name keeps 11 px, 10 px for a long one; without container units
    the fixed size stays; never under 8 px, where a long name may end in an ellipsis) */
 .cs-tile { container-type: inline-size; }
 .cs-tn { font: 700 11px/1.1 var(--font); font-size: clamp(8px, 20.5cqi, 11px); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 0 rgb(0 0 0 / 0.55); }
-.cs-tile[data-long] .cs-tn { font-size: 10px; font-size: clamp(8px, 18.5cqi, 10px); letter-spacing: -0.04em; margin: 0 -3px; }
+.cs-tile[data-long] .cs-tn { font-size: 10px; font-size: clamp(7px, 18.5cqi, 10px); letter-spacing: -0.04em; margin: 0 -4px; }
 .cs-tile.on .cs-tn { color: var(--v6-cream, #fff3e3); }
 .cs-tile.taken .cs-face, .cs-tile.locked .cs-face { filter: grayscale(0.85) brightness(0.55); }
 .cs-tile[disabled], .cs-tile[data-blocked] { cursor: default; }

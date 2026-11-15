@@ -171,7 +171,7 @@ describe('the filters', () => {
     expect(visible(root)).toEqual(HERO_IDS.filter((h) => HEROES[h].role === 'marksman').sort((a, b) => (HEROES[a].side === HEROES[b].side ? 0 : HEROES[a].side === 'cat' ? -1 : 1)));
     expect(root.querySelector('[data-cs="role"][data-role="marksman"]')?.getAttribute('aria-pressed')).toBe('true');
     click(root.querySelector('[data-cs="role"][data-role="marksman"]'));
-    expect(visible(root)).toHaveLength(24);
+    expect(visible(root)).toHaveLength(28);
   });
 
   it('the rosters are equal: the same role mix on each side (every role tab shows as many cats as dogs)', () => {

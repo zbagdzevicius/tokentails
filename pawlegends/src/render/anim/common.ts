@@ -27,6 +27,10 @@ import { SPRINGS as MOCHI_SPRINGS } from '../chars/heroes/mochi';
 import { SPRINGS as ZIGGY_SPRINGS } from '../chars/heroes/ziggy';
 import { SPRINGS as BISCUIT_SPRINGS } from '../chars/heroes/biscuit';
 import { SPRINGS as CHAMP_SPRINGS } from '../chars/heroes/champ';
+import { SPRINGS as NOVA_SPRINGS } from '../chars/heroes/nova';
+import { SPRINGS as DUSTY_SPRINGS } from '../chars/heroes/dusty';
+import { SPRINGS as BARKULA_SPRINGS } from '../chars/heroes/barkula';
+import { SPRINGS as RANGER_SPRINGS } from '../chars/heroes/ranger';
 import { Prio, type Anchor, type ClipDef, type Cue, type GaitProfile, type Key, type Mask, type MoveSet, type ScalarKey, type SkillFxSet, type SlotMoves, type SpringTuning } from './types';
 
 /** The basic contact time (s) every basic clip pins to `contact` / `release`. */
@@ -78,6 +82,10 @@ export const HERO_SPRINGS: Readonly<Record<HeroId, SpringTuning>> = Object.freez
   ziggy: ZIGGY_SPRINGS,
   biscuit: BISCUIT_SPRINGS,
   champ: CHAMP_SPRINGS,
+  nova: NOVA_SPRINGS,
+  dusty: DUSTY_SPRINGS,
+  barkula: BARKULA_SPRINGS,
+  ranger: RANGER_SPRINGS,
 });
 
 // ------------------------------------------------------------------------------------------------ templates
