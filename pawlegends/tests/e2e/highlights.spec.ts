@@ -166,7 +166,11 @@ test('highlights: results strip, a card opens its highlight with the director, C
   await expect(row).toBeHidden();
   expect((await page.locator('.mm-bar').boundingBox())!.height).toBe(before.height);
   await press(page, touch, '.mm-bar [data-r="exit"]');
-  await page.waitForSelector('html[data-screen="title"]', { timeout: 30_000 });
+  // gaps5 polish 2: back on the results it came from, the strip drawn again from the cached reel (a second card works)
+  await page.waitForSelector('html[data-screen="results"]', { timeout: 30_000 });
+  await stripReady(page);
+  await expect(page.locator('[data-testid="hl-card"]').first()).toBeVisible();
+  await shot(page, 'back-to-results', info.project.name);
   // the reel is cached on the history row
   const cached = await page.evaluate(() => {
     const rows = JSON.parse(localStorage.getItem('tt.pawlegends.history.v1') ?? '[]') as { highlights?: { list: unknown[] } }[];
@@ -218,5 +222,9 @@ test('highlights: the Montage records 3-5 highlights in one 20-30 s video', asyn
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
   expect(await attr(page, 'montage')).toBe('');
+  // gaps5 polish 2: leaving the replay after the Montage goes back to the results, not Home
+  await press(page, false, '.mm-bar [data-r="exit"]');
+  await page.waitForSelector('html[data-screen="results"]', { timeout: 30_000 });
+  await stripReady(page);
   expect(errors).toEqual([]);
 });

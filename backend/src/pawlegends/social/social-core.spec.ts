@@ -275,6 +275,25 @@ describe('pawlegends social core (SOCIAL-RANKED.md §2, §3)', () => {
         clock.advance(4 * 60_000);
         expect((await svc.state('B')).invites).toEqual([]);
     });
+
+    it('gaps5: a Ranked duo invite carries mode ranked to the friend; any other mode is a plain invite', async () => {
+        const { clock, models, svc } = harness();
+        await svc.request('A', 'B', 'code');
+        await svc.request('B', 'A', 'code');
+        await svc.request('A', 'C', 'code');
+        await svc.request('C', 'A', 'code');
+        models.presence.docs.push({
+            _id: 'A',
+            relay: { state: 'party', party: 'WXYZ', joinable: true, at: clock.now() },
+            exp: new Date(clock.ms + 60_000),
+        });
+        await svc.invite('A', await codeOf(svc, 'B'), 'ranked');
+        await svc.invite('A', await codeOf(svc, 'C'), 'hax');
+        expect((await svc.state('B')).invites).toEqual([expect.objectContaining({ party: 'WXYZ', mode: 'ranked' })]);
+        const c = (await svc.state('C')).invites as Array<Record<string, unknown>>;
+        expect(c).toHaveLength(1);
+        expect(c[0].mode).toBeUndefined();
+    });
 });
 
 describe('pawlegends presence (SOCIAL-RANKED.md §4)', () => {

@@ -11,7 +11,7 @@ import { createMatch, fillPicks, replayRecord, result, snapshot, step, tickOf, S
 import type { Match, ReplayRecord, SimEvent } from '../../src/sim/api';
 import { Rng } from '../../src/sim/rng';
 import { randomCommand } from './helpers';
-import { HighlightDetector, clampWindow, type DetectorMeta } from '../../src/replay/highlights/detect';
+import { HighlightDetector, clampWindow, distinctTitle, type DetectorMeta } from '../../src/replay/highlights/detect';
 import { kindOf, probe, type HeroSample, type TowerSample, type UnitKind } from '../../src/replay/highlights/probe';
 import { DETECTOR_V, RULES, SUB_MAX, TITLE_MAX, highlightAt, highlightSeconds, montageSegments, segmentOf, stepHighlight, type Highlight, type HighlightReel } from '../../src/replay/highlights/rules';
 import { ALL_TITLE_TEMPLATES, titleFor, type TitleCtx } from '../../src/replay/highlights/titles';
@@ -454,6 +454,36 @@ describe('highlights: funny', () => {
     expect(find(few.finish(), 'pingSpam')).toBeUndefined();
     // without the sidecar the emote rule is silent
     expect(find(harness().finish(), 'emoteSpam')).toBeUndefined();
+  });
+
+  it('gaps5: the emote storm fires for 3 Waves at the solo cooldown (3 s apart), not for 3 spread over 10 s', () => {
+    // MatchSession.emote() allows one Wave every 3 s: 3 in a row take 6 s (180 ticks)
+    expect(find(harness({ emotes: [6000, 6090, 6180] }).finish(), 'emoteSpam')).toBeTruthy();
+    expect(find(harness({ emotes: [6000, 6150, 6300] }).finish(), 'emoteSpam')).toBeUndefined();
+    expect(RULES.emoteWindow).toBeGreaterThanOrEqual(2 * 90);
+  });
+
+  it('gaps5: four Nine Lives saves in one reel get four different titles', () => {
+    const h = harness();
+    // four heroes each saved by Nine Lives, far apart in time and on the map (no merging)
+    [1, 2, 4, 5].forEach((id, k) => h.at(1000 + k * 1500, { type: 'buff', tick: 1000 + k * 1500, id, kind: 'nineLives', ticks: 60 } as SimEvent));
+    const r = h.finish();
+    const nine = r.list.filter((x) => x.type === 'clutch');
+    expect(nine.length).toBe(4);
+    const titles = nine.map((x) => x.title);
+    expect(new Set(titles).size).toBe(4);
+    for (const t of titles) expect(t.length).toBeLessThanOrEqual(TITLE_MAX);
+  });
+});
+
+describe('highlights: distinct titles (gaps5)', () => {
+  it('moves to the next variant, then "… again", then repeats', () => {
+    const variants = ['Nine Lives, used one', 'Saved by Nine Lives', 'Eight lives left'];
+    const used = new Set<string>();
+    const make = (k: number) => ({ title: variants[k % variants.length], sub: 'Sage (bot)' });
+    const got = [0, 1, 2, 3, 4].map(() => distinctTitle(make, used).title);
+    expect(got).toEqual(['Nine Lives, used one', 'Saved by Nine Lives', 'Eight lives left', 'Nine Lives, used one again', 'Nine Lives, used one']);
+    expect(distinctTitle(() => ({ title: 'Shut down!', sub: '' }), new Set(['Shut down!'])).title).toBe('Shut down again');
   });
 });
 

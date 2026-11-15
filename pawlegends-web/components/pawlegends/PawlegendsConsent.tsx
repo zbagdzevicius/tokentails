@@ -3,6 +3,7 @@ import { afterLandingReady } from "@/components/GoogleTagManager";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { isInMatch, pokeMatch, subscribeMatch } from "./matchPresence";
+import { PAWLEGENDS_PLAY_PATH } from "./routes";
 
 /** Dispatch on `window` to show the bar again (the privacy page's "Change my choice"). */
 export const CONSENT_OPEN_EVENT = "pawlegends:consent-open";
@@ -18,6 +19,22 @@ const noSubscription = () => () => {};
 
 /** A phone in landscape (or any short or narrow screen): the bar is a one-line strip at the top instead. */
 export const COMPACT_QUERY = "(max-height: 500px), (max-width: 560px)";
+/**
+ * gaps5 polish 5: on the game page the bar is a slim strip docked above the game, and the game frame moves down by its
+ * height (PawlegendsHost reads `--pl-consent-h`), so it never covers a game button (the champion browser's tabs at
+ * 844x390, Home's Store button at 1440x900). Its buttons are 36 px tall.
+ */
+export const DOCK_HEIGHT_PX = 44;
+export const CONSENT_HEIGHT_VAR = "--pl-consent-h";
+
+const readDock = () => {
+  try {
+    return window.location.pathname === PAWLEGENDS_PLAY_PATH;
+  } catch {
+    return false;
+  }
+};
+
 /** How often the bar re-reads the game frame's match flag while it is open (ms). */
 export const MATCH_POLL_MS = 500;
 
@@ -41,6 +58,9 @@ const readCompact = () => {
 const buttonClass =
   "inline-flex min-h-[44px] items-center justify-center rounded-md border-2 border-tt-night-950 px-4 font-sans text-p6 font-bold outline-none focus-visible:ring-4 focus-visible:ring-tt-cream";
 
+const dockButtonClass =
+  "inline-flex min-h-[36px] items-center justify-center rounded-md border-2 border-tt-night-950 px-3 font-sans text-p6 font-bold outline-none focus-visible:ring-4 focus-visible:ring-tt-cream";
+
 interface PawlegendsConsentProps {
   /** The GTM router (tests pass a fake). */
   gtm?: Pick<Gtm, "enabled" | "consentMode" | "setConsent">;
@@ -55,7 +75,8 @@ interface PawlegendsConsentProps {
  * Never over a match (gaps.md F1: it covered the ability buttons of a fresh guest's first match): while the game frame
  * runs a match (matchPresence.ts: the bridge's match events, or the frame's own `data-match="live"`) the bar waits, and
  * it comes back on Home or the results screen. Nothing is tracked meanwhile: gtm.js waits for Allow (analytics/gtm.ts).
- * On a phone (COMPACT_QUERY) it is a one-line strip at the top of Home instead of a card over the bottom bar.
+ * On a phone (COMPACT_QUERY) it is a one-line strip at the top of Home instead of a card over the bottom bar. On the
+ * game page (`/play`) it is docked above the game, which moves down to make room (gaps5 polish 5: never over a control).
  */
 export function PawlegendsConsent({ gtm = defaultGtm, asks = asksForConsent }: PawlegendsConsentProps) {
   const [open, setOpen] = useState(false);
@@ -77,6 +98,17 @@ export function PawlegendsConsent({ gtm = defaultGtm, asks = asksForConsent }: P
 
   const inMatch = useSyncExternalStore(subscribeMatch, isInMatch, () => false);
   const compact = useSyncExternalStore(subscribeCompact, readCompact, () => false);
+  const dock = useSyncExternalStore(noSubscription, readDock, () => false);
+  const docked = dock && open && !inMatch;
+  // the game frame makes room for the docked strip, and takes the space back when it goes
+  useEffect(() => {
+    if (!docked) return;
+    const root = document.documentElement;
+    root.style.setProperty(CONSENT_HEIGHT_VAR, `${DOCK_HEIGHT_PX}px`);
+    return () => {
+      root.style.removeProperty(CONSENT_HEIGHT_VAR);
+    };
+  }, [docked]);
   // the frame's own flag changes without an event: re-read it while the bar is waiting or showing
   useEffect(() => {
     if (!open) return;
@@ -107,6 +139,29 @@ export function PawlegendsConsent({ gtm = defaultGtm, asks = asksForConsent }: P
       </button>
     </>
   );
+
+  if (dock)
+    return (
+      <div
+        role="dialog"
+        aria-modal="false"
+        aria-label="Analytics cookies"
+        data-testid="pawlegends-consent"
+        data-dock="1"
+        className="fixed inset-x-0 z-[60] flex items-center justify-center gap-2 border-b-2 border-tt-night-950 bg-tt-night-900 px-3 font-sans text-p6 leading-tight text-tt-cream"
+        style={{ top: "env(safe-area-inset-top)", height: `${DOCK_HEIGHT_PX}px` }}
+      >
+        <p className="min-w-0 truncate">May we use Google Analytics cookies? See the {privacy}.</p>
+        <div className="flex shrink-0 gap-1">
+          <button type="button" data-testid="pawlegends-consent-deny" onClick={() => choose("denied")} className={`${dockButtonClass} bg-tt-night-900 text-tt-cream`}>
+            No thanks
+          </button>
+          <button type="button" data-testid="pawlegends-consent-allow" onClick={() => choose("granted")} className={`${dockButtonClass} bg-tt-gold-400 text-tt-night-950`}>
+            Allow
+          </button>
+        </div>
+      </div>
+    );
 
   if (compact)
     return (

@@ -44,6 +44,9 @@ import { coatPartsLine } from '../../render/skins/coatVfx';
 
 /** gaps3 coat-fx: a coat clip ('r' is the ultimate). */
 export type CoatClipKind = 'r' | 'recall' | 'takedown';
+/** gaps5 polish 6: from this many coats the chips take a row of their own above the effect tabs. */
+export const COAT_ROW_ALONE = 4;
+
 const COAT_CLIPS: readonly { k: CoatClipKind; label: string; key: 'ult' | 'recall' | 'takedown' }[] = Object.freeze([
   { k: 'r', label: 'Ultimate', key: 'ult' },
   { k: 'recall', label: 'Recall', key: 'recall' },
@@ -360,6 +363,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   };
 
   const drawIcons = (): void => {
+    if (tab !== 'coats') delete iconsEl.dataset.many;
     if (tab === 'coats') {
       // the coat chips, then the three clips (a tab list each: the arrow keys walk the clips)
       const chips = effectCoats(hero)
@@ -367,6 +371,16 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
         .join('');
       const clips = COAT_CLIPS.map((c) => `<button type="button" class="cb-cfx-btn${c.k === coatClip ? ' on' : ''}" role="tab" data-cfx="${c.k}" aria-selected="${c.k === coatClip}" tabindex="${c.k === coatClip ? 0 : -1}">${c.label}</button>`).join('');
       iconsEl.innerHTML = `<div class="cb-coat-chips" role="group" aria-label="Coats">${chips}</div><div class="cb-cfx" role="tablist" aria-label="Coat effects">${clips}</div>`;
+      // gaps5 polish 6: four coats or more get their own row (Clem's 5th chip ran under the effect tabs)
+      if (effectCoats(hero).length >= COAT_ROW_ALONE) iconsEl.dataset.many = '1';
+      else delete iconsEl.dataset.many;
+      // a fade on the row's end while more chips wait to the right
+      const row = iconsEl.querySelector<HTMLElement>('.cb-coat-chips');
+      if (row) {
+        const fade = (): void => void row.classList.toggle('more', row.scrollLeft + row.clientWidth < row.scrollWidth - 2);
+        row.addEventListener('scroll', fade, { passive: true });
+        requestAnimationFrame(fade);
+      }
       return;
     }
     iconsEl.innerHTML = codex.cards

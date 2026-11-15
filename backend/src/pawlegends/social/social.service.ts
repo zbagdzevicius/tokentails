@@ -216,7 +216,7 @@ export class SocialService {
             .find({ to: me, exp: { $gt: now } })
             .sort({ createdAt: -1 })
             .limit(5)
-            .lean()) as Array<{ _id: unknown; from: string; party: string; exp: Date }>;
+            .lean()) as Array<{ _id: unknown; from: string; party: string; mode?: string; exp: Date }>;
         const live = [];
         for (const r of rows) if (!(await this.blockedEither(me, r.from))) live.push(r);
         if (!live.length) return [];
@@ -235,6 +235,7 @@ export class SocialService {
             id: String(r._id),
             from: { code: formatPlayerCode(codes.get(r.from) ?? ''), name: names.get(r.from) },
             party: r.party,
+            ...(r.mode === 'ranked' ? { mode: 'ranked' as const } : {}),
             exp: r.exp,
         }));
     }
@@ -694,7 +695,8 @@ export class SocialService {
     // Party invites
     // ---------------------------------------------------------------------------------------------------------------
 
-    async invite(me: string, to: unknown) {
+    /** `mode` (gaps5): 'ranked' marks a Ranked duo invite; anything else is a plain party invite. */
+    async invite(me: string, to: unknown, mode?: unknown) {
         const target = await this.byCode(to);
         const edge = (await this.friends.findById(pairId(me, target._id)).lean()) as Edge | null;
         if (!edge || edge.state !== 'accepted' || (await this.blockedEither(me, target._id)))
@@ -716,6 +718,7 @@ export class SocialService {
             from: me,
             to: target._id,
             party: view.party,
+            ...(mode === 'ranked' ? { mode: 'ranked' } : {}),
             exp: new Date(now.getTime() + INVITE_TTL_MS),
             createdAt: now,
         });

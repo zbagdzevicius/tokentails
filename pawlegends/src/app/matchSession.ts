@@ -277,6 +277,8 @@ export interface MatchEnd {
   cause?: string;
   /** Lane F (F5): the player's Fish by `fish` event reason (the results' Fish-by-source bar). */
   fishBy?: Record<string, number>;
+  /** gaps5 polish 3: ticks of the player's emotes (the replay's highlight sidecar, HighlightLoad.emotes). */
+  emotes?: number[];
 }
 
 export interface SessionHooks {
@@ -292,6 +294,9 @@ export interface SessionHooks {
   /** Party play analytics (MULTIPLAYER.md §10, lane M8): flat props, never a party code or room id. */
   track?(event: string, props: Record<string, string | number | boolean>): void;
 }
+
+/** Most emote ticks one match keeps for the highlight sidecar. */
+const EMOTE_TICKS_MAX = 60;
 
 /** Round 2: "Can't go that way" repeats this often (ms) while the player stays blocked (12 s before). */
 const STUCK_REPEAT_MS = 5000;
@@ -391,6 +396,8 @@ export class MatchSession {
   private readonly progress = new ProgressRail();
   /** Lane F (F5): the player's Fish by source from its own `fish` events (the trickle is the rest of SlotStats.fish). */
   private readonly fishBy: Record<string, number> = {};
+  /** gaps5 polish 3: ticks of the player's Wave emotes this match (a solo replay's highlight sidecar). */
+  private readonly emoteTicks: number[] = [];
   /** Lane F (F4): the newest kill-feed row of a takedown by our team (its killer's Fish lands in the same tick). */
   private feedRow: { tick: number; killer: number; el: HTMLElement; fish: number } | null = null;
   /** Lane F (F6): the underdog line shows once a match. */
@@ -1194,6 +1201,9 @@ export class MatchSession {
     const hero = this.welcome.picks[this.welcome.slot];
     if (!this.view.heroes.emote(this.welcome.slot, hero === 'clem' ? 'wave' : 'cheer')) return false;
     this.emoteAt = now;
+    // gaps5 polish 3: the replay's emote sidecar (the "Emote storm" highlight reads the ticks)
+    const tick = this.frameNow?.latest.clock.tick;
+    if (typeof tick === 'number' && this.emoteTicks.length < EMOTE_TICKS_MAX) this.emoteTicks.push(tick);
     const p = new THREE.Vector3(toX(me.fx), 1.62 * HERO_SCALE[hero], toZ(me.fy));
     this.view.particles.ring(p, { n: 8, r0: 0.3, speed: [0.6, 1.2], up: 1.4, color: 0xff7a9a, alpha: 0.95, additive: true, size: [0.18, 0.28], life: [0.6, 0.9], fade: FADE.LINEAR });
     sfx.play('click', { vol: 0.4, rate: 1.5 });
@@ -1822,6 +1832,7 @@ export class MatchSession {
           deathsBy: { ...this.deathsBy },
           cause,
           fishBy: { ...this.fishBy },
+          ...(this.emoteTicks.length ? { emotes: this.emoteTicks.slice() } : {}),
           fun: { ...this.funSummary(myStats?.heroDamage ?? 0), ...(myStats ? { takedowns: myStats.kills + myStats.assists } : {}) },
         });
       },

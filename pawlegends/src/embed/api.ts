@@ -108,6 +108,8 @@ export const API_ARG_KEYS = Object.freeze([
   'pushAuth',
   'cats',
   'tz',
+  // gaps5: a Ranked duo invite ('ranked')
+  'mode',
 ] as const);
 
 export type ApiArgs = Partial<Record<(typeof API_ARG_KEYS)[number], string | number | boolean>>;

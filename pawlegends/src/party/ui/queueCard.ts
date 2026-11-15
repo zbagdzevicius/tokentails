@@ -43,6 +43,8 @@ export interface RankedQueueInfo {
   need?: number;
   have?: number;
   needMatches?: number;
+  /** gaps5 polish 4: the refusal is about the duo partner (this player has the matches; the friend does not). */
+  mate?: boolean;
   /** Players searching this pool now (the relay's count; bots never counted). */
   searching?: number;
   /** Prime Time is on: bots wait longer. */
@@ -102,7 +104,7 @@ const stopText = (m: QueueModel): string => {
     case 'ranked_account':
       return COPY.rankedAccount;
     case 'ranked_matches':
-      return COPY.rankedMatches(m.ranked?.have ?? 0, m.ranked?.needMatches ?? 10);
+      return m.ranked?.mate ? COPY.rankedMate(m.ranked?.have ?? 0, m.ranked?.needMatches ?? 10) : COPY.rankedMatches(m.ranked?.have ?? 0, m.ranked?.needMatches ?? 10);
     case 'ranked_pending':
       return COPY.rankedPending;
     case 'ranked_party':

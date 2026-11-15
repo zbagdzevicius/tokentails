@@ -127,7 +127,7 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
       names = [];
     }
   // a cached reel spares the Worker the detector
-  const engine = new ReplayEngine(rec, { hl: ctx.reel ? null : { names: names.slice() } });
+  const engine = new ReplayEngine(rec, { hl: ctx.reel ? null : { names: names.slice(), ...(ctx.entry.emotes?.length ? { emotes: ctx.entry.emotes.slice() } : {}) } });
   const html = document.documentElement;
   let session: MatchSession | null = null;
   let host: ReplayHost | null = null;

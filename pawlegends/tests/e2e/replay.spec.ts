@@ -72,11 +72,14 @@ test('replay: lane toast at load-in, Watch replay from the results, speeds, seek
   await press(page, touch, '[data-testid="replay-cam"]');
   expect(await attr(page, 'replayCam')).toBe('follow');
 
-  // exit: back to Home, nothing of the viewer left
+  // exit: back to the results it was opened from (gaps5 polish 2), nothing of the viewer left; Home from there
   await press(page, touch, '.mm-bar [data-r="exit"]');
-  await page.waitForSelector('html[data-screen="title"]', { timeout: 20_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: 20_000 });
   await expect(page.locator('.mm-bar, .mm-veil, .pl-match')).toHaveCount(0);
   expect(await attr(page, 'replay')).toBe('');
+  await expect(page.locator('[data-testid="results-replay"]')).toBeVisible();
+  await press(page, touch, '.pl-results [data-a="home"]');
+  await page.waitForSelector('html[data-screen="title"]', { timeout: 20_000 });
 
   // History: the profile entry (Treat Track) → Match history lists the match with Watch
   await press(page, touch, '[data-testid="home-profile"]');

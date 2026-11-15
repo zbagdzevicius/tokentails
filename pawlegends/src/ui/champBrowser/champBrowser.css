@@ -191,6 +191,12 @@ html[data-champ] .tt-card > .tt-sp, html[data-champ] .tt-card > .tt-glare, html[
 .cb-coat-chip[data-rung='RARE'] small { color: #8fd8ff; }
 .cb-coat-chip.on { border-color: var(--v6-bolt); background: color-mix(in srgb, var(--cb-side) 30%, var(--v6-night-2)); }
 .cb-cfx { flex: none; display: flex; gap: 4px; }
+/* gaps5 polish 6: four coats or more: the chips get the whole row (a fade marks more to scroll), the tabs go under it */
+.cb-skills[data-view='coats'] .cb-icons[data-many='1'] { flex-wrap: wrap; row-gap: 5px; }
+.cb-icons[data-many='1'] .cb-coat-chips { flex: 1 1 100%; scroll-snap-type: x proximity; scroll-padding-inline: 4px; }
+.cb-icons[data-many='1'] .cb-coat-chips.more { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.cb-icons[data-many='1'] .cb-coat-chip { scroll-snap-align: start; }
+.cb-icons[data-many='1'] .cb-cfx { margin-left: auto; }
 @media (max-width: 600px) { .cb-skills[data-view='coats'] .cb-icons { flex-direction: column; align-items: stretch; gap: 4px; } }
 @media (max-height: 420px) {
   .cb-skills[data-view='coats'] .cb-icons { gap: 6px; }

@@ -90,7 +90,8 @@ test('clip: the Legend Moment card records a vertical clip; Record again records
   }
   await expect(page.locator('.mm-end:not(.mm-hlend)')).toBeVisible({ timeout: 120_000 });
   await press(page, touch, '.mm-end:not(.mm-hlend) [data-r="exit"]');
-  await page.waitForSelector('html[data-screen="title"]', { timeout: 20_000 });
+  // gaps5 polish 2: the Legend Moment card was opened from the results: back there
+  await page.waitForSelector('html[data-screen="results"]', { timeout: 20_000 });
   expect(await page.evaluate(() => document.documentElement.dataset.clip ?? '')).toBe('');
   expect(errors).toEqual([]);
 });

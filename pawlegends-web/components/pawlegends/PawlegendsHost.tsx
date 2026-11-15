@@ -74,11 +74,12 @@ export const ENTITLEMENT_POLL_MS = 2_000;
 /** How long a finished match waits for Firebase to report its user before it counts as "no user". */
 const AUTH_WAIT_MS = 5_000;
 
+// gaps5 polish 5: `--pl-consent-h` is the docked consent strip's height while it asks (PawlegendsConsent), else 0
 const SAFE_FRAME_STYLE = {
-  top: "env(safe-area-inset-top)",
+  top: "calc(env(safe-area-inset-top) + var(--pl-consent-h, 0px))",
   left: "env(safe-area-inset-left)",
   width: "calc(100% - env(safe-area-inset-left) - env(safe-area-inset-right))",
-  height: "calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+  height: "calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - var(--pl-consent-h, 0px))",
 } as const;
 
 /** PostHog, and the GTM dataLayer on the web (analytics/pawlegends-datalayer.ts). */

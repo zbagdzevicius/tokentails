@@ -295,7 +295,8 @@ function tileHtml(m: CsModel, h: HeroId, focusH: HeroId | null): string {
   const cls = `cs-tile${on ? ' on' : ''}${st.taken ? ' taken' : ''}${st.locked ? ' locked' : ''}`;
   const badges = [
     `<i class="cs-sb ${HEROES[h].side}" style="--side:${SIDE_TAB_CSS[HEROES[h].side]}" aria-hidden="true">${icon(SIDE_ICON[HEROES[h].side])}</i>`,
-    isNewHero(h) ? '<span class="cs-new new-tag">New</span>' : st.champTag && !st.locked ? `<span class="cs-new champ-free">${esc(st.champTag)}</span>` : '',
+    // gaps5 polish 7: a champion free this week says Free even when it is new (it is playable now; New stays in data-new)
+    st.champTag && !st.locked ? `<span class="cs-new champ-free">${esc(st.champTag)}</span>` : isNewHero(h) ? '<span class="cs-new new-tag">New</span>' : '',
     st.locked && !st.taken ? '<span class="cs-lk" aria-hidden="true">🔒</span>' : '',
     st.taken ? `<span class="cs-taken pp-taken">${esc(`Taken: ${st.taken}`)}</span>` : '',
     st.tryThis && !st.taken && !st.locked ? '<span class="cs-try pp-try">New? Try this</span>' : '',
