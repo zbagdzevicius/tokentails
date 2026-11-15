@@ -45,6 +45,10 @@ import * as MOCHI from './chars/heroes/mochi';
 import * as ZIGGY from './chars/heroes/ziggy';
 import * as BISCUIT from './chars/heroes/biscuit';
 import * as CHAMP from './chars/heroes/champ';
+import * as NOVA from './chars/heroes/nova';
+import * as DUSTY from './chars/heroes/dusty';
+import * as BARKULA from './chars/heroes/barkula';
+import * as RANGER from './chars/heroes/ranger';
 import { isFun, isNineLives, type AnyEvent, type FunEvent, type PickupKind } from './feelEvents';
 import { auraColor, elementColor, impactScale, isBigHit, maxedRank, rankScale, type CombatVfx } from './fx/combatVfx';
 import { mixHex } from './skins/classify';
@@ -1035,6 +1039,14 @@ function heroAccentRaw(h: HeroId): number {
       return BISCUIT.ACCENT ?? elementColor(h);
     case 'champ':
       return CHAMP.ACCENT ?? elementColor(h);
+    case 'nova':
+      return NOVA.ACCENT ?? elementColor(h);
+    case 'dusty':
+      return DUSTY.ACCENT ?? elementColor(h);
+    case 'barkula':
+      return BARKULA.ACCENT ?? elementColor(h);
+    case 'ranger':
+      return RANGER.ACCENT ?? elementColor(h);
     // Wave C (C3): the champions cast in their own element colour (they all fell back to Cacklejaw's purple)
     default:
       return elementColor(h);
@@ -1089,6 +1101,14 @@ function ultName(h: HeroId): string {
       return BISCUIT.ULT_NAME;
     case 'champ':
       return CHAMP.ULT_NAME;
+    case 'nova':
+      return NOVA.ULT_NAME;
+    case 'dusty':
+      return DUSTY.ULT_NAME;
+    case 'barkula':
+      return BARKULA.ULT_NAME;
+    case 'ranger':
+      return RANGER.ULT_NAME;
     default:
       return 'Pack Hunt!';
   }

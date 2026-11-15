@@ -19,6 +19,10 @@ import { TEXT as MOCHI_TEXT } from './heroText/mochi';
 import { TEXT as ZIGGY_TEXT } from './heroText/ziggy';
 import { TEXT as BISCUIT_TEXT } from './heroText/biscuit';
 import { TEXT as CHAMP_TEXT } from './heroText/champ';
+import { TEXT as NOVA_TEXT } from './heroText/nova';
+import { TEXT as DUSTY_TEXT } from './heroText/dusty';
+import { TEXT as BARKULA_TEXT } from './heroText/barkula';
+import { TEXT as RANGER_TEXT } from './heroText/ranger';
 
 export interface AbilityText {
   name: string;
@@ -41,7 +45,10 @@ export type IconId =
   | 'lure' | 'photofinish' | 'squirrel' | 'sprint' | 'weenieroll' | 'dig' | 'bunhop' | 'footlong' | 'spot' | 'splatter' | 'shake' | 'dots'
   // sim v29 roster (drawn in ./icons/<hero>.ts)
   | 'pillow' | 'bubble' | 'purrwave' | 'lullaby' | 'zig' | 'sparkswipe' | 'tailflick' | 'storm' | 'fetch' | 'tailwag' | 'stubborn' | 'walkies'
-  | 'haymaker' | 'ropeadope' | 'weave' | 'knockout';
+  | 'haymaker' | 'ropeadope' | 'weave' | 'knockout'
+  // sim v31 roster (drawn in ./icons/<hero>.ts)
+  | 'starfall' | 'shootingstar' | 'moonhop' | 'meteor' | 'trickshot' | 'lasso' | 'quickdraw' | 'highnoon'
+  | 'batbite' | 'batswarm' | 'mist' | 'redmoon' | 'tracer' | 'warnbark' | 'bushdive' | 'longshot';
 
 export interface HeroText {
   title: string;
@@ -253,6 +260,10 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
   ziggy: ZIGGY_TEXT,
   biscuit: BISCUIT_TEXT,
   champ: CHAMP_TEXT,
+  nova: NOVA_TEXT,
+  dusty: DUSTY_TEXT,
+  barkula: BARKULA_TEXT,
+  ranger: RANGER_TEXT,
 });
 
 export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze({

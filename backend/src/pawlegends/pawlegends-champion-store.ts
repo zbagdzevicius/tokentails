@@ -169,11 +169,11 @@ export async function ensureFounders(
 
 /**
  * The Founders roster: the 20 champions of the store release ("you keep all 20 champions"). Champions released later
- * (sim v29: Mochi, Ziggy, Biscuit, Champ; ROSTER-V29.md §5) are earned like everyone else's, so a lazily checked
+ * (sim v29: Mochi, Ziggy, Biscuit, Champ; sim v31: Nova, Dusty, Barkula, Ranger; ROSTER-V31.md §5) are earned like everyone else's, so a lazily checked
  * account gets the same roster as one checked on release day.
  */
 export const FOUNDERS_ROSTER: readonly string[] = Object.freeze(
-    CHAMPION_IDS.filter(h => !['mochi', 'ziggy', 'biscuit', 'champ'].includes(h))
+    CHAMPION_IDS.filter(h => !['mochi', 'ziggy', 'biscuit', 'champ', 'nova', 'dusty', 'barkula', 'ranger'].includes(h))
 );
 
 /** The Founders roster grant itself (the migration and the lazy check): the release's 20 and the badge. Idempotent. */

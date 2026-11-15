@@ -218,6 +218,19 @@ export const FREE_COATS: Readonly<Record<string, { hero: HeroId; name: string; c
   'coat.champ.brindle': { hero: 'champ', name: 'Brindle coat', coat: { base: 0x8a5a34, light: 0xfff4e6, dark: 0x3a2414, accent: 0xff4a3a } },
   'coat.champ.white': { hero: 'champ', name: 'White Flash coat', coat: { base: 0xf6f2ec, light: 0xffffff, dark: 0xc8b8a8, accent: 0xff4a3a } },
   'coat.champ.midnight': { hero: 'champ', name: 'Midnight coat', coat: { base: 0x2a2630, light: 0xb8b0c0, dark: 0x121016, accent: 0xff4a3a } },
+  // sim v31 roster (docs/plans/moba/ROSTER-V31.md §3): Nova's night skies, Dusty's tabbies, Barkula's Dobermans, Ranger's hounds
+  'coat.nova.moonlight': { hero: 'nova', name: 'Moonlight coat', coat: { base: 0xd8dce6, light: 0xffffff, dark: 0x8a90a0, accent: 0x8fa8ff } },
+  'coat.nova.aurora': { hero: 'nova', name: 'Aurora coat', coat: { base: 0x6ab8a8, light: 0xd8fff0, dark: 0x2a5a5a, accent: 0x8fffd0 } },
+  'coat.nova.nebula': { hero: 'nova', name: 'Nebula coat', coat: { base: 0x6a4a9a, light: 0xd8c0ff, dark: 0x2a1a4a, accent: 0xff9ad8 } },
+  'coat.dusty.calico': { hero: 'dusty', name: 'Calico coat', coat: { base: 0xf6efe4, light: 0xffffff, dark: 0x2a2220, accent: 0xff6a3a, pattern: 'calico' } },
+  'coat.dusty.sandstone': { hero: 'dusty', name: 'Sandstone coat', coat: { base: 0xe8d4a8, light: 0xfff6e0, dark: 0xa8885a, accent: 0xff6a3a } },
+  'coat.dusty.outlaw': { hero: 'dusty', name: 'Outlaw coat', coat: { base: 0x2e2a2a, light: 0x8a8080, dark: 0x141212, accent: 0xff6a3a, pattern: 'solid' } },
+  'coat.barkula.red': { hero: 'barkula', name: 'Red Count coat', coat: { base: 0x6a2a1a, light: 0xd88a4a, dark: 0x3a140a, accent: 0xd8204a } },
+  'coat.barkula.blue': { hero: 'barkula', name: 'Blue Count coat', coat: { base: 0x4a5260, light: 0xc8905a, dark: 0x262a32, accent: 0xd8204a } },
+  'coat.barkula.fawn': { hero: 'barkula', name: 'Fawn Count coat', coat: { base: 0x9a8070, light: 0xe0b890, dark: 0x5a4a40, accent: 0xd8204a } },
+  'coat.ranger.lemon': { hero: 'ranger', name: 'Lemon coat', coat: { base: 0xf0d890, light: 0xfffaf0, dark: 0xb8a060, accent: 0x6ad04a } },
+  'coat.ranger.bluetick': { hero: 'ranger', name: 'Bluetick coat', coat: { base: 0x8a92a0, light: 0xf4f4f4, dark: 0x3a3e48, accent: 0x6ad04a, pattern: 'spots' } },
+  'coat.ranger.chocolate': { hero: 'ranger', name: 'Chocolate Tri coat', coat: { base: 0x7a4a2a, light: 0xfaf0e6, dark: 0x3a2214, accent: 0x6ad04a } },
   ...loopCoats(),
 });
 

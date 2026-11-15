@@ -196,7 +196,27 @@ export interface MoveSet {
 }
 
 /** Sim v14 (sim/api ClipKind): the viral moments a `clip` event names. */
-export type ClipMoment = 'flop' | 'bigdog' | 'scream' | 'frozen' | 'zzz' | 'footlong' | 'dots' | 'lullaby' | 'zigzag' | 'fetch' | 'ko';
+export type ClipMoment =
+  | 'flop'
+  | 'bigdog'
+  | 'scream'
+  | 'frozen'
+  | 'zzz'
+  | 'footlong'
+  | 'dots'
+  | 'lullaby'
+  | 'zigzag'
+  | 'fetch'
+  | 'ko'
+  // sim v31
+  | 'ricochet'
+  | 'lasso'
+  | 'bigcork'
+  | 'highnoon'
+  | 'redmoon'
+  | 'bitten'
+  | 'longshot'
+  | 'camoshot';
 
 export interface V3Out {
   x: number;

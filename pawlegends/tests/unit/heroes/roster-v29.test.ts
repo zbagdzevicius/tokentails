@@ -30,7 +30,7 @@ function arena(hero: (typeof HERO_IDS)[number], allies: [string, string], foes: 
 
 describe('sim v29 roster: data', () => {
   it('four heroes appended at 20..23, two a side, the second fighter and support of each side', () => {
-    expect(HERO_IDS.slice(20)).toEqual(['mochi', 'ziggy', 'biscuit', 'champ']);
+    expect(HERO_IDS.slice(20, 24)).toEqual(['mochi', 'ziggy', 'biscuit', 'champ']);
     expect(['mochi', 'ziggy', 'biscuit', 'champ'].map((h) => `${HEROES[h as 'mochi'].side} ${HEROES[h as 'mochi'].role}`)).toEqual([
       'cat support',
       'cat fighter',
@@ -39,8 +39,8 @@ describe('sim v29 roster: data', () => {
     ]);
     for (const side of ['cat', 'dog'] as const) {
       const roles = HERO_IDS.filter((h) => HEROES[h].side === side).map((h) => HEROES[h].role);
-      expect(roles.length).toBe(12);
-      for (const r of ['fighter', 'support', 'tank', 'assassin', 'mage', 'marksman'] as const) expect(roles.filter((x) => x === r).length, `${side} ${r}`).toBe(2);
+      // sim v31 added a third mage and marksman a side (roster-v31.test.ts)
+      for (const r of ['fighter', 'support', 'tank', 'assassin'] as const) expect(roles.filter((x) => x === r).length, `${side} ${r}`).toBe(2);
     }
   });
 });

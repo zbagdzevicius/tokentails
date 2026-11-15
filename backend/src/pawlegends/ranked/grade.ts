@@ -63,6 +63,11 @@ export const HERO_ROLES: Readonly<Record<string, HeroRole>> = Object.freeze({
     ziggy: 'fighter',
     biscuit: 'support',
     champ: 'fighter',
+    // sim v31 (ROSTER-V31.md)
+    nova: 'mage',
+    dusty: 'marksman',
+    barkula: 'mage',
+    ranger: 'marksman',
 });
 
 /**

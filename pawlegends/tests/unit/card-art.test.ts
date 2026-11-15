@@ -37,7 +37,7 @@ describe('card frame and pick tiles', () => {
     expect(foot(0)).not.toContain('Awakened · Awakened');
     expect(foot(3)).toContain('Legend · Awakened · Paw Legends');
   });
-  it('pick (champion select): a portrait tile per hero (24), one name each; a worn card never renames or borders a tile (NO-TOKENTAILS.md)', () => {
+  it('pick (champion select): a portrait tile per hero (28), one name each; a worn card never renames or borders a tile (NO-TOKENTAILS.md)', () => {
     document.body.innerHTML = '';
     setRosterSkins([{ id: 'z', name: 'Zuzu', type: 'ICE', tier: 'LEGENDARY', isStarter: false, origin: 'adopt' }]);
     const root = pickScreen(document.body, {
@@ -49,7 +49,7 @@ describe('card frame and pick tiles', () => {
       onBack: () => undefined,
     });
     const tiles = root.querySelectorAll<HTMLElement>('.cs-grid .cs-tile');
-    expect(tiles).toHaveLength(24);
+    expect(tiles).toHaveLength(28);
     for (const t of tiles) expect(t.querySelectorAll('.cs-tn')).toHaveLength(1);
     const on = root.querySelector<HTMLElement>('.cs-tile.on') as HTMLElement;
     expect(on.dataset.h).toBe('meatball');

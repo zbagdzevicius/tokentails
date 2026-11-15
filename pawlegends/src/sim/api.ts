@@ -482,8 +482,30 @@ export type SimEvent =
  * Sim v14: what a `clip` event shows. Sim v15: Rocket's nap (`zzz`), Frankie's grab (`footlong`), Domino's R (`dots`).
  * Sim v29: Mochi's LULLABY (`lullaby`), Ziggy's ZIGZAG STORM (`zigzag`), Biscuit's catch (`fetch`), Champ's wall KO (`ko`: on
  * the dazed victim, like `frozen`).
+ * Sim v31: Dusty's bounce (`ricochet`, on the second target), Lasso (`lasso`, on the roped hero), Big Cork (`bigcork`)
+ * and HIGH NOON (`highnoon`); Barkula's RED MOON (`redmoon`) and its pop (`bitten`, on each victim); Ranger's
+ * LONG SHOT (`longshot`) and Camouflage shot (`camoshot`).
  */
-export type ClipKind = 'flop' | 'bigdog' | 'scream' | 'frozen' | 'zzz' | 'footlong' | 'dots' | 'lullaby' | 'zigzag' | 'fetch' | 'ko';
+export type ClipKind =
+  | 'flop'
+  | 'bigdog'
+  | 'scream'
+  | 'frozen'
+  | 'zzz'
+  | 'footlong'
+  | 'dots'
+  | 'lullaby'
+  | 'zigzag'
+  | 'fetch'
+  | 'ko'
+  | 'ricochet'
+  | 'lasso'
+  | 'bigcork'
+  | 'highnoon'
+  | 'redmoon'
+  | 'bitten'
+  | 'longshot'
+  | 'camoshot';
 
 export type SimEventType = SimEvent['type'];
 

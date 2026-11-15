@@ -251,15 +251,15 @@ optional override.
 ## Pawlegends
 
 A 3v3 cat-and-dog MOBA in `pawlegends/` (three.js, Vite; Phase 1 POC, spec
-`docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of twenty-four
+`docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of twenty-eight
 upright, Pink Paw Knight-style heroes and a Paw Trick (Pounce, Snack Break, Hiss, Purr-ify), and plays with two bot
-allies of its own side against three bots of the other side on Purrhaven Crossing. Cats (12): Clem, Sage, the
+allies of its own side against three bots of the other side on Purrhaven Crossing. Cats (14): Clem, Sage, the
 four shelter champions (sim v9) Lambo (tank), Raspberry (assassin), Bengal (mage) and Gabby (support), and the four
 original cats (sim v11, POC.md §6.8c) Meatball (tank), Pixel (marksman), Duchess (mage) and Stilts (assassin), and (sim v29, `docs/plans/moba/ROSTER-V29.md`) Mochi
-(support) and Ziggy (fighter);
-dogs (12): Sir Brutus, Cacklejaw, the five original dogs (sim v14, `docs/plans/moba/DOGS-V13.md`) Nugget
+(support) and Ziggy (fighter), and (sim v31, `docs/plans/moba/ROSTER-V31.md`) Nova (mage) and Dusty (marksman);
+dogs (14): Sir Brutus, Cacklejaw, the five original dogs (sim v14, `docs/plans/moba/DOGS-V13.md`) Nugget
 (support), Marshmallow (mage), Bravo (tank), Chili (marksman) and Howler (fighter), and three more (sim v15,
-`docs/plans/moba/DOGS-V15.md`) Rocket (marksman), Frankie (assassin) and Domino (mage), and (sim v29) Biscuit (support) and Champ (fighter), so both
+`docs/plans/moba/DOGS-V15.md`) Rocket (marksman), Frankie (assassin) and Domino (mage), and (sim v29) Biscuit (support) and Champ (fighter), and (sim v31) Barkula (mage) and Ranger (marksman), so both
 sides have the same roles. A match ends on a core kill, at the latest at 11:00 (safety end); most end
 between 5 and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/src/sim/`, 30 ticks a
 second, `SIM_VERSION` 17) in a Web Worker, and the backend replays it (v10 to v17 replays all verify, by

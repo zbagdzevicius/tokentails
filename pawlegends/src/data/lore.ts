@@ -315,7 +315,47 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     friend: { hero: 'howler', line: 'Howler is his corner man and yells advice through every round. None of it is useful, but it is very loud.' },
     quote: 'Float like a pup, sting like a bee!',
     howTheyFight: 'Haymaker the cats in front of you, Bob and Weave in for a charged Cross, punch three times for the One-Two, Rope-a-Dope when focused, and KNOCKOUT! a hurt cat, ideally into a wall.',
+  },  nova: {
+    epithet: 'Keeper of the Night Sky',
+    home: 'Purrhaven Isle',
+    hook: 'Nova spends every night on the roof of the Lantern House with a brass telescope. She knows where every star is, and she can call one down on any dog she can see.',
+    bio: 'Nova is a slim blue-grey cat with a cloak full of little gold stars and a brass telescope that is taller than she is. She keeps the star charts of Purrhaven, and she has named a constellation after every cat on the team. The one she named after Meatball is round and very bright.\n\nOn the Crossing she stays far back, where most heroes cannot reach her, and she does not need to come closer. She points at a spot, and a moment later a star falls on it. She throws shooting stars that fly straight through a whole lane and light up every dog they touch. The further away a dog is, the harder her stars hit, which she says is simply how starlight works.\n\nWhen a dog gets too close, she hops away and leaves a moonbeam behind to slow it down. And when the dogs bunch up, she calls a METEOR SHOWER from right across the map.',
+    rival: { hero: 'barkula', line: 'Barkula thinks the night belongs to him. Nova has a chart of every star in it. They argue about the moon every single match.' },
+    friend: { hero: 'sage', line: 'Sage taught Nova to wait for the right moment. Now they take turns on the lookout, one with a bow, one with a telescope.' },
+    quote: 'Make a wish. Quickly.',
+    howTheyFight: 'Stay far back, drop Starfall where dogs will be, poke with Shooting Star, Moon Hop away from divers, and rain METEOR SHOWER on a group from across the map.',
   },
+  dusty: {
+    epithet: 'The Fastest Paw on the Crossing',
+    home: 'Purrhaven Isle',
+    hook: 'Dusty rode in on a tumbleweed one windy afternoon and never left. She has a big hat, a popgun with four corks and a very big opinion of her aim.',
+    bio: 'Dusty is an orange tabby with a hat so wide that three kittens can nap in its shade. Nobody is quite sure where she came from. She says it was a desert. Lambo says it was the sandbox behind the bakery. Either way, she arrived with a cork popgun, a coil of rope and a pair of boots with tiny brass spurs that jingle when she walks.\n\nHer popgun holds four corks, and she counts every shot out loud. The fourth cork is a Big Cork, and it lands with a pop you can hear across the lane. She can bounce a cork off one dog and into another, rope a dog that wanders too close, and slide away with a fresh Big Cork already loaded.\n\nWhen the sun is high, she plants her boots, tips her hat and calls HIGH NOON. Then the corks fly, one after another, and the last one is the biggest of all.',
+    rival: { hero: 'ranger', line: 'Ranger says he is the best shot on the Crossing. Dusty says that is cute. They keep score on a fence post, and both of them cheat.' },
+    friend: { hero: 'lambo', line: 'Lambo feeds her, Dusty tells him stories about the desert. He believes about half of them, which is still too many.' },
+    quote: 'One, two, three… POP.',
+    howTheyFight: 'Count your corks, bounce Trick Shot through a lane, Lasso a diver, Quick Draw out with a Big Cork loaded, and call HIGH NOON down a line of dogs.',
+  },
+  barkula: {
+    epithet: 'Count of the Midnight Kennel',
+    home: 'Isle of Woof',
+    hook: 'Count Barkula sleeps all day in a very dark kennel and comes out at sunset in a cape with a very tall collar. He is polite, dramatic, and he never leaves a fight hungry.',
+    bio: 'Count Barkula is a black-and-tan Doberman with the best manners on the Isle of Woof. He bows to every cat before a match, he says please and thank you, and he wears a cape with a collar so tall it has its own shadow. He lives in the old Midnight Kennel on the hill, with a hundred bats who think he is their dad.\n\nHe does not fight from far away. He walks right into the middle of the cats with his bats circling round him, biting anyone close. Every time his bats or his spells land, he drinks a little of the fight and feels better, so the longer it lasts, the harder he is to put down. When things get too hot, he turns into mist and drifts away, untouchable for a moment.\n\nWhen the cats crowd around him, a RED MOON rises. Every cat still near him when it sets gets bitten.',
+    rival: { hero: 'nova', line: 'Nova calls the moon a star chart. Barkula calls it his night light. Neither of them will give it up.' },
+    friend: { hero: 'cacklejaw', line: 'Cacklejaw is the only one who laughs at his jokes. Barkula is the only one who laughs at Cacklejaw\'s. It works out.' },
+    quote: 'Good evening. Do stay a while.',
+    howTheyFight: 'Walk in with Bat Swarm, Bat Bite the closest cat, drink the fight with every spell, Mist Form out of trouble, and raise RED MOON in the middle of them.',
+  },
+  ranger: {
+    epithet: 'The Dog in the Bush',
+    home: 'Isle of Woof',
+    hook: 'Ranger looks after the Woof woods, and nobody ever sees him do it. He is a beagle with a tennis-ball launcher, a cape made of leaves and the best nose on the island.',
+    bio: 'Ranger is a tricolour beagle who has worn the same leafy cape since puppy camp. He knows every bush on the Crossing by smell, and he can stand so still that birds land on his head. The launcher he carries was built for fetch. He has found other uses for it.\n\nOn the Crossing he keeps to the back and stays quiet. A few seconds without a fight and he simply fades into the grass, and his first shot from hiding lands extra hard. His tracer balls fly past minions and light up the first cat they hit. When a cat gets too close, he barks, loud enough to knock it back. Then he dives into a bush and is gone again.\n\nFor a hurt cat running home, he has his LONG SHOT. He settles down on one knee, and his tennis balls find the cat from all the way across the lane.',
+    rival: { hero: 'dusty', line: 'Dusty says nobody shoots faster. Ranger says nobody shoots further. The fence post with their score on it has run out of room.' },
+    friend: { hero: 'rocket', line: 'Rocket fetches every ball Ranger fires. He has been doing it for three years and has never once been asked to.' },
+    quote: 'Shh. I can smell you.',
+    howTheyFight: 'Stay hidden and open with a Camouflage shot, Tracer Ball to light cats up, Warning Bark off divers, Bush Dive away, and finish runners with LONG SHOT.',
+  },
+
 };
 
 function freezeLore(l: HeroLore): HeroLore {

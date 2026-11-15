@@ -31,7 +31,7 @@ export const ROLE_NAME: Readonly<Record<HeroRole, string>> = Object.freeze(
  * newest roster release the live SIM_VERSION has; sim v30 (a balance-only version) keeps the v29 four tagged, so the tag
  * goes away with the next roster release.
  */
-const HERO_SINCE: Readonly<Partial<Record<HeroId, number>>> = { rocket: 15, frankie: 15, domino: 15, mochi: 29, ziggy: 29, biscuit: 29, champ: 29 };
+const HERO_SINCE: Readonly<Partial<Record<HeroId, number>>> = { rocket: 15, frankie: 15, domino: 15, mochi: 29, ziggy: 29, biscuit: 29, champ: 29, nova: 31, dusty: 31, barkula: 31, ranger: 31 };
 const NEWEST_ROSTER = Math.max(...Object.values(HERO_SINCE).filter((v): v is number => v !== undefined && v <= SIM_VERSION));
 export const isNewHero = (h: HeroId): boolean => HERO_SINCE[h] === NEWEST_ROSTER;
 

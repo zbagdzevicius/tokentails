@@ -10,7 +10,7 @@ import { runReplay } from '../../src/sim/replay';
 import { Rng } from '../../src/sim/rng';
 import { randomCommand } from '../../tests/unit/helpers';
 
-const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'mochi', 'ziggy', 'biscuit', 'champ'];
+const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'mochi', 'ziggy', 'biscuit', 'champ', 'nova', 'dusty', 'barkula', 'ranger'];
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss', 'purrify'];
 const LEVELS: readonly Difficulty[] = ['easy', 'normal', 'hard'];
 
@@ -175,8 +175,8 @@ export function fuzzPartyMatch(seed: number): { seed: number; ok: boolean; final
 // flipping between a pilot and a random stream; both leads send pings and forfeits (some before 4:00, dropped).
 // Recorded as a PvpReplayRecord and replayed from it; trails must match.
 
-const CAT_IDS: readonly HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess', 'aviete', 'bengas', 'lambo', 'pixel', 'stilts', 'mochi', 'ziggy'];
-const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'biscuit', 'champ'];
+const CAT_IDS: readonly HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess', 'aviete', 'bengas', 'lambo', 'pixel', 'stilts', 'mochi', 'ziggy', 'nova', 'dusty'];
+const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'biscuit', 'champ', 'barkula', 'ranger'];
 const PVP_HUMANS: readonly number[] = [0, 1, 3, 4];
 
 export function fuzzPvpPlay(seed: number) {

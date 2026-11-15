@@ -18,10 +18,10 @@ const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pa
 const TRICKS: TrickId[] = ['pounce', 'snack', 'hiss', 'purrify', 'pounce', 'snack'];
 
 describe('sim v29: the roster release', { timeout: 600000 }, () => {
-  it('SIM_VERSION 29 or later; 24 heroes, 12 a side, two of each role; the roster four at 20..23', () => {
+  it('SIM_VERSION 29 or later; the roster four at 20..23 (sim v31 appends four more after them)', () => {
     expect(SIM_VERSION).toBeGreaterThanOrEqual(29);
-    expect(HERO_IDS).toHaveLength(24);
-    expect(HERO_IDS.slice(20)).toEqual([...ROSTER]);
+    expect(HERO_IDS.length).toBeGreaterThanOrEqual(24);
+    expect(HERO_IDS.slice(20, 24)).toEqual([...ROSTER]);
     for (const h of ROSTER) expect(HEROES[h].talents.flat().length, h).toBe(6);
   });
 

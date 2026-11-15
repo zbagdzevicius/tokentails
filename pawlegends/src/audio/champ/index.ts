@@ -28,6 +28,10 @@ import { mochi } from './mochi';
 import { ziggy } from './ziggy';
 import { biscuit } from './biscuit';
 import { champ } from './champ';
+import { nova } from './nova';
+import { dusty } from './dusty';
+import { barkula } from './barkula';
+import { ranger } from './ranger';
 
 export type { ChampAudio, ChampFx, MotifPainter, SkillPhase, SkillSound, SkillSoundOverride } from './types';
 
@@ -56,4 +60,8 @@ export const CHAMP_AUDIO: Readonly<Record<HeroId, ChampAudio>> = Object.freeze({
   ziggy,
   biscuit,
   champ,
+  nova,
+  dusty,
+  barkula,
+  ranger,
 });

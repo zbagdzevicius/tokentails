@@ -14,8 +14,8 @@ import { runReplay } from '../../src/sim/replay';
 import { Rng } from '../../src/sim/rng';
 import { randomCommand } from '../../tests/unit/helpers';
 
-const CAT_IDS: readonly HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess', 'aviete', 'bengas', 'lambo', 'pixel', 'stilts', 'mochi', 'ziggy'];
-const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'biscuit', 'champ'];
+const CAT_IDS: readonly HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess', 'aviete', 'bengas', 'lambo', 'pixel', 'stilts', 'mochi', 'ziggy', 'nova', 'dusty'];
+const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'biscuit', 'champ', 'barkula', 'ranger'];
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss', 'purrify'];
 const MAP = 'hearthwood' as const;
 

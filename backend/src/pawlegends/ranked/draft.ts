@@ -41,6 +41,9 @@ export const BOT_BAN_ORDER: Readonly<Record<'cat' | 'dog', readonly string[]>> =
         'gabe',
         'meatball',
         'ziggy',
+        // sim v31 (ROSTER-V31.md): the new four go last until a balance pass reorders the list
+        'nova',
+        'dusty',
     ]),
     dog: Object.freeze([
         'frankie',
@@ -55,6 +58,8 @@ export const BOT_BAN_ORDER: Readonly<Record<'cat' | 'dog', readonly string[]>> =
         'brutus',
         'nugget',
         'marshmallow',
+        'barkula',
+        'ranger',
     ]),
 });
 

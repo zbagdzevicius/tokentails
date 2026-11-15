@@ -36,7 +36,8 @@ describe('respawn and walking (sim v4)', () => {
   });
 
   it('Zoomies: +80% move speed for 6 s out of the fountain, refreshed inside it, ended by damage', () => {
-    const m = quietMatch(1, false, 'normal');
+    // sim v31: seed 2 (seed 1's slot 1 is Pixel now, whose plate breaking on the hit speeds her up)
+    const m = quietMatch(2, false, 'normal');
     const w = m.world;
     w.globals[G.Tick] = 300;
     putHero(m, 1, FOUNTAIN.x, FOUNTAIN.y);

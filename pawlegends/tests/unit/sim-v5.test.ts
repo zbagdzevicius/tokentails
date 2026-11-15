@@ -161,8 +161,8 @@ describe('sim v6 Hard bots', () => {
   });
 
   it('a Hard bot with Pounce blinks onto a low foe just out of reach; Normal never does', () => {
-    // sim v29: seed 5 (seed 1's slot 3 is a ranged roster hero now, already in reach)
-    const m = quietMatch(5, false, 'hard');
+    // sim v29: seed 5 (seed 1's slot 3 is a ranged roster hero now, already in reach); sim v31: seed 7 (Sir Brutus)
+    const m = quietMatch(7, false, 'hard');
     const w = m.world;
     const bot = 3;
     w.trick[bot] = TRICK_IDS.indexOf('pounce');

@@ -540,4 +540,86 @@ export const DOG_WORDS: Readonly<Partial<Record<HeroId, HeroWords>>> = Object.fr
       counter: 'Keep your back to open ground, not a wall.',
     },
   },
+  // sim v31 roster (docs/plans/moba/ROSTER-V31.md)
+  barkula: {
+    passive: {
+      tags: ['heal'],
+      facts: [F.pct('Heals, from cats', 'passive', 'heroBp', ' of the damage'), F.pct('Heals, from anything else', 'passive', 'otherBp', ' of the damage')],
+      what: 'His skills heal him for part of the damage they deal, most of all on cats.',
+      tip: 'Stay in the fight: every skill that lands keeps you alive.',
+      counter: 'Burst him down fast, or walk away: he needs cats to drink from.',
+    },
+    basic: {
+      what: 'A flick of his cape that sends a little bat.',
+      tags: [],
+      tip: 'Your skills are your damage; basics fill the gaps.',
+      counter: 'Trade with him only when his skills are down.',
+    },
+    q: {
+      what: 'A bat flies out and bites the first thing in the way.',
+      tags: ['skillshot', 'line', 'damage'],
+      tip: 'Bite a cat from behind your minions only when the lane is clear.',
+      counter: 'Keep a minion between you and him.',
+    },
+    w: {
+      what: 'Bats circle him for a while, biting the cats close by. He runs faster.',
+      tags: ['area', 'speed'],
+      tip: 'Turn it on and walk into the middle of them.',
+      counter: (c) => `Keep ${metres(c.n('w', 'radius'))} away while the bats are out.`,
+    },
+    e: {
+      what: 'He turns to mist: nothing can touch him, he runs fast and shakes off slows.',
+      tags: ['untargetable', 'speed', 'cleanse'],
+      tip: 'Mist out of a stun setup or a big hit.',
+      counter: 'Wait it out: it is short.',
+    },
+    r: {
+      what: 'Marks and slows the cats round him. Marked cats still near him when it ends are bitten, and he drinks.',
+      tags: ['area', 'slow', 'windup'],
+      facts: [F.sec('Marked for', 'r', 'slow'), F.m('Bitten within', 'r', 'popRadius'), F.pct('He drinks', 'r', 'drinkBp', ' more of it')],
+      tip: 'Raise it in the middle of them, then stay close.',
+      counter: (c) => `Run: be ${metres(c.n('r', 'popRadius'))} away when the moon sets.`,
+    },
+  },
+  ranger: {
+    passive: {
+      tags: ['stealth', 'damage'],
+      facts: [F.sec('Hidden after', 'passive', 'still', ' without fighting'), F.bonus('First shot from hiding', 'passive', 'bonusBp')],
+      what: 'A few seconds without fighting hides him until he hits. His first shot from hiding hits harder.',
+      tip: 'Wait out of sight, then open with the Camouflage shot.',
+      counter: 'Walk close: a hidden dog shows up near you. Keep hitting him to keep him seen.',
+    },
+    basic: {
+      what: 'A long-range tennis ball.',
+      tags: [],
+      tip: 'You have the longest shot on the island: use it.',
+      counter: 'Close the gap: he has little to stop you.',
+    },
+    q: {
+      what: 'A long ball that flies past minions, hits the first cat and lights it up.',
+      tags: ['skillshot', 'line', 'reveal'],
+      tip: 'Light up a cat before it slips into a bush.',
+      counter: 'Sidestep the ball: it is slow enough to dodge.',
+    },
+    w: {
+      what: 'A bark at the cats in front of him: knocked back and slowed.',
+      tags: ['cone', 'knockback', 'slow'],
+      tip: 'Bark a diver away, then shoot it.',
+      counter: 'Come at him from the side, or after the bark.',
+    },
+    e: {
+      what: 'Dive and hide for a moment. His next shot is a Camouflage shot.',
+      tags: ['mobility', 'stealth'],
+      facts: [F.sec('Hidden for', 'e', 'hide')],
+      tip: 'Dive out of sight, then turn and shoot.',
+      counter: 'Follow him close: a hidden dog near you still shows.',
+    },
+    r: {
+      what: 'From very far away he settles and fires balls that home in on one cat. It cannot hide until he stops.',
+      tags: ['targeted', 'channel', 'reveal', 'windup'],
+      facts: [F.m('Cast range', 'r', 'reach'), F.n('Balls', 'r', 'shots'), F.sec('Between balls', 'r', 'gap'), F.m('Stops beyond', 'r', 'leash')],
+      tip: 'Finish a hurt cat running home.',
+      counter: 'Stun him, or run out of his reach: it stops.',
+    },
+  },
 });

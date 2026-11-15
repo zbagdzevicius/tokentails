@@ -243,13 +243,14 @@ npm run vendor-sim           # re-vendor the sim into backend/src/vendor/pawlege
 
 Shelter champions (sim v9): the four champions' catalog ids live in three places. Change all of them together:
 the game (`pawlegends/src/data/heroes/shelter.ts`), the backend (`backend/src/pawlegends/pawlegends-champions.ts`)
-and the host, which reads them from `GET /pawlegends/champions`. The hero ids themselves (24 since sim v29, in
+and the host, which reads them from `GET /pawlegends/champions`. The hero ids themselves (28 since sim v31, in
 `HERO_IDS` order, append only) are mirrored in `pawlegends-web/components/pawlegends/bridge.ts` (`PAWLEGENDS_HEROES`), in
 the vendored facade (`PawlegendsHeroId` in `pawlegends/tools/vendor-sim.mjs`, written by `npm run vendor-sim`) and
 in the tool lists (`tools/headless-match.mjs`, `tools/grade-calibrate.mjs`, `tools/lib/fuzz-entry.ts`,
 `tools/anim/capture.mjs`, and the side lists in `tools/lib/{hearth,map5v5-probe,mirror}-entry.ts`), and in the landing
 roster (`pawlegends-web/components/pawlegends/landing/roster.ts`). The sim v11 original cats, the sim v14 and v15
-original dogs and the sim v29 roster (ROSTER-V29.md) are not shelter champions and have no catalog id.
+original dogs and the sim v29 and v31 rosters (ROSTER-V29.md, ROSTER-V31.md) are not shelter champions and have no
+catalog id.
 
 Store and Legends Pass catalogue (STORE-PASS.md): two copies with the same values,
 `backend/src/pawlegends/pawlegends-catalog.ts` (the real one: prices, grants, Season XP, claims) and

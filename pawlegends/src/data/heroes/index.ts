@@ -1,5 +1,6 @@
 /** Hero table. Order is the HeroId index used by the sim and the command stream. */
 import { AVIETE } from './aviete';
+import { BARKULA } from './barkula';
 import { BISCUIT } from './biscuit';
 import { BENGAS } from './bengas';
 import { BRAVO } from './bravo';
@@ -10,6 +11,7 @@ import { CHILI } from './chili';
 import { CLEM } from './clem';
 import { DOMINO } from './domino';
 import { DUCHESS } from './duchess';
+import { DUSTY } from './dusty';
 import { FRANKIE } from './frankie';
 import { GABE } from './gabe';
 import { HOWLER } from './howler';
@@ -17,8 +19,10 @@ import { LAMBO } from './lambo';
 import { MARSHMALLOW } from './marshmallow';
 import { MEATBALL } from './meatball';
 import { MOCHI } from './mochi';
+import { NOVA } from './nova';
 import { NUGGET } from './nugget';
 import { PIXEL } from './pixel';
+import { RANGER } from './ranger';
 import { ROCKET } from './rocket';
 import { SAGE } from './sage';
 import { STILTS } from './stilts';
@@ -37,6 +41,7 @@ export type { AbilityData, AbilitySlot, Element, HeroBase, HeroData, HeroId, Her
  * docs/plans/moba/DOGS-V15.md).
  * Sim v29: two cats and two dogs fill the second fighter and support of each side (Mochi 20, Ziggy 21, Biscuit 22,
  * Champ 23; docs/plans/moba/ROSTER-V29.md).
+ * Sim v31: a third mage and marksman a side (Nova 24, Dusty 25, Barkula 26, Ranger 27; docs/plans/moba/ROSTER-V31.md).
  */
 export const HERO_IDS: readonly HeroId[] = Object.freeze([
   'clem',
@@ -63,6 +68,10 @@ export const HERO_IDS: readonly HeroId[] = Object.freeze([
   'ziggy',
   'biscuit',
   'champ',
+  'nova',
+  'dusty',
+  'barkula',
+  'ranger',
 ] as HeroId[]);
 
 export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
@@ -90,6 +99,10 @@ export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
   ziggy: ZIGGY,
   biscuit: BISCUIT,
   champ: CHAMP,
+  nova: NOVA,
+  dusty: DUSTY,
+  barkula: BARKULA,
+  ranger: RANGER,
 });
 
 /**
@@ -121,6 +134,10 @@ export const BRANCH_TALENT: Readonly<Record<HeroId, string | null>> = Object.fre
   ziggy: null,
   biscuit: null,
   champ: null,
+  nova: null,
+  dusty: null,
+  barkula: null,
+  ranger: null,
 });
 
 /** Heroes with a level-6 shape branch, HERO_IDS order. */

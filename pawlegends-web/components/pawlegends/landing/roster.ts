@@ -98,6 +98,11 @@ export const LANDING_ROSTER: readonly LandingHero[] = Object.freeze([
   { id: "ziggy", name: "Ziggy", side: "cat", role: "Fighter", blurb: "A lightning Bengal who never runs in a straight line. Dashes three times, then becomes the storm.", portrait: P("ziggy", "a5577a87"), since: 29 },
   { id: "biscuit", name: "Biscuit", side: "dog", role: "Support", breed: "Golden retriever", blurb: "A golden retriever who plays fetch with cats. Reels them in on his leash and guards his friends.", portrait: P("biscuit", "be811ffe"), since: 29 },
   { id: "champ", name: "Champ", side: "dog", role: "Fighter", breed: "Boxer", blurb: "A boxer in boxing gloves. Jab, jab, cross, and a knockout that sends cats into walls.", portrait: P("champ", "7e1f149d"), since: 29 },
+  // sim v31 (ROSTER-V31.md): the third mage and marksman of each side
+  { id: "nova", name: "Nova", side: "cat", role: "Mage", blurb: "A stargazer with a brass telescope. She drops stars on dogs from far, far away.", portrait: P("nova", "4f97ce1d"), since: 31 },
+  { id: "dusty", name: "Dusty", side: "cat", role: "Marksman", blurb: "A cowgirl with a four-cork popgun. Every fourth cork is a big one.", portrait: P("dusty", "d8b21120"), since: 31 },
+  { id: "barkula", name: "Barkula", side: "dog", role: "Mage", breed: "Doberman", blurb: "A Doberman count in a tall-collared cape. He fights up close and drinks the fight to stay in it.", portrait: P("barkula", "f204e595"), since: 31 },
+  { id: "ranger", name: "Ranger", side: "dog", role: "Marksman", breed: "Beagle", blurb: "A beagle park ranger with a tennis-ball launcher. He hides in plain sight and snipes from far away.", portrait: P("ranger", "d0ef7457"), since: 31 },
 ] as LandingHero[]);
 
 export const isReleased = (h: LandingHero): boolean => h.since <= GAME_SIM_VERSION;
@@ -125,5 +130,5 @@ export const rolesOf = (side: LandingSide): string[] =>
   ROLE_ORDER.filter((r) => liveRoster().some((h) => h.side === side && h.role === r));
 
 /** Spelled-out side counts for the lede ("Ten cats, seven dogs."). */
-const WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
+const WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen"];
 export const countWord = (n: number): string => WORDS[n] ?? String(n);

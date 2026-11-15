@@ -94,9 +94,10 @@ export type SkinFx = 'all' | 'mine' | 'off';
 /**
  * Most free unlocks kept (GAPS A1: the track rewards, the coat loop and the first-win coat fit with room). Sim v14: 57
  * track rewards and a 104-coat loop (13 originals × 8 palettes), so 160 became 200. Sim v15: 66 track rewards and a
- * 128-coat loop (16 originals × 8 palettes), so 200 became 240.
+ * 128-coat loop (16 originals × 8 palettes), so 200 became 240. Sim v31: 90 track rewards and a 192-coat loop (24
+ * originals × 8 palettes), so 240 became 320 (the account blob keeps 400, backend progress-merge.ts BLOB_LIMITS).
  */
-export const UNLOCKS_MAX = 240;
+export const UNLOCKS_MAX = 320;
 /** Most bond entries kept (the lowest not in the roster are dropped first). */
 export const BOND_MAX = 64;
 /** Featured-skin previews a page session allows: a guest, a signed-in player. */

@@ -134,9 +134,10 @@ if (!sim.DIFFICULTIES.includes(difficulty)) {
   process.exit(2);
 }
 const HZ = sim.TICK_HZ;
-const HEROES = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'mochi', 'ziggy', 'biscuit', 'champ'];
+const HEROES = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'mochi', 'ziggy', 'biscuit', 'champ', 'nova', 'dusty', 'barkula', 'ranger'];
 /** The cat heroes (HeroData.side 'cat'); every match is cats vs dogs, so the balance gate checks the species too. */
-const CAT_HEROES = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'];
+// Sim v31: Mochi and Ziggy (sim v29) were missing here, so the 3v3 species gate counted them as dogs.
+const CAT_HEROES = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'mochi', 'ziggy', 'nova', 'dusty'];
 const TRICKS = ['pounce', 'snack', 'hiss', 'purrify'];
 const fmt = (ticks) => {
   const s = Math.floor(ticks / HZ);

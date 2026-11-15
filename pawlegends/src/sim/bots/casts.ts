@@ -40,6 +40,10 @@ import * as mochiBot from './heroes/mochi';
 import * as ziggyBot from './heroes/ziggy';
 import * as biscuitBot from './heroes/biscuit';
 import * as champBot from './heroes/champ';
+import * as novaBot from './heroes/nova';
+import * as dustyBot from './heroes/dusty';
+import * as barkulaBot from './heroes/barkula';
+import * as rangerBot from './heroes/ranger';
 
 /** Scratch hit list for `collect` (shared with ./heroes/*: read it right after the call that filled it). */
 export const hits = new Int32Array(MAX_ENTITIES);
@@ -272,6 +276,15 @@ function heroFightCast(w: World, id: number, foe: number, p: BotParams, rng: Rng
       return biscuitBot.fight(w, id, foe, p, rng);
     case 'champ':
       return champBot.fight(w, id, foe, p, rng);
+    // Sim v31: the third mage and marksman of each side.
+    case 'nova':
+      return novaBot.fight(w, id, foe, p, rng);
+    case 'dusty':
+      return dustyBot.fight(w, id, foe, p, rng);
+    case 'barkula':
+      return barkulaBot.fight(w, id, foe, p, rng);
+    case 'ranger':
+      return rangerBot.fight(w, id, foe, p, rng);
     default:
       return null;
   }
@@ -371,6 +384,14 @@ export function clearCast(w: World, id: number, t: number): Command | null {
       return biscuitBot.clear(w, id, t, need);
     case 'champ':
       return champBot.clear(w, id, t, need);
+    case 'nova':
+      return novaBot.clear(w, id, t, need);
+    case 'dusty':
+      return dustyBot.clear(w, id, t, need);
+    case 'barkula':
+      return barkulaBot.clear(w, id, t, need);
+    case 'ranger':
+      return rangerBot.clear(w, id, t, need);
     default:
       return null;
   }
@@ -525,6 +546,27 @@ export function escapeCast(w: World, id: number, foe: number, p: BotParams): Com
     }
     case 'champ': {
       const c = champBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    // Sim v31.
+    case 'nova': {
+      const c = novaBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'dusty': {
+      const c = dustyBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'barkula': {
+      const c = barkulaBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'ranger': {
+      const c = rangerBot.escape(w, id, foe, hx, hy);
       if (c) return c;
       break;
     }

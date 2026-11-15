@@ -22,7 +22,7 @@ async function toPick(game: Frame): Promise<void> {
   await game.waitForSelector('.pl-pick .cs');
 }
 
-test('24 pick tiles (12 cats, 12 dogs), no owner badge even for an owned card; no buy link on pick or in the lobby panel', async ({ context, page, baseURL }) => {
+test('28 pick tiles (14 cats, 14 dogs), no owner badge even for an owned card; no buy link on pick or in the lobby panel', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, roster: OWNS_GABE, champions: CHAMPIONS, profile: PLAYED });
   const game = await openHost(page);
   // Lobby (title): Lambo on the turntable, his info panel (information only, no buy link).
@@ -44,8 +44,8 @@ test('24 pick tiles (12 cats, 12 dogs), no owner badge even for an owned card; n
   await toPick(game);
   const cats = game.locator('.cs-grid .cs-tile[data-side="cat"]');
   const dogs = game.locator('.cs-grid .cs-tile[data-side="dog"]');
-  await expect(cats).toHaveCount(12);
-  await expect(dogs).toHaveCount(12);
+  await expect(cats).toHaveCount(14);
+  await expect(dogs).toHaveCount(14);
   // the cat side shows (the selected hero's side); the dogs wait behind the Dogs tab, and no dog is a champion
   await expect(game.locator('.cs-grid .cs-tile[data-side="dog"]:not([hidden])')).toHaveCount(0);
   await expect(game.locator('.cs-grid .cs-tile[data-side="dog"] .champ-owned')).toHaveCount(0);
@@ -66,7 +66,7 @@ test('app build: champions play, no owner badge, no Meet link anywhere', async (
   await info.locator('[data-a="champion-info"]').click();
   await expect(info.locator('[data-a="champion-meet"]')).toHaveCount(0);
   await toPick(game);
-  await expect(game.locator('.cs-grid .cs-tile')).toHaveCount(24);
+  await expect(game.locator('.cs-grid .cs-tile')).toHaveCount(28);
   await expect(game.locator('.champ-owned')).toHaveCount(0);
   await expect(game.locator('[data-a="champion-meet"]')).toHaveCount(0);
   expect((await received(page)).some((m) => m.type === 'open-cat')).toBe(false);

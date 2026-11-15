@@ -3,8 +3,8 @@ import { createMatch, fillPicks, snapshot } from '../../src/sim/index';
 
 describe('fillPicks and createMatch (§6.8)', () => {
   it('keeps the human pick, species teams (sim v5: cats vs dogs), stable per seed', () => {
-    const cats = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'mochi', 'ziggy'];
-    const dogs = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'biscuit', 'champ'];
+    const cats = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'mochi', 'ziggy', 'nova', 'dusty'];
+    const dogs = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'biscuit', 'champ', 'barkula', 'ranger'];
     for (const human of ['cacklejaw', 'clem', 'gabe', 'chili'] as const) {
       const humanCat = human !== 'cacklejaw' && human !== 'chili';
       for (let seed = 0; seed < 300; seed++) {
@@ -27,7 +27,7 @@ describe('fillPicks and createMatch (§6.8)', () => {
   it('sim v9: every cat hero, the shelter champions (and sim v11 original cats) included, shows up as a bot pick', () => {
     const seen = new Set<string>();
     for (let seed = 0; seed < 200; seed++) for (const h of fillPicks(seed, 'brutus', 'pounce').picks.slice(3)) seen.add(h);
-    expect([...seen].sort()).toEqual(['aviete', 'bengas', 'clem', 'duchess', 'gabe', 'lambo', 'meatball', 'mochi', 'pixel', 'sage', 'stilts', 'ziggy']);
+    expect([...seen].sort()).toEqual(['aviete', 'bengas', 'clem', 'duchess', 'dusty', 'gabe', 'lambo', 'meatball', 'mochi', 'nova', 'pixel', 'sage', 'stilts', 'ziggy']);
   });
 
   it('sim v14 (v15: ten dogs): every dog shows up as a bot pick, as an ally of a dog human and as an enemy of a cat human', () => {
@@ -37,7 +37,7 @@ describe('fillPicks and createMatch (§6.8)', () => {
       for (const h of fillPicks(seed, 'chili', 'pounce').picks.slice(1, 3)) allies.add(h);
       for (const h of fillPicks(seed, 'clem', 'pounce').picks.slice(3)) enemies.add(h);
     }
-    const dogs = ['biscuit', 'bravo', 'brutus', 'cacklejaw', 'champ', 'chili', 'domino', 'frankie', 'howler', 'marshmallow', 'nugget', 'rocket'];
+    const dogs = ['barkula', 'biscuit', 'bravo', 'brutus', 'cacklejaw', 'champ', 'chili', 'domino', 'frankie', 'howler', 'marshmallow', 'nugget', 'ranger', 'rocket'];
     expect([...enemies].sort()).toEqual(dogs);
     expect([...allies].sort()).toEqual(dogs.filter((h) => h !== 'chili'));
   });

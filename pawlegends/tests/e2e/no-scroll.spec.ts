@@ -122,7 +122,7 @@ for (const size of SIZES) {
       await page.locator('.cs-sk[data-slot="r"]').click();
       await page.locator('[data-cs="role"][data-role="marksman"]').click();
       await expect(page.locator('.cs-sk-name')).toHaveText('Moonshot');
-      await expect(page.locator('.cs-grid .cs-tile:not([hidden])')).toHaveCount(4);
+      await expect(page.locator('.cs-grid .cs-tile:not([hidden])')).toHaveCount(6);
       // another hero: its own skill icons (the panel redraw never carries the last hero's icons or Preview over)
       await page.locator('[data-cs="role"][data-role="marksman"]').click();
       await page.locator('[data-cs="side"][data-side="dog"]').click();
@@ -138,7 +138,7 @@ for (const size of SIZES) {
     });
 
     if (size.name === '667x375' || size.name === '844x390')
-      test('champion select with notch insets: the twelve heroes of a side, every tab, no scroll', async ({ page }) => {
+      test('champion select with notch insets: the fourteen heroes of a side, every tab, no scroll', async ({ page }) => {
         test.setTimeout(120_000);
         await page.addInitScript(([k, v]) => {
           if (!localStorage.getItem(k)) localStorage.setItem(k, v);

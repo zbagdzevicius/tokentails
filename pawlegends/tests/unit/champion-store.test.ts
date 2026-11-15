@@ -75,7 +75,7 @@ describe('who may pick what', () => {
   it('a Founders roster owns every champion', () => {
     const s = server0({ founders: true, owned: game.CHAMPION_IDS.map((hero) => ({ hero, source: 'founders' })) });
     expect(game.CHAMPION_IDS.every((h) => canPlay(h, s, true))).toBe(true);
-    expect(ownedCount(s, true)).toBe(24);
+    expect(ownedCount(s, true)).toBe(28);
   });
 
   it('unlock info: the Yarn still to earn and the Champion Pick (Tier 1 and 2 only)', () => {
@@ -176,10 +176,10 @@ describe('pick screen', () => {
 });
 
 describe('store Champions tab', () => {
-  it('lists the 3 bundles then the 18 champions; owned and prorated states', () => {
-    // sim v29: the roster four are sold one by one (the Season 1 bundles keep their 14)
+  it('lists the 3 bundles then the 22 champions; owned and prorated states', () => {
+    // sim v29 and v31: the roster heroes are sold one by one (the Season 1 bundles keep their 14)
     const skus = tabSkus('champions');
-    expect(skus).toHaveLength(21);
+    expect(skus).toHaveLength(25);
     const pixel = skus.find((d) => d.sku === 'pl_champ_pixel')!;
     const cats = skus.find((d) => d.sku === 'pl_champs_cats_s1')!;
     const s = { items: new Set<string>(), season: null, champions: server0({ owned: [{ hero: 'pixel', source: 'yarn' }], bundles: [{ sku: 'pl_champs_cats_s1', cents: { usd: 1499, eur: 1499 } }] }) };
