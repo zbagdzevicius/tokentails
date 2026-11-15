@@ -432,8 +432,8 @@ lane :status do
       UI.message("#{platform} #{v.version_string}: #{v.app_store_state}, #{v.release_type}, #{build}, created #{v.created_date}")
     end
   end
-  Spaceship::ConnectAPI.get_builds(filter: { app: app.id }, sort: "-uploadedDate", limit: 8).each do |b|
-    UI.message("build #{b.app_version} (#{b.version}): #{b.processing_state}, uploaded #{b.uploaded_date}, expired #{b.expired}")
+  Spaceship::ConnectAPI.get_builds(filter: { app: app.id }, sort: "-uploadedDate", limit: 8, includes: "preReleaseVersion").each do |b|
+    UI.message("build #{b.app_version} (#{b.version}) #{b.platform}: #{b.processing_state}, uploaded #{b.uploaded_date}, expired #{b.expired}")
   end
 end
 
@@ -580,7 +580,12 @@ platform :android do
     require "supply"
     Supply.config = FastlaneCore::Configuration.create(Supply::Options.available_options, { package_name: APP_ID, json_key_data: play_json_key! })
     client = Supply::Client.make_from_config
-    client.begin_edit(package_name: APP_ID)
+    begin
+      client.begin_edit(package_name: APP_ID)
+    rescue StandardError => e
+      raise unless e.message.include?("Package not found")
+      UI.user_error!("Google Play has no app #{APP_ID} that this service account can see: create it in Play Console, upload the first .aab by hand (lane build), and give the service account access to it (docs/plans/moba/PLAY-STORE.md, founder steps)")
+    end
     begin
       tracks = client.tracks
       UI.message("No tracks") if tracks.empty?
