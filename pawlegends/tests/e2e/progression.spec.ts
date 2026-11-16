@@ -17,7 +17,10 @@ const PHONES = [
 ] as const;
 type Box = { x0: number; y0: number; x1: number; y1: number };
 const hit = (a: Box, b: Box): boolean => a.x0 < b.x1 - 0.5 && a.x1 > b.x0 + 0.5 && a.y0 < b.y1 - 0.5 && a.y1 > b.y0 + 0.5;
-type W = { view: { mySlot: number; frame: { latest: { clock: { tick: number } } } | null }; inject(ev: unknown): void };
+type W = { view: { mySlot: number; frame: { latest: { clock: { tick: number } } } | null }; inject(ev: unknown): void; simPause(p: boolean): void };
+/** Stops or restarts the sim alone (`?e2e=1`): the HUD checks below are harness work, and on a loaded machine a 16x match
+ * once ran to its Sudden Death defeat while they ran, before the injected Fish pop could show. */
+const simPause = (page: Page, p: boolean): Promise<void> => page.evaluate((v) => (window as unknown as { __plWorld: W }).__plWorld.simPause(v), p);
 const said = (page: Page): Promise<string[]> => page.evaluate(() => [...((window as unknown as { __plJuice?: { notify: { said: string[] } } }).__plJuice?.notify.said ?? [])]);
 
 async function start(page: Page, speed: number): Promise<void> {
@@ -52,6 +55,8 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   await start(page, 8);
   // F1: the chip counts the passive Fish
   await expect.poll(async () => Number(await page.locator('.pl-fish').getAttribute('data-fish')), { timeout: limit(180_000) }).toBeGreaterThan(0);
+  // the layout, the Fish pop, the Toy and the level-up run on the client: the sim waits for them
+  await simPause(page, true);
   // feel pass B3 hid the hero box on phones and the chip with it; Hud.placeFish puts it back on the minimap's rim
   // phones: at every minimap size (Settings S / M / L, minimapPrefs.ts), since the chip is placed from the minimap's size
   const mmSizes = touch ? (['m', 's', 'l'] as const) : (['m'] as const);
@@ -143,11 +148,26 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   await expect.poll(async () => (await said(page)).some((t) => /^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I — \+\d+|^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I \+\d+.* · Lv \d+$/.test(t)), { timeout: limit(60_000) }).toBe(true);
   await page.screenshot({ path: `${SHOTS}/${sizes[0].w}x${sizes[0].h}-toy.png` });
 
-  // F3: the level-up line says what is new; level 4 unlocks the ultimate (the XP trickle gets the player there). When the
-  // ult tip or goal chip guides it, that line ("Level 4! ...") is the only one (fun pass, playtest #5)
-  await expect.poll(async () => (await said(page)).some((t) => /^Level 4 — Ultimate unlocked!| · Lv 4$|^Level 4! /.test(t)), { timeout: limit(420_000) }).toBe(true);
+  // F3: the level-up line says what is new; level 4 unlocks the ultimate. When the ult tip or goal chip guides it, that
+  // line ("Level 4! ...") is the only one (fun pass, playtest #5). The level-up is injected like the Fish and the Toy:
+  // an idle hero's XP trickle reaches level 4 only near the end of this bot match, and some matches (random seeds)
+  // ended in defeat first (Nov 16, 2026: one of two probes); the trickle itself has the sim's own tests.
+  await page.evaluate(() => {
+    const w = (window as unknown as { __plWorld: W }).__plWorld;
+    w.inject({ type: 'levelup', tick: w.view.frame?.latest.clock.tick ?? 0, id: w.view.mySlot, level: 4 });
+  });
+  // polled inside the page, so a slow round trip cannot miss a short rail line
+  await page.waitForFunction(
+    () =>
+      ((window as unknown as { __plJuice?: { notify: { said: string[] } } }).__plJuice?.notify.said ?? []).some((t) =>
+        /^Level 4 — Ultimate unlocked!| · Lv 4$|^Level 4! /.test(t),
+      ),
+    null,
+    { timeout: limit(60_000), polling: 100 },
+  );
   await page.screenshot({ path: `${SHOTS}/${sizes[0].w}x${sizes[0].h}-level.png` });
   for (const t of await said(page)) expect(t, 'rail text').not.toMatch(/treat/i);
+  await simPause(page, false);
 });
 
 test('results: the progression summary (Toy timings, Fish, last hits, medals, Fish by source) at every size', async ({ page }, info) => {

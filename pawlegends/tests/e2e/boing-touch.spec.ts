@@ -28,7 +28,9 @@ const toward = (page: Page, x: number, y: number): Promise<{ sx: number; sy: num
       if (!m) return null;
       const cam = v.gr.camera;
       const Vec = cam.position.constructor;
-      const a = new Vec(m.fx / 1000, 0.5, -m.fy / 1000).project(cam);
+      // from the sim's position, not the drawn one: on a loaded machine the drawn hero trails it by metres, and a thumb
+      // aimed from there entered the disc more than 60° off the throw (a walk across it, rightly not thrown)
+      const a = new Vec(m.x / 1000, 0.5, -m.y / 1000).project(cam);
       const b = new Vec(x / 1000, 0.5, -y / 1000).project(cam);
       return { sx: ((b.x - a.x) * innerWidth) / 2, sy: (-(b.y - a.y) * innerHeight) / 2, mx: m.x, my: m.y, state: m.state };
     },
