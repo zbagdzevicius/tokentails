@@ -72,9 +72,17 @@ describe("pawlegends api bridge (host)", () => {
         pushAuth: "A".repeat(22),
         cats: "invite,club",
         tz: -120,
+        hideFlag: true,
       });
       expect([op, r?.path.startsWith("/pawlegends/")]).toEqual([op, true]);
     }
+  });
+
+  it("country flags (FLAGS.md): get for any session, set only with a boolean", () => {
+    expect(routeOf("flag.get", {})).toEqual({ method: "GET", path: "/pawlegends/flag", auth: "any" });
+    expect(routeOf("flag.set", { hideFlag: false })?.body).toEqual({ hideFlag: false });
+    expect(routeOf("flag.set", { hideFlag: "yes" })).toBeNull();
+    expect(routeOf("flag.set", {})).toBeNull();
   });
 
   it("gaps5: a party invite forwards only the Ranked duo mode", () => {

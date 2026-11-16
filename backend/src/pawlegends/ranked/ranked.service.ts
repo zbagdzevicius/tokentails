@@ -1,3 +1,5 @@
+import { visibleFlags } from '../flags/flags.service';
+import { PawlegendsFlag } from '../flags/flags.schema';
 import { HttpStatus, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Cat } from 'src/cat/cat.schema';
@@ -69,7 +71,9 @@ export class RankedService {
         private readonly live: RankedStatusService,
         @Optional() @InjectModel(Cat.name) private readonly cats?: AnyModel,
         @Optional() private readonly clock?: { now(): Date },
-        @Optional() @InjectModel(PawlegendsOwned.name) private readonly owned?: AnyModel
+        @Optional() @InjectModel(PawlegendsOwned.name) private readonly owned?: AnyModel,
+        // FLAGS.md: board rows carry the player's country flag (hidden ones are absent)
+        @Optional() @InjectModel(PawlegendsFlag.name) private readonly flagRows?: AnyModel
     ) {}
 
     /** Board rows' avatars (CHAT-AVATARS.md §7.3), checked against what each player still owns. Never fails a board. */
@@ -203,6 +207,10 @@ export class RankedService {
             ),
             this.avatars(out.slice(0, BOARD_PAGE).map(r => r.acc)),
         ]);
+        const ccs = await visibleFlags(
+            this.flagRows,
+            out.slice(0, BOARD_PAGE).map(r => r.acc)
+        );
         return {
             period,
             page,
@@ -212,6 +220,7 @@ export class RankedService {
                 name: names.get(r.acc) ?? '',
                 value: r.wins,
                 ...(avs.get(r.acc) ? { av: avs.get(r.acc) } : {}),
+                ...(ccs.get(r.acc) ? { cc: ccs.get(r.acc) } : {}),
                 ...(hero ? { hero, winRate: r.games ? Math.round((r.wins / r.games) * 100) : 0 } : {}),
             })),
         };
@@ -256,6 +265,10 @@ export class RankedService {
             ),
             this.avatars(slice.map(r => r.row.accountId)),
         ]);
+        const ccs = await visibleFlags(
+            this.flagRows,
+            slice.map(r => r.row.accountId)
+        );
         return {
             period: season,
             page,
@@ -265,6 +278,7 @@ export class RankedService {
                 name: names.get(r.row.accountId) ?? '',
                 value: r.points,
                 ...(avs.get(r.row.accountId) ? { av: avs.get(r.row.accountId) } : {}),
+                ...(ccs.get(r.row.accountId) ? { cc: ccs.get(r.row.accountId) } : {}),
                 tier: tierLabel(r.tierIdx, r.points),
             })),
         };
@@ -300,6 +314,7 @@ export class RankedService {
             displayNames({ social: this.social, cats: this.cats }, ids),
         ]);
         const avs = await this.avatars(ids);
+        const ccs = await visibleFlags(this.flagRows, ids);
         const rk = new Map(ranked.filter(r => r.season === CURRENT_SEASON_ID).map(r => [r.accountId, r]));
         const wk = new Map(weekly.map(w => [w.acc, w.wins]));
         const all = ids
@@ -320,6 +335,7 @@ export class RankedService {
             name: names.get(x.id) ?? '',
             value: x.wins,
             ...(avs.get(x.id) ? { av: avs.get(x.id) } : {}),
+            ...(ccs.get(x.id) ? { cc: ccs.get(x.id) } : {}),
             ...(x.tier ? { tier: x.tier } : {}),
             ...(x.id === caller ? { me: true } : {}),
         }));

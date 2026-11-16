@@ -141,7 +141,7 @@ export interface PartyLinkListener {
   /** PROTO 6 in-match chat: a line, a refusal of this player's line, the own team's tier changed. */
   chat?(m: MatchChatMsg): void;
   chatReject?(why: string, until?: number): void;
-  chatTier?(tier: 'text' | 'quick'): void;
+  chatTier?(tier: 'text' | 'quick', all?: 'text' | 'quick'): void;
 }
 
 /** The party side of a match host (NetHost). */
@@ -170,6 +170,8 @@ export interface PartyLink {
   chat?(ch: 'team' | 'all', body: { k: 't'; text: string } | { k: 'q'; id: number }): boolean;
   /** This seat's team chat tier (the party view's `chat.match`); 'quick' until the relay says. */
   readonly chatTier?: 'text' | 'quick';
+  /** All chat's tier (the party view's `chat.all`): 'text' when every human in the match is; 'quick' until then. */
+  readonly chatAllTier?: 'text' | 'quick';
 }
 
 /**

@@ -38,7 +38,9 @@ device and is kept longer than needed to answer the request in real time, and th
 | Contact Info → **Name** (the Apple or Google name when shared, and the Token Tails profile name) | Yes | App Functionality | Yes | No |
 | Identifiers → **User ID** (the Firebase account or guest id; the random party key, kept only as a hash) | Yes | App Functionality | Yes | No |
 | User Content → **Gameplay Content** (saved matches, Treat Track, friends and ranked if used; party: generated name, picks, inputs, result) | Yes | App Functionality | Yes | No |
-| Health, Financial, Location, Sensitive Info, Contacts, other User Content (photos, audio, emails, messages), Browsing/Search History, Purchases, Diagnostics, Device ID, Product Interaction, Advertising Data | No | – | – | – |
+| Location → **Coarse Location** (round 7, FLAGS.md: the ISO country Cloudflare derives from the connection, kept per account for the flag; never the IP) | Yes | App Functionality | Yes | No |
+| User Content → **Other User Content** (MATCH-CHAT.md: typed match chat of registered 16+ players, kept 30 days for reports) | Yes | App Functionality | Yes | No |
+| Health, Financial, Precise Location, Sensitive Info, Contacts, other User Content (photos, audio, emails), Browsing/Search History, Purchases, Diagnostics, Device ID, Product Interaction, Advertising Data | No | – | – | – |
 
 Notes for the form:
 - Gameplay Content sits under **User Content → Gameplay Content** in the form ("saved games, multiplayer matching

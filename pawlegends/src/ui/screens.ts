@@ -4,6 +4,7 @@
  * overlays over the lobby turntable. English only.
  */
 import { flagHtml } from '../social/report';
+import { ccHtml } from '../social/flags';
 import { logoHtml } from './brandLogo';
 import { progressBlock, type ProgressSummary } from './progressSummary';
 import './champions.css';
@@ -669,6 +670,8 @@ export interface ResultRow {
   towerDmg: number;
   /** PvP reports (SOCIAL-RANKED.md §8.1): this row's slot and its flag ('can', or 'done' once reported). */
   slot?: number;
+  /** FLAGS.md: the seat's country flag ('' or null: a neutral paw); absent: no flag column. */
+  cc?: string | null;
   flag?: 'can' | 'done';
 }
 
@@ -676,7 +679,7 @@ function resultTable(rows: readonly ResultRow[]): string {
   const graded = rows.some((r) => r.grade);
   const tag = (r: ResultRow): string => (r.mvp ? ' <em class="mvp">MVP</em>' : r.best ? ' <em class="best">Best</em>' : '');
   const tr = (r: ResultRow): string =>
-    `<tr class="${r.rel}"><td${r.flag && r.slot !== undefined ? ' class="sb-rp"' : ''}>${esc(r.name)}${tag(r)}${r.flag && r.slot !== undefined ? flagHtml(r.slot, r.name, r.flag === 'done') : ''}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td>${graded ? `<td class="g" data-grade="${r.grade ?? ''}">${r.grade ?? ''}</td>` : ''}</tr>`;
+    `<tr class="${r.rel}"><td${r.flag && r.slot !== undefined ? ' class="sb-rp"' : ''}>${r.cc !== undefined ? ccHtml(r.cc) : ''}${esc(r.name)}${tag(r)}${r.flag && r.slot !== undefined ? flagHtml(r.slot, r.name, r.flag === 'done') : ''}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td>${graded ? `<td class="g" data-grade="${r.grade ?? ''}">${r.grade ?? ''}</td>` : ''}</tr>`;
   return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Hero</th><th>K/D/A</th><th>Hero dmg</th><th>Tower dmg</th>${graded ? '<th>Grade</th>' : ''}</tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
 }
 

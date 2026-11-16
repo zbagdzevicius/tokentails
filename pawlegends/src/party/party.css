@@ -87,6 +87,9 @@
 .pl-party .pp-av svg { width: 24px; height: 24px; }
 .pl-party .pp-who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .pl-party .pp-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
+/* FLAGS.md: the flag chip sits beside the name (outside <b>, so the name text stays the name) */
+.pl-party .pp-nm { display: flex; align-items: center; min-width: 0; }
+.pl-party .pp-nm b { min-width: 0; }
 .pl-party .pp-badges { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .pl-party .pp-tag { font-size: 11px; padding: 1px 6px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-cream-rgb) / 0.12); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
 .pl-party .pp-tag.me { background: rgb(var(--v6-bolt-rgb) / 0.2); color: var(--pp-gold); }

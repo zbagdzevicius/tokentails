@@ -36,6 +36,7 @@ import type { GuideMode } from './firstSession';
 import { cardLook, ELEMENT_COLOR, lookKey, PAID_COATS, type FrameId, type Look } from '../render/cosmetics';
 import { COAT_THEMES } from '../render/skins/coatThemes';
 import { setProbeBlocked } from '../render/skins/spriteProbe';
+import { matchFlag, matchFlagsFor, myFlag, setMatchFlags } from '../social/flags';
 import { cardIdentity, cutName, heroSub, selfNames, tidyName, type CardIdentity } from '../meta/cardName';
 import { coarsePointer } from './platform';
 import { getSkin, isCardSkinId, putSkin, type CatSkin } from '../render/skins/skinStore';
@@ -187,6 +188,8 @@ export interface MatchSetup {
     pvp?: boolean;
     /** PvP reports (SOCIAL-RANKED.md §8): this match's report book (the scoreboard flags and the results flags). */
     report?: import('../social/report').ReportBook | null;
+    /** FLAGS.md: each seat's country flag from the relay (`match.flags`; null: a bot, or a hidden or unknown flag). */
+    flags?: readonly (string | null)[] | null;
     /** MATCH-CHAT.md §3: report an in-match chat line (the host's `chat.report`); absent: no Report on lines. */
     chatReport?: (mid: string, kind: import('../data/chatPhrases').ChatReportKind) => Promise<boolean>;
   };
@@ -778,6 +781,19 @@ export class MatchSession {
     const watched = this.setup.spectate?.names;
     if (watched) this.names = this.names.map((n, i) => watched[i] ?? n);
     if (this.e2e) document.documentElement.dataset.plateNames = this.names.join('|');
+    // FLAGS.md: every seat's country flag (the relay's for humans, a seeded one for each bot, a paw when hidden)
+    const humanNames = this.setup.party?.names ?? this.setup.spectate?.names ?? null;
+    setMatchFlags(
+      matchFlagsFor({
+        seed: w.seed,
+        slots: w.picks.length,
+        mySlot: this.setup.spectate ? -1 : w.slot,
+        mine: myFlag(),
+        isHuman: (slot) => (humanNames ? humanNames[slot] != null : slot === w.slot),
+        relay: this.setup.party?.flags ?? null,
+      }),
+    );
+    if (this.e2e) document.documentElement.dataset.matchFlags = Array.from({ length: w.picks.length }, (_, i) => matchFlag(i) ?? '-').join(',');
     this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A hero', (s) => w.picks[s]);
     // LoL pass (lane B): an Ace reads who is out from the latest snapshot (an enemy out of sight counts by its timer)
     this.announcer.down = (slot) => {

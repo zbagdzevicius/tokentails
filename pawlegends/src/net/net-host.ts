@@ -252,23 +252,27 @@ export class NetHost implements PartyLink {
   /** PROTO 6 in-match chat (MATCH-CHAT.md §3): the relay checks everything again; this mirrors its rate only. */
   private chatSent: number[] = [];
   chatTier: 'text' | 'quick' = 'quick';
+  /** All chat's tier (the party view's `chat.all`): free text only when every human in the match is text tier. */
+  chatAllTier: 'text' | 'quick' = 'quick';
   chat(ch: 'team' | 'all', body: { k: 't'; text: string } | { k: 'q'; id: number }): boolean {
     if (this.opts.spectate) return false;
     const now = this.now();
     this.chatSent = this.chatSent.filter((t) => now - t < CHAT_SAY_RATE.windowMs);
     if (this.chatSent.length >= CHAT_SAY_RATE.perWindow) return false;
-    if (body.k === 't' && (ch === 'all' || body.text.length > CHAT_SAY_MAX_TEXT)) return false;
+    if (body.k === 't' && ((ch === 'all' && this.chatAllTier !== 'text') || body.text.length > CHAT_SAY_MAX_TEXT)) return false;
     this.chatSent.push(now);
     this.socket.sendJson(body.k === 't' ? { t: 'chat.say', k: 't', text: body.text, ch } : { t: 'chat.say', k: 'q', id: body.id, ch });
     return true;
   }
 
-  /** The party view's own team tier (PartyClient, through the socket tap). */
-  setChatTier(tier: 'text' | 'quick' | undefined): void {
+  /** The party view's own team tier and all chat's tier (PartyClient, through the socket tap). */
+  setChatTier(tier: 'text' | 'quick' | undefined, all?: 'text' | 'quick'): void {
     const t = tier === 'text' ? 'text' : 'quick';
-    if (t === this.chatTier) return;
+    const a = all === 'text' ? 'text' : 'quick';
+    if (t === this.chatTier && a === this.chatAllTier) return;
     this.chatTier = t;
-    this.emit('chatTier', t);
+    this.chatAllTier = a;
+    this.emit('chatTier', t, a);
   }
 
   net(): NetNumbers {

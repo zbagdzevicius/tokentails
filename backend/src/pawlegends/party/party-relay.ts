@@ -53,6 +53,7 @@ import {
     type MatchMsg,
 } from './net';
 import { LoopGate } from './loop-gate';
+import { countryOf, shownFlag, type FlagRow } from '../flags/flags';
 import { RTT_MAX_MS, RelayRtt, regionOfCountry, type RttRegion } from './relay-rtt';
 import { PARTY_LIMITS, TURN_MS } from './party-limits';
 import {
@@ -179,6 +180,11 @@ const CHAMPS_CACHE_MAX = 20_000;
      * quick tier with a default avatar and nothing is stored.
      */
     chat?: RelayChatHooks;
+    /**
+     * Country flags (FLAGS.md): a ticketed account's stored flag row (`off` = hidden). Without it (specs, harness) a
+     * ticketed member shows the country of its own upgrade request (`cf-ipcountry`); an unticketed one never has one.
+     */
+    flags?: (accountId: string) => Promise<FlagRow | null>;
     /** Specs and the e2e harness only (a constructor option): the spectate delay per room kind (SPECTATE.md §2). */
     spectateDelayMs?: (kind: WatchKind) => number;
 }
@@ -284,6 +290,8 @@ interface Sock {
     lastEchoMs: number;
     /** LATENCY-PLAN M2: the visitor's continent (`cf-ipcountry`) and when the open ping went out (0: none). */
     region: RttRegion;
+    /** FLAGS.md: the ISO country of the upgrade request (`cf-ipcountry`; never the IP), or null. */
+    cc: string | null;
     pingAtMs: number;
     /** `party.card`: last request time (each one reads the cat collection). */
     lastCardMs: number;
@@ -429,6 +437,8 @@ export class PartyRelay {
     /** Quick Play (M1A-IMPL.md §5.1): hooks into the matchmaker glue. */
     readonly mm: MmHooks;
     /** Friends chat: each member's resolved chat side (by member id), and when it was resolved. */
+    /** FLAGS.md: member id → the flag it shows (null: hidden or unknown). */
+    private readonly flagOf = new Map<string, string | null>();
     private readonly chatInfo = new Map<string, MemberChat & { info: RelayChatInfo; atMs: number; account: string }>();
     private chatUnsubscribe: (() => void) | null = null;
     private readonly upgrades: number[] = [];
@@ -541,6 +551,7 @@ export class PartyRelay {
                 startMatch: plan => void this.startMatch(plan),
                 ended: p => this.endPartyRow(p),
                 chatOf: member => this.chatInfo.get(member),
+                flagOf: member => this.flagOf.get(member) ?? null,
             },
             this.now
         );
@@ -707,11 +718,23 @@ export class PartyRelay {
         if (perIp >= PARTY_LIMITS.socketsPerIp) return this.refuseUpgrade(socket, 429);
         this.upgrades.push(now);
         this.wss.handleUpgrade(req, socket, head, ws =>
-            this.onSocket(ws, ip, ipKey, regionOfCountry(req.headers['cf-ipcountry']))
+            this.onSocket(
+                ws,
+                ip,
+                ipKey,
+                regionOfCountry(req.headers['cf-ipcountry']),
+                countryOf(req.headers['cf-ipcountry'])
+            )
         );
     }
 
-    private onSocket(ws: WebSocket, ip: string, ipKey: string, region: RttRegion = 'unknown'): void {
+    private onSocket(
+        ws: WebSocket,
+        ip: string,
+        ipKey: string,
+        region: RttRegion = 'unknown',
+        cc: string | null = null
+    ): void {
         const s: Sock = {
             ws,
             id: token128(),
@@ -720,6 +743,7 @@ export class PartyRelay {
             bin: { tokens: PARTY_LIMITS.binary.burst, atMs: this.now() },
             lastEchoMs: -Infinity,
             region,
+            cc,
             pingAtMs: 0,
             lastCardMs: -Infinity,
             helloed: false,
@@ -1189,6 +1213,7 @@ export class PartyRelay {
         s.memberId = memberId;
         this.byMember.set(memberId, s);
         this.resolveChat(s);
+        this.resolveFlag(s);
         const resumeToken = token128();
         this.setResume(memberId, hashKey(resumeToken), identity.key, s.ipKey);
         const party = this.parties.partyOf(memberId);
@@ -1305,6 +1330,7 @@ export class PartyRelay {
         if (!this.parties.partyOf(s.memberId) && !this.mm.queued(s.memberId)) {
             this.dropResume(s.memberId);
             this.chatInfo.delete(s.memberId);
+            this.flagOf.delete(s.memberId);
         }
         this.parties.setConn(s.memberId, 'off');
         this.mm.onPresence(s.memberId, 'off');
@@ -1689,6 +1715,33 @@ export class PartyRelay {
     // Friends chat (CHAT-AVATARS.md §5): party lines, the tier, DM notices
     // -----------------------------------------------------------------------------------------------------------
 
+    /**
+     * FLAGS.md: the flag a member shows (guests too). Only a ticketed socket has one: the account's stored row decides
+     * (hidden, or its country), else the country of this socket's own upgrade request. An unticketed socket never
+     * shows one (its hide choice could not be read). The party views refresh when it resolves.
+     */
+    private resolveFlag(s: Sock): void {
+        const member = s.memberId;
+        const id = s.identity;
+        if (!member) return;
+        if (!id?.ticketed || !id.accountId) {
+            this.flagOf.delete(member);
+            return;
+        }
+        const set = (cc: string | null): void => {
+            if (s.memberId !== member) return;
+            if ((this.flagOf.get(member) ?? null) === cc && this.flagOf.has(member)) return;
+            this.flagOf.set(member, cc);
+            if (this.flagOf.size > 50_000) this.flagOf.delete(this.flagOf.keys().next().value as string);
+            this.parties.chatChanged(member);
+        };
+        if (!this.opts.flags) return set(s.cc);
+        void this.opts
+            .flags(id.accountId)
+            .then(row => set(row ? shownFlag(row, s.cc) : s.cc))
+            .catch(() => set(null));
+    }
+
     /** Resolve (or refresh after 10 minutes) the chat side of a ticketed account; guests stay quick with no row. */
     private resolveChat(s: Sock): void {
         const member = s.memberId;
@@ -1822,7 +1875,8 @@ export class PartyRelay {
 
     /**
      * PROTO 6 `chat.say` in a match. Checks, in order (§3): the sender's own seated socket, no `chat_mute` and no text
-     * cooldown, the socket's chat bucket, the channel tier (text only in a 'text' team, never in all chat), the phrase
+     * cooldown, the socket's chat bucket, the channel tier (team text only in a 'text' team, all-chat text only when
+     * every seated human of both teams is text tier), the phrase
      * scope (`match` / `all`), the filter (a strike per refusal), the duplicate rule.
      */
     private matchChatSay(
@@ -1866,12 +1920,13 @@ export class PartyRelay {
                 return reject('scope');
         } else if (msg.k === 't') {
             if (msg.id !== undefined || msg.text === undefined) return reject('scope');
-            if (ch === 'all') return reject('quick_only');
             const cooldown = Math.max(c.cooldownUntil, info?.cooldownUntil ?? 0);
             if (cooldown > now) return reject('cooldown', cooldown);
-            if (this.matchTier(live, team) !== 'text') return reject('quick_only');
+            // team text: every human on the team is a registered 16+ account; all chat text: every human in the match
+            if (ch === 'all' ? this.parties.matchChatAllTier(p) !== 'text' : this.matchTier(live, team) !== 'text')
+                return reject('quick_only');
             const bands = p.members
-                .filter(m => m.slot !== undefined && this.parties.teamOfMember(p, m) === team)
+                .filter(m => m.slot !== undefined && (ch === 'all' || this.parties.teamOfMember(p, m) === team))
                 .map(m => this.chatInfo.get(m.id)?.info.band ?? null);
             const checked = filterChatText(msg.text, { probes: crossesAdultLine(bands) });
             if (!checked.ok) {
@@ -2462,6 +2517,14 @@ export class PartyRelay {
         });
     }
 
+    /** FLAGS.md: each human seat's flag (null: a bot seat, or a human who hid it or has none). */
+    private flagsOf(live: LiveRoom): (string | null)[] {
+        const out: (string | null)[] = live.names.map(() => null);
+        for (const [member, slot] of live.seats)
+            if (slot >= 0 && slot < out.length) out[slot] = this.flagOf.get(member) ?? null;
+        return out;
+    }
+
     private matchMsg(live: LiveRoom, slot: number, startInMs: number): MatchMsg {
         return {
             t: 'match',
@@ -2470,6 +2533,7 @@ export class PartyRelay {
             cosmetics: { heroSkins: live.heroSkins },
             you: { slot },
             names: live.names,
+            flags: this.flagsOf(live),
             turnTicks: TURN_TICKS,
             startTurn: 0,
             startInMs: Math.max(0, startInMs),

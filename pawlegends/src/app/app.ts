@@ -121,6 +121,7 @@ import { addTreatXp, loadTreats, loadTreatsRaw, migrateTreats, perMinuteShare, s
 import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
+import { hasMatchFlags, matchFlag, refreshMyFlag, setFlagHidden } from '../social/flags';
 import { kudosMates, mountKudos } from '../social/kudos';
 import { assetRev } from '../ui/assetRev';
 import { RewardsCloud, todayExtraHtml } from '../ui/rewards/rewards';
@@ -1141,6 +1142,8 @@ export class App {
     ];
     // live ops (LIVEOPS.md): Events reads the server through the host; the featured mode registers before modeList
     initLiveops((op, args) => this.integration.api(op, args), () => loadProfile().matches > 0, () => this.screen === 'title' && this.refreshMeta(false));
+    // FLAGS.md: the player's own country (twice a day at most; the backend keeps only the ISO code)
+    void refreshMyFlag((op, args) => this.integration.api(op, args));
     // gaps6 coat drop: a tile previews the coat in Heroes → Coats (everywhere); the web also opens the store's coats
     setDropAction({
       preview: (coat) => {
@@ -1811,6 +1814,7 @@ export class App {
       party: {
         slot,
         names: match.names,
+        flags: match.flags ?? null,
         rejoin: match.startInMs === 0,
         newbie: p.matches === 0,
         hideNames: hideNames(),
@@ -2238,6 +2242,8 @@ export class App {
         a: st.assists,
         heroDmg: st.heroDamage,
         towerDmg: st.towerDamage,
+        // FLAGS.md: the seat's country flag (seeded for bots, a paw for a hidden one)
+        ...(hasMatchFlags() ? { cc: matchFlag(st.slot) } : {}),
       }))
       .sort((a, b) => Number(a.rel === 'enemy') - Number(b.rel === 'enemy'));
     // Lane F (F5): the progression summary from the sim's own stats (sim v12) and the player's Fish events
@@ -2946,6 +2952,8 @@ export class App {
           saveProfile(q);
         },
         onStats: (on) => this.analytics.setConsent(on),
+        // FLAGS.md: the relay, friends and boards read the hide choice from the backend
+        onFlag: (hide) => void setFlagHidden(hide, (op, args) => this.integration.api(op, args)),
         termsUrl: this.termsUrl(),
         ...(account ? { account: { model: account, send: (a) => void this.integration.account(a) } } : {}),
         ...(this.pushKey && pushSupported()

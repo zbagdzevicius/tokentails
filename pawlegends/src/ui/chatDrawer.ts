@@ -9,8 +9,8 @@
  *   Esc cancels, Up recalls the last line. While the input has focus no game key fires (input/desktop.ts `isTyping`).
  *
  * Header: a Team | All toggle and ✕. Footer: one text input (120 characters, `enterkeyhint="send"`) plus the phrase
- * chips when this team is `text` and the channel is Team; phrase chips only otherwise ("Quick chat keeps everyone
- * safe" is never said: the tray simply has no input). A long-press (or right-click) on someone else's line offers Mute
+ * chips when the channel's tier is `text` (Team: every human on the team is a registered 16+ account; All: every human
+ * in the match is); otherwise phrase chips and one line saying when typing opens. A long-press (or right-click) on someone else's line offers Mute
  * player and Report.
  */
 import { CHAT_LIMITS_CLIENT, CHAT_REPORT_KINDS, CHAT_REPORT_LABELS, matchPhraseText, phrasesFor, type ChatReportKind } from '../data/chatPhrases';
@@ -29,6 +29,8 @@ export interface ChatDrawerDeps {
   send(ch: MatchChannel, body: ChatSend): string | null;
   /** Mute a player's chat for this match (the scoreboard 🔇). */
   mute?(slot: number): void;
+  /** Mute (true) or unmute (false) every other player's chat for this match; absent: no Mute all button. */
+  muteAll?(on: boolean): void;
   /** Report a line (the host's `chat.report`); absent: no Report (a solo match). */
   report?(mid: string, kind: ChatReportKind): Promise<boolean>;
   /** The drawer opened or closed (the session hides the wheel, tests). */
@@ -46,6 +48,7 @@ export class ChatDrawer {
   private readonly lines: ChatLineView[] = [];
   private ch: MatchChannel = 'team';
   private tierNow: 'text' | 'quick' = 'quick';
+  private allTierNow: 'text' | 'quick' = 'quick';
   private lastSent = '';
   private errTimer: ReturnType<typeof setTimeout> | null = null;
   private pressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -67,6 +70,7 @@ export class ChatDrawer {
           <button type="button" role="tab" data-ch="team" aria-selected="true">Team</button>
           <button type="button" role="tab" data-ch="all" aria-selected="false">All</button>
         </div>
+        ${deps.muteAll ? '<button type="button" class="cd-mall" data-a="muteall" aria-pressed="false" data-testid="chat-mute-all">Mute all</button>' : ''}
         <button type="button" class="cd-x" data-a="close" aria-label="Close chat">✕</button>
       </div>
       <ol class="cd-list" aria-live="polite"></ol>
@@ -133,6 +137,22 @@ export class ChatDrawer {
     return this.tierNow;
   }
 
+  /** All chat's tier: 'text' (every human in the match is a registered 16+ account) shows the input on All too. */
+  set allTier(t: 'text' | 'quick') {
+    if (t === this.allTierNow) return;
+    this.allTierNow = t;
+    this.renderFoot();
+  }
+
+  get allTier(): 'text' | 'quick' {
+    return this.allTierNow;
+  }
+
+  /** Can this channel take typed text? */
+  typedOn(ch: MatchChannel): boolean {
+    return (ch === 'all' ? this.allTierNow : this.tierNow) === 'text';
+  }
+
   /** Is the composer's input focused (the game ignores its keys then)? */
   isTyping(): boolean {
     const a = typeof document !== 'undefined' ? document.activeElement : null;
@@ -188,14 +208,15 @@ export class ChatDrawer {
   }
 
   private renderFoot(): void {
-    const typed = this.ch === 'team' && this.tierNow === 'text';
+    const typed = this.typedOn(this.ch);
+    const all = this.ch === 'all';
     const chips = this.phrases()
       .map((p) => `<button type="button" class="cd-chip" data-a="phrase" data-id="${p.id}">${esc(p.text)}</button>`)
       .join('');
     this.foot.innerHTML = `${
       typed
-        ? `<div class="cd-row"><input class="cd-input" type="text" maxlength="${CHAT_LIMITS_CLIENT.textMax}" enterkeyhint="send" autocomplete="off" autocapitalize="sentences" spellcheck="true" aria-label="Team message" placeholder="Message your team"><button type="submit" class="cd-send" aria-label="Send">Send</button></div>`
-        : ''
+        ? `<div class="cd-row"><input class="cd-input" type="text" maxlength="${CHAT_LIMITS_CLIENT.textMax}" enterkeyhint="send" autocomplete="off" autocapitalize="sentences" spellcheck="true" aria-label="${all ? 'Message to everyone' : 'Team message'}" placeholder="${all ? 'Message everyone' : 'Message your team'}"><button type="submit" class="cd-send" aria-label="Send">Send</button></div>`
+        : `<p class="cd-why">${all ? 'Typing to everyone opens when every player is 16+ with an account.' : 'Typing opens when everyone on your team is 16+ with an account (set your age in Friends).'}</p>`
     }<div class="cd-chips" role="group" aria-label="Quick chat">${chips}</div>`;
     this.el.classList.toggle('typed', typed);
   }
@@ -245,6 +266,13 @@ export class ChatDrawer {
     switch (t.dataset.a) {
       case 'close':
         return this.close();
+      case 'muteall': {
+        const on = t.getAttribute('aria-pressed') !== 'true';
+        t.setAttribute('aria-pressed', String(on));
+        t.textContent = on ? 'Unmute all' : 'Mute all';
+        this.deps.muteAll?.(on);
+        return;
+      }
       case 'phrase':
         this.deliver({ k: 'q', id: Number(t.dataset.id) });
         return;

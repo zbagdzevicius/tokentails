@@ -821,6 +821,8 @@ export interface MemberView {
   again?: boolean;
   /** PROTO 5: the member's avatar (a default hero icon until the account's own resolves; guests show a paw). */
   av?: AvatarWire;
+  /** FLAGS.md: the member's ISO country flag (absent: hidden, unknown or an older relay; the client shows a paw). */
+  cc?: string;
 }
 
 export interface PartyView {
@@ -856,9 +858,9 @@ export interface PartyView {
   /**
    * PROTO 5: party chat. `tier` 'text' only when every member is a registered 16+ account in a friend party (never with
    * strangers); `thread` is the id a report names. PROTO 6 `match`: the recipient's team chat tier in the match ('text'
-   * when every human on its team is a registered 16+ account).
+   * when every human on its team is a registered 16+ account). `all`: all chat's tier ('text' when both teams are).
    */
-  chat?: { tier: 'text' | 'quick'; thread: string; match?: 'text' | 'quick' };
+  chat?: { tier: 'text' | 'quick'; thread: string; match?: 'text' | 'quick'; all?: 'text' | 'quick' };
   /** PROTO 5: member ids the recipient blocked (only in the recipient's own copy): their chat lines are hidden. */
   blocks?: string[];
   /** PROTO 8: a ranked draft pick (SOCIAL-RANKED.md §7.13). */
@@ -900,6 +902,11 @@ export interface MatchMsg {
   you: { slot: number };
   /** Display names per hero slot (humans only; null = a bot). */
   names: (string | null)[];
+  /**
+   * FLAGS.md: each seat's ISO country flag (a human who hid it or has none: null; a bot seat: null, the client draws a
+   * seeded flag for it). Absent from older relays.
+   */
+  flags?: (string | null)[];
   turnTicks: number;
   startTurn: number;
   startInMs: number;

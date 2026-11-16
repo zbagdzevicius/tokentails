@@ -1,0 +1,3 @@
+pl-flags.woff2: "Twemoji Country Flags" by TalkJS (https://github.com/talkjs/country-flag-emoji-polyfill), MIT License.
+Flag artwork: Twemoji by Twitter, Inc and other contributors, licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+Used by Paw Legends to draw country flags on Windows, which has no flag emoji (docs/plans/moba/FLAGS.md).

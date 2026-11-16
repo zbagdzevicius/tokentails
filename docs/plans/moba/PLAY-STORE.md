@@ -176,10 +176,12 @@ random party key and the match.
 | **Personal info → User IDs** (the Firebase account or guest id) | Collected, not shared, **required** (not optional: online, the first match save, party ticket or pass claim makes an anonymous guest id without asking; only fully offline play avoids it); purposes App functionality, Account management |
 | **Device or other IDs** (the random party key; the server keeps its hash) | Collected, **not shared**, **optional** (party play only), processed ephemerally: No; purposes **App functionality**, **Fraud prevention, security, and compliance** (per-key and per-network caps) |
 | **App activity → Other user-generated content / Other actions** (saved matches, Treat Track, friends and ranked if used; party: generated name, hero picks, match inputs, quick-chat phrases, result) | Collected, not shared, **required** (online, every finished match is saved to the guest or account without asking); purposes App functionality |
-| Location, financial, health, messages, photos, audio, files, calendar, contacts, web history, app info and performance, crash logs | **Not collected** |
+| **Location → Approximate location** (round 7, FLAGS.md: the ISO country from Cloudflare, kept per account for the country flag; never the IP) | Collected, not shared, optional (Settings hides it from others), purposes App functionality |
+| **Messages → Other in-app messages** (typed match chat, registered 16+ only, kept 30 days for reports) | Collected, not shared, optional; purposes App functionality, Fraud prevention, security, and compliance |
+| Precise location, financial, health, photos, audio, files, calendar, contacts, web history, app info and performance, crash logs | **Not collected** |
 | Shared with third parties | **No** (Firebase Authentication is a processor acting for us, not sharing) |
 
-Quick-chat is fixed phrases only, so it is not "Messages". If analytics or a crash SDK is ever added (a native
+Guests and under-16 players send fixed phrases only; registered 16+ players can type (MATCH-CHAT.md), so "Messages" is declared. If analytics or a crash SDK is ever added (a native
 release, never by OTA), update this form, the iOS label and the privacy page before that version ships.
 
 ## Content rating answers (IARC questionnaire)
@@ -191,8 +193,8 @@ Category **Game**. Expected: PEGI 7, ESRB E10+, USK 6.
 | Violence | Yes: cartoon or fantasy violence against cartoon animals (non-realistic, no blood or gore; heroes are knocked out and respawn) |
 | Fear, sexuality, nudity, language, drugs, alcohol, tobacco, crude humour, discrimination | No |
 | Gambling, simulated gambling, loot boxes | No |
-| Interaction between users | Yes, limited: players in a party can send only predefined quick-chat phrases and map pings; no free text, no voice |
-| Shares user location | No |
+| Interaction between users | Yes: players in a match send quick-chat phrases and map pings; registered 16+ players can also type filtered text to their team (and to all when every player is 16+); mute and report in the drawer; no voice |
+| Shares user location | No (a country flag is shown to other players; Settings hides it) |
 | Digital purchases | No |
 | Unrestricted internet / web browser | No |
 
