@@ -1,7 +1,7 @@
 /**
  * Sim v21 (docs/plans/moba/V21-FUN.md §1): the Kibble Cannon. One at a time, on the river at a spot equally far from
  * both cores (FUN_BY_MAP[map].cannon), first at `first` and `respawn` ticks after each shot or fizzle; none spawns
- * once Sudden Death started. A `cannonSoon` warning comes CANNON.warn ticks before.
+ * once late Sunset started (sim v32; Sudden Death until sim v31). A `cannonSoon` warning comes CANNON.warn ticks before.
  *
  * - Underdog Cannon: a team that meets the COMEBACK trigger at the warning (3+ structures or 8+ takedowns behind) gets
  *   it `underdog` mm toward its side, on the same line.
@@ -80,7 +80,7 @@ export function spawnCannon(m: MatchHandle): void {
   const tick = w.globals[G.Tick];
   const at = w.globals[G.CannonAt];
   if (at < 0 || w.globals[G.CannonState] !== CANNON_STATE.None) return;
-  if (at >= w.globals[G.SuddenDeath]) {
+  if (at >= w.globals[G.Late]) {
     w.globals[G.CannonAt] = -1;
     return;
   }

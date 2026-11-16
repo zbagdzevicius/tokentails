@@ -58,7 +58,7 @@ Both doc comments must be updated in the same commit.
 | Bot names | Persona names from the seed ("Biscuit the Clem"). The wire has `MatchMsg.names` with `null` for a bot. Loading shows bot seats as "?". The scoreboard shows a "bot" chip on a piloted friend seat | `ui/heroText.ts slotNames`, `proto.ts`, `partyLoading.ts`, `scoreboard.ts` |
 | Fill bots | Casual and classic matchmaking fill empty seats after `fillMs`. Co-op enemies are all bots. A pilot flies a dropped human's seat | `mm/casual.ts`, `referee-core.ts` |
 | Referee | Steps every room in workers and posts `hash`, `pilot`, `progress`, `end`. No event output | `referee-core.ts`, `referee-host.ts` |
-| Sim events | `death, firstBlood, tower, objective(Spawn), pudding, shutdown, bounty, comeback, sunset, suddenDeath, ping, bark, clip, buy…`. Cannon events exist only on `feat/pawlegends-v21-fun` (sim v21, Kibble Cannon) | `sim/api.ts SimEvent` |
+| Sim events | `death, firstBlood, tower, objective(Spawn), pudding, shutdown, bounty, comeback, sunset, suddenDeath (until sim v31; gone in v32), ping, bark, clip, buy…`. Cannon events exist only on `feat/pawlegends-v21-fun` (sim v21, Kibble Cannon) | `sim/api.ts SimEvent` |
 | Sim facade | The vendored bundle plus facade, with `simSourceHash` and `simGolden` pinned in `pawlegends-sim.sha256.json` | `backend/src/vendor/pawlegends-sim/v19` |
 | HUD budget | `tests/e2e/hud-area.spec.ts`: painted persistent HUD ≤ 19.5% at 667×375 and ≤ 16% at 844×390. Transient elements (`.pl-feed`, `.pl-rail`, …) are skipped | e2e |
 | Touch layout | The minimap is top right (`--mm-w`/`--mm-h`). The kill feed is under it: 2 rows, 170 px wide, top 100 px at 667×375. The paw ping button and emote chip are left of the minimap. The ability cluster is bottom right | `ui/ui.css:483-495, 1146-1151` |
@@ -308,7 +308,7 @@ The probability is the chance the chosen bot uses a budget slot when the cue fir
 | Low-HP retreat (intent `retreat`, HP < 30%) | 0.06 | `back` | Intent still `retreat` |
 | Human pinged Help or Group and the bot took the order | 0.20 | `omw` | The bot is moving toward that point |
 | Comeback (our underdog waves) | 0.08 | `comeback` | — |
-| Sunset or sudden death | 0.10 | `last_push` | — |
+| Sunset (or Sudden Death until sim v31) | 0.10 | `last_push` | — |
 | Win or lose | 0.45 for the first bot, 0.15 for a second | `gg_win` / `gg_lose`, all chat `gg` | Delivered while the end banner shows (≤ 12 s), else dropped |
 
 Before sending, the engine checks whether the line is still true: the bot is still dead, still going back, or still heading there. If not, it drops the line, and the budget slot is not spent.

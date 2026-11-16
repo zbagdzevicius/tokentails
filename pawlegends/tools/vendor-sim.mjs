@@ -36,7 +36,10 @@
  *    a v29 roster replay verifies and the same record labelled v28 is refused.
  * 12. roster31-replay.fixture.json (sim v31): one genuine Easy match played as a sim v31 roster hero (Ranger), so the
  *    spec shows a v31 roster replay verifies and the same record labelled v30 is refused.
- * backend/src/vendor/pawlegends-sim/v10/ to v30/: those files, frozen (FROZEN below; sim v31 is live).
+ * 13. late-replay.fixture.json (sim v32): one genuine Normal match (the normal player-bot) that plays past the late
+ *    tick (8:30) and ends on a core kill, so the spec shows a v32 late-Sunset replay verifies and the same record
+ *    labelled v31 (Sudden Death's core burn) is refused.
+ * backend/src/vendor/pawlegends-sim/v10/ to v31/: those files, frozen (FROZEN below; sim v32 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -117,6 +120,8 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * v29 at f921c5ef, its last commit on main, and keeps v10 to v28, so the backend verifies 10 to 30.
  * Sim v31 (the second roster release: Nova, Dusty, Barkula and Ranger, docs/plans/moba/ROSTER-V31.md) froze the
  * released v30 at dc053f38, its last commit on main, and keeps v10 to v29, so the backend verifies 10 to 31.
+ * Sim v32 (no Sudden Death: late Sunset ends a long match on structures, docs/plans/moba/V32-NO-SUDDEN-DEATH.md) froze
+ * the released v31 at 345fb655, its last commit on main, and keeps v10 to v30, so the backend verifies 10 to 32.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -379,6 +384,25 @@ export const FROZEN = Object.freeze([
       'blitz-replay.fixture.json',
       'kite-replay.fixture.json',
       'roster-replay.fixture.json',
+    ]),
+  }),
+  Object.freeze({
+    simVersion: 31,
+    commit: '345fb655c63caeb2f0e965e50ccc71e6f652fd60',
+    from: 'backend/src/vendor/pawlegends-sim/v31',
+    bundle: 'd7eb0806c703363fe46e8aca1321fd24ea94cd2555f9962a8422303ad3ea4ced',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+      'blitz-replay.fixture.json',
+      'kite-replay.fixture.json',
+      'roster-replay.fixture.json',
+      'roster31-replay.fixture.json',
     ]),
   }),
 ]);
@@ -839,6 +863,25 @@ export async function rosterFixture(seed = ROSTER_FIXTURE_SEED) {
   return sim.replayRecord(m);
 }
 
+/**
+ * Seed of the recorded sim v32 late fixture (docs/plans/moba/V32-NO-SUDDEN-DEATH.md): a Normal match, the normal
+ * player-bot on a seeded hero against Normal bots, that runs past the late tick (8:30) and ends on a core kill.
+ */
+export const LATE_FIXTURE_SEED = 3287;
+const LATE_HEROES = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino', 'mochi', 'ziggy', 'biscuit', 'champ', 'nova', 'dusty', 'barkula', 'ranger'];
+const LATE_TRICKS = ['pounce', 'snack', 'hiss', 'purrify'];
+
+/** Play the late fixture's match the way `npm run match -- --gate balance` plays that seed; return its replay record. */
+export async function lateFixture(seed = LATE_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/index.ts');
+  const pick = (list, salt) => list[(Math.imul(seed ^ salt, 0x9e3779b1) >>> 0) % list.length];
+  const { picks, tricks } = sim.fillPicks(seed, pick(LATE_HEROES, 0x51), pick(LATE_TRICKS, 0x7a));
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'normal', botTalents: 'seeded' });
+  const bot = sim.createPlayerBot(m, 'normal');
+  while (!sim.result(m)) sim.step(m, sim.playerBotCommands(m, bot));
+  return sim.replayRecord(m);
+}
+
 /** Seed and hero of the recorded sim v31 roster fixture (docs/plans/moba/ROSTER-V31.md §6). */
 export const ROSTER31_FIXTURE_SEED = 3131;
 export const ROSTER31_FIXTURE_HERO = 'ranger';
@@ -1112,6 +1155,7 @@ export async function buildFiles() {
   const kite = JSON.stringify(await kiteFixture(), null, 2) + '\n';
   const roster = JSON.stringify(await rosterFixture(), null, 2) + '\n';
   const roster31 = JSON.stringify(await roster31Fixture(), null, 2) + '\n';
+  const late = JSON.stringify(await lateFixture(), null, 2) + '\n';
   const live = {
     'pawlegends-sim.bundle.ts': text,
     'index.ts': face,
@@ -1138,6 +1182,8 @@ export async function buildFiles() {
     'roster-replay.fixture.json': roster,
     // Sim v31 (the second roster release): a v31 roster-hero human (Ranger); a later freeze lists it in `extra`
     'roster31-replay.fixture.json': roster31,
+    // Sim v32 (no Sudden Death): a Normal match past the late tick; a later freeze lists it in `extra`
+    'late-replay.fixture.json': late,
   };
   const files = {};
   for (const entry of FROZEN) for (const [name, body] of Object.entries(frozenFiles(entry))) files[`v${entry.simVersion}/${name}`] = body;

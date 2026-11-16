@@ -129,9 +129,10 @@ export const G = Object.freeze({
   PudSpawns: 21, // lint-sim: allow
   /** Escort breath timer (ticks to the next breath). */
   PudBreath: 22, // lint-sim: allow
-  /** Sim v4: this match's Sunset and Sudden Death ticks (data/timeline.ts TIMELINE_BY, by difficulty). */
+  /** Sim v4: this match's Sunset tick (data/timeline.ts TIMELINE_BY, by difficulty). Sim v32: slot 24 is the late
+   *  Sunset tick (LATE_SUNSET); it held the Sudden Death tick until sim v31. */
   Sunset: 23, // lint-sim: allow
-  SuddenDeath: 24, // lint-sim: allow
+  Late: 24, // lint-sim: allow
   /** Tick of the next Frenzy Catnip and Fish Snack spawn, and how many Frenzy / Snack spawns so far. */
   FrenzyAt: 25, // lint-sim: allow
   SnackAt: 26, // lint-sim: allow

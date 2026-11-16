@@ -3,7 +3,8 @@
  * session keeps a short log of what hit each core (`CoreLog`); at the end `endCause` names the deciding cause in one
  * sentence from the losing core's last 20 s, the phase and where the player's team stood.
  */
-export type CoreSource = 'minions' | 'heroes' | 'towers' | 'decay' | 'takedowns';
+/** Sim v32: no 'decay' any more (Sudden Death's core burn, sim v4 to v31, is gone). */
+export type CoreSource = 'minions' | 'heroes' | 'towers' | 'takedowns';
 
 /** Damage to one core by source over a sliding window of match ticks. */
 export class CoreLog {
@@ -42,7 +43,7 @@ export interface EndCauseInput {
   mutator?: string;
   draw?: boolean;
   /** The phase the match ended in. */
-  phase: 'play' | 'sunset' | 'suddenDeath' | string;
+  phase: 'play' | 'sunset' | string;
   /** What hit the losing core most in its last 20 s. */
   top: CoreSource | null;
   /** The player's team, own team first. */
@@ -58,7 +59,6 @@ const WHO: Record<CoreSource, [string, string]> = {
   minions: ['Their minions broke our core', 'Our minions broke their core'],
   heroes: ['Their heroes broke our core', 'We broke their core'],
   towers: ['Their towers wore our core down', 'We wore their core down'],
-  decay: ['Sudden Death burned our core down first', 'Sudden Death burned their core down first'],
   takedowns: ['Late knockouts finished our core', 'Late knockouts finished their core'],
 };
 
@@ -80,10 +80,9 @@ export function endCause(i: EndCauseInput): string {
     return i.won ? 'Time! Towers even, our core was healthier.' : 'Time! Towers even, their core was healthier.';
   }
   if (i.reason === 'safetyEnd') return i.won ? 'Time ran out with our core healthier.' : 'Time ran out with their core healthier.';
-  const src: CoreSource = i.top ?? (i.phase === 'suddenDeath' ? 'decay' : 'heroes');
+  const src: CoreSource = i.top ?? 'heroes';
   let line = WHO[src][i.won ? 1 : 0];
-  if (i.phase === 'suddenDeath' && src !== 'decay') line += ' in Sudden Death';
-  else if (i.phase === 'sunset' && src !== 'takedowns') line += ' after Sunset';
+  if (i.phase === 'sunset' && src !== 'takedowns') line += ' after Sunset';
   const ahead = i.kills[0] - i.kills[1];
   if (!i.won) {
     if (src === 'minions' && i.oursForward > 0) {
@@ -91,10 +90,6 @@ export function endCause(i: EndCauseInput): string {
     }
     line += '.';
     if (src === 'takedowns') line += ' After Sunset every knockout hurts its team’s core.';
-    else if (src === 'decay') {
-      // ftue-5: only blame takedowns when we were behind on them; otherwise the core had less HP going in
-      line += ahead < 0 ? ' In Sudden Death the team with fewer takedowns burns faster.' : ' Our core had less left when Sudden Death began: towers and core damage matter most.';
-    }
     else if (ahead > 0) line += ' Takedowns help, but towers and the core win.';
     else if (src === 'minions') line += ' Clear the waves near your base before you push.';
     return line;

@@ -1,6 +1,6 @@
 /**
  * Sim v22 (docs/plans/moba/WR-BS-PLAN.md §4): Blitz, the ~3-minute Crossing match (`mutator: 'blitz'`). The rule
- * table (level 4 start with the level-3 talent offered, ×0.45 towers and ×0.5 cores, Sunset 1:30, Sudden Death 2:30,
+ * table (level 4 start with the level-3 talent offered, ×0.45 towers and ×0.5 cores, Sunset 1:30, late Sunset 2:30 (Sudden Death until sim v31),
  * the cannon at 0:20, the 6 s → 8 s respawn), the 3:15 time up (EndReason 4) and its tie-break order (structures,
  * core HP share, takedowns, structure damage, else a draw), determinism and replays, the version and map checks of
  * the record, the client's mode tiles and links, and the per-minute Treat XP.
@@ -40,15 +40,16 @@ describe('Blitz rule table', () => {
     expect(SIM_VERSION).toBeGreaterThanOrEqual(22);
     const none = MUTATOR_RULES.none;
     expect([none.startLevel, none.xpBp, none.towerHpBp, none.coreHpBp, none.heroVsHeroBp, none.takedownCoreBp]).toEqual([1, 10000, 10000, 10000, 10000, 10000]);
-    expect([none.respawnFrom, none.sunset, none.suddenDeath, none.hardEnd, none.underdogTakedowns]).toEqual([0, 0, 0, 0, 0]);
+    expect([none.respawnFrom, none.sunset, none.late, none.hardEnd, none.underdogTakedowns]).toEqual([0, 0, 0, 0, 0]);
     expect([none.fortifyUntil, none.catchUpFrom, none.truceUntil]).toEqual([-1, -1, -1]);
     expect(none.cannon).toBeNull();
-    expect(none.decayLead).toBe(true);
+    expect([none.lateLead, none.lateRampBp]).toEqual([true, 10000]);
     const b = MUTATOR_RULES.blitz;
     expect(b.maps).toEqual(['crossing']);
     expect([b.startLevel, b.xpBp, b.towerHpBp, b.coreHpBp]).toEqual([4, 20000, 4500, 5000]);
     expect([b.respawnFrom, b.respawnTo]).toEqual([180, 240]);
-    expect([b.sunset, b.suddenDeath, b.hardEnd]).toEqual([2700, 4500, 5850]);
+    expect([b.sunset, b.late, b.hardEnd]).toEqual([2700, 4500, 5850]);
+    expect(b.lateLead).toBe(false);
     expect(b.cannon).toMatchObject({ first: 600, respawn: 1200, spots: CROSSING_CANNON.spots });
   });
 
@@ -62,7 +63,7 @@ describe('Blitz rule table', () => {
     expect(hash(b)).toBe(hash(a));
   });
 
-  it('halves the core, takes the towers to 45% and moves Sunset and Sudden Death', () => {
+  it('halves the core, takes the towers to 45% and moves Sunset and late Sunset', () => {
     const plain = createMatch(config(5));
     const blitz = createMatch(config(5, 'blitz'));
     for (let id = RANGE.towers; id < RANGE.cores; id++) {
@@ -71,7 +72,7 @@ describe('Blitz rule table', () => {
     }
     expect(blitz.world.maxHp[RANGE.cores]).toBe(applyBp(plain.world.maxHp[RANGE.cores], 5000));
     expect(blitz.world.globals[G.Sunset]).toBe(2700);
-    expect(blitz.world.globals[G.SuddenDeath]).toBe(4500);
+    expect(blitz.world.globals[G.Late]).toBe(4500);
     expect(endTickOf(blitz.world)).toBe(5850);
     expect(endTickOf(plain.world)).toBe(19800);
   });
@@ -110,10 +111,10 @@ describe('Blitz rule table', () => {
     expect(mutatorRespawn(createMatch(config(3)).world, 100)).toBe(-1);
   });
 
-  it('the clock counts down to 3:15 in Sudden Death', () => {
+  it('the clock counts down to 3:15 in Sunset (sim v32: no Sudden Death phase)', () => {
     const m = createMatch(config(4, 'blitz'));
     m.world.globals[G.Tick] = 5000;
-    expect(snapshot(m, 0).clock).toMatchObject({ phase: 'suddenDeath', nextPhaseIn: 850 });
+    expect(snapshot(m, 0).clock).toMatchObject({ phase: 'sunset', nextPhaseIn: 850 });
   });
 
   it('refuses another map and PvP', () => {
@@ -270,7 +271,7 @@ describe('Blitz rewards and results copy', () => {
   });
 
   it('names the time-up reason', () => {
-    const base = { phase: 'suddenDeath', top: null, kills: [3, 3] as const, oursForward: 0, oursAlive: 3 };
+    const base = { phase: 'sunset', top: null, kills: [3, 3] as const, oursForward: 0, oursAlive: 3 };
     expect(endCause({ ...base, won: true, reason: 'timeUp', towers: [2, 1] })).toBe('Time! We took more towers (2 to 1).');
     expect(endCause({ ...base, won: false, reason: 'timeUp', towers: [0, 0] })).toBe('Time! Towers even, their core was healthier.');
     expect(endCause({ ...base, won: false, reason: 'timeUp', draw: true, towers: [0, 0] })).toMatch(/draw/);

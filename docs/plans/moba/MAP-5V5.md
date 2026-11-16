@@ -230,7 +230,8 @@ The quadrants are cut by Yarn Road and the river:
 | Grizzlechop (last spawn by 8:30) | 2:00 | 3600 |
 | Great Pudding | 8:00 | 14400 |
 | Sunset | 10:00 (Normal and Hard; Easy 10:30; Rookie 9:00) | 18000 |
-| Sudden Death | 13:00 (Easy 13:30; Rookie 12:00) | 23400 |
+| Sudden Death (until sim v31) | 13:00 (Easy 13:30; Rookie 12:00) | 23400 |
+| Late Sunset (sim v32, V32-NO-SUDDEN-DEATH.md) | 9:00 (Easy 9:30; Rookie 8:00) | 16200 |
 | Safety end | 16:00 | 28800 |
 
 - **Wave:** 2 melee and 2 ranged per lane (3v3: 2 + 1). Minion HP grows 3% a minute, as in 3v3.

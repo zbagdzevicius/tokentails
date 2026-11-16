@@ -270,6 +270,8 @@ export interface MatchEnd {
   assists: number;
   level: number;
   teamKills: [number, number];
+  /** Sim v32: towers each team took, own team first (the results line says "clean sweep" only when we lost none). */
+  teamTowers?: [number, number];
   /** First-match tips completed (analytics `tip_done`). */
   tips: string[];
   /** Real input events in the match (analytics human filter). */
@@ -277,7 +279,7 @@ export interface MatchEnd {
   /** What knocked the player out, by killer kind (hero, tower, minion, ...): the results tip reads it. */
   deathsBy: Record<string, number>;
   fun: MatchFun;
-  /** Round 2: one line naming what decided the match ("Their minions broke our core in Sudden Death ..."). */
+  /** Round 2: one line naming what decided the match ("Their minions broke our core after Sunset ..."). */
   cause?: string;
   /** Lane F (F5): the player's Fish by `fish` event reason (the results' Fish-by-source bar). */
   fishBy?: Record<string, number>;
@@ -1824,6 +1826,7 @@ export class MatchSession {
     const sb = this.scoreboard;
     const latest = this.buffer.latest;
     const k = latest?.score.kills ?? [0, 0];
+    const tw = latest?.score.towers ?? [0, 0];
     const team = this.welcome.team;
     const cause = this.causeLine(result, won, latest);
     // let the last moments play out before the results screen
@@ -1849,6 +1852,7 @@ export class MatchSession {
           assists: myStats?.assists ?? 0,
           level: myStats?.level ?? this.lastLevel,
           teamKills: team === 0 ? [k[0], k[1]] : [k[1], k[0]],
+          teamTowers: team === 0 ? [tw[0], tw[1]] : [tw[1], tw[0]],
           tips: [...this.tips.completed],
           activity: this.activity,
           deathsBy: { ...this.deathsBy },
@@ -2202,7 +2206,6 @@ export class MatchSession {
       enemyNear,
       fight2v2: allies >= 2 && enemies >= 2,
       sunset: ph === 'sunset',
-      suddenDeath: ph === 'suddenDeath',
       coreUnderAttack: performance.now() - this.coreHitAt < 4000,
     });
     this.music.setIntensity(lvl);
@@ -2317,13 +2320,12 @@ export class MatchSession {
         if (ev.type === 'hit') {
           const dst = frame.byId.get(ev.dst);
           if (dst?.kind === 'core') {
-            // Round 2: map damage (takedown chips, Sudden Death burn, takedown core damage) is not "under attack".
+            // Round 2: map damage (takedown chips and takedown core damage; sim v32 has no Sudden Death burn) is not
+            // "under attack".
             const src = ev.src >= 0 ? frame.byId.get(ev.src) : undefined;
             const from: CoreSource =
               ev.src < 0
-                ? ev.kind === 'chip' || this.heroDeathTick[dst.team === 1 ? 1 : 0] === ev.tick
-                  ? 'takedowns'
-                  : 'decay'
+                ? 'takedowns'
                 : src?.kind === 'minion'
                   ? 'minions'
                   : src?.kind === 'hero'

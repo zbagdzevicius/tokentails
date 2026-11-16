@@ -2,11 +2,11 @@
  * Fountains and the per-second rules (POC.md §5, §6.1, §7.3; sim v4 numbers in data/): a fountain heals allies inside
  * 10% max HP a second and shoots enemies inside; heroes out of combat (no damage from an enemy hero for
  * HERO_RULES.outOfCombat) regenerate HERO_RULES.regenBpPerSecond a second (the human × DIFFICULTY_RULES.humanRegenBp);
- * in Sudden Death each core loses SUDDEN_DEATH.coreDecayBpPerSecond a second, more when its team trails on takedowns (sim v7).
+ * sim v32: no core burns any more (Sudden Death, sim v4 to v31, is gone; docs/plans/moba/V32-NO-SUDDEN-DEATH.md).
  */
 import { FOUNTAIN } from '../../data/map';
 import { HERO_RULES } from '../../data/xp';
-import { SUDDEN_DEATH, TIMELINE } from '../../data/timeline';
+import { TIMELINE } from '../../data/timeline';
 import { applyBp, dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
 import { G, Kind, RANGE } from '../world';
@@ -49,16 +49,5 @@ export function stepSeconds(m: MatchHandle): void {
     if (isBoss(w, id)) continue;
     const regen = id === HUMAN_SLOT ? applyBp(HERO_RULES.regenBpPerSecond, rulesOf(m).humanRegenBp) : HERO_RULES.regenBpPerSecond;
     w.hp[id] = Math.min(w.maxHp[id], w.hp[id] + applyBp(w.maxHp[id], regen));
-  }
-  if (tick >= w.globals[G.SuddenDeath]) {
-    for (let c = RANGE.cores; c < RANGE.fountains; c++) {
-      if (w.alive[c] === 0) continue;
-      // Sim v7: the team behind on takedowns burns faster (SUDDEN_DEATH.decayPerTakedownBp; DifficultyRules.leadPressure).
-      const team = c - RANGE.cores;
-      // Sim v22: a mutator may switch the takedown-gap burn off (mutOf(w).decayLead).
-      const behind = rulesOf(m).leadPressure && mutOf(w).decayLead ? w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1] : 0;
-      const bp = Math.max(SUDDEN_DEATH.decayMinBp, Math.min(SUDDEN_DEATH.decayMaxBp, SUDDEN_DEATH.coreDecayBpPerSecond + behind * SUDDEN_DEATH.decayPerTakedownBp));
-      dealDamage(m, -1, 2, Kind.None, c, applyBp(w.maxHp[c], bp), 'zone', { pure: true, pierce: true });
-    }
   }
 }

@@ -31,7 +31,7 @@ import { heroMatch, hold, place } from './heroes/kit-helpers';
 
 describe('sim v8: the takedown chip', () => {
   it('SIM_VERSION is 15 (sim v9 to v15 kept the chip)', () => {
-    expect(SIM_VERSION).toBe(31);
+    expect(SIM_VERSION).toBe(32);
   });
 
   it('stops at the cap before Sunset, then chips the weakest tower that can be hit', () => {
@@ -155,16 +155,17 @@ describe('round 2 client: why the match ended', () => {
   });
 
   it('a loss while ahead on takedowns says the core decided it', () => {
-    const line = endCause({ won: false, reason: 'core', phase: 'suddenDeath', top: 'minions', kills: [10, 9], towers: [2, 2], oursForward: 3, oursAlive: 3 });
-    expect(line).toBe('Their minions broke our core in Sudden Death while all 3 of us were in their base. Takedowns help, but towers and the core win.');
-    expect(endCause({ won: false, reason: 'core', phase: 'suddenDeath', top: 'decay', kills: [3, 9], towers: [0, 2], oursForward: 0, oursAlive: 2 })).toMatch(/fewer takedowns burns faster/);
-    // ftue-5: a decay loss while ahead (or level) on takedowns must not blame takedowns
-    expect(endCause({ won: false, reason: 'core', phase: 'suddenDeath', top: 'decay', kills: [14, 7], towers: [1, 2], oursForward: 0, oursAlive: 3 })).toBe(
-      'Sudden Death burned our core down first. Our core had less left when Sudden Death began: towers and core damage matter most.',
-    );
-    expect(endCause({ won: false, reason: 'core', phase: 'suddenDeath', top: null, kills: [5, 5], towers: [0, 0], oursForward: 0, oursAlive: 3 })).not.toMatch(/fewer takedowns/);
+    const line = endCause({ won: false, reason: 'core', phase: 'sunset', top: 'minions', kills: [10, 9], towers: [2, 2], oursForward: 3, oursAlive: 3 });
+    expect(line).toBe('Their minions broke our core after Sunset while all 3 of us were in their base. Takedowns help, but towers and the core win.');
+    // sim v32: no line ever names Sudden Death (its core burn is gone)
+    for (const top of ['minions', 'heroes', 'towers', 'takedowns', null] as const) {
+      for (const won of [true, false]) {
+        expect(endCause({ won, reason: 'core', phase: 'sunset', top, kills: [3, 9], towers: [0, 2], oursForward: 0, oursAlive: 2 })).not.toMatch(/sudden/i);
+      }
+    }
+    expect(endCause({ won: false, reason: 'core', phase: 'sunset', top: null, kills: [5, 5], towers: [0, 0], oursForward: 0, oursAlive: 3 })).not.toMatch(/fewer takedowns/);
     expect(endCause({ won: true, reason: 'core', phase: 'play', top: 'heroes', kills: [4, 9], towers: [3, 1], oursForward: 2, oursAlive: 3 })).toBe('We broke their core. Behind on takedowns, but the core is what counts.');
-    expect(endCause({ won: true, reason: 'safetyEnd', phase: 'suddenDeath', top: null, kills: [1, 1], towers: [0, 0], oursForward: 0, oursAlive: 3 })).toMatch(/Time ran out/);
+    expect(endCause({ won: true, reason: 'safetyEnd', phase: 'sunset', top: null, kills: [1, 1], towers: [0, 0], oursForward: 0, oursAlive: 3 })).toMatch(/Time ran out/);
   });
 
   it('the dare after a Rookie match says Rookie', () => {

@@ -8,9 +8,9 @@ import { ccHtml } from '../social/flags';
 import { logoHtml } from './brandLogo';
 import { progressBlock, type ProgressSummary } from './progressSummary';
 import './champions.css';
-import { suddenDeathS } from './screensCore';
+import { lateS } from './screensCore';
 // gaps5 polish 8: the first-load helpers live in screensCore (this module is a lazy chunk); old import paths still work
-export { loadingVeil, rotatePrompt, suddenDeathS, SUDDEN_DEATH_S, type VeilHero } from './screensCore';
+export { loadingVeil, rotatePrompt, lateS, LATE_S, type VeilHero } from './screensCore';
 import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
 import { HEROES } from '../data/heroes';
@@ -484,6 +484,11 @@ export interface ResultsOpts {
   assists?: number;
   level: number;
   teamKills: [number, number];
+  /** Sim v32: towers each team took, own team first, and how the match ended (the line under Victory fits it). */
+  teamTowers?: [number, number];
+  reason?: 'core' | 'safetyEnd' | 'forfeit' | 'timeUp' | 'goal';
+  /** A time up with every tie-break equal (Blitz, rare). */
+  draw?: boolean;
   firstWin: boolean;
   best: boolean;
   dareLink: string | null;
@@ -631,15 +636,24 @@ export function joinedFights(o: Pick<ResultsOpts, 'kills' | 'assists' | 'teamKil
 }
 
 /** The line under Victory / Defeat, chosen by the margin (a 1–14 loss is not "so close"). Pure. */
-export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 'difficulty' | 'heroDamage'> & Partial<Pick<ResultsOpts, 'assists' | 'table'>>): string {
+export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 'difficulty' | 'heroDamage'> & Partial<Pick<ResultsOpts, 'assists' | 'table' | 'teamTowers' | 'reason' | 'draw'>>): string {
   const [ours, theirs] = o.teamKills;
   if (o.won) {
+    // Sim v32: a match the clock decided (Blitz's 3:15, the safety end) or the other team left says so, not "the core"
+    if (o.reason === 'timeUp' || o.reason === 'safetyEnd') return o.teamTowers && o.teamTowers[0] > o.teamTowers[1] ? 'Won on the final whistle: more towers down.' : 'Won on the final whistle: your core had more left.';
+    if (o.reason === 'forfeit') return 'The other team gave up. The win is yours.';
+    if (o.reason === 'goal') return 'The match is yours.';
     // GP-05: only a real part in the fights earns "with your help" (a share of the team's takedowns or hero damage)
     if (!joinedFights(o)) return 'Your team took the core. Next time, jump into a fight!';
     if (o.kills === 0) return 'Your team took the core, with your help.';
-    return ours - theirs >= 6 ? 'A clean sweep. The core is yours.' : 'The core is yours.';
+    // a clean sweep: well ahead on takedowns and not one of our towers lost
+    const sweep = ours - theirs >= 6 && o.teamTowers !== undefined && o.teamTowers[1] === 0;
+    return sweep ? 'A clean sweep. The core is yours.' : 'The core is yours.';
   }
   const gap = theirs - ours;
+  if (o.draw) return 'A draw on the final whistle: everything was even.';
+  // Sim v32: a Blitz match the 3:15 time up decided says what decided it (towers first, then core health)
+  if (o.reason === 'timeUp' || o.reason === 'safetyEnd') return o.teamTowers && o.teamTowers[1] > o.teamTowers[0] ? 'Lost on the final whistle: they took more towers.' : 'Lost on the final whistle: their core had more left.';
   if (gap >= 6) return o.difficulty === 'hard' ? 'Hard bots punish a lone hero. Fight next to your team.' : o.difficulty === 'normal' ? 'Tough one. Try Easy bots or a new hero.' : 'Tough one. The tip below helps.';
   if (gap >= 3) return 'They pulled ahead. You can turn the next one.';
   return 'So close. The next one is yours.';
@@ -728,7 +742,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
   const m = Math.floor(o.seconds / 60);
   const s = String(o.seconds % 60).padStart(2, '0');
   const tip = resultTip(o);
-  const sd = suddenDeathS(o.difficulty);
+  const sd = lateS(o.difficulty);
   // Sim v21: a KABOOM best moment leads the dare ("I KABOOMed Brutus with the Kibble Cannon. Beat my ...")
   const dareLine = kaboomDare(o.bestMoment, dareText({ seed: 0, hero: o.hero, trick: 'pounce', difficulty: o.difficulty, seconds: o.seconds < sd ? o.seconds : 0 }));
   root.innerHTML = `

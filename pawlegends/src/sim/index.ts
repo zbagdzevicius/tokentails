@@ -3,7 +3,7 @@
  * INTEGER ONLY, no DOM, no three: Node-importable and vendored to the backend.
  *
  * The whole POC match: waves, towers and cores, eight hero kits (sim v9: four shelter champions) with talents and Paw Tricks, XP and levels, brush
- * and stealth, the rat camps, Pudding, the §7.3 timeline (Sunset, Sudden Death, the 11:00 safety end) and the
+ * and stealth, the rat camps, Pudding, the §7.3 timeline (Sunset, late Sunset, the 11:00 safety end) and the
  * in-sim bots for slots 1..5, all in the §4.3 step order marked below.
  */
 import { BOTS, DIFFICULTIES as DIFFICULTY_LIST, PVP_RULES } from '../data/bots';
@@ -88,7 +88,7 @@ import { initYarn, stepYarn, yarnAt, yarnCount } from './units/yarn';
 import { CANNON_STATE, YARN_STATE, YF } from './world';
 import { CANNON } from '../data/fun';
 import { MUTATOR_RULES } from '../data/mutators';
-import { endTickOf, fortifyUntilOf, mutOf, mutatorIndex, mutatorOf } from './mutator';
+import { fortifyUntilOf, mutOf, mutatorIndex, mutatorOf } from './mutator';
 import { XP } from '../data/xp';
 import { isPractice, practiceAction, stepPractice } from './units/practice';
 import { benched, initModeHeroes, isBoss, stepBoss } from './units/boss';
@@ -114,7 +114,7 @@ export { createPlayerBot, playerBotCommands, type PlayerBot } from './bots';
 export { PLAYER_PROFILES, DIFFICULTIES, type PlayerProfile } from '../data/bots';
 export { TIMELINE_BY } from '../data/timeline';
 export { BRANCH_HEROES, BRANCH_TALENT } from '../data/heroes';
-/** Sunset and Sudden Death ticks of a difficulty (sim v19: on `map`, default the map bound now). */
+/** Sunset and late Sunset ticks of a difficulty (sim v19: on `map`, default the map bound now; sim v32: `late`). */
 export function timelineFor(d: Difficulty, map?: MapId) {
   if (map !== undefined) bindMap(mapIndex(map));
   return TIMELINE_BY[d as keyof typeof TIMELINE_BY] ?? TIMELINE_BY.normal;
@@ -220,9 +220,10 @@ export function createMatch(config: MatchConfig): MatchHandle {
   // Sim v16: the rules are cached on the match (rules.ts rulesOf); PvP swaps in PVP_RULES, PvE keeps its row.
   const rules = pvp ? PVP_RULES : DIFFICULTY_RULES[config.difficulty];
   const phases = TIMELINE_BY[config.difficulty];
-  // Sim v22: a mutator may set its own Sunset and Sudden Death (Blitz 1:30 and 2:30).
+  // Sim v22: a mutator may set its own Sunset (Blitz 1:30). Sim v32: and its own late Sunset (Blitz 2:30), the tick
+  // Sudden Death began until sim v31.
   w.globals[G.Sunset] = mut.sunset || phases.sunset;
-  w.globals[G.SuddenDeath] = mut.suddenDeath || phases.suddenDeath;
+  w.globals[G.Late] = mut.late || phases.late;
   // Sim v27: the Practice ground's cores never open (it ends when the player leaves, or at the safety end).
   w.globals[G.CoreOpenAt] = mut.practice ? TIMELINE.safetyEnd : rules.coreOpenAt;
   w.globals[G.HumanPanic] = rules.humanPanicBp;
@@ -372,7 +373,6 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   if (tick > 0 && tick === fortifyUntilOf(w)) m.events.push({ type: 'fortifyEnd', tick });
   if (!practice && !strip) stepPuddingTimeline(m, wave >= 0);
   if (tick === w.globals[G.Sunset]) m.events.push({ type: 'sunset', tick });
-  if (tick === w.globals[G.SuddenDeath]) m.events.push({ type: 'suddenDeath', tick });
   stepSeconds(m);
   // 4. Movement (heroes by A*, dashes and CC; minions by lane points + separation); swings start here. Then the
   //    status timers, kit timers and heals over time tick, and vision is refreshed for the targeting below.
@@ -576,7 +576,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
   }
   const snap: Snapshot = {
     team,
-    clock: clockAt(tick, m.ended !== null, w.globals[G.Sunset], w.globals[G.SuddenDeath], endTickOf(w)),
+    clock: clockAt(tick, m.ended !== null, w.globals[G.Sunset], mutOf(w).hardEnd),
     score: { kills: [w.globals[G.Kills0], w.globals[G.Kills1]], towers: [w.globals[G.Towers0], w.globals[G.Towers1]] },
     entities,
     projectiles,

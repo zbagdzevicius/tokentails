@@ -118,7 +118,7 @@ function startRoom() {
   const index = started++;
   const mode = CLASSIC_SHARE > 0 && R() < CLASSIC_SHARE ? 'classic' : R() < PVP_SHARE ? 'pvp' : 'coop';
   const seed = Math.floor(R() * 2 ** 31);
-  // a 5v5 match runs to 13:00-13:15 (Sudden Death) and at most 16:00 (safety end): a longer room cap
+  // a 5v5 match runs to about 13:00 (late Sunset) and at most 16:00 (safety end): a longer room cap
   const maxMs = mode === 'classic' ? CLASSIC_ROOM_MAX_MS : ROOM_MAX_MS;
   const cfg = { relay: RELAY, mode, index, seed, dropRate: DROP_RATE, surrenderRate: SURRENDER_RATE, maxMs };
   const child = fork(join(DIST, 'room.mjs'), [], { env: { ...env, SOAK_ROOM: JSON.stringify(cfg) }, stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });

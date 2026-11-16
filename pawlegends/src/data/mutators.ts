@@ -6,8 +6,8 @@
  *
  * Blitz: a ~3-minute Crossing match. Start at level 4 (the level-3 talent is offered at once), XP ×2, towers ×0.45 and
  * cores ×0.5 HP (of the v21 values), respawn 6 s rising to 8 s, the cannon at 0:20 and 40 s after each shot, Sunset at
- * 1:30, Sudden Death at 2:30, and a hard end at 3:15 (EndReason 4 timeUp, won on structures, then core HP, then
- * takedowns, then structure damage, else a draw).
+ * 1:30, late Sunset from 2:30 (sim v32; Sudden Death until v31), and a hard end at 3:15 (EndReason 4 timeUp, won on
+ * structures, then core HP, then takedowns, then structure damage, else a draw).
  */
 import type { HeroId, MapId, Mutator } from '../sim/api';
 import { CROSSING_CANNON, type CannonData } from './fun';
@@ -35,18 +35,22 @@ export interface MutatorRules {
   /** Hero-vs-hero damage × this (bp), then the per-hero row (`hero`, its own balance pass). */
   heroVsHeroBp: number;
   hero: Readonly<Partial<Record<HeroId, Readonly<{ dmgBp: number; takenBp: number }>>>>;
-  /** Sudden Death decay follows the takedown gap (SUDDEN_DEATH.decayPerTakedownBp) when the difficulty has lead
-   *  pressure; false: every core burns at the base rate. */
-  decayLead: boolean;
   /** The Underdog Cannon favours a team this many takedowns behind (0: the COMEBACK trigger's own). */
   underdogTakedowns: number;
-  /** Core damage from takedowns (the chip before Sunset, the Sunset and Sudden Death share) × this (bp). */
+  /** Core damage from takedowns (the chip before Sunset, the Sunset share) × this (bp). */
   takedownCoreBp: number;
   /** Enemy bots leave the human alone until this tick (−1: the difficulty's DifficultyRules.truceUntil). */
   truceUntil: number;
-  /** Sunset and Sudden Death ticks (0: the difficulty's). */
+  /** Sunset and late Sunset ticks (0: the difficulty's). Sim v32: `late` (data/timeline.ts LATE_SUNSET) replaced
+   *  `suddenDeath` (the same ticks). */
   sunset: number;
-  suddenDeath: number;
+  late: number;
+  /** Sim v32: late Sunset's extra structure damage (LATE_SUNSET.structureBpPerMinute and structureMaxBp) × this (bp). */
+  lateRampBp: number;
+  /** Sim v32: late Sunset's takedown-lead structure bonus (LATE_SUNSET.leadBpPerTakedown) where the difficulty has lead
+   *  pressure; false: the same for both teams (Blitz; sim v22 to v31 switched Sudden Death's takedown-gap burn off,
+   *  `decayLead`). */
+  lateLead: boolean;
   /** The designed end (0: none, only the map's safety end). At this tick the match ends with reason 'timeUp'. */
   hardEnd: number;
   /** Sim v27: ability and Paw Trick cooldowns × this (bp; at least one tick). */
@@ -99,12 +103,13 @@ const NONE: MutatorRules = Object.freeze({
   catchUpFrom: -1,
   heroVsHeroBp: 10000,
   hero: Object.freeze({}),
-  decayLead: true,
   underdogTakedowns: 0,
   takedownCoreBp: 10000,
   truceUntil: -1,
   sunset: 0,
-  suddenDeath: 0,
+  late: 0,
+  lateRampBp: 10000,
+  lateLead: true,
   hardEnd: 0,
   cooldownBp: 10000,
   fishBp: 10000,
@@ -132,7 +137,7 @@ const BLITZ: MutatorRules = Object.freeze({
   // 6 s → 8 s
   respawnFrom: 180,
   respawnTo: 240,
-  // 0:20, then 40 s after each shot or fizzle (none from Sudden Death on, as on every map)
+  // 0:20, then 40 s after each shot or fizzle (none from late Sunset on, as on every map)
   cannon: Object.freeze({ ...CROSSING_CANNON, first: 600, respawn: 1200 }),
   // Crossing's Fortified would cover the whole match. Sim v21 to v25: no Fortify; sim v26 (V26-TOWERS.md §1.B): a
   // short one, 0:45, so the first tower does not fall in the opening minute (0:30 gave a 1:14 median first tower for an
@@ -146,38 +151,45 @@ const BLITZ: MutatorRules = Object.freeze({
   // a species shift moves ten heroes at once (about 2.6 points per 1% relative); one hero moves about 0.8 points per 1%.
   // Rebased on main's v20 + v21 (fresh windows 3500001 and 3700001, 4,000 matches): cats 47.8%; every cat row +1% gave
   // 53.0% (4000001, 4100001), so every cat row +0.5% but Duchess (52.4% before), and Aviete (44.3%) +1.6% in all
+  // Sim v32 (no Sudden Death; the 3:15 tie-breakers decide nearly every match): cats read 53.4% on seeds 20001-22000,
+  // so every cat row −0.5% (the v29 and v31 cats get rows at −0.5%).
   hero: Object.freeze({
-    aviete: { dmgBp: 9409, takenBp: 10567 },
-    bengas: { dmgBp: 9853, takenBp: 10145 },
+    aviete: { dmgBp: 9359, takenBp: 10617 },
+    bengas: { dmgBp: 9803, takenBp: 10195 },
     bravo: { dmgBp: 10820, takenBp: 9180 },
     brutus: { dmgBp: 10577, takenBp: 9423 },
     cacklejaw: { dmgBp: 9111, takenBp: 10889 },
     chili: { dmgBp: 9934, takenBp: 10066 },
-    clem: { dmgBp: 9707, takenBp: 10289 },
+    clem: { dmgBp: 9657, takenBp: 10339 },
     domino: { dmgBp: 9987, takenBp: 10013 },
-    duchess: { dmgBp: 10147, takenBp: 9853 },
+    duchess: { dmgBp: 10097, takenBp: 9903 },
     frankie: { dmgBp: 8991, takenBp: 11009 },
-    gabe: { dmgBp: 10701, takenBp: 9305 },
+    gabe: { dmgBp: 10651, takenBp: 9355 },
     howler: { dmgBp: 9720, takenBp: 10280 },
-    lambo: { dmgBp: 10624, takenBp: 9382 },
+    lambo: { dmgBp: 10574, takenBp: 9432 },
     marshmallow: { dmgBp: 10285, takenBp: 9715 },
-    meatball: { dmgBp: 11781, takenBp: 8237 },
+    meatball: { dmgBp: 11731, takenBp: 8287 },
     nugget: { dmgBp: 10321, takenBp: 9679 },
-    pixel: { dmgBp: 9312, takenBp: 10680 },
+    pixel: { dmgBp: 9262, takenBp: 10730 },
     rocket: { dmgBp: 9740, takenBp: 10260 },
-    sage: { dmgBp: 9684, takenBp: 10312 },
-    stilts: { dmgBp: 9258, takenBp: 10734 },
+    sage: { dmgBp: 9634, takenBp: 10362 },
+    stilts: { dmgBp: 9208, takenBp: 10784 },
+    mochi: { dmgBp: 9950, takenBp: 10050 },
+    ziggy: { dmgBp: 9950, takenBp: 10050 },
+    nova: { dmgBp: 9950, takenBp: 10050 },
+    dusty: { dmgBp: 9950, takenBp: 10050 },
   }),
-  // every core burns 3% a second in Sudden Death: with the takedown-gap burn the team behind at 1:30 won 4% to 8%
-  decayLead: false,
   // the cannon goes to a team 3 takedowns behind (8 on every other match): a short match needs its comeback early
   underdogTakedowns: 3,
   // half the takedown core damage: kills still count, the core and the towers decide
   takedownCoreBp: 5000,
   truceUntil: -1,
-  // 1:30 Sunset, 2:30 Sudden Death, 3:15 time up
+  // 1:30 Sunset, 2:30 late Sunset, 3:15 time up
   sunset: 2700,
-  suddenDeath: 4500,
+  late: 4500,
+  lateRampBp: 10000,
+  // every core takes the same late Sunset bonus (sim v22 to v31: decayLead false, the same core burn for both)
+  lateLead: false,
   hardEnd: 5850,
   cooldownBp: 10000,
   fishBp: 10000,
@@ -199,7 +211,7 @@ const BLITZ: MutatorRules = Object.freeze({
  * Sim v27 (V27.md §3): Cannon Chaos, a ~5-minute Crossing party match built on the Kibble Cannon. The cannon is up at
  * 0:15 and back 20 s after every shot or fizzle (the Underdog Cannon still favours a team 3 takedowns behind), heroes
  * start at level 3 with XP ×1.5 and cooldowns ×0.7, towers ×0.7 and cores ×0.8 HP, Fortified until 1:00, respawns 5 s
- * rising to 7 s, Sunset at 3:00, Sudden Death at 4:15 and time up at 5:15.
+ * rising to 7 s, Sunset at 3:00, late Sunset from 4:15 and time up at 5:15.
  */
 const CANNON_CHAOS: MutatorRules = Object.freeze({
   ...NONE,
@@ -213,11 +225,11 @@ const CANNON_CHAOS: MutatorRules = Object.freeze({
   cannon: Object.freeze({ ...CROSSING_CANNON, first: 450, respawn: 600 }),
   fortifyUntil: 1800,
   catchUpFrom: 1800,
-  decayLead: false,
   underdogTakedowns: 3,
   takedownCoreBp: 7500,
   sunset: 5400,
-  suddenDeath: 7650,
+  late: 7650,
+  lateLead: false,
   hardEnd: 9450,
   cooldownBp: 7000,
 });
@@ -234,7 +246,7 @@ const PRACTICE: MutatorRules = Object.freeze({
   respawnTo: 60,
   // never: the safety end comes first
   sunset: 30000,
-  suddenDeath: 30000,
+  late: 30000,
   fortifyUntil: 0,
   fishBp: 30000,
   forfeitFrom: 1,
@@ -254,7 +266,7 @@ const BOUNTY: MutatorRules = Object.freeze({ ...NONE, maps: Object.freeze(['cros
 /**
  * Sim v28 (V28.md §2): One Lane Brawl, ARAM-like. 3v3 on the Sunny Lane strip, any champion: start at level 3, XP ×1.5
  * and Fish ×2 (Toys come fast), no Nap and no fountain heal (Fish Snacks every 15 s are the heals), towers ×0.7 and
- * cores ×0.8 HP, Fortified until 0:45, respawns 8 s rising to 14 s, Sunset 5:00, Sudden Death 7:00, time up at 8:00.
+ * cores ×0.8 HP, Fortified until 0:45, respawns 8 s rising to 14 s, Sunset 5:00, late Sunset 7:00, time up at 8:00.
  */
 const ONELANE: MutatorRules = Object.freeze({
   ...NONE,
@@ -270,7 +282,7 @@ const ONELANE: MutatorRules = Object.freeze({
   catchUpFrom: 1800,
   pickupEveryBp: 5000,
   sunset: 9000,
-  suddenDeath: 12600,
+  late: 12600,
   hardEnd: 14400,
   strip: true,
   noRecall: true,
@@ -293,9 +305,9 @@ const DUEL: MutatorRules = Object.freeze({
   fortifyUntil: 900,
   catchUpFrom: 30000,
   pickupEveryBp: 5000,
-  // past the time up: no Sunset or Sudden Death in a Duel
+  // past the time up: no Sunset in a Duel
   sunset: 30000,
-  suddenDeath: 30000,
+  late: 30000,
   hardEnd: 9000,
   strip: true,
   noRecall: true,
@@ -321,7 +333,7 @@ const BOSS: MutatorRules = Object.freeze({
   catchUpFrom: 30000,
   truceUntil: 0,
   sunset: 30000,
-  suddenDeath: 30000,
+  late: 30000,
   hardEnd: 11700,
   strip: true,
   playing: Object.freeze([0, 1] as [number, number]),

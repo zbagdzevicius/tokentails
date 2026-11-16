@@ -1,5 +1,5 @@
 /**
- * gaps5 polish 8: the screen helpers the first load needs (the rotate prompt, the loading veil, the Sudden Death second).
+ * gaps5 polish 8: the screen helpers the first load needs (the rotate prompt, the loading veil, the late Sunset second).
  * The rest of ui/screens.ts (the champion select, the results, the pause menu) is a lazy chunk.
  */
 import * as TL from '../data/timeline';
@@ -15,14 +15,15 @@ function el(cls: string, html = ''): HTMLElement {
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
-/** A fallback Sudden Death second (10:00). The real one is per difficulty (`suddenDeathS`, data/timeline.ts TIMELINE_BY;
- *  sim v12: Rookie 6:30, Easy 7:45, Normal and Hard 8:30): after it the clock, not the player, ends the match. */
-export const SUDDEN_DEATH_S = 600;
+/** A fallback late Sunset second (10:00). The real one is per difficulty (`lateS`, data/timeline.ts TIMELINE_BY;
+ *  Rookie 6:15, Easy 7:45, Normal and Hard 8:30): after it structures fall faster every minute, so a match time past it
+ *  is no personal best to dare (Sudden Death's second until sim v31, the same numbers). */
+export const LATE_S = 600;
 
-/** The Sudden Death second for a difficulty (data/timeline.ts, with the fun plan's per-difficulty overrides). */
-export function suddenDeathS(difficulty: Difficulty): number {
-  const by = (TL as unknown as { TIMELINE_BY?: Record<string, { suddenDeath?: number }> }).TIMELINE_BY;
-  const t = by?.[difficulty]?.suddenDeath ?? TL.TIMELINE.suddenDeath;
+/** The late Sunset second for a difficulty (data/timeline.ts, with the fun plan's per-difficulty overrides). */
+export function lateS(difficulty: Difficulty): number {
+  const by = (TL as unknown as { TIMELINE_BY?: Record<string, { late?: number }> }).TIMELINE_BY;
+  const t = by?.[difficulty]?.late ?? TL.TIMELINE.late;
   return Math.floor(t / TL.TICK_HZ);
 }
 

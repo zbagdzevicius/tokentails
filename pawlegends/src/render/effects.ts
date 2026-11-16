@@ -1,5 +1,5 @@
 /**
- * The FX director: turns sim events (hit, cast, windup, death, levelup, tower, pudding, sunset, suddenDeath) into
+ * The FX director: turns sim events (hit, cast, windup, death, levelup, tower, pudding, sunset) into
  * particles, shockwaves, damage numbers, hitstop, shake, banners, sounds and animation cues on the views. Events
  * reach it when the render clock passes their tick, so a hit spark lands with the swing you see. Render only.
  */
@@ -348,12 +348,6 @@ export class Effects {
         // sim v14 viral moments: hidden heroes (brush, fog) draw nothing, like level-ups
         if (this.hooks.visible?.(e.id) === false) return;
         this.anim?.clipFired?.(e);
-        return;
-      case 'suddenDeath':
-        sfx.play('horn', { rate: 0.8 });
-        this.juice.banner({ title: 'Sudden Death', sub: 'Cores crumble. Every takedown hits the core.', tone: 'bad' });
-        sfx.voice('suddenDeath', { sting: false });
-        this.juice.kick(0.3);
         return;
       default:
         return;

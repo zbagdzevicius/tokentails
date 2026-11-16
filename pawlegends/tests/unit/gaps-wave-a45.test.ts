@@ -106,13 +106,15 @@ describe('A4: next objective chip', () => {
     expect(d.chip()).toMatchObject({ key: 'theirRats', title: `Their rats ${fmtSecs(RAT_CAMP_STATS.respawn / 30)}` });
   });
 
-  it('Sudden Death: the chip says so (a live Pudding still comes first)', () => {
+  it('sim v32: Sunset counts down to a final whistle only, then points at the push (a live Pudding still comes first)', () => {
     const c = new ObjectiveClock(0);
     c.feed({ type: 'pudding', tick: 11000, what: 'leave' });
     c.frame([], clock(12000, 'sunset', 600));
-    expect(c.chip()).toMatchObject({ key: 'suddenDeath', title: 'Sudden Death in 0:20' });
-    c.frame([], clock(13000, 'suddenDeath', 3000));
-    expect(c.chip()).toMatchObject({ key: 'suddenDeath', title: 'Sudden Death!' });
+    expect(c.chip()).toMatchObject({ key: 'whistle', title: 'Final whistle in 0:20' });
+    c.frame([], clock(13000, 'sunset', 0));
+    // no countdown left: the next timer (Pudding's return) leads, never a Sudden Death chip
+    expect(c.chip().key).toBe('pudding');
+    expect(JSON.stringify(c.chip())).not.toMatch(/sudden/i);
     c.feed({ type: 'pudding', tick: 14600, what: 'spawn' });
     expect(c.chip().key).toBe('calm');
   });

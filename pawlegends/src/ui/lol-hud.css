@@ -134,17 +134,9 @@ html[data-touch='1'] .pl-hud .pl-portrait .dsec { font-size: 20px; }
 /* desktop: the plate hangs from the top edge as a leaning trapezoid (both lower corners cut, like the kit's angled
    scorebug segments); phones keep their strip shape (feel.css) */
 html:not([data-touch='1']) .pl-hud .pl-score.lol { clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 12px 100%); border-radius: 0; }
-/* sunset and sudden death read on the plate itself (inset rings: the clip and the footprint stay) */
+/* sunset reads on the plate itself (sim v32: no Sudden Death phase) (inset rings: the clip and the footprint stay) */
 .pl-hud[data-phase='sunset'] .pl-score.lol { box-shadow: inset 0 -3px 0 var(--v6-flame), inset 0 0 0 1px rgb(255 138 30 / 0.55), 0 6px 18px rgba(0, 0, 0, 0.4); }
 .pl-hud[data-phase='sunset'] .pl-score.lol .clock { color: var(--v6-flame); }
-.pl-hud[data-phase='suddenDeath'] .pl-score.lol { animation: none; box-shadow: inset 0 -3px 0 var(--v6-enemy), inset 0 0 0 1px var(--v6-enemy), 0 6px 18px rgba(0, 0, 0, 0.4); }
-.pl-hud[data-phase='suddenDeath'] .pl-score.lol .clock { color: var(--v6-enemy); }
-.pl-hud[data-phase='suddenDeath'] .pl-score.lol::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 14px 2px rgb(255 79 88 / 0.75);
-  animation: lol-sd 1s ease-in-out infinite;
-}
-@keyframes lol-sd { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .pl-hud[data-phase='suddenDeath'] .pl-score.lol::after { animation: none; opacity: 0.8; } }
 .pl-hud .pl-score.lol .team { gap: 8px; min-width: 0; font: 800 24px/26px var(--font); font-variant-numeric: tabular-nums; text-shadow: 0 2px 0 rgb(0 0 0 / 0.45); }
 .pl-hud .pl-score.lol .team.t0 { justify-content: flex-end; }
 .pl-hud .pl-score.lol .team.t1 { justify-content: flex-start; }
@@ -182,7 +174,6 @@ html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score .kda .kl { color: var(-
 html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score .kda .kd { color: #c41f35; }
 html[data-touch='1'] .pl-match .pl-hud .pl-top .pl-score.lol .team b { text-shadow: 0 1.5px 0 var(--v6-night); }
 html[data-touch='1'] .pl-match .pl-hud[data-phase='sunset'] .pl-top .pl-score.lol .clock { color: #c45a00; }
-html[data-touch='1'] .pl-match .pl-hud[data-phase='suddenDeath'] .pl-top .pl-score.lol .clock { color: #c41f35; }
 /* phones keep today's footprint: 294 × ≤ 45 at 844 × 390, 204 × ≤ 39 at 667 × 375 (lane A's rail sits under it) */
 html[data-touch='1'] .pl-hud .pl-score.lol { width: 294px; min-width: 0; height: 45px; padding: 3px 10px 0; column-gap: 8px; align-content: space-between; }
 html[data-touch='1'] .pl-hud .pl-score.lol .team { font-size: 22px; line-height: 26px; gap: 6px; }

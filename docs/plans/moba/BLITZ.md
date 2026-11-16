@@ -9,7 +9,7 @@ with the Kibble Cannon as the clip moment. Solo against bots at launch; Party an
 ## 1. Rules
 
 One frozen rule table, `pawlegends/src/data/mutators.ts` (`MUTATOR_RULES.blitz`), read through `src/sim/mutator.ts`
-(`mutOf`) by the tower and core setup, XP, respawn, the cannon, the phase clock, Sudden Death, the bots' truce and the
+(`mutOf`) by the tower and core setup, XP, respawn, the cannon, the phase clock, late Sunset (Sudden Death until sim v31), the bots' truce and the
 win check. No system carries its own `if (blitz)`. The `none` row is neutral, so every other match is byte-identical
 to the pre-Blitz v22 build (§5.3).
 
@@ -22,12 +22,12 @@ to the pre-Blitz v22 build (§5.3).
 | Core | 1 × | **×0.5** |
 | Fortified | heroes deal 65% to towers until 3:00 (sim v26: 55% heroes, 75% minions, bolts ×1.25, until 4:00) | **never** until sim v25 (3:00 is the whole match); **0:45** from sim v26 (V26-TOWERS.md) |
 | Respawn | level based, Sunset ×1.25, lead pressure | **6 s at 0:00 rising to 8 s at 3:15**; the difficulty's human and enemy edges still apply |
-| Kibble Cannon | 1:30, then 120 s after each shot | **0:20, then 40 s after each shot or fizzle**; none from Sudden Death on |
+| Kibble Cannon | 1:30, then 120 s after each shot | **0:20, then 40 s after each shot or fizzle**; none from late Sunset (2:30) on |
 | Underdog Cannon | a team 3 structures or 8 takedowns behind | 3 structures or **3 takedowns** behind |
 | Catch-up XP | from 3:00 (Normal) | **from 0:45** |
 | Sunset | 6:45 (Normal) | **1:30** |
-| Sudden Death | 8:30 (Normal) | **2:30**; cores burn 3% a second, **the same for both teams** (no takedown-gap burn) |
-| Takedown core damage | chip 5%, Sunset 5% / 15%, Sudden Death 10% | **× 0.5** |
+| Late Sunset (sim v32; Sudden Death until v31) | 8:30 (Normal) | **2:30**; towers and cores take more damage every minute and respawns grow, **the same for both teams** (no takedown-lead bonus). Nothing burns on its own (V32-NO-SUDDEN-DEATH.md) |
+| Takedown core damage | chip 5%, Sunset 5% / 15% to the end (sim v32; Sudden Death 10% until v31) | **× 0.5** |
 | Hero vs hero damage | ×1 | **×1.35**, then a per-hero Blitz row (`hero`, fitted on the gate, §4) |
 | End | 11:00 safety end | **3:15 time up** (EndReason 4 `timeUp`) |
 
@@ -75,8 +75,8 @@ a 1:00 Pudding with ×0.5 escort HP. Each is one more row in the table if a late
 | Check | Band |
 |---|---|
 | Length median | 2:30 to 3:15 |
-| p90 | ≤ 3:10 |
-| Decided by a core kill | ≥ 85% |
+| p90 | ≤ 3:10 until sim v31; ≤ 3:15 (the time up) from sim v32 |
+| Decided by a core kill | ≥ 85% until sim v31 (Sudden Death's burn); from sim v32 a core kill or the 3:15 tie-breakers ≥ 99% (no burn: about 2% end on a core, V32-NO-SUDDEN-DEATH.md §4) |
 | Draws | ≤ 1% |
 | Safety ends | 0 |
 | Side (Purrhaven) | 47% to 53% |
@@ -87,7 +87,7 @@ a 1:00 Pudding with ×0.5 escort HP. Each is one more row in the table if a late
 | Down 10+ takedowns at the end wins | < 5% |
 | Novice player-bot vs Easy (`--gate blitzNovice`, 400 seeds) | ≥ 60% |
 
-Results: §5.
+Results: §5 (sim v22 to v31); sim v32: V32-NO-SUDDEN-DEATH.md §4.
 
 ## 5. Results
 
@@ -96,7 +96,7 @@ Results: §5.
 | Check | A (1040001) | B (1050001) | A + B | Pass |
 |---|---|---|---|---|
 | Length median / p90 | 2:55 / 2:58 | 2:55 / 2:58 | 2:55 / 2:58 | yes |
-| Decided by a core kill | 100% | 100% | 100% | yes (every match ends on Sudden Death's burn before 3:15; 0 time ups) |
+| Decided by a core kill | 100% | 100% | 100% | yes (every match ends on Sudden Death's burn before 3:15; 0 time ups; sim v32 removed the burn) |
 | Draws / safety ends | 0 / 0 | 0 / 0 | 0 / 0 | yes |
 | Side (Purrhaven) | 47.3% | 50.4% | 48.8% | yes |
 | Cats | 50.1% | 49.6% | 49.9% | yes |

@@ -50,7 +50,6 @@ function cueText(c: ChatCue, teamSize: number): string | null {
     case 'end':
       return `END winner team ${c.winner}`;
     case 'sunset':
-    case 'suddenDeath':
       return c.k;
     default:
       return null;

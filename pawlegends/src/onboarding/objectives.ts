@@ -10,7 +10,7 @@
  * on desktop; on phones a short prio 4 note says the how-to first), so nothing sits under the score bar on its own.
  *
  * GAPS A4: between beats (and in every match from the fourth) the chip shows the next objective with its timer
- * ("Pudding in 0:42", "Calm Pudding!", "Escort: 1,840 HP", "Your rats 0:18", "Sunset in 1:10", "Sudden Death in
+ * ("Pudding in 0:42", "Calm Pudding!", "Escort: 1,840 HP", "Your rats 0:18", "Sunset in 1:10", "Final whistle in
  * 0:45"), from `ObjectiveClock`: snapshots and events only, no sim change. The enemy camp's timer shows only once a
  * clear of it was seen (a `buff` 'pack' event on a hero we can see, as in WR and MLBB). The chip is tappable; the
  * tap names the objective (`onTap`) and the session sends its ping (GAPS B1, ui/pingText.ts chipPing).
@@ -264,7 +264,7 @@ function setGoalAttr(id: string): void {
 // GAPS A4: the next objective and its timers, from snapshots and events (no sim change)
 
 /** What the chip is about: the key B1's ping will carry. */
-export type ObjectiveKey = 'calm' | 'escort' | 'pudding' | 'rats' | 'theirRats' | 'gates' | 'sunset' | 'suddenDeath' | 'grizzlechop' | 'sinkGrizzlechop';
+export type ObjectiveKey = 'calm' | 'escort' | 'pudding' | 'rats' | 'theirRats' | 'gates' | 'sunset' | 'whistle' | 'finish' | 'grizzlechop' | 'sinkGrizzlechop';
 
 export interface ObjectiveChip extends StandingText {
   key: ObjectiveKey;
@@ -303,7 +303,8 @@ const secsOf = (ticks: number): number => Math.max(0, Math.ceil(ticks / TICK_HZ)
 const PHASE_FIRST = 60 * TICK_HZ;
 const PACK_LINE = `+${RAT_CAMP_STATS.packDmgBp / 100}% damage for ${Math.round(RAT_CAMP_STATS.packTicks / TICK_HZ)} s`;
 
-const SUDDEN_DEATH_CHIP: ObjectiveChip = Object.freeze({ key: 'suddenDeath', title: 'Sudden Death!', sub: 'Cores burn every second: finish theirs', icon: 'sun', secs: null, x: MAP.width / 2, y: MAP.height / 2 });
+/** Sim v32: with nothing on a timer (no Sudden Death any more), the chip points at the push. */
+const FINISH_CHIP: ObjectiveChip = Object.freeze({ key: 'finish', title: 'Take their core!', sub: 'Push with your wave: towers fall faster every minute', icon: 'sun', secs: null, x: MAP.width / 2, y: MAP.height / 2 });
 
 /** Camp `c`'s centre (sim mm): 0 is Purrhaven's side, 1 Woof's. */
 export const campPoint = (c: number): { x: number; y: number } => ({ x: c === 0 ? RAT_CAMP.x : mirrorX(RAT_CAMP.x), y: RAT_CAMP.y });
@@ -469,7 +470,6 @@ export class ObjectiveClock {
     }
     if (p.state === 'waiting')
       return { key: 'escort', title: ours ? 'Pudding joins your next wave' : 'Pudding joins their next wave', sub: ours ? 'Walk out with that wave' : 'Meet their wave together', icon: 'heart', secs: null, x: p.x, y: p.y };
-    if (this.phase === 'suddenDeath') return SUDDEN_DEATH_CHIP;
     const phase = this.phaseChip();
     if (phase && this.nextPhaseIn <= PHASE_FIRST) return phase;
     const cands: ObjectiveChip[] = [];
@@ -492,7 +492,7 @@ export class ObjectiveClock {
     if (phase) cands.push(phase);
     let best: ObjectiveChip | null = null;
     for (const c of cands) if (!best || (c.secs ?? Infinity) < (best.secs ?? Infinity)) best = c;
-    return best ?? SUDDEN_DEATH_CHIP;
+    return best ?? FINISH_CHIP;
   }
 
   private phaseChip(): ObjectiveChip | null {
@@ -501,7 +501,7 @@ export class ObjectiveClock {
     const mid = { x: MAP.width / 2, y: MAP.height / 2 };
     if (this.phase === 'gate') return { key: 'gates', title: `Gates open in ${fmtSecs(s)}`, sub: 'Get ready to run to your lane', icon: 'paw', secs: s, ...mid };
     if (this.phase === 'play') return { key: 'sunset', title: `Sunset in ${fmtSecs(s)}`, sub: 'Towers crumble faster at Sunset', icon: 'sun', secs: s, ...mid };
-    if (this.phase === 'sunset') return { key: 'suddenDeath', title: `Sudden Death in ${fmtSecs(s)}`, sub: 'Then both cores start to burn', icon: 'sun', secs: s, ...mid };
+    if (this.phase === 'sunset') return { key: 'whistle', title: `Final whistle in ${fmtSecs(s)}`, sub: 'Then towers, core health and takedowns decide', icon: 'sun', secs: s, ...mid };
     return null;
   }
 }

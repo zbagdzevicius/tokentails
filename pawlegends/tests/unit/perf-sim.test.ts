@@ -72,7 +72,7 @@ describe('sim performance (§15 item 6)', { timeout: limit(300000) }, () => {
   });
 
   it('an 11:00 worst case (cores nothing can finish) takes ≤ 1.5 s (median of 3, CPU time)', () => {
-    // Sudden Death decay and takedown damage are shares of max HP: HP far above it outlasts them.
+    // Takedown core damage is a share of max HP: HP far above it outlasts it.
     const runs = [0, 1, 2].map(() =>
       timed(32, (w) => {
         for (let c = RANGE.cores; c < RANGE.fountains; c++) w.hp[c] = CORE_STATS.hp * 100;

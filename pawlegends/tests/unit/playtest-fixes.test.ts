@@ -25,6 +25,17 @@ describe('results copy', () => {
     expect(resultLine({ won: false, kills: 2, teamKills: [7, 8], difficulty: 'easy' })).toMatch(/^So close/);
     expect(resultLine({ won: true, kills: 0, teamKills: [5, 3], difficulty: 'easy' })).toMatch(/jump into a fight/);
   });
+  it('sim v32: the line fits how the match ended (a clean sweep only without a lost tower, the time up names its tie-break)', () => {
+    const base = { kills: 3, assists: 4, teamKills: [12, 2] as [number, number], difficulty: 'normal' as const, heroDamage: 5000 };
+    expect(resultLine({ ...base, won: true, reason: 'core', teamTowers: [4, 0] })).toMatch(/^A clean sweep/);
+    expect(resultLine({ ...base, won: true, reason: 'core', teamTowers: [4, 1] })).toBe('The core is yours.');
+    expect(resultLine({ ...base, won: true, reason: 'timeUp', teamTowers: [2, 1] })).toMatch(/final whistle: more towers/);
+    expect(resultLine({ ...base, won: true, reason: 'timeUp', teamTowers: [1, 1] })).toMatch(/final whistle: your core/);
+    expect(resultLine({ ...base, won: false, reason: 'timeUp', teamTowers: [0, 1] })).toMatch(/they took more towers/);
+    expect(resultLine({ ...base, won: false, reason: 'timeUp', draw: true, teamTowers: [1, 1] })).toMatch(/^A draw/);
+    for (const reason of ['core', 'timeUp', 'safetyEnd', 'forfeit', 'goal'] as const)
+      for (const won of [true, false]) expect(resultLine({ ...base, won, reason, teamTowers: [1, 1] })).not.toMatch(/sudden/i);
+  });
   it('gives one concrete tip from how the player was knocked out', () => {
     expect(resultTip({ won: false, kills: 0, deaths: 3, level: 5, seconds: 500, deathsBy: { tower: 3 } })).toMatch(/Towers knocked you out 3 times/);
     expect(resultTip({ won: false, kills: 1, deaths: 6, level: 5, seconds: 500, deathsBy: { hero: 5 }, touch: true })).toMatch(/tap Nap/);
@@ -35,7 +46,7 @@ describe('results copy', () => {
 });
 
 describe('honest lines', () => {
-  it('dares on the time only before Sudden Death (10:00); later it is "win my match"', () => {
+  it('dares on the time only before late Sunset (10:00); later it is "win my match"', () => {
     expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'easy', seconds: 432 })).toBe('Beat my 7:12 vs Easy bots in Pawlegends!');
     expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'normal', seconds: 620 })).toBe('Win my match vs Normal bots in Pawlegends!');
     expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'normal', seconds: 0 })).toBe('Win my match vs Normal bots in Pawlegends!');

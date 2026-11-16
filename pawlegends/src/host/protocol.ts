@@ -160,7 +160,8 @@ export type HostMsgType = HostMsg['t'];
 // projectile (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 vx, i32 vy, u32 reserved
 // zone (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 radius, i32 ttl, u16 arm (sim v9), u16 reserved
 
-const PHASES: readonly MatchPhase[] = ['gate', 'play', 'sunset', 'suddenDeath', 'ended'];
+/** Index on the wire. Sim v32: index 3 (sim v4 to v31's 'suddenDeath') is never sent; it reads as 'sunset'. */
+const PHASES: readonly MatchPhase[] = ['gate', 'play', 'sunset', 'sunset', 'ended'];
 /** Append only: the index travels on the wire ('pickup' is sim v4). */
 const KINDS: readonly EntityKind[] = ['hero', 'minion', 'tower', 'core', 'fountain', 'camp', 'pudding', 'pickup', 'boss'];
 const PICKUP_SUBS: readonly PickupKind[] = ['frenzy', 'snack'];

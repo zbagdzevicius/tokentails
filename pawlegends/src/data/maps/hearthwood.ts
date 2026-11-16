@@ -306,7 +306,7 @@ export const HEARTHWOOD_PVP = Object.freeze({
   hero: Object.freeze({
     // sim v30 (V30-BALANCE.md): −6% (12048 / 8220 → 11448 / 8820)
     // sim v31 (ROSTER-V31.md §7): −2% (11448 / 8820), 52.0% pooled over 18,000 matches with the v31 four
-    clem: { dmgBp: 11248, takenBp: 9020 },
+    clem: { dmgBp: 11148, takenBp: 9120 },
     sage: { dmgBp: 10045, takenBp: 10180 },
     // sim v30 (V30-BALANCE.md): +3.5% (8727 / 11470 → 9077 / 11120)
     // sim v31 (ROSTER-V31.md §7): +1% (9077 / 11120)
@@ -314,7 +314,7 @@ export const HEARTHWOOD_PVP = Object.freeze({
     // sim v22 (carved jungle, on the v21 row 9581 / 10637): 54.1% of 1,200 → −1%
     // sim v30 (V30-BALANCE.md): +3% (9481 / 10737 → 9781 / 10437)
     // sim v31 (ROSTER-V31.md §7): +4% (9781 / 10437), 44.3% on the first 8,000 verify with the v31 four
-    meatball: { dmgBp: 10181, takenBp: 10037 },
+    meatball: { dmgBp: 10056, takenBp: 10162 },
     // sim v22 (carved jungle, on the v21 row 9891 / 10361): 46.4% of 600 → +1%
     // sim v30 (V30-BALANCE.md): −1% (9991 / 10261 → 9891 / 10361)
     duchess: { dmgBp: 9891, takenBp: 10361 },
@@ -334,7 +334,7 @@ export const HEARTHWOOD_PVP = Object.freeze({
     // sim v22 (carved jungle, on the v21 row 11867 / 8435): 53.4% of 600 → −1%
     brutus: { dmgBp: 11767, takenBp: 8535 },
     // sim v30 (V30-BALANCE.md): −7% (10782 / 9511 → 10082 / 10211)
-    cacklejaw: { dmgBp: 10082, takenBp: 10211 },
+    cacklejaw: { dmgBp: 10182, takenBp: 10111 },
     // sim v30 (V30-BALANCE.md): +3% (9200 / 11058 → 9500 / 10758)
     nugget: { dmgBp: 9500, takenBp: 10758 },
     // sim v21: −1% on the v20 row (9190 / 10810 before); sim v22: 46.3% of 1,800 (windows 3200001-3400300), then 44.2%
@@ -343,18 +343,18 @@ export const HEARTHWOOD_PVP = Object.freeze({
     marshmallow: { dmgBp: 9631, takenBp: 10592 },
     // sim v22 (carved jungle, on the v21 row 11023 / 9280): 54.2% of 600 → −1%
     // sim v30 (V30-BALANCE.md): +1% (10923 / 9380 → 11023 / 9280)
-    bravo: { dmgBp: 11023, takenBp: 9280 },
+    bravo: { dmgBp: 10948, takenBp: 9355 },
     // sim v30 (V30-BALANCE.md): +3% (9494 / 10770 → 9794 / 10470)
     // sim v31 (ROSTER-V31.md §7): −1.5% (9794 / 10470) after his 3v3 row's +2% (it applies here too)
     chili: { dmgBp: 9644, takenBp: 10620 },
     // sim v22 (carved jungle, on the v21 row 10702 / 9590): 53.5% of 600 → −1%
     // sim v30 (V30-BALANCE.md): −3% (10602 / 9690 → 10302 / 9990)
-    howler: { dmgBp: 10302, takenBp: 9990 },
+    howler: { dmgBp: 10402, takenBp: 9890 },
     // sim v22 (carved jungle, on the v21 row 9225 / 11030): 45.5% of 1,200 → +1.5%
     // sim v30 (V30-BALANCE.md): +1% (9375 / 10880 → 9475 / 10780)
-    rocket: { dmgBp: 9475, takenBp: 10780 },
+    rocket: { dmgBp: 9600, takenBp: 10655 },
     // sim v30 (V30-BALANCE.md): +2.5% (10106 / 10170 → 10356 / 9920)
-    frankie: { dmgBp: 10356, takenBp: 9920 },
+    frankie: { dmgBp: 10481, takenBp: 9795 },
     // sim v22 (carved jungle, on the v21 row 9912 / 10360): 42.9% of 1,200 → +3%
     // sim v30 (V30-BALANCE.md): −3.5% (10212 / 10060 → 9862 / 10410)
     domino: { dmgBp: 9862, takenBp: 10410 },
@@ -365,19 +365,23 @@ export const HEARTHWOOD_PVP = Object.freeze({
     // sim v30 (V30-BALANCE.md): +4% (9650 / 10350 → 10050 / 9950)
     // sim v31 (ROSTER-V31.md §7): +5% (10050 / 9950): 43.4% on the first window with the v31 four, +3.5%, then 46.7%
     // on the first 8,000 verify, +1.5%
-    ziggy: { dmgBp: 10550, takenBp: 9450 },
+    ziggy: { dmgBp: 10450, takenBp: 9550 },
     // sim v30 (V30-BALANCE.md): +3.5% (10450 / 9550 → 10800 / 9200)
     biscuit: { dmgBp: 10800, takenBp: 9200 },
     // sim v30 (V30-BALANCE.md): −1% (10400 / 9600 → 10300 / 9700)
-    champ: { dmgBp: 10300, takenBp: 9700 },
+    champ: { dmgBp: 10450, takenBp: 9550 },
     // sim v31 roster (ROSTER-V31.md §7): from neutral rows on hearth-gates 110001 (2,000 matches: Nova 59.7%, Dusty
     // 56.0%, Barkula 44.1%, Ranger 55.3%, cats 53.7%) −5 / −5 / +2.5 / −5%; on 112001 (2,000) a joint logistic fit
     // moved Dusty −1.5% and Ranger −2% more; the first 8,000 verify (24001–28000: Nova 51.3%, Dusty 47.3%, Barkula
     // 54.8% after his 3v3 row's +1%, Ranger 53.1%) moved Dusty +1%, Barkula −3%, Ranger −1.5%; the second (28001–32000:
     // Nova 54.4%) moved Nova −2.5%
-    nova: { dmgBp: 9250, takenBp: 10750 },
-    dusty: { dmgBp: 9450, takenBp: 10550 },
-    barkula: { dmgBp: 9950, takenBp: 10050 },
-    ranger: { dmgBp: 9150, takenBp: 10850 },
+    // sim v32 (V32-NO-SUDDEN-DEATH.md §4): with no core burn the 5v5 match is decided by pushes. On hearth-gates 20001
+    // (600 matches, cats 54.0%) the 13 heroes 5+ points off 50% stepped Nova −4.5, Champ +3, Meatball, Rocket, Barkula
+    // and Frankie ±2.5, Ziggy, Cacklejaw, Clem and Howler ±2, Bravo, Dusty and Ranger ±1.5; on 24001 that read cats
+    // 46.2%, so the shipped rows keep half of each step
+    nova: { dmgBp: 9025, takenBp: 10975 },
+    dusty: { dmgBp: 9375, takenBp: 10625 },
+    barkula: { dmgBp: 10075, takenBp: 9925 },
+    ranger: { dmgBp: 9225, takenBp: 10775 },
   }) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
 });
