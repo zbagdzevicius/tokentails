@@ -233,6 +233,20 @@ describe('audible plays only', () => {
     expect(COMBAT_DUCK).toBeLessThan(1);
   });
 
+  it('the big calls dip the music and the hits further than the small ones (the deep voice lands on a clear low end)', async () => {
+    const { duckLevels, DUCK_LEVEL, COMBAT_DUCK } = await import('../../src/audio/voice');
+    for (const k of ['victory', 'defeat', 'ace', 'triple', 'catastrophe'] as const) {
+      const [music, combat] = duckLevels(k);
+      expect(music, k).toBeLessThan(DUCK_LEVEL);
+      expect(combat, k).toBeLessThan(COMBAT_DUCK);
+      // the music still breathes under the line, the hits stay present
+      expect(music, k).toBeGreaterThan(0.1);
+      expect(combat, k).toBeGreaterThan(0.3);
+    }
+    expect(duckLevels('allySlain')).toEqual([DUCK_LEVEL, COMBAT_DUCK]);
+    expect(duckLevels(nameLine(HERO_IDS[0]))).toEqual([DUCK_LEVEL, COMBAT_DUCK]);
+  });
+
   it('a muted voice line is not recorded as said (data-voice lists lines that reached the speakers only)', async () => {
     const s = await ready();
     s.setMuted(true);
