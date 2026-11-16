@@ -349,38 +349,41 @@ test.describe("/yourcat", () => {
     test("is a transparent WebP: the four corners of its box are not black", async ({ page, backend }) => {
       mockYourcat(backend, { get: view(READY) });
       await useFakeFirebase(page);
+      // The flare plays once for 900 ms. A loaded runner can miss that window between two polls or two frames, so an
+      // observer records the flare the moment it is inserted (its source, blend mode and background), and the corners
+      // are read from the image it draws, not from a screenshot taken while it may already be gone.
+      await page.addInitScript(() => {
+        const w = window as unknown as { __ycFlare: null | { src: string; blend: string; bg: string } };
+        w.__ycFlare = null;
+        new MutationObserver(() => {
+          if (w.__ycFlare) return;
+          const el = document.querySelector<HTMLImageElement>('[data-testid="yourcat-flare"]');
+          if (!el) return;
+          const cs = getComputedStyle(el);
+          w.__ycFlare = { src: el.getAttribute("src") ?? "", blend: cs.mixBlendMode, bg: cs.backgroundColor };
+        }).observe(document, { childList: true, subtree: true });
+      });
       await gotoAndSettle(page, "/yourcat");
       await choosePhoto(page);
-      // The flare plays once for 900 ms: read its box in the same frame it appears, then grab it.
-      const found = await page.waitForFunction(
-        () => {
-          const el = document.querySelector<HTMLImageElement>('[data-testid="yourcat-flare"]');
-          if (!el) return null;
-          const r = el.getBoundingClientRect();
-          // Page coordinates: on a short landscape phone (844x390) the stage sits below the fold.
-          return { x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height, src: el.currentSrc || el.src, blend: getComputedStyle(el).mixBlendMode };
-        },
-        undefined,
-        { timeout: 15_000, polling: 16 },
-      );
-      const box = (await found.jsonValue()) as { x: number; y: number; width: number; height: number; src: string; blend: string };
-      const shot = await page.screenshot({ fullPage: true, clip: { x: box.x, y: box.y, width: box.width, height: box.height }, scale: "css", animations: "allow" });
-      expect(box.src).toMatch(/\/yourcat\/flare\.webp$/);
-      expect(box.blend).toBe("normal");
-      const corners = await page.evaluate(async (base64) => {
-        const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${base64}`)).blob());
+      const found = await page.waitForFunction(() => (window as unknown as { __ycFlare: unknown }).__ycFlare, undefined, { timeout: 30_000 });
+      const flare = (await found.jsonValue()) as { src: string; blend: string; bg: string };
+      expect(flare.src).toMatch(/\/yourcat\/flare\.webp$/);
+      expect(flare.blend).toBe("normal");
+      expect(flare.bg).toBe("rgba(0, 0, 0, 0)");
+      // The old GIF drew a pure black box (#000) over the stage: the WebP's corners are see-through instead.
+      const corners = await page.evaluate(async (src) => {
+        const bitmap = await createImageBitmap(await (await fetch(src)).blob());
         const canvas = document.createElement("canvas");
         canvas.width = bitmap.width;
         canvas.height = bitmap.height;
         const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
         ctx.drawImage(bitmap, 0, 0);
-        const at = (x: number, y: number) => Array.from(ctx.getImageData(x, y, 1, 1).data.slice(0, 3));
+        const at = (x: number, y: number) => Array.from(ctx.getImageData(x, y, 1, 1).data);
         const w = bitmap.width - 2;
         const h = bitmap.height - 2;
         return [at(1, 1), at(w, 1), at(1, h), at(w, h)];
-      }, shot.toString("base64"));
-      // The old GIF drew a pure black box (#000) over the stage; the night page itself is never #000.
-      for (const [r, g, b] of corners) expect(r + g + b).toBeGreaterThan(20);
+      }, flare.src);
+      for (const [, , , a] of corners) expect(a).toBeLessThan(16);
     });
   });
 
