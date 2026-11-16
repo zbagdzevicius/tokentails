@@ -18,6 +18,13 @@ const AV: Record<Who, { i: string }> = { A: { i: 'h:sage' }, B: { i: 'h:lambo' }
 const other = (w: Who): Who => (w === 'A' ? 'B' : 'A');
 
 test.afterEach(closeAll);
+// The game frame on 127.0.0.1 sits in a host page on a public origin: Chrome's Local Network Access would refuse its
+// loopback relay calls (production uses public origins only), so this file turns that check off.
+test.use({
+  launchOptions: {
+    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-features=LocalNetworkAccessChecks,PrivateNetworkAccessRespectPreflightResults,BlockInsecurePrivateNetworkRequests'],
+  },
+});
 
 /** The fake social server: A and B are friends; invites, answers, the inbox rev and one DM thread. */
 function server() {
@@ -214,7 +221,7 @@ test('invite a friend LoL style, they accept into your lobby; a DM arrives live 
   await expect(gb.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 60_000 });
   await expect(ga.locator('[data-testid="party-seat"]')).toHaveCount(2, { timeout: 30_000 });
   await expect(gb.locator('[data-testid="party-seat"]')).toHaveCount(2);
-  expect(srv.invites[0].answer).toBe('accepted');
+  await expect.poll(() => srv.invites[0].answer).toBe('accepted');
   // A hears the answer on its next inbox poll
   await expect(ga.locator('[data-testid="invite-answer-accepted"]')).toContainText(`${NAME.B} is joining your party`, { timeout: 6_000 });
 
@@ -231,10 +238,12 @@ test('invite a friend LoL style, they accept into your lobby; a DM arrives live 
   const chatB = gb.locator('[data-testid="chat-sheet"]');
   await expect(chatB.locator('.pl-chat-bubble').last()).toHaveText('gl hf, mid is yours', { timeout: 15_000 });
 
-  // B reloads: the message is still there (server-side history), from the Friends sheet's Chat on A's row
+  // B reloads: back in A's lobby (the party seat resumes), and the message is still there (server-side history) from
+  // the Friends sheet's Chat on A's row
   await b.reopen();
   const gb2 = b.game();
-  await gb2.locator('[data-testid="lobby-social"]').click({ timeout: 60_000 });
+  await expect(gb2.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 60_000 });
+  await gb2.locator('[data-testid="party-invite-friends"]').click();
   await gb2.locator(`.pl-social-row[data-code="${CODE.A}"] [data-a="chat"]`).click();
   await expect(gb2.locator('[data-testid="chat-sheet"] .pl-chat-bubble').last()).toHaveText('gl hf, mid is yours', { timeout: 15_000 });
 
@@ -270,7 +279,7 @@ test('Decline: the card closes and the inviter is told', async ({ browser, baseU
   await expect(card).toBeVisible({ timeout: 6_000 });
   await card.locator('[data-testid="invite-decline"]').click();
   await expect(card).toHaveCount(0);
-  expect(srv.invites[0].answer).toBe('declined');
+  await expect.poll(() => srv.invites[0].answer).toBe('declined');
   await expect(ga.locator('[data-testid="invite-answer-declined"]')).toContainText(`${NAME.B} declined your invite`, { timeout: 6_000 });
   await expect(ga.locator('[data-testid="party-seat"]')).toHaveCount(1);
 });
