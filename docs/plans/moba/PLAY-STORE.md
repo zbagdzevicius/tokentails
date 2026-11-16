@@ -142,7 +142,7 @@ gh secret set GOOGLE_PLAY_JSON_KEY < /path/to/play-service-account.json   # then
    Signing is enrolled automatically (Google keeps the app signing key, our key is the upload key). Add tester emails.
    Later uploads: lane `upload` (`release_status: draft` until the app leaves draft state).
 4. **App content** (Policy → App content):
-   - Privacy policy: `https://tokentails.com/pawlegends/privacy` (deploy `main` first; the page now names Android).
+   - Privacy policy: `https://pawlegends.app/privacy`.
    - Ads: **No**. App access: **All functionality available without special access** (sign-in is optional; from 1.1.0
      Google or email sign-in saves progress, nothing is behind it).
    - Target audience: **13+** (13–15, 16–17, 18+), so the Families policy does not apply; not designed for children.
@@ -151,7 +151,7 @@ gh secret set GOOGLE_PLAY_JSON_KEY < /path/to/play-service-account.json   # then
    - Government, financial, health, news, COVID: not applicable.
 5. **Store listing:** run lane `metadata` (title, short and full description, icon, feature graphic, five phone
    screenshots), or paste from `fastlane/metadata_android/en-US/`. Category **Games → Strategy**; contact email
-   info@tokentails.com; website https://tokentails.com/pawlegends.
+   info@tokentails.com; website https://pawlegends.app/.
 6. **12 testers / 14 days:** Play requires it only for personal accounts created after Nov 13 2023. If the Console still
    asks for a closed test on this organisation account, run one (12 testers, 14 days) before production access.
 7. **Test on real phones** from the internal track: a mid-range phone, one with a punch-hole camera, a tablet; check a

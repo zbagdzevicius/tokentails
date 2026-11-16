@@ -9,10 +9,13 @@ HOW TO PLAY (about 7 minutes, never more than 11)
 1. On the title screen tap "Play as <hero>" (Easy is the quickest).
 2. Move by dragging on the left side of the screen. Tap the round skill buttons on the right; ATK is the basic attack.
 3. Walk up a lane with your bots, knock down the dog towers, then the dogs' core to win.
-"Change hero" opens the hero list (10 cat heroes). Settings is the gear icon.
+"Change hero" opens the hero list. Settings is the gear icon.
 
 PARTY PLAY (optional, needs the internet)
-"Play with friends" creates a party and shows a 6-letter code; a second device joins with "Join with code". Friends play together on one team against bots; bots also fill empty seats. Chat is fixed quick-chat phrases and pings only: there is no free-text chat and no user-generated content.
+"Play with friends" creates a party and shows a 6-letter code; a second device joins with "Join with code". Friends play together on one team against bots; bots also fill empty seats. Chat rules are below.
+
+CHAT AND USER-GENERATED CONTENT (guideline 1.2)
+Guests, players under 16 and players who have not told us their age can only send fixed quick-chat phrases, stickers and map pings. Registered players aged 16+ can also type short messages (120 characters) to friends, to their party, and to their team in a match; typing to all players opens only when every human in the match is a registered 16+ account. A server filter rejects profanity, links, emails, phone numbers, @handles and addresses; sending is rate limited. Players can mute one player or "Mute all" in the chat drawer, block a player and report a message; our moderators can mute or ban the sender. Chat is kept 30 days and deleted with the account. Computer-controlled bots fill empty seats in matches.
 
 NO PURCHASES
 The iOS build has no in-app purchases, no ads, no external purchase links, no crypto or wallet features and no donations. Nothing in the app links to a store or website to buy anything.
@@ -21,6 +24,6 @@ GAME CONTENT UPDATES (guideline 2.5.2, 4.7)
 The app checks tokentails.com on launch for a newer version of its own game files (HTML, JavaScript, images, sounds), signed and encrypted with our key, and applies it only on the title screen, never during a match. These updates run inside the system WKWebView and only change game content within the app's existing purpose (balance, bug fixes, new heroes). They never download or execute native code, and they never add purchases or change the app's main purpose. Any change that needs new permissions or native features goes through App Review as a new build. If an update does not start correctly, the app returns to the previous version automatically.
 
 PRIVACY
-No analytics, no tracking, no advertising identifier. Sign-in (optional) uses Firebase Authentication and keeps the email address, name and game progress for the account. Party play sends a random party key, a generated player name and match inputs to our game server only to run the match (details: https://pawlegends.app/privacy).
+No analytics, no tracking, no advertising identifier. Sign-in (optional) uses Firebase Authentication and keeps the email address, name and game progress for the account. Party play sends a random party key, a generated player name and match inputs to our game server only to run the match. Online, the game shows a country flag next to player names: the server keeps only the country code our CDN derives from the connection, never the IP; Settings > "Show my country flag" hides it. (details: https://pawlegends.app/privacy).
 
 Contact: info@tokentails.com

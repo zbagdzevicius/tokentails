@@ -1,12 +1,12 @@
-Big update!
+What's new:
 
-- Sign in with Apple, Google or email to keep your progress, and delete your account anytime in Settings.
-- Friends: add friends by player code, see who's online, invite them to your party and chat.
-- Ranked: climb from Kitten to Legend, plus leaderboards and a report button for PvP.
-- 5v5 Classic and 3v3 PvP are open from your first session.
-- Smoother combat: attacks land while chasing, and you can hold and drag Attack to lock a target.
-- Towers now crack and catch fire as they take damage.
-- Game sound now plays even when your iPhone is on silent.
-- Party codes work reliably and matches no longer freeze when servers update.
+- Match history: your season stats and recent matches, with K/D/A, grade and MVP. Tap a match for both teams' scoreboard and a damage graph. See your friends' history too (they choose who can see it).
+- Country flags next to player names. Don't want yours shown? Turn it off in Settings.
+- In-match chat: registered players 16+ can type to their team, and to everyone when the whole match is 16+. Everyone else keeps quick-chat. Mute all is one tap away.
+- No more Sudden Death: a match ends when a core falls.
+- Four new champions: Nova, Dusty, Barkula and Ranger.
+- A new theme soundtrack, plus a Music volume slider.
+- The results screen and Home now fit every phone without overlapping.
+- You stay signed in after closing the app.
 
 Cats or dogs: pick your side!
