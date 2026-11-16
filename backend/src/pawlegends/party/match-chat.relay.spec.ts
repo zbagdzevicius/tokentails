@@ -9,14 +9,17 @@ import { TestClient } from './relay-test-client.helper-spec';
 
 /*
  * In-match chat over real sockets (MATCH-CHAT.md §2, §3, PROTO 6): team text only when every human on the team is a
- * registered 16+ account, all chat phrases only, phrase scopes, a frame carries the hero slot and never a member id,
+ * registered 16+ account, all chat text only when every human in the match is (else phrases), phrase scopes, a frame carries the hero slot and never a member id,
  * old sockets get only the legacy wheel line of a mapped phrase, `chat_mute` refuses, lines are stored in the room's
  * `match` thread, and a bot line is the same frame as a human's (same keys), refused outside the match.
  */
 
 const SECRET = 'spec-secret-0123456789abcdef';
 
-async function boot(infos: Record<string, Partial<RelayChatInfo>>) {
+async function boot(
+    infos: Record<string, Partial<RelayChatInfo>>,
+    flags?: Record<string, { cc?: string; off?: boolean }>
+) {
     process.env.PAWLEGENDS_PARTY_TICKET_SECRET = SECRET;
     const server: Server = createServer();
     await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
@@ -36,6 +39,7 @@ async function boot(infos: Record<string, Partial<RelayChatInfo>>) {
             info: async account => ({ band: null, muted: false, blocked: [], ...(infos[account] ?? {}) }),
             store: (line, members) => stored.push({ line, members }),
         },
+        ...(flags ? { flags: async (account: string) => flags[account] ?? null } : {}),
     });
     const clients: TestClient[] = [];
     const join = async (opts: { account?: string; proto?: number; guestKey?: string }) => {
@@ -117,36 +121,37 @@ describe('in-match chat (PROTO 6)', () => {
             expect(got.from).toBeUndefined();
             expect(JSON.stringify(got)).not.toContain('acct-a');
             expect(JSON.stringify(got)).not.toContain(a.last('welcome')!.member);
-            // all chat: phrases with the `all` scope only; text there is quick only; a match-only phrase is out of scope
+            // all chat: phrases with the `all` scope; typed text too, because every human in the match is 16+
             a.send({ t: 'chat.say', k: 'q', id: 24, ch: 'all' });
             await c.until(() => lines(c).length === 2);
             expect(lines(c)[1]).toMatchObject({ ch: 'all', k: 'q', id: 24, slot: slotA });
+            expect(a.last('party')?.chat?.all).toBe('text');
             a.send({ t: 'chat.say', k: 't', text: 'hello all', ch: 'all' });
-            await a.until(() => rejects(a)[0]);
-            expect(rejects(a)[0].why).toBe('quick_only');
+            await c.until(() => lines(c).length === 3);
+            expect(lines(c)[2]).toMatchObject({ ch: 'all', k: 't', text: 'hello all', slot: slotA });
             a.send({ t: 'chat.say', k: 'q', id: 29, ch: 'all' });
-            await a.until(() => rejects(a).length === 2);
-            expect(rejects(a)[1].why).toBe('scope');
+            await a.until(() => rejects(a).length === 1);
+            expect(rejects(a)[0].why).toBe('scope');
             // a pre-match phrase is not a match phrase
             a.send({ t: 'chat.say', k: 'q', id: 12, ch: 'team' });
-            await a.until(() => rejects(a).length === 3);
-            expect(rejects(a)[2].why).toBe('scope');
+            await a.until(() => rejects(a).length === 2);
+            expect(rejects(a)[1].why).toBe('scope');
             // stickers are not in-match chat
             a.send({ t: 'chat.say', k: 's', id: 1, ch: 'team' });
+            await a.until(() => rejects(a).length === 3);
+            // the filter: a link is refused with the class only (all chat too)
+            a.send({ t: 'chat.say', k: 't', text: 'add me on discord', ch: 'all' });
             await a.until(() => rejects(a).length === 4);
-            // the filter: a link is refused with the class only
-            a.send({ t: 'chat.say', k: 't', text: 'add me on discord', ch: 'team' });
-            await a.until(() => rejects(a).length === 5);
-            expect(rejects(a)[4].why).toBe('link');
+            expect(rejects(a)[3].why).toBe('link');
             // an idle hero covered by a pilot (AFK): its human's own socket still chats; the pilot never does
             const live = [...b.relay.rooms.values()][0] as any;
             live.room.slots[slotA].mode = 'pilot';
             a.send({ t: 'chat.say', k: 'q', id: 31, ch: 'team' });
-            await c.until(() => lines(c).length === 3);
+            await c.until(() => lines(c).length === 4);
             live.room.slots[slotA].mode = 'human';
             await settle();
-            expect(lines(c)).toHaveLength(3);
-            expect(b.stored.map(s => s.line.kind)).toEqual(['match', 'match', 'match']);
+            expect(lines(c)).toHaveLength(4);
+            expect(b.stored.map(s => s.line.kind)).toEqual(['match', 'match', 'match', 'match']);
             expect(b.stored[0].line).toMatchObject({
                 from: 'acct-a',
                 k: 't',
@@ -167,6 +172,10 @@ describe('in-match chat (PROTO 6)', () => {
             await a.until(() => a.last('party')?.chat?.match === 'quick');
             a.send({ t: 'chat.say', k: 't', text: 'nice', ch: 'team' });
             expect((await a.until(() => rejects(a)[0])).why).toBe('quick_only');
+            // all chat follows the strictest human of the whole match
+            expect(a.last('party')?.chat?.all).toBe('quick');
+            a.send({ t: 'chat.say', k: 't', text: 'hi all', ch: 'all' });
+            expect((await a.until(() => rejects(a)[1])).why).toBe('quick_only');
             a.send({ t: 'chat.say', k: 'q', id: 28, ch: 'team' });
             expect(await k.until(() => lines(k)[0])).toMatchObject({ k: 'q', id: 28, ch: 'team' });
             // a bot's free text never reaches a quick team, even when handed straight to delivery
@@ -194,6 +203,36 @@ describe('in-match chat (PROTO 6)', () => {
             expect((await a.until(() => rejects(a)[0])).why).toBe('quick_only');
         } finally {
             await g.stop();
+        }
+    });
+
+    it('country flags (FLAGS.md): member views and the match frame carry a shown flag, never a hidden one; unticketed sockets have none', async () => {
+        const b = await boot(
+            { 'acct-a': { band: '18+' }, 'acct-b': { band: '18+' } },
+            { 'acct-a': { cc: 'LT' }, 'acct-b': { cc: 'DE', off: true } }
+        );
+        try {
+            const [a, c, g] = await inMatch(
+                b,
+                { account: 'acct-a' },
+                { account: 'acct-b' },
+                { guestKey: 'guest-key-0002' }
+            );
+            const view = a.last('party')!;
+            const byName = (id: string) => view.members.find((m: any) => m.id === id);
+            expect(byName(a.last('welcome')!.member).cc).toBe('LT');
+            expect(byName(c.last('welcome')!.member).cc).toBeUndefined();
+            expect(byName(g.last('welcome')!.member).cc).toBeUndefined();
+            const match = a.last('match')!;
+            const flags = match.flags as (string | null)[];
+            expect(flags).toHaveLength(match.names.length);
+            expect(flags[match.you.slot]).toBe('LT');
+            expect(flags[c.last('match')!.you.slot]).toBeNull();
+            expect(flags[g.last('match')!.you.slot]).toBeNull();
+            // bot seats carry no flag on the wire (the client seeds one)
+            match.names.forEach((n: string | null, i: number) => n === null && expect(flags[i]).toBeNull());
+        } finally {
+            await b.stop();
         }
     });
 

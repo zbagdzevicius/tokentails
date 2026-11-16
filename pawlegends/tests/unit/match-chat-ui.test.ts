@@ -88,6 +88,24 @@ describe('chat drawer', () => {
     expect([...d.el.querySelectorAll('.cd-chip')].map((b) => b.textContent)).not.toContain('Cannon!');
   });
 
+  it('all chat takes typed text when every human in the match is text tier; a quick channel says when typing opens', () => {
+    const { d, send } = make();
+    d.openOn('all');
+    expect(d.el.querySelector('.cd-input')).toBeNull();
+    expect(d.el.querySelector('.cd-why')?.textContent).toContain('16+');
+    d.allTier = 'text';
+    const input = d.el.querySelector<HTMLInputElement>('.cd-input');
+    expect(input?.placeholder).toBe('Message everyone');
+    expect(d.el.querySelector('.cd-why')).toBeNull();
+    input!.value = 'gl everyone';
+    d.el.querySelector<HTMLFormElement>('.cd-foot')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(send).toHaveBeenCalledWith('all', { k: 't', text: 'gl everyone' });
+    // the team stays phrases only while its own tier is quick
+    d.openOn('team');
+    expect(d.el.querySelector('.cd-input')).toBeNull();
+    d.dispose();
+  });
+
   it('a send folds the drawer; a refusal shows inline and keeps it open; Esc cancels; Up recalls', () => {
     const send = vi.fn((_ch: string, body: { k: string; text?: string }) => (body.k === 't' && body.text === 'bad' ? 'Slow down a little' : null));
     const d = new ChatDrawer(document.body, { touch: false, side: 'cat', send });
@@ -133,6 +151,23 @@ describe('chat drawer', () => {
     d.el.querySelector('li[data-i="1"] span')!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     vi.advanceTimersByTime(600);
     expect(d.el.querySelector('[data-a="mute"]')).toBeNull();
+  });
+
+  it('Mute all toggles every other player off and back on', () => {
+    const muteAll = vi.fn();
+    const d = new ChatDrawer(document.body, { touch: true, side: 'cat', send: () => null, muteAll });
+    const b = d.el.querySelector<HTMLButtonElement>('[data-a="muteall"]')!;
+    expect(b.getAttribute('aria-pressed')).toBe('false');
+    b.click();
+    expect(muteAll).toHaveBeenLastCalledWith(true);
+    expect(b.textContent).toBe('Unmute all');
+    b.click();
+    expect(muteAll).toHaveBeenLastCalledWith(false);
+    // without the hook there is no button
+    const plain = new ChatDrawer(document.body, { touch: true, side: 'cat', send: () => null });
+    expect(plain.el.querySelector('[data-a="muteall"]')).toBeNull();
+    d.dispose();
+    plain.dispose();
   });
 });
 

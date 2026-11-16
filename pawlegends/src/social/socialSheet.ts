@@ -5,6 +5,7 @@
  * `textContent`. Every call goes through the host (`api-request`); the game never sees a token, an account id or a URL.
  * Polling: one pulse every 30 s while the sheet or the title is shown and the tab is visible; never in a match.
  */
+import { ccHtml, myFlag } from './flags';
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import { parseRankedStatus, primeTimeText, rankedLabel, rankedLiveText } from '../meta/ranked';
 import { HERO_IDS } from '../data/heroes';
@@ -38,6 +39,8 @@ export interface FriendRow {
   presence: Presence;
   /** CHAT-AVATARS §7.3: the friend's avatar (absent from an older backend). */
   av?: AvatarView;
+  /** FLAGS.md: the friend's country flag (absent: hidden, unknown or an older backend). */
+  cc?: string;
 }
 export interface PersonRow {
   code: string;
@@ -383,7 +386,7 @@ export class SocialSheet {
           const dot = t?.unread && !t.muted ? `<i class="pl-chat-unread" data-testid="chat-unread">${Math.min(99, t.unread)}</i>` : '';
           const chat = `<button type="button" class="pl-btn ghost small pl-chat-btn" data-a="chat" data-code="${this.esc(f.code)}" aria-label="${this.esc(`Chat with ${f.name}${dot ? `, ${t!.unread} unread` : ''}`)}">💬${dot}</button>`;
           const sub = t?.unread && !t.muted ? `<small class="pl-social-st pl-social-preview" data-name="${this.esc(previewText(t.lastPreview))}"></small>` : `<small class="pl-social-st">${PRESENCE_TEXT[f.presence.state]}</small>`;
-          return `<div class="pl-social-row" data-state="${f.presence.state}" data-code="${this.esc(f.code)}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i><span class="pl-social-who"><span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${sub}</span>${btn}${chat}</div>`;
+          return `<div class="pl-social-row" data-state="${f.presence.state}" data-code="${this.esc(f.code)}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i><span class="pl-social-who"><span class="pl-social-nm">${ccHtml(f.cc)}<span class="pl-social-name" data-name="${this.esc(f.name)}"></span></span>${sub}</span>${btn}${chat}</div>`;
         })
         .reduce((html, row) => html + row, inv);
     }
@@ -439,12 +442,12 @@ export class SocialSheet {
       .join('');
     const d = b.data;
     if (!d) return `<div class="pl-social-sub">${sub}</div><p class="pl-social-empty">Loading…</p>`;
-    const rows = ((d.rows ?? []) as { rank: number; name: string; value: number; tier?: string; me?: boolean; av?: AvatarView }[]).slice(0, this.per + 1);
+    const rows = ((d.rows ?? []) as { rank: number; name: string; value: number; tier?: string; me?: boolean; av?: AvatarView; cc?: string }[]).slice(0, this.per + 1);
     const list = rows.length
       ? rows
           .map(
             (r) =>
-              `<div class="pl-social-row${r.me ? ' me' : ''}"><b class="pl-rank">${r.rank}</b>${isAvatarView(r.av) ? avatarHtml(r.av, 32) : ''}<span class="pl-social-name" data-name="${this.esc(String(r.name))}"></span><small class="pl-social-st">${r.tier ? this.esc(r.tier) : `${r.value} wins`}</small></div>`,
+              `<div class="pl-social-row${r.me ? ' me' : ''}"><b class="pl-rank">${r.rank}</b>${isAvatarView(r.av) ? avatarHtml(r.av, 32) : ''}${ccHtml(r.cc)}<span class="pl-social-name" data-name="${this.esc(String(r.name))}"></span><small class="pl-social-st">${r.tier ? this.esc(r.tier) : `${r.value} wins`}</small></div>`,
           )
           .join('')
       : `<p class="pl-social-empty">${d.error ? this.esc(String(d.error)) : 'No one here yet this week.'}</p>`;
@@ -471,7 +474,7 @@ export class SocialSheet {
     if (this.tab !== 'friends' || !this.state || !this.deps.signedIn() || !this.state.me.ageBand) return pager;
     if (this.adding)
       return `<form class="pl-social-add"><input name="code" maxlength="14" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="PL-XXXX-XXXX" aria-label="Friend code" inputmode="text"><button type="submit" class="pl-btn small">Add</button><button type="button" class="pl-btn ghost small" data-a="add-cancel" aria-label="Cancel">&times;</button></form>`;
-    return `${pager}<button type="button" class="pl-me-av" data-a="avatar" aria-label="My avatar" data-testid="avatar-open">${avatarHtml(this.state.me.av, 40)}</button><span class="pl-social-code">My code <b>${this.esc(this.state.me.code)}</b></span><button type="button" class="pl-btn ghost small" data-a="copy">Copy</button><button type="button" class="pl-btn small" data-a="add">Add</button>`;
+    return `${pager}<button type="button" class="pl-me-av" data-a="avatar" aria-label="My avatar" data-testid="avatar-open">${avatarHtml(this.state.me.av, 40)}</button><span class="pl-social-code">${ccHtml(myFlag())}My code <b>${this.esc(this.state.me.code)}</b></span><button type="button" class="pl-btn ghost small" data-a="copy">Copy</button><button type="button" class="pl-btn small" data-a="add">Add</button>`;
   }
 
   private async act(op: ApiOp, args: ApiArgs, ok?: string): Promise<boolean> {

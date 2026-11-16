@@ -8,6 +8,7 @@
  * Pure: `lobbyHtml(model)` returns markup; every name, code and label is escaped; actions are `data-p` attributes the
  * party client dispatches. The results phase reuses it with "Play again together".
  */
+import { ccHtml } from '../../social/flags';
 import { displayCode, type MemberView, type PartyView } from '../../net/proto';
 import { COPY, DIFF_LABEL, esc } from './copy';
 import { avatarHtml, titleText } from '../../ui/avatar';
@@ -60,7 +61,7 @@ function seatHtml(v: PartyView, m: MemberView | undefined, i: number, leader: bo
     leader && !me && (v.phase === 'lobby' || v.phase === 'results')
       ? `<span class="pp-tools"><button type="button" class="pp-mini" data-p="lead" data-m="${esc(m.id)}" aria-label="${esc(`${COPY.makeLeader}: ${name}`)}" title="${COPY.makeLeader}">${CROWN}</button><button type="button" class="pp-mini" data-p="kick" data-m="${esc(m.id)}" aria-label="${esc(`${COPY.remove}: ${name}`)}" title="${COPY.remove}">×</button></span>`
       : '';
-  return `<li class="pp-seat" data-conn="${m.conn}" data-slot="${i}"${me ? ' data-me="1"' : ''} data-testid="party-seat">${av}<span class="pp-who"><b>${esc(name)}</b>${title}<span class="pp-badges">${badges}</span></span><i class="pp-dot" title="${m.conn === 'on' ? 'Here' : m.conn === 'away' ? 'Away' : 'Offline'}"></i>${tools}</li>`;
+  return `<li class="pp-seat" data-conn="${m.conn}" data-slot="${i}"${me ? ' data-me="1"' : ''} data-testid="party-seat">${av}<span class="pp-who"><span class="pp-nm">${ccHtml(hide && !me ? null : m.cc)}<b>${esc(name)}</b></span>${title}<span class="pp-badges">${badges}</span></span><i class="pp-dot" title="${m.conn === 'on' ? 'Here' : m.conn === 'away' ? 'Away' : 'Offline'}"></i>${tools}</li>`;
 }
 
 /**

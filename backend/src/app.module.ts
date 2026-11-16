@@ -203,6 +203,9 @@ import { ClubsService } from './pawlegends/clubs/clubs.service';
 import { PawlegendsClubsController } from './pawlegends/clubs/clubs.controller';
 import { KudosService } from './pawlegends/kudos/kudos.service';
 import { PawlegendsKudosController } from './pawlegends/kudos/kudos.controller';
+import { PawlegendsFlagsController } from './pawlegends/flags/flags.controller';
+import { FlagsService } from './pawlegends/flags/flags.service';
+import { PawlegendsFlag, PawlegendsFlagSchema } from './pawlegends/flags/flags.schema';
 import { PAWLEGENDS_PROGRESS_SCHEMAS } from './pawlegends/progress/progress.schema';
 import { PawlegendsProgressService } from './pawlegends/progress/progress.service';
 import { PawlegendsProgressController } from './pawlegends/progress/progress.controller';
@@ -321,6 +324,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             ...PAWLEGENDS_SOCIAL_SCHEMAS,
             // Pawlegends clubs, weekly club chests and good-teammate kudos (docs/plans/moba/CLUBS-KUDOS.md).
             ...PAWLEGENDS_CLUB_SCHEMAS,
+            // Pawlegends country flags (docs/plans/moba/FLAGS.md): the ISO country per account, never the IP.
+            { name: PawlegendsFlag.name, schema: PawlegendsFlagSchema },
             // Pawlegends live ops: Events, the community goal, Winter Nap and the fan vote (docs/plans/moba/LIVEOPS.md).
             ...PAWLEGENDS_LIVEOPS_SCHEMAS,
             ...PAWLEGENDS_PUSH_SCHEMAS,
@@ -397,6 +402,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         // Pawlegends clubs (create, join by code, chest) and good-teammate kudos (CLUBS-KUDOS.md).
         PawlegendsClubsController,
         PawlegendsKudosController,
+        // Pawlegends country flags (FLAGS.md): GET/POST /pawlegends/flag.
+        PawlegendsFlagsController,
         // Pawlegends account progress (gap plan P2 rewards-cloud): GET/POST /pawlegends/progress.
         PawlegendsProgressController,
     ],
@@ -515,6 +522,7 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         // Pawlegends clubs and good-teammate kudos (CLUBS-KUDOS.md).
         ClubsService,
         KudosService,
+        FlagsService,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
         { provide: BACKEND_ROLE, useValue: role },
         // Pawlegends account progress, Lucky Treat, Welcome Path and mastery (gap plan P2 rewards-cloud).

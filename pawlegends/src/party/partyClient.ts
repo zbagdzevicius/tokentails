@@ -894,7 +894,7 @@ export class PartyClient {
     if (this.host && state.view && state.view !== prev.view) {
       this.host.setSeats(seatsOf(state.view));
       // PROTO 6: this seat's team chat tier in the match (MATCH-CHAT.md §2)
-      this.host.setChatTier(state.view.chat?.match);
+      this.host.setChatTier(state.view.chat?.match, state.view.chat?.all);
     }
     if (ev.e === 'server' && ev.m.t === 'vote' && ev.m.kind === 'rematch' && ev.m.result === 'pass')
       this.h.analytics?.('mp_rematch', { members: state.view?.members.length ?? 0, kept_heroes: this.keepHero });
@@ -948,7 +948,7 @@ export class PartyClient {
             this.host = new NetHost(this.socket, f.match, { notify: (n) => this.h.notify(n), track: (e, p) => this.h.analytics?.(e, p), lost: () => this.dispatch({ e: 'lost' }) });
             if (this.state.view) {
               this.host.setSeats(seatsOf(this.state.view));
-              this.host.setChatTier(this.state.view.chat?.match);
+              this.host.setChatTier(this.state.view.chat?.match, this.state.view.chat?.all);
             }
             return this.host;
           },

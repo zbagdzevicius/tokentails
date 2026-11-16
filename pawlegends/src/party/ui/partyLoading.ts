@@ -4,6 +4,7 @@
  * after the deadline a "Bot covers until Mira loads" line (the late member is piloted from tick 0 and reclaims on
  * arrival).
  */
+import { ccHtml } from '../../social/flags';
 import { HEROES, type HeroId } from '../../data/heroes';
 import type { PartyView } from '../../net/proto';
 import { portraitUrl } from '../../render/portraits';
@@ -38,6 +39,6 @@ export function loadingHtml(v: PartyView, hideNames = false): string {
       // portrait and the load bar stay
       const av = `<span class="pp-lc-av" data-testid="loading-avatar">${avatarHtml(m.av, 40, { guest: m.guest })}</span>`;
       const title = m.av?.t ? `<small class="pp-title">${esc(titleText(m.av.t))}</small>` : '';
-      return `<li class="pp-lc"${m.id === v.you ? ' data-me="1"' : ''}>${av}<span class="pp-ts-face"${pic ? ` style="background-image:url('${esc(pic)}')"` : ''}></span><b>${esc(shownName(v, m, hideNames))}</b>${title}<small>${hero ? esc(HERO_TEXT[hero].title) : ''}</small><span class="pp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span></li>`;
+      return `<li class="pp-lc"${m.id === v.you ? ' data-me="1"' : ''}>${av}<span class="pp-ts-face"${pic ? ` style="background-image:url('${esc(pic)}')"` : ''}></span><b>${ccHtml(hideNames && m.id !== v.you ? null : m.cc)}${esc(shownName(v, m, hideNames))}</b>${title}<small>${hero ? esc(HERO_TEXT[hero].title) : ''}</small><span class="pp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span></li>`;
   }
 }

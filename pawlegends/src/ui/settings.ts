@@ -43,6 +43,7 @@ import {
 import type { QualityTier } from '../render/quality';
 import { APP_ENV } from '../app/platform';
 import { setShakePref, shakePref, type ShakePref } from '../render/fx/vfxPrefs';
+import { flagHidden, setFlagHidden } from '../social/flags';
 import { allowWatch, hideNames, setAllowWatch, setHideNames } from '../meta/partyPrefs';
 import { bindCameraHeightRow, cameraHeightRowHtml } from './cameraHeightRow';
 import { MINIMAP_SIZES, colourBlind, minimapSize, setColourBlind, setMinimapSize, type MinimapSize } from './minimapPrefs';
@@ -89,6 +90,8 @@ export interface SettingsOpts {
    * shells, a browser without push, or a server without keys).
    */
   push?: PushSettings;
+  /** FLAGS.md: the flag toggle changed (stored locally already): the host tells the backend. */
+  onFlag?(hide: boolean): void;
 }
 
 export interface PushSettings {
@@ -151,7 +154,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
         (m) => `<button class="chip ${c.mode === m ? 'on' : ''}" data-tcast="${m}" aria-pressed="${c.mode === m}" title="${TCAST_HELP[m]}">${TCAST_NAME[m]}</button>`,
       ).join('')}</span><label class="sens">Aim<input type="range" min="${AIM_SENS.min}" max="${AIM_SENS.max}" step="${AIM_SENS.step}" value="${c.sens}" data-sens="${k}" aria-label="${SLOT_NAME[k]} aim sensitivity"><output>${c.sens}%</output></label></div>`;
     }).join('');
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), watch: allowWatch(), cvd: colourBlind(), mm: minimapSize(), menuText: menuText() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), watch: allowWatch(), flag: !flagHidden(), cvd: colourBlind(), mm: minimapSize(), menuText: menuText() };
   const showControls = keyboardDevice();
   let pushNote = '';
   const pushRows = (p: PushSettings): string => {
@@ -208,6 +211,8 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${row('Hide friends\' names (party)', 'hidenames', ctl.hide)}
       ${row('Let friends watch my matches', 'watch', ctl.watch)}
+      ${row('Show my country flag', 'flag', ctl.flag)}
+      <p class="fine" data-testid="flag-note">Your flag is the country of your connection; only the country is kept, never your IP. Off: other players see a paw. Flag art: Twemoji, CC BY 4.0.</p>
       ${o.push ? pushRows(o.push) : ''}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
       ${accountRowHtml(o.account?.model ?? null)}
@@ -313,6 +318,10 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     } else if (a === 'watch') {
       ctl.watch = !ctl.watch;
       setAllowWatch(ctl.watch);
+    } else if (a === 'flag') {
+      ctl.flag = !ctl.flag;
+      void setFlagHidden(!ctl.flag, null);
+      o.onFlag?.(!ctl.flag);
     } else if (a === 'tower') {
       ctl.tower = !ctl.tower;
       setTowerButton(ctl.tower);

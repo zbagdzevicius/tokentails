@@ -1,3 +1,4 @@
+import { FlagsService } from '../flags/flags.service';
 import { HttpStatus, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { createHash } from 'crypto';
@@ -105,7 +106,9 @@ export class SocialService {
         @Optional() @InjectModel(Cat.name) readonly cats?: AnyModel,
         @Optional() private readonly clock?: { now(): Date },
         @Optional() @InjectModel(PawlegendsOwned.name) readonly owned?: AnyModel,
-        @Optional() private readonly chat?: ChatService
+        @Optional() private readonly chat?: ChatService,
+        // FLAGS.md: friends' country flags (hidden ones are absent)
+        @Optional() private readonly flags?: FlagsService
     ) {}
 
     /** Avatars of these accounts (CHAT-AVATARS.md §7): checked against what each still owns, default hero otherwise. */
@@ -262,10 +265,15 @@ export class SocialService {
         );
         const presence = await this.presenceOf(accepted.filter(id => !blockedBy.has(id)));
         const avatars = await this.avatarsOf([me, ...ids]);
+        const ccs = (await this.flags?.visible(accepted)) ?? new Map<string, string>();
         const row = (id: string) => ({ code: codes.get(id) ?? '', name: names.get(id) ?? '', av: avatars.get(id) });
         const order = { match: 0, queue: 1, party: 2, online: 3, offline: 4 } as const;
         const friends = accepted
-            .map(id => ({ ...row(id), presence: presence.get(id) ?? { state: 'offline' as const } }))
+            .map(id => ({
+                ...row(id),
+                ...(ccs.get(id) ? { cc: ccs.get(id) } : {}),
+                presence: presence.get(id) ?? { state: 'offline' as const },
+            }))
             .sort((x, y) => order[x.presence.state] - order[y.presence.state] || x.name.localeCompare(y.name));
         return {
             me: {

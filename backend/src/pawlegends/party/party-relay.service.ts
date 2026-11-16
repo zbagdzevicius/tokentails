@@ -24,6 +24,8 @@ import { PawlegendsBuyer, PawlegendsOwned } from '../pawlegends.schema';
 import { liveHeroIds } from '../social/avatar';
 import { PresenceSink, type PresenceWriter } from './presence-sink';
 import { ChatSink, type ChatSinkWriters } from './chat-sink';
+import { relayFlagOf } from '../flags/flags.service';
+import { PawlegendsFlag } from '../flags/flags.schema';
 import { relayChatInfo } from './relay-chat-info';
 import { BotSeenStore } from './bot-chat';
 import { BACKEND_ROLE, type BackendRole } from '../../shared/runtime/backend-role';
@@ -67,7 +69,9 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
         // role all: DM notices from the API in this process; a report can name a line still in the sink
         @Optional() private readonly chatBus?: ChatBus,
         @Optional() private readonly chatService?: ChatService,
-        @Optional() private readonly season?: PawlegendsSeasonService
+        @Optional() private readonly season?: PawlegendsSeasonService,
+        // FLAGS.md: a ticketed account's flag row (its country and the hide choice)
+        @Optional() @InjectModel(PawlegendsFlag.name) private readonly flagRows?: any
     ) {}
 
     /** The chat hooks of the relay: absent models (an old deploy, specs) leave every member on quick chat. */
@@ -126,6 +130,7 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
             // CHAMPION-STORE.md §8.1: members pick starters, the rotation and the champions their account owns
             ...(this.season ? { champions: (accountId: string) => this.season!.ownedHeroes(accountId) } : {}),
             chat: this.chatHooks(),
+            ...(this.flagRows ? { flags: relayFlagOf(this.flagRows) } : {}),
         });
         const relay = this.relay;
         this.presence = new PresenceSink(

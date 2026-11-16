@@ -60,6 +60,9 @@ export const API_OPS = Object.freeze([
   'push.subscribe',
   'push.prefs',
   'push.off',
+  // country flags (FLAGS.md): the caller's flag (the server reads the country, never stores the IP) and the hide choice
+  'flag.get',
+  'flag.set',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);
@@ -110,6 +113,8 @@ export const API_ARG_KEYS = Object.freeze([
   'tz',
   // gaps5: a Ranked duo invite ('ranked')
   'mode',
+  // FLAGS.md: hide the player's country flag (a boolean)
+  'hideFlag',
 ] as const);
 
 export type ApiArgs = Partial<Record<(typeof API_ARG_KEYS)[number], string | number | boolean>>;

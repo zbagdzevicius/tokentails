@@ -5,7 +5,7 @@ import { PAWLEGENDS_OG_IMAGE, PAWLEGENDS_TITLE } from "@/components/pawlegends/t
 import { SeoHead } from "@/components/seo/SeoHead";
 
 /** The date this notice last changed. Update it with every change to the text. */
-export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-12";
+export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-16";
 
 export const PAWLEGENDS_PRIVACY_SEO = Object.freeze({
   // NO-TOKENTAILS.md: the share card and tab name Paw Legends, not the site
@@ -164,6 +164,22 @@ export default function PawlegendsPrivacyPage() {
             </ul>
             <p>Your friends in the party see your player name, your hero and your moves.</p>
             <p>If you are signed in (or playing as the guest above), the party also knows that account, so the match counts for it.</p>
+          </Section>
+
+          <Section title="Your country flag and match chat">
+            <p>
+              Other players see a small flag of your country next to your name (in parties, matches, friends and
+              leaderboards). We get the country from our network provider (Cloudflare), which works it out from your
+              connection. We keep only the two-letter country code with your account or guest id; we do not keep your
+              network address for this. Turn it off in Settings (&quot;Show my country flag&quot;): others then see a
+              paw. The code is deleted with your account.
+            </p>
+            <p>
+              Registered players aged 16 or over can type short messages to their team, and to everyone in the match
+              when every player there is 16+ and registered. Messages pass a filter (links, contact details, abuse),
+              are rate-limited, can be muted or reported, and are kept with the match for moderation for at most 30
+              days. Everyone else sends fixed quick-chat phrases and pings only.
+            </p>
           </Section>
 
           <Section title="Game updates">

@@ -11,6 +11,7 @@ import { TOY_TIERS } from '../data/toys';
 import { icon } from './icons';
 import type { IconId } from './heroText';
 import { flagHtml } from '../social/report';
+import { ccHtml, hasMatchFlags, matchFlag } from '../social/flags';
 
 /** A team's name by who is in it (sim v5 species teams): the cats are Purrhaven, the dogs the Woof pack. */
 export function teamLabel(picks: readonly HeroId[], team: 0 | 1): string {
@@ -193,7 +194,7 @@ export class Scoreboard {
           const t = HERO_TEXT[hero];
           const flag = this.flag(slot);
           return `<tr class="${slot === this.mySlot ? 'me' : ''}${dead ? ' dead' : ''}${this.seats?.has(slot) ? ' friend' : ''}" data-slot="${slot}">
-            <td${flag ? ' class="sb-rp"' : ''}><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${this.nameHtml(slot, this.names[slot] ?? t.title)}${this.seatHtml(slot)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot && !this.spectator ? ' <small>(you)</small>' : ''}${flag}</td>
+            <td${flag ? ' class="sb-rp"' : ''}><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${hasMatchFlags() ? ccHtml(matchFlag(slot)) : ''}${this.nameHtml(slot, this.names[slot] ?? t.title)}${this.seatHtml(slot)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot && !this.spectator ? ' <small>(you)</small>' : ''}${flag}</td>
             <td>${role ? `${roleChip(this.roles[slot])} ` : ''}${t.role}</td><td class="lv">${e?.level ?? '-'}</td><td class="kda">${this.kills[slot]} / ${this.deaths[slot]} / ${this.assists(slot)}</td><td class="tal">${talentChips(hero, e?.talents)}</td><td class="toy">${toyPips(e?.toy)}</td><td>${this.heroDmg[slot]}</td></tr>`;
         })
         .join('');

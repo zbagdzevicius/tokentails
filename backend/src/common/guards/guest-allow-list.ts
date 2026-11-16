@@ -43,6 +43,9 @@ export const GUEST_ALLOW_LIST: Readonly<Record<string, Readonly<AllowGuestOption
     'POST /pawlegends/config/goal/claim': {},
     'POST /pawlegends/config/nap/claim': {},
     'POST /pawlegends/config/vote': {},
+    // Pawlegends country flags (FLAGS.md): a guest's own ISO country (never the IP) and its hide choice.
+    'GET /pawlegends/flag': {},
+    'POST /pawlegends/flag': {},
     // Pawlegends push notifications (SHARE-PUSH.md section 2): a guest's own device subscription and its categories
     // (Winter Nap, events and ranked are for every player). No score, no reward.
     'POST /pawlegends/push/subscribe': {},

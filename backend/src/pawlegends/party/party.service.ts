@@ -176,6 +176,8 @@ export interface PartyEvents {
      * or not resolved yet: quick tier and a default avatar).
      */
     chatOf?(memberId: string): MemberChat | undefined;
+    /** FLAGS.md: the ISO country flag a member shows (null: hidden, unknown or unticketed). */
+    flagOf?(memberId: string): string | null;
 }
 
 /** A member's chat side, resolved by the relay from the account (never from the client). */
@@ -1050,6 +1052,18 @@ export class PartyService {
         return any ? 'text' : 'quick';
     }
 
+    /** All chat's tier in the match: 'text' only when every seated human, on both teams, is a registered 16+ account. */
+    matchChatAllTier(p: Party): 'text' | 'quick' {
+        let any = false;
+        for (const m of p.members) {
+            if (m.slot === undefined) continue;
+            any = true;
+            if (!m.identity.ticketed || m.identity.guest || !m.identity.accountId) return 'quick';
+            if (this.events.chatOf?.(m.id)?.tier !== 'text') return 'quick';
+        }
+        return any ? 'text' : 'quick';
+    }
+
     /** The chat thread id of this party (reports name it). */
     chatThread(p: Party): string {
         return partyThreadId(p.id);
@@ -1096,6 +1110,9 @@ export class PartyService {
             // CHAT-AVATARS §7.3: the account's avatar, else the default icon (never the picked hero: in a casual pick
             // the other team's heroes are hidden)
             v.av = this.events.chatOf?.(m.id)?.av ?? { i: `h:${this.rules.newbieHero}` };
+            // FLAGS.md: the member's country flag (absent: hidden or unknown; the client shows a paw)
+            const cc = this.events.flagOf?.(m.id);
+            if (cc) v.cc = cc;
             return v;
         });
         const stranger = !!p.mm?.strangers.has(forMember);
@@ -1145,6 +1162,8 @@ export class PartyService {
         view.chat = { tier: this.chatTier(p), thread: this.chatThread(p) };
         // PROTO 6: the recipient's team tier in the match (its composer swaps to phrases when it is quick)
         if (me?.slot !== undefined) view.chat.match = this.matchChatTier(p, this.teamOfMember(p, me));
+        // all chat: free text only when every seated human of both teams is text tier
+        if (me?.slot !== undefined) view.chat.all = this.matchChatAllTier(p);
         const blocked = this.events.chatOf?.(forMember)?.blocked;
         if (blocked?.length) {
             const ids = p.members

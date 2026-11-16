@@ -91,6 +91,8 @@ export class MatchChat {
   private disposed = false;
   /** Players this player muted in chat for this match (bots included: nobody can tell). */
   private readonly muted = new Set<number>();
+  /** Mute all (the drawer's head): every other player's lines are hidden until it is turned off. */
+  private mutedAll = false;
 
   constructor(private readonly h: MatchChatHost) {
     this.ticker = new ChatTicker(h.ui, { touch: h.touch });
@@ -103,6 +105,9 @@ export class MatchChat {
         else this.muted.add(slot);
         h.mute?.(slot);
       },
+      muteAll: (on: boolean) => {
+        this.mutedAll = on;
+      },
       ...(h.report && h.link ? { report: (mid: string, kind: ChatReportKind) => h.report!(mid, kind) } : {}),
       onToggle: (open) => {
         if (h.e2e) document.documentElement.dataset.chatDrawer = open ? '1' : '';
@@ -110,12 +115,16 @@ export class MatchChat {
     });
     this.ticker.onOpen = () => this.drawer.openOn(this.drawer.channel);
     this.drawer.tier = h.link?.chatTier ?? 'quick';
+    this.drawer.allTier = h.link?.chatAllTier ?? 'quick';
     if (h.link) {
       const link = h.link;
       this.offLink = link.listen({
         chat: (m) => this.incoming(m),
         chatReject: (why, until) => this.drawer.error(chatErrorText(`chat_${why}`, why, until ? new Date(until).toISOString() : null)),
-        chatTier: (t) => (this.drawer.tier = t),
+        chatTier: (t, all) => {
+          this.drawer.tier = t;
+          this.drawer.allTier = all ?? 'quick';
+        },
       });
     } else if (h.solo) {
       // an e2e run may pin the seed (window.__plChatSeed, read only with ?e2e=1)
@@ -220,13 +229,13 @@ export class MatchChat {
     if (e.key !== 'Enter' || this.h.touch || this.isTyping() || !enabled || this.ended) return false;
     const ch: MatchChannel = e.shiftKey || this.drawer.tier === 'quick' ? 'all' : 'team';
     e.preventDefault();
-    this.drawer.openOn(ch, true);
+    this.drawer.openOn(ch, this.drawer.typedOn(ch));
     return true;
   }
 
   /** The wheel's centre (Type / More). */
   openDrawer(): void {
-    this.drawer.openOn('team', !this.h.touch && this.drawer.tier === 'text');
+    this.drawer.openOn('team', !this.h.touch && this.drawer.typedOn('team'));
   }
 
   /** A legacy wheel line from a teammate (or this player): shown in the ticker, not the rail (§4.1). */
@@ -291,6 +300,7 @@ export class MatchChat {
   }
 
   private isMuted(slot: number): boolean {
+    if (this.mutedAll && slot !== this.h.mySlot) return true;
     return this.muted.has(slot) || !!this.h.isMuted?.(slot);
   }
 
@@ -327,7 +337,7 @@ export class MatchChat {
     const now = performance.now();
     while (this.sent.length && now - this.sent[0] >= CHAT_SAY_RATE.windowMs) this.sent.shift();
     if (this.sent.length >= CHAT_SAY_RATE.perWindow) return chatErrorText('chat_rate');
-    if (body.k === 't' && (ch === 'all' || this.drawer.tier !== 'text')) return chatErrorText('chat_quick_only');
+    if (body.k === 't' && !this.drawer.typedOn(ch)) return chatErrorText('chat_quick_only');
     this.sent.push(now);
     if (this.h.link) {
       if (!this.h.link.chat?.(ch, body)) return chatErrorText('chat_rate');

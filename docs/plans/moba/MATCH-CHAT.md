@@ -22,7 +22,7 @@ Both doc comments must be updated in the same commit.
 
 - **In-match chat**:
   - **Team chat:** free text when every human on the team is 16+ and registered (the "text" tier). Otherwise phrases only.
-  - **All chat:** phrases only (gl hf, gg, wp…), for everyone.
+  - **All chat:** free text when every seated human in the match (both teams) is 16+ and registered (`PartyView.chat.all`, founder ask of Nov 15, round 7). Otherwise phrases only (gl hf, gg, wp…), for everyone. The same filter, strikes and limits as team text.
   - The quick-chat wheel stays next to the ping button. It gains a "Type" centre for text-tier players and an All toggle.
   - **Phones:** a collapsed chat ticker under the kill feed. Tap it to expand a drawer.
   - **Desktop:** Enter opens team chat, Shift+Enter opens all chat.
@@ -544,7 +544,7 @@ M4 can start in parallel with M1. M5 needs M2 and M4.
 2. **Free text with strangers in matchmade games.**
    - Default: **allowed in team chat** when every human on the team is 16+ and registered. This extends CHAT-AVATARS §2.1, which keeps pre-match team chat phrases-only.
    - Alternative: free text only in friend parties.
-3. **All chat.** Default: phrases only (Wild Rift removed all chat). Alternative: none at all.
+3. **All chat.** Decided Nov 15 (founder: "implement not just party chat, but also in-game chat"): typed text when every human in the match is a registered 16+ account, phrases otherwise. The drawer also has **Mute all** (this match, everyone else).
 4. **Budget distribution.** Default: 0.40 / 0.30 / 0.20 / 0.10 per team.
 5. **Typo "*fix" follow-ups.** Default: on, chatty persona only.
 6. **Bot chatter in Rookie match 1.** Default: off.

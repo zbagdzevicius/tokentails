@@ -62,6 +62,9 @@ export const PAWLEGENDS_API_OPS = [
   "push.subscribe",
   "push.prefs",
   "push.off",
+  // country flags (docs/plans/moba/FLAGS.md): the caller's flag (the server reads the country, never stores the IP) and the hide choice
+  "flag.get",
+  "flag.set",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -110,6 +113,8 @@ const ARG_KEYS = [
   "tz",
   // gaps5: a Ranked duo invite ("ranked")
   "mode",
+  // FLAGS.md: hide the player's country flag (a boolean)
+  "hideFlag",
 ] as const;
 export type PawlegendsApiArgs = Partial<Record<(typeof ARG_KEYS)[number], string | number | boolean>>;
 
@@ -401,6 +406,10 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       const endpoint = str(a.endpoint, PUSH_ENDPOINT);
       return endpoint ? { method: "POST", path: "/pawlegends/push/unsubscribe", body: { endpoint }, auth: "any" } : null;
     }
+    case "flag.get":
+      return { method: "GET", path: "/pawlegends/flag", auth: "any" };
+    case "flag.set":
+      return typeof a.hideFlag === "boolean" ? { method: "POST", path: "/pawlegends/flag", body: { hideFlag: a.hideFlag }, auth: "any" } : null;
     default:
       return null;
   }
