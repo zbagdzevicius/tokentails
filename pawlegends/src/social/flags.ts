@@ -36,13 +36,21 @@ export function flagEmoji(cc: string): string {
   return String.fromCodePoint(...[...cc].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
 }
 
-/** A bot's flag: stable for one match seed and seat, spread over BOT_FLAGS. Pure. */
+/** Steps coprime with BOT_FLAGS.length (60): a walk with one never repeats a flag within 60 seats. */
+const STEPS = [7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 49, 53, 59] as const;
+
+/**
+ * A bot's flag: stable for one match seed and seat, spread over BOT_FLAGS, and never the same flag on two bots of one
+ * match (s7 verify: two bots of a live match both showed Peru). Pure.
+ */
 export function botFlag(seed: number, slot: number): string {
-  let h = (Math.imul((seed >>> 0) ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(slot + 1, 0xc2b2ae35)) >>> 0;
+  let h = Math.imul((seed >>> 0) ^ 0x9e3779b9, 0x85ebca6b) >>> 0;
   h ^= h >>> 16;
   h = Math.imul(h, 0x7feb352d) >>> 0;
-  h ^= h >>> 15;
-  return BOT_FLAGS[(h >>> 0) % BOT_FLAGS.length];
+  h = (h ^ (h >>> 15)) >>> 0;
+  const n = BOT_FLAGS.length;
+  const step = STEPS[(h >>> 8) % STEPS.length];
+  return BOT_FLAGS[((h % n) + Math.max(0, Math.floor(slot)) * step) % n];
 }
 
 let names: Intl.DisplayNames | null | undefined;

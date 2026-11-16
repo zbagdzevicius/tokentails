@@ -22,6 +22,13 @@ describe('country flags (FLAGS.md)', () => {
     expect(seen.size).toBeGreaterThan(BOT_FLAGS.length * 0.9);
   });
 
+  it('never gives two bots of one match the same flag (10 seats, 2,000 seeds)', () => {
+    for (let seed = 0; seed < 2000; seed++) {
+      const flags = Array.from({ length: 10 }, (_, slot) => botFlag(seed * 7919 + 1, slot));
+      expect(new Set(flags).size).toBe(10);
+    }
+  });
+
   it('builds a match: own flag, relay flags for humans (paw when hidden), seeded flags for bots', () => {
     const solo = matchFlagsFor({ seed: 7, slots: 6, mySlot: 0, mine: 'LT', isHuman: (s) => s === 0 });
     expect(solo[0]).toBe('LT');

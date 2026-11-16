@@ -10,7 +10,7 @@ import { mockHost, openHost } from './host';
 // scoreboard is fully shown or scrolls inside its own box. One match per device class: the viewport is resized
 // through the sizes on each screen. Screenshots: ~/Downloads/paw-legends/s7/ui/.
 
-const SHOTS = `${homedir()}/Downloads/paw-legends/s7/ui`;
+const SHOTS = process.env.SHOTS_DIR ?? `${homedir()}/Downloads/paw-legends/s7/ui`;
 type Size = { w: number; h: number };
 /** Landscape phones and tablets (touch): 667x375 (iPhone SE), 844x390, the founder's 1280x590 and 2400x1080 / 1920x1080 tablets. */
 const TOUCH: readonly Size[] = [
