@@ -31,10 +31,12 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
 
   // every Home promo slide has its picture (the Store slide was a bare gradient), and each one loads
   const slides = game.locator('.hm-slide');
-  // 3 slides, plus Boss Weekend's first while it runs (Friday to Monday UTC, from the live-ops config)
+  // 3 slides, plus Boss Weekend's first while it runs (Friday to Monday UTC, from the live-ops config), plus the
+  // monthly coat drop's while a drop is live (the baked calendar: November 15 to December 1)
   await expect.poll(() => slides.count()).toBeGreaterThanOrEqual(3);
   const boss = await game.locator('.hm-slide[data-mode="boss"]').count();
-  await expect(slides).toHaveCount(3 + boss);
+  const drop = await game.locator('.hm-slide[data-testid="promo-drop"]').count();
+  await expect(slides).toHaveCount(3 + boss + drop);
   const arts = await slides.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.getPropertyValue('--art')));
   expect(arts.every((a) => /url\(.+\.webp/.test(a))).toBe(true);
   expect(arts.some((a) => a.includes('promo-store'))).toBe(true);

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr, startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
+import { attr, me, startFirstMatch } from './helpers';
 
 // LoL pass, lane B: the hextech HUD. The score plate keeps today's phone footprint (the rail sits under it), the
 // ability bar shows keycaps and a decimal under 1 s with one ready flash per cooldown end, the kill feed stays in its
@@ -106,6 +107,9 @@ test('desktop: keycaps, a decimal under 1 s and one ready flash, the Nap bar, Ta
     };
     new MutationObserver(note).observe(slot, { subtree: true, childList: true, characterData: true });
   });
+  // a loaded machine can let the walk out of the fountain run into a fight: a hero that fell casts nothing, so wait for
+  // the respawn before Q (the HUD is what is checked here, not the lane)
+  await expect.poll(async () => (await me(page)).state, { timeout: limit(60_000) }).not.toBe('dead');
   await page.mouse.move(900, 400);
   await page.keyboard.press('q');
   await expect(page.locator('.pl-slot[data-i="0"].cooling')).toBeVisible({ timeout: 5_000 });

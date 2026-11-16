@@ -209,7 +209,19 @@ export async function mockHost(context: BrowserContext, baseURL: string, cfg: Ho
       const rest = url.pathname.slice('/pawlegends-game/'.length) || 'index.html';
       // a background fetch (the match chunk's prefetch) can still be in flight when the test closes the page
       try {
-        const res = await route.fetch({ url: `${baseURL}/${rest}${url.search}` });
+        // the local preview server can drop a socket under heavy machine load (ECONNRESET, socket hang up): that is the
+        // test proxy failing, not the game, so the proxy tries again (twice) before it reports a failure
+        let res;
+        for (let attempt = 0; ; attempt++) {
+          try {
+            res = await route.fetch({ url: `${baseURL}/${rest}${url.search}` });
+            break;
+          } catch (e) {
+            const m = e instanceof Error ? e.message : String(e);
+            if (attempt >= 2 || !/ECONNRESET|socket hang up|ECONNREFUSED/i.test(m)) throw e;
+            await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+          }
+        }
         return await route.fulfill({ response: res });
       } catch (err) {
         // only a page or context closed under the fetch is expected; a real proxy failure must fail the test

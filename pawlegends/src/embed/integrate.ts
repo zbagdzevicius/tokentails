@@ -303,6 +303,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       );
     }
     slot.dataset.plcV = String(cardsV);
+    slot.dataset.plcHero = kind === 'title' ? (deps.lobbyHero?.() ?? '') : '';
   };
 
   const renderSave = (slot: HTMLElement): void => {
@@ -339,7 +340,10 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       const kind = screenKind(scr);
       if (!kind) continue;
       const cards = slotIn(scr, 'cards', kind);
-      if (cards && cards.dataset.plcV !== String(cardsV)) renderCards(cards, kind, scr);
+      // the title's champion chip follows the lobby hero: Home is patched in place (the slot stays), and the hero can
+      // change under it (a swap back once the host's champions arrive, a hero switch)
+      const heroMoved = kind === 'title' && cards != null && cards.dataset.plcHero !== (deps.lobbyHero?.() ?? '');
+      if (cards && (cards.dataset.plcV !== String(cardsV) || heroMoved)) renderCards(cards, kind, scr);
       if (kind === 'results') {
         const save = slotIn(scr, 'save', kind);
         if (save && save.dataset.plcV !== String(saveV)) renderSave(save);

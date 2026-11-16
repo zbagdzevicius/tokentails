@@ -257,6 +257,16 @@ for (const [w, h] of [
       expect(t).toBeGreaterThanOrEqual(0);
       expect(b).toBeLessThanOrEqual(h);
     }
+    // gaps6 review: a tap on a mode's ring centre picks the mode; the "i" hit box never covers it (it did on phones)
+    const coveredByInfo = await ms.locator('.ms-pick').evaluateAll((els) =>
+      els
+        .filter((e) => {
+          const r = e.querySelector('.ms-ring')?.getBoundingClientRect();
+          return !!r && !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.ms-info');
+        })
+        .map((e) => (e as HTMLElement).dataset.mode),
+    );
+    expect(coveredByInfo).toEqual([]);
     await shot(page, '2-modes');
     // the variants (vs Bots with its difficulty)
     await ms.locator('[data-testid="mode-next"]').click();
