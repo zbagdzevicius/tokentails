@@ -50,6 +50,7 @@ class FakeAuth implements AuthPort {
   current() {
     return this.user;
   }
+  async ready() {}
   onChange(l: () => void) {
     this.listeners.add(l);
     return () => void this.listeners.delete(l);

@@ -62,6 +62,11 @@ export interface UserSnapshot {
 export interface AuthPort {
   readonly caps: NativeCaps;
   current(): UserSnapshot | null;
+  /**
+   * Resolves once the saved session is read back from storage (IndexedDB) after a cold start. Until then there is
+   * no `current()` user even for a signed-in player: nothing may decide "no user, make a guest" before it.
+   */
+  ready(): Promise<void>;
   /** Called on every user or token change (sign-in, sign-out, link, refresh). */
   onChange(listener: () => void): () => void;
   /** `fb` + the current user's ID token, or null with no user. */
@@ -135,11 +140,25 @@ const snapshotOf = (auth: Auth): UserSnapshot | null => {
 
 export class NativeAuth implements AuthPort {
   private guestTry: Promise<boolean> | null = null;
+  /** The persisted user restored (or none saved); never rejects. */
+  private readonly restored: Promise<void>;
 
   constructor(
     private readonly auth: Auth,
     readonly caps: NativeCaps
-  ) {}
+  ) {
+    // Cold start: `currentUser` stays null until IndexedDB is read. A guest made before that replaced the saved
+    // account with a fresh anonymous user (the "logged out after closing the app" bug), so every user-dependent
+    // call waits for this first.
+    this.restored = auth.authStateReady().then(
+      () => undefined,
+      () => undefined
+    );
+  }
+
+  ready(): Promise<void> {
+    return this.restored;
+  }
 
   current(): UserSnapshot | null {
     return snapshotOf(this.auth);
@@ -150,6 +169,7 @@ export class NativeAuth implements AuthPort {
   }
 
   async token(): Promise<string | null> {
+    await this.restored;
     const u = this.auth.currentUser;
     if (!u) return null;
     try {
@@ -160,13 +180,15 @@ export class NativeAuth implements AuthPort {
   }
 
   ensureGuest(online: boolean): Promise<boolean> {
-    if (this.auth.currentUser) return Promise.resolve(true);
-    if (!online) return Promise.resolve(false);
     if (!this.guestTry) {
-      this.guestTry = signInAnonymously(this.auth).then(
-        () => true,
-        () => false
-      );
+      this.guestTry = this.restored.then(() => {
+        if (this.auth.currentUser) return true;
+        if (!online) return false;
+        return signInAnonymously(this.auth).then(
+          () => true,
+          () => false
+        );
+      });
       void this.guestTry.finally(() => {
         this.guestTry = null;
       });

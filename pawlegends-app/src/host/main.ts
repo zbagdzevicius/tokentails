@@ -24,6 +24,7 @@ export class NoAuth implements AuthPort {
   current() {
     return null;
   }
+  async ready() {}
   onChange() {
     return () => undefined;
   }
@@ -69,6 +70,7 @@ function boot(): void {
   const api = new HostApi({
     origin: __PL_API_ORIGIN__,
     fetch: (input, init) => fetch(input, init),
+    ready: () => auth.ready(),
     token: () => auth.token(),
     isAccount: () => {
       const u = auth.current();

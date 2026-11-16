@@ -23,6 +23,8 @@ export interface ApiAnswer {
 export interface HostApiDeps {
   origin: string;
   fetch: typeof fetch;
+  /** Resolves once the saved session is restored after a cold start (no call is made before it). */
+  ready?(): Promise<void>;
   /** The current user's `fb`-prefixed ID token, or null with no user. */
   token(): Promise<string | null>;
   /** A signed-in, non-anonymous account. */
@@ -47,6 +49,8 @@ export class HostApi {
   constructor(private readonly deps: HostApiDeps) {}
 
   async call(method: string, path: string, options: CallOptions): Promise<ApiAnswer> {
+    // before the restore a signed-in player looks signed out: `account` calls would 401 and `guest` ones make a guest
+    if (options.auth !== "none") await this.deps.ready?.();
     if (options.auth === "account" && !this.deps.isAccount()) return { status: 401, body: null, code: null };
     let token: string | null = null;
     if (options.auth !== "none") {
