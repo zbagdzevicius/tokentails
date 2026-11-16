@@ -7,11 +7,12 @@
  * `npm run match -- --seeds 200 --profile normal --difficulty normal --hero random --balance --quiet`, which checks
  * the same gates.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { TICK_HZ, TIMELINE } from '../../src/data/timeline';
 import { NIGHTLY } from './bot-helpers';
 
-describe.skipIf(!NIGHTLY)('balance (§15 item 11)', { timeout: 7200000 }, () => {
+describe.skipIf(!NIGHTLY)('balance (§15 item 11)', { timeout: limit(7200000) }, () => {
   it('2,000 Normal-vs-Normal matches hit the length, side and hero gates', async () => {
     const { runBatch } = await import('../../tools/lib/batch.mjs');
     const { rows, perHero } = await runBatch({ profile: 'normal', difficulty: 'normal', from: 1, seeds: 2000 });

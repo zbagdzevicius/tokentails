@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 import { attr, startFirstMatch } from './helpers';
 
 // Feel pass B4 (docs/plans/moba/FEEL-PASS.md): hold to aim on touch at 667x375 and 844x390. A quick tap quick-casts;
@@ -10,6 +11,12 @@ import { attr, startFirstMatch } from './helpers';
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'landscape', 'touch controls'));
 
 type Pt = { x: number; y: number; id: number };
+
+/**
+ * A wait on game state (a cast counted, the aim shown). It bounds a hang, it is not a latency budget: at load 200+ on
+ * 12 cores (Nov 16, 2026) a speed-4 match drew a frame every 0.5 to 2 s and a cast took up to 6 s of wall time to show.
+ */
+const STATE_MS = limit(20_000);
 
 async function rig(page: Page) {
   const cdp = await page.context().newCDPSession(page);
@@ -26,8 +33,8 @@ async function rig(page: Page) {
   const ready = async (b: string, after = false): Promise<void> => {
     // after a cast, first see the cooldown arrive (a loaded machine can take well over 600 ms to show it: pressing in
     // that gap was denied and the hold preview never came), then wait for it to end
-    if (after) await expect(page.locator(`.pl-tbtn.${b}`)).toHaveClass(/cooling/, { timeout: 5000 }).catch(() => undefined);
-    await expect(page.locator(`.pl-tbtn.${b}`)).not.toHaveClass(/cooling/, { timeout: 30_000 });
+    if (after) await expect(page.locator(`.pl-tbtn.${b}`)).toHaveClass(/cooling/, { timeout: limit(5000) }).catch(() => undefined);
+    await expect(page.locator(`.pl-tbtn.${b}`)).not.toHaveClass(/cooling/, { timeout: limit(30_000) });
     await page.waitForTimeout(100);
   };
   return { send, casts, btn, ready };
@@ -38,14 +45,14 @@ for (const [w, h] of [
   [844, 390],
 ] as const) {
   test(`${w}x${h}: tap, hold, drag, cancel by the bubble, and a skill while steering`, async ({ page }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(limit(150_000));
     await page.setViewportSize({ width: w, height: h });
     await startFirstMatch(page, '&speed=4', 'cat');
     const { send, casts, btn, ready } = await rig(page);
     // a tap makes the touch HUD live; the gates open at 0:03
     await page.touchscreen.tap(w * 0.25, h * 0.85);
     await expect(page.locator('.pl-touch.on')).toBeVisible();
-    await expect.poll(async () => Number(await attr(page, 'tick')), { timeout: 30_000 }).toBeGreaterThan(130);
+    await expect.poll(async () => Number(await attr(page, 'tick')), { timeout: limit(30_000) }).toBeGreaterThan(130);
 
     // 1. a quick tap quick-casts
     await ready('q');
@@ -53,7 +60,7 @@ for (const [w, h] of [
     let n = await casts();
     await send('touchStart', [q]);
     await send('touchEnd', []);
-    await expect.poll(casts, { timeout: 5000 }).toBe(n + 1);
+    await expect.poll(casts, { timeout: STATE_MS }).toBe(n + 1);
 
     // 2. hold: the aim and the bubble show after 180 ms (150 px above the button), the release casts
     await ready('q', true);
@@ -61,7 +68,7 @@ for (const [w, h] of [
     n = await casts();
     await send('touchStart', [q]);
     // (polled: a loaded machine draws few frames, and the hold preview starts on a frame)
-    await expect.poll(() => attr(page, 'aim'), { timeout: 5000 }).toBe('1');
+    await expect.poll(() => attr(page, 'aim'), { timeout: STATE_MS }).toBe('1');
     await expect(page.locator('.pl-cancel.on')).toBeVisible();
     const bub = (await page.locator('.pl-cancel').boundingBox())!;
     expect(Math.round(bub.width)).toBe(72);
@@ -72,7 +79,7 @@ for (const [w, h] of [
     expect(Math.abs(bub.y + bub.height / 2 - by)).toBeLessThan(2);
     await page.screenshot({ path: `test-results/hold-aim/${w}x${h}-hold.png` });
     await send('touchEnd', []);
-    await expect.poll(casts, { timeout: 5000 }).toBe(n + 1);
+    await expect.poll(casts, { timeout: STATE_MS }).toBe(n + 1);
     await expect(page.locator('.pl-cancel.on')).toHaveCount(0);
 
     // 3. drag 60 px up-left: the aim follows the thumb, the release casts there
@@ -81,10 +88,10 @@ for (const [w, h] of [
     n = await casts();
     await send('touchStart', [q]);
     for (let i = 1; i <= 6; i++) await send('touchMove', [{ ...q, x: q.x - i * 10, y: q.y - i * 10 }]);
-    await expect.poll(() => attr(page, 'aim'), { timeout: 5000 }).toBe('1');
+    await expect.poll(() => attr(page, 'aim'), { timeout: STATE_MS }).toBe('1');
     await page.screenshot({ path: `test-results/hold-aim/${w}x${h}-drag.png` });
     await send('touchEnd', []);
-    await expect.poll(casts, { timeout: 5000 }).toBe(n + 1);
+    await expect.poll(casts, { timeout: STATE_MS }).toBe(n + 1);
 
     // 4. drag onto the bubble and rest there: it arms (red) and the release casts nothing
     await ready('q', true);
@@ -96,7 +103,7 @@ for (const [w, h] of [
     const b2 = (await page.locator('.pl-cancel').boundingBox())!;
     const on = { ...q, x: Math.round(b2.x + b2.width / 2), y: Math.round(b2.y + b2.height / 2) };
     for (let i = 1; i <= 4; i++) await send('touchMove', [{ ...q, x: Math.round(q.x + ((on.x - q.x) * i) / 4), y: Math.round(q.y - 30 + ((on.y - q.y + 30) * i) / 4) }]);
-    await expect(page.locator('.pl-cancel.hot')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.pl-cancel.hot')).toBeVisible({ timeout: limit(3000) });
     await page.screenshot({ path: `test-results/hold-aim/${w}x${h}-cancel.png` });
     await send('touchEnd', []);
     await page.waitForTimeout(600);
@@ -113,7 +120,7 @@ for (const [w, h] of [
     await page.waitForTimeout(300);
     await send('touchStart', [s, wb]);
     await send('touchEnd', [wb]);
-    await expect.poll(casts, { timeout: 5000 }).toBe(n + 1);
+    await expect.poll(casts, { timeout: STATE_MS }).toBe(n + 1);
     await expect(page.locator('.pl-stick.on')).toHaveCount(1);
     await send('touchEnd', [s]);
   });

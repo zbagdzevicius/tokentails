@@ -3,6 +3,7 @@
  * orders with their TTLs and refusals, enemy bots never seeing a ping, the lane swap and the +600 B input budget in
  * all three copies.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { MAX_INPUT_BYTES, MAX_INPUT_CHARS, MOVE_MIN_GAP } from '../../src/data/limits';
 import { CROSSING_PING_KINDS, LANE_SWAP, PING, PING_KIND, PING_KINDS } from '../../src/data/pings';
@@ -102,7 +103,7 @@ describe('ping gate (GAPS B1)', () => {
     for (let i = 0; i + 1 < log.length; i++) if (log[i].tick === log[i + 1].tick) expect(log[i].cmd.op).toBe(Op.Ping);
     expect(verifyReplay(rec)).toMatchObject({ ok: true, finalHash: rec.finalHash });
     expect(runReplay(rec).trail).toEqual(m.trail);
-  }, 30_000);
+  }, limit(30_000));
 });
 
 describe('input budget (GAPS B1, Your call 17)', () => {
@@ -296,5 +297,5 @@ describe('pinger player-bot (GAPS B1 measure)', () => {
     }
     expect(pinged).toBeGreaterThan(0);
     // three whole matches and their replays on the transformed sim: past 60 s on a loaded machine (Nov 15, 2026)
-  }, 240_000);
+  }, limit(240_000));
 });

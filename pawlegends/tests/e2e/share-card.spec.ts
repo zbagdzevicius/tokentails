@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 import { forfeitMatch, press } from './moments-helpers';
 
 // MATCH-MOMENTS.md §3: the results' Share card opens the 1200x630 Legend Moment card in a sheet that fits the screen,
 // with Save image, Copy link and Share; Esc closes it. The card never shows a price or the store.
 
 test('share card: opens from the results at 1200x630, fits the screen, links and closes', async ({ page, context }, info) => {
-  test.setTimeout(300_000);
+  test.setTimeout(limit(480_000));
   const touch = info.project.name === 'landscape';
   await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined);
   await forfeitMatch(page, touch);
@@ -20,7 +21,7 @@ test('share card: opens from the results at 1200x630, fits the screen, links and
   const px = await canvas.evaluate((c: HTMLCanvasElement) => Array.from(c.getContext('2d')!.getImageData(4, 300, 1, 1).data));
   expect(px[0]).toBeGreaterThan(150);
   // the champion picture arrives (same-origin splash)
-  await expect(canvas).toHaveAttribute('data-art', '1', { timeout: 15_000 });
+  await expect(canvas).toHaveAttribute('data-art', '1', { timeout: limit(15_000) });
   // the sheet and its buttons fit the viewport
   const vp = page.viewportSize()!;
   for (const sel of ['[data-testid="share-card-save"]', '[data-testid="share-card-link"]', '[data-testid="share-card-share"]', '.mm-share-pic']) {

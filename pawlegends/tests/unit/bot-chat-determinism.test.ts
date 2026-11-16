@@ -1,3 +1,4 @@
+import { limit } from './cpu-budget';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,7 +45,7 @@ function play(seed: number, ticks: number, chat: boolean) {
   return { m, cues };
 }
 
-describe('the bot chatter never changes the sim', { timeout: 180_000 }, () => {
+describe('the bot chatter never changes the sim', { timeout: limit(180_000) }, () => {
   it('hash trails and final hashes are identical with the cues read every tick (12 seeded matches)', () => {
     let total = 0;
     for (let seed = 1; seed <= 12; seed++) {

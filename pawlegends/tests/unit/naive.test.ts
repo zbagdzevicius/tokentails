@@ -4,6 +4,7 @@
  * naps or uses its Paw Trick or W, and takes the seeded talent (sim v10, `botTalentChoice`). The 200-seed bounds are the fun gates
  * (`npm run match -- --gate fun1`, `--gate fun2`); this file checks the rules and a small sample.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { Op, type Command } from '../../src/sim/api';
 import { createMatch, createPlayerBot, fillPicks, playerBotCommands, replayRecord, result, step } from '../../src/sim/index';
@@ -25,7 +26,7 @@ function playNaive(seed: number, difficulty: 'rookie' | 'easy') {
   return { m, res: result(m)!, cmds };
 }
 
-describe('naive player-bot (fun gates)', { timeout: 300000 }, () => {
+describe('naive player-bot (fun gates)', { timeout: limit(300000) }, () => {
   it('plays through commands only: casts Q / E / R, never W, Nap or the Trick; takes the seeded talent; the replay verifies', () => {
     const { m, res, cmds } = playNaive(1, 'rookie');
     const ops = new Set(cmds.map((c) => c.op));

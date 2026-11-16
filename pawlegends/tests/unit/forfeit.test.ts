@@ -3,6 +3,7 @@
  * Hard 4:00, never Rookie), ends the match at that tick's win check with reason 'forfeit' and outcome 'lost', is
  * logged so the replay verifies, and always fits the input budget (FORFEIT_RESERVE_BYTES).
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { DIFFICULTY_RULES } from '../../src/data/bots';
 import { FORFEIT_RESERVE_BYTES, MAX_INPUT_BYTES } from '../../src/data/limits';
@@ -105,7 +106,7 @@ describe('forfeit in a match (GAPS B2)', () => {
     expect(r!.ticks).toBe(5401);
     expect(m.world.globals[G.EndReason]).toBe(3);
     expect(m.log[m.log.length - 1]).toEqual({ tick: 5400, cmd: FF });
-  }, 60_000);
+  }, limit(60_000));
 
   it('a forfeit shares its tick with a move: both are logged, the forfeit last', () => {
     const m = quietMatch(7, false, 'easy');
@@ -114,7 +115,7 @@ describe('forfeit in a match (GAPS B2)', () => {
     expect(result(m)?.reason).toBe('forfeit');
     const last = m.log.slice(-2);
     expect(last.map((c) => c.cmd.op)).toEqual([Op.Move, Op.Forfeit]);
-  }, 60_000);
+  }, limit(60_000));
 
   it('Normal: a forfeited match at 4:00 verifies (replay, outcome lost, reason forfeit) and its stream decodes', () => {
     const seed = 1010;
@@ -139,5 +140,5 @@ describe('forfeit in a match (GAPS B2)', () => {
     // a record that claims an earlier end does not verify (its forfeit lies past `ticks`)
     const early = { ...rec, ticks: 7100, inputs: rec.inputs };
     expect(verifyReplay(early).ok).toBe(false);
-  }, 120_000);
+  }, limit(120_000));
 });

@@ -2,6 +2,7 @@
  * Sim v10, GAPS B0 (the prerequisites of Wave B): seeded bot talents and the headless `--bot-talents` modes, the
  * replay `mutator` field, and the new `SlotStats` (damage taken, heal and shield given, objective damage).
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { BOT_TALENT_MODES, MUTATORS, type BotTalentMode, type HeroId, type MatchResult } from '../../src/sim/api';
 import { createMatch, createPlayerBot, fillPicks, playerBotCommands, replayRecord, result, step } from '../../src/sim/index';
@@ -63,7 +64,7 @@ describe('sim v10 (GAPS B0)', () => {
     expect(() => createMatch({ seed: 1, picks, tricks, difficulty: 'easy', botTalents: 'nope' as BotTalentMode })).toThrow(RangeError);
   });
 
-  it('a full match: every bot (the player-bot too) holds its seeded talents; the modes change them, a replay verifies only when seeded', { timeout: 60000 }, () => {
+  it('a full match: every bot (the player-bot too) holds its seeded talents; the modes change them, a replay verifies only when seeded', { timeout: limit(60000) }, () => {
     const seed = 31;
     const m = play(seed, 'sage');
     const seeded = talentsOf(m);
@@ -84,7 +85,7 @@ describe('sim v10 (GAPS B0)', () => {
     if (firstRec.finalHash !== rec.finalHash) expect(verifyReplay(firstRec).ok).toBe(false);
   });
 
-  it("replay records carry mutator 'none'; the server accepts no field or 'none' and refuses any other", { timeout: 60000 }, () => {
+  it("replay records carry mutator 'none'; the server accepts no field or 'none' and refuses any other", { timeout: limit(60000) }, () => {
     // sim v22: 'blitz' joined (tests/unit/blitz.test.ts covers it)
     expect(MUTATORS.slice(0, 2)).toEqual(['none', 'blitz']);
     const m = play(5, 'gabe', undefined, 'easy');
@@ -100,7 +101,7 @@ describe('sim v10 (GAPS B0)', () => {
   });
 
   // 18 full matches: ~50 s alone, over 60 s in a full parallel run since v14's 17-hero roster (180 s headroom)
-  it('SlotStats: damage taken for every hero, heal and shield for the heroes that give them, objective damage', { timeout: 180000 }, () => {
+  it('SlotStats: damage taken for every hero, heal and shield for the heroes that give them, objective damage', { timeout: limit(180000) }, () => {
     const totals: Record<string, { taken: number; heal: number; objective: number }> = {};
     for (let seed = 1; seed <= 6; seed++) {
       for (const hero of ['gabe', 'lambo', 'brutus'] as HeroId[]) {

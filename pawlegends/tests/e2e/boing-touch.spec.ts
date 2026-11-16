@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 import { CROSSING_BEDS } from '../../src/data/fun';
 import { minimapPoint, seedSide, simTick, startFirstMatch, waitGameSeconds } from './helpers';
 
@@ -39,7 +40,7 @@ const toward = (page: Page, x: number, y: number): Promise<{ sx: number; sy: num
 // tries depending on where the bots happened to be (2 of 6 at load 50, Nov 15, 2026); the bed and the stick are what
 // this checks.
 test('844x390 Crossing beds: walking onto a Boing Bed with the stick (or letting go on it) throws the hero every time', async ({ page }) => {
-  test.setTimeout(600_000);
+  test.setTimeout(limit(600_000));
   await page.setViewportSize({ width: W, height: H });
   await seedSide(page, 'cat', { difficulty: 'easy', hero: 'clem' });
   await startFirstMatch(page, '&speed=1&mode=practice');
@@ -62,7 +63,7 @@ test('844x390 Crossing beds: walking onto a Boing Bed with the stick (or letting
     let ready = false;
     const walk0 = await simTick(page);
     // 40 s of game time (wall guard 4 min)
-    for (const end = Date.now() + 240_000; Date.now() < end && (await simTick(page)) - walk0 < 40 * 30; ) {
+    for (const end = Date.now() + limit(240_000); Date.now() < end && (await simTick(page)) - walk0 < 40 * 30; ) {
       const p = await toward(page, stx, sty);
       if (p && p.state !== 'dead' && Math.hypot(p.mx - stx, p.my - sty) < 900) {
         ready = true;
@@ -78,32 +79,48 @@ test('844x390 Crossing beds: walking onto a Boing Bed with the stick (or letting
     }
     // the bed's 3 s cooldown after a previous throw has run out by now (the walk back took longer)
     tries++;
-    let entered = -1;
-    let thrown = -1;
     let released = false;
     const t0 = Date.now();
-    const tick0 = await simTick(page);
+    // the hero's sim position per snapshot (`window.__plTrack`, ?e2e=1), so a slow poll on a loaded machine cannot miss
+    // the throw (a hero that landed and walked back toward the thumb's aim point once read as never thrown)
+    const from = await simTick(page);
+    const seen = (): Promise<{ entered: number; landed: number }> =>
+      page.evaluate(
+        ([from, bx, by, lx, ly]) => {
+          const t = (window as unknown as { __plTrack?: number[][] }).__plTrack ?? [];
+          let entered = -1;
+          let landed = -1;
+          for (const [tick, x, y] of t) {
+            if (tick < from) continue;
+            if (entered < 0 && Math.hypot(x - bx, y - by) <= 1200) entered = tick;
+            if (Math.hypot(x - lx, y - ly) < 2500) {
+              landed = tick;
+              break;
+            }
+          }
+          return { entered, landed };
+        },
+        [from, bx, by, lx, ly] as const,
+      );
     // the thumb aims 2 m past the bed along its throw (from behind it, straight at the bed), wobbling ±12° per send
     const ax = bx + ux * 2000;
     const ay = by + uy * 2000;
     let k = 0;
+    let hit = { entered: -1, landed: -1 };
     await send('touchStart', [S]);
-    // 6 s of game time (wall guard 2 min)
-    while (Date.now() - t0 < 120_000 && (await simTick(page)) - tick0 < 6 * 30) {
+    // 6 s of game time from the first push of the stick (the harness's own round trips before it are not the bed's);
+    // wall guard 2 min, stretched on an overloaded machine
+    let tick0 = -1;
+    while (Date.now() - t0 < limit(120_000) && (tick0 < 0 || (await simTick(page)) - tick0 < 6 * 30)) {
+      hit = await seen();
+      if (hit.landed >= 0) break;
       const p = await toward(page, ax, ay);
       // no frame for my hero at this instant (a busy main thread between two frames): look again, do not end the try
       if (!p) {
         await page.waitForTimeout(60);
         continue;
       }
-      const dBed = Math.hypot(p.mx - bx, p.my - by);
-      const dLand = Math.hypot(p.mx - lx, p.my - ly);
-      if (entered < 0 && dBed <= 1200) entered = Date.now();
-      if (dLand < 2500) {
-        thrown = Date.now();
-        break;
-      }
-      if (letGo && entered >= 0 && !released) {
+      if (letGo && hit.entered >= 0 && !released) {
         await send('touchEnd', []);
         released = true;
         continue;
@@ -112,13 +129,25 @@ test('844x390 Crossing beds: walking onto a Boing Bed with the stick (or letting
         const w = (k++ % 2 === 0 ? 1 : -1) * 0.21;
         const a = Math.atan2(p.sy, p.sx) + w;
         await send('touchMove', [{ x: Math.round(S.x + Math.cos(a) * 55), y: Math.round(S.y + Math.sin(a) * 55), id: 1 }]);
+        if (tick0 < 0) tick0 = await simTick(page);
       }
       await page.waitForTimeout(60);
     }
+    if (hit.landed < 0) hit = await seen();
+    // a hero that reached the cushion inside the window still gets its stand (0.5 s after a let-go) and its flight: on a
+    // loaded machine the harness's release can come late in the window (seen once at load 140, Nov 16, 2026)
+    if (hit.landed < 0 && hit.entered >= 0) {
+      if (letGo && !released) {
+        await send('touchEnd', []);
+        released = true;
+      }
+      await waitGameSeconds(page, await simTick(page), 2);
+      hit = await seen();
+    }
     if (!released) await send('touchEnd', []);
-    const ok = thrown >= 0;
+    const ok = hit.landed >= 0;
     if (!ok) fails++;
-    results.push(`bed ${i % 3} ${letGo ? 'let go' : 'stick'}: ${ok ? `thrown ${entered >= 0 ? thrown - entered : '?'} ms after entering the disc` : `NOT thrown (entered ${entered >= 0})`}`);
+    results.push(`bed ${i % 3} ${letGo ? 'let go' : 'stick'}: ${ok ? `thrown ${hit.entered >= 0 ? Math.round(((hit.landed - hit.entered) * 1000) / 30) : '?'} game ms after entering the disc` : `NOT thrown (entered ${hit.entered >= 0})`}`);
     // past the bed's 3 s cooldown, in game time
     await waitGameSeconds(page, await simTick(page), 3.5);
   }

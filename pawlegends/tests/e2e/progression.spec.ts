@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 import { playFromHome } from './helpers';
 
 // Lane F (docs/FUN-PROGRESSION-V12.md F1–F5): the Fish chip sits clear of the rest of the HUD (desktop: on the ability
@@ -23,7 +24,7 @@ async function start(page: Page, speed: number): Promise<void> {
   await page.goto(`/?e2e=1&speed=${speed}`);
   await page.waitForSelector('html[data-screen="title"]');
   await playFromHome(page);
-  await page.waitForSelector('html[data-match="live"]', { timeout: 60_000 });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(60_000) });
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));
   await page.waitForFunction(() => !!(window as unknown as { __plWorld?: unknown }).__plWorld);
@@ -44,13 +45,13 @@ const boxes = (page: Page, sel: string) =>
 test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast on the rail, "Ultimate unlocked!"', async ({ page }, info) => {
   // the waits below are for game events at speed 8; on a loaded machine the sim falls far behind 8x (level 4 once took
   // over 150 s of wall time), so the limits are wide and the checks themselves unchanged
-  test.setTimeout(600_000);
+  test.setTimeout(limit(600_000));
   const touch = info.project.name === 'landscape';
   const sizes = touch ? PHONES : ([{ w: 1440, h: 900 }] as const);
   await page.setViewportSize({ width: sizes[0].w, height: sizes[0].h });
   await start(page, 8);
   // F1: the chip counts the passive Fish
-  await expect.poll(async () => Number(await page.locator('.pl-fish').getAttribute('data-fish')), { timeout: 180_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => Number(await page.locator('.pl-fish').getAttribute('data-fish')), { timeout: limit(180_000) }).toBeGreaterThan(0);
   // feel pass B3 hid the hero box on phones and the chip with it; Hud.placeFish puts it back on the minimap's rim
   // phones: at every minimap size (Settings S / M / L, minimapPrefs.ts), since the chip is placed from the minimap's size
   const mmSizes = touch ? (['m', 's', 'l'] as const) : (['m'] as const);
@@ -97,7 +98,7 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   // often (more since the fun pass's bigger last-hit Fish): wait for a moment with no Fish pop on screen first, or the
   // "+7" merges into a real one and is never shown as "+7" alone.
   await page
-    .waitForFunction(() => ![...document.querySelectorAll<HTMLElement>('.fx-dmg.fish')].some((e) => Number(getComputedStyle(e).opacity) > 0.05), null, { timeout: 15_000, polling: 'raf' })
+    .waitForFunction(() => ![...document.querySelectorAll<HTMLElement>('.fx-dmg.fish')].some((e) => Number(getComputedStyle(e).opacity) > 0.05), null, { timeout: limit(15_000), polling: 'raf' })
     .catch(() => {});
   // Measured in drawn frames as well as ms: 300 ms is ~18 frames at 60 fps, but swiftshader on a loaded machine draws a
   // frame every 200-600 ms, so the wall clock alone failed with the pop on the very next frame (QA flaky-qa: 647 ms)
@@ -139,24 +140,24 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   });
   await expect(page.locator('.pl-fish.burst')).toHaveCount(1);
   // it may wait behind a busier line (an announcer banner, a tip): the rail's said list records it once shown
-  await expect.poll(async () => (await said(page)).some((t) => /^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I — \+\d+|^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I \+\d+.* · Lv \d+$/.test(t)), { timeout: 60_000 }).toBe(true);
+  await expect.poll(async () => (await said(page)).some((t) => /^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I — \+\d+|^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I \+\d+.* · Lv \d+$/.test(t)), { timeout: limit(60_000) }).toBe(true);
   await page.screenshot({ path: `${SHOTS}/${sizes[0].w}x${sizes[0].h}-toy.png` });
 
   // F3: the level-up line says what is new; level 4 unlocks the ultimate (the XP trickle gets the player there). When the
   // ult tip or goal chip guides it, that line ("Level 4! ...") is the only one (fun pass, playtest #5)
-  await expect.poll(async () => (await said(page)).some((t) => /^Level 4 — Ultimate unlocked!| · Lv 4$|^Level 4! /.test(t)), { timeout: 420_000 }).toBe(true);
+  await expect.poll(async () => (await said(page)).some((t) => /^Level 4 — Ultimate unlocked!| · Lv 4$|^Level 4! /.test(t)), { timeout: limit(420_000) }).toBe(true);
   await page.screenshot({ path: `${SHOTS}/${sizes[0].w}x${sizes[0].h}-level.png` });
   for (const t of await said(page)) expect(t, 'rail text').not.toMatch(/treat/i);
 });
 
 test('results: the progression summary (Toy timings, Fish, last hits, medals, Fish by source) at every size', async ({ page }, info) => {
-  test.setTimeout(300_000);
+  test.setTimeout(limit(300_000));
   const touch = info.project.name === 'landscape';
   const sizes = touch ? PHONES : ([{ w: 1440, h: 900 }] as const);
   await page.setViewportSize({ width: sizes[0].w, height: sizes[0].h });
   await start(page, 16);
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 240_000 });
-  await page.waitForSelector('.pl-results.actions-in', { timeout: 20_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(240_000) });
+  await page.waitForSelector('.pl-results.actions-in', { timeout: limit(20_000) });
   const prog = page.locator('.pl-results .pl-prog');
   await expect(prog).toHaveCount(1);
   await expect(prog.locator('tbody tr[data-slot]')).toHaveCount(6);

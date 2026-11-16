@@ -6,6 +6,7 @@
  * Lives (Hard and PvP) is the structural cap; a hero over the line is tuned in its own ability damage, never its pvp
  * row. The 60-tick loss is logged for V17.md §6.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { HERO_IDS, HEROES } from '../../src/data/heroes';
 import { Op, type Command, type HeroId } from '../../src/sim/api';
@@ -95,7 +96,7 @@ function burst(attacker: HeroId, victim: HeroId): { at45: number; at60: number }
   return { at45: Math.trunc((at45 * 10000) / max), at60: Math.trunc((at60 * 10000) / max) };
 }
 
-describe('sim v17 burst cap (§3.11)', { timeout: 300_000 }, () => {
+describe('sim v17 burst cap (§3.11)', { timeout: limit(300_000) }, () => {
   const victim = squishiest();
 
   it('the squishiest marksman or mage is the victim', () => {

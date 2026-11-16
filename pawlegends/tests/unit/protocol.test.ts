@@ -4,6 +4,7 @@
  * `decodeWire`); and the Worker transport (local-host.worker.ts over a real MessageChannel) and a mock WebSocket
  * transport (socket-host.ts) produce identical snapshot streams for the same seed and commands.
  */
+import { limit } from './cpu-budget';
 import { MessageChannel, type MessagePort } from 'node:worker_threads';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HostCore } from '../../src/host/host-core';
@@ -64,7 +65,7 @@ const plain = (m: ClientMsg | HostMsg): unknown => {
   return JSON.parse(JSON.stringify(m));
 };
 
-describe('protocol (§11.2, §15 item 13)', { timeout: 120000 }, () => {
+describe('protocol (§11.2, §15 item 13)', { timeout: limit(120000) }, () => {
   it('snap round-trips a snapshot (minus events), with projectiles and zones', () => {
     const { picks, tricks } = fillPicks(3, 'sage', 'pounce');
     const m = createMatch({ seed: 3, picks, tricks, difficulty: 'easy' });
@@ -185,7 +186,7 @@ async function drive(client: Client): Promise<string[]> {
   return client.received.map((m) => JSON.stringify(plain(m.t === 'welcome' ? { ...m, matchId: m.matchId.replace(/-\d+$/, '') } : m)));
 }
 
-describe('transports (§15 item 13)', { timeout: 120000 }, () => {
+describe('transports (§15 item 13)', { timeout: limit(120000) }, () => {
   afterEach(() => {
     vi.useRealTimers();
     delete (globalThis as { self?: unknown }).self;

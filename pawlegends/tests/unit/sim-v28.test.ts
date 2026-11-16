@@ -2,6 +2,7 @@
  * Sim v28 (docs/plans/moba/V28.md): the Hearthwood bot fixes (§1), the Sunny Lane strip and One Lane Brawl (§2), the Duel
  * (§3) and Boss Weekend (§4). The numbers come from the data files, so a tuning pass changes the data, not these cases.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { BOSS } from '../../src/data/boss';
 import { BOTS } from '../../src/data/bots';
@@ -100,7 +101,7 @@ describe('sim v28 §2: the Sunny Lane strip and One Lane Brawl', () => {
     while (!result(m)) step(m);
     expect(result(m)!.ticks).toBeLessThanOrEqual(MUTATOR_RULES.onelane.hardEnd);
     expect(verifyReplay(replayRecord(m)!).ok).toBe(true);
-  }, 120000);
+  }, limit(120000));
 });
 
 describe('sim v28 §3: the Duel', () => {
@@ -136,7 +137,7 @@ describe('sim v28 §3: the Duel', () => {
     while (!result(p)) step(p);
     expect(['goal', 'timeUp']).toContain(result(p)!.reason);
     expect(verifyReplay(replayRecord(p)!).ok).toBe(true);
-  }, 120000);
+  }, limit(120000));
 });
 
 describe('sim v28 §4: Boss Weekend', () => {
@@ -192,5 +193,5 @@ describe('sim v28 §4: Boss Weekend', () => {
     if (r.reason === 'timeUp') expect(r.winner).toBe(1);
     else expect(r).toMatchObject({ reason: 'goal', winner: 0 });
     expect(verifyReplay(replayRecord(p)!).ok).toBe(true);
-  }, 120000);
+  }, limit(120000));
 });

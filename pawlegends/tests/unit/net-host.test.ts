@@ -3,6 +3,7 @@
  * backend's own Room class), fed the same TURN bytes: identical hashes; a command sent with x = 123.456 reaches every
  * sim as its quantised value; the NetHost never applies its own command object.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { Room } from '../../../backend/src/pawlegends/party/room';
 import { NetCore, type CoreOut } from '../../src/net/net-core';
@@ -22,7 +23,7 @@ function config(seed: number) {
   return { seed, picks: picks as string[], tricks: tricks as string[], difficulty: 'easy', humans: [0, 1] };
 }
 
-describe('net-host (N5)', { timeout: 120_000 }, () => {
+describe('net-host (N5)', { timeout: limit(120_000) }, () => {
   it('two clients and a referee on the same TURN bytes stay identical; commands arrive quantised', () => {
     const cfg = config(99);
     const bodies: Uint8Array[] = [];

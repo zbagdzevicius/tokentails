@@ -3,6 +3,7 @@
  * starts from a keyframe copy) reaches the saved end state hash; a record from another sim version or a party match
  * is refused; the loop plays at 1x/2x/4x and reports deaths for "jump to my deaths".
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { createMatch, fillPicks, hash, replayRecord, result, step, SIM_VERSION, Op, type Command, type ReplayRecord } from '../../src/sim/index';
 import { Rng } from '../../src/sim/rng';
@@ -37,7 +38,7 @@ const fullRecord = (() => {
 
 const now = (): number => performance.now();
 
-describe('deepClone (replay keyframes)', { timeout: 60_000 }, () => {
+describe('deepClone (replay keyframes)', { timeout: limit(60_000) }, () => {
   it('a copied match steps exactly like the original (class prototypes kept)', () => {
     const m = playRandom(7, 900);
     const k = deepClone(m);
@@ -63,7 +64,7 @@ describe('deepClone (replay keyframes)', { timeout: 60_000 }, () => {
   });
 });
 
-describe('ReplayCore (determinism)', { timeout: 120_000 }, () => {
+describe('ReplayCore (determinism)', { timeout: limit(120_000) }, () => {
   it('a re-run reaches the saved end state hash, and so does a start from a keyframe', () => {
     const rec = fullRecord();
     const core = new ReplayCore();
@@ -113,7 +114,7 @@ describe('ReplayCore (determinism)', { timeout: 120_000 }, () => {
   });
 });
 
-describe('ReplayLoop', { timeout: 120_000 }, () => {
+describe('ReplayLoop', { timeout: limit(120_000) }, () => {
   it('plays at the chosen speed, pauses, and posts welcome, snapshots, info and the end', () => {
     let t = 0;
     const timers: { fn: () => void; at: number }[] = [];

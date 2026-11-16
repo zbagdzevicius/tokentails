@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 
 /** A page, a frame or a frame locator: anything that finds elements. */
 export type Root = { locator(selector: string): Locator };
@@ -19,7 +20,7 @@ export const simTick = (page: Page): Promise<number> =>
   page.evaluate(() => (window as unknown as { __plWorld?: { view: { frame: { latest: { clock: { tick: number } } } | null } } }).__plWorld?.view.frame?.latest.clock.tick ?? 0);
 
 /** Waits until the sim has run `seconds` of game time past `from` (a `simTick`), or `wallMs` passed. */
-export async function waitGameSeconds(page: Page, from: number, seconds: number, wallMs = 120_000): Promise<void> {
+export async function waitGameSeconds(page: Page, from: number, seconds: number, wallMs = limit(120_000)): Promise<void> {
   const until = Date.now() + wallMs;
   while (Date.now() < until && (await simTick(page)) - from < seconds * 30) await page.waitForTimeout(100);
 }

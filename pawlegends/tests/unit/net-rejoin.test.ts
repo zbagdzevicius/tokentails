@@ -2,6 +2,7 @@
  * Party play N7 (MULTIPLAYER.md §4.5, §12 N7): delta catch-up after a drop, full catch-up after a reload, the same
  * CATCHUP twice gives the same hash; and the fast-forward speed (perf-ff: 19,800 ticks < 1.5 s on Node).
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { NetCore, type CoreOut } from '../../src/net/net-core';
 import { encodeTurnBody, type TurnEntry } from '../../src/net/proto';
@@ -59,7 +60,7 @@ function drain(core: NetCore, now = 0) {
   for (let i = 0; i < 100_000 && core.applied < core['queued' as never]; i++) core.pace(now + i * 70);
 }
 
-describe('net rejoin (N7)', { timeout: 300_000 }, () => {
+describe('net rejoin (N7)', { timeout: limit(300_000) }, () => {
   const log = roomLog(2026);
   const c = cfg(2026);
 

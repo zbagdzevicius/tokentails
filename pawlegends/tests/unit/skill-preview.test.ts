@@ -4,6 +4,7 @@
  * the loop is deterministic, and the player creates and disposes its scene without leaking (GL context, DOM,
  * listeners, the shared sfx bus and the palette / view-yaw globals). The GL renderer is a stub: happy-dom has no WebGL.
  */
+import { limit } from './cpu-budget';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { HERO_IDS, HEROES } from '../../src/data/heroes';
@@ -208,7 +209,7 @@ describe('skill preview player: create, switch, dispose', () => {
     expect(cameraYaw()).toBe(yaw0);
     expect(sidesSwapped()).toBe(swap0);
     expect(sfx.play).toBe(play0);
-  }, 90000);
+  }, limit(90000));
 
   it('a stopped preview draws nothing more; play restarts the clock', async () => {
     const { mountSkillPreview } = await import('../../src/ui/preview/skillPreview');
@@ -221,5 +222,5 @@ describe('skill preview player: create, switch, dispose', () => {
     expect(p.stats().frames).toBe(f0);
     expect(p.stats().playing).toBe(false);
     p.dispose();
-  }, 60000);
+  }, limit(60000));
 });

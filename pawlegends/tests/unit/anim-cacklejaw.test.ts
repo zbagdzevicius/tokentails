@@ -4,6 +4,7 @@
  * airborne, compile on his rig, the basic pick is allocation-free and correct, and the skill FX draw at the sim sizes,
  * standing (ribbons / walls) where a floor would vanish.
  */
+import { limit } from './cpu-budget';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeHero } from '../../src/render/chars';
 import { compileClip } from '../../src/render/anim/compile';
@@ -131,7 +132,7 @@ describe('cacklejaw moves', () => {
       if (big(r.roll)) expect(c.calm?.roll, `${c.id} calm roll`).toBeDefined();
     }
     ch.dispose();
-  }, 60000);
+  }, limit(60000));
 
   it('basic pick: pounce out of stealth, Pack Flank from behind, no allocation', () => {
     const ctx = { hero: 'cacklejaw', id: 0, branch: false, talents: [], comboIndex: 0, recastIndex: 0, basicCount: 0, charged: false, resource: 0, buffs: 0, stealthed: false, ultActive: false, targetBehind: false, targetCc: false } as unknown as { -readonly [K in keyof MoveCtx]: MoveCtx[K] };

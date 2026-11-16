@@ -1,4 +1,5 @@
 /** Party play N1 (MULTIPLAYER.md §2): the wire codec. Round-trips, golden bytes for every frame type, a 100k fuzz. */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { OP_SIZE, encodeCommand } from '../../src/sim/commands';
 import { Op } from '../../src/sim/api';
@@ -209,7 +210,7 @@ describe('net-proto', () => {
       }
     }
     expect(ok).toBeGreaterThan(0);
-  }, 60_000);
+  }, limit(60_000));
 
   it('PROTO 5 chat (CHAT-AVATARS.md §5): chat.say is typed, bounded and refuses images or unknown keys', () => {
     expect(parseClientJson('{"t":"chat.say","k":"q","id":12}')).toEqual({ t: 'chat.say', k: 'q', id: 12 });

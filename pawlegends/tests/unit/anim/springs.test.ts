@@ -1,11 +1,12 @@
 /** ANIM-SPEC §5 / §12 springs.test: tail and ear chains stay stable and NaN-free at dt 1/30, 1/60 and 1/144. */
+import { limit } from '../cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { SpringChain } from '../../../src/render/anim/springs';
 import { HERO_SPRINGS } from '../../../src/render/anim/common';
 import { HERO_IDS } from '../../../src/data/heroes';
 import { SPRING_RATE } from '../../../src/render/anim/layers';
 
-describe('spring chains', { timeout: 60000 }, () => {
+describe('spring chains', { timeout: limit(60000) }, () => {
   for (const dt of [1 / 30, 1 / 60, 1 / 144])
     for (const tier of ['low', 'med'] as const)
       it(`stable at dt ${dt.toFixed(4)} (${tier})`, () => {

@@ -3,6 +3,7 @@
  * hard CC on a hero counts toward CC_DR.cap ticks of lock in a CC_DR.window-tick window; the CC that reaches the cap is
  * cut short and CC_DR.immune ticks of immunity follow the lock.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { CC_DR } from '../../src/data/effects';
 import { charm, cleanse, fear, knockback, root, selfRoot, stun } from '../../src/sim/effects';
@@ -200,7 +201,7 @@ describe('sim v17 Steadfast (CC cap and immunity)', () => {
       }
       expect(longest, `seed ${seed}`).toBeLessThanOrEqual(CC_DR.cap);
     }
-  }, 60_000);
+  }, limit(60_000));
 
   it('CHAMPS §2(d) chain: Lambo E → Lambo R → Gabby R on a hero walking away locks it at most 60 ticks in a row', () => {
     // Gabby (2) and Lambo (5) are on different teams here, so build a dedicated line-up: Clem victim (0) vs Lambo (3), Gabby (4).

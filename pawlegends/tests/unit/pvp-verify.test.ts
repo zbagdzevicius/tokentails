@@ -1,4 +1,5 @@
 /** Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.7, §3.1.9): verifyPvpReplay accepts a genuine record and refuses tampering. */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { Op, type PvpReplayRecord } from '../../src/sim/api';
 import { result, step } from '../../src/sim/index';
@@ -15,7 +16,7 @@ function genuine(): PvpReplayRecord {
   return pvpReplayRecord(m)!;
 }
 
-describe('pvp-verify', { timeout: 300_000 }, () => {
+describe('pvp-verify', { timeout: limit(300_000) }, () => {
   const rec = genuine();
 
   it('a genuine record verifies (also through the server facade), with the winner', () => {

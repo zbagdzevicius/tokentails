@@ -12,6 +12,7 @@
  * Headless sim at 30 Hz, bots off; a touch stick is a move 2 m ahead (past a grounded cannon, as the client) every
  * 100 ms through the input gate.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { BOING, CANNON, FUN_BY_MAP, YARN } from '../../src/data/fun';
 import { HERO_IDS } from '../../src/data/heroes/index';
@@ -270,7 +271,7 @@ describe('sim v25: the Mega Yarn Ball is kicked on purpose, along the walk', () 
   });
 });
 
-describe('sim v25: a champion crossing the toys never stalls', { timeout: 600000 }, () => {
+describe('sim v25: a champion crossing the toys never stalls', { timeout: limit(600000) }, () => {
   it("Crossing's river crossing with the cannon and both balls on it: walked by stick and by click, never grabbed or stalled", () => {
     const toys = (m: MatchHandle) => {
       const homes = FUN_BY_MAP[0].yarn.homes;

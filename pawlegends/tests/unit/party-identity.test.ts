@@ -33,6 +33,7 @@
  * at its live fixtures): `PARTY_GOLDEN_WRITE=1 npx vitest run tests/unit/party-identity.test.ts`. A new sim version
  * that changes single-player play regenerates it from that version's sim BEFORE party code is merged in.
  */
+import { limit } from './cpu-budget';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -82,7 +83,7 @@ function rows(): Row[] {
   return out;
 }
 
-describe('party-identity (MULTIPLAYER.md §1.5, merge checklist)', { timeout: 600_000 }, () => {
+describe('party-identity (MULTIPLAYER.md §1.5, merge checklist)', { timeout: limit(600_000) }, () => {
   it('single-player output equals the golden (262c36a0 dogs-only sim at v14; regenerated at v15 and per v16 B item)', () => {
     const got = rows();
     if (process.env.PARTY_GOLDEN_WRITE === '1') {

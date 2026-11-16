@@ -1,4 +1,5 @@
 /** Sim v16 S-PvP (docs/plans/moba/V16.md §3.1): a PvP match with humans on both teams, its replay and its rules. */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { HEROES } from '../../src/data/heroes';
 import { Op, type Command } from '../../src/sim/api';
@@ -11,7 +12,7 @@ import { pvpMatch, pvpSeats, playPvp } from './pvp-helpers';
 const ALL = [0, 1, 2, 3, 4, 5];
 const by = (log: readonly { tick: number; cmd: Command }[], t: number): Command[] => log.filter((c) => c.tick === t).map((c) => c.cmd);
 
-describe('pvp-sim', { timeout: 600_000 }, () => {
+describe('pvp-sim', { timeout: limit(600_000) }, () => {
   it('6 pilot streams play a whole match; the v3 record verifies and replays to the same trail', () => {
     const m = playPvp(41, ALL, ['normal', 'normal', 'easy', 'normal', 'normal', 'easy']);
     const res = result(m)!;

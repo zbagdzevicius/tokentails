@@ -6,6 +6,7 @@
  * Every hero × path × speed (order), × lag × speed × path (hold, tap) and × speed × path (aclick); writes JSON to
  * CHASE_OUT (default /tmp/chase-harness.json). CHASE_ONE=hero,path,mode,pct,lag prints one run.
  */
+import { limit } from '../../tests/unit/cpu-budget';
 import { writeFileSync } from 'node:fs';
 import { describe, it } from 'vitest';
 import { HERO_IDS } from '../../src/data/heroes';
@@ -31,5 +32,5 @@ describe('chase harness', () => {
       for (const mode of ['aclick', 'amove'] as const) for (const pct of [0, 5]) for (const path of ['straight', 'zigzag', 'tower'] as const) out.push(run(hero, path, mode, pct));
     }
     writeFileSync(process.env.CHASE_OUT ?? '/tmp/chase-harness.json', JSON.stringify(out));
-  }, 900000);
+  }, limit(900000));
 });

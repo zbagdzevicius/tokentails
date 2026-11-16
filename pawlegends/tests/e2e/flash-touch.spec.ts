@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 import { trickAim } from '../../src/input/abilities';
 import { landing } from '../../src/input/heading';
 import { attr, me, minimapPoint, ops, startFirstMatch } from './helpers';
@@ -64,11 +65,11 @@ async function walkTo(page: Page, at: { x: number; y: number }): Promise<void> {
         if (Math.hypot(m.x - at.x, m.y - at.y) > 1200 && m.state === 'idle') await page.mouse.click(mx, my, { button: 'right' });
         return Math.hypot(m.x - at.x, m.y - at.y);
       },
-      { timeout: 20000, intervals: [100] },
+      { timeout: limit(20000), intervals: [100] },
     )
     .toBeLessThan(1200);
   // the hero stands where the order put it (the run-up below measures from here)
-  await expect.poll(async () => (await me(page)).state, { timeout: 10000, intervals: [100] }).toBe('idle');
+  await expect.poll(async () => (await me(page)).state, { timeout: limit(10000), intervals: [100] }).toBe('idle');
 }
 
 /** The run-up start for map direction `a` (rad): RUN_UP_MM back from the spot (inside its clear 5 m). */
@@ -92,7 +93,7 @@ async function ranAlong(page: Page, a: number, mm: number): Promise<void> {
       return !!l && !!f && (l[1] - f[1]) * ux + (l[2] - f[2]) * uy >= d;
     },
     [Math.cos(a), Math.sin(a), mm] as const,
-    { polling: 'raf', timeout: 20000 },
+    { polling: 'raf', timeout: limit(20000) },
   );
 }
 
@@ -149,7 +150,7 @@ const traceLen = (page: Page): Promise<number> => page.evaluate(() => (window as
 async function waitTicks(page: Page, n: number): Promise<void> {
   const t0 = await tickNow(page);
   await frames(page, 4);
-  await page.waitForFunction((t) => Number(document.documentElement.dataset.tick) >= t, t0 + n, { timeout: 30000 });
+  await page.waitForFunction((t) => Number(document.documentElement.dataset.tick) >= t, t0 + n, { timeout: limit(30000) });
 }
 
 async function collect(page: Page, partial: Omit<Shot, 'trace' | 'track' | 'heads1'>): Promise<Shot> {
@@ -278,7 +279,7 @@ for (const vp of [
     test.use({ viewport: vp });
     for (let k = 0; k < 8; k++) {
       test(`joystick ${DIRS[k]} + one tap on Pounce blinks ~4 m ${DIRS[k]} and runs on`, async ({ page }) => {
-        test.setTimeout(150_000);
+        test.setTimeout(limit(150_000));
         await flashHeld(page, k);
       });
     }
@@ -288,7 +289,7 @@ for (const vp of [
 test.describe('flash on touch at 844x390: the other thumb', () => {
   test.use({ viewport: { width: 844, height: 390 } });
   test('the stick let go in the same breath as the press: the flash still goes, then the hero stops', async ({ page }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(limit(150_000));
     const dir = 0;
     const a = (dir * Math.PI) / 4;
     const { touch, stickAt, base, trick } = await setup(page, runUpFrom(a));
@@ -310,12 +311,16 @@ test.describe('flash on touch at 844x390: the other thumb', () => {
     const k = checkBlink(shot, a, 'stick let go');
     // then the hero stops near the landing (the Stop went after the cast, it did not eat it)
     const land = shot.track[k];
-    const last = shot.track.at(-1)!;
-    expect(Math.hypot(last[1] - land[1], last[2] - land[2]), JSON.stringify(shot.track.slice(k, k + 40))).toBeLessThan(2600);
+    // where it first stands still: on a loaded machine the Stop lands a few ticks late, and once the hero stopped 2 m on,
+    // on the Boing Bed east of the spot, whose 0.5 s stand rule then threw it 10 m (Nov 16, 2026)
+    const still = shot.track.findIndex((t, i) => i > k && t[1] === shot.track[i - 1][1] && t[2] === shot.track[i - 1][2]);
+    expect(still, `the hero never stood still: ${JSON.stringify(shot.track.slice(k, k + 40))}`).toBeGreaterThan(k);
+    const stop = shot.track[still];
+    expect(Math.hypot(stop[1] - land[1], stop[2] - land[2]), JSON.stringify(shot.track.slice(k, k + 40))).toBeLessThan(2600);
     expect(await ops(page)).toContain(Op.Stop);
   });
   test('no stick held, after a run: the press fires along the way the hero ran, before the finger lifts', async ({ page }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(limit(150_000));
     const dir = 5;
     const a = (dir * Math.PI) / 4;
     const { touch, stickAt, base, trick } = await setup(page, runUpFrom(a));
@@ -342,7 +347,7 @@ test.describe('flash on touch at 844x390: the other thumb', () => {
     expect(shot.track[k][0], 'the blink waited for the finger to lift').toBeLessThan(liftTick);
   });
   test('the stick pushed into a wall slides the hero along it: the flash goes along the wall, at least 3 m (QA 2026-11-07)', async ({ page }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(limit(150_000));
     const { touch, base, trick } = await setup(page);
     // south at a light tilt (18 px: no lane magnet) until the hero meets the wall corner ~4.5 m south of the spot and
     // slides on it south-west (x falls from 25 m to 23.5 m; straight south from there a blink lands 0.5 to 2.8 m);
@@ -371,7 +376,7 @@ test.describe('flash on touch at 844x390: the other thumb', () => {
         return null;
       },
       SPOT.y,
-      { polling: 20, timeout: 20000 },
+      { polling: 20, timeout: limit(20000) },
     );
     expect(await slid.jsonValue(), 'the hero walked south without meeting the wall').toBe('sliding');
     await touch('touchStart', [south, trick]);
