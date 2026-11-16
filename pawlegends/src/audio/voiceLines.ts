@@ -1,6 +1,6 @@
 /**
  * The announcer's lines and the voice queue, pure (no audio, no DOM, time passed in), so a unit test drives them.
- * The clips are recorded (an original designed voice, Qwen3-TTS, Apache-2.0) at public/voice/<key>.mp3 and listed in
+ * The clips are recorded (an original designed deep announcer voice, Qwen3-TTS, Apache-2.0) at public/voice/<key>.mp3 and listed in
  * public/voice/manifest.json; audio/voice.ts plays them. A key with no clip says nothing: there is no speech
  * synthesis fallback.
  *

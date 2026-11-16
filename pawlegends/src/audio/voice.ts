@@ -2,13 +2,15 @@
  * The announcer's voice (LoL pass, lane B): "First Blood", "Double Pounce", "Ace", "Victory"... Loaded with a dynamic
  * import on the first line or the match's preload (audio/sfx.ts), so it is never in the first-load JS.
  *
- * Every line is a recorded clip at public/voice/<key>.mp3 (an original designed female announcer voice, Qwen3-TTS,
- * Apache-2.0), played only when public/voice/manifest.json lists it. A key with no clip is silent: the browser's
+ * Every line is a recorded clip at public/voice/<key>.mp3 (the "feral power" announcer: an original deep voice designed
+ * and cloned locally with Qwen3-TTS, Apache-2.0, no real person; low shelf, saturation, a purr/growl layer, arena
+ * reverb and a sub-hit under the big calls; 16 kHz mono, levelled to −16 LUFS), played only when
+ * public/voice/manifest.json lists it. A key with no clip is silent: the browser's
  * speech synthesis is never used. Lines go through the VoiceQueue (audio/voiceLines.ts): one at a time, highest
  * priority first, stale ones dropped, the result cuts in. Music ducks under a line. Mute and the sound-effects volume
  * apply. Render side only; never feeds the sim.
  */
-import { VoiceQueue, type VoiceKey } from './voiceLines';
+import { VOICE_CUT_PRIORITY, VoiceQueue, voicePriority, type VoiceKey } from './voiceLines';
 
 export interface VoiceOut {
   /** The audio context and the bus to play clips into (null: nothing is said). */
@@ -39,6 +41,13 @@ function warnOnce(what: string, err?: unknown): void {
 
 /** The music's level under a line (of its own level). */
 export const DUCK_LEVEL = 0.35;
+/**
+ * Under a big call (priority BIG_DUCK_PRIORITY and up: Victory, Defeat, Ace, Triple, Cat-astrophe, the core lines) the
+ * music and the hits dip further, so the deep voice and its sub-hit land on a clear low end.
+ */
+export const BIG_DUCK_LEVEL = 0.22;
+export const BIG_COMBAT_DUCK = 0.4;
+export const BIG_DUCK_PRIORITY = VOICE_CUT_PRIORITY - 1;
 /** The clip's own gain into the sound-effects bus (the clips are levelled to −16 LUFS). */
 const CLIP_GAIN = 0.9;
 
@@ -164,9 +173,15 @@ function duckOne(g: GainNode | null | undefined, ctx: AudioContext | null, level
   }
 }
 
-function duck(out: VoiceOut, on: boolean): void {
-  duckOne(out.duck, out.ctx, DUCK_LEVEL, on);
-  duckOne(out.duckFx, out.ctx, COMBAT_DUCK, on);
+/** How far the music and the hits dip under `key` ([music, combat], each of its own level). */
+export function duckLevels(key: VoiceKey): readonly [number, number] {
+  return voicePriority(key) >= BIG_DUCK_PRIORITY ? [BIG_DUCK_LEVEL, BIG_COMBAT_DUCK] : [DUCK_LEVEL, COMBAT_DUCK];
+}
+
+function duck(out: VoiceOut, on: boolean, key?: VoiceKey): void {
+  const [music, combat] = key ? duckLevels(key) : [DUCK_LEVEL, COMBAT_DUCK];
+  duckOne(out.duck, out.ctx, music, on);
+  duckOne(out.duckFx, out.ctx, combat, on);
 }
 
 function stopPlaying(): void {
@@ -225,7 +240,7 @@ function start(key: VoiceKey, cut: boolean): void {
       now.said?.(key, src, CLIP_GAIN);
       src.start(lead > 0 ? ctx.currentTime + lead / 1000 : 0);
       playing = { src, key };
-      duck(now, true);
+      duck(now, true, key);
       queue.length(key, performance.now(), lead + buf.duration * 1000);
       pump();
     } catch (e) {
