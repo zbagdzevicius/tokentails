@@ -255,7 +255,16 @@ export const DEBRIS = Object.freeze({ pool: 48, tower: 12, core: 14, gravity: 22
 
 /** LoL pass (lane C): the idle tower range ring is a pale warm white; it turns red only while the tower is on you. */
 const RANGE_IDLE = 0xffe2c4;
-const TOWER_RANGE_M = Math.max(TOWERS.outer.range, TOWERS.inner.range) / 1000;
+/**
+ * Where the tower can still hit your body's edge (m): the sim's reach is range + the tower's radius + the target's
+ * radius (combat/attack.ts inAttackRange), so a hero is shot while its edge is within range + tower radius of the
+ * tower's centre. Player report: "I'm being hit even if I'm not under border of tower": the ring used to sit at 6.7 m
+ * (7 m decal, line at 0.48 of the texture) while the tower reached a hero's edge at 8 m.
+ */
+export const TOWER_REACH_M = (Math.max(TOWERS.outer.range, TOWERS.inner.range, TOWERS.gate.range, TOWERS.hearth.range) + RADIUS.tower) / 1000;
+/** Decal size (m) whose dashed line (drawn at 0.48 of the texture, decals.ts dashRingTexture) lands on TOWER_REACH_M. */
+export const TOWER_RING_SIZE_M = (TOWER_REACH_M * 2) / 0.96;
+const TOWER_RANGE_M = TOWER_REACH_M;
 /**
  * X-ray: a tower or core fades while a hero stands in the patch it hides on screen. The camera looks north (−Z)
  * from the south, so a tall structure covers the ground just north of it.
@@ -879,11 +888,11 @@ export class StructureView {
         const mdz = this.me.z - s.z;
         const d = Math.sqrt(mdx * mdx + mdz * mdz);
         if (ag > 0) {
-          this.aggroRings.add(s.x, s.z, TOWER_RANGE_M * 2, RELATION.danger, ag);
-          this.aggroRings.add(s.x, s.z, TOWER_RANGE_M * 2 * 0.985, RELATION.danger, 0.8 * ag);
+          this.aggroRings.add(s.x, s.z, TOWER_RING_SIZE_M, RELATION.danger, ag);
+          this.aggroRings.add(s.x, s.z, TOWER_RING_SIZE_M * 0.985, RELATION.danger, 0.8 * ag);
         } else if (d < TOWER_RANGE_M + 4) {
           const a = Math.min(1, (TOWER_RANGE_M + 4 - d) / 3);
-          this.ranges.add(s.x, s.z, TOWER_RANGE_M * 2, RANGE_IDLE, 0.5 * a);
+          this.ranges.add(s.x, s.z, TOWER_RING_SIZE_M, RANGE_IDLE, 0.5 * a);
         }
       }
     }
