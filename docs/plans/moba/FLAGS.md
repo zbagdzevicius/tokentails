@@ -14,6 +14,7 @@ Founder ask (Nov 15): "implement country flags ( based on the IP of user ). for 
 - Only Cloudflare's `cf-ipcountry` header, the ISO 3166-1 alpha-2 code Cloudflare derives from the request IP (the same source as the Moon Rave flags and the relay's RTT region). Non-country codes (`XX`, `T1` Tor, `A1`, `A2`, `O1`, `EU`, `AP`, `ZZ`) give no flag.
 - The IP is never read, stored or logged for this. No paid API and no GeoIP database ship with the backend.
 - `GET /pawlegends/flag` (twice a day at most per device) records the code on the account's row in `pawlegendsflags` (`_id` = account id, `cc`, `off`, `at`). The relay uses the stored row; without one it uses the country of the socket's own upgrade request.
+- `GET /pawlegends/flag/here` (no session, e.g. a web visitor who never signed in): answers only the request's country, stores nothing; the web host uses it for `flag.get` when there is no session at all, so the player's own seat shows their flag in bot matches.
 - An unticketed relay socket never shows a flag (its hide choice cannot be read).
 - The row is deleted with the account (`social-purge.ts`).
 

@@ -14,11 +14,13 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { AllowGuest } from 'src/common/decorators/allow-guest.decorator';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ClientIpThrottleOptions, ClientIpThrottlerGuard } from 'src/shared/guards/client-ip-throttler.guard';
+import { countryOf } from './flags';
 import { FlagsService } from './flags.service';
 
 const MIN = 60_000;
-const LIMITS: Record<'get' | 'set', ClientIpThrottleOptions> = {
+const LIMITS: Record<'get' | 'here' | 'set', ClientIpThrottleOptions> = {
     get: { limit: 30, ttl: MIN },
+    here: { limit: 30, ttl: MIN },
     set: { limit: 10, ttl: MIN },
 };
 
@@ -43,6 +45,17 @@ export class PawlegendsFlagsController {
     async mine(@Req() req: any, @Res({ passthrough: true }) res: any) {
         await this.ipThrottler.consume('PawlegendsFlags.get', req, LIMITS.get, res);
         return this.flags.mine(this.account(req), req?.headers?.['cf-ipcountry']);
+    }
+
+    /**
+     * s7 verify: a visitor with no session (the web `/play` page creates none) still sees their own flag in a bots
+     * match. Answers only the request's Cloudflare country; nothing is stored and there is no account.
+     */
+    @Header('Cache-Control', 'private, no-store')
+    @Get('here')
+    async here(@Req() req: any, @Res({ passthrough: true }) res: any) {
+        await this.ipThrottler.consume('PawlegendsFlags.here', req, LIMITS.here, res);
+        return { cc: countryOf(req?.headers?.['cf-ipcountry']) };
     }
 
     /** `{hideFlag: boolean}`: hide (a neutral paw) or show the flag to other players. */

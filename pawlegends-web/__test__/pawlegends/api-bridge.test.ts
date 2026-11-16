@@ -81,7 +81,7 @@ describe("pawlegends api bridge (host)", () => {
   });
 
   it("country flags (FLAGS.md): get for any session, set only with a boolean", () => {
-    expect(routeOf("flag.get", {})).toEqual({ method: "GET", path: "/pawlegends/flag", auth: "any" });
+    expect(routeOf("flag.get", {})).toEqual({ method: "GET", path: "/pawlegends/flag", auth: "any", anon: { method: "GET", path: "/pawlegends/flag/here", auth: "none" } });
     expect(routeOf("flag.set", { hideFlag: false })?.body).toEqual({ hideFlag: false });
     expect(routeOf("flag.set", { hideFlag: "yes" })).toBeNull();
     expect(routeOf("flag.set", {})).toBeNull();

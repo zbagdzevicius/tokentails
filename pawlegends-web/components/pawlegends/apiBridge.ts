@@ -180,6 +180,8 @@ export interface PawlegendsApiRoute {
   body?: Record<string, unknown>;
   /** "registered": a guest is answered 403 without a call; "any": guests too (a 428 creates the guest session); "none": no token. */
   auth: "registered" | "any" | "none";
+  /** The token-free route to call instead when there is no session at all (no Firebase user, not even anonymous). */
+  anon?: PawlegendsApiRoute;
 }
 
 const CODE = /^[A-Za-z0-9 -]{4,20}$/;
@@ -414,7 +416,8 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       return endpoint ? { method: "POST", path: "/pawlegends/push/unsubscribe", body: { endpoint }, auth: "any" } : null;
     }
     case "flag.get":
-      return { method: "GET", path: "/pawlegends/flag", auth: "any" };
+      // a visitor with no session (web /play creates none) still learns their country: the token-free read stores nothing
+      return { method: "GET", path: "/pawlegends/flag", auth: "any", anon: { method: "GET", path: "/pawlegends/flag/here", auth: "none" } };
     case "flag.set":
       return typeof a.hideFlag === "boolean" ? { method: "POST", path: "/pawlegends/flag", body: { hideFlag: a.hideFlag }, auth: "any" } : null;
     // match history (MATCH-HISTORY.md): your own with the session (guests too); another player's by code (registered)

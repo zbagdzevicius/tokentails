@@ -230,7 +230,8 @@ const pawlegendsPartyTicket = async (options: { signal?: AbortSignal } = {}): Pr
  * session (a guest may report); a registered-only route never opens the AuthSheet (the caller checked sign-in first).
  * Never throws for an HTTP answer; a network failure answers status 0.
  */
-const pawlegendsApiCall = async (route: PawlegendsApiRoute): Promise<PawlegendsApiFetchResult> => {
+const pawlegendsApiCall = async (asked: PawlegendsApiRoute): Promise<PawlegendsApiFetchResult> => {
+  const route = asked.auth !== "none" && !currentAccessToken() && asked.anon ? asked.anon : asked;
   // No session yet (no Firebase user, not even an anonymous one): the backend answers 401 to an empty token, so the
   // call is not made and never carries an empty `accesstoken` (the game's boot reads, e.g. the country flag, ask
   // before anyone signs in; Nov 16, 2026 CI).

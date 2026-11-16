@@ -1,4 +1,5 @@
 import { countryOf, shownFlag } from './flags';
+import { PawlegendsFlagsController } from './flags.controller';
 import { FlagsService, relayFlagOf, visibleFlags } from './flags.service';
 
 /*
@@ -61,5 +62,18 @@ describe('country flags', () => {
         expect((await visibleFlags(broken, ['a'])).size).toBe(0);
         expect(await relayFlagOf(m)('b')).toMatchObject({ cc: 'DE', off: true });
         expect(await relayFlagOf(null)('a')).toBeNull();
+    });
+});
+
+describe('GET /pawlegends/flag/here (no session)', () => {
+    it('answers only the Cloudflare country and stores nothing', async () => {
+        const model = fakeModel({});
+        const consume = jest.fn(async () => undefined);
+        const c = new PawlegendsFlagsController(new FlagsService(model), { consume } as any);
+        expect(await c.here({ headers: { 'cf-ipcountry': 'lt' } }, {})).toEqual({ cc: 'LT' });
+        expect(await c.here({ headers: { 'cf-ipcountry': 'T1' } }, {})).toEqual({ cc: null });
+        expect(consume).toHaveBeenCalledTimes(2);
+        expect(model.updateOne).not.toHaveBeenCalled();
+        expect(Object.keys(model.rows)).toEqual([]);
     });
 });
