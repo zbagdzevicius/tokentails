@@ -4,6 +4,7 @@
  * v30 (checked while v30 was live), while the frozen v29 bundle keeps verifying its own records in the backend. Sim
  * v31 froze v30 in turn (sim-v31.test.ts) and changes Crossing (new heroes in the bot picks).
  */
+import { limit } from './cpu-budget';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -15,7 +16,7 @@ import { SIM_VERSION } from '../../src/sim/version';
 const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim');
 const v29 = (name: string): ReplayRecord => JSON.parse(readFileSync(join(VENDOR, 'v29', `${name}.fixture.json`), 'utf8')) as ReplayRecord;
 
-describe('sim v30: the 5v5 balance release', { timeout: 600000 }, () => {
+describe('sim v30: the 5v5 balance release', { timeout: limit(600000) }, () => {
   it('SIM_VERSION 30 or later, v29 frozen at its last commit on main (f921c5ef)', () => {
     expect(SIM_VERSION).toBeGreaterThanOrEqual(30);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');

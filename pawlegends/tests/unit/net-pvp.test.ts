@@ -3,6 +3,7 @@
  * both teams (slots 0, 1, 3, 4) replays on a team-1 seat to the same end as the source match, ends with a PvP record
  * (v 3), and the seat's snapshots are team 1's view.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { NetCore, viewTeamOf, type CoreOut } from '../../src/net/net-core';
 import { encodeTurnBody, splitTurnBodies, type TurnEntry } from '../../src/net/proto';
@@ -73,5 +74,5 @@ describe('net core: casual PvP', () => {
     expect(end.record).toMatchObject({ v: 3, mode: 'pvp' });
     const snap = posts.filter((p): p is Extract<CoreOut, { t: 'snap' }> => p.t === 'snap').pop()!;
     expect(decodeSnap(snap.buf).team).toBe(1);
-  }, 120_000);
+  }, limit(120_000));
 });

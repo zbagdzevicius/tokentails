@@ -2,6 +2,7 @@
  * Sim v17 MAP-GAPS B5a (docs/plans/moba/V17.md §4): feared and charmed heroes slide along walls (nav/slide.ts) instead
  * of stopping dead; minions and rats are unchanged.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { createMatch, createPlayerBot, fillPicks, playerBotCommands, result, step } from '../../src/sim/index';
 import { fear } from '../../src/sim/effects';
@@ -11,7 +12,7 @@ import { slideStep } from '../../src/sim/nav/slide';
 import { FM } from '../../src/sim/world';
 import { heroMatch, hold, place } from './heroes/kit-helpers';
 
-describe('sim v17 B5a: feared heroes slide along walls', { timeout: 300_000 }, () => {
+describe('sim v17 B5a: feared heroes slide along walls', { timeout: limit(300_000) }, () => {
   it('slideStep: free step, x only, y only, or stay', () => {
     const g = createGrid();
     const out = new Int32Array(2);

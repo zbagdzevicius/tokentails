@@ -1,4 +1,5 @@
 /** Party play N0 (MULTIPLAYER.md §1.5): verifyPartyReplay accepts a real record and rejects tampered or malformed ones. */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { MAX_INPUT_CHARS } from '../../src/data/limits';
 import type { PartyReplayRecord } from '../../src/sim/api';
@@ -6,7 +7,7 @@ import { verifyPartyReplay } from '../../src/sim/server';
 import { partyReplayRecord } from '../../src/sim/party';
 import { playParty } from './party-helpers';
 
-describe('party-verify', { timeout: 300_000 }, () => {
+describe('party-verify', { timeout: limit(300_000) }, () => {
   const m = playParty(41, [0, 1, 2], ['normal', 'easy', 'normal']);
   const rec = partyReplayRecord(m)!;
   const tamper = (f: (r: PartyReplayRecord) => unknown) => {

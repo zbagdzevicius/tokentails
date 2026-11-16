@@ -1,4 +1,5 @@
 /** Party play N1 (MULTIPLAYER.md §2, §12 N1): the net bundle, SIM_HASH, the golden self-test value and prev/. */
+import { limit } from '../tests/unit/cpu-budget.ts';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -18,7 +19,7 @@ describe('vendor-sim party (N1)', () => {
     expect(/^\s*import\s/m.test(src)).toBe(false);
   });
 
-  it('simSourceHash covers every module Vite bundles, equals the stamp, and the golden equals a vendored-bundle run', { timeout: 120_000 }, async () => {
+  it('simSourceHash covers every module Vite bundles, equals the stamp, and the golden equals a vendored-bundle run', { timeout: limit(120_000) }, async () => {
     const { modules } = await bundleSim('src/sim/server.ts');
     const closure = new Set(simClosure());
     for (const m of modules) expect(closure.has(m)).toBe(true);

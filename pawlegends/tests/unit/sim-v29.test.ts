@@ -3,6 +3,7 @@
  * heroes, their clip events in real bot matches, determinism, verification on every map, and the vendored fixtures
  * (live v29 roster fixture, frozen v28 refusing a roster hero).
  */
+import { limit } from './cpu-budget';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -17,7 +18,7 @@ const ROSTER: readonly HeroId[] = ['mochi', 'ziggy', 'biscuit', 'champ'];
 const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim');
 const TRICKS: TrickId[] = ['pounce', 'snack', 'hiss', 'purrify', 'pounce', 'snack'];
 
-describe('sim v29: the roster release', { timeout: 600000 }, () => {
+describe('sim v29: the roster release', { timeout: limit(600000) }, () => {
   it('SIM_VERSION 29 or later; the roster four at 20..23 (sim v31 appends four more after them)', () => {
     expect(SIM_VERSION).toBeGreaterThanOrEqual(29);
     expect(HERO_IDS.length).toBeGreaterThanOrEqual(24);

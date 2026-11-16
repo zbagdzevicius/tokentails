@@ -10,6 +10,7 @@
  * from the side throws 0.5 s after the hero stops there. Headless sim at 30 Hz, bots off; slot 0's commands go through
  * the input gate (step), as a touch stick's would: a move 2 m ahead every 100 ms.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { BOING, CROSSING_BEDS, HEARTHWOOD_BEDS } from '../../src/data/fun';
 import { HERO_IDS } from '../../src/data/heroes/index';
@@ -136,7 +137,7 @@ function play(t: Trial): number {
   }
 }
 
-describe('Boing Beds v25: deliberate beds', { timeout: 300000 }, () => {
+describe('Boing Beds v25: deliberate beds', { timeout: limit(300000) }, () => {
   it('SIM_VERSION is 25 or later; the disc reaches the drawn rim (1.2 m), a stop launches in 0.5 s', () => {
     expect(SIM_VERSION).toBeGreaterThanOrEqual(25);
     expect([BOING.reach, BOING.near, BOING.stand]).toEqual([1200, 3200, 15]);

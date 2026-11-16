@@ -4,6 +4,7 @@
  * an inner tower; the bot's attack order on it ended at a path that cannot reach it, and the bot stood there 20 s.
  * Also the fight hysteresis (BOT_AI.keepFightBp) that ended a fight / back-off flip seen on seed 666717508.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import type { HeroId, MatchConfig } from '../../src/sim/api';
 import { Op } from '../../src/sim/api';
@@ -32,7 +33,7 @@ function stepTicks(m: MatchHandle, n: number, cmd: () => ReturnType<typeof playe
   }
 }
 
-describe('sim v26 bots: an unreachable minion', { timeout: 120_000 }, () => {
+describe('sim v26 bots: an unreachable minion', { timeout: limit(120_000) }, () => {
   it('the attack order stalls at the forest edge, and the bot walks off instead of standing on it', () => {
     const m = hearthPvp(3323107722);
     const w = m.world;

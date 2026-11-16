@@ -1,3 +1,4 @@
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { filterChatText } from '../../../shared/chat-filter';
 import { BotChatter, CHATTER, humanIntent, isProbe, mergeSeen, pushSeen, typingMs, type BotSeen, type ChatterSetup, type Planned } from '../../src/chat/botChatter';
@@ -87,7 +88,7 @@ function scriptedMatch(seed: number, setup: Partial<ChatterSetup> & { map?: 'cro
   return { chatter, lines, cueAt };
 }
 
-describe('bot chatter frequency (10,000 Crossing and 5,000 Hearthwood scripted matches)', { timeout: 300_000 }, () => {
+describe('bot chatter frequency (10,000 Crossing and 5,000 Hearthwood scripted matches)', { timeout: limit(300_000) }, () => {
   for (const [map, n] of [
     ['crossing', 10_000],
     ['hearthwood', 5_000],
@@ -121,7 +122,7 @@ describe('bot chatter frequency (10,000 Crossing and 5,000 Hearthwood scripted m
       expect(p0).toBeGreaterThanOrEqual(0.4);
       expect(p0).toBeLessThanOrEqual(0.58);
       expect(max).toBeLessThanOrEqual(4);
-    }, 180_000);
+    }, limit(180_000));
   }
 
   it('reaction delays: 1.5–6 s plus typing for text, 0.8–2 s for phrases', () => {
@@ -166,7 +167,7 @@ describe('bot chatter frequency (10,000 Crossing and 5,000 Hearthwood scripted m
   });
 });
 
-describe('bot chatter guards (MATCH-CHAT.md §6)', { timeout: 120_000 }, () => {
+describe('bot chatter guards (MATCH-CHAT.md §6)', { timeout: limit(120_000) }, () => {
   const many = (f: (seed: number) => Run, n = 400) => Array.from({ length: n }, (_, i) => f(i + 1));
 
   it('only fill bots speak: human seats (and the pilots that fly them) never do', () => {
@@ -330,7 +331,7 @@ describe('bot chatter guards (MATCH-CHAT.md §6)', { timeout: 120_000 }, () => {
   });
 });
 
-describe('bot chatter memory across matches (§5.8)', { timeout: 120_000 }, () => {
+describe('bot chatter memory across matches (§5.8)', { timeout: limit(120_000) }, () => {
   it('200 matches for one account: no lid repeats within 80 lines, no common-token surface within 3', () => {
     let ring: BotSeen = { l: [], s: [] };
     const history: { lid: string; tok?: string; surface: string }[] = [];
@@ -425,7 +426,7 @@ describe('chat cues from sim events (read only)', () => {
  * The believability read (tools/chat-transcripts, 50+ real simulated matches per tier): surfaces and context fits a
  * regular player would notice as a script.
  */
-describe('bot chatter believability', { timeout: 120_000 }, () => {
+describe('bot chatter believability', { timeout: limit(120_000) }, () => {
   it('surfaces: no stretched shorthand, no capitalised "o/", no "…" on an up line, no "." on a proper up line', () => {
     const rng = new Rng(77);
     for (let i = 0; i < 2000; i++) {

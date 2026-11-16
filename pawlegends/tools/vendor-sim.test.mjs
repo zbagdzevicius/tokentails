@@ -1,3 +1,4 @@
+import { limit } from '../tests/unit/cpu-budget.ts';
 import { describe, expect, it } from 'vitest';
 import { buildFiles } from './vendor-sim.mjs';
 import { importSim } from './lib/sim-bundle.mjs';
@@ -7,7 +8,7 @@ import { SIM_VERSION } from '../src/sim/version';
 describe('vendor-sim', () => {
   // A time limit, not a budget: esbuild bundles every frozen sim and a match is replayed (seconds when idle, past
   // 60 s with the machine at load 75 on 12 cores, Nov 15, 2026), so the limit leaves room for a loaded machine.
-  it('bundles src/sim/server.ts into one import-free module whose verifyReplay accepts a live replay', { timeout: 180000 }, async () => {
+  it('bundles src/sim/server.ts into one import-free module whose verifyReplay accepts a live replay', { timeout: limit(180000) }, async () => {
     const { files, modules, simVersion } = await buildFiles();
     expect(simVersion).toBe(SIM_VERSION);
     const bundle = files[`v${SIM_VERSION}/pawlegends-sim.bundle.ts`];

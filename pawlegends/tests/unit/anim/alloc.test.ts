@@ -3,6 +3,7 @@
  * players), and a source scan of the per-frame functions (sampler, layers, warp, springs, root, player, reactions)
  * finds no `new`, array or object literals, closures or template strings.
  */
+import { limit } from '../cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -72,7 +73,7 @@ describe('no allocation in the per-frame code', () => {
   });
 });
 
-describe('pools keep a constant size over 1,000 frames', { timeout: 60000 }, () => {
+describe('pools keep a constant size over 1,000 frames', { timeout: limit(60000) }, () => {
   it('ribbons', () => {
     const r = new Ribbons();
     r.setTier('high', false);

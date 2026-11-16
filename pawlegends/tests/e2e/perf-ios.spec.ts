@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 import { seedSide, playFromHome, toChampSelect } from './helpers';
 
 /**
@@ -37,22 +38,39 @@ const COUNT_GL = (): void => {
 const clears = (page: import('@playwright/test').Page, k: string): Promise<number> =>
   page.evaluate((key) => (window as unknown as { __glc: Record<string, number> }).__glc[key] ?? 0, k);
 
+/**
+ * Clears per canvas over `ms`, counted and timed inside the page: on a loaded machine a Playwright round trip can take
+ * seconds, and a window timed from the test side would count frames drawn outside it.
+ */
+const measure = (page: import('@playwright/test').Page, keys: string[], ms: number): Promise<{ n: Record<string, number>; secs: number }> =>
+  page.evaluate(
+    ([ks, wait]) =>
+      new Promise((done) => {
+        const glc = (window as unknown as { __glc: Record<string, number> }).__glc;
+        const at = (): Record<string, number> => Object.fromEntries(ks.map((k) => [k, glc[k] ?? 0]));
+        const a = at();
+        const t0 = performance.now();
+        setTimeout(() => {
+          const b = at();
+          done({ n: Object.fromEntries(ks.map((k) => [k, b[k] - a[k]])), secs: (performance.now() - t0) / 1000 });
+        }, wait);
+      }),
+    [keys, ms] as const,
+  );
+
 test('boot splash, champion browser and preview pacing', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   await page.addInitScript(COUNT_GL);
   await seedSide(page, 'cat');
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await expect(page.locator('#boot')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.locator('#boot')).toHaveCount(0, { timeout: limit(15_000) });
   const infinite = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity).length);
   expect(infinite).toBeLessThanOrEqual(1);
   // founder, Nov 13 (eef8457d, after the painted-menu pass): Home shows the 3D champion on its pedestal, drawn at the
   // menu rate (MENU_FPS 30, render/perf/pacer.ts), never the match's 60; the champion select stays painted art
-  const h0 = await clears(page, 'game-canvas');
-  const t0 = Date.now();
-  await page.waitForTimeout(1500);
-  const homeFrames = (await clears(page, 'game-canvas')) - h0;
-  expect(homeFrames).toBeLessThanOrEqual(Math.ceil(((Date.now() - t0) / 1000) * 30) + 3);
+  const home = await measure(page, ['game-canvas'], 1500);
+  expect(home.n['game-canvas']).toBeLessThanOrEqual(Math.ceil(home.secs * 30) + 3);
 
   await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
@@ -65,22 +83,18 @@ test('boot splash, champion browser and preview pacing', async ({ page }) => {
   await page.locator('.cs-sk[data-slot="q"]').tap();
   await page.locator('.cs-panel [data-a="codex"]').first().tap();
   const dlg = page.locator('.pl-champ[data-ready="1"]');
-  await expect(dlg).toBeVisible({ timeout: 30_000 });
+  await expect(dlg).toBeVisible({ timeout: limit(30_000) });
   await expect(page.locator('html[data-champ="1"]')).toHaveCount(1);
   expect(await dlg.evaluate((el) => getComputedStyle(el).backdropFilter || 'none')).toBe('none');
-  await page.waitForSelector('.pl-skill-preview-canvas', { timeout: 60_000 });
-  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: 60_000 }).toBe('playing');
+  await page.waitForSelector('.pl-skill-preview-canvas', { timeout: limit(60_000) });
+  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: limit(60_000) }).toBe('playing');
   // the clip draws (SwiftShader under load: its first frames can take seconds)
   const pStart = await clears(page, 'pl-skill-preview-canvas');
-  await expect.poll(() => clears(page, 'pl-skill-preview-canvas'), { timeout: 30_000 }).toBeGreaterThan(pStart + 1);
+  await expect.poll(() => clears(page, 'pl-skill-preview-canvas'), { timeout: limit(30_000) }).toBeGreaterThan(pStart + 1);
   // measure 3 s: the lobby canvas draws nothing, the clip at most 30 frames a second (+ slack for timer jitter)
-  const g0 = await clears(page, 'game-canvas');
-  const p0 = await clears(page, 'pl-skill-preview-canvas');
-  await page.waitForTimeout(3000);
-  const g1 = await clears(page, 'game-canvas');
-  const p1 = await clears(page, 'pl-skill-preview-canvas');
-  expect(g1 - g0).toBeLessThanOrEqual(1);
-  expect((p1 - p0) / 3).toBeLessThanOrEqual(33);
+  const clip = await measure(page, ['game-canvas', 'pl-skill-preview-canvas'], 3000);
+  expect(clip.n['game-canvas']).toBeLessThanOrEqual(1);
+  expect(clip.n['pl-skill-preview-canvas'] / clip.secs).toBeLessThanOrEqual(33);
   expect(await page.locator('.fx-dmg-layer').count()).toBe(dmg0);
 
   await page.locator('.pl-champ [data-a="close"]').tap();
@@ -93,7 +107,7 @@ test('boot splash, champion browser and preview pacing', async ({ page }) => {
 });
 
 test('match: no program links after the veil; cooldown sweeps write only on a step', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   await page.addInitScript(COUNT_GL);
   await seedSide(page, 'cat');
   // a forced tier: the quality probe would otherwise step the tier down a few seconds in (a tier change relinks
@@ -102,10 +116,10 @@ test('match: no program links after the veil; cooldown sweeps write only on a st
   await page.waitForSelector('html[data-screen="title"]');
   await playFromHome(page);
   await page.waitForSelector('.pl-loading');
-  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), null, { timeout: 60_000 });
+  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), null, { timeout: limit(60_000) });
   await page.evaluate(() => ((window as unknown as { __veilOut: boolean }).__veilOut = true));
   expect(Number(await page.evaluate(() => document.documentElement.dataset.warmMs ?? '-1'))).toBeGreaterThan(0);
-  await page.waitForSelector('html[data-match="live"]', { timeout: 60_000 });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(60_000) });
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   // walk toward the lane for a few seconds (towers come between the camera and the hero: their x-ray variant)
   const stick = { x: 140, y: 300 };
@@ -123,7 +137,7 @@ test('match: no program links after the veil; cooldown sweeps write only on a st
   // a skill on cooldown: count style writes on the touch buttons while it runs
   const q = page.locator('.pl-tbtn.q');
   await q.tap();
-  await expect(q).toHaveClass(/cooling/, { timeout: 10_000 });
+  await expect(q).toHaveClass(/cooling/, { timeout: limit(10_000) });
   const seen = await page.evaluate(
     () =>
       new Promise<{ writes: number; frames: number; values: string[] }>((done) => {

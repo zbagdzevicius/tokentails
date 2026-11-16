@@ -5,6 +5,7 @@
  * draw at the sim numbers: the beam at the sim length and width for the sim duration (Overclock included), broken by
  * a stun or another cast; the duck dome for exactly its duration; the BOXBOT splash ring at the sim radius.
  */
+import { limit } from './cpu-budget';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeHero } from '../../src/render/chars';
 import { compileClip } from '../../src/render/anim/compile';
@@ -68,7 +69,7 @@ describe('pixel moves', () => {
       for (const [, t] of Object.entries(c.markers)) expect(t >= 0 && t <= c.len + 1e-9, c.id).toBe(true);
     }
     ch.dispose();
-  }, 60000);
+  }, limit(60000));
 
   it('BOXBOT pick: the big-box basic only in form, no allocation', () => {
     const ctx = { hero: 'pixel', id: 0, branch: false, talents: [] as string[], comboIndex: 0, recastIndex: 0, basicCount: 0, charged: false, resource: 0, buffs: 0, stealthed: false, ultActive: false, targetBehind: false, targetCc: false, form: false } as MoveCtx;

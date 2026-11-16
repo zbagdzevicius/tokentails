@@ -1,3 +1,4 @@
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { MAX_INPUT_CHARS, Op, type ReplayRecord } from '../../src/sim/api';
 import { decodeStream, encodeStream, fromBase64, toBase64 } from '../../src/sim/commands';
@@ -15,7 +16,7 @@ function playedReplay(seed = 1234): ReplayRecord {
   return replayRecord(m)!;
 }
 
-describe('verifyReplay (§15 item 4)', { timeout: 120000 }, () => {
+describe('verifyReplay (§15 item 4)', { timeout: limit(120000) }, () => {
   const rec = playedReplay();
   it('accepts a genuine replay and reproduces the result', () => {
     const v = verifyReplay(rec);

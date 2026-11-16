@@ -3,6 +3,7 @@
  * (§1), the Practice ground (§2), Cannon Chaos (§3) and the weekly twists (§4). The numbers come from the data files,
  * so a tuning pass changes the data, not these cases.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { DIFFICULTY_RULES, PVP_RULES } from '../../src/data/bots';
 import { MUTATOR_RULES } from '../../src/data/mutators';
@@ -211,7 +212,7 @@ describe('sim v27 §3: Cannon Chaos', () => {
     const res = result(m)!;
     expect(res.ticks).toBeLessThanOrEqual(MUTATOR_RULES.cannon.hardEnd);
     expect(verifyReplay(replayRecord(m)).ok).toBe(true);
-  }, 120000);
+  }, limit(120000));
 });
 
 describe('sim v27 §4: the weekly twists', () => {
@@ -259,5 +260,5 @@ describe('sim v27 §4: the weekly twists', () => {
       while (!result(m)) step(m);
       expect(verifyReplay(replayRecord(m)).ok).toBe(true);
     }
-  }, 120000);
+  }, limit(120000));
 });

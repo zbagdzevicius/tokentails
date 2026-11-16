@@ -8,6 +8,7 @@
  *  3. the last match's disposed host answered the rematch's `match` with a sync from its own turn count.
  * Plus: one co-op world on two clients fed the same TURN bytes stays identical (enemies, towers, takedowns).
  */
+import { limit } from './cpu-budget';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Room } from '../../../backend/src/pawlegends/party/room';
 import { NetCore } from '../../src/net/net-core';
@@ -73,7 +74,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('co-op party: one world on every client', { timeout: 300_000 }, () => {
+describe('co-op party: one world on every client', { timeout: limit(300_000) }, () => {
   it('two clients on the same TURN bytes: identical hash, enemies, towers and takedowns at every 10 s mark', () => {
     const cfg = config(4242);
     const bodies = relayTurns(cfg, 2400); // 160 s
@@ -170,7 +171,7 @@ function hostRun(bodies: Uint8Array[], opts: { resyncAt?: number; catchupAt?: nu
   return { hashes, catching, json, listener: listener!, host: h };
 }
 
-describe('NetHost: HASH reporting never switches itself off', { timeout: 300_000 }, () => {
+describe('NetHost: HASH reporting never switches itself off', { timeout: limit(300_000) }, () => {
   const bodies = relayTurns(config(7), 600);
 
   it('after a resync whose catch-up is short (≤ 45 turns), HASH frames resume', () => {

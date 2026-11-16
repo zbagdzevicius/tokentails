@@ -2,6 +2,7 @@
  * Sim v21 (docs/plans/moba/V21-FUN.md): the Kibble Cannon, Boing Beds, the Mega Yarn Ball and stronger towers.
  * Scripted scenarios (bots off, heroes placed by hand), the command codec, and determinism on both maps.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { BOING, CANNON, CROSSING_BEDS, CROSSING_CANNON, CROSSING_YARN, HEARTHWOOD_BEDS, HEARTHWOOD_CANNON, HEARTHWOOD_YARN, YARN } from '../../src/data/fun';
 import { TOWERS } from '../../src/data/towers';
@@ -405,6 +406,6 @@ describe('determinism (sim v21)', () => {
       expect(a.hash).toBe(b.hash);
       expect(a.trail).toBe(b.trail);
       expect(a.fun).toBeGreaterThan(0);
-    }, 600000);
+    }, limit(600000));
   }
 });

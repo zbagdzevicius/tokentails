@@ -3,6 +3,7 @@
  * reflection (and symmetric across its main diagonal), every lane and camp is fair to both teams, a 5v5 match runs to
  * its end and replays bit for bit, and a Crossing match beside it is untouched by the map switching.
  */
+import { limit } from './cpu-budget';
 import { afterAll, describe, expect, it } from 'vitest';
 import { MAP_IDS, slotCountOf, teamOfSlot, teamSizeOf, type HeroId } from '../../src/sim/api';
 import { createMatch, createPlayerBot, fillPicks, hash, mapInfo, playerBotCommands, replayRecord, result, rolesOf, snapshot, step, tickOf } from '../../src/sim/index';
@@ -247,7 +248,7 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(rolesOf({ picks: picks.slice(0, 6) })).toEqual([]);
   });
 
-  it('a whole solo 5v5 match ends by itself, its record names the map and verifies on the server entry', { timeout: 600000 }, () => {
+  it('a whole solo 5v5 match ends by itself, its record names the map and verifies on the server entry', { timeout: limit(600000) }, () => {
     const seed = 4040;
     const { picks, tricks } = fillPicks(seed, 'sage', 'pounce', 'hearthwood');
     const m = createMatch({ seed, picks, tricks, difficulty: 'normal', map: 'hearthwood' });
@@ -274,7 +275,7 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(verifyReplay({ ...rec, map: 'atlantis' })).toMatchObject({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' });
   });
 
-  it('a Crossing match stepped tick by tick beside a Hearthwood match hashes as it does alone', { timeout: 60000 }, () => {
+  it('a Crossing match stepped tick by tick beside a Hearthwood match hashes as it does alone', { timeout: limit(60000) }, () => {
     const play = (withOther: boolean): number[] => {
       const { picks, tricks } = fillPicks(99, 'clem', 'pounce');
       const a = createMatch({ seed: 99, picks, tricks, difficulty: 'normal' });
@@ -294,7 +295,7 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(play(true)).toEqual(play(false));
   });
 
-  it('the snapshot carries the map, the river objectives and the camp timers; slots 0..9 are heroes', { timeout: 120000 }, () => {
+  it('the snapshot carries the map, the river objectives and the camp timers; slots 0..9 are heroes', { timeout: limit(120000) }, () => {
     const { picks, tricks } = fillPicks(5, 'bravo', 'hiss', 'hearthwood');
     const m = createMatch({ seed: 5, picks, tricks, difficulty: 'easy', map: 'hearthwood' });
     while (tickOf(m) < 3700) step(m);

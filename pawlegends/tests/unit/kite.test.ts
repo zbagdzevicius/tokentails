@@ -3,6 +3,7 @@
  * unit and walks toward the stick's goal while the attack timer runs. Headless sim at 30 Hz; every command goes
  * through the input gate (step), as a live match's would.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { Op, type Command, type HeroId } from '../../src/sim/api';
 import { decodeCommand, encodeCommand, OP_SIZE, quantize } from '../../src/sim/commands';
@@ -190,7 +191,7 @@ describe('KITE-FIX: moving between basic attacks', () => {
   });
 });
 
-describe('KITE-FIX: determinism', { timeout: 120000 }, () => {
+describe('KITE-FIX: determinism', { timeout: limit(120000) }, () => {
   /** Random commands with kites mixed in (a quarter of them), through record and replay. */
   function playKites(seed: number, ticks: number) {
     const { picks, tricks } = fillPicks(seed, 'rocket', 'pounce');

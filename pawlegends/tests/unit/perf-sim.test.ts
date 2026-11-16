@@ -11,6 +11,7 @@
  * run onto its efficiency cores, which does cost CPU time, and the budgets double (cpu-budget.ts). This file runs in
  * its own vitest project after the unit tests, alone in one fork (vitest.config.ts).
  */
+import { limit } from './cpu-budget';
 import { loadavg } from 'node:os';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CORE_STATS } from '../../src/data/towers';
@@ -26,7 +27,7 @@ beforeAll(async () => {
   const { importSim } = await import('../../tools/lib/sim-bundle.mjs');
   sim = (await importSim('src/sim/index.ts')) as Sim;
   timed(30); // warm-up: the JIT, not the sim, would otherwise pay for the first match
-}, 120000);
+}, limit(120000));
 
 interface Run {
   cpu: number;
@@ -61,7 +62,7 @@ function report(name: string, runs: Run[]): void {
   );
 }
 
-describe('sim performance (§15 item 6)', { timeout: 300000 }, () => {
+describe('sim performance (§15 item 6)', { timeout: limit(300000) }, () => {
   it('a full Normal bot match takes ≤ 1.0 s (median of 5 seeds, CPU time)', () => {
     const runs = [31, 32, 33, 34, 35].map((s) => timed(s));
     report('Normal match', runs);

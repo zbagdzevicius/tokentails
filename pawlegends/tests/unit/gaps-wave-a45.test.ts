@@ -5,6 +5,7 @@
  * "Target first" and the optional last-hit and tower buttons. Client only: the sim runs here only to check that the
  * timers read from snapshots and events match the sim's own schedule.
  */
+import { limit } from './cpu-budget';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RAT_CAMP_STATS } from '../../src/data/camps';
 import { PUDDING, PUD_STATE } from '../../src/data/pudding';
@@ -154,7 +155,7 @@ describe('A4: next objective chip', () => {
     expect(campChecks).toBeGreaterThan(TIMELINE.campsUp * 2);
     expect(pudChecks).toBeGreaterThan(TIMELINE.pudding * 2);
     expect(enemySeen).toBeGreaterThan(0);
-  }, 60_000);
+  }, limit(60_000));
 });
 
 describe('A4: portrait strip', () => {

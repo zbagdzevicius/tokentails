@@ -1,4 +1,5 @@
 /** Sim v16 MAP-GAPS B nav fixes (docs/plans/moba/MAP-GAPS.md B, V16.md §3.2). */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { Op } from '../../src/sim/api';
 import { createMatch, createPlayerBot, fillPicks, hash, playerBotCommands, result, step, tickOf } from '../../src/sim/index';
@@ -27,7 +28,7 @@ function depth(x: number, y: number): number {
   return Math.abs((e % NX) - (c % NX)) + Math.abs(Math.floor(e / NX) - Math.floor(c / NX));
 }
 
-describe('B1 forest soft-lock', { timeout: 120_000 }, () => {
+describe('B1 forest soft-lock', { timeout: limit(120_000) }, () => {
   it('a hero deep in the forest at (8000, 51000) given a Move reaches the playfield within 5 s', () => {
     const m = heroMatch(['clem', 'sage', 'gabe', 'brutus', 'chili', 'rocket']);
     place(m, 0, 8000, 51000);
@@ -73,7 +74,7 @@ describe('B1 forest soft-lock', { timeout: 120_000 }, () => {
   });
 });
 
-describe('B3 order kept after a dash or knockback', { timeout: 120_000 }, () => {
+describe('B3 order kept after a dash or knockback', { timeout: limit(120_000) }, () => {
   it('a Move given during a knockback keeps its goal after landing and walks on walkable cells home', () => {
     const m = heroMatch(['clem', 'sage', 'gabe', 'brutus', 'chili', 'rocket']);
     const w = m.world;
@@ -104,7 +105,7 @@ describe('B3 order kept after a dash or knockback', { timeout: 120_000 }, () => 
   });
 });
 
-describe('B2 gate clamp', { timeout: 300_000 }, () => {
+describe('B2 gate clamp', { timeout: limit(300_000) }, () => {
   const fresh = (seed = 3) => {
     const { picks, tricks } = fillPicks(seed, 'clem', 'pounce');
     return createMatch({ seed, picks, tricks, difficulty: 'normal' });
@@ -148,7 +149,7 @@ describe('B2 gate clamp', { timeout: 300_000 }, () => {
   });
 });
 
-describe('B4 a Move onto a structure completes', { timeout: 300_000 }, () => {
+describe('B4 a Move onto a structure completes', { timeout: limit(300_000) }, () => {
   for (const [name, x, y] of [
     ['own core', 10000, 30000],
     ['own inner tower', 20000, 48000],
@@ -197,7 +198,7 @@ describe('B4 a Move onto a structure completes', { timeout: 300_000 }, () => {
   });
 });
 
-describe('B15 the enemy fountain is in each team’s nav layer', { timeout: 120_000 }, () => {
+describe('B15 the enemy fountain is in each team’s nav layer', { timeout: limit(120_000) }, () => {
   const inFountain = (x: number, y: number, fx: number): boolean => dist2(x, y, fx, FOUNTAIN.y) <= (FOUNTAIN.radius + RADIUS.hero) ** 2;
   for (const [team, id, sx, ex] of [
     [0, 1, 90500, 96500],
@@ -265,7 +266,7 @@ describe('B13 Pudding escort lane', () => {
   });
 });
 
-describe('B6 Pack Hunt hops and tether clamps respect walls', { timeout: 120_000 }, () => {
+describe('B6 Pack Hunt hops and tether clamps respect walls', { timeout: limit(120_000) }, () => {
   it('a hunt toward a victim behind the rock [24-30 x 37-41] stops at the rock face', () => {
     const m = heroMatch(['cacklejaw', 'sage', 'gabe', 'brutus', 'chili', 'rocket']);
     const w = m.world;

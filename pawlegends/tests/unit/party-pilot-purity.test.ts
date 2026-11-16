@@ -5,6 +5,7 @@
  * runs): every playerBotCommands call for slots 0, 1 and 2 leaves the world hash and w.rng.state unchanged, and a
  * leader ping never changes botOrd* of slots 1 and 2.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import type { Command } from '../../src/sim/api';
 import { createPlayerBotFor, hash, playerBotCommands, result, step, tickOf } from '../../src/sim/index';
@@ -17,7 +18,7 @@ const TICKS = NIGHTLY ? 1e9 : 2400;
 
 const ordState = (m: ReturnType<typeof partyMatch>, s: number) => [m.world.botOrd[s], m.world.botOrdT[s], m.world.botOrdX[s], m.world.botOrdY[s], m.world.botOrdId[s], m.world.botOp[s]];
 
-describe('party-pilot-purity (B1, merge checklist)', { timeout: 600_000 }, () => {
+describe('party-pilot-purity (B1, merge checklist)', { timeout: limit(600_000) }, () => {
   it('pilots for slots 0, 1 and 2 never change the world hash or the world RNG; pings never order human slots', () => {
     let pings = 0;
     let thinks = 0;

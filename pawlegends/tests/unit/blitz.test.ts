@@ -5,6 +5,7 @@
  * core HP share, takedowns, structure damage, else a draw), determinism and replays, the version and map checks of
  * the record, the client's mode tiles and links, and the per-minute Treat XP.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { MUTATOR_RULES } from '../../src/data/mutators';
 import { CROSSING_CANNON } from '../../src/data/fun';
@@ -199,7 +200,7 @@ describe('Blitz determinism and replays', () => {
     expect(v).toMatchObject({ ok: true, outcome: ra.outcome, ticks: ra.ticks, finalHash: ra.finalHash });
     // the same inputs as a plain match do not verify (the mutator is part of what was played)
     expect(verifyReplay({ ...rec, mutator: 'none' }).ok).toBe(false);
-  }, 60_000);
+  }, limit(60_000));
 
   it('a Blitz party record verifies; a PvP record may not carry it', () => {
     const humans = [0, 1];
@@ -214,7 +215,7 @@ describe('Blitz determinism and replays', () => {
     expect(mutatorProblem('blitz', undefined, true)).toMatch(/pvp/);
     expect(checkPvpShape({ v: 3, mode: 'pvp', mutator: 'blitz' })).not.toBeNull();
     expect(checkPartyShape({ v: 2, mutator: 'blitz', map: 'hearthwood' })).not.toBeNull();
-  }, 60_000);
+  }, limit(60_000));
 
   it('the record shape: blitz only on Crossing, unknown mutators refused', () => {
     const base = { v: 1, simVersion: SIM_VERSION, seed: 1, difficulty: 'normal', hero: 'clem', trick: 'pounce', ticks: 30, inputs: '', outcome: 'won', finalHash: '0000abcd' };

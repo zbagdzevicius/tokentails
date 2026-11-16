@@ -1,4 +1,5 @@
 /** Party play N0 (MULTIPLAYER.md §1.5): a 3-human match, its replay, and the per-slot input rules. */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { MAX_INPUT_BYTES } from '../../src/data/limits';
 import { Op, type Command } from '../../src/sim/api';
@@ -6,7 +7,7 @@ import { createMatch, fillPicks, hash, result, step } from '../../src/sim/index'
 import { partyLog, partyReplayRecord, runPartyReplay, verifyPartyReplay } from '../../src/sim/party';
 import { partyMatch, playParty } from './party-helpers';
 
-describe('party-sim', { timeout: 300_000 }, () => {
+describe('party-sim', { timeout: limit(300_000) }, () => {
   it('3 pilot streams play a whole match; the party record replays to the same hash', () => {
     const m = playParty(31, [0, 1, 2], ['normal', 'normal', 'easy']);
     const res = result(m)!;

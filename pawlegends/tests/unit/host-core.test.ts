@@ -1,3 +1,4 @@
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { HostCore, clampSpeed } from '../../src/host/host-core';
 import { decodeSnap, type HostMsg } from '../../src/host/protocol';
@@ -70,7 +71,7 @@ describe('HostCore', () => {
     expect(h.advance(5)).toEqual([]);
     const v = verifyReplay(end!.replay);
     expect(v.ok).toBe(true);
-  }, 30_000);
+  }, limit(30_000));
 
   it('clamps speed to 1..64', () => {
     expect(clampSpeed(undefined)).toBe(1);

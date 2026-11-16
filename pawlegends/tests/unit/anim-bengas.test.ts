@@ -4,6 +4,7 @@
  * the spin rule, compile on his rig, the Hot Toast pick is allocation-free, and the skill FX draw at the sim numbers:
  * the exact W cone, the R stage at the sim radius with one pulse per sim pulse, the toast ribbon ending at its range.
  */
+import { limit } from './cpu-budget';
 import { towardCameraXZ } from '../../src/render/coords';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeHero } from '../../src/render/chars';
@@ -104,7 +105,7 @@ describe('bengas moves', () => {
       for (const [, t] of Object.entries(c.markers)) expect(t >= 0 && t <= c.len + 1e-9, c.id).toBe(true);
     }
     ch.dispose();
-  }, 60000);
+  }, limit(60000));
 
   it('acrobatics: the victory backflip, the jeté apex, the spins', () => {
     const peak = (c: ClipDef) => Math.max(0, ...(c.root?.up ?? []).map(([, v]) => v));

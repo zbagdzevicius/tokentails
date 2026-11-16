@@ -3,6 +3,7 @@
  * same slot flown by `createPlayerBotFor` plays like an in-sim bot (XP and takedowns within 10% over the seeds) and
  * takes talents by command.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { createMatch, createPlayerBotFor, fillPicks, playerBotCommands, result, step, tickOf } from '../../src/sim/index';
 import { NIGHTLY } from './bot-helpers';
@@ -11,7 +12,7 @@ import { TALENT_TIERS } from '../../src/sim/world';
 
 const SEEDS = NIGHTLY ? 50 : 16;
 
-describe('party-pilot', { timeout: 900_000 }, () => {
+describe('party-pilot', { timeout: limit(900_000) }, () => {
   it('a human slot with no commands idles at the fountain', () => {
     const m = partyMatch(3, [0, 1]);
     const x = m.world.x[1];

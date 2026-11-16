@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { limit } from './tests/unit/cpu-budget';
 
 /**
  * Two projects. `unit` runs every test in parallel. `perf` (tests/unit/perf-sim.test.ts, POC.md §15 item 6, and the
@@ -17,9 +18,10 @@ export default defineConfig({
           environment: 'node',
           // A time limit, not a budget: many tests play whole matches on the transformed sim (seconds when idle), and a
           // loaded machine stretched those past vitest's 5 s default (skins-determinism at load 50, Nov 15, 2026).
-          // Tests that time something assert it themselves (perf-sim, perf-ff).
-          testTimeout: 120_000,
-          hookTimeout: 120_000,
+          // Tests that time something assert it themselves (perf-sim, perf-ff). Above load = cores the limits stretch
+          // with the load per core (tests/unit/cpu-budget.ts `limit`), like every explicit limit in the tests.
+          testTimeout: limit(120_000),
+          hookTimeout: limit(120_000),
           sequence: { groupOrder: 0 },
         },
       },

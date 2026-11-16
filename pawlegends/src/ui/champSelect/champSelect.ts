@@ -522,6 +522,8 @@ export interface ChampSelectHandlers {
 }
 
 const wired = new WeakMap<HTMLElement, ChampSelectHandlers>();
+/** The double-tap clock per container; a later wiring replaces it like the handlers (a test passes its own clock). */
+const clocks = new WeakMap<HTMLElement, () => number>();
 /** Double-tap window (§B3). */
 export const DOUBLE_TAP_MS = 300;
 
@@ -530,11 +532,12 @@ const lockButton = (root: HTMLElement): HTMLButtonElement | null => root.querySe
 
 /**
  * Wire the screen's own controls on `container` (the solo screen root, or the party card that holds the markup). Safe
- * to call again: the handlers are replaced, the listeners are added once.
+ * to call again: the handlers and the clock are replaced, the listeners are added once.
  */
 export function wireChampSelect(container: HTMLElement, h: ChampSelectHandlers = {}, now: () => number = () => performance.now()): void {
   const had = wired.has(container);
   wired.set(container, h);
+  clocks.set(container, now);
   if (had) return;
   let last = { h: '', t: -1e9 };
   const csRoot = (): HTMLElement | null => (container.classList.contains('cs') ? container : container.querySelector<HTMLElement>(':scope > .cs'));
@@ -578,7 +581,7 @@ export function wireChampSelect(container: HTMLElement, h: ChampSelectHandlers =
     const tile = t.closest<HTMLElement>('.cs-grid [data-h]');
     if (tile && !(tile as HTMLButtonElement).disabled) {
       const hero = tile.dataset.h ?? '';
-      const ts = now();
+      const ts = (clocks.get(container) ?? now)();
       if (last.h === hero && ts - last.t <= DOUBLE_TAP_MS) {
         last = { h: '', t: -1e9 };
         // after the mode's own handler has selected it (the lock button reflects the new selection)

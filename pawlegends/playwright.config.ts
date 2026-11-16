@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import { limit } from './tests/unit/cpu-budget';
 
 // e2e builds into its own outDir and serves on a dedicated port (strictPort fails loudly when busy).
 const PORT = Number(process.env.PAWLEGENDS_E2E_PORT ?? 4396);
@@ -9,7 +10,10 @@ export default defineConfig({
   testDir: 'tests/e2e',
   // party play runs against a relay: its own config (playwright.mp.config.ts)
   testIgnore: ['**/mp/**'],
-  timeout: 60_000,
+  // Wall limits stretch with the load per core above load = cores (tests/unit/cpu-budget.ts `limit`): they end a hang,
+  // they are not budgets. Specs that time something check game ticks or drawn frames instead.
+  timeout: limit(60_000),
+  expect: { timeout: limit(5_000) },
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
@@ -42,6 +46,6 @@ export default defineConfig({
     command: `${vite} build --outDir ${OUT_DIR} --emptyOutDir && ${vite} preview --outDir ${OUT_DIR} --host 127.0.0.1 --port ${PORT} --strictPort`,
     url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: limit(120_000),
   },
 });

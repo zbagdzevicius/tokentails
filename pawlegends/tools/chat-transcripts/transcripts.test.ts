@@ -7,6 +7,7 @@
  *   npx vitest run --config tools/chat-transcripts/vitest.config.ts
  *   CHAT_TX_N=50 CHAT_TX_TIER=text|quick CHAT_TX_MAP=crossing|hearthwood CHAT_TX_SEED=1 CHAT_TX_OUT=/path/out.txt
  */
+import { limit } from '../../tests/unit/cpu-budget';
 import fs from 'node:fs';
 import { it } from 'vitest';
 import { filterChatText } from '../../../shared/chat-filter';
@@ -142,7 +143,7 @@ function playOne(seed: number, idx: number, seen: BotSeen | null, rng: Rng): { o
   return { out: { text, botLines, humanLines, probe: s.probe, lengthMs: endAt }, seen: next };
 }
 
-it('bot chatter transcripts over a session of real matches', { timeout: 3_600_000 }, () => {
+it('bot chatter transcripts over a session of real matches', { timeout: limit(3_600_000) }, () => {
   const rng = new Rng(SEED0 * 31 + 7);
   let seen: BotSeen | null = null;
   const all: string[] = [];

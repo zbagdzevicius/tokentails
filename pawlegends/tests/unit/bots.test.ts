@@ -1,4 +1,5 @@
 /** Bots (POC.md §7.2, §15 items 9 and 12): lanes, retreat, reaction delay, the brush rule, replays, difficulty. */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { DIFFICULTY_RULES, BOTS, BOT_TEAMS } from '../../src/data/bots';
 import { BUSHES, FOUNTAIN, mirrorX } from '../../src/data/map';
@@ -17,7 +18,7 @@ const botsOn = <T extends { world: { globals: Int32Array } }>(m: T): T => {
   return m;
 };
 
-describe('bots (§7.2)', { timeout: 300000 }, () => {
+describe('bots (§7.2)', { timeout: limit(300000) }, () => {
   it('the match difficulty sets the enemy bots; the human’s allies play at the allied level', () => {
     const easy = quietMatch(3);
     // Allies play at BOT_TEAMS.allies but group when the enemy difficulty does.
@@ -228,7 +229,7 @@ describe('bots (§7.2)', { timeout: 300000 }, () => {
  * near its 40% floor before sim v3), in parallel processes on the bundled sim. The novice is slot 0; its two allies play at
  * BOT_TEAMS.allies (Normal) and the three enemies at the match difficulty (POC.md §7.2 decision).
  */
-describe.skipIf(!NIGHTLY)('bots nightly (§15 item 12)', { timeout: 3600000 }, () => {
+describe.skipIf(!NIGHTLY)('bots nightly (§15 item 12)', { timeout: limit(3600000) }, () => {
   const rate = async (difficulty: 'easy' | 'normal'): Promise<number> => {
     const { runBatch } = await import('../../tools/lib/batch.mjs');
     const { rows } = await runBatch({ profile: 'novice', difficulty, from: 1, seeds: 400 });

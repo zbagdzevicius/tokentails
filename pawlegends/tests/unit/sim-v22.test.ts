@@ -3,6 +3,7 @@
  * bake (gate G4: symmetry, wall thickness, reachability, fair objective paths, A* over random pairs), the camps of the
  * four quadrants, brush, Boing Beds, Sugar Rush, the published map info, and the version.
  */
+import { limit } from './cpu-budget';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createMatch, fillPicks, mapInfo, step, type MatchHandle } from '../../src/sim/index';
 import { bindMap } from '../../src/sim/map/runtime';
@@ -136,7 +137,7 @@ describe('the carved jungle (G4 bake)', () => {
     for (const b of info.beds) expect(cellOpen(b.x, b.y) && cellOpen(b.landX, b.landY), `bed ${b.x},${b.y}`).toBe(true);
   });
 
-  it('each objective is as far from both fountains by A* (within 1 m), and no A* over 4,000 random pairs comes up short', { timeout: 600000 }, () => {
+  it('each objective is as far from both fountains by A* (within 1 m), and no A* over 4,000 random pairs comes up short', { timeout: limit(600000) }, () => {
     bindMap(1);
     const grid = createGrid();
     const ox = new Int32Array(64);

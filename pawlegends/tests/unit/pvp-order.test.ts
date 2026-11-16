@@ -3,6 +3,7 @@
  * forfeit; slots 1..5 in order (slot 3's command at its position); then the bots. Every one of them on one tick folds
  * into G.InputHash in that order; the golden pins it, so any reorder fails here (like party-order.test.ts for PvE).
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { Op } from '../../src/sim/api';
 import { result, step, tickOf } from '../../src/sim/index';
@@ -12,7 +13,7 @@ import { pvpMatch } from './pvp-helpers';
 /** Produced on this branch when the order was fixed; regenerate only with a SIM bump. */
 const GOLDEN_INPUT_HASH = 0x617b3754;
 
-describe('pvp-order (S-PvP golden)', { timeout: 300_000 }, () => {
+describe('pvp-order (S-PvP golden)', { timeout: limit(300_000) }, () => {
   it('pings, commands and forfeits of both leads plus four seats on one tick give the golden InputHash', () => {
     // The first seed from 2026 still going at 7,300 (InputHash folds only the commands, so the golden holds on any).
     const play = (seed: number) => {

@@ -48,3 +48,22 @@ export function threadCpuMs(): number {
   const c = p.threadCpuUsage ? p.threadCpuUsage() : process.cpuUsage();
   return (c.user + c.system) / 1000;
 }
+
+/**
+ * How many times longer the time limits are now: 1 while the 1-minute load average is at most the core count, else
+ * the load per core rounded up (at most 8). A limit is not a budget: it only ends a test that hangs, and a hang still
+ * ends, later. Measured Nov 15, 2026 at load 45 to 75 on 12 cores (other agents' builds and browsers): whole seeded
+ * matches, the sim bundle and the replay checks ran 3x to 6x their idle time, and 14 tests in the full suite hit
+ * their fixed 30 to 300 s limits while still making progress. Tests that time something keep `cpuBudget` instead.
+ * The e2e config and the touch, clip and progression specs use it too (Nov 16, 2026, load 330 on 12 cores: a match
+ * took over 60 s to go live and a minimap walk over 20 s). Their checks are in game ticks or drawn frames.
+ */
+export function loadScale(): number {
+  const perCore = loadavg()[0] / availableParallelism();
+  return Math.min(8, Math.max(1, Math.ceil(perCore)));
+}
+
+/** A time limit (`it(..., limit(ms))`, `{ timeout: limit(ms) }`), stretched by `loadScale()`. */
+export function limit(ms: number): number {
+  return ms * loadScale();
+}

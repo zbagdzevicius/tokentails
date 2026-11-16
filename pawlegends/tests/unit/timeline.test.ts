@@ -1,3 +1,4 @@
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { CORE_STATS } from '../../src/data/towers';
 import { SUDDEN_DEATH, TIMELINE, TIMELINE_BY } from '../../src/data/timeline';
@@ -19,7 +20,7 @@ function sturdyCores(m: MatchHandle): void {
   for (let c = RANGE.cores; c < RANGE.fountains; c++) m.world.hp[c] = CORE_STATS.hp * 1000;
 }
 
-describe('timeline (§7.3, §15 item 7)', { timeout: 120000 }, () => {
+describe('timeline (§7.3, §15 item 7)', { timeout: limit(120000) }, () => {
   it('sim v12 phases: gate until 0:03; defaults 5:00 and 7:00; Easy Sunset 5:45, Sudden Death 7:45; Normal and Hard 6:45 and 8:30; Rookie 4:00 and 6:30; safety end 11:00', () => {
     expect(TIMELINE.barrierDrop).toBe(90);
     expect(TIMELINE.sunset).toBe(9000);

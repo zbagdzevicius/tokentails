@@ -1,3 +1,4 @@
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { Op, type Command, type TimedCommand } from '../../src/sim/api';
 import {
@@ -80,7 +81,7 @@ describe('commands (§11.3)', () => {
   });
 });
 
-describe('input gate (§11.3)', { timeout: 120000 }, () => {
+describe('input gate (§11.3)', { timeout: limit(120000) }, () => {
   const mv = (x: number): Command => ({ op: Op.Move, x, y: 1000 });
   it('applies one move per MOVE_MIN_GAP ticks; the latest waiting move wins', () => {
     const g = createGate();

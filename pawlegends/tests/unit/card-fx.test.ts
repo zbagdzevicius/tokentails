@@ -5,6 +5,7 @@
  * and the proof that it is cosmetic: a played match has the same replay (inputs, hash trail, final hash) with and
  * without a card equipped, and neither the sim nor the backend verifier knows about cards.
  */
+import { limit } from './cpu-budget';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -318,7 +319,7 @@ function playMatch(card: ((id: number) => CardFx | null) | null): { rec: ReturnT
   return { rec: replayRecord(m), trail: hashTrail(m), drawn: cards.emitted };
 }
 
-describe('C4 is cosmetic only', { timeout: 240000 }, () => {
+describe('C4 is cosmetic only', { timeout: limit(240000) }, () => {
   it('the same replay (inputs, hash trail, final hash) with and without a card equipped', () => {
     const legendary = (id: number) => cardFxFor(demo('ficus'), id === 0, id < 3 ? 0 : 1, true);
     const plain = playMatch(null);

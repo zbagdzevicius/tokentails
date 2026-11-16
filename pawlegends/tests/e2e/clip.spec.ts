@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { limit } from '../unit/cpu-budget';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
@@ -20,7 +21,7 @@ const videoSize = (page: import('@playwright/test').Page) =>
   });
 
 test('clip: the Legend Moment card records a vertical clip; Record again records a 10 s wide one', async ({ page }, info) => {
-  test.setTimeout(480_000);
+  test.setTimeout(limit(480_000));
   const touch = info.project.name === 'landscape';
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -28,14 +29,14 @@ test('clip: the Legend Moment card records a vertical clip; Record again records
 
   // the Legend Moment card offers the clip
   await press(page, touch, '[data-testid="results-card-strip"]');
-  await expect(page.locator('[data-testid="share-card-clip-vertical"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-testid="share-card-clip-vertical"]')).toBeVisible({ timeout: limit(20_000) });
   if (SHOTS) await page.screenshot({ path: join(SHOTS, `card-${info.project.name}.png`) });
   await press(page, touch, '[data-testid="share-card-clip-vertical"]');
   await expect(page.locator('.mm-share')).toHaveCount(0);
-  await page.waitForFunction(() => document.documentElement.dataset.clip === 'recording', null, { timeout: 180_000 });
+  await page.waitForFunction(() => document.documentElement.dataset.clip === 'recording', null, { timeout: limit(180_000) });
   if (SHOTS) await page.screenshot({ path: join(SHOTS, `recording-${info.project.name}.png`) });
   const sheet = page.locator('[data-testid="clip-sheet"]');
-  await expect(sheet).toBeVisible({ timeout: 60_000 });
+  await expect(sheet).toBeVisible({ timeout: limit(60_000) });
   expect(await page.evaluate(() => document.documentElement.dataset.clip)).toBe('done');
   await expect(sheet.locator('.mm-clip-card')).toHaveAttribute('data-framing', 'vertical');
   await expect(sheet).toContainText('Vertical 9:16');
@@ -72,10 +73,10 @@ test('clip: the Legend Moment card records a vertical clip; Record again records
   await press(page, touch, '.mm-clippanel [data-len="10"]');
   await press(page, touch, '[data-testid="clip-record"]');
   await expect(panel).toBeHidden();
-  await page.waitForFunction(() => document.documentElement.dataset.clip === 'recording', null, { timeout: 60_000 });
+  await page.waitForFunction(() => document.documentElement.dataset.clip === 'recording', null, { timeout: limit(60_000) });
   // the speeds are locked while it records
   await expect(page.locator('.mm-bar [data-speed="4"]')).toBeDisabled();
-  await expect(sheet).toBeVisible({ timeout: 40_000 });
+  await expect(sheet).toBeVisible({ timeout: limit(40_000) });
   await expect(sheet.locator('.mm-clip-card')).toHaveAttribute('data-framing', 'wide');
   // 10 s, or less when a slow test machine reaches the replay's end first
   await expect(sheet).toContainText(/\b([4-9]|1[01]) s · Wide 16:9/);
@@ -88,10 +89,10 @@ test('clip: the Legend Moment card records a vertical clip; Record again records
     await press(page, touch, '.mm-bar [data-speed="4"]');
     await press(page, touch, '[data-testid="replay-play"]');
   }
-  await expect(page.locator('.mm-end:not(.mm-hlend)')).toBeVisible({ timeout: 120_000 });
+  await expect(page.locator('.mm-end:not(.mm-hlend)')).toBeVisible({ timeout: limit(120_000) });
   await press(page, touch, '.mm-end:not(.mm-hlend) [data-r="exit"]');
   // gaps5 polish 2: the Legend Moment card was opened from the results: back there
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 20_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(20_000) });
   expect(await page.evaluate(() => document.documentElement.dataset.clip ?? '')).toBe('');
   expect(errors).toEqual([]);
 });

@@ -1,3 +1,4 @@
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { MINIONS } from '../../src/data/minions';
 import { TIMELINE } from '../../src/data/timeline';
@@ -8,7 +9,7 @@ import { quietMatch } from './sim-helpers';
 
 const minions = (m: ReturnType<typeof quietMatch>) => snapshot(m, 0).entities.filter((e) => e.kind === 'minion');
 
-describe('minion waves (§7.1)', { timeout: 120000 }, () => {
+describe('minion waves (§7.1)', { timeout: limit(120000) }, () => {
   it('lane paths run core to core, mirrored for Woof', () => {
     const p0 = LANE_PATHS[0][0];
     const p1 = LANE_PATHS[1][0];

@@ -16,6 +16,7 @@
  *
  * `PAWLEGENDS_MEASURE_OUT=<file>` writes the JSON (tools/measure.mjs does). The asserts are the §3.11 targets.
  */
+import { limit } from '../unit/cpu-budget';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Room } from '../../../backend/src/pawlegends/party/room';
 import { NetHost } from '../../src/net/net-host';
@@ -270,7 +271,7 @@ export function runProfile(p: RttProfile, seed = 11): RttResult {
   };
 }
 
-describe('own-input latency on the real net code (BENCHMARKS.md, PARITY §3.11)', { timeout: 600_000 }, () => {
+describe('own-input latency on the real net code (BENCHMARKS.md, PARITY §3.11)', { timeout: limit(600_000) }, () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date', 'performance'] });
     vi.setSystemTime(1_800_000_000_000);

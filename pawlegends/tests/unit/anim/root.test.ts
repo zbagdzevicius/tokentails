@@ -3,6 +3,7 @@
  * hero layouts with no NaN quaternion; horizontal root channels end at 0; the caps hold (|fwd|, |side| ≤ 0.30 m,
  * 0 ≤ up ≤ 1.2 m except Lambo E ≤ 1.75 m); the runtime clamps and the mover keeps the feet on the ground.
  */
+import { limit } from '../cpu-budget';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { HERO_IDS } from '../../../src/data/heroes';
@@ -46,7 +47,7 @@ async function allClips(): Promise<ClipDef[]> {
   return out;
 }
 
-describe('root motion', { timeout: 180000 }, () => {
+describe('root motion', { timeout: limit(180000) }, () => {
   it('every clip compiles on all 8 layouts with finite quaternions', async () => {
     const clips = await allClips();
     for (const h of HERO_IDS) {
@@ -59,7 +60,7 @@ describe('root motion', { timeout: 180000 }, () => {
       }
       ch.dispose();
     }
-  }, 180000); // sim v29: 24 heroes' clips (61 s on a shared CI runner at 60 s)
+  }, limit(180000)); // sim v29: 24 heroes' clips (61 s on a shared CI runner at 60 s)
 
   it('caps and horizontal channels ending at 0', async () => {
     for (const c of await allClips()) {

@@ -4,13 +4,14 @@
  * here. The default run plays a few pairs and checks the pairing itself: the swapped match is a different match, and
  * both runs of a seed are deterministic.
  */
+import { limit } from './cpu-budget';
 import { describe, expect, it } from 'vitest';
 import { pvpSymmetryPair } from '../../tools/lib/fuzz-entry';
 import { symmetryGates, symmetryStats } from '../../tools/pvp-symmetry.mjs';
 
 const N = Number(process.env.PVP_SYMMETRY_SEEDS ?? 3);
 
-describe('pvp-symmetry', { timeout: 3_600_000 }, () => {
+describe('pvp-symmetry', { timeout: limit(3_600_000) }, () => {
   it(`${N} seeds × both sides: pairs are deterministic${N >= 2000 ? ', and the side and species gates hold' : ''}`, () => {
     const rows = [];
     for (let s = 1; s <= N; s++) rows.push(pvpSymmetryPair(s));

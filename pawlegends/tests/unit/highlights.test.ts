@@ -4,6 +4,7 @@
  * against the public snapshot, the reel cache, the clip length and the montage plan; determinism on real matches and
  * a golden fixture record.
  */
+import { limit } from './cpu-budget';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -642,7 +643,7 @@ function playWithDetector(seed: number, ticks: number, map?: 'hearthwood'): { re
   return { reel: det.finish({ winner: res ? res.winner : -1, reason: res ? res.reason : 'safetyEnd', ticks: tickOf(m) }), m };
 }
 
-describe('highlights: real matches', { timeout: 240_000 }, () => {
+describe('highlights: real matches', { timeout: limit(240_000) }, () => {
   it('determinism: 20 seeds, run twice, the same reels', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const a = playWithDetector(seed, 4500).reel;

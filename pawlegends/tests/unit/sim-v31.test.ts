@@ -3,6 +3,7 @@
  * v30 freeze, bot use of every slot of the four new heroes and their clip events in real bot matches, determinism,
  * verification on both maps, and the vendored fixtures (live v31 roster fixture, frozen v30 refusing a new hero).
  */
+import { limit } from './cpu-budget';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -18,7 +19,7 @@ const ROSTER: readonly HeroId[] = ['nova', 'dusty', 'barkula', 'ranger'];
 const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim');
 const TRICKS: TrickId[] = ['pounce', 'snack', 'hiss', 'purrify', 'pounce', 'snack'];
 
-describe('sim v31: the second roster release', { timeout: 600000 }, () => {
+describe('sim v31: the second roster release', { timeout: limit(600000) }, () => {
   it('SIM_VERSION 31, v30 frozen at its last commit on main (dc053f38); 28 heroes, the four at 24..27', () => {
     expect(SIM_VERSION).toBe(31);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');

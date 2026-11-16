@@ -2,6 +2,7 @@
  * Sim v15 (docs/plans/moba/DOGS-V15.md): three more dogs (Rocket, Frankie, Domino), so the sides are 10 v 10 with the
  * same roles; Domino's Spots in their own hashed World arrays; three new clip kinds. PARTY_SINCE stays 13.
  */
+import { limit } from './cpu-budget';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -37,7 +38,7 @@ const roles = (side: 'cat' | 'dog'): Record<HeroRole, number> => {
   return out;
 };
 
-describe('sim v15: ten dogs', { timeout: 300000 }, () => {
+describe('sim v15: ten dogs', { timeout: limit(300000) }, () => {
   it('SIM_VERSION 15, PARTY_SINCE 13; 20 heroes, 10 a side with the same roles; the three new dogs at 17..19', () => {
     expect(SIM_VERSION).toBe(31);
     expect(PARTY_SINCE).toBe(13);
