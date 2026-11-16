@@ -44,6 +44,9 @@ head with its projected width, so it scales with zoom, camera height and viewpor
   already targeted (hysteresis). An enemy hero wins over a minion standing in front of it; between two heroes the one
   whose centre line is nearer wins, and a hovered/locked one keeps a small edge.
 - One `getBoundingClientRect` per pick, not per unit (audit P7).
+- Only bodies wholly in front of the camera whose feet or head projects within 1.5 half-screens of the centre
+  (`VIEW_NDC`) count (live check, Nov 16: a tower under or behind the camera projected as a capsule thousands of px
+  wide and took every desktop click on heroes, minions and the core; `tests/unit/targeting-camera-edge.test.ts`).
 - Used by desktop hover/click (`DesktopInput.unitUnderCursor`), the touch field tap that locks a hero
   (`TouchControls.tapAt`) and Normal-mode unit casts (`castArmedAt`, P6). The hover, lock and attack rings are drawn
   at the drawn position too (`GameView.ringX/ringZ`), so the ring sits under the body that was picked.
@@ -127,9 +130,23 @@ overlapping on screen, where the nearer centre line wins.
 Unit tests: `tests/unit/targeting-pick.test.ts` (head/tower hits, hero over minion overlap, minion still farmable,
 hysteresis, touch pads, a random-clump teamfight metric, priority incl. Weakest hero and the lock, aim magnet).
 
+### Live verification (Nov 16, pawlegends.app, independent of the pick lab)
+
+Ground truth from the real pixels: the scene is rendered with and without one unit (shadow map frozen, tower shield
+bubbles hidden), the changed pixels are where that unit is visible, and real input lands on 16 of them per unit
+(Playwright mouse moves read `view.hover`; touch taps read `view.lock`) while the sim is paused in busy spots of a 5v5
+bots match. Taps that Chrome's touch adjustment moved onto a HUD button are counted apart. Desktop 1440x900, before →
+after the camera-plane fix (hit %): enemy heroes 80 → 95, towers/cores 44 → 97, minions 51 → 74 (minion pixels next
+to a hero or inside a tower's cylinder go to that unit). Scripts and numbers: the verification page linked at the top.
+
 ## 9. Follow-ups
 
 - Wild Rift's portrait **Priority display** (only enemies in reach, closest first) near the right thumb.
 - Auto-hide the Last-hit / Tower buttons while an enemy hero is in reach.
 - Killable-minion health bar glow on touch.
 - Desktop hover check every 50 ms could run on pointer move only.
+- Two overlapping enemy heroes: the nearer centre line wins, so a tap on the front hero's visible edge can take the one
+  behind (3–15% of hero taps in 2–3 crowds on phones, live check). Preferring the body nearer the camera would match
+  what is drawn.
+- Minions next to towers: a pixel of a minion outside its 0.5 m cylinder but inside the tower's 1.6 m one takes the
+  tower (desktop minion hits 74%).

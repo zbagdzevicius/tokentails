@@ -100,6 +100,12 @@ export function pickBody<T extends { id: number; kind: string }>(cands: readonly
   return best;
 }
 
+/**
+ * A body is pickable only when its feet or head projects within this many half-screens of the centre (NDC): a 6 m
+ * tower whose feet sit below the bottom edge still counts, a unit under the camera does not.
+ */
+export const VIEW_NDC = 1.5;
+
 const _v = new THREE.Vector3();
 const _right = new THREE.Vector3();
 
@@ -119,9 +125,16 @@ export function screenBodies(camera: THREE.Camera, canvas: HTMLElement, look?: D
   _right.setFromMatrixColumn(camera.matrixWorld, 0).setY(0);
   if (_right.lengthSq() < 1e-6) _right.set(1, 0, 0);
   _right.normalize();
-  const px = (x: number, y: number, z: number): { x: number; y: number; on: boolean } => {
+  // `on`: in front of the near plane (a point behind the camera projects mirrored); `near`: within VIEW_NDC of the
+  // screen (a point close to the camera's own plane projects thousands of px away with a huge width)
+  const px = (x: number, y: number, z: number): { x: number; y: number; on: boolean; near: boolean } => {
     _v.set(x, y, z).project(camera);
-    return { x: rect.left + (_v.x * 0.5 + 0.5) * rect.width, y: rect.top + (-_v.y * 0.5 + 0.5) * rect.height, on: _v.z < 1 && _v.z > -1 };
+    return {
+      x: rect.left + (_v.x * 0.5 + 0.5) * rect.width,
+      y: rect.top + (-_v.y * 0.5 + 0.5) * rect.height,
+      on: _v.z < 1 && _v.z > -1,
+      near: Math.abs(_v.x) <= VIEW_NDC && Math.abs(_v.y) <= VIEW_NDC,
+    };
   };
   return (u) => {
     const spec = PICK_BODY[u.kind as Kind];
@@ -133,8 +146,13 @@ export function screenBodies(camera: THREE.Camera, canvas: HTMLElement, look?: D
     const f = px(x, 0, z);
     if (!f.on) return null;
     const hd = px(x, h, z);
+    // live check (Nov 16): a tower under or behind the camera (its head behind the near plane, or its body by the
+    // camera's own plane) projected as a capsule thousands of px wide and took every click on the screen. A body
+    // counts only when it is wholly in front of the camera and its feet or head is near the screen.
+    if (!hd.on || (!f.near && !hd.near)) return null;
     const mid = px(x, h / 2, z);
     const side = px(x + _right.x * spec.r, h / 2, z + _right.z * spec.r);
+    if (!side.on) return null;
     return { fx: f.x, fy: f.y, hx: hd.x, hy: hd.y, r: Math.hypot(side.x - mid.x, side.y - mid.y) };
   };
 }
