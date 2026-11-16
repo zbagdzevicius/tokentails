@@ -9,7 +9,7 @@ import { SIM_VERSION } from '../../src/sim/version';
 import { EMOTES_MAX, HISTORY_KEY, cleanEmotes, loadHistory, recordMoment, type KVStore } from '../../src/replay/store';
 import { rankedMate } from '../../src/party/partyClient';
 import { queueCardHtml, type QueueModel } from '../../src/party/ui/queueCard';
-import { inviteToast } from '../../src/social/socialSheet';
+import { inviteCard } from '../../src/social/inviteInbox';
 import { lockLine } from '../../src/ui/modeSelect/unlocks';
 import * as core from '../../src/ui/screensCore';
 import * as screens from '../../src/ui/screens';
@@ -74,15 +74,18 @@ describe('Ranked duo (polish 4)', () => {
   it('the invite toast says Ranked duo, with the lock line when this player has not unlocked Ranked', () => {
     const locked = lockLine('ranked', { matches: 4, wins: 1 });
     expect(locked).toBe('Finish 10 matches and win 3 (4/10, 1/3)');
-    const el = inviteToast(document, 'Sam', () => undefined, 50, { ranked: true, locked });
+    // SOCIAL-INVITES.md: the LoL-style invite card (Accept / Decline) replaced the Join-only toast
+    const inv = (mode?: 'ranked') => ({ id: '', from: { code: '', name: 'Sam' }, party: 'K7QX2M', ttl: 50, ...(mode ? { mode } : {}) });
+    const cb = { onAccept: () => undefined, onDecline: () => undefined };
+    const el = inviteCard(document, inv('ranked'), { ...cb, locked });
     expect(el.textContent).toContain('Sam invites you to a Ranked duo');
     expect(el.dataset.ranked).toBe('locked');
     expect(el.querySelector('[data-testid="invite-ranked-lock"]')?.textContent).toBe(`Ranked is locked for you: ${locked}. Join to play Casual together`);
-    expect(el.querySelector('button')?.textContent).toBe('Join');
-    const open = inviteToast(document, 'Sam', () => undefined, 50, { ranked: true, locked: null });
+    expect(el.querySelector('[data-testid="invite-accept"]')?.textContent).toBe('Accept');
+    const open = inviteCard(document, inv('ranked'), { ...cb, locked: null });
     expect(open.dataset.ranked).toBe('open');
     expect(open.querySelector('.pl-invite-lock')).toBeNull();
-    const plain = inviteToast(document, 'Sam', () => undefined, 50);
+    const plain = inviteCard(document, inv(), cb);
     expect(plain.textContent).toContain('Sam invites you to a party');
     expect(plain.dataset.ranked).toBeUndefined();
   });

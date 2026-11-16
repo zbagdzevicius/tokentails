@@ -134,7 +134,40 @@ export interface InviteToastOpts {
   now?(): number;
 }
 
-const TOAST = 'pl-invite-toast';
+/** A toast shell: one per class (a newer one replaces it), its test id, on the body. */
+function shell(doc: Document, cls: string, testid: string, role = 'status'): HTMLElement {
+  doc.querySelector(`.${cls.split(' ')[0]}`)?.remove();
+  const el = doc.createElement('div');
+  el.className = `${cls} pl-report-toast`;
+  el.setAttribute('role', role);
+  el.dataset.testid = testid;
+  doc.body.appendChild(el);
+  return el;
+}
+
+/** A button that closes `el` and then runs `fn`. */
+function act(doc: Document, el: HTMLElement, label: string, cls: string, testid: string, fn: () => void, done = () => el.remove()): HTMLButtonElement {
+  const b = doc.createElement('button');
+  b.type = 'button';
+  b.className = cls;
+  b.textContent = label;
+  b.dataset.testid = testid;
+  b.addEventListener('click', () => {
+    done();
+    fn();
+  });
+  return b;
+}
+
+/** "<b>name</b> rest" as text nodes (never markup). */
+function line(doc: Document, name: string, rest: string): HTMLElement {
+  const t = doc.createElement('span');
+  t.className = 'pl-invite-text';
+  const b = doc.createElement('b');
+  b.textContent = name;
+  t.append(b, doc.createTextNode(rest));
+  return t;
+}
 
 /**
  * "Mira invites you to a party" with Accept and Decline and a countdown bar (LoL style). One at a time: a newer invite
@@ -142,25 +175,17 @@ const TOAST = 'pl-invite-toast';
  * Accept becomes Reload. Returns the element (removed on any answer or at expiry).
  */
 export function inviteCard(doc: Document, inv: InboxInvite, o: InviteToastOpts): HTMLElement {
-  doc.querySelector(`.${TOAST}`)?.remove();
   const now = o.now ?? (() => Date.now());
   const ends = now() + Math.max(0, Math.min(INVITE_MAX_MS, inv.ttl));
-  const el = doc.createElement('div');
-  el.className = `${TOAST} pl-report-toast pl-invite-card`;
-  el.setAttribute('role', 'alertdialog');
+  const el = shell(doc, 'pl-invite-toast pl-invite-card', 'invite-toast', 'alertdialog');
   el.setAttribute('aria-label', 'Party invite');
-  el.dataset.testid = 'invite-toast';
   if (inv.mode === 'ranked') el.dataset.ranked = o.locked ? 'locked' : 'open';
-  const text = doc.createElement('span');
-  text.className = 'pl-invite-text';
-  const who = doc.createElement('b');
-  who.textContent = inv.from.name;
-  text.append(who, doc.createTextNode(inv.mode === 'ranked' ? ' invites you to a Ranked duo' : ' invites you to a party'));
-  const sub = (cls: string, line: string, testid: string) => {
+  const text = line(doc, inv.from.name, inv.mode === 'ranked' ? ' invites you to a Ranked duo' : ' invites you to a party');
+  const sub = (cls: string, words: string, testid: string) => {
     const s = doc.createElement('small');
     s.className = cls;
     s.dataset.testid = testid;
-    s.textContent = line;
+    s.textContent = words;
     text.append(doc.createElement('br'), s);
   };
   if (inv.mode === 'ranked' && o.locked) sub('pl-invite-lock', `Ranked is locked for you: ${o.locked}. Join to play Casual together`, 'invite-ranked-lock');
@@ -171,30 +196,19 @@ export function inviteCard(doc: Document, inv: InboxInvite, o: InviteToastOpts):
   left.dataset.testid = 'invite-left';
   const bar = doc.createElement('i');
   bar.className = 'pl-invite-bar';
-  bar.setAttribute('aria-hidden', 'true');
-  const btn = (label: string, cls: string, testid: string, fn: () => void) => {
-    const b = doc.createElement('button');
-    b.type = 'button';
-    b.className = cls;
-    b.textContent = label;
-    b.dataset.testid = testid;
-    b.addEventListener('click', () => {
-      done();
-      fn();
-    });
-    return b;
-  };
   let timer: ReturnType<typeof setInterval> | null = null;
   const done = () => {
     if (timer) clearInterval(timer);
-    timer = null;
     el.remove();
   };
-  const accept =
-    check === 'me' && o.onReload
-      ? btn('Reload', 'pl-btn small', 'invite-reload', o.onReload)
-      : btn('Accept', 'pl-btn small', 'invite-accept', o.onAccept);
-  const decline = btn('Decline', 'pl-btn ghost small', 'invite-decline', o.onDecline);
+  const row = doc.createElement('span');
+  row.className = 'pl-invite-acts';
+  row.append(
+    left,
+    check === 'me' && o.onReload ? act(doc, el, 'Reload', 'pl-btn small', 'invite-reload', o.onReload, done) : act(doc, el, 'Accept', 'pl-btn small', 'invite-accept', o.onAccept, done),
+    act(doc, el, 'Decline', 'pl-btn ghost small', 'invite-decline', o.onDecline, done),
+  );
+  el.append(text, row, bar);
   const tick = () => {
     const ms = ends - now();
     if (ms <= 0) {
@@ -205,57 +219,26 @@ export function inviteCard(doc: Document, inv: InboxInvite, o: InviteToastOpts):
     left.textContent = `${Math.ceil(ms / 1000)}s`;
     bar.style.transform = `scaleX(${(ms / INVITE_MAX_MS).toFixed(3)})`;
   };
-  const row = doc.createElement('span');
-  row.className = 'pl-invite-acts';
-  row.append(left, accept, decline);
-  el.append(text, row, bar);
-  doc.body.appendChild(el);
   tick();
-  timer = setInterval(tick, 250);
+  if (el.isConnected) timer = setInterval(tick, 250);
   return el;
 }
 
 /** A short one-line toast (an answer to your invite, an expired invite): 4 s. */
-export function lineToast(doc: Document, line: string, testid = 'social-toast', ms = 4000): HTMLElement {
-  doc.querySelector('.pl-social-toast')?.remove();
-  const el = doc.createElement('div');
-  el.className = 'pl-social-toast pl-report-toast';
-  el.setAttribute('role', 'status');
-  el.dataset.testid = testid;
-  el.textContent = line;
-  doc.body.appendChild(el);
+export function lineToast(doc: Document, words: string, testid = 'social-toast', ms = 4000): HTMLElement {
+  const el = shell(doc, 'pl-social-toast', testid);
+  el.textContent = words;
   setTimeout(() => el.remove(), ms);
   return el;
 }
 
 /** "Mira declined your invite" / "Mira is joining your party". */
-export const answerLine = (a: InboxAnswer): string => (a.answer === 'declined' ? `${a.name} declined your invite` : `${a.name} is joining your party`);
+export const answerLine = (a: InboxAnswer): string => `${a.name} ${a.answer === 'declined' ? 'declined your invite' : 'is joining your party'}`;
 
 /** A friend's DM while the Social sheet is closed: "Mira: see you at 7" with Open (6 s). Muted threads never get here. */
 export function dmToast(doc: Document, from: string, preview: string, onOpen: () => void, ms = 6000): HTMLElement {
-  doc.querySelector('.pl-dm-toast')?.remove();
-  const el = doc.createElement('div');
-  el.className = 'pl-dm-toast pl-report-toast';
-  el.setAttribute('role', 'status');
-  el.dataset.testid = 'dm-toast';
-  const text = doc.createElement('span');
-  text.className = 'pl-invite-text';
-  const who = doc.createElement('b');
-  who.textContent = `${from}: `;
-  const line = doc.createElement('span');
-  line.textContent = previewText(preview) || 'New message';
-  text.append(who, line);
-  const open = doc.createElement('button');
-  open.type = 'button';
-  open.className = 'pl-btn small';
-  open.textContent = 'Open';
-  open.dataset.testid = 'dm-open';
-  open.addEventListener('click', () => {
-    el.remove();
-    onOpen();
-  });
-  el.append(text, open);
-  doc.body.appendChild(el);
+  const el = shell(doc, 'pl-dm-toast', 'dm-toast');
+  el.append(line(doc, `${from}: `, previewText(preview) || 'New message'), act(doc, el, 'Open', 'pl-btn small', 'dm-open', onOpen));
   setTimeout(() => el.remove(), ms);
   return el;
 }

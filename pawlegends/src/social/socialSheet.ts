@@ -849,38 +849,3 @@ export class SocialSheet {
     return this.disposed;
   }
 }
-
-/** "Mira invites you to a party · Join" (§14.6): 44 px, 30 s, one at a time. Names by textContent. */
-/**
- * A friend's party invite (the title pulse). gaps5 polish 4: a Ranked duo invite names Ranked, and when this player has
- * not unlocked Ranked yet it carries the lock line (`locked`, from MODE-UNLOCKS.md's ladder): joining still works, the
- * party can play Casual together.
- */
-export function inviteToast(doc: Document, from: string, onJoin: () => void, ms = 30_000, o: { ranked?: boolean; locked?: string | null } = {}): HTMLElement {
-  doc.querySelector('.pl-invite-toast')?.remove();
-  const el = doc.createElement('div');
-  el.className = 'pl-invite-toast pl-report-toast';
-  el.setAttribute('role', 'status');
-  if (o.ranked) el.dataset.ranked = o.locked ? 'locked' : 'open';
-  const text = doc.createElement('span');
-  text.textContent = o.ranked ? `${from} invites you to a Ranked duo` : `${from} invites you to a party`;
-  if (o.ranked && o.locked) {
-    const why = doc.createElement('small');
-    why.className = 'pl-invite-lock';
-    why.dataset.testid = 'invite-ranked-lock';
-    why.textContent = `Ranked is locked for you: ${o.locked}. Join to play Casual together`;
-    text.append(doc.createElement('br'), why);
-  }
-  const join = doc.createElement('button');
-  join.type = 'button';
-  join.className = 'pl-btn small';
-  join.textContent = 'Join';
-  join.addEventListener('click', () => {
-    el.remove();
-    onJoin();
-  });
-  el.append(text, join);
-  doc.body.appendChild(el);
-  setTimeout(() => el.remove(), ms);
-  return el;
-}
