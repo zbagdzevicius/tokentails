@@ -24,7 +24,6 @@ import {
   type PawlegendsBridge,
   type PawlegendsNotifyWhere,
   type PawlegendsSignInReason,
-  type PawlegendsStoreState,
 } from "./bridge";
 import {
   browserStorage,
@@ -53,6 +52,7 @@ import {
 import { PartySaves, PartyTickets } from "./partySaves";
 import { PawlegendsApi as PawlegendsGameApi } from "./apiBridge";
 import { PawlegendsSaver } from "./saves";
+import { StoreSync } from "./storeSync";
 import { openedFrom, profileAfterSave, progressFromProfile, type PawlegendsProfileFields } from "./session";
 import { PAWLEGENDS_TITLE } from "./title";
 import { LANDING_VARIANT_PARAM, landingVariantOf } from "./landingVariant";
@@ -171,8 +171,10 @@ export const PawlegendsHost = ({
   const [storeSku, setStoreSku] = useState<string | null>(null);
   /** STORE-PASS.md §3 step 5: re-reads `GET /pawlegends/me` and sends `store` to the game (set below). */
   const refreshStoreRef = useRef<(() => Promise<void>) | null>(null);
-  /** The last `GET /pawlegends/me` answer (the store sheet reads a champion bundle's prorated price from it). */
-  const storeState = useRef<PawlegendsStoreState | null>(null);
+  const apiRef = useRef(api);
+  useEffect(() => {
+    apiRef.current = api;
+  }, [api]);
 
   const uid = auth?.user?.uid ?? null;
   // Without an auth provider the page behaves as signed out.
@@ -187,6 +189,23 @@ export const PawlegendsHost = ({
   useEffect(() => {
     latest.current = { uid, anonymous: !!auth?.user?.isAnonymous, signedIn, authStatus, profile, setProfileUpdate, auth };
   });
+  /**
+   * The account's progression in the game (storeSync.ts): read after every saved match whatever its answer carried,
+   * the answer's own totals shown at once, and read again when the tab comes back. The last state also gives the
+   * store sheet a champion bundle's prorated price.
+   */
+  const storeSync = useMemo(
+    () =>
+      new StoreSync({
+        read: async () => {
+          const result = await apiRef.current.me();
+          return result.ok && result.body ? result.body : null;
+        },
+        send: (state) => bridgeRef.current?.setStore(state),
+        hasUser: () => !!latest.current.uid,
+      }),
+    []
+  );
   const authWaiters = useRef(new Set<() => void>());
   useEffect(() => {
     if (authStatus === "unknown") return;
@@ -231,8 +250,8 @@ export const PawlegendsHost = ({
             ...(detail.code ? { code: detail.code } : {}),
             ...(answer?.season ? { season: answer.season } : {}),
           });
-          // the pass row moved (Season XP): the game's Pass screen follows
-          if (saveStatus === "saved" && answer?.season) void refreshStoreRef.current?.();
+          // progression moved (Season XP, tier, Yarn): every saved match refreshes, whatever its answer carried
+          if (saveStatus === "saved") storeSync.saved(answer?.season);
           if (saveStatus !== "saving") {
             track(
               buildPawlegendsEvent("pawlegends_save", {
@@ -249,6 +268,9 @@ export const PawlegendsHost = ({
             const { profile: current, setProfileUpdate: update, auth: authNow } = latest.current;
             if (current) update(profileAfterSave(current as PawlegendsProfileFields, answer) as never);
             if (answer.catnipPaid > 0) void authNow?.refreshProfile?.().catch(() => undefined);
+          } else if (saveStatus === "saved") {
+            // saved without an answer (a 409 after a POST the server finished): the profile is read again instead
+            void latest.current.auth?.refreshProfile?.().catch(() => undefined);
           }
           if (saveStatus === "queued" && detail.outcome === "device") setNote(null);
           if (detail.outcome === "stale") setUpdateReady(true);
@@ -256,7 +278,7 @@ export const PawlegendsHost = ({
         onStalePurged: () => setNote("An older match could not be saved after an update"),
         onChange: () => setUnclaimed(saver.unclaimed().length),
       }),
-    []
+    [storeSync]
   );
   // Party play (MULTIPLAYER.md §5.3, §6): tickets minted with this page's session, v:2 results posted to `/live`.
   const partySaves = useMemo(
@@ -275,7 +297,7 @@ export const PawlegendsHost = ({
             ...(detail.code ? { code: detail.code } : {}),
             ...(answer?.season ? { season: answer.season } : {}),
           });
-          if (saveStatus === "saved" && answer?.season) void refreshStoreRef.current?.();
+          if (saveStatus === "saved") storeSync.saved(answer?.season);
           if (detail.outcome === "stale") setUpdateReady(true);
           if (saveStatus !== "saving")
             track(
@@ -286,10 +308,10 @@ export const PawlegendsHost = ({
                 httpStatus: detail.httpStatus,
               })
             );
-          if (saveStatus === "saved" && answer?.catnipPaid) void latest.current.auth?.refreshProfile?.().catch(() => undefined);
+          if (saveStatus === "saved" && (!answer || answer.catnipPaid)) void latest.current.auth?.refreshProfile?.().catch(() => undefined);
         },
       }),
-    []
+    [storeSync]
   );
   const partyTickets = useMemo(
     () =>
@@ -493,7 +515,8 @@ export const PawlegendsHost = ({
       // STORE-PASS.md §5: claim pass rewards (guests too: they earn Season XP and claim the free row).
       onPassClaim: (row, tier) =>
         void api.passClaim(row && tier ? { row, tier } : { all: true }).then((result) => {
-          if (result.ok && result.body) bridgeRef.current?.setStore(result.body);
+          if (result.ok && result.body) storeSync.accept(result.body);
+          else void storeSync.refresh();
         }),
       // CHAMPION-STORE.md §8.6: a Yarn unlock or a Champion Pick (the app too: no money changes hands); the fresh
       // `store` carries the champion, a refusal still re-sends it so the game's button comes back
@@ -629,24 +652,31 @@ export const PawlegendsHost = ({
   // STORE-PASS.md §3 step 5: the account's owned store and pass items and its pass row, after sign-in, after a
   // Checkout return, after a saved match and after a claim. App builds get it too: the game draws only the pass's
   // free-row items there and never shows a price.
-  const refreshStore = useCallback(async () => {
-    if (!latest.current.uid) {
-      bridgeRef.current?.setStore({ items: [], season: null });
-      return;
-    }
-    const result = await api.me();
-    if (result.ok && result.body) {
-      storeState.current = result.body;
-      bridgeRef.current?.setStore(result.body);
-    }
-  }, [api]);
+  const refreshStore = useCallback(() => storeSync.refresh(), [storeSync]);
   useEffect(() => {
     refreshStoreRef.current = refreshStore;
   }, [refreshStore]);
+  const storeUid = useRef<string | null>(null);
   useEffect(() => {
     if (authStatus === "unknown") return;
+    // another account (or none): its progression is not this one's
+    if (storeUid.current !== uid) storeSync.reset();
+    storeUid.current = uid;
     void refreshStore();
-  }, [uid, authStatus, bridgeState, refreshStore]);
+  }, [uid, authStatus, bridgeState, refreshStore, storeSync]);
+  // Back to the tab (another tab or device played, a phone woke up): progression and the profile are read again.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || latest.current.authStatus === "unknown") return;
+      if (storeSync.visible() && latest.current.signedIn) void latest.current.auth?.refreshProfile?.().catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onVisible);
+    };
+  }, [storeSync]);
   useEffect(() => {
     bridgeRef.current?.setChampions(champions);
   }, [champions, bridgeState]);
@@ -851,7 +881,7 @@ export const PawlegendsHost = ({
           label={status.catalog.find((c) => c.sku === storeSku)!.label}
           cents={
             // CHAMPION-STORE.md §5: a champion bundle's prorated price for this account (the server's, from `/me`)
-            storeState.current?.champions?.bundles.find((b) => b.sku === storeSku)?.cents ??
+            storeSync.state?.champions?.bundles.find((b) => b.sku === storeSku)?.cents ??
             status.catalog.find((c) => c.sku === storeSku)!.cents
           }
           initialEmail={auth?.user?.email ?? ""}

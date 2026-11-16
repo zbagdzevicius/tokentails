@@ -39,6 +39,8 @@ export interface CallOptions {
   body?: unknown;
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  /** Never from an HTTP cache (`cache: "no-store"`): reads of the account's own progression. */
+  fresh?: boolean;
 }
 
 export const API_TIMEOUT_MS = 20_000;
@@ -102,6 +104,7 @@ export class HostApi {
         headers,
         ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
         ...(controller ? { signal: controller.signal } : {}),
+        ...(options.fresh ? { cache: "no-store" as RequestCache } : {}),
       });
     } catch {
       return { status: 0, body: null, code: null };

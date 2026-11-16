@@ -163,7 +163,7 @@ const defaultRoutes = (): Record<string, (c: Call) => { status: number; body?: u
   'POST /user/guest/session': () => ({ status: 201, body: {} }),
 });
 
-function setup(o: { online?: boolean; routes?: Record<string, (c: Call) => { status: number; body?: unknown }>; user?: UserSnapshot | null; platform?: 'ios' | 'android' | 'mac' } = {}) {
+function setup(o: { online?: boolean; routes?: Record<string, (c: Call) => { status: number; body?: unknown }>; user?: UserSnapshot | null; platform?: 'ios' | 'android' | 'mac'; onForeground?: (fn: () => void) => () => void } = {}) {
   localStorage.clear();
   const toGame: Msg[] = [];
   const channel = createChannel((fn) => void setTimeout(fn, 0));
@@ -180,7 +180,7 @@ function setup(o: { online?: boolean; routes?: Record<string, (c: Call) => { sta
     isAccount: () => !!auth.user && !auth.user.isAnonymous,
     ensureUser: () => auth.ensureGuest(online),
   });
-  const host: NativeHost = startNativeHost({ channel, auth, api, ui, platform: o.platform ?? 'ios', online: () => online, storage: null });
+  const host: NativeHost = startNativeHost({ channel, auth, api, ui, platform: o.platform ?? 'ios', online: () => online, storage: null, ...(o.onForeground ? { onForeground: o.onForeground } : {}) });
   const send = (m: Msg): void => channel.game.post({ ...ENV, ...m });
   const last = (type: string): Msg | undefined => [...toGame].reverse().find((m) => m.type === type);
   return { channel, toGame, auth, ui, be, host, send, last, setOnline: (v: boolean) => (online = v) };
@@ -425,6 +425,123 @@ describe('the native host', () => {
     const h = track(setup({ platform: 'android', user: { uid: 'acct-2', isAnonymous: false, providers: ['password'], email: 'pat@example.com', emailVerified: true } }));
     await expect(h.host.deleteAccount()).resolves.toBe('deleted');
     expect(h.be.calls.find((c) => c.method === 'DELETE')?.body).toEqual({});
+  });
+});
+
+describe('progression stays fresh without a restart (founder, Nov 16)', () => {
+  const SEASON = { id: 's1', xp: 900, tier: 2, premium: 'none', skips: 0, claimed: [], endsAt: '2027-01-05T00:00:00.000Z' };
+  const ACCOUNT: UserSnapshot = { uid: 'acct-1', isAnonymous: false, providers: ['apple.com'], email: 'pat@example.com', emailVerified: true };
+  const seasonOf = (m: Msg | undefined) => (m?.season ?? null) as { xp: number; tier: number } | null;
+
+  it('a save that ends as a duplicate (no answer: the server finished a timed-out POST) still re-reads the store and the profile', async () => {
+    let xp = 900;
+    const h = track(
+      setup({
+        user: ACCOUNT,
+        routes: {
+          'GET /pawlegends/me': () => ({ status: 200, body: { items: [], season: { ...SEASON, xp, tier: Math.floor(xp / 500) } } }),
+          'POST /user/catbassadors/live': () => {
+            xp = 1210;
+            return { status: 409, body: { code: 'PAWLEGENDS_DUPLICATE' } };
+          },
+        },
+      }),
+    );
+    h.send({ type: 'ready', version: 'x' });
+    await flush(12);
+    expect(seasonOf(h.last('store'))).toMatchObject({ xp: 900, tier: 1 });
+    const profileReads = h.be.calls.filter((c) => c.path === '/user/profile').length;
+    h.send({ type: 'match-result', matchId: 'm1', replay: REPLAY, summary: {} });
+    await flush(20);
+    expect(h.last('save-result')).toMatchObject({ matchId: 'm1', status: 'saved' });
+    expect(seasonOf(h.last('store'))).toMatchObject({ xp: 1210, tier: 2 });
+    expect(h.be.calls.filter((c) => c.path === '/user/profile').length).toBeGreaterThan(profileReads);
+  });
+
+  it("the save's own Season XP reaches the game at once and a lagging read never shows the old numbers again", async () => {
+    const h = track(
+      setup({
+        user: ACCOUNT,
+        routes: {
+          // the read lags the write (a replica, a cache): it still answers the boot numbers
+          'GET /pawlegends/me': () => ({ status: 200, body: { items: [], season: SEASON } }),
+          'POST /user/catbassadors/live': () => ({
+            status: 201,
+            body: { difficulty: 'easy', outcome: 'won', catnipPaid: 0, catnipCount: 20, fastestWin: 9000, season: { gained: 310, xp: 1210, tier: 3, prevTier: 2 } },
+          }),
+        },
+      }),
+    );
+    h.send({ type: 'ready', version: 'x' });
+    await flush(12);
+    expect(seasonOf(h.last('store'))).toMatchObject({ xp: 900, tier: 2 });
+    h.send({ type: 'match-result', matchId: 'm1', replay: REPLAY, summary: {} });
+    await flush(20);
+    expect(h.last('save-result')).toMatchObject({ status: 'saved', season: { gained: 310, xp: 1210 } });
+    const stores = h.toGame.filter((m) => m.type === 'store').map(seasonOf);
+    // every store after the save carries the new totals
+    const after = stores.slice(stores.findIndex((s) => s?.xp === 1210));
+    expect(after.length).toBeGreaterThan(0);
+    expect(after.every((s) => s?.xp === 1210 && s?.tier === 3)).toBe(true);
+  });
+
+  it('a party (co-op, PvP) save refreshes too', async () => {
+    let xp = 900;
+    const h = track(
+      setup({
+        user: ACCOUNT,
+        routes: {
+          'GET /pawlegends/me': () => ({ status: 200, body: { items: [], season: { ...SEASON, xp } } }),
+          'POST /user/catbassadors/live': () => {
+            xp = 1000;
+            // an answer the host cannot read (no difficulty): still a save
+            return { status: 201, body: { party: true } };
+          },
+        },
+      }),
+    );
+    h.send({ type: 'ready', version: 'x' });
+    await flush(12);
+    const room = 'ptyroom0001';
+    h.send({ type: 'party-result', matchId: room, result: { v: 2, room, slot: 0, simVersion: 19, ticks: 9000, finalHash: 'abcdef12', outcome: 'won' } });
+    await flush(20);
+    expect(h.last('save-result')).toMatchObject({ matchId: room, status: 'saved' });
+    expect(seasonOf(h.last('store'))).toMatchObject({ xp: 1000 });
+  });
+
+  it('back from the background: the store and the profile are read again (at most every 10 s)', async () => {
+    let fg: (() => void) | null = null;
+    let xp = 900;
+    const h = track(
+      setup({
+        user: ACCOUNT,
+        onForeground: (fn) => {
+          fg = fn;
+          return () => (fg = null);
+        },
+        routes: { 'GET /pawlegends/me': () => ({ status: 200, body: { items: [], season: { ...SEASON, xp } } }) },
+      }),
+    );
+    h.send({ type: 'ready', version: 'x' });
+    await flush(12);
+    expect(fg).not.toBeNull();
+    const reads = () => h.be.calls.filter((c) => c.path === '/pawlegends/me').length;
+    const before = reads();
+    // right after the boot read: nothing new
+    fg!();
+    await flush(6);
+    expect(reads()).toBe(before);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(Date.now() + 11_000);
+      xp = 1500;
+      fg!();
+    } finally {
+      vi.useRealTimers();
+    }
+    await flush(12);
+    expect(reads()).toBe(before + 1);
+    expect(seasonOf(h.last('store'))).toMatchObject({ xp: 1500 });
   });
 });
 

@@ -576,7 +576,7 @@ export function createPawlegendsApi(
     me: () => {
       const session = sessionToken();
       if (!session.startsWith("fb")) return Promise.resolve({ ok: false, status: 401, code: null, message: null, body: null } as ApiResult<PawlegendsStoreState>);
-      return call("/me", { method: "GET", headers: { accesstoken: session } }, storeStateOf);
+      return call("/me", { method: "GET", cache: "no-store", headers: { accesstoken: session } }, storeStateOf);
     },
     /** STORE-PASS.md §5: `POST /pawlegends/pass/claim` (one reward or all); answers the fresh `me`. */
     passClaim: (body: { row: "f" | "p"; tier: number } | { all: true }) => {

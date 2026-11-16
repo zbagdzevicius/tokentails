@@ -7,6 +7,7 @@
  * Firebase failing to start (storage blocked, a broken WebView) must never stop the game: the host then runs with
  * no sign-in (`NoAuth`), the game plays signed out and the sheet says sign-in is unavailable.
  */
+import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { HostApi } from "./api";
 import { createFirebaseAuth, nativeCaps, NativeAuth, platformOf, type AuthOutcome, type AuthPort, type NativeCaps } from "./auth";
@@ -78,7 +79,17 @@ function boot(): void {
     },
     ensureUser: () => auth.ensureGuest(online()),
   });
-  startNativeHost({ channel, auth, api, ui: new DomHostUi(document, platform, caps), platform, online });
+  // back from the background: the app's `resume` and the page's `visibilitychange` (the host reads at most every 10 s)
+  const onForeground = (fn: () => void) => {
+    const visible = () => document.visibilityState === "visible" && fn();
+    document.addEventListener("visibilitychange", visible);
+    const resume = App.addListener("resume", fn).catch(() => null);
+    return () => {
+      document.removeEventListener("visibilitychange", visible);
+      void resume.then((h) => h?.remove());
+    };
+  };
+  startNativeHost({ channel, auth, api, ui: new DomHostUi(document, platform, caps), platform, online, onForeground });
   console.info(`[host] up (${platform}; apple ${caps.apple}, google ${caps.google})`);
 }
 

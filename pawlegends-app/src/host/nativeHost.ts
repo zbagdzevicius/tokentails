@@ -26,6 +26,7 @@ import { createPawlegendsBridge, storeStateOf, type PawlegendsBridge, type Pawle
 import { PawlegendsApi as GameApi } from "@/components/pawlegends/apiBridge";
 import { PartySaves, PartyTickets } from "@/components/pawlegends/partySaves";
 import { PawlegendsSaver } from "@/components/pawlegends/saves";
+import { StoreSync } from "@/components/pawlegends/storeSync";
 import { profileAfterSave, progressFromProfile, type PawlegendsLiveAnswer, type PawlegendsProfileFields } from "@/components/pawlegends/session";
 import { clearLastMethod, rememberLastMethod } from "@/context/auth/lastMethod";
 import type { QueueStorage } from "@/components/heist/heistSaves";
@@ -50,6 +51,11 @@ export interface NativeHostDeps {
   storage?: QueueStorage | null;
   /** Tests: run timers at once. */
   schedule?: (fn: () => void, ms: number) => () => void;
+  /**
+   * The app came back to the foreground (Capacitor `App` `resume`); default: the page's `visibilitychange`. Returns
+   * the unsubscribe.
+   */
+  onForeground?: (fn: () => void) => () => void;
 }
 
 export interface NativeHost {
@@ -128,8 +134,12 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
           profile = { ...profile, ...profileAfterSave(profile, answer) };
           sendSession();
         }
-        if (answer.season) void refreshStore();
+      } else if (status === "saved" && isAccount()) {
+        // saved without an answer (a 409 after a POST the server finished): the profile is read again instead
+        void refreshProfile().then(() => !disposed && sendSession());
       }
+      // progression moved (Season XP, tier, Yarn): every saved match refreshes, whatever its answer carried
+      if (status === "saved") store.saved(answer?.season);
     },
   });
   const partySaves = new PartySaves({
@@ -138,7 +148,7 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
     onStatus: (matchId, status, detail) => {
       const answer = answerOf(detail);
       saveStatus(matchId, status, answer, detail.code, false);
-      if (status === "saved" && answer?.season) void refreshStore();
+      if (status === "saved") store.saved(answer?.season);
     },
   });
   const partyTickets = new PartyTickets({
@@ -189,14 +199,19 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
     } else if (profileUid !== u.uid) profile = null;
   };
 
-  async function refreshStore(): Promise<void> {
-    if (!user()) {
-      bridge.setStore({ items: [], season: null });
-      return;
-    }
-    const r = await api.call("GET", "/pawlegends/me", { auth: "guest" });
-    const state = okStatus(r.status) ? storeStateOf(r.body) : null;
-    if (state) bridge.setStore(state);
+  /** The account's progression in the game (storeSync.ts, shared with the web host). */
+  const store = new StoreSync({
+    read: async () => {
+      if (disposed) return null;
+      const r = await api.call("GET", "/pawlegends/me", { auth: "guest", fresh: true });
+      return okStatus(r.status) ? storeStateOf(r.body) : null;
+    },
+    send: (state) => bridge.setStore(state),
+    hasUser: () => !!user(),
+    ...(deps.schedule ? { schedule: (fn: () => void, ms: number) => void deps.schedule!(fn, ms) } : {}),
+  });
+  function refreshStore(): Promise<void> {
+    return store.refresh();
   }
 
   const loadChampions = async (): Promise<void> => {
@@ -323,7 +338,8 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
     profile = null;
     profileUid = null;
     sendSession();
-    bridge.setStore({ items: [], season: null });
+    store.reset();
+    void refreshStore();
     ui.toast("Signed out. Your matches on this phone stay here.");
   };
 
@@ -370,7 +386,8 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
     profile = null;
     profileUid = null;
     sendSession();
-    bridge.setStore({ items: [], season: null });
+    store.reset();
+    void refreshStore();
     ui.toast("Your account was deleted. You can keep playing without one.");
     return "deleted";
   };
@@ -396,7 +413,8 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
           if (!(await auth.ensureGuest(online()))) return;
           const r = await api.call("POST", "/pawlegends/pass/claim", { auth: "guest", body: { seasonId: "s1", ...(row && tier ? { row, tier } : { all: true }) } });
           const state = okStatus(r.status) ? storeStateOf((r.body as { me?: unknown } | null)?.me) : null;
-          if (state) bridge.setStore(state);
+          if (state) store.accept(state);
+          else await refreshStore();
         })(),
       // CHAMPION-STORE.md §8.6: a Yarn unlock or a Champion Pick (no money: allowed in the app); a fresh `store` after
       onChampUnlock: (hero, via) =>
@@ -422,10 +440,25 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
     if (uid === lastUid) return;
     lastUid = uid;
     api.resetGuestSession();
+    store.reset();
     void refresh().then(() => {
       if (saver.releaseGuestRuns() > 0) void saver.drain();
       void saver.drain();
     });
+  });
+
+  // back from the background (another device played, a pass claimed on the web): progression and profile again
+  const onForeground =
+    deps.onForeground ??
+    ((fn: () => void) => {
+      if (typeof document === "undefined") return () => undefined;
+      const h = () => document.visibilityState === "visible" && fn();
+      document.addEventListener("visibilitychange", h);
+      return () => document.removeEventListener("visibilitychange", h);
+    });
+  const offForeground = onForeground(() => {
+    if (disposed || !store.visible()) return;
+    if (isAccount()) void refreshProfile().then(() => !disposed && sendSession());
   });
 
   saver.start();
@@ -441,6 +474,7 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
     dispose() {
       disposed = true;
       offChange();
+      offForeground();
       saver.dispose();
       bridge.dispose();
     },

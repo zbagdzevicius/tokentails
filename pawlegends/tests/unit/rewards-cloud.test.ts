@@ -14,7 +14,7 @@ import { dayKey, FRIEND_QUEST, freshQuests, loadQuests, progressQuests, QUEST_PO
 import { freshTreats, loadTreats, saveTreats, TREAT_STEP, treatReward } from '../../src/meta/treats';
 import { giftLabel, parseWelcome, WELCOME_PATH, welcomeVisible } from '../../src/meta/welcome';
 import { questTally } from '../../src/ui/lobby/lobbyScreen';
-import { masteryChipHtml, openLuckyChest, openLuckyOdds, RewardsCloud, todayExtraHtml } from '../../src/ui/rewards/rewards';
+import { FOREGROUND_SYNC_MS, masteryChipHtml, openLuckyChest, openLuckyOdds, RewardsCloud, todayExtraHtml } from '../../src/ui/rewards/rewards';
 import { LUCKY_POOL } from '../../../backend/src/pawlegends/progress/lucky';
 import { WELCOME_PATH as SERVER_WELCOME } from '../../../backend/src/pawlegends/progress/welcome';
 import { MASTERY_STEPS as SERVER_STEPS } from '../../../backend/src/pawlegends/progress/mastery';
@@ -226,6 +226,30 @@ describe('Lucky Treat', () => {
     expect(api).toHaveBeenCalledTimes(2);
     expect(sent[1]).toContain('lucky:2026-11-13');
     r.dispose();
+  });
+});
+
+describe('foreground sync (founder, Nov 16: progression stale until a restart)', () => {
+  it('the page coming back syncs again, at most every FOREGROUND_SYNC_MS', async () => {
+    vi.useFakeTimers();
+    saveProfile({ ...freshProfile(), matches: 2 });
+    const api = vi.fn(async () => ({ id: 'x', ok: false, status: 0, body: null }));
+    const r = new RewardsCloud({ api: api as never, eligible: () => true, onChange: vi.fn() });
+    await r.sync();
+    expect(api).toHaveBeenCalledTimes(1);
+    const show = () => document.dispatchEvent(new Event('visibilitychange'));
+    show();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(api).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(FOREGROUND_SYNC_MS);
+    show();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(api).toHaveBeenCalledTimes(2);
+    r.dispose();
+    await vi.advanceTimersByTimeAsync(FOREGROUND_SYNC_MS + 1000);
+    show();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(api).toHaveBeenCalledTimes(2);
   });
 });
 

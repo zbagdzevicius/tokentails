@@ -46,7 +46,12 @@ export interface HostConfig {
   /** STORE-PASS.md: answer `purchase-intent{sku}` for a store SKU with `purchase-result{sku, ok:true}` and this store state (a Stripe test-mode return). */
   storeGrants?: Record<string, { items: string[]; season: unknown }>;
   /** STORE-PASS.md: answer a match's save with `save-result{season}` and then this store state (Season XP paid by /live). */
-  seasonOnSave?: { season: { gained: number; xp: number; tier: number; prevTier: number }; store: { items: string[]; season: unknown } };
+  seasonOnSave?: {
+    season: { gained: number; xp: number; tier: number; prevTier: number };
+    store: { items: string[]; season: unknown };
+    /** The `store` re-read lands this long after the `save-result` (a slow `GET /pawlegends/me`; default 0). */
+    storeDelayMs?: number;
+  };
   /** STORE-PASS.md: answer `pass-claim` with this store state (POST /pawlegends/pass/claim). */
   passClaim?: { items: string[]; season: unknown };
   /** SOCIAL-RANKED.md §13: answer `api-request{op}` with this status and body (unlisted ops: status 0). */
@@ -129,8 +134,10 @@ function hostHtml(cfg: HostConfig): string {
         var so = cfg.seasonOnSave;
         setTimeout(function () {
           send('save-result', { matchId: m.matchId, status: 'saved', catnipPaid: 0, catnipTotal: null, fastestWin: null, season: so.season });
-          store = so.store;
-          send('store', withChamps(store));
+          setTimeout(function () {
+            store = so.store;
+            send('store', withChamps(store));
+          }, so.storeDelayMs || 0);
         }, 50);
       }
       if (m.type === 'party-ticket-request' && cfg.partyTicket !== undefined) {

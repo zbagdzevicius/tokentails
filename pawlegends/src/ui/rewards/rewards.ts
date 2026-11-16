@@ -3,7 +3,9 @@
  * does), the under-16 Daily Treat, the Welcome Path strip and toasts, and the mastery chips on champion cards.
  *
  * Sync: `RewardsCloud.onHost` takes the host's `session` (boot, sign-in, sign-out) and a `save-result` that saved (the
- * `/live` save may have paid a grant) and runs one `progress.sync` (meta/progressCloud.ts). A chest is never shown in a
+ * `/live` save may have paid a grant) and runs one `progress.sync` (meta/progressCloud.ts); so does the page coming back
+ * to the foreground (the app resumed, the tab shown again; at most every `FOREGROUND_SYNC_MS`), so quests, the Treat
+ * Track and the daily grants played or paid elsewhere show without a restart. A chest is never shown in a
  * match: it waits for Home or the results screen (`<html data-screen>`), one at a time. Nothing here sells anything,
  * links to a store or shows a price; the app build shows exactly the same.
  */
@@ -21,6 +23,8 @@ const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;',
 
 /** The blob as one bridge arg (embed/api.ts allows `blob` up to this long). */
 export const BLOB_ARG_MAX = 30000;
+/** A foreground sync waits this long after the last one. */
+export const FOREGROUND_SYNC_MS = 30_000;
 
 export interface RewardsDeps {
   api(op: ApiOp, args?: ApiArgs): Promise<ApiResult>;
@@ -42,9 +46,14 @@ export class RewardsCloud {
   private queue: Grant[] = [];
   private obs: MutationObserver | null = null;
   private open: HTMLElement | null = null;
+  private lastSync = -Infinity;
+  private readonly onVisible = (): void => {
+    if (document.visibilityState === 'visible' && Date.now() - this.lastSync >= FOREGROUND_SYNC_MS) this.later(300);
+  };
 
   constructor(private readonly deps: RewardsDeps) {
     installRewardsClicks();
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVisible);
     if (typeof MutationObserver === 'function')
       this.obs = new MutationObserver(() => this.flush());
     this.obs?.observe(document.documentElement, { attributes: true, attributeFilter: ['data-screen'] });
@@ -71,6 +80,7 @@ export class RewardsCloud {
       this.again = true;
       return this.busy;
     }
+    this.lastSync = Date.now();
     this.busy = (async () => {
       const { blob, local } = buildBlob();
       let s = JSON.stringify(blob);
@@ -116,6 +126,7 @@ export class RewardsCloud {
 
   dispose(): void {
     this.obs?.disconnect();
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.onVisible);
     if (this.timer) clearTimeout(this.timer);
   }
 }

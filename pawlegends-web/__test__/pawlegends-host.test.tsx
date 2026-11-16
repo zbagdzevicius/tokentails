@@ -511,6 +511,72 @@ describe("PawlegendsHost: account and saves", () => {
     expect(auth.refreshProfile).toHaveBeenCalled();
   });
 
+  describe("progression stays fresh without a reload (founder, Nov 16)", () => {
+    const SEASON = { id: "s1", xp: 900, tier: 2, premium: "none", skips: 0, claimed: [], endsAt: "2027-01-05T00:00:00.000Z" };
+    const meOf = (xp: number, tier: number) => ({ ok: true, status: 200, code: null, message: null, body: { items: [], season: { ...SEASON, xp, tier } } });
+    const seasons = (h: Awaited<ReturnType<typeof mount>>) => h.all("store").map((m) => (m.season as { xp: number; tier: number } | null) ?? null);
+
+    it("a save answered 409 (the server finished a timed-out POST) re-reads /pawlegends/me and the profile", async () => {
+      const auth = account();
+      mockAuth.mockReturnValue(auth);
+      mockProfile.mockReturnValue({ profile: { cats: [] } });
+      let xp = 900;
+      const me = jest.fn(async () => meOf(xp, Math.floor(xp / 500)));
+      const saveMatch = jest.fn(async () => {
+        xp = 1210;
+        return { ok: false, status: 409, code: "PAWLEGENDS_DUPLICATE" };
+      });
+      const h = await mount({ api: fakeApi({ me }), saveMatch: saveMatch as never });
+      expect(seasons(h).at(-1)).toMatchObject({ xp: 900 });
+      auth.refreshProfile.mockClear();
+      h.fromGame({ type: "match-result", replay: REPLAY, matchId: "m21" });
+      await settle();
+      await settle();
+      expect(h.last("save-result")).toMatchObject({ matchId: "m21", status: "saved" });
+      expect(seasons(h).at(-1)).toMatchObject({ xp: 1210, tier: 2 });
+      expect(auth.refreshProfile).toHaveBeenCalled();
+    });
+
+    it("the save's own Season XP reaches the game at once, and a read that lags behind never takes it back", async () => {
+      mockAuth.mockReturnValue(account());
+      mockProfile.mockReturnValue({ profile: { cats: [] } });
+      const me = jest.fn(async () => meOf(900, 2));
+      const saveMatch = jest.fn(async () => ({ ok: true, status: 201, code: null, body: { ...LIVE, season: { gained: 310, xp: 1210, tier: 3, prevTier: 2 } } }));
+      const h = await mount({ api: fakeApi({ me }), saveMatch: saveMatch as never });
+      const before = h.all("store").length;
+      h.fromGame({ type: "match-result", replay: REPLAY, matchId: "m22" });
+      await settle();
+      await settle();
+      const after = seasons(h).slice(before);
+      expect(after.length).toBeGreaterThan(0);
+      expect(after.every((s) => s?.xp === 1210 && s?.tier === 3)).toBe(true);
+      expect(me.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    it("the tab coming back re-reads the store (at most every 10 s)", async () => {
+      mockAuth.mockReturnValue(account());
+      mockProfile.mockReturnValue({ profile: { cats: [] } });
+      let xp = 900;
+      const me = jest.fn(async () => meOf(xp, 2));
+      const h = await mount({ api: fakeApi({ me }) });
+      const reads = me.mock.calls.length;
+      act(() => void document.dispatchEvent(new Event("visibilitychange")));
+      await settle();
+      expect(me.mock.calls.length).toBe(reads);
+      const now = Date.now();
+      const spy = jest.spyOn(Date, "now").mockReturnValue(now + 11_000);
+      try {
+        xp = 1500;
+        act(() => void document.dispatchEvent(new Event("visibilitychange")));
+        await settle();
+      } finally {
+        spy.mockRestore();
+      }
+      expect(me.mock.calls.length).toBe(reads + 1);
+      expect(seasons(h).at(-1)).toMatchObject({ xp: 1500 });
+    });
+  });
+
   it("pawlegends_save carries the backend's error code and HTTP status (the sim-drift alert, LAUNCH a.8)", async () => {
     mockAuth.mockReturnValue(account());
     mockProfile.mockReturnValue({ profile: { cats: [] } });
