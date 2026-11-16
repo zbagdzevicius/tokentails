@@ -4,7 +4,7 @@ import { CHAT_LIMITS } from '../../shared-contracts/chat';
 import { ChatBus } from './chat-bus';
 import { PawlegendsChatController } from './chat.controller';
 import { PawlegendsChatMessageSchema, PawlegendsChatThreadSchema } from './chat.schema';
-import { ChatService, dmThreadId, parseChatBody } from './chat.service';
+import { ChatService, DM_KEEP, dmThreadId, parseChatBody } from './chat.service';
 import { pairId } from './social.contracts';
 import { SocialMemoryModel, TestClock } from './social-model.helper-spec';
 
@@ -440,6 +440,31 @@ describe('pawlegends chat: reports', () => {
 });
 
 describe('pawlegends chat: storage and routes', () => {
+    it('SOCIAL-INVITES.md: a DM keeps its newest 200 messages, each with a 30-day expiry', async () => {
+        const { chat, models, clock } = harness();
+        const { thread } = await chat.open('A', code('B'));
+        for (let i = 0; i < DM_KEEP + 5; i++) {
+            await chat.send(i % 2 ? 'B' : 'A', thread, { k: 'q', id: 4 });
+            clock.advance(4_000);
+        }
+        const rows = models.messages.docs.filter(d => d.thread === thread);
+        expect(rows).toHaveLength(DM_KEEP);
+        const ats = rows.map(r => new Date(r.at).getTime()).sort((a, b) => a - b);
+        // the 5 oldest went, the newest stayed
+        expect(ats[ats.length - 1]).toBe(clock.ms - 4_000);
+        for (const r of rows)
+            expect(new Date(r.exp).getTime() - new Date(r.at).getTime()).toBe(CHAT_LIMITS.retentionDays * 86_400_000);
+    });
+
+    it('SOCIAL-INVITES.md: the unread summary names the friend by code (the DM toast opens that thread)', async () => {
+        const { chat } = harness();
+        const { thread } = await chat.open('A', code('B'));
+        await chat.send('A', thread, { k: 'q', id: 0 });
+        const sum = await chat.summary('B');
+        expect(sum.top).toMatchObject({ thread, code: code('A') });
+        expect(JSON.stringify(sum)).not.toMatch(/"(A|B)"/);
+    });
+
     it('TTL indexes on messages and threads, and the thread/at index', () => {
         const idx = (s: any) => s.indexes().map(([fields, opts]: any) => ({ fields, opts }));
         expect(idx(PawlegendsChatMessageSchema)).toEqual(

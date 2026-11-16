@@ -216,6 +216,17 @@ export class PawlegendsInvite {
     @Prop({ type: String, required: false })
     mode?: 'ranked';
 
+    /** SOCIAL-INVITES.md: the inviter's sim build (`<version>.<hash>`); the friend's game warns on a mismatch. */
+    @Prop({ type: String, required: false })
+    sim?: string;
+
+    /** SOCIAL-INVITES.md: the friend's answer from the toast; the inviter's inbox shows it once (`seen`). */
+    @Prop({ type: String, required: false })
+    answer?: 'accepted' | 'declined';
+
+    @Prop({ type: Boolean, required: false })
+    seen?: boolean;
+
     @Prop({ type: Date, required: true })
     exp: Date;
 

@@ -29,6 +29,9 @@ const MIN = 60_000;
 const LIMITS: Record<string, { account: ClientIpThrottleOptions; ip: ClientIpThrottleOptions }> = {
     state: { account: { limit: 60, ttl: MIN }, ip: { limit: 120, ttl: MIN } },
     pulse: { account: { limit: 6, ttl: MIN }, ip: { limit: 60, ttl: MIN } },
+    // SOCIAL-INVITES.md: the fast inbox, one poll every 4 s per open game (two tabs fit), shared IPs (NAT) fit
+    inbox: { account: { limit: 40, ttl: MIN }, ip: { limit: 600, ttl: MIN } },
+    answer: { account: { limit: 20, ttl: MIN }, ip: { limit: 60, ttl: MIN } },
     request: { account: { limit: 5, ttl: MIN }, ip: { limit: 30, ttl: MIN } },
     edit: { account: { limit: 30, ttl: MIN }, ip: { limit: 60, ttl: MIN } },
     me: { account: { limit: 10, ttl: MIN }, ip: { limit: 30, ttl: MIN } },
@@ -98,6 +101,35 @@ export class PawlegendsSocialController {
             return undefined;
         }
         return { rev: out.rev, invites: out.invites, chat: await this.chatSummary(me) };
+    }
+
+    /**
+     * The fast inbox (SOCIAL-INVITES.md): 204 while the caller's own rev is `rev`; else `{rev, invites, answers, chat}`.
+     * Invites and DMs bump the recipient's rev, an answer bumps the inviter's, so the 4 s poll is one indexed read.
+     */
+    @UseGuards(AppAuthGuard)
+    @Get('inbox')
+    async inbox(@Query('rev') rev: string, @Req() req: any, @Res({ passthrough: true }) res: any) {
+        const me = await this.gate('inbox', req, res);
+        const out = await this.social.inbox(me, rev);
+        if (!out.changed) {
+            res?.status?.(204);
+            return undefined;
+        }
+        return { rev: out.rev, invites: out.invites, answers: out.answers, chat: await this.chatSummary(me) };
+    }
+
+    /** `{answer: 'accept' | 'decline'}` on an invite toast; accept answers `{ok, party}` (410 when it expired). */
+    @UseGuards(AppAuthGuard)
+    @HttpCode(200)
+    @Post('invite/:id/answer')
+    async answer(
+        @Param('id') id: string,
+        @Body() body: { answer?: unknown },
+        @Req() req: any,
+        @Res({ passthrough: true }) res: any
+    ) {
+        return this.social.answerInvite(await this.gate('answer', req, res), id, body?.answer);
     }
 
     /** `{code}` or `{room, slot}` (recent). */
@@ -171,11 +203,11 @@ export class PawlegendsSocialController {
     @HttpCode(200)
     @Post('invite')
     async invite(
-        @Body() body: { to?: unknown; mode?: unknown },
+        @Body() body: { to?: unknown; mode?: unknown; sim?: unknown },
         @Req() req: any,
         @Res({ passthrough: true }) res: any
     ) {
-        return this.social.invite(await this.gate('invite', req, res, true), body?.to, body?.mode);
+        return this.social.invite(await this.gate('invite', req, res, true), body?.to, body?.mode, body?.sim);
     }
 
     @UseGuards(AppAuthGuard)

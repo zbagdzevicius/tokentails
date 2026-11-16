@@ -72,6 +72,9 @@ export const PAWLEGENDS_API_OPS = [
   // nicknames (docs/plans/moba/SOCIAL-RANKED.md §2.3): the name others see and the next change's price; the change itself
   "name.get",
   "name.set",
+  // LoL-style invites and the fast inbox (docs/plans/moba/SOCIAL-INVITES.md): invites and DMs within seconds
+  "social.inbox",
+  "invite.answer",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -125,6 +128,10 @@ const ARG_KEYS = [
   // match history: a match's id, and who may see the history ("everyone" | "friends" | "me")
   "match",
   "visibility",
+  // SOCIAL-INVITES.md: the inviter's sim build, an invite's id and the toast's answer
+  "sim",
+  "invite",
+  "answer",
 ] as const;
 export type PawlegendsApiArgs = Partial<Record<(typeof ARG_KEYS)[number], string | number | boolean>>;
 
@@ -267,7 +274,9 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       const to = str(a.to, CODE);
       // gaps5: only "ranked" rides along (the friend's game checks its own Ranked unlock)
       const mode = a.mode === "ranked" ? { mode: "ranked" } : {};
-      return to ? { method: "POST", path: "/pawlegends/social/invite", body: { to, ...mode }, auth: "registered" } : null;
+      // SOCIAL-INVITES.md: the inviter's sim build (the friend's toast warns on a mismatch)
+      const sim = str(a.sim, /^\d{1,4}\.[A-Za-z0-9]{4,24}$/);
+      return to ? { method: "POST", path: "/pawlegends/social/invite", body: { to, ...mode, ...(sim ? { sim } : {}) }, auth: "registered" } : null;
     }
     case "ranked.status":
       return { method: "GET", path: "/pawlegends/ranked/status", auth: "none" };
@@ -446,6 +455,13 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       return typeof a.name === "string" && a.name.length >= 1 && a.name.length <= 64
         ? { method: "POST", path: "/pawlegends/name", body: { name: a.name }, auth: "registered" }
         : null;
+    case "social.inbox":
+      return { method: "GET", path: `/pawlegends/social/inbox${q({ rev: str(a.rev, /^[A-Za-z0-9_-]{1,32}$/) })}`, auth: "registered" };
+    case "invite.answer": {
+      const id = str(a.invite, /^[a-f0-9]{24}$/);
+      const answer = str(a.answer, /^(accept|decline)$/);
+      return id && answer ? { method: "POST", path: `/pawlegends/social/invite/${id}/answer`, body: { answer }, auth: "registered" } : null;
+    }
     default:
       return null;
   }

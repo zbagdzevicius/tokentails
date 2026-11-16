@@ -93,6 +93,24 @@
 .pl-invite-toast { gap: 10px; box-shadow: inset 4px 0 0 var(--v6-rose), var(--v6-shadow-2); }
 /* gaps5: a Ranked duo invite to a player who has not unlocked Ranked: the lock line under the name */
 .pl-invite-toast .pl-invite-lock { display: inline-block; margin-top: 2px; font-size: 12px; line-height: 1.25; color: var(--v6-muted); max-width: 34ch; }
+/* SOCIAL-INVITES.md: the LoL-style invite card at the top (Accept / Decline, a 60 s countdown bar), above every screen
+   and the party lobby; the DM toast and one-line social toasts keep the bottom slot. */
+.pl-invite-card {
+  top: max(12px, env(safe-area-inset-top)); bottom: auto; z-index: 72; flex-wrap: wrap; row-gap: 6px; padding: 8px 12px 10px;
+  overflow: hidden; width: min(440px, calc(100vw - 32px)); box-sizing: border-box;
+}
+.pl-invite-card .pl-invite-text { flex: 1 1 200px; min-width: 0; line-height: 1.25; }
+.pl-invite-card .pl-invite-acts { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.pl-invite-card .pl-invite-acts .pl-btn { min-height: 44px; }
+.pl-invite-card .pl-invite-left { min-width: 3ch; text-align: right; color: var(--v6-muted); font-variant-numeric: tabular-nums; }
+.pl-invite-card .pl-invite-sim { color: var(--v6-bolt); }
+.pl-invite-bar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--v6-rose); transform-origin: left center;
+  transition: transform 250ms linear;
+}
+.pl-dm-toast, .pl-social-toast { gap: 10px; z-index: 71; }
+.pl-dm-toast .pl-invite-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46ch; }
+@media (prefers-reduced-motion: reduce) { .pl-invite-bar { transition: none; } }
 @media (max-height: 340px) { .pl-social-row { min-height: 44px; } }
 @media (max-height: 300px) { .pl-social-st { display: none; } }
 

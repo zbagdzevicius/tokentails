@@ -70,6 +70,9 @@ export const API_OPS = Object.freeze([
   // nicknames (SOCIAL-RANKED.md §2.3): the name others see, the price of the next change, and the change itself
   'name.get',
   'name.set',
+  // LoL-style invites and the fast inbox (SOCIAL-INVITES.md): invites and DMs within seconds
+  'social.inbox',
+  'invite.answer',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);
@@ -125,6 +128,10 @@ export const API_ARG_KEYS = Object.freeze([
   // match history: a match's id, and who may see the history ('everyone' | 'friends' | 'me')
   'match',
   'visibility',
+  // SOCIAL-INVITES.md: the inviter's sim build, an invite's id and the toast's answer
+  'sim',
+  'invite',
+  'answer',
 ] as const);
 
 export type ApiArgs = Partial<Record<(typeof API_ARG_KEYS)[number], string | number | boolean>>;

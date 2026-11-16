@@ -19,7 +19,14 @@ export const CODE_ROTATIONS_PER_DAY = 3;
 export const RECENT_DAYS = 7;
 export const RECENT_ROOMS = 20;
 export const PENDING_TTL_DAYS = 30;
-export const INVITE_TTL_MS = 3 * 60_000;
+/** A party invite lives 60 s (LoL style: accept or decline on the toast; SOCIAL-INVITES.md). */
+export const INVITE_TTL_MS = 60_000;
+/** The inviter's sim build on an invite (`<SIM_VERSION>.<source hash>`): the friend's game compares it with its own. */
+export const INVITE_SIM_RE = /^\d{1,4}\.[A-Za-z0-9]{4,24}$/;
+/** An invite's id on the wire (a Mongo ObjectId). */
+export const INVITE_ID_RE = /^[a-f0-9]{24}$/;
+export const INVITE_ANSWERS = ['accept', 'decline'] as const;
+export type InviteAnswer = typeof INVITE_ANSWERS[number];
 
 /** Presence windows (§4.2, §4.3). */
 export const PRESENCE = Object.freeze({

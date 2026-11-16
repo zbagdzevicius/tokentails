@@ -57,6 +57,13 @@ describe('social sheet', () => {
     expect(rowAction({ state: 'online' }, true)).toBe('invite');
     expect(rowAction({ state: 'match' }, true)).toBe('more');
     expect(rowAction({ state: 'offline' }, false)).toBe('more');
+    // SOCIAL-INVITES.md: in a party, Invite any online friend not already in it (even one in their own lobby)
+    expect(rowAction({ state: 'party', joinable: true, party: 'AB' }, true, 'CD')).toBe('invite');
+    expect(rowAction({ state: 'party', joinable: true, party: 'CD' }, true, 'CD')).toBe('more');
+    expect(rowAction({ state: 'queue' }, true, 'CD')).toBe('invite');
+    expect(rowAction({ state: 'offline' }, true, 'CD')).toBe('more');
+    // out of a party, an online friend gets Invite (the party opens through PLAY first)
+    expect(rowAction({ state: 'online' }, false)).toBe('invite');
   });
 
   it('pages friends, sets names as text, and joins in one tap', async () => {

@@ -1,0 +1,261 @@
+/**
+ * LoL-style party invites and the fast inbox (docs/plans/moba/SOCIAL-INVITES.md). The app polls `social.inbox` every
+ * 4 s on menus and in the party lobby (never in a match, never in a hidden tab); the server answers 204 while the
+ * player's own rev is unchanged, so a poll is one indexed read. This module is the pure part (parsing, the sim check)
+ * plus the three toasts: a friend's invite (Accept / Decline, a 60 s countdown), an answer to your own invite, and a
+ * DM line. Names are always set with `textContent`. Loaded lazily, the first time the inbox has something to show.
+ */
+import { SIM_VERSION } from '../sim/version';
+import { previewText } from '../data/chatPhrases';
+
+export interface InboxInvite {
+  id: string;
+  from: { code: string; name: string };
+  party: string;
+  mode?: 'ranked';
+  /** The inviter's sim build (`<version>.<hash>`); absent from an older backend or an older game. */
+  sim?: string;
+  /** Milliseconds left when the server answered. */
+  ttl: number;
+}
+
+export interface InboxAnswer {
+  id: string;
+  name: string;
+  answer: 'accepted' | 'declined';
+}
+
+export interface InboxChat {
+  unread: number;
+  top?: { thread: string; fromName: string; preview: string; code?: string };
+}
+
+export interface Inbox {
+  rev?: string;
+  invites: InboxInvite[];
+  answers: InboxAnswer[];
+  chat?: InboxChat;
+}
+
+const INVITE_ID = /^[a-f0-9]{24}$/;
+const PARTY = /^[A-Za-z0-9]{4,12}$/;
+const SIM = /^\d{1,4}\.[A-Za-z0-9]{4,24}$/;
+/** An invite lives 60 s on the server; the toast never shows longer than that. */
+export const INVITE_MAX_MS = 60_000;
+/** The inbox poll (SOCIAL-INVITES.md: an invite or a DM shows within ~4 s). */
+export const INBOX_EVERY_MS = 4_000;
+
+const str = (v: unknown, max = 64): string | null => (typeof v === 'string' && v.length <= max ? v : null);
+
+/** One invite row from the inbox or the pulse, cleaned; null when it is not one. */
+export function inviteOf(v: unknown): InboxInvite | null {
+  if (!v || typeof v !== 'object') return null;
+  const r = v as Record<string, unknown>;
+  const from = r.from as Record<string, unknown> | undefined;
+  const party = str(r.party, 12);
+  if (!party || !PARTY.test(party) || !from || typeof from.name !== 'string') return null;
+  const id = str(r.id, 24) ?? '';
+  const ttl = typeof r.ttl === 'number' && Number.isFinite(r.ttl) ? Math.max(0, Math.min(INVITE_MAX_MS, r.ttl)) : INVITE_MAX_MS;
+  return {
+    id: INVITE_ID.test(id) ? id : '',
+    from: { code: str(from.code, 24) ?? '', name: from.name.slice(0, 40) },
+    party,
+    ...(r.mode === 'ranked' ? { mode: 'ranked' as const } : {}),
+    ...(typeof r.sim === 'string' && SIM.test(r.sim) ? { sim: r.sim } : {}),
+    ttl,
+  };
+}
+
+/** The `social.inbox` answer, cleaned (unknown parts dropped). */
+export function parseInbox(body: unknown): Inbox {
+  const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const invites = (Array.isArray(b.invites) ? b.invites : []).map(inviteOf).filter((x): x is InboxInvite => !!x).slice(0, 5);
+  const answers = (Array.isArray(b.answers) ? b.answers : [])
+    .map((a): InboxAnswer | null => {
+      const r = (a ?? {}) as Record<string, unknown>;
+      if (typeof r.id !== 'string' || typeof r.name !== 'string' || (r.answer !== 'accepted' && r.answer !== 'declined')) return null;
+      return { id: r.id.slice(0, 24), name: r.name.slice(0, 40), answer: r.answer };
+    })
+    .filter((x): x is InboxAnswer => !!x)
+    .slice(0, 5);
+  const c = b.chat as Record<string, unknown> | undefined;
+  let chat: InboxChat | undefined;
+  if (c && typeof c.unread === 'number' && Number.isFinite(c.unread)) {
+    chat = { unread: Math.max(0, Math.min(999, Math.floor(c.unread))) };
+    const t = c.top as Record<string, unknown> | undefined;
+    if (t && typeof t.thread === 'string' && typeof t.fromName === 'string')
+      chat.top = {
+        thread: t.thread.slice(0, 32),
+        fromName: t.fromName.slice(0, 40),
+        preview: typeof t.preview === 'string' ? t.preview.slice(0, 60) : '',
+        ...(typeof t.code === 'string' && t.code.length <= 24 ? { code: t.code } : {}),
+      };
+  }
+  return { ...(typeof b.rev === 'string' && b.rev.length <= 32 ? { rev: b.rev } : {}), invites, answers, ...(chat ? { chat } : {}) };
+}
+
+/** This build's sim, as invites carry it (`<SIM_VERSION>.<source hash>`). */
+export function buildSim(hash: string = typeof __SIM_HASH__ !== 'undefined' ? __SIM_HASH__ : '0000000000000000'): string {
+  return `${SIM_VERSION}.${hash.replace(/[^A-Za-z0-9]/g, '').slice(0, 24) || '0000'}`;
+}
+
+/**
+ * The party relay plays one sim build per party (it refuses a mixed party at Start). `ok`: same build (or the invite
+ * does not say); `me`: this game is older (Reload updates it); `them`: the friend's game is older; `differ`: the same
+ * version on another source hash (one of you reloads).
+ */
+export function simCheck(theirs: string | undefined, mine: string = buildSim()): 'ok' | 'me' | 'them' | 'differ' {
+  if (!theirs || !SIM.test(theirs) || theirs === mine) return 'ok';
+  const [tv, th] = theirs.split('.');
+  const [mv, mh] = mine.split('.');
+  if (Number(tv) > Number(mv)) return 'me';
+  if (Number(tv) < Number(mv)) return 'them';
+  return th === mh ? 'ok' : 'differ';
+}
+
+/** The toast's second line for a build mismatch ('' when the builds match). */
+export function simLine(check: ReturnType<typeof simCheck>, name: string): string {
+  if (check === 'me') return `Update your game to join ${name}: reload to get the new version`;
+  if (check === 'them') return `${name} runs an older game version: they need to reload before you can play together`;
+  if (check === 'differ') return `Your game versions differ: reload to update before you join`;
+  return '';
+}
+
+export interface InviteToastOpts {
+  /** Ranked duo invite, with this player's lock line (gaps5 polish 4) or null. */
+  locked?: string | null;
+  sim?: ReturnType<typeof simCheck>;
+  onAccept(): void;
+  onDecline(): void;
+  /** Reload the game (an older build); absent: no Reload button. */
+  onReload?(): void;
+  /** The countdown ran out without an answer. */
+  onExpire?(): void;
+  now?(): number;
+}
+
+const TOAST = 'pl-invite-toast';
+
+/**
+ * "Mira invites you to a party" with Accept and Decline and a countdown bar (LoL style). One at a time: a newer invite
+ * replaces the shown one. On a build mismatch the second line says who must update; when this game is the older one
+ * Accept becomes Reload. Returns the element (removed on any answer or at expiry).
+ */
+export function inviteCard(doc: Document, inv: InboxInvite, o: InviteToastOpts): HTMLElement {
+  doc.querySelector(`.${TOAST}`)?.remove();
+  const now = o.now ?? (() => Date.now());
+  const ends = now() + Math.max(0, Math.min(INVITE_MAX_MS, inv.ttl));
+  const el = doc.createElement('div');
+  el.className = `${TOAST} pl-report-toast pl-invite-card`;
+  el.setAttribute('role', 'alertdialog');
+  el.setAttribute('aria-label', 'Party invite');
+  el.dataset.testid = 'invite-toast';
+  if (inv.mode === 'ranked') el.dataset.ranked = o.locked ? 'locked' : 'open';
+  const text = doc.createElement('span');
+  text.className = 'pl-invite-text';
+  const who = doc.createElement('b');
+  who.textContent = inv.from.name;
+  text.append(who, doc.createTextNode(inv.mode === 'ranked' ? ' invites you to a Ranked duo' : ' invites you to a party'));
+  const sub = (cls: string, line: string, testid: string) => {
+    const s = doc.createElement('small');
+    s.className = cls;
+    s.dataset.testid = testid;
+    s.textContent = line;
+    text.append(doc.createElement('br'), s);
+  };
+  if (inv.mode === 'ranked' && o.locked) sub('pl-invite-lock', `Ranked is locked for you: ${o.locked}. Join to play Casual together`, 'invite-ranked-lock');
+  const check = o.sim ?? 'ok';
+  if (check !== 'ok') sub('pl-invite-lock pl-invite-sim', simLine(check, inv.from.name), 'invite-update');
+  const left = doc.createElement('small');
+  left.className = 'pl-invite-left';
+  left.dataset.testid = 'invite-left';
+  const bar = doc.createElement('i');
+  bar.className = 'pl-invite-bar';
+  bar.setAttribute('aria-hidden', 'true');
+  const btn = (label: string, cls: string, testid: string, fn: () => void) => {
+    const b = doc.createElement('button');
+    b.type = 'button';
+    b.className = cls;
+    b.textContent = label;
+    b.dataset.testid = testid;
+    b.addEventListener('click', () => {
+      done();
+      fn();
+    });
+    return b;
+  };
+  let timer: ReturnType<typeof setInterval> | null = null;
+  const done = () => {
+    if (timer) clearInterval(timer);
+    timer = null;
+    el.remove();
+  };
+  const accept =
+    check === 'me' && o.onReload
+      ? btn('Reload', 'pl-btn small', 'invite-reload', o.onReload)
+      : btn('Accept', 'pl-btn small', 'invite-accept', o.onAccept);
+  const decline = btn('Decline', 'pl-btn ghost small', 'invite-decline', o.onDecline);
+  const tick = () => {
+    const ms = ends - now();
+    if (ms <= 0) {
+      done();
+      o.onExpire?.();
+      return;
+    }
+    left.textContent = `${Math.ceil(ms / 1000)}s`;
+    bar.style.transform = `scaleX(${(ms / INVITE_MAX_MS).toFixed(3)})`;
+  };
+  const row = doc.createElement('span');
+  row.className = 'pl-invite-acts';
+  row.append(left, accept, decline);
+  el.append(text, row, bar);
+  doc.body.appendChild(el);
+  tick();
+  timer = setInterval(tick, 250);
+  return el;
+}
+
+/** A short one-line toast (an answer to your invite, an expired invite): 4 s. */
+export function lineToast(doc: Document, line: string, testid = 'social-toast', ms = 4000): HTMLElement {
+  doc.querySelector('.pl-social-toast')?.remove();
+  const el = doc.createElement('div');
+  el.className = 'pl-social-toast pl-report-toast';
+  el.setAttribute('role', 'status');
+  el.dataset.testid = testid;
+  el.textContent = line;
+  doc.body.appendChild(el);
+  setTimeout(() => el.remove(), ms);
+  return el;
+}
+
+/** "Mira declined your invite" / "Mira is joining your party". */
+export const answerLine = (a: InboxAnswer): string => (a.answer === 'declined' ? `${a.name} declined your invite` : `${a.name} is joining your party`);
+
+/** A friend's DM while the Social sheet is closed: "Mira: see you at 7" with Open (6 s). Muted threads never get here. */
+export function dmToast(doc: Document, from: string, preview: string, onOpen: () => void, ms = 6000): HTMLElement {
+  doc.querySelector('.pl-dm-toast')?.remove();
+  const el = doc.createElement('div');
+  el.className = 'pl-dm-toast pl-report-toast';
+  el.setAttribute('role', 'status');
+  el.dataset.testid = 'dm-toast';
+  const text = doc.createElement('span');
+  text.className = 'pl-invite-text';
+  const who = doc.createElement('b');
+  who.textContent = `${from}: `;
+  const line = doc.createElement('span');
+  line.textContent = previewText(preview) || 'New message';
+  text.append(who, line);
+  const open = doc.createElement('button');
+  open.type = 'button';
+  open.className = 'pl-btn small';
+  open.textContent = 'Open';
+  open.dataset.testid = 'dm-open';
+  open.addEventListener('click', () => {
+    el.remove();
+    onOpen();
+  });
+  el.append(text, open);
+  doc.body.appendChild(el);
+  setTimeout(() => el.remove(), ms);
+  return el;
+}

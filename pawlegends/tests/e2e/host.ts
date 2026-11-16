@@ -66,6 +66,8 @@ export interface HostConfig {
    * stateful fake server two players share. `api` is ignored then.
    */
   liveApi?: boolean;
+  /** Origins the routes let through untouched (SOCIAL-INVITES.md e2e: the local party relay's HTTP checks). */
+  pass?: string[];
 }
 
 /** Every champion owned (the Founders roster), the e2e host's default `store.champions`. */
@@ -201,7 +203,7 @@ export async function mockHost(context: BrowserContext, baseURL: string, cfg: Ho
   const lives: unknown[] = [];
   await context.route(/.*/, async (route) => {
     const url = new URL(route.request().url());
-    if (url.origin === new URL(baseURL).origin) return route.continue();
+    if (url.origin === new URL(baseURL).origin || cfg.pass?.includes(url.origin)) return route.continue();
     if (url.origin === origin && url.pathname === '/e2e-host') return route.fulfill({ contentType: 'text/html', body: hostHtml(cfg) });
     if (url.origin === SITE && url.pathname.startsWith('/pawlegends-game/')) {
       const rest = url.pathname.slice('/pawlegends-game/'.length) || 'index.html';

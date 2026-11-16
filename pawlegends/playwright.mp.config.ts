@@ -38,7 +38,8 @@ export default defineConfig({
     },
     {
       // tsconfig-paths: the relay's Quick Play glue reaches shared/client-ip.ts, which imports by the `src/` base path
-      command: `cd ../backend && PORT=${RELAY} FRONT_END_URLS=${GAME} ./node_modules/.bin/ts-node --transpile-only -r tsconfig-paths/register test/party-relay.harness.ts`,
+      // https://tokentails.com: the mock embed host's game frame (tests/e2e/host.ts; social-invites.spec.ts)
+      command: `cd ../backend && PORT=${RELAY} FRONT_END_URLS=${GAME},https://tokentails.com ./node_modules/.bin/ts-node --transpile-only -r tsconfig-paths/register test/party-relay.harness.ts`,
       url: `${RELAY_URL}/health`,
       reuseExistingServer: false,
       timeout: 120_000,

@@ -16,6 +16,8 @@ export const COPY = Object.freeze({
   scanToJoin: 'Scan to join',
   close: 'Close',
   invite: 'Invite',
+  // SOCIAL-INVITES.md: the Friends sheet over the lobby (Invite on online friends' rows)
+  inviteFriends: 'Invite friends',
   you: 'you',
   guest: 'guest',
   leader: 'Leader',
@@ -92,7 +94,8 @@ export const COPY = Object.freeze({
   startWhenBack: (name: string) => `Starting when ${name} is back`,
   playNow: 'Play now',
   ownParty: 'Start your own party',
-  updateRequired: 'Update to play together',
+  // SOCIAL-INVITES.md: the relay plays one sim build per party; say what to do, never a silent failure
+  updateRequired: 'Your game is out of date: reload to update and play together',
   reload: 'Reload',
   busy: (s: number) => `Servers busy, retrying in ${s}s`,
   kicked: 'You were removed from the party',

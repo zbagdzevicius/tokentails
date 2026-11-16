@@ -29,6 +29,8 @@ export interface LobbyModel {
   hideNames?: boolean;
   /** Quick Play (M1A-IMPL.md §1): the leader of a party of 1 or 2 may queue it with strangers ("Play online"). */
   online?: boolean;
+  /** SOCIAL-INVITES.md: "Invite friends" opens the Friends sheet (absent standalone: no host, no friends). */
+  friends?: boolean;
 }
 
 /** The peer-visible name of a member for this viewer (the owner sees its own custom cat name). */
@@ -130,7 +132,8 @@ export function lobbyHtml(o: LobbyModel): string {
       <section class="pp-code-col" aria-label="${COPY.partyCode}">
         <small>${COPY.partyCode}</small>
         <div class="pp-code" data-testid="party-code">${esc(displayCode(v.code))}</div>
-        <button type="button" class="pl-btn pp-share" data-p="share" data-testid="party-share">${COPY.share}</button>
+        ${o.friends && (v.phase === 'lobby' || v.phase === 'results') ? `<button type="button" class="pl-btn pp-share pp-friends" data-p="friends" data-testid="party-invite-friends">${COPY.inviteFriends}</button>` : ''}
+        <button type="button" class="pl-btn${o.friends ? ' ghost' : ''} pp-share" data-p="share" data-testid="party-share">${COPY.share}</button>
         <div class="pp-row"><button type="button" class="pl-btn ghost small" data-p="copy" data-testid="party-copy">${COPY.copy}</button><button type="button" class="pl-btn ghost small pp-qr-btn" data-p="qr">${COPY.showQr}</button></div>
         <div class="pp-qr-inline" aria-hidden="false">${o.qr}</div>
       </section>

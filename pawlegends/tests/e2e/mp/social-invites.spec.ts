@@ -1,0 +1,276 @@
+import { expect, test, type Browser, type Frame, type Page } from '@playwright/test';
+import { mockHost, openHost } from '../host';
+import { closeAll, player, RELAY, tap, title } from './party.helpers';
+
+/*
+ * LoL-style invites, friend DMs and join by code (docs/plans/moba/SOCIAL-INVITES.md), two browsers against the local
+ * party relay (playwright.mp.config.ts). Both friends play in the mock embed host (tests/e2e/host.ts); their social
+ * API is one stateful fake server in this test (every `api-request` goes through the host, as on pawlegends.app), the
+ * party is the real relay. A opens a party (PLAY → Skirmish → With Friends), taps "Invite friends" and Invite on B's
+ * row; B's game shows the invite card within the 4 s inbox poll, B accepts and lands in A's lobby. A messages B: B gets
+ * the DM toast live and reads the thread, and again after a reload. A third player joins by typing the party code.
+ */
+
+type Who = 'A' | 'B';
+const CODE: Record<Who, string> = { A: 'PL-AAAA-AAAA', B: 'PL-BBBB-BBBB' };
+const NAME: Record<Who, string> = { A: 'Witty Biscuit', B: 'Sunny Pudding' };
+const AV: Record<Who, { i: string }> = { A: { i: 'h:sage' }, B: { i: 'h:lambo' } };
+const other = (w: Who): Who => (w === 'A' ? 'B' : 'A');
+
+test.afterEach(closeAll);
+
+/** The fake social server: A and B are friends; invites, answers, the inbox rev and one DM thread. */
+function server() {
+  const rev: Record<Who, number> = { A: 1, B: 1 };
+  const partyOf: Partial<Record<Who, string>> = {};
+  const invites: { id: string; from: Who; to: Who; party: string; sim?: string; answer?: 'accepted' | 'declined'; seen?: boolean; exp: number }[] = [];
+  const msgs: { mid: string; from: Who; k: string; text?: string; id?: number; at: string }[] = [];
+  const read: Record<Who, number> = { A: 0, B: 0 };
+  const thread = `d${'A'.repeat(22)}`;
+  let n = 0;
+  const unread = (w: Who) => msgs.slice(read[w]).filter((m) => m.from !== w).length;
+  const chat = (w: Who) => {
+    const u = unread(w);
+    const last = msgs[msgs.length - 1];
+    return u && last ? { unread: u, top: { thread, fromName: NAME[last.from], preview: last.k === 't' ? last.text : `[${last.k}:${last.id}]`, code: CODE[last.from] } } : { unread: u };
+  };
+  const view = (w: Who, m: (typeof msgs)[number]) => ({ mid: m.mid, mine: m.from === w, k: m.k, ...(m.k === 't' ? { text: m.text } : { id: m.id }), at: m.at });
+  const presence = (w: Who) => (partyOf[w] ? { state: 'party', joinable: true, party: partyOf[w] } : { state: 'online' });
+  const pending = (w: Who) =>
+    invites
+      .filter((i) => i.to === w && !i.answer && i.exp > Date.now())
+      .map((i) => ({ id: i.id, from: { code: CODE[i.from], name: NAME[i.from] }, party: i.party, ...(i.sim ? { sim: i.sim } : {}), ttl: i.exp - Date.now() }));
+  return {
+    partyOf,
+    invites,
+    msgs,
+    handle(w: Who, op: string, a: Record<string, any>): { status: number; body?: unknown } {
+      const f = other(w);
+      switch (op) {
+        case 'social.get':
+          return {
+            status: 200,
+            body: {
+              me: { code: CODE[w], name: NAME[w], invisible: false, allowRecent: true, ageBand: '18+', av: AV[w], frame: null, title: null },
+              friends: [{ code: CODE[f], name: NAME[f], presence: presence(f), av: AV[f] }],
+              requests: { in: [], out: [] },
+              blocks: [],
+              invites: pending(w),
+              rev: String(rev[w]),
+              chat: chat(w),
+            },
+          };
+        case 'social.pulse':
+          return { status: 204 };
+        case 'social.inbox': {
+          if (a.rev === `i${rev[w]}`) return { status: 204 };
+          const answers = invites
+            .filter((i) => i.from === w && i.answer && !i.seen)
+            .map((i) => ((i.seen = true), { id: i.id, name: NAME[i.to], answer: i.answer }));
+          return { status: 200, body: { rev: `i${rev[w]}`, invites: pending(w), answers, chat: chat(w) } };
+        }
+        case 'invite.send': {
+          if (a.to !== CODE[f]) return { status: 404, body: { code: 'PAWLEGENDS_SOCIAL_NOT_FOUND' } };
+          if (!partyOf[w]) return { status: 409, body: { code: 'PAWLEGENDS_SOCIAL_NO_PARTY' } };
+          const id = (++n).toString(16).padStart(24, '0');
+          invites.push({ id, from: w, to: f, party: partyOf[w]!, sim: a.sim, exp: Date.now() + 60_000 });
+          rev[f]++;
+          return { status: 200, body: { ok: true, id, ttl: 60_000 } };
+        }
+        case 'invite.answer': {
+          const i = invites.find((x) => x.id === a.invite && x.to === w);
+          if (!i || i.answer || i.exp < Date.now()) return a.answer === 'decline' ? { status: 200, body: { ok: true } } : { status: 410, body: { code: 'PAWLEGENDS_SOCIAL_INVITE_GONE' } };
+          i.answer = a.answer === 'accept' ? 'accepted' : 'declined';
+          rev[i.from]++;
+          return { status: 200, body: a.answer === 'accept' ? { ok: true, party: i.party } : { ok: true } };
+        }
+        case 'chat.list':
+          return {
+            status: 200,
+            body: { threads: msgs.length ? [{ id: thread, kind: 'dm', with: { code: CODE[f], name: NAME[f], av: AV[f] }, tier: 'text', lastAt: '', lastPreview: '', lastMine: false, unread: unread(w), muted: false, readOnly: false }] : [] },
+          };
+        case 'chat.open':
+          return { status: 200, body: { thread, tier: 'text' } };
+        case 'chat.history':
+          return { status: 200, body: { thread: { id: thread, tier: 'text', muted: false, readOnly: false }, messages: msgs.map((m) => view(w, m)), more: false } };
+        case 'chat.since': {
+          const i = msgs.findIndex((m) => m.mid === a.after);
+          const fresh = msgs.slice(i + 1);
+          return fresh.length ? { status: 200, body: { messages: fresh.map((m) => view(w, m)) } } : { status: 204 };
+        }
+        case 'chat.send': {
+          const m = { mid: (++n).toString(16).padStart(24, '0'), from: w, k: a.k, ...(a.k === 't' ? { text: a.text } : { id: a.pid }), at: new Date().toISOString() };
+          msgs.push(m);
+          read[w] = msgs.length;
+          rev[f]++;
+          return { status: 200, body: { message: view(w, m) } };
+        }
+        case 'chat.read':
+          read[w] = msgs.length;
+          return { status: 200, body: { ok: true } };
+        default:
+          return { status: 200, body: {} };
+      }
+    },
+  };
+}
+
+type Srv = ReturnType<typeof server>;
+
+/** A signed-in friend in the mock embed host, its own browser context (and profile, closed in afterEach). */
+async function friend(browser: Browser, baseURL: string, who: Who, srv: Srv): Promise<{ page: Page; game: () => Frame; reopen(): Promise<void> }> {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  // closeAll (party.helpers) closes the contexts it opened; this one is closed with the test's own list below
+  contexts.push(context);
+  // the veteran profile in the game frame's own storage (the host writes it on its origin only)
+  await context.addInitScript((p) => {
+    try {
+      if (!localStorage.getItem('tt.pawlegends.profile.v1')) localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p));
+    } catch {
+      /* opaque origin */
+    }
+  }, { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', trick: 'hiss', difficulty: 'easy', veteran: true });
+  await context.exposeFunction('plApi', async (op: string, args: Record<string, unknown>) => srv.handle(who, op, args));
+  await mockHost(context, baseURL, {
+    app: { isApp: false, store: true },
+    signedIn: true,
+    liveApi: true,
+    partyTicket: null,
+    pass: [new URL(RELAY).origin],
+    // the game frame on the preview's own origin (a loopback page may open the loopback relay socket), the host stays
+    // on its allowlisted origin; the host's posts go to '*' (the frame is another origin)
+    gameOrigin: baseURL,
+    sendTarget: '*',
+    profile: { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', trick: 'hiss', difficulty: 'easy', veteran: true },
+  });
+  // the preview serves the game at /: map the host's /pawlegends-game/ path onto it
+  await context.route(new RegExp(`^${baseURL.replace(/[.]/g, '\\.')}/pawlegends-game/`), async (route) => {
+    const url = new URL(route.request().url());
+    const rest = url.pathname.slice('/pawlegends-game/'.length) || 'index.html';
+    try {
+      return await route.fulfill({ response: await route.fetch({ url: `${baseURL}/${rest}${url.search}` }) });
+    } catch {
+      return route.abort().catch(() => undefined);
+    }
+  });
+  if (process.env.MP_CONSOLE) context.on('console', (m) => console.log(`[${who}] ${m.type()} ${m.text().slice(0, 200)}`));
+  const page = await context.newPage();
+  let frame = await openHost(page);
+  return {
+    page,
+    game: () => frame,
+    async reopen() {
+      frame = await openHost(page);
+    },
+  };
+}
+const contexts: import('@playwright/test').BrowserContext[] = [];
+test.afterEach(async () => {
+  await Promise.all(contexts.splice(0).map((c) => c.close().catch(() => undefined)));
+});
+
+test('invite a friend LoL style, they accept into your lobby; a DM arrives live and survives a reload; join by code', async ({ browser, baseURL }) => {
+  test.setTimeout(420_000);
+  const srv = server();
+  const a = await friend(browser, baseURL!, 'A', srv);
+  const b = await friend(browser, baseURL!, 'B', srv);
+
+  // A: PLAY → Skirmish → With Friends (the one play path): the lobby with its code and "Invite friends"
+  const ga = a.game();
+  await expect(ga.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
+  await ga.locator('[data-testid="home-play"]').click();
+  await ga.locator('[data-testid="mode-skirmish"]').click();
+  await ga.locator('[data-testid="mode-next"]').click();
+  await ga.locator('[data-testid="variant-friends"]').click();
+  await ga.locator('[data-testid="mode-go"]').click();
+  const codeEl = ga.locator('[data-testid="party-code"]');
+  await expect(codeEl).toBeVisible({ timeout: 60_000 });
+  const code = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');
+  expect(code).toMatch(/^[A-Z0-9]{6}$/);
+  srv.partyOf.A = code;
+
+  // A: Invite friends → the Friends sheet over the lobby → Invite on B's row
+  await ga.locator('[data-testid="party-invite-friends"]').click();
+  const rowB = ga.locator(`.pl-social-row[data-code="${CODE.B}"]`);
+  await expect(rowB.locator('.pl-social-st')).toHaveText('Online');
+  await rowB.locator('[data-testid="social-invite"]').click();
+  await expect(ga.locator('.pl-social-note')).toContainText(`Invite sent to ${NAME.B}`);
+  const sentAt = Date.now();
+  expect(srv.invites[0]).toMatchObject({ from: 'A', to: 'B', party: code });
+  expect(srv.invites[0].sim).toMatch(/^\d+\.[A-Za-z0-9]+$/);
+
+  // B (on Home): the invite card within the 4 s inbox poll, with a countdown, Accept and Decline
+  const gb = b.game();
+  const card = gb.locator('[data-testid="invite-toast"]');
+  await expect(card).toBeVisible({ timeout: 6_000 });
+  expect(Date.now() - sentAt).toBeLessThan(6_500);
+  await expect(card).toContainText(`${NAME.A} invites you to a party`);
+  await expect(card.locator('[data-testid="invite-left"]')).toHaveText(/^[1-6]?\ds$/);
+  await expect(card.locator('[data-testid="invite-decline"]')).toBeVisible();
+  await expect(card.locator('[data-testid="invite-update"]')).toHaveCount(0);
+  await card.locator('[data-testid="invite-accept"]').click();
+
+  // both in one lobby on the relay
+  await expect(gb.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 60_000 });
+  await expect(ga.locator('[data-testid="party-seat"]')).toHaveCount(2, { timeout: 30_000 });
+  await expect(gb.locator('[data-testid="party-seat"]')).toHaveCount(2);
+  expect(srv.invites[0].answer).toBe('accepted');
+  // A hears the answer on its next inbox poll
+  await expect(ga.locator('[data-testid="invite-answer-accepted"]')).toContainText(`${NAME.B} is joining your party`, { timeout: 6_000 });
+
+  // A messages B from the Friends sheet (still open over A's lobby): B gets the DM toast live, in its lobby
+  await rowB.locator('[data-a="chat"]').click();
+  const chatA = ga.locator('[data-testid="chat-sheet"]');
+  await expect(chatA).toBeVisible();
+  await chatA.locator('[data-testid="chat-input"]').fill('gl hf, mid is yours');
+  await chatA.locator('[data-testid="chat-send"]').click();
+  await expect(chatA.locator('.pl-chat-msg.mine .pl-chat-bubble').last()).toHaveText('gl hf, mid is yours');
+  const dm = gb.locator('[data-testid="dm-toast"]');
+  await expect(dm).toContainText(`${NAME.A}: gl hf, mid is yours`, { timeout: 6_000 });
+  await dm.locator('[data-testid="dm-open"]').click();
+  const chatB = gb.locator('[data-testid="chat-sheet"]');
+  await expect(chatB.locator('.pl-chat-bubble').last()).toHaveText('gl hf, mid is yours', { timeout: 15_000 });
+
+  // B reloads: the message is still there (server-side history), from the Friends sheet's Chat on A's row
+  await b.reopen();
+  const gb2 = b.game();
+  await gb2.locator('[data-testid="lobby-social"]').click({ timeout: 60_000 });
+  await gb2.locator(`.pl-social-row[data-code="${CODE.A}"] [data-a="chat"]`).click();
+  await expect(gb2.locator('[data-testid="chat-sheet"] .pl-chat-bubble').last()).toHaveText('gl hf, mid is yours', { timeout: 15_000 });
+
+  // a third player (a guest, no host) types the party code: Join with code
+  const c = await player(browser, 'desktop');
+  await title(c);
+  await tap(c, c.page.locator('[data-testid="join-code"]'));
+  await expect(c.page.locator('.pp-box')).toHaveCount(6, { timeout: 30_000 });
+  await c.page.locator('.pp-box').first().focus();
+  await c.page.keyboard.type(code.toLowerCase());
+  await expect(c.page.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 60_000 });
+  await expect(ga.locator('[data-testid="party-seat"]')).toHaveCount(3, { timeout: 30_000 });
+});
+
+test('Decline: the card closes and the inviter is told', async ({ browser, baseURL }) => {
+  test.setTimeout(300_000);
+  const srv = server();
+  const a = await friend(browser, baseURL!, 'A', srv);
+  const b = await friend(browser, baseURL!, 'B', srv);
+  const ga = a.game();
+  await expect(ga.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
+  await ga.locator('[data-testid="home-play"]').click();
+  await ga.locator('[data-testid="mode-skirmish"]').click();
+  await ga.locator('[data-testid="mode-next"]').click();
+  await ga.locator('[data-testid="variant-friends"]').click();
+  await ga.locator('[data-testid="mode-go"]').click();
+  const codeEl = ga.locator('[data-testid="party-code"]');
+  await expect(codeEl).toBeVisible({ timeout: 60_000 });
+  srv.partyOf.A = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');
+  await ga.locator('[data-testid="party-invite-friends"]').click();
+  await ga.locator(`.pl-social-row[data-code="${CODE.B}"] [data-testid="social-invite"]`).click();
+  const card = b.game().locator('[data-testid="invite-toast"]');
+  await expect(card).toBeVisible({ timeout: 6_000 });
+  await card.locator('[data-testid="invite-decline"]').click();
+  await expect(card).toHaveCount(0);
+  expect(srv.invites[0].answer).toBe('declined');
+  await expect(ga.locator('[data-testid="invite-answer-declined"]')).toContainText(`${NAME.B} declined your invite`, { timeout: 6_000 });
+  await expect(ga.locator('[data-testid="party-seat"]')).toHaveCount(1);
+});

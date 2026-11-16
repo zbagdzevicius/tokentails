@@ -75,9 +75,24 @@ describe("pawlegends api bridge (host)", () => {
         hideFlag: true,
         match: mid,
         visibility: "friends",
+        invite: mid,
+        answer: "accept",
       });
       expect([op, r?.path.startsWith("/pawlegends/")]).toEqual([op, true]);
     }
+    // SOCIAL-INVITES.md: the fast inbox, the toast's answer, and the inviter's sim build on an invite
+    expect(routeOf("social.inbox", { rev: "i12" })).toMatchObject({ method: "GET", path: "/pawlegends/social/inbox?rev=i12", auth: "registered" });
+    expect(routeOf("social.inbox", { rev: "../x" })?.path).toBe("/pawlegends/social/inbox");
+    expect(routeOf("invite.answer", { invite: mid, answer: "decline" })).toMatchObject({
+      method: "POST",
+      path: `/pawlegends/social/invite/${mid}/answer`,
+      body: { answer: "decline" },
+      auth: "registered",
+    });
+    expect(routeOf("invite.answer", { invite: "../../x", answer: "accept" })).toBeNull();
+    expect(routeOf("invite.answer", { invite: mid, answer: "maybe" })).toBeNull();
+    expect(routeOf("invite.send", { to: "PL-7KQ2-M9XR", sim: "33.abcdef12" })?.body).toEqual({ to: "PL-7KQ2-M9XR", sim: "33.abcdef12" });
+    expect(routeOf("invite.send", { to: "PL-7KQ2-M9XR", sim: "33/../x" })?.body).toEqual({ to: "PL-7KQ2-M9XR" });
   });
 
   it("country flags (FLAGS.md): get for any session, set only with a boolean", () => {

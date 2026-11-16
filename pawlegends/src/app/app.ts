@@ -1657,6 +1657,8 @@ export class App {
             // CHAT-AVATARS §2.7: report a party chat line through the host (signed-in players only)
             chatReport: (mid, kind) =>
               accountState().signedIn ? this.integration.api('chat.report', { msg: mid, kind }).then((r) => r.ok) : Promise.resolve(false),
+            // SOCIAL-INVITES.md: "Invite friends" in the lobby opens the Friends sheet over it (Invite on online rows)
+            ...(this.bridge.active ? { friends: () => this.openSocial('friends') } : {}),
             // CHAT-AVATARS §5: the relay's push for a DM, so a party player sees it without waiting for a poll
             dmNotice: (thread) => {
               if (this.social && !this.social.closed) return this.social.dmNotice(thread);
@@ -1682,7 +1684,7 @@ export class App {
   private chatUnread = 0;
   private socialPulse: ReturnType<typeof setInterval> | null = null;
   private socialRev: string | undefined;
-  /** Invite ids already toasted (an invite lives 3 min; the set is tiny). */
+  /** Invite ids already toasted (an invite lives 60 s, SOCIAL-INVITES.md; the set is tiny). */
   private readonly socialToasted = new Set<string>();
 
   /** The lobby's Friends button badge, in place (the title is not re-rendered for a pulse). */
@@ -1733,8 +1735,11 @@ export class App {
       .catch((err: unknown) => reportCrash('window', err));
   }
 
-  private openSocial(tab?: import('../social/socialSheet').SocialTab): void {
-    if (this.social && !this.social.closed) return;
+  private openSocial(tab?: import('../social/socialSheet').SocialTab, chatWith?: string): void {
+    if (this.social && !this.social.closed) {
+      if (chatWith) this.social.openChat(chatWith);
+      return;
+    }
     sfx.play('click');
     void import('../social/socialSheet')
       .then(({ SocialSheet }) => {
@@ -1767,9 +1772,12 @@ export class App {
             },
             // MATCH-HISTORY.md: a friend's match history from their row
             history: (friend) => this.openHistory(friend),
+            // SOCIAL-INVITES.md: Invite with no party yet opens PLAY's Mode Select on With Friends, then sends it
+            inviteFriend: (friend) => this.inviteAfterParty(friend),
           },
           tab,
         );
+        if (chatWith) this.social.openChat(chatWith);
       })
       .catch((err: unknown) => reportCrash('window', err));
   }
@@ -1791,18 +1799,175 @@ export class App {
       this.chatUnread = typeof body.chat?.unread === 'number' ? Math.max(0, body.chat.unread) : this.chatUnread;
       this.paintSocialBadge();
       // the pulse answers "changed" on any friend's presence change too: toast each invite once, not on every change
-      const inv = body.invites?.find((i) => !i.id || !this.socialToasted.has(i.id));
-      if (inv?.id) this.socialToasted.add(inv.id);
-      if (inv?.party && typeof inv.from?.name === 'string') {
-        const { inviteToast } = await import('../social/socialSheet');
-        // gaps5 polish 4: a Ranked duo invite checks this player's own Ranked unlock and shows the lock line
-        const ranked = inv.mode === 'ranked';
-        const locked = ranked && !this.modeOpen('ranked') ? lockLine('ranked', loadProfile()) : null;
-        inviteToast(document, inv.from.name, () => this.openParty('join', inv.party!), undefined, { ranked, locked });
+      // (the same LoL-style card as the fast inbox, SOCIAL-INVITES.md)
+      if (body.invites?.some((i) => !this.socialToasted.has(i.id || i.party || ''))) {
+        const mod = await import('../social/inviteInbox');
+        this.showInvites((body.invites ?? []).map(mod.inviteOf).filter((x): x is import('../social/inviteInbox').InboxInvite => !!x), mod);
       }
     };
     this.socialPulse = setInterval(() => void beat(), 30_000);
     void beat();
+    this.startInbox();
+  }
+
+  // ------------------------------------------------------------------------------------------------ invites (LoL style)
+
+  /** SOCIAL-INVITES.md: the fast inbox poll (menus, Home overlays and the party lobby; never a match or a hidden tab). */
+  private inboxTimer: ReturnType<typeof setInterval> | null = null;
+  private inboxRev: string | undefined;
+  private inboxBusy = false;
+  /** The first inbox answer only primes the DM count (no toast for messages that were already waiting). */
+  private inboxPrimed = false;
+  /** Beats left to skip after the host could not answer (an older host without the op answers status 0). */
+  private inboxSkip = 0;
+  private inboxZeros = 0;
+  /** Invite on a friend's row with no party yet: sent once the party lobby is up (the one play path opens it). */
+  private pendingInvite: { code: string; name: string; at: number; lobbyAt: number } | null = null;
+  private pendingTimer: ReturnType<typeof setInterval> | null = null;
+
+  private startInbox(): void {
+    if (this.inboxTimer || !this.bridge.active) return;
+    const beat = async (): Promise<void> => {
+      if (this.inboxBusy || !accountState().signedIn) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      if (this.session || this.party?.state.inMatch) return;
+      if (this.inboxSkip > 0) {
+        this.inboxSkip--;
+        return;
+      }
+      this.inboxBusy = true;
+      try {
+        const r = await this.integration.api('social.inbox', this.inboxRev ? { rev: this.inboxRev } : {});
+        if (r.status === 0) {
+          // no host answer (offline, or an older host without the op): back off, the 30 s pulse still runs
+          this.inboxZeros++;
+          this.inboxSkip = Math.min(15, this.inboxZeros * 2);
+          return;
+        }
+        this.inboxZeros = 0;
+        if (!r.ok || r.status === 204 || !r.body) return;
+        const mod = await import('../social/inviteInbox');
+        const box = mod.parseInbox(r.body);
+        this.inboxRev = box.rev;
+        this.onInbox(box, mod);
+      } catch (err) {
+        reportCrash('window', err);
+      } finally {
+        this.inboxBusy = false;
+      }
+    };
+    this.inboxTimer = setInterval(() => void beat(), 4_000);
+    void beat();
+  }
+
+  private onInbox(box: import('../social/inviteInbox').Inbox, mod: typeof import('../social/inviteInbox')): void {
+    const primed = this.inboxPrimed;
+    this.inboxPrimed = true;
+    this.socialBadge = box.invites.length;
+    if (box.chat) {
+      const before = this.chatUnread;
+      this.chatUnread = box.chat.unread;
+      const top = box.chat.top;
+      if (top && box.chat.unread > before) {
+        if (this.social && !this.social.closed) this.social.dmNotice(top.thread);
+        else if (primed && !this.session && !this.party?.state.inMatch && top.code) {
+          const code = top.code;
+          mod.dmToast(document, top.fromName, top.preview, () => this.openSocial('friends', code));
+        }
+      }
+    }
+    this.paintSocialBadge();
+    for (const a of box.answers) mod.lineToast(document, mod.answerLine(a), `invite-answer-${a.answer}`);
+    this.showInvites(box.invites, mod);
+  }
+
+  /** The newest invite not shown yet, as the LoL-style card (Accept / Decline, 60 s). Never in a match. */
+  private showInvites(list: readonly import('../social/inviteInbox').InboxInvite[], mod: typeof import('../social/inviteInbox')): void {
+    if (this.session || this.party?.state.inMatch) return;
+    const inv = list.find((i) => !this.socialToasted.has(i.id || i.party));
+    if (!inv) return;
+    this.socialToasted.add(inv.id || inv.party);
+    if (this.socialToasted.size > 200) this.socialToasted.clear();
+    // already in that party: nothing to answer
+    if (this.party?.state.view?.code === inv.party) return;
+    // gaps5 polish 4: a Ranked duo invite checks this player's own Ranked unlock and shows the lock line
+    const locked = inv.mode === 'ranked' && !this.modeOpen('ranked') ? lockLine('ranked', loadProfile()) : null;
+    const sim = mod.simCheck(inv.sim);
+    this.analytics.track('party_invite' as never, { action: 'shown', sim } as never);
+    mod.inviteCard(document, inv, {
+      locked,
+      sim,
+      onAccept: () => void this.acceptInvite(inv, mod),
+      onDecline: () => {
+        this.analytics.track('party_invite' as never, { action: 'decline' } as never);
+        if (inv.id) void this.integration.api('invite.answer', { invite: inv.id, answer: 'decline' });
+      },
+      onReload: () => location.reload(),
+    });
+  }
+
+  /** Accept: the server answers the party code (410: expired); leave a lobby this player is in, then join. */
+  private async acceptInvite(inv: import('../social/inviteInbox').InboxInvite, mod: typeof import('../social/inviteInbox')): Promise<void> {
+    this.analytics.track('party_invite' as never, { action: 'join' } as never);
+    let party = inv.party;
+    if (inv.id) {
+      const r = await this.integration.api('invite.answer', { invite: inv.id, answer: 'accept' });
+      if (r.status === 410) {
+        mod.lineToast(document, 'That invite has expired', 'invite-expired');
+        return;
+      }
+      const p = (r.body as { party?: unknown } | undefined)?.party;
+      if (r.ok && typeof p === 'string') party = p;
+    }
+    if (this.session) return;
+    if (this.social && !this.social.closed) this.social.dispose();
+    if (this.party) {
+      if (this.party.state.view?.code === party) return void (this.party.suspended ? undefined : this.party.show());
+      if (this.party.state.inMatch) return;
+      // LoL: accepting moves you out of the lobby you were in
+      this.party.leaveParty();
+    }
+    this.party = null;
+    this.openParty('join', party);
+  }
+
+  /**
+   * Invite on a friend's row with no party yet (SOCIAL-INVITES.md): PLAY's Mode Select opens on With Friends (the one
+   * play path: this player picks the mode), and the invite goes out once the lobby is up. Gives up after 2 minutes.
+   */
+  private inviteAfterParty(friend: { code: string; name: string }): void {
+    this.pendingInvite = { ...friend, at: Date.now(), lobbyAt: 0 };
+    this.modesAt = { mode: this.modeChoiceNow?.mode ?? 'skirmish', queue: 'friends' };
+    if (this.screen === 'title' && !this.session) this.showTitle(false);
+    if (this.pendingTimer) clearInterval(this.pendingTimer);
+    this.pendingTimer = setInterval(() => void this.flushPendingInvite(), 1_500);
+  }
+
+  private pendingBusy = false;
+  private async flushPendingInvite(): Promise<void> {
+    const p = this.pendingInvite;
+    const stop = () => {
+      this.pendingInvite = null;
+      if (this.pendingTimer) clearInterval(this.pendingTimer);
+      this.pendingTimer = null;
+    };
+    if (!p || Date.now() - p.at > 120_000) return stop();
+    const v = this.party?.state.view;
+    if (this.pendingBusy || !v || v.phase !== 'lobby' || this.party?.state.inMatch) return;
+    if (!p.lobbyAt) p.lobbyAt = Date.now();
+    this.pendingBusy = true;
+    try {
+      const { buildSim, lineToast } = await import('../social/inviteInbox');
+      const r = await this.integration.api('invite.send', { to: p.code, sim: buildSim() });
+      const code = (r.body as { code?: string } | undefined)?.code;
+      // the relay writes the lobby's presence a moment after it opens: retry "no party" for 15 s
+      if (!r.ok && code === 'PAWLEGENDS_SOCIAL_NO_PARTY' && Date.now() - p.lobbyAt < 15_000) return;
+      stop();
+      const offline = (r.body as { offline?: boolean } | undefined)?.offline;
+      lineToast(document, r.ok ? (offline ? `Invite sent. ${p.name} is offline right now` : `Invite sent to ${p.name}`) : `Couldn't invite ${p.name}. Try Invite in Friends`, r.ok ? 'invite-sent' : 'invite-failed');
+    } finally {
+      this.pendingBusy = false;
+    }
   }
 
   /** PvP reports (SOCIAL-RANKED.md §8): one book per room, kept for the results screen of that room. */

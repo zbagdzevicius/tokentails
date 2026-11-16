@@ -14,6 +14,7 @@ import { avatarHtml, titleText } from '../ui/avatar';
 import { ChatSheet } from './chatSheet';
 import { InviteRow } from '../share/invite';
 import { ClubsPanel } from './clubs/clubsPanel';
+import { buildSim } from './inviteInbox';
 
 export type SocialTab = 'friends' | 'requests' | 'recent' | 'clubs' | 'ranked' | 'boards';
 export const SOCIAL_TABS: readonly SocialTab[] = Object.freeze(['friends', 'requests', 'recent', 'clubs', 'ranked', 'boards']);
@@ -108,20 +109,24 @@ export function pageOf<T>(list: readonly T[], page: number, per: number): { rows
 export const PRESENCE_TEXT: Readonly<Record<Presence['state'], string>> = Object.freeze({
   offline: 'Offline',
   online: 'Online',
-  party: 'In party',
+  // SOCIAL-INVITES.md: LoL's words (a friend in a party is in its lobby)
+  party: 'In lobby',
   queue: 'In queue',
   match: 'In match',
 });
 
 /**
- * The friend row's one action (§14.2): Join a joinable party, Watch a friend's live match (SPECTATE.md, when the
- * friend lets friends watch and this player is not in a party), Invite when you are in one, else the "…" menu. Pure.
+ * The friend row's one action (§14.2, SOCIAL-INVITES.md): in a party, Invite any friend who is online and not already
+ * in it (LoL style); out of one, Join a friend's joinable party, Watch a friend's live match (SPECTATE.md, when the
+ * friend lets friends watch), Invite an online friend (the party opens through PLAY first: the one play path), else the
+ * "…" menu. `myParty`: this player's party code, or null. Pure.
  */
-export function rowAction(p: Presence, inParty: boolean): 'join' | 'watch' | 'invite' | 'more' {
+export function rowAction(p: Presence, inParty: boolean, myParty: string | null = null): 'join' | 'watch' | 'invite' | 'more' {
+  const online = p.state === 'online' || p.state === 'party' || p.state === 'queue';
+  if (inParty) return online && !(myParty && p.party === myParty) ? 'invite' : 'more';
   if (p.state === 'party' && p.joinable && p.party) return 'join';
-  if (p.state === 'match' && p.room && /^[a-z0-9]{12}$/.test(p.room) && !inParty) return 'watch';
-  if (inParty && p.state !== 'offline' && p.state !== 'match') return 'invite';
-  return 'more';
+  if (p.state === 'match' && p.room && /^[a-z0-9]{12}$/.test(p.room)) return 'watch';
+  return online ? 'invite' : 'more';
 }
 
 export interface SocialSheetDeps {
@@ -150,6 +155,11 @@ export interface SocialSheetDeps {
   onUnread?(n: number): void;
   /** MATCH-HISTORY.md: open a friend's match history (their row's name, or History in the row menu). */
   history?(friend: { code: string; name: string }): void;
+  /**
+   * SOCIAL-INVITES.md: Invite on a friend's row while not in a party. The app opens PLAY's Mode Select on With Friends
+   * (the one play path: the leader picks the mode) and sends the invite once the party lobby is up. Absent: a note.
+   */
+  inviteFriend?(friend: { code: string; name: string }): void;
 }
 
 const errorText = (r: ApiResult): string => {
@@ -269,6 +279,9 @@ export class SocialSheet {
       this.threads = new Map(((threads.body as { threads?: ChatThreadRow[] })?.threads ?? []).map((t) => [t.with.code, t]));
     }
     this.render();
+    const want = this.chatWhenLoaded;
+    this.chatWhenLoaded = null;
+    if (want && this.state && !this.disposed) this.openChat(want);
   }
 
   private async loadRanked(): Promise<void> {
@@ -372,17 +385,18 @@ export class SocialSheet {
       const inv = this.invite.html() + this.liveRow();
       if (!s.friends.length) return `${inv}<p class="pl-social-empty">No friends yet. Share your code or add theirs.</p>`;
       const { rows } = pageOf(friendOrder(s.friends), this.page, this.friendsPer);
-      const inParty = !!this.deps.partyCode();
+      const myParty = this.deps.partyCode();
+      const inParty = !!myParty;
       return rows
         .map((f) => {
-          const act = rowAction(f.presence, inParty);
+          const act = rowAction(f.presence, inParty, myParty);
           const btn =
             act === 'join'
               ? `<button type="button" class="pl-btn small" data-a="join" data-party="${this.esc(f.presence.party ?? '')}">Join</button>`
               : act === 'watch' && this.deps.watch
                 ? `<button type="button" class="pl-btn small" data-a="watch" data-room="${this.esc(f.presence.room ?? '')}" data-code="${this.esc(f.code)}" data-testid="social-watch" aria-label="${this.esc(`Watch ${f.name}'s match`)}">Watch</button>`
                 : act === 'invite'
-                ? `<button type="button" class="pl-btn ghost small" data-a="invite" data-code="${this.esc(f.code)}">Invite</button>`
+                ? `<button type="button" class="pl-btn ghost small" data-a="invite" data-code="${this.esc(f.code)}" data-testid="social-invite" aria-label="${this.esc(`Invite ${f.name}`)}">Invite</button>`
                 : `<button type="button" class="pl-btn ghost small pl-more" data-a="more" data-code="${this.esc(f.code)}" aria-label="More">&hellip;</button>`;
           const t = this.threads.get(f.code);
           const dot = t?.unread && !t.muted ? `<i class="pl-chat-unread" data-testid="chat-unread">${Math.min(99, t.unread)}</i>` : '';
@@ -592,10 +606,24 @@ export class SocialSheet {
         this.dispose();
         this.deps.watch({ featured: true });
         return;
-      case 'invite':
+      case 'invite': {
+        const f = this.state?.friends.find((x) => x.code === code);
+        if (!this.deps.partyCode()) {
+          // SOCIAL-INVITES.md: no party yet: PLAY → a mode → With Friends opens it, then the invite goes out
+          if (f && this.deps.inviteFriend) {
+            this.deps.track?.('party_invite', { action: 'open_party' });
+            this.dispose();
+            this.deps.inviteFriend({ code: f.code, name: f.name });
+          } else {
+            this.note = 'Open a party first: PLAY, a mode, then With Friends';
+            this.render();
+          }
+          return;
+        }
         this.deps.track?.('party_invite', { action: 'sent' });
-        void this.act('invite.send', { to: code, ...(this.deps.partyMode?.() === 'ranked' ? { mode: 'ranked' } : {}) }, 'Invite sent');
+        void this.sendInvite(code, f?.name ?? '');
         return;
+      }
       case 'accept':
         this.deps.track?.('friend_accept');
         void this.act('friend.accept', { code }, 'You are friends now');
@@ -711,9 +739,27 @@ export class SocialSheet {
     void this.pulse();
   }
 
+  /** SOCIAL-INVITES.md: an invite with this build's sim; the note says when the friend is offline. */
+  private async sendInvite(code: string, name: string): Promise<void> {
+    const r = await this.deps.api('invite.send', { to: code, sim: buildSim(), ...(this.deps.partyMode?.() === 'ranked' ? { mode: 'ranked' } : {}) });
+    if (this.disposed) return;
+    const b = r.body as { offline?: boolean; code?: string } | undefined;
+    if (r.ok) this.note = b?.offline ? `Invite sent. ${name || 'Your friend'} is offline right now` : `Invite sent to ${name || 'your friend'}`;
+    else if (b?.code === 'PAWLEGENDS_SOCIAL_LIMIT') this.note = 'Invite already sent: wait for an answer';
+    else this.note = errorText(r);
+    this.render();
+  }
+
+  /** A DM to open once the friends list has loaded (the DM toast's Open). */
+  private chatWhenLoaded: string | null = null;
+
   /** Open the DM thread with a friend over the sheet (CHAT-AVATARS §6.2); back reloads the unread dots. */
   openChat(code: string): void {
     const f = this.state?.friends.find((x) => x.code === code);
+    if (!this.state) {
+      this.chatWhenLoaded = code;
+      return;
+    }
     if (!f || !this.root.parentElement) return;
     this.chat?.dispose();
     this.chat = new ChatSheet(this.root.parentElement, {

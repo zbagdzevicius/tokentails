@@ -24,7 +24,11 @@ import {
     formatPlayerCode,
     FRIENDS_CAP,
     generatePlayerCode,
+    INVITE_ANSWERS,
+    INVITE_ID_RE,
+    INVITE_SIM_RE,
     INVITE_TTL_MS,
+    InviteAnswer,
     pairId,
     parsePlayerCode,
     PENDING_OUT_CAP,
@@ -64,6 +68,7 @@ export const SOCIAL_ERRORS = {
     limit: () =>
         pawlegendsError(HttpStatus.TOO_MANY_REQUESTS, 'PAWLEGENDS_SOCIAL_LIMIT', 'Too many requests, try later'),
     noParty: () => pawlegendsError(HttpStatus.CONFLICT, 'PAWLEGENDS_SOCIAL_NO_PARTY', 'Open a party first'),
+    inviteGone: () => pawlegendsError(HttpStatus.GONE, 'PAWLEGENDS_SOCIAL_INVITE_GONE', 'This invite has expired'),
 };
 
 export interface SocialProfile {
@@ -218,10 +223,20 @@ export class SocialService {
         const rows = (await this.invites
             .find({ to: me, exp: { $gt: now } })
             .sort({ createdAt: -1 })
-            .limit(5)
-            .lean()) as Array<{ _id: unknown; from: string; party: string; mode?: string; exp: Date }>;
+            .limit(8)
+            .lean()) as Array<{
+            _id: unknown;
+            from: string;
+            party: string;
+            mode?: string;
+            sim?: string;
+            answer?: string;
+            exp: Date;
+        }>;
         const live = [];
-        for (const r of rows) if (!(await this.blockedEither(me, r.from))) live.push(r);
+        // an answered invite (SOCIAL-INVITES.md) is gone from the friend's toasts; at most 5 waiting
+        for (const r of rows.filter(x => !x.answer).slice(0, 5))
+            if (!(await this.blockedEither(me, r.from))) live.push(r);
         if (!live.length) return [];
         const [names, profiles] = await Promise.all([
             displayNames(
@@ -239,7 +254,10 @@ export class SocialService {
             from: { code: formatPlayerCode(codes.get(r.from) ?? ''), name: names.get(r.from) },
             party: r.party,
             ...(r.mode === 'ranked' ? { mode: 'ranked' as const } : {}),
+            ...(typeof r.sim === 'string' ? { sim: r.sim } : {}),
             exp: r.exp,
+            /** Milliseconds left (the toast's countdown, independent of the device clock). */
+            ttl: Math.max(0, new Date(r.exp).getTime() - now.getTime()),
         }));
     }
 
@@ -703,8 +721,12 @@ export class SocialService {
     // Party invites
     // ---------------------------------------------------------------------------------------------------------------
 
-    /** `mode` (gaps5): 'ranked' marks a Ranked duo invite; anything else is a plain party invite. */
-    async invite(me: string, to: unknown, mode?: unknown) {
+    /**
+     * `mode` (gaps5): 'ranked' marks a Ranked duo invite; anything else is a plain party invite. `sim` (SOCIAL-INVITES.md):
+     * the inviter's sim build, so the friend's toast can say "update your game" before a join the relay would refuse at
+     * Start. An offline friend still gets the row (and a push when they turned invites on); `offline` tells the inviter.
+     */
+    async invite(me: string, to: unknown, mode?: unknown, sim?: unknown) {
         const target = await this.byCode(to);
         const edge = (await this.friends.findById(pairId(me, target._id)).lean()) as Edge | null;
         if (!edge || edge.state !== 'accepted' || (await this.blockedEither(me, target._id)))
@@ -718,15 +740,18 @@ export class SocialService {
             this.invites.countDocuments({
                 from: me,
                 to: target._id,
-                createdAt: { $gte: new Date(now.getTime() - 60_000) },
+                answer: { $exists: false },
+                exp: { $gt: now },
             }),
         ]);
         if (recent >= 10 || toTarget >= 1) throw SOCIAL_ERRORS.limit();
-        await this.invites.create({
+        const theirs = (await this.presenceOf([String(target._id)])).get(String(target._id));
+        const created = await this.invites.create({
             from: me,
             to: target._id,
             party: view.party,
             ...(mode === 'ranked' ? { mode: 'ranked' } : {}),
+            ...(typeof sim === 'string' && INVITE_SIM_RE.test(sim) ? { sim } : {}),
             exp: new Date(now.getTime() + INVITE_TTL_MS),
             createdAt: now,
         });
@@ -743,7 +768,96 @@ export class SocialService {
                 })
             )
             .catch(() => undefined);
-        return { ok: true };
+        const id =
+            created && (created as { _id?: unknown })._id !== undefined
+                ? String((created as { _id: unknown })._id)
+                : '';
+        return {
+            ok: true,
+            ...(id ? { id } : {}),
+            ttl: INVITE_TTL_MS,
+            ...(!theirs || theirs.state === 'offline' ? { offline: true } : {}),
+        };
+    }
+
+    /**
+     * The friend's answer from the invite toast (SOCIAL-INVITES.md). `accept` answers the party code to join (410 when
+     * the invite expired or was answered); `decline` always answers ok. Either way the inviter's inbox shows it once.
+     */
+    async answerInvite(me: string, id: unknown, answer: unknown): Promise<{ ok: true; party?: string }> {
+        if (typeof id !== 'string' || !INVITE_ID_RE.test(id)) throw SOCIAL_ERRORS.invalid('invite');
+        if (typeof answer !== 'string' || !(INVITE_ANSWERS as readonly string[]).includes(answer))
+            throw SOCIAL_ERRORS.invalid('answer');
+        const a = answer as InviteAnswer;
+        const now = this.now();
+        const row = (await this.invites.findOne({ _id: id, to: me }).lean()) as {
+            _id: unknown;
+            from: string;
+            party: string;
+            answer?: string;
+            exp: Date;
+        } | null;
+        const live = !!row && !row.answer && new Date(row.exp).getTime() > now.getTime();
+        if (!live) {
+            if (a === 'decline') return { ok: true };
+            throw SOCIAL_ERRORS.inviteGone();
+        }
+        if (a === 'accept' && (await this.blockedEither(me, row!.from))) throw SOCIAL_ERRORS.inviteGone();
+        await this.invites.updateOne(
+            { _id: row!._id, answer: { $exists: false } },
+            { $set: { answer: a === 'accept' ? 'accepted' : 'declined' } }
+        );
+        await this.bump([row!.from]);
+        return a === 'accept' ? { ok: true, party: row!.party } : { ok: true };
+    }
+
+    /**
+     * The fast inbox (SOCIAL-INVITES.md): the game polls it every few seconds on menus and in the party lobby, so an
+     * invite or a DM shows within seconds instead of the 30 s pulse. One indexed read of the caller's own `rev` while
+     * nothing changed (`changed: false`, the route answers 204); else the waiting invites and the answers to the
+     * caller's own invites (each shown once). Writes no presence (the pulse and the relay do).
+     */
+    async inbox(
+        me: string,
+        rev: unknown
+    ): Promise<
+        | { changed: false }
+        | {
+              changed: true;
+              rev: string;
+              invites: unknown[];
+              answers: Array<{ id: string; name: string; answer: 'accepted' | 'declined' }>;
+          }
+    > {
+        const row = (await this.social.findById(me).select({ rev: 1 }).lean()) as { rev?: number } | null;
+        const token = `i${row?.rev ?? 0}`;
+        if (token === rev) return { changed: false };
+        if (!row) return { changed: true, rev: token, invites: [], answers: [] };
+        const now = this.now();
+        const answered = (await this.invites
+            .find({
+                from: me,
+                answer: { $exists: true },
+                seen: { $ne: true },
+                exp: { $gt: new Date(now.getTime() - INVITE_TTL_MS) },
+            })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .lean()) as Array<{ _id: unknown; to: string; answer: 'accepted' | 'declined' }>;
+        let answers: Array<{ id: string; name: string; answer: 'accepted' | 'declined' }> = [];
+        if (answered.length) {
+            await this.invites.updateMany({ _id: { $in: answered.map(a => a._id) } }, { $set: { seen: true } });
+            const names = await displayNames(
+                { social: this.social, cats: this.cats },
+                answered.map(a => a.to)
+            );
+            answers = answered.map(a => ({
+                id: String(a._id),
+                name: names.get(a.to) ?? 'Your friend',
+                answer: a.answer,
+            }));
+        }
+        return { changed: true, rev: token, invites: await this.pendingInvites(me), answers };
     }
 
     /** The relay's `party.join` check: did the party's leader block this joiner? (answered as party_full). */

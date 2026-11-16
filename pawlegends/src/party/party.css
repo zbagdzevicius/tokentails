@@ -70,6 +70,8 @@
   font-variant-numeric: tabular-nums; text-shadow: 0 4px 0 var(--v6-plum-deep);
 }
 .pl-party .pp-share { min-height: 52px; font-size: 20px; }
+/* SOCIAL-INVITES.md: with "Invite friends" first, Share steps down to a smaller slab (the column never grows past a phone) */
+.pl-party .pp-share.ghost { min-height: 44px; font-size: 16px; }
 .pl-party .pp-qr-inline { display: none; }
 .pl-party .pp-qr-svg { display: block; width: 100%; height: auto; border-radius: var(--v6-r-xs); box-shadow: 0 0 0 3px var(--v6-night), 0 0 0 5px var(--v6-logo-plum); }
 .pl-party .pp-seats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -162,6 +164,7 @@
   .pl-party h2 { font-size: 18px; }
   .pl-party .pl-btn.big { min-height: 44px; font-size: 17px; padding: 8px 18px; }
   .pl-party .pp-share { min-height: 46px; font-size: 18px; }
+  .pl-party .pp-share.ghost { min-height: 44px; font-size: 15px; }
   .pl-party .pp-seat { min-height: 50px; padding: 4px 8px; }
   .pl-party .pp-av { width: 36px; height: 36px; }
   .pl-party .pp-seats { gap: 6px; }

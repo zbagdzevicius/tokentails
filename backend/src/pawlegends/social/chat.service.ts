@@ -50,6 +50,8 @@ import {
 
 const DAY = 86_400_000;
 const RETAIN_MS = CHAT_LIMITS.retentionDays * DAY;
+/** SOCIAL-INVITES.md: the newest messages a DM keeps (older ones go on the next send; the TTL still applies). */
+export const DM_KEEP = 200;
 type AnyModel = any;
 
 const err = (status: HttpStatus, code: string, message: string, extra?: Record<string, unknown>) => {
@@ -379,7 +381,7 @@ export class ChatService {
     /** The unread DM count and the newest unread thread (the pulse badge). Muted threads do not count. */
     async summary(
         me: string
-    ): Promise<{ unread: number; top?: { thread: string; fromName: string; preview: string } }> {
+    ): Promise<{ unread: number; top?: { thread: string; fromName: string; preview: string; code?: string } }> {
         const rows = (await this.threads
             .find({ members: me, kind: 'dm' })
             .sort({ lastAt: -1 })
@@ -400,7 +402,17 @@ export class ChatService {
         if (!top) return { unread };
         const other = top.members.find(m => m !== me)!;
         const names = await displayNames({ social: this.social, cats: this.cats }, [other]);
-        return { unread, top: { thread: top._id, fromName: names.get(other) ?? '', preview: top.lastPreview ?? '' } };
+        // SOCIAL-INVITES.md: the friend's code, so the DM toast opens the thread (codes are shown to friends anyway)
+        const prof = (await this.social.findById(other).select({ code: 1 }).lean()) as { code?: string } | null;
+        return {
+            unread,
+            top: {
+                thread: top._id,
+                fromName: names.get(other) ?? '',
+                preview: top.lastPreview ?? '',
+                ...(prof?.code ? { code: formatPlayerCode(prof.code) } : {}),
+            },
+        };
     }
 
     /** History, newest first in pages of 30 (`before` = a message id); oldest first in the answer. */
@@ -575,6 +587,7 @@ export class ChatService {
             exp: new Date(now.getTime() + RETAIN_MS),
         };
         await this.messages.create(row);
+        if (thread.kind === 'dm') await this.trimDm(thread._id);
         await this.threads.updateOne(
             { _id: thread._id },
             {
@@ -598,6 +611,22 @@ export class ChatService {
             this.bus?.publish({ to: other, thread: thread._id });
         }
         return { message: viewOf(row, me) };
+    }
+
+    /**
+     * SOCIAL-INVITES.md: a DM keeps its newest DM_KEEP messages (on top of the 30-day TTL). One index walk of
+     * `{thread, at}` per send; the rows past the cap go at once.
+     */
+    private async trimDm(thread: string) {
+        const cut = (await this.messages
+            .find({ thread })
+            .sort({ at: -1, _id: -1 })
+            .skip(DM_KEEP)
+            .limit(1)
+            .select({ at: 1 })
+            .lean()) as Array<{ _id: string; at: Date }>;
+        if (!cut.length) return;
+        await this.messages.deleteMany({ thread, at: { $lte: cut[0].at }, _id: { $lte: cut[0]._id } });
     }
 
     /** One filter rejection: 5 in 10 minutes start a 10-minute text cooldown; the day's count feeds CMS flag F6. */

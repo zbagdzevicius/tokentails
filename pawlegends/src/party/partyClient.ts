@@ -731,6 +731,8 @@ export interface PartyHooks {
   close(): void;
   /** The invite URL for a code (the embed URL, D12). */
   inviteUrl(code: string): string;
+  /** SOCIAL-INVITES.md: open the Friends sheet over the lobby (Invite on online friends); absent: no button. */
+  friends?(): void;
   /** The embed host's share sheet; false when there is no host. */
   share?(url: string, text: string): boolean;
   analytics?(event: string, props: Record<string, string | number | boolean>): void;
@@ -1448,6 +1450,10 @@ export class PartyClient {
         return;
       case 'share':
         return this.share(t);
+      case 'friends':
+        this.h.analytics?.('party_share', { method: 'friends' });
+        this.h.friends?.();
+        return;
       case 'copy':
         return this.copy(t);
       case 'qr':
@@ -1859,6 +1865,7 @@ export class PartyClient {
           difficulties: this.h.difficulties ?? DIFFS,
           hideNames: hideNames(),
           online: s.mmOk,
+          friends: !!this.h.friends,
         });
         break;
       case 'pick':

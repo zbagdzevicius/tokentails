@@ -296,6 +296,184 @@ describe('pawlegends social core (SOCIAL-RANKED.md §2, §3)', () => {
     });
 });
 
+describe('pawlegends invites, LoL style (SOCIAL-INVITES.md)', () => {
+    async function friendsInParty() {
+        const h = harness();
+        await h.svc.request('A', 'B', 'code');
+        await h.svc.request('B', 'A', 'code');
+        h.models.presence.docs.push({
+            _id: 'A',
+            relay: { state: 'party', party: 'WXYZ', joinable: true, at: h.clock.now() },
+            exp: new Date(h.clock.ms + 60_000),
+        });
+        return h;
+    }
+
+    it('an invite lives 60 s, carries the sim build and the time left, and says when the friend is offline', async () => {
+        const { clock, models, svc } = await friendsInParty();
+        const sent = await svc.invite('A', await codeOf(svc, 'B'), undefined, '33.abc123def4');
+        expect(sent).toEqual(expect.objectContaining({ ok: true, ttl: 60_000, offline: true }));
+        expect(sent.id).toMatch(/^[a-f0-9]{24}$/);
+        const inv = (await svc.state('B')).invites as Array<Record<string, unknown>>;
+        expect(inv).toEqual([
+            expect.objectContaining({ id: sent.id, party: 'WXYZ', sim: '33.abc123def4', ttl: 60_000 }),
+        ]);
+        // a bad sim is dropped, never stored
+        expect(models.invites.docs.every(d => d.sim === undefined || /^\d+\./.test(d.sim))).toBe(true);
+        clock.advance(61_000);
+        expect((await svc.state('B')).invites).toEqual([]);
+        // once expired, the same friend can be invited again at once
+        models.presence.docs[0].relay.at = clock.now();
+        await expect(svc.invite('A', await codeOf(svc, 'B'), undefined, '<script>')).resolves.toMatchObject({
+            ok: true,
+        });
+        expect(models.invites.docs[1].sim).toBeUndefined();
+    });
+
+    it('an online friend: no offline flag', async () => {
+        const { clock, models, svc } = await friendsInParty();
+        models.presence.docs.push({ _id: 'B', api: { at: clock.now() }, exp: new Date(clock.ms + 60_000) });
+        const sent = await svc.invite('A', await codeOf(svc, 'B'));
+        expect(sent.offline).toBeUndefined();
+    });
+
+    it('accept answers the party code once; the inviter sees the answer once in the inbox', async () => {
+        const { svc } = await friendsInParty();
+        const { id } = await svc.invite('A', await codeOf(svc, 'B'));
+        const before = await svc.inbox('A', undefined);
+        expect(before.changed).toBe(true);
+        await expect(svc.answerInvite('B', id, 'accept')).resolves.toEqual({ ok: true, party: 'WXYZ' });
+        // answered: gone from the toasts, a second accept is refused
+        expect((await svc.state('B')).invites).toEqual([]);
+        await expect(svc.answerInvite('B', id, 'accept')).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_INVITE_GONE' },
+        });
+        const a1 = await svc.inbox('A', (before as { rev: string }).rev);
+        expect(a1).toEqual(
+            expect.objectContaining({ changed: true, answers: [expect.objectContaining({ id, answer: 'accepted' })] })
+        );
+        expect(JSON.stringify(a1)).not.toMatch(/"B"/);
+        const a2 = await svc.inbox('A', undefined);
+        expect((a2 as { answers: unknown[] }).answers).toEqual([]);
+    });
+
+    it('decline: always ok, the inviter learns it, and only the invited friend can answer', async () => {
+        const { svc } = await friendsInParty();
+        const { id } = await svc.invite('A', await codeOf(svc, 'B'));
+        await expect(svc.answerInvite('C', id, 'accept')).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_INVITE_GONE' },
+        });
+        await expect(svc.answerInvite('B', id, 'decline')).resolves.toEqual({ ok: true });
+        await expect(svc.answerInvite('B', id, 'decline')).resolves.toEqual({ ok: true });
+        const inbox = (await svc.inbox('A', undefined)) as { answers: Array<{ answer: string; name: string }> };
+        expect(inbox.answers).toEqual([expect.objectContaining({ answer: 'declined' })]);
+        expect(typeof inbox.answers[0].name).toBe('string');
+        await expect(svc.answerInvite('B', 'nope', 'accept')).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_INVALID' },
+        });
+        await expect(svc.answerInvite('B', id, 'maybe')).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_INVALID' },
+        });
+    });
+
+    it('accepting an expired invite is refused (410)', async () => {
+        const { clock, svc } = await friendsInParty();
+        const { id } = await svc.invite('A', await codeOf(svc, 'B'));
+        clock.advance(60_001);
+        await expect(svc.answerInvite('B', id, 'accept')).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_INVITE_GONE' },
+            status: 410,
+        });
+    });
+
+    it('the inbox: one read while nothing changed, then the invite; a DM-style rev bump wakes it too', async () => {
+        const { models, svc } = await friendsInParty();
+        const first = (await svc.inbox('B', undefined)) as { changed: true; rev: string; invites: unknown[] };
+        expect(first.changed).toBe(true);
+        expect(await svc.inbox('B', first.rev)).toEqual({ changed: false });
+        await svc.invite('A', await codeOf(svc, 'B'));
+        const next = (await svc.inbox('B', first.rev)) as {
+            changed: true;
+            rev: string;
+            invites: Array<{ party: string }>;
+        };
+        expect(next.changed).toBe(true);
+        expect(next.invites).toEqual([expect.objectContaining({ party: 'WXYZ' })]);
+        await models.social.updateOne({ _id: 'B' }, { $inc: { rev: 1 } });
+        expect((await svc.inbox('B', next.rev)).changed).toBe(true);
+        // a player with no social row yet: empty, no write
+        const before = models.social.docs.length;
+        expect(await svc.inbox('D', undefined)).toEqual({ changed: true, rev: 'i0', invites: [], answers: [] });
+        expect(models.social.docs.length).toBe(before);
+    });
+
+    it('a block after the invite: the toast is gone and accept is refused', async () => {
+        const { svc } = await friendsInParty();
+        const { id } = await svc.invite('A', await codeOf(svc, 'B'));
+        await svc.block('A', { code: await codeOf(svc, 'B') });
+        expect((await svc.state('B')).invites).toEqual([]);
+        await expect(svc.answerInvite('B', id, 'accept')).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_INVITE_GONE' },
+        });
+    });
+});
+
+describe('pawlegends invite routes (SOCIAL-INVITES.md)', () => {
+    function routes() {
+        const h = harness();
+        const hits = new Map<string, number>();
+        const storage = {
+            increment: async (key: string) => {
+                hits.set(key, (hits.get(key) ?? 0) + 1);
+                return { totalHits: hits.get(key)!, timeToExpire: 60 };
+            },
+        };
+        const ctl = new PawlegendsSocialController(h.svc, { consume: async () => undefined } as any, storage as any);
+        const res = () => {
+            const r: any = { code: 200, headers: {} };
+            r.status = (c: number) => ((r.code = c), r);
+            r.header = (k: string, v: unknown) => (r.headers[k] = v);
+            return r;
+        };
+        return { ...h, ctl, res };
+    }
+
+    it('the inbox answers 204 while nothing changed, then the invite and an empty chat badge', async () => {
+        const { ctl, res, svc, models, clock } = routes();
+        await svc.request('A', 'B', 'code');
+        await svc.request('B', 'A', 'code');
+        const r1 = res();
+        const first = (await ctl.inbox(undefined as any, { user: { _id: 'B' } }, r1)) as any;
+        expect(r1.code).toBe(200);
+        const r2 = res();
+        expect(await ctl.inbox(first.rev, { user: { _id: 'B' } }, r2)).toBeUndefined();
+        expect(r2.code).toBe(204);
+        models.presence.docs.push({
+            _id: 'A',
+            relay: { state: 'party', party: 'WXYZ', joinable: true, at: clock.now() },
+            exp: new Date(clock.ms + 60_000),
+        });
+        await ctl.invite({ to: await codeOf(svc, 'B'), sim: '33.abcdef12' }, { user: { _id: 'A' } }, res());
+        const out = (await ctl.inbox(first.rev, { user: { _id: 'B' } }, res())) as any;
+        expect(out.invites).toEqual([expect.objectContaining({ party: 'WXYZ', sim: '33.abcdef12' })]);
+        expect(out.chat).toEqual({ unread: 0 });
+        expect(out.answers).toEqual([]);
+        const answered = await ctl.answer(out.invites[0].id, { answer: 'accept' }, { user: { _id: 'B' } }, res());
+        expect(answered).toEqual({ ok: true, party: 'WXYZ' });
+    });
+
+    it('guests and transient callers are refused; the inbox has its own per-account bucket (40 a minute)', async () => {
+        const { ctl, res } = routes();
+        await expect(ctl.inbox('x', { user: { _id: 'G', isGuest: true } }, res())).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_NEED_ACCOUNT' },
+        });
+        for (let i = 0; i < 40; i++) await ctl.inbox('x', { user: { _id: 'C' } }, res());
+        const r = res();
+        await expect(ctl.inbox('x', { user: { _id: 'C' } }, r)).rejects.toThrow();
+        expect(r.headers['Retry-After']).toBe(60);
+    });
+});
+
 describe('pawlegends presence (SOCIAL-RANKED.md §4)', () => {
     it('read precedence: fresh relay > fresh api > offline; invisible is offline', () => {
         const now = Date.UTC(2026, 10, 12);
@@ -351,6 +529,8 @@ describe('pawlegends presence (SOCIAL-RANKED.md §4)', () => {
             'recent',
             'invite',
             'age',
+            'inbox',
+            'answer',
         ])
             expect(Reflect.getMetadata(GUARDS_METADATA, proto[name])).toEqual([AppAuthGuard]);
         expect(Object.keys(GUEST_ALLOW_LIST).filter(k => k.includes('/pawlegends/social'))).toEqual([]);
