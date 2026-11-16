@@ -1,37 +1,35 @@
 /**
  * Match music with intensity layers (fun plan F2 item 13): a small procedural step sequencer on the sfx
  * AudioContext (no files, no autoplay: it starts once the first gesture unlocked audio). Four layers stack:
- *   0 walking (pad and bass), 1 a hero is near (hats and a pluck), 2 a 2v2+ fight or Sunset (drums and driving
+ *   0 walking (pad, bass, the theme motif once in 8 bars), 1 a hero is near (hats and a pluck), 2 a 2v2+ fight or Sunset (drums and driving
  *   bass), 3 Sudden Death or a core under attack (lead and toms).
  * Layers crossfade over ~1.5 s. Routed through the sfx master, so the mute setting silences it (the host's music
  * volume scales its own bus; the sfx volume does not touch it); while muted it
  * schedules nothing. Render side only; never feeds the sim.
  */
 import { sfx } from './sfx';
+import { CATS_MOTIF, THEME_BARS, THEME_BPM } from './themeMotif.js';
 
 export type Intensity = 0 | 1 | 2 | 3;
 
-const BPM = 116;
-const STEP_S = 60 / BPM / 4;
+const STEP_S = 60 / THEME_BPM / 4;
 const LOOKAHEAD_S = 0.25;
 /** setTargetAtTime constant: ~95% of the way in 3τ = 1.5 s. */
 const FADE_TAU = 0.5;
-const VOLUME = 0.2;
-const LAYER_GAIN = [0.9, 0.75, 0.85, 0.7];
+/** Wild Rift style: quiet under the gameplay (the theme's own level outside matches is audio/theme.ts). */
+const VOLUME = 0.14;
+const LAYER_GAIN = [0.75, 0.75, 0.85, 0.7];
 /** Notes up to this long (s) are baked once and replayed from a buffer (pads, a bar long, stay live). */
 const BAKE_MAX_S = 1;
 /** Offline renders in flight at once. */
 const BAKE_PARALLEL = 2;
 
-/** C – G – Am – F, one bar each (MIDI roots and triads). */
-const BARS: readonly { root: number; chord: readonly number[] }[] = [
-  { root: 48, chord: [60, 64, 67] },
-  { root: 43, chord: [59, 62, 67] },
-  { root: 45, chord: [60, 64, 69] },
-  { root: 41, chord: [60, 65, 69] },
-];
-/** Lead (layer 3): a bright 16-step motif per bar, scale degrees as MIDI offsets from the chord's top (-1 = rest). */
-const LEAD = [0, -1, 2, 4, -1, 4, 2, 0, 5, -1, 4, 2, 0, -1, 2, -1];
+/** C – G – Am – F, one bar each (the theme's chords, themeMotif.js). */
+const BARS: readonly { root: number; chord: readonly number[] }[] = THEME_BARS;
+/** The theme's CATS motif by 16th step (MIDI, or -1 = rest): the walking layer hums it, the lead plays it. */
+const MOTIF: readonly number[] = Array.from({ length: 16 }, (_, s) => CATS_MOTIF.find(([st]) => st === s)?.[1] ?? -1);
+/** Steps in one cycle of the sequencer: 8 bars (the motif returns on the walking layer once a cycle). */
+const CYCLE = 16 * 8;
 const PLUCK_STEPS = new Set([0, 3, 6, 10, 12]);
 
 const hz = (midi: number): number => 440 * Math.pow(2, (midi - 69) / 12);
@@ -79,7 +77,7 @@ export class Music {
     try {
       this.ac = ac;
       this.bus = ac.createGain();
-      this.bus.gain.value = VOLUME * sfx.musicVolume;
+      this.bus.gain.value = VOLUME * sfx.musicLevel;
       this.bus.connect(out);
       for (let i = 0; i < 4; i++) {
         const g = ac.createGain();
@@ -133,7 +131,7 @@ export class Music {
     const ac = this.ac;
     if (!ac || !this.running) return;
     // the host's music volume (audio{music}); mute stays on the sfx master
-    const vol = VOLUME * sfx.musicVolume;
+    const vol = VOLUME * sfx.musicLevel;
     if (this.bus && this.bus.gain.value !== vol) this.bus.gain.value = vol;
     if (sfx.isMuted || ac.state !== 'running') {
       this.nextAt = ac.currentTime + 0.1;
@@ -144,7 +142,7 @@ export class Music {
     while (this.nextAt < ac.currentTime + LOOKAHEAD_S) {
       this.playStep(this.step, this.nextAt);
       this.nextAt += STEP_S;
-      this.step = (this.step + 1) % (16 * BARS.length);
+      this.step = (this.step + 1) % CYCLE;
       for (let i = 1; i < 4; i++) if (i > this.level) this.off[i] += STEP_S;
     }
   }
@@ -159,6 +157,8 @@ export class Music {
     // layer 0: pad on the bar, bass on 1 and 3
     if (s === 0) for (const n of bar.chord) this.tone(0, 'triangle', hz(n), t, STEP_S * 16, 0.07, 0.4, 0.6);
     if (s === 0 || s === 8) this.tone(0, 'sine', hz(bar.root), t, STEP_S * 6, 0.32, 0.01, 0.3);
+    // the theme's motif, soft and far, once every 8 bars (the first bar of the cycle)
+    if (step < 16 && MOTIF[s] >= 0) this.tone(0, 'triangle', hz(MOTIF[s]), t, STEP_S * 2.5, 0.08, 0.01, 0.2, 2400);
     // layer 1: hats on the off 8ths, a pluck arpeggio
     if (this.live(1)) {
       if (s % 2 === 1) this.hat(1, t, 0.05, 0.035);
@@ -172,8 +172,8 @@ export class Music {
     }
     // layer 3: lead motif, 16th hats, a tom fill on the last beat of the cycle
     if (this.live(3)) {
-      const d = LEAD[s];
-      if (d >= 0) this.tone(3, 'sawtooth', hz(bar.chord[2] + 12 + d), t, STEP_S * 0.9, 0.07, 0.005, 0.06, 2600);
+      const m = MOTIF[s];
+      if (m >= 0) this.tone(3, 'sawtooth', hz(m), t, STEP_S * 1.4, 0.07, 0.005, 0.08, 2600);
       if (s % 2 === 0) this.hat(3, t, 0.03, 0.025);
       if (step % 64 >= 60) this.tone(3, 'sine', 160 - (step % 4) * 25, t, STEP_S * 1.2, 0.25, 0.002, 0.15);
     }

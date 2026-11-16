@@ -9,6 +9,7 @@ import { sfx } from '../audio/sfx';
 import { matchVoiceKeys } from '../audio/voiceLines';
 import { haptic } from '../ui/haptics';
 import { intensityOf, Music } from '../audio/music';
+import { theme } from '../audio/theme';
 import { LocalHost } from '../host/local-host';
 import type { MatchHost } from '../host/protocol';
 import type { WelcomeMsg } from '../host/protocol';
@@ -1797,7 +1798,9 @@ export class MatchSession {
     const loser = won ? 1 - this.welcome.team : this.welcome.team;
     const fallen = this.buffer.latest?.entities.find((e) => e.kind === 'core' && e.team === loser);
     if (fallen) this.view.lookAt(toX(fallen.x), toZ(fallen.y), 10);
-    sfx.play(won ? 'victory' : 'defeat');
+    // the theme's victory or defeat stinger (audio/theme.ts); the synthesised jingle stays while the files cannot play
+    if (sfx.context?.state === 'running') theme.sting(won ? 'victory' : 'defeat');
+    else sfx.play(won ? 'victory' : 'defeat');
     const myStats = result.stats.find((s) => s.slot === me);
     const sb = this.scoreboard;
     const latest = this.buffer.latest;
