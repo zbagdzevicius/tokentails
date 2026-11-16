@@ -231,6 +231,10 @@ const pawlegendsPartyTicket = async (options: { signal?: AbortSignal } = {}): Pr
  * Never throws for an HTTP answer; a network failure answers status 0.
  */
 const pawlegendsApiCall = async (route: PawlegendsApiRoute): Promise<PawlegendsApiFetchResult> => {
+  // No session yet (no Firebase user, not even an anonymous one): the backend answers 401 to an empty token, so the
+  // call is not made and never carries an empty `accesstoken` (the game's boot reads, e.g. the country flag, ask
+  // before anyone signs in; Nov 16, 2026 CI).
+  if (route.auth !== "none" && !currentAccessToken()) return { status: 401, body: null };
   const init: RequestInit = {
     method: route.method,
     headers: route.auth === "none" ? baseHeaders : authHeaders(),
