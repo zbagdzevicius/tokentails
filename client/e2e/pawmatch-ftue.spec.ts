@@ -388,8 +388,9 @@ test.describe("Paw Match first run", () => {
     } else {
       expect(after.idle.nextHintAt - after.idle.lastActionAt, "idle clock restarted").toBeGreaterThan(3799);
     }
-    // The clock now runs.
-    await page.waitForTimeout(2300);
+    // The clock now runs: wait on its state, not 2.3 s of wall time. On the CI runner the scene drew too few frames in
+    // that time for its whole-second clock to step once (one flaky retry, run 43928324599, Nov 16, 2026).
+    await expect.poll(async () => (await sceneState(page)).timeLeft, { timeout: 30_000, intervals: [250] }).toBeLessThan(after.timeLeft);
     const ticking = await sceneState(page);
     expect(ticking.timeLeft).toBeLessThan(after.timeLeft);
     // The page clock can run ahead of the wall clock on a loaded machine, so the check is in
