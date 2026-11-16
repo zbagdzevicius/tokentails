@@ -35,6 +35,7 @@ export const PL_FLAG_LABELS: Record<string, string> = {
 
 export const PL_RESOLVE_ACTIONS = [
   'dismiss',
+  'name_reset',
   'warn',
   'queue_lock',
   'ranked_lock',
@@ -65,7 +66,12 @@ export interface IPlReportList {
 }
 
 export interface IPlReportDetail {
-  target: { accountId: string; name: string };
+  /** `names`: the player's earlier names, newest last (nickname changes and resets). */
+  target: {
+    accountId: string;
+    name: string;
+    names?: Array<{ name: string; kind: string; at: string; paid: number; reset?: boolean }>;
+  };
   intel: { z: number | null; matches: number; hid: number; opp: number };
   reports: Array<{
     id: string;

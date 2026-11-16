@@ -69,6 +69,9 @@ export const PAWLEGENDS_API_OPS = [
   "history.list",
   "history.match",
   "history.privacy",
+  // nicknames (docs/plans/moba/SOCIAL-RANKED.md §2.3): the name others see and the next change's price; the change itself
+  "name.get",
+  "name.set",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -436,6 +439,13 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       const visibility = str(a.visibility, /^(everyone|friends|me)$/);
       return visibility ? { method: "POST", path: "/pawlegends/history/privacy", body: { visibility }, auth: "any" } : null;
     }
+    // nicknames (SOCIAL-RANKED.md §2.3): registered only; the server checks the name, the price and the cooldown
+    case "name.get":
+      return { method: "GET", path: "/pawlegends/name", auth: "registered" };
+    case "name.set":
+      return typeof a.name === "string" && a.name.length >= 1 && a.name.length <= 64
+        ? { method: "POST", path: "/pawlegends/name", body: { name: a.name }, auth: "registered" }
+        : null;
     default:
       return null;
   }

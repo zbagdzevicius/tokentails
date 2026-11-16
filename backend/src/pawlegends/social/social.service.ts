@@ -69,7 +69,7 @@ export const SOCIAL_ERRORS = {
 export interface SocialProfile {
     _id: string;
     code: string;
-    name: { kind: 'generated' } | { kind: 'cat'; catId: string };
+    name: { kind: 'generated' } | { kind: 'cat'; catId: string } | { kind: 'nick' };
     invisible: boolean;
     allowRecent: boolean;
     rev: number;

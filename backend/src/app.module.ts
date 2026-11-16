@@ -181,6 +181,8 @@ import { PAWLEGENDS_SOCIAL_SCHEMAS } from './pawlegends/social/social.schema';
 import { ReportService } from './pawlegends/social/report.service';
 import { PawlegendsReportsController } from './pawlegends/social/reports.controller';
 import { SocialService } from './pawlegends/social/social.service';
+import { NicknameService } from './pawlegends/social/nickname.service';
+import { PawlegendsNicknameController } from './pawlegends/social/nickname.controller';
 import { PawlegendsSocialController } from './pawlegends/social/social.controller';
 import { PawlegendsChatController } from './pawlegends/social/chat.controller';
 import { ChatService } from './pawlegends/social/chat.service';
@@ -402,6 +404,7 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsReportsController,
         // Pawlegends friends, blocks, recent players, invites and presence (SOCIAL-RANKED.md sections 2-5).
         PawlegendsSocialController,
+        PawlegendsNicknameController,
         // Pawlegends friends chat: DMs between accepted friends, age-gated text, reports (CHAT-AVATARS.md section 4).
         PawlegendsChatController,
         // Pawlegends ranked status, the ranked card and the leaderboards (SOCIAL-RANKED.md sections 6, 7).
@@ -524,6 +527,7 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         // Pawlegends social, ranked and PvP reports (SOCIAL-RANKED.md section 10).
         ReportService,
         SocialService,
+        NicknameService,
         ChatService,
         ChatBus,
         RankedStatusService,

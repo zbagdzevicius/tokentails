@@ -67,6 +67,9 @@ export const API_OPS = Object.freeze([
   'history.list',
   'history.match',
   'history.privacy',
+  // nicknames (SOCIAL-RANKED.md §2.3): the name others see, the price of the next change, and the change itself
+  'name.get',
+  'name.set',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);

@@ -720,8 +720,8 @@ Outside production, `PAWLEGENDS_DEV_LINKS=true` puts the restore and notify link
 ### Pawlegends social, ranked and PvP reports (docs/plans/moba/SOCIAL-RANKED.md)
 
 No route here writes a score: board rows and ranked points are written only by `POST /user/catbassadors/live` (the
-party save). Clients see player codes (`PL-XXXX-XXXX`) and display names (generated, or one of the player's own
-moderated cat names), never an account id or an email. The game reaches these routes only through its host
+party save). Clients see player codes (`PL-XXXX-XXXX`) and display names (a checked nickname, one of the player's own
+moderated cat names, or generated), never an account id or an email. The game reaches these routes only through its host
 (`api-request`, SOCIAL-RANKED.md §13). Every route counts a per-client-IP bucket; the social routes also a per-account one.
 
 | Method | Path | Body or query → answer | Auth, throttle |
@@ -729,6 +729,8 @@ moderated cat names), never an account id or an email. The game reaches these ro
 | GET | `/pawlegends/social` | `{me: {code, name, nameKind, invisible, allowRecent, ageBand, av, avatar, frame, title, dmPolicy}, friends: [{code, name, presence, av, cc?}], requests: {in, out}, blocks, invites, rev, chat: {unread, top?}}` | Registered (guest 403), 60/min |
 | GET | `/pawlegends/flag` | `{cc, hideFlag}`: the caller's ISO 3166-1 alpha-2 country from Cloudflare's `cf-ipcountry` (null for `XX`, `T1`, other non-country codes or no header) and whether they hid it. Records the country on the account's `pawlegendsflags` row when it changed (only the code; the IP is never stored or logged). `Cache-Control: private, no-store`. `docs/plans/moba/FLAGS.md` | Any account, guests too, 30/min per IP |
 | POST | `/pawlegends/flag` | `{hideFlag: boolean}` → `{cc, hideFlag}`. Hidden: others see a neutral paw (relay rosters, `match.flags`, friends, boards). 400 `PAWLEGENDS_FLAG_INVALID` / `PAWLEGENDS_FLAG_ACCOUNT` | Any account, guests too, 10/min per IP |
+| GET | `/pawlegends/name` | `{name, nick, changes, free, price, cost, cooldownDays, nextAt, yarn}`: the name others see, the nickname (null before the first change), whether the next change is free, its Yarn price (`NAME_CHANGE` in `backend/src/pawlegends/social/nickname.ts`: 1,500 Yarn, 7 days apart), when it is allowed (epoch ms, null = now) and the Yarn balance. 403 `PAWLEGENDS_NEED_ACCOUNT` for guests | Registered, 30/min per account, 60/min per IP |
+| POST | `/pawlegends/name` | `{name}` → the same view plus `paid`. First change free (generated, guest or cat names included), then 1,500 Yarn and 7 days after the previous change. shared/name.ts rules (2–16 Latin letters, digits, spaces, `'`, `-`; profanity; reserved staff, brand and game words; no generated "Sunny Tabby" shapes); unique on the folded skeleton (`nickKey`, case, accents and leet ignored). 400 `PAWLEGENDS_NAME_INVALID` (`reason`: a `NAME_*` code) / `PAWLEGENDS_NAME_SAME`, 402 `PAWLEGENDS_NAME_YARN`, 409 `PAWLEGENDS_NAME_TAKEN` / `PAWLEGENDS_NAME_BUSY` / `PAWLEGENDS_NAME_CHANGED`, 429 `PAWLEGENDS_NAME_COOLDOWN` (`nextAt`). The old name goes to `nameHistory` (moderators; CMS reports show it, `name_reset` resets it and gives a free change) | Registered, 6/10 min per account, 20/10 min per IP |
 | GET | `/pawlegends/social/pulse?rev=` | 204 while nothing changed, else `{rev, invites, chat: {unread, top?}}`; writes the API presence at most once a minute. A DM bumps the recipient's rev | Registered, 6/min |
 | POST | `/pawlegends/social/friends` | `{code}` or `{room, slot}` (a recent match) → `{state: 'sent' \| 'friends'}` (a crossed request auto-accepts). Caps: 100 friends, 20 pending, 30 a day; under 16 never via recent | Registered, 5/min; code lookups 30 / 10 min |
 | POST | `/pawlegends/social/friends/:code/accept`, `/decline`; DELETE `/pawlegends/social/friends/:code` | accept, decline or cancel, remove | Registered, 30/min |

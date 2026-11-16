@@ -63,7 +63,8 @@ Hard rules this design keeps:
 | Field | Notes |
 |---|---|
 | `code` | The player code: 8 characters of Crockford base32, shown as `PL-7KQ2-M9XR`. Random, never derived from the account id. Unique index. Can be rotated (`POST /pawlegends/social/code/rotate`, 3 a day) |
-| `name` | `{kind: 'generated'}` (default: `memberName(accountId)`) or `{kind: 'cat', catId}` (one of the player's own cats; it shows the cat's current name, which G3 `name_reports` already moderates). No free text |
+| `name` | `{kind: 'generated'}` (default: `memberName(accountId)`), `{kind: 'cat', catId}` (one of the player's own cats; it shows the cat's current name, which G3 `name_reports` already moderates) or `{kind: 'nick'}` (the nickname, §2.3) |
+| `nick`, `nickKey`, `nameChanges`, `nameChangedAt`, `nameFree`, `nameHistory` | The nickname (§2.3), its folded unique key, the change count, the last change, a moderator's free change, and the old names (moderators only) |
 | `invisible` | boolean, default false |
 | `allowRecent` | Default true. Forced false when the band is `under16` or unknown |
 | `rev` | Increments on any change that a friend's list or a request touches. Drives the cheap pulse (§4.3) |
@@ -82,6 +83,27 @@ Hard rules this design keeps:
   - Report note field hidden.
   - Presence is shown only to accepted friends, the same as for everyone.
 - ~~**No free text exists anywhere** in social features.~~ Replaced by [CHAT-AVATARS.md §2](CHAT-AVATARS.md): friends chat with phrases for everyone and filtered free text only when every participant is 16+.
+
+### 2.3 Nicknames (Nov 16, founder: "nickname change can be once only for free, then paid")
+
+- **Profile** (the game's Profile sheet, `pawlegends/src/social/profileSheet.ts`, opened by tapping the Home profile chip):
+  avatar and border (the Friends sheet's picker), owned title, nickname, country flag (a link to Settings). No bio: it
+  would be free text to strangers with no filter tier for under-16 viewers.
+- **Price** (`backend/src/pawlegends/social/nickname.ts` `NAME_CHANGE`, the one place): the first change is free,
+  whatever the current name (generated, guest-made or a cat name); every later change costs **1,500 Yarn** (the earned
+  soft currency; the cheapest champion is 2,500; there is no premium currency, CHAMPION-STORE.md) and needs **7 days**
+  since the previous change. No money: Yarn is never sold, so the apps show it too.
+- **Rules:** `normalizeCatName` (shared/name.ts) with extra reserved game words, and no generated-name shape
+  (`<adjective from party-names.ts> <word>`). Unique on `foldCatName` (case, accents and leet ignored), a unique partial
+  index on `nickKey`.
+- **Server-authoritative and atomic** (`nickname.service.ts`): ledger claim `name:<n>` in `pawlegendsyarnlog` (unique),
+  conditional Yarn spend, compare-and-set on `nameChanges`; any later refusal refunds. Old names in `nameHistory`.
+- **Where it shows:** `displayNames` (friends, requests, boards, clubs, DMs, match history, growth, the reports view), and
+  the relay (MULTIPLAYER.md D8 amended): a ticketed registered member's chosen name replaces the generated party name in
+  the lobby and the match (`relay-chat-info.ts` → `party.service.ts rename`). Guests keep generated names. The local
+  Hide names setting still hides every name.
+- **Moderation:** the PvP report reason `name`; the CMS resolve action **Reset name** (`name_reset`) puts the player back
+  on the generated name, frees the nickname and gives one free change; the reports view lists the earlier names.
 
 ---
 

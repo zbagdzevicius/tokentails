@@ -188,6 +188,8 @@ export interface MemberChat {
     av?: MemberView['av'];
     /** Account ids this account blocked (the own copy's `blocks` hides their lines). */
     blocked?: readonly string[];
+    /** The account's chosen name (a checked nickname or cat name); absent: the generated name (D8 amended). */
+    name?: string;
 }
 
 export interface PartyRules {
@@ -394,7 +396,9 @@ export class PartyService {
     }
 
     private rename(p: Party): void {
-        const names = dedupeNames(p.members.map(m => memberName(m.id, m.card?.catalog)));
+        const names = dedupeNames(
+            p.members.map(m => this.events.chatOf?.(m.id)?.name ?? memberName(m.id, m.card?.catalog))
+        );
         p.members.forEach((m, i) => (m.name = names[i]));
     }
 
@@ -1072,7 +1076,10 @@ export class PartyService {
     /** A member's chat info resolved (or changed): send the party its new views. */
     chatChanged(memberId: string): void {
         const p = this.partyOf(memberId);
-        if (p) this.touch(p);
+        if (!p) return;
+        // a chosen name arrives with the chat side: the lobby shows it from now on (a running match keeps its names)
+        this.rename(p);
+        this.touch(p);
     }
 
     /** The `party` frame for one member: its own copy adds its card's catId and custom cat name. */

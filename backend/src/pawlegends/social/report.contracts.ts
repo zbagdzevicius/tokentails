@@ -25,7 +25,11 @@ export type ReportStatus = typeof REPORT_STATUSES[number];
 /** `chat_mute` (CHAT-AVATARS.md §3.4): no DM, party or in-match chat until it ends (1, 7, 30 days or permanent). */
 export const SANCTION_KINDS = ['warn', 'queue_lock', 'ranked_lock', 'board_exclude', 'pvp_ban', 'chat_mute'] as const;
 export type SanctionKind = typeof SANCTION_KINDS[number];
-export const RESOLVE_ACTIONS = ['dismiss', ...SANCTION_KINDS] as const;
+/**
+ * `name_reset` (SOCIAL-RANKED.md §2.3): the target's nickname goes back to the generated name and its next change is
+ * free; no sanction row is written (it is not a penalty the game shows), the reports are marked actioned.
+ */
+export const RESOLVE_ACTIONS = ['dismiss', 'name_reset', ...SANCTION_KINDS] as const;
 export type ResolveAction = typeof RESOLVE_ACTIONS[number];
 
 /** The PvP queues of an mm room a report may name. */

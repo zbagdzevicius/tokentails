@@ -22,6 +22,7 @@ import { onSkinsChanged } from '../render/skins/registry';
 import { recordLadder } from '../meta/ladder';
 import { GRADE_TREAT_XP, gradeMatch } from '../meta/grade';
 import { HERO_IDS, HEROES } from '../data/heroes';
+import { myName, refreshMyName, setMyName } from '../meta/myName';
 import { accountState, heroForSide, loadProfile, noteChampionMatch, noteCoatMatch, noteHeroMatch, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
@@ -1106,7 +1107,7 @@ export class App {
     const season = s.season;
     const def = season ? currentSeason() : null;
     const profile: HomeProfile = {
-      name: accountState().name ?? this.integration.state().playerName ?? 'Guest',
+      name: this.ownName() ?? 'Guest',
       tier: season ? season.tier : null,
       pct: season && def ? (Math.max(0, season.xp) % def.xpPerTier) / def.xpPerTier : 0,
       xp: season ? season.xp : null,
@@ -1144,6 +1145,12 @@ export class App {
     initLiveops((op, args) => this.integration.api(op, args), () => loadProfile().matches > 0, () => this.screen === 'title' && this.refreshMeta(false));
     // FLAGS.md: the player's own country (twice a day at most; the backend keeps only the ISO code)
     void refreshMyFlag((op, args) => this.integration.api(op, args));
+    // SOCIAL-RANKED.md §2.3: the name others see (a nickname changed on another device shows here too)
+    if (this.bridge.active && accountState().signedIn)
+      void refreshMyName((op, args) => this.integration.api(op, args)).then((changed) => {
+        if (changed && this.screen === 'title') this.showTitle(false);
+      });
+    else if (!accountState().signedIn) setMyName(null);
     // gaps6 coat drop: a tile previews the coat in Heroes → Coats (everywhere); the web also opens the store's coats
     setDropAction({
       preview: (coat) => {
@@ -1368,6 +1375,8 @@ export class App {
       onSettings: () => this.openSettings(),
       // Social, ranked and boards (SOCIAL-RANKED.md §14): through the host's session, so embedded only
       onSocial: this.bridge.active ? () => this.openSocial() : undefined,
+      // the Profile sheet (SOCIAL-RANKED.md §2.3): name, avatar, title; through the host too
+      onProfile: this.bridge.active ? () => this.openProfile() : undefined,
       socialBadge: this.socialBadge,
       onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
       onExit: this.bridge.kind === 'frame'
@@ -1504,7 +1513,7 @@ export class App {
           },
         },
         looks: p.looks as Record<HeroId, Partial<Look>>,
-        playerName: this.integration.state().playerName ?? null,
+        playerName: this.ownName(),
         onLook: (h, look) => {
           const q = loadProfile();
           q.looks[h] = { coat: look.coat, chroma: look.chroma, ...(look.dye ? { dye: look.dye } : {}) };
@@ -1691,6 +1700,39 @@ export class App {
     b.textContent = n > 9 ? '9+' : String(n);
   }
 
+  /**
+   * The signed-in player's public name (SOCIAL-RANKED.md §2.3: the nickname others see, as `name.get` last answered),
+   * else the host's profile name; null for a guest.
+   */
+  private ownName(): string | null {
+    const acc = accountState();
+    return (acc.signedIn ? myName() : null) ?? acc.name ?? this.integration.state().playerName ?? null;
+  }
+
+  private profileSheet: import('../social/profileSheet').ProfileSheet | null = null;
+
+  /** The Profile sheet (the Home profile chip): name, avatar and border, title, and a link to the flag setting. */
+  private openProfile(): void {
+    if (this.profileSheet && !this.profileSheet.closed) return;
+    sfx.play('click');
+    void import('../social/profileSheet')
+      .then(({ ProfileSheet }) => {
+        if (this.profileSheet && !this.profileSheet.closed) return;
+        this.profileSheet = new ProfileSheet(this.root, {
+          api: (op, args) => this.integration.api(op, args),
+          signedIn: () => accountState().signedIn,
+          signIn: () => this.integration.requestSignIn('save-progress'),
+          openSettings: () => this.openSettings(),
+          ownedItems: () => [...this.ent.snapshot().items],
+          onName: (name) => {
+            if (setMyName(name) && this.screen === 'title') this.showTitle(false);
+          },
+          suggest: () => accountState().name ?? null,
+        });
+      })
+      .catch((err: unknown) => reportCrash('window', err));
+  }
+
   private openSocial(tab?: import('../social/socialSheet').SocialTab): void {
     if (this.social && !this.social.closed) return;
     sfx.play('click');
@@ -1786,7 +1828,7 @@ export class App {
     const look = this.lookFor(hero);
     const setup: MatchSetup = {
       // UX pass 2: the account's profile name, else the party display name the friends see for this seat
-      playerName: this.integration.state().playerName ?? match.names[slot] ?? null,
+      playerName: this.ownName() ?? match.names[slot] ?? null,
       hero,
       trick,
       difficulty,
@@ -1904,8 +1946,8 @@ export class App {
     // no probe here: the match uses the palette cached at its start (a probe landing mid-match would rebuild the rig)
     const setup: MatchSetup = {
       ...c,
-      // UX pass 2: the signed-in player's profile name over their own hero (guests: "You")
-      playerName: this.integration.state().playerName,
+      // UX pass 2: the signed-in player's public name over their own hero (guests: "You")
+      playerName: this.ownName(),
       seed,
       speed: this.speed,
       ...(map ? { map } : {}),
@@ -2580,7 +2622,7 @@ export class App {
           entry,
           muted: sfx.isMuted,
           look: this.lookFor(record.hero),
-          playerName: this.integration.state().playerName,
+          playerName: this.ownName(),
           ...this.viewerHooks(token, back),
           track: (ev, props) => this.analytics.track(ev as 'replay_open', props),
           clip: o.clip ?? null,

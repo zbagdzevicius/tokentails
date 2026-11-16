@@ -199,6 +199,8 @@ export interface RelayChatInfo {
     blocked: string[];
     /** Text chat paused until (ms) after 5 filter rejections (the API's cooldown row). */
     cooldownUntil?: number;
+    /** The account's chosen name (nickname or cat name), shown to peers instead of the generated one. */
+    name?: string;
 }
 
 /** One stored party line (registered senders only; guests' quick ids are delivered live, never stored). */
@@ -1758,6 +1760,7 @@ export class PartyRelay {
                 this.chatInfo.set(member, {
                     tier,
                     av: info.av,
+                    ...(info.name ? { name: info.name } : {}),
                     blocked: info.blocked,
                     info,
                     atMs: this.now(),

@@ -75,6 +75,36 @@ function lobby(n = 3) {
 }
 
 describe('PartyService', () => {
+    it('chosen names (SOCIAL-RANKED.md §2.3): a ticketed account nickname replaces its generated name for everyone', () => {
+        let now = 1_000_000;
+        const chosen = new Map<string, string>();
+        const svc = new PartyService(
+            {
+                heroes: HEROES,
+                tricks: ['dash'],
+                difficulties: ['normal'],
+                sideOf: h => SIDE[h] ?? null,
+                newbieHero: 'clem',
+            },
+            {
+                changed: () => undefined,
+                send: () => undefined,
+                startMatch: () => undefined,
+                chatOf: m => (chosen.has(m) ? { tier: 'quick', name: chosen.get(m) } : undefined),
+            },
+            () => now
+        );
+        const p = svc.create('A', id('a'), 'normal');
+        svc.join(p.code, 'B', id('b'));
+        expect(p.members[0].name).toBe(memberName('A'));
+        // the chat side (with the name) arrives after the join
+        chosen.set('A', 'Mira');
+        svc.chatChanged('A');
+        now += 1;
+        expect(p.members.map(m => m.name)).toEqual(['Mira', memberName('B')]);
+        expect(svc.view(p, 'B').members[0].name).toBe('Mira');
+    });
+
     describe('create, join, full, locked', () => {
         it('creates on the first tap with the creator as leader and a code from the alphabet', () => {
             const t = setup();

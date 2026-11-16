@@ -1,9 +1,10 @@
 import { memberName } from '../party/party-names';
 
 /*
- * The one name resolver of friends, boards and the admin view (SOCIAL-RANKED.md §2.1): the profile's chosen name (one of
- * the player's own cats, whose name G3 `name_reports` already moderates) or the generated D8 name. Never an email,
- * never a Firebase display name, never free text.
+ * The one name resolver of friends, boards, clubs, chat, match history, the party lobby and the admin view
+ * (SOCIAL-RANKED.md §2.1, §2.3): the player's nickname (checked by nickname.ts on write, reportable, resettable by a
+ * moderator), else the chosen cat name (G3 `name_reports` moderates it), else the generated D8 name. Never an email,
+ * never a Firebase display name.
  */
 
 const SAFE_CAT_NAME = /^[\p{L}\p{N}][\p{L}\p{N} '’.-]{0,23}$/u;
@@ -21,10 +22,15 @@ export async function displayNames(deps: DisplayNameDeps, ids: readonly string[]
     const profiles = (await deps.social.find({ _id: { $in: unique } }).lean()) as Array<{
         _id: string;
         name?: { kind?: string; catId?: string };
+        nick?: string;
     }>;
     const catOf = new Map<string, string>();
-    for (const p of profiles)
+    const nickOf = new Map<string, string>();
+    for (const p of profiles) {
         if (p.name?.kind === 'cat' && p.name.catId) catOf.set(String(p._id), String(p.name.catId));
+        if (p.name?.kind === 'nick' && typeof p.nick === 'string' && SAFE_CAT_NAME.test(p.nick))
+            nickOf.set(String(p._id), p.nick);
+    }
     const catNames = new Map<string, string>();
     if (catOf.size && deps.cats) {
         try {
@@ -39,6 +45,11 @@ export async function displayNames(deps: DisplayNameDeps, ids: readonly string[]
         }
     }
     for (const id of unique) {
+        const nick = nickOf.get(id);
+        if (nick) {
+            out.set(id, nick);
+            continue;
+        }
         const catId = catOf.get(id);
         const hit = catId ? catNames.get(catId) : undefined;
         if (hit) {
@@ -57,4 +68,14 @@ export async function displayNames(deps: DisplayNameDeps, ids: readonly string[]
 
 export async function displayNameOf(deps: DisplayNameDeps, id: string): Promise<string> {
     return (await displayNames(deps, [id])).get(id) ?? memberName(id);
+}
+
+/**
+ * The names these accounts chose (a nickname or a cat name); accounts on the generated name are absent. The relay uses
+ * it for the party lobby and the match (MULTIPLAYER.md D8 amended: a chosen, checked name replaces the generated one).
+ */
+export async function chosenNames(deps: DisplayNameDeps, ids: readonly string[]): Promise<Map<string, string>> {
+    const all = await displayNames(deps, ids);
+    for (const [id, name] of [...all]) if (name === memberName(id)) all.delete(id);
+    return all;
 }

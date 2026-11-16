@@ -109,6 +109,8 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   onModesSeen?(ids: string[]): void;
   /** Mode unlocking: a locked mode icon was tapped (analytics). */
   onLockedMode?(m: ModeDef): void;
+  /** The profile chip (SOCIAL-RANKED.md §2.3): the Profile sheet (name, avatar, title). Absent: the chip opens the pass. */
+  onProfile?(): void;
 }
 
 const GEAR =
@@ -183,8 +185,8 @@ function profileHtml(o: HomeScreenOpts, el: string): string {
   const sub = p.tier !== null ? `Tier ${p.tier}` : p.matches > 0 ? `${p.matches} ${p.matches === 1 ? 'match' : 'matches'}` : o.signedIn ? 'Signed in' : 'No account needed';
   const label = `${p.name}. ${sub}${o.title ? `. ${o.title}` : ''}`;
   const inner = `${avatarHtml(o, el)}<span class="hm-pf-t"><b class="hm-pf-name">${esc(p.name)}</b>${o.title ? `<small class="hm-pf-title">${esc(o.title)}</small>` : ''}<span class="hm-xp" aria-hidden="true"><i style="width:${ringPct(p)}%"></i></span><small class="hm-pf-sub">${esc(sub)}</small></span>`;
-  return o.onCollection
-    ? `<button type="button" class="hm-profile" data-a="profile" data-testid="home-profile" aria-label="${esc(`${label}. Open Treat Track and Legends Pass`)}">${inner}</button>`
+  return o.onProfile || o.onCollection
+    ? `<button type="button" class="hm-profile" data-a="profile" data-testid="home-profile" aria-label="${esc(`${label}. ${o.onProfile ? 'Open your profile' : 'Open Treat Track and Legends Pass'}`)}">${inner}</button>`
     : `<div class="hm-profile" data-testid="home-profile" aria-label="${esc(label)}" role="group">${inner}</div>`;
 }
 
@@ -500,7 +502,9 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     else if (a === 'store') o.onStore?.();
     else if (a === 'settings') o.onSettings?.();
     else if (a === 'social') o.onSocial?.();
-    // the nav Pass item, the profile chip and the Season XP chips all open the Treat Track and its Pass tab
+    // the profile chip opens the Profile sheet (SOCIAL-RANKED.md §2.3); the nav Pass item and the Season XP chips (and
+    // the chip where there is no Profile) open the Treat Track and its Pass tab
+    else if (a === 'profile' && o.onProfile) o.onProfile();
     else if (a === 'collection' || a === 'profile' || a === 'pass') o.onCollection?.();
     else if (a === 'locked') {
       o.sound?.('click');

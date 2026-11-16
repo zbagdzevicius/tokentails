@@ -27,6 +27,7 @@ const STATUS_LABELS: Record<PlStatus, string> = {
 
 const ACTION_LABELS: Record<PlResolveAction, string> = {
   dismiss: 'Dismiss',
+  name_reset: 'Reset name',
   warn: 'Warn',
   queue_lock: 'Queue lock',
   ranked_lock: 'Ranked lock',
@@ -66,7 +67,7 @@ export default function PawlegendsReportsPage() {
   const resolve = async (group: IPlReportGroup, action: PlResolveAction) => {
     const reasonCode = window.prompt(
       'Reason code (a-z, 0-9, _), e.g. map_hack, afk, name',
-      action === 'dismiss' ? 'no_violation' : ''
+      action === 'dismiss' ? 'no_violation' : action === 'name_reset' ? 'name' : ''
     );
     if (!reasonCode) return;
     let days: number | undefined;
@@ -253,6 +254,14 @@ function ReportDetail({ accountId }: { accountId: string }) {
   if (isLoading || !data) return <p role="status">Loading…</p>;
   return (
     <div className="grid gap-2 text-xs">
+      {data.target.names?.length ? (
+        <p>
+          Earlier names:{' '}
+          {data.target.names
+            .map((n) => `${n.name}${n.reset ? ' (reset)' : ''}`)
+            .join(' → ')}
+        </p>
+      ) : null}
       <p>
         Map-hack signal: {data.intel.z ?? 'n/a'} over {data.intel.matches}{' '}
         match(es) ({data.intel.hid} hidden-target actions / {data.intel.opp}{' '}

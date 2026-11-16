@@ -6,6 +6,7 @@ import type { MmRoomMember, MmRoomRecord } from '../mm/mm-room.schema';
 import { pawlegendsError } from '../pawlegends.errors';
 import { PawlegendsBuyer } from '../pawlegends.schema';
 import { displayNames } from './display-name';
+import { resetNickname } from './nickname.service';
 import { accountIntel, heroBaselines, intelZ, INTEL } from './intel';
 import {
     isReportReason,
@@ -366,8 +367,10 @@ export class ReportService {
         const recent = await this.pvpRooms(accountId, INTEL.lastRooms);
         const intel = intelZ(accountIntel(recent, accountId), await this.baselines());
         const names = await displayNames({ social: this.social, cats: this.cats }, [accountId]);
+        const prof = (await this.social.findOne({ _id: accountId }).lean()) as { nameHistory?: unknown[] } | null;
         return {
-            target: { accountId, name: names.get(accountId) },
+            // the nickname history (SOCIAL-RANKED.md §2.3): what this player was called before, newest last
+            target: { accountId, name: names.get(accountId), names: prof?.nameHistory ?? [] },
             intel,
             // the reporter is never in the answer (the name_reports rule)
             reports: rows.map(r => ({
@@ -453,6 +456,11 @@ export class ReportService {
                 }
             );
             return { updated: ids.length, sanction: null };
+        }
+        if (action === 'name_reset') {
+            const reset = await resetNickname(this.social, accountId, now);
+            await this.reports.updateMany({ _id: { $in: ids } }, { $set: { status: 'actioned' } });
+            return { updated: ids.length, sanction: null, nameReset: reset };
         }
         if (!(SANCTION_KINDS as readonly string[]).includes(action)) throw REPORT_ERRORS.invalid('action');
         const until = timed ? new Date(now.getTime() + days * DAY) : null;

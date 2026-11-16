@@ -5,7 +5,7 @@ import { REPORT_STATUSES, SANCTION_KINDS, STORED_REPORT_REASONS } from './report
 /*
  * Social, presence, boards, reports and sanctions (docs/plans/moba/SOCIAL-RANKED.md §11). None of these is a score:
  * board rows are written only by `/live` (pawlegends-party-live.ts, `one-writer` checks in social-no-write.spec.ts).
- * Names are never stored: they are derived at read time (`display-name.ts`). No IP and no email is stored anywhere here.
+ * Names are derived at read time (`display-name.ts`); the only stored name is a player's own nickname (nickname.ts). No IP and no email is stored anywhere here.
  */
 
 @Schema({ collection: 'pawlegendssocial', versionKey: false })
@@ -18,9 +18,35 @@ export class PawlegendsSocial {
     @Prop({ type: String, required: true, unique: true })
     code: string;
 
-    /** `{kind: 'generated'}` or `{kind: 'cat', catId}` (one of the player's own cats). Never free text. */
+    /**
+     * `{kind: 'generated'}`, `{kind: 'cat', catId}` (one of the player's own cats) or `{kind: 'nick'}` (the `nick` below,
+     * checked by nickname.ts on write).
+     */
     @Prop({ type: Object, default: { kind: 'generated' } })
-    name: { kind: 'generated' } | { kind: 'cat'; catId: string };
+    name: { kind: 'generated' } | { kind: 'cat'; catId: string } | { kind: 'nick' };
+
+    /** The player's nickname (SOCIAL-RANKED.md §2.3): normalized by shared/name.ts, written only by nickname.service.ts. */
+    @Prop({ type: String, default: undefined })
+    nick?: string;
+
+    /** The nickname's folded skeleton (lowercase, no accents or leet): unique, so `Bob` and `B0B` are one name. */
+    @Prop({ type: String, default: undefined })
+    nickKey?: string;
+
+    /** Name changes made (the first is free, then NAME_CHANGE.yarn each). */
+    @Prop({ type: Number, default: undefined })
+    nameChanges?: number;
+
+    @Prop({ type: Date, default: undefined })
+    nameChangedAt?: Date;
+
+    /** A moderator reset the nickname: the next change is free and has no cooldown. */
+    @Prop({ type: Boolean, default: undefined })
+    nameFree?: boolean;
+
+    /** The previous names, newest last (at most NAME_CHANGE.historyMax), for moderators only. */
+    @Prop({ type: [Object], default: undefined })
+    nameHistory?: Array<{ name: string; kind: string; at: Date; paid: number; reset?: boolean }>;
 
     @Prop({ default: false })
     invisible: boolean;
@@ -75,6 +101,11 @@ export class PawlegendsSocial {
     botSeen?: { l: string[]; s: string[]; t?: Record<string, string[]> };
 }
 export const PawlegendsSocialSchema = SchemaFactory.createForClass(PawlegendsSocial);
+// unique nicknames; only rows that have one (every row before nicknames has none, so autoIndex builds it)
+PawlegendsSocialSchema.index(
+    { nickKey: 1 },
+    { unique: true, partialFilterExpression: { nickKey: { $type: 'string' } } }
+);
 
 @Schema({ collection: 'pawlegendsfriends', versionKey: false })
 export class PawlegendsFriend {

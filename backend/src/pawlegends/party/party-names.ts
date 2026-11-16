@@ -1,7 +1,8 @@
 /*
- * Peer-visible names (MULTIPLAYER.md D8, §5.2): no player free text ever reaches another player. A member shows as
+ * Peer-visible names (MULTIPLAYER.md D8, §5.2): a member without a chosen name shows as
  * "<adjective> <catalog or breed name>" with a card, else "<adjective> <cat noun>". Deterministic from the member id;
- * duplicates in a party get " 2". The custom cat name is only in the owner's own copy (party.service.ts).
+ * duplicates in a party get " 2". D8 amended (SOCIAL-RANKED.md §2.3): a registered account's chosen name (a nickname
+ * checked by shared/name.ts, or its cat name) replaces it (relay-chat-info.ts → party.service.ts `rename`).
  */
 import { createHash } from 'crypto';
 

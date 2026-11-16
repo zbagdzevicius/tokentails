@@ -1,10 +1,12 @@
 /*
  * What the relay reads about an account for chat (CHAT-AVATARS.md §2.2, §5, §7.3): the stored age band (the store's
- * `pawlegendsbuyers` row), an active `chat_mute`, the text cooldown, the accounts it blocked and its resolved avatar.
+ * `pawlegendsbuyers` row), an active `chat_mute`, the text cooldown, the accounts it blocked, its resolved avatar and its
+ * chosen name (a nickname or cat name; absent on the generated name).
  * Never from the client. A read error answers the safe side: unknown band (quick chat), not muted, no blocks, default
  * avatar. Relative imports only (the relay role loads it without the `src/` alias).
  */
 import { resolveAvatars, type AvatarDeps } from '../social/avatar';
+import { chosenNames } from '../social/display-name';
 import { BLOCKS_CAP } from '../social/social.contracts';
 import type { RelayChatInfo } from './party-relay';
 
@@ -31,7 +33,7 @@ export function relayChatInfo(deps: RelayChatInfoDeps) {
                 return fallback;
             }
         };
-        const [buyer, sanctions, blocks, profile, avatars] = await Promise.all([
+        const [buyer, sanctions, blocks, profile, avatars, names] = await Promise.all([
             safe<any>(() => deps.buyers.findOne({ key: `account:${accountId}` }).lean(), null),
             safe(
                 () =>
@@ -47,6 +49,7 @@ export function relayChatInfo(deps: RelayChatInfoDeps) {
             safe(() => deps.blocks.find({ blocker: accountId }).select({ blocked: 1 }).limit(BLOCKS_CAP).lean(), []),
             safe<any>(() => deps.social.findOne({ _id: accountId }).select({ chatCooldownUntil: 1 }).lean(), null),
             safe(() => resolveAvatars(deps.avatars, [accountId]), new Map()),
+            safe(() => chosenNames({ social: deps.social, cats: deps.avatars.cats ?? null }, [accountId]), new Map()),
         ]);
         const band = BANDS.has(buyer?.ageBand) ? buyer.ageBand : null;
         const rows = (sanctions ?? []) as Array<{ until: Date | null }>;
@@ -61,6 +64,7 @@ export function relayChatInfo(deps: RelayChatInfoDeps) {
             muted,
             blocked: ((blocks ?? []) as Array<{ blocked: string }>).map(b => String(b.blocked)),
             ...(avatars.get(accountId) ? { av: avatars.get(accountId) } : {}),
+            ...(names.get(accountId) ? { name: names.get(accountId) } : {}),
             ...(cd > now ? { cooldownUntil: cd } : {}),
         };
     };
