@@ -117,7 +117,7 @@ export function tileHtml(m: ModeDef, o: { selected: boolean; now: number; base: 
       ${m.rank ? `<span class="ms-rank">${esc(m.rank.tier)}${m.rank.lp !== undefined ? ` · ${m.rank.lp} pts` : ''}</span>` : ''}
       <span class="ms-meta">${esc(meta)}</span>
     </button>
-    <button type="button" class="ms-info" data-info="${esc(m.id)}" aria-label="${esc(`About ${m.name}`)}" aria-haspopup="dialog"><i aria-hidden="true">i</i></button>
+    <button type="button" class="ms-info" data-badge data-info="${esc(m.id)}" aria-label="${esc(`About ${m.name}`)}" aria-haspopup="dialog"><i aria-hidden="true">i</i></button>
   </div>`;
 }
 

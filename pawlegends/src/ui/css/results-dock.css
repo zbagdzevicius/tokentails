@@ -1,0 +1,59 @@
+/* Results dock (s7 ui, founder Nov 15: on a 1280x590 phone the reward strip drew over the scoreboard and the MVP card).
+   The results are two zones that cannot meet: the stats column on the left (`--res-col-l` + `--res-col-w`) and, right
+   of it, one flex column (the dock) that stacks Home and the MVP card at the top and the reward strip and the buttons
+   at the foot. Nothing in the dock is absolutely placed any more, so no size of screen can stack one on another; the
+   strip and the buttons wrap inside the dock's width. tests/e2e/overlap-audit.spec.ts measures it at every size. */
+.pl-results { --res-col-l: calc(56px + var(--safe-l, 0px)); --res-col-w: min(520px, 42vw); --res-gap: 16px; }
+@media (max-height: 480px) {
+  .pl-results { --res-col-l: calc(24px + var(--safe-l, 0px)); --res-col-w: min(330px, 44vw); }
+}
+/* the narrowest phones (667 wide): a slightly narrower column, so both buttons fit side by side in the dock */
+@media (max-height: 480px) and (max-width: 720px) {
+  .pl-results { --res-col-w: min(300px, 41vw); }
+}
+.pl-results .pl-results-col { left: var(--res-col-l); max-width: var(--res-col-w); box-sizing: border-box; }
+/* large menu text zooms the column: its box, in zoomed pixels, keeps the same footprint */
+html[data-menu-text='large'] .pl-results .pl-results-col { left: calc(var(--res-col-l) / var(--mm-zoom, 1)); max-width: calc(var(--res-col-w) / var(--mm-zoom, 1)); }
+
+.pl-results .pl-res-dock {
+  position: absolute; z-index: 3; box-sizing: border-box; min-width: 0;
+  top: calc(12px + var(--safe-t, 0px)); bottom: calc(14px + var(--safe-b, 0px)); right: calc(18px + var(--safe-r, 0px));
+  left: calc(var(--res-col-l) + var(--res-col-w) + var(--res-gap));
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 10px;
+  /* the 3D hero turns behind it: only the controls take pointer events */
+  pointer-events: none;
+}
+.pl-results .pl-res-top, .pl-results .pl-res-foot { pointer-events: none; max-width: 100%; min-width: 0; }
+.pl-results .pl-res-top { display: flex; align-items: flex-start; justify-content: flex-end; gap: 16px; }
+.pl-results .pl-res-foot { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.pl-results .pl-res-dock .pl-tohome { position: relative; top: auto; right: auto; left: auto; flex: none; pointer-events: auto; }
+/* the MVP card (cards.css places it absolutely over the stage): in the dock's top row, room above for its ribbon */
+.pl-results .pl-res-dock .tt-mvp { position: relative; top: auto; right: auto; transform: none; flex: none; margin-top: 30px; }
+.pl-results .pl-res-dock .tt-mvp.lost { margin-top: 24px; }
+.pl-results .pl-res-dock .pl-reward {
+  position: relative; right: auto; bottom: auto; box-sizing: border-box; max-width: 100%; flex-wrap: wrap; justify-content: flex-end;
+}
+.pl-results .pl-res-dock .actions.pinned {
+  position: relative; right: auto; bottom: auto; margin: 0; max-width: 100%; flex-wrap: wrap; justify-content: flex-end;
+}
+@media (max-height: 520px) {
+  .pl-results .pl-res-dock .tt-mvp { margin-top: 18px; }
+  .pl-results .pl-res-top { gap: 10px; }
+  .pl-results .pl-res-foot { gap: 8px; }
+}
+@media (max-height: 400px) {
+  .pl-results .pl-res-dock .tt-mvp { --tt-w: 100px; }
+}
+
+/* the scoreboards scroll sideways inside their own box on a narrow column (never cut by the screen or a panel) */
+.pl-results .pl-table, .pl-results .pl-prog { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+
+/* the narrowest phones (667x375): compact buttons, so Switch and Run it back sit side by side above the screen's foot
+   (stacked, Run it back's line ran under the bottom edge) */
+@media (max-height: 480px) and (max-width: 720px) {
+  .pl-results .pl-res-dock .actions.pinned { gap: 8px; }
+  .pl-results .pl-res-dock .actions.pinned .pl-btn { padding: 8px 12px; font-size: 15px; }
+  .pl-results .pl-res-dock .actions.pinned .pl-btn.big { padding: 8px 14px; font-size: 16px; }
+  .pl-results .pl-res-dock .actions.pinned .pl-btn:not(.big) small { display: none; }
+  .pl-results .pl-res-dock .actions.pinned .pl-btn small { font-size: 10px; }
+}

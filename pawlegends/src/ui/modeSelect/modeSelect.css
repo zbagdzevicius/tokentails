@@ -231,9 +231,12 @@
 /* the "i": a 24 px glyph at 4 o'clock on the ring with a 44 px hit area (secondary: sky) */
 .ms-info {
   position: absolute; z-index: 4; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
-  left: calc(var(--ms-tile) * 0.933 - 22px); top: calc(var(--ms-tile) * 0.75 - 22px);
+  /* s7 ui overlap audit: the 44 px hit box ends at the tile's right edge (it reached 2 px into the next tile's pick on a phone);
+     the drawn "i" keeps its place on the ring at 4 o'clock */
+  left: calc(var(--ms-tile) - 44px); top: calc(var(--ms-tile) * 0.75 - 22px);
   display: grid; place-items: center;
 }
+.ms-info i { translate: calc(22px - var(--ms-tile) * 0.067) 0; }
 .ms-info i {
   width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: italic 900 14px/1 var(--v6-font-display); color: var(--v6-navy);
   background: var(--v6-grad-sky);

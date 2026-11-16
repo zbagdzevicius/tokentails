@@ -216,9 +216,13 @@ details[open] > .hm-round::before {
 .hm-evlist .t small { font: 600 11px/1 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.8; }
 .ev-none { margin: 4px 6px; font-size: 13px; opacity: 0.8; }
 
-/* the host's cards slot (embed: champion chip, sign-in, squad): beside the left stack, never over PLAY */
+/* the host's cards slot (embed: champion chip, sign-in, squad, level chips): beside the left stack, never over PLAY.
+   s7 ui (founder, Nov 15): it starts under the champion nameplate (--hm-slot-t), so a long name on a narrow phone, or
+   a notch's safe inset pushing the slot right, can never put the level chips on the banner; it ends above the nav */
+.pl-home { --hm-slot-t: calc(var(--hm-t) + 110px); }
 .pl-home .hm-slot {
-  position: absolute; left: calc(var(--hm-l) + var(--hm-round) + 14px); top: calc(var(--hm-t) + 60px); max-width: 240px; max-height: calc(100% - 200px);
+  position: absolute; left: calc(var(--hm-l) + var(--hm-round) + 14px); top: var(--hm-slot-t); max-width: 240px;
+  max-height: calc(100% - var(--hm-slot-t) - var(--hm-nav-h) - var(--hm-b) - 12px);
   overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0;
 }
 .pl-home .hm-slot:empty { display: none; }
@@ -441,13 +445,6 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 /* focus */
 .pl-home button:focus-visible:not(.hm-play), .pl-home summary:focus-visible { outline: 3px solid var(--v6-bolt, #ffe14a); outline-offset: 3px; }
 
-/* the release watermark: just above the nav on the left, low contrast */
-.pl-home .lb-ver {
-  position: absolute; left: calc(var(--hm-l) + 6px); bottom: calc(var(--hm-b) + var(--hm-nav-h) + 2px); z-index: 0; height: 14px; padding: 0 4px; margin: 0; border: 0;
-  background: none; cursor: copy; font: 500 10px/14px var(--font, sans-serif); color: var(--v6-cream, #fff3e3); opacity: 0.35; max-width: 34vw; font-variant-numeric: tabular-nums;
-}
-.pl-home .lb-ver span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-
 /* leaving (PLAY): the top bar up, the nav down, the rest fades */
 .pl-home.leaving .hm-top, .pl-home.leaving .hm-corner, .pl-home.leaving .hm-cur { transform: translateY(-24px); opacity: 0; transition: opacity 0.22s ease-in, transform 0.22s ease-in; }
 .pl-home.leaving .hm-cur { transform: translate(-50%, -24px); }
@@ -478,7 +475,8 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
   .hm-slide-t small { font-size: 13px; }
   .hm-left { top: calc(var(--hm-t) + 86px); gap: 14px; }
   .hm-rl { font-size: 13px; }
-  .pl-home .hm-slot { top: calc(var(--hm-t) + 86px); left: calc(var(--hm-l) + var(--hm-round) + 18px); max-width: 300px; }
+  .pl-home { --hm-slot-t: calc(var(--hm-t) + 138px); }
+  .pl-home .hm-slot { left: calc(var(--hm-l) + var(--hm-round) + 18px); max-width: 300px; }
   .hm-round .hm-ico { width: 26px; height: 26px; }
   .hm-chip { height: 38px; }
   .hm-chip b { font-size: 16px; }
@@ -505,6 +503,12 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 @media (max-width: 760px) and (max-height: 480px) {
   .hm-pf-name { max-width: 140px; }
 }
+/* phones: the level chips in two compact columns (a smaller footprint over the arena) */
+@media (max-height: 480px) {
+  .pl-home .hm-slot .plc-levels { display: grid; grid-template-columns: repeat(2, max-content); gap: 4px; }
+  .pl-home .hm-slot .plc-level { padding: 3px 8px; border-radius: var(--v6-r-xs, 4px); font-size: 10px; }
+  .pl-home .hm-slot .plc-level b { font-size: 12px; }
+}
 
 /* ---------------------------------------------------------------------------------------- hide ladder */
 /* step 1 (<= 360): nav icons only, the promo a 56 px square */
@@ -517,6 +521,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
   .hm-plate-s { display: none; }
   .hm-plate-n { font-size: 18px; }
   .hm-left { top: calc(var(--hm-t) + 52px); gap: 8px; }
+  .pl-home { --hm-slot-t: calc(var(--hm-t) + 100px); }
 }
 /* step 2 (<= 320): no left stack (Today stays in Events' place), no promo */
 @media (max-height: 320px) {
@@ -524,7 +529,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
   .pl-home { --hm-play: 80px; }
 }
 @media (max-height: 260px) {
-  .hm-stage, .pl-home .lb-ver { display: none; }
+  .hm-stage { display: none; }
 }
 /* narrow phones: the nameplate sits under the top bar between the profile and the corner group */
 @media (max-width: 760px) {

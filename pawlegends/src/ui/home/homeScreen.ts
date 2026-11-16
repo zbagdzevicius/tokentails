@@ -38,7 +38,6 @@ import { frameRing } from '../avatar';
 import { cssPicUrl } from '../cssUrl';
 import { icon } from '../icons';
 import type { Choice } from '../screens';
-import { bindVersionMark, versionMarkHtml } from '../versionMark';
 import type { ModeSelectHandle } from '../modeSelect/modeSelect';
 import { countdownText, effectiveState, metaLine, modeById, playable, queueFor, type ModeChoice, type ModeDef, type Queue } from '../modeSelect/modes';
 import { crestSvg } from '../modeSelect/crest';
@@ -293,7 +292,10 @@ export function patchHome(el: HTMLElement | null | undefined, o: HomeScreenOpts)
  */
 export const HOME_ENTRANCE = ['hm-drop', 'hm-slide-l', 'hm-slide-r', 'hm-rise', 'hm-rise-c', 'hm-pop-in'] as const;
 
-/** The patched regions, in DOM order (the corner, the cards slot, the fx layer, toast and version mark stay put). */
+/**
+ * The patched regions, in DOM order (the corner, the cards slot, the fx layer and the toast stay put). The release line
+ * lives in Settings (s7 ui, founder Nov 15: on a phone it ran under the nav and through a champion).
+ */
 const REGIONS = ['.hm-top', '.hm-left', '.hm-promo', '.hm-stage', '.hm-nav', '.hm-playc'] as const;
 type Region = (typeof REGIONS)[number];
 
@@ -380,8 +382,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     ${shown['.hm-stage']}
     ${shown['.hm-nav']}
     ${shown['.hm-playc']}
-    <p class="hm-toast" role="status" aria-live="polite"></p>
-    ${versionMarkHtml()}`;
+    <p class="hm-toast" role="status" aria-live="polite"></p>`;
 
   // ------------------------------------------------------------------------------------------- behaviour
   let leaving = false;
@@ -663,7 +664,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     document.removeEventListener('keydown', onKey);
     patchers.delete(root);
   });
-  bindVersionMark(root, ac?.signal);
   parent.appendChild(root);
   // sim v22: a `?mode=` link's mode this build does not know ("Update to play …, playing Skirmish for now")
   if (o.notice) toast(o.notice);

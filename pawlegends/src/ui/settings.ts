@@ -50,6 +50,7 @@ import { accountActionOf, accountRowHtml, type AccountModel, type AccountSend } 
 import { menuText, menuTextRowHtml, setMenuText, type MenuText } from './history/textScale';
 import { FPS_CHOICES, type FpsChoice } from '../render/perf/prefs';
 import { musicPref, setMusicPref } from '../audio/musicPref';
+import { bindVersionMark, versionMarkHtml } from './versionMark';
 
 export interface SettingsState {
   muted: boolean;
@@ -159,6 +160,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   };
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
+  let verAc: AbortController | null = null;
   const render = (): void => {
     // Audit UX-10: a corner ✕ (sticky) and a sticky Done, so the exit is on screen on a 667x375 phone
     root.innerHTML = `<div class="card"><button class="pl-x" data-a="x" aria-label="Close settings">✕</button><h2>Settings</h2>
@@ -211,7 +213,12 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${accountRowHtml(o.account?.model ?? null)}
       <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
       <p class="fine links" data-testid="settings-legal"><a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy</a>${o.termsUrl ? ` · <a href="${linkAttr(o.termsUrl)}" target="_blank" rel="noopener">Terms</a>` : ''}</p>
+      <p class="fine set-ver" data-testid="settings-version">${versionMarkHtml()}</p>
       <button class="pl-btn big" data-a="close">Done</button></div>`;
+    // the release line (s7 ui: moved here from Home's corner): a tap copies it for a bug report
+    verAc?.abort();
+    verAc = new AbortController();
+    bindVersionMark(root, verAc.signal);
   };
   render();
   bindCameraHeightRow(root);
@@ -354,6 +361,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
   const close = (): void => {
     if (!root.isConnected) return;
+    verAc?.abort();
     document.removeEventListener('keydown', onKey, true);
     root.remove();
     o.onClose();

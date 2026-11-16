@@ -173,7 +173,7 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
 .pl-results .pl-treats .head small, .pl-results .pl-reward .rw-treat small { color: var(--v6-logo-gold-hi); }
 .pl-results .pl-treats .bar, .pl-results .pl-reward .rw-treat .bar { border-radius: 2px; background: rgb(var(--v6-cream-rgb) / 0.12); box-shadow: inset 0 0 0 1px rgb(var(--v6-night-rgb) / 0.6); }
 .pl-results .pl-treats .fill, .pl-results .pl-reward .rw-treat .fill { border-radius: 2px; background: repeating-linear-gradient(118deg, var(--v6-logo-gold) 0 14px, var(--v6-logo-gold-hi) 14px 20px); }
-.pl-results .pl-treats .open .pl-icon, .pl-results .pl-reward .rw-chest .pl-icon { color: var(--v6-logo-gold); }
+.pl-results .pl-treats .open .pl-icon, .pl-results .pl-reward .rw-open .pl-icon { color: var(--v6-logo-gold); }
 .pl-results .pl-treats .next { color: var(--v6-muted); opacity: 1; }
 .pl-results .pl-treats .next b { color: var(--v6-cream); }
 .pl-results .pl-treats .next small, .pl-results .pl-treats .bonus { color: var(--v6-logo-gold-hi); }
@@ -186,7 +186,7 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
   box-shadow: inset 0 2px 0 rgb(var(--v6-logo-gold-rgb) / 0.7), var(--v6-shadow-2);
 }
 .pl-results .pl-reward small { color: var(--v6-muted); opacity: 1; }
-.pl-results .pl-reward .rw-chest { border-radius: var(--v6-r-xs); background: linear-gradient(90deg, rgb(var(--v6-logo-gold-rgb) / 0.22), transparent); }
+.pl-results .pl-reward .rw-open { border-radius: var(--v6-r-xs); background: linear-gradient(90deg, rgb(var(--v6-logo-gold-rgb) / 0.22), transparent); }
 
 /* daily quests in the column: flat tiles, success ticks */
 .pl-results .pl-quests > b { color: var(--v6-muted); opacity: 1; text-transform: uppercase; letter-spacing: 0.06em; font-size: 12px; }
