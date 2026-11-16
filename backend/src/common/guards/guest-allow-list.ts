@@ -46,6 +46,11 @@ export const GUEST_ALLOW_LIST: Readonly<Record<string, Readonly<AllowGuestOption
     // Pawlegends country flags (FLAGS.md): a guest's own ISO country (never the IP) and its hide choice.
     'GET /pawlegends/flag': {},
     'POST /pawlegends/flag': {},
+    // Pawlegends match history (MATCH-HISTORY.md): a guest's own rows, one of its matches and who may see them.
+    // Read only (rows are written by /live alone); another player's history needs a registered account.
+    'GET /pawlegends/history': {},
+    'GET /pawlegends/history/match/:id': {},
+    'POST /pawlegends/history/privacy': {},
     // Pawlegends push notifications (SHARE-PUSH.md section 2): a guest's own device subscription and its categories
     // (Winter Nap, events and ranked are for every player). No score, no reward.
     'POST /pawlegends/push/subscribe': {},
