@@ -77,7 +77,8 @@ describe('ping wheel and chips (GAPS B1)', () => {
     expect(chipPing('pudding')).toBe(PING_KIND.Pudding);
     expect(chipPing('calm')).toBe(PING_KIND.Pudding);
     expect(chipPing('escort')).toBe(PING_KIND.Group);
-    expect(chipPing('suddenDeath')).toBe(PING_KIND.Group);
+    expect(chipPing('whistle')).toBe(PING_KIND.Group);
+    expect(chipPing('finish')).toBe(PING_KIND.Group);
     expect(chipPing('rats')).toBe(PING_KIND.GoHere);
     expect(chipPing('gates')).toBeNull();
   });

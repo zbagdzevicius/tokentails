@@ -64,7 +64,7 @@ export interface BotParams {
 
 /** Match rules that depend on the difficulty (sim v4), beyond the bots. */
 export interface DifficultyRules {
-  /** Cores cannot be hit before this tick (0 = from the start; Sudden Death decay still applies). Paces the end. */
+  /** Cores cannot be hit before this tick (0 = from the start). Paces the end. */
   coreOpenAt: number;
   /**
    * Sim v5: before this tick the human's team's core never drops below humanCoreFloorBp of its max HP (0 = off).

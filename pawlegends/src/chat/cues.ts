@@ -29,7 +29,6 @@ export type ChatCue =
   | { k: 'objectiveSpawn'; kind: string }
   | { k: 'comeback'; team: Team }
   | { k: 'sunset' }
-  | { k: 'suddenDeath' }
   /** A human pinged and `took` allied bots took it as an order. */
   | { k: 'ping'; team: Team; kind: string; took: number }
   /** Sim v21 (Kibble Cannon): a cannon shot hit `team`, fired by `by` (when known). */
@@ -134,9 +133,6 @@ export function cuesFromEvents(events: readonly unknown[] | null | undefined, sl
       }
       case 'sunset':
         out.push({ k: 'sunset' });
-        break;
-      case 'suddenDeath':
-        out.push({ k: 'suddenDeath' });
         break;
       case 'ping': {
         const took = num(e.took, 0);

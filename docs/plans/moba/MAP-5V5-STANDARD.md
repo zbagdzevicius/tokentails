@@ -335,7 +335,7 @@ pushes one lane. Its cost is one aura check per minion each second (96 minions �
 
 - Its two spots, (78, 50) and (50, 78), are on the river axis next to each quadrant's upper river entrance (P6 ends at
   (76, 48)). The carved map already funnels traffic past them.
-- Timing stays as in v21: first at 3:00, respawn 90 s, alternating spots, no spawn after Sudden Death, and the
+- Timing stays as in v21: first at 3:00, respawn 90 s, alternating spots, no spawn after Sudden Death (sim v32: after the late Sunset tick, 9:00), and the
   Underdog offset.
 - **Where it fits:** it is a mid-river map event between the two objectives. It is not a third objective: it never
   spawns in a pit, and it gives no team reward of its own.
@@ -576,7 +576,7 @@ rebuilt identically in a live match and in its replay.
 | Kibble Cannon first fired | 3:30 | 3:05–4:30 | spawn 3:00 |
 | First tower | 5:00 | 4:00–6:00 | Fortified ends at 5:00 |
 | **First Great Pudding calm** | 9:00 | 8:15–10:30 | spawn 8:00 |
-| Sunset / Sudden Death (Normal) | 10:00 / 13:00 | fixed | timeline row unchanged |
+| Sunset / Sudden Death (Normal) | 10:00 / 13:00 | fixed | timeline row unchanged. Sim v32: no Sudden Death; late Sunset from 9:00 with Hearthwood's own ramp (V32-NO-SUDDEN-DEATH.md) |
 | **Match length** | **12:00–14:30 median**, ≤ 2% safety end (16:00) | | GDD §3: 12–15 min; the existing 5v5 gate |
 
 **Flow targets** (map-study probe, against the v21 baseline measured first on the same seeds):

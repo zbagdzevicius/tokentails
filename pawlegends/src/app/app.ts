@@ -62,7 +62,7 @@ import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
-import { loadingVeil, rotatePrompt, suddenDeathS } from '../ui/screensCore';
+import { lateS, loadingVeil, rotatePrompt } from '../ui/screensCore';
 import type { Choice } from '../ui/screens';
 /** gaps5 polish 8: the champion select, the results and the pause menu are one lazy chunk (ui/screens.ts). */
 type ScreensMod = typeof import('../ui/screens');
@@ -2199,7 +2199,7 @@ export class App {
     if (won && !partyEnd && !blitz) {
       try {
         const base = shareBase({ appShell: inAppShell(), embedded: this.bridge.active, referrer: document.referrer, href: location.href });
-        link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds: seconds < suddenDeathS(e.replay.difficulty) ? seconds : 0 }, base);
+        link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds: seconds < lateS(e.replay.difficulty) ? seconds : 0 }, base);
       } catch {
         link = null;
       }
@@ -2284,6 +2284,9 @@ export class App {
         assists: e.assists,
         level: e.level,
         teamKills: e.teamKills,
+        ...(e.teamTowers ? { teamTowers: e.teamTowers } : {}),
+        reason: e.result.reason,
+        ...(e.result.draw ? { draw: true } : {}),
         firstWin: rec.firstWin,
         best: rec.best,
         dareLink: link,

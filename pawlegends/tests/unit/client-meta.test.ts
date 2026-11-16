@@ -84,7 +84,7 @@ describe('interpolation', () => {
   });
   it('keeps the render clock behind the newest snapshot and releases events in order', () => {
     const b = new SnapBuffer();
-    b.pushEvents([{ type: 'sunset', tick: 5 }, { type: 'suddenDeath', tick: 400 }]);
+    b.pushEvents([{ type: 'sunset', tick: 5 }, { type: 'cannonSoon', tick: 400 } as never]);
     let t = 0;
     for (let i = 0; i < 240; i++) {
       if (i % 2 === 0) b.push(snap(t++, [hero(t * 100)]));

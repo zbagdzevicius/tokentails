@@ -375,7 +375,8 @@ export interface ZoneSnap {
   arm?: number;
 }
 
-export type MatchPhase = 'gate' | 'play' | 'sunset' | 'suddenDeath' | 'ended';
+/** Sim v32: Sunset is the last phase ('suddenDeath', sim v4 to v31, is gone). */
+export type MatchPhase = 'gate' | 'play' | 'sunset' | 'ended';
 
 export interface MatchClock {
   tick: number;
@@ -412,7 +413,6 @@ export type SimEvent =
   | { type: 'objective'; tick: number; kind: 'grizzlechop' | 'pudding'; team: Team; slot: number }
   | { type: 'buffSteal'; tick: number; id: number; from: number; kind: 'prickle' | 'feather' }
   | { type: 'sunset'; tick: number }
-  | { type: 'suddenDeath'; tick: number }
   // Sim v4 (fun plan §0.2):
   /** Hero `id` took a pickup. */
   | { type: 'pickup'; tick: number; id: number; kind: PickupKind; team: Team }

@@ -35,7 +35,7 @@ const kill = (m: MatchHandle, victim: number, by: number): void => {
 
 describe('sim v28: version and data', () => {
   it('is v28 with One Lane Brawl, the Duel and Boss Weekend appended', () => {
-    expect(SIM_VERSION).toBe(31);
+    expect(SIM_VERSION).toBe(32);
     expect(MUTATORS.slice(0, 7)).toEqual(['none', 'blitz', 'cannon', 'practice', 'toybox', 'rapid', 'bounty']);
     expect(MUTATORS.slice(7)).toEqual(['onelane', 'duel', 'boss']);
     const none = MUTATOR_RULES.none;

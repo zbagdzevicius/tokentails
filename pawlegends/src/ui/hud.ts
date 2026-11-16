@@ -175,7 +175,8 @@ function fmtClock(s: number): string {
   return `${m}:${String(r).padStart(2, '0')}`;
 }
 
-const PHASE_NEXT: Record<MatchClock['phase'], string> = { gate: 'Gates open', play: 'Sunset', sunset: 'Sudden Death', suddenDeath: 'Final whistle', ended: '' };
+/** Sim v32: Sunset is the last phase; its line counts down only to a mode's final whistle (Blitz 3:15). */
+const PHASE_NEXT: Record<MatchClock['phase'], string> = { gate: 'Gates open', play: 'Sunset', sunset: 'Final whistle', ended: '' };
 
 /** What the phone score strip carries (scoreDense): team kills, the own K / D / A, the clock text, the extra chips. */
 export interface StripLoad {

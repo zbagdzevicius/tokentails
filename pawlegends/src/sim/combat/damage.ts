@@ -7,7 +7,7 @@
 import { HERO_RULES, RESPAWN } from '../../data/xp';
 import { HERO_BASIC_VS_HERO_BP, HERO_IDS, HERO_VS_HERO_BP, HEROES } from '../../data/heroes';
 import { BRUSH_ATTACK_REVEAL_TICKS, RADIUS } from '../../data/map';
-import { SUDDEN_DEATH, SUNSET } from '../../data/timeline';
+import { SUNSET } from '../../data/timeline';
 import { TOWERS } from '../../data/towers';
 import type { SimEvent } from '../api';
 import { ZONE_KIND } from '../../data/effects';
@@ -35,15 +35,16 @@ import { rulesOf } from '../rules';
 import { fortifyUntilOf, mutOf, mutatorRespawn } from '../mutator';
 import { BOSS } from '../../data/boss';
 import { bossDamageBp, isBoss } from '../units/boss';
+import { lateRespawn, lateStructureBp, lateTowerMinionBp } from '../late';
 
 export { respawnTicks } from '../progression/respawn';
 
 export type HitKind = Extract<SimEvent, { type: 'hit' }>['kind'];
 
 export interface HitOptions {
-  /** Exact amount: no armour, no Sunset or backdoor modifier (fountain, Sudden Death). */
+  /** Exact amount: no armour, no Sunset or backdoor modifier (fountain, takedown core damage). */
   pure?: boolean;
-  /** Ignore structure invulnerability (Sudden Death core damage). */
+  /** Ignore structure invulnerability (takedown core damage). */
   pierce?: boolean;
   /**
    * Sim v21 (V21-FUN.md §1.3, the Kibble Cannon's KABOOM): a hero target loses all its HP and shield at once; no kit
@@ -126,6 +127,8 @@ export function dealDamage(
     if (isHumanSlot(w, src)) raw = applyBp(raw, rulesOf(m).humanDamageBp);
   }
   if (isHumanSlot(w, dst) && !opts.pure && srcTeam !== w.team[dst]) raw = applyBp(raw, rulesOf(m).humanTakenBp);
+  // Sim v32: in late Sunset towers hit minions less every minute (late.ts lateTowerMinionBp), so the waves push through.
+  if (srcKind === Kind.Tower && w.kind[dst] === Kind.Minion) raw = applyBp(raw, lateTowerMinionBp(w, tick));
   let dmg = opts.pure ? raw : idiv(raw * HERO_RULES.armourBase, HERO_RULES.armourBase + w.armour[dst]);
   // Sim v22 (Hearthwood) Sugar Rush: minions beside an allied Sugar Rush hero take less and hit structures harder.
   if (w.mg.length > 0 && !opts.pure) {
@@ -133,7 +136,8 @@ export function dealDamage(
     else if (structure && srcKind === Kind.Minion && src >= 0 && w.kind[src] === Kind.Minion && w.alive[src] === 1 && sugared(w, src)) dmg = applyBp(dmg, SUGAR_RUSH.structBp);
   }
   if (structure && !opts.pure) {
-    if (tick >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.structureDamageBp);
+    // Sim v32: late Sunset adds its share every minute past the late tick (late.ts; Sudden Death until sim v31).
+    if (tick >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.structureDamageBp + lateStructureBp(m, tick, srcTeam));
     // Sim v21 Fortified: heroes deal TOWERS.fortifyBp (sim v27: DifficultyRules.fortifyHeroBp) to towers early (V21-FUN.md §3.1); sim v26 (V26-TOWERS.md §1.B):
     // minions and the escort Pudding's breath deal TOWERS.fortifyMinionBp.
     if (w.kind[dst] === Kind.Tower && tick < fortifyUntilOf(w)) {
@@ -329,11 +333,13 @@ export function resolveDeaths(m: MatchHandle): void {
         w.timer[id] = Math.min(applyBp(w.timer[id], HEARTHWOOD_RULES.respawnBp), HEARTHWOOD_RULES.respawnCap);
         stealJungleBuffs(m, id, killer);
       }
+      // Sim v32: past the late tick the wait grows a little every minute, up to LATE_SUNSET.respawnHardCap (late.ts).
+      w.timer[id] = lateRespawn(w, tick, w.timer[id]);
       heroKilled(m, id);
-      // From Sunset (v4; Sudden Death before): each takedown deals core damage to the victim's core.
-      // Sim v5: before Sudden Death it scales with how open that core is (an inner tower down: the full share, else
-      // SUNSET.closedCoreBp), so towers still decide most matches; the human's core is spared while
-      // the human's core keeps its DifficultyRules floor before humanCoreOpenAt (Rookie, in dealDamage).
+      // From Sunset (v4): each takedown deals core damage to the victim's core. Sim v5: it scales with how open that core
+      // is (an inner tower down: the full share, else SUNSET.closedCoreBp), so towers still decide most matches; the
+      // human's core keeps its DifficultyRules floor before humanCoreOpenAt (Rookie, in dealDamage). Sim v32: the same
+      // share to the end (Sudden Death's flat 10%, sim v4 to v31, is gone).
       const victimTeam = w.team[id];
       const chip = takedown ? rulesOf(m).takedownChipBp : 0;
       // Sim v28: where no structure takes damage (Boss Weekend), takedowns chip nothing.
@@ -361,8 +367,7 @@ export function resolveDeaths(m: MatchHandle): void {
       } else if (!isHumanSlot(w, id) || rulesOf(m).humanDeathCore) {
         // Sim v7: on Rookie the human's own deaths cost its core nothing (DifficultyRules.humanDeathCore).
         const core = RANGE.cores + victimTeam;
-        const sd = tick >= w.globals[G.SuddenDeath];
-        const bp = sd ? SUDDEN_DEATH.takedownCoreBp : coreExposed(w, victimTeam) ? SUNSET.takedownCoreBp : SUNSET.closedCoreBp;
+        const bp = coreExposed(w, victimTeam) ? SUNSET.takedownCoreBp : SUNSET.closedCoreBp;
         // Sim v22: a mutator may scale it (mutOf(w).takedownCoreBp)
         dealDamage(m, -1, enemy, Kind.None, core, applyBp(applyBp(w.maxHp[core], bp), mutOf(w).takedownCoreBp), 'zone', { pure: true, pierce: true });
       }

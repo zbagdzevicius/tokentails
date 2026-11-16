@@ -369,11 +369,11 @@ describe('sim v12 XP (S2), respawn and clock (S3), bots (S4)', () => {
     expect(ours * BP_ONE >= (theirs + 2 * BOT_AI.powerPerToy) * p).toBe(false);
   });
 
-  it('Normal Sunset and Sudden Death moved by 45 s, Easy has its own row, Rookie unchanged', () => {
-    expect(TIMELINE_BY.normal).toEqual({ sunset: 12150, suddenDeath: 15300 });
+  it('Normal Sunset and late Sunset (Sudden Death until sim v31) moved by 45 s, Easy has its own row, Rookie unchanged', () => {
+    expect(TIMELINE_BY.normal).toEqual({ sunset: 12150, late: 15300 });
     expect(TIMELINE_BY.hard).toEqual(TIMELINE_BY.normal);
-    expect(TIMELINE_BY.easy).toEqual({ sunset: 10350, suddenDeath: 13950 });
-    expect(TIMELINE_BY.rookie).toEqual({ sunset: 7200, suddenDeath: 11700 });
+    expect(TIMELINE_BY.easy).toEqual({ sunset: 10350, late: 13950 });
+    expect(TIMELINE_BY.rookie).toEqual({ sunset: 7200, late: 11700 });
     expect(MINIONS.melee.xp).toBe(30);
   });
 });

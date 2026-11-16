@@ -93,7 +93,7 @@ function setup(...accepted: PawlegendsReplayRecord[]) {
 /** A fixture `npm run vendor-sim` recorded into backend/src/vendor/pawlegends-sim/v<version>/. */
 const fixture = (
     version: number,
-    name: 'rookie' | 'champion' | 'forfeit' | 'dog' | 'new-dog' | 'pvp' | 'hearthwood' | 'roster' | 'roster31'
+    name: 'rookie' | 'champion' | 'forfeit' | 'dog' | 'new-dog' | 'pvp' | 'hearthwood' | 'roster' | 'roster31' | 'late'
 ): PawlegendsReplayRecord =>
     JSON.parse(
         readFileSync(
@@ -204,7 +204,7 @@ describe('PAWLEGENDS /live branch', () => {
                 sim: {
                     simVersion: SIM_VERSION,
                     simVersions: [
-                        10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+                        10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
                     ],
                 },
                 // force update (FORCE-UPDATE.md §5.3): the game shows "Update needed" instead of a silent rejection
@@ -215,14 +215,14 @@ describe('PAWLEGENDS /live branch', () => {
         }
     );
 
-    it('sim v31 verifier: accepts v10 to v31 (GAPS B0; v9 retired), names all twenty-two in GET /pawlegends/sim', async () => {
-        expect(SIM_VERSION).toBe(31);
+    it('sim v32 verifier: accepts v10 to v32 (GAPS B0; v9 retired), names all twenty-three in GET /pawlegends/sim', async () => {
+        expect(SIM_VERSION).toBe(32);
         expect(SIM_VERSIONS).toEqual([
-            10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
         ]);
         expect(PAWLEGENDS_SIM_INFO).toMatchObject({
-            simVersion: 31,
-            simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+            simVersion: 32,
+            simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
         });
         expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual([
             '10',
@@ -247,6 +247,7 @@ describe('PAWLEGENDS /live branch', () => {
             '29',
             '30',
             '31',
+            '32',
         ]);
         const fakeHash: Record<number, string> = {
             10: '10100000',
@@ -271,9 +272,10 @@ describe('PAWLEGENDS /live branch', () => {
             29: '29290000',
             30: '30300000',
             31: '31310000',
+            32: '32320000',
         };
         for (const simVersion of [
-            10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
         ]) {
             const record = genuine({ simVersion, finalHash: fakeHash[simVersion] });
             const { save, games } = setup(record);
@@ -657,6 +659,7 @@ describe('PAWLEGENDS /live branch', () => {
             [29],
             [30],
             [31],
+            [32],
         ])(
             'sim v%s: re-sims a genuine shelter champion match in the worker; its v9 twin is refused before any re-sim',
             async simVersion => {
@@ -961,6 +964,17 @@ describe('PAWLEGENDS /live branch', () => {
             });
         }, 180_000);
 
+        it('sim v32 (no Sudden Death, V32-NO-SUDDEN-DEATH.md): a Normal match past the late tick verifies and ends on a core; the same record labelled v31 (Sudden Death burn) is refused; v31 stays frozen and verifies its own', () => {
+            const late = fixture(32, 'late');
+            expect(late).toMatchObject({ simVersion: 32, difficulty: 'normal' });
+            expect(verifyBySimVersion(late)).toMatchObject({ ok: true, finalHash: late.finalHash, ticks: late.ticks });
+            expect(verifyBySimVersion({ ...late, simVersion: 31 }).ok).toBe(false);
+            for (const name of ['rookie', 'hearthwood', 'roster31'] as const) {
+                const v31 = fixture(31, name);
+                expect(verifyBySimVersion(v31)).toMatchObject({ ok: true, finalHash: v31.finalHash, ticks: v31.ticks });
+            }
+        }, 180_000);
+
         it('sim v31 (the second roster release, ROSTER-V31.md): a replay played as a v31 hero (Ranger) verifies; the same record labelled v30 is refused (no Ranger there); v30 stays frozen and verifies its own', () => {
             const roster = fixture(31, 'roster31');
             expect(roster).toMatchObject({ hero: 'ranger', simVersion: 31, difficulty: 'easy' });
@@ -1201,6 +1215,7 @@ describe('PAWLEGENDS /live branch', () => {
             [29],
             [30],
             [31],
+            [32],
         ])(
             'sim v%s forfeit (GAPS B2): a genuine forfeited Normal match verifies, is a loss stored as quit, pays nothing',
             async simVersion => {
@@ -1259,6 +1274,7 @@ describe('PAWLEGENDS /live branch', () => {
             [29],
             [30],
             [31],
+            [32],
         ])(
             'sim v%s: re-sims a genuine Rookie match (match 1) in the worker and pays the Rookie first-win catnip once',
             async simVersion => {

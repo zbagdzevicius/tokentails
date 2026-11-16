@@ -1,7 +1,8 @@
 /**
  * Sim v31 (docs/plans/moba/ROSTER-V31.md): the second roster release (Nova, Dusty, Barkula, Ranger). Version and the
  * v30 freeze, bot use of every slot of the four new heroes and their clip events in real bot matches, determinism,
- * verification on both maps, and the vendored fixtures (live v31 roster fixture, frozen v30 refusing a new hero).
+ * verification on both maps, and the vendored fixtures (live v31 roster fixture, frozen v30 refusing a new hero). Sim
+ * v32 (no Sudden Death) froze v31 in turn: its roster31 fixture is checked in the frozen v31 dir (sim-v32.test.ts).
  */
 import { limit } from './cpu-budget';
 import { readFileSync } from 'node:fs';
@@ -20,8 +21,8 @@ const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pa
 const TRICKS: TrickId[] = ['pounce', 'snack', 'hiss', 'purrify', 'pounce', 'snack'];
 
 describe('sim v31: the second roster release', { timeout: limit(600000) }, () => {
-  it('SIM_VERSION 31, v30 frozen at its last commit on main (dc053f38); 28 heroes, the four at 24..27', () => {
-    expect(SIM_VERSION).toBe(31);
+  it('SIM_VERSION 31 or later, v30 frozen at its last commit on main (dc053f38); 28 heroes, the four at 24..27', () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(31);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');
     const v30 = /simVersion: 30,\s*commit: '([0-9a-f]{40})'[^]*?\]\)/.exec(tool);
     expect(v30?.[1].startsWith('dc053f38')).toBe(true);
@@ -70,10 +71,9 @@ describe('sim v31: the second roster release', { timeout: limit(600000) }, () =>
     expect(verifyReplay(rec).ok).toBe(true);
   });
 
-  it('the vendored live v31 roster fixture is a Ranger replay that verifies; frozen v30 has no v31 hero', () => {
-    const live = JSON.parse(readFileSync(join(VENDOR, `v${SIM_VERSION}`, 'roster31-replay.fixture.json'), 'utf8')) as ReplayRecord;
-    expect(live).toMatchObject({ simVersion: 31, hero: 'ranger' });
-    expect(verifyReplay(live).ok).toBe(true);
+  it('the vendored v31 roster fixture (frozen since sim v32) is a Ranger replay; frozen v30 has no v31 hero', () => {
+    const frozen = JSON.parse(readFileSync(join(VENDOR, 'v31', 'roster31-replay.fixture.json'), 'utf8')) as ReplayRecord;
+    expect(frozen).toMatchObject({ simVersion: 31, hero: 'ranger' });
     const v30 = readFileSync(join(VENDOR, 'v30', 'pawlegends-sim.bundle.ts'), 'utf8');
     expect(v30).not.toContain('"ranger"');
     expect(v30).not.toContain("'ranger'");

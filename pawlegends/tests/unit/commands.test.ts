@@ -109,7 +109,7 @@ describe('input gate (§11.3)', { timeout: limit(120000) }, () => {
   });
   it('a dense touch-spam match stays under the 40,000-character input gate and verifies', () => {
     // Joystick: a move 2 m ahead every tick with the direction turning, plus attack and cast spam, far denser than a
-    // human's. Sim v4 ends every match by Sudden Death's decay (about 7:35, an 11:00 match no longer happens); the gate
+    // human's. Sim v32 ends it on structures (late Sunset; Sudden Death's decay from sim v4 to v31); the gate
     // itself (MAX_INPUT_BYTES) is pinned by the test above.
     const seed = 181;
     const { picks, tricks } = fillPicks(seed, 'sage', 'pounce');

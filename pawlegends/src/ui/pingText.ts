@@ -67,7 +67,7 @@ export function wheelKinds(classic: boolean): readonly number[] {
 
 /**
  * GAPS A4 chip → ping: a tap on the objective chip sends the matching ping (one tap, no wheel), or nothing.
- * Pudding coming or wild → Take Pudding; an escort, Sunset or Sudden Death → Group on me; a rat camp → Go here.
+ * Pudding coming or wild → Take Pudding; an escort, Sunset, the final whistle or the late push → Group on me; a rat camp → Go here.
  */
 export function chipPing(key: string): number | null {
   switch (key) {
@@ -76,7 +76,8 @@ export function chipPing(key: string): number | null {
       return PING_KIND.Pudding;
     case 'escort':
     case 'sunset':
-    case 'suddenDeath':
+    case 'whistle':
+    case 'finish':
       return PING_KIND.Group;
     case 'rats':
     case 'theirRats':

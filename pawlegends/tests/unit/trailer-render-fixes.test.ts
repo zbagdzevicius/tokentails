@@ -135,7 +135,7 @@ describe('structure falls', () => {
 describe('HUD text', () => {
   it('the timer drops its countdown while the objective chip shows the same one', () => {
     expect(phaseLineShown('Gates open in 0:03', 'Gates open in 0:03')).toBe('');
-    expect(phaseLineShown('Sudden Death in 1:22', 'Sudden Death in 1:22')).toBe('');
+    expect(phaseLineShown('Final whistle in 1:22', 'Final whistle in 1:22')).toBe('');
     expect(phaseLineShown('Sunset in 0:40', 'Your rats 0:18')).toBe('Sunset in 0:40');
     expect(phaseLineShown('Sunset in 0:40', null)).toBe('Sunset in 0:40');
   });

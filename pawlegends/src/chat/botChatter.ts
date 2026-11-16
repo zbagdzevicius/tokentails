@@ -412,8 +412,7 @@ export class BotChatter {
       case 'comeback':
         this.plan(cue.team, 'comeback', nowMs, { p: 0.08 });
         return;
-      case 'sunset':
-      case 'suddenDeath': {
+      case 'sunset': {
         const teams = ([0, 1] as const).filter((t) => this.hasHuman[t]);
         if (teams.length) this.plan(this.rng.pick(teams), 'last_push', nowMs, { p: 0.1 });
         return;

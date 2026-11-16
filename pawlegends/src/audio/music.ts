@@ -2,7 +2,7 @@
  * Match music with intensity layers (fun plan F2 item 13): a small procedural step sequencer on the sfx
  * AudioContext (no files, no autoplay: it starts once the first gesture unlocked audio). Four layers stack:
  *   0 walking (pad, bass, the theme motif once in 8 bars), 1 a hero is near (hats and a pluck), 2 a 2v2+ fight or Sunset (drums and driving
- *   bass), 3 Sudden Death or a core under attack (lead and toms).
+ *   bass), 3 a core under attack (lead and toms; sim v32 has no Sudden Death).
  * Layers crossfade over ~1.5 s. Routed through the sfx master, so the mute setting silences it (the host's music
  * volume scales its own bus; the sfx volume does not touch it); while muted it
  * schedules nothing. Render side only; never feeds the sim.
@@ -35,8 +35,8 @@ const PLUCK_STEPS = new Set([0, 3, 6, 10, 12]);
 const hz = (midi: number): number => 440 * Math.pow(2, (midi - 69) / 12);
 
 /** Intensity from what is around the player (pure; the match session feeds it). */
-export function intensityOf(o: { enemyNear: boolean; fight2v2: boolean; sunset: boolean; suddenDeath: boolean; coreUnderAttack: boolean }): Intensity {
-  if (o.suddenDeath || o.coreUnderAttack) return 3;
+export function intensityOf(o: { enemyNear: boolean; fight2v2: boolean; sunset: boolean; coreUnderAttack: boolean }): Intensity {
+  if (o.coreUnderAttack) return 3;
   if (o.fight2v2 || o.sunset) return 2;
   if (o.enemyNear) return 1;
   return 0;

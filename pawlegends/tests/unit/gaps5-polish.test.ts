@@ -92,8 +92,8 @@ describe('first-load screen helpers (polish 8)', () => {
   it('ui/screens re-exports the core helpers (one implementation)', () => {
     expect(screens.loadingVeil).toBe(core.loadingVeil);
     expect(screens.rotatePrompt).toBe(core.rotatePrompt);
-    expect(screens.suddenDeathS).toBe(core.suddenDeathS);
-    expect(core.suddenDeathS('easy')).toBeGreaterThan(300);
+    expect(screens.lateS).toBe(core.lateS);
+    expect(core.lateS('easy')).toBeGreaterThan(300);
     const veil = core.loadingVeil(document.body, 'Into the <Crossing>', undefined, { name: 'Clem', matches: 1 });
     expect(veil.querySelector('b')?.textContent).toBe('Into the <Crossing>');
     expect(veil.querySelector('.hero-line')?.textContent).toBe('1 match as Clem');

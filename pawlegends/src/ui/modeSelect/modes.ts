@@ -80,7 +80,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     art: 'blitz',
     state: 'live',
     mutator: 'blitz',
-    rules: ['3v3 on the Crossing in about 3 minutes: start at level 4, double XP.', 'Kibble Cannon at 0:20, Sudden Death at 2:30.'],
+    rules: ['3v3 on the Crossing in about 3 minutes: start at level 4, double XP.', 'Kibble Cannon at 0:20, the final whistle at 3:15.'],
   },
   {
     id: 'skirmish',

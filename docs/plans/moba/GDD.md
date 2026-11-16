@@ -111,7 +111,7 @@ Why 3v3: matchmaking needs 6 players, not 10; art, netcode and balance load is l
 - **Catnip Bushes** (brush): units inside are hidden from enemies outside. Vision is computed in the sim (§9.4), so Phase 2 can send each team only what it can see.
 - **Sim v21 fun mechanics** (`V21-FUN.md`, both maps):
   - **Kibble Cannon**: one at a time on the river line (equally far from both cores; Crossing 1:30 then 105 s after
-    each shot, Hearthwood 3:00 then 90 s; a 10 s warning; none after Sudden Death starts). Walk over it to carry it:
+    each shot, Hearthwood 3:00 then 90 s; a 10 s warning; none from late Sunset on; Sudden Death until sim v31). Walk over it to carry it:
     −15% speed, revealed to both teams, 20 s fuse. Death or Nap drops it for 8 s (either team may steal it). FIRE has a
     0.75 s planted windup (hard CC fumbles it); the kibble rolls through minions and one-shots the first enemy hero it
     touches (KABOOM, through Nine Lives and shields). Dodges, Clem's parry ("Return to sender!") and Brutus's Guard beat
@@ -145,8 +145,8 @@ Why 3v3: matchmaking needs 6 players, not 10; art, netcode and balance load is l
 | 3:00 | Siege units start |
 | 5:00 | Pudding |
 | **8:00** | **Sunset.** Towers and cores take +40% damage, respawns ×1.5, minions +25% damage. Light turns golden, music stinger |
-| **10:00** | **Sudden Death.** Cores lose 2% max HP a second; each hero takedown deals 10% core damage to the victim's core |
-| **11:00** | **Safety end.** The team with less core HP loses; tie-break is total tower damage dealt. No match lasts longer than 11:00 |
+| **10:00** | **Late Sunset** (sim v32; this was Sudden Death until sim v31, now removed). Nothing burns on its own: every minute towers and cores take more damage and respawns grow a little, the same for both teams, so the side that wins the fights and the lanes takes the core (V32-NO-SUDDEN-DEATH.md; live numbers per difficulty in `src/data/timeline.ts`) |
+| **11:00** | **Safety end** (a last resort; no match should reach it). The team with less core HP loses; tie-break is total tower damage dealt. No match lasts longer than 11:00 |
 
 Surrender vote from 4:00 (PvP only).
 
@@ -662,7 +662,7 @@ Heroes: 1 skinned mesh each, shared skeletons, a 256² palette texture. Minions:
   2. **Purchase loop:** tap Buy in the game, pay on the web, come back, see the item on your hero in the next match.
   3. It runs in the performance budget on a mid-range phone.
   4. People pay for it.
-- **In scope:** Purrhaven Crossing with 2 lanes, outer and inner towers, cores, waves with siege units, 1 rat camp per side, Pudding, 4 Catnip Bushes and the full timeline rails (Sunset, Sudden Death, safety end); 4 heroes (Clem, Sage, Sir Brutus, Cacklejaw) with talents; 3 Paw Tricks; bots at Easy and Normal; the minimum desktop and landscape touch controls; a first match with event-triggered tips; dare links; owned cats as chromas, frames, starter coats and Companion Kittens; replay-verified save through `/live`; a 3-SKU web store (plus the upgrade) with offer engine, terms, age bands and spend caps; PostHog funnel; guest-first, no account needed to play.
+- **In scope:** Purrhaven Crossing with 2 lanes, outer and inner towers, cores, waves with siege units, 1 rat camp per side, Pudding, 4 Catnip Bushes and the full timeline rails (Sunset, late Sunset (Sudden Death until sim v31), safety end); 4 heroes (Clem, Sage, Sir Brutus, Cacklejaw) with talents; 3 Paw Tricks; bots at Easy and Normal; the minimum desktop and landscape touch controls; a first match with event-triggered tips; dare links; owned cats as chromas, frames, starter coats and Companion Kittens; replay-verified save through `/live`; a 3-SKU web store (plus the upgrade) with offer engine, terms, age bands and spend caps; PostHog funnel; guest-first, no account needed to play.
 - **Out of scope (MVP):** fog of war, Grizzlechop, crow roosts, Hard bots, the tutorial map, the Welcome Path, Legend Moment clips, My Cat Hero, advanced controls, and everything in `POC.md` §16. Never in the POC: PvP, ranked, Yarn, the pass, Club, premium currency, IAP, 5v5, other modes, chat, portrait.
 - **Effort:** 2 developers with AI agents, 15 working days (Dev A: sim, bots, heroes; Dev B: client, input, HUD, backend, store, embed). With 1 developer, about 5 weeks (launch about Nov 26). The cut order if a milestone slips is in `POC.md` §14.
 - **Measurement window:** 4 weeks after launch (to Thu Dec 10 2026). Humans only: a session counts only if it has real pointer or touch input and a match of at least 60 s (the Heist lesson: 8,000 bot runs to 1 human).

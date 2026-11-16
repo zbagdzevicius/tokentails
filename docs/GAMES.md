@@ -290,7 +290,7 @@ Dec 1; v9 is retired).
 
 - **Difficulties**: Rookie (match 1 only, Clem pre-selected, "Play as Clem"), Easy (matches 2 and 3), then
   the Easy, Normal and Hard chips from match 4. The level sets the three enemy bots; the player's allies play
-  at Normal, and at Hard on Hard. Rules per level (truce, Sunset and Sudden Death times, catch-up XP, the
+  at Normal, and at Hard on Hard. Rules per level (truce, Sunset and late Sunset times (Sudden Death until sim v32), catch-up XP, the
   takedown chip) are in POC.md §7.2 and §7.3 and `src/data/bots.ts`.
 - **Desktop controls** (`src/input/`): RMB moves and attacks, A then LMB attack-moves, Q W E R cast at the
   cursor (quick cast, the default; Settings "Aim on hold" shows the indicator until release), D Paw Trick, B Nap.
@@ -383,7 +383,7 @@ Dec 1; v9 is retired).
   - **Results**: "Run it back" (same hero, trick and difficulty, a new seed; PostHog `rematch_click`) and "Switch
     cat" (pick screen, difficulty kept). A rematch stays in the same page session, so no second offer card.
   - **Timers**: a top-centre next-objective chip ("Pudding in 0:42", "Calm Pudding!", escort HP, camp respawns,
-    "Sunset in …", "Sudden Death in …"), minimap countdown rings and a portrait strip with death timers from
+    "Sunset in …", "Final whistle in …" in Blitz, "Take their core!" in late Sunset; "Sudden Death in …" until sim v32), minimap countdown rings and a portrait strip with death timers from
     `respawnIn`, all from snapshots and events. Enemy camps show once a clear was seen. A chip tap sends its ping (Wave B,
     B1).
   - **Touch target lock**: tap an enemy hero or its strip portrait to lock it for 5 s (until it dies or is past

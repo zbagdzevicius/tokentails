@@ -65,7 +65,7 @@ export interface MapInfo {
     readonly grizzlechop: number;
     readonly pudding: number;
     readonly safetyEnd: number;
-    readonly phases: Readonly<Record<'rookie' | 'easy' | 'normal' | 'hard', { sunset: number; suddenDeath: number }>>;
+    readonly phases: Readonly<Record<'rookie' | 'easy' | 'normal' | 'hard', { sunset: number; late: number }>>;
   };
   readonly limits: { readonly maxTicks: number; readonly maxInputBytes: number; readonly maxInputChars: number };
   /** The fixed camera's yaw: Crossing −38° (its lanes run left to right), Hearthwood 0° (the diagonal already climbs). */

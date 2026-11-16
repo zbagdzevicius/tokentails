@@ -1,0 +1,9 @@
+{
+  "bundle": "d3b33e7f8d855c917f4692e49d21baa55c35e6fd03813b1e02474395129d9791",
+  "facade": "260b1659baa2955b8c184f6674bb08910f4609fa6e2b20d31db82b891f367cfb",
+  "simVersion": 32,
+  "vite": "8.3.4",
+  "modules": 185,
+  "simSourceHash": "83104a148dbcb274",
+  "simGolden": "43c8ebff"
+}

@@ -310,7 +310,7 @@ const summary = {
   maxInputChars: Math.max(...rows.map((r) => r.inputChars)),
   deterministic: checkDet ? failures === 0 : undefined,
 };
-const funAgg = fun ? aggregateFun(rows.map((r) => r.fun), mutator === 'blitz' ? 4500 : sim.timelineFor(difficulty).suddenDeath) : null;
+const funAgg = fun ? aggregateFun(rows.map((r) => r.fun), mutator === 'blitz' ? 4500 : sim.timelineFor(difficulty).late) : null;
 const gates = gate ? funGates(gate, funAgg, perHero, difficulty, CAT_HEROES) : [];
 // Sim v10 (GAPS B5): with --trick random (the gate default) every Paw Trick, over all six slots, wins 47% to 53%.
 if (gate === 'balance' && trickArg === 'random') {

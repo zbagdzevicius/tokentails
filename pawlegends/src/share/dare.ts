@@ -55,8 +55,8 @@ export function dareUrl(d: Dare, base: string): string {
 }
 
 /**
- * "Beat my 7:12 vs Easy bots" when the match ended on a core kill before Sudden Death; a win that came after 10:00
- * was mostly set by the Sudden Death clock, so that dare (seconds 0) is just to win the same match.
+ * "Beat my 7:12 vs Easy bots" when the match ended on a core kill before late Sunset; a win that came after 10:00
+ * was mostly set by the late Sunset ramp, so that dare (seconds 0) is just to win the same match.
  */
 export function dareText(d: Dare): string {
   // Round 2: a Rookie (assisted) win says Rookie, not Easy.

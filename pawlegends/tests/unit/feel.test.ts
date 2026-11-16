@@ -260,10 +260,11 @@ describe('HUD, music, results copy', () => {
   it('Sunset countdown hidden until a minute before', () => {
     expect(phaseLine({ phase: 'play', nextPhaseIn: 61 * 30 })).toBe('');
     expect(phaseLine({ phase: 'play', nextPhaseIn: 59 * 30 })).toBe('Sunset in 0:59');
-    expect(phaseLine({ phase: 'sunset', nextPhaseIn: 120 * 30 })).toBe('Sudden Death in 2:00');
+    expect(phaseLine({ phase: 'sunset', nextPhaseIn: 120 * 30 })).toBe('Final whistle in 2:00');
+    expect(phaseLine({ phase: 'sunset', nextPhaseIn: 0 })).toBe('');
   });
   it('music intensity layers', () => {
-    const base = { enemyNear: false, fight2v2: false, sunset: false, suddenDeath: false, coreUnderAttack: false };
+    const base = { enemyNear: false, fight2v2: false, sunset: false, coreUnderAttack: false };
     expect(intensityOf(base)).toBe(0);
     expect(intensityOf({ ...base, enemyNear: true })).toBe(1);
     expect(intensityOf({ ...base, fight2v2: true })).toBe(2);

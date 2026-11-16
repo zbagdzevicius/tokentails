@@ -1,12 +1,14 @@
 /**
  * Sim v7 (playtest round 1: "kills and fights barely decide the match", "Hard is hidden stat edges", "I lost the
  * guided first match"): a takedown lead becomes map pressure (longer respawns for the trailing team, a core chip per
- * takedown, Sudden Death burns the trailing core faster, early grouping), bots defend their base, Hard hunts as a team,
+ * takedown, the team ahead hits structures harder late (Sudden Death's faster burn of the trailing core until sim v31),
+ * early grouping), bots defend their base, Hard hunts as a team,
  * and Rookie's rubber band and core rules protect a first-timer who feeds.
  */
 import { describe, expect, it } from 'vitest';
 import { BOTS, DIFFICULTY_RULES, FEEDER, PLAYER_PROFILES } from '../../src/data/bots';
-import { SUDDEN_DEATH, SUNSET } from '../../src/data/timeline';
+import { LATE_SUNSET, SUNSET } from '../../src/data/timeline';
+import { lateStructureBp } from '../../src/sim/late';
 import { RESPAWN, XP } from '../../src/data/xp';
 import { baseThreat } from '../../src/sim/bots/brain';
 import { resolveDeaths } from '../../src/sim/combat/damage';
@@ -20,7 +22,7 @@ import { coreId, putHero, quietMatch } from './sim-helpers';
 
 describe('sim v7 lead pressure', () => {
   it('is on for Normal and Hard only; SIM_VERSION is 15 (sim v8 to v15 kept it)', () => {
-    expect(SIM_VERSION).toBe(31);
+    expect(SIM_VERSION).toBe(32);
     expect(DIFFICULTY_RULES.normal.leadPressure && DIFFICULTY_RULES.hard.leadPressure).toBe(true);
     expect(DIFFICULTY_RULES.easy.leadPressure || DIFFICULTY_RULES.rookie.leadPressure).toBe(false);
   });
@@ -64,17 +66,22 @@ describe('sim v7 lead pressure', () => {
     expect(before - w.hp[core]).toBe(applyBp(w.maxHp[core], SUNSET.closedCoreBp));
   });
 
-  it('Sudden Death burns the core of the team behind on takedowns faster', () => {
+  it('sim v32: no core burns late; the team ahead on takedowns hits structures harder instead', () => {
     const m = quietMatch(1, false, 'normal');
     const w = m.world;
-    const sd = w.globals[G.SuddenDeath];
-    w.globals[G.Tick] = sd + (30 - (sd % 30)) % 30;
+    const late = w.globals[G.Late];
+    w.globals[G.Tick] = late + (30 - (late % 30)) % 30 + 1800;
     w.globals[G.Kills0] = 10;
     const c0 = w.hp[coreId(0)];
     const c1 = w.hp[coreId(1)];
     stepSeconds(m);
-    expect(c0 - w.hp[coreId(0)]).toBe(applyBp(w.maxHp[coreId(0)], SUDDEN_DEATH.decayMinBp));
-    expect(c1 - w.hp[coreId(1)]).toBe(applyBp(w.maxHp[coreId(1)], SUDDEN_DEATH.coreDecayBpPerSecond + 10 * SUDDEN_DEATH.decayPerTakedownBp));
+    expect(w.hp[coreId(0)]).toBe(c0);
+    expect(w.hp[coreId(1)]).toBe(c1);
+    const tick = w.globals[G.Tick];
+    const ramp = lateStructureBp(m, tick, 1);
+    expect(ramp).toBeGreaterThan(0);
+    expect(lateStructureBp(m, tick, 0) - ramp).toBe(Math.min(LATE_SUNSET.leadMaxBp, 10 * LATE_SUNSET.leadBpPerTakedown));
+    expect(lateStructureBp(m, late - 1, 0)).toBe(0);
   });
 });
 

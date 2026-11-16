@@ -27,6 +27,8 @@
  * the live v29 fixtures and the golden was regenerated from the v29 sim the same way.
  * Sim v31 (the second roster release, ROSTER-V31.md): four more heroes change every seed's bot picks again, so VENDOR
  * points at the live v31 fixtures and the golden was regenerated from the v31 sim the same way.
+ * Sim v32 (no Sudden Death, V32-NO-SUDDEN-DEATH.md): matches past the late tick play differently, so VENDOR points at
+ * the live v32 fixtures and the golden was regenerated from the v32 sim the same way.
  * Part of the merge checklist.
  *
  * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
@@ -44,7 +46,7 @@ import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
 import { SIM_VERSION } from '../../src/sim/version';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v31');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v32');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {

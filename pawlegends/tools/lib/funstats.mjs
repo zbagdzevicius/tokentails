@@ -345,7 +345,7 @@ const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
 /** null (never happened) counts as +Infinity for medians of "time to". */
 const orInf = (a) => a.map((x) => (x === null ? Infinity : x));
 
-/** Batch numbers from per-match `fun` rows (and `ticks`, `reason`, `winner` on each). `sdTick` is the Sudden Death tick. */
+/** Batch numbers from per-match `fun` rows (and `ticks`, `reason`, `winner` on each). `sdTick` is the late Sunset tick (sim v32; Sudden Death's until v31). */
 export function aggregateFun(funRows, sdTick) {
   const n = funRows.length;
   const r = funRows;
@@ -471,7 +471,7 @@ export function funGates(gate, a, perHero, difficulty, catHeroes = []) {
     add('Level 4 p90 ≤ 2:30', a.level4P90 <= 150, mmss(a.level4P90));
     add('length median 5:00 to 6:00', between(a.lengthMedian, 300, 360), mmss(a.lengthMedian));
     add('length p95 ≤ 7:00', a.lengthP95 <= 420, mmss(a.lengthP95));
-    add('≥ 85% end by core kill before Sudden Death', a.coreBeforeSD >= 85, `${f1(a.coreBeforeSD)}%`);
+    add('≥ 85% end by core kill before late Sunset', a.coreBeforeSD >= 85, `${f1(a.coreBeforeSD)}%`);
     add('time in action ≥ 60%', a.actionShare >= 60, `${f1(a.actionShare)}%`);
     add('big-moment gap median ≤ 30 s', a.gapMedian <= 30, `${f1(a.gapMedian)} s`);
     add('longest gap per match median ≤ 45 s', a.gapMaxMedian <= 45, `${f1(a.gapMaxMedian)} s`);
@@ -519,7 +519,7 @@ export function funGates(gate, a, perHero, difficulty, catHeroes = []) {
     add('median 6:30 to 9:00', between(a.lengthMedian, 390, 540), mmss(a.lengthMedian));
     add('p95 ≤ 10:30', a.lengthP95 <= 630, mmss(a.lengthP95));
     add('no safety end', a.safetyEnds === 0, `${a.safetyEnds} safety ends`);
-    add('≥ 70% core kill before Sudden Death', a.coreBeforeSD >= 70, `${f1(a.coreBeforeSD)}%`);
+    add('≥ 70% core kill before late Sunset', a.coreBeforeSD >= 70, `${f1(a.coreBeforeSD)}%`);
     add('side win rate 45% to 55%', between(a.winRate, 45, 55), `Purrhaven ${f1(a.winRate)}% / Woof ${f1(side)}%`);
     for (const [hero, h] of Object.entries(perHero)) {
       const rate = (100 * h.wins) / h.slots;
@@ -547,8 +547,11 @@ export function funGates(gate, a, perHero, difficulty, catHeroes = []) {
     // Sim v22 (WR-BS-PLAN.md §4.3): the ~3-minute Crossing match. Takedowns 4 to 6 a minute is a written Blitz-only
     // exception to the 3v3 band (2.5 to 3.5).
     add('median 2:30 to 3:15', between(a.lengthMedian, 150, 195), mmss(a.lengthMedian));
-    add('p90 ≤ 3:10', a.lengthP90 <= 190, mmss(a.lengthP90));
-    add('≥ 85% decided by a core kill', a.coreKills >= 85, `${f1(a.coreKills)}% (time up ${a.timeUps})`);
+    // Sim v32 (V32-NO-SUDDEN-DEATH.md): no core burn, so a Blitz match ends on a core kill or at the 3:15 time up on
+    // the tie-breakers (towers, then core HP, then takedowns, then structure damage). Until v31 Sudden Death burned
+    // every core down by 2:58 (p90 ≤ 3:10 and ≥ 85% core kills); the draw check below is what keeps every match decided.
+    add('p90 ≤ 3:15 (the time up)', a.lengthP90 <= 195, mmss(a.lengthP90));
+    add('decided by a core kill or the time-up tie-breakers ≥ 99%', 100 - (100 * a.draws) / a.matches >= 99, `core ${f1(a.coreKills)}%, time up ${a.timeUps}, draws ${a.draws}`);
     add('draws ≤ 1%', (100 * a.draws) / a.matches <= 1, `${a.draws} of ${a.matches}`);
     add('no safety end', a.safetyEnds === 0, `${a.safetyEnds} safety ends`);
     add('side win rate 47% to 53%', between(a.winRate, 47, 53), `Purrhaven ${f1(a.winRate)}% / Woof ${f1(100 - a.winRate - (100 * a.draws) / a.matches)}%`);
@@ -583,7 +586,7 @@ export function formatFun(a) {
       `kills ${a.killsMean.toFixed(2)} a match, takedowns median ${a.takedownsMedian}`,
     `  first: fight ${f1(a.firstFightMedian)} s, player takedown ${f1(a.firstTakedownMedian)} s (< 60 s in ${f1(a.firstTakedownUnder60)}%), match takedown ${f1(a.firstMatchTakedownMedian)} s`,
     `  levels: L2 ${mmss(a.level2Median)}, L4 ${mmss(a.level4Median)} (p90 ${mmss(a.level4P90)}); gap to enemy average at 3:00 ${f1(a.gap3Median)}, at 5:00 ${f1(a.gap5Median)}`,
-    `  length: median ${mmss(a.lengthMedian)}, p95 ${mmss(a.lengthP95)}, core kill before Sudden Death ${f1(a.coreBeforeSD)}%, safety ends ${a.safetyEnds}`,
+    `  length: median ${mmss(a.lengthMedian)}, p95 ${mmss(a.lengthP95)}, core kill before late Sunset ${f1(a.coreBeforeSD)}%, safety ends ${a.safetyEnds}`,
     `  pace: takedowns ${a.tdPerMin.toFixed(2)} a minute, in action ${f1(a.actionShare)}%, big-moment gap median ${f1(a.gapMedian)} s, longest median ${f1(a.gapMaxMedian)} s (p90 ${f1(a.gapMaxP90)} s)`,
     `  burst: 90%-to-dead median ${f1(a.ttkMedian)} s (p10 ${f1(a.ttkP10)} s), worst 1 s loss median ${f1(a.worst1sMedian)}% (p99 ${f1(a.worst1sP99)}%), back in the fight ${f1(a.backInMedian)} s`,
     `  moments: pickups ${f1(a.pickupsMean)}, bounties ${f1(a.bountiesMean)}, shutdowns ${f1(a.shutdownsMean)}, comebacks ${f1(a.comebacksMean)}, Nine Lives ${f1(a.nineLivesMean)} a match; ` +
