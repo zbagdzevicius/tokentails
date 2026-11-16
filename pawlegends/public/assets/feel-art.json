@@ -150,16 +150,6 @@
   "use": "pause / menu overlay .pl-menu backdrop (ui.css)"
  },
  {
-  "asset": "A9",
-  "file": "world/offmap-ground-1024.webp",
-  "w": 1024,
-  "h": 1024,
-  "kb": 37.6,
-  "alpha": false,
-  "quality": 74,
-  "use": "outer ground plane beyond the map edge (BUILD B1.9; repeat-wrapped texture)"
- },
- {
   "asset": "A5",
   "file": "ui-frames/top-strip-440x48.webp",
   "w": 440,

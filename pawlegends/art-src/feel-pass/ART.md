@@ -48,7 +48,7 @@ on flat #00ff00 and chroma-keyed. Every output was checked by eye for text, logo
 | A4 | `screens/lose-dog-1920.webp` | 1920×1080 | 76.5 | `lose-dog` |
 | A4 | `screens/lose-dog-1280.webp` | 1280×720 | 47.7 | `lose-dog` |
 | A8 | `screens/pause-1280.webp` | 1280×720 | 38.1 | `pause-cushions` |
-| A9 | `world/offmap-ground-1024.webp` | 1024×1024 | 37.6 | `ground-tile` |
+| A9 | `world/offmap-ground-1024.webp` (not shipped: moved to `unshipped/` on 2026-11-17, never wired into the match, and the download sat at the 10 MB budget) | 1024×1024 | 37.6 | `ground-tile` |
 | A5 | `ui-frames/top-strip-440x48.webp` | 440×48 α | 3.0 | `frame-plate` |
 | A5 | `ui-frames/pause-panel-192.webp` | 192×192 α | 6.7 | `frame-panel` |
 | A5 | `ui-frames/talent-card-720x128.webp` | 720×128 α | 6.3 | `frame-panel` |
