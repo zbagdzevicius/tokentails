@@ -157,7 +157,17 @@ type FlagApi = (op: 'flag.get' | 'flag.set', args?: { hideFlag?: boolean }) => P
  * Refresh the player's country (at most twice a day; the backend records it, never the IP) and push the local hide
  * choice when the server's differs. Never throws; an older host without the op just leaves the flag unknown.
  */
-export async function refreshMyFlag(api: FlagApi, nowMs = Date.now()): Promise<string | null> {
+let inflight: Promise<string | null> | null = null;
+export function refreshMyFlag(api: FlagApi, nowMs = Date.now()): Promise<string | null> {
+  // Home redraws several times while it boots (each calls this): one read at a time (s7 verify: 11 reads per boot)
+  if (inflight) return inflight;
+  inflight = readMyFlag(api, nowMs).finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
+async function readMyFlag(api: FlagApi, nowMs: number): Promise<string | null> {
   try {
     const cached = JSON.parse(read(CACHE_KEY) ?? 'null') as { cc?: unknown; at?: number } | null;
     if (cached && typeof cached.at === 'number' && nowMs - cached.at < CACHE_MS) return myFlag();

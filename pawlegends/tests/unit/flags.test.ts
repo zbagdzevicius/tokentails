@@ -76,6 +76,15 @@ describe('country flags (FLAGS.md)', () => {
     expect(myFlag()).toBeNull();
   });
 
+  it('asks once while a read is in flight (Home redraws while it boots)', async () => {
+    let answer: (v: { ok: boolean; body?: unknown }) => void = () => undefined;
+    const api = vi.fn(() => new Promise<{ ok: boolean; body?: unknown }>((r) => (answer = r)));
+    const all = Promise.all(Array.from({ length: 5 }, () => refreshMyFlag(api, 5000)));
+    answer({ ok: true, body: { cc: 'DE' } });
+    expect(await all).toEqual(['DE', 'DE', 'DE', 'DE', 'DE']);
+    expect(api).toHaveBeenCalledTimes(1);
+  });
+
   it('an older host without the op leaves the flag unknown', async () => {
     expect(await refreshMyFlag(async () => ({ ok: false }), 1)).toBeNull();
   });
