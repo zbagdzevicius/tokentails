@@ -20,11 +20,12 @@ import type { CastIndex, Orders } from './orders';
 import { cursorCss, cursorKind, type CursorKind } from './cursor';
 import { actionFor, castMode, cursorSize, markTrackpadDetected, trackpadAutoRule, trackpadOn, trackpadPref, type Action, type CastMode } from './presets';
 import { loadCameraHeight, saveCameraHeight, wheelHeight, wheelReady } from '../render/camera/height';
-import { groundAt, project, toSimX, toSimY } from './screen';
+import { groundAt, toSimX, toSimY } from './screen';
 import { carriesCannon, quickFireAim } from './fireAim';
 import { FUN_BY_MAP } from '../data/fun';
 import { MAP } from '../data/map';
-import { cursorCast, hoverTarget, pickNearest, isEnemy, type HoverTarget, type Unit } from './targeting';
+import { cursorCast, hoverTarget, isEnemy, type HoverTarget, type Unit } from './targeting';
+import { pickBody, screenBodies } from './unitPick';
 import { landing } from './heading';
 
 export interface InputHost {
@@ -128,19 +129,30 @@ export class DesktopInput {
     return groundAt(this.h.view.gr.camera, this.h.canvas, this.cursor.x, this.cursor.y, this.ground);
   }
 
-  private unitUnderCursor(enemiesOnly: boolean, alliesOnly = false): Unit | null {
-    const cam = this.h.view.gr.camera;
+  /**
+   * TARGETING.md §2: the unit under the cursor, by its drawn body (unitPick.ts: the selection cylinder where the
+   * model stands, enemy heroes first where bodies overlap, a little hysteresis for the hovered unit). Holding `
+   * (Backquote, League's "target champions only") or `heroesOnly` leaves only heroes.
+   */
+  private unitUnderCursor(enemiesOnly: boolean, alliesOnly = false, heroesOnly = false): Unit | null {
     const v = this.h.view;
+    const champs = heroesOnly || this.champsOnly;
     const units = this.h.units().filter(
       (u) =>
         u.state !== 'dead' &&
         u.kind !== 'fountain' &&
         u.kind !== 'pickup' &&
+        (!champs || u.kind === 'hero') &&
         (!enemiesOnly || isEnemy(u, v.myTeam)) &&
         (!alliesOnly || (u.team === v.myTeam && u.id !== v.mySlot && (u.kind === 'hero' || u.kind === 'minion'))),
     );
-    const lift = (u: Unit): number => (u.kind === 'tower' ? 2.5 : u.kind === 'core' ? 2.5 : u.kind === 'pudding' ? 1.5 : 0.6);
-    return pickNearest(units, (u) => project(cam, this.h.canvas, u.x / 1000, lift(u), -u.y / 1000), this.cursor.x, this.cursor.y, 44);
+    if (units.length === 0) return null;
+    return pickBody(units, screenBodies(v.gr.camera, this.h.canvas, v.drawn), this.cursor.x, this.cursor.y, { prefer: this.hover?.id ?? null });
+  }
+
+  /** TARGETING.md §5: is ` (Backquote) held: clicks and hovers see enemy heroes only (League's target champions only)? */
+  get champsOnly(): boolean {
+    return this.keys.has('Backquote');
   }
 
   private down(e: PointerEvent): void {
@@ -279,6 +291,11 @@ export class DesktopInput {
     // the isTyping guard: Q W E R, B, T and the rest type letters into the chat, they never cast
     if (this.h.isTyping?.() || typingTarget(e.target)) return;
     const a = actionFor(e.code);
+    if (e.code === 'Backquote') {
+      // TARGETING.md §5: held, picks see enemy heroes only (League's target champions only)
+      this.keys.add(e.code);
+      return;
+    }
     if (e.code.startsWith('Arrow')) {
       this.keys.add(e.code);
       e.preventDefault();
@@ -620,8 +637,17 @@ export class DesktopInput {
     this.syncRing();
     if (this.steerButton >= 0 && performance.now() - this.lastSteer > STEER_MS) {
       this.lastSteer = performance.now();
-      const g = this.groundUnderCursor();
-      if (g) this.h.orders.move(toSimX(g.x), toSimY(g.z));
+      // TARGETING.md §5 (League: a held right button attacks what it passes over): a steer that slides onto an enemy
+      // hero attacks it and stops steering, so a near miss on a champion no longer walks the hero into the fight
+      const foe = this.unitUnderCursor(true, false, true);
+      if (foe) {
+        this.h.orders.attack(foe.id);
+        this.h.marker(foe.x / 1000, -foe.y / 1000, true);
+        this.steerButton = -1;
+      } else {
+        const g = this.groundUnderCursor();
+        if (g) this.h.orders.move(toSimX(g.x), toSimY(g.z));
+      }
     }
     if (this.keys.has('Space')) this.h.view.recentre();
   }

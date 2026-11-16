@@ -21,6 +21,8 @@ import {
   setLastHitButton,
   setTargetFirst,
   setTowerButton,
+  setAimMagnet,
+  aimMagnetOn,
   setTrackpadPref,
   targetFirst,
   towerButton,
@@ -121,7 +123,7 @@ const TIER_NAME: Record<QualityTier, string> = { low: 'Low', med: 'Medium', high
 const CAST_NAME: Record<CastMode, string> = { hold: 'Cast on key release (hold to see range)', quick: 'Quick cast (on press)' };
 const PAD_NAME: Record<TrackpadPref, string> = { auto: 'Auto', on: 'On', off: 'Off' };
 const CURSOR_NAME: Record<CursorSize, string> = { normal: 'Normal', large: 'Large' };
-const TARGET_NAME: Record<TargetFirst, string> = { heroes: 'Heroes', lowest: 'Lowest HP %', closest: 'Closest' };
+const TARGET_NAME: Record<TargetFirst, string> = { heroes: 'Heroes', absolute: 'Weakest hero', lowest: 'Lowest HP %', closest: 'Closest' };
 const SHAKE_NAME: Record<ShakePref, string> = { full: 'Full', low: 'Low', off: 'Off' };
 const TSIZE_NAME: Record<TouchSize, string> = { normal: 'Normal', large: 'Large' };
 const TCAST_NAME: Record<TouchCast, string> = { quick: 'Quick', indicator: 'Indicator', normal: 'Normal' };
@@ -154,7 +156,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
         (m) => `<button class="chip ${c.mode === m ? 'on' : ''}" data-tcast="${m}" aria-pressed="${c.mode === m}" title="${TCAST_HELP[m]}">${TCAST_NAME[m]}</button>`,
       ).join('')}</span><label class="sens">Aim<input type="range" min="${AIM_SENS.min}" max="${AIM_SENS.max}" step="${AIM_SENS.step}" value="${c.sens}" data-sens="${k}" aria-label="${SLOT_NAME[k]} aim sensitivity"><output>${c.sens}%</output></label></div>`;
     }).join('');
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), watch: allowWatch(), flag: !flagHidden(), cvd: colourBlind(), mm: minimapSize(), menuText: menuText() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), magnet: aimMagnetOn(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), watch: allowWatch(), flag: !flagHidden(), cvd: colourBlind(), mm: minimapSize(), menuText: menuText() };
   const showControls = keyboardDevice();
   let pushNote = '';
   const pushRows = (p: PushSettings): string => {
@@ -189,11 +191,12 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
         .join('')}</span></div>
       <div class="set-row"><span>Cursor size</span><span class="chips">${(['normal', 'large'] as const)
         .map((m) => `<button class="chip ${ctl.cursor === m ? 'on' : ''}" data-cursor="${m}">${CURSOR_NAME[m]}</button>`)
-        .join('')}</span></div>` : `<div class="set-row"><span>Target first (Attack button)</span><span class="chips">${(['heroes', 'lowest', 'closest'] as const)
+        .join('')}</span></div>` : `<div class="set-row"><span>Target first (Attack button)</span><span class="chips">${(['heroes', 'absolute', 'lowest', 'closest'] as const)
         .map((m) => `<button class="chip ${ctl.target === m ? 'on' : ''}" data-target="${m}">${TARGET_NAME[m]}</button>`)
         .join('')}</span></div>
       ${row('Last-hit button', 'lasthit', ctl.lastHit)}
       ${row('Tower button', 'tower', ctl.tower)}
+      ${row('Aim assist (skillshots snap to a nearby hero)', 'magnet', ctl.magnet)}
       ${row('Left-handed (buttons left, stick right)', 'lefty', ctl.lefty)}
       <div class="set-row"><span>Button size</span><span class="chips">${(['normal', 'large'] as const)
         .map((m) => `<button class="chip ${ctl.tsize === m ? 'on' : ''}" data-tsize="${m}">${TSIZE_NAME[m]}</button>`)
@@ -322,6 +325,9 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ctl.flag = !ctl.flag;
       void setFlagHidden(!ctl.flag, null);
       o.onFlag?.(!ctl.flag);
+    } else if (a === 'magnet') {
+      ctl.magnet = !ctl.magnet;
+      setAimMagnet(ctl.magnet);
     } else if (a === 'tower') {
       ctl.tower = !ctl.tower;
       setTowerButton(ctl.tower);

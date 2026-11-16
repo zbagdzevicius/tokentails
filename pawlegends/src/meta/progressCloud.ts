@@ -41,6 +41,7 @@ export const SYNCED_KEYS: readonly string[] = Object.freeze([
   'pawlegends.targetFirst',
   'pawlegends.lastHitButton',
   'pawlegends.towerButton',
+  'pawlegends.aimMagnet',
   'pawlegends.leftHanded',
   'pawlegends.touchSize',
   'pawlegends.shake',

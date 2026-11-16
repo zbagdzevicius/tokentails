@@ -109,7 +109,7 @@ vendor's own claim) come from the inventory and were not re-checked in this pass
 | A2 Grade, MVP, Best on your team | Partial | Formula, MVP, Treat XP and the ladder swap are in. Calibration gate not met on fresh seeds: mage about 6.2 and support about 6.0 points off the ±5 target (`tools/grade-calibrate.mjs --check`); re-fit after v10 adds frontline stats |
 | A3 Run it back / Switch cat | Done | `rematch_click` event; same page session, so no second offer |
 | A4 Objective and respawn timers | Done | Chip, minimap rings, portrait strip with death timers. The chip tap sends no ping until B1 (as planned) |
-| A5 Touch target lock | Done | 5 s / 9 m lock from a hero or portrait tap, "Target first" setting, optional last-hit and tower buttons (off). The −40% minion-hit measure needs round-3 data |
+| A5 Touch target lock | Done | 9 m lock (no timer since TARGETING.md, Nov 16; was 5 s) from a hero or portrait tap, "Target first" setting, optional last-hit and tower buttons (off). The −40% minion-hit measure needs round-3 data |
 | A6 Small items | Done | First win of the day +150 Treat XP, loading-screen hero count and Bond, role label only on the pick screen, ally barks |
 
 **A0. Cacklejaw coats.** S (2–4 h). Wire `lookCoat('cacklejaw', …)` into his spec in `src/render/chars/specs.ts`. Listed on its own, not as a silent side fix: his two Track coats ship today and do nothing.
@@ -144,7 +144,7 @@ vendor's own claim) come from the inventory and were not re-checked in this pass
 - Files: `src/ui/hud.ts`, `src/onboarding/objectives.ts`, `src/ui/minimap.ts`. Measure: a Playwright chip spec; round-3 testers stop saying "nothing says why".
 
 **A5. Touch target lock and priority.** M (2–3 days). Risk: touch UX.
-- Tap an enemy portrait (from the A4 strip) or an enemy hero to lock it for 5 s, or until it dies or goes beyond 9 m. While locked, Attack sends `Attack{id}` and smart casts pass `id` when the target is in range.
+- Tap an enemy portrait (from the A4 strip) or an enemy hero to lock it (5 s at first; TARGETING.md removed the timer) until it dies or goes beyond 9 m. While locked, Attack sends `Attack{id}` and smart casts pass `id` when the target is in range.
 - Setting "Target first": Heroes / Lowest HP % / Closest (default Heroes). Optional last-hit and tower buttons, off by default (MLBB Advanced Aim).
 - Files: `src/input/touch/{assist.ts,touchControls.ts,touchLayout.js}`, `src/input/targeting.ts`, `src/ui/settings.ts`, `src/ui/overhead.ts`.
 - Measure: `assist.ts` unit tests, a Playwright touch spec, and the share of attacks that hit a minion while an enemy hero is in range (−40%).

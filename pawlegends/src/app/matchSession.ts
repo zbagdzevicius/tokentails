@@ -574,6 +574,12 @@ export class MatchSession {
         view: this.view,
         overhead: this.overhead,
         lowHp: () => this.lowHp,
+        // TARGETING.md §8: the pick lab (loaded on demand, e2e only): old vs new pick on taps over the drawn bodies
+        pickLab: async (op: 'measure' | 'busiest' | 'chests', touch = false) => {
+          const lab = await import('../input/pickLab');
+          const h = { camera: this.gr.camera, canvas: this.gr.renderer.domElement, drawn: this.view.drawn, units: () => this.units, myTeam: () => this.view.myTeam };
+          return op === 'measure' ? lab.measure(h, touch) : op === 'chests' ? lab.chests(h) : lab.busiest(h);
+        },
         inject: (ev: SimEvent) => {
           this.view.effects.handle(ev);
           this.view.funEvent(ev);

@@ -75,8 +75,12 @@ export type CastMode = 'quick' | 'hold';
 export type TrackpadPref = 'auto' | 'on' | 'off';
 /** Desktop cursor size (Settings): Normal 32 px, Large 48 px. */
 export type CursorSize = 'normal' | 'large';
-/** Touch Attack button priority (Settings "Target first"): Heroes (default), Lowest HP %, Closest. */
-export type TargetFirst = 'heroes' | 'lowest' | 'closest';
+/**
+ * Touch Attack button priority (Settings "Target first"): Heroes (default: enemy heroes in range first, lowest HP share
+ * among them), Weakest hero (TARGETING.md §4, Wild Rift's "Low Health (Absolute)": heroes first, lowest HP points, so
+ * a half-HP tank no longer wins over a full-HP carry with less HP), Lowest HP % and Closest (any unit in range).
+ */
+export type TargetFirst = 'heroes' | 'absolute' | 'lowest' | 'closest';
 
 const CAST_KEY = 'pawlegends.castMode';
 const PAD_KEY = 'pawlegends.trackpad';
@@ -87,6 +91,8 @@ const CURSOR_KEY = 'pawlegends.cursorSize';
 const TARGET_KEY = 'pawlegends.targetFirst';
 const LASTHIT_KEY = 'pawlegends.lastHitButton';
 const TOWER_KEY = 'pawlegends.towerButton';
+/** TARGETING.md §6: the skillshot aim magnet (on by default; Settings turns it off). */
+const MAGNET_KEY = 'pawlegends.aimMagnet';
 /** UX pass 2 (Wild Rift): the left-handed mirror (buttons left, joystick right) and the touch button size. */
 const LEFTY_KEY = 'pawlegends.leftHanded';
 const TSIZE_KEY = 'pawlegends.touchSize';
@@ -108,7 +114,7 @@ function write(key: string, v: string): void {
 }
 
 /** In-memory copy, so a blocked storage still keeps the choice for this page. */
-const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean; cursor?: CursorSize; target?: TargetFirst; lastHit?: boolean; tower?: boolean; lefty?: boolean; tsize?: TouchSize } = {};
+const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean; cursor?: CursorSize; target?: TargetFirst; lastHit?: boolean; tower?: boolean; magnet?: boolean; lefty?: boolean; tsize?: TouchSize } = {};
 
 export function castMode(): CastMode {
   return mem.cast ?? (read(CAST_KEY) === 'quick' ? 'quick' : 'hold');
@@ -158,7 +164,7 @@ export const trackpadOn = (): boolean => {
 export function targetFirst(): TargetFirst {
   if (mem.target) return mem.target;
   const v = read(TARGET_KEY);
-  return v === 'lowest' || v === 'closest' ? v : 'heroes';
+  return v === 'lowest' || v === 'closest' || v === 'absolute' ? v : 'heroes';
 }
 
 export function setTargetFirst(t: TargetFirst): void {
@@ -187,6 +193,19 @@ export function towerButton(): boolean {
 export function setTowerButton(on: boolean): void {
   mem.tower = on;
   write(TOWER_KEY, on ? '1' : '0');
+}
+
+/**
+ * TARGETING.md §6 (Wild Rift's generous auto aim): a dragged skillshot or ground cast that ends close to an enemy hero
+ * snaps onto it (input/aimMagnet.ts). On by default; Settings "Aim assist" turns it off.
+ */
+export function aimMagnetOn(): boolean {
+  return mem.magnet ?? read(MAGNET_KEY) !== '0';
+}
+
+export function setAimMagnet(on: boolean): void {
+  mem.magnet = on;
+  write(MAGNET_KEY, on ? '1' : '0');
 }
 
 /** Touch button size (Settings): Normal, or Large (Wild Rift's button size slider, one step up). */
@@ -292,6 +311,7 @@ export function resetControlPrefs(): void {
   delete mem.target;
   delete mem.lastHit;
   delete mem.tower;
+  delete mem.magnet;
   delete mem.lefty;
   delete mem.tsize;
 }
