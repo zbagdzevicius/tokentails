@@ -195,12 +195,12 @@ describe('A4: portrait strip', () => {
 
 describe('A5: touch target lock', () => {
   const me = u(0, 'hero', 0, 50000, 30000);
-  it('holds 5 s, until the hero dies, hides or is more than 9 m away; a second tap lets go', () => {
+  it('has no timer (TARGETING.md §3): holds until the hero dies, hides or is more than 9 m away; a second tap lets go', () => {
     const foe = u(4, 'hero', 1, 54000, 30000);
     const l = new TargetLock();
     expect(l.set(4, 0)).toBe(true);
     expect(l.check([me, foe], me, 0, LOCK.ms - 1)).toBe(4);
-    expect(l.check([me, foe], me, 0, LOCK.ms)).toBeNull();
+    expect(l.check([me, foe], me, 0, LOCK.ms * 6)).toBe(4);
     l.set(4, 0);
     expect(l.check([me, { ...foe, state: 'dead' }], me, 0, 10)).toBeNull();
     l.set(4, 0);
@@ -212,7 +212,7 @@ describe('A5: touch target lock', () => {
     expect(l.id).toBeNull();
     expect(l.left(0)).toBe(0);
     l.set(4, 0);
-    expect(l.left(LOCK.ms / 2)).toBeCloseTo(0.5);
+    expect(l.left(LOCK.ms * 6)).toBe(1);
   });
 
   it('only living enemy heroes within 9 m can be locked', () => {

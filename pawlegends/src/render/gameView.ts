@@ -12,6 +12,8 @@ import { heightFactor, loadCameraHeight, type CameraHeight } from './camera/heig
 import { aimPan, groundReach, reachAlong, returnShare, SHAKE_MAX_M } from './camera/frame';
 import { SLOTS_PER_TEAM, teamOfSlot, type EntityKind, type HeroId, type SimEvent, type TrickId } from '../sim/api';
 import { makeHero, type Character } from './chars';
+import { HERO_HEIGHT } from './chars/specs';
+import type { DrawnLookup } from '../input/unitPick';
 import { sfx } from '../audio/sfx';
 import { aimFor, attackRingMm, trickAim, type AimSpec } from '../input/abilities';
 import { Effects, type Who } from './effects';
@@ -135,6 +137,18 @@ export class GameView {
   readonly heroes = new HeroView();
   readonly minions = new MinionInstances();
   readonly structures = new StructureView();
+  /**
+   * TARGETING.md §2: where each hero and minion is drawn this frame (m, after the visual push-apart) and how tall a
+   * hero's model is, so a click or tap picks the body the player sees (input/unitPick.ts), not the sim point under it.
+   */
+  readonly drawn: DrawnLookup = {
+    at: (id, kind) => (kind === 'hero' ? this.heroes.drawnAt(id) : kind === 'minion' ? (this.minions.drawnAt.get(id) ?? null) : null),
+    height: (id, kind) => {
+      if (kind !== 'hero') return undefined;
+      const h = this.frame?.byId.get(id)?.hero;
+      return h ? HERO_HEIGHT[h] : undefined;
+    },
+  };
   private readonly minionClear: { x: number; z: number }[] = [];
   private footprints: { x: number; z: number; r: number }[] = [];
   private coreZones: { x: number; z: number; r: number }[] = [];
@@ -1040,6 +1054,20 @@ export class GameView {
     }
   }
 
+  /**
+   * TARGETING.md §2: where a ring under `e` goes (m): the hero or minion's drawn position (after the visual push-apart),
+   * so the ring sits under the body the player sees and picks, else its interpolated sim position.
+   */
+  private ringX(e: ViewEntity): number {
+    const d = this.drawn.at(e.id, e.kind);
+    return d ? d.x : toX(e.fx);
+  }
+
+  private ringZ(e: ViewEntity): number {
+    const d = this.drawn.at(e.id, e.kind);
+    return d ? d.z : toZ(e.fy);
+  }
+
   /** Hover ring and order markers for this frame (no allocation). */
   private drawMarks(frame: ViewFrame | null, dt: number): void {
     this.hoverRing.begin();
@@ -1051,7 +1079,7 @@ export class GameView {
     const e = id >= 0 && frame ? frame.byId.get(id) : null;
     if (e && e.state !== 'dead') {
       const size = hoverRingSize(e.kind, e.hero);
-      if (size > 0) this.hoverRing.add(toX(e.fx), toZ(e.fy), size * (1 + Math.sin(this.time * 9) * 0.04), HOVER_COLOR[this.hover ? this.hover.rel : 'enemy'], 1);
+      if (size > 0) this.hoverRing.add(this.ringX(e), this.ringZ(e), size * (1 + Math.sin(this.time * 9) * 0.04), HOVER_COLOR[this.hover ? this.hover.rel : 'enemy'], 1);
     }
     this.hoverRing.end();
     this.castRing.begin();
@@ -1061,7 +1089,7 @@ export class GameView {
     const ce = cid >= 0 && frame ? frame.byId.get(cid) : null;
     if (ce && ce.state !== 'dead') {
       const size = hoverRingSize(ce.kind, ce.hero);
-      if (size > 0) this.castRing.add(toX(ce.fx), toZ(ce.fy), size, HOVER_COLOR.enemy, cid === pid && this.atkPreviewFar ? 0.45 : 0.85);
+      if (size > 0) this.castRing.add(this.ringX(ce), this.ringZ(ce), size, HOVER_COLOR.enemy, cid === pid && this.atkPreviewFar ? 0.45 : 0.85);
     }
     this.castRing.end();
     this.candRings.begin();
@@ -1071,7 +1099,7 @@ export class GameView {
         const c = frame.byId.get(cid2);
         if (!c || c.state === 'dead') continue;
         const size = hoverRingSize(c.kind, c.hero);
-        if (size > 0) this.candRings.add(toX(c.fx), toZ(c.fy), size, HOVER_COLOR.enemy, 0.6);
+        if (size > 0) this.candRings.add(this.ringX(c), this.ringZ(c), size, HOVER_COLOR.enemy, 0.6);
       }
     }
     this.candRings.end();
@@ -1111,7 +1139,7 @@ export class GameView {
       if (a <= 0 || !te || te.state === 'dead') tm.t = -1;
       else {
         const size = hoverRingSize(te.kind, te.hero);
-        if (size > 0) this.targetRings.add(toX(te.fx), toZ(te.fy), size * (1.08 - 0.08 * (tm.t / TARGET_MARK_LIFE)), MARKER_COLOR.attack, a);
+        if (size > 0) this.targetRings.add(this.ringX(te), this.ringZ(te), size * (1.08 - 0.08 * (tm.t / TARGET_MARK_LIFE)), MARKER_COLOR.attack, a);
       }
     }
     this.autoRingId = -1;
@@ -1121,14 +1149,14 @@ export class GameView {
       if (ae && ae.state !== 'dead' && ae.hp > 0) {
         const size = hoverRingSize(ae.kind, ae.hero);
         if (size > 0) {
-          this.targetRings.add(toX(ae.fx), toZ(ae.fy), size, MARKER_COLOR.attack, 0.75);
+          this.targetRings.add(this.ringX(ae), this.ringZ(ae), size, MARKER_COLOR.attack, 0.75);
           this.autoRingId = ae.id;
         }
       }
     }
     if (this.lockMarkId >= 0 && lockE) {
       const size = hoverRingSize(lockE.kind, lockE.hero);
-      this.targetRings.add(toX(lockE.fx), toZ(lockE.fy), size * LOCK_RING_K, MARKER_COLOR.attack, 0.95);
+      this.targetRings.add(this.ringX(lockE), this.ringZ(lockE), size * LOCK_RING_K, MARKER_COLOR.attack, 0.95);
     }
     this.targetRings.end();
   }
@@ -1141,7 +1169,7 @@ export class GameView {
     const size = hoverRingSize(e.kind, e.hero);
     if (size <= 0) return;
     this.lockMarkId = e.id;
-    this.chevrons.add(toX(e.fx), toZ(e.fy), size * LOCK_CHEVRON_K * (1 + Math.sin(this.time * 6) * 0.05), MARKER_COLOR.attack, 0.95, this.time * 0.8);
+    this.chevrons.add(this.ringX(e), this.ringZ(e), size * LOCK_CHEVRON_K * (1 + Math.sin(this.time * 6) * 0.05), MARKER_COLOR.attack, 0.95, this.time * 0.8);
   }
 
   private remember(frame: ViewFrame): void {

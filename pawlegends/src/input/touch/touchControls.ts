@@ -71,13 +71,15 @@ import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
 import { basicRange, minionHitEstimate, ULT_LEVEL, type AimSpec } from '../abilities';
 import { slideAngle, type CastIndex } from '../orders';
-import { lastHitButton, leftHanded, slotCast, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type CastSlot, type TargetFirst, type TouchCast } from '../presets';
-import { groundAt, project, toSimX, toSimY } from '../screen';
+import { aimMagnetOn, lastHitButton, leftHanded, slotCast, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type CastSlot, type TargetFirst, type TouchCast } from '../presets';
+import { groundAt, toSimX, toSimY } from '../screen';
 import { cursorCast } from '../targeting';
+import { PICK, pickBody, screenBodies } from '../unitPick';
+import { aimMagnet } from '../aimMagnet';
 import { defaultLayout, fromStored, HUD_CTLS, HUD_EVENT, readInsets, storedFor, type HudCtl, type HudLayout } from './hudLayout';
 import { MINIMAP_SIZE_K, minimapSize } from '../../ui/minimapPrefs';
 import * as THREE from 'three';
-import { attackPreview, CHASE_LEEWAY_MM, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, talkBackDeters, towerTarget, type Unit } from '../targeting';
+import { attackPreview, CHASE_LEEWAY_MM, inAttackReach, guardedByTower, isEnemy, lastHitTarget, nearestEnemy, smartAim, talkBackDeters, towerTarget, type Unit } from '../targeting';
 import { ASSIST, AttackYield, autoAttackTarget, edgeGoal, laneMagnet, stickAhead, lockable, lockBreakMm, magnetOn, stickTowardTarget, stickyAttackTarget, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 <<<<<<< HEAD
@@ -1277,6 +1279,11 @@ export class TouchControls {
       const u = nearestEnemy(this.h.units(), pt, this.h.view.myTeam, 3000, true);
       return u ? { x: u.x, y: u.y, id: u.id } : null;
     }
+    // TARGETING.md §6: a skillshot or ground cast that ends near an enemy hero snaps onto it (the preview shows it)
+    if (aimMagnetOn()) {
+      const m = aimMagnet(aim, me, { x, y }, this.targets(), this.h.view.myTeam);
+      return { x: m.x, y: m.y, id: 0xff };
+    }
     return { x, y, id: 0xff };
   }
 
@@ -1551,7 +1558,13 @@ export class TouchControls {
     const g = groundAt(this.h.view.gr.camera, this.h.canvas, x, y, this.groundV);
     const spec = this.h.orders.aimSpec(a.slot);
     const pt = g ? { x: toSimX(g.x), y: toSimY(g.z) } : null;
-    const t = cursorCast(spec, me, pt, null, this.targets(), this.h.view.myTeam, true, this.facing());
+    // TARGETING.md §6: a unit aim takes the enemy hero whose drawn body is under the tap (a tap on a head lands ~2 m
+    // behind it on the ground, so the ground point alone picked the hero behind in a clump)
+    const team = this.h.view.myTeam;
+    const under = spec.kind === 'unit' ? this.bodyAt(this.targets().filter((u) => u.kind === 'hero' && isEnemy(u, team)), x, y) : null;
+    let t = cursorCast(spec, me, pt, under, this.targets(), team, true, this.facing());
+    // TARGETING.md §6: the field tap aims like a drag release, with the same small magnet
+    if (t && t.id === 0xff && aimMagnetOn()) t = { ...aimMagnet(spec, me, t, this.targets(), team), id: 0xff };
     if (!t || !this.h.orders.cast(a.slot, t.x, t.y, t.id)) {
       this.refused(a.slot);
       return;
@@ -1573,14 +1586,21 @@ export class TouchControls {
     this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: p.id, valid: spec.kind !== 'unit' || p.id !== 0xff };
   }
 
+  /** TARGETING.md §2: the candidate whose drawn body is under (x, y) client px (touch pads, the lock as hysteresis). */
+  private bodyAt(cands: readonly Unit[], x: number, y: number): Unit | null {
+    if (!cands.length) return null;
+    const v = this.h.view;
+    return pickBody(cands, screenBodies(v.gr.camera, this.h.canvas, v.drawn), x, y, { padScale: PICK.touchPad, prefer: this.lock.id });
+  }
+
   private tapAt(x: number, y: number): void {
     const me = this.me();
     if (!me || !this.h.enabled()) return;
     const team = this.h.view.myTeam;
     const cands = this.h.units().filter((u) => lockable(u, me, team));
     if (!cands.length) return;
-    const cam = this.h.view.gr.camera;
-    const hit = pickNearest(cands, (u) => project(cam, this.h.canvas, u.x / 1000, 0.6, -u.y / 1000), x, y, TAP.pickPx);
+    // TARGETING.md §2: the drawn body under the finger (selection cylinder, touch pads), not the sim point at its feet
+    const hit = this.bodyAt(cands, x, y);
     if (hit) this.lockOn(hit.id);
   }
 

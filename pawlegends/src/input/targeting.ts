@@ -78,7 +78,8 @@ export function guardedByTower(units: readonly Unit[], u: { x: number; y: number
  * within `seek` mm, but never one that sits under an untanked enemy tower (that walk-in is how new players died).
  * Null when nothing qualifies.
  *
- * GAPS A5 `first` (Settings "Target first"): 'heroes' is the order above (the default). 'lowest' takes the lowest HP
+ * GAPS A5 `first` (Settings "Target first"): 'heroes' is the order above (the default); 'absolute' (Weakest hero,
+ * TARGETING.md §4) the same order with heroes ranked by HP points instead of HP share. 'lowest' takes the lowest HP
  * share among the heroes, minions and camp monsters in range; 'closest' the nearest of them. Both still put towers
  * after units in range and keep the same out-of-range fallback ('closest' takes the nearer of the two fallbacks).
  */
@@ -105,6 +106,8 @@ export function attackPriority(
   /** C5: a minion the next basic kills (nearest first), from attack range + 1 m. */
   let kill: Unit | null = null;
   let killD = Infinity;
+  // TARGETING.md §4: 'absolute' (Weakest hero) ranks heroes by HP points, the default by HP share
+  const weaker = first === 'absolute' ? (a: Unit, b: Unit): boolean => a.hp < b.hp : (a: Unit, b: Unit): boolean => a.hp / Math.max(1, a.maxHp) < b.hp / Math.max(1, b.maxHp);
   for (const u of units) {
     if (u.id === me.id || !isEnemy(u, myTeam)) continue;
     const d = edgeGap(me, u);
@@ -129,8 +132,8 @@ export function attackPriority(
       // feel pass B4: an enemy hero within the attack range + HERO_REACH_MM wins the default pick over farm in range;
       // one past the range (a walk-in) never under an untanked enemy tower, and never over a last hit in reach
       if (inRange) {
-        if (!hero || u.hp / u.maxHp < hero.hp / hero.maxHp) hero = u;
-      } else if (d <= range + HERO_REACH_MM && (!reachHero || u.hp / u.maxHp < reachHero.hp / reachHero.maxHp) && !guardedByTower(units, u, myTeam)) reachHero = u;
+        if (!hero || weaker(u, hero)) hero = u;
+      } else if (d <= range + HERO_REACH_MM && (!reachHero || weaker(u, reachHero)) && !guardedByTower(units, u, myTeam)) reachHero = u;
       if (d <= seek && (!nearHero || d < edgeGap(me, nearHero)) && !guardedByTower(units, u, myTeam)) nearHero = u;
     } else if (u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding') {
       if (inRange && !farm && (!minion || u.hp < minion.hp)) minion = u;

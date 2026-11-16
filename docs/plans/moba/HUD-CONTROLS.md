@@ -68,3 +68,8 @@ that run at 90/120 Hz offer the higher rates.
   through the backend sanitizer.
 - `pawlegends/tests/e2e/hud-controls.spec.ts` (landscape): edit → save → the match lays out the saved Q, R and
   minimap; default untouched; Indicator and Normal cast end to end; the Settings rows.
+
+## Targeting
+
+Which unit a tap, click, Attack press or quick-cast picks (body picking, the lock with no timer, Target first, the
+aim magnet, desktop's held `` ` `` for heroes only) is in [TARGETING.md](TARGETING.md).

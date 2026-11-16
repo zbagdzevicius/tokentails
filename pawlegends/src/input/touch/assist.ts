@@ -5,8 +5,9 @@
  * - map edge: a stick goal past the playable edge or inside the enemy fountain is pulled back, and a goal that
  *   would not move the hero any more means "stop" (a held stick no longer grinds into a corner);
  * - auto-attack: standing still with no input, the nearest enemy minion in range (then a hero) is the target;
- * - target lock (GAPS A5): a tapped enemy hero (on the field or its portrait) stays the Attack button's and the smart
- *   casts' target for 5 s, or until it dies, hides or gets more than 9 m away.
+ * - target lock (GAPS A5; TARGETING.md §3 dropped the 5 s timer, as Wild Rift's lock has none): a tapped enemy hero (on
+ *   the field or its portrait) stays the Attack button's and the smart casts' target until it dies, hides, gets more
+ *   than 9 m away or, once reached, breaks past the leash; a second tap on it lets go.
  * All in sim mm and radians (0 = +x, counter-clockwise).
  */
 import { CANNON } from '../../data/fun';
@@ -178,7 +179,7 @@ export function autoAttackTarget(
     if (d > range) continue;
     if (u.kind === 'minion') {
       if (!minion || u.hp < minion.hp) minion = u;
-    } else if (!hero || u.hp / Math.max(1, u.maxHp) < hero.hp / Math.max(1, hero.maxHp)) hero = u;
+    } else if (!hero || (first === 'absolute' ? u.hp < hero.hp : u.hp / Math.max(1, u.maxHp) < hero.hp / Math.max(1, hero.maxHp))) hero = u;
     if (!lowest || u.hp / Math.max(1, u.maxHp) < lowest.hp / Math.max(1, lowest.maxHp)) lowest = u;
     if (d < closestD) {
       closestD = d;
@@ -190,7 +191,10 @@ export function autoAttackTarget(
   return hero?.id ?? minion?.id ?? null;
 }
 
-/** GAPS A5: how long a tap lock holds (ms) and how far the locked hero may get from the player (mm). */
+/**
+ * GAPS A5: how far the locked hero may get from the player (mm), and `ms`: how long a dragged minion, monster or
+ * structure's PickLock holds (attackSelect.ts). TARGETING.md §3: the hero TargetLock no longer times out.
+ */
 export const LOCK = Object.freeze({ ms: 5000, rangeMm: 9000 });
 
 /** Can the player lock `u`: a living, visible enemy hero within LOCK.rangeMm? */
@@ -204,8 +208,8 @@ export const lockBreakMm = (range: number): number => range + (range <= LOCK_BRE
 
 /**
  * The touch target lock (GAPS A5). `set` locks a hero (a second tap on the locked hero lets go); `check` returns the
- * locked id while the lock holds and drops it once LOCK.ms passed, the hero died or left the snapshot (a bush), or
- * it is more than LOCK.rangeMm from the player. Client only: it only decides which id an Attack or Cast carries.
+ * locked id while the lock holds and drops it once the hero died or left the snapshot (a bush), it is more than
+ * LOCK.rangeMm from the player, or it broke past the leash after being reached (TARGETING.md §3: no 5 s timer). Client only: it only decides which id an Attack or Cast carries.
  */
 export class TargetLock {
   id: number | null = null;
@@ -232,11 +236,12 @@ export class TargetLock {
   /**
    * The locked id, or null (and the lock is dropped) when it no longer holds. Feel pass B4 `breakMm` (the attack range
    * + 1 m melee, + 2 m ranged): once the locked hero has been that close, it breaking away past it ends the lock.
+   * TARGETING.md §3: no timer (`_now` is kept for the callers); a teamfight outlasts 5 s.
    */
-  check(units: readonly Unit[], me: Unit | null, myTeam: number, now: number, breakMm = Infinity): number | null {
+  check(units: readonly Unit[], me: Unit | null, myTeam: number, _now: number, breakMm = Infinity): number | null {
     if (this.id === null) return null;
     const u = units.find((q) => q.id === this.id);
-    if (!me || me.state === 'dead' || now - this.since >= LOCK.ms || !lockable(u, me, myTeam)) {
+    if (!me || me.state === 'dead' || !lockable(u, me, myTeam)) {
       this.clear();
       return null;
     }
@@ -250,9 +255,14 @@ export class TargetLock {
     return this.id;
   }
 
-  /** Share of the lock's time left, 1..0 (0 when none). */
-  left(now: number): number {
-    return this.id === null ? 0 : Math.max(0, Math.min(1, 1 - (now - this.since) / LOCK.ms));
+  /** 1 while a lock is on, 0 when none (TARGETING.md §3: the lock has no timer to run down). */
+  left(_now: number): number {
+    return this.id === null ? 0 : 1;
+  }
+
+  /** When (ms) the current lock was set. */
+  get at(): number {
+    return this.since;
   }
 }
 

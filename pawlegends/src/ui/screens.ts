@@ -1016,7 +1016,7 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
     ${o.onCameraHeight ? cameraHeightRowHtml() : ''}
     ${ff ? `<button class="pl-btn ghost danger" data-a="forfeit"${ffReady ? '' : ' disabled'}>${party ? (ffReady ? 'Vote surrender' : `Vote surrender from ${clockText(ff.from)}`) : ffReady ? 'Forfeit' : `Forfeit from ${clockText(ff.from)}`}</button>` : ''}
     <button class="pl-btn ghost danger" data-a="leave">Leave match</button>
-    ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Wheel</kbd> camera height · <kbd>Tab</kbd> scores</p>`}</div>`;
+    ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · hold <kbd>\`</kbd> heroes only · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Wheel</kbd> camera height · <kbd>Tab</kbd> scores</p>`}</div>`;
   };
   // GAPS B2: the confirm step names what a forfeit costs before anything is sent
   const confirm = (): void => {
