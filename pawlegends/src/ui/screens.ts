@@ -694,11 +694,13 @@ export function rewardStrip(o: Pick<ResultsOpts, 'grade' | 'treats' | 'dareLink'
     const pct = (v: number): string => `${Math.round(v * 100)}%`;
     const opened = t.rewards.length > 0;
     parts.push(`<span class="rw-treat" style="--from:${pct(t.before)};--to:${pct(opened ? 1 : t.after)}"><small>+${t.gained} Treat XP</small><i class="bar"><i class="fill"></i></i></span>`);
-    if (opened) parts.push(`<span class="rw-chest">${icon('crown')}<span><b>Chest opened</b><small>${esc(t.rewards.map((r) => r.name).join(', '))}</small></span></span>`);
+    // rw-open, not rw-chest: rewards.css owns .rw-chest (the Lucky Treat chest, 132x112 with a drop-shadow ledge), which
+    // drew this toast tall and its text twice (s7 ui, founder Nov 15)
+    if (opened) parts.push(`<span class="rw-open">${icon('crown')}<span><b>Chest opened</b><small>${esc(t.rewards.map((r) => r.name).join(', '))}</small></span></span>`);
   }
   if (o.dareLink) parts.push(`<button class="pl-btn ghost small rw-share" data-a="share" title="Copy dare link">Dare a friend</button>`);
   // MATCH-MOMENTS.md: the share card beside the rewards (on phones the column's moments block sits below the fold)
-  if (o.moments) parts.push(`<button class="pl-btn ghost small rw-card" data-a="card" data-testid="results-card-strip" title="Share your Legend Moment card">Share card</button>`);
+  if (o.moments) parts.push(`<button class="pl-btn ghost small rw-cardbtn" data-a="card" data-testid="results-card-strip" title="Share your Legend Moment card">Share card</button>`);
   return parts.length ? `<div class="pl-reward" data-reward>${parts.join('')}</div>` : '';
 }
 
@@ -760,14 +762,20 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       </div>
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
     </div>
-    ${(o.won ? o.grade?.mvp.hero : (o.grade?.bestOnTeam?.hero ?? o.grade?.mvp.hero)) ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
+    <div class="pl-res-dock">
+    <div class="pl-res-top">
     ${o.onHome && !o.party ? `<button class="pl-btn ghost small pl-tohome" data-a="home" aria-label="Home">${icon('paw')}<span>Home</span></button>` : ''}
+    ${(o.won ? o.grade?.mvp.hero : (o.grade?.bestOnTeam?.hero ?? o.grade?.mvp.hero)) ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
+    </div>
+    <div class="pl-res-foot">
     ${o.party ? '' : rewardStrip(o)}
     ${
       o.party
         ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">${esc(o.party.leave ?? 'Leave party')}</button>${o.party.change === false ? '' : '<button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button>'}<button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
         : `<div class="actions pinned"><button class="pl-btn ghost" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button>${o.next ? `<button class="pl-btn ghost lb-next" data-a="next" data-testid="results-next">${esc(o.next.label)}<small>${esc(o.next.sub)}</small></button>` : ''}<button class="pl-btn big" data-a="again" data-testid="results-again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots${o.mode ? ` · ${esc(o.mode)}` : ''}</small></button></div>`
-    }`;
+    }
+    </div>
+    </div>`;
   root.addEventListener('click', (e) => {
     const flag = (e.target as HTMLElement).closest<HTMLElement>('[data-report]');
     if (flag) {

@@ -27,7 +27,7 @@ html[data-menu-text='large'] .mm-share-card { width: min(760px, calc((100vw - 24
 /* ------------------------------------------------------------------------------------------- results moments */
 .pl-moments { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 2px; }
 .pl-moments .pl-btn { flex: 0 1 auto; }
-.pl-reward .rw-card { white-space: nowrap; }
+.pl-reward .rw-cardbtn { white-space: nowrap; }
 
 /* ------------------------------------------------------------------------------------------- replay viewer */
 .pl-match.pl-replaying .pl-touch,

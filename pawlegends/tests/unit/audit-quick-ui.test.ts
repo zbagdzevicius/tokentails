@@ -50,7 +50,8 @@ describe('UX-04 reward strip, UX-08 Home', () => {
     document.body.innerHTML = html;
     expect(document.querySelector('.rw-grade b')?.textContent).toBe('A');
     expect(document.querySelector('.rw-treat small')?.textContent).toBe('+80 Treat XP');
-    expect(document.querySelector('.rw-chest')?.textContent).toContain('Wave emote');
+    expect(document.querySelector('.rw-open')?.textContent).toContain('Wave emote');
+    expect(document.querySelector('.rw-chest')).toBeNull();
     expect(document.querySelector('.rw-share[data-a="share"]')).not.toBeNull();
     expect(rewardStrip({ grade: null, treats: null, dareLink: null })).toBe('');
   });

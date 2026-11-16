@@ -199,10 +199,10 @@ html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px
 .pl-reward .rw-treat .bar { display: block; height: 7px; border-radius: 99px; background: rgb(var(--v6-cream-rgb) / 0.14); overflow: hidden; }
 .pl-reward .rw-treat .fill { display: block; height: 100%; width: var(--from); background: var(--v6-xp-fill, linear-gradient(90deg, var(--v6-flame, #ff8a1e), var(--butter))); border-radius: inherit; animation: pl-rwfill 0.9s 0.5s ease-out forwards; }
 @keyframes pl-rwfill { to { width: var(--to); } }
-.pl-reward .rw-chest { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 10px; background: linear-gradient(90deg, rgb(var(--v6-bolt-rgb) / 0.24), transparent); animation: pl-pop 0.5s 0.9s both; }
-.pl-reward .rw-chest .pl-icon { width: 20px; height: 20px; color: var(--butter); flex: none; }
-.pl-reward .rw-chest b, .pl-reward .rw-chest small { display: block; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pl-reward .rw-chest b { font-size: 12px; }
+.pl-reward .rw-open { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 10px; background: linear-gradient(90deg, rgb(var(--v6-bolt-rgb) / 0.24), transparent); animation: pl-pop 0.5s 0.9s both; }
+.pl-reward .rw-open .pl-icon { width: 20px; height: 20px; color: var(--butter); flex: none; }
+.pl-reward .rw-open b, .pl-reward .rw-open small { display: block; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-reward .rw-open b { font-size: 12px; }
 .pl-reward .rw-share { white-space: nowrap; }
 .pl-results .pl-tohome {
   position: absolute; right: calc(16px + var(--safe-r)); top: calc(14px + var(--safe-t)); z-index: 4; display: inline-flex; align-items: center; gap: 6px; min-height: 44px;
@@ -216,7 +216,7 @@ html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px
   .pl-reward .rw-grade b { width: 28px; height: 28px; font-size: 17px; }
   .pl-reward .rw-grade small { display: none; }
   .pl-reward .rw-treat { min-width: 90px; }
-  .pl-reward .rw-chest small { display: none; }
+  .pl-reward .rw-open small { display: none; }
   .pl-reward .rw-share { padding: 6px 10px; font-size: 13px; }
   .pl-results .pl-tohome { top: calc(8px + var(--safe-t)); padding: 6px 12px; }
 }

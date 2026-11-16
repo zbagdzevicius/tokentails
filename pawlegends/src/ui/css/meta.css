@@ -232,8 +232,16 @@
 
 /* v6: the release watermark (ui/versionMark.ts; position and opacity in home.css / lobby.css): ice figures, a bolt
    flash once copied. Colour only: size, place and the low opacity stay. */
-.pl-home .lb-ver, .pl-lobby .lb-ver { color: var(--v6-ice); font-variant-numeric: tabular-nums; transition: color var(--v6-dur-fast), opacity var(--v6-dur-fast); }
-.pl-home .lb-ver[data-copied], .pl-lobby .lb-ver[data-copied] { color: var(--v6-bolt); }
+.pl-lobby .lb-ver, .pl-settings .lb-ver { color: var(--v6-ice); font-variant-numeric: tabular-nums; transition: color var(--v6-dur-fast), opacity var(--v6-dur-fast); }
+.pl-lobby .lb-ver[data-copied], .pl-settings .lb-ver[data-copied] { color: var(--v6-bolt); }
+/* Settings: the release line under the legal links (s7 ui; it left Home's corner), low contrast, a tap copies it */
+.pl-settings .set-ver { margin: 2px 0 0; }
+.pl-settings .lb-ver {
+  display: inline-block; max-width: 100%; min-height: 24px; padding: 2px 4px; margin: 0; border: 0; background: none; cursor: copy;
+  font: 500 11px/20px var(--font, sans-serif); opacity: 0.55; text-align: left;
+}
+.pl-settings .lb-ver span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pl-settings .lb-ver:hover, .pl-settings .lb-ver:focus-visible, .pl-settings .lb-ver[data-copied] { opacity: 0.9; }
 
 /* SHARE-PUSH.md §2: the notifications card (the offer card's corner and look) and its Settings rows */
 .pl-pushask p { margin: 0; font-size: 13px; line-height: 1.35; color: var(--v6-ice); }

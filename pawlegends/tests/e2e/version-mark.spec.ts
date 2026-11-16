@@ -1,10 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { PROFILE_KEY, playFromHome } from './helpers';
+import { PROFILE_KEY } from './helpers';
 
-// The release watermark (src/ui/versionMark.ts) on the title screen: at a landscape phone (844x390, touch) and a
-// desktop (1440x900), for a new and a returning profile, it renders the baked line ("v0.1.0 · build 20261111-1530 ·
-// a1b2c3d · sim 20 · web"), sits inside the viewport, and overlaps no other control of the title. It is gone in a
-// match, and a click copies the full line.
+// The release line (src/ui/versionMark.ts). s7 ui (founder, Nov 15): it left Home's bottom-left corner, where on a
+// phone it ran under the nav and through a champion, and now sits in Settings under the legal links. At a landscape
+// phone (844x390, touch) and a desktop (1440x900), for a new and a returning profile: Home has no watermark; Settings
+// renders the baked line ("v0.1.0 · build 20261111-1530 · a1b2c3d · sim 20 · web") inside the viewport (scrolled to),
+// overlapping no other control. A click copies the full line.
 
 const RETURNING = { v: 1, sessions: 3, matches: 8, wins: 4, firstWinDone: true, hero: 'sage', side: 'cat', veteran: true, firstPlaySession: 1 };
 const SIZES = [
@@ -23,7 +24,8 @@ async function problems(page: Page): Promise<string[]> {
     if (m.width < 20 || m.height < 8) out.push(`watermark ${Math.round(m.width)}x${Math.round(m.height)}`);
     if (m.left < -1 || m.top < -1 || m.right > innerWidth + 1 || m.bottom > innerHeight + 1) out.push('watermark off screen');
     const sel = 'button, a[href], summary, input, select, textarea, [role="button"], [role="radio"], [tabindex]:not([tabindex="-1"])';
-    for (const e of document.querySelectorAll<HTMLElement>(sel)) {
+    // the controls of Settings (Home sits under the panel, not beside the line)
+    for (const e of (mark.closest('.pl-settings') ?? document).querySelectorAll<HTMLElement>(sel)) {
       if (e === mark || mark.contains(e) || e.contains(mark)) continue;
       // the body of a closed <details> (the Events and quests popovers) is not drawn, though Chrome still lays it out
       const d = e.closest('details');
@@ -62,6 +64,10 @@ for (const size of SIZES) {
         // past the lobby's fade-in and the peek's late styling
         await page.waitForTimeout(800);
         const mark = page.locator('[data-testid="version-mark"]');
+        // Home: no watermark under the nav or through a champion
+        await expect(mark).toHaveCount(0);
+        await openSettings(page, size.touch);
+        await mark.scrollIntoViewIfNeeded();
         await expect(mark).toBeVisible();
         await expect(mark).toBeInViewport();
         const text = (await mark.innerText()).trim();
@@ -75,22 +81,28 @@ for (const size of SIZES) {
   });
 }
 
-test('a click copies the full line; the watermark is gone in a match', async ({ page, context, browserName }, info) => {
+async function openSettings(page: Page, touch: boolean): Promise<void> {
+  const b = page.locator('.pl-home [data-a="settings"]').first();
+  if (touch) await b.tap();
+  else await b.click();
+  await page.waitForSelector('.pl-settings [data-testid="version-mark"]');
+}
+
+test('Settings: a click copies the full line', async ({ page, context, browserName }, info) => {
   test.skip(info.project.name !== 'desktop' || browserName !== 'chromium', 'chromium clipboard permissions, desktop only');
   test.setTimeout(120_000);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
+  await openSettings(page, false);
   const mark = page.locator('[data-testid="version-mark"]');
+  await mark.scrollIntoViewIfNeeded();
   const line = (await mark.innerText()).trim();
   await mark.click();
   await expect(mark).toHaveText('Copied');
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(line);
-  // the click did not start a match or open anything
+  // the click did not close Settings or start anything
+  await expect(page.locator('.pl-settings')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'title');
   await expect(mark).toHaveText(line, { timeout: 3000 });
-  // into a match: the title (and the watermark with it) is gone
-  await playFromHome(page);
-  await page.waitForSelector('html[data-match="live"]', { timeout: 60_000 });
-  await expect(mark).toHaveCount(0);
 });
