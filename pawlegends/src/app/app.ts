@@ -9,6 +9,8 @@ import { HumanFilter } from '../analytics/human';
 import { askConsent, createAnalytics, type Analytics } from '../analytics/posthog';
 import { retentionDay, sinceLoadMs } from '../analytics/kpi';
 import { sfx } from '../audio/sfx';
+import { applyMusicPref } from '../audio/musicPref';
+import { installTheme } from '../audio/theme';
 import { nameLine } from '../audio/voiceLines';
 import { crashSender, reportCrash, setCrashHook, showCrash } from './crash';
 import { setChunkRetryEnv } from './chunkRetry';
@@ -325,6 +327,9 @@ export class App {
     this.dayN = retentionDay();
     migrateTreatTrack();
     sfx.setMuted(p.muted);
+    // the theme soundtrack: home loop, champion select build and stingers (audio/theme.ts), at the player's Music level
+    applyMusicPref();
+    installTheme();
     // sim v14: the hero follows the side the switch was left on (the last hero picked there)
     this.choice = { hero: HEROES[p.hero].side === p.side ? p.hero : heroForSide(p, p.side), trick: p.trick, difficulty: p.difficulty };
     this.human.install(window);

@@ -192,7 +192,7 @@ export interface SwingOpts {
 
 /** A sound that started on the speakers (e2e and the audio probe read these). */
 export interface AudioProbe {
-  (o: { kind: 'sfx' | 'voice'; name: string; src: AudioBufferSourceNode; gain: number }): void;
+  (o: { kind: 'sfx' | 'voice' | 'music'; name: string; src: AudioBufferSourceNode; gain: number }): void;
 }
 
 /** One console warning per kind of audio failure (a broken device should not flood the console). */
@@ -272,6 +272,7 @@ export class Sfx {
   /** Host volumes (`audio{music, sfx}`, 0..1); 1 = the built-in mix. */
   private fxScale = 1;
   private musicScale = 1;
+  private playerMusic = 1;
   /** Listener (camera focus, m). */
   ear = { x: 0, z: 0 };
   /**
@@ -483,9 +484,19 @@ export class Sfx {
     if (this.fx) this.fx.gain.value = this.fxScale;
   }
 
-  /** The host's music volume (0..1): audio/music.ts scales its bus by it. */
+  /** The host's music volume (0..1). */
   get musicVolume(): number {
     return this.musicScale;
+  }
+
+  /** The player's Music slider (Settings, audio/musicPref.ts), 0..1. */
+  setPlayerMusic(v: number): void {
+    if (Number.isFinite(v)) this.playerMusic = Math.max(0, Math.min(1, v));
+  }
+
+  /** What the music buses scale by (audio/music.ts, audio/theme.ts): the host's volume times the player's slider. */
+  get musicLevel(): number {
+    return this.musicScale * this.playerMusic;
   }
 
   get isMuted(): boolean {

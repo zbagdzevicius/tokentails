@@ -49,6 +49,7 @@ import { MINIMAP_SIZES, colourBlind, minimapSize, setColourBlind, setMinimapSize
 import { accountActionOf, accountRowHtml, type AccountModel, type AccountSend } from './account';
 import { menuText, menuTextRowHtml, setMenuText, type MenuText } from './history/textScale';
 import { FPS_CHOICES, type FpsChoice } from '../render/perf/prefs';
+import { musicPref, setMusicPref } from '../audio/musicPref';
 
 export interface SettingsState {
   muted: boolean;
@@ -162,6 +163,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     // Audit UX-10: a corner ✕ (sticky) and a sticky Done, so the exit is on screen on a 667x375 phone
     root.innerHTML = `<div class="card"><button class="pl-x" data-a="x" aria-label="Close settings">✕</button><h2>Settings</h2>
       ${row('Sound', 'sound', !s.muted)}
+      <div class="set-row" data-testid="music-row"><span>Music</span><span class="music-vol"><input type="range" min="0" max="100" step="5" value="${Math.round(musicPref() * 100)}" data-music="1" aria-label="Music volume"><output>${Math.round(musicPref() * 100)}%</output></span></div>
       <div class="set-row"><span>Graphics</span><span class="chips">${(['low', 'med', 'high'] as const)
         .map((t) => `<button class="chip ${s.tier === t ? 'on' : ''}" data-t="${t}">${TIER_NAME[t]}</button>`)
         .join('')}</span></div>
@@ -216,6 +218,12 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   // per-ability aim sensitivity: the slider saves as it moves (no redraw, so the thumb keeps its drag)
   root.addEventListener('input', (e) => {
     const inp = e.target as HTMLInputElement;
+    if (inp.dataset?.music) {
+      setMusicPref(Number(inp.value) / 100);
+      const out = inp.parentElement?.querySelector('output');
+      if (out) out.textContent = `${inp.value}%`;
+      return;
+    }
     const k = inp.dataset?.sens as CastSlot | undefined;
     if (!k || !casts[k]) return;
     casts[k] = { ...casts[k], sens: clampSens(Number(inp.value)) };

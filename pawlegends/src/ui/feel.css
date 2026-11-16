@@ -337,6 +337,9 @@ html[data-touch='1'] .pl-match .pl-touch .pl-knob { width: calc(52px * var(--sti
 .pl-settings .tcast > span:first-child { min-width: 48px; }
 .pl-settings .tcast .sens { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--v6-muted); }
 .pl-settings .tcast .sens input { width: 110px; accent-color: var(--v6-bolt); }
+.pl-settings .music-vol { display: flex; align-items: center; gap: 6px; }
+.pl-settings .music-vol input { width: 130px; accent-color: var(--v6-bolt); }
+.pl-settings .music-vol output { min-width: 40px; color: var(--v6-cream); font-variant-numeric: tabular-nums; }
 .pl-settings .tcast .sens output { min-width: 40px; color: var(--v6-cream); font-variant-numeric: tabular-nums; }
 /* Sim v28 (V28.md §4): Boss Weekend's boss bar takes the team score's place in the top plate (same footprint) */
 .pl-hud[data-boss='1'] .pl-score.lol .pl-bossbar { grid-column: 1 / -1; justify-self: center; }
