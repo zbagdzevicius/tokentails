@@ -129,6 +129,14 @@ export const REPLAY_DIGEST_INDEX = {
         partialFilterExpression: { replayDigest: { $type: 'string' } },
     },
 } as const;
+/**
+ * The digest lookup that can use `replayDigest_unique`. MongoDB uses a partial index only when the query names its
+ * filter: a plain `{replayDigest: <digest>}` is not proven to be a string, so it scans the whole games collection
+ * (measured on mongod 7: COLLSCAN of every row for a new digest). On production that scan made every Pawlegends save
+ * take 15-20 s, past the client's 20 s timeout, so the Season XP answer never reached the game (founder, Nov 16:
+ * "progression is not refreshed until app / web is restarted").
+ */
+export const replayDigestLookup = (digest: string) => ({ replayDigest: { $eq: digest, $type: 'string' as const } });
 GameSchema.plugin(uniqueValidator);
 // Declared AFTER the unique-validator plugin on purpose: the plugin turns every unique index it sees
 // into a pre-save count, and for a partial index it merges `partialFilterExpression` into the

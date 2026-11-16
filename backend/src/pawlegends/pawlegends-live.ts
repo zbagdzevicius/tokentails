@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Logger, ServiceUnavailableExcep
 import { createHash } from 'crypto';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { GamePlatform, GameType } from 'src/game/game.schema';
+import { GamePlatform, GameType, replayDigestLookup } from 'src/game/game.schema';
 import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_TICK_HZ } from 'src/shared-contracts/caps';
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { FailedReplayCache, FAILED_HEIST_REPLAYS } from 'src/user/heist/failed-replay-cache';
@@ -446,7 +446,7 @@ export async function savePawlegendsMatch(
     const failed = failures.get(digest);
     // The sim is deterministic: the same record fails the same way. No re-sim, no queue slot.
     if (failed) throw reject(failed.code, failed.reason, true);
-    const saved = await deps.games.findOne({ searchObject: { replayDigest: digest }, projection: '_id user' });
+    const saved = await deps.games.findOne({ searchObject: replayDigestLookup(digest), projection: '_id user' });
     if (saved) throw duplicate();
 
     // Throws the 429 synchronously when the queue is full: nothing has been simulated.

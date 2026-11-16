@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { GamePlatform, GameType } from 'src/game/game.schema';
+import { GamePlatform, GameType, replayDigestLookup } from 'src/game/game.schema';
 import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_TICK_HZ } from 'src/shared-contracts/caps';
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { ILiveGameRow, recomputeCatnipCount } from 'src/user/utils/live-game';
@@ -200,7 +200,7 @@ export async function savePawlegendsPartyMatch(
     // once per account per room: an account that somehow held two seats saves one of them, never both
     const mine = room.occupants.filter(o => o.accountId === String(userId)).map(o => partyDigest(r.room, o.slot));
     for (const d of new Set([digest, ...mine])) {
-        const saved = await deps.games.findOne({ searchObject: { replayDigest: d }, projection: '_id' });
+        const saved = await deps.games.findOne({ searchObject: replayDigestLookup(d), projection: '_id' });
         if (saved) throw pawlegendsDuplicate();
     }
 

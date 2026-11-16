@@ -120,6 +120,15 @@ export function applyUpdate(doc: Doc, update: any) {
     }
 }
 
+/** Equality, or the `{$eq, $type: 'string'}` form of an indexed digest lookup (game.schema.ts replayDigestLookup). */
+const matchesValue = (actual: unknown, expected: unknown): boolean => {
+    if (expected && typeof expected === 'object' && !Array.isArray(expected) && '$eq' in (expected as object)) {
+        const { $eq, $type } = expected as { $eq: unknown; $type?: string };
+        return actual === $eq && ($type === undefined || typeof actual === $type);
+    }
+    return actual === expected;
+};
+
 export class FakeUsers {
     readonly docs = new Map<string, Doc>();
     readonly updates: { id: string; update: any }[] = [];
@@ -166,7 +175,9 @@ export class FakeGames {
 
     findOne = jest.fn(
         async ({ searchObject }: { searchObject: Doc }) =>
-            this.rows.find(row => Object.entries(searchObject).every(([key, value]) => row[key] === value)) || null
+            this.rows.find(row =>
+                Object.entries(searchObject).every(([key, value]) => matchesValue(row[key], value))
+            ) || null
     );
 
     create = jest.fn(async (row: Doc) => {
