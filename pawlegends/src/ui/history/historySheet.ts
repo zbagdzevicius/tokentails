@@ -181,12 +181,23 @@ export function localKey(r: HistoryEntry, replay: (id: string) => { finalHash: s
   return rec ? `${rec.finalHash}:${rec.ticks}` : null;
 }
 
+/**
+ * A device row's mode label: "Skirmish 3v3", and from sim v34 its pool map ("Skirmish 3v3 · Park", as `modeLabel` names
+ * the account's rows). Rows saved before the map was kept on the row read it from their kept replay. Pure.
+ */
+export function localModeLabel(r: HistoryEntry, replay: (id: string) => { map?: string } | null = replayOf): string {
+  const base = MODE_LABEL[r.mode] ?? r.mode;
+  const map = r.map ?? (r.replay ? replay(r.id)?.map : undefined);
+  const card = map && map !== 'crossing' && map !== 'hearthwood' ? MAP_CARDS[map as keyof typeof MAP_CARDS] : undefined;
+  return card ? `${base} · ${card.short}` : base;
+}
+
 const fromLocal = (r: HistoryEntry): ShownRow => ({
   sid: null,
   at: r.at,
   hero: r.hero,
   heroName: r.heroName ?? null,
-  mode: MODE_LABEL[r.mode] ?? r.mode,
+  mode: localModeLabel(r),
   filter: filterOfLocal(r.mode),
   outcome: r.outcome,
   grade: r.grade,

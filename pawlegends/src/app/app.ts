@@ -2766,6 +2766,8 @@ export class App {
         ...(!o.party && e.emotes?.length ? { emotes: e.emotes } : {}),
         // MATCH-HISTORY.md: the account's row for this match carries the same key
         key: `${e.result.finalHash}:${e.result.ticks}`,
+        // sim v34: the device row names its pool map ("Skirmish 3v3 · Park"), like the account's row
+        ...(e.replay.map && e.replay.map !== 'crossing' ? { map: e.replay.map } : {}),
       },
       o.party ? null : e.replay,
     );

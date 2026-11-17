@@ -45,6 +45,8 @@ export interface HistoryEntry {
   emotes?: number[];
   /** MATCH-HISTORY.md: `finalHash:ticks`, the key the account's history row carries (its replay is found by it). */
   key?: string;
+  /** Sim v34: the 3v3 pool map the match played (omitted on the Crossing and on rows saved before Nov 17 2026). */
+  map?: string;
 }
 
 /** Most emote ticks a row keeps. */

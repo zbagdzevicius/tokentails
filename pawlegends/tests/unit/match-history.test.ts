@@ -4,7 +4,7 @@ import type { ApiResult } from '../../src/embed/api';
 import { API_ARG_KEYS, API_OPS } from '../../src/embed/api';
 import type { HistoryEntry } from '../../src/replay/store';
 import { SIM_VERSION } from '../../src/sim/version';
-import { errText, filterOfLocal, historySheet, localKey, matchHtml, mergeRows, modeLabel, seasonHtml, type ServerMatch, type ServerPage, type ServerRow } from '../../src/ui/history/historySheet';
+import { errText, filterOfLocal, historySheet, localKey, localModeLabel, matchHtml, mergeRows, modeLabel, seasonHtml, type ServerMatch, type ServerPage, type ServerRow } from '../../src/ui/history/historySheet';
 
 /* MATCH-HISTORY.md: the Wild Rift style history on the client: the account's rows merged with the device's replays,
    filters, season numbers, a match's two teams and damage graph, a friend's history and its privacy answers. */
@@ -89,6 +89,15 @@ describe('match history: ops and helpers', () => {
     expect(API_OPS).toEqual(expect.arrayContaining(['history.list', 'history.match']));
     expect(API_OPS).not.toContain('history.privacy');
     expect(API_ARG_KEYS).toEqual(expect.arrayContaining(['match', 'visibility', 'mode', 'before', 'code']));
+  });
+
+  it('a device row names its v34 pool map, from the row or its kept replay; the Crossing stays unnamed', () => {
+    const row = { id: 'a', at: 1, hero: 'sage', mode: 'skirmish', difficulty: 'easy', outcome: 'won', grade: 'C', k: 0, d: 0, a: 0, seconds: 400, simVersion: 34, replay: false } as const;
+    expect(localModeLabel({ ...row, map: 'pitch' }, () => null)).toBe('Skirmish 3v3 · Park');
+    expect(localModeLabel({ ...row, mode: 'practice', map: 'ridge' }, () => null)).toBe('Practice · Ridge');
+    expect(localModeLabel({ ...row, replay: true }, () => ({ map: 'quarry' }))).toBe('Skirmish 3v3 · Quarry');
+    expect(localModeLabel({ ...row, replay: true }, () => ({}))).toBe('Skirmish 3v3');
+    expect(localModeLabel({ ...row, map: 'crossing' }, () => null)).toBe('Skirmish 3v3');
   });
 
   it('mode labels and filters', () => {
