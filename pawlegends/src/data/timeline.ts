@@ -140,6 +140,32 @@ export const HEARTHWOOD_TIMELINE_BY: TimelineBy = Object.freeze({
 });
 
 export const CROSSING_TIMELINE: Timeline = C_TIMELINE;
+/**
+ * Sim v34 (V34-MAPS.md): the pool maps play Crossing's clock; only Pudding moves. Lanternfall Ridge wakes him in the
+ * mill pit at 4:30 (the mill shuts then); Geode Quarry and Pawball Park have no Pudding (past the safety end).
+ */
+export const RIDGE_TIMELINE: Timeline = Object.freeze({ ...C_TIMELINE, pudding: 8100 });
+/**
+ * Sim v34: Lanternfall Ridge's late Sunset a minute earlier on every difficulty: its one lane puts all six heroes on
+ * the same base, so the ramp starts sooner to end matches on the core (Sunset itself unchanged).
+ */
+export const RIDGE_TIMELINE_BY: TimelineBy = Object.freeze({
+  rookie: Object.freeze({ sunset: 7200, late: 9900 }),
+  easy: Object.freeze({ sunset: 10350, late: 12150 }),
+  normal: Object.freeze({ sunset: 12150, late: 13500 }),
+  hard: Object.freeze({ sunset: 12150, late: 13500 }),
+});
+/**
+ * Sim v34: Geode Quarry's and Pawball Park's late Sunset two minutes before the Crossing's (7:00 on Normal and Hard):
+ * their objectives push structures early and their matches still stalled at the 11:00 safety end ~2% of the time.
+ */
+export const SHORT_TIMELINE_BY: TimelineBy = Object.freeze({
+  rookie: Object.freeze({ sunset: 7200, late: 9000 }),
+  easy: Object.freeze({ sunset: 10350, late: 11250 }),
+  normal: Object.freeze({ sunset: 12150, late: 12600 }),
+  hard: Object.freeze({ sunset: 12150, late: 12600 }),
+});
+export const NO_PUDDING_TIMELINE: Timeline = Object.freeze({ ...C_TIMELINE, pudding: C_TIMELINE.safetyEnd + 1 });
 export const CROSSING_TIMELINE_BY: TimelineBy = C_TIMELINE_BY;
 
 /** Live bindings (sim v19): the active match's map's timeline (src/sim/map/runtime.ts bindMap). */

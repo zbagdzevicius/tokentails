@@ -12,7 +12,7 @@
  *   ball rests (units/yarn.ts).
  */
 import { CANNON, YARN } from '../../data/fun';
-import { MAP } from '../../data/map';
+import { ACTIVE_MAP, MAP } from '../../data/map';
 import { EFFECTS } from '../../data/effects';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { TICK_HZ } from '../../data/timeline';
@@ -28,7 +28,8 @@ import { knockback } from '../effects/knockback';
 import { breakGuard, domeShields, guardBlocks } from '../heroes/brutus';
 import { parryOpen } from '../heroes/clem';
 import { isInvulnerable, isStructure, radiusOf } from '../units/kinds';
-import { yarnRest } from '../units/yarn';
+import { yarnData, yarnRest } from '../units/yarn';
+import { ballInGoal, crateStop } from '../units/objective';
 
 /** Is projectile kind `k` a fun shot? */
 export const isFunShot = (k: number): boolean => k === PROJECTILE_KIND.kibble || k === PROJECTILE_KIND.yarn;
@@ -50,6 +51,8 @@ function endShot(m: MatchHandle, p: number, x: number, y: number): void {
   if (w.pKind[p] === PROJECTILE_KIND.yarn) {
     if (w.pEffB[p] >= YARN.strike) m.events.push({ type: 'yarnStrike', tick: w.globals[G.Tick], id: w.pOwner[p], n: w.pEffB[p] });
     yarnRest(m, w.pEffA[p], x, y);
+    // Sim v34: a ball stopped by a crate cracks it (Pawball Park).
+    if (ACTIVE_MAP.crates !== undefined) crateStop(m, x, y, w.pVx[p], w.pVy[p]);
   } else m.events.push({ type: 'cannonWhiff', tick: w.globals[G.Tick], id: w.pOwner[p], x, y });
 }
 
@@ -119,10 +122,8 @@ export function stepFunShot(m: MatchHandle, p: number): void {
     }
     markHit(w, p, e);
     if (isStructure(w, e)) {
-      if (!isInvulnerable(w, e)) {
-        const bp = kibble ? CANNON.structureBp : YARN.structureBp;
-        dealDamage(m, owner, team, Kind.Hero, e, share(m, e, bp), 'ability', { pure: true, backdoor: true });
-      }
+      const bp = kibble ? CANNON.structureBp : (yarnData(w).structureBp ?? YARN.structureBp);
+      if (!isInvulnerable(w, e) && bp > 0) dealDamage(m, owner, team, Kind.Hero, e, share(m, e, bp), 'ability', { pure: true, backdoor: true });
       endShot(m, p, w.pX[p], w.pY[p]);
       return;
     }
@@ -144,10 +145,14 @@ export function stepFunShot(m: MatchHandle, p: number): void {
     }
     // Yarn: neutrals let it roll on; enemy heroes and minions are bowled over.
     if (w.team[e] === TEAM_NEUTRAL) continue;
-    const dmg = hero ? YARN.heroDamage + applyBp(w.maxHp[e], YARN.heroBp) : YARN.minionDamage;
+    // Sim v34: Pawball Park's match ball hits softer (FUN_BY_MAP yarn overrides; Crossing and Hearthwood keep YARN's).
+    const yd = yarnData(w);
+    const dmg = hero ? (yd.heroDamage ?? YARN.heroDamage) + applyBp(w.maxHp[e], yd.heroBp ?? YARN.heroBp) : YARN.minionDamage;
     dealDamage(m, owner, team, Kind.Hero, e, dmg, 'ability');
     if (hero) w.pEffB[p]++;
-    if (w.alive[e] === 1 && w.hp[e] > 0) knockback(m, e, w.x[e] - w.pVx[p], w.y[e] - w.pVy[p], YARN.knock, w.facing[e]);
+    if (w.alive[e] === 1 && w.hp[e] > 0) knockback(m, e, w.x[e] - w.pVx[p], w.y[e] - w.pVy[p], yd.knock ?? YARN.knock, w.facing[e]);
   }
+  // Sim v34 (V34-MAPS.md §6.1): on Pawball Park a rolling ball whose centre enters a goal mouth scores there.
+  if (!kibble && ACTIVE_MAP.goalMouth !== undefined && ballInGoal(m, p, bx, by)) return;
   if (wall || w.pTtl[p] <= 0 || bx < 0 || by < 0 || bx > MAP.width || by > MAP.height) endShot(m, p, bx, by);
 }

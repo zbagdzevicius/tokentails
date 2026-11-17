@@ -104,7 +104,7 @@ export class ReplayCore {
     this.scanOnly = !!o.scanOnly;
     try {
       bindMap(mapIndex(record.map));
-      const max = LIMITS_BY_MAP[record.map === 'hearthwood' ? 'hearthwood' : 'crossing'].maxTicks;
+      const max = (LIMITS_BY_MAP[record.map ?? 'crossing'] ?? LIMITS_BY_MAP.crossing).maxTicks;
       this.limit = Math.min(record.ticks, max);
       this.cmds = decodeStream(fromBase64(record.inputs), this.limit - 1);
     } catch {

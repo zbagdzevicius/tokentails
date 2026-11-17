@@ -138,7 +138,7 @@ const C_PLAYFIELD = Object.freeze({
    * plazas only. Sim v22 (docs/plans/moba/MAP-5V5-STANDARD.md §5.1): 2 = carved, a forest by default with the lanes,
    * the river band, the base corners and the carved clearings, corridors and pit discs walkable.
    */
-  open: 0 as 0 | 1 | 2,
+  open: 0 as 0 | 1 | 2 | 3,
   /** Sim v22, carved maps: the base plaza is x + y ≤ baseSum in each team's corner (0: none). */
   baseSum: 0,
   /** Sim v22, carved maps: the river band |x + y − W| ≤ riverSum is walkable (0: none). */
@@ -211,8 +211,66 @@ export interface CampSpot {
  * team 1's is the reflection (`MAP.point` 0: x mirrored; 1: x and y). The sim reads the live bindings below, which
  * `bindMap` (src/sim/map/runtime.ts) points at the match's map before any sim work.
  */
+/**
+ * Sim v34 (docs/plans/moba/V34-MAPS.md): the objective of a 3v3 pool map: the Fish Mill (Ridge), the Paw Shrines
+ * (Thicket), the Catnip Gems (Quarry) or the goals and crates of Pawball Park.
+ */
+export type ObjectiveKind = 'mill' | 'shrines' | 'gems' | 'goal';
+
+/** Sim v34: every number of a map objective (team 0's side authored; the other side mirrored). */
+export interface ObjectiveSpec {
+  readonly kind: ObjectiveKind;
+  /** Mill, gems' geode, the ball's home: the centre (on the map axis). Shrines: team 0's shrine. */
+  readonly x: number;
+  readonly y: number;
+  /** Capture disc radius (mill, shrines), pickup reach (gems). */
+  readonly r: number;
+  /** Ticks a capture takes (mill, shrines). */
+  readonly capture: number;
+  /** First tick it is live (mill opens, shrines unlock, the first gem). */
+  readonly first: number;
+  /** Mill: ticks it stays closed after a capture; shrines: the lock after a capture; gems: ticks between gems. */
+  readonly cooldown: number;
+  /** Mill: tick it shuts for good (Pudding wakes); 0 never. */
+  readonly endAt: number;
+  /** Mill: Fish into the pot a second, its cap; shrines/goal: Fish to each hero of the capturing/scoring team. */
+  readonly potPerSecond: number;
+  readonly potCap: number;
+  readonly fish: number;
+  /** XP to each hero of the capturing/scoring team (gems: XP per gem picked). */
+  readonly xp: number;
+  /** Buff ticks (Lantern Wave, Geode Surge). */
+  readonly buffTicks: number;
+  /** Structure damage share of the buffed side's minions (bp), of its heroes (bp; Twin Blessing both). */
+  readonly minionStructBp: number;
+  readonly heroStructBp: number;
+  /** Damage the buffed side's minions take (bp; Geode Surge). */
+  readonly minionTakenBp: number;
+  /** Shrines: move speed of a team that owns one (bp, added). */
+  readonly speedBp: number;
+  /** Gems: gems in play at most, a team's countdown threshold and length. */
+  readonly gemCap: number;
+  readonly gemNeed: number;
+  readonly countdown: number;
+  /** Goal: share of max HP a goal takes off the conceding team's weakest tower (bp); ticks the ball stays away. */
+  readonly siegeBp: number;
+  readonly reset: number;
+}
+
 export interface MapDef {
-  readonly id: 'crossing' | 'hearthwood';
+  readonly id: 'crossing' | 'hearthwood' | 'ridge' | 'thicket' | 'quarry' | 'pitch';
+  /** Sim v34: the map objective (absent on Crossing and Hearthwood). */
+  readonly objective?: ObjectiveSpec;
+  /**
+   * Sim v34: Pawball Park's goal mouth, team 0's (where team 1 scores; team 1's is the mirror) [x0, y0, x1, y1], and its
+   * breakable crates (team 0's side) [x0, y0, x1, y1, hits].
+   */
+  readonly goalMouth?: readonly [number, number, number, number];
+  readonly crates?: readonly (readonly [number, number, number, number])[];
+  /** Sim v34: the lanes' display names (LANES order). */
+  readonly laneNames?: readonly string[];
+  /** Sim v34: the objective's one-line description (loading card, map picker). */
+  readonly blurb?: string;
   /** Sim v28: a variant of the map (its nav grid and drawing are cached apart): 'strip', the Sunny Lane strip. */
   readonly variant?: 'strip';
   readonly name: string;

@@ -540,7 +540,7 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
       trick: rec.trick,
       difficulty: rec.difficulty,
       seed: rec.seed,
-      ...(rec.map === 'hearthwood' ? { map: 'hearthwood' as const } : {}),
+      ...(rec.map && rec.map !== 'crossing' ? { map: rec.map } : {}),
       ...(rec.mutator && rec.mutator !== 'none' ? { mutator: rec.mutator } : {}),
       replay: true,
       speed: 1,

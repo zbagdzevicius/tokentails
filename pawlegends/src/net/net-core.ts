@@ -19,7 +19,7 @@ import { goldenHash, type GoldenSim } from './golden';
 export interface NetStart {
   /** `mode: 'pvp'` (casual, sim v16+): humans on both teams; `fillDifficulty` per team. */
   /** `map` (PROTO 4, sim v19+): 'hearthwood' plays 5v5 Classic (slots 0..4 and 5..9). */
-  config: { seed: number; picks: string[]; tricks: string[]; difficulty: string; humans: number[]; mode?: 'pvp'; fillDifficulty?: [string, string]; map?: 'crossing' | 'hearthwood' };
+  config: { seed: number; picks: string[]; tricks: string[]; difficulty: string; humans: number[]; mode?: 'pvp'; fillDifficulty?: [string, string]; map?: 'crossing' | 'hearthwood' | 'ridge' | 'thicket' | 'quarry' | 'pitch' };
   slot: number;
 }
 

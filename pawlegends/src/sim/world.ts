@@ -3,9 +3,10 @@
  * indices; iteration is always ascending), plus projectile and zone tables. Every field the sim reads lives in a
  * typed array or in `globals`, so `hashWorld` covers the whole state.
  */
-import { CAPS, NAV } from '../data/map';
+import { ACTIVE_MAP, CAPS, NAV } from '../data/map';
 export { MAX_ENTITIES, MAX_HEROES } from '../data/map';
 import { NINE_LIVES } from '../data/xp';
+import { OBJECTIVE } from '../data/objectives';
 import { FNV_OFFSET, fnvInt, fnvInts } from './hash';
 import { Rng } from './rng';
 
@@ -236,6 +237,55 @@ export const MG = Object.freeze({
   Jg: 82, // lint-sim: allow
   Count: 162, // lint-sim: allow
 } as const);
+
+/**
+ * Sim v34 (docs/plans/moba/V34-MAPS.md §8.4): indices into `ob`, the objective table of a 3v3 pool map (empty on
+ * Crossing and Hearthwood, so their worlds hash exactly as in v33). Every pool map: the map index, then up to
+ * OB_CAMPS camp timers (tick a camp spawns next, −1 while up). From OB.Obj, the objective's own fields (OBF).
+ */
+export const OB_CAMPS = 8;
+export const OB = Object.freeze({ MapId: 0, Camp: 1, Obj: 9 } as const);
+/** Gems: ground gem rows of 3 (alive, x, y). */
+export const GEM_ROWS = OBJECTIVE.gemRows;
+/** Sim v34: the objective fields, from OB.Obj, by objective kind. */
+export const OBF = Object.freeze({
+  // mill: state (0 shut, 1 open, 2 closed, 3 done), the tick it next opens, pot, progress, capturing team (−1),
+  // Lantern Wave end tick per team
+  MillState: 0,
+  MillAt: 1,
+  Pot: 2,
+  Prog: 3,
+  ProgTeam: 4,
+  Lantern0: 5,
+  Lantern1: 6,
+  // shrines: per shrine (SHRINE_ROW from 0): owner (−1), progress, capturing team (−1), locked until
+  // gems: next gem tick, gems popped so far, countdown end tick per team (−1 off), Surge end tick per team, carried
+  // per hero (6), then GEM_ROWS ground rows of (alive, x, y)
+  GemAt: 0,
+  GemN: 1,
+  Count0: 2,
+  Count1: 3,
+  Surge0: 4,
+  Surge1: 5,
+  Carry: 6,
+  Ground: 12,
+  // goal: goals per team, the tick the ball is back and the crates regrow (−1 none), crates gone for good (1 from
+  // Sunset), hits left per crate (team 0's, then team 1's mirrors)
+  Goals0: 0,
+  Goals1: 1,
+  ResetAt: 2,
+  CratesGone: 3,
+  Crate: 4,
+} as const);
+export const SHRINE_ROW = 4;
+/** Objective fields by kind (a mill 7, two shrines 8, gems 72, a goal 4 + crates). */
+export function obSize(): number {
+  const o = ACTIVE_MAP.objective;
+  if (o === undefined) return 0;
+  const crates = ACTIVE_MAP.crates?.length ?? 0;
+  const own = o.kind === 'mill' ? 7 : o.kind === 'shrines' ? 2 * SHRINE_ROW : o.kind === 'gems' ? OBF.Ground + GEM_ROWS * 3 : OBF.Crate + crates * 2;
+  return OB.Obj + own;
+}
 
 /** Sim v22: fields of one hero's jungle memory row (MG.Jg + hero × JG_ROW; bots/jungle.ts). */
 export const JG_ROW = 8;
@@ -494,6 +544,8 @@ export interface World {
   fmHitX: Int32Array;
   /** Sim v19: map globals (MG), empty on Crossing. Hashed after `globals`. */
   mg: Int32Array;
+  /** Sim v34: the objective table of a pool map (OB), empty on Crossing and Hearthwood. Hashed last. */
+  ob: Int32Array;
   /** Sim v21: per hero, ticks until it can use a Boing Bed again (V21-FUN.md §2.1). Hashed. */
   boingT: Int32Array;
   /**
@@ -790,7 +842,9 @@ export function createWorld(seed: number, map = 0): World {
     pkY: new Int32Array(CAPS.pickups),
     pHitX: new Int32Array(big ? p * MASK_EXTRA : 0),
     fmHitX: new Int32Array(big ? n * MASK_EXTRA : 0),
-    mg: new Int32Array(map === 0 ? 0 : MG.Count),
+    // Sim v34: Hearthwood's map globals only (the pool maps are 3v3 maps of Crossing's kind).
+    mg: new Int32Array(map === 1 ? MG.Count : 0),
+    ob: new Int32Array(obSize()),
     boingT: new Int32Array(h),
     bedT: new Int32Array(h),
     globals: new Int32Array(G.Count),
@@ -800,7 +854,8 @@ export function createWorld(seed: number, map = 0): World {
     map,
     mutator: 0,
   };
-  if (map !== 0) w.mg[MG.MapId] = map;
+  if (map === 1) w.mg[MG.MapId] = map;
+  if (w.ob.length > 0) w.ob[OB.MapId] = map;
   w.globals[G.Winner] = -1;
   w.globals[G.InputHash] = FNV_OFFSET | 0;
   w.globals[G.PudTeam] = TEAM_NEUTRAL;
@@ -842,6 +897,8 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.boingT,
     // Sim v24.
     w.bedT,
+    // Sim v34: empty on Crossing and Hearthwood (no bytes hashed).
+    w.ob,
   ];
 }
 

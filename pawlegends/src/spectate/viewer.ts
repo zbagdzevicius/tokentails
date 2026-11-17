@@ -269,7 +269,7 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
       trick: m.config.tricks[slot] as MatchSetup['trick'],
       difficulty: m.config.difficulty as MatchSetup['difficulty'],
       seed: m.config.seed,
-      ...(m.config.map === 'hearthwood' ? { map: 'hearthwood' as const } : {}),
+      ...(m.config.map && m.config.map !== 'crossing' ? { map: m.config.map } : {}),
       replay: true,
       spectate: { names: m.names },
       speed: 1,

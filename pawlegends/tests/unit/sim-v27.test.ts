@@ -51,7 +51,8 @@ describe('sim v27: version and data', () => {
 
   it('every new mutator is Crossing only and never in PvP', () => {
     for (const id of ['cannon', 'practice', 'toybox', 'rapid', 'bounty'] as const) {
-      expect(MUTATOR_RULES[id].maps).toEqual(['crossing']);
+      // sim v34: the Practice ground plays any 3v3 map
+      expect(MUTATOR_RULES[id].maps).toEqual(id === 'practice' ? ['crossing', 'ridge', 'thicket', 'quarry', 'pitch'] : ['crossing']);
       expect(mutatorProblem(id, 'crossing', false)).toBeNull();
       expect(mutatorProblem(id, 'hearthwood', false)).toMatch(/not played on hearthwood/);
       expect(mutatorProblem(id, 'crossing', true)).toMatch(/pvp/);

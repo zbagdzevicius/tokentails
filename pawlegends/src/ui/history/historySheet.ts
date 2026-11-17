@@ -9,6 +9,7 @@
  * choice allows it (everyone / friends / only me; default friends). Without a session or a connection the device rows
  * show, as before. Opened from the Profile's "Match history" pill and from a friend's row. Its own lazy chunk.
  */
+import { MAP_CARDS } from '../mapPick';
 import type { HeroId } from '../../sim/api';
 import { SIM_VERSION } from '../../sim/version';
 import type { ApiArgs, ApiOp, ApiResult } from '../../embed/api';
@@ -31,7 +32,7 @@ export interface ServerRow {
   id: string;
   at: number;
   mode: ServerMode;
-  map: 'crossing' | 'hearthwood';
+  map: 'crossing' | 'hearthwood' | 'ridge' | 'thicket' | 'quarry' | 'pitch';
   mutator: string | null;
   difficulty: string;
   outcome: Outcome;
@@ -135,6 +136,13 @@ const ARCADE: Readonly<Record<string, string>> = Object.freeze({
 
 /** "Ranked 3v3", "PvP 5v5", "Co-op 3v3"… Pure. */
 export function modeLabel(r: Pick<ServerRow, 'mode' | 'map' | 'mutator'>): string {
+  const base = modeBase(r);
+  // sim v34: a 3v3 match names its pool map ("Skirmish 3v3 · Ridge"); the Crossing stays unnamed
+  const card = r.map && r.map !== 'crossing' && r.map !== 'hearthwood' ? MAP_CARDS[r.map as keyof typeof MAP_CARDS] : undefined;
+  return card ? `${base} · ${card.short}` : base;
+}
+
+function modeBase(r: Pick<ServerRow, 'mode' | 'map' | 'mutator'>): string {
   const size = r.map === 'hearthwood' ? '5v5' : '3v3';
   switch (r.mode) {
     case 'ranked':

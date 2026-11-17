@@ -11,7 +11,7 @@
  * All in sim mm and radians (0 = +x, counter-clockwise).
  */
 import { CANNON } from '../../data/fun';
-import { FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../../data/map';
+import { FOUNTAIN, LANES, LANE_WAYPOINTS, MAP, mirrorX } from '../../data/map';
 import { ATTACK_SEEK_MM, attackPreview, CHASE_LEEWAY_MM, edgeGap, inAttackReach, isEnemy, type Unit } from '../targeting';
 import type { TargetFirst } from '../presets';
 
@@ -36,10 +36,10 @@ export const ASSIST = Object.freeze({
 
 type Seg = readonly [number, number, number, number];
 
-/** Both lanes, core to core, as segments. */
-export const LANE_SEGMENTS: readonly Seg[] = (() => {
+/** The bound map's lanes, core to core, as segments (sim v34: per map, cached by its waypoint table). */
+function buildSegments(): readonly Seg[] {
   const out: Seg[] = [];
-  for (const lane of ['sunny', 'puddle'] as const) {
+  for (const lane of LANES) {
     const half = LANE_WAYPOINTS[lane].map(([x, y]) => [x, y] as const);
     const full = [...half, ...[...half].reverse().map(([x, y]) => [mirrorX(x), y] as const)];
     for (let i = 0; i + 1 < full.length; i++) {
@@ -49,7 +49,16 @@ export const LANE_SEGMENTS: readonly Seg[] = (() => {
     }
   }
   return Object.freeze(out);
-})();
+}
+let segKey: object | null = null;
+let segs: readonly Seg[] = [];
+export function laneSegments(): readonly Seg[] {
+  if (segKey !== LANE_WAYPOINTS) {
+    segKey = LANE_WAYPOINTS;
+    segs = buildSegments();
+  }
+  return segs;
+}
 
 const angDiff = (a: number, b: number): number => {
   const d = Math.abs(a - b) % (Math.PI * 2);
@@ -57,7 +66,7 @@ const angDiff = (a: number, b: number): number => {
 };
 
 /** The stick angle, snapped to the lane under the hero when it is close enough to the lane's direction. */
-export function laneMagnet(x: number, y: number, angle: number, segs: readonly Seg[] = LANE_SEGMENTS): number {
+export function laneMagnet(x: number, y: number, angle: number, segs: readonly Seg[] = laneSegments()): number {
   let best: { d: number; a: number } | null = null;
   for (const [x0, y0, x1, y1] of segs) {
     const dx = x1 - x0;

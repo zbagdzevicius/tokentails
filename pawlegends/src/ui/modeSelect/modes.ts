@@ -92,7 +92,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     state: 'live',
     // Nov 12: Co-op is Skirmish's variant (the separate "Co-op vs Bots" tile was the same match)
     queues: ['bots', 'coop', 'pvp', 'friends'],
-    rules: ['3v3 on Purrhaven Crossing: one bridge, two lanes.', 'Destroy the enemy core to win.', 'Solo vs bots, co-op vs bots, PvP or with friends.'],
+    rules: ['3v3 on one of five maps, a new one each match: Purrhaven Crossing, Lanternfall Ridge, Twinbark Thicket, Geode Quarry or Pawball Park.', 'Destroy the enemy core to win.', 'Solo vs bots, co-op vs bots, PvP or with friends.'],
   },
   {
     id: 'classic',
@@ -136,7 +136,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     isNew: true,
     mutator: 'practice',
     practice: true,
-    rules: ['Your champion on the Crossing with three training dummies: one stands, one walks, one waits under a tower.', 'Reset, level up and refresh cooldowns any time. Any champion, no rewards.'],
+    rules: ['Your champion on any 3v3 map (pick one, or Random) with three training dummies: one stands, one walks, one waits under a tower.', 'Reset, level up and refresh cooldowns any time. Any champion, no rewards.'],
   },
   {
     // Sim v28 (docs/plans/moba/V28.md §2): ARAM-like, one lane, no recall

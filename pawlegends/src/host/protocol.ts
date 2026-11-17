@@ -11,6 +11,7 @@ import type {
   MapId,
   Mutator,
   ObjectiveSnap,
+  ObjSnap,
   EntitySnap,
   HeroId,
   MatchPhase,
@@ -186,7 +187,7 @@ export const ZONE_BYTES = 24;
 export const MAP_TRAILER = 0x4d;
 export const TRAILER_HEAD = 4;
 export const TRAILER_REC = 16;
-const MAP_LIST: readonly MapId[] = ['crossing', 'hearthwood'];
+const MAP_LIST: readonly MapId[] = ['crossing', 'hearthwood', 'ridge', 'thicket', 'quarry', 'pitch'];
 const OBJ_KINDS: readonly ObjectiveSnap['kind'][] = ['grizzlechop', 'pudding'];
 const OBJ_STATES: readonly ObjectiveSnap['state'][] = ['away', 'up', 'escort'];
 // Sim v22: append only ('beetle', the Beetle Log).
@@ -202,6 +203,14 @@ export const FUN_YARN = 12;
 const CANNON_STATES: readonly FunSnap['cannon']['state'][] = ['away', 'soon', 'ground', 'carried'];
 const YARN_STATES: readonly FunSnap['yarn'][number]['state'][] = ['away', 'rest', 'rolling'];
 
+/**
+ * Sim v34 (V34-MAPS.md): the objective trailer of a pool map, after the fun trailer: u8 0x4f ('O'), u16 length, then
+ * the ObjSnap as UTF-8 JSON (at most a few hundred bytes: 20 gems).
+ */
+export const OBJ_TRAILER = 0x4f;
+const utf8 = new TextEncoder();
+const utf8d = new TextDecoder();
+
 const HAS_COOLDOWNS = 1;
 const HAS_RESPAWN = 2;
 const HAS_EXTRA = 4;
@@ -215,13 +224,15 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
   const trailer = s.map && s.map !== 'crossing';
   const objs = trailer ? (s.objectives ?? []) : [];
   const camps = trailer ? (s.camps ?? []) : [];
+  const objBytes = s.obj ? utf8.encode(JSON.stringify(s.obj)) : null;
   const size =
     HEADER_BYTES +
     s.entities.length * ENTITY_BYTES +
     s.projectiles.length * PROJECTILE_BYTES +
     s.zones.length * ZONE_BYTES +
     (trailer ? TRAILER_HEAD + (objs.length + camps.length) * TRAILER_REC : 0) +
-    (s.fun ? FUN_HEAD + s.fun.yarn.length * FUN_YARN : 0);
+    (s.fun ? FUN_HEAD + s.fun.yarn.length * FUN_YARN : 0) +
+    (objBytes ? 3 + objBytes.length : 0);
   const buf = new ArrayBuffer(size);
   const v = new DataView(buf);
   v.setUint32(0, s.clock.tick, true);
@@ -343,6 +354,11 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
       v.setInt32(o + 8, y.y, true);
       o += FUN_YARN;
     }
+  }
+  if (objBytes) {
+    v.setUint8(o, OBJ_TRAILER);
+    v.setUint16(o + 1, objBytes.length, true);
+    new Uint8Array(buf, o + 3, objBytes.length).set(objBytes);
   }
   return buf;
 }
@@ -499,8 +515,18 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
       o += FUN_YARN;
     }
   }
+  let obj: ObjSnap | undefined;
+  if (o + 3 <= buf.byteLength && v.getUint8(o) === OBJ_TRAILER) {
+    const n = v.getUint16(o + 1, true);
+    try {
+      obj = JSON.parse(utf8d.decode(new Uint8Array(buf, o + 3, n))) as ObjSnap;
+    } catch {
+      obj = undefined;
+    }
+  }
   return {
     ...(map ? { map, objectives, camps } : {}),
+    ...(obj ? { obj } : {}),
     ...(fun ? { fun } : {}),
     team,
     clock: { tick, seconds: v.getUint16(18, true), phase, nextPhaseIn: v.getUint32(20, true) },

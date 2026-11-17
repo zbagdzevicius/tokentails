@@ -92,6 +92,7 @@ import { fortifyUntilOf, mutOf, mutatorIndex, mutatorOf } from './mutator';
 import { XP } from '../data/xp';
 import { isPractice, practiceAction, stepPractice } from './units/practice';
 import { benched, initModeHeroes, isBoss, stepBoss } from './units/boss';
+import { initObjective, objectiveSnap, stepObjective } from './units/objective';
 
 export * from './api';
 export { SIM_VERSION } from './version';
@@ -292,6 +293,8 @@ export function createMatch(config: MatchConfig): MatchHandle {
     (m as { pvp?: MatchHandle['pvp'] }).pvp = { leadCmd: null, actAt1: 0, px1: w.x[PVP_LEAD1], py1: w.y[PVP_LEAD1] };
   }
   coverStructures(m);
+  // Sim v34: the pool map's objective (its crates cover the grid like structures).
+  initObjective(m);
   refreshVision(w);
   refreshFlags(w);
   return m;
@@ -401,6 +404,8 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
     stepBoing(m);
     stepYarn(m);
   }
+  // Sim v34: the pool map's objective (the Mill, the Shrines, the Gems, the goals' reset and crates).
+  stepObjective(m);
   stepBonuses(w);
   tickStatus(w);
   carryCannon(m);
@@ -539,7 +544,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
       e.variant = TOWER_VARIANT[w.sub[id]];
       // Sim v19: a Hearth Guard has no lane.
       if (TOWER_SPOTS[(id - RANGE.towers) % TOWER_SPOTS.length].lane !== null) e.lane = LANES[w.lane[id]];
-    } else if (k === Kind.Camp && w.mg.length > 0) {
+    } else if (k === Kind.Camp && (w.mg.length > 0 || w.ob.length > 0)) {
       e.variant = CAMP_VARIANT[w.sub[id]];
     }
     entities.push(e);
@@ -584,6 +589,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
     events: teamEvents(w, m.events, team),
   };
   if (w.mg.length > 0) mapSnapshot(w, snap);
+  else if (w.ob.length > 0) poolSnapshot(w, snap);
   snap.fun = funSnapshot(w);
   return snap;
 }
@@ -646,6 +652,35 @@ function mapSnapshot(w: World, snap: Snapshot): void {
     camps.push({ id: c, kind: CAMP_VARIANT[w.sub[firstRat(c)]] as CampSnap['kind'], x: CAMPS[c].x, y: CAMPS[c].y, up, nextIn: up || at < 0 ? 0 : at - tick });
   }
   snap.camps = camps;
+}
+
+/** Sim v34: a pool map's name, Pudding (where he comes), its camps' timers and its objective. */
+function poolSnapshot(w: World, snap: Snapshot): void {
+  const tick = w.globals[G.Tick];
+  snap.map = MAP_IDS[w.map];
+  const pud = w.globals[G.PudState];
+  snap.objectives = [];
+  if (TIMELINE.pudding < TIMELINE.safetyEnd) {
+    snap.objectives = [
+      {
+        kind: 'pudding',
+        state: pud === PUD_STATE.Wild ? 'up' : pud === PUD_STATE.Escort || pud === PUD_STATE.Waiting ? 'escort' : 'away',
+        nextIn: pud === PUD_STATE.Away ? Math.max(0, w.globals[G.PudAt] - tick) : 0,
+        x: w.alive[RANGE.pudding] === 1 ? w.x[RANGE.pudding] : PUDDING_SPOT.x,
+        y: w.alive[RANGE.pudding] === 1 ? w.y[RANGE.pudding] : PUDDING_SPOT.y,
+        ...(pud === PUD_STATE.Escort || pud === PUD_STATE.Waiting ? { team: w.globals[G.PudTeam] as Team } : {}),
+      },
+    ];
+  }
+  const camps: NonNullable<Snapshot['camps']> = [];
+  for (let c = 0; c < campCount(); c++) {
+    let up = false;
+    for (let k = 0; k < CAMP_KINDS[w.sub[firstRat(c)]].rats; k++) if (w.alive[firstRat(c) + k] === 1) up = true;
+    const at = campDueAt(w, c);
+    camps.push({ id: c, kind: CAMP_VARIANT[w.sub[firstRat(c)]] as CampSnap['kind'], x: CAMPS[c].x, y: CAMPS[c].y, up, nextIn: up || at < 0 ? 0 : at - tick });
+  }
+  snap.camps = camps;
+  snap.obj = objectiveSnap(w);
 }
 
 function teamEvents(w: World, all: readonly SimEvent[], team: Team): SimEvent[] {

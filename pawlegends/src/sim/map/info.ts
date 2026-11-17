@@ -4,7 +4,7 @@
  * binds, so the picture and the sim never disagree. No sim state.
  */
 import { CAMP_KINDS } from '../../data/camps';
-import { BUSHES, CAMPS, CAPS, CORE, FOUNTAIN, HERO_SPAWNS, LANES, MAP, PUDDING_SPOT, TOWER_PARTNER, TOWER_SPOTS, WALLS, mirrorX, mirrorY } from '../../data/map';
+import { ACTIVE_MAP, BUSHES, CAMPS, CAPS, CORE, FOUNTAIN, HERO_SPAWNS, LANES, MAP, PUDDING_SPOT, TOWER_PARTNER, TOWER_SPOTS, WALLS, mirrorX, mirrorY } from '../../data/map';
 import { LIMITS_BY_MAP } from '../../data/limits';
 import { TIMELINE, TIMELINE_BY } from '../../data/timeline';
 import { CROSSING_CAMERA_YAW, HEARTHWOOD_CAMERA_YAW, HEARTHWOOD_RIVER_SUM } from '../../data/maps/hearthwood';
@@ -176,7 +176,8 @@ function build(id: MapId): MapInfo {
   for (let c = 0; c < playable.length; c++) playable[c] = grid.walls[c] === 0 ? 1 : 0;
   return Object.freeze({
     id,
-    name: id === 'hearthwood' ? 'Hearthwood Divide' : 'Purrhaven Crossing',
+    // sim v34: every map's own name (the pool maps' from their MapDef)
+    name: ACTIVE_MAP.name === 'Sunny Lane' ? 'Purrhaven Crossing' : ACTIVE_MAP.name,
     width: MAP.width,
     height: MAP.height,
     navCell: MAP.navCell,

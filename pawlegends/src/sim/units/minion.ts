@@ -40,9 +40,10 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
     const rally = team === teamOfSlot(HUMAN_SLOT) ? w.globals[G.Rally] : 0;
     const rallyBp = rally * rulesOf(m).rallyBp;
     const order: MinionKind[] = [];
-    for (let i = 0; i < WAVE.melee; i++) order.push('melee');
-    // Sim v19 (Hearthwood): 2 ranged a lane.
-    const ranged = w.mg.length > 0 ? HEARTHWOOD_RULES.waveRanged : WAVE.ranged;
+    const oneLane = w.ob.length > 0 && LANES.length === 1;
+    for (let i = 0; i < (oneLane ? WAVE.oneLaneMelee : WAVE.melee); i++) order.push('melee');
+    // Sim v19 (Hearthwood): 2 ranged a lane. Sim v34: a one-lane pool map's bigger wave.
+    const ranged = w.mg.length > 0 ? HEARTHWOOD_RULES.waveRanged : oneLane ? WAVE.oneLaneRanged : WAVE.ranged;
     for (let i = 0; i < ranged; i++) order.push('ranged');
     if (withSiege || (boost && COMEBACK.siege)) for (let i = 0; i < WAVE.siege; i++) order.push('siege');
     // Sim v28 (V28.md §2): the Sunny Lane strip has the first lane's waves only.

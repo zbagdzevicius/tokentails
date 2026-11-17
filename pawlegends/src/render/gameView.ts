@@ -48,7 +48,9 @@ import { HERO_RING } from './views/models';
 import { createMapView, type MapView } from './views/mapView';
 import { createHearthwoodView } from './views/hearthwoodView';
 import { mapInfo } from '../sim/map/info';
-import { MAP } from '../data/map';
+import { mapIndex } from '../sim/map/runtime';
+import { ACTIVE_MAP, MAP } from '../data/map';
+import type { ObjectiveView } from './views/objectiveView';
 import { inClearZone, MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
 import { FunView } from './views/funView';
@@ -274,6 +276,8 @@ export class GameView {
   /** lifecycle (render/fx/lifecycle.ts): start gate, death and respawn sequence, nap, wave puffs, match end. Loaded as
    *  its own chunk during the match load (first-load budget); null until then. */
   lifecycle: Lifecycle | null = null;
+  /** Sim v34: the pool map's objective props (render/views/objectiveView.ts), null until its chunk loads. */
+  objective: ObjectiveView | null = null;
   private lifecycleGone = false;
 
   constructor(
@@ -285,6 +289,15 @@ export class GameView {
     // sim v19: the bound map (app/mapBinding.ts useMap runs before the view is built): Hearthwood Divide's own view
     this.map = MAP.point === 1 ? createHearthwoodView(mapInfo('hearthwood')) : createMapView();
     this.scene.add(this.map.group);
+    // sim v34: a pool map's objective props (the Mill, the Shrines, the Geode, the goals and crates): their own chunk
+    if (ACTIVE_MAP.objective)
+      void import('./views/objectiveView')
+        .then((m) => {
+          if (this.lifecycleGone) return;
+          this.objective = m.createObjectiveView();
+          this.scene.add(this.objective.group);
+        })
+        .catch(() => undefined);
     this.particles = new Particles({ rng: Math.random, groundY: () => 0 });
     this.particles.attach(this.scene);
     this.towerFire = new TowerFire(this.particles as unknown as ConstructorParameters<typeof TowerFire>[0]);
@@ -1321,7 +1334,8 @@ export class GameView {
       this.pickups.sync(frame.entities);
       this.fun.myTeam = this.myTeam;
       this.fun.mySlot = this.mySlot;
-      this.fun.update(frame.latest.fun, frame.latest.map === 'hearthwood' ? 1 : 0, dt, this.funHeroAt, this.funTeamOf);
+      this.fun.update(frame.latest.fun, mapIndex(frame.latest.map), dt, this.funHeroAt, this.funTeamOf);
+      this.objective?.update(frame.latest.obj, frame.entities as unknown as { id: number; fx: number; fy: number; state: string }[], this.myTeam, dt);
       this.companions?.update(frame, dt);
       this.drawWindups(frame);
       // Sim v17 Steadfast: the one-off word when a hero's CC-cap immunity starts (the outline is heroView's)
@@ -1509,6 +1523,8 @@ export class GameView {
       this.companions = null;
     }
     this.map.dispose();
+    this.objective?.dispose();
+    this.objective = null;
     this.heroes.dispose();
     this.minions.dispose();
     this.structures.dispose();

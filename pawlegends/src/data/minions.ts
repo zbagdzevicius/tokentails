@@ -34,6 +34,9 @@ export const WAVE = Object.freeze({
   melee: 2,
   ranged: 1,
   siege: 1,
+  /** Sim v34: a one-lane map (Lanternfall Ridge) sends 3 melee + 2 ranged a wave (its one lane carries every push). */
+  oneLaneMelee: 3,
+  oneLaneRanged: 2,
   /** Minion HP grows 3% a minute (bp, applied at spawn). */
   hpGrowthBpPerMinute: 300,
   /** Minion XP is shared among heroes within 10 m. */

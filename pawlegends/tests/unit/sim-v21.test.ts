@@ -61,7 +61,7 @@ describe('sim v21 version and data', () => {
   it('stronger towers: outer and inner +25% (sim v21); sim v26 shots 130 + 3% max HP, +30% a shot up to +90%, Fortified 55% until 4:00 / 5:30', () => {
     expect([TOWERS.heroDamage, TOWERS.heroMaxHpBp, TOWERS.rampBp, TOWERS.rampCapBp]).toEqual([130, 300, 3000, 9000]);
     expect([TOWERS.outer.hp, TOWERS.inner.hp]).toEqual([2250, 2750]);
-    expect([DIFFICULTY_RULES.normal.fortifyHeroBp, ...TOWERS.fortifyUntil]).toEqual([5500, 7200, 9000]);
+    expect([DIFFICULTY_RULES.normal.fortifyHeroBp, ...TOWERS.fortifyUntil.slice(0, 2)]).toEqual([5500, 7200, 9000]);
   });
 
   it('every cannon, bed, landing and yarn spot is walkable, and the cannon spots are equally far from both cores', () => {

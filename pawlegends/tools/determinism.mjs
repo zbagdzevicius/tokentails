@@ -23,6 +23,10 @@ const json = hasFlag('--json');
 const pvp = !hasFlag('--no-pvp');
 const blitz = !hasFlag('--no-blitz');
 const hearthwood = !hasFlag('--no-hearthwood');
+/** Sim v34: every seed also plays a pool map (in turn, or `--map <id>` for one map); `--no-maps` skips them. */
+const maps = !hasFlag('--no-maps');
+const onlyMap = argValue('--map');
+const POOL = ['ridge', 'thicket', 'quarry', 'pitch'];
 
 async function worker() {
   const fz = await importSim('tools/lib/fuzz-entry.ts');
@@ -51,6 +55,12 @@ async function worker() {
       row.hearthwoodOk = h.ok;
       row.ok = row.ok && h.ok;
     }
+    if (maps) {
+      const v = onlyMap ?? POOL[i % POOL.length];
+      const pm = fz.fuzzMatch(fz.fuzzSeed(i), v);
+      row.mapOk = pm.ok;
+      row.ok = row.ok && pm.ok;
+    }
     rows.push(row);
   }
   process.stdout.write(JSON.stringify(rows));
@@ -68,7 +78,7 @@ export async function runFuzz(fromIdx, n, p) {
       new Promise((resolve, reject) => {
         let out = '';
         let err = '';
-        const ch = spawn(process.execPath, [fileURLToPath(import.meta.url), '--seeds', String(c), '--from', String(f), '--procs', '1', '--worker', ...(pvp ? [] : ['--no-pvp']), ...(blitz ? [] : ['--no-blitz']), ...(hearthwood ? [] : ['--no-hearthwood'])]);
+        const ch = spawn(process.execPath, [fileURLToPath(import.meta.url), '--seeds', String(c), '--from', String(f), '--procs', '1', '--worker', ...(pvp ? [] : ['--no-pvp']), ...(blitz ? [] : ['--no-blitz']), ...(hearthwood ? [] : ['--no-hearthwood']), ...(maps ? [] : ['--no-maps']), ...(onlyMap ? ['--map', onlyMap] : [])]);
         ch.stdout.on('data', (d) => (out += d));
         ch.stderr.on('data', (d) => (err += d));
         ch.on('close', () => {
@@ -92,7 +102,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     const bad = rows.filter((r) => !r.ok);
     if (json) console.log(JSON.stringify({ rows, failures: bad.length }, null, 2));
     else {
-      for (const b of bad) console.error(`seed ${b.seed} (${b.hero}, ${b.difficulty}): ${b.pvpOk === false ? 'PvP record → replay differs' : b.blitzOk === false ? 'Blitz record → replay differs' : b.stripOk === false ? 'Sunny Lane strip mode record → replay differs' : b.hearthwoodOk === false ? 'Hearthwood record → replay differs' : `first differing hash at tick ${b.firstDiff * 30}`}`);
+      for (const b of bad) console.error(`seed ${b.seed} (${b.hero}, ${b.difficulty}): ${b.pvpOk === false ? 'PvP record → replay differs' : b.blitzOk === false ? 'Blitz record → replay differs' : b.stripOk === false ? 'Sunny Lane strip mode record → replay differs' : b.hearthwoodOk === false ? 'Hearthwood record → replay differs' : b.mapOk === false ? 'pool map record → replay differs' : `first differing hash at tick ${b.firstDiff * 30}`}`);
       const cmds = rows.reduce((s, r) => s + r.commands, 0);
       console.log(
         `determinism: ${rows.length} seeds${pvp ? ' (+ as many PvP matches)' : ''}${blitz ? ' (+ as many Blitz, a strip mode every 3rd)' : ''}${hearthwood ? ' (+ Hearthwood every 4th)' : ''}, ${cmds} commands, record → replay hash trails every 30 ticks: ` +

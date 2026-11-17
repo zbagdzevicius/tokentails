@@ -19,9 +19,10 @@ import { icon } from '../ui/icons';
 import type { NotifyLike } from '../ui/notify';
 import { savedPadMode, type PadMode } from './tips';
 import type { GuideMode } from '../app/firstSession';
+import type { ObjSnap } from '../sim/api';
 import type { CampSnap, EntitySnap, MatchClock, ObjectiveSnap, SimEvent } from '../sim/api';
 import { RAT_CAMP_STATS } from '../data/camps';
-import { MAP, mirrorX, PUDDING_SPOT, RAT_CAMP } from '../data/map';
+import { ACTIVE_MAP, MAP, mirrorX, PUDDING_SPOT, RAT_CAMP } from '../data/map';
 import { PUDDING } from '../data/pudding';
 import { TICK_HZ, TIMELINE } from '../data/timeline';
 
@@ -264,7 +265,7 @@ function setGoalAttr(id: string): void {
 // GAPS A4: the next objective and its timers, from snapshots and events (no sim change)
 
 /** What the chip is about: the key B1's ping will carry. */
-export type ObjectiveKey = 'calm' | 'escort' | 'pudding' | 'rats' | 'theirRats' | 'gates' | 'sunset' | 'whistle' | 'finish' | 'grizzlechop' | 'sinkGrizzlechop';
+export type ObjectiveKey = 'calm' | 'escort' | 'pudding' | 'rats' | 'theirRats' | 'gates' | 'sunset' | 'whistle' | 'finish' | 'grizzlechop' | 'sinkGrizzlechop' | 'mill' | 'shrine' | 'gems' | 'goal';
 
 export interface ObjectiveChip extends StandingText {
   key: ObjectiveKey;
@@ -314,6 +315,9 @@ export const campPoint = (c: number): { x: number; y: number } => ({ x: c === 0 
  * `timers` read the state. Pudding's next spawn is TIMELINE.pudding, then the `leave` event + PUDDING.respawn; a camp
  * is due at TIMELINE.campsUp, then RAT_CAMP_STATS.respawn after its last rat's `death` event. Pure (no DOM).
  */
+/** Sim v34: a 3v3 pool map is bound (its objective replaces the Crossing's rat camps on the chip). */
+const pool = (): boolean => ACTIVE_MAP.objective !== undefined;
+
 export class ObjectiveClock {
   tick = 0;
   phase: MatchClock['phase'] = 'gate';
@@ -381,8 +385,12 @@ export class ObjectiveClock {
   /** Sim v19: the longest wait seen per timer key (a countdown ring's full length). */
   private hwTotal = new Map<string, number>();
 
-  frame(entities: readonly EntitySnap[], clock: MatchClock, map?: { objectives?: readonly ObjectiveSnap[]; camps?: readonly CampSnap[] }): void {
-    if (map?.objectives) this.hw = { objectives: map.objectives, camps: map.camps ?? [] };
+  /** Sim v34: the pool map's objective state (the Mill, the Shrines, the Gems, the goals). */
+  private ob: ObjSnap | null = null;
+
+  frame(entities: readonly EntitySnap[], clock: MatchClock, map?: { objectives?: readonly ObjectiveSnap[]; camps?: readonly CampSnap[]; obj?: ObjSnap }): void {
+    if (map?.objectives || map?.camps) this.hw = { objectives: map.objectives ?? [], camps: map.camps ?? [] };
+    if (map?.obj) this.ob = map.obj;
     this.tick = clock.tick;
     this.phase = clock.phase;
     this.nextPhaseIn = clock.nextPhaseIn;
@@ -417,7 +425,7 @@ export class ObjectiveClock {
 
   /** The minimap's countdown rings: Pudding's spawn, the own camp, and the enemy camp once a clear was seen. */
   timers(): ObjectiveTimer[] {
-    if (MAP.point === 1) return this.hearthTimers();
+    if (MAP.point === 1 || pool()) return this.hearthTimers();
     const out: ObjectiveTimer[] = [];
     const p = this.pud;
     if (p.state === 'away' && p.at > this.tick) out.push({ key: 'pudding', x: PUDDING_SPOT.x, y: PUDDING_SPOT.y, left: p.at - this.tick, total: p.total });
@@ -445,9 +453,10 @@ export class ObjectiveClock {
     };
     for (const o of hw.objectives) if (o.state === 'away' && o.nextIn > 0) out.push({ key: o.kind, x: o.x, y: o.y, left: o.nextIn, total: total(o.kind, o.nextIn) });
     for (const c of hw.camps) {
-      if (c.up || c.nextIn <= 0 || (c.kind !== 'prickle' && c.kind !== 'crow')) continue;
+      // sim v34: on a pool map every camp counts (its side is the half it stands on)
+      if (c.up || c.nextIn <= 0 || (!pool() && c.kind !== 'prickle' && c.kind !== 'crow')) continue;
       // sim v22: by the river (8 camps a side since the Beetle Log; v19 to v21 listed 6 a side)
-      const ours = (c.x + c.y < MAP.width ? 0 : 1) === this.myTeam;
+      const ours = (pool() ? (c.x < MAP.width / 2 ? 0 : 1) : c.x + c.y < MAP.width ? 0 : 1) === this.myTeam;
       out.push({ key: ours ? 'rats' : 'theirRats', x: c.x, y: c.y, left: c.nextIn, total: total(`c${c.id}`, c.nextIn) });
     }
     return out;
@@ -471,10 +480,15 @@ export class ObjectiveClock {
     if (p.state === 'waiting')
       return { key: 'escort', title: ours ? 'Pudding joins your next wave' : 'Pudding joins their next wave', sub: ours ? 'Walk out with that wave' : 'Meet their wave together', icon: 'heart', secs: null, x: p.x, y: p.y };
     const phase = this.phaseChip();
+    // sim v34: the pool map's objective comes before the phase line when it calls for action now
+    const live = this.poolChip(false);
+    if (live) return live;
     if (phase && this.nextPhaseIn <= PHASE_FIRST) return phase;
     const cands: ObjectiveChip[] = [];
-    if (p.at > this.tick) cands.push({ key: 'pudding', title: `Pudding in ${fmtSecs(secsOf(p.at - this.tick))}`, sub: 'Calm him and he marches with your wave', icon: 'heart', secs: secsOf(p.at - this.tick), x: PUDDING_SPOT.x, y: PUDDING_SPOT.y });
-    for (const c of MAP.point === 1 ? [] : [0, 1]) {
+    const soon = this.poolChip(true);
+    if (soon) cands.push(soon);
+    if (p.at > this.tick && TIMELINE.pudding < TIMELINE.safetyEnd) cands.push({ key: 'pudding', title: `Pudding in ${fmtSecs(secsOf(p.at - this.tick))}`, sub: 'Calm him and he marches with your wave', icon: 'heart', secs: secsOf(p.at - this.tick), x: PUDDING_SPOT.x, y: PUDDING_SPOT.y });
+    for (const c of MAP.point === 1 || pool() ? [] : [0, 1]) {
       const t = this.camps[c];
       if (!t.known || t.upAt === null || t.upAt <= this.tick) continue;
       const s = secsOf(t.upAt - this.tick);
@@ -493,6 +507,52 @@ export class ObjectiveClock {
     let best: ObjectiveChip | null = null;
     for (const c of cands) if (!best || (c.secs ?? Infinity) < (best.secs ?? Infinity)) best = c;
     return best ?? FINISH_CHIP;
+  }
+
+  /**
+   * Sim v34: the pool map's objective chip. `soon` false: only a call to act now (the mill open, a shrine to take or
+   * save, a gem countdown, a goal score); true: the next timer (the mill or the shrines opening) as a candidate.
+   */
+  private poolChip(soon: boolean): ObjectiveChip | null {
+    const o = this.ob;
+    const spec = ACTIVE_MAP.objective;
+    if (!o || !spec) return null;
+    const my = this.myTeam;
+    if (o.mill) {
+      const m = o.mill;
+      if (soon) return m.state === 'shut' || m.state === 'closed' ? { key: 'mill', title: `Fish Mill in ${fmtSecs(secsOf(m.nextIn))}`, sub: 'Stand alone in the pit for 4 s to take its Fish', icon: 'paw', secs: secsOf(m.nextIn), x: spec.x, y: spec.y } : null;
+      if (m.state !== 'open') return null;
+      const sub = m.progTeam === my ? 'Hold the pit: almost yours' : m.progTeam >= 0 ? 'They are taking it: get in the pit!' : 'Stand alone in the pit for 4 s: Fish and a Lantern Wave';
+      return { key: 'mill', title: `Fish Mill: ${m.pot} Fish`, sub, icon: 'paw', secs: null, x: spec.x, y: spec.y };
+    }
+    if (o.shrines) {
+      if (soon) return (o.shrineOpenIn ?? 0) > 0 ? { key: 'shrine', title: `Paw Shrines in ${fmtSecs(secsOf(o.shrineOpenIn ?? 0))}`, sub: 'One shrine: faster paws. Both: towers take more', icon: 'paw', secs: secsOf(o.shrineOpenIn ?? 0), x: spec.x, y: spec.y } : null;
+      if ((o.shrineOpenIn ?? 0) > 0) return null;
+      const own = o.shrines[my];
+      const theirs = o.shrines[1 - my];
+      const ownX = my === 0 ? spec.x : mirrorX(spec.x);
+      const theirX = my === 0 ? mirrorX(spec.x) : spec.x;
+      if (own && own.progTeam === 1 - my) return { key: 'shrine', title: 'Save your shrine!', sub: 'They are taking your Paw Shrine', icon: 'paw', secs: null, x: ownX, y: spec.y };
+      if (own && own.owner !== my && own.lock === 0) return { key: 'shrine', title: 'Take your Paw Shrine', sub: 'Stand on it 3 s: +10% move speed', icon: 'paw', secs: null, x: ownX, y: spec.y };
+      if (theirs && theirs.owner !== my && theirs.lock === 0 && own?.owner === my) return { key: 'shrine', title: 'Steal their shrine', sub: 'Both shrines: +15% damage to towers', icon: 'paw', secs: null, x: theirX, y: spec.y };
+      return null;
+    }
+    if (o.gems) {
+      if (soon) return null;
+      const g = o.gems;
+      const mine = g.total[my];
+      const them = g.total[1 - my];
+      if (g.count[my] >= 0) return { key: 'gems', title: `Surge in ${fmtSecs(secsOf(g.count[my]))}`, sub: 'Keep your gem carriers alive!', icon: 'crown', secs: null, x: spec.x, y: spec.y };
+      if (g.count[1 - my] >= 0) return { key: 'gems', title: `Stop their Surge: ${fmtSecs(secsOf(g.count[1 - my]))}`, sub: 'Take down their gem carriers', icon: 'crown', secs: null, x: spec.x, y: spec.y };
+      if (g.surge[my] > 0) return { key: 'gems', title: 'Geode Surge!', sub: 'Your minions smash towers: push now', icon: 'crown', secs: null, x: spec.x, y: spec.y };
+      return { key: 'gems', title: `Gems ${mine} – ${them}`, sub: `Carry ${g.need} for 12 s for a Geode Surge`, icon: 'crown', secs: null, x: spec.x, y: spec.y };
+    }
+    if (o.goal) {
+      if (soon) return null;
+      const s = o.goal.score;
+      return { key: 'goal', title: `Goals ${s[my]} – ${s[1 - my]}`, sub: 'Kick the yarn ball into their goal: it smashes a tower', icon: 'crown', secs: null, x: spec.x, y: spec.y };
+    }
+    return null;
   }
 
   private phaseChip(): ObjectiveChip | null {

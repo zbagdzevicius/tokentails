@@ -11,7 +11,7 @@
  * along the walk (goal − hero), not centre to centre, so a stick aims it; a hero brushing past or walking through to a
  * far goal leaves it resting.
  */
-import { FUN_BY_MAP, YARN, YARN_BALLS } from '../../data/fun';
+import { FUN_BY_MAP, YARN, YARN_BALLS, type YarnData } from '../../data/fun';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { dist2, iatan2, withinCos } from '../fixed';
 import type { MatchHandle } from '../state';
@@ -21,6 +21,11 @@ import { disabled } from '../effects/status';
 
 /** Index in `globals` of field `f` of ball `b`. */
 export const yarnAt = (b: number, f: number): number => G.Yarn + b * YARN_ROW + f;
+
+/** Sim v34: the map's yarn row (Pawball Park's match ball overrides some of YARN's numbers). */
+export const yarnData = (w: World): YarnData => FUN_BY_MAP[w.map].yarn;
+/** Kicks before a ball unravels (0: never; sim v34 Pawball Park). */
+const kicksOf = (w: World): number => yarnData(w).kicks ?? YARN.kicks;
 
 /** Balls on the map of `w`. */
 export const yarnCount = (w: World): number => Math.min(YARN_BALLS, FUN_BY_MAP[w.map].yarn.homes.length);
@@ -60,7 +65,7 @@ function kick(m: MatchHandle, b: number, id: number): void {
   const y = w.globals[yarnAt(b, YF.Y)];
   // Sim v25: along the kicker's walk (`into` made sure it is under 45° off the ball and not zero).
   const angle = iatan2(w.moveY[id] - w.y[id], w.moveX[id] - w.x[id]);
-  const p = fireSkillshot(w, id, { kind: PROJECTILE_KIND.yarn, angle, speed: YARN.speed, range: YARN.range, radius: YARN.radius, dmg: 0, flags: PFLAG.Pierce });
+  const p = fireSkillshot(w, id, { kind: PROJECTILE_KIND.yarn, angle, speed: YARN.speed, range: yarnData(w).range ?? YARN.range, radius: YARN.radius, dmg: 0, flags: PFLAG.Pierce });
   if (p < 0) return;
   w.pX[p] = x;
   w.pY[p] = y;
@@ -110,7 +115,8 @@ export function yarnRest(m: MatchHandle, b: number, x: number, y: number): void 
   const w = m.world;
   if (b < 0 || b >= yarnCount(w)) return;
   w.globals[yarnAt(b, YF.P)] = -1;
-  if (w.globals[yarnAt(b, YF.Kicks)] >= YARN.kicks) {
+  const kicks = kicksOf(w);
+  if (kicks > 0 && w.globals[yarnAt(b, YF.Kicks)] >= kicks) {
     const home = FUN_BY_MAP[w.map].yarn.homes[b];
     w.globals[yarnAt(b, YF.State)] = YARN_STATE.Away;
     w.globals[yarnAt(b, YF.T)] = w.globals[G.Tick] + YARN.respawn;
@@ -122,5 +128,20 @@ export function yarnRest(m: MatchHandle, b: number, x: number, y: number): void 
   w.globals[yarnAt(b, YF.State)] = YARN_STATE.Rest;
   w.globals[yarnAt(b, YF.X)] = x;
   w.globals[yarnAt(b, YF.Y)] = y;
-  w.globals[yarnAt(b, YF.T)] = YARN.rest;
+  w.globals[yarnAt(b, YF.T)] = yarnData(w).rest ?? YARN.rest;
+}
+
+/**
+ * Sim v34 (V34-MAPS.md §6.1): a goal. The ball leaves the pitch (Away) and is back on its home spot `ticks` later; the
+ * objective (units/objective.ts) has already scored it.
+ */
+export function yarnAway(m: MatchHandle, b: number, ticks: number): void {
+  const w = m.world;
+  if (b < 0 || b >= yarnCount(w)) return;
+  const home = FUN_BY_MAP[w.map].yarn.homes[b];
+  w.globals[yarnAt(b, YF.P)] = -1;
+  w.globals[yarnAt(b, YF.State)] = YARN_STATE.Away;
+  w.globals[yarnAt(b, YF.T)] = w.globals[G.Tick] + ticks;
+  w.globals[yarnAt(b, YF.X)] = home[0];
+  w.globals[yarnAt(b, YF.Y)] = home[1];
 }

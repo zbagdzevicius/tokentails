@@ -18,7 +18,7 @@
  */
 import * as THREE from 'three';
 import { HEROES } from '../../data/heroes';
-import { CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PLAYFIELD, RAT_CAMP } from '../../data/map';
+import { CORE, FOUNTAIN, LANES, LANE_WAYPOINTS, MAP, PLAYFIELD, RAT_CAMP } from '../../data/map';
 import { BuffFlag, type HeroId } from '../../sim/api';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
 import { ELEMENT_COLOR } from '../cosmetics';
@@ -154,7 +154,8 @@ function buildBiomes(): Uint8Array {
   const g = new Uint8Array(GW * GH);
   const W = MAP.width / 1000;
   const lanes: number[][] = [];
-  for (const lane of ['sunny', 'puddle'] as const) {
+  // sim v34: the bound map's lanes (Lanternfall Ridge has one)
+  for (const lane of LANES) {
     const pts = LANE_WAYPOINTS[lane].map(([x, y]) => [x / 1000, y / 1000]);
     const all = [...pts, ...pts.map(([x, y]) => [W - x, y]).reverse().slice(1)];
     lanes.push(all.flat());

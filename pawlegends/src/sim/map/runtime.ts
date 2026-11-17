@@ -9,10 +9,34 @@
  */
 import { CROSSING, CROSSING_STRIP, setMapData, type MapDef } from '../../data/map';
 import { HEARTHWOOD } from '../../data/maps/hearthwood';
-import { CROSSING_TIMELINE, CROSSING_TIMELINE_BY, HEARTHWOOD_TIMELINE, HEARTHWOOD_TIMELINE_BY, setTimeline } from '../../data/timeline';
+import { RIDGE } from '../../data/maps/ridge';
+import { THICKET } from '../../data/maps/thicket';
+import { QUARRY } from '../../data/maps/quarry';
+import { PITCH } from '../../data/maps/pitch';
+import {
+  CROSSING_TIMELINE,
+  CROSSING_TIMELINE_BY,
+  HEARTHWOOD_TIMELINE,
+  HEARTHWOOD_TIMELINE_BY,
+  NO_PUDDING_TIMELINE,
+  RIDGE_TIMELINE,
+  RIDGE_TIMELINE_BY,
+  SHORT_TIMELINE_BY,
+  setTimeline,
+  type Timeline,
+  type TimelineBy,
+} from '../../data/timeline';
 import { setLimits } from '../../data/limits';
-import { CROSSING_PUDDING, HEARTHWOOD_PUDDING, setPudding } from '../../data/pudding';
-import { CROSSING_FRENZY_SPOTS, HEARTHWOOD_FRENZY_SPOTS, setFrenzySpots } from '../../data/pickups';
+import { CROSSING_PUDDING, HEARTHWOOD_PUDDING, setPudding, type PuddingStats } from '../../data/pudding';
+import {
+  CROSSING_FRENZY_SPOTS,
+  HEARTHWOOD_FRENZY_SPOTS,
+  PITCH_FRENZY_SPOTS,
+  QUARRY_FRENZY_SPOTS,
+  RIDGE_FRENZY_SPOTS,
+  THICKET_FRENZY_SPOTS,
+  setFrenzySpots,
+} from '../../data/pickups';
 import { MAP_IDS, setSlots, type MapId } from '../api';
 import { ENTITY_CAP, rebindRange, type World } from '../world';
 import { rebindGrid } from './grid';
@@ -20,9 +44,25 @@ import { rebindLanes } from './lanes';
 import { rebindCamps } from '../units/camp';
 import { mutOf } from '../mutator';
 
-export const MAP_DEFS: readonly MapDef[] = Object.freeze([CROSSING, HEARTHWOOD]);
+export const MAP_DEFS: readonly MapDef[] = Object.freeze([CROSSING, HEARTHWOOD, RIDGE, THICKET, QUARRY, PITCH]);
 /** Sim v28 (V28.md §2): each map's Sunny Lane strip variant (null: the map has none, its full playfield is bound). */
-const STRIP_DEFS: readonly (MapDef | null)[] = Object.freeze([CROSSING_STRIP, null]);
+const STRIP_DEFS: readonly (MapDef | null)[] = Object.freeze([CROSSING_STRIP, null, null, null, null, null]);
+
+/** Sim v34: each map's timeline, Pudding and Frenzy rows (MAP_IDS order; rows 0 and 1 the very objects of v33). */
+interface MapTables {
+  readonly timeline: Timeline;
+  readonly timelineBy: TimelineBy;
+  readonly pudding: PuddingStats;
+  readonly frenzy: readonly (readonly [number, number, number, number])[];
+}
+const MAP_TABLES: readonly MapTables[] = Object.freeze([
+  { timeline: CROSSING_TIMELINE, timelineBy: CROSSING_TIMELINE_BY, pudding: CROSSING_PUDDING, frenzy: CROSSING_FRENZY_SPOTS },
+  { timeline: HEARTHWOOD_TIMELINE, timelineBy: HEARTHWOOD_TIMELINE_BY, pudding: HEARTHWOOD_PUDDING, frenzy: HEARTHWOOD_FRENZY_SPOTS },
+  { timeline: RIDGE_TIMELINE, timelineBy: RIDGE_TIMELINE_BY, pudding: CROSSING_PUDDING, frenzy: RIDGE_FRENZY_SPOTS },
+  { timeline: CROSSING_TIMELINE, timelineBy: CROSSING_TIMELINE_BY, pudding: CROSSING_PUDDING, frenzy: THICKET_FRENZY_SPOTS },
+  { timeline: NO_PUDDING_TIMELINE, timelineBy: SHORT_TIMELINE_BY, pudding: CROSSING_PUDDING, frenzy: QUARRY_FRENZY_SPOTS },
+  { timeline: NO_PUDDING_TIMELINE, timelineBy: SHORT_TIMELINE_BY, pudding: CROSSING_PUDDING, frenzy: PITCH_FRENZY_SPOTS },
+]);
 
 /** The bound map: index × 2 + strip. */
 let active = 0;
@@ -45,11 +85,11 @@ export function bindMap(index: number, strip = 0): void {
   active = key;
   const d = s === 1 ? STRIP_DEFS[index]! : MAP_DEFS[index];
   setMapData(d);
-  const hearth = d.id === 'hearthwood';
-  setTimeline(hearth ? HEARTHWOOD_TIMELINE : CROSSING_TIMELINE, hearth ? HEARTHWOOD_TIMELINE_BY : CROSSING_TIMELINE_BY);
+  const t = MAP_TABLES[index];
+  setTimeline(t.timeline, t.timelineBy);
   setLimits(d.id);
-  setPudding(hearth ? HEARTHWOOD_PUDDING : CROSSING_PUDDING);
-  setFrenzySpots(hearth ? HEARTHWOOD_FRENZY_SPOTS : CROSSING_FRENZY_SPOTS);
+  setPudding(t.pudding);
+  setFrenzySpots(t.frenzy);
   rebindRange();
   setSlots(d.CAPS.heroesPerTeam, ENTITY_CAP);
   rebindGrid();

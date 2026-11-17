@@ -41,7 +41,7 @@ describe('sim v26 towers: data', () => {
   it('the v26 numbers', () => {
     expect([TOWERS.heroDamage, TOWERS.heroMaxHpBp, TOWERS.rampBp, TOWERS.rampCapBp, TOWERS.fortifyBoltBp]).toEqual([130, 300, 3000, 9000, 12500]);
     expect([DIFFICULTY_RULES.normal.fortifyHeroBp, TOWERS.fortifyMinionBp, TOWERS.chipFloorBp, TOWERS.lockOnTicks]).toEqual([5500, 7500, 1500, 30]);
-    expect(TOWERS.fortifyUntil).toEqual([7200, 9000]); // sim v27: Hearthwood 5:00 (V27.md §1.C)
+    expect(TOWERS.fortifyUntil.slice(0, 2)).toEqual([7200, 9000]); // sim v27: Hearthwood 5:00 (V27.md §1.C)
     expect(TOWERS.minionDamage).toBe(110);
     expect(MUTATOR_RULES.blitz.fortifyUntil).toBe(1350);
     expect([DIFFICULTY_RULES.rookie.structureHpBp, DIFFICULTY_RULES.easy.structureHpBp, DIFFICULTY_RULES.normal.structureHpBp, DIFFICULTY_RULES.hard.structureHpBp]).toEqual([11000, 11500, 13500, 13500]);

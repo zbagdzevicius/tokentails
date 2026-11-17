@@ -5,7 +5,7 @@
  * or an Alt-click (desktop) pings "Go here" at that spot.
  */
 import { NX, NY, createGrid, onPlayfield } from '../sim/map/grid';
-import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PLAYFIELD, PUDDING_SPOT, RAT_CAMP, mirrorX, type LaneId } from '../data/map';
+import { ACTIVE_MAP, BUSHES, CAMPS, CORE, FOUNTAIN, LANES, LANE_WAYPOINTS, MAP, PLAYFIELD, PUDDING_SPOT, RAT_CAMP, mirrorX, type LaneId } from '../data/map';
 import type { ViewFrame } from '../render/interp';
 import { HERO_COLOR_CSS, RELATION_CSS, sidesSwapped } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
@@ -570,7 +570,8 @@ export class Minimap {
       g.lineJoin = 'round';
       g.lineWidth = MAP.laneWidth * this.map.k * 0.7;
       // sim v28: the Sunny Lane strip draws its one lane
-      for (const lane of isPoint() ? (['fence', 'yarn', 'gutter'] as const) : PLAYFIELD.strip === 1 ? (['sunny'] as const) : (['sunny', 'puddle'] as const)) {
+      // sim v34: a pool map draws its own lanes (Lanternfall Ridge has one)
+      for (const lane of isPoint() ? (['fence', 'yarn', 'gutter'] as const) : PLAYFIELD.strip === 1 ? (['sunny'] as const) : LANES) {
         const pts = lanePoints(lane);
         g.beginPath();
         pts.forEach(([x, y], i) => (i ? g.lineTo(this.X(x), this.Y(y)) : g.moveTo(this.X(x), this.Y(y))));
@@ -618,7 +619,9 @@ export class Minimap {
       g.globalAlpha = 0.7;
       const camps = isPoint()
         ? mapInfo('hearthwood').camps.map((c) => ({ x: c.x, y: c.y, kind: c.kind }))
-        : [RAT_CAMP.x, mirrorX(RAT_CAMP.x)].map((x) => ({ x, y: RAT_CAMP.y, kind: 'rat' }));
+        : ACTIVE_MAP.objective
+          ? CAMPS.map((c) => ({ x: c.x, y: c.y, kind: (['rat', 'prickle', 'crow', 'toad', 'boss', 'beetle'] as const)[c.kind] ?? 'rat' }))
+          : [RAT_CAMP.x, mirrorX(RAT_CAMP.x)].map((x) => ({ x, y: RAT_CAMP.y, kind: 'rat' }));
       for (const cp of camps) {
         const buff = cp.kind === 'prickle' || cp.kind === 'crow';
         g.strokeStyle = MM_OUTLINE;
@@ -631,7 +634,16 @@ export class Minimap {
         g.arc(this.X(cp.x), this.Y(cp.y), (buff ? 2 : 1.4) * this.k, 0, Math.PI * 2);
         g.fill();
       }
-      const pits = isPoint() ? mapInfo('hearthwood').objectives : [{ kind: 'pudding' as const, x: PUDDING_SPOT.x, y: PUDDING_SPOT.y }];
+      // sim v34: a pool map rings its objective (both shrines on Twinbark Thicket) and Pudding's spot where he comes
+      const ob = ACTIVE_MAP.objective;
+      const pits = isPoint()
+        ? mapInfo('hearthwood').objectives
+        : ob
+          ? [
+              ...(ob.kind === 'shrines' ? [{ kind: 'pudding' as const, x: ob.x, y: ob.y }, { kind: 'pudding' as const, x: mirrorX(ob.x), y: ob.y }] : ob.kind === 'goal' ? [] : [{ kind: 'pudding' as const, x: ob.x, y: ob.y }]),
+              ...(ob.kind === 'shrines' ? [{ kind: 'pudding' as const, x: PUDDING_SPOT.x, y: PUDDING_SPOT.y }] : []),
+            ]
+          : [{ kind: 'pudding' as const, x: PUDDING_SPOT.x, y: PUDDING_SPOT.y }];
       for (const o of pits) {
         g.strokeStyle = o.kind === 'grizzlechop' ? MM_BOSS : MM_OBJECTIVE;
         g.lineWidth = 1.4;
@@ -644,7 +656,7 @@ export class Minimap {
       g.globalAlpha = 1;
     });
     const desktop = typeof document === 'undefined' || document.documentElement?.dataset.touch !== '1';
-    for (const lane of isPoint() ? [] : (['sunny', 'puddle'] as const)) {
+    for (const lane of isPoint() || ACTIVE_MAP.objective ? [] : (['sunny', 'puddle'] as const)) {
       const at = LANE_GLYPH_AT[lane]!;
       const [x, y] = this.P(at.x, at.y);
       const r = 2.6 * Math.max(0.85, this.k);

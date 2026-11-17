@@ -4,7 +4,7 @@
  * spot. The bots never think, so the player's allies wait at the fountain. Op.Practice controls: reset (dummies back on
  * their spots at full HP, the player's HP, cooldowns and the towers' HP refilled), level up, reset cooldowns.
  */
-import { PRACTICE } from '../../data/practice';
+import { PRACTICE_BY_MAP } from '../../data/practice';
 import { XP } from '../../data/xp';
 import { HUMAN_SLOT, teamOfSlot } from '../api';
 import { dist2 } from '../fixed';
@@ -14,6 +14,8 @@ import { COOLDOWN_SLOTS, G, Kind, Order, RANGE, UnitState, type World } from '..
 import { levelUp } from '../progression/levels';
 
 export const isPractice = (w: World): boolean => mutOf(w).practice;
+/** Sim v34: the dummies' spots of the match's map. */
+const PRACTICE_OF = (w: World) => PRACTICE_BY_MAP[w.map] ?? PRACTICE_BY_MAP[0];
 
 /** Is hero `id` a training dummy (an enemy hero on the Practice ground)? */
 export const isDummy = (w: World, id: number): boolean => mutOf(w).practice && w.kind[id] === Kind.Hero && w.team[id] !== teamOfSlot(HUMAN_SLOT);
@@ -23,13 +25,13 @@ function dummyIndex(w: World, id: number): number {
   if (!isDummy(w, id)) return -1;
   const perTeam = (RANGE.minions - RANGE.heroes) >> 1;
   const k = id - RANGE.heroes - (w.team[id] === 0 ? 0 : perTeam);
-  return k >= 0 && k < PRACTICE.spots.length ? k : -1;
+  return k >= 0 && k < PRACTICE_OF(w).spots.length ? k : -1;
 }
 
 /** Where a dummy stands (spawn and respawn), or null for any other hero. */
 export function dummySpot(w: World, id: number): readonly [number, number] | null {
   const k = dummyIndex(w, id);
-  return k < 0 ? null : PRACTICE.spots[k];
+  return k < 0 ? null : PRACTICE_OF(w).spots[k];
 }
 
 /** Step 2 on the Practice ground (instead of the bots): the walking dummy paces its lane. */
@@ -37,9 +39,10 @@ export function stepPractice(m: MatchHandle): void {
   const w = m.world;
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
     if (dummyIndex(w, id) !== 1 || w.alive[id] === 0 || w.order[id] !== Order.None) continue;
-    const a = PRACTICE.spots[1];
-    const b = PRACTICE.walkTo;
-    const r2 = PRACTICE.turn * PRACTICE.turn;
+    const pr = PRACTICE_OF(w);
+    const a = pr.spots[1];
+    const b = pr.walkTo;
+    const r2 = pr.turn * pr.turn;
     // stateless: walk to whichever end the dummy is not standing at (it starts on `a`)
     const toB = dist2(w.x[id], w.y[id], b[0], b[1]) > r2;
     const goal = toB ? b : a;

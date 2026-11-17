@@ -31,7 +31,8 @@ import { HERO_RULES } from '../../data/xp';
 import { inAttackRange } from '../combat/attack';
 import { HUMAN_SLOT, Op, type Command } from '../api';
 import { BP_ONE, applyBp, dist2, idiv, isqrt } from '../fixed';
-import { CAMPS, FOUNTAIN, LANES, MAP, PUDDING_SPOT, RAT_CAMP, TOWER_SPOTS, mirrorX, mirrorY } from '../../data/map';
+import { ACTIVE_MAP, CAMPS, FOUNTAIN, LANES, MAP, PUDDING_SPOT, RAT_CAMP, TOWER_SPOTS, mirrorX, mirrorY } from '../../data/map';
+import { OBJ_PLAN, objectivePlan } from './objective';
 import { ROLE } from './roles';
 import { cellOfTeam, lineClear, nearLane, nearestLane, walkable, type NavGrid } from '../map/grid';
 import type { Rng } from '../rng';
@@ -77,7 +78,9 @@ const ROAM = 2;
  *  the slot's ROLE (bots/roles.ts; Prowl roams the jungle). */
 /** Sim v19: the lane of a push order (Crossing: Sunny 0, Puddle 1; Hearthwood: Fenceline, Yarn Road, Gutterway). */
 const pushOrderLane = (ord: number): number =>
-  ord === PING_KIND.PushSunny || ord === PING_KIND.PushFence ? 0 : ord === PING_KIND.PushYarn ? 1 : ord === PING_KIND.PushGutter ? 2 : LANES.length > 2 ? 2 : 1;
+  LANES.length === 1
+    ? 0
+    : ord === PING_KIND.PushSunny || ord === PING_KIND.PushFence ? 0 : ord === PING_KIND.PushYarn ? 1 : ord === PING_KIND.PushGutter ? 2 : LANES.length > 2 ? 2 : 1;
 const isPush = (ord: number): boolean =>
   ord === PING_KIND.PushSunny || ord === PING_KIND.PushPuddle || ord === PING_KIND.PushFence || ord === PING_KIND.PushYarn || ord === PING_KIND.PushGutter;
 /** Sim v19: is bot `id` a roamer (Crossing: slot role 2; Hearthwood: Prowl)? */
@@ -384,6 +387,8 @@ export function pushLane(w: World, team: number, id = -1, pressAhead = 0): numbe
   // included; −1: every allied hero alive). A hero farming far away does not count. A team pressAhead or more
   // ahead (BotParams.pressAhead) turns back only with strictly more heroes near than raiders: it keeps pushing.
   if (LANES.length > 2) return pushLaneN(w, team, id, pressAhead);
+  // Sim v34: Lanternfall Ridge has one lane.
+  if (LANES.length === 1) return 0;
   const ra = raiders(w, team, 0);
   const rb = raiders(w, team, 1);
   const need = pressAhead > 0 && -scoreBehind(w, team) >= pressAhead ? 1 : 0;
@@ -440,8 +445,11 @@ function humanEngaged(w: World): boolean {
   const y = w.y[h];
   if (nearLane(x, y, BOT_AI.leashLane)) return true;
   const r2 = BOT_AI.leashObjective * BOT_AI.leashObjective;
-  if (MAP.point === 1) {
-    // Sim v19 (Hearthwood): any camp, Grizzlechop's pit or the Great Pudding pit.
+  if (MAP.point === 1 || w.ob.length > 0) {
+    // Sim v19 (Hearthwood): any camp, Grizzlechop's pit or the Great Pudding pit. Sim v34 (pool maps): any camp,
+    // Pudding's spot or the objective.
+    const o = ACTIVE_MAP.objective;
+    if (o !== undefined && (dist2(x, y, o.x, o.y) <= r2 || dist2(x, y, mirrorX(o.x), o.y) <= r2)) return true;
     if (dist2(x, y, PUDDING_SPOT.x, PUDDING_SPOT.y) <= r2) return true;
     for (let c = 0; c < CAMPS.length; c++) if (dist2(x, y, CAMPS[c].x, CAMPS[c].y) <= r2) return true;
     return false;
@@ -452,7 +460,7 @@ function humanEngaged(w: World): boolean {
 }
 
 /** The human's lane by where it stands (Sunny above the middle). */
-const humanLane = (w: World): number => (MAP.point === 1 ? nearestLane(w.x[HUMAN_SLOT], w.y[HUMAN_SLOT]) : w.y[HUMAN_SLOT] >= MAP.height >> 1 ? 0 : 1);
+const humanLane = (w: World): number => (LANES.length === 1 ? 0 : MAP.point === 1 ? nearestLane(w.x[HUMAN_SLOT], w.y[HUMAN_SLOT]) : w.y[HUMAN_SLOT] >= MAP.height >> 1 ? 0 : 1);
 
 /** The lane bot `id` plays now. */
 function laneFor(m: MatchHandle, id: number, tick: number, p: BotParams, carry: boolean, hunt: boolean): number {
@@ -464,6 +472,8 @@ function laneFor(m: MatchHandle, id: number, tick: number, p: BotParams, carry: 
   if (groupedNow(m, team, tick, p)) return pushLane(w, team, id, p.pressAhead);
   const role = laneRole(w, id);
   if (w.mg.length > 0) return hearthLane(w, id, role);
+  // Sim v34: on a one-lane map (Lanternfall Ridge) every bot plays it.
+  if (LANES.length === 1) return 0;
   if (role !== ROAM) return role;
   // The roamer helps the lane with fewer own towers; tie: the one whose laner is hurt more.
   const a = laneTowers(w, team, 0);
@@ -663,11 +673,13 @@ function campRat(w: World, id: number): number {
   const c0 = w.team[id];
   let best = -1;
   let bestD = 0;
-  const camps = w.mg.length > 0 ? campCount() : 1;
+  // Sim v34: a pool map lists its camps (a side each) like Hearthwood.
+  const listed = w.mg.length > 0 || w.ob.length > 0;
+  const camps = listed ? campCount() : 1;
   for (let ci = 0; ci < camps; ci++) {
-    const c = w.mg.length > 0 ? ci : c0;
-    if (w.mg.length > 0 && (c === BOSS_CAMP || CAMPS[c].side !== w.team[id])) continue;
-    const n = w.mg.length > 0 ? campSize(c) : RAT_CAMP_STATS.rats;
+    const c = listed ? ci : c0;
+    if (listed && (c === BOSS_CAMP || CAMPS[c].side !== w.team[id])) continue;
+    const n = listed ? campSize(c) : RAT_CAMP_STATS.rats;
     for (let k = 0; k < n; k++) {
       const r = firstRat(c) + k;
       if (w.alive[r] === 0) continue;
@@ -1182,6 +1194,18 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
     }
     return (p.waveClear ? clearCast(w, id, boss) : null) ?? attack(w, id, mem, boss);
   }
+  // Sim v34 (V34-MAPS.md): the pool map's objective (the Mill, the Shrines, the Gems, the ball).
+  if (w.ob.length > 0 && !carry && !hunt) {
+    const plan = objectivePlan(m, id, hp, BOT_AI.objectiveHpBp, jgOut);
+    if (plan === OBJ_PLAN.Attack) {
+      mem.mode[id] = BOT_MODE.Pudding;
+      return attack(w, id, mem, jgOut[2]);
+    }
+    if (plan === OBJ_PLAN.Move) {
+      mem.mode[id] = BOT_MODE.Pudding;
+      return moveTo(w, id, mem, jgOut[0], jgOut[1]);
+    }
+  }
   // Sim v22 (Hearthwood, BotParams.jungle ≥ 1): the Prowl's route plan (first clear, waits, ganks, invades, farm).
   if (w.mg.length > 0 && p.jungle >= 1 && !carry && !hunt && roams(w, id) && !grouped && hp >= JUNGLE_BOT.campHpBp) {
     const plan = prowlPlan(w, id, p, mem, jgOut);
@@ -1210,7 +1234,8 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   const noSiege = rules.pushNeedsHuman && team === w.team[HUMAN_SLOT] && !humanEngaged(w);
   // Sim v21: a yarn ball to kick at the enemy, a Boing Bed toward the goal (and keep walking onto one chosen before).
   if (!carry && funCommitted(w, id)) return null;
-  if (!carry && yarnKick(w, id, funPt)) return moveTo(w, id, mem, funPt[0], funPt[1]);
+  // Sim v34: on Pawball Park the ball is played for goals (bots/objective.ts), not at enemies.
+  if (!carry && ACTIVE_MAP.goalMouth === undefined && yarnKick(w, id, funPt)) return moveTo(w, id, mem, funPt[0], funPt[1]);
   if (bedHop(w, id, funPt)) return moveTo(w, id, mem, funPt[0], funPt[1]);
   // Sim v22 (Hearthwood, BotParams.jungle ≥ 1): the danger read. Past the river with the enemy Prowl missing near this
   // lane, a laner backs off to its outer tower (it still last-hits on the way: laneAct is skipped only out there).

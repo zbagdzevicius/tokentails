@@ -19,6 +19,7 @@
  * results screen (`fresh`) pops its padlock and grows into the third tile, once.
  * Low tier or reduced motion: no stagger, no rune rotation. Mode art loads lazily when the overlay opens.
  */
+import { MAP_CARDS, PRACTICE_CHOICES, practiceMap, setPracticeMap, type PracticeMap } from '../mapPick';
 import './modeSelect.css';
 import type { Difficulty } from '../../sim/api';
 import { DIFFICULTY_HINT, DIFFICULTY_TEXT } from '../heroText';
@@ -204,6 +205,16 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
     <div class="ms-pop" role="dialog" aria-modal="false" hidden></div>
     <p class="ms-toast" role="status" aria-live="polite"></p>`;
 
+  const mapSegHtml = (): string => {
+    const cur = practiceMap();
+    return `<div class="ms-seg ms-maps" role="radiogroup" aria-label="Practice map" data-testid="practice-maps">${PRACTICE_CHOICES.map((x) => {
+      const on = x === cur;
+      const label = x === 'random' ? 'Random' : MAP_CARDS[x].short;
+      const title = x === 'random' ? 'A different map each time' : `${MAP_CARDS[x].name}: ${MAP_CARDS[x].line}`;
+      return `<button type="button" role="radio" class="${on ? 'on' : ''}" aria-checked="${on}" tabindex="${on ? 0 : -1}" data-pm="${x}" data-testid="practice-map-${x}" title="${esc(title)}">${esc(label)}</button>`;
+    }).join('')}</div>`;
+  };
+
   const diffHtml = (): string => {
     if (o.difficultyNote) return `<p class="ms-qline">${esc(o.difficultyNote)}</p>`;
     if (o.difficulties.length < 2) return '';
@@ -261,7 +272,8 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
         b.setAttribute('aria-checked', String(on));
         b.tabIndex = on ? 0 : -1;
       }
-    d.innerHTML = m?.practice ? '<p class="ms-qline">Any champion · no rewards · leave any time</p>' : queue === 'bots' ? diffHtml() : `<p class="ms-qline"${m?.variantNote ? ' data-testid="mode-variant-note"' : ''}>${esc(m?.variantNote ?? VARIANT_LINE[queue])}</p>`;
+    // sim v34: Practice picks its map (Random, or one of the five 3v3 maps)
+    d.innerHTML = m?.practice ? mapSegHtml() : queue === 'bots' ? diffHtml() : `<p class="ms-qline"${m?.variantNote ? ' data-testid="mode-variant-note"' : ''}>${esc(m?.variantNote ?? VARIANT_LINE[queue])}</p>`;
     c.dataset.a = 'ms-go';
     c.dataset.testid = 'mode-go';
     c.innerHTML = `<span>${esc(goLabel(queue))}</span>`;
@@ -432,6 +444,14 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
       const q = v.dataset.v as Queue;
       const twice = dbl(`v:${q}`) && q === queue;
       if (pickVariant(q, v) && twice) go();
+      return;
+    }
+    const pm = t.closest<HTMLElement>('[data-pm]')?.dataset.pm as PracticeMap | undefined;
+    if (pm) {
+      o.sound?.('click');
+      setPracticeMap(pm);
+      render();
+      el.querySelector<HTMLElement>('.ms-maps .on')?.focus({ preventScroll: true });
       return;
     }
     const d = t.closest<HTMLElement>('[data-d]')?.dataset.d as Difficulty | undefined;

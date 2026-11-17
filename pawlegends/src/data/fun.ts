@@ -144,6 +144,19 @@ export interface YarnData {
   first: number;
   /** Home spots (x, y), one ball each (at most YARN_BALLS). */
   homes: readonly (readonly [number, number])[];
+  /**
+   * Sim v34 (V34-MAPS.md §6.1): Pawball Park's match ball overrides YARN's numbers (absent on Crossing and Hearthwood,
+   * so theirs stay v33's): kicks before it unravels (0: never), rest between kicks, hero damage and share, knockback,
+   * the share of max HP a structure that stops it takes.
+   */
+  kicks?: number;
+  rest?: number;
+  /** Roll range (mm). */
+  range?: number;
+  heroDamage?: number;
+  heroBp?: number;
+  knock?: number;
+  structureBp?: number;
 }
 
 /** Ball slots in the world state (both maps). */
@@ -199,10 +212,32 @@ export const HEARTHWOOD_YARN: YarnData = Object.freeze({
   homes: Object.freeze([Object.freeze([64000, 64000] as const)]),
 });
 
-/** Per map (MAP_IDS order: Crossing, Hearthwood). */
+/** Sim v34: a map without a Kibble Cannon (no spots: `initCannon` never schedules one) or yarn balls. */
+const NO_CANNON: CannonData = Object.freeze({ ...CROSSING_CANNON, spots: Object.freeze([]) });
+const NO_YARN: YarnData = Object.freeze({ first: 0, homes: Object.freeze([]) });
+/** Sim v34 (V34-MAPS.md §3): Lanternfall Ridge's bed, from the base mouth over the trees to the Glow Log. */
+export const RIDGE_BEDS: readonly (readonly [number, number, number, number])[] = Object.freeze([Object.freeze([17000, 21000, 29500, 25500] as const)]);
+/** Sim v34 (§5): Geode Quarry's bed, from the Gem Road into the arena. */
+export const QUARRY_BEDS: readonly (readonly [number, number, number, number])[] = Object.freeze([Object.freeze([24000, 30000, 39000, 33000] as const)]);
+/** Sim v34 (§6.1): Pawball Park's match ball: one, at the centre spot from 0:30, never unravels. */
+export const PITCH_YARN: YarnData = Object.freeze({
+  first: 900,
+  homes: Object.freeze([Object.freeze([50000, 30000] as const)]),
+  kicks: 0,
+  rest: 30,
+  heroDamage: 60,
+  heroBp: 200,
+  knock: 1500,
+  structureBp: 0,
+});
+/** Per map (MAP_IDS order: Crossing, Hearthwood; sim v34: Ridge, Thicket, Quarry, Park). */
 export const FUN_BY_MAP = Object.freeze([
   Object.freeze({ cannon: CROSSING_CANNON, beds: CROSSING_BEDS, yarn: CROSSING_YARN }),
   Object.freeze({ cannon: HEARTHWOOD_CANNON, beds: HEARTHWOOD_BEDS, yarn: HEARTHWOOD_YARN }),
+  Object.freeze({ cannon: NO_CANNON, beds: RIDGE_BEDS, yarn: NO_YARN }),
+  Object.freeze({ cannon: NO_CANNON, beds: Object.freeze([]) as readonly (readonly [number, number, number, number])[], yarn: NO_YARN }),
+  Object.freeze({ cannon: NO_CANNON, beds: QUARRY_BEDS, yarn: NO_YARN }),
+  Object.freeze({ cannon: NO_CANNON, beds: Object.freeze([]) as readonly (readonly [number, number, number, number])[], yarn: PITCH_YARN }),
 ]);
 
 /** Bots and the Kibble Cannon (bots/brain.ts). */

@@ -12,6 +12,7 @@ import type { HeroId } from '../data/heroes/types';
 import type { Difficulty } from '../data/bots';
 import type { TrickId } from '../data/tricks';
 import type { BarkKind, PingKind } from '../data/pings';
+import { Rng } from './rng';
 
 export type { HeroId, Difficulty, TrickId, PingKind, BarkKind };
 export { PING_KINDS, BARK_KINDS } from '../data/pings';
@@ -29,8 +30,21 @@ export const HUMAN_SLOT = 0;
  * Sim v19 (docs/plans/moba/MAP-5V5.md §2.1): the maps. 'crossing' (Purrhaven Crossing, 3v3 Quick, every match before
  * v19) and 'hearthwood' (Hearthwood Divide, 5v5 Classic). Append only: the index is hashed on Hearthwood.
  */
-export type MapId = 'crossing' | 'hearthwood';
-export const MAP_IDS: readonly MapId[] = Object.freeze(['crossing', 'hearthwood'] as MapId[]);
+export type MapId = 'crossing' | 'hearthwood' | 'ridge' | 'thicket' | 'quarry' | 'pitch';
+/**
+ * Sim v34 (docs/plans/moba/V34-MAPS.md): four more 3v3 maps, appended (indices 2 to 5): Lanternfall Ridge, Twinbark
+ * Thicket, Geode Quarry and Pawball Park.
+ */
+export const MAP_IDS: readonly MapId[] = Object.freeze(['crossing', 'hearthwood', 'ridge', 'thicket', 'quarry', 'pitch'] as MapId[]);
+/** Sim v34: the 3v3 map pool every Skirmish and 3v3 PvP match draws from (Hearthwood is the 5v5 map). */
+export const MAP_POOL_3V3: readonly MapId[] = Object.freeze(['crossing', 'ridge', 'thicket', 'quarry', 'pitch'] as MapId[]);
+/**
+ * Sim v34: the 3v3 map of a match seed: a draw from its own fork of the seed, so the client, the party relay and the
+ * backend all agree (pure; not hashed).
+ */
+export function pickMap3v3(seed: number): MapId {
+  return MAP_POOL_3V3[new Rng(seed >>> 0).fork('map').int(MAP_POOL_3V3.length)];
+}
 /** Heroes per team on `map`: 3 on Crossing, 5 on Hearthwood. */
 export const teamSizeOf = (map: MapId = 'crossing'): 3 | 5 => (map === 'hearthwood' ? 5 : 3);
 /** Hero slots on `map`: 6 or 10. */
@@ -476,7 +490,22 @@ export type SimEvent =
   /** Sim v27: a Practice ground control applied (`kind` = PRACTICE_KINDS index). */
   | { type: 'practice'; tick: number; kind: number }
   /** Sim v28 (V28.md §4): Boss Weekend's boss (hero `id`) entered phase 1 or 2 (0-based; it roars and calls pups). */
-  | { type: 'bossPhase'; tick: number; id: number; phase: number };
+  | { type: 'bossPhase'; tick: number; id: number; phase: number }
+  /**
+   * Sim v34 (docs/plans/moba/V34-MAPS.md) map objectives: the Fish Mill opened or was captured (`fish` to each hero);
+   * a Paw Shrine changed owner; a hero picked up or dropped Catnip Gems (`n` it carries after the pick, or dropped);
+   * a team's gem countdown started (`on`) or stopped; a Geode Surge; a goal (`id` the last kicker, −1 none); a crate
+   * broke.
+   */
+  | { type: 'millOpen'; tick: number }
+  | { type: 'millCapture'; tick: number; team: Team; fish: number }
+  | { type: 'shrineCapture'; tick: number; shrine: number; team: Team }
+  | { type: 'gemPick'; tick: number; id: number; n: number }
+  | { type: 'gemDrop'; tick: number; id: number; n: number; x: number; y: number }
+  | { type: 'gemCountdown'; tick: number; team: Team; on: boolean }
+  | { type: 'gemSurge'; tick: number; team: Team }
+  | { type: 'goal'; tick: number; team: Team; id: number }
+  | { type: 'crateBreak'; tick: number; crate: number };
 
 /**
  * Sim v14: what a `clip` event shows. Sim v15: Rocket's nap (`zzz`), Frankie's grab (`footlong`), Domino's R (`dots`).
@@ -532,6 +561,27 @@ export interface Snapshot {
   camps?: CampSnap[];
   /** Sim v21: the Kibble Cannon and the Mega Yarn Balls (both teams see all of it). */
   fun?: FunSnap;
+  /** Sim v34: the map objective (Ridge, Thicket, Quarry, Park; both teams see all of it). */
+  obj?: ObjSnap;
+}
+
+/**
+ * Sim v34 (docs/plans/moba/V34-MAPS.md): the state of the map objective, by kind. Ticks are counts left (0: none).
+ * - mill: 'shut' before it first opens, 'open' (pot growing), 'closed' (cooling down), 'done' (Pudding took the pit);
+ *   capture progress of `progTeam` (−1 none) out of `need`; Lantern Wave ticks left per team.
+ * - shrines: per shrine its owner (−1 neutral), progress, the team capturing, ticks it stays locked; `openIn` ticks
+ *   until they unlock.
+ * - gems: gems each hero slot carries, each team's total, countdown ticks left (−1 off), Surge ticks left, the gems on
+ *   the ground, ticks to the next gem.
+ * - goal: goals per team, hits left per crate (team 0's then team 1's; 0 broken), ticks until the ball is back.
+ */
+export interface ObjSnap {
+  kind: 'mill' | 'shrines' | 'gems' | 'goal';
+  mill?: { state: 'shut' | 'open' | 'closed' | 'done'; pot: number; prog: number; progTeam: number; need: number; nextIn: number; lantern: [number, number] };
+  shrines?: { owner: number; prog: number; progTeam: number; lock: number }[];
+  shrineOpenIn?: number;
+  gems?: { carried: number[]; total: [number, number]; count: [number, number]; surge: [number, number]; ground: { x: number; y: number }[]; nextIn: number; need: number };
+  goal?: { score: [number, number]; crates: number[]; resetIn: number };
 }
 
 /**

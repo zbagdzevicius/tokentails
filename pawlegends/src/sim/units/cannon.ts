@@ -41,7 +41,9 @@ export const cannonWinding = (w: World, id: number): boolean => carries(w, id) &
 
 /** Match start: the first spawn is due. */
 export function initCannon(w: World): void {
-  w.globals[G.CannonAt] = cannonData(w).first;
+  // Sim v34: a map with no cannon spots (the pool maps) never gets one.
+  const d = cannonData(w);
+  w.globals[G.CannonAt] = d.spots.length === 0 ? -1 : d.first;
 }
 
 /** The team the Underdog Cannon favours now (COMEBACK trigger), or −1. */

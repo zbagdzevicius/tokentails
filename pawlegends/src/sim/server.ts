@@ -92,7 +92,7 @@ export {
 } from './party';
 export { createMatch, step, hash, hashTrail, result, tickOf, fillPicks, playerBotCommands, PLAYER_PROFILES, DIFFICULTIES } from './index';
 export { decodeCommand, encodeCommand, quantize, encodeStream, decodeStream, toBase64, fromBase64, DecodeError } from './commands';
-export { MAP_IDS, teamSizeOf, slotCountOf, teamOfSlot, leadSlotOf, type MapId } from './api';
+export { MAP_IDS, MAP_POOL_3V3, pickMap3v3, teamSizeOf, slotCountOf, teamOfSlot, leadSlotOf, type MapId } from './api';
 export { mapInfo, type MapInfo } from './map/info';
 export { rolesOf } from './bots/roles';
 export { Op, NO_TARGET, PVP_LEAD1, type PartyReplayRecord, type PartySeat, type PvpReplayRecord, type Command, type TimedCommand } from './api';
@@ -106,6 +106,7 @@ export function forfeitFromOf(d: string): number {
   return r ? r.forfeitFrom : 0;
 }
 import { RANGE } from './world';
+import { MAP_IDS as MAP_IDS_ALL, teamSizeOf as teamSizeOfMap } from './api';
 import type { MatchHandle } from './state';
 /**
  * Party play: bit s set = hero slot s (0..2) is alive (the relay's AFK timer pauses while a hero is dead). Sim v16
@@ -114,7 +115,8 @@ import type { MatchHandle } from './state';
 export function humanAliveMask(m: MatchHandle): number {
   let mask = 0;
   // Sim v19: the match's map (Hearthwood: slots 0..4, or 0..9 in PvP).
-  const per = m.world.map === 0 ? 3 : 5;
+  // sim v34: the pool maps are 3v3 too
+  const per = teamSizeOfMap(MAP_IDS_ALL[m.world.map]);
   const end = m.pvp ? RANGE.heroes + per * 2 : per;
   for (let s = RANGE.heroes; s < end; s++) if (m.world.alive[s] === 1) mask |= 1 << s;
   return mask;

@@ -22,6 +22,8 @@ import { kitOf } from '../heroes/kit';
 import { campKilled, executed, heroKilled, minionKilled } from '../progression/xp';
 import { campReward, onRatDied, packBuff, stealJungleBuffs } from '../units/camp';
 import { HEARTHWOOD_PVP, HEARTHWOOD_RULES } from '../../data/maps/hearthwood';
+import { CAMP_KIND } from '../../data/camps';
+import { objMinionTakenBp, objStructBp, objectiveDeath } from '../units/objective';
 import { onPuddingDown } from '../units/pudding';
 import { sugared } from '../units/sugar';
 import { SUGAR_RUSH } from '../../data/pudding';
@@ -134,6 +136,11 @@ export function dealDamage(
   if (w.mg.length > 0 && !opts.pure) {
     if (w.kind[dst] === Kind.Minion && sugared(w, dst)) dmg = applyBp(dmg, SUGAR_RUSH.takenBp);
     else if (structure && srcKind === Kind.Minion && src >= 0 && w.kind[src] === Kind.Minion && w.alive[src] === 1 && sugared(w, src)) dmg = applyBp(dmg, SUGAR_RUSH.structBp);
+  }
+  // Sim v34 (V34-MAPS.md): a pool map's objective buffs (Lantern Wave, Twin Blessing, Geode Surge).
+  if (w.ob.length > 0 && !opts.pure) {
+    if (w.kind[dst] === Kind.Minion) dmg = applyBp(dmg, objMinionTakenBp(w, w.team[dst]));
+    else if (structure && srcTeam < 2) dmg = applyBp(dmg, objStructBp(w, srcTeam, srcKind));
   }
   if (structure && !opts.pure) {
     // Sim v32: late Sunset adds its share every minute past the late tick (late.ts; Sudden Death until sim v31).
@@ -336,6 +343,8 @@ export function resolveDeaths(m: MatchHandle): void {
       // Sim v32: past the late tick the wait grows a little every minute, up to LATE_SUNSET.respawnHardCap (late.ts).
       w.timer[id] = lateRespawn(w, tick, w.timer[id]);
       heroKilled(m, id);
+      // Sim v34: a fallen hero drops its Catnip Gems (Geode Quarry).
+      if (w.ob.length > 0) objectiveDeath(m, id);
       // From Sunset (v4): each takedown deals core damage to the victim's core. Sim v5: it scales with how open that core
       // is (an inner tower down: the full share, else SUNSET.closedCoreBp), so towers still decide most matches; the
       // human's core keeps its DifficultyRules floor before humanCoreOpenAt (Rookie, in dealDamage). Sim v32: the same
@@ -378,7 +387,8 @@ export function resolveDeaths(m: MatchHandle): void {
       const cleared = onRatDied(w, id);
       // Sim v19: Hearthwood's camps give their own rewards (no Pack buff there); Crossing's rats as in v18.
       if (w.mg.length > 0) campReward(m, id, by);
-      else if (cleared && by >= 0) packBuff(m, by);
+      // Sim v34: on the pool maps only a rat camp gives the Pack buff (beetles and toads pay Fish).
+      else if (cleared && by >= 0 && (w.ob.length === 0 || w.sub[id] === CAMP_KIND.rat)) packBuff(m, by);
     } else if (k === Kind.Tower || k === Kind.Core) {
       onStructureDestroyed(m, id);
     }

@@ -37,7 +37,7 @@ export interface StoredRoom {
         mode?: 'pvp';
         fillDifficulty?: [string, string];
         /** 5v5 Classic (sim v19, MAP-5V5.md §9.1): 'hearthwood' (10 slots, PvP leads 0 and 5). Absent: Crossing. */
-        map?: 'crossing' | 'hearthwood';
+        map?: 'crossing' | 'hearthwood' | 'ridge' | 'thicket' | 'quarry' | 'pitch';
     };
     occupants: Occupant[];
     chunks: Buffer[];

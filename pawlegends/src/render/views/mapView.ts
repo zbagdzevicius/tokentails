@@ -5,11 +5,12 @@
  * About 12 draw calls in all. Render only.
  */
 import * as THREE from 'three';
-import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PLAYFIELD, PUDDING_SPOT, RAT_CAMP, mirrorX } from '../../data/map';
+import { ACTIVE_MAP, BUSHES, CAMPS, CORE, FOUNTAIN, LANES, LANE_WAYPOINTS, MAP, PLAYFIELD, PUDDING_SPOT, RAT_CAMP, mirrorX } from '../../data/map';
+import { mapTheme } from './mapThemes';
 import type { ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { TEAM } from '../palette';
-import { BUSH_COUNT, clearedBushes } from '../bushClear';
+import { bushCount, clearedBushes } from '../bushClear';
 import { ModelBuilder } from './rig';
 import { isPhone } from '../perf/device';
 import { orthoFrustum } from '../chars';
@@ -22,6 +23,10 @@ import { LIVE_KIND, livingMaterial, livingUniforms, stepLiving } from './env/ban
 
 const W = MAP.width / 1000;
 const H = MAP.height / 1000;
+/** Sim v34: a 3v3 pool map (no river, its own clearings and camps; render/views/mapThemes.ts colours it). */
+const isPool = (): boolean => ACTIVE_MAP.objective !== undefined;
+/** Sim v34: the bound map has a river (Crossing; the pool maps have none). */
+const hasRiver = (): boolean => MAP.riverX[1] > MAP.riverX[0];
 
 /** Seeded LCG so the scenery looks the same every load (render only). */
 function lcg(seed: number): () => number {
@@ -36,7 +41,8 @@ type Pt = readonly [number, number];
 
 function lanePolylines(): Pt[][] {
   const out: Pt[][] = [];
-  for (const lane of ['sunny', 'puddle'] as const) {
+  // sim v34: the bound map's lanes (Crossing: Sunny then Puddle, as before; Lanternfall Ridge has one)
+  for (const lane of LANES) {
     const pts = LANE_WAYPOINTS[lane].map(([x, y]) => [x / 1000, y / 1000] as const);
     const mirrored = pts.map(([x, y]) => [W - x, y] as const).reverse();
     out.push([...pts, ...mirrored.slice(1)]);
@@ -159,6 +165,19 @@ export function wallRocks(): WallRock[] {
  * x 35–37 walls along y 34.5 (the A* detour) so no painted path runs under a rock.
  */
 export function footpaths(): Pt[][] {
+  // sim v34: a pool map's paths are its corridors, both sides
+  if (isPool()) {
+    const out: Pt[][] = [];
+    for (const flip of [false, true])
+      for (const c of PLAYFIELD.corridors) {
+        const f = (x: number): number => (flip ? W - x / 1000 : x / 1000);
+        out.push([
+          [f(c[0]), c[1] / 1000],
+          [f(c[2]), c[3] / 1000],
+        ]);
+      }
+    return out;
+  }
   const cx = CORE.x / 1000;
   const cy = CORE.y / 1000;
   const rx = RAT_CAMP.x / 1000;
@@ -181,6 +200,7 @@ export function footpaths(): Pt[][] {
 
 /** The pebbles round the rat camps (m): low (< 0.25 m), outside the 5.5 m clearing, off the footpaths and walls. */
 export function campPebbles(): WallRock[] {
+  if (isPool()) return [];
   const rnd = lcg(31);
   const paths = footpaths();
   const walls = createGrid().walls;
@@ -210,18 +230,19 @@ function paintGround(swap = false): THREE.Texture {
   const X = (x: number): number => x * PX;
   const Y = (y: number): number => (H - y) * PX;
   const rnd = lcg(7);
+  const th = mapTheme(ACTIVE_MAP.id);
   // grass
   const grd = g.createLinearGradient(0, 0, c.width, 0);
-  grd.addColorStop(0, '#a7d98a');
-  grd.addColorStop(0.5, '#9fd383');
-  grd.addColorStop(1, '#a3d488');
+  grd.addColorStop(0, th.grass[0]);
+  grd.addColorStop(0.5, th.grass[1]);
+  grd.addColorStop(1, th.grass[2]);
   g.fillStyle = grd;
   g.fillRect(0, 0, c.width, c.height);
   for (let i = 0; i < 900; i++) {
     const x = rnd() * W;
     const y = rnd() * H;
     const r = 0.6 + rnd() * 3.2;
-    g.fillStyle = rnd() < 0.5 ? 'rgba(120,180,95,0.16)' : 'rgba(190,230,150,0.16)';
+    g.fillStyle = rnd() < 0.5 ? th.blobDark : th.blobLight;
     g.beginPath();
     g.ellipse(X(x), Y(y), r * PX, r * PX * (0.6 + rnd() * 0.4), rnd() * 3, 0, Math.PI * 2);
     g.fill();
@@ -258,14 +279,37 @@ function paintGround(swap = false): THREE.Texture {
   const cx = CORE.x / 1000;
   const cy = CORE.y / 1000;
   const rx = RAT_CAMP.x / 1000;
-  for (const path of footpaths()) {
-    stroke(path, 3.4, '#c9b27c');
-    stroke(path, 2.4, '#dcc792');
-  }
-  for (const flip of [false, true]) {
-    const f = (x: number): number => (flip ? W - x : x);
-    disc(f(rx), RAT_CAMP.y / 1000, 5.5, '#cdb784');
-    disc(f(rx), RAT_CAMP.y / 1000, 4.6, '#d9c595');
+  if (isPool()) {
+    // sim v34: the carved jungle's clearings and corridors as trodden ground (both sides), the camps' dens on them
+    for (const flip of [false, true]) {
+      const f = (x: number): number => (flip ? W - x / 1000 : x / 1000);
+      for (const cl of PLAYFIELD.clearings) {
+        disc(f(cl[0]), cl[1] / 1000, cl[2] / 1000 + 0.6, th.pathEdge);
+        disc(f(cl[0]), cl[1] / 1000, cl[2] / 1000 - 0.2, th.path);
+      }
+      for (const co of PLAYFIELD.corridors) {
+        const pl: Pt[] = [
+          [f(co[0]), co[1] / 1000],
+          [f(co[2]), co[3] / 1000],
+        ];
+        stroke(pl, (co[4] * 2) / 1000 + 1.2, th.pathEdge);
+        stroke(pl, (co[4] * 2) / 1000 - 0.4, th.path);
+      }
+    }
+    for (const cp of CAMPS) {
+      disc(cp.x / 1000, cp.y / 1000, 3.2, th.pathEdge);
+      disc(cp.x / 1000, cp.y / 1000, 2.6, th.den);
+    }
+  } else {
+    for (const path of footpaths()) {
+      stroke(path, 3.4, '#c9b27c');
+      stroke(path, 2.4, '#dcc792');
+    }
+    for (const flip of [false, true]) {
+      const f = (x: number): number => (flip ? W - x : x);
+      disc(f(rx), RAT_CAMP.y / 1000, 5.5, '#cdb784');
+      disc(f(rx), RAT_CAMP.y / 1000, 4.6, '#d9c595');
+    }
   }
   // MAP-GAPS A1: a trodden dirt footprint under each jungle wall (its rocks stand on it)
   for (const cl of wallClusters()) {
@@ -337,10 +381,14 @@ function paintGround(swap = false): THREE.Texture {
   // river banks
   const r0 = MAP.riverX[0] / 1000;
   const r1 = MAP.riverX[1] / 1000;
-  g.fillStyle = '#e8d6a0';
-  g.fillRect(X(r0 - 1.1), 0, (r1 - r0 + 2.2) * PX, c.height);
-  g.fillStyle = '#d7c189';
-  g.fillRect(X(r0 - 0.4), 0, (r1 - r0 + 0.8) * PX, c.height);
+  if (hasRiver()) {
+    g.fillStyle = '#e8d6a0';
+    g.fillRect(X(r0 - 1.1), 0, (r1 - r0 + 2.2) * PX, c.height);
+    g.fillStyle = '#d7c189';
+    g.fillRect(X(r0 - 0.4), 0, (r1 - r0 + 0.8) * PX, c.height);
+  }
+  // sim v34: the pool map's own ground marks (the pitch's chalk, the quarry's sand ring, ...)
+  th.paint?.(g, X, Y, PX);
   // bush footprints
   for (const b of BUSHES) {
     for (const x of [b.x, mirrorX(b.x)]) {
@@ -356,8 +404,8 @@ function paintGround(swap = false): THREE.Texture {
     const x = rnd() * W;
     const y = rnd() * H;
     if (Math.min(...lanes.map((pl) => distToPolyline(x, y, pl))) < lw / 2 + 0.5) continue;
-    if (x > r0 - 2 && x < r1 + 2) continue;
-    disc(x, y, 0.14 + rnd() * 0.1, petals[(rnd() * petals.length) | 0]);
+    if (hasRiver() && x > r0 - 2 && x < r1 + 2) continue;
+    disc(x, y, 0.14 + rnd() * 0.1, (th.petals ?? petals)[(rnd() * (th.petals ?? petals).length) | 0]);
   }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -515,7 +563,7 @@ export function outerTrees(): { x: number; y: number; s: number; low: boolean }[
       // south of the map the trees stand between the camera and the units: they start further out
       if (d < (py < 0 ? OUTER_DRESS.nearSouth : OUTER_DRESS.near)) continue;
       // the river runs on under the canopy only near the map (MAP-GAPS A15 closes the forest over it further out)
-      if (px > r0 - 2 && px < r1 + 2 && d < RIVER_RUN * 0.75) continue;
+      if (hasRiver() && px > r0 - 2 && px < r1 + 2 && d < RIVER_RUN * 0.75) continue;
       if (keep > Math.max(0.35, 1 - (d - OUTER_DRESS.near) / 70)) continue;
       out.push({ x: px, y: py, s, low: lowPick });
     }
@@ -538,6 +586,7 @@ export const BRIDGE_HALF = 5.7;
  * end posts on the banks (outside the river: nothing stands in the walkable band).
  */
 export function bridgeParts(): { y: number; deckY: number; width: number; top: number; planks: number; posts: { x: number; y: number }[] }[] {
+  if (!hasRiver()) return [];
   const r0 = MAP.riverX[0] / 1000;
   const r1 = MAP.riverX[1] / 1000;
   const rim = PLAYFIELD.rim / 1000;
@@ -558,6 +607,7 @@ export const RIVER_RUN = 16;
 
 /** MAP-GAPS A15: the boundary markers across the river: where the playfield rim stops units (m), and `out` (±1). */
 export function riverMarkers(): { y: number; out: 1 | -1 }[] {
+  if (!hasRiver()) return [];
   return [
     { y: PLAYFIELD.rim / 1000, out: -1 },
     { y: H - PLAYFIELD.rim / 1000, out: 1 },
@@ -602,7 +652,7 @@ export function hedgeSpots(): { x: number; y: number; r: number; color: number; 
     const r = kind === 'rock' ? 0.45 + rnd() * 0.35 : (0.6 + rnd() * 0.5) * 1.2;
     const color = kind === 'rock' ? (rnd() < 0.5 ? 0xb9b2a6 : 0xa59d90) : rnd() < 0.5 ? 0x5fa860 : 0x6db86a;
     if (gap) return;
-    if (x > r0 - 1.5 && x < r1 + 1.5) return;
+    if (hasRiver() && x > r0 - 1.5 && x < r1 + 1.5) return;
     if (fountains.some(([fx, fy]) => Math.hypot(x - fx, y - fy) - r < FOUNTAIN_CLEAR + 0.6)) return;
     out.push({ x, y, r, color, kind });
     if (kind === 'flower') for (let i = 0; i < 3; i++) out.push({ x: x + (rnd() - 0.5) * r, y: y + (rnd() - 0.5) * r, r: 0.12, color: petals[(rnd() * petals.length) | 0], kind: 'flower' });
@@ -810,7 +860,7 @@ export function createMapView(): MapView {
   );
   river.position.set((r0 + r1) / 2, 0.02, -H / 2);
   river.renderOrder = 1;
-  group.add(river);
+  if (hasRiver()) group.add(river);
   // MAP-GAPS A15: the sand banks run on with the river past the map edge (strips under the painted ground inside it)
   const bankMat = keep(patchCloudShadow(new THREE.MeshLambertMaterial({ color: 0xe8d6a0 }), cloudU));
   for (const [x0, x1] of [
@@ -823,7 +873,7 @@ export function createMapView(): MapView {
     bank.position.set((x0 + x1) / 2, -0.008, -H / 2);
     bank.receiveShadow = true;
     bank.name = 'river-bank';
-    group.add(bank);
+    if (hasRiver()) group.add(bank);
   }
 
   // scenery built into a few merged meshes (vertex colours, toon lit)
@@ -840,8 +890,10 @@ export function createMapView(): MapView {
 
   // pudding island, bridges
   const props = new ModelBuilder();
-  props.cyl(6.2, 6.6, 0.08, 0xe8d6a0, { at: [toX(PUDDING_SPOT.x), 0.0, toZ(PUDDING_SPOT.y)] }, 28);
-  props.cyl(5.6, 5.6, 0.1, 0xd7c189, { at: [toX(PUDDING_SPOT.x), 0.0, toZ(PUDDING_SPOT.y)] }, 28);
+  if (!isPool()) {
+    props.cyl(6.2, 6.6, 0.08, 0xe8d6a0, { at: [toX(PUDDING_SPOT.x), 0.0, toZ(PUDDING_SPOT.y)] }, 28);
+    props.cyl(5.6, 5.6, 0.1, 0xd7c189, { at: [toX(PUDDING_SPOT.x), 0.0, toZ(PUDDING_SPOT.y)] }, 28);
+  }
   // MAP-GAPS A16: the bridge decks cover the whole walkable lane band (±5.7 m), flush with the water (drawn over the
   // river, not above it), with low end posts on the banks only: rails across the river stood inside the walkable band
   const deck = new ModelBuilder();
@@ -908,11 +960,13 @@ export function createMapView(): MapView {
   const bannersSwapped = bannerMesh(true);
   bannersSwapped.visible = false;
 
+  // sim v34: the bound map's bush count (the pool maps have more than the Crossing's four)
+  const NB = bushCount();
   const forestU = { uLens: { value: new THREE.Vector3(0, 1e4, 0) }, uSee: { value: Array.from({ length: CANOPY_CUT.slots }, () => new THREE.Vector4()) } };
   // MAP-GAPS A20: the bush rects (render x/z centre, half sizes + a leaf margin) and their cleared fade (0..1)
   const bushU = {
     uBushRect: { value: bushRects().map((r) => new THREE.Vector4(r.x, -r.y, r.hw + 1.1, r.hh + 1.1)) },
-    uBushOn: { value: new Array(BUSH_COUNT).fill(0) as number[] },
+    uBushOn: { value: new Array(NB).fill(0) as number[] },
   };
   let myTeam = 0;
   const cleared: boolean[] = [];
@@ -970,19 +1024,19 @@ export function createMapView(): MapView {
   bushMat.onBeforeCompile = ((prev) => (sh: Parameters<NonNullable<typeof bushMat.onBeforeCompile>>[0], r: Parameters<NonNullable<typeof bushMat.onBeforeCompile>>[1]) => {
     prev(sh, r);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', `#include <common>\nuniform vec4 uBushRect[${BUSH_COUNT}];\nuniform float uBushOn[${BUSH_COUNT}];`)
+      .replace('#include <common>', `#include <common>\nuniform vec4 uBushRect[${NB}];\nuniform float uBushOn[${NB}];`)
       .replace(
         '#include <dithering_fragment>',
         `#include <dithering_fragment>
   float lit = 0.0;
-  for (int i = 0; i < ${BUSH_COUNT}; i++) {
+  for (int i = 0; i < ${NB}; i++) {
     vec2 q = abs(vFW.xz - uBushRect[i].xy) - uBushRect[i].zw;
     if (max(q.x, q.y) < 0.0) lit = max(lit, uBushOn[i]);
   }
   gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 1.25 + vec3(0.06, 0.08, 0.02), lit * 0.55);`,
       );
   })(bushMat.onBeforeCompile);
-  bushMat.customProgramCacheKey = () => 'pl-bush-cut-v2';
+  bushMat.customProgramCacheKey = () => `pl-bush-cut-v2-${NB}`;
   patchWind(bushMat, windU);
   addMerged(bush, 'bushes', false, bushMat);
 
@@ -1202,7 +1256,7 @@ export function createMapView(): MapView {
       // MAP-GAPS A20: ease each bush's cleared tint toward whether an ally stands in it
       if (frame) clearedBushes(frame.entities, myTeam, cleared);
       const on = bushU.uBushOn.value;
-      for (let i = 0; i < BUSH_COUNT; i++) on[i] += ((cleared[i] ? 1 : 0) - on[i]) * Math.min(1, dt * 6);
+      for (let i = 0; i < NB; i++) on[i] += ((cleared[i] ? 1 : 0) - on[i]) * Math.min(1, dt * 6);
       riverU.uTime.value = time;
       stepWind(windU, amb, dt);
       stepClouds(cloudU, amb, dt);

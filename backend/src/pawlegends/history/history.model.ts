@@ -44,6 +44,10 @@ export const isGroup = (v: unknown): v is HistoryGroup =>
 export const isVisibility = (v: unknown): v is HistoryVisibility =>
     typeof v === 'string' && (HISTORY_VISIBILITY as readonly string[]).includes(v);
 
+/** Sim v34: the maps a history row can name (the 3v3 pool and 5v5 Hearthwood). */
+export const HISTORY_MAPS = ['crossing', 'hearthwood', 'ridge', 'thicket', 'quarry', 'pitch'] as const;
+export type HistoryMap = typeof HISTORY_MAPS[number];
+
 /** A solo match's mode from its record: the map and the mutator. Pure. */
 export function soloMode(map: unknown, mutator: unknown): HistoryMode {
     const m = typeof mutator === 'string' ? mutator : 'none';
@@ -99,7 +103,7 @@ export interface HistoryRowDoc {
     season: string;
     mode: HistoryMode;
     group: HistoryGroup;
-    map: 'crossing' | 'hearthwood';
+    map: HistoryMap;
     mutator: string | null;
     difficulty: string;
     outcome: 'won' | 'lost' | 'draw';
@@ -175,7 +179,8 @@ export function seasonAt(at: Date): string {
 /** The stored row, or null when the stats do not hold the owner's seat. Pure. */
 export function buildRow(i: BuildInput): HistoryRowDoc | null {
     if (!Array.isArray(i.stats)) return null;
-    const map = i.map === 'hearthwood' ? 'hearthwood' : 'crossing';
+    // sim v34: the real map id (the 3v3 pool maps too); anything unknown is the Crossing
+    const map: HistoryMap = (HISTORY_MAPS as readonly unknown[]).includes(i.map) ? (i.map as HistoryMap) : 'crossing';
     const teamSize = map === 'hearthwood' ? 5 : 3;
     const teamOf = (slot: number): 0 | 1 => (slot < teamSize ? 0 : 1);
     const rows = (i.stats as StatsLike[]).filter(
@@ -367,7 +372,7 @@ export interface HistoryRowView {
     id: string;
     at: number;
     mode: HistoryMode;
-    map: 'crossing' | 'hearthwood';
+    map: HistoryMap;
     mutator: string | null;
     difficulty: string;
     outcome: 'won' | 'lost' | 'draw';

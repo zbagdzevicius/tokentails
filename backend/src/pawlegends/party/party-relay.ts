@@ -2383,7 +2383,12 @@ export class PartyRelay {
             if (clean === null) this.log('draft_seed_miss', { bans: plan.bans.length });
             else seed = clean;
         }
-        const { picks, tricks } = picksOf(seed);
+        // sim v34 (V34-MAPS.md §7): a 3v3 room plays the map its final seed draws from the pool (the same rule as the
+        // client's Skirmish and the backend's replay); omitted when it is the Crossing, so such a room is v33's shape.
+        // 5v5 Classic keeps Hearthwood; a sim before v34 has no pool (Crossing).
+        const drawn = !map && n === 3 && ps.pickMap3v3 ? ps.pickMap3v3(seed) : undefined;
+        const roomMap = map ?? (drawn && drawn !== 'crossing' ? drawn : undefined);
+        const { picks, tricks } = roomMap ? ps.fillPicksParty(seed, plan.seats as never, roomMap) : picksOf(seed);
         const config: StoredRoom['config'] = {
             seed,
             picks: picks as string[],
@@ -2391,7 +2396,7 @@ export class PartyRelay {
             difficulty: plan.difficulty,
             humans: plan.humans,
             ...(plan.pvp ? { mode: 'pvp' as const, fillDifficulty: plan.pvp.fillDifficulty } : {}),
-            ...(map ? { map } : {}),
+            ...(roomMap ? { map: roomMap } : {}),
         };
         const id = roomId();
         const now = this.now();

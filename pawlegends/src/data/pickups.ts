@@ -46,6 +46,17 @@ export const HEARTHWOOD_FRENZY_SPOTS: readonly (readonly [number, number, number
   Object.freeze([80000, 48000, 48000, 80000] as const),
   Object.freeze([108000, 20000, 20000, 108000] as const),
 ]);
+/** Sim v34 (V34-MAPS.md): the pool maps' Frenzy pairs (both spots on the map's axis). */
+export const RIDGE_FRENZY_SPOTS: readonly (readonly [number, number, number, number])[] = Object.freeze([
+  Object.freeze([50000, 50000, 50000, 28500] as const),
+  Object.freeze([50000, 50500, 50000, 15500] as const),
+]);
+export const THICKET_FRENZY_SPOTS: readonly (readonly [number, number, number, number])[] = Object.freeze([
+  Object.freeze([50000, 53000, 50000, 7000] as const),
+  Object.freeze([50000, 32500, 50000, 27500] as const),
+]);
+export const QUARRY_FRENZY_SPOTS: readonly (readonly [number, number, number, number])[] = Object.freeze([Object.freeze([50000, 51000, 50000, 9000] as const)]);
+export const PITCH_FRENZY_SPOTS: readonly (readonly [number, number, number, number])[] = Object.freeze([Object.freeze([50000, 53000, 50000, 7000] as const)]);
 /** Live binding (src/sim/map/runtime.ts bindMap). */
 export let FRENZY_SPOTS = C_FRENZY_SPOTS;
 export function setFrenzySpots(s: readonly (readonly [number, number, number, number])[]): void {

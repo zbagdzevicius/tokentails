@@ -92,8 +92,9 @@ export const COOP_HUMANS = 3;
 /** Slots per team on Purrhaven Crossing (slot s is on team `teamOfSlot(s)`); Hearthwood passes 5. */
 export const SLOTS_PER_TEAM = 3;
 /** The maps a room can be on (the sim's MAP_IDS, append only) and their team sizes. */
-export type MapId = 'crossing' | 'hearthwood';
-export const MAP_TEAM_SIZE: Readonly<Record<MapId, 3 | 5>> = Object.freeze({ crossing: 3, hearthwood: 5 });
+export type MapId = 'crossing' | 'hearthwood' | 'ridge' | 'thicket' | 'quarry' | 'pitch';
+/** Sim v34: the four 3v3 pool maps are Crossing-sized 3v3 maps (no PROTO change: a room's map is a string). */
+export const MAP_TEAM_SIZE: Readonly<Record<MapId, 3 | 5>> = Object.freeze({ crossing: 3, hearthwood: 5, ridge: 3, thicket: 3, quarry: 3, pitch: 3 });
 /** Seats per team of a room on `map` (omitted: Crossing). */
 export const teamSizeOfMap = (map?: MapId | string | null): 3 | 5 => (map === 'hearthwood' ? 5 : 3);
 export const teamOfSlot = (slot: number, teamSize: number = SLOTS_PER_TEAM): 0 | 1 => (slot >= teamSize ? 1 : 0);
@@ -565,6 +566,10 @@ export const SOCIAL_BOUNDS = Object.freeze({ width: 100_000, height: 60_000 });
 export const SOCIAL_BOUNDS_BY_MAP: Readonly<Record<MapId, { width: number; height: number }>> = Object.freeze({
   crossing: SOCIAL_BOUNDS,
   hearthwood: Object.freeze({ width: 128_000, height: 128_000 }),
+  ridge: SOCIAL_BOUNDS,
+  thicket: SOCIAL_BOUNDS,
+  quarry: SOCIAL_BOUNDS,
+  pitch: SOCIAL_BOUNDS,
 });
 
 export const socialIdOk = (kind: SocialKind, id: number): boolean =>
@@ -959,7 +964,10 @@ export type ServerJson =
       t: 'error';
       code: ErrorCode;
       retryMs?: number;
-      reason?: 'pvp_newbie' | 'ranked_party';
+      /** `mode_level` (MODE-UNLOCKS.md): the mode needs an account level; `mode`, `level`, `have` and `need` (matches). */
+      reason?: 'pvp_newbie' | 'ranked_party' | 'mode_level';
+      mode?: string;
+      level?: number;
       /** `mm_ranked_closed`: players online now, and the opening line. */
       online?: number;
       need?: number;

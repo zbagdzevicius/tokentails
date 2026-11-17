@@ -655,7 +655,7 @@ export class MatchSession {
       end: (result, replay) => this.onEnd(result, replay),
       error: (m) => hooks.onError(m),
     });
-    this.host.join({ hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty, seed: setup.seed, speed: setup.speed, ...(setup.map === 'hearthwood' ? { map: setup.map } : {}), ...(setup.mutator && setup.mutator !== 'none' && setup.map !== 'hearthwood' ? { mutator: setup.mutator } : {}) });
+    this.host.join({ hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty, seed: setup.seed, speed: setup.speed, ...(setup.map && setup.map !== 'crossing' ? { map: setup.map } : {}), ...(setup.mutator && setup.mutator !== 'none' && setup.map !== 'hearthwood' ? { mutator: setup.mutator } : {}) });
     // Hold the sim until the scene has drawn and the countdown ran (the clock read 0:25 on a slow first load).
     this.host.pause(true);
     document.documentElement.dataset.match = 'loading';
@@ -2131,6 +2131,18 @@ export class MatchSession {
     }
   }
 
+  /** Sim v34: the pool maps' objective events as rail notes (ours gold or good, theirs bad). */
+  private objectiveNote(e: SimEvent): void {
+    const my = this.view.myTeam;
+    const us = (t: number): boolean => t === my;
+    if (e.type === 'millCapture') this.rail({ key: 'obj-mill', title: us(e.team) ? `Fish Mill taken: +${e.fish} Fish, Lantern Wave!` : 'They took the Fish Mill', tone: us(e.team) ? 'gold' : 'bad', ttl: 3500 });
+    else if (e.type === 'millOpen') this.rail({ key: 'obj-mill', title: 'The Fish Mill is open', tone: 'info', ttl: 2500 });
+    else if (e.type === 'shrineCapture') this.rail({ key: 'obj-shrine', title: us(e.team) ? (e.shrine === my ? 'Your Paw Shrine is yours' : 'You stole their Paw Shrine!') : e.shrine === my ? 'They stole your Paw Shrine' : 'They took their Paw Shrine', tone: us(e.team) ? 'good' : 'bad', ttl: 3000 });
+    else if (e.type === 'gemCountdown' && e.on) this.rail({ key: 'obj-gems', title: us(e.team) ? 'Gem countdown: hold on 12 s!' : 'Their gem countdown: stop the carriers!', tone: us(e.team) ? 'good' : 'bad', ttl: 3000 });
+    else if (e.type === 'gemSurge') this.rail({ key: 'obj-gems', title: us(e.team) ? 'GEODE SURGE! Push now' : 'Their Geode Surge: defend', tone: us(e.team) ? 'gold' : 'bad', ttl: 3500 });
+    else if (e.type === 'goal') this.rail({ key: 'obj-goal', title: us(e.team) ? 'GOAL! Their tower shakes' : 'They scored: your tower is hit', tone: us(e.team) ? 'gold' : 'bad', ttl: 3500 });
+  }
+
   /** Per-event objective beats (fun plan F1). */
   private beatsFrom(ev: SimEvent | { type: string }, frame: ViewFrame): void {
     const me = this.view.mySlot;
@@ -2147,6 +2159,7 @@ export class MatchSession {
       }
     } else if (e.type === 'sunset') this.goals.start('sunset');
     else if (e.type === 'death' && e.killer === me && e.id < 6) this.goals.complete('dog');
+    else this.objectiveNote(e);
   }
 
   /** lifecycle: the gate chip's title while the lifecycle pill counts the gates down (the timer's phase line skips it). */

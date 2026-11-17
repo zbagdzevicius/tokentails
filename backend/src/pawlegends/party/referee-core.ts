@@ -46,7 +46,7 @@ export interface RefereeConfig {
     mode?: 'pvp';
     fillDifficulty?: [string, string];
     /** 5v5 Classic (sim v19+, MAP-5V5.md §9.1): 'hearthwood' plays 10 slots. Absent: Crossing (6). */
-    map?: 'crossing' | 'hearthwood';
+    map?: 'crossing' | 'hearthwood' | 'ridge' | 'thicket' | 'quarry' | 'pitch';
 }
 
 /** Hero slots of a room on `map` (the wire carries up to MAX_HUMANS). */

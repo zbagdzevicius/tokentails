@@ -4,7 +4,7 @@
  * input's nav and aim checks, the minimap) binds the same map itself before it builds anything, and goes back to
  * Purrhaven Crossing when the match ends. Also sets the fixed camera's yaw for the map (Crossing −38°, Hearthwood 0°).
  */
-import type { MapId, Mutator } from '../sim/api';
+import { MAP_IDS, type MapId, type Mutator } from '../sim/api';
 import { MUTATOR_RULES } from '../data/mutators';
 import { bindMap, mapIndex } from '../sim/map/runtime';
 import { mapInfo, type MapInfo } from '../sim/map/info';
@@ -17,11 +17,14 @@ let current: MapId = 'crossing';
  * Sunny Lane strip (data/mutators.ts `strip`) binds the strip variant, so the forest and the minimap match its walls.
  */
 export function useMap(map: MapId | undefined, mutator?: Mutator): MapInfo {
-  const id: MapId = map === 'hearthwood' ? 'hearthwood' : 'crossing';
+  // sim v34: the 3v3 pool maps too
+  const id: MapId = map && MAP_IDS.includes(map) ? map : 'crossing';
   const info = mapInfo(id);
   bindMap(mapIndex(id), mutator && MUTATOR_RULES[mutator]?.strip ? 1 : 0);
   setMapYaw(info.camera.yawDeg);
   current = id;
+  // sim v34 (e2e and the loading card): the bound map
+  if (typeof document !== 'undefined') document.documentElement.dataset.map = id;
   return info;
 }
 
@@ -29,3 +32,4 @@ export function useMap(map: MapId | undefined, mutator?: Mutator): MapInfo {
 export const currentMap = (): MapId => current;
 /** True while a Hearthwood (5v5 Classic) match is bound. */
 export const isClassic = (): boolean => current === 'hearthwood';
+

@@ -39,7 +39,10 @@
  * 13. late-replay.fixture.json (sim v32): one genuine Normal match (the normal player-bot) that plays past the late
  *    tick (8:30) and ends on a core kill, so the spec shows a v32 late-Sunset replay verifies and the same record
  *    labelled v31 (Sudden Death's core burn) is refused.
- * backend/src/vendor/pawlegends-sim/v10/ to v32/: those files, frozen (FROZEN below; sim v33 is live).
+ * 14. maps-replay.fixture.json (sim v34, docs/plans/moba/V34-MAPS.md): one genuine Normal match on each 3v3 pool map
+ *    (Lanternfall Ridge, Twinbark Thicket, Geode Quarry, Pawball Park; a JSON array of four records), so the spec
+ *    shows a v34 record with a pool `map` verifies and the same record labelled v33 is refused.
+ * backend/src/vendor/pawlegends-sim/v10/ to v33/: those files, frozen (FROZEN below; sim v34 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -124,6 +127,9 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * the released v31 at 345fb655, its last commit on main, and keeps v10 to v30, so the backend verifies 10 to 32.
  * Sim v33 (kills matter more, respawns grow with the match, docs/plans/moba/V33-KILLS.md) froze the released v32 at
  * 17fff703 (its sim commit on main) and keeps v10 to v31, so the backend verifies 10 to 33.
+ * Sim v34 (the 3v3 map pool: Lanternfall Ridge, Twinbark Thicket, Geode Quarry and Pawball Park beside Purrhaven
+ * Crossing, docs/plans/moba/V34-MAPS.md) froze the released v33 at 31c3c5c8 (its sim commit on main) and keeps v10 to
+ * v32, so the backend verifies 10 to 34; only v34 knows the pool maps.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -427,6 +433,26 @@ export const FROZEN = Object.freeze([
       'late-replay.fixture.json',
     ]),
   }),
+  Object.freeze({
+    simVersion: 33,
+    commit: '31c3c5c8a11730348013572f34f7e9cfd2a42e80',
+    from: 'backend/src/vendor/pawlegends-sim/v33',
+    bundle: '874b29f181797dc294bf526c2bc215bf8995184bce27ccd3bf5fcb7593793a85',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+      'blitz-replay.fixture.json',
+      'kite-replay.fixture.json',
+      'roster-replay.fixture.json',
+      'roster31-replay.fixture.json',
+      'late-replay.fixture.json',
+    ]),
+  }),
 ]);
 
 /** One frozen version's files, byte for byte from git. Throws when git is missing or the bundle sha differs. */
@@ -592,7 +618,7 @@ export type PawlegendsOutcome = 'won' | 'lost';
  *  Boss Weekend (docs/plans/moba/V28.md). */
 export type PawlegendsMutator = 'none' | 'blitz' | 'cannon' | 'practice' | 'toybox' | 'rapid' | 'bounty' | 'onelane' | 'duel' | 'boss';
 /** Sim v19: the maps ('crossing' 3v3, 'hearthwood' 5v5 Classic); a record without \`map\` is Crossing. */
-export type PawlegendsMapId = 'crossing' | 'hearthwood';
+export type PawlegendsMapId = 'crossing' | 'hearthwood' | 'ridge' | 'thicket' | 'quarry' | 'pitch';
 
 export interface PawlegendsReplay {
     v: 1;
@@ -780,6 +806,9 @@ export interface PawlegendsPartySim {
     MAP_IDS?: readonly PawlegendsMapId[];
     teamSizeOf?(map: PawlegendsMapId): 3 | 5;
     slotCountOf?(map: PawlegendsMapId): 6 | 10;
+    /** Sim v34 and later (V34-MAPS.md): the 3v3 map pool and the map a seed draws; absent on older bundles (Crossing). */
+    MAP_POOL_3V3?: readonly PawlegendsMapId[];
+    pickMap3v3?(seed: number): PawlegendsMapId;
 }
 
 /** The party API of this bundle. */
@@ -813,6 +842,8 @@ export const party: PawlegendsPartySim = {
     MAP_IDS: sim.MAP_IDS,
     teamSizeOf: sim.teamSizeOf,
     slotCountOf: sim.slotCountOf,
+    MAP_POOL_3V3: sim.MAP_POOL_3V3,
+    pickMap3v3: sim.pickMap3v3,
 };
 `;
 
@@ -902,6 +933,29 @@ export async function lateFixture(seed = LATE_FIXTURE_SEED) {
   const bot = sim.createPlayerBot(m, 'normal');
   while (!sim.result(m)) sim.step(m, sim.playerBotCommands(m, bot));
   return sim.replayRecord(m);
+}
+
+/** Sim v34 (V34-MAPS.md): the seeds of the recorded pool-map fixtures (one Normal match on each, ending on a core). */
+export const MAPS_FIXTURE = Object.freeze([
+  Object.freeze({ map: 'ridge', seed: 3401 }),
+  Object.freeze({ map: 'thicket', seed: 3402 }),
+  Object.freeze({ map: 'quarry', seed: 3403 }),
+  Object.freeze({ map: 'pitch', seed: 3404 }),
+]);
+
+/** Play one Normal match on each pool map (the normal player-bot) and return the four replay records. */
+export async function mapsFixture() {
+  const sim = await importSim('src/sim/index.ts');
+  const out = [];
+  for (const { map, seed } of MAPS_FIXTURE) {
+    const pick = (list, salt) => list[(Math.imul(seed ^ salt, 0x9e3779b1) >>> 0) % list.length];
+    const { picks, tricks } = sim.fillPicks(seed, pick(LATE_HEROES, 0x51), pick(LATE_TRICKS, 0x7a), map);
+    const m = sim.createMatch({ seed, picks, tricks, difficulty: 'normal', map });
+    const bot = sim.createPlayerBot(m, 'normal');
+    while (!sim.result(m)) sim.step(m, sim.playerBotCommands(m, bot));
+    out.push(sim.replayRecord(m));
+  }
+  return out;
 }
 
 /** Seed and hero of the recorded sim v31 roster fixture (docs/plans/moba/ROSTER-V31.md §6). */
@@ -1178,6 +1232,7 @@ export async function buildFiles() {
   const roster = JSON.stringify(await rosterFixture(), null, 2) + '\n';
   const roster31 = JSON.stringify(await roster31Fixture(), null, 2) + '\n';
   const late = JSON.stringify(await lateFixture(), null, 2) + '\n';
+  const maps = JSON.stringify(await mapsFixture(), null, 2) + '\n';
   const live = {
     'pawlegends-sim.bundle.ts': text,
     'index.ts': face,
@@ -1206,6 +1261,8 @@ export async function buildFiles() {
     'roster31-replay.fixture.json': roster31,
     // Sim v32 (no Sudden Death): a Normal match past the late tick; a later freeze lists it in `extra`
     'late-replay.fixture.json': late,
+    // Sim v34 (the 3v3 map pool): one record on each pool map; a later freeze lists it in `extra`
+    'maps-replay.fixture.json': maps,
   };
   const files = {};
   for (const entry of FROZEN) for (const [name, body] of Object.entries(frozenFiles(entry))) files[`v${entry.simVersion}/${name}`] = body;

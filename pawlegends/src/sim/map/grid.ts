@@ -96,6 +96,7 @@ export function onPlayfield(x: number, y: number): boolean {
   if (x < rim || y < rim || x > MAP.width - rim || y > MAP.height - rim) return false;
   if (PLAYFIELD.open === 1) return true;
   if (PLAYFIELD.open === 2) return onCarved(x, y);
+  if (PLAYFIELD.open === 3) return onMirrorCarved(x, y);
   const [b0, b1, b2, b3] = PLAYFIELD.base;
   if (y >= b1 && y <= b3 && ((x >= b0 && x <= b2) || (x >= mirrorX(b2) && x <= mirrorX(b0)))) return true;
   // Sim v28 (V28.md §2): the Sunny Lane strip, the first lane's band only (no other lane, no loop).
@@ -138,6 +139,22 @@ function onCarved(x: number, y: number): boolean {
   for (let k = 0; k < pits.length; k++) if (inDisc(cx, cy, pits[k][0], pits[k][1], pits[k][2])) return true;
   const co = PLAYFIELD.corridors;
   for (let k = 0; k < co.length; k++) if (nearSegment(cx, cy, co[k][0], co[k][1], co[k][2], co[k][3], co[k][4])) return true;
+  return false;
+}
+
+/**
+ * Sim v34 (V34-MAPS.md §8.3): a carved map mirrored left to right (the 3v3 pool maps). Walkable: the lane bands, both
+ * base plazas, and the clearings and corridors authored on team 0's half (x ≤ W/2), the east half folded onto it.
+ */
+function onMirrorCarved(x: number, y: number): boolean {
+  if (nearLane(x, y, PLAYFIELD.laneHalf)) return true;
+  const [b0, b1, b2, b3] = PLAYFIELD.base;
+  if (y >= b1 && y <= b3 && ((x >= b0 && x <= b2) || (x >= mirrorX(b2) && x <= mirrorX(b0)))) return true;
+  const cx = x * 2 > MAP.width ? MAP.width - x : x;
+  const cl = PLAYFIELD.clearings;
+  for (let k = 0; k < cl.length; k++) if (inDisc(cx, y, cl[k][0], cl[k][1], cl[k][2])) return true;
+  const co = PLAYFIELD.corridors;
+  for (let k = 0; k < co.length; k++) if (nearSegment(cx, y, co[k][0], co[k][1], co[k][2], co[k][3], co[k][4])) return true;
   return false;
 }
 
@@ -310,6 +327,21 @@ export function coverDisc(g: NavGrid, x: number, y: number, r: number, delta: 1 
       const dx = i * MAP.navCell + HALF - x;
       const dy = j * MAP.navCell + HALF - y;
       if (dx * dx + dy * dy > r2) continue;
+      const c = j * NX + i;
+      g.cover[c] += delta;
+      g.blocked[c] = g.walls[c] | (g.cover[c] > 0 ? 1 : 0);
+    }
+  }
+}
+
+/** Sim v34: add (+1) or remove (−1) a rectangle footprint (Pawball Park's crates) on the cover layer. */
+export function coverRect(g: NavGrid, x0: number, y0: number, x1: number, y1: number, delta: 1 | -1): void {
+  for (let j = cellY(y0); j <= cellY(y1); j++) {
+    const cy = j * MAP.navCell + HALF;
+    if (cy < y0 || cy > y1) continue;
+    for (let i = cellX(x0); i <= cellX(x1); i++) {
+      const cx = i * MAP.navCell + HALF;
+      if (cx < x0 || cx > x1) continue;
       const c = j * NX + i;
       g.cover[c] += delta;
       g.blocked[c] = g.walls[c] | (g.cover[c] > 0 ? 1 : 0);

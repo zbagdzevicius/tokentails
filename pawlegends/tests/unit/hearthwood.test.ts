@@ -22,7 +22,8 @@ afterAll(() => bindMap(0));
 
 describe('Hearthwood Divide: the map (G3)', () => {
   it('is 128 × 128 m, 5 a side, point-symmetric, with three lanes, 11 towers a team, 16 camps and two pits', () => {
-    expect(MAP_IDS).toEqual(['crossing', 'hearthwood']);
+    // sim v34 appended the four 3v3 pool maps
+    expect(MAP_IDS).toEqual(['crossing', 'hearthwood', 'ridge', 'thicket', 'quarry', 'pitch']);
     expect([info.width, info.height, info.nx, info.ny, info.teamSize, info.symmetry]).toEqual([W, W, 128, 128, 5, 'point']);
     expect([teamSizeOf('hearthwood'), slotCountOf('hearthwood'), teamOfSlot(4, 'hearthwood'), teamOfSlot(5, 'hearthwood'), teamOfSlot(3, 'crossing')]).toEqual([5, 10, 0, 1, 1]);
     expect(info.lanes.map((l) => [l.id, l.name, l.role])).toEqual([

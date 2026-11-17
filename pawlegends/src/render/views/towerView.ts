@@ -38,7 +38,7 @@ import { coreGeometry, crowGeometry, fountainGeometry, grizzlechopGeometry, hedg
 import { rigMaterial, type RigUniforms, casterDepthMaterial } from './rig';
 import { CRACK_K, DAMAGE_POSE, EMBER_K, STAGE_HIT, nextStage, type DamageStage } from './towerDamage';
 import type { TowerFire } from '../fx/towerFire';
-import { MAP } from '../../data/map';
+import { ACTIVE_MAP, MAP } from '../../data/map';
 import { mapInfo } from '../../sim/map/info';
 import type { Ambient, AmbientFx } from '../ambient';
 import { FADE, GROW, SHAPE } from '../fx/Particles.js';
@@ -402,7 +402,7 @@ export class StructureView {
     // living pass: the critter layer for the bound map (built now, so the match build compiles it; nothing is drawn
     // until an ambient level asks for critters)
     try {
-      const layer = new CritterLayer(mapInfo(MAP.point === 1 ? 'hearthwood' : 'crossing'));
+      const layer = new CritterLayer(mapInfo(MAP.point === 1 ? 'hearthwood' : ACTIVE_MAP.objective ? ACTIVE_MAP.id : 'crossing'));
       layer.setAmbient({ level: 1, tier: 'med', reduced: false, phone: false, motion: 0, speed: 1, density: 0 });
       layer.mesh.visible = true;
       this.group.add(layer.mesh);

@@ -45,6 +45,11 @@ export const FORFEIT_RESERVE_BYTES = 4;
 export const LIMITS_BY_MAP = Object.freeze({
   crossing: Object.freeze({ maxTicks: 19800, maxInputBytes: 30660, maxInputChars: 40880 }),
   hearthwood: Object.freeze({ maxTicks: 28800, maxInputBytes: 44760, maxInputChars: 59680 }),
+  // Sim v34 (V34-MAPS.md): the pool maps keep Crossing's 11:00 and input budget.
+  ridge: Object.freeze({ maxTicks: 19800, maxInputBytes: 30660, maxInputChars: 40880 }),
+  thicket: Object.freeze({ maxTicks: 19800, maxInputBytes: 30660, maxInputChars: 40880 }),
+  quarry: Object.freeze({ maxTicks: 19800, maxInputBytes: 30660, maxInputChars: 40880 }),
+  pitch: Object.freeze({ maxTicks: 19800, maxInputBytes: 30660, maxInputChars: 40880 }),
 });
 
 /** Live bindings: the active match's map's limits (src/sim/map/runtime.ts bindMap). */

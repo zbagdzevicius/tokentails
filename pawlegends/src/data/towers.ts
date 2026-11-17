@@ -32,7 +32,8 @@ export const TOWERS = Object.freeze({
    */
   fortifyMinionBp: 7500,
   fortifyBoltBp: 12500,
-  fortifyUntil: Object.freeze([7200, 9000]) as readonly number[],
+  // Sim v34: the pool maps (MAP_IDS 2 to 5) keep Crossing's 4:00.
+  fortifyUntil: Object.freeze([7200, 9000, 7200, 7200, 7200, 7200]) as readonly number[],
   /**
    * Sim v26: a takedown chip (DifficultyRules.takedownTowerChipBp) never takes a tower below chipFloorBp of its max HP,
    * and towers at or below it are skipped, so heroes and minions finish every tower.

@@ -81,6 +81,11 @@ export function chipPing(key: string): number | null {
       return PING_KIND.Group;
     case 'rats':
     case 'theirRats':
+    // sim v34: the pool maps' objectives: "go here" at the mill, a shrine, the Geode or the ball
+    case 'mill':
+    case 'shrine':
+    case 'gems':
+    case 'goal':
       return PING_KIND.GoHere;
     // sim v19 (Hearthwood)
     case 'grizzlechop':

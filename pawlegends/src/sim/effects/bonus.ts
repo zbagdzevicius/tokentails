@@ -2,6 +2,7 @@
  * Sim v4 hero bonuses: Zoomies, Frenzy Catnip, the rat camp's Pack buff and Nine Lives (data/xp.ts ZOOMIES and
  * NINE_LIVES, data/pickups.ts, data/camps.ts). Timers are per hero, in ticks.
  */
+import { objSpeedBp } from '../units/objective';
 import { FOUNTAIN, mirrorX, mirrorY } from '../../data/map';
 import { NINE_LIVES, PANIC, ZOOMIES } from '../../data/xp';
 import { PICKUPS } from '../../data/pickups';
@@ -52,7 +53,9 @@ export function bonusSpeedBp(w: World, id: number): number {
   const feather = w.mg.length > 0 && w.mg[MG.Feather + id] > 0 ? JUNGLE_BUFF.featherSpeedBp : 0;
   // Sim v21: the Kibble Cannon's carrier is slower (in the bp sum, so slows still apply).
   const cannon = w.globals[G.CannonState] === CANNON_STATE.Carried && w.globals[G.CannonBy] === id ? CANNON.slowBp : 0;
-  return (w.zoomT[id] > 0 ? ZOOMIES.speedBp : 0) + (w.frenzyT[id] > 0 ? PICKUPS.frenzy.speedBp : 0) + panic + feather - cannon;
+  // Sim v34: Swift Paws (a Paw Shrine owned, Twinbark Thicket).
+  const shrine = w.ob.length > 0 ? objSpeedBp(w, id) : 0;
+  return (w.zoomT[id] > 0 ? ZOOMIES.speedBp : 0) + (w.frenzyT[id] > 0 ? PICKUPS.frenzy.speedBp : 0) + panic + feather - cannon + shrine;
 }
 
 /** Outgoing damage of hero `id` with Frenzy Catnip and the Pack buff. */

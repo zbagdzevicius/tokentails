@@ -14,7 +14,7 @@ import { CAMPS, MAP, RADIUS, RAT_CAMP, mirrorX } from '../../data/map';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { ANGLE_STEPS, applyBp, dist2, iatan2, idiv, moveToward } from '../fixed';
 import type { MatchHandle } from '../state';
-import { FM, G, Kind, MG, NEVER, RANGE, TEAM_NEUTRAL, UnitState, heroAt, type World } from '../world';
+import { FM, G, Kind, MG, NEVER, OB, RANGE, TEAM_NEUTRAL, UnitState, heroAt, type World } from '../world';
 import { clearStatus } from '../effects/status';
 import { slow } from '../effects/slow';
 import { fleeStep } from '../effects/fear';
@@ -94,9 +94,12 @@ const homeX = (id: number): number => MON_X[id - RANGE.camps];
 const homeY = (id: number): number => MON_Y[id - RANGE.camps];
 
 /** The camp timer: Crossing's two in `globals` (as in v18), Hearthwood's in `mg`. */
-const campAt = (w: World, c: number): number => (w.mg.length === 0 ? w.globals[c === 0 ? G.CampAt0 : G.CampAt1] : w.mg[MG.CampAt + c]);
+const campAt = (w: World, c: number): number =>
+  w.ob.length > 0 ? w.ob[OB.Camp + c] : w.mg.length === 0 ? w.globals[c === 0 ? G.CampAt0 : G.CampAt1] : w.mg[MG.CampAt + c];
 function setCampAt(w: World, c: number, v: number): void {
-  if (w.mg.length === 0) w.globals[c === 0 ? G.CampAt0 : G.CampAt1] = v;
+  // Sim v34: a pool map keeps its camp timers in the objective table.
+  if (w.ob.length > 0) w.ob[OB.Camp + c] = v;
+  else if (w.mg.length === 0) w.globals[c === 0 ? G.CampAt0 : G.CampAt1] = v;
   else w.mg[MG.CampAt + c] = v;
 }
 /** Tick camp `c` spawns next (−1 while up, −2 never again). */
@@ -108,7 +111,7 @@ export function initCamps(w: World, firstAt: number): void {
     w.kind[id] = Kind.Camp;
     w.team[id] = TEAM_NEUTRAL;
     w.alive[id] = 0;
-    if (w.mg.length > 0) w.sub[id] = CAMPS[campOf(id)].kind;
+    if (w.mg.length > 0 || w.ob.length > 0) w.sub[id] = CAMPS[campOf(id)].kind;
   }
   for (let c = 0; c < CAMP_FIRST.length; c++) setCampAt(w, c, c === BOSS_CAMP ? GRIZZLECHOP.first : firstAt);
 }
@@ -136,7 +139,9 @@ function spawnRat(w: World, id: number): void {
   w.moveY[id] = w.y[id];
   w.moveCarry[id] = 0;
   // Crossing: facing as in v18. Hearthwood: toward the map centre.
-  w.facing[id] = w.mg.length === 0 ? (c === 0 ? ANGLE_STEPS >> 1 : 0) : CAMPS[c].side === 1 ? (ANGLE_STEPS * 5) >> 3 : ANGLE_STEPS >> 3;
+  // Sim v34: a pool map's monsters face the map's middle.
+  if (w.ob.length > 0) w.facing[id] = CAMPS[c].side === 1 ? ANGLE_STEPS >> 1 : 0;
+  else w.facing[id] = w.mg.length === 0 ? (c === 0 ? ANGLE_STEPS >> 1 : 0) : CAMPS[c].side === 1 ? (ANGLE_STEPS * 5) >> 3 : ANGLE_STEPS >> 3;
   w.state[id] = UnitState.Idle;
   w.target[id] = -1;
   w.attackTimer[id] = 0;

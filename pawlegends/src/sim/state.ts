@@ -71,4 +71,6 @@ export interface MatchHandle {
   readonly rules: DifficultyRules;
   /** Sim v16 S-PvP: present only in a PvP match. */
   readonly pvp?: PvpState;
+  /** Sim v34: the crates (Pawball Park) whose cover is on the grid now; derived from `world.ob`, not hashed. */
+  readonly crateCov?: Uint8Array;
 }

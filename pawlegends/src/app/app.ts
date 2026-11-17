@@ -4,6 +4,7 @@
  * entitlement token and free unlocks; the store, the offer card and settings; consent-gated
  * analytics. `html[data-screen]` names the current screen (tests read it; there is no debug global).
  */
+import { MAP_CARDS, drawSeed, poolMapOf, practiceMap, rememberMap, rollMap } from '../ui/mapPick';
 import { fishSources, medals, progressRows } from '../ui/progressSummary';
 import { HumanFilter } from '../analytics/human';
 import { askConsent, createAnalytics, type Analytics } from '../analytics/posthog';
@@ -113,7 +114,7 @@ import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { selfNames } from '../meta/cardName';
 import type { MatchEnd, MatchSession, MatchSetup } from './matchSession';
 import { MODE_MAP, MODE_MINUTES, MODE_MUTATOR, MODE_NAME, MUTATOR_MODE, MUTATOR_VEIL, loadMatchMode, modeFromUrl, saveMatchMode, type MatchMode } from '../ui/lobby/matchMode';
-import { MUTATORS, type MapId, type Mutator } from '../sim/api';
+import { MAP_POOL_3V3, MUTATORS, type MapId, type Mutator } from '../sim/api';
 
 /**
  * The match (session, game view, effects, HUD) is its own chunk: the title and menus load without it (first-load JS
@@ -2064,7 +2065,8 @@ export class App {
       seed: match.config.seed,
       speed: 1,
       // sim v19: a 5v5 Classic room plays Hearthwood Divide (PROTO 4 carries the map on the match frame and config)
-      ...(((match as { map?: string }).map ?? (match.config as { map?: string }).map) === 'hearthwood' ? { map: 'hearthwood' as const } : {}),
+      // sim v34: a 3v3 room plays the pool map the relay drew from its seed (absent: Crossing)
+      ...(poolMapOf((match as { map?: string }).map ?? (match.config as { map?: string }).map) ? { map: poolMapOf((match as { map?: string }).map ?? (match.config as { map?: string }).map)! } : {}),
       firstMatch: false,
       newPlayer: p.matches < 5,
       // party play: quick chat and its 4 emotes replace the solo Wave chip (T opens the chat wheel)
@@ -2157,6 +2159,23 @@ export class App {
     // Chaos and the weekly twist; the Practice ground is open from the first visit.
     const wanted = pick.mutator ?? (pick.map ? 'none' : MODE_MUTATOR[stored]);
     const mutator: Mutator | undefined = seed === undefined && !map && wanted !== 'none' && MUTATORS.includes(wanted) && (p.matches > 0 || wanted === 'practice') ? wanted : undefined;
+    // Sim v34 (V34-MAPS.md §7): a 3v3 match plays one of five maps. A Skirmish draws it from its seed (from the 4th
+    // match; the first three stay on the Crossing), never the same map twice in a row; Practice plays the picked map
+    // (or a random one). A dare keeps its seed's own Crossing; Blitz and the other modes stay on the Crossing.
+    let poolSeed: number | undefined;
+    let pool: MapId | undefined;
+    if (!map && seed === undefined) {
+      if (mutator === 'practice') {
+        const want = practiceMap();
+        pool = want === 'random' ? MAP_POOL_3V3[drawSeed() % MAP_POOL_3V3.length] : want;
+      } else if (!mutator && p.matches >= 3) {
+        const r = rollMap(drawSeed);
+        poolSeed = r.seed;
+        pool = r.map;
+        rememberMap(r.map);
+      }
+      if (pool === 'crossing') pool = undefined;
+    }
     delete c.map;
     delete c.mutator;
     this.choice = isRookie(c.difficulty) ? { ...c, difficulty: pick.difficulty } : c;
@@ -2177,9 +2196,9 @@ export class App {
       ...c,
       // UX pass 2: the signed-in player's public name over their own hero (guests: "You")
       playerName: this.ownName(),
-      seed,
+      seed: seed ?? poolSeed,
       speed: this.speed,
-      ...(map ? { map } : {}),
+      ...(map ? { map } : pool ? { map: pool } : {}),
       ...(mutator ? { mutator } : {}),
       firstMatch: tips,
       newPlayer: p.matches < 5,
@@ -2200,11 +2219,12 @@ export class App {
       showcase: [],
     };
     this.lastSetup = setup;
-    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined, load_ms: sinceLoadMs(), first_match: p.matches === 0, mode: map ? 'classic' : mutator ? MUTATOR_MODE[mutator] : 'skirmish', map: map ?? 'crossing', mutator: mutator ?? 'none' });
+    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined, load_ms: sinceLoadMs(), first_match: p.matches === 0, mode: map ? 'classic' : mutator ? MUTATOR_MODE[mutator] : 'skirmish', map: map ?? pool ?? 'crossing', mutator: mutator ?? 'none' });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
     // GAPS A6: the loading screen names this hero's match count
-    const veil = loadingVeil(this.root, map ? 'Into Hearthwood Divide...' : mutator ? MUTATOR_VEIL[mutator] : 'Into the Crossing...', undefined, {
+    // sim v34: the loading card names the map and its one-line rule
+    const veil = loadingVeil(this.root, map ? 'Into Hearthwood Divide...' : pool ? `Into ${MAP_CARDS[pool].name}...` : mutator ? MUTATOR_VEIL[mutator] : 'Into the Crossing...', pool ? MAP_CARDS[pool].line : undefined, {
       name: HERO_TEXT[c.hero].title,
       matches: p.heroMatches[c.hero] ?? 0,
     });

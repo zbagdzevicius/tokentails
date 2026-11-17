@@ -247,7 +247,8 @@ const CANNON_CHAOS: MutatorRules = Object.freeze({
  */
 const PRACTICE: MutatorRules = Object.freeze({
   ...NONE,
-  maps: Object.freeze(['crossing'] as MapId[]),
+  // Sim v34 (V34-MAPS.md §7): the Practice ground on any 3v3 map.
+  maps: Object.freeze(['crossing', 'ridge', 'thicket', 'quarry', 'pitch'] as MapId[]),
   respawnFrom: 60,
   respawnTo: 60,
   // never: the safety end comes first
