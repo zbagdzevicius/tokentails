@@ -22,8 +22,8 @@ import { HISTORY_ERRORS, MatchHistoryService } from './history.service';
  * Match history (docs/plans/moba/MATCH-HISTORY.md):
  * - `GET /pawlegends/history?mode&before` and `GET /pawlegends/history/match/:id`: the caller's own (guests too);
  * - `GET /pawlegends/history/u/:code?mode&before` and `GET /pawlegends/history/u/:code/match/:id`: another player's,
- *   by player code, for registered accounts, when that player's choice allows it (default: friends);
- * - `POST /pawlegends/history/privacy {visibility}`: everyone | friends | me.
+ *   by player code, for registered accounts (public since Nov 17: no privacy choice; a block reads as no player);
+ * - `POST /pawlegends/history/privacy {visibility}`: kept for older builds; accepted, ignored, answers `everyone`.
  * Read only (the rows are written by the `/live` save alone). Per-IP buckets on every route.
  */
 

@@ -817,6 +817,7 @@ slots 0..2 only, so its bytes are the same as PROTO 2's. A PROTO 1 or 2 socket n
 | Client frame | Fields | Rules |
 |---|---|---|
 | `mm.join` | `queue: 'casual'`, `side`, `region?` | PROTO 3 on a sim >= `PVP_SINCE` (16), else `pvp_update_required`; fewer than 5 matches (hint) or a rating RD above 300 is `mm_locked {reason: 'pvp_newbie'}`. Solo, duo or trio (a trio is casual only). A repeat `mm.join` with `queue: 'casual'` after the move to co-op is **Keep waiting** |
+| `mm.join` | `queue: 'classic'` | Mode unlocks by account level (docs/plans/moba/MODE-UNLOCKS.md, Nov 17): every member needs Lv 3 = 4 finished matches on server records (saved matches, rated games, completed Quick Play rooms; never the hint), else `mm_locked {reason: 'mode_level', mode: 'classic', level: 3, have, need}` (`have` is the lowest member's). Ranked keeps its own 10 saved matches (= Lv 6) |
 | `mm.accept` | `match` (`^[a-z0-9]{12}$`), `yes` | Within 10 s of a casual `mm.found`. No, or no answer, is a dodge: 2 free per UTC day, then +1 min low priority each |
 | `vote` | `kind: 'remake'` | PvP only, from 1:00 to 3:00, when the voter's team lost a human seat (left, or never loaded and offline); all remaining humans of the team. `pause` is refused in PvP |
 
@@ -1236,3 +1237,15 @@ The enums marked "shared" live in `shared/enums.ts` and are generated into every
 | `ProductType` | `digital`, `print`, `canvas` |
 | `ImageStyle` | `highness`, `monarch`, `aristocrat`, `commander` |
 | `EntityType` | `ARTICLE`, `CAT`, `BLESSING`, `PACK`, `IMAGE`, `COMMENT` |
+
+## Paw Legends: Nov 17 progression changes
+
+- **Match history is public.** `GET /pawlegends/history/u/:code` (registered callers) answers any player's history; a
+  stored privacy choice is ignored and a block still reads as `PAWLEGENDS_SOCIAL_NOT_FOUND`. The list no longer carries
+  `visibility`. `POST /pawlegends/history/privacy` stays for older builds: it validates `visibility`, stores nothing and
+  answers `{visibility: 'everyone'}`. The bridge op `history.privacy` is gone.
+- **Starters.** `champions.starters` is `clem, sage, bengas, howler, chili, marshmallow` (a Fighter, a Marksman and a
+  Mage per side). Accounts with a Paw Legends match before the change get `champ.gabe`, `champ.brutus` and
+  `champ.frankie` as `legacy` owned rows (lazy, once per account, `startersChecked` on the Yarn row, cut-off row
+  `meta:starters-v2-release`). `POST /pawlegends/champions/unlock` refuses the new starters as free and sells the former
+  ones (Sir Brutus T1, Gabby and Frankie T2).

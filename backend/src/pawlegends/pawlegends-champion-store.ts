@@ -11,6 +11,7 @@ import {
     CHAMPION_IDS,
     champTier,
     champYarnPrice,
+    FORMER_STARTERS,
     FOUNDERS_BADGE,
     heroOfChampItem,
     isStarter,
@@ -36,6 +37,8 @@ type Models = Pick<PawlegendsStore, 'owned' | 'yarn' | 'yarnLog'>;
 
 /** The release row: the champion store's release time T (the Founders roster cut-off). */
 export const RELEASE_ID = 'meta:champions-release';
+/** The starters change (Nov 17): accounts with a match before it keep Gabby, Sir Brutus and Frankie. */
+export const STARTERS_V2_ID = 'meta:starters-v2-release';
 
 export const CHAMP_ERRORS = {
     unknown: () => pawlegendsError(HttpStatus.BAD_REQUEST, 'PAWLEGENDS_INVALID', 'Unknown champion'),
@@ -58,13 +61,13 @@ export function isoWeek(d: Date): string {
 }
 
 /** The release time T, written once (the first call wins; later calls read it). */
-export async function championReleaseAt(models: Pick<Models, 'yarn'>, now: Date): Promise<Date> {
+export async function championReleaseAt(models: Pick<Models, 'yarn'>, now: Date, id = RELEASE_ID): Promise<Date> {
     try {
-        await models.yarn.updateOne({ _id: RELEASE_ID }, { $setOnInsert: { at: now } }, { upsert: true });
+        await models.yarn.updateOne({ _id: id }, { $setOnInsert: { at: now } }, { upsert: true });
     } catch (error) {
         if (!isDuplicateKeyError(error)) throw error;
     }
-    const row = (await models.yarn.findOne({ _id: RELEASE_ID }).lean()) as any;
+    const row = (await models.yarn.findOne({ _id: id }).lean()) as any;
     return row?.at ? new Date(row.at) : now;
 }
 
@@ -156,14 +159,25 @@ export async function ensureFounders(
     evidence: FoundersEvidence | undefined,
     now: Date
 ): Promise<boolean> {
-    if (!accountId || accountId === RELEASE_ID) return false;
+    if (!accountId || accountId === RELEASE_ID || accountId === STARTERS_V2_ID) return false;
     const row = await ensureYarnRow(models, accountId);
     const hasBadge = async () =>
         !!(await models.owned.findOne({ accountId, item: FOUNDERS_BADGE, revokedAt: { $exists: false } }).lean());
-    if (row?.foundersChecked || !evidence) return hasBadge();
-    const at = await championReleaseAt(models, now);
-    if (await evidence(accountId, at)) await grantFoundersRoster(models, accountId);
-    await models.yarn.updateOne({ _id: accountId }, { $set: { foundersChecked: true } });
+    if (!evidence) return hasBadge();
+    if (!row?.foundersChecked) {
+        const at = await championReleaseAt(models, now);
+        if (await evidence(accountId, at)) await grantFoundersRoster(models, accountId);
+        await models.yarn.updateOne({ _id: accountId }, { $set: { foundersChecked: true } });
+    }
+    // the starters change (Nov 17): a player who had Gabby, Sir Brutus and Frankie as starters keeps them
+    if (!row?.startersChecked) {
+        // the Founders roster holds them already: no second read of the Game rows
+        if (!(await hasBadge())) {
+            const at = await championReleaseAt(models, now, STARTERS_V2_ID);
+            if (await evidence(accountId, at)) await grantFormerStarters(models, accountId);
+        }
+        await models.yarn.updateOne({ _id: accountId }, { $set: { startersChecked: true } });
+    }
     return hasBadge();
 }
 
@@ -175,6 +189,11 @@ export async function ensureFounders(
 export const FOUNDERS_ROSTER: readonly string[] = Object.freeze(
     CHAMPION_IDS.filter(h => !['mochi', 'ziggy', 'biscuit', 'champ', 'nova', 'dusty', 'barkula', 'ranger'].includes(h))
 );
+
+/** The former starters (Gabby, Sir Brutus, Frankie) as `legacy` rows: "existing owners keep what they own". */
+export async function grantFormerStarters(models: Pick<Models, 'owned'>, accountId: string): Promise<void> {
+    for (const hero of FORMER_STARTERS) await grantFree(models, accountId, champItem(hero), 'legacy');
+}
 
 /** The Founders roster grant itself (the migration and the lazy check): the release's 20 and the badge. Idempotent. */
 export async function grantFoundersRoster(models: Pick<Models, 'owned'>, accountId: string): Promise<void> {

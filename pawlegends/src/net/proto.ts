@@ -956,7 +956,10 @@ export type ServerJson =
       t: 'error';
       code: ErrorCode;
       retryMs?: number;
-      reason?: 'pvp_newbie' | 'ranked_party';
+      /** `mode_level` (MODE-UNLOCKS.md): the mode needs an account level; `mode`, `level`, `have` and `need` (matches). */
+      reason?: 'pvp_newbie' | 'ranked_party' | 'mode_level';
+      mode?: string;
+      level?: number;
       /** `mm_ranked_closed`: players online now, and the opening line. */
       online?: number;
       need?: number;

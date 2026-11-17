@@ -85,8 +85,9 @@ const ok = (body: unknown): ApiResult => ({ id: 'x', ok: true, status: 200, body
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe('match history: ops and helpers', () => {
-  it('the three ops and their args are in the shared list', () => {
-    expect(API_OPS).toEqual(expect.arrayContaining(['history.list', 'history.match', 'history.privacy']));
+  it('the two ops and their args are in the shared list; no privacy op (public since Nov 17)', () => {
+    expect(API_OPS).toEqual(expect.arrayContaining(['history.list', 'history.match']));
+    expect(API_OPS).not.toContain('history.privacy');
     expect(API_ARG_KEYS).toEqual(expect.arrayContaining(['match', 'visibility', 'mode', 'before', 'code']));
   });
 
@@ -147,7 +148,7 @@ describe('match history: ops and helpers', () => {
 
 describe('match history: the sheet', () => {
   it('yours: the account rows, season, filters, a match opens with Watch; Back and Escape', async () => {
-    const page: ServerPage = { owner: { name: 'Me', self: true }, rows: [srow()], next: null, stats: { season: 's1', name: 'Season 1', matches: 1, wins: 1, winRate: 100, kda: 7, mvp: 1, favourites: [] }, visibility: 'friends' };
+    const page: ServerPage = { owner: { name: 'Me', self: true }, rows: [srow()], next: null, stats: { season: 's1', name: 'Season 1', matches: 1, wins: 1, winRate: 100, kda: 7, mvp: 1, favourites: [] } };
     const api = vi.fn(async (op: string, args?: Record<string, unknown>) => (op === 'history.list' ? ok(page) : op === 'history.match' ? ok(match()) : ok({ visibility: args?.visibility })));
     const onWatch = vi.fn();
     const onClose = vi.fn();
@@ -159,11 +160,9 @@ describe('match history: the sheet', () => {
     expect(el.querySelector('[data-testid="history-winrate"]')?.textContent).toBe('100%');
     expect(el.querySelector('.mh-row .mh-mvp.mvp')).toBeTruthy();
     expect(el.querySelector('.mh-row .mh-watch')).toBeTruthy();
-    // privacy
-    const sel = el.querySelector<HTMLSelectElement>('[data-testid="history-privacy"]')!;
-    sel.value = 'me';
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(api).toHaveBeenCalledWith('history.privacy', { visibility: 'me' });
+    // founder Nov 17: history is public, no privacy choice
+    expect(el.querySelector('[data-testid="history-privacy"], select')).toBeNull();
+    expect(el.textContent).toContain('other players can see it');
     // a filter asks the server
     el.querySelector<HTMLElement>('[data-filter="ranked"]')!.click();
     await flush();

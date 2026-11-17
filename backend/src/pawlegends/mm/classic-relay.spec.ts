@@ -102,21 +102,30 @@ describe('5v5 Classic relay (MAP-5V5.md §9)', () => {
         }
     });
 
-    it('a brand-new player queues 5v5 Classic (and casual 3v3): no 5-match lock', async () => {
+    it('5v5 Classic opens at Lv 3 (4 finished matches on server records); casual 3v3 is open from the start', async () => {
         const b = await bootMm();
         try {
-            // a fresh guest with no server record and no matches, and an IP-only identity (no guest key)
-            const fresh = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
+            // a fresh guest with no server record and no matches, and an IP-only identity (no guest key): the client's
+            // hint is never trusted for the level (MODE-UNLOCKS.md, founder Nov 17)
+            const fresh = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 99 } });
             const anon = await b.client();
             anon.hello({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
             await anon.until(() => anon.last('welcome'));
             for (const c of [fresh, anon]) {
                 c.send({ t: 'mm.join', queue: 'classic', side: 'any' });
-                expect((await c.until(() => c.last('mm.status'))).queue).toBe('classic');
-                expect(c.last('error')).toBeUndefined();
+                const err = await c.until(() => c.last('error'));
+                expect(err).toMatchObject({
+                    code: 'mm_locked',
+                    reason: 'mode_level',
+                    mode: 'classic',
+                    level: 3,
+                    have: 0,
+                    need: 4,
+                });
+                expect(c.last('mm.status')).toBeUndefined();
             }
-            expect((b.relay.counters() as Record<string, number>).mm_queued).toBe(2);
-            // casual 3v3 is open from the first session too (its 5-match lock is lifted for now, 2026-11-11)
+            expect((b.relay.counters() as Record<string, number>).mm_queued ?? 0).toBe(0);
+            // casual 3v3 is open from the first session (its 5-match lock is lifted for now, 2026-11-11)
             const casual = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
             casual.send({ t: 'mm.join', queue: 'casual', side: 'any' });
             expect((await casual.until(() => casual.last('mm.status'))).queue).toBe('casual');

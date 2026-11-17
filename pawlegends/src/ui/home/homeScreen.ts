@@ -68,6 +68,10 @@ export interface HomeProfile {
   xp: number | null;
   /** Matches played on this device (shown when no season is known). */
   matches: number;
+  /** The account level (meta/accountLevel.ts; MODE-UNLOCKS.md). Absent: not shown. */
+  level?: { level: number; pct: number; toNext: number };
+  /** The Yarn balance (the server's; CHAMPION-STORE.md §4), or null where no server answered. */
+  yarn?: number | null;
 }
 
 /** One promo slide (right edge). `action`: what a tap opens. */
@@ -111,6 +115,8 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   onLockedMode?(m: ModeDef): void;
   /** The profile chip (SOCIAL-RANKED.md §2.3): the Profile sheet (name, avatar, title). Absent: the chip opens the pass. */
   onProfile?(): void;
+  /** The Yarn chip (founder Nov 17): where Yarn unlocks champions (the store's Champions, the Heroes browser in apps). */
+  onYarn?(): void;
 }
 
 const GEAR =
@@ -182,7 +188,9 @@ function avatarHtml(o: HomeScreenOpts, el: string): string {
 
 function profileHtml(o: HomeScreenOpts, el: string): string {
   const p = o.profile;
-  const sub = p.tier !== null ? `Tier ${p.tier}` : p.matches > 0 ? `${p.matches} ${p.matches === 1 ? 'match' : 'matches'}` : o.signedIn ? 'Signed in' : 'No account needed';
+  const base = p.tier !== null ? `Tier ${p.tier}` : p.matches > 0 ? `${p.matches} ${p.matches === 1 ? 'match' : 'matches'}` : o.signedIn ? 'Signed in' : 'No account needed';
+  // the account level leads the line (MODE-UNLOCKS.md: modes open by level)
+  const sub = p.level ? `Lv ${p.level.level} · ${base}` : base;
   const label = `${p.name}. ${sub}${o.title ? `. ${o.title}` : ''}`;
   const inner = `${avatarHtml(o, el)}<span class="hm-pf-t"><b class="hm-pf-name">${esc(p.name)}</b>${o.title ? `<small class="hm-pf-title">${esc(o.title)}</small>` : ''}<span class="hm-xp" aria-hidden="true"><i style="width:${ringPct(p)}%"></i></span><small class="hm-pf-sub">${esc(sub)}</small></span>`;
   return o.onProfile || o.onCollection
@@ -190,10 +198,24 @@ function profileHtml(o: HomeScreenOpts, el: string): string {
     : `<div class="hm-profile" data-testid="home-profile" aria-label="${esc(label)}" role="group">${inner}</div>`;
 }
 
+/** "3,500". */
+const yarnNum = (n: number): string => Math.max(0, Math.floor(n)).toLocaleString('en-US');
+
+/**
+ * Top centre: Season XP and tier (opens the pass) and the Yarn balance (founder Nov 17: "show score in home page as
+ * well"; opens where Yarn unlocks champions). The Yarn chip stays on narrow phones, the Season chips do not.
+ */
 function currencyHtml(o: HomeScreenOpts): string {
   const p = o.profile;
-  if (p.xp === null || p.tier === null) return '';
-  return `<button type="button" class="hm-cur" data-a="pass" aria-label="${esc(`Season XP ${p.xp}, tier ${p.tier}. Open the pass`)}"${o.onCollection ? '' : ' disabled'}><span class="hm-chip"><i class="hm-gem xp" aria-hidden="true"></i><b>${p.xp.toLocaleString('en-US')}</b><small>Season XP</small></span><span class="hm-chip"><i class="hm-gem tier" aria-hidden="true"></i><b>${p.tier}</b><small>Tier</small></span></button>`;
+  const pass =
+    p.xp === null || p.tier === null
+      ? ''
+      : `<button type="button" class="hm-curb" data-a="pass" aria-label="${esc(`Season XP ${p.xp}, tier ${p.tier}. Open the pass`)}"${o.onCollection ? '' : ' disabled'}><span class="hm-chip"><i class="hm-gem xp" aria-hidden="true"></i><b>${p.xp.toLocaleString('en-US')}</b><small>Season XP</small></span><span class="hm-chip"><i class="hm-gem tier" aria-hidden="true"></i><b>${p.tier}</b><small>Tier</small></span></button>`;
+  const yarn =
+    typeof p.yarn === 'number'
+      ? `<button type="button" class="hm-chip hm-yarn" data-a="yarn" data-testid="home-yarn" data-yarn="${Math.max(0, Math.floor(p.yarn))}" title="Yarn: earned by playing. Unlock champions with it" aria-label="${esc(`${yarnNum(p.yarn)} Yarn. Unlock champions`)}"${o.onYarn ? '' : ' disabled'}><img src="${esc(o.base)}assets/splash/yarn.svg" alt="" width="20" height="20" decoding="async"><b>${yarnNum(p.yarn)}</b><small>Yarn</small></button>`
+      : '';
+  return pass || yarn ? `<div class="hm-cur">${pass}${yarn}</div>` : '';
 }
 
 /** The left stack: Events, Today (quests ring) and join with a code. */
@@ -500,7 +522,10 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       o.onHeroes?.();
     } else if (a === 'joincode') o.onJoinCode?.();
     else if (a === 'store') o.onStore?.();
-    else if (a === 'settings') o.onSettings?.();
+    else if (a === 'yarn') {
+      o.sound?.('click');
+      o.onYarn?.();
+    } else if (a === 'settings') o.onSettings?.();
     else if (a === 'social') o.onSocial?.();
     // the profile chip opens the Profile sheet (SOCIAL-RANKED.md §2.3); the nav Pass item and the Season XP chips (and
     // the chip where there is no Profile) open the Treat Track and its Pass tab

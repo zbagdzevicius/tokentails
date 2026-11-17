@@ -113,8 +113,8 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("history.match", { match: id })).toEqual({ method: "GET", path: `/pawlegends/history/match/${id}`, auth: "any" });
     expect(routeOf("history.match", { match: id, code: "PL-7KQ2-M9XR" })?.path).toBe(`/pawlegends/history/u/PL-7KQ2-M9XR/match/${id}`);
     expect(routeOf("history.match", { match: "../admin" })).toBeNull();
-    expect(routeOf("history.privacy", { visibility: "me" })).toEqual({ method: "POST", path: "/pawlegends/history/privacy", body: { visibility: "me" }, auth: "any" });
-    expect(routeOf("history.privacy", { visibility: "public" })).toBeNull();
+    // public since Nov 17 (the founder): no privacy op
+    expect(routeOf("history.privacy" as never, { visibility: "me" })).toBeNull();
   });
 
   it("gaps5: a party invite forwards only the Ranked duo mode", () => {

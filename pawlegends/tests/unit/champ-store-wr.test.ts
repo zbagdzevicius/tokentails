@@ -169,11 +169,12 @@ describe('store panel', () => {
     expect(el.isConnected).toBe(false);
   });
 
-  it('short of Yarn: "to go" and no Yarn button; owned and starter cards have no unlock', () => {
+  it('short of Yarn: the Yarn button is there but disabled, with what is missing; owned and starter cards have no unlock', () => {
     const { el } = open(state({ owned: [{ hero: 'stilts', source: 'yarn' }] }));
     click(el.querySelector('.cst-card[data-hero="duchess"]'));
-    expect(el.querySelector('[data-testid="store-togo"]')!.textContent).toContain('3,500 Yarn to go');
-    expect(el.querySelector('[data-unlock="yarn"]')).toBeNull();
+    expect(el.querySelector('[data-testid="store-togo"]')!.textContent).toContain('You have 0 Yarn: 3,500 to go (about');
+    expect(el.querySelector<HTMLButtonElement>('[data-unlock="yarn"]')!.disabled).toBe(true);
+    expect(el.querySelector('[data-unlock="yarn"]')!.textContent).toContain('3,500 Yarn');
     click(el.querySelector('[data-a="detail-close"]'));
     click(el.querySelector('.cst-card[data-hero="stilts"]'));
     expect(el.querySelector('.cst-detail [data-unlock], .cst-detail [data-buy]')).toBeNull();

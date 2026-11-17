@@ -380,7 +380,7 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
     popFor = btn;
     const facts = [m.size, m.minutes].filter(Boolean).join(' · ');
     const pct = Math.round(Math.max(0, Math.min(1, m.progress?.pct ?? 0)) * 100);
-    pop.innerHTML = `<h3>${esc(m.name)}</h3>${facts ? `<p class="ms-facts">${esc(facts)}</p>` : ''}<p class="ms-how" data-testid="mode-lock-how"><span class="ms-how-i" aria-hidden="true">${LOCK}</span><span>${esc(m.lockText ? `Unlocks: ${m.lockText.replace(/^./, (c) => c.toLowerCase())}.` : 'Locked.')}</span></p><div class="ms-pbar" role="progressbar" aria-label="Unlock progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div><ul>${m.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ul><button type="button" class="ms-btn ms-pop-x" data-a="ms-pop-x" aria-label="Close">✕</button>`;
+    pop.innerHTML = `<h3>${esc(m.name)}</h3>${facts ? `<p class="ms-facts">${esc(facts)}</p>` : ''}<p class="ms-how" data-testid="mode-lock-how"><span class="ms-how-i" aria-hidden="true">${LOCK}</span><span>${esc(m.lockText ? `${m.lockText}.` : 'Locked.')}</span></p><div class="ms-pbar" role="progressbar" aria-label="Unlock progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></div><ul>${m.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ul><button type="button" class="ms-btn ms-pop-x" data-a="ms-pop-x" aria-label="Close">✕</button>`;
     pop.dataset.testid = 'mode-lock-sheet';
     pop.hidden = false;
     const r = btn.getBoundingClientRect();

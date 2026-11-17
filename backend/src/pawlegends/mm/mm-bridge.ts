@@ -30,6 +30,7 @@ import {
 import { MM_CASUAL, MM_HOME_REGION, MM_LIMITS, MM_RANKED } from './mm-limits';
 import { CURRENT_SEASON_ID } from '../pawlegends-catalog';
 import { RANKED_MIN_MATCHES } from '../ranked/tiers';
+import { matchesForLevel, QUEUE_LEVEL } from '../mode-unlocks';
 import { identityHash, type MmRoomMember, type MmRoomStore } from './mm-room.schema';
 import type { MmRatingSource } from './rating.schema';
 import type { SanctionSource } from './sanction-reader';
@@ -348,7 +349,7 @@ export class MmBridge implements MmHooks {
         this.api.log('mm_refused', { reason });
         const msg: Record<string, unknown> = { ...(extra ?? {}), t: 'error', code };
         if (retryMs !== undefined) msg.retryMs = retryMs;
-        if (reason === 'pvp_newbie' || reason === 'ranked_party') msg.reason = reason;
+        if (reason === 'pvp_newbie' || reason === 'ranked_party' || reason === 'mode_level') msg.reason = reason;
         this.api.send(member, msg);
     }
 
@@ -397,6 +398,23 @@ export class MmBridge implements MmHooks {
                 else this.tierOf.delete(s.member);
             }
         return false;
+    }
+
+    /**
+     * Mode unlocks by account level (MODE-UNLOCKS.md, founder Nov 17): 5v5 Classic opens at Lv 3. Every member of the
+     * entry needs the level's finished matches on server records (`playedFor`: saved matches, rated games, completed
+     * Quick Play rooms; never the client's hint outside the e2e harness). Refused with `mm_locked`, reason
+     * `mode_level`, and `{mode, level, have, need}` (an older game shows its generic lock line and may search again).
+     */
+    private async levelRefusal(member: string, socks: MmSock[], queue: string): Promise<boolean> {
+        const level = QUEUE_LEVEL[queue];
+        if (!level) return false;
+        const need = matchesForLevel(level);
+        const have = await Promise.all(socks.map(s => this.playedFor(s).catch(() => 0)));
+        const low = Math.min(...have);
+        if (low >= need) return false;
+        this.refuse(member, 'mm_locked', undefined, 'mode_level', { mode: queue, level, have: low, need });
+        return true;
     }
 
     /**
@@ -566,6 +584,7 @@ export class MmBridge implements MmHooks {
             return;
         }
         if (queue === 'ranked' && (await this.rankedRefusal(member, socks))) return;
+        if (queue === 'classic' && (await this.levelRefusal(member, socks, queue))) return;
         // the live-room caps (1 per identity, 4 per IP) are checked now, not after the fill: a seat this identity
         // still holds from a closed tab is given up; anything else is refused with a time (never a silent cancel)
         for (const s of socks) if (!api.canSeat(s.identity)) api.release(s.identity, s.member);

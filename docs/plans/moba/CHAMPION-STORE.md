@@ -34,6 +34,15 @@ How the two reference games handle champion unlocks:
 
 ## 2. Types and starters
 
+**Nov 17 (founder: "change starter champs, max 3 per category (cats / dogs) (fighter, marksman, mage)"):** the
+starters are Clem (Fighter, Easy), Sage (Marksman, Medium) and Bengal (Mage, Medium) for cats, and Howler (Fighter, Easy),
+Chili (Marksman; all dog marksmen are Hard, his kit is the simplest: attack speed, a dash, a hide) and Marshmallow
+(Mage, Medium) for dogs. Bengal keeps a Pink Paw champion visible from match 1. Gabby, Sir Brutus and Frankie are sold
+now (Sir Brutus T1, Gabby and Frankie T2) and joined the rotation cycles in place of Bengal, Howler and Chili; every
+week still has a tank, an assassin or a support on each side, so a new player's six cover 4+ roles. Accounts that
+played before the change keep the three as `legacy` rows (`grantFormerStarters`, checked once with the Founders check).
+The Season 1 bundles keep 7 + 7: the dog bundle's singles now add up to $27.93. The text below is the launch design.
+
 "Type" means role, as in `HeroRole` (`data/heroes/types.ts`) and the role tabs (`ui/champSelect/roles.ts` `ROLE_ORDER`). There are 6 roles: fighter, marksman, tank, assassin, mage and support.
 
 A team is never cats and dogs mixed, and co-op or casual PvP assigns a species. So the 6 starters are split 3 cats and 3 dogs. That way a new player always has 3 champions on whichever side they are given.

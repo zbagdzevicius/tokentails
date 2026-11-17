@@ -37,10 +37,6 @@
 }
 .mh-chip[aria-selected='true'] { background: var(--v6-grad-sky); border-color: var(--v6-sky-top); color: var(--v6-navy); }
 .mh-more { align-self: center; }
-.mh-privacy { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--v6-muted); }
-.mh-privacy select {
-  min-height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--v6-line-strong); background: var(--v6-night-3); color: var(--v6-cream); font: inherit;
-}
 
 /* the match */
 .mh-detail { display: flex; flex-direction: column; gap: 8px; min-width: 0; }

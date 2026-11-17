@@ -26,6 +26,8 @@ export type QueueStop =
   | 'declined'
   | 'timeout'
   | 'newbie'
+  // Mode unlocks (MODE-UNLOCKS.md): the mode needs an account level a member has not reached
+  | 'mode_level'
   // Ranked (gap plan P4): the gate closed, a guest, too few matches, an unsaved ranked match, a trio
   | 'ranked_closed'
   | 'ranked_account'
@@ -34,7 +36,7 @@ export type QueueStop =
   | 'ranked_party';
 
 /** Ranked stops that Search again cannot fix now: the card offers Casual instead. */
-export const RANKED_TO_CASUAL: ReadonlySet<QueueStop> = new Set<QueueStop>(['ranked_closed', 'ranked_account', 'ranked_matches', 'ranked_party']);
+export const RANKED_TO_CASUAL: ReadonlySet<QueueStop> = new Set<QueueStop>(['ranked_closed', 'ranked_account', 'ranked_matches', 'ranked_party', 'mode_level']);
 
 /** Ranked's queue numbers (gap plan P4, round 4 §7.11): the refusal's counts and the low-population lines. */
 export interface RankedQueueInfo {
@@ -78,6 +80,8 @@ export interface QueueModel {
   pvp?: { theirs: number; toCoop: boolean; requeued: boolean };
   /** Ranked (gap plan P4): no bots, solo or duo; Casual offered after a long wait. */
   ranked?: RankedQueueInfo;
+  /** Mode unlocks: the refused mode's level; `mine` true when this player has it (a party member does not). */
+  modeLock?: { mode: string; level: number; have: number; need: number; mine: boolean };
 }
 
 const SIDES: readonly MmSide[] = ['cat', 'dog', 'any'];
@@ -100,6 +104,12 @@ const stopText = (m: QueueModel): string => {
       return COPY.timeoutYou;
     case 'newbie':
       return COPY.pvpLocked;
+    case 'mode_level': {
+      const l = m.modeLock;
+      if (!l) return COPY.modeLevel('This mode', 3, 0, 2);
+      const name = l.mode === 'classic' ? '5v5 Classic' : l.mode === 'ranked' ? 'Ranked' : 'This mode';
+      return l.mine ? COPY.modeLevelMate(name, l.level) : COPY.modeLevel(name, l.level, l.have, l.need);
+    }
     case 'ranked_closed':
       return COPY.rankedClosed(m.ranked?.online ?? 0, m.ranked?.need ?? 24);
     case 'ranked_account':

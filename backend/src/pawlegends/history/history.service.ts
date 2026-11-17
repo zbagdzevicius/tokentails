@@ -10,8 +10,6 @@ import { pairId, parsePlayerCode } from '../social/social.contracts';
 import { PawlegendsBlock, PawlegendsFriend, PawlegendsSocial } from '../social/social.schema';
 import {
     buildRow,
-    canView,
-    DEFAULT_VISIBILITY,
     HISTORY_KEEP,
     HISTORY_PAGE,
     isGroup,
@@ -36,8 +34,9 @@ import { PawlegendsHistoryPrefs, PawlegendsMatchHistory, PawlegendsMatchStats } 
 /*
  * Match history (docs/plans/moba/MATCH-HISTORY.md): the Wild Rift style list, the match detail and the season stats,
  * for the player and for a friend (by player code). Written only through `record`, which the `/live` save calls once
- * after its Game row exists; it never fails that save. Reads respect the owner's choice (everyone / friends / only me,
- * default friends) and blocks either way.
+ * after its Game row exists; it never fails that save. Public since Nov 17 (the founder: "match history is fully
+ * publicly available, so toggle is redundant"): any registered player reads any player's history by code; a stored
+ * choice from before is ignored. Blocks still read as "no player".
  */
 
 export const HISTORY_ERRORS = {
@@ -121,15 +120,8 @@ export class MatchHistoryCore {
         if (!id) throw HISTORY_ERRORS.noPlayer();
         if (id === viewer) return { id, self: true };
         if (!registered) throw HISTORY_ERRORS.needAccount();
-        const [visibility, friends, blocked] = await Promise.all([
-            this.store.visibility(id),
-            this.people.friends(viewer, id),
-            this.people.blockedEither(viewer, id),
-        ]);
-        // a block reads as "no player": the blocked side learns nothing more
-        if (blocked) throw HISTORY_ERRORS.noPlayer();
-        if (!canView(visibility ?? DEFAULT_VISIBILITY, { self: false, friends, blocked }))
-            throw HISTORY_ERRORS.hidden();
+        // a block reads as "no player": the blocked side learns nothing more. Otherwise public (no privacy choice)
+        if (await this.people.blockedEither(viewer, id)) throw HISTORY_ERRORS.noPlayer();
         return { id, self: false };
     }
 
@@ -157,7 +149,6 @@ export class MatchHistoryCore {
             const season = seasonAt(this.clock()) || CURRENT_SEASON_ID;
             out.stats = statsView(season, await this.store.stats(statsId(who.id, season)));
         }
-        if (who.self) out.visibility = (await this.store.visibility(who.id)) ?? DEFAULT_VISIBILITY;
         return out;
     }
 
@@ -170,10 +161,14 @@ export class MatchHistoryCore {
         return matchView(row, who.self, await this.people.names(ids));
     }
 
+    /**
+     * Older builds still send their privacy choice: it is accepted and dropped (history is public since Nov 17), and
+     * the answer says so. Nothing is stored.
+     */
     async setVisibility(viewer: string, v: unknown): Promise<{ visibility: HistoryVisibility }> {
+        void viewer;
         if (!isVisibility(v)) throw HISTORY_ERRORS.invalid('visibility');
-        await this.store.setVisibility(viewer, v);
-        return { visibility: v };
+        return { visibility: 'everyone' };
     }
 
     async purge(accountId: string): Promise<void> {

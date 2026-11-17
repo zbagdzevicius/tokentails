@@ -65,10 +65,10 @@ export const PAWLEGENDS_API_OPS = [
   // country flags (docs/plans/moba/FLAGS.md): the caller's flag (the server reads the country, never stores the IP) and the hide choice
   "flag.get",
   "flag.set",
-  // match history (docs/plans/moba/MATCH-HISTORY.md): the list (own, or a friend's by `code`), one match, who may see it
+  // match history (docs/plans/moba/MATCH-HISTORY.md): the list (own, or another player's by `code`) and one match;
+  // public since Nov 17 (the founder), so there is no privacy op
   "history.list",
   "history.match",
-  "history.privacy",
   // nicknames (docs/plans/moba/SOCIAL-RANKED.md §2.3): the name others see and the next change's price; the change itself
   "name.get",
   "name.set",
@@ -443,10 +443,6 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       if (!id) return null;
       if (a.code === undefined) return { method: "GET", path: `/pawlegends/history/match/${id}`, auth: "any" };
       return code ? { method: "GET", path: `/pawlegends/history/u/${enc(code)}/match/${id}`, auth: "registered" } : null;
-    }
-    case "history.privacy": {
-      const visibility = str(a.visibility, /^(everyone|friends|me)$/);
-      return visibility ? { method: "POST", path: "/pawlegends/history/privacy", body: { visibility }, auth: "any" } : null;
     }
     // nicknames (SOCIAL-RANKED.md §2.3): registered only; the server checks the name, the price and the cooldown
     case "name.get":

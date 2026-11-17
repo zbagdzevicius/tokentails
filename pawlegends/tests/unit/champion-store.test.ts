@@ -57,16 +57,16 @@ describe('who may pick what', () => {
     expect(open).toHaveLength(12);
     for (const h of game.STARTERS) expect(champStatus(h, s)).toBe('starter');
     for (const h of game.rotationOf(0)) expect(champStatus(h, s)).toBe('free');
-    expect(champStatus('howler', s)).toBe('locked');
-    expect(lockReason('howler', s)).toBe('Unlock with Yarn');
+    expect(champStatus('brutus', s)).toBe('locked');
+    expect(lockReason('brutus', s)).toBe('Unlock with Yarn');
     expect(canPlay('clem', s)).toBe(true);
   });
 
   it('owned champions; in the app a web purchase is locked, a Yarn unlock is not (founder decision 1)', () => {
-    const s = server0({ owned: [{ hero: 'howler', source: 'purchase' }, { hero: 'bravo', source: 'yarn' }, { hero: 'evil', source: 'yarn' }] });
-    expect(s.owned.map((o) => o.hero)).toEqual(['howler', 'bravo']);
-    expect(canPlay('howler', s)).toBe(true);
-    expect(canPlay('howler', s, true)).toBe(false);
+    const s = server0({ owned: [{ hero: 'brutus', source: 'purchase' }, { hero: 'bravo', source: 'yarn' }, { hero: 'evil', source: 'yarn' }] });
+    expect(s.owned.map((o) => o.hero)).toEqual(['brutus', 'bravo']);
+    expect(canPlay('brutus', s)).toBe(true);
+    expect(canPlay('brutus', s, true)).toBe(false);
     expect(canPlay('bravo', s, true)).toBe(true);
     expect(ownedCount(s)).toBe(8);
     expect(ownedCount(s, true)).toBe(7);
@@ -125,13 +125,13 @@ describe('pick screen', () => {
 
   it('a locked tile is marked; LOCK IN on it is Practice; a starter starts a normal match', () => {
     const { el, started } = open();
-    expect(el.querySelector('[data-h="howler"]')?.classList.contains('locked')).toBe(true);
+    expect(el.querySelector('[data-h="brutus"]')?.classList.contains('locked')).toBe(true);
     expect(el.querySelector('[data-h="clem"]')?.classList.contains('locked')).toBe(false);
     expect(el.querySelector('[data-h="meatball"] .champ-free')?.textContent).toBe('Free');
-    (el.querySelector('[data-h="howler"]') as HTMLElement).click();
+    (el.querySelector('[data-h="brutus"]') as HTMLElement).click();
     expect(el.querySelector('.cs-lock')?.textContent).toContain('PRACTICE');
     (el.querySelector('[data-a="start"]') as HTMLElement).click();
-    expect(started.pop()).toEqual({ c: { ...choice, hero: 'howler' }, practice: true });
+    expect(started.pop()).toEqual({ c: { ...choice, hero: 'brutus' }, practice: true });
     (el.querySelector('[data-h="clem"]') as HTMLElement).click();
     (el.querySelector('[data-a="start"]') as HTMLElement).click();
     expect(started.pop()?.practice).toBeUndefined();
@@ -169,9 +169,9 @@ describe('pick screen', () => {
   it('the unlock button asks the host', () => {
     const rich = server0({ yarn: { balance: 9000, matches: 40, picksLeft: 0, nextPickAt: null } });
     const { el, unlocks } = open(rich);
-    (el.querySelector('[data-h="howler"]') as HTMLElement).click();
+    (el.querySelector('[data-h="brutus"]') as HTMLElement).click();
     (el.querySelector('[data-a="unlock"]') as HTMLElement).click();
-    expect(unlocks).toEqual(['howler:yarn']);
+    expect(unlocks).toEqual(['brutus:yarn']);
   });
 });
 
@@ -193,10 +193,10 @@ describe('party pick lock', () => {
   afterEach(() => setPickChampLock(null));
   it('a locked champion is blocked with its reason; without a lock function every hero is open', () => {
     const v = { you: 'm1', leader: 'm1', members: [{ id: 'm1', locked: false }] } as unknown as PartyView;
-    expect(heroBlock(v, 'howler')).toBe('');
+    expect(heroBlock(v, 'brutus')).toBe('');
     const s = localChampions(WEEK0);
     setPickChampLock((h) => lockReason(h, s));
-    expect(heroBlock(v, 'howler')).toBe('Unlock with Yarn');
+    expect(heroBlock(v, 'brutus')).toBe('Unlock with Yarn');
     expect(heroBlock(v, 'clem')).toBe('');
   });
 });

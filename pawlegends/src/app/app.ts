@@ -74,6 +74,7 @@ import { disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOp
 import { botsChoice, disposeHome, homeScreen, type HomeProfile, type Promo } from '../ui/home/homeScreen';
 >>>>>>> 30de28040 (feat(pawlegends): one play path: PLAY, mode, variant, champion select)
 import { currentSeason, seasonEndText } from '../meta/pass';
+import { levelInfo } from '../meta/accountLevel';
 import { dropLine, initLiveops, liveopsState, setDropAction } from '../meta/liveops';
 import { countdownText, legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef, type ModeId } from '../ui/modeSelect/modes';
 import {
@@ -82,6 +83,8 @@ import {
   lockLine,
   markModesMigrated,
   markModesPlayedScanned,
+  markModesLevelScanned,
+  modesLevelScanned,
   migrateUnlocks,
   modesMigrated,
   modesPlayedScanned,
@@ -643,6 +646,23 @@ export class App {
   /** The hero keepPlayable swapped away from (`from`) and the one it put on the lobby (`to`). */
   private swapped: { from: HeroId; to: HeroId } | null = null;
 
+  /**
+   * Home's champion browser on the Home hero, with SELECT / BUY / UNLOCK under the description (Nov 12, the founder).
+   * Never a match: the match still starts only from PLAY → Mode Select.
+   */
+  private openHeroBrowser(): void {
+    const h = this.dare?.hero ?? this.choice.hero;
+    void openChampInfo({
+      hero: h,
+      within: this.screenEl,
+      look: (x) => this.lookFor(x),
+      coatWear: this.coatWear(),
+      onBrowse: (x) => this.setLobbyHero(x),
+      onClose: () => this.setLobbyHero(this.dare?.hero ?? this.choice.hero),
+      action: { state: (x) => this.heroAction(x), on: (x, kind) => (kind === 'select' ? this.selectHomeHero(x) : this.openStore('lobby', 'champions', x)) },
+    });
+  }
+
   /** CHAMPION-STORE.md §8.6: ask the host to unlock `h` with Yarn or a Champion Pick (it answers a fresh `store`). */
   private unlockChamp(h: HeroId, via: 'yarn' | 'pick'): void {
     this.analytics.track('champ_unlock', { hero: h, via });
@@ -901,6 +921,27 @@ export class App {
       if (more.length) this.analytics.track('mode_unlock', { mode: more.join(','), matches: p.matches, wins: p.wins, via: 'migrate' });
       add = [...add, ...more];
     }
+    // the level ladder (founder Nov 17): Classic, the Weekly Twist and Boss Weekend were open to everyone before it. A
+    // player keeps each one they already played (history rows, kept replays) or last chose: once per device
+    if (!modesLevelScanned()) {
+      let modes: string[] = [];
+      let saved: string | null = null;
+      try {
+        modes = [...loadHistory().map((h) => h.mode), ...playedBefore(loadHistory(), (id) => replayOf(id)?.mutator, Number.POSITIVE_INFINITY)].map((m) =>
+          ['toybox', 'rapid', 'bounty'].includes(m) ? 'twist' : m,
+        );
+        const raw = localStorage.getItem('pawlegends.mode.v1');
+        saved = raw ? String((JSON.parse(raw) as { mode?: unknown }).mode ?? '') || null : null;
+      } catch {
+        modes = [];
+      }
+      const more = migrateUnlocks({ ...p, unlocks: [...p.unlocks, ...add] }, { saved, history: modes }, all).filter((u) =>
+        ['mode.classic', 'mode.twist', 'mode.boss'].includes(u),
+      );
+      markModesLevelScanned();
+      if (more.length) this.analytics.track('mode_unlock', { mode: more.join(','), matches: p.matches, wins: p.wins, via: 'migrate' });
+      add = [...add, ...more];
+    }
     const merged = { ...p, unlocks: [...p.unlocks, ...add] };
     const s = silentUnlocks(merged, all);
     if (s.add.length && (s.veteran || add.length === 0)) this.analytics.track('mode_unlock', { mode: s.add.join(','), matches: p.matches, wins: p.wins, via: 'sync' });
@@ -1112,6 +1153,9 @@ export class App {
       pct: season && def ? (Math.max(0, season.xp) % def.xpPerTier) / def.xpPerTier : 0,
       xp: season ? season.xp : null,
       matches: p.matches,
+      // MODE-UNLOCKS.md: the account level that opens the modes; the Yarn balance where a server answered
+      level: levelInfo(p.matches),
+      yarn: this.champs().server ? this.champs().yarn.balance : null,
     };
     const ends = season ? seasonEndText(season.endsAt) : '';
     const base = import.meta.env.BASE_URL ?? './';
@@ -1207,6 +1251,7 @@ export class App {
       onModesOpen: (from) => this.analytics.track('play_open', { from }),
       // nav Heroes and the nameplate: the champion browser on the Home hero, with SELECT / BUY / UNLOCK under the
       // description (Nov 12, the founder). Never a match: the match still starts only from PLAY → Mode Select.
+<<<<<<< HEAD
       onHeroes: () => {
         const h = this.dare?.hero ?? this.choice.hero;
         void openChampInfo({
@@ -1220,6 +1265,11 @@ export class App {
         });
       },
 >>>>>>> ce68d4800 (feat(pawlegends): SELECT / BUY / UNLOCK in the champion browser; the Home nameplate opens it)
+=======
+      onHeroes: () => this.openHeroBrowser(),
+      // the Yarn chip (founder Nov 17): the store's Champions (Unlock · N Yarn); apps, which open no store: Heroes
+      onYarn: () => (s.storeOpen && !this.isApp() ? this.openStore('lobby', 'champions') : this.openHeroBrowser()),
+>>>>>>> 134b7a5d0 (feat(pawlegends): modes open by account level, 6 starters, Yarn on Home and always-on Yarn unlock, public history)
       promos,
       seasonEnd: ends ? `Ends ${ends}` : '',
       base,

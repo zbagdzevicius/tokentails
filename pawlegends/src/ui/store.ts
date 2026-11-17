@@ -492,11 +492,16 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
               : `<span class="cst-rot off">Free in a coming week's rotation. Practice it any time in champion select.</span>`;
     const acts: string[] = [];
     if (c.unlockable && c.yarn !== null) {
+      // founder Nov 17 ("there's no way to purchase using earned points"): the Yarn unlock is always there; short of
+      // Yarn it is disabled and says what is missing, against the balance shown in the top bar
+      const have = champs().yarn.balance;
       acts.push(
-        c.toGo === 0
-          ? `<button type="button" class="pl-btn small" data-unlock="yarn" data-k="unlock:yarn" data-testid="store-unlock">Unlock · <img src="${base}assets/splash/yarn.svg" alt="" width="18" height="18"> ${yarnText(c.yarn)} Yarn</button>`
-          : `<span class="cst-togo" data-testid="store-togo">${LOCK_SVG}${yarnText(c.toGo)} Yarn to go (about ${matchesFor(c.toGo)} matches)</span>`,
+        `<button type="button" class="pl-btn small cst-yarnbtn" data-unlock="yarn" data-k="unlock:yarn" data-testid="store-unlock" data-togo="${c.toGo}"${c.toGo > 0 ? ` disabled aria-describedby="cst-togo-${hero}"` : ''}>Unlock · <img src="${base}assets/splash/yarn.svg" alt="" width="18" height="18"> ${yarnText(c.yarn)} Yarn</button>`,
       );
+      if (c.toGo > 0)
+        acts.push(
+          `<span class="cst-togo" id="cst-togo-${hero}" data-testid="store-togo">${LOCK_SVG}You have ${yarnText(have)} Yarn: ${yarnText(c.toGo)} to go (about ${matchesFor(c.toGo)} ${matchesFor(c.toGo) === 1 ? 'match' : 'matches'})</span>`,
+        );
       if (c.pick) acts.push(`<button type="button" class="pl-btn small" data-unlock="pick" data-k="unlock:pick" data-testid="store-pick">Use a Champion Pick</button>`);
       if (money() && c.cents) {
         const sku = champSkuOf(hero);

@@ -15,7 +15,7 @@ async function toPick(game: Frame): Promise<void> {
   await game.waitForSelector('.pl-pick .cs');
 }
 
-const STARTERS = ['clem', 'sage', 'gabe', 'brutus', 'frankie', 'marshmallow'];
+const STARTERS = ['clem', 'sage', 'bengas', 'howler', 'chili', 'marshmallow'];
 
 /**
  * The week's rotation as the game computes it (the e2e clock is real time): the open tiles that are not starters. A
@@ -190,3 +190,45 @@ async function fits(game: Frame) {
     return { page: { sh: se.scrollHeight, sw: se.scrollWidth, ch: se.clientHeight, cw: se.clientWidth }, small, out, cardH: card ? card.getBoundingClientRect().height : 0, grid };
   });
 }
+
+// Founder Nov 17: "there's no way to purchase using earned points". The Yarn unlock is always on the champion's detail:
+// short of Yarn it is disabled and says what is missing against the balance; with enough, the host spends it and
+// answers the champion owned, which the store, Home's Yarn chip and the champion select show at once.
+test('Yarn unlock: disabled with what is missing, then spent; the champion is owned at once in champion select', async ({ context, page, baseURL }) => {
+  const champs = (balance: number, owned: { hero: string; source: string }[] = []) => ({ ...NEW_GUEST, owned, yarn: { balance, matches: 30, picksLeft: 0, nextPickAt: null } });
+  await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, profile: PLAYED, champState: champs(3000), store: { items: [], season: null } });
+  const game = await openHost(page);
+  const send = (st: unknown) => page.evaluate((s) => (window as unknown as { send(t: string, p: unknown): void }).send('store', { items: [], season: null, champions: s }), st);
+  // the Yarn balance on Home
+  await expect(game.locator('[data-testid="home-yarn"]')).toHaveAttribute('data-yarn', '3000');
+  await expect(game.locator('[data-testid="home-yarn"]')).toContainText('3,000');
+  // the chip opens the store's Champions
+  await game.locator('[data-testid="home-yarn"]').click();
+  const shop = game.locator('.pl-shop');
+  await expect(shop.locator('.cst-tab.on')).toHaveAttribute('data-tab', 'champions');
+  // a Tier 2 cat (3,500 Yarn) that is not free this week
+  const hero = await game.evaluate(() => ['duchess', 'pixel', 'gabe', 'lambo'].find((h) => document.querySelector(`.cst-card.st-locked[data-hero="${h}"]`)) ?? '');
+  expect(hero).not.toBe('');
+  await shop.locator(`.cst-card[data-hero="${hero}"]`).click();
+  const detail = shop.locator('.cst-detail');
+  const btn = detail.locator('[data-testid="store-unlock"]');
+  await expect(btn).toBeDisabled();
+  await expect(btn).toContainText('Unlock');
+  await expect(btn).toContainText('3,500 Yarn');
+  await expect(detail.locator('[data-testid="store-togo"]')).toHaveText(/You have 3,000 Yarn: 500 to go \(about \d+ match(es)?\)/);
+  // a match paid more Yarn: the detail follows the fresh store
+  await send(champs(4000));
+  await expect(btn).toBeEnabled();
+  await expect(detail.locator('[data-testid="store-togo"]')).toHaveCount(0);
+  await btn.click();
+  await expect.poll(async () => (await received(page)).filter((m) => m.type === 'champ-unlock').map((m) => [m.hero, m.via])).toEqual([[hero, 'yarn']]);
+  // the server spent it: the host's fresh store owns the champion
+  await send(champs(500, [{ hero, source: 'yarn' }]));
+  await expect(detail).toContainText('Owned');
+  await game.locator('body').press('Escape');
+  await game.locator('body').press('Escape');
+  await expect(shop).toHaveCount(0);
+  await expect(game.locator('[data-testid="home-yarn"]')).toHaveAttribute('data-yarn', '500');
+  await toPick(game);
+  await expect(game.locator(`.cs-tile[data-h="${hero}"]`)).not.toHaveClass(/locked/);
+});

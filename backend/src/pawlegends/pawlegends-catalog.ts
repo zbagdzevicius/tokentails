@@ -272,8 +272,14 @@ export const CHAMPION_IDS: readonly string[] = Object.freeze(CHAMPIONS.map(c => 
 export const championDef = (hero: unknown): ChampionDef | undefined =>
     typeof hero === 'string' ? CHAMPIONS.find(c => c.hero === hero) : undefined;
 
-/** One starter per role: Clem, Sage, Gabby (cats) and Sir Brutus, Frankie, Marshmallow (dogs). */
-export const STARTERS: readonly string[] = Object.freeze(['clem', 'sage', 'gabe', 'brutus', 'frankie', 'marshmallow']);
+/**
+ * The 6 starters (founder, Nov 17: "max 3 per category (cats / dogs) (fighter, marksman, mage)"): a Fighter, a Marksman
+ * and a Mage per side, the easiest of each role. Cats Clem, Sage, Bengal; dogs Howler, Chili, Marshmallow. Gabby, Sir
+ * Brutus and Frankie (starters until Nov 17) are sold now; accounts that played before keep them (`legacy`).
+ */
+export const STARTERS: readonly string[] = Object.freeze(['clem', 'sage', 'bengas', 'howler', 'chili', 'marshmallow']);
+/** Starters until Nov 17, 2026: kept by every account with a match before the starters change. */
+export const FORMER_STARTERS: readonly string[] = Object.freeze(['gabe', 'brutus', 'frankie']);
 export const isStarter = (hero: string): boolean => STARTERS.includes(hero);
 
 /** The owned item of a champion (a `pawlegendsowned` row), and the Founders roster badge. */
@@ -287,6 +293,9 @@ export const FOUNDERS_BADGE = 'badge.founders_roster';
 // species, and every non-starter is free 3 weeks in 11. Sim v29 (ROSTER-V29.md §5): the four roster heroes joined the
 // cycles (7 a species before). Sim v31 (ROSTER-V31.md §5): Nova, Dusty, Barkula and Ranger joined (9 a species
 // before), ordered so every three in a row are three roles and the four are free in the first week.
+// Nov 17 starters change: Bengal, Howler and Chili left the cycles for Gabby, Sir Brutus and Frankie; the week of
+// the change (cats 0..2, dogs 3..5) kept its six, and every week has a tank, an assassin or a support on each side, so
+// a new player's six cover 4+ roles.
 
 export const ROTATION_EPOCH = '2026-11-16T00:00:00.000Z';
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -296,25 +305,25 @@ export const ROTATION_CATS: readonly string[] = Object.freeze([
     'meatball',
     'ziggy',
     'pixel',
-    'duchess',
     'aviete',
+    'duchess',
     'mochi',
-    'bengas',
     'lambo',
     'stilts',
+    'gabe',
 ]);
 export const ROTATION_DOGS: readonly string[] = Object.freeze([
-    'howler',
-    'chili',
     'bravo',
+    'cacklejaw',
+    'biscuit',
     'barkula',
     'ranger',
     'nugget',
-    'domino',
-    'cacklejaw',
     'champ',
+    'domino',
+    'brutus',
+    'frankie',
     'rocket',
-    'biscuit',
 ]);
 
 /** The rotation week of a time (weeks before the epoch count down: -1, -2, ...). */
@@ -350,17 +359,17 @@ export function allowedChampions(owned: Iterable<string>, week: number): string[
 export type ChampTier = 't1' | 't2' | 't3' | 'launch';
 export const CHAMP_TIER: Readonly<Record<string, Exclude<ChampTier, 'launch'>>> = Object.freeze({
     meatball: 't1',
-    howler: 't1',
+    brutus: 't1',
+    gabe: 't2',
+    frankie: 't2',
     cacklejaw: 't1',
     pixel: 't2',
     duchess: 't2',
     lambo: 't2',
-    bengas: 't2',
     nugget: 't2',
     bravo: 't2',
     aviete: 't3',
     stilts: 't3',
-    chili: 't3',
     rocket: 't3',
     domino: 't3',
     mochi: 't2',

@@ -81,6 +81,8 @@ export interface QueueState {
   theirs?: number;
   /** Ranked (gap plan P4): the relay's counts on a refusal (the gate, the saved matches). */
   ranked?: { online?: number; need?: number; have?: number; needMatches?: number };
+  /** Mode unlocks (MODE-UNLOCKS.md): the relay refused a mode above the level of a member (`have`/`need`: matches). */
+  modeLock?: { mode: string; level: number; have: number; need: number };
   status: QueueStatus | null;
   /** The search stopped (the card offers Search again), or null while searching. */
   stopped: QueueStop | null;
@@ -623,6 +625,11 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
           };
           return { state: { ...s, queue: { ...s.queue, stopped: stop, status: null, ranked }, offer: null }, effects: [{ t: 'track', event: 'ranked_refused', props: { why: stop } }] };
         }
+      }
+      // a mode above a member's account level (5v5 Classic at Lv 3, MODE-UNLOCKS.md): say which level and how far
+      if (s.queue && m.code === 'mm_locked' && m.reason === 'mode_level') {
+        const modeLock = { mode: String(m.mode ?? s.queue.mode), level: Math.max(1, Number(m.level) || 1), have: Math.max(0, Number(m.have) || 0), need: Math.max(0, Number(m.need) || 0) };
+        return { state: { ...s, queue: { ...s.queue, stopped: 'mode_level', status: null, modeLock }, offer: null }, effects: [{ t: 'track', event: 'mode_locked_queue', props: { mode: modeLock.mode, level: modeLock.level } }] };
       }
       // casual PvP refused: the relay's match-count lock (lifted for now), or a game without PvP
       if (s.queue && m.code === 'mm_locked' && m.reason === 'pvp_newbie')
@@ -1213,6 +1220,7 @@ export class PartyClient {
       retryS,
       match: q.found ? { humans: q.found.humans, bots: q.found.bots, side: q.found.side, difficulty: q.found.difficulty, ...(q.found.ai ? { ai: true } : {}) } : null,
       ...(q.mode === 'classic' ? { teamSize: 5 } : {}),
+      ...(q.modeLock ? { modeLock: { ...q.modeLock, mine: (this.h.mmInfo?.().matches ?? this.h.matches ?? 0) >= q.modeLock.need } } : {}),
       ...(q.mode !== 'coop' ? { pvp: { theirs: q.theirs ?? 0, toCoop: !!q.toCoop, requeued: !!q.requeued } } : {}),
       ...(q.mode === 'ranked'
         ? {

@@ -656,5 +656,5 @@ async function mergeYarn(yarn: PawlegendsStore['yarn'], guestId: string, targetI
         for (const hero of Array.isArray(g.unlocked) ? g.unlocked.map(String) : [])
             await yarn.updateOne({ _id: targetId }, { $addToSet: { unlocked: hero } });
     }
-    await yarn.updateOne({ _id: targetId }, { $unset: { foundersChecked: '' } });
+    await yarn.updateOne({ _id: targetId }, { $unset: { foundersChecked: '', startersChecked: '' } });
 }

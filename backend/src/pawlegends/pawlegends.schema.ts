@@ -379,6 +379,10 @@ export class PawlegendsYarn {
     @Prop()
     foundersChecked?: boolean;
 
+    /** The former starters check ran (Nov 17 starters change: a match before it keeps Gabby, Sir Brutus, Frankie). */
+    @Prop()
+    startersChecked?: boolean;
+
     /** The release row only: the champion store's release time. */
     @Prop()
     at?: Date;

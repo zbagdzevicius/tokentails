@@ -7,7 +7,7 @@ import { limit } from '../unit/cpu-budget';
 // Mode Select → vs Bots → champion select → LOCK IN). The clock is moved to a Saturday so Boss Weekend is on.
 // V28_SHOTS=1 saves each step to ~/Downloads/paw-legends/gaps3/sim28/.
 
-const PLAYED = { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
+const PLAYED = { v: 1, sessions: 3, matches: 8, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
 const SHOTS = process.env.V28_SHOTS ? `${homedir()}/Downloads/paw-legends/gaps3/sim28` : '';
 const SATURDAY = Date.parse('2026-11-14T12:00:00Z');
 

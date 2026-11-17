@@ -1,21 +1,24 @@
 /**
- * Mode unlocking (docs/plans/moba/MODE-UNLOCKS.md, founder ask Nov 14): never more than 3 big mode tiles for any
- * player. Skirmish and Classic are always big; the third ("spotlight") is a live event, a mode the player just
- * unlocked, the last mode they chose, the Weekly Twist or Practice. Every other mode is a small icon in the "More
- * modes" strip, locked (grey, padlock, progress) until the player's finished matches and wins reach its row in
- * `MODE_UNLOCKS`.
+ * Mode unlocking (docs/plans/moba/MODE-UNLOCKS.md). Founder Nov 14: never more than 3 big mode tiles. Founder Nov 17:
+ * "by default initially 3x3 (skirmish) and practise (sandbox) modes should be available (unlocked). then other modes
+ * unlocks upon reaching certain LVL (must be progression)". A level-1 player can play Skirmish and Practice only; every
+ * other mode opens at an account level (meta/accountLevel.ts: finished matches, synced to the account). Big tiles are
+ * Skirmish, Classic once open, and one spotlight (a live event, a mode just unlocked, the last mode chosen, the Weekly
+ * Twist, Practice). Every other mode is a small icon in the "More modes" strip, locked (grey, padlock, "Lv N" and the
+ * progress ring) until the player reaches its level.
  *
- * Data: an unlock is the id `mode.<id>` in the profile's `unlocks` (already synced and union-merged across devices; no
- * backend change). The thresholds read the profile's `matches` and `wins`, which max-merge across devices and never go
- * down. Events and featured modes are never locked while live.
+ * Data: an unlock is the id `mode.<id>` in the profile's `unlocks` (synced, union-merged across devices). A mode is open
+ * when the level is reached or its id is there, so nothing a player already had is taken away (the ids written by the
+ * Nov 14 ladder and the first-run migrations stay valid).
  *
  * Pure apart from the guarded localStorage helpers at the end.
  */
 import { effectiveState, type ModeDef, type ModeId } from './modes';
+import { levelOf, matchesForLevel, moreMatches } from '../../meta/accountLevel';
 
 export interface Need {
-  matches?: number;
-  wins?: number;
+  /** The account level the mode opens at. */
+  level: number;
 }
 export interface Counts {
   matches: number;
@@ -23,27 +26,32 @@ export interface Counts {
 }
 export type UnlockProfile = Counts & { unlocks: readonly string[] };
 
-/** Always big, slots 1 and 2. */
+/** Big when open, slots 1 and 2 (Classic only once the player reached its level). */
 export const CORE: readonly ModeId[] = Object.freeze(['skirmish', 'classic']);
-/** Open from the first match: the core and the Practice sandbox. */
-export const OPEN_MODES: readonly ModeId[] = Object.freeze(['skirmish', 'classic', 'practice']);
-/** Timed events: never locked (live inside their window, "Next: Fri" outside it). */
+/** Open from the start (founder Nov 17): Skirmish 3v3 and the Practice sandbox. */
+export const OPEN_MODES: readonly ModeId[] = Object.freeze(['skirmish', 'practice']);
+/** Timed events: gated by level like every mode, then live inside their window ("Next: Fri" outside it). */
 export const EVENT_MODES: readonly ModeId[] = Object.freeze(['boss', 'twist']);
 
 /**
- * The unlock ladder, simple to complex (MLBB Ranked at Lv 8, Wild Rift Ranked at Lv 10, Brawl Stars' Trophy Road).
- * Tuning is one edit here. Counts are finished matches and wins (Practice never counts).
+ * The unlock ladder by account level, simple to complex (MLBB Ranked at Lv 8, Wild Rift Ranked at Lv 10). Tuning is one
+ * edit here (and QUEUE_LEVEL in backend/src/pawlegends/mode-unlocks.ts for Classic and Ranked, which the server checks).
+ * The level's matches: Lv 2 = 2, Lv 3 = 4, Lv 4 = 6, Lv 5 = 8, Lv 6 = 10.
  */
 export const MODE_UNLOCKS: readonly { id: ModeId; need: Need }[] = Object.freeze([
-  // the results' "Quick Blitz?" offer after a loss lands on an unlocked Blitz
-  { id: 'blitz', need: { matches: 1 } },
-  { id: 'duel', need: { matches: 2 } },
-  { id: 'onelane', need: { wins: 1 } },
-  { id: 'cannon', need: { matches: 4 } },
-  { id: 'ranked', need: { matches: 10, wins: 3 } },
+  // the guided first match leaves the player at Lv 1 (Skirmish and Practice); the second match opens Blitz
+  { id: 'blitz', need: { level: 2 } },
+  { id: 'classic', need: { level: 3 } },
+  { id: 'duel', need: { level: 4 } },
+  { id: 'twist', need: { level: 4 } },
+  { id: 'onelane', need: { level: 5 } },
+  { id: 'cannon', need: { level: 5 } },
+  { id: 'boss', need: { level: 5 } },
+  // Ranked also keeps its own server rule (10 saved matches, a registered account): Lv 6 is 10 matches
+  { id: 'ranked', need: { level: 6 } },
 ]);
-/** A registered mode with no row (round 4 or later) waits for this, so nothing new lands big by accident. */
-export const DEFAULT_NEED: Need = Object.freeze({ matches: 4 });
+/** A registered mode with no row (a later round, a featured newcomer) waits for this level. */
+export const DEFAULT_NEED: Need = Object.freeze({ level: 5 });
 /** A player with this many matches and no `mode.` id at all played before mode unlocking shipped: every mode opens. */
 export const VETERAN_MATCHES = 10;
 /** The Weekly Twist bends Skirmish's rules: it takes the spotlight only after this many matches (the strip before). */
@@ -54,61 +62,52 @@ export const unlockId = (id: ModeId): string => `${MODE_PREFIX}${id}`;
 /** Cosmetic counts skip these ids (they are mode unlocks, not items). */
 export const isModeUnlock = (u: string): boolean => u.startsWith(MODE_PREFIX);
 
-/** The mode's unlock condition, or null when it is never gated (open, an event). Pure. */
+/** The mode's unlock level, or null when it is open from the start. Pure. */
 export function needOf(id: ModeId): Need | null {
-  if (OPEN_MODES.includes(id) || EVENT_MODES.includes(id)) return null;
+  if (OPEN_MODES.includes(id)) return null;
   return MODE_UNLOCKS.find((u) => u.id === id)?.need ?? DEFAULT_NEED;
 }
 
-export const meets = (need: Need, c: Counts): boolean => c.matches >= (need.matches ?? 0) && c.wins >= (need.wins ?? 0);
+/** The level a mode opens at (1: open from the start). Pure. */
+export const levelNeeded = (id: ModeId): number => needOf(id)?.level ?? 1;
 
-const plural = (n: number, one: string): string => `${n} ${one}${n === 1 ? '' : 'es'}`;
+export const meets = (need: Need, c: Counts): boolean => levelOf(c.matches) >= need.level;
 
-/** "Finish 2 matches", "Win 1 match", "Finish 10 matches and win 3". Pure. */
+/** "Unlocks at Lv 3". Pure. */
 export function needText(need: Need): string {
-  const m = need.matches ?? 0;
-  const w = need.wins ?? 0;
-  if (m > 0 && w > 0) return `Finish ${plural(m, 'match')} and win ${w}`;
-  if (w > 0) return `Win ${plural(w, 'match')}`;
-  return `Finish ${plural(m, 'match')}`;
+  return `Unlocks at Lv ${need.level}`;
 }
 
 /**
- * The progress toward a mode's unlock: `pct` 0..1 (the ring), `line` for the strip icon ("Finish 1 match",
- * "1/2 matches", "4/10 matches"), `short` for the lock sentence ("1/2", "4/10, 1/3"). Null: never gated. Pure.
+ * The progress toward a mode's unlock: `pct` 0..1 (the ring: finished matches over the level's matches), `line` for the
+ * strip icon ("Lv 3"), `short` ("Lv 1, 1/2 matches"). Null: open from the start. Pure.
  */
 export function progressOf(id: ModeId, c: Counts): { pct: number; line: string; short: string; need: Need } | null {
   const need = needOf(id);
   if (!need) return null;
-  const parts: { done: number; of: number; unit: 'match' | 'win' }[] = [];
-  if (need.matches) parts.push({ done: Math.min(c.matches, need.matches), of: need.matches, unit: 'match' });
-  if (need.wins) parts.push({ done: Math.min(c.wins, need.wins), of: need.wins, unit: 'win' });
-  if (!parts.length) return { pct: 1, line: '', short: '', need };
-  const pct = parts.reduce((s, p) => s + p.done / p.of, 0) / parts.length;
-  // the strip line: a first step reads as the action ("Finish 1 match"); otherwise the first unmet count
-  const open = parts.find((p) => p.done < p.of) ?? parts[parts.length - 1];
-  const line =
-    parts.length === 1 && open.of === 1 && open.done === 0
-      ? needText(need)
-      : `${open.done}/${open.of} ${open.unit === 'match' ? (open.of === 1 ? 'match' : 'matches') : open.of === 1 ? 'win' : 'wins'}`;
-  return { pct, line, short: parts.map((p) => `${p.done}/${p.of}`).join(', '), need };
+  const of = matchesForLevel(need.level);
+  const done = Math.min(Math.max(0, Math.floor(c.matches)), of);
+  const pct = of > 0 ? done / of : 1;
+  return { pct, line: `Lv ${need.level}`, short: `Lv ${levelOf(c.matches)}, ${done}/${of} matches`, need };
 }
 
-/** "Finish 2 matches (1/2)": the lock line for toasts, the nav and screen readers. Pure. */
+/** "Unlocks at Lv 3 (you are Lv 1: 2 more matches)": the lock line for the strip, toasts, the nav and screen readers. */
 export function lockLine(id: ModeId, c: Counts): string {
-  const pr = progressOf(id, c);
-  return pr ? `${needText(pr.need)} (${pr.short})` : '';
+  const need = needOf(id);
+  if (!need) return '';
+  const left = Math.max(0, matchesForLevel(need.level) - Math.max(0, Math.floor(c.matches)));
+  return `${needText(need)} (you are Lv ${levelOf(c.matches)}: ${moreMatches(left)})`;
 }
 
 /**
- * Is this mode open to this player at `now`? Open modes and events always; a live (non-event) mode when its
- * condition is met or `mode.<id>` is in the profile's unlocks. A featured mode is an event while featured (live ops
- * registers it with a timed state), so it is open during its window only. Pure.
+ * Is this mode open to this player? Open-from-the-start modes always; any other when the player's level reaches its row
+ * or `mode.<id>` is in the profile's unlocks (an unlock already earned, kept). An event that is open still follows its
+ * window (effectiveState). `now` is kept for the callers. Pure.
  */
 export function isUnlocked(m: Pick<ModeDef, 'id' | 'state'>, p: UnlockProfile, now: number): boolean {
+  void now;
   const need = needOf(m.id);
   if (!need) return true;
-  if (effectiveState(m, now) === 'event') return true;
   return meets(need, p) || p.unlocks.includes(unlockId(m.id));
 }
 
@@ -177,7 +176,7 @@ const stripRank = (id: ModeId): number => {
 };
 
 /**
- * The 3 big tiles and the strip (layout A). Slot 1 Skirmish, slot 2 Classic, slot 3 the first that applies of:
+ * The 3 big tiles and the strip (layout A). Slot 1 Skirmish, slot 2 Classic once open, then the first that applies of:
  * 1. Boss Weekend inside its window, then a featured mode (live ops, not Skirmish or Classic);
  * 2. the newest mode unlocked at a results screen and not played yet (NEW);
  * 3. the last mode the player chose (if open to them);
@@ -188,7 +187,8 @@ const stripRank = (id: ModeId): number => {
 export function layoutModes(list: readonly ModeDef[], c: Counts, local: ModeLocal, now: number, choice?: ModeId | null): Layout {
   const by = (id: ModeId): ModeDef | undefined => list.find((m) => m.id === id);
   const live = (m: ModeDef | undefined): m is ModeDef => !!m && (effectiveState(m, now) === 'live' || effectiveState(m, now) === 'event');
-  const big: ModeDef[] = CORE.map(by).filter((m): m is ModeDef => !!m);
+  // a locked Classic waits in the strip with its level (founder Nov 17: a new player has Skirmish and Practice only)
+  const big: ModeDef[] = CORE.map(by).filter((m): m is ModeDef => !!m && effectiveState(m, now) !== 'locked');
   const isEvent = (m: ModeDef | undefined): m is ModeDef => !!m && effectiveState(m, now) === 'event';
   const notCore = (m: ModeDef): boolean => !CORE.includes(m.id);
   const fresh = MODE_UNLOCKS.map((u) => u.id)
@@ -337,4 +337,20 @@ export function modesPlayedScanned(): boolean {
 
 export function markModesPlayedScanned(): void {
   write(MODES_PLAYED_KEY, '1');
+}
+
+/** The third pass (the level ladder, Nov 17): Classic, the Weekly Twist and Boss Weekend kept for those who played them. */
+export const MODES_LEVEL_KEY = 'pawlegends.modes.v3';
+
+export function modesLevelScanned(): boolean {
+  try {
+    const s = globalThis.localStorage;
+    return !s || s.getItem(MODES_LEVEL_KEY) === '1';
+  } catch {
+    return true;
+  }
+}
+
+export function markModesLevelScanned(): void {
+  write(MODES_LEVEL_KEY, '1');
 }

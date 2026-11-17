@@ -523,6 +523,8 @@ export const PawlegendsHost = ({
       onChampUnlock: (hero, via) =>
         void api.champUnlock(hero, via).then((result) => {
           track(buildPawlegendsEvent("pawlegends_champ_unlock", { hero, via, ok: result.ok }));
+          // no session at all (signed out, no guest yet): Yarn lives on an account, so ask to sign in first
+          if (result.status === 401 && auth && !latest.current.signedIn) void auth.requireAccount("sign-in").catch(() => undefined);
           void refreshStoreRef.current?.();
         }),
     };

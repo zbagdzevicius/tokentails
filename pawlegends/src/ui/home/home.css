@@ -103,16 +103,22 @@ button.hm-profile:active::before { background: linear-gradient(90deg, rgb(var(--
 
 /* top centre: Season XP and tier */
 .hm-cur {
-  display: flex; align-items: center; gap: 8px; height: 44px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; height: 44px;
   position: fixed; left: 50%; top: var(--hm-t); transform: translateX(-50%);
 }
-.hm-cur:disabled { cursor: default; }
+.hm-curb { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
+.hm-curb:disabled, .hm-yarn:disabled { cursor: default; }
+/* the Yarn balance (founder Nov 17): a 44 px tap target around the 32 px chip */
+.hm-yarn { border: 0; color: inherit; cursor: pointer; position: relative; }
+.hm-yarn::before { content: ''; position: absolute; inset: -6px 0; }
+.hm-yarn img { width: 20px; height: 20px; flex: none; filter: drop-shadow(0 0 6px rgb(255 120 190 / 0.55)); }
+.hm-yarn:not(:disabled):hover { background: rgb(var(--v6-sky-deep-rgb, 13 79 184) / 0.72); }
 .hm-chip {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 6px; border-radius: var(--v6-r-xs, 4px); white-space: nowrap;
   background: var(--hm-glass); box-shadow: inset 0 0 0 1px var(--hm-line), inset 0 -2px 0 rgb(var(--v6-sky-rgb, 57 166 255) / 0.55), var(--v6-shadow-1, 0 4px 12px rgb(0 0 0 / 0.35));
   transition: background var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out);
 }
-.hm-cur:not(:disabled):hover .hm-chip { background: rgb(var(--v6-sky-deep-rgb, 13 79 184) / 0.72); }
+.hm-curb:not(:disabled):hover .hm-chip { background: rgb(var(--v6-sky-deep-rgb, 13 79 184) / 0.72); }
 .hm-chip b { font: 800 14px/1 var(--font, sans-serif); color: #fff; font-variant-numeric: tabular-nums; }
 .hm-chip small { font: 600 11px/1 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.8; }
 .hm-gem { width: 20px; height: 20px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1.5px var(--hm-ink), 0 0 8px currentColor; }
@@ -496,7 +502,9 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 @media (max-width: 760px) {
   .hm-ni { width: 52px; }
   .hm-nav { padding: 0 4px; }
-  .hm-cur { display: none; }
+  .hm-curb { display: none; }
+  .hm-yarn small { display: none; }
+  .hm-yarn { padding: 0 10px 0 6px; }
   .hm-promo { width: 132px; height: 72px; }
   .hm-xp { width: 96px; }
 }

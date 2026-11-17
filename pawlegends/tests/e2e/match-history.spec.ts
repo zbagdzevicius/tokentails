@@ -27,7 +27,6 @@ const page1 = {
   rows,
   next: null,
   stats: { season: 's1', name: 'Season 1', matches: 24, wins: 14, winRate: 58, kda: 3.4, mvp: 5, favourites: [{ hero: 'sage', matches: 12, wins: 8, winRate: 67 }, { hero: 'clem', matches: 7, wins: 3, winRate: 43 }] },
-  visibility: 'friends',
 };
 const seat = (slot: number, team: 0 | 1, hero: string, extra: Record<string, unknown> = {}) => ({
   slot, team, hero, name: null, bot: true, owner: false, level: 9, k: 3, d: 3, a: 4, damage: 8_200 + slot * 900, taken: 9_000 - slot * 500, tower: 1200, heal: 0, fish: 6_400, toys: 3, cs: 42, grade: 'A', ...extra,
@@ -78,7 +77,7 @@ async function shot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: join(SHOTS, `${name}-${v?.width}x${v?.height}.png`) });
 }
 
-test('Match history: season stats, filters, a match scoreboard and damage, privacy, a friend', async ({ context, page, baseURL }, info) => {
+test('Match history: season stats, filters, a match scoreboard and damage, public (no privacy toggle), a friend', async ({ context, page, baseURL }, info) => {
   const touch = info.project.name === 'landscape';
   await mockHost(context, baseURL!, {
     app: { isApp: false, store: true },
@@ -87,7 +86,6 @@ test('Match history: season stats, filters, a match scoreboard and damage, priva
     api: {
       'history.list': { status: 200, body: page1 },
       'history.match': { status: 200, body: match1 },
-      'history.privacy': { status: 200, body: { visibility: 'everyone' } },
       'social.get': { status: 200, body: social },
       'social.pulse': { status: 204 },
     },
@@ -104,7 +102,9 @@ test('Match history: season stats, filters, a match scoreboard and damage, priva
   await expect(hist.locator('.mh-row').first()).toContainText('Victory');
   await expect(hist.locator('.mh-row').first()).toContainText('Ranked 3v3');
   await expect(hist.locator('.mh-row').first().locator('.mh-mvp')).toHaveText('MVP');
-  await expect(hist.locator('[data-testid="history-privacy"]')).toHaveValue('friends');
+  // founder Nov 17: match history is public, so there is no privacy toggle
+  await expect(hist.locator('[data-testid="history-privacy"], select')).toHaveCount(0);
+  await expect(hist).toContainText('other players can see it');
 
   const views: [number, number][] = touch ? [[844, 390], [667, 375]] : [[1440, 900], [1280, 590]];
   for (const [w, h] of views) {
@@ -143,9 +143,8 @@ test('Match history: season stats, filters, a match scoreboard and damage, priva
   await press('[data-a="back"]');
   await expect(hist.locator('.mh-row')).toHaveCount(2);
 
-  // who can see my match history
-  await hist.locator('[data-testid="history-privacy"]').selectOption('everyone');
-  await expect.poll(async () => (await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'history.privacy' && m.args?.visibility === 'everyone')).toBe(true);
+  // no privacy op is ever sent
+  expect((await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'history.privacy')).toBe(false);
   await press('[data-a="close"]');
   await expect(hist).toHaveCount(0);
 

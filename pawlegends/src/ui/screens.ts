@@ -245,11 +245,9 @@ export function champBarHtml(h: HeroId, c: PickChamps): string {
   const info = unlockInfo(h, s);
   const out: string[] = [];
   if (info.yarn !== null) {
-    out.push(
-      info.toGo === 0
-        ? `<button type="button" class="pl-btn small" data-a="unlock" data-via="yarn" data-testid="champ-unlock">Unlock · ${yarnText(info.yarn)} Yarn</button>`
-        : `<span class="cs-togo" data-testid="champ-togo">${yarnText(info.toGo)} Yarn to go (about ${matchesFor(info.toGo)} matches)</span>`,
-    );
+    // founder Nov 17: the Yarn unlock is always shown; short of Yarn it is disabled with what is missing
+    out.push(`<button type="button" class="pl-btn small" data-a="unlock" data-via="yarn" data-testid="champ-unlock"${info.toGo > 0 ? ' disabled' : ''}>Unlock · ${yarnText(info.yarn)} Yarn</button>`);
+    if (info.toGo > 0) out.push(`<span class="cs-togo" data-testid="champ-togo">${yarnText(info.toGo)} Yarn to go (about ${matchesFor(info.toGo)} ${matchesFor(info.toGo) === 1 ? 'match' : 'matches'})</span>`);
   }
   if (info.pick) out.push(`<button type="button" class="pl-btn small" data-a="unlock" data-via="pick" data-testid="champ-pick">Use a Champion Pick</button>`);
   if (!c.isApp && c.store && info.cents) out.push(`<button type="button" class="pl-btn ghost small" data-a="buychamp" data-testid="champ-buy">${esc(centsText(info.cents))}</button>`);

@@ -8,7 +8,7 @@ import { limit } from '../unit/cpu-budget';
 // Cooldowns in the top plate (the score's place), Leave goes straight Home and saves nothing. V27_SHOTS=1 saves each
 // step to ~/Downloads/paw-legends/gaps2/sim27/.
 
-const PLAYED = { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
+const PLAYED = { v: 1, sessions: 3, matches: 8, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
 const SHOTS = process.env.V27_SHOTS ? `${homedir()}/Downloads/paw-legends/gaps2/sim27` : '';
 
 async function seed(page: Page): Promise<void> {

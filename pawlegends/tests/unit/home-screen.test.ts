@@ -380,6 +380,25 @@ describe('home patch (no rebuild under modals)', () => {
     expect(root.querySelector('.hm-play')).toBe(play);
   });
 
+  it('the Yarn balance and the account level on Home (founder Nov 17), patched live; the chip opens the unlocks', () => {
+    const onYarn = vi.fn();
+    const prof = (yarn: number | null) => ({ name: 'Guest', tier: 3, pct: 0.5, xp: 1200, matches: 4, level: { level: 4, pct: 0, toNext: 2 }, yarn });
+    const root = mount(base({ onCollection: vi.fn(), onYarn, profile: prof(3500) }));
+    const chip = root.querySelector<HTMLButtonElement>('[data-testid="home-yarn"]')!;
+    expect(chip.textContent).toContain('3,500');
+    expect(chip.getAttribute('aria-label')).toBe('3,500 Yarn. Unlock champions');
+    expect(chip.querySelector('img')?.getAttribute('src')).toContain('assets/splash/yarn.svg');
+    expect(root.querySelector('.hm-pf-sub')?.textContent).toBe('Lv 4 · Tier 3');
+    chip.click();
+    expect(onYarn).toHaveBeenCalledTimes(1);
+    // a match paid Yarn: the store message redraws Home in place with the new balance
+    expect(patchHome(root, base({ onCollection: vi.fn(), onYarn, profile: prof(3604) }))).toBe(true);
+    expect(root.querySelector('[data-testid="home-yarn"]')?.textContent).toContain('3,604');
+    // no server answer (a standalone page): no chip, never a made-up 0
+    expect(patchHome(root, base({ onCollection: vi.fn(), onYarn, profile: prof(null) }))).toBe(true);
+    expect(root.querySelector('[data-testid="home-yarn"]')).toBeNull();
+  });
+
   it('a patch with openAt opens Mode Select on that variant (Social "Play casual" over a Home still on screen)', async () => {
     const root = mount(online());
     expect(patchHome(root, online({ openAt: { mode: 'skirmish', queue: 'pvp' } }))).toBe(true);

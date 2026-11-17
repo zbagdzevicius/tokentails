@@ -25,8 +25,6 @@ export type ServerMode = 'skirmish' | 'classic' | 'blitz' | 'pvp' | 'ranked' | '
 export type Filter = 'all' | 'ranked' | 'pvp' | 'ai' | 'blitz' | 'arcade';
 export const FILTERS: readonly Filter[] = Object.freeze(['all', 'ranked', 'pvp', 'ai', 'blitz', 'arcade'] as Filter[]);
 const FILTER_LABEL: Readonly<Record<Filter, string>> = Object.freeze({ all: 'All', ranked: 'Ranked', pvp: 'PvP', ai: 'vs AI', blitz: 'Blitz', arcade: 'Arcade' });
-export type Visibility = 'everyone' | 'friends' | 'me';
-const VIS_LABEL: Readonly<Record<Visibility, string>> = Object.freeze({ everyone: 'Everyone', friends: 'Friends', me: 'Only me' });
 
 /** The server's list row (MATCH-HISTORY.md). */
 export interface ServerRow {
@@ -89,7 +87,6 @@ export interface ServerPage {
   rows: ServerRow[];
   next: string | null;
   stats?: SeasonStats;
-  visibility?: Visibility;
 }
 
 /** One row as shown: from the account (`sid`) or from this device only. */
@@ -119,7 +116,7 @@ export interface HistoryOpts {
   api?(op: ApiOp, args?: ApiArgs): Promise<ApiResult>;
   /** A friend's history (their player code and name); absent: yours. */
   friend?: { code: string; name: string } | null;
-  /** A registered account is signed in (the privacy choice shows). */
+  /** A registered account is signed in. */
   signedIn?: boolean;
   onWatch(id: string): void;
   onClose(): void;
@@ -386,7 +383,6 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
   let server: ServerRow[] | null = null;
   let next: string | null = null;
   let stats: SeasonStats | undefined;
-  let visibility: Visibility | undefined;
   let ownerName = friend?.name ?? '';
   let error = '';
   let loading = !!o.api;
@@ -417,12 +413,13 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
             ? `<ol class="mh-list">${rows.map((r) => rowHtml(r, now, !friend)).join('')}</ol>`
             : `<p class="mh-empty">${filter !== 'all' ? `No ${FILTER_LABEL[filter]} matches yet.` : friend ? 'No matches yet.' : 'No matches yet. Play one and it shows up here, with a replay to watch.'}</p>`;
     const moreBtn = server && next ? `<button type="button" class="pl-btn ghost small mh-more" data-a="more"${more ? ' disabled' : ''}>${more ? 'Loading…' : 'Show older matches'}</button>` : '';
-    const privacy =
-      !friend && server && visibility && o.signedIn
-        ? `<label class="mh-privacy">Who can see my match history <select data-a="vis" data-testid="history-privacy">${(Object.keys(VIS_LABEL) as Visibility[]).map((v) => `<option value="${v}"${v === visibility ? ' selected' : ''}>${VIS_LABEL[v]}</option>`).join('')}</select></label>`
-        : '';
-    const fine = friend ? '' : server ? '<p class="fine">Saved to your account (your last 100 matches). Replays stay on this device.</p>' : '<p class="fine">Saved on this device.</p>';
-    return `<h2>${title}</h2>${seasonHtml(stats)}${chips}${sum}${list}${moreBtn}${privacy}${fine}`;
+    // founder Nov 17: match history is public, so there is no privacy choice (the server ignores any stored one)
+    const fine = friend
+      ? ''
+      : server
+        ? '<p class="fine">Saved to your account (your last 100 matches), and other players can see it. Replays stay on this device.</p>'
+        : '<p class="fine">Saved on this device.</p>';
+    return `<h2>${title}</h2>${seasonHtml(stats)}${chips}${sum}${list}${moreBtn}${fine}`;
   };
 
   const render = (): void => {
@@ -467,7 +464,6 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
     server = append && server ? [...server, ...p.rows] : p.rows;
     next = p.next;
     if (p.stats) stats = p.stats;
-    if (p.visibility) visibility = p.visibility;
     if (p.owner?.name) ownerName = p.owner.name;
     if (!detailOf) render();
   };
@@ -562,21 +558,6 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
     if (t.closest('select, label')) return;
     const open = t.closest<HTMLElement>('[data-open]')?.dataset.open;
     if (open) void openMatch(open);
-  });
-  root.addEventListener('change', (e) => {
-    const sel = (e.target as HTMLElement).closest<HTMLSelectElement>('select[data-a="vis"]');
-    if (!sel || !o.api) return;
-    const v = sel.value as Visibility;
-    if (!(v in VIS_LABEL)) return;
-    const prev = visibility;
-    visibility = v;
-    o.track?.('history_privacy', { visibility: v });
-    void o.api('history.privacy', { visibility: v }).then((r) => {
-      if (!r.ok && root.isConnected) {
-        visibility = prev;
-        if (!detailOf) render();
-      }
-    });
   });
   parent.appendChild(root);
   render();

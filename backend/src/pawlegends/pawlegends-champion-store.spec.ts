@@ -17,6 +17,7 @@ import {
     rotationOf,
     rotationWeek,
     STARTERS,
+    FORMER_STARTERS,
     STORE_TERMS_VERSION,
     TIER_PRICE,
     WEEK_MS,
@@ -32,6 +33,7 @@ import {
     isoWeek,
     ownedChampions,
     RELEASE_ID,
+    STARTERS_V2_ID,
     unlockChampion,
 } from './pawlegends-champion-store';
 import {
@@ -94,14 +96,15 @@ async function pay(h: Harness, sku: string, accountId = ACCOUNT) {
 const heroesOf = async (h: Harness, account = ACCOUNT) => (await ownedChampions(store(h), account)).map(o => o.hero);
 
 describe('starters and the rotation', () => {
-    it('one starter per role, 3 cats and 3 dogs, Clem among them (the guided first match)', () => {
+    it('6 starters: a Fighter, a Marksman and a Mage per side (founder Nov 17), Clem among them (the guided first match)', () => {
         const starters = CHAMPIONS.filter(c => STARTERS.includes(c.hero));
         expect(starters).toHaveLength(6);
         for (const side of ['cat', 'dog'] as const) {
             const mine = starters.filter(c => c.side === side);
-            expect(mine).toHaveLength(3);
+            expect(mine.map(c => c.role).sort()).toEqual(['fighter', 'mage', 'marksman']);
         }
-        expect(new Set(starters.map(c => c.role)).size).toBe(6);
+        expect(STARTERS).toEqual(['clem', 'sage', 'bengas', 'howler', 'chili', 'marshmallow']);
+        expect(FORMER_STARTERS).toEqual(['gabe', 'brutus', 'frankie']);
         expect(STARTERS).toContain('clem');
         expect(CHAMPION_IDS).toHaveLength(28);
     });
@@ -137,9 +140,8 @@ describe('starters and the rotation', () => {
         }
     });
 
-    it('the starters cover all 6 roles; each side has 6 open heroes over 4+ roles every week (5v5 fits)', () => {
-        expect(new Set(CHAMPIONS.filter(c => STARTERS.includes(c.hero)).map(c => c.role)).size).toBe(6);
-        for (let w = 0; w < 7; w++) {
+    it('each side has 6 open heroes over 4+ roles every week (5v5 fits): the rotation brings a tank, assassin or support', () => {
+        for (let w = 0; w < 11; w++) {
             const open = allowedChampions([], w).map(h => CHAMPIONS.find(c => c.hero === h)!);
             for (const side of ['cat', 'dog'] as const) {
                 const mine = open.filter(c => c.side === side);
@@ -152,15 +154,16 @@ describe('starters and the rotation', () => {
     it('matches the design table for week 0 and weeks start on Monday 00:00 UTC', () => {
         // sim v31: the four new champions are free in the first week
         expect(rotationOf(0)).toEqual(['nova', 'dusty', 'meatball', 'barkula', 'ranger', 'nugget']);
-        expect(rotationOf(1)).toEqual(['ziggy', 'pixel', 'duchess', 'domino', 'cacklejaw', 'champ']);
-        expect(rotationOf(2)).toEqual(['aviete', 'mochi', 'bengas', 'rocket', 'biscuit', 'howler']);
+        // Nov 17 starters change: Bengal, Howler and Chili are starters; Gabby, Sir Brutus and Frankie rotate
+        expect(rotationOf(1)).toEqual(['ziggy', 'pixel', 'aviete', 'champ', 'domino', 'brutus']);
+        expect(rotationOf(2)).toEqual(['duchess', 'mochi', 'lambo', 'frankie', 'rocket', 'bravo']);
         expect(new Date(ROTATION_EPOCH).getUTCDay()).toBe(1);
         expect(rotationWeek(Date.parse(ROTATION_EPOCH))).toBe(0);
         expect(rotationWeek(Date.parse(ROTATION_EPOCH) - 1)).toBe(-1);
         expect(rotationWeek(Date.parse(ROTATION_EPOCH) + WEEK_MS)).toBe(1);
         expect(isFreeChampion('clem', 0)).toBe(true);
         expect(isFreeChampion('meatball', 0)).toBe(true);
-        expect(isFreeChampion('howler', 0)).toBe(false);
+        expect(isFreeChampion('rocket', 0)).toBe(false);
     });
 });
 
@@ -186,8 +189,8 @@ describe('catalogue', () => {
         const sum = (sku: string) =>
             PAWLEGENDS_SKUS[sku].bundleOf!.reduce((n, s) => n + PAWLEGENDS_SKUS[s].cents.usd, 0);
         expect(sum('pl_champs_cats_s1')).toBe(2893);
-        expect(sum('pl_champs_dogs_s1')).toBe(2893);
-        expect(sum('pl_champs_all_s1')).toBe(5786);
+        expect(sum('pl_champs_dogs_s1')).toBe(2793);
+        expect(sum('pl_champs_all_s1')).toBe(5686);
         expect(PAWLEGENDS_SKUS.pl_champs_all_s1.cents.usd).toBe(2999);
         for (const sku of CHAMP_BUNDLE_SKUS) expect(PAWLEGENDS_SKUS[sku].oncePerAccount).toBe(true);
     });
@@ -334,7 +337,7 @@ describe('the score hook', () => {
             takedowns: 2,
             soloMs: 600_000,
             ref: 'd1',
-            hero: 'howler',
+            hero: 'rocket',
         });
         expect(locked).toMatchObject({ gained: 0, heroLocked: true });
         expect(await store(h).yarnLog.find({ accountId: ACCOUNT }).lean()).toHaveLength(0);
@@ -426,6 +429,39 @@ describe('Founders roster', () => {
         expect(await ownedItemsOf(store(h), ACCOUNT2)).toContain(FOUNDERS_BADGE);
     });
 
+    it('the Nov 17 starters change: a player with a match before it keeps Gabby, Sir Brutus and Frankie (legacy)', async () => {
+        const h = champHarness();
+        // the champion store released long before; the starters change is the first call of this build
+        await store(h).yarn.updateOne(
+            { _id: RELEASE_ID },
+            { $set: { at: new Date(NOW.getTime() - 30 * 86_400_000) } },
+            { upsert: true }
+        );
+        const played = new Map<string, Date>([
+            [ACCOUNT, new Date(NOW.getTime() - 86_400_000)],
+            [ACCOUNT2, new Date(NOW.getTime() + 60_000)],
+        ]);
+        const evidence = jest.fn(async (id: string, before: Date) => !!played.get(id) && played.get(id)! < before);
+        h.season.foundersEvidence = evidence;
+        expect((await h.season.champions(ACCOUNT)).founders).toBe(false);
+        const owned = await ownedChampions(store(h), ACCOUNT);
+        expect(owned).toEqual(
+            FORMER_STARTERS.map(hero => ({ hero, source: 'legacy' })).sort(
+                (a, b) => CHAMPION_IDS.indexOf(a.hero) - CHAMPION_IDS.indexOf(b.hero)
+            )
+        );
+        expect(await h.season.allowedHeroes(ACCOUNT, new Date(AFTER_EPOCH))).toEqual(
+            expect.arrayContaining(['gabe', 'brutus', 'frankie', 'bengas', 'howler', 'chili'])
+        );
+        await h.season.champions(ACCOUNT);
+        // once per account: the Founders check and the starters check read the Game rows one time each
+        expect(evidence).toHaveBeenCalledTimes(2);
+        // a player whose first match is after the change starts with the new six only
+        await h.season.champions(ACCOUNT2);
+        expect(await heroesOf(h, ACCOUNT2)).toEqual([]);
+        expect(await store(h).yarn.findOne({ _id: STARTERS_V2_ID }).lean()).toBeTruthy();
+    });
+
     it('without evidence wired, nothing is granted (local-only players)', async () => {
         const h = champHarness();
         expect(await ensureFounders(store(h), ACCOUNT, undefined, NOW)).toBe(false);
@@ -460,7 +496,7 @@ describe('web purchase', () => {
         expect(params.line_items![0].price_data!.unit_amount).toBe(1499);
         const owned = await ownedChampions(store(h), ACCOUNT);
         expect(
-            owned.filter(o => ['meatball', 'pixel', 'aviete', 'duchess', 'lambo', 'stilts', 'bengas'].includes(o.hero))
+            owned.filter(o => ['meatball', 'pixel', 'aviete', 'duchess', 'lambo', 'stilts', 'gabe'].includes(o.hero))
         ).toHaveLength(7);
         expect(owned.find(o => o.hero === 'meatball')?.source).toBe('yarn');
         // the refund takes back the 6 bought ones, never the Yarn unlock
@@ -500,7 +536,7 @@ describe('web purchase', () => {
 });
 
 describe('party pick check', () => {
-    const owned = new Map<string, Set<string>>([['acct:a', new Set(['howler'])]]);
+    const owned = new Map<string, Set<string>>([['acct:a', new Set(['rocket'])]]);
     function service(now: number) {
         const rules: PartyRules = {
             heroes: CHAMPION_IDS,
@@ -532,7 +568,7 @@ describe('party pick check', () => {
     it('refuses a locked hover and lock, allows starters, the rotation and owned; auto-lock picks an allowed hero', () => {
         const { svc, clock } = service(AFTER_EPOCH);
         const p = picking(svc, 'acct:b');
-        svc.hover('m1', 'howler');
+        svc.hover('m1', 'rocket');
         expect(p.members[0].hero).toBeUndefined();
         svc.hover('m1', 'meatball');
         expect(p.members[0].hero).toBe('meatball');
@@ -555,8 +591,8 @@ describe('party pick check', () => {
         svc.lock('m1', free, 'pounce');
         expect(p.members[0].locked).toBe(true);
         expect(p.members[0].hero).toBe(free);
-        expect(svc.heroAllowedFor(p, p.members[0], 'howler')).toBe(true);
-        expect(svc.heroAllowedFor(p, p.members[1], 'howler')).toBe(false);
+        expect(svc.heroAllowedFor(p, p.members[0], 'rocket')).toBe(true);
+        expect(svc.heroAllowedFor(p, p.members[1], 'rocket')).toBe(false);
     });
 
     it('a rematch drops a last hero the member may no longer pick', () => {

@@ -1,5 +1,51 @@
 # Paw Legends: mode unlocking
 
+## Nov 17: modes open by account level
+
+Founder ask (Nov 17): "by default initially 3x3 ( skirmish ) and practise ( sandbox ) modes should be available
+( unlocked ). then other modes unlocks upon reaching certain LVL ( must be progression )".
+
+**The account level** (`pawlegends/src/meta/accountLevel.ts`, backend copy `backend/src/pawlegends/mode-unlocks.ts`,
+pinned equal by `tests/unit/mode-unlocks.test.ts`) counts finished matches (bots, co-op, PvP, party; never Practice).
+The count is the profile's `matches`, synced to the account and max-merged on the server (progressCloud), so it survives
+a restart and a new device; a guest keeps it on the device. Home shows it on the profile chip ("Lv 4 · Tier 3").
+
+| Level | Matches | Opens |
+|---|---|---|
+| 1 | 0 | Skirmish (3v3, every variant: vs Bots, Co-op, PvP, With Friends) and Practice |
+| 2 | 2 | Blitz |
+| 3 | 4 | Classic 5v5 (vs Bots and PvP) |
+| 4 | 6 | Duel, Weekly Twist |
+| 5 | 8 | One Lane Brawl, Cannon Chaos, Boss Weekend (still only inside its window) |
+| 6 | 10 | Ranked (also keeps its server rule: a registered account with 10 saved matches) |
+| later | 13, 16, 20, 25, 30, 36, 42, 50, then every 10 | nothing yet; a new mode with no row opens at Lv 5 |
+
+The guided first match leaves a player at Lv 1, so the first Mode Select shows Skirmish and Practice only. A featured
+mode follows its own level (it no longer opens early for its window).
+
+**Mode Select:** big tiles are Skirmish, Classic once open, and the spotlight (rules below); a locked Classic sits in the
+strip. Locked icons read "Lv N" with a ring of the matches toward it; the sheet says "Unlocks at Lv 3 (you are Lv 1:
+3 more matches)." The nav Ranked item and the Ranked duo invite use the same line.
+
+**Server check:** the relay refuses `mm.join {queue:'classic'}` unless every member has Lv 3's 4 matches on server
+records (`playedFor`: saved matches, rated games, completed Quick Play rooms), with `mm_locked {reason: 'mode_level',
+mode, level, have, need}`. The queue card says "5v5 Classic unlocks at Lv 3: finish 1 more match (3/4)", or "A party
+member has not reached Lv 3 for 5v5 Classic yet" when this player has it, and offers Play Casual instead. Ranked keeps
+its own refusal (10 saved matches = Lv 6). The other modes are played against bots on the device, so there is no
+server queue to refuse.
+
+**Nobody is locked out of what they had (grandfathering):** a mode is open when the level is reached or its
+`mode.<id>` id is in the synced unlocks. Every id the Nov 14 ladder wrote stays valid (a player who unlocked Duel at
+2 matches keeps it). A third first-run pass (`pawlegends.modes.v3`) adds Classic, the Weekly Twist and Boss Weekend for
+a player whose history rows, kept replays or saved choice show they played them; veterans (10+ matches) have every
+mode anyway. Known gap: a grandfathered Classic player with fewer than 4 server-recorded matches is still refused by
+the relay's Classic PvP queue (vs Bots works).
+
+The Nov 14 design below still holds for the layout, the NEW state, the unlock moment and the data; its match-and-win
+ladder is replaced by the table above.
+
+## Nov 14 design
+
 Founder ask (Nov 14): "lock some game modes so that no more than 3 game modes will be displayed initially (others
 will be displayed only as smaller version of icons until they'll be unlocked, as currently they're creating
 confusion / frustration)". Shipped Nov 15. Code: `pawlegends/src/ui/modeSelect/unlocks.ts` (pure rules and layout),

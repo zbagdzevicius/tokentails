@@ -14,7 +14,9 @@ Status: shipped (s7, Nov 15 2026). Extends MATCH-MOMENTS.md §1 (the device hist
   K / D / A, CS (lane last hits), Fish, Toys, grade, the MVP (best grade score on the winning team) and the SVP (best on
   the losing team). A **Damage** tab draws damage to champions and damage taken per player. **Watch replay** when this
   device kept the replay (the newest five solo matches, MATCH-MOMENTS.md).
-- Yours also shows the choice **Who can see my match history: Everyone / Friends / Only me** (default Friends).
+- **Public (Nov 17, founder: "match history is fully publicly available, so toggle is redundant"):** there is no
+  privacy choice; any registered player sees any player's history by code. The stored `pawlegendshistoryprefs` rows are
+  ignored and no longer written; a block still answers "no player".
 - Offline, signed out with no session, or an older host: the device rows show, as before.
 
 ## Data
@@ -48,9 +50,8 @@ then shows without a name).
 | `history.list {code, mode?, before?}` | `GET /pawlegends/history/u/:code` | registered |
 | `history.match {match}` | `GET /pawlegends/history/match/:id` | any |
 | `history.match {code, match}` | `GET /pawlegends/history/u/:code/match/:id` | registered |
-| `history.privacy {visibility}` | `POST /pawlegends/history/privacy` | any |
 
-Another player's history: their choice (default friends), and a block either way answers "no player". Own rows carry
+Another player's history: public; a block answers "no player". `POST /pawlegends/history/privacy` remains only for older builds (accepted, ignored). Own rows carry
 `key` (`finalHash:ticks`) so the device finds its kept replay; others' rows never do. Per-IP buckets: 60 a minute for
 reads, 20 for the choice.
 

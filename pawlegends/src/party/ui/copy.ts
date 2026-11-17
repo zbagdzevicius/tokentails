@@ -148,6 +148,10 @@ export const COPY = Object.freeze({
   modeCoop: 'Co-op vs bots',
   modePvp: 'PvP',
   pvpLocked: 'PvP unlocks after a few more matches',
+  // Mode unlocks by account level (MODE-UNLOCKS.md)
+  modeLevel: (name: string, level: number, have: number, need: number) =>
+    `${name} unlocks at Lv ${level}: finish ${Math.max(1, need - have)} more ${need - have === 1 ? 'match' : 'matches'} (${Math.min(have, need)}/${need})`,
+  modeLevelMate: (name: string, level: number) => `A party member has not reached Lv ${level} for ${name} yet. Play Skirmish together`,
   findingPvp: 'Finding a PvP match…',
   pvpTeams: (mine: number, theirs: number, bots = 0, per = 3) => `Your team ${mine} of ${per} · Their team ${theirs} of ${per}${bots ? ` · ${bots} ${bots === 1 ? 'bot' : 'bots'}` : ''}`,
   toCoop: 'Starting Co-op vs bots',

@@ -278,7 +278,7 @@ describe('match history: the store and the reads', () => {
         await expect(core.record(input())).resolves.toBe(false);
     });
 
-    it('pages newest first, filters by mode, season stats and the choice on the first page only', async () => {
+    it('pages newest first, filters by mode, season stats on the first page only; no privacy choice', async () => {
         const { core } = setup();
         for (let i = 0; i < HISTORY_PAGE + 3; i++)
             await core.record(
@@ -288,7 +288,7 @@ describe('match history: the store and the reads', () => {
         expect(first.rows).toHaveLength(HISTORY_PAGE);
         expect(first.owner).toEqual({ name: 'Name of a', self: true });
         expect(first.stats).toMatchObject({ matches: HISTORY_PAGE + 3, wins: HISTORY_PAGE + 3 });
-        expect(first.visibility).toBe('friends');
+        expect(first.visibility).toBeUndefined();
         expect(first.rows[0].key).toBe('abcdef12:9000');
         expect(first.rows[0].mvp).toBe('mvp');
         expect(first.next).toBeTruthy();
@@ -302,7 +302,7 @@ describe('match history: the store and the reads', () => {
         expect(await codeOf(core.list('acc-a', { before: 'x' }, false))).toBe('PAWLEGENDS_HISTORY_INVALID');
     });
 
-    it("a friend's history: friends by default, the owner's choice, blocks, guests", async () => {
+    it("anyone's history is public (founder Nov 17): a stored choice is ignored; blocks and guests still stop it", async () => {
         const { core } = setup({ friends: [['acc-a', 'acc-b']], blocks: [['acc-a', 'acc-c']] });
         await core.record(input());
         const seen = await core.list('acc-b', { code: 'ABCD2345' }, true);
@@ -311,14 +311,15 @@ describe('match history: the store and the reads', () => {
         // no replay key and no choice for someone else
         expect(seen.rows[0].key).toBeUndefined();
         expect(seen.visibility).toBeUndefined();
-        expect(await codeOf(core.list('acc-x', { code: 'ABCD2345' }, true))).toBe('PAWLEGENDS_HISTORY_PRIVATE');
+        // not a friend: public all the same
+        expect((await core.list('acc-x', { code: 'ABCD2345' }, true)).rows).toHaveLength(1);
         expect(await codeOf(core.list('acc-c', { code: 'ABCD2345' }, true))).toBe('PAWLEGENDS_SOCIAL_NOT_FOUND');
         expect(await codeOf(core.list('acc-b', { code: 'ABCD2345' }, false))).toBe('PAWLEGENDS_NEED_ACCOUNT');
         expect(await codeOf(core.list('acc-b', { code: 'ZZZZ9999' }, true))).toBe('PAWLEGENDS_SOCIAL_NOT_FOUND');
         expect(await codeOf(core.list('acc-b', { code: '!' }, true))).toBe('PAWLEGENDS_HISTORY_INVALID');
-        await core.setVisibility('acc-a', 'me');
-        expect(await codeOf(core.list('acc-b', { code: 'ABCD2345' }, true))).toBe('PAWLEGENDS_HISTORY_PRIVATE');
-        await core.setVisibility('acc-a', 'everyone');
+        // an older build's "only me" is accepted, answered as everyone and changes nothing
+        expect(await core.setVisibility('acc-a', 'me')).toEqual({ visibility: 'everyone' });
+        expect((await core.list('acc-b', { code: 'ABCD2345' }, true)).rows).toHaveLength(1);
         expect((await core.list('acc-x', { code: 'ABCD2345' }, true)).rows).toHaveLength(1);
         // a block still wins over "everyone"
         expect(await codeOf(core.list('acc-c', { code: 'ABCD2345' }, true))).toBe('PAWLEGENDS_SOCIAL_NOT_FOUND');
