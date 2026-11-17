@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { GAME_TYPES, HOST_TYPES, LEVEL_CATNIP, PROGRESS_LEVELS, PROGRESS_MAX, cleanArt, type HostMessage, type Progress } from '../../src/embed/bridge';
 import { chipState, installIntegration, isNewFastest, makeMatchId } from '../../src/embed/integrate';
 import { sanitizeHostMessage } from '../../src/embed/messages';
-import { freshProfile, loadProfile, mergeServerProgress, noteChampionMatch, resetProfileCache, saveProfile, BISCUIT_UNLOCK, type Profile } from '../../src/meta/profile';
+import { freshProfile, loadProfile, mergeServerProgress, noteChampionMatch, resetProfileCache, saveProfile, FIRST_WIN_UNLOCK, type Profile } from '../../src/meta/profile';
 import { parseRoster, rosterCosmetics, setAppBuild } from '../../src/meta/roster';
 import { Entitlements } from '../../src/money/entitlements';
 import { bestFrame } from '../../src/render/cosmetics';
@@ -78,13 +78,13 @@ describe('mergeServerProgress', () => {
     const local = { ...freshProfile(), matches: 2, fastest: { easy: 300 } };
     const p = mergeServerProgress(local, progress({ catnip: { easy: 20 }, matches: { easy: 4, normal: 3 }, fastestWin: { easy: 8123, normal: 6000 } }));
     expect(p.firstWinDone).toBe(true);
-    expect(p.unlocks).toContain(BISCUIT_UNLOCK);
+    expect(p.unlocks).toContain(FIRST_WIN_UNLOCK);
     expect(p.matches).toBe(7);
     expect(p.fastest).toEqual({ easy: 271, normal: 200 }); // ceil(8123/30), 6000/30
     expect(local.firstWinDone).toBe(false); // pure
   });
   it('never lowers anything local', () => {
-    const local = { ...freshProfile(), matches: 12, wins: 4, firstWinDone: true, fastest: { easy: 100 }, unlocks: [BISCUIT_UNLOCK] };
+    const local = { ...freshProfile(), matches: 12, wins: 4, firstWinDone: true, fastest: { easy: 100 }, unlocks: [FIRST_WIN_UNLOCK] };
     const p = mergeServerProgress(local, progress({ matches: { easy: 1 }, fastestWin: { easy: 9000 } }));
     expect(p).toMatchObject({ matches: 12, wins: 4, firstWinDone: true, fastest: { easy: 100 } });
     expect(mergeServerProgress(local, null)).toBe(local);
@@ -191,7 +191,7 @@ describe('mounted cards', () => {
     expect(h.posted).toContainEqual({ type: 'request-sign-in', payload: { reason: 'save-progress' } });
     h.emit({ type: 'session', signedIn: true, progress: progress({ catnip: { easy: 20 }, matches: { easy: 3 }, fastestWin: { easy: 8123 } }) });
     expect(h.metaChanges()).toBe(1);
-    expect(loadProfile().unlocks).toContain(BISCUIT_UNLOCK);
+    expect(loadProfile().unlocks).toContain(FIRST_WIN_UNLOCK);
     const t2 = h.screen('title');
     expect(t2.querySelector('[data-a="save-wins"]')).toBeNull();
     // NO-TOKENTAILS.md (Your call 2): catnip is never named in the game; the chips show times and badges

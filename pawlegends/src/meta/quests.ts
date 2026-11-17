@@ -128,8 +128,8 @@ function fnv(s: string): number {
  * first matches): the hero quest names the hero being played instead, since the first route never shows the pick
  * screen ("Win with Cacklejaw" while the game put the player on Clem).
  */
-export function dailyQuests(day: string, hero?: HeroId): Quest[] {
-  const base = dayPick(day);
+export function dailyQuests(day: string, hero?: HeroId, playable?: (h: HeroId) => boolean): Quest[] {
+  const base = dayPick(day, playable);
   if (!hero) return base;
   const mine = QUEST_POOL.find((q) => q.metric === 'win' && q.hero === hero);
   return mine ? base.map((q) => (q.hero && !base.includes(mine) ? mine : q)) : base;
@@ -142,14 +142,25 @@ export function dayIndex(day: string): number {
   return Math.floor(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86400000);
 }
 
-/** The hero whose "win with" quest the day shows (round-robin). Pure. */
-export function questHero(day: string): HeroId {
+/**
+ * The hero whose "win with" quest the day shows (round-robin). Pure. `playable` (the player's champions: starters,
+ * this week's rotation, owned): a day whose hero the player cannot pick moves on to the next hero in the round they
+ * can, so the quest never asks for a locked champion ("Win with Sir Brutus" after he stopped being a starter).
+ */
+export function questHero(day: string, playable?: (h: HeroId) => boolean): HeroId {
   const n = QUEST_HEROES.length;
-  return QUEST_HEROES[((dayIndex(day) % n) + n) % n];
+  const at = ((dayIndex(day) % n) + n) % n;
+  if (playable) {
+    for (let k = 0; k < n; k++) {
+      const h = QUEST_HEROES[(at + k) % n];
+      if (playable(h)) return h;
+    }
+  }
+  return QUEST_HEROES[at];
 }
 
-function dayPick(day: string): Quest[] {
-  const heroQuest = QUEST_POOL.find((q) => q.metric === 'win' && q.hero === questHero(day));
+function dayPick(day: string, playable?: (h: HeroId) => boolean): Quest[] {
+  const heroQuest = QUEST_POOL.find((q) => q.metric === 'win' && q.hero === questHero(day, playable));
   const out: Quest[] = heroQuest ? [heroQuest] : [];
   const goals = QUEST_POOL.filter((q) => !q.hero);
   let h = fnv(`pawlegends:${day}`);
@@ -234,11 +245,11 @@ export interface QuestView {
  * quest's view (the friend quest only when this match was a party match or finished it, so a solo results screen keeps
  * its three rows) and the XP earned.
  */
-export function progressQuests(s: QuestState, m: MatchFacts, followHero = false): { state: QuestState; views: QuestView[]; xp: number } {
+export function progressQuests(s: QuestState, m: MatchFacts, followHero = false, playable?: (h: HeroId) => boolean): { state: QuestState; views: QuestView[]; xp: number } {
   const state: QuestState = { v: 1, day: s.day, progress: { ...s.progress }, done: [...s.done] };
   const views: QuestView[] = [];
   let xp = 0;
-  for (const q of [...dailyQuests(s.day, followHero ? m.hero : undefined), FRIEND_QUEST]) {
+  for (const q of [...dailyQuests(s.day, followHero ? m.hero : undefined, playable), FRIEND_QUEST]) {
     const was = state.done.includes(q.id);
     const value = Math.min(q.goal, (state.progress[q.id] ?? 0) + (was ? 0 : amount(q, m)));
     state.progress[q.id] = value;
@@ -254,6 +265,6 @@ export function progressQuests(s: QuestState, m: MatchFacts, followHero = false)
 }
 
 /** Today's quests as they stand (title screen): the three daily ones, then the friend quest. Pure. */
-export function questViews(s: QuestState, hero?: HeroId): QuestView[] {
-  return [...dailyQuests(s.day, hero), FRIEND_QUEST].map((q) => ({ quest: q, value: Math.min(q.goal, s.progress[q.id] ?? 0), done: s.done.includes(q.id), fresh: false }));
+export function questViews(s: QuestState, hero?: HeroId, playable?: (h: HeroId) => boolean): QuestView[] {
+  return [...dailyQuests(s.day, hero, playable), FRIEND_QUEST].map((q) => ({ quest: q, value: Math.min(q.goal, s.progress[q.id] ?? 0), done: s.done.includes(q.id), fresh: false }));
 }

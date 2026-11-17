@@ -41,7 +41,7 @@ describe('profile', () => {
     expect(recordMatch(true, 470, 'easy')).toMatchObject({ firstWin: false, best: true });
     resetProfileCache();
     expect(loadProfile()).toMatchObject({ matches: 4, wins: 3, firstWinDone: true });
-    expect(loadProfile().unlocks).toContain('coat.brutus.biscuit');
+    expect(loadProfile().unlocks).toContain('coat.howler.red');
   });
   it('keeps the match 1 Rookie win across a reload (ftue-6)', () => {
     recordMatch(true, 355, 'rookie');

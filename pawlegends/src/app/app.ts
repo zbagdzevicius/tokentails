@@ -618,7 +618,7 @@ export class App {
     return canPlay(h, this.champs(), this.isApp());
   }
 
-  /** `prefer` when playable, else the side's remembered hero, else the side's first starter (Clem, Sir Brutus). */
+  /** `prefer` when playable, else the side's remembered hero, else the side's first starter (Clem, Howler). */
   private playableHero(prefer: HeroId): HeroId {
     if (this.playable(prefer)) return prefer;
     const side = HEROES[prefer]?.side ?? 'cat';
@@ -1451,7 +1451,7 @@ export class App {
         : undefined,
       // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
       // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
-      quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined) : undefined,
+      quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined, (h) => this.playable(h)) : undefined,
       // rewards-cloud: the Welcome Path and the Lucky Treat odds under Today's quests
       todayExtra: p.matches > 0 ? todayExtraHtml() : '',
     };
@@ -2459,9 +2459,9 @@ export class App {
     const quests = forfeit
       ? (() => {
           const state = loadQuests();
-          return { state, views: questViews(state, follow ? e.replay.hero : undefined), xp: 0 };
+          return { state, views: questViews(state, follow ? e.replay.hero : undefined, (h) => this.playable(h)), xp: 0 };
         })()
-      : progressQuests(loadQuests(), { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos, party: !!partyEnd && !setup?.party?.coop }, follow);
+      : progressQuests(loadQuests(), { won, hero: e.replay.hero, takedowns: e.fun.takedowns, pudding: e.fun.pudding, towers: e.fun.towers, combos: e.fun.combos, party: !!partyEnd && !setup?.party?.coop }, follow, (h) => this.playable(h));
     if (!forfeit) saveQuests(quests.state);
     const prof = loadProfile();
     const ownedIds = new Set<string>([...prof.unlocks, ...this.ent.snapshot().items]);

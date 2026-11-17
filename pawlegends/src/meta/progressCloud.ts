@@ -17,7 +17,7 @@ import type { HeroId } from '../sim/api';
 import { HERO_IDS } from '../data/heroes';
 import { parseGrants, parseLuckyTable, LUCKY_DEFAULT, type Grant, type LuckyTable } from './lucky';
 import { parseMastery, saveMastery } from './mastery';
-import { loadProfile, saveProfile, UNLOCKS_MAX, BISCUIT_UNLOCK, parseProfile, type Profile } from './profile';
+import { loadProfile, saveProfile, UNLOCKS_MAX, FIRST_WIN_UNLOCK, parseProfile, type Profile } from './profile';
 import { dayKey, loadQuests, parseQuests, saveQuests, type QuestState } from './quests';
 import { addTreatXp, loadTreats, saveTreats, TREAT_STEP, type TreatReward, type TreatState } from './treats';
 import { parseWelcome, type WelcomeState } from './welcome';
@@ -193,7 +193,7 @@ export function mergeProfile(local: Profile, blob: Record<string, unknown>, loca
   p.matches = Math.max(p.matches, n(c.matches));
   p.wins = Math.max(p.wins, Math.min(n(c.wins), p.matches));
   if (c.firstWin === 1 && !p.firstWinDone) p.firstWinDone = true;
-  if (p.firstWinDone && !p.unlocks.includes(BISCUIT_UNLOCK)) p.unlocks.push(BISCUIT_UNLOCK);
+  if (p.firstWinDone && !p.unlocks.includes(FIRST_WIN_UNLOCK)) p.unlocks.push(FIRST_WIN_UNLOCK);
   if (p.matches > 0 && p.firstPlaySession === 0) p.firstPlaySession = Math.max(1, p.sessions);
   const hm = c.heroMatches && typeof c.heroMatches === 'object' ? (c.heroMatches as Record<string, unknown>) : {};
   for (const h of HERO_IDS) {

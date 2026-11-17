@@ -106,8 +106,15 @@ export const PREVIEW_CAP = Object.freeze({ guest: 1, signedIn: 3 });
 /** Sim v9: the finished match on a champion from which its card may be offered (GDD §8.4), until it is shown. */
 export const CHAMPION_OFFER_AT = 3;
 
-/** The free coat earned by the first win (POC.md §12). */
+/** The first-win coat until the Nov 17 starters change (Sir Brutus, now sold): players who earned it keep it. */
 export const BISCUIT_UNLOCK = 'coat.brutus.biscuit';
+/**
+ * The free coat earned by the first win (POC.md §12): Howler's Copper coat since the Nov 17 starters change, so the
+ * reward fits a hero every player has (Howler is the dog starter). It is also a Treat Track coat; the track skips it.
+ */
+export const FIRST_WIN_UNLOCK = 'coat.howler.red';
+/** The first-win coat's name on the results screen. */
+export const FIRST_WIN_COAT_NAME = 'Copper Howler coat';
 
 const KEY = 'tt.pawlegends.profile.v1';
 /** A fresh bot-ladder rating. */
@@ -293,7 +300,7 @@ export function recordMatch(won: boolean, seconds: number, difficulty: Difficult
     if (!p.firstWinDone) {
       p.firstWinDone = true;
       firstWin = true;
-      if (!p.unlocks.includes(BISCUIT_UNLOCK)) p.unlocks.push(BISCUIT_UNLOCK);
+      if (!p.unlocks.includes(FIRST_WIN_UNLOCK)) p.unlocks.push(FIRST_WIN_UNLOCK);
     }
     const prev = p.fastest[difficulty];
     if (ranked && (!prev || seconds < prev)) {
@@ -430,7 +437,7 @@ export function mergeServerProgress(local: Profile, progress: Progress | null): 
   p.matches = Math.max(p.matches, serverMatches);
   p.wins = Math.max(p.wins, serverWins);
   if (serverWins > 0 && !p.firstWinDone) p.firstWinDone = true;
-  if (p.firstWinDone && !p.unlocks.includes(BISCUIT_UNLOCK)) p.unlocks.push(BISCUIT_UNLOCK);
+  if (p.firstWinDone && !p.unlocks.includes(FIRST_WIN_UNLOCK)) p.unlocks.push(FIRST_WIN_UNLOCK);
   return p;
 }
 
@@ -464,7 +471,8 @@ export function resetProfileCache(): void {
 }
 
 /** Sim v14 (DOGS-V13 §2): the hero a side opens on when the player has not picked one there yet. */
-export const SIDE_DEFAULT: Readonly<Record<HeroSide, HeroId>> = Object.freeze({ cat: 'clem', dog: 'brutus' });
+// the Nov 17 starters change: Howler is the dog starter (Sir Brutus is sold now)
+export const SIDE_DEFAULT: Readonly<Record<HeroSide, HeroId>> = Object.freeze({ cat: 'clem', dog: 'howler' });
 
 /** The hero the CATS / DOGS switch selects on `side`: the last one picked there, else the side's default. */
 export function heroForSide(p: Pick<Profile, 'lastBySide'>, side: HeroSide): HeroId {

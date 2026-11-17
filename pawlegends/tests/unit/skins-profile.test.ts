@@ -91,7 +91,7 @@ describe('profile: sim v14 side', () => {
     expect(f.side).toBe('cat');
     expect(f.lastBySide).toEqual({});
     expect(heroForSide(f, 'cat')).toBe('clem');
-    expect(heroForSide(f, 'dog')).toBe('brutus');
+    expect(heroForSide(f, 'dog')).toBe('howler');
   });
   it('an old profile gets the side of its hero; side and lastBySide normalise (a hero of that side only)', () => {
     expect(parseProfile(JSON.stringify({ hero: 'cacklejaw' })).side).toBe('dog');

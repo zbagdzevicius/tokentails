@@ -11,7 +11,7 @@ import './champions.css';
 import { lateS } from './screensCore';
 // gaps5 polish 8: the first-load helpers live in screensCore (this module is a lazy chunk); old import paths still work
 export { loadingVeil, rotatePrompt, lateS, LATE_S, type VeilHero } from './screensCore';
-import { accountState } from '../meta/profile';
+import { accountState, FIRST_WIN_COAT_NAME } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
 <<<<<<< HEAD
 import { HEROES, type HeroSide } from '../data/heroes';
@@ -841,7 +841,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.ranked ? `<div class="pl-rk" data-slot="ranked" data-testid="ranked-result" role="status">${rankedBlockHtml(null, o.rankedKind)}</div>` : ''}
       ${o.treats ? treatBlock(o.treats) : ''}${o.chromaEarned ? `<p class="pl-chroma-earned" data-chroma-earned="${esc(o.chromaEarned.name)}">New chroma: <b>${esc(`${o.chromaEarned.name} ${o.chromaEarned.coat}`)}</b>. Wear it in Heroes, Coats.</p>` : ''}
       ${o.quests && o.quests.length ? `<div class="pl-quests"><b>Daily quests</b>${o.quests.map((q) => questRow(q)).join('')}</div>` : ''}
-      ${o.firstWin ? `<div class="unlock">${icon('crown')}<span><b>Sir Brutus Biscuit coat unlocked</b><small>Free, yours to keep.</small></span></div>` : ''}
+      ${o.firstWin ? `<div class="unlock">${icon('crown')}<span><b>${FIRST_WIN_COAT_NAME} unlocked</b><small>Free, yours to keep.</small></span></div>` : ''}
       <div class="dare ${o.dareLink ? '' : 'hidden'}">
         <p>Dare a friend: <b>${o.dareLink ? esc(dareLine) : ''}</b></p>
         <button class="pl-btn ghost" data-a="share">Copy dare link</button>
