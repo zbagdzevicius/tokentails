@@ -5,6 +5,7 @@
  * `paint` adds a map's own ground marks (the pitch's chalk, the arena's sand) on the playfield canvas.
  */
 import { ACTIVE_MAP, MAP } from '../../data/map';
+import type { RaiseColors } from './raisedGround';
 
 export interface MapTheme {
   grass: readonly [string, string, string];
@@ -14,6 +15,11 @@ export interface MapTheme {
   pathEdge: string;
   den: string;
   petals?: readonly string[];
+  /**
+   * Raised ground (render/views/raisedGround.ts): the block's cap (× the grass tile), its light rim, its sides at the
+   * top and at the foot. A deeper, darker green than the walkable grass, with earthy sides.
+   */
+  raise: RaiseColors;
   /** Extra ground marks: canvas, metre→pixel maps, pixels a metre. */
   paint?(g: CanvasRenderingContext2D, X: (x: number) => number, Y: (y: number) => number, px: number): void;
 }
@@ -25,6 +31,7 @@ const CROSSING: MapTheme = {
   path: '#dcc792',
   pathEdge: '#c9b27c',
   den: '#d9c595',
+  raise: { cap: 0x8fb07a, rim: 0xcfe6a8, side: 0x6f7a4a, foot: 0x4a4630 },
 };
 
 const W = (): number => MAP.width / 1000;
@@ -40,6 +47,7 @@ const THEMES: Readonly<Record<string, MapTheme>> = {
     pathEdge: '#b9a679',
     den: '#cdb98a',
     petals: ['#ffe14a', '#ffd27a', '#fff3e3'],
+    raise: { cap: 0x7fa48a, rim: 0xc4e0c0, side: 0x5f6a5a, foot: 0x3e3e3c },
     paint(g, X, Y, px) {
       // the mill pit: a darker ring of trampled earth round the axis
       const o = ACTIVE_MAP.objective!;
@@ -58,6 +66,7 @@ const THEMES: Readonly<Record<string, MapTheme>> = {
     pathEdge: '#a99466',
     den: '#c4ad7c',
     petals: ['#ffffff', '#b98cff', '#ffb3cd'],
+    raise: { cap: 0x789e6a, rim: 0xbfdc9c, side: 0x5a6a40, foot: 0x38402a },
     paint(g, X, Y, px) {
       // each shrine sits on a pale paw-stone disc
       const o = ACTIVE_MAP.objective!;
@@ -86,6 +95,8 @@ const THEMES: Readonly<Record<string, MapTheme>> = {
     pathEdge: '#cfae72',
     den: '#e2c58c',
     petals: ['#ffe14a', '#ffffff'],
+    // sandstone ledges: a warm stone cap over the grass tile, ochre cliff sides
+    raise: { cap: 0xc9b48a, rim: 0xf6e6bc, side: 0xa07a50, foot: 0x6a4e34 },
     paint(g, X, Y, px) {
       // the arena's sandstone floor with a cut-stone ring round the Geode
       const o = ACTIVE_MAP.objective!;
@@ -109,6 +120,8 @@ const THEMES: Readonly<Record<string, MapTheme>> = {
     path: '#cfe7a8',
     pathEdge: '#b5d78e',
     den: '#cfe7a8',
+    // the stands' hedge: clipped, a deeper green than the pitch
+    raise: { cap: 0x86ac78, rim: 0xd4ecb0, side: 0x5e7044, foot: 0x3c4630 },
     paint(g, X, Y, px) {
       // mown stripes across the pitch, then the chalk: halfway line, centre circle, both goal boxes
       const x0 = 13;

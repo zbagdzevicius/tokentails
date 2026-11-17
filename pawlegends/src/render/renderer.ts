@@ -11,6 +11,7 @@ import { installToon } from './toon.js';
 import { LOBBY_OUTLINE_CSS_PX, MATCH_OUTLINE_PX, setOutlineViewport, setOutlineWidth } from './chars/charMaterial';
 import { tierSettings, type QualityTier, type TierSettings } from './quality';
 import { DRIFT, driftAt } from './ambient';
+import type { DayLight } from './daylight';
 import { isPhone } from './perf/device';
 import { dynRes } from './perf/governor';
 import { shellPlatform } from '../app/platform';
@@ -184,6 +185,11 @@ export interface GameRenderer {
    * while `on` (High, no reduce motion); off puts the base light back. The sun's direction never changes.
    */
   lightDrift?(t: number, on: boolean): void;
+  /**
+   * Daytime light (render/daylight.ts): the match's time-of-day light (sun colour, strength and direction, sky and
+   * bounce colours, clear colour) becomes the base the drift swings around; null puts the v6 base light back.
+   */
+  setDaylight?(d: DayLight | null): void;
   dispose(): void;
 }
 
@@ -224,6 +230,10 @@ export function createRenderer(container: HTMLElement, tier: QualityTier, opts: 
   scene.add(sun, sun.target);
   // living pass: the base light the drift swings around (and returns to when it is off)
   const base = { sun: sun.color.clone(), sunI: sun.intensity, sky: hemi.color.clone(), hemiI: hemi.intensity };
+  // daytime light: the v6 base (put back by setDaylight(null)) and the sun's offset from its target (m)
+  const v6 = { sun: sun.color.clone(), sunI: sun.intensity, sky: hemi.color.clone(), ground: hemi.groundColor.clone(), hemiI: hemi.intensity, bg: (scene.background as THREE.Color).clone() };
+  const sunOff = new THREE.Vector3(-20, 40, 25);
+  const SUN_DIST = sunOff.length();
   const drift = { k: 1, warm: 0 };
   let drifting = false;
   // the view's ground corners (NDC → ground plane), reused every frame
@@ -254,7 +264,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier, opts: 
       sc.updateProjectionMatrix();
     }
     sun.target.position.copy(boxAt);
-    sun.position.set(boxAt.x - 20, 40, boxAt.z + 25);
+    sun.position.copy(boxAt).add(sunOff);
   };
 
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 300);
@@ -369,7 +379,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier, opts: 
       if (gr.settings.shadows) fitShadow();
       else {
         sun.target.position.copy(focus);
-        sun.position.set(focus.x - 20, 40, focus.z + 25);
+        sun.position.copy(focus).add(sunOff);
       }
       gr.preRender?.(camera);
       if (gr.settings.shadows && !renderer.shadowMap.autoUpdate) {
@@ -395,6 +405,32 @@ export function createRenderer(container: HTMLElement, tier: QualityTier, opts: 
       sun.intensity = base.sunI * drift.k;
       hemi.color.setRGB(base.sky.r * (1 + w * 0.5), base.sky.g, base.sky.b * (1 - w * 0.5));
       hemi.intensity = base.hemiI * (1 + (drift.k - 1) * 0.5);
+    },
+    setDaylight(d) {
+      if (!d) {
+        base.sun.copy(v6.sun);
+        base.sunI = v6.sunI;
+        base.sky.copy(v6.sky);
+        base.hemiI = v6.hemiI;
+        hemi.groundColor.copy(v6.ground);
+        (scene.background as THREE.Color).copy(v6.bg);
+        sunOff.set(-20, 40, 25);
+      } else {
+        base.sun.setRGB(d.sun[0], d.sun[1], d.sun[2], THREE.SRGBColorSpace);
+        base.sunI = d.sunI;
+        base.sky.setRGB(d.sky[0], d.sky[1], d.sky[2], THREE.SRGBColorSpace);
+        base.hemiI = d.hemiI;
+        hemi.groundColor.setRGB(d.ground[0], d.ground[1], d.ground[2], THREE.SRGBColorSpace);
+        (scene.background as THREE.Color).setRGB(d.bg[0], d.bg[1], d.bg[2], THREE.SRGBColorSpace);
+        sunOff.set(d.dir[0], d.dir[1], d.dir[2]).multiplyScalar(SUN_DIST);
+      }
+      // the drift (High) swings around the new base on its next frame; otherwise the base is the light
+      if (!drifting) {
+        sun.color.copy(base.sun);
+        sun.intensity = base.sunI;
+        hemi.color.copy(base.sky);
+        hemi.intensity = base.hemiI;
+      }
     },
     dispose() {
       if (live === renderer) live = null;

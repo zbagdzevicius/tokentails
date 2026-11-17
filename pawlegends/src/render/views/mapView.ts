@@ -20,6 +20,7 @@ import { WIND, patchWind, stepWind, windUniforms } from './env/wind';
 import { cloudUniforms, patchCloudShadow, stepClouds } from './env/clouds';
 import { RIVER_LIFE_GLSL, riverLifeUniforms, stepWater } from './env/waterLife';
 import { LIVE_KIND, livingMaterial, livingUniforms, stepLiving } from './env/banner';
+import { buildRaise, groundAt, raiseGrid, raiseMaterial, raiseMeshes, type RaiseGrid } from './raisedGround';
 
 const W = MAP.width / 1000;
 const H = MAP.height / 1000;
@@ -510,6 +511,9 @@ export const CANOPY_CUT = Object.freeze({ slots: 6, minY: 1.2, inner: 1.8, outer
  */
 export const BUSH_CUT = Object.freeze({ inner: 1.0, outer: 1.35, strength: 1.0 });
 
+/** Raised ground: a Catnip Bush's leaves are squashed this flat (y), so its top stays under RAISE.h + 0.1 m. */
+export const BUSH_SQUASH = 0.5;
+
 /** The share of bush leaves cut `d` m from a hero in it (the shader's own formula). */
 export function bushCutAt(d: number): number {
   const t = Math.max(0, Math.min(1, (d - BUSH_CUT.inner) / (BUSH_CUT.outer - BUSH_CUT.inner)));
@@ -685,6 +689,35 @@ export function fountainWall(): { x: number; y: number; r: number; color: number
   return out;
 }
 
+/**
+ * Raised ground (render/views/raisedGround.ts): the static walls (forest, jungle walls, rim) and everything past the
+ * map edge, padded out to the dressed band, except the river with its banks (out to where it fades) and each fountain
+ * plaza where it runs past the map edge. Cached per bound map.
+ */
+export const RAISE_PAD = 48;
+/** Kept at ground level round each fountain (m): the plaza ring's outer edge (radius + 1.6 m) plus a margin. */
+export const FOUNTAIN_LOW = FOUNTAIN.radius / 1000 + 1.6 + 0.8;
+let raiseCache: RaiseGrid | null = null;
+let raiseKey = '';
+export function mapRaise(): RaiseGrid {
+  if (raiseCache && raiseKey === gridKey()) return raiseCache;
+  raiseKey = gridKey();
+  const walls = createGrid().walls;
+  const r0 = MAP.riverX[0] / 1000;
+  const r1 = MAP.riverX[1] / 1000;
+  const fountains = [FOUNTAIN.x / 1000, W - FOUNTAIN.x / 1000];
+  const fy = FOUNTAIN.y / 1000;
+  raiseCache = raiseGrid(
+    NX,
+    NY,
+    MAP.navCell / 1000,
+    RAISE_PAD,
+    (i, j) => walls[j * NX + i] === 1,
+    (x, y) => (hasRiver() && x > r0 - 1.1 && x < r1 + 1.1 && y > -RIVER_RUN - 1 && y < H + RIVER_RUN + 1) || fountains.some((fx) => Math.hypot(x - fx, y - fy) < FOUNTAIN_LOW),
+  );
+  return raiseCache;
+}
+
 export interface MapView {
   group: THREE.Group;
   /** MAP-GAPS A12: the Low tier draws half the far forest. */
@@ -807,6 +840,21 @@ export function createMapView(): MapView {
   outer.position.set(W / 2, -0.02, -H / 2);
   outer.receiveShadow = true;
   group.add(outer);
+
+  // Raised ground: where no hero walks (forest, jungle walls, rim, past the map edge) stands one block RAISE.h tall
+  const raise = mapRaise();
+  const lift = (x: number, y: number): number => groundAt(raise, x, y);
+  const rc = mapTheme(ACTIVE_MAP.id).raise;
+  const raiseGeo = buildRaise(raise, rc, GRASS_TILE_M);
+  keep(raiseGeo.caps);
+  keep(raiseGeo.sides);
+  const sight = { uLens: { value: new THREE.Vector3(0, 1e4, 0) }, uSee: { value: Array.from({ length: CANOPY_CUT.slots }, () => new THREE.Vector4()) } };
+  const capMat = keep(patchCloudShadow(raiseMaterial(new THREE.MeshLambertMaterial({ vertexColors: true, map: grassTex }), sight, CANOPY_CUT.slots, W, H, 'pl-raise-cap-v1'), cloudU));
+  const sideMat = keep(raiseMaterial(new THREE.MeshLambertMaterial({ vertexColors: true }), sight, CANOPY_CUT.slots, W, H, 'pl-raise-side-v1'));
+  const raised = raiseMeshes(raiseGeo, capMat, sideMat);
+  raised.sides.castShadow = true;
+  shadowCasters.push(raised.sides);
+  group.add(raised.sides, raised.caps);
 
   // playfield
   let tex = typeof document !== 'undefined' ? paintGround() : null;
@@ -962,7 +1010,8 @@ export function createMapView(): MapView {
 
   // sim v34: the bound map's bush count (the pool maps have more than the Crossing's four)
   const NB = bushCount();
-  const forestU = { uLens: { value: new THREE.Vector3(0, 1e4, 0) }, uSee: { value: Array.from({ length: CANOPY_CUT.slots }, () => new THREE.Vector4()) } };
+  // the canopy, wall and bush cuts read the same sight lines as the raised ground
+  const forestU = sight;
   // MAP-GAPS A20: the bush rects (render x/z centre, half sizes + a leaf margin) and their cleared fade (0..1)
   const bushU = {
     uBushRect: { value: bushRects().map((r) => new THREE.Vector4(r.x, -r.y, r.hw + 1.1, r.hh + 1.1)) },
@@ -985,9 +1034,10 @@ export function createMapView(): MapView {
         const x = cxm + (rnd() * 2 - 1) * hw * 0.85;
         const y = cym + (rnd() * 2 - 1) * hh * 0.88;
         const r = 0.7 + rnd() * 0.45;
-        const h = 0.45 + rnd() * 0.25;
+        // raised ground: a bush is a low, soft mound (top under RAISE.h), so it never reads as a wall
+        const h = 0.18 + rnd() * 0.12;
         leaves.push([x, h, y, r]);
-        bush.sphere(r, i % 3 ? 0x4f9a5a : 0x5fb06a, { at: [x, h, -y], scale: [1, 0.85, 1], ...sway }, 9);
+        bush.sphere(r, i % 3 ? 0x5fae62 : 0x72c070, { at: [x, h, -y], scale: [1, BUSH_SQUASH, 1], ...sway }, 9);
       }
       // berries sit on the leaves (trailer review: placed anywhere in the box, some hovered in the air)
       for (let i = 0; i < 12; i++) {
@@ -995,7 +1045,7 @@ export function createMapView(): MapView {
         const a = rnd() * Math.PI * 2;
         const el = 0.5 + rnd() * 0.6;
         const k = lr * 0.98;
-        bush.sphere(0.12, 0xb98cff, { at: [lx + Math.cos(a) * Math.cos(el) * k, lh + Math.sin(el) * k * 0.85, -(ly + Math.sin(a) * Math.cos(el) * k)], ...sway }, 6);
+        bush.sphere(0.12, 0xb98cff, { at: [lx + Math.cos(a) * Math.cos(el) * k, lh + Math.sin(el) * k * BUSH_SQUASH, -(ly + Math.sin(a) * Math.cos(el) * k)], ...sway }, 6);
       }
     }
   }
@@ -1043,14 +1093,16 @@ export function createMapView(): MapView {
   // forest ring outside the playfield, plus a hedge on the edge
   const trees = new ModelBuilder();
   const tree = (x: number, z: number, s: number): void => {
-    trees.cyl(0.25 * s, 0.35 * s, 1.6 * s, 0x8a5a3a, { at: [x, 0.8 * s, z] }, 6);
+    // raised ground: a tree stands on the block where it is raised
+    const g0 = lift(x, -z);
+    trees.cyl(0.25 * s, 0.35 * s, 1.6 * s, 0x8a5a3a, { at: [x, g0 + 0.8 * s, z] }, 6);
     const green = [0x5aa35a, 0x4f9a4a, 0x6bb565][(rnd() * 3) | 0];
     // living pass: the crown bends from the trunk's top (the trunk stays put)
-    const sway = { part: WIND.treeCm, pivot: [x, 1.2 * s, z] as const };
-    trees.add(new THREE.IcosahedronGeometry(1.5 * s, 0), green, { at: [x, 2.3 * s, z], ...sway });
-    trees.add(new THREE.IcosahedronGeometry(1.05 * s, 0), 0x7cc46e, { at: [x + 0.2 * s, 3.2 * s, z - 0.1 * s], ...sway });
+    const sway = { part: WIND.treeCm, pivot: [x, g0 + 1.2 * s, z] as const };
+    trees.add(new THREE.IcosahedronGeometry(1.5 * s, 0), green, { at: [x, g0 + 2.3 * s, z], ...sway });
+    trees.add(new THREE.IcosahedronGeometry(1.05 * s, 0), 0x7cc46e, { at: [x + 0.2 * s, g0 + 3.2 * s, z - 0.1 * s], ...sway });
     // the shadow stand-in: the canopy (both crowns) as one tall blob down to the trunk's top
-    standIns.push({ x: x + 0.05 * s, y: 2.35 * s, z: z - 0.03 * s, rx: 1.45 * s, ry: 1.95 * s, rz: 1.45 * s });
+    standIns.push({ x: x + 0.05 * s, y: g0 + 2.35 * s, z: z - 0.03 * s, rx: 1.45 * s, ry: 1.95 * s, rz: 1.45 * s });
   };
   for (let i = 0; i < 260; i++) {
     const side = i % 4;
@@ -1126,12 +1178,14 @@ export function createMapView(): MapView {
   const wr = lcg(29);
   const rockTones = [0x9d958a, 0xaaa294, 0x8c857b, 0xb3ab9c];
   for (const k of wallRocks()) {
+    // raised ground: the rocks stand on the block (a little lower, so the wall is not twice as tall)
+    const g0 = lift(k.x, k.y) * 0.6;
     wallB.add(new THREE.DodecahedronGeometry(k.r, 0), rockTones[(wr() * rockTones.length) | 0], {
-      at: [k.x, k.h * 0.42, -k.y],
+      at: [k.x, g0 + k.h * 0.42, -k.y],
       rot: [wr() * 3, wr() * 3, wr() * 3],
       scale: [1, k.h / (2 * k.r) + 0.1, 1],
     });
-    standIns.push({ x: k.x, y: k.h * 0.42, z: -k.y, rx: k.r, ry: k.r * (k.h / (2 * k.r) + 0.1), rz: k.r });
+    standIns.push({ x: k.x, y: g0 + k.h * 0.42, z: -k.y, rx: k.r, ry: k.r * (k.h / (2 * k.r) + 0.1), rz: k.r });
   }
   for (const cl of wallClusters()) {
     const long = cl.x1 - cl.x0 >= cl.y1 - cl.y0;
@@ -1139,13 +1193,14 @@ export function createMapView(): MapView {
     const mx = (cl.x0 + cl.x1) / 2;
     const my = (cl.y0 + cl.y1) / 2;
     // one fallen log along the cluster's long side
-    const at: [number, number, number] = long ? [mx + (wr() - 0.5) * 0.6, 1.25, -my] : [mx, 1.25, -(my + (wr() - 0.5) * 0.6)];
+    const lg = lift(mx, my) * 0.6;
+    const at: [number, number, number] = long ? [mx + (wr() - 0.5) * 0.6, lg + 1.25, -my] : [mx, lg + 1.25, -(my + (wr() - 0.5) * 0.6)];
     wallB.cyl(0.24, 0.28, len, 0x7a5133, { at, rot: long ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0] }, 7);
     // a root stump and a moss cap at one end
     const sx = long ? cl.x0 + 0.7 : mx;
     const sy = long ? my : cl.y1 - 0.7;
-    wallB.cyl(0.38, 0.5, 1.5, 0x6e4a2e, { at: [sx, 0.75, -sy] }, 7);
-    wallB.sphere(0.5, 0x5f9a52, { at: [sx, 1.55, -sy], scale: [1, 0.45, 1] }, 7);
+    wallB.cyl(0.38, 0.5, 1.5, 0x6e4a2e, { at: [sx, lg + 0.75, -sy] }, 7);
+    wallB.sphere(0.5, 0x5f9a52, { at: [sx, lg + 1.55, -sy], scale: [1, 0.45, 1] }, 7);
   }
   addMerged(wallB, 'walls', true, canopyMat(0.6, 'pl-wall-cut-v1'));
   if (phoneScenery) {
@@ -1192,7 +1247,7 @@ export function createMapView(): MapView {
     list.forEach((t, j) => {
       const i = t.i;
       fq.setFromAxisAngle(up, (t.x * 7.1 + t.y * 3.3) % (Math.PI * 2));
-      fm.compose(fv.set(t.x, 0, -t.y), fq, fs.set(t.s, t.s * (0.9 + ((i * 37) % 10) / 40), t.s));
+      fm.compose(fv.set(t.x, lift(t.x, t.y), -t.y), fq, fs.set(t.s, t.s * (0.9 + ((i * 37) % 10) / 40), t.s));
       mesh.setMatrixAt(j, fm);
       const tint = 0.82 + ((i * 53) % 17) / 90;
       mesh.setColorAt(j, tc.setRGB(tint, tint, tint));
@@ -1205,12 +1260,13 @@ export function createMapView(): MapView {
 
   const hedge = new ModelBuilder();
   for (const h of hedgeSpots()) {
-    if (h.kind === 'rock') hedge.add(new THREE.DodecahedronGeometry(h.r, 0), h.color, { at: [h.x, h.r * 0.45, -h.y], rot: [h.x, h.y, h.r * 7], scale: [1, 0.7, 1] });
-    else if (h.r < 0.2) hedge.sphere(h.r, h.color, { at: [h.x, 0.95, -h.y], part: WIND.hedgeCm * 1.6, pivot: [h.x, 0.1, -h.y] }, 5);
-    else hedge.sphere(h.r / 1.2, h.color, { at: [h.x, 0.4, -h.y], scale: [1.2, 0.8, 1.2], part: WIND.hedgeCm, pivot: [h.x, 0, -h.y] }, 8);
+    const g0 = lift(h.x, h.y);
+    if (h.kind === 'rock') hedge.add(new THREE.DodecahedronGeometry(h.r, 0), h.color, { at: [h.x, g0 + h.r * 0.45, -h.y], rot: [h.x, h.y, h.r * 7], scale: [1, 0.7, 1] });
+    else if (h.r < 0.2) hedge.sphere(h.r, h.color, { at: [h.x, g0 + 0.95, -h.y], part: WIND.hedgeCm * 1.6, pivot: [h.x, g0 + 0.1, -h.y] }, 5);
+    else hedge.sphere(h.r / 1.2, h.color, { at: [h.x, g0 + 0.4, -h.y], scale: [1.2, 0.8, 1.2], part: WIND.hedgeCm, pivot: [h.x, g0, -h.y] }, 8);
   }
   // MAP-GAPS A13: a low stone wall arcs behind each fountain basin where the hedge stops
-  for (const st of fountainWall()) hedge.add(new THREE.DodecahedronGeometry(st.r, 0), st.color, { at: [st.x, st.r * 0.55, -st.y], rot: [st.x, st.y, st.r * 5], scale: [1, 0.75, 1] });
+  for (const st of fountainWall()) hedge.add(new THREE.DodecahedronGeometry(st.r, 0), st.color, { at: [st.x, lift(st.x, st.y) + st.r * 0.55, -st.y], rot: [st.x, st.y, st.r * 5], scale: [1, 0.75, 1] });
   // MAP-GAPS A1: low pebbles round the rat camps (under 0.25 m, outside the clearing, off the footpaths): the old
   // loop asked for rocks on unwalkable ground only, of which there is none there, and placed 0 of 400
   for (const k of campPebbles()) hedge.add(new THREE.DodecahedronGeometry(k.r, 0), 0xb9b2a6, { at: [k.x, 0, -k.y], rot: [k.x, k.y, k.r * 9], scale: [1, k.h / k.r, 1] });

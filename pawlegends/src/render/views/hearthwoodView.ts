@@ -21,8 +21,10 @@ import { toX, toZ } from '../coords';
 import { TEAM } from '../palette';
 import { clearedBushes } from '../bushClear';
 import { ModelBuilder } from './rig';
+import { isPhone } from '../perf/device';
 import type { MapView } from './mapView';
-import { CANOPY_CUT, BUSH_CUT } from './mapView';
+import { CANOPY_CUT, BUSH_CUT, BUSH_SQUASH, RAISE_PAD } from './mapView';
+import { buildRaise, groundAt, raiseGrid, raiseMaterial, raiseMeshes, type RaiseGrid } from './raisedGround';
 import type { Ambient } from '../ambient';
 import { WIND, patchWind, stepWind, windUniforms } from './env/wind';
 import { cloudUniforms, patchCloudShadow, stepClouds } from './env/clouds';
@@ -488,6 +490,35 @@ export function hwRiverWeirs(crossings: readonly { x: number; y: number }[], W: 
   return crossings.map((c) => ({ at: (c.x - W / 2 + (-c.y + H / 2)) / Math.SQRT2, half: 4.7 }));
 }
 
+/** Raised ground: the autumn forest floor block (cap × nothing: flat colour), its rim and its sides. */
+export const HW_RAISE = Object.freeze({ cap: 0x6d6a36, rim: 0xb8a866, side: 0x5a4630, foot: 0x3a2c20 });
+
+/**
+ * Raised ground (render/views/raisedGround.ts): every cell the static grid blocks and everything past the map edge,
+ * except the river strip with a margin (out past both far corners, where it fades under the trees) and each fountain
+ * with its plaza. Render only.
+ */
+export function hwRaise(info: MapInfo): RaiseGrid {
+  const W = info.width / 1000;
+  const H = info.height / 1000;
+  const half = info.river.b / 1000 / Math.SQRT2;
+  const len = Math.hypot(W, H) + 24;
+  return raiseGrid(
+    info.nx,
+    info.ny,
+    info.navCell / 1000,
+    RAISE_PAD,
+    (i, j) => info.playable[j * info.nx + i] === 0,
+    (x, y) =>
+      // inside the map only the band's rim cells (the pit walls in the band stay raised), past the edge the band and
+      // its banks
+      (Math.abs(x + y - W) / Math.SQRT2 < half + (x < 0 || y < 0 || x > W || y > H ? 1.5 : 0) &&
+        Math.abs(x - W / 2 - (y - H / 2)) / Math.SQRT2 < len / 2 + 1 &&
+        (x < 3 || y < 3 || x > W - 3 || y > H - 3)) ||
+      info.fountains.some((f) => Math.hypot(x - f.x / 1000, y - f.y / 1000) < f.radius / 1000 + 1.4),
+  );
+}
+
 export function createHearthwoodView(info: MapInfo): MapView {
   const W = info.width / 1000;
   const H = info.height / 1000;
@@ -533,6 +564,23 @@ export function createHearthwoodView(info: MapInfo): MapView {
   outer.position.set(W / 2, -0.02, -H / 2);
   outer.receiveShadow = true;
   group.add(outer);
+
+  // Raised ground: where no hero walks stands one block RAISE.h tall (the forest floor, the outcrops, past the edge)
+  const raise = hwRaise(info);
+  const lift = (x: number, y: number): number => groundAt(raise, x, y);
+  const raiseGeo = buildRaise(raise, HW_RAISE);
+  keep(raiseGeo.caps);
+  keep(raiseGeo.sides);
+  const sight = { uLens: { value: new THREE.Vector3(0, 1e4, 0) }, uSee: { value: Array.from({ length: CANOPY_CUT.slots }, () => new THREE.Vector4()) } };
+  const capMat = keep(patchCloudShadow(raiseMaterial(new THREE.MeshLambertMaterial({ vertexColors: true }), sight, CANOPY_CUT.slots, W, H, 'pl-hw-raise-cap-v1'), cloudU));
+  const sideMat = keep(raiseMaterial(new THREE.MeshLambertMaterial({ vertexColors: true }), sight, CANOPY_CUT.slots, W, H, 'pl-hw-raise-side-v1'));
+  const raised = raiseMeshes(raiseGeo, capMat, sideMat);
+  // the cliffs cast on a desktop; a phone's shadow pass stays as it was (PERF-IOS §8 Track A)
+  if (!isPhone()) {
+    raised.sides.castShadow = true;
+    shadowCasters.push(raised.sides);
+  }
+  group.add(raised.sides, raised.caps);
 
   // the painted playfield
   let tex = typeof document !== 'undefined' ? paintGround(info, false) : null;
@@ -708,7 +756,7 @@ export function createHearthwoodView(info: MapInfo): MapView {
       // a broken mast and a torn sail lean over the back of the pit (the back wall faces away from the river axis)
       const bx = p.x + 5.5;
       const by = p.y - 5.5;
-      wreck.cyl(0.25, 0.32, 7.5, 0x5a3e2a, { at: [bx, 3.2, -by], rot: [0.35, 0, 0.35] }, 8);
+      wreck.cyl(0.25, 0.32, 7.5, 0x5a3e2a, { at: [bx, lift(bx, by) + 3.2, -by], rot: [0.35, 0, 0.35] }, 8);
       wreck.box(3.2, 2.4, 0.05, 0xe8dcc0, { at: [bx - 0.6, 4.4, -by + 0.5], rot: [0.35, 0.6, 0.35] });
       wreck.box(1.2, 0.8, 0.06, 0x1f1a22, { at: [bx - 0.4, 6.1, -by + 0.9], rot: [0.35, 0.6, 0.35] });
       wreck.sphere(0.22, 0xfff3dc, { at: [bx - 0.4, 6.15, -by + 0.95] }, 8);
@@ -728,15 +776,17 @@ export function createHearthwoodView(info: MapInfo): MapView {
         const x = p.x + Math.cos(a) * 9.4;
         const y = p.y + Math.sin(a) * 9.4;
         if (hwWalkable(info, x, y) && Math.abs(x + y - W) < 6) continue;
-        wreck.cyl(0.6, 0.75, 0.45, k % 2 ? 0xc77a3a : 0xd98c48, { at: [x, 0.2, -y] }, 8);
-        if (k % 3 === 0) wreck.sphere(0.3, 0x5d7f3e, { at: [x, 0.48, -y], scale: [1, 0.35, 1] }, 6);
+        const g1 = lift(x, y);
+        wreck.cyl(0.6, 0.75, 0.45, k % 2 ? 0xc77a3a : 0xd98c48, { at: [x, g1 + 0.2, -y] }, 8);
+        if (k % 3 === 0) wreck.sphere(0.3, 0x5d7f3e, { at: [x, g1 + 0.48, -y], scale: [1, 0.35, 1] }, 6);
       }
       wreck.sphere(0.3, 0xe5484d, { at: [p.x - 4, 0.25, -(p.y + 3)] }, 8);
       wreck.sphere(0.3, 0xe5484d, { at: [p.x + 3.5, 0.25, -(p.y - 3.6)] }, 8);
     }
   }
 
-  const forestU = { uLens: { value: new THREE.Vector3(0, 1e4, 0) }, uSee: { value: Array.from({ length: CANOPY_CUT.slots }, () => new THREE.Vector4()) } };
+  // the canopy, wall and bush cuts read the same sight lines as the raised ground
+  const forestU = sight;
 
   // the rock walls the nav grid blocks: rocks filled to their edges, the big ones crowned with an autumn tree; the pit
   // walls are planks and hull ribs (Grizzlechop) or copper mould and moss (Pudding)
@@ -749,19 +799,21 @@ export function createHearthwoodView(info: MapInfo): MapView {
     const x1 = r[2] / 1000;
     const y1 = r[3] / 1000;
     const pit = wallPit(info, r);
+    // raised ground: the outcrop stands on the block (a little lower, so the wall is not twice as tall)
+    const g0 = lift((x0 + x1) / 2, (y0 + y1) / 2) * 0.6;
     const step = 1.15;
     for (let x = x0 + 0.55; x < x1; x += step) {
       for (let y = y0 + 0.55; y < y1; y += step) {
         const jx = Math.min(x1 - 0.4, x + (wr() - 0.5) * 0.4);
         const jy = Math.min(y1 - 0.4, y + (wr() - 0.5) * 0.4);
         if (pit === 'grizzlechop') {
-          wallB.box(1.2, 1.1 + wr() * 0.8, 1.2, wr() < 0.5 ? 0x6e4a2e : 0x5a3e2a, { at: [jx, 0.6, -jy], rot: [0, wr() * 0.6, (wr() - 0.5) * 0.25] });
+          wallB.box(1.2, 1.1 + wr() * 0.8, 1.2, wr() < 0.5 ? 0x6e4a2e : 0x5a3e2a, { at: [jx, g0 + 0.6, -jy], rot: [0, wr() * 0.6, (wr() - 0.5) * 0.25] });
         } else if (pit === 'pudding') {
-          wallB.add(new THREE.DodecahedronGeometry(0.75, 0), HW.rock[(wr() * HW.rock.length) | 0], { at: [jx, 0.55, -jy], rot: [wr() * 3, wr() * 3, 0], scale: [1, 1.2, 1] });
-          if (wr() < 0.35) wallB.sphere(0.45, 0x5d7f3e, { at: [jx, 1.15, -jy], scale: [1, 0.3, 1] }, 6);
+          wallB.add(new THREE.DodecahedronGeometry(0.75, 0), HW.rock[(wr() * HW.rock.length) | 0], { at: [jx, g0 + 0.55, -jy], rot: [wr() * 3, wr() * 3, 0], scale: [1, 1.2, 1] });
+          if (wr() < 0.35) wallB.sphere(0.45, 0x5d7f3e, { at: [jx, g0 + 1.15, -jy], scale: [1, 0.3, 1] }, 6);
         } else {
           const rr = 0.7 + wr() * 0.3;
-          wallB.add(new THREE.DodecahedronGeometry(rr, 0), HW.rock[(wr() * HW.rock.length) | 0], { at: [jx, rr * 0.6, -jy], rot: [wr() * 3, wr() * 3, wr() * 3], scale: [1, 1.1 + wr() * 0.5, 1] });
+          wallB.add(new THREE.DodecahedronGeometry(rr, 0), HW.rock[(wr() * HW.rock.length) | 0], { at: [jx, g0 + rr * 0.6, -jy], rot: [wr() * 3, wr() * 3, wr() * 3], scale: [1, 1.1 + wr() * 0.5, 1] });
         }
       }
     }
@@ -773,16 +825,16 @@ export function createHearthwoodView(info: MapInfo): MapView {
         const t = (i + 0.5) / n;
         const x = long ? x0 + (x1 - x0) * t : (x0 + x1) / 2;
         const y = long ? (y0 + y1) / 2 : y0 + (y1 - y0) * t;
-        wallB.torus(1.1, 0.12, 0x4e3524, { at: [x, 0.9, -y], rot: [0, long ? 0 : Math.PI / 2, 0] }, Math.PI);
+        wallB.torus(1.1, 0.12, 0x4e3524, { at: [x, g0 + 0.9, -y], rot: [0, long ? 0 : Math.PI / 2, 0] }, Math.PI);
       }
     } else if (!pit && (x1 - x0) * (y1 - y0) >= 16) {
       // an autumn tree on the outcrop
       const cx = (x0 + x1) / 2;
       const cy = (y0 + y1) / 2;
-      wallB.cyl(0.3, 0.42, 2.4, HW.trunk, { at: [cx, 1.6, -cy] }, 6);
-      const sway = { part: WIND.treeCm, pivot: [cx, 2.4, -cy] as const };
-      crown.add(new THREE.IcosahedronGeometry(1.9, 0), HW.leaves[(wr() * HW.leaves.length) | 0], { at: [cx, 3.6, -cy], ...sway });
-      crown.add(new THREE.IcosahedronGeometry(1.3, 0), HW.leaves[(wr() * HW.leaves.length) | 0], { at: [cx + 0.3, 4.6, -cy - 0.2], ...sway });
+      wallB.cyl(0.3, 0.42, 2.4, HW.trunk, { at: [cx, g0 + 1.6, -cy] }, 6);
+      const sway = { part: WIND.treeCm, pivot: [cx, g0 + 2.4, -cy] as const };
+      crown.add(new THREE.IcosahedronGeometry(1.9, 0), HW.leaves[(wr() * HW.leaves.length) | 0], { at: [cx, g0 + 3.6, -cy], ...sway });
+      crown.add(new THREE.IcosahedronGeometry(1.3, 0), HW.leaves[(wr() * HW.leaves.length) | 0], { at: [cx + 0.3, g0 + 4.6, -cy - 0.2], ...sway });
     }
   }
   addMerged(wallB, 'walls', true, keep(cutMaterial(forestU, 0.6, 'pl-hw-wall-cut-v1')));
@@ -810,16 +862,17 @@ export function createHearthwoodView(info: MapInfo): MapView {
       const x = cxm + (rnd() * 2 - 1) * hw * 0.85;
       const y = cym + (rnd() * 2 - 1) * hh * 0.88;
       const r = 0.7 + rnd() * 0.45;
-      const h = 0.45 + rnd() * 0.25;
+      // raised ground: a bush is a low, soft mound (top under RAISE.h), so it never reads as a wall
+      const h = 0.18 + rnd() * 0.12;
       leaves.push([x, h, y, r]);
-      bush.sphere(r, HW.bush[(rnd() * HW.bush.length) | 0], { at: [x, h, -y], scale: [1, 0.85, 1], ...sway }, 9);
+      bush.sphere(r, HW.bush[(rnd() * HW.bush.length) | 0], { at: [x, h, -y], scale: [1, BUSH_SQUASH, 1], ...sway }, 9);
     }
     for (let i = 0; i < Math.round(n * 0.7); i++) {
       const [lx, lh, ly, lr] = leaves[(rnd() * leaves.length) | 0];
       const a = rnd() * Math.PI * 2;
       const el = 0.5 + rnd() * 0.6;
       const k = lr * 0.98;
-      bush.sphere(0.12, HW.berry, { at: [lx + Math.cos(a) * Math.cos(el) * k, lh + Math.sin(el) * k * 0.85, -(ly + Math.sin(a) * Math.cos(el) * k)], ...sway }, 6);
+      bush.sphere(0.12, HW.berry, { at: [lx + Math.cos(a) * Math.cos(el) * k, lh + Math.sin(el) * k * BUSH_SQUASH, -(ly + Math.sin(a) * Math.cos(el) * k)], ...sway }, 6);
     }
   }
   const bushMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
@@ -926,7 +979,7 @@ export function createHearthwoodView(info: MapInfo): MapView {
     mesh.name = 'far-forest';
     list.forEach((t, j) => {
       fq.setFromAxisAngle(up, (t.x * 7.1 + t.y * 3.3) % (Math.PI * 2));
-      fm.compose(fv.set(t.x, 0, -t.y), fq, fs.set(t.s, t.s * (0.9 + ((t.i * 37) % 10) / 40), t.s));
+      fm.compose(fv.set(t.x, lift(t.x, t.y), -t.y), fq, fs.set(t.s, t.s * (0.9 + ((t.i * 37) % 10) / 40), t.s));
       mesh.setMatrixAt(j, fm);
       // the trunk keeps its brown through the tint (vertex colour × instance colour); leaves take the autumn colour
       mesh.setColorAt(j, tc.setHex(HW.leaves[(t.i * 7) % HW.leaves.length]).multiplyScalar(1.15));
@@ -948,7 +1001,7 @@ export function createHearthwoodView(info: MapInfo): MapView {
     canopy.name = 'canopy';
     canopyList.forEach((t, j) => {
       fq.setFromAxisAngle(up, (t.x * 5.3 + t.y * 2.9) % (Math.PI * 2));
-      fm.compose(fv.set(t.x, 0, -t.y), fq, fs.set(t.s, t.s, t.s));
+      fm.compose(fv.set(t.x, lift(t.x, t.y), -t.y), fq, fs.set(t.s, t.s, t.s));
       canopy.setMatrixAt(j, fm);
       canopy.setColorAt(j, tc.setHex(HW.canopy[j % HW.canopy.length]));
     });

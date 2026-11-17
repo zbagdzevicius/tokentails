@@ -50,6 +50,7 @@ import { createHearthwoodView } from './views/hearthwoodView';
 import { mapInfo } from '../sim/map/info';
 import { mapIndex } from '../sim/map/runtime';
 import { ACTIVE_MAP, MAP } from '../data/map';
+import { dayLightAt, dayPreset, dayShift, newDayLight } from './daylight';
 import type { ObjectiveView } from './views/objectiveView';
 import { inClearZone, MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
@@ -781,6 +782,35 @@ export class GameView {
     this.structures.debris = red ? 0 : t === 'low' ? 0.35 : t === 'med' ? 0.6 : 1;
   }
 
+  /** Daytime light (render/daylight.ts): the bound map's time of day, moved on by the match clock (read only). */
+  private readonly dayPre = dayPreset(ACTIVE_MAP.id);
+  private readonly dayOut = newDayLight();
+  private daySunset = -1;
+  private dayAt = -1;
+  /** Tests and the map-look shots: hold the light at this shift (0 day … 1 dusk); −1 follows the clock. */
+  dayForce = -1;
+  private daylight(frame: ViewFrame | null): void {
+    if (this.dayForce >= 0) {
+      if (this.dayAt === this.dayForce) return;
+      this.dayAt = this.dayForce;
+      this.gr.setDaylight?.(dayLightAt(this.dayPre, this.dayForce, this.dayOut));
+      return;
+    }
+    const c = frame?.latest.clock;
+    if (!c) {
+      if (this.dayAt >= 0) return;
+      this.dayAt = 0;
+      this.gr.setDaylight?.(dayLightAt(this.dayPre, 0, this.dayOut));
+      return;
+    }
+    if (c.phase === 'play') this.daySunset = c.tick + Math.max(0, c.nextPhaseIn);
+    const t = dayShift(c, this.daySunset);
+    // a step under 1/1000 of the shift changes nothing visible: skip the colour work
+    if (Math.abs(t - this.dayAt) < 1e-3) return;
+    this.dayAt = t;
+    this.gr.setDaylight?.(dayLightAt(this.dayPre, t, this.dayOut));
+  }
+
   /** Per frame after the heroes: FX kit, readability, fight camera (ANIM-SPEC §7–§9). */
   private animPost(frame: ViewFrame | null, dt: number): void {
     this.applyAnimTier();
@@ -792,6 +822,7 @@ export class GameView {
     this.impactLife.focus.x = this.gr.focus.x;
     this.impactLife.focus.z = this.gr.focus.z;
     this.impactLife.update(this.time);
+    this.daylight(frame);
     this.gr.lightDrift?.(this.time, this.amb.level === 2 && !this.amb.reduced);
     // readability: enemy windups dim any mesh FX over them; own / ally FX fade past the coverage budget
     packTele(this.effects.windups, (id) => this.who.get(id) ?? null, this.myTeam, this.meshFx.uniforms.uTele.value);
@@ -1494,6 +1525,7 @@ export class GameView {
   dispose(): void {
     this.gone = true;
     this.gr.lightDrift?.(0, false);
+    this.gr.setDaylight?.(null);
     for (const ch of this.warmKeep) ch.dispose();
     this.warmKeep.length = 0;
     this.gr.preRender = null;

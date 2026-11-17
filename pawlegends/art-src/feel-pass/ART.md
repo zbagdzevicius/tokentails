@@ -25,6 +25,8 @@ on flat #00ff00 and chroma-keyed. Every output was checked by eye for text, logo
 - A5 `ui-frames/pause-panel-192`: `border-image: url(/assets/ui-frames/pause-panel-192.webp) 64 fill / 32px` (cream fill needs dark text; drop `fill` on the dark pause card).
 - A5 `ui-frames/talent-card-720x128`: `border-image: url(/assets/ui-frames/talent-card-720x128.webp) 52 fill / 26px` on the 360×64 talent card (cream fill, dark text).
 - A6 `stickers/*-256`: base-cat / base-dog for the spawn toast (B2.7), nap-cat for the recall channel, respawn-dog for "Back in N", cheer-cat / cheer-dog for first blood and multi-kill, help-cat for tips. Show at 48–96 CSS px.
+  Not shipped since Nov 17, 2026 (the game never used them; the 10 MB build budget): help-cat, respawn-dog, cheer-cat and
+  cheer-dog. Their prompts stay below; build.py writes them again when a screen uses one.
 - A7 `pings/*-128`: ping wheel (`ui/pingWheel.ts`) and minimap / overhead ping glyphs, 32–48 CSS px.
 - A9 `world/offmap-ground-1024`: seamless; `RepeatWrapping`, about one repeat per 12–16 m on the outer ground plane (B1.9).
 - A10 `icons/cancel-bubble-144` (72 CSS cancel bubble, B4.2), `icons/lock-r-88` (44 CSS locked R ghost chip, B3).
