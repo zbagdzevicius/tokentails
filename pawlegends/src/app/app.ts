@@ -79,6 +79,7 @@ import { dropLine, initLiveops, liveopsState, setDropAction } from '../meta/live
 import { countdownText, legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef, type ModeId } from '../ui/modeSelect/modes';
 import {
   isUnlocked,
+  levelNeeded,
   loadModeLocal,
   lockLine,
   markModesMigrated,
@@ -903,7 +904,8 @@ export class App {
       } catch {
         history = [];
       }
-      add = migrateUnlocks(p, { saved, history }, all);
+      // a saved choice with no finished match is not "played before" (a link or a first look writes it too)
+      add = migrateUnlocks(p, { saved: p.matches > 0 ? saved : null, history }, all);
       markModesMigrated();
       if (add.length) this.analytics.track('mode_unlock', { mode: add.join(','), matches: p.matches, wins: p.wins, via: 'migrate' });
     }
@@ -935,7 +937,7 @@ export class App {
       } catch {
         modes = [];
       }
-      const more = migrateUnlocks({ ...p, unlocks: [...p.unlocks, ...add] }, { saved, history: modes }, all).filter((u) =>
+      const more = migrateUnlocks({ ...p, unlocks: [...p.unlocks, ...add] }, { saved: p.matches > 0 ? saved : null, history: modes }, all).filter((u) =>
         ['mode.classic', 'mode.twist', 'mode.boss'].includes(u),
       );
       markModesLevelScanned();
@@ -1106,12 +1108,20 @@ export class App {
     if (this.linkMode) {
       const lm = this.linkMode;
       this.linkMode = null;
-      this.matchModeNow = lm.mode;
-      saveMatchMode(lm.mode);
+      // mode unlocking: the once-per-device migrations read the saved mode as "chosen before", so they run before the
+      // link writes it (Nov 17 verification: `?mode=classic` on a new device kept Classic open for good), and a link
+      // to a mode above the player's level picks Skirmish and says when it opens
+      this.syncModeUnlocks();
+      const linked = modeById(lm.mode, modeList());
+      const open = !linked || isUnlocked(linked, loadProfile(), Date.now());
+      const mode: MatchMode = open ? lm.mode : 'skirmish';
+      this.matchModeNow = mode;
+      saveMatchMode(mode);
       // Home reads its own mode key (Mode Select): the link's tile, vs Bots
-      this.modeChoiceNow = { mode: lm.mode, queue: 'bots' };
+      this.modeChoiceNow = { mode, queue: 'bots' };
       saveModeChoice(this.modeChoiceNow);
       if (!lm.known) notice = `Update to play ${lm.asked.charAt(0).toUpperCase()}${lm.asked.slice(1)}. Playing Skirmish for now.`;
+      else if (!open && linked) notice = `${linked.name} unlocks at Lv ${levelNeeded(linked.id)}. Playing Skirmish for now.`;
       this.analytics.track('mode_link', { mode: lm.known ? lm.mode : 'unknown', asked: lm.asked });
     }
     // gap plan P4: the Ranked tile follows the live gate (GET /pawlegends/ranked/status, 30 s cache)
@@ -1155,7 +1165,10 @@ export class App {
       matches: p.matches,
       // MODE-UNLOCKS.md: the account level that opens the modes; the Yarn balance where a server answered
       level: levelInfo(p.matches),
-      yarn: this.champs().server ? this.champs().yarn.balance : null,
+      // (Nov 17 verification: a web guest has no account, so the chip never showed; it shows 0 and says to sign in)
+      // (a signed-in player waits for the server's balance instead of flashing 0)
+      yarn: this.champs().server ? this.champs().yarn.balance : (s.embedded || this.isApp()) && !accountState().signedIn ? 0 : null,
+      yarnGuest: !this.champs().server && !accountState().signedIn,
     };
     const ends = season ? seasonEndText(season.endsAt) : '';
     const base = import.meta.env.BASE_URL ?? './';

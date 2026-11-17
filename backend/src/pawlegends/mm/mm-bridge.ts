@@ -403,14 +403,26 @@ export class MmBridge implements MmHooks {
     /**
      * Mode unlocks by account level (MODE-UNLOCKS.md, founder Nov 17): 5v5 Classic opens at Lv 3. Every member of the
      * entry needs the level's finished matches on server records (`playedFor`: saved matches, rated games, completed
-     * Quick Play rooms; never the client's hint outside the e2e harness). Refused with `mm_locked`, reason
+     * Quick Play rooms) for a registered account. A guest (no account: a web visitor) has no server record of its bot
+     * matches, which the game plays on the device, so its count is the larger of the server's and the client's
+     * `hint.matches` (Nov 17 verification: a guest at Lv 3 was refused 5v5 Classic for good). A guest key is free, so
+     * the level is progression, not a security line; accounts stay on server records. Refused with `mm_locked`, reason
      * `mode_level`, and `{mode, level, have, need}` (an older game shows its generic lock line and may search again).
      */
     private async levelRefusal(member: string, socks: MmSock[], queue: string): Promise<boolean> {
         const level = QUEUE_LEVEL[queue];
         if (!level) return false;
         const need = matchesForLevel(level);
-        const have = await Promise.all(socks.map(s => this.playedFor(s).catch(() => 0)));
+        const have = await Promise.all(
+            socks.map(async s => {
+                const server = await this.playedFor(s).catch(() => 0);
+                if (s.identity.accountId && !s.identity.guest) return server;
+                const h = s.hint?.matches;
+                const hint =
+                    typeof h === 'number' && Number.isFinite(h) && h > 0 ? Math.min(1_000_000, Math.floor(h)) : 0;
+                return Math.max(server, hint);
+            })
+        );
         const low = Math.min(...have);
         if (low >= need) return false;
         this.refuse(member, 'mm_locked', undefined, 'mode_level', { mode: queue, level, have: low, need });

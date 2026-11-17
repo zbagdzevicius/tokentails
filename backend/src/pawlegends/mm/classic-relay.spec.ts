@@ -102,16 +102,22 @@ describe('5v5 Classic relay (MAP-5V5.md §9)', () => {
         }
     });
 
-    it('5v5 Classic opens at Lv 3 (4 finished matches on server records); casual 3v3 is open from the start', async () => {
+    it('5v5 Classic opens at Lv 3 (4 finished matches): server records for accounts, the device count for guests', async () => {
         const b = await bootMm();
         try {
-            // a fresh guest with no server record and no matches, and an IP-only identity (no guest key): the client's
-            // hint is never trusted for the level (MODE-UNLOCKS.md, founder Nov 17)
-            const fresh = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 99 } });
+            // a fresh guest at Lv 1, an IP-only identity (no guest key) and a registered account that claims 99 matches
+            // with none on server records: refused (an account's hint is never trusted, MODE-UNLOCKS.md)
+            const fresh = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
             const anon = await b.client();
             anon.hello({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
             await anon.until(() => anon.last('welcome'));
-            for (const c of [fresh, anon]) {
+            const acct = await b.client();
+            acct.hello({
+                ticket: b.tickets.issue({ accountId: 'acct-lv1', guest: false }).ticket,
+                hint: { maxDifficulty: 'easy', newbie: true, matches: 99 },
+            });
+            await acct.until(() => acct.last('welcome'));
+            for (const c of [fresh, anon, acct]) {
                 c.send({ t: 'mm.join', queue: 'classic', side: 'any' });
                 const err = await c.until(() => c.last('error'));
                 expect(err).toMatchObject({
@@ -125,6 +131,12 @@ describe('5v5 Classic relay (MAP-5V5.md §9)', () => {
                 expect(c.last('mm.status')).toBeUndefined();
             }
             expect((b.relay.counters() as Record<string, number>).mm_queued ?? 0).toBe(0);
+            // a web guest's bot matches live on the device only: its Lv 3 (4 matches) opens the queue (Nov 17 verification)
+            const lv3 = await b.guest({ hint: { maxDifficulty: 'easy', newbie: false, matches: 4 } });
+            lv3.send({ t: 'mm.join', queue: 'classic', side: 'any' });
+            expect((await lv3.until(() => lv3.last('mm.status'))).queue).toBe('classic');
+            expect(lv3.last('error')).toBeUndefined();
+            lv3.send({ t: 'mm.leave' });
             // casual 3v3 is open from the first session (its 5-match lock is lifted for now, 2026-11-11)
             const casual = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
             casual.send({ t: 'mm.join', queue: 'casual', side: 'any' });

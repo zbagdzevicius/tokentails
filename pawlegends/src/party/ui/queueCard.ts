@@ -13,6 +13,7 @@ import type { MmSide } from '../../net/proto';
 import { COPY, DIFF_LABEL, clockText, esc, sideText } from './copy';
 import { backfillHtml, type BackfillModel } from './backfillCard';
 import { RANKED_BOTS } from '../../meta/ranked';
+import { matchesForLevel } from '../../meta/accountLevel';
 import { regionText } from '../../meta/rankedPing';
 import { COOP_SWITCH_GRACE_S, queueBots } from '../botTrickle';
 
@@ -106,7 +107,7 @@ const stopText = (m: QueueModel): string => {
       return COPY.pvpLocked;
     case 'mode_level': {
       const l = m.modeLock;
-      if (!l) return COPY.modeLevel('This mode', 3, 0, 2);
+      if (!l) return COPY.modeLevel('5v5 Classic', 3, 0, matchesForLevel(3));
       const name = l.mode === 'classic' ? '5v5 Classic' : l.mode === 'ranked' ? 'Ranked' : 'This mode';
       return l.mine ? COPY.modeLevelMate(name, l.level) : COPY.modeLevel(name, l.level, l.have, l.need);
     }

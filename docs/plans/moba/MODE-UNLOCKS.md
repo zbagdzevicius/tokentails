@@ -27,10 +27,14 @@ mode follows its own level (it no longer opens early for its window).
 strip. Locked icons read "Lv N" with a ring of the matches toward it; the sheet says "Unlocks at Lv 3 (you are Lv 1:
 3 more matches)." The nav Ranked item and the Ranked duo invite use the same line.
 
-**Server check:** the relay refuses `mm.join {queue:'classic'}` unless every member has Lv 3's 4 matches on server
-records (`playedFor`: saved matches, rated games, completed Quick Play rooms), with `mm_locked {reason: 'mode_level',
-mode, level, have, need}`. The queue card says "5v5 Classic unlocks at Lv 3: finish 1 more match (3/4)", or "A party
-member has not reached Lv 3 for 5v5 Classic yet" when this player has it, and offers Play Casual instead. Ranked keeps
+**Server check:** the relay refuses `mm.join {queue:'classic'}` unless every member has Lv 3's 4 matches, with
+`mm_locked {reason: 'mode_level', mode, level, have, need}`. A registered account counts server records only
+(`playedFor`: saved matches, rated games, completed Quick Play rooms). A guest (a pawlegends.app visitor with no
+account) plays its bot matches on the device and the server never sees them, so its count is the larger of the server
+records and `hello.hint.matches` (Nov 17 verification: a guest at Lv 3 saw Classic open and was refused for good). A
+guest key is free, so for guests the level is progression, not a security line. The queue card says "5v5 Classic
+unlocks at Lv 3: finish 1 more match (3/4)", or, only in a party of 2 or more, "A party member has not reached Lv 3
+for 5v5 Classic yet" when this player has it; it offers Play Casual instead. Ranked keeps
 its own refusal (10 saved matches = Lv 6). The other modes are played against bots on the device, so there is no
 server queue to refuse.
 
@@ -117,7 +121,7 @@ level, so the ladder uses match and win counts, which already sync and only go u
 
 | Entry | Behaviour |
 |---|---|
-| A saved choice, or a `?mode=` link, names a locked mode | falls back to Skirmish (`loadModeChoice` and `resolveChoice` use the per-player list) |
+| A saved choice, or a `?mode=` link, names a locked mode | falls back to Skirmish (`loadModeChoice` and `resolveChoice` use the per-player list). A link to a locked mode picks Skirmish and says "Classic unlocks at Lv 3. Playing Skirmish for now." The first-run passes run before the link saves its mode, and a saved choice counts as "played before" only with a finished match (Nov 17 verification: `?mode=classic` on a new device had kept Classic open for good) |
 | Results "Quick Blitz?" | offered only when Blitz is open |
 | Home promo "Cannon Chaos" | shown only once Cannon Chaos is open |
 | Nav Ranked | locked: "Ranked: Finish 10 matches and win 3 (4/10, 1/3)." |

@@ -70,8 +70,10 @@ export interface HomeProfile {
   matches: number;
   /** The account level (meta/accountLevel.ts; MODE-UNLOCKS.md). Absent: not shown. */
   level?: { level: number; pct: number; toNext: number };
-  /** The Yarn balance (the server's; CHAMPION-STORE.md §4), or null where no server answered. */
+  /** The Yarn balance (the server's; CHAMPION-STORE.md §4; 0 for a guest), or null where no host runs (no store). */
   yarn?: number | null;
+  /** No account answered (a web guest): Yarn is earned on an account, so the chip says to sign in. */
+  yarnGuest?: boolean;
 }
 
 /** One promo slide (right edge). `action`: what a tap opens. */
@@ -213,7 +215,7 @@ function currencyHtml(o: HomeScreenOpts): string {
       : `<button type="button" class="hm-curb" data-a="pass" aria-label="${esc(`Season XP ${p.xp}, tier ${p.tier}. Open the pass`)}"${o.onCollection ? '' : ' disabled'}><span class="hm-chip"><i class="hm-gem xp" aria-hidden="true"></i><b>${p.xp.toLocaleString('en-US')}</b><small>Season XP</small></span><span class="hm-chip"><i class="hm-gem tier" aria-hidden="true"></i><b>${p.tier}</b><small>Tier</small></span></button>`;
   const yarn =
     typeof p.yarn === 'number'
-      ? `<button type="button" class="hm-chip hm-yarn" data-a="yarn" data-testid="home-yarn" data-yarn="${Math.max(0, Math.floor(p.yarn))}" title="Yarn: earned by playing. Unlock champions with it" aria-label="${esc(`${yarnNum(p.yarn)} Yarn. Unlock champions`)}"${o.onYarn ? '' : ' disabled'}><img src="${esc(o.base)}assets/splash/yarn.svg" alt="" width="20" height="20" decoding="async"><b>${yarnNum(p.yarn)}</b><small>Yarn</small></button>`
+      ? `<button type="button" class="hm-chip hm-yarn" data-a="yarn" data-testid="home-yarn" data-yarn="${Math.max(0, Math.floor(p.yarn))}" title="${p.yarnGuest ? 'Yarn: sign in to earn it from your matches. Unlock champions with it' : 'Yarn: earned by playing. Unlock champions with it'}" aria-label="${esc(`${yarnNum(p.yarn)} Yarn. ${p.yarnGuest ? 'Sign in to earn Yarn' : 'Unlock champions'}`)}"${p.yarnGuest ? ' data-guest="1"' : ''}${o.onYarn ? '' : ' disabled'}><img src="${esc(o.base)}assets/splash/yarn.svg" alt="" width="20" height="20" decoding="async"><b>${yarnNum(p.yarn)}</b><small>Yarn</small></button>`
       : '';
   return pass || yarn ? `<div class="hm-cur">${pass}${yarn}</div>` : '';
 }

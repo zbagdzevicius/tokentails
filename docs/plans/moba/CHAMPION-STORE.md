@@ -43,6 +43,11 @@ week still has a tank, an assassin or a support on each side, so a new player's 
 played before the change keep the three as `legacy` rows (`grantFormerStarters`, checked once with the Founders check).
 The Season 1 bundles keep 7 + 7: the dog bundle's singles now add up to $27.93. The text below is the launch design.
 
+**Yarn on Home (Nov 17):** Home shows the Yarn chip for every player with a store: the server's balance for an account,
+and 0 for a web guest, whose chip says "Sign in to earn Yarn" (Yarn is kept on an account; a guest's bot matches earn
+none). A signed-in player waits for the server's balance instead of a 0 flash. "Unlock · N Yarn" short of Yarn is
+greyed out (opacity, grayscale, not-allowed cursor) so it never looks more pressable than the price next to it.
+
 "Type" means role, as in `HeroRole` (`data/heroes/types.ts`) and the role tabs (`ui/champSelect/roles.ts` `ROLE_ORDER`). There are 6 roles: fighter, marksman, tank, assassin, mage and support.
 
 A team is never cats and dogs mixed, and co-op or casual PvP assigns a species. So the 6 starters are split 3 cats and 3 dogs. That way a new player always has 3 champions on whichever side they are given.

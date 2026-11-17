@@ -28,5 +28,7 @@ describe('a mode above the account level', () => {
     const mate = queueCardHtml({ ...base, party: true, modeLock: { mode: 'classic', level: 3, have: 0, need: 4, mine: true } });
     expect(mate).toContain('A party member has not reached Lv 3 for 5v5 Classic yet');
     expect(RANKED_TO_CASUAL.has('mode_level')).toBe(true);
+    // no payload (an older relay): the Classic numbers, Lv 3 = 4 matches (Nov 17 verification: it said "0/2")
+    expect(queueCardHtml(base)).toContain('5v5 Classic unlocks at Lv 3: finish 4 more matches (0/4)');
   });
 });

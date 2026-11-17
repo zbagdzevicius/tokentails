@@ -69,6 +69,8 @@ kbd {
 /* v6: secondary actions lean sky (navy glass, sky keyline, ice label); the rose face stays for the one main action */
 .pl-btn.ghost { background: rgb(var(--v6-navy-rgb) / 0.55); color: var(--v6-ice); text-shadow: none; box-shadow: inset 0 0 0 2px rgb(var(--v6-sky-rgb) / 0.55); }
 .pl-btn.ghost:hover { box-shadow: inset 0 0 0 2px var(--v6-sky); }
+/* a Yarn unlock short of Yarn (store, champion select): plainly not pressable (Nov 17 verification) */
+.pl-btn[data-unlock="yarn"][disabled], .pl-btn[data-via="yarn"][disabled] { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.7); box-shadow: none; transform: none; }
 .pl-btn.ghost:active { box-shadow: inset 0 0 0 2px var(--v6-sky-top); }
 /* sub-lines on a rose (or sky/bolt) face: berry text, about 5:1 on rose (white was 2.3–3.4:1); dark faces keep their colour */
 .pl-btn small { color: var(--pl-btn-sub, var(--v6-berry)); text-shadow: none; }

@@ -238,3 +238,22 @@ test('reaching a level unlocks the next mode: results banner, NEW on PLAY, it gr
   const l = await page.evaluate(() => localStorage.getItem('pawlegends.modes.new'));
   expect(l ?? '').not.toContain('blitz');
 });
+
+test('a ?mode= link never opens a locked mode (Nov 17 verification: Classic and Blitz stayed open for good)', async ({ page }) => {
+  // a device that has not run the migrations yet, at Lv 1, opened through a Classic link; then a reload with no link
+  await seed(page, { v: 1, sessions: 2, matches: 1, wins: 0, hero: 'sage', firstPlaySession: 1 }, WEDNESDAY);
+  for (const mode of ['classic', 'blitz']) {
+    await page.goto(`/?e2e=1&mode=${mode}`);
+    await page.waitForSelector('html[data-screen="title"] .pl-home');
+    const unlocks = await page.evaluate(() => (JSON.parse(localStorage.getItem('tt.pawlegends.profile.v1') ?? '{}') as { unlocks?: string[] }).unlocks ?? []);
+    expect(unlocks.filter((u) => u.startsWith('mode.'))).toEqual([]);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('pawlegends.mode.v1') ?? '{}').mode)).toBe('skirmish');
+  }
+  await page.goto('/?e2e=1');
+  await page.waitForSelector('html[data-screen="title"] .pl-home');
+  await page.locator('[data-testid="home-play"]').first().click();
+  await expect(page.locator('[data-testid="mode-select"]')).toBeVisible();
+  await settle(page);
+  expect(await bigIds(page)).toEqual(['skirmish', 'practice']);
+  await expect(page.locator('[data-testid="mode-more"] [data-testid="mode-classic"]')).toHaveAttribute('data-state', 'locked');
+});

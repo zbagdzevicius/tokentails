@@ -397,6 +397,12 @@ describe('home patch (no rebuild under modals)', () => {
     // no server answer (a standalone page): no chip, never a made-up 0
     expect(patchHome(root, base({ onCollection: vi.fn(), onYarn, profile: prof(null) }))).toBe(true);
     expect(root.querySelector('[data-testid="home-yarn"]')).toBeNull();
+    // a web guest (Nov 17 verification): the chip shows its 0 and says Yarn is earned on an account
+    expect(patchHome(root, base({ onCollection: vi.fn(), onYarn, profile: { ...prof(0), yarnGuest: true } }))).toBe(true);
+    const g = root.querySelector<HTMLButtonElement>('[data-testid="home-yarn"]')!;
+    expect(g.textContent).toContain('0');
+    expect(g.dataset.guest).toBe('1');
+    expect(g.getAttribute('aria-label')).toBe('0 Yarn. Sign in to earn Yarn');
   });
 
   it('a patch with openAt opens Mode Select on that variant (Social "Play casual" over a Home still on screen)', async () => {

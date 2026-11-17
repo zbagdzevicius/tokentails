@@ -1220,7 +1220,10 @@ export class PartyClient {
       retryS,
       match: q.found ? { humans: q.found.humans, bots: q.found.bots, side: q.found.side, difficulty: q.found.difficulty, ...(q.found.ai ? { ai: true } : {}) } : null,
       ...(q.mode === 'classic' ? { teamSize: 5 } : {}),
-      ...(q.modeLock ? { modeLock: { ...q.modeLock, mine: (this.h.mmInfo?.().matches ?? this.h.matches ?? 0) >= q.modeLock.need } } : {}),
+      // "a party member" only in a party of 2+: solo, the server's own count is the player's (it may be below the device's)
+      ...(q.modeLock
+        ? { modeLock: { ...q.modeLock, mine: q.party && !!s.view && s.view.members.length > 1 && (this.h.mmInfo?.().matches ?? this.h.matches ?? 0) >= q.modeLock.need } }
+        : {}),
       ...(q.mode !== 'coop' ? { pvp: { theirs: q.theirs ?? 0, toCoop: !!q.toCoop, requeued: !!q.requeued } } : {}),
       ...(q.mode === 'ranked'
         ? {
