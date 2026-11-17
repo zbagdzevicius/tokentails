@@ -18,6 +18,7 @@ import {
   passesFilter,
   patchChampSelect,
   resetChampSelect,
+  seatHtml,
   skillInfo,
   timerText,
   wireChampSelect,
@@ -216,6 +217,11 @@ describe('the team column', () => {
       ['Tom', 'hover', 'nugget'],
       ['Bot', 'bot', null],
     ]);
+    // a bot seat says "Bot" and nothing about filling
+    const seat = document.createElement('ul');
+    seat.innerHTML = seatHtml(seats[2], 2, () => null, true);
+    expect(seat.querySelector('b')?.textContent).toBe('Bot');
+    expect(seat.textContent).not.toMatch(/fill|seat/i);
     // casual PvP: the own team's three slots only
     const pvp = partySeats({ ...v, mm: { side: 'dog', strangers: true, mode: 'casual', team: 1 }, members: [...v.members.map((m) => ({ ...m, slot: (m.slot ?? 0) + 3 })), { id: 'x', name: 'Rival', guest: true, conn: 'on', slot: 0 }] }, '', (m) => m.name);
     expect(pvp.map((s) => s.name)).toEqual(['Mia', 'Tom', 'Bot']);
