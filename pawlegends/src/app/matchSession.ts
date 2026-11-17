@@ -413,6 +413,8 @@ export class MatchSession {
   private readonly emoteTicks: number[] = [];
   /** Lane F (F4): the newest kill-feed row of a takedown by our team (its killer's Fish lands in the same tick). */
   private feedRow: { tick: number; killer: number; el: HTMLElement; fish: number } | null = null;
+  /** Sim v33: the newest hero kill-feed row of either team, so the shutdown and streak bounty of that tick tag it. */
+  private killRow: { tick: number; killer: number; victim: number; el: HTMLElement } | null = null;
   /** Lane F (F6): the underdog line shows once a match. */
   private underdogSaid = false;
   private readonly music = new Music();
@@ -1095,7 +1097,9 @@ export class MatchSession {
       good,
       kaboom,
     );
-    if (row && good && e.killer >= 0 && e.killer < 6) this.feedRow = { tick: e.tick, killer: e.killer, el: row, fish: 0 };
+    // Sim v33: every hero slot (5v5 slots 5 to 9 too; `< 6` was the 3v3 range)
+    if (row && good && e.killer >= 0 && e.killer < SLOT_COUNT) this.feedRow = { tick: e.tick, killer: e.killer, el: row, fish: 0 };
+    this.killRow = row ? { tick: e.tick, killer: e.killer, victim: e.id, el: row } : null;
   }
 
   private chromeOff: (() => void) | null = null;
@@ -2643,6 +2647,13 @@ export class MatchSession {
           this.feedRow.fish += ev.amount;
           this.hud?.feedFish(this.feedRow.el, this.feedRow.fish);
         }
+        return;
+      // Sim v33: the kill feed shows a shutdown (the victim's bounty) and the killer's new streak bounty
+      case 'shutdown':
+        if (this.killRow && this.killRow.tick === ev.tick && this.killRow.victim === ev.victim) this.hud?.feedTag(this.killRow.el, 'shutdown', `Shutdown +${ev.value} XP`);
+        return;
+      case 'bounty':
+        if (this.killRow && this.killRow.tick === ev.tick && this.killRow.killer === ev.id) this.hud?.feedTag(this.killRow.el, 'bounty', `Bounty +${ev.value} XP`);
         return;
       case 'buff':
         if (ev.id === me && ev.kind === 'takedown') haptic('takedown');

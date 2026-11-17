@@ -30,6 +30,8 @@ const asset = (p: string): string => `${BASE.endsWith('/') ? BASE : `${BASE}/`}a
 export const NAP_ART = Object.freeze({ hi: 'nap/fountain-960.webp', lo: 'nap/fountain-lo.webp' });
 /** A champion's splash (public/assets/splash, the same files the Champions store shows). */
 export const splashOf = (hero: HeroId): string => asset(`splash/${hero}-360.webp`);
+/** Sim v33: a nap this long (s) or longer says that respawns grow late in the match. */
+export const LONG_NAP_SECS = 20;
 /** How long one tip or lore line stays (ms) on a long nap. */
 export const NAP_LINE_MS = 6000;
 /** The most the card waits (ms) for its knockout's recap after the dead state shows (the event's render-clock lag). */
@@ -155,6 +157,10 @@ export class NapCard {
       this.lineI = napCount++ % this.lines.length;
       this.lineAt = now;
       this.lineEl.textContent = this.lines[this.lineI] ?? '';
+      // Sim v33: respawns grow with the match time and the level; a long nap says why
+      const long = Number(s) >= LONG_NAP_SECS;
+      this.el.classList.toggle('long', long);
+      (this.el.querySelector('.nc-kicker') as HTMLElement).textContent = long ? 'Long nap: respawns grow as the match goes on' : 'Napping at the fountain';
       this.el.classList.add('on');
       this.el.setAttribute('aria-label', `Napping at the fountain. Back in ${s}.`);
     } else if (now - this.lineAt >= NAP_LINE_MS && this.lines.length > 1) {

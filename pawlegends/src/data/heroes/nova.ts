@@ -7,7 +7,8 @@ export const NOVA: HeroData = Object.freeze<HeroData>({
   side: 'cat',
   role: 'mage',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v31 (ROSTER-V31.md §4): the first fit. */
-  pvp: { dmgBp: 9200, takenBp: 8900 },
+  // sim v33 (V33-KILLS.md, bigger kill rewards moved the 3v3 rows): 9200 / 8900
+  pvp: { dmgBp: 9210, takenBp: 8890 },
   element: 'STELLAR',
   base: { hp: 460, hpPerLevel: 48, attack: 50, attackPerLevel: 5, attackEvery: 30, range: 5500, speed: 4800, armour: 14, armourPerLevel: 2 },
   /** Starlight: her hits on an enemy hero 7 m or more from her deal +15%. */

@@ -23,6 +23,7 @@ export async function bundleSim(entry, fileName = 'pawlegends-sim.js', patches =
     ? [
         {
           name: 'pawlegends-sim-patch',
+          enforce: 'pre',
           transform(src, id) {
             let out = src;
             for (const p of patches) {

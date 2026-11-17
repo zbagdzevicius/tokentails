@@ -39,7 +39,7 @@
  * 13. late-replay.fixture.json (sim v32): one genuine Normal match (the normal player-bot) that plays past the late
  *    tick (8:30) and ends on a core kill, so the spec shows a v32 late-Sunset replay verifies and the same record
  *    labelled v31 (Sudden Death's core burn) is refused.
- * backend/src/vendor/pawlegends-sim/v10/ to v31/: those files, frozen (FROZEN below; sim v32 is live).
+ * backend/src/vendor/pawlegends-sim/v10/ to v32/: those files, frozen (FROZEN below; sim v33 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -122,6 +122,8 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * released v30 at dc053f38, its last commit on main, and keeps v10 to v29, so the backend verifies 10 to 31.
  * Sim v32 (no Sudden Death: late Sunset ends a long match on structures, docs/plans/moba/V32-NO-SUDDEN-DEATH.md) froze
  * the released v31 at 345fb655, its last commit on main, and keeps v10 to v30, so the backend verifies 10 to 32.
+ * Sim v33 (kills matter more, respawns grow with the match, docs/plans/moba/V33-KILLS.md) froze the released v32 at
+ * 17fff703 (its sim commit on main) and keeps v10 to v31, so the backend verifies 10 to 33.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -403,6 +405,26 @@ export const FROZEN = Object.freeze([
       'kite-replay.fixture.json',
       'roster-replay.fixture.json',
       'roster31-replay.fixture.json',
+    ]),
+  }),
+  Object.freeze({
+    simVersion: 32,
+    commit: '17fff703be7e94aea3a0880c6c0e7003bfe28f32',
+    from: 'backend/src/vendor/pawlegends-sim/v32',
+    bundle: 'd3b33e7f8d855c917f4692e49d21baa55c35e6fd03813b1e02474395129d9791',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+      'blitz-replay.fixture.json',
+      'kite-replay.fixture.json',
+      'roster-replay.fixture.json',
+      'roster31-replay.fixture.json',
+      'late-replay.fixture.json',
     ]),
   }),
 ]);

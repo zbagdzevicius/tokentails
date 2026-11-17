@@ -1,7 +1,7 @@
 /**
  * Kill and minion XP, takedowns, assists, bounties (POC.md §6.1; sim v4 numbers in data/xp.ts).
  *
- * - Hero kill: 80 + 15 × victim level, +50% when the victim is more than one level above its killer, plus the
+ * - Hero kill (sim v33: 120 + 30 × victim level, the killer +50% unshared; data/xp.ts): 80 + 15 × victim level, +50% when the victim is more than one level above its killer, plus the
  *   victim's bounty (a takedown streak of 3+: +20 × streak, max +80). Shared (sim v12: XP.shareBp) among the enemy heroes within
  *   10 m and those who hit the victim in the last 10 s (assists). On Easy (DIFFICULTY_RULES.nearAssists; Rookie before v11)
  *   every ally within 10 m counts as an assist too. The killer is the last hero to hit it (a tower or minion last
@@ -141,7 +141,9 @@ export function heroKilled(m: MatchHandle, victim: number): void {
   w.killStreak[victim] = 0;
   if (n > 0) {
     const each = shareOf(reward, n);
-    for (let i = 0; i < n; i++) grantXp(m, share[i], each, share[i] === killer ? 'kill' : 'assist');
+    // Sim v33: the killer also gets XP.killerBonusBp of the reward, unshared (V33-KILLS.md)
+    const bonus = applyBp(reward, XP.killerBonusBp);
+    for (let i = 0; i < n; i++) grantXp(m, share[i], share[i] === killer ? each + bonus : each, share[i] === killer ? 'kill' : 'assist');
   }
   if (killer >= 0) {
     grantFish(m, killer, killFish, 'kill');

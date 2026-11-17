@@ -477,6 +477,9 @@ html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-grad
 /* F4: a takedown's Fish at the end of its kill-feed row */
 .pl-hud .pl-feed-row .fish { display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; padding: 1px 5px 1px 3px; border-radius: 8px; font: 800 11px/1 var(--font); font-style: normal; color: #ffd34d; background: rgba(255, 211, 77, 0.14); }
 .pl-hud .pl-feed-row .fish svg { width: 12px; height: 12px; }
+.pl-hud .pl-feed-row .ktag { margin-left: 4px; padding: 1px 5px; border-radius: 8px; font: 800 10px/1.2 var(--font); font-style: normal; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
+.pl-hud .pl-feed-row .kt-shutdown { color: #fff; background: #d8433a; }
+.pl-hud .pl-feed-row .kt-bounty { color: #2a1600; background: #ffb03a; }
 /* F2: Toy pips on the scoreboard (an enemy's buy lights one) */
 .pl-scoreboard .toy { white-space: nowrap; }
 .pl-scoreboard .toys { display: inline-flex; gap: 3px; vertical-align: middle; }

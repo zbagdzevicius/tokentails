@@ -1077,6 +1077,17 @@ export class Hud {
     row.dataset.fish = String(fish);
   }
 
+  /** Sim v33: a shutdown or streak-bounty tag on a kill-feed row ("Shutdown +150 XP", "Bounty +100 XP"). */
+  feedTag(row: HTMLElement, kind: 'shutdown' | 'bounty', text: string): void {
+    let tag = row.querySelector<HTMLElement>(`.kt-${kind}`);
+    if (!tag) {
+      tag = document.createElement('em');
+      tag.className = `ktag kt-${kind}`;
+      row.appendChild(tag);
+    }
+    tag.textContent = text;
+  }
+
   /** A neutral line in the kill feed ("Blaze cheered your takedown"; round 1: the squad mates get a moment). */
   note(text: string): void {
     const el = document.createElement('div');

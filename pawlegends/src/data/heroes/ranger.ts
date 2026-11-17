@@ -7,7 +7,8 @@ export const RANGER: HeroData = Object.freeze<HeroData>({
   side: 'dog',
   role: 'marksman',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v31 (ROSTER-V31.md §4): the first fit. */
-  pvp: { dmgBp: 9300, takenBp: 8700 },
+  // sim v33 (V33-KILLS.md, bigger kill rewards moved the 3v3 rows): 9300 / 8700
+  pvp: { dmgBp: 9195, takenBp: 8795 },
   element: 'WIND',
   base: { hp: 440, hpPerLevel: 46, attack: 52, attackPerLevel: 5, attackEvery: 28, range: 6400, speed: 4900, armour: 14, armourPerLevel: 2 },
   /** Camouflage: 3 s without dealing or taking damage hides him (until he hits); his first basic from hiding deals +45%. */

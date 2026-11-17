@@ -84,7 +84,7 @@ describe('sim v12 Fish (S1)', () => {
     place(m, 3, MID.x, MID.y, 0);
     place(m, 0, MID.x - 2000, MID.y, 0);
     kill(m, 0, 3);
-    expect(w.fish[0]).toBe(FISH.kill + FISH.firstBlood); // 170
+    expect(w.fish[0]).toBe(FISH.kill + FISH.firstBlood); // 200 (sim v33)
     expect(fishEvents(m).map((e) => e.reason)).toEqual(['kill', 'firstBlood']);
     expect(w.deathStreak[3]).toBe(1);
     const fishFor = (deaths: number, streak = 0): number => {
@@ -97,12 +97,12 @@ describe('sim v12 Fish (S1)', () => {
       kill(m2, 0, 4);
       return m2.world.fish[0];
     };
-    expect([FISH.kill, FISH.killRepeat, FISH.killFed]).toEqual([120, 80, 50]);
+    expect([FISH.kill, FISH.killRepeat, FISH.killFed]).toEqual([150, 80, 50]); // sim v33: 150 (120)
     expect(fishFor(0)).toBe(FISH.kill);
     expect(fishFor(1)).toBe(FISH.kill);
     expect(fishFor(2)).toBe(FISH.killRepeat);
     expect(fishFor(4)).toBe(FISH.killFed);
-    expect(fishFor(0, 4)).toBe(FISH.kill + 4 * FISH.shutdownPerStreak); // +160
+    expect(fishFor(0, 4)).toBe(FISH.kill + 4 * FISH.shutdownPerStreak); // +240 (sim v33)
     expect(fishFor(0, 9)).toBe(FISH.kill + FISH.shutdownMax);
     // Two assisters on a 120 kill split FISH.assistBp of it: 30 each.
     const m3 = match();
@@ -113,7 +113,7 @@ describe('sim v12 Fish (S1)', () => {
     dealDamage(m3, 2, 0, Kind.Hero, 3, 5, 'basic');
     m3.world.deathStreak[1] = 3;
     kill(m3, 0, 3);
-    expect([m3.world.fish[1], m3.world.fish[2]]).toEqual([30, 30]);
+    expect([m3.world.fish[1], m3.world.fish[2]]).toEqual([37, 37]); // half of 150, split (sim v33; 30 before)
     expect(m3.events.find((e) => e.type === 'shutdown')).toBeUndefined();
     // An assist resets the assister's death streak.
     expect(m3.world.deathStreak[1]).toBe(0);
@@ -126,7 +126,7 @@ describe('sim v12 Fish (S1)', () => {
     place(m, 0, MID.x - 2000, MID.y, 0);
     m.world.killStreak[3] = 4;
     kill(m, 0, 3);
-    expect(m.events.find((e) => e.type === 'shutdown')).toMatchObject({ killer: 0, victim: 3, fish: 160 });
+    expect(m.events.find((e) => e.type === 'shutdown')).toMatchObject({ killer: 0, victim: 3, fish: 240 }); // sim v33: 60 a streak step
   });
 
   it('a tower kill (no killer) pays no kill Fish; near assisters (Easy) are still paid', () => {
@@ -475,10 +475,12 @@ describe('sim v12 fun pass (playtest round)', () => {
       return w.xp[3] - before;
     };
     const full = XP.killBase + XP.killPerLevel * 3;
-    expect(xpOf(0)).toBe(full);
-    expect(xpOf(1)).toBe(full);
-    expect(xpOf(FISH.killRepeatFrom)).toBe(applyBp(full, XP.killRepeatXpBp));
-    expect(xpOf(FISH.killFedFrom)).toBe(applyBp(full, XP.killFedXpBp));
+    // sim v33: the killer also gets XP.killerBonusBp of the reward on top
+    const own = (r: number): number => r + applyBp(r, XP.killerBonusBp);
+    expect(xpOf(0)).toBe(own(full));
+    expect(xpOf(1)).toBe(own(full));
+    expect(xpOf(FISH.killRepeatFrom)).toBe(own(applyBp(full, XP.killRepeatXpBp)));
+    expect(xpOf(FISH.killFedFrom)).toBe(own(applyBp(full, XP.killFedXpBp)));
   });
 
   it('a struggling human (3rd death in a row) respawns at RESPAWN.humanStreakBp without lead pressure; bots and a first death keep it', () => {
@@ -494,7 +496,7 @@ describe('sim v12 fun pass (playtest round)', () => {
       resolveDeaths(m);
       return w.timer[id];
     };
-    const level = respawnTicks(6, 6000, TIMELINE_BY.normal.sunset);
+    const level = respawnTicks(6, 6000, TIMELINE_BY.normal.sunset, DIFFICULTY_RULES.normal.respawnGrowBp); // sim v33: + the match-time growth
     expect(waitOf(0, RESPAWN.humanStreakFrom)).toBe(applyBp(level, RESPAWN.humanStreakBp));
     // a first death, and an ally bot on a streak: the lead pressure as before (longer than the level wait)
     expect(waitOf(0, 0)).toBeGreaterThan(level);

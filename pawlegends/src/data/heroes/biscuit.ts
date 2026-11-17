@@ -7,7 +7,8 @@ export const BISCUIT: HeroData = Object.freeze<HeroData>({
   side: 'dog',
   role: 'support',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v29 (ROSTER-V29.md §4): the first fit. */
-  pvp: { dmgBp: 9450, takenBp: 8100 },
+  // sim v33 (V33-KILLS.md, bigger kill rewards moved the 3v3 rows): 9450 / 8100
+  pvp: { dmgBp: 9405, takenBp: 8135 },
   element: 'SAND',
   base: { hp: 660, hpPerLevel: 68, attack: 54, attackPerLevel: 5, attackEvery: 30, range: 1700, speed: 5000, armour: 30, armourPerLevel: 3 },
   /** Good Boy: every 9 s his next basic on an enemy hero stuns it 0.4 s and gives him and the nearest allied hero within 6 m a 35 (+7/lvl) shield for 2 s. */

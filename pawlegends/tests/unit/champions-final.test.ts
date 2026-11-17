@@ -20,9 +20,9 @@ import { MID, heroMatch, hold, place, setLevel } from './heroes/kit-helpers';
 
 describe('hero-fight tuning (final spec, species balance nudges)', () => {
   it('sim v20 refit (V20-CHASE.md §8): Lambo 9490/7710, Raspberry 11415/8010, Gabby 7690/10660, Bengal 9990/8635', () => {
-    expect(HEROES.lambo.pvp).toEqual({ dmgBp: 9310, takenBp: 7250 }); // sim v21: takes 7250; refit on the v20 base
-    expect(HEROES.aviete.pvp).toEqual({ dmgBp: 11000, takenBp: 7930 });
-    expect(HEROES.gabe.pvp).toEqual({ dmgBp: 7565, takenBp: 10295 });
+    expect(HEROES.lambo.pvp).toEqual({ dmgBp: 9415, takenBp: 7170 }); // sim v33 (V33-KILLS.md); sim v21: takes 7250; refit on the v20 base
+    expect(HEROES.aviete.pvp).toEqual({ dmgBp: 11055, takenBp: 7890 }); // sim v33 (V33-KILLS.md): 11000 / 7930 before
+    expect(HEROES.gabe.pvp).toEqual({ dmgBp: 7590, takenBp: 10260 }); // sim v33 (V33-KILLS.md): 7565 / 10295 before
     // sim v31 (ROSTER-V31.md §4): −2% on the v20 row
     expect(HEROES.bengas.pvp).toEqual({ dmgBp: 9570, takenBp: 8570 });
   });

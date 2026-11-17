@@ -51,6 +51,7 @@ const SYMMETRIC: readonly (keyof DifficultyRules)[] = [
   'takedownTowerChipBp',
   'catchUpPerLevelBp',
   'catchUpMaxBp',
+  'respawnGrowBp',
   'campBehindBp',
 ];
 

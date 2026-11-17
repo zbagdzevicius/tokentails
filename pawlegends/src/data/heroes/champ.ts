@@ -7,7 +7,8 @@ export const CHAMP: HeroData = Object.freeze<HeroData>({
   side: 'dog',
   role: 'fighter',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v29 (ROSTER-V29.md §4): the first fit. */
-  pvp: { dmgBp: 8750, takenBp: 8850 },
+  // sim v33 (V33-KILLS.md, bigger kill rewards moved the 3v3 rows): 8750 / 8850
+  pvp: { dmgBp: 8725, takenBp: 8875 },
   element: 'FIRE',
   base: { hp: 640, hpPerLevel: 66, attack: 60, attackPerLevel: 6, attackEvery: 30, range: 1600, speed: 5000, armour: 28, armourPerLevel: 3 },
   /** One-Two: every 3rd basic on the same enemy hero within 3 s is a Cross: +35 (+6/lvl) and a 25% slow for 1 s. */

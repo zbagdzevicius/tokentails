@@ -20,8 +20,8 @@ export const FISH = Object.freeze({
   lastHitBp: 8000,
   /** Every other hero of that team within WAVE.xpRange takes this share (each, not split). Fun pass: 30% (40%). */
   nearBp: 3000,
-  /** Hero kill value (killer); 80 when the victim died 2+ times in a row, 50 at 4+ (deathStreak). */
-  kill: 120,
+  /** Hero kill value (killer; sim v33: 150, was 120); 80 when the victim died 2+ times in a row, 50 at 4+ (deathStreak). */
+  kill: 150,
   killRepeat: 80,
   killRepeatFrom: 2,
   killFed: 50,
@@ -30,9 +30,10 @@ export const FISH = Object.freeze({
   firstBlood: 50,
   /** The assisters split this share of the kill value (first blood and shutdown not included). */
   assistBp: 5000,
-  /** Shutdown: the killer gets perStreak × the victim's takedown streak (from XP.bountyStreak), at most shutdownMax. */
-  shutdownPerStreak: 40,
-  shutdownMax: 200,
+  /** Shutdown: the killer gets perStreak × the victim's takedown streak (from XP.bountyStreak), at most shutdownMax.
+   *  Sim v33: 60 a takedown, at most 400 (40, 200), so the bigger kill rewards stay catchable. */
+  shutdownPerStreak: 60,
+  shutdownMax: 400,
   /** Rat (each of the camp's two): the last hitter, and every other hero of its team within XP.shareRange. */
   ratLastHit: 60,
   ratNear: 20,

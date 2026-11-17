@@ -52,13 +52,13 @@ describe('levels and XP (§6.1)', () => {
     expect(w.talents[0]).toBe(1);
   });
 
-  it('kill XP (sim v4): 80 + 15 × victim level + the bounty (20 per streak step from 3, max +80), shared within 10 m', () => {
+  it('kill XP (sim v33): 120 + 30 × victim level + the bounty (50 per streak step from 2, max +250), shared within 10 m, the killer +50% unshared', () => {
     const m = match();
     const w = m.world;
     place(m, 3, MID.x, MID.y, 0);
     place(m, 0, MID.x - 2000, MID.y, 0);
     kill(m, 0, 3);
-    expect(w.xp[0]).toBe(95);
+    expect(w.xp[0]).toBe(150 + 75);
     expect(m.stats[0].kills).toBe(1);
     expect(w.killStreak[0]).toBe(1);
     expect(m.events.some((e) => e.type === 'firstBlood' && e.killer === 0 && e.victim === 3)).toBe(true);
@@ -67,16 +67,16 @@ describe('levels and XP (§6.1)', () => {
     place(m2, 3, MID.x, MID.y, 0);
     place(m2, 0, MID.x - 2000, MID.y, 0);
     place(m2, 1, MID.x + 9000, MID.y, 0);
-    m2.world.killStreak[3] = 6; // bounty capped at +80
+    m2.world.killStreak[3] = 6; // bounty capped at +250
     kill(m2, 0, 3);
-    expect(m2.world.xp[0]).toBe(Math.trunc((95 + 80) / 2));
-    expect(m2.world.xp[1]).toBe(Math.trunc((95 + 80) / 2));
+    expect(m2.world.xp[0]).toBe((150 + 250) / 2 + (150 + 250) / 2);
+    expect(m2.world.xp[1]).toBe((150 + 250) / 2);
     expect(m2.world.xp[2]).toBe(0);
-    expect(m2.events.some((e) => e.type === 'shutdown' && e.killer === 0 && e.victim === 3 && e.value === 80)).toBe(true);
+    expect(m2.events.some((e) => e.type === 'shutdown' && e.killer === 0 && e.victim === 3 && e.value === 250)).toBe(true);
     expect(m2.world.killStreak[3]).toBe(0);
   });
 
-  it('a third takedown in a row puts a bounty on the hero (`bounty` event)', () => {
+  it('a second takedown in a row puts a bounty on the hero (`bounty` event, sim v33), the third raises it', () => {
     const m = match();
     place(m, 0, MID.x - 2000, MID.y, 0);
     for (const v of [3, 4, 5]) {
@@ -84,7 +84,8 @@ describe('levels and XP (§6.1)', () => {
       kill(m, 0, v);
     }
     expect(m.world.killStreak[0]).toBe(3);
-    expect(m.events.some((e) => e.type === 'bounty' && e.id === 0 && e.value === 60)).toBe(true);
+    expect(m.events.some((e) => e.type === 'bounty' && e.id === 0 && e.value === 100)).toBe(true);
+    expect(m.events.some((e) => e.type === 'bounty' && e.id === 0 && e.value === 150)).toBe(true);
   });
 
   it('upset: a victim more than one level above its killer gives +50% kill XP', () => {
@@ -94,19 +95,20 @@ describe('levels and XP (§6.1)', () => {
     place(m, 0, MID.x - 2000, MID.y, 0);
     const before = m.world.xp[0];
     kill(m, 0, 3);
-    // 80 + 15 × 3 = 125, × 1.5; slot 0 is one level-average behind beyond the free first: catch-up does not apply yet.
-    expect(m.world.xp[0] - before).toBe(Math.trunc((125 * 15000) / 10000));
+    // 120 + 30 × 3 = 210, × 1.5, plus the killer's +50% (sim v33); slot 0 is one level-average behind beyond the free
+    // first: catch-up does not apply yet.
+    expect(m.world.xp[0] - before).toBe(315 + Math.trunc(315 / 2));
   });
 
   it('takedown heal (sim v4): every credited hero gets TAKEDOWN_HEAL of its max HP back (a `buff` event)', () => {
     const m = match();
     const w = m.world;
-    setLevel(m, 0, 2); // the kill's 95 XP then stays short of level 3 (no level-up heal)
+    setLevel(m, 0, 4); // the kill's 225 XP (sim v33) then stays short of level 5 (no level-up heal)
     place(m, 3, MID.x, MID.y, 0);
     place(m, 0, MID.x - 2000, MID.y, 0);
     w.hp[0] = 100;
     kill(m, 0, 3);
-    expect(w.level[0]).toBe(2);
+    expect(w.level[0]).toBe(4);
     expect(w.hp[0]).toBe(100 + Math.trunc((w.maxHp[0] * TAKEDOWN_HEAL.healBp) / 10000));
     expect(m.events.some((e) => e.type === 'buff' && e.id === 0 && e.kind === 'takedown')).toBe(true);
   });
@@ -121,7 +123,7 @@ describe('levels and XP (§6.1)', () => {
     const before = w.xp[2]; // the trickle (2 XP a second) kept running
     kill(m, 0, 3);
     expect(m.stats[2].assists).toBe(1);
-    expect(w.xp[2] - before).toBe(Math.trunc(95 / 2));
+    expect(w.xp[2] - before).toBe(150 / 2);
     // Older than 10 s: no assist.
     const m2 = match();
     place(m2, 3, MID.x, MID.y, 0);

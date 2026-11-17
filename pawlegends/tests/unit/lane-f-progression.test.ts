@@ -125,7 +125,7 @@ describe('announcer (F2, F4)', () => {
     const a = new Announcer(0, 0, names, heroOf);
     const fb = a.feed(death(300, 3, 0)).find((m) => m.key === 'firstBlood');
     expect(fb?.title).toBe(`First Blood! +${FISH.kill + FISH.firstBlood} Fish`);
-    expect(FISH.kill + FISH.firstBlood).toBe(170);
+    expect(FISH.kill + FISH.firstBlood).toBe(200); // sim v33 (170)
     // someone else's: no Fish
     const b = new Announcer(1, 0, names, heroOf);
     expect(b.feed(death(300, 3, 0)).find((m) => m.key === 'firstBlood')?.title).toBe('First Blood!');

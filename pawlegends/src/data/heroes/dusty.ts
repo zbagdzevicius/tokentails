@@ -7,7 +7,8 @@ export const DUSTY: HeroData = Object.freeze<HeroData>({
   side: 'cat',
   role: 'marksman',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v31 (ROSTER-V31.md §4): the first fit. */
-  pvp: { dmgBp: 9300, takenBp: 8700 },
+  // sim v33 (V33-KILLS.md, bigger kill rewards moved the 3v3 rows): 9300 / 8700
+  pvp: { dmgBp: 9375, takenBp: 8630 },
   element: 'FIRE',
   base: { hp: 450, hpPerLevel: 47, attack: 54, attackPerLevel: 5, attackEvery: 27, range: 5800, speed: 4900, armour: 14, armourPerLevel: 2 },
   /** Four Corks: every 4th basic is a Big Cork: +70% and a 25% slow for 1 s; then she reloads (0.6 s). */

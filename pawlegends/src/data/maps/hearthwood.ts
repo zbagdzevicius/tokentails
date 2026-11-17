@@ -246,7 +246,8 @@ export const GRIZZLECHOP_PIT = Object.freeze({ x: PIT.x, y: PIT.y });
 /** Sim v19: Hearthwood's own rules (MAP-5V5.md §1.9): respawn × 1.3 capped at 25 s; XP needed and Fish income scale. */
 export const HEARTHWOOD_RULES = Object.freeze({
   respawnBp: 13000,
-  respawnCap: 750,
+  /** Sim v33: 35 s (25 s), room for the match-time growth (RESPAWN.growFrom). */
+  respawnCap: 1050,
   /** Ranged minions per lane and wave (Crossing: WAVE.ranged, 1). */
   waveRanged: 2,
   /** XP from every source × this (bp): level 10 lands later in the longer match. */
@@ -306,53 +307,74 @@ export const HEARTHWOOD_PVP = Object.freeze({
   hero: Object.freeze({
     // sim v30 (V30-BALANCE.md): −6% (12048 / 8220 → 11448 / 8820)
     // sim v31 (ROSTER-V31.md §7): −2% (11448 / 8820), 52.0% pooled over 18,000 matches with the v31 four
-    clem: { dmgBp: 11148, takenBp: 9120 },
-    sage: { dmgBp: 10045, takenBp: 10180 },
+    // sim v33: × the inverse of its 3v3 row change (7485 / 9945 → 7520 / 9900; the 3v3 row also applies here), so 5v5 keeps its balance
+    clem: { dmgBp: 11096, takenBp: 9161 },
+    // sim v33: × the inverse of its 3v3 row change (9800 / 8655 → 9865 / 8600; the 3v3 row also applies here), so 5v5 keeps its balance
+    sage: { dmgBp: 9979, takenBp: 10245 },
     // sim v30 (V30-BALANCE.md): +3.5% (8727 / 11470 → 9077 / 11120)
     // sim v31 (ROSTER-V31.md §7): +1% (9077 / 11120)
-    gabe: { dmgBp: 9177, takenBp: 11020 },
+    // sim v33: × the inverse of its 3v3 row change (7565 / 10295 → 7590 / 10260; the 3v3 row also applies here), so 5v5 keeps its balance
+    gabe: { dmgBp: 9147, takenBp: 11058 },
     // sim v22 (carved jungle, on the v21 row 9581 / 10637): 54.1% of 1,200 → −1%
     // sim v30 (V30-BALANCE.md): +3% (9481 / 10737 → 9781 / 10437)
     // sim v31 (ROSTER-V31.md §7): +4% (9781 / 10437), 44.3% on the first 8,000 verify with the v31 four
-    meatball: { dmgBp: 10056, takenBp: 10162 },
+    // sim v33: × the inverse of its 3v3 row change (7240 / 9095 → 7265 / 9065; the 3v3 row also applies here), so 5v5 keeps its balance
+    meatball: { dmgBp: 10021, takenBp: 10196 },
     // sim v22 (carved jungle, on the v21 row 9891 / 10361): 46.4% of 600 → +1%
     // sim v30 (V30-BALANCE.md): −1% (9991 / 10261 → 9891 / 10361)
-    duchess: { dmgBp: 9891, takenBp: 10361 },
+    // sim v33: × the inverse of its 3v3 row change (10640 / 8135 → 10670 / 8115; the 3v3 row also applies here), so 5v5 keeps its balance
+    duchess: { dmgBp: 9863, takenBp: 10387 },
     // sim v30 (V30-BALANCE.md): −5% (10870 / 9351 → 10370 / 9851)
-    aviete: { dmgBp: 10370, takenBp: 9851 },
+    // sim v33: × the inverse of its 3v3 row change (11000 / 7930 → 11055 / 7890; the 3v3 row also applies here), so 5v5 keeps its balance
+    aviete: { dmgBp: 10318, takenBp: 9901 },
     bengas: { dmgBp: 10118, takenBp: 10110 },
     // sim v30 (V30-BALANCE.md): +3% (11172 / 9080 → 11472 / 8780)
     // sim v31 (ROSTER-V31.md §7): +1% (11472 / 8780)
-    lambo: { dmgBp: 11572, takenBp: 8680 },
+    // sim v33: × the inverse of its 3v3 row change (9310 / 7250 → 9415 / 7170; the 3v3 row also applies here), so 5v5 keeps its balance
+    lambo: { dmgBp: 11443, takenBp: 8777 },
     // sim v30 (V30-BALANCE.md): +2% (10178 / 10050 → 10378 / 9850)
     // sim v31 (ROSTER-V31.md §7): −3% (10378 / 9850) in two steps of 1.5%
-    pixel: { dmgBp: 10078, takenBp: 10150 },
+    // sim v33: × the inverse of its 3v3 row change (8495 / 8450 → 8520 / 8425; the 3v3 row also applies here), so 5v5 keeps its balance
+    pixel: { dmgBp: 10048, takenBp: 10180 },
     // sim v22 on main's v20 + v21 (fresh windows 3200001-3400300, 1,800 matches): 54.7% → the v21 row −1% (the +2%
     // fitted without v20 overshot)
     // sim v30 (V30-BALANCE.md): −4.5% (10217 / 10009 → 9767 / 10459)
-    stilts: { dmgBp: 9767, takenBp: 10459 },
+    // sim v33 (V33-KILLS.md, kills decide more): 43.8% of 4,000 matches (20001-22000) → +2.5% (9767 / 10459; the full +4.5% overshot: cats 52.9% of 2,000 on 40001)
+    // sim v33: × the inverse of its 3v3 row change (8560 / 9385 → 8590 / 9350; the 3v3 row also applies here), so 5v5 keeps its balance
+    stilts: { dmgBp: 9982, takenBp: 10247 },
     // sim v22 (carved jungle, on the v21 row 11867 / 8435): 53.4% of 600 → −1%
-    brutus: { dmgBp: 11767, takenBp: 8535 },
+    // sim v33 (V33-KILLS.md, kills decide more): 55.7% of 4,000 matches (20001-22000) → −2% (11767 / 8535; the full −4% overshot: cats 52.9% of 2,000 on 40001)
+    // sim v33: × the inverse of its 3v3 row change (8045 / 9650 → 8010 / 9690; the 3v3 row also applies here), so 5v5 keeps its balance
+    brutus: { dmgBp: 11618, takenBp: 8699 },
     // sim v30 (V30-BALANCE.md): −7% (10782 / 9511 → 10082 / 10211)
-    cacklejaw: { dmgBp: 10182, takenBp: 10111 },
+    // sim v33: × the inverse of its 3v3 row change (9615 / 9235 → 9560 / 9285; the 3v3 row also applies here), so 5v5 keeps its balance
+    cacklejaw: { dmgBp: 10241, takenBp: 10057 },
     // sim v30 (V30-BALANCE.md): +3% (9200 / 11058 → 9500 / 10758)
-    nugget: { dmgBp: 9500, takenBp: 10758 },
+    // sim v33: × the inverse of its 3v3 row change (8320 / 9670 → 8285 / 9715; the 3v3 row also applies here), so 5v5 keeps its balance
+    nugget: { dmgBp: 9540, takenBp: 10708 },
     // sim v21: −1% on the v20 row (9190 / 10810 before); sim v22: 46.3% of 1,800 (windows 3200001-3400300), then 44.2%
     // on 3600001 → +2%
     // sim v30 (V30-BALANCE.md): +1% (9531 / 10692 → 9631 / 10592)
-    marshmallow: { dmgBp: 9631, takenBp: 10592 },
+    // sim v33 (V33-KILLS.md, kills decide more): 56.2% of 4,000 matches (20001-22000) → −2.5% (9631 / 10592; the full −4.5% overshot: cats 52.9% of 2,000 on 40001)
+    // sim v33: × the inverse of its 3v3 row change (8395 / 9355 → 8295 / 9465; the 3v3 row also applies here), so 5v5 keeps its balance
+    marshmallow: { dmgBp: 9494, takenBp: 10716 },
     // sim v22 (carved jungle, on the v21 row 11023 / 9280): 54.2% of 600 → −1%
     // sim v30 (V30-BALANCE.md): +1% (10923 / 9380 → 11023 / 9280)
-    bravo: { dmgBp: 10948, takenBp: 9355 },
+    // sim v33 (V33-KILLS.md, kills decide more): 54.5% of 4,000 matches (20001-22000) → −1.5% (10948 / 9355; the full −3% overshot: cats 52.9% of 2,000 on 40001)
+    // sim v33: × the inverse of its 3v3 row change (10630 / 7565 → 10555 / 7615; the 3v3 row also applies here), so 5v5 keeps its balance
+    bravo: { dmgBp: 10875, takenBp: 9443 },
     // sim v30 (V30-BALANCE.md): +3% (9494 / 10770 → 9794 / 10470)
     // sim v31 (ROSTER-V31.md §7): −1.5% (9794 / 10470) after his 3v3 row's +2% (it applies here too)
-    chili: { dmgBp: 9644, takenBp: 10620 },
+    // sim v33: × the inverse of its 3v3 row change (8950 / 8485 → 8915 / 8520; the 3v3 row also applies here), so 5v5 keeps its balance
+    chili: { dmgBp: 9682, takenBp: 10576 },
     // sim v22 (carved jungle, on the v21 row 10702 / 9590): 53.5% of 600 → −1%
     // sim v30 (V30-BALANCE.md): −3% (10602 / 9690 → 10302 / 9990)
-    howler: { dmgBp: 10402, takenBp: 9890 },
+    // sim v33: × the inverse of its 3v3 row change (8200 / 9305 → 8170 / 9335; the 3v3 row also applies here), so 5v5 keeps its balance
+    howler: { dmgBp: 10440, takenBp: 9858 },
     // sim v22 (carved jungle, on the v21 row 9225 / 11030): 45.5% of 1,200 → +1.5%
     // sim v30 (V30-BALANCE.md): +1% (9375 / 10880 → 9475 / 10780)
-    rocket: { dmgBp: 9600, takenBp: 10655 },
+    // sim v33: × the inverse of its 3v3 row change (9335 / 8780 → 9195 / 8905; the 3v3 row also applies here), so 5v5 keeps its balance
+    rocket: { dmgBp: 9746, takenBp: 10505 },
     // sim v30 (V30-BALANCE.md): +2.5% (10106 / 10170 → 10356 / 9920)
     frankie: { dmgBp: 10481, takenBp: 9795 },
     // sim v22 (carved jungle, on the v21 row 9912 / 10360): 42.9% of 1,200 → +3%
@@ -361,15 +383,19 @@ export const HEARTHWOOD_PVP = Object.freeze({
     // sim v29 roster (ROSTER-V29.md §4): first rows from hearth-gates 72001 (300 seeds, n ≈ 250 each): Mochi 61.4%,
     // Ziggy 58.4%, Biscuit 40.4%, Champ 45.2% → about 2.3 points per 1% (the domino and marshmallow refits); on 74001
     // (300 seeds) 50.0% / 50.0% / 52.1% / 44.9%, so Champ +2% more
-    mochi: { dmgBp: 9550, takenBp: 10450 },
+    // sim v33: × the inverse of its 3v3 row change (8750 / 8850 → 8820 / 8775; the 3v3 row also applies here), so 5v5 keeps its balance
+    mochi: { dmgBp: 9474, takenBp: 10539 },
     // sim v30 (V30-BALANCE.md): +4% (9650 / 10350 → 10050 / 9950)
     // sim v31 (ROSTER-V31.md §7): +5% (10050 / 9950): 43.4% on the first window with the v31 four, +3.5%, then 46.7%
     // on the first 8,000 verify, +1.5%
-    ziggy: { dmgBp: 10450, takenBp: 9550 },
+    // sim v33: × the inverse of its 3v3 row change (7300 / 9900 → 7385 / 9790; the 3v3 row also applies here), so 5v5 keeps its balance
+    ziggy: { dmgBp: 10330, takenBp: 9657 },
     // sim v30 (V30-BALANCE.md): +3.5% (10450 / 9550 → 10800 / 9200)
-    biscuit: { dmgBp: 10800, takenBp: 9200 },
+    // sim v33: × the inverse of its 3v3 row change (9450 / 8100 → 9405 / 8135; the 3v3 row also applies here), so 5v5 keeps its balance
+    biscuit: { dmgBp: 10852, takenBp: 9160 },
     // sim v30 (V30-BALANCE.md): −1% (10400 / 9600 → 10300 / 9700)
-    champ: { dmgBp: 10450, takenBp: 9550 },
+    // sim v33: × the inverse of its 3v3 row change (8750 / 8850 → 8725 / 8875; the 3v3 row also applies here), so 5v5 keeps its balance
+    champ: { dmgBp: 10480, takenBp: 9523 },
     // sim v31 roster (ROSTER-V31.md §7): from neutral rows on hearth-gates 110001 (2,000 matches: Nova 59.7%, Dusty
     // 56.0%, Barkula 44.1%, Ranger 55.3%, cats 53.7%) −5 / −5 / +2.5 / −5%; on 112001 (2,000) a joint logistic fit
     // moved Dusty −1.5% and Ranger −2% more; the first 8,000 verify (24001–28000: Nova 51.3%, Dusty 47.3%, Barkula
@@ -379,9 +405,14 @@ export const HEARTHWOOD_PVP = Object.freeze({
     // (600 matches, cats 54.0%) the 13 heroes 5+ points off 50% stepped Nova −4.5, Champ +3, Meatball, Rocket, Barkula
     // and Frankie ±2.5, Ziggy, Cacklejaw, Clem and Howler ±2, Bravo, Dusty and Ranger ±1.5; on 24001 that read cats
     // 46.2%, so the shipped rows keep half of each step
-    nova: { dmgBp: 9025, takenBp: 10975 },
-    dusty: { dmgBp: 9375, takenBp: 10625 },
-    barkula: { dmgBp: 10075, takenBp: 9925 },
-    ranger: { dmgBp: 9225, takenBp: 10775 },
+    // sim v33: × the inverse of its 3v3 row change (9200 / 8900 → 9210 / 8890; the 3v3 row also applies here), so 5v5 keeps its balance
+    nova: { dmgBp: 9015, takenBp: 10987 },
+    // sim v33 (V33-KILLS.md, kills decide more): 44.8% of 4,000 matches (20001-22000) → +2% (9375 / 10625; the full +4% overshot: cats 52.9% of 2,000 on 40001)
+    // sim v33: × the inverse of its 3v3 row change (9300 / 8700 → 9375 / 8630; the 3v3 row also applies here), so 5v5 keeps its balance
+    dusty: { dmgBp: 9498, takenBp: 10510 },
+    // sim v33: × the inverse of its 3v3 row change (9350 / 8650 → 9310 / 8690; the 3v3 row also applies here), so 5v5 keeps its balance
+    barkula: { dmgBp: 10118, takenBp: 9879 },
+    // sim v33: × the inverse of its 3v3 row change (9300 / 8700 → 9195 / 8795; the 3v3 row also applies here), so 5v5 keeps its balance
+    ranger: { dmgBp: 9330, takenBp: 10659 },
   }) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
 });

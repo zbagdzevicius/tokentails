@@ -16,7 +16,8 @@ export const SAGE: HeroData = Object.freeze<HeroData>({
    * Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9450.
  Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9875 / takes 9200. Sim v20 refit on four seed windows (V20-CHASE.md §9): 10090 / 8985 → 10150 / 8655. */
   // sim v21 (stronger towers, cannon): dmgBp −125 on the v20 row (10150 → 10025)
-  pvp: { dmgBp: 9800, takenBp: 8655 },
+  // sim v33 (V33-KILLS.md, bigger kill rewards moved the 3v3 rows): 9800 / 8655
+  pvp: { dmgBp: 9865, takenBp: 8600 },
   element: 'WIND',
   base: { hp: 480, hpPerLevel: 50, attack: 52, attackPerLevel: 5, attackEvery: 27, range: 6000, speed: 4900, armour: 15, armourPerLevel: 2 },
   /** Steady Paw: every 4th basic pierces in a 7 m line, full damage to each target. */

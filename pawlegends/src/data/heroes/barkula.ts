@@ -7,7 +7,8 @@ export const BARKULA: HeroData = Object.freeze<HeroData>({
   side: 'dog',
   role: 'mage',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v31 (ROSTER-V31.md §4): the first fit. */
-  pvp: { dmgBp: 9350, takenBp: 8650 },
+  // sim v33 (V33-KILLS.md, bigger kill rewards moved the 3v3 rows): 9350 / 8650
+  pvp: { dmgBp: 9310, takenBp: 8690 },
   element: 'DARK',
   base: { hp: 520, hpPerLevel: 54, attack: 50, attackPerLevel: 5, attackEvery: 30, range: 5000, speed: 4900, armour: 17, armourPerLevel: 2 },
   /** Night Thirst: his ability damage heals him 18% of it on enemy heroes, 6% on anything else. */

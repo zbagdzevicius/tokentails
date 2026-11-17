@@ -12,13 +12,17 @@ export const XP = Object.freeze({
   shareBp: Object.freeze([10000, 5000, 3400]),
   ultimateLevel: 4,
   talentLevels: Object.freeze([3, 6, 9]),
-  /** Kill XP (v4): 80 + 15 × victim level. */
-  killBase: 80,
-  killPerLevel: 15,
-  /** Bounty: a victim on a takedown streak of bountyStreak+ gives +killPerStreak × streak (max killStreakMax). */
-  bountyStreak: 3,
-  killPerStreak: 20,
-  killStreakMax: 80,
+  /** Kill XP (v4): 80 + 15 × victim level. Sim v33 (docs/plans/moba/V33-KILLS.md, player feedback: "10 kills and 0
+   *  kills are almost the same strength, at most one level apart"): 120 + 30 × victim level, and the killer gets
+   *  killerBonusBp of it on top of its share, so a hero who racks up kills is 2 to 3 levels ahead (was ~1.5). */
+  killBase: 120,
+  killPerLevel: 30,
+  killerBonusBp: 5000,
+  /** Bounty: a victim on a takedown streak of bountyStreak+ gives +killPerStreak × streak (max killStreakMax). Sim
+   *  v33: from a streak of 2, +50 a takedown, at most +250 (v4: 3, 20, 80), so ending a streak is the comeback. */
+  bountyStreak: 2,
+  killPerStreak: 50,
+  killStreakMax: 250,
   shareRange: 10000,
   /** Assists count if they hit the victim in the last 10 s (v4; 6 s before). */
   assistWindow: 300,
@@ -60,8 +64,13 @@ export const RESPAWN = Object.freeze({
   base: 90,
   perLevel: 27,
   cap: 360,
-  /** Sim v12: no respawn is longer than 15 s, after Sunset and lead pressure (combat/damage.ts). */
-  hardCap: 450,
+  /** Sim v12: no respawn is longer than 15 s, after Sunset and lead pressure (combat/damage.ts). Sim v33: 25 s, so the
+   *  match-time growth (DifficultyRules.respawnGrowBp) reaches late games. */
+  hardCap: 750,
+  /** Sim v33 (player feedback: "respawns must get slower the longer the match goes, or even teams never take bases"):
+   *  from growFrom the wait grows DifficultyRules.respawnGrowBp a minute (Normal and Hard +8%), at most growMaxBp more. */
+  growFrom: 5400,
+  growMaxBp: 12000,
   earlyCap: 120,
   earlyUntil: 3600,
   /**

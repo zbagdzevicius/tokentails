@@ -308,7 +308,7 @@ export function resolveDeaths(m: MatchHandle): void {
       // Sim v22 (Blitz): a flat wait rising from 6 s to 8 s over the match replaces the level wait, Sunset and the lead
       // pressure; the difficulty's human and enemy edges still apply.
       const flat = mutatorRespawn(w, tick);
-      w.timer[id] = flat > 0 ? flat : respawnTicks(w.level[id], tick, w.globals[G.Sunset]);
+      w.timer[id] = flat > 0 ? flat : respawnTicks(w.level[id], tick, w.globals[G.Sunset], rulesOf(m).respawnGrowBp);
       if (isHumanSlot(w, id)) w.timer[id] = Math.max(1, applyBp(w.timer[id], rulesOf(m).humanRespawnBp));
       else if (w.team[id] !== teamOfSlot(HUMAN_SLOT)) w.timer[id] = applyBp(w.timer[id], rulesOf(m).enemyRespawnBp);
       m.stats[id].deaths++;

@@ -7,7 +7,8 @@ export const MOCHI: HeroData = Object.freeze<HeroData>({
   side: 'cat',
   role: 'support',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v29 (ROSTER-V29.md §4): the first fit. */
-  pvp: { dmgBp: 8750, takenBp: 8850 },
+  // sim v33 (V33-KILLS.md, bigger kill rewards moved the 3v3 rows): 8750 / 8850
+  pvp: { dmgBp: 8820, takenBp: 8775 },
   element: 'FAIRY',
   base: { hp: 500, hpPerLevel: 52, attack: 50, attackPerLevel: 5, attackEvery: 29, range: 5000, speed: 5000, armour: 18, armourPerLevel: 2 },
   /** Warm Lap: her shields on allied heroes below half HP are 25% stronger. */

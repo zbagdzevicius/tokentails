@@ -16,7 +16,7 @@ const bp = (x: number, b: number): number => Math.trunc((x * b) / 10000);
 
 describe('respawn and walking (sim v4)', () => {
   it('respawn 3 s + 0.9 s a level (sim v12), max 12 s, at most 4 s before 2:00', () => {
-    expect([RESPAWN.base, RESPAWN.perLevel, RESPAWN.cap, RESPAWN.earlyCap, RESPAWN.earlyUntil, RESPAWN.hardCap]).toEqual([90, 27, 360, 120, 3600, 450]);
+    expect([RESPAWN.base, RESPAWN.perLevel, RESPAWN.cap, RESPAWN.earlyCap, RESPAWN.earlyUntil, RESPAWN.hardCap]).toEqual([90, 27, 360, 120, 3600, 750]); // sim v33: hard cap 25 s
     expect([1, 2, 5, 10].map((l) => respawnTicks(l, 4000))).toEqual([117, 144, 225, 360]);
     expect([1, 2, 5, 10].map((l) => respawnTicks(l, 0))).toEqual([117, 120, 120, 120]);
   });

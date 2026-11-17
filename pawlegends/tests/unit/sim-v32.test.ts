@@ -13,9 +13,10 @@ import { MUTATOR_RULES } from '../../src/data/mutators';
 import type { Mutator, ReplayRecord } from '../../src/sim/api';
 import { createMatch, fillPicks, result, snapshot, step } from '../../src/sim/index';
 import { lateRespawn, lateStructureBp } from '../../src/sim/late';
-import { verifyReplay } from '../../src/sim/server';
 import { SIM_VERSION } from '../../src/sim/version';
 import { G, RANGE } from '../../src/sim/world';
+// Sim v33 changed the live sim (kills, respawns): the v32 checks below run on the frozen v32 bundle the backend keeps.
+import { SIM_VERSION as V32, verifyReplay as verifyV32 } from '../../../backend/src/vendor/pawlegends-sim/v32/index';
 
 const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim');
 const v31 = (name: string): ReplayRecord => JSON.parse(readFileSync(join(VENDOR, 'v31', `${name}.fixture.json`), 'utf8')) as ReplayRecord;
@@ -24,7 +25,7 @@ const BEFORE_LATE = ['dog-replay', 'new-dog-replay', 'roster-replay', 'kite-repl
 
 describe('sim v32: no Sudden Death', { timeout: limit(600000) }, () => {
   it('SIM_VERSION 32, v31 frozen at its last commit on main (345fb655) with its roster31 fixture', () => {
-    expect(SIM_VERSION).toBe(32);
+    expect(SIM_VERSION).toBe(33);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');
     const entry = /simVersion: 31,\s*commit: '([0-9a-f]{40})'[^]*?\]\)/.exec(tool);
     expect(entry?.[1].startsWith('345fb655')).toBe(true);
@@ -85,14 +86,14 @@ describe('sim v32: no Sudden Death', { timeout: limit(600000) }, () => {
       expect(rec.simVersion, name).toBe(31);
       const late = TIMELINE_BY[rec.difficulty as keyof typeof TIMELINE_BY].late;
       expect(rec.ticks, name).toBeLessThan(late);
-      expect(verifyReplay({ ...rec, simVersion: SIM_VERSION }), name).toMatchObject({ ok: true, finalHash: rec.finalHash, ticks: rec.ticks });
+      expect(verifyV32({ ...rec, simVersion: V32 }), name).toMatchObject({ ok: true, finalHash: rec.finalHash, ticks: rec.ticks });
     }
   });
 
   it('the live v32 late fixture runs past the late tick, ends on a core, and verifies', () => {
-    const live = JSON.parse(readFileSync(join(VENDOR, `v${SIM_VERSION}`, 'late-replay.fixture.json'), 'utf8')) as ReplayRecord;
+    const live = JSON.parse(readFileSync(join(VENDOR, 'v32', 'late-replay.fixture.json'), 'utf8')) as ReplayRecord;
     expect(live).toMatchObject({ simVersion: 32, difficulty: 'normal' });
     expect(live.ticks).toBeGreaterThan(TIMELINE_BY.normal.late);
-    expect(verifyReplay(live)).toMatchObject({ ok: true, finalHash: live.finalHash, ticks: live.ticks, reason: 'core' });
+    expect(verifyV32(live)).toMatchObject({ ok: true, finalHash: live.finalHash, ticks: live.ticks, reason: 'core' });
   });
 });
