@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 
 // Theme soundtrack (audio/theme.ts): nothing before the first gesture; then the home loop; the champion-select build
 // while the pick is open; the lock sting on LOCK IN; the loops fade in a match. Each source is checked where it lands
@@ -39,11 +40,11 @@ function hook(): void {
 
 const music = (page: Page): Promise<Heard[]> => page.evaluate(() => (window as unknown as { __heard: Heard[] }).__heard.slice());
 const played = async (page: Page, name: string): Promise<void> => {
-  await expect.poll(async () => (await music(page)).some((h) => h.name === name && h.dest), { timeout: 20_000, message: `${name} reached the speakers` }).toBe(true);
+  await expect.poll(async () => (await music(page)).some((h) => h.name === name && h.dest), { timeout: limit(20_000), message: `${name} reached the speakers` }).toBe(true);
 };
 
 test('home theme after the first tap, the select build in champion select, the lock sting on LOCK IN', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await page.addInitScript(hook);
   // the files live on pawlegends.app (pawlegends-web/public/pawlegends-art/music): served here from the repo
   await page.route('https://pawlegends.app/pawlegends-art/music/**', (route) => {

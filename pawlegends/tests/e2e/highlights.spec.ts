@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { attr } from './helpers';
 import { forfeitMatch, press } from './moments-helpers';
+import { limit } from '../unit/cpu-budget';
 
 // HIGHLIGHTS.md §8 items 10-15: a short solo match → the results' highlights strip (skeletons, then cards); a card
 // opens the viewer on its highlight with the director camera and ends on the highlight's card; Clip it records that
@@ -48,14 +49,14 @@ const videoOf = (page: Page) =>
 
 /** The results strip: skeletons first, then the cards (or the fallback). */
 async function stripReady(page: Page): Promise<void> {
-  await expect(page.locator('[data-testid="hl-strip"]')).toBeVisible({ timeout: 20_000 });
-  await page.waitForFunction(() => document.documentElement.dataset.hl === 'ready' || (document.documentElement.dataset.hl ?? '').startsWith('fallback'), null, { timeout: 60_000 });
+  await expect(page.locator('[data-testid="hl-strip"]')).toBeVisible({ timeout: limit(20_000) });
+  await page.waitForFunction(() => document.documentElement.dataset.hl === 'ready' || (document.documentElement.dataset.hl ?? '').startsWith('fallback'), null, { timeout: limit(60_000) });
   expect(await attr(page, 'hl')).toBe('ready');
   expect(Number(await attr(page, 'hlCount'))).toBeGreaterThanOrEqual(1);
 }
 
 test('highlights: results strip, a card opens its highlight with the director, Clip it records it, the chip row and N', async ({ page }, info) => {
-  test.setTimeout(600_000);
+  test.setTimeout(limit(600_000));
   const touch = info.project.name === 'landscape';
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -95,21 +96,21 @@ test('highlights: results strip, a card opens its highlight with the director, C
   // a card: the viewer opens on that highlight, the director camera on, and it ends on the highlight's card
   const id = await cards.first().getAttribute('data-hl-card');
   await press(page, touch, '[data-testid="hl-card"]');
-  await page.waitForFunction(() => document.documentElement.dataset.replay === 'playing', null, { timeout: 90_000 });
+  await page.waitForFunction(() => document.documentElement.dataset.replay === 'playing', null, { timeout: limit(90_000) });
   expect(await attr(page, 'replayCam')).toBe('director');
   expect(await attr(page, 'replayHlAt')).toBe(id);
   const start = Number(id!.split(':')[1]);
-  await expect.poll(async () => Number(await attr(page, 'replayTick')), { timeout: 10_000 }).toBeGreaterThanOrEqual(start - 30);
+  await expect.poll(async () => Number(await attr(page, 'replayTick')), { timeout: limit(10_000) }).toBeGreaterThanOrEqual(start - 30);
   const end = page.locator('[data-testid="replay-hl-end"]');
-  await expect(end).toBeVisible({ timeout: 60_000 });
+  await expect(end).toBeVisible({ timeout: limit(60_000) });
   await shot(page, 'highlight-end-card', info.project.name);
   if (touch) await expect(page.locator('[data-testid="replay-hl-clip"]')).toHaveCount(0);
   else {
     // Clip it: that highlight, 6-20 s, in the clip sheet
     await press(page, touch, '[data-testid="replay-hl-clip"]');
-    await page.waitForFunction(() => document.documentElement.dataset.clip === 'recording', null, { timeout: 60_000 });
+    await page.waitForFunction(() => document.documentElement.dataset.clip === 'recording', null, { timeout: limit(60_000) });
     const sheet = page.locator('[data-testid="clip-sheet"]');
-    await expect(sheet).toBeVisible({ timeout: 60_000 });
+    await expect(sheet).toBeVisible({ timeout: limit(60_000) });
     await expect(sheet).toContainText('Your highlight');
     const meta = await sheet.locator('.mm-clip-meta').innerText();
     const secs = Number(/^(\d+) s/.exec(meta)?.[1]);
@@ -132,9 +133,9 @@ test('highlights: results strip, a card opens its highlight with the director, C
   // Watch full match: the director lets go; the chip row opens and closes without changing the bar's height
   if (await end.isVisible()) await press(page, touch, '[data-testid="replay-hl-full"]');
   else await press(page, touch, '[data-testid="replay-play"]');
-  await page.waitForFunction(() => document.documentElement.dataset.replay === 'playing' || document.documentElement.dataset.replay === 'paused', null, { timeout: 60_000 });
+  await page.waitForFunction(() => document.documentElement.dataset.replay === 'playing' || document.documentElement.dataset.replay === 'paused', null, { timeout: limit(60_000) });
   const hlBtn = page.locator('[data-testid="replay-highlights"]');
-  await expect(hlBtn).toBeEnabled({ timeout: 120_000 });
+  await expect(hlBtn).toBeEnabled({ timeout: limit(120_000) });
   const before = (await page.locator('.mm-bar').boundingBox())!;
   await press(page, touch, '[data-testid="replay-highlights"]');
   const row = page.locator('[data-testid="replay-hl-row"]');
@@ -149,9 +150,9 @@ test('highlights: results strip, a card opens its highlight with the director, C
   await shot(page, 'chip-row', info.project.name);
   // a chip: the director on its highlight
   await press(page, touch, '.mm-chip[data-hl]');
-  await page.waitForFunction(() => document.documentElement.dataset.replayCam === 'director', null, { timeout: 60_000 });
+  await page.waitForFunction(() => document.documentElement.dataset.replayCam === 'director', null, { timeout: limit(60_000) });
   // free cam ends the director
-  await page.waitForFunction(() => document.documentElement.dataset.replay === 'playing', null, { timeout: 60_000 });
+  await page.waitForFunction(() => document.documentElement.dataset.replay === 'playing', null, { timeout: limit(60_000) });
   await press(page, touch, '[data-testid="replay-cam"]');
   expect(await attr(page, 'replayCam')).toBe('free');
   await press(page, touch, '[data-testid="replay-cam"]');
@@ -159,7 +160,7 @@ test('highlights: results strip, a card opens its highlight with the director, C
     // N: the next highlight with the director
     await page.locator('.mm-bar').click({ position: { x: 4, y: 4 } }).catch(() => undefined);
     await page.keyboard.press('n');
-    await page.waitForFunction(() => document.documentElement.dataset.replayCam === 'director', null, { timeout: 60_000 });
+    await page.waitForFunction(() => document.documentElement.dataset.replayCam === 'director', null, { timeout: limit(60_000) });
   }
   // close the row again: the bar's height never changed
   if (await row.isVisible()) await press(page, touch, '[data-testid="replay-highlights"]');
@@ -167,7 +168,7 @@ test('highlights: results strip, a card opens its highlight with the director, C
   expect((await page.locator('.mm-bar').boundingBox())!.height).toBe(before.height);
   await press(page, touch, '.mm-bar [data-r="exit"]');
   // gaps5 polish 2: back on the results it came from, the strip drawn again from the cached reel (a second card works)
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 30_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(30_000) });
   await stripReady(page);
   await expect(page.locator('[data-testid="hl-card"]').first()).toBeVisible();
   await shot(page, 'back-to-results', info.project.name);
@@ -182,7 +183,7 @@ test('highlights: results strip, a card opens its highlight with the director, C
 
 test('highlights: the Montage records 3-5 highlights in one 20-30 s video', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'the recorder test runs on desktop');
-  test.setTimeout(600_000);
+  test.setTimeout(limit(600_000));
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await forfeitMatch(page, false);
@@ -190,7 +191,7 @@ test('highlights: the Montage records 3-5 highlights in one 20-30 s video', asyn
   const mont = page.locator('[data-testid="hl-montage"]');
   test.skip((await mont.count()) === 0, 'this match found fewer than 3 highlights (no montage)');
   await press(page, false, '[data-testid="hl-montage"]');
-  await page.waitForFunction(() => document.documentElement.dataset.montage === 'recording', null, { timeout: 90_000 });
+  await page.waitForFunction(() => document.documentElement.dataset.montage === 'recording', null, { timeout: limit(90_000) });
   await shot(page, 'montage-recording', info.project.name);
   // the montage's own seeks (one per segment) never cancel it
   const seen = new Set<string>();
@@ -200,7 +201,7 @@ test('highlights: the Montage records 3-5 highlights in one 20-30 s video', asyn
     if (at) seen.add(at);
     await page.waitForTimeout(500);
   }
-  await expect(sheet).toBeVisible({ timeout: 10_000 });
+  await expect(sheet).toBeVisible({ timeout: limit(10_000) });
   expect(seen.size).toBeGreaterThanOrEqual(3);
   await expect(sheet).toContainText('Your montage');
   const v = await videoOf(page);
@@ -224,7 +225,7 @@ test('highlights: the Montage records 3-5 highlights in one 20-30 s video', asyn
   expect(await attr(page, 'montage')).toBe('');
   // gaps5 polish 2: leaving the replay after the Montage goes back to the results, not Home
   await press(page, false, '.mm-bar [data-r="exit"]');
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 30_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(30_000) });
   await stripReady(page);
   expect(errors).toEqual([]);
 });

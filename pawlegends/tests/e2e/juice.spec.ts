@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Fun plan F1, F2, F6 (FEEL lane): match 1 is the guided Rookie match (when the sim ships it), the first
 // objective chip shows within 5 s, and a real event stream drives the announcer: a First Blood or Takedown banner,
@@ -13,10 +14,10 @@ const point = async (page: Page, name: string) => {
 test('the first objective chip shows within 5 s of the gates opening and points the way', async ({ page }) => {
   await startFirstMatch(page);
   // feel QA: "Run to the lane" waits for the gates (no arrow and no way out before them)
-  await page.waitForSelector('html[data-gate="open"], html[data-gate="opening"]', { timeout: 20_000 });
+  await page.waitForSelector('html[data-gate="open"], html[data-gate="opening"]', { timeout: limit(20_000) });
   // LoL pass (lane A): the beat is on the top rail (its note, then the resting goal line)
   // (on desktop a coaching tip on the second line may hold the slot under it for a while, so the text is checked)
-  await expect(page.locator('.pl-rail-line.on', { hasText: /Run to the lane!|Drag left to follow the arrow/ }).first()).toBeAttached({ timeout: 5000 });
+  await expect(page.locator('.pl-rail-line.on', { hasText: /Run to the lane!|Drag left to follow the arrow/ }).first()).toBeAttached({ timeout: limit(5000) });
   expect(await attr(page, 'goal')).toBe('lane');
   // match 1 is the Rookie match (fun plan F1)
   expect(await attr(page, 'difficulty')).toBe('rookie');
@@ -26,7 +27,7 @@ test('the first objective chip shows within 5 s of the gates opening and points 
 
 test('a fighting player sees First Blood or Takedown, level-ups and XP pops (desktop)', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop controls');
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   await startFirstMatch(page, '&speed=4');
   const deadline = Date.now() + 200_000;
   const said = new Set<string>();

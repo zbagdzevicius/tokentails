@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { PROFILE_KEY, toChampSelect } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // No-scroll Home and champion select (docs/plans/moba/HOME-MODES.md §4, LANDING-PICK-UX.md §B7): at 667x375 and 844x390
 // (touch, 2x), 1440x900 and 667x300, for a new, a returning and a dare profile, nothing scrolls on Home, every Home
@@ -49,7 +50,7 @@ for (const size of SIZES) {
 
     for (const profile of ['new', 'returning', 'dare'] as const) {
       test(`landing, ${profile}`, async ({ page }) => {
-        test.setTimeout(120_000);
+        test.setTimeout(limit(120_000));
         await page.route('**/pawlegends/sim', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ simVersions: [18], pvpSince: 16 }) }));
         if (profile !== 'new')
           await page.addInitScript(([k, v]) => {
@@ -59,7 +60,7 @@ for (const size of SIZES) {
         await page.goto(`/?e2e=1${q}`);
         await page.waitForSelector('html[data-screen="title"] .pl-home');
         // past Home's entrance animations (the looping ones keep running)
-        await page.waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: 10_000 });
+        await page.waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: limit(10_000) });
         expect(await page.evaluate(() => (document.scrollingElement?.scrollHeight ?? 0) <= innerHeight)).toBe(true);
         expect(await page.evaluate(() => (document.scrollingElement?.scrollWidth ?? 0) <= innerWidth)).toBe(true);
         expect(await scrollers(page)).toEqual([]);
@@ -97,7 +98,7 @@ for (const size of SIZES) {
     }
 
     test('champion select: only the grid scrolls; LOCK IN, the selected tile, the skills and the tricks in view', async ({ page }) => {
-      test.setTimeout(120_000);
+      test.setTimeout(limit(120_000));
       await page.addInitScript(([k, v]) => {
         if (!localStorage.getItem(k)) localStorage.setItem(k, v);
       }, [PROFILE_KEY, JSON.stringify(RETURNING)] as const);
@@ -139,7 +140,7 @@ for (const size of SIZES) {
 
     if (size.name === '667x375' || size.name === '844x390')
       test('champion select with notch insets: the fourteen heroes of a side, every tab, no scroll', async ({ page }) => {
-        test.setTimeout(120_000);
+        test.setTimeout(limit(120_000));
         await page.addInitScript(([k, v]) => {
           if (!localStorage.getItem(k)) localStorage.setItem(k, v);
         }, [PROFILE_KEY, JSON.stringify(RETURNING)] as const);

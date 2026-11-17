@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { attr, seedSide, startFirstMatch, toChampSelect } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Sim v29 roster (docs/plans/moba/ROSTER-V29.md): the four v29 champions are in the champion select and the champion
 // browser (with their art and words), and each one starts a match as itself on its own side; on touch a plain tap on
@@ -13,7 +14,7 @@ const ROSTER = [
 ];
 
 test('the champion select and browser show the four v29 champions with their kit', async ({ page }, info) => {
-  test.setTimeout(300_000);
+  test.setTimeout(limit(300_000));
   const touch = info.project.name === 'landscape';
   for (const r of ROSTER) {
     await seedSide(page, r.side);
@@ -36,7 +37,7 @@ test('the champion select and browser show the four v29 champions with their kit
     if (touch) await codex.tap();
     else await codex.click();
     const dlg = page.locator('.pl-champ[data-ready="1"]');
-    await expect(dlg).toBeVisible({ timeout: 30_000 });
+    await expect(dlg).toBeVisible({ timeout: limit(30_000) });
     await expect(dlg.locator('.cb-name')).toHaveText(r.name);
     const ult = dlg.locator('.cb-skill-btn[data-slot="r"]');
     if (touch) await ult.tap();
@@ -49,7 +50,7 @@ test('the champion select and browser show the four v29 champions with their kit
 
 for (const r of ROSTER) {
   test(`${r.hero}: plays its own side; Q casts`, async ({ page }, info) => {
-    test.setTimeout(180_000);
+    test.setTimeout(limit(180_000));
     const touch = info.project.name === 'landscape';
     if (touch) await page.setViewportSize({ width: 844, height: 390 });
     await seedSide(page, r.side, { hero: r.hero, lastBySide: { [r.side]: r.hero } });
@@ -74,7 +75,7 @@ for (const r of ROSTER) {
       await page.mouse.move(vp.width / 2 + 120, vp.height / 2);
       await page.keyboard.press('q');
     }
-    await expect.poll(async () => Number(await attr(page, 'casts')), { timeout: 8000 }).toBeGreaterThan(before);
+    await expect.poll(async () => Number(await attr(page, 'casts')), { timeout: limit(8000) }).toBeGreaterThan(before);
     await page.screenshot({ path: `test-results/roster-v29-match-${r.hero}-${info.project.name}.png` });
   });
 }

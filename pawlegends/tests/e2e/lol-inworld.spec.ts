@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // LoL pass, lane C: the in-world pieces. Damage numbers stay small on phones (≤ 20 px, words ≤ 24), the tower beam and
 // the red aggro ring show when a tower is on the player, the low-health vignette follows its formula with a clear
@@ -35,12 +36,12 @@ for (const s of [
 ] as const) {
   test(`${s.w}x${s.h}: LoL in-world (numbers, tower beam and aggro ring, low HP, markers, nap rune)`, async ({ page }, info) => {
     test.skip(info.project.name !== s.project, `${s.project} size`);
-    test.setTimeout(150_000);
+    test.setTimeout(limit(150_000));
     await page.setViewportSize({ width: s.w, height: s.h });
     await startFirstMatch(page, '&speed=3');
     expect(await world(page)).toBe(true);
     // past the start gate: the field is live
-    await page.waitForFunction(() => document.documentElement.dataset.gate !== 'up', null, { timeout: 60_000 }).catch(() => undefined);
+    await page.waitForFunction(() => document.documentElement.dataset.gate !== 'up', null, { timeout: limit(60_000) }).catch(() => undefined);
     await page.waitForTimeout(1500);
     const sc = (await scene(page))!;
     expect(sc).not.toBeNull();
@@ -59,7 +60,7 @@ for (const s of [
       n.word('Snap!', p(0, 1.6), { force: true, text: 'Snap!', lifted: true });
     }, sc.me);
     await page
-      .waitForFunction(() => [...document.querySelectorAll<HTMLElement>('.fx-dmg')].filter((e) => Number(getComputedStyle(e).opacity) > 0.5).length >= 5, null, { timeout: 4000 })
+      .waitForFunction(() => [...document.querySelectorAll<HTMLElement>('.fx-dmg')].filter((e) => Number(getComputedStyle(e).opacity) > 0.5).length >= 5, null, { timeout: limit(4000) })
       .catch(() => undefined);
     const sizes = await page.evaluate(() =>
       [...document.querySelectorAll<HTMLElement>('.fx-dmg')].filter((e) => Number(getComputedStyle(e).opacity) > 0).map((e) => ({ word: e.classList.contains('word') || e.classList.contains('pop'), px: parseFloat(getComputedStyle(e).fontSize) })),
@@ -88,7 +89,7 @@ for (const s of [
       await page.waitForTimeout(40);
       await page.screenshot({ path: `${tag}-tower.png` });
       // the ring goes back to the pale idle ring 1.5 s (view time) after the last hit
-      await page.waitForFunction((id) => !(window as unknown as { __plWorld: { view: { structures: { aggro(id: number): boolean } } } }).__plWorld.view.structures.aggro(id), sc.tower.id, { timeout: 15_000 });
+      await page.waitForFunction((id) => !(window as unknown as { __plWorld: { view: { structures: { aggro(id: number): boolean } } } }).__plWorld.view.structures.aggro(id), sc.tower.id, { timeout: limit(15_000) });
       await page.evaluate(() => (window as unknown as { __plWorld: { view: { recentre(): void } } }).__plWorld.view.recentre());
       await page.waitForTimeout(500);
     }
@@ -102,7 +103,7 @@ for (const s of [
         .waitForFunction((f) => {
           const l = (window as unknown as { __plWorld: { lowHp(): { opacity: number } | null } }).__plWorld.lowHp();
           return !!l && (f >= 0.3 ? l.opacity === 0 : l.opacity > 0);
-        }, frac, { timeout: 6000 })
+        }, frac, { timeout: limit(6000) })
         .catch(() => undefined);
       await page.waitForTimeout(100);
       return page.evaluate(() => {

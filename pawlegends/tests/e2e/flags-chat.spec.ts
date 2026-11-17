@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { homedir } from 'node:os';
 import { playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // FLAGS.md and MATCH-CHAT.md (round 7): in a bot match every seat shows a flag (the player's own country, a seeded one
 // for each bot) on the scoreboard; the chat drawer has Mute all and fits the screen. Desktop 1440x900, phones 1280x590,
@@ -16,11 +17,11 @@ async function startMatch(page: Page, width: number, height: number): Promise<vo
     // the backend's answer, cached (no backend in e2e): this player is in Lithuania
     localStorage.setItem('pl.flag', JSON.stringify({ cc: 'LT', at: Date.now() }));
   });
-  await page.goto('/?e2e=1', { timeout: 120_000 });
-  await page.waitForSelector('html[data-screen="title"]', { timeout: 120_000 });
-  await playFromHome(page, { timeout: 120_000 });
-  await page.waitForSelector('html[data-match="live"]', { timeout: 240_000 });
-  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), undefined, { timeout: 120_000 });
+  await page.goto('/?e2e=1', { timeout: limit(120_000) });
+  await page.waitForSelector('html[data-screen="title"]', { timeout: limit(120_000) });
+  await playFromHome(page, { timeout: limit(120_000) });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(240_000) });
+  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), undefined, { timeout: limit(120_000) });
 }
 
 const box = (page: Page, sel: string): Promise<Box | null> =>
@@ -39,7 +40,7 @@ for (const [w, h, project] of [
 ] as const) {
   test(`${w}x${h}: flags on every seat, the chat drawer with Mute all fits`, async ({ page }, info) => {
     test.skip(info.project.name !== project, `${project} only`);
-    test.setTimeout(480_000);
+    test.setTimeout(limit(480_000));
     await startMatch(page, w, h);
     const flags = (await page.evaluate(() => document.documentElement.dataset.matchFlags ?? '')).split(',');
     expect(flags.length).toBeGreaterThanOrEqual(2);
@@ -64,9 +65,9 @@ for (const [w, h, project] of [
       // a fresh ticker line to tap; retried, since a line can re-render or fade before the tap on a slow machine
       await expect(async () => {
         await page.evaluate(() => (window as unknown as { __plChat: { debugLine(s: number, t: string): void } }).__plChat.debugLine(1, 'nice'));
-        await page.locator('[data-testid="chat-ticker"] .cl-row').last().tap({ timeout: 5_000 });
-        await expect(drawer).toBeVisible({ timeout: 3_000 });
-      }).toPass({ timeout: 120_000 });
+        await page.locator('[data-testid="chat-ticker"] .cl-row').last().tap({ timeout: limit(5_000) });
+        await expect(drawer).toBeVisible({ timeout: limit(3_000) });
+      }).toPass({ timeout: limit(120_000) });
     } else await page.keyboard.press('Enter');
     await expect(drawer).toBeVisible();
     const mall = drawer.locator('[data-testid="chat-mute-all"]');

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * POC.md §10 and §15 item 23: cold load to the first controllable frame (the match is live and the hero answers)
@@ -14,7 +15,7 @@ if (process.platform === 'darwin') test.use({ launchOptions: { args: ['--use-ang
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'Chromium desktop only (CDP)'));
 
 test('cold load to the first controllable frame ≤ 6 s on simulated 4G', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Network.enable');
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });

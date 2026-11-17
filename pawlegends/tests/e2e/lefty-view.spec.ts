@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * UX pass 2, the left-handed mirror (Settings): the button arc sits bottom-left, so the camera's lane lead flips with
@@ -14,7 +15,7 @@ for (const size of [
   { w: 667, h: 375 },
 ]) {
   test(`${size.w}x${size.h} left-handed: walking east, the hero is never under a button`, async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(limit(120_000));
     await page.setViewportSize({ width: size.w, height: size.h });
     await page.addInitScript(() => localStorage.setItem('pawlegends.leftHanded', '1'));
     await startFirstMatch(page, '', 'cat');

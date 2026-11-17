@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { me, startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // MAP-GAPS A24 + feel pass B2: the map is diagonal and each seat sees its own base bottom left, the enemy's top right
 // (team 1: turned another 180°): the enemy core projects right of and above its own, the stick pushed right walks
@@ -60,23 +61,23 @@ test('team-1 seat: diagonal view turned 180°, the enemy core top right, the sti
     return `${inView ? 'in view' : 'off view'} ${o[0] < e[0] ? 'left' : 'right'} ${o[1] < e[1] ? 'below' : 'above'}`;
   };
   // team 0: our core (10 m) left of and below theirs (90 m) (NDC y is up), seen from mid-map
-  await expect.poll(() => fromMid(10, 90), { timeout: 10_000 }).toBe('in view left below');
+  await expect.poll(() => fromMid(10, 90), { timeout: limit(10_000) }).toBe('in view left below');
   await seat(page, 1);
   await page.waitForTimeout(800);
   // team 1: the enemy core (team 0's, 10 m) projects right of and above our own (90 m)
-  await expect.poll(() => fromMid(90, 10), { timeout: 10_000 }).toBe('in view left below');
+  await expect.poll(() => fromMid(90, 10), { timeout: limit(10_000) }).toBe('in view left below');
   await midMap(page, false);
   await page.waitForTimeout(300);
   // the stick pushed screen-right walks the hero toward −x (toward that enemy core's side of the map)
   const a = await me(page);
   await stickRight(page, 900);
-  await expect.poll(async () => (await me(page)).x, { timeout: 3000 }).toBeLessThan(a.x - 300);
+  await expect.poll(async () => (await me(page)).x, { timeout: limit(3000) }).toBeLessThan(a.x - 300);
   await page.screenshot({ path: 'test-results/team1-view/844x390.png' });
 });
 
 test('the start shows "Your base: bottom left" for 1.2 s', async ({ page }, info) => {
   test.skip(info.project.name !== 'landscape', 'touch phone');
   await startFirstMatch(page);
-  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.baseToast ?? ''), { timeout: 15_000 }).toBe('base');
-  await expect(page.locator('.pl-basetoast')).toHaveCount(0, { timeout: 5000 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.baseToast ?? ''), { timeout: limit(15_000) }).toBe('base');
+  await expect(page.locator('.pl-basetoast')).toHaveCount(0, { timeout: limit(5000) });
 });

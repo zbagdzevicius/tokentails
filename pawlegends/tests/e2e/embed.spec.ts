@@ -5,6 +5,7 @@ import { playFromHome, withFriends } from './helpers';
 const PLAYED = { v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
 import { SIM_VERSION } from '../../src/sim/version';
 import { EVIL, SITE, gattr, mockHost, openHost, received, recordPostTargets } from './host';
+import { limit } from '../unit/cpu-budget';
 
 // POC.md §15 item 21, against the standalone build framed by a mock host (tests/e2e/host.ts).
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'bridge behaviour is viewport independent'));
@@ -23,7 +24,7 @@ test('a host on the wrong origin is ignored and nothing is posted to it', async 
 });
 
 test('NO-TOKENTAILS.md: a roster brings no chromas, frames or kittens; the result reaches the host and /live', async ({ context, page, baseURL }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(limit(150_000));
   await recordPostTargets(context);
   const roster = [
     { id: 'cat1', name: 'Mochi', type: 'FIRE', tier: 'EPIC', isStarter: true, starterBreed: 'PINKIE', origin: 'starter' },
@@ -47,7 +48,7 @@ test('NO-TOKENTAILS.md: a roster brings no chromas, frames or kittens; the resul
   expect(await gattr(game, 'kittens')).toBe('0');
   expect(await gattr(game, 'matchFrame') ?? '').toBe('');
 
-  await game.waitForSelector('html[data-screen="results"]', { timeout: 120_000 });
+  await game.waitForSelector('html[data-screen="results"]', { timeout: limit(120_000) });
   await expect.poll(async () => (await received(page)).filter((m) => m.type === 'match-result').length).toBe(1);
   const result = (await received(page)).find((m) => m.type === "match-result") as unknown as { replay: Record<string, unknown>; summary: Record<string, unknown>; matchId: unknown };
   // match 1 is the Rookie match (fun plan F1); the integration names it with a match id the host saves under
@@ -100,7 +101,7 @@ test('game events go to the host as analytics messages, with no stats prompt in 
 });
 
 test('party play (P9): the game asks its host for a ticket and sends it in the relay hello, never a token', async ({ context, page, baseURL }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await recordPostTargets(context);
   const TICKET = `eyJhdWQiOiJwbC1wYXJ0eSIsInYiOjF9.${'A'.repeat(43)}`;
   const hellos: Record<string, unknown>[] = [];
@@ -118,7 +119,7 @@ test('party play (P9): the game asks its host for a ticket and sends it in the r
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, partyTicket: TICKET, profile: PLAYED });
   const game = await openHost(page);
   await withFriends(game);
-  await expect.poll(() => hellos.length, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect.poll(() => hellos.length, { timeout: limit(30_000) }).toBeGreaterThan(0);
   expect(hellos[0].ticket).toBe(TICKET);
   const asks = (await received(page)).filter((m) => m.type === 'party-ticket-request');
   expect(asks).toHaveLength(1);
@@ -130,7 +131,7 @@ test('party play (P9): the game asks its host for a ticket and sends it in the r
 });
 
 test('party play (P9): a host without a ticket answers null and the player joins as a guest', async ({ context, page, baseURL }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   const hellos: Record<string, unknown>[] = [];
   await context.routeWebSocket(/\/pawlegends\/ws$/, (ws) => {
     ws.onMessage((m) => {
@@ -145,7 +146,7 @@ test('party play (P9): a host without a ticket answers null and the player joins
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, partyTicket: null, profile: PLAYED });
   const game = await openHost(page);
   await withFriends(game);
-  await expect.poll(() => hellos.length, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect.poll(() => hellos.length, { timeout: limit(30_000) }).toBeGreaterThan(0);
   expect(hellos[0].ticket).toBeUndefined();
   expect(typeof hellos[0].guestKey).toBe('string');
 });

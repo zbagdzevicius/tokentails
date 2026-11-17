@@ -1,13 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { gattr, mockHost, openHost } from './host';
 import { startFirstMatch, playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // UX pass 2: a human hero shows the player's username (the Token Tails profile name the host sends in `session`),
 // cleaned and cut to 14 characters; bots keep their persona names, which carry the champion ("Biscuit the Clem").
 const PROFILE = { v: 1, sessions: 3, matches: 2, wins: 1, firstWinDone: true, hero: 'clem', side: 'cat' };
 
 test('signed in: the own hero, scoreboard row and HUD portrait carry the username; bots keep champion names', async ({ context, page, baseURL }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, name: 'Žygis <b>the Great</b> Pawsome', profile: PROFILE });
   const game = await openHost(page);
   await game.waitForSelector('html[data-screen="title"]');

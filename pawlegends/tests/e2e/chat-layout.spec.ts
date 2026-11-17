@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // MATCH-CHAT.md §4.1, §8: the in-match chat ticker on phones. Two lines in it (and two kill feed rows) at 667x375 and
 // 844x390, minimap S / M / L, with and without the emote chip: the ticker never touches the minimap, the feed, the
@@ -31,11 +32,11 @@ async function startMatch(page: Page, width: number, height: number, size: 's' |
     },
     [size, emote] as const,
   );
-  await page.goto('/?e2e=1', { timeout: 120_000 });
-  await page.waitForSelector('html[data-screen="title"]', { timeout: 120_000 });
-  await playFromHome(page, { timeout: 120_000 });
-  await page.waitForSelector('html[data-match="live"]', { timeout: 240_000 });
-  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), undefined, { timeout: 120_000 });
+  await page.goto('/?e2e=1', { timeout: limit(120_000) });
+  await page.waitForSelector('html[data-screen="title"]', { timeout: limit(120_000) });
+  await playFromHome(page, { timeout: limit(120_000) });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(240_000) });
+  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), undefined, { timeout: limit(120_000) });
   await expect(page.locator('.pl-touch.on')).toBeVisible();
 }
 
@@ -46,7 +47,7 @@ for (const [width, height] of [
   for (const size of ['s', 'm', 'l'] as const) {
     for (const emote of [true, false]) {
       test(`${width}x${height} minimap ${size.toUpperCase()}${emote ? ' + emote' : ''}: the chat ticker overlaps nothing`, async ({ page }) => {
-        test.setTimeout(480_000);
+        test.setTimeout(limit(480_000));
         await startMatch(page, width, height, size, emote);
         if (emote) await expect(page.locator('.pl-emote')).toBeVisible();
         await page.evaluate(() => {

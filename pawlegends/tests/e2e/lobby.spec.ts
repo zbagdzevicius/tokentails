@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { toChampSelect } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Home (HOME-MODES.md §4, was the lobby redesign), desktop 1280x720 and landscape 844x390: the round PLAY is visible and on
 // top, the 3D hero and its pedestal stay wholly in frame (founder, Nov 13: Home shows the 3D champion), Settings
@@ -70,7 +71,7 @@ test('Settings closes on Escape and gives focus back to its button', async ({ pa
 });
 
 test('keyboard: M opens Mode Select, Escape closes it; Enter, Enter, Enter, Ctrl+Enter plays', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('.pl-home');
@@ -92,7 +93,7 @@ test('keyboard: M opens Mode Select, Escape closes it; Enter, Enter, Enter, Ctrl
   await page.keyboard.press('Control+Enter');
   // the match loads its programs behind the veil first: give it the same budget as every other spec's match start (a
   // loaded machine's swiftshader run hit the old 30 s cap in QA flaky-qa, and passed alone)
-  await page.waitForSelector('html[data-match="live"]', { timeout: 60_000 });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(60_000) });
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
 });
 

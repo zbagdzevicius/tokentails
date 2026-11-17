@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { PROFILE_KEY } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // The release line (src/ui/versionMark.ts). s7 ui (founder, Nov 15): it left Home's bottom-left corner, where on a
 // phone it ran under the nav and through a champion, and now sits in Settings under the legal links. At a landscape
@@ -52,7 +53,7 @@ for (const size of SIZES) {
 
     for (const profile of ['new', 'returning'] as const) {
       test(`title, ${profile}`, async ({ page }) => {
-        test.setTimeout(90_000);
+        test.setTimeout(limit(90_000));
         // a PvP-capable relay, as in production, so the online row is at its fullest
         await page.route('**/pawlegends/sim', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ simVersions: [18], pvpSince: 16 }) }));
         if (profile === 'returning')
@@ -90,7 +91,7 @@ async function openSettings(page: Page, touch: boolean): Promise<void> {
 
 test('Settings: a click copies the full line', async ({ page, context, browserName }, info) => {
   test.skip(info.project.name !== 'desktop' || browserName !== 'chromium', 'chromium clipboard permissions, desktop only');
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
@@ -104,5 +105,5 @@ test('Settings: a click copies the full line', async ({ page, context, browserNa
   // the click did not close Settings or start anything
   await expect(page.locator('.pl-settings')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'title');
-  await expect(mark).toHaveText(line, { timeout: 3000 });
+  await expect(mark).toHaveText(line, { timeout: limit(3000) });
 });

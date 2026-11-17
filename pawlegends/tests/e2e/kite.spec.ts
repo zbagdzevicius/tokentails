@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { me, minimapPoint, seedSide, startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * KITE-FIX (docs/plans/moba/KITE-FIX.md; player report 2026-11-11 "can't both run and attack"), 844x390 emulated
@@ -38,7 +39,7 @@ const nearestMinion = (page: Page): Promise<{ d: number; sx: number; sy: number 
   });
 
 test('844x390: ATK held, the stick strafes beside a minion: the hero walks and the swings keep landing', async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(limit(300_000));
   await page.setViewportSize({ width: W, height: H });
   await seedSide(page, 'cat', { difficulty: 'rookie', hero: 'rocket' });
   await startFirstMatch(page, '&speed=1');

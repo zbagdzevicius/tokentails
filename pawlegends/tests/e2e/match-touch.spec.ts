@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { attr, me, ops, startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'landscape', 'touch controls'));
@@ -19,7 +20,7 @@ test('joystick moves, Attack picks a target, drag-aim onto the cancel casts noth
   await expect(page.locator('.pl-touch.on')).toBeVisible();
   const a = await me(page);
   await touchDrag(page, 150, 250, 230, 230, 1500);
-  await expect.poll(async () => (await me(page)).x, { timeout: 10000 }).toBeGreaterThan(a.x + 1000);
+  await expect.poll(async () => (await me(page)).x, { timeout: limit(10000) }).toBeGreaterThan(a.x + 1000);
   expect(await ops(page)).toContain(1);
 
   const atk = await page.locator('.pl-tbtn.attack').boundingBox();
@@ -111,7 +112,7 @@ function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]
 }
 
 test('Attack picks by priority: hero in range, then the lowest-HP minion, then a tower', async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   await startFirstMatch(page, '&speed=4');
   const atk = (await page.locator('.pl-tbtn.attack').boundingBox())!;
   const reasons = new Map<string, number>();
@@ -156,7 +157,7 @@ test('portrait shows the rotate prompt', async ({ page }) => {
 
 // Fun plan F3: holding the joystick into the map edge never walks the hero outside the map (or into a corner).
 test('a held joystick stops at the map edge', async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(limit(90_000));
   await startFirstMatch(page, '&speed=4');
   await expect(page.locator('.pl-touch.on')).toBeVisible();
   // up and left from the fountain: straight into the west edge and the north-west corner
@@ -223,7 +224,7 @@ const discGap = (a: Disc, b: Disc): number =>
 // Audit CF-01 + feel pass B4: a full-range aim up or up-left from W and E (110 px, past the 100 px full range, the
 // way a thumb overshoots) casts; the cancel bubble sits 150 px above the pressed button, past that reach.
 test('up and up-left drags from W and E cast; the cancel bubble stays past their reach', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   await startFirstMatch(page);
   await expect(page.locator('.pl-touch.on')).toBeVisible();
   const cdp = await page.context().newCDPSession(page);
@@ -235,7 +236,7 @@ test('up and up-left drags from W and E cast; the cancel bubble stays past their
       let cast = false;
       // a press the cast buffer refuses (the hero still busy from the last cast on a loaded machine) is tried again
       for (let attempt = 0; attempt < 3 && !cast; attempt++) {
-        await expect(btn).not.toHaveClass(/cooling|locked/, { timeout: 30_000 });
+        await expect(btn).not.toHaveClass(/cooling|locked/, { timeout: limit(30_000) });
         const box = (await btn.boundingBox())!;
         const x0 = box.x + box.width / 2;
         const y0 = box.y + box.height / 2;
@@ -249,7 +250,7 @@ test('up and up-left drags from W and E cast; the cancel bubble stays past their
         expect(await page.locator('.pl-cancel.hot, .pl-cancel.arming').count(), `${b} ${dx},${dy}: on the ✕`).toBe(0);
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
         cast = await expect
-          .poll(async () => Number(await attr(page, 'casts')), { timeout: 4000 })
+          .poll(async () => Number(await attr(page, 'casts')), { timeout: limit(4000) })
           .toBeGreaterThan(before)
           .then(() => true, () => false);
       }

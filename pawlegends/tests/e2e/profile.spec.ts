@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { mockHost, openHost } from './host';
+import { limit } from '../unit/cpu-budget';
 
 /*
  * Profile and nickname (docs/plans/moba/SOCIAL-RANKED.md §2.3): the Home profile chip opens the Profile sheet; the first
@@ -36,7 +37,7 @@ function server() {
 }
 
 test('Profile: first name change is free, shows on Home and after a reload; the second needs Yarn', async ({ context, page, baseURL }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   const srv = server();
   await context.exposeFunction('plApi', async (op: string, args: Record<string, unknown>) => srv.handle(op, args));
   await mockHost(context, baseURL!, {
@@ -47,7 +48,7 @@ test('Profile: first name change is free, shows on Home and after a reload; the 
   });
   let game = await openHost(page);
   const chip = game.locator('[data-testid="home-profile"]');
-  await expect(chip).toContainText('Witty Biscuit', { timeout: 60_000 });
+  await expect(chip).toContainText('Witty Biscuit', { timeout: limit(60_000) });
   await chip.click();
   const sheet = game.locator('[data-testid="profile-sheet"]');
   await expect(sheet.locator('[data-testid="profile-price"]')).toHaveText('First change free');
@@ -78,7 +79,7 @@ test('Profile: first name change is free, shows on Home and after a reload; the 
   // after a reload: still the new name
   await page.reload();
   game = await openHost(page);
-  await expect(game.locator('[data-testid="home-profile"]')).toContainText('Pawsome Zyg', { timeout: 60_000 });
+  await expect(game.locator('[data-testid="home-profile"]')).toContainText('Pawsome Zyg', { timeout: limit(60_000) });
   expect(srv.s.changes).toBe(1);
 });
 
@@ -89,6 +90,6 @@ test('Profile: a guest is asked to sign in to choose a name', async ({ context, 
     profile: { v: 1, sessions: 3, matches: 5, wins: 2, firstWinDone: true, hero: 'sage', trick: 'hiss', difficulty: 'easy', veteran: true },
   });
   const game = await openHost(page);
-  await game.locator('[data-testid="home-profile"]').click({ timeout: 60_000 });
+  await game.locator('[data-testid="home-profile"]').click({ timeout: limit(60_000) });
   await expect(game.locator('[data-testid="profile-guest"]')).toContainText('Sign in to choose your name');
 });

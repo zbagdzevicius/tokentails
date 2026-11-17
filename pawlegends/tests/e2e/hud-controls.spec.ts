@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, playFromHome, seedSide } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * Gaps round 3 (hud-controls): the HUD layout editor (Settings → HUD layout → Edit) and the per-ability cast modes, end
@@ -33,7 +34,7 @@ async function live(page: Page): Promise<void> {
 }
 
 test('the editor: drag, refuse an overlap, save; the match lays out what was saved', async ({ page }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(limit(150_000));
   await seedSide(page, 'cat', { sessions: 3, matches: 5, wins: 2, veteran: true });
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
@@ -74,7 +75,7 @@ test('the editor: drag, refuse an overlap, save; the match lays out what was sav
     .poll(async () => {
       const qm = await centre(page, '.pl-tbtn.q');
       return Math.max(Math.abs(qm.x - q1.x), Math.abs(qm.y - q1.y));
-    }, { timeout: 5000 })
+    }, { timeout: limit(5000) })
     .toBeLessThanOrEqual(2);
   const mm = (await page.locator('.pl-minimap').boundingBox())!;
   // the editor's group is the box plus the Fish chip's 18 px under it; its top-left is the box's
@@ -91,7 +92,7 @@ test('the editor: drag, refuse an overlap, save; the match lays out what was sav
 });
 
 test('the default layout is untouched with no layout saved; the minimap model matches the HUD', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   for (const [w, h] of [
     [844, 390],
     [667, 375],
@@ -111,7 +112,7 @@ test('the default layout is untouched with no layout saved; the minimap model ma
 });
 
 test('cast modes: Indicator shows the aim on the press; Normal arms, then a field tap casts', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await page.addInitScript(() => {
     localStorage.setItem('pawlegends.tcast.q', 'n100');
     localStorage.setItem('pawlegends.tcast.w', 'i100');
@@ -121,7 +122,7 @@ test('cast modes: Indicator shows the aim on the press; Normal arms, then a fiel
   await page.waitForSelector('html[data-screen="title"]');
   await live(page);
   // the input goes live when the gates open (0:03)
-  await expect.poll(async () => Number(await attr(page, 'tick')), { timeout: 30_000 }).toBeGreaterThan(130);
+  await expect.poll(async () => Number(await attr(page, 'tick')), { timeout: limit(30_000) }).toBeGreaterThan(130);
   const cdp = await page.context().newCDPSession(page);
   const touch = async (type: 'touchStart' | 'touchEnd', x: number, y: number): Promise<void> =>
     void (await cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 7 }] }));
@@ -130,11 +131,11 @@ test('cast modes: Indicator shows the aim on the press; Normal arms, then a fiel
   const castsW = Number(await attr(page, 'casts'));
   await touch('touchStart', w.x, w.y);
   // the press itself drew the aim (counted on the press; a loaded machine may be slow to paint the next frame)
-  await expect.poll(async () => (await attr(page, 'castModes')).split(',')[2], { timeout: 10_000 }).toBe('1');
-  await expect.poll(async () => attr(page, 'aim'), { timeout: 10_000 }).toBe('1');
+  await expect.poll(async () => (await attr(page, 'castModes')).split(',')[2], { timeout: limit(10_000) }).toBe('1');
+  await expect.poll(async () => attr(page, 'aim'), { timeout: limit(10_000) }).toBe('1');
   await touch('touchEnd', w.x, w.y);
   // the release cast W (wait for it, so it is not counted against Q below)
-  await expect.poll(async () => Number(await attr(page, 'casts')), { timeout: 10_000 }).toBeGreaterThan(castsW);
+  await expect.poll(async () => Number(await attr(page, 'casts')), { timeout: limit(10_000) }).toBeGreaterThan(castsW);
   // Normal (Q): a tap arms it (the button glows, no cast yet), a tap on the field casts it
   await page.waitForTimeout(400);
   const casts0 = Number(await attr(page, 'casts'));

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { mockHost, openHost, received } from './host';
+import { limit } from '../unit/cpu-budget';
 
 /*
  * Social (docs/plans/moba/SOCIAL-RANKED.md §14.2, §13): a signed-in returning player opens the Social sheet from the
@@ -33,7 +34,7 @@ test('Social sheet: friends with presence, add a friend by code through the host
   });
   const game = await openHost(page);
   const btn = game.locator('[data-testid="lobby-social"]');
-  await expect(btn).toBeVisible({ timeout: 60_000 });
+  await expect(btn).toBeVisible({ timeout: limit(60_000) });
   await btn.click();
   const sheet = game.locator('.pl-social');
   await expect(sheet).toBeVisible();

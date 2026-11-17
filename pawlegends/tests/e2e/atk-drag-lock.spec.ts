@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, me, minimapPoint, seedSide, startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * Drag-lock on ATK (founder 2026-11-10: "on mobile can't hold and drag my basic attacks target to lock-into selected
@@ -74,7 +75,7 @@ function pickHero(units: Seen[], needWave: boolean): { hero: Seen; wave: Seen | 
 }
 
 test('844x390: drag ATK toward a hero behind the wave locks it; it is attacked and chased; centre cancels', async ({ page }) => {
-  test.setTimeout(420_000);
+  test.setTimeout(limit(420_000));
   await page.setViewportSize({ width: W, height: H });
   await seedSide(page, 'cat', { difficulty: 'rookie' });
   // speed 1: on a loaded e2e machine a frame takes a while, and at speed 3 the lane moves metres between the scan of
@@ -121,7 +122,7 @@ test('844x390: drag ATK toward a hero behind the wave locks it; it is attacked a
       await send('touchMove', [{ x: Math.round(a.x + ux * 40), y: Math.round(a.y + uy * 40), id: 2 }]);
       await send('touchMove', [{ x: Math.round(a.x + ux * 70), y: Math.round(a.y + uy * 70), id: 2 }]);
       const sel = await expect
-        .poll(async () => ((await attr(page, 'atkHold')) === 'drag' ? attr(page, 'atkSel') : ''), { timeout: 6000 })
+        .poll(async () => ((await attr(page, 'atkHold')) === 'drag' ? attr(page, 'atkSel') : ''), { timeout: limit(6000) })
         .not.toBe('')
         .then(() => attr(page, 'atkSel'))
         .catch(() => '');
@@ -160,7 +161,7 @@ test('844x390: drag ATK toward a hero behind the wave locks it; it is attacked a
         const n0 = Number((await attr(page, 'atkSelN')).split(',')[0]);
         await send('touchEnd', []);
         const ok = await expect
-          .poll(async () => Number((await attr(page, 'atkSelN')).split(',')[0]), { timeout: 6000 })
+          .poll(async () => Number((await attr(page, 'atkSelN')).split(',')[0]), { timeout: limit(6000) })
           .toBe(n0 + 1)
           .then(async () => (await attr(page, 'atkSelN')).split(',')[2] === want && (await dragOf()).id === want)
           .catch(() => false);
@@ -188,8 +189,8 @@ test('844x390: drag ATK toward a hero behind the wave locks it; it is attacked a
 
   // the release attacked the hero (not the minion in front) and the lock marker is on it
   expect(await sentId()).toBe(want);
-  await expect.poll(() => attr(page, 'lockMark'), { timeout: 5000 }).toBe(want);
-  await expect.poll(() => attr(page, 'atkLock'), { timeout: 3000 }).toBe(want);
+  await expect.poll(() => attr(page, 'lockMark'), { timeout: limit(5000) }).toBe(want);
+  await expect.poll(() => attr(page, 'atkLock'), { timeout: limit(3000) }).toBe(want);
   await page.screenshot({ path: `${SHOTS}/2-locked.png` });
 
   // it keeps chasing: while the lock holds every Attack order goes to the hero, and the gap closes or a hit lands
@@ -219,24 +220,24 @@ test('844x390: drag ATK toward a hero behind the wave locks it; it is attacked a
   await page.screenshot({ path: `${SHOTS}/3-chase.png` });
 
   // a drag back into the button centre cancels the hold and clears the lock (if it still holds)
-  await expect.poll(alive, { timeout: 30_000 }).toBe(true);
+  await expect.poll(alive, { timeout: limit(30_000) }).toBe(true);
   const a = await atk();
   const cancels = Number((await attr(page, 'atkSelN')).split(',')[1]);
   await send('touchStart', [a]);
   await send('touchMove', [{ x: a.x - 50, y: a.y - 40, id: 2 }]);
-  await expect.poll(() => attr(page, 'atkHold'), { timeout: 5000 }).toBe('drag');
+  await expect.poll(() => attr(page, 'atkHold'), { timeout: limit(5000) }).toBe('drag');
   await send('touchMove', [{ x: a.x + 3, y: a.y - 2, id: 2 }]);
-  await expect.poll(() => attr(page, 'atkHold'), { timeout: 5000 }).toBe('cancel');
+  await expect.poll(() => attr(page, 'atkHold'), { timeout: limit(5000) }).toBe('cancel');
   await page.screenshot({ path: `${SHOTS}/4-cancel.png` });
   await send('touchEnd', []);
-  await expect.poll(async () => Number((await attr(page, 'atkSelN')).split(',')[1]), { timeout: 5000 }).toBe(cancels + 1);
+  await expect.poll(async () => Number((await attr(page, 'atkSelN')).split(',')[1]), { timeout: limit(5000) }).toBe(cancels + 1);
   expect((await attr(page, 'atkSelN')).split(',')[4]).toBe('centre');
   expect((await dragOf()).id).toBe('');
-  await expect.poll(() => attr(page, 'lockMark'), { timeout: 3000 }).not.toBe(want);
+  await expect.poll(() => attr(page, 'lockMark'), { timeout: limit(3000) }).not.toBe(want);
 
   // a drag pointing at nothing (every enemy in reach 100+ deg off on screen): the line turns red, nothing is selected,
   // and the release cancels with no lock (only when the lane leaves such a direction open)
-  await expect.poll(alive, { timeout: 30_000 }).toBe(true);
+  await expect.poll(alive, { timeout: limit(30_000) }).toBe(true);
   const around = ((await scan(page)) ?? []).filter((q) => q.d < 9500);
   let open: number | null = null;
   let openGap = 0;
@@ -255,11 +256,11 @@ test('844x390: drag ATK toward a hero behind the wave locks it; it is attacked a
     await send('touchStart', [b]);
     await send('touchMove', [{ x: Math.round((b.x + to.x) / 2), y: Math.round((b.y + to.y) / 2), id: 2 }]);
     await send('touchMove', [to]);
-    await expect.poll(() => attr(page, 'atkAim'), { timeout: 5000 }).toBe('none');
+    await expect.poll(() => attr(page, 'atkAim'), { timeout: limit(5000) }).toBe('none');
     expect(await attr(page, 'atkSel')).toBe('');
     await page.screenshot({ path: `${SHOTS}/5-nothing.png` });
     await send('touchEnd', []);
-    await expect.poll(async () => Number((await attr(page, 'atkSelN')).split(',')[1]), { timeout: 5000 }).toBe(n1 + 1);
+    await expect.poll(async () => Number((await attr(page, 'atkSelN')).split(',')[1]), { timeout: limit(5000) }).toBe(n1 + 1);
     expect((await attr(page, 'atkSelN')).split(',')[4]).toBe('none');
     expect((await dragOf()).id).toBe('');
   } else console.log(`pointing-at-nothing check skipped: the widest open direction is ${Math.round((openGap * 180) / Math.PI)} deg off an enemy`);

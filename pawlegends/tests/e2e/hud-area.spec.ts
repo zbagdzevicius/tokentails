@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { seedSide, playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Feel pass B3 (docs/plans/moba/FEEL-PASS.md): the phone HUD diet. With every persistent HUD element shown (the
 // target-lock row full, the last-hit and tower buttons up, R still a ghost chip), the union of painted HUD boxes (1 px
@@ -89,7 +90,7 @@ for (const [w, h] of [
 ] as const) {
   test(`${w}x${h}: the persistent HUD stays under its area target and out of the play area`, async ({ page }, info) => {
     test.skip(info.project.name !== 'landscape', 'touch phone sizes');
-    test.setTimeout(120_000);
+    test.setTimeout(limit(120_000));
     await page.setViewportSize({ width: w, height: h });
     await seedSide(page, 'cat', { sessions: 3, matches: 5, wins: 2, veteran: true });
     await page.goto('/?e2e=1');

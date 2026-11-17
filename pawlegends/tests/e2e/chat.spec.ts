@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type Frame } from '@playwright/test';
 import { mockHost, openHost, received } from './host';
+import { limit } from '../unit/cpu-budget';
 
 /*
  * Friends chat and avatars (docs/plans/moba/CHAT-AVATARS.md §8): two friends in two browsers share a stateful fake
@@ -110,14 +111,14 @@ async function signedIn(browser: Browser, baseURL: string, who: Who, srv: Return
 }
 
 test('two friends: a phrase and text DM, the unread badge, the reply in the open thread within 5 s; avatars on rows', async ({ browser, baseURL }, info) => {
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   const srv = server();
   const vp = info.project.name === 'landscape' ? { width: 844, height: 390 } : { width: 1280, height: 720 };
   const a = await signedIn(browser, baseURL!, 'A', srv, vp);
   const b = await signedIn(browser, baseURL!, 'B', srv, { width: 667, height: 375 });
 
   // A opens Social: friend rows carry avatars; Chat on Sunny's row opens the thread
-  await a.game.locator('[data-testid="lobby-social"]').click({ timeout: 60_000 });
+  await a.game.locator('[data-testid="lobby-social"]').click({ timeout: limit(60_000) });
   const rowB = a.game.locator(`.pl-social-row[data-code="${CODE.B}"]`);
   await expect(rowB).toBeVisible();
   await expect(rowB.locator('.pl-av')).toHaveCount(1);
@@ -135,7 +136,7 @@ test('two friends: a phrase and text DM, the unread badge, the reply in the open
   expect(await chatA.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
 
   // B: the Social sheet shows the unread badge and the dot on A's row; the thread shows both messages
-  await b.game.locator('[data-testid="lobby-social"]').click({ timeout: 60_000 });
+  await b.game.locator('[data-testid="lobby-social"]').click({ timeout: limit(60_000) });
   await expect(b.game.locator('[data-testid="social-unread"]')).toHaveText('2');
   const rowA = b.game.locator(`.pl-social-row[data-code="${CODE.A}"]`);
   await expect(rowA.locator('[data-testid="chat-unread"]')).toHaveText('2');
@@ -148,7 +149,7 @@ test('two friends: a phrase and text DM, the unread badge, the reply in the open
   const t0 = Date.now();
   await chatA.locator('[data-testid="chat-input"]').fill('bring snacks');
   await chatA.locator('[data-testid="chat-send"]').click();
-  await expect(chatB.locator('.pl-chat-bubble').last()).toHaveText('bring snacks', { timeout: 5_000 });
+  await expect(chatB.locator('.pl-chat-bubble').last()).toHaveText('bring snacks', { timeout: limit(5_000) });
   expect(Date.now() - t0).toBeLessThan(5_500);
 
   // every call went through the host as an allowlisted op: no URL, no token
@@ -161,10 +162,10 @@ test('two friends: a phrase and text DM, the unread badge, the reply in the open
 });
 
 test('an under-16 friend: phrases and stickers only on both sides', async ({ browser, baseURL }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(limit(300_000));
   const srv = server();
   const k = await signedIn(browser, baseURL!, 'K', srv, { width: 844, height: 390 });
-  await k.game.locator('[data-testid="lobby-social"]').click({ timeout: 60_000 });
+  await k.game.locator('[data-testid="lobby-social"]').click({ timeout: limit(60_000) });
   await k.game.locator(`.pl-social-row[data-code="${CODE.A}"] [data-a="chat"]`).click();
   const sheet = k.game.locator('[data-testid="chat-sheet"]');
   await expect(sheet.locator('[data-testid="chat-tray"]')).toBeVisible();
@@ -174,7 +175,7 @@ test('an under-16 friend: phrases and stickers only on both sides', async ({ bro
   await expect(sheet.locator('.pl-chat-msg.mine .pl-chat-bubble').last()).toHaveText(PHRASES[0]);
   expect(await sheet.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
   const a = await signedIn(browser, baseURL!, 'A', srv, { width: 1280, height: 720 });
-  await a.game.locator('[data-testid="lobby-social"]').click({ timeout: 60_000 });
+  await a.game.locator('[data-testid="lobby-social"]').click({ timeout: limit(60_000) });
   await a.game.locator(`.pl-social-row[data-code="${CODE.K}"] [data-a="chat"]`).click();
   const sheetA = a.game.locator('[data-testid="chat-sheet"]');
   await expect(sheetA.locator('.pl-chat-bubble')).toHaveText([PHRASES[0]]);

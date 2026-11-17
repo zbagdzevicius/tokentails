@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { FOUNTAIN } from '../../src/data/map';
 import { attr, me, ops, startFirstMatch, toChampSelect } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 const fromFountain = (p: { x: number; y: number }) => Math.hypot(p.x - FOUNTAIN.x, p.y - FOUNTAIN.y);
 
@@ -15,7 +16,7 @@ test('RMB moves, Q casts on release (holding shows the range), B naps, S stops',
   await page.waitForTimeout(400);
   const a = await me(page);
   await page.mouse.click(900, 260, { button: 'right' });
-  await expect.poll(async () => (await me(page)).x, { timeout: 15000 }).toBeGreaterThan(a.x + 1500);
+  await expect.poll(async () => (await me(page)).x, { timeout: limit(15000) }).toBeGreaterThan(a.x + 1500);
   expect(await ops(page)).toContain(1);
 
   // cast on release is the default: holding Q shows the indicator and the attack range ring, the release casts
@@ -55,7 +56,7 @@ test('A armed shows the basic attack range ring (range + body, from hero data); 
         await page.keyboard.press('a');
         return attr(page, 'atkRing');
       },
-      { timeout: 10000, intervals: [300] },
+      { timeout: limit(10000), intervals: [300] },
     )
     .toMatch(/^[1-9]\d*\.\d\d$/);
   await page.keyboard.press('Escape');
@@ -73,7 +74,7 @@ test('trackpad mode: left-click moves', async ({ page }) => {
         await page.mouse.click(900, 260);
         return (await me(page)).x;
       },
-      { timeout: 15000, intervals: [500] },
+      { timeout: limit(15000), intervals: [500] },
     )
     .toBeGreaterThan(a.x + 1500);
   expect(await ops(page)).toContain(1);
@@ -82,17 +83,17 @@ test('trackpad mode: left-click moves', async ({ page }) => {
 test('B: Nap channels, then the hero is back at the fountain, idle', async ({ page }) => {
   await startFirstMatch(page);
   await page.mouse.click(1000, 300, { button: 'right' });
-  await expect.poll(async () => fromFountain(await me(page)), { timeout: 20000 }).toBeGreaterThan(9000);
+  await expect.poll(async () => fromFountain(await me(page)), { timeout: limit(20000) }).toBeGreaterThan(9000);
   await page.keyboard.press('s');
   await page.keyboard.press('b');
-  await expect.poll(async () => (await me(page)).state, { timeout: 5000 }).toBe('napping');
+  await expect.poll(async () => (await me(page)).state, { timeout: limit(5000) }).toBe('napping');
   // 4 s channel (POC.md §6.1), then home.
-  await expect.poll(async () => fromFountain(await me(page)), { timeout: 15000 }).toBeLessThan(FOUNTAIN.radius);
-  await expect.poll(async () => (await me(page)).state, { timeout: 5000 }).toBe('idle');
+  await expect.poll(async () => fromFountain(await me(page)), { timeout: limit(15000) }).toBeLessThan(FOUNTAIN.radius);
+  await expect.poll(async () => (await me(page)).state, { timeout: limit(5000) }).toBe('idle');
 });
 
 test('A + LMB attack-moves, and the attack lands', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await startFirstMatch(page, '&speed=4');
   // Re-issue each poll: under load the first A + click can land before the match view takes input.
   await expect
@@ -102,7 +103,7 @@ test('A + LMB attack-moves, and the attack lands', async ({ page }) => {
         await page.mouse.click(900, 300);
         return (await ops(page)).some((o) => o === 2 || o === 3);
       },
-      { timeout: 15000, intervals: [500] },
+      { timeout: limit(15000), intervals: [500] },
     )
     .toBe(true);
   // Keep attack-moving into the lane: the hero stops for the first enemy it meets and hits it.
@@ -118,7 +119,7 @@ test('A + LMB attack-moves, and the attack lands', async ({ page }) => {
         await page.mouse.click(x, y);
         return Number(await attr(page, 'hits'));
       },
-      { timeout: 90000, intervals: [1000] },
+      { timeout: limit(90000), intervals: [1000] },
     )
     .toBeGreaterThan(0);
 });
@@ -141,7 +142,7 @@ test('an out-of-range point cast walks in first (Sage W, cast on release; quick 
         await page.mouse.click(900, 360, { button: 'right' });
         return (await me(page)).x;
       },
-      { timeout: 30000, intervals: [1000] },
+      { timeout: limit(30000), intervals: [1000] },
     )
     .toBeGreaterThan(start.x + 6000);
   await page.keyboard.press('s');
@@ -152,15 +153,15 @@ test('an out-of-range point cast walks in first (Sage W, cast on release; quick 
   await expect.poll(() => attr(page, 'walkin')).toBe('1');
   await expect.poll(async () => (await ops(page)).at(-1)).toBe(1);
   // In range: the walk-in clears and the W cast goes out.
-  await expect.poll(() => attr(page, 'walkin'), { timeout: 20000 }).toBe('');
-  await expect.poll(async () => Number(await attr(page, 'casts')), { timeout: 5000 }).toBeGreaterThan(castsBefore);
+  await expect.poll(() => attr(page, 'walkin'), { timeout: limit(20000) }).toBe('');
+  await expect.poll(async () => Number(await attr(page, 'casts')), { timeout: limit(5000) }).toBeGreaterThan(castsBefore);
   expect((await ops(page)).at(-1)).toBe(4);
 });
 
 test('an Easy match finishes and the results screen shows', async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(limit(90_000));
   await startFirstMatch(page, '&speed=64');
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 80_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(80_000) });
   await expect(page.locator('.pl-results h1')).toHaveText(/Victory!|Defeat/);
   await page.locator('[data-a="again"]').click();
   await page.waitForSelector('html[data-match="live"]');

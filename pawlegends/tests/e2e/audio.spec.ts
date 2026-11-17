@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Audio fix (Nov 9, "sounds are not played in-game: victory, first blood..."): a real bot match in Chromium (autoplay
 // needs a gesture, like a phone) and WebKit (Safari's engine), with a hook on the page's WebAudio graph. Every sound
@@ -72,7 +73,7 @@ const WANT: Record<string, (h: Heard) => boolean> = {
 };
 
 test('a bot match: start, hits, skills, a knockout and the result all reach the speakers', async ({ page }, info) => {
-  test.setTimeout(480_000);
+  test.setTimeout(limit(480_000));
   const errors: string[] = [];
   page.on('console', (m) => {
     if (m.text().includes('[pawlegends audio]')) errors.push(m.text());
@@ -111,14 +112,14 @@ test('a bot match: start, hits, skills, a knockout and the result all reach the 
   }
   // end it: Forfeit is a Defeat (the result line and sound)
   if ((await attr(page, 'screen')) === 'match') {
-    await page.waitForFunction(() => Number(document.documentElement.dataset.tick ?? 0) >= 5400 || document.documentElement.dataset.screen !== 'match', null, { timeout: 120_000 });
+    await page.waitForFunction(() => Number(document.documentElement.dataset.tick ?? 0) >= 5400 || document.documentElement.dataset.screen !== 'match', null, { timeout: limit(120_000) });
   }
   if ((await attr(page, 'screen')) === 'match') {
     await page.keyboard.press('Escape');
     await page.locator('.pl-menu [data-a="forfeit"]').click();
     await page.locator('.pl-menu [data-a="forfeit-yes"]').click();
   }
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 60_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(60_000) });
   await page.waitForTimeout(1500);
 
   const all = await heard(page);
@@ -138,7 +139,7 @@ test('a bot match: start, hits, skills, a knockout and the result all reach the 
 });
 
 test('every announcer clip in the build decodes under the page base', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
   await playFromHome(page);

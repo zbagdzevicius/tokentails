@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Feel pass B1 (hold to peek, as in Wild Rift and MLBB): on a 667x375 phone a finger on the minimap centres the
 // camera there at once and drags it along while held; the lift brings it back to the hero within 150 ms (plus a frame
@@ -24,7 +25,7 @@ const off = async (page: Page): Promise<number> => {
 
 test('touch minimap: hold peeks at once and drags, the lift returns in ~150 ms, double tap moves', async ({ page }, info) => {
   test.skip(info.project.name !== 'landscape', 'touch controls');
-  test.setTimeout(150_000);
+  test.setTimeout(limit(150_000));
   await startFirstMatch(page);
   // a touch on the field makes the touch HUD live (the minimap moves to its phone spot, top left)
   await page.touchscreen.tap(667 * 0.25, 375 * 0.85);
@@ -40,7 +41,7 @@ test('touch minimap: hold peeks at once and drags, the lift returns in ~150 ms, 
   // the far side of the map: the camera is there at once while the finger holds
   await touch('touchStart', ...at(0.8, 0.25));
   // (polled: the focus moves on the next drawn frame, and a loaded machine draws few)
-  await expect.poll(() => off(page), { timeout: 5000 }).toBeGreaterThan(15);
+  await expect.poll(() => off(page), { timeout: limit(5000) }).toBeGreaterThan(15);
   const p1 = await focus(page);
   // the finger slides: the view follows it
   for (let k = 1; k <= 6; k++) {
@@ -50,7 +51,7 @@ test('touch minimap: hold peeks at once and drags, the lift returns in ~150 ms, 
   await expect.poll(async () => {
     const p = await focus(page);
     return Math.hypot(p.x - p1.x, p.z - p1.z);
-  }, { timeout: 5000 }).toBeGreaterThan(8);
+  }, { timeout: limit(5000) }).toBeGreaterThan(8);
   // let the last finger position reach the drawn frame (a loaded machine draws few)
   await page.waitForTimeout(1500);
   const p2 = await focus(page);
@@ -60,7 +61,7 @@ test('touch minimap: hold peeks at once and drags, the lift returns in ~150 ms, 
   expect(Math.hypot(p3.x - p2.x, p3.z - p2.z)).toBeLessThan(0.5);
   await touch('touchEnd');
   const t0 = Date.now();
-  await expect.poll(() => off(page), { timeout: 3000, intervals: [30] }).toBeLessThan(0.05);
+  await expect.poll(() => off(page), { timeout: limit(3000), intervals: [30] }).toBeLessThan(0.05);
   // 150 ms ease plus frame and CDP latency (generous: a loaded machine draws few frames)
   expect(Date.now() - t0).toBeLessThan(2500);
 
@@ -97,7 +98,7 @@ test('touch minimap: hold peeks at once and drags, the lift returns in ~150 ms, 
     c.dispatchEvent(ev('pointerdown'));
     c.dispatchEvent(ev('pointerup'));
   }, own!);
-  await expect.poll(async () => (await attr(page, 'ops')).split(',').filter(Boolean).map(Number).at(-1), { timeout: 10_000 }).toBe(1);
+  await expect.poll(async () => (await attr(page, 'ops')).split(',').filter(Boolean).map(Number).at(-1), { timeout: limit(10_000) }).toBe(1);
 });
 
 test('touch minimap (turned with the camera): holding a tower pixel peeks at that tower, for both seats', async ({ page }, info) => {
@@ -143,7 +144,7 @@ test('touch minimap (turned with the camera): holding a tower pixel peeks at tha
       .poll(async () => {
         const f = await focus(page);
         return Math.hypot(f.x - t.x, f.z - t.z);
-      }, { timeout: 5000, message: `team ${team}` })
+      }, { timeout: limit(5000), message: `team ${team}` })
       .toBeLessThan(2.5);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await page.waitForTimeout(300);

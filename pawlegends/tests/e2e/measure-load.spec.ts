@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { appendFileSync } from 'node:fs';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * Time to first match from a cold load (docs/plans/moba/BENCHMARKS.md; PARITY §7 "link tap to in-match ≤ 20 s").
@@ -21,7 +22,7 @@ test.beforeEach(({}, info) => {
 
 for (const net of ['none', '4g'] as const) {
   test(`cold load to first match (${net})`, async ({ browser }, info) => {
-    test.setTimeout(300_000);
+    test.setTimeout(limit(300_000));
     const phone = info.project.name === 'landscape';
     for (let run = 0; run < RUNS; run++) {
       const ctx = await browser.newContext(phone ? { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true } : { viewport: { width: 1280, height: 720 } });
@@ -39,7 +40,7 @@ for (const net of ['none', '4g'] as const) {
       await page.waitForSelector('html[data-screen="title"] .pl-btn.big');
       const titleMs = Date.now() - t0;
       await page.locator('.pl-btn.big').first().dispatchEvent('click');
-      await page.waitForFunction(() => document.documentElement.dataset.match === 'live' && !!document.documentElement.dataset.me, undefined, { timeout: 120_000 });
+      await page.waitForFunction(() => document.documentElement.dataset.match === 'live' && !!document.documentElement.dataset.me, undefined, { timeout: limit(120_000) });
       const matchMs = Date.now() - t0;
       const bytes = await page.evaluate(() =>
         performance.getEntriesByType('resource').reduce((s, e) => s + ((e as PerformanceResourceTiming).transferSize || 0), 0),

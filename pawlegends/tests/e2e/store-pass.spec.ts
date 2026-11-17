@@ -1,6 +1,7 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
 import { playFromHome } from './helpers';
 import { mockHost, openHost, received } from './host';
+import { limit } from '../unit/cpu-budget';
 
 // STORE-PASS.md: the cosmetics store and the Legends Pass, game side, with the mock host standing in for the real one
 // (its own sheet, Stripe test mode, GET /pawlegends/me, POST /pawlegends/pass/claim, /live's Season XP). The real
@@ -15,7 +16,7 @@ const SKU = 'pl_coat_clem_calico';
 const profileOf = (game: Frame): Promise<Record<string, any>> => game.evaluate(() => JSON.parse(localStorage.getItem('tt.pawlegends.profile.v1') ?? '{}'));
 
 test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot match; pass XP after the match and a claim', async ({ context, page, baseURL }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(limit(300_000));
   const afterMatch = { ...SEASON, xp: 1210, tier: 3 };
   await mockHost(context, baseURL!, {
     app: { isApp: false, store: true },
@@ -96,7 +97,7 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
     .toBe(true);
 
   // the save chip shows the Season XP /live paid, then the pass shows the tier and a claim
-  await game.waitForSelector('html[data-screen="results"]', { timeout: 240_000 });
+  await game.waitForSelector('html[data-screen="results"]', { timeout: limit(240_000) });
   await expect(game.locator('.plc-season')).toContainText('+310');
   await expect(game.locator('.plc-season')).toContainText('Season XP');
   await game.locator('[data-a="home"]').click().catch(() => undefined);

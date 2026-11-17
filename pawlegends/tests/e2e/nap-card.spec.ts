@@ -1,5 +1,6 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { playFromHome, seedSide } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // The nap card (founder ask 2026-11-12: the dead-player card was Token Tails' card back; it should be Paw Legends'):
 // a real bots match, the hero walks into the other base until it is knocked out, then the card shows the countdown,
@@ -29,7 +30,7 @@ async function knockedOut(page: Page, info: TestInfo, tag: string): Promise<void
       w.__plMinimap?.host?.moveTo(w.__plSide > 0 ? 94000 : 6000, 30000);
     });
     dead = await page
-      .waitForSelector('.pl-napcard.on', { timeout: 1500 })
+      .waitForSelector('.pl-napcard.on', { timeout: limit(1500) })
       .then(() => true)
       .catch(() => false);
   }
@@ -80,7 +81,7 @@ async function knockedOut(page: Page, info: TestInfo, tag: string): Promise<void
 }
 
 test('knocked out: the nap card shows the countdown, the killer and a tip, no Token Tails, clear of the HUD', async ({ page }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   await knockedOut(page, info, '');
 });
 
@@ -89,7 +90,7 @@ test.describe('small phone', () => {
   test.use({ viewport: { width: 667, height: 375 } });
   test('knocked out at 667 x 375: the nap card stays clear of the touch buttons', async ({ page }, info) => {
     test.skip(info.project.name !== 'landscape', 'touch layout only');
-    test.setTimeout(240_000);
+    test.setTimeout(limit(240_000));
     await knockedOut(page, info, '-667');
   });
 });

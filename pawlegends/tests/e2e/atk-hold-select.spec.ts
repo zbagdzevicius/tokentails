@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, me, minimapPoint, seedSide, startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * Hold-to-select on ATK (founder ask, Wild Rift style) at 667x375 and 844x390: held, the enemies in reach get rings
@@ -43,7 +44,7 @@ for (const [w, h] of [
   [844, 390],
 ] as const) {
   test(`${w}x${h}: hold ATK to select, drag to point, release locks; centre cancels; tap stays smart`, async ({ page }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(limit(300_000));
     await page.setViewportSize({ width: w, height: h });
     // Rookie bots: the walk into the lane fight dies less, so the hold-drag-release gets its tries
     await seedSide(page, 'cat', { difficulty: 'rookie' });
@@ -85,7 +86,7 @@ for (const [w, h] of [
         // 1. hold: the candidates get rings after ~200 ms, nothing is locked yet
         await send('touchStart', [a]);
         const held = await expect
-          .poll(() => attr(page, 'atkCands'), { timeout: 4000 })
+          .poll(() => attr(page, 'atkCands'), { timeout: limit(4000) })
           .not.toBe('')
           .then(() => true)
           .catch(() => false);
@@ -98,7 +99,7 @@ for (const [w, h] of [
           await send('touchMove', [{ x: Math.round(a.x + to.x * 70), y: Math.round(a.y + to.y * 70), id: 2 }]);
           // (the hold already shows the tap's own pick as the selection: wait for the drag to register first)
           sel = await expect
-            .poll(async () => (await attr(page, 'atkHold')) === 'drag' && (await attr(page, 'atkSel')) !== '', { timeout: 6000 })
+            .poll(async () => (await attr(page, 'atkHold')) === 'drag' && (await attr(page, 'atkSel')) !== '', { timeout: limit(6000) })
             .toBe(true)
             .then(() => attr(page, 'atkSel'))
             .catch(() => '');
@@ -108,7 +109,7 @@ for (const [w, h] of [
             // (no screenshot here: a slow one lets the lane fight kill every candidate before the release)
             await send('touchEnd', []);
             const ok = await expect
-              .poll(async () => (await selN(page)).locked, { timeout: 6000 })
+              .poll(async () => (await selN(page)).locked, { timeout: limit(6000) })
               .toBe(s0.locked + 1)
               .then(() => true)
               .catch(() => false);
@@ -139,22 +140,22 @@ for (const [w, h] of [
     // the lock holds while the unit lives (a minion can die from the very hit)
     expect(lock === sel || lock === '').toBe(true);
 
-    await expect.poll(alive, { timeout: 30_000 }).toBe(true);
+    await expect.poll(alive, { timeout: limit(30_000) }).toBe(true);
     // 3. drag out, then back into the button centre: the centre ring turns red, the release cancels (no new lock)
     a = await atk();
     await send('touchStart', [a]);
-    await expect.poll(() => attr(page, 'atkCands'), { timeout: 5000 }).not.toBe('').catch(() => undefined);
+    await expect.poll(() => attr(page, 'atkCands'), { timeout: limit(5000) }).not.toBe('').catch(() => undefined);
     await page.screenshot({ path: `test-results/atk-hold-select/${w}x${h}-hold.png` });
     await send('touchMove', [{ x: a.x - 50, y: a.y - 40, id: 2 }]);
-    await expect.poll(() => attr(page, 'atkHold'), { timeout: 5000 }).toBe('drag');
+    await expect.poll(() => attr(page, 'atkHold'), { timeout: limit(5000) }).toBe('drag');
     await page.screenshot({ path: `test-results/atk-hold-select/${w}x${h}-select.png` });
     await send('touchMove', [{ x: a.x + 3, y: a.y - 2, id: 2 }]);
-    await expect.poll(() => attr(page, 'atkHold'), { timeout: 5000 }).toBe('cancel');
+    await expect.poll(() => attr(page, 'atkHold'), { timeout: limit(5000) }).toBe('cancel');
     await expect(page.locator('.pl-aimring.atk.back')).toHaveCount(1);
-    await expect.poll(() => attr(page, 'atkSel'), { timeout: 3000 }).toBe('');
+    await expect.poll(() => attr(page, 'atkSel'), { timeout: limit(3000) }).toBe('');
     await page.screenshot({ path: `test-results/atk-hold-select/${w}x${h}-cancel.png` });
     await send('touchEnd', []);
-    await expect.poll(async () => (await selN(page)).cancelled, { timeout: 3000 }).toBe(s1.cancelled + 1);
+    await expect.poll(async () => (await selN(page)).cancelled, { timeout: limit(3000) }).toBe(s1.cancelled + 1);
     expect((await selN(page)).locked).toBe(s1.locked);
     await expect(page.locator('.pl-aimring.on')).toHaveCount(0);
 
@@ -163,25 +164,25 @@ for (const [w, h] of [
     a = await atk();
     await send('touchStart', [a]);
     await send('touchEnd', []);
-    await expect.poll(async () => Number(await attr(page, 'atkN')), { timeout: 3000 }).toBeGreaterThan(picks);
+    await expect.poll(async () => Number(await attr(page, 'atkN')), { timeout: limit(3000) }).toBeGreaterThan(picks);
     expect((await selN(page)).locked).toBe(s1.locked);
     expect((await selN(page)).cancelled).toBe(s1.cancelled + 1);
 
     // 4b. a held press whose thumb slips ~28 px (past the cancel centre, short of a drag) stays a hold: no red ring,
     // the repeat keeps attacking, and the release neither locks nor cancels anything
-    await expect.poll(alive, { timeout: 30_000 }).toBe(true);
+    await expect.poll(alive, { timeout: limit(30_000) }).toBe(true);
     const reps = Number(await attr(page, 'atkN'));
     a = await atk();
     await send('touchStart', [a]);
     await send('touchMove', [{ x: a.x - 20, y: a.y - 20, id: 2 }]);
-    await expect.poll(() => attr(page, 'atkHold'), { timeout: 3000 }).toBe('hold');
+    await expect.poll(() => attr(page, 'atkHold'), { timeout: limit(3000) }).toBe('hold');
     await expect(page.locator('.pl-aimring.atk')).toHaveCount(0);
-    await expect.poll(async () => Number(await attr(page, 'atkN')), { timeout: 5000 }).toBeGreaterThan(reps + 1);
+    await expect.poll(async () => Number(await attr(page, 'atkN')), { timeout: limit(5000) }).toBeGreaterThan(reps + 1);
     await send('touchEnd', []);
     expect((await selN(page)).locked).toBe(s1.locked);
     expect((await selN(page)).cancelled).toBe(s1.cancelled + 1);
 
-    await expect.poll(alive, { timeout: 30_000 }).toBe(true);
+    await expect.poll(alive, { timeout: limit(30_000) }).toBe(true);
     // 5. the joystick keeps steering while the selector is up (two fingers): the hero walks back toward base
     a = await atk();
     const before = await me(page);
@@ -201,7 +202,7 @@ for (const [w, h] of [
       .poll(async () => {
         const p = await me(page);
         return Math.hypot(p.x - before.x, p.y - before.y);
-      }, { message: 'the hero moved while ATK was held', timeout: 10_000 })
+      }, { message: 'the hero moved while ATK was held', timeout: limit(10_000) })
       .toBeGreaterThan(300);
     expect(await attr(page, 'atkHold')).toBe('drag');
     await send('touchEnd', []);
@@ -209,29 +210,29 @@ for (const [w, h] of [
     // 6. no conflict with a skill hold-aim or the flash: with the selector up (ATK dragged), a second finger drags Q
     // (its own aim takes the shared ring, never the ATK styling) and the release casts; a tap on the Paw Trick casts
     // too; the ATK hold stays a drag through both, and its own release still ends the hold
-    await expect.poll(alive, { timeout: 30_000 }).toBe(true);
+    await expect.poll(alive, { timeout: limit(30_000) }).toBe(true);
     const casts = async (): Promise<number> => Number(await attr(page, 'casts'));
     const btn = async (b: string): Promise<Pt> => {
       const r = (await page.locator(`.pl-tbtn.${b}`).boundingBox())!;
       return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), id: 3 };
     };
-    await expect(page.locator('.pl-tbtn.q')).not.toHaveClass(/cooling|locked/, { timeout: 30_000 });
+    await expect(page.locator('.pl-tbtn.q')).not.toHaveClass(/cooling|locked/, { timeout: limit(30_000) });
     a = await atk();
     const held = { x: a.x - 50, y: a.y - 50, id: 2 };
     await send('touchStart', [a]);
     await send('touchMove', [held]);
-    await expect.poll(() => attr(page, 'atkHold'), { timeout: 5000 }).toBe('drag');
+    await expect.poll(() => attr(page, 'atkHold'), { timeout: limit(5000) }).toBe('drag');
     await expect(page.locator('.pl-aimring.atk')).toHaveCount(1);
     let n = await casts();
     const q = await btn('q');
     await send('touchStart', [held, q]);
     for (let i = 1; i <= 5; i++) await send('touchMove', [held, { ...q, x: q.x - i * 12, y: q.y - i * 12 }]);
-    await expect.poll(() => attr(page, 'aim'), { timeout: 5000 }).toBe('1');
+    await expect.poll(() => attr(page, 'aim'), { timeout: limit(5000) }).toBe('1');
     await expect(page.locator('.pl-aimring.atk')).toHaveCount(0);
     await page.screenshot({ path: `test-results/atk-hold-select/${w}x${h}-skill-aim.png` });
     expect(await attr(page, 'atkHold')).toBe('drag');
     await send('touchEnd', [{ ...q, x: q.x - 60, y: q.y - 60 }]);
-    await expect.poll(casts, { timeout: 5000 }).toBe(n + 1);
+    await expect.poll(casts, { timeout: limit(5000) }).toBe(n + 1);
     expect(await attr(page, 'atkHold')).toBe('drag');
     const trickBtn = page.locator('.pl-tbtn.trick');
     if ((await trickBtn.count()) > 0 && !/cooling|locked/.test((await trickBtn.getAttribute('class')) ?? '')) {
@@ -239,11 +240,11 @@ for (const [w, h] of [
       const t = await btn('trick');
       await send('touchStart', [held, t]);
       await send('touchEnd', [t]);
-      await expect.poll(casts, { timeout: 5000 }).toBe(n + 1);
+      await expect.poll(casts, { timeout: limit(5000) }).toBe(n + 1);
       expect(await attr(page, 'atkHold')).toBe('drag');
     }
     await send('touchEnd', [held]);
-    await expect.poll(() => attr(page, 'atkHold'), { timeout: 3000 }).toBe('');
+    await expect.poll(() => attr(page, 'atkHold'), { timeout: limit(3000) }).toBe('');
     await expect(page.locator('.pl-aimring.on')).toHaveCount(0);
   });
 }

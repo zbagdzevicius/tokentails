@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, me, startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // POC.md §12, §15 item 20: the first Easy match is one tap from the title; each of the five tips fires on its
 // event and hides once done. The `?e2e=1` data attributes report the tip on screen (`data-tip`), the tips shown
@@ -37,13 +38,13 @@ const TIP_ON = '.pl-rail-line.on[data-key^="tip:"]';
 test('first match is one tap away and the move tip fires', async ({ page }, info) => {
   // boot + the veil's program warm-up under swiftshader took 55-65 s on a loaded machine (QA flaky-qa): the match-start
   // budget the other match specs use
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await page.goto('/?e2e=1');
   await expect(page.locator('.pl-btn.big')).toHaveAttribute('aria-label', 'Play as Clem');
   await startFirstMatch(page);
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
   // LoL pass (lane A): the tip is a note on the top rail
-  await expect(page.locator(TIP_ON)).toBeVisible({ timeout: 8000 });
+  await expect(page.locator(TIP_ON)).toBeVisible({ timeout: limit(8000) });
   if (info.project.name === 'desktop') {
     await page.mouse.click(800, 300, { button: 'right' });
     await expect(page.locator(TIP_ON)).toHaveCount(0);
@@ -52,7 +53,7 @@ test('first match is one tap away and the move tip fires', async ({ page }, info
 
 test('all five tips fire on their events and hide once done (desktop)', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop controls');
-  test.setTimeout(300_000);
+  test.setTimeout(limit(300_000));
   // Record each tip's text in the page the moment it goes up: at speed 4 under full-suite load a tip can show and
   // be done between two polls of the loop below (the attack tip often is: the hero auto-swings at a minion).
   await page.addInitScript(() => {

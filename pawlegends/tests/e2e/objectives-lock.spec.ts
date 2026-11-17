@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, ops, playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // GAPS A4 + A5: the next-objective chip (every match; GAPS B1: a tap sends its ping), the minimap countdown rings and the
 // portrait strip; on touch, a tap on an enemy hero (field or portrait) locks it and Attack then sends Attack{id} on it.
@@ -36,14 +37,14 @@ test('every match: the objective chip names the next timer, a tap sends its ping
     await expect(page.locator('.pl-top .pl-strip.enemy .pp')).toHaveCount(3);
     await expect.poll(async () => Number(await attr(page, 'rings'))).toBeGreaterThanOrEqual(1);
     const obj = page.locator('.pl-score .obj:not([hidden])');
-    await expect(obj).toBeVisible({ timeout: 45_000 });
+    await expect(obj).toBeVisible({ timeout: limit(45_000) });
     await expect(obj).toHaveAttribute('data-key', /rats|pudding|up/);
     await expect(obj.locator('b')).toHaveText(/^(\d{1,2}|Up!)$/);
     return;
   }
   // LoL pass (lane A): the standing goal is the top rail's resting line; a tap on it still sends the ping
   const chip = page.locator('.pl-rail-rest.on[data-ping]');
-  await expect(chip).toBeVisible({ timeout: 10_000 });
+  await expect(chip).toBeVisible({ timeout: limit(10_000) });
   await expect(chip).toContainText(/Gates open in|Your rats \d:\d\d|Pudding in \d:\d\d|Sunset in/);
   expect(await attr(page, 'objChip')).toMatch(/^(gates|rats|pudding|sunset)\|/);
   await expect(page.locator('.pl-strip.ally .pp')).toHaveCount(2);
@@ -51,7 +52,7 @@ test('every match: the objective chip names the next timer, a tap sends its ping
   // Pudding's spawn and the own camp count down on the minimap from the start
   await expect.poll(async () => Number(await attr(page, 'rings'))).toBeGreaterThanOrEqual(1);
   // after the gates (0:03) the own camp (0:30) is the next timer for a while: a stable chip to tap
-  await expect(chip).toHaveAttribute('data-ping', 'rats', { timeout: 15_000 });
+  await expect(chip).toHaveAttribute('data-ping', 'rats', { timeout: limit(15_000) });
   await expect(chip).toContainText(/Your rats 0:\d\d/);
   const offers = await page.locator('.pl-offer, [data-offer]').count();
   const key = await chip.getAttribute('data-ping');
@@ -84,7 +85,7 @@ async function touchDrag(page: Page, x0: number, y0: number, x1: number, y1: num
 
 test('touch lock: tap an enemy hero, Attack sends Attack{id} on it; its portrait toggles the lock', async ({ page }, info) => {
   test.skip(info.project.name !== 'landscape', 'touch controls');
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   await startVeteran(page, '&speed=2');
   await expect(page.locator('.pl-touch.on')).toBeVisible();
   const atk = (await page.locator('.pl-tbtn.attack').boundingBox())!;

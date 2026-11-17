@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { attr, playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * POC.md §10 and §15 item 23 (Chromium, project `desktop`):
@@ -77,7 +78,7 @@ async function busiest(page: Page, quality: 'low' | 'med'): Promise<Peak> {
 }
 
 test('draw calls on Low within budget at the busiest frame, and the JS heap ≤ 150 MB', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   const p = await busiest(page, 'low');
   console.log(
     `perf low: busiest frame ${p.units.join('/')} heroes/minions/towers at ${p.draws} draws; most at once ${p.most.join('/')}; ` +
@@ -96,7 +97,7 @@ test('draw calls on Low within budget at the busiest frame, and the JS heap ≤ 
 });
 
 test('draw calls on Med ≤ 110 at the busiest frame', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   const p = await busiest(page, 'med');
   console.log(
     `perf med: busiest frame ${p.units.join('/')} heroes/minions/towers at ${p.draws} draws; most at once ${p.most.join('/')}; ` +
@@ -121,7 +122,7 @@ test('?perf=1 shows the device-gate readout in a match; without it there is none
   await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   const el = page.locator('.pl-perf');
-  await expect(el).toContainText(/\d+ fps · low/, { timeout: 5000 });
+  await expect(el).toContainText(/\d+ fps · low/, { timeout: limit(5000) });
   await expect(el).toContainText(/p95 \d+\.\d ms · match \d+\.\d/);
   await expect(el).toContainText(/draws \d+ · max \d+/);
   await expect(el).toContainText(/heap \d+ MB/);

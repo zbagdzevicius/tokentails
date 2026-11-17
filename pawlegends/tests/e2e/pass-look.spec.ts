@@ -1,5 +1,6 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
 import { mockHost, openHost } from './host';
+import { limit } from '../unit/cpu-budget';
 
 // The Treat Track and Legends Pass in the Hearth Storybook look (brandbook v1): one modal that fits 667x375 to
 // 1440x900 with only its own area scrolling, gilded bookmark tabs, 44 px controls, keyboard tabs and Esc.
@@ -57,7 +58,7 @@ async function shot(page: Page, name: string): Promise<void> {
 }
 
 test('Treat Track and Legends Pass fit every size, scroll only inside, and keep keyboard and Esc', async ({ context, page, baseURL }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   // 12 chests opened and 180 Treat XP into the 13th
   await context.addInitScript(() => {
     if (location.pathname.startsWith('/pawlegends-game/')) localStorage.setItem('tt.pawlegends.treats.v1', JSON.stringify({ v: 2, xp: 12 * 300 + 180, chests: 12, target: null, winDay: null }));

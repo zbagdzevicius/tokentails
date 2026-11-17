@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, me, startFirstMatch, playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Feel pass B3 (docs/plans/moba/FEEL-PASS.md, the phone HUD diet): one 24 px top strip (kills, clock, towers, the
 // objective timer, pause), a 112 px minimap top left (104 px on short phones) with the ping corner and the emote under
@@ -72,7 +73,7 @@ for (const [width, height] of [
   const size = `${width}x${height}`;
 
   test(`${size} veteran: strip, minimap, feed, lock row, talent card, ping wheel and joystick keep clear; taps answer 44 px`, async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(limit(90_000));
     await page.setViewportSize({ width, height });
     await startVeteran(page);
     await page.touchscreen.tap(width * 0.25, height * 0.85);
@@ -155,7 +156,7 @@ for (const [width, height] of [
     expect(await page.evaluate(([x, y]) => { const h = document.elementFromPoint(x, y); return h?.tagName === 'CANVAS' || !!h?.closest('.pl-touch'); }, [120, height - 110] as const)).toBe(true);
     const a = await me(page);
     await touchDrag(page, 120, height - 110, 200, height - 130, 1500);
-    await expect.poll(async () => (await me(page)).x, { timeout: 10_000 }).toBeGreaterThan(a.x + 1000);
+    await expect.poll(async () => (await me(page)).x, { timeout: limit(10_000) }).toBeGreaterThan(a.x + 1000);
 
     // the ping wheel: every slice on screen and ≥ 44 px tall, a slice sends the ping
     const pb = paw[0];

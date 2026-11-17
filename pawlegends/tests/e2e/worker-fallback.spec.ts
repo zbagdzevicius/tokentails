@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // perf-2: one failed fetch of the sim Worker's module script (a network blip, a stale hashed chunk after a deploy)
 // must not reach the crash overlay. The host retries the Worker once, then runs the sim on the main thread.
@@ -21,19 +22,19 @@ async function play(page: Page, query = ''): Promise<void> {
   await page.goto(`/?e2e=1${query}`);
   await page.waitForSelector('html[data-screen="title"]');
   await playFromHome(page);
-  await page.waitForSelector('html[data-match="live"]', { timeout: 30_000 });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(30_000) });
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
 }
 
 test('sim Worker blocked once: the retry starts the match and plays it out, no crash overlay', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   const w = await blockWorker(page, 1);
   await play(page, '&speed=64');
   expect(w.blocked()).toBe(1);
   expect(await attr(page, 'simHost')).toBe('worker:1');
   await expect(page.locator('#crash')).toHaveCount(0);
   // the retried Worker runs the whole match to the results screen
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 170_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(170_000) });
   await expect(page.locator('#crash')).toHaveCount(0);
 });
 

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { mockHost, openHost, received } from './host';
+import { limit } from '../unit/cpu-budget';
 
 /*
  * Live ops (docs/plans/moba/LIVEOPS.md): a returning player opens Events on Home and sees the community goal's shared
@@ -65,7 +66,7 @@ const profile = { v: 1, sessions: 3, matches: 5, wins: 2, firstWinDone: true, he
 
 async function openEvents(game: import('@playwright/test').Frame) {
   const summary = game.locator('.hm-events > summary');
-  await expect(summary).toBeVisible({ timeout: 60_000 });
+  await expect(summary).toBeVisible({ timeout: limit(60_000) });
   await summary.click();
   const pop = game.locator('.hm-events .hm-evlist');
   await expect(pop).toBeVisible();
@@ -128,7 +129,7 @@ test('Events: a reached goal is claimed with one tap and the coat is kept', asyn
   });
   const game = await openHost(page);
   // a claimable reward lights the Events button
-  await expect(game.locator('.hm-events > summary .hm-dot')).toBeVisible({ timeout: 60_000 });
+  await expect(game.locator('.hm-events > summary .hm-dot')).toBeVisible({ timeout: limit(60_000) });
   const pop = await openEvents(game);
   await pop.locator('[data-testid="lo-claim"]').click();
   await expect(pop.locator('[data-testid="lo-goal"]')).toContainText('Claimed');
@@ -153,7 +154,7 @@ const drop = {
 };
 for (const isApp of [false, true])
   test(`Coat drop: Home's slide ${isApp ? 'previews the Mythic in the app' : 'opens the store with the drop first'}`, async ({ context, page, baseURL }, info) => {
-    test.setTimeout(240_000);
+    test.setTimeout(limit(240_000));
     await mockHost(context, baseURL!, {
       app: { isApp, store: !isApp },
       signedIn: true,
@@ -167,7 +168,7 @@ for (const isApp of [false, true])
     });
     const game = await openHost(page);
     const slide = game.locator('[data-testid="promo-drop"]');
-    await expect(slide).toBeVisible({ timeout: 60_000 });
+    await expect(slide).toBeVisible({ timeout: limit(60_000) });
     await expect(slide).toContainText('November Drop');
     await expect(slide).toContainText(/3 new coats · new for 1[12]d/);
     const os = await import('node:os');
@@ -180,7 +181,7 @@ for (const isApp of [false, true])
     await slide.click();
     if (isApp) {
       const dlg = game.locator('.pl-champ[data-ready="1"]');
-      await expect(dlg).toBeVisible({ timeout: 30_000 });
+      await expect(dlg).toBeVisible({ timeout: limit(30_000) });
       await expect(dlg).toHaveAttribute('data-tab', 'coats');
       await expect(dlg.locator('.cb-coat-rung')).toContainText('Mythic coat');
       await expect(dlg.locator('.cb-cfx-btn[data-cfx="evolve"]')).toHaveCount(1);
@@ -188,7 +189,7 @@ for (const isApp of [false, true])
       if (shots) await page.screenshot({ path: `${dir}/${tag}-drop-preview.png` });
     } else {
       const shop = game.locator('.pl-shop');
-      await expect(shop).toBeVisible({ timeout: 30_000 });
+      await expect(shop).toBeVisible({ timeout: limit(30_000) });
       const first = shop.locator('[data-sel^="pl_coat_"]').first();
       await expect(first).toHaveAttribute('data-sel', 'pl_coat_brutus_chairman');
       await expect(first.locator('[data-testid="store-drop-new"]')).toHaveText('New drop');

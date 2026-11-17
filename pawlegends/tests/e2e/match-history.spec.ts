@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { mockHost, openHost, received } from './host';
+import { limit } from '../unit/cpu-budget';
 
 /*
  * Match history (docs/plans/moba/MATCH-HISTORY.md): a signed-in player opens Profile → Match history, sees this
@@ -93,7 +94,7 @@ test('Match history: season stats, filters, a match scoreboard and damage, priva
   });
   const game = await openHost(page);
   const press = async (sel: string) => (touch ? game.locator(sel).first().tap() : game.locator(sel).first().click());
-  await expect(game.locator('[data-testid="home-profile"]')).toBeVisible({ timeout: 60_000 });
+  await expect(game.locator('[data-testid="home-profile"]')).toBeVisible({ timeout: limit(60_000) });
   await press('[data-testid="home-profile"]');
   await press('[data-testid="open-history"]');
   const hist = game.locator('[data-testid="match-history"]');
@@ -149,7 +150,7 @@ test('Match history: season stats, filters, a match scoreboard and damage, priva
   await expect(hist).toHaveCount(0);
 
   // a friend's history from their row in Social
-  await expect(game.locator('[data-testid="lobby-social"]')).toBeVisible({ timeout: 30_000 });
+  await expect(game.locator('[data-testid="lobby-social"]')).toBeVisible({ timeout: limit(30_000) });
   await press('[data-testid="lobby-social"]');
   await press('.pl-social [data-a="history"][data-code="PL-AAAA-AAAA"]');
   await expect(hist).toBeVisible();

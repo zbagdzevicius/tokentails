@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { limit } from '../unit/cpu-budget';
 
 // Mode unlocking (docs/plans/moba/MODE-UNLOCKS.md, founder ask Nov 14): Mode Select shows never more than 3 big modes
 // (Skirmish, Classic and one spotlight); every other mode is a small icon in the "More modes" strip, locked with its
@@ -44,7 +45,7 @@ const shot = async (page: Page, step: string): Promise<void> => {
   await page.screenshot({ path: `${SHOTS}/${step}-${v.width}x${v.height}.png` });
 };
 const settle = (page: Page): Promise<unknown> =>
-  page.waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: 10_000 });
+  page.waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: limit(10_000) });
 const bigIds = (page: Page): Promise<string[]> => page.locator('[data-testid="mode-big"] .ms-pick').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.mode ?? ''));
 const moreIds = (page: Page): Promise<string[]> => page.locator('[data-testid="mode-more"] .ms-pick').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.mode ?? ''));
 
@@ -170,7 +171,7 @@ test('a player who played One Lane Brawl and Cannon Chaos before the ship keeps 
 });
 
 test('a finished match unlocks the next mode: results banner, NEW on PLAY, it grows into the third tile; playing it clears NEW', async ({ page }, info) => {
-  test.setTimeout(480_000);
+  test.setTimeout(limit(480_000));
   const touch = touchOf(info.project.name);
   // one match done (Blitz open), no win yet: the next match unlocks Duel (and One Lane Brawl with a win)
   await seed(page, { v: 1, sessions: 2, matches: 1, wins: 0, hero: 'sage', trick: 'hiss', difficulty: 'easy', firstPlaySession: 1 }, WEDNESDAY);
@@ -183,13 +184,13 @@ test('a finished match unlocks the next mode: results banner, NEW on PLAY, it gr
   await tap(page, '[data-testid="mode-go"]', touch);
   await tap(page, '.pl-pick .cs-lock:not([disabled])', touch);
   await page.waitForSelector('html[data-match="live"]');
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 200_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(200_000) });
   const won = (await page.locator('.pl-results h1').textContent()) === 'Victory!';
   const banner = page.locator('[data-testid="results-mode-unlock"]');
   await expect(banner).toBeVisible();
   await expect(banner).toContainText('New mode unlocked');
   await expect(banner).toContainText('Duel');
-  await page.waitForSelector('.pl-results.actions-in', { timeout: 10_000 });
+  await page.waitForSelector('.pl-results.actions-in', { timeout: limit(10_000) });
   await settle(page);
   await banner.scrollIntoViewIfNeeded();
   await shot(page, 'results-unlock-banner');
@@ -221,8 +222,8 @@ test('a finished match unlocks the next mode: results banner, NEW on PLAY, it gr
   await tap(page, '[data-testid="mode-go"]', touch);
   await tap(page, '.pl-pick .cs-lock:not([disabled])', touch);
   await page.waitForSelector('html[data-match="live"]');
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 200_000 });
-  await page.waitForSelector('.pl-results.actions-in', { timeout: 10_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(200_000) });
+  await page.waitForSelector('.pl-results.actions-in', { timeout: limit(10_000) });
   await tap(page, '.pl-results [data-a="home"]', touch);
   await page.waitForSelector('html[data-screen="title"] .pl-home');
   await tap(page, '[data-testid="home-play"]', touch);

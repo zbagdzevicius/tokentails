@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { playFromHome, seedSide } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * Force update on the web (docs/plans/moba/FORCE-UPDATE.md §5.1, src/meta/clientPolicy.ts): when the live build's
@@ -37,7 +38,7 @@ test('an outdated tab on the title shows "Updating Paw Legends", reloads once, a
   const card = page.locator('.pl-update[data-update="soft"]');
   await expect(card).toBeVisible();
   await expect(card).toContainText('Updating Paw Legends');
-  await expect.poll(() => loads.n, { timeout: 15_000 }).toBe(2);
+  await expect.poll(() => loads.n, { timeout: limit(15_000) }).toBe(2);
   // the reloaded page is still the "old" build (the route still names fff9999): one reload per 5 minutes, no loop
   await page.waitForSelector('html[data-ready="1"]');
   await page.waitForTimeout(7000);
@@ -53,7 +54,7 @@ test('never mid-match: Play before the countdown ends keeps the match; no reload
   await page.waitForSelector('html[data-ready="1"]');
   await expect(page.locator('.pl-update[data-update="soft"]')).toBeVisible();
   await playFromHome(page);
-  await page.waitForSelector('html[data-screen="match"]', { timeout: 30_000 });
+  await page.waitForSelector('html[data-screen="match"]', { timeout: limit(30_000) });
   await page.waitForTimeout(8000);
   expect(loads.n).toBe(1);
   expect(await page.evaluate(() => document.documentElement.dataset.screen)).toBe('match');

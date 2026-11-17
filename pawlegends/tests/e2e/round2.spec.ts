@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { startFirstMatch, playFromHome, toChampSelect } from './helpers';
 import { mockHost, openHost } from './host';
+import { limit } from '../unit/cpu-budget';
 
 // Playtest round 2 regressions: the pick screen's Look row (where owned cats pay off) sat under the footer at
 // 1280×720; several centre-screen messages showed on top of each other in fights; the results gave no reason for a
@@ -28,7 +29,7 @@ test('pick at 1280×720: a roster from an older host adds no colour tints and no
 
 test('in a match nothing draws words in the middle: one rail main line at most, the rail ends by y 160', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'one viewport is enough');
-  test.setTimeout(90_000);
+  test.setTimeout(limit(90_000));
   await startFirstMatch(page, '&speed=8');
   let most = 0;
   let what = '';
@@ -56,15 +57,15 @@ test('in a match nothing draws words in the middle: one rail main line at most, 
 
 test('results: a returning player gets Play again at once and a line saying what decided the match', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'one viewport is enough');
-  test.setTimeout(150_000);
+  test.setTimeout(limit(150_000));
   await page.addInitScript((p) => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p)), VETERAN);
   await page.goto('/?e2e=1&speed=64');
   await page.waitForSelector('html[data-screen="title"]');
   await playFromHome(page);
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 130_000 });
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(130_000) });
   await expect(page.locator('.pl-results [data-cause]')).toContainText(/core|Time ran out/);
   // quick reveal (round 2): Play again within a second of the screen opening, even at 1× it is End + 2.5 s
-  await page.waitForSelector('.pl-results.actions-in', { timeout: 3_000 });
+  await page.waitForSelector('.pl-results.actions-in', { timeout: limit(3_000) });
   await expect(page.locator('[data-a="change"]')).toContainText('Switch cat');
 });
 

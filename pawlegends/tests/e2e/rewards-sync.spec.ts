@@ -5,6 +5,7 @@ import { join } from 'path';
 import { luckyOddsTable } from '../../../backend/src/pawlegends/progress/lucky';
 import { emptyBlob, mergeBlobs, sanitizeBlob, type ProgressBlob } from '../../../backend/src/pawlegends/progress/progress-merge';
 import { mockHost, openHost } from './host';
+import { limit } from '../unit/cpu-budget';
 
 /*
  * Gap plan P2 `rewards-cloud`: the same account in two browsers. Device A (a player with progress) syncs; device B (a
@@ -71,7 +72,7 @@ async function device(browser: Browser, baseURL: string, who: string, srv: Retur
 const treatsOf = (f: Frame) => f.evaluate(() => JSON.parse(localStorage.getItem('tt.pawlegends.treats.v1') ?? '{}') as { xp?: number; chests?: number });
 
 test('the same account in two browsers: same Treat Track; a Lucky Treat opens with its odds; Today shows the Welcome Path', async ({ browser, baseURL }, info) => {
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   const srv = server();
   const vp = info.project.name === 'landscape' ? { width: 844, height: 390 } : { width: 1280, height: 720 };
 
@@ -88,7 +89,7 @@ test('the same account in two browsers: same Treat Track; a Lucky Treat opens wi
       'pawlegends.leftHanded': '1',
     },
   );
-  await expect.poll(() => srv.calls.filter((c) => c.who === 'A').length, { timeout: 20_000 }).toBeGreaterThan(0);
+  await expect.poll(() => srv.calls.filter((c) => c.who === 'A').length, { timeout: limit(20_000) }).toBeGreaterThan(0);
   expect(srv.blob().treats).toMatchObject({ xp: 1340, chests: 4 });
   expect(srv.blob().counts.matches).toBe(14);
 
@@ -98,7 +99,7 @@ test('the same account in two browsers: same Treat Track; a Lucky Treat opens wi
 
   // B: the chest waits on Home; its odds open before it does
   const chest = b.game.locator('[data-testid="lucky-treat"]');
-  await expect(chest).toBeVisible({ timeout: 20_000 });
+  await expect(chest).toBeVisible({ timeout: limit(20_000) });
   await shot(b.page, `lucky-sealed-${info.project.name}`);
   await chest.locator('[data-k="odds"]').click();
   const sheet = b.game.locator('[data-testid="lucky-odds-sheet"]');
@@ -123,11 +124,11 @@ test('the same account in two browsers: same Treat Track; a Lucky Treat opens wi
     expect.arrayContaining(['emote.wave', 'coat.sage.midnight', 'coat.pixel.arctic']),
   );
   expect(await b.game.evaluate(() => localStorage.getItem('pawlegends.leftHanded'))).toBe('1');
-  await expect.poll(() => srv.blob().applied, { timeout: 10_000 }).toContain(`lucky:${DAY}`);
+  await expect.poll(() => srv.blob().applied, { timeout: limit(10_000) }).toContain(`lucky:${DAY}`);
 
   // B's Home: Today has the friend quest, the Welcome Path and the Lucky Treat odds row
   const today = b.game.locator('.hm-today');
-  await expect(today).toBeVisible({ timeout: 20_000 });
+  await expect(today).toBeVisible({ timeout: limit(20_000) });
   await today.locator('summary').click();
   await expect(b.game.locator('.hm-qlist .q.bonus')).toContainText('Play 2 matches with a friend');
   await expect(b.game.locator('[data-testid="welcome-path"]')).toBeVisible();
@@ -141,7 +142,7 @@ test('the same account in two browsers: same Treat Track; a Lucky Treat opens wi
   // champion mastery (verified matches, from the server) on the champion browser
   await b.game.locator('.hm-nav [data-a="heroes"]').click();
   const chip = b.game.locator('[data-testid="mastery-chip"]');
-  await expect(chip).toBeVisible({ timeout: 15_000 });
+  await expect(chip).toBeVisible({ timeout: limit(15_000) });
   await expect(chip).toContainText('M3');
   await shot(b.page, `champ-browser-${info.project.name}`);
 

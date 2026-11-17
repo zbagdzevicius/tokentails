@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 
 // The Home re-render fix (Nov 12): opening and closing a panel over Home, or switching the Treat Track | Legends Pass
 // tabs, rebuilt Home under it, so every entrance animation (the bars dropping in, the left stack and promo sliding, PLAY
@@ -32,7 +33,7 @@ async function seed(page: Page): Promise<void> {
 
 /** Waits out the entrance animations; the looping ones keep running. */
 const settle = (page: Page): Promise<unknown> =>
-  page.waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: 30_000 });
+  page.waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: limit(30_000) });
 
 /** Remember this Home node and watch its direct children (a rebuilt region or Home shows up as churn). */
 const watch = (page: Page): Promise<void> =>
@@ -55,7 +56,7 @@ const probe = (page: Page): Promise<Probe> =>
   });
 
 test('Home stays mounted and still while the Treat Track, Legends Pass and Settings come and go', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');

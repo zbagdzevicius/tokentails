@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { seedSide } from './helpers';
+import { playFromHome, seedSide, toChampSelect } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Health bars in a running match (Nov 12 regression). The overhead plates draw with the live WebGLRenderer
 // (render/renderer.ts liveRenderer). The champion browser's skill clip made its own renderer, took that slot and
@@ -15,11 +16,11 @@ const stats = (page: Page): Promise<Stats | null> =>
 
 /** The plates draw every frame: quads this frame and the overlay's draw count keeps growing. */
 async function barsDraw(page: Page): Promise<void> {
-  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), null, { timeout: 60_000 });
-  await expect.poll(async () => (await stats(page))?.quads ?? 0, { timeout: 20_000 }).toBeGreaterThan(0);
+  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), null, { timeout: limit(60_000) });
+  await expect.poll(async () => (await stats(page))?.quads ?? 0, { timeout: limit(20_000) }).toBeGreaterThan(0);
   // a 5v5 frame on SwiftShader can take a while: the count only has to keep moving
   const a = (await stats(page))!.draws;
-  await expect.poll(async () => (await stats(page))?.draws ?? 0, { timeout: 30_000 }).toBeGreaterThan(a + 5);
+  await expect.poll(async () => (await stats(page))?.draws ?? 0, { timeout: limit(30_000) }).toBeGreaterThan(a + 5);
   expect((await stats(page))!.quads).toBeGreaterThan(0);
 }
 
@@ -29,41 +30,35 @@ const press = async (page: Page, sel: string, touch: boolean): Promise<void> => 
 };
 
 test('health bars draw in a match after a skill clip in the champion browser', async ({ page }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   const touch = info.project.name === 'landscape';
   await seedSide(page, 'cat');
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('[data-a="choose"]').click();
+  await toChampSelect(page);
   await page.waitForSelector('html[data-screen="pick"]');
   await press(page, '.cs-tile[data-h="sage"]', touch);
   await press(page, '.cs-sk[data-slot="q"]', touch);
   await press(page, '.cs-panel [data-a="codex"]', touch);
   const dlg = page.locator('.pl-champ[data-ready="1"]');
-  await expect(dlg).toBeVisible({ timeout: 30_000 });
-  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: 60_000 }).toMatch(/playing|loading/);
+  await expect(dlg).toBeVisible({ timeout: limit(30_000) });
+  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: limit(60_000) }).toMatch(/playing|loading/);
   await page.keyboard.press('Escape');
   await expect(page.locator('.pl-champ')).toHaveCount(0);
   await press(page, '[data-a="start"]', touch);
-  await page.waitForSelector('html[data-match="live"]', { timeout: 90_000 });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(90_000) });
   await barsDraw(page);
 });
 
-test('Home → Mode Select → Classic → Confirm → PLAY reaches a live 5v5 match with health bars', async ({ page }) => {
+test('Home → PLAY → Classic → vs Bots → LOCK IN reaches a live 5v5 match with health bars', async ({ page }) => {
   // a 5v5 Hearthwood match loads on SwiftShader here
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   await seedSide(page, 'cat', { matches: 6, sessions: 3, hero: 'sage' });
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await page.locator('[data-testid="mode-pill"]').click();
-  const ms = page.locator('[data-testid="mode-select"]');
-  await expect(ms).toBeVisible();
-  await ms.locator('[data-testid="mode-classic"]').click();
-  await ms.locator('[data-testid="queue-bots"]').click();
-  await ms.locator('[data-testid="mode-confirm"]').click();
-  await expect(ms).toHaveCount(0);
-  await page.locator('[data-testid="home-play"]').click();
-  await page.waitForSelector('html[data-match="live"]', { timeout: 120_000 });
+  // the one play path: PLAY → Classic → vs Bots → champion select → LOCK IN
+  await playFromHome(page, { mode: 'classic', timeout: limit(60_000) });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(120_000) });
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
   // ten heroes: a 5v5 match
   await expect.poll(async () => (await page.evaluate(() => document.documentElement.dataset.plateNames ?? '')).split('|').filter(Boolean).length).toBe(10);

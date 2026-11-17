@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { playFromHome, seedSide } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Founder ask 2026-11-12: "on mobile make this a little bit bigger and show K/D/A as well". In a real bots match the
 // phone score strip is about 1.3× its old 151 × 24 px (31 px tall, 20 px digits, still one line, at most 248 px wide),
@@ -79,7 +80,7 @@ for (const s of [
 ] as const) {
   test(`${s.w}x${s.h}: the phone score strip is bigger, shows the own K / D / A live and overlaps nothing`, async ({ page }, info) => {
     test.skip(info.project.name !== 'landscape', 'touch phone sizes');
-    test.setTimeout(120_000);
+    test.setTimeout(limit(120_000));
     mkdirSync(SHOTS, { recursive: true });
     await startBots(page, s.w, s.h, true);
     const plate = (await boxes(page, '.pl-score'))[0]!;
@@ -239,7 +240,7 @@ for (const s of [
 
 test('1440x900 desktop: the K / D / A sits in the clock tab and updates live', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop');
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   mkdirSync(SHOTS, { recursive: true });
   await startBots(page, 1440, 900, false);
   const plate = (await boxes(page, '.pl-score'))[0]!;

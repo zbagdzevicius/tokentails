@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, startFirstMatch, minimapPoint } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * UX pass 2 (Wild Rift basic-attack targeting), touch at 844x390 and 667x375: the field rings the unit ATK would hit
@@ -11,7 +12,7 @@ test.beforeEach(({}, info) => test.skip(info.project.name !== 'landscape', 'touc
 
 const tapEl = async (page: Page, sel: string): Promise<void> => {
   // the match can end between two taps (the buttons go): never wait for the test timeout on a gone button
-  const b = await page.locator(sel).boundingBox({ timeout: 3000 }).catch(() => null);
+  const b = await page.locator(sel).boundingBox({ timeout: limit(3000) }).catch(() => null);
   if (b) await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
 };
 
@@ -20,7 +21,7 @@ for (const size of [
   { w: 667, h: 375 },
 ]) {
   test(`${size.w}x${size.h}: ATK hits the ringed unit; nothing in reach, no ring; LH and TWR`, async ({ page }) => {
-    test.setTimeout(420_000);
+    test.setTimeout(limit(420_000));
     await page.setViewportSize({ width: size.w, height: size.h });
     // a played profile (match 2, not the guided first match): the minimap is up for the walk
     await startFirstMatch(page, '&speed=3', 'cat');
@@ -37,7 +38,7 @@ for (const size of [
           await tapEl(page, '.pl-tbtn.attack');
           return Number(await attr(page, 'atkNone'));
         },
-        { timeout: 90_000, intervals: [600] },
+        { timeout: limit(90_000), intervals: [600] },
       )
       .toBeGreaterThan(none0);
     expect(await attr(page, 'atkSent')).toBe('');

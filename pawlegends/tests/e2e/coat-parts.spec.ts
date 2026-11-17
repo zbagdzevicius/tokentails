@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { playFromHome } from './helpers';
 import { mockHost, openHost, received } from './host';
+import { limit } from '../unit/cpu-budget';
 
 // gaps2 coats-models: an owned, equipped Epic or Legendary coat is worn in a bot match (the model's coat parts are
 // checked in tests/unit/coat-parts.test.ts; this proves the look reaches the match). COAT_SHOTS=<dir> also saves a
@@ -32,7 +33,7 @@ for (const [hero, coat, side] of COATS) {
   if (!SHOTS && hero !== 'clem' && hero !== 'brutus' && coat !== 'coat.frankie.store_paper_parade' && coat !== 'coat.meatball.store_mega_meal' && !ONLY) continue; // CI: one cat, one dog and the Mythics
   if (ONLY && !ONLY.split(',').includes(hero)) continue;
   test(`${coat} is worn in a bot match`, async ({ context, page, baseURL }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(limit(180_000));
     await mockHost(context, baseURL!, {
       app: { isApp: false, store: true },
       signedIn: true,

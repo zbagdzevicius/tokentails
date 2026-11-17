@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, PROFILE_KEY, seedSide, startFirstMatch, toChampSelect } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Sim v14 (DOGS-V13 §2, gate 13; DOGS-V15 §2: 10 v 10), champion select (LANDING-PICK-UX §B2.3): the All · Cats ·
 // Dogs tabs filter the grid (cats 14, dogs 14 since sim v31); picking a dog plays the dog side (the bots fill both teams by species,
@@ -29,7 +30,7 @@ async function tapOrClick(page: Page, sel: string, touch: boolean): Promise<void
 }
 
 test('DOGS shows the 14 dogs and plays the dog side with no duplicate on the team', async ({ page }, info) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   const touch = info.project.name === 'landscape';
   await seedSide(page, 'cat');
   await toPick(page);
@@ -67,7 +68,7 @@ test('DOGS shows the 14 dogs and plays the dog side with no duplicate on the tea
       return mine.length === 3 ? mine : null;
     },
     null,
-    { timeout: 20_000 },
+    { timeout: limit(20_000) },
   );
   const picks = (await team.jsonValue()) as string[];
   expect(picks).toContain('chili');
@@ -171,7 +172,7 @@ for (const vp of [
 }
 
 test('quick play from the title as a dog (one tap) starts the dog side', async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(limit(90_000));
   await startFirstMatch(page, '', 'dog');
   await expect.poll(() => attr(page, 'sides')).toBe('dogs');
 });

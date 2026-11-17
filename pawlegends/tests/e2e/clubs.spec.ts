@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { mockHost, openHost, received } from './host';
+import { limit } from '../unit/cpu-budget';
 
 /*
  * Clubs (docs/plans/moba/CLUBS-KUDOS.md §6): a signed-in player opens Social → Clubs, creates a club with a generated
@@ -13,7 +14,7 @@ import { mockHost, openHost, received } from './host';
  */
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop' && info.project.name !== 'landscape', 'desktop and landscape only'));
 // the first load builds the game's chunks cold: room for a busy machine
-test.describe.configure({ timeout: 180_000 });
+test.describe.configure({ timeout: limit(180_000) });
 
 const SHOTS = process.env.CLUBS_SHOTS === '1' ? join(homedir(), 'Downloads', 'paw-legends', 'gaps', 'clubs-kudos') : null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
@@ -93,7 +94,7 @@ async function openClubs(context: import('@playwright/test').BrowserContext, pag
   });
   const game = await openHost(page);
   const btn = game.locator('[data-testid="lobby-social"]');
-  await expect(btn).toBeVisible({ timeout: 60_000 });
+  await expect(btn).toBeVisible({ timeout: limit(60_000) });
   await btn.click();
   const sheet = game.locator('.pl-social');
   await expect(sheet).toBeVisible();

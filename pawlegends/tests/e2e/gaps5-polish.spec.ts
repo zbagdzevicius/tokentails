@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { seedSide } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // gaps5 polish: a lazy chunk that fails once is retried (no crash card), and Clem's coat chips never run under the
 // Ultimate / Recall / Takedown tabs. Desktop 1280x720 and a phone held sideways (844x390). Screenshots to
@@ -40,14 +41,14 @@ test('a lazy chunk that fails once loads on the retry: Heroes opens, no crash ca
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
   await tap('.hm-nav [data-a="heroes"]');
-  await expect(page.locator('.pl-champ[data-ready="1"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.pl-champ[data-ready="1"]')).toBeVisible({ timeout: limit(30_000) });
   expect(failed).toBeGreaterThanOrEqual(2);
   await expect(page.locator('#crash')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
 test("Clem's five coat chips stay clear of the effect tabs", async ({ page }, info) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   const touch = info.project.name === 'landscape';
   const tap = tapper(page, touch);
   await seedSide(page, 'cat', { sessions: 3, matches: 5, wins: 2, veteran: true });
@@ -55,7 +56,7 @@ test("Clem's five coat chips stay clear of the effect tabs", async ({ page }, in
   await page.waitForSelector('html[data-screen="title"]');
   await tap('.hm-nav [data-a="heroes"]');
   const dlg = page.locator('.pl-champ[data-ready="1"]');
-  await expect(dlg).toBeVisible({ timeout: 30_000 });
+  await expect(dlg).toBeVisible({ timeout: limit(30_000) });
   for (let i = 0; i < 25 && (await dlg.locator('.cb-name').textContent()) !== 'Clem'; i++) await tap('.cb-next');
   await expect(dlg.locator('.cb-name')).toHaveText('Clem');
   await tap('.cb-tab[data-tab="coats"]');

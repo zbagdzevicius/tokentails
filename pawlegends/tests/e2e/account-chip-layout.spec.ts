@@ -1,5 +1,6 @@
 import { expect, test, type Frame } from '@playwright/test';
 import { mockHost, openHost } from './host';
+import { limit } from '../unit/cpu-budget';
 
 // Sign-in: the account chip joins the lobby's top-right corner (ui/account.ts). At the no-scroll phone sizes
 // (no-scroll.spec.ts) the corner, chip included, stays inside the viewport, keeps 40 px touch targets and never
@@ -46,7 +47,7 @@ for (const size of SIZES) {
       { name: 'app, signed in', app: { isApp: true, store: false }, signedIn: true },
     ]) {
       test(variant.name, async ({ context, page, baseURL }) => {
-        test.setTimeout(90_000);
+        test.setTimeout(limit(90_000));
         await mockHost(context, baseURL!, { app: variant.app, signedIn: variant.signedIn, name: 'Bartholomew Whiskerton' });
         const game = await openHost(page);
         await game.waitForSelector('html[data-screen="title"] .pl-home');

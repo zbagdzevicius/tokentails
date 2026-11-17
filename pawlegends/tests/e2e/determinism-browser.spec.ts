@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { limit } from '../unit/cpu-budget';
 
 /**
  * POC.md §15 item 2: 20 seeds give the same final hash (and the same hash trail, folded) in Node and in a browser
@@ -13,7 +14,7 @@ type Row = { seed: number; finalHash: string; trail: string; ticks: number };
 
 test('20 seeds: Node and the browser Worker give the same final hashes', async ({ page }, info) => {
   test.skip(info.project.name === 'landscape', 'one run per engine (desktop = Chromium, webkit = WebKit)');
-  test.setTimeout(900_000);
+  test.setTimeout(limit(900_000));
   const { bundleSim, importSim } = await import('../../tools/lib/sim-bundle.mjs');
   const { code } = await bundleSim('tools/lib/fuzz-entry.ts');
   const fz = (await importSim('tools/lib/fuzz-entry.ts')) as {
@@ -56,7 +57,7 @@ type PartyRow = { seed: number; finalHash: string; trail: string; ticks: number;
 
 test('party mode-flip fuzz: Node, Worker and inline give the same hashes', async ({ page }, info) => {
   test.skip(info.project.name === 'landscape', 'one run per engine (desktop = Chromium, webkit = WebKit)');
-  test.setTimeout(900_000);
+  test.setTimeout(limit(900_000));
   const { bundleSim, importSim } = await import('../../tools/lib/sim-bundle.mjs');
   const { code } = await bundleSim('tools/lib/fuzz-entry.ts');
   const fz = (await importSim('tools/lib/fuzz-entry.ts')) as { fuzzSeed(i: number): number; fuzzPartyFinal(seed: number): PartyRow };

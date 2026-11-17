@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { toChampSelect } from './helpers';
 import { ALL_CHAMPS, mockHost, openHost } from './host';
+import { limit } from '../unit/cpu-budget';
 
 // Home hero switch (Nov 12, the founder: "maybe it would be enough to add SELECT / BUY as a button in here"): the Home
 // nameplate opens the champion browser on the Home hero; its one button under the description SELECTs an owned hero
@@ -58,7 +59,7 @@ async function walkTo(root: Root, word: string): Promise<string> {
 }
 
 test('the nameplate opens the browser; SELECT switches the Home hero in place and the champion select opens on it', async ({ page }, info) => {
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
@@ -69,7 +70,7 @@ test('the nameplate opens the browser; SELECT switches the Home hero in place an
   await shot(page, '1-home');
   await plate.click();
   const dlg = page.locator('.pl-champ[data-ready="1"]');
-  await expect(dlg).toBeVisible({ timeout: 30_000 });
+  await expect(dlg).toBeVisible({ timeout: limit(30_000) });
   await expect(dlg).toHaveAttribute('data-hero', 'sage');
   const btn = dlg.locator('[data-testid="hero-action"]');
   await expect(btn).toHaveText('SELECTED');
@@ -114,7 +115,7 @@ test('the nameplate opens the browser; SELECT switches the Home hero in place an
 
 test('the button fits 667x375, 844x390, 1280x720 and 1440x900', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'sizes are set here');
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
@@ -122,7 +123,7 @@ test('the button fits 667x375, 844x390, 1280x720 and 1440x900', async ({ page },
     await page.setViewportSize({ width: w, height: h });
     await page.locator('[data-testid="home-plate"]').click();
     const dlg = page.locator('.pl-champ[data-ready="1"]');
-    await expect(dlg).toBeVisible({ timeout: 30_000 });
+    await expect(dlg).toBeVisible({ timeout: limit(30_000) });
     await dlg.locator('.cb-next').click();
     const f = await fits(page);
     expect(f.scroll, `${w}x${h} scroll`).toBe(false);
@@ -139,11 +140,11 @@ test('the button fits 667x375, 844x390, 1280x720 and 1440x900', async ({ page },
 
 test('web: BUY on a locked champion opens its store detail; nothing starts a match', async ({ context, page, baseURL }, info) => {
   test.skip(info.project.name !== 'desktop', 'store panels are viewport independent');
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, profile: PLAYED, champState: NEW_GUEST, store: { items: [], season: null } });
   const game = await openHost(page);
   await game.locator('[data-testid="home-plate"]').click();
-  await expect(game.locator('.pl-champ[data-ready="1"]')).toBeVisible({ timeout: 30_000 });
+  await expect(game.locator('.pl-champ[data-ready="1"]')).toBeVisible({ timeout: limit(30_000) });
   const locked = await walkTo(game, 'BUY');
   await game.locator('.pl-champ [data-testid="hero-action"]').click();
   await expect(game.locator('.pl-champ')).toHaveCount(0);
@@ -157,11 +158,11 @@ test('web: BUY on a locked champion opens its store detail; nothing starts a mat
 
 test('app: UNLOCK opens the same detail with Yarn only, no price anywhere', async ({ context, page, baseURL }, info) => {
   test.skip(info.project.name !== 'desktop', 'store panels are viewport independent');
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   await mockHost(context, baseURL!, { app: { isApp: true, store: false }, signedIn: true, profile: PLAYED, champState: NEW_GUEST });
   const game = await openHost(page);
   await game.locator('[data-testid="home-plate"]').click();
-  await expect(game.locator('.pl-champ[data-ready="1"]')).toBeVisible({ timeout: 30_000 });
+  await expect(game.locator('.pl-champ[data-ready="1"]')).toBeVisible({ timeout: limit(30_000) });
   const locked = await walkTo(game, 'UNLOCK');
   await expect(game.locator('.pl-champ')).not.toContainText(/\$|€|BUY/);
   await game.locator('.pl-champ [data-testid="hero-action"]').click();

@@ -1,6 +1,7 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
 import { attr, playFromHome, toChampSelect } from './helpers';
 import { mockHost, openHost } from './host';
+import { limit } from '../unit/cpu-budget';
 
 // Playtest round 1 regressions: on a landscape phone the pick screen's Play button sat under the lobby canvas (the
 // scrolling column's fade mask clipped it), and on results the "X marched with you" card covered Play again.
@@ -59,7 +60,7 @@ test('the pick screen shows ability numbers on request and the bots chip says wh
 
 test('results: Play again is the topmost element at its centre; an older host\'s roster adds no squad card', async ({ context, page, baseURL }, info) => {
   test.skip(info.project.name !== 'desktop', 'the mock host flow runs on desktop');
-  test.setTimeout(150_000);
+  test.setTimeout(limit(150_000));
   await mockHost(context, baseURL!, {
     app: { isApp: false, store: true },
     signedIn: true,
@@ -69,8 +70,8 @@ test('results: Play again is the topmost element at its centre; an older host\'s
   });
   const game = await openHost(page);
   await playFromHome(game);
-  await game.waitForSelector('html[data-screen="results"]', { timeout: 130_000 });
-  await game.waitForSelector('.pl-results.actions-in', { timeout: 15_000 });
+  await game.waitForSelector('html[data-screen="results"]', { timeout: limit(130_000) });
+  await game.waitForSelector('.pl-results.actions-in', { timeout: limit(15_000) });
   await expect(game.locator('.plc-dock .plc-with')).toHaveCount(0);
   expect(await topmost(game, '[data-a="again"]')).toBe(true);
   // one takedown definition: the card reads K / D / A

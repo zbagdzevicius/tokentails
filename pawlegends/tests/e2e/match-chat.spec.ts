@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // MATCH-CHAT.md §4, §5, §8: in-match chat in a bot match. A bot sometimes types (a pinned chatter seed makes "sometimes"
 // happen early), its line shows in the ticker as a phrase (a solo player's age is unknown, so everything is a phrase),
@@ -17,17 +18,17 @@ async function botMatch(page: Page, seed: number): Promise<void> {
     [PROFILE, seed] as const,
   );
   await page.goto('/?e2e=1');
-  await page.waitForSelector('html[data-screen="title"]', { timeout: 120_000 });
-  await playFromHome(page, { timeout: 120_000 });
-  await page.waitForSelector('html[data-match="live"]', { timeout: 240_000 });
-  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), undefined, { timeout: 120_000 });
+  await page.waitForSelector('html[data-screen="title"]', { timeout: limit(120_000) });
+  await playFromHome(page, { timeout: limit(120_000) });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(240_000) });
+  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), undefined, { timeout: limit(120_000) });
 }
 
 test('a bot match: a bot says an ordinary line (as a phrase), the ticker shows it, the drawer has chips only', async ({ page }, info) => {
-  test.setTimeout(420_000);
+  test.setTimeout(limit(420_000));
   // seed 39: a teammate bot says "gl hf" about 7 s into the match (tests/unit/bot-chatter.test.ts covers the rates)
   await botMatch(page, 39);
-  await page.waitForFunction(() => Number(document.documentElement.dataset.chatLines ?? 0) >= 1, undefined, { timeout: 180_000 });
+  await page.waitForFunction(() => Number(document.documentElement.dataset.chatLines ?? 0) >= 1, undefined, { timeout: limit(180_000) });
   // the ticker row fades after 5 s: the e2e record of what it showed
   expect(await page.evaluate(() => document.documentElement.dataset.chatSaid ?? '')).toMatch(/gl hf/i);
   const ticker = page.locator('[data-testid="chat-ticker"] .cl-row');
@@ -58,7 +59,7 @@ test('a bot match: a bot says an ordinary line (as a phrase), the ticker shows i
 
 test('desktop: Enter opens the composer, letters never cast, Enter sends, Esc cancels', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop keys');
-  test.setTimeout(420_000);
+  test.setTimeout(limit(420_000));
   await botMatch(page, 7);
   // a text-tier team (a seam: a solo player has no age band, so the test sets the tier)
   await page.evaluate(() => {

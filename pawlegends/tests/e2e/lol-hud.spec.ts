@@ -29,7 +29,7 @@ for (const s of [
 ] as const) {
   test(`${s.w}x${s.h}: the score plate keeps its footprint, a tap opens the scoreboard, the feed stays in its corner`, async ({ page }, info) => {
     test.skip(info.project.name !== 'landscape', 'touch sizes');
-    test.setTimeout(90_000);
+    test.setTimeout(limit(90_000));
     await page.setViewportSize({ width: s.w, height: s.h });
     await startFirstMatch(page, '&speed=3');
     const score = (await box(page, '.pl-score'))!;
@@ -70,7 +70,7 @@ for (const s of [
 
 test('desktop: keycaps, a decimal under 1 s and one ready flash, the Nap bar, Tab scoreboard, the crest', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop');
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await page.setViewportSize({ width: 1440, height: 900 });
   await startFirstMatch(page, '&speed=2');
   // keycaps under Q W E R D B
@@ -83,7 +83,7 @@ test('desktop: keycaps, a decimal under 1 s and one ready flash, the Nap bar, Ta
   await page.waitForTimeout(2500);
   await page.keyboard.press('s');
   await page.keyboard.press('b');
-  await expect(page.locator('.lol-nap.on')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.lol-nap.on')).toBeVisible({ timeout: limit(10_000) });
   const fills: number[] = [];
   for (let i = 0; i < 4; i++) {
     fills.push(Number(await page.locator('.lol-nap').evaluate((e) => (e as HTMLElement).style.getPropertyValue('--left'))));
@@ -92,7 +92,7 @@ test('desktop: keycaps, a decimal under 1 s and one ready flash, the Nap bar, Ta
   for (let i = 1; i < fills.length; i++) expect(fills[i]).toBeLessThanOrEqual(fills[i - 1]);
   await expect(page.locator('.lol-nap')).toContainText('Napping');
   await page.screenshot({ path: `${SHOTS}/1440x900-nap.png` });
-  await expect(page.locator('.lol-nap.on')).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.locator('.lol-nap.on')).toHaveCount(0, { timeout: limit(10_000) });
   // Q on cooldown: a decimal under 1 s, then exactly one ready flash for it
   const before = Number((await attr(page, 'cdFlash')) || 0);
   // every text the Q timer shows, recorded in the page (the sub-second decimal lasts ~0.5 s at speed 2: polling it from
@@ -112,11 +112,11 @@ test('desktop: keycaps, a decimal under 1 s and one ready flash, the Nap bar, Ta
   await expect.poll(async () => (await me(page)).state, { timeout: limit(60_000) }).not.toBe('dead');
   await page.mouse.move(900, 400);
   await page.keyboard.press('q');
-  await expect(page.locator('.pl-slot[data-i="0"].cooling')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('.pl-slot[data-i="0"].cooling')).toBeVisible({ timeout: limit(5_000) });
   await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __qNums: string[] }).__qNums.join(' ')), { timeout: 20_000 })
+    .poll(() => page.evaluate(() => (window as unknown as { __qNums: string[] }).__qNums.join(' ')), { timeout: limit(20_000) })
     .toMatch(/(^| )0\.\d( |$)/);
-  await expect.poll(async () => Number((await attr(page, 'cdFlash')) || 0), { timeout: 10_000 }).toBe(before + 1);
+  await expect.poll(async () => Number((await attr(page, 'cdFlash')) || 0), { timeout: limit(10_000) }).toBe(before + 1);
   await page.waitForTimeout(600);
   expect(Number((await attr(page, 'cdFlash')) || 0)).toBe(before + 1);
   // Tab holds the scoreboard open

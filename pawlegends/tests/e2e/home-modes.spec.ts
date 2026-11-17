@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { limit } from '../unit/cpu-budget';
 
 // The one play path (docs/plans/moba/HOME-MODES.md §5, Nov 12): Home → PLAY → Mode Select (mode) → the variant (vs Bots
 // with its difficulty, Co-op, PvP, With Friends) → the champion select → LOCK IN → a live match. At 667x375, 844x390,
@@ -29,7 +30,7 @@ async function onTop(page: Page, sel: string): Promise<boolean> {
 
 /** Waits out the entrance animations (the bars drop in, the tiles pop in); the looping ones keep running. */
 const settle = (page: Page): Promise<unknown> =>
-  page.waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: 10_000 });
+  page.waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: limit(10_000) });
 
 const noScroll = (page: Page): Promise<boolean> =>
   page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1 && document.documentElement.scrollWidth <= innerWidth + 1);
@@ -71,7 +72,7 @@ const shot = async (page: Page, step: string): Promise<void> => {
 };
 
 test('Home → PLAY → Skirmish → vs Bots Hard → champion select → LOCK IN → a live match', async ({ page }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(limit(150_000));
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
@@ -101,7 +102,7 @@ test('Home → PLAY → Skirmish → vs Bots Hard → champion select → LOCK I
   // the difficulty is remembered at once
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tt.pawlegends.profile.v1') ?? '{}').difficulty)).toBe('hard');
   await page.locator('.cs-lock').click();
-  await page.waitForSelector('html[data-match="live"]', { timeout: 90_000 });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(90_000) });
 });
 
 test('Ranked (round 4, SOCIAL-RANKED.md §7.11): always open, the rules say bots honestly; standalone says PvP is offline', async ({ page }) => {
@@ -139,7 +140,7 @@ test('Ranked (round 4, SOCIAL-RANKED.md §7.11): always open, the rules say bots
 });
 
 test('Classic → vs Bots → LOCK IN → a live 5v5 match on Hearthwood (it never started before, Nov 12)', async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
@@ -155,8 +156,8 @@ test('Classic → vs Bots → LOCK IN → a live 5v5 match on Hearthwood (it nev
   // five seats a team (Sim v19: the seats match the match the select starts)
   await expect(page.locator('.cs-seats')).toHaveAttribute('style', /--n:5/);
   await page.locator('.cs-lock').click();
-  await expect(page.locator('.pl-loading')).toContainText('Hearthwood', { timeout: 20_000 });
-  await page.waitForSelector('html[data-match="live"]', { timeout: 150_000 });
+  await expect(page.locator('.pl-loading')).toContainText('Hearthwood', { timeout: limit(20_000) });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(150_000) });
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
   // the choice survives a reload (per-viewer convenience): Home shows PLAY alone, and Mode Select opens on Classic
   await page.goto('/?e2e=1');
@@ -196,7 +197,7 @@ test('keyboard: Enter opens Mode Select, Enter goes on, Esc backs out one step a
 });
 
 test('first visit: the guided match in one tap from PLAY, the nav shown with locked items', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
   await expect(page.locator('[data-testid="mode-pill"]')).toHaveCount(0);
@@ -208,7 +209,7 @@ test('first visit: the guided match in one tap from PLAY, the nav shown with loc
   await expect(page.locator('[data-testid="home-play"]')).toHaveAttribute('aria-label', 'Play as Clem');
   await page.locator('[data-testid="home-play"]').click();
   await expect(page.locator('[data-testid="mode-select"]')).toHaveCount(0);
-  await page.waitForSelector('html[data-match="live"]', { timeout: 90_000 });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(90_000) });
 });
 
 for (const [w, h] of [
@@ -219,7 +220,7 @@ for (const [w, h] of [
 ] as const) {
   test(`every step fits at ${w}x${h}: Home, the modes, the variants, the champion select`, async ({ page }, info) => {
     test.skip(info.project.name !== 'desktop', 'the sizes are set per test');
-    test.setTimeout(120_000);
+    test.setTimeout(limit(120_000));
     await seed(page);
     await page.setViewportSize({ width: w, height: h });
     await page.goto('/?e2e=1');

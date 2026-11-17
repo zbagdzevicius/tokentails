@@ -2,6 +2,7 @@ import { expect, test, type Browser, type BrowserContext, type Frame, type Page 
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { mockHost, openHost } from './host';
+import { limit } from '../unit/cpu-budget';
 
 // Overlap audit (s7 ui, founder ask Nov 15: the results' reward strip drew over the scoreboard and the MVP card, and
 // Home's version line and level chips sat on the nav, a champion and the name banner). On Home, Mode Select, the
@@ -128,7 +129,7 @@ const settle = async (s: Scope, quick = false): Promise<void> => {
   // the live HUD always animates (timers, bars): two frames only, so the sweep ends long before the match does
   if (quick) return;
   await s
-    .waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: 4000 })
+    .waitForFunction(() => document.getAnimations().every((a) => a.effect?.getTiming().iterations === Infinity || a.playState !== 'running'), null, { timeout: limit(4000) })
     .catch(() => undefined);
 };
 
@@ -193,7 +194,7 @@ for (const touch of [true, false]) {
 
   test(`overlap audit (${kind}): Home, Mode Select, champion select, HUD and results`, async ({ browser, baseURL }, info) => {
     test.skip(info.project.name !== 'desktop', 'sizes and touch are set per test');
-    test.setTimeout(1_200_000);
+    test.setTimeout(limit(1_200_000));
     const { ctx, page } = await device(browser, touch);
     try {
       await page.addInitScript(([p, t]) => {
@@ -224,8 +225,8 @@ for (const touch of [true, false]) {
       await page.waitForSelector('html[data-screen="title"] .pl-home');
       await toPick(page, touch);
       await lockIn(page, touch);
-      await page.waitForSelector('html[data-screen="results"]', { timeout: 200_000 });
-      await page.waitForSelector('.pl-results.actions-in', { timeout: 15_000 });
+      await page.waitForSelector('html[data-screen="results"]', { timeout: limit(200_000) });
+      await page.waitForSelector('.pl-results.actions-in', { timeout: limit(15_000) });
       await page.waitForTimeout(2500);
       bad.push(...(await sweep(page, page, sizes, `${kind}-results`, '.pl-results', RESULTS_KEYS, () => tablesFit(page))));
       // the chest toast is drawn once (no offset shadow copy of its text)
@@ -240,7 +241,7 @@ for (const touch of [true, false]) {
 
 test('overlap audit: the store and a signed-in Home (level chips) in the host', async ({ browser, baseURL }, info) => {
   test.skip(info.project.name !== 'desktop', 'sizes and touch are set per test');
-  test.setTimeout(900_000);
+  test.setTimeout(limit(900_000));
   for (const touch of [true, false]) {
     const { ctx, page } = await device(browser, touch);
     try {

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, ops, playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // GAPS B1: command pings. Desktop: hold G for the wheel (point at a slice, release G), Alt-click pings Go here on the
 // ground. Touch: the paw button by the minimap opens a six-slice wheel, a long press on the minimap pings Go here, a
@@ -87,9 +88,9 @@ test('touch: the paw button opens the wheel, a slice sends it; long presses on t
 });
 
 test('match 2 shows the ping tip once', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(limit(120_000));
   await start(page, { v: 1, sessions: 1, matches: 1, wins: 1, firstWinDone: true, hero: 'clem' }, '&speed=8');
-  await expect.poll(() => attr(page, 'pingTip'), { timeout: 60_000 }).toBe('1');
+  await expect.poll(() => attr(page, 'pingTip'), { timeout: limit(60_000) }).toBe('1');
   // ftue-2: the flag is set only once the banner is on screen, and it holds long enough to read (5.5 s, not 2.1 s).
   // LoL pass: an announcer line (an ally slain, a Frenzy grab) may cut in on the rail for a moment; the tip then goes
   // back to the front of the queue and comes back, it is never dropped

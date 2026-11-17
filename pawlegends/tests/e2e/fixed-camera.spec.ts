@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { startFirstMatch } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // Feel pass B1 (docs/plans/moba/FEEL-PASS.md): the camera is fixed on the hero, as in Mobile Legends. While the hero
 // walks, the hero's screen spot never moves (±2 px of 50% across, 54% down) at 667x375 and 844x390.
@@ -39,7 +40,7 @@ for (const [w, h] of [
 ] as const) {
   test(`${w}x${h}: the hero holds its screen spot while walking (no drift, no lead)`, async ({ page }, info) => {
     test.skip(info.project.name !== 'landscape', 'touch phone sizes');
-    test.setTimeout(120_000);
+    test.setTimeout(limit(120_000));
     await page.setViewportSize({ width: w, height: h });
     await startFirstMatch(page);
     await page.waitForTimeout(800);

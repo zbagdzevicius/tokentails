@@ -4,6 +4,7 @@ import path from 'node:path';
 import { expect, test, type Frame, type Page } from '@playwright/test';
 import { mockHost, openHost } from './host';
 import { seedSide } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // gaps3 coat-fx: the champion browser's Coats tab (Home → Heroes, and the store's coat detail "Preview effects") plays
 // a coat's Ultimate, Recall and Takedown clips in the live preview canvas, the card names the three effects, there is
@@ -20,7 +21,7 @@ const tapper = (f: Page | Frame, touch: boolean) => async (sel: string): Promise
 };
 
 test('Home → Heroes → Coats: every clip plays and the page fits', async ({ page }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   const touch = info.project.name === 'landscape';
   const tap = tapper(page, touch);
   // a returning dog player: Home's hero is Sir Brutus (Thunderpaw, Legendary) and Heroes is in the nav
@@ -29,7 +30,7 @@ test('Home → Heroes → Coats: every clip plays and the page fits', async ({ p
   await page.waitForSelector('html[data-screen="title"]');
   await tap('.hm-nav [data-a="heroes"]');
   const dlg = page.locator('.pl-champ[data-ready="1"]');
-  await expect(dlg).toBeVisible({ timeout: 30_000 });
+  await expect(dlg).toBeVisible({ timeout: limit(30_000) });
   // walk to Sir Brutus (Thunderpaw, Legendary) with the arrows
   for (let i = 0; i < 25 && (await dlg.locator('.cb-name').textContent()) !== 'Sir Brutus'; i++) await tap('.cb-next');
   await expect(dlg.locator('.cb-name')).toHaveText('Sir Brutus');
@@ -41,7 +42,7 @@ test('Home → Heroes → Coats: every clip plays and the page fits', async ({ p
   await expect(dlg.locator('.cb-coat-chip.on')).toContainText('Thunderpaw');
   await expect(dlg.locator('.cb-card')).toContainText('Three lightning bolts strike the ring');
   await expect(dlg).not.toContainText(/\$|€|Buy/);
-  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: 60_000 }).toBe('playing');
+  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: limit(60_000) }).toBe('playing');
   const vp = page.viewportSize()!;
   const box = (await dlg.locator('.cb-panel').boundingBox())!;
   expect(box.y).toBeGreaterThanOrEqual(0);
@@ -66,7 +67,7 @@ test('Home → Heroes → Coats: every clip plays and the page fits', async ({ p
     await tap(`.cb-cfx-btn[data-cfx="${k}"]`);
     await expect(dlg.locator('.cb-cfx-btn.on')).toHaveAttribute('data-cfx', k);
     await expect(dlg.locator('.cb-coat-fx li.on')).toContainText(k === 'recall' ? 'Recall' : 'Takedown');
-    await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: 60_000 }).toBe('playing');
+    await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: limit(60_000) }).toBe('playing');
     await page.waitForTimeout(k === 'recall' ? 4300 : 1400);
     await shot(k);
   }
@@ -84,7 +85,7 @@ test('Home → Heroes → Coats: every clip plays and the page fits', async ({ p
 
 test('store coat detail → Preview effects opens the Coats tab on that coat', async ({ context, page, baseURL }, info) => {
   test.skip(info.project.name !== 'desktop', 'the store flow is viewport independent');
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, profile: VETERAN, store: { items: [], season: SEASON } });
   const game = await openHost(page);
   const tap = tapper(game, false);
@@ -96,11 +97,11 @@ test('store coat detail → Preview effects opens the Coats tab on that coat', a
   await expect(shop.locator('.cst-detail')).toContainText('Ultimate: a petal storm');
   await tap('.cst-detail [data-a="coat-fx"]');
   const dlg = game.locator('.pl-champ[data-ready="1"]');
-  await expect(dlg).toBeVisible({ timeout: 30_000 });
+  await expect(dlg).toBeVisible({ timeout: limit(30_000) });
   await expect(dlg).toHaveAttribute('data-tab', 'coats');
   await expect(dlg.locator('.cb-name')).toHaveText('Sage');
   await expect(dlg.locator('.cb-coat-chip.on')).toContainText('Bloomtail');
-  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: 60_000 }).toBe('playing');
+  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: limit(60_000) }).toBe('playing');
   // the browser's tabs are its own: a tap on Lore does not switch the store's tab under it (both carry data-tab)
   await tap('.cb-tab[data-tab="lore"]');
   await expect(dlg).toHaveAttribute('data-tab', 'lore');
@@ -115,7 +116,7 @@ test('store coat detail → Preview effects opens the Coats tab on that coat', a
 // Screenshots go to ~/Downloads/paw-legends/gaps5/skins/ when that folder exists (never in CI).
 const SHOTS5 = path.join(os.homedir(), 'Downloads', 'paw-legends', 'gaps5', 'skins');
 test('the Mythic coat: store ribbon, Preview effects, the Evolve clip', async ({ context, page, baseURL }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(limit(240_000));
   const touch = info.project.name === 'landscape';
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, profile: VETERAN, store: { items: [], season: SEASON } });
   const game = await openHost(page);
@@ -139,13 +140,13 @@ test('the Mythic coat: store ribbon, Preview effects, the Evolve clip', async ({
   await shot('store-parade');
   await tap('.cst-detail [data-a="coat-fx"]');
   const dlg = game.locator('.pl-champ[data-ready="1"]');
-  await expect(dlg).toBeVisible({ timeout: 30_000 });
+  await expect(dlg).toBeVisible({ timeout: limit(30_000) });
   await expect(dlg).toHaveAttribute('data-tab', 'coats');
   await expect(dlg.locator('.cb-coat-chip.on')).toContainText('Paper Parade Dragon');
   await expect(dlg.locator('.cb-coat-rung')).toContainText('Mythic coat');
   await tap('.cb-cfx-btn[data-cfx="evolve"]');
   await expect(dlg.locator('.cb-coat-fx li.on')).toContainText('Evolve');
-  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: 60_000 }).toBe('playing');
+  await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: limit(60_000) }).toBe('playing');
   await page.waitForTimeout(6000);
   await shot('coats-parade-evolve');
   // another coat: no Evolve clip

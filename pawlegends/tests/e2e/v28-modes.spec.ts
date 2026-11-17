@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { limit } from '../unit/cpu-budget';
 
 // Sim v28 (docs/plans/moba/V28.md): One Lane Brawl, the Duel and Boss Weekend, each on the one play path (Home → PLAY →
 // Mode Select → vs Bots → champion select → LOCK IN). The clock is moved to a Saturday so Boss Weekend is on.
@@ -51,8 +52,8 @@ async function startMode(page: Page, mode: string, touch: boolean): Promise<void
   await tap(page, '[data-testid="mode-go"]', touch);
   await page.waitForSelector('html[data-screen="pick"] .cs');
   await tap(page, '.cs-lock', touch);
-  await page.waitForSelector('html[data-match="live"]', { timeout: 90_000 });
-  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), null, { timeout: 30_000 });
+  await page.waitForSelector('html[data-match="live"]', { timeout: limit(90_000) });
+  await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), null, { timeout: limit(30_000) });
 }
 
 test('Mode Select lists One Lane Brawl, the Duel and (on a weekend) Boss Weekend, all playable', async ({ page }, info) => {
@@ -86,19 +87,19 @@ test('on a weekend the Home promo leads with Boss Weekend and opens Mode Select 
 });
 
 test('One Lane Brawl: a live match on the Sunny Lane strip at level 3, no Nap', async ({ page }, info) => {
-  test.setTimeout(150_000);
+  test.setTimeout(limit(150_000));
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   const touch = info.project.name === 'landscape';
   await startMode(page, 'onelane', touch);
-  await expect(page.locator('.pl-portrait .lvl')).toHaveText('3', { timeout: 15_000 });
+  await expect(page.locator('.pl-portrait .lvl')).toHaveText('3', { timeout: limit(15_000) });
   await page.waitForTimeout(1500);
   await shot(page, 'onelane-match');
   expect(errors).toEqual([]);
 });
 
 test('Duel: one enemy portrait, no allies in the strip', async ({ page }, info) => {
-  test.setTimeout(150_000);
+  test.setTimeout(limit(150_000));
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   const touch = info.project.name === 'landscape';
@@ -111,7 +112,7 @@ test('Duel: one enemy portrait, no allies in the strip', async ({ page }, info) 
 });
 
 test('Boss Weekend: the boss bar takes the score plate, the boss is the one enemy', async ({ page }, info) => {
-  test.setTimeout(150_000);
+  test.setTimeout(limit(150_000));
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   const touch = info.project.name === 'landscape';

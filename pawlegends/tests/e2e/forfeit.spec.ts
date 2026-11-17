@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, playFromHome } from './helpers';
+import { limit } from '../unit/cpu-budget';
 
 // GAPS B2: Forfeit in the pause menu (Esc on desktop, the pause button on touch). From match 4 only, from 3:00 on
 // Easy (4:00 on Normal and Hard), never on Rookie. Before its time the button is disabled and names the time; then a
@@ -33,7 +34,7 @@ async function press(page: Page, touch: boolean, sel: string): Promise<void> {
 }
 
 test('Forfeit: disabled before 3:00 on Easy, then a confirm step, and the match ends as a forfeit with 20 Treat XP', async ({ page }, info) => {
-  test.setTimeout(180_000);
+  test.setTimeout(limit(180_000));
   const touch = info.project.name === 'landscape';
   await start(page, VETERAN, '&speed=16');
   expect(await attr(page, 'difficulty')).toBe('easy');
@@ -43,7 +44,7 @@ test('Forfeit: disabled before 3:00 on Easy, then a confirm step, and the match 
   await expect(ff).toHaveText('Forfeit from 3:00');
   await press(page, touch, '.pl-menu [data-a="resume"]');
   await expect(page.locator('.pl-menu')).toHaveCount(0);
-  await page.waitForFunction(() => Number(document.documentElement.dataset.tick ?? 0) >= 5400, null, { timeout: 120_000 });
+  await page.waitForFunction(() => Number(document.documentElement.dataset.tick ?? 0) >= 5400, null, { timeout: limit(120_000) });
   await openMenu(page, touch);
   await expect(ff).toBeEnabled();
   await press(page, touch, '.pl-menu [data-a="forfeit"]');
@@ -55,8 +56,8 @@ test('Forfeit: disabled before 3:00 on Easy, then a confirm step, and the match 
   await press(page, touch, '.pl-menu [data-a="forfeit"]');
   await press(page, touch, '.pl-menu [data-a="forfeit-yes"]');
   await expect(page.locator('.pl-menu')).toHaveCount(0);
-  await expect.poll(() => attr(page, 'endReason'), { timeout: 10_000 }).toBe('forfeit');
-  await page.waitForSelector('html[data-screen="results"]', { timeout: 30_000 });
+  await expect.poll(() => attr(page, 'endReason'), { timeout: limit(10_000) }).toBe('forfeit');
+  await page.waitForSelector('html[data-screen="results"]', { timeout: limit(30_000) });
   // LoL pass (lane B): the DEFEAT crest showed over the match before the results replaced it (data-crest is set when
   // the crest goes up; at test speed it is up for a fraction of a second)
   expect(await attr(page, 'crest')).toBe('DEFEAT');
