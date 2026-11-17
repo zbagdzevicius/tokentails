@@ -27,6 +27,7 @@ import { HERO_TEXT } from './heroText';
 import { HEROES } from '../data/heroes';
 import { XP } from '../data/xp';
 import { cutName } from '../meta/cardName';
+import { canvasFlagFont, canvasFlagsReady, cleanCc, flagEmoji } from '../social/flags';
 
 const LIFT: Record<ViewEntity['kind'], number> = { hero: 1.62, minion: 1.9, tower: 6.4, core: 5.2, fountain: 0, camp: 1.05, pudding: 3.8, pickup: 0, boss: 3 };
 const SIZE: Record<ViewEntity['kind'], [number, number]> = { hero: [70, 9], minion: [24, 3], tower: [86, 8], core: [120, 10], fountain: [0, 0], camp: [44, 5], pudding: [110, 9], pickup: [0, 0], boss: [110, 9] };
@@ -241,6 +242,9 @@ export function strideMeter(e: Pick<ViewEntity, 'hero' | 'resource' | 'state'>):
  * One draw call a frame and no full-screen 2D canvas (it was 0.75 Mpx rasterised on the CPU every frame on iOS).
  */
 const FONT = (weight: number, px: number): string => `${weight} ${px}px Fredoka, system-ui, sans-serif`;
+/** FLAGS.md: the gap between a plate's flag and its name (CSS px), and the no-flag answer. */
+const FLAG_GAP = 3;
+const NO_FLAG = Object.freeze({ cc: '', glyph: '', font: '', w: 0 });
 const DANGER_RGB = '#ff3b4d';
 const FOUNTAIN_RGB = '#ff4d5e';
 const GUIDE_RGB = '#ffd34d';
@@ -313,6 +317,11 @@ export class Overhead {
   seats: ReadonlyMap<number, { ring: string; bot: boolean }> | null = null;
   /** The seats bots play: their name pill carries the robot glyph (the honesty rule: a bot is always labelled). */
   bots: ReadonlySet<number> = new Set();
+  /**
+   * FLAGS.md: each seat's ISO country (social/flags.ts matchFlag: a human's own, a bot's seeded one). The flag sits
+   * left of the name on the plate; null (hidden or unknown) shows none.
+   */
+  flags: readonly (string | null)[] = [];
   /** Round 1 tier perk: a Legendary frame owner's "You" sits on a gold name plate. */
   goldPlate = false;
   /** Card skins (GDD §7.2): the cat the player's hero wears, a small line over the own plate only (null = none). */
@@ -1019,7 +1028,7 @@ export class Overhead {
     const sy = p.sy + p.dy;
     if (e.kind !== 'hero') return { kind: e.kind, id: e.id, name: '', x0: p.sx - bw / 2 - 2, y0: sy - bh / 2 - 2, x1: p.sx + bw / 2 + 2, y1: sy + bh / 2 + 2, dy: p.dy };
     const name = this.nameOf(e);
-    const tw = this.atlas.measure(name, FONT(700, nameFont(this.phone)));
+    const tw = this.atlas.measure(name, FONT(700, nameFont(this.phone))) + (name ? this.flagOf(e.id, nameFont(this.phone)).w : 0);
     const status = this.statusChips ? (e.charmed ? 'Charmed' : statusWord(e.buffs)) : '';
     const sw = status ? this.atlas.measure(status, FONT(700, Math.round(9 * this.scale))) + 14 * this.scale : 0;
     const b = plateBox(this.scale, this.phone);
@@ -1031,6 +1040,15 @@ export class Overhead {
    * this off after 10 s); the gold ring under the hero marks it from then on.
    */
   youLabel = true;
+
+  /** FLAGS.md: the plate's flag glyph for a seat and its width at name size `nf` (w 0: no flag). */
+  private flagOf(id: number, nf: number): { cc: string; glyph: string; font: string; w: number } {
+    const cc = cleanCc(this.flags[id]);
+    if (!cc || !canvasFlagsReady()) return NO_FLAG;
+    const font = canvasFlagFont(nf);
+    const glyph = flagEmoji(cc);
+    return { cc, glyph, font, w: this.atlas.measure(glyph, font) + FLAG_GAP };
+  }
 
   private nameOf(e: ViewEntity): string {
     if (e.id === this.mySlot && !this.youLabel) return '';
@@ -1187,7 +1205,17 @@ export class Overhead {
     const nf = nameFont(this.phone);
     const font = FONT(700, nf);
     const ny = y - 3 - nf / 2 - 3;
-    const tw = this.atlas.measure(name, font);
+    const nw = this.atlas.measure(name, font);
+    // FLAGS.md: the seat's flag left of the name, inside the pill (fw 0: none); the text block stays centred on the hero
+    const fl = name ? this.flagOf(e.id, nf) : NO_FLAG;
+    const fw = fl.w;
+    const tw = nw + fw;
+    const tx = fw / 2;
+    const flagAt = (g: CanvasRenderingContext2D, yy: number): void => {
+      if (!fw) return;
+      g.font = fl.font;
+      g.fillText(fl.glyph, -tw / 2 + (fw - FLAG_GAP) / 2, yy);
+    };
     const seat = this.seats?.get(e.id);
     if (e.id !== this.mySlot) {
       // round 1: a solid side-coloured pill behind every other hero's name, so an enemy Clem never reads as yours
@@ -1196,7 +1224,7 @@ export class Overhead {
       const bot = seat ? seat.bot : this.bots.has(e.id);
       const rg = 7 * sc;
       const half = tw / 2 + 10 + (bot ? 15 * sc + rg + 3 : 0); // v6: +2 for the lean
-      const pill = this.atlas.get(`pill|${name}|${col}|${nf}|${ring}|${bot ? 1 : 0}|${sc}`, 2 * half, Math.max(nf + 12, 2 * rg + 8), (g) => {
+      const pill = this.atlas.get(`pill|${name}|${col}|${nf}|${ring}|${bot ? 1 : 0}|${sc}|${fl.cc}`, 2 * half, Math.max(nf + 12, 2 * rg + 8), (g) => {
         // v6 facelift: the pill leans −8° (the kit's slant) with a night keyline under its lower edge
         g.fillStyle = col;
         leanRect(g, -tw / 2 - 4, -nf / 2 - 2, tw + 8, nf + 4);
@@ -1211,15 +1239,16 @@ export class Overhead {
           g.stroke();
         }
         if (bot) robotGlyph(g, tw / 2 + 15 * sc, 0, rg);
+        flagAt(g, 0.5);
         g.font = font;
         g.fillStyle = V6.night;
-        g.fillText(name, 0, 0.5);
+        g.fillText(name, tx, 0.5);
       });
       q.stamp(pill, sx, ny);
     } else if (!name) {
       // feel pass B5: no own name after the first seconds (the gold ring marks the hero)
     } else if (this.goldPlate) {
-      const gold = this.atlas.get(`gold|${name}|${nf}`, tw + 20, nf + 10, (g) => {
+      const gold = this.atlas.get(`gold|${name}|${nf}|${fl.cc}`, tw + 20, nf + 10, (g) => {
         const grad = g.createLinearGradient(0, -nf / 2 - 3, 0, nf / 2 + 3);
         // v6 facelift: the gold bevel (gold-1 → gold-2, gold-3 rim) on the −8° lean, gold-4 text
         grad.addColorStop(0, V6.gold1);
@@ -1230,20 +1259,22 @@ export class Overhead {
         g.strokeStyle = V6.gold3;
         g.lineWidth = 1.5;
         g.stroke();
+        flagAt(g, 0.5);
         g.font = font;
         g.fillStyle = V6.gold4;
-        g.fillText(name, 0, 0.5);
+        g.fillText(name, tx, 0.5);
       });
       q.stamp(gold, sx, ny);
     } else {
       const col = this.color(e);
-      const own = this.atlas.get(`own|${name}|${col}|${nf}`, tw + 10, nf + 10, (g) => {
+      const own = this.atlas.get(`own|${name}|${col}|${nf}|${fl.cc}`, tw + 10, nf + 10, (g) => {
+        flagAt(g, 0);
         g.font = font;
         g.lineWidth = 3;
         g.strokeStyle = V6.ink(0.9);
-        g.strokeText(name, 0, 0);
+        g.strokeText(name, tx, 0);
         g.fillStyle = col;
-        g.fillText(name, 0, 0);
+        g.fillText(name, tx, 0);
       });
       q.stamp(own, sx, ny);
     }

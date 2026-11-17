@@ -11,6 +11,7 @@ import type { EntitySnap, HeroId, MatchClock, MatchScore, TrickId } from '../sim
 import { maxCooldown, ULT_LEVEL } from '../input/abilities';
 import { keyLabel, type Action } from '../input/presets';
 import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
+import { ccHtmlOrNone } from '../social/flags';
 import { portraitUrl } from '../render/portraits';
 import type { Look } from '../render/cosmetics';
 import { HERO_TEXT, rankPips, rankUpSlots, trickText } from './heroText';
@@ -238,6 +239,8 @@ export interface FeedName {
   rel: 'self' | 'ally' | 'enemy' | 'neutral';
   /** cards: a hero's face in its element ring before the name (heroes only). */
   hero?: HeroId;
+  /** FLAGS.md: the hero's country (ISO), shown before the name; null or absent: no flag. */
+  cc?: string | null;
 }
 
 export class Hud {
@@ -488,7 +491,7 @@ export class Hud {
     }
   }
 
-  mountStrip(picks: readonly HeroId[], mySlot: number, myTeam: number, names: readonly string[], bots: ReadonlySet<number> = new Set()): void {
+  mountStrip(picks: readonly HeroId[], mySlot: number, myTeam: number, names: readonly string[], bots: ReadonlySet<number> = new Set(), flags: readonly (string | null)[] = []): void {
     for (const s of this.strip) s.el.remove();
     this.strip = [];
     this.root.querySelectorAll('.pl-strip').forEach((el) => el.remove());
@@ -522,7 +525,8 @@ export class Hud {
       el.title = label;
       // GAPS B6: a small badge (hidden until the hero takes its level-6 shape branch) so the other side can read it
       const br = HERO_TEXT[hero].branch;
-      el.innerHTML = `<i class="pic${pic ? '' : ' none'}"${pic ? ` style="background-image:url(${pic})"` : ''}>${pic ? '' : HERO_TEXT[hero].title.replace('Sir ', '').slice(0, 2)}</i><b class="t"></b>${br ? `<i class="br">${iconSvg(br.icon)}</i>` : ''}`;
+      // FLAGS.md: the seat's flag on the portrait's lower-left edge (the robot badge is top right, the branch lower right)
+      el.innerHTML = `<i class="pic${pic ? '' : ' none'}"${pic ? ` style="background-image:url(${pic})"` : ''}>${pic ? '' : HERO_TEXT[hero].title.replace('Sir ', '').slice(0, 2)}</i><b class="t"></b>${br ? `<i class="br">${iconSvg(br.icon)}</i>` : ''}${ccHtmlOrNone(flags[slot])}`;
       if (enemy) {
         let holdTimer: ReturnType<typeof setTimeout> | null = null;
         el.addEventListener('pointerdown', (e) => {
@@ -1043,6 +1047,7 @@ export class Hud {
       [bs[1], victim, 'victim'],
     ] as const) {
       b.textContent = n.name;
+      if (n.cc) b.insertAdjacentHTML('afterbegin', ccHtmlOrNone(n.cc));
       b.style.color = RELATION_CSS[n.rel];
       b.dataset.rel = n.rel;
       // cards: the hero's face in a ring of its card element (a tower or a minion gets its glyph instead)

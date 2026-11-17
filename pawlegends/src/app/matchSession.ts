@@ -816,6 +816,8 @@ export class MatchSession {
       }),
     );
     if (this.e2e) document.documentElement.dataset.matchFlags = Array.from({ length: w.picks.length }, (_, i) => matchFlag(i) ?? '-').join(',');
+    // FLAGS.md: the flag beside every name in the match too (plates, portrait strip, kill feed), not only the scoreboard
+    this.overhead.flags = Array.from({ length: w.picks.length }, (_, i) => matchFlag(i));
     this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A hero', (s) => w.picks[s]);
     // LoL pass (lane B): an Ace reads who is out from the latest snapshot (an enemy out of sight counts by its timer)
     this.announcer.down = (slot) => {
@@ -883,7 +885,7 @@ export class MatchSession {
       const t = s < per ? 0 : 1;
       return play[t] > 0 && s - t * per >= play[t] ? ('' as HeroId) : h;
     });
-    this.hud.mountStrip(inPlay, w.slot, w.team, this.names, botSlots);
+    this.hud.mountStrip(inPlay, w.slot, w.team, this.names, botSlots, this.overhead.flags);
     // Sim v27 (V27.md §2): the Practice ground's Reset / Level +1 / Cooldowns (Op.Practice)
     if (w.mutator === 'practice') this.hud.practiceBar((kind) => this.host.send({ op: Op.Practice, kind }));
     // Sim v28 (V28.md §4): Boss Weekend's boss bar takes the team score's place in the top plate
@@ -1103,8 +1105,8 @@ export class MatchSession {
     // sim v21: a KABOOM (the kibble's one-shot) shows a cannon between the faces instead of the claw
     const kaboom = this.kaboomAt.tick === e.tick && this.kaboomAt.victim === e.id;
     const row = this.hud?.kill(
-      { name: killerLabel, rel: rel(killer?.team, e.killer), ...(killer?.kind === 'hero' && killer.hero ? { hero: killer.hero } : {}) },
-      { name: victimName, rel: rel(victim.team, e.id), ...(victim.hero ? { hero: victim.hero } : {}) },
+      { name: killerLabel, rel: rel(killer?.team, e.killer), ...(killer?.kind === 'hero' && killer.hero ? { hero: killer.hero, cc: matchFlag(e.killer) } : {}) },
+      { name: victimName, rel: rel(victim.team, e.id), ...(victim.hero ? { hero: victim.hero, cc: matchFlag(e.id) } : {}) },
       good,
       kaboom,
     );

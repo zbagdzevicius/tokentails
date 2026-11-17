@@ -113,6 +113,40 @@ export function ccHtml(cc: string | null | undefined): string {
   return `<span class="pl-cc" data-cc="${code}" title="${esc(name)}" role="img" aria-label="${esc(name)}">${flagEmoji(code)}</span>`;
 }
 
+/** In-match name chips: a flag chip, or nothing when the country is hidden or unknown (no paw placeholder). */
+export function ccHtmlOrNone(cc: string | null | undefined): string {
+  return cleanCc(cc) ? ccHtml(cc) : '';
+}
+
+const EMOJI_STACK = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+/** The canvas font for a flag glyph of `px` CSS px (the flags-only font first where it is loaded). */
+export function canvasFlagFont(px: number, doc: Document | undefined = typeof document !== 'undefined' ? document : undefined): string {
+  return `${px}px ${doc?.documentElement.dataset.flagFont === '1' ? `"PL Flags",${EMOJI_STACK}` : EMOJI_STACK}`;
+}
+
+let fontAsked = false;
+/**
+ * Can a canvas draw a flag now? Yes where the platform draws flag emoji; on Windows only once the flags-only font
+ * has loaded (asked for here once: canvas text never triggers a web font load; its arrival repaints the plates).
+ */
+export function canvasFlagsReady(doc: Document | undefined = typeof document !== 'undefined' ? document : undefined): boolean {
+  if (!doc) return true;
+  ensureFlagFont(doc);
+  if (doc.documentElement.dataset.flagFont !== '1') return true;
+  try {
+    const fonts = doc.fonts;
+    if (!fonts) return false;
+    if (fonts.check('12px "PL Flags"', flagEmoji('CH'))) return true;
+    if (!fontAsked) {
+      fontAsked = true;
+      void fonts.load('12px "PL Flags"', flagEmoji('CH')).catch(() => undefined);
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // ------------------------------------------------------------------------------------------- the player's own flag
 
 function read(key: string): string | null {
