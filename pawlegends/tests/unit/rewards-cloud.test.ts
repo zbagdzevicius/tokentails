@@ -81,7 +81,7 @@ describe('progress blob', () => {
     expect(m.profile.matches).toBe(5);
     expect(m.profile.wins).toBe(3);
     expect(m.profile.firstWinDone).toBe(true);
-    expect(m.profile.unlocks).toEqual(expect.arrayContaining(['emote.wave', 'coat.sage.midnight', 'coat.brutus.biscuit']));
+    expect(m.profile.unlocks).toEqual(expect.arrayContaining(['emote.wave', 'coat.sage.midnight', 'coat.howler.red']));
     expect(m.profile.unlocks).not.toContain('<x>');
     expect(m.profile.heroMatches).toEqual({ clem: 2, sage: 4 });
     expect(m.prefsTaken).toBe(false);
