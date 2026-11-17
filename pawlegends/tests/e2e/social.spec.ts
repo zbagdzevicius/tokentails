@@ -39,7 +39,7 @@ test('Social sheet: friends with presence, add a friend by code through the host
   const sheet = game.locator('.pl-social');
   await expect(sheet).toBeVisible();
   await expect(sheet.locator('.pl-social-row')).toHaveCount(2);
-  await expect(sheet.locator('.pl-social-row').first()).toContainText('In party');
+  await expect(sheet.locator('.pl-social-row').first()).toContainText('In lobby'); // fc868b09: a friend in a party lobby reads "In lobby"
   // no scroll anywhere in the sheet
   expect(await sheet.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
   await sheet.locator('[data-a="add"]').click();

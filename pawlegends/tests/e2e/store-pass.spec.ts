@@ -43,6 +43,12 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   expect(arts.some((a) => a.includes('promo-store'))).toBe(true);
   for (const a of arts) {
     const url = /url\('?([^')]+)'?\)/.exec(a)![1];
+    // the coat drop's slide shows the coat's painted store art, which lives on the art origin (ui/art.ts artRoot), not
+    // in the build: the mock host blocks the live site, so that one is only checked for its address
+    if (/\/pawlegends-art\/skins\//.test(url)) {
+      expect(url).toMatch(/\/pawlegends-art\/skins\/coat\.[a-z0-9._]+-360\.webp/);
+      continue;
+    }
     // fetched from inside the game frame, so the host mock's routes serve it (never the live site)
     expect(await game.evaluate(async (u) => (await fetch(u)).status, url), url).toBe(200);
   }
@@ -62,12 +68,13 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   await expect(shop).toContainText('Cosmetic only: nothing here changes a match');
   await shop.locator('.cst-tabs [data-tab="coats"]').click();
   // CARD-SKINS.md: 6 effect coats (Epic $7.99, Legendary $14.99, tier word on the tile; gaps4 added Club Sandwich and
-  // Kebab King, gaps5 the skins v2 five) and the 16 Rare coats
-  await expect(shop.locator('[data-sel]')).toHaveCount(27);
+  // Kebab King, gaps5 the skins v2 five, the gaps6 November drop three) and the 16 Rare coats
+  await expect(shop.locator('[data-sel]')).toHaveCount(30);
   // every coat card shows the coat on its hero (a picture, never a text-only tile)
-  await expect.poll(() => shop.locator('[data-sel] img.cst-art').evaluateAll((els) => els.filter((e) => (e as HTMLImageElement).getAttribute('src') || (e as HTMLImageElement).getAttribute('srcset')).length)).toBe(27);
-  // Thunderpaw, Bloomtail, Pizzaiolo, Drive-Thru Deluxe and the Mythic Paper Parade Dragon (Legendary band)
-  await expect(shop.locator('[data-sel][data-rung="LEGENDARY"]')).toHaveCount(5);
+  await expect.poll(() => shop.locator('[data-sel] img.cst-art').evaluateAll((els) => els.filter((e) => (e as HTMLImageElement).getAttribute('src') || (e as HTMLImageElement).getAttribute('srcset')).length)).toBe(30);
+  // Thunderpaw, Bloomtail, Pizzaiolo, Drive-Thru Deluxe and the Mythics Paper Parade Dragon, Chairman of the Board and
+  // Mega Meal (Legendary band)
+  await expect(shop.locator('[data-sel][data-rung="LEGENDARY"]')).toHaveCount(7);
   await expect(shop.locator('[data-sel="pl_coat_frankie_paper_parade"]')).toContainText(/Mythic · (\$|€)14\.99/);
   await expect(shop.locator('[data-sel="pl_coat_brutus_thunderpaw"]')).toContainText(/Legendary · (\$|€)14\.99/);
   // a card opens its detail (the coat on its hero) with the buy button

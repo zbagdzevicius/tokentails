@@ -36,7 +36,8 @@ test('an outdated tab on the title shows "Updating Paw Legends", reloads once, a
   await page.goto('/');
   await page.waitForSelector('html[data-ready="1"]');
   const card = page.locator('.pl-update[data-update="soft"]');
-  await expect(card).toBeVisible();
+  // the check waits for version.json and the client policy (each up to 5 s on a slow network)
+  await expect(card).toBeVisible({ timeout: limit(30_000) });
   await expect(card).toContainText('Updating Paw Legends');
   await expect.poll(() => loads.n, { timeout: limit(15_000) }).toBe(2);
   // the reloaded page is still the "old" build (the route still names fff9999): one reload per 5 minutes, no loop
@@ -52,7 +53,7 @@ test('never mid-match: Play before the countdown ends keeps the match; no reload
   const loads = countLoads(page);
   await page.goto('/');
   await page.waitForSelector('html[data-ready="1"]');
-  await expect(page.locator('.pl-update[data-update="soft"]')).toBeVisible();
+  await expect(page.locator('.pl-update[data-update="soft"]')).toBeVisible({ timeout: limit(30_000) });
   await playFromHome(page);
   await page.waitForSelector('html[data-screen="match"]', { timeout: limit(30_000) });
   await page.waitForTimeout(8000);
