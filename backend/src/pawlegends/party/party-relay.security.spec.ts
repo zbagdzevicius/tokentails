@@ -117,10 +117,10 @@ describe('party relay hardening', () => {
         await b.stop();
     });
 
-    it('a sim v19 room still strikes op 11 (its decoder does not know Fire): 3 strikes close the sender', async () => {
-        const v19 = simFor(19)!;
+    it('a sim v20 room still strikes op 11 (its decoder does not know Fire): 3 strikes close the sender', async () => {
+        const v20 = simFor(20)!;
         const b = await boot();
-        const { a, c, stopBeats } = await twoInMatch(b, { sim: 19, simHash: v19.SIM_SOURCE_HASH });
+        const { a, c, stopBeats } = await twoInMatch(b, { sim: 20, simHash: v20.SIM_SOURCE_HASH });
         for (let i = 0; i < 3; i++) c.cmd(new Uint8Array([CMD_OP.Fire, 10, 0, 10, 0]));
         await c.until(() => c.closed, 5000);
         expect(c.closed!.code).toBe(4002);

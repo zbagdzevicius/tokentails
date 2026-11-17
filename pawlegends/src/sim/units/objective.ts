@@ -28,6 +28,7 @@ import { coverRect } from '../map/grid';
 import { dealDamage } from '../combat/damage';
 import { isInvulnerable } from './kinds';
 import { yarnAway } from './yarn';
+import { isDummy } from './practice';
 import type { ObjSnap, Team } from '../api';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { OBJECTIVE } from '../../data/objectives';
@@ -77,14 +78,15 @@ export function stepObjective(m: MatchHandle): void {
   else stepGoal(m);
 }
 
-/** Living heroes of each team within `r` of (x, y), into cnt[0], cnt[1]. */
+/** Living heroes of each team within `r` of (x, y), into cnt[0], cnt[1]. Sim v35 (V35-DEATHS.md §3): a Practice
+ *  dummy never holds or contests a disc (Ridge's walking dummy reset the Fish Mill on every pass). */
 const cnt = new Int32Array(2);
 function countIn(w: World, x: number, y: number, r: number): void {
   cnt[0] = 0;
   cnt[1] = 0;
   const r2 = r * r;
   for (let h = RANGE.heroes; h < RANGE.minions; h++) {
-    if (w.kind[h] !== Kind.Hero || w.alive[h] === 0 || w.hp[h] <= 0 || w.napT[h] > 0) continue;
+    if (w.kind[h] !== Kind.Hero || w.alive[h] === 0 || w.hp[h] <= 0 || w.napT[h] > 0 || isDummy(w, h)) continue;
     if (dist2(w.x[h], w.y[h], x, y) <= r2) cnt[w.team[h]]++;
   }
 }

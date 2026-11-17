@@ -4,8 +4,10 @@ export const XP = Object.freeze({
   /** Cumulative XP to reach level n (index n − 1). Sim v12 (docs/FUN-PROGRESSION-V12.md S2, S6): levels 3 to 6 cost a
    *  little more and level 7 a lot more (v11: 0, 60, 200, 360, 580, 860, 1200, 1600, 2060, 2580). Balance gate (2,000
    *  seeds): the lobby's leader reaches level 4 at 1:05, 7 at 3:41 and 10 at 7:55 (v11 0:58, 2:44, 5:15); 16% of heroes
-   *  end at level 10 (v11 70%). */
-  toLevel: Object.freeze([0, 60, 210, 420, 650, 960, 1750, 2350, 2950, 3500]),
+   *  end at level 10 (v11 70%). Sim v35 (V35-DEATHS.md): levels 8 to 10 cost more (v12 to v34: 2350, 2950, 3500), so
+   *  with the bigger kill XP the heroes who win fights reach them and the others do not: the level cap no longer hides
+   *  a kill lead late in the match. */
+  toLevel: Object.freeze([0, 60, 210, 420, 650, 960, 1750, 2900, 4100, 5500]),
   /** Sim v12: each of n heroes sharing a minion or a kill gets shareBp[n − 1] of it (1, 2, 3 heroes: 100%, 50%, 34%),
    *  so three heroes together earn a little more in total than an equal split. The spec's start (57.5%, 39%) put the
    *  leader's level 4 at 0:54. */
@@ -15,14 +17,22 @@ export const XP = Object.freeze({
   /** Kill XP (v4): 80 + 15 × victim level. Sim v33 (docs/plans/moba/V33-KILLS.md, player feedback: "10 kills and 0
    *  kills are almost the same strength, at most one level apart"): 120 + 30 × victim level, and the killer gets
    *  killerBonusBp of it on top of its share, so a hero who racks up kills is 2 to 3 levels ahead (was ~1.5). */
-  killBase: 120,
-  killPerLevel: 30,
-  killerBonusBp: 5000,
+  killBase: 220,
+  killPerLevel: 55,
+  killerBonusBp: 7500,
+  /** Sim v35 (V35-DEATHS.md, founder: "champ kill should give much XP, much more than now"): kill XP about 1.8× v33,
+   *  the killer +75% unshared (v33 +50%), and every other credited or nearby hero gets assistBp of its share, so the
+   *  hero who lands the kill gains the most. A victim above its killer is worth upsetPerLevelBp more a level of that
+   *  lead, at most upsetMaxBp (v4 to v34: +50% once the victim was 2+ levels up, `upsetBp`). */
+  assistBp: 5000,
+  upsetPerLevelBp: 2500,
+  upsetMaxBp: 10000,
   /** Bounty: a victim on a takedown streak of bountyStreak+ gives +killPerStreak × streak (max killStreakMax). Sim
    *  v33: from a streak of 2, +50 a takedown, at most +250 (v4: 3, 20, 80), so ending a streak is the comeback. */
   bountyStreak: 2,
-  killPerStreak: 50,
-  killStreakMax: 250,
+  /** Sim v35: +100 a takedown, at most +500 (v33 50, 250), scaled with the kill XP, so a shutdown stays the comeback. */
+  killPerStreak: 100,
+  killStreakMax: 500,
   shareRange: 10000,
   /** Assists count if they hit the victim in the last 10 s (v4; 6 s before). */
   assistWindow: 300,
@@ -36,8 +46,6 @@ export const XP = Object.freeze({
    *  kill Fish already does. */
   killRepeatXpBp: 7500,
   killFedXpBp: 5000,
-  /** A victim more than one level above its killer gives +50% kill XP. */
-  upsetBp: 15000,
   /** Sim v7 rubber band (DifficultyRules.enemyAheadXpBp): enemy heroes this many levels above the human. */
   aheadLevels: 2,
   /** Sim v5: the hero who last-hits a lane minion gets this share of its XP on top of its split share. */
@@ -62,15 +70,26 @@ export const RESPAWN = Object.freeze({
   /** v4: 3 s + 0.6 s × level, capped at 9 s; at most 4 s before 2:00 (earlyUntil). Sim v12 (S3): 3 s + 0.9 s × level,
    *  capped at 12 s, so a late death costs real map time. */
   base: 90,
-  perLevel: 27,
-  cap: 360,
+  /** Sim v35 (V35-DEATHS.md): 3 s + 1 s × level, capped at 13 s (v12 to v34: 0.9 s, 12 s). */
+  perLevel: 30,
+  cap: 390,
   /** Sim v12: no respawn is longer than 15 s, after Sunset and lead pressure (combat/damage.ts). Sim v33: 25 s, so the
-   *  match-time growth (DifficultyRules.respawnGrowBp) reaches late games. */
-  hardCap: 750,
+   *  match-time growth (DifficultyRules.respawnGrowBp) reaches late games. Sim v35: 40 s (the death weight below). */
+  hardCap: 1200,
   /** Sim v33 (player feedback: "respawns must get slower the longer the match goes, or even teams never take bases"):
    *  from growFrom the wait grows DifficultyRules.respawnGrowBp a minute (Normal and Hard +8%), at most growMaxBp more. */
   growFrom: 5400,
-  growMaxBp: 12000,
+  /** Sim v35: at most +160% (v33 +120%), with DifficultyRules.respawnGrowBp +10% a minute on Normal and Hard. */
+  growMaxBp: 16000,
+  /**
+   * Sim v35 (V35-DEATHS.md, founder: "deaths should be more and more punishing, each respawn longer and longer"): every
+   * earlier death of the hero (its death weight, World.deathN) makes the next wait deathPerBp longer, at most deathMaxBp
+   * (× DifficultyRules.deathGrowBp: Rookie none, Easy half). Each forgiveTicks a hero stays alive takes one death off
+   * its weight, so a player who stops feeding gets the short waits back.
+   */
+  deathPerBp: 1200,
+  deathMaxBp: 7200,
+  forgiveTicks: 2700,
   earlyCap: 120,
   earlyUntil: 3600,
   /**

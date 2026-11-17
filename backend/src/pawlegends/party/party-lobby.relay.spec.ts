@@ -10,9 +10,9 @@ import { TestClient } from './relay-test-client.helper-spec';
 
 /* Party play lane P over real sockets: hello hints, party.card (D8), hero skins, ticketed identity on resume. */
 
-/** Production v13 (party play, no dogs): a party its leader pins to it never fields a v14 dog. */
-const V13 = simFor(13)!;
-const DOGS_V14 = ['nugget', 'marshmallow', 'bravo', 'chili', 'howler'];
+/** The oldest accepted party build, v20 (no roster heroes): a party its leader pins to it never fields a v29+ hero. */
+const V20 = simFor(20)!;
+const ROSTER_SINCE_V29 = ['mochi', 'ziggy', 'biscuit', 'champ', 'nova', 'dusty', 'barkula', 'ranger'];
 
 const SECRET = 'spec-secret-0123456789abcdef';
 const ART = 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/cats/a.gif';
@@ -309,11 +309,11 @@ describe('party relay lane P', () => {
         }
     });
 
-    it('a v13 leader with open seats on the dog side starts a v13 room with v13 heroes (no update_required)', async () => {
+    it('a v20 leader with open seats on the dog side starts a v20 room with v20 heroes (no update_required)', async () => {
         const b = await boot();
         try {
             const a = await b.client();
-            a.hello({ sim: 13, simHash: V13.SIM_SOURCE_HASH });
+            a.hello({ sim: 20, simHash: V20.SIM_SOURCE_HASH });
             await a.until(() => a.last('welcome'));
             a.send({ t: 'party.create', difficulty: 'normal' });
             await a.until(() => a.last('party'));
@@ -326,22 +326,22 @@ describe('party relay lane P', () => {
             a.send({ t: 'loaded' });
             const m = await a.until(() => a.last('match') ?? a.json.find(j => j.t === 'error'));
             expect(m.t).toBe('match');
-            expect(m.simVersion).toBe(13);
+            expect(m.simVersion).toBe(20);
             const picks: string[] = m.config.picks;
-            for (const d of DOGS_V14) expect(picks).not.toContain(d);
+            for (const h of ROSTER_SINCE_V29) expect(picks).not.toContain(h);
             expect(a.json.some(j => j.t === 'error' && j.code === 'update_required')).toBe(false);
         } finally {
             await b.stop();
         }
     });
 
-    it('a v13 leader with a live-build member: no pick and no room (one build per party), the leader must update', async () => {
-        // before 2026-11-14 the party started pinned to v13 and the live member played its own world (the founder's
+    it('a v20 leader with a live-build member: no pick and no room (one build per party), the leader must update', async () => {
+        // before 2026-11-14 the party started pinned to its leader's old build and the live member played its own world (the founder's
         // co-op report); now a mixed party is refused at the start
         const b = await boot();
         try {
             const a = await b.client();
-            a.hello({ sim: 13, simHash: V13.SIM_SOURCE_HASH });
+            a.hello({ sim: 20, simHash: V20.SIM_SOURCE_HASH });
             await a.until(() => a.last('welcome'));
             a.send({ t: 'party.create', difficulty: 'normal' });
             const pa = await a.until(() => a.last('party'));

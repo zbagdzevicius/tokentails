@@ -52,6 +52,7 @@ const SYMMETRIC: readonly (keyof DifficultyRules)[] = [
   'catchUpPerLevelBp',
   'catchUpMaxBp',
   'respawnGrowBp',
+  'deathGrowBp',
   'campBehindBp',
 ];
 

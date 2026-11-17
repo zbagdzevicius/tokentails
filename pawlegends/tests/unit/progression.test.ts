@@ -30,9 +30,9 @@ function kill(m: ReturnType<typeof match>, by: number, victim: number): void {
 }
 
 describe('levels and XP (§6.1)', () => {
-  it('XP table (sim v12): levels 1 to 10 at 0, 60, 210, 420, 650, 960, 1750, 2350, 2950, 3500', () => {
-    expect(XP.toLevel).toEqual([0, 60, 210, 420, 650, 960, 1750, 2350, 2950, 3500]);
-    expect([0, 59, 60, 209, 210, 3499, 3500, 99999].map(levelForXp)).toEqual([1, 1, 2, 2, 3, 9, 10, 10]);
+  it('XP table (sim v35): levels 1 to 10 at 0, 60, 210, 420, 650, 960, 1750, 2900, 4100, 5500', () => {
+    expect(XP.toLevel).toEqual([0, 60, 210, 420, 650, 960, 1750, 2900, 4100, 5500]);
+    expect([0, 59, 60, 209, 210, 5499, 5500, 99999].map(levelForXp)).toEqual([1, 1, 2, 2, 3, 9, 10, 10]);
   });
 
   it('a level adds per-level HP and armour; talents are offered at 3, 6 and 9; bots take the seeded choice (sim v10)', () => {
@@ -52,13 +52,13 @@ describe('levels and XP (§6.1)', () => {
     expect(w.talents[0]).toBe(1);
   });
 
-  it('kill XP (sim v33): 120 + 30 × victim level + the bounty (50 per streak step from 2, max +250), shared within 10 m, the killer +50% unshared', () => {
+  it('kill XP (sim v35): 220 + 55 × victim level + the bounty (100 per streak step from 2, max +500), shared within 10 m, the killer +75% unshared, the others half their share', () => {
     const m = match();
     const w = m.world;
     place(m, 3, MID.x, MID.y, 0);
     place(m, 0, MID.x - 2000, MID.y, 0);
     kill(m, 0, 3);
-    expect(w.xp[0]).toBe(150 + 75);
+    expect(w.xp[0]).toBe(275 + 206);
     expect(m.stats[0].kills).toBe(1);
     expect(w.killStreak[0]).toBe(1);
     expect(m.events.some((e) => e.type === 'firstBlood' && e.killer === 0 && e.victim === 3)).toBe(true);
@@ -67,12 +67,13 @@ describe('levels and XP (§6.1)', () => {
     place(m2, 3, MID.x, MID.y, 0);
     place(m2, 0, MID.x - 2000, MID.y, 0);
     place(m2, 1, MID.x + 9000, MID.y, 0);
-    m2.world.killStreak[3] = 6; // bounty capped at +250
+    m2.world.killStreak[3] = 6; // bounty capped at +500
     kill(m2, 0, 3);
-    expect(m2.world.xp[0]).toBe((150 + 250) / 2 + (150 + 250) / 2);
-    expect(m2.world.xp[1]).toBe((150 + 250) / 2);
+    // 275 + 500 = 775: each of two gets 387; the killer adds 75% of 775 (581), the other half its share (193)
+    expect(m2.world.xp[0]).toBe(387 + 581);
+    expect(m2.world.xp[1]).toBe(193);
     expect(m2.world.xp[2]).toBe(0);
-    expect(m2.events.some((e) => e.type === 'shutdown' && e.killer === 0 && e.victim === 3 && e.value === 250)).toBe(true);
+    expect(m2.events.some((e) => e.type === 'shutdown' && e.killer === 0 && e.victim === 3 && e.value === 500)).toBe(true);
     expect(m2.world.killStreak[3]).toBe(0);
   });
 
@@ -84,31 +85,30 @@ describe('levels and XP (§6.1)', () => {
       kill(m, 0, v);
     }
     expect(m.world.killStreak[0]).toBe(3);
-    expect(m.events.some((e) => e.type === 'bounty' && e.id === 0 && e.value === 100)).toBe(true);
-    expect(m.events.some((e) => e.type === 'bounty' && e.id === 0 && e.value === 150)).toBe(true);
+    expect(m.events.some((e) => e.type === 'bounty' && e.id === 0 && e.value === 200)).toBe(true);
+    expect(m.events.some((e) => e.type === 'bounty' && e.id === 0 && e.value === 300)).toBe(true);
   });
 
-  it('upset: a victim more than one level above its killer gives +50% kill XP', () => {
+  it('upset (sim v35): a victim above its killer gives +25% kill XP a level of lead (here 2: +50%)', () => {
     const m = match();
     setLevel(m, 3, 3);
     place(m, 3, MID.x, MID.y, 0);
     place(m, 0, MID.x - 2000, MID.y, 0);
     const before = m.world.xp[0];
     kill(m, 0, 3);
-    // 120 + 30 × 3 = 210, × 1.5, plus the killer's +50% (sim v33); slot 0 is one level-average behind beyond the free
-    // first: catch-up does not apply yet.
-    expect(m.world.xp[0] - before).toBe(315 + Math.trunc(315 / 2));
+    // 220 + 55 × 3 = 385, × 1.5 = 577, plus the killer's +75% (432); catch-up does not apply yet (before 3:00).
+    expect(m.world.xp[0] - before).toBe(577 + 432);
   });
 
   it('takedown heal (sim v4): every credited hero gets TAKEDOWN_HEAL of its max HP back (a `buff` event)', () => {
     const m = match();
     const w = m.world;
-    setLevel(m, 0, 4); // the kill's 225 XP (sim v33) then stays short of level 5 (no level-up heal)
+    setLevel(m, 0, 6); // the kill's 481 XP (sim v35) then stays short of level 7 (no level-up heal)
     place(m, 3, MID.x, MID.y, 0);
     place(m, 0, MID.x - 2000, MID.y, 0);
     w.hp[0] = 100;
     kill(m, 0, 3);
-    expect(w.level[0]).toBe(4);
+    expect(w.level[0]).toBe(6);
     expect(w.hp[0]).toBe(100 + Math.trunc((w.maxHp[0] * TAKEDOWN_HEAL.healBp) / 10000));
     expect(m.events.some((e) => e.type === 'buff' && e.id === 0 && e.kind === 'takedown')).toBe(true);
   });
@@ -123,7 +123,7 @@ describe('levels and XP (§6.1)', () => {
     const before = w.xp[2]; // the trickle (2 XP a second) kept running
     kill(m, 0, 3);
     expect(m.stats[2].assists).toBe(1);
-    expect(w.xp[2] - before).toBe(150 / 2);
+    expect(w.xp[2] - before).toBe(68); // sim v35: half of its share (275 / 2 = 137)
     // Older than 10 s: no assist.
     const m2 = match();
     place(m2, 3, MID.x, MID.y, 0);

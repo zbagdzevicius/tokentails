@@ -417,7 +417,11 @@ export type SimEvent =
    * the windup's start (Cacklejaw's Pack Hunt victim), so the client can mark it.
    */
   | { type: 'windup'; tick: number; src: number; slot: CastSlot | 4 | 5 | 6 | 7; x: number; y: number; ticks: number; dst?: number }
-  | { type: 'death'; tick: number; id: number; killer: number }
+  /**
+   * Sim v35 (V35-DEATHS.md): a hero's death also carries its death weight after this death (`weight`, World.deathN)
+   * and how much longer that weight made this wait (`weightBp`, 0 when it added nothing), for the nap card.
+   */
+  | { type: 'death'; tick: number; id: number; killer: number; weight?: number; weightBp?: number }
   | { type: 'levelup'; tick: number; id: number; level: number }
   | { type: 'talentOffer'; tick: number; slot: number; tier: TalentTier }
   | { type: 'tower'; tick: number; id: number; destroyedBy: Team }

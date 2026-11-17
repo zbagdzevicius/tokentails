@@ -146,7 +146,9 @@ export interface DifficultyRules {
    *  the human as a foe (lane minions and the Rookie scripted fight only), so a first-timer is not dived at level 1.
    *  Rookie and Easy 0:40, Normal 0:30 (novice vs Normal 39.8% → 41.7% of 1,600 seeds), Hard none. */
   truceUntil: number;
-  /** Sim v7 rubber band: enemy heroes XP.aheadLevels or more above the human earn this share of their XP (10000 = off). */
+  /** Sim v7 rubber band: enemy heroes XP.aheadLevels or more above the human earn this share of their XP (10000 = off).
+   *  Sim v35 (V35-DEATHS.md): Easy 60% (85%), so the bigger kill XP does not run a new player's enemies away (fun2 won
+   *  65.0% to 68.5% at 85%, 71.5% at 60%, v34 71.5%). */
   enemyAheadXpBp: number;
   /**
    * Catch-up XP (sim/progression/levels.ts catchUpBp): +catchUpPerLevelBp from every source per level below the enemy
@@ -157,8 +159,12 @@ export interface DifficultyRules {
   catchUpPerLevelBp: number;
   catchUpMaxBp: number;
   /** Sim v33 (V33-KILLS.md): respawn waits grow this much a minute from RESPAWN.growFrom (progression/respawn.ts).
-   *  Rookie 0 (match 1 stays short), Easy +4%, Normal and Hard +8%. */
+   *  Rookie 0 (match 1 stays short), Easy +4%, Normal and Hard +8%. Sim v35 (V35-DEATHS.md): Normal and Hard +10%
+   *  (Easy keeps +4%). */
   respawnGrowBp: number;
+  /** Sim v35 (V35-DEATHS.md): the share (bp) of the death-weight growth (RESPAWN.deathPerBp a death) this difficulty
+   *  applies. Rookie and Easy 0 (a new player's deaths never lengthen its waits), Normal, Hard and PvP all of it. */
+  deathGrowBp: number;
   /** The rat camp's XP × this for the team whose summed level is lower (sim v8; a difficulty field since v10, GAPS B3:
    *  1.5× on every difficulty, see DIFFICULTY_RULES.hard). */
   campBehindBp: number;
@@ -222,8 +228,8 @@ export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRu
   // Sim v21 (V21-FUN.md §3.2): structureHpBp 12000 → 10500, so the plan's +25% tower HP does not stretch the first match
   // Sim v26 (V26-TOWERS.md §1.C, "make towers more durable"): Rookie structureHpBp 10500 → 11000 and Easy 10000 →
   // 11500; Normal and Hard keep 13500, so towers late in a match fall as before.
-  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 11000, coreHpBp: 13500, humanRespawnBp: 5000, nearAssists: false, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 13000, humanTakenBp: 8500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 15000, enemyComeback: false, rallyBp: 1150, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, respawnGrowBp: 0, campBehindBp: 15000, forfeitFrom: 0, catchUpFrom: 0, enemyFishBp: 8500, humanStreakRespawn: true, fortifyHeroBp: 5500 }),
-  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 11500, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 8500, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, respawnGrowBp: 400, campBehindBp: 15000, forfeitFrom: 5400, catchUpFrom: 0, enemyFishBp: 10000, humanStreakRespawn: true, fortifyHeroBp: 2000 }),
+  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 11000, coreHpBp: 13500, humanRespawnBp: 5000, nearAssists: false, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 13000, humanTakenBp: 8500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 15000, enemyComeback: false, rallyBp: 1150, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, respawnGrowBp: 0, deathGrowBp: 0, campBehindBp: 15000, forfeitFrom: 0, catchUpFrom: 0, enemyFishBp: 8500, humanStreakRespawn: true, fortifyHeroBp: 5500 }),
+  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 11500, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 8500, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 6000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, respawnGrowBp: 400, deathGrowBp: 0, campBehindBp: 15000, forfeitFrom: 5400, catchUpFrom: 0, enemyFishBp: 10000, humanStreakRespawn: true, fortifyHeroBp: 2000 }),
   /**
    * Sim v10 (GAPS B0, Normal and Hard): cores start at 120% (130% before). With seeded bot talents only 67.6% to
    * 69.5% of the 2,000-seed balance gate ended in a core kill before Sudden Death (70% floor); 125% gave 70.5%,
@@ -247,7 +253,7 @@ export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRu
    * player won 54.5%, then 42% of 200 seeds with fightPowerBp 7000 and retreat at 20%), so Hard also gets these
    * two edges: the `hard` gate (Normal player-bot vs Hard) is 36.0% and 29.5% on seeds 1..200 and 1,001..1,200.
    */
-  hard: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4500, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 1500, truceUntil: 0, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, respawnGrowBp: 800, campBehindBp: 15000, forfeitFrom: 7200, catchUpFrom: 5400, enemyFishBp: 10000, humanStreakRespawn: true, fortifyHeroBp: 5500 }),
+  hard: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4500, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 1500, truceUntil: 0, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, respawnGrowBp: 1000, deathGrowBp: 10000, campBehindBp: 15000, forfeitFrom: 7200, catchUpFrom: 5400, enemyFishBp: 10000, humanStreakRespawn: true, fortifyHeroBp: 5500 }),
   /**
    * Sim v20 (docs/plans/moba/V20-CHASE.md §9): takedownTowerChipBp 2000 → 3500. A cancelled or whiffed hero swing now
    * gives the attack timer back (Wild Rift), and that lifted "down 10+ takedowns at the end wins" from ~3% (v18) to
@@ -256,7 +262,7 @@ export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRu
    * Sim v26 (V26-TOWERS.md §1.A): 3500 → 2000, never while the towers are Fortified, and never below 15% of a tower's
    * HP (TOWERS.chipFloorBp), so in v25 85% to 100% of first towers fell mostly to chips; heroes and minions take them now.
    */
-  normal: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4000, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 2000, truceUntil: 900, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, respawnGrowBp: 800, campBehindBp: 15000, forfeitFrom: 7200, catchUpFrom: 5400, enemyFishBp: 10000, humanStreakRespawn: true, fortifyHeroBp: 5500 }),
+  normal: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4000, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 2000, truceUntil: 900, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, respawnGrowBp: 1000, deathGrowBp: 10000, campBehindBp: 15000, forfeitFrom: 7200, catchUpFrom: 5400, enemyFishBp: 10000, humanStreakRespawn: true, fortifyHeroBp: 5500 }),
 });
 
 /**

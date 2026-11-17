@@ -6,9 +6,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { verifyReplay } from '../../src/sim/server';
-import { verifyPartyReplay, verifyPvpReplay } from '../../src/sim/party';
-import { SIM_VERSION } from '../../src/sim/version';
+// Sim v35 changed the live sim (respawns, kill XP): this v34 gate runs on the frozen v34 bundle the backend keeps.
+import { SIM_VERSION, party, verifyReplay } from '../../../backend/src/vendor/pawlegends-sim/v34/index';
+
+const verifyPartyReplay = party.verifyPartyReplay;
+const verifyPvpReplay = party.verifyPvpReplay!;
 
 const dir = join(__dirname, '../../../backend/src/vendor/pawlegends-sim/v33');
 const files = readdirSync(dir).filter((f) => f.endsWith('.fixture.json'));

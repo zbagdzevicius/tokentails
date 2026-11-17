@@ -413,6 +413,13 @@ export interface World {
   fishRaw: Int32Array;
   toy: Int32Array;
   deathStreak: Int32Array;
+  /**
+   * Sim v35 (docs/plans/moba/V35-DEATHS.md): per hero, the death weight (deaths that still lengthen the next respawn:
+   * one more a death, one fewer for every RESPAWN.forgiveTicks lived) and the tick its current life began (its planned
+   * respawn tick while dead).
+   */
+  deathN: Int32Array;
+  lifeAt: Int32Array;
   /** Tick hero j last damaged hero i, at i × heroes + j (assists). */
   assistTick: Int32Array;
   /** Sim v4 bonuses, ticks left per hero: Zoomies, Frenzy Catnip, Nine Lives, the rat camp's Pack buff. */
@@ -754,6 +761,8 @@ export function createWorld(seed: number, map = 0): World {
     fishRaw: new Int32Array(h),
     toy: new Int32Array(h),
     deathStreak: new Int32Array(h),
+    deathN: new Int32Array(h),
+    lifeAt: new Int32Array(h),
     assistTick: new Int32Array(h * h).fill(NEVER),
     zoomT: new Int32Array(h),
     frenzyT: new Int32Array(h),
@@ -899,6 +908,8 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.bedT,
     // Sim v34: empty on Crossing and Hearthwood (no bytes hashed).
     w.ob,
+    // Sim v35.
+    w.deathN, w.lifeAt,
   ];
 }
 

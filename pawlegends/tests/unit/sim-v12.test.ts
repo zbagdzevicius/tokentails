@@ -341,14 +341,17 @@ describe('sim v12 XP (S2), respawn and clock (S3), bots (S4)', () => {
     expect(at('rookie', 0)).toBeGreaterThan(0);
   });
 
-  it('respawn: level 10 → 12 s, 15 s after Sunset, and never above RESPAWN.hardCap with a 10-takedown gap', () => {
-    expect(respawnTicks(10, 4000, 12150)).toBe(360);
-    expect(respawnTicks(10, 12150, 12150)).toBe(450);
+  it('respawn: level 10 → 13 s (sim v35), 16.25 s after Sunset, and never above RESPAWN.hardCap with a 10-takedown gap and six earlier deaths', () => {
+    expect(respawnTicks(10, 4000, 12150)).toBe(390);
+    expect(respawnTicks(10, 12150, 12150)).toBe(487);
     const m = quietMatch(2, false, 'normal');
     const w = m.world;
     w.globals[G.Tick] = TIMELINE_BY.normal.sunset + 30;
     w.globals[G.Kills1] = 10;
     setLevel(m, 0, 10);
+    // sim v35: six earlier deaths (the death weight's cap) and a life that just began
+    w.deathN[0] = 6;
+    w.lifeAt[0] = w.globals[G.Tick];
     w.hp[0] = 0;
     resolveDeaths(m);
     expect(w.timer[0]).toBe(RESPAWN.hardCap);

@@ -6,6 +6,9 @@ frozen sim to the backend build. Take them into whichever change makes v35.
 
 ## 1. Ridge Practice: the walking dummy resets the Fish Mill capture
 
+**Done in sim v35** (V35-DEATHS.md §1): `countIn` skips Practice dummies on every map; `tests/unit/sim-v35.test.ts`
+checks the player takes the Mill on Ridge in Practice.
+
 **What players see.** On the Practice ground on Lanternfall Ridge, standing in the Fish Mill does not capture it: the
 progress ring fills and drops back to zero again and again.
 

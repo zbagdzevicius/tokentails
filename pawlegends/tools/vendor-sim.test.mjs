@@ -21,10 +21,13 @@ describe('vendor-sim', () => {
     // toys; v26: stronger towers early) stay frozen beside the live sim v27 (executions, Cannon Chaos, the Practice
     // ground and the weekly twists, docs/plans/moba/V27.md) stays frozen too beside the live sim v28 (One Lane Brawl, the
     // Duel, Boss Weekend, docs/plans/moba/V28.md; v9 retired), and the root index dispatches by simVersion.
-    expect(SIM_VERSION).toBe(34);
+    expect(SIM_VERSION).toBe(35);
+    // Sim v35 (deaths punish more, V35-DEATHS.md) froze v34 with its maps fixture and retired v10 to v19
+    expect(JSON.parse(files['v34/pawlegends-sim.sha256.json']).simVersion).toBe(34);
+    expect(files['v34/maps-replay.fixture.json']).toBeDefined();
+    for (let v = 10; v <= 19; v++) expect(Object.keys(files).some((k) => k.startsWith(`v${v}/`)), `v${v} retired`).toBe(false);
     // Sim v34 (the 3v3 map pool, V34-MAPS.md) froze v33 with its late fixture; the live one records the pool maps
     expect(JSON.parse(files['v33/pawlegends-sim.sha256.json']).simVersion).toBe(33);
-    expect(files['v34/maps-replay.fixture.json']).toBeDefined();
     // Sim v33 (kills decide more, V33-KILLS.md) froze v32 with its late fixture
     expect(JSON.parse(files['v32/pawlegends-sim.sha256.json']).simVersion).toBe(32);
     expect(files['v33/late-replay.fixture.json']).toBeDefined();
@@ -49,39 +52,10 @@ describe('vendor-sim', () => {
     expect(files['v24/blitz-replay.fixture.json']).toBeDefined();
     expect(JSON.parse(files['v25/pawlegends-sim.sha256.json']).simVersion).toBe(25);
     expect(files['v25/kite-replay.fixture.json']).toBeDefined();
-    expect(JSON.parse(files['v10/pawlegends-sim.sha256.json']).simVersion).toBe(10);
-    expect(JSON.parse(files['v11/pawlegends-sim.sha256.json']).simVersion).toBe(11);
-    expect(JSON.parse(files['v12/pawlegends-sim.sha256.json']).simVersion).toBe(12);
-    expect(JSON.parse(files['v13/pawlegends-sim.sha256.json']).simVersion).toBe(13);
-    expect(JSON.parse(files['v14/pawlegends-sim.sha256.json']).simVersion).toBe(14);
-    expect(JSON.parse(files['v15/pawlegends-sim.sha256.json']).simVersion).toBe(15);
-    expect(files['v15/new-dog-replay.fixture.json']).toBeDefined();
-    expect(JSON.parse(files['v16/pawlegends-sim.sha256.json']).simVersion).toBe(16);
-    expect(files['v16/pvp-replay.fixture.json']).toBeDefined();
-    expect(JSON.parse(files['v17/pawlegends-sim.sha256.json']).simVersion).toBe(17);
-    expect(files['v17/pvp-replay.fixture.json']).toBeDefined();
-    expect(JSON.parse(files['v18/pawlegends-sim.sha256.json']).simVersion).toBe(18);
-    expect(files['v18/pvp-replay.fixture.json']).toBeDefined();
-    expect(JSON.parse(files['v19/pawlegends-sim.sha256.json']).simVersion).toBe(19);
-    expect(files['v19/hearthwood-pvp.fixture.json']).toBeDefined();
-    expect(files['v10/forfeit-replay.fixture.json']).toBeDefined();
-    expect(files['v11/forfeit-replay.fixture.json']).toBeDefined();
-    expect(files['v12/forfeit-replay.fixture.json']).toBeDefined();
-    expect(files['v13/forfeit-replay.fixture.json']).toBeDefined();
-    expect(files['v14/forfeit-replay.fixture.json']).toBeDefined();
-    expect(files['v14/dog-replay.fixture.json']).toBeDefined();
     expect(files[`v${SIM_VERSION}/dog-replay.fixture.json`]).toBeDefined();
     expect(files[`v${SIM_VERSION}/new-dog-replay.fixture.json`]).toBeDefined();
+    expect(files['index.ts']).toContain("import * as v20 from './v20';");
     expect(Object.keys(files).some((k) => k.startsWith('v9/'))).toBe(false);
-    expect(files['index.ts']).toContain("import * as v10 from './v10';");
-    expect(files['index.ts']).toContain("import * as v11 from './v11';");
-    expect(files['index.ts']).toContain("import * as v12 from './v12';");
-    expect(files['index.ts']).toContain("import * as v13 from './v13';");
-    expect(files['index.ts']).toContain("import * as v14 from './v14';");
-    expect(files['index.ts']).toContain("import * as v15 from './v15';");
-    expect(files['index.ts']).toContain("import * as v16 from './v16';");
-    expect(files['index.ts']).toContain("import * as v17 from './v17';");
-    expect(files['index.ts']).toContain("import * as v18 from './v18';");
     expect(files['index.ts']).toContain(`import * as v${SIM_VERSION} from './v${SIM_VERSION}';`);
 
     const server = await importSim('src/sim/server.ts');

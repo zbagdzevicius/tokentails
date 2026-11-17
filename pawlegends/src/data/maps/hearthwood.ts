@@ -246,12 +246,13 @@ export const GRIZZLECHOP_PIT = Object.freeze({ x: PIT.x, y: PIT.y });
 /** Sim v19: Hearthwood's own rules (MAP-5V5.md §1.9): respawn × 1.3 capped at 25 s; XP needed and Fish income scale. */
 export const HEARTHWOOD_RULES = Object.freeze({
   respawnBp: 13000,
-  /** Sim v33: 35 s (25 s), room for the match-time growth (RESPAWN.growFrom). */
-  respawnCap: 1050,
+  /** Sim v33: 35 s (25 s), room for the match-time growth (RESPAWN.growFrom). Sim v35: 55 s (V35-DEATHS.md). */
+  respawnCap: 1650,
   /** Ranged minions per lane and wave (Crossing: WAVE.ranged, 1). */
   waveRanged: 2,
-  /** XP from every source × this (bp): level 10 lands later in the longer match. */
-  xpBp: 8000,
+  /** XP from every source × this (bp): level 10 lands later in the longer match. Sim v35 (V35-DEATHS.md): 75% (80%),
+   *  so a hero with no kills is about 3 levels under a 10-kill hero at 10:00. */
+  xpBp: 7500,
   /**
    * Sim v22 (MAP-5V5-STANDARD.md §5.4, gate G9): the jungle camps' XP and Fish × this (bp; Grizzlechop has his own
    * reward), so a Prowl who full-clears keeps up with the average laner at 5:00.

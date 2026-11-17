@@ -1090,7 +1090,8 @@ export class MatchSession {
       this.clearTowerWarnings();
       // the nap card's medallion (ui/napCard.ts), read before recapLine clears the hits
       const medal = this.napKiller(killer);
-      this.hud?.recap(this.recapLine(killer, e.killer), medal);
+      // sim v35: the death weight that lengthened this nap (the card's "Death 4 · +45%")
+      this.hud?.recap(this.recapLine(killer, e.killer), medal, e.weight ?? 0, e.weightBp ?? 0);
     }
     const good = victim.team !== this.view.myTeam;
     const rel = (team: number | undefined, id: number): FeedName['rel'] =>

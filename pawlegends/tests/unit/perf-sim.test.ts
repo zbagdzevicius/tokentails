@@ -72,10 +72,11 @@ describe('sim performance (§15 item 6)', { timeout: limit(300000) }, () => {
   });
 
   it('an 11:00 worst case (cores nothing can finish) takes ≤ 1.5 s (median of 3, CPU time)', () => {
-    // Takedown core damage is a share of max HP: HP far above it outlasts it.
+    // Takedown core damage is a share of max HP: HP far above it outlasts it. Sim v35: × 1000 (× 100 fell at 10:36 on
+    // seed 32 once the bigger kill XP sped up the late pushes).
     const runs = [0, 1, 2].map(() =>
       timed(32, (w) => {
-        for (let c = RANGE.cores; c < RANGE.fountains; c++) w.hp[c] = CORE_STATS.hp * 100;
+        for (let c = RANGE.cores; c < RANGE.fountains; c++) w.hp[c] = CORE_STATS.hp * 1000;
       }),
     );
     report('11:00 worst case', runs);

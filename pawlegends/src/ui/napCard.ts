@@ -110,6 +110,9 @@ export class NapCard {
   private deadAt = -1;
   private art = '';
   private readonly calm = reduced();
+  /** Sim v35: this knockout's death weight and how much longer it made the wait (bp), from the death event. */
+  private weight = 0;
+  private weightBp = 0;
 
   constructor(parent: HTMLElement, private readonly hero: HeroId) {
     const el = document.createElement('div');
@@ -160,7 +163,7 @@ export class NapCard {
       // Sim v33: respawns grow with the match time and the level; a long nap says why
       const long = Number(s) >= LONG_NAP_SECS;
       this.el.classList.toggle('long', long);
-      (this.el.querySelector('.nc-kicker') as HTMLElement).textContent = long ? 'Long nap: respawns grow as the match goes on' : 'Napping at the fountain';
+      (this.el.querySelector('.nc-kicker') as HTMLElement).textContent = napKicker(long, this.weight, this.weightBp);
       this.el.classList.add('on');
       this.el.setAttribute('aria-label', `Napping at the fountain. Back in ${s}.`);
     } else if (now - this.lineAt >= NAP_LINE_MS && this.lines.length > 1) {
@@ -174,9 +177,11 @@ export class NapCard {
     }
   }
 
-  /** Who knocked the player out ("Knocked out by Chomp the Domino") and their medallion. */
-  knockedOut(text: string, killer: NapKiller | null = null): void {
+  /** Who knocked the player out ("Knocked out by Chomp the Domino") and their medallion; sim v35: the death weight. */
+  knockedOut(text: string, killer: NapKiller | null = null, weight = 0, weightBp = 0): void {
     this.recapFresh = true;
+    this.weight = weight;
+    this.weightBp = weightBp;
     this.recapEl.textContent = text || 'Your team is still fighting!';
     const m = this.medalEl;
     m.className = 'nc-medal';
@@ -212,6 +217,15 @@ export class NapCard {
   dispose(): void {
     this.el.remove();
   }
+}
+
+/**
+ * The nap card's kicker. Sim v35 (V35-DEATHS.md): when earlier deaths made this wait longer, a compact counter says why
+ * ("Death 4 · +45%"); else sim v33's long-nap line, or the stock line.
+ */
+export function napKicker(long: boolean, weight: number, weightBp: number): string {
+  if (weight > 1 && weightBp > 0) return `Death ${weight} · +${Math.round(weightBp / 100)}%`;
+  return long ? 'Long nap: respawns grow as the match goes on' : 'Napping at the fountain';
 }
 
 /** Tests only: the line rotation starts from the first line. */

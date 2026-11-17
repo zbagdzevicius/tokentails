@@ -31,6 +31,8 @@
  * the live v32 fixtures and the golden was regenerated from the v32 sim the same way.
  * Sim v33 (kills matter more, respawns grow, V33-KILLS.md): every match with a takedown plays differently, so VENDOR
  * points at the live v33 fixtures and the golden was regenerated from the v33 sim the same way.
+ * Sim v35 (deaths punish more, much more kill XP, V35-DEATHS.md): every match with a death plays differently, so VENDOR
+ * points at the live v35 fixtures and the golden was regenerated from the v35 sim the same way.
  * Part of the merge checklist.
  *
  * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
@@ -48,7 +50,7 @@ import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
 import { SIM_VERSION } from '../../src/sim/version';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v33');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v35');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {

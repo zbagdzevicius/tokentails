@@ -27,7 +27,7 @@ import { objMinionTakenBp, objStructBp, objectiveDeath } from '../units/objectiv
 import { onPuddingDown } from '../units/pudding';
 import { sugared } from '../units/sugar';
 import { SUGAR_RUSH } from '../../data/pudding';
-import { respawnTicks } from '../progression/respawn';
+import { deathWeightBp, respawnTicks } from '../progression/respawn';
 import { toyIncoming, toyLifesteal, toyOutgoing } from '../progression/fish';
 import { creditHealShield, heal } from '../effects/heal';
 import { bonusDamage, nineLives } from '../effects/bonus';
@@ -314,7 +314,8 @@ export function resolveDeaths(m: MatchHandle): void {
     w.hp[id] = 0;
     w.windup[id] = 0;
     w.target[id] = -1;
-    m.events.push({ type: 'death', tick, id, killer });
+    const death: Extract<SimEvent, { type: 'death' }> = { type: 'death', tick, id, killer };
+    m.events.push(death);
     clearOnDeath(w, id);
     if (k === Kind.Hero) {
       w.state[id] = UnitState.Dead;
@@ -323,7 +324,14 @@ export function resolveDeaths(m: MatchHandle): void {
       // Sim v22 (Blitz): a flat wait rising from 6 s to 8 s over the match replaces the level wait, Sunset and the lead
       // pressure; the difficulty's human and enemy edges still apply.
       const flat = mutatorRespawn(w, tick);
-      w.timer[id] = flat > 0 ? flat : respawnTicks(w.level[id], tick, w.globals[G.Sunset], rulesOf(m).respawnGrowBp);
+      // Sim v35 (V35-DEATHS.md): every RESPAWN.forgiveTicks lived takes one death off the hero's weight; the weight
+      // before this death lengthens the wait (deathWeightBp), then this death adds one.
+      w.deathN[id] = Math.max(0, w.deathN[id] - idiv(Math.max(0, tick - w.lifeAt[id]), RESPAWN.forgiveTicks));
+      const deathBp = deathWeightBp(w.deathN[id], rulesOf(m).deathGrowBp);
+      w.deathN[id]++;
+      death.weight = w.deathN[id];
+      death.weightBp = flat > 0 ? 0 : deathBp;
+      w.timer[id] = flat > 0 ? flat : respawnTicks(w.level[id], tick, w.globals[G.Sunset], rulesOf(m).respawnGrowBp, deathBp);
       if (isHumanSlot(w, id)) w.timer[id] = Math.max(1, applyBp(w.timer[id], rulesOf(m).humanRespawnBp));
       else if (w.team[id] !== teamOfSlot(HUMAN_SLOT)) w.timer[id] = applyBp(w.timer[id], rulesOf(m).enemyRespawnBp);
       m.stats[id].deaths++;
@@ -350,6 +358,8 @@ export function resolveDeaths(m: MatchHandle): void {
       }
       // Sim v32: past the late tick the wait grows a little every minute, up to LATE_SUNSET.respawnHardCap (late.ts).
       w.timer[id] = lateRespawn(w, tick, w.timer[id]);
+      // Sim v35: the next life starts when the wait ends (the forgiveness above counts from there).
+      w.lifeAt[id] = tick + w.timer[id];
       heroKilled(m, id);
       // Sim v34: a fallen hero drops its Catnip Gems (Geode Quarry).
       if (w.ob.length > 0) objectiveDeath(m, id);

@@ -625,9 +625,9 @@ export class Hud {
   }
 
   /** The death recap ("Knocked out by Cacklejaw + a tower: wait for your minions") and the nap card's medallion. */
-  recap(text: string, killer: NapKiller | null = null): void {
+  recap(text: string, killer: NapKiller | null = null, weight = 0, weightBp = 0): void {
     this.set('recap', this.recapEl, text || 'Your team is still fighting!');
-    this.napCard.knockedOut(text, killer);
+    this.napCard.knockedOut(text, killer, weight, weightBp);
   }
 
   /** Desktop skill tooltips: the pointer rests on slot `i` (−1 the portrait); the card follows after TIP_DELAY_MS. */
