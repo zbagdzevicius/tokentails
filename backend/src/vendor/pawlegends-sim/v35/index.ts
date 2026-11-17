@@ -23,9 +23,6 @@ export type PawlegendsHeroId =
     | 'marshmallow'
     | 'bravo'
     | 'chili'
-<<<<<<< HEAD:backend/src/vendor/pawlegends-sim/v13/index.ts
-    | 'howler';
-=======
     | 'howler'
     | 'rocket'
     | 'frankie'
@@ -38,7 +35,6 @@ export type PawlegendsHeroId =
     | 'dusty'
     | 'barkula'
     | 'ranger';
->>>>>>> cad0f2d76 (feat(pawlegends): sim v35, deaths punish more and champion kills give much more XP (v34 frozen, v10-v19 retired)):backend/src/vendor/pawlegends-sim/v35/index.ts
 export type PawlegendsTrickId = string;
 export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
@@ -110,15 +106,9 @@ export const SIM_VERSION: number = sim.SIM_VERSION;
 export const MAX_TICKS: number = sim.MAX_TICKS;
 export const MAX_INPUT_CHARS: number = sim.MAX_INPUT_CHARS;
 /** sha256 of pawlegends-sim.bundle.ts: which sim this backend replays with (GET /pawlegends/sim). */
-<<<<<<< HEAD:backend/src/vendor/pawlegends-sim/v13/index.ts
-export const BUNDLE_SHA256 = '81a7e169d4e2b7ec3a412f47d40a2414731c24d453d9652ad3e26047ccb5b2b2';
-/** The SIM_VERSION this bundle was built with (13). */
-export const BUNDLE_SIM_VERSION = 13;
-=======
 export const BUNDLE_SHA256 = 'd1d7dafd8001a919156df7c2dd3a477627bdb83be7d2d885c535b3ded6af5100';
 /** The SIM_VERSION this bundle was built with (35). */
 export const BUNDLE_SIM_VERSION = 35;
->>>>>>> cad0f2d76 (feat(pawlegends): sim v35, deaths punish more and champion kills give much more XP (v34 frozen, v10-v19 retired)):backend/src/vendor/pawlegends-sim/v35/index.ts
 /** False: this is the real sim, not the placeholder that refuses every replay. */
 export const PLACEHOLDER = false;
 
@@ -126,8 +116,6 @@ export const PLACEHOLDER = false;
 export const checkReplayShape: (record: unknown) => PawlegendsVerifyResult | null = sim.checkReplayShape;
 /** Re-simulate a replay (up to ~1.5 s for an 11:00 match: call it from a worker thread). */
 export const verifyReplay: (record: unknown) => PawlegendsVerifyResult = sim.verifyReplay;
-<<<<<<< HEAD:backend/src/vendor/pawlegends-sim/v13/index.ts
-=======
 
 // ---------------------------------------------------------------------------------------------------------------
 // Party play (docs/plans/moba/MULTIPLAYER.md §1, §2.1): the party verifier and the live-match API the relay's referee
@@ -282,4 +270,3 @@ export const party: PawlegendsPartySim = {
     MAP_POOL_3V3: sim.MAP_POOL_3V3,
     pickMap3v3: sim.pickMap3v3,
 };
->>>>>>> cad0f2d76 (feat(pawlegends): sim v35, deaths punish more and champion kills give much more XP (v34 frozen, v10-v19 retired)):backend/src/vendor/pawlegends-sim/v35/index.ts

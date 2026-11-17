@@ -118,17 +118,8 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
       return [
         { kind: 'dir', shape: 'cone', range: n(a.q.range, 2200), arc: n(a.q.arc, 1138) * STEP_TO_RAD, smart: 'any' },
         { kind: 'self', shape: 'none', range: 0, smart: 'none' },
-<<<<<<< HEAD
-<<<<<<< HEAD
-        { kind: 'point', shape: 'circle', range: n(a.e.blink, 4500), radius: 600, blink: true, smart: 'none' },
-=======
-        { kind: 'point', shape: 'circle', range: n(a.e.blink, 4500), radius: 600, smart: 'none', heading: true },
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
-        { kind: 'unit', shape: 'ring', range: n(a.r.range, 6000), radius: n(a.r.dazzleRadius, 3000), smart: 'hero' },
-=======
-        { kind: 'point', shape: 'circle', range: n(a.e.blink, 4500), radius: 600, smart: 'none', heading: true, returnTicks: n(a.e.recastWindow, 60) },
+        { kind: 'point', shape: 'circle', range: n(a.e.blink, 4500), radius: 600, blink: true, smart: 'none', heading: true, returnTicks: n(a.e.recastWindow, 60) },
         { kind: 'unit', shape: 'ring', range: n(a.r.range, 6000), radius: n(a.r.dazzleRadius, 3000), smart: 'hero', opensReturn: true },
->>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
       ];
     case 'bengas':
       return [
@@ -227,15 +218,7 @@ export function aimFor(hero: HeroId, slot: CastSlot, branch = false): AimSpec {
 export function trickAim(trick: TrickId): AimSpec {
   switch (trick) {
     case 'pounce':
-<<<<<<< HEAD
-<<<<<<< HEAD
-      return { kind: 'point', shape: 'circle', range: TRICKS.pounce.blink, radius: 600, blink: true, smart: 'none' };
-=======
-      return { kind: 'point', shape: 'circle', range: TRICKS.pounce.blink, radius: 600, smart: 'none', heading: true };
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
-=======
-      return { kind: 'point', shape: 'circle', range: TRICKS.pounce.blink, radius: 600, smart: 'none', heading: true, flash: true };
->>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
+      return { kind: 'point', shape: 'circle', range: TRICKS.pounce.blink, radius: 600, blink: true, smart: 'none', heading: true, flash: true };
     case 'hiss':
       return { kind: 'self', shape: 'ring', range: TRICKS.hiss.radius, radius: TRICKS.hiss.radius, smart: 'none' };
     // Snack Break and Purr-ify: self casts, no aim

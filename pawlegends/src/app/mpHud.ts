@@ -2,7 +2,7 @@
  * The party HUD of a party match (docs/plans/moba/MULTIPLAYER.md §7, lane M). Its own lazy chunk: MatchSession loads
  * it only for party matches. It reads the party match host (`PartyLink`, net/net-host.ts) and draws:
  * - M1 teammate identity: friends' names on plates, scoreboard, HUD strip, kill feed (Hide names and mute read
- *   "Teammate 2"), slot rings (0 gold, 1 cyan, 2 pink) on plates, the minimap and the strip, connection dots.
+ *   "Teammate 2"), slot rings (0 mint, 1 violet, 2 orange) on plates, the minimap and the strip, connection dots.
  * - M2 social pings from slots 1 and 2 (markers only, never simulated) and the leader's in-sim pings for the others.
  * - M3 quick chat and emotes (src/party/ui/quickChat.ts), mute by tapping a name on the scoreboard.
  * - M4 takeover: robot glyph and greyed ring while a bot flies a friend; "Bot covered for you · 0:42".

@@ -69,11 +69,7 @@ import type { Choice } from '../ui/screens';
 /** gaps5 polish 8: the champion select, the results and the pause menu are one lazy chunk (ui/screens.ts). */
 type ScreensMod = typeof import('../ui/screens');
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
-<<<<<<< HEAD
-import { disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
-=======
-import { botsChoice, disposeHome, homeScreen, type HomeProfile, type Promo } from '../ui/home/homeScreen';
->>>>>>> 30de28040 (feat(pawlegends): one play path: PLAY, mode, variant, champion select)
+import { botsChoice, disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
 import { levelInfo } from '../meta/accountLevel';
 import { dropLine, initLiveops, liveopsState, setDropAction } from '../meta/liveops';
@@ -101,15 +97,8 @@ import {
 } from '../ui/modeSelect/unlocks';
 import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard, type RankedKind } from '../meta/ranked';
 import { heroElement } from '../ui/cards/el';
-<<<<<<< HEAD
-import { consentPrompt, settingsPanel } from '../ui/settings';
-import { notePurchase, storePanel, type StoreTab } from '../ui/store';
-import { openChampInfo } from '../ui/champBrowser/open';
-import { passPanel } from '../ui/passPanel';
-=======
 import { consentPrompt } from '../ui/consentPrompt';
 import { notePurchase, type StoreTab } from '../ui/storeCore';
->>>>>>> fe2c54a80 (feat(pawlegends): coat chromas, Club Sandwich and Kebab King coats, test health and first-load JS)
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { selfNames } from '../meta/cardName';
 import type { MatchEnd, MatchSession, MatchSetup } from './matchSession';
@@ -1219,15 +1208,10 @@ export class App {
       canStore: () => this.ent.snapshot().storeOpen && !this.isApp(),
     });
     this.pushBoot();
-<<<<<<< HEAD
-    const modes = modeList();
-<<<<<<< HEAD
-=======
     // mode unlocking (MODE-UNLOCKS.md): 3 big tiles and the strip, per player
     this.syncModeUnlocks();
     const modes = this.playerModeList();
     const modeLocal = loadModeLocal();
->>>>>>> 7e032da9d (feat(pawlegends): mode unlocking: at most 3 big modes, the rest unlock by play)
     const opts: HomeScreenOpts = {
       profile,
       modes,
@@ -1252,38 +1236,20 @@ export class App {
         const lm = legacyMode(c.mode);
         this.matchModeNow = lm;
         saveMatchMode(lm);
-        if (c.queue !== 'bots' && pvpKnown() === true) {
+        if ((c.queue === 'coop' || c.queue === 'pvp') && pvpKnown() === true) {
           this.onlineMode = c.queue;
           setOnlineMode(c.queue);
         }
       },
-<<<<<<< HEAD
-=======
       // PLAY → Mode Select → variant: the champion select, the queue or the party (the one play path)
       onStart: (c) => this.startFlow(c),
       openAt: this.takeModesAt(),
       onModesOpen: (from) => this.analytics.track('play_open', { from }),
       // nav Heroes and the nameplate: the champion browser on the Home hero, with SELECT / BUY / UNLOCK under the
       // description (Nov 12, the founder). Never a match: the match still starts only from PLAY → Mode Select.
-<<<<<<< HEAD
-      onHeroes: () => {
-        const h = this.dare?.hero ?? this.choice.hero;
-        void openChampInfo({
-          hero: h,
-          within: this.screenEl,
-          look: (x) => this.lookFor(x),
-          coatWear: this.coatWear(),
-          onBrowse: (x) => this.setLobbyHero(x),
-          onClose: () => this.setLobbyHero(this.dare?.hero ?? this.choice.hero),
-          action: { state: (x) => this.heroAction(x), on: (x, kind) => (kind === 'select' ? this.selectHomeHero(x) : this.openStore('lobby', 'champions', x)) },
-        });
-      },
->>>>>>> ce68d4800 (feat(pawlegends): SELECT / BUY / UNLOCK in the champion browser; the Home nameplate opens it)
-=======
       onHeroes: () => this.openHeroBrowser(),
       // the Yarn chip (founder Nov 17): the store's Champions (Unlock · N Yarn); apps, which open no store: Heroes
       onYarn: () => (s.storeOpen && !this.isApp() ? this.openStore('lobby', 'champions') : this.openHeroBrowser()),
->>>>>>> 134b7a5d0 (feat(pawlegends): modes open by account level, 6 starters, Yarn on Home and always-on Yarn unlock, public history)
       promos,
       seasonEnd: ends ? `Ends ${ends}` : '',
       base,
@@ -1301,8 +1267,12 @@ export class App {
       firstLine: rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.',
       difficulties: pickable(),
       difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `More bots after ${PICK_DIFFICULTY_FROM} matches.`,
+      // the variant step's bots difficulty: remembered at once (the next PLAY opens on it)
       onDifficulty: (d) => {
         this.choice = { ...this.choice, difficulty: d };
+        const q = loadProfile();
+        q.difficulty = d;
+        saveProfile(q);
       },
       // sim v22: a `?mode=` link's unknown mode says "Update to play …" as Home opens
       ...(notice ? { notice } : {}),
@@ -1345,83 +1315,6 @@ export class App {
                 this.onlineMode = m;
                 setOnlineMode(m);
               },
-=======
-    this.setScreen(
-      'title',
-      homeScreen(this.root, {
-        profile,
-        modes,
-        modeChoice: this.modeChoiceNow ?? loadModeChoice(modes),
-        // Mode Select's Confirm: saved, and the old 3v3 | 5v5 key follows (the pick, party queue and rematch read it)
-        onModeChoice: (c) => {
-          this.modeChoiceNow = c;
-          saveModeChoice(c);
-          const lm = legacyMode(c.mode);
-          this.matchModeNow = lm;
-          saveMatchMode(lm);
-          if ((c.queue === 'coop' || c.queue === 'pvp') && pvpKnown() === true) {
-            this.onlineMode = c.queue;
-            setOnlineMode(c.queue);
-          }
-        },
-        // PLAY → Mode Select → variant: the champion select, the queue or the party (the one play path)
-        onStart: (c) => this.startFlow(c),
-        openAt: this.takeModesAt(),
-        onModesOpen: (from) => this.analytics.track('play_open', { from }),
-        // nav Heroes: browse only (skills and lore); choosing a champion happens after PLAY
-        onHeroes: () => {
-          const h = this.dare?.hero ?? this.choice.hero;
-          void openChampInfo({ hero: h, within: this.screenEl, look: (x) => this.lookFor(x), onBrowse: (x) => this.setLobbyHero(x), onClose: () => this.setLobbyHero(this.dare?.hero ?? this.choice.hero) });
-        },
-        promos,
-        seasonEnd: ends ? `Ends ${ends}` : '',
-        base,
-        firstTime: p.matches === 0,
-        last: this.choice,
-        dare: this.dare,
-        muted: sfx.isMuted,
-        identity,
-        storeOpen: s.storeOpen,
-        frame: bestFrame(owned, p.wornFrame),
-        title: titleOf(owned, p.wornTitle),
-        portrait: this.badgePortrait(),
-        signedIn: accountState().signedIn,
-        isApp: this.isApp(),
-        firstLine: rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.',
-        difficulties: pickable(),
-        difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `More bots after ${PICK_DIFFICULTY_FROM} matches.`,
-        // the variant step's bots difficulty: remembered at once (the next PLAY opens on it)
-        onDifficulty: (d) => {
-          this.choice = { ...this.choice, difficulty: d };
-          const q = loadProfile();
-          q.difficulty = d;
-          saveProfile(q);
-        },
-        // sim v22: a `?mode=` link's unknown mode says "Update to play …" as Home opens
-        ...(notice ? { notice } : {}),
-        cardCount: skins.length,
-        peek,
-        wearing: card ? { name: card.name } : null,
-        onCards: () => this.openCards(),
-        // the match chunk loads during the 0.4 s dolly (it is usually prefetched already)
-        playOut: () => {
-          void loadMatch().catch(() => undefined);
-          return this.lobby.playOut();
-        },
-        sound: (n) => sfx.play(n),
-        onPlay: (c, seed) => {
-          if (seed !== undefined) this.dare = null;
-          this.startMatch(c, seed);
-        },
-        onChoose: () => {
-          sfx.play('click');
-          this.showPick();
-        },
-        onParty: this.partyApi
-          ? () => {
-              sfx.play('click');
-              this.openParty('create');
->>>>>>> 30de28040 (feat(pawlegends): one play path: PLAY, mode, variant, champion select)
             }
           : undefined,
       // Quick Play co-op (M1A-IMPL.md §1): one tap for everyone, a brand-new guest included (zero friction: no
@@ -1433,7 +1326,6 @@ export class App {
               this.openParty('queue');
             }
           : undefined,
-<<<<<<< HEAD
       onMute: (m) => this.setMuted(m),
       onStore: () => this.openStore('lobby'),
       onSettings: () => this.openSettings(),
@@ -1443,12 +1335,6 @@ export class App {
       onProfile: this.bridge.active ? () => this.openProfile() : undefined,
       socialBadge: this.socialBadge,
       onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
-      onExit: this.bridge.kind === 'frame'
-        ? () => {
-            sfx.play('click');
-            this.bridge.post('exit');
-          }
-        : undefined,
       // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
       // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
       quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined, (h) => this.playable(h)) : undefined,
@@ -1468,44 +1354,6 @@ export class App {
       this.setScreen('title', homeScreen(this.root, { ...opts, still: !this.homeIntro }));
       this.homeIntro = false;
     }
-=======
-        // casual PvP (V16.md §5): the mode chip, only when the backend verifies PvP for this build's sim
-        onlineMode:
-          this.partyApi && pvpKnown() === true
-            ? {
-                mode: this.onlineMode ?? onlineMode(p.matches),
-                // no match-count lock for now (PVP_UNLOCK_MATCHES 0): PvP is one tap from the first session
-                locked: p.matches < PVP_UNLOCK_MATCHES,
-                played: p.matches,
-                needed: PVP_UNLOCK_MATCHES,
-                onMode: (m) => {
-                  this.onlineMode = m;
-                  setOnlineMode(m);
-                },
-              }
-            : undefined,
-        // Quick Play co-op (M1A-IMPL.md §1): one tap for everyone, a brand-new guest included (zero friction: no
-        // sign-in, no unlock). The big button stays the guided solo match; a new player queues with the newbie hint.
-        onOnline:
-          this.partyApi
-            ? () => {
-                sfx.play('click');
-                this.openParty('queue');
-              }
-            : undefined,
-        onMute: (m) => this.setMuted(m),
-        onStore: () => this.openStore('lobby'),
-        onSettings: () => this.openSettings(),
-        // Social, ranked and boards (SOCIAL-RANKED.md §14): through the host's session, so embedded only
-        onSocial: this.bridge.active ? () => this.openSocial() : undefined,
-        socialBadge: this.socialBadge,
-        onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
-        // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
-        // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
-        quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined) : undefined,
-      }),
-    );
->>>>>>> 30de28040 (feat(pawlegends): one play path: PLAY, mode, variant, champion select)
     if (first) this.analytics.track('title_view', { first_time: p.matches === 0, dare: !!this.dare });
     if (offer) this.maybeOffer('lobby');
     this.maybeConsent();
@@ -1542,20 +1390,12 @@ export class App {
     const p = loadProfile();
     this.setScreen(
       'pick',
-<<<<<<< HEAD
-      pickScreen(this.root, {
-<<<<<<< HEAD
-        initial: this.choice,
-=======
-=======
       screens.pickScreen(this.root, {
->>>>>>> 98733cc20 (feat(pawlegends): gaps5 polish: chunk retry, back to results, varied highlight titles, emote storm, Ranked duo lock line, docked consent strip, coat chip row, Free tag, first-load 433 KB)
         // the play path: the mode's map (Classic: Hearthwood) or mutator (Blitz) rides on the choice LOCK IN starts
         initial: flow && p.matches > 0 ? botsChoice(this.choice, this.choice.difficulty, flow) : this.choice,
         // Sim v19: the seats match the match it starts (startMatch's rule: 5v5 Classic after the first match)
         teamSize: p.matches > 0 && (flow ? flow.size === '5v5' : (this.choice.map ?? MODE_MAP[this.matchModeNow ?? loadMatchMode()]) === 'hearthwood') ? 5 : 3,
         ...(flow && p.matches > 0 ? { modeLine: pillText(flow, 'bots') } : {}),
->>>>>>> 30de28040 (feat(pawlegends): one play path: PLAY, mode, variant, champion select)
         owned: this.owned(),
         champions: this.integration.championTiles(),
         // CHAMPION-STORE.md §10: locked champions show their unlock row; LOCK IN on one is Practice
@@ -3393,14 +3233,8 @@ export class App {
       return;
     }
     const saver = batterySaver().on || this.gr.settings.fpsCap < MATCH_FPS;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    // PERF-IOS §8 Track C: the champion browser covers the 3D view (its own clip runs on its own canvas): over a menu
-    // the lobby is drawn once more and then not at all until it closes; over a match it counts as a covering panel
-=======
     // PERF-IOS §8 Track C: the champion browser covers the 3D view (its own clip runs on its own canvas): over Home the
     // lobby is drawn once more and then not at all until it closes; over a match it counts as a covering panel
->>>>>>> eef8457d0 (fix(pawlegends): Home shows the 3D champion on its pedestal again)
     const champ = champCovered();
     if (champ && !this.session) {
       if (this.champFrozen) return;
@@ -3408,14 +3242,6 @@ export class App {
     } else this.champFrozen = false;
     const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champ, saver, matchFps: matchFps() });
     if (!this.champFrozen && !this.pacer.due(now, fps)) return;
-<<<<<<< HEAD
-=======
-    // PERF-IOS §8 Track C: over a match the champion browser counts as a covering panel (its clip has its own canvas)
-    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champCovered(), saver });
-    if (!this.pacer.due(now, fps)) return;
->>>>>>> 454f15c72 (feat(pawlegends): menus and cards show painted art, never a 3D render)
-=======
->>>>>>> eef8457d0 (fix(pawlegends): Home shows the 3D champion on its pedestal again)
     const t0 = performance.now();
     const raw = Math.max(0, now - this.last);
     const dt = Math.min(0.1, raw / 1000);

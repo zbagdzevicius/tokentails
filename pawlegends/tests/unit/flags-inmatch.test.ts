@@ -12,12 +12,12 @@ import { Overhead } from '../../src/ui/overhead';
 import type { ViewFrame } from '../../src/render/interp';
 
 /** A 2D context stand-in that records every fillText (any other call is a no-op). */
-function recorder(): { g: CanvasRenderingContext2D; texts: { text: string; font: string; x: number }[] } {
-  const texts: { text: string; font: string; x: number }[] = [];
+function recorder(): { g: CanvasRenderingContext2D; texts: { text: string; font: string; x: number; fill: string }[] } {
+  const texts: { text: string; font: string; x: number; fill: string }[] = [];
   const state: Record<string | symbol, unknown> = { font: '10px sans-serif' };
   const g = new Proxy(state, {
     get(t, k) {
-      if (k === 'fillText') return (text: string, x: number) => texts.push({ text, font: String(t.font), x });
+      if (k === 'fillText') return (text: string, x: number) => texts.push({ text, font: String(t.font), x, fill: String(t.fillStyle) });
       if (k === 'measureText') return (text: string) => ({ width: [...text].length * 6 });
       if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({ addColorStop: () => undefined });
       if (k in t) return t[k];
@@ -101,6 +101,8 @@ describe('flags in the match (FLAGS.md)', () => {
     const ana = texts.find((t) => t.text === 'Ana')!;
     const de = texts.find((t) => t.text === flagEmoji('DE'))!;
     expect(de.x).toBeLessThan(ana.x);
+    // a colour glyph takes the fill's alpha: every flag is drawn with an opaque fill (FR sits on a bot pill after its keyline ink)
+    for (const t of texts.filter((x) => /[\u{1F1E6}-\u{1F1FF}]/u.test(x.text))) expect(t.fill).toBe('#000');
     expect(texts.some((t) => t.text === 'Di')).toBe(true);
   });
 });

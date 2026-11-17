@@ -24,7 +24,6 @@ import {
 
 export const BACKOFF_MIN_MS = 250;
 export const BACKOFF_MAX_MS = 5000;
-<<<<<<< HEAD
 /** In a match a lost socket retries at least every 2 s (LIVE-MATCH-DEPLOYS.md §6): the room waits for nobody. */
 export const BACKOFF_MAX_MATCH_MS = 2000;
 /**
@@ -34,23 +33,17 @@ export const BACKOFF_MAX_MATCH_MS = 2000;
  */
 export const MOVE_RETRIES = 6;
 export const MOVE_JITTER_MS = 100;
-=======
 /**
  * The socket opens while the party ticket is still being fetched (LATENCY-PLAN C2): `hello` waits for the ticket at
  * most this long, then goes as a guest. It matches the embed host's own ticket wait (PARTY_TICKET_WAIT_MS in
  * integrate.ts), so a slow token refresh still signs the player in.
  */
-<<<<<<< HEAD
-export const TICKET_WAIT_MS = 4000;
->>>>>>> 30d876fd6 (perf(pawlegends): open the lobby socket while the party ticket loads)
-=======
 export const TICKET_WAIT_MS = 6000;
 /**
  * The relay closes a socket without `hello` 5 s after the upgrade (party-limits.ts helloTimeoutMs). A socket still
  * waiting for the ticket this long after it opened is swapped for a fresh one (a new 5 s window), quietly.
  */
 export const HELLO_HOLD_MS = 4000;
->>>>>>> e0ba55c21 (fix(pawlegends): latency review fixes in the client)
 export const RESEND_WITHIN_MS = 500;
 export const BEAT_MS = 500;
 const RTT_SAMPLES = 64;

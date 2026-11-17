@@ -2,25 +2,8 @@
  * @jest-environment jsdom
  */
 /**
-<<<<<<< HEAD
- * The game picker (plan G2 layer 1, G14): four cards with Catnip Heist behind its flag, a full page
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
- * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) on by default (its env flags are kill switches), the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
-=======
- * load to /heist, Pink Paw Knight (Swordcat) only behind its flags, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
- * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) only behind its flags, the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-=======
- * load to /heist, the Swordcat card (`SWORDCAT_TITLE`) on by default (its env flags are kill switches), the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
-=======
  * The game picker (plan G2 layer 1, G14): the Moon Rave card first (web only), the Phaser cards, Catnip
  * Heist behind its flag with a full page load to /heist, the Swordcat card (`SWORDCAT_TITLE`) on by default (its env flags are kill switches), the Purrsuit CLASSIC tag instead of the "no new levels" notice, GameModal (X on
->>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
  * the frame post), and axe on the open picker.
  */
 import React from "react";
@@ -38,25 +21,15 @@ import {
   gameCards,
   heistPickerEnabled,
   HEIST_PICKER_HREF,
-<<<<<<< HEAD
   PAWLEGENDS_CARD_KEY,
   PAWLEGENDS_PICKER_DESCRIPTION,
   PAWLEGENDS_PICKER_HREF,
-<<<<<<< HEAD
-=======
-=======
   PAWLEGENDS_PREVIEW,
-<<<<<<< HEAD
->>>>>>> 4772e3c2c (feat(client): Pawlegends in the Choose your adventure picker with new gameplay art)
-=======
   PAWLEGENDS_TITLE,
   pawlegendsPickerEnabled,
->>>>>>> 21d709816 (feat(pawlegends-web): cutover, tokentails.com/pawlegends* redirects to pawlegends.app)
   RAVE_CARD_KEY,
->>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
   SWORDCAT_CARD_KEY,
   SWORDCAT_PICKER_HREF,
-<<<<<<< HEAD
   SWORDCAT_PREVIEW,
   MEOW_RUN_CARD_KEY,
   ULTRA_CAT_CARD_KEY,
@@ -66,35 +39,15 @@ import path from "path";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
 import { BADCAT_PREVIEW, badcatEntryEnabled } from "@/components/badcat/entry";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
-<<<<<<< HEAD
-=======
-} from "@/components/shared/GameSelectModal";
-import { swordcatPickerEnabled } from "@/components/swordcat/flags";
-<<<<<<< HEAD
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-import { SWORDCAT_TITLE } from "@/components/swordcat/title";
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-=======
 import { RAVE_PICKER_DESCRIPTION, RAVE_PREVIEW, raveEntryEnabled } from "@/components/rave/entry";
 import { RAVE_SECTION_HREF } from "@/components/landing/RaveSection";
-<<<<<<< HEAD
->>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
-=======
 import {
   FORMULA_MEOW_PICKER_DESCRIPTION,
   FORMULA_MEOW_PREVIEW,
   formulaMeowEntryEnabled,
 } from "@/components/formula-meow/entry";
-<<<<<<< HEAD
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
 import { ULTRA_CAT_PICKER_DESCRIPTION, ULTRA_CAT_PREVIEW, ultraCatEntryEnabled } from "@/components/ultra-cat/entry";
-<<<<<<< HEAD
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
-=======
 import { MEOW_RUN_PICKER_DESCRIPTION, MEOW_RUN_PREVIEW, meowRunEntryEnabled } from "@/components/meow-run/entry";
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
 import { GameType } from "@/models/game";
 
 // These tests cover the Cupid Cat flows, so they run inside its season (January to March).
@@ -255,13 +208,10 @@ describe("GameSelectModal", () => {
   });
 });
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 describe("Swordcat card (SWORDCAT_TITLE)", () => {
   it("is in the picker by default (NEXT_PUBLIC_SWORDCAT* unset)", () => {
     expect(process.env.NEXT_PUBLIC_SWORDCAT_PICKER).toBeUndefined();
     expect(swordcatPickerEnabled()).toBe(true);
-<<<<<<< HEAD
     const { dialog } = open();
     expect(within(dialog).getByTestId("game-card-swordcat").getAttribute("href")).toBe(SWORDCAT_PICKER_HREF);
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(10);
@@ -282,67 +232,17 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
     } finally {
       delete process.env.NEXT_PUBLIC_SWORDCAT_PICKER;
     }
-=======
-describe("Pink Paw Knight (Swordcat) card", () => {
-=======
-describe("Swordcat card (SWORDCAT_TITLE)", () => {
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-  it("is not in the picker by default (NEXT_PUBLIC_SWORDCAT_PICKER unset)", () => {
-    expect(swordcatPickerEnabled()).toBe(false);
-    expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
-    const { dialog } = open();
-    expect(within(dialog).queryByTestId("game-card-swordcat")).toBeNull();
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(4);
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-    const { dialog } = open();
-    expect(within(dialog).getByTestId("game-card-swordcat").getAttribute("href")).toBe(SWORDCAT_PICKER_HREF);
-    expect(within(dialog).getAllByRole("listitem")).toHaveLength(5);
-  });
-
-  it("is left out by the kill switch (showSwordcat false, or NEXT_PUBLIC_SWORDCAT_PICKER=0)", () => {
-    expect(gameCards(true).map((card) => card.key)).not.toContain(SWORDCAT_CARD_KEY);
-    const first = open({ showSwordcat: false });
-    expect(within(first.dialog).queryByTestId("game-card-swordcat")).toBeNull();
-    expect(within(first.dialog).getAllByRole("listitem")).toHaveLength(4);
-    cleanup();
-    process.env.NEXT_PUBLIC_SWORDCAT_PICKER = "0";
-    try {
-      expect(swordcatPickerEnabled()).toBe(false);
-      const second = open();
-      expect(within(second.dialog).queryByTestId("game-card-swordcat")).toBeNull();
-      expect(within(second.dialog).getAllByRole("listitem")).toHaveLength(4);
-    } finally {
-      delete process.env.NEXT_PUBLIC_SWORDCAT_PICKER;
-    }
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
   });
 
   it("comes after the Heist when enabled, as a link with no GameType", () => {
     const cards = gameCards(true, new Date(), true);
-<<<<<<< HEAD
-<<<<<<< HEAD
     expect(cards.map((card) => card.title)).toEqual(["CUPID CAT", "PURRSUIT", "PAW MATCH", "CATNIP HEIST", SWORDCAT_TITLE.toUpperCase()]);
-=======
-    expect(cards.map((card) => card.title)).toEqual(["CUPID CAT", "PURRSUIT", "PAW MATCH", "CATNIP HEIST", "PINK PAW KNIGHT"]);
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-    expect(cards.map((card) => card.title)).toEqual(["CUPID CAT", "PURRSUIT", "PAW MATCH", "CATNIP HEIST", SWORDCAT_TITLE.toUpperCase()]);
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
     expect(cards[4]).toMatchObject({
       key: "SWORDCAT",
       href: SWORDCAT_PICKER_HREF,
       badge: "NEW",
-<<<<<<< HEAD
-<<<<<<< HEAD
       description: "Every cat you save is a real Pink Paw cat",
       image: SWORDCAT_PREVIEW.src,
-=======
-      description: "Rescue lost kittens with a tiny knight",
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-      description: "Every cat you save is a real Pink Paw cat",
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
       previewVariant: "SWORDCAT",
     });
     expect(cards[4].type).toBeUndefined();
@@ -355,8 +255,6 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
     expect(within(dialog).getByTestId("game-card-heist").getAttribute("href")).toBe("/heist?from=picker");
     const card = within(dialog).getByTestId("game-card-swordcat");
     expect(card.getAttribute("href")).toBe("/swordcat");
-<<<<<<< HEAD
-<<<<<<< HEAD
     expect(card.getAttribute("aria-label")).toBe(`${SWORDCAT_TITLE.toUpperCase()} · NEW`);
     const art = within(dialog).getByTestId("game-card-swordcat-preview");
     expect(art.tagName).toBe("IMG");
@@ -366,13 +264,6 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
     expect(art.getAttribute("alt")).toBe("");
     // Not the old inline pixel cat with the Token Tails ":3" coin.
     expect(card.querySelector("svg")).toBeNull();
-=======
-    expect(card.getAttribute("aria-label")).toBe("PINK PAW KNIGHT · NEW");
-=======
-    expect(card.getAttribute("aria-label")).toBe(`${SWORDCAT_TITLE.toUpperCase()} · NEW`);
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-    expect(within(dialog).getByTestId("game-card-swordcat-preview")).toBeTruthy();
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
     fireEvent.click(card);
     expect(navigate).toHaveBeenCalledWith("/swordcat");
     expect(setGameType).not.toHaveBeenCalled();
@@ -387,7 +278,6 @@ describe("Swordcat card (SWORDCAT_TITLE)", () => {
     expect(result.violations.map((violation) => `${violation.id}: ${violation.nodes.length}`)).toEqual([]);
   });
 });
-<<<<<<< HEAD
 
 describe("Swordcat card art (SWORDCAT_PREVIEW)", () => {
   it("ships a 2x trailer-frame WebP for the card's 312x218 box", () => {
@@ -399,20 +289,11 @@ describe("Swordcat card art (SWORDCAT_PREVIEW)", () => {
     expect(buf.toString("latin1", 8, 12)).toBe("WEBP");
   });
 });
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
 
 describe("Pawlegends card (POC.md §11.4: web only, links to pawlegends.app)", () => {
   it("sits right after the Moon Rave and opens https://pawlegends.app/play?mode=blitz&from=picker (sim v22: Blitz) with a full page load, showing a teamfight frame", () => {
     const { navigate, setGameType, dialog } = open({ showSwordcat: true, showPawlegends: true });
     const items = within(dialog).getAllByRole("listitem");
-<<<<<<< HEAD
-    expect(items).toHaveLength(6);
-    expect(items[items.length - 1].getAttribute("data-card")).toBe(PAWLEGENDS_CARD_KEY);
-=======
     // Every web card in the Cupid season (mocked on): the Moon Rave first, then Pawlegends (the new flagship).
     expect(items.map((item) => item.getAttribute("data-card"))).toEqual([
       RAVE_CARD_KEY,
@@ -423,14 +304,10 @@ describe("Pawlegends card (POC.md §11.4: web only, links to pawlegends.app)", (
       "CATNIP_HEIST",
       SWORDCAT_CARD_KEY,
       BADCAT_CARD_KEY,
-<<<<<<< HEAD
-=======
       FORMULA_MEOW_CARD_KEY,
       ULTRA_CAT_CARD_KEY,
       MEOW_RUN_CARD_KEY,
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
     ]);
->>>>>>> 4772e3c2c (feat(client): Pawlegends in the Choose your adventure picker with new gameplay art)
     const card = within(dialog).getByTestId("game-card-pawlegends");
     expect(card.getAttribute("href")).toBe(`${PAWLEGENDS_PICKER_HREF}?mode=blitz&from=picker`);
     expect(card.getAttribute("aria-label")).toBe(`${PAWLEGENDS_TITLE.toUpperCase()} · NEW`);
@@ -450,10 +327,6 @@ describe("Pawlegends card (POC.md §11.4: web only, links to pawlegends.app)", (
   it("is left out unless asked for, and gameCards keeps the old order by default", () => {
     const { dialog } = open({ showPawlegends: false });
     expect(within(dialog).queryByTestId("game-card-pawlegends")).toBeNull();
-<<<<<<< HEAD
-    expect(gameCards(true, new Date("2026-05-01"), true).map((c) => c.key)).not.toContain(PAWLEGENDS_CARD_KEY);
-    expect(gameCards(true, new Date("2026-05-01"), true, true).map((c) => c.key).pop()).toBe(PAWLEGENDS_CARD_KEY);
-=======
     expect(gameCards(true, new Date("2026-05-01"), true, true, true).map((c) => c.key)).not.toContain(PAWLEGENDS_CARD_KEY);
     // isCupidSeason is mocked on for this file, so Cupid Cat is in whatever the date.
     expect(gameCards(true, new Date("2026-05-01"), true, true, true, true).map((c) => c.key)).toEqual([
@@ -471,20 +344,12 @@ describe("Pawlegends card (POC.md §11.4: web only, links to pawlegends.app)", (
     expect(cardHref({ key: PAWLEGENDS_CARD_KEY, href: PAWLEGENDS_PICKER_HREF })).toBe("https://pawlegends.app/play?mode=blitz&from=picker");
   });
 
-<<<<<<< HEAD
-  it("sits four to a row from md with seven (outside the Cupid season) or eight cards (in it)", () => {
-    const eight = open({ showPawlegends: true });
-=======
   it("sits four to a row from md with eight cards, three to a row with nine, 4 + 3 + 3 with ten (every web card outside the Cupid season) and four to a row with eleven (in it)", () => {
     const eight = open({ showPawlegends: true, showFormulaMeow: false, showUltraCat: false, showMeowRun: false });
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
     const items = within(eight.dialog).getAllByRole("listitem");
     expect(items).toHaveLength(8);
     expect(items[0].className).toContain("md:w-[calc(25%-0.75rem)]");
     expect(items[0].className).not.toContain("max-height:520px");
-<<<<<<< HEAD
->>>>>>> 4772e3c2c (feat(client): Pawlegends in the Choose your adventure picker with new gameplay art)
-=======
     cleanup();
     const nine = open({ showPawlegends: true, showFormulaMeow: false, showMeowRun: false });
     const nineItems = within(nine.dialog).getAllByRole("listitem");
@@ -507,11 +372,8 @@ describe("Pawlegends card (POC.md §11.4: web only, links to pawlegends.app)", (
     expect(screen.getByTestId("game-select-cards").className).not.toContain("md:grid");
     expect(all[0].className).toContain("md:w-[calc(25%-0.75rem)]");
     expect(all[0].className).not.toContain("max-height:520px");
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
   });
 });
->>>>>>> c346bc8e5 (feat(pawlegends): Phase 1 POC of the cats vs dogs MOBA)
-=======
 
 describe("Pawlegends card: web builds only (pawlegendsPickerEnabled) and its art", () => {
   const envBefore = { ...process.env };
@@ -727,9 +589,6 @@ describe("Moon Rave card (no flag, web only)", () => {
     expect(prune).toContain(`"${RAVE_PREVIEW.src.slice(1)}"`);
   });
 });
-<<<<<<< HEAD
->>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
-=======
 
 describe("Formula Meow card (no flag, web only)", () => {
   const envBefore = { ...process.env };
@@ -763,7 +622,7 @@ describe("Formula Meow card (no flag, web only)", () => {
   });
 
   it("comes after Bad Cat in gameCards, with no GameType, no numbers and no money claim", () => {
-    const cards = gameCards(true, new Date(), true, true, true, true);
+    const cards = gameCards(true, new Date(), true, true, true, false, true);
     expect(cards.map((card) => card.key)).toEqual([
       RAVE_CARD_KEY,
       "PIXEL_RESCUE",
@@ -807,9 +666,6 @@ describe("Formula Meow card (no flag, web only)", () => {
     expect(sitemap).toContain("{ loc: '/meow-race' }");
   });
 });
-<<<<<<< HEAD
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
 
 describe("Ultra Cat card (no flag, web only)", () => {
   const envBefore = { ...process.env };
@@ -843,9 +699,10 @@ describe("Ultra Cat card (no flag, web only)", () => {
   });
 
   it("comes after Formula Meow in gameCards, with no GameType, no numbers and no money claim", () => {
-    const cards = gameCards(true, new Date(), true, true, true, true, true);
+    const cards = gameCards(true, new Date(), true, true, true, true, true, true);
     expect(cards.map((card) => card.key)).toEqual([
       RAVE_CARD_KEY,
+      PAWLEGENDS_CARD_KEY,
       "PIXEL_RESCUE",
       "CATNIP_CHAOS",
       "MATCH_3",
@@ -855,13 +712,13 @@ describe("Ultra Cat card (no flag, web only)", () => {
       FORMULA_MEOW_CARD_KEY,
       ULTRA_CAT_CARD_KEY,
     ]);
-    const card = cards[8];
+    const card = cards[9];
     expect(card).toMatchObject({ title: "ULTRA CAT", href: "/ultra-cat", previewVariant: "ULTRA_CAT", badge: "NEW" });
     expect(card.type).toBeUndefined();
     expect(Object.values(GameType)).not.toContain(ULTRA_CAT_CARD_KEY);
     expect(card.description).not.toMatch(/\d|\$|USDC|treat|Pink Paw|shelter/i);
     expect(cardHref(card)).toBe("/ultra-cat?from=picker");
-    expect(gameCards(true, new Date(), true, true, true, true).map((c) => c.key)).not.toContain(ULTRA_CAT_CARD_KEY);
+    expect(gameCards(true, new Date(), true, true, true, true, true).map((c) => c.key)).not.toContain(ULTRA_CAT_CARD_KEY);
   });
 
   it("is left out of the app build (no /ultra-cat rewrite there)", () => {
@@ -891,9 +748,6 @@ describe("Ultra Cat card (no flag, web only)", () => {
     expect(sitemap).toContain("{ loc: '/ultra-cat' }");
   });
 });
-<<<<<<< HEAD
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
-=======
 
 describe("Meow Run card (no flag, web only)", () => {
   const envBefore = { ...process.env };
@@ -988,4 +842,3 @@ describe("Meow Run card (no flag, web only)", () => {
     expect(sitemap).toContain("{ loc: '/meow-run' }");
   });
 });
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)

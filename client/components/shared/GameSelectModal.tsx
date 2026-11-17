@@ -30,14 +30,7 @@ import { PixelIcon } from "@/components/shared/PixelIcon";
 import { isCupidSeason } from "@/components/game/seasons";
 import { isAppBuild } from "@/components/claims/build";
 import { swordcatPickerEnabled } from "@/components/swordcat/flags";
-<<<<<<< HEAD
-<<<<<<< HEAD
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
-=======
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-import { SWORDCAT_TITLE } from "@/components/swordcat/title";
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
 import { GameModal } from "@/components/ui/GameModal";
 import { GameType } from "@/models/game";
 import { cdnFile } from "@/constants/utils";
@@ -53,8 +46,6 @@ export const HEIST_PICKER_HREF = "/heist";
 /** The Heist card's link: `from=picker` feeds `heist_open {from}` on the host page. */
 export const heistHref = (href: string) => `${href}?from=picker`;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 /** Where the Swordcat card (`SWORDCAT_TITLE`) goes: the flagged host page, by a full page load. */
 export const SWORDCAT_PICKER_HREF = "/swordcat";
 /** The Swordcat card's key: a free string, not a GameType (Phase 1 saves nothing). */
@@ -62,7 +53,6 @@ export const SWORDCAT_CARD_KEY = "SWORDCAT";
 /** The Swordcat card's line (plan §12.3 E): the kittens carry real Pink Paw cats' names and photos. */
 // claim:fiction the save is an in-game rescue of kittens named after Pink Paw cats, no money moves
 export const SWORDCAT_PICKER_DESCRIPTION = "Every cat you save is a real Pink Paw cat";
-<<<<<<< HEAD
 
 /**
  * Where the Pawlegends card goes: the game page on its own site, pawlegends.app (pawlegends-web/), by a full page load
@@ -104,17 +94,6 @@ export const SWORDCAT_PREVIEW = Object.freeze({
   width: 312,
   height: 218,
 });
-=======
-/** Where the Pink Paw Knight (Swordcat) card goes: the flagged host page, by a full page load. */
-=======
-/** Where the Swordcat card (`SWORDCAT_TITLE`) goes: the flagged host page, by a full page load. */
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-export const SWORDCAT_PICKER_HREF = "/swordcat";
-/** The Swordcat card's key: a free string, not a GameType (Phase 1 saves nothing). */
-export const SWORDCAT_CARD_KEY = "SWORDCAT";
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 
 /** The Moon Rave card's key: a free string, not a GameType (the rave is a page, not a Phaser mode). */
 export const RAVE_CARD_KEY = "RAVE";
@@ -166,48 +145,19 @@ export interface GameCard {
   tag?: string;
   image?: string;
   previewBg?: string;
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "PAWLEGENDS";
-}
-
-/** Cards whose host page reports where it was opened from (`heist_open`, `pawlegends_open`). */
-const FROM_PICKER_KEYS: readonly string[] = [GameType.CATNIP_HEIST, PAWLEGENDS_CARD_KEY];
-
-/** A card's link: the Heist's and Pawlegends' carry `?from=picker`; others go as they are. */
-export const cardHref = (card: Pick<GameCard, "key" | "href">) =>
-  card.href ? (FROM_PICKER_KEYS.includes(card.key) ? heistHref(card.href) : card.href) : undefined;
-=======
-  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT";
-=======
-  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE";
->>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
-=======
-  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE" | "FORMULA_MEOW";
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
-  previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE" | "FORMULA_MEOW" | "ULTRA_CAT";
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
-=======
   previewVariant: "IMAGE" | "MATCH3" | "HEIST" | "SWORDCAT" | "BADCAT" | "RAVE" | "PAWLEGENDS" | "FORMULA_MEOW" | "ULTRA_CAT" | "MEOW_RUN";
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
 }
 
 /**
  * A card's link: the Heist's carries `?from=picker` (it feeds `heist_open`), Bad Cat's too (`badcatHref`),
- * and the Moon Rave's (`raveHref`, as the landing's `from=landing_rave`); others go as they are.
+ * the Moon Rave's (`raveHref`, as the landing's `from=landing_rave`) and Pawlegends' (it feeds
+ * `pawlegends_open {from}`); others go as they are.
  */
 export const cardHref = (card: Pick<GameCard, "key" | "href">) => {
   if (!card.href) return undefined;
   if (card.key === GameType.CATNIP_HEIST) return heistHref(card.href);
-<<<<<<< HEAD
-=======
   // sim v22: the card opens the PLAY screen on Blitz, the ~3-minute match (WR-BS-PLAN.md §5)
   if (card.key === PAWLEGENDS_CARD_KEY) return `${card.href}?mode=blitz&from=picker`;
->>>>>>> 9c098621f (feat(pawlegends): sim v22, the standard 5v5 Hearthwood and Blitz (on v21))
   if (card.key === BADCAT_CARD_KEY) return badcatHref("picker");
   if (card.key === RAVE_CARD_KEY) return raveHref("picker");
   if (card.key === FORMULA_MEOW_CARD_KEY) return formulaMeowHref("picker");
@@ -215,91 +165,13 @@ export const cardHref = (card: Pick<GameCard, "key" | "href">) => {
   if (card.key === MEOW_RUN_CARD_KEY) return meowRunHref("picker");
   return card.href;
 };
->>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
 
 /** The link's test id: the Heist keeps `game-card-heist`, others are `game-card-<key>`. */
 const cardTestId = (card: GameCard) =>
   card.key === GameType.CATNIP_HEIST ? "game-card-heist" : `game-card-${card.key.toLowerCase()}`;
 
 /**
-<<<<<<< HEAD
-<<<<<<< HEAD
- * The picker's cards, in order. Four with the Heist (2x2 on phones, one row from `md`). Cupid Cat
- * is seasonal (January to March, `components/game/seasons`): outside the season it is left out.
-<<<<<<< HEAD
-<<<<<<< HEAD
- * The Swordcat card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
-<<<<<<< HEAD
- * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches).
-<<<<<<< HEAD
-=======
- * Pink Paw Knight (Swordcat) comes after the Heist, only when `includeSwordcat` is set
-=======
- * The Swordcat card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
- * (`swordcatPickerEnabled()`, default off).
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
-=======
- * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches). The Pawlegends card comes last,
- * only when `includePawlegends` is set (`pawlegendsPickerEnabled()`: web builds only, the env flags are kill switches).
->>>>>>> c346bc8e5 (feat(pawlegends): Phase 1 POC of the cats vs dogs MOBA)
-=======
- * The picker's cards, in order. Two per row on phones; from `md` four cards share one row, and five or
- * six sit three to a row (3 + 2 centred, or 3 + 3). Cupid Cat is seasonal (January to March,
- * `components/game/seasons`): outside the season it is left out. The Swordcat card (`SWORDCAT_TITLE`)
- * comes after the Heist, only when `includeSwordcat` is set (`swordcatPickerEnabled()`: on by default,
- * the env flags are kill switches). Bad Cat Daily comes last, when `includeBadcat` is set
- * (`badcatEntryEnabled()`: every web build, no flag; never the app build).
->>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
-=======
  * The picker's cards, in order. Two per row on phones; from `md` four cards share one row, five or six
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
- * sit three to a row (3 + 2 centred, or 3 + 3), and seven sit four to a row (4 + 3 centred). The Moon
-=======
- * sit three to a row (3 + 2 centred, or 3 + 3), and seven or eight sit four to a row (4 + 3 centred, or 4 + 4). The Moon
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
- * sit three to a row (3 + 2 centred, or 3 + 3), seven or eight sit four to a row (4 + 3 centred, or 4 + 4), and
- * nine sit three to a row (3 + 3 + 3; a 5 + 4 split made the descriptions too narrow to read). The Moon
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
- * Rave comes first (founder, Oct 18: the rave is the priority, as on the landing), when `includeRave`
- * is set (`raveEntryEnabled()`: every web build, no flag; never the app build). Cupid Cat is seasonal
- * (January to March, `components/game/seasons`): outside the season it is left out. The Swordcat card
- * (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
- * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches). Bad Cat Daily comes
- * last, when `includeBadcat` is set (`badcatEntryEnabled()`: every web build, no flag; never the app
-<<<<<<< HEAD
- * build). Web builds show six cards outside the Cupid season and seven in it.
->>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
-=======
- * sit three to a row (3 + 2 centred, or 3 + 3), and seven or eight sit four to a row (4 + 3 centred, or
- * 4 + 4). The Moon Rave comes first (founder, Oct 18: the rave is the priority, as on the landing), when
- * `includeRave` is set (`raveEntryEnabled()`: every web build, no flag; never the app build). Cupid Cat is
- * seasonal (January to March, `components/game/seasons`): outside the season it is left out. Pawlegends, the
- * new flagship, comes right after the Moon Rave with the same NEW badge, only when `includePawlegends` is set
- * (`pawlegendsPickerEnabled()`: web builds only, the env flags are kill switches). The Swordcat
- * card (`SWORDCAT_TITLE`) comes after the Heist, only when `includeSwordcat` is set
- * (`swordcatPickerEnabled()`: on by default, the env flags are kill switches). Bad Cat Daily comes next,
- * when `includeBadcat` is set (`badcatEntryEnabled()`: every web build, no flag; never the app build). Web
- * builds show seven cards outside the Cupid season and eight in it.
->>>>>>> 4772e3c2c (feat(client): Pawlegends in the Choose your adventure picker with new gameplay art)
-=======
- * build). Formula Meow (`/meow-race`) follows Bad Cat, when `includeFormulaMeow` is set
-<<<<<<< HEAD
- * (`formulaMeowEntryEnabled()`: every web build, no flag; never the app build). Web builds show seven
- * cards outside the Cupid season and eight in it.
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
- * (`formulaMeowEntryEnabled()`: every web build, no flag; never the app build). Ultra Cat (`/ultra-cat`)
- * comes last, when `includeUltraCat` is set (`ultraCatEntryEnabled()`: every web build, no flag; never the
- * app build). Web builds show eight cards outside the Cupid season and nine in it.
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
-=======
  * sit three to a row (3 + 2 centred, or 3 + 3), seven or eight sit four to a row (4 + 3 centred, or 4 + 4),
  * nine sit three to a row (3 + 3 + 3; a 5 + 4 split made the descriptions too narrow to read), ten sit 4 + 3 + 3
  * (a grid of eight half-card columns, the rows of three centred; 5 + 5 is too narrow and 4 + 4 + 2 left a gap),
@@ -317,37 +189,17 @@ const cardTestId = (card: GameCard) =>
  * every web build, no flag; never the app build). Meow Run (`/meow-run`, the 3D story runner; Purrsuit is the
  * classic 2D one) comes last, when `includeMeowRun` is set (`meowRunEntryEnabled()`: every web build, no flag;
  * never the app build). Web builds show ten cards outside the Cupid season and eleven in it.
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
  */
 export function gameCards(
   includeHeist: boolean,
   now: Date = new Date(),
   includeSwordcat = false,
-<<<<<<< HEAD
-<<<<<<< HEAD
-  includePawlegends = false
-=======
-  includeBadcat = false
->>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
-=======
   includeBadcat = false,
-<<<<<<< HEAD
-  includeRave = false
->>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
-=======
   includeRave = false,
-<<<<<<< HEAD
-  includeFormulaMeow = false
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
+  includePawlegends = false,
   includeFormulaMeow = false,
-<<<<<<< HEAD
-  includeUltraCat = false
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
-=======
   includeUltraCat = false,
   includeMeowRun = false
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
 ): GameCard[] {
   const cards: GameCard[] = [];
   if (includeRave) {
@@ -420,40 +272,13 @@ export function gameCards(
     cards.push({
       key: SWORDCAT_CARD_KEY,
       href: SWORDCAT_PICKER_HREF,
-<<<<<<< HEAD
-<<<<<<< HEAD
       title: SWORDCAT_TITLE.toUpperCase(),
       description: SWORDCAT_PICKER_DESCRIPTION,
-<<<<<<< HEAD
       badge: "NEW",
       image: SWORDCAT_PREVIEW.src,
-=======
-      title: "PINK PAW KNIGHT",
-=======
-      title: SWORDCAT_TITLE.toUpperCase(),
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-      description: "Rescue lost kittens with a tiny knight",
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-      badge: "NEW",
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
       previewVariant: "SWORDCAT",
     });
   }
-<<<<<<< HEAD
-<<<<<<< HEAD
-  if (includePawlegends) {
-    cards.push({
-      key: PAWLEGENDS_CARD_KEY,
-      href: PAWLEGENDS_PICKER_HREF,
-      title: PAWLEGENDS_TITLE.toUpperCase(),
-      description: PAWLEGENDS_PICKER_DESCRIPTION,
-      badge: "NEW",
-      image: PAWLEGENDS_PREVIEW.src,
-      previewVariant: "PAWLEGENDS",
-=======
-=======
->>>>>>> 4772e3c2c (feat(client): Pawlegends in the Choose your adventure picker with new gameplay art)
   if (includeBadcat) {
     cards.push({
       key: BADCAT_CARD_KEY,
@@ -463,10 +288,6 @@ export function gameCards(
       badge: "NEW",
       image: BADCAT_PREVIEW.src,
       previewVariant: "BADCAT",
-<<<<<<< HEAD
->>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
-=======
->>>>>>> 4772e3c2c (feat(client): Pawlegends in the Choose your adventure picker with new gameplay art)
     });
   }
   if (includeFormulaMeow) {
@@ -551,7 +372,6 @@ const PawPost = () => (
   />
 );
 
-<<<<<<< HEAD
 const SwordcatPreview = () => (
   <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
     <img
@@ -564,111 +384,41 @@ const SwordcatPreview = () => (
       data-testid="game-card-swordcat-preview"
       className="h-full w-full object-cover"
     />
-=======
-/**
- * The Swordcat preview, drawn inline (no image file): Clem, the game's knight, as an ivory sitting cat with a
- * maroon outline and her pink bow on the left ear, under the Token Tails gold ":3" coin on the night sky (Token
- * Tails tokens: night #0B0820/#2A1F45, gold #FFCC55, ink #4A1D08, love pink #FF7AA2). Pink is Clem's bow alone.
- * Pixel art on a 39x27 grid, so it stays crisp at any size.
- */
-const SwordcatPreview = () => (
-  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
-    <svg
-      viewBox="0 0 39 27"
-      aria-hidden="true"
-      focusable="false"
-      data-testid="game-card-swordcat-preview"
-      className="h-full w-full"
-      shapeRendering="crispEdges"
-    >
-      {/* Night sky: deep night above, dusk night band and a dark hill below */}
-      <rect width="39" height="27" fill="#0B0820" />
-      <rect y="15" width="39" height="10" fill="#2A1F45" />
-      <rect y="25" width="39" height="2" fill="#1E1633" />
-      <rect y="25" width="39" height="1" fill="#3A2D5C" />
-      {/* Stars */}
-      <rect x="3" y="4" width="1" height="1" fill="#FFCC55" opacity="0.8" />
-      <rect x="20" y="1" width="1" height="1" fill="#FFCC55" opacity="0.6" />
-      <rect x="2" y="12" width="1" height="1" fill="#F0C5FD" opacity="0.7" />
-      <rect x="36" y="17" width="1" height="1" fill="#FFCC55" opacity="0.7" />
-      <rect x="24" y="10" width="1" height="1" fill="#F0C5FD" opacity="0.6" />
-      {/* Clem's outline (ink): ears, head, body, curled tail */}
-      <g fill="#4A1D08">
-        <rect x="11" y="3" width="2" height="1" />
-        <rect x="10" y="4" width="4" height="3" />
-        <rect x="20" y="3" width="2" height="1" />
-        <rect x="19" y="4" width="4" height="3" />
-        <rect x="9" y="7" width="15" height="8" />
-        <rect x="8" y="14" width="17" height="11" />
-        <rect x="24" y="19" width="5" height="5" />
-        <rect x="26" y="15" width="3" height="5" />
-      </g>
-      {/* Clem's ivory coat */}
-      <g fill="#F3EEE6">
-        <rect x="11" y="4" width="2" height="4" />
-        <rect x="20" y="4" width="2" height="4" />
-        <rect x="10" y="8" width="13" height="7" />
-        <rect x="9" y="15" width="15" height="9" />
-        <rect x="24" y="20" width="4" height="3" />
-        <rect x="27" y="16" width="1" height="4" />
-      </g>
-      {/* Coat highlight, inner ear, paws */}
-      <rect x="11" y="8" width="3" height="1" fill="#FFFFFF" />
-      <rect x="20" y="5" width="1" height="2" fill="#FFB3C7" />
-      <rect x="15" y="21" width="1" height="3" fill="#D9CFC2" />
-      <rect x="11" y="23" width="3" height="1" fill="#D9CFC2" />
-      <rect x="18" y="23" width="3" height="1" fill="#D9CFC2" />
-      {/* Face: eyes with a catchlight, pink nose, ink mouth, blush */}
-      <rect x="13" y="10" width="1" height="2" fill="#2A1F45" />
-      <rect x="19" y="10" width="1" height="2" fill="#2A1F45" />
-      <rect x="13" y="10" width="1" height="1" fill="#90C5E9" />
-      <rect x="19" y="10" width="1" height="1" fill="#90C5E9" />
-      <rect x="16" y="12" width="1" height="1" fill="#FF7AA2" />
-      <rect x="15" y="13" width="1" height="1" fill="#4A1D08" />
-      <rect x="17" y="13" width="1" height="1" fill="#4A1D08" />
-      <rect x="11" y="12" width="1" height="1" fill="#FFB3C7" opacity="0.8" />
-      <rect x="21" y="12" width="1" height="1" fill="#FFB3C7" opacity="0.8" />
-      {/* Clem's pink bow on her left ear: two loops and a knot, ink outline */}
-      <g fill="#4A1D08">
-        <rect x="6" y="2" width="5" height="5" />
-        <rect x="10" y="3" width="3" height="3" />
-        <rect x="12" y="2" width="5" height="5" />
-      </g>
-      <rect x="7" y="3" width="3" height="3" fill="#FF7AA2" />
-      <rect x="13" y="3" width="3" height="3" fill="#FF7AA2" />
-      <rect x="7" y="3" width="1" height="1" fill="#FFB3C7" />
-      <rect x="13" y="3" width="1" height="1" fill="#FFB3C7" />
-      <rect x="11" y="4" width="1" height="1" fill="#E0567F" />
-      {/* The Token Tails gold ":3" coin, ink rim, with a sparkle */}
-      <g fill="#4A1D08">
-        <rect x="28" y="3" width="6" height="11" />
-        <rect x="27" y="4" width="8" height="9" />
-        <rect x="26" y="5" width="10" height="7" />
-      </g>
-      <g fill="#FFCC55">
-        <rect x="28" y="4" width="6" height="9" />
-        <rect x="27" y="5" width="8" height="7" />
-      </g>
-      <rect x="28" y="12" width="6" height="1" fill="#E2C05A" />
-      <rect x="34" y="9" width="1" height="3" fill="#E2C05A" />
-      <rect x="28" y="5" width="1" height="2" fill="#FFF1C2" />
-      <g fill="#4A1D08">
-        <rect x="29" y="7" width="1" height="1" />
-        <rect x="29" y="9" width="1" height="1" />
-        <rect x="31" y="6" width="2" height="1" />
-        <rect x="32" y="7" width="1" height="1" />
-        <rect x="31" y="8" width="2" height="1" />
-        <rect x="32" y="9" width="1" height="1" />
-        <rect x="31" y="10" width="2" height="1" />
-      </g>
-      <rect x="37" y="1" width="1" height="3" fill="#FFF1C2" />
-      <rect x="36" y="2" width="3" height="1" fill="#FFF1C2" />
-    </svg>
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
   </span>
 );
 
-<<<<<<< HEAD
+/** A frame of the first heist, captured from the built game (`BADCAT_PREVIEW`). */
+const BadcatPreview = () => (
+  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
+    <img
+      src={BADCAT_PREVIEW.src}
+      width={BADCAT_PREVIEW.width}
+      height={BADCAT_PREVIEW.height}
+      alt=""
+      draggable={false}
+      decoding="async"
+      data-testid="game-card-badcat-preview"
+      className="h-full w-full object-cover"
+    />
+  </span>
+);
+
+/** The live Moon Rave scene: the DJ cat at the booth under the green moon, the crowd dancing (`RAVE_PREVIEW`). */
+const RavePreview = () => (
+  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
+    <img
+      src={RAVE_PREVIEW.src}
+      width={RAVE_PREVIEW.width}
+      height={RAVE_PREVIEW.height}
+      alt=""
+      draggable={false}
+      decoding="async"
+      data-testid="game-card-rave-preview"
+      className="h-full w-full object-cover"
+    />
+  </span>
+);
+
 /** A real match frame; the "3v3 cats vs dogs" tile if the image cannot load. */
 const PawlegendsPreview = () => {
   const [failed, setFailed] = useState(false);
@@ -702,42 +452,6 @@ const PawlegendsPreview = () => {
     </span>
   );
 };
-
-const Preview = ({ card }: { card: GameCard }) => {
-  if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;
-  if (card.previewVariant === "PAWLEGENDS") return <PawlegendsPreview />;
-=======
-/** A frame of the first heist, captured from the built game (`BADCAT_PREVIEW`). */
-const BadcatPreview = () => (
-  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
-    <img
-      src={BADCAT_PREVIEW.src}
-      width={BADCAT_PREVIEW.width}
-      height={BADCAT_PREVIEW.height}
-      alt=""
-      draggable={false}
-      decoding="async"
-      data-testid="game-card-badcat-preview"
-      className="h-full w-full object-cover"
-    />
-  </span>
-);
-
-/** The live Moon Rave scene: the DJ cat at the booth under the green moon, the crowd dancing (`RAVE_PREVIEW`). */
-const RavePreview = () => (
-  <span className="relative block aspect-[312/218] h-full overflow-hidden rounded-lg border-[3px] border-tt-night-950 bg-tt-night-900 shadow-[inset_0_0_0_2px_rgb(var(--tt-gold-400)/0.55)]">
-    <img
-      src={RAVE_PREVIEW.src}
-      width={RAVE_PREVIEW.width}
-      height={RAVE_PREVIEW.height}
-      alt=""
-      draggable={false}
-      decoding="async"
-      data-testid="game-card-rave-preview"
-      className="h-full w-full object-cover"
-    />
-  </span>
-);
 
 /** A frame of a real race on Kitchen's loop (`FORMULA_MEOW_PREVIEW`). */
 const FormulaMeowPreview = () => (
@@ -790,20 +504,11 @@ const MeowRunPreview = () => (
 const Preview = ({ card }: { card: GameCard }) => {
   if (card.previewVariant === "RAVE") return <RavePreview />;
   if (card.previewVariant === "SWORDCAT") return <SwordcatPreview />;
+  if (card.previewVariant === "PAWLEGENDS") return <PawlegendsPreview />;
   if (card.previewVariant === "BADCAT") return <BadcatPreview />;
-<<<<<<< HEAD
->>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
-=======
   if (card.previewVariant === "FORMULA_MEOW") return <FormulaMeowPreview />;
-<<<<<<< HEAD
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
   if (card.previewVariant === "ULTRA_CAT") return <UltraCatPreview />;
-<<<<<<< HEAD
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
-=======
   if (card.previewVariant === "MEOW_RUN") return <MeowRunPreview />;
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
   if (card.previewVariant === "MATCH3") {
     return (
       <span
@@ -861,51 +566,20 @@ interface GameSelectModalProps {
   setGameType: (gameType: GameType) => void;
   /** Override the `NEXT_PUBLIC_HEIST_PICKER` flag (tests). */
   showHeist?: boolean;
-<<<<<<< HEAD
-<<<<<<< HEAD
   /** Override `swordcatPickerEnabled()` (on by default; `NEXT_PUBLIC_SWORDCAT_PICKER=0` hides the card) (tests). */
-=======
-  /** Override the `NEXT_PUBLIC_SWORDCAT_PICKER` flag set (tests). */
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-  /** Override `swordcatPickerEnabled()` (on by default; `NEXT_PUBLIC_SWORDCAT_PICKER=0` hides the card) (tests). */
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
   showSwordcat?: boolean;
-<<<<<<< HEAD
-<<<<<<< HEAD
-  /** Override `pawlegendsPickerEnabled(isAppBuild())` (on in web builds; `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` hides it) (tests). */
-=======
   /** Override `badcatEntryEnabled()` (every web build; never the app build) (tests). */
   showBadcat?: boolean;
   /** Override `raveEntryEnabled()` (every web build; never the app build) (tests). */
   showRave?: boolean;
   /** Override `pawlegendsPickerEnabled(isAppBuild())` (on in web builds) (tests). */
->>>>>>> 21d709816 (feat(pawlegends-web): cutover, tokentails.com/pawlegends* redirects to pawlegends.app)
   showPawlegends?: boolean;
-=======
-  /** Override `badcatEntryEnabled()` (every web build; never the app build) (tests). */
-  showBadcat?: boolean;
-<<<<<<< HEAD
->>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
-=======
-  /** Override `raveEntryEnabled()` (every web build; never the app build) (tests). */
-  showRave?: boolean;
-<<<<<<< HEAD
->>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
-=======
   /** Override `formulaMeowEntryEnabled()` (every web build; never the app build) (tests). */
   showFormulaMeow?: boolean;
-<<<<<<< HEAD
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
   /** Override `ultraCatEntryEnabled()` (every web build; never the app build) (tests). */
   showUltraCat?: boolean;
-<<<<<<< HEAD
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
-=======
   /** Override `meowRunEntryEnabled()` (every web build; never the app build) (tests). */
   showMeowRun?: boolean;
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
   /** Full page load to the Heist. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
 }
@@ -913,65 +587,20 @@ interface GameSelectModalProps {
 /**
  * "Choose your adventure": the game picker (plan G2 layer 1, G14). Built on GameModal (`art`
  * surface): night scrim, focus trap, Esc, the game suspension, and an X on the frame's stone post.
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
- * Every card is one tap target (a button, or a link for the Heist and Swordcat).
-=======
- * Every card is one tap target (a button, or a link for the Heist and Pink Paw Knight).
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
- * Every card is one tap target (a button, or a link for the Heist and Swordcat).
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-=======
- * Every card is one tap target (a button, or a link for the Heist, Swordcat and Bad Cat Daily).
->>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
-=======
- * Every card is one tap target (a button, or a link for the Moon Rave, the Heist, Swordcat and Bad Cat Daily).
->>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
-=======
- * Every card is one tap target (a button, or a link for the Moon Rave, the Heist, Swordcat, Bad Cat Daily and
- * Formula Meow).
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
- * Every card is one tap target (a button, or a link for the Moon Rave, the Heist, Swordcat, Bad Cat Daily,
- * Formula Meow and Ultra Cat).
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
-=======
  * Every card is one tap target (a button, or a link for the Moon Rave, Pawlegends, the Heist, Swordcat, Bad Cat
  * Daily, Formula Meow, Ultra Cat and Meow Run).
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
  */
 export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   onClose,
   setGameType,
   showHeist,
   showSwordcat,
-<<<<<<< HEAD
-  showPawlegends,
-=======
   showBadcat,
-<<<<<<< HEAD
->>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
-=======
   showRave,
-<<<<<<< HEAD
->>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
-=======
+  showPawlegends,
   showFormulaMeow,
-<<<<<<< HEAD
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
   showUltraCat,
-<<<<<<< HEAD
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
-=======
   showMeowRun,
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
   navigate,
 }) => {
   const now = new Date();
@@ -979,31 +608,12 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
     showHeist ?? heistPickerEnabled(),
     now,
     showSwordcat ?? swordcatPickerEnabled(),
-<<<<<<< HEAD
-<<<<<<< HEAD
-    showPawlegends ?? pawlegendsPickerEnabled(isAppBuild())
-=======
-    showBadcat ?? badcatEntryEnabled()
->>>>>>> aa8a54abf (feat(landing): Bad Cat Daily in the game picker and on the landing, no flags)
-=======
     showBadcat ?? badcatEntryEnabled(),
-<<<<<<< HEAD
-    showRave ?? raveEntryEnabled()
->>>>>>> b6269ccb7 (feat(picker): Moon Rave card in Choose your adventure)
-=======
     showRave ?? raveEntryEnabled(),
-<<<<<<< HEAD
-    showFormulaMeow ?? formulaMeowEntryEnabled()
->>>>>>> 3610a797e (feat(formula-meow): in the PLAY picker and the home games hub; release e2e fixes)
-=======
+    showPawlegends ?? pawlegendsPickerEnabled(isAppBuild()),
     showFormulaMeow ?? formulaMeowEntryEnabled(),
-<<<<<<< HEAD
-    showUltraCat ?? ultraCatEntryEnabled()
->>>>>>> 48f91119c (feat(ultra-cat): Ultra Cat game, trailer, home hub tab and picker card)
-=======
     showUltraCat ?? ultraCatEntryEnabled(),
     showMeowRun ?? meowRunEntryEnabled()
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
   );
   const cupidOpen = isCupidSeason(now);
 
@@ -1012,7 +622,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
       // Ctrl/Cmd/Shift/Alt or a middle click: let the browser open the link its own way (a new tab
       // or window), with the same `?from=picker` href.
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-      // A full load, like the landing's PLAY GAME: the Heist page (and the rave, Swordcat, Bad Cat) is
+      // A full load, like the landing's PLAY GAME: the Heist page (and the rave, Swordcat, Bad Cat, Pawlegends) is
       // its own app shell. On the Heist, `from` feeds `heist_open {from}` and is stripped from the
       // address bar on arrival; the rave ignores it and keeps it in the URL.
       event.preventDefault();
@@ -1046,15 +656,7 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
           button only where it fits (md and up, at least 521 px tall). */}
       <span
         className={clsx(
-<<<<<<< HEAD
-<<<<<<< HEAD
           // Long titles (Swordcat's) wrap on the narrow phone column instead of overflowing it.
-=======
-          // Long titles (PINK PAW KNIGHT) wrap on the narrow phone column instead of overflowing it.
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-          // Long titles (Swordcat's) wrap on the narrow phone column instead of overflowing it.
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
           card.title.length > 12 ? "max-w-full text-balance text-center" : "whitespace-nowrap",
           "mt-2 rounded-md border-[3px] border-yellow-900 bg-tt-cream px-2 py-1 font-primary text-p6 uppercase leading-none tracking-wide text-tt-gold-ink shadow-[0_3px_0_#e2c05a] group-hover:brightness-110 [@media(min-width:768px)_and_(min-height:521px)]:hidden"
         )}
@@ -1084,15 +686,6 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
   const cardClass = clsx(
     "flex w-[calc(50%-0.375rem)] flex-col items-center",
     // Four cards: one row. Three, five or six: three to a row (5 = 3 + 2 centred by justify-center).
-<<<<<<< HEAD
-    // Seven or eight: four to a row, 4 + 3 centred or 4 + 4. Nine (the Cupid season): 3 + 3 + 3.
-    cards.length === 4 || cards.length === 7 || cards.length === 8
-      ? "md:w-[calc(25%-0.75rem)]"
-      : "md:w-[calc(33.333%-0.75rem)]",
-    // Short landscape phones: five cards share one row there (a second row would sit below the fold of
-    // the scrolling list). Six or seven would be too narrow to read in one row (the descriptions were
-    // cut off mid-word): they keep 3 + 3 or 4 + 3 and the list scrolls.
-=======
     // Seven, eight or eleven: four to a row, 4 + 3 centred, 4 + 4, or 4 + 4 + 3 centred (eleven is every web
     // card in the Cupid season). Nine: three to a row, 3 + 3 + 3. Ten: the grid above.
     tenGrid
@@ -1103,7 +696,6 @@ export const GameSelectModal: React.FC<GameSelectModalProps> = ({
     // Short landscape phones: five cards share one row there (a second row would sit below the fold of
     // the scrolling list). Six or more would be too narrow to read in one row (the descriptions were
     // cut off mid-word): they keep their md rows (3 + 3 up to 4 + 4 + 3) and the list scrolls.
->>>>>>> 35d12a9bd (feat(meow-run): Meow Run 3D kitten runner, trailer, home hub tab and picker card)
     cards.length === 5 && "[@media(min-width:768px)_and_(max-height:520px)]:w-[calc(20%-0.8rem)]"
   );
   const targetClass =

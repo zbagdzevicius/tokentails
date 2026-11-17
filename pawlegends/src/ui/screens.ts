@@ -13,29 +13,9 @@ import { lateS } from './screensCore';
 export { loadingVeil, rotatePrompt, lateS, LATE_S, type VeilHero } from './screensCore';
 import { accountState, FIRST_WIN_COAT_NAME } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
-<<<<<<< HEAD
-import { HEROES, type HeroSide } from '../data/heroes';
-import { championOf } from '../data/heroes/shelter';
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { TRICK_IDS } from '../data/tricks';
-import type { Difficulty, HeroId, MapId, TrickId } from '../sim/api';
-=======
-import type { Difficulty, HeroId, TrickId } from '../sim/api';
->>>>>>> 01febee06 (feat(pawlegends): no-scroll landing and a Wild Rift style champion select)
-=======
-import type { Difficulty, HeroId, MapId, Mutator, TrickId } from '../sim/api';
->>>>>>> 9c098621f (feat(pawlegends): sim v22, the standard 5v5 Hearthwood and Blitz (on v21))
-import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, wearsCardSkin, type FrameId, type Look, type Owned } from '../render/cosmetics';
-=======
 import { HEROES } from '../data/heroes';
 import type { Difficulty, HeroId, MapId, Mutator, TrickId } from '../sim/api';
-<<<<<<< HEAD
-import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, type FrameId, type Look, type Owned } from '../render/cosmetics';
->>>>>>> cc7130d14 (feat(pawlegends): drop "Your cats become skins" and every Token Tails mention)
-=======
 import { chromaOptions, coatDyes, coatPalette, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, type FrameId, type Look, type Owned } from '../render/cosmetics';
->>>>>>> fe2c54a80 (feat(pawlegends): coat chromas, Club Sandwich and Kebab King coats, test health and first-load JS)
 import { ELEMENT_NAME } from '../meta/roster';
 import type { CatTier, Element } from '../meta/roster';
 import type { Dare } from '../share/dare';
@@ -164,18 +144,11 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
 
 export interface PickOpts {
   initial: Choice;
-<<<<<<< HEAD
-=======
   /** Sim v19: seats per team (5 when the next solo match is 5v5 Classic; default 3). */
   teamSize?: number;
   /** The one play path: the mode and variant this champion select starts ("Skirmish 3v3 · vs Bots"), under the title. */
   modeLine?: string;
-<<<<<<< HEAD
->>>>>>> 30de28040 (feat(pawlegends): one play path: PLAY, mode, variant, champion select)
-  /** What the player owns (coats, chromas, card skins): the tiles name a hero after its worn card. */
-=======
   /** What the player owns (coats, chromas): the Look sheet's choices. */
->>>>>>> cc7130d14 (feat(pawlegends): drop "Your cats become skins" and every Token Tails mention)
   owned?: Owned;
   looks?: Partial<Record<HeroId, Partial<Look>>>;
   onHero(h: HeroId): void;
@@ -209,11 +182,6 @@ export interface PickOpts {
   champs?: PickChamps;
 }
 
-<<<<<<< HEAD
-/** The side tabs' species colours: neutral, never an ally / enemy relation hue (side-colors.test). */
-export const SIDE_TAB_CSS: Readonly<Record<HeroSide, string>> = Object.freeze({ cat: '#f28bb0', dog: '#e8c27a' });
-export { isNewHero } from './champSelect/roles';
-=======
 export interface PickChamps {
   state(): ChampionsState;
   /** App builds: no price, no buy button, web-bought champions count as locked (founder decision 1). */
@@ -259,7 +227,6 @@ const champsChanged = new WeakMap<HTMLElement, () => void>();
 export const refreshPickChamps = (root: HTMLElement): void => champsChanged.get(root)?.();
 
 export { isNewHero, SIDE_TAB_CSS } from './champSelect/roles';
->>>>>>> d3365adb9 (feat(pawlegends): champion store (one starter per role, weekly rotation, Yarn, web purchase))
 
 const BACK = '<svg viewBox="0 0 24 24" aria-hidden="true" class="cs-back-ico"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const DOGS_LOCKED = 'Dogs unlock after your first match';
@@ -312,11 +279,6 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const { coats, chromas } = lookChoices(h);
     // pawlegends (QA): the swatches are colour tints, said so ("Ice colour tint, looks only")
     const tint = (k: { id: Element | null }): string => (k.id ? `${ELEMENT_NAME[k.id]} colour tint, looks only` : 'No colour tint');
-<<<<<<< HEAD
-    const coatChips = coats.length > 1 ? `<div class="cs-ls-row" role="group" aria-label="Coats">${coats.map((k) => `<button type="button" class="chip ${!card && k.id === (l?.coat ?? null) ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" aria-pressed="${!card && k.id === (l?.coat ?? null)}">${esc(k.name)}</button>`).join('')}</div>` : '';
-    const sw = chromas.length > 1 && !card ? `<div class="cs-ls-row swatches" role="group" aria-label="Colour tints">${chromas.map((k) => `<button type="button" class="chip chroma ${k.id === (l?.chroma ?? null) ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(tint(k))}" aria-label="${esc(tint(k))}" style="--el:${k.id ? hex(ELEMENT_COLOR[k.id]) : 'transparent'}"></button>`).join('')}</div>` : '';
-    return `<div class="cs-looksheet" role="dialog" aria-label="${esc(`Look: ${HERO_TEXT[h].title}`)}"><div class="cs-ls-head"><b>Look</b><button type="button" class="cs-ls-x" data-a="lookclose" aria-label="Close">✕</button></div><button type="button" class="pl-btn small cs-ls-cards" data-a="deck" aria-haspopup="dialog">${icon('paw')}Cards</button>${coatChips}${sw}</div>`;
-=======
     const coatChips = coats.length > 1 ? `<div class="cs-ls-row" role="group" aria-label="Coats">${coats.map((k) => `<button type="button" class="chip ${k.id === (l?.coat ?? null) ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" aria-pressed="${k.id === (l?.coat ?? null)}">${esc(k.name)}</button>`).join('')}</div>` : '';
     // gaps4: the worn coat's chromas (its own colours first; locked ones say how many matches earn them)
     const pal = coatPalette(l?.coat);
@@ -332,23 +294,30 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
           .join('')}</div>`
       : '';
     const sw = chromas.length > 1 ? `<div class="cs-ls-row swatches" role="group" aria-label="Colour tints">${chromas.map((k) => `<button type="button" class="chip chroma ${k.id === (l?.chroma ?? null) ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(tint(k))}" aria-label="${esc(tint(k))}" style="--el:${k.id ? hex(ELEMENT_COLOR[k.id]) : 'transparent'}"></button>`).join('')}</div>` : '';
-<<<<<<< HEAD
-    return `<div class="cs-looksheet" role="dialog" aria-label="${esc(`Look: ${HERO_TEXT[h].title}`)}"><div class="cs-ls-head"><b>Look</b><button type="button" class="cs-ls-x" data-a="lookclose" aria-label="Close">✕</button></div>${coatChips}${sw}${hasLookChoices(h) ? '' : `<p class="cs-ls-none">${esc(`No other coats for ${HERO_TEXT[h].title} yet.`)}</p>`}</div>`;
->>>>>>> cc7130d14 (feat(pawlegends): drop "Your cats become skins" and every Token Tails mention)
-=======
     return `<div class="cs-looksheet" role="dialog" aria-label="${esc(`Look: ${HERO_TEXT[h].title}`)}"><div class="cs-ls-head"><b>Look</b><button type="button" class="cs-ls-x" data-a="lookclose" aria-label="Close">✕</button></div>${coatChips}${dyes}${sw}${hasLookChoices(h) ? '' : `<p class="cs-ls-none">${esc(`No other coats for ${HERO_TEXT[h].title} yet.`)}</p>`}</div>`;
->>>>>>> fe2c54a80 (feat(pawlegends): coat chromas, Club Sandwich and Kebab King coats, test health and first-load JS)
   };
   const botsHtml = (): string => {
     if (o.difficultyNote)
       return `<div class="cs-bots locked"><span class="note">${esc(o.difficultyNote)}</span>${o.onVeteran ? `<button type="button" class="cs-vet" data-a="veteran">I've played MOBAs before</button>` : ''}</div>`;
+    const hint = DIFFICULTY_HINT[c.difficulty] ?? '';
     return `<div class="cs-bots" role="radiogroup" aria-label="Bots"><span class="cs-bl">Bots</span>${diffs
       .map((d) => {
         const on = d === c.difficulty;
         const name = (DIFFICULTY_TEXT as Record<string, string>)[d]?.replace(' bots', '') ?? d;
         return `<button type="button" role="radio" class="${on ? 'on' : ''}" data-d="${d}" aria-checked="${on}" tabindex="${on ? 0 : -1}" title="${esc(DIFFICULTY_HINT[d] ?? '')}">${esc(name)}</button>`;
       })
-      .join('')}</div>`;
+      .join('')}</div>${hint ? `<p class="cs-bots-hint bots-hint">${esc(hint)}</p>` : ''}`;
+  };
+  // phones: the hint has no room under the bots, so a tap on a difficulty shows it over LOCK IN for a few seconds
+  let note = '';
+  let noteTimer: ReturnType<typeof setTimeout> | null = null;
+  const showNote = (text: string): void => {
+    note = text;
+    if (noteTimer) clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => {
+      note = '';
+      if (root.isConnected) render();
+    }, 3500);
   };
   const model = (): CsModel => {
     const no = dogWhy(viewing);
@@ -357,7 +326,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const vs = (DIFFICULTY_TEXT as Record<string, string>)[c.difficulty] ?? 'bots';
     return {
       kind: 'solo',
-      seats: soloSeats({ name: o.playerName, hero: c.hero, trick: c.trick, difficulty: c.difficulty }),
+      seats: soloSeats({ name: o.playerName, hero: c.hero, trick: c.trick, difficulty: c.difficulty, teamSize: o.teamSize }),
       heroes: BROWSE_ORDER,
       selected: viewing,
       sideTabs: true,
@@ -369,13 +338,9 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       headLeft: `<button type="button" class="pl-btn ghost small cs-back" data-a="back" aria-label="Back" aria-keyshortcuts="Escape">${BACK}<span>Back</span></button>`,
       ...(o.modeLine ? { headNote: `<small class="cs-mode" data-testid="pick-mode">${esc(o.modeLine)}</small>` } : {}),
       footLeft: botsHtml(),
-<<<<<<< HEAD
-      lock: { enabled: !no, label: 'LOCK IN', sub: no || `vs ${vs}` },
-=======
       lock: practice ? { enabled: true, label: 'PRACTICE', sub: 'Saves nothing: unlock it to earn' } : { enabled: !no, label: 'LOCK IN', sub: no || `vs ${vs}` },
       champBar: practice && o.champs ? champBarHtml(viewing, o.champs) : freeLine,
       note,
->>>>>>> d3365adb9 (feat(pawlegends): champion store (one starter per role, weekly rotation, Yarn, web purchase))
       numbers,
       numbersToggle: !!o.onNumbers,
       look: hasLookChoices(c.hero),
@@ -429,6 +394,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const d = t.closest<HTMLElement>('[data-d]')?.dataset.d as Difficulty | undefined;
     if (d) {
       c.difficulty = d;
+      showNote(DIFFICULTY_HINT[d] ?? '');
       return render();
     }
     const btn = t.closest<HTMLElement>('[data-a]');
@@ -448,55 +414,18 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     if (a === 'back') return o.onBack();
     if (a === 'veteran') return o.onVeteran?.();
     if (a === 'look') {
-<<<<<<< HEAD
-      if (!hasLookChoices(c.hero)) return o.onDeck?.(c.hero);
-=======
       // the small sheet: coats and colour tints
->>>>>>> cc7130d14 (feat(pawlegends): drop "Your cats become skins" and every Token Tails mention)
       lookOpen = !lookOpen;
       render();
       root.querySelector<HTMLElement>(lookOpen ? '.cs-ls-x' : '.cs-look')?.focus();
       return;
     }
-<<<<<<< HEAD
-<<<<<<< HEAD
-    // Audit UX-06: on short screens a kit row is one line; a tap shows its full text
-    const kitRow = t.closest<HTMLElement>('.kit li');
-    if (kitRow) {
-      kitRow.classList.toggle('open');
-=======
-    if (a === 'side') {
-      const sd = t.closest<HTMLElement>('[data-side]')?.dataset.side as HeroSide | undefined;
-      if (sd && setSide(sd)) {
-        renderAll();
-        root.querySelector<HTMLElement>(`.side-tab.${sd}`)?.focus();
-      }
->>>>>>> 101ac3268 (feat(pawlegends): CATS / DOGS switch on the pick screen (sim v13 lane PICKER))
-      return;
-    }
-    if (h) {
-      c.hero = h;
-      lastBySide[HEROES[h].side] = h;
-      o.onHero(h);
-=======
     if (a === 'lookclose') {
       lookOpen = false;
       render();
       root.querySelector<HTMLElement>('.cs-look')?.focus();
       return;
     }
-<<<<<<< HEAD
-    if (a === 'deck') {
-      // the drawer gives focus back to its opener: the Look button (the sheet closes first)
-      const wasOpen = lookOpen;
-      lookOpen = false;
-      render();
-      if (wasOpen) root.querySelector<HTMLElement>('.cs-look')?.focus();
-      return o.onDeck?.(c.hero);
->>>>>>> 01febee06 (feat(pawlegends): no-scroll landing and a Wild Rift style champion select)
-    }
-=======
->>>>>>> cc7130d14 (feat(pawlegends): drop "Your cats become skins" and every Token Tails mention)
     const coat = t.closest<HTMLElement>('.cs-looksheet [data-coat]')?.dataset.coat;
     const chroma = t.closest<HTMLElement>('.cs-looksheet [data-chroma]')?.dataset.chroma;
     const dyeEl = t.closest<HTMLElement>('.cs-looksheet [data-dye]');
@@ -848,50 +777,20 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       </div>
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
     </div>
-<<<<<<< HEAD
-    ${(o.won ? o.grade?.mvp.hero : (o.grade?.bestOnTeam?.hero ?? o.grade?.mvp.hero)) ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
-<<<<<<< HEAD
-<<<<<<< HEAD
-    ${o.onHome && !o.party ? `<button class="pl-btn ghost small pl-home" data-a="home" aria-label="Home">${icon('paw')}<span>Home</span></button>` : ''}
-=======
-    ${o.onHome && !o.party ? `<button class="pl-btn ghost small pl-tohome" data-a="home" aria-label="Home">${icon('paw')}<span>Home</span></button>` : ''}
->>>>>>> 34f98cd9c (fix(pawlegends): results Home button no longer stretches full height)
-=======
     <div class="pl-res-dock">
     <div class="pl-res-top">
     ${o.onHome && !o.party ? `<button class="pl-btn ghost small pl-tohome" data-a="home" aria-label="Home">${icon('paw')}<span>Home</span></button>` : ''}
     ${(o.won ? o.grade?.mvp.hero : (o.grade?.bestOnTeam?.hero ?? o.grade?.mvp.hero)) ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
     </div>
     <div class="pl-res-foot">
->>>>>>> 7d7765df7 (fix(pawlegends): results and Home never overlap on a phone; overlap audit e2e)
     ${o.party ? '' : rewardStrip(o)}
     ${
       o.party
-<<<<<<< HEAD
-        ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">Leave party</button><button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button><button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
-        : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">Switch cat${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`
-=======
         ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">${esc(o.party.leave ?? 'Leave party')}</button>${o.party.change === false ? '' : '<button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button>'}<button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
-<<<<<<< HEAD
-<<<<<<< HEAD
-        : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`
->>>>>>> 01c6bb96c (feat(pawlegends): M1a Quick Play co-op client (Play online, queue card, locked-side pick, backfill, analytics))
-=======
-        : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button>${o.next ? `<button class="pl-btn ghost lb-next" data-a="next" data-testid="results-next">${esc(o.next.label)}<small>${esc(o.next.sub)}</small></button>` : ''}<button class="pl-btn big" data-a="again" data-testid="results-again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots${o.mode ? ` · ${esc(o.mode)}` : ''}</small></button></div>`
->>>>>>> 9c098621f (feat(pawlegends): sim v22, the standard 5v5 Hearthwood and Blitz (on v21))
-=======
         : `<div class="actions pinned"><button class="pl-btn ghost" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button>${o.next ? `<button class="pl-btn ghost lb-next" data-a="next" data-testid="results-next">${esc(o.next.label)}<small>${esc(o.next.sub)}</small></button>` : ''}<button class="pl-btn big" data-a="again" data-testid="results-again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots${o.mode ? ` · ${esc(o.mode)}` : ''}</small></button></div>`
-<<<<<<< HEAD
->>>>>>> 224d5f44e (feat(pawlegends): v6 Home, mode, variant and champion select restyle)
-    }`;
-=======
-    <div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`;
->>>>>>> 101ac3268 (feat(pawlegends): CATS / DOGS switch on the pick screen (sim v13 lane PICKER))
-=======
     }
     </div>
     </div>`;
->>>>>>> 7d7765df7 (fix(pawlegends): results and Home never overlap on a phone; overlap audit e2e)
   root.addEventListener('click', (e) => {
     const flag = (e.target as HTMLElement).closest<HTMLElement>('[data-report]');
     if (flag) {
@@ -972,7 +871,6 @@ export interface MenuOpts {
    * Party play (MULTIPLAYER.md §4.6, §7 M5): the menu is a local overlay over a running match: "Menu" and "Back to
    * match"; Pause becomes "Vote pause" and Forfeit "Vote surrender" (no confirm step: friends answer the vote).
    */
-<<<<<<< HEAD
   party?: {
     onVotePause(): void;
     coop?: boolean;
@@ -982,13 +880,8 @@ export interface MenuOpts {
     onVoteRemake?(): void;
     onMuteOpponents?(): void;
   };
-  /** The camera zoom slider moved (it already saved the zoom): the match view follows at once. */
-  onZoom?(z: number): void;
-=======
-  party?: { onVotePause(): void; coop?: boolean };
   /** Feel pass B1: the Camera height row picked a step (already saved): the match view follows at once. */
   onCameraHeight?(h: CameraHeight): void;
->>>>>>> 54cc1d525 (feat(pawlegends): fixed MLBB-style camera (feel pass B1))
 }
 
 const clockText = (ticks: number): string => {

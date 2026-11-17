@@ -501,15 +501,11 @@ export class DesktopInput {
   private quickCast(slot: CastIndex): void {
     const c = this.castAtCursor(slot, true);
     if (!c) return;
-<<<<<<< HEAD
-    this.h.view.aim = { spec: this.h.orders.aimSpec(slot), x: c.x / 1000, z: -c.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true, pointer: true };
-=======
     const spec = this.h.orders.aimSpec(slot);
     // the flash (Pounce): the indicator marks where it lands (its command point is past the range, heading.ts)
     const me = spec.flash ? this.h.units().find((u) => u.id === this.h.view.mySlot) : undefined;
     const p = me ? landing(spec, me, Math.atan2(c.y - me.y, c.x - me.x)) : c;
-    this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true };
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
+    this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true, pointer: true };
     this.flashUntil = performance.now() + FLASH_MS;
   }
 

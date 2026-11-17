@@ -1,23 +1,13 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
 // copy-lint: web-only the section never renders in the app build (swordcatSectionEnabled)
 import { railCopyState, type RailCopyState, type RailState } from "@/api/impact-api";
 import { isAppBuild } from "@/components/claims/build";
 import { useReelPlayback } from "@/components/landing/useReelPlayback";
-=======
-import { railCopyState, type RailState } from "@/api/impact-api";
-=======
-import { railCopyState, type RailCopyState, type RailState } from "@/api/impact-api";
->>>>>>> 08fd9c988 (fix(swordcat): landing treat beat follows every rail state; rebuild embed)
-import { isAppBuild } from "@/components/claims/build";
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 import { PixelButton } from "@/components/shared/PixelButton";
 import { swordcatEnabled } from "@/components/swordcat/flags";
 import { SWORDCAT_TITLE } from "@/components/swordcat/title";
 
 /**
  * The Swordcat landing section (Swordcat plan TOKENTAILS-PLAN.md §12.1 item 10, §12.3 E): a compact
-<<<<<<< HEAD
  * section right after the Catnip Heist section. The 30 s trailer (founder, 2026-10-16; muted loop,
  * the Heist reel's playback rules: no source until the section nears the viewport, plays only in
  * view, a pause toggle, never starts by itself under `prefers-reduced-motion`), a short line, a treat
@@ -26,24 +16,10 @@ import { SWORDCAT_TITLE } from "@/components/swordcat/title";
  *
  * On by default on the web (launch, Oct 16 2026); `NEXT_PUBLIC_SWORDCAT=0` (or false/no/off) is the kill
  * switch. Never in the app build. No release date and no number that is not read live.
-=======
- * section right after the Catnip Heist section. One still (the game's own share image, served with
- * the build at `/swordcat-game/og.jpg`, lazy), a short line, a treat beat that follows the rail state
- * (like the Heist section, so it always renders), and one link to `/swordcat`.
- *
-<<<<<<< HEAD
- * Hidden unless `NEXT_PUBLIC_SWORDCAT` is on, and never in the app build, so production is unchanged
- * until the founder sets the flag. No release date and no number that is not read live.
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-=======
- * On by default on the web (launch, Oct 16 2026); `NEXT_PUBLIC_SWORDCAT=0` (or false/no/off) is the kill
- * switch. Never in the app build. No release date and no number that is not read live.
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
  *
  * claim: L-rail "Token Tails can send Pink Paw a free treat" (only while the rail is live)
  * claim: the kittens carry the names and photos of real cats at Pink Paw (licence for the named cats'
  *   names and photos, Oct 11; the gallery is the only source)
-<<<<<<< HEAD
  *
  * The trailer is a video, so copy-lint cannot read it. Its claims (gated by `swordcatTrailerAllowed`):
  * claim: L-rail "One tap. Free for you." / "Send Pink Paw a free treat daily." (one free treat per
@@ -53,13 +29,10 @@ import { SWORDCAT_TITLE } from "@/components/swordcat/title";
  * claim: Judas, a real Pink Paw cat (live gallery, 16 Oct 2026); the in-game tap is staged, the receipt
  *   is a real Catnip Heist treat of 8 Oct 2026, labelled as such
  * The poster carries no claim (Clem with her sword).
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
  */
 
 /** `from=landing_swordcat` says where the player came from (stripped on arrival at /swordcat). */
 export const SWORDCAT_SECTION_HREF = "/swordcat?from=landing_swordcat";
-<<<<<<< HEAD
 /**
  * The trailer, cut from the game's own footage. Versioned names: a new cut gets `-v2`, old files are
  * never deleted (installed apps). Web only: the section never renders in the app build and
@@ -76,16 +49,10 @@ export const SWORDCAT_SECTION_STILL = SWORDCAT_TRAILER.poster;
 export const SWORDCAT_TRAILER_LABEL =
   "Pink Paw Knight trailer: Clem, a tiny knight cat with a pink bow, rescues a lost kitten";
 export const SWORDCAT_SECTION_LABEL = "Out now";
-=======
-/** The game's share image, 1200x630, copied with the build (`npm run build:tokentails`). */
-export const SWORDCAT_SECTION_STILL = "/swordcat-game/og.jpg";
-export const SWORDCAT_SECTION_LABEL = "Early access";
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 export const SWORDCAT_SECTION_LINE =
   "Save lost kittens with a tiny knight. Every cat you save is a real cat at Pink Paw in Kaunas.";
 // claim: L-rail (present tense only while the rail is live)
 export const SWORDCAT_SECTION_TREAT_BEAT =
-<<<<<<< HEAD
   "Save one, and Token Tails can send Pink Paw a free treat. It goes to Pink Paw's wallet.";
 
 /** The treat beat per rail state. Present tense only while the rail is live. */
@@ -115,30 +82,6 @@ export function swordcatTrailerAllowed(state: RailState | null | undefined): boo
 }
 
 /** Shown unless `NEXT_PUBLIC_SWORDCAT` is an off value, and never in the app build. */
-=======
-  "Save one, and Token Tails can send Pink Paw a free treat. Held by Token Tails for the shelter until handover.";
-
-/** The treat beat per rail state. Present tense only while the rail is live. */
-export function swordcatTreatBeat(state: RailState | null | undefined): string {
-  const copy: Record<RailCopyState, string> = {
-    // claim: L-rail (only while the rail is live)
-    open: SWORDCAT_SECTION_TREAT_BEAT,
-    // claim: L-rail
-    exhausted: "Today's treats for Pink Paw are used up. Back at 00:00 UTC.",
-    // claim: L-rail
-    paused: "Treats for Pink Paw are paused for now.",
-    // claim: L-rail (not deployed yet: future tense)
-    soon: "Real treats for Pink Paw, from Token Tails, open soon.",
-  };
-  return copy[railCopyState(state)];
-}
-
-<<<<<<< HEAD
-/** Shown only with `NEXT_PUBLIC_SWORDCAT` on, and never in the app build. */
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-=======
-/** Shown unless `NEXT_PUBLIC_SWORDCAT` is an off value, and never in the app build. */
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
 export function swordcatSectionEnabled(
   flag: string | undefined = process.env.NEXT_PUBLIC_SWORDCAT,
   isApp: boolean = isAppBuild()
@@ -147,35 +90,18 @@ export function swordcatSectionEnabled(
 }
 
 interface SwordcatSectionProps {
-<<<<<<< HEAD
-<<<<<<< HEAD
   /** The treat rail from the impact snapshot: the treat beat follows its state. */
-=======
-  /** The treat rail from the impact snapshot: the treat beat shows only while it is live. */
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-=======
-  /** The treat rail from the impact snapshot: the treat beat follows its state. */
->>>>>>> 08fd9c988 (fix(swordcat): landing treat beat follows every rail state; rebuild embed)
   railState: RailState | null;
   /** Override the flag and app-build check (tests). */
   enabled?: boolean;
 }
 
 export const SwordcatSection = ({ railState, enabled }: SwordcatSectionProps) => {
-<<<<<<< HEAD
   const on = enabled ?? swordcatSectionEnabled();
   const withVideo = on && !isAppBuild() && swordcatTrailerAllowed(railState);
   const { sectionRef, videoRef, armed, userPaused, togglePause } = useReelPlayback<HTMLDivElement>(withVideo);
   if (!on) return null;
   const treatBeat = swordcatTreatBeat(railState);
-=======
-  if (!(enabled ?? swordcatSectionEnabled())) return null;
-<<<<<<< HEAD
-  const treatBeat = railCopyState(railState) === "open";
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-=======
-  const treatBeat = swordcatTreatBeat(railState);
->>>>>>> 08fd9c988 (fix(swordcat): landing treat beat follows every rail state; rebuild embed)
 
   return (
     <section
@@ -197,23 +123,9 @@ export const SwordcatSection = ({ railState, enabled }: SwordcatSectionProps) =>
               {SWORDCAT_TITLE}
             </h2>
             <p className="mt-3 max-w-md text-p5 md:text-p4 text-tt-cream/90">{SWORDCAT_SECTION_LINE}</p>
-<<<<<<< HEAD
-<<<<<<< HEAD
             <p className="mt-3 max-w-md text-p6 md:text-p5 text-tt-cream/75" data-testid="swordcat-treat-beat">
               {treatBeat}
             </p>
-=======
-            {treatBeat && (
-              <p className="mt-3 max-w-md text-p6 md:text-p5 text-tt-cream/75" data-testid="swordcat-treat-beat">
-                {SWORDCAT_SECTION_TREAT_BEAT}
-              </p>
-            )}
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-=======
-            <p className="mt-3 max-w-md text-p6 md:text-p5 text-tt-cream/75" data-testid="swordcat-treat-beat">
-              {treatBeat}
-            </p>
->>>>>>> 08fd9c988 (fix(swordcat): landing treat beat follows every rail state; rebuild embed)
             {/* Plain anchor on purpose: /swordcat hosts a static build and loads fully. */}
             <a
               href={SWORDCAT_SECTION_HREF}
@@ -226,7 +138,6 @@ export const SwordcatSection = ({ railState, enabled }: SwordcatSectionProps) =>
               </span>
             </a>
           </div>
-<<<<<<< HEAD
           {/* Fixed 16:9 box: the poster, the video and the toggle share it, so nothing shifts. */}
           <div
             ref={sectionRef}
@@ -278,19 +189,6 @@ export const SwordcatSection = ({ railState, enabled }: SwordcatSectionProps) =>
                 )}
               </button>
             )}
-=======
-          <div className="relative overflow-hidden rounded-2xl border-4 border-tt-pink/70 bg-tt-night-950 aspect-[40/21] shadow-[0_0_24px_rgb(var(--tt-pink)/.3)]">
-            <img
-              src={SWORDCAT_SECTION_STILL}
-              alt={`${SWORDCAT_TITLE}: a tiny knight cat with a pink bow`}
-              loading="lazy"
-              decoding="async"
-              width={1200}
-              height={630}
-              className="h-full w-full object-cover"
-              data-testid="swordcat-section-still"
-            />
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
           </div>
         </div>
       </div>

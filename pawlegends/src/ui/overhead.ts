@@ -310,7 +310,7 @@ export class Overhead {
   /** Display names by slot ("Clem 2"; ui/heroText.ts slotNames); empty = hero titles. */
   names: readonly string[] = [];
   /**
-   * Party play (MULTIPLAYER.md §7 M1, M4): the human slots' ring colour (slot 0 gold, 1 cyan, 2 pink) and whether a
+   * Party play (MULTIPLAYER.md §7 M1, M4): the human slots' ring colour (slot 0 mint, 1 violet, 2 orange: app/mpTypes.ts SLOT_RING) and whether a
    * bot flies that hero now (from the TURN mode bits): a friend's name pill gets its ring; a bot-flown one a greyed
    * ring and a robot glyph. Null in solo matches.
    */
@@ -1214,6 +1214,8 @@ export class Overhead {
     const flagAt = (g: CanvasRenderingContext2D, yy: number): void => {
       if (!fw) return;
       g.font = fl.font;
+      // a colour glyph still takes the fill's alpha: an opaque fill, or the pill's 0.28 keyline ink fades the flag
+      g.fillStyle = '#000';
       g.fillText(fl.glyph, -tw / 2 + (fw - FLAG_GAP) / 2, yy);
     };
     const seat = this.seats?.get(e.id);

@@ -233,8 +233,6 @@ export const CORE_EN: Record<string, string> = {
   "Fix this track in the editor before sharing it.": "Fix this track in the editor before sharing it.",
   "That does not look like a track link.": "That does not look like a track link.",
   "Mirror": "Mirror",
-<<<<<<< HEAD
-<<<<<<< HEAD
   // iteration 4 (juice lane): tricks, the photo finish, the duel, chains
   "TAP!": "TAP!",
   "Barrel roll": "Barrel roll",
@@ -262,12 +260,4 @@ export const CORE_EN: Record<string, string> = {
   "Stolen at the line!": "Stolen at the line!",
   "What a comeback!": "What a comeback!",
   "Hold on!": "Hold on!",
-=======
-  // share-ugc lane, iteration 4 (F7 results tray, F10 Beat the maker)
-  "More": "More",
-  "Lap": "Lap",
-  "⏱ Sender's lap {t} · beat it": "⏱ Sender's lap {t} · beat it",
->>>>>>> 3ac5394a6 (wip(formula-meow): iteration 4 lane partial work (interrupted by usage limit, round 3))
-=======
->>>>>>> 1e1c057df (feat(formula-meow): iteration 4 share-ugc lane (F7 results card, F8 clips, F9 ghost duels, F10 spectacular doodles))
 };

@@ -5,17 +5,8 @@
  * The Swordcat title lives in one constant (Swordcat plan TOKENTAILS-PLAN.md §10.4, acceptance 8):
  * `components/swordcat/title.ts`. The page meta, the host and the PLAY picker read it, so a rename
  * (Pink Paw has not yet approved the name) is one edit. The constant is mocked to another name
-<<<<<<< HEAD
-<<<<<<< HEAD
  * here: every surface must follow it. With no `NEXT_PUBLIC_SWORDCAT*` set the game is on (launch,
  * Oct 16 2026); `NEXT_PUBLIC_SWORDCAT=0` is the kill switch.
-=======
- * here: every surface must follow it. With no `NEXT_PUBLIC_SWORDCAT*` set, nothing changes.
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-=======
- * here: every surface must follow it. With no `NEXT_PUBLIC_SWORDCAT*` set the game is on (launch,
- * Oct 16 2026); `NEXT_PUBLIC_SWORDCAT=0` is the kill switch.
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
  */
 import fs from "fs";
 import path from "path";
@@ -123,43 +114,19 @@ describe("with the flags on, every surface reads the constant", () => {
     expect(screen.getByText(`${TEST_TITLE} is not available right now.`)).toBeTruthy();
   });
 
-<<<<<<< HEAD
-<<<<<<< HEAD
   // Phase TT4 (plan §12) replaces the §2.5 "no shelter words" rule: the kittens are real Pink Paw cats.
   // Still no money, adoption, token or impact claims on the card.
   it("picker card: title, label and a description with no money, adoption or impact words", () => {
-=======
-  it("picker card: title, label and a description with no shelter, impact or money words", () => {
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-=======
-  // Phase TT4 (plan §12) replaces the §2.5 "no shelter words" rule: the kittens are real Pink Paw cats.
-  // Still no money, adoption, token or impact claims on the card.
-  it("picker card: title, label and a description with no money, adoption or impact words", () => {
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     const dialog = openPicker();
     const card = within(dialog).getByTestId("game-card-swordcat");
     expect(card.getAttribute("aria-label")).toBe(`${TEST_TITLE.toUpperCase()} · NEW`);
     expect(within(card).getAllByText(TEST_TITLE.toUpperCase()).length).toBeGreaterThan(0);
-<<<<<<< HEAD
-<<<<<<< HEAD
     const description = within(card).getByText("Every cat you save is a real Pink Paw cat");
     expect(description.textContent).not.toMatch(/adopt|donat|impact|money|treat|crypto|token|fund|\$|\d/i);
-=======
-    const description = within(card).getByText("Rescue lost kittens with a tiny knight");
-    expect(description.textContent).not.toMatch(/shelter|donat|impact|money|treat|crypto|token|fund|help|save/i);
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-=======
-    const description = within(card).getByText("Every cat you save is a real Pink Paw cat");
-    expect(description.textContent).not.toMatch(/adopt|donat|impact|money|treat|crypto|token|fund|\$|\d/i);
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     expect(within(card).getByTestId("game-card-swordcat-preview")).toBeTruthy();
   });
 });
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
 describe("with no NEXT_PUBLIC_SWORDCAT* set, the game is on by default", () => {
   it("/swordcat renders the host with the constant's title and does not redirect", () => {
     render(React.createElement(SwordcatPage));
@@ -183,12 +150,6 @@ describe("with the kill switch (NEXT_PUBLIC_SWORDCAT=0)", () => {
     process.env.NEXT_PUBLIC_SWORDCAT = "0";
   });
 
-<<<<<<< HEAD
-=======
-describe("with no NEXT_PUBLIC_SWORDCAT* set, nothing changes", () => {
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-=======
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
   it("/swordcat redirects to /game and renders nothing", () => {
     const { container } = render(React.createElement(SwordcatPage));
     expect(container.innerHTML).toBe("");
@@ -203,23 +164,11 @@ describe("with no NEXT_PUBLIC_SWORDCAT* set, nothing changes", () => {
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(8);
   });
 
-<<<<<<< HEAD
-<<<<<<< HEAD
   it("the picker flag on does not bring the card back (it needs the page flag not off too)", () => {
-=======
-  it("the picker flag alone does not show the card (it needs the page flag too)", () => {
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-=======
-  it("the picker flag on does not bring the card back (it needs the page flag not off too)", () => {
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
     process.env.NEXT_PUBLIC_SWORDCAT_PICKER = "1";
     const dialog = openPicker();
     expect(within(dialog).queryByTestId("game-card-swordcat")).toBeNull();
   });
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
 
   it("NEXT_PUBLIC_SWORDCAT_PICKER=0 alone hides only the card, the page stays open", () => {
     process.env.NEXT_PUBLIC_SWORDCAT = "";
@@ -228,9 +177,4 @@ describe("with no NEXT_PUBLIC_SWORDCAT* set, nothing changes", () => {
     expect(within(dialog).queryByTestId("game-card-swordcat")).toBeNull();
     expect(within(dialog).getAllByRole("listitem")).toHaveLength(8);
   });
-<<<<<<< HEAD
-=======
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
-=======
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
 });

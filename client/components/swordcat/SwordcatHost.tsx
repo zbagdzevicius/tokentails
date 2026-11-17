@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 import { analytics, buildEvent } from "@/analytics";
 import { apiFetch } from "@/api/api";
 import { formatUnits18, normalizeDonateRail, treatRailOpen } from "@/api/impact-api";
@@ -9,18 +5,10 @@ import { SHELTER_API, type DonateStatus } from "@/api/shelter-api";
 import { getAudioSettings, subscribeAudioSettings } from "@/components/audio/settings";
 import { isAppBuild } from "@/components/claims/build";
 import { fetchDonateMe, sendTreat, treatSentStatus, type DonateMe, type TreatSend } from "@/components/codex/impact/treat";
-<<<<<<< HEAD
-=======
-import { getAudioSettings, subscribeAudioSettings } from "@/components/audio/settings";
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 import { registerHeistSuspension } from "@/components/heist/suspension";
 import { CloseButton } from "@/components/shared/CloseButton";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { useOptionalFirebaseAuth } from "@/context/FirebaseAuthContext";
-<<<<<<< HEAD
-<<<<<<< HEAD
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -35,27 +23,6 @@ import {
 } from "./bridge";
 import { swordcatFrameSrc, swordcatOrigin, swordcatUrl } from "./flags";
 import { SWORDCAT_TITLE } from "./title";
-=======
-=======
-import { useRouter } from "next/router";
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  amountLabelOf,
-  createSwordcatBridge,
-  explorerUrlOf,
-  receiptPathOf,
-  type SwordcatBridge,
-  type SwordcatTreatRequestMessage,
-  type SwordcatTreatResult,
-  type SwordcatTreatState,
-} from "./bridge";
-import { swordcatFrameSrc, swordcatOrigin, swordcatUrl } from "./flags";
-<<<<<<< HEAD
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-import { SWORDCAT_TITLE } from "./title";
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
 
 /** Where the exit button goes (the game lobby, like the Heist's exit). */
 export const SWORDCAT_EXIT_PATH = "/game";
@@ -138,10 +105,6 @@ function useRotateHint(): [boolean, () => void] {
   return [show && !dismissed && !timedOut, dismiss];
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 // ---- treats (plan §12.1 item 7, §12.2) ------------------------------------------------------
 
 /** What the host knows about today's treat rail: the game's `treat-state`, plus the chain to send on. */
@@ -163,15 +126,7 @@ export function treatAmountLabel(amountWei: unknown, coin: unknown, isApp: boole
 /**
  * `GET /shelter/donate/status` as the game's rail. Null (the read failed): `soon`, like the Heist's
  * pre-launch state. Live with treats left: `live`. Exhausted, or live with none left: `exhausted`.
-<<<<<<< HEAD
-<<<<<<< HEAD
  * Paused: `paused` (the game says "Treats are paused right now.", like the Heist). Not deployed: `soon`.
-=======
- * Paused or not deployed: `soon`.
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-=======
- * Paused: `paused` (the game says "Treats are paused right now.", like the Heist). Not deployed: `soon`.
->>>>>>> 6f6764497 (fix(swordcat): paused treat rail and the TT5 verify-round embed copy)
  */
 export function swordcatRailOf(status: DonateStatus | null, isApp: boolean): SwordcatRail {
   const rail = normalizeDonateRail(status);
@@ -187,14 +142,7 @@ export function swordcatRailOf(status: DonateStatus | null, isApp: boolean): Swo
     };
   }
   if (rail.enabled && (rail.state === "exhausted" || rail.state === "live")) return { state: "exhausted" };
-<<<<<<< HEAD
-<<<<<<< HEAD
   if (rail.state === "paused") return { state: "paused" };
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-=======
-  if (rail.state === "paused") return { state: "paused" };
->>>>>>> 6f6764497 (fix(swordcat): paused treat rail and the TT5 verify-round embed copy)
   return { state: "soon" };
 }
 
@@ -229,36 +177,17 @@ type TreatFetch = (input: string, init: RequestInit) => Promise<Response>;
 const defaultTreatFetch: TreatFetch = (input, init) =>
   apiFetch(input, init, { guestSession: false, requireAccount: false });
 
-<<<<<<< HEAD
-=======
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 interface SwordcatHostProps {
   /** The game URL. Defaults to the same-origin build (`/swordcat-game/`) or a valid `NEXT_PUBLIC_SWORDCAT_URL`; null shows the unavailable state (tests). */
   url?: string | null;
   /** Full page load back to the lobby. Injected by tests; defaults to `window.location.assign`. */
   navigate?: (url: string) => void;
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
   /** The treat POST (tests pass a fake). Defaults to `apiFetch`, as on the IMPACT tab. */
   treatFetch?: TreatFetch;
 }
 
 /**
  * The `/swordcat` host (Swordcat plan §5.1): the Swordcat game (`SWORDCAT_TITLE`) full-bleed in an iframe from
-=======
-}
-
-/**
-<<<<<<< HEAD
- * The `/swordcat` host (Swordcat plan §5.1): Pink Paw Knight full-bleed in an iframe from
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
- * The `/swordcat` host (Swordcat plan §5.1): the Swordcat game (`SWORDCAT_TITLE`) full-bleed in an iframe from
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
  * `/swordcat-game/` (same origin; `NEXT_PUBLIC_SWORDCAT_URL` overrides it, `?embed=1`), the v1 bridge (`./bridge`), an exit button back to
  * `/game` in the frame's top-left corner (the game keeps that corner free in embed mode), and a rotate
  * hint on portrait phones. The frame sits inside the safe area. While the game boots the bridge keeps
@@ -266,26 +195,13 @@ interface SwordcatHostProps {
  * Back to games, and a late `ready` still connects. No `sandbox`: the game needs its own storage and
  * WebGL. Any GameModal pauses the game through the same stand-in the Heist registers with the game
  * suspension registry. The shell's mute follows into the game. Phase 1 saves nothing.
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
  *
  * Phase TT4 (plan §12): the game shows the treat panel after each save and posts `treat-request`;
  * this page sends the sponsored treat with `sendTreat()` (`source: "page"`, signed-in first, then the
  * no-account route), so the player never leaves the game. It answers `treat-result` and keeps the
  * game's `treat-state` (rail, sent today, amount) current. No token or free text crosses the bridge.
-<<<<<<< HEAD
  */
 export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHostProps) => {
-=======
- */
-export const SwordcatHost = ({ url: urlProp, navigate }: SwordcatHostProps) => {
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
- */
-export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHostProps) => {
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
   const url = urlProp === undefined ? swordcatUrl() : urlProp;
   const auth = useOptionalFirebaseAuth();
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -297,19 +213,11 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
   const [rotateHint, dismissRotateHint] = useRotateHint();
   const src = useMemo(() => (url ? swordcatFrameSrc(url) : null), [url]);
   const signedIn = !!auth?.user && !auth.user.isAnonymous && auth.authStatus === "ready";
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
   const router = useRouter();
   // Treats: the rail and today's row, read once per page view and updated by each send.
   const railRef = useRef<SwordcatRail>({ state: "checking" });
   const sentTodayRef = useRef(false);
-<<<<<<< HEAD
   const inFlightRef = useRef<{ requestId: string; done: Promise<SwordcatTreatResult> } | null>(null);
-=======
-  const inFlightRef = useRef<string | null>(null);
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
   const answeredRef = useRef(new Map<string, SwordcatTreatResult>());
   const treatFetchRef = useRef<TreatFetch>(treatFetch ?? defaultTreatFetch);
   treatFetchRef.current = treatFetch ?? defaultTreatFetch;
@@ -338,14 +246,10 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
 
   /**
    * One `treat-request`: one send in flight at a time, each request id answered once (a repeat gets
-<<<<<<< HEAD
    * the same answer, never a second POST). A new request while a send is in flight (the game timed
    * out and the player pressed Try again) waits for that send and gets its result under its own id,
    * so a slow treat that went out never reads as failed. Tokens never enter the frame: `sendTreat`
    * reads them here.
-=======
-   * the same answer, never a second POST). Tokens never enter the frame: `sendTreat` reads them here.
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
    */
   const onTreatRequest = useCallback(
     async (message: SwordcatTreatRequestMessage) => {
@@ -359,24 +263,17 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
         bridgeRef.current?.sendTreatResult(previous);
         return;
       }
-<<<<<<< HEAD
       const flight = inFlightRef.current;
       if (flight) {
         if (flight.requestId === message.requestId) return;
         const shared = await flight.done;
         answer({ ...shared, requestId: message.requestId });
-=======
-      if (inFlightRef.current === message.requestId) return;
-      if (inFlightRef.current) {
-        bridgeRef.current?.sendTreatResult({ requestId: message.requestId, kind: "retry" });
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
         return;
       }
       if (sentTodayRef.current) {
         answer({ requestId: message.requestId, kind: "already-today" });
         return;
       }
-<<<<<<< HEAD
       const done = (async (): Promise<SwordcatTreatResult> => {
         let body: unknown = null;
         const capture: TreatFetch = async (input, init) => {
@@ -410,38 +307,6 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
       })();
       inFlightRef.current = { requestId: message.requestId, done };
       answer(await done);
-=======
-      inFlightRef.current = message.requestId;
-      let body: unknown = null;
-      const capture: TreatFetch = async (input, init) => {
-        const res = await treatFetchRef.current(input, init);
-        if (res.ok) {
-          try {
-            body = await res.clone().json();
-          } catch {
-            body = null;
-          }
-        }
-        return res;
-      };
-      let send: TreatSend;
-      try {
-        send = await sendTreat({ fetchImpl: capture, chainId: railRef.current.chainId });
-      } catch {
-        send = { kind: "retry" };
-      } finally {
-        inFlightRef.current = null;
-      }
-      analytics.track(buildEvent("treat_sent", { status: treatSentStatus(send) }));
-      if (send.kind === "sent" || send.kind === "already-today") sentTodayRef.current = true;
-      if (send.kind === "budget-spent") railRef.current = { state: "exhausted" };
-      if (send.kind === "paused") railRef.current = { state: "paused" };
-      answer({
-        requestId: message.requestId,
-        kind: send.kind,
-        ...(send.kind === "sent" ? treatReceiptOf(body, isAppBuild()) : {}),
-      });
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     },
     [pushTreatState]
   );
@@ -457,13 +322,9 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
       ]);
       if (!live) return;
       railRef.current = swordcatRailOf(status, isAppBuild());
-<<<<<<< HEAD
       // A failed read (null) keeps what this page knows; a read sets it both ways, so a sign-in or an
       // account switch is never told the previous identity's treat was already sent.
       if (me) sentTodayRef.current = sentTodayOf(me);
-=======
-      if (sentTodayOf(me)) sentTodayRef.current = true;
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
       pushTreatState();
     })();
     return () => {
@@ -471,14 +332,6 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
     };
   }, [url, signedIn, pushTreatState]);
 
-<<<<<<< HEAD
-=======
-
-  const exit = () => (navigate ?? ((path: string) => window.location.assign(path)))(SWORDCAT_EXIT_PATH);
-
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
   // ---- bridge ------------------------------------------------------------------------------
   useEffect(() => {
     if (!url) return;
@@ -494,10 +347,6 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
         onLevelComplete: (message) => {
           if (process.env.NODE_ENV === "development") console.debug("[swordcat] level-complete", message);
         },
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
         // Phase TT4: no swordcat analytics event exists yet (shared/ is off limits, plan §12.6).
         onCatSaved: (message) => {
           if (process.env.NODE_ENV === "development") console.debug("[swordcat] cat-saved", message);
@@ -507,27 +356,11 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
     });
     bridgeRef.current = bridge;
     pushTreatState();
-<<<<<<< HEAD
-=======
-      },
-    });
-    bridgeRef.current = bridge;
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
     return () => {
       bridge.dispose();
       bridgeRef.current = null;
     };
-<<<<<<< HEAD
-<<<<<<< HEAD
   }, [url, onTreatRequest, pushTreatState]);
-=======
-  }, [url]);
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-  }, [url, onTreatRequest, pushTreatState]);
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
 
   // Sign-in state only (never a token), re-sent on every `ready`.
   useEffect(() => {
@@ -593,15 +426,7 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
         data-state="unavailable"
       >
         {exitButton}
-<<<<<<< HEAD
-<<<<<<< HEAD
         <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is not available right now.</p>
-=======
-        <p className="font-sans text-p5 font-bold text-tt-cream">Pink Paw Knight is not available right now.</p>
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-        <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is not available right now.</p>
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
         <a
           href={SWORDCAT_EXIT_PATH}
           className="font-sans text-p5 font-bold text-tt-gold-400 underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-tt-gold-400"
@@ -624,15 +449,7 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
         key={frameKey}
         ref={frameRef}
         src={src}
-<<<<<<< HEAD
-<<<<<<< HEAD
         title={SWORDCAT_TITLE}
-=======
-        title="Pink Paw Knight"
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-        title={SWORDCAT_TITLE}
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
         data-testid={SWORDCAT_FRAME_TESTID}
         className="absolute border-0 bg-tt-night-900"
         style={SAFE_FRAME_STYLE}
@@ -649,15 +466,7 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
           className="fixed left-1/2 z-10 flex w-max max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-lg border-2 border-tt-night-950 bg-tt-night-900/90 py-1 pl-3 pr-1 font-sans text-p6 font-bold text-tt-cream shadow-[0_2px_0_rgb(var(--tt-night-950))]"
           style={{ top: `calc(env(safe-area-inset-top) + ${SWORDCAT_EXIT_GUTTER_PX}px)` }}
         >
-<<<<<<< HEAD
-<<<<<<< HEAD
           <span>Still loading {SWORDCAT_TITLE}…</span>
-=======
-          <span>Still loading Pink Paw Knight…</span>
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-          <span>Still loading {SWORDCAT_TITLE}…</span>
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
           <button type="button" onClick={reload} className={reloadButtonClass}>
             Reload
           </button>
@@ -669,15 +478,7 @@ export const SwordcatHost = ({ url: urlProp, navigate, treatFetch }: SwordcatHos
           data-testid="swordcat-timeout"
           className="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-tt-night-900/95 px-4 text-center"
         >
-<<<<<<< HEAD
-<<<<<<< HEAD
           <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is taking too long to load.</p>
-=======
-          <p className="font-sans text-p5 font-bold text-tt-cream">Pink Paw Knight is taking too long to load.</p>
->>>>>>> b76f405ff (feat(swordcat): /swordcat embeds Pink Paw Knight behind NEXT_PUBLIC_SWORDCAT (default off))
-=======
-          <p className="font-sans text-p5 font-bold text-tt-cream">{SWORDCAT_TITLE} is taking too long to load.</p>
->>>>>>> 8f58572a0 (feat(swordcat): Token Tails edition title, host and embed copy update)
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button type="button" onClick={reload} className={reloadButtonClass}>
               Reload

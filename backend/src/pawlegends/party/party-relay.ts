@@ -76,17 +76,8 @@ import { RoomScheduler, phaseOf } from './room-scheduler';
 import type { Occupant, RelayRow, RoomStore, StoredParty, StoredRoom } from './room-store';
 import { memoryMm, type MmHookFactory, type MmHooks, type MmRelayApi, type MmRoomView } from '../mm/mm-bridge';
 import { MemoryMmRoomStore } from '../mm/mm-room.schema';
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
 import { draftSeed } from '../ranked/draft';
->>>>>>> 016d8f7d5 (feat(pawlegends): ranked draft and S-grade loss protection; the November coat drop with three new coats)
 import { CHAMPION_IDS, isFreeChampion, rotationWeek } from '../pawlegends-catalog';
-=======
-import { crossesAdultLine, isStickerId, phraseInScope, type ChatAgeBand } from '../../shared-contracts/chat';
-import { filterChatText } from '../../shared-contracts/chat-filter';
-=======
 import {
     CHAT_LIMITS,
     MATCH_LEGACY_CHAT,
@@ -97,15 +88,8 @@ import {
 } from '../../shared-contracts/chat';
 import { filterChatText, normalizeChatText } from '../../shared-contracts/chat-filter';
 import { BotChat, BotSeenStore, type BotSeen } from './bot-chat';
-<<<<<<< HEAD
->>>>>>> e837dd783 (feat(pawlegends): in-match chat on the relay and bot chatter in relay rooms)
-=======
 import { isProbe } from '../../vendor/pawlegends-chat/botChatter';
->>>>>>> 26b0a0a38 (fix(pawlegends): review fixes for in-match bot chatter guardrails)
 import type { MemberChat } from './party.service';
-<<<<<<< HEAD
->>>>>>> ec89b906f (feat(pawlegends): PROTO 5 party chat on the relay (CHAT-AVATARS C4))
-=======
 import {
     delayTurns,
     featuredCount,
@@ -115,7 +99,6 @@ import {
     type WatchableRoom,
     type WatchKind,
 } from './spectate';
->>>>>>> d97d2d8f7 (feat(pawlegends): live spectating of friends' matches and a featured match (PROTO 7))
 
 export interface RelayOptions {
     server: Server;
@@ -158,23 +141,12 @@ export interface RelayOptions {
      */
     pool?: string;
     /**
-<<<<<<< HEAD
      * CHAMPION-STORE.md §8.1: the champions a ticketed account owns (PawlegendsSeasonService.ownedHeroes, the
      * Founders roster checked first). With it, a member picks only starters, the pick's rotation and owned
      * champions; without it (specs, the harness) every hero is open.
      */
     champions?: (accountId: string) => Promise<readonly string[]>;
-}
-
-/** CHAMPION-STORE.md §8.1: a member's owned champions are read again at most this often (after a refused pick). */
-export const CHAMPS_RELOAD_MS = 5000;
-/**
- * An owned (not free) champion is picked on a cached answer at most this old; an older one is read again first, so a
- * refund or a chargeback (the purchase row revoked) stops being playable online without a relay restart.
- */
-export const CHAMPS_MAX_AGE_MS = 10 * 60_000;
-const CHAMPS_CACHE_MAX = 20_000;
-=======
+    /**
      * Friends chat (CHAT-AVATARS.md §5): resolve a ticketed account's chat side, store party lines, and receive DM
      * notices. Production wires the Mongo models (party-relay.service.ts); without it (specs, harness) every member is
      * quick tier with a default avatar and nothing is stored.
@@ -242,15 +214,19 @@ export const matchThreadId = (room: string): string =>
     `m${createHash('sha256').update(`match:${room}`).digest('hex').slice(0, 24)}`;
 /** A 24-hex message id (timestamp seconds + random), shaped like a Mongo ObjectId so the API can name it. */
 const chatMid = (nowMs: number) =>
-<<<<<<< HEAD
-    Math.floor(nowMs / 1000).toString(16).padStart(8, '0').slice(-8) + randomBytes(8).toString('hex');
->>>>>>> ec89b906f (feat(pawlegends): PROTO 5 party chat on the relay (CHAT-AVATARS C4))
-=======
     Math.floor(nowMs / 1000)
         .toString(16)
         .padStart(8, '0')
         .slice(-8) + randomBytes(8).toString('hex');
->>>>>>> 946d6ebec (style(pawlegends): prettier on the chat and avatar backend files)
+
+/** CHAMPION-STORE.md §8.1: a member's owned champions are read again at most this often (after a refused pick). */
+export const CHAMPS_RELOAD_MS = 5000;
+/**
+ * An owned (not free) champion is picked on a cached answer at most this old; an older one is read again first, so a
+ * refund or a chargeback (the purchase row revoked) stops being playable online without a relay restart.
+ */
+export const CHAMPS_MAX_AGE_MS = 10 * 60_000;
+const CHAMPS_CACHE_MAX = 20_000;
 
 /** What started a drain (LIVE-MATCH-DEPLOYS.md §4.1); a later trigger only makes it more final. */
 export type DrainTrigger = 'generation' | 'endpoint' | 'sigterm';
@@ -494,10 +470,6 @@ export class PartyRelay {
     private readonly pulling = new Map<string, number>();
     /** Gaps (ms) between a room's last turn on its old relay and its clock running here (restore and handoff). */
     private readonly restoreGaps: number[] = [];
-<<<<<<< HEAD
-    /** CHAMPION-STORE.md §8.1: owned champions per ticketed account, and when they were read. */
-    private readonly champs = new Map<string, { heroes: Set<string>; atMs: number; loading: Promise<void> | null }>();
-=======
     /** In-match bot chatter (MATCH-CHAT.md §5): one per room with fill bots, and the memory of each recipient. */
     private readonly botChats = new Map<
         string,
@@ -506,16 +478,12 @@ export class PartyRelay {
     private botTimer: NodeJS.Timeout | null = null;
     private readonly botSalt = randomBytes(16).toString('hex');
     private readonly botSeen: BotSeenStore;
-<<<<<<< HEAD
->>>>>>> e837dd783 (feat(pawlegends): in-match chat on the relay and bot chatter in relay rooms)
-=======
     /** CHAMPION-STORE.md §8.1: owned champions per ticketed account, and when they were read. */
     private readonly champs = new Map<string, { heroes: Set<string>; atMs: number; loading: Promise<void> | null }>();
     /** SPECTATE.md: spectators on this relay, and the pacing timer that runs while there are any. */
     private watching = 0;
     private watchTimer: NodeJS.Timeout | null = null;
     private readonly watchCounts = new Set<LiveRoom>();
->>>>>>> d97d2d8f7 (feat(pawlegends): live spectating of friends' matches and a featured match (PROTO 7))
 
     constructor(private readonly opts: RelayOptions) {
         this.now = opts.now ?? Date.now;

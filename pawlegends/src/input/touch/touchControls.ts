@@ -14,44 +14,15 @@
  * UX pass 2 (Wild Rift): the field rings the unit an Attack tap hits right now (attackPreview, the tap's own pick; fainter
  * when the tap would walk to it first), and the idle auto-attack hits only that unit, only while it is in reach.
  *
-<<<<<<< HEAD
-<<<<<<< HEAD
- * Two fingers on the bare canvas pinch the camera zoom (render/camera/zoom.ts; remembered like the desktop wheel).
- * A joystick already in use is never part of a pinch: a second finger is then a tap (it locks the hero under it) and
- * the stick keeps steering. When the joystick finger has not moved yet, the pair becomes a pinch only once both
- * fingers have moved past TAP.px and their gap changed by PINCH_PX; then the stick lets go and both fingers zoom.
-=======
- * Heading casts (heading.ts: Pounce, Live Wire and the escape dashes): a tap goes the full distance where the player is
- * heading (the held joystick, else the hero's movement, else its facing). With the joystick held the press itself
- * fires (running + tap is the common case, and a drag could only repeat the stick's direction); with the joystick free
- * the release fires, so a drag can still pick the direction (always the full distance; a drag that slides back
- * within AIM_BACK_PX is a tap). A ghost marker shows the landing for GHOST_MS.
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
-=======
  * Heading casts (heading.ts: Pounce, Live Wire and the escape dashes): the PRESS fires, the full distance where the
  * player is heading (the held joystick, or along the wall it slides the hero on when that lands further than straight
  * into it; else the hero's movement, else the way it last walked, else its facing). No aim step, no wait for the
  * release, no cancel: the joystick is the aim (founder: "there can't be any friction"). A ghost marker shows the
  * landing for GHOST_MS. With the joystick held, the run goes on from the landing at once and
  * the stick keeps steering from there (never from the drawn hero still short of it) until the sim shows the cast.
-<<<<<<< HEAD
->>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
-=======
  *
-<<<<<<< HEAD
- * Two fingers on the bare canvas pinch the camera zoom (render/camera/zoom.ts; remembered like the desktop wheel).
- * A joystick already in use is never part of a pinch: a second finger is then a tap (it locks the hero under it) and
- * the stick keeps steering. When the joystick finger has not moved yet, the pair becomes a pinch only once both
- * fingers have moved past TAP.px and their gap changed by PINCH_PX; then the stick lets go and both fingers zoom.
- * Once that thumb steers on its own (stickSteersAlone) the pair can no longer become a pinch. When the other finger
- * lifts after a pinch, the joystick thumb still down is a joystick again (a fresh base under it).
->>>>>>> 889403a09 (fix(pawlegends): a steering stick never joins a pinch, a stick into a wall flashes along it, the thumb left after a pinch steers again)
-=======
  * Feel pass B1: the camera is fixed (no pinch zoom): a second finger on the bare canvas is a tap (it locks the hero
  * under it) and the stick keeps steering.
-<<<<<<< HEAD
->>>>>>> 54cc1d525 (feat(pawlegends): fixed MLBB-style camera (feel pass B1))
-=======
  *
  * Hold-to-select (founder ask, Wild Rift style; attackSelect.ts): a quick Attack tap keeps the smart auto-target. Held
  * for ATK_SELECT.holdMs the enemies in the acquire reach get a faint ring (the bold ring on the one a release keeps
@@ -59,7 +30,6 @@
  * a minion unless the thumb points right at the minion); the release locks that unit (a hero: the GAPS A5 lock, so
  * smart casts take it too; anything else: PickLock) and sends Attack{id}; dragging back to where the thumb landed (the inner ring) cancels.
  * The joystick keeps steering meanwhile (another finger).
->>>>>>> 50f13c130 (feat(pawlegends): hold ATK to select and lock a target on touch (Wild Rift style))
  */
 import { screenToSim } from '../../render/coords';
 import { haptic } from '../../ui/haptics';
@@ -82,45 +52,12 @@ import * as THREE from 'three';
 import { attackPreview, CHASE_LEEWAY_MM, inAttackReach, guardedByTower, isEnemy, lastHitTarget, nearestEnemy, smartAim, talkBackDeters, towerTarget, type Unit } from '../targeting';
 import { ASSIST, AttackYield, autoAttackTarget, edgeGoal, laneMagnet, stickAhead, lockable, lockBreakMm, magnetOn, stickTowardTarget, stickyAttackTarget, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { arcLayout, arcStyle, type ArcButton } from './touchArc';
-import { pinchZoom, saveZoom, zoomMax } from '../../render/camera/zoom';
-=======
-import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS } from '../heading';
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
-=======
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
 import { HEROES } from '../../data/heroes';
 import { TICK_HZ } from '../../data/timeline';
 import type { SimEvent } from '../../sim/api';
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
-=======
-import { arcLayout, arcStyle, type ArcButton } from './touchArc';
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> 54cc1d525 (feat(pawlegends): fixed MLBB-style camera (feel pass B1))
-=======
-import { ATK_SELECT, dragZone, PickLock, selectCandidates, snapTarget } from './attackSelect';
->>>>>>> 50f13c130 (feat(pawlegends): hold ATK to select and lock a target on touch (Wild Rift style))
-=======
-=======
-=======
 import { ARC_MAIN, arcLayout, arcStyle, type ArcButton } from './touchArc';
->>>>>>> a17402502 (feat(pawlegends): HUD layout editor, per-ability cast mode and aim, 30-120 fps)
 import { applySweep, newSweep, type SweepRec } from '../../ui/cdSweep';
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> c6eb8ec6f (perf(pawlegends): PERF-IOS iteration 2 Track C, hitches and DOM)
-import { ATK_SELECT, dragZone, PickLock, releasePick, selectCandidates, snapTarget } from './attackSelect';
->>>>>>> a8e09c75a (fix(pawlegends): hold-ATK select reaches the tap's 7 m, release keeps the shown target)
-=======
-import { angleGap, ATK_SELECT, DragLock, dragZone, PickLock, releasePick, selectCandidates, snapTarget } from './attackSelect';
->>>>>>> 62872bde6 (feat(pawlegends): Wild Rift drag-to-lock on the touch Attack button)
-=======
 import { ATK_SELECT, DragLock, dragZone, PickLock, releasePick, selectCandidates, selectReach, snapTarget } from './attackSelect';
 import { carriesCannon, dragFireAim, quickFireAim } from '../fireAim';
 import { CANNON, FUN_BY_MAP } from '../../data/fun';
@@ -136,7 +73,6 @@ export function dragLast(sel: number | null, last: number | null, cands: readonl
   if (sel !== null) return sel;
   return last !== null && cands?.includes(last) ? null : last;
 }
->>>>>>> bf03f15e6 (fix(pawlegends): drag-lock review, red line cancels, kiting keeps the lock)
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -233,41 +169,14 @@ const AUTO_SLACK = CHASE_LEEWAY_MM;
 const TAP_YIELD_MS = 700;
 /** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
 export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
-<<<<<<< HEAD
-<<<<<<< HEAD
-/** A joystick finger plus a second finger turn into a pinch only after their gap changes by this many CSS px. */
-export const PINCH_PX = 24;
-=======
 /** How long (ms) the ghost landing marker of a tapped heading cast shows (no delay: the cast goes first). */
 export const GHOST_MS = 150;
 /** After a heading cast with the joystick held, the stick steers from the landing at most this long (ms) before the sim shows it. */
 export const BLINK_GUARD_MS = 600;
->>>>>>> 54cc1d525 (feat(pawlegends): fixed MLBB-style camera (feel pass B1))
 /** A held stick's heading cast takes the wall-slide direction over the raw stick only when it lands this much further (mm). */
 const CAST_SLIDE_GAIN_MM = 300;
 
 export type TouchPt = { x: number; y: number; x0: number; y0: number };
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-/** How long (ms) the ghost landing marker of a tapped heading cast shows (no delay: the cast goes first). */
-export const GHOST_MS = 150;
-/** After a heading cast with the joystick held, the stick steers from the landing at most this long (ms) before the sim shows it. */
-export const BLINK_GUARD_MS = 600;
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
-=======
-/**
- * A still joystick plus a resting second finger: has the thumb started steering on its own? It travelled past 2 × TAP.px
- * while the other finger stayed within TAP.px. From then on the stick is in use and the pair never becomes a pinch,
- * however the resting finger drifts later (a real pinch moves both fingers together, so it commits first).
- */
-export function stickSteersAlone(stick: TouchPt, other: TouchPt): boolean {
-  const travel = (p: TouchPt) => Math.hypot(p.x - p.x0, p.y - p.y0);
-  return travel(stick) > TAP.px * 2 && travel(other) <= TAP.px;
-}
->>>>>>> 889403a09 (fix(pawlegends): a steering stick never joins a pinch, a stick into a wall flashes along it, the thumb left after a pinch steers again)
-=======
->>>>>>> 54cc1d525 (feat(pawlegends): fixed MLBB-style camera (feel pass B1))
 
 /** Feel pass B3: a released joystick rests faintly where it was for this long (ms), then is not drawn at all. */
 export const STICK_IDLE_MS = 3000;
@@ -361,17 +270,10 @@ export class TouchControls {
   stickKites = 0;
   private attackHeld: number | null = null;
   private lastAttack = 0;
-<<<<<<< HEAD
-<<<<<<< HEAD
-  /** The unit the newest ATK press ordered an attack on, or null (the stick yields to it: STICK_YIELD). */
-  private atkTarget: number | null = null;
-=======
   /** The unit the newest ATK press ordered an attack on while that order stands (the stick yields to it: STICK_YIELD). */
   private readonly atkYield = new AttackYield();
->>>>>>> 08d3f1887 (feat(pawlegends): sim v20, Wild Rift basic attacks while chasing)
   /** Stick moves held back because they pointed at the attack target (e2e telemetry). */
   stickYields = 0;
-=======
   /** Hold-to-select: the held Attack button's state, while held. */
   private atkHold: AtkHold | null = null;
   /**
@@ -406,7 +308,6 @@ export class TouchControls {
   private readonly atkAimRec = { id: -1, dx: 0, dz: 0, ok: false, reachM: 0, heroM: 0 };
   /** Hold-to-select telemetry (e2e): selector releases that locked a unit, and cancels. */
   atkSel = { locked: 0, cancelled: 0, last: null as number | null, kind: '', why: '' };
->>>>>>> 50f13c130 (feat(pawlegends): hold ATK to select and lock a target on touch (Wild Rift style))
   /** The attack range ring this input asked for last (written to the view only on change, so desktop can share it). */
   private ringOn = false;
   private enabled = false;
@@ -417,15 +318,6 @@ export class TouchControls {
   private tap: { id: number; x: number; y: number; at: number } | null = null;
   /** Locks set (e2e telemetry). */
   locks = 0;
-<<<<<<< HEAD
-  /** Touches down on the bare canvas (pointer id → position), and the pinch two of them make. */
-  private readonly canvasTouches = new Map<number, TouchPt>();
-  private pinch: { a: number; b: number; d0: number; z0: number } | null = null;
-  /** A still joystick plus a second finger: a pinch only if both fingers then move apart or together (pinchCommitted). */
-  private pinchMaybe = false;
-  /** Pinches started (e2e telemetry). */
-  pinches = 0;
-=======
   /** The hero's movement direction (heading casts with no joystick). */
   private readonly motion = new MotionHeading();
   /** The ghost landing marker of the last heading cast shows until (ms, performance.now), or 0. */
@@ -435,33 +327,13 @@ export class TouchControls {
    * the sim tick it showed up in (null until the raw events show it). Until the sim's position includes it, the stick
    * steers from the landing (the sim and the drawn hero still have the hero where it was).
    */
-<<<<<<< HEAD
-  private blinkGuard: { x: number; y: number; until: number } | null = null;
-  /** Heading casts sent: on the press, on the release (e2e telemetry). */
-  heads = { press: 0, release: 0 };
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
-=======
   private runOn: { x: number; y: number; slot: CastIndex; until: number; tick: number | null } | null = null;
   /** Raspberry's Live Wire return window (heading.ts ReturnWindow). */
   private readonly wire = new ReturnWindow();
   /** Heading presses that sent (or buffered) a cast, and heading casts that went out (e2e telemetry). */
   heads = { press: 0, fired: 0 };
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
-=======
-  /** Touches down on the bare canvas (pointer id → position), and the pinch two of them make. */
-  private readonly canvasTouches = new Map<number, TouchPt>();
-  private pinch: { a: number; b: number; d0: number; z0: number; stickId: number | null } | null = null;
-  /** A still joystick plus a second finger: a pinch only if both fingers then move apart or together (pinchCommitted). */
-  private pinchMaybe = false;
-  /** Pinches started (e2e telemetry). */
-  pinches = 0;
->>>>>>> 889403a09 (fix(pawlegends): a steering stick never joins a pinch, a stick into a wall flashes along it, the thumb left after a pinch steers again)
-=======
   /** Touches down on the bare canvas (pointer id → position). */
   private readonly canvasTouches = new Map<number, TouchPt>();
->>>>>>> 54cc1d525 (feat(pawlegends): fixed MLBB-style camera (feel pass B1))
   /** Put an icon (inline SVG markup) on each ability button: q, w, e, r, trick. */
   setIcons(icons: Record<'q' | 'w' | 'e' | 'r' | 'trick', string>): void {
     for (const [k, svg] of Object.entries(icons)) {
@@ -508,7 +380,8 @@ export class TouchControls {
     on(window, 'pointerup', (e) => this.up(e));
     on(window, 'pointercancel', (e) => this.up(e, true));
     on(h.canvas, 'pointerdown', (e) => this.canvasDown(e));
-<<<<<<< HEAD
+    // every heading cast that goes out (the press, the cast buffer, a retry) shows its landing and runs on from it
+    h.orders.onFire = (slot, x, y) => this.fired(slot, x, y);
     const fit = (): void => this.layoutArc();
     window.addEventListener('resize', fit);
     this.off.push(() => window.removeEventListener('resize', fit));
@@ -527,30 +400,14 @@ export class TouchControls {
    * the minimap group and the joystick; with none (or one that does not fit this screen) the default arc stands.
    */
   private layoutArc(): void {
-<<<<<<< HEAD
-    const l = arcLayout(window.innerWidth, window.innerHeight);
-    for (const [id, el] of this.buttons) Object.assign(el.style, arcStyle(l[id as ArcButton]));
-=======
-    // every heading cast that goes out (the press, the cast buffer, a retry) shows its landing and runs on from it
-    h.orders.onFire = (slot, x, y) => this.fired(slot, x, y);
->>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
-=======
     const lefty = leftHanded();
     this.lefty = lefty;
     this.root.classList.toggle('lefty', lefty);
-<<<<<<< HEAD
-    const l = arcLayout(window.innerWidth, window.innerHeight, touchSize() === 'large');
-<<<<<<< HEAD
-    for (const [id, el] of this.buttons) Object.assign(el.style, arcStyle(l[id as ArcButton], lefty));
->>>>>>> 2473c2d1a (feat(pawlegends): left-handed touch mirror and a Large button size)
-=======
-=======
     const w = window.innerWidth;
     const h = window.innerHeight;
     const large = touchSize() === 'large';
     const l = arcLayout(w, h, large);
     const custom = this.customLayout(w, h, large, lefty);
->>>>>>> a17402502 (feat(pawlegends): HUD layout editor, per-ability cast mode and aim, 30-120 fps)
     let reach = 0;
     const safe = custom ? custom.safe : lefty ? readInsets() : null;
     for (const [id, el] of this.buttons) {
@@ -578,11 +435,6 @@ export class TouchControls {
     // the locked R is a 44 px ghost chip in its slot
     html.style.setProperty('--r-ghost', (44 / (custom?.l.r.d ?? l.r.d)).toFixed(4));
     html.dataset.lefty = lefty ? '1' : '';
-<<<<<<< HEAD
-    this.h.view.mirrorLead = lefty && this.enabled;
->>>>>>> a4daab0ca (fix(pawlegends): UX pass 2 review: talent card, lefty camera, ATK ring, crash exit, Q+flash, Games 44 px)
-=======
->>>>>>> 54cc1d525 (feat(pawlegends): fixed MLBB-style camera (feel pass B1))
   }
 
   /** hud-controls: the saved layout for this screen (null = the default), with the safe insets it was fitted to. */
@@ -790,15 +642,8 @@ export class TouchControls {
       this.deny(slot);
       return;
     }
-<<<<<<< HEAD
-<<<<<<< HEAD
-    this.drags.set(e.pointerId, { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, cancelIn: null, at: performance.now() });
-=======
-    const g: Drag = { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, at: performance.now() };
-=======
     const sc = slotCast(btn as CastSlot);
     const g: Drag = { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, cancelIn: null, at: performance.now(), mode: sc.mode, sens: sc.sens };
->>>>>>> a17402502 (feat(pawlegends): HUD layout editor, per-ability cast mode and aim, 30-120 fps)
     // heading casts fire on the press, stick held or not (no aim step, no wait for the release, no cancel)
     if (this.h.orders.aimSpec(slot).heading) {
       g.fired = true;
@@ -806,16 +651,12 @@ export class TouchControls {
       if (me && this.headingCast(slot, me)) this.heads.press++;
     }
     this.drags.set(e.pointerId, g);
-<<<<<<< HEAD
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
-=======
     // hud-controls: "Quick cast with indicator" and "Normal" show the range and the aim the moment the button goes down
     if (!g.fired && g.mode !== 'quick' && this.h.enabled()) {
       this.previewHold(g);
       this.showBubble(g);
       if (g.mode === 'indicator') this.castModes.indicator++;
     }
->>>>>>> a17402502 (feat(pawlegends): HUD layout editor, per-ability cast mode and aim, 30-120 fps)
     this.syncRing();
   }
 
@@ -1014,13 +855,9 @@ export class TouchControls {
     }
     this.syncRing();
     this.buttons.get(g.btn)?.classList.remove('down');
-<<<<<<< HEAD
+    if (g.fired) return;
     this.cancelEl.classList.remove('on', 'hot', 'arming');
     this.aimRingEl.classList.remove('on', 'back', 'dir');
-=======
-    if (g.fired) return;
-    this.cancelEl.classList.remove('on', 'hot');
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
     this.h.view.aim = null;
     this.ghostUntil = 0;
     if (cancelled || g.overCancel || !this.h.enabled()) return;
@@ -1149,7 +986,8 @@ export class TouchControls {
     const back = spec.returnTicks ? this.wire.point(now) : null;
     const l = back ?? landing(spec, o, Math.atan2(y - o.y, x - o.x));
     this.heads.fired++;
-    this.h.view.aim = { spec, x: l.x / 1000, z: -l.y / 1000, target: 0xff, valid: true };
+    // the ghost is no aim: the look-ahead must not lean toward the landing (pointer, see AimPreview.pointer)
+    this.h.view.aim = { spec, x: l.x / 1000, z: -l.y / 1000, target: 0xff, valid: true, pointer: true };
     this.ghostUntil = now + GHOST_MS;
     if (this.stickAngle() !== null) this.runOnFrom(slot, l, now);
   }
@@ -1250,28 +1088,10 @@ export class TouchControls {
     const dy = v.y;
     const len = Math.hypot(dx, dy);
     if (len < 1) return null;
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
-=======
-    // heading casts: the drag picks the direction, the distance is always the full one (CF-03: a drag toward the
-    // screen edge reached only 1.56 m)
-    if (aim.heading) return { ...headingPoint(aim, me, Math.atan2(dy, dx)), id: 0xff };
-=======
->>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
-    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / DRAG_FULL_PX) : 1;
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
-=======
     // the reach follows the thumb's screen distance (screenToSim stretches the up part into ground units)
     const screenLen = Math.hypot(g.x - g.x0, g.y - g.y0);
-<<<<<<< HEAD
-    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, screenLen / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
->>>>>>> 5d2b01820 (fix(pawlegends): feel-pass review fixes (stick tilt, tower-safe ATK, talent card, cancel bubble, down-screen aim pan))
-=======
     const full = sensFull(dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight), g.sens);
     const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, screenLen / full) : 1;
->>>>>>> a17402502 (feat(pawlegends): HUD layout editor, per-ability cast mode and aim, 30-120 fps)
     const x = me.x + (dx / len) * aim.range * k;
     const y = me.y + (dy / len) * aim.range * k;
     if (aim.kind === 'unit') {
@@ -1471,11 +1291,8 @@ export class TouchControls {
     this.atkSel.kind = u?.kind ?? '';
     sfx.play('click', { vol: 0.45, rate: 1.4 });
     this.lastAttack = now;
-<<<<<<< HEAD
-=======
     // the stick yields to the selected unit now, not to the one the press ordered (STICK_YIELD)
     this.atkYield.set(id);
->>>>>>> 08d3f1887 (feat(pawlegends): sim v20, Wild Rift basic attacks while chasing)
     this.h.orders.attack(id);
     this.swing();
   }
@@ -1978,13 +1795,6 @@ export class TouchControls {
       this.buttons.get('nap')?.classList.remove('holding');
       this.h.orders.nap();
     }
-<<<<<<< HEAD
-    for (const g of this.drags.values()) {
-      if (!g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) this.previewHold(g);
-      // CF-01: a thumb resting still on the ✕ sends no pointermove, so the dwell is checked per frame too
-      if (g.dragging && g.cancelIn !== null && !g.overCancel) this.checkCancel(g, now);
-    }
-=======
     const me = this.me();
     if (me && me.state !== 'dead') this.motion.sample(me.x, me.y, now);
     else {
@@ -2003,10 +1813,6 @@ export class TouchControls {
       this.ghostUntil = 0;
       if (![...this.drags.values()].some((g) => !g.fired && g.dragging)) this.h.view.aim = null;
     }
-<<<<<<< HEAD
-    for (const g of this.drags.values()) if (!g.fired && !g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) this.previewHold(g);
->>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
-=======
     for (const g of this.drags.values()) {
       if (!g.fired && !g.dragging && (g.mode !== 'quick' || now - g.at >= HOLD_PREVIEW_MS) && this.h.enabled()) {
         this.previewHold(g);
@@ -2015,7 +1821,6 @@ export class TouchControls {
       // CF-01: a thumb resting still on the ✕ sends no pointermove, so the dwell is checked per frame too
       if (g.dragging && g.cancelIn !== null && !g.overCancel) this.checkCancel(g, now);
     }
->>>>>>> ea8b3ce62 (feat(pawlegends): hold-to-aim tuning and the cancel bubble (feel pass B4))
     this.syncRing();
     const s = this.stick;
     if (s || this.drags.size > 0 || this.attackHeld !== null || this.napHeld || this.fireHold) this.inputAt = now;

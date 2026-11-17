@@ -3,14 +3,7 @@
  * touch), HUD, minimap, scoreboard, talents, first-match tips and the Esc menu. The app's frame loop calls
  * `frame(dt)`; the session calls back once with the result and the replay.
  */
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { setPvpEqualView } from '../render/camera/zoom';
-=======
->>>>>>> 0bddc845c (feat(pawlegends): five Camera height steps, Close to Max, open in PvP too)
-=======
 import type { NapKiller } from '../ui/napCard';
->>>>>>> 879b71f1b (feat(pawlegends): nap card replaces the Token Tails respawn card)
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
 import { matchVoiceKeys } from '../audio/voiceLines';
@@ -464,9 +457,6 @@ export class MatchSession {
   private hitsLanded = 0;
   /** Card skin cat names by slot ('' = none): the scoreboard's "<Hero> · <cat>". */
   private catNames: string[] = [];
-<<<<<<< HEAD
-  /** `?e2e=1`: mirror a few facts into html data attributes for Playwright (one window global: `__plJuice`, the rail). */
-=======
   /** Lobby spec §3b: the owned card the player's champion wears (its name replaces the hero title), or null. */
   private myCard: CardIdentity | null = null;
   /** UX pass 2: the player's username, cleaned and cut to 14 characters (setup.playerName), or null. */
@@ -475,16 +465,11 @@ export class MatchSession {
   get card(): CardIdentity | null {
     return this.myCard;
   }
-<<<<<<< HEAD
-  /** `?e2e=1`: mirror a few facts into html data attributes for Playwright (no window globals). */
->>>>>>> 202d1f400 (feat(pawlegends): your cards drawer, the champion takes the worn cat's name)
-=======
   /** UX pass 2: the username this match showed for the player (results name their row after it), or null. */
   get playerName(): string | null {
     return this.selfName;
   }
   /** `?e2e=1`: mirror a few facts into html data attributes for Playwright (one window global: `__plJuice`, the rail). */
->>>>>>> 7663889ab (feat(pawlegends): the player's username over their own hero, not the champion)
   private readonly e2e = (() => {
     try {
       return new URLSearchParams(location.search).get('e2e') === '1';
@@ -764,21 +749,14 @@ export class MatchSession {
       marker: (x, z, attack) => this.marker(x, z, attack),
       pingWheel: this.pingWheel,
       ping: (kind, x, y, id) => this.sendPing(kind, x, y, id),
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
       // party play: while the own hero's predicted walk is in flight, the walker is where a command sent now lands
       // (the newest snapshot is a round trip behind it); the tick stays the snapshot's
       simMe: () => {
         const p = this.ownSim ? this.host.predictedSelf?.() : null;
         return p && this.ownSim ? { x: p.x, y: p.y, tick: this.ownSim.tick } : this.ownSim;
       },
->>>>>>> 89c363c3a (fix(pawlegends): steady walker speed and input aimed from the walker in party play)
       // Audit CF-12: a refused desktop cast flashes its HUD slot red
       onDeny: (slot) => this.hud?.deny(slot),
-=======
-      simMe: () => this.ownSim,
->>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
     };
     this.desktop = new DesktopInput(inputHost);
     this.touch = new TouchControls(inputHost, this.ui, this.desktop);
@@ -866,18 +844,6 @@ export class MatchSession {
       },
     }, this.setup.look ?? null, this.setup.difficulty);
     // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
-<<<<<<< HEAD
-    this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
-=======
-    // Sim v27 (V27.md §2): the Practice ground's Reset / Level +1 / Cooldowns (Op.Practice)
-    if (w.mutator === 'practice') this.hud.practiceBar((kind) => this.host.send({ op: Op.Practice, kind }));
->>>>>>> 9c5c82e4b (feat(pawlegends): sim v27, executions, Practice ground, Cannon Chaos, Weekly Twist (v26 frozen))
-=======
     // Sim v28 (V28.md §3, §4): heroes a mode benches (the Duel's, Boss Weekend's) get no portrait
     const play = MUTATOR_RULES[w.mutator ?? 'none']?.playing ?? [0, 0];
     const per = Math.max(1, w.picks.length >> 1);
@@ -893,7 +859,6 @@ export class MatchSession {
     // Sim v28 (V28.md §2): no Nap where the mode has no recall (One Lane Brawl, the Duel): its buttons are hidden
     if (MUTATOR_RULES[w.mutator ?? 'none']?.noRecall) document.documentElement.dataset.norecall = '1';
     else delete document.documentElement.dataset.norecall;
->>>>>>> 806918b64 (feat(pawlegends): sim v28, Hard bots push, leads hold, One Lane Brawl, the Duel and Boss Weekend (v27 frozen))
     // champion browser: hold an own skill button to read its card (no pause, the input is untouched); own chunk
     void import('../ui/champBrowser/skillPeek')
       .then((m) => {
@@ -901,10 +866,8 @@ export class MatchSession {
         this.peekOff = m.attachSkillPeek(this.ui, hero, () => this.hud?.codexState() ?? { level: 1, choices: [], branch: false });
       })
       .catch(() => undefined);
->>>>>>> 4295b4b56 (feat(pawlegends): champion browser with skill previews and lore)
     // lobby spec §3b: the worn card's name rides on the HUD portrait too ("Ficus · Clem")
     this.hud.setSelfName(this.selfName ?? myCard?.name ?? null);
->>>>>>> 7663889ab (feat(pawlegends): the player's username over their own hero, not the champion)
     // LoL pass (lane B): e2e reaches the HUD (the crest, the kill feed) the way it reaches the rail
     if (this.e2e) e2eHook('Hud', this.hud);
     const portrait = this.ui.querySelector<HTMLElement>('.pl-portrait');
