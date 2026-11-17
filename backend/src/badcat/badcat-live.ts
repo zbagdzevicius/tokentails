@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { GamePlatform, GameType } from 'src/game/game.schema';
+import { GamePlatform, GameType, replayDigestLookup } from 'src/game/game.schema';
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { FailedReplayCache, FAILED_HEIST_REPLAYS } from 'src/user/heist/failed-replay-cache';
 import { heistReplayQueue, ReplayQueue } from 'src/user/heist/replay-queue';
@@ -116,7 +116,8 @@ export async function saveBadcatRun(
     const failed = failures.get(digest);
     if (failed) throw badcatError(failed.code, failed.reason);
     const level = badcatLevel(log.dayNo);
-    const saved = await deps.games.findOne({ searchObject: { replayDigest: digest }, projection: '_id user' });
+    // the partial unique index is used only when the query names its $type filter (f0516d536)
+    const saved = await deps.games.findOne({ searchObject: replayDigestLookup(digest), projection: '_id user' });
     if (saved) throw conflict(ErrorCode.BADCAT_DUPLICATE, 'This run is already saved');
     const mine = await deps.games.findOne({
         searchObject: { type: GameType.BAD_CAT, user: userId, level },

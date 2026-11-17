@@ -4,7 +4,7 @@ import { GUARDS_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import { ThrottlerException, ThrottlerStorageService } from '@nestjs/throttler';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { GameType } from 'src/game/game.schema';
+import { GameType, replayDigestLookup } from 'src/game/game.schema';
 import { HEIST_LEVEL_CAPS, HEIST_LEVELS } from 'src/shared-contracts/caps';
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { CAT_IDS, computeStars, LEVELS, SIM_VERSION, STAR_WIN } from 'src/vendor/heist-sim';
@@ -258,6 +258,19 @@ describe('POST /user/catbassadors/live, CATNIP_HEIST (replay-verified branch)', 
             runSpy.mockRestore();
             expect(games.rows).toHaveLength(1);
             expect(users.get(second).heistScore).toBeUndefined();
+        });
+
+        it('looks the digest up through the partial unique index ({$eq, $type: string}, as Pawlegends does)', async () => {
+            const { controller, users, games } = createController();
+            await post(controller, users.add(), heistBody(goldenLog('heist-05')));
+            const digest = games.rows[0].replayDigest;
+            expect(typeof digest).toBe('string');
+            expect(games.findOne).toHaveBeenCalledWith(
+                expect.objectContaining({ searchObject: replayDigestLookup(digest) })
+            );
+            expect(games.findOne).not.toHaveBeenCalledWith(
+                expect.objectContaining({ searchObject: { replayDigest: digest } })
+            );
         });
 
         it('treats a re-split recording and another crew as the same log', async () => {

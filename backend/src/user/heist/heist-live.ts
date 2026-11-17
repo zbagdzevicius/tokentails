@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { GamePlatform, GameType } from 'src/game/game.schema';
+import { GamePlatform, GameType, replayDigestLookup } from 'src/game/game.schema';
 import { HEIST_LEVEL_CAPS, HEIST_LEVELS, HEIST_STAR_MASK } from 'src/shared-contracts/caps';
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { canonicalLogKey, HeistVerifyResult, LEVELS, TICK_HZ, verifyRun } from 'src/vendor/heist-sim';
@@ -158,7 +158,8 @@ export async function saveHeistRun(deps: IHeistLiveDeps, userId: string, body: L
         throw heistError(failed.code as ErrorCode, failed.reason);
     }
     const saved = await deps.games.findOne({
-        searchObject: { replayDigest: digest },
+        // the partial unique index is used only when the query names its $type filter (f0516d536)
+        searchObject: replayDigestLookup(digest),
         projection: '_id user level score stars',
     });
     if (saved) {

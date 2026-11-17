@@ -96,6 +96,17 @@ function matchCondition(value: unknown, condition: unknown): boolean {
             switch (operator) {
                 case '$exists':
                     return operand ? value !== undefined : value === undefined;
+                case '$eq':
+                    return matchCondition(value, operand);
+                case '$type':
+                    // the BSON aliases the backend queries with (game.schema.ts replayDigestLookup: 'string')
+                    return values.some(v =>
+                        operand === 'string'
+                            ? typeof v === 'string'
+                            : operand === 'number'
+                            ? typeof v === 'number'
+                            : false
+                    );
                 case '$ne':
                     return !matchCondition(value, operand);
                 case '$in':

@@ -2,7 +2,7 @@ import { HttpException } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { Types } from 'mongoose';
-import { GameType } from 'src/game/game.schema';
+import { GameType, replayDigestLookup } from 'src/game/game.schema';
 import { MemoryModel, memoryRepository } from 'src/user/guest/memory-model.helper-spec';
 import { FailedReplayCache } from 'src/user/heist/failed-replay-cache';
 import { ReplayQueue } from 'src/user/heist/replay-queue';
@@ -96,6 +96,17 @@ describe('POST /user/catbassadors/live, type BAD_CAT', () => {
         expect(h.users.docs[0].lastPlayedAt).toBeInstanceOf(Date);
         // No catnip, Tails or arrays on the user.
         expect(Object.keys(h.users.docs[0]).sort()).toEqual(['_id', 'cat', 'createdAt', 'lastPlayedAt', 'updatedAt']);
+    });
+
+    it('looks the digest up through the partial unique index ({$eq, $type: string}, as Pawlegends does)', async () => {
+        const h = harness();
+        const findOne = jest.spyOn(h.deps.games, 'findOne');
+        await saveBadcatRun(h.deps, h.userId, body() as any);
+        const digest = h.games.docs[0].replayDigest;
+        expect(typeof digest).toBe('string');
+        expect(findOne).toHaveBeenCalledWith(expect.objectContaining({ searchObject: replayDigestLookup(digest) }));
+        // the lookup still finds the saved row: a second save of the same log is the duplicate
+        expect(await codeOf(saveBadcatRun(h.deps, h.userId, body() as any))).toBe('409 BADCAT_DUPLICATE');
     });
 
     it('allows one ranked run per player and day, and one save per log', async () => {
