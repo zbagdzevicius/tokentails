@@ -73,7 +73,8 @@ export function priceLine(i: NameInfo, now: number): string {
     const d = daysLeft(i.nextAt, now);
     return `Next change in ${d} ${d === 1 ? 'day' : 'days'}`;
   }
-  return `Change: ${yarnText(i.price)} · you have ${yarnText(i.yarn)}`;
+  const fee = yarnText(i.price);
+  return `Change: ${fee} · you have ${yarnText(i.yarn)}`;
 }
 
 /** The player-facing line for a refused change. Pure. */
@@ -207,7 +208,7 @@ export class ProfileSheet {
     const wait = !i.free && !!i.nextAt && i.nextAt > now;
     const short = !i.free && !wait && i.yarn < i.price;
     const line = priceLine(i, now);
-    return `<form class="pl-pf-box pl-pf-nick" data-testid="profile-nick"><label for="pl-pf-nick">Name others see</label><div class="pl-pf-row"><input id="pl-pf-nick" name="nick" maxlength="${NAME_MAX}" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your name" data-testid="profile-nick-input"${wait ? ' disabled' : ''}><button type="submit" class="pl-btn small" data-testid="profile-nick-change"${wait || this.busy ? ' disabled' : ''}>Change</button></div><small class="pl-pf-price${i.free ? ' free' : ''}${short ? ' short' : ''}" data-testid="profile-price">${esc(line)}</small><small class="pl-pf-hint" aria-live="polite"></small></form>`;
+    return `<form class="pl-pf-box pl-pf-nick" data-testid="profile-nick"><label for="pl-pf-nick">Name others see</label><div class="pl-pf-row"><input id="pl-pf-nick" name="nick" maxlength="${NAME_MAX}" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your name" data-testid="profile-nick-input"${wait ? ' disabled' : ''}><button type="submit" class="pl-btn small" data-testid="profile-nick-change"${wait || this.busy ? ' disabled' : ''}>Change</button></div><small class="pl-pf-price${i.free ? ' free' : ''}${short ? ' short' : ''}" data-testid="profile-price">${esc(line)}</small><small class="pl-pf-hint" aria-live="polite"></small></form>`; // copy-lint-ignore R13 a CSS class and test id; the fee is Yarn earned by playing, never money
   }
 
   private ownedTitles(): string[] {
@@ -253,7 +254,8 @@ export class ProfileSheet {
       return this.render();
     }
     if (!i.free && i.yarn < i.price) {
-      this.say(`Not enough Yarn: you need ${yarnText(i.price)}, you have ${yarnText(i.yarn)}. Play matches to earn more.`, true);
+      const fee = yarnText(i.price);
+      this.say(`Not enough Yarn: you need ${fee}, you have ${yarnText(i.yarn)}. Play matches to earn more.`, true);
       return this.render();
     }
     this.confirm = v;
