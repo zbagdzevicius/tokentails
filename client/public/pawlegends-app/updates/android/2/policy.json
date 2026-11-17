@@ -15,17 +15,17 @@
       "requiredFrom": "2026-11-17T13:19:23.484Z"
     },
     "beta": {
-      "version": "20261117172419-522a415",
-      "seq": 20261117172419,
+      "version": "20261117184037-114cffe",
+      "seq": 20261117184037,
       "simVersion": 34,
       "minNative": "1.0.0",
       "rollback": false,
-      "requiredFrom": "2026-11-17T17:24:26.949Z"
+      "requiredFrom": "2026-11-17T18:40:41.920Z"
     }
   },
   "store": "https://play.google.com/store/apps/details?id=com.tokentails.pawlegends",
   "web": "https://pawlegends.app/play",
   "maintenance": null,
-  "issuedAt": "2026-11-17T17:24:26.949Z",
-  "signature": "q/SnWJfjbHVlq8er5eo/6GyBWcOYom6XY4A5PJnVDte2LAUp+H6TQbHtXa7ShnAg7MSynNJHLQbOJukrDG5hIucpadKEy09cK9fGCcdKCuByc+avjtK7JYiNZXaJMdRIW5ui213SJhpVCbOinVb7DbbJKyEMXSallksGaTh3XNhUdDsuWSfk4eFekgPVk0MGU3fpKeMvsfUTygVxIAEzL9mF6ILOkvLj8PhclnDlJjMxU3rxUtrLztWMCXACCV8+rM0jdRYuXRUqmCZcln8wjNYPLeOqsmwd3bqA1Fn+kXtecQbsr33oqzHtB2CnTrCLkQZ9cX9+g4RQduA7Lv1Q1A=="
+  "issuedAt": "2026-11-17T18:40:41.920Z",
+  "signature": "mkJP8Tht0ea0uTX92KU6tF6epohWbvUuMF96yPxpPUyPLlyZoJ9lXz3kFlCtAz4TvtkW1TFFznaERQYZs2ExXqHyo27W7YYzT3HhTPpK2e5QvXgGgbY0bBg/Kz9rV0Q3MOPtjX12dPJLXSFgcI+s9ZdoidNCb7Z/mKQnrIxFDacvvPHRM+18+we6EnVMfVJ7M1qv8AwJzGVGGKLmCLKYlFwB6pKoEEhJK9GWxWGrOEmkxU00bAiWwRkoCSAzPjy3RhmdoRYc4ZqHPcTFAQTs8BHYpzPXGBusIbASH++YkbdQjzjr+jzCKMPudwaCAarGQnVj55e1dk3awcOJJeEBtw=="
 }
