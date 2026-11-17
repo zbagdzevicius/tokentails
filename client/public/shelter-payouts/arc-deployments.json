@@ -1,0 +1,28 @@
+[
+ {
+  "contract": "ShelterSplit",
+  "chain": "arc",
+  "network": "mainnet",
+  "chainId": 5042,
+  "address": "0x457c89e10a6e66633eda5bf82fd086febb5db147",
+  "tx": "0xa88dca321dba7d2669b45defd8f6714f1dac29ad6e16bd47468e0d3a93aa7b1a",
+  "token": "USDC",
+  "proofTxs": [
+   "0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d"
+  ]
+ },
+ {
+  "contract": "ShelterSplit",
+  "chain": "arc",
+  "network": "mainnet",
+  "chainId": 5042,
+  "address": "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052",
+  "tx": "0xc9e01275524bda5860b4bfd95af13bc0f9db8f384929eeb89d0b72c0af59e469",
+  "token": "EURC",
+  "symbol": "EURC",
+  "decimals": 6,
+  "proofTxs": [
+   "0x56d7f37ba0608f7c610d45e4c1bca9d961218aa49f99fbcd095f635b9c62481f"
+  ]
+ }
+]

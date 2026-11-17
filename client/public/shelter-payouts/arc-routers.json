@@ -1,0 +1,21 @@
+[
+ {
+  "chainId": 5042,
+  "router": "0x937f13ce28294011567615330dbcb859a06a0bba",
+  "usdc": "0x3600000000000000000000000000000000000000",
+  "network": "mainnet",
+  "eip3009": true,
+  "deployTx": "0x94802ba0c6fb32b353ddfb0e71132e620d0ae8e4b30ffa3c3accfb8c579ddae1",
+  "deployedAt": "2026-10-07T16:49:24Z"
+ },
+ {
+  "chainId": 5042,
+  "router": "0x683d66d89eaa7460d3a12337cdf8185fae37dfbd",
+  "usdc": "0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1",
+  "network": "mainnet",
+  "symbol": "EURC",
+  "eip3009": true,
+  "deployTx": "0x18ae224e5027e140fb6fe0bd221d42b3022cc3b9267e0a82d78780f70d9ce706",
+  "deployedAt": "2026-10-07T16:49:58Z"
+ }
+]

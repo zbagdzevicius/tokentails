@@ -1,0 +1,1591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Tails · Shelter Rail</title>
+<link rel="icon" href="/logo/logo.webp" type="image/webp">
+<meta name="description" content="Token Tails' shelter rail on Arc mainnet: how it works, every Arc payout with proof and who paid for it, and how it scales now that the Arc mainnet pilot is complete. Built from arc-ledger.json.">
+<meta name="theme-color" content="#07051a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:ital,wght@0,400..900;1,400..700&display=swap" rel="stylesheet">
+<script>document.documentElement.classList.add("js");</script>
+<style>
+/* ===== Tokens: Token Tails palette (client/styles/tokens.css) ===== */
+:root, .lt, .dk {
+  /* night base */
+  --n950: #07051a; --n900: #0b0820; --n800: #120d1f; --n700: #1e1633; --n600: #2a1f45; --n500: #3a2d5c;
+  /* accents */
+  --gold: #ffcc55; --gold-500: #e2c05a; --gold-shadow: #713f12; --gold-ink: #4a1d08;
+  --cream: #fcecbb; --lilac: #f0c5fd; --rust: #ee642a; --pink: #ff7aa2; --mint: #7fd66b; --sky: #90c5e9;
+  --dusk-top: #2a1f45; --dusk-mid: #7a3e6e; --dusk-hz: #ee8a5c;
+  --ease: cubic-bezier(.22,1,.36,1);
+  --display: "Bebas Neue", "Passion One", Impact, "Arial Narrow", sans-serif;
+
+  /* semantic tokens the chart code reads */
+  --bg: var(--n900);
+  --paper: var(--n900);
+  --ink: var(--cream);
+  --card: var(--n700);
+  --surface: var(--n700);
+  --surface-2: var(--n600);
+  --text: #fcecbb;
+  --muted: #ddd0ad;
+  --faint: #c3b6c9;
+  --link: #ffcc55;
+  --border: #3a2d5c;
+  --grid: rgba(252,236,187,.13);
+  --accent: #ff7aa2;            /* Pink Paw / shelter */
+  --accent-soft: rgba(255,122,162,.15);
+  --arc: #f0c5fd;               /* Arc contracts: lilac */
+  --arc-soft: rgba(240,197,253,.14);
+  --motored: #ffcc55;           /* Motored event: gold */
+  --motored-ink: #ffcc55;
+  --motored-soft: rgba(255,204,85,.14);
+  --self: #7fd66b;              /* Token Tails self-funded: mint */
+  --self-ink: #7fd66b;
+  --self-soft: rgba(127,214,107,.14);
+  --founder: #90c5e9;           /* founder wallet / team tests: sky */
+  --founder-soft: rgba(144,197,233,.15);
+  --good: #7fd66b;
+  --good-soft: rgba(127,214,107,.14);
+  --warn: #ff8a57;
+  --warn-soft: rgba(238,100,42,.16);
+  --plan: #ddd0ad;
+  color: var(--text);
+  color-scheme: dark;
+}
+
+/* ===== Base ===== */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; background: #07051a; }
+body {
+  margin: 0; background: #07051a; color: var(--text);
+  font-family: "Nunito", ui-rounded, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+}
+a { color: var(--link); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+a:hover { text-decoration-color: currentColor; }
+a:focus-visible, button:focus-visible, summary:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 8px; }
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .86em; }
+.num, td.n, .tile b, .big-n { font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1376px; margin: 0 auto; padding: 0 32px; }
+@media (max-width: 760px) { .wrap { padding: 0 16px; } body { font-size: 16px; } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+svg text { font-family: "Nunito", ui-sans-serif, system-ui, sans-serif; }
+h1, h2, h3 { font-weight: 400; margin: 0; }
+h2 { font-family: var(--display); font-size: clamp(2.9rem, 6vw, 5.6rem); line-height: .92; letter-spacing: .005em; margin: 0 0 18px; color: var(--cream); }
+h3 { font-size: clamp(1.25rem, 1.8vw, 1.5rem); line-height: 1.25; letter-spacing: -.005em; font-weight: 800; margin: 0 0 10px; color: var(--cream); }
+p { margin: 0 0 12px; }
+.lede { font-size: clamp(1.0625rem, 1.3vw, 1.3125rem); line-height: 1.55; color: var(--muted); max-width: 64ch; margin: 0 0 24px; }
+.muted { color: var(--muted); }
+.small { font-size: 15px; line-height: 1.55; }
+.kicker {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  padding: 6px 14px 6px 12px; border-radius: 99px; background: rgba(255,204,85,.12); color: var(--gold); box-shadow: inset 0 0 0 1px rgba(255,204,85,.3); margin-bottom: 22px;
+}
+.kicker::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px 1px currentColor; }
+.flex { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+@media (max-width: 980px) { .g3 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 680px) { .g2, .g3 { grid-template-columns: minmax(0,1fr); } }
+.err { color: var(--warn); font-weight: 700; }
+
+/* ===== Header ===== */
+.hdr { position: fixed; inset: 0 0 auto 0; z-index: 50; height: 88px; display: flex; align-items: center; pointer-events: none; }
+.hdr .wrap { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.glass { background: rgba(11,8,32,.6); backdrop-filter: blur(24px) saturate(1.3); -webkit-backdrop-filter: blur(24px) saturate(1.3); box-shadow: inset 0 0 0 1px rgba(252,236,187,.16); color: var(--cream); }
+.hdr .logo, .hdr nav, .hdr .cta, .hdr .burger { pointer-events: auto; }
+.logo { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 18px 0 8px; border-radius: 99px; font-weight: 800; font-size: 16px; text-decoration: none; color: var(--cream); white-space: nowrap; }
+.logo i { width: 32px; height: 32px; border-radius: 50%; background: radial-gradient(circle at 36% 32%, #fff8e1 0%, #fcecbb 30%, #ffcc55 64%, #ee8a5c 100%); box-shadow: inset -3px -4px 8px rgba(113,63,18,.45), 0 0 14px rgba(255,204,85,.45); flex: 0 0 auto; }
+.hdr nav { display: flex; gap: 2px; padding: 5px; border-radius: 99px; }
+.hdr nav a { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 99px; color: rgba(252,236,187,.9); font-size: 15px; font-weight: 700; text-decoration: none; white-space: nowrap; transition: background .2s, color .2s; }
+.hdr nav a:hover { background: rgba(252,236,187,.1); color: #fff; }
+.hdr nav a.on { background: var(--gold); color: var(--n900); box-shadow: 0 6px 18px rgba(113,63,18,.55); }
+.hdr nav a.on::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--n900); }
+.cta { display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 22px; border-radius: 99px; background: var(--gold); color: var(--n900); font-weight: 800; font-size: 15.5px; text-decoration: none; box-shadow: 0 4px 0 var(--gold-shadow), 0 10px 24px rgba(113,63,18,.35); white-space: nowrap; transition: transform .15s var(--ease), box-shadow .15s; }
+.cta:hover { transform: translateY(-1px); }
+.cta:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--gold-shadow); }
+.cta.ink { background: var(--cream); color: var(--n900); box-shadow: 0 4px 0 #b8a46e, 0 10px 24px rgba(0,0,0,.3); }
+.cta.ghost { background: rgba(252,236,187,.08); color: var(--cream); box-shadow: inset 0 0 0 1.5px rgba(252,236,187,.35); }
+.burger { display: none; width: 48px; height: 48px; border-radius: 50%; border: 0; cursor: pointer; align-items: center; justify-content: center; }
+.burger span, .burger span::before, .burger span::after { display: block; width: 18px; height: 2px; background: var(--cream); border-radius: 2px; position: relative; content: ""; }
+.burger span::before { position: absolute; top: -6px; } .burger span::after { position: absolute; top: 6px; }
+@media (max-width: 1080px) {
+  .hdr nav { display: none; position: absolute; top: 76px; right: 16px; left: 16px; flex-direction: column; padding: 8px; border-radius: 28px; background: rgba(11,8,32,.92); }
+  .hdr nav.open { display: flex; }
+  .hdr nav a { height: 48px; font-size: 16px; }
+  .burger { display: inline-flex; }
+  .hdr .cta.top { display: none; }
+}
+@media (max-width: 760px) { .hdr { height: 76px; } .logo { font-size: 15px; } }
+
+/* ===== Scenes and sheets ===== */
+.scene { position: relative; overflow: hidden; }
+.sheet { position: relative; z-index: 2; background: var(--n900); border-radius: 44px 44px 0 0; margin-top: -44px; padding: 96px 0 120px; color: var(--text); box-shadow: 0 -1px 0 rgba(252,236,187,.12); }
+.sheet::before, .sheet::after { content: ""; position: absolute; left: 22px; right: 22px; top: -10px; height: 30px; border-radius: 44px 44px 0 0; background: rgba(42,31,69,.75); z-index: -1; }
+.sheet::after { left: 48px; right: 48px; top: -19px; background: rgba(58,45,92,.45); }
+.sheet.alt { background: var(--n800); }
+.sheet.haze { background: linear-gradient(180deg, var(--n800), var(--n900)); }
+.night { position: relative; overflow: hidden; z-index: 2; margin-top: -44px; border-radius: 44px 44px 0 0; padding: 120px 0 140px; color: var(--text);
+  background: radial-gradient(55% 35% at 50% 102%, rgba(238,138,92,.35), transparent 70%), radial-gradient(45% 40% at 50% 96%, rgba(122,62,110,.55), transparent 70%), linear-gradient(180deg, #07051a 0%, #0b0820 45%, #1e1633 82%, #2a1f45 100%); }
+.violet { position: relative; overflow: hidden; z-index: 2; margin-top: -44px; border-radius: 44px 44px 0 0; padding: 120px 0 140px; color: var(--text);
+  background: radial-gradient(70% 30% at 50% 104%, rgba(238,138,92,.45), transparent 70%), linear-gradient(180deg, #0b0820 0%, #1e1633 22%, #2a1f45 52%, #4b2c5c 80%, #7a3e6e 100%); }
+.vignette { position: relative; overflow: hidden; z-index: 2; margin-top: -44px; border-radius: 44px 44px 0 0; padding: 130px 0 150px; color: var(--text);
+  background: radial-gradient(75% 65% at 50% 45%, transparent 35%, rgba(7,5,26,.85)), radial-gradient(60% 55% at 50% 60%, #7a3e6e 0%, #4b2c5c 38%, #2a1f45 70%, #120d1f 100%); }
+.stars { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.stars i { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff8e1; box-shadow: 0 0 8px 2px rgba(255,204,85,.55); animation: twinkle 5s ease-in-out infinite; }
+.beam { position: absolute; top: -10%; left: 62%; width: 120px; height: 130%; transform: rotate(-24deg); background: linear-gradient(180deg, transparent, rgba(252,236,187,.12) 40%, transparent 85%); filter: blur(12px); pointer-events: none; z-index: 0; }
+.scene > .wrap, .night > .wrap, .violet > .wrap, .vignette > .wrap, .sheet > .wrap { position: relative; z-index: 1; }
+section { scroll-margin-top: 70px; }
+
+/* ===== Hero ===== */
+.hero { position: relative; z-index: 1; min-height: 100vh; padding: 150px 0 150px; color: var(--cream); overflow: hidden;
+  background:
+    radial-gradient(60% 40% at 50% 104%, rgba(238,138,92,.95), transparent 72%),
+    radial-gradient(45% 40% at 4% 40%, rgba(122,62,110,.85), transparent 70%),
+    radial-gradient(40% 40% at 96% 30%, rgba(122,62,110,.7), transparent 70%),
+    linear-gradient(180deg, #120d1f 0%, #2a1f45 30%, #4b2c5c 55%, #7a3e6e 78%, #b45f66 92%, #ee8a5c 100%); }
+.hero .stars { opacity: .8; }
+.streak { position: absolute; border-radius: 99px; background: rgba(252,236,187,.32); filter: blur(34px); pointer-events: none; }
+.hero .s1 { width: 640px; height: 120px; left: -6%; top: 22%; transform: rotate(-24deg); opacity: .5; }
+.hero .s2 { width: 560px; height: 110px; right: -8%; top: 30%; transform: rotate(18deg); opacity: .45; }
+.hero .s3 { width: 900px; height: 90px; left: 20%; top: 8%; transform: rotate(-8deg); opacity: .3; }
+.hero-top { text-align: center; position: relative; z-index: 2; }
+.hero .kicker { background: rgba(7,5,26,.45); color: var(--gold); box-shadow: inset 0 0 0 1px rgba(255,204,85,.35); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.display { display: block; font-family: var(--display); font-size: clamp(4rem, 12.5vw, 12rem); line-height: .86; letter-spacing: .01em; font-weight: 400; margin: 0 auto 26px; max-width: none; white-space: nowrap; color: var(--cream); text-shadow: 0 4px 0 rgba(113,63,18,.45), 0 10px 40px rgba(7,5,26,.45); }
+.display .ln { display: block; overflow: hidden; padding: .04em 0 .02em; }
+.display .ln + .ln { color: var(--gold); }
+.display .w { display: inline-block; }
+.js .display .w { animation: word 1.1s var(--ease) both; animation-delay: var(--d, 0s); }
+.hero-sub { font-size: clamp(1.15rem, 1.7vw, 1.5rem); line-height: 1.45; font-weight: 700; max-width: 46ch; margin: 0 auto; text-wrap: balance; color: #fff6dc; text-shadow: 0 1px 14px rgba(7,5,26,.55); }
+.stage { position: relative; margin: 56px auto 0; max-width: 1000px; height: 560px; z-index: 1; perspective: 1400px; }
+.portal { position: absolute; left: 50%; bottom: -60px; transform: translateX(-50%); width: 760px; height: 600px; border: 1.5px solid rgba(252,236,187,.35); border-bottom: 0; border-radius: 380px 380px 0 0; pointer-events: none; }
+.device { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); width: 640px; aspect-ratio: 16 / 10.4; border-radius: 40px; padding: 10px; z-index: 2;
+  background: linear-gradient(135deg, #fcecbb, #b8925a 38%, #ffe7a8 58%, #8a5a2c); filter: drop-shadow(0 18px 34px rgba(7,5,26,.55)); }
+.device .scr { position: relative; width: 100%; height: 100%; border-radius: 31px; overflow: hidden; background: linear-gradient(180deg, #120d1f, #2a1f45 45%, #7a3e6e 80%, #ee8a5c); }
+.device img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.device .ov { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(122,62,110,.12), rgba(238,138,92,.08) 40%, rgba(7,5,26,.86) 100%); mix-blend-mode: normal; }
+.device .rd { position: absolute; left: 28px; right: 28px; bottom: 24px; color: var(--cream); }
+.device .rd small { display: block; font-size: 15px; font-weight: 700; color: #fff3d1; }
+.device .rd b { display: block; font-family: var(--display); font-size: clamp(3.2rem, 7.4vw, 6rem); line-height: .9; letter-spacing: .01em; font-weight: 400; margin: 6px 0 6px; color: var(--gold); }
+.device .rd b span.u { font-size: .42em; color: var(--cream); }
+.fc { position: absolute; z-index: 3; background: rgba(252,236,187,.96); color: var(--n800); border-radius: 20px; padding: 14px 20px 16px; box-shadow: 0 6px 0 rgba(113,63,18,.45), 0 24px 50px rgba(7,5,26,.4); transform: rotate(var(--r, 0deg)); animation: drift var(--t, 8s) ease-in-out infinite; min-width: 210px; }
+.fc small { display: block; font-size: 14px; font-weight: 800; color: #5a3e2a; }
+.fc b { display: block; font-family: var(--display); font-size: 48px; line-height: 1; letter-spacing: .01em; font-weight: 400; color: var(--n800); }
+.fc em { display: block; font-style: normal; font-size: 13.5px; font-weight: 700; color: #5a3e2a; margin-top: 2px; }
+.fc.back { z-index: 1; filter: blur(3px); opacity: .8; }
+.fc .bars { display: flex; align-items: flex-end; gap: 4px; height: 26px; margin-top: 6px; }
+.fc .bars i { width: 7px; border-radius: 4px; background: linear-gradient(180deg, var(--rust), var(--gold-shadow)); }
+.fc.f1 { left: -10px; top: 300px; --r: -6deg; --t: 9s; }
+.fc.f2 { right: -20px; top: 360px; --r: 7deg; --t: 10s; }
+.fc.f3 { left: 20px; top: 70px; --r: -12deg; --t: 8s; }
+.fc.f4 { right: 10px; top: 40px; --r: 12deg; --t: 7.5s; }
+.capsule { position: absolute; left: 32px; bottom: 84px; z-index: 4; display: flex; align-items: center; gap: 16px; padding: 6px 6px 6px 22px; border-radius: 99px; background: rgba(7,5,26,.78); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: inset 0 0 0 1px rgba(252,236,187,.18); color: var(--cream); font-weight: 800; font-size: 17px; max-width: calc(100% - 32px); }
+@media (max-width: 1080px) {
+  .stage { height: 480px; } .device { width: 540px; } .portal { width: 640px; height: 520px; }
+  .fc.f1 { left: 0; top: 280px; } .fc.f2 { right: 0; top: 330px; }
+}
+@media (max-width: 760px) {
+  .hero { padding: 120px 0 84px; min-height: 0; }
+  .display { font-size: clamp(2.8rem, 14.6vw, 5.4rem); }
+  .hero .kicker { font-size: 12px; letter-spacing: .03em; }
+  .stage { height: 450px; margin-top: 36px; }
+  .device { width: calc(100vw - 48px); max-width: 380px; top: 70px; border-radius: 28px; padding: 7px; }
+  .device .scr { border-radius: 22px; }
+  .device .rd { left: 16px; right: 16px; bottom: 14px; } .device .rd small { font-size: 13px; } .device .rd b { font-size: 52px; }
+  .portal { width: 340px; height: 420px; bottom: -30px; }
+  .fc { min-width: 0; width: 46vw; max-width: 200px; padding: 10px 12px 12px; border-radius: 16px; }
+  .fc b { font-size: 34px; } .fc small { font-size: 12.5px; } .fc em { font-size: 12px; }
+  .fc.f1 { left: -4px; top: 290px; } .fc.f2 { right: -4px; top: 318px; }
+  .fc.f3 { left: 0; top: 4px; } .fc.f4 { right: 0; top: 0; }
+  .capsule { position: relative; left: auto; bottom: auto; margin: 28px 16px 0; flex-wrap: wrap; border-radius: 28px; padding: 16px; font-size: 16px; max-width: none; }
+}
+
+/* ===== Statement, tiles, banners ===== */
+.statement { font-size: clamp(1.75rem, 3.3vw, 2.95rem); line-height: 1.3; letter-spacing: -.015em; font-weight: 800; max-width: 26ch; margin: 0 0 22px; color: var(--cream); }
+.tok { display: inline-flex; align-items: center; gap: .3em; padding: .02em .38em .06em .14em; border-radius: .42em; background: var(--n600); color: var(--gold); box-shadow: inset 0 0 0 1px rgba(252,236,187,.14), 0 2px 10px rgba(0,0,0,.25); vertical-align: .04em; line-height: 1.15; white-space: nowrap; }
+.tok i { width: .82em; height: .82em; border-radius: .22em; background: linear-gradient(135deg, var(--dusk-hz), var(--rust)); display: inline-block; }
+.tok.p { color: var(--pink); } .tok.p i { background: linear-gradient(135deg, var(--pink), var(--dusk-mid)); }
+.tok.u { color: var(--sky); } .tok.u i { background: linear-gradient(135deg, var(--sky), #3a6f9e); }
+.intro { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 40px; align-items: end; margin-bottom: 48px; }
+@media (max-width: 900px) { .intro { grid-template-columns: minmax(0,1fr); gap: 8px; } }
+.tile { position: relative; background: var(--card); border-radius: 28px; padding: 26px 26px 22px; box-shadow: inset 0 0 0 1px rgba(252,236,187,.08), 0 14px 40px rgba(0,0,0,.25); display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow: hidden; color: var(--text); }
+.tile .what { font-size: 15px; color: var(--muted); font-weight: 800; }
+.tile b { font-family: var(--display); font-size: clamp(3.2rem, 5.4vw, 5rem); line-height: .92; letter-spacing: .01em; font-weight: 400; margin: 8px 0 4px; color: var(--tc, var(--gold)); }
+.tile b small { font-family: "Nunito", sans-serif; font-size: .3em; letter-spacing: 0; color: var(--muted); font-weight: 800; }
+.tile .who { font-size: 15.5px; line-height: 1.5; color: var(--text); opacity: .92; }
+.tile .src { font-size: 15px; margin-top: auto; padding-top: 12px; }
+.tile::after { content: ""; position: absolute; top: 22px; right: 22px; width: 10px; height: 10px; border-radius: 50%; background: var(--tc, var(--gold)); box-shadow: 0 0 0 5px color-mix(in srgb, var(--tc, var(--gold)) 18%, transparent), 0 0 14px var(--tc, var(--gold)); }
+.tile::before { content: ""; position: absolute; inset: auto -20% -60% -20%; height: 70%; background: radial-gradient(50% 60% at 50% 100%, color-mix(in srgb, var(--tc, var(--gold)) 16%, transparent), transparent 70%); pointer-events: none; }
+.tile > * { position: relative; }
+.tile.accent { --tc: var(--accent); } .tile.arc { --tc: var(--arc); } .tile.self { --tc: var(--self); } .tile.good { --tc: var(--good); }
+.tile.hero-t { background: linear-gradient(160deg, var(--n700) 45%, #3b2340); }
+.truth { position: relative; display: flex; gap: 18px; align-items: flex-start; border-radius: 28px; padding: 26px 28px; margin: 22px 0; overflow: hidden;
+  background: radial-gradient(60% 120% at 100% 100%, rgba(238,138,92,.35), transparent 70%), linear-gradient(135deg, #1e1633, #4b2c5c); color: var(--cream); box-shadow: inset 0 0 0 1px rgba(255,204,85,.25), 0 24px 50px rgba(0,0,0,.3); }
+.truth .ico { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; background: var(--gold); color: var(--n900); display: grid; place-items: center; font-weight: 900; font-size: 18px; box-shadow: 0 3px 0 var(--gold-shadow); }
+.truth p { margin: 0; color: #f3e3b6; max-width: 82ch; font-size: 17px; }
+.truth strong.big { display: block; font-family: var(--display); font-size: clamp(1.9rem, 3vw, 2.6rem); line-height: 1; font-weight: 400; letter-spacing: .01em; color: var(--gold); margin-bottom: 10px; }
+.truth a { color: var(--gold); }
+@media (max-width: 620px) { .truth { flex-direction: column; gap: 12px; padding: 22px 20px; } }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 800; padding: 3px 11px; border-radius: 99px; white-space: nowrap; text-decoration: none; }
+.chip.ok { background: var(--good-soft); color: var(--good); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.plan { background: transparent; color: var(--plan); box-shadow: inset 0 0 0 1px currentColor; }
+.chip.arc { background: var(--arc-soft); color: var(--arc); }
+.chip.mot { background: var(--motored-soft); color: var(--motored-ink); }
+.chip.self { background: var(--self-soft); color: var(--self-ink); }
+.chip.fnd { background: var(--founder-soft); color: var(--founder); }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+
+/* ===== Cards ===== */
+.card { position: relative; background: var(--card); border-radius: 28px; padding: 28px; box-shadow: inset 0 0 0 1px rgba(252,236,187,.08), 0 14px 40px rgba(0,0,0,.25); min-width: 0; color: var(--text); }
+.card > p, section p { max-width: 75ch; }
+.dk .card, .card.glass2 { background: rgba(30,22,51,.72); box-shadow: inset 0 0 0 1px rgba(252,236,187,.14), 0 16px 40px rgba(0,0,0,.3); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.dk .lt.card, .dk .card.lt { background: var(--n800); box-shadow: inset 0 0 0 1px rgba(252,236,187,.12), 0 24px 50px rgba(0,0,0,.35); backdrop-filter: none; --surface: var(--n800); }
+.srcnote { font-size: 15px; line-height: 1.55; color: var(--faint); margin: 14px 0 0; }
+.srcnote a { color: var(--muted); }
+.srcnote code { font-size: .92em; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 15px; font-weight: 700; color: var(--muted); margin: 4px 0 10px; }
+.legend span { display: inline-flex; gap: 8px; align-items: center; }
+.chart svg { width: 100%; height: auto; display: block; }
+.scrollx { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.scrollx > svg { min-width: 1000px; }
+.flowH { display: block; } .flowV { display: none; }
+@media (max-width: 1100px) { .flowH { display: none; } .flowV { display: block; } }
+.flowV svg { width: 100%; height: auto; display: block; max-width: 460px; margin: 0 auto; }
+.swipe { display: none; font-size: 15px; color: var(--faint); margin: 0 0 8px; }
+@media (max-width: 680px) { .swipe { display: block; } }
+.bigrow { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 36px; }
+.bigrow > div:first-child { max-width: 860px; }
+
+/* ===== Tables ===== */
+table { width: 100%; border-collapse: collapse; font-size: 15.5px; }
+th, td { text-align: left; padding: 13px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 800; }
+td.n, th.n { text-align: right; white-space: nowrap; }
+td .small { font-size: 14.5px; }
+.tablewrap { overflow-x: auto; }
+tr.group td { background: var(--n600); font-weight: 800; }
+tr.group td:first-child { border-radius: 14px 0 0 14px; } tr.group td:last-child { border-radius: 0 14px 14px 0; }
+tr.group td { border-bottom: 0; }
+tr.total td { font-weight: 900; border-top: 2px solid var(--gold); border-bottom: 0; font-size: 16.5px; color: var(--gold); }
+tr.total td .muted { color: var(--muted); }
+#payerTable td:last-child { white-space: nowrap; }
+@media (max-width: 620px) {
+  #payerTable thead { display: none; }
+  #payerTable, #payerTable tbody { display: block; }
+  #payerTable tr { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 4px 8px; padding: 14px 10px; border-bottom: 1px solid var(--border); }
+  #payerTable td { border: 0; padding: 0; text-align: left; white-space: normal; background: transparent; }
+  #payerTable td:first-child, #payerTable td:last-child { grid-column: 1 / -1; }
+  #payerTable td[data-l]::before { content: attr(data-l); display: block; font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  #payerTable tr.group { background: var(--n600); border-radius: 16px; border: 0; }
+  #payerTable tr.total { border-top: 2px solid var(--gold); }
+  th, td { padding: 10px 8px; } table { font-size: 15px; }
+}
+
+/* ===== Answer ===== */
+.quote { position: relative; font-size: clamp(1.45rem, 2.7vw, 2.3rem); line-height: 1.35; font-weight: 700; font-style: italic; max-width: 32ch; margin: 0 0 28px 0; color: var(--cream); }
+.quote { border-left: 4px solid var(--gold); padding-left: .8em; }
+.quote cite { display: block; margin-top: 16px; font-size: 15px; font-style: normal; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--gold); }
+.answer-big { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: center; margin-top: 40px; padding: 36px; border-radius: 44px; background: rgba(7,5,26,.55); box-shadow: inset 0 0 0 1px rgba(255,204,85,.3); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); overflow: hidden; }
+.answer-big .ghost { font-family: var(--display); font-size: clamp(10rem, 22vw, 18rem); line-height: .8; color: var(--gold); text-shadow: 0 6px 0 rgba(113,63,18,.6), 0 0 60px rgba(255,204,85,.35); font-weight: 400; text-align: center; }
+.answer-big .ghost small { display: block; font-family: "Nunito", sans-serif; font-size: 15px; color: var(--cream); text-align: center; margin-top: 18px; font-weight: 800; }
+.answer-big strong { display: block; font-family: var(--display); font-size: clamp(2.2rem, 4.2vw, 3.8rem); line-height: .98; letter-spacing: .01em; font-weight: 400; margin-bottom: 14px; color: var(--cream); }
+.answer-big p { color: #f3e3b6; font-size: 17.5px; max-width: 62ch; margin: 0; }
+@media (max-width: 760px) { .answer-big { grid-template-columns: minmax(0,1fr); padding: 24px; border-radius: 28px; } .answer-big .ghost { order: -1; font-size: 8rem; text-align: left; } .answer-big .ghost small { text-align: left; } }
+.walletFlow { display: grid; gap: 10px; align-items: center; }
+.node { border-radius: 18px; padding: 14px 16px; background: var(--surface-2); min-width: 0; font-size: 15px; line-height: 1.5; }
+.node b { display: block; font-size: 16px; font-weight: 800; }
+.node.fnd { background: var(--founder-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--founder) 40%, transparent); }
+.node.mot { background: var(--motored-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--motored) 45%, transparent); }
+.node.pp { background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+.arrow { color: var(--faint); font-size: 20px; text-align: center; line-height: 1; }
+.wchips { display: flex; flex-direction: column; gap: 6px; }
+.wchip { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; border-radius: 14px; padding: 8px 12px; background: var(--n800); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--motored) 45%, transparent); font-size: 14.5px; }
+ol.why { margin: 0; padding: 0; list-style: none; counter-reset: w; display: grid; gap: 16px; }
+ol.why li { position: relative; padding-left: 52px; counter-increment: w; }
+ol.why li::before { content: counter(w, decimal-leading-zero); position: absolute; left: 0; top: -2px; width: 38px; height: 38px; border-radius: 50%; background: var(--gold); color: var(--n900); font-size: 13px; font-weight: 900; display: grid; place-items: center; box-shadow: 0 3px 0 var(--gold-shadow); }
+ol.why b { color: var(--cream); }
+
+/* ===== How it works ===== */
+.honest { display: inline-block; font-size: 16px; line-height: 1.55; padding: 14px 20px; border-radius: 20px; background: rgba(238,100,42,.14); box-shadow: inset 0 0 0 1px rgba(238,100,42,.5); color: #ffe2cf; max-width: 80ch; margin: 0 0 28px; }
+.honest b { color: #fff; }
+.panel { position: relative; border-radius: 44px; padding: 34px; background: rgba(30,22,51,.66); box-shadow: inset 0 0 0 1px rgba(252,236,187,.14); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); overflow: hidden; --surface: #1a1330; }
+.panel .ctr { font-size: 14px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .panel { padding: 20px 16px; border-radius: 28px; } }
+.railRow { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: stretch; }
+@media (max-width: 900px) { .railRow { grid-template-columns: minmax(0,1fr); } }
+.imgcard { position: relative; border-radius: 32px; overflow: hidden; min-height: 300px; background: linear-gradient(180deg, #120d1f, #2a1f45 45%, #7a3e6e 80%, #ee8a5c); box-shadow: inset 0 0 0 1px rgba(252,236,187,.12); }
+.imgcard img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.imgcard::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(122,62,110,.22), rgba(238,138,92,.18)); mix-blend-mode: soft-light; }
+.imgcard .cap { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; padding: 26px; color: var(--cream); background: linear-gradient(180deg, rgba(7,5,26,0), rgba(7,5,26,.66) 32%, rgba(7,5,26,.92)); }
+.imgcard .cap h3 { color: var(--cream); font-size: clamp(1.4rem, 2.2vw, 2rem); margin: 0 0 4px; }
+.imgcard .cap p { margin: 0; color: #f3e3b6; font-size: 16px; }
+.imgcard .t { position: absolute; z-index: 2; left: 24px; top: 22px; color: var(--cream); font-family: var(--display); font-size: 34px; letter-spacing: .01em; text-shadow: 0 2px 14px rgba(7,5,26,.6); }
+.chainGrid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+.chainCard { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.chainCard header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.chainCard header b { font-family: var(--display); font-size: 44px; font-weight: 400; letter-spacing: .01em; color: var(--gold); }
+.kv { display: grid; grid-template-columns: 112px minmax(0,1fr); gap: 10px 12px; font-size: 15px; margin: 6px 0 0; }
+.kv dt { color: var(--muted); font-weight: 700; }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+@media (max-width: 420px) { .kv { grid-template-columns: minmax(0,1fr); gap: 2px; } .kv dd { margin-bottom: 8px; } }
+.ways { display: grid; gap: 16px; margin-top: 16px; }
+.way { position: relative; display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 8px 32px; align-items: start; overflow: hidden; }
+.way .gn { position: absolute; right: 18px; top: -24px; font-family: var(--display); font-size: 200px; line-height: 1; color: rgba(255,204,85,.09); font-weight: 400; pointer-events: none; }
+.way > div { position: relative; }
+.way pre { position: relative; }
+@media (max-width: 860px) { .way { grid-template-columns: minmax(0,1fr); } .way .gn { font-size: 130px; top: -10px; } }
+pre { margin: 0; background: rgba(7,5,26,.75); color: #fcecbb; border-radius: 20px; padding: 18px 20px; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13.5px; line-height: 1.6; box-shadow: inset 0 0 0 1px rgba(252,236,187,.12); scrollbar-width: thin; }
+pre .c { color: #c3b6c9; } pre .k { color: #ff7aa2; } pre .s { color: #7fd66b; }
+.trust { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; margin-top: 16px; }
+@media (max-width: 760px) { .trust { grid-template-columns: minmax(0,1fr); } }
+.trust ul { margin: 6px 0 0; padding: 0; list-style: none; font-size: 15.5px; line-height: 1.55; }
+.trust li { position: relative; padding-left: 28px; }
+.trust li + li { margin-top: 10px; }
+.trust li::before { content: ""; position: absolute; left: 2px; top: 6px; width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--good); }
+.trust .disc li::before { box-shadow: inset 0 0 0 2px var(--warn); }
+.trust .lbl { display: inline-block; font-size: 13.5px; font-weight: 800; padding: 3px 11px; border-radius: 99px; margin-bottom: 12px; }
+
+/* ===== Bars ===== */
+.bars { display: grid; gap: 14px; }
+.barrow { display: grid; grid-template-columns: 170px minmax(0,1fr) 120px; gap: 12px; align-items: center; font-size: 15px; font-weight: 700; }
+.barrow .track { height: 14px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.barrow .fill { height: 100%; border-radius: 99px; box-shadow: 0 0 12px color-mix(in srgb, currentColor 0%, transparent); }
+.barrow .num { text-align: right; font-weight: 800; }
+@media (max-width: 620px) { .barrow { grid-template-columns: 108px minmax(0,1fr) 92px; font-size: 14.5px; gap: 8px; } }
+
+/* ===== Traction bento ===== */
+.bento { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; }
+.bento.even { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+@media (max-width: 900px) { .bento, .bento.even { grid-template-columns: minmax(0,1fr); } }
+.navy { position: relative; border-radius: 32px; padding: 30px; overflow: hidden; color: var(--cream); --surface: #0b0820; --surface-2: #2a1f45;
+  background: radial-gradient(70% 45% at 50% 115%, rgba(238,138,92,.5), transparent 70%), radial-gradient(60% 50% at 50% 100%, rgba(122,62,110,.55), transparent 75%), linear-gradient(180deg, #07051a, #120d1f); box-shadow: inset 0 0 0 1px rgba(252,236,187,.12), 0 24px 50px rgba(0,0,0,.35); }
+.navy > *:not(.stars) { position: relative; z-index: 1; }
+.bigstat { font-family: var(--display); font-size: clamp(5rem, 10vw, 9rem); line-height: .86; letter-spacing: .01em; font-weight: 400; margin: 8px 0 10px; color: var(--gold); }
+.bigstat small { font-family: "Nunito", sans-serif; font-size: .22em; font-weight: 800; color: var(--cream); }
+.rbtn { position: absolute; top: 24px; right: 24px; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--gold); color: var(--n900); text-decoration: none; font-size: 18px; z-index: 2; }
+.tl { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+.tl > div { position: relative; border-radius: 22px; padding: 18px; background: rgba(7,5,26,.55); box-shadow: inset 0 0 0 1px rgba(252,236,187,.16); font-size: 15px; line-height: 1.55; color: #f3e3b6; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.tl > div b { display: block; font-size: 16px; font-weight: 900; color: var(--cream); margin-bottom: 6px; }
+.tl > div b::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); margin-right: 8px; vertical-align: 2px; }
+.tl > div.g b::before { background: var(--good); } .tl > div.a b::before { background: var(--accent); } .tl > div.w b::before { background: var(--n900); }
+.tl > div.w { background: var(--cream); color: var(--n800); box-shadow: 0 5px 0 rgba(113,63,18,.5); } .tl > div.w b { color: var(--n900); }
+.tl > div.w .mono, .tl > div.w a { color: inherit; }
+@media (max-width: 980px) { .tl { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 620px) { .tl { grid-template-columns: minmax(0,1fr); } }
+
+/* ===== Scale ladder ===== */
+.ladder { display: grid; gap: 12px; }
+.rung { display: grid; grid-template-columns: 132px minmax(0,1fr); gap: 14px; align-items: start; }
+.rung .when { justify-self: end; margin-top: 14px; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 99px; font-size: 14.5px; font-weight: 800; white-space: nowrap; background: var(--n600); color: var(--muted); font-variant-numeric: tabular-nums; }
+.rung.done .when { background: var(--gold); color: var(--n900); box-shadow: 0 3px 0 var(--gold-shadow); }
+.rung.done .when::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--n900); }
+.rung .body { border-radius: 22px; padding: 18px 20px; background: var(--n700); box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+.rung.done .body { box-shadow: inset 0 0 0 2px var(--good), 0 10px 30px rgba(0,0,0,.2); }
+.rung.now .body { box-shadow: inset 0 0 0 2px var(--warn), 0 10px 30px rgba(0,0,0,.2); }
+.rung.built .body { box-shadow: inset 0 0 0 2px var(--sky), 0 10px 30px rgba(0,0,0,.2); }
+.rung.plan .body { background: transparent; box-shadow: none; border: 1.5px dashed #6b5a8f; }
+.rung .body p { margin: 6px 0 0; font-size: 15.5px; line-height: 1.55; color: var(--muted); }
+.rung .body .t { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-weight: 900; font-size: 17px; color: var(--cream); }
+@media (max-width: 620px) { .rung { grid-template-columns: minmax(0,1fr); gap: 6px; } .rung .when { justify-self: start; margin-top: 0; } }
+.cap4 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.cap4 > div { border-radius: 20px; padding: 16px; background: var(--n800); box-shadow: inset 0 0 0 1px rgba(252,236,187,.08); }
+.cap4 b { display: block; font-family: var(--display); font-size: 56px; line-height: .95; letter-spacing: .01em; font-weight: 400; margin: 6px 0 4px; color: var(--gold); }
+.cap4 b small { font-family: "Nunito", sans-serif; font-size: .3em; color: var(--muted); font-weight: 800; }
+.cap4 span { font-size: 15px; color: var(--muted); }
+.cap4 .what { color: var(--cream); font-weight: 800; }
+.wide-img { margin: 0 0 40px; min-height: 0; aspect-ratio: 2000 / 820; }
+@media (max-width: 760px) { .wide-img { aspect-ratio: 4 / 3; } }
+
+/* ===== Accordions ===== */
+details { background: var(--n700); border-radius: 20px; margin: 10px 0; box-shadow: inset 0 0 0 1px rgba(252,236,187,.08), 0 6px 20px rgba(0,0,0,.2); }
+details > summary { cursor: pointer; min-height: 78px; padding: 18px 24px; font-weight: 800; font-size: 17.5px; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 14px; color: var(--cream); }
+details > summary > span:first-child { flex: 1; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::after { content: "+"; flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--n900); display: grid; place-items: center; font-weight: 800; font-size: 22px; line-height: 1; box-shadow: 0 3px 0 var(--gold-shadow); transition: transform .3s var(--ease); }
+details[open] > summary::after { transform: rotate(45deg); }
+details > .in { padding: 0 24px 24px; }
+details details { background: var(--n800); }
+details summary .small { font-weight: 700; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; }
+.filters select, .filters input { font: inherit; font-size: 15px; height: 44px; padding: 0 16px; border-radius: 99px; border: 0; box-shadow: inset 0 0 0 1px var(--border); background: var(--n800); color: var(--cream); min-width: 0; }
+.filters input::placeholder { color: var(--faint); }
+.filters input { flex: 1 1 220px; }
+button.more { font: inherit; font-size: 15px; font-weight: 800; height: 44px; padding: 0 20px; border-radius: 99px; border: 0; background: var(--gold); color: var(--n900); cursor: pointer; margin-top: 12px; box-shadow: 0 3px 0 var(--gold-shadow); }
+@media (max-width: 620px) { details > summary { padding: 16px; font-size: 16.5px; } details > .in { padding: 0 14px 16px; } }
+
+/* ===== Footer ===== */
+footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44px 44px 0 0; overflow: hidden; color: var(--cream); padding: 120px 0 0;
+  background: linear-gradient(180deg, #07051a 0%, #0b0820 40%, #2a1f45 72%, #7a3e6e 100%); }
+.ft h2 { font-size: clamp(3rem, 7vw, 6.4rem); max-width: 14ch; }
+.ftgrid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 40px; }
+@media (max-width: 900px) { .ftgrid { grid-template-columns: minmax(0,1fr); } }
+.ft p { color: #f3e3b6; font-size: 16px; }
+.ft a { color: var(--gold); }
+.ft a.cta { color: var(--n900); } .ft a.cta.ghost { color: var(--cream); }
+.ftlinks { display: grid; align-content: start; gap: 10px; font-size: 18px; }
+.ftlinks .lbl { font-size: 14px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+.ftlinks a { color: var(--cream); text-decoration: none; }
+.ftlinks a:hover { color: #fff; text-decoration: underline; }
+.horizon { position: relative; height: clamp(260px, 38vw, 560px); margin-top: 40px; }
+.wordmark { position: absolute; left: 50%; bottom: 30%; transform: translateX(-50%); font-family: var(--display); font-size: clamp(6rem, 21vw, 21rem); line-height: .85; letter-spacing: .01em; white-space: nowrap; font-weight: 400;
+  background: linear-gradient(180deg, #fff6dc 0%, #ffcc55 55%, rgba(238,138,92,.25) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.planet { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(-1 * clamp(900px, 140vw, 2200px) + clamp(120px, 16vw, 230px)); width: clamp(900px, 140vw, 2200px); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #2a1f45, #0b0820 60%); box-shadow: 0 -2px 0 1px rgba(252,236,187,.95), 0 -16px 40px 6px rgba(238,138,92,.8), 0 -60px 120px 30px rgba(122,62,110,.75); }
+.ftbar { position: relative; z-index: 2; padding: 18px 0 22px; background: #0b0820; box-shadow: 0 -24px 30px 6px #0b0820; }
+.ftbar .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 18px; font-size: 14.5px; color: #f3e3b6; overflow-wrap: anywhere; }
+.ftbar a { color: var(--cream); }
+
+/* ===== Motion ===== */
+@keyframes word { from { transform: translateY(110%) rotate(6deg); opacity: .001; } }
+@keyframes drift { 50% { translate: 0 -10px; } }
+@keyframes twinkle { 50% { opacity: .25; } }
+@keyframes enter { from { opacity: .001; transform: translate3d(0, var(--enter-y, 18px), 0) scale(var(--enter-scale, 1)); } }
+.js .rv { opacity: .001; }
+.js .rv.on { opacity: 1; animation: enter .9s var(--ease) both; animation-delay: var(--enter-delay, 0s); }
+.js .hero .rv { opacity: 1; animation: enter .9s var(--ease) both; animation-delay: var(--enter-delay, .3s); }
+.js .hdr .logo, .js .hdr nav, .js .hdr .cta, .js .hdr .burger { animation: enter .8s var(--ease) both; --enter-y: -14px; }
+.js .hdr nav { animation-delay: .1s; } .js .hdr .cta { animation-delay: .2s; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .js .rv { opacity: 1; }
+  .fc { translate: none; }
+}
+
+/* games trailers */
+.ggrid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 18px; }
+@media (max-width: 1100px) { .ggrid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 560px) { .ggrid { grid-template-columns: minmax(0,1fr); } }
+.gcard { margin: 0; border-radius: 22px; overflow: hidden; background: rgba(18,13,31,.75); box-shadow: inset 0 0 0 1px rgba(255,204,85,.18), 0 18px 40px rgba(0,0,0,.35); }
+.gcard video { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; background: #0b0820; }
+.gcard figcaption { display: grid; gap: 6px; padding: 14px 16px 16px; }
+.gcard figcaption b { font-family: var(--display); font-size: 1.6rem; letter-spacing: .01em; color: var(--cream); }
+.gcard .chip { justify-self: start; }
+.gcard .gblurb { font-size: 15px; line-height: 1.5; color: var(--muted, #cfc4e6); }
+.gcard a { justify-self: start; font-weight: 700; color: var(--gold, #ffcc55); }
+
+/* Token Tails branding */
+.logo img { width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
+.herologo { display: block; margin: 0 auto 18px; width: clamp(180px, 22vw, 300px); height: auto; filter: drop-shadow(0 10px 30px rgba(0,0,0,.45)); }
+.ftlogo { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); width: clamp(160px, 18vw, 260px); height: auto; z-index: 2; filter: drop-shadow(0 8px 24px rgba(0,0,0,.5)); }
+.pl-feature { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 28px; align-items: center; margin-top: 40px; padding: 22px; border-radius: 28px; background: rgba(18,13,31,.8); box-shadow: inset 0 0 0 1px rgba(255,204,85,.3), 0 24px 60px rgba(0,0,0,.4); }
+.pl-feature video { width: 100%; aspect-ratio: 16/9; border-radius: 18px; background: #0b0820; display: block; }
+.pl-feature h3 { font-family: var(--display); font-size: clamp(2rem, 3.4vw, 3rem); line-height: 1; margin: 8px 0 10px; color: var(--cream); }
+.pl-feature p { margin: 0 0 10px; line-height: 1.6; }
+@media (max-width: 860px) { .pl-feature { grid-template-columns: minmax(0,1fr); } }
+</style>
+</head>
+
+<body>
+
+<header class="hdr">
+  <div class="wrap">
+    <a class="logo glass" href="https://tokentails.com" aria-label="Token Tails home"><img src="/logo/logo.webp" alt="" width="34" height="34">Token Tails · Shelter rail</a>
+    <nav class="glass" id="nav" aria-label="Sections">
+      <a href="#answer">Who paid</a>
+      <a href="#how">How it works</a>
+      <a href="#proof">Proof</a>
+      <a href="#traction">Traction</a>
+      <a href="#games">Games</a>
+      <a href="#scale">How it scales</a>
+      <a href="#txs">Transactions</a>
+    </nav>
+    <div class="flex" style="flex-wrap:nowrap">
+      <a class="cta top" href="https://explorer.arc.io/address/0x3c833562e682dB66C2415b34961595df135f4771" target="_blank" rel="noopener">Pink Paw wallet ↗</a>
+      <button class="burger glass" id="burger" type="button" aria-label="Open section menu" aria-expanded="false" aria-controls="nav"><span></span></button>
+    </div>
+  </div>
+</header>
+
+<!-- 1. HERO -->
+<section class="hero" id="top">
+  <div class="stars" data-n="46" aria-hidden="true"></div>
+  <span class="streak s1" aria-hidden="true"></span><span class="streak s2" aria-hidden="true"></span><span class="streak s3" aria-hidden="true"></span>
+  <div class="wrap">
+    <div class="hero-top">
+      <img class="herologo rv" src="/logo/logo-text.webp" alt="Token Tails" width="300" height="170">
+      <div class="kicker rv" style="--enter-delay:.15s">Arc mainnet pilot · complete · now scaling</div>
+      <h1>
+        <span class="display" aria-hidden="true"><span class="ln"><span class="w" style="--d:.2s">Paid</span> <span class="w" style="--d:.28s">straight</span></span><span class="ln"><span class="w" style="--d:.36s">to</span> <span class="w" style="--d:.44s">the</span> <span class="w" style="--d:.52s">shelter.</span></span></span>
+        <span class="hero-sub rv" style="display:block;--enter-delay:.7s">Stablecoin gifts from any game, shop or AI agent, paid straight into a shelter's own wallet in one transaction.</span>
+      </h1>
+    </div>
+    <div class="stage" aria-hidden="true">
+      <div class="portal"></div>
+      <div class="fc back f3"><small>Arc mainnet</small><b>5042</b><em>chain id</em></div>
+      <div class="fc back f4"><small>Sourcify</small><b>4 / 4</b><em>exact match</em></div>
+      <div class="device rv" style="--enter-delay:.6s;--enter-y:40px">
+        <div class="scr">
+          <img src="./img/hero.jpg" alt="" width="2000" height="1116" onerror="this.remove()">
+          <div class="ov"></div>
+          <div class="rd"><small>Paid to the shelter payee on Arc</small><b><span data-k="usd">171.05</span> <span class="u">USDC</span></b><small>Paid by the Motored event (founder-linked) and Token Tails · now in Pink Paw's own wallet</small></div>
+        </div>
+      </div>
+      <div class="fc f1 rv" style="--enter-delay:.9s"><small>Arc payouts</small><b data-k="payouts">4,456</b><em>Motored event + Token Tails</em></div>
+      <div class="fc f2 rv" style="--enter-delay:1s"><small>Gas per gift on Arc</small><b>≈ $<span data-k="gas">0.0012</span></b><em>over <span data-k="sentTxs">4,230</span> Motored event gifts</em></div>
+    </div>
+  </div>
+  <div class="capsule rv" style="--enter-delay:1.1s"><span>Pilot complete. 84 outside players on the rail; outside payers next.</span><a class="cta" href="#answer">Read the answer ↓</a></div>
+</section>
+
+<!-- 1b. INTRO SHEET -->
+<section class="sheet" id="pilot" aria-label="Pilot summary">
+  <div class="wrap">
+    <div class="intro">
+      <p class="statement rv">This hackathon was our <span class="tok"><i></i>Arc</span> mainnet pilot: we shipped the rail, ran real <span class="tok u"><i></i>USDC</span> through it at volume, and handed the payout wallet to a real <span style="white-space:nowrap"><span class="tok p"><i></i>shelter</span>.</span></p>
+      <div class="rv" style="--enter-delay:.15s">
+        <p class="lede" style="margin:0 0 18px">Three MIT-licensed contracts and a zero-dependency SDK. Every payout is public on chain. Now we bring the users.</p>
+        <a class="cta ink" href="#proof">See the proof on Arc →</a>
+      </div>
+    </div>
+
+    <div class="grid g3" id="heroTiles">
+      <div class="tile accent hero-t rv">
+        <span class="what">Paid to the shelter payee on Arc</span>
+        <b><span data-k="usd">171.05</span> <small>USDC</small></b>
+        <span class="who"><span data-k="payouts">4,456</span> payouts, paid by the Motored event (founder-linked) and Token Tails' own payments. All of it now sits in Pink Paw's own wallet.</span>
+        <span class="src"><a href="https://explorer.arc.io/address/0x3c833562e682dB66C2415b34961595df135f4771" target="_blank" rel="noopener">Pink Paw wallet ↗</a> · <a href="https://explorer.arc.io/tx/0x5b16ac7411692688c9cd39a37ece9453db01380a1dd458d9e2b47dbcbe9941c7" target="_blank" rel="noopener">sweep tx ↗</a></span>
+      </div>
+      <div class="tile arc rv" style="--enter-delay:.08s">
+        <span class="what">Live on Arc mainnet</span>
+        <b>2 <small>splits</small> + 2 <small>routers</small></b>
+        <span class="who">A USDC split and a EURC split, each with its gasless DonateRouter and a proof payout.</span>
+        <span class="src"><a href="./arc-deployments.json">arc-deployments.json</a> · <a href="./arc-routers.json">arc-routers.json</a></span>
+      </div>
+      <div class="tile good rv" style="--enter-delay:.16s">
+        <span class="what">Source verified</span>
+        <b>4 <small>of 4 Arc contracts</small></b>
+        <span class="who">Sourcify exact match: the deployed bytecode is the public MIT source.</span>
+        <span class="src"><a href="https://repo.sourcify.dev/5042/0x457c89e10a6e66633eda5bf82fd086febb5db147" target="_blank" rel="noopener">Arc ShelterSplit on Sourcify ↗</a></span>
+      </div>
+      <div class="tile arc rv">
+        <span class="what">Cost to settle one gift on Arc</span>
+        <b>≈ $<span data-k="gas">0.0012</span></b>
+        <span class="who">Gas paid in USDC, measured over <span data-k="sentTxs">4,230</span> event gifts on Arc mainnet (real on-chain gas, paid in USDC).</span>
+        <span class="src muted">Measured from the Arc ledger</span>
+      </div>
+      <div class="tile self rv" style="--enter-delay:.08s">
+        <span class="what">Rescue treats tapped on Arc</span>
+        <b><span data-k="treats">218</span> <small>treats</small></b>
+        <span class="who">Tapped by players. Each 0.01 USDC treat was paid by Token Tails' sponsor wallet.</span>
+        <span class="src"><a href="https://explorer.arc.io/tx/0x757adb0f1f50c11981d415de368aab2fc434aa40348f6683e45ded3e9430a023" target="_blank" rel="noopener">First treat tx ↗</a></span>
+      </div>
+      <div class="tile good rv" style="--enter-delay:.16s">
+        <span class="what">Tests behind the rail</span>
+        <b>228 <small>tests</small></b>
+        <span class="who">155 Foundry unit, fuzz, invariant and fork tests, plus 73 SDK tests.</span>
+        <span class="src"><a href="https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split" target="_blank" rel="noopener">contracts/shelter-split ↗</a> · <a href="https://github.com/zbagdzevicius/tokentails/tree/main/shelter-rail" target="_blank" rel="noopener">shelter-rail ↗</a></span>
+      </div>
+    </div>
+
+    <div class="truth rv" role="note">
+      <div class="ico" aria-hidden="true">!</div>
+      <p><strong class="big" data-k="bannerHead">Pilot complete: the rail works on Arc mainnet.</strong>
+      <span data-k="bannerBody">The hackathon was our Arc mainnet pilot, and it is complete: in-game treats tapped by 85 player accounts and paid by Token Tails, a charity-event pilot with the founder-linked partner Motored, and Token Tails' own test payments. No outside payers yet, but 84 outside players have already sent 216 treats through the rail on Arc from inside the game, with Token Tails covering each 0.01 USDC. Bringing outside payers is the next phase, and we are scaling now. Every number on this page says who paid.</span> <a href="#answer">Full breakdown ↓</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- 2. YOUR QUESTION -->
+<section class="vignette" id="answer">
+  <div class="stars" data-n="50" aria-hidden="true"></div>
+  <div class="wrap dk">
+    <div class="kicker rv">Who paid, and why Motored used 3 gift pools per label</div>
+    <div class="answer-big rv" role="note" style="--enter-delay:.2s">
+      <div>
+        <strong data-k="answerHead">No outside payers on Arc yet, but 84 outside players already use the rail.</strong>
+        <p data-k="answerBody">All <span data-k="payouts">4,456</span> payouts (<span data-k="usd">171.05</span> USDC) trace to one controlling party, Token Tails: the Motored event (founder-linked, gift pools created by Token Tails and funded from the Token Tails team wallet) and Token Tails' own payments. Meanwhile 84 outside players have already sent 216 treats through the rail on Arc from inside the game, with Token Tails covering each 0.01 USDC.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet alt" id="answer-detail" aria-label="Unique-payer breakdown">
+  <div class="wrap">
+    <div class="card rv">
+      <h3 style="font-family:var(--display);font-size:clamp(2.2rem,3.4vw,3rem);font-weight:400;letter-spacing:.01em;line-height:1;margin-bottom:16px">Unique-payer breakdown of the Arc total</h3>
+      <p class="swipe">Each row shows payer addresses, payouts and USDC.</p>
+      <div class="tablewrap">
+        <table id="payerTable">
+          <caption class="sr">Arc payout breakdown by payer group, only groups with payouts</caption>
+          <thead><tr><th scope="col">Group · who paid</th><th scope="col" class="n">Payer addresses</th><th scope="col" class="n">Payouts</th><th scope="col" class="n">USDC</th><th scope="col">Proof</th></tr></thead>
+          <tbody>
+<tr class="group"><td><span class="chip mot">Motored event · founder-linked sponsor</span></td><td class="n" data-l="Addresses">1,440</td><td class="n" data-l="Payouts">4,230</td><td class="n" data-l="USDC">134.77</td><td><a href="#how-3">why 3 wallets</a></td></tr>
+<tr><td>Round 1 · 2026-10-16 to 2026-10-22<div class="small muted">Funded by the one Motored funder, which the Token Tails team wallet topped up</div></td><td class="n" data-l="Addresses">480</td><td class="n" data-l="Payouts">1,562</td><td class="n" data-l="USDC">96.75</td><td></td></tr>
+<tr><td>Round 2 · 2026-10-25 to 2026-10-31<div class="small muted">Funded by the one Motored funder, which the Token Tails team wallet topped up</div></td><td class="n" data-l="Addresses">480</td><td class="n" data-l="Payouts">1,130</td><td class="n" data-l="USDC">11.30</td><td></td></tr>
+<tr><td>Round 3 · 2026-11-06 to 2026-11-12<div class="small muted">Funded by the one Motored funder, which the Token Tails team wallet topped up</div></td><td class="n" data-l="Addresses">480</td><td class="n" data-l="Payouts">1,538</td><td class="n" data-l="USDC">26.72</td><td></td></tr>
+<tr class="group"><td><span class="chip self">Token Tails self-funded</span></td><td class="n" data-l="Addresses">3</td><td class="n" data-l="Payouts">226</td><td class="n" data-l="USDC">36.28 <span class="muted small">+ 0.10 EURC</span></td><td></td></tr>
+<tr><td>Sponsored rescue treats: tapped by players, paid by Token Tails' sponsor wallet<div class="small muted">Payer: Sponsor wallet <a href="https://explorer.arc.io/address/0x8d03d8295892f7de2b7ce57585aa45dd4b3c2ba0" target="_blank" rel="noopener" class="mono">0x8d03…2ba0</a></div></td><td class="n" data-l="Addresses">1</td><td class="n" data-l="Payouts">218</td><td class="n" data-l="USDC">2.18</td><td><a href="https://explorer.arc.io/tx/0x757adb0f1f50c11981d415de368aab2fc434aa40348f6683e45ded3e9430a023" target="_blank" rel="noopener">first treat ↗</a></td></tr>
+<tr><td>Team test payments<div class="small muted">Mainnet integration tests: checkout, gasless router and deploy proofs</div></td><td class="n" data-l="Addresses">3</td><td class="n" data-l="Payouts">8</td><td class="n" data-l="USDC">34.10 <span class="muted small">+ 0.10 EURC</span></td><td></td></tr>
+<tr class="total"><td>All Arc payouts · one controlling party: Token Tails</td><td class="n" data-l="Addresses">1,443</td><td class="n" data-l="Payouts">4,456</td><td class="n" data-l="USDC">171.05 <span class="muted small">+ 0.10 EURC</span></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="srcnote">Source: <a href="./arc-ledger.json">arc-ledger.json</a> <code>buckets</code>, <code>buckets.tt-self.byKind</code>, <code>motoredReconciliation</code>, <code>totals.excludingMotoredAndSelf</code>. Every payer is checked against the published Token Tails / Motored address list (<a href="./arc-addresses.json">arc-addresses.json</a>) and walked upstream for its funding origin. The outside, unknown and funded-by-Token-Tails groups are empty, so they have no rows. The same script will classify any new payer the same way, so future "outside" numbers are measured against this list.</p>
+    </div>
+
+    <h2 class="rv" id="how-3" style="margin-top:72px;font-size:clamp(2.4rem,4.6vw,4.2rem);max-width:34ch">Why each Motored label has 3 gift pools, all filled from one address</h2>
+    <div class="grid g2" style="margin-top:28px">
+      <div class="card rv">
+        <ol class="why">
+          <li><b>Each label is a gift pool, not a person.</b> A pool is one on-chain address that Token Tails created for the event (keys held by Token Tails) to hold gift money and send it to the shelter. Pools are not Motored customers.</li>
+          <li><b>The event ran 3 times</b> (Oct 16–22, Oct 25–31, Nov 6–12). <b>Each round opened 480 new gift pools</b> and reused the labels <code>user-1 … user-480</code>, so every label maps to exactly 3 pools (<span data-k="dist">480 labels × 3 pools</span>): 3 rounds, not 3 people.</li>
+          <li><b>One funder.</b> A single Motored event funder filled each pool with its gifts plus gas, in <span data-k="funderTx">1,440</span> funding transfers and nothing else. Only the Token Tails team wallet ever topped up that funder (<span data-k="topups">3 top-ups, 154 USDC</span>). Each round ran for a week on a real-world hourly activity curve: a full event-scale load test, with every gift settling on Arc mainnet.</li>
+          <li><b>How we count it:</b> one related-party sponsor. 1,440 gift pools, not 1,440 donors, and not outside traction.</li>
+        </ol>
+        <p class="srcnote">Source: arc-ledger.json <code>totals.motoredWalletsPerUserLabel</code>, <code>buckets.motored.disclosure</code>, <code>motoredReconciliation</code> (walletsFundedOnlyByFunder = <span data-k="onlyFunder">true</span>, no anomalies). All 1,440 wallets with their payouts: arc-ledger.json <code>motoredPayers</code> and <code>payouts</code>.</p>
+      </div>
+      <div class="card rv" style="--enter-delay:.1s">
+        <h3 class="small muted" style="text-transform:uppercase;letter-spacing:.06em;font-size:14px">Example from the ledger: <span class="mono" id="exLabel">motored:user-17</span></h3>
+        <div class="walletFlow" id="walletFlow">
+          <div class="node fnd"><b>Token Tails team wallet</b><a href="https://explorer.arc.io/address/0x29d7d5361052c0990879d7926a0c98a63f9860f8" target="_blank" rel="noopener" class="mono">0x29d7…60f8</a><div class="small muted">funded by deposits from outside addresses </div></div>
+          <div class="arrow" aria-hidden="true">↓</div>
+          <div class="node mot"><b>One Motored event funder</b><a href="https://explorer.arc.io/address/0xf1d715677877428ae8e95e8ff5385ec44f84688f" target="_blank" rel="noopener" class="mono">0xf1d7…688f</a><div class="small muted">3 top-ups (154 USDC), only from the Token Tails team wallet · sent 1,440 funding transfers, nothing else</div></div>
+          <div class="arrow" aria-hidden="true">↓</div>
+          <div class="wchips"><div class="wchip"><span><b>r1</b> wallet</span><span class="num">round 1</span></div><div class="wchip"><span><b>r2</b> wallet</span><span class="num">round 2</span></div><div class="wchip"><span><b>r3</b> wallet</span><span class="num">round 3</span></div></div>
+          <div class="arrow" aria-hidden="true">↓</div>
+          <div class="node pp"><b>Same memo label in every round: <span class="mono">motored:user-17</span></b>3 pools for one label = 3 rounds, not 3 people. Gifts went through ShelterSplit to the shelter payee.</div>
+        </div>
+        <p class="small" style="margin:14px 0 0"><a href="#allPayouts" id="exShow">Show every motored:user-17 payout ↓</a></p>
+      </div>
+    </div>
+
+    <div class="card rv" id="sponsor-template" style="margin-top:16px;box-shadow:inset 0 0 0 2px var(--gold, #e2c05a),0 14px 40px rgba(0,0,0,.25)">
+      <span class="chip ok">built and tested · next Motored event</span>
+      <h3 style="margin-top:10px">Motored × Stripe: the template for sponsors in our queue</h3>
+      <p class="small" style="margin:0 0 12px">The Motored pilot showed the rail at event scale. The next step connects a sponsor's own checkout directly: Motored's Stripe account tells our backend about every paid order, and the backend turns each order into one gift on Arc. Every sponsor in our queue gets the same integration.</p>
+      <div class="grid g3" style="gap:12px">
+        <div class="tile"><span class="what">1 · A real order is paid</span><span class="who">Motored's Stripe sends <code>checkout.session.completed</code> to our backend, signed with the webhook secret.</span></div>
+        <div class="tile"><span class="what">2 · One gift per order</span><span class="who">Each paying customer gets one gift pool; each paid order adds exactly one gift. A resent webhook cannot pay twice. A refund or dispute before the gift is sent cancels it; a gift already on Arc stays with the shelter.</span></div>
+        <div class="tile"><span class="what">3 · Settled on Arc</span><span class="who">The pool calls ShelterSplit <code>donate()</code>, which pays 100% to Pink Paw's wallet. No customer name, email or id is stored, only salted hashes.</span></div>
+      </div>
+      <p class="srcnote">Source: <code>backend/src/shelter/motored/</code> (webhook, gift sender and retry keeper, with tests).</p>
+    </div>
+
+    <div class="card rv" style="margin-top:16px">
+      <h3>How the public counter grew</h3>
+      <p class="small" style="margin:0" id="claimText">The public counter read <b>4,117 payouts / $166</b> on 2026-11-11, midway through Motored round 3. The pilot closed at <b>4,456 payouts / $171.05</b>, every one of them on Arc mainnet and visible in the ledger below.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3. HOW IT WORKS -->
+<section class="night" id="how">
+  <div class="stars" data-n="70" aria-hidden="true"></div><div class="beam" aria-hidden="true"></div>
+  <div class="wrap dk">
+    <div class="kicker rv">How it works · and why it works anywhere</div>
+    <h2 class="rv" style="max-width:24ch">A rail anyone can call. No Token Tails server in the money path.</h2>
+    <p class="lede rv">The rail is not a Token Tails feature. It is permissionless contracts. Any app on any EVM chain can call <code>donate(memo)</code> or <code>disburse(amount, memo)</code> without an API key. The split pays the shelter in the same transaction and keeps no balance.</p>
+    <p class="honest rv"><b>Next: outside integrations.</b> Here is how any game, shop or agent plugs in, and how you can check the contracts yourself in seconds.</p>
+
+    <div class="panel chart rv">
+      <div class="ctr">01 / 03 · the money path</div>
+      <div class="flowH" id="flowSvgWrap"></div>
+      <div class="flowV" id="flowSvgV"></div>
+      <div class="legend" style="margin-top:14px">
+        <span><span class="chip ok">used on mainnet</span></span>
+        <span><span class="chip arc">deployed + verified</span></span>
+        <span><span class="chip warn">testnet / fork-tested</span></span>
+      </div>
+      <p class="srcnote">Source: <code>contracts/shelter-split/src/ShelterSplit.sol</code>, <code>DonateRouter.sol</code>, <code>CappedSpender.sol</code> (MIT, solc 0.8.24, Sourcify-verified at the addresses below). Path counts are from arc-ledger.json <code>totals.byPath</code>.</p>
+    </div>
+
+    <div class="railRow">
+      <div class="panel rv" style="border-radius:32px">
+        <div class="ctr">02 / 03 · live on Arc mainnet</div>
+        <p class="small muted" style="margin:0 0 8px">Both Arc splits were rotated to pay Pink Paw's wallet on 2026-10-16.</p>
+        <div class="chainGrid" id="chainGrid"></div>
+        <p class="srcnote">Sources: <a href="./arc-deployments.json">arc-deployments.json</a>, <a href="./arc-routers.json">arc-routers.json</a>, Sourcify v2 API (checked 2026-11-17), totals from <a href="./arc-ledger.json">arc-ledger.json</a>.</p>
+      </div>
+      <div class="imgcard rv" style="--enter-delay:.1s">
+        <img src="./img/rail.jpg" alt="Illustration: ribbons of violet and blue light stream across a night sky into a small lit house, the shelter, on the horizon." width="2000" height="1493" loading="lazy" onerror="this.remove()">
+        <div class="t">One transaction</div>
+        <div class="cap"><h3>Payer → ShelterSplit → shelter wallet</h3><p>The split keeps no balance: every gift lands in the shelter's own wallet in the same transaction.</p></div>
+      </div>
+    </div>
+
+    <div class="ctr rv" style="margin:56px 0 8px;font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#ffcc55">03 / 03 · plug it in elsewhere</div>
+    <h3 class="rv" style="font-family:var(--display);font-size:clamp(2.4rem,4.4vw,3.8rem);font-weight:400;letter-spacing:.01em;line-height:1">Plug it in elsewhere: three ways</h3>
+    <div class="ways">
+      <div class="card way rv">
+        <span class="gn" aria-hidden="true">01</span>
+        <div><h3>One script tag</h3>
+        <p class="small muted">A donate button with a live on-chain "shelters received" meter. Hosted, MIT. <a href="https://tokentails.com/rail/demo.html" target="_blank" rel="noopener">Live demo ↗</a></p></div>
+<pre><span class="k">&lt;script</span> src=<span class="s">"https://tokentails.com/rail/widget.js"</span>
+  data-chain=<span class="s">"5042"</span>
+  data-deployments=<span class="s">"https://tokentails.com/shelter-payouts/arc-deployments.json"</span>
+  data-amount=<span class="s">"1000000000000000000"</span>
+  data-memo=<span class="s">"mygame"</span><span class="k">&gt;&lt;/script&gt;</span></pre>
+      </div>
+      <div class="card way rv">
+        <span class="gn" aria-hidden="true">02</span>
+        <div><h3>SDK, zero dependencies</h3>
+        <p class="small muted">Browser and Node 18+. Native, ERC-20 or gasless EIP-3009, and an x402 <code>payAndFetch</code> for agents.</p></div>
+<pre><span class="k">import</span> { donateWithInjected } <span class="k">from</span> <span class="s">"shelter-rail"</span>;
+<span class="k">await</span> donateWithInjected(window.ethereum, {
+  chainId: 5042,
+  split: <span class="s">"0x457c89e10a6e66633eda5bf82fd086febb5db147"</span>,
+  amountWei: 10n ** 18n,
+  memo: <span class="s">"mygame:level-3"</span>,
+});</pre>
+      </div>
+      <div class="card way rv">
+        <span class="gn" aria-hidden="true">03</span>
+        <div><h3>Your own split, your shelter</h3>
+        <p class="small muted">Env-only Foundry scripts with nothing hard-coded, any EVM chain: <code>DeployShelterSplit.s.sol</code>, then <code>DeployDonateRouter.s.sol</code>. Check ours on Arc mainnet right now (public RPC):</p>
+        <p class="srcnote">Output checked 2026-11-17.</p></div>
+<pre><span class="c"># who gets paid from 1 USDC?</span>
+cast call 0x457c89e10a6e66633eda5bf82fd086febb5db147 \
+  <span class="s">"preview(uint256)(address[],uint256[],uint256)"</span> 1000000 \
+  --rpc-url https://rpc.mainnet.arc.io
+<span class="c"># → [0x3c833562e682dB66C2415b34961595df135f4771]
+#   [1000000]   0   (100% to Pink Paw, 0 to treasury)</span>
+cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
+  <span class="s">"canDonate(uint256)(bool,uint256)"</span> 1000000 \
+  --rpc-url https://rpc.mainnet.arc.io
+<span class="c"># → true  0</span></pre>
+      </div>
+    </div>
+
+    <div class="trust">
+      <div class="card rv">
+        <span class="lbl chip ok">verifiable</span>
+        <h3>The chain enforces</h3>
+        <ul>
+          <li>Deployed bytecode equals the public MIT source (Sourcify exact match on all 4 Arc mainnet contracts).</li>
+          <li>Who gets paid: <code>preview()</code> returns Pink Paw's wallet at 10,000 bps.</li>
+          <li>Every payout emits a public event with its memo.</li>
+          <li>DonateRouter has no owner, admin or sweep. It reverts if any wei would reach the treasury or the payout list changed after signing.</li>
+          <li>The old Token Tails-held payee wallet was swept to Pink Paw's wallet.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. PROOF ON ARC -->
+<section class="sheet" id="proof">
+  <div class="wrap">
+    <div class="bigrow">
+      <div>
+        <div class="kicker rv">Proof on Arc</div>
+        <h2 class="rv">Every Arc payout, charted from the public ledger</h2>
+        <p class="lede rv" style="margin:0">Built from <a href="./arc-ledger.json">arc-ledger.json</a>, a block-by-block scan of Arc mainnet blocks <span class="mono" data-k="blocks">23,790,973–31,603,089</span>. Colours show who paid.</p>
+      </div>
+      <a class="cta ink rv" href="./arc-ledger.json">Open the ledger JSON</a>
+    </div>
+    <div id="loadErr" class="err" hidden></div>
+
+    <div class="grid g2">
+      <div class="card chart rv">
+        <h3>Cumulative USDC paid to the shelter payee</h3>
+        <div class="legend"><span><span class="dot" style="background:var(--motored)"></span>Motored event (founder-linked)</span><span><span class="dot" style="background:var(--self)"></span>Token Tails self-funded</span></div>
+        <div id="cumChart" role="img" aria-label="Cumulative USDC paid into the shelter wallet on Arc by day, stacked by payer group"></div>
+        <p class="srcnote">Bands mark Motored rounds r1–r3. The dashed line is the 2026-10-16 handover to Pink Paw's wallet.</p>
+      </div>
+      <div class="card chart rv" style="--enter-delay:.1s">
+        <h3>Payouts per day</h3>
+        <div class="legend"><span><span class="dot" style="background:var(--motored)"></span>Motored gift pools</span><span><span class="dot" style="background:var(--self)"></span>Token Tails (treats, orders, proofs)</span></div>
+        <div id="dayChart" role="img" aria-label="Number of payouts per day on Arc, stacked by payer group"></div>
+        <p class="small" style="margin:10px 0 0">Each Motored round ran until the budget Motored set for that round was used up (r1 Oct 16–22, r2 Oct 25–31, r3 Nov 6–12). The gaps between rounds are budget limits, not pauses in the rail.</p>
+        <p class="srcnote">Source: arc-ledger.json <code>payouts[]</code> (time, bucket), UTC days.</p>
+      </div>
+    </div>
+
+    <div class="card chart rv" style="margin-top:16px">
+      <h3>Where every dollar came from</h3>
+      <p class="small muted" style="margin-top:0">Ribbon width is proportional to USDC. All of it entered through the Token Tails team wallet as deposits from outside addresses.</p>
+      <p class="swipe">Swipe the diagram sideways →</p>
+      <div class="scrollx" id="sankey"></div>
+      <div class="flex small" style="margin-top:12px" id="sankeyLinks"></div>
+      <p class="srcnote">Source: arc-ledger.json <code>relatedTxs</code>, <code>motoredReconciliation</code>, <code>buckets.tt-self.byKind</code>, <code>fundingOrigin</code>. Gas and the small balances left in wallets explain why inflows exceed payouts.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 5. TRACTION -->
+<section class="violet" id="traction">
+  <div class="stars" data-n="40" aria-hidden="true"></div>
+  <div class="wrap dk">
+    <div style="text-align:center;max-width:900px;margin:0 auto 48px">
+      <div class="kicker rv">Traction, labelled honestly</div>
+      <h2 class="rv">What is real today, and who paid for it</h2>
+      <p class="lede rv" style="margin:0 auto">The pilot proved the rail end to end on mainnet, at volume, with players in the loop. Each item below says who paid and links to its proof.</p>
+    </div>
+
+    <div class="bento">
+      <div class="card lt chart rv">
+        <h3>Rescue treats tapped on Arc, per day</h3>
+        <p class="small muted" style="margin-top:0">Players tapped; Token Tails' sponsor wallet paid 0.01 USDC per treat. 85 player accounts triggered them (one is a Token Tails admin), plus guests on 3 days. Memos are random per treat, so this count comes from our backend (read 2026-11-17), not from the chain.</p>
+        <div id="treatChart" role="img" aria-label="Sponsored rescue treats on Arc per day"></div>
+        <p class="srcnote">Source: arc-ledger.json payouts with memo <code>tt:page</code> / <code>tt:heist</code>.</p>
+      </div>
+      <div class="navy rv" style="--enter-delay:.1s">
+        <div class="stars" data-n="24" aria-hidden="true"></div>
+        <h3>Rail usage on Arc, by what it exercised</h3>
+        
+        <div class="bars" id="usageBars"></div>
+        <p class="srcnote">Source: arc-ledger.json <code>buckets</code>. Who paid: the Motored event (founder-linked) and Token Tails.</p>
+      </div>
+    </div>
+
+    <div class="bento even" style="margin-top:16px">
+      <div class="tile accent lt rv">
+        <span class="what">Rescue cat profiles listed</span>
+        <b class="bigstat" style="font-size:clamp(4rem,7vw,6.5rem)">469</b>
+        <span class="who">Listed for 3 shelters (Pink Paw, Mil Bigotes, Puppy Kitty NYC). Only Pink Paw receives payouts; the other two are listings, not partners. 354 are marked adopted.</span>
+        <span class="src">From the Token Tails database · <a href="https://api.tokentails.com/impact" target="_blank" rel="noopener">/impact rescueCats</a></span>
+      </div>
+      <div class="imgcard rv" style="--enter-delay:.1s;min-height:360px">
+        <img src="./img/pilot.jpg" alt="Illustration: a small cat silhouette walks along a glowing violet path through dark hills under a starry sky." width="2000" height="1493" loading="lazy" onerror="this.remove()">
+        <div class="cap">
+          <span class="chip ok" style="background:rgba(7,5,26,.7);color:#7fd66b;box-shadow:inset 0 0 0 1px rgba(127,214,107,.45)">Shelter payee handed over</span>
+          <div class="bigstat" style="font-size:clamp(3.4rem,6vw,5.4rem);margin:10px 0 6px">2 <small style="font-size:14px">Arc splits rotated</small></div>
+          <p>On 2026-10-16 both Arc splits moved to Pink Paw's wallet. <span data-k="toPP">4,397</span> Arc payouts landed there directly; the 59 before were swept over the same day.</p>
+          <p style="margin-top:8px"><a href="https://explorer.arc.io/tx/0xb96044051062f52a185e6255608879194793c2819c5c8f33d605cfa6d297f517" target="_blank" rel="noopener" style="color:#ffcc55">Arc addShelter tx ↗</a> · custody caveat below</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rv" style="margin-top:40px">
+      <h3>Custody timeline</h3>
+      <div class="tl">
+        <div><b>Oct 7 · Deploy</b>Splits and routers deployed on Arc. Payee: <span class="mono">0xE299…0f37</span>, held by Token Tails. <a href="https://explorer.arc.io/tx/0xa88dca321dba7d2669b45defd8f6714f1dac29ad6e16bd47468e0d3a93aa7b1a" target="_blank" rel="noopener">deploy ↗</a> · <a href="https://explorer.arc.io/tx/0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d" target="_blank" rel="noopener">proof payout ↗</a></div>
+        <div class="g"><b>Oct 8 · First treat</b>The first in-game treat goes through native <code>donate()</code>. <a href="https://explorer.arc.io/tx/0x757adb0f1f50c11981d415de368aab2fc434aa40348f6683e45ded3e9430a023" target="_blank" rel="noopener">tx ↗</a></div>
+        <div class="a"><b>Oct 16 · Rotation</b>Pause, remove, add Pink Paw's wallet, unpause on both Arc splits. Old wallet swept: <a href="https://explorer.arc.io/tx/0x5b16ac7411692688c9cd39a37ece9453db01380a1dd458d9e2b47dbcbe9941c7" target="_blank" rel="noopener">0.658853 USDC ↗</a>, <a href="https://explorer.arc.io/tx/0x6fac8e72687a98264b37832b677a0895d1f3a549e71521dd0c68a9d89c1d4f1d" target="_blank" rel="noopener">0.10 EURC ↗</a></div>
+        <div class="w lt"><b>Now · Pink Paw's wallet</b><span class="mono">0x3c83…4771</span> receives 100%.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. SCALE -->
+<!-- GAMES -->
+<section class="night" id="games">
+  <div class="stars" data-n="30" aria-hidden="true"></div>
+  <div class="wrap dk">
+    <div style="text-align:center;max-width:900px;margin:0 auto 48px">
+      <div class="kicker rv">Where players give</div>
+      <h2 class="rv">Our games</h2>
+      <p class="lede rv" style="margin:0 auto">The rail lives inside these games, and soon inside any game a player creates from one prompt. Players in Catnip Heist, Pink Paw Knight and Moon Rave tap the treat button and a gift settles on Arc mainnet.</p>
+    </div>
+    <div class="ggrid">
+      <figure class="gcard rv">
+        <video controls playsinline preload="none" poster="/home/media/v12/heist-loop.jpg" aria-label="Catnip Heist trailer"><source src="/home/media/v12/heist-loop.mp4" type="video/mp4"></video>
+        <figcaption><b>Catnip Heist</b><span class="chip ok">treat button in game</span><span class="gblurb">Sneak two cats past the guard dogs and free the shelter cat.</span><a href="https://tokentails.com/heist" target="_blank" rel="noopener">Play ↗</a></figcaption>
+      </figure>
+      <figure class="gcard rv">
+        <video controls playsinline preload="none" poster="/landing/pinkpaw-knight-trailer-poster-v1.jpg" aria-label="Pink Paw Knight trailer"><source src="/landing/pinkpaw-knight-trailer-v1.mp4" type="video/mp4"></video>
+        <figcaption><b>Pink Paw Knight</b><span class="chip ok">treat button in game</span><span class="gblurb">A tiny cat knight rescues 12 lost kittens; the kittens are real Pink Paw cats.</span><a href="https://tokentails.com/swordcat" target="_blank" rel="noopener">Play ↗</a></figcaption>
+      </figure>
+      <figure class="gcard rv">
+        <video controls playsinline preload="none" poster="/home/media/v12/rave-loop.jpg" aria-label="Moon Rave trailer"><source src="/home/media/v12/rave-loop.mp4" type="video/mp4"></video>
+        <figcaption><b>Moon Rave</b><span class="chip ok">treat button in game</span><span class="gblurb">A live dance floor of cats under the green moon.</span><a href="https://tokentails.com/rave" target="_blank" rel="noopener">Play ↗</a></figcaption>
+      </figure>
+      <figure class="gcard rv">
+        <video controls playsinline preload="none" poster="/home/media/ultracat-trailer.jpg" aria-label="Ultra Cat trailer"><source src="/home/media/ultracat-trailer.mp4" type="video/mp4"></video>
+        <figcaption><b>Ultra Cat</b><span class="gblurb">A giant cat wrecks five cities.</span><a href="https://tokentails.com/ultra-cat" target="_blank" rel="noopener">Play ↗</a></figcaption>
+      </figure>
+      <figure class="gcard rv">
+        <video controls playsinline preload="none" poster="/home/media/v15/formula-trailer.jpg" aria-label="Formula Meow trailer"><source src="/home/media/v15/formula-trailer.mp4" type="video/mp4"></video>
+        <figcaption><b>Formula Meow</b><span class="gblurb">Kart racing with cats.</span><a href="https://tokentails.com/meow-race" target="_blank" rel="noopener">Play ↗</a></figcaption>
+      </figure>
+      <figure class="gcard rv">
+        <video controls playsinline preload="none" poster="/home/media/v12/badcat-loop.jpg" aria-label="Bad Cat Daily trailer"><source src="/home/media/v12/badcat-loop.mp4" type="video/mp4"></video>
+        <figcaption><b>Bad Cat Daily</b><span class="gblurb">Knock things off the counter before the human turns around.</span><a href="https://tokentails.com/badcat" target="_blank" rel="noopener">Play ↗</a></figcaption>
+      </figure>
+      <figure class="gcard rv">
+        <video controls playsinline preload="none" poster="/home/media/v15/purrsuit-trailer.jpg" aria-label="Purrsuit trailer"><source src="/home/media/v15/purrsuit-trailer.mp4" type="video/mp4"></video>
+        <figcaption><b>Purrsuit</b><span class="gblurb">The original endless cat run.</span><a href="https://tokentails.com/game" target="_blank" rel="noopener">Play ↗</a></figcaption>
+      </figure>
+      <figure class="gcard rv">
+        <video controls playsinline preload="none" poster="/home/media/v15/match-trailer.jpg" aria-label="Paw Match trailer"><source src="/home/media/v15/match-trailer.mp4" type="video/mp4"></video>
+        <figcaption><b>Paw Match</b><span class="gblurb">Match-3 with rescue cats.</span><a href="https://tokentails.com/game" target="_blank" rel="noopener">Play ↗</a></figcaption>
+      </figure>
+      <figure class="gcard rv">
+        <video controls playsinline preload="none" poster="/home/media/create-trailer.jpg" aria-label="Make your own trailer"><source src="/home/media/create-trailer.mp4" type="video/mp4"></video>
+        <figcaption><b>Make your own</b><span class="chip plan">coming to Tails Club</span><span class="gblurb">Type one idea and get a whole cat game, with Arc giving built in.</span></figcaption>
+      </figure>
+    </div>
+    <div class="pl-feature rv">
+      <video controls playsinline preload="none" poster="https://tokentails.com/home/media/pawlegends-trailer.jpg" aria-label="Paw Legends trailer"><source src="https://tokentails.com/home/media/pawlegends-trailer.mp4" type="video/mp4"></video>
+      <div>
+        <span class="chip plan">next test pilot</span>
+        <h3>Paw Legends: cats vs dogs, 3v3</h3>
+        <p>Our team-battle game is the next pilot for the rail. Matches carry in-match gifts that settle on Arc mainnet, the same way as the first pilot, and every gift is counted by the same public ledger.</p>
+        <p><a href="https://pawlegends.app/" target="_blank" rel="noopener">pawlegends.app ↗</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet alt" id="scale">
+  <div class="wrap">
+    <div class="imgcard wide-img rv">
+      <img src="./img/scale.jpg" alt="Illustration: at dusk, many small warm lights spread across a wide valley, connected by glowing paths." width="2000" height="1116" loading="lazy" onerror="this.remove()">
+      <div class="cap" style="padding:clamp(20px,4vw,48px)">
+        <div class="kicker" style="background:rgba(7,5,26,.55)">How it scales from here</div>
+        <h2 style="margin:0">Pilot done. Now: volume.</h2>
+      </div>
+    </div>
+    <p class="lede rv" style="font-size:clamp(1.2rem,1.7vw,1.5rem);color:var(--cream);font-weight:700;max-width:52ch">The pilot showed we can ship and execute: the rail carried more than 1,600 gifts in one week at a fraction of a cent each, and players used it from inside the game. The next phase is outside volume: in-game custodial giving for every player, and dozens of partner charity events. Everything after "today" is a plan, not a result.</p>
+
+    <div class="grid g2" style="align-items:start;margin-top:36px">
+      <div class="ladder" id="ladder">
+        <div class="rung done rv"><div class="when">Today</div><div class="body"><div class="t">Arc mainnet pilot complete <span class="chip ok">done</span></div><p>4,456 payouts in 37 days, about $0.0012 each, through 3 Sourcify-verified Arc contracts, plus a charity-event pilot with the founder-linked partner Motored (3 rounds, 1,440 event wallets).</p></div></div>
+        <div class="rung now rv"><div class="when">Now</div><div class="body"><div class="t">Sponsor-funded treats, round two <span class="chip arc">next float</span></div><p>Pilot round one carried 218 treats from 85 player accounts. The next sponsor float reopens in-game treats at up to 100 a day, and the contracts stay open to any caller.</p></div></div>
+        <div class="rung built rv"><div class="when">Live</div><div class="body"><div class="t">Real paid orders become gifts <span class="chip arc">checkout live</span></div><p>Crypto checkout runs on Arc mainnet. A $5 shelter cat sends $2.50 to the shelter. Tested end to end on Arc mainnet and open to every buyer.</p></div></div>
+        <div class="rung built rv"><div class="when">Released</div><div class="body"><div class="t">In-game custodial giving <span class="chip ok">released</span></div><p>Players give from inside the game without a wallet; Token Tails' wallet settles each gift on Arc. 85 player accounts already used the treat version in the pilot.</p></div></div>
+        <div class="rung plan rv"><div class="when">Next</div><div class="body"><div class="t">Dozens of partner charity events <span class="chip plan">rolling out</span></div><p>The Motored pilot is the template. <a href="#sponsor-template">Motored × Stripe</a> ties one gift to each real paid order (built and tested, live with the next Motored event) and is the integration every sponsor in our queue receives. Each new event runs on the same contracts with its own memo, so its volume is countable on chain. Partner-funded gifts stay labelled as sponsor money, never as donors.</p></div></div>
+        <div class="rung plan rv"><div class="when">Next pilot</div><div class="body"><div class="t"><a href="#games">Paw Legends</a>: the next test pilot <span class="chip plan">next</span></div><p>Our team-battle game is the next pilot for the rail: in-match gifts that settle on Arc mainnet, run the same way as the first pilot and measured by the same public ledger.</p></div></div>
+        <div class="rung plan rv"><div class="when">Then</div><div class="body"><div class="t">One prompt, one game on Arc <span class="chip plan">coming to Tails Club</span></div><p>Anyone types one idea and gets a whole cat game, published for everyone to play, with the shelter button and Arc mainnet giving built in. Every new game becomes a new place where players give.</p></div></div>
+        <div class="rung plan rv"><div class="when">Dec 6</div><div class="body"><div class="t">Gasless in-game give button <span class="chip plan">target</span></div><p>Players sign one EIP-3009 message and pay no gas. Both Arc routers (USDC and EURC) are already deployed and Sourcify-verified.</p></div></div>
+        <div class="rung plan rv"><div class="when">Dec 8 – 15</div><div class="body"><div class="t">Arc-first settlement <span class="chip plan">target</span></div><p>All shelter payouts settle on Arc in USDC or EURC.</p></div></div>
+        <div class="rung plan rv"><div class="when">Dec 27</div><div class="body"><div class="t">CCTP into Arc + x402 for agents <span class="chip plan">target</span></div><p>Payers holding USDC elsewhere arrive on Arc through Circle CCTP. AI agents pay by x402 "exact", which is verified on testnet today.</p></div></div>
+        <div class="rung plan rv"><div class="when">Dec 15 → Feb 15</div><div class="body"><div class="t">Outside-only targets <span class="chip plan">target</span></div><p>75 outside gifts by Dec 15, 175 by Jan 15, then 300 gifts, $1,500 and 3 shelter wallets by Feb 15, 2027, plus 1 outside site embedding the button. Counted against the public excluded-wallet list (<a href="./arc-addresses.json">arc-addresses.json</a>: Token Tails, founder, Motored), by the same ledger script.</p></div></div>
+        <div class="rung plan rv"><div class="when">Mid-2027</div><div class="body"><div class="t">10 shelters · 2,500 outside gifts · 10 integrations <span class="chip plan">example</span></div><p>Shelters 2 and 3 (Mil Bigotes, Puppy Kitty NYC) are candidates, not yet agreed. Adding a shelter takes one <code>addShelter</code> call; a split holds up to 50.</p></div></div>
+      </div>
+
+      <div style="display:grid;gap:16px">
+        <div class="card rv">
+          <h3>Why Arc: the economics of a $1 gift</h3>
+          <div class="bars">
+            <div class="barrow"><span>Card fee on $1</span><div class="track"><div class="fill" style="width:100%;background:var(--warn)"></div></div><span class="num">≈ $0.33</span></div>
+            <div class="barrow"><span>Arc gas per gift</span><div class="track"><div class="fill" style="width:1.2%;min-width:4px;background:var(--arc)"></div></div><span class="num">≈ $0.0012</span></div>
+          </div>
+          <p class="srcnote">Card fee: ~$0.30 + 3%, company estimate. Arc gas: arc-ledger.json, 4.94 USDC over 4,230 Motored event gift transactions.</p>
+        </div>
+        <div class="card rv">
+          <h3>Capacity already in place</h3>
+          <div class="cap4">
+            <div><span class="what">Arc contracts</span><b>4</b><span>all Sourcify-verified</span></div>
+            <div><span class="what">Shelters per split</span><b>50</b><span>by basis points</span></div>
+            <div><span class="what">New integrator</span><b>1 <small>tag</small></b><span>no contract change</span></div>
+            <div><span class="what">New chain</span><b>1 <small>script</small></b><span>env-only Foundry</span></div>
+          </div>
+        </div>
+        <div class="card rv">
+          <h3>What unlocks the next phase</h3>
+          <ul class="small" style="margin:0;padding-left:20px">
+            <li>Sponsors in our queue plug in through the Motored × Stripe template: one gift per real paid order.</li>
+            <li>In-game giving reaches every player through the treat button, with sponsor floats per event.</li>
+            <li>Outside gifts are measured by the same public ledger, against the published address list.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p class="srcnote">Plan sources: Token Tails grant plan (targets) and checkout status from <a href="https://api.tokentails.com/payments/crypto/config" target="_blank" rel="noopener">/payments/crypto/config</a>. Treat-rail state from <a href="https://api.tokentails.com/shelter/donate/status" target="_blank" rel="noopener">/shelter/donate/status</a>, read 2026-11-17.</p>
+  </div>
+</section>
+
+<!-- 7. EVERY TX -->
+<section class="sheet haze" id="txs">
+  <div class="wrap">
+    <div class="grid" style="grid-template-columns:minmax(0,1fr);gap:8px">
+      <div class="kicker rv" style="justify-self:start">Full transparency</div>
+      <h2 class="rv">Every Token Tails transaction on Arc</h2>
+      <p class="lede rv">Everything the ledger found for Token Tails and Motored wallets on Arc mainnet. Collapsed by default.</p>
+    </div>
+    <div id="txGroups"><p class="muted">Loading…</p></div>
+  </div>
+</section>
+
+<footer class="ft">
+  <div class="stars" data-n="60" aria-hidden="true"></div><div class="beam" aria-hidden="true" style="left:70%"></div>
+  <div class="wrap" style="position:relative;z-index:1">
+    <div class="ftgrid">
+      <div>
+        <h2>Every payout is public on chain.</h2>
+        <div class="flex" style="margin:8px 0 24px">
+          <a class="cta" href="./arc-ledger.json">arc-ledger.json</a>
+          <a class="cta ghost" href="https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split" target="_blank" rel="noopener">Contracts on GitHub ↗</a>
+        </div>
+        <p id="footMeta">Arc mainnet (chain 5042).</p>
+        <p>USDC counted at $1. EURC is reported separately. Motored (motored.lt) is founder-linked, and its event money is counted as one related-party sponsor.</p>
+      </div>
+      <div class="grid g2" style="gap:24px">
+        <div class="ftlinks"><span class="lbl">Data</span><a href="./arc-ledger.json">arc-ledger.json</a><a href="./campaign.json">campaign.json</a><a href="./arc-addresses.json">arc-addresses.json</a><a href="./arc-deployments.json">arc-deployments.json</a><a href="./arc-routers.json">arc-routers.json</a></div>
+        <div class="ftlinks"><span class="lbl">Code</span><a href="https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split" target="_blank" rel="noopener">contracts/shelter-split</a><a href="https://github.com/zbagdzevicius/tokentails/tree/main/shelter-rail" target="_blank" rel="noopener">shelter-rail SDK</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="horizon" aria-hidden="true">
+    <div class="wordmark">Token Tails</div>
+    <img class="ftlogo" src="/logo/logo-text.webp" alt="Token Tails" width="260" height="147">
+    <div class="planet"></div>
+  </div>
+  <div class="ftbar"><div class="wrap"><span>Token Tails · Shelter rail on Arc mainnet</span><span>Contracts: <a href="https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split" target="_blank" rel="noopener">github.com/zbagdzevicius/tokentails/contracts/shelter-split</a></span></div></div>
+</footer>
+<script>
+(function () {
+  "use strict";
+  var EXP = "https://explorer.arc.io";
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function fmt(n, dp) { return Number(n).toLocaleString("en-US", { minimumFractionDigits: dp || 0, maximumFractionDigits: dp || 0 }); }
+  function short(a) { a = String(a); return a.slice(0, 6) + "…" + a.slice(-4); }
+  function isHex(a) { return /^0x[0-9a-fA-F]+$/.test(String(a)); }
+  function txA(h, label) { return isHex(h) ? '<a href="' + EXP + '/tx/' + esc(h) + '" target="_blank" rel="noopener">' + esc(label || short(h)) + ' ↗</a>' : ""; }
+  function adA(h, label, base) { return isHex(h) ? '<a href="' + (base || EXP) + '/address/' + esc(h) + '" target="_blank" rel="noopener" class="mono">' + esc(label || short(h)) + '</a>' : ""; }
+  function setK(k, v) { document.querySelectorAll('[data-k="' + k + '"]').forEach(function (el) { el.textContent = v; }); }
+  function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var LED = null;
+
+  /* ---------- How-it-works flow diagram (static) ---------- */
+  function flowSvg(L) {
+    var W = 1000, H = 470;
+    var bp = (L && L.totals && L.totals.byPath) || { "split-donate-native": 4451, "split-disburse": 4, "router-native": 1 };
+    var payers = [["Game or app", "in-game treat, give button"], ["Shop checkout", "card or crypto order share"], ["Wallet user", "any EVM wallet"], ["AI agent", "x402 / capped float"]];
+    var doors = [
+      { t: "donate(memo)", s: "native USDC on Arc", chip: "ok", c: "used: " + fmt(bp["split-donate-native"]) + " payouts (Motored event + Token Tails)" },
+      { t: "approve + disburse()", s: "USDC or EURC on Arc", chip: "ok", c: fmt(bp["split-disburse"]) + " proof payouts on Arc" },
+      { t: "EIP-3009 signature → DonateRouter", s: "gasless; any relayer submits", chip: "arc", c: "deployed on Arc, Sourcify-verified" },
+      { t: "x402 exact / CappedSpender", s: "agent pays; daily caps on chain", chip: "warn", c: "testnet / fork-tested" }
+    ];
+    var o = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="' + SVGNS + '" role="img" aria-labelledby="flowT flowD">';
+    o += '<title id="flowT">How a gift flows through the shelter rail</title><desc id="flowD">Payers on the left enter through one of four doors: native donate, approve and disburse, a gasless EIP-3009 signature through the DonateRouter, or x402 and CappedSpender for agents. All reach ShelterSplit, which pays the shelter wallet in the same transaction and emits a public event. A branch to the Token Tails treasury is blocked: the router reverts if any value would go there.</desc>';
+    o += '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--faint)"/></marker></defs>';
+    payers.forEach(function (p, i) {
+      var y = 40 + i * 92;
+      o += '<rect x="10" y="' + y + '" width="170" height="64" rx="12" fill="var(--surface-2)" stroke="var(--border)"/>';
+      o += '<text x="24" y="' + (y + 28) + '" font-size="15" font-weight="700" fill="var(--text)">' + p[0] + '</text>';
+      o += '<text x="24" y="' + (y + 47) + '" font-size="13" fill="var(--muted)">' + p[1] + '</text>';
+      o += '<path d="M180,' + (y + 32) + ' C 205,' + (y + 32) + ' 205,' + (y + 32) + ' 228,' + (y + 32) + '" stroke="var(--faint)" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>';
+    });
+    var chipColor = { ok: ["var(--good-soft)", "var(--good)"], arc: ["var(--arc-soft)", "var(--arc)"], warn: ["var(--warn-soft)", "var(--warn)"] };
+    doors.forEach(function (d, i) {
+      var y = 40 + i * 92;
+      o += '<rect x="232" y="' + y + '" width="320" height="64" rx="12" fill="var(--surface)" stroke="var(--border)"/>';
+      o += '<text x="248" y="' + (y + 26) + '" font-size="14" font-weight="700" fill="var(--text)" font-family="ui-monospace,Menlo,monospace">' + esc(d.t) + '</text>';
+      o += '<text x="248" y="' + (y + 46) + '" font-size="13" fill="var(--muted)">' + esc(d.s) + '</text>';
+      var cc = chipColor[d.chip]; var cw = Math.min(d.c.length * 7.3 + 20, 352);
+      o += '<rect x="' + (546 - cw) + '" y="' + (y - 9) + '" width="' + cw + '" height="20" rx="10" fill="' + cc[0] + '"/>';
+      o += '<text x="' + (546 - cw / 2) + '" y="' + (y + 4) + '" font-size="12" font-weight="600" text-anchor="middle" fill="' + cc[1] + '">' + esc(d.c) + '</text>';
+      var ty = 170 + i * 16;
+      o += '<path d="M552,' + (y + 32) + ' C 600,' + (y + 32) + ' 590,' + ty + ' 628,' + ty + '" stroke="var(--arc)" stroke-width="2" fill="none" marker-end="url(#ah)" opacity=".85"/>';
+    });
+    // ShelterSplit
+    o += '<rect x="632" y="128" width="170" height="150" rx="16" fill="var(--arc-soft)" stroke="var(--arc)" stroke-width="2"/>';
+    o += '<text x="717" y="160" font-size="16" font-weight="800" text-anchor="middle" fill="var(--arc)">ShelterSplit</text>';
+    ["splits by bps,", "same transaction", "keeps no balance", "emits public event"].forEach(function (t, i) {
+      o += '<text x="717" y="' + (186 + i * 20) + '" font-size="12.5" text-anchor="middle" fill="var(--text)">' + t + '</text>';
+    });
+    // shelter
+    o += '<path d="M802,203 L 838,203" stroke="var(--accent)" stroke-width="3" fill="none" marker-end="url(#ah)"/>';
+    o += '<rect x="842" y="150" width="150" height="112" rx="16" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>';
+    o += '<text x="917" y="184" font-size="15" font-weight="800" text-anchor="middle" fill="var(--accent)">Shelter\'s</text>';
+    o += '<text x="917" y="203" font-size="15" font-weight="800" text-anchor="middle" fill="var(--accent)">own wallet</text>';
+    o += '<text x="917" y="226" font-size="13" text-anchor="middle" fill="var(--text)">Pink Paw 0x3c83…4771</text>';
+    o += '<text x="917" y="243" font-size="13" text-anchor="middle" fill="var(--muted)">100% (10,000 bps)</text>';
+    // blocked treasury
+    o += '<path d="M717,278 L 717,340" stroke="var(--faint)" stroke-width="1.6" stroke-dasharray="5 4" fill="none"/>';
+    o += '<rect x="612" y="342" width="210" height="54" rx="12" fill="none" stroke="var(--faint)" stroke-dasharray="5 4"/>';
+    o += '<text x="717" y="364" font-size="13" font-weight="700" text-anchor="middle" fill="var(--muted)">Token Tails treasury</text>';
+    o += '<text x="717" y="383" font-size="13" text-anchor="middle" fill="var(--muted)">router reverts if any wei goes here</text>';
+    o += '<g stroke="var(--warn)" stroke-width="3"><line x1="704" y1="300" x2="730" y2="320"/><line x1="730" y1="300" x2="704" y2="320"/></g>';
+    // x402 direct
+    o += '<path d="M552,334 C 575,424 585,424 620,424 L 900,424 C 930,424 940,410 940,266" stroke="var(--warn)" stroke-width="1.6" stroke-dasharray="4 4" fill="none" marker-end="url(#ah)"/>';
+    o += '<text x="760" y="452" font-size="14" fill="var(--warn)" text-anchor="middle">x402 exact pays the shelter wallet directly (testnet-verified)</text>';
+    o += '</svg>';
+    document.getElementById("flowSvgWrap").innerHTML = o;
+    flowSvgV(doors, chipColor);
+  }
+  function flowSvgV(doors, chipColor) {
+    var W = 420, y = 10, o = "";
+    o += '<rect x="10" y="' + y + '" width="400" height="58" rx="12" fill="var(--surface-2)" stroke="var(--border)"/>';
+    o += '<text x="210" y="' + (y + 25) + '" font-size="18" font-weight="700" text-anchor="middle" fill="var(--text)">Payer</text>';
+    o += '<text x="210" y="' + (y + 45) + '" font-size="16" text-anchor="middle" fill="var(--muted)">game, shop checkout, wallet user or AI agent</text>';
+    y += 58;
+    o += '<path d="M210,' + y + ' L210,' + (y + 22) + '" stroke="var(--faint)" stroke-width="1.6" marker-end="url(#ahv)"/>'; y += 28;
+    doors.forEach(function (d) {
+      var cc = chipColor[d.chip];
+      o += '<rect x="10" y="' + y + '" width="400" height="88" rx="14" fill="var(--surface)" stroke="var(--border)"/>';
+      o += '<text x="24" y="' + (y + 26) + '" font-size="17" font-weight="700" fill="var(--text)" font-family="ui-monospace,Menlo,monospace">' + esc(d.t.replace(" → DonateRouter", "")) + '</text>';
+      o += '<text x="24" y="' + (y + 48) + '" font-size="16" fill="var(--muted)">' + esc(d.s) + '</text>';
+      var vc = d.c.replace("used: ", "").replace(" (Motored event + Token Tails)", " · Motored event + TT");
+      var cw = Math.min(372, vc.length * 8.6 + 22);
+      o += '<rect x="24" y="' + (y + 57) + '" width="' + cw + '" height="24" rx="12" fill="' + cc[0] + '"/>';
+      o += '<text x="' + (24 + cw / 2) + '" y="' + (y + 74) + '" font-size="15" font-weight="700" text-anchor="middle" fill="' + cc[1] + '">' + esc(vc) + '</text>';
+      y += 96;
+    });
+    o += '<path d="M210,' + (y - 4) + ' L210,' + (y + 20) + '" stroke="var(--arc)" stroke-width="2" marker-end="url(#ahv)"/>'; y += 26;
+    o += '<rect x="10" y="' + y + '" width="400" height="84" rx="14" fill="var(--arc-soft)" stroke="var(--arc)" stroke-width="2"/>';
+    o += '<text x="210" y="' + (y + 28) + '" font-size="20" font-weight="800" text-anchor="middle" fill="var(--arc)">ShelterSplit</text>';
+    o += '<text x="210" y="' + (y + 50) + '" font-size="16" text-anchor="middle" fill="var(--text)">splits by bps in the same transaction</text>';
+    o += '<text x="210" y="' + (y + 70) + '" font-size="16" text-anchor="middle" fill="var(--text)">keeps no balance · emits a public event</text>';
+    y += 84;
+    o += '<path d="M150,' + y + ' L150,' + (y + 22) + '" stroke="var(--accent)" stroke-width="3" marker-end="url(#ahv)"/>';
+    o += '<path d="M330,' + y + ' L330,' + (y + 22) + '" stroke="var(--faint)" stroke-width="1.6" stroke-dasharray="5 4"/>';
+    o += '<g stroke="var(--warn)" stroke-width="3"><line x1="320" y1="' + (y + 6) + '" x2="340" y2="' + (y + 20) + '"/><line x1="340" y1="' + (y + 6) + '" x2="320" y2="' + (y + 20) + '"/></g>';
+    y += 28;
+    o += '<rect x="10" y="' + y + '" width="250" height="84" rx="14" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>';
+    o += '<text x="135" y="' + (y + 28) + '" font-size="18" font-weight="800" text-anchor="middle" fill="var(--accent)">Shelter\'s own wallet</text>';
+    o += '<text x="135" y="' + (y + 50) + '" font-size="16" text-anchor="middle" fill="var(--text)">Pink Paw 0x3c83…4771</text>';
+    o += '<text x="135" y="' + (y + 70) + '" font-size="16" text-anchor="middle" fill="var(--muted)">100% (10,000 bps)</text>';
+    o += '<rect x="270" y="' + y + '" width="140" height="96" rx="12" fill="none" stroke="var(--faint)" stroke-dasharray="5 4"/>';
+    o += '<text x="340" y="' + (y + 30) + '" font-size="16" font-weight="700" text-anchor="middle" fill="var(--muted)">TT treasury</text>';
+    o += '<text x="340" y="' + (y + 50) + '" font-size="16" text-anchor="middle" fill="var(--muted)">router reverts</text>';
+    o += '<text x="340" y="' + (y + 68) + '" font-size="16" text-anchor="middle" fill="var(--muted)">if any wei</text>';
+    o += '<text x="340" y="' + (y + 84) + '" font-size="16" text-anchor="middle" fill="var(--muted)">goes here</text>';
+    y += 104;
+    var H = y;
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="' + SVGNS + '" role="img" aria-label="How a gift flows: payer, one of four entry doors, ShelterSplit, then the shelter\'s own wallet. The treasury branch is blocked."><defs><marker id="ahv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--faint)"/></marker></defs>' + o + '</svg>';
+    document.getElementById("flowSvgV").innerHTML = svg;
+  }
+
+  /* ---------- Chain grid (static facts from deployments.json / routers.json / Sourcify) ---------- */
+  var CHAINS = [
+    { name: "Arc", id: 5042, hub: true, exp: "https://explorer.arc.io", coin: "USDC + EURC", split: "0x457c89e10a6e66633eda5bf82fd086febb5db147", split2: "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052", router: "0x937f13ce28294011567615330dbcb859a06a0bba", router2: "0x683d66d89eaa7460d3a12337cdf8185fae37dfbd", proof: "0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d", rot: "0xb96044051062f52a185e6255608879194793c2819c5c8f33d605cfa6d297f517", src: true, total: "171.05 USDC + 0.10 EURC", note: "full ledger below · paid by the Motored event and Token Tails" }
+  ];
+  function chainGrid() {
+    var h = "";
+    CHAINS.forEach(function (c) {
+      var A = function (a) { return '<a class="mono" href="' + c.exp + '/address/' + a + '" target="_blank" rel="noopener">' + short(a) + '</a>'; };
+      var T = function (t, l) { return '<a href="' + c.exp + '/tx/' + t + '" target="_blank" rel="noopener">' + l + ' ↗</a>'; };
+      var S = function (a) { return '<a href="https://repo.sourcify.dev/' + c.id + '/' + a + '" target="_blank" rel="noopener" class="chip ok">Sourcify ✓</a>'; };
+      h += '<div class="chainCard' + (c.hub ? " hub" : "") + '"><header><b>' + c.name + '</b><span class="muted small mono">chain ' + c.id + '</span></header>';
+      h += '<div class="flex">' + (c.hub ? '<span class="chip arc">mainnet</span>' : "") + '<span class="chip self">' + esc(c.coin) + '</span></div>';
+      h += '<dl class="kv"><dt>Split</dt><dd>' + A(c.split) + " " + (c.src ? S(c.split) : '<span class="chip warn">explorer source</span>') + '</dd>';
+      if (c.split2) h += '<dt>EURC split</dt><dd>' + A(c.split2) + " " + S(c.split2) + '</dd>';
+      if (c.router) h += '<dt>Router</dt><dd>' + A(c.router) + " " + S(c.router) + '</dd>';
+      if (c.router2) h += '<dt>EURC router</dt><dd>' + A(c.router2) + " " + S(c.router2) + '</dd>';
+      h += '<dt>Proof</dt><dd>' + T(c.proof, "proof payout") + ' · ' + T(c.rot, "rotated to Pink Paw") + '</dd>';
+      h += '<dt>Paid in</dt><dd><b class="num">' + esc(c.total) + '</b> <span class="muted">· ' + esc(c.note) + '</span></dd></dl></div>';
+    });
+    document.getElementById("chainGrid").innerHTML = h;
+  }
+
+  /* ---------- Charts from ledger ---------- */
+  function dayKey(t) { return new Date(t * 1000).toISOString().slice(0, 10); }
+  function dayRange(a, b) { var out = [], d = new Date(a + "T00:00:00Z"), e = new Date(b + "T00:00:00Z"); while (d <= e) { out.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); } return out; }
+  function mdy(k) { var m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return m[+k.slice(5, 7) - 1] + " " + (+k.slice(8)); }
+
+  function cw(id) { var el = document.getElementById(id); return Math.max(280, Math.round((el && el.clientWidth) || 560)); }
+  function ch(W) { return Math.round(Math.max(220, Math.min(290, W * 0.52))); }
+  function niceMax(m, n) {
+    var raw = m / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+    var st = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * mag;
+    return st * Math.ceil(m / st);
+  }
+  function axisFrame(W, H, P, days, yMax, yFmt, ticks) {
+    var o = "", x = function (i) { return P.l + (W - P.l - P.r) * (i / Math.max(1, days.length - 1)); };
+    for (var i = 0; i <= ticks; i++) {
+      var v = yMax * i / ticks, y = H - P.b - (H - P.t - P.b) * (i / ticks);
+      o += '<line x1="' + P.l + '" x2="' + (W - P.r) + '" y1="' + y + '" y2="' + y + '" stroke="var(--grid)"/>';
+      if (i > 0) o += '<text x="' + (P.l - 6) + '" y="' + (y + 4) + '" font-size="13" text-anchor="end" fill="var(--faint)">' + yFmt(v) + '</text>';
+    }
+    var step = (W - P.l - P.r) / Math.max(1, days.length - 1), endI = days.length - 1, ti = [];
+    days.forEach(function (d, i) { if (i < endI && /^(01|08|15|22)$/.test(d.slice(8)) && (!ti.length || (i - ti[ti.length - 1]) * step >= 56)) ti.push(i); });
+    while (ti.length && (endI - ti[ti.length - 1]) * step < 70) ti.pop();
+    ti.push(endI);
+    ti.forEach(function (i) { var isEnd = i === endI; o += '<text x="' + x(i) + '" y="' + (H - P.b + 17) + '" font-size="13" text-anchor="' + (isEnd ? "end" : "middle") + '" fill="var(--faint)">' + mdy(days[i]) + '</text>'; });
+    return { o: o, x: x };
+  }
+  function roundBands(days, x, P, H, rounds) {
+    var o = "";
+    rounds.forEach(function (r) {
+      var w = String(r.window).split(" to "); var a = days.indexOf(w[0]), b = days.indexOf(w[1]);
+      if (a < 0 || b < 0) return;
+      o += '<rect x="' + x(a) + '" y="' + P.t + '" width="' + Math.max(2, x(b) - x(a)) + '" height="' + (H - P.t - P.b) + '" fill="var(--motored-soft)" opacity=".7"/>';
+      o += '<text x="' + ((x(a) + x(b)) / 2) + '" y="' + (P.t + 13) + '" font-size="13" font-weight="700" text-anchor="middle" fill="var(--motored-ink)">' + esc(r.round) + '</text>';
+    });
+    return o;
+  }
+
+  function render(L) {
+    var T = L.totals, B = L.buckets, MR = L.motoredReconciliation;
+    setK("usd", fmt(T.usd, 2)); setK("payouts", fmt(T.payouts)); setK("toPP", fmt(T.toPinkPawWallet.payouts));
+    var sent = MR.rounds.reduce(function (s, r) { return s + r.sentTxs; }, 0);
+    setK("sentTxs", fmt(sent)); setK("gas", (MR.impliedGasUsd / sent).toFixed(4));
+    setK("blocks", fmt(L.fromBlock) + "–" + fmt(L.toBlock));
+    setK("funderTx", fmt(MR.funderToEventWallets.count));
+    setK("topups", MR.funderTopups.count + " top-ups, " + fmt(MR.funderTopups.usd) + " USDC");
+    setK("onlyFunder", String(MR.walletsFundedOnlyByFunder));
+    var dist = T.motoredWalletsPerUserLabel.distribution; var dk = Object.keys(dist);
+    if (dk.length === 1) setK("dist", fmt(dist[dk[0]]) + " labels × " + dk[0] + " wallets");
+    setK("toPPusd", fmt(T.toPinkPawWallet.usd, 2));
+    charts(L);
+    usage(L);
+    sankey(L);
+    payerTable(L);
+    walletExample(L);
+    claim(L);
+    txGroups(L);
+    document.getElementById("footMeta").innerHTML = "Arc mainnet (chain " + esc(L.chainId) + "), blocks " + fmt(L.fromBlock) + "–" + fmt(L.toBlock) + ". Ledger generated " + esc(L.generatedAt.replace("T", " ").slice(0, 16)) + " UTC.";
+  }
+
+  function charts(L) {
+    var MR = L.motoredReconciliation;
+    // series
+    var rows = L.payouts, days = {}, first = null, last = null, treatsByDay = {};
+    rows.forEach(function (p) {
+      var d = dayKey(p[2]); first = first && first < d ? first : d; last = last && last > d ? last : d;
+      var e = days[d] || (days[d] = { m: 0, s: 0, mu: 0, su: 0 });
+      var mot = p[8] === "motored";
+      if (mot) e.m++; else e.s++;
+      if (p[5] === "USDC") { if (mot) e.mu += p[4]; else e.su += p[4]; }
+      if (/^tt:(page|heist):/.test(p[7] || "")) treatsByDay[d] = (treatsByDay[d] || 0) + 1;
+    });
+    var dk2 = dayRange(first, last);
+    var treats = Object.keys(treatsByDay).reduce(function (s, k) { return s + treatsByDay[k]; }, 0);
+    setK("treats", fmt(treats));
+
+    // cumulative stacked area
+    (function () {
+      var W = cw("cumChart"), H = ch(W), P = { l: 46, r: 12, t: 20, b: 28 };
+      var cm = 0, cs = 0, pts = dk2.map(function (d) { var e = days[d] || { mu: 0, su: 0 }; cs += e.su; cm += e.mu; return { s: cs, t: cs + cm }; });
+      var yMax = niceMax(pts[pts.length - 1].t, 4);
+      var f = axisFrame(W, H, P, dk2, yMax, function (v) { return "$" + fmt(v); }, 4), x = f.x;
+      var y = function (v) { return H - P.b - (H - P.t - P.b) * v / yMax; };
+      var o = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="' + SVGNS + '" aria-hidden="true">' + roundBands(dk2, x, P, H, MR.rounds) + f.o;
+      var top = pts.map(function (p, i) { return x(i) + "," + y(p.t); }).join(" ");
+      var mid = pts.map(function (p, i) { return x(i) + "," + y(p.s); });
+      o += '<polygon points="' + top + " " + mid.slice().reverse().join(" ") + '" fill="var(--motored)" opacity=".85"/>';
+      o += '<polygon points="' + mid.join(" ") + " " + x(pts.length - 1) + "," + y(0) + " " + x(0) + "," + y(0) + '" fill="var(--self)" opacity=".95"/>';
+      var hi = dk2.indexOf("2026-10-16");
+      if (hi >= 0) o += '<line x1="' + x(hi) + '" x2="' + x(hi) + '" y1="' + P.t + '" y2="' + (H - P.b) + '" stroke="var(--accent)" stroke-dasharray="4 3" stroke-width="1.5"/><text x="' + (x(hi) - 4) + '" y="' + (P.t + 32) + '" font-size="13" font-weight="600" text-anchor="end" fill="var(--accent)">handover</text>';
+      var lp = pts[pts.length - 1];
+      var lt = fmt(lp.t, 2) + " USDC", lw = lt.length * 8 + 16, lx = x(pts.length - 1) - 6, ly = y(lp.t) - 14;
+      if (ly - 12 < P.t + 20) ly = y(lp.t) + 26;
+      o += '<rect x="' + (lx - lw) + '" y="' + (ly - 12) + '" width="' + lw + '" height="22" rx="11" fill="var(--n900)" opacity=".92" stroke="var(--border)"/>';
+      o += '<text x="' + (lx - lw / 2) + '" y="' + (ly + 4) + '" font-size="13" font-weight="800" text-anchor="middle" fill="var(--text)">' + lt + '</text>';
+      o += '</svg>';
+      document.getElementById("cumChart").innerHTML = o;
+    })();
+
+    // daily stacked bars
+    (function () {
+      var W = cw("dayChart"), H = ch(W), P = { l: 40, r: 12, t: 20, b: 28 };
+      var mx = 0; dk2.forEach(function (d) { var e = days[d]; if (e) mx = Math.max(mx, e.m + e.s); });
+      var yMax = niceMax(mx, 4);
+      var f = axisFrame(W, H, P, dk2, yMax, function (v) { return fmt(v); }, 4), x = f.x;
+      var bw = Math.max(2, (W - P.l - P.r) / dk2.length - 3);
+      var y = function (v) { return (H - P.t - P.b) * v / yMax; };
+      var o = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="' + SVGNS + '" aria-hidden="true">' + roundBands(dk2, x, P, H, MR.rounds) + f.o;
+      dk2.forEach(function (d, i) {
+        var e = days[d]; if (!e) return; var cx = x(i) - bw / 2, base = H - P.b;
+        if (e.s) o += '<rect x="' + cx + '" y="' + (base - y(e.s)) + '" width="' + bw + '" height="' + y(e.s) + '" fill="var(--self)"><title>' + mdy(d) + ": " + e.s + ' Token Tails payouts</title></rect>';
+        if (e.m) o += '<rect x="' + cx + '" y="' + (base - y(e.s) - y(e.m)) + '" width="' + bw + '" height="' + y(e.m) + '" fill="var(--motored)"><title>' + mdy(d) + ": " + e.m + ' Motored event payouts</title></rect>';
+      });
+      o += '</svg>';
+      document.getElementById("dayChart").innerHTML = o;
+    })();
+
+    // treats per day
+    (function () {
+      var td = Object.keys(treatsByDay).sort(); if (!td.length) return;
+      var dr = dayRange(td[0], td[td.length - 1]);
+      var W = cw("treatChart"), H = Math.round(ch(W) * 0.85), P = { l: 34, r: 12, t: 24, b: 28 };
+      var mx = 0, mxd = ""; dr.forEach(function (d) { if ((treatsByDay[d] || 0) > mx) { mx = treatsByDay[d]; mxd = d; } });
+      var yMax = niceMax(mx, 4);
+      var f = axisFrame(W, H, P, dr, yMax, function (v) { return fmt(v); }, 4), x = f.x;
+      var bw = Math.max(3, (W - P.l - P.r) / dr.length - 4), y = function (v) { return (H - P.t - P.b) * v / yMax; };
+      var o = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="' + SVGNS + '" aria-hidden="true">' + f.o;
+      dr.forEach(function (d, i) { var v = treatsByDay[d]; if (!v) return; o += '<rect x="' + (x(i) - bw / 2) + '" y="' + (H - P.b - y(v)) + '" width="' + bw + '" height="' + y(v) + '" rx="2" fill="var(--self)"><title>' + mdy(d) + ': ' + v + ' treats</title></rect>'; });
+      var mi = dr.indexOf(mxd);
+      o += '<text x="' + Math.min(x(mi), W - P.r - 50) + '" y="' + (H - P.b - y(mx) - 6) + '" font-size="13" font-weight="700" text-anchor="middle" fill="var(--text)">peak ' + mx + ' · ' + mdy(mxd) + '</text>';
+      o += '</svg>';
+      document.getElementById("treatChart").innerHTML = o;
+    })();
+
+  }
+
+  function usage(L) {
+    var B = L.buckets;
+    // usage bars (only non-empty kinds)
+    (function () {
+      var items = [{ l: "Motored gift pools", n: B.motored.payouts, c: "var(--motored)" }];
+      var tests = 0;
+      B["tt-self"].byKind.forEach(function (k) {
+        if (!(k.payouts > 0)) return;
+        if (k.kind === "sponsored-treat") items.push({ l: "Sponsored treats", n: k.payouts, c: "var(--self)" });
+        else tests += k.payouts;
+      });
+      if (tests) items.push({ l: "Team test payments", n: tests, c: "var(--self)" });
+      items.sort(function (a, b) { return b.n - a.n; });
+      var mx = Math.max.apply(null, items.map(function (i) { return i.n; }));
+      document.getElementById("usageBars").innerHTML = items.map(function (i) {
+        var w = Math.max(0.8, 100 * Math.sqrt(i.n / mx));
+        return '<div class="barrow"><span>' + esc(i.l) + '</span><div class="track"><div class="fill" style="width:' + w + '%;background:' + i.c + '"></div></div><span class="num">' + fmt(i.n) + (i.n === 1 ? ' payout' : ' payouts') + '</span></div>';
+      }).join("") + '<p class="srcnote" style="margin:0">Bar length uses a square-root scale so small kinds stay visible.</p>';
+    })();
+
+  }
+
+  /* ---------- Sankey ---------- */
+  function sankey(L) {
+    var R = L.relatedTxs, MR = L.motoredReconciliation, B = L.buckets, K = {};
+    B["tt-self"].byKind.forEach(function (k) { K[k.kind] = k; });
+    var sum = function (f) { return R.filter(f).reduce(function (s, t) { return s + (t.token === "USDC" ? +t.amount : 0); }, 0); };
+    var FND = "0x29d7d5361052c0990879d7926a0c98a63f9860f8", DPL = "0xd6f37d1241da20bbe40d1210940bc43a1ec56263", HOT = "0x8d03d8295892f7de2b7ce57585aa45dd4b3c2ba0";
+    var dep = sum(function (t) { return t.kind === "tt-inflow"; });
+    var fToDep = sum(function (t) { return t.kind === "tt-internal-funding" && t.from === FND && t.to === DPL; });
+    var depToHot = sum(function (t) { return t.kind === "tt-internal-funding" && t.from === DPL && t.to === HOT; });
+    var kv = function (k) { return K[k] ? K[k].usd : 0; };
+    var direct = kv("founder-rave-usdc") + kv("founder-wallet-gift");
+    var hotOut = kv("sponsored-treat") + kv("rave-card-order");
+    var proof = kv("proof-payout");
+    var k = 1.15, nw = 14, Y0 = 70, YB = 370;
+    var nodes = {
+      dep: { x: 20, y: Y0, l: "Outside addresses", s: "deposits onto Arc", lines: ["deposits · " + fmt(dep, 2) + " USDC"], col: "var(--faint)" },
+      fnd: { x: 220, y: Y0, l: "Token Tails team wallet", s: "0x29d7…60f8", col: "var(--founder)" },
+      fun: { x: 420, y: Y0, l: "Motored event funder", s: MR.funderTopups.count + " top-ups · " + fmt(MR.funderTopups.usd) + " USDC", col: "var(--motored)" },
+      dpl: { x: 420, y: YB, l: "Token Tails deployer", s: "0xd6f3…6263", col: "var(--self)", below: true },
+      evw: { x: 610, y: Y0, l: fmt(MR.funderToEventWallets.count) + " gift pools", s: "3 rounds × 480", col: "var(--motored)" },
+      dir: { x: 420, y: 250, l: "Team test payments", s: "checkout, router, deploy", col: "var(--founder)", below: true },
+      hot: { x: 610, y: YB, l: "Sponsor wallet", s: "0x8d03…2ba0", col: "var(--self)", below: true },
+      spl: { x: 800, y: Y0, l: "ShelterSplit", s: "+ DonateRouter", col: "var(--arc)" },
+      pp: { x: 1010, y: Y0, l: "Shelter payee", s: "Pink Paw", lines: [fmt(L.totals.toPinkPawWallet.usd, 2) + " direct to Pink Paw's wallet", "+ " + fmt(L.totals.toOldShelterWallet0xE299.usd, 2) + " via pre-handover payee,", "swept to Pink Paw on Oct 16"], col: "var(--accent)", right: true }
+    };
+    // links in stacking order (source order top→bottom, target order top→bottom)
+    var links = [
+      { a: "dep", b: "fnd", v: dep, c: "var(--faint)", t: fmt(dep, 2) },
+      { a: "fnd", b: "fun", v: MR.funderTopups.usd, c: "var(--motored)", t: fmt(MR.funderTopups.usd) },
+      { a: "fun", b: "evw", v: MR.funderToEventWallets.usd, c: "var(--motored)", t: fmt(MR.funderToEventWallets.usd, 2) },
+      { a: "evw", b: "spl", v: B.motored.usd, c: "var(--motored)", t: "gifts " + fmt(B.motored.usd, 2) },
+      { a: "fnd", b: "dir", v: direct, c: "var(--founder)", t: fmt(direct, 2) },
+      { a: "dir", b: "spl", v: direct, c: "var(--founder)", t: fmt(direct, 2), lx: 0.45 },
+      { a: "fnd", b: "dpl", v: fToDep, c: "var(--self)", t: fmt(fToDep, 2) },
+      { a: "dpl", b: "spl", v: proof, c: "var(--self)", t: "proofs " + fmt(proof, 2), lx: 0.3 },
+      { a: "dpl", b: "hot", v: depToHot, c: "var(--self)", t: fmt(depToHot, 2) },
+      { a: "hot", b: "spl", v: hotOut, c: "var(--self)", t: "treats + order shares " + fmt(hotOut, 2), lx: 0.55 },
+      { a: "spl", b: "pp", v: L.totals.usd, c: "var(--accent)", t: fmt(L.totals.usd, 2) + " USDC" }
+    ];
+    var W = 1060, H = 420;
+    var wv = function (v) { return Math.max(2, v * k); };
+    Object.keys(nodes).forEach(function (id) {
+      var n = nodes[id], vin = 0, vout = 0;
+      links.forEach(function (l) { if (l.b === id) vin += wv(l.v); if (l.a === id) vout += wv(l.v); });
+      n.h = Math.max(vin, vout, 6); n.oi = 0; n.oo = 0;
+    });
+    var o = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="' + SVGNS + '" role="img" aria-labelledby="skT skD"><title id="skT">Money flow into Pink Paw\'s wallet on Arc</title><desc id="skD">Deposits from outside addresses reach the Token Tails team wallet. From there ' + fmt(MR.funderTopups.usd) + ' USDC goes to the Motored event funder, which funds ' + fmt(MR.funderToEventWallets.count) + ' gift pools that give ' + fmt(B.motored.usd, 2) + ' USDC through ShelterSplit. The team wallet paid ' + fmt(direct, 2) + ' USDC directly, and a small flow goes through the Token Tails deployer and sponsor wallet as treats, order shares and proof payouts. All ' + fmt(L.totals.usd, 2) + ' USDC reached the shelter payee: ' + fmt(L.totals.toPinkPawWallet.usd, 2) + ' directly in Pink Paw\'s wallet and ' + fmt(L.totals.toOldShelterWallet0xE299.usd, 2) + ' in the earlier Token Tails-held payee, swept to Pink Paw on Oct 16.</desc>';
+    var labels = "";
+    links.forEach(function (l) {
+      var a = nodes[l.a], b = nodes[l.b], w = wv(l.v);
+      var y1 = a.y + a.oo + w / 2, y2 = b.y + b.oi + w / 2; a.oo += w; b.oi += w;
+      var x1 = a.x + nw, x2 = b.x, mx = (x1 + x2) / 2;
+      o += '<path d="M' + x1 + ',' + y1 + ' C' + mx + ',' + y1 + ' ' + mx + ',' + y2 + ' ' + x2 + ',' + y2 + '" stroke="' + l.c + '" stroke-width="' + w + '" fill="none" opacity=".38"><title>' + esc(nodes[l.a].l) + ' → ' + esc(nodes[l.b].l) + ': ' + fmt(l.v, 2) + ' USDC</title></path>';
+      var f = l.lx || 0.5, t = f, it = 1 - t;
+      var lxp = it * it * it * x1 + 3 * it * it * t * mx + 3 * it * t * t * mx + t * t * t * x2;
+      var lyp = it * it * it * y1 + 3 * it * it * t * y1 + 3 * it * t * t * y2 + t * t * t * y2;
+      var big = w > 18;
+      labels += '<text x="' + lxp + '" y="' + (big ? lyp + 4 : lyp - w / 2 - 5) + '" font-size="' + (big ? 13 : 12) + '" font-weight="' + (big ? 700 : 500) + '" text-anchor="middle" fill="var(--text)" paint-order="stroke" stroke="var(--surface)" stroke-width="3">' + esc(l.t) + '</text>';
+    });
+    Object.keys(nodes).forEach(function (id) {
+      var n = nodes[id];
+      o += '<rect x="' + n.x + '" y="' + n.y + '" width="' + nw + '" height="' + n.h + '" rx="3" fill="' + n.col + '"/>';
+      var tx = n.right ? n.x + nw : n.x, anchor = n.right ? "end" : "start";
+      var ly = n.below ? n.y + n.h + 20 : n.y - 24;
+      o += '<text x="' + tx + '" y="' + ly + '" font-size="14" font-weight="700" text-anchor="' + anchor + '" fill="var(--text)">' + esc(n.l) + '</text>';
+      o += '<text x="' + tx + '" y="' + (ly + 16) + '" font-size="12.5" text-anchor="' + anchor + '" fill="var(--muted)">' + esc(n.s) + '</text>';
+      (n.lines || []).forEach(function (ln, i) { o += '<text x="' + tx + '" y="' + (n.y + n.h + 20 + i * 16) + '" font-size="12.5" text-anchor="' + anchor + '" fill="' + (i ? "var(--muted)" : "var(--text)") + '">' + esc(ln) + '</text>'; });
+    });
+    o += labels + '</svg>';
+    document.getElementById("sankey").innerHTML = o;
+    var tl = R.filter(function (t) { return t.kind === "motored-funder-topup"; }).map(function (t, i) { return txA(t.tx, "funder top-up " + (i + 1) + ": " + fmt(t.amount) + " USDC"); });
+    tl.push(adA(FND, "Token Tails team wallet"));
+    tl.push(adA("0xf1d715677877428ae8e95e8ff5385ec44f84688f", "Motored funder"));
+    tl.push(adA(HOT, "sponsor wallet"));
+    tl.push(adA("0x3c833562e682db66c2415b34961595df135f4771", "Pink Paw's wallet"));
+    tl.push(txA("0x5b16ac7411692688c9cd39a37ece9453db01380a1dd458d9e2b47dbcbe9941c7", "Oct 16 sweep"));
+    document.getElementById("sankeyLinks").innerHTML = '<span class="muted">Proof:</span> ' + tl.join(" · ");
+  }
+
+  /* ---------- Payer table (re-rendered from the ledger; static rows in the HTML are the fallback) ---------- */
+  function payerTable(L) {
+    var B = L.buckets, MR = L.motoredReconciliation, rows = "";
+    var names = { "sponsored-treat": "Sponsored rescue treats: tapped by players, paid by Token Tails' sponsor wallet", "founder-rave-usdc": "Moon Rave USDC orders the founder paid himself", "rave-card-order": "Moon Rave card-order shares, paid on chain by Token Tails (card buyer off chain, not verified)", "founder-wallet-gift": "Founder's router test gift", "proof-payout": "Deploy proof payouts" };
+    var payerNames = { "donateHot": "Sponsor wallet", "Deployer": "Token Tails deployer", "Founder own wallet": "Token Tails team wallet" };
+    var firstTx = {}; L.ttSelfPayers.forEach(function (p) { firstTx[p.address] = p; });
+    var N = function (l, v) { return '<td class="n" data-l="' + l + '">' + v + '</td>'; };
+    var eur = function (e) { return e ? ' <span class="muted small">+ ' + fmt(e, 2) + ' EURC</span>' : ""; };
+    // outside payers first, if the ledger ever has any
+    var X = L.totals.excludingMotoredAndSelf;
+    if (X && X.payouts > 0) {
+      rows += '<tr class="group"><td><span class="chip ok">Outside payers</span></td>' + N("Addresses", fmt(X.uniquePayers)) + N("Payouts", fmt(X.payouts)) + N("USDC", fmt(X.usd, 2) + eur(X.eurc)) + '<td></td></tr>';
+      (L.outsidePayers || []).concat(L.unknownPayers || []).forEach(function (op) {
+        rows += '<tr><td>' + adA(op.address) + '</td>' + N("Addresses", "1") + N("Payouts", fmt(op.payouts || 0)) + N("USDC", fmt(op.usd || 0, 2)) + '<td>' + (op.firstTx ? txA(op.firstTx, "first tx") : "") + '</td></tr>';
+      });
+    }
+    var m = B.motored;
+    if (m.payouts > 0) {
+      rows += '<tr class="group"><td><span class="chip mot">Motored event · founder-linked sponsor</span></td>' + N("Addresses", fmt(m.uniquePayers)) + N("Payouts", fmt(m.payouts)) + N("USDC", fmt(m.usd, 2)) + '<td><a href="#how-3">why 3 wallets</a></td></tr>';
+      MR.rounds.forEach(function (r) {
+        if (!r.payouts) return;
+        var agg = L.relatedAggregates.filter(function (a) { return a.kind === "motored-wallet-funding-" + r.round; })[0];
+        rows += '<tr><td>Round ' + esc(r.round.slice(1)) + ' · ' + esc(r.window) + '<div class="small muted">Funded by the one Motored funder, which the Token Tails team wallet topped up</div></td>' + N("Addresses", fmt(r.wallets)) + N("Payouts", fmt(r.payouts)) + N("USDC", fmt(r.donatedUsd, 2)) + '<td>' + (agg ? txA(agg.firstTx, "first funding tx") : "") + '</td></tr>';
+      });
+    }
+    var s = B["tt-self"];
+    if (s.payouts > 0) {
+      rows += '<tr class="group"><td><span class="chip self">Token Tails self-funded</span></td>' + N("Addresses", fmt(s.uniquePayers)) + N("Payouts", fmt(s.payouts)) + N("USDC", fmt(s.usd, 2) + eur(s.eurc)) + '<td></td></tr>';
+      // Treats get their own row; the small one-wallet test kinds are merged into one row.
+      var tests = { payers: {}, payouts: 0, usd: 0, eurc: 0 };
+      s.byKind.forEach(function (k) {
+        if (!k.payouts || k.kind === "sponsored-treat") return;
+        tests.payers[k.payer] = 1; tests.payouts += k.payouts; tests.usd += k.usd || 0; tests.eurc += k.eurc || 0;
+      });
+      s.byKind.filter(function (k) { return k.kind === "sponsored-treat"; }).forEach(function (k) {
+        if (!k.payouts) return;
+        var p = firstTx[k.payer];
+        rows += '<tr><td>' + esc(names[k.kind] || k.kind) + '<div class="small muted">Payer: ' + esc(payerNames[k.payerLabel] || k.payerLabel) + ' ' + adA(k.payer) + '</div></td>' + N("Addresses", "1") + N("Payouts", fmt(k.payouts)) + N("USDC", fmt(k.usd, 2) + eur(k.eurc)) + '<td>' + (p ? txA(p.firstTx, "payer's first tx") : "") + '</td></tr>';
+      });
+      if (tests.payouts) rows += '<tr><td>Team test payments<div class="small muted">Mainnet integration tests: checkout, gasless router and deploy proofs</div></td>' + N("Addresses", fmt(Object.keys(tests.payers).length)) + N("Payouts", fmt(tests.payouts)) + N("USDC", fmt(tests.usd, 2) + eur(tests.eurc)) + '<td></td></tr>';
+    }
+    var other = ["funded-by-tt-or-motored"].reduce(function (n, kk) { return n + (B[kk] ? B[kk].payouts : 0); }, 0);
+    if (other > 0) rows += '<tr><td colspan="5" class="err">The ledger lists payers funded by Token Tails or Motored. See arc-ledger.json buckets.</td></tr>';
+    var allFounder = !(X && X.payouts > 0) && other === 0;
+    rows += '<tr class="total"><td>All Arc payouts' + (allFounder ? ' · one controlling party: Token Tails' : '') + '</td>' + N("Addresses", fmt(L.totals.uniquePayerAddresses)) + N("Payouts", fmt(L.totals.payouts)) + N("USDC", fmt(L.totals.usd, 2) + eur(L.totals.eurc)) + '<td></td></tr>';
+    document.querySelector("#payerTable tbody").innerHTML = rows;
+    if (!allFounder) {
+      setK("bannerHead", "Outside payers have appeared on Arc.");
+      setK("bannerBody", "The ledger now lists " + fmt(X.uniquePayers) + " outside payer addresses. Everything else still traces to Token Tails.");
+      setK("answerHead", "Outside payers on Arc, with Motored and self-funding excluded:");
+      setK("answerBody", fmt(X.uniquePayers) + " payer addresses, " + fmt(X.payouts) + " payouts, " + fmt(X.usd, 2) + " USDC. See the first rows of the table.");
+    }
+  }
+
+  /* ---------- 3 wallets per label example ---------- */
+  function walletExample(L) {
+    var label = "motored:user-17", re = /^motored:user-17(-final)?$/, w = {}, order = [];
+    L.payouts.forEach(function (p) {
+      if (!re.test(p[7] || "")) return;
+      if (!w[p[3]]) { w[p[3]] = { n: 0, usd: 0, t: p[2], tx: p[0] }; order.push(p[3]); }
+      w[p[3]].n++; w[p[3]].usd += p[4];
+    });
+    order.sort(function (a, b) { return w[a].t - w[b].t; });
+    var MR = L.motoredReconciliation;
+    var chips = order.map(function (a, i) {
+      return '<div class="wchip"><span><b>r' + (i + 1) + '</b> ' + adA(a) + '</span><span class="num">' + w[a].n + (w[a].n === 1 ? ' gift' : ' gifts') + ' · ' + fmt(w[a].usd, 2) + ' USDC</span></div>';
+    }).join("");
+    if (order.length < 2) return;
+    var h = '<div class="node fnd"><b>Token Tails team wallet</b>' + adA("0x29d7d5361052c0990879d7926a0c98a63f9860f8") + '<div class="small muted">funded by deposits from outside addresses </div></div>';
+    h += '<div class="arrow" aria-hidden="true">↓</div>';
+    h += '<div class="node mot"><b>One Motored event funder</b>' + adA("0xf1d715677877428ae8e95e8ff5385ec44f84688f") + '<div class="small muted">' + MR.funderTopups.count + ' top-ups (' + fmt(MR.funderTopups.usd) + ' USDC), only from the Token Tails team wallet · sent ' + fmt(MR.funderSentTxs) + ' funding transfers, nothing else</div></div>';
+    h += '<div class="arrow" aria-hidden="true">↓</div>';
+    h += '<div class="wchips">' + chips + '</div>';
+    h += '<div class="arrow" aria-hidden="true">↓</div>';
+    h += '<div class="node pp"><b>Same memo label in every round: <span class="mono">' + esc(label) + '</span></b>3 pools for one label = 3 rounds, not 3 people. Gifts went through ShelterSplit to the shelter payee.</div>';
+    document.getElementById("walletFlow").innerHTML = h;
+  }
+
+  function claim(L) {
+    var c = L.totals.publicClaimCheck; if (!c) return;
+    document.getElementById("claimText").innerHTML = 'The public counter read <b>' + fmt(c.claimed.payouts) + ' payouts / $' + fmt(c.claimed.usd) + '</b> on ' + esc(c.claimedPayoutCountReachedAt.time.slice(0, 10)) + ', midway through Motored round 3. The pilot closed at <b>' + fmt(c.ledger.payouts) + ' payouts / $' + fmt(c.ledger.usd, 2) + '</b>, every one of them on Arc mainnet and visible in the ledger below.';
+  }
+
+  /* ---------- Every related tx ---------- */
+  function txGroups(L) {
+    var R = L.relatedTxs, groups = [
+      { t: "Contract deploys and configuration", k: /^contract-|^erc20-approve$/ },
+      { t: "Token Tails internal funding", k: /^tt-internal-funding$/ },
+      { t: "Motored funder top-ups (Token Tails team wallet → funder)", k: /^motored-funder-topup$/ },
+      { t: "Handover verification (Oct 16): test transfer and sweep", k: /^shelter-sweep$|^tt-to-pinkpaw-test$|^pinkpaw-outflow$/ }
+    ];
+    var h = "";
+    groups.forEach(function (g) {
+      var list = R.filter(function (t) { return g.k.test(t.kind); }); if (!list.length) return;
+      h += '<details><summary><span>' + esc(g.t) + '</span><span class="muted small">' + list.length + ' txs</span></summary><div class="in tablewrap"><table><thead><tr><th scope="col">Time (UTC)</th><th scope="col">What</th><th scope="col" class="n">Amount</th><th scope="col">Tx</th></tr></thead><tbody>';
+      list.forEach(function (t) {
+        var amt = t.amount != null && +t.amount > 0 ? (t.amount < 1 ? String(+(+t.amount).toFixed(6)) : fmt(t.amount, 2)) + " " + esc(t.token) : "";
+        h += '<tr><td class="mono">' + esc(String(t.time).replace("T", " ").slice(0, 16)) + '</td><td>' + esc(t.note) + '</td><td class="n">' + amt + '</td><td>' + txA(t.tx) + '</td></tr>';
+      });
+      h += '</tbody></table></div></details>';
+    });
+    // aggregates
+    var ag = L.relatedAggregates.filter(function (a) { return a.count > 0 && /^motored-wallet-funding/.test(a.kind); });
+    if (ag.length) {
+      h += '<details><summary><span>Bulk activity (aggregated)</span><span class="muted small">' + ag.length + ' groups</span></summary><div class="in tablewrap"><table><thead><tr><th scope="col">Group</th><th scope="col" class="n">Txs</th><th scope="col" class="n">USDC</th><th scope="col">First tx</th></tr></thead><tbody>';
+      ag.forEach(function (a) { h += '<tr><td>' + esc(a.note) + '</td><td class="n">' + fmt(a.count) + '</td><td class="n">' + fmt(a.usd, 2) + '</td><td>' + txA(a.firstTx) + '</td></tr>'; });
+      h += '</tbody></table></div></details>';
+    }
+    var eoa = L.relatedAggregates.filter(function (a) { return a.kind === "eoa-sent-tx-counts"; })[0];
+    if (eoa) {
+      var ws = eoa.wallets.filter(function (w) { return w.sentTxs > 0; });
+      h += '<details><summary><span>Every tx each wallet ever sent, accounted for</span><span class="muted small">' + ws.length + ' wallets</span></summary><div class="in tablewrap"><table><thead><tr><th scope="col">Wallet</th><th scope="col" class="n">Txs sent</th><th scope="col" class="n">Shown in ledger</th></tr></thead><tbody>';
+      ws.forEach(function (w) { h += '<tr><td>' + esc(w.label) + ' ' + adA(w.address) + '</td><td class="n">' + fmt(w.sentTxs) + '</td><td class="n">' + fmt(w.txsInThisLedger) + '</td></tr>'; });
+      h += '</tbody></table><p class="srcnote">Plus ' + fmt(eoa.motoredEventWalletsSentTxs) + ' txs from Motored gift pools, which equal their payouts.</p></div></details>';
+    }
+    // all payouts
+    h += '<details id="allPayouts"><summary><span>All ' + fmt(L.payouts.length) + ' payouts</span><span class="muted small">filterable</span></summary><div class="in"><div class="filters"><label class="sr" for="pf">Group</label><select id="pf"><option value="">All groups</option><option value="motored">Motored event</option><option value="tt-self">Token Tails self-funded</option></select><label class="sr" for="pq">Search</label><input id="pq" type="search" placeholder="Search memo, payer or tx (user-17 matches exactly)"></div><div class="tablewrap"><table><thead><tr><th scope="col">Time (UTC)</th><th scope="col">Payer</th><th scope="col">Memo</th><th scope="col" class="n">Amount</th><th scope="col">Tx</th></tr></thead><tbody id="pbody"></tbody></table></div><button class="more" id="pmore" type="button">Show more</button></div></details>';
+    document.getElementById("txGroups").innerHTML = h;
+
+    var shown = 100;
+    function draw() {
+      var f = document.getElementById("pf").value, q = document.getElementById("pq").value.trim().toLowerCase();
+      var lab = /^(motored:)?user-\d+$/.test(q) ? new RegExp("^motored:" + q.replace(/^motored:/, "") + "(-final)?$") : null;
+      var list = L.payouts.filter(function (p) { return (!f || p[8] === f) && (!q || (lab ? lab.test(String(p[7])) : (String(p[7]) + " " + p[3] + " " + p[0]).toLowerCase().indexOf(q) >= 0)); });
+      document.getElementById("pbody").innerHTML = list.slice(0, shown).map(function (p) {
+        return '<tr><td class="mono">' + esc(new Date(p[2] * 1000).toISOString().replace("T", " ").slice(0, 16)) + '</td><td>' + adA(p[3]) + '</td><td class="mono">' + esc(p[7]) + '</td><td class="n">' + esc(Number(p[4]).toFixed(p[4] < 0.01 ? 6 : 2)) + ' ' + esc(p[5]) + '</td><td>' + txA(p[0]) + '</td></tr>';
+      }).join("");
+      document.getElementById("pmore").hidden = list.length <= shown;
+    }
+    document.getElementById("allPayouts").addEventListener("toggle", function () { if (this.open) draw(); });
+    document.getElementById("pf").addEventListener("change", function () { shown = 100; draw(); });
+    document.getElementById("pq").addEventListener("input", function () { shown = 100; draw(); });
+    document.getElementById("pmore").addEventListener("click", function () { shown += 200; draw(); });
+    var ex = document.getElementById("exShow");
+    if (ex) ex.addEventListener("click", function () { var d = document.getElementById("allPayouts"); document.getElementById("pq").value = "user-17"; document.getElementById("pf").value = ""; shown = 100; d.open = true; draw(); });
+  }
+
+  /* ---------- Scene chrome: stars, reveal-on-scroll, active nav, menu ---------- */
+  function chrome() {
+    var seed = 7; function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    document.querySelectorAll(".stars").forEach(function (box) {
+      var n = +box.getAttribute("data-n") || 40, h = "";
+      for (var i = 0; i < n; i++) {
+        var s = rnd() < .15 ? 3 : 2;
+        h += '<i style="left:' + (rnd() * 100).toFixed(2) + '%;top:' + (rnd() * 100).toFixed(2) + '%;width:' + s + 'px;height:' + s + 'px;opacity:' + (.35 + rnd() * .6).toFixed(2) + ';animation-delay:' + (rnd() * 5).toFixed(2) + 's"></i>';
+      }
+      box.innerHTML = h;
+    });
+    var rv = document.querySelectorAll(".rv");
+    if ("IntersectionObserver" in window) {
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("on"); io.unobserve(e.target); } });
+      }, { rootMargin: "0px 0px -6% 0px", threshold: 0.01 });
+      rv.forEach(function (el) { io.observe(el); });
+      var links = {}; document.querySelectorAll("#nav a").forEach(function (a) { links[a.getAttribute("href").slice(1)] = a; });
+      var so = new IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          var id = e.target.id === "answer-detail" ? "answer" : e.target.id;
+          Object.keys(links).forEach(function (k) { links[k].classList.toggle("on", k === id); if (k === id) links[k].setAttribute("aria-current", "true"); else links[k].removeAttribute("aria-current"); });
+        });
+      }, { rootMargin: "-45% 0px -50% 0px" });
+      ["top", "pilot", "answer", "answer-detail", "how", "proof", "traction", "games", "scale", "txs"].forEach(function (id) { var el = document.getElementById(id); if (el) so.observe(el); });
+    } else { rv.forEach(function (el) { el.classList.add("on"); }); }
+    var nav = document.getElementById("nav"), bg = document.getElementById("burger");
+    bg.addEventListener("click", function () { var o = nav.classList.toggle("open"); bg.setAttribute("aria-expanded", String(o)); });
+    nav.addEventListener("click", function (e) { if (e.target.closest("a")) { nav.classList.remove("open"); bg.setAttribute("aria-expanded", "false"); } });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && nav.classList.contains("open")) { nav.classList.remove("open"); bg.setAttribute("aria-expanded", "false"); bg.focus(); } });
+  }
+
+  chrome();
+  flowSvg();
+  chainGrid();
+  fetch("./arc-ledger.json", { cache: "no-cache" })
+    .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(function (L) { LED = L; try { flowSvg(L); } catch (e) {} render(L); })
+    .catch(function (e) {
+      if (window.console) console.warn("arc-ledger.json:", e.message);
+      var msg = "Live charts need arc-ledger.json, which did not load (" + e.message + "). The figures and tables shown are from the 2026-11-17 ledger; every proof link still points at the Arc explorer.";
+      var el = document.getElementById("loadErr"); el.hidden = false; el.textContent = msg;
+      ["cumChart", "dayChart", "treatChart", "usageBars", "sankey"].forEach(function (id) { var n = document.getElementById(id); if (n) n.innerHTML = '<p class="muted small">Chart unavailable offline. See the figures above.</p>'; });
+      document.getElementById("txGroups").innerHTML = '<p class="err small">' + esc(msg) + '</p>';
+    });
+  var lastW = window.innerWidth, rt = 0;
+  window.addEventListener("resize", function () {
+    if (!LED || Math.abs(window.innerWidth - lastW) < 40) return;
+    lastW = window.innerWidth; clearTimeout(rt); rt = setTimeout(function () { charts(LED); }, 150);
+  });
+})();
+</script>
+</body>
+</html>
