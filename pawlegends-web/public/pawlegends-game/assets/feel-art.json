@@ -211,16 +211,6 @@
  },
  {
   "asset": "A6",
-  "file": "stickers/help-cat-256.webp",
-  "w": 256,
-  "h": 256,
-  "kb": 11.4,
-  "alpha": true,
-  "quality": 82,
-  "use": "help / tips sticker"
- },
- {
-  "asset": "A6",
   "file": "stickers/nap-cat-256.webp",
   "w": 256,
   "h": 256,
@@ -228,36 +218,6 @@
   "alpha": true,
   "quality": 82,
   "use": "Nap (recall) channel"
- },
- {
-  "asset": "A6",
-  "file": "stickers/respawn-dog-256.webp",
-  "w": 256,
-  "h": 256,
-  "kb": 13.9,
-  "alpha": true,
-  "quality": 82,
-  "use": "respawn \"Back in N\" counter"
- },
- {
-  "asset": "A6",
-  "file": "stickers/cheer-cat-256.webp",
-  "w": 256,
-  "h": 256,
-  "kb": 14.8,
-  "alpha": true,
-  "quality": 82,
-  "use": "first blood / multi-kill banner (cats)"
- },
- {
-  "asset": "A6",
-  "file": "stickers/cheer-dog-256.webp",
-  "w": 256,
-  "h": 256,
-  "kb": 13.6,
-  "alpha": true,
-  "quality": 82,
-  "use": "first blood / multi-kill banner (dogs)"
  },
  {
   "asset": "A7",
