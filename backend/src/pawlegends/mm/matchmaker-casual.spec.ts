@@ -101,11 +101,11 @@ describe('casual PvP matchmaker', () => {
         expect(teamOf(m, 'm-x')).toBe(teamOf(m, 'm-y'));
     });
 
-    it('prefers symmetric fills after 30 s: four humans become 2v2 plus a bot each, not 3v1', () => {
+    it('prefers symmetric fills: four humans become 2v2 plus a bot each at the second bot seat (20 s), not 3v1', () => {
         const { clock, mm, advance } = make();
         for (const k of ['a', 'b', 'c', 'd']) mm.join(entry(clock, [k]));
-        expect(matchesOf(advance(MM_CASUAL.fillMs - 1000))).toHaveLength(0);
-        const [m] = matchesOf(advance(2000));
+        expect(matchesOf(advance(19_500))).toHaveLength(0);
+        const [m] = matchesOf(advance(500));
         expect(m.teams!.map(t => t.humans)).toEqual([2, 2]);
         expect(m.teams!.map(t => t.bots)).toEqual([1, 1]);
         expect(m.fill).not.toBeNull();
@@ -194,8 +194,13 @@ describe('casual PvP matchmaker', () => {
         const wide = { r: 1500, rd: MM_CASUAL.protectedRd + 20 };
         for (const k of ['a', 'b', 'c']) mm.join(entry(clock, [member(k, { rating: wide })]));
         for (const k of ['d', 'e', 'f']) mm.join(entry(clock, [k]));
-        // 3 + 3 across the pools: no 3v3 (each pool alone only has three)
-        expect(matchesOf(advance(MM_CASUAL.fillMs - 1000))).toHaveLength(0);
+        // 3 + 3 across the pools: no 3v3 (each pool alone only has three; each fills its own 1v2 with bots)
+        const out = matchesOf(advance(MM_CASUAL.fillMs));
+        expect(out.some(m => m.humans === 6)).toBe(false);
+        for (const m of out) {
+            const keys = m.members.map(x => x.slice(2));
+            expect(keys.every(k => 'abc'.includes(k)) || keys.every(k => 'def'.includes(k))).toBe(true);
+        }
     });
 
     it('both teams get the same fill bots, from the mean of every human (1295 v 1305 is not easy v normal)', () => {

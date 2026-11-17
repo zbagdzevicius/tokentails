@@ -171,7 +171,7 @@ export function banModel(o: PickModel, x: PickHtmlExtra = {}): CsModel {
     teamNote: '',
     footLeft: v.mm ? `<button type="button" class="pl-btn ghost small pp-pick-leave" data-p="leave" data-testid="party-leave">${COPY.leaveMatch}</button>` : '',
     lock: !shown
-      ? { enabled: false, label: COPY.banLock, sub: mine ? COPY.banVoted(heroTitle(mine)) : COPY.banTap }
+      ? { enabled: false, label: COPY.banLock, sub: mine ? COPY.banVoted(heroTitle(mine)) : undefined }
       : shown === mine
         ? { enabled: false, label: COPY.banLock, sub: COPY.banVoted(heroTitle(mine)) }
         : { enabled: !why, label: COPY.banLock, sub: why || heroTitle(shown) },

@@ -91,7 +91,7 @@ describe('casual PvP client', () => {
     ({ s } = run(s, { t: 'mm.status', queue: 'coop', side: 'any', waitedMs: 45_000, estimateMs: 5000, found: 1, from: 'casual' }));
     expect(s.queue?.toCoop).toBe(true);
     const card = queueCardHtml({ side: 'any', waitedS: 45, estimateS: 5, found: 1, lowPriorityS: 0, warn: false, party: false, stopped: null, retryS: 0, match: null, offer: null, pvp: { theirs: 0, toCoop: true, requeued: false } });
-    expect(card).toContain('No PvP players right now: playing Co-op vs bots');
+    expect(card).toContain('Starting Co-op vs bots');
     expect(card).toContain('data-testid="mm-keep"');
     const k = run(s, { e: 'keep' });
     expect(sent(k.fx)).toEqual([{ t: 'mm.join', queue: 'casual', side: 'any' }]);

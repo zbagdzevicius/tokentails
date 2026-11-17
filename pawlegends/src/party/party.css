@@ -264,6 +264,7 @@
 .pl-party .pp-pvp-pips > span { display: inline-flex; gap: 6px; }
 .pl-party .pp-pvp-pips small { opacity: 1; color: var(--v6-bolt); font: italic 900 14px/1 var(--v6-font-display); text-transform: uppercase; letter-spacing: 0; }
 .pl-party .pp-pvp-pips .their .pp-pip.on { background: var(--v6-enemy); border-color: var(--v6-enemy); }
+.pl-party .pp-pvp-pips .pp-pip.bot { background: rgb(var(--v6-cream-rgb) / 0.32); border-color: rgb(var(--v6-cream-rgb) / 0.32); }
 .pl-party .pp-tocoop { margin: 2px 0; }
 .pl-party .pp-acceptcard { align-items: center; text-align: center; }
 .pl-party .pp-acceptcard .pp-ring { width: 56px; height: 56px; margin: 4px auto; box-shadow: var(--v6-keyline); }

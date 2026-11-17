@@ -81,15 +81,15 @@ describe('5v5 Classic matchmaker', () => {
         expect(m.members).toHaveLength(10);
     });
 
-    it('classic and casual pools never mix; a classic search never moves to co-op; bots fill at 45 s', () => {
+    it('classic and casual pools never mix; a classic search never moves to co-op; a 1v1 is full of bots at 38 s', () => {
         const { clock, mm, advance } = make();
         mm.join(entry(clock, ['a']));
         mm.join(entry(clock, ['b']));
         mm.join(entry(clock, ['c'], { queue: 'casual', sim: '19:abc' }));
-        const early = advance(MM_CLASSIC.fillMs - 1000);
+        const early = advance(MM_CLASSIC.fillMs - 500);
         expect(matchesOf(early).filter(m => m.map === 'hearthwood')).toHaveLength(0);
         expect(early.flatMap(t => t.switched).map(e => e.members[0].member)).not.toContain('m-a');
-        const [m] = matchesOf(advance(2000)).filter(x => x.map === 'hearthwood');
+        const [m] = matchesOf(advance(500)).filter(x => x.map === 'hearthwood');
         expect(m.fill).toBe('normal');
         expect(m.teams!.map(t => [t.humans, t.bots])).toEqual([
             [1, 4],
@@ -104,7 +104,8 @@ describe('5v5 Classic matchmaker', () => {
         mm.join(entry(clock, ['d1', 'd2']));
         mm.join(entry(clock, ['t1', 't2', 't3']));
         for (let i = 0; i < 5; i++) mm.join(entry(clock, [`s${i}`]));
-        const out = matchesOf(advance(MM_CLASSIC.partiesUntilMs + 2000));
+        // players before bots: once the party rule lifts (the first bot seat), ten humans beat any fill
+        const out = matchesOf(advance(MM_CLASSIC.partiesUntilMs));
         expect(out).toHaveLength(1);
         expect(out[0].humans).toBe(10);
         const teams = out[0].teams!.map(t => t.members.slice().sort());

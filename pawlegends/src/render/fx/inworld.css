@@ -18,3 +18,12 @@
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
 html[data-touch='1'] .pl-pops .pl-pop.xp { font-size: 12px; -webkit-text-stroke-width: 2px; }
+
+/* hidden in a bush or stealthed (render/fx/hideDim.ts): the view dims a little, edges more, under the HUD; no paint while off */
+.pl-hidedim {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden;
+  background: radial-gradient(ellipse closest-side at 50% 50%, rgba(8, 14, 24, 0.22) 40%, rgba(8, 14, 24, 0.52) 100%);
+  transition: opacity 150ms ease-out, visibility 0s linear 150ms;
+}
+.pl-hidedim[data-on='1'] { opacity: 1; visibility: visible; transition: opacity 150ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .pl-hidedim, .pl-hidedim[data-on='1'] { transition: none; } }

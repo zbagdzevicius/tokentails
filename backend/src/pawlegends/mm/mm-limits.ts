@@ -98,12 +98,33 @@ export const pairFillMs = (perMin: number): number =>
     Math.min(MM_LIMITS.fill.pair[fillBand(perMin)], MM_LIMITS.maxFillMs);
 
 /**
+ * Bot seats open after the oldest entry waited `waitedMs`: none before `fillStartMs`, then one every `fillStepMs`.
+ * A queue without a step (ranked) opens every seat at `fillMs`.
+ */
+export function trickleBots(
+    waitedMs: number,
+    limits: { fillStartMs: number; fillStepMs: number; fillMs: number }
+): number {
+    if (!(limits.fillStepMs > 0)) return waitedMs >= limits.fillMs ? Number.POSITIVE_INFINITY : 0;
+    if (waitedMs < limits.fillStartMs) return 0;
+    return Math.floor((waitedMs - limits.fillStartMs) / limits.fillStepMs) + 1;
+}
+
+/**
  * Casual PvP (M1b, docs/plans/moba/V16.md §4.1): the casual pool's numbers. A pool exists only for sims >= PVP_SINCE
  * and PROTO 3 sockets.
  */
 export const MM_CASUAL = Object.freeze({
-    /** Bot fill (symmetric shapes first) once the oldest entry waited this long; fixed for casual. */
-    fillMs: 30_000,
+    /**
+     * Bots trickle in (founder, 2026-11-17): the first bot seat opens once the oldest entry waited `fillStartMs`, then
+     * one more every `fillStepMs` (17 s, 20 s, 23 s ...). A plan with bots forms once its humans plus the open bot seats
+     * fill both teams, so every player who arrives first takes a seat and a full match starts at once. The client shows
+     * the same schedule as bot pips (pawlegends/src/party/botTrickle.ts: keep both copies equal).
+     */
+    fillStartMs: 17_000,
+    fillStepMs: 3000,
+    /** When a 1v1 is full of bots (the 4th bot seat, 17 s + 3 × 3 s): the lone-vs-three and estimate rules count from here. */
+    fillMs: 26_000,
     /**
      * No opponent human by then: the entry moves to the co-op pool (Keep waiting puts it back). The card then shows
      * Keep waiting for `switchGraceMs` before the co-op fill seats it, so a lone search is seated by 45 s (V16.md §4.1
@@ -153,16 +174,17 @@ export const MM_CASUAL = Object.freeze({
 
 /**
  * 5v5 Classic (docs/plans/moba/MAP-5V5.md §9.3): the `classic` pool on Hearthwood Divide (sim v19+, PROTO 4). The
- * casual rules with five seats a team: bots fill the empty seats at 45 s (`fillMsClassic`), a search never moves to
+ * casual rules with five seats a team: bots trickle into the empty seats from 17 s like casual, a search never moves to
  * co-op (there is no 5v5 co-op), and the subset search looks at fewer candidates (a team holds up to five entries).
  */
 export const MM_CLASSIC = Object.freeze({
     ...MM_CASUAL,
-    fillMs: 45_000,
+    /** A 1v1 is full of bots at the 8th bot seat (17 s + 7 × 3 s). */
+    fillMs: 38_000,
     /** Never: a classic search stays classic (Infinity keeps the casual switch code a no-op). */
     switchMs: Number.POSITIVE_INFINITY,
-    /** Parties face parties of the same size until the fill. */
-    partiesUntilMs: 45_000,
+    /** Parties face parties of the same size until the first bot seat opens (players before bots). */
+    partiesUntilMs: 17_000,
     /** A lone human never faces five humans while a fuller team can still form within this long after the fill. */
     loneVsThreeMs: 15_000,
     /** Bounds the subset search: anchor + 9 candidates is one full 10-human match. */
@@ -186,6 +208,8 @@ export const MM_RANKED = Object.freeze({
     ...MM_CASUAL,
     /** Bots fill the empty seats (players on both teams) after this long, outside Prime Time (RANKED_BOTS.fillS). */
     fillMs: 40_000,
+    /** No trickle: ranked seats every bot at once at `fillMs` (the points rule depends on it). */
+    fillStepMs: 0,
     /** Inside Prime Time players get longer to find each other first (RANKED_BOTS.primeFillS). */
     primeFillMs: 75_000,
     /** No opponent player this long after the fill: the search plays vs AI (RANKED_BOTS.aiAfterS). */

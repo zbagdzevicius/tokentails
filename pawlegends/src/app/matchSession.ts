@@ -47,6 +47,7 @@ import { toX, toZ } from '../render/coords';
 import { FADE, SHAPE } from '../render/fx/Particles.js';
 import { isBigHit } from '../render/fx/combatVfx';
 import { LowHp } from '../render/fx/lowHp';
+import { HideDim, hiddenFromEnemies } from '../render/fx/hideDim';
 import { GameView } from '../render/gameView';
 import { SnapBuffer, type ViewEntity, type ViewFrame } from '../render/interp';
 import type { GameRenderer } from '../render/renderer';
@@ -396,6 +397,8 @@ export class MatchSession {
   private overhead: Overhead;
   /** LoL pass (lane C): the persistent low-health vignette (made on the first body tick). */
   private lowHp: LowHp | null = null;
+  /** Hidden in a bush or stealthed: the view dims a little (render/fx/hideDim.ts). */
+  private hideDim: HideDim | null = null;
   private minimap: Minimap;
   private scoreboard: Scoreboard | null = null;
   private talents: TalentPicker | null = null;
@@ -591,6 +594,7 @@ export class MatchSession {
         view: this.view,
         overhead: this.overhead,
         lowHp: () => this.lowHp,
+        hideDim: () => this.hideDim,
         // TARGETING.md §8: the pick lab (loaded on demand, e2e only): old vs new pick on taps over the drawn bodies
         pickLab: async (op: 'measure' | 'busiest' | 'chests', touch = false) => {
           const lab = await import('../input/pickLab');
@@ -2265,6 +2269,8 @@ export class MatchSession {
     // LoL pass (lane C): the low-health vignette follows the HP every frame (off while dead)
     this.lowHp ??= new LowHp(this.ui);
     this.lowHp.update(me && me.maxHp > 0 ? me.hp / me.maxHp : 1, !me || me.state === 'dead');
+    this.hideDim ??= new HideDim(this.ui);
+    this.hideDim.update(hiddenFromEnemies(me, frame.entities, this.view.myTeam));
     if (!me || me.state === 'dead' || me.maxHp <= 0) {
       this.wasLow = false;
       this.wasDead = true;

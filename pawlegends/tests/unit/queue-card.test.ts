@@ -78,8 +78,10 @@ describe('queue card (M1a)', () => {
     expect(party.querySelector('[data-testid="mm-cancel"]')).toBeNull();
   });
 
-  it('the bots-fill note is in the searching card (shown on phones too)', () => {
-    expect(dom(queueCardHtml(model())).querySelector('.pp-note')?.textContent).toBe('Bots fill any empty seat');
+  it('the searching card announces no bot fill (founder, 2026-11-17)', () => {
+    const d = dom(queueCardHtml(model()));
+    expect(d.querySelector('.pp-note')).toBeNull();
+    expect(d.textContent).not.toMatch(/bots? fill|empty seat/i);
   });
 
   it('stopped states offer Search again (disabled while a lock runs) and Back', () => {

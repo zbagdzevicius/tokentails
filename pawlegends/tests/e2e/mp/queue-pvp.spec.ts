@@ -75,9 +75,11 @@ test('two strangers on opposite teams: PvP chip, Accept, a hidden-team pick, a r
   await shot(b, 'm1b', '00-title-mode-chip');
   await Promise.all([playPvp(a), playPvp(b)]);
   await shot(b, 'm1b', '01-queue-pvp');
-  // both pips (yours vs theirs) and the 30 s fill note
+  // both pips (yours vs theirs), no fill note; bots trickle in as pips from 17 s, one every 3 s
   await expect(b.page.locator('.pp-pvp-pips')).toBeVisible();
-  // the 30 s fill: a 1v1 with two bots per team, behind the Accept card
+  await expect(b.page.locator('.pp-queue .pp-note')).toHaveCount(0);
+  await expect(b.page.locator('.pp-pvp-pips .pp-pip.bot').first()).toBeVisible({ timeout: 30_000 });
+  // the trickle fills a 1v1 at the 4th bot seat (26 s): two bots per team, behind the Accept card
   for (const p of [a, b]) await expect(p.page.locator('[data-testid="mm-accept-card"]')).toBeVisible({ timeout: 60_000 });
   for (const p of [a, b]) await expect(p.page.locator('[data-testid="mm-found"]')).toContainText('1 player + 2 bots vs 1 + 2 bots');
   expect(await tappable(b.page, '[data-testid="mm-accept"]', 56)).toBe(true);

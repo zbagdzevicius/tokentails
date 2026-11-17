@@ -27,8 +27,9 @@ export function loadingHtml(v: PartyView, hideNames = false): string {
     .map((i) => card(humans[i]))
     .join('');
   const late = (v.deadlineMs ?? 1) <= 0 ? humans.find((m) => (m.loadPct ?? 0) < 100 && m.id !== v.you) : undefined;
-  const line = late ? COPY.botCovers(shownName(v, late, hideNames)) : COPY.botsCover;
-  return `<div class="pp-card pp-narrow pp-loading" data-testid="party-loading"><h2>${COPY.loadingTitle}</h2><ul class="pp-lcs">${cards}</ul><p class="pp-dim">${esc(line)}</p></div>`;
+  // only when someone is late: who the bot covers for (the bot cards say the rest)
+  const line = late ? `<p class="pp-dim">${esc(COPY.botCovers(shownName(v, late, hideNames)))}</p>` : '';
+  return `<div class="pp-card pp-narrow pp-loading" data-testid="party-loading"><h2>${COPY.loadingTitle}</h2><ul class="pp-lcs">${cards}</ul>${line}</div>`;
 
   function card(m: (typeof v.members)[number] | undefined): string {
       if (!m) return `<li class="pp-lc bot"><span class="pp-ts-face">?</span><b>${COPY.bot}</b></li>`;

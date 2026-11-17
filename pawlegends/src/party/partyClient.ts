@@ -16,7 +16,7 @@ import { WS_PATH, normalizeCode, type ClientJson, type MatchMsg, type MmQueue, t
 import { TRICK_IDS } from '../data/tricks';
 import { HERO_IDS, HEROES } from '../data/heroes';
 import { COPY, clockText, errorText, esc } from './ui/copy';
-import { queueCardHtml, type QueueStop } from './ui/queueCard';
+import { pvpPipsHtml, queueCardHtml, type QueueStop } from './ui/queueCard';
 import { RANKED_BOTS, RANKED_CASUAL_AFTER_S, rankedStatusNow, type RankedKind } from '../meta/ranked';
 import { measureRegionPings, regionPingsNow } from '../meta/rankedPing';
 import { acceptCardHtml } from './ui/acceptCard';
@@ -1144,6 +1144,15 @@ export class PartyClient {
       if (el && el.textContent !== text) el.textContent = text;
     };
     set('waited', clockText(this.waitedS()));
+    // casual and Classic: bots trickle into the empty seats (botTrickle.ts), one pip at a time
+    if (q.mode !== 'coop' && q.mode !== 'ranked' && !q.stopped && !q.found && !q.toCoop) {
+      const pips = this.card.querySelector<HTMLElement>('.pp-pvp-pips[data-bots]');
+      if (pips) {
+        const per = pips.querySelectorAll('span > .pp-pip').length / 2;
+        const html = pvpPipsHtml(Number(pips.dataset.found), Number(pips.dataset.theirs), per, this.waitedS());
+        if (!html.includes(`data-bots="${pips.dataset.bots}"`)) pips.outerHTML = html;
+      }
+    }
     // ranked (§7.11): the bot fill countdown
     if (q.mode === 'ranked' && !q.stopped && !q.found) {
       const fillS = rankedStatusNow()?.primeTime?.active ? RANKED_BOTS.primeFillS : RANKED_BOTS.fillS;
@@ -1887,7 +1896,12 @@ export class PartyClient {
       screen === 'pick'
         ? html.replace(/(data-timer[^>]*>)[^<]*/, '$1').replace(/ data-low="1"/, '')
         : screen === 'queue' || screen === 'accept'
-          ? html.replace(/(data-live="[a-z]+"[^>]*>)[^<]*/g, '$1').replace(/--pp-ring:\d+%/, '')
+          ? html
+              .replace(/(data-live="[a-z]+"[^>]*>)[^<]*/g, '$1')
+              .replace(/--pp-ring:\d+%/, '')
+              // the trickling bot pips are updated in place by liveQueue
+              .replace(/ · \d+ bots?(?=")| data-bots="\d+"/g, '')
+              .replace(/ class="pp-pip bot"/g, ' class="pp-pip"')
           : html;
     if (key === this.drawn) return;
     const keepSheet = this.card.querySelector('.pp-sheet');

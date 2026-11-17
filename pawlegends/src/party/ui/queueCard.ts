@@ -14,6 +14,7 @@ import { COPY, DIFF_LABEL, clockText, esc, sideText } from './copy';
 import { backfillHtml, type BackfillModel } from './backfillCard';
 import { RANKED_BOTS } from '../../meta/ranked';
 import { regionText } from '../../meta/rankedPing';
+import { queueBots } from '../botTrickle';
 
 export type QueueStop =
   | 'away'
@@ -120,12 +121,18 @@ export function pipsHtml(found: number, per = 3): string {
   return `<span class="pp-pips" role="img" aria-label="${esc(COPY.playersFound(n))}" data-testid="mm-pips" data-found="${n}">${Array.from({ length: per }, (_, i) => `<i class="pp-pip${i < n ? ' on' : ''}"></i>`).join('')}</span>`;
 }
 
-/** Casual PvP: both teams' pips (●●○ vs ●○○). */
-export function pvpPipsHtml(mine: number, theirs: number, per = 3): string {
-  const pip = (n: number) => Array.from({ length: per }, (_, i) => `<i class="pp-pip${i < n ? ' on' : ''}"></i>`).join('');
+/**
+ * Casual PvP: both teams' pips (●●○ vs ●○○). `waitedS` (casual and Classic, not ranked): bots trickle into the empty
+ * seats as their own pips (botTrickle.ts), labelled for screen readers.
+ */
+export function pvpPipsHtml(mine: number, theirs: number, per = 3, waitedS?: number): string {
   const a = Math.max(1, Math.min(per, Math.round(mine)));
   const b = Math.max(0, Math.min(per, Math.round(theirs)));
-  return `<span class="pp-pips pp-pvp-pips" role="img" aria-label="${esc(COPY.pvpTeams(a, b))}" data-testid="mm-pips" data-found="${a}" data-theirs="${b}"><span>${pip(a)}</span><small>vs</small><span class="their">${pip(b)}</span></span>`;
+  const bots = waitedS === undefined ? { mine: 0, theirs: 0 } : queueBots(waitedS, per, a, b);
+  const pip = (n: number, nb: number) =>
+    Array.from({ length: per }, (_, i) => `<i class="pp-pip${i < n ? ' on' : i < n + nb ? ' bot' : ''}"></i>`).join('');
+  const total = bots.mine + bots.theirs;
+  return `<span class="pp-pips pp-pvp-pips" role="img" aria-label="${esc(COPY.pvpTeams(a, b, total, per))}" data-testid="mm-pips" data-found="${a}" data-theirs="${b}" data-bots="${total}"><span>${pip(a, bots.mine)}</span><small>vs</small><span class="their">${pip(b, bots.theirs)}</span></span>`;
 }
 
 /** The side radio group (Cats · Dogs · Either). */
@@ -188,16 +195,16 @@ export function queueCardHtml(m: QueueModel): string {
   </div>`;
   }
   if (m.pvp) {
-    // casual PvP: both teams' pips; at the switch "playing Co-op vs bots" with Keep waiting
+    // casual PvP: both teams' pips, bots trickling in from 17 s; at the switch "playing Co-op vs bots" with Keep waiting
     const note = m.pvp.toCoop
       ? `<p class="pp-hint pp-tocoop" role="status" data-testid="mm-to-coop">${COPY.toCoop}</p><button type="button" class="pl-btn" data-p="mm-keep" data-testid="mm-keep">${COPY.keepWaiting}</button>`
-      : `<p class="pp-note">${COPY.pvpFill}</p>`;
+      : '';
     const requeued = m.pvp.requeued && !m.pvp.toCoop ? `<p class="pp-hint" data-testid="mm-requeued">${COPY.requeued}</p>` : '';
     return `<div class="pp-card pp-narrow pp-queue" data-state="searching" data-mode="pvp" data-testid="mm-queue">
     <h2>${m.party ? COPY.partyQueued : COPY.findingPvp}</h2>
     ${low}${requeued}
     <p class="pp-qtime" role="timer" aria-live="off"><b data-live="waited" data-testid="mm-timer">${clockText(m.waitedS)}</b>${est}</p>
-    ${pvpPipsHtml(m.found, m.pvp.theirs, m.teamSize === 5 ? 5 : 3)}
+    ${pvpPipsHtml(m.found, m.pvp.theirs, m.teamSize === 5 ? 5 : 3, m.pvp.toCoop ? undefined : m.waitedS)}
     ${note}
     ${sideChipHtml(m.side)}
     ${warn}${offer}
@@ -209,7 +216,6 @@ export function queueCardHtml(m: QueueModel): string {
     ${low}
     <p class="pp-qtime" role="timer" aria-live="off"><b data-live="waited" data-testid="mm-timer">${clockText(m.waitedS)}</b>${est}</p>
     ${pipsHtml(m.found, m.teamSize === 5 ? 5 : 3)}
-    <p class="pp-note">${COPY.botsFill}</p>
     ${sideChipHtml(m.side)}
     ${warn}${offer}
     <button type="button" class="pl-btn ghost" data-p="mm-cancel" data-testid="mm-cancel">${COPY.cancel}</button>

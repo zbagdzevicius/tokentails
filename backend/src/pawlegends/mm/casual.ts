@@ -2,10 +2,10 @@
  * Casual PvP team building (docs/plans/moba/V16.md §4.1): pure, deterministic (entries in queue order, ties by id).
  * The Matchmaker calls `bestCasual` once per waiting casual entry, oldest first; the first entry that gets a match
  * keeps it. Two teams of up to three humans each, never cats and dogs on one team, never the same address on opposite
- * teams, bots in the empty seats once the oldest entry waited `fillMs`.
+ * teams, bots trickling into the empty seats from `fillStartMs`, one every `fillStepMs` (`trickleBots`).
  */
 import { entryRating, type MmEntry } from './matchmaker';
-import { MM_CASUAL, MM_CLASSIC, MM_RANKED } from './mm-limits';
+import { MM_CASUAL, MM_CLASSIC, MM_RANKED, trickleBots } from './mm-limits';
 
 /**
  * The PvP queue a plan is built for: `casual` (3v3 on Purrhaven Crossing) or `classic` (5v5 on Hearthwood Divide,
@@ -216,7 +216,7 @@ export function bestCasual(
     const n = rules.teamSize;
     const waited = nowMs - a.enqueuedMs;
     const relaxed = waited >= c.sideRelaxMs;
-    const fillOk = waited >= c.fillMs;
+    const botSeats = trickleBots(waited, c);
     const partyRule = waited < c.partiesUntilMs;
     const protect = waited < c.protectWidenMs;
     const protectedA = a.members.some(m => m.rating.rd > c.protectedRd);
@@ -236,7 +236,8 @@ export function bestCasual(
             if (!teamOk(teamB, n) || !apartOk(teamA, teamB, rules.apartByNet)) continue;
             const hb = humansOf(teamB);
             const rank = shapeRankN(ha, hb, n);
-            if (rank !== 0 && !fillOk) continue;
+            // bots trickle in: the open bot seats and the humans must fill both teams
+            if (rank !== 0 && 2 * n - ha - hb > botSeats) continue;
             // ranked (§7.11): never a bot for an entry whose game does not label them
             if (rank !== 0 && rules.fillNeedsOptIn && ![...teamA, ...teamB].every(e => e.bots === true)) continue;
             if (rank >= 99) continue;
