@@ -26,7 +26,10 @@ export const TARGETS = [
     // Motored track: the page never shows its text (MotoredLine uses the founder-approved constants in
     // components/shelter-payouts/motored.ts). match-desk/ is the static sponsor page for companies (web only, no app
     // link), whose statement is the signed public record and is reviewed with the sponsors, not reworded here.
-    exclude: ['client/public/heist/**', 'client/public/facts/**', 'client/public/shelter-payouts/campaign.json', 'client/public/shelter-payouts/motored-event.json', 'client/public/match-desk/**', 'client/public/**/levels/**', 'client/public/**/*.map.json', 'client/public/utilities/mystery-boxes/**', 'client/public/catnip-chaos/badges/**'],
+    // shelter-payouts/arc-*.json is the on-chain ledger and address book behind the static Arc proof page
+    // (shelter-payouts/arc-payers.html, web only, linked from no app screen): its labels name the chain, the token
+    // and the tx hashes because they describe real transactions, so they are not reworded for the app.
+    exclude: ['client/public/heist/**', 'client/public/shelter-payouts/arc-*.json', 'client/public/facts/**', 'client/public/shelter-payouts/campaign.json', 'client/public/shelter-payouts/motored-event.json', 'client/public/match-desk/**', 'client/public/**/levels/**', 'client/public/**/*.map.json', 'client/public/utilities/mystery-boxes/**', 'client/public/catnip-chaos/badges/**'],
     ruleset: 'client',
     app: true,
     json: true,
