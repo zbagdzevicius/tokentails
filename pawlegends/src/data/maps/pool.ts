@@ -32,6 +32,8 @@ export interface PoolMapSpec {
   readonly crates?: readonly (readonly [number, number, number, number])[];
   /** Core HP (0 or absent: CORE_STATS). */
   readonly coreHp?: number;
+  /** The map's own hero-vs-hero row (MapDef.heroPvp). */
+  readonly heroPvp?: Readonly<Record<string, Readonly<{ dmgBp: number; takenBp: number }>>>;
 }
 
 /** Both sides' camps in camp order: team 0's, then their mirrors (team 1's). */
@@ -73,6 +75,7 @@ export function poolMap(spec: PoolMapSpec): MapDef {
     }),
     objective: Object.freeze({ ...spec.objective }),
     coreHp: spec.coreHp ?? 0,
+    ...(spec.heroPvp ? { heroPvp: Object.freeze(Object.fromEntries(Object.entries(spec.heroPvp).map(([k, v]) => [k, Object.freeze({ ...v })]))) } : {}),
     ...(spec.goalMouth ? { goalMouth: Object.freeze([...spec.goalMouth]) as unknown as readonly [number, number, number, number] } : {}),
     ...(spec.crates ? { crates: Object.freeze(spec.crates.map((c) => Object.freeze([...c] as unknown as readonly [number, number, number, number]))) } : {}),
   }) as MapDef;

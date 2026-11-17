@@ -94,6 +94,9 @@ const profile = argValue('--profile') ?? def.profile;
 const botTalents = argValue('--bot-talents') ?? 'seeded';
 /** Sim v22: `--mutator blitz` (default: the gate's, else none). */
 const mutator = argValue('--mutator') ?? def.mutator ?? 'none';
+/** Sim v34 (V34-MAPS.md): `--map crossing|ridge|thicket|quarry|pitch|hearthwood`, or `pool` (each seed draws its map
+ * with `pickMap3v3`, as Skirmish and the relay do). Default: the Crossing (no map passed, as before). */
+const mapArg = argValue('--map') ?? 'none';
 const json = hasFlag('--json');
 const quiet = hasFlag('--quiet') || (gate !== null && !hasFlag('--rows'));
 const checkDet = hasFlag('--check-determinism');
@@ -149,8 +152,10 @@ const pickFor = (seed, list, salt) => list[(Math.imul(seed ^ salt, 0x9e3779b1) >
 function play(seed, track) {
   const hero = heroArg === 'random' ? pickFor(seed, HEROES, 0x51) : heroArg;
   const trick = trickArg === 'random' ? pickFor(seed, TRICKS, 0x7a) : trickArg;
-  const { picks, tricks } = sim.fillPicks(seed, hero, trick);
-  const m = sim.createMatch({ seed, picks, tricks, difficulty, botTalents, ...(mutator !== 'none' ? { mutator } : {}) });
+  const map = mapArg === 'pool' ? sim.pickMap3v3(seed) : mapArg === 'none' ? undefined : mapArg;
+  const { picks, tricks } = map ? sim.fillPicks(seed, hero, trick, map) : sim.fillPicks(seed, hero, trick);
+  const m = sim.createMatch({ seed, picks, tricks, difficulty, botTalents, ...(map ? { map } : {}), ...(mutator !== 'none' ? { mutator } : {}) });
+  const sdTick = map ? sim.timelineFor(difficulty, map).late : undefined;
   const bot = sim.createPlayerBot(m, profile);
   const tracker = track ? createFunTracker(sim, m) : null;
   const t0 = performance.now();
@@ -163,7 +168,9 @@ function play(seed, track) {
   const res = sim.result(m);
   // GAPS B6: each slot's level-6 choice (talent tier 1: −1 never reached, 0 the number option, 1 the shape branch).
   const tier1 = picks.map((_, s) => m.world.talents[s * 3 + 1]);
-  return { res, tricks, tier1, trail: sim.hashTrail(m).slice(), ms, score: snap.score, replay: sim.replayRecord(m), fun: tracker?.finish(res) };
+  const funRow = tracker?.finish(res);
+  if (funRow && sdTick !== undefined) funRow.sdTick = sdTick;
+  return { map: map ?? 'crossing', res, tricks, tier1, trail: sim.hashTrail(m).slice(), ms, score: snap.score, replay: sim.replayRecord(m), fun: funRow };
 }
 
 /** Play seeds [f, f + n) in this process: rows, per-hero totals, determinism failures. */
@@ -185,6 +192,7 @@ function runRange(f, n) {
     }
     rows.push({
       seed,
+      map: a.map,
       ticks: a.res.ticks,
       winner: a.res.winner,
       reason: a.res.reason,
@@ -225,7 +233,7 @@ function runRange(f, n) {
 async function runParallel() {
   const per = Math.ceil(seeds / procs);
   const self = fileURLToPath(import.meta.url);
-  const passOn = ['--difficulty', difficulty, '--hero', heroArg, '--trick', trickArg, '--profile', profile, '--bot-talents', botTalents, '--mutator', mutator];
+  const passOn = ['--difficulty', difficulty, '--hero', heroArg, '--trick', trickArg, '--profile', profile, '--bot-talents', botTalents, '--mutator', mutator, '--map', mapArg];
   if (ablate.length) passOn.push('--ablate', ablate.join(','));
   if (checkDet) passOn.push('--check-determinism');
   if (fun) passOn.push('--fun');
@@ -310,7 +318,21 @@ const summary = {
   maxInputChars: Math.max(...rows.map((r) => r.inputChars)),
   deterministic: checkDet ? failures === 0 : undefined,
 };
-const funAgg = fun ? aggregateFun(rows.map((r) => r.fun), mutator === 'blitz' ? 4500 : sim.timelineFor(difficulty).late) : null;
+const funAgg = fun ? aggregateFun(rows.map((r) => r.fun), mutator === 'blitz' ? 4500 : sim.timelineFor(difficulty, mapArg === 'none' || mapArg === 'pool' ? undefined : mapArg).late) : null;
+if (mapArg === 'pool') {
+  const byMap = {};
+  for (const r of rows) {
+    const b = (byMap[r.map] ??= { n: 0, t0: 0, ticks: [], safety: 0 });
+    b.n++;
+    if (r.winner === 0) b.t0++;
+    if (r.reason === 'safetyEnd') b.safety++;
+    b.ticks.push(r.ticks);
+  }
+  for (const [k, b] of Object.entries(byMap)) {
+    b.ticks.sort((x, y) => x - y);
+    console.log(`  map ${k.padEnd(9)} ${String(b.n).padStart(5)} matches  Purrhaven ${((100 * b.t0) / b.n).toFixed(1)}%  median ${fmt(b.ticks[b.ticks.length >> 1])}  safety ${b.safety}`);
+  }
+}
 const gates = gate ? funGates(gate, funAgg, perHero, difficulty, CAT_HEROES) : [];
 // Sim v10 (GAPS B5): with --trick random (the gate default) every Paw Trick, over all six slots, wins 47% to 53%.
 if (gate === 'balance' && trickArg === 'random') {

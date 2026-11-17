@@ -223,7 +223,12 @@ function ballPlan(m: MatchHandle, id: number, out: Int32Array): number {
   for (let t = 0; t < 5 && !found; t++) {
     const ax = bx - idiv(ux * OB_BOT.behind, BP_ONE);
     const ay = by - idiv(uy * OB_BOT.behind, BP_ONE);
-    if (ax > 0 && ay > 0 && ax < MAP.width && ay < MAP.height && walkable(m.grid, cellOf(ax, ay))) {
+    // The walk-through point must be open too: a ball resting against a crate or wall is kicked off it, not into it
+    // (a bot pressing into the crate stood stuck there, V34-MAPS.md §2b).
+    const tx = bx + idiv(ux * OB_BOT.through, BP_ONE);
+    const ty = by + idiv(uy * OB_BOT.through, BP_ONE);
+    const open = (x: number, y: number): boolean => x > 0 && y > 0 && x < MAP.width && y < MAP.height && walkable(m.grid, cellOf(x, y));
+    if (open(ax, ay) && open(tx, ty)) {
       found = true;
       break;
     }

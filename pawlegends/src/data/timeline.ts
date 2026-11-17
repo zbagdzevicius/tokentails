@@ -109,6 +109,26 @@ export const HEARTHWOOD_LATE: LateSunset = Object.freeze({
   respawnHardCap: 1800,
 });
 
+/**
+ * Sim v34 (V34-MAPS.md §2b): the pool maps' late Sunset ramp. Crossing's left 1 to 12 in 2,000 of their matches at
+ * the 11:00 safety end (both teams down to the core, the base race stalled); twice the structure ramp, a higher cap
+ * and longer late respawns end those on a core.
+ */
+export const POOL_LATE: LateSunset = Object.freeze({
+  ...LATE_SUNSET,
+  structureBpPerMinute: 40000,
+  structureMaxBp: 200000,
+  respawnBpPerMinute: 10000,
+  respawnMaxBp: 30000,
+  respawnHardCap: 1800,
+});
+/**
+ * Sim v34 (V34-MAPS.md §2b): on the pool maps, past the late tick a takedown's Sunset core share is × this (bp). The
+ * stalled base races of those safety ends were six heroes holding one base, where structure damage never landed: the
+ * fights still went on, so the won fights end them.
+ */
+export const POOL_LATE_TAKEDOWN_CORE_BP = 20000;
+
 export type Timeline = { readonly [K in keyof typeof C_TIMELINE]: number };
 export type TimelineBy = typeof C_TIMELINE_BY;
 

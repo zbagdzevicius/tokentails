@@ -6,15 +6,15 @@
  * Towers also hit minions less every minute (LATE_SUNSET.towerMinionBpPerMinute, down to towerMinionMinBp), so the
  * waves push through and a won fight turns into towers. Nothing burns on its own: structures fall to heroes and minions.
  */
-import { HEARTHWOOD_LATE, LATE_SUNSET, TIMELINE } from '../data/timeline';
+import { HEARTHWOOD_LATE, LATE_SUNSET, POOL_LATE, TIMELINE } from '../data/timeline';
 import { BP_ONE, applyBp, idiv } from './fixed';
 import { G, type World } from './world';
 import { mutOf } from './mutator';
 import type { MatchHandle } from './state';
 import { rulesOf } from './rules';
 
-/** The map's late Sunset table: Hearthwood's steeper one on the 5v5 map (sim v32). */
-const lateOf = (w: World) => (w.mg.length > 0 ? HEARTHWOOD_LATE : LATE_SUNSET);
+/** The map's late Sunset table: Hearthwood's steeper one on the 5v5 map (sim v32), the pool maps' own (sim v34). */
+const lateOf = (w: World) => (w.mg.length > 0 ? HEARTHWOOD_LATE : w.ob.length > 0 ? POOL_LATE : LATE_SUNSET);
 
 /** Ticks past the late tick (0 before it). */
 const lateTicks = (w: World, tick: number): number => Math.max(0, tick - w.globals[G.Late]);

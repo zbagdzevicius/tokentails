@@ -68,6 +68,17 @@ export const PITCH = poolMap({
     [29000, 20000, 30500, 23000],
     [29000, 37000, 30500, 40000],
   ],
+  heroPvp: {
+    barkula: { dmgBp: 10150, takenBp: 9850 },
+    bravo: { dmgBp: 9800, takenBp: 10200 },
+    brutus: { dmgBp: 10150, takenBp: 9850 },
+    cacklejaw: { dmgBp: 9850, takenBp: 10150 },
+    gabe: { dmgBp: 9850, takenBp: 10150 },
+    lambo: { dmgBp: 10150, takenBp: 9850 },
+    nugget: { dmgBp: 10200, takenBp: 9800 },
+    sage: { dmgBp: 9900, takenBp: 10100 },
+    stilts: { dmgBp: 9850, takenBp: 10150 },
+  },
   objective: {
     ...OBJ_BASE,
     kind: 'goal',
@@ -75,7 +86,8 @@ export const PITCH = poolMap({
     y: 30000,
     fish: 40,
     xp: 50,
-    capture: 2,
+    // V34-MAPS.md §2b: one ball hit breaks a crate (was two), so a crate cannot shut the goal for a whole half
+    capture: 1,
     siegeBp: 1200,
     reset: 150,
   },

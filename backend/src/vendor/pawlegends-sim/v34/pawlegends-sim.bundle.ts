@@ -4285,6 +4285,25 @@ var HEARTHWOOD_LATE = Object.freeze({
 	respawnMaxBp: 3e4,
 	respawnHardCap: 1800
 });
+/**
+* Sim v34 (V34-MAPS.md §2b): the pool maps' late Sunset ramp. Crossing's left 1 to 12 in 2,000 of their matches at
+* the 11:00 safety end (both teams down to the core, the base race stalled); twice the structure ramp, a higher cap
+* and longer late respawns end those on a core.
+*/
+var POOL_LATE = Object.freeze({
+	...LATE_SUNSET,
+	structureBpPerMinute: 4e4,
+	structureMaxBp: 2e5,
+	respawnBpPerMinute: 1e4,
+	respawnMaxBp: 3e4,
+	respawnHardCap: 1800
+});
+/**
+* Sim v34 (V34-MAPS.md §2b): on the pool maps, past the late tick a takedown's Sunset core share is × this (bp). The
+* stalled base races of those safety ends were six heroes holding one base, where structure damage never landed: the
+* fights still went on, so the won fights end them.
+*/
+var POOL_LATE_TAKEDOWN_CORE_BP = 2e4;
 /** Sim v19 (MAP-5V5.md §1.9): Hearthwood's 5v5 timeline: 0:05 barrier, waves from 0:20 every 30 s, sieges from 3:00,
 *  Great Pudding at 8:00, the 16:00 safety end (= its MAX_TICKS in data/limits.ts). */
 var HEARTHWOOD_TIMELINE = Object.freeze({
@@ -6035,6 +6054,7 @@ function poolMap(spec) {
 		}),
 		objective: Object.freeze({ ...spec.objective }),
 		coreHp: spec.coreHp ?? 0,
+		...spec.heroPvp ? { heroPvp: Object.freeze(Object.fromEntries(Object.entries(spec.heroPvp).map(([k, v]) => [k, Object.freeze({ ...v })]))) } : {},
 		...spec.goalMouth ? { goalMouth: Object.freeze([...spec.goalMouth]) } : {},
 		...spec.crates ? { crates: Object.freeze(spec.crates.map((c) => Object.freeze([...c]))) } : {}
 	});
@@ -6233,6 +6253,120 @@ var RIDGE = poolMap({
 	pudding: {
 		x: 5e4,
 		y: 22e3
+	},
+	heroPvp: {
+		aviete: {
+			dmgBp: 10300,
+			takenBp: 9700
+		},
+		barkula: {
+			dmgBp: 10100,
+			takenBp: 9900
+		},
+		bengas: {
+			dmgBp: 10300,
+			takenBp: 9700
+		},
+		biscuit: {
+			dmgBp: 9750,
+			takenBp: 10250
+		},
+		bravo: {
+			dmgBp: 9450,
+			takenBp: 10550
+		},
+		brutus: {
+			dmgBp: 8650,
+			takenBp: 11350
+		},
+		cacklejaw: {
+			dmgBp: 10400,
+			takenBp: 9600
+		},
+		champ: {
+			dmgBp: 9750,
+			takenBp: 10250
+		},
+		chili: {
+			dmgBp: 10550,
+			takenBp: 9450
+		},
+		clem: {
+			dmgBp: 9700,
+			takenBp: 10300
+		},
+		domino: {
+			dmgBp: 10350,
+			takenBp: 9650
+		},
+		duchess: {
+			dmgBp: 9550,
+			takenBp: 10450
+		},
+		dusty: {
+			dmgBp: 10550,
+			takenBp: 9450
+		},
+		frankie: {
+			dmgBp: 10400,
+			takenBp: 9600
+		},
+		gabe: {
+			dmgBp: 9500,
+			takenBp: 10500
+		},
+		howler: {
+			dmgBp: 9700,
+			takenBp: 10300
+		},
+		lambo: {
+			dmgBp: 9200,
+			takenBp: 10800
+		},
+		marshmallow: {
+			dmgBp: 9500,
+			takenBp: 10500
+		},
+		meatball: {
+			dmgBp: 9350,
+			takenBp: 10650
+		},
+		mochi: {
+			dmgBp: 10550,
+			takenBp: 9450
+		},
+		nova: {
+			dmgBp: 9700,
+			takenBp: 10300
+		},
+		nugget: {
+			dmgBp: 9550,
+			takenBp: 10450
+		},
+		pixel: {
+			dmgBp: 10200,
+			takenBp: 9800
+		},
+		ranger: {
+			dmgBp: 10900,
+			takenBp: 9100
+		},
+		rocket: {
+			dmgBp: 10650,
+			takenBp: 9350
+		},
+		sage: {
+			dmgBp: 10150,
+			takenBp: 9850
+		},
+		stilts: {
+			dmgBp: 10600,
+			takenBp: 9400
+		},
+		ziggy: {
+			dmgBp: 10300,
+			takenBp: 9700
+		}
 	},
 	objective: {
 		...OBJ_BASE,
@@ -6450,6 +6584,108 @@ var THICKET = poolMap({
 		x: 5e4,
 		y: 40500
 	},
+	heroPvp: {
+		aviete: {
+			dmgBp: 9900,
+			takenBp: 10100
+		},
+		barkula: {
+			dmgBp: 9950,
+			takenBp: 10050
+		},
+		bengas: {
+			dmgBp: 9950,
+			takenBp: 10050
+		},
+		biscuit: {
+			dmgBp: 10250,
+			takenBp: 9750
+		},
+		bravo: {
+			dmgBp: 10200,
+			takenBp: 9800
+		},
+		brutus: {
+			dmgBp: 10250,
+			takenBp: 9750
+		},
+		cacklejaw: {
+			dmgBp: 9900,
+			takenBp: 10100
+		},
+		champ: {
+			dmgBp: 10050,
+			takenBp: 9950
+		},
+		chili: {
+			dmgBp: 10050,
+			takenBp: 9950
+		},
+		clem: {
+			dmgBp: 9850,
+			takenBp: 10150
+		},
+		domino: {
+			dmgBp: 10150,
+			takenBp: 9850
+		},
+		duchess: {
+			dmgBp: 9900,
+			takenBp: 10100
+		},
+		dusty: {
+			dmgBp: 10150,
+			takenBp: 9850
+		},
+		frankie: {
+			dmgBp: 10250,
+			takenBp: 9750
+		},
+		gabe: {
+			dmgBp: 10150,
+			takenBp: 9850
+		},
+		lambo: {
+			dmgBp: 10100,
+			takenBp: 9900
+		},
+		meatball: {
+			dmgBp: 9900,
+			takenBp: 10100
+		},
+		nova: {
+			dmgBp: 9850,
+			takenBp: 10150
+		},
+		nugget: {
+			dmgBp: 9900,
+			takenBp: 10100
+		},
+		pixel: {
+			dmgBp: 9750,
+			takenBp: 10250
+		},
+		ranger: {
+			dmgBp: 9550,
+			takenBp: 10450
+		},
+		rocket: {
+			dmgBp: 9800,
+			takenBp: 10200
+		},
+		sage: {
+			dmgBp: 9750,
+			takenBp: 10250
+		},
+		stilts: {
+			dmgBp: 10100,
+			takenBp: 9900
+		},
+		ziggy: {
+			dmgBp: 10150,
+			takenBp: 9850
+		}
+	},
 	objective: {
 		...OBJ_BASE,
 		kind: "shrines",
@@ -6617,6 +6853,36 @@ var QUARRY = poolMap({
 	pudding: {
 		x: 5e4,
 		y: 3e4
+	},
+	heroPvp: {
+		brutus: {
+			dmgBp: 10150,
+			takenBp: 9850
+		},
+		cacklejaw: {
+			dmgBp: 9900,
+			takenBp: 10100
+		},
+		domino: {
+			dmgBp: 10150,
+			takenBp: 9850
+		},
+		gabe: {
+			dmgBp: 10100,
+			takenBp: 9900
+		},
+		lambo: {
+			dmgBp: 10200,
+			takenBp: 9800
+		},
+		pixel: {
+			dmgBp: 9800,
+			takenBp: 10200
+		},
+		ranger: {
+			dmgBp: 9850,
+			takenBp: 10150
+		}
 	},
 	objective: {
 		...OBJ_BASE,
@@ -6833,6 +7099,44 @@ var PITCH = poolMap({
 			4e4
 		]
 	],
+	heroPvp: {
+		barkula: {
+			dmgBp: 10150,
+			takenBp: 9850
+		},
+		bravo: {
+			dmgBp: 9800,
+			takenBp: 10200
+		},
+		brutus: {
+			dmgBp: 10150,
+			takenBp: 9850
+		},
+		cacklejaw: {
+			dmgBp: 9850,
+			takenBp: 10150
+		},
+		gabe: {
+			dmgBp: 9850,
+			takenBp: 10150
+		},
+		lambo: {
+			dmgBp: 10150,
+			takenBp: 9850
+		},
+		nugget: {
+			dmgBp: 10200,
+			takenBp: 9800
+		},
+		sage: {
+			dmgBp: 9900,
+			takenBp: 10100
+		},
+		stilts: {
+			dmgBp: 9850,
+			takenBp: 10150
+		}
+	},
 	objective: {
 		...OBJ_BASE,
 		kind: "goal",
@@ -6840,7 +7144,7 @@ var PITCH = poolMap({
 		y: 3e4,
 		fish: 40,
 		xp: 50,
-		capture: 2,
+		capture: 1,
 		siegeBp: 1200,
 		reset: 150
 	}
@@ -7215,7 +7519,7 @@ var OBJECTIVE_BOT = Object.freeze({
 	gemCarrier: 3,
 	/** Pawball Park: bots within ballRange of a resting ball play it; a ball within defend of the own goal is cleared. */
 	ballRange: 15e3,
-	defend: 14e3,
+	defend: 13e3,
 	/** The approach point behind the ball, the kick walk past it, the side step when ahead of it. */
 	behind: 2e3,
 	through: 2e3,
@@ -17596,8 +17900,8 @@ function spawnPup(w, b, k, n) {
 * Towers also hit minions less every minute (LATE_SUNSET.towerMinionBpPerMinute, down to towerMinionMinBp), so the
 * waves push through and a won fight turns into towers. Nothing burns on its own: structures fall to heroes and minions.
 */
-/** The map's late Sunset table: Hearthwood's steeper one on the 5v5 map (sim v32). */
-var lateOf = (w) => w.mg.length > 0 ? HEARTHWOOD_LATE : LATE_SUNSET;
+/** The map's late Sunset table: Hearthwood's steeper one on the 5v5 map (sim v32), the pool maps' own (sim v34). */
+var lateOf = (w) => w.mg.length > 0 ? HEARTHWOOD_LATE : w.ob.length > 0 ? POOL_LATE : LATE_SUNSET;
 /** Ticks past the late tick (0 before it). */
 var lateTicks = (w, tick) => Math.max(0, tick - w.globals[G.Late]);
 /** The extra structure damage share at `tick` (bp, 0 before the late tick), prorated by the tick; a mutator scales it
@@ -17677,6 +17981,13 @@ function dealDamage(m, src, srcTeam, srcKind, dst, raw, kind, opts = {}) {
 				const hd = HEARTHWOOD_PVP.hero[d.id];
 				if (hs) raw = applyBp(raw, hs.dmgBp);
 				if (hd) raw = applyBp(raw, hd.takenBp);
+			}
+			const mp = ACTIVE_MAP.heroPvp;
+			if (mp !== void 0 && w.ob.length > 0) {
+				const ps = mp[HERO_IDS[w.sub[src]]];
+				const pd = mp[HERO_IDS[w.sub[dst]]];
+				if (ps) raw = applyBp(raw, ps.dmgBp);
+				if (pd) raw = applyBp(raw, pd.takenBp);
 			}
 			const mut = mutOf(w);
 			if (mut.heroVsHeroBp !== 1e4) raw = applyBp(raw, mut.heroVsHeroBp);
@@ -17896,7 +18207,8 @@ function resolveDeaths(m) {
 			} else if (!isHumanSlot(w, id) || rulesOf(m).humanDeathCore) {
 				const core = RANGE.cores + victimTeam;
 				const bp = coreExposed(w, victimTeam) ? SUNSET.takedownCoreBp : SUNSET.closedCoreBp;
-				dealDamage(m, -1, enemy, Kind.None, core, applyBp(applyBp(w.maxHp[core], bp), mutOf(w).takedownCoreBp), "zone", {
+				const late = w.ob.length > 0 && tick >= w.globals[G.Late] ? POOL_LATE_TAKEDOWN_CORE_BP : BP_ONE;
+				dealDamage(m, -1, enemy, Kind.None, core, applyBp(applyBp(applyBp(w.maxHp[core], bp), mutOf(w).takedownCoreBp), late), "zone", {
 					pure: true,
 					pierce: true
 				});
@@ -17928,7 +18240,7 @@ function resolveDeaths(m) {
 *   12 s spends them on a Geode Surge (45 s: its minions take 70% and deal 130% to structures, its heroes 115%).
 * - Goals and crates (Pawball Park): the match ball (the Mega Yarn Ball) scores when its centre enters a goal mouth: the
 *   conceding team's weakest tower (or open core) loses 12% of its max HP, the scorers get Fish and XP, the ball is
-*   away 5 s and every crate regrows. A ball stopped by a crate cracks it (two cracks break it). At Sunset every crate
+*   away 5 s and every crate regrows. A ball stopped by a crate breaks it (sim v34 balance: one hit, the spec's `capture`). At Sunset every crate
 *   crumbles for good.
 */
 var O = () => OB.Obj;
@@ -21808,7 +22120,10 @@ function ballPlan(m, id, out) {
 	for (let t = 0; t < 5 && !found; t++) {
 		const ax = bx - idiv(ux * OBJECTIVE_BOT.behind, BP_ONE);
 		const ay = by - idiv(uy * OBJECTIVE_BOT.behind, BP_ONE);
-		if (ax > 0 && ay > 0 && ax < MAP.width && ay < MAP.height && walkable(m.grid, cellOf(ax, ay))) {
+		const tx = bx + idiv(ux * OBJECTIVE_BOT.through, BP_ONE);
+		const ty = by + idiv(uy * OBJECTIVE_BOT.through, BP_ONE);
+		const open = (x, y) => x > 0 && y > 0 && x < MAP.width && y < MAP.height && walkable(m.grid, cellOf(x, y));
+		if (open(ax, ay) && open(tx, ty)) {
 			found = true;
 			break;
 		}

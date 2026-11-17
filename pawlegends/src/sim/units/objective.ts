@@ -14,7 +14,7 @@
  *   12 s spends them on a Geode Surge (45 s: its minions take 70% and deal 130% to structures, its heroes 115%).
  * - Goals and crates (Pawball Park): the match ball (the Mega Yarn Ball) scores when its centre enters a goal mouth: the
  *   conceding team's weakest tower (or open core) loses 12% of its max HP, the scorers get Fish and XP, the ball is
- *   away 5 s and every crate regrows. A ball stopped by a crate cracks it (two cracks break it). At Sunset every crate
+ *   away 5 s and every crate regrows. A ball stopped by a crate breaks it (sim v34 balance: one hit, the spec's `capture`). At Sunset every crate
  *   crumbles for good.
  */
 import { ACTIVE_MAP, MAP, RADIUS } from '../../data/map';

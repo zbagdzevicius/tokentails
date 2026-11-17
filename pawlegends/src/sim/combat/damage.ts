@@ -6,8 +6,8 @@
  */
 import { HERO_RULES, RESPAWN } from '../../data/xp';
 import { HERO_BASIC_VS_HERO_BP, HERO_IDS, HERO_VS_HERO_BP, HEROES } from '../../data/heroes';
-import { BRUSH_ATTACK_REVEAL_TICKS, RADIUS } from '../../data/map';
-import { SUNSET } from '../../data/timeline';
+import { ACTIVE_MAP, BRUSH_ATTACK_REVEAL_TICKS, RADIUS } from '../../data/map';
+import { POOL_LATE_TAKEDOWN_CORE_BP, SUNSET } from '../../data/timeline';
 import { TOWERS } from '../../data/towers';
 import type { SimEvent } from '../api';
 import { ZONE_KIND } from '../../data/effects';
@@ -112,6 +112,14 @@ export function dealDamage(
         const hd = HEARTHWOOD_PVP.hero[d.id];
         if (hs) raw = applyBp(raw, hs.dmgBp);
         if (hd) raw = applyBp(raw, hd.takenBp);
+      }
+      // Sim v34 (V34-MAPS.md §2b): a pool map's own per-hero row (only pool maps carry one; Crossing is unchanged).
+      const mp = ACTIVE_MAP.heroPvp;
+      if (mp !== undefined && w.ob.length > 0) {
+        const ps = mp[HERO_IDS[w.sub[src]]];
+        const pd = mp[HERO_IDS[w.sub[dst]]];
+        if (ps) raw = applyBp(raw, ps.dmgBp);
+        if (pd) raw = applyBp(raw, pd.takenBp);
       }
       // Sim v22: a mutator's own hero-vs-hero scale and per-hero row (Blitz's balance pass).
       const mut = mutOf(w);
@@ -378,7 +386,9 @@ export function resolveDeaths(m: MatchHandle): void {
         const core = RANGE.cores + victimTeam;
         const bp = coreExposed(w, victimTeam) ? SUNSET.takedownCoreBp : SUNSET.closedCoreBp;
         // Sim v22: a mutator may scale it (mutOf(w).takedownCoreBp)
-        dealDamage(m, -1, enemy, Kind.None, core, applyBp(applyBp(w.maxHp[core], bp), mutOf(w).takedownCoreBp), 'zone', { pure: true, pierce: true });
+        // Sim v34: the pool maps' late share (POOL_LATE_TAKEDOWN_CORE_BP; Crossing and Hearthwood unchanged).
+        const late = w.ob.length > 0 && tick >= w.globals[G.Late] ? POOL_LATE_TAKEDOWN_CORE_BP : BP_ONE;
+        dealDamage(m, -1, enemy, Kind.None, core, applyBp(applyBp(applyBp(w.maxHp[core], bp), mutOf(w).takedownCoreBp), late), 'zone', { pure: true, pierce: true });
       }
     } else if (k === Kind.Minion) {
       minionKilled(m, id);

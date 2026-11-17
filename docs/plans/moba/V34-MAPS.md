@@ -57,7 +57,7 @@ unchanged: towers, then the core.
     approach-and-walk-through (no carry).
   - Not shipped: a host map choice in the custom party lobby (optional in the design). The party relay always draws.
 
-## 2. Gates (measured on this code, 2026-11-17)
+## 2. Gates (measured on the first v34 build, 2026-11-17; the balance pass in §2b changed the pool maps after)
 
 **G1 identity.** All Crossing and Hearthwood paths are unchanged.
 - `tools/map-identity.mjs`: 240 Crossing seeds × co-op, party and PvP fuzz, recorded on v33 and replayed on v34:
@@ -100,6 +100,63 @@ seconds run, the snapshot carries the objective, and no page error is thrown: **
 
 Not run (open, §5): the full G3 balance gate per map (2,000 seeds, every hero 44–56%) and G4's 500-seed objective
 probes.
+
+## 2b. Balance pass (2026-11-17, before release; v34 had no live replays, so the numbers changed inside v34)
+
+Tooling: `npm run match -- --gate balance --map <id>` (new `--map crossing|ridge|thicket|quarry|pitch|pool`; `pool`
+draws each seed's map with `pickMap3v3`, as Skirmish does, and prints a per-map line). Normal player-bot against
+Normal bots. Fit windows on seeds 1–14,000 and 30,001–34,000; judged on unseen seeds 20,001–28,000.
+
+What changed (data and pool-map-only rules; Crossing and Hearthwood untouched, `tools/map-identity.mjs` 720/720):
+- **Per-map hero rows** (`MapDef.heroPvp`, applied after the 3v3 `pvp` row on pool maps only, like Hearthwood's and
+  Blitz's own rows). Ridge's one lane made it a brawl map: tanks and bruisers 57–63%, ranged carries 40–43%. Thicket,
+  Quarry and Park got small rows (±0.5–2.5%). Sensitivity on these maps is about 5 win-rate points per 1% (three times
+  Hearthwood's), so the steps were damped to 0.15–0.2 of the logistic step after the first passes overshot.
+- **Pool late Sunset** (`POOL_LATE` in data/timeline.ts, late.ts): the structure ramp twice Crossing's (+400% a
+  minute, cap +2,000%), respawns +100% a minute to +300% (cap 60 s). **Takedowns past the late tick** hit the core
+  2× (`POOL_LATE_TAKEDOWN_CORE_BP`). The safety ends were base races where all six heroes held one base and no
+  structure damage landed; the fights went on, so the won fights end them now.
+- **Pawball Park**: a crate breaks on the first ball hit (`capture` 2 → 1); bots clear a ball only within 13 m of their
+  own goal (`OBJECTIVE_BOT.defend` 14 → 13 m; below ~12.5 m the clears stop and a match has 8+ goals); a kick whose
+  walk-through point is a crate or wall turns (the bot pressed into the crate before).
+
+Results, 2,000 matches a map (before: seeds 1–2,000 on the first v34 build; after: seeds 20,001–22,000):
+
+| Map | Median (p95) | Core ends | Safety ends | Team 0 wins | Cats | Trailing at 3:30 wins | Hero win rates |
+|---|---|---|---|---|---|---|---|
+| Crossing (v33 = v34) | 7:40 (9:08) | 2,000 | 0 | 47.8% | 50.1% | 38.8% | 46.0–56.5% |
+| Ridge before | 7:18 (9:23) | 1,996 | 4 | 51.0% | 49.1% | 31.4% | 39.7–62.9% |
+| Ridge after | 7:28 (9:00) | 1,999 | 1 | 50.8% | 52.9% | 30.3% | 43.5–58.7% |
+| Thicket before | 7:42 (9:12) | 1,999 | 1 | 49.8% | 51.6% | 33.4% | 42.0–59.3% |
+| Thicket after | 7:44 (9:00) | 2,000 | 0 | 50.3% | 51.5% | 36.3% | 42.1–54.3% |
+| Quarry before | 7:41 (8:56) | 2,000 | 0 | 47.5% | 50.1% | 33.5% | 44.1–55.5% |
+| Quarry after | 7:30 (8:30) | 2,000 | 0 | 48.2% | 50.4% | 35.3% | 45.5–57.5% |
+| Park before | 7:48 (9:15) | 1,997 | 3 | 50.7% | 50.2% | 36.8% | 43.9–55.9% |
+| Park after | 7:30 (8:37) | 1,999 | 1 | 47.4% | 50.3% | 36.2% | 43.4–56.4% |
+
+A 2,000-match window gives each hero ~430 slots (±2.4 points), so per-hero rates are judged pooled (V20-CHASE.md §10).
+**Pooled rotation, 8,000 matches (seeds 20,001–28,000, each seed's own map):** median 7:35 (p95 8:57), 8,000 core
+ends, 0 safety ends, team 0 49.2%, cats 50.4%, trailing at 3:30 wins 33.0%, **every hero 46.9–52.8%**. Per map in that
+run: Crossing 50.5% / 7:39, Ridge 51.3% / 7:25, Thicket 48.7% / 7:44, Quarry 47.1% / 7:28, Park 48.6% / 7:32, no
+safety end on any.
+
+Expected misses of the Crossing gate bands, by design: core kill before late Sunset (pool maps' late tick is 7:00 to
+7:30, so 5–80% end after it; Crossing 83%); Ridge 4.2 takedowns a minute (one lane, every fight is 3v3; band 2.5–3.5).
+Brutus's level-6 branch is 44.9% pooled, the same as on the Crossing (not a map effect).
+
+Sanity, 200 matches a map (seeds 1,001+, `tools/maps-sanity.mjs`), before → after:
+
+| Map | Objective | Matches with a stuck bot (Crossing 19) |
+|---|---|---|
+| Ridge | 2 mill captures, 100% → same | 12 → 14 |
+| Thicket | 6 shrine captures, 100% → same | 47 → 33 |
+| Quarry | 7 Surges, 100% → same | 27 → 32 |
+| Park | 2 goals; a goal in 68.5% → 74% of matches | 34 → 21 |
+
+The stuck bots left are decision flicker, not geometry: the bot's think alternates every 20–30 ticks between two
+targets (lane front and own tower, Pudding and lane, a gem and a back-off from a visible enemy). Gem hysteresis was
+tried (a smaller safety radius once on the way, a hunter heading for the carriers' hold point, no gem with an enemy
+hero in engage range) and moved Quarry 32 → 31, within noise, so it was not kept.
 
 ## 3. Freeze and release
 

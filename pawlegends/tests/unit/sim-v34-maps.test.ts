@@ -172,7 +172,7 @@ describe('sim v34 objectives', () => {
     expect(objStructBp(w, 0, Kind.Minion)).toBe(o.minionStructBp);
   });
 
-  it('Pawball Park: a ball in the goal scores and hits a tower; a crate stops the ball and cracks', () => {
+  it('Pawball Park: a ball in the goal scores and hits a tower; a crate stops the ball and breaks', () => {
     const m = match('pitch');
     const w = m.world;
     hold(m, FUN_BY_MAP[mapIndex('pitch')].yarn.first + 2, 3000, 32000);
@@ -197,9 +197,10 @@ describe('sim v34 objectives', () => {
     for (let i = 0; i < ACTIVE_MAP.objective!.reset + 2; i++) step(m, []);
     expect(w.globals[yarnAt(0, YF.State)]).toBe(YARN_STATE.Rest);
     expect(w.globals[yarnAt(0, YF.X)]).toBe(50000);
-    // a ball kicked into team 1's centre crate stops and cracks it
+    // a ball kicked into team 1's centre crate stops and breaks it (V34-MAPS.md §2b: one hit since the balance pass)
     const c = OB.Obj + OBF.Crate + 5 + 2;
-    expect(w.ob[c]).toBe(2);
+    expect(w.ob[c]).toBe(ACTIVE_MAP.objective!.capture);
+    expect(ACTIVE_MAP.objective!.capture).toBe(1);
     w.globals[yarnAt(0, YF.T)] = 0;
     w.globals[yarnAt(0, YF.X)] = 68000;
     w.globals[yarnAt(0, YF.Y)] = 30000;
@@ -207,7 +208,7 @@ describe('sim v34 objectives', () => {
     w.y[0] = 30000;
     step(m, [{ op: Op.Move, x: 69500, y: 30000 }]);
     for (let i = 0; i < 60; i++) step(m, []);
-    expect(w.ob[c]).toBe(1);
+    expect(w.ob[c]).toBe(0);
   });
 });
 

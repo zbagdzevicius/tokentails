@@ -46,7 +46,9 @@ export const OBJECTIVE_BOT = Object.freeze({
   gemCarrier: 3,
   /** Pawball Park: bots within ballRange of a resting ball play it; a ball within defend of the own goal is cleared. */
   ballRange: 15000,
-  defend: 14000,
+  // V34-MAPS.md §2b: 13 m (was 14 m): at 14 m the clears met every ball in the crate line, and 69% of matches had a
+  // goal (62% with the pool late ramp); 13 m gives 75%. Below ~12.5 m the clears stop and a match has 8+ goals.
+  defend: 13000,
   /** The approach point behind the ball, the kick walk past it, the side step when ahead of it. */
   behind: 2000,
   through: 2000,

@@ -57,6 +57,15 @@ export const QUARRY = poolMap({
     [41000, 23000, 36000, 13500, 2500],
   ],
   pudding: { x: 50000, y: 30000 },
+  heroPvp: {
+    brutus: { dmgBp: 10150, takenBp: 9850 },
+    cacklejaw: { dmgBp: 9900, takenBp: 10100 },
+    domino: { dmgBp: 10150, takenBp: 9850 },
+    gabe: { dmgBp: 10100, takenBp: 9900 },
+    lambo: { dmgBp: 10200, takenBp: 9800 },
+    pixel: { dmgBp: 9800, takenBp: 10200 },
+    ranger: { dmgBp: 9850, takenBp: 10150 },
+  },
   objective: {
     ...OBJ_BASE,
     kind: 'gems',

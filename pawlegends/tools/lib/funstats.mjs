@@ -375,7 +375,7 @@ export function aggregateFun(funRows, sdTick) {
     level4P90: pct(orInf(r.map((x) => x.level4)), 90),
     lengthMedian: median(r.map((x) => x.ticks)) / 30,
     lengthP95: pct(r.map((x) => x.ticks), 95) / 30,
-    coreBeforeSD: (100 * r.filter((x) => x.reason === 'core' && x.ticks < sdTick).length) / n,
+    coreBeforeSD: (100 * r.filter((x) => x.reason === 'core' && x.ticks < (x.sdTick ?? sdTick)).length) / n,
     safetyEnds: r.filter((x) => x.reason === 'safetyEnd').length,
     /** Sim v22 (Blitz): designed ends at 3:15, and draws among them. */
     timeUps: r.filter((x) => x.reason === 'timeUp').length,

@@ -267,6 +267,11 @@ export interface MapDef {
    */
   readonly goalMouth?: readonly [number, number, number, number];
   readonly crates?: readonly (readonly [number, number, number, number])[];
+  /**
+   * Sim v34 (V34-MAPS.md §2b): a pool map's own hero-vs-hero row per hero, applied after the 3v3 `pvp` row (like
+   * Hearthwood's HEARTHWOOD_PVP.hero and Blitz's mutator row). A step of x% moves dmgBp up and takenBp down by x × 100.
+   */
+  readonly heroPvp?: Readonly<Record<string, Readonly<{ dmgBp: number; takenBp: number }>>>;
   /** Sim v34: the lanes' display names (LANES order). */
   readonly laneNames?: readonly string[];
   /** Sim v34: the objective's one-line description (loading card, map picker). */
