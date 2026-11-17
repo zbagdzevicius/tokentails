@@ -86,6 +86,8 @@ export class Scoreboard {
    */
   seats: ReadonlyMap<number, { ring: string; bot: boolean; conn: 'on' | 'away' | 'off'; muted: boolean }> | null = null;
   onMute: ((slot: number) => void) | null = null;
+  /** The seats bots play (the honesty rule: every bot row says "Bot"; a friend's seat a bot flies has its own chip). */
+  bots: ReadonlySet<number> = new Set();
   /**
    * PvP reports (SOCIAL-RANKED.md §8.1): a flag at the end of every human row but your own; `open` shows the reason
    * chips. Null outside PvP (no flags at all). Bot rows never get one (`can` is false for them).
@@ -133,6 +135,7 @@ export class Scoreboard {
 
   private seatHtml(slot: number): string {
     const seat = this.seats?.get(slot);
+    if (!seat && this.bots.has(slot) && slot !== this.mySlot) return ' <span class="sb-bot">Bot</span>';
     if (!seat || slot === this.mySlot) return '';
     const conn = seat.conn === 'on' ? 'Here' : seat.conn === 'away' ? 'Away' : 'Offline';
     return ` <i class="sb-ring" style="--ring:${seat.ring}" title="Friend"></i><i class="sb-conn" data-conn="${seat.conn}" title="${conn}"></i>${seat.bot ? ' <span class="sb-bot">bot</span>' : ''}${seat.muted ? ' <span class="sb-muted">muted</span>' : ''}`;

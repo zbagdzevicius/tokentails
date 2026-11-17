@@ -311,6 +311,8 @@ export class Overhead {
    * ring and a robot glyph. Null in solo matches.
    */
   seats: ReadonlyMap<number, { ring: string; bot: boolean }> | null = null;
+  /** The seats bots play: their name pill carries the robot glyph (the honesty rule: a bot is always labelled). */
+  bots: ReadonlySet<number> = new Set();
   /** Round 1 tier perk: a Legendary frame owner's "You" sits on a gold name plate. */
   goldPlate = false;
   /** Card skins (GDD §7.2): the cat the player's hero wears, a small line over the own plate only (null = none). */
@@ -1191,7 +1193,7 @@ export class Overhead {
       // round 1: a solid side-coloured pill behind every other hero's name, so an enemy Clem never reads as yours
       const col = this.color(e);
       const ring = seat ? (seat.bot ? 'rgba(150,150,160,0.95)' : seat.ring) : '';
-      const bot = !!seat?.bot;
+      const bot = seat ? seat.bot : this.bots.has(e.id);
       const rg = 7 * sc;
       const half = tw / 2 + 10 + (bot ? 15 * sc + rg + 3 : 0); // v6: +2 for the lean
       const pill = this.atlas.get(`pill|${name}|${col}|${nf}|${ring}|${bot ? 1 : 0}|${sc}`, 2 * half, Math.max(nf + 12, 2 * rg + 8), (g) => {
@@ -1207,8 +1209,8 @@ export class Overhead {
           g.lineWidth = 2.5;
           leanRect(g, -tw / 2 - 6, -nf / 2 - 4, tw + 12, nf + 8);
           g.stroke();
-          if (bot) robotGlyph(g, tw / 2 + 15 * sc, 0, rg);
         }
+        if (bot) robotGlyph(g, tw / 2 + 15 * sc, 0, rg);
         g.font = font;
         g.fillStyle = V6.night;
         g.fillText(name, 0, 0.5);

@@ -800,13 +800,18 @@ export class MatchSession {
     if (this.e2e) document.documentElement.dataset.plateNames = this.names.join('|');
     // FLAGS.md: every seat's country flag (the relay's for humans, a seeded one for each bot, a paw when hidden)
     const humanNames = this.setup.party?.names ?? this.setup.spectate?.names ?? null;
+    const isHuman = (slot: number): boolean => (humanNames ? humanNames[slot] != null : slot === w.slot);
+    // the honesty rule (PARITY.md, SOCIAL-RANKED.md §8.1): every bot seat reads "Bot" in the match too (scoreboard,
+    // portrait strip, name plate), not only on the loading screen and in results
+    const botSlots = new Set(Array.from({ length: w.picks.length }, (_, s) => s).filter((s) => !isHuman(s)));
+    this.overhead.bots = botSlots;
     setMatchFlags(
       matchFlagsFor({
         seed: w.seed,
         slots: w.picks.length,
         mySlot: this.setup.spectate ? -1 : w.slot,
         mine: myFlag(),
-        isHuman: (slot) => (humanNames ? humanNames[slot] != null : slot === w.slot),
+        isHuman,
         relay: this.setup.party?.flags ?? null,
       }),
     );
@@ -878,7 +883,7 @@ export class MatchSession {
       const t = s < per ? 0 : 1;
       return play[t] > 0 && s - t * per >= play[t] ? ('' as HeroId) : h;
     });
-    this.hud.mountStrip(inPlay, w.slot, w.team, this.names);
+    this.hud.mountStrip(inPlay, w.slot, w.team, this.names, botSlots);
     // Sim v27 (V27.md §2): the Practice ground's Reset / Level +1 / Cooldowns (Op.Practice)
     if (w.mutator === 'practice') this.hud.practiceBar((kind) => this.host.send({ op: Op.Practice, kind }));
     // Sim v28 (V28.md §4): Boss Weekend's boss bar takes the team score's place in the top plate
@@ -918,6 +923,7 @@ export class MatchSession {
     // a renamed champion's row reads "Simas · Clem (you)": the hero title takes the cat column (the VS keeps the cat)
     this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames.map((c, slot) => (slot === w.slot && (this.myCard || this.selfName) ? heroTitle : c)));
     if (this.setup.spectate) this.scoreboard.spectator = true;
+    this.scoreboard.bots = botSlots;
     if (this.e2e) e2eHook('Scoreboard', this.scoreboard);
     // sim v19 (Hearthwood): each slot's role (the bots' role solver, pure), as a chip on the scoreboard
     if ((this.setup.map ?? w.map) === 'hearthwood') this.scoreboard.roles = rolesOf({ picks: w.picks, map: 'hearthwood' });

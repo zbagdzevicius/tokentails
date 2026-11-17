@@ -488,7 +488,7 @@ export class Hud {
     }
   }
 
-  mountStrip(picks: readonly HeroId[], mySlot: number, myTeam: number, names: readonly string[]): void {
+  mountStrip(picks: readonly HeroId[], mySlot: number, myTeam: number, names: readonly string[], bots: ReadonlySet<number> = new Set()): void {
     for (const s of this.strip) s.el.remove();
     this.strip = [];
     this.root.querySelectorAll('.pl-strip').forEach((el) => el.remove());
@@ -515,7 +515,9 @@ export class Hud {
       const pic = portraitUrl(hero);
       el.style.setProperty('--hero', HERO_COLOR_CSS[hero]);
       el.style.setProperty('--rel', RELATION_CSS[enemy ? 'enemy' : 'ally']);
-      const label = names[slot] ?? HERO_TEXT[hero].title;
+      // the honesty rule: a bot's portrait wears the robot badge (not greyed: greyed is a friend a bot covers for)
+      if (bots.has(slot)) el.dataset.ai = '1';
+      const label = `${names[slot] ?? HERO_TEXT[hero].title}${bots.has(slot) ? ' (Bot)' : ''}`;
       el.setAttribute('aria-label', enemy ? `Lock ${label}` : label);
       el.title = label;
       // GAPS B6: a small badge (hidden until the hero takes its level-6 shape branch) so the other side can read it
