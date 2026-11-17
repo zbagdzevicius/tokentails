@@ -38,6 +38,8 @@ export interface ProfileSheetDeps {
   signIn(): void;
   /** Settings (the country flag switch lives there). */
   openSettings(): void;
+  /** MATCH-HISTORY.md: the match history (the Profile chip used to open the Treat Track page, which links it). */
+  openHistory?(): void;
   /** Owned store and pass items: the borders and titles offered. */
   ownedItems(): readonly string[];
   /** The public name changed (Home, the HUD and the results follow). */
@@ -189,14 +191,15 @@ export class ProfileSheet {
   private body(): string {
     if (!this.deps.signedIn())
       return `<div class="pl-social-empty" data-testid="profile-guest"><p>Sign in to choose your name, avatar and title. Guests play with a generated name.</p><button type="button" class="pl-btn small" data-a="signin">Sign in</button></div>`;
-    if (this.failed && !this.info) return `<div class="pl-social-empty"><p>Couldn't load your profile.</p><button type="button" class="pl-btn small" data-a="retry">Try again</button></div>`;
-    if (!this.info) return `<p class="pl-social-empty">Loading…</p>`;
+    // the history works without the name service (it has its own), so it is offered while that loads or fails too
+    if (this.failed && !this.info) return `${this.historyRow()}<div class="pl-social-empty"><p>Couldn't load your profile.</p><button type="button" class="pl-btn small" data-a="retry">Try again</button></div>`;
+    if (!this.info) return `${this.historyRow()}<p class="pl-social-empty">Loading…</p>`;
     if (this.picking) return this.pickerBody();
     const i = this.info;
     const me = this.me;
     const title = me?.title ? `<small class="pl-pf-title">${esc(titleText(me.title))}</small>` : '';
     const top = `<div class="pl-pf-top"><button type="button" class="pl-me-av" data-a="avatar" aria-label="Change avatar and border" data-testid="profile-avatar"${me ? '' : ' disabled'}>${avatarHtml(me?.av, 56)}</button><span class="pl-pf-who"><b class="pl-pf-name" data-name="${esc(i.name)}" data-testid="profile-name"></b>${title}${me?.code ? `<small class="pl-social-st">${esc(me.code)}</small>` : ''}</span></div>`;
-    return `${top}${this.nameBody(i)}${this.titleRow()}${this.flagRow()}`;
+    return `${top}${this.historyRow()}${this.nameBody(i)}${this.titleRow()}${this.flagRow()}`;
   }
 
   private nameBody(i: NameInfo): string {
@@ -221,6 +224,12 @@ export class ProfileSheet {
     const cur = this.me.title ?? 'none';
     const chip = (id: string, label: string) => `<button type="button" class="pl-pf-chip" data-a="title" data-title="${esc(id)}" aria-pressed="${cur === id}">${esc(label)}</button>`;
     return `<div class="pl-pf-line"><span>Title</span><div class="pl-pf-chips">${chip('none', 'None')}${titles.map((t) => chip(t, titleText(t))).join('')}</div></div>`;
+  }
+
+  /** gaps6 review: signed in, the Home chip opens this sheet, so Match history is reached from here (Wild Rift's profile). */
+  private historyRow(): string {
+    if (!this.deps.openHistory) return '';
+    return `<div class="pl-pf-line"><span>Your matches</span><button type="button" class="pl-btn ghost small" data-a="history" data-testid="open-history" aria-haspopup="dialog">Match history</button></div>`;
   }
 
   private flagRow(): string {
@@ -318,6 +327,9 @@ export class ProfileSheet {
       case 'settings':
         this.dispose();
         return this.deps.openSettings();
+      case 'history':
+        this.dispose();
+        return this.deps.openHistory?.();
       case 'back':
         this.confirm = null;
         return this.render();

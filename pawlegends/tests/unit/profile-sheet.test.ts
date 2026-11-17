@@ -139,6 +139,25 @@ describe('profile sheet', () => {
     expect((q('[data-testid="profile-nick-input"]') as HTMLInputElement).disabled).toBe(true);
     expect(q('[data-testid="profile-price"]').textContent).toBe('Next change in 1 day');
   });
+
+  it('gaps6 review: signed in, the sheet links Match history (the Home chip no longer opens the Treat Track page)', async () => {
+    const openHistory = vi.fn();
+    const sheet = new ProfileSheet(document.body, {
+      api: (async () => res(0)) as never,
+      signedIn: () => true,
+      signIn: vi.fn(),
+      openSettings: vi.fn(),
+      openHistory,
+      ownedItems: () => [],
+      onName: vi.fn(),
+      now: () => NOW,
+    });
+    await flush();
+    // even when the name service fails, the history (its own service) is offered
+    q('[data-testid="open-history"]').click();
+    expect(openHistory).toHaveBeenCalledTimes(1);
+    expect(sheet.closed).toBe(true);
+  });
 });
 
 describe('public name cache', () => {

@@ -1725,6 +1725,7 @@ export class App {
           signedIn: () => accountState().signedIn,
           signIn: () => this.integration.requestSignIn('save-progress'),
           openSettings: () => this.openSettings(),
+          openHistory: () => this.openHistory(),
           ownedItems: () => [...this.ent.snapshot().items],
           onName: (name) => {
             if (setMyName(name) && this.screen === 'title') this.showTitle(false);
