@@ -6,6 +6,13 @@
  */
 export const BOT_TRICKLE = Object.freeze({ startS: 17, stepS: 3 });
 
+/**
+ * The move to co-op holds the entry this long so Keep waiting can still be tapped (backend mm-limits.ts
+ * `MM_CASUAL.switchGraceMs`: keep equal). The server reports it as a low-priority wait, but it is no leaver penalty: the
+ * queue card shows no "Short wait after leaving matches" for it.
+ */
+export const COOP_SWITCH_GRACE_S = 5;
+
 /** Bot seats open after `waitedS` seconds of search. */
 export function trickleBots(waitedS: number): number {
   if (!(waitedS >= BOT_TRICKLE.startS)) return 0;

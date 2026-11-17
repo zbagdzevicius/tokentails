@@ -68,4 +68,14 @@ describe('bot trickle on the PvP queue card', () => {
     const toCoop = dom(queueCardHtml(model({ waitedS: 41, pvp: { theirs: 0, toCoop: true, requeued: false } })));
     expect(toCoop.querySelectorAll('.pp-pip.bot')).toHaveLength(0);
   });
+
+  it('the move to co-op holds the entry 5 s: no "Short wait after leaving matches" for it, a real penalty still shows', () => {
+    const grace = dom(queueCardHtml(model({ waitedS: 41, lowPriorityS: 4.2, pvp: { theirs: 0, toCoop: true, requeued: false } })));
+    expect(grace.querySelector('[data-testid="mm-low"]')).toBeNull();
+    expect(grace.textContent).not.toMatch(/leaving matches/i);
+    const penalty = dom(queueCardHtml(model({ waitedS: 41, lowPriorityS: 50, pvp: { theirs: 0, toCoop: true, requeued: false } })));
+    expect(penalty.querySelector('[data-testid="mm-low"]')?.textContent).toContain('0:50');
+    const searching = dom(queueCardHtml(model({ waitedS: 10, lowPriorityS: 4 })));
+    expect(searching.querySelector('[data-testid="mm-low"]')?.textContent).toContain('0:04');
+  });
 });

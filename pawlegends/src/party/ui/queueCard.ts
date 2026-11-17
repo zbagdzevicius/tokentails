@@ -14,7 +14,7 @@ import { COPY, DIFF_LABEL, clockText, esc, sideText } from './copy';
 import { backfillHtml, type BackfillModel } from './backfillCard';
 import { RANKED_BOTS } from '../../meta/ranked';
 import { regionText } from '../../meta/rankedPing';
-import { queueBots } from '../botTrickle';
+import { COOP_SWITCH_GRACE_S, queueBots } from '../botTrickle';
 
 export type QueueStop =
   | 'away'
@@ -173,7 +173,8 @@ export function queueCardHtml(m: QueueModel): string {
     return `<div class="pp-card pp-narrow pp-queue" data-state="stopped" data-testid="mm-queue"${m.ranked ? ' data-ranked="1"' : ''}><h2>${COPY.online}</h2><p class="pp-dim" role="status" data-testid="mm-stopped" data-reason="${m.stopped}"><span data-live="stop">${esc(stopText(m))}</span></p><div class="pp-col">${again}<button type="button" class="pl-btn ghost small" data-p="mm-cancel" data-testid="mm-cancel">${COPY.back}</button></div></div>`;
   }
   const est = m.estimateS !== null && m.estimateS > 0 ? ` · <span class="pp-dim">${esc(COPY.usually(clockText(m.estimateS)))}</span>` : '';
-  const low = m.lowPriorityS > 0 ? `<p class="pp-hint pp-low" data-testid="mm-low"><span data-live="low">${esc(COPY.lowPriority(clockText(m.lowPriorityS)))}</span></p>` : '';
+  // the co-op switch's own few seconds are no penalty (botTrickle.ts COOP_SWITCH_GRACE_S)
+  const low = m.lowPriorityS > (m.pvp?.toCoop ? COOP_SWITCH_GRACE_S : 0) ? `<p class="pp-hint pp-low" data-testid="mm-low"><span data-live="low">${esc(COPY.lowPriority(clockText(m.lowPriorityS)))}</span></p>` : '';
   const warn = m.warn && m.lowPriorityS <= 0 ? `<p class="pp-hint" data-testid="mm-warn">${COPY.leaverWarn}</p>` : '';
   const offer = m.offer ? backfillHtml(m.offer) : '';
   if (m.ranked) {
