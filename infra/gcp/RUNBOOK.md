@@ -132,6 +132,10 @@ in docs/BACKEND.md once DigitalOcean is gone. **Never** move the relay behind a 
 | `scripts/staging-secrets.sh` | Throwaway secret values for `tokentails-staging` only (openssl rand, a fresh RSA key; never a production value) |
 | `scripts/replace-relay.sh` | Rolls a changed relay instance template out: drains the relay (no new matches, live ones end, the rest hand off at 30 min), then replaces the VM |
 | `scripts/cutover-relay.sh` | Step 6.3: hands DigitalOcean's live matches to the Google relay while you archive DigitalOcean |
+| `scripts/inside-checks.sh` | Shadow checks from inside before Cloudflare carries a GCP host: tt-api traffic and image, relay slot `/readyz`, hello/welcome and party create/join over an IAP SSH tunnel, Secret Manager vs DigitalOcean key **names** |
+| `scripts/step5-checks.sh` | Step 5 through Cloudflare: health, `/pawlegends/sim` parity with DigitalOcean, relay latency, Cloud Armor 403 straight at the LB; `--soak` adds the 65-minute socket soak |
+| `tools/party-probe.mjs` | Two guest sockets: create a party, join it by code, leave (no account, nothing scored) |
+| `CUTOVER.md` | Step 6 quiet-hour checklist |
 | `../../backend/Dockerfile`, `../../client/Dockerfile`, `../../cms/Dockerfile` | Images (multi-stage, non-root, tini, `PORT`) |
 
 Backend changes for deployment only: `BACKEND_ROLE` (`all` default = DigitalOcean unchanged, `api`, `relay`) in
@@ -449,6 +453,42 @@ Plain (non-secret) env that DigitalOcean sets and Cloud Run must also get, if an
    `TF_BACKEND_TAG`, `TF_WEB_TAG`, `TF_CMS_TAG`, `GCP_TF_PLAN_SA` (`sa-tf-plan@...`). Create the GitHub environments
    `gcp-plan` and `gcp-prod` (with you as required reviewer).
 
+#### Cloudflare, copy-paste (steps 4.1 and 5; the founder, in the dashboard, no API token on the Mac)
+
+Print the step 4.1 rows (needs only the gcloud login; the same values as `terraform output dns_authorization_records`):
+
+```bash
+gcloud certificate-manager dns-authorizations list --location=europe-west3 --project=gleaming-medium-480114-g5 \
+  --account=zbagdzevicius@gmail.com --format='table(domain, dnsResourceRecord.type, dnsResourceRecord.name, dnsResourceRecord.data)'
+```
+
+Seven rows, one per host: `api`, `gcp-api`, `tokentails.com`, `www`, `gcp`, `cats`, `gcp-cats` (`.tokentails.com`).
+For each row, Cloudflare > `tokentails.com` > DNS > Records > Add record:
+
+| Field | Value |
+|---|---|
+| Type | `CNAME` |
+| Name | the row's `name` (`_acme-challenge_….<host>.tokentails.com.`): paste it without the trailing dot; Cloudflare accepts the full name |
+| Target | the row's `data` (`….authorize.certificatemanager.goog.`), without the trailing dot |
+| Proxy status | **DNS only (grey cloud)** |
+| TTL | Auto |
+
+These records only prove domain control to Google; they change nothing users see. Wait for `ACTIVE`:
+`gcloud certificate-manager certificates describe tt-edge-cert --location=europe-west3 --project=gleaming-medium-480114-g5 --format='value(managed.state)'`.
+
+Step 5, three records, Add record each (shadow hosts only; `api`, `tokentails.com`, `www` and `cats` stay untouched):
+
+| Type | Name | IPv4 address | Proxy status | TTL |
+|---|---|---|---|---|
+| A | `gcp-api` | `34.107.92.132` (`terraform output -raw lb_ip`) | **Proxied (orange)** | Auto |
+| A | `gcp` | `34.107.92.132` | **Proxied (orange)** | Auto |
+| A | `gcp-cats` | `34.107.92.132` | **Proxied (orange)** | Auto |
+
+SSL/TLS > Overview must be **Full (strict)** for the zone (the LB serves only the managed certificate). Then, from
+the repo root: `infra/gcp/scripts/step5-checks.sh` (health, sim parity with DigitalOcean, relay latency vs DigitalOcean,
+Cloud Armor 403 on direct LB access), and once `infra/gcp/scripts/step5-checks.sh --soak` (adds the 65-minute socket
+soak). Before Cloudflare carries any GCP host, `infra/gcp/scripts/inside-checks.sh` checks the same from inside (IAP).
+
 ### Step 5. Shadow hosts and tests (nothing user-facing changes)
 
 At Cloudflare add **proxied** (orange) A records for `gcp-api`, `gcp` and `gcp-cats` → `terraform output lb_ip`. Add
@@ -512,6 +552,9 @@ lease and the `rave-stripe-events` cursor is per process. Step 6 ends the overla
 the DNS flip.
 
 ### Step 6. API and relay cutover (quiet hour)
+
+The minute-by-minute checklist (go/no-go, the flip, what to watch, DigitalOcean `deploy_on_push` off after a clean
+hour, fix-forward steps) is [CUTOVER.md](CUTOVER.md); the numbered steps below are its summary.
 
 1. Cloudflare: lower nothing (proxied records switch in seconds). Edit `api.tokentails.com`: from the DigitalOcean
    CNAME to an A record → `lb_ip`, **proxied**. API and relay move together. Hostnames never change, so NFT
@@ -724,7 +767,8 @@ Each is a variable or a step above; the default is what the code does unless you
 | Staging | No permanent staging. `tokentails-staging` gets `envs/staging` (same modules) for the rehearsal, then is destroyed; the prod shadow hosts cover the final check | `envs/staging` |
 | Region | europe-west3 (Frankfurt), the same metro as DigitalOcean fra. If Atlas is elsewhere, move Atlas to GCP europe-west3 first | `region`, `zones` |
 | Database | Keep MongoDB Atlas on GCP europe-west3, NAT static IP on the access list, remove `0.0.0.0/0` after cutover; Private Service Connect only at M10+, phase 2 | step 0, step 8 |
-| Move web and CMS off Vercel now? | Yes, phase 2 of the same migration, about a week after API and relay are stable; Vercel warm for 14 days; Pawlegends landing experiments, landing-lab and pitch stay on Vercel or retire | step 7 |
+| Move web and CMS off Vercel now? | See the founder decision below: step 7 waits for it | step 7 |
+| **Founder decision (open, 2026-11-17): keep the web and CMS on Vercel for step 7?** | **Default: keep them on Vercel** and stop after step 6 (the founder's ask was the backend off DigitalOcean). `tt-web` and `tt-cms` stay deployed in the shadow at `gcp.` / `gcp-cats.` with `web.min_instances = 0` (near-zero cost), so moving later is only step 7. Saves ~$40/month vs moving (Cost: ~$210–290 with the web on Vercel vs ~$250–340). Say "move the web" to run step 7 (`web.min_instances = 1`, rebuild `web`/`cms` from main, the Cache Rules, the flip) about a week after step 6 | step 7, `web` in tfvars |
 | DigitalOcean Spaces | Keep running, read-only, no URL changes; new uploads to GCS behind `cdn.tokentails.com` later, separately | `static_bucket_enabled = false` |
 | Extra relay regions | EU only; add us-east4 and asia-southeast1 when > 15 % of a continent's parties have RTT p95 > 120 ms, after region-prefixed party codes | phase 3 |
 | Budget and CUDs | $400/month alert at 50/90/100 % actual and 100 % forecast, no automatic shutdown; no committed-use discount until 2 months of steady usage | `budget_amount` |
