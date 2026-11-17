@@ -320,7 +320,7 @@ html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='grizzlechop'] .i
 
 /* Gaps round 3 (hud-controls), the match side: a custom HUD layout (input/touch/hudLayout.ts) moves the minimap group and sizes the joystick; with
    no layout saved neither variable is set and every rule below is a no-op */
-html[data-touch='1'][data-hud-mm='1'] .pl-match :is(.pl-minimap, .pl-pingbtn, .pl-fish, .pl-emote, .pl-chatbtn) {
+html[data-touch='1'][data-hud-mm='1'] .pl-match :is(.pl-minimap, .pl-pingbtn, .pl-fish, .pl-emote, .pl-chatbtn, .pl-chatopen) {
   translate: var(--hud-mm-dx, 0px) var(--hud-mm-dy, 0px);
 }
 .pl-touch .pl-stick { width: calc(120px * var(--stick-k, 1)); height: calc(120px * var(--stick-k, 1)); margin: calc(-60px * var(--stick-k, 1)) 0 0 calc(-60px * var(--stick-k, 1)); }

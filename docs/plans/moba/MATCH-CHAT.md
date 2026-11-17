@@ -204,6 +204,27 @@ The legacy wheel ids (`social` kind `chat` 0–7) stay exactly as they are for P
 - Errors show inline for 3 s, using the CHAT-AVATARS §6.2 wording.
 - Results: the in-match log is not carried into results. Party and results chat stays the chat branch's strip.
 
+### 4.4 The chat button (Nov 17)
+
+The founder, Nov 17: "in-match chat is still missing, implement it".
+
+**Why it looked missing.** The chat shipped on Nov 11 (§13), but in a bot match nobody could open it:
+- The only chat button (`.pl-chatbtn`, the quick-chat wheel whose centre opens the drawer) belongs to the party HUD (`app/mpHud.ts`), which mounts only in party matches. A bot match had no chat button.
+- On a phone, the drawer then opened only from a tap on a ticker line. The ticker paints nothing until someone speaks, bots speak in about half of matches (§5.3), and a phrase line fades after 5 s.
+- On desktop, Enter worked, but nothing on screen said so, and in a bot match it opened phrase chips only.
+- In a party match the drawer was two taps deep (bubble, then the wheel's "More").
+
+**What changed** (`ui/chatButton.ts`, `app/matchChat.ts`):
+- Every match mounts a chat button, bot matches and party matches alike. One tap opens the drawer (quick-chat chips are the next tap), a second tap closes it.
+- **Phones:** a 36 px bubble (44 px hit area) in the minimap's top-left corner, the mirror of the ping paw in the bottom-right one. The lane runs corner to corner, so both corners are empty map, and the persistent HUD area (`hud-area.spec.ts`: 19.3% at 667×375, 16.0% at 844×390) does not grow. It moves with the minimap group in a custom HUD layout. The party wheel button keeps its slot under the minimap.
+- **Desktop:** a "Chat · Enter" chip bottom left, under the chat log.
+- A dot on the button marks a line that came in while the drawer was closed.
+- **Bot matches can type** when the player's last known age band is 16-17 or 18+ (`social/ageBand.ts`: written when the Friends sheet loads `GET social`, cleared when signed out). Under 16, an unknown band or a guest: quick chat only, with a note that says how typing opens. Nobody else reads a bot match's log, but the kids rule (SOCIAL-RANKED.md §2.2, "no free-text chat anywhere" under 16) still holds.
+- A typed line in a bot match goes through `shared/chat-filter.ts` like the relay's (refused inline, never masked) and the same 5-in-10 s rate. Bots still answer with phrases only (§13 difference 6), and keep their labels (persona names, 🤖 on the portraits).
+- Party and matchmade matches are unchanged on the wire: the relay still decides the tier, PROTO 6, no sim or relay change.
+
+**Tests:** `tests/unit/match-chat-button.test.ts` (button, dot, end, age band, filter, party ignores the stored band), `tests/e2e/match-chat.spec.ts` "the chat button" (desktop and 844×390 touch: opens, a quick chat, a typed line, covers no control), `tests/e2e/mp/match-chat.spec.ts` (the phone's button over the relay).
+
 ---
 
 ## 5. Bot chatter engine
@@ -581,7 +602,7 @@ What landed, and where it differs from the design above.
 3. **Bank edits forced by the lint and the filter.** "fb lets go" became "first blood lets go" (the filter reads "fb" as a link), "they were 2" / "2 there" became "they were two" / "two there" (digits), "where did that come from" became "that came out of nowhere" ("where" is banned).
 4. **Reactions keep shorter gaps** (12 s in the room, 30 s per bot) than other lines (40 s / 100 s), so one reaction can follow a human line at all.
 5. **Memory write.** One `$set` of the computed ring per human per match (same effect as `$push`/`$slice`), and an in-memory fallback for guests and accounts with no social row.
-6. **Solo is phrases only.** The client never knows the player's age band, so a solo team is `quick`: solo bots send phrase ids (§6.4).
+6. **Solo bots say phrases only.** The client never knows the player's age band for sure, so solo bots send phrase ids (§6.4). Since Nov 17 the player may type in a bot match when the last known band is 16+ (§4.4).
 7. **Wheel lines are human cues.** A legacy `social` chat line (any client) quiets bots for 6 s and can get a phrase reaction.
 8. **Old sockets.** The legacy wheel frame for a mapped phrase carries `from: ''` for every sender, bot or human.
 9. **AFK seats may still chat.** §3 check 1 ("not piloted away") is read as "the seat's own socket": a human whose idle hero a pilot covers can still type; the pilot never speaks, and a seat given up has no socket.

@@ -18,6 +18,8 @@ import { chatErrorText, matchPhraseText, type ChatReportKind } from '../data/cha
 import { RELATION_CSS } from '../render/palette';
 import { ChatTicker, type ChatLineView } from '../ui/chatTicker';
 import { ChatDrawer, type ChatSend } from '../ui/chatDrawer';
+import { ChatButton } from '../ui/chatButton';
+import { soloTextAllowed } from '../social/ageBand';
 import type { PartyLink } from './mpTypes';
 
 /** `?e2e=1` only: Playwright's handle on the chat (`window.__plChat`), set through a computed key. */
@@ -80,6 +82,8 @@ function nonce(): number {
 export class MatchChat {
   readonly ticker: ChatTicker;
   readonly drawer: ChatDrawer;
+  /** The chat button every match shows (phones: the minimap's top-left corner; desktop: bottom left, "Enter"). */
+  readonly button: ChatButton;
   /** Solo only: the bot chatter. */
   readonly engine: BotChatter | null = null;
   private readonly seen: BotSeen | null = null;
@@ -109,13 +113,18 @@ export class MatchChat {
         this.mutedAll = on;
       },
       ...(h.report && h.link ? { report: (mid: string, kind: ChatReportKind) => h.report!(mid, kind) } : {}),
+      ...(h.link ? {} : { solo: true }),
       onToggle: (open) => {
+        this.button.open = open;
         if (h.e2e) document.documentElement.dataset.chatDrawer = open ? '1' : '';
       },
     });
+    this.button = new ChatButton(h.ui, { touch: h.touch, toggle: () => this.toggleDrawer() });
     this.ticker.onOpen = () => this.drawer.openOn(this.drawer.channel);
-    this.drawer.tier = h.link?.chatTier ?? 'quick';
-    this.drawer.allTier = h.link?.chatAllTier ?? 'quick';
+    // a bot match: nobody else reads the log, but typing still needs a known 16+ band (kids: quick chat only)
+    const soloTyped = !h.link && soloTextAllowed() ? 'text' : 'quick';
+    this.drawer.tier = h.link?.chatTier ?? soloTyped;
+    this.drawer.allTier = h.link?.chatAllTier ?? soloTyped;
     if (h.link) {
       const link = h.link;
       this.offLink = link.listen({
@@ -233,6 +242,14 @@ export class MatchChat {
     return true;
   }
 
+  /** The chat button: open the drawer (the caret in the input on desktop when typing is open), or close it. */
+  toggleDrawer(): void {
+    if (this.ended) return;
+    if (this.drawer.open) return this.drawer.close();
+    const ch: MatchChannel = this.drawer.tier === 'quick' && this.drawer.allTier === 'text' ? 'all' : 'team';
+    this.drawer.openOn(ch, !this.h.touch && this.drawer.typedOn(ch));
+  }
+
   /** The wheel's centre (Type / More). */
   openDrawer(): void {
     this.drawer.openOn('team', !this.h.touch && this.drawer.typedOn('team'));
@@ -275,6 +292,7 @@ export class MatchChat {
     if (this.ended) return;
     this.engine?.observe({ k: 'end', winner }, this.h.tick() * TICK_MS);
     this.drawer.close();
+    this.button.hide();
     this.ended = true;
     // the end lines still arrive while the banner shows (≤ 12 s of wall time)
     const until = performance.now() + 12_000;
@@ -324,6 +342,7 @@ export class MatchChat {
     const line: ChatLineView = { ...l, mine: l.mine || l.slot === this.h.mySlot, name: this.h.names()[l.slot] ?? `Player ${l.slot + 1}`, color };
     this.ticker.push(line);
     this.drawer.add(line);
+    if (!line.mine && !this.drawer.open) this.button.unread();
     if (this.h.e2e) {
       const d = document.documentElement.dataset;
       d.chatLines = String(Number(d.chatLines ?? 0) + 1);
@@ -338,15 +357,22 @@ export class MatchChat {
     while (this.sent.length && now - this.sent[0] >= CHAT_SAY_RATE.windowMs) this.sent.shift();
     if (this.sent.length >= CHAT_SAY_RATE.perWindow) return chatErrorText('chat_rate');
     if (body.k === 't' && !this.drawer.typedOn(ch)) return chatErrorText('chat_quick_only');
+    // a bot match's log takes the relay's filter too (nothing unkind shows, even to yourself)
+    let typed = body.k === 't' ? body.text : '';
+    if (body.k === 't' && !this.h.link) {
+      const f = filterChatText(body.text);
+      if (!f.ok) return chatErrorText(f.why === 'long' ? 'chat_too_long' : 'chat_rejected', f.why);
+      typed = f.text;
+    }
     this.sent.push(now);
     if (this.h.link) {
       if (!this.h.link.chat?.(ch, body)) return chatErrorText('chat_rate');
       return null;
     }
     // solo: shown at once; the bots hear it (a probe silences them, a thanks may get one reaction)
-    const text = body.k === 't' ? body.text : matchPhraseText(body.id, this.h.sides[this.h.myTeam]);
+    const text = body.k === 't' ? typed : matchPhraseText(body.id, this.h.sides[this.h.myTeam]);
     this.show({ slot: this.h.mySlot, text, ch, kind: body.k === 't' ? 'text' : 'phrase', mine: true });
-    this.engine?.human({ slot: this.h.mySlot, ch, ...body }, this.h.tick() * TICK_MS);
+    this.engine?.human(body.k === 't' ? { slot: this.h.mySlot, ch, k: 't', text } : { slot: this.h.mySlot, ch, ...body }, this.h.tick() * TICK_MS);
     return null;
   }
 
@@ -371,6 +397,7 @@ export class MatchChat {
     this.offLink?.();
     this.ticker.dispose();
     this.drawer.dispose();
+    this.button.dispose();
     if (this.h.e2e) delete (window as unknown as Record<string, unknown>)[E2E_HOOK];
   }
 }

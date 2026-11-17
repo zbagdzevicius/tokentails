@@ -7,7 +7,8 @@ test.afterEach(closeAll);
  * In-match chat between two clients over the relay harness (MATCH-CHAT.md §3, §4, §8): guests are quick tier, so the
  * drawer offers phrase chips only. The phone opens it from the wheel's centre ("More") and says "gl hf" to the team;
  * the desktop opens it with Enter (All, since the team is phrases only), switches to Team and says "Thanks!". Each
- * line shows in the other client's ticker with the sender's party name. No page scrolls.
+ * line shows in the other client's ticker with the sender's party name. Then the phone's chat button (one tap, no wheel)
+ * sends "On my way". No page scrolls.
  */
 test('team chat between a desktop and a 667x375 phone in a party match (phrases for guests)', async ({ browser }) => {
   test.setTimeout(420_000);
@@ -44,5 +45,14 @@ test('team chat between a desktop and a 667x375 phone in a party match (phrases 
   await a.page.keyboard.press('Shift+Enter');
   await drawerA.locator('.cd-chip[data-id="25"]').click();
   await expect.poll(() => chatSaid(b), { timeout: 10_000 }).toContain('[All]');
+  // MATCH-CHAT.md §4.4: the chat button (top-left corner of the phone's minimap) opens the drawer in one tap
+  const openB = b.page.locator('[data-testid="chat-open"]');
+  await expect(openB).toBeVisible();
+  await tap(b, openB);
+  await expect(drawerB).toBeVisible();
+  await tap(b, drawerB.locator('[data-ch="team"]'));
+  await tap(b, drawerB.locator('.cd-chip[data-id="31"]'));
+  await expect(drawerB).toBeHidden();
+  await expect.poll(() => chatSaid(a), { timeout: 10_000 }).toContain('On my way');
   for (const p of [a, b]) expect(await p.page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
 });

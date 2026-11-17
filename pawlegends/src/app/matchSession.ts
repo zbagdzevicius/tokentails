@@ -1927,7 +1927,7 @@ export class MatchSession {
     this.overhead.hudRects = rects;
     const side: typeof rects = [];
     // feel pass B5: off-screen pointers and plates also keep clear of the button arc, the top strip, the ping corner
-    for (const el of this.ui.querySelectorAll<HTMLElement>('.pl-minimap, .pl-strip, .pl-feed, .pl-tbtn, .pl-score, .pl-pingbtn, .pl-emote, .pl-chatbtn')) {
+    for (const el of this.ui.querySelectorAll<HTMLElement>('.pl-minimap, .pl-strip, .pl-feed, .pl-tbtn, .pl-score, .pl-pingbtn, .pl-emote, .pl-chatbtn, .pl-chatopen')) {
       const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) side.push({ left: r.left - 4, top: r.top - 4, right: r.right + 4, bottom: r.bottom + 4 });
     }

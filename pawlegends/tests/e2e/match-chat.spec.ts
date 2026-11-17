@@ -90,3 +90,52 @@ test('desktop: Enter opens the composer, letters never cast, Enter sends, Esc ca
   await expect(input).toHaveCount(0);
   expect(await casts()).toBe(before);
 });
+
+// MATCH-CHAT.md §4.4 (Nov 17, founder: "in-match chat is still missing"): a bot match had no chat button, so a phone
+// could reach the chat only by tapping a bot's line in the few seconds it showed. Now every match has one.
+test('the chat button: one tap opens chat in a bot match, a quick chat and a typed line (16+) go out, nothing is covered', async ({ page }, info) => {
+  test.setTimeout(limit(420_000));
+  await page.addInitScript(() => localStorage.setItem('pl.ageBand', '18+'));
+  await botMatch(page, 7);
+  const touch = info.project.name === 'landscape';
+  const btn = page.locator('[data-testid="chat-open"]');
+  await expect(btn).toBeVisible();
+  // the button covers none of the controls around it (on phones it sits in the minimap's empty top-left corner)
+  const box = (await btn.boundingBox())!;
+  const others = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('.pl-pingbtn, .pl-fish, .pl-emote, .pl-tbtn, .pl-tcluster, .pl-bar, .pl-score, .pl-strip')]
+      .filter((e) => getComputedStyle(e).display !== 'none' && getComputedStyle(e).visibility !== 'hidden')
+      .map((e) => ({ c: e.className, r: e.getBoundingClientRect() }))
+      .filter((o) => o.r.width > 0 && o.r.height > 0)
+      .map((o) => ({ c: o.c, x: o.r.x, y: o.r.y, w: o.r.width, h: o.r.height })),
+  );
+  for (const o of others) {
+    const hit = box.x < o.x + o.w && box.x + box.width > o.x && box.y < o.y + o.h && box.y + box.height > o.y;
+    expect(hit, `chat button over ${o.c}`).toBe(false);
+  }
+  const drawer = page.locator('[data-testid="chat-drawer"]');
+  const said = () => page.evaluate(() => document.documentElement.dataset.chatSaid ?? '');
+  // a quick chat: open, one chip
+  if (touch) await btn.tap();
+  else await btn.click();
+  await expect(drawer).toBeVisible();
+  await expect(drawer.locator('.cd-input')).toBeVisible();
+  const chip = drawer.locator('.cd-chip').first();
+  const phrase = (await chip.textContent())!.trim();
+  if (touch) await chip.tap();
+  else await chip.click();
+  await expect(drawer).toBeHidden();
+  await expect.poll(said).toContain(phrase);
+  // a typed line: desktop opens with Enter, phones with the button
+  if (touch) await btn.tap();
+  else await page.keyboard.press('Enter');
+  const input = drawer.locator('.cd-input');
+  await expect(input).toBeVisible();
+  await input.fill('push mid with me');
+  if (touch) await drawer.locator('.cd-send').tap();
+  else await page.keyboard.press('Enter');
+  await expect(drawer).toBeHidden();
+  await expect.poll(said).toContain('push mid with me');
+  await expect(page.locator('[data-testid="chat-ticker"]')).toContainText('push mid with me');
+  await page.screenshot({ path: `test-results/match-chat/${info.project.name}-sent.png` });
+});

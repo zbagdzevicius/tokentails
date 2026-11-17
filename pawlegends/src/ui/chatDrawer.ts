@@ -33,6 +33,8 @@ export interface ChatDrawerDeps {
   muteAll?(on: boolean): void;
   /** Report a line (the host's `chat.report`); absent: no Report (a solo match). */
   report?(mid: string, kind: ChatReportKind): Promise<boolean>;
+  /** A bot match (no other human reads it): the quick-only note names the age setting, not teammates. */
+  solo?: boolean;
   /** The drawer opened or closed (the session hides the wheel, tests). */
   onToggle?(open: boolean): void;
 }
@@ -101,7 +103,7 @@ export class ChatDrawer {
     // a tap outside closes it (phones); the composer on desktop closes on Esc or a send
     const outside = (e: PointerEvent): void => {
       if (this.el.hidden || this.el.contains(e.target as Node)) return;
-      if ((e.target as HTMLElement | null)?.closest('.pl-chatline, .pl-chatwheel, .pl-chatbtn')) return;
+      if ((e.target as HTMLElement | null)?.closest('.pl-chatline, .pl-chatwheel, .pl-chatbtn, .pl-chatopen')) return;
       this.close();
     };
     document.addEventListener('pointerdown', outside, true);
@@ -216,7 +218,9 @@ export class ChatDrawer {
     this.foot.innerHTML = `${
       typed
         ? `<div class="cd-row"><input class="cd-input" type="text" maxlength="${CHAT_LIMITS_CLIENT.textMax}" enterkeyhint="send" autocomplete="off" autocapitalize="sentences" spellcheck="true" aria-label="${all ? 'Message to everyone' : 'Team message'}" placeholder="${all ? 'Message everyone' : 'Message your team'}"><button type="submit" class="cd-send" aria-label="Send">Send</button></div>`
-        : `<p class="cd-why">${all ? 'Typing to everyone opens when every player is 16+ with an account.' : 'Typing opens when everyone on your team is 16+ with an account (set your age in Friends).'}</p>`
+        : this.deps.solo
+          ? `<p class="cd-why">Quick chat here. Typing opens for players 16+ with an account (set your age in Friends).</p>`
+          : `<p class="cd-why">${all ? 'Typing to everyone opens when every player is 16+ with an account.' : 'Typing opens when everyone on your team is 16+ with an account (set your age in Friends).'}</p>`
     }<div class="cd-chips" role="group" aria-label="Quick chat">${chips}</div>`;
     this.el.classList.toggle('typed', typed);
   }

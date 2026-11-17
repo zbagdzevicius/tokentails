@@ -307,6 +307,30 @@ html[data-touch='1'] .pl-chatline .cl-row::after { content: ''; position: absolu
 html:not([data-touch='1']) .pl-chatline { left: calc(14px + var(--safe-l)); bottom: calc(var(--chat-bottom, 170px) + var(--safe-b)); width: 340px; align-items: flex-start; }
 html:not([data-touch='1']) .pl-chatline .cl-row { background: rgb(var(--v6-night-rgb) / 0.6); }
 
+/* the chat button (ui/chatButton.ts, MATCH-CHAT.md §4.4): every match, bot matches too. Phones: a 36 px bubble in the
+   minimap's top-left corner, the mirror of the ping paw in its bottom-right one (the lane runs corner to corner, so
+   both corners are empty map, and the persistent HUD area of hud-area.spec.ts does not grow), 44 px hit area.
+   Desktop: a chip bottom left, under the chat log. A dot when a line came in while the drawer was closed. */
+.pl-chatopen {
+  position: absolute; z-index: 6; display: flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; pointer-events: auto; cursor: pointer; touch-action: none;
+  color: var(--v6-cream); background: var(--panel); border: 2px solid rgb(var(--v6-cream-rgb) / 0.55); font: 700 12px var(--font);
+}
+.pl-chatopen[hidden] { display: none; }
+.pl-chatopen svg { width: 20px; height: 20px; color: var(--v6-ice); flex: none; }
+.pl-chatopen .dot { display: none; position: absolute; right: -2px; top: -2px; width: 10px; height: 10px; border-radius: 50%; background: var(--v6-bolt); box-shadow: 0 0 0 2px var(--v6-night); }
+.pl-chatopen.new .dot { display: block; }
+.pl-chatopen.on { border-color: var(--v6-bolt); }
+.pl-chatopen:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
+.pl-chatopen:active { transform: translateY(1px); }
+.pl-chatopen.touch { left: calc(10px + var(--safe-l, 0px)); top: calc(10px + var(--safe-t, 0px)); width: 36px; height: 36px; padding: 0; border-radius: 50%; }
+.pl-chatopen.touch::after { content: ''; position: absolute; inset: -6px; }
+.pl-chatopen.touch span, .pl-chatopen.touch kbd { display: none; }
+.pl-chatopen.desk { left: calc(14px + var(--safe-l)); bottom: calc(16px + var(--safe-b)); min-height: 32px; padding: 4px 10px 4px 8px; border-width: 1px; border-color: var(--v6-line-strong); border-radius: var(--v6-r-xs); }
+.pl-chatopen.desk svg { width: 16px; height: 16px; }
+.pl-chatopen.desk kbd { font: 700 10px/1.2 var(--font); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--v6-line-strong); background: rgb(var(--v6-night-rgb) / 0.6); color: var(--v6-cream); box-shadow: none; }
+@media (hover: hover) { .pl-chatopen.desk:hover { border-color: var(--v6-bolt); } }
+.pl-match.pl-replaying .pl-chatopen { display: none !important; }
+
 .pl-chatdrawer {
   position: absolute; z-index: 25; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: auto; touch-action: manipulation;
   background: var(--panel); border: 1px solid var(--v6-line-strong); border-radius: var(--v6-r-xs); box-shadow: var(--v6-shadow-2); color: var(--v6-cream); font: 600 13px var(--font);

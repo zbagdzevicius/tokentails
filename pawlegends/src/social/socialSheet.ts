@@ -5,6 +5,7 @@
  * `textContent`. Every call goes through the host (`api-request`); the game never sees a token, an account id or a URL.
  * Polling: one pulse every 30 s while the sheet or the title is shown and the tab is visible; never in a match.
  */
+import { rememberAgeBand } from './ageBand';
 import { ccHtml, myFlag } from './flags';
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import { parseRankedStatus, primeTimeText, rankedLabel, rankedLiveText } from '../meta/ranked';
@@ -260,7 +261,10 @@ export class SocialSheet {
   private async load(): Promise<void> {
     if (this.tab === 'ranked') return this.loadRanked();
     if (this.tab === 'boards') return this.loadBoard();
-    if (!this.deps.signedIn()) return this.render();
+    if (!this.deps.signedIn()) {
+      rememberAgeBand(null);
+      return this.render();
+    }
     if (this.tab === 'friends') void this.invite.load();
     if (this.tab === 'recent') {
       const r = await this.deps.api('social.recent');
@@ -273,6 +277,7 @@ export class SocialSheet {
     ]);
     if (s.ok && s.body) {
       this.state = s.body as SocialState;
+      rememberAgeBand(this.state.me?.ageBand);
       this.deps.onUnread?.(this.state.chat?.unread ?? 0);
     } else if (!s.ok) this.note = errorText(s);
     if (threads?.ok) {
