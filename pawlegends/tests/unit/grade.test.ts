@@ -201,7 +201,7 @@ describe('GAPS A2 + A3: the results screen', () => {
     });
     const g = root.querySelector<HTMLElement>('.pl-grade')!;
     expect(g.dataset.grade).toBe('A');
-    expect(g.textContent).toContain('+25 Treat XP');
+    expect(g.textContent).toContain('+25 Season XP');
     expect(g.querySelector('[data-mvp]')!.textContent).toContain('MVP: Rex');
     expect(g.querySelector('[data-best="you"]')!.textContent).toContain('Best on your team: You');
     expect(root.querySelector('.pl-ladder')!.textContent).toContain('Grade A: half the points lost');

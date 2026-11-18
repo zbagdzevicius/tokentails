@@ -93,7 +93,7 @@ describe('CF-07 a refused unit-target cast says so on touch', () => {
     window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, clientX: 600, clientY: 200, pointerType: 'touch' }));
     expect(r.sent.filter((c) => c.op === Op.Cast)).toEqual([]);
     expect(btn.classList.contains('deny')).toBe(true);
-    expect(r.notes).toContain('No hero in range');
+    expect(r.notes).toContain('No champion in range');
   });
 
   it('with an enemy hero in reach the same tap casts on it', () => {

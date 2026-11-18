@@ -277,7 +277,7 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
     marks.innerHTML =
       (reel?.list ?? []).map((h) => `<i class="mm-band ${bandOf(h)}" style="left:${pc(h.start)}%;width:${(Number(pc(h.end)) - Number(pc(h.start))).toFixed(2)}%" title="${esc(h.title)} ${mmss(h.start)}"></i>`).join('') +
       info.deaths.map((t) => `<i class="mm-mk death" style="left:${((t / total) * 100).toFixed(2)}%" title="Knocked out ${clock(t / 30)}"></i>`).join('') +
-      info.takedowns.map((t) => `<i class="mm-mk td" style="left:${((t / total) * 100).toFixed(2)}%" title="Takedown ${clock(t / 30)}"></i>`).join('');
+      info.takedowns.map((t) => `<i class="mm-mk td" style="left:${((t / total) * 100).toFixed(2)}%" title="Knockout or assist ${clock(t / 30)}"></i>`).join('');
     track.style.setProperty('--buf', `${((info.scouted / total) * 100).toFixed(2)}%`);
     deathBtn.querySelector('b')!.textContent = String(info.deaths.length);
     deathBtn.disabled = info.deaths.length === 0;

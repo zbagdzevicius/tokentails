@@ -53,7 +53,7 @@ export const SPECTATE_ERROR_TEXT: Readonly<Record<SpectateError, { title: string
   watch_full: { title: 'Match is full', body: 'Try again in a minute.' },
   watch_update: { title: 'Update to watch', body: 'This match runs another game version.' },
   rate_limited: { title: 'Already watching', body: 'Close the other screen to watch here.' },
-  old: { title: 'Not ready yet', body: 'The servers are updating. Try again in a minute.' },
+  old: { title: 'Not ready yet', body: 'The game is updating. Try again in a minute.' },
   lost: { title: 'Lost the live view', body: 'The connection to the match was lost.' },
   crash: { title: 'The live view stopped', body: 'Try again.' },
 });
@@ -114,7 +114,7 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
     <button type="button" class="mm-b mm-x" data-r="exit" aria-label="Stop watching" data-testid="spectate-exit">✕</button>
     <span class="sp-live" data-testid="spectate-live"><i aria-hidden="true"></i><b>LIVE</b><small class="sp-delay"></small></span>
     <span class="sp-viewers" data-testid="spectate-viewers" aria-live="polite"></span>
-    <span class="sp-heroes" role="group" aria-label="Follow a hero"></span>
+    <span class="sp-heroes" role="group" aria-label="Follow a champion"></span>
     <button type="button" class="mm-b" data-r="cam" data-testid="spectate-cam" aria-pressed="false">Free cam</button>
     <button type="button" class="mm-b" data-r="scores" data-testid="spectate-scores" aria-pressed="false">Scores</button>`;
   const drag = document.createElement('div');

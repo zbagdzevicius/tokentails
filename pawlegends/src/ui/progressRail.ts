@@ -64,10 +64,10 @@ export class ProgressRail {
       title = b.head ? `${b.name} ${b.head} · Lv ${l.level}` : `${b.name} · Lv ${l.level}`;
       sub = l.what || undefined;
     } else if (l) {
-      title = l.what ? `Level ${l.level} — ${l.what}` : `Level ${l.level}`;
+      title = l.what ? `Level ${l.level}: ${l.what}` : `Level ${l.level}`;
       sub = l.sub;
     } else {
-      title = b!.head ? `${b!.name} — ${b!.head}` : b!.name;
+      title = b!.head ? `${b!.name}: ${b!.head}` : b!.name;
       // the desktop second part adds what the title does not say already (the other stats, the passive)
       const rest = b!.sub.startsWith(b!.head) ? b!.sub.slice(b!.head.length).replace(/^ · /, '') : b!.sub;
       sub = rest || undefined;

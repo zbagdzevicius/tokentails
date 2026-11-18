@@ -124,7 +124,7 @@ describe('highlights: fights', () => {
     const r = a.finish();
     const m = find(r, 'multikill')!;
     expect(m).toBeTruthy();
-    expect(m.title).toBe('Double Pounce');
+    expect(m.title).toBe('Double Knockout');
     expect(m.mine).toBe('actor');
     expect(m.actors[0]).toBe(0);
     const b = harness();
@@ -244,7 +244,7 @@ describe('highlights: fights', () => {
     const fights = r.list.filter((x) => x.type === 'teamfight' || x.type === 'multikill' || x.type === 'ace');
     expect(fights).toHaveLength(1);
     expect(fights[0].type).toBe('teamfight');
-    expect(fights[0].title).toBe('Triple Pounce');
+    expect(fights[0].title).toBe('Triple Knockout');
     expect(fights[0].tags).toContain('multikill:3');
   });
 
@@ -612,7 +612,7 @@ describe('highlights: titles', () => {
           }
     }
     const t = titleFor({ type: 'multikill', start: 0, actors: [0], victims: [3, 4, 5, 3, 4], n: 5, seconds: 9 }, { seed: 0, names: NAMES, bots: [false, true, true, true, true, true], vsBots: true, teams: ['Purrhaven', 'Woof'], me: 0 }, false);
-    expect(t.title).toBe('PAWNTA KILL');
+    expect(t.title).toBe('PAWNTA KNOCKOUT');
     expect(t.sub).toBe('Clem · 5 down in 9 s · vs bots');
   });
 

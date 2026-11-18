@@ -40,7 +40,7 @@ describe('round 1: the centre band holds one item', () => {
 describe('round 1: "Your team is behind" says why', () => {
   it('names the towers when the team leads on takedowns', () => {
     expect(behindBanner(5, 3, 1, 2).title).toBe('They took 2 towers to your 1');
-    expect(behindBanner(2, 8, 1, 1).title).toBe('They lead 8 to 2 on takedowns');
+    expect(behindBanner(2, 8, 1, 1).title).toBe('They lead 8 to 2 on knockouts');
   });
 });
 

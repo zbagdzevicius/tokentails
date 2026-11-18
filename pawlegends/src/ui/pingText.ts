@@ -19,12 +19,12 @@ export const PING_TEXT: Readonly<Record<PingKind, PingText>> = Object.freeze({
   goHere: { label: 'Go here', ack: 'On my way!', icon: 'paw', color: '#7fd4ff' },
   // MAP-GAPS A10: every kind has its own glyph and colour (Group shared Go here's paw and sky blue)
   group: { label: 'Group on me', ack: 'Coming to you!', icon: 'ring', color: '#e9e2ff' },
-  pudding: { label: 'Take Pudding', ack: 'Going for Pudding!', icon: 'heart', color: '#ffb3d1' },
+  pudding: { label: 'Calm Pudding', ack: 'Going for Pudding!', icon: 'heart', color: '#ffb3d1' },
   pushSunny: { label: 'Push Sunny', ack: 'Pushing Sunny Lane!', icon: 'sun', color: '#ffd166' },
   pushPuddle: { label: 'Push Puddle', ack: 'Pushing Puddle Lane!', icon: 'wind', color: '#4fd1c5' },
-  defend: { label: 'Defend base', ack: 'Heading home to defend!', icon: 'shield', color: '#9be59b' },
+  defend: { label: 'Defend core', ack: 'Heading home to defend!', icon: 'shield', color: '#9be59b' },
   fallBack: { label: 'Fall back', ack: 'Backing off!', icon: 'dash', color: '#ff9f6e' },
-  focus: { label: 'Focus hero', ack: 'On it!', icon: 'sword', color: '#ff4d5e' },
+  focus: { label: 'Attack them', ack: 'On it!', icon: 'sword', color: '#ff4d5e' },
   // Sim v19 (5v5 Classic on Hearthwood Divide).
   pushFence: { label: 'Push Fenceline', ack: 'Pushing Fenceline!', icon: 'arrows', color: '#ffe08a' },
   pushYarn: { label: 'Push Yarn Road', ack: 'Pushing Yarn Road!', icon: 'lance', color: '#f6a5ff' },

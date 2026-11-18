@@ -65,7 +65,7 @@ async function knockedOut(page: Page, info: TestInfo, tag: string): Promise<void
   await page.screenshot({ path: `${SHOTS}/${info.project.name}${tag}.png` });
   expect(seen).toBeTruthy();
   const v = seen!;
-  expect(v.kicker).toBe('Napping at the fountain');
+  expect(v.kicker).toBe('Knocked out');
   expect(v.secs).toBeGreaterThanOrEqual(1);
   expect(v.recap).toMatch(/^Knocked out by /);
   expect(v.medals).toBe(1);

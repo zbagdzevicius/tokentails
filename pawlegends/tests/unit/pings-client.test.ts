@@ -101,7 +101,7 @@ describe('announcer: pings and answers (GAPS B1)', () => {
   it('a ping is a marker moment; an ok bark says the kind’s answer, a heal bark "Healing first!"', () => {
     const a = new Announcer(0, 0);
     const p = a.feed({ type: 'ping', tick: 100, kind: 'pudding', x: 50000, y: 30000, target: -1, took: 1 });
-    expect(p).toEqual([expect.objectContaining({ key: 'ping', size: 'ping', title: 'Take Pudding', at: { x: 50000, y: 30000, color: PING_TEXT.pudding.color } })]);
+    expect(p).toEqual([expect.objectContaining({ key: 'ping', size: 'ping', title: 'Calm Pudding', at: { x: 50000, y: 30000, color: PING_TEXT.pudding.color } })]);
     expect(a.feed({ type: 'bark', tick: 100, id: 1, what: 'ok' })).toEqual([expect.objectContaining({ key: 'barkPing', size: 'bark', slot: 1, title: PING_TEXT.pudding.ack })]);
     expect(a.feed({ type: 'bark', tick: 100, id: 2, what: 'heal' })).toEqual([expect.objectContaining({ key: 'barkHeal', size: 'bark', slot: 2, title: HEAL_BARK, tone: 'bad' })]);
     expect(a.pings).toBe(1);

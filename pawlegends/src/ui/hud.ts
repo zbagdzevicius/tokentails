@@ -117,9 +117,9 @@ export interface HudHost {
 
 /** Sim v27 (V27.md §2): the Practice ground's controls (Op.Practice kinds, sim/api.ts PRACTICE_KINDS order). */
 export const PRACTICE_BUTTONS: readonly { kind: number; label: string; title: string }[] = Object.freeze([
-  { kind: 0, label: 'Reset', title: 'Dummies back on their spots, your HP and cooldowns full, towers repaired' },
-  { kind: 1, label: 'Level +1', title: 'Your champion gains a level (up to 10)' },
-  { kind: 2, label: 'Cooldowns', title: 'Every cooldown ready again' },
+  { kind: 0, label: 'Reset', title: 'Puts the dummies back, refills your HP and cooldowns, and repairs the towers' },
+  { kind: 1, label: 'Level +1', title: 'Gain 1 level (max 10)' },
+  { kind: 2, label: 'Cooldowns', title: 'Reset every cooldown' },
 ]);
 
 /** Desktop skill tooltips: ui/slotTip.ts, loaded on the first desktop hover (touch never downloads it). */
@@ -177,7 +177,7 @@ function fmtClock(s: number): string {
 }
 
 /** Sim v32: Sunset is the last phase; its line counts down only to a mode's final whistle (Blitz 3:15). */
-const PHASE_NEXT: Record<MatchClock['phase'], string> = { gate: 'Gates open', play: 'Sunset', sunset: 'Final whistle', ended: '' };
+const PHASE_NEXT: Record<MatchClock['phase'], string> = { gate: 'Gates open', play: 'Sunset', sunset: 'Match ends', ended: '' };
 
 /** What the phone score strip carries (scoreDense): team kills, the own K / D / A, the clock text, the extra chips. */
 export interface StripLoad {
@@ -325,7 +325,7 @@ export class Hud {
     const root = document.createElement('div');
     root.className = 'pl-hud';
     const slotHtml = SLOT_ACTIONS.map((a, i) => {
-      const ab = i < 4 ? t.abilities[i] : i === 4 ? tt : { name: 'Nap', text: 'Channel for 4 s to return to your fountain. Damage breaks it.', icon: 'nap' as const };
+      const ab = i < 4 ? t.abilities[i] : i === 4 ? tt : { name: 'Nap', text: 'Stay still for 4 s to go back to your fountain. Moving or taking damage cancels it.', icon: 'nap' as const };
       const big = i === 3 ? ' ult' : i >= 4 ? ' small' : '';
       const rk = i < 4 ? `<i class="rk">${rankPips(abilityRank(1, i), maxRank(i))}</i>` : '';
       return `<button class="pl-slot${big}${i === 4 ? ' sum first' : i === 5 ? ' sum' : ''}" data-i="${i}" aria-label="${ab.name}: ${ab.text}">${icon(ab.icon)}<i class="sweep"></i><b class="num"></b>${rk}<kbd>${keyLabel(a)}</kbd></button>`;
@@ -336,7 +336,7 @@ export class Hud {
           <span class="team t0"><i class="tw" title="Towers taken">${TOWER_SVG}<em class="tw0">0</em></i><b class="k0">0</b></span>
           <span class="sw" aria-hidden="true">${SWORDS_SVG}</span>
           <span class="team t1"><b class="k1">0</b><i class="tw" title="Towers taken">${TOWER_SVG}<em class="tw1">0</em></i></span>
-          <span class="mid"><span class="kda" title="Your knockouts / naps / assists" aria-label="Your K / D / A: 0 / 0 / 0"><i class="ki" aria-hidden="true">${CLAW_SVG}</i><i class="kl" aria-hidden="true">KDA</i><b class="kk">0</b><i class="ks" aria-hidden="true">/</i><b class="kd">0</b><i class="ks" aria-hidden="true">/</i><b class="ka">0</b></span><span class="clock">0:00</span><span class="phase"></span></span>
+          <span class="mid"><span class="kda" title="Your knockouts / knocked out / assists" aria-label="Your knockouts 0, knocked out 0, assists 0"><i class="ki" aria-hidden="true">${CLAW_SVG}</i><i class="kl" aria-hidden="true">KDA</i><b class="kk">0</b><i class="ks" aria-hidden="true">/</i><b class="kd">0</b><i class="ks" aria-hidden="true">/</i><b class="ka">0</b></span><span class="clock">0:00</span><span class="phase"></span></span>
           <span class="obj" hidden><i class="ic" aria-hidden="true"></i><b></b></span>
         </div>
       </div>
@@ -349,7 +349,7 @@ export class Hud {
           <div class="pl-hp"><i class="chunk"></i><i class="fill"></i><i class="shield"></i><span class="txt"></span></div>
           <div class="pl-res${hero === 'stilts' ? ' stride' : ''}" title="${hero === 'stilts' ? 'Stride' : 'XP to the next level'}"><i></i></div>
         </div>
-        <div class="pl-fish" data-fish="0" data-toy="0" title="Fish: last hits, takedowns and objectives pay it. Your Toys buy themselves as the ring fills."><i class="ring">${FISH_GLYPH}</i><span class="col"><b class="n">0</b><span class="pips">${'<i></i>'.repeat(TOY_TIERS)}</span></span></div>
+        <div class="pl-fish" data-fish="0" data-toy="0" title="Fish comes from last hits, knockouts, assists and objectives. Your next Toy buys itself when the ring is full."><i class="ring">${FISH_GLYPH}</i><span class="col"><b class="n">0</b><span class="pips">${'<i></i>'.repeat(TOY_TIERS)}</span></span></div>
 
       </div>
       <div class="lol-nap" aria-hidden="true"><i class="fill"></i><span></span></div>`;
@@ -732,7 +732,7 @@ export class Hud {
     (el.querySelector('.kk') as HTMLElement).textContent = String(k);
     (el.querySelector('.kd') as HTMLElement).textContent = String(d);
     (el.querySelector('.ka') as HTMLElement).textContent = String(a);
-    el.setAttribute('aria-label', `Your K / D / A: ${k} / ${d} / ${a}`);
+    el.setAttribute('aria-label', `Your knockouts ${k}, knocked out ${d}, assists ${a}`);
     el.dataset.kda = key;
     this.load.k = k;
     this.load.d = d;
@@ -782,7 +782,7 @@ export class Hud {
     const gap = this.level.parentElement?.querySelector<HTMLElement>('.gap');
     if (gap && gap.textContent !== tag) {
       gap.textContent = tag;
-      gap.title = tag ? 'You are behind the enemy team: you earn bonus XP until you catch up.' : '';
+      gap.title = tag ? 'Your level is behind the enemy team, so you earn bonus XP until you catch up.' : '';
     }
   }
 

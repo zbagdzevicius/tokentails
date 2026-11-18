@@ -123,12 +123,12 @@ export function hintsFor(touch: boolean): { at: number; title: string }[] {
   return touch
     ? [
         { at: 3, title: 'Tap the ground to move' },
-        { at: 9, title: 'Tap a skill button to cast' },
+        { at: 9, title: 'Tap an ability to use it' },
         { at: 15, title: 'Paw button: tell your team' },
       ]
     : [
         { at: 3, title: 'Right-click to move' },
-        { at: 9, title: 'Q W E R cast your skills' },
+        { at: 9, title: 'Q W E R use your abilities' },
         { at: 15, title: 'Hold G to ping, T to chat' },
       ];
 }
@@ -210,7 +210,7 @@ export class MpHud {
             void book.report(slot, reason, h.tick()).then((out) =>
               this.h.rail.push(
                 out === 'failed'
-                  ? { key: 'mp-report', title: 'Report not sent. Try again', tone: 'bad', prio: 3, ttl: 2500 }
+                  ? { key: 'mp-report', title: 'Report not sent. Try again.', tone: 'bad', prio: 3, ttl: 2500 }
                   : { key: 'mp-report', title: REPORT_THANKS, tone: 'info', prio: 3, ttl: 2500 },
               ),
             );
@@ -242,7 +242,7 @@ export class MpHud {
     if (typeof document === 'undefined') return null;
     const el = document.createElement('span');
     el.className = 'mp-ping';
-    el.title = 'Ping to the game server';
+    el.title = 'Connection delay';
     (this.h.ui.querySelector('.pl-score .mid') ?? this.h.ui).appendChild(el);
     return el;
   }
@@ -507,7 +507,7 @@ export class MpHud {
     this.remakeOffered = true;
     this.h.rail.push({
       key: REMAKE_OFFER_KEY,
-      title: left ? 'A teammate left · Remake?' : 'A teammate dropped · Remake?',
+      title: left ? 'A teammate left · Remake?' : 'A teammate lost connection · Remake?',
       tone: 'gold',
       prio: 0,
       ttl: Math.max(3000, ((REMAKE_TICKS.until - t) / 30) * 1000),

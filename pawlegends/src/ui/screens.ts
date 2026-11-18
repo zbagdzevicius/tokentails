@@ -94,7 +94,7 @@ function badge(frame: FrameId | null | undefined, title: string | null | undefin
   // the portrait sits in its hero's element frame (the element art and border behind the face)
   const face = portrait ? ` style="background-image:url(${portrait})"${el ? ` ${cardAttrs(el, null)}` : ''}` : '';
   // GAPS A1: frames come from the Treat Track
-  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''} title="Earned on the Treat Track."><span class="ring${portrait ? ' pic' : ''}${portrait && el ? ' tt-ring' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
+  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''} title="Earned on the Pass."><span class="ring${portrait ? ' pic' : ''}${portrait && el ? ' tt-ring' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
 }
 
 export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
@@ -104,19 +104,19 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
     ? `<button class="pl-btn big" data-a="dare">Accept the dare</button><p class="dare-line">${esc(dareText(dare))} <small>as ${esc(HERO_TEXT[dare.hero].title)}</small></p>`
     : o.firstTime
       ? `<button class="pl-btn big" data-a="clem">Play as Clem</button>`
-      : `<button class="pl-btn big" data-a="quick">Play as ${esc(HERO_TEXT[o.last.hero].title)}</button><button class="pl-btn ghost" data-a="choose">Choose hero</button>`;
+      : `<button class="pl-btn big" data-a="quick">Play as ${esc(HERO_TEXT[o.last.hero].title)}</button><button class="pl-btn ghost" data-a="choose">Choose champion</button>`;
   root.innerHTML = `
     <div class="pl-title-col">
       ${logoHtml()}
       <p class="tag">3v3 cats and dogs. Quick matches, big plays.</p>
       <div class="actions">${primary}</div>
-      <p class="sub"><span class="acct">${accountState().signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span> ${o.firstTime ? (rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.') : ''}</p>
+      <p class="sub"><span class="acct">${accountState().signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span> ${o.firstTime ? (rookieAvailable() ? 'Your first match is a guided match against beginner bots.' : 'Your first match is a guided match against Easy bots.') : ''}</p>
       ${o.quests && o.quests.length ? `<div class="pl-quests mini"><b>Today</b>${o.quests.map((q) => questRow(q)).join('')}</div>` : ''}
       ${badge(o.frame, o.title, o.portrait, heroElement(o.last.hero))}
     </div>
     <div class="pl-corner">
       ${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}
-      ${o.onCollection ? `<button class="pl-btn ghost small" data-a="collection">${icon('crown')}Treat Track</button>` : ''}
+      ${o.onCollection ? `<button class="pl-btn ghost small" data-a="collection">${icon('crown')}Pass</button>` : ''}
       ${o.onSettings ? `<button class="pl-btn ghost small" data-a="settings">Settings</button>` : ''}
       <button class="pl-mute" data-a="mute" aria-label="Sound">${o.muted ? 'Sound off' : 'Sound on'}</button>
     </div>`;
@@ -338,7 +338,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       headLeft: `<button type="button" class="pl-btn ghost small cs-back" data-a="back" aria-label="Back" aria-keyshortcuts="Escape">${BACK}<span>Back</span></button>`,
       ...(o.modeLine ? { headNote: `<small class="cs-mode" data-testid="pick-mode">${esc(o.modeLine)}</small>` } : {}),
       footLeft: botsHtml(),
-      lock: practice ? { enabled: true, label: 'PRACTICE', sub: 'Saves nothing: unlock it to earn' } : { enabled: !no, label: 'LOCK IN', sub: no || `vs ${vs}` },
+      lock: practice ? { enabled: true, label: 'PRACTICE', sub: 'Not saved. Unlock this champion to earn rewards' } : { enabled: !no, label: 'LOCK IN', sub: no || `vs ${vs}` },
       champBar: practice && o.champs ? champBarHtml(viewing, o.champs) : freeLine,
       note,
       numbers,
@@ -612,7 +612,7 @@ function resultTable(rows: readonly ResultRow[]): string {
   const tag = (r: ResultRow): string => (r.mvp ? ' <em class="mvp">MVP</em>' : r.best ? ' <em class="best">Best</em>' : '');
   const tr = (r: ResultRow): string =>
     `<tr class="${r.rel}"><td${r.flag && r.slot !== undefined ? ' class="sb-rp"' : ''}>${r.cc !== undefined ? ccHtml(r.cc) : ''}${esc(r.name)}${tag(r)}${r.flag && r.slot !== undefined ? flagHtml(r.slot, r.name, r.flag === 'done') : ''}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td>${graded ? `<td class="g" data-grade="${r.grade ?? ''}">${r.grade ?? ''}</td>` : ''}</tr>`;
-  return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Hero</th><th>K/D/A</th><th>Hero dmg</th><th>Tower dmg</th>${graded ? '<th>Grade</th>' : ''}</tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
+  return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Champion</th><th>K/D/A</th><th>Champion dmg</th><th>Tower dmg</th>${graded ? '<th>Grade</th>' : ''}</tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
 }
 
 
@@ -638,21 +638,21 @@ export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 
   const [ours, theirs] = o.teamKills;
   if (o.won) {
     // Sim v32: a match the clock decided (Blitz's 3:15, the safety end) or the other team left says so, not "the core"
-    if (o.reason === 'timeUp' || o.reason === 'safetyEnd') return o.teamTowers && o.teamTowers[0] > o.teamTowers[1] ? 'Won on the final whistle: more towers down.' : 'Won on the final whistle: your core had more left.';
+    if (o.reason === 'timeUp' || o.reason === 'safetyEnd') return o.teamTowers && o.teamTowers[0] > o.teamTowers[1] ? "Time's up. You won: you took more towers." : "Time's up. You won: your core had more HP.";
     if (o.reason === 'forfeit') return 'The other team gave up. The win is yours.';
     if (o.reason === 'goal') return 'The match is yours.';
     // GP-05: only a real part in the fights earns "with your help" (a share of the team's takedowns or hero damage)
-    if (!joinedFights(o)) return 'Your team took the core. Next time, jump into a fight!';
-    if (o.kills === 0) return 'Your team took the core, with your help.';
+    if (!joinedFights(o)) return 'Your team broke their core. Next time, join a fight!';
+    if (o.kills === 0) return 'Your team broke their core, with your help.';
     // a clean sweep: well ahead on takedowns and not one of our towers lost
     const sweep = ours - theirs >= 6 && o.teamTowers !== undefined && o.teamTowers[1] === 0;
     return sweep ? 'A clean sweep. The core is yours.' : 'The core is yours.';
   }
   const gap = theirs - ours;
-  if (o.draw) return 'A draw on the final whistle: everything was even.';
+  if (o.draw) return "Time's up. A draw: everything was even.";
   // Sim v32: a Blitz match the 3:15 time up decided says what decided it (towers first, then core health)
-  if (o.reason === 'timeUp' || o.reason === 'safetyEnd') return o.teamTowers && o.teamTowers[1] > o.teamTowers[0] ? 'Lost on the final whistle: they took more towers.' : 'Lost on the final whistle: their core had more left.';
-  if (gap >= 6) return o.difficulty === 'hard' ? 'Hard bots punish a lone hero. Fight next to your team.' : o.difficulty === 'normal' ? 'Tough one. Try Easy bots or a new hero.' : 'Tough one. The tip below helps.';
+  if (o.reason === 'timeUp' || o.reason === 'safetyEnd') return o.teamTowers && o.teamTowers[1] > o.teamTowers[0] ? "Time's up. You lost: they took more towers." : "Time's up. You lost: their core had more HP.";
+  if (gap >= 6) return o.difficulty === 'hard' ? 'Hard bots punish anyone alone. Stay with your team.' : o.difficulty === 'normal' ? 'Tough one. Try Easy bots or another champion.' : 'Tough one. The tip below helps.';
   if (gap >= 3) return 'They pulled ahead. You can turn the next one.';
   return 'So close. The next one is yours.';
 }
@@ -664,10 +664,10 @@ export function resultTip(o: Pick<ResultsOpts, 'won' | 'kills' | 'deaths' | 'lev
   const heroes = by.hero ?? 0;
   const nap = o.touch ? 'tap Nap' : 'press B to Nap';
   if (towers >= 2) return `Towers knocked you out ${towers} times. Walk in behind your minions: the tower hits them first.`;
-  if (heroes >= 3 && o.deaths >= 4) return `Enemy heroes caught you ${heroes} times. Under a third of your health, step back to your tower or ${nap}.`;
-  if (o.level <= 3 && o.seconds >= 300) return 'Stand near enemy minions when they fall: that is where your levels come from.';
-  if (o.kills === 0 && !o.won) return `Use your abilities when an enemy hero comes close: they do most of a hero's damage.`;
-  if (o.deaths >= 5) return `Under a third of your health, step back or ${nap}: your fountain heals you fast.`;
+  if (heroes >= 3 && o.deaths >= 4) return `Enemy champions knocked you out ${heroes} times. Below 1/3 HP, step back to your tower or ${nap}.`;
+  if (o.level <= 3 && o.seconds >= 300) return "Stay near enemy minions when they fall: that's how you level up.";
+  if (o.kills === 0 && !o.won) return 'Use your abilities when an enemy champion comes close: they do most of your damage.';
+  if (o.deaths >= 5) return `Below 1/3 HP, step back or ${nap}: your fountain heals you fast.`;
   return null;
 }
 
@@ -678,7 +678,7 @@ function ladderLine(l: NonNullable<ResultsOpts['ladder']>, won: boolean): string
   const note = l.placement
     ? `<small>Placement ${l.placement} of 3${won ? '' : ': no points lost'}</small>`
     : won && (l.impact ?? 1) < 0.75
-      ? '<small>Small share: more takedowns, fewer knockouts</small>'
+      ? '<small>Small share: join more knockouts, get knocked out less</small>'
       : !won && (l.grade === 'S' || l.grade === 'A')
         ? `<small>Grade ${l.grade}: half the points lost</small>`
         : '';
@@ -692,7 +692,7 @@ function gradeBlock(g: ResultGrade, won: boolean): string {
   if (!won && g.bestOnTeam) lines.push(`<span class="best" data-best="${g.bestOnTeam.you ? 'you' : 'other'}">Best on your team: <b>${who(g.bestOnTeam)}</b></span>`);
   return `<div class="pl-grade" data-grade="${g.grade}">
     <b class="letter">${g.grade}</b>
-    <span class="what"><b>Grade ${g.grade}</b><small>${g.xp > 0 ? `+${g.xp} Treat XP` : 'Join more fights for a B'}</small></span>
+    <span class="what"><b>Grade ${g.grade}</b><small>${g.xp > 0 ? `+${g.xp} Season XP` : 'Join more fights for a B'}</small></span>
     <span class="who">${lines.join('')}</span>
   </div>`;
 }
@@ -708,7 +708,7 @@ export function rewardStrip(o: Pick<ResultsOpts, 'grade' | 'treats' | 'dareLink'
   if (t) {
     const pct = (v: number): string => `${Math.round(v * 100)}%`;
     const opened = t.rewards.length > 0;
-    parts.push(`<span class="rw-treat" style="--from:${pct(t.before)};--to:${pct(opened ? 1 : t.after)}"><small>+${t.gained} Treat XP</small><i class="bar"><i class="fill"></i></i></span>`);
+    parts.push(`<span class="rw-treat" style="--from:${pct(t.before)};--to:${pct(opened ? 1 : t.after)}"><small>+${t.gained} Season XP</small><i class="bar"><i class="fill"></i></i></span>`);
     // rw-open, not rw-chest: rewards.css owns .rw-chest (the Lucky Treat chest, 132x112 with a drop-shadow ledge), which
     // drew this toast tall and its text twice (s7 ui, founder Nov 15)
     if (opened) parts.push(`<span class="rw-open">${icon('crown')}<span><b>Chest opened</b><small>${esc(t.rewards.map((r) => r.name).join(', '))}</small></span></span>`);
@@ -727,10 +727,10 @@ function treatBlock(t: TreatGain): string {
   const opened = t.rewards.length > 0;
   const fillTo = opened ? 1 : t.after;
   return `<div class="pl-treats ${opened ? 'chest' : ''}" style="--from:${pct(t.before)};--to:${pct(fillTo)};--after:${pct(t.after)}">
-    <div class="head"><b>Treat Track</b><small>+${t.gained} Treat XP</small></div>
+    <div class="head"><b>Pass</b><small>+${t.gained} Season XP</small></div>
     <div class="bar"><i class="fill"></i></div>
     ${opened ? `<div class="open">${icon('crown')}<span><b>Chest opened: ${esc(t.rewards.map((r) => r.name).join(', '))}</b><small>Free, yours to keep.</small></span></div>` : ''}
-    ${t.dayBonus > 0 ? `<p class="bonus" data-daybonus="${t.dayBonus}">First win of the day: +${t.dayBonus} Treat XP</p>` : ''}
+    ${t.dayBonus > 0 ? `<p class="bonus" data-daybonus="${t.dayBonus}">First win of the day: +${t.dayBonus} Season XP</p>` : ''}
     <p class="next">Next chest: <b>${esc(t.next.name)}</b> <small data-togo="${t.toGo}">${esc(toGoText(t.toGo))}</small></p>
   </div>`;
 }
@@ -753,7 +753,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
         <div><b>${m}:${s}</b><small>Match time${o.won && o.best && o.seconds < sd ? ' · best!' : ''}</small></div>
         <div data-kda="${o.kills}/${o.deaths}/${o.assists ?? 0}"><b>${o.kills} / ${o.deaths} / ${o.assists ?? 0}</b><small>K / D / A</small></div>
         <div><b>${o.level}</b><small>Level</small></div>
-        <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team takedowns</small></div>
+        <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team knockouts</small></div>
       </div>
       ${o.progress && o.progress.rows.length ? progressBlock(o.progress) : ''}
       ${o.party ? o.party.rowsHtml : ''}
@@ -768,7 +768,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${tip ? `<p class="pl-result-tip">${icon('paw')}<span>${esc(tip)}</span></p>` : ''}
       <div data-slot="save"></div>
       ${o.ranked ? `<div class="pl-rk" data-slot="ranked" data-testid="ranked-result" role="status">${rankedBlockHtml(null, o.rankedKind)}</div>` : ''}
-      ${o.treats ? treatBlock(o.treats) : ''}${o.chromaEarned ? `<p class="pl-chroma-earned" data-chroma-earned="${esc(o.chromaEarned.name)}">New chroma: <b>${esc(`${o.chromaEarned.name} ${o.chromaEarned.coat}`)}</b>. Wear it in Heroes, Coats.</p>` : ''}
+      ${o.treats ? treatBlock(o.treats) : ''}${o.chromaEarned ? `<p class="pl-chroma-earned" data-chroma-earned="${esc(o.chromaEarned.name)}">New chroma: <b>${esc(`${o.chromaEarned.name} ${o.chromaEarned.coat}`)}</b>. Wear it from Champions, then Coats.</p>` : ''}
       ${o.quests && o.quests.length ? `<div class="pl-quests"><b>Daily quests</b>${o.quests.map((q) => questRow(q)).join('')}</div>` : ''}
       ${o.firstWin ? `<div class="unlock">${icon('crown')}<span><b>${FIRST_WIN_COAT_NAME} unlocked</b><small>Free, yours to keep.</small></span></div>` : ''}
       <div class="dare ${o.dareLink ? '' : 'hidden'}">
@@ -786,7 +786,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     ${o.party ? '' : rewardStrip(o)}
     ${
       o.party
-        ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">${esc(o.party.leave ?? 'Leave party')}</button>${o.party.change === false ? '' : '<button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button>'}<button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
+        ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">${esc(o.party.leave ?? 'Leave party')}</button>${o.party.change === false ? '' : '<button class="pl-btn solid" data-a="change" data-testid="party-change">Change champion</button>'}<button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
         : `<div class="actions pinned"><button class="pl-btn ghost" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button>${o.next ? `<button class="pl-btn ghost lb-next" data-a="next" data-testid="results-next">${esc(o.next.label)}<small>${esc(o.next.sub)}</small></button>` : ''}<button class="pl-btn big" data-a="again" data-testid="results-again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots${o.mode ? ` · ${esc(o.mode)}` : ''}</small></button></div>`
     }
     </div>
@@ -907,12 +907,12 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
     ${o.onCameraHeight ? cameraHeightRowHtml() : ''}
     ${ff ? `<button class="pl-btn ghost danger" data-a="forfeit"${ffReady ? '' : ' disabled'}>${party ? (ffReady ? 'Vote surrender' : `Vote surrender from ${clockText(ff.from)}`) : ffReady ? 'Forfeit' : `Forfeit from ${clockText(ff.from)}`}</button>` : ''}
     <button class="pl-btn ghost danger" data-a="leave">Leave match</button>
-    ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · hold <kbd>\`</kbd> heroes only · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Wheel</kbd> camera height · <kbd>Tab</kbd> scores</p>`}</div>`;
+    ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · hold <kbd>\`</kbd> champions only · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Wheel</kbd> camera height · <kbd>Tab</kbd> scores</p>`}</div>`;
   };
   // GAPS B2: the confirm step names what a forfeit costs before anything is sent
   const confirm = (): void => {
     root.innerHTML = `<div class="card pl-forfeit"><h2>Forfeit this match?</h2>
-    <p class="sub">It counts as a loss. You get ${TREAT_XP.forfeit} Treat XP, no quest progress, and the full ladder loss.</p>
+    <p class="sub">It counts as a loss. You get ${TREAT_XP.forfeit} Season XP, no quest progress, and lose the full ladder points.</p>
     <button class="pl-btn big" data-a="forfeit-no">Keep playing</button>
     <button class="pl-btn ghost danger" data-a="forfeit-yes">Forfeit</button></div>`;
   };

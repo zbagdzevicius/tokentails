@@ -272,8 +272,8 @@ describe('Blitz rewards and results copy', () => {
 
   it('names the time-up reason', () => {
     const base = { phase: 'sunset', top: null, kills: [3, 3] as const, oursForward: 0, oursAlive: 3 };
-    expect(endCause({ ...base, won: true, reason: 'timeUp', towers: [2, 1] })).toBe('Time! We took more towers (2 to 1).');
-    expect(endCause({ ...base, won: false, reason: 'timeUp', towers: [0, 0] })).toBe('Time! Towers even, their core was healthier.');
+    expect(endCause({ ...base, won: true, reason: 'timeUp', towers: [2, 1] })).toBe("Time's up! We took more towers (2 to 1).");
+    expect(endCause({ ...base, won: false, reason: 'timeUp', towers: [0, 0] })).toBe("Time's up! Towers even, their core had more HP.");
     expect(endCause({ ...base, won: false, reason: 'timeUp', draw: true, towers: [0, 0] })).toMatch(/draw/);
   });
 });

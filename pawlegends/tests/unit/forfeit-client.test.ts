@@ -103,7 +103,7 @@ describe('pause menu Forfeit (GAPS B2)', () => {
     click('forfeit');
     expect(calls).toEqual([]);
     expect(root.textContent).toContain('Forfeit this match?');
-    expect(root.textContent).toContain('20 Treat XP');
+    expect(root.textContent).toContain('20 Season XP');
     click('forfeit-no');
     expect(root.querySelector('[data-a="resume"]')).not.toBeNull();
     click('forfeit');

@@ -243,7 +243,7 @@ export class PartyChat {
       case 'report-kind': {
         const mid = el.dataset.mid ?? '';
         this.reporting = null;
-        void this.deps.report?.(mid, el.dataset.kind as ChatReportKind).then((ok) => this.flash(ok ? 'Thanks. We review every report.' : 'Something went wrong. Try again'));
+        void this.deps.report?.(mid, el.dataset.kind as ChatReportKind).then((ok) => this.flash(ok ? 'Thanks. We review every report.' : 'Report not sent. Try again.'));
         return;
       }
     }

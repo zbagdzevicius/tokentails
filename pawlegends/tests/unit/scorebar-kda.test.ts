@@ -55,7 +55,7 @@ describe('K / D / A on the score plate', () => {
     expect(kda.querySelector('.kk')?.textContent).toBe('0');
     expect(kda.querySelector('.kd')?.textContent).toBe('0');
     expect(kda.querySelector('.ka')?.textContent).toBe('0');
-    expect(kda.getAttribute('aria-label')).toBe('Your K / D / A: 0 / 0 / 0');
+    expect(kda.getAttribute('aria-label')).toBe('Your knockouts 0, knocked out 0, assists 0');
   });
 
   it('updates on a change, and only then', () => {
@@ -65,7 +65,7 @@ describe('K / D / A on the score plate', () => {
     expect(kda.querySelector('.kk')?.textContent).toBe('3');
     expect(kda.querySelector('.kd')?.textContent).toBe('1');
     expect(kda.querySelector('.ka')?.textContent).toBe('4');
-    expect(kda.getAttribute('aria-label')).toBe('Your K / D / A: 3 / 1 / 4');
+    expect(kda.getAttribute('aria-label')).toBe('Your knockouts 3, knocked out 1, assists 4');
     const k = kda.querySelector('.kk')!;
     k.textContent = 'x';
     hud.kda(3, 1, 4);

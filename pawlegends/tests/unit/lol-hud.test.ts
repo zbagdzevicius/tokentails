@@ -52,7 +52,7 @@ describe('Ace', () => {
     const out = new Set<number>([1, 2]);
     a.down = (s) => out.has(s);
     const m = a.feed(death(900, 0, 3)).find((x) => x.key === 'aceThem');
-    expect(m?.title).toBe('Enemy team ACE');
+    expect(m?.title).toBe('Team wiped');
     expect(m?.tone).toBe('bad');
     expect(m?.voice).toBe('aceUs');
   });
@@ -69,11 +69,11 @@ describe('slain lines', () => {
   it('"You have been slain" with the killer as the badge; an ally\'s knockout once no takedown of ours is near', () => {
     const a = new Announcer(0, 0, name);
     const me = a.feed(death(600, 0, 3)).find((m) => m.key === 'slain');
-    expect(me?.title).toBe('You have been slain');
+    expect(me?.title).toBe('You were knocked out');
     expect(me?.tone).toBe('bad');
     expect(me?.face).toBe(3);
     expect(me?.voice).toBe('slain');
-    expect(a.feed(death(900, 1, 4)).find((m) => m.key === 'allySlain')?.title).toBe('An ally has been slain');
+    expect(a.feed(death(900, 1, 4)).find((m) => m.key === 'allySlain')?.title).toBe('Teammate knocked out');
     // our takedown just now: the ally line keeps quiet
     a.feed(death(1500, 5, 2));
     expect(keys(a.feed(death(1500 + ALLY_SLAIN_QUIET - 5, 1, 4)))).not.toContain('allySlain');

@@ -51,24 +51,21 @@ const isCat = (hero: HeroId): boolean => LORE[hero].home === 'Purrhaven Isle';
  * champion's own words and the Crossing's lore. Every line is Paw Legends' own (data/lore.ts, GDD words).
  */
 export function napLines(hero: HeroId): string[] {
-  const cat = isCat(hero);
-  const minions = cat ? 'Kitten Cadets' : 'Pup Troopers';
-  const towers = cat ? 'Scratching Posts' : 'Kennels';
   const l = LORE[hero];
   const place = (name: string): string | null => {
     const p = WORLD.places.find((x) => x.name === name);
     return p ? `${p.name}: ${p.text}` : null;
   };
   const lines = [
-    `Back on the Crossing, walk in behind your ${minions}: towers hit whoever is in front.`,
-    'Fish buys your next Toy the moment there is enough. Last hits pay the most.',
-    'Catnip Bushes hide anyone inside. Peek with an ally before you walk past one.',
-    `Your ${towers} hit hard. Fight next to them and let the other side come to you.`,
+    'Back in the fight, walk in behind your minions: towers hit whoever is in front.',
+    'Your next Toy buys itself once you have enough Fish. Last hits pay the most.',
+    'Catnip Bushes hide anyone inside. Check one with a teammate before you walk past.',
+    'Your towers hit hard. Fight next to them and let the enemy come to you.',
     `"${l.quote}" (${HERO_TEXT[hero].title})`,
     `${HERO_TEXT[hero].title}: ${l.howTheyFight}`,
     place('Pudding'),
     place('Rat camps'),
-    'Nobody is ever really hurt on the Crossing. A knocked-out hero just takes a quick, grumpy nap.',
+    'Nobody really gets hurt on the Crossing. A knocked-out champion just sits out for a few grumpy seconds.',
   ];
   return lines.filter((s): s is string => !!s);
 }
@@ -124,7 +121,7 @@ export class NapCard {
     el.innerHTML = `<i class="nc-art" aria-hidden="true"></i>
       <span class="nc-hero" aria-hidden="true"><img alt="" decoding="async" draggable="false"></span>
       <span class="nc-body">
-        <small class="nc-kicker">Napping at the fountain</small>
+        <small class="nc-kicker">Knocked out</small>
         <span class="nc-back"><span>Back in</span><b class="nc-secs"></b></span>
         <span class="nc-by"><i class="nc-medal" aria-hidden="true"></i><span class="nc-recap">Your team is still fighting!</span></span>
       </span>
@@ -166,7 +163,7 @@ export class NapCard {
       this.el.classList.toggle('long', long);
       (this.el.querySelector('.nc-kicker') as HTMLElement).textContent = napKicker(long, this.weight, this.weightBp);
       this.el.classList.add('on');
-      this.el.setAttribute('aria-label', `Napping at the fountain. Back in ${s}.`);
+      this.el.setAttribute('aria-label', `Knocked out. Back in ${s}.`);
     } else if (now - this.lineAt >= NAP_LINE_MS && this.lines.length > 1) {
       this.lineAt = now;
       this.lineI = (this.lineI + 1) % this.lines.length;
@@ -225,8 +222,8 @@ export class NapCard {
  * ("Death 4 · +45%"); else sim v33's long-nap line, or the stock line.
  */
 export function napKicker(long: boolean, weight: number, weightBp: number): string {
-  if (weight > 1 && weightBp > 0) return `Death ${weight} · +${Math.round(weightBp / 100)}%`;
-  return long ? 'Long nap: respawns grow as the match goes on' : 'Napping at the fountain';
+  if (weight > 1 && weightBp > 0) return `Knocked out ${weight}× · wait +${Math.round(weightBp / 100)}%`;
+  return long ? 'Knocked out · waits grow as the match goes on' : 'Knocked out';
 }
 
 /**

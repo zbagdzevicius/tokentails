@@ -292,7 +292,7 @@ export class ChatDrawer {
       case 'report-kind': {
         const l = this.lines[i];
         if (l?.mid && this.deps.report)
-          void this.deps.report(l.mid, t.dataset.kind as ChatReportKind).then((ok) => this.error(ok ? 'Thanks. Our team will look at it' : 'Report not sent. Try again'));
+          void this.deps.report(l.mid, t.dataset.kind as ChatReportKind).then((ok) => this.error(ok ? 'Thanks. We review every report.' : 'Report not sent. Try again.'));
         this.menuFor = null;
         this.reportingIdx = null;
         return this.renderList();

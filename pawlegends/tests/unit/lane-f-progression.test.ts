@@ -45,9 +45,9 @@ describe('toy words (F2)', () => {
   });
 
   it('a tier-3 toast names the role passive; the last tier says fully geared', () => {
-    expect(toyToast('clem', 3).sub).toContain('new: basics heal 8% of hero damage');
-    expect(toyToast('sage', 4).sub).toContain('fully geared');
-    expect(toyToast('clem', 1)).toMatchObject({ title: 'Chew Rope I — +14% damage', name: 'Chew Rope I', head: '+14% damage' });
+    expect(toyToast('clem', 3).sub).toContain('new: basic attacks heal 8% of damage to champions');
+    expect(toyToast('sage', 4).sub).toContain('all Toys owned');
+    expect(toyToast('clem', 1)).toMatchObject({ title: 'Chew Rope I: +14% damage', name: 'Chew Rope I', head: '+14% damage' });
   });
 
   it('the Fish chip ring fills toward the next step and is full at the last tier', () => {
@@ -66,15 +66,15 @@ describe('level words (F3)', () => {
     const table = Array.from({ length: XP.maxLevel }, (_, i) => levelLine(i + 1));
     expect(table).toEqual([
       'Level 1',
-      'Level 2 — Q W E rank 2',
-      'Level 3 — pick a talent',
-      'Level 4 — Ultimate unlocked!',
-      'Level 5 — Q W E rank 3',
-      'Level 6 — pick a talent',
-      'Level 7 — Ultimate rank 2',
-      'Level 8 — Q W E rank 4',
-      'Level 9 — pick a talent',
-      'Level 10 — Ultimate rank 3 · max level',
+      'Level 2: Q W E rank 2',
+      'Level 3: pick a talent',
+      'Level 4: Ultimate unlocked!',
+      'Level 5: Q W E rank 3',
+      'Level 6: pick a talent',
+      'Level 7: Ultimate rank 2',
+      'Level 8: Q W E rank 4',
+      'Level 9: pick a talent',
+      'Level 10: Ultimate rank 3 · max level',
     ]);
     expect(levelWhat(5, true)).toBe('Skills rank 3');
     for (let lv = 1; lv <= XP.maxLevel; lv++) expect(levelLine(lv, true).length, levelLine(lv, true)).toBeLessThanOrEqual(28);
@@ -85,9 +85,9 @@ describe('progression rail (F2, F3)', () => {
   const buy = { name: 'Yarn Ball II', head: '+6% damage', sub: '+6% damage · +50 HP' };
   it('a level-up alone says what it brings; a Toy alone says what it adds', () => {
     const r = new ProgressRail();
-    expect(r.level({ level: 4, what: 'Ultimate unlocked!' }, 100)).toMatchObject({ key: PROGRESS_KEY, title: 'Level 4 — Ultimate unlocked!', prio: 3, tone: 'gold' });
+    expect(r.level({ level: 4, what: 'Ultimate unlocked!' }, 100)).toMatchObject({ key: PROGRESS_KEY, title: 'Level 4: Ultimate unlocked!', prio: 3, tone: 'gold' });
     const n = r.bought(buy, 100 + MERGE_TICKS + 1);
-    expect(n.title).toBe('Yarn Ball II — +6% damage');
+    expect(n.title).toBe('Yarn Ball II: +6% damage');
     // the second part only adds what the title does not say
     expect(n.sub).toBe('+50 HP');
     expect(new ProgressRail().bought({ name: 'Chew Rope I', head: '+8% damage', sub: '+8% damage' }, 0).sub).toBeUndefined();
@@ -117,7 +117,7 @@ describe('announcer (F2, F4)', () => {
     expect(a.feed({ type: 'buy', tick: 901, id: 3, tier: 2 })).toEqual([]);
     expect(a.feed({ type: 'buy', tick: 902, id: 1, tier: 4 })).toEqual([]);
     const g = a.feed({ type: 'buy', tick: 903, id: 3, tier: TOY_TIERS });
-    expect(g).toMatchObject([{ key: 'geared', title: 'Rex is fully geared up', tone: 'bad' }]);
+    expect(g).toMatchObject([{ key: 'geared', title: 'Rex has every Toy', tone: 'bad' }]);
     expect(a.toysBought).toBe(1);
   });
 

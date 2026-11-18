@@ -33,7 +33,7 @@ async function press(page: Page, touch: boolean, sel: string): Promise<void> {
   else await l.click();
 }
 
-test('Forfeit: disabled before 3:00 on Easy, then a confirm step, and the match ends as a forfeit with 20 Treat XP', async ({ page }, info) => {
+test('Forfeit: disabled before 3:00 on Easy, then a confirm step, and the match ends as a forfeit with 20 Season XP', async ({ page }, info) => {
   test.setTimeout(limit(180_000));
   const touch = info.project.name === 'landscape';
   await start(page, VETERAN, '&speed=16');
@@ -49,7 +49,7 @@ test('Forfeit: disabled before 3:00 on Easy, then a confirm step, and the match 
   await expect(ff).toBeEnabled();
   await press(page, touch, '.pl-menu [data-a="forfeit"]');
   await expect(page.locator('.pl-menu')).toContainText('Forfeit this match?');
-  await expect(page.locator('.pl-menu')).toContainText('20 Treat XP');
+  await expect(page.locator('.pl-menu')).toContainText('20 Season XP');
   // Keep playing goes back to the menu; nothing was sent
   await press(page, touch, '.pl-menu [data-a="forfeit-no"]');
   await expect(page.locator('.pl-menu [data-a="resume"]')).toBeVisible();
@@ -63,7 +63,7 @@ test('Forfeit: disabled before 3:00 on Easy, then a confirm step, and the match 
   expect(await attr(page, 'crest')).toBe('DEFEAT');
   await expect(page.locator('.pl-results h1')).toHaveText('Defeat');
   await expect(page.locator('.pl-results [data-cause]')).toHaveText('You forfeited the match.');
-  await expect(page.locator('.pl-results .pl-treats .head small')).toHaveText('+20 Treat XP');
+  await expect(page.locator('.pl-results .pl-treats .head small')).toHaveText('+20 Season XP');
   await expect(page.locator('.pl-results')).not.toContainText(/catnip/i);
   // founder, Nov 13: the results show the 3D hero (sulking on a Defeat) on the canvas, not the painted art card
   await expect(page.locator('.pl-stage')).toBeHidden();

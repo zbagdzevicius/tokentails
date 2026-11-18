@@ -45,19 +45,19 @@ export interface TitleCtx {
 const V: Readonly<Partial<Record<HighlightType, readonly string[]>>> = Object.freeze({
   ace: ['Ace!', 'Clean sweep', 'Team wiped'],
   shutdown: ['Shut down!', 'Streak over', 'Bounty claimed'],
-  firstBlood: ['First Blood', 'First takedown', 'And so it begins'],
-  kaboom: ['KABOOM!', 'Kibble Cannon KO', 'One-shot from the Cannon'],
-  strike: ['Yarn STRIKE!', 'Bowling for heroes', 'Strike!'],
+  firstBlood: ['First Blood', 'First knockout', 'And so it begins'],
+  kaboom: ['KABOOM!', 'Cannon knockout', 'One-shot from the Cannon'],
+  strike: ['Yarn STRIKE!', 'Bowling for champions', 'Strike!'],
   bossDown: ['Boss down!', 'The big one falls', 'Boss defeated'],
-  dive: ['Tower dive', 'Under their tower', 'Dove and lived'],
+  dive: ['Tower dive', 'Under their tower', 'In and out alive'],
   comeback: ['The comeback', 'Never give up', 'Turned it around'],
-  minionDeath: ['Taken down by a minion', "Minion's revenge", 'Lost to a minion'],
+  minionDeath: ['Knocked out by a minion', "Minion's revenge", 'Lost to a minion'],
   towerDeath: ['The tower said no', 'Hugged the tower', 'Tower wins'],
-  campDeath: ['The jungle bites back', 'Lost to the locals', 'Camp 1, hero 0'],
+  campDeath: ['The jungle bites back', 'Lost to the locals', 'Camp 1, champion 0'],
   diveFail: ['Dive failed', 'The tower remembers', 'Too deep'],
   wallPounce: ['Pounced into a wall', 'The wall won', 'Wall: 1, Pounce: 0'],
   returnToSender: ['Return to sender!', 'Parried it back!'],
-  ultOnMinion: ['Ult on a minion', 'Worth it?', 'Big ult, small target'],
+  ultOnMinion: ['Ultimate on a minion', 'Worth it?', 'Big ultimate, tiny target'],
   overkill: ['Overkill', 'A bit much', 'That was plenty'],
   napFail: ['Nap interrupted. Forever.', 'Worst nap ever', 'Rude awakening'],
   botBlunder: ['Bot took a wrong turn', 'Bot walked into it', 'Bot vs everyone'],
@@ -65,23 +65,23 @@ const V: Readonly<Partial<Record<HighlightType, readonly string[]>>> = Object.fr
   emoteSpam: ['Emote storm', 'Feeling chatty'],
 });
 
-const MULTI: Readonly<Record<number, string>> = Object.freeze({ 2: 'Double Pounce', 3: 'Triple Pounce', 4: 'Cat-astrophe', 5: 'PAWNTA KILL' });
-const ACED: readonly string[] = ['Aced', 'Wiped out', 'Everyone napping'];
+const MULTI: Readonly<Record<number, string>> = Object.freeze({ 2: 'Double Knockout', 3: 'Triple Knockout', 4: 'Cat-astrophe', 5: 'PAWNTA KNOCKOUT' });
+const ACED: readonly string[] = ['Aced', 'Wiped out', 'Everyone knocked out'];
 const FIGHT_WON: readonly string[] = ['{a}-{b} for {team}', 'Teamfight won', 'Big brawl, big win'];
 const FIGHT_LOST: readonly string[] = ['{a}-{b} for {team}', 'Teamfight lost', 'Rough brawl'];
 const FIGHT_EVEN: readonly string[] = ['Even trade, nobody happy', 'Brawl ends even', 'Trade, trade, trade'];
 const CLUTCH: readonly string[] = ['Escaped on {hp}% HP', 'Not today', 'Survived on {hp}%'];
 const NINE: readonly string[] = ['Nine Lives, used one', 'Saved by Nine Lives', 'Eight lives left'];
-const OUTPLAY: readonly string[] = ['Low HP, still won it', 'Took one down on {hp}%', 'Clutch takedown'];
+const OUTPLAY: readonly string[] = ['Low HP, still won it', 'Took one down on {hp}%', 'Clutch knockout'];
 const STEAL: Readonly<Record<string, readonly string[]>> = Object.freeze({
   pudding: ['Stolen Pudding!', 'Mine now', 'Yoink'],
   grizzlechop: ['Stolen Grizzlechop!', 'Mine now', 'Yoink'],
   buff: ['Buff stolen', 'Yoink', 'Thanks for the buff'],
   cannon: ['Cannon snatched', 'Finders keepers', 'Yoink'],
 });
-const BOING: Readonly<Record<string, readonly string[]>> = Object.freeze({ chain: ['Boing boing boing', 'Boing Bed regular'], doom: ['Boinged to doom', 'Boing... oh no'] });
+const BOING: Readonly<Record<string, readonly string[]>> = Object.freeze({ chain: ['Boing boing boing', 'Boing Bed regular'], doom: ['Boinged to doom', 'Boing… oh no'] });
 const FUMBLE: Readonly<Record<string, readonly string[]>> = Object.freeze({ drop: ['Cannon fumble', 'Butterpaws'], fizzle: ['Pfft. Fuse out.', 'Held it too long'], whiff: ['Cannon whiff', 'Missed by a mile'] });
-const FINALE: Readonly<Record<string, readonly string[]>> = Object.freeze({ won: ['The final push', 'Game over, we win'], lost: ['The last stand', 'The base falls'], timeUp: ['Time up!', 'Down to the wire'] });
+const FINALE: Readonly<Record<string, readonly string[]>> = Object.freeze({ won: ['The final push', 'Game over, we win'], lost: ['The last stand', 'The core falls'], timeUp: ["Time's up!", 'Down to the wire'] });
 const CLIP: Readonly<Record<string, readonly string[]>> = Object.freeze({
   flop: ['Played dead', 'The flop'],
   bigdog: ['BIG DOG', 'Big dog energy'],
@@ -93,7 +93,7 @@ const CLIP: Readonly<Record<string, readonly string[]>> = Object.freeze({
   lullaby: ['Lullaby', 'Sweet dreams'],
   zigzag: ['ZIGZAG STORM', 'Zig, zag, ouch'],
   fetch: ['Fetch!', 'Good catch'],
-  ko: ['Wall KO', 'Into the wall'],
+  ko: ['Wall smash', 'Into the wall'],
 });
 
 const pick = <T>(list: readonly T[], seed: number, start: number): T => list[((seed >>> 0) + Math.max(0, start)) % list.length];
@@ -115,7 +115,7 @@ function fit(parts: string[], max: number): string {
 
 /** A slot's name for a sub line: short, and "(bot)" on a bot. */
 export function who(ctx: TitleCtx, slot: number): string {
-  const raw = ctx.names[slot] ?? 'A hero';
+  const raw = ctx.names[slot] ?? 'A champion';
   if (!ctx.bots[slot]) return cut(raw, 16);
   // a bot's persona name ("Muffin the Nugget") keeps its first name: "Muffin (bot)"
   const short = raw.length > 12 && raw.includes(' the ') ? raw.slice(0, raw.indexOf(' the ')) : raw;
@@ -131,7 +131,7 @@ const BOT: Readonly<Partial<Record<HighlightType, readonly string[]>>> = Object.
   wallPounce: ['Bot pounced into a wall', 'Bot vs wall: wall wins'],
   boing: ['Bot boing boing boing', 'Bot on the Boing Bed'],
   fumble: ['Bot fumbled the Cannon', 'Bot butterpaws'],
-  ultOnMinion: ['Bot ulted a minion', 'Bot: big ult, tiny minion'],
+  ultOnMinion: ['Bot ultimate on a minion', 'Bot ultimate, tiny minion'],
   overkill: ['Bot overkill', 'Bot went a bit far'],
   napFail: ['Bot nap, interrupted', 'Bot napped at a bad time'],
 });
@@ -153,7 +153,7 @@ export function titleFor(f: TitleFacts, ctx: TitleCtx, bot: boolean): { title: s
     case 'ace': {
       const ours = f.side === teamOfMe(ctx);
       title = pick(ours ? (V.ace ?? []) : ACED, s, f.start);
-      parts = [`${f.n ?? f.victims.length} heroes down`, aName];
+      parts = [`${f.n ?? f.victims.length} knocked out`, aName];
       break;
     }
     case 'teamfight': {
@@ -167,7 +167,7 @@ export function titleFor(f: TitleFacts, ctx: TitleCtx, bot: boolean): { title: s
         .replace('{b}', String(lo))
         .replace('{team}', won ? ctx.teams[f.side as 0 | 1] : '');
       if (title.length > TITLE_MAX || (won && hi === lo)) title = won ? (f.side === teamOfMe(ctx) ? 'Teamfight won' : 'Teamfight lost') : 'Even trade';
-      parts = [`${f.n ?? f.actors.length + f.victims.length} heroes`, `${f.seconds ?? 0} s`, won ? `${ctx.teams[f.side as 0 | 1]} win` : 'even trade'];
+      parts = [`${f.n ?? f.actors.length + f.victims.length} champions`, `${f.seconds ?? 0} s`, won ? `${ctx.teams[f.side as 0 | 1]} win` : 'even trade'];
       break;
     }
     case 'clutch':
@@ -182,7 +182,7 @@ export function titleFor(f: TitleFacts, ctx: TitleCtx, bot: boolean): { title: s
     }
     case 'strike':
       title = pick(V.strike ?? [], s, f.start);
-      parts = [aName, `${f.n ?? 3} heroes hit`];
+      parts = [aName, `${f.n ?? 3} champions hit`];
       break;
     case 'comeback':
       title = (f.behind ?? 0) >= 3 && pick([0, 1], s, f.start) === 1 ? `Down ${f.behind}, still won` : pick(V.comeback ?? [], s, f.start);

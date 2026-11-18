@@ -128,9 +128,9 @@ describe('sim v35: every death makes the next respawn longer', () => {
   });
 
   it('the nap card names the weight only when it lengthened the wait', () => {
-    expect(napKicker(false, 4, 3600)).toBe('Death 4 · +36%');
-    expect(napKicker(true, 1, 0)).toBe('Long nap: respawns grow as the match goes on');
-    expect(napKicker(false, 3, 0)).toBe('Napping at the fountain');
+    expect(napKicker(false, 4, 3600)).toBe('Knocked out 4× · wait +36%');
+    expect(napKicker(true, 1, 0)).toBe('Knocked out · waits grow as the match goes on');
+    expect(napKicker(false, 3, 0)).toBe('Knocked out');
   });
 
   it('live check 2026-11-18: before 3:00 the card names no death weight (the sim adds none to the wait then)', { timeout: 60000 }, () => {
@@ -144,7 +144,7 @@ describe('sim v35: every death makes the next respawn longer', () => {
     expect(e.weightBp).toBeGreaterThan(0);
     expect(e.tick).toBeLessThanOrEqual(RESPAWN.growFrom);
     expect(napWeightBp(e.tick, e.weightBp!)).toBe(0);
-    expect(napKicker(false, e.weight!, napWeightBp(e.tick, e.weightBp!))).toBe('Napping at the fountain');
+    expect(napKicker(false, e.weight!, napWeightBp(e.tick, e.weightBp!))).toBe('Knocked out');
     expect(napWeightBp(RESPAWN.growFrom + 1, 1200)).toBe(1200);
   });
 });

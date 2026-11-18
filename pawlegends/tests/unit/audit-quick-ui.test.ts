@@ -24,7 +24,7 @@ describe('GP-05 results copy follows the player share of the fights', () => {
     // the audit's idle win at 0/0/1: an assist and some auto-attack damage
     const table = [row('self', 0, 1, 300), row('ally', 6, 3, 4000), row('ally', 4, 5, 3500)];
     expect(joinedFights({ kills: 0, assists: 1, teamKills: [10, 4], heroDamage: 300, table })).toBe(false);
-    expect(resultLine({ won: true, kills: 0, assists: 1, teamKills: [10, 4], difficulty: 'rookie', heroDamage: 300, table })).toMatch(/jump into a fight/);
+    expect(resultLine({ won: true, kills: 0, assists: 1, teamKills: [10, 4], difficulty: 'rookie', heroDamage: 300, table })).toMatch(/join a fight/);
   });
 
   it('a real share of takedowns or hero damage earns "with your help"', () => {
@@ -49,7 +49,7 @@ describe('UX-04 reward strip, UX-08 Home', () => {
     });
     document.body.innerHTML = html;
     expect(document.querySelector('.rw-grade b')?.textContent).toBe('A');
-    expect(document.querySelector('.rw-treat small')?.textContent).toBe('+80 Treat XP');
+    expect(document.querySelector('.rw-treat small')?.textContent).toBe('+80 Season XP');
     expect(document.querySelector('.rw-open')?.textContent).toContain('Wave emote');
     expect(document.querySelector('.rw-chest')).toBeNull();
     expect(document.querySelector('.rw-share[data-a="share"]')).not.toBeNull();

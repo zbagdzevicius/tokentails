@@ -63,7 +63,7 @@ test('results: a returning player gets Play again at once and a line saying what
   await page.waitForSelector('html[data-screen="title"]');
   await playFromHome(page);
   await page.waitForSelector('html[data-screen="results"]', { timeout: limit(130_000) });
-  await expect(page.locator('.pl-results [data-cause]')).toContainText(/core|Time ran out/);
+  await expect(page.locator('.pl-results [data-cause]')).toContainText(/core|Time's up/);
   // quick reveal (round 2): Play again within a second of the screen opening, even at 1× it is End + 2.5 s
   await page.waitForSelector('.pl-results.actions-in', { timeout: limit(3_000) });
   await expect(page.locator('[data-a="change"]')).toContainText('Switch cat');

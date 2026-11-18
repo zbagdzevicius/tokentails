@@ -25,7 +25,7 @@ test('the first objective chip shows within 5 s of the gates opening and points 
   await expect(page.locator('.pl-score .phase')).toHaveText('');
 });
 
-test('a fighting player sees First Blood or Takedown, level-ups and XP pops (desktop)', async ({ page }, info) => {
+test('a fighting player sees First Blood or Knockout, level-ups and XP pops (desktop)', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop controls');
   test.setTimeout(limit(240_000));
   await startFirstMatch(page, '&speed=4');
@@ -35,7 +35,7 @@ test('a fighting player sees First Blood or Takedown, level-ups and XP pops (des
     if ((await attr(page, 'screen')) === 'results') break;
     for (const s of (await attr(page, 'said')).split('|')) if (s) said.add(s);
     const words = [...said];
-    if (words.some((w) => /First Blood|Takedown|Assist/.test(w)) && words.some((w) => /^Level \d/.test(w)) && words.some((w) => /XP$/.test(w))) break;
+    if (words.some((w) => /First Blood|Knockout|Assist/.test(w)) && words.some((w) => /^Level \d/.test(w)) && words.some((w) => /XP$/.test(w))) break;
     const hero = await point(page, 'foeHero');
     const minion = await point(page, 'foeMinion');
     const front = await point(page, 'allyFront');
@@ -57,7 +57,7 @@ test('a fighting player sees First Blood or Takedown, level-ups and XP pops (des
   }
   const words = [...said];
   console.log(`juice: ${words.join(' | ')}`);
-  expect(words.some((w) => /First Blood|Takedown|Assist/.test(w)), 'a takedown call').toBe(true);
+  expect(words.some((w) => /First Blood|Knockout|Assist/.test(w)), 'a knockout call').toBe(true);
   expect(words.some((w) => /^Level \d/.test(w)), 'a level-up callout').toBe(true);
   expect(words.some((w) => /XP$/.test(w)), 'an XP pop').toBe(true);
 });

@@ -72,7 +72,7 @@ describe('damage state', () => {
   it('the callout line names the lane, the base or the core', () => {
     expect(burningLine('tower', 'sunny')).toBe('Our Sunny Lane tower is burning!');
     expect(burningLine('tower', 'gutter')).toBe('Our Gutterway tower is burning!');
-    expect(burningLine('tower', undefined)).toBe('Our base tower is burning!');
+    expect(burningLine('tower', undefined)).toBe('Our tower by the core is burning!');
     expect(burningLine('core', 'sunny')).toBe('Our core is burning!');
     const m = towerBurningMoment('Our Sunny Lane tower is burning!');
     expect(m).toMatchObject({ key: 'towerBurning', size: 'callout', tone: 'info' });

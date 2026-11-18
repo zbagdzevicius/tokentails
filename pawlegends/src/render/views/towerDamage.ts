@@ -90,5 +90,5 @@ const LANE_NAME: Readonly<Record<string, string>> = Object.freeze({ sunny: 'Sunn
 export function burningLine(kind: 'tower' | 'core', lane: string | null | undefined): string {
   if (kind === 'core') return 'Our core is burning!';
   const name = lane ? LANE_NAME[lane] : undefined;
-  return name ? `Our ${name} tower is burning!` : 'Our base tower is burning!';
+  return name ? `Our ${name} tower is burning!` : 'Our tower by the core is burning!';
 }

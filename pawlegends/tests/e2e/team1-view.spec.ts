@@ -75,7 +75,7 @@ test('team-1 seat: diagonal view turned 180°, the enemy core top right, the sti
   await page.screenshot({ path: 'test-results/team1-view/844x390.png' });
 });
 
-test('the start shows "Your base: bottom left" for 1.2 s', async ({ page }, info) => {
+test('the start shows "Your side: bottom left" for 1.2 s', async ({ page }, info) => {
   test.skip(info.project.name !== 'landscape', 'touch phone');
   await startFirstMatch(page);
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.baseToast ?? ''), { timeout: limit(15_000) }).toBe('base');

@@ -156,16 +156,16 @@ describe('round 2 client: why the match ended', () => {
 
   it('a loss while ahead on takedowns says the core decided it', () => {
     const line = endCause({ won: false, reason: 'core', phase: 'sunset', top: 'minions', kills: [10, 9], towers: [2, 2], oursForward: 3, oursAlive: 3 });
-    expect(line).toBe('Their minions broke our core after Sunset while all 3 of us were in their base. Takedowns help, but towers and the core win.');
+    expect(line).toBe('Their minions broke our core after Sunset while all 3 of us were on their side. More knockouts help, but only the core wins the match.');
     // sim v32: no line ever names Sudden Death (its core burn is gone)
     for (const top of ['minions', 'heroes', 'towers', 'takedowns', null] as const) {
       for (const won of [true, false]) {
         expect(endCause({ won, reason: 'core', phase: 'sunset', top, kills: [3, 9], towers: [0, 2], oursForward: 0, oursAlive: 2 })).not.toMatch(/sudden/i);
       }
     }
-    expect(endCause({ won: false, reason: 'core', phase: 'sunset', top: null, kills: [5, 5], towers: [0, 0], oursForward: 0, oursAlive: 3 })).not.toMatch(/fewer takedowns/);
-    expect(endCause({ won: true, reason: 'core', phase: 'play', top: 'heroes', kills: [4, 9], towers: [3, 1], oursForward: 2, oursAlive: 3 })).toBe('We broke their core. Behind on takedowns, but the core is what counts.');
-    expect(endCause({ won: true, reason: 'safetyEnd', phase: 'sunset', top: null, kills: [1, 1], towers: [0, 0], oursForward: 0, oursAlive: 3 })).toMatch(/Time ran out/);
+    expect(endCause({ won: false, reason: 'core', phase: 'sunset', top: null, kills: [5, 5], towers: [0, 0], oursForward: 0, oursAlive: 3 })).not.toMatch(/fewer knockouts/i);
+    expect(endCause({ won: true, reason: 'core', phase: 'play', top: 'heroes', kills: [4, 9], towers: [3, 1], oursForward: 2, oursAlive: 3 })).toBe('We broke their core. Fewer knockouts, but the core is what counts.');
+    expect(endCause({ won: true, reason: 'safetyEnd', phase: 'sunset', top: null, kills: [1, 1], towers: [0, 0], oursForward: 0, oursAlive: 3 })).toMatch(/Time's up/);
   });
 
   it('the dare after a Rookie match says Rookie', () => {

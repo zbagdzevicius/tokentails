@@ -160,7 +160,7 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   await page.waitForFunction(
     () =>
       ((window as unknown as { __plJuice?: { notify: { said: string[] } } }).__plJuice?.notify.said ?? []).some((t) =>
-        /^Level 4 — Ultimate unlocked!| · Lv 4$|^Level 4! /.test(t),
+        /^Level 4: Ultimate unlocked!| · Lv 4$|^Level 4! /.test(t),
       ),
     null,
     { timeout: limit(60_000), polling: 100 },

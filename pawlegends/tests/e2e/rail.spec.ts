@@ -52,8 +52,8 @@ for (const s of SIZES) {
     const notes = [
       { title: 'Our core is under attack!', prio: 0, tone: 'bad' },
       { key: 'tower', title: 'Tower aiming at you!', sub: 'Step out of its ring.', prio: 1, tone: 'bad' },
-      { title: 'First Blood!', sub: 'Tofu drew first blood', prio: 2, tone: 'gold', big: true },
-      { title: 'Takedown!', prio: 3, tone: 'gold', count: true },
+      { title: 'First Blood!', sub: 'Tofu got the first knockout.', prio: 2, tone: 'gold', big: true },
+      { title: 'Knockout!', prio: 3, tone: 'gold', count: true },
       { key: 'tip:q', title: 'Enemy hero! Tap the glowing skill', prio: 4, tone: 'info' },
     ];
     for (const n of notes) {

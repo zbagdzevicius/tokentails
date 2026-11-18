@@ -32,7 +32,7 @@ describe('announcer', () => {
     expect(fb[0].slowmo).toEqual({ ms: 400, scale: 0.4 });
     expect(keys(a.feed(death(700, 4, 0)))).toContain('multi2');
     const triple = a.feed(death(800, 5, 0));
-    expect(triple.find((m) => m.key === 'multi3')?.title).toBe('Triple Pounce');
+    expect(triple.find((m) => m.key === 'multi3')?.title).toBe('Triple Knockout');
     expect(triple.find((m) => m.key === 'multi3')?.slowmo).toEqual({ ms: 600, scale: 0.3 });
     expect(keys(triple)).toContain('streak3');
     expect(a.feed(death(900, 3, 0)).find((m) => m.key === 'multi4')?.title).toBe('Cat-astrophe');
@@ -56,7 +56,7 @@ describe('announcer', () => {
     // an enemy hero dies to our tower (killer −1): nothing inferred
     expect(keys(a.feed(death(300, 3, -1)))).not.toContain('firstBlood');
     const fb = a.feed({ type: 'firstBlood', tick: 300, killer: -1, victim: 3 });
-    expect(fb[0]).toMatchObject({ key: 'firstBlood', tone: 'good', voice: 'firstBlood', sub: 'We drew first blood.' });
+    expect(fb[0]).toMatchObject({ key: 'firstBlood', tone: 'good', voice: 'firstBlood', sub: 'We got the first knockout.' });
     // the sim credits an enemy hero that helped: theirs, said once
     const b = new Announcer(0, 0, name);
     b.feed(death(300, 1, -1));
@@ -111,7 +111,7 @@ describe('announcer', () => {
     const a = new Announcer(0, 0, name);
     expect(a.feed({ type: 'bounty', tick: 1, id: 4, value: 120 })[0]?.title).toBe('Bounty on Sage!');
     expect(a.bounty(4)).toBe(120);
-    expect(a.feed({ type: 'comeback', tick: 2, team: 0 })[0]?.title).toBe('Our waves get stronger');
+    expect(a.feed({ type: 'comeback', tick: 2, team: 0 })[0]?.title).toBe('Our minions get stronger');
     expect(a.feed({ type: 'comeback', tick: 3, team: 1 })[0]?.tone).toBe('bad');
     expect(a.feed({ type: 'pickupSpawn', tick: 4, index: 0, kind: 'frenzy', x: 50000, y: 40000 })[0]?.title).toBe('Frenzy Catnip spawned!');
     expect(a.feed({ type: 'pickupSpawn', tick: 4, index: 1, kind: 'snack', x: 30000, y: 40000 })).toEqual([]);
@@ -120,7 +120,7 @@ describe('announcer', () => {
     expect(a.feed({ type: 'pickupSpawn', tick: 5, index: 0, kind: 'frenzy', x: 50000, y: 40000 })[0]?.size).toBe('ping');
     // round 2: Nine Lives is never a centre banner: a plain verb over the hero, longer the first time
     const nine = a.feed({ type: 'buff', tick: 6, id: 0, buff: 'nineLives' })[0];
-    expect([nine?.title, nine?.size]).toEqual(['Big hits softened: run!', 'pop']);
+    expect([nine?.title, nine?.size]).toEqual(['You take less damage: run!', 'pop']);
     expect(a.feed({ type: 'buff', tick: 7, id: 0, buff: 'nineLives' })[0]).toMatchObject({ title: 'Run!', size: 'pop' });
     expect(a.pickups).toBe(1);
     // unknown events are ignored
@@ -260,7 +260,7 @@ describe('HUD, music, results copy', () => {
   it('Sunset countdown hidden until a minute before', () => {
     expect(phaseLine({ phase: 'play', nextPhaseIn: 61 * 30 })).toBe('');
     expect(phaseLine({ phase: 'play', nextPhaseIn: 59 * 30 })).toBe('Sunset in 0:59');
-    expect(phaseLine({ phase: 'sunset', nextPhaseIn: 120 * 30 })).toBe('Final whistle in 2:00');
+    expect(phaseLine({ phase: 'sunset', nextPhaseIn: 120 * 30 })).toBe('Match ends in 2:00');
     expect(phaseLine({ phase: 'sunset', nextPhaseIn: 0 })).toBe('');
   });
   it('music intensity layers', () => {
@@ -284,7 +284,7 @@ describe('HUD, music, results copy', () => {
     expect(x.musicVolume).toBe(1);
   });
   it('"jump into a fight" only with no hero damage', () => {
-    expect(resultLine({ won: true, kills: 0, teamKills: [5, 3], difficulty: 'easy', heroDamage: 0 })).toMatch(/jump into a fight/);
-    expect(resultLine({ won: true, kills: 0, teamKills: [5, 3], difficulty: 'easy', heroDamage: 900 })).not.toMatch(/jump into a fight/);
+    expect(resultLine({ won: true, kills: 0, teamKills: [5, 3], difficulty: 'easy', heroDamage: 0 })).toMatch(/join a fight/);
+    expect(resultLine({ won: true, kills: 0, teamKills: [5, 3], difficulty: 'easy', heroDamage: 900 })).not.toMatch(/join a fight/);
   });
 });

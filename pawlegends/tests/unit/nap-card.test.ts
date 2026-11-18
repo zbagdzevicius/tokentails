@@ -35,7 +35,7 @@ describe('nap card in the HUD', () => {
     hud.update(me({ state: 'dead', hp: 0, respawnIn: 200 }), CLOCK, SCORE, 0);
     const card = root.querySelector<HTMLElement>('.pl-napcard.on')!;
     expect(card).not.toBeNull();
-    expect(card.querySelector('.nc-kicker')?.textContent).toBe('Napping at the fountain');
+    expect(card.querySelector('.nc-kicker')?.textContent).toBe('Knocked out');
     expect(card.querySelector('.nc-secs')?.textContent).toBe('7');
     expect(card.querySelector('.nc-recap')?.textContent).toBe('Knocked out by Sir Brutus');
     const medal = card.querySelector<HTMLElement>('.nc-medal')!;

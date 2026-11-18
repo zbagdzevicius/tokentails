@@ -87,7 +87,7 @@ export function openHudEditor(parent: HTMLElement, o: HudEditorOpts = {}): HTMLE
   root.dataset.testid = 'hud-editor';
   const ko = keepOuts(view());
   root.innerHTML = `
-    <div class="he-hero" aria-hidden="true" style="left:${ko.hero.x - ko.hero.r}px;top:${ko.hero.y - ko.hero.r}px;width:${ko.hero.r * 2}px;height:${ko.hero.r * 2}px"><span>Hero</span></div>
+    <div class="he-hero" aria-hidden="true" style="left:${ko.hero.x - ko.hero.r}px;top:${ko.hero.y - ko.hero.r}px;width:${ko.hero.r * 2}px;height:${ko.hero.r * 2}px"><span>You</span></div>
     <div class="he-band" style="left:${ko.band.x0}px;width:${ko.band.x1 - ko.band.x0}px;height:${ko.band.y1}px;padding-top:${safe.t}px">
       <div class="he-bar" role="toolbar" aria-label="Layout tools">
         <button class="he-tool" data-a="smaller" aria-label="Smaller" disabled>−</button>

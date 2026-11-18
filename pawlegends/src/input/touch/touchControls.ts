@@ -887,7 +887,7 @@ export class TouchControls {
   private refused(slot: CastIndex): void {
     this.deny(slot);
     if (this.h.orders.aimSpec(slot).kind !== 'unit') return;
-    this.h.view.juice?.push({ ...bannerNote({ title: 'No hero in range', sub: 'Get closer to an enemy hero, then cast', tone: 'info', hold: 1.6 }), key: 'no-hero', cooldown: 4000 });
+    this.h.view.juice?.push({ ...bannerNote({ title: 'No champion in range', sub: 'Get closer to an enemy champion, then try again', tone: 'info', hold: 1.6 }), key: 'no-hero', cooldown: 4000 });
   }
 
   private facing(): number {

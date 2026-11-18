@@ -100,14 +100,14 @@ for (const s of [
     // the K / D / A chip: shown, on the strip's one line, 0 / 0 / 0 at the start
     const kda = page.locator('.pl-score .kda');
     await expect(kda).toBeVisible();
-    await expect(kda).toHaveAttribute('aria-label', 'Your K / D / A: 0 / 0 / 0');
+    await expect(kda).toHaveAttribute('aria-label', 'Your knockouts 0, knocked out 0, assists 0');
     const chip = (await boxes(page, '.pl-score .kda'))[0]!;
     expect(chip.y).toBeGreaterThanOrEqual(plate.y);
     expect(chip.y + chip.height).toBeLessThanOrEqual(plate.y + plate.height + 0.5);
     expect(chip.x + chip.width).toBeLessThanOrEqual(plate.x + plate.width);
     // live: a knockout, an assist and a nap reach the strip on the next frames
     await scoreKda(page);
-    await expect(kda).toHaveAttribute('aria-label', 'Your K / D / A: 1 / 1 / 1');
+    await expect(kda).toHaveAttribute('aria-label', 'Your knockouts 1, knocked out 1, assists 1');
     await expect(kda).toHaveAttribute('data-kda', '1/1/1');
     // the busiest strips each squeeze step must hold (hud.ts scoreDense: the level each case gets), measured on still
     // copies: the pause's right edge plus the frame's padding stays within 248 px
@@ -249,9 +249,9 @@ test('1440x900 desktop: the K / D / A sits in the clock tab and updates live', a
   expect(plate.width).toBeLessThanOrEqual(320);
   const kda = page.locator('.pl-score .kda');
   await expect(kda).toBeVisible();
-  await expect(kda).toHaveAttribute('aria-label', 'Your K / D / A: 0 / 0 / 0');
+  await expect(kda).toHaveAttribute('aria-label', 'Your knockouts 0, knocked out 0, assists 0');
   await scoreKda(page);
-  await expect(kda).toHaveAttribute('aria-label', 'Your K / D / A: 1 / 1 / 1');
+  await expect(kda).toHaveAttribute('aria-label', 'Your knockouts 1, knocked out 1, assists 1');
   const mid = (await boxes(page, '.pl-score .mid'))[0]!;
   const chip = (await boxes(page, '.pl-score .kda'))[0]!;
   expect(chip.x).toBeGreaterThanOrEqual(mid.x);

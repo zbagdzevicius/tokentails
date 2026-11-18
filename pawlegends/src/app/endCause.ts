@@ -57,9 +57,9 @@ export interface EndCauseInput {
 const WHO: Record<CoreSource, [string, string]> = {
   // [their X broke our core, our X broke theirs]
   minions: ['Their minions broke our core', 'Our minions broke their core'],
-  heroes: ['Their heroes broke our core', 'We broke their core'],
+  heroes: ['Their champions broke our core', 'We broke their core'],
   towers: ['Their towers wore our core down', 'We wore their core down'],
-  takedowns: ['Late knockouts finished our core', 'Late knockouts finished their core'],
+  takedowns: ['Knockouts after Sunset broke our core', 'Knockouts after Sunset broke their core'],
 };
 
 /** One sentence: what decided the match, from the player's side. */
@@ -67,35 +67,35 @@ export function endCause(i: EndCauseInput): string {
   if (i.reason === 'forfeit') return 'You forfeited the match.';
   // Sim v28 (V28.md §3, §4): a mode's own goal, and Boss Weekend's time up (the boss outlasted us)
   if (i.reason === 'goal') {
-    if (i.mutator === 'boss') return i.won ? 'The boss is down! The bridge is ours.' : 'The boss stood.';
+    if (i.mutator === 'boss') return i.won ? 'The boss is down! The bridge is ours.' : 'The boss is still standing.';
     const [ourT, theirT] = i.towers;
     if (ourT !== theirT) return i.won ? 'First tower! The duel is ours.' : 'They took the first tower.';
-    return i.won ? `First to ${Math.max(i.kills[0], i.kills[1])} takedowns: the duel is ours.` : `They got to ${Math.max(i.kills[0], i.kills[1])} takedowns first.`;
+    return i.won ? `First to ${Math.max(i.kills[0], i.kills[1])} knockouts: the duel is ours.` : `They got to ${Math.max(i.kills[0], i.kills[1])} knockouts first.`;
   }
-  if (i.reason === 'timeUp' && i.mutator === 'boss') return i.won ? 'Time! The boss fell back.' : 'Time! The boss outlasted us. Try again with more Fish spent on Toys.';
+  if (i.reason === 'timeUp' && i.mutator === 'boss') return i.won ? "Time's up! The boss fell back." : "Time's up! The boss outlasted us. Last-hit more minions so your Toys come sooner.";
   if (i.reason === 'timeUp') {
-    if (i.draw) return 'Time! Dead even on towers, core and takedowns: a draw.';
+    if (i.draw) return "Time's up! Same towers, core HP and knockouts: a draw.";
     const [ourT, theirT] = i.towers;
-    if (ourT !== theirT) return i.won ? `Time! We took more towers (${ourT} to ${theirT}).` : `Time! They took more towers (${theirT} to ${ourT}).`;
-    return i.won ? 'Time! Towers even, our core was healthier.' : 'Time! Towers even, their core was healthier.';
+    if (ourT !== theirT) return i.won ? `Time's up! We took more towers (${ourT} to ${theirT}).` : `Time's up! They took more towers (${theirT} to ${ourT}).`;
+    return i.won ? "Time's up! Towers even, our core had more HP." : "Time's up! Towers even, their core had more HP.";
   }
-  if (i.reason === 'safetyEnd') return i.won ? 'Time ran out with our core healthier.' : 'Time ran out with their core healthier.';
+  if (i.reason === 'safetyEnd') return i.won ? "Time's up! Our core had more HP." : "Time's up! Their core had more HP.";
   const src: CoreSource = i.top ?? 'heroes';
   let line = WHO[src][i.won ? 1 : 0];
   if (i.phase === 'sunset' && src !== 'takedowns') line += ' after Sunset';
   const ahead = i.kills[0] - i.kills[1];
   if (!i.won) {
     if (src === 'minions' && i.oursForward > 0) {
-      line += i.oursForward === i.oursAlive && i.oursAlive >= 2 ? ` while all ${i.oursAlive} of us were in their base` : ' while we were pushing theirs';
+      line += i.oursForward === i.oursAlive && i.oursAlive >= 2 ? ` while all ${i.oursAlive} of us were on their side` : ' while we were pushing theirs';
     }
     line += '.';
-    if (src === 'takedowns') line += ' After Sunset every knockout hurts its team’s core.';
-    else if (ahead > 0) line += ' Takedowns help, but towers and the core win.';
-    else if (src === 'minions') line += ' Clear the waves near your base before you push.';
+    if (src === 'takedowns') line += ' After Sunset, each time one of us is knocked out, our core takes damage.';
+    else if (ahead > 0) line += ' More knockouts help, but only the core wins the match.';
+    else if (src === 'minions') line += ' Clear enemy minions near your towers before you push.';
     return line;
   }
   line += '.';
-  if (ahead < 0) line += ' Behind on takedowns, but the core is what counts.';
+  if (ahead < 0) line += ' Fewer knockouts, but the core is what counts.';
   else if (i.towers[0] > i.towers[1]) line += ' The towers you took opened the way.';
   return line;
 }

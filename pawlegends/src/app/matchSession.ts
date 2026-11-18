@@ -343,7 +343,7 @@ export function behindBanner(kOurs: number, kTheirs: number, tOurs: number, tThe
   const towers = (n: number): string => `${n} tower${n === 1 ? '' : 's'}`;
   if (tTheirs > tOurs && kOurs >= kTheirs) return { title: `They took ${towers(tTheirs)} to your ${tOurs}`, sub: 'Push a lane with your minions!', tone: 'info' };
   if (tTheirs > tOurs) return { title: `They lead: ${towers(tTheirs)} to ${tOurs}`, sub: 'Group up and push a lane together.', tone: 'info' };
-  return { title: `They lead ${kTheirs} to ${kOurs} on takedowns`, sub: 'Group up with your team and fight together.', tone: 'info' };
+  return { title: `They lead ${kTheirs} to ${kOurs} on knockouts`, sub: 'Group up with your team and fight together.', tone: 'info' };
 }
 
 /** Feel pass B5: how long (ms, match time) the own plate reads "You" after the start. */
@@ -820,7 +820,7 @@ export class MatchSession {
     if (this.e2e) document.documentElement.dataset.matchFlags = Array.from({ length: w.picks.length }, (_, i) => matchFlag(i) ?? '-').join(',');
     // FLAGS.md: the flag beside every name in the match too (plates, portrait strip, kill feed), not only the scoreboard
     this.overhead.flags = Array.from({ length: w.picks.length }, (_, i) => matchFlag(i));
-    this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A hero', (s) => w.picks[s]);
+    this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A champion', (s) => w.picks[s]);
     // LoL pass (lane B): an Ace reads who is out from the latest snapshot (an enemy out of sight counts by its timer)
     this.announcer.down = (slot) => {
       const e = this.frameNow?.byId.get(slot);
@@ -1029,7 +1029,7 @@ export class MatchSession {
     const map = this.setup.map ?? this.welcome?.map;
     const lane = hero ? laneToastLine({ map, heroRole: HEROES[hero]?.role ?? '', role5: map === 'hearthwood' && this.welcome ? (rolesOf({ picks: this.welcome.picks, map: 'hearthwood' })[this.view.mySlot] ?? null) : null }) : '';
     if (lane) el.dataset.lane = lane;
-    el.innerHTML = `<i class="stk" aria-hidden="true"></i><span><b>Your base: bottom left</b>${turned ? '<small>(map turned)</small>' : ''}${lane ? `<small class="lane">${lane}</small>` : ''}</span>`;
+    el.innerHTML = `<i class="stk" aria-hidden="true"></i><span><b>Your side: bottom left</b>${turned ? '<small>(map turned)</small>' : ''}${lane ? `<small class="lane">${lane}</small>` : ''}</span>`;
     if (this.e2e && lane) document.documentElement.dataset.laneToast = lane;
     this.ui.appendChild(el);
     if (this.e2e) document.documentElement.dataset.baseToast = turned ? 'turned' : 'base';
@@ -1052,7 +1052,7 @@ export class MatchSession {
     this.gateNoteAt = now;
     const left = Math.max(1, Math.ceil(clock.nextPhaseIn / TICK_HZ));
     // LoL pass (lane A): on the top rail, never over the hero
-    this.view.juice.push({ key: 'gate-order', title: `Gates open in ${left}...`, tone: 'info', prio: 4, cooldown: 3000 });
+    this.view.juice.push({ key: 'gate-order', title: `Gates open in ${left}…`, tone: 'info', prio: 4, cooldown: 3000 });
   }
 
   private talentsBlock(): boolean {
@@ -1086,7 +1086,7 @@ export class MatchSession {
     const rel = (team: number | undefined, id: number): FeedName['rel'] =>
       id === this.view.mySlot ? 'self' : team === 2 || team === undefined ? 'neutral' : team === this.view.myTeam ? 'ally' : 'enemy';
     const self = this.selfName ?? this.myCard?.name ?? 'You';
-    const victimName = e.id === this.view.mySlot ? self : (this.names[e.id] ?? (victim.hero ? HERO_TEXT[victim.hero].title : 'A hero'));
+    const victimName = e.id === this.view.mySlot ? self : (this.names[e.id] ?? (victim.hero ? HERO_TEXT[victim.hero].title : 'A champion'));
     const killerLabel = e.killer === this.view.mySlot ? self : killer?.kind === 'hero' && this.names[e.killer] ? this.names[e.killer] : killerName(killer);
     // cards: heroes carry their face (an element-ringed portrait) into the kill feed
     // sim v21: a KABOOM (the kibble's one-shot) shows a cannon between the faces instead of the claw
@@ -1417,7 +1417,7 @@ export class MatchSession {
     if (!names.length) add(killer?.kind === 'minion' ? 'minions' : 'the enemy');
     this.hurtBy = [];
     const by = names.slice(0, 3).join(' + ');
-    return tower ? `Knocked out by ${by}: wait for your minions to tank` : `Knocked out by ${by}`;
+    return tower ? `Knocked out by ${by}: let your minions go in first` : `Knocked out by ${by}`;
   }
 
   /**
@@ -2055,7 +2055,7 @@ export class MatchSession {
         if (answer) {
           const on = this.barkScreen(m.slot ?? -1, true);
           if (on) j.bark(m.title, on.x, on.y - 10, m.tone === 'bad' ? 'bad' : 'good');
-          else this.hud?.note(`${this.names[m.slot ?? -1] ?? 'Ally'}: ${m.title}`);
+          else this.hud?.note(`${this.names[m.slot ?? -1] ?? 'Teammate'}: ${m.title}`);
           if (this.e2e) {
             const d = document.documentElement.dataset;
             d.barks = `${d.barks ? `${d.barks},` : ''}${m.slot}:${m.key === 'barkHeal' ? 'heal' : 'ok'}`;
@@ -2134,7 +2134,7 @@ export class MatchSession {
     const us = (t: number): boolean => t === my;
     if (e.type === 'millCapture') this.rail({ key: 'obj-mill', title: us(e.team) ? `Fish Mill taken: +${e.fish} Fish, Lantern Wave!` : 'They took the Fish Mill', tone: us(e.team) ? 'gold' : 'bad', ttl: 3500 });
     else if (e.type === 'millOpen') this.rail({ key: 'obj-mill', title: 'The Fish Mill is open', tone: 'info', ttl: 2500 });
-    else if (e.type === 'shrineCapture') this.rail({ key: 'obj-shrine', title: us(e.team) ? (e.shrine === my ? 'Your Paw Shrine is yours' : 'You stole their Paw Shrine!') : e.shrine === my ? 'They stole your Paw Shrine' : 'They took their Paw Shrine', tone: us(e.team) ? 'good' : 'bad', ttl: 3000 });
+    else if (e.type === 'shrineCapture') this.rail({ key: 'obj-shrine', title: us(e.team) ? (e.shrine === my ? 'You took your Paw Shrine back' : 'You stole their Paw Shrine!') : e.shrine === my ? 'They stole your Paw Shrine' : 'They took their Paw Shrine back', tone: us(e.team) ? 'good' : 'bad', ttl: 3000 });
     else if (e.type === 'gemCountdown' && e.on) this.rail({ key: 'obj-gems', title: us(e.team) ? 'Gem countdown: hold on 12 s!' : 'Their gem countdown: stop the carriers!', tone: us(e.team) ? 'good' : 'bad', ttl: 3000 });
     else if (e.type === 'gemSurge') this.rail({ key: 'obj-gems', title: us(e.team) ? 'GEODE SURGE! Push now' : 'Their Geode Surge: defend', tone: us(e.team) ? 'gold' : 'bad', ttl: 3500 });
     else if (e.type === 'goal') this.rail({ key: 'obj-goal', title: us(e.team) ? 'GOAL! Their tower shakes' : 'They scored: your tower is hit', tone: us(e.team) ? 'gold' : 'bad', ttl: 3500 });
@@ -2472,7 +2472,7 @@ export class MatchSession {
         juice.push({
           ...bannerNote({
             title: PING_TIP_TITLE,
-            sub: touch ? 'Tap the paw for orders. Hold the map: go here. Hold an enemy face: focus.' : 'Hold G for orders. Alt-click: go here, or focus an enemy hero.',
+            sub: touch ? 'Tap the paw for orders. Hold the map: go here. Hold an enemy face: attack them.' : 'Hold G for orders. Alt-click: go here, or attack an enemy champion.',
             tone: 'info',
             hold: PING_TIP_HOLD,
           }),
@@ -2638,7 +2638,7 @@ export class MatchSession {
     const ours = toys[this.welcome.team];
     if (toys[1 - this.welcome.team] - ours < 2) return;
     this.underdogSaid = true;
-    this.view.juice.push({ key: 'underdog', title: `Behind on Toys: +${FISH.comebackPerSecond} Fish/s`, sub: 'Your team’s lowest-Fish hero earns extra Fish until you catch up.', tone: 'info', prio: 4 });
+    this.view.juice.push({ key: 'underdog', title: `Behind on Toys: +${FISH.comebackPerSecond} Fish/s`, sub: 'Whoever on your team has the least Fish earns extra until you catch up.', tone: 'info', prio: 4 });
   }
 
   /**
@@ -2998,7 +2998,7 @@ export class MatchSession {
       if (!ahead) {
         this.riverSaidAt = now;
         this.diveSaidAt = now;
-        if (this.coach('dive')) this.towerAlert('dive', 'Too far ahead!', 'Past the river alone, heroes jump you. Wait for your wave.');
+        if (this.coach('dive')) this.towerAlert('dive', 'Too far ahead!', 'Past the river alone, enemy champions jump you. Wait for your minions.');
         return;
       }
     }
@@ -3012,7 +3012,7 @@ export class MatchSession {
       const tanked = this.units.some((u) => u.kind === 'minion' && u.team === team && u.state !== 'dead' && Math.hypot(u.x - t.x, u.y - t.y) < TOWERS.outer.range);
       if (tanked) return;
       this.diveSaidAt = now;
-      if (this.coach('dive')) this.towerAlert('dive', 'Too far ahead!', 'That tower hits hard. Let your wave walk in first.');
+      if (this.coach('dive')) this.towerAlert('dive', 'Too far ahead!', 'That tower hits hard. Let your minions walk in first.');
       return;
     }
   }

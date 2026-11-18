@@ -32,15 +32,15 @@ export function toyPassiveText(role: HeroRole): string {
   const pct = (bp: number): string => `${Math.round(bp / 100)}%`;
   switch (role) {
     case 'fighter':
-      return `basics heal ${pct(p.fighterLifestealBp)} of hero damage`;
+      return `basic attacks heal ${pct(p.fighterLifestealBp)} of damage to champions`;
     case 'marksman':
-      return `+${pct(p.marksmanFarBp)} basics on far heroes`;
+      return `+${pct(p.marksmanFarBp)} basic attack damage to far champions`;
     case 'tank':
-      return `−${pct(p.tankReduceBp)} damage from heroes`;
+      return `−${pct(p.tankReduceBp)} damage from champions`;
     case 'assassin':
-      return `+${pct(p.assassinExecuteBp)} damage to weak heroes`;
+      return `+${pct(p.assassinExecuteBp)} damage to low-HP champions`;
     case 'mage':
-      return `+${pct(p.mageAbilityBp)} ability damage to heroes`;
+      return `+${pct(p.mageAbilityBp)} ability damage to champions`;
     case 'support':
       return `+${pct(p.supportBp)} heals and shields`;
   }
@@ -84,12 +84,12 @@ export function toyToast(hero: HeroId, tier: number): ToyToast {
   const name = toyName(hero, t);
   const head = parts[0] ?? '';
   const extra = t === TOY_PASSIVE_TIER ? [`new: ${toyPassiveText(role)}`] : [];
-  const sub = [...parts, ...extra].join(' · ') + (t === TOY_TIERS ? ' · fully geared' : '');
-  return { title: head ? `${name} — ${head}` : name, sub, name, head };
+  const sub = [...parts, ...extra].join(' · ') + (t === TOY_TIERS ? ' · all Toys owned' : '');
+  return { title: head ? `${name}: ${head}` : name, sub, name, head };
 }
 
 /** Enemy line at their last tier only (spec F2): "Rex is fully geared up". */
-export const gearedLine = (name: string): string => `${name} is fully geared up`;
+export const gearedLine = (name: string): string => `${name} has every Toy`;
 
 /** Cumulative Fish a hero needs for tier `tier` (1..4): 500, 1200, 2000, 3000. */
 export function toyCumulative(tier: number): number {
@@ -137,5 +137,5 @@ export function levelWhat(level: number, touch = false): string {
 /** The rail line for a level-up: "Level 4 — Ultimate unlocked!" (just "Level N" when the level brings nothing). */
 export function levelLine(level: number, touch = false): string {
   const what = levelWhat(level, touch);
-  return what ? `Level ${level} — ${what}` : `Level ${level}`;
+  return what ? `Level ${level}: ${what}` : `Level ${level}`;
 }
