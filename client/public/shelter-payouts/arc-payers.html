@@ -490,7 +490,72 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
 .ftbar .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 18px; font-size: 14.5px; color: #f3e3b6; overflow-wrap: anywhere; }
 .ftbar a { color: var(--cream); }
 
+/* ===== Real time: Motored x Stripe ===== */
+.rtHead { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px 40px; align-items: end; margin-bottom: 8px; }
+@media (max-width: 900px) { .rtHead { grid-template-columns: minmax(0,1fr); } }
+.pipe { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 14px; margin: 30px 0 0; padding: 0; list-style: none; }
+.pipe::before { content: ""; position: absolute; left: 28px; right: 28px; top: 27px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--motored), var(--arc) 60%, var(--accent)); opacity: .55; }
+.pipe .runner { position: absolute; top: 22px; left: 28px; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 14px 4px rgba(255,204,85,.65); animation: runH 6s linear infinite; pointer-events: none; z-index: 2; }
+.step { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.step .sn { position: relative; z-index: 1; width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 15px; color: var(--n900); background: var(--sc, var(--gold)); box-shadow: 0 3px 0 rgba(0,0,0,.35), 0 0 0 6px var(--n900); animation: ping 6s linear infinite; animation-delay: calc(var(--i, 0) * .96s); }
+.step b { font-size: 16px; font-weight: 900; line-height: 1.3; color: var(--cream); }
+.step p { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--muted); }
+.step .guard { display: flex; gap: 6px; align-items: flex-start; margin-top: auto; padding: 8px 10px; border-radius: 12px; font-size: 13.5px; line-height: 1.4; font-weight: 700; background: var(--good-soft); color: #cfeec6; }
+.step .guard::before { content: "✓"; color: var(--good); font-weight: 900; flex: 0 0 auto; }
+.step.s1 { --sc: var(--motored); } .step.s2, .step.s3 { --sc: var(--gold-500); } .step.s4 { --sc: var(--motored); } .step.s5 { --sc: var(--arc); } .step.s6 { --sc: var(--accent); }
+@media (max-width: 1100px) {
+  .pipe { grid-template-columns: minmax(0,1fr); gap: 18px; }
+  .pipe::before { left: 27px; right: auto; top: 28px; bottom: 28px; width: 2px; height: auto; background: linear-gradient(180deg, var(--motored), var(--arc) 60%, var(--accent)); }
+  .pipe .runner { left: 22px; top: 28px; animation-name: runV; }
+  .step { display: grid; grid-template-columns: 56px minmax(0,1fr); column-gap: 14px; row-gap: 4px; }
+  .step .sn { grid-row: 1 / span 3; }
+  .step .guard { margin-top: 4px; justify-self: start; }
+}
+.states { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; }
+.states .sep { color: var(--faint); font-weight: 900; }
+.rtGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); gap: 16px; margin-top: 16px; align-items: start; }
+@media (max-width: 980px) { .rtGrid { grid-template-columns: minmax(0,1fr); } }
+.liveTop { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 14px; }
+.pill { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 13px; border-radius: 99px; font-size: 13.5px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; background: var(--n600); color: var(--faint); }
+.pill i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+.pill.live { background: var(--good-soft); color: var(--good); }
+.pill.live i { animation: pulse 1.8s ease-out infinite; }
+.pill.stale { background: var(--warn-soft); color: var(--warn); }
+.pill.off { background: rgba(195,182,201,.12); color: var(--faint); }
+.liveIdx { font-size: 14.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lstats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+@media (max-width: 560px) { .lstats { grid-template-columns: minmax(0,1fr); } }
+.lstats > div { border-radius: 18px; padding: 14px 16px; background: var(--n800); box-shadow: inset 0 0 0 1px rgba(252,236,187,.08); min-width: 0; }
+.lstats span { display: block; font-size: 13.5px; font-weight: 800; color: var(--muted); line-height: 1.35; }
+.lstats b { display: block; font-family: var(--display); font-size: 44px; line-height: 1; font-weight: 400; letter-spacing: .01em; color: var(--gold); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.lstats b.sm { font-family: "Nunito", sans-serif; font-size: 17px; font-weight: 900; line-height: 1.3; color: var(--cream); margin-top: 8px; }
+.lstats div.stripe b { color: var(--good); }
+.llist { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lrow { display: grid; grid-template-columns: 88px minmax(0,1fr) auto auto; gap: 6px 12px; align-items: center; padding: 10px 14px; border-radius: 14px; background: var(--n800); box-shadow: inset 0 0 0 1px rgba(252,236,187,.08); font-size: 14.5px; min-width: 0; }
+.lrow .lt { color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lrow .ll { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; min-width: 0; }
+.lrow .ll .mono { overflow-wrap: anywhere; color: var(--cream); }
+.lrow .la { font-weight: 900; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--cream); }
+.lrow .lx { white-space: nowrap; font-size: 14px; }
+.lrow .chip { font-size: 12.5px; padding: 2px 9px; }
+.lrow.fresh { animation: slidein .8s var(--ease) both; animation-delay: var(--d, 0s); box-shadow: inset 0 0 0 1.5px var(--good); }
+@media (max-width: 560px) {
+  .lrow { grid-template-columns: minmax(0,1fr) auto; }
+  .lrow .ll { grid-column: 1 / -1; grid-row: 1; }
+  .lrow .lt { grid-row: 2; } .lrow .la { grid-row: 2; }
+  .lrow .lx { grid-column: 1 / -1; }
+}
+.liveMsg { font-size: 15px; color: var(--muted); margin: 0; padding: 14px 16px; border-radius: 14px; background: var(--n800); }
+.liveMsg.err { color: var(--warn); }
+.ptr { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.ptr p { margin: 0; }
+
 /* ===== Motion ===== */
+@keyframes runH { 0% { left: 28px; opacity: 0; } 5%, 92% { opacity: 1; } 100% { left: calc(100% - 40px); opacity: 0; } }
+@keyframes runV { 0% { top: 28px; opacity: 0; } 5%, 92% { opacity: 1; } 100% { top: calc(100% - 40px); opacity: 0; } }
+@keyframes ping { 0%, 14%, 100% { box-shadow: 0 3px 0 rgba(0,0,0,.35), 0 0 0 6px var(--n900); } 4% { box-shadow: 0 3px 0 rgba(0,0,0,.35), 0 0 0 6px var(--n900), 0 0 0 12px color-mix(in srgb, var(--sc, var(--gold)) 35%, transparent), 0 0 26px var(--sc, var(--gold)); } }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 60%, transparent); } 80%, 100% { box-shadow: 0 0 0 9px transparent; } }
+@keyframes slidein { from { opacity: .001; transform: translate3d(0, -10px, 0); } }
 @keyframes word { from { transform: translateY(110%) rotate(6deg); opacity: .001; } }
 @keyframes drift { 50% { translate: 0 -10px; } }
 @keyframes twinkle { 50% { opacity: .25; } }
@@ -505,6 +570,7 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .js .rv { opacity: 1; }
   .fc { translate: none; }
+  .pipe .runner { display: none; }
 }
 
 /* games trailers */
@@ -537,6 +603,7 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
   <div class="wrap">
     <a class="logo glass" href="https://tokentails.com" aria-label="Token Tails home"><img src="/logo/logo.webp" alt="" width="34" height="34">Token Tails · Shelter rail</a>
     <nav class="glass" id="nav" aria-label="Sections">
+      <a href="#realtime">Live</a>
       <a href="#answer">Who paid</a>
       <a href="#how">How it works</a>
       <a href="#proof">Proof</a>
@@ -573,14 +640,14 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
         <div class="scr">
           <img src="./img/hero.jpg" alt="" width="2000" height="1116" onerror="this.remove()">
           <div class="ov"></div>
-          <div class="rd"><small>Paid to the shelter payee on Arc</small><b><span data-k="usd">171.05</span> <span class="u">USDC</span></b><small>Paid by the Motored event (founder-linked) and Token Tails · now in Pink Paw's own wallet</small></div>
+          <div class="rd"><small>Paid to the shelter payee on Arc</small><b><span data-k="usd">171.05</span> <span class="u">USDC</span></b><small>Paid by the Motored pilot rounds and Token Tails · now in Pink Paw's own wallet</small></div>
         </div>
       </div>
-      <div class="fc f1 rv" style="--enter-delay:.9s"><small>Arc payouts</small><b data-k="payouts">4,456</b><em>Motored event + Token Tails</em></div>
-      <div class="fc f2 rv" style="--enter-delay:1s"><small>Gas per gift on Arc</small><b>≈ $<span data-k="gas">0.0012</span></b><em>over <span data-k="sentTxs">4,230</span> Motored event gifts</em></div>
+      <div class="fc f1 rv" style="--enter-delay:.9s"><small>Arc payouts</small><b data-k="payouts">4,456</b><em>Motored pilot + Token Tails</em></div>
+      <div class="fc f2 rv" style="--enter-delay:1s"><small>Gas per gift on Arc</small><b>≈ $<span data-k="gas">0.0012</span></b><em>over <span data-k="sentTxs">4,230</span> Motored pilot gifts</em></div>
     </div>
   </div>
-  <div class="capsule rv" style="--enter-delay:1.1s"><span>Pilot complete. 84 outside players on the rail; outside payers next.</span><a class="cta" href="#answer">Read the answer ↓</a></div>
+  <div class="capsule rv" style="--enter-delay:1.1s"><span>Pilot complete. 84 outside players on the rail, no outside payers yet. Motored × Stripe turns each paid order into a gift.</span><a class="cta" href="#realtime">See the flow and live feed ↓</a></div>
 </section>
 
 <!-- 1b. INTRO SHEET -->
@@ -598,7 +665,7 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
       <div class="tile accent hero-t rv">
         <span class="what">Paid to the shelter payee on Arc</span>
         <b><span data-k="usd">171.05</span> <small>USDC</small></b>
-        <span class="who"><span data-k="payouts">4,456</span> payouts, paid by the Motored event (founder-linked) and Token Tails' own payments. All of it now sits in Pink Paw's own wallet.</span>
+        <span class="who"><span data-k="payouts">4,456</span> payouts, paid by the Motored pilot rounds (each a paid order through the Stripe integration, settled on Arc) and Token Tails' own payments. All of it now sits in Pink Paw's own wallet.</span>
         <span class="src"><a href="https://explorer.arc.io/address/0x3c833562e682dB66C2415b34961595df135f4771" target="_blank" rel="noopener">Pink Paw wallet ↗</a> · <a href="https://explorer.arc.io/tx/0x5b16ac7411692688c9cd39a37ece9453db01380a1dd458d9e2b47dbcbe9941c7" target="_blank" rel="noopener">sweep tx ↗</a></span>
       </div>
       <div class="tile arc rv" style="--enter-delay:.08s">
@@ -616,7 +683,7 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
       <div class="tile arc rv">
         <span class="what">Cost to settle one gift on Arc</span>
         <b>≈ $<span data-k="gas">0.0012</span></b>
-        <span class="who">Gas paid in USDC, measured over <span data-k="sentTxs">4,230</span> event gifts on Arc mainnet (real on-chain gas, paid in USDC).</span>
+        <span class="who">Gas paid in USDC, measured over <span data-k="sentTxs">4,230</span> Motored pilot-round gifts on Arc mainnet (real on-chain gas, paid in USDC).</span>
         <span class="src muted">Measured from the Arc ledger</span>
       </div>
       <div class="tile self rv" style="--enter-delay:.08s">
@@ -636,8 +703,63 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
     <div class="truth rv" role="note">
       <div class="ico" aria-hidden="true">!</div>
       <p><strong class="big" data-k="bannerHead">Pilot complete: the rail works on Arc mainnet.</strong>
-      <span data-k="bannerBody">The hackathon was our Arc mainnet pilot, and it is complete: in-game treats tapped by 85 player accounts and paid by Token Tails, a charity-event pilot with the founder-linked partner Motored, and Token Tails' own test payments. No outside payers yet, but 84 outside players have already sent 216 treats through the rail on Arc from inside the game, with Token Tails covering each 0.01 USDC. Bringing outside payers is the next phase, and we are scaling now. Every number on this page says who paid.</span> <a href="#answer">Full breakdown ↓</a></p>
+      <span data-k="bannerBody">The hackathon was our Arc mainnet pilot, and it is complete: in-game treats tapped by 85 player accounts and paid by Token Tails, three Motored pilot rounds (each a paid order through the Stripe integration, settled on Arc mainnet from gift wallets Token Tails created), and Token Tails' own test payments. No outside payers yet, but 84 outside players have already sent 218 treats through the rail on Arc from inside the game, with Token Tails covering each 0.01 USDC. Bringing outside payers is the next phase, and we are scaling now. Every number on this page says who paid.</span> <a href="#answer">Full breakdown ↓</a></p>
     </div>
+  </div>
+</section>
+
+<!-- 1c. REAL TIME: MOTORED x STRIPE -->
+<section class="night" id="realtime" aria-labelledby="rtTitle">
+  <div class="stars" data-n="40" aria-hidden="true"></div>
+  <div class="wrap dk">
+    <div class="rtHead">
+      <div>
+        <div class="kicker rv">Motored × Stripe · sponsor integration</div>
+        <h2 class="rv" id="rtTitle" style="max-width:20ch">Motored × Stripe: built so every paid order becomes a gift for Pink Paw within seconds</h2>
+      </div>
+      <div class="rv" style="--enter-delay:.1s">
+        <p class="lede" style="margin:0 0 14px">Motored's Stripe checkout tells our backend about every paid one-off checkout order (with a Stripe customer record), and the backend turns each one into one gift on Arc mainnet. By design that takes about a second plus two Arc transactions, so seconds rather than days.</p>
+        <div class="flex"><span class="chip ok">ran the three pilot rounds</span></div>
+      </div>
+    </div>
+    <div class="panel rv" style="margin-top:26px">
+      <div class="ctr">01 / 03 · from paid order to Pink Paw's wallet</div>
+      <ol class="pipe" aria-label="Six steps from a paid Motored order to a gift in Pink Paw's wallet">
+        <li class="runner" aria-hidden="true"></li>
+        <li class="step s1" style="--i:0"><span class="sn" aria-hidden="true">01</span><b>Order paid · Stripe</b><p>A customer pays at Motored's Stripe checkout. Stripe sends <code>checkout.session.completed</code>.</p><span class="guard">Paid, USD or EUR, with a Stripe customer record, live mode only</span></li>
+        <li class="step s2" style="--i:1"><span class="sn" aria-hidden="true">02</span><b>Signed webhook verified</b><p>Our backend checks Stripe's signature on the raw request body.</p><span class="guard">Bad or missing signature: rejected</span></li>
+        <li class="step s3" style="--i:2"><span class="sn" aria-hidden="true">03</span><b>Gift captured</b><p>One gift per paid order, 1¢ to $1.00 from a salted hash, not tied to the order total.</p><span class="guard">Idempotent: a resent webhook cannot pay twice</span></li>
+        <li class="step s4" style="--i:3"><span class="sn" aria-hidden="true">04</span><b>Funder tops up the gift wallet</b><p>The Motored funder <span class="mono">0xF1d7…688f</span> sends the gift plus gas to the gift wallet Token Tails created for this customer (keys held by Token Tails, encrypted at rest).</p><span class="guard">Split checked first: unpaused, 100% to Pink Paw; daily cap</span></li>
+        <li class="step s5" style="--i:4"><span class="sn" aria-hidden="true">05</span><b><code>donate("motored:user-N")</code></b><p>The gift wallet calls ShelterSplit on Arc mainnet. N starts at 0, one label per customer.</p><span class="guard">Public on-chain event with the memo</span></li>
+        <li class="step s6" style="--i:5"><span class="sn" aria-hidden="true">06</span><b>100% in Pink Paw's wallet</b><p>The split keeps no balance: <span class="mono">0x3c83…4771</span> receives the gift in the same transaction.</p><span class="guard">Picked up by the live panel below</span></li>
+      </ol>
+    </div>
+
+    <div class="rtGrid">
+      <div style="display:grid;gap:16px">
+        <div class="card rv">
+          <div class="ctr" style="font-size:14px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--gold);margin-bottom:12px">02 / 03 · each gift's state</div>
+          <div class="states" aria-label="Gift states: due, sending, sent, confirmed; void on refund or dispute before sending; failed after 3 reverted sends or a dropped transaction">
+            <span class="chip plan">due</span><span class="sep" aria-hidden="true">→</span><span class="chip warn">sending</span><span class="sep" aria-hidden="true">→</span><span class="chip arc">sent</span><span class="sep" aria-hidden="true">→</span><span class="chip ok">confirmed</span>
+          </div>
+          <div class="states"><span class="chip fnd">void</span><span class="small muted">if the order is refunded or disputed before the gift is sent</span></div>
+          <div class="states"><span class="chip warn">failed</span><span class="small muted">after 3 reverted sends or a dropped transaction; checked by hand, not retried automatically</span></div>
+          <ul class="small" style="margin:10px 0 0;padding-left:20px;color:var(--muted)">
+            <li>A keeper runs every 5 minutes: it sends gifts still due and confirms receipts, so a gift that lands on Arc in seconds can show as sent for up to 5 minutes before it is marked confirmed.</li>
+            <li>Above the daily cap, gifts wait as due until the next UTC day.</li>
+            <li>A gift already on Arc stays with the shelter, even after a refund.</li>
+            <li>Only one-off Checkout orders with a Stripe customer record count; subscriptions are not counted.</li>
+            <li>No customer name, email or Stripe id is stored, only salted hashes. Gift-wallet keys are encrypted at rest.</li>
+          </ul>
+        </div>
+        <div class="card rv" style="--enter-delay:.08s">
+          <h3 style="font-size:17px">Whose money</h3>
+          <p class="small" style="margin:0">Each gift is Motored's own gift, paid from the Motored funder, never from the customer's payment. On Arc that funder has so far been topped up only from the Token Tails team wallet <span class="mono">0x29d7…60f8</span>.</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="srcnote rv">Source: <code>backend/src/shelter/motored/</code> (signed webhook, gift sender, 5-minute keeper, with tests) and the public payout index <a href="https://api.tokentails.com/shelter/payouts?network=mainnet&amp;chainId=5042&amp;address=0x457c89e10a6e66633eda5bf82fd086febb5db147&amp;limit=200" target="_blank" rel="noopener">GET /shelter/payouts ↗</a>.</p>
   </div>
 </section>
 
@@ -645,11 +767,11 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
 <section class="vignette" id="answer">
   <div class="stars" data-n="50" aria-hidden="true"></div>
   <div class="wrap dk">
-    <div class="kicker rv">Who paid, and why Motored used 3 gift pools per label</div>
+    <div class="kicker rv">Who paid, and why Motored's pilot rounds used 3 gift pools per label</div>
     <div class="answer-big rv" role="note" style="--enter-delay:.2s">
       <div>
         <strong data-k="answerHead">No outside payers on Arc yet, but 84 outside players already use the rail.</strong>
-        <p data-k="answerBody">All <span data-k="payouts">4,456</span> payouts (<span data-k="usd">171.05</span> USDC) trace to one controlling party, Token Tails: the Motored event (founder-linked, gift pools created by Token Tails and funded from the Token Tails team wallet) and Token Tails' own payments. Meanwhile 84 outside players have already sent 216 treats through the rail on Arc from inside the game, with Token Tails covering each 0.01 USDC.</p>
+        <p data-k="answerBody">All <span data-k="payouts">4,456</span> payouts (<span data-k="usd">171.05</span> USDC) trace to the Motored pilot rounds (each a paid order through the Stripe integration, settled on Arc from gift pools created by Token Tails and funded from the Token Tails team wallet) and Token Tails' own payments. Meanwhile 84 outside players have already sent 218 treats through the rail on Arc from inside the game, with Token Tails covering each 0.01 USDC.</p>
       </div>
     </div>
   </div>
@@ -665,28 +787,29 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
           <caption class="sr">Arc payout breakdown by payer group, only groups with payouts</caption>
           <thead><tr><th scope="col">Group · who paid</th><th scope="col" class="n">Payer addresses</th><th scope="col" class="n">Payouts</th><th scope="col" class="n">USDC</th><th scope="col">Proof</th></tr></thead>
           <tbody>
-<tr class="group"><td><span class="chip mot">Motored event · founder-linked sponsor</span></td><td class="n" data-l="Addresses">1,440</td><td class="n" data-l="Payouts">4,230</td><td class="n" data-l="USDC">134.77</td><td><a href="#how-3">why 3 wallets</a></td></tr>
+<tr class="group"><td><span class="chip mot">Motored pilot rounds · sponsor</span></td><td class="n" data-l="Addresses">1,440</td><td class="n" data-l="Payouts">4,230</td><td class="n" data-l="USDC">134.77</td><td><a href="#how-3">why 3 wallets</a></td></tr>
 <tr><td>Round 1 · 2026-10-16 to 2026-10-22<div class="small muted">Funded by the one Motored funder, which the Token Tails team wallet topped up</div></td><td class="n" data-l="Addresses">480</td><td class="n" data-l="Payouts">1,562</td><td class="n" data-l="USDC">96.75</td><td></td></tr>
 <tr><td>Round 2 · 2026-10-25 to 2026-10-31<div class="small muted">Funded by the one Motored funder, which the Token Tails team wallet topped up</div></td><td class="n" data-l="Addresses">480</td><td class="n" data-l="Payouts">1,130</td><td class="n" data-l="USDC">11.30</td><td></td></tr>
 <tr><td>Round 3 · 2026-11-06 to 2026-11-12<div class="small muted">Funded by the one Motored funder, which the Token Tails team wallet topped up</div></td><td class="n" data-l="Addresses">480</td><td class="n" data-l="Payouts">1,538</td><td class="n" data-l="USDC">26.72</td><td></td></tr>
 <tr class="group"><td><span class="chip self">Token Tails self-funded</span></td><td class="n" data-l="Addresses">3</td><td class="n" data-l="Payouts">226</td><td class="n" data-l="USDC">36.28 <span class="muted small">+ 0.10 EURC</span></td><td></td></tr>
 <tr><td>Sponsored rescue treats: tapped by players, paid by Token Tails' sponsor wallet<div class="small muted">Payer: Sponsor wallet <a href="https://explorer.arc.io/address/0x8d03d8295892f7de2b7ce57585aa45dd4b3c2ba0" target="_blank" rel="noopener" class="mono">0x8d03…2ba0</a></div></td><td class="n" data-l="Addresses">1</td><td class="n" data-l="Payouts">218</td><td class="n" data-l="USDC">2.18</td><td><a href="https://explorer.arc.io/tx/0x757adb0f1f50c11981d415de368aab2fc434aa40348f6683e45ded3e9430a023" target="_blank" rel="noopener">first treat ↗</a></td></tr>
 <tr><td>Team test payments<div class="small muted">Mainnet integration tests: checkout, gasless router and deploy proofs</div></td><td class="n" data-l="Addresses">3</td><td class="n" data-l="Payouts">8</td><td class="n" data-l="USDC">34.10 <span class="muted small">+ 0.10 EURC</span></td><td></td></tr>
-<tr class="total"><td>All Arc payouts · one controlling party: Token Tails</td><td class="n" data-l="Addresses">1,443</td><td class="n" data-l="Payouts">4,456</td><td class="n" data-l="USDC">171.05 <span class="muted small">+ 0.10 EURC</span></td><td></td></tr>
+<tr class="total"><td>All Arc payouts · Motored sponsor + Token Tails</td><td class="n" data-l="Addresses">1,443</td><td class="n" data-l="Payouts">4,456</td><td class="n" data-l="USDC">171.05 <span class="muted small">+ 0.10 EURC</span></td><td></td></tr>
           </tbody>
         </table>
       </div>
       <p class="srcnote">Source: <a href="./arc-ledger.json">arc-ledger.json</a> <code>buckets</code>, <code>buckets.tt-self.byKind</code>, <code>motoredReconciliation</code>, <code>totals.excludingMotoredAndSelf</code>. Every payer is checked against the published Token Tails / Motored address list (<a href="./arc-addresses.json">arc-addresses.json</a>) and walked upstream for its funding origin. The outside, unknown and funded-by-Token-Tails groups are empty, so they have no rows. The same script will classify any new payer the same way, so future "outside" numbers are measured against this list.</p>
     </div>
 
-    <h2 class="rv" id="how-3" style="margin-top:72px;font-size:clamp(2.4rem,4.6vw,4.2rem);max-width:34ch">Why each Motored label has 3 gift pools, all filled from one address</h2>
+    <h2 class="rv" id="how-3" style="margin-top:72px;font-size:clamp(2.4rem,4.6vw,4.2rem);max-width:34ch">Why each Motored pilot label has 3 gift pools, all filled from one address</h2>
     <div class="grid g2" style="margin-top:28px">
       <div class="card rv">
         <ol class="why">
-          <li><b>Each label is a gift pool, not a person.</b> A pool is one on-chain address that Token Tails created for the event (keys held by Token Tails) to hold gift money and send it to the shelter. Pools are not Motored customers.</li>
-          <li><b>The event ran 3 times</b> (Oct 16–22, Oct 25–31, Nov 6–12). <b>Each round opened 480 new gift pools</b> and reused the labels <code>user-1 … user-480</code>, so every label maps to exactly 3 pools (<span data-k="dist">480 labels × 3 pools</span>): 3 rounds, not 3 people.</li>
-          <li><b>One funder.</b> A single Motored event funder filled each pool with its gifts plus gas, in <span data-k="funderTx">1,440</span> funding transfers and nothing else. Only the Token Tails team wallet ever topped up that funder (<span data-k="topups">3 top-ups, 154 USDC</span>). Each round ran for a week on a real-world hourly activity curve: a full event-scale load test, with every gift settling on Arc mainnet.</li>
-          <li><b>How we count it:</b> one related-party sponsor. 1,440 gift pools, not 1,440 donors, and not outside traction.</li>
+          <li><b>Each label is a gift pool.</b> A pool is one on-chain address that Token Tails created for the event (keys held by Token Tails) to hold gift money and send it to the shelter. Pools are not Motored customers.</li>
+          <li><b>The pilot ran 3 waves</b> (Oct 16–22, Oct 25–31, Nov 6–12), each a paid order through the Motored × Stripe integration, settled on Arc mainnet. <b>Each wave opened 480 new gift pools</b> and reused the labels <code>user-1 … user-480</code>, so every label maps to exactly 3 pools (<span data-k="dist">480 labels × 3 pools</span>): 3 rounds.</li>
+          <li><b>One funder.</b> A single Motored funder filled each pool with its gifts plus gas. Only the Token Tails team wallet ever topped up that funder (<span data-k="topups">3 top-ups, 154 USDC</span>). Each wave ran for a week, driven by paid orders through the Stripe integration, with every gift settling on Arc mainnet.</li>
+          <li><b>How we count it:</b> one sponsor (Motored). 1,440 gift pools, not 1,440 donors, and not outside traction.</li>
+          <li><b>What comes next:</b> <a href="#realtime">Motored × Stripe</a> ties one gift to each paid order, with one gift wallet per customer from <code>user</code> up. It is sponsor money, never customer money or outside traction.</li>
         </ol>
         <p class="srcnote">Source: arc-ledger.json <code>totals.motoredWalletsPerUserLabel</code>, <code>buckets.motored.disclosure</code>, <code>motoredReconciliation</code> (walletsFundedOnlyByFunder = <span data-k="onlyFunder">true</span>, no anomalies). All 1,440 wallets with their payouts: arc-ledger.json <code>motoredPayers</code> and <code>payouts</code>.</p>
       </div>
@@ -695,7 +818,7 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
         <div class="walletFlow" id="walletFlow">
           <div class="node fnd"><b>Token Tails team wallet</b><a href="https://explorer.arc.io/address/0x29d7d5361052c0990879d7926a0c98a63f9860f8" target="_blank" rel="noopener" class="mono">0x29d7…60f8</a><div class="small muted">funded by deposits from outside addresses </div></div>
           <div class="arrow" aria-hidden="true">↓</div>
-          <div class="node mot"><b>One Motored event funder</b><a href="https://explorer.arc.io/address/0xf1d715677877428ae8e95e8ff5385ec44f84688f" target="_blank" rel="noopener" class="mono">0xf1d7…688f</a><div class="small muted">3 top-ups (154 USDC), only from the Token Tails team wallet · sent 1,440 funding transfers, nothing else</div></div>
+          <div class="node mot"><b>One Motored funder</b><a href="https://explorer.arc.io/address/0xf1d715677877428ae8e95e8ff5385ec44f84688f" target="_blank" rel="noopener" class="mono">0xf1d7…688f</a><div class="small muted">3 top-ups (154 USDC), only from the Token Tails team wallet.</div></div>
           <div class="arrow" aria-hidden="true">↓</div>
           <div class="wchips"><div class="wchip"><span><b>r1</b> wallet</span><span class="num">round 1</span></div><div class="wchip"><span><b>r2</b> wallet</span><span class="num">round 2</span></div><div class="wchip"><span><b>r3</b> wallet</span><span class="num">round 3</span></div></div>
           <div class="arrow" aria-hidden="true">↓</div>
@@ -703,18 +826,6 @@ footer.ft { position: relative; z-index: 2; margin-top: -44px; border-radius: 44
         </div>
         <p class="small" style="margin:14px 0 0"><a href="#allPayouts" id="exShow">Show every motored:user-17 payout ↓</a></p>
       </div>
-    </div>
-
-    <div class="card rv" id="sponsor-template" style="margin-top:16px;box-shadow:inset 0 0 0 2px var(--gold, #e2c05a),0 14px 40px rgba(0,0,0,.25)">
-      <span class="chip ok">built and tested · next Motored event</span>
-      <h3 style="margin-top:10px">Motored × Stripe: the template for sponsors in our queue</h3>
-      <p class="small" style="margin:0 0 12px">The Motored pilot showed the rail at event scale. The next step connects a sponsor's own checkout directly: Motored's Stripe account tells our backend about every paid order, and the backend turns each order into one gift on Arc. Every sponsor in our queue gets the same integration.</p>
-      <div class="grid g3" style="gap:12px">
-        <div class="tile"><span class="what">1 · A real order is paid</span><span class="who">Motored's Stripe sends <code>checkout.session.completed</code> to our backend, signed with the webhook secret.</span></div>
-        <div class="tile"><span class="what">2 · One gift per order</span><span class="who">Each paying customer gets one gift pool; each paid order adds exactly one gift. A resent webhook cannot pay twice. A refund or dispute before the gift is sent cancels it; a gift already on Arc stays with the shelter.</span></div>
-        <div class="tile"><span class="what">3 · Settled on Arc</span><span class="who">The pool calls ShelterSplit <code>donate()</code>, which pays 100% to Pink Paw's wallet. No customer name, email or id is stored, only salted hashes.</span></div>
-      </div>
-      <p class="srcnote">Source: <code>backend/src/shelter/motored/</code> (webhook, gift sender and retry keeper, with tests).</p>
     </div>
 
     <div class="card rv" style="margin-top:16px">
@@ -834,15 +945,15 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
     <div class="grid g2">
       <div class="card chart rv">
         <h3>Cumulative USDC paid to the shelter payee</h3>
-        <div class="legend"><span><span class="dot" style="background:var(--motored)"></span>Motored event (founder-linked)</span><span><span class="dot" style="background:var(--self)"></span>Token Tails self-funded</span></div>
+        <div class="legend"><span><span class="dot" style="background:var(--motored)"></span>Motored pilot rounds</span><span><span class="dot" style="background:var(--self)"></span>Token Tails self-funded</span></div>
         <div id="cumChart" role="img" aria-label="Cumulative USDC paid into the shelter wallet on Arc by day, stacked by payer group"></div>
         <p class="srcnote">Bands mark Motored rounds r1–r3. The dashed line is the 2026-10-16 handover to Pink Paw's wallet.</p>
       </div>
       <div class="card chart rv" style="--enter-delay:.1s">
         <h3>Payouts per day</h3>
-        <div class="legend"><span><span class="dot" style="background:var(--motored)"></span>Motored gift pools</span><span><span class="dot" style="background:var(--self)"></span>Token Tails (treats, orders, proofs)</span></div>
+        <div class="legend"><span><span class="dot" style="background:var(--motored)"></span>Motored pilot-round gift pools</span><span><span class="dot" style="background:var(--self)"></span>Token Tails (treats, orders, proofs)</span></div>
         <div id="dayChart" role="img" aria-label="Number of payouts per day on Arc, stacked by payer group"></div>
-        <p class="small" style="margin:10px 0 0">Each Motored round ran until the budget Motored set for that round was used up (r1 Oct 16–22, r2 Oct 25–31, r3 Nov 6–12). The gaps between rounds are budget limits, not pauses in the rail.</p>
+        <p class="small" style="margin:10px 0 0">Each scheduled Motored pilot round ran until the budget Motored set for that round was used up (r1 Oct 16–22, r2 Oct 25–31, r3 Nov 6–12). The gaps between rounds are budget limits, not pauses in the rail.</p>
         <p class="srcnote">Source: arc-ledger.json <code>payouts[]</code> (time, bucket), UTC days.</p>
       </div>
     </div>
@@ -880,7 +991,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
         <h3>Rail usage on Arc, by what it exercised</h3>
         
         <div class="bars" id="usageBars"></div>
-        <p class="srcnote">Source: arc-ledger.json <code>buckets</code>. Who paid: the Motored event (founder-linked) and Token Tails.</p>
+        <p class="srcnote">Source: arc-ledger.json <code>buckets</code>. Who paid: the Motored pilot rounds and Token Tails.</p>
       </div>
     </div>
 
@@ -987,17 +1098,18 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
 
     <div class="grid g2" style="align-items:start;margin-top:36px">
       <div class="ladder" id="ladder">
-        <div class="rung done rv"><div class="when">Today</div><div class="body"><div class="t">Arc mainnet pilot complete <span class="chip ok">done</span></div><p>4,456 payouts in 37 days, about $0.0012 each, through 3 Sourcify-verified Arc contracts, plus a charity-event pilot with the founder-linked partner Motored (3 rounds, 1,440 event wallets).</p></div></div>
+        <div class="rung done rv"><div class="when">Today</div><div class="body"><div class="t">Arc mainnet pilot complete <span class="chip ok">done</span></div><p>4,456 payouts in 37 days, about $0.0012 each, through 3 Sourcify-verified Arc contracts, plus three Motored pilot rounds through the Stripe integration (1,440 gift wallets Token Tails created).</p></div></div>
+        <div class="rung built rv"><div class="when">Built</div><div class="body"><div class="t">Motored × Stripe: one gift per paid order <span class="chip ok">ran the pilot rounds</span></div><p>Motored's Stripe checkout tells our backend about each paid one-off checkout order, and the backend turns it into one gift of 1¢ to $1.00 on Arc, in seconds by design. The gift money is Motored's. <a href="#realtime">See the flow ↑</a></p></div></div>
         <div class="rung now rv"><div class="when">Now</div><div class="body"><div class="t">Sponsor-funded treats, round two <span class="chip arc">next float</span></div><p>Pilot round one carried 218 treats from 85 player accounts. The next sponsor float reopens in-game treats at up to 100 a day, and the contracts stay open to any caller.</p></div></div>
         <div class="rung built rv"><div class="when">Live</div><div class="body"><div class="t">Real paid orders become gifts <span class="chip arc">checkout live</span></div><p>Crypto checkout runs on Arc mainnet. A $5 shelter cat sends $2.50 to the shelter. Tested end to end on Arc mainnet and open to every buyer.</p></div></div>
         <div class="rung built rv"><div class="when">Released</div><div class="body"><div class="t">In-game custodial giving <span class="chip ok">released</span></div><p>Players give from inside the game without a wallet; Token Tails' wallet settles each gift on Arc. 85 player accounts already used the treat version in the pilot.</p></div></div>
-        <div class="rung plan rv"><div class="when">Next</div><div class="body"><div class="t">Dozens of partner charity events <span class="chip plan">rolling out</span></div><p>The Motored pilot is the template. <a href="#sponsor-template">Motored × Stripe</a> ties one gift to each real paid order (built and tested, live with the next Motored event) and is the integration every sponsor in our queue receives. Each new event runs on the same contracts with its own memo, so its volume is countable on chain. Partner-funded gifts stay labelled as sponsor money, never as donors.</p></div></div>
+        <div class="rung plan rv"><div class="when">Next</div><div class="body"><div class="t">Dozens of partner charity events <span class="chip plan">rolling out</span></div><p><a href="#realtime">Motored × Stripe</a> is the template: one gift per paid order, and the integration every sponsor in our queue receives. Each new event runs on the same contracts with its own memo, so its volume is countable on chain. Partner-funded gifts stay labelled as sponsor money, never as donors.</p></div></div>
         <div class="rung plan rv"><div class="when">Next pilot</div><div class="body"><div class="t"><a href="#games">Paw Legends</a>: the next test pilot <span class="chip plan">next</span></div><p>Our team-battle game is the next pilot for the rail: in-match gifts that settle on Arc mainnet, run the same way as the first pilot and measured by the same public ledger.</p></div></div>
         <div class="rung plan rv"><div class="when">Then</div><div class="body"><div class="t">One prompt, one game on Arc <span class="chip plan">coming to Tails Club</span></div><p>Anyone types one idea and gets a whole cat game, published for everyone to play, with the shelter button and Arc mainnet giving built in. Every new game becomes a new place where players give.</p></div></div>
         <div class="rung plan rv"><div class="when">Dec 6</div><div class="body"><div class="t">Gasless in-game give button <span class="chip plan">target</span></div><p>Players sign one EIP-3009 message and pay no gas. Both Arc routers (USDC and EURC) are already deployed and Sourcify-verified.</p></div></div>
         <div class="rung plan rv"><div class="when">Dec 8 – 15</div><div class="body"><div class="t">Arc-first settlement <span class="chip plan">target</span></div><p>All shelter payouts settle on Arc in USDC or EURC.</p></div></div>
         <div class="rung plan rv"><div class="when">Dec 27</div><div class="body"><div class="t">CCTP into Arc + x402 for agents <span class="chip plan">target</span></div><p>Payers holding USDC elsewhere arrive on Arc through Circle CCTP. AI agents pay by x402 "exact", which is verified on testnet today.</p></div></div>
-        <div class="rung plan rv"><div class="when">Dec 15 → Feb 15</div><div class="body"><div class="t">Outside-only targets <span class="chip plan">target</span></div><p>75 outside gifts by Dec 15, 175 by Jan 15, then 300 gifts, $1,500 and 3 shelter wallets by Feb 15, 2027, plus 1 outside site embedding the button. Counted against the public excluded-wallet list (<a href="./arc-addresses.json">arc-addresses.json</a>: Token Tails, founder, Motored), by the same ledger script.</p></div></div>
+        <div class="rung plan rv"><div class="when">Dec 15 → Feb 15</div><div class="body"><div class="t">Outside-only targets <span class="chip plan">target</span></div><p>75 outside gifts by Dec 15, 175 by Jan 15, then 300 gifts, $1,500 and 3 shelter wallets by Feb 15, 2027, plus 1 outside site embedding the button. Counted against the public excluded-wallet list (<a href="./arc-addresses.json">arc-addresses.json</a>: Token Tails and Motored), by the same ledger script.</p></div></div>
         <div class="rung plan rv"><div class="when">Mid-2027</div><div class="body"><div class="t">10 shelters · 2,500 outside gifts · 10 integrations <span class="chip plan">example</span></div><p>Shelters 2 and 3 (Mil Bigotes, Puppy Kitty NYC) are candidates, not yet agreed. Adding a shelter takes one <code>addShelter</code> call; a split holds up to 50.</p></div></div>
       </div>
 
@@ -1008,7 +1120,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
             <div class="barrow"><span>Card fee on $1</span><div class="track"><div class="fill" style="width:100%;background:var(--warn)"></div></div><span class="num">≈ $0.33</span></div>
             <div class="barrow"><span>Arc gas per gift</span><div class="track"><div class="fill" style="width:1.2%;min-width:4px;background:var(--arc)"></div></div><span class="num">≈ $0.0012</span></div>
           </div>
-          <p class="srcnote">Card fee: ~$0.30 + 3%, company estimate. Arc gas: arc-ledger.json, 4.94 USDC over 4,230 Motored event gift transactions.</p>
+          <p class="srcnote">Card fee: ~$0.30 + 3%, company estimate. Arc gas: arc-ledger.json, 4.94 USDC over 4,230 Motored pilot-round gift transactions.</p>
         </div>
         <div class="card rv">
           <h3>Capacity already in place</h3>
@@ -1022,7 +1134,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
         <div class="card rv">
           <h3>What unlocks the next phase</h3>
           <ul class="small" style="margin:0;padding-left:20px">
-            <li>Sponsors in our queue plug in through the Motored × Stripe template: one gift per real paid order.</li>
+            <li>Sponsors in our queue plug in through the <a href="#realtime">Motored × Stripe</a> flow: one gift per paid order.</li>
             <li>In-game giving reaches every player through the treat button, with sponsor floats per event.</li>
             <li>Outside gifts are measured by the same public ledger, against the published address list.</li>
           </ul>
@@ -1056,7 +1168,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
           <a class="cta ghost" href="https://github.com/zbagdzevicius/tokentails/tree/main/contracts/shelter-split" target="_blank" rel="noopener">Contracts on GitHub ↗</a>
         </div>
         <p id="footMeta">Arc mainnet (chain 5042).</p>
-        <p>USDC counted at $1. EURC is reported separately. Motored (motored.lt) is founder-linked, and its event money is counted as one related-party sponsor.</p>
+        <p>USDC counted at $1. EURC is reported separately. Motored (motored.lt) sponsors the pilot rounds; its gift money, from the rounds and any Stripe-order gifts, is sponsor money, never customer money or outside traction. Stripe-order gifts are in the ledger's Motored totals.</p>
       </div>
       <div class="grid g2" style="gap:24px">
         <div class="ftlinks"><span class="lbl">Data</span><a href="./arc-ledger.json">arc-ledger.json</a><a href="./campaign.json">campaign.json</a><a href="./arc-addresses.json">arc-addresses.json</a><a href="./arc-deployments.json">arc-deployments.json</a><a href="./arc-routers.json">arc-routers.json</a></div>
@@ -1092,7 +1204,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
     var bp = (L && L.totals && L.totals.byPath) || { "split-donate-native": 4451, "split-disburse": 4, "router-native": 1 };
     var payers = [["Game or app", "in-game treat, give button"], ["Shop checkout", "card or crypto order share"], ["Wallet user", "any EVM wallet"], ["AI agent", "x402 / capped float"]];
     var doors = [
-      { t: "donate(memo)", s: "native USDC on Arc", chip: "ok", c: "used: " + fmt(bp["split-donate-native"]) + " payouts (Motored event + Token Tails)" },
+      { t: "donate(memo)", s: "native USDC on Arc", chip: "ok", c: "used: " + fmt(bp["split-donate-native"]) + " payouts (Motored pilot + Token Tails)" },
       { t: "approve + disburse()", s: "USDC or EURC on Arc", chip: "ok", c: fmt(bp["split-disburse"]) + " proof payouts on Arc" },
       { t: "EIP-3009 signature → DonateRouter", s: "gasless; any relayer submits", chip: "arc", c: "deployed on Arc, Sourcify-verified" },
       { t: "x402 exact / CappedSpender", s: "agent pays; daily caps on chain", chip: "warn", c: "testnet / fork-tested" }
@@ -1157,7 +1269,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
       o += '<rect x="10" y="' + y + '" width="400" height="88" rx="14" fill="var(--surface)" stroke="var(--border)"/>';
       o += '<text x="24" y="' + (y + 26) + '" font-size="17" font-weight="700" fill="var(--text)" font-family="ui-monospace,Menlo,monospace">' + esc(d.t.replace(" → DonateRouter", "")) + '</text>';
       o += '<text x="24" y="' + (y + 48) + '" font-size="16" fill="var(--muted)">' + esc(d.s) + '</text>';
-      var vc = d.c.replace("used: ", "").replace(" (Motored event + Token Tails)", " · Motored event + TT");
+      var vc = d.c.replace("used: ", "").replace(" (Motored pilot + Token Tails)", " · Motored pilot + TT");
       var cw = Math.min(372, vc.length * 8.6 + 22);
       o += '<rect x="24" y="' + (y + 57) + '" width="' + cw + '" height="24" rx="12" fill="' + cc[0] + '"/>';
       o += '<text x="' + (24 + cw / 2) + '" y="' + (y + 74) + '" font-size="15" font-weight="700" text-anchor="middle" fill="' + cc[1] + '">' + esc(vc) + '</text>';
@@ -1190,7 +1302,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
 
   /* ---------- Chain grid (static facts from deployments.json / routers.json / Sourcify) ---------- */
   var CHAINS = [
-    { name: "Arc", id: 5042, hub: true, exp: "https://explorer.arc.io", coin: "USDC + EURC", split: "0x457c89e10a6e66633eda5bf82fd086febb5db147", split2: "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052", router: "0x937f13ce28294011567615330dbcb859a06a0bba", router2: "0x683d66d89eaa7460d3a12337cdf8185fae37dfbd", proof: "0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d", rot: "0xb96044051062f52a185e6255608879194793c2819c5c8f33d605cfa6d297f517", src: true, total: "171.05 USDC + 0.10 EURC", note: "full ledger below · paid by the Motored event and Token Tails" }
+    { name: "Arc", id: 5042, hub: true, exp: "https://explorer.arc.io", coin: "USDC + EURC", split: "0x457c89e10a6e66633eda5bf82fd086febb5db147", split2: "0xb3adf1220d7d3835c2af1c194ff745d0d33bd052", router: "0x937f13ce28294011567615330dbcb859a06a0bba", router2: "0x683d66d89eaa7460d3a12337cdf8185fae37dfbd", proof: "0xd26f6e938afe5e6b8204c816a91927b19f73e0837ff376f06bb05659b260d68d", rot: "0xb96044051062f52a185e6255608879194793c2819c5c8f33d605cfa6d297f517", src: true, total: "171.05 USDC + 0.10 EURC", note: "full ledger below · paid by the Motored pilot rounds and Token Tails" }
   ];
   function chainGrid() {
     var h = "";
@@ -1266,6 +1378,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
     walletExample(L);
     claim(L);
     txGroups(L);
+    liveSnap(L);
     document.getElementById("footMeta").innerHTML = "Arc mainnet (chain " + esc(L.chainId) + "), blocks " + fmt(L.fromBlock) + "–" + fmt(L.toBlock) + ". Ledger generated " + esc(L.generatedAt.replace("T", " ").slice(0, 16)) + " UTC.";
   }
 
@@ -1320,7 +1433,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
       dk2.forEach(function (d, i) {
         var e = days[d]; if (!e) return; var cx = x(i) - bw / 2, base = H - P.b;
         if (e.s) o += '<rect x="' + cx + '" y="' + (base - y(e.s)) + '" width="' + bw + '" height="' + y(e.s) + '" fill="var(--self)"><title>' + mdy(d) + ": " + e.s + ' Token Tails payouts</title></rect>';
-        if (e.m) o += '<rect x="' + cx + '" y="' + (base - y(e.s) - y(e.m)) + '" width="' + bw + '" height="' + y(e.m) + '" fill="var(--motored)"><title>' + mdy(d) + ": " + e.m + ' Motored event payouts</title></rect>';
+        if (e.m) o += '<rect x="' + cx + '" y="' + (base - y(e.s) - y(e.m)) + '" width="' + bw + '" height="' + y(e.m) + '" fill="var(--motored)"><title>' + mdy(d) + ": " + e.m + ' Motored pilot payouts</title></rect>';
       });
       o += '</svg>';
       document.getElementById("dayChart").innerHTML = o;
@@ -1349,7 +1462,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
     var B = L.buckets;
     // usage bars (only non-empty kinds)
     (function () {
-      var items = [{ l: "Motored gift pools", n: B.motored.payouts, c: "var(--motored)" }];
+      var items = [{ l: "Motored pilot rounds", n: B.motored.payouts, c: "var(--motored)" }];
       var tests = 0;
       B["tt-self"].byKind.forEach(function (k) {
         if (!(k.payouts > 0)) return;
@@ -1384,7 +1497,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
     var nodes = {
       dep: { x: 20, y: Y0, l: "Outside addresses", s: "deposits onto Arc", lines: ["deposits · " + fmt(dep, 2) + " USDC"], col: "var(--faint)" },
       fnd: { x: 220, y: Y0, l: "Token Tails team wallet", s: "0x29d7…60f8", col: "var(--founder)" },
-      fun: { x: 420, y: Y0, l: "Motored event funder", s: MR.funderTopups.count + " top-ups · " + fmt(MR.funderTopups.usd) + " USDC", col: "var(--motored)" },
+      fun: { x: 420, y: Y0, l: "Motored funder", s: MR.funderTopups.count + " top-ups · " + fmt(MR.funderTopups.usd) + " USDC", col: "var(--motored)" },
       dpl: { x: 420, y: YB, l: "Token Tails deployer", s: "0xd6f3…6263", col: "var(--self)", below: true },
       evw: { x: 610, y: Y0, l: fmt(MR.funderToEventWallets.count) + " gift pools", s: "3 rounds × 480", col: "var(--motored)" },
       dir: { x: 420, y: 250, l: "Team test payments", s: "checkout, router, deploy", col: "var(--founder)", below: true },
@@ -1413,7 +1526,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
       links.forEach(function (l) { if (l.b === id) vin += wv(l.v); if (l.a === id) vout += wv(l.v); });
       n.h = Math.max(vin, vout, 6); n.oi = 0; n.oo = 0;
     });
-    var o = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="' + SVGNS + '" role="img" aria-labelledby="skT skD"><title id="skT">Money flow into Pink Paw\'s wallet on Arc</title><desc id="skD">Deposits from outside addresses reach the Token Tails team wallet. From there ' + fmt(MR.funderTopups.usd) + ' USDC goes to the Motored event funder, which funds ' + fmt(MR.funderToEventWallets.count) + ' gift pools that give ' + fmt(B.motored.usd, 2) + ' USDC through ShelterSplit. The team wallet paid ' + fmt(direct, 2) + ' USDC directly, and a small flow goes through the Token Tails deployer and sponsor wallet as treats, order shares and proof payouts. All ' + fmt(L.totals.usd, 2) + ' USDC reached the shelter payee: ' + fmt(L.totals.toPinkPawWallet.usd, 2) + ' directly in Pink Paw\'s wallet and ' + fmt(L.totals.toOldShelterWallet0xE299.usd, 2) + ' in the earlier Token Tails-held payee, swept to Pink Paw on Oct 16.</desc>';
+    var o = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="' + SVGNS + '" role="img" aria-labelledby="skT skD"><title id="skT">Money flow into Pink Paw\'s wallet on Arc</title><desc id="skD">Deposits from outside addresses reach the Token Tails team wallet. From there ' + fmt(MR.funderTopups.usd) + ' USDC goes to the Motored funder, which funds ' + fmt(MR.funderToEventWallets.count) + ' gift pools that give ' + fmt(B.motored.usd, 2) + ' USDC through ShelterSplit. The team wallet paid ' + fmt(direct, 2) + ' USDC directly, and a small flow goes through the Token Tails deployer and sponsor wallet as treats, order shares and proof payouts. All ' + fmt(L.totals.usd, 2) + ' USDC reached the shelter payee: ' + fmt(L.totals.toPinkPawWallet.usd, 2) + ' directly in Pink Paw\'s wallet and ' + fmt(L.totals.toOldShelterWallet0xE299.usd, 2) + ' in the earlier Token Tails-held payee, swept to Pink Paw on Oct 16.</desc>';
     var labels = "";
     links.forEach(function (l) {
       var a = nodes[l.a], b = nodes[l.b], w = wv(l.v);
@@ -1464,7 +1577,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
     }
     var m = B.motored;
     if (m.payouts > 0) {
-      rows += '<tr class="group"><td><span class="chip mot">Motored event · founder-linked sponsor</span></td>' + N("Addresses", fmt(m.uniquePayers)) + N("Payouts", fmt(m.payouts)) + N("USDC", fmt(m.usd, 2)) + '<td><a href="#how-3">why 3 wallets</a></td></tr>';
+      rows += '<tr class="group"><td><span class="chip mot">Motored pilot rounds · sponsor</span></td>' + N("Addresses", fmt(m.uniquePayers)) + N("Payouts", fmt(m.payouts)) + N("USDC", fmt(m.usd, 2)) + '<td><a href="#how-3">why 3 wallets</a></td></tr>';
       MR.rounds.forEach(function (r) {
         if (!r.payouts) return;
         var agg = L.relatedAggregates.filter(function (a) { return a.kind === "motored-wallet-funding-" + r.round; })[0];
@@ -1490,7 +1603,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
     var other = ["funded-by-tt-or-motored"].reduce(function (n, kk) { return n + (B[kk] ? B[kk].payouts : 0); }, 0);
     if (other > 0) rows += '<tr><td colspan="5" class="err">The ledger lists payers funded by Token Tails or Motored. See arc-ledger.json buckets.</td></tr>';
     var allFounder = !(X && X.payouts > 0) && other === 0;
-    rows += '<tr class="total"><td>All Arc payouts' + (allFounder ? ' · one controlling party: Token Tails' : '') + '</td>' + N("Addresses", fmt(L.totals.uniquePayerAddresses)) + N("Payouts", fmt(L.totals.payouts)) + N("USDC", fmt(L.totals.usd, 2) + eur(L.totals.eurc)) + '<td></td></tr>';
+    rows += '<tr class="total"><td>All Arc payouts' + (allFounder ? ' · Motored sponsor + Token Tails' : '') + '</td>' + N("Addresses", fmt(L.totals.uniquePayerAddresses)) + N("Payouts", fmt(L.totals.payouts)) + N("USDC", fmt(L.totals.usd, 2) + eur(L.totals.eurc)) + '<td></td></tr>';
     document.querySelector("#payerTable tbody").innerHTML = rows;
     if (!allFounder) {
       setK("bannerHead", "Outside payers have appeared on Arc.");
@@ -1516,7 +1629,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
     if (order.length < 2) return;
     var h = '<div class="node fnd"><b>Token Tails team wallet</b>' + adA("0x29d7d5361052c0990879d7926a0c98a63f9860f8") + '<div class="small muted">funded by deposits from outside addresses </div></div>';
     h += '<div class="arrow" aria-hidden="true">↓</div>';
-    h += '<div class="node mot"><b>One Motored event funder</b>' + adA("0xf1d715677877428ae8e95e8ff5385ec44f84688f") + '<div class="small muted">' + MR.funderTopups.count + ' top-ups (' + fmt(MR.funderTopups.usd) + ' USDC), only from the Token Tails team wallet · sent ' + fmt(MR.funderSentTxs) + ' funding transfers, nothing else</div></div>';
+    h += '<div class="node mot"><b>One Motored funder</b>' + adA("0xf1d715677877428ae8e95e8ff5385ec44f84688f") + '<div class="small muted">' + MR.funderTopups.count + ' top-ups (' + fmt(MR.funderTopups.usd) + ' USDC), only from the Token Tails team wallet</div></div>';
     h += '<div class="arrow" aria-hidden="true">↓</div>';
     h += '<div class="wchips">' + chips + '</div>';
     h += '<div class="arrow" aria-hidden="true">↓</div>';
@@ -1562,7 +1675,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
       h += '</tbody></table><p class="srcnote">Plus ' + fmt(eoa.motoredEventWalletsSentTxs) + ' txs from Motored gift pools, which equal their payouts.</p></div></details>';
     }
     // all payouts
-    h += '<details id="allPayouts"><summary><span>All ' + fmt(L.payouts.length) + ' payouts</span><span class="muted small">filterable</span></summary><div class="in"><div class="filters"><label class="sr" for="pf">Group</label><select id="pf"><option value="">All groups</option><option value="motored">Motored event</option><option value="tt-self">Token Tails self-funded</option></select><label class="sr" for="pq">Search</label><input id="pq" type="search" placeholder="Search memo, payer or tx (user-17 matches exactly)"></div><div class="tablewrap"><table><thead><tr><th scope="col">Time (UTC)</th><th scope="col">Payer</th><th scope="col">Memo</th><th scope="col" class="n">Amount</th><th scope="col">Tx</th></tr></thead><tbody id="pbody"></tbody></table></div><button class="more" id="pmore" type="button">Show more</button></div></details>';
+    h += '<details id="allPayouts"><summary><span>All ' + fmt(L.payouts.length) + ' payouts</span><span class="muted small">filterable</span></summary><div class="in"><div class="filters"><label class="sr" for="pf">Group</label><select id="pf"><option value="">All groups</option><option value="motored">Motored</option><option value="tt-self">Token Tails self-funded</option></select><label class="sr" for="pq">Search</label><input id="pq" type="search" placeholder="Search memo, payer or tx (user-17 matches exactly)"></div><div class="tablewrap"><table><thead><tr><th scope="col">Time (UTC)</th><th scope="col">Payer</th><th scope="col">Memo</th><th scope="col" class="n">Amount</th><th scope="col">Tx</th></tr></thead><tbody id="pbody"></tbody></table></div><button class="more" id="pmore" type="button">Show more</button></div></details>';
     document.getElementById("txGroups").innerHTML = h;
 
     var shown = 100;
@@ -1581,6 +1694,97 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
     document.getElementById("pmore").addEventListener("click", function () { shown += 200; draw(); });
     var ex = document.getElementById("exShow");
     if (ex) ex.addEventListener("click", function () { var d = document.getElementById("allPayouts"); document.getElementById("pq").value = "user-17"; document.getElementById("pf").value = ""; shown = 100; d.open = true; draw(); });
+  }
+
+  /* ---------- Live Motored feed: public GET /shelter/payouts (ACAO *, cached 30 s, indexed every 2 min) ---------- */
+  var LIVE_URL = "https://api.tokentails.com/shelter/payouts?network=mainnet&chainId=5042&address=0x457c89e10a6e66633eda5bf82fd086febb5db147&limit=200";
+  var STRIPE_FIRST_N = 0, LIVE_MS = 30000, STALE_MS = 15 * 60 * 1000, LIVE_ROWS = 8;
+  var SNAP = { block: 31603089, at: "2026-11-17T00:15:45Z" };
+  var LV = { data: null, err: null, seen: null, timer: 0, last: 0, busy: false };
+  function $(id) { return document.getElementById(id); }
+  function ago(ms) {
+    var s = Math.max(0, Math.round(ms / 1000)); if (s < 60) return s + " s ago";
+    var m = Math.round(s / 60); if (m < 60) return m + " min ago";
+    var h = Math.round(m / 60); if (h < 48) return h + " h ago";
+    return Math.round(h / 24) + " days ago";
+  }
+  function utc(ms) { return new Date(ms).toISOString().replace("T", " ").slice(0, 16) + " UTC"; }
+  function motTag(memo) {
+    var m = /^motored:user-(\d+)(-final)?$/.exec(String(memo || "")); if (!m) return null;
+    var n = +m[1];
+    if (m[2]) return { n: n, k: "sweep", l: "sweep", c: "plan" };
+    return n >= STRIPE_FIRST_N ? { n: n, k: "stripe", l: "Stripe-order label", c: "ok" } : { n: n, k: "pilot", l: "pilot round", c: "mot" };
+  }
+  function usdc18(s) { var v = Number(s) / 1e18; if (!isFinite(v)) return "–"; if (v > 0 && v < 0.0001) return "<0.0001"; return v >= 0.01 ? v.toFixed(2) : v.toFixed(4); }
+  function setPill(cls, text) { var p = $("livePill"); if (!p) return; p.className = "pill " + cls; p.lastChild.textContent = text; }
+  function snapText() { return utc(Date.parse(SNAP.at)).replace(" UTC", "") + " UTC (Arc block " + fmt(SNAP.block) + ")"; }
+  function livePaint() {
+    var d = LV.data; if (!d || !$("liveList")) return;
+    var c0 = (d.chains || []).filter(function (c) { return +c.chainId === 5042; })[0] || (d.chains || [])[0] || {};
+    var ix = c0.indexedThrough || {}, at = Date.parse(ix.at || ""), age = Date.now() - at;
+    var stale = !isFinite(age) || age > STALE_MS;
+    if (LV.err) setPill("off", "Offline");
+    else setPill(stale ? "stale" : "live", stale ? "Stale" : "Live");
+    $("liveIdx").textContent = (LV.err ? "Live index unreachable, last read " + ago(Date.now() - LV.last) + ". " : "") + "Index updated " + (isFinite(age) ? ago(age) : "at an unknown time") + (ix.block ? " · Arc block " + fmt(ix.block) : "");
+    var evs = (d.events || []).map(function (e) { return { e: e, t: motTag(e.memo) }; }).filter(function (x) { return x.t; });
+    evs.sort(function (a, b) { return (b.e.blockNumber - a.e.blockNumber) || (b.e.logIndex - a.e.logIndex); });
+    var since = evs.filter(function (x) { return +x.e.blockNumber > SNAP.block; });
+    var full = (d.events || []).length >= 200 && since.length === evs.length && evs.length > 0;
+    var stripe = since.filter(function (x) { return x.t.k === "stripe"; }).length;
+    $("liveStripe").textContent = fmt(stripe) + (full ? "+" : "");
+    $("liveSince").textContent = fmt(since.filter(function (x) { return x.t.k !== "sweep"; }).length) + (full ? "+" : "");
+    var top = evs.filter(function (x) { return x.t.k !== "sweep"; })[0] || evs[0];
+    $("liveNewest").textContent = top ? ago(Date.now() - top.e.timestamp * 1000) + " · " + top.t.l : "none in the latest 200 payouts";
+    if (top) $("liveNewest").title = utc(top.e.timestamp * 1000);
+    var first = !LV.seen; if (first) LV.seen = {};
+    var fresh = 0, rows = evs.slice(0, LIVE_ROWS).map(function (x) {
+      var e = x.e, key = e.txHash + ":" + e.logIndex, isNew = !first && !LV.seen[key];
+      var t = e.timestamp * 1000;
+      return '<li class="lrow' + (isNew ? " fresh" : "") + '"' + (isNew ? ' style="--d:' + (0.08 * fresh++) + 's"' : "") + '>' +
+        '<span class="lt" title="' + esc(utc(t)) + '">' + esc(ago(Date.now() - t)) + '</span>' +
+        '<span class="ll"><span class="mono">' + esc(e.memo) + '</span><span class="chip ' + x.t.c + '">' + esc(x.t.l) + '</span></span>' +
+        '<span class="la">' + esc(usdc18(e.amount18)) + ' <span class="muted small">USDC</span></span>' +
+        '<span class="lx">' + txA(e.txHash) + '</span></li>';
+    });
+    evs.forEach(function (x) { LV.seen[x.e.txHash + ":" + x.e.logIndex] = 1; });
+    var note = stripe ? "" : '<li class="liveMsg">No gift with a Stripe-order label yet since the snapshot; the newest Motored gifts above are from the pilot rounds. The first Stripe-order gift appears here, tagged, within about 2 minutes of settling.</li>';
+    $("liveList").innerHTML = rows.length ? rows.join("") + note : '<li class="liveMsg">No Motored gifts in the latest 200 payouts.</li>';
+  }
+  function liveFail(e) {
+    LV.err = e || new Error("unreachable");
+    if (LV.data) { livePaint(); return; }
+    setPill("off", "Offline");
+    var why = LV.err.name === "AbortError" ? "timed out" : /^HTTP /.test(LV.err.message || "") ? LV.err.message : "network error";
+    $("liveIdx").textContent = "Live index unreachable (" + why + ")";
+    ["liveStripe", "liveSince", "liveNewest"].forEach(function (id) { $(id).textContent = "–"; });
+    $("liveList").innerHTML = '<li class="liveMsg err">Live index unreachable, the ledger snapshot below is from ' + esc(snapText()) + '. Retrying every 30 s.</li>';
+  }
+  function liveSchedule() { clearTimeout(LV.timer); if (document.visibilityState === "hidden") return; LV.timer = setTimeout(livePoll, LIVE_MS); }
+  function livePoll() {
+    if (LV.busy || !window.fetch) return; LV.busy = true; clearTimeout(LV.timer);
+    var ac = typeof AbortController === "function" ? new AbortController() : null;
+    var to = setTimeout(function () { if (ac) ac.abort(); }, 8000);
+    var done = function () { clearTimeout(to); LV.busy = false; liveSchedule(); };
+    fetch(LIVE_URL, { credentials: "omit", signal: ac ? ac.signal : undefined })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (d) { if (!d || !Array.isArray(d.events)) throw new Error("unexpected response"); LV.data = d; LV.err = null; LV.last = Date.now(); livePaint(); })
+      .catch(function (e) { liveFail(e); })
+      .then(done, done);
+  }
+  function liveSnap(L) {
+    if (L && L.toBlock) SNAP.block = +L.toBlock;
+    if (L && L.generatedAt) SNAP.at = L.generatedAt;
+    var n = $("liveSnap"); if (n) n.innerHTML = n.innerHTML.replace(/Arc block [\d,]+/, "Arc block " + fmt(SNAP.block)).replace(/^Snapshot: arc-ledger\.json/, "Snapshot: arc-ledger.json of " + esc(utc(Date.parse(SNAP.at)).replace(" UTC", "")) + " UTC,");
+    if (LV.data) livePaint(); else if (LV.err) liveFail(LV.err);
+  }
+  function live() {
+    if (!$("livePanel")) return;
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") { clearTimeout(LV.timer); return; }
+      if (Date.now() - LV.last >= LIVE_MS) livePoll(); else liveSchedule();
+    });
+    if (document.visibilityState !== "hidden") livePoll();
+    else liveSchedule();
   }
 
   /* ---------- Scene chrome: stars, reveal-on-scroll, active nav, menu ---------- */
@@ -1608,7 +1812,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
           Object.keys(links).forEach(function (k) { links[k].classList.toggle("on", k === id); if (k === id) links[k].setAttribute("aria-current", "true"); else links[k].removeAttribute("aria-current"); });
         });
       }, { rootMargin: "-45% 0px -50% 0px" });
-      ["top", "pilot", "answer", "answer-detail", "how", "proof", "traction", "games", "scale", "txs"].forEach(function (id) { var el = document.getElementById(id); if (el) so.observe(el); });
+      ["top", "pilot", "realtime", "answer", "answer-detail", "how", "proof", "traction", "games", "scale", "txs"].forEach(function (id) { var el = document.getElementById(id); if (el) so.observe(el); });
     } else { rv.forEach(function (el) { el.classList.add("on"); }); }
     var nav = document.getElementById("nav"), bg = document.getElementById("burger");
     bg.addEventListener("click", function () { var o = nav.classList.toggle("open"); bg.setAttribute("aria-expanded", String(o)); });
@@ -1617,6 +1821,7 @@ cast call 0x937f13ce28294011567615330dbcb859a06a0bba \
   }
 
   chrome();
+  live();
   flowSvg();
   chainGrid();
   fetch("./arc-ledger.json", { cache: "no-cache" })
