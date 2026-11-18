@@ -13,8 +13,11 @@ import {
   bannerHero,
   championRows,
   collectionCounts,
+  duration,
   emptyData,
   formOf,
+  parsePlayerCard,
+  shownName,
   masteryScore,
   parseStats,
   rankView,
@@ -29,11 +32,13 @@ import {
 } from '../../src/ui/profile/model';
 import { profileScreen, type ProfileScreenOpts } from '../../src/ui/profile/profileScreen';
 import { levelInfo } from '../../src/meta/accountLevel';
+import { collectionOf, ownedSet } from '../../src/ui/profile/collection';
+import { crestSvg } from '../../src/ui/profile/crest';
 
 const NOW = Date.UTC(2026, 10, 18, 12);
 const info = (o: Partial<NameInfo> = {}): NameInfo => ({ name: 'Witty Biscuit', nick: null, changes: 0, free: true, price: 0, cost: 1500, cooldownDays: 7, nextAt: null, yarn: 200, ...o });
 const res = (status: number, body?: unknown): ApiResult => ({ id: 'x', ok: status >= 200 && status < 300, status, body });
-const row = (o: Partial<ProfileRow> = {}): ProfileRow => ({ id: 'r', at: NOW - 3600_000, hero: 'sage', outcome: 'won', k: 5, d: 2, a: 7, mode: 'ranked', grade: 'A', mvp: null, ...o });
+const row = (o: Partial<ProfileRow> = {}): ProfileRow => ({ id: 'r', at: NOW - 3600_000, hero: 'sage', outcome: 'won', k: 5, d: 2, a: 7, mode: 'ranked', grade: 'A', mvp: null, map: null, seconds: 0, ...o });
 const flush = async () => {
   for (let i = 0; i < 12; i++) await Promise.resolve();
 };
@@ -68,12 +73,47 @@ describe('profile model', () => {
     expect(championRows({}, [{ hero: 'howler', matches: 2, wins: 1, winRate: 50 }], false).map((r) => r.hero)).toEqual(['howler']);
   });
 
-  it('rank: unranked, placements, a tier and Legend', () => {
-    expect(rankView(null).label).toBe('Unranked');
-    expect(rankView({ placementsLeft: 2, placementsOf: 5 }).line).toBe('3 / 5 placement matches played');
+  it('rank: unranked (advice only for you), placements, a tier with its points bar, pips and peak, and Legend', () => {
+    expect(rankView(null)).toMatchObject({ tier: 'none', label: 'Unranked', line: 'Play Ranked to get a rank.' });
+    // another player's: no advice aimed at the viewer
+    expect(rankView(null, false).line).toBe('No ranked games this season.');
+    expect(rankView({ placementsLeft: 5, placementsOf: 5 }, false, true).label).toBe('Unranked');
+    expect(rankView({ placementsLeft: 2, placementsOf: 5 })).toMatchObject({ tier: 'placements', line: '3 of 5 placement matches played', progress: 0.6 });
     const r = rankView({ placementsLeft: 0, placementsOf: 5, tierIdx: 4, points: 42, peak: 'Alley III' });
-    expect(r).toEqual({ tier: 'tabby', label: 'Tabby II', line: '42 / 100 pts · Best Alley III' });
-    expect(rankView({ placementsLeft: 0, placementsOf: 5, tierIdx: 12, points: 240 }).tier).toBe('legend');
+    expect(r).toMatchObject({ tier: 'tabby', label: 'Tabby II', line: '42 / 100 pts', progress: 0.42, pips: 2, peak: 'Alley III' });
+    // the peak badge hides when it is the current rank
+    expect(rankView({ placementsLeft: 0, placementsOf: 5, tierIdx: 4, points: 42, peak: 'Tabby II' }).peak).toBeNull();
+    expect(rankView({ placementsLeft: 0, placementsOf: 5, tierIdx: 12, points: 240 })).toMatchObject({ tier: 'legend', label: 'Legend', progress: null });
+  });
+
+  it('crests: one distinct shape per tier', () => {
+    const tiers = ['none', 'placements', 'kitten', 'tabby', 'alley', 'lion', 'legend'] as const;
+    const svgs = tiers.map((t) => crestSvg(t).replace(/pfx-cg-[a-z]+|data-crest="[a-z]+"|#[0-9a-f]{6}/g, ''));
+    expect(new Set(svgs).size).toBe(tiers.length);
+    expect(crestSvg('legend')).toContain('data-crest="legend"');
+  });
+
+  it("names: a signed-in player is never 'Guest'; another player's public card is checked", () => {
+    expect(shownName({ self: true, signedIn: false, name: '' })).toBe('Guest');
+    expect(shownName({ self: true, signedIn: true, name: 'Guest' })).toBe('Your profile');
+    expect(shownName({ self: true, signedIn: true, name: 'Mira' })).toBe('Mira');
+    expect(shownName({ self: false, signedIn: true, name: '' })).toBe('Player');
+    expect(parsePlayerCard(null)).toBeNull();
+    const c = parsePlayerCard({ matches: 31, ranked: { placementsLeft: 0, placementsOf: 5, tierIdx: 7, points: 40, peak: 'Alley I' }, av: { i: 'h:pixel', f: 'frame.store.moonlit', t: 'title.store.moonlit' }, cc: 'LT' })!;
+    expect(c).toMatchObject({ matches: 31, none: false, cc: 'LT', ranked: { tierIdx: 7, points: 40 } });
+    expect(parsePlayerCard({ matches: -3, ranked: { placementsLeft: 5, placementsOf: 5, none: true }, cc: 'lt<' })).toMatchObject({ matches: 0, none: true, cc: null });
+  });
+
+  it('collection: one source of truth (entitlements plus what the server says is worn)', () => {
+    const own = ownedSet(['coat.sage.store_silver_tabby', 'frame.store.goldpaw'], { title: 'title.founder', frame: null });
+    const c = collectionOf(own);
+    expect(c.coats.filter((e) => e.owned).map((e) => e.id)).toEqual(['coat.sage.store_silver_tabby']);
+    expect(c.coats.length).toBeGreaterThan(20);
+    expect(c.coats[0].owned).toBe(true);
+    expect(c.frames.filter((e) => e.owned).map((e) => e.id)).toEqual(['frame.store.goldpaw']);
+    // a worn title the catalogue does not list (Founder) still counts as owned
+    expect(c.titles.filter((e) => e.owned).map((e) => e.id)).toEqual(['title.founder']);
+    expect(c.titles.find((e) => e.id === 'title.founder')!.name).toBe('Founder');
   });
 
   it('stats: the server answer checked, counted from rows, by role, and the recent form', () => {
@@ -92,7 +132,10 @@ describe('profile model', () => {
 
   it('rows: server and device rows checked; collection and borders', () => {
     expect(rowOf({ hero: 'sage' })).toBeNull();
-    expect(rowOf({ id: 'a', at: 5, hero: 'sage', outcome: 'won', k: 1, d: 2, a: 3, mode: 'pvp', grade: '<b>', mvp: 'mvp' })).toMatchObject({ grade: null, mvp: 'mvp', mode: 'pvp' });
+    expect(rowOf({ id: 'a', at: 5, hero: 'sage', outcome: 'won', k: 1, d: 2, a: 3, mode: 'pvp', grade: '<b>', mvp: 'mvp', map: 'hearthwood', seconds: 754 })).toMatchObject({ grade: null, mvp: 'mvp', mode: 'pvp', map: 'hearthwood', seconds: 754 });
+    expect(rowOf({ hero: 'sage', outcome: 'won', map: '<x>', seconds: -4 })).toMatchObject({ map: null, seconds: 0 });
+    expect(duration(754)).toBe('12:34');
+    expect(duration(0)).toBe('');
     expect(collectionCounts(['coat.a', 'coat.b', 'frame.store.goldpaw', 'title.founder', 'coat.a'])).toEqual({ coats: 2, frames: 1, titles: 1 });
     expect(wearableFrames(['frame.store.goldpaw', 'frame.bad', 'frame.legend'])).toEqual(['none', 'frame.store.goldpaw', 'frame.legend']);
     expect(tabsFor(true)).toContain('account');
@@ -122,20 +165,20 @@ describe('name rules', () => {
   });
 });
 
-function open(o: { data?: Partial<ProfileData>; friend?: ProfileScreenOpts['friend']; set?: ApiResult; get?: NameInfo; hist?: ApiResult; fail?: boolean; noApi?: boolean; tab?: ProfileScreenOpts['tab'] } = {}) {
+function open(o: { data?: Partial<ProfileData>; friend?: ProfileScreenOpts['friend']; set?: ApiResult; get?: NameInfo; hist?: ApiResult; fail?: boolean | string[]; noApi?: boolean; tab?: ProfileScreenOpts['tab']; items?: string[]; player?: unknown } = {}) {
   const calls: { op: string; args: unknown }[] = [];
   let cur = o.get ?? info();
-  let failing = !!o.fail;
+  let failing: boolean | string[] = o.fail ?? false;
   const api = vi.fn(async (op: string, args?: Record<string, unknown>): Promise<ApiResult> => {
     calls.push({ op, args });
-    if (failing) return res(0);
+    if (failing === true || (Array.isArray(failing) && failing.includes(op))) return res(0);
     if (op === 'name.get') return res(200, cur);
-    if (op === 'social.get') return res(200, { me: { code: 'PL-7KQ2-M9XR', name: cur.name, av: { i: 'h:sage' }, title: null } });
+    if (op === 'social.get') return res(200, { me: { code: 'PL-7KQ2-M9XR', name: cur.name, av: { i: 'h:sage' }, title: 'title.founder', frame: null } });
     if (op === 'ranked.me') return res(200, { ranked: { placementsLeft: 0, placementsOf: 5, tierIdx: 4, points: 42 } });
     if (op === 'history.list')
       return (
         o.hist ??
-        res(200, { owner: { name: o.friend ? 'Mira Real' : cur.name, self: !o.friend }, rows: [{ id: 'a', at: NOW - 60_000, mode: 'ranked', hero: 'lambo', outcome: 'won', k: 7, d: 2, a: 9, grade: 'S', mvp: 'mvp' }], next: null, stats: { name: 'Season 1', matches: 24, wins: 14, winRate: 58, kda: 3.4, mvp: 5, favourites: [{ hero: 'lambo', matches: 10, wins: 7, winRate: 70 }] } })
+        res(200, { owner: { name: o.friend ? 'Mira Real' : cur.name, self: !o.friend }, rows: [{ id: 'a', at: NOW - 60_000, mode: 'ranked', map: 'hearthwood', seconds: 754, hero: 'lambo', outcome: 'won', k: 7, d: 2, a: 9, grade: 'S', mvp: 'mvp' }], next: null, stats: { name: 'Season 1', matches: 24, wins: 14, winRate: 58, kda: 3.4, mvp: 5, favourites: [{ hero: 'lambo', matches: 10, wins: 7, winRate: 70 }] }, ...(o.friend && o.player !== undefined ? { player: o.player } : {}) })
       );
     if (op === 'name.set') {
       if (o.set) return o.set;
@@ -160,6 +203,9 @@ function open(o: { data?: Partial<ProfileData>; friend?: ProfileScreenOpts['frie
     signIn,
     openHistory,
     openSettings: vi.fn(),
+    ...(o.items ? { items: () => o.items! } : {}),
+    message: vi.fn(),
+    invite: vi.fn(),
     onName,
     suggest: () => 'Zyg',
     now: () => NOW,
@@ -189,7 +235,9 @@ describe('profile screen', () => {
     expect(q('.pfx-top').textContent).toContain('M5');
     expect(q('.pfx-season').textContent).toContain('58%');
     expect(q('.pfx-recent').textContent).toContain('Victory');
-    expect(q('.pfx-banner').innerHTML).toContain('lambo-');
+    // the favourite champion's splash stands behind the whole screen
+    expect(q('.pfx-backdrop').innerHTML).toContain('lambo-');
+    expect(q('.pfx-recent').textContent).toContain('Lambo');
     // the tabs
     q('[data-testid="profile-tab-champions"]').click();
     expect(q('.pfx-cgrid').children.length).toBeGreaterThan(10);
@@ -253,15 +301,64 @@ describe('profile screen', () => {
     expect(q('[data-testid="profile-note"]').textContent).toBe('Avatar saved');
   });
 
-  it('failed loads show Try again, which loads again', async () => {
-    const t = open({ fail: true });
+  it("failed loads: each card says it couldn't load (never an empty state), the name is never 'Guest', Try again reloads", async () => {
+    const t = open({ fail: true, data: { name: '' } });
     await flush();
-    expect(q('[data-testid="profile-retry"]')).not.toBeNull();
+    expect(q('[data-testid="profile-name"]').textContent).toBe('Your profile');
+    expect(q('.pfx-rank').textContent).toMatch(/Couldn't load your rank/);
+    expect(q('.pfx-rank').textContent).not.toMatch(/Unranked|Play Ranked/);
+    expect(q('.pfx-recent').textContent).toMatch(/Couldn't load matches/);
+    expect(q('.pfx-recent').textContent).not.toMatch(/No matches yet/);
+    expect(q('.pfx-top').textContent).not.toMatch(/Play matches to earn/);
+    expect(q('.pfx-season').textContent).toMatch(/Couldn't load/);
     t.unfail();
-    q('[data-testid="profile-retry"]').click();
+    q('[data-testid="profile-failed"] [data-a="retry"]').click();
     await flush();
-    expect(q('[data-testid="profile-retry"]')).toBeNull();
+    expect(document.querySelectorAll('[data-testid="profile-failed"]')).toHaveLength(0);
     expect(q('[data-testid="profile-rank"]').textContent).toBe('Tabby II');
+    expect(q('[data-testid="profile-name"]').textContent).toBe('Witty Biscuit');
+  });
+
+  it('one failed source keeps the others: ranked down, the rest shown; a retry asks only for what failed', async () => {
+    const t = open({ fail: ['ranked.me'] });
+    await flush();
+    expect(q('.pfx-rank').textContent).toMatch(/Couldn't load/);
+    expect(q('.pfx-recent').textContent).toContain('Victory');
+    t.unfail();
+    const before = t.calls.length;
+    q('.pfx-rank [data-a="retry"]').click();
+    await flush();
+    expect(t.calls.slice(before).map((c) => c.op)).toEqual(['ranked.me']);
+  });
+
+  it('Collection and Overview agree: the worn Founder title is owned, and the counts match the items', async () => {
+    open({ items: ['coat.sage.store_silver_tabby', 'frame.store.goldpaw', 'title.store.goldpaw'], tab: 'collection' });
+    await flush();
+    expect(q('[data-testid="profile-count-titles"]').textContent).toMatch(/^2 \//);
+    expect(q('[data-testid="profile-count-coats"]').textContent).toMatch(/^1 \//);
+    expect(q('[data-testid="profile-count-frames"]').textContent).toMatch(/^1 \//);
+    expect(q('[data-a="wear"][data-id="title.founder"]').getAttribute('aria-pressed')).toBe('true');
+    expect(q('.pfx-coat.own')).not.toBeNull();
+    expect(q('.pfx-coat:not(.own) .pfx-lock')).not.toBeNull();
+  });
+
+  it('tabs follow the ARIA pattern: one Tab stop, arrows, Home and End', async () => {
+    open();
+    await flush();
+    const tabs = [...document.querySelectorAll<HTMLElement>('.cst-tab')];
+    expect(tabs.filter((b) => b.tabIndex === 0)).toHaveLength(1);
+    tabs[0].focus();
+    tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(q('[data-testid="profile-screen"]').dataset.tab).toBe('matches');
+    expect((document.activeElement as HTMLElement).dataset.tab).toBe('matches');
+    (document.activeElement as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect(q('[data-testid="profile-screen"]').dataset.tab).toBe('account');
+    (document.activeElement as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(q('[data-testid="profile-screen"]').dataset.tab).toBe('overview');
+    (document.activeElement as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(q('[data-testid="profile-screen"]').dataset.tab).toBe('account');
+    (document.activeElement as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    expect(q('[data-testid="profile-screen"]').dataset.tab).toBe('overview');
   });
 
   it("another player's profile: read-only, their history by code, Matches tab, the full history link", async () => {
@@ -274,6 +371,37 @@ describe('profile screen', () => {
     expect(q('[data-testid="profile-edit"]')).toBeNull();
     q('[data-testid="profile-full-history"]').click();
     expect(t.openHistory).toHaveBeenCalledWith({ code: 'PL-AAAA-BBBB', name: 'Mira Real' });
+  });
+
+  it("another player's card: their rank, level, flag, title and border; Message and Invite for a friend", async () => {
+    open({
+      friend: { code: 'PL-AAAA-BBBB', name: 'Mira', friend: true },
+      player: { matches: 31, ranked: { placementsLeft: 0, placementsOf: 5, tierIdx: 7, points: 40, peak: 'Alley I' }, av: { i: 'h:pixel', f: 'frame.store.moonlit', t: 'title.store.moonlit' }, cc: 'LT' },
+    });
+    await flush();
+    expect(q('[data-testid="profile-rank"]').textContent).toBe('Alley II');
+    expect(q('[data-testid="profile-peak"]').textContent).toBe('Best: Alley I');
+    expect(q('[data-testid="profile-level"]').textContent).toMatch(/^Lv \d+/);
+    expect(q('[data-testid="profile-flag-shown"]')).not.toBeNull();
+    expect(q('[data-testid="profile-title"]').textContent).toBe('Moonlit');
+    expect(q('[data-testid="profile-message"]')).not.toBeNull();
+    expect(q('[data-testid="profile-invite"]')).not.toBeNull();
+    // never ranked: Unranked without advice aimed at the viewer
+    document.body.innerHTML = '';
+    open({ friend: { code: 'PL-AAAA-BBBB', name: 'Mira' }, player: { matches: 3, ranked: { placementsLeft: 5, placementsOf: 5, none: true } } });
+    await flush();
+    expect(q('.pfx-rank').textContent).toContain('No ranked games this season.');
+    expect(q('.pfx-rank').textContent).not.toMatch(/Play Ranked/);
+    expect(q('[data-testid="profile-message"]')).toBeNull();
+    // an older backend sends no card: the rank card hides rather than guessing
+    document.body.innerHTML = '';
+    open({ friend: { code: 'PL-AAAA-BBBB', name: 'Mira' } });
+    await flush();
+    expect(q('.pfx-rank')).toBeNull();
+    // mastery unknown for another player: no "Score 0" chips; played counts read whole
+    q('[data-testid="profile-tab-champions"]').click();
+    expect(q('.pfx-pane').textContent).not.toMatch(/Mastery score|M7/);
+    expect(q('.pfx-played').textContent).toBe('10 played · 70% won');
   });
 
   it("a private history says so", async () => {

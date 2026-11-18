@@ -144,6 +144,12 @@ function people(over: { friends?: string[][]; blocks?: string[][] } = {}): Histo
         friends: async (a, b) => pair(a, b, over.friends),
         blockedEither: async (a, b) => pair(a, b, over.blocks),
         names: async ids => new Map(ids.map(id => [id, `Name of ${id.replace('acc-', '')}`])),
+        codes: async ids =>
+            new Map(
+                Object.entries(CODES)
+                    .filter(([, id]) => ids.includes(id))
+                    .map(([code, id]) => [id, code])
+            ),
     };
 }
 
@@ -344,6 +350,10 @@ describe('match history: the store and the reads', () => {
         expect(m.players[0]).toMatchObject({ name: 'Name of a', bot: false, owner: true, damage: 6000, cs: 30 });
         expect(m.players[1]).toMatchObject({ name: 'Name of b', bot: false, owner: false });
         expect(m.players[2]).toMatchObject({ name: null, bot: true });
+        // humans carry their player code (the profile's "View profile"); bots never do
+        expect(m.players[0].code).toBe('ABCD2345');
+        expect(m.players[1].code).toBe('BCDE3456');
+        expect(m.players[2].code).toBeUndefined();
         expect(m).toMatchObject({ mvpSlot: 0, svpSlot: 3, winner: 0, slot: 0 });
         expect(JSON.stringify(m)).not.toContain('acc-');
         expect(m.key).toBeUndefined();

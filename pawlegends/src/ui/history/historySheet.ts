@@ -50,6 +50,8 @@ export interface ServerPlayer {
   team: 0 | 1;
   hero: string;
   name: string | null;
+  /** A human's player code (opens their profile); absent for bots and older servers. */
+  code?: string;
   bot: boolean;
   owner: boolean;
   level: number;
@@ -120,6 +122,8 @@ export interface HistoryOpts {
   /** A registered account is signed in. */
   signedIn?: boolean;
   onWatch(id: string): void;
+  /** A player's name in a match's detail opens their profile (read-only). */
+  onProfile?(player: { code: string; name: string }): void;
   onClose(): void;
   track?(event: string, props?: Record<string, string | number | boolean>): void;
 }
@@ -316,7 +320,7 @@ function teamHtml(m: ServerMatch, team: 0 | 1): string {
     .map((p) => {
       const mvp = m.mvpSlot === p.slot ? 'mvp' : m.svpSlot === p.slot ? 'svp' : null;
       return `<tr class="${p.owner ? 'me' : ''}" data-slot="${p.slot}">
-        <td class="mh-pl">${face(p.hero, 30, 'mh-pface')}<span class="mh-pn"><b>${esc(playerName(p))}</b><small>${p.bot ? '<i class="mh-bot">Bot</i>' : esc(heroTitle(p.hero))}${p.owner ? ' · <i class="mh-you">You</i>' : ''}</small></span>${badge(mvp)}</td>
+        <td class="mh-pl">${face(p.hero, 30, 'mh-pface')}<span class="mh-pn">${!p.bot && !p.owner && typeof p.code === 'string' && /^[A-Z0-9-]{4,20}$/.test(p.code) ? `<button type="button" class="mh-pbtn" data-profile="${esc(p.code)}" data-pname="${esc(playerName(p))}" aria-label="${esc(`${playerName(p)}: view profile`)}">${esc(playerName(p))}</button>` : `<b>${esc(playerName(p))}</b>`}<small>${p.bot ? '<i class="mh-bot">Bot</i>' : esc(heroTitle(p.hero))}${p.owner ? ' · <i class="mh-you">You</i>' : ''}</small></span>${badge(mvp)}</td>
         <td class="mh-num">${p.level}</td>
         <td class="mh-num mh-k">${p.k}/${p.d}/${p.a}</td>
         <td class="mh-num">${p.cs}</td>
@@ -544,6 +548,14 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
   document.addEventListener('keydown', onKey, true);
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
+    const prof = t.closest<HTMLElement>('[data-profile]');
+    if (prof && o.onProfile) {
+      const code = prof.dataset.profile ?? '';
+      const name = prof.dataset.pname ?? '';
+      close();
+      o.onProfile({ code, name });
+      return;
+    }
     const watch = t.closest<HTMLElement>('[data-watch]')?.dataset.watch;
     if (watch) {
       close();

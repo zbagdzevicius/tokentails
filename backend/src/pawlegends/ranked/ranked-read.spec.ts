@@ -159,4 +159,19 @@ describe('board reads (SOCIAL-RANKED.md §6.3)', () => {
         });
         expect(await svc.me('G', true)).toMatchObject({ eligible: false, why: 'sign_in' });
     });
+
+    it("publicCard: another player's rank, peak and level matches; nothing private; unranked reads as none", async () => {
+        const { svc } = harness();
+        const a = await svc.publicCard('A');
+        expect(a).toMatchObject({
+            matches: 12,
+            ranked: { placementsLeft: 0, tierIdx: 7, label: 'Alley II', points: 40, peak: expect.any(String) },
+            av: { i: expect.stringMatching(/^h:/) },
+        });
+        expect(a.ranked.none).toBeUndefined();
+        expect(JSON.stringify(a)).not.toMatch(/lock|pendingRooms|shield|pendingRewards|eligible/);
+        const n = await svc.publicCard('N');
+        expect(n).toMatchObject({ matches: 0, ranked: { none: true, placementsLeft: expect.any(Number) } });
+        expect(n.ranked.tierIdx).toBeUndefined();
+    });
 });

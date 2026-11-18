@@ -393,6 +393,8 @@ export interface HistoryPlayerView {
     hero: string;
     /** The human's display name; null for a bot. */
     name: string | null;
+    /** The human's player code (opens their profile); absent for a bot or an unknown account. */
+    code?: string;
     bot: boolean;
     /** The history's owner. */
     owner: boolean;
@@ -441,7 +443,12 @@ export function rowView(r: HistoryRowDoc, self: boolean): HistoryRowView {
     };
 }
 
-export function matchView(r: HistoryRowDoc, self: boolean, names: ReadonlyMap<string, string>): HistoryMatchView {
+export function matchView(
+    r: HistoryRowDoc,
+    self: boolean,
+    names: ReadonlyMap<string, string>,
+    codes: ReadonlyMap<string, string> = new Map()
+): HistoryMatchView {
     return {
         ...rowView(r, self),
         slot: r.slot,
@@ -454,6 +461,7 @@ export function matchView(r: HistoryRowDoc, self: boolean, names: ReadonlyMap<st
             team: p.t,
             hero: p.h,
             name: p.u ? names.get(p.u) ?? null : null,
+            ...(p.u && codes.get(p.u) ? { code: codes.get(p.u) } : {}),
             bot: !p.u,
             owner: p.s === r.slot,
             level: n0(p.lv),

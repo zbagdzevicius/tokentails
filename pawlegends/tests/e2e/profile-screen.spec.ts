@@ -33,11 +33,31 @@ const NEW = { v: 1, sessions: 1, matches: 0, wins: 0, firstWinDone: false, hero:
 const MASTERY = { sage: { m: 40, w: 26 }, lambo: { m: 22, w: 14 }, duchess: { m: 9, w: 5 }, clem: { m: 4, w: 1 } };
 const SEASON = { id: 's1', xp: 2400, tier: 12, premium: 'none', skips: 0, claimed: [], endsAt: '2027-01-05T00:00:00.000Z' };
 
-type Kind = 'guest' | 'new' | 'vet' | 'other';
+// vet: realistic store item ids (the bridge drops unknown ones); the Founder title is worn (social.get), so owned too
+const VET_ITEMS = ['frame.store.goldpaw', 'title.store.goldpaw', 'coat.sage.store_silver_tabby', 'coat.pixel.store_moonwhisker'];
+const seat = (slot: number, team: 0 | 1, hero: string, extra: Record<string, unknown> = {}) => ({
+  slot, team, hero, name: null, bot: true, owner: false, level: 9, k: 3, d: 3, a: 4, damage: 8_200 + slot * 900, taken: 9_000 - slot * 500, tower: 1200, heal: 0, fish: 6_400, toys: 3, cs: 42, grade: 'A', ...extra,
+});
+const MATCH = {
+  ...rows[0], slot: 0, winner: 0, mvpSlot: 0, svpSlot: 4, reason: 'core',
+  players: [
+    seat(0, 0, 'sage', { name: 'Witty Biscuit', bot: false, owner: true, level: 12, k: 7, d: 2, a: 9, grade: 'S' }),
+    seat(1, 0, 'pixel', { name: 'Rex', bot: false, code: 'PL-BBBB-CCCC' }),
+    seat(2, 0, 'lambo'),
+    seat(3, 1, 'meatball'),
+    seat(4, 1, 'brutus', { grade: 'S' }),
+    seat(5, 1, 'chili'),
+  ],
+};
+const PLAYER = { matches: 31, ranked: { placementsLeft: 0, placementsOf: 5, tierIdx: 7, tier: 'alley', label: 'Alley II · 40 / 100', points: 40, peak: 'Alley I' }, av: { i: 'h:pixel', f: 'frame.store.moonlit', t: 'title.store.moonlit' }, cc: 'LT' };
+
+type Kind = 'guest' | 'new' | 'vet' | 'other' | 'fail';
 function api(kind: Kind) {
   const name = kind === 'new' ? 'Quiet Pebble' : 'Witty Biscuit';
   return async (op: string, args: Record<string, unknown>): Promise<{ status: number; body?: unknown }> => {
     if (kind === 'guest') return { status: 0 };
+    // signed in, every profile source down (social.get too): each card says it couldn't load
+    if (kind === 'fail') return op === 'social.pulse' || op === 'social.inbox' ? { status: 204 } : { status: 503 };
     const vet = kind !== 'new';
     switch (op) {
       case 'name.get':
@@ -60,13 +80,15 @@ function api(kind: Kind) {
       case 'ranked.me':
         return { status: 200, body: vet ? { ranked: { placementsLeft: 0, placementsOf: 5, tierIdx: 4, points: 42, peak: 'Alley III' } } : { ranked: { placementsLeft: 5, placementsOf: 5 } } };
       case 'history.list':
-        if (args.code) return { status: 200, body: { owner: { name: 'Mira', self: false }, rows: rows.slice(0, 3).map((r) => ({ ...r, hero: r.hero === 'sage' ? 'pixel' : r.hero })), next: null, stats: { season: 's1', name: 'Season 1', matches: 31, wins: 19, winRate: 61, kda: 4.1, mvp: 8, favourites: [{ hero: 'pixel', matches: 15, wins: 10, winRate: 67 }, { hero: 'duchess', matches: 9, wins: 5, winRate: 56 }] } } };
+        if (args.code) return { status: 200, body: { owner: { name: args.code === 'PL-BBBB-CCCC' ? 'Rex' : 'Mira', self: false }, player: PLAYER, rows: rows.slice(0, 3).map((r) => ({ ...r, hero: r.hero === 'sage' ? 'pixel' : r.hero })), next: null, stats: { season: 's1', name: 'Season 1', matches: 31, wins: 19, winRate: 61, kda: 4.1, mvp: 8, favourites: [{ hero: 'pixel', matches: 15, wins: 10, winRate: 67 }, { hero: 'duchess', matches: 9, wins: 5, winRate: 56 }] } } };
         return {
           status: 200,
           body: vet
             ? { owner: { name, self: true }, rows, next: null, stats: { season: 's1', name: 'Season 1', matches: 24, wins: 14, winRate: 58, kda: 3.4, mvp: 5, favourites: [{ hero: 'sage', matches: 12, wins: 8, winRate: 67 }, { hero: 'lambo', matches: 7, wins: 5, winRate: 71 }, { hero: 'clem', matches: 5, wins: 1, winRate: 20 }] } }
             : { owner: { name, self: true }, rows: [], next: null, stats: { season: 's1', name: 'Season 1', matches: 0, wins: 0, winRate: null, kda: 0, mvp: 0, favourites: [] } },
         };
+      case 'history.match':
+        return { status: 200, body: MATCH };
       case 'flag.get':
         return { status: 200, body: { cc: 'LT', hidden: false } };
       default:
@@ -117,7 +139,7 @@ async function audit(game: Frame): Promise<string[]> {
     const ob = on ? vis(on) : null;
     if (!ob || ob.left < -1 || ob.right > W + 1) out.push(`open tab not in view: ${ob ? `${ob.left}..${ob.right}` : 'none'}`);
     // cards, the banner and the tiles never overlap each other
-    const boxes = [...scr.querySelectorAll('.pfx-card, .pfx-banner, .pfx-ccard, .pfx-ctile, .pfx-mrowi')].map((e) => ({ e, b: vis(e) })).filter((x) => x.b) as { e: Element; b: DOMRect }[];
+    const boxes = [...scr.querySelectorAll('.pfx-card, .pfx-who, .pfx-ccard, .pfx-ctile, .pfx-mrowi, .pfx-item')].map((e) => ({ e, b: vis(e) })).filter((x) => x.b) as { e: Element; b: DOMRect }[];
     for (let i = 0; i < boxes.length; i++)
       for (let j = i + 1; j < boxes.length; j++) {
         const a = boxes[i].b;
@@ -128,7 +150,7 @@ async function audit(game: Frame): Promise<string[]> {
         if (ix > 1 && iy > 1) out.push(`overlap: ${boxes[i].e.className} / ${boxes[j].e.className}`);
       }
     // nothing sticks out of the screen sideways
-    for (const el of scr.querySelectorAll('.pfx-card, .pfx-banner, .cst-back, .cst-wallet, .pfx-ctile')) {
+    for (const el of scr.querySelectorAll('.pfx-card, .pfx-who, .cst-back, .cst-wallet, .pfx-ctile, .pfx-item')) {
       const b = vis(el);
       if (b && (b.left < -1 || b.right > W + 1)) out.push(`off screen: ${el.className} ${b.left}..${b.right}`);
     }
@@ -148,7 +170,7 @@ async function audit(game: Frame): Promise<string[]> {
       const b = vis(el.matches('input') ? el.closest('label') ?? el : el);
       if (!b) continue;
       if (b.height < 43.5 && b.width < 43.5) out.push(`small target ${el.className || el.tagName} ${Math.round(b.width)}x${Math.round(b.height)}`);
-      else if (Math.min(b.height, b.width) < 43.5 && !el.matches('.pfx-mtile, .pfx-mrowi, .pfx-ctile')) out.push(`thin target ${el.className || el.tagName} ${Math.round(b.width)}x${Math.round(b.height)}`);
+      else if (Math.min(b.height, b.width) < 43.5 && !el.matches('.pfx-mtile, .pfx-mrowi, .pfx-ctile, .pfx-item')) out.push(`thin target ${el.className || el.tagName} ${Math.round(b.width)}x${Math.round(b.height)}`);
     }
     return out;
   });
@@ -160,8 +182,8 @@ async function shot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: `${OUT}/${name}.png` });
 }
 
-for (const kind of ['guest', 'new', 'vet', 'other'] as Kind[])
-  for (const [vp, w, h, notch] of SIZES)
+for (const kind of ['guest', 'new', 'vet', 'other', 'fail'] as Kind[])
+  for (const [vp, w, h, notch] of kind === 'fail' ? SIZES.filter((x) => x[0] === '1440x900' || x[0] === '844x390') : SIZES)
     test(`profile screen: ${kind} at ${vp}`, async ({ browser, baseURL }) => {
       test.setTimeout(limit(150_000));
       // 390x844: a narrow desktop or tablet window (a phone held upright shows the turn-sideways gate)
@@ -183,7 +205,7 @@ for (const kind of ['guest', 'new', 'vet', 'other'] as Kind[])
           liveApi: true,
           profile: kind === 'new' || kind === 'guest' ? NEW : VET,
           champState: { ...ALL_CHAMPS, yarn: { balance: 922, matches: 20, picksLeft: 0, nextPickAt: null } },
-          store: { items: kind === 'vet' ? ['title.founder', 'frame.store.goldpaw', 'coat.sage.moon'] : [], season: kind === 'vet' ? SEASON : null },
+          store: { items: kind === 'vet' ? VET_ITEMS : [], season: kind === 'vet' ? SEASON : null },
         } as never);
         const game = await openHost(page);
         if (notch) await notchIt(game);
@@ -213,9 +235,41 @@ for (const kind of ['guest', 'new', 'vet', 'other'] as Kind[])
           problems.push(...(await audit(game)).map((p) => `${t}: ${p}`));
           await shot(page, `${tag}-${t}`);
         }
-        if (kind === 'vet') {
+        if (kind === 'fail') {
           await screen.locator('[data-testid="profile-tab-overview"]').click();
+          // failures never read as an empty state, and a signed-in player is never "Guest"
+          await expect(screen.locator('[data-testid="profile-name"]')).not.toHaveText('Guest');
+          await expect(screen.locator('.pfx-rank')).toContainText("Couldn't load");
+          await expect(screen.locator('.pfx-rank')).not.toContainText('Unranked');
+          await expect(screen.locator('.pfx-recent')).not.toContainText('No matches yet');
+          await expect(screen.locator('[data-testid="profile-failed"]').first()).toBeVisible();
+          await shot(page, `${tag}-failed`);
+        }
+        if (kind === 'other') {
+          await screen.locator('[data-testid="profile-tab-overview"]').click();
+          await expect(screen.locator('[data-testid="profile-rank"]')).toHaveText('Alley II');
+          await expect(screen.locator('[data-testid="profile-peak"]')).toHaveText('Best: Alley I');
+          await expect(screen.locator('[data-testid="profile-level"]')).toBeVisible();
+          await expect(screen.locator('[data-testid="profile-flag-shown"]')).toBeVisible();
+          await expect(screen.locator('[data-testid="profile-title"]')).toHaveText('Moonlit');
+          await expect(screen.locator('[data-testid="profile-message"]')).toBeVisible();
+        }
+        if (kind === 'vet') {
+          // Collection agrees with Overview: the counts are the owned items (Founder is worn, so owned)
+          await screen.locator('[data-testid="profile-tab-collection"]').click();
+          await expect(screen.locator('[data-testid="profile-count-titles"] b')).toHaveText(/^2 \//);
+          await expect(screen.locator('[data-testid="profile-count-coats"] b')).toHaveText(/^2 \//);
+          await expect(screen.locator('[data-testid="profile-count-frames"] b')).toHaveText(/^1 \//);
+          await expect(screen.locator('[data-a="wear"][data-id="title.founder"]')).toHaveAttribute('aria-pressed', 'true');
+          // keyboard: one Tab stop in the tab bar; arrows move between tabs
+          await screen.locator('[data-testid="profile-tab-collection"]').focus();
+          await page.keyboard.press('ArrowRight');
+          await expect(screen).toHaveAttribute('data-tab', 'account');
+          await page.keyboard.press('Home');
+          await expect(screen).toHaveAttribute('data-tab', 'overview');
+          await expect(screen.locator('.cst-tab[tabindex="0"]')).toHaveCount(1);
           await expect(screen.locator('[data-testid="profile-rank"]')).toHaveText('Tabby II');
+          await expect(screen.locator('[data-testid="profile-peak"]')).toHaveText('Best: Alley III');
           await screen.locator('[data-testid="profile-edit"]').click();
           await expect(screen.locator('[data-testid="profile-editor"]')).toBeVisible();
           await shot(page, `${tag}-edit`);
@@ -258,3 +312,44 @@ for (const kind of ['guest', 'new', 'vet', 'other'] as Kind[])
         await context.close();
       }
     });
+
+// a player in a match's detail opens their profile (the same screen, read-only)
+for (const [vp, w, h] of [SIZES[0], SIZES[2]])
+  test(`profile screen: a player from match history at ${vp}`, async ({ browser, baseURL }) => {
+    test.setTimeout(limit(150_000));
+    const phone = w < 1000 && h < w;
+    const context = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: phone, isMobile: phone });
+    try {
+      await context.exposeFunction('plApi', api('vet'));
+      const page = await context.newPage();
+      await mockHost(context, baseURL!, {
+        app: { isApp: false, store: true },
+        signedIn: true,
+        liveApi: true,
+        profile: VET,
+        champState: { ...ALL_CHAMPS, yarn: { balance: 922, matches: 20, picksLeft: 0, nextPickAt: null } },
+        store: { items: VET_ITEMS, season: SEASON },
+      } as never);
+      const game = await openHost(page);
+      await game.locator('[data-testid="home-profile"]').first().click({ timeout: limit(60_000) });
+      const screen = game.locator('[data-testid="profile-screen"]');
+      await screen.locator('[data-testid="open-history"]').click();
+      const hist = game.locator('[data-testid="match-history"]');
+      await expect(hist).toBeVisible();
+      await hist.locator('.mh-row').first().click();
+      await hist.locator('.mh-pbtn[data-profile="PL-BBBB-CCCC"]').click();
+      await expect(screen).toHaveAttribute('data-self', '0');
+      await expect(screen.locator('[data-testid="profile-name"]')).toHaveText('Rex');
+      await expect(screen.locator('.pfx-skel')).toHaveCount(0, { timeout: limit(10_000) });
+      // not a friend: no Message or Invite, the match history is there
+      await expect(screen.locator('[data-testid="profile-message"]')).toHaveCount(0);
+      await expect(screen.locator('[data-testid="profile-history"]')).toBeVisible();
+      const problems = await audit(game);
+      expect(problems, problems.join('\n')).toEqual([]);
+      await shot(page, `from-history-${vp}`);
+      await page.keyboard.press('Escape');
+      await expect(screen).toHaveCount(0);
+    } finally {
+      await context.close();
+    }
+  });

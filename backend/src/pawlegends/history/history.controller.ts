@@ -4,6 +4,7 @@ import {
     ForbiddenException,
     Get,
     HttpCode,
+    Optional,
     Param,
     Post,
     Query,
@@ -16,13 +17,16 @@ import { AllowGuest } from 'src/common/decorators/allow-guest.decorator';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ClientIpThrottlerGuard } from 'src/shared/guards/client-ip-throttler.guard';
 import { accountIdOf } from '../pawlegends-account-id';
+import { RankedService } from '../ranked/ranked.service';
 import { HISTORY_ERRORS, MatchHistoryService } from './history.service';
 
 /*
  * Match history (docs/plans/moba/MATCH-HISTORY.md):
  * - `GET /pawlegends/history?mode&before` and `GET /pawlegends/history/match/:id`: the caller's own (guests too);
  * - `GET /pawlegends/history/u/:code?mode&before` and `GET /pawlegends/history/u/:code/match/:id`: another player's,
- *   by player code, for registered accounts (public since Nov 17: no privacy choice; a block reads as no player);
+ *   by player code, for registered accounts (public since Nov 17: no privacy choice; a block reads as no player); the
+ *   first page also carries `player` (RankedService.publicCard: rank crest, level matches, avatar, flag) for the
+ *   Profile screen's read-only view of another player;
  * - `POST /pawlegends/history/privacy {visibility}`: kept for older builds; accepted, ignored, answers `everyone`.
  * Read only (the rows are written by the `/live` save alone). Per-IP buckets on every route.
  */
@@ -39,7 +43,11 @@ const needSession = () =>
 @Controller('pawlegends/history')
 @SkipThrottle()
 export class PawlegendsHistoryController {
-    constructor(private readonly history: MatchHistoryService, private readonly ipThrottler: ClientIpThrottlerGuard) {}
+    constructor(
+        private readonly history: MatchHistoryService,
+        private readonly ipThrottler: ClientIpThrottlerGuard,
+        @Optional() private readonly ranked?: RankedService
+    ) {}
 
     private async who(name: string, limit: number, req: any, res: any): Promise<{ id: string; registered: boolean }> {
         await this.ipThrottler.consume(`PawlegendsHistory.${name}`, req, { limit, ttl: MINUTE }, res);
@@ -74,7 +82,16 @@ export class PawlegendsHistoryController {
     ) {
         const me = await this.who('list', 60, req, res);
         if (!me.registered) throw HISTORY_ERRORS.needAccount();
-        return this.history.list(me.id, { code, mode: q?.mode, before: q?.before }, true);
+        const page = await this.history.list(me.id, { code, mode: q?.mode, before: q?.before }, true);
+        const first = q?.before === undefined || q?.before === null || q?.before === '';
+        if (!first || !this.ranked) return page;
+        // the profile card never fails the history: without it the screen hides the rank
+        try {
+            const who = await this.history.ownerOf(me.id, code, true);
+            return { ...page, player: await this.ranked.publicCard(who.id) };
+        } catch {
+            return page;
+        }
     }
 
     @UseGuards(AppAuthGuard)

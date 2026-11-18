@@ -8,7 +8,8 @@ import { HEROES, HERO_IDS, type HeroId } from '../../data/heroes';
 import type { HeroRole } from '../../data/heroes/types';
 import { levelInfo, type LevelInfo } from '../../meta/accountLevel';
 import { MASTERY_MAX, masteryToNext, type MasteryMap } from '../../meta/mastery';
-import { LEGEND_IDX, RANKED_TIERS, rankedLabel, type RankedCard } from '../../meta/ranked';
+import { DIVISION_NUMERALS, LEGEND_IDX, RANKED_TIERS, parseRankedCard, rankedLabel, type RankedCard } from '../../meta/ranked';
+import type { CrestTier } from './crest';
 
 export type ProfileTab = 'overview' | 'matches' | 'champions' | 'stats' | 'collection' | 'account';
 export const PROFILE_TABS: readonly ProfileTab[] = Object.freeze(['overview', 'matches', 'champions', 'stats', 'collection', 'account'] as ProfileTab[]);
@@ -40,6 +41,10 @@ export interface ProfileRow {
   mode: string;
   grade: string | null;
   mvp: 'mvp' | 'svp' | null;
+  /** The map id (absent on older rows). */
+  map: string | null;
+  /** Match length in seconds (0: unknown). */
+  seconds: number;
 }
 
 /** The season numbers (`history.list` stats, or counted from the rows here). */
@@ -79,6 +84,46 @@ export interface ProfileData {
   rows: ProfileRow[];
   /** Good-teammate kudos received (CLUBS-KUDOS.md), when known. */
   kudos: number | null;
+  /**
+   * Another player's ranked answer said "never ranked this season" (`player.ranked.none`): the card reads Unranked
+   * without advice. Self: unused.
+   */
+  rankedNone?: boolean;
+  /** Another player: the server sent their public card (rank, level). Absent on older backends: the rank card hides. */
+  hasCard?: boolean;
+}
+
+/** Each source the screen loads, on its own: a failed one shows "Couldn't load" in its own card, never an empty state. */
+export type SourceState = 'idle' | 'loading' | 'ok' | 'failed';
+export interface Sources {
+  name: SourceState;
+  social: SourceState;
+  ranked: SourceState;
+  hist: SourceState;
+}
+export const SOURCES_IDLE: Readonly<Sources> = Object.freeze({ name: 'idle', social: 'idle', ranked: 'idle', hist: 'idle' });
+
+/**
+ * The name the banner shows. A guest is "Guest"; a signed-in player never is: their last known name, else a neutral
+ * "Your profile" while it loads or when it failed. Pure.
+ */
+export function shownName(d: Pick<ProfileData, 'self' | 'signedIn' | 'name'>): string {
+  const n = (d.name ?? '').trim();
+  if (!d.self) return n || 'Player';
+  if (!d.signedIn) return n || 'Guest';
+  return n && n !== 'Guest' ? n : 'Your profile';
+}
+
+/** Another player's public card (`history.list` → `player`), checked, or null. Pure. */
+export function parsePlayerCard(raw: unknown): { matches: number; ranked: RankedCard | null; none: boolean; av: unknown; cc: string | null } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const matches = typeof o.matches === 'number' && Number.isFinite(o.matches) && o.matches >= 0 ? Math.min(1e6, Math.floor(o.matches)) : 0;
+  const r = o.ranked && typeof o.ranked === 'object' ? (o.ranked as Record<string, unknown>) : null;
+  const ranked = r ? parseRankedCard({ ranked: r }) : null;
+  const av = o.av && typeof o.av === 'object' && typeof (o.av as { i?: unknown }).i === 'string' ? o.av : null;
+  const cc = typeof o.cc === 'string' && /^[A-Z]{2}$/.test(o.cc) ? o.cc : null;
+  return { matches, ranked, none: r?.none === true, av, cc };
 }
 
 export const emptyData = (self: boolean, name: string): ProfileData => ({
@@ -206,18 +251,51 @@ export function rowOf(raw: unknown, fallbackId = ''): ProfileRow | null {
     mode: typeof o.mode === 'string' ? o.mode : 'skirmish',
     grade: typeof o.grade === 'string' && /^[SABCD][+-]?$/.test(o.grade) ? o.grade : null,
     mvp: o.mvp === 'mvp' || o.mvp === 'svp' ? o.mvp : null,
+    map: typeof o.map === 'string' && /^[a-z0-9_-]{1,24}$/.test(o.map) ? o.map : null,
+    seconds: typeof o.seconds === 'number' && Number.isFinite(o.seconds) && o.seconds > 0 ? Math.min(36_000, Math.floor(o.seconds)) : 0,
   };
 }
 
-/** The ranked crest: tier id, label and a short line; a placement or unranked state otherwise. Pure. */
-export function rankView(r: RankedCard | null): { tier: string; label: string; line: string } {
-  if (!r) return { tier: 'none', label: 'Unranked', line: 'Play Ranked to get a rank.' };
+/** "12:34" (match length). Pure. */
+export const duration = (s: number): string => (s > 0 ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '');
+
+/** "Hearthwood" from a map id. Pure. */
+export const mapName = (id: string | null): string => (id ? id.replace(/[_-]+/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase()) : '');
+
+/** The ranked card as the Profile draws it: crest tier, label, a line, the points bar (0..1), division pips, peak. Pure. */
+export interface RankShown {
+  tier: CrestTier;
+  label: string;
+  line: string;
+  /** Points toward the next division, 0..1; null when there is no bar (unranked, placements, Legend). */
+  progress: number | null;
+  /** Division 1..3 (III = 1 pip); 0 for none. */
+  pips: number;
+  peak: string | null;
+  /** Placement matches done / of. */
+  placements: { done: number; of: number } | null;
+}
+
+export function rankView(r: RankedCard | null, self = true, none = false): RankShown {
+  if (!r || (none && (r.tierIdx === undefined || r.placementsLeft > 0)))
+    return { tier: 'none', label: 'Unranked', line: self ? 'Play Ranked to get a rank.' : 'No ranked games this season.', progress: null, pips: 0, peak: null, placements: null };
   if (r.tierIdx === undefined || r.placementsLeft > 0) {
-    const done = Math.max(0, r.placementsOf - r.placementsLeft);
-    return { tier: 'none', label: 'Placements', line: `${done} / ${r.placementsOf} placement matches played` };
+    const done = Math.max(0, Math.min(r.placementsOf, r.placementsOf - r.placementsLeft));
+    return { tier: 'placements', label: 'Placements', line: `${done} of ${r.placementsOf} placement matches played`, progress: r.placementsOf ? done / r.placementsOf : 0, pips: 0, peak: r.peak ?? null, placements: { done, of: r.placementsOf } };
   }
-  const t = r.tierIdx >= LEGEND_IDX ? RANKED_TIERS[4] : RANKED_TIERS[Math.max(0, Math.min(3, Math.floor(r.tierIdx / 3)))];
-  return { tier: t.id, label: rankedLabel(r.tierIdx), line: r.tierIdx >= LEGEND_IDX ? `${Math.max(0, r.points ?? 0)} pts` : `${Math.max(0, r.points ?? 0)} / 100 pts${r.peak ? ` · Best ${r.peak}` : ''}` };
+  const pts = Math.max(0, Math.floor(r.points ?? 0));
+  if (r.tierIdx >= LEGEND_IDX) return { tier: 'legend', label: 'Legend', line: `${pts} pts`, progress: null, pips: 0, peak: r.peak ?? null, placements: null };
+  const t = RANKED_TIERS[Math.max(0, Math.min(3, Math.floor(r.tierIdx / 3)))];
+  const div = Math.max(0, r.tierIdx) % 3;
+  return {
+    tier: t.id as CrestTier,
+    label: `${t.name} ${DIVISION_NUMERALS[div]}`,
+    line: `${Math.min(100, pts)} / 100 pts`,
+    progress: Math.max(0, Math.min(1, pts / 100)),
+    pips: div + 1,
+    peak: r.peak && r.peak !== rankedLabel(r.tierIdx) ? r.peak : null,
+    placements: null,
+  };
 }
 
 /** Per role: matches, wins and win rate from the favourites (heroes mapped to their role), most played first. Pure. */

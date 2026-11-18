@@ -71,6 +71,8 @@
 .mh-pl { display: flex; align-items: center; gap: 8px; min-width: 0; padding-left: 14px !important; }
 .mh-pn { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; flex: 1 1 auto; }
 .mh-pn b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.mh-pbtn { min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; text-align: left; font: 700 13px/1.2 var(--font); color: var(--v6-sky-top); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.mh-pbtn:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 1px; }
 .mh-pn small { font-size: 10px; color: var(--v6-muted); white-space: nowrap; }
 .mh-num { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mh-g { font: italic 900 14px/1 var(--v6-font-display, sans-serif); }

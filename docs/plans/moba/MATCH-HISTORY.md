@@ -55,6 +55,12 @@ Another player's history: public; a block answers "no player". `POST /pawlegends
 `key` (`finalHash:ticks`) so the device finds its kept replay; others' rows never do. Per-IP buckets: 60 a minute for
 reads, 20 for the choice.
 
+Profile screen (Nov 19): another player's first page (`GET /pawlegends/history/u/:code`, no `before`) also carries
+`player` (`RankedService.publicCard`): `matches` (the account level), `ranked` (placements, tier, decayed points,
+peak; `none: true` when never ranked this season), `av` (icon with its owned border `f` and title `t`) and `cc` (the
+shown flag). Nothing private (no locks, rooms, shield or rewards); a failure drops `player`, never the history. The match
+detail's human seats carry `code` (their player code) so a name opens that player's profile; bots never do.
+
 ## Follow-ups
 
 - A guest's rows stay on the guest account when it signs in to another account (the guest merge does not re-key them).

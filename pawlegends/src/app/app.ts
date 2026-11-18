@@ -1635,7 +1635,7 @@ export class App {
    * yours from the Home avatar chip, or another player's read-only from a friend's row. The one way in to the name,
    * avatar, border, title, flag, level, rank, mastery, stats, collection and account. Its own lazy chunk; one overlay.
    */
-  private openProfile(friend: { code: string; name: string; av?: unknown; cc?: string | null } | null = null, tab?: import('../ui/profile/model').ProfileTab): void {
+  private openProfile(friend: { code: string; name: string; av?: unknown; cc?: string | null; friend?: boolean } | null = null, tab?: import('../ui/profile/model').ProfileTab): void {
     if (this.overlay) {
       if (this.overlay.kind !== 'profile') return;
       this.overlay.close();
@@ -1653,7 +1653,8 @@ export class App {
         const season = s.season;
         const def = season ? currentSeason() : null;
         const self = !friend;
-        const data = emptyData(self, self ? (this.ownName() ?? 'Guest') : friend.name);
+        // a signed-in player is never "Guest": the screen shows their name once `name.get` answers
+        const data = emptyData(self, self ? (this.ownName() ?? (acc.signedIn ? '' : 'Guest')) : friend.name);
         if (self) {
           const owned = this.owned();
           Object.assign(data, {
@@ -1703,6 +1704,14 @@ export class App {
           signIn: () => this.integration.requestSignIn('save-progress'),
           openHistory: (f) => this.openHistory(f),
           openSettings: () => this.openSettings(),
+          // the entitlements can arrive after the screen opened: Collection reads them on every draw
+          items: () => this.ent.snapshot().items,
+          ...(this.bridge.active
+            ? {
+                message: (f: { code: string; name: string }) => this.openSocial(undefined, f.code),
+                invite: (f: { code: string; name: string }) => this.inviteAfterParty(f),
+              }
+            : {}),
           ...(s.storeOpen ? { openStore: (t?: StoreTab) => this.openStore('lobby', t) } : {}),
           ...(s.storeOpen ? { openPass: () => this.openPass() } : {}),
           ...(p.matches > 0 ? { openTrack: () => this.openCollection() } : {}),
@@ -1760,7 +1769,7 @@ export class App {
               this.paintSocialBadge();
             },
             // a friend's row opens their profile (read-only) on its Matches tab; the full history is one tap from there
-            history: (friend) => this.openProfile(friend, 'matches'),
+            history: (friend) => this.openProfile({ ...friend, friend: true }, 'matches'),
             // SOCIAL-INVITES.md: Invite with no party yet opens PLAY's Mode Select on With Friends, then sends it
             inviteFriend: (friend) => this.inviteAfterParty(friend),
             // the inviter is told when an invite runs out unanswered (accept and decline come through the inbox)
@@ -2804,6 +2813,11 @@ export class App {
           signedIn: accountState().signedIn,
           track: (ev, props) => this.analytics.track(ev as 'history_open', props),
           onWatch: (id) => this.openReplay(id),
+          // a player in a match's detail opens their profile (the same screen, read-only)
+          onProfile: (p) => {
+            if (this.overlay?.close === close) this.overlay = null;
+            this.openProfile(p);
+          },
           onClose: () => {
             if (this.overlay?.close === close) this.overlay = null;
           },

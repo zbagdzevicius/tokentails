@@ -73,6 +73,8 @@ export interface HistoryPeople {
     friends(a: string, b: string): Promise<boolean>;
     blockedEither(a: string, b: string): Promise<boolean>;
     names(ids: readonly string[]): Promise<Map<string, string>>;
+    /** Player codes by account id (the match detail's "View profile"); optional for older harnesses. */
+    codes?(ids: readonly string[]): Promise<Map<string, string>>;
 }
 
 export interface HistoryPageView {
@@ -125,6 +127,11 @@ export class MatchHistoryCore {
         return { id, self: false };
     }
 
+    /** The account id whose history `code` names, with the same checks as `list` (blocks read as no player). */
+    async ownerOf(viewer: string, code: unknown, registered: boolean): Promise<{ id: string; self: boolean }> {
+        return this.owner(viewer, code, registered);
+    }
+
     async list(
         viewer: string,
         q: { code?: unknown; mode?: unknown; before?: unknown },
@@ -158,7 +165,13 @@ export class MatchHistoryCore {
         const row = await this.store.get(who.id, q.id);
         if (!row) throw HISTORY_ERRORS.notFound();
         const ids = (row.players ?? []).map(p => p.u).filter((u): u is string => !!u);
-        return matchView(row, who.self, await this.people.names(ids));
+        const [names, codes] = await Promise.all([
+            this.people.names(ids),
+            this.people.codes
+                ? this.people.codes(ids).catch(() => new Map<string, string>())
+                : new Map<string, string>(),
+        ]);
+        return matchView(row, who.self, names, codes);
     }
 
     /**
@@ -266,6 +279,17 @@ export class MatchHistoryService extends MatchHistoryCore {
                 return (await blocks.countDocuments({ _id: { $in: [`${a}:${b}`, `${b}:${a}`] } })) > 0;
             },
             names: ids => displayNames({ social, cats: cats ?? null }, ids),
+            async codes(ids) {
+                const want = [...new Set(ids)].slice(0, 12);
+                if (!want.length) return new Map();
+                const rows = (await social
+                    .find({ _id: { $in: want } })
+                    .select({ code: 1 })
+                    .lean()) as Array<{ _id: unknown; code?: unknown }>;
+                return new Map(
+                    rows.filter(r => typeof r.code === 'string' && r.code).map(r => [String(r._id), r.code as string])
+                );
+            },
         });
     }
 }

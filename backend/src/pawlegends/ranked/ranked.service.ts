@@ -423,4 +423,66 @@ export class RankedService {
             },
         };
     }
+
+    /**
+     * Another player's public card for the Profile screen (founder, Nov 18: a League of Legends style profile): the
+     * ranked crest (tier, decayed points, placements, peak), the finished matches the account level counts, the avatar
+     * with its owned border and title, and the shown country flag. Nothing private: no locks, rooms, shield or rewards.
+     */
+    async publicCard(accountId: string): Promise<PublicPlayerCard> {
+        const now = this.now();
+        const [user, row, avs, ccs] = await Promise.all([
+            this.users.findById(accountId).select({ pawlegendsMatches: 1 }).lean(),
+            this.ratings.findById(`${accountId}:ranked`).lean() as Promise<RankedRow | null>,
+            this.avatars([accountId]),
+            visibleFlags(this.flagRows, [accountId]),
+        ]);
+        const current = row?.season === CURRENT_SEASON_ID;
+        const placementsLeft = current
+            ? row?.placementsLeft ?? PLACEMENTS.first
+            : row
+            ? PLACEMENTS.season
+            : PLACEMENTS.first;
+        const shown = row && current && placementsLeft === 0 ? this.shown(row, now) : null;
+        const played = current && row ? (row.peaks?.length ? PLACEMENTS.season : PLACEMENTS.first) - placementsLeft : 0;
+        const av = avs.get(accountId);
+        const cc = ccs.get(accountId);
+        return {
+            matches: playedOf(user?.pawlegendsMatches).matches,
+            ranked: {
+                placementsLeft,
+                placementsOf: row && row.peaks?.length ? PLACEMENTS.season : PLACEMENTS.first,
+                // never ranked this season and no placement played: the profile shows "Unranked" without advice
+                ...(!shown && played <= 0 ? { none: true } : {}),
+                ...(shown
+                    ? {
+                          tierIdx: shown.tierIdx,
+                          tier: tierIdOf(shown.tierIdx),
+                          label: tierLabel(shown.tierIdx, shown.points),
+                          points: shown.points,
+                          peak: tierLabel(row?.peakIdx ?? shown.tierIdx),
+                      }
+                    : {}),
+            },
+            ...(av ? { av } : {}),
+            ...(cc ? { cc } : {}),
+        };
+    }
+}
+
+/** `publicCard`'s answer (attached to another player's `GET /pawlegends/history/u/:code` first page as `player`). */
+export interface PublicPlayerCard {
+    matches: number;
+    ranked: {
+        placementsLeft: number;
+        placementsOf: number;
+        none?: true;
+        tierIdx?: number;
+        tier?: string;
+        label?: string;
+        points?: number;
+        peak?: string;
+    };
+    av?: AvatarView;
+    cc?: string;
 }
