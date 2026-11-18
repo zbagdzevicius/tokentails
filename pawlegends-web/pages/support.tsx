@@ -52,18 +52,18 @@ export default function PawlegendsSupportPage() {
 
           <Section title="How to play">
             <ul className="list-disc pl-5">
-              <li>Tap the big Play button to start a match against bots right away. Easy, Normal and Hard set how strong they are.</li>
-              <li>Move with your left thumb; tap the skill buttons with your right. ATK is your basic attack.</li>
-              <li>Knock down the dog towers along a lane, then their core, before they reach yours.</li>
-              <li>Change hero picks one of the cat heroes. Each has a passive, three skills and an ultimate from level 4.</li>
-              <li>A match lasts about seven minutes and never more than eleven.</li>
+              <li>Tap PLAY, pick a mode, then pick your champion. Easy, Normal and Hard set how strong the bots are.</li>
+              <li>Move with your left thumb. Tap the ability buttons with your right. ATK is your basic attack.</li>
+              <li>Knock down the enemy towers along a lane, then their core, before they destroy yours.</li>
+              <li>Each champion has a passive, 3 abilities and an ultimate (R) that unlocks at level 4.</li>
+              <li>A match lasts about 7 minutes and never more than 11.</li>
             </ul>
           </Section>
 
           <Section title="Play with friends">
             <ul className="list-disc pl-5">
-              <li>Tap Play with friends to make a party; it shows a 6-letter code.</li>
-              <li>Friends tap Join with code and type it in. Up to three players share one team; bots fill empty seats.</li>
+              <li>Tap PLAY, pick a mode, then With Friends to make a party. It shows a 6-letter code.</li>
+              <li>Friends tap # Code and type it in. Up to 3 players share a team, and bots fill empty seats.</li>
               <li>Party play needs the internet. Playing against bots alone works offline.</li>
             </ul>
           </Section>

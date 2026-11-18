@@ -121,26 +121,26 @@ export function parseClubsState(body: unknown): ClubsState | null {
 
 /** The player-facing text of a club or kudos error code. */
 export function clubErrorText(code: string | undefined, status: number): string {
-  if (status === 0) return 'No connection. Try again';
-  if (status === 429 && code !== 'PAWLEGENDS_CLUB_COOLDOWN' && code !== 'PAWLEGENDS_CLUB_RATE') return 'Too many tries. Wait a minute';
+  if (status === 0) return 'No connection. Try again.';
+  if (status === 429 && code !== 'PAWLEGENDS_CLUB_COOLDOWN' && code !== 'PAWLEGENDS_CLUB_RATE') return 'Too many tries. Wait a minute.';
   switch (code) {
     case 'PAWLEGENDS_CLUB_UNAVAILABLE':
-      return 'That club can’t be joined';
+      return 'You can’t join that club.';
     case 'PAWLEGENDS_CLUB_INVALID':
-      return 'Check the club code';
+      return 'Check the club code.';
     case 'PAWLEGENDS_CLUB_ALREADY':
-      return 'Leave your club first';
+      return 'Leave your club first.';
     case 'PAWLEGENDS_CLUB_COOLDOWN':
-      return 'Wait an hour after leaving a club';
+      return 'You just left a club. Wait 1 hour to join another.';
     case 'PAWLEGENDS_CLUB_RATE':
-      return 'Too many new clubs today';
+      return 'Too many new clubs today. Try again tomorrow.';
     case 'PAWLEGENDS_CLUB_NEED_WIN':
-      return 'Win a match this week to share the chest';
+      return 'Win a match this week to share the chest.';
     case 'PAWLEGENDS_CLUB_OWNER':
-      return 'Only the owner can do that';
+      return 'Only the club owner can do that.';
     case 'PAWLEGENDS_NEED_ACCOUNT':
-      return 'Sign in first';
+      return 'Sign in first.';
     default:
-      return 'Something went wrong. Try again';
+      return 'Something went wrong. Try again.';
   }
 }

@@ -80,7 +80,7 @@ describe('Ranked duo (polish 4)', () => {
     const el = inviteCard(document, inv('ranked'), { ...cb, locked });
     expect(el.textContent).toContain('Sam invites you to a Ranked duo');
     expect(el.dataset.ranked).toBe('locked');
-    expect(el.querySelector('[data-testid="invite-ranked-lock"]')?.textContent).toBe(`Ranked is locked for you: ${locked}. Join to play Casual together`);
+    expect(el.querySelector('[data-testid="invite-ranked-lock"]')?.textContent).toBe(`Ranked is locked for you: ${locked}. Join to play Casual together.`);
     expect(el.querySelector('[data-testid="invite-accept"]')?.textContent).toBe('Accept');
     const open = inviteCard(document, inv('ranked'), { ...cb, locked: null });
     expect(open.dataset.ranked).toBe('open');

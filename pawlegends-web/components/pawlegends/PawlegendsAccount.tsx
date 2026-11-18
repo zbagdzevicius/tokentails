@@ -8,7 +8,6 @@ import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { Capacitor } from "@capacitor/core";
 import { useState } from "react";
 import { PAWLEGENDS_CONTACT } from "./flags";
-import { PAWLEGENDS_TITLE } from "./title";
 
 /**
  * The Paw Legends account (sign-in): who is signed in and how, Sign out, and Delete account. Shown in the game's
@@ -54,7 +53,7 @@ export const PawlegendsAccountPanel = ({ onDone }: { onDone?: () => void }) => {
       signOut: auth.signOut,
     });
     setBusy(false);
-    if (result.status === "cancelled") return setError("Apple sign-in was cancelled, so your account was not deleted.");
+    if (result.status === "cancelled") return setError("Apple sign-in was cancelled. Your account is not deleted.");
     if (result.status === "error") return setError(result.message);
     setLine("Your account was deleted. You can keep playing without one.");
     onDone?.();
@@ -77,15 +76,15 @@ export const PawlegendsAccountPanel = ({ onDone }: { onDone?: () => void }) => {
           </p>
         )}
         <p>
-          {PAWLEGENDS_TITLE} plays without an account. Sign in with Apple, Google or email to keep your wins, unlocks and
-          Treat Track on every device, and to play ranked with friends.
+          You can play without an account. Sign in with Apple, Google or email to keep your wins, unlocks and Pass
+          progress on every device, and to play Ranked with friends.
         </p>
         <p className="text-p6 opacity-80">
-          To delete an account, sign in to it here, then choose Delete account. Or write to{" "}
+          To delete an account, sign in to it here and tap Delete account. Or email{" "}
           <a href={`mailto:${PAWLEGENDS_CONTACT}`} className="font-bold text-tt-gold-400 underline underline-offset-2">
             {PAWLEGENDS_CONTACT}
           </a>{" "}
-          from the address on the account.
+          from that account&apos;s address.
         </p>
         <ActionRow>
           <ModalButton
@@ -123,7 +122,7 @@ export const PawlegendsAccountPanel = ({ onDone }: { onDone?: () => void }) => {
         </ActionRow>
       </ModalSection>
       {ready && (
-        <DangerZone description="Deletes your sign-in and anonymises your profile. This cannot be undone.">
+        <DangerZone description="Deletes your sign-in and makes your profile anonymous. You can't undo this.">
           {error && (
             <p role="alert" className="border-2 border-tt-rust/70 bg-tt-night-950/60 px-3 py-2 font-sans text-p5 font-semibold text-tt-cream">
               {error}
@@ -132,7 +131,7 @@ export const PawlegendsAccountPanel = ({ onDone }: { onDone?: () => void }) => {
           <ConfirmAction
             label="DELETE ACCOUNT"
             icon="trash"
-            message="Your sign-in is deleted, your profile is anonymised and your cats go back to the shelter pool. This cannot be undone. The game keeps working without an account."
+            message="This deletes your sign-in and makes your profile anonymous. You can't undo this. You can still play without an account."
             confirmLabel="DELETE FOREVER"
             cancelLabel="KEEP MY ACCOUNT"
             busy={busy}

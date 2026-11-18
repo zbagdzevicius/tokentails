@@ -827,7 +827,7 @@ export function shareUrlOf(value: unknown, origin: string): string | null {
   }
 }
 
-/** The longest share line the host passes on ("Beat my 7:12 vs Normal bots in Pawlegends!" is 44). */
+/** The longest share line the host passes on ("Beat my 7:12 vs Normal bots in Paw Legends!" is 45). */
 export const PAWLEGENDS_SHARE_TEXT_MAX = 120;
 
 /**

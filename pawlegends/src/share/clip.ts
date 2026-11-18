@@ -371,7 +371,7 @@ export function openClipSheet(parent: HTMLElement, o: ClipSheetOpts): HTMLElemen
     if (saveClip(o.clip)) {
       note.textContent = 'Saved.';
       o.track?.('clip_share', { via: 'save', framing: o.clip.framing });
-    } else note.textContent = 'This device cannot save the video here. Use Share.';
+    } else note.textContent = "This device can't save the video. Use Share.";
   };
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
@@ -390,7 +390,7 @@ export function openClipSheet(parent: HTMLElement, o: ClipSheetOpts): HTMLElemen
           // no video sharing here (a desktop browser, an Android WebView): save it and send the link the usual way
           save();
           o.onLink(url, text);
-          note.textContent = 'Video saved and link copied: post the video with the link.';
+          note.textContent = 'Video saved and link copied. Post them together.';
         }
       });
     }

@@ -14,22 +14,22 @@ export interface AuthErrorCopy {
 
 export const AUTH_COPY = {
   credentials:
-    "That email and password don't match an account we can sign in. Check them, or tap \"Forgot password?\" to choose a new one.",
-  otherMethod: "This email already signs in another way. Use the Google, Apple or email sign-in you used before.",
+    "Wrong email or password. Check them, or tap \"Forgot password?\".",
+  otherMethod: "This email signs in another way. Use Google, Apple or email, as you did before.",
   createFailed:
-    "We couldn't create an account with that email. If it's already yours, sign in instead.",
+    "We couldn't create an account with that email. If it's yours, sign in instead.",
   invalidEmail: "Enter a valid email address.",
   weakPassword: "Use at least 6 characters for your password.",
   tooMany: "Too many tries. Wait a minute, then try again.",
-  network: "We couldn't reach the sign-in service. Check your connection and try again.",
-  popupBlocked: "Your browser blocked the sign-in window. Allow pop-ups for this site, then try again.",
+  network: "No connection. Try again.",
+  popupBlocked: "Your browser blocked the sign-in window. Allow pop-ups for this site and try again.",
   inAppBrowser:
-    "This sign-in option doesn't work in this app's browser. Use email, or copy the link and open it in Safari or Chrome.",
+    "This sign-in doesn't work in this app's browser. Use email, or open the link in Safari or Chrome.",
   disabled: "This sign-in option isn't available right now. Try another one.",
-  expired: "For your security, please sign in again.",
+  expired: "Please sign in again to keep your account safe.",
   appleUnavailable:
-    "Sign in with Apple isn't available on this device right now. Check that you're signed in to iCloud in Settings, then try again, or use email.",
-  unknown: "Something went wrong while signing in. Please try again.",
+    "Sign in with Apple isn't working here. Sign in to iCloud in Settings, or use email.",
+  unknown: "Sign-in didn't work. Try again.",
 } as const;
 
 const CODE_COPY: Record<string, AuthErrorCopy> = {
@@ -151,6 +151,6 @@ export function withLastMethodHint(
   const name = last.provider === "google" ? "Google" : "Apple";
   return {
     ...copy,
-    message: `${copy.message} Last time on this device you used ${name}: try "Continue with ${name}".`,
+    message: `${copy.message} Last time you used ${name} here. Try "Continue with ${name}".`,
   };
 }

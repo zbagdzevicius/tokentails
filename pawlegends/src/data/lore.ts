@@ -2,7 +2,7 @@
  * World and champion lore (docs/plans/moba/LORE.md is the readable copy; this module is the source the UI reads).
  * Words only: the sim never reads this file. Every line is original to Pawlegends.
  *
- * Per hero: an epithet, a 2–3 sentence `hook` (the hero browser and the pick screen), a ~150-word `bio` (the Lore
+ * Per champion (HeroId): an epithet, a 2–3 sentence `hook` (the hero browser and the pick screen), a ~150-word `bio` (the Lore
  * tab), a `rival` on the other side and a `friend` on the same side (each with the line the Lore tab shows), a
  * signature `quote`, and `howTheyFight`, one line that matches the kit in src/sim/heroes/<id>.ts.
  *
@@ -52,24 +52,24 @@ export interface WorldLore {
 
 const WORLD_RAW: WorldLore = {
   title: 'The Truce Games',
-  tagline: 'Two islands, one strip of sand, and a very important argument about the sun.',
+  tagline: 'Two islands, one strip of sand and a very important argument about the sun.',
   story: [
-    'In a warm, bright sea sit two islands. Purrhaven Isle belongs to the cats: soft hills, sunny windowsills, a fish market that never closes and the Great Cat Tree, so tall its top branches tickle the clouds. The Isle of Woof belongs to the dogs: wide meadows, muddy ponds made for jumping in, a beach for fetch and the Bone Throne, carved from the biggest bone anyone has ever found.',
-    'Once, the two islands quarrelled over the sun. The dogs said it shone more on Purrhaven; the cats said that was simply because cats are better at lying in it. The Hound Legion marched, the cats hissed, and for a while nobody got a good nap. It ended when one small knight shared her sunbeam with one cold pug, and everyone felt rather silly.',
-    'So the islands wrote the Truce. Every argument (the best sunbeam, the last fish, who gets the couch, who is a good boy) is settled with a Truce Game on the Crossing, the strip of sand, grass and river that rises out of the sea between the islands each day at low tide. Knock over the other side\'s Great Cat Tree or Bone Throne and you win the argument, until tomorrow.',
-    'The games are short because the sea is patient but not that patient. At Sunset the tide turns and everyone starts to hurry, and by the late evening the water is lapping at the edges of the sand. By the final whistle every hero is home, dried off and eating dinner. Nobody is ever really hurt: a hero who is knocked out is simply sent back to the fountain for a quick, grumpy nap. Cats and dogs on the Crossing are rivals, never enemies, and most of them are secretly friends.',
+    'Two islands sit in a warm sea. Purrhaven Isle belongs to the cats. It has soft hills, a fish market that never closes and the Great Cat Tree, so tall it tickles the clouds. The Isle of Woof belongs to the dogs. It has muddy ponds, a beach for fetch and the Bone Throne, carved from the biggest bone ever found.',
+    'Once, the islands argued over the sun. The dogs said it shone more on Purrhaven. The cats said they were just better at lying in it. The Hound Legion marched, the cats hissed, and nobody got a good nap. It ended when a small cat knight shared her sunbeam with a cold pug, and everyone felt rather silly.',
+    'So the islands wrote the Truce. Now every argument, like who gets the last fish, is settled with a Truce Game on the Crossing. That strip of sand, grass and river rises out of the sea between the islands at every low tide. Knock over the other side\'s Great Cat Tree or Bone Throne and you win the argument, until tomorrow.',
+    'The games are short, because the tide comes back. At Sunset the water starts to rise and towers and the core take more damage, so everyone hurries. When time\'s up, every champion goes home for dinner. Nobody really gets hurt. A knocked-out champion goes back to the fountain, grumbles for a moment and runs back in. Cats and dogs are rivals, never enemies, and most of them are secretly friends.',
   ],
   places: [
-    { name: 'Purrhaven Isle', text: 'Home of the cats. Cream, rose and gold, with cushions on every step. The Lantern House on the hill takes in every lost cat, and four of its cats now play for Purrhaven.' },
-    { name: 'Isle of Woof', text: 'Home of the dogs. Slate, navy and brass, with a flag on every kennel. The Snickerpack hyenas live in its dunes and joined the Woof team because the dogs laugh at their jokes.' },
-    { name: 'The Crossing', text: 'The neutral sand between the islands. Sunny Lane runs along the top, Puddle Lane along the bottom, and a river winds through the middle.' },
-    { name: 'Great Cat Tree and Bone Throne', text: 'Each team\'s core. Topple the other one to win. It is always stood back up the next morning, with a bit of grumbling.' },
-    { name: 'Scratching Posts and Kennels', text: 'The towers. Scratching Posts guard the cats\' lanes, Kennels guard the dogs\'. Both are very protective and slightly territorial.' },
-    { name: 'Kitten Cadets and Pup Troopers', text: 'The little ones who march down the lanes in waves. They take their job extremely seriously.' },
-    { name: 'Pudding', text: 'A huge, shy, wobbly creature who lives in the Crossing\'s river. Calm it down and it will happily walk with your team for a while.' },
+    { name: 'Purrhaven Isle', text: 'Home of the cats, with cushions on every step. The Lantern House on the hill takes in every lost cat, and 4 of its cats now play for Purrhaven.' },
+    { name: 'Isle of Woof', text: 'Home of the dogs, with a flag on every kennel. The Snickerpack hyenas live in its dunes. They joined the Woof team because the dogs laugh at their jokes.' },
+    { name: 'The Crossing', text: 'The sand between the islands, where every match is played. Sunny Lane runs along the top, Puddle Lane along the bottom, and a river winds through the middle.' },
+    { name: 'Great Cat Tree and Bone Throne', text: 'Each team\'s core. Knock over the other one to win. Someone always stands it back up the next morning, grumbling.' },
+    { name: 'Scratching Posts and Kennels', text: 'The towers. Scratching Posts guard the cats\' lanes and Kennels guard the dogs\'. They shoot anyone from the other side who comes close.' },
+    { name: 'Kitten Cadets and Pup Troopers', text: 'The minions. They march down the lanes in groups and take their job very seriously.' },
+    { name: 'Pudding', text: 'A huge, shy, wobbly creature who lives in the river. Calm Pudding with the last hit and he walks with your team for a while.' },
     { name: 'Rat camps', text: 'The Rat Gang lives on the Crossing and steals everyone\'s snacks. Both teams agree on one thing: chase off the rats.' },
-    { name: 'Catnip Bushes', text: 'Tall, leafy bushes that hide anyone inside. Frenzy Catnip grows by the river, and a sniff of it puts a spring in any step, cat or dog.' },
-    { name: 'Fish and Toys', text: 'Every play earns Fish. Fish buys Toys the moment there is enough, and Toys make a hero a little stronger, a little faster and a lot happier.' },
+    { name: 'Catnip Bushes', text: 'Tall bushes that hide anyone inside. Frenzy Catnip grows by the river. One sniff puts a spring in any step, cat or dog.' },
+    { name: 'Fish and Toys', text: 'You earn Fish in every match. As soon as you have enough, Fish buys Toys, and Toys make your champion stronger.' },
   ],
 };
 
@@ -109,11 +109,11 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     epithet: 'Giggle in the Grass',
     home: 'Isle of Woof',
     hook: 'Cacklejaw is not, strictly speaking, a dog, and he finds that hilarious. He giggles in the bushes, waits for a cat to wander off alone, and pounces.',
-    bio: 'Cacklejaw comes from the Snickerpack, the hyenas who live in the dunes at the edge of Woof. When the Truce was written, the hyenas asked to join the dog team. The dogs said yes, mostly because the hyenas laughed at all their jokes, even the ones about squirrels.\n\nHe is the sneakiest hero on the Crossing and also the worst at keeping quiet. He slinks into a bush, goes invisible, and then giggles at his own cleverness. He hits hardest when a friend is close by or when a cat has its back turned, and once he is on a lone cat he dashes through it, turns, and dashes again. When he laughs right in a cat\'s face, it usually runs away, which only makes him laugh more.\n\nHe has a long list of cats he wants to surprise, and a short list of the ones he actually has. He insists both lists are a joke.',
+    bio: 'Cacklejaw comes from the Snickerpack, the hyenas who live in the dunes at the edge of Woof. When the Truce was written, the hyenas asked to join the dog team. The dogs said yes, mostly because the hyenas laughed at all their jokes, even the ones about squirrels.\n\nHe is the sneakiest champion on the Crossing and also the worst at keeping quiet. He slinks into a bush, goes invisible, and then giggles at his own cleverness. He hits hardest when a friend is close by or when a cat has its back turned, and once he is on a lone cat he dashes through it, turns, and dashes again. When he laughs right in a cat\'s face, it usually runs away, which only makes him laugh more.\n\nHe has a long list of cats he wants to surprise, and a short list of the ones he actually has. He insists both lists are a joke.',
     rival: { hero: 'aviete', line: 'They both love the same bush on Puddle Lane. Raspberry always finds him first, because she can hear the giggling.' },
     friend: { hero: 'frankie', line: 'Frankie digs the tunnels, Cacklejaw brings the jokes. Their hideout under the dunes has a snack shelf and very bad lighting.' },
     quote: 'Hee hee… oh, you heard that? Hee hee hee.',
-    howTheyFight: 'Bush Slink close, Jeer Slash through a lone cat and dash again on a hit, Gloat to scare its friends off, then Pack Hunt the weakest cat.',
+    howTheyFight: 'Bush Slink close, Jeer Slash through a lone cat and dash again on a hit, Gloat to scare its teammates off, then Pack Hunt the weakest cat.',
   },
   lambo: {
     epithet: 'The Starlight Cook',
@@ -123,7 +123,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     rival: { hero: 'frankie', line: 'Frankie says hot dogs are the best food on the Crossing. Their two snack stalls face each other, and the Snack War has gone on for three seasons.' },
     friend: { hero: 'meatball', line: 'Meatball is his best customer and his official taste tester. He has never once said no to seconds.' },
     quote: 'Nobody fights on an empty tummy. Here, have a tuna.',
-    howTheyFight: 'Stay near a friend, Tuna Toss to slow, Big Hug to shield you both, Belly Flop onto dogs to stun them, then Tangled Lights to pull the pack in.',
+    howTheyFight: 'Stay near a teammate, Tuna Toss to slow, Big Hug to shield you both, Belly Flop onto dogs to stun them, then Tangled Lights to pull the pack in.',
   },
   aviete: {
     epithet: 'The Shy Spark',
@@ -154,7 +154,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     rival: { hero: 'nugget', line: 'Both of them say they are the team\'s best friend. They are keeping count of thank-yous, and the count is very close.' },
     friend: { hero: 'stilts', line: 'Stilts helped her chase that first balloon. Now they go balloon-chasing every windy evening.' },
     quote: 'Stay close. I have got you.',
-    howTheyFight: 'Lob Heart Balloons to hurt dogs and heal friends, Wing Wrap the friend in trouble, Chase the Wind to speed the team, and Under Her Spell to walk dogs into your team.',
+    howTheyFight: 'Lob Heart Balloons to hurt dogs and heal teammates, Wing Wrap the teammate in trouble, Chase the Wind to speed the team, and Under Her Spell to walk dogs into your team.',
   },
   meatball: {
     epithet: 'The Bouncer',
@@ -164,7 +164,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     rival: { hero: 'chili', line: 'Chili yaps at him every single match. Last season Meatball fell asleep halfway through, and Chili has never forgiven him.' },
     friend: { hero: 'lambo', line: 'Lambo cooks, Meatball tastes. It is the best job on Purrhaven, and he has never called in sick.' },
     quote: 'You are not on the list. Roll along.',
-    howTheyFight: 'Bowling Roll through dogs, Loaf Mode to draw them in, Big Brother onto a friend in danger, and Unstoppable Chonk to bump the whole pack away.',
+    howTheyFight: 'Bowling Roll through dogs, Loaf Mode to draw them in, Big Brother onto a teammate in danger, and Unstoppable Chonk to bump the whole pack away.',
   },
   pixel: {
     epithet: 'Gadget Kitten',
@@ -284,7 +284,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     rival: { hero: 'biscuit', line: 'Biscuit wants everyone to play. Mochi wants everyone to nap. Every match, one of them wins the argument, and it is usually the nap.' },
     friend: { hero: 'gabe', line: 'Gabby and Mochi run the Lantern House together. Gabby brings the hearts, Mochi brings the pillows, and nobody leaves without a hug.' },
     quote: 'Shh. Nap time.',
-    howTheyFight: 'Pillow Toss dogs to shield a hurt friend, Cuddle Bubble whoever is fighting, Purr Wave to run or chase together, and LULLABY to heal the team and put the dogs that stay near you to sleep.',
+    howTheyFight: 'Pillow Toss dogs to shield a hurt teammate, Cuddle Bubble whoever is fighting, Purr Wave to run or chase together, and LULLABY to heal the team and put nearby dogs to sleep.',
   },
   ziggy: {
     epithet: 'The Zig-Zag Bolt',
@@ -304,7 +304,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     rival: { hero: 'mochi', line: 'Mochi wants everyone to nap. Biscuit wants everyone to play. Every match, one of them wins the argument.' },
     friend: { hero: 'nugget', line: 'Nugget herds the cats and Biscuit fetches them. Together they call it teamwork. The cats call it rude.' },
     quote: 'Fetch! Good boy. Good catch. Good everything!',
-    howTheyFight: 'Fetch! a cat in close for your team, swat it with Good Boy to stun it and shield a friend, Tail Wag cats off your carry, Stubborn through stuns, and WALKIES! to pull a group in.',
+    howTheyFight: 'Fetch! a cat in close for your team, swat it with Good Boy to stun it and shield a teammate, Tail Wag cats off your damage dealer, Stubborn through stuns, and WALKIES! to pull a group in.',
   },
   champ: {
     epithet: 'Undefeated (He Says)',
@@ -314,16 +314,16 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     rival: { hero: 'ziggy', line: 'Ziggy never stands still long enough to take a proper punch. Champ has been trying to land one clean jab on him for three seasons.' },
     friend: { hero: 'howler', line: 'Howler is his corner man and yells advice through every round. None of it is useful, but it is very loud.' },
     quote: 'Float like a pup, sting like a bee!',
-    howTheyFight: 'Haymaker the cats in front of you, Bob and Weave in for a charged Cross, punch three times for the One-Two, Rope-a-Dope when focused, and KNOCKOUT! a hurt cat, ideally into a wall.',
+    howTheyFight: 'Haymaker the cats in front of you, Bob and Weave in for a charged Cross, punch 3 times for the One-Two, Rope-a-Dope when cats gang up, and KNOCKOUT! a hurt cat, ideally into a wall.',
   },  nova: {
     epithet: 'Keeper of the Night Sky',
     home: 'Purrhaven Isle',
     hook: 'Nova spends every night on the roof of the Lantern House with a brass telescope. She knows where every star is, and she can call one down on any dog she can see.',
-    bio: 'Nova is a slim blue-grey cat with a cloak full of little gold stars and a brass telescope that is taller than she is. She keeps the star charts of Purrhaven, and she has named a constellation after every cat on the team. The one she named after Meatball is round and very bright.\n\nOn the Crossing she stays far back, where most heroes cannot reach her, and she does not need to come closer. She points at a spot, and a moment later a star falls on it. She throws shooting stars that fly straight through a whole lane and light up every dog they touch. The further away a dog is, the harder her stars hit, which she says is simply how starlight works.\n\nWhen a dog gets too close, she hops away and leaves a moonbeam behind to slow it down. And when the dogs bunch up, she calls a METEOR SHOWER from right across the map.',
+    bio: 'Nova is a slim blue-grey cat with a cloak full of little gold stars and a brass telescope that is taller than she is. She keeps the star charts of Purrhaven, and she has named a constellation after every cat on the team. The one she named after Meatball is round and very bright.\n\nOn the Crossing she stays far back, where most champions cannot reach her, and she does not need to come closer. She points at a spot, and a moment later a star falls on it. She throws shooting stars that fly straight through a whole lane and light up every dog they touch. The further away a dog is, the harder her stars hit, which she says is simply how starlight works.\n\nWhen a dog gets too close, she hops away and leaves a moonbeam behind to slow it down. And when the dogs bunch up, she calls a METEOR SHOWER from right across the map.',
     rival: { hero: 'barkula', line: 'Barkula thinks the night belongs to him. Nova has a chart of every star in it. They argue about the moon every single match.' },
     friend: { hero: 'sage', line: 'Sage taught Nova to wait for the right moment. Now they take turns on the lookout, one with a bow, one with a telescope.' },
     quote: 'Make a wish. Quickly.',
-    howTheyFight: 'Stay far back, drop Starfall where dogs will be, poke with Shooting Star, Moon Hop away from divers, and rain METEOR SHOWER on a group from across the map.',
+    howTheyFight: 'Stay far back, drop Starfall where dogs will be, hit from range with Shooting Star, Moon Hop away when dogs rush you, and rain METEOR SHOWER on a group from across the map.',
   },
   dusty: {
     epithet: 'The Fastest Paw on the Crossing',
@@ -333,7 +333,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     rival: { hero: 'ranger', line: 'Ranger says he is the best shot on the Crossing. Dusty says that is cute. They keep score on a fence post, and both of them cheat.' },
     friend: { hero: 'lambo', line: 'Lambo feeds her, Dusty tells him stories about the desert. He believes about half of them, which is still too many.' },
     quote: 'One, two, three… POP.',
-    howTheyFight: 'Count your corks, bounce Trick Shot through a lane, Lasso a diver, Quick Draw out with a Big Cork loaded, and call HIGH NOON down a line of dogs.',
+    howTheyFight: 'Count your corks, bounce Trick Shot through a lane, Lasso a dog that rushes you, Quick Draw out with a Big Cork loaded, and call HIGH NOON down a line of dogs.',
   },
   barkula: {
     epithet: 'Count of the Midnight Kennel',
@@ -353,7 +353,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     rival: { hero: 'dusty', line: 'Dusty says nobody shoots faster. Ranger says nobody shoots further. The fence post with their score on it has run out of room.' },
     friend: { hero: 'rocket', line: 'Rocket fetches every ball Ranger fires. He has been doing it for three years and has never once been asked to.' },
     quote: 'Shh. I can smell you.',
-    howTheyFight: 'Stay hidden and open with a Camouflage shot, Tracer Ball to light cats up, Warning Bark off divers, Bush Dive away, and finish runners with LONG SHOT.',
+    howTheyFight: 'Stay hidden and open with a Camouflage shot, Tracer Ball to light cats up, Warning Bark at cats that rush you, Bush Dive away, and finish runners with LONG SHOT.',
   },
 
 };

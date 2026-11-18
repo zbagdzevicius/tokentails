@@ -52,8 +52,7 @@ export default function PawlegendsAccountPage() {
             </ul>
             <p>
               Deleting removes your sign-in (and revokes Sign in with Apple) and your email address, renames your
-              profile to &quot;Deleted player&quot;, takes it off every leaderboard, and sends your cats back to the
-              shelter pool. We keep an audit record with no personal data (the account id and counts), and payment
+              profile to &quot;Deleted player&quot; and takes it off every leaderboard. We keep an audit record with no personal data (the account id and counts), and payment
               records the law requires us to keep. Matches played on your phone without an account stay on your phone
               until you delete the app.
             </p>

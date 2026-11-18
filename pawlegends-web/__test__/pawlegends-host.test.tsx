@@ -352,11 +352,11 @@ describe("PawlegendsHost: shell", () => {
     Object.defineProperty(window.navigator, "share", { value: share, configurable: true });
     try {
       const h = await mount();
-      h.fromGame({ type: "share", kind: "dare", url: "/pawlegends?dare=9ix", text: "Beat my 7:12 vs Easy bots in Pawlegends!" });
+      h.fromGame({ type: "share", kind: "dare", url: "/pawlegends?dare=9ix", text: "Beat my 7:12 vs Easy bots in Paw Legends!" });
       expect(share).toHaveBeenLastCalledWith({
         url: `${window.location.origin}/pawlegends?dare=9ix`,
         title: PAWLEGENDS_TITLE,
-        text: "Beat my 7:12 vs Easy bots in Pawlegends!",
+        text: "Beat my 7:12 vs Easy bots in Paw Legends!",
       });
       h.fromGame({ type: "share", kind: "dare", url: "/pawlegends?dare=9ix" });
       expect(share).toHaveBeenLastCalledWith({ url: `${window.location.origin}/pawlegends?dare=9ix`, title: PAWLEGENDS_TITLE });

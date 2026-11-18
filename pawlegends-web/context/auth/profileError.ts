@@ -39,7 +39,7 @@ export interface ProfileErrorCopy {
   autoRetry: boolean;
 }
 
-const SAFE = "Your cat and your progress are safe.";
+const SAFE = "Your progress is safe.";
 
 export function describeProfileError(input: ProfileErrorInput): ProfileErrorCopy {
   const { status, code } = input;
@@ -47,7 +47,7 @@ export function describeProfileError(input: ProfileErrorInput): ProfileErrorCopy
     return {
       kind: "timeout",
       heading: "This is taking too long",
-      body: "Your account didn't load in time. Check your connection, then try again.",
+      body: "Your account didn't load in time. Check your connection and try again.",
       primary: "retry",
       autoRetry: true,
     };
@@ -64,7 +64,7 @@ export function describeProfileError(input: ProfileErrorInput): ProfileErrorCopy
       : {
           kind: "network",
           heading: "Can't reach Paw Legends",
-          body: `Check your connection. ${SAFE} We'll keep trying.`,
+          body: `No connection. ${SAFE} We'll keep trying.`,
           primary: "retry",
           autoRetry: true,
         };

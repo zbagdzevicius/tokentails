@@ -275,7 +275,7 @@ export const PawlegendsHost = ({
           if (saveStatus === "queued" && detail.outcome === "device") setNote(null);
           if (detail.outcome === "stale") setUpdateReady(true);
         },
-        onStalePurged: () => setNote("An older match could not be saved after an update"),
+        onStalePurged: () => setNote("An older match couldn't be saved after the update."),
         onChange: () => setUnclaimed(saver.unclaimed().length),
       }),
     [storeSync]
@@ -417,7 +417,7 @@ export const PawlegendsHost = ({
     void (async () => {
       if (action.kind === "checkout-cancel") return;
       if (action.kind === "checkout-ok") {
-        setNote("Getting your items…");
+        setNote("Getting your purchase…");
         // STORE-PASS.md: a store or pass purchase lands in `/pawlegends/me` (the webhook grants it to the account)
         void refreshStoreRef.current?.();
         for (let i = 0; i < ENTITLEMENT_POLLS; i++) {
@@ -426,25 +426,25 @@ export const PawlegendsHost = ({
           if (result.ok && result.body) {
             keepToken(result.body.token);
             if (result.body.items.length) {
-              setNote("Your items are in the lobby");
+              setNote("Your purchase is in the lobby.");
               return;
             }
           }
           if (i < ENTITLEMENT_POLLS - 1) await wait(pollMs);
         }
-        setNote("Payment received. Your items will appear shortly.");
+        setNote("Payment received. Your purchase will show up soon.");
         return;
       }
       if (action.kind === "restore") {
         const result = await api.verifyRestore(action.t);
         if (result.ok && result.body) {
           keepToken(result.body.token);
-          setNote("Your items are restored");
+          setNote("Your purchases are restored.");
         } else setNote("That restore link has expired.");
         return;
       }
       const result = await api.confirmNotify(action.t);
-      setNote(result.ok ? "You are on the Legends Pass list" : "That link has expired.");
+      setNote(result.ok ? "You're on the Legends Pass list." : "That link has expired.");
     })();
   }, [router, api, isApp, keepToken, pollMs]);
 
@@ -608,7 +608,7 @@ export const PawlegendsHost = ({
           const safe = kind === "party" && PAWLEGENDS_PARTY_LINK.test(url) ? url : shareUrlOf(url, window.location.origin);
           if (!safe) return;
           const nav = window.navigator as Navigator & { share?: (data: ShareData) => Promise<void> };
-          // PUB-06: the dare line ("Beat my 7:12 vs Easy bots in Pawlegends!") goes with the link when the game sent one.
+          // PUB-06: the dare line ("Beat my 7:12 vs Easy bots in Paw Legends!") goes with the link when the game sent one.
           const data: ShareData = text ? { url: safe, title: PAWLEGENDS_TITLE, text } : { url: safe, title: PAWLEGENDS_TITLE };
           if (typeof nav.share === "function") void nav.share(data).catch(() => undefined);
           else void nav.clipboard?.writeText(safe).then(() => setNote("Link copied"), () => undefined);
@@ -864,7 +864,7 @@ export const PawlegendsHost = ({
             <span aria-hidden="true" className="mt-[2px] shrink-0 text-tt-sky">
               <PixelIcon name="info-box" size={18} />
             </span>
-            Only add them if you played them. Someone else on this device? Tap Not mine and they are deleted.
+            Only add matches you played. Someone else played them? Tap Not mine to delete them.
           </p>
           <ActionRow align="center">
             <ModalButton variant="primary" icon="check" onClick={claim}>
@@ -927,7 +927,7 @@ const NotifySheet = ({
     setBusy(true);
     const result = await api.notify(email.trim(), where === "store" ? "store" : "results");
     setBusy(false);
-    setLine(result.ok ? "Check your inbox to confirm." : "That did not work. Try again in a few minutes.");
+    setLine(result.ok ? "Check your inbox to confirm." : "That didn't work. Try again in a few minutes.");
   };
   return (
     <GameModal open onOpenChange={(open) => !open && onClose()} title="Season news" icon="mail" size="sm" surface="panel" name="pawlegends-notify">

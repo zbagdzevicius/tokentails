@@ -364,7 +364,7 @@ function localDetailHtml(r: ShownRow, now: number): string {
       <span class="mh-dres ${r.outcome}"><b>${resultWord(r.outcome)}</b><small>${esc(r.mode)} · ${clock(r.seconds)} · ${esc(ago(r.at, now))}</small></span>
       ${w ? `<button type="button" class="pl-btn small mh-watch" data-watch="${esc(w)}" data-testid="history-watch">▶ Watch replay</button>` : ''}</div>
     <p class="mh-mvpline">${face(r.hero, 28, 'mh-pface')}<span><b>${esc(heroTitle(r.hero, r.heroName))}</b> · ${r.k}/${r.d}/${r.a}${r.grade ? ` · Grade ${esc(r.grade)}` : ''}</span></p>
-    <p class="mh-empty">The full scoreboard is kept for matches saved to your account. This one is on this device only.</p>
+    <p class="mh-empty">Only matches saved to your account keep the full scoreboard. This one is only on this device.</p>
   </div>`;
 }
 
@@ -446,7 +446,7 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
       const id = detailOf;
       if (id.startsWith('local:')) {
         const r = shown().find((x) => !x.sid && x.local?.id === id.slice(6));
-        body.innerHTML = r ? localDetailHtml(r, now) : '<p class="mh-empty">Not found.</p>';
+        body.innerHTML = r ? localDetailHtml(r, now) : '<p class="mh-empty">Match not found.</p>';
       } else {
         const m = details.get(id);
         const row = shown().find((x) => x.sid === id);

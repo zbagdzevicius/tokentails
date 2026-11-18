@@ -49,7 +49,7 @@ export function chestBarHtml(wins: number, tiers: readonly number[], label: stri
     .map((t, i) => {
       const at = Math.round((t / top) * 100);
       const on = wins >= t ? ' on' : '';
-      return `<i class="pl-club-pip${on}" style="left:${at}%" title="Tier ${i + 1}: ${t}"></i><small class="pl-club-tick${on}${i === tiers.length - 1 ? ' end' : ''}" style="left:${at}%">${t}</small>`;
+      return `<i class="pl-club-pip${on}" style="left:${at}%" title="Chest ${i + 1}: ${t}"></i><small class="pl-club-tick${on}${i === tiers.length - 1 ? ' end' : ''}" style="left:${at}%">${t}</small>`;
     })
     .join('');
   return `<div class="pl-club-bar" role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="${top}" aria-valuenow="${Math.min(wins, top)}"><i class="pl-club-fill" style="width:${pct}%"></i>${pips}</div>`;
@@ -120,7 +120,7 @@ export class ClubsPanel {
       const pager = pages > 1 ? `<span class="pl-pager"><button type="button" class="pl-btn ghost small" data-club="prev" aria-label="Previous page"${page <= 0 ? ' disabled' : ''}>&lsaquo;</button><small>${page + 1}/${pages}</small><button type="button" class="pl-btn ghost small" data-club="next" aria-label="Next page"${page >= pages - 1 ? ' disabled' : ''}>&rsaquo;</button></span>` : '';
       return `<button type="button" class="pl-btn ghost small" data-club="back">&lsaquo; Club</button>${pager}`;
     }
-    const leave = this.confirm === 'leave' ? 'Tap to leave' : 'Leave';
+    const leave = this.confirm === 'leave' ? 'Tap again to leave' : 'Leave';
     return `<button type="button" class="pl-btn ghost small" data-club="members" data-testid="club-members">Members <b>${s.club.size}/${s.club.cap}</b></button><button type="button" class="pl-btn small" data-club="chat" data-testid="club-chat">💬 Chat</button><button type="button" class="pl-btn ghost small pl-club-leave${this.confirm === 'leave' ? ' armed' : ''}" data-club="leave" data-testid="club-leave">${leave}</button>`;
   }
 
@@ -133,7 +133,7 @@ export class ClubsPanel {
 
   private noClubBody(k: KudosView | null): string {
     const name = clubNameText(this.name[0], this.name[1]);
-    return `<div class="pl-club-intro"><p class="pl-club-lede"><b>Clubs</b> · up to 30 players, one chat, and a weekly chest your wins fill.</p><div class="pl-club-make"><button type="button" class="pl-btn ghost small pl-club-die" data-club="roll" aria-label="Another name" data-testid="club-roll">🎲</button><span class="pl-club-newname" data-name="${esc(name)}" data-testid="club-name"></span><button type="button" class="pl-btn small" data-club="create" data-testid="club-create">Create</button></div><small class="pl-club-hint">Or join a friend's club with its code below.</small></div>${this.kudosHtml(k)}`;
+    return `<div class="pl-club-intro"><p class="pl-club-lede"><b>Clubs</b> · up to 30 players, a club chat and a weekly chest that your wins fill.</p><div class="pl-club-make"><button type="button" class="pl-btn ghost small pl-club-die" data-club="roll" aria-label="Another name" data-testid="club-roll">🎲</button><span class="pl-club-newname" data-name="${esc(name)}" data-testid="club-name"></span><button type="button" class="pl-btn small" data-club="create" data-testid="club-create">Create</button></div><small class="pl-club-hint">Or join a friend's club with its code below.</small></div>${this.kudosHtml(k)}`;
   }
 
   private clubBody(c: ClubView, k: KudosView | null): string {
@@ -241,7 +241,7 @@ export class ClubsPanel {
   async join(raw: string): Promise<void> {
     const code = normalClubCode(raw.trim());
     if (!code) {
-      this.deps.note('Check the club code');
+      this.deps.note('Check the club code.');
       this.deps.render();
       return;
     }

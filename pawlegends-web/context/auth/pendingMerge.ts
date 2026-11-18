@@ -118,13 +118,13 @@ export function isRetryableMergeError(
  */
 export function mergeFailureNote(status: number, retryable: boolean, message?: string | null): string {
   if (isMergeCooldown(status, message)) {
-    return "You're in your account. It already took in guest progress in the last 30 days, so this guest's runs stay separate.";
+    return "You're signed in. This account already took guest progress in the last 30 days, so this guest's matches stay separate.";
   }
   if (status === 409) {
-    return "You're in your account. This guest's progress is already being saved to another account, so it stays there.";
+    return "You're signed in. This guest's progress already belongs to another account, so it stays there.";
   }
   if (retryable) {
-    return "You're in your account, but we couldn't move your guest progress just now. We'll try again while this tab stays open, for up to an hour.";
+    return "You're signed in, but we couldn't move your guest progress yet. We'll keep trying for up to 1 hour while this tab is open.";
   }
-  return "You're in your account. We couldn't move this guest's progress, so its runs stay separate.";
+  return "You're signed in. We couldn't move this guest's progress, so its matches stay separate.";
 }

@@ -115,9 +115,9 @@ export function simCheck(theirs: string | undefined, mine: string = buildSim()):
 
 /** The toast's second line for a build mismatch ('' when the builds match). */
 export function simLine(check: ReturnType<typeof simCheck>, name: string): string {
-  if (check === 'me') return `Update your game to join ${name}: reload to get the new version`;
-  if (check === 'them') return `${name} runs an older game version: they need to reload before you can play together`;
-  if (check === 'differ') return `Your game versions differ: reload to update before you join`;
+  if (check === 'me') return `Reload to update your game, then join ${name}.`;
+  if (check === 'them') return `${name} has an older version. They need to reload before you can play together.`;
+  if (check === 'differ') return `Your game versions differ. Reload to update, then join.`;
   return '';
 }
 
@@ -188,7 +188,7 @@ export function inviteCard(doc: Document, inv: InboxInvite, o: InviteToastOpts):
     s.textContent = words;
     text.append(doc.createElement('br'), s);
   };
-  if (inv.mode === 'ranked' && o.locked) sub('pl-invite-lock', `Ranked is locked for you: ${o.locked}. Join to play Casual together`, 'invite-ranked-lock');
+  if (inv.mode === 'ranked' && o.locked) sub('pl-invite-lock', `Ranked is locked for you: ${o.locked}. Join to play Casual together.`, 'invite-ranked-lock');
   const check = o.sim ?? 'ok';
   if (check !== 'ok') sub('pl-invite-lock pl-invite-sim', simLine(check, inv.from.name), 'invite-update');
   const left = doc.createElement('small');

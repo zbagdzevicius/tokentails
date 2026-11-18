@@ -165,14 +165,14 @@ export interface SocialSheetDeps {
 
 const errorText = (r: ApiResult): string => {
   const code = (r.body as { code?: string } | undefined)?.code ?? '';
-  if (r.status === 0) return 'No connection. Try again';
-  if (r.status === 429) return 'Too many tries. Wait a minute';
-  if (code === 'PAWLEGENDS_SOCIAL_NOT_FOUND') return 'No player with this code';
-  if (code === 'PAWLEGENDS_SOCIAL_SELF') return 'That is your own code';
-  if (code === 'PAWLEGENDS_SOCIAL_CAP') return 'Friends list is full';
-  if (code === 'PAWLEGENDS_SOCIAL_REFUSED') return 'This player cannot be added';
-  if (code === 'PAWLEGENDS_SOCIAL_NO_PARTY') return 'Open a party first';
-  return 'Something went wrong. Try again';
+  if (r.status === 0) return 'No connection. Try again.';
+  if (r.status === 429) return 'Too many tries. Wait a minute.';
+  if (code === 'PAWLEGENDS_SOCIAL_NOT_FOUND') return 'No player has this code.';
+  if (code === 'PAWLEGENDS_SOCIAL_SELF') return "That's your own code.";
+  if (code === 'PAWLEGENDS_SOCIAL_CAP') return 'Your friends list is full.';
+  if (code === 'PAWLEGENDS_SOCIAL_REFUSED') return "You can't add this player.";
+  if (code === 'PAWLEGENDS_SOCIAL_NO_PARTY') return 'Open a party first: PLAY, a mode, then With Friends.';
+  return 'Something went wrong. Try again.';
 };
 
 export class SocialSheet {
@@ -620,7 +620,7 @@ export class SocialSheet {
             this.dispose();
             this.deps.inviteFriend({ code: f.code, name: f.name });
           } else {
-            this.note = 'Open a party first: PLAY, a mode, then With Friends';
+            this.note = 'Open a party first: PLAY, a mode, then With Friends.';
             this.render();
           }
           return;
@@ -749,8 +749,8 @@ export class SocialSheet {
     const r = await this.deps.api('invite.send', { to: code, sim: buildSim(), ...(this.deps.partyMode?.() === 'ranked' ? { mode: 'ranked' } : {}) });
     if (this.disposed) return;
     const b = r.body as { offline?: boolean; code?: string } | undefined;
-    if (r.ok) this.note = b?.offline ? `Invite sent. ${name || 'Your friend'} is offline right now` : `Invite sent to ${name || 'your friend'}`;
-    else if (b?.code === 'PAWLEGENDS_SOCIAL_LIMIT') this.note = 'Invite already sent: wait for an answer';
+    if (r.ok) this.note = b?.offline ? `Invite sent. ${name || 'Your friend'} is offline.` : `Invite sent to ${name || 'your friend'}`;
+    else if (b?.code === 'PAWLEGENDS_SOCIAL_LIMIT') this.note = 'Invite already sent. Wait for an answer.';
     else this.note = errorText(r);
     this.render();
   }
@@ -846,7 +846,7 @@ export class SocialSheet {
       this.render();
       return;
     }
-    this.note = "Couldn't save that avatar";
+    this.note = "Couldn't save your avatar. Try again.";
     this.render();
   }
 

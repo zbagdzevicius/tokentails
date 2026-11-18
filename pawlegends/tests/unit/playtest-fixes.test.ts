@@ -47,9 +47,9 @@ describe('results copy', () => {
 
 describe('honest lines', () => {
   it('dares on the time only before late Sunset (10:00); later it is "win my match"', () => {
-    expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'easy', seconds: 432 })).toBe('Beat my 7:12 vs Easy bots in Pawlegends!');
-    expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'normal', seconds: 620 })).toBe('Win my match vs Normal bots in Pawlegends!');
-    expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'normal', seconds: 0 })).toBe('Win my match vs Normal bots in Pawlegends!');
+    expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'easy', seconds: 432 })).toBe('Beat my 7:12 vs Easy bots in Paw Legends!');
+    expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'normal', seconds: 620 })).toBe('Win my match vs Normal bots in Paw Legends!');
+    expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'normal', seconds: 0 })).toBe('Win my match vs Normal bots in Paw Legends!');
   });
   it('no countdown line at all: the starter window card is retired (the Meet card has no timer)', () => {
     expect(endsText(47 * 3600e3 + 10, 0)).toBe('');

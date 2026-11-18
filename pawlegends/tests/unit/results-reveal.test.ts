@@ -27,8 +27,8 @@ describe('results reveal', () => {
     const onShare = vi.fn();
     const root = resultsScreen(document.body, { ...opts, seconds: 312, onShare });
     root.querySelector<HTMLElement>('[data-a="share"]')!.click();
-    expect(onShare).toHaveBeenCalledWith(opts.dareLink, 'Beat my 5:12 vs Easy bots in Pawlegends!');
-    expect(root.querySelector('.dare b')!.textContent).toBe('Beat my 5:12 vs Easy bots in Pawlegends!');
+    expect(onShare).toHaveBeenCalledWith(opts.dareLink, 'Beat my 5:12 vs Easy bots in Paw Legends!');
+    expect(root.querySelector('.dare b')!.textContent).toBe('Beat my 5:12 vs Easy bots in Paw Legends!');
     root.remove();
   });
 

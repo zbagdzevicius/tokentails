@@ -243,7 +243,7 @@ export class ChatSheet {
       const r = await this.deps.api('chat.send', { thread: this.thread, ...args });
       const body = r.body as { message?: ChatMessage; code?: string; why?: string; until?: string } | undefined;
       if (!r.ok || !body?.message) {
-        this.showError(r.status === 0 ? 'No connection. Try again' : chatErrorText(body?.code, body?.why, body?.until));
+        this.showError(r.status === 0 ? 'No connection. Try again.' : chatErrorText(body?.code, body?.why, body?.until));
         // the server may have moved the thread to quick chat (a friend's band changed)
         if (body?.code === 'PAWLEGENDS_CHAT_QUICK_ONLY') this.tier = 'quick';
         this.render();
@@ -383,7 +383,7 @@ export class ChatSheet {
         this.deps.track?.('friend_block', { from: 'chat' });
         void this.deps.api('block.add', { code: this.deps.friend.code }).then((r) => {
           if (!r.ok) {
-            this.showError('Something went wrong. Try again');
+            this.showError('Something went wrong. Try again.');
             this.render();
             return;
           }
@@ -402,7 +402,7 @@ export class ChatSheet {
         this.reporting = null;
         this.deps.track?.('chat_report', { kind });
         void this.deps.api('chat.report', { msg, kind }).then((r) => {
-          this.showError(r.ok ? 'Thanks. We review every report.' : r.status === 429 ? 'Too many reports. Try later' : 'Something went wrong. Try again');
+          this.showError(r.ok ? 'Thanks. We review every report.' : r.status === 429 ? 'Too many reports. Try again later.' : 'Something went wrong. Try again.');
           this.render();
         });
         return;

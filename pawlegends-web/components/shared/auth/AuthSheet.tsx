@@ -60,15 +60,15 @@ export const reasonLine = (
     case "save-progress":
       return "Keep your progress on every device.";
     case "claim-rewards":
-      return "Rewards are tied to an account. It takes a few seconds, and your progress comes with you.";
+      return "Sign in to claim them. It takes a few seconds, and your progress comes with you.";
     case "purchase":
       return "An account keeps what you buy safe on every device.";
     case "share":
-      return "Invites are linked to your account, so your friends find you.";
+      return "Invites need an account, so your friends can find you.";
     case "support":
       return "Sign in so we can answer you.";
     case "returning":
-      return "Sign in the way you did before: your progress is waiting.";
+      return "Sign in the way you did last time. Your progress is waiting.";
     default:
       return "Sign in to keep your progress on every device.";
   }
@@ -340,8 +340,8 @@ const InAppNotice = ({ emphasise }: { emphasise?: boolean }) => {
   return (
     <div className="rounded-[4px] border-2 border-tt-gold-500/50 bg-tt-night-900/70 p-3" data-testid="in-app-notice">
       <p className={bodyText}>
-        Google and Apple sign-in don&apos;t work inside this app&apos;s browser. Copy the link, open Safari or Chrome, and
-        paste it there. Or use your email below.
+        Google and Apple sign-in don&apos;t work in this app&apos;s browser. Copy the link and paste it into Safari or
+        Chrome. Or use your email below.
       </p>
       <div className={clsx("mt-1 flex flex-wrap items-center gap-x-2", emphasise && "mt-3 flex-col items-stretch gap-1")}>
         {emphasise ? (
@@ -784,19 +784,19 @@ const VerifyView = ({ controller, view }: BodyProps & { view: Extract<SheetView,
         </p>
       ) : (
         <p className={bodyText}>
-          Welcome back. This is your account from before, and it&apos;s safe. Confirm{" "}
+          Welcome back. Your account is safe. Confirm{" "}
           {/* In full: it is the signed-in player's own address, often typed seconds ago. */}
           <strong className="break-all font-bold text-tt-gold-400" data-testid="verify-email-hint">
             {view.email || "your email"}
           </strong>{" "}
-          to keep playing: tap &ldquo;Resend email&rdquo; for a new link, open it, then come back here.
+          to keep playing: tap &ldquo;Resend email&rdquo;, open the new link, then come back here.
         </p>
       )}
       <p className="sr-only" role="status" aria-live="polite" data-testid="resend-ready">
         {cooldownEnded ? "You can resend the email now." : ""}
       </p>
       <ModalButton variant="primary" busy={checking} fullWidth className={CTA_CLASS} onClick={check}>
-        {"I'VE VERIFIED, CONTINUE"}
+        {"I'VE CONFIRMED, CONTINUE"}
       </ModalButton>
       <div className="flex flex-wrap items-center justify-center gap-x-2">
         {/* No live region on the button: its label ticks every second. The one announcement
@@ -953,8 +953,8 @@ const ConflictView = ({ controller }: BodyProps) => {
     <>
       <Heading>This email already has an account</Heading>
       <p className={bodyText}>
-        Sign in to that account to keep playing. Write to us first and we&apos;ll move this guest&apos;s progress over
-        for you{reference ? ", quoting this reference:" : "."}
+        Sign in to that account to keep playing. Want this guest&apos;s progress moved there? Write to us first
+        {reference ? " and include this reference:" : "."}
       </p>
       {reference && (
         <p

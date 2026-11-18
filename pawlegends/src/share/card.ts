@@ -404,7 +404,7 @@ export function openShareCard(parent: HTMLElement, o: ShareCardOpts): HTMLElemen
   const save = async (): Promise<void> => {
     const b = await cardBlob(canvas);
     if (!b) {
-      note.textContent = 'Could not make the picture. Try again.';
+      note.textContent = "Couldn't make the picture. Try again.";
       return;
     }
     const a = document.createElement('a');
@@ -435,7 +435,7 @@ export function openShareCard(parent: HTMLElement, o: ShareCardOpts): HTMLElemen
     // no picture sharing here: save the picture and send the link the usual way
     await save();
     o.onLink(url, text);
-    note.textContent = 'Picture saved and link copied: paste it with the picture.';
+    note.textContent = 'Picture saved and link copied. Post them together.';
   };
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;

@@ -100,23 +100,23 @@ export function cleanInviteCode(v: string): string | null {
 /** The server's refusal as a short line. */
 export function inviteError(r: InviteApiResult): string {
   const code = (r.body as { code?: string } | undefined)?.code ?? '';
-  if (r.status === 0) return 'No connection. Try again';
-  if (r.status === 429) return 'Too many tries. Wait a minute';
+  if (r.status === 0) return 'No connection. Try again.';
+  if (r.status === 429) return 'Too many tries. Wait a minute.';
   switch (code) {
     case 'PAWLEGENDS_INVITE_UNKNOWN':
-      return 'No invite with this code';
+      return 'No invite has this code.';
     case 'PAWLEGENDS_INVITE_SELF':
-      return 'That is your own code';
+      return "That's your own code.";
     case 'PAWLEGENDS_INVITE_USED':
-      return 'You already accepted an invite';
+      return 'You already accepted an invite.';
     case 'PAWLEGENDS_INVITE_DEVICE':
-      return 'This device already accepted an invite';
+      return 'This device already accepted an invite.';
     case 'PAWLEGENDS_INVITE_NOT_ELIGIBLE':
-      return 'Invites are for new players and players back after 21 days';
+      return 'Invites are for new players, or players away for 21 days or more.';
     case 'PAWLEGENDS_INVITE_FULL':
-      return 'Your friend has too many open invites';
+      return 'Your friend has too many open invites.';
   }
-  return 'Something went wrong. Try again';
+  return 'Something went wrong. Try again.';
 }
 
 const esc = (s: string): string =>
@@ -193,7 +193,7 @@ export class InviteRow {
   async redeem(raw: string): Promise<void> {
     const code = cleanInviteCode(raw);
     if (!code) {
-      this.deps.note('An invite code has 7 letters and digits');
+      this.deps.note('An invite code has 7 letters or numbers.');
       return this.deps.render();
     }
     const r = await this.deps.api('growth.redeem', { code });

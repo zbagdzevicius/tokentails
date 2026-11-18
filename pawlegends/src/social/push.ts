@@ -14,7 +14,7 @@ export type PushCat = (typeof PUSH_CATS)[number];
 export const PUSH_CAT_NAME: Readonly<Record<PushCat, string>> = Object.freeze({
   invite: 'Friend invites',
   club: 'Club chest ready',
-  ranked: 'Ranked opening',
+  ranked: 'Ranked opens',
   event: 'New events',
   nap: 'Winter Nap gifts',
 });

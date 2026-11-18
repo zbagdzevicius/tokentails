@@ -90,11 +90,11 @@ export function redeemNote(result: Pick<ApiResult<unknown>, "ok" | "status" | "c
     case "PAWLEGENDS_INVITE_DEVICE":
       return { text: "This device has already accepted an invite.", done: true };
     case "PAWLEGENDS_INVITE_NOT_ELIGIBLE":
-      return { text: "Invites are for new players and players back after 21 days.", done: true };
+      return { text: "Invites are for new players, or players away for 21 days or more.", done: true };
     case "PAWLEGENDS_INVITE_UNKNOWN":
       return { text: "That invite link has expired.", done: true };
     case "PAWLEGENDS_INVITE_FULL":
-      return { text: "Your friend has too many open invites right now.", done: true };
+      return { text: "Your friend has too many open invites.", done: true };
   }
   // a guest session (403 without a code), a network error or a 429: keep the code and try again later
   return { text: null, done: false };

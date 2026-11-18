@@ -151,7 +151,7 @@ export const PawlegendsStoreSheet = ({
     <GameModal open onOpenChange={(open) => !open && onClose(false)} title={label} icon="paw" size="sm" surface="panel" name="pawlegends-store">
       <div className="flex flex-col gap-3 font-sans text-p5 text-tt-cream" data-testid="pawlegends-store-sheet" data-sku={sku}>
         <p className="font-semibold" data-testid="pawlegends-store-price">
-          {priceLabel(cents[currency], currency)} · cosmetic only, nothing here changes a match
+          {priceLabel(cents[currency], currency)} · cosmetic only, no effect on matches
         </p>
         <label className="flex flex-col gap-1">
           <span>Email for the receipt</span>
@@ -187,7 +187,7 @@ export const PawlegendsStoreSheet = ({
                 </button>
               ))}
             </div>
-            <p className="text-p6 opacity-80">Added to this order for free, once. A fixed choice: no chance involved.</p>
+            <p className="text-p6 opacity-80">Free with this order, once. You pick it: nothing is random.</p>
           </fieldset>
         )}
         {growth?.creator && !codeOpen ? (

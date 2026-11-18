@@ -61,15 +61,15 @@ export function dareUrl(d: Dare, base: string): string {
 export function dareText(d: Dare): string {
   // Round 2: a Rookie (assisted) win says Rookie, not Easy.
   const bots = d.difficulty === 'hard' ? 'Hard' : d.difficulty === 'normal' ? 'Normal' : d.difficulty === 'rookie' ? 'Rookie' : 'Easy';
-  if (d.seconds <= 0 || d.seconds >= 600) return `Win my match vs ${bots} bots in Pawlegends!`;
+  if (d.seconds <= 0 || d.seconds >= 600) return `Win my match vs ${bots} bots in Paw Legends!`;
   const m = Math.floor(d.seconds / 60);
   const s = String(d.seconds % 60).padStart(2, '0');
-  return `Beat my ${m}:${s} vs ${bots} bots in Pawlegends!`;
+  return `Beat my ${m}:${s} vs ${bots} bots in Paw Legends!`;
 }
 
 /**
  * Sim v21 (V21-FUN.md §1.6): when the match's best moment was the player's KABOOM ("KABOOM on Brutus"), the dare
- * leads with it: "I KABOOMed Brutus with the Kibble Cannon. Beat my 7:12 vs Normal bots in Pawlegends!".
+ * leads with it: "I KABOOMed Brutus with the Kibble Cannon. Beat my 7:12 vs Normal bots in Paw Legends!".
  */
 export function kaboomDare(best: string | null | undefined, line: string): string {
   const m = /^KABOOM on (.+)$/.exec(best ?? '');

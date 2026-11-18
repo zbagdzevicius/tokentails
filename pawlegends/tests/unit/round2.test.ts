@@ -169,8 +169,8 @@ describe('round 2 client: why the match ended', () => {
   });
 
   it('the dare after a Rookie match says Rookie', () => {
-    expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'rookie', seconds: 301 })).toBe('Beat my 5:01 vs Rookie bots in Pawlegends!');
-    expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'easy', seconds: 301 })).toBe('Beat my 5:01 vs Easy bots in Pawlegends!');
+    expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'rookie', seconds: 301 })).toBe('Beat my 5:01 vs Rookie bots in Paw Legends!');
+    expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'easy', seconds: 301 })).toBe('Beat my 5:01 vs Easy bots in Paw Legends!');
   });
 
   it('Change hero teases a hero not yet won with, on the side the player picked', () => {

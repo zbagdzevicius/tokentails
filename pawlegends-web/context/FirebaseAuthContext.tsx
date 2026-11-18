@@ -755,7 +755,7 @@ const FirebaseAuthProvider = ({
               return;
             }
           }
-          setView({ name: "linking", label: "Saving your cat…" });
+          setView({ name: "linking", label: "Saving your progress…" });
           await syncToken();
           const profile = await loadProfile();
           // Errors (verification, conflict, outage) switch the view through the status effect. A
@@ -825,7 +825,7 @@ const FirebaseAuthProvider = ({
           toast({
             message:
               runs > 0
-                ? `Your guest progress is in your account now: ${runs} ${runs === 1 ? "run" : "runs"}.`
+                ? `Your guest progress is in your account now: ${runs} ${runs === 1 ? "match" : "matches"}.`
                 : "Your guest progress is in your account now.",
           });
           return loadProfile();

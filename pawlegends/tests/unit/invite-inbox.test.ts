@@ -55,8 +55,8 @@ describe('one sim build per party', () => {
     expect(simCheck(`${SIM_VERSION - 1}.bbbb2222`, mine)).toBe('them');
     expect(simCheck(`${SIM_VERSION}.bbbb2222`, mine)).toBe('differ');
     expect(simCheck('garbage', mine)).toBe('ok');
-    expect(simLine('me', 'Mira')).toMatch(/^Update your game to join Mira/);
-    expect(simLine('them', 'Mira')).toMatch(/Mira runs an older game version/);
+    expect(simLine('me', 'Mira')).toMatch(/^Reload to update your game, then join Mira\./);
+    expect(simLine('them', 'Mira')).toMatch(/Mira has an older version/);
     expect(simLine('ok', 'Mira')).toBe('');
   });
 
@@ -103,12 +103,12 @@ describe('the invite card', () => {
   it('an older game: the update line and Reload instead of Accept; a friend on an older game: the line, Accept stays', () => {
     const onReload = vi.fn();
     const el = inviteCard(document, inv() as never, { sim: 'me', onAccept: vi.fn(), onDecline: vi.fn(), onReload });
-    expect(el.querySelector('[data-testid="invite-update"]')!.textContent).toMatch(/^Update your game to join Mira/);
+    expect(el.querySelector('[data-testid="invite-update"]')!.textContent).toMatch(/^Reload to update your game, then join Mira\./);
     expect(el.querySelector('[data-testid="invite-accept"]')).toBeNull();
     el.querySelector<HTMLElement>('[data-testid="invite-reload"]')!.click();
     expect(onReload).toHaveBeenCalledOnce();
     const el2 = inviteCard(document, inv() as never, { sim: 'them', onAccept: vi.fn(), onDecline: vi.fn(), onReload });
-    expect(el2.querySelector('[data-testid="invite-update"]')!.textContent).toMatch(/Mira runs an older game version/);
+    expect(el2.querySelector('[data-testid="invite-update"]')!.textContent).toMatch(/Mira has an older version/);
     expect(el2.querySelector('[data-testid="invite-accept"]')).not.toBeNull();
   });
 

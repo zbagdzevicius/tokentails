@@ -671,20 +671,20 @@ export function checkoutErrorLine(
     case "PAWLEGENDS_SOLD_OUT":
       return "All Founder Legend seats are taken.";
     case "PAWLEGENDS_NEEDS_FOUNDER":
-      return "The upgrade is for Founder owners. Restore your items first.";
+      return "Only Founder owners can upgrade. Restore your purchases first.";
     case "PAWLEGENDS_STRIPE_UNAVAILABLE":
     case "PAWLEGENDS_ENTITLEMENT_UNAVAILABLE":
     case "PAWLEGENDS_WEBHOOK_UNAVAILABLE":
-      return "The store is closed right now. The game still plays.";
+      return "The store is closed right now. You can still play.";
     case "PAWLEGENDS_CREATOR_UNKNOWN":
-      return "That creator code is not in the program. Check it or leave it empty.";
+      return "That creator code doesn't exist. Check it or leave it empty.";
     case "PAWLEGENDS_GIFT_UNAVAILABLE":
       return "The first-purchase gift is no longer available. Try again.";
   }
   if (result.status === 0) return "No connection. Try again.";
   if (result.status === 429)
     return "Too many tries. Wait a minute and try again.";
-  return "Checkout did not start. Try again.";
+  return "Checkout didn't start. Try again.";
 }
 
 const EMAIL = /^[^\s@<>]{1,64}@[^\s@<>]{1,190}\.[A-Za-z]{2,24}$/;

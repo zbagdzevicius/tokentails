@@ -229,7 +229,7 @@ describe("the web store sheet: creator code and first-purchase gift", () => {
     expect(document.querySelector('input[type="radio"]')).toBeNull();
     fireEvent.click(coats[3]);
     expect(coats[3].getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByTestId("pawlegends-store-gift").textContent).toMatch(/no chance involved/i);
+    expect(screen.getByTestId("pawlegends-store-gift").textContent).toMatch(/nothing is random/i);
     await act(async () => {
       fireEvent.click(screen.getByTestId("pawlegends-store-buy"));
     });

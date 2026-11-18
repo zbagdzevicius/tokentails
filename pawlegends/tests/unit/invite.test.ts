@@ -117,7 +117,7 @@ describe('the invite row in the Social sheet', () => {
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await flush();
     expect(t.calls.find((c) => c.op === 'growth.redeem')?.args).toEqual({ code: 'ZZZZZZZ' });
-    expect(document.querySelector('.pl-social-note')!.textContent).toBe('No invite with this code');
+    expect(document.querySelector('.pl-social-note')!.textContent).toBe('No invite has this code.');
     // friend.add is never called for the invite form
     expect(t.calls.some((c) => c.op === 'friend.add')).toBe(false);
     const again = document.querySelector<HTMLFormElement>('[data-testid="invite-code-form"]')!;

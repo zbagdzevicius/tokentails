@@ -82,7 +82,7 @@ export function priceLine(i: NameInfo, now: number): string {
 /** The player-facing line for a refused change. Pure. */
 export function nameErrorText(r: ApiResult, info: NameInfo | null, now: number): string {
   const b = (r.body ?? {}) as { code?: string; message?: string; nextAt?: number };
-  if (r.status === 0) return 'No connection. Try again';
+  if (r.status === 0) return 'No connection. Try again.';
   switch (b.code) {
     case 'PAWLEGENDS_NAME_TAKEN':
       return 'That name is taken. Try another one.';
@@ -102,8 +102,8 @@ export function nameErrorText(r: ApiResult, info: NameInfo | null, now: number):
     case 'PAWLEGENDS_NAME_CHANGED':
       return 'Your name just changed. Try again.';
   }
-  if (r.status === 429) return 'Too many tries. Wait a minute';
-  return 'Something went wrong. Try again';
+  if (r.status === 429) return 'Too many tries. Wait a minute.';
+  return 'Something went wrong. Try again.';
 }
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -190,7 +190,7 @@ export class ProfileSheet {
 
   private body(): string {
     if (!this.deps.signedIn())
-      return `<div class="pl-social-empty" data-testid="profile-guest"><p>Sign in to choose your name, avatar and title. Guests play with a generated name.</p><button type="button" class="pl-btn small" data-a="signin">Sign in</button></div>`;
+      return `<div class="pl-social-empty" data-testid="profile-guest"><p>Sign in to choose your name, avatar and title. Guests get a random name.</p><button type="button" class="pl-btn small" data-a="signin">Sign in</button></div>`;
     // the history works without the name service (it has its own), so it is offered while that loads or fails too
     if (this.failed && !this.info) return `${this.historyRow()}<div class="pl-social-empty"><p>Couldn't load your profile.</p><button type="button" class="pl-btn small" data-a="retry">Try again</button></div>`;
     if (!this.info) return `${this.historyRow()}<p class="pl-social-empty">Loading…</p>`;
@@ -306,7 +306,7 @@ export class ProfileSheet {
       if (me) this.me = me;
       this.picking = null;
       this.say(ok);
-    } else this.say("Couldn't save that. Try again", true);
+    } else this.say("Couldn't save that. Try again.", true);
     this.render();
   }
 

@@ -297,8 +297,8 @@ describe("pawlegends host messages", () => {
   });
 
   it("shareTextOf keeps one plain dare line and drops links, markup, control characters and long text (PUB-06)", () => {
-    expect(shareTextOf("Beat my 7:12 vs Easy bots in Pawlegends!")).toBe("Beat my 7:12 vs Easy bots in Pawlegends!");
-    expect(shareTextOf("  Win my match vs Hard bots in Pawlegends!  ")).toBe("Win my match vs Hard bots in Pawlegends!");
+    expect(shareTextOf("Beat my 7:12 vs Easy bots in Paw Legends!")).toBe("Beat my 7:12 vs Easy bots in Paw Legends!");
+    expect(shareTextOf("  Win my match vs Hard bots in Paw Legends!  ")).toBe("Win my match vs Hard bots in Paw Legends!");
     expect(shareTextOf("Play at https://evil.example")).toBeNull();
     expect(shareTextOf("<b>hi</b>")).toBeNull();
     expect(shareTextOf("two\nlines")).toBeNull();

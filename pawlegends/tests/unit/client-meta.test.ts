@@ -17,7 +17,7 @@ describe('dare links', () => {
     expect(decodeDare('1.0.0.3.1')).toBeNull();
     expect(decodeDare('<script>.0.0.0.1')).toBeNull();
     expect(decodeDare(null)).toBeNull();
-    expect(dareText(d)).toBe('Beat my 7:12 vs Normal bots in Pawlegends!');
+    expect(dareText(d)).toBe('Beat my 7:12 vs Normal bots in Paw Legends!');
     expect(dareUrl(d, 'https://tokentails.com/pawlegends?x=1')).toBe(`https://tokentails.com/pawlegends?dare=${encodeDare(d)}`);
   });
 });
