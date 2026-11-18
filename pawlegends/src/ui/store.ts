@@ -63,9 +63,9 @@ const RUNG_WORD: Readonly<Record<CoatRung, string>> = Object.freeze({ COMMON: 'C
 /** What a coat's effect rung adds in a match (docs/plans/moba/CARD-SKINS.md §3). Looks only, never a number. */
 const RUNG_ADDS: Readonly<Record<CoatRung, string>> = Object.freeze({
   COMMON: '',
-  RARE: 'Rare effects: trails, ribbons and hits take the coat colour, with a coat-colour ultimate ring, recall and takedown stamp.',
-  EPIC: 'Epic effects: coat-colour skill effects, element motifs on hits, and its own ultimate, recall and takedown effects.',
-  LEGENDARY: 'Legendary effects: its own ultimate, recall and takedown effects, paw-print bursts, an element foil, a multi-kill card and a purr.',
+  RARE: 'Rare: trails, ribbons and hits take the coat colour. So do your ultimate ring, Nap and knockout stamp.',
+  EPIC: 'Epic: abilities in the coat colour, element marks on hits, and its own ultimate, Nap and knockout effects.',
+  LEGENDARY: 'Legendary: its own ultimate, Nap and knockout effects, paw-print bursts, an element shine, a multi-knockout card and a purr.',
 });
 const coatRungOf = (id: string | undefined): CoatRung | null => (id ? (PAID_COATS[id]?.rung ?? null) : null);
 /** The store line for a coat: the pattern and what its rung adds. */
@@ -80,7 +80,7 @@ export function coatLine(id: string | null): string {
   // gaps5 Mythic: the evolving form, in words
   const words = evolveWords(id);
   const evolve = isEvolving(id) ? ` Mythic: ${words.charAt(0).toLowerCase()}${words.slice(1)}` : '';
-  return `A patterned coat for one hero.${look}${r && RUNG_ADDS[r] ? ` ${RUNG_ADDS[r]}` : ''}${ult}${evolve}`;
+  return `A patterned coat for one champion.${look}${r && RUNG_ADDS[r] ? ` ${RUNG_ADDS[r]}` : ''}${ult}${evolve}`;
 }
 
 export interface StoreOpts {
@@ -134,11 +134,11 @@ export function champLine(def: CatalogSku, s: Partial<Pick<StoreSnapshot, 'champ
   if (def.bundleOf) {
     const have = champsOwned(def, s);
     const n = def.items.length;
-    return have > 0 && have < n ? `You own ${have} of these: you pay for the other ${n - have}.` : `Unlocks ${n} champions for every mode.`;
+    return have > 0 && have < n ? `You own ${have} of these. You pay only for the other ${n - have}.` : `Unlocks ${n} champions for every mode.`;
   }
   const hero = def.hero ?? '';
   const info = unlockInfo(hero, champsOf(s));
-  return `Unlocks ${championDef(hero)?.name ?? hero} for every mode.${info.yarn ? ` Or earn it: ${yarnText(info.yarn)} Yarn from playing.` : ''}`;
+  return `Unlocks ${championDef(hero)?.name ?? hero} for every mode.${info.yarn ? ` Or unlock it for ${yarnText(info.yarn)} Yarn.` : ''}`;
 }
 
 const BACK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -253,7 +253,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const roles = ROLE_ORDER.map(
       (r) => `<button type="button" class="cst-rolebtn${filter.role === r ? ' on' : ''}" data-role="${r}" data-k="role:${r}" aria-pressed="${filter.role === r}" aria-label="${esc(ROLE_NAME[r] ?? r)}" title="${esc(ROLE_NAME[r] ?? r)}">${roleImg(r, 'cst-roleico')}</button>`,
     ).join('');
-    const sorts = SORT_KEYS.map((k) => `<option value="${k}"${filter.sort === k ? ' selected' : ''}>${k === 'default' ? 'Default Sorting' : `Sort: ${SORT_LABEL[k]}`}</option>`).join('');
+    const sorts = SORT_KEYS.map((k) => `<option value="${k}"${filter.sort === k ? ' selected' : ''}>${`Sort: ${SORT_LABEL[k]}`}</option>`).join('');
     const grid = cards.length
       ? cards.map((c) => champCardHtml(c)).join('')
       : `<p class="cst-empty">${filter.unowned ? 'You own every champion here.' : 'No champion matches.'}</p>`;
@@ -409,22 +409,22 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       const action =
         st === 'owned'
           ? def.kind === 'pass'
-            ? `<button type="button" class="pl-btn small" data-a="pass" data-k="pass">Open the pass</button>`
+            ? `<button type="button" class="pl-btn small" data-a="pass" data-k="pass">Open the Pass</button>`
             : def.kind === 'bundle'
-              ? `<span class="cst-have">${CHECK_SVG}Owned: equip each coat on its hero.</span><button type="button" class="pl-btn ghost small" data-equip="${def.sku}" data-k="equip">Wear the frame</button>`
+              ? `<span class="cst-have">${CHECK_SVG}Owned. Equip each coat on its champion.</span><button type="button" class="pl-btn ghost small" data-equip="${def.sku}" data-k="equip">Wear the frame</button>`
               : `<button type="button" class="pl-btn small${eq ? ' ghost' : ''}" data-equip="${def.sku}" data-k="equip">${eq ? `${CHECK_SVG}Equipped` : 'Owned · Equip'}</button>`
           : st === 'partly'
-            ? `<span class="why">You own some of these: buy the singles.</span>`
+            ? `<span class="why">You own some of these. Buy the rest one by one.</span>`
             : st === 'locked'
-              ? `<span class="why">${def.sku === PASS_UPGRADE_SKU ? 'For Legends Pass owners.' : 'You have the Pass: get the Pass+ upgrade.'}</span>`
-              : `<button type="button" class="pl-btn small buy" data-buy="${def.sku}" data-k="buy:${def.sku}"${waiting ? ' disabled' : ''}>${waiting === def.sku ? 'Opening...' : `Buy ${esc(catalogPrice({ cents: priceFor(def, s) }, currency))}`}</button>`;
+              ? `<span class="why">${def.sku === PASS_UPGRADE_SKU ? 'For Legends Pass owners.' : 'You have the Pass. Get the Pass+ upgrade instead.'}</span>`
+              : `<button type="button" class="pl-btn small buy" data-buy="${def.sku}" data-k="buy:${def.sku}"${waiting ? ' disabled' : ''}>${waiting === def.sku ? 'Opening…' : `Buy ${esc(catalogPrice({ cents: priceFor(def, s) }, currency))}`}</button>`;
       const what =
         def.kind === 'pass'
           ? def.sku === PASS_SKU
-            ? 'Premium row: 30 rewards (coats, frames, titles). Every premium reward you already reached unlocks at once. Never expires.'
+            ? 'Legends Pass row: 30 rewards (coats, frames, titles). Rewards you already reached unlock right away. Never expires.'
             : def.sku === PASS_PLUS_SKU
-              ? 'Premium row, 15 tier skips and the exclusive Eclipse coat. Never expires.'
-              : 'For Legends Pass owners: 15 tier skips and the Eclipse coat, at the price difference.'
+              ? 'Legends Pass row, 15 Tier skips and the Eclipse coat (only here). Never expires.'
+              : 'For Legends Pass owners: 15 Tier skips and the Eclipse coat. You pay only the difference.'
           : def.kind === 'bundle'
             ? `${def.items.filter((i) => i.startsWith('coat.')).length} coats, a frame and its title.`
             : frameOf(def)
@@ -454,8 +454,8 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       const names = heroes.map((h) => championDef(h)?.name ?? h).join(', ');
       const art = (BUNDLE_ART[def.sku] ?? ['clem'])[0];
       const buy = own
-        ? `<span class="cst-have">${CHECK_SVG}Owned: pick them in any mode.</span>`
-        : `<button type="button" class="pl-btn small buy" data-buy="${def.sku}"${waiting ? ' disabled' : ''}>${waiting === def.sku ? 'Opening...' : `Buy ${esc(catalogPrice({ cents: priceFor(def, s) }, currency))}`}</button>`;
+        ? `<span class="cst-have">${CHECK_SVG}Owned. Pick them in any mode.</span>`
+        : `<button type="button" class="pl-btn small buy" data-buy="${def.sku}"${waiting ? ' disabled' : ''}>${waiting === def.sku ? 'Opening…' : `Buy ${esc(catalogPrice({ cents: priceFor(def, s) }, currency))}`}</button>`;
       return `<div class="cst-detail" role="dialog" aria-modal="true" aria-label="${esc(def.label)}"><div class="cst-dpanel" data-tier="bundle">
         <div class="cst-dart"><img alt="" decoding="async" ${splashAttrs(base, art, low(), '(min-height: 700px) 420px, 240px')}></div>
         <div class="cst-dinfo">
@@ -464,7 +464,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
           <p class="cst-blurb">${esc(champLine(def, s))}</p>
           <p class="cst-list">${esc(names)}</p>
           <div class="cst-acts">${buy}</div>
-          <p class="fine">A champion is the same in a match whether bought or earned with Yarn. Checkout opens on a secure web page.</p>
+          <p class="fine">A bought champion plays the same as one unlocked with Yarn. Checkout opens on a secure web page.</p>
           ${fine}
         </div></div></div>`;
     }
@@ -484,12 +484,12 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       c.status === 'starter'
         ? `<span class="cst-have">${CHECK_SVG}Starter: yours from the start</span>`
         : c.status === 'owned'
-          ? `<span class="cst-have">${CHECK_SVG}Owned: pick it in any mode</span>`
+          ? `<span class="cst-have">${CHECK_SVG}Owned. Pick it in any mode</span>`
           : c.status === 'free'
             ? `<span class="cst-rot">Free this week · ${esc(rotationEndText(champs()).replace(/^Free until /, 'until '))}</span>`
             : c.hidden
               ? `<span class="cst-have locked">${LOCK_SVG}Locked</span>`
-              : `<span class="cst-rot off">Free in a coming week's rotation. Practice it any time in champion select.</span>`;
+              : `<span class="cst-rot off">Free in a later week. You can practice with it any time from champion select.</span>`;
     const acts: string[] = [];
     if (c.unlockable && c.yarn !== null) {
       // founder Nov 17 ("there's no way to purchase using earned points"): the Yarn unlock is always there; short of
@@ -500,12 +500,12 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       );
       if (c.toGo > 0)
         acts.push(
-          `<span class="cst-togo" id="cst-togo-${hero}" data-testid="store-togo">${LOCK_SVG}You have ${yarnText(have)} Yarn: ${yarnText(c.toGo)} to go (about ${matchesFor(c.toGo)} ${matchesFor(c.toGo) === 1 ? 'match' : 'matches'})</span>`,
+          `<span class="cst-togo" id="cst-togo-${hero}" data-testid="store-togo">${LOCK_SVG}You have ${yarnText(have)} Yarn. ${yarnText(c.toGo)} more to go (about ${matchesFor(c.toGo)} ${matchesFor(c.toGo) === 1 ? 'match' : 'matches'})</span>`,
         );
       if (c.pick) acts.push(`<button type="button" class="pl-btn small" data-unlock="pick" data-k="unlock:pick" data-testid="store-pick">Use a Champion Pick</button>`);
       if (money() && c.cents) {
         const sku = champSkuOf(hero);
-        acts.push(`<button type="button" class="pl-btn ghost small buy" data-buy="${sku}" data-k="buy:${sku}"${waiting ? ' disabled' : ''}>${waiting === sku ? 'Opening...' : `Buy ${esc(catalogPrice({ cents: c.cents }, currency))}`}</button>`);
+        acts.push(`<button type="button" class="pl-btn ghost small buy" data-buy="${sku}" data-k="buy:${sku}"${waiting ? ' disabled' : ''}>${waiting === sku ? 'Opening…' : `Buy ${esc(catalogPrice({ cents: c.cents }, currency))}`}</button>`);
       }
     }
     acts.push(`<button type="button" class="pl-btn ghost small" data-a="info" data-k="info">Skills &amp; lore</button>`);
@@ -519,7 +519,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
         ${t ? `<p class="cst-blurb">${esc(t.blurb)}</p>` : ''}
         ${skills}
         <div class="cst-acts">${acts.join('')}</div>
-        ${money() && c.unlockable ? '<p class="fine">A champion is the same in a match whether bought or earned with Yarn.</p>' : ''}
+        ${money() && c.unlockable ? '<p class="fine">A bought champion plays the same as one unlocked with Yarn.</p>' : ''}
         ${money() && c.unlockable ? fine : ''}
       </div></div></div>`;
   };
@@ -529,7 +529,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   let lastHtml = '';
   const render = (): void => {
     // an unlock the host confirmed (a fresh `store`): say so once the champion shows as owned
-    if (line === 'Unlocking...' && detail?.hero && champStatus(detail.hero, champs(), app()) === 'owned') line = `${championDef(detail.hero)?.name ?? 'Champion'} unlocked. Pick it in any mode.`;
+    if (line === 'Unlocking…' && detail?.hero && champStatus(detail.hero, champs(), app()) === 'owned') line = `${championDef(detail.hero)?.name ?? 'Champion'} unlocked. Pick it in any mode.`;
     const active = document.activeElement as HTMLElement | null;
     const focusKey = active && root.contains(active) ? (active.dataset.k ?? active.closest<HTMLElement>('[data-k]')?.dataset.k ?? null) : null;
     const focusInDetail = !!active?.closest('.cst-detail');
@@ -606,7 +606,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   const off = o.checkout.onResult((sku, ok) => {
     notePurchase(ok);
     const def = CATALOG_SKUS.find((d) => d.sku === sku);
-    line = ok ? `${def?.label ?? 'Your item'}: thank you! It is on its way.` : 'The purchase was not completed.';
+    line = ok ? `${def?.label ?? 'Your item'}: thanks! It's on its way.` : "The purchase didn't go through.";
     render();
   });
   const onKey = (e: KeyboardEvent): void => {
@@ -669,7 +669,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       openDetail({ sku: bundle }, `bundle:${bundle}`);
     } else if (unlock && detail?.hero) {
       o.onUnlock?.(detail.hero, unlock);
-      line = o.onUnlock ? 'Unlocking...' : 'Unlocking is not available right now.';
+      line = o.onUnlock ? 'Unlocking…' : "You can't unlock this right now.";
     } else if (sel && !detail) {
       openDetail({ sel }, `sel:${sel}`);
     } else if (buy) {
@@ -677,7 +677,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       if (o.checkout.buy(buy)) {
         o.onBuy?.(buy);
         line = 'Finish on the purchase sheet.';
-      } else line = 'The store is not available right now.';
+      } else line = "The store isn't open right now.";
     } else if (eq) {
       const def = CATALOG_SKUS.find((d) => d.sku === eq);
       if (def) {

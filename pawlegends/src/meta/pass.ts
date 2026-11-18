@@ -41,7 +41,7 @@ export function matchesToNextText(def: SeasonDef, s: Pick<PassState, 'xp' | 'ski
   if (!need) return null;
   const n = Math.max(1, Math.ceil(need / TYPICAL_MATCH_XP));
   const next = seasonTier(def, s.xp, s.skips) + 1;
-  return `about ${n} ${n === 1 ? 'match' : 'matches'} to tier ${next}`;
+  return `about ${n} ${n === 1 ? 'match' : 'matches'} to Tier ${next}`;
 }
 
 /** Rewards ready to claim for this state. */

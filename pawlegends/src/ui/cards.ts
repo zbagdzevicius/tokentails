@@ -158,7 +158,7 @@ export function progressStrip(badges: readonly LevelBadge[]): HTMLElement {
     chip.appendChild(h('b', '', LEVEL_NAME[b.level]));
     // NO-TOKENTAILS.md (Your call 2): catnip is not a Paw Legends currency, so the chips show times and badges only
     if (won) chip.appendChild(h('small', '', b.fastest !== null ? `best ${clock(b.fastest)}` : 'won'));
-    else chip.appendChild(h('small', 'goal', 'First win: badge'));
+    else chip.appendChild(h('small', 'goal', 'Win once for a badge'));
     row.appendChild(chip);
   }
   return row;
@@ -202,7 +202,7 @@ export function championInfo(m: ChampionInfoModel): HTMLElement {
     ),
   );
   const body = h('div', 'plc-champ-body');
-  body.appendChild(h('small', 'plc-kicker', 'Pawlegends champion'));
+  body.appendChild(h('small', 'plc-kicker', 'Paw Legends champion'));
   const line = real === m.name
     ? `${m.name} is a real cat from the Pink Paw shelter. Every player can pick ${them}.` // copy-lint-ignore R13 credits the real cat's home, no donation or money claim
     : `${m.name} is based on ${real}, a real cat from the Pink Paw shelter. Every player can pick ${them}.`; // copy-lint-ignore R13 credits the real cat's home, no donation or money claim
@@ -261,14 +261,14 @@ export interface SaveChipModel {
 }
 
 const CHIP_TEXT: Readonly<Record<ChipState, string>> = Object.freeze({
-  waiting: 'Saving your match...',
-  saving: 'Saving your match...',
+  waiting: 'Saving your match…',
+  saving: 'Saving your match…',
   saved: 'Saved to your account',
   queued: 'Kept on this device',
   local: 'Kept on this device',
   failed: 'Not saved yet. Trying again soon.',
   rejected: "This match didn't count",
-  update: 'Update needed to save matches',
+  update: 'Update the game to save matches',
 });
 
 /** Animate a number from 0 to `to` (ease out) into `el`. */
@@ -298,7 +298,7 @@ export function saveChip(m: SaveChipModel, on: { signIn(): void }): HTMLElement 
     sx.dataset.seasonXp = String(m.season.gained);
     sx.append(h('b', '', `+${m.season.gained}`), h('span', '', 'Season XP'));
     root.appendChild(sx);
-    if (m.season.tier > m.season.prevTier) root.appendChild(h('div', 'plc-stamp plc-tierup', `Pass tier ${m.season.tier}!`));
+    if (m.season.tier > m.season.prevTier) root.appendChild(h('div', 'plc-stamp plc-tierup', `Pass Tier ${m.season.tier}!`));
   }
   // CHAMPION-STORE.md §10: "+90 Yarn" (earned by playing; unlocks champions, never money) and a Champion Pick line
   if (m.state === 'saved' && m.season?.yarn && m.season.yarn.gained > 0) {
@@ -306,10 +306,10 @@ export function saveChip(m: SaveChipModel, on: { signIn(): void }): HTMLElement 
     yx.dataset.yarn = String(m.season.yarn.gained);
     yx.append(h('b', '', `+${m.season.yarn.gained}`), h('span', '', 'Yarn'));
     root.appendChild(yx);
-    if (m.season.yarn.newPicks > 0) root.appendChild(h('div', 'plc-stamp plc-pick', 'Champion Pick earned: unlock a champion free!'));
+    if (m.season.yarn.newPicks > 0) root.appendChild(h('div', 'plc-stamp plc-pick', 'Champion Pick earned: unlock a champion for free!'));
   }
-  if (m.state === 'saved' && m.season?.heroLocked) root.appendChild(h('div', 'plc-stamp plc-locked', 'No rewards: that champion is not unlocked yet.'));
-  if (m.newFastest) root.appendChild(h('div', 'plc-stamp', 'New fastest!'));
+  if (m.state === 'saved' && m.season?.heroLocked) root.appendChild(h('div', 'plc-stamp plc-locked', "No rewards: you haven't unlocked that champion yet."));
+  if (m.newFastest) root.appendChild(h('div', 'plc-stamp', 'New fastest win!'));
   if (m.askSignIn && (m.state === 'queued' || m.state === 'local')) root.appendChild(saveWinsButton(on.signIn));
   return root;
 }

@@ -196,7 +196,7 @@ describe('mounted cards', () => {
     expect(t2.querySelector('[data-a="save-wins"]')).toBeNull();
     // NO-TOKENTAILS.md (Your call 2): catnip is never named in the game; the chips show times and badges
     expect(t2.querySelector('.plc-level[data-level="easy"]')?.textContent).toContain('best 4:31');
-    expect(t2.querySelector('.plc-level[data-level="normal"]')?.textContent).toContain('First win: badge');
+    expect(t2.querySelector('.plc-level[data-level="normal"]')?.textContent).toContain('Win once for a badge');
     expect(t2.textContent).not.toMatch(/catnip/i);
   });
 
@@ -232,7 +232,7 @@ describe('mounted cards', () => {
     expect(r.querySelector('[data-save]')?.getAttribute('data-save')).toBe('saved');
     expect(r.querySelector('.plc-catnip')).toBeNull();
     expect(r.textContent).not.toMatch(/catnip/i);
-    expect(r.querySelector('.plc-stamp')?.textContent).toBe('New fastest!');
+    expect(r.querySelector('.plc-stamp')?.textContent).toBe('New fastest win!');
 
     const g = harness();
     g.emit({ type: 'session', signedIn: false });

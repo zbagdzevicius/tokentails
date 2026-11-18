@@ -88,7 +88,7 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
       const lock = row === 'p' && !premium;
       const state = claimed ? 'claimed' : lock ? 'locked' : reached ? 'ready' : 'ahead';
       const kind = r.item.startsWith('coat.') ? 'coat' : r.item.startsWith('frame.') ? 'frame' : 'title';
-      const label = `${r.name}${claimed ? ', claimed' : state === 'ready' ? ', ready to claim' : lock ? ', premium row' : ''}`;
+      const label = `${r.name}${claimed ? ', claimed' : state === 'ready' ? ', ready to claim' : lock ? ', Legends Pass row' : ''}`;
       const st = claimed ? `${TICK_SVG}<span>Claimed</span>` : lock ? `${LOCK_SVG}<span>Pass</span>` : state === 'ready' ? '<span>Claim</span>' : `<span>Tier ${n}</span>`;
       return `<button type="button" class="pc ${state} k-${kind} r-${rarity(row, n, r.item)} ${row === 'f' ? 'free' : 'prem'}" data-row="${row}" data-tier="${n}" aria-label="${esc(`Tier ${n}: ${label}`)}"${state === 'ready' ? '' : ' aria-disabled="true"'}>${preview(r.item, r.name, r.hero)}<b>${esc(r.name)}</b><small class="st">${st}</small></button>`;
     };
@@ -123,17 +123,17 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
                 ? '.pass-track'
                 : '[role="tab"][aria-selected="true"]'
         : null;
-    root.innerHTML = `<div class="card bk-card">${bookClose('Legends Pass')}<div class="bk-head">${bookTabs('pass', 'Treat Track and Legends Pass')}</div>
+    root.innerHTML = `<div class="card bk-card">${bookClose('Legends Pass')}<div class="bk-head">${bookTabs('pass', 'Pass')}</div>
       <div class="pass-plate" role="group" aria-label="${esc(def.name)}">
         <div class="pp-title"><span class="kick">${esc(kick)}</span><b>${esc(title)}</b></div>
-        <div class="pass-top"><span class="tier-gem" aria-hidden="true"><b>${tier}</b></span><span class="xpw"><span class="xp" data-xp="${s.xp}">Tier <b data-tier="${tier}">${tier}</b>/${def.tiers} · ${s.xp} Season XP</span><span class="bar" role="progressbar" aria-label="Season XP to the next tier" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i><span class="gem" style="left:${pct}%"></span></span><small>${esc(togo ?? 'Every tier reached')}${end ? ` · season ends ${esc(end)}, rewards never expire` : ''}</small></span></div>
+        <div class="pass-top"><span class="tier-gem" aria-hidden="true"><b>${tier}</b></span><span class="xpw"><span class="xp" data-xp="${s.xp}">Tier <b data-tier="${tier}">${tier}</b>/${def.tiers} · ${s.xp} Season XP</span><span class="bar" role="progressbar" aria-label="Season XP to the next Tier" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i><span class="gem" style="left:${pct}%"></span></span><small>${esc(togo ?? 'Every Tier reached')}${end ? ` · season ends ${esc(end)}, rewards never expire` : ''}</small></span></div>
       </div>
       <div class="pass-book">
-        <div class="pass-rows"><span class="rl f">Free</span><span class="rl p">${premium ? (s.premium === 'plus' ? 'Pass+' : 'Pass') : 'Premium'}</span></div>
+        <div class="pass-rows"><span class="rl f">Free</span><span class="rl p">${premium ? (s.premium === 'plus' ? 'Pass+' : 'Pass') : 'Pass'}</span></div>
         <div class="pass-scroll"><div class="pass-track" role="list" aria-label="Reward tiers" tabindex="0">${cols}</div><span class="more" aria-hidden="true">more ▸</span></div>
       </div>
       <div class="pass-bar"><button type="button" class="bk-done gold" data-a="all"${ready.length ? '' : ' disabled'}>Claim all${ready.length ? ` (${ready.length})` : ''}</button>${buys}<p class="line" role="status">${esc(line)}</p></div>
-      <p class="fine">Season XP comes from every match you finish: a win, a loss, takedowns and the first win of the day. No random rewards.</p>
+      <p class="fine">Every match you finish gives Season XP. Wins, takedowns and your first win of the day give more. No random rewards.</p>
     </div>`;
     const track = root.querySelector<HTMLElement>('.pass-track');
     const sc = root.querySelector<HTMLElement>('.pass-scroll');
@@ -177,11 +177,11 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
     const pc = t.closest<HTMLElement>('.pc.ready');
     const buy = t.closest<HTMLElement>('[data-buy]')?.dataset.buy;
     if (pc) {
-      line = o.claim(pc.dataset.row as PassRow, Number(pc.dataset.tier)) ? 'Claiming...' : 'Sign in to claim rewards.';
+      line = o.claim(pc.dataset.row as PassRow, Number(pc.dataset.tier)) ? 'Claiming…' : 'Sign in to claim rewards.';
     } else if (a === 'all') {
-      line = o.claim(null, null) ? 'Claiming...' : 'Sign in to claim rewards.';
+      line = o.claim(null, null) ? 'Claiming…' : 'Sign in to claim rewards.';
     } else if (buy) {
-      line = o.buy?.(buy) ? 'Finish on the purchase sheet.' : 'The store is not available right now.';
+      line = o.buy?.(buy) ? 'Finish on the purchase sheet.' : "The store isn't open right now.";
     } else if (a === 'track') {
       close();
       o.onClose();

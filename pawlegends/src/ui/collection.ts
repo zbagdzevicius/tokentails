@@ -116,7 +116,7 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
     const stop = (k: number, cls: string): string => `<span class="tp-stop ${cls}" aria-hidden="true"><i></i><em>${k}</em></span>`;
     const path = `${c0 > 0 ? stop(c0, 'done') : ''}<span class="tp-now"><span class="tp-chest" aria-hidden="true"></span><span class="tp-num" aria-hidden="true">${c0 + 1}</span></span>${stop(c0 + 2, 'ahead')}${stop(c0 + 3, 'ahead')}${stop(c0 + 4, 'ahead')}`;
     // Audit UX-10: a corner ✕ and a fixed Done (the exit never scrolls away); only the book body scrolls
-    const tabs = o.onPass ? bookTabs('track', 'Treat Track and Legends Pass') : '<h2 class="bk-h">Treat Track</h2>';
+    const tabs = o.onPass ? bookTabs('track', 'Pass') : '<h2 class="bk-h">Treat Track</h2>';
     root.innerHTML = `<div class="card bk-card">${bookClose('Treat Track')}<div class="bk-head">${tabs}</div>
       <div class="bk-body">
       <section class="bk-page tp">
@@ -128,12 +128,12 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
         </div>
       </section>
       <p class="champs-row"><button type="button" class="bk-pill" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: skills &amp; lore</button>${o.onHistory ? `<button type="button" class="bk-pill" data-a="history" data-testid="open-history" aria-haspopup="dialog">${icon('arrows')}Match history</button>` : ''}${o.champions ? `<small class="champ-count" data-champs="${o.champions.owned}">Champions ${o.champions.owned}/${o.champions.total} · ${o.champions.yarn.toLocaleString('en-US')} Yarn${o.champions.founders ? ' · <b class="founders-badge">Founders roster</b>' : ''}</small>` : ''}</p>
-      <h3 class="bk-h3">Pick your next target</h3>
-      <div class="targets"><div class="md-row" role="group" aria-label="Pick your next target"><button type="button" class="target md order${s.target === null ? ' on' : ''}" data-target="" aria-pressed="${s.target === null}" aria-label="Track order, any hero"><span class="md-ring"><span class="md-face">${icon('arrows')}</span></span><b>Track order</b><small>Any hero</small></button><span class="grp" aria-hidden="true">Cats</span>${cats.map(medal).join('')}<span class="grp dog" aria-hidden="true">Dogs</span>${dogs.map(medal).join('')}</div></div>
+      <h3 class="bk-h3">Whose reward comes next?</h3>
+      <div class="targets"><div class="md-row" role="group" aria-label="Whose reward comes next"><button type="button" class="target md order${s.target === null ? ' on' : ''}" data-target="" aria-pressed="${s.target === null}" aria-label="Track order, any champion"><span class="md-ring"><span class="md-face">${icon('arrows')}</span></span><b>Track order</b><small>Any champion</small></button><span class="grp" aria-hidden="true">Cats</span>${cats.map(medal).join('')}<span class="grp dog" aria-hidden="true">Dogs</span>${dogs.map(medal).join('')}</div></div>
       <h3 class="bk-h3">Meet the real cat</h3>
       <div class="postcards">${TRACK_CHAMPIONS.map(card).join('')}</div>
       ${titles.length || frames.length ? `<h3 class="bk-h3">Wear</h3>${wearRow('title', titles, (id) => TRACK_TITLES[id] ?? STORE_TITLE_NAME[id] ?? id, s.title)}${wearRow('frame', frames, (id) => FRAME_NAME[id] ?? id, s.frame)}` : ''}
-      <p class="fine">Free, earned by playing. Rewards come in a fixed order.</p>
+      <p class="fine">Free. Earn it by playing. Rewards come in a fixed order.</p>
       </div>
       <div class="bk-foot"><button type="button" class="bk-done" data-a="close">Done</button></div></div>`;
     const row = root.querySelector<HTMLElement>('.md-row');

@@ -38,7 +38,7 @@ describe('coat trails', () => {
     expect(trailOf('coat.meatball.store_double_stack')).toBe('ketchup');
     expect(isEvolving('coat.meatball.store_double_stack')).toBe(false);
     expect(evolveWords('coat.brutus.store_chairman')).toContain('office chair');
-    expect(evolveWords('coat.meatball.store_mega_meal')).toContain('five-patty');
+    expect(evolveWords('coat.meatball.store_mega_meal')).toContain('5-patty');
     expect(evolveWords('coat.domino.store_pizzaiolo')).toBe('');
     expect(isEvolving('coat.domino.store_pizzaiolo')).toBe(false);
   });

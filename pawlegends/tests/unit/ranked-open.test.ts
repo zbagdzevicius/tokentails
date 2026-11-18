@@ -48,8 +48,8 @@ describe('the Ranked tile: always open (round 4)', () => {
   it('the rules say bots honestly: when they fill, what they pay, and vs AI', () => {
     const rules = rankedModeDef(status()).rules.join(' ');
     expect(rules).toMatch(/Players first/);
-    expect(rules).toContain(`labelled bots fill after ${RANKED_BOTS.fillS} s (half points)`);
-    expect(rules).toContain(`alone after ${RANKED_BOTS.fillS + RANKED_BOTS.aiAfterS} s, vs AI (quarter points, none from Alley III)`);
+    expect(rules).toContain(`labelled bots fill empty seats after ${RANKED_BOTS.fillS} s (half points)`);
+    expect(rules).toContain(`Still alone after ${RANKED_BOTS.fillS + RANKED_BOTS.aiAfterS} s? You play bots (quarter points, none from Alley III)`);
     expect(rankedBotsRule(true)).toContain(`after ${RANKED_BOTS.primeFillS} s`);
     expect(rules).not.toMatch(/no bots/i);
   });
@@ -220,7 +220,7 @@ describe('the ranked results block', () => {
     expect(rankedResult(card({ tierIdx: 7, points: 95 }), card({ tierIdx: 8, points: 13 }), true)).toMatchObject({ change: 'Promoted to Alley I', tone: 'up' });
     expect(rankedResult(card({ tierIdx: 7, points: 5, shield: 0 }), card({ tierIdx: 6, points: 75, shield: 1 }), false)).toMatchObject({ change: 'Demoted to Alley III', tone: 'down' });
     expect(rankedResult(card({ tierIdx: 7, points: 5, shield: 1 }), card({ tierIdx: 7, points: 5, shield: 0 }), false)).toMatchObject({ change: 'Shield used: no points lost', shield: 'Shield used' });
-    expect(rankedResult(card({ tierIdx: 2, points: 30 }), card({ tierIdx: 2, points: 30 }), false)).toMatchObject({ change: 'Kitten and Tabby never lose points', shield: '' });
+    expect(rankedResult(card({ tierIdx: 2, points: 30 }), card({ tierIdx: 2, points: 30 }), false)).toMatchObject({ change: 'Kitten and Tabby ranks never lose points', shield: '' });
     expect(rankedResult(card({ tierIdx: 12, points: 200 }), card({ tierIdx: 12, points: 221 }), true)).toMatchObject({ tier: 'Legend · 221 pts', change: '+21 pts' });
   });
 
@@ -239,6 +239,6 @@ describe('the ranked results block', () => {
     expect(html).toContain('+18 pts');
     expect(html).not.toContain('ranked-kind');
     expect(rankedBlockHtml(null, 'filled')).toContain('Bots filled empty seats · half points');
-    expect(rankedBlockHtml(null, 'ai')).toContain('Ranked vs AI · quarter points (none from Alley III)');
+    expect(rankedBlockHtml(null, 'ai')).toContain('Ranked vs bots · quarter points (none from Alley III)');
   });
 });

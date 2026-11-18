@@ -59,7 +59,7 @@ export function fishSources(by: Readonly<Record<string, number>>, total: number)
     if (n > 0) out.push({ key: g.key, label: g.label, amount: n });
   }
   const trickle = Math.max(0, total - seen);
-  if (trickle > 0) out.push({ key: 'trickle', label: 'Trickle', amount: trickle });
+  if (trickle > 0) out.push({ key: 'trickle', label: 'Over time', amount: trickle });
   return out;
 }
 
@@ -138,5 +138,5 @@ export function progressBlock(p: ProgressSummary): string {
         .map((s) => `<span class="s-${s.key}" data-src="${s.key}"><i></i>${esc(s.label)} ${Math.round((s.amount / total) * 100)}%</span>`)
         .join('')}</span></div>`
     : '';
-  return `<div class="pl-prog"><table><thead><tr><th>Hero</th><th title="Level">Lv</th><th>Toys</th><th title="Fish earned">Fish</th><th title="Lane minion last hits">LH</th></tr></thead><tbody>${rows}</tbody></table>${bar}</div>`;
+  return `<div class="pl-prog"><table><thead><tr><th>Champion</th><th title="Level">Lv</th><th>Toys</th><th title="Fish earned">Fish</th><th title="Lane minion last hits">LH</th></tr></thead><tbody>${rows}</tbody></table>${bar}</div>`;
 }

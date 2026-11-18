@@ -72,18 +72,18 @@ export const RANKED_DRAFT = Object.freeze({ fromIdx: 3, banMs: 15_000, bansPerTe
 export const RANKED_GRADE = Object.freeze({ sLossShare: 0.5 });
 
 /** The Ranked rules' draft line. */
-export const RANKED_DRAFT_RULE = `From Tabby III: draft. Each team bans one champion first (15 s), then picks.`;
+export const RANKED_DRAFT_RULE = `From rank Tabby III: each team bans 1 champion (15 s), then picks.`;
 /** The Ranked rules' grade line (the honest S-grade loss protection). */
-export const RANKED_GRADE_RULE = `An S grade in a loss loses half the points (Alley and up; checked by the server).`;
+export const RANKED_GRADE_RULE = `Lose with an S grade and you lose only half the points (rank Alley and up).`;
 
 /** Who a ranked match was against: six players, players with labelled bots in the empty seats, or bots (vs AI). */
 export type RankedKind = 'players' | 'filled' | 'ai';
 
 /** The one line that says what a ranked match of this kind pays. Pure. */
 export function rankedKindLine(kind: RankedKind): string {
-  if (kind === 'ai') return 'Ranked vs AI · quarter points (none from Alley III)';
+  if (kind === 'ai') return 'Ranked vs bots · quarter points (none from Alley III)';
   if (kind === 'filled') return 'Bots filled empty seats · half points';
-  return 'Six players · full points';
+  return '6 players, no bots · full points';
 }
 
 /** "Tabby II", or "Legend · 240 pts". Pure. */
@@ -165,7 +165,7 @@ export function rankedLiveText(st: RankedStatus | null): string {
 /** The rules' line about a quiet queue (the honest bot rule). Pure. */
 export function rankedBotsRule(prime = false): string {
   const fill = prime ? RANKED_BOTS.primeFillS : RANKED_BOTS.fillS;
-  return `Quiet queue: labelled bots fill after ${fill} s (half points); alone after ${fill + RANKED_BOTS.aiAfterS} s, vs AI (quarter points, none from Alley III).`;
+  return `Quiet queue: labelled bots fill empty seats after ${fill} s (half points). Still alone after ${fill + RANKED_BOTS.aiAfterS} s? You play bots (quarter points, none from Alley III).`;
 }
 
 let cache: { atMs: number; api: string; value: RankedStatus | null } | null = null;
@@ -299,7 +299,7 @@ function rankedResultCore(before: RankedCard | null, after: RankedCard, won: boo
   const d = pts - (before.points ?? 0);
   if (d > 0) return { tier, change: `+${d} pts`, tone: 'up', shield };
   if (d < 0) return { tier, change: `${d} pts`, tone: 'down', shield };
-  if (!won && protectedTier) return { tier, change: 'Kitten and Tabby never lose points', tone: 'flat', shield };
+  if (!won && protectedTier) return { tier, change: 'Kitten and Tabby ranks never lose points', tone: 'flat', shield };
   if (!won && (before.shield ?? 0) > (after.shield ?? 0)) return { tier, change: 'Shield used: no points lost', tone: 'flat', shield };
   return { tier, change: 'No change', tone: 'flat', shield };
 }

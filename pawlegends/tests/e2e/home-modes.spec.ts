@@ -128,8 +128,8 @@ test('Ranked (round 4, SOCIAL-RANKED.md §7.11): always open, the rules say bots
   // standalone (no relay, no status): no count is guessed
   await expect(tile).toContainText('Always open');
   await ms.locator('[data-info="ranked"]').click();
-  await expect(ms).toContainText('labelled bots fill after 40 s (half points)');
-  await expect(ms).toContainText('vs AI (quarter points, none from Alley III)');
+  await expect(ms).toContainText('labelled bots fill empty seats after 40 s (half points)');
+  await expect(ms).toContainText('You play bots (quarter points, none from Alley III)');
   await shot(page, 'r4-ranked-rules');
   await page.keyboard.press('Escape');
   await tile.click();

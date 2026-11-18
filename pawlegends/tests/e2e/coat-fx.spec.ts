@@ -66,7 +66,7 @@ test('Home → Heroes → Coats: every clip plays and the page fits', async ({ p
   for (const k of ['recall', 'takedown'] as const) {
     await tap(`.cb-cfx-btn[data-cfx="${k}"]`);
     await expect(dlg.locator('.cb-cfx-btn.on')).toHaveAttribute('data-cfx', k);
-    await expect(dlg.locator('.cb-coat-fx li.on')).toContainText(k === 'recall' ? 'Recall' : 'Takedown');
+    await expect(dlg.locator('.cb-coat-fx li.on')).toContainText(k === 'recall' ? 'Nap' : 'Knockout');
     await expect.poll(() => dlg.getAttribute('data-clip'), { timeout: limit(60_000) }).toBe('playing');
     await page.waitForTimeout(k === 'recall' ? 4300 : 1400);
     await shot(k);
@@ -131,7 +131,7 @@ test('the Mythic coat: store ribbon, Preview effects, the Evolve clip', async ({
   for (const sku of ['pl_coat_domino_pizzaiolo', 'pl_coat_meatball_drive_thru']) await expect(shop.locator(`[data-sel="${sku}"]`)).toContainText(/Legendary · (\$|€)14\.99/);
   for (const sku of ['pl_coat_nugget_robo_vac', 'pl_coat_marshmallow_soft_serve']) await expect(shop.locator(`[data-sel="${sku}"]`)).toContainText(/Epic · (\$|€)7\.99/);
   await tap('[data-sel="pl_coat_frankie_paper_parade"]');
-  await expect(shop.locator('.cst-detail')).toContainText('the parade body grows at levels 4, 7 and 10');
+  await expect(shop.locator('.cst-detail')).toContainText('The parade body grows at levels 4, 7 and 10');
   const shots = fs.existsSync(path.dirname(SHOTS5)) && !process.env.CI;
   if (shots) fs.mkdirSync(SHOTS5, { recursive: true });
   const shot = async (name: string): Promise<void> => {

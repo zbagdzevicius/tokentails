@@ -188,7 +188,7 @@ export function openLuckyChest(g: Grant, table: LuckyTable, onDone?: () => void,
     const tag = daily ? 'Daily Treat' : `${RARITY_NAME[g.rarity ?? 'common']}${g.floor ? ' · lucky 10th' : ''}`;
     (card.querySelector('.rw-kick') as HTMLElement).textContent = tag;
     (card.querySelector('.rw-title') as HTMLElement).textContent = what;
-    (card.querySelector('.rw-what') as HTMLElement).textContent = g.item ? 'Added to your collection.' : g.xp && !daily ? 'You had every look in this tier, so you get Treat XP instead.' : 'Added to your Treat Track.';
+    (card.querySelector('.rw-what') as HTMLElement).textContent = g.item ? 'Added to your collection.' : g.xp && !daily ? 'You own every look of this rarity, so you get Treat XP instead.' : 'Added to your Treat Track.';
     const chest = card.querySelector('.rw-chest') as HTMLButtonElement;
     chest.disabled = true;
     chest.setAttribute('aria-label', what);
@@ -230,7 +230,7 @@ export function openLuckyOdds(table: LuckyTable = loadCloud().lucky ?? LUCKY_DEF
     <ul class="rw-rules">
       <li>One Lucky Treat a day, for your first win (days change at 00:00 UTC).</li>
       <li>Every ${table.floor}th Lucky Treat is Rare or better. Yours: ${n === table.floor && table.n > 0 ? `the next one is a ${table.floor}th` : `Rare or better in ${n}`}.</li>
-      <li>Earned only. It is never sold and nothing paid opens one.</li>
+      <li>You only earn it. It's never sold, and nothing you buy opens one.</li>
       <li>Cosmetic only. You never get a look you already own.</li>
     </ul>`
         : `<p class="rw-what">Your first win each day gives a Daily Treat: +${table.dailyTreatXp} Treat XP. No random rewards on this account.</p>`

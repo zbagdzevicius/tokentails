@@ -58,7 +58,7 @@ function napCard(s: LiveopsState, now: number): string {
   const head = `<div class="lo-h"><span class="ev-crest" aria-hidden="true">${MOON}</span><span class="t"><b>${esc(n.name)}</b><small>${day(n.startsAt)} – ${last} · a gift for each day you play</small></span></div>`;
   if (phase === 'before' || !n.gifts.length) {
     const count = n.gifts.length || 7;
-    return `<div class="lo-card lo-nap" role="listitem" data-testid="lo-nap">${head}<small class="lo-hint">Starts ${day(n.startsAt)}: play on ${count} days, open ${count} gifts, the last one a coat. Missed a day? Nothing resets.</small></div>`;
+    return `<div class="lo-card lo-nap" role="listitem" data-testid="lo-nap">${head}<small class="lo-hint">Starts ${day(n.startsAt)}. Play on ${count} days to open ${count} gifts. The last one is a coat. Missed a day? Nothing resets.</small></div>`;
   }
   const me = s.me?.nap ?? { days: 0, earned: 0, claimed: 0, playedToday: false };
   const pips = n.gifts

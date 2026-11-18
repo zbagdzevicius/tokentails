@@ -544,7 +544,7 @@ describe('gaps3 coat-fx: the Coats tab', () => {
     click(b.root.querySelector('[data-cfx="takedown"]'));
     await flush();
     expect(f.log).toContain('clip takedown');
-    expect(b.root.querySelector('.cb-coat-fx li.on')?.textContent).toContain('Takedown');
+    expect(b.root.querySelector('.cb-coat-fx li.on')?.textContent).toContain('Knockout');
     // a Rare coat: the shared Rare set
     click(b.root.querySelector('.cb-coat-chip[data-rung="RARE"]'));
     await flush();

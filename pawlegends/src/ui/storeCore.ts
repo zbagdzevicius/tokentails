@@ -13,8 +13,8 @@ import { artLayers } from './art';
 /** Plain words for the planned extras the pack lines name (they are not on sale yet). */
 const GLOSSARY: readonly [RegExp, string][] = [
   [/Pride Club/, 'Pride Club: a planned monthly membership, not on sale yet.'],
-  [/Legends Pass\+/, 'Legends Pass+: the planned season pass with extra rewards.'],
-  [/Legends Pass(?!\+)/, 'Legends Pass: the planned season pass (free and paid tracks).'],
+  [/Legends Pass\+/, 'Legends Pass+: the Legends Pass with extra rewards.'],
+  [/Legends Pass(?!\+)/, 'Legends Pass: the paid row of the season Pass.'],
 ];
 
 export function glossaryFor(text: string): string[] {
@@ -27,7 +27,7 @@ export function glossaryFor(text: string): string[] {
  */
 export function safeguardsLine(currency: Currency): string {
   const c = currency === 'eur' ? '€' : '$';
-  return `Prices include VAT. Spending limit ${c}30 per 30 days (${c}200 if you told us earlier you are 18 or older).`;
+  return `Prices include VAT. You can spend up to ${c}30 every 30 days (${c}200 if you told us you are 18 or older).`;
 }
 
 /** Purchases made in this page session: the store then hides the upsell (no "€20 more" right after a purchase). */

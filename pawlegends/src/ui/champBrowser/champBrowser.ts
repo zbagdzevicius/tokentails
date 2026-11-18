@@ -52,8 +52,8 @@ export const COAT_ROW_ALONE = 4;
 type CoatClipDef = { k: CoatClipKind; label: string; key: 'ult' | 'recall' | 'takedown' | 'evolve' };
 const COAT_CLIPS: readonly CoatClipDef[] = Object.freeze([
   { k: 'r', label: 'Ultimate', key: 'ult' },
-  { k: 'recall', label: 'Recall', key: 'recall' },
-  { k: 'takedown', label: 'Takedown', key: 'takedown' },
+  { k: 'recall', label: 'Nap', key: 'recall' },
+  { k: 'takedown', label: 'Knockout', key: 'takedown' },
 ]);
 /** gaps5 Mythic: an evolving coat adds the Evolve clip (the parade grows through its four stages on the clip). */
 const EVOLVE_CLIP: CoatClipDef = Object.freeze({ k: 'evolve', label: 'Evolve', key: 'evolve' });
@@ -368,7 +368,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
     const st = o.action?.state(hero) ?? 'none';
     if (st === 'none') return '';
     const t = HERO_TEXT[hero]?.title ?? hero;
-    const label = st === 'select' ? `Select ${t} as your hero` : st === 'selected' ? `${t} is your hero` : st === 'buy' ? `Buy ${t} in the store` : `Unlock ${t}`;
+    const label = st === 'select' ? `Select ${t} as your champion` : st === 'selected' ? `${t} is your champion` : st === 'buy' ? `Buy ${t} in the store` : `Unlock ${t}`;
     return `<div class="cb-act"><button type="button" class="pl-btn big cb-act-btn" data-a="act" data-act="${st}" data-testid="hero-action"${st === 'selected' ? ' aria-disabled="true"' : ''} aria-label="${esc(label)}">${ACTION_WORD[st]}</button></div>`;
   };
 
@@ -440,7 +440,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       const rows = clipsOf(coatSel)
         .map((k) => `<li${k.k === coatClip ? ' class="on"' : ''}><b>${k.label}</b> ${esc(k.key === 'evolve' ? evolveWords(coatSel) : words[k.key])}</li>`)
         .join('');
-      cardEl.innerHTML = `<h3 class="cb-coat-name">${esc(c.name.replace(/\s*\((Epic|Legendary|Rare)\)$/, ''))}</h3><p class="cb-coat-rung" data-rung="${c.rung}"${isMythicCoat(coatSel) ? ' data-mythic="1"' : ''}>${tierWord(coatSel, c.rung)} coat${c.rung === 'RARE' ? ': the shared Rare effects in its colours' : ': its own effects'}</p><ul class="cb-coat-fx">${rows}</ul>${parts ? `<p class="cb-coat-parts">On the model: ${esc(parts)}.</p>` : ''}${chromaHtml(coatSel as string)}<p class="cb-coat-fine">Looks only: nothing in a match changes.</p>`;
+      cardEl.innerHTML = `<h3 class="cb-coat-name">${esc(c.name.replace(/\s*\((Epic|Legendary|Rare)\)$/, ''))}</h3><p class="cb-coat-rung" data-rung="${c.rung}"${isMythicCoat(coatSel) ? ' data-mythic="1"' : ''}>${tierWord(coatSel, c.rung)} coat${c.rung === 'RARE' ? ': the shared Rare effects in its colours' : ': its own effects'}</p><ul class="cb-coat-fx">${rows}</ul>${parts ? `<p class="cb-coat-parts">On the model: ${esc(parts)}.</p>` : ''}${chromaHtml(coatSel as string)}<p class="cb-coat-fine">Looks only. Nothing changes in a match.</p>`;
       cardEl.dataset.slot = 'coat';
       cardEl.scrollTop = 0;
       return;

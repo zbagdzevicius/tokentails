@@ -196,7 +196,7 @@ function profileHtml(o: HomeScreenOpts, el: string): string {
   const label = `${p.name}. ${sub}${o.title ? `. ${o.title}` : ''}`;
   const inner = `${avatarHtml(o, el)}<span class="hm-pf-t"><b class="hm-pf-name">${esc(p.name)}</b>${o.title ? `<small class="hm-pf-title">${esc(o.title)}</small>` : ''}<span class="hm-xp" aria-hidden="true"><i style="width:${ringPct(p)}%"></i></span><small class="hm-pf-sub">${esc(sub)}</small></span>`;
   return o.onProfile || o.onCollection
-    ? `<button type="button" class="hm-profile" data-a="profile" data-testid="home-profile" aria-label="${esc(`${label}. ${o.onProfile ? 'Open your profile' : 'Open Treat Track and Legends Pass'}`)}">${inner}</button>`
+    ? `<button type="button" class="hm-profile" data-a="profile" data-testid="home-profile" aria-label="${esc(`${label}. ${o.onProfile ? 'Open your profile' : 'Open the Pass'}`)}">${inner}</button>`
     : `<div class="hm-profile" data-testid="home-profile" aria-label="${esc(label)}" role="group">${inner}</div>`;
 }
 
@@ -212,10 +212,10 @@ function currencyHtml(o: HomeScreenOpts): string {
   const pass =
     p.xp === null || p.tier === null
       ? ''
-      : `<button type="button" class="hm-curb" data-a="pass" aria-label="${esc(`Season XP ${p.xp}, tier ${p.tier}. Open the pass`)}"${o.onCollection ? '' : ' disabled'}><span class="hm-chip"><i class="hm-gem xp" aria-hidden="true"></i><b>${p.xp.toLocaleString('en-US')}</b><small>Season XP</small></span><span class="hm-chip"><i class="hm-gem tier" aria-hidden="true"></i><b>${p.tier}</b><small>Tier</small></span></button>`;
+      : `<button type="button" class="hm-curb" data-a="pass" aria-label="${esc(`Season XP ${p.xp}, Tier ${p.tier}. Open the Pass`)}"${o.onCollection ? '' : ' disabled'}><span class="hm-chip"><i class="hm-gem xp" aria-hidden="true"></i><b>${p.xp.toLocaleString('en-US')}</b><small>Season XP</small></span><span class="hm-chip"><i class="hm-gem tier" aria-hidden="true"></i><b>${p.tier}</b><small>Tier</small></span></button>`;
   const yarn =
     typeof p.yarn === 'number'
-      ? `<button type="button" class="hm-chip hm-yarn" data-a="yarn" data-testid="home-yarn" data-yarn="${Math.max(0, Math.floor(p.yarn))}" title="${p.yarnGuest ? 'Yarn: sign in to earn it from your matches. Unlock champions with it' : 'Yarn: earned by playing. Unlock champions with it'}" aria-label="${esc(`${yarnNum(p.yarn)} Yarn. ${p.yarnGuest ? 'Sign in to earn Yarn' : 'Unlock champions'}`)}"${p.yarnGuest ? ' data-guest="1"' : ''}${o.onYarn ? '' : ' disabled'}><img src="${esc(o.base)}assets/splash/yarn.svg" alt="" width="20" height="20" decoding="async"><b>${yarnNum(p.yarn)}</b><small>Yarn</small></button>`
+      ? `<button type="button" class="hm-chip hm-yarn" data-a="yarn" data-testid="home-yarn" data-yarn="${Math.max(0, Math.floor(p.yarn))}" title="${p.yarnGuest ? 'Yarn: sign in to earn it in matches. Spend it on champions.' : 'Yarn: earned in matches. Spend it on champions.'}" aria-label="${esc(`${yarnNum(p.yarn)} Yarn. ${p.yarnGuest ? 'Sign in to earn Yarn' : 'Unlock champions'}`)}"${p.yarnGuest ? ' data-guest="1"' : ''}${o.onYarn ? '' : ' disabled'}><img src="${esc(o.base)}assets/splash/yarn.svg" alt="" width="20" height="20" decoding="async"><b>${yarnNum(p.yarn)}</b><small>Yarn</small></button>`
       : '';
   return pass || yarn ? `<div class="hm-cur">${pass}${yarn}</div>` : '';
 }
@@ -272,7 +272,7 @@ export function rankedNavOpts(o: Pick<HomeScreenOpts, 'modes'>, returning: boole
   const m = o.modes.find((x) => x.id === 'ranked');
   if (m && returning && effectiveState(m, Date.now()) === 'live') return { extra: ` aria-label="${esc(`Ranked: open now${m.liveLine ? `, ${m.liveLine}` : ''}`)}" data-live="1"` };
   if (!returning) return { locked: 'Unlocks after your first match.' };
-  return { locked: m?.lockText ? `Ranked: ${m.lockText}.` : 'Ranked is not available right now.' };
+  return { locked: m?.lockText ? `Ranked: ${m.lockText}.` : 'Ranked is closed right now.' };
 }
 
 function navHtml(o: HomeScreenOpts, returning: boolean): string {
@@ -281,8 +281,8 @@ function navHtml(o: HomeScreenOpts, returning: boolean): string {
     `<button type="button" class="hm-ni${opts.locked ? ' locked' : ''}" data-a="${opts.locked ? 'locked' : a}"${opts.locked ? ` data-why="${esc(opts.locked)}" aria-label="${esc(`${label}, locked. ${opts.locked}`)}"` : ''}${opts.extra ?? ''}><span class="hm-ni-i">${ico}${opts.locked ? LOCK : ''}${opts.badge ?? ''}</span><span class="hm-nl">${label}</span></button>`;
   const after = 'Unlocks after your first match.';
   const items = [
-    o.onHeroes ? item('heroes', icon('paw'), 'Heroes', lockedFirst || o.dare ? { locked: o.dare ? 'Finish the dare first.' : after } : { extra: ' aria-keyshortcuts="H" aria-haspopup="dialog" aria-label="Heroes: skills and lore"' }) : '',
-    item('collection', TROPHY, 'Pass', o.onCollection && returning ? { badge: o.profile.tier !== null ? `<b class="hm-count tier" aria-hidden="true">${o.profile.tier}</b>` : '', extra: ' aria-label="Treat Track and Legends Pass"' } : { locked: o.onCollection ? 'Finish the dare first.' : after }),
+    o.onHeroes ? item('heroes', icon('paw'), 'Champions', lockedFirst || o.dare ? { locked: o.dare ? 'Finish the dare first.' : after } : { extra: ' aria-keyshortcuts="H" aria-haspopup="dialog" aria-label="Champions: skills and lore"' }) : '',
+    item('collection', TROPHY, 'Pass', o.onCollection && returning ? { badge: o.profile.tier !== null ? `<b class="hm-count tier" aria-hidden="true">${o.profile.tier}</b>` : '', extra: ' aria-label="Pass"' } : { locked: o.onCollection ? 'Finish the dare first.' : after }),
     // gap plan P4: the Ranked item follows the live gate (open: Mode Select on the Ranked tile; closed: the gate line)
     item('ranked', crestSvg('ranked').replace('<svg ', '<svg class="hm-ico" '), 'Ranked', rankedNavOpts(o, returning)),
     o.storeOpen && !o.isApp ? item('store', BAG, 'Store', { extra: ' aria-label="Store"' }) : '',
@@ -357,7 +357,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     // Nov 12 (the founder: "I can't switch home screen hero by clicking on its name"): a returning player's nameplate
     // opens the champion browser on this hero (its SELECT button switches the Home hero). Never a match, never the pick.
     if (returning && o.onHeroes && !o.dare)
-      return `<button type="button" class="hm-plate" data-a="plate" data-testid="home-plate" aria-haspopup="dialog" aria-label="${esc(`${id.name}, ${subLine}. Switch hero`)}"><span class="hm-plate-n">${esc(id.name)}<i class="hm-plate-cue" aria-hidden="true">⇄</i></span><small class="hm-plate-s">${esc(subLine)}</small></button>`;
+      return `<button type="button" class="hm-plate" data-a="plate" data-testid="home-plate" aria-haspopup="dialog" aria-label="${esc(`${id.name}, ${subLine}. Switch champion`)}"><span class="hm-plate-n">${esc(id.name)}<i class="hm-plate-cue" aria-hidden="true">⇄</i></span><small class="hm-plate-s">${esc(subLine)}</small></button>`;
     // otherwise a label (the first visit and a dare: the hero is set)
     return `<div class="hm-plate"><span class="hm-plate-n">${esc(id.name)}</span><small class="hm-plate-s">${esc(subLine)}</small></div>`;
   };
@@ -505,7 +505,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       })
       .catch(() => {
         modesLoading = false;
-        toast('Could not open the modes. Check the connection and try again.');
+        toast('No connection. Try again.');
       });
   };
 

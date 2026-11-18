@@ -163,7 +163,7 @@ describe('store states and the pass', () => {
   it('tier math and the "matches to go" line', () => {
     const def = currentSeason();
     expect(xpToNext(def, { xp: 0, skips: 0 })).toBe(400);
-    expect(matchesToNextText(def, { xp: 0, skips: 0 })).toBe('about 4 matches to tier 1');
+    expect(matchesToNextText(def, { xp: 0, skips: 0 })).toBe('about 4 matches to Tier 1');
     expect(matchesToNextText(def, { xp: 12000, skips: 0 })).toBeNull();
   });
 });

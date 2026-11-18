@@ -52,7 +52,7 @@ describe('champion browser: SELECT / BUY / UNLOCK', () => {
     const a = fakeAction({ home: 'clem', owned: ['clem', 'sage'] });
     const b = open('sage', a);
     expect(btn()!.textContent).toBe('SELECT');
-    expect(btn()!.getAttribute('aria-label')).toBe(`Select ${HERO_TEXT.sage.title} as your hero`);
+    expect(btn()!.getAttribute('aria-label')).toBe(`Select ${HERO_TEXT.sage.title} as your champion`);
     btn()!.click();
     expect(a.calls).toEqual(['select sage']);
     expect(b.open).toBe(true);
@@ -149,7 +149,7 @@ describe('Home nameplate', () => {
     const plate = root.querySelector<HTMLButtonElement>('[data-testid="home-plate"]')!;
     expect(plate.tagName).toBe('BUTTON');
     expect(plate.getAttribute('aria-haspopup')).toBe('dialog');
-    expect(plate.getAttribute('aria-label')).toContain('Switch hero');
+    expect(plate.getAttribute('aria-label')).toContain('Switch champion');
     expect(plate.querySelector('.hm-plate-cue')).toBeTruthy();
     plate.click();
     await new Promise((r) => setTimeout(r, 0));
