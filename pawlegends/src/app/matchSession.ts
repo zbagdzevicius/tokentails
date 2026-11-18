@@ -6,6 +6,7 @@
 import { napWeightBp, type NapKiller } from '../ui/napCard';
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
+import { playSpellSfx, pounceLanding } from '../audio/spellSfx';
 import { matchVoiceKeys } from '../audio/voiceLines';
 import { haptic } from '../ui/haptics';
 import { intensityOf, Music } from '../audio/music';
@@ -531,6 +532,11 @@ export class MatchSession {
         return true;
       },
       onWindupAtMe: () => this.tips.trigger('dodge'),
+      ownTrickHeard: () => {
+        const at = this.trickHeard;
+        this.trickHeard = -1;
+        return at >= 0 && performance.now() - at < 2000;
+      },
       ownWindupHeard: (slot) => {
         const at = this.windupHeard.get(slot);
         if (at === undefined) return false;
@@ -2535,6 +2541,8 @@ export class MatchSession {
 
   /** LATENCY-PLAN N1: own wind-up sounds played at send time (slot → ms), so the sim's windup stays quiet once. */
   private readonly windupHeard = new Map<number, number>();
+  /** The own Trick's sound played at send time (ms), so the sim's cast event stays quiet once; −1 none. */
+  private trickHeard = -1;
 
   /**
    * LATENCY-PLAN N1 (party play): a Cast or Trick the host predicted starts its wind-up pose and sound on this frame;
@@ -2556,6 +2564,12 @@ export class MatchSession {
       if (posed) {
         sfx.play('windup', { ...(at ? { at } : {}), vol: 0.6 });
         this.windupHeard.set(a.slot, performance.now());
+      }
+      // a Trick (Pounce is the Flash) has no wind-up: its own spell sound plays now, not one input latency later
+      if (a.kind === 'trick' && at) {
+        const trick = this.view.tricks[me] ?? 'pounce';
+        const dest = trick === 'pounce' ? pounceLanding(at, { x: a.x / 1000, z: -a.y / 1000 }) : undefined;
+        if (playSpellSfx(trick, 'cast', { at, dest, relation: 'mine', hero: this.view.heroes.rigOf(me)?.hero })) this.trickHeard = performance.now();
       }
     }
   }

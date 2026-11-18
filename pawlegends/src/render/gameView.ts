@@ -98,6 +98,8 @@ export interface GameViewHooks {
   onWindupAtMe?(): void;
   /** LATENCY-PLAN N1: see EffectHooks.ownWindupHeard. */
   ownWindupHeard?(slot: number): boolean;
+  /** LATENCY-PLAN N1: see EffectHooks.ownTrickHeard. */
+  ownTrickHeard?(): boolean;
   onTowerDown?(ours: boolean): void;
   onTowerAim?(src: number, ticks: number): void;
   onCoreDown?(who: Who): void;
@@ -389,6 +391,7 @@ export class GameView {
         onTalentOffer: hooks.onTalentOffer,
         onWindupAtMe: hooks.onWindupAtMe,
         ownWindupHeard: hooks.ownWindupHeard,
+      ownTrickHeard: hooks.ownTrickHeard,
         onTowerDown: hooks.onTowerDown,
         onTowerAim: hooks.onTowerAim,
         onCoreDown: hooks.onCoreDown,
