@@ -206,6 +206,31 @@ function track(event: Parameters<typeof analytics.track>[0]) {
   }
 }
 
+/** The auth provider renders only in the browser; keep the browser SDK out of SSR modules. */
+async function withPostHog(callback: (posthog: typeof import("posthog-js").default) => void) {
+  if (typeof window === "undefined") return;
+  try {
+    const { default: posthog } = await import("posthog-js");
+    callback(posthog);
+  } catch {
+    // Analytics never blocks authentication.
+  }
+}
+
+async function identifyPostHogUser(user: AdapterUser) {
+  await withPostHog((posthog) => {
+    posthog.identify(user.uid, user.email ? { email: user.email } : undefined);
+  });
+}
+
+async function logPostHogInfo(message: string, attributes: Record<string, string>) {
+  await withPostHog((posthog) => posthog.logger.info(message, attributes));
+}
+
+async function resetPostHog() {
+  await withPostHog((posthog) => posthog.reset());
+}
+
 function storeToken(token: string | null) {
   try {
     if (token) sessionStorage.setItem("accesstoken", `fb${token}`);
@@ -288,6 +313,8 @@ const FirebaseAuthProvider = ({
   const latestProfileRef = React.useRef<{ profile: SessionProfile; seq: number } | null>(null);
   const mergeRunningRef = React.useRef(false);
   const mergeAttemptsRef = React.useRef(new Set<string>());
+  /** The registered Firebase UID currently identified to PostHog in this browser session. */
+  const identifiedUserRef = React.useRef<string | null>(null);
   /** The sign-in the player tried last from the sheet, so an error names only other methods. */
   const attemptRef = React.useRef<OAuthProviderName | "email" | null>(null);
 
@@ -444,6 +471,10 @@ const FirebaseAuthProvider = ({
   const onUser = useCallback(async (next: AdapterUser | null) => {
     setSessionHint(!!next);
     if (!next) {
+      if (identifiedUserRef.current) {
+        identifiedUserRef.current = null;
+        await resetPostHog();
+      }
       storeToken(null);
       profileUidRef.current = null;
       setFb((current) => (current.phase === "none" ? current : { phase: "none" }));
@@ -454,6 +485,17 @@ const FirebaseAuthProvider = ({
       storeToken(await next.getIdToken());
     } catch {
       storeToken(null);
+    }
+    if (next.isAnonymous) {
+      if (identifiedUserRef.current) {
+        identifiedUserRef.current = null;
+        await resetPostHog();
+      }
+    } else if (identifiedUserRef.current !== next.uid) {
+      if (identifiedUserRef.current) await resetPostHog();
+      await identifyPostHogUser(next);
+      await logPostHogInfo("Registered account session synchronized", { session_state: "registered" });
+      identifiedUserRef.current = next.uid;
     }
     const snapshot = snapshotOf(next);
     setFb((current) =>
@@ -650,6 +692,11 @@ const FirebaseAuthProvider = ({
   // ---- sign-out --------------------------------------------------------------------------
 
   const signOutAll = useCallback(async () => {
+    if (identifiedUserRef.current) {
+      await logPostHogInfo("Registered account session ended", { session_state: "signed_out" });
+      await resetPostHog();
+      identifiedUserRef.current = null;
+    }
     resetAnonymous();
     fallbackShownRef.current = false;
     pendingLinkRef.current = null;

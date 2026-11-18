@@ -45,6 +45,17 @@ function throwingComponent(info?: ErrorInfo): string | null {
   return match ? match[1] : null;
 }
 
+/** Error boundaries only run in the browser; load the browser SDK there. */
+function capturePostHogException(error: unknown): void {
+  if (typeof window === "undefined") return;
+
+  void import("posthog-js")
+    .then(({ default: posthog }) => posthog.captureException(error))
+    .catch(() => {
+      // Error reporting must never interfere with rendering the fallback UI.
+    });
+}
+
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null, hasError: false };
 
@@ -56,6 +67,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     // Errors raised to show a fallback for something the crash guard has
     // already reported (a stall) are not counted twice.
     if ((error as { alreadyReported?: boolean } | null)?.alreadyReported) return;
+    capturePostHogException(error);
     const { level, name } = this.props;
     reportAppError(boundaryCode(level, name), error, {
       source: "boundary",
