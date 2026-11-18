@@ -110,9 +110,12 @@ function keepReleasesPlugin(count: number): Plugin {
 
 
 /**
- * The boot loading screen's comic panels (src/boot/comicBoot.js): inlined into index.html as a classic script right
- * after the #boot markup (`<!--pl-comic-boot-->`), so the panel pictures start before the game's JS. `export` is
- * stripped and the file runs in its own scope. Dev and build alike.
+ * The boot loading screen's comic panels (src/boot/comicBoot.js), inlined into index.html as classic scripts. Dev and
+ * build alike; `export` is stripped and the file runs in its own scope.
+ * - `<!--pl-comic-head-->` (top of <head>, before any stylesheet or module script): the whole file, which picks this
+ *   load's 9 panels and starts their pictures at once (an inline script after a stylesheet waits for that stylesheet,
+ *   so the panels started only once the game's CSS had arrived: ~4 s on a slow phone, live check Nov 18).
+ * - `<!--pl-comic-boot-->` (right after the #boot markup): builds the panels from what the head script started.
  */
 function comicBootPlugin(): Plugin {
   const file = path.resolve(__dirname, 'src/boot/comicBoot.js');
@@ -124,7 +127,34 @@ function comicBootPlugin(): Plugin {
         .replace(/^export /gm, '')
         .replace(/\n{2,}/g, '\n');
       if (src.includes('</script')) throw new Error('comicBoot.js must not contain </script');
-      return html.replace('<!--pl-comic-boot-->', () => `<script>(function(){${src}\ncomicBoot(document, window);})();</script>`);
+      return html
+        .replace('<!--pl-comic-head-->', () => `<script>(function(){${src}\nwindow.__plComicBoot = comicBoot;\ncomicStart(window);})();</script>`)
+        .replace('<!--pl-comic-boot-->', () => '<script>window.__plComicBoot && window.__plComicBoot(document, window);</script>');
+    },
+  };
+}
+
+/**
+ * Build only: the game's stylesheet (`<link rel="stylesheet">` Vite puts in <head>) moves to the end of <body>. In
+ * <head> it blocked the first paint, so the loading screen (styled inline) stayed a blank screen until the whole
+ * 260 KB of game CSS had arrived (~4 s on a slow phone, live check Nov 18). At the end of <body> it still holds back the
+ * game's module scripts (a stylesheet blocks scripts that come after it), so the title never paints unstyled.
+ */
+function lateStylesheetPlugin(): Plugin {
+  return {
+    name: 'pawlegends-late-stylesheet',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        const links: string[] = [];
+        const out = html.replace(/[ \t]*<link\b[^>]*\brel=["']stylesheet["'][^>]*>\n?/g, (m) => {
+          links.push(m.trim());
+          return '';
+        });
+        if (!links.length) return html;
+        return out.replace('</body>', () => `  ${links.join('\n    ')}\n  </body>`);
+      },
     },
   };
 }
@@ -138,7 +168,7 @@ export default defineConfig({
   preview: { port: 4176, host: '127.0.0.1' },
   worker: { format: 'es' },
   // gaps5 polish 1: every lazy chunk import is retried once before the crash card (tools/lib/chunk-retry.mjs)
-  plugins: [chunkRetryPlugin(path.resolve(__dirname, 'src')), versionJsonPlugin(), comicBootPlugin(), ...(keepReleases > 0 ? [keepReleasesPlugin(keepReleases)] : [])],
+  plugins: [chunkRetryPlugin(path.resolve(__dirname, 'src')), versionJsonPlugin(), comicBootPlugin(), lateStylesheetPlugin(), ...(keepReleases > 0 ? [keepReleasesPlugin(keepReleases)] : [])],
   build: {
     emptyOutDir: keepReleases > 0 ? false : undefined,
     target: 'es2022',

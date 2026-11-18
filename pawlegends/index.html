@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+    <!-- the loading screen's panel pictures start first (vite.config.ts comicBootPlugin, src/boot/comicBoot.js) -->
+    <!--pl-comic-head-->
     <meta name="theme-color" content="#12091f" />
     <meta name="robots" content="noindex" />
     <meta name="format-detection" content="telephone=no" />
@@ -53,7 +55,7 @@
       #boot .dog.v0 s { background: var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #8fd0ff, #39a6ff 45%, #1453b0); }
       #boot .dog.v1 s { background: var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #9ee8ff, #2f8ff0 45%, #123f8f); }
       #boot .dog.v2 s { background: var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #bcdcff, #4a9cff 45%, #23317f); }
-      #boot .cm img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 36%; opacity: 0; transition: opacity 0.45s ease-out; }
+      #boot .cm img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 36%; opacity: 0; transition: opacity 0.25s ease-out; }
       #boot .cm .in img { opacity: 1; animation: cm-kb 11s ease-in-out var(--kd, 0s) infinite alternate; }
       /* a night scrim behind the logo and under the bar, so both read over any panel */
       #boot::after {

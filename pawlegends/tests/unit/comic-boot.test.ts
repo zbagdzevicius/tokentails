@@ -121,6 +121,10 @@ describe('boot comic loading screen (src/boot/comicBoot.js)', () => {
   it('index.html carries the hook the build inlines the script into, and no other loader text', () => {
     const html = readFileSync(join(__dirname, '../../index.html'), 'utf8');
     expect(html).toContain('<!--pl-comic-boot-->');
+    // the pictures start before any stylesheet, preload or script (an inline script after a stylesheet waits for it)
+    const head = html.indexOf('<!--pl-comic-head-->');
+    expect(head).toBeGreaterThan(0);
+    for (const tag of ['<link', '<style', '<script']) expect(head).toBeLessThan(html.indexOf(tag));
     expect(html).toContain('class="cm-logo"');
     expect(readFileSync(join(__dirname, '../../src/boot/comicBoot.js'), 'utf8')).not.toContain('</script');
   });

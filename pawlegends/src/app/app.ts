@@ -480,10 +480,20 @@ export class App {
     if (this.partyApi) idle(() => void import('../party').catch(() => undefined));
     this.onThermal();
     this.raf = requestAnimationFrame(this.frameCb);
-    document.documentElement.dataset.ready = '1';
-    // PERF-IOS §8 Track C: the boot splash fades out under the title (0.35 s), then leaves the page: hidden, its two
-    // infinite animations still ran for the whole session (style recalcs in the lobby and in every match)
-    setTimeout(() => document.getElementById('boot')?.remove(), 600);
+    // The title is up once its first frame has been drawn: that frame (shaders, the title scene) blocks the main thread
+    // for ~1.5 s on a desktop. Fading the loading screen out before it left an empty dark title behind the fade for that
+    // long (live check Nov 18), so html[data-ready] waits for the frame after it (or 4 s, a hidden tab draws none).
+    let ready = false;
+    const markReady = (): void => {
+      if (ready) return;
+      ready = true;
+      document.documentElement.dataset.ready = '1';
+      // PERF-IOS §8 Track C: the boot splash fades out under the title (0.35 s), then leaves the page: hidden, its two
+      // infinite animations still ran for the whole session (style recalcs in the lobby and in every match)
+      setTimeout(() => document.getElementById('boot')?.remove(), 600);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(markReady));
+    setTimeout(markReady, 4000);
   }
 
   // ------------------------------------------------------------------------------------------- host + meta

@@ -2,8 +2,9 @@
  * The boot loading screen (founder, Nov 18: "loading screen background image ... comics-like with captures of our
  * champs"): nine slanted comic panels of our champions behind the logo, with a progress bar and percentage.
  *
- * This file runs as a classic inline script inside index.html (vite.config.ts `comicBootPlugin` strips `export` and
- * wraps it), right after the #boot markup and before the game's JS, so the panels are the first thing the page fetches.
+ * This file runs as a classic inline script at the top of index.html's <head> (vite.config.ts `comicBootPlugin` strips
+ * `export` and wraps it): `comicStart` picks the panels and starts their pictures before any stylesheet or game script
+ * is requested; a one-line script right after the #boot markup then calls `comicBoot` to build the panels.
  * The unit tests import it as a module (tests/unit/comic-boot.test.ts). Keep it plain ES2017, no imports.
  *
  * - The art: 12 square panels (6 cats, 6 dogs, every role; gemini, brand book v6 references) streamed from
@@ -12,6 +13,9 @@
  * - Every load shows 9 of them in a random order, cats and dogs alternating panel to panel.
  * - Before (or without, offline) the pictures, each panel is a brand-coloured CSS panel (rose for a cat, sky for a
  *   dog, halftone and a bolt); a picture fades in when it has loaded.
+ * - The pictures must be on screen before the game's first heavy frame (a ~1.7 s main-thread block on a desktop, live
+ *   check Nov 18: they arrived, but could not paint until the title was up). src/main.ts waits for `__plBootArt(cap)`
+ *   (every picture loaded and faded in, or `cap` ms, then two frames) before it starts the app.
  * - Progress: eased towards 92 % over time, raised by the game (`window.__plBoot(pct)` from src/main.ts once the
  *   first-load JS ran), 100 % when the title is up (html[data-ready]); app.ts then fades the splash out and removes it.
  */
@@ -157,17 +161,48 @@ export function comicProgress(ms, floor) {
   return Math.min(100, Math.max(floor || 0, 92 * (1 - Math.exp(-ms / 2600))));
 }
 
-/** Runs in the page (index.html): fills #boot's panels, starts the pictures and the progress. */
+/** How long a picture's fade-in takes (index.html `#boot .cm img` transition). */
+export const COMIC_FADE_MS = 250;
+
+/**
+ * Runs first, in <head>: picks this load's panels and starts their pictures (high priority). Returns the state
+ * `comicBoot` builds from, also kept on `window.__plComic`.
+ */
+export function comicStart(win) {
+  const tallMq = win.matchMedia ? win.matchMedia('(orientation: portrait)') : null;
+  const picks = pickComic(Math.random, tallMq && tallMq.matches ? COMIC_LAYOUTS.tall : COMIC_LAYOUTS.wide);
+  const base = comicRoot(win.location ? win.location.hostname : '');
+  const size = comicSize(win.innerWidth || 1280, win.innerHeight || 720, win.devicePixelRatio || 1);
+  const state = { picks, tallMq, imgs: [], done: 0, lastIn: 0, onDone: [] };
+  picks.forEach((p, i) => {
+    const img = new win.Image();
+    img.alt = '';
+    img.decoding = 'async';
+    img.setAttribute('fetchpriority', 'high');
+    const settle = (ok) => {
+      if (img.__settled) return;
+      img.__settled = ok ? 'ok' : 'err';
+      state.done++;
+      state.onDone.forEach((f) => f(i, ok));
+    };
+    img.onload = () => settle(true);
+    img.onerror = () => settle(false);
+    img.src = comicUrl(base, p.id, size);
+    state.imgs.push(img);
+  });
+  win.__plComic = state;
+  return state;
+}
+
+/** Runs in the page right after the #boot markup: fills #boot's panels, shows the pictures, starts the progress. */
 export function comicBoot(doc, win) {
   const root = doc.getElementById('boot');
   const stage = root && root.querySelector('.cm');
   if (!stage) return;
-  const tallMq = win.matchMedia ? win.matchMedia('(orientation: portrait)') : null;
+  const state = win.__plComic || comicStart(win);
+  const tallMq = state.tallMq;
   const layoutNow = () => (tallMq && tallMq.matches ? COMIC_LAYOUTS.tall : COMIC_LAYOUTS.wide);
-  const picks = pickComic(Math.random, layoutNow());
-  const base = comicRoot(win.location ? win.location.hostname : '');
-  const size = comicSize(win.innerWidth || 1280, win.innerHeight || 720, win.devicePixelRatio || 1);
-  const panels = picks.map((p, i) => {
+  const panels = state.picks.map((p, i) => {
     const b = doc.createElement('b');
     b.className = p.side + ' v' + (i % 3);
     // a slow ken-burns per panel, each drifting its own way (CSS: off with reduced motion)
@@ -176,17 +211,18 @@ export function comicBoot(doc, win) {
     b.style.setProperty('--kd', (-1.3 * i).toFixed(1) + 's');
     // the panel's own box (its fallback colours and its picture), inside the clipped full-screen layer
     const box = doc.createElement('s');
-    const img = doc.createElement('img');
-    img.alt = '';
-    img.decoding = 'async';
-    img.setAttribute('fetchpriority', 'high');
-    img.onload = () => b.classList.add('in');
-    img.src = comicUrl(base, p.id, size);
-    box.appendChild(img);
+    box.appendChild(state.imgs[i]);
     b.appendChild(box);
     stage.appendChild(b);
     return b;
   });
+  const show = (i, ok) => {
+    if (!ok || !panels[i]) return;
+    panels[i].classList.add('in');
+    state.lastIn = Date.now();
+  };
+  state.imgs.forEach((img, i) => show(i, img.__settled === 'ok'));
+  state.onDone.push(show);
   const place = () => {
     comicSlots(layoutNow()).forEach((s, i) => {
       const b = panels[i];
@@ -205,6 +241,24 @@ export function comicBoot(doc, win) {
     if (tallMq.addEventListener) tallMq.addEventListener('change', place);
     else if (tallMq.addListener) tallMq.addListener(place);
   }
+
+  // the game waits for this before its first heavy frame (src/main.ts): every picture settled and faded in, or `cap`
+  // ms, then two frames so the pictures are painted
+  win.__plBootArt = (cap) =>
+    new Promise((resolve) => {
+      const t = Date.now();
+      // two frames, or 100 ms when frames do not come (a hidden tab must still boot)
+      const frames = () => {
+        win.setTimeout(resolve, 100);
+        if (win.requestAnimationFrame) win.requestAnimationFrame(() => win.requestAnimationFrame(() => resolve()));
+      };
+      const check = () => {
+        const now = Date.now();
+        if (!root.isConnected || now - t >= (cap || 0) || (state.done >= state.imgs.length && now - state.lastIn >= COMIC_FADE_MS)) frames();
+        else win.setTimeout(check, 30);
+      };
+      check();
+    });
 
   // progress
   const fill = root.querySelector('.cm-bar u');

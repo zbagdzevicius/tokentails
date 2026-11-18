@@ -35,17 +35,27 @@ function boot(): void {
 }
 
 // the boot loading screen (src/boot/comicBoot.js): the first-load JS has run, the bar jumps to at least 70 %
-(window as { __plBoot?: (pct: number) => void }).__plBoot?.(70);
+const bootWin = window as { __plBoot?: (pct: number) => void; __plBootArt?: (capMs: number) => Promise<void> };
+bootWin.__plBoot?.(70);
 
-try {
-  boot();
-} catch (e) {
-  // The App never set its crash hook: a boot crash goes out through a bare, consent-gated analytics (R1).
-  const analytics = createAnalytics(() => ({}));
-  setCrashHook((source, msg) => {
-    analytics.track('app_error', { source, msg, screen: 'boot', tier: 'none', sim: SIM_VERSION });
-    analytics.flush();
-  });
-  reportCrash('boot', e);
-  showCrash(e);
+function start(): void {
+  try {
+    boot();
+  } catch (e) {
+    // The App never set its crash hook: a boot crash goes out through a bare, consent-gated analytics (R1).
+    const analytics = createAnalytics(() => ({}));
+    setCrashHook((source, msg) => {
+      analytics.track('app_error', { source, msg, screen: 'boot', tier: 'none', sim: SIM_VERSION });
+      analytics.flush();
+    });
+    reportCrash('boot', e);
+    showCrash(e);
+  }
 }
+
+// The loading screen's champion pictures paint before the app's first heavy frame (shaders, the title scene: a
+// main-thread block of ~1.7 s on a desktop), or they could only appear as the title came up (live check Nov 18). At
+// most BOOT_ART_WAIT_MS, nothing when they are already in (a slow connection) or offline (they fail at once).
+const BOOT_ART_WAIT_MS = 450;
+if (bootWin.__plBootArt) bootWin.__plBootArt(BOOT_ART_WAIT_MS).then(start, start);
+else start();
