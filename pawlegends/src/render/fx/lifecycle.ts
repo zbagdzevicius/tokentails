@@ -27,6 +27,7 @@ import { HERO_SPAWNS, MAP, mirrorX } from '../../data/map';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { HERO_RULES } from '../../data/xp';
 import { sfx } from '../../audio/sfx';
+import { playSpellSfx } from '../../audio/spellSfx';
 import { SHAPE, FADE } from './Particles.js';
 import { dressTeam, RELATION } from '../palette';
 import { boldRingTexture, DecalLayer } from '../views/decals';
@@ -365,9 +366,14 @@ export class Lifecycle {
           t.napStart = frame.tick;
           t.napZ = 0;
           t.napMote = 0;
+          this.napSound(e, x, z, 'cast');
         }
         this.napping(e, x, z, t, frame.tick);
-      } else if (t.state === 'napping' && !dead && Math.hypot(x - t.x, z - t.z) > NAP_JUMP_M) this.napArrived(e, t.x, t.z, x, z);
+      } else if (t.state === 'napping' && !dead) {
+        if (Math.hypot(x - t.x, z - t.z) > NAP_JUMP_M) this.napArrived(e, t.x, t.z, x, z);
+        // (a Nap that finished where it started, at the fountain, is not a broken one)
+        else if (napProgress(t.napStart, frame.tick) < 0.97) this.napSound(e, x, z, 'cancel');
+      }
       // the spawn shimmer orbits the hero for a moment
       if (t.shield > 0 && !dead) this.shimmer(e, x, z, t);
       t.dead = dead;
@@ -500,6 +506,16 @@ export class Lifecycle {
     const r = 1.5 * heroBodyScale(e.hero);
     this.v.set(x + Math.cos(a) * r, 0.2, z + Math.sin(a) * r);
     this.view.particles.single(this.v, { shape: SHAPE.STAR4, additive: true, color: k > 0.5 ? 0xffe29a : 0x9cc0ff, intensity: 2, size0: 0.22, size1: 0.06, life: NAP_MOTE_LIFE, vy: 2.2 });
+  }
+
+  /**
+   * The Nap's spell sounds (audio/spellSfx.ts): a lullaby as the channel starts, a pfft when it breaks. Only heroes in
+   * this frame (seen by the player's team) get here, so a hidden hero's Nap is silent.
+   */
+  private napSound(e: ViewEntity, x: number, z: number, phase: 'cast' | 'cancel'): void {
+    const mine = e.id === this.view.mySlot;
+    const relation = mine ? 'mine' : e.team === this.view.myTeam ? 'ally' : 'enemy';
+    playSpellSfx('nap', phase, { at: { x, z }, relation, visible: true, hero: e.hero });
   }
 
   private napArrived(e: ViewEntity, x0: number, z0: number, x: number, z: number): void {

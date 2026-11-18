@@ -13,6 +13,7 @@ import { PUDDING } from '../data/pudding';
 import { SLOTS_PER_TEAM, type CastSlot, type HeroId, type SimEvent, type TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { playSkillSfx, skillKey } from '../audio/skillSfx';
+import { playSpellSfx, pounceLanding } from '../audio/spellSfx';
 import { attackStyle } from '../audio/hitMix';
 import { IDENTITY, type Nature } from './identity';
 import { CHAMP_AUDIO } from '../audio/champ';
@@ -162,6 +163,8 @@ export interface EffectsHooks {
   onWindupAtMe?(): void;
   /** LATENCY-PLAN N1: the session already played this own wind-up's sound when the cast was sent (true: stay quiet). */
   ownWindupHeard?(slot: number): boolean;
+  /** LATENCY-PLAN N1: the session already played the own Trick's sound when it was sent (true: stay quiet once). */
+  ownTrickHeard?(): boolean;
   onTowerDown?(destroyedByMyTeam: boolean): void;
   /** An enemy tower or core locked on to the player (fun plan S5 lock-on; the `windup` with slot 4). */
   onTowerAim?(src: number, ticks: number): void;
@@ -678,23 +681,30 @@ export class Effects {
 
   private trick(src: Who, x: number, y: number, mine: boolean): void {
     const trick = this.hooks.trickOf(src.id);
+    // spell sounds (audio/spellSfx.ts): each Trick its own, through the identity mix; an unseen caster stays silent,
+    // and the player's own party-play Trick already sounded when it was sent (LATENCY-PLAN N1)
+    if (!(mine && this.hooks.ownTrickHeard?.())) {
+      playSpellSfx(trick, 'cast', {
+        at: src,
+        dest: trick === 'pounce' ? pounceLanding(src, { x: x / 1000, z: -y / 1000 }) : undefined,
+        relation: this.relOf(src),
+        visible: this.hooks.visible?.(src.id),
+        hero: src.hero,
+      });
+    }
     if (trick === 'pounce') {
       this.particles.burst(this.at(src, 0.5), { n: 12, shape: SHAPE.PUFF, color: V6.cream, size: [0.4, 0.6], sizeEnd: 1.6, life: [0.3, 0.5], speed: [1, 3] });
       _p.set(x / 1000, 0.5, -y / 1000);
       this.particles.burst(_p, { additive: true, n: 12, shape: SHAPE.STAR4, color: 0xffd34d, intensity: 1.8, size: [0.15, 0.3], life: [0.3, 0.5], speed: [1.5, 3.5] });
-      sfx.play('dash', { at: src, rate: 1.3 });
     } else if (trick === 'snack') {
       this.particles.burst(this.at(src, 1.2), { n: 10, shape: SHAPE.HEART, color: V6.rose, size: [0.25, 0.35], life: [0.7, 1], speed: [0.5, 1.4], up: 1.8, gravity: -0.5 });
-      sfx.play('coin', { at: src, rate: 0.8 });
     } else if (trick === 'purrify') {
       // Sim v10 (GAPS B5): a soft gold ring and rising stars, the CC shaken off
       this.shock.start(this.at(src, 0), { r1: 1.4, dur: 0.3, color: V6_CSS.bolt, height: 0.6 });
       this.particles.ring(this.at(src, 0.6), { n: 14, r0: 0.5, speed: [1, 2], up: 2.2, color: V6.bolt, alpha: 0.95, additive: true, size: [0.18, 0.28], shape: SHAPE.STAR4, intensity: 1.6, drag: 1.5 });
       this.numbers.show(this.at(src, 2.2), 'Purr-ified!', 'word');
-      sfx.play('shieldUp', { at: src, rate: 1.2 });
     } else {
       this.shock.start(this.at(src, 0), { r1: 3, dur: 0.25, color: '#B07CFF', height: 0.5 });
-      sfx.play('hyenaLaugh', { at: src, rate: 0.7 });
     }
     if (mine) this.juice.kick(0.1);
   }
