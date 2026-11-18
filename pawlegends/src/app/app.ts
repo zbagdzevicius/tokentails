@@ -2489,7 +2489,7 @@ export class App {
         // It stays in this page session, so the offer's once-a-session rule (money/offer.ts) never shows a second card.
         onAgain: () => {
           sfx.play('click');
-          if (party) return party.again(true);
+          if (party) return party.again();
           // Quick Play: the matched party already let this stranger go (idle in results): search again
           if (partyEnd && setup?.party?.coop) {
             this.backToParty();
@@ -2505,7 +2505,7 @@ export class App {
         // GAPS A3 "Switch cat": the pick screen with this match's difficulty kept (round 2: on the teased hero)
         onChange: () => {
           sfx.play('click');
-          if (party) return party.again(false);
+          if (party) return party.again();
           if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'switch', hero: e.replay.hero, difficulty: e.replay.difficulty });
           const keep = setup && !isRookie(setup.difficulty) ? setup.difficulty : this.choice.difficulty;

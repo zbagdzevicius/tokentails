@@ -232,7 +232,7 @@ export function pickModel(o: PickModel, x: PickHtmlExtra = {}): CsModel {
         taken: by,
         locked: why && !by ? why : undefined,
         // every tile stays tappable to read its skills (Wild Rift: any champion can be inspected); LOCK IN says why not.
-        // Locked in, a free tile stays bright: tapping it moves the lock there (the rematch's kept hero is not final)
+        // Locked in, a free tile stays bright: tapping it moves the lock there (a lock is not final until the pick ends)
         blocked: !!why,
         tryThis: !!me?.newbie && h === NEWBIE_HERO,
         mate: mates.get(h),

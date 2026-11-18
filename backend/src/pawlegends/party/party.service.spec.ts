@@ -628,6 +628,24 @@ describe('PartyService', () => {
             expect(t.p.members[1].hero).toBe('nova');
         });
 
+        it('a rematch pick waits for the players: nobody is locked, the timer locks the last heroes', () => {
+            // founder, Nov 18: a second party match started seconds after "Play again together" with the old heroes
+            const t = toResults();
+            t.svc.rematch('A', true);
+            t.advance(PARTY_TIMING.rematchPickMinMs + 1000);
+            expect(t.p.phase).toBe('pick');
+            expect(t.p.members.every(m => !m.locked)).toBe(true);
+            t.svc.hover('B', 'nova');
+            t.advance(PARTY_TIMING.pickMs + PARTY_TIMING.rematchNoteMs - PARTY_TIMING.rematchPickMinMs - 2000);
+            expect(t.p.phase).toBe('pick');
+            t.advance(1000);
+            expect(t.p.phase).toBe('loading');
+            expect(t.p.members.map(m => [m.hero, m.locked])).toEqual([
+                ['clem', true],
+                ['nova', true],
+            ]);
+        });
+
         it('a majority also starts it; a single member of three does not', () => {
             const t = lobby(3);
             t.svc.start('A');

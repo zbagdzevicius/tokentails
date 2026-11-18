@@ -1,9 +1,18 @@
 import { expect, test } from '@playwright/test';
-import { closeAll, createParty, joinByLink, notes, player, shot, tap, type Player } from './party.helpers';
+import { closeAll, createParty, joinByLink, notes, player, shot, showHero, tap, type Player } from './party.helpers';
 
 test.afterEach(closeAll);
 
-/* Party play P8 (MULTIPLAYER.md §5.1, §12 P8): end → "Play again together" → "Leader started a rematch" → pick. */
+/*
+ * Party play P8 (MULTIPLAYER.md §5.1, §12 P8): end → "Play again together" → "Leader started a rematch" → pick.
+ * Founder, Nov 18: the rematch pick opens unlocked and waits (it locked the last heroes and started seconds later),
+ * and the second match walks the walls of its own map (the walker kept the first match's walls).
+ */
+
+type Nav = { key: string; ok: boolean; bad: number };
+const navCheck = (p: Player): Promise<Nav> =>
+  p.page.evaluate(() => (window as unknown as { __plWorld: { navCheck(): Promise<Nav> } }).__plWorld.navCheck());
+const boundMap = (p: Player): Promise<string | undefined> => p.page.evaluate(() => document.documentElement.dataset.map);
 
 async function surrender(p: Player): Promise<void> {
   if (p.kind === 'desktop') await p.page.keyboard.press('Escape');
@@ -29,6 +38,8 @@ test('after a match, Play again together from the leader: a rematch note, then t
   await tap(b, b.page.locator('[data-testid="party-hero-lambo"]'));
   await tap(b, b.page.locator('[data-testid="party-lock"]'));
   for (const p of [a, b]) await p.page.waitForSelector('html[data-match="live"]', { timeout: 120_000 });
+  const first = await boundMap(a);
+  for (const p of [a, b]) expect(await navCheck(p)).toMatchObject({ ok: true });
   await a.page.waitForFunction(() => Number(document.documentElement.dataset.tick ?? 0) >= 5450, null, { timeout: 300_000, polling: 1000 });
   await surrender(a);
   await surrender(b);
@@ -42,4 +53,24 @@ test('after a match, Play again together from the leader: a rematch note, then t
   await expect(b.page.locator('.pp-ts').nth(0)).toHaveAttribute('data-hero', 'sage');
   await expect(b.page.locator('.pp-ts').nth(1)).toHaveAttribute('data-hero', 'lambo');
   await shot(b, 'lane-P', '42-rematch-pick');
+  // nobody is locked in: the last hero is only hovered, and there is no separate Change champion step
+  for (const p of [a, b]) await expect(p.page.locator('.pp-pick')).toHaveAttribute('data-locked', 'false');
+  // the pick waits for the players (past the 3 s note and the 5 s minimum it once ended on)
+  await a.page.waitForTimeout(9000);
+  for (const p of [a, b]) {
+    await expect(p.page.locator('.pp-pick')).toHaveAttribute('data-locked', 'false');
+    await expect(p.page.locator('[data-testid="party-lock"]')).toBeEnabled();
+  }
+  // B switches champion, then both lock: the second match starts
+  await showHero(b, 'clem');
+  await tap(b, b.page.locator('[data-testid="party-hero-clem"]'));
+  await expect(a.page.locator('.pp-ts').nth(1)).toHaveAttribute('data-hero', 'clem', { timeout: 5000 });
+  await a.page.locator('[data-testid="party-lock"]').click();
+  await tap(b, b.page.locator('[data-testid="party-lock"]'));
+  for (const p of [a, b]) await p.page.waitForSelector('html[data-match="live"]', { timeout: 120_000 });
+  // the second match's map is the relay's for this room, and the walker and the input walk its walls
+  const second = await boundMap(a);
+  expect(await boundMap(b)).toBe(second);
+  console.log(`rematch maps: ${first} → ${second}`);
+  for (const p of [a, b]) expect(await navCheck(p)).toMatchObject({ ok: true, bad: 0 });
 });

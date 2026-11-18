@@ -556,7 +556,7 @@ export interface ResultsOpts {
    */
   /** PvP reports (SOCIAL-RANKED.md §8.1): a tap on a row's flag (the reason chips open over it). */
   onReport?(slot: number, anchor: HTMLElement): void;
-  /** Party results; Quick Play strangers: `leave` "Back", no Change hero (`change: false`). */
+  /** Party results: Play again and Leave (Quick Play strangers: `leave` "Back"); `change: false` hides Change champion. */
   party?: { rowsHtml: string; again: string; onLeave(): void; leave?: string; change?: boolean; coop?: boolean };
   /** Lane F (F5): per-hero level, Toys, Fish, last hits and Toy timings, medals, and the player's Fish by source. */
   progress?: ProgressSummary | null;

@@ -6,14 +6,21 @@
  * recorded and replayed as sent, so determinism is untouched.
  */
 import { RADIUS } from '../data/map';
-import { coverDisc, createGrid, type NavGrid } from '../sim/map/grid';
+import { coverDisc, createGrid, gridKey, type NavGrid } from '../sim/map/grid';
 
 let grid: NavGrid | null = null;
+/** The map the grid was built for: a grid of another map is never handed out (a new match on a new map). */
+let gridOf = '';
 const covered = new Map<number, { x: number; y: number; r: number }>();
 
 /** The client grid (walls plus the standing structures last synced). */
 export function clientGrid(): NavGrid {
-  grid ??= createGrid();
+  const key = gridKey();
+  if (!grid || gridOf !== key) {
+    grid = createGrid();
+    gridOf = key;
+    covered.clear();
+  }
   return grid;
 }
 

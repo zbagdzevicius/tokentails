@@ -6,17 +6,26 @@
  */
 import { MAP, NAV } from '../data/map';
 import { findPath } from '../sim/nav/astar';
-import { createGrid, type NavGrid } from '../sim/map/grid';
+import { createGrid, gridKey, type NavGrid } from '../sim/map/grid';
 import type { Planner } from './predict';
 
+/**
+ * The walls of the map bound now, rebuilt when the bound map changes: a second party match on another map (the 3v3
+ * pool rotates) walked the drawn hero into the first match's walls while the open ground of the new map stayed shut.
+ */
 let walls: NavGrid | null = null;
+let wallsKey = '';
 const outX = new Int32Array(NAV.maxPathPoints);
 const outY = new Int32Array(NAV.maxPathPoints);
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
 export const gridPlanner: Planner = (sx, sy, tx, ty) => {
-  walls ??= createGrid();
+  const key = gridKey();
+  if (!walls || wallsKey !== key) {
+    walls = createGrid();
+    wallsKey = key;
+  }
   const r = findPath(
     walls,
     Math.round(clamp(sx, 0, MAP.width)),

@@ -906,7 +906,7 @@ export class PartyClient {
       this.host.setChatTier(state.view.chat?.match, state.view.chat?.all);
     }
     if (ev.e === 'server' && ev.m.t === 'vote' && ev.m.kind === 'rematch' && ev.m.result === 'pass')
-      this.h.analytics?.('mp_rematch', { members: state.view?.members.length ?? 0, kept_heroes: this.keepHero });
+      this.h.analytics?.('mp_rematch', { members: state.view?.members.length ?? 0 });
     // results together (M6): the label counts who pressed Play again; the pick takes over once the rematch passed
     if (this.resultsEl && state.view && state.view !== prev.view) {
       const b = this.resultsEl.querySelector<HTMLElement>('[data-a="again"]');
@@ -1265,9 +1265,8 @@ export class PartyClient {
     // Quick Play: the side is fixed; a hover on the other side moves to this player's hero of that side
     if (v.mm && heroBlock(v, this.hover)) this.hover = firstFree(v, v.mm.side, this.h.heroForSide?.(v.mm.side));
     if (this.hover && !heroBlock(v, this.hover)) this.socket.sendJson({ t: 'pick.hover', hero: this.hover });
-    // M6 "Play again together": the same hero, locked at once ("Change hero" leaves the pick open)
-    if (this.keepHero && me?.hero && !heroBlock(v, me.hero)) this.socket.sendJson({ t: 'pick.lock', hero: me.hero, trick: me.trick ?? this.trick });
-    this.keepHero = false;
+    // every pick opens unlocked, a rematch too (founder, Nov 18: a "Play again together" pick locked the last heroes
+    // at once and the match started seconds later): the last hero is only hovered; LOCK IN or the timer locks it
     this.againPressed = false;
   }
 
@@ -1316,7 +1315,6 @@ export class PartyClient {
   private resultsEl: HTMLElement | null = null;
   private resultsDone: (() => void) | null = null;
   private againPressed = false;
-  private keepHero = false;
 
   /** The party rows of the results screen (names honour Hide names; card art from the party view). */
   resultsRows(stats: readonly SlotStats[], mySlot: number, baseNames: readonly string[], end: { names?: (string | null)[]; pilotPct?: number[] }): string {
@@ -1338,11 +1336,14 @@ export class PartyClient {
     return againLabel(v, this.againPressed);
   }
 
-  /** The results actions for this player (Quick Play strangers get Play again and Back, no Change hero). */
+  /**
+   * The results actions for this player: Play again and Leave. No "Change champion": every pick, a rematch's too,
+   * opens unlocked, so Play again already lets everyone change.
+   */
   resultsActions(): { again: string; leave: string; change: boolean; coop: boolean } {
     const v = this.state.view;
     const stranger = isStranger(v);
-    return { again: this.againText(), leave: stranger ? COPY.back : COPY.leave, change: !v?.mm, coop: !!v?.mm };
+    return { again: this.againText(), leave: stranger ? COPY.back : COPY.leave, change: false, coop: !!v?.mm };
   }
 
   /** The app's results screen is up: keep its Play again label current; `done` hands the screen back for the pick. */
@@ -1350,12 +1351,10 @@ export class PartyClient {
     this.resultsEl = el;
     this.resultsDone = done;
     this.againPressed = false;
-    // a "Play again together" from an earlier results screen whose vote never passed keeps nothing
-    this.keepHero = false;
   }
 
-  /** "Play again together" (keep the hero) or "Change hero" (the pick stays open). */
-  again(keepHero: boolean): void {
+  /** "Play again together": a vote for the rematch; it opens a full pick (last hero hovered, nobody locked). */
+  again(): void {
     const v = this.state.view;
     // Quick Play: a stranger searches again with the same side (the relay moves it out of the matched party); a
     // friend party goes back to its own lobby, where the leader has Play online
@@ -1368,12 +1367,11 @@ export class PartyClient {
       if (isStranger(v)) this.queueNow(true);
       return;
     }
-    this.keepHero = keepHero;
     this.againPressed = true;
     this.socket.sendJson({ t: 'vote', kind: 'rematch', yes: true });
     const b = this.resultsEl?.querySelector<HTMLElement>('[data-a="again"]');
     if (b) b.textContent = againLabel(this.state.view, true);
-    this.resultsEl?.querySelectorAll<HTMLButtonElement>('[data-a="again"], [data-a="change"]').forEach((x) => x.classList.add('pressed'));
+    this.resultsEl?.querySelectorAll<HTMLButtonElement>('[data-a="again"]').forEach((x) => x.classList.add('pressed'));
   }
 
   /** "Leave party" from the results screen, or Leave match in a Quick Play match (the app then shows the title). */
@@ -1518,8 +1516,7 @@ export class PartyClient {
         }
         const me = v?.members.find((m) => m.id === v.you);
         const why = v ? heroBlock(v, hero, hideNames()) : '';
-        // locked in (the hero "Play again together" kept, or an earlier LOCK IN) and a free champion tapped: the lock
-        // moves to it at once. Before, the tap only showed its skills and the rematch started on the old hero 5 s later
+        // locked in (an earlier LOCK IN) and a free champion tapped: the lock moves to it at once
         if (v && v.phase === 'pick' && me?.locked && !why && hero !== me.hero) {
           this.swapLock(hero);
           return;

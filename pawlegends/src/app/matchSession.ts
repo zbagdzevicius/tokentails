@@ -610,6 +610,8 @@ export class MatchSession {
           this.feelEvent(ev);
           if (this.announcer) this.present(this.announcer.feed(ev));
         },
+        // party rematch on a new map: the walker's and the input's nav grids are the bound map's (net/navCheck.ts)
+        navCheck: async () => (await import('../net/navCheck')).navAgrees(),
         // stops or restarts the sim alone (no pause menu, the HUD stays as it is), so a slow harness on a loaded
         // machine checks the HUD without the match running out under it (progression.spec: a 16x match ended first)
         simPause: (p: boolean) => this.host.pause(p),
