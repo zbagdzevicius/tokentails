@@ -11,7 +11,7 @@ html .pl-social {
   font: 600 14px/1.25 var(--font);
 }
 @media (min-width: 1600px) and (min-height: 800px) { html .pl-social { --soc-row: 56px; --soc-name: 16px; --soc-st: 14px; --soc-av: 40px; } }
-@media (max-height: 430px) { html .pl-social { --soc-row: 48px; --soc-av: 32px; gap: 4px; } }
+@media (max-height: 500px) { html .pl-social { --soc-row: 48px; --soc-av: 32px; gap: 4px; } }
 html[data-menu-text='large'] .pl-social { --soc-row: 60px; --soc-name: 17px; --soc-st: 15px; --soc-av: 40px; }
 
 /* ── header: tabs, More, Close ─────────────────────────────────────────────────────────────────────────────────── */

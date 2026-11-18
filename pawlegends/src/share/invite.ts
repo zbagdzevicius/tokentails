@@ -155,7 +155,7 @@ export function inviteRowHtml(s: InviteState | null, entering: boolean, folded =
   const chip = `<button type="button" class="pl-inv-code" data-a="inv-copy" data-testid="invite-copy" aria-label="${esc(`Copy invite code ${s.code}`)}" title="Copy code"><small>Code</small><b>${esc(s.code)}</b>${ICON_COPY}</button>`;
   const fold = `<button type="button" class="pl-ico pl-inv-fold" data-a="inv-fold" aria-expanded="${!folded}" aria-label="${folded ? 'Show invite' : 'Hide invite'}" title="${folded ? 'Show' : 'Hide'}">${ICON_CHEVRON}</button>`;
   if (folded)
-    return `<div class="pl-invite-row is-folded" data-testid="invite-row"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span></span>${claim || chip}${fold}</div>`;
+    return `<div class="pl-invite-row is-folded" data-testid="invite-row"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title === 'Invite a friend' ? 'Invite' : title)}"></span></span>${claim || chip}${fold}</div>`;
   const enter = !s.accepted ? `<button type="button" class="pl-inv-have" data-a="inv-enter" data-testid="invite-enter" aria-label="Enter an invite code">Got a code from a friend?</button>` : '';
   return `<div class="pl-invite-row" data-testid="invite-row"><div class="pl-inv-top"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span><small class="pl-inv-sub">${esc(sub)}</small></span>${fold}</div><div class="pl-inv-acts">${chip}${claim}<button type="button" class="pl-btn small ghost pl-inv-share" data-a="inv-share" data-testid="invite-share">${ICON_SHARE}<span>Share link</span></button></div>${enter}</div>`;
 }
@@ -179,7 +179,7 @@ const readFold = (): boolean => {
     v = null;
   }
   if (v === '1' || v === '0') return v === '1';
-  return typeof window !== 'undefined' && window.innerHeight <= 430;
+  return typeof window !== 'undefined' && window.innerHeight <= 500;
 };
 
 export interface InviteDeps {
