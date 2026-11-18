@@ -70,7 +70,7 @@ describe('round 1: names and numbers', () => {
     expect(abilityNumbers('sage', 1)).toMatch(/root 1 s/);
     expect(trickNumbers('pounce')).toBe('120 s cooldown · 4 m');
     // sim v8: Hard is a mirror (Hard allies) and the hint says so; no species line on the chips any more
-    expect(DIFFICULTY_HINT.hard).toMatch(/five Hard bots/);
+    expect(DIFFICULTY_HINT.hard).toMatch(/5 Hard bots/);
     expect(DIFFICULTY_HINT.normal).not.toMatch(/species|Woof pack/);
   });
 });

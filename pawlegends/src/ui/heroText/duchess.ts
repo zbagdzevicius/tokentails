@@ -9,12 +9,12 @@ export const TEXT: HeroText = {
   role: 'Mage',
   side: 'Cat',
   blurb: 'Floats about on her cushion. Three snubs and a dog can’t move.',
-  passive: { name: 'Utter Disdain', text: 'Ability hits add Disdain. At 3, the dog is Snubbed: stunned and hurt.' },
+  passive: { name: 'Utter Disdain', text: 'Each ability hit adds Disdain. At 3, the dog is Snubbed: stunned and hurt.' },
   abilities: [
-    { name: 'Fluff Puff', text: 'A big slow fluffball that rolls through everyone.', icon: 'fluffPuff' },
-    { name: 'Not Amused', text: 'Glare in a cone; they slow down.', icon: 'glare' },
-    { name: 'Cushion Glide', text: 'Glide away and leave a cloud of shed fur.', icon: 'cushion' },
-    { name: 'Royal Decree', text: 'Everyone near her is hurt, slowed and nearly Snubbed.', icon: 'decree' },
+    { name: 'Fluff Puff', text: 'A big, slow fluffball that rolls through everyone.', icon: 'fluffPuff' },
+    { name: 'Not Amused', text: 'Glare in a cone to hurt and slow dogs.', icon: 'glare' },
+    { name: 'Cushion Glide', text: 'Glide away and leave a cloud of shed fur that slows.', icon: 'cushion' },
+    { name: 'Royal Decree', text: 'Hurt and slow the dogs near you and add 1 Disdain. You get a shield.', icon: 'decree' },
   ],
   talents: {
     'double-fluff': 'Fluff Puff is wider.',

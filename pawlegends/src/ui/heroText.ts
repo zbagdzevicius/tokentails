@@ -76,18 +76,18 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
     blurb: 'A brave little knight who swings first and asks later.',
     passive: { name: 'Valor', text: 'Hits build Valor. At full Valor your next ability hits 50% harder.' },
     abilities: [
-      { name: 'Paw Combo', text: 'Swipe in a cone. Recast twice; the third swipe knocks back.', icon: 'sword' },
-      { name: 'The Stand', text: 'Block 80% of damage from the front. Parry a projectile in the first moment.', icon: 'shield' },
-      { name: 'Tumble', text: 'Dash 4 m and dodge everything for a blink.', icon: 'dash' },
-      { name: 'Golden Hour', text: 'Attack faster for 6 s. Every third swing sends a wave of light.', icon: 'sun' },
+      { name: 'Paw Combo', text: 'Swipe in a cone. Cast up to 3 times; the 3rd swipe knocks back.', icon: 'sword' },
+      { name: 'The Stand', text: 'Block 80% of damage from the front. A shot that hits you right away bounces back.', icon: 'shield' },
+      { name: 'Tumble', text: 'Dash 4 m. Nothing can hit you for a moment.', icon: 'dash' },
+      { name: 'Golden Hour', text: 'Attack faster for 6 s. Every 3rd attack sends out a wave of light.', icon: 'sun' },
     ],
     talents: {
-      'pounce-finish': 'The third Paw Combo stuns instead of knocking back.',
+      'pounce-finish': 'The 3rd Paw Combo swipe stuns instead of knocking back.',
       'long-swipe': 'Paw Combo reaches 3 m.',
-      'second-wind': 'A takedown resets Tumble.',
+      'second-wind': 'A knockout or assist resets Tumble.',
       'steady-stand': 'The Stand lasts longer.',
       'golden-afternoon': 'Golden Hour lasts 2 s longer.',
-      'sunlit-mend': 'Heal from damage dealt during Golden Hour.',
+      'sunlit-mend': 'Heal from the damage you deal in Golden Hour.',
     },
   },
   sage: {
@@ -95,20 +95,20 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
     role: 'Marksman',
     side: 'Cat',
     blurb: 'Calm, patient and never out of arrows.',
-    passive: { name: 'Steady Paw', text: 'Every 4th shot pierces through a whole line.' },
+    passive: { name: 'Steady Paw', text: 'Every 4th shot flies through a whole line.' },
     abilities: [
       { name: 'Volley', text: 'Fire a fan of arrows.', icon: 'arrows' },
-      { name: 'Sun Snare', text: 'Hide a trap that roots the first enemy to step on it.', icon: 'trap' },
-      { name: 'Hop Back', text: 'Leap away from your aim.', icon: 'dash' },
+      { name: 'Sun Snare', text: 'Hide a trap. The first enemy to step on it is rooted.', icon: 'trap' },
+      { name: 'Hop Back', text: 'Leap away from where you aim.', icon: 'dash' },
       { name: 'Moonshot', text: 'After a short wind-up, a huge arrow flies across the map.', icon: 'moon' },
     ],
     talents: {
       'wide-volley': 'Volley fires 7 arrows.',
       'sticky-arrows': 'Volley slows.',
-      'twin-snares': 'Keep 3 traps; roots last longer.',
+      'twin-snares': 'Keep 3 traps out. Roots last longer.',
       'piercing-shot': 'Volley becomes one long arrow that flies through everything in its line.',
       'full-moon': 'Moonshot recharges faster.',
-      'moon-mark': 'Moonshot outlines its target for 4 s.',
+      'moon-mark': 'Moonshot reveals the dog it hits for 4 s.',
     },
     branch: { slot: 0, name: 'Piercing Shot', text: 'One long arrow that flies through every enemy in its line.', icon: 'lance' },
   },
@@ -116,43 +116,43 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
     title: 'Sir Brutus',
     role: 'Tank',
     side: 'Dog',
-    blurb: 'A pug of honour. Stands in front so friends do not have to.',
-    passive: { name: 'Honour', text: 'Taking hits from heroes builds a shield.' },
+    blurb: 'A pug of honour. Stands in front so his friends don’t have to.',
+    passive: { name: 'Honour', text: 'Getting hit by cats builds you a shield.' },
     abilities: [
-      { name: 'Shield Slam', text: 'Slam the ground around you and slow enemies.', icon: 'ring' },
-      { name: 'Front Guard', text: 'Raise a shield that blocks projectiles for you and friends behind you.', icon: 'shield' },
-      { name: 'Pug Charge', text: 'Charge forward; the first hero hit is knocked back and stunned.', icon: 'charge' },
-      { name: 'Champion’s Challenge', text: 'Challenge a hero: neither of you can leave the ring.', icon: 'crown' },
+      { name: 'Shield Slam', text: 'Slam the ground around you to hurt and slow enemies.', icon: 'ring' },
+      { name: 'Front Guard', text: 'Raise a shield that blocks shots for you and teammates behind you.', icon: 'shield' },
+      { name: 'Pug Charge', text: 'Charge forward. The first cat you hit is knocked back and stunned.', icon: 'charge' },
+      { name: 'Champion’s Challenge', text: 'Pick a cat. Neither of you can leave the ring.', icon: 'crown' },
     ],
     talents: {
       'heavy-slam': 'Shield Slam slows more.',
       'wide-slam': 'Shield Slam is wider.',
       bulwark: 'Front Guard lasts longer.',
-      'guard-post': 'Front Guard becomes a dome around you that blocks enemy shots for every friend inside. You stand still while it lasts and take less damage.',
-      'arena-of-honour': 'The challenge ring lasts 3.5 s.',
-      'rally-howl': 'Friends in the ring run faster.',
+      'guard-post': 'Front Guard becomes a dome around you that blocks shots for every teammate inside. You stand still while it lasts and take less damage.',
+      'arena-of-honour': 'The ring lasts 3.5 s.',
+      'rally-howl': 'Teammates in the ring run faster.',
     },
-    branch: { slot: 1, name: 'Guard Post', text: 'Plant a dome that blocks enemy shots for friends inside. You stand still and take less damage while it lasts.', icon: 'dome' },
+    branch: { slot: 1, name: 'Guard Post', text: 'Plant a dome that blocks shots for teammates inside. You stand still and take less damage while it lasts.', icon: 'dome' },
   },
   cacklejaw: {
     title: 'Cacklejaw',
     role: 'Assassin',
     side: 'Dog',
     blurb: 'Giggles in the bushes. Then pounces.',
-    passive: { name: 'Pack Flank', text: 'Hit harder from behind or next to a friend.' },
+    passive: { name: 'Pack Flank', text: 'Hit harder from behind, or when a teammate is near your target.' },
     abilities: [
-      { name: 'Jeer Slash', text: 'Dash through enemies. Hit a hero to dash again.', icon: 'slash' },
-      { name: 'Gloat', text: 'Laugh in a cone. Enemies run away in fright.', icon: 'fear' },
-      { name: 'Bush Slink', text: 'Vanish and run faster. Lasts longer in bushes.', icon: 'stealth' },
-      { name: 'Pack Hunt', text: 'Leap at the weakest nearby enemy hero.', icon: 'hunt' },
+      { name: 'Jeer Slash', text: 'Dash through enemies. Hit a cat to dash again.', icon: 'slash' },
+      { name: 'Gloat', text: 'Laugh in a cone. Enemies in it run away scared.', icon: 'fear' },
+      { name: 'Bush Slink', text: 'Turn invisible and run faster. Lasts longer in bushes.', icon: 'stealth' },
+      { name: 'Pack Hunt', text: 'Leap at the weakest cat nearby.', icon: 'hunt' },
     ],
     talents: {
       'long-jeer': 'Jeer Slash dashes further.',
       'cruel-jeer': 'The second Jeer Slash slows.',
       smug: 'Gloat recharges faster.',
       'wide-gloat': 'Gloat is wider.',
-      'feeding-frenzy': 'Pack Hunt can reset twice.',
-      ambush: 'The first hit out of stealth deals 40% more.',
+      'feeding-frenzy': 'Pack Hunt can reset 2 times.',
+      ambush: 'Your first hit out of hiding deals 40% more.',
     },
   },
   lambo: {
@@ -161,19 +161,19 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
     side: 'Cat',
     blurb: 'Big, soft and seven kilos of brave when friends are near.',
     flavour: 'Sought the stars, found tuna cans. Now he cooks for the whole galaxy.',
-    passive: { name: 'Brave With Friends', text: 'Takes 10% less damage near an allied hero.' },
+    passive: { name: 'Brave With Friends', text: 'Takes 10% less damage near a teammate.' },
     abilities: [
-      { name: 'Tuna Toss', text: 'Throw a tuna can. The first enemy hit is slowed.', icon: 'tuna' },
-      { name: 'Big Hug', text: 'Shield yourself (7% of your max HP) and the nearest friend (4.5%).', icon: 'hug' },
+      { name: 'Tuna Toss', text: 'Throw a tuna can. The first enemy it hits is slowed.', icon: 'tuna' },
+      { name: 'Big Hug', text: 'Shield yourself (7% of your max HP) and the nearest teammate (4.5%).', icon: 'hug' },
       { name: 'Belly Flop', text: 'Hop and land on enemies to stun them.', icon: 'flop' },
-      { name: 'Tangled Lights', text: 'Pull nearby enemy heroes in and tie them up.', icon: 'lights' },
+      { name: 'Tangled Lights', text: 'Pull nearby dogs in and root them.', icon: 'lights' },
     ],
     talents: {
       'long-toss': 'Tuna Toss flies further.',
       'extra-crispy-tuna': 'Tuna Toss slows more.',
-      'bigger-hug': 'Big Hug gives your friend a bigger shield.',
+      'bigger-hug': 'Big Hug gives your teammate a bigger shield.',
       'flop-further': 'Belly Flop hops further.',
-      'fairy-light-finale': 'Tangled Lights holds longer.',
+      'fairy-light-finale': 'Tangled Lights roots for longer.',
       'wide-tangle': 'Tangled Lights reaches further.',
     },
   },
@@ -183,12 +183,12 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
     side: 'Cat',
     blurb: 'Hides in cozy corners, then steps out to show off that shiny coat.',
     flavour: 'Charged with energy, she danced and short-circuited the toaster.',
-    passive: { name: 'Shy, Then Shiny', text: 'After 1 s in a bush, her next hit on a hero stuns.' },
+    passive: { name: 'Shy, Then Shiny', text: 'After 1 s in a bush, her next hit on a dog stuns it.' },
     abilities: [
       { name: 'Spark Swipe', text: 'Swipe in a wide arc in front of you.', icon: 'spark' },
-      { name: 'Shiny Coat', text: 'Charge up now and run faster. While the charge is locked out: speed only.', icon: 'coat' },
+      { name: 'Shiny Coat', text: 'Run faster, then get charged. Soon after a charged hit, you only get the speed.', icon: 'coat' },
       { name: 'Live Wire', text: 'Blink. Cast again within 2 s to blink back.', icon: 'wire' },
-      { name: 'Short Circuit', text: 'Blink to an enemy hero, hit it and slow everyone near.', icon: 'circuit' },
+      { name: 'Short Circuit', text: 'Blink to a dog, hit it and slow the dogs around it.', icon: 'circuit' },
     ],
     talents: {
       'wide-swipe': 'Spark Swipe is wider.',
@@ -205,10 +205,10 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
     side: 'Cat',
     blurb: 'Turns heads wherever he goes. Burns whatever he toasts.',
     flavour: 'Set the curtains ablaze. He only wanted to burn the toast.',
-    passive: { name: 'Hot Toast', text: 'Hits stunned, rooted, charmed or slowed heroes 15% harder.' },
+    passive: { name: 'Hot Toast', text: 'Hits stunned, rooted, scared, charmed or slowed dogs 15% harder.' },
     abilities: [
       { name: 'Burnt Toast', text: 'Fling toast. It hits the first enemy in the way.', icon: 'toast' },
-      { name: 'Striking Pose', text: 'Strike a pose. Heroes looking at you are stunned, the rest slowed.', icon: 'pose' },
+      { name: 'Striking Pose', text: 'Strike a pose. Dogs facing you are stunned, the rest slowed.', icon: 'pose' },
       { name: 'Camellia Hop', text: 'Hop away and run faster for a moment.', icon: 'camellia' },
       { name: 'Curtains Up!', text: 'Set a stage on fire. Enemies in it burn and slow down.', icon: 'curtains' },
     ],
@@ -227,12 +227,12 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
     side: 'Cat',
     blurb: 'One look from those blue eyes and you’re under her spell.',
     flavour: 'Chased the wind. It was only a balloon escaping.',
-    passive: { name: 'Heart Breeze', text: 'Basic hits on heroes heal the weakest nearby friend.' },
+    passive: { name: 'Heart Breeze', text: 'Your attacks on dogs heal the most hurt teammate nearby, or you.' },
     abilities: [
-      { name: 'Heart Balloon', text: 'Lob a balloon. It pops: enemies take damage, friends heal.', icon: 'balloon' },
-      { name: 'Wing Wrap', text: 'Shield a friend near the aim, or yourself, and speed them up.', icon: 'wings' },
-      { name: 'Chase the Wind', text: 'Dash. Friends you pass run faster.', icon: 'wind' },
-      { name: 'Under Her Spell', text: 'Enemy heroes in front of you walk to you and cannot act.', icon: 'spell' },
+      { name: 'Heart Balloon', text: 'Lob a balloon. When it pops, enemies take damage and teammates heal.', icon: 'balloon' },
+      { name: 'Wing Wrap', text: 'Shield and speed up the teammate nearest your aim, or yourself.', icon: 'wings' },
+      { name: 'Chase the Wind', text: 'Dash. Teammates you pass run faster.', icon: 'wind' },
+      { name: 'Under Her Spell', text: 'Dogs in front of you walk to you and can’t act.', icon: 'spell' },
     ],
     talents: {
       'big-balloon': 'Heart Balloon is bigger.',
@@ -268,9 +268,9 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
 
 export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze({
   pounce: { name: 'Pounce', text: 'Blink 4 m.', icon: 'blink' },
-  snack: { name: 'Snack Break', text: 'Heal a quarter of your health over 2 s.', icon: 'heart' },
+  snack: { name: 'Snack Break', text: 'Heal 25% of your health over 2 s.', icon: 'heart' },
   hiss: { name: 'Hiss', text: 'Scare enemies around you for 0.7 s.', icon: 'hiss' },
-  purrify: { name: 'Purr-ify', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 1 s.', icon: 'purr' },
+  purrify: { name: 'Purr-ify', text: 'Break free of stuns, roots, slows, scares and charms, even while stunned. They can’t land for 1 s.', icon: 'purr' },
 });
 
 /**
@@ -279,7 +279,7 @@ export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze(
  */
 const DOG_TRICK_TEXT: Readonly<Partial<Record<TrickId, AbilityText>>> = Object.freeze({
   hiss: { name: 'Growl', text: 'Scare enemies around you for 0.7 s.', icon: 'hiss' },
-  purrify: { name: 'Shake Off', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 1 s.', icon: 'purr' },
+  purrify: { name: 'Shake Off', text: 'Break free of stuns, roots, slows, scares and charms, even while stunned. They can’t land for 1 s.', icon: 'purr' },
 });
 
 /** A Paw Trick's words for `hero`'s side (a dog growls and shakes off; a cat hisses and purrs). */
@@ -290,7 +290,7 @@ export function trickText(trick: TrickId, hero?: HeroId): AbilityText {
 /** Sim v10 (GAPS B5): the Paw Trick hint under the trick chips, by role ('' when none); sim v14: by side too. */
 export function trickHint(role: string, side: 'cat' | 'dog' = 'cat'): string {
   if (role !== 'Tank') return '';
-  return side === 'dog' ? 'Tank → Shake Off: you take the stuns, so shake them off.' : 'Tank → Purr-ify: you take the stuns, so shake them off.';
+  return side === 'dog' ? 'Tank tip: Shake Off breaks you out of stuns.' : 'Tank tip: Purr-ify breaks you out of stuns.';
 }
 
 export const DIFFICULTY_TEXT = Object.freeze({ easy: 'Easy bots', normal: 'Normal bots', hard: 'Hard bots' });
@@ -302,8 +302,8 @@ export const DIFFICULTY_TEXT = Object.freeze({ easy: 'Easy bots', normal: 'Norma
  */
 export const DIFFICULTY_HINT: Readonly<Partial<Record<string, string>>> = Object.freeze({
   easy: 'Easy: slow bots that rarely use abilities.',
-  normal: 'Normal: bots defend their base and push when they lead.',
-  hard: 'Hard: you and five Hard bots. They focus the weakest hero, dive after a stun and punish anyone under their tower.',
+  normal: 'Normal: bots defend their towers and push when ahead.',
+  hard: 'Hard: you and 5 Hard bots. They gang up on the weakest champion, jump in after a stun and hit anyone under their tower.',
 });
 
 export const sec = (ticks: number): string => `${Math.round(ticks / 3) / 10} s`;
@@ -327,7 +327,7 @@ function reachAndTimer(a: Nums, parts: string[]): void {
   if (reach !== undefined) parts.push(metres(reach));
   if (a.push !== undefined && a.push > 0) parts.push(`push ${metres(a.push)}`);
   const dur = a.stun ?? a.root ?? a.fear ?? a.charm ?? a.duration;
-  if (dur !== undefined && dur > 0) parts.push(`${a.stun ? 'stun' : a.root ? 'root' : a.fear ? 'fear' : a.charm ? 'charm' : 'lasts'} ${sec(dur)}`);
+  if (dur !== undefined && dur > 0) parts.push(`${a.stun ? 'stun' : a.root ? 'root' : a.fear ? 'scare' : a.charm ? 'charm' : 'lasts'} ${sec(dur)}`);
   // Sim v14 (the dogs): shots in a burst, shares of max HP, the freeze, the splash cap and a fading slow's tail.
   if (a.count !== undefined && a.count > 1) parts.push(`×${a.count}`);
   if (a.healBp !== undefined && a.healBp > 0) parts.push(`heal ${Math.round(a.healBp / 100)}% max HP`);
@@ -393,7 +393,7 @@ export function branchNumbers(hero: HeroId, level?: number): string {
 /** One rank delta in words: "+18 dmg", "−0.5 s cooldown". */
 function rankDelta(key: string, d: number): string {
   if (key === 'cooldown') return `${d < 0 ? '−' : '+'}${sec(Math.abs(d))} cooldown`;
-  const word = key === 'waveDmg' ? 'wave dmg' : key;
+  const word = key === 'waveDmg' ? 'light wave dmg' : key;
   return `${d < 0 ? '−' : '+'}${Math.abs(d)} ${word}`;
 }
 
@@ -494,14 +494,14 @@ export function talentNumbers(hero: HeroId, tier: number, choice: number, level:
   return parts.join(' · ');
 }
 
-/** Sim v8 per-hero tuning (HeroData.pvp) in words, or '' when the hero has none: "Hero fights (Normal, Hard): deals 13% more · takes 8.5% less". */
+/** Sim v8 per-hero tuning (HeroData.pvp) in words, or '' when the hero has none: "Vs champions (Normal, Hard): deals 13% more · takes 8.5% less". */
 export function pvpNumbers(hero: HeroId): string {
   const { dmgBp, takenBp } = HEROES[hero].pvp;
   const pct = (bp: number): string => `${Math.round(Math.abs(bp - 10000) / 10) / 10}%`;
   const parts: string[] = [];
   if (dmgBp !== 10000) parts.push(`deals ${pct(dmgBp)} ${dmgBp > 10000 ? 'more' : 'less'}`);
   if (takenBp !== 10000) parts.push(`takes ${pct(takenBp)} ${takenBp > 10000 ? 'more' : 'less'}`);
-  return parts.length ? `Hero fights (Normal, Hard): ${parts.join(' · ')}` : '';
+  return parts.length ? `Vs champions (Normal, Hard): ${parts.join(' · ')}` : '';
 }
 
 /** "60 s cooldown · 4 m" for a Paw Trick. */
@@ -511,7 +511,7 @@ export function trickNumbers(t: TrickId): string {
   if (d.blink) parts.push(metres(d.blink));
   if (d.radius) parts.push(metres(d.radius));
   if (d.healBp) parts.push(`heals ${d.healBp / 100}%`);
-  if (d.immune) parts.push(`immune ${sec(d.immune)}`);
+  if (d.immune) parts.push(`unstoppable ${sec(d.immune)}`);
   return parts.join(' · ');
 }
 
@@ -519,7 +519,7 @@ export function trickNumbers(t: TrickId): string {
 export const TALENT_SHORT: Readonly<Record<string, string>> = Object.freeze({
   'pounce-finish': 'Stun on 3rd swipe',
   'long-swipe': 'Longer swipe',
-  'second-wind': 'Takedown resets Tumble',
+  'second-wind': 'Knockout or assist resets Tumble',
   'steady-stand': 'Longer Stand',
   'golden-afternoon': 'Longer Golden Hour',
   'sunlit-mend': 'Heal in Golden Hour',
@@ -528,19 +528,19 @@ export const TALENT_SHORT: Readonly<Record<string, string>> = Object.freeze({
   'twin-snares': '3 traps, longer roots',
   'piercing-shot': 'One piercing arrow',
   'full-moon': 'Faster Moonshot',
-  'moon-mark': 'Moonshot outlines target',
+  'moon-mark': 'Moonshot reveals target',
   'heavy-slam': 'Slam slows more',
   'wide-slam': 'Wider Slam',
   bulwark: 'Longer Front Guard',
   'guard-post': 'Shot-blocking dome',
   'arena-of-honour': 'Ring lasts 3.5 s',
-  'rally-howl': 'Friends run faster',
+  'rally-howl': 'Teammates run faster',
   'long-jeer': 'Longer Jeer dash',
   'cruel-jeer': 'Second Jeer slows',
   smug: 'Faster Gloat',
   'wide-gloat': 'Wider Gloat',
-  'feeding-frenzy': 'Pack Hunt resets twice',
-  ambush: '+40% out of stealth',
+  'feeding-frenzy': '2 Pack Hunt resets',
+  ambush: '+40% out of hiding',
 });
 
 /**
@@ -550,7 +550,7 @@ export const TALENT_SHORT: Readonly<Record<string, string>> = Object.freeze({
 export function slotNames(picks: readonly HeroId[], seed?: number, humanSlot = 0): string[] {
   if (seed === undefined) {
     return picks.map((h, s) => {
-      const t = HERO_TEXT[h]?.title ?? 'A hero';
+      const t = HERO_TEXT[h]?.title ?? 'A champion';
       const twin = picks.slice(0, s).some((p, i) => p === h && (i < 3) === (s < 3));
       return twin ? `${t} 2` : t;
     });
@@ -562,14 +562,14 @@ export function slotNames(picks: readonly HeroId[], seed?: number, humanSlot = 0
   // the same bot read "Noodle" on one friend's screen and "Tofu" on the other's (2026-11-15 live co-op check)
   const used = new Set<string>();
   return picks.map((h, s) => {
-    const t = HERO_TEXT[h]?.title ?? 'A hero';
+    const t = HERO_TEXT[h]?.title ?? 'A champion';
     if (s === 0) return t;
     const pool = HEROES[h]?.side === 'dog' ? DOG_NAMES : CAT_NAMES;
     let k = (Math.imul((seed >>> 0) ^ (s * 0x9e3779b1), 0x85ebca6b) >>> 0) % pool.length;
     while (used.has(pool[k])) k = (k + 1) % pool.length;
     used.add(pool[k]);
     return `${pool[k]} the ${t.replace('Sir ', '')}`;
-  }).map((n, s) => (s === humanSlot ? (HERO_TEXT[picks[s]]?.title ?? 'A hero') : n));
+  }).map((n, s) => (s === humanSlot ? (HERO_TEXT[picks[s]]?.title ?? 'A champion') : n));
 }
 
 /** Bot persona names (round 2), by side. Generic pet names, not any real Token Tails cat. */

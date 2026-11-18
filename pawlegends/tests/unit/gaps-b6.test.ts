@@ -77,7 +77,7 @@ describe('B6: client reads', () => {
     sage.dispose();
     const clem = new TalentPicker(document.body, 'clem', () => {});
     clem.offer(1);
-    expect(clem.root.querySelector('.head .soon')?.textContent).toBe('Branch coming soon');
+    expect(clem.root.querySelector('.head .soon')?.textContent).toBe('New shape coming soon');
     expect(clem.root.querySelector('button.branch')).toBeNull();
     clem.dispose();
     const lvl3 = new TalentPicker(document.body, 'clem', () => {});

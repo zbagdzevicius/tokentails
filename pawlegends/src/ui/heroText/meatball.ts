@@ -9,12 +9,12 @@ export const TEXT: HeroText = {
   role: 'Tank',
   side: 'Cat',
   blurb: 'Rolls into dogs and bowls them off his friends.',
-  passive: { name: 'Food Coma', text: 'Dropping low puts him to sleep under a big shield.' },
+  passive: { name: 'Food Coma', text: 'When he drops low, he falls asleep under a big shield.' },
   abilities: [
-    { name: 'Bowling Roll', text: 'Roll forward; everything in the way is knocked aside.', icon: 'roll' },
-    { name: 'Loaf Mode', text: 'Become a loaf: rooted, tougher, and nearby dogs can’t resist coming over.', icon: 'loaf' },
-    { name: 'Big Brother', text: 'Jump to a friend, shield them and push dogs off them.', icon: 'bodyguard' },
-    { name: 'Unstoppable Chonk', text: 'Nothing stops you. Bump into dogs to send them flying.', icon: 'chonk' },
+    { name: 'Bowling Roll', text: 'Roll forward. Everything in the way is knocked aside.', icon: 'roll' },
+    { name: 'Loaf Mode', text: 'Become a loaf: you can’t move but take less damage. Nearby dogs must walk to you.', icon: 'loaf' },
+    { name: 'Big Brother', text: 'Jump to a teammate, shield them and push dogs off them.', icon: 'bodyguard' },
+    { name: 'Unstoppable Chonk', text: 'Nothing can stop you. Bump into dogs to send them flying.', icon: 'chonk' },
   ],
   talents: {
     'hungry-roll': 'Bowling Roll goes further.',

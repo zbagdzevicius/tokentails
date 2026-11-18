@@ -11,7 +11,7 @@ export const TEXT: HeroText = {
     { name: 'Haymaker', text: 'Swing at every cat in front of you.', icon: 'haymaker' },
     { name: 'Rope-a-Dope', text: 'Cover up: take less damage, then heal back part of it.', icon: 'ropeadope' },
     { name: 'Bob and Weave', text: 'Dash in. Your next attack is a Cross.', icon: 'weave' },
-    { name: 'KNOCKOUT!', text: 'A huge punch that hits harder on a hurt cat and sends it flying. A wall stuns it.', icon: 'knockout' },
+    { name: 'KNOCKOUT!', text: 'A huge punch that hits a hurt cat harder and sends it flying. Hitting a wall stuns it.', icon: 'knockout' },
   ],
   talents: {
     southpaw: 'The Cross hits harder.',

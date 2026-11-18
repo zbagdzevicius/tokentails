@@ -52,7 +52,7 @@ describe('Raspberry charge ring', () => {
   });
 
   it('Shiny Coat says it gives speed only during the lockout', () => {
-    expect(HERO_TEXT.aviete.abilities[1].text).toMatch(/locked out: speed only/);
+    expect(HERO_TEXT.aviete.abilities[1].text).toMatch(/after a charged hit, you only get the speed/);
   });
 });
 
@@ -120,7 +120,7 @@ describe('Gabby bot ultimate rule', () => {
 
 describe('copy (final spec)', () => {
   it('Lambo: 10% near a friend; Big Hug 7% / 4.5% of his max HP; Bengal: the rest of the cone is slowed', () => {
-    expect(HERO_TEXT.lambo.passive.text).toBe('Takes 10% less damage near an allied hero.');
+    expect(HERO_TEXT.lambo.passive.text).toBe('Takes 10% less damage near a teammate.');
     expect(HERO_TEXT.lambo.abilities[1].text).toMatch(/7% of your max HP.*4\.5%/);
     expect(HERO_TEXT.bengas.abilities[1].text).toMatch(/the rest slowed/);
   });

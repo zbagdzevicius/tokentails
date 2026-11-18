@@ -17,19 +17,19 @@ export function COUNTERPLAY_RULES(): CounterRule[] {
   return [
     {
       title: 'Steadfast',
-      text: `After ${sec(CC_DR.cap)} of stuns, roots, fears, charms or knockbacks within ${sec(CC_DR.window)}, a hero shrugs off crowd control for ${sec(CC_DR.immune)}. Slows don't count.`,
+      text: `Stopped for ${sec(CC_DR.cap)} within ${sec(CC_DR.window)}? You turn Steadfast: stuns, roots, scares, charms, pushes and pulls can't land for ${sec(CC_DR.immune)}. Slows still work.`,
     },
     {
       title: 'Read the wind-up',
-      text: 'Skill stuns, fears, charms and pulls wind up for at least 0.3 s and show where they land. Step out while they wind up.',
+      text: 'Ability stuns, scares, charms and pulls wind up for at least 0.3 s and show where they land. Step out before they hit.',
     },
     {
       title: 'Purr-ify / Shake Off',
-      text: `Clears crowd control, even mid-stun, then ${sec(TRICKS.purrify.immune)} of immunity: cast it on a big ultimate's wind-up and it misses. It also breaks Sir Brutus's ring.`,
+      text: `Breaks you free, even while stunned, and nothing can stop you for ${sec(TRICKS.purrify.immune)}. Use it as a big ultimate winds up and it misses. It also breaks Sir Brutus's ring.`,
     },
     {
       title: 'Pounce',
-      text: `A ${Math.round(TRICKS.pounce.blink / 100) / 10} m blink that dodges skill shots and leaves Sir Brutus's ring.`,
+      text: `A ${Math.round(TRICKS.pounce.blink / 100) / 10} m blink that dodges aimed abilities and gets you out of Sir Brutus's ring.`,
     },
   ];
 }

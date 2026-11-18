@@ -38,7 +38,7 @@ describe('desktop skill tooltips', () => {
     expect(slotTip('pixel', 'hiss', 4, 'D', st()).name).toBe(TRICK_TEXT.hiss.name);
     expect(slotTip('pixel', 'hiss', 4, 'D', st()).kind).toBe('Paw Trick');
     expect(slotTip('sage', 'snack', 5, 'B', st()).name).toBe('Nap');
-    expect(slotTip('sage', 'snack', 5, 'B', st()).rows).toEqual([['Channel', '4 s']]);
+    expect(slotTip('sage', 'snack', 5, 'B', st()).rows).toEqual([['Takes', '4 s']]);
   });
 
   it('numbers follow the level and the talents, from the sim tables (no copies)', () => {

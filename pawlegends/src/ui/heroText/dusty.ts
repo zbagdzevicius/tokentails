@@ -9,8 +9,8 @@ export const TEXT: HeroText = {
   passive: { name: 'Four Corks', text: 'Every fourth shot is a Big Cork: it hits much harder and slows, then you reload.' },
   abilities: [
     { name: 'Trick Shot', text: 'Shoot a cork at an enemy. It bounces to the nearest other enemy, a dog first.', icon: 'trickshot' },
-    { name: 'Lasso', text: 'After a short swing, rope the first dog in a line: it is hurt and cannot walk.', icon: 'lasso' },
-    { name: 'Quick Draw', text: 'Dash. Your next shot is a Big Cork, ready at once.', icon: 'quickdraw' },
+    { name: 'Lasso', text: 'After a short swing, rope the first dog in a line: it’s hurt and can’t walk.', icon: 'lasso' },
+    { name: 'Quick Draw', text: 'Dash. Your next shot is a Big Cork, ready to fire at once.', icon: 'quickdraw' },
     { name: 'HIGH NOON', text: 'Plant your boots and fire big corks down a line, one after another. The last hits hardest.', icon: 'highnoon' },
   ],
   talents: {

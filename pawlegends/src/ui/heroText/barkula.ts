@@ -6,12 +6,12 @@ export const TEXT: HeroText = {
   role: 'Mage',
   side: 'Dog',
   blurb: 'A Doberman count in a tall-collared cape. He fights up close and drinks the fight to stay in it.',
-  passive: { name: 'Night Thirst', text: 'Your spells heal you for part of the damage they deal, most of all on cats.' },
+  passive: { name: 'Night Thirst', text: 'Your abilities heal you for part of their damage, most of all on cats.' },
   abilities: [
     { name: 'Bat Bite', text: 'Send a bat flying. It bites the first thing in the way.', icon: 'batbite' },
     { name: 'Bat Swarm', text: 'Bats circle you for a while, biting the cats close by. You run faster.', icon: 'batswarm' },
-    { name: 'Mist Form', text: 'Turn to mist for a moment: nothing can touch you, you run fast and shake off slows.', icon: 'mist' },
-    { name: 'RED MOON', text: 'Mark and slow the cats around you. Marked cats still near you when it ends are bitten, and you drink.', icon: 'redmoon' },
+    { name: 'Mist Form', text: 'Turn to mist for a moment: nothing can hit you, you run fast and shake off slows.', icon: 'mist' },
+    { name: 'RED MOON', text: 'Mark and slow the cats around you. Marked cats still near you when it ends are bitten, and you heal.', icon: 'redmoon' },
   ],
   talents: {
     fangs: 'Night Thirst heals more from cats.',

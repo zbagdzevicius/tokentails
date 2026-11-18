@@ -6,12 +6,12 @@ export const TEXT: HeroText = {
   role: 'Support',
   side: 'Cat',
   blurb: 'A round ragdoll with a pillow. Shields her friends, speeds them up and sings the dogs to sleep.',
-  passive: { name: 'Warm Lap', text: 'Your shields are stronger on a friend below half health.' },
+  passive: { name: 'Warm Lap', text: 'Your shields are stronger on a teammate below half health.' },
   abilities: [
-    { name: 'Pillow Toss', text: 'Throw a pillow that slows the first dog it hits and shields your most hurt friend.', icon: 'pillow' },
-    { name: 'Cuddle Bubble', text: 'Shield a friend (or yourself) and make them attack faster.', icon: 'bubble' },
-    { name: 'Purr Wave', text: 'You and nearby friends run faster. Shake off slows.', icon: 'purrwave' },
-    { name: 'LULLABY', text: 'Heal nearby friends. Nearby dogs get drowsy, and the ones still near you fall asleep.', icon: 'lullaby' },
+    { name: 'Pillow Toss', text: 'Throw a pillow that slows the first dog it hits and shields your most hurt teammate.', icon: 'pillow' },
+    { name: 'Cuddle Bubble', text: 'Shield a teammate (or yourself). They attack faster.', icon: 'bubble' },
+    { name: 'Purr Wave', text: 'You and nearby teammates run faster. You shake off slows.', icon: 'purrwave' },
+    { name: 'LULLABY', text: 'Heal nearby teammates. Nearby dogs get drowsy; the ones still close fall asleep.', icon: 'lullaby' },
   ],
   talents: {
     'feather-pillow': 'Pillow Toss flies further.',
@@ -19,6 +19,6 @@ export const TEXT: HeroText = {
     'purr-motor': 'Purr Wave gives more speed.',
     'comfy-lap': 'Warm Lap shields even more.',
     'deep-sleep': 'LULLABY sleep lasts longer.',
-    'group-nap': 'LULLABY heals friends further away.',
+    'group-nap': 'LULLABY heals teammates further away.',
   },
 };

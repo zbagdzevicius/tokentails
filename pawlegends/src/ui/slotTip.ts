@@ -20,7 +20,7 @@ export type StatRow = readonly [string, string];
 /** Reach-like numbers in the order the hover card lists them (at most two show). */
 const REACH_ROWS: readonly (readonly [string, string])[] = [
   ['range', 'Range'], ['dash', 'Dash'], ['blink', 'Blink'], ['leap', 'Leap'], ['radius', 'Radius'], ['ringRadius', 'Ring'],
-  ['waveRange', 'Wave reach'], ['splash', 'Splash'], ['postRadius', 'Dome'],
+  ['waveRange', 'Light wave'], ['splash', 'Splash'], ['postRadius', 'Dome'],
 ];
 
 /** The hover card shows at most this many rows (the cooldown included). */
@@ -45,11 +45,11 @@ function statRows(a: Nums, level: number): StatRow[] {
   }
   const dmg = at('dmg');
   if (dmg !== undefined && dmg > 0) rows.push(['Damage', a.every ? `${dmg} every ${sec(a.every)}` : String(dmg)]);
-  for (const [k, label] of [['waveDmg', 'Wave damage'], ['heal', 'Heal'], ['shield', 'Shield']] as const) {
+  for (const [k, label] of [['waveDmg', 'Light wave damage'], ['heal', 'Heal'], ['shield', 'Shield']] as const) {
     const v = at(k);
     if (v !== undefined && v > 0) rows.push([label, String(v)]);
   }
-  for (const [k, label] of [['stun', 'Stun'], ['root', 'Root'], ['fear', 'Fear'], ['charm', 'Charm']] as const) {
+  for (const [k, label] of [['stun', 'Stun'], ['root', 'Root'], ['fear', 'Scare'], ['charm', 'Charm']] as const) {
     const v = pos(k);
     if (v !== undefined) rows.push([label, sec(v)]);
   }
@@ -83,14 +83,14 @@ export function trickRows(t: TrickId): StatRow[] {
   if (d.blink) rows.push(['Blink', metres(d.blink)]);
   if (d.radius) rows.push(['Radius', metres(d.radius)]);
   if (d.healBp) rows.push(['Heal', `${d.healBp / 100}% of max health${d.duration ? ` over ${sec(d.duration)}` : ''}`]);
-  if (d.fear) rows.push(['Fear', sec(d.fear)]);
-  if (d.immune) rows.push(['Immune', sec(d.immune)]);
+  if (d.fear) rows.push(['Scare', sec(d.fear)]);
+  if (d.immune) rows.push(['Unstoppable', sec(d.immune)]);
   return rows;
 }
 
 /** Desktop skill tooltips: Nap's channel (data/xp.ts HERO_RULES). */
 export function napRows(): StatRow[] {
-  return [['Channel', sec(HERO_RULES.napChannel)]];
+  return [['Takes', sec(HERO_RULES.napChannel)]];
 }
 
 /**
@@ -140,7 +140,7 @@ export interface TipState {
   dead: boolean;
 }
 
-const KIND = ['', '', '', 'Ultimate', 'Paw Trick', 'Recall'];
+const KIND = ['', '', '', 'Ultimate', 'Paw Trick', 'Go home'];
 
 /** Seconds left with one decimal ("3.4 s"); whole seconds from 10 s up. */
 function left(ticks: number): string {
@@ -154,7 +154,7 @@ export function slotTip(hero: HeroId, trick: TrickId, slot: number, key: string,
   const br = s.branch && t.branch?.slot === slot ? t.branch : null;
   const ab = slot < 4 ? (br ?? t.abilities[slot]) : slot === 4 ? trickText(trick, hero) : null;
   const name = ab ? ab.name : 'Nap';
-  const text = ab ? ab.text : 'Return to your fountain. Damage breaks it.';
+  const text = ab ? ab.text : 'Go back to your fountain. Taking damage cancels it.';
   const rows = slot < 4 ? abilityRows(hero, slot, s.level, s.choices) : slot === 4 ? trickRows(trick) : napRows();
   const rk = slot < 4 ? abilityRank(s.level, slot) : 0;
   const rank = slot < 4 && rk > 0 ? `Rank ${rk} of ${maxRank(slot)}` : '';
@@ -162,8 +162,8 @@ export function slotTip(hero: HeroId, trick: TrickId, slot: number, key: string,
   let status = '';
   if (locked) status = `Unlocks at level ${ULT_LEVEL}`;
   else if (s.cd > 0) status = `Ready in ${left(s.cd)}`;
-  else if (s.dead) status = 'Ready when you are back';
-  return { name, key, kind: br ? 'Level 6 branch' : KIND[slot] ?? '', text, rows, rank, status, blocked: locked || s.cd > 0 };
+  else if (s.dead) status = 'Ready when you’re back in';
+  return { name, key, kind: br ? 'Level 6 shape' : KIND[slot] ?? '', text, rows, rank, status, blocked: locked || s.cd > 0 };
 }
 
 /** The portrait's card: the hero, its passive and its basic attack at `level`. */

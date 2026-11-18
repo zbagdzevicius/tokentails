@@ -143,7 +143,7 @@ describe('C2: client reads', () => {
     expect(rankUpLines('sage', 3)).toEqual([]);
     expect(rankUpLines('sage', 4)).toEqual([]);
     expect(rankUpLines('sage', 7)).toEqual(['Moonshot rank 2: +90 dmg, −3.3 s cooldown']);
-    expect(rankUpLines('clem', 10)).toEqual(['Golden Hour rank 3: +32 wave dmg, −3.3 s cooldown']);
+    expect(rankUpLines('clem', 10)).toEqual(['Golden Hour rank 3: +32 light wave dmg, −3.3 s cooldown']);
   });
 
   it('rank-up lines leave out what a picked talent overrides (the sim numbers, not the raw rank deltas)', () => {

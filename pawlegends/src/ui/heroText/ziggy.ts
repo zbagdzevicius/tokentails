@@ -8,10 +8,10 @@ export const TEXT: HeroText = {
   blurb: 'A lightning Bengal who never runs in a straight line. Dashes three times, then becomes the storm.',
   passive: { name: 'Static Step', text: 'After a dash, your next attack deals extra damage.' },
   abilities: [
-    { name: 'Zig', text: 'Dash and hit every dog you pass. Cast up to three times in a row.', icon: 'zig' },
+    { name: 'Zig', text: 'Dash and hit every dog you pass. Cast up to 3 times in a row.', icon: 'zig' },
     { name: 'Spark Swipe', text: 'Hit dogs close to you and stun them for a moment.', icon: 'sparkswipe' },
     { name: 'Tail Flick', text: 'Hop away and get a shield.', icon: 'tailflick' },
-    { name: 'ZIGZAG STORM', text: 'Nothing can touch you as you strike dog after dog near you.', icon: 'storm' },
+    { name: 'ZIGZAG STORM', text: 'Nothing can hit you as you strike dog after dog near you.', icon: 'storm' },
   ],
   talents: {
     'long-zig': 'Zig dashes further.',

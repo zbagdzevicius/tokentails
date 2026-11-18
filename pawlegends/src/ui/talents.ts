@@ -122,7 +122,7 @@ export class TalentPicker {
     const words = HERO_TEXT[this.hero].talents;
     // GAPS B6: level 6 is where the shape branches are listed. A hero with one tags it; the rest say it is coming.
     const branch = tier === 1 ? BRANCH_TALENT[this.hero] : null;
-    const soon = tier === 1 && !branch ? '<span class="soon">Branch coming soon</span>' : '';
+    const soon = tier === 1 && !branch ? '<span class="soon">New shape coming soon</span>' : '';
     this.left = TALENT_AUTO_S;
     const st = this.state();
     const nums = opts.map((_, i) => talentNumbers(this.hero, tier, i, Math.max(st.level, LEVEL_OF_TIER[tier]), st.talents));

@@ -6,12 +6,12 @@ export const TEXT: HeroText = {
   role: 'Support',
   side: 'Dog',
   blurb: 'A golden retriever who plays fetch with cats. Reels them in on his leash and guards his friends.',
-  passive: { name: 'Good Boy', text: 'Every few seconds your next attack on a cat stuns it and shields you and a friend.' },
+  passive: { name: 'Good Boy', text: 'Every few seconds, your next attack on a cat stuns it and shields you and a teammate.' },
   abilities: [
     { name: 'Fetch!', text: 'Throw your ball on a leash. The first cat it hits is stunned and pulled to you.', icon: 'fetch' },
     { name: 'Tail Wag', text: 'Hit cats close to you and knock them back.', icon: 'tailwag' },
-    { name: 'Stubborn', text: 'Shake off every stun and slow, and take less damage for a moment.', icon: 'stubborn' },
-    { name: 'WALKIES!', text: 'Pull every nearby cat toward you, hurt them and slow them. Get a shield.', icon: 'walkies' },
+    { name: 'Stubborn', text: 'Shake off stuns and slows. For a moment they can’t land, and you take less damage.', icon: 'stubborn' },
+    { name: 'WALKIES!', text: 'Pull nearby cats toward you, hurt them and slow them. You get a shield.', icon: 'walkies' },
   ],
   talents: {
     'long-leash': 'Fetch! flies further.',
