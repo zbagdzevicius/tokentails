@@ -515,6 +515,13 @@ only from hashed crate state, so every client and the referee rebuild the same g
   `'hearthwood' ? 1 : 0`.
 - HUD: Mill pot + capture ring; shrine owner icons + lock timers; gem totals + countdown; goal score.
 - Props near walkable cells ≤ 2.5 m tall (Occluders), so the fixed camera never hides a hero at 844 × 390.
+- Colour schemes (Nov 18, render only): every map (Hearthwood too) rotates through four looks, its native colours and
+  three seasons (Blossom, Harvest or Summer, Frost), picked from the match seed (`render/mapSchemes.ts pickScheme`),
+  so a party, a replay and a spectator all see the same one. A scheme is a colour grade per scene role (ground, raised
+  caps, cliff sides, trees, bushes, water) applied at the end of the map materials' shaders through shared uniforms
+  (`render/views/schemeGrade.ts`), plus a mild nudge of the map's daytime light. Units, rings, telegraphs, team cloth
+  and banners are never graded; `tests/unit/map-schemes.test.ts` checks bush, cap, ring and team-colour contrasts in
+  every scheme. `?scheme=frost` picks one by hand.
 
 ### 8.8 Client app
 

@@ -48,7 +48,8 @@ import type { GameRenderer } from '../render/renderer';
 import type { TierSettings } from '../render/quality';
 import { HERO_SCALE } from '../render/views/models';
 import { CORE, FOUNTAIN, MAP, PUDDING_SPOT, TOWER_SPOTS, mirrorX } from '../data/map';
-import { useMap } from './mapBinding';
+import { currentMap, useMap } from './mapBinding';
+import { pickScheme } from '../render/mapSchemes';
 import { mapInfo } from '../sim/map/info';
 import { drawMapPreview } from '../ui/mapPreview';
 import { rolesOf } from '../sim/bots/roles';
@@ -213,6 +214,14 @@ function e2eSkins(): { legendary: boolean; coats: boolean } {
     return { legendary: k.includes('legendary'), coats: k.includes('coats') };
   } catch {
     return { legendary: false, coats: false };
+  }
+}
+/** `?scheme=frost` or `?scheme=crossing:frost`: the map colour scheme by hand (render/mapSchemes.ts), else null. */
+function schemeWish(): string | null {
+  try {
+    return new URLSearchParams(location.search).get('scheme');
+  } catch {
+    return null;
   }
 }
 /** The themed coat a hero wears in the `skins=coats` e2e run (null: none). */
@@ -675,6 +684,12 @@ export class MatchSession {
     this.objClock = new ObjectiveClock(w.team);
     this.view.setSpecies(HEROES[w.picks[0]]?.side === 'dog');
     const shown = this.view.dressBots(w.seed, w.picks, this.setup.showcase ?? []);
+    // map colour schemes (render/mapSchemes.ts): picked from the match seed, so every client in a party, a replay and
+    // a spectator see the same look; Practice's fresh seed gives a new look each match. `?scheme=` (a season or an id)
+    // picks one by hand.
+    const look = pickScheme(currentMap(), w.seed, schemeWish());
+    this.view.setScheme(look);
+    document.documentElement.dataset.mapScheme = look.id;
     this.view.dress(this.setup.look ?? null, this.setup.companions ?? []);
     this.view.setSkinFx(this.setup.skinFx ?? 'all');
     const e2s = this.e2e ? e2eSkins() : null;

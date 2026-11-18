@@ -50,7 +50,9 @@ import { createHearthwoodView } from './views/hearthwoodView';
 import { mapInfo } from '../sim/map/info';
 import { mapIndex } from '../sim/map/runtime';
 import { ACTIVE_MAP, MAP } from '../data/map';
-import { dayLightAt, dayPreset, dayShift, newDayLight } from './daylight';
+import { dayLightAt, dayPreset, dayShift, newDayLight, type DayLight } from './daylight';
+import { pickScheme, schemeDay, type MapScheme } from './mapSchemes';
+import { gradeGroup, setGrade } from './views/schemeGrade';
 import type { ObjectiveView } from './views/objectiveView';
 import { inClearZone, MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
@@ -291,6 +293,10 @@ export class GameView {
     this.scene = gr.scene;
     // sim v19: the bound map (app/mapBinding.ts useMap runs before the view is built): Hearthwood Divide's own view
     this.map = MAP.point === 1 ? createHearthwoodView(mapInfo('hearthwood')) : createMapView();
+    // map colour schemes (render/mapSchemes.ts): the map's materials take the grade; native until the match's seed
+    // picks one (setScheme)
+    gradeGroup(this.map.group);
+    setGrade(ACTIVE_MAP.id, null);
     this.scene.add(this.map.group);
     // sim v34: a pool map's objective props (the Mill, the Shrines, the Geode, the goals and crates): their own chunk
     if (ACTIVE_MAP.objective)
@@ -792,18 +798,36 @@ export class GameView {
   private dayAt = -1;
   /** Tests and the map-look shots: hold the light at this shift (0 day … 1 dusk); −1 follows the clock. */
   dayForce = -1;
+  /** The match's colour scheme (render/mapSchemes.ts), null = the map's native colours. */
+  scheme: MapScheme | null = null;
+  /**
+   * Map colour schemes: grade the map's materials and nudge its light toward `s` (null: native). Render only; the
+   * session sets it from the match seed at welcome (so every client, replay and spectator sees the same look).
+   */
+  setScheme(want: MapScheme | string | null): void {
+    // a string (tests, the scheme shots): a season or an id of the bound map's schemes
+    const s = typeof want === 'string' ? pickScheme(ACTIVE_MAP.id, 0, want) : want;
+    this.scheme = s && s.season !== 'native' ? s : null;
+    setGrade(ACTIVE_MAP.id, this.scheme);
+    // the light takes the nudge on the next frame
+    this.dayAt = -10;
+  }
+  private dayLight(t: number): DayLight {
+    const d = dayLightAt(this.dayPre, t, this.dayOut);
+    return this.scheme ? schemeDay(d, this.scheme.light) : d;
+  }
   private daylight(frame: ViewFrame | null): void {
     if (this.dayForce >= 0) {
       if (this.dayAt === this.dayForce) return;
       this.dayAt = this.dayForce;
-      this.gr.setDaylight?.(dayLightAt(this.dayPre, this.dayForce, this.dayOut));
+      this.gr.setDaylight?.(this.dayLight(this.dayForce));
       return;
     }
     const c = frame?.latest.clock;
     if (!c) {
       if (this.dayAt >= 0) return;
       this.dayAt = 0;
-      this.gr.setDaylight?.(dayLightAt(this.dayPre, 0, this.dayOut));
+      this.gr.setDaylight?.(this.dayLight(0));
       return;
     }
     if (c.phase === 'play') this.daySunset = c.tick + Math.max(0, c.nextPhaseIn);
@@ -811,7 +835,7 @@ export class GameView {
     // a step under 1/1000 of the shift changes nothing visible: skip the colour work
     if (Math.abs(t - this.dayAt) < 1e-3) return;
     this.dayAt = t;
-    this.gr.setDaylight?.(dayLightAt(this.dayPre, t, this.dayOut));
+    this.gr.setDaylight?.(this.dayLight(t));
   }
 
   /** Per frame after the heroes: FX kit, readability, fight camera (ANIM-SPEC §7–§9). */
