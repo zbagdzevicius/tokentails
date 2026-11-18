@@ -126,8 +126,9 @@ export class PawlegendsFriend {
     @Prop({ type: String, required: true, enum: ['pending', 'accepted'] })
     state: 'pending' | 'accepted';
 
-    @Prop({ type: String, required: true, enum: ['code', 'recent', 'party'] })
-    via: 'code' | 'recent' | 'party';
+    /** How the request was made: a player code, a recent match, a party, or a nickname (SOCIAL-INVITES.md). */
+    @Prop({ type: String, required: true, enum: ['code', 'recent', 'party', 'name'] })
+    via: 'code' | 'recent' | 'party' | 'name';
 
     @Prop({ type: Date, required: true })
     createdAt: Date;

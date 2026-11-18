@@ -38,6 +38,8 @@ const keyOf = (e: PresenceEntry) => `${e.state}|${e.q ?? ''}|${e.party ?? ''}|${
 
 export class PresenceSink {
     private last = new Map<string, string>();
+    /** The `relay.at` this sink last wrote per account: its unset only clears its own write, never a newer one. */
+    private wroteAt = new Map<string, Date>();
     private lastRefreshMs = -Infinity;
     private lastLive = -1;
     private timer: NodeJS.Timeout | null = null;
@@ -75,12 +77,14 @@ export class PresenceSink {
             const entries = this.snapshot();
             const next = new Map<string, string>();
             const ops = [];
+            const wrote = new Map<string, Date>();
             const at = new Date(nowMs);
             const exp = new Date(nowMs + PRESENCE.ttlMs);
             for (const e of entries) {
                 const k = keyOf(e);
                 next.set(e.accountId, k);
                 if (!refresh && this.last.get(e.accountId) === k) continue;
+                wrote.set(e.accountId, at);
                 ops.push({
                     updateOne: {
                         filter: { _id: e.accountId },
@@ -100,10 +104,20 @@ export class PresenceSink {
                     },
                 });
             }
-            // left the party, queue or match (or closed the socket): the relay state goes at once
+            // left the party, queue or match (or closed the socket): the relay state goes at once. Only the state this
+            // sink wrote: with two instances the player's new party may already be on the other relay, whose newer
+            // row must stay (else friends see them offline and invites answer "no party" until its next refresh)
             for (const id of this.last.keys())
-                if (!next.has(id))
-                    ops.push({ updateOne: { filter: { _id: id }, update: { $unset: { relay: 1 } }, upsert: false } });
+                if (!next.has(id)) {
+                    const mine = this.wroteAt.get(id);
+                    ops.push({
+                        updateOne: {
+                            filter: mine ? { _id: id, 'relay.at': mine } : { _id: id },
+                            update: { $unset: { relay: 1 } },
+                            upsert: false,
+                        },
+                    });
+                }
             const live = this.live ? Math.max(0, Math.floor(this.live())) : -1;
             if (live >= 0 && (refresh || live !== this.lastLive))
                 ops.push({
@@ -121,6 +135,8 @@ export class PresenceSink {
             try {
                 await this.writer.bulkWrite(ops, { ordered: false });
                 this.writes += ops.length;
+                for (const id of this.last.keys()) if (!next.has(id)) this.wroteAt.delete(id);
+                for (const [id, d] of wrote) this.wroteAt.set(id, d);
                 this.last = next;
                 if (live >= 0) this.lastLive = live;
             } catch (error) {

@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResult } from '../../src/embed/api';
-import { pageOf, rowAction, rowsForHeight, SocialSheet } from '../../src/social/socialSheet';
+import { INVITE_PARTY_RETRY_MS, looksLikeCode, pageOf, rowAction, rowsForHeight, SocialSheet } from '../../src/social/socialSheet';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -24,10 +24,12 @@ const flush = async () => {
   for (let i = 0; i < 6; i++) await Promise.resolve();
 };
 
-function sheet(opts: { signedIn?: boolean; friends?: number; height?: number } = {}) {
+function sheet(opts: { signedIn?: boolean; friends?: number; height?: number; party?: string | null; answer?: (op: string, args: any) => ApiResult | null; onInviteSent?: (i: unknown) => void } = {}) {
   const calls: { op: string; args: unknown }[] = [];
   const api = vi.fn(async (op: string, args?: unknown): Promise<ApiResult> => {
     calls.push({ op, args });
+    const custom = opts.answer?.(op, args);
+    if (custom) return custom;
     if (op === 'social.get') return { id: 'x', ok: true, status: 200, body: state(opts.friends ?? 7) };
     if (op === 'friend.add') return { id: 'x', ok: true, status: 200, body: { state: 'sent' } };
     return { id: 'x', ok: true, status: 200, body: {} };
@@ -36,8 +38,9 @@ function sheet(opts: { signedIn?: boolean; friends?: number; height?: number } =
   const s = new SocialSheet(document.body, {
     api: api as never,
     signedIn: () => opts.signedIn ?? true,
-    partyCode: () => null,
+    partyCode: () => opts.party ?? null,
     joinParty,
+    ...(opts.onInviteSent ? { onInviteSent: opts.onInviteSent } : {}),
     signIn: vi.fn(),
     playCasual: vi.fn(),
     height: () => opts.height ?? 375,
@@ -61,7 +64,9 @@ describe('social sheet', () => {
     expect(rowAction({ state: 'party', joinable: true, party: 'AB' }, true, 'CD')).toBe('invite');
     expect(rowAction({ state: 'party', joinable: true, party: 'CD' }, true, 'CD')).toBe('more');
     expect(rowAction({ state: 'queue' }, true, 'CD')).toBe('invite');
-    expect(rowAction({ state: 'offline' }, true, 'CD')).toBe('more');
+    // an offline friend is invited too (a notification; the inviter is told they are offline); one in a match is not
+    expect(rowAction({ state: 'offline' }, true, 'CD')).toBe('invite');
+    expect(rowAction({ state: 'match' }, true, 'CD')).toBe('more');
     // out of a party, an online friend gets Invite (the party opens through PLAY first)
     expect(rowAction({ state: 'online' }, false)).toBe('invite');
   });
@@ -139,6 +144,88 @@ describe('social sheet pulse', () => {
       vi.advanceTimersByTime(3100);
       expect(document.querySelector('.pl-social-note')).toBeNull();
       t.s.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('social sheet: add by nickname, invites (SOCIAL-INVITES.md)', () => {
+  it('a code is a code; anything else is a nickname', () => {
+    expect(['PL-7KQ2-M9XR', 'pl-7kq2-m9xr', '7KQ2M9XR', ' 7kq2 m9xr '].map(looksLikeCode)).toEqual([true, true, true, true]);
+    expect(['zygis', 'Mira', 'Big Cat 7', 'PL-7KQ2'].map(looksLikeCode)).toEqual([false, false, false, false]);
+  });
+
+  it('typing a name shows suggestions (names as text) and Add sends friend.add by the exact name', async () => {
+    vi.useFakeTimers();
+    try {
+      const t = sheet({
+        answer: (op, args) =>
+          op === 'social.search'
+            ? { id: 'x', ok: true, status: 200, body: { players: [{ name: 'zygis', cc: 'LT' }, { name: 'Zygimantas<b>', rel: 'friend' }] } }
+            : op === 'friend.add' && args?.name
+              ? { id: 'x', ok: true, status: 200, body: { state: 'sent' } }
+              : null,
+      });
+      await flush();
+      document.querySelector<HTMLElement>('[data-a="add"]')!.click();
+      const input = document.querySelector<HTMLInputElement>('input[name="code"]')!;
+      expect(input.placeholder).toBe('Name or PL-XXXX-XXXX');
+      input.value = 'zy';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(350);
+      await flush();
+      expect(t.calls.find((c) => c.op === 'social.search')?.args).toEqual({ name: 'zy' });
+      const rows = [...document.querySelectorAll('[data-testid="social-suggest"]')];
+      expect(rows.map((r) => r.querySelector('.pl-social-name')!.textContent)).toEqual(['zygis', 'Zygimantas<b>']);
+      expect(document.querySelector('b')).toBeNull();
+      // already a friend: no Add button; the input kept its text
+      expect(rows[1].querySelector('[data-a="add-name"]')).toBeNull();
+      expect(document.querySelector<HTMLInputElement>('input[name="code"]')!.value).toBe('zy');
+      rows[0].querySelector<HTMLElement>('[data-a="add-name"]')!.click();
+      await flush();
+      expect(t.calls.find((c) => c.op === 'friend.add')?.args).toEqual({ name: 'zygis' });
+      expect(document.querySelector('.pl-social-note')!.textContent).toBe('Request sent to zygis');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('submitting a typed nickname adds by name; an unknown one says so', async () => {
+    const t = sheet({ answer: (op) => (op === 'friend.add' ? { id: 'x', ok: false, status: 404, body: { code: 'PAWLEGENDS_SOCIAL_NO_NAME' } } : null) });
+    await flush();
+    document.querySelector<HTMLElement>('[data-a="add"]')!.click();
+    document.querySelector<HTMLInputElement>('input[name="code"]')!.value = 'Nobody Here';
+    document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flush();
+    expect(t.calls.find((c) => c.op === 'friend.add')?.args).toEqual({ name: 'Nobody Here' });
+    expect(document.querySelector('.pl-social-note')!.textContent).toBe('No player has this name.');
+  });
+
+  it('Invite from a fresh lobby retries "no party" until the relay wrote it, then says sent and reports the id', async () => {
+    vi.useFakeTimers();
+    try {
+      let tries = 0;
+      const sent: unknown[] = [];
+      const t = sheet({
+        party: 'K7QX2M',
+        onInviteSent: (i) => sent.push(i),
+        answer: (op) =>
+          op === 'invite.send'
+            ? ++tries < 3
+              ? { id: 'x', ok: false, status: 409, body: { code: 'PAWLEGENDS_SOCIAL_NO_PARTY' } }
+              : { id: 'x', ok: true, status: 200, body: { ok: true, id: 'a'.repeat(24), ttl: 60_000, offline: true } }
+            : null,
+      });
+      await flush();
+      document.querySelector<HTMLElement>('[data-a="invite"]')!.click();
+      await flush();
+      expect(document.querySelector('.pl-social-note')!.textContent).toMatch(/^Inviting /);
+      await vi.advanceTimersByTimeAsync(INVITE_PARTY_RETRY_MS * 2 + 10);
+      await flush();
+      expect(t.calls.filter((c) => c.op === 'invite.send')).toHaveLength(3);
+      expect(document.querySelector('.pl-social-note')!.textContent).toMatch(/is offline: they get a notification\.$/);
+      expect(sent).toEqual([{ id: 'a'.repeat(24), name: expect.any(String), ttl: 60_000 }]);
     } finally {
       vi.useRealTimers();
     }

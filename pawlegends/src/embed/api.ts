@@ -72,6 +72,8 @@ export const API_OPS = Object.freeze([
   // LoL-style invites and the fast inbox (SOCIAL-INVITES.md): invites and DMs within seconds
   'social.inbox',
   'invite.answer',
+  // SOCIAL-INVITES.md: nickname suggestions while typing in Add friend (`name`: the typed text)
+  'social.search',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);

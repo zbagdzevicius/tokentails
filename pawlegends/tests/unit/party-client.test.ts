@@ -46,6 +46,17 @@ describe('party client reducer (P3)', () => {
     expect(screenOf(s)).toBe('lobby');
   });
 
+  it('a lobby reconnect welcomed as someone new (the other relay, a restart) asks for its own seat back by the code', () => {
+    const { s, fx } = run(initialParty('create'), welcome, view(), { t: 'welcome', proto: 3, member: 'z', resumeToken: 'tok2', serverMs: 0 });
+    expect(fx.filter((f) => f.t === 'send').map((f) => (f as { msg: unknown }).msg)).toEqual([{ t: 'party.join', code: 'K7QX2M' }]);
+    // the relay hands back the old seat: the lobby goes on
+    const back = run(s, view());
+    expect(screenOf(back.s)).toBe('lobby');
+    // the same member resumed: nothing to ask
+    const same = run(initialParty('create'), welcome, view(), welcome);
+    expect(same.fx.filter((f) => f.t === 'send')).toHaveLength(0);
+  });
+
   it('a resumed seat gets its party right after welcome: no create, no join', () => {
     const { s, fx } = run(initialParty('create'), welcome, view(), 'decide');
     expect(fx.some((f) => f.t === 'send')).toBe(false);

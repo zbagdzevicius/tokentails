@@ -34,6 +34,8 @@ const rankedFixture: RankedJoinSource = {
 const season = seasonDef(CURRENT_SEASON_ID)!;
 
 process.env.PAWLEGENDS_PARTY_TICKET_SECRET = randomBytes(24).toString('hex');
+/** e2e test accounts' nicknames and their profile rev (`/e2e/name`). */
+const e2eNames = new Map<string, { name: string; rev: number }>();
 const port = Number(process.env.PORT || 3105);
 const tickets = new PartyTicketService();
 const origins = (process.env.FRONT_END_URLS || '').split(',').filter(Boolean);
@@ -51,6 +53,16 @@ const server = createServer((req, res) => {
     if (t) {
         res.setHeader('content-type', 'application/json');
         res.end(JSON.stringify(tickets.issue({ accountId: t[1], guest: false })));
+        return;
+    }
+    // e2e only: a test account's chosen name (a nickname), as the API's nickname change would store it; the relay's
+    // name watch (NAME_WATCH_MS) sees the new rev and the party lobby shows it (social-invites.spec.ts)
+    const nm = /^\/e2e\/name\?account=([a-z0-9-]{3,40})&name=([A-Za-z0-9]{2,16})$/.exec(req.url ?? '');
+    if (nm) {
+        const prev = e2eNames.get(nm[1]);
+        e2eNames.set(nm[1], { name: nm[2], rev: (prev?.rev ?? 0) + 1 });
+        res.setHeader('content-type', 'application/json');
+        res.end('{"ok":true}');
         return;
     }
     // the game's PvP capability check (pawlegends/src/meta/pvpCapability.ts)
@@ -105,7 +117,10 @@ const relay = new PartyRelay({
             band: account.startsWith('e2e-adult-') ? '18+' : null,
             muted: false,
             blocked: [],
+            ...(e2eNames.get(account) ? { name: e2eNames.get(account)!.name } : {}),
+            rev: e2eNames.get(account)?.rev ?? 0,
         }),
+        revs: async (ids: string[]) => new Map(ids.map(id => [id, e2eNames.get(id)?.rev ?? 0])),
     },
     referee: new RefereePool({ inline: process.env.REFEREE_INLINE === '1' }),
     allowNoOrigin: true,

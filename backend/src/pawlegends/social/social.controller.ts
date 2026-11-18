@@ -40,6 +40,8 @@ const LIMITS: Record<string, { account: ClientIpThrottleOptions; ip: ClientIpThr
     invite: { account: { limit: 10, ttl: 10 * MIN }, ip: { limit: 30, ttl: 10 * MIN } },
     age: { account: { limit: 5, ttl: MIN }, ip: { limit: 20, ttl: MIN } },
     code: { account: { limit: 30, ttl: 10 * MIN }, ip: { limit: 60, ttl: 10 * MIN } },
+    // SOCIAL-INVITES.md: nickname suggestions while typing (the game waits 300 ms between keys and needs 2 letters)
+    search: { account: { limit: 40, ttl: MIN }, ip: { limit: 200, ttl: MIN } },
 };
 
 @Controller('pawlegends/social')
@@ -132,12 +134,22 @@ export class PawlegendsSocialController {
         return this.social.answerInvite(await this.gate('answer', req, res), id, body?.answer);
     }
 
-    /** `{code}` or `{room, slot}` (recent). */
+    /**
+     * Nickname suggestions (SOCIAL-INVITES.md): `?q=` (2+ letters) answers up to 5 `{name, av, cc?, rel?}` whose
+     * nickname starts with it. Never a code or an account id; its own bucket against enumeration.
+     */
+    @UseGuards(AppAuthGuard)
+    @Get('search')
+    async search(@Query('q') q: string, @Req() req: any, @Res({ passthrough: true }) res: any) {
+        return this.social.search(await this.gate('search', req, res), q);
+    }
+
+    /** `{code}`, `{name}` (an exact nickname) or `{room, slot}` (recent). */
     @UseGuards(AppAuthGuard)
     @HttpCode(200)
     @Post('friends')
     async request(@Body() body: Record<string, unknown>, @Req() req: any, @Res({ passthrough: true }) res: any) {
-        const me = await this.gate('request', req, res, body?.code !== undefined);
+        const me = await this.gate('request', req, res, body?.code !== undefined || body?.name !== undefined);
         const target = await this.social.targetOf(me, body || {});
         return this.social.request(me, target.id, target.via);
     }

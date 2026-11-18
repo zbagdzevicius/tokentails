@@ -27,8 +27,14 @@ test.use({
 });
 
 /** The fake social server: A and B are friends; invites, answers, the inbox rev and one DM thread. */
-function server() {
+function server(opts: { friends?: boolean } = {}) {
   const rev: Record<Who, number> = { A: 1, B: 1 };
+  /** SOCIAL-INVITES.md: friends from the start (default), or only after Add by nickname. */
+  let friends = opts.friends ?? true;
+  /** Players the server reads as offline (an invite still goes out, the answer says `offline`). */
+  const offline = new Set<Who>();
+  /** The nicknames the search finds. */
+  const NICK: Record<Who, string> = { A: 'zygis', B: 'Mira' };
   const partyOf: Partial<Record<Who, string>> = {};
   const invites: { id: string; from: Who; to: Who; party: string; sim?: string; answer?: 'accepted' | 'declined'; seen?: boolean; exp: number }[] = [];
   const msgs: { mid: string; from: Who; k: string; text?: string; id?: number; at: string }[] = [];
@@ -51,6 +57,7 @@ function server() {
     partyOf,
     invites,
     msgs,
+    offline,
     handle(w: Who, op: string, a: Record<string, any>): { status: number; body?: unknown } {
       const f = other(w);
       switch (op) {
@@ -59,7 +66,7 @@ function server() {
             status: 200,
             body: {
               me: { code: CODE[w], name: NAME[w], invisible: false, allowRecent: true, ageBand: '18+', av: AV[w], frame: null, title: null },
-              friends: [{ code: CODE[f], name: NAME[f], presence: presence(f), av: AV[f] }],
+              friends: friends ? [{ code: CODE[f], name: NAME[f], presence: offline.has(f) ? { state: 'offline' } : presence(f), av: AV[f] }] : [],
               requests: { in: [], out: [] },
               blocks: [],
               invites: pending(w),
@@ -76,13 +83,21 @@ function server() {
             .map((i) => ((i.seen = true), { id: i.id, name: NAME[i.to], answer: i.answer }));
           return { status: 200, body: { rev: `i${rev[w]}`, invites: pending(w), answers, chat: chat(w) } };
         }
+        case 'social.search':
+          return { status: 200, body: { players: NICK[f].toLowerCase().startsWith(String(a.name ?? '').toLowerCase()) ? [{ name: NICK[f], av: AV[f], ...(friends ? { rel: 'friend' } : {}) }] : [] } };
+        case 'friend.add':
+          if (a.name !== undefined && String(a.name).toLowerCase() !== NICK[f].toLowerCase()) return { status: 404, body: { code: 'PAWLEGENDS_SOCIAL_NO_NAME' } };
+          friends = true;
+          rev.A++;
+          rev.B++;
+          return { status: 200, body: { state: 'friends' } };
         case 'invite.send': {
           if (a.to !== CODE[f]) return { status: 404, body: { code: 'PAWLEGENDS_SOCIAL_NOT_FOUND' } };
           if (!partyOf[w]) return { status: 409, body: { code: 'PAWLEGENDS_SOCIAL_NO_PARTY' } };
           const id = (++n).toString(16).padStart(24, '0');
           invites.push({ id, from: w, to: f, party: partyOf[w]!, sim: a.sim, exp: Date.now() + 60_000 });
           rev[f]++;
-          return { status: 200, body: { ok: true, id, ttl: 60_000 } };
+          return { status: 200, body: { ok: true, id, ttl: 60_000, ...(offline.has(f) ? { offline: true } : {}) } };
         }
         case 'invite.answer': {
           const i = invites.find((x) => x.id === a.invite && x.to === w);
@@ -125,7 +140,7 @@ function server() {
 type Srv = ReturnType<typeof server>;
 
 /** A signed-in friend in the mock embed host, its own browser context (and profile, closed in afterEach). */
-async function friend(browser: Browser, baseURL: string, who: Who, srv: Srv): Promise<{ page: Page; game: () => Frame; reopen(): Promise<void> }> {
+async function friend(browser: Browser, baseURL: string, who: Who, srv: Srv, account?: string): Promise<{ page: Page; game: () => Frame; reopen(): Promise<void> }> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   // closeAll (party.helpers) closes the contexts it opened; this one is closed with the test's own list below
   contexts.push(context);
@@ -138,11 +153,17 @@ async function friend(browser: Browser, baseURL: string, who: Who, srv: Srv): Pr
     }
   }, { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', trick: 'hiss', difficulty: 'easy', veteran: true });
   await context.exposeFunction('plApi', async (op: string, args: Record<string, unknown>) => srv.handle(who, op, args));
+  // a registered account on the relay (the harness mints its ticket), so the lobby shows the account's nickname
+  if (account)
+    await context.exposeFunction('plTicket', async () => {
+      const r = await fetch(`${RELAY}/e2e/ticket?account=${account}`);
+      return ((await r.json()) as { ticket: string }).ticket;
+    });
   await mockHost(context, baseURL, {
     app: { isApp: false, store: true },
     signedIn: true,
     liveApi: true,
-    partyTicket: null,
+    ...(account ? { ticketFn: true } : { partyTicket: null }),
     pass: [new URL(RELAY).origin],
     // the game frame on the preview's own origin (a loopback page may open the loopback relay socket), the host stays
     // on its allowlisted origin; the host's posts go to '*' (the frame is another origin)
@@ -282,4 +303,69 @@ test('Decline: the card closes and the inviter is told', async ({ browser, baseU
   await expect.poll(() => srv.invites[0].answer).toBe('declined');
   await expect(ga.locator('[data-testid="invite-answer-declined"]')).toContainText(`${NAME.B} declined your invite`, { timeout: 6_000 });
   await expect(ga.locator('[data-testid="party-seat"]')).toHaveCount(1);
+});
+
+/** Set an e2e account's nickname on the relay harness (as a nickname change on the API would). */
+const nickname = async (account: string, name: string) => {
+  const r = await fetch(`${RELAY}/e2e/name?account=${account}&name=${name}`);
+  expect(r.ok).toBe(true);
+};
+const seatNames = (g: Frame) => g.locator('[data-testid="party-seat"] .pp-nm b').allTextContents();
+
+test('add a friend by nickname, invite them (offline feedback too), they accept from Home; lobbies show nicknames and a rename', async ({ browser, baseURL }) => {
+  test.setTimeout(420_000);
+  await nickname('e2e-nick-a', 'zygis');
+  await nickname('e2e-nick-b', 'Mira');
+  const srv = server({ friends: false });
+  const a = await friend(browser, baseURL!, 'A', srv, 'e2e-nick-a');
+  const b = await friend(browser, baseURL!, 'B', srv, 'e2e-nick-b');
+
+  // A opens a party: their own seat shows the nickname from the first view (not a generated "Fancy Calico")
+  const ga = a.game();
+  await expect(ga.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
+  await ga.locator('[data-testid="home-play"]').click();
+  await ga.locator('[data-testid="mode-skirmish"]').click();
+  await ga.locator('[data-testid="mode-next"]').click();
+  await ga.locator('[data-testid="variant-friends"]').click();
+  await ga.locator('[data-testid="mode-go"]').click();
+  const codeEl = ga.locator('[data-testid="party-code"]');
+  await expect(codeEl).toBeVisible({ timeout: 60_000 });
+  const code = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');
+  srv.partyOf.A = code;
+  await expect.poll(() => seatNames(ga), { timeout: 15_000 }).toEqual(['zygis']);
+
+  // A: Invite friends → Add → types "mi" → the suggestion "Mira" → Add: friends now
+  await ga.locator('[data-testid="party-invite-friends"]').click();
+  await expect(ga.locator('.pl-social-empty')).toContainText('No friends yet');
+  await ga.locator('.pl-social [data-a="add"]').click();
+  await ga.locator('[data-testid="social-add-input"]').pressSequentially('mi', { delay: 60 });
+  const sug = ga.locator('[data-testid="social-suggest"]');
+  await expect(sug).toHaveCount(1, { timeout: 5_000 });
+  await expect(sug.locator('.pl-social-name')).toHaveText('Mira');
+  await sug.locator('[data-a="add-name"]').click();
+  await expect(ga.locator('.pl-social-note')).toHaveText('You are friends now');
+  const rowB = ga.locator(`.pl-social-row[data-code="${CODE.B}"]`);
+  await expect(rowB).toBeVisible();
+
+  // an offline friend can be invited too; the inviter is told (they get a notification)
+  srv.offline.add('B');
+  await ga.locator('.pl-social [data-a="close"]').first().click();
+  await ga.locator('[data-testid="party-invite-friends"]').click();
+  await rowB.locator('[data-testid="social-invite"]').click();
+  await expect(ga.locator('.pl-social-note')).toContainText('is offline: they get a notification.');
+  srv.offline.delete('B');
+
+  // B, on Home, gets the invite card within the 4 s inbox poll and accepts
+  const gb = b.game();
+  const card = gb.locator('[data-testid="invite-toast"]');
+  await expect(card).toBeVisible({ timeout: 8_000 });
+  await card.locator('[data-testid="invite-accept"]').click();
+  await expect(gb.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 60_000 });
+  await expect.poll(async () => (await seatNames(ga)).sort(), { timeout: 30_000 }).toEqual(['Mira', 'zygis']);
+  await expect.poll(async () => (await seatNames(gb)).sort(), { timeout: 30_000 }).toEqual(['Mira', 'zygis']);
+
+  // B renames while in the lobby: both lobbies show the new name within the relay's name watch (10 s)
+  await nickname('e2e-nick-b', 'Mirabel');
+  await expect.poll(async () => (await seatNames(ga)).sort(), { timeout: 30_000 }).toEqual(['Mirabel', 'zygis']);
+  await expect.poll(async () => (await seatNames(gb)).sort(), { timeout: 30_000 }).toEqual(['Mirabel', 'zygis']);
 });

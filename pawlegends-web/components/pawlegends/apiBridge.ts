@@ -75,6 +75,8 @@ export const PAWLEGENDS_API_OPS = [
   // LoL-style invites and the fast inbox (docs/plans/moba/SOCIAL-INVITES.md): invites and DMs within seconds
   "social.inbox",
   "invite.answer",
+  // SOCIAL-INVITES.md: nickname suggestions while typing in Add friend (`name`: the typed text)
+  "social.search",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -209,6 +211,8 @@ const pick = (a: PawlegendsApiArgs, keys: readonly (keyof PawlegendsApiArgs)[]) 
   for (const k of keys) if (a[k] !== undefined) out[k] = a[k];
   return out;
 };
+/** A nickname as typed (the server folds case, accents and look-alikes and checks it). */
+const NICK = /^[\p{L}\p{N} '’._-]{2,24}$/u;
 const target = (a: PawlegendsApiArgs) => {
   const code = str(a.code, CODE);
   if (code) return { code };
@@ -233,7 +237,9 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
     case "social.pulse":
       return { method: "GET", path: `/pawlegends/social/pulse${q({ rev: str(a.rev, /^[A-Za-z0-9_-]{1,32}$/) })}`, auth: "registered" };
     case "friend.add": {
-      const t = target(a);
+      // SOCIAL-INVITES.md: a friend by their exact nickname too (case-insensitive on the server)
+      const nick = a.code === undefined ? str(a.name, NICK) : null;
+      const t = nick ? { name: nick } : target(a);
       return t ? { method: "POST", path: "/pawlegends/social/friends", body: t, auth: "registered" } : null;
     }
     case "friend.accept":
@@ -453,6 +459,10 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
         : null;
     case "social.inbox":
       return { method: "GET", path: `/pawlegends/social/inbox${q({ rev: str(a.rev, /^[A-Za-z0-9_-]{1,32}$/) })}`, auth: "registered" };
+    case "social.search": {
+      const name = str(a.name, NICK);
+      return name ? { method: "GET", path: `/pawlegends/social/search${q({ q: name })}`, auth: "registered" } : null;
+    }
     case "invite.answer": {
       const id = str(a.invite, /^[a-f0-9]{24}$/);
       const answer = str(a.answer, /^(accept|decline)$/);

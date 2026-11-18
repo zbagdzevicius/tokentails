@@ -1,7 +1,7 @@
 /*
  * What the relay reads about an account for chat (CHAT-AVATARS.md §2.2, §5, §7.3): the stored age band (the store's
  * `pawlegendsbuyers` row), an active `chat_mute`, the text cooldown, the accounts it blocked, its resolved avatar and its
- * chosen name (a nickname or cat name; absent on the generated name).
+ * chosen name (a nickname or cat name; absent on the generated name), and the profile rev it was read at.
  * Never from the client. A read error answers the safe side: unknown band (quick chat), not muted, no blocks, default
  * avatar. Relative imports only (the relay role loads it without the `src/` alias).
  */
@@ -47,7 +47,10 @@ export function relayChatInfo(deps: RelayChatInfoDeps) {
                 []
             ),
             safe(() => deps.blocks.find({ blocker: accountId }).select({ blocked: 1 }).limit(BLOCKS_CAP).lean(), []),
-            safe<any>(() => deps.social.findOne({ _id: accountId }).select({ chatCooldownUntil: 1 }).lean(), null),
+            safe<any>(
+                () => deps.social.findOne({ _id: accountId }).select({ chatCooldownUntil: 1, rev: 1 }).lean(),
+                null
+            ),
             safe(() => resolveAvatars(deps.avatars, [accountId]), new Map()),
             safe(() => chosenNames({ social: deps.social, cats: deps.avatars.cats ?? null }, [accountId]), new Map()),
         ]);
@@ -66,6 +69,22 @@ export function relayChatInfo(deps: RelayChatInfoDeps) {
             ...(avatars.get(accountId) ? { av: avatars.get(accountId) } : {}),
             ...(names.get(accountId) ? { name: names.get(accountId) } : {}),
             ...(cd > now ? { cooldownUntil: cd } : {}),
+            // the relay's name watch reads the chat side again when the profile's rev moves (a rename)
+            ...(typeof profile?.rev === 'number' ? { rev: profile.rev } : {}),
         };
+    };
+}
+
+/** The social profiles' current `rev` (the relay's name watch, NAME_WATCH_MS): one read, missing rows are absent. */
+export function relaySocialRevs(social: Model) {
+    return async (ids: string[]): Promise<Map<string, number>> => {
+        const out = new Map<string, number>();
+        if (!ids.length) return out;
+        const rows = (await social
+            .find({ _id: { $in: ids } })
+            .select({ rev: 1 })
+            .lean()) as Array<{ _id: unknown; rev?: number }>;
+        for (const r of rows) out.set(String(r._id), typeof r.rev === 'number' ? r.rev : 0);
+        return out;
     };
 }

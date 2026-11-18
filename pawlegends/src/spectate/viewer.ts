@@ -349,6 +349,8 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
       socket.sendJson('room' in ctx.target ? { t: 'spectate', room: ctx.target.room } : { t: 'spectate', featured: true });
     },
   });
+  // a reconnect after the ticket aged signs in again (a spent ticket would make the watcher a guest)
+  socket.refreshTicketsWith(() => ctx.ticket());
   socket.connect(ctx.ticket());
 
   // free camera: drag the map (as the replay viewer)

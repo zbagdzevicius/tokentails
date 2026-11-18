@@ -459,6 +459,11 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [{ t: 'send', msg: mmJoinMsg(q.toCoop ? 'coop' : q.mode, q.side) }] };
       }
       if (q && !s.view) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [] };
+      // a lobby (or results) whose relay did not know our resume token (the other relay instance, a restart) welcomed
+      // us as someone new: nothing would ever send this socket the party again, so ask for the seat back by the code
+      // (the relay hands a person their own seat: same account or guest key)
+      if (s.view && !s.inMatch && s.view.code && m.member !== s.view.you && !isStranger(s.view))
+        return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true, joining: s.view.code, joinTries: 0 }, effects: [{ t: 'send', msg: { t: 'party.join', code: s.view.code } }] };
       // a reconnect keeps the view (the relay re-sends the party right after welcome)
       return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: s.view ? s.asked : false }, effects: s.view ? [] : [{ t: 'decide-later' }] };
     }
@@ -867,6 +872,8 @@ export class PartyClient {
     this.render();
     // LATENCY-PLAN C2: the WebSocket upgrade runs while the ticket is fetched; `hello` waits for the ticket (≤ 3 s)
     this.bornAt = this.now();
+    // a reconnect after the ticket aged (a phone back from the background, a move to the other relay) signs in again
+    this.socket.refreshTicketsWith(() => h.ticket());
     this.socket.connect(h.ticket());
     this.timer = setInterval(() => this.everySecond(), 250);
   }

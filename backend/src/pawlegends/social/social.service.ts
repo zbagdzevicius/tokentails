@@ -15,6 +15,7 @@ import { checkAvatarChoice, liveHeroIds, resolveAvatars } from './avatar';
 import { ChatService } from './chat.service';
 import { RANKED_MIN_MATCHES } from '../ranked/tiers';
 import { displayNames } from './display-name';
+import { foldCatName } from '../../shared-contracts/name';
 import { pushNotify } from '../push/push-sink';
 import { PresenceRow, presenceUpdate, PresenceView, readPresence } from './presence';
 import { LIVE_PRESENCE_ID } from '../party/presence-sink';
@@ -56,12 +57,16 @@ import {
 const DAY = 86_400_000;
 type AnyModel = any;
 
-type Via = 'code' | 'recent' | 'party';
+type Via = 'code' | 'recent' | 'party' | 'name';
+
+/** Nickname search (SOCIAL-INVITES.md): at least this many folded characters, at most this many rows. */
+export const NAME_SEARCH = Object.freeze({ minChars: 2, maxRows: 5 });
 
 export const SOCIAL_ERRORS = {
     needAccount: () => pawlegendsError(HttpStatus.FORBIDDEN, 'PAWLEGENDS_NEED_ACCOUNT', 'Sign in to add friends'),
     invalid: (m: string) => pawlegendsError(HttpStatus.BAD_REQUEST, 'PAWLEGENDS_SOCIAL_INVALID', m),
     notFound: () => pawlegendsError(HttpStatus.NOT_FOUND, 'PAWLEGENDS_SOCIAL_NOT_FOUND', 'No player with this code'),
+    noName: () => pawlegendsError(HttpStatus.NOT_FOUND, 'PAWLEGENDS_SOCIAL_NO_NAME', 'No player with this name'),
     self: () => pawlegendsError(HttpStatus.BAD_REQUEST, 'PAWLEGENDS_SOCIAL_SELF', 'That is your own code'),
     cap: (what: string) => pawlegendsError(HttpStatus.CONFLICT, 'PAWLEGENDS_SOCIAL_CAP', `${what} limit reached`),
     refused: () => pawlegendsError(HttpStatus.FORBIDDEN, 'PAWLEGENDS_SOCIAL_REFUSED', 'This player cannot be added'),
@@ -186,6 +191,77 @@ export class SocialService {
         const p = (await this.social.findOne({ code: parsed }).lean()) as SocialProfile | null;
         if (!p) throw SOCIAL_ERRORS.notFound();
         return p;
+    }
+
+    /**
+     * The player whose nickname is `name` (case-, accent- and look-alike-insensitive: the unique `nickKey`, so one
+     * player at most). Only chosen nicknames are found: generated and cat names repeat and are never looked up.
+     */
+    private async byNick(name: unknown): Promise<SocialProfile> {
+        if (typeof name !== 'string' || name.length > 40) throw SOCIAL_ERRORS.invalid('name');
+        const key = foldCatName(name);
+        if (key.length < NAME_SEARCH.minChars) throw SOCIAL_ERRORS.invalid('name');
+        const p = (await this.social.findOne({ nickKey: key }).lean()) as SocialProfile | null;
+        if (!p || (p.name as { kind?: string })?.kind !== 'nick') throw SOCIAL_ERRORS.noName();
+        return p;
+    }
+
+    /**
+     * Nickname suggestions while typing (SOCIAL-INVITES.md): nicknames starting with the folded text, at most 5, never
+     * the caller, a player either side blocked, or a guest. Answers names, avatars and flags only (never a code or an
+     * account id): adding one goes through `request` by the exact name.
+     */
+    async search(me: string, q: unknown) {
+        if (typeof q !== 'string' || q.length > 40) throw SOCIAL_ERRORS.invalid('q');
+        const key = foldCatName(q);
+        if (key.length < NAME_SEARCH.minChars) return { players: [] };
+        // folded keys are [a-z0-9] only: nothing to escape; the prefix uses the nickKey index
+        const rows = (await this.social
+            .find({ nickKey: { $regex: `^${key}` }, 'name.kind': 'nick' })
+            .select({ _id: 1, nick: 1, nickKey: 1 })
+            .sort({ nickKey: 1 })
+            .limit(NAME_SEARCH.maxRows * 3)
+            .lean()) as Array<{ _id: string; nick?: string; nickKey?: string }>;
+        const ids = rows.map(r => String(r._id)).filter(id => id !== me);
+        if (!ids.length) return { players: [] };
+        const [reg, blocks, edges] = await Promise.all([
+            this.registered(ids),
+            this.blocks
+                .find({
+                    $or: [
+                        { blocker: me, blocked: { $in: ids } },
+                        { blocker: { $in: ids }, blocked: me },
+                    ],
+                })
+                .lean() as Promise<Array<{ blocker: string; blocked: string }>>,
+            this.friends
+                .find({
+                    $or: [
+                        { a: me, b: { $in: ids } },
+                        { b: me, a: { $in: ids } },
+                    ],
+                })
+                .lean() as Promise<Edge[]>,
+        ]);
+        const blocked = new Set(blocks.map(b => (b.blocker === me ? b.blocked : b.blocker)));
+        const keep = ids.filter(id => reg.has(id) && !blocked.has(id)).slice(0, NAME_SEARCH.maxRows);
+        if (!keep.length) return { players: [] };
+        const [names, avatars, ccs] = await Promise.all([
+            displayNames({ social: this.social, cats: this.cats }, keep),
+            this.avatarsOf(keep),
+            this.flags?.visible(keep) ?? Promise.resolve(new Map<string, string>()),
+        ]);
+        const state = new Map(
+            edges.map(e => [other(e, me), e.state === 'accepted' ? 'friend' : e.from === me ? 'sent' : 'asked'])
+        );
+        return {
+            players: keep.map(id => ({
+                name: names.get(id) ?? '',
+                av: avatars.get(id),
+                ...(ccs.get(id) ? { cc: ccs.get(id) } : {}),
+                ...(state.get(id) ? { rel: state.get(id) } : {}),
+            })),
+        };
     }
 
     async blockedEither(a: string, b: string): Promise<boolean> {
@@ -356,21 +432,28 @@ export class SocialService {
         me: string,
         rev: unknown
     ): Promise<{ changed: false } | { changed: true; rev: string; invites: unknown[] }> {
-        const now = this.now();
-        const last = this.pulseWrites.get(me) ?? 0;
-        if (now.getTime() - last >= PRESENCE.apiWriteEveryMs) {
-            this.pulseWrites.set(me, now.getTime());
-            if (this.pulseWrites.size > 20_000)
-                for (const k of [...this.pulseWrites.keys()].slice(0, 5000)) this.pulseWrites.delete(k);
-            const user = await this.users.findById(me).select({ pawlegendsMatches: 1 }).lean();
-            const rk = playedOf(user?.pawlegendsMatches).matches >= RANKED_MIN_MATCHES ? 1 : 0;
-            await this.presence.updateOne({ _id: me }, presenceUpdate({ api: { at: now } }, now, rk), { upsert: true });
-        }
+        await this.markOnline(me);
         const profile = await this.profile(me);
         const token = await this.revToken(me, profile);
         const invites = await this.pendingInvites(me);
         if (token === rev && !invites.length) return { changed: false };
         return { changed: true, rev: token, invites };
+    }
+
+    /**
+     * "Online" for friends (the API side of presence): at most one write a minute per account. The pulse and the fast
+     * inbox both call it, so a player on any menu (Heroes, Recordings, the store) shows online and can be invited.
+     */
+    private async markOnline(me: string): Promise<void> {
+        const now = this.now();
+        const last = this.pulseWrites.get(me) ?? 0;
+        if (now.getTime() - last < PRESENCE.apiWriteEveryMs) return;
+        this.pulseWrites.set(me, now.getTime());
+        if (this.pulseWrites.size > 20_000)
+            for (const k of [...this.pulseWrites.keys()].slice(0, 5000)) this.pulseWrites.delete(k);
+        const user = await this.users.findById(me).select({ pawlegendsMatches: 1 }).lean();
+        const rk = playedOf(user?.pawlegendsMatches).matches >= RANKED_MIN_MATCHES ? 1 : 0;
+        await this.presence.updateOne({ _id: me }, presenceUpdate({ api: { at: now } }, now, rk), { upsert: true });
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -401,8 +484,13 @@ export class SocialService {
 
     async targetOf(
         me: string,
-        body: { code?: unknown; room?: unknown; slot?: unknown }
+        body: { code?: unknown; name?: unknown; room?: unknown; slot?: unknown }
     ): Promise<{ id: string; via: Via }> {
+        if (body.name !== undefined && body.code === undefined) {
+            const p = await this.byNick(body.name);
+            if (p._id === me) throw SOCIAL_ERRORS.self();
+            return { id: p._id, via: 'name' };
+        }
         if (body.code !== undefined) {
             const p = await this.byCode(body.code);
             if (p._id === me) throw SOCIAL_ERRORS.self();
@@ -815,7 +903,8 @@ export class SocialService {
      * The fast inbox (SOCIAL-INVITES.md): the game polls it every few seconds on menus and in the party lobby, so an
      * invite or a DM shows within seconds instead of the 30 s pulse. One indexed read of the caller's own `rev` while
      * nothing changed (`changed: false`, the route answers 204); else the waiting invites and the answers to the
-     * caller's own invites (each shown once). Writes no presence (the pulse and the relay do).
+     * caller's own invites (each shown once). It marks the caller online (once a minute), so a friend on any menu
+     * can be invited.
      */
     async inbox(
         me: string,
@@ -829,6 +918,8 @@ export class SocialService {
               answers: Array<{ id: string; name: string; answer: 'accepted' | 'declined' }>;
           }
     > {
+        // the inbox polls on every menu: it keeps the player "online" for friends (one write a minute at most)
+        await this.markOnline(me);
         const row = (await this.social.findById(me).select({ rev: 1 }).lean()) as { rev?: number } | null;
         const token = `i${row?.rev ?? 0}`;
         if (token === rev) return { changed: false };

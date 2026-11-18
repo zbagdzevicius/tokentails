@@ -345,6 +345,9 @@ export class PartyService {
             ended: false,
         };
         p.difficulty = this.defaultDifficulty(p);
+        // the leader's chosen name (a nickname or cat name) from the first view on, not the generated one until a
+        // friend joins: the chat side usually resolved at hello, before this party existed
+        this.rename(p);
         this.parties.set(id, p);
         this.byCode.set(code, id);
         this.memberParty.set(memberId, id);

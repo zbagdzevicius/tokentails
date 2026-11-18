@@ -93,6 +93,13 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("invite.answer", { invite: mid, answer: "maybe" })).toBeNull();
     expect(routeOf("invite.send", { to: "PL-7KQ2-M9XR", sim: "33.abcdef12" })?.body).toEqual({ to: "PL-7KQ2-M9XR", sim: "33.abcdef12" });
     expect(routeOf("invite.send", { to: "PL-7KQ2-M9XR", sim: "33/../x" })?.body).toEqual({ to: "PL-7KQ2-M9XR" });
+    // nicknames: suggestions while typing, and Add by the exact name (a code still wins when both are sent)
+    expect(routeOf("social.search", { name: "Zyg" })).toEqual({ method: "GET", path: "/pawlegends/social/search?q=Zyg", auth: "registered" });
+    expect(routeOf("social.search", { name: "a" })).toBeNull();
+    expect(routeOf("social.search", { name: "<script>" })).toBeNull();
+    expect(routeOf("friend.add", { name: "zygis" })?.body).toEqual({ name: "zygis" });
+    expect(routeOf("friend.add", { name: "zygis", code: "PL-7KQ2-M9XR" })?.body).toEqual({ code: "PL-7KQ2-M9XR" });
+    expect(routeOf("friend.add", { name: "../x/y" })).toBeNull();
   });
 
   it("country flags (FLAGS.md): get for any session, set only with a boolean", () => {

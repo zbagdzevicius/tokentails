@@ -173,6 +173,8 @@ export interface RelayChatInfo {
     cooldownUntil?: number;
     /** The account's chosen name (nickname or cat name), shown to peers instead of the generated one. */
     name?: string;
+    /** The social profile's `rev` when this was read: a later rev (a rename, an avatar) re-reads it (`revs`). */
+    rev?: number;
 }
 
 /** One stored party line (registered senders only; guests' quick ids are delivered live, never stored). */
@@ -196,10 +198,17 @@ export interface RelayChatHooks {
     store?(line: RelayChatLine, members: string[]): void;
     /** Subscribe to DM notices for accounts on this relay; returns the unsubscribe. */
     onNotice?(fn: (n: { to: string; thread: string }) => void): () => void;
+    /**
+     * The social profiles' current `rev` of these accounts (one indexed read). The relay compares it with the rev its
+     * chat info was read at, so a nickname changed on any API instance reaches the party within NAME_WATCH_MS.
+     */
+    revs?(accountIds: string[]): Promise<Map<string, number>>;
 }
 
 /** How long a member's resolved chat info is trusted before a party join refreshes it. */
 const CHAT_INFO_TTL_MS = 10 * 60_000;
+/** How often the relay checks its lobby members' social rev (a rename shows in the party within this). */
+export const NAME_WATCH_MS = 10_000;
 const CHAT_PHASES: ReadonlySet<string> = new Set(['lobby', 'pick', 'results']);
 /** MATCH-CHAT.md §5.5: bot lines after the end only while the end banner shows. */
 const BOT_END_WINDOW_MS = 12_000;
@@ -1713,13 +1722,13 @@ export class PartyRelay {
     }
 
     /** Resolve (or refresh after 10 minutes) the chat side of a ticketed account; guests stay quick with no row. */
-    private resolveChat(s: Sock): void {
+    private resolveChat(s: Sock, force = false): void {
         const member = s.memberId;
         const id = s.identity;
         if (!member || !id?.ticketed || id.guest || !id.accountId || !this.opts.chat) return;
         const account = id.accountId;
         const prev = this.chatInfo.get(member);
-        if (prev && prev.account === account && this.now() - prev.atMs < CHAT_INFO_TTL_MS) return;
+        if (!force && prev && prev.account === account && this.now() - prev.atMs < CHAT_INFO_TTL_MS) return;
         void this.opts.chat
             .info(account)
             .then(info => {
@@ -1738,6 +1747,46 @@ export class PartyRelay {
                 this.parties.chatChanged(member);
             })
             .catch(() => undefined);
+    }
+
+    private nameWatchAt = 0;
+    private nameWatching = false;
+
+    /**
+     * A rename (or a new avatar) on any API instance reaches the party: every NAME_WATCH_MS, one read of the social
+     * `rev` of the registered members outside a match; a rev newer than the one their chat info was read at reads it
+     * again, and `chatChanged` sends the party its new views.
+     */
+    async watchNames(): Promise<number> {
+        const revs = this.opts.chat?.revs;
+        const nowMs = this.now();
+        if (!revs || this.nameWatching || nowMs - this.nameWatchAt < NAME_WATCH_MS) return 0;
+        this.nameWatchAt = nowMs;
+        const socks: Sock[] = [];
+        for (const s of this.socks) {
+            const id = s.identity;
+            if (!s.helloed || s.closed || s.seatRoom || !s.memberId || !id?.ticketed || id.guest || !id.accountId)
+                continue;
+            if (!this.parties.partyOf(s.memberId)) continue;
+            socks.push(s);
+            if (socks.length >= 2000) break;
+        }
+        if (!socks.length) return 0;
+        this.nameWatching = true;
+        let refreshed = 0;
+        try {
+            const cur = await revs([...new Set(socks.map(s => s.identity!.accountId!))]);
+            for (const s of socks) {
+                const info = this.chatInfo.get(s.memberId ?? '');
+                const rev = cur.get(s.identity!.accountId!);
+                if (!info || rev === undefined || info.info.rev === undefined || rev === info.info.rev) continue;
+                this.resolveChat(s, true);
+                refreshed++;
+            }
+        } finally {
+            this.nameWatching = false;
+        }
+        return refreshed;
     }
 
     private chatMuted(member: string, now: number): boolean {
@@ -3313,6 +3362,7 @@ export class PartyRelay {
         // the heartbeat never waits behind a slow restore pass: a relay whose row goes 15 s without a beat counts as
         // gone, and another relay would take its lobby parties over while it still runs them (§14)
         void this.beat();
+        void this.watchNames().catch(() => undefined);
         if (this.looping) return;
         this.looping = true;
         try {

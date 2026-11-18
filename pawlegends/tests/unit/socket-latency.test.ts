@@ -3,7 +3,7 @@
  * the lobby connect that opens the WebSocket while the party ticket is still being fetched.
  */
 import { describe, expect, it } from 'vitest';
-import { HELLO_HOLD_MS, PartySocket, TICKET_WAIT_MS, type SocketEnv, type SocketLike } from '../../src/net/socket';
+import { HELLO_HOLD_MS, PartySocket, TICKET_FRESH_MS, TICKET_WAIT_MS, type SocketEnv, type SocketLike } from '../../src/net/socket';
 import { encodeEcho } from '../../src/net/proto';
 
 class FakeWs implements SocketLike {
@@ -205,5 +205,78 @@ describe('PartySocket connect with a pending ticket (C2)', () => {
     f.s.connect();
     f.sockets[0].open();
     expect(f.sockets[0].hellos()).toHaveLength(1);
+  });
+});
+
+describe('PartySocket reconnect with a fresh ticket (SOCIAL-INVITES.md: the account survives a reconnect)', () => {
+  const welcome = (w: FakeWs) => w.onmessage?.({ data: JSON.stringify({ t: 'welcome', proto: 8, member: 'm1', resumeToken: 'r'.repeat(24), serverMs: 0 }) });
+
+  it('a reconnect after the ticket aged asks the host again and signs the new hello in with the fresh ticket', async () => {
+    const f = setup();
+    let asked = 0;
+    f.s.refreshTicketsWith(async () => `fresh-${++asked}`);
+    f.s.connect(Promise.resolve('first'));
+    await flush();
+    f.sockets[0].open();
+    await flush();
+    welcome(f.sockets[0]);
+    // the phone sleeps past the ticket's 60 s life, the socket drops and comes back
+    f.advance(TICKET_FRESH_MS + 20_000);
+    f.sockets[0].close();
+    f.advance(10_000);
+    expect(f.sockets).toHaveLength(2);
+    f.sockets[1].open();
+    await flush();
+    expect(asked).toBe(1);
+    expect(f.sockets[1].hellos().map((h) => h.ticket)).toEqual(['fresh-1']);
+  });
+
+  it('a quick reconnect keeps the young ticket (no host call); a guest never asks for one', async () => {
+    const f = setup();
+    let asked = 0;
+    f.s.refreshTicketsWith(async () => `fresh-${++asked}`);
+    f.s.connect(Promise.resolve('first'));
+    await flush();
+    f.sockets[0].open();
+    await flush();
+    welcome(f.sockets[0]);
+    f.sockets[0].close();
+    f.advance(10_000);
+    f.sockets[1].open();
+    await flush();
+    expect(asked).toBe(0);
+    expect(f.sockets[1].hellos().map((h) => h.ticket)).toEqual(['first']);
+
+    const g = setup();
+    let guestAsked = 0;
+    g.s.refreshTicketsWith(async () => `t${++guestAsked}`);
+    g.s.connect(Promise.resolve(null));
+    await flush();
+    g.sockets[0].open();
+    await flush();
+    welcome(g.sockets[0]);
+    g.advance(TICKET_FRESH_MS + 1);
+    g.sockets[0].close();
+    g.advance(10_000);
+    g.sockets[1].open();
+    await flush();
+    expect(guestAsked).toBe(0);
+    expect(g.sockets[1].hellos()[0].ticket).toBeUndefined();
+  });
+
+  it('a host that has no fresh ticket keeps the old one in the hello (the relay may still know it by the resume token)', async () => {
+    const f = setup();
+    f.s.refreshTicketsWith(async () => null);
+    f.s.connect(Promise.resolve('first'));
+    await flush();
+    f.sockets[0].open();
+    await flush();
+    welcome(f.sockets[0]);
+    f.advance(TICKET_FRESH_MS + 1);
+    f.sockets[0].close();
+    f.advance(10_000);
+    f.sockets[1].open();
+    await flush();
+    expect(f.sockets[1].hellos().map((h) => h.ticket)).toEqual(['first']);
   });
 });

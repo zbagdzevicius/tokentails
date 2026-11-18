@@ -117,14 +117,14 @@ export const PRESENCE_TEXT: Readonly<Record<Presence['state'], string>> = Object
 });
 
 /**
- * The friend row's one action (§14.2, SOCIAL-INVITES.md): in a party, Invite any friend who is online and not already
- * in it (LoL style); out of one, Join a friend's joinable party, Watch a friend's live match (SPECTATE.md, when the
+ * The friend row's one action (§14.2, SOCIAL-INVITES.md): in a party, Invite any friend not already in it (LoL style;
+ * an offline friend gets the invite as a notification and the inviter is told they are offline); out of one, Join a friend's joinable party, Watch a friend's live match (SPECTATE.md, when the
  * friend lets friends watch), Invite an online friend (the party opens through PLAY first: the one play path), else the
  * "…" menu. `myParty`: this player's party code, or null. Pure.
  */
 export function rowAction(p: Presence, inParty: boolean, myParty: string | null = null): 'join' | 'watch' | 'invite' | 'more' {
   const online = p.state === 'online' || p.state === 'party' || p.state === 'queue';
-  if (inParty) return online && !(myParty && p.party === myParty) ? 'invite' : 'more';
+  if (inParty) return p.state !== 'match' && !(myParty && p.party === myParty) ? 'invite' : 'more';
   if (p.state === 'party' && p.joinable && p.party) return 'join';
   if (p.state === 'match' && p.room && /^[a-z0-9]{12}$/.test(p.room)) return 'watch';
   return online ? 'invite' : 'more';
@@ -161,6 +161,20 @@ export interface SocialSheetDeps {
    * (the one play path: the leader picks the mode) and sends the invite once the party lobby is up. Absent: a note.
    */
   inviteFriend?(friend: { code: string; name: string }): void;
+  /** An invite went out (its id and how long it lives): the app tells the inviter when it expires unanswered. */
+  onInviteSent?(invite: { id: string; name: string; ttl: number }): void;
+}
+
+/** A typed friend code (`PL-7KQ2-M9XR`, any case, with or without dashes); anything else is a nickname. */
+export const looksLikeCode = (v: string): boolean => /^\s*(pl[-\s]?)?[0-9a-z]{4}[-\s]?[0-9a-z]{4}\s*$/i.test(v);
+
+/** One nickname suggestion (`social.search`): never a code or an account id. */
+export interface Suggestion {
+  name: string;
+  av?: AvatarView;
+  cc?: string;
+  /** Already a friend, a request sent, or one they sent. */
+  rel?: 'friend' | 'sent' | 'asked';
 }
 
 const errorText = (r: ApiResult): string => {
@@ -168,12 +182,19 @@ const errorText = (r: ApiResult): string => {
   if (r.status === 0) return 'No connection. Try again.';
   if (r.status === 429) return 'Too many tries. Wait a minute.';
   if (code === 'PAWLEGENDS_SOCIAL_NOT_FOUND') return 'No player has this code.';
+  if (code === 'PAWLEGENDS_SOCIAL_NO_NAME') return 'No player has this name.';
+  if (code === 'PAWLEGENDS_SOCIAL_INVALID') return 'Type a name or a code.';
   if (code === 'PAWLEGENDS_SOCIAL_SELF') return "That's your own code.";
   if (code === 'PAWLEGENDS_SOCIAL_CAP') return 'Your friends list is full.';
   if (code === 'PAWLEGENDS_SOCIAL_REFUSED') return "You can't add this player.";
-  if (code === 'PAWLEGENDS_SOCIAL_NO_PARTY') return 'Open a party first: PLAY, a mode, then With Friends.';
+  if (code === 'PAWLEGENDS_SOCIAL_NO_PARTY') return "Your party isn't ready. Try again in a moment.";
+  if (code === 'PAWLEGENDS_SOCIAL_LIMIT') return 'Invite already sent. Wait for an answer.';
   return 'Something went wrong. Try again.';
 };
+
+/** "No party" on an invite right after the lobby opened: retried this many times, this far apart. */
+export const INVITE_PARTY_RETRIES = 4;
+export const INVITE_PARTY_RETRY_MS = 2_000;
 
 export class SocialSheet {
   readonly root: HTMLElement;
@@ -184,6 +205,10 @@ export class SocialSheet {
   private ranked: { status?: Record<string, any>; me?: Record<string, any> } = {};
   private board: { kind: 'global' | 'friends' | 'weekly'; page: number; data: Record<string, any> | null } = { kind: 'weekly', page: 0, data: null };
   private adding = false;
+  /** Add friend: the typed text, its nickname suggestions, and the debounce timer. */
+  private addText = '';
+  private suggest: { q: string; rows: Suggestion[] } | null = null;
+  private suggestTimer: ReturnType<typeof setTimeout> | null = null;
   private note = '';
   private undo: { code: string; timer: ReturnType<typeof setTimeout> } | null = null;
   private pulseTimer: ReturnType<typeof setInterval> | null = null;
@@ -227,6 +252,14 @@ export class SocialSheet {
       const form = e.target as HTMLFormElement | null;
       if (form?.dataset?.form === 'invite') void this.invite.redeem(form.querySelector<HTMLInputElement>('input[name="invite"]')?.value ?? '');
       else void this.addByCode();
+    });
+    // Add friend: nickname suggestions while typing (300 ms after the last key, 2 letters at least)
+    this.root.addEventListener('input', (e) => {
+      const input = e.target as HTMLInputElement | null;
+      if (input?.name !== 'code') return;
+      this.addText = input.value;
+      if (this.suggestTimer) clearTimeout(this.suggestTimer);
+      this.suggestTimer = setTimeout(() => void this.findNames(), 300);
     });
     this.invite = new InviteRow({
       api: (op, args) => this.deps.api(op, args),
@@ -385,6 +418,7 @@ export class SocialSheet {
     if (!s.me.ageBand) return this.agePanel();
     if (this.picking) return this.pickerBody();
     if (this.tab === 'clubs') return this.clubs.body(this.per);
+    if (this.tab === 'friends' && this.adding) return this.suggestBody();
     if (this.tab === 'friends') {
       // the invite row (share/invite.ts) takes the first row's place
       const inv = this.invite.html() + this.liveRow();
@@ -494,7 +528,7 @@ export class SocialSheet {
     if (this.tab === 'clubs' && this.state?.me.ageBand && this.deps.signedIn()) return this.clubs.footer(this.per);
     if (this.tab !== 'friends' || !this.state || !this.deps.signedIn() || !this.state.me.ageBand) return pager;
     if (this.adding)
-      return `<form class="pl-social-add"><input name="code" maxlength="14" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="PL-XXXX-XXXX" aria-label="Friend code" inputmode="text"><button type="submit" class="pl-btn small">Add</button><button type="button" class="pl-btn ghost small" data-a="add-cancel" aria-label="Cancel">&times;</button></form>`;
+      return `<form class="pl-social-add"><input name="code" maxlength="24" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Name or PL-XXXX-XXXX" aria-label="Friend's name or code" inputmode="text" data-testid="social-add-input" value="${this.esc(this.addText)}"><button type="submit" class="pl-btn small" data-testid="social-add-send">Add</button><button type="button" class="pl-btn ghost small" data-a="add-cancel" aria-label="Cancel">&times;</button></form>`;
     return `${pager}<button type="button" class="pl-me-av" data-a="avatar" aria-label="My avatar" data-testid="avatar-open">${avatarHtml(this.state.me.av, 40)}</button><span class="pl-social-code">${ccHtml(myFlag())}My code <b>${this.esc(this.state.me.code)}</b></span><button type="button" class="pl-btn ghost small" data-a="copy">Copy</button><button type="button" class="pl-btn small" data-a="add">Add</button>`;
   }
 
@@ -505,17 +539,65 @@ export class SocialSheet {
     return r.ok;
   }
 
-  private async addByCode(): Promise<void> {
+  /** Add friend by what was typed: a friend code, else an exact nickname (case-insensitive on the server). */
+  private async addByCode(typed?: string): Promise<void> {
     const input = this.root.querySelector<HTMLInputElement>('input[name="code"]');
-    const code = (input?.value ?? '').trim();
-    if (!code) return;
-    const r = await this.deps.api('friend.add', { code });
+    const text = (typed ?? input?.value ?? '').trim();
+    if (!text) return;
+    const byCode = looksLikeCode(text);
+    const r = await this.deps.api('friend.add', byCode ? { code: text } : { name: text });
+    if (this.disposed) return;
     if (r.ok) {
       this.adding = false;
-      this.deps.track?.('friend_request', { via: 'code' });
-      this.note = (r.body as { state?: string })?.state === 'friends' ? 'You are friends now' : 'Request sent';
+      this.addText = '';
+      this.suggest = null;
+      this.deps.track?.('friend_request', { via: byCode ? 'code' : 'name' });
+      this.note = (r.body as { state?: string })?.state === 'friends' ? 'You are friends now' : `Request sent to ${byCode ? 'your friend' : text}`;
     } else this.note = errorText(r);
     await this.load();
+  }
+
+  /** Nickname suggestions for the typed text (`social.search`); a code or under 2 letters asks nothing. */
+  private async findNames(): Promise<void> {
+    const q = this.addText.trim();
+    if (!this.adding || this.disposed) return;
+    if (q.length < 2 || looksLikeCode(q)) {
+      this.suggest = null;
+      return this.paintSuggest();
+    }
+    const r = await this.deps.api('social.search', { name: q });
+    if (this.disposed || !this.adding || this.addText.trim() !== q) return;
+    const rows = r.ok ? ((r.body as { players?: unknown } | undefined)?.players ?? []) : [];
+    this.suggest = {
+      q,
+      rows: (Array.isArray(rows) ? rows : [])
+        .filter((x): x is Suggestion => !!x && typeof (x as Suggestion).name === 'string' && (x as Suggestion).name.length <= 40)
+        .slice(0, 5)
+        .map((x) => ({ name: x.name, ...(isAvatarView(x.av) ? { av: x.av } : {}), ...(typeof x.cc === 'string' && /^[A-Z]{2}$/.test(x.cc) ? { cc: x.cc } : {}), ...(x.rel === 'friend' || x.rel === 'sent' || x.rel === 'asked' ? { rel: x.rel } : {}) })),
+    };
+    this.paintSuggest();
+  }
+
+  /** The suggestions repaint the body only: the input keeps its text, focus and caret. */
+  private paintSuggest(): void {
+    const body = this.root.querySelector<HTMLElement>('.pl-social-body');
+    if (!body || !this.adding || this.tab !== 'friends') return;
+    body.innerHTML = this.suggestBody();
+    for (const el of body.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
+  }
+
+  private suggestBody(): string {
+    const q = this.addText.trim();
+    if (!this.suggest || this.suggest.q !== q) return `<p class="pl-social-empty">Type a friend's name or their code.</p>`;
+    if (!this.suggest.rows.length) return `<p class="pl-social-empty" data-testid="social-suggest-none">No player has this name.</p>`;
+    const rel = { friend: 'Friends', sent: 'Request sent', asked: 'Wants to be friends' } as const;
+    return this.suggest.rows
+      .slice(0, this.per)
+      .map((p) => {
+        const act = p.rel === 'friend' || p.rel === 'sent' ? '' : `<button type="button" class="pl-btn small" data-a="add-name" data-nick="${this.esc(p.name)}" aria-label="${this.esc(`Add ${p.name}`)}">${p.rel === 'asked' ? 'Accept' : 'Add'}</button>`;
+        return `<div class="pl-social-row" data-testid="social-suggest">${avatarHtml(p.av, 40)}<span class="pl-social-who"><span class="pl-social-nm">${ccHtml(p.cc)}<span class="pl-social-name" data-name="${this.esc(p.name)}"></span></span>${p.rel ? `<small class="pl-social-st">${rel[p.rel]}</small>` : ''}</span>${act}</div>`;
+      })
+      .join('');
   }
 
   private onClick(e: Event): void {
@@ -574,13 +656,20 @@ export class SocialSheet {
           this.render();
         }
         return;
+      case 'add-name':
+        void this.addByCode(el.dataset.nick ?? '');
+        return;
       case 'add':
         this.adding = true;
+        this.addText = '';
+        this.suggest = null;
         this.render();
         this.root.querySelector<HTMLInputElement>('input[name="code"]')?.focus();
         return;
       case 'add-cancel':
         this.adding = false;
+        this.addText = '';
+        this.suggest = null;
         this.render();
         return;
       case 'copy': {
@@ -746,12 +835,22 @@ export class SocialSheet {
 
   /** SOCIAL-INVITES.md: an invite with this build's sim; the note says when the friend is offline. */
   private async sendInvite(code: string, name: string): Promise<void> {
-    const r = await this.deps.api('invite.send', { to: code, sim: buildSim(), ...(this.deps.partyMode?.() === 'ranked' ? { mode: 'ranked' } : {}) });
+    const who = name || 'your friend';
+    this.note = `Inviting ${who}…`;
+    this.render();
+    let r = await this.deps.api('invite.send', { to: code, sim: buildSim(), ...(this.deps.partyMode?.() === 'ranked' ? { mode: 'ranked' } : {}) });
+    // a party opened a moment ago: the relay writes its presence within ~5 s, so "no party" is retried a few times
+    for (let i = 0; i < INVITE_PARTY_RETRIES && !r.ok && (r.body as { code?: string } | undefined)?.code === 'PAWLEGENDS_SOCIAL_NO_PARTY' && !this.disposed && this.deps.partyCode(); i++) {
+      await new Promise((ok) => setTimeout(ok, INVITE_PARTY_RETRY_MS));
+      if (this.disposed) return;
+      r = await this.deps.api('invite.send', { to: code, sim: buildSim(), ...(this.deps.partyMode?.() === 'ranked' ? { mode: 'ranked' } : {}) });
+    }
     if (this.disposed) return;
-    const b = r.body as { offline?: boolean; code?: string } | undefined;
-    if (r.ok) this.note = b?.offline ? `Invite sent. ${name || 'Your friend'} is offline.` : `Invite sent to ${name || 'your friend'}`;
-    else if (b?.code === 'PAWLEGENDS_SOCIAL_LIMIT') this.note = 'Invite already sent. Wait for an answer.';
-    else this.note = errorText(r);
+    const b = r.body as { offline?: boolean; code?: string; id?: string; ttl?: number } | undefined;
+    if (r.ok) {
+      this.note = b?.offline ? `Invite sent. ${name || 'Your friend'} is offline: they get a notification.` : `Invite sent to ${who}`;
+      if (typeof b?.id === 'string') this.deps.onInviteSent?.({ id: b.id, name: name || 'Your friend', ttl: typeof b.ttl === 'number' ? b.ttl : 60_000 });
+    } else this.note = errorText(r);
     this.render();
   }
 

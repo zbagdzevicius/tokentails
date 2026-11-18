@@ -1693,6 +1693,8 @@ export class App {
             history: (friend) => this.openHistory(friend),
             // SOCIAL-INVITES.md: Invite with no party yet opens PLAY's Mode Select on With Friends, then sends it
             inviteFriend: (friend) => this.inviteAfterParty(friend),
+            // the inviter is told when an invite runs out unanswered (accept and decline come through the inbox)
+            onInviteSent: (inv) => this.watchSentInvite(inv),
           },
           tab,
         );
@@ -1796,8 +1798,38 @@ export class App {
       }
     }
     this.paintSocialBadge();
-    for (const a of box.answers) mod.lineToast(document, mod.answerLine(a), `invite-answer-${a.answer}`);
+    for (const a of box.answers) {
+      const t = this.sentInvites.get(a.id);
+      if (t) clearTimeout(t);
+      this.sentInvites.delete(a.id);
+      mod.lineToast(document, mod.answerLine(a), `invite-answer-${a.answer}`);
+    }
     this.showInvites(box.invites, mod);
+  }
+
+  /** Invites this player sent and no answer yet (id → the "didn't answer" timer). */
+  private sentInvites = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /**
+   * SOCIAL-INVITES.md: an invite that runs out without an answer says so ("Mira didn't answer"), never a silent nothing.
+   * The timer allows the inbox poll's few seconds after the 60 s.
+   */
+  private watchSentInvite(inv: { id: string; name: string; ttl: number }): void {
+    const old = this.sentInvites.get(inv.id);
+    if (old) clearTimeout(old);
+    if (this.sentInvites.size > 20) {
+      for (const t of this.sentInvites.values()) clearTimeout(t);
+      this.sentInvites.clear();
+    }
+    const ms = Math.max(1_000, Math.min(60_000, inv.ttl)) + 6_000;
+    this.sentInvites.set(
+      inv.id,
+      setTimeout(() => {
+        this.sentInvites.delete(inv.id);
+        if (this.session) return;
+        void import('../social/inviteInbox').then((m) => m.lineToast(document, `${inv.name} didn't answer your invite`, 'invite-unanswered'));
+      }, ms),
+    );
   }
 
   /** The newest invite not shown yet, as the LoL-style card (Accept / Decline, 60 s). Never in a match. */
@@ -1882,8 +1914,9 @@ export class App {
       // the relay writes the lobby's presence a moment after it opens: retry "no party" for 15 s
       if (!r.ok && code === 'PAWLEGENDS_SOCIAL_NO_PARTY' && Date.now() - p.lobbyAt < 15_000) return;
       stop();
-      const offline = (r.body as { offline?: boolean } | undefined)?.offline;
-      lineToast(document, r.ok ? (offline ? `Invite sent. ${p.name} is offline right now` : `Invite sent to ${p.name}`) : `Couldn't invite ${p.name}. Try again from Friends.`, r.ok ? 'invite-sent' : 'invite-failed');
+      const body = r.body as { offline?: boolean; id?: string; ttl?: number } | undefined;
+      lineToast(document, r.ok ? (body?.offline ? `Invite sent. ${p.name} is offline: they get a notification.` : `Invite sent to ${p.name}`) : `Couldn't invite ${p.name}. Try again from Friends.`, r.ok ? 'invite-sent' : 'invite-failed');
+      if (r.ok && typeof body?.id === 'string') this.watchSentInvite({ id: body.id, name: p.name, ttl: typeof body.ttl === 'number' ? body.ttl : 60_000 });
     } finally {
       this.pendingBusy = false;
     }

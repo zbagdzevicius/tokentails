@@ -29,6 +29,27 @@ It builds on `SOCIAL-RANKED.md` (friends, presence, invites) and `CHAT-AVATARS.m
 
 No IPs are stored. Rate limits per account: 40 inbox polls a minute (600 per IP), 20 answers a minute, and the existing invite limits (10 per 10 minutes, one pending invite per friend).
 
+## Invite and name fixes (Nov 18)
+
+Reported: an invite showed nothing on the friend's side, and the lobby showed a generated name ("Fancy Calico") for a
+player who had set the nickname "zygis".
+
+| Root cause | Fix | Where |
+|---|---|---|
+| A lobby reconnect re-sent the first party ticket. Tickets live 60 s and are single use per relay process, and production runs two instances. After a phone came back from the background, a network drop, a move to the other instance or a deploy, the relay refused the ticket and the player came back as a guest: a generated name, no presence, so `invite.send` answered "no party" and the friend got nothing. | A reconnect asks the host for a fresh ticket once the held one is 40 s old. A lobby welcomed as a new member asks for its own seat back by the code (the relay hands the same account its seat). | `net/socket.ts` `refreshTicketsWith`, `partyClient.ts` `welcome` |
+| The party leader's name came from `memberName` until someone joined (`create` never ran `rename`). | `create` runs `rename`: the leader's nickname shows from the first view. | `party.service.ts` |
+| A nickname changed while in a party never reached the relay (chat info cached 10 min, read only at hello). | The relay reads its lobby members' social `rev` every 10 s and reads the chat side again when it moved. | `party-relay.ts` `watchNames`, `relay-chat-info.ts` |
+| With two relays, the one where a socket closed cleared the presence the other had just written for the player's new party. | The sink clears only the `relay.at` it wrote itself. | `presence-sink.ts` |
+| A friend on Heroes, Recordings or the store read as offline (only the title pulse wrote presence), so the row had no Invite. | The 4 s inbox marks the player online (once a minute). In a party, every friend not in it gets Invite, offline ones too (they get a notification, the inviter is told). | `social.service.ts` `markOnline`, `socialSheet.ts` `rowAction` |
+| Invite right after opening a lobby answered "Open a party first" (presence lands within 5 s). | The sheet retries "no party" 4 times, 2 s apart, and says "Inviting Mira…". An invite with no answer after 60 s says "Mira didn't answer your invite". | `socialSheet.ts` `sendInvite`, `app.ts` `watchSentInvite` |
+
+**Friends by nickname.** Add takes a nickname or a code. Typing 2+ letters shows up to 5 nicknames that start with
+them (`GET /pawlegends/social/search?q=`, host op `social.search`), with avatar and flag. Add sends `{name}`, matched
+exactly on the unique folded `nickKey` (case, accents and look-alikes ignored), so two players can never share a
+nickname. Generated and cat names are never searched. Answers carry no code or account id; the caller, guests and
+blocked players are left out; 40 searches a minute per account (200 per IP), and Add by name counts in the code-lookup
+bucket.
+
 ## Known limits (not fixed here)
 
 - Pushes for an offline friend still depend on VAPID keys, which are not set. The invite row expires after 60 s either way.

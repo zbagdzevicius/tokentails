@@ -1,4 +1,5 @@
 import { PRESENCE_REFRESH_MS, PresenceSink, type PresenceEntry } from './presence-sink';
+import { SocialMemoryModel } from '../social/social-model.helper-spec';
 
 /* The relay side of presence (SOCIAL-RANKED.md §4.3): batched, diffed, refreshed, never thrown. */
 
@@ -60,5 +61,40 @@ describe('presence sink (SOCIAL-RANKED.md §4.3)', () => {
     it('without a model it writes nothing', async () => {
         const s = new PresenceSink(() => [{ accountId: 'A', state: 'match' }], null);
         expect(await s.flush()).toBe(0);
+    });
+
+    it('two relays: a socket closing on one never wipes the party the player opened on the other', async () => {
+        let nowMs = 1_000_000;
+        const now = () => new Date(nowMs);
+        const presence = new SocialMemoryModel([], [{ fields: ['_id'] }], now);
+        let onY: PresenceEntry[] = [{ accountId: 'A', state: 'party', party: 'OLD1', joinable: true }];
+        let onX: PresenceEntry[] = [];
+        const y = new PresenceSink(
+            () => onY,
+            presence as any,
+            () => nowMs
+        );
+        const x = new PresenceSink(
+            () => onX,
+            presence as any,
+            () => nowMs
+        );
+        await y.flush();
+        // A left the party on Y and opened a new one on X; X flushes first
+        nowMs += 2000;
+        onY = [];
+        onX = [{ accountId: 'A', state: 'party', party: 'NEW2', joinable: true }];
+        await x.flush();
+        nowMs += 1000;
+        await y.flush();
+        expect(presence.docs.find(d => d._id === 'A')?.relay).toMatchObject({ state: 'party', party: 'NEW2' });
+        // Y's own state still goes when nobody wrote after it
+        onY = [{ accountId: 'B', state: 'queue' }];
+        nowMs += 1000;
+        await y.flush();
+        onY = [];
+        nowMs += 1000;
+        await y.flush();
+        expect(presence.docs.find(d => d._id === 'B')?.relay).toBeUndefined();
     });
 });

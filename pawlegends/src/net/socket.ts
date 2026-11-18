@@ -44,6 +44,13 @@ export const TICKET_WAIT_MS = 6000;
  * waiting for the ticket this long after it opened is swapped for a fresh one (a new 5 s window), quietly.
  */
 export const HELLO_HOLD_MS = 4000;
+/**
+ * A party ticket lives 60 s and is single use per relay process. A reconnect after this long (a phone back from the
+ * background, a network drop, a move to the other relay instance or a deploy) asks the host for a fresh one: the old
+ * ticket would be refused there, and the player would come back as a guest (a generated name, no presence, so friends
+ * could not invite them).
+ */
+export const TICKET_FRESH_MS = 40_000;
 export const RESEND_WITHIN_MS = 500;
 export const BEAT_MS = 500;
 const RTT_SAMPLES = 64;
@@ -199,6 +206,14 @@ export class PartySocket {
 
   /** The party ticket still being fetched (LATENCY-PLAN C2): `hello` waits for it, at most TICKET_WAIT_MS. */
   private ticketWait: Promise<void> | null = null;
+  /** Where a fresh ticket comes from on a reconnect (the host), and when the held one arrived (env time). */
+  private ticketSource: (() => Promise<string | null>) | null = null;
+  private ticketAtMs = 0;
+
+  /** Reconnects fetch a fresh ticket from `fn` once the held one is older than TICKET_FRESH_MS (signed-in players). */
+  refreshTicketsWith(fn: () => Promise<string | null>): void {
+    this.ticketSource = fn;
+  }
 
   /**
    * Open the socket. `ticket` (the first connect): a party ticket still being fetched; the WebSocket upgrade runs in
@@ -206,6 +221,16 @@ export class PartySocket {
    */
   connect(ticket?: Promise<string | null>): void {
     if (ticket) this.ticketWait = this.waitTicket(ticket);
+    // a reconnect of a signed-in player: a fresh ticket once the held one may be spent or expired (the guest stays one)
+    else if (!this.ticketWait && this.ticketSource && this.hello.ticket && this.env.now() - this.ticketAtMs >= TICKET_FRESH_MS) {
+      let fresh: Promise<string | null>;
+      try {
+        fresh = this.ticketSource();
+      } catch {
+        fresh = Promise.resolve(null);
+      }
+      this.ticketWait = this.waitTicket(fresh);
+    }
     this.stopped = false;
     this.emitState(this.attempt === 0 ? 'connecting' : 'reconnecting');
     const ws = this.env.open(this.url, SUBPROTOCOL);
@@ -263,7 +288,10 @@ export class PartySocket {
       ticket.then(
         (t) => {
           // a ticket after TICKET_WAIT_MS (the guest hello went out) is dropped: the seat keeps the identity it joined with
-          if (!done && t) this.hello.ticket = t;
+          if (!done && t) {
+            this.hello.ticket = t;
+            this.ticketAtMs = this.env.now();
+          }
           finish();
         },
         finish,
