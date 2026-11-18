@@ -64,6 +64,26 @@ export function boltX(y: number, flip: number): number {
   return p[p.length - 1][0];
 }
 
+/** The champion's widest turn toward the screen centre past facing the camera (rad): a three-quarter view. */
+export const FACE_TURN = 0.6;
+/** The head's own extra turn toward the centre at the full body turn (rad): the gaze leads the body a little. */
+export const HEAD_TURN = 0.22;
+/** Within this distance of the centre (screen heights) the turn eases to zero (mid swap, the champion crosses it). */
+const TURN_EASE = 0.12;
+
+/**
+ * The champion's turn toward the screen centre (the bolt and the rival) for its box centre `cx` on a w × h screen,
+ * in radians past facing the camera, positive toward screen right (three.js rotation.y with the model facing +X):
+ * a champion left of the centre turns right, one right of it turns left, never toward the outer edge. Computed from
+ * the drawn position (not the faction), so it follows the swap glide and every aspect. `head` is the head's extra yaw.
+ */
+export function posterTurn(cx: number, w: number, h: number): { body: number; head: number } {
+  const dx = (cx - w / 2) / Math.max(1, h);
+  const t = Math.min(1, Math.abs(dx) / TURN_EASE);
+  const k = -Math.sign(dx) * t * t * (3 - 2 * t);
+  return { body: FACE_TURN * k + 0, head: HEAD_TURN * k + 0 };
+}
+
 export interface Rect {
   left: number;
   top: number;

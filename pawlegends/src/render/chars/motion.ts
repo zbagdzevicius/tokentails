@@ -91,6 +91,8 @@ export class Animator {
   /** A held mood pose in place of the idle (lobby results: 'cheer' on a win, 'sad' on a loss), or null. */
   mood: string | null = null;
   private moodT = 0;
+  /** An extra head yaw (rad, same sense as the object's rotation.y) the lobby uses to aim the gaze; 0 in a match. */
+  lookYaw = 0;
 
   /** Authored clips, reactions, root motion and springs (render/anim/, ANIM-SPEC §4.4). */
   readonly stack: LayerStack;
@@ -306,6 +308,7 @@ export class Animator {
       const br = Math.sin(this.time * 2.1);
       add(q[I.chest], br * 0.025);
       add(q[I.head], Math.sin(this.time * 0.7) * 0.04, Math.sin(this.time * 0.45) * 0.08 * (1 - w));
+      if (this.lookYaw) add(q[I.head], 0, this.lookYaw, 0);
       const tk = stack.springsOn ? 0.45 : 1;
       for (let i = 0; i < 6; i++) add(q[TAIL_INDEX[i]], Math.sin(this.time * 1.6 - i * 0.6) * 0.05 * tk, Math.sin(this.time * 1.1 - i * 0.7) * 0.12 * tk);
       this.earT -= dt;

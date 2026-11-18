@@ -51,7 +51,11 @@ width (at most 0.52 heights) from the centre on its own side. Every Home HUD ele
 Home keys: profile, chips, corner, left rail, promo, name plate, nav, PLAY, line, peek, version) pushes it with an 8 px
 margin: above lowers its head, below lifts its feet, beside slides it toward the bolt. Never under 40% of the height.
 The width used is the hero's bind-pose reach × 1.2 (its idle sway and held shields). `lobby.ts` `placePoster` fits the
-camera so the hero's top and feet land on the box. The champion turns 0.55 rad toward the bolt.
+camera so the hero's top and feet land on the box. The champion looks toward the screen centre (the bolt and the rival), never out past its own
+edge (founder, Nov 18): `posterTurn` (pure, tested) turns it `FACE_TURN` 0.6 rad past facing the camera toward the
+centre (a three-quarter view, the face still reads), and its head a further `HEAD_TURN` 0.22 rad (`Animator.lookYaw`).
+The turn is read from the drawn box centre, not the faction, so it follows every aspect and the swap glide (it eases
+through the camera within 0.12 screen heights of the centre); the ±0.12 rad idle sway never swings it outward.
 
 HUD safe areas (measured, the HUD did not move):
 

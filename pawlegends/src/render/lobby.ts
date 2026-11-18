@@ -21,7 +21,7 @@ import { ELEMENT_COLOR, lookKey, mixColor, type Look } from './cosmetics';
 import type { CatTier, Element } from '../meta/roster';
 import { HERO_COLOR_CSS } from './palette';
 import { createBackdrop, SWAP_S, type Backdrop } from './lobby/backdrop';
-import { posterBox, posterFlip, posterSide, rivalFor, silhouetteFile, type PosterBox, type Rect } from './lobby/poster';
+import { posterBox, posterFlip, posterSide, posterTurn, rivalFor, silhouetteFile, type PosterBox, type Rect } from './lobby/poster';
 import { artRoot } from '../ui/art';
 import { assetRev } from '../ui/assetRev';
 import { HOME_BG, lobbyBgFor, lobbyBgOverride, lobbyBgUrl, lobbyBgVisit, screenBg, type LobbyBg } from './lobby/lobbyBg';
@@ -308,6 +308,7 @@ export class Lobby {
     this.box = this.boxTo = this.boxFrom = null;
     delete document.documentElement.dataset.poster;
     delete document.documentElement.dataset.posterHero;
+    delete document.documentElement.dataset.posterGaze;
   }
 
   /** The Home HUD's rects (CSS px), re-read a few times a second. */
@@ -390,6 +391,16 @@ export class Lobby {
       r = Math.max(r, px);
       t = Math.min(t, py);
       b = Math.max(b, py);
+    }
+    // where the champion looks on screen: its chest and a point 1 m ahead along its facing (+X turned by rotation.y);
+    // a gaze straight at the camera projects to no sideways move, so the sign is the turn toward or away from the centre
+    const o = this.hero?.object;
+    if (o) {
+      const cy = this.ownTop * 0.6;
+      const yaw = o.rotation.y + (this.hero?.ch.anim.lookYaw ?? 0);
+      const a = P.set(0, cy, 0).project(cam).x;
+      const g = P.set(Math.cos(yaw), cy, -Math.sin(yaw)).project(cam).x;
+      document.documentElement.dataset.posterGaze = String(Math.round((((g - a) / 2) * w) / 4) * 4);
     }
     const st = this.backdrop.posterState();
     const k = `${side},${st.flip.toFixed(2)},${st.rival.toFixed(2)}|${[l, t, r, b].map((n) => Math.round(n)).join(',')}`;
@@ -573,9 +584,13 @@ export class Lobby {
       h.object.position.set(0, bounce * 0.4, 0);
       // face the camera at a three-quarter turn (~30° off), with a gentle sway (the old ±52° swing showed backs)
       const toCam = Math.atan2(-this.camDist, -this.camOff);
-      // on the poster the champion turns toward the bolt (a cat looks right, a dog left), with a smaller sway
-      const facing = this.posterOn && this.heroId ? -0.55 * posterFlip(posterSide(this.heroId)) : 0.3;
-      h.object.rotation.y = toCam + facing + Math.sin(this.spin) * (this.posterOn ? 0.12 : 0.22);
+      // on the poster the champion turns toward the screen centre (the bolt and the rival) from where it is drawn, so a
+      // cat on the left looks right, a dog on the right looks left, and mid swap it turns through the camera; the head
+      // leads a little. A smaller sway that never swings it past the camera toward the outer edge.
+      const turn = this.posterOn && this.box ? posterTurn(this.box.cx, window.innerWidth || 1, window.innerHeight || 1) : null;
+      const facing = turn ? turn.body : 0.3;
+      h.object.rotation.y = toCam + facing + Math.sin(this.spin) * (turn ? 0.12 * Math.min(1, Math.abs(turn.body) / 0.3) : 0.22);
+      h.ch.anim.lookYaw = turn ? turn.head : 0;
       if (this.t - this.moodAt > 0.3) {
         this.moodAt = this.t;
         h.ch.anim.mood = this.mood();

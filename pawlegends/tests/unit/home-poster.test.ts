@@ -1,7 +1,7 @@
 /** Home poster (docs/plans/moba/HOME-POSTER.md): the side, the rival, the bolt's mirror math and the HUD-clear framing. Pure. */
 import { describe, expect, it } from 'vitest';
 import { HERO_IDS, HEROES } from '../../src/data/heroes';
-import { BOLT, BOLT_SHIFT, boltPoints, boltX, posterBox, posterFlip, posterSide, rivalBox, rivalFor, silhouetteFile, type Rect } from '../../src/render/lobby/poster';
+import { BOLT, BOLT_SHIFT, FACE_TURN, HEAD_TURN, boltPoints, boltX, posterBox, posterTurn, posterFlip, posterSide, rivalBox, rivalFor, silhouetteFile, type Rect } from '../../src/render/lobby/poster';
 
 const hits = (a: Rect, b: Rect): boolean => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 
@@ -83,6 +83,46 @@ describe('Home poster layout', () => {
         expect(box.right).toBeLessThanOrEqual(w);
         expect(b.bottom - b.top).toBeGreaterThanOrEqual(h * 0.4);
       }
+    }
+  });
+
+  it('the champion turns toward the screen centre from where it is drawn (cat right, dog left), at every aspect', () => {
+    const sizes = [
+      [844, 390],
+      [667, 375],
+      [1440, 900],
+      [2560, 1080],
+    ] as const;
+    for (const [w, h] of sizes) {
+      for (const side of ['cat', 'dog'] as const) {
+        const { cx } = posterBox({ w, h, side, aspect: 0.8, hud: [] });
+        const t = posterTurn(cx, w, h);
+        // left of the centre turns right (positive), right of it turns left; a full three-quarter turn at its place
+        if (side === 'cat') expect(t.body, `${w}x${h} cat`).toBeCloseTo(FACE_TURN, 5);
+        else expect(t.body, `${w}x${h} dog`).toBeCloseTo(-FACE_TURN, 5);
+        // the head leads the body the same way, a little
+        expect(Math.sign(t.head)).toBe(Math.sign(t.body));
+        expect(Math.abs(t.head)).toBeCloseTo(HEAD_TURN, 5);
+        // the idle sway (±0.12 rad) never swings it past the camera toward the outer edge
+        expect(Math.abs(t.body) - 0.12).toBeGreaterThan(0.3);
+      }
+    }
+  });
+
+  it('the turn is a mirror, eases through zero at the centre (mid swap) and never flips toward the edge', () => {
+    const w = 844;
+    const h = 390;
+    expect(posterTurn(w / 2, w, h)).toEqual({ body: 0, head: 0 });
+    let prev = Infinity;
+    for (let x = 0; x <= w; x += 4) {
+      const t = posterTurn(x, w, h);
+      expect(t.body).toBeCloseTo(-posterTurn(w - x, w, h).body, 9);
+      // monotonic: as the box glides from left to right the champion turns from facing right to facing left
+      expect(t.body).toBeLessThanOrEqual(prev + 1e-9);
+      prev = t.body;
+      if (x < w / 2) expect(t.body).toBeGreaterThan(0);
+      if (x > w / 2) expect(t.body).toBeLessThan(0);
+      expect(Math.abs(t.body)).toBeLessThanOrEqual(FACE_TURN);
     }
   });
 });

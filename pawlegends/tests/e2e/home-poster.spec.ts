@@ -78,6 +78,12 @@ for (const [hero, side] of [
         await page.waitForTimeout(1200);
         await page.screenshot({ path: `${SHOTS}/${w}x${h}-${side}-${hero}.png` });
         const { box, flip } = await poster(page);
+        // it looks toward the screen centre (the bolt and the rival), never out past its own edge: sampled over the sway
+        for (let i = 0; i < 4; i++) {
+          const gaze = Number(await page.evaluate(() => document.documentElement.dataset.posterGaze ?? 'NaN'));
+          if (side === 'cat' ? !(gaze > 0) : !(gaze < 0)) bad.push(`${w}x${h} ${hero} looks outward: gaze ${gaze}`);
+          await page.waitForTimeout(400);
+        }
         const [l, t, r, b] = box;
         expect(flip).toBe(side === 'cat' ? 1 : -1);
         // its own side, inside the screen, and big (over 45% of the height)
@@ -128,6 +134,8 @@ test('switching to a champion of the other species swings the poster to the mirr
   await settled(page, 'dog');
   const flips = await page.evaluate(() => (window as unknown as { __flips: number[] }).__flips);
   expect(flips.some((f) => f > -1 && f < 1), flips.join(',')).toBe(true);
+  // after the swap the dog looks left, toward the centre
+  await expect.poll(async () => Number(await page.evaluate(() => document.documentElement.dataset.posterGaze ?? 'NaN')), { timeout: limit(10_000) }).toBeLessThan(0);
   const after = (await poster(page)).box;
   expect((after[0] + after[2]) / 2).toBeGreaterThan(422);
   expect((before[0] + before[2]) / 2).toBeLessThan(422);
