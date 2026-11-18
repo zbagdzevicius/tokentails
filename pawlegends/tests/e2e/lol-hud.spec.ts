@@ -81,9 +81,14 @@ test('desktop: keycaps, a decimal under 1 s and one ready flash, the Nap bar, Ta
   await page.waitForTimeout(4000);
   await page.mouse.click(1100, 400, { button: 'right' });
   await page.waitForTimeout(2500);
-  await page.keyboard.press('s');
-  await page.keyboard.press('b');
-  await expect(page.locator('.lol-nap.on')).toBeVisible({ timeout: limit(10_000) });
+  // under heavy load the walk can reach a fight: a hit breaks the nap at once and a fallen hero cannot nap, so stop
+  // and nap again (after any respawn) until the bar is up
+  await expect(async () => {
+    expect((await me(page)).state).not.toBe('dead');
+    await page.keyboard.press('s');
+    await page.keyboard.press('b');
+    await expect(page.locator('.lol-nap.on')).toBeVisible({ timeout: limit(3_000) });
+  }).toPass({ timeout: limit(60_000) });
   const fills: number[] = [];
   for (let i = 0; i < 4; i++) {
     fills.push(Number(await page.locator('.lol-nap').evaluate((e) => (e as HTMLElement).style.getPropertyValue('--left'))));
@@ -93,7 +98,7 @@ test('desktop: keycaps, a decimal under 1 s and one ready flash, the Nap bar, Ta
   await expect(page.locator('.lol-nap')).toContainText('Napping');
   await page.screenshot({ path: `${SHOTS}/1440x900-nap.png` });
   await expect(page.locator('.lol-nap.on')).toHaveCount(0, { timeout: limit(10_000) });
-  // Q on cooldown: a decimal under 1 s, then exactly one ready flash for it
+  // Q on cooldown: a decimal under 1 s, then exactly one ready flash for each cooldown
   const before = Number((await attr(page, 'cdFlash')) || 0);
   // every text the Q timer shows, recorded in the page (the sub-second decimal lasts ~0.5 s at speed 2: polling it from
   // the test missed it on a loaded machine, QA flaky-qa)
@@ -107,18 +112,27 @@ test('desktop: keycaps, a decimal under 1 s and one ready flash, the Nap bar, Ta
     };
     new MutationObserver(note).observe(slot, { subtree: true, childList: true, characterData: true });
   });
-  // a loaded machine can let the walk out of the fountain run into a fight: a hero that fell casts nothing, so wait for
-  // the respawn before Q (the HUD is what is checked here, not the lane)
-  await expect.poll(async () => (await me(page)).state, { timeout: limit(60_000) }).not.toBe('dead');
-  await page.mouse.move(900, 400);
-  await page.keyboard.press('q');
-  await expect(page.locator('.pl-slot[data-i="0"].cooling')).toBeVisible({ timeout: limit(5_000) });
-  await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __qNums: string[] }).__qNums.join(' ')), { timeout: limit(20_000) })
-    .toMatch(/(^| )0\.\d( |$)/);
-  await expect.poll(async () => Number((await attr(page, 'cdFlash')) || 0), { timeout: limit(10_000) }).toBe(before + 1);
+  const qNums = () => page.evaluate(() => (window as unknown as { __qNums: string[] }).__qNums.join(' '));
+  const DECIMAL = /(^| )0\.\d( |$)/;
+  // The HUD writes the label once per drawn frame. Under heavy load (CI, a shared machine) frames can land further
+  // apart than the 15 sub-second ticks at speed 2, and the label then goes "2" -> ready with no frame in between (seen
+  // as "3 2" at load 37): no frame landed there, the HUD did nothing wrong. So Q is cast again, up to 4 cooldowns,
+  // until a frame does. Every label shown must still be whole seconds or one decimal under 1 s, one flash a cooldown.
+  let casts = 0;
+  for (; casts < 4 && !DECIMAL.test(await qNums()); casts++) {
+    // a loaded machine can let the walk out of the fountain run into a fight: a hero that fell casts nothing, so wait
+    // for the respawn before Q (the HUD is what is checked here, not the lane)
+    await expect.poll(async () => (await me(page)).state, { timeout: limit(60_000) }).not.toBe('dead');
+    await page.mouse.move(900, 400);
+    await page.keyboard.press('q');
+    await expect(page.locator('.pl-slot[data-i="0"].cooling')).toBeVisible({ timeout: limit(5_000) });
+    await expect.poll(async () => Number((await attr(page, 'cdFlash')) || 0), { timeout: limit(20_000) }).toBe(before + casts + 1);
+  }
+  const shown = await qNums();
+  expect(shown, 'a decimal under 1 s').toMatch(DECIMAL);
+  for (const t of shown.split(' ')) expect(t, `Q label "${t}" in "${shown}"`).toMatch(/^([1-9]\d*|0\.[1-9])$/);
   await page.waitForTimeout(600);
-  expect(Number((await attr(page, 'cdFlash')) || 0)).toBe(before + 1);
+  expect(Number((await attr(page, 'cdFlash')) || 0)).toBe(before + casts);
   // Tab holds the scoreboard open
   await page.keyboard.down('Tab');
   await expect(page.locator('.pl-scoreboard.on .card.lol')).toBeVisible();
