@@ -62,8 +62,8 @@ const ROWS_5V5: Record<HeroId, [number, number]> = {
 };
 
 describe('sim v36: the v35 hero balance pass', { timeout: limit(600000) }, () => {
-  it('SIM_VERSION 36, v35 frozen at 59dafddf (the first commit on main with the live v35 dir) with every fixture', () => {
-    expect(SIM_VERSION).toBe(36);
+  it('SIM_VERSION 37 (36 at release), v35 frozen at 59dafddf (the first commit on main with the live v35 dir) with every fixture', () => {
+    expect(SIM_VERSION).toBe(37);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');
     const entry = /simVersion: 35,\s*commit: '([0-9a-f]{40})'[^]*?\]\)/.exec(tool);
     expect(entry?.[1].startsWith('59dafddf')).toBe(true);

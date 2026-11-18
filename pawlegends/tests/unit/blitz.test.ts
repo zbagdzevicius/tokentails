@@ -147,7 +147,8 @@ describe('Blitz time up (EndReason 4) and its tie-break', () => {
     const { m, r } = timeUp((m) => {
       m.world.globals[G.Towers1] = 1;
       m.world.hp[RANGE.cores + 1] = 10;
-      m.world.globals[G.Kills0] = 9;
+      // sim v37: 7 ahead is no rout (8+ wins before the towers, V37.md §3)
+      m.world.globals[G.Kills0] = 7;
     });
     expect(r).toMatchObject({ reason: 'timeUp', winner: 1, outcome: 'lost' });
     expect(m.world.globals[G.EndReason]).toBe(4);
@@ -157,7 +158,15 @@ describe('Blitz time up (EndReason 4) and its tie-break', () => {
   it('then the higher core HP share', () => {
     const { r } = timeUp((m) => {
       m.world.hp[RANGE.cores + 1] -= 1;
-      m.world.globals[G.Kills1] = 9;
+      m.world.globals[G.Kills1] = 7;
+    });
+    expect(r).toMatchObject({ reason: 'timeUp', winner: 0, outcome: 'won' });
+  });
+
+  it('sim v37: a rout (8+ takedowns ahead) wins before the towers', () => {
+    const { r } = timeUp((m) => {
+      m.world.globals[G.Towers1] = 2;
+      m.world.globals[G.Kills0] = 8;
     });
     expect(r).toMatchObject({ reason: 'timeUp', winner: 0, outcome: 'won' });
   });

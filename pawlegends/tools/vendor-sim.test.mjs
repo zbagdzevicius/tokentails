@@ -21,7 +21,10 @@ describe('vendor-sim', () => {
     // toys; v26: stronger towers early) stay frozen beside the live sim v27 (executions, Cannon Chaos, the Practice
     // ground and the weekly twists, docs/plans/moba/V27.md) stays frozen too beside the live sim v28 (One Lane Brawl, the
     // Duel, Boss Weekend, docs/plans/moba/V28.md; v9 retired), and the root index dispatches by simVersion.
-    expect(SIM_VERSION).toBe(36);
+    expect(SIM_VERSION).toBe(37);
+    // Sim v37 (bots commit to a walk goal, the Blitz refit, V37.md) froze v36 with its fixtures
+    expect(JSON.parse(files['v36/pawlegends-sim.sha256.json']).simVersion).toBe(36);
+    expect(files['v36/maps-replay.fixture.json']).toBeDefined();
     // Sim v36 (the v35 hero balance pass, V36-BALANCE.md) froze v35 with its fixtures
     expect(JSON.parse(files['v35/pawlegends-sim.sha256.json']).simVersion).toBe(35);
     expect(files['v35/maps-replay.fixture.json']).toBeDefined();
@@ -43,21 +46,15 @@ describe('vendor-sim', () => {
     expect(files['v27/kite-replay.fixture.json']).toBeDefined();
     expect(JSON.parse(files['v26/pawlegends-sim.sha256.json']).simVersion).toBe(26);
     expect(files['v26/kite-replay.fixture.json']).toBeDefined();
-    expect(JSON.parse(files['v20/pawlegends-sim.sha256.json']).simVersion).toBe(20);
-    expect(JSON.parse(files['v21/pawlegends-sim.sha256.json']).simVersion).toBe(21);
-    expect(files['v20/hearthwood-pvp.fixture.json']).toBeDefined();
-    expect(files['v21/hearthwood-pvp.fixture.json']).toBeDefined();
-    expect(JSON.parse(files['v22/pawlegends-sim.sha256.json']).simVersion).toBe(22);
-    expect(files['v22/blitz-replay.fixture.json']).toBeDefined();
-    expect(JSON.parse(files['v23/pawlegends-sim.sha256.json']).simVersion).toBe(23);
-    expect(files['v23/kite-replay.fixture.json']).toBeDefined();
+    // Sim v37 retired v20 to v23 (backend build memory, V37.md §6)
+    for (let v = 20; v <= 23; v++) expect(Object.keys(files).some((k) => k.startsWith(`v${v}/`)), `v${v} retired`).toBe(false);
     expect(JSON.parse(files['v24/pawlegends-sim.sha256.json']).simVersion).toBe(24);
     expect(files['v24/blitz-replay.fixture.json']).toBeDefined();
     expect(JSON.parse(files['v25/pawlegends-sim.sha256.json']).simVersion).toBe(25);
     expect(files['v25/kite-replay.fixture.json']).toBeDefined();
     expect(files[`v${SIM_VERSION}/dog-replay.fixture.json`]).toBeDefined();
     expect(files[`v${SIM_VERSION}/new-dog-replay.fixture.json`]).toBeDefined();
-    expect(files['index.ts']).toContain("import * as v20 from './v20';");
+    expect(files['index.ts']).toContain("import * as v24 from './v24';");
     expect(Object.keys(files).some((k) => k.startsWith('v9/'))).toBe(false);
     expect(files['index.ts']).toContain(`import * as v${SIM_VERSION} from './v${SIM_VERSION}';`);
 

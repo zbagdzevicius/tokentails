@@ -89,7 +89,8 @@ describe('bots (§7.2)', { timeout: limit(300000) }, () => {
 
   it('sim v14: bots play the five original dogs and cast all four of their slots', () => {
     const casts = new Map<string, Set<number>>();
-    for (const seed of [5, 6, 7, 8]) {
+    // sim v37 (bots commit to a walk goal): Bravo's ultimate (an ally beside the foe) needs more matches
+    for (const seed of [5, 6, 7, 8, 9, 10, 11, 12]) {
       const m = botsOn(heroMatch(['brutus', 'nugget', 'marshmallow', 'clem', 'sage', 'gabe'], undefined, seed));
       const m2 = botsOn(heroMatch(['brutus', 'bravo', 'chili', 'clem', 'sage', 'gabe'], undefined, seed));
       const m3 = botsOn(heroMatch(['brutus', 'howler', 'nugget', 'clem', 'sage', 'gabe'], undefined, seed));

@@ -489,6 +489,14 @@ export const BOT_AI = Object.freeze({
   waveClearHpBp: 4000,
   /** Re-issue a move only when the goal moved more than this (mm). */
   repeatSlack: 1500,
+  /**
+   * Sim v37 (docs/plans/moba/V37.md §2): commitment on the 3v3 maps (Hearthwood keeps JUNGLE_BOT.goalHold). A walk goal
+   * (a move, or an attack it must walk to) more than walkFar from the one given less than walkHold ago waits, so two
+   * rules that take turns every think (the lane front and the back-off point, a gem and a back-off, Pudding and the lane)
+   * cannot hold a bot on one spot. Not while retreating, and not for a back-off from tower fire.
+   */
+  walkHold: 60,
+  walkFar: 4000,
   /** A "defensive" Paw Trick fires when an enemy hero is this close while retreating. */
   trickThreat: 5000,
   /** Sage hops back when an enemy hero is this close. */

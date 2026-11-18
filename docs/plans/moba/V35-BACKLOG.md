@@ -35,6 +35,9 @@ for this batch: no sim bump for this alone.
 
 ## 2. Stuck bots on the pool maps (from V34-MAPS.md §2)
 
+**Done in sim v37** (V37.md §2): a 2 s walk-goal hold on every 3v3 map; stuck-bot matches per 200 went to Crossing 2,
+Ridge 4, Thicket 4, Quarry 6, Park 8.
+
 **Measured** (200 matches a map, seeds 1,001+, `tools/maps-sanity.mjs`; a stuck bot = moving with no progress for
 5 s): matches with at least one stuck bot, after the v34 balance pass:
 

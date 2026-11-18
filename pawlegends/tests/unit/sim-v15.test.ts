@@ -40,7 +40,7 @@ const roles = (side: 'cat' | 'dog'): Record<HeroRole, number> => {
 
 describe('sim v15: ten dogs', { timeout: limit(300000) }, () => {
   it('SIM_VERSION 15, PARTY_SINCE 13; 20 heroes, 10 a side with the same roles; the three new dogs at 17..19', () => {
-    expect(SIM_VERSION).toBe(36);
+    expect(SIM_VERSION).toBe(37);
     expect(PARTY_SINCE).toBe(13);
     expect(HERO_IDS).toHaveLength(28);
     // sim v29 appended the roster four (20..23) after them, sim v31 four more (24..27)
@@ -93,11 +93,11 @@ describe('sim v15: ten dogs', { timeout: limit(300000) }, () => {
     expect([...seen].sort()).toEqual(['dots', 'footlong', 'zzz']);
   });
 
-  it('the vendored v28 new-dog fixture is a Frankie replay at sim v28; the frozen v20 to v27 fixtures keep their versions (v10 to v19 retired with sim v35)', () => {
+  it('the vendored v28 new-dog fixture is a Frankie replay at sim v28; the frozen v24 to v27 fixtures keep their versions (v10 to v19 retired with sim v35, v20 to v23 with v37)', () => {
     const live = JSON.parse(readFileSync(join(VENDOR, 'v28', 'new-dog-replay.fixture.json'), 'utf8')) as ReplayRecord;
     expect(live.simVersion).toBe(28);
     expect(live.hero).toBe('frankie');
-    for (let v = 20; v <= 27; v++) {
+    for (let v = 24; v <= 27; v++) {
       const frozen = JSON.parse(readFileSync(join(VENDOR, `v${v}`, 'new-dog-replay.fixture.json'), 'utf8')) as ReplayRecord;
       expect(frozen.simVersion).toBe(v);
     }

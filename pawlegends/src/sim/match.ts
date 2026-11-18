@@ -25,11 +25,19 @@ export function tieBreakWinner(w: World, seed: number): Team {
 }
 
 /**
- * Sim v22 (WR-BS-PLAN.md §4.2): the winner at a Blitz match's hard end, objective first: more enemy towers destroyed,
+ * Sim v22 (WR-BS-PLAN.md §4.2): the winner at a Blitz match's hard end, objective first (sim v37: after a rout, a
+ * takedown lead of MutatorRules.routTakedowns): more enemy towers destroyed,
  * then the higher own core HP share, then more takedowns, then more structure damage dealt; all equal is a draw (−1).
  * No coin: a draw is a result.
  */
 export function timeUpWinner(w: World): Team | -1 {
+  // Sim v37 (V37.md §3): a rout (MutatorRules.routTakedowns takedowns ahead) wins before the structures.
+  const rout = mutOf(w).routTakedowns;
+  if (rout > 0) {
+    const lead = w.globals[G.Kills0] - w.globals[G.Kills1];
+    if (lead >= rout) return 0;
+    if (-lead >= rout) return 1;
+  }
   const t0 = w.globals[G.Towers0];
   const t1 = w.globals[G.Towers1];
   if (t0 !== t1) return t0 > t1 ? 0 : 1;

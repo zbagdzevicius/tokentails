@@ -53,6 +53,11 @@ export interface MutatorRules {
   lateLead: boolean;
   /** The designed end (0: none, only the map's safety end). At this tick the match ends with reason 'timeUp'. */
   hardEnd: number;
+  /**
+   * Sim v37 (V37.md §3): at the designed end a team this many takedowns ahead wins (a rout) before the structure
+   * tie-breakers (0: never). Blitz 8: a team that lost the fights 10-0 no longer wins on one extra tower at 3:15.
+   */
+  routTakedowns: number;
   /** Sim v27: ability and Paw Trick cooldowns × this (bp; at least one tick). */
   cooldownBp: number;
   /** Sim v27: Fish from every source × this (bp), so Toys come sooner. */
@@ -111,6 +116,7 @@ const NONE: MutatorRules = Object.freeze({
   lateRampBp: 10000,
   lateLead: true,
   hardEnd: 0,
+  routTakedowns: 0,
   cooldownBp: 10000,
   fishBp: 10000,
   pickupEveryBp: 10000,
@@ -155,35 +161,37 @@ const BLITZ: MutatorRules = Object.freeze({
   // so every cat row −0.5% (the v29 and v31 cats get rows at −0.5%).
   // Sim v33 (V33-KILLS.md): every row × the inverse of its hero's 3v3 row change (the 3v3 row applies here too), so the
   // 3v3 refit for the bigger kill rewards leaves Blitz where it was.
+  // Sim v37 (V37.md §4): refit with the v37 bots (they commit to a walk goal) and the rout rule: two rounds on seeds
+  // 1-8,000 (a logistic fit over the line-ups, damped), verified on 20,001-28,000: every hero 46.8-52.5%, cats 50.4%.
   hero: Object.freeze({
-    aviete: { dmgBp: 9312, takenBp: 10671 },
-    bengas: { dmgBp: 9803, takenBp: 10195 },
-    bravo: { dmgBp: 10897, takenBp: 9120 },
-    brutus: { dmgBp: 10623, takenBp: 9384 },
-    cacklejaw: { dmgBp: 9163, takenBp: 10830 },
-    chili: { dmgBp: 9973, takenBp: 10025 },
-    clem: { dmgBp: 9612, takenBp: 10386 },
-    domino: { dmgBp: 9987, takenBp: 10013 },
-    duchess: { dmgBp: 10069, takenBp: 9927 },
-    frankie: { dmgBp: 8991, takenBp: 11009 },
-    gabe: { dmgBp: 10616, takenBp: 9387 },
-    howler: { dmgBp: 9756, takenBp: 10247 },
-    lambo: { dmgBp: 10456, takenBp: 9537 },
-    marshmallow: { dmgBp: 10409, takenBp: 9602 },
-    meatball: { dmgBp: 11691, takenBp: 8314 },
-    nugget: { dmgBp: 10365, takenBp: 9634 },
-    pixel: { dmgBp: 9235, takenBp: 10762 },
-    rocket: { dmgBp: 9888, takenBp: 10116 },
-    sage: { dmgBp: 9571, takenBp: 10428 },
-    stilts: { dmgBp: 9176, takenBp: 10824 },
-    mochi: { dmgBp: 9871, takenBp: 10136 },
-    ziggy: { dmgBp: 9835, takenBp: 10163 },
-    nova: { dmgBp: 9939, takenBp: 10061 },
-    dusty: { dmgBp: 9870, takenBp: 10132 },
-    barkula: { dmgBp: 10043, takenBp: 9954 },
-    biscuit: { dmgBp: 10048, takenBp: 9957 },
-    champ: { dmgBp: 10029, takenBp: 9972 },
-    ranger: { dmgBp: 10114, takenBp: 9892 },
+    aviete: { dmgBp: 9172, takenBp: 10831 },
+    bengas: { dmgBp: 10703, takenBp: 9296 },
+    bravo: { dmgBp: 10570, takenBp: 9394 },
+    brutus: { dmgBp: 10307, takenBp: 9668 },
+    cacklejaw: { dmgBp: 9486, takenBp: 10453 },
+    chili: { dmgBp: 10219, takenBp: 9771 },
+    clem: { dmgBp: 9231, takenBp: 10805 },
+    domino: { dmgBp: 10086, takenBp: 9912 },
+    duchess: { dmgBp: 9769, takenBp: 10227 },
+    frankie: { dmgBp: 9257, takenBp: 10675 },
+    gabe: { dmgBp: 10405, takenBp: 9576 },
+    howler: { dmgBp: 9035, takenBp: 11027 },
+    lambo: { dmgBp: 10350, takenBp: 9632 },
+    marshmallow: { dmgBp: 10354, takenBp: 9647 },
+    meatball: { dmgBp: 11633, takenBp: 8356 },
+    nugget: { dmgBp: 10678, takenBp: 9347 },
+    pixel: { dmgBp: 9374, takenBp: 10601 },
+    rocket: { dmgBp: 10084, takenBp: 9912 },
+    sage: { dmgBp: 9286, takenBp: 10743 },
+    stilts: { dmgBp: 9546, takenBp: 10394 },
+    mochi: { dmgBp: 10263, takenBp: 9728 },
+    ziggy: { dmgBp: 9533, takenBp: 10461 },
+    nova: { dmgBp: 9643, takenBp: 10365 },
+    dusty: { dmgBp: 10018, takenBp: 9980 },
+    barkula: { dmgBp: 10194, takenBp: 9805 },
+    biscuit: { dmgBp: 10144, takenBp: 9853 },
+    champ: { dmgBp: 9283, takenBp: 10726 },
+    ranger: { dmgBp: 10622, takenBp: 9400 },
   }),
   // the cannon goes to a team 3 takedowns behind (8 on every other match): a short match needs its comeback early
   underdogTakedowns: 3,
@@ -197,6 +205,8 @@ const BLITZ: MutatorRules = Object.freeze({
   // every core takes the same late Sunset bonus (sim v22 to v31: decayLead false, the same core burn for both)
   lateLead: false,
   hardEnd: 5850,
+  // Sim v37: 8+ takedowns ahead at 3:15 wins (a team down 10+ won 8.1% of 356 such matches, all at the time up on towers)
+  routTakedowns: 8,
   cooldownBp: 10000,
   fishBp: 10000,
   pickupEveryBp: 10000,

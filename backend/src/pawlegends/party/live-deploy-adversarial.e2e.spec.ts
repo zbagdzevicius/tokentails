@@ -22,7 +22,7 @@ import { TestClient } from './relay-test-client.helper-spec';
  */
 
 const HARNESS = resolve(__dirname, '../../../test/relay-proc.harness.ts');
-const OLD_SIM = 20;
+const OLD_SIM = 24;
 
 type Logged = { event: string; props: Record<string, unknown> };
 

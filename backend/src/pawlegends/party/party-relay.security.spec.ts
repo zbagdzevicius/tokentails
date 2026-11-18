@@ -8,7 +8,6 @@ import { PartyTicketService } from './party-ticket.service';
 import { RefereePool } from './referee-pool';
 import { MemoryRoomStore } from './room-store';
 import { LIVE, TestClient } from './relay-test-client.helper-spec';
-import { simFor } from '../../vendor/pawlegends-sim';
 
 /*
  * Relay hardening (the party security review, Nov 2026): every finding that was reproduced against a live relay is
@@ -117,36 +116,12 @@ describe('party relay hardening', () => {
         await b.stop();
     });
 
-    it('a sim v20 room still strikes op 11 (its decoder does not know Fire): 3 strikes close the sender', async () => {
-        const v20 = simFor(20)!;
-        const b = await boot();
-        const { a, c, stopBeats } = await twoInMatch(b, { sim: 20, simHash: v20.SIM_SOURCE_HASH });
-        for (let i = 0; i < 3; i++) c.cmd(new Uint8Array([CMD_OP.Fire, 10, 0, 10, 0]));
-        await c.until(() => c.closed, 5000);
-        expect(c.closed!.code).toBe(4002);
-        for (const t of a.turns) for (const e of t.entries) expect(e.cmd[0]).not.toBe(CMD_OP.Fire);
-        stopBeats();
-        await b.stop();
-    });
-
     it('sim v23: a human Kite (op 12, KITE-FIX) enters a TURN and is not a strike', async () => {
         const b = await boot();
         const { a, c, stopBeats } = await twoInMatch(b);
         for (let i = 0; i < 4; i++) c.cmd(new Uint8Array([CMD_OP.Kite, 10, 0, 10, 0, 7]));
         await a.until(() => a.turns.some(t => t.entries.some(e => e.cmd[0] === CMD_OP.Kite)) || null, 5000);
         expect(c.closed).toBeNull();
-        stopBeats();
-        await b.stop();
-    });
-
-    it('a sim v22 room still strikes op 12 (its decoder does not know Kite): 3 strikes close the sender', async () => {
-        const v22 = simFor(22)!;
-        const b = await boot();
-        const { a, c, stopBeats } = await twoInMatch(b, { sim: 22, simHash: v22.SIM_SOURCE_HASH });
-        for (let i = 0; i < 3; i++) c.cmd(new Uint8Array([CMD_OP.Kite, 10, 0, 10, 0, 7]));
-        await c.until(() => c.closed, 5000);
-        expect(c.closed!.code).toBe(4002);
-        for (const t of a.turns) for (const e of t.entries) expect(e.cmd[0]).not.toBe(CMD_OP.Kite);
         stopBeats();
         await b.stop();
     });

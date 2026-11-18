@@ -485,6 +485,8 @@ export interface World {
   botId: Int32Array;
   /** Current mistake: (last tick of it) × 4 + kind (SLIP), or −1. */
   botSlip: Int32Array;
+  /** Sim v37 (V37.md §2): the tick of the bot's last far walk-goal switch (BOT_AI.walkHold, 3v3 maps; empty on Hearthwood). */
+  botWalkAt: Int32Array;
   /** Sim v10 (GAPS B1): the ping order (PING_KIND + 1, 0 none), its last tick, point and target (allied bots only). */
   botOrd: Uint8Array;
   botOrdT: Int32Array;
@@ -803,6 +805,8 @@ export function createWorld(seed: number, map = 0): World {
     botY: new Int32Array(h),
     botId: new Int32Array(h).fill(-1),
     botSlip: new Int32Array(h).fill(-1),
+    // empty on Hearthwood (it keeps its own walk clock in `mg`), so a Hearthwood world hashes as in v36
+    botWalkAt: new Int32Array(map === 1 ? 0 : h),
     botOrd: new Uint8Array(h),
     botOrdT: new Int32Array(h),
     botOrdX: new Int32Array(h),
@@ -910,6 +914,8 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.ob,
     // Sim v35.
     w.deathN, w.lifeAt,
+    // Sim v37: empty on Hearthwood (no bytes hashed).
+    w.botWalkAt,
   ];
 }
 

@@ -37,7 +37,7 @@ a 1:00 Pudding with ×0.5 escort HP. Each is one more row in the table if a late
 ### 1.1 Win condition
 
 1. A core kill wins at once (EndReason 1 `core`).
-2. At **3:15** (EndReason 4 `timeUp`): more enemy towers destroyed → higher own core HP share (compared exactly, by
+2. At **3:15** (EndReason 4 `timeUp`): sim v37, a rout first (8+ takedowns ahead wins, `routTakedowns`, V37.md §3); then more enemy towers destroyed → higher own core HP share (compared exactly, by
    cross-multiplying) → more takedowns → more structure damage dealt → **draw**. No coin. A draw has `winner −1`,
    `draw: true` and `outcome 'lost'` for both teams (the record format has no third outcome); rewards pay the loss plus
    half the win bonus.

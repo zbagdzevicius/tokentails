@@ -141,13 +141,47 @@ function walledOff(w: World, id: number, e: number): boolean {
  * objectives). A goal that is far restarts the clock. `walk`: false for an attack in reach (never held, no clock).
  */
 function holdWalk(w: World, id: number, mem: BotMem, x: number, y: number, walk: boolean): boolean {
-  if (w.mg.length === 0 || !walk) return false;
+  if (!walk) return false;
+  if (w.mg.length === 0) return holdWalk3(w, id, mem, x, y);
   const at = id * JG_ROW + JG.MoveAt;
   const tick = w.globals[G.Tick];
   const has = walkGoal(w, id, mem);
   const far = !has || Math.abs(walkPt[0] - x) > JUNGLE_BOT.goalFar || Math.abs(walkPt[1] - y) > JUNGLE_BOT.goalFar;
   if (has && far && mem.mode[id] !== BOT_MODE.Retreat && tick - mem.jg[at] < JUNGLE_BOT.goalHold) return true;
   if (far) mem.jg[at] = tick;
+  return false;
+}
+
+/** Sim v37: a back-off from untanked tower fire is never held (set by `think` for that one command). */
+let urgentWalk = false;
+
+/**
+ * Sim v37 (3v3 maps, V37.md §2): commitment. The current walk goal is the Move point, or the attack target while it is
+ * alive and out of attack range (a swing in range is no walk). A new goal more than BOT_AI.walkFar from it, less than
+ * BOT_AI.walkHold after the last far switch, waits (true); otherwise a far goal restarts the clock. Never while
+ * retreating or backing off from tower fire.
+ */
+function holdWalk3(w: World, id: number, mem: BotMem, x: number, y: number): boolean {
+  const tick = w.globals[G.Tick];
+  let has = false;
+  let gx = 0;
+  let gy = 0;
+  if (mem.op[id] === Op.Move && w.order[id] === Order.Move) {
+    has = true;
+    gx = mem.x[id];
+    gy = mem.y[id];
+  } else {
+    const t = mem.tid[id];
+    if (mem.op[id] === Op.Attack && w.order[id] === Order.Attack && t >= 0 && w.target[id] === t && w.alive[t] === 1 && !inAttackRange(w, id, t)) {
+      has = true;
+      gx = w.x[t];
+      gy = w.y[t];
+    }
+  }
+  const far = !has || Math.abs(gx - x) > BOT_AI.walkFar || Math.abs(gy - y) > BOT_AI.walkFar;
+  if (!far) return false;
+  if (has && !urgentWalk && mem.mode[id] !== BOT_MODE.Retreat && tick - mem.walkAt[id] < BOT_AI.walkHold) return true;
+  mem.walkAt[id] = tick;
   return false;
 }
 
@@ -172,8 +206,9 @@ function attack(w: World, id: number, mem: BotMem, t: number): Command | null {
     return moveTo(w, id, mem, pt[0], pt[1]);
   }
   if (w.order[id] === Order.Attack && w.target[id] === t) return null;
-  // Sim v22 (Hearthwood, balance pass): an attack it must walk to is a walk too (moveTo's hold).
-  if (holdWalk(w, id, mem, w.x[t], w.y[t], !inReach(w, id, t))) return null;
+  // Sim v22 (Hearthwood, balance pass): an attack it must walk to is a walk too (moveTo's hold). Sim v37: on the 3v3
+  // maps an attack is a walk unless the target is in attack range (no reach slack).
+  if (holdWalk(w, id, mem, w.x[t], w.y[t], w.mg.length === 0 ? !inAttackRange(w, id, t) : !inReach(w, id, t))) return null;
   mem.op[id] = Op.Attack;
   mem.tid[id] = t;
   return { op: Op.Attack, id: t };
@@ -1156,7 +1191,11 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   // Sim v10: a bot on a Group or Push order beside the human holds through a bad fight (tower fire still counts).
   const backed = ordered && (ord === PING_KIND.Group || isPush(ord)) && beside(w, id);
   if ((!backed && ((bad >= 0 && dist2(w.x[id], w.y[id], w.x[bad], w.y[bad]) <= BOT_AI.engageRange * BOT_AI.engageRange) || exposed)) || shot) {
-    return backOff(w, id, mem, lane);
+    // Sim v37: a back-off from tower fire is never held (holdWalk3).
+    urgentWalk = shot;
+    const c = backOff(w, id, mem, lane);
+    urgentWalk = false;
+    return c;
   }
   const lurk = backed ? -1 : scratch[1];
   // Sim v10: a ping order comes after the fights and the back-off, before Pudding, the camp and the lane.
