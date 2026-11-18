@@ -29,19 +29,18 @@ const rec = (i: number): ReplayRecord => ({ v: 1, simVersion: SIM_VERSION, seed:
 const row = (i: number, extra: Partial<HistoryEntry> = {}): Omit<HistoryEntry, 'replay'> => ({ id: `m${i}`, at: 1000 + i, hero: 'clem', mode: 'skirmish', difficulty: 'easy', outcome: 'won', grade: 'A', k: i, d: 1, a: 2, seconds: 300, simVersion: SIM_VERSION, ...extra });
 
 describe('match history store', () => {
-  it('keeps the newest 20 rows and the newest 5 replays', () => {
+  it('keeps the newest 20 rows, each with its replay (Nov 18: was the newest 5)', () => {
     const s = new Mem();
     for (let i = 0; i < 25; i++) recordMoment(row(i), rec(i), s);
     const h = loadHistory(s);
     expect(h).toHaveLength(HISTORY_MAX);
     expect(h[0].id).toBe('m24');
-    expect(h.filter((r) => r.replay).map((r) => r.id)).toEqual(['m24', 'm23', 'm22', 'm21', 'm20']);
-    expect(Object.keys(loadReplays(s)).sort()).toEqual(['m20', 'm21', 'm22', 'm23', 'm24']);
-    expect(REPLAY_MAX).toBe(5);
+    expect(h.filter((r) => r.replay)).toHaveLength(REPLAY_MAX);
+    expect(REPLAY_MAX).toBe(20);
     expect(replayOf('m24', s)?.seed).toBe(24);
     expect(replayOf('m3', s)).toBeNull();
   });
-  it('a party match is listed without a replay and never pushes a solo replay out', () => {
+  it('a row saved before Nov 18 with noReplay "party" stays listed without a replay', () => {
     const s = new Mem();
     recordMoment(row(1), rec(1), s);
     const p = recordMoment(row(2, { mode: 'party', noReplay: 'party' }), rec(2), s);

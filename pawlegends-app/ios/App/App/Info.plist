@@ -39,6 +39,8 @@
 	<string>public.app-category.strategy-games</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save your Paw Legends clips and pictures to your photos.</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import Photos
 import Capacitor
 
 /// The Pawlegends game screen (docs/plans/moba/APP-STORE.md "Native shell"): the Capacitor bridge view controller
@@ -66,6 +67,12 @@ class GameViewController: CAPBridgeViewController {
             let js = "window.__PL_THERMAL__ = \(GameViewController.thermalLiteral); window.dispatchEvent(new Event('pl-thermal'));"
             self?.webView?.evaluateJavaScript(js, completionHandler: nil)
         }
+    }
+
+    /// The page's `PawlegendsShell.saveFile` (pawlegends/src/share/saveFile.ts): WKWebView ignores `<a download>`.
+    override open func capacitorDidLoad() {
+        super.capacitorDidLoad()
+        bridge?.registerPluginInstance(PawlegendsShellPlugin())
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -147,3 +154,61 @@ enum DebugProbe {
     }
 }
 #endif
+
+/// `PawlegendsShell.saveFile({ name, mime, data })` (pawlegends/src/share/saveFile.ts): a clip video (MP4) or the
+/// Legend Moment picture (PNG) goes into Photos (add-only access, NSPhotoLibraryAddUsageDescription). Resolves
+/// `{ folder: "Photos" }`; rejects INVALID, UNSUPPORTED (a WebM video, which Photos cannot take), DENIED (no Photos
+/// access: the game then offers the share sheet) or FAILED. The Android twin is ShellPlugin.saveFile.
+@objc(PawlegendsShellPlugin)
+public class PawlegendsShellPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "PawlegendsShellPlugin"
+    public let jsName = "PawlegendsShell"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "saveFile", returnType: CAPPluginReturnPromise)
+    ]
+
+    /// 60 MB at most (a 20 s clip is about 10 MB).
+    static let maxBytes = 60 * 1024 * 1024
+
+    @objc func saveFile(_ call: CAPPluginCall) {
+        guard let name = call.getString("name"),
+              name.range(of: "^paw-legends-[a-z0-9-]{1,48}\\.(mp4|webm|png)$", options: .regularExpression) != nil,
+              let mime = call.getString("mime"),
+              mime.hasPrefix("video/") || mime == "image/png",
+              let base64 = call.getString("data"),
+              let data = Data(base64Encoded: base64, options: .ignoreUnknownCharacters),
+              !data.isEmpty, data.count <= PawlegendsShellPlugin.maxBytes else {
+            call.reject("bad file", "INVALID")
+            return
+        }
+        if mime.hasPrefix("video/webm") {
+            call.reject("Photos takes MP4 videos only", "UNSUPPORTED")
+            return
+        }
+        let video = mime.hasPrefix("video/")
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            guard status == .authorized || status == .limited else {
+                call.reject("no Photos access", "DENIED")
+                return
+            }
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+            do {
+                try data.write(to: url, options: .atomic)
+            } catch {
+                call.reject("could not write the file", "FAILED")
+                return
+            }
+            PHPhotoLibrary.shared().performChanges({
+                let request = PHAssetCreationRequest.forAsset()
+                request.addResource(with: video ? .video : .photo, fileURL: url, options: nil)
+            }) { ok, _ in
+                try? FileManager.default.removeItem(at: url)
+                if ok {
+                    call.resolve(["folder": "Photos"])
+                } else {
+                    call.reject("could not save", "FAILED")
+                }
+            }
+        }
+    }
+}

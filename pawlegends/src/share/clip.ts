@@ -9,6 +9,7 @@
 import { PUBLIC_GAME_URL } from '../app/platform';
 import { setFrameTap } from '../render/renderer';
 import { pickMime } from './clipSupport';
+import { saveFile, type SaveResult } from './saveFile';
 
 export { CLIP_MIMES, clipSupported, pickMime } from './clipSupport';
 
@@ -285,21 +286,9 @@ export interface ClipSheetOpts {
   track?(event: string, props: Record<string, string | number | boolean>): void;
 }
 
-/** Save the clip as a file (a download; the app shell's WebView may not support it, then false). */
-export function saveClip(clip: ClipResult): boolean {
-  try {
-    const a = document.createElement('a');
-    const href = URL.createObjectURL(clip.blob);
-    a.href = href;
-    a.download = clipFileName(clip.ext, new Date(), clip.kind ?? 'clip');
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(href), 10_000);
-    return true;
-  } catch {
-    return false;
-  }
+/** Save the clip as a file: a download on the web; in the app the gallery or the share sheet (share/saveFile.ts). */
+export function saveClip(clip: ClipResult): Promise<SaveResult> {
+  return saveFile(clip.blob, clipFileName(clip.ext, new Date(), clip.kind ?? 'clip'));
 }
 
 /** The system share sheet with the video file: 'shared', 'cancelled' or 'unsupported'. */
@@ -367,17 +356,24 @@ export function openClipSheet(parent: HTMLElement, o: ClipSheetOpts): HTMLElemen
     }
   };
   document.addEventListener('keydown', onKey, true);
-  const save = (): void => {
-    if (saveClip(o.clip)) {
-      note.textContent = 'Saved.';
-      o.track?.('clip_share', { via: 'save', framing: o.clip.framing });
-    } else note.textContent = "This device can't save the video. Use Share.";
+  const saveBtn = root.querySelector<HTMLButtonElement>('[data-c="save"]')!;
+  /** Save, and say where it went (or why not). */
+  const save = async (): Promise<SaveResult> => {
+    saveBtn.disabled = true;
+    note.textContent = 'Saving…';
+    const r = await saveClip(o.clip);
+    saveBtn.disabled = false;
+    note.textContent = r.note;
+    note.dataset.save = r.ok ? r.via : r.why;
+    if (r.ok) o.track?.('clip_share', { via: 'save', framing: o.clip.framing, to: r.via });
+    else if (r.why !== 'cancelled') o.track?.('clip_save_fail', { why: r.why });
+    return r;
   };
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     const a = t.closest<HTMLElement>('[data-c]')?.dataset.c;
     if (a === 'close' || t === root) close();
-    else if (a === 'save') save();
+    else if (a === 'save') void save();
     else if (a === 'again') {
       close();
       o.onAgain?.();
@@ -388,9 +384,10 @@ export function openClipSheet(parent: HTMLElement, o: ClipSheetOpts): HTMLElemen
           o.track?.('clip_share', { via: 'share', framing: o.clip.framing });
         } else if (r === 'unsupported') {
           // no video sharing here (a desktop browser, an Android WebView): save it and send the link the usual way
-          save();
           o.onLink(url, text);
-          note.textContent = 'Video saved and link copied. Post them together.';
+          void save().then((s) => {
+            if (s.ok) note.textContent = `${s.note} Link copied. Post them together.`;
+          });
         }
       });
     }

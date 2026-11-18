@@ -401,22 +401,18 @@ export function openShareCard(parent: HTMLElement, o: ShareCardOpts): HTMLElemen
     }
   };
   document.addEventListener('keydown', onKey, true);
-  const save = async (): Promise<void> => {
+  const save = async (): Promise<boolean> => {
     const b = await cardBlob(canvas);
     if (!b) {
       note.textContent = "Couldn't make the picture. Try again.";
-      return;
+      return false;
     }
-    const a = document.createElement('a');
-    const href = URL.createObjectURL(b);
-    a.href = href;
-    a.download = 'paw-legends-moment.png';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(href), 4000);
-    note.textContent = 'Saved.';
-    o.track?.('share_card', { via: 'save' });
+    const { saveFile } = await import('./saveFile');
+    const r = await saveFile(b, 'paw-legends-moment.png');
+    note.textContent = r.note;
+    note.dataset.save = r.ok ? r.via : r.why;
+    if (r.ok) o.track?.('share_card', { via: 'save' });
+    return r.ok;
   };
   const share = async (): Promise<void> => {
     const b = await cardBlob(canvas);
@@ -433,9 +429,8 @@ export function openShareCard(parent: HTMLElement, o: ShareCardOpts): HTMLElemen
       if ((err as { name?: string })?.name === 'AbortError') return;
     }
     // no picture sharing here: save the picture and send the link the usual way
-    await save();
     o.onLink(url, text);
-    note.textContent = 'Picture saved and link copied. Post them together.';
+    if (await save()) note.textContent = `${note.textContent} Link copied. Post them together.`;
   };
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;

@@ -16,11 +16,15 @@ A 10-20 s video of a match, recorded in the browser from its replay, shared to t
 - **Results → Share card → Video clip: Vertical 9:16 / Wide 16:9** (the Legend Moment): the replay opens on its own,
   the scout runs the whole match ("Finding your Legend Moment…"), the view cues the 15 s window with the most of the
   player's takedowns, 4 s before the first one (no takedowns: the match's last 15 s), and records it. Only for a kept
-  solo replay of this sim version (party matches keep no replay, MATCH-MOMENTS.md §1).
+  solo replay of this sim version (a party or PvP match's replay is watched from Match history, MATCH-MOMENTS.md §1).
 - **The clip sheet**: the video (looping, muted preview), its length, framing, format and size; **Share** (the system
-  share sheet with the file, `navigator.share({files})`), **Save video** (a download, `paw-legends-clip-YYYYMMDD.mp4`),
-  **Record again**. Where a device cannot share a video file (desktop browsers, the Android app's WebView) Share
-  saves it and copies the link with the text, like the share card.
+  share sheet with the file, `navigator.share({files})`), **Save video** (`src/share/saveFile.ts`; Nov 18 2026, founder: "I can't save it"),
+  **Record again**. Save says where the file went or why not, never a false "Saved": on the web a download
+  (`paw-legends-clip-YYYYMMDD.mp4`, "Saved to your Downloads."); in the app (WebViews ignore downloads) the shell's
+  native `PawlegendsShell.saveFile` (store builds after Nov 18: Android MediaStore Movies › Paw Legends, iOS Photos with
+  NSPhotoLibraryAddUsageDescription), else the share sheet with the file, else "This app version can't save the video".
+  Save image on the Legend Moment card works the same way. Where a device cannot share a video file (desktop browsers,
+  the Android app's WebView) Share saves it and copies the link with the text, like the share card.
 - **What is in the video**: the game view centre-cropped to the framing (the camera follows the champion, so it stays
   in the frame), the v6 banner for the first 2.6 s (the best moment as the headline, "SHUT DOWN!", else LEGEND MOMENT;
   the champion and the mode under it), and the PAW LEGENDS · pawlegends.app mark bottom right. The HUD is not in it

@@ -13,12 +13,13 @@
  */
 import { decodeStream, fromBase64 } from '../sim/commands';
 import { createMatch, fillPicks, result, snapshot, step, tickOf, SIM_VERSION } from '../sim/index';
+import { fillPicksParty } from '../sim/party';
 import { HighlightDetector } from './highlights/detect';
 import { kindOf, probe } from './highlights/probe';
 import { HZ, SAMPLE, type HighlightReel } from './highlights/rules';
 import { bindMap, mapIndex } from '../sim/map/runtime';
 import { LIMITS_BY_MAP } from '../data/limits';
-import { HUMAN_SLOT, teamOfSlot, teamSizeOf, type Command, type Match, type MatchResult, type ReplayRecord, type SimEvent, type Team, type TimedCommand } from '../sim/api';
+import { HUMAN_SLOT, teamOfSlot, teamSizeOf, type Command, type Difficulty, type HeroId, type Match, type MatchResult, type PartySeat, type ReplayRecord, type SimEvent, type Slot, type Team, type TimedCommand, type TrickId } from '../sim/api';
 import { encodeSnap, type EndMsg, type EventsMsg, type HostMsg, type SnapMsg, type WelcomeMsg } from '../host/protocol';
 import { deepClone } from './clone';
 
@@ -55,9 +56,32 @@ export interface HighlightLoad {
   emotes?: readonly number[];
 }
 
-export type ReplayRecordLike = Pick<ReplayRecord, 'seed' | 'difficulty' | 'hero' | 'trick' | 'inputs' | 'ticks' | 'map' | 'mutator' | 'simVersion' | 'finalHash' | 'outcome'> & { party?: unknown };
+/**
+ * A record the viewer re-runs: a solo ReplayRecord (v1: `hero`, `trick`, one `inputs` stream), or a party (v2) or PvP
+ * (v3) record (`humans`, one `inputs` stream per human seat). `me` is the seat the viewer watches from (the player's
+ * own; default slot 0).
+ */
+export type ReplayRecordLike = Pick<ReplayRecord, 'seed' | 'difficulty' | 'ticks' | 'map' | 'mutator' | 'simVersion' | 'finalHash' | 'outcome'> & {
+  v?: number;
+  hero?: HeroId;
+  trick?: TrickId;
+  inputs: string | readonly string[];
+  humans?: readonly PartySeat[];
+  mode?: 'pvp';
+  fillDifficulty?: readonly [Difficulty, Difficulty];
+  me?: number;
+  party?: unknown;
+};
 
-/** Can this device's sim re-run the record? A record from another sim version or a party match cannot. Pure. */
+/** The seats a record's streams belong to (a solo record: slot 0 only), or null when the shape is wrong. Pure. */
+export function seatsOf(r: Pick<ReplayRecordLike, 'inputs' | 'humans' | 'hero' | 'trick'>): { slots: number[]; streams: string[] } | null {
+  if (typeof r.inputs === 'string') return r.hero && r.trick ? { slots: [HUMAN_SLOT], streams: [r.inputs] } : null;
+  if (!Array.isArray(r.inputs) || !Array.isArray(r.humans) || r.humans.length === 0 || r.humans.length !== r.inputs.length) return null;
+  if (!r.inputs.every((x) => typeof x === 'string') || r.humans[0].slot !== 0) return null;
+  return { slots: r.humans.map((h) => h.slot), streams: r.inputs.slice() };
+}
+
+/** Can this device's sim re-run the record? Only a record from this sim version can. Pure. */
 export function replayable(r: Pick<ReplayRecordLike, 'simVersion'> & { party?: unknown }, simVersion = SIM_VERSION): ReplayError | null {
   if (r.party !== undefined) return 'party';
   return r.simVersion === simVersion ? null : 'version';
@@ -65,15 +89,19 @@ export function replayable(r: Pick<ReplayRecordLike, 'simVersion'> & { party?: u
 
 interface Run {
   m: Match;
-  /** Next command index into `cmds`. */
-  ci: number;
+  /** Next command index into each seat's stream. */
+  ci: number[];
 }
 
 const eventsOf = (m: Match): readonly SimEvent[] => (m as unknown as { events?: SimEvent[] }).events ?? [];
 
 export class ReplayCore {
   private record: ReplayRecordLike | null = null;
-  private cmds: TimedCommand[] = [];
+  /** One decoded command stream per human seat (`slots[i]` plays `cmds[i]`). */
+  private cmds: TimedCommand[][] = [];
+  private slots: number[] = [HUMAN_SLOT];
+  /** The seat the viewer watches from. */
+  private me = HUMAN_SLOT;
   private limit = 0;
   private team: Team = 0;
   private picks: ReturnType<typeof fillPicks> | null = null;
@@ -102,22 +130,26 @@ export class ReplayCore {
     const key = `${record.seed}:${record.finalHash}:${record.ticks}`;
     if (key === this.key && this.record) return null;
     this.scanOnly = !!o.scanOnly;
+    const seats = seatsOf(record);
+    if (!seats) return 'decode';
     try {
       bindMap(mapIndex(record.map));
       const max = (LIMITS_BY_MAP[record.map ?? 'crossing'] ?? LIMITS_BY_MAP.crossing).maxTicks;
       this.limit = Math.min(record.ticks, max);
-      this.cmds = decodeStream(fromBase64(record.inputs), this.limit - 1);
+      this.cmds = seats.streams.map((s) => decodeStream(fromBase64(s), this.limit - 1));
+      this.picks = record.humans ? fillPicksParty(record.seed, record.humans, record.map) : fillPicks(record.seed, record.hero!, record.trick!, record.map);
     } catch {
       return 'decode';
     }
+    this.slots = seats.slots;
+    this.me = typeof record.me === 'number' && seats.slots.includes(record.me) ? record.me : HUMAN_SLOT;
     this.record = record;
     this.key = key;
-    this.picks = fillPicks(record.seed, record.hero, record.trick, record.map);
-    this.team = teamOfSlot(HUMAN_SLOT, record.map);
+    this.team = teamOfSlot(this.me, record.map);
     this.keys = new Map();
     const fresh = this.fresh();
     if (!this.scanOnly) this.keys.set(0, deepClone(fresh));
-    this.scout = { m: fresh, ci: 0 };
+    this.scout = { m: fresh, ci: this.cmds.map(() => 0) };
     this.reel = null;
     this.detector = null;
     if (o.highlights) {
@@ -134,10 +166,10 @@ export class ReplayCore {
           mutator: record.mutator ?? 'none',
           tricks,
           names: picks.map((h, s) => o.highlights?.names?.[s] ?? h),
-          // a kept record is a solo match: every other slot is a bot
-          bots: picks.map((_, s) => s !== HUMAN_SLOT),
-          vsBots: true,
-          me: HUMAN_SLOT,
+          // every slot without a human seat is a bot
+          bots: picks.map((_, s) => !this.slots.includes(s)),
+          vsBots: record.mode !== 'pvp',
+          me: this.me,
           kindOf: kindOf(fresh),
           ...(o.highlights.emotes ? { emotes: o.highlights.emotes } : {}),
         });
@@ -155,27 +187,47 @@ export class ReplayCore {
   private fresh(): Match {
     const r = this.record!;
     const { picks, tricks } = this.picks!;
-    return createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, ...(r.map === undefined ? {} : { map: r.map }), ...(r.mutator === undefined || r.mutator === 'none' ? {} : { mutator: r.mutator }) });
-  }
-
-  /** The first command index at or after `tick` (binary search). */
-  private cmdAt(tick: number): number {
-    let lo = 0;
-    let hi = this.cmds.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (this.cmds[mid].tick < tick) lo = mid + 1;
-      else hi = mid;
+    const map = r.map === undefined ? {} : { map: r.map };
+    // the party and PvP records re-run like runSeats (sim/party.ts): the human seats, PvP's mode and fill bots
+    if (r.humans) {
+      if (r.mode === 'pvp') return createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, humans: this.slots, mode: 'pvp', fillDifficulty: [r.fillDifficulty?.[0] ?? 'hard', r.fillDifficulty?.[1] ?? 'hard'], ...map });
+      return createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, humans: this.slots, ...map, ...(r.mutator === undefined || r.mutator === 'none' ? {} : { mutator: r.mutator }) });
     }
-    return lo;
+    return createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, ...map, ...(r.mutator === undefined || r.mutator === 'none' ? {} : { mutator: r.mutator }) });
   }
 
-  /** One tick of `run` with its recorded commands. */
+  /** The first command index at or after `tick` in each stream (binary search). */
+  private cmdAt(tick: number): number[] {
+    return this.cmds.map((list) => {
+      let lo = 0;
+      let hi = list.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (list[mid].tick < tick) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    });
+  }
+
+  /** One tick of `run` with its recorded commands (slot 0's as the match's own, the other seats' as `others`). */
   private stepRun(run: Run): void {
     const t = tickOf(run.m);
-    const batch: Command[] = [];
-    while (run.ci < this.cmds.length && this.cmds[run.ci].tick === t) batch.push(this.cmds[run.ci++].cmd);
-    step(run.m, batch);
+    if (this.cmds.length === 1 && this.slots[0] === HUMAN_SLOT) {
+      const list = this.cmds[0];
+      const batch: Command[] = [];
+      while (run.ci[0] < list.length && list[run.ci[0]].tick === t) batch.push(list[run.ci[0]++].cmd);
+      step(run.m, batch);
+      return;
+    }
+    const slot0: Command[] = [];
+    const others: Command[][] = this.picks!.picks.map(() => []);
+    for (let i = 0; i < this.cmds.length; i++) {
+      const list = this.cmds[i];
+      const out = this.slots[i] === HUMAN_SLOT ? slot0 : others[this.slots[i]];
+      while (run.ci[i] < list.length && list[run.ci[i]].tick === t) out.push(list[run.ci[i]++].cmd);
+    }
+    step(run.m, slot0, others);
   }
 
   private running(run: Run): boolean {
@@ -207,10 +259,10 @@ export class ReplayCore {
       }
       for (const e of evs) {
         if (e.type !== 'death') continue;
-        if (e.id === HUMAN_SLOT) {
+        if (e.id === this.me) {
           this.info.deaths.push(e.tick);
           changed = true;
-        } else if (e.killer === HUMAN_SLOT && e.id < this.picks!.picks.length) {
+        } else if (e.killer === this.me && e.id < this.picks!.picks.length) {
           this.info.takedowns.push(e.tick);
           changed = true;
         }
@@ -272,7 +324,7 @@ export class ReplayCore {
       matchId: `replay-${(r.seed >>> 0).toString(16).padStart(8, '0')}`,
       seed: r.seed,
       simVersion: SIM_VERSION,
-      slot: HUMAN_SLOT,
+      slot: this.me as Slot,
       team: this.team,
       picks: this.picks.picks.slice(),
       tricks: this.picks.tricks.slice(),

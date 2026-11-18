@@ -9,10 +9,16 @@ no backend change, no new start button, nothing with a price.
 - Profile chip → Treat Track → **Match history** (`data-testid="open-history"`): the last 20 matches on this device,
   newest first. A row shows the champion's face and name, the mode and how long ago, Victory / Defeat / Draw and the
   length, K / D / A, the grade, and **Watch** when its replay is kept.
-- Replays are kept for the newest 5 solo matches (party and PvP matches are listed with "Party match": their record
-  needs the room log). A replay made with another sim version says "Older version" and cannot play.
+- Every listed match keeps its replay (`REPLAY_MAX` = 20; Nov 18 2026, founder: "in recordings I can see only past
+  match recording"; it was the newest 5 solo matches). Party and PvP matches keep their PartyReplayRecord /
+  PvpReplayRecord and the player's seat (`slot`); the viewer re-runs every seat's stream and watches from that seat.
+  They are watched from Match history only (Watch replay on a party's results would leave the party). Rows saved
+  before Nov 18 without a replay say "No replay".
+- A replay plays only on the sim version it was made with, and the sim changes about daily: such a row stays listed
+  with "Older version" and the reason ("The game has updated since this match"). Save a clip as a video to keep it.
 - Storage: `localStorage` `tt.pawlegends.history.v1` (rows) and `tt.pawlegends.replays.v1` (records, about 5-60 KB
-  each). When storage is full the oldest replays go first; the row is always saved. Code: `pawlegends/src/replay/store.ts`.
+  each, a PvP record up to 6 streams). When storage is full, replays of another sim version go first, then the oldest;
+  the new one and the row are always saved. Code: `pawlegends/src/replay/store.ts`.
 - Display only. No counter is derived from it: match-derived counters are written only inside the server's `/live`
   save. Follow-up: move the rows into the cloud progress blob once gap package P2 (rewards-cloud) has shipped it.
 

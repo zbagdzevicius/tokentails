@@ -15,7 +15,7 @@ import { SIM_VERSION } from '../../sim/version';
 import type { ApiArgs, ApiOp, ApiResult } from '../../embed/api';
 import { HERO_TEXT } from '../heroText';
 import { heroFaceUrl } from '../art';
-import { ago, clock, loadHistory, MODE_LABEL, replayOf, type HistoryEntry } from '../../replay/store';
+import { ago, clock, loadHistory, MODE_LABEL, REPLAY_MAX, replayOf, type HistoryEntry } from '../../replay/store';
 import '../css/moments.css';
 import '../css/history.css';
 
@@ -259,6 +259,9 @@ const face = (h: string, size: number, cls = 'mh-face'): string => `<img class="
 const resultWord = (o: Outcome): string => (o === 'won' ? 'Victory' : o === 'draw' ? 'Draw' : 'Defeat');
 const badge = (m: 'mvp' | 'svp' | null): string => (m ? `<b class="mh-mvp ${m}" title="${m === 'mvp' ? 'Best on the winning team' : 'Best on the losing team'}">${m.toUpperCase()}</b>` : '');
 
+/** Why an older replay does not play (the row's tooltip and the match page). */
+export const OLDER_TIP = 'A replay plays only on the game version it was made with. The game has updated since this match.';
+
 export function rowHtml(r: ShownRow, now: number, withWatch = true): string {
   const name = heroTitle(r.hero, r.heroName);
   const res = resultWord(r.outcome);
@@ -267,8 +270,10 @@ export function rowHtml(r: ShownRow, now: number, withWatch = true): string {
     w === 'watch'
       ? `<button type="button" class="pl-btn small mh-watch" data-watch="${esc(r.local!.id)}" aria-label="${esc(`Watch the replay: ${name}, ${res}`)}">▶ Watch</button>`
       : w === 'older'
-        ? '<small class="mh-note" title="Made with an older version of the game">Older version</small>'
-        : '';
+        ? `<small class="mh-note" data-testid="history-older" title="${esc(OLDER_TIP)}">Older version</small>`
+        : r.local && withWatch
+          ? '<small class="mh-note" title="This device kept no replay of this match">No replay</small>'
+          : '';
   const open = r.sid ?? `local:${r.local?.id ?? ''}`;
   return `<li class="mh-row ${r.outcome}" data-open="${esc(open)}" tabindex="0" role="button" aria-label="${esc(`${res}, ${name}, ${r.mode}: open the match`)}">
     ${face(r.hero, 48)}
@@ -358,12 +363,14 @@ export function matchHtml(m: ServerMatch, now: number, watchId: string | null): 
 
 /** A device-only row: its own numbers (the full scoreboard is kept for matches saved to the account). */
 function localDetailHtml(r: ShownRow, now: number): string {
-  const w = r.local && watchState(r.local) === 'watch' ? r.local.id : null;
+  const state = r.local ? watchState(r.local) : 'none';
+  const w = state === 'watch' ? r.local!.id : null;
   return `<div class="mh-detail" data-testid="history-match">
     <div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back" aria-label="Back to the list">‹ Back</button>
       <span class="mh-dres ${r.outcome}"><b>${resultWord(r.outcome)}</b><small>${esc(r.mode)} · ${clock(r.seconds)} · ${esc(ago(r.at, now))}</small></span>
       ${w ? `<button type="button" class="pl-btn small mh-watch" data-watch="${esc(w)}" data-testid="history-watch">▶ Watch replay</button>` : ''}</div>
     <p class="mh-mvpline">${face(r.hero, 28, 'mh-pface')}<span><b>${esc(heroTitle(r.hero, r.heroName))}</b> · ${r.k}/${r.d}/${r.a}${r.grade ? ` · Grade ${esc(r.grade)}` : ''}</span></p>
+    ${state === 'older' ? `<p class="mh-empty" data-testid="history-older-why">${esc(OLDER_TIP)}</p>` : ''}
     <p class="mh-empty">Only matches saved to your account keep the full scoreboard. This one is only on this device.</p>
   </div>`;
 }
@@ -422,7 +429,7 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
     const title = friend ? `${esc(ownerName || friend.name)}'s history` : 'Match history';
     const chips = server ? `<div class="mh-filters" role="tablist" aria-label="Filter by mode">${FILTERS.map((f) => `<button type="button" role="tab" class="mh-chip" data-filter="${f}" aria-selected="${f === filter}">${FILTER_LABEL[f]}</button>`).join('')}</div>` : '';
     const wins = rows.filter((r) => r.outcome === 'won').length;
-    const sum = !server && !loading && rows.length ? `<p class="mh-sum">Last ${rows.length} ${rows.length === 1 ? 'match' : 'matches'} · ${wins} ${wins === 1 ? 'win' : 'wins'} · replays of your last 5 solo matches</p>` : '';
+    const sum = !server && !loading && rows.length ? `<p class="mh-sum">Last ${rows.length} ${rows.length === 1 ? 'match' : 'matches'} · ${wins} ${wins === 1 ? 'win' : 'wins'} · replays of your last ${REPLAY_MAX} matches</p>` : '';
     const list =
       loading && (friend || !local.length)
         ? '<p class="mh-empty" role="status">Loading…</p>'
@@ -436,8 +443,8 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
     const fine = friend
       ? ''
       : server
-        ? '<p class="fine">Saved to your account (your last 100 matches), and other players can see it. Replays stay on this device.</p>'
-        : '<p class="fine">Saved on this device.</p>';
+        ? '<p class="fine">Saved to your account (your last 100 matches), and other players can see it. Replays stay on this device and play on the game version they were made with.</p>'
+        : '<p class="fine">Saved on this device. Replays play on the game version they were made with.</p>';
     return `<h2>${title}</h2>${seasonHtml(stats)}${chips}${sum}${list}${moreBtn}${fine}`;
   };
 

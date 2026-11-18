@@ -1,17 +1,26 @@
 /**
  * Match history and saved replays (MATCH-MOMENTS.md §1): the last HISTORY_MAX matches as summary rows, and the replay
- * records of the last REPLAY_MAX solo matches. Stored on this device (localStorage); when the cloud progress blob
- * lands (gap P2) the rows move into it. Display only: nothing here is ever posted, and no match counter is derived
- * from it (match-derived counters are written only inside the server's /live save).
+ * records of the last REPLAY_MAX matches (solo, party and PvP: every listed match keeps its replay while the device has
+ * room). Stored on this device (localStorage). Display only: nothing here is ever posted, and no match counter is
+ * derived from it (match-derived counters are written only inside the server's /live save).
+ *
+ * Founder, Nov 18 ("in recordings I can see only past match recording"): only the newest 5 solo matches kept a
+ * replay, party and PvP matches kept none, and a replay plays only on the sim version it was made with (the sim
+ * changes about daily). Now every match keeps one, and when the device is full the replays an update already retired
+ * (another sim version) give way first.
  */
-import type { ReplayRecord } from '../sim/api';
+import type { PartyReplayRecord, PvpReplayRecord, ReplayRecord } from '../sim/api';
+import { SIM_VERSION } from '../sim/version';
 import { DETECTOR_V } from './highlights/version';
 import type { HighlightReel } from './highlights/rules';
 
 export const HISTORY_KEY = 'tt.pawlegends.history.v1';
 export const REPLAYS_KEY = 'tt.pawlegends.replays.v1';
 export const HISTORY_MAX = 20;
-export const REPLAY_MAX = 5;
+export const REPLAY_MAX = 20;
+
+/** A kept replay: solo (v1), party (v2) or PvP (v3). */
+export type StoredReplay = ReplayRecord | PartyReplayRecord | PvpReplayRecord;
 
 export type HistoryMode = 'skirmish' | 'classic' | 'blitz' | 'party' | 'pvp' | 'practice';
 
@@ -35,10 +44,12 @@ export interface HistoryEntry {
   /** The best moment's title ("Triple Pounce"), or null. */
   best?: string | null;
   simVersion: number;
-  /** A replay record is kept for this match (the newest REPLAY_MAX solo matches). */
+  /** A replay record is kept for this match (the newest REPLAY_MAX matches, while the device has room). */
   replay: boolean;
-  /** The reason a match has no replay ('party': party matches; else none kept). */
+  /** Rows saved before Nov 18 2026: 'party' = a party or PvP match, which kept no replay then. */
   noReplay?: 'party' | null;
+  /** The player's seat in the match (party and PvP; absent = slot 0). The replay is watched from it. */
+  slot?: number;
   /** HIGHLIGHTS.md: the match's highlight reel (cached; recomputed when the detector or the record changes). */
   highlights?: HighlightReel | null;
   /** gaps5 polish 3: ticks of the player's emotes (the detector's optional sidecar; solo matches with a replay). */
@@ -105,25 +116,36 @@ export function loadHistory(s: KVStore | null = store()): HistoryEntry[] {
 }
 
 /** The saved replay records by entry id. */
-export function loadReplays(s: KVStore | null = store()): Record<string, ReplayRecord> {
+export function loadReplays(s: KVStore | null = store()): Record<string, StoredReplay> {
   const v = read<unknown>(s, REPLAYS_KEY, {});
-  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, ReplayRecord>) : {};
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, StoredReplay>) : {};
 }
 
-export function replayOf(id: string, s: KVStore | null = store()): ReplayRecord | null {
-  const r = loadReplays(s)[id];
-  return r && typeof r.inputs === 'string' && typeof r.seed === 'number' ? r : null;
+/** A stored record that can be read: a seed, and one stream (solo) or one per human seat (party, PvP). Pure. */
+export function isStoredReplay(r: unknown): r is StoredReplay {
+  const x = r as { inputs?: unknown; seed?: unknown; humans?: unknown } | null;
+  if (!x || typeof x.seed !== 'number') return false;
+  if (typeof x.inputs === 'string') return true;
+  return Array.isArray(x.inputs) && Array.isArray(x.humans) && x.inputs.length === x.humans.length && x.inputs.every((i) => typeof i === 'string');
 }
+
+export function replayOf(id: string, s: KVStore | null = store()): StoredReplay | null {
+  const r = loadReplays(s)[id];
+  return isStoredReplay(r) ? r : null;
+}
+
+/** The solo record of a row (the highlights strip, the Legend Moment clip), or null for a party or PvP one. Pure. */
+export const soloRecord = (r: StoredReplay | null): ReplayRecord | null => (r && typeof r.inputs === 'string' ? (r as ReplayRecord) : null);
 
 let counter = 0;
 export const newEntryId = (now: number): string => `${now.toString(36)}-${(counter++ % 1296).toString(36)}`;
 
 /**
- * Add a match: the row goes first (HISTORY_MAX kept); a solo record is kept and the oldest past REPLAY_MAX dropped.
- * When storage is full the replays give way first (oldest out), then the row is saved without one. Returns the
- * saved row.
+ * Add a match: the row goes first (HISTORY_MAX kept); its record is kept and the oldest past REPLAY_MAX dropped.
+ * When storage is full the replays give way first (those of another sim version, which cannot play here, then the
+ * oldest), then the row is saved without one. Returns the saved row.
  */
-export function recordMoment(entry: Omit<HistoryEntry, 'replay'>, record: ReplayRecord | null, s: KVStore | null = store()): HistoryEntry {
+export function recordMoment(entry: Omit<HistoryEntry, 'replay'>, record: StoredReplay | null, s: KVStore | null = store(), simVersion = SIM_VERSION): HistoryEntry {
   const rows = loadHistory(s);
   const replays = loadReplays(s);
   let kept = false;
@@ -140,13 +162,14 @@ export function recordMoment(entry: Omit<HistoryEntry, 'replay'>, record: Replay
   const keep = new Set(order.slice(0, REPLAY_MAX));
   for (const id of Object.keys(replays)) if (!keep.has(id)) delete replays[id];
   for (const r of next) r.replay = keep.has(r.id);
-  // full storage: drop the oldest replays one by one until the write fits
-  let ids = order.slice(0, REPLAY_MAX);
-  while (!write(s, REPLAYS_KEY, replays) && ids.length > 0) {
-    const oldest = ids[ids.length - 1];
-    delete replays[oldest];
-    ids = ids.slice(0, -1);
-    const r = next.find((x) => x.id === oldest);
+  // full storage: drop replays one by one until the write fits, those of another sim version first, then the oldest
+  // (never the new one while another can go)
+  const listed = order.slice(0, REPLAY_MAX).filter((id) => id !== row.id).reverse();
+  const victims = [...listed.filter((id) => replays[id]?.simVersion !== simVersion), ...listed.filter((id) => replays[id]?.simVersion === simVersion), ...(replays[row.id] ? [row.id] : [])];
+  while (!write(s, REPLAYS_KEY, replays) && victims.length > 0) {
+    const id = victims.shift()!;
+    delete replays[id];
+    const r = next.find((x) => x.id === id);
     if (r) r.replay = false;
   }
   write(s, HISTORY_KEY, next);

@@ -18,10 +18,11 @@ import type { Look } from '../render/cosmetics';
 import { screenRightXZ, toX, toZ, towardCameraXZ } from '../render/coords';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { fillPicks } from '../sim/index';
+import { fillPicksParty } from '../sim/party';
 import { MAP } from '../data/map';
-import type { HeroId, ReplayRecord } from '../sim/api';
+import type { HeroId, TrickId } from '../sim/api';
 import { ReplayEngine, type ReplayHost } from './host';
-import type { ReplayError, ReplayInfo } from './core';
+import type { ReplayError, ReplayInfo, ReplayRecordLike } from './core';
 import { REPLAY_SPEEDS } from './loop';
 import { clock, MODE_LABEL, type HistoryEntry } from './store';
 import { sfx } from '../audio/sfx';
@@ -36,7 +37,8 @@ export interface ViewerContext {
   Session: typeof MatchSession;
   gr: GameRenderer;
   root: HTMLElement;
-  record: ReplayRecord;
+  /** The kept record (solo, party or PvP), with `me` = the player's seat. */
+  record: ReplayRecordLike;
   entry: HistoryEntry;
   muted: boolean;
   look: Look | null;
@@ -118,11 +120,16 @@ export interface ReplayViewer {
 
 export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
   const rec = ctx.record;
-  const heroTitle = ctx.entry.heroName || HERO_TEXT[rec.hero as HeroId]?.title || rec.hero;
+  const me = rec.me ?? 0;
+  const seat = rec.humans?.find((h) => h.slot === me);
+  const myHero = (seat?.hero ?? rec.hero ?? ctx.entry.hero) as HeroId;
+  const myTrick = (seat?.trick ?? rec.trick ?? 'pounce') as TrickId;
+  const heroTitle = ctx.entry.heroName || HERO_TEXT[myHero]?.title || myHero;
   let names: readonly string[] = ctx.names ?? [];
   if (!names.length)
     try {
-      names = slotNames(fillPicks(rec.seed, rec.hero, rec.trick, rec.map).picks, rec.seed, 0).map((n, i) => (i === 0 ? heroTitle : n));
+      const picks = rec.humans ? fillPicksParty(rec.seed, rec.humans, rec.map).picks : fillPicks(rec.seed, myHero, myTrick, rec.map).picks;
+      names = slotNames(picks, rec.seed, me).map((n, i) => (i === me ? heroTitle : n));
     } catch {
       names = [];
     }
@@ -149,13 +156,13 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
   /** The current build's warm-up finished and the replay runs (a montage seek waits for it). */
   let viewReady = false;
   let readyCb: (() => void) | null = null;
-  ctx.track?.('replay_open', { hero: rec.hero, ticks: rec.ticks, worker: engine.kind === 'worker' });
+  ctx.track?.('replay_open', { hero: myHero, ticks: rec.ticks, worker: engine.kind === 'worker', party: !!rec.humans });
 
   const bar = document.createElement('div');
   bar.className = 'mm-bar';
   bar.setAttribute('role', 'toolbar');
   bar.setAttribute('aria-label', 'Replay controls');
-  const heroName = ctx.entry.heroName || HERO_TEXT[rec.hero as HeroId]?.title || rec.hero;
+  const heroName = heroTitle;
   bar.innerHTML = `
     <button type="button" class="mm-b mm-x" data-r="exit" aria-label="Exit replay" title="Exit replay">✕</button>
     <button type="button" class="mm-b mm-play" data-r="play" aria-label="Play" data-testid="replay-play">▶</button>
@@ -473,7 +480,7 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
       audio: tapStream,
       segments: segs,
       intro: { title: 'Match montage', sub: `${heroName} · ${MODE_LABEL[ctx.entry.mode] ?? 'Paw Legends'}` },
-      outro: { title: outcome, sub: `${heroName} · ${ctx.entry.k} / ${ctx.entry.d} / ${ctx.entry.a} · vs bots` },
+      outro: { title: outcome, sub: `${heroName} · ${ctx.entry.k} / ${ctx.entry.d} / ${ctx.entry.a} · ${rec.mode === 'pvp' ? 'PvP' : rec.humans ? 'Party' : 'vs bots'}` },
       seekTo: (at, i) =>
         new Promise<void>((res) => {
           readyCb = res;
@@ -536,8 +543,8 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
     html.dataset.replay = 'loading';
     engine.setPaused(true);
     const setup: MatchSetup = {
-      hero: rec.hero,
-      trick: rec.trick,
+      hero: myHero,
+      trick: myTrick,
       difficulty: rec.difficulty,
       seed: rec.seed,
       ...(rec.map && rec.map !== 'crossing' ? { map: rec.map } : {}),
@@ -881,7 +888,7 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
     if (free && session) session.view.peekHold(free.x, free.z);
     else if (dir && session && viewReady) {
       if (tick >= dir.end || ended) dirEnded();
-      else if (!(dir.cam.mode === 'follow' && dir.cam.slot === 0)) {
+      else if (!(dir.cam.mode === 'follow' && dir.cam.slot === me)) {
         // the director: the fight's moving frame, or the hero it follows (the player's own keeps the normal camera)
         const p = camPoint(dir, tick);
         if (p) session.view.peekHold(toX(p.x), toZ(p.y));

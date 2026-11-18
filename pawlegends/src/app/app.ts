@@ -36,7 +36,7 @@ import { chromaDef, chromasEarned } from '../render/skins/coatChromas';
 import { ArtStage } from '../ui/stage/artStage';
 import { Lobby } from '../render/lobby';
 import { heroSplashUrl, onSkinArt, skinArtUrl, splashFor } from '../ui/art';
-import { loadHistory, newEntryId, recordMoment, reelOf, replayOf, saveReel, type HistoryEntry } from '../replay/store';
+import { loadHistory, newEntryId, recordMoment, reelOf, replayOf, saveReel, soloRecord, type HistoryEntry, type StoredReplay } from '../replay/store';
 
 import { portraitUrl, warmPortraits } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
@@ -2567,7 +2567,8 @@ export class App {
         // MATCH-MOMENTS.md §2, §3: the Legend Moment card and this match's replay
         moments: {
           onCard: () => this.openCard(moment, link, userName, setup?.look ?? null),
-          onReplay: moment.replay && moment.simVersion === SIM_VERSION ? () => this.openReplay(moment.id) : null,
+          // a party or PvP match's replay is watched from Match history (leaving these results would leave the party)
+          onReplay: moment.replay && moment.simVersion === SIM_VERSION && !partyEnd ? () => this.openReplay(moment.id) : null,
         },
         ...(party
           ? {
@@ -2592,7 +2593,7 @@ export class App {
       // the player's hero by its own name (a worn card's cat name); the bots by their seed names ("(bot)" is added by the titles)
       const hlNames = e.welcome.picks.map((h, slot) => (slot === mySlot ? momentName || HERO_TEXT[h]?.title : names[slot]) ?? HERO_TEXT[h]?.title ?? 'A champion');
       this.hlNames = { id: moment.id, names: hlNames };
-      const record = replayOf(moment.id);
+      const record = soloRecord(replayOf(moment.id));
       const emotes = moment.emotes;
       // gaps5 polish 2: a highlight, a clip or the montage opened from here comes back to these results
       const mountStrip = (): void => {
@@ -2640,7 +2641,10 @@ export class App {
 
   // ------------------------------------------------------------------------------------- match moments
 
-  /** MATCH-MOMENTS.md §1: save the history row (and the replay of a solo match). Display only, on this device. */
+  /**
+   * MATCH-MOMENTS.md §1: save the history row and the match's replay (solo, party or PvP; a party match's MatchEnd
+   * carries its PartyReplayRecord or PvpReplayRecord, net-core.ts). Display only, on this device.
+   */
   private saveMoment(e: MatchEnd, o: { name: string | null; mode: HistoryEntry['mode']; grade: string | null; party: boolean }): HistoryEntry {
     const at = Date.now();
     return recordMoment(
@@ -2659,14 +2663,14 @@ export class App {
         seconds: Math.floor(e.result.ticks / 30),
         best: e.fun.best,
         simVersion: e.replay.simVersion,
-        noReplay: o.party ? 'party' : null,
+        ...(e.welcome.slot ? { slot: e.welcome.slot } : {}),
         ...(!o.party && e.emotes?.length ? { emotes: e.emotes } : {}),
         // MATCH-HISTORY.md: the account's row for this match carries the same key
         key: `${e.result.finalHash}:${e.result.ticks}`,
         // sim v34: the device row names its pool map ("Skirmish 3v3 · Park"), like the account's row
         ...(e.replay.map && e.replay.map !== 'crossing' ? { map: e.replay.map } : {}),
       },
-      o.party ? null : e.replay,
+      e.replay as StoredReplay,
     );
   }
 
@@ -2708,7 +2712,7 @@ export class App {
           },
           track: (ev, props) => this.analytics.track(ev as 'share_card', props),
           // SHARE-PUSH.md §1: a video of the best moment, recorded from the kept replay
-          onClip: m.replay && m.simVersion === SIM_VERSION && clipSupported() ? (framing) => this.openReplay(m.id, { clip: framing, clipTitle: bestLine, ...(topHl ? { highlight: topHl.id } : {}) }) : null,
+          onClip: m.replay && m.simVersion === SIM_VERSION && m.mode !== 'party' && m.mode !== 'pvp' && clipSupported() ? (framing) => this.openReplay(m.id, { clip: framing, clipTitle: bestLine, ...(topHl ? { highlight: topHl.id } : {}) }) : null,
         }),
       )
       .catch((err: unknown) => reportCrash('window', err));
@@ -2766,10 +2770,11 @@ export class App {
           Session: MatchSession,
           gr: this.gr,
           root: this.root,
-          record,
+          // a party or PvP match is watched from the player's own seat
+          record: { ...record, me: entry.slot ?? 0 },
           entry,
           muted: sfx.isMuted,
-          look: this.lookFor(record.hero),
+          look: this.lookFor(entry.hero as HeroId),
           playerName: this.ownName(),
           ...this.viewerHooks(token, back),
           track: (ev, props) => this.analytics.track(ev as 'replay_open', props),
