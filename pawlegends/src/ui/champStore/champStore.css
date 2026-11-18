@@ -330,7 +330,7 @@ html[data-quality='low'] .cst-tab.on { text-shadow: none; }
   background: var(--v6-bolt); clip-path: polygon(0 0, 100% 0, 86% 100%, 0 100%);
 }
 .cst-hd[data-cside='dog'] .cst-dart.cst-hd-art { grid-area: 1 / 2 / 3 / 3; clip-path: polygon(0 0, 100% 0, 100% 100%, 14% 100%); }
-.cst-hd .cst-hd-art img { object-fit: cover; object-position: 50% 28%; clip-path: polygon(0 0, calc(100% - 9px) 0, calc(86% - 9px) 100%, 0 100%); }
+.cst-hd .cst-hd-art img { background: rgb(var(--v6-night-2-rgb)); object-fit: cover; object-position: 50% 28%; clip-path: polygon(0 0, calc(100% - 9px) 0, calc(86% - 9px) 100%, 0 100%); }
 .cst-hd[data-cside='dog'] .cst-hd-art img { clip-path: polygon(9px 0, 100% 0, 100% 100%, calc(14% + 9px) 100%); }
 .cst-hd .cst-hd-art::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
