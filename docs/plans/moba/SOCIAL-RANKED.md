@@ -86,7 +86,7 @@ Hard rules this design keeps:
 
 ### 2.3 Nicknames (Nov 16, founder: "nickname change can be once only for free, then paid")
 
-- **Profile** (the game's Profile sheet, `pawlegends/src/social/profileSheet.ts`, opened by tapping the Home profile chip):
+- **Profile** (the game's full-width Profile screen, `pawlegends/src/ui/profile/profileScreen.ts` (Edit profile on its Overview), opened by tapping the Home profile chip):
   avatar and border (the Friends sheet's picker), owned title, nickname, country flag (a link to Settings). No bio: it
   would be free text to strangers with no filter tier for under-16 viewers.
 - **Price** (`backend/src/pawlegends/social/nickname.ts` `NAME_CHANGE`, the one place): the first change is free,

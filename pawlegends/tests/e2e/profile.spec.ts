@@ -3,7 +3,8 @@ import { mockHost, openHost } from './host';
 import { limit } from '../unit/cpu-budget';
 
 /*
- * Profile and nickname (docs/plans/moba/SOCIAL-RANKED.md §2.3): the Home profile chip opens the Profile sheet; the first
+ * Profile and nickname (docs/plans/moba/SOCIAL-RANKED.md §2.3): the Home profile chip opens the Profile screen and its
+ * Edit profile panel; the first
  * change is free with a confirm step, the new name shows on Home at once and after a reload; a second change shows the
  * Yarn price and the server's refusal (not enough Yarn) in words. The host answers from a small stateful fake server.
  */
@@ -50,7 +51,9 @@ test('Profile: first name change is free, shows on Home and after a reload; the 
   const chip = game.locator('[data-testid="home-profile"]');
   await expect(chip).toContainText('Witty Biscuit', { timeout: limit(60_000) });
   await chip.click();
-  const sheet = game.locator('[data-testid="profile-sheet"]');
+  const screen = game.locator('[data-testid="profile-screen"]');
+  await screen.locator('[data-testid="profile-edit"]:not([disabled])').click();
+  const sheet = screen.locator('[data-testid="profile-editor"]');
   await expect(sheet.locator('[data-testid="profile-price"]')).toHaveText('First change free');
   const input = sheet.locator('[data-testid="profile-nick-input"]');
   // a taken name: the server's answer in words, nothing changes
@@ -58,23 +61,25 @@ test('Profile: first name change is free, shows on Home and after a reload; the 
   await sheet.locator('[data-testid="profile-nick-change"]').click();
   await expect(sheet.locator('[data-testid="profile-confirm"]')).toContainText('Mira');
   await sheet.locator('[data-testid="profile-confirm-btn"]').click();
-  await expect(sheet.locator('[data-testid="profile-note"]')).toHaveText('That name is taken. Try another one.');
+  await expect(screen.locator('[data-testid="profile-note"]')).toHaveText('That name is taken. Try another one.');
   // the quick client check
   await input.fill('x');
   await sheet.locator('[data-testid="profile-nick-change"]').click();
-  await expect(sheet.locator('[data-testid="profile-note"]')).toContainText('at least 2');
+  await expect(screen.locator('[data-testid="profile-note"]')).toContainText('at least 2');
   // the free change, with the confirm step
   await input.fill('Pawsome Zyg');
   await sheet.locator('[data-testid="profile-nick-change"]').click();
   await expect(sheet.locator('[data-testid="profile-confirm-btn"]')).toContainText('Free');
   await sheet.locator('[data-testid="profile-confirm-btn"]').click();
-  await expect(sheet.locator('[data-testid="profile-name"]')).toHaveText('Pawsome Zyg');
+  await expect(screen.locator('[data-testid="profile-name"]')).toHaveText('Pawsome Zyg');
   await expect(sheet.locator('[data-testid="profile-price"]')).toContainText('1,500 Yarn');
   // a second change without the Yarn: refused before a call
   await input.fill('Zyg the Brave');
   await sheet.locator('[data-testid="profile-nick-change"]').click();
-  await expect(sheet.locator('[data-testid="profile-note"]')).toContainText('Not enough Yarn');
-  await sheet.locator('[data-a="close"]').click();
+  await expect(screen.locator('[data-testid="profile-note"]')).toContainText('Not enough Yarn');
+  await sheet.locator('[data-a="edit-close"]').click();
+  await screen.locator('[data-testid="profile-back"]').click();
+  await expect(screen).toHaveCount(0);
   await expect(chip).toContainText('Pawsome Zyg');
   // after a reload: still the new name
   await page.reload();
@@ -83,7 +88,7 @@ test('Profile: first name change is free, shows on Home and after a reload; the 
   expect(srv.s.changes).toBe(1);
 });
 
-test('Profile: a guest is asked to sign in to choose a name', async ({ context, page, baseURL }) => {
+test('Profile: a guest is asked to sign in', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, {
     app: { isApp: false, store: true },
     signedIn: false,
@@ -91,5 +96,6 @@ test('Profile: a guest is asked to sign in to choose a name', async ({ context, 
   });
   const game = await openHost(page);
   await game.locator('[data-testid="home-profile"]').click({ timeout: limit(60_000) });
-  await expect(game.locator('[data-testid="profile-guest"]')).toContainText('Sign in to choose your name');
+  await expect(game.locator('[data-testid="profile-screen"] [data-testid="profile-signin"]')).toBeVisible();
+  await expect(game.locator('[data-testid="profile-screen"]')).toContainText('Sign in to choose your name');
 });

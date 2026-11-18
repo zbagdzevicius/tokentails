@@ -116,7 +116,8 @@ import { addTreatXp, loadTreats, loadTreatsRaw, migrateTreats, perMinuteShare, s
 import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
-import { hasMatchFlags, matchFlag, refreshMyFlag, setFlagHidden } from '../social/flags';
+import { flagHidden, hasMatchFlags, matchFlag, myCountry, refreshMyFlag, setFlagHidden } from '../social/flags';
+import { loadMastery } from '../meta/mastery';
 import { kudosMates, mountKudos } from '../social/kudos';
 import { assetRev } from '../ui/assetRev';
 import { RewardsCloud, todayExtraHtml } from '../ui/rewards/rewards';
@@ -235,7 +236,7 @@ export class App {
   /** gaps5 polish 2: the solo results a replay was opened from (a highlight, a clip, the montage, Watch replay). */
   private resultsBack: { id: string; el: HTMLElement; remount: () => void } | null = null;
   private hlNames: { id: string; names: string[] } | null = null;
-  private overlay: { close(): void; refresh?(): void; kind?: 'store' | 'pass' } | null = null;
+  private overlay: { close(): void; refresh?(): void; kind?: 'store' | 'pass' | 'profile' } | null = null;
   private offerEl: { close(): void } | null = null;
   /** SHARE-PUSH.md §2: the server's push key once known (null: no web push here), the notifications card, the boot sync. */
   private pushKey: string | null = null;
@@ -1345,8 +1346,8 @@ export class App {
       onSettings: () => this.openSettings(),
       // Social, ranked and boards (SOCIAL-RANKED.md §14): through the host's session, so embedded only
       onSocial: this.bridge.active ? () => this.openSocial() : undefined,
-      // the Profile sheet (SOCIAL-RANKED.md §2.3): name, avatar, title; through the host too
-      onProfile: this.bridge.active ? () => this.openProfile() : undefined,
+      // the Profile screen (one way in: the avatar chip): yours, with the device's data where no host answers
+      onProfile: () => this.openProfile(),
       socialBadge: this.socialBadge,
       onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
       // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
@@ -1629,27 +1630,96 @@ export class App {
     return (acc.signedIn ? myName() : null) ?? acc.name ?? this.integration.state().playerName ?? null;
   }
 
-  private profileSheet: import('../social/profileSheet').ProfileSheet | null = null;
-
-  /** The Profile sheet (the Home profile chip): name, avatar and border, title, and a link to the flag setting. */
-  private openProfile(): void {
-    if (this.profileSheet && !this.profileSheet.closed) return;
+  /**
+   * The Profile screen (founder, Nov 18: one full-width, League of Legends style profile; ui/profile/profileScreen.ts):
+   * yours from the Home avatar chip, or another player's read-only from a friend's row. The one way in to the name,
+   * avatar, border, title, flag, level, rank, mastery, stats, collection and account. Its own lazy chunk; one overlay.
+   */
+  private openProfile(friend: { code: string; name: string; av?: unknown; cc?: string | null } | null = null, tab?: import('../ui/profile/model').ProfileTab): void {
+    if (this.overlay) {
+      if (this.overlay.kind !== 'profile') return;
+      this.overlay.close();
+      this.overlay = null;
+    }
     sfx.play('click');
-    void import('../social/profileSheet')
-      .then(({ ProfileSheet }) => {
-        if (this.profileSheet && !this.profileSheet.closed) return;
-        this.profileSheet = new ProfileSheet(this.root, {
-          api: (op, args) => this.integration.api(op, args),
-          signedIn: () => accountState().signedIn,
+    void import('../ui/profile/profileScreen')
+      .then(async ({ profileScreen }) => {
+        if (this.overlay) return;
+        const { emptyData, rowOf } = await import('../ui/profile/model');
+        if (this.overlay) return;
+        const p = loadProfile();
+        const s = this.ent.snapshot();
+        const acc = accountState();
+        const season = s.season;
+        const def = season ? currentSeason() : null;
+        const self = !friend;
+        const data = emptyData(self, self ? (this.ownName() ?? 'Guest') : friend.name);
+        if (self) {
+          const owned = this.owned();
+          Object.assign(data, {
+            signedIn: acc.signedIn,
+            av: null,
+            title: p.wornTitle ?? (s.items.has('title.founder') ? 'title.founder' : null),
+            frame: bestFrame(owned, p.wornFrame) ?? null,
+            cc: flagHidden() ? null : myCountry(),
+            matches: p.matches,
+            level: levelInfo(p.matches),
+            pass: season && def ? { tier: season.tier, tiers: def.tiers, pct: (Math.max(0, season.xp) % def.xpPerTier) / def.xpPerTier, xp: season.xp, premium: season.premium !== 'none', name: def.name } : null,
+            yarn: this.champs().server ? this.champs().yarn.balance : null,
+            mastery: loadMastery(),
+            champs: { owned: ownedCount(this.champs(), this.isApp()), total: CHAMPION_IDS.length },
+            items: [...s.items],
+            rows: loadHistory()
+              .filter((h) => h.mode !== 'practice')
+              .map((h) => rowOf(h, h.id))
+              .filter((r): r is NonNullable<typeof r> => !!r)
+              .sort((a, b) => b.at - a.at),
+          });
+        }
+        const account = this.bridge.active ? this.integration.accountModel() : null;
+        const panel = profileScreen(this.root, {
+          data,
+          friend,
+          ...(tab ? { tab } : {}),
+          ...(this.bridge.active ? { api: (op: ApiOp, args?: ApiArgs) => this.integration.api(op, args) } : {}),
+          base: import.meta.env.BASE_URL ?? './',
+          low: document.documentElement.dataset.quality === 'low',
+          account: account ? { model: account, send: (a) => void this.integration.account(a) } : null,
+          ...(self && this.bridge.active
+            ? {
+                flag: {
+                  hidden: flagHidden(),
+                  set: (hide: boolean) => {
+                    this.analytics.track('settings_change', { setting: 'flag_hidden', value: hide });
+                    void setFlagHidden(hide, (op, args) => this.integration.api(op, args));
+                  },
+                },
+              }
+            : {}),
+          onClose: () => {
+            if (this.overlay?.kind === 'profile') this.overlay = null;
+            if (this.screen === 'title') this.refreshMeta(false);
+          },
           signIn: () => this.integration.requestSignIn('save-progress'),
+          openHistory: (f) => this.openHistory(f),
           openSettings: () => this.openSettings(),
-          openHistory: () => this.openHistory(),
-          ownedItems: () => [...this.ent.snapshot().items],
+          ...(s.storeOpen ? { openStore: (t?: StoreTab) => this.openStore('lobby', t) } : {}),
+          ...(s.storeOpen ? { openPass: () => this.openPass() } : {}),
+          ...(p.matches > 0 ? { openTrack: () => this.openCollection() } : {}),
+          ...(this.bridge.active ? { openSocial: () => this.openSocial() } : {}),
           onName: (name) => {
-            if (setMyName(name) && this.screen === 'title') this.showTitle(false);
+            setMyName(name);
+          },
+          onWear: (kind, id) => {
+            const q = loadProfile();
+            if (kind === 'title') q.wornTitle = id;
+            else q.wornFrame = id;
+            saveProfile(q);
           },
           suggest: () => accountState().name ?? null,
+          track: (ev, props) => this.analytics.track(ev as 'history_open', props),
         });
+        this.overlay = { close: panel.close, refresh: panel.refresh, kind: 'profile' };
       })
       .catch((err: unknown) => reportCrash('window', err));
   }
@@ -1689,8 +1759,8 @@ export class App {
               this.chatUnread = Math.max(0, n);
               this.paintSocialBadge();
             },
-            // MATCH-HISTORY.md: a friend's match history from their row
-            history: (friend) => this.openHistory(friend),
+            // a friend's row opens their profile (read-only) on its Matches tab; the full history is one tap from there
+            history: (friend) => this.openProfile(friend, 'matches'),
             // SOCIAL-INVITES.md: Invite with no party yet opens PLAY's Mode Select on With Friends, then sends it
             inviteFriend: (friend) => this.inviteAfterParty(friend),
             // the inviter is told when an invite runs out unanswered (accept and decline come through the inbox)
