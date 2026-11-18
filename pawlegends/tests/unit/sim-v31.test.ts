@@ -21,11 +21,11 @@ const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pa
 const TRICKS: TrickId[] = ['pounce', 'snack', 'hiss', 'purrify', 'pounce', 'snack'];
 
 describe('sim v31: the second roster release', { timeout: limit(600000) }, () => {
-  it('SIM_VERSION 31 or later, v30 frozen at its last commit on main (dc053f38); 28 heroes, the four at 24..27', () => {
+  it('SIM_VERSION 31 or later, v30 frozen (read from 59dafddf on main since the 2026-11-18 rebase; frozen at dc053f38); 28 heroes, the four at 24..27', () => {
     expect(SIM_VERSION).toBeGreaterThanOrEqual(31);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');
     const v30 = /simVersion: 30,\s*commit: '([0-9a-f]{40})'[^]*?\]\)/.exec(tool);
-    expect(v30?.[1].startsWith('dc053f38')).toBe(true);
+    expect(v30?.[1].startsWith('59dafddf')).toBe(true);
     expect(v30?.[0]).toContain('roster-replay.fixture.json');
     expect(HERO_IDS).toHaveLength(28);
     expect(HERO_IDS.slice(24)).toEqual([...ROSTER]);

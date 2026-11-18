@@ -24,11 +24,11 @@ const v31 = (name: string): ReplayRecord => JSON.parse(readFileSync(join(VENDOR,
 const BEFORE_LATE = ['dog-replay', 'new-dog-replay', 'roster-replay', 'kite-replay', 'roster31-replay', 'forfeit-replay'];
 
 describe('sim v32: no Sudden Death', { timeout: limit(600000) }, () => {
-  it('SIM_VERSION 32, v31 frozen at its last commit on main (345fb655) with its roster31 fixture', () => {
+  it('SIM_VERSION 32, v31 frozen (read from 59dafddf on main since the 2026-11-18 rebase; frozen at 345fb655) with its roster31 fixture', () => {
     expect(SIM_VERSION).toBe(36);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');
     const entry = /simVersion: 31,\s*commit: '([0-9a-f]{40})'[^]*?\]\)/.exec(tool);
-    expect(entry?.[1].startsWith('345fb655')).toBe(true);
+    expect(entry?.[1].startsWith('59dafddf')).toBe(true);
     expect(entry?.[0]).toContain('roster31-replay.fixture.json');
   });
 

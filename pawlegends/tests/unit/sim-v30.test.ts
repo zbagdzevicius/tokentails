@@ -17,11 +17,11 @@ const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pa
 const v29 = (name: string): ReplayRecord => JSON.parse(readFileSync(join(VENDOR, 'v29', `${name}.fixture.json`), 'utf8')) as ReplayRecord;
 
 describe('sim v30: the 5v5 balance release', { timeout: limit(600000) }, () => {
-  it('SIM_VERSION 30 or later, v29 frozen at its last commit on main (f921c5ef)', () => {
+  it('SIM_VERSION 30 or later, v29 frozen (read from 59dafddf on main since the 2026-11-18 rebase; frozen at f921c5ef)', () => {
     expect(SIM_VERSION).toBeGreaterThanOrEqual(30);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');
     const v29Entry = /simVersion: 29,\s*commit: '([0-9a-f]{40})'[^]*?\]\)/.exec(tool);
-    expect(v29Entry?.[1].startsWith('f921c5ef')).toBe(true);
+    expect(v29Entry?.[1].startsWith('59dafddf')).toBe(true);
     expect(v29Entry?.[0]).toContain('roster-replay.fixture.json');
   });
 

@@ -136,6 +136,9 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * Sim v36 (the v35 hero balance pass, docs/plans/moba/V36-BALANCE.md) froze the released v35 at 59dafddf, the first
  * commit on main whose v35 dir is byte for byte the live one (main was rebased on 2026-11-18; the rebased v35 sim
  * commit 9a4463d1 carries a different v35 bundle), and keeps v20 to v34, so the backend verifies 20 to 36.
+ * The same rebase left every older FROZEN commit (v20 at 4f9c97d4 to v34 at 0be26b01) off main, so CI's checkout
+ * (fetch-depth 0) no longer had them and `git show` failed. Every entry now reads from 59dafddf too: its v20 to v35
+ * directories are byte for byte the ones those commits froze (each bundle sha below is still checked on read).
  * With v35 the backend retired v10 to v19 (V35-DEATHS.md §4): on DigitalOcean's 2 GB build the backend had about
  * 100 MB of margin with 25 vendored sims (two builds ran out of memory on 2026-11-17), and the v35 bundle raised the local
  * `nest build` peak RSS from 2.62–2.66 GB (v34) to 2.72–3.09 GB. v10 to v19 stopped being live by 2026-11-10 (v20 landed
@@ -147,7 +150,7 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
 export const FROZEN = Object.freeze([
   Object.freeze({
     simVersion: 20,
-    commit: '4f9c97d4227bbc06e652958cb8c2200c3bdd8b4c',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v20',
     bundle: '6f337e79daa86feee09c1b5d9c47494f6d6f07ace9891b500392271540c6d57b',
     extra: Object.freeze([
@@ -162,7 +165,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 21,
-    commit: '61cf4f5d7fa84cb76e57ec77175c1d11ba81690b',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v21',
     bundle: '443c5c6335ec5e11e54ef262e0ac7533ca1c054b8a21bdb3067614c813390066',
     extra: Object.freeze([
@@ -177,7 +180,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 22,
-    commit: '9c098621f35d2de74e3772f8858f8c6e84cce99b',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v22',
     bundle: 'f0381a934dce02fadfe715353dbe8ec0029ca759f55ab14042d8ecc4b288f662',
     extra: Object.freeze([
@@ -193,7 +196,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 23,
-    commit: 'de5ca5b57aa41d54157caf17574f39bf230acb90',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v23',
     bundle: '13d26de911de8cb57e34aec7284a8f5d06084f3c0d6bfab549d56c7ae39d8b62',
     extra: Object.freeze([
@@ -210,7 +213,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 24,
-    commit: '73b6404e1dd5abdb6c814772e88916c97fc87ed6',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v24',
     bundle: 'c12a7ae22ca509d77f3d4bf51ddbbe4b8fbd9453c9655ea28beb3b33fa104e2a',
     extra: Object.freeze([
@@ -227,7 +230,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 25,
-    commit: 'd83f57431255ddfd4f00a7f0ea17155173241a08',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v25',
     bundle: '668d9edd23d5ac4dbcfcf6d97d9293302bf80817faffbc3cdf02a70e5e5a3602',
     extra: Object.freeze([
@@ -244,7 +247,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 26,
-    commit: 'cf039638d3b5725b7bd0b0010f06e32d6979941d',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v26',
     bundle: '766d348091bab6b3c48d3ce6a9ecad67333e12a9c86672ed7034277401a0c292',
     extra: Object.freeze([
@@ -261,7 +264,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 27,
-    commit: '9c5c82e4b33e4e00eb59353d29f38e5d86f1f7fa',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v27',
     bundle: '24708e75990294490e8d2e9d941800d9a9286e05c8501fd0087dde412fd4dfd7',
     extra: Object.freeze([
@@ -278,7 +281,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 28,
-    commit: '806918b64b8730ccb49d7f438da00cb2b7119ec3',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v28',
     bundle: '8cd34c1ca6102328ec8fa00661d77a52f036ca799668a065ed967096cfe35d31',
     extra: Object.freeze([
@@ -295,7 +298,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 29,
-    commit: 'f921c5effbee8fdcffae203397328afd8881741e',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v29',
     bundle: '6ec5a82f39bfa035ad9523f0d993279e0f6891b3cd2cdc275eaa5f58102aab0c',
     extra: Object.freeze([
@@ -313,7 +316,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 30,
-    commit: 'dc053f382b200a5a4a0947f3a4c3c35471ece072',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v30',
     bundle: '6c53591e2fefa463cd466f7149b0f7fb101123c9fc31f4d439ef242178aed6af',
     extra: Object.freeze([
@@ -331,7 +334,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 31,
-    commit: '345fb655c63caeb2f0e965e50ccc71e6f652fd60',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v31',
     bundle: 'd7eb0806c703363fe46e8aca1321fd24ea94cd2555f9962a8422303ad3ea4ced',
     extra: Object.freeze([
@@ -350,7 +353,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 32,
-    commit: '17fff703be7e94aea3a0880c6c0e7003bfe28f32',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v32',
     bundle: 'd3b33e7f8d855c917f4692e49d21baa55c35e6fd03813b1e02474395129d9791',
     extra: Object.freeze([
@@ -370,7 +373,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 33,
-    commit: '31c3c5c8a11730348013572f34f7e9cfd2a42e80',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v33',
     bundle: '874b29f181797dc294bf526c2bc215bf8995184bce27ccd3bf5fcb7593793a85',
     extra: Object.freeze([
@@ -390,7 +393,7 @@ export const FROZEN = Object.freeze([
   }),
   Object.freeze({
     simVersion: 34,
-    commit: '0be26b015ee514764cd648b79bc6ccf0d6372954',
+    commit: '59dafddfe2ddb6cf02f12122b946813dd497f5f9',
     from: 'backend/src/vendor/pawlegends-sim/v34',
     bundle: 'cc108b970845dd029f8173c2dc8c5957bc3c361e7683f23f3a9b5310c3583ee6',
     extra: Object.freeze([

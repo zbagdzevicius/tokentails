@@ -20,11 +20,11 @@ import { SIM_VERSION } from '../../src/sim/version';
 import { G } from '../../src/sim/world';
 
 describe('sim v35: version and the v34 freeze', () => {
-  it('SIM_VERSION 35, v34 frozen at its sim commit on main (0be26b01) with its maps fixture', () => {
+  it('SIM_VERSION 35, v34 frozen (read from 59dafddf on main since the 2026-11-18 rebase; frozen at 0be26b01) with its maps fixture', () => {
     expect(SIM_VERSION).toBe(36);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');
     const entry = /simVersion: 34,\s*commit: '([0-9a-f]{40})'[^]*?\]\)/.exec(tool);
-    expect(entry?.[1].startsWith('0be26b01')).toBe(true);
+    expect(entry?.[1].startsWith('59dafddf')).toBe(true);
     expect(entry?.[0]).toContain('maps-replay.fixture.json');
   });
 });
