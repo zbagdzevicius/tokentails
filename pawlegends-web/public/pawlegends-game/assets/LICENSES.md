@@ -46,11 +46,11 @@ for Token Tails with Google Gemini (`gemini-3-pro-image`, SynthID watermarked), 
 Home and Mode Select art (docs/plans/moba/HOME-MODES.md, 2026-11, about 0.6 MB in all): generated for Token Tails
 with Google Gemini (`gemini-3-pro-image-preview`, SynthID watermarked) with the game's own champion portraits as
 references, no text and no third-party characters, encoded to WebP. Prompts and scripts are kept outside the repo
-(`~/Downloads/paw-legends/home-art/scripts/`). The key art loads with Home; mode art loads when Mode Select opens.
+(`~/Downloads/paw-legends/home-art/scripts/`). Home is a drawn poster (no file; its rival silhouettes stream from pawlegends.app); mode art loads when Mode Select opens.
 
 | File | Source | Licence |
 |---|---|---|
-| `lobby/legends-{1280,1920}.webp`, `lobby/legends-wide-{1280,1920}.webp` | generated, Gemini, 2026-11 (Home key art "Storm Clash Arena", Nov 13: cats left, dogs right, a bolt left of centre, calm sand centre; side champions cut from a generated green-screen sheet; 16:9 desktop, 21:9 phones; scripts in `~/Downloads/paw-legends/home-bg-variants/`) | Token Tails, all rights reserved |
+| `pawlegends-web/public/pawlegends-art/silhouettes/<hero>-640.webp` (served by pawlegends.app, not in this folder) | generated, Gemini, 2026-11-18 (Home poster rival silhouettes, HOME-POSTER.md: each hero's splash redrawn full body on a green screen, keyed, kept as alpha only; `tools/poster-silhouettes.py`) | Token Tails, all rights reserved |
 | `lobby/promo-{pass,cannon}.webp` | crops of the Home key art and the Cannon Chaos tile | Token Tails, all rights reserved |
 | `modes/{blitz,skirmish,classic,coop,ranked,cannon}-{256,512}.webp` | generated, Gemini, 2026-11 (round mode tiles) | Token Tails, all rights reserved |
 | `modes/{onelane,duel,boss}-256.webp` | composited 2026-11-14 from the mode tiles and the splash portraits above (sim v28 modes) | Token Tails, all rights reserved |
