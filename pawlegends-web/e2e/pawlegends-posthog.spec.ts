@@ -9,8 +9,8 @@ import { expect, test, type Page, type Request } from "@playwright/test";
  * - Allow: the landing's events and the game's relayed match events go to us.i.posthog.com only, and carry one
  *   distinct_id (the game frame relays over the bridge, the host sends; no cookie of its own).
  *
- * Needs a server built or run with NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN set (pawlegends-web/.env.local); the test skips
- * otherwise. The game is the committed public/pawlegends-game build; a guest's first match needs no backend.
+ * Needs a server built or run with NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN set (pawlegends-web/.env.local, or any fake
+ * `phc_` token: every request is answered here); locally the Allow test skips without one, in CI it never skips. The game is the committed public/pawlegends-game build; a guest's first match needs no backend.
  */
 test.use({
   timezoneId: "Europe/Vilnius",
@@ -117,10 +117,15 @@ test.describe("PostHog on pawlegends.app", () => {
     // nothing before the answer
     expect(seen).toEqual([]);
     await page.getByTestId("pawlegends-consent-allow").click({ timeout: 20_000 });
+    // a local server built without a token sends nothing: skip there. CI builds with a fake token (ci.yml), so it
+    // never skips and a silent PostHog fails the test.
+    if (!process.env.CI) {
+      await expect.poll(() => seen.length, { timeout: 15_000 }).toBeGreaterThan(0).catch(() => undefined);
+      test.skip(seen.length === 0, "the server has no NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN");
+    }
     await expect
       .poll(() => seen.flatMap((s) => s.events).some((e) => e.event === "pawlegends_landing_view"), { timeout: 30_000 })
       .toBe(true);
-    test.skip(seen.length === 0, "the server has no NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN");
 
     await page.goto("/play");
     await playFirstMatch(page);

@@ -201,6 +201,9 @@ jobs:
       NEXT_PUBLIC_E2E: 1
       E2E_BASE_URL: http://localhost:3006
       E2E_API_URL: http://localhost:3005
+      # A fake token so the build ships PostHog and e2e/pawlegends-posthog.spec.ts runs; that spec answers every
+      # PostHog request itself, so nothing reaches the real project.
+      NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: phc_e2e_fake_token_not_a_real_project
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
