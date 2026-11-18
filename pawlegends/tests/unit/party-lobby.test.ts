@@ -231,6 +231,13 @@ describe('loading (P8)', () => {
     expect(el.textContent).toContain('A bot plays for Mira Cat until they load');
     expect(el.querySelectorAll('[role="progressbar"]')[1].getAttribute('aria-valuenow')).toBe('30');
   });
+
+  it('always offers Leave, so a load that never ends (or a match the others play on) never traps the player', () => {
+    const el = mount(loadingHtml(view({ phase: 'match' })));
+    const b = el.querySelector<HTMLButtonElement>('[data-testid="party-leave"]')!;
+    expect(b.dataset.p).toBe('leave');
+    expect(b.textContent).toBe('Leave');
+  });
 });
 
 describe('join by code (P5)', () => {

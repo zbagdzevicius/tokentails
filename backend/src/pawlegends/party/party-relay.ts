@@ -2633,6 +2633,8 @@ export class PartyRelay {
         } else live.room.disconnect(s.seatSlot, this.now());
         s.seatRoom = null;
         s.seatSlot = -1;
+        // every human left: the room closes now (no bots left running, the live-room slot freed)
+        if (live.room.status === 'abandoned') this.abandon(live, 'left');
     }
 
     /**
@@ -3711,6 +3713,7 @@ export class PartyRelay {
         }
         this.parties.leave(member);
         this.dropResume(member);
+        if (live.room.status === 'abandoned') this.abandon(live, 'left');
     }
 
     /**

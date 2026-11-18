@@ -368,6 +368,12 @@ export class Room {
         this.io.json(null, { t: 'slot', slot, reason: 'left' });
         this.io.log?.('mp_takeover', { slot, reason: 'left' });
         this.touchEmpty(nowMs);
+        // the last human gave the match up (left, not dropped): nobody can come back to it, so it ends now as
+        // abandoned (unscored) instead of bots playing on to the 2-minute empty-room timer
+        if (this.live && this.humans.every(h => !this.slots[h]?.occupied)) {
+            this.status = 'abandoned';
+            this.io.log?.('room_abandoned', { played: this.played, turn: this.nextTurn, why: 'left' });
+        }
     }
 
     /**

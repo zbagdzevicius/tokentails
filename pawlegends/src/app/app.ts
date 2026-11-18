@@ -2119,14 +2119,15 @@ export class App {
     this.session = new Session(this.gr, this.root, setup, {
       onEnd: (e) => this.showResults(e),
       onLeave: (counted) => {
-        // Quick Play: leaving leaves the matched party (a backfill or a bot takes the seat), back to the title
-        if (setup.party?.coop && this.party) {
-          this.party.leaveParty('match');
+        // Any online match (Quick Play or a friend party): Leave match leaves the party too and goes Home at once. It never
+        // waits for the relay: a friend party's view stays in its `match` phase while the others play on, so "back to the
+        // party" stranded the leaver on the party's loading card until the room ended (2 min with nobody in it)
+        if (setup.party) {
+          this.party?.leaveParty('match');
           this.session?.dispose();
           this.session = null;
           return this.showTitle();
         }
-        if (setup.party) return this.backToParty();
         if (counted) this.recordLeave(c, counted);
         this.session?.dispose();
         this.session = null;

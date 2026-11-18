@@ -919,7 +919,7 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
   // Audit UX-03: Leave was one free tap (nothing recorded); now a confirm step that says what it costs
   const leaveAsk = (): void => {
     root.innerHTML = `<div class="card pl-leave"><h2>Leave this match?</h2>
-    <p class="sub">${party?.coop ? 'Leaving early adds a short wait before your next online match. Another player or a bot takes your place.' : party ? 'You go back to your party. Bots take your place.' : o.leaveCounts ? 'It counts as a loss on your record, like a forfeit.' : 'This match is not saved.'}</p>
+    <p class="sub">${party?.coop ? 'Leaving early adds a short wait before your next online match. Another player or a bot takes your place.' : party ? 'You go Home and leave the party. A bot takes your place.' : o.leaveCounts ? 'It counts as a loss on your record, like a forfeit.' : 'This match is not saved.'}</p>
     <button class="pl-btn big" data-a="leave-no">Keep playing</button>
     <button class="pl-btn ghost danger" data-a="leave-yes">Leave match</button></div>`;
   };

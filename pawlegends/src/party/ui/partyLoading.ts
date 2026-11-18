@@ -15,13 +15,15 @@ import { avatarHtml, titleText } from '../../ui/avatar';
 
 export function loadingHtml(v: PartyView, hideNames = false): string {
   const humans = [...v.members].sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9));
+  // always a way out: a load that never finishes (or a match the others play on) never traps a player here
+  const leave = `<button type="button" class="pl-btn ghost small" data-p="leave" data-testid="party-leave">${COPY.leaveMatch}</button>`;
   // casual PvP (V16.md §5): both teams, every bot seat labelled Bot, the own team first
   const per = seatsPerTeam(v);
   if (v.mm?.mode === 'casual' || (v.mm && per === 5)) {
     const mine = v.mm.team ?? 0;
     const team = (t: number) => Array.from({ length: per }, (_, i) => card(v.members.find((m) => m.slot === t * per + i))).join('');
     const species = v.mm.species ?? ['cat', 'dog'];
-    return `<div class="pp-card pp-narrow pp-loading" data-testid="party-loading" data-pvp="1"><h2>${COPY.loadingTitle}</h2><p class="pp-dim">${esc(COPY.yourTeam(sideText(species[mine])))}</p><ul class="pp-lcs" data-testid="pvp-load-mine">${team(mine)}</ul><p class="pp-dim">${esc(`${COPY.theirTeam}: ${sideText(species[1 - mine])}`)}</p><ul class="pp-lcs their" data-testid="pvp-load-theirs">${team(1 - mine)}</ul></div>`;
+    return `<div class="pp-card pp-narrow pp-loading" data-testid="party-loading" data-pvp="1"><h2>${COPY.loadingTitle}</h2><p class="pp-dim">${esc(COPY.yourTeam(sideText(species[mine])))}</p><ul class="pp-lcs" data-testid="pvp-load-mine">${team(mine)}</ul><p class="pp-dim">${esc(`${COPY.theirTeam}: ${sideText(species[1 - mine])}`)}</p><ul class="pp-lcs their" data-testid="pvp-load-theirs">${team(1 - mine)}</ul>${leave}</div>`;
   }
   const cards = Array.from({ length: per }, (_, i) => i)
     .map((i) => card(humans[i]))
@@ -29,7 +31,7 @@ export function loadingHtml(v: PartyView, hideNames = false): string {
   const late = (v.deadlineMs ?? 1) <= 0 ? humans.find((m) => (m.loadPct ?? 0) < 100 && m.id !== v.you) : undefined;
   // only when someone is late: who the bot covers for (the bot cards say the rest)
   const line = late ? `<p class="pp-dim">${esc(COPY.botCovers(shownName(v, late, hideNames)))}</p>` : '';
-  return `<div class="pp-card pp-narrow pp-loading" data-testid="party-loading"><h2>${COPY.loadingTitle}</h2><ul class="pp-lcs">${cards}</ul>${line}</div>`;
+  return `<div class="pp-card pp-narrow pp-loading" data-testid="party-loading"><h2>${COPY.loadingTitle}</h2><ul class="pp-lcs">${cards}</ul>${line}${leave}</div>`;
 
   function card(m: (typeof v.members)[number] | undefined): string {
       if (!m) return `<li class="pp-lc bot"><span class="pp-ts-face">?</span><b>${COPY.bot}</b></li>`;

@@ -223,6 +223,26 @@ describe('party room (N3)', () => {
         expect(room.slots[0].mode).toBe('human');
     });
 
+    it('ends at once when every human left (a leave, not a drop): no bots play on to the empty-room timer', () => {
+        const { room, json } = setup();
+        run(room, 0, 3000);
+        expect(room.status).toBe('live');
+        room.vacate(0, 3000);
+        expect(room.status).toBe('live'); // one friend still seated
+        room.vacate(1, 3010);
+        expect(room.status).toBe('abandoned');
+        expect(json.filter(j => j.msg.t === 'slot' && j.msg.reason === 'left').length).toBe(2);
+    });
+
+    it('keeps the reconnect grace for a drop: one left, one disconnected keeps the room live', () => {
+        const { room } = setup();
+        run(room, 0, 3000);
+        room.vacate(0, 3000);
+        room.disconnect(1, 3000);
+        run(room, 3010, 3000 + PARTY_LIMITS.abandonBeforePlayMs - 1000, false);
+        expect(room.status).toBe('live');
+    });
+
     it('abandons after 30 s empty before any command, 120 s after play', () => {
         const a = setup();
         a.room.disconnect(0, 1000);

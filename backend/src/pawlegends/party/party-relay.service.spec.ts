@@ -201,6 +201,50 @@ describe('party relay (N2)', () => {
         await new Promise(r => b.server.close(r));
     });
 
+    it('both friends leave mid-match: the room closes at once (abandoned, no bots left running), both can play again', async () => {
+        const b = await boot();
+        const start = async (a: TestClient, c: TestClient) => {
+            a.send({ t: 'party.create', difficulty: 'easy' });
+            const pa = await a.until(() => a.last('party')?.code && a.last('party'));
+            c.send({ t: 'party.join', code: pa.code });
+            await a.until(() => a.last('party')?.members.length === 2);
+            a.send({ t: 'party.start' });
+            await a.until(() => a.last('party')?.phase === 'pick');
+            a.send({ t: 'pick.lock', hero: 'clem', trick: 'pounce' });
+            c.send({ t: 'pick.lock', hero: 'sage', trick: 'snack' });
+            await a.until(() => a.last('party')?.phase === 'loading');
+            a.send({ t: 'loaded' });
+            c.send({ t: 'loaded' });
+            const n = a.json.filter(j => j.t === 'match').length;
+            await a.until(() => a.json.filter(j => j.t === 'match').length > n);
+            await a.until(() => a.turns.length > 5, 8000);
+        };
+        const a = await b.client();
+        a.hello({ guestKey: 'leave-guest-a-123' });
+        await a.until(() => a.last('welcome'));
+        const c = await b.client();
+        c.hello({ guestKey: 'leave-guest-c-123' });
+        await c.until(() => c.last('welcome'));
+        await start(a, c);
+        expect(b.relay.rooms.size).toBe(1);
+        const roomId = [...b.relay.rooms.keys()][0];
+        a.send({ t: 'party.leave' });
+        await a.until(() => a.last('party')?.left === true);
+        // one friend still plays: the room stays
+        expect(b.relay.rooms.size).toBe(1);
+        c.send({ t: 'party.leave' });
+        await c.until(() => c.last('party')?.left === true);
+        await c.until(() => b.relay.rooms.size === 0);
+        expect(b.store.rooms.get(roomId)!.status).toBe('abandoned');
+        expect(b.events).toContain('room_abandoned');
+        // the same two players (same sockets) start a new party match right away: no live-room cap left behind
+        a.turns.length = 0;
+        await start(a, c);
+        expect(b.relay.rooms.size).toBe(1);
+        expect([...b.relay.rooms.keys()][0]).not.toBe(roomId);
+        await b.stop();
+    });
+
     it('server_busy when the event loop is slow; the party stays', async () => {
         let p99 = 0;
         const b = await boot({ gate: new LoopGate(() => p99) });
