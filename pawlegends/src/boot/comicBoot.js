@@ -7,7 +7,8 @@
  * is requested; a one-line script right after the #boot markup then calls `comicBoot` to build the panels.
  * The unit tests import it as a module (tests/unit/comic-boot.test.ts). Keep it plain ES2017, no imports.
  *
- * - The art: 12 square panels (6 cats, 6 dogs, every role; gemini, brand book v6 references) streamed from
+ * - The art: 17 square panels (9 cats, 8 dogs, every role; gemini, brand book v6 references and in-game model renders;
+ *   rev 2: Sir Brutus, Marshmallow, Cacklejaw and Howler redrawn on-model, Nova, Ziggy, Dusty, Barkula and Ranger added) streamed from
  *   pawlegends.app (`pawlegends-web/public/pawlegends-art/loading/<hero>-640|1280.webp`, outside the game's 10 MB),
  *   so the native app and other hosts read them from https://pawlegends.app too. Bump COMIC_REV when a file changes.
  * - Every load shows 9 of them in a random order, cats and dogs alternating panel to panel.
@@ -21,7 +22,7 @@
  */
 
 /** Cache key of the panel files on pawlegends.app (`?r=`): bump on every re-render of the art. */
-export const COMIC_REV = 1;
+export const COMIC_REV = 2;
 
 /** The panels: hero id and side. File `loading/<id>-<640|1280>.webp`. */
 export const COMIC_PANELS = [
@@ -31,12 +32,17 @@ export const COMIC_PANELS = [
   ['gabe', 'cat'],
   ['lambo', 'cat'],
   ['stilts', 'cat'],
+  ['nova', 'cat'],
+  ['ziggy', 'cat'],
+  ['dusty', 'cat'],
   ['brutus', 'dog'],
   ['howler', 'dog'],
   ['chili', 'dog'],
   ['marshmallow', 'dog'],
   ['nugget', 'dog'],
   ['cacklejaw', 'dog'],
+  ['barkula', 'dog'],
+  ['ranger', 'dog'],
 ];
 
 /**
