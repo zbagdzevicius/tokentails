@@ -33,27 +33,69 @@
       }
       #app { position: fixed; inset: 0; touch-action: none; overscroll-behavior: none; }
       /* audit UX-13: an inline boot splash (the page was a blank purple screen until the JS ran); app.ts sets
-         html[data-ready] when the title is up, and the splash fades out under it */
+         html[data-ready] when the title is up, and the splash fades out under it.
+         Nov 18 (founder): the comic loading screen. Nine slanted champion panels with plum gutters (src/boot/comicBoot.js
+         builds them: clip-path polygons inset by --cm-g, half a gutter), each a brand-coloured CSS panel until its picture
+         from pawlegends.app fades in; the logo big in the centre with a bolt glow; progress % and bar bottom-centre. */
       #boot {
-        position: fixed; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 14px; pointer-events: none;
-        background: radial-gradient(circle at 50% 42%, rgba(18, 9, 31, 0) 30%, var(--bg) 72%), linear-gradient(118deg, #3a0f2a 0 49.6%, rgba(255, 225, 74, 0.55) 49.6% 50.4%, #0c1f4a 50.4%); transition: opacity 0.35s ease-out, visibility 0s linear 0.35s;
+        position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; background: var(--bg); --cm-g: 3px;
+        transition: opacity 0.35s ease-out, visibility 0s linear 0.35s;
       }
-      /* the logo sits dead centre at 240 px, like the native launch screen (pawlegends-app LaunchLogo, 240 pt), so the
-         hand-over does not jump; the bar hangs below it */
-      #boot img { width: 240px; height: auto; animation: boot-paw 1.1s ease-in-out infinite; }
-      #boot i { width: 120px; height: 4px; border-radius: 0; transform: skewX(-8deg); background: rgba(255, 243, 227, 0.16); overflow: hidden; position: absolute; left: 50%; top: calc(50% + 100px); margin-left: -60px; }
-      #boot i::after { content: ''; position: absolute; inset: 0; width: 40%; border-radius: inherit; background: linear-gradient(90deg, var(--rose), #ffe14a 50%, var(--sky)); animation: boot-bar 1.2s ease-in-out infinite; }
+      @media (min-width: 900px) and (min-height: 520px) { #boot { --cm-g: 5px; } }
+      #boot .cm, #boot .cm > b { position: absolute; inset: 0; }
+      #boot .cm > b { overflow: hidden; }
+      #boot .cm s { position: absolute; overflow: hidden; text-decoration: none;
+        --halftone: radial-gradient(rgba(255, 255, 255, 0.17) 1.3px, transparent 1.9px) 0 0 / 10px 10px;
+        --bolt: linear-gradient(118deg, transparent 46%, rgba(255, 225, 74, 0.5) 46% 54%, transparent 54%); }
+      #boot .cat.v0 s { background: var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #ff86b0, #ff3d7f 45%, #b0164f); }
+      #boot .cat.v1 s { background: var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #ffa27a, #ff5c8a 45%, #a8124d); }
+      #boot .cat.v2 s { background: var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #ffb3d0, #e8357a 45%, #7a1040); }
+      #boot .dog.v0 s { background: var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #8fd0ff, #39a6ff 45%, #1453b0); }
+      #boot .dog.v1 s { background: var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #9ee8ff, #2f8ff0 45%, #123f8f); }
+      #boot .dog.v2 s { background: var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #bcdcff, #4a9cff 45%, #23317f); }
+      #boot .cm img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 36%; opacity: 0; transition: opacity 0.45s ease-out; }
+      #boot .cm .in img { opacity: 1; animation: cm-kb 11s ease-in-out var(--kd, 0s) infinite alternate; }
+      /* a night scrim behind the logo and under the bar, so both read over any panel */
+      #boot::after {
+        content: ''; position: absolute; inset: 0;
+        background: radial-gradient(34% 30% at 50% 46%, rgba(18, 9, 31, 0.6), rgba(18, 9, 31, 0) 100%), linear-gradient(rgba(18, 9, 31, 0) 72%, rgba(18, 9, 31, 0.78));
+      }
+      /* the logo dead centre, bigger than the native launch logo (240 pt) on a big screen, never taller than ~44% */
+      #boot .cm-logo {
+        position: absolute; z-index: 2; left: 50%; top: 46%; width: clamp(240px, 34vw, min(460px, 70vh)); height: auto;
+        transform: translate(-50%, -50%); filter: drop-shadow(0 0 16px rgba(255, 225, 74, 0.6)) drop-shadow(0 5px 0 rgba(18, 9, 31, 0.9));
+        animation: boot-paw 1.6s ease-in-out infinite;
+      }
+      #boot .cm-pr {
+        position: absolute; z-index: 2; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+        display: grid; justify-items: center; gap: 6px;
+      }
+      #boot .cm-pct {
+        font: italic 900 22px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: var(--cream); font-variant-numeric: tabular-nums;
+        text-shadow: 0 3px 0 var(--ink), 0 0 12px rgba(255, 225, 74, 0.55);
+      }
+      #boot .cm-bar {
+        display: block; width: min(360px, 56vw); height: 10px; overflow: hidden; transform: skewX(-14deg);
+        background: var(--ink); border: 2px solid var(--ink); box-shadow: 0 0 0 2px var(--cream), 0 4px 10px rgba(0, 0, 0, 0.45);
+      }
+      #boot .cm-bar u {
+        display: block; height: 100%; transform-origin: 0 50%; transform: scaleX(0); transition: transform 0.3s ease-out;
+        background: linear-gradient(90deg, var(--rose), var(--butter) 50%, var(--sky));
+      }
       html[data-ready='1'] #boot, body:has(#crash) #boot { opacity: 0; visibility: hidden; }
-      @keyframes boot-paw { 50% { transform: translateY(-4px) scale(1.02); } }
-      @keyframes boot-bar { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
-      @media (prefers-reduced-motion: reduce) { #boot img, #boot i::after { animation: none; } }
+      @keyframes boot-paw { 50% { transform: translate(-50%, -50%) scale(1.025); } }
+      @keyframes cm-kb { from { transform: scale(1.04); } to { transform: scale(1.12) translate(var(--kx, 0), var(--ky, 0)); } }
+      @media (prefers-reduced-motion: reduce) { #boot .cm-logo, #boot .cm .in img { animation: none; } }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <div id="boot" aria-hidden="true">
-      <img src="%BASE_URL%assets/brand/logo-720.webp" alt="" width="720" height="454" /><i></i>
+      <div class="cm"></div>
+      <img class="cm-logo" src="%BASE_URL%assets/brand/logo-720.webp" alt="" width="720" height="454" />
+      <div class="cm-pr"><span class="cm-pct">0%</span><i class="cm-bar"><u></u></i></div>
     </div>
+    <!--pl-comic-boot-->
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

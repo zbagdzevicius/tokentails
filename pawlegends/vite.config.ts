@@ -108,6 +108,27 @@ function keepReleasesPlugin(count: number): Plugin {
   };
 }
 
+
+/**
+ * The boot loading screen's comic panels (src/boot/comicBoot.js): inlined into index.html as a classic script right
+ * after the #boot markup (`<!--pl-comic-boot-->`), so the panel pictures start before the game's JS. `export` is
+ * stripped and the file runs in its own scope. Dev and build alike.
+ */
+function comicBootPlugin(): Plugin {
+  const file = path.resolve(__dirname, 'src/boot/comicBoot.js');
+  return {
+    name: 'pawlegends-comic-boot',
+    transformIndexHtml(html) {
+      const src = readFileSync(file, 'utf8')
+        .replace(/\/\*\*[\s\S]*?\*\//g, '')
+        .replace(/^export /gm, '')
+        .replace(/\n{2,}/g, '\n');
+      if (src.includes('</script')) throw new Error('comicBoot.js must not contain </script');
+      return html.replace('<!--pl-comic-boot-->', () => `<script>(function(){${src}\ncomicBoot(document, window);})();</script>`);
+    },
+  };
+}
+
 export default defineConfig({
   // Only VITE_* reaches the page (VITE_EMBED_ORIGINS, VITE_PAWLEGENDS_POSTHOG_KEY, ...).
   envPrefix: ['VITE_'],
@@ -117,7 +138,7 @@ export default defineConfig({
   preview: { port: 4176, host: '127.0.0.1' },
   worker: { format: 'es' },
   // gaps5 polish 1: every lazy chunk import is retried once before the crash card (tools/lib/chunk-retry.mjs)
-  plugins: [chunkRetryPlugin(path.resolve(__dirname, 'src')), versionJsonPlugin(), ...(keepReleases > 0 ? [keepReleasesPlugin(keepReleases)] : [])],
+  plugins: [chunkRetryPlugin(path.resolve(__dirname, 'src')), versionJsonPlugin(), comicBootPlugin(), ...(keepReleases > 0 ? [keepReleasesPlugin(keepReleases)] : [])],
   build: {
     emptyOutDir: keepReleases > 0 ? false : undefined,
     target: 'es2022',

@@ -36,7 +36,7 @@ import { APP_DIR, REPO_DIR } from './lib/app-config.mjs';
 const BRAND = join(REPO_DIR, 'brand/pawlegends');
 const assets = join(APP_DIR, 'ios/App/App/Assets.xcassets');
 const BG = '#2b1d2e';
-/** Launch logo width in points (pawlegends/index.html `#boot img` draws it at 240 CSS px). */
+/** Launch logo width in points (pawlegends/index.html `#boot .cm-logo` draws it at 240 CSS px and up: 34vw, at most 460 px or 70vh, over the comic panels since Nov 18). */
 const LAUNCH_PT = 240;
 
 function brand(name) {

@@ -34,6 +34,9 @@ function boot(): void {
   setTimeout(() => void import('./render/chars/coatParts').then((m) => m.loadCoatParts()), 1500);
 }
 
+// the boot loading screen (src/boot/comicBoot.js): the first-load JS has run, the bar jumps to at least 70 %
+(window as { __plBoot?: (pct: number) => void }).__plBoot?.(70);
+
 try {
   boot();
 } catch (e) {
