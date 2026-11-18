@@ -67,7 +67,9 @@ the player now takes the Mill in Practice (`tests/unit/sim-v35.test.ts`).
 The nap card's kicker says why a wait is long when earlier deaths lengthened it: **"Death 4 · +36%"** (the death weight
 and its share of this wait). Without a death-weight bonus it keeps sim v33's "Long nap: respawns grow as the match goes
 on" for 20 s or more, else "Napping at the fountain". The death event carries `weight` and `weightBp` for it (events are
-not hashed). The kill feed already shows the bounty and shutdown tags, now with the bigger values.
+not hashed). Live check 2026-11-18: the event carries the weight from the first death, but the sim adds it only after
+3:00, so the card read "Death 2 · +12%" on unchanged early waits; the client now names it only after 3:00
+(`napWeightBp`, ui/napCard.ts; client only, the sim is unchanged). The kill feed already shows the bounty and shutdown tags, now with the bigger values.
 
 ## 2. Measured
 

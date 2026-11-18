@@ -15,7 +15,7 @@ import { createMatch, fillPicks, step, type MatchHandle } from '../../src/sim/in
 import { deathWeightBp, respawnTicks } from '../../src/sim/progression/respawn';
 import { resolveDeaths } from '../../src/sim/combat/damage';
 import { bountyOf } from '../../src/sim/progression/xp';
-import { napKicker } from '../../src/ui/napCard';
+import { napKicker, napWeightBp } from '../../src/ui/napCard';
 import { SIM_VERSION } from '../../src/sim/version';
 import { G } from '../../src/sim/world';
 
@@ -131,6 +131,21 @@ describe('sim v35: every death makes the next respawn longer', () => {
     expect(napKicker(false, 4, 3600)).toBe('Death 4 · +36%');
     expect(napKicker(true, 1, 0)).toBe('Long nap: respawns grow as the match goes on');
     expect(napKicker(false, 3, 0)).toBe('Napping at the fountain');
+  });
+
+  it('live check 2026-11-18: before 3:00 the card names no death weight (the sim adds none to the wait then)', { timeout: 60000 }, () => {
+    const m = match('crossing', 'normal');
+    const w = m.world;
+    while (w.globals[G.Tick] < 600) step(m, []);
+    knockOut(m, 4);
+    waitBack(m, 4);
+    const e = knockOut(m, 4);
+    expect(e.weight).toBe(2);
+    expect(e.weightBp).toBeGreaterThan(0);
+    expect(e.tick).toBeLessThanOrEqual(RESPAWN.growFrom);
+    expect(napWeightBp(e.tick, e.weightBp!)).toBe(0);
+    expect(napKicker(false, e.weight!, napWeightBp(e.tick, e.weightBp!))).toBe('Napping at the fountain');
+    expect(napWeightBp(RESPAWN.growFrom + 1, 1200)).toBe(1200);
   });
 });
 

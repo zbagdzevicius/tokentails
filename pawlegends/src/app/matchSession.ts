@@ -3,7 +3,7 @@
  * touch), HUD, minimap, scoreboard, talents, first-match tips and the Esc menu. The app's frame loop calls
  * `frame(dt)`; the session calls back once with the result and the replay.
  */
-import type { NapKiller } from '../ui/napCard';
+import { napWeightBp, type NapKiller } from '../ui/napCard';
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
 import { matchVoiceKeys } from '../audio/voiceLines';
@@ -1055,8 +1055,8 @@ export class MatchSession {
       this.clearTowerWarnings();
       // the nap card's medallion (ui/napCard.ts), read before recapLine clears the hits
       const medal = this.napKiller(killer);
-      // sim v35: the death weight that lengthened this nap (the card's "Death 4 · +45%")
-      this.hud?.recap(this.recapLine(killer, e.killer), medal, e.weight ?? 0, e.weightBp ?? 0);
+      // sim v35: the death weight that lengthened this nap (the card's "Death 4 · +45%"), none before 3:00 (napWeightBp)
+      this.hud?.recap(this.recapLine(killer, e.killer), medal, e.weight ?? 0, napWeightBp(e.tick, e.weightBp ?? 0));
     }
     const good = victim.team !== this.view.myTeam;
     const rel = (team: number | undefined, id: number): FeedName['rel'] =>

@@ -15,6 +15,7 @@
 import type { HeroId } from '../sim/api';
 import { HERO_TEXT } from './heroText';
 import { LORE, WORLD } from '../data/lore';
+import { RESPAWN } from '../data/xp';
 import './napCard.css';
 
 const BASE: string = (() => {
@@ -226,6 +227,15 @@ export class NapCard {
 export function napKicker(long: boolean, weight: number, weightBp: number): string {
   if (weight > 1 && weightBp > 0) return `Death ${weight} · +${Math.round(weightBp / 100)}%`;
   return long ? 'Long nap: respawns grow as the match goes on' : 'Napping at the fountain';
+}
+
+/**
+ * Live check 2026-11-18: the death event carries the weight's bp from the first death, but the sim adds it to the wait
+ * only after RESPAWN.growFrom (3:00, progression/respawn.ts), so before then the card said "Death 2 · +12%" on a wait
+ * no earlier death had lengthened. The bp this death's wait really carries: none before 3:00.
+ */
+export function napWeightBp(tick: number, weightBp: number): number {
+  return tick > RESPAWN.growFrom ? weightBp : 0;
 }
 
 /** Tests only: the line rotation starts from the first line. */
