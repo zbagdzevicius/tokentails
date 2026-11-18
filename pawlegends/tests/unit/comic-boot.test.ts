@@ -127,7 +127,11 @@ describe('boot comic loading screen (src/boot/comicBoot.js)', () => {
     // the pictures start before any stylesheet, preload or script (an inline script after a stylesheet waits for it)
     const head = html.indexOf('<!--pl-comic-head-->');
     expect(head).toBeGreaterThan(0);
-    for (const tag of ['<link', '<style', '<script']) expect(head).toBeLessThan(html.indexOf(tag));
+    for (const tag of ['<style', '<script', 'rel="stylesheet"', 'rel="icon"']) expect(head).toBeLessThan(html.indexOf(tag));
+    // only the logo comes before them (high priority): on a slow phone it arrived ~8 s late behind the panels
+    const logo = html.indexOf('assets/brand/logo-720.webp');
+    expect(logo).toBeGreaterThan(0);
+    expect(logo).toBeLessThan(head);
     expect(html).toContain('class="cm-logo"');
     expect(readFileSync(join(__dirname, '../../src/boot/comicBoot.js'), 'utf8')).not.toContain('</script');
   });

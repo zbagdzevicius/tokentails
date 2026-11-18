@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
-    <!-- the loading screen's panel pictures start first (vite.config.ts comicBootPlugin, src/boot/comicBoot.js) -->
+    <!-- the loading screen's logo first, then its panel pictures (on a slow 3G phone the logo came in ~8 s late behind them) -->
+    <link rel="preload" href="%BASE_URL%assets/brand/logo-720.webp" as="image" type="image/webp" fetchpriority="high" />
+    <!-- then the panel pictures, before any stylesheet or script (vite.config.ts comicBootPlugin, src/boot/comicBoot.js) -->
     <!--pl-comic-head-->
     <meta name="theme-color" content="#12091f" />
     <meta name="robots" content="noindex" />
@@ -13,7 +15,6 @@
     <link rel="icon" href="%BASE_URL%favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="%BASE_URL%favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" sizes="180x180" />
-    <link rel="preload" href="%BASE_URL%assets/brand/logo-720.webp" as="image" type="image/webp" />
     <!-- LATENCY-PLAN C2: the party relay and API host; the lobby socket's DNS (and an API fetch's TLS) start with the page -->
     <link rel="preconnect" href="https://api.tokentails.com" crossorigin />
     <link rel="dns-prefetch" href="https://api.tokentails.com" />
@@ -94,7 +95,7 @@
     <div id="app"></div>
     <div id="boot" aria-hidden="true">
       <div class="cm"></div>
-      <img class="cm-logo" src="%BASE_URL%assets/brand/logo-720.webp" alt="" width="720" height="454" />
+      <img class="cm-logo" src="%BASE_URL%assets/brand/logo-720.webp" alt="" width="720" height="454" fetchpriority="high" />
       <div class="cm-pr"><span class="cm-pct">0%</span><i class="cm-bar"><u></u></i></div>
     </div>
     <!--pl-comic-boot-->
