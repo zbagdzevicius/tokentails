@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
-    <!-- the loading screen's logo first, then its panel pictures (on a slow 3G phone the logo came in ~8 s late behind them) -->
-    <link rel="preload" href="%BASE_URL%assets/brand/logo-720.webp" as="image" type="image/webp" fetchpriority="high" />
+    <!-- the loading screen's logo first (720 px; 1024 px only where it is drawn over ~760 device px: retina laptops, big screens), then its panel pictures (on a slow 3G phone the logo came in ~8 s late behind them) -->
+    <link rel="preload" href="%BASE_URL%assets/brand/logo-720.webp" imagesrcset="%BASE_URL%assets/brand/logo-720.webp 720w, %BASE_URL%assets/brand/logo-1024.webp 1024w" imagesizes="(min-aspect-ratio: 35/17) 70vh, (max-width: 705px) 240px, (min-width: 1353px) 460px, 34vw" as="image" type="image/webp" fetchpriority="high" />
     <!-- then the panel pictures, before any stylesheet or script (vite.config.ts comicBootPlugin, src/boot/comicBoot.js) -->
     <!--pl-comic-head-->
     <meta name="theme-color" content="#12091f" />
@@ -95,7 +95,7 @@
     <div id="app"></div>
     <div id="boot" aria-hidden="true">
       <div class="cm"></div>
-      <img class="cm-logo" src="%BASE_URL%assets/brand/logo-720.webp" alt="" width="720" height="454" fetchpriority="high" />
+      <img class="cm-logo" src="%BASE_URL%assets/brand/logo-720.webp" srcset="%BASE_URL%assets/brand/logo-720.webp 720w, %BASE_URL%assets/brand/logo-1024.webp 1024w" sizes="(min-aspect-ratio: 35/17) 70vh, (max-width: 705px) 240px, (min-width: 1353px) 460px, 34vw" alt="" width="720" height="454" fetchpriority="high" />
       <div class="cm-pr"><span class="cm-pct">0%</span><i class="cm-bar"><u></u></i></div>
     </div>
     <!--pl-comic-boot-->

@@ -50,6 +50,7 @@ import { HERO_SCALE } from '../render/views/models';
 import { CORE, FOUNTAIN, MAP, PUDDING_SPOT, TOWER_SPOTS, mirrorX } from '../data/map';
 import { currentMap, useMap } from './mapBinding';
 import { pickScheme } from '../render/mapSchemes';
+import { practiceSchemeWish } from '../ui/mapPick';
 import { mapInfo } from '../sim/map/info';
 import { drawMapPreview } from '../ui/mapPreview';
 import { rolesOf } from '../sim/bots/roles';
@@ -689,7 +690,8 @@ export class MatchSession {
     // map colour schemes (render/mapSchemes.ts): picked from the match seed, so every client in a party, a replay and
     // a spectator see the same look; Practice's fresh seed gives a new look each match. `?scheme=` (a season or an id)
     // picks one by hand.
-    const look = pickScheme(currentMap(), w.seed, schemeWish());
+    // Practice: the swatch chip's season (ui/mapPick.ts) when no `?scheme=` asks
+    const look = pickScheme(currentMap(), w.seed, schemeWish() ?? (w.mutator === 'practice' ? practiceSchemeWish() : null));
     this.view.setScheme(look);
     this.schemeId = look.id;
     document.documentElement.dataset.mapScheme = look.id;

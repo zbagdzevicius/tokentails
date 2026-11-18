@@ -460,3 +460,18 @@ html[data-quality='low'] .ms-tile, html[data-quality='low'] .ms-runes, html[data
 /* sim v34: Practice's map chips (six short labels: they fit 844 px wide) */
 .ms-maps button { padding: 0 9px; font-size: 13px; }
 @media (max-width: 900px) { .ms-maps { height: 42px; } .ms-maps button { padding: 0 7px; font-size: 12px; } }
+
+/* Practice's map colours: a round two-tone swatch next to the map chips (Random: a four-season wheel) */
+.ms-scheme {
+  flex: none; position: relative; align-self: center; width: 42px; height: 42px; margin-left: 6px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  background: rgb(var(--v6-navy-rgb) / 0.78); box-shadow: inset 0 0 0 1px var(--ms-line-strong);
+  transition: transform var(--v6-dur-press) ease-out;
+}
+.ms-scheme::after { content: ''; position: absolute; inset: -4px; }
+.ms-scheme i { position: absolute; inset: 7px; border-radius: 50%; background: linear-gradient(135deg, var(--a) 0 50%, var(--b) 50% 100%); box-shadow: 0 0 0 2px var(--v6-cream), 0 1px 0 3px rgb(0 0 0 / 0.25); }
+.ms-scheme.rnd i { background: conic-gradient(#6fbf4a 0 25%, #f6b3cc 0 50%, #e0602a 0 75%, #eef3fa 0); }
+.ms-scheme:hover i { transform: rotate(-12deg); }
+.ms-scheme:active { transform: scale(0.92); }
+.ms-scheme:focus-visible { outline: 2px solid var(--v6-bolt); outline-offset: 2px; }
+@media (max-width: 900px) { .ms-scheme { width: 38px; height: 38px; margin-left: 4px; } .ms-scheme i { inset: 6px; } }
+@media (prefers-reduced-motion: reduce) { .ms-scheme, .ms-scheme i { transition: none; } .ms-scheme:hover i { transform: none; } }

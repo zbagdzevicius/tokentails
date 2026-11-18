@@ -6,6 +6,7 @@
  * the same blurbs for tools).
  */
 import { MAP_IDS, MAP_POOL_3V3, pickMap3v3, type MapId } from '../sim/api';
+import { mapSchemes, type SeasonId } from '../render/mapSchemes';
 
 export interface MapCard {
   id: MapId;
@@ -39,6 +40,7 @@ export function drawSeed(): number {
 
 const LAST = 'pl.lastMap3v3';
 const PRACTICE = 'pl.practiceMap';
+const PRACTICE_SCHEME = 'pl.practiceScheme';
 
 function read(k: string): string | null {
   try {
@@ -80,6 +82,40 @@ export const practiceMap = (): PracticeMap => {
 };
 export const setPracticeMap = (m: PracticeMap): void => write(PRACTICE, m);
 export const PRACTICE_CHOICES: readonly PracticeMap[] = Object.freeze(['random', ...MAP_POOL_3V3]);
+
+/**
+ * Practice's map colour scheme (render/mapSchemes.ts): 'random' (the match seed picks, the default) or a season. The
+ * small swatch chip next to the map chips cycles through the picked map's seasons (with Random maps: every pool map's
+ * seasons). A season the drawn map lacks plays the seed's scheme.
+ */
+export type PracticeScheme = SeasonId | 'random';
+/** The seasons offered for a Practice map pick, Random first. */
+export function practiceSchemeChoices(map: PracticeMap): readonly PracticeScheme[] {
+  if (map !== 'random') return ['random', ...mapSchemes(map).map((s) => s.season)];
+  const all: PracticeScheme[] = ['random'];
+  for (const m of MAP_POOL_3V3) for (const s of mapSchemes(m)) if (!all.includes(s.season)) all.push(s.season);
+  return all;
+}
+/** The saved scheme when the current map offers it, else 'random'. */
+export const practiceScheme = (map: PracticeMap = practiceMap()): PracticeScheme => {
+  const v = read(PRACTICE_SCHEME);
+  return v && (practiceSchemeChoices(map) as readonly string[]).includes(v) ? (v as PracticeScheme) : 'random';
+};
+export const setPracticeScheme = (s: PracticeScheme): void => write(PRACTICE_SCHEME, s);
+/** The season a Practice match asks for (null: the seed picks). */
+export const practiceSchemeWish = (): SeasonId | null => {
+  const v = read(PRACTICE_SCHEME);
+  return v && v !== 'random' ? (v as SeasonId) : null;
+};
+/** Display names and swatch colours (ground, trees) of the seasons. */
+export const SCHEME_CHIPS: Readonly<Record<PracticeScheme, { name: string; a: string; b: string }>> = Object.freeze({
+  random: { name: 'Random colours', a: '#7cc35a', b: '#f2a5c0' },
+  native: { name: 'Native colours', a: '#6fbf4a', b: '#2f8a3a' },
+  bloom: { name: 'Blossom', a: '#9fd86a', b: '#f6b3cc' },
+  verdant: { name: 'Summer', a: '#5fc24a', b: '#1f7a34' },
+  harvest: { name: 'Harvest', a: '#d9b04a', b: '#e0602a' },
+  frost: { name: 'First snow', a: '#eef3fa', b: '#3d6b6a' },
+});
 
 /** A known non-Crossing map id from a message or config (a room's, a record's), else undefined. */
 export function poolMapOf(map: string | null | undefined): MapId | undefined {

@@ -19,7 +19,7 @@
  * results screen (`fresh`) pops its padlock and grows into the third tile, once.
  * Low tier or reduced motion: no stagger, no rune rotation. Mode art loads lazily when the overlay opens.
  */
-import { MAP_CARDS, PRACTICE_CHOICES, practiceMap, setPracticeMap, type PracticeMap } from '../mapPick';
+import { MAP_CARDS, PRACTICE_CHOICES, practiceMap, practiceScheme, practiceSchemeChoices, SCHEME_CHIPS, setPracticeMap, setPracticeScheme, type PracticeMap } from '../mapPick';
 import './modeSelect.css';
 import type { Difficulty } from '../../sim/api';
 import { DIFFICULTY_HINT, DIFFICULTY_TEXT } from '../heroText';
@@ -213,7 +213,16 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
       const label = x === 'random' ? 'Random' : MAP_CARDS[x].short;
       const title = x === 'random' ? 'A different map each time' : `${MAP_CARDS[x].name}: ${MAP_CARDS[x].line}`;
       return `<button type="button" role="radio" class="${on ? 'on' : ''}" aria-checked="${on}" tabindex="${on ? 0 : -1}" data-pm="${x}" data-testid="practice-map-${x}" title="${esc(title)}">${esc(label)}</button>`;
-    }).join('')}</div>`;
+    }).join('')}</div>${schemeChipHtml(cur)}`;
+  };
+  /** Practice's map colours: one round swatch chip; a tap moves to the map's next scheme (Random first). */
+  const schemeChipHtml = (map: PracticeMap): string => {
+    const cur = practiceScheme(map);
+    const list = practiceSchemeChoices(map);
+    const c = SCHEME_CHIPS[cur];
+    const next = SCHEME_CHIPS[list[(list.indexOf(cur) + 1) % list.length]];
+    const label = `Map colours: ${c.name}. Tap for ${next.name}`;
+    return `<button type="button" class="ms-scheme${cur === 'random' ? ' rnd' : ''}" data-ps="${cur}" data-testid="practice-scheme" aria-label="${esc(label)}" title="${esc(label)}" style="--a:${c.a};--b:${c.b}"><i aria-hidden="true"></i></button>`;
   };
 
   const diffHtml = (): string => {
@@ -453,6 +462,16 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
       setPracticeMap(pm);
       render();
       el.querySelector<HTMLElement>('.ms-maps .on')?.focus({ preventScroll: true });
+      return;
+    }
+    const ps = t.closest<HTMLElement>('[data-ps]');
+    if (ps) {
+      o.sound?.('click');
+      const map = practiceMap();
+      const list = practiceSchemeChoices(map);
+      setPracticeScheme(list[(list.indexOf(practiceScheme(map)) + 1) % list.length]);
+      render();
+      el.querySelector<HTMLElement>('[data-ps]')?.focus({ preventScroll: true });
       return;
     }
     const d = t.closest<HTMLElement>('[data-d]')?.dataset.d as Difficulty | undefined;

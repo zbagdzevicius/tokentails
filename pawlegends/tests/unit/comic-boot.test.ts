@@ -137,6 +137,11 @@ describe('boot comic loading screen (src/boot/comicBoot.js)', () => {
     expect(logo).toBeGreaterThan(0);
     expect(logo).toBeLessThan(head);
     expect(html).toContain('class="cm-logo"');
+    // retina: a 1024 px logo in the srcset (preload and img), small enough to keep the first load light
+    expect(html.match(/logo-1024\.webp 1024w/g)?.length).toBe(2);
+    const big = readFileSync(join(__dirname, '../../public/assets/brand/logo-1024.webp'));
+    expect(big.length).toBeLessThan(110_000);
+    expect(big.readUInt32LE(24) & 0xffffff).toBe(1023);
     expect(readFileSync(join(__dirname, '../../src/boot/comicBoot.js'), 'utf8')).not.toContain('</script');
   });
 });
