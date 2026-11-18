@@ -67,11 +67,7 @@ export function fakeChain(): FakeChain {
             if (data.startsWith(shelterSplitInterface.getFunction('paused')!.selector)) {
                 return shelterSplitInterface.encodeFunctionResult('paused', [false]);
             }
-            return shelterSplitInterface.encodeFunctionResult('preview', [
-                [MOTORED_SHELTER],
-                [WEI_PER_USD],
-                0n,
-            ]);
+            return shelterSplitInterface.encodeFunctionResult('preview', [[MOTORED_SHELTER], [WEI_PER_USD], 0n]);
         }),
     };
 }

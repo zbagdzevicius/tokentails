@@ -141,16 +141,10 @@ export class MotoredStripeService {
         const row: any = await this.gifts.findOne({ paymentKey: pKey }).lean();
         if (!row) return 'ignored';
         if (row.state === 'due') {
-            await this.gifts.updateOne(
-                { _id: row._id, state: 'due' },
-                { $set: { state: 'void', reversed: kind } }
-            );
+            await this.gifts.updateOne({ _id: row._id, state: 'due' }, { $set: { state: 'void', reversed: kind } });
             return 'voided';
         }
-        await this.gifts.updateOne(
-            { _id: row._id },
-            { $set: { reversed: kind } }
-        );
+        await this.gifts.updateOne({ _id: row._id }, { $set: { reversed: kind } });
         return 'after-payout';
     }
 }

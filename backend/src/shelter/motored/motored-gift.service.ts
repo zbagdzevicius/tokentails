@@ -103,10 +103,7 @@ export class MotoredGiftService {
 
     /** A `due` row that was reversed (refund/dispute) after it was taken is never sent: it becomes `void`. */
     private async voidReversed() {
-        await this.gifts.updateMany(
-            { state: 'due', reversed: { $exists: true } },
-            { $set: { state: 'void' } }
-        );
+        await this.gifts.updateMany({ state: 'due', reversed: { $exists: true } }, { $set: { state: 'void' } });
     }
 
     /** A row left `sending` with no hash (the process died between taking it and signing) goes back to `due`. */
@@ -115,10 +112,7 @@ export class MotoredGiftService {
         await this.gifts.updateMany(
             {
                 state: 'sending',
-                $or: [
-                    { lockedAt: { $lt: before } },
-                    { lockedAt: { $exists: false }, updatedAt: { $lt: before } },
-                ],
+                $or: [{ lockedAt: { $lt: before } }, { lockedAt: { $exists: false }, updatedAt: { $lt: before } }],
             },
             { $set: { state: 'due' }, $unset: { lockedAt: 1 } }
         );
@@ -195,7 +189,9 @@ export class MotoredGiftService {
     private async checkFunder(shelter: ShelterOnchainConfig, cfg: MotoredConfig) {
         if (!cfg.funderAddress) return;
         if (cfg.funderAddress !== MOTORED_FUNDER.toLowerCase()) {
-            this.logger.warn(`motored: funder key is for ${cfg.funderAddress}, expected ${MOTORED_FUNDER}; check MOTORED_FUNDER_KEY`);
+            this.logger.warn(
+                `motored: funder key is for ${cfg.funderAddress}, expected ${MOTORED_FUNDER}; check MOTORED_FUNDER_KEY`
+            );
         }
         const balance = await this.chain.nativeBalance(shelter, cfg.funderAddress).catch(() => null);
         if (balance === null) return;
@@ -203,7 +199,9 @@ export class MotoredGiftService {
         const low = centsWei(Math.round(avgDaily * MOTORED_LOW_BALANCE_DAYS));
         if (balance < low) {
             this.logger.warn(
-                `motored: funder ${cfg.funderAddress} low balance (${Number(balance) / 1e18} USDC < ${MOTORED_LOW_BALANCE_DAYS} days of gifts); top it up`
+                `motored: funder ${cfg.funderAddress} low balance (${
+                    Number(balance) / 1e18
+                } USDC < ${MOTORED_LOW_BALANCE_DAYS} days of gifts); top it up`
             );
         }
     }
@@ -219,7 +217,11 @@ export class MotoredGiftService {
             if (paused) return { ok: false, why: 'split is paused' };
             const p = shelterSplitInterface.decodeFunctionResult(
                 'preview',
-                await this.chain.ethCall(shelter, split, shelterSplitInterface.encodeFunctionData('preview', [WEI_PER_USD]))
+                await this.chain.ethCall(
+                    shelter,
+                    split,
+                    shelterSplitInterface.encodeFunctionData('preview', [WEI_PER_USD])
+                )
             );
             const pays = (p.wallets as string[])
                 .map((w, k) => [String(w).toLowerCase(), p.amounts[k]])
@@ -246,11 +248,7 @@ export class MotoredGiftService {
 
         const capCents = Math.round(cfg.dailyCapUsd * 100);
         let todayGiven = await this.todayGivenCents(now);
-        const rows: any[] = await this.gifts
-            .find({ state: 'due' })
-            .sort({ createdAt: 1 })
-            .limit(MOTORED_BATCH)
-            .lean();
+        const rows: any[] = await this.gifts.find({ state: 'due' }).sort({ createdAt: 1 }).limit(MOTORED_BATCH).lean();
         for (const row of rows) {
             if (capCents && todayGiven + Number(row.amountUsdCents) > capCents) {
                 this.logger.warn(`motored: daily cap ${cfg.dailyCapUsd} USDC reached; the rest wait as due`);
@@ -292,7 +290,10 @@ export class MotoredGiftService {
     private async sendOne(row: any, shelter: ShelterOnchainConfig, cfg: MotoredConfig) {
         const wallet: any = await this.wallets.findOne({ customerKey: row.customerKey }).lean();
         if (!wallet) throw new Error(`no wallet for customerKey ${row.customerKey}`);
-        const walletCfg: ShelterOnchainConfig = { ...shelter, privateKey: decryptWalletKey(wallet.encryptedKey, cfg.walletKek!) };
+        const walletCfg: ShelterOnchainConfig = {
+            ...shelter,
+            privateKey: decryptWalletKey(wallet.encryptedKey, cfg.walletKek!),
+        };
         const funderCfg: ShelterOnchainConfig = { ...shelter, privateKey: cfg.funderKey! };
 
         const gasPrice = (await this.chain.gasPrice(shelter).catch(() => null)) ?? 1n;
@@ -305,10 +306,7 @@ export class MotoredGiftService {
         const fund = await this.chain.sendContractCall(wallet.address, '0x', fundValue, {
             config: funderCfg,
             onSigned: async tx => {
-                await this.gifts.updateOne(
-                    { _id: row._id, state: 'sending' },
-                    { $set: { fundTxHash: tx.hash } }
-                );
+                await this.gifts.updateOne({ _id: row._id, state: 'sending' }, { $set: { fundTxHash: tx.hash } });
             },
         });
         const fundReceipt = await this.chain.waitForReceipt(shelter, fund.txHash, 60000);

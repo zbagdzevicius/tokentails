@@ -41,6 +41,7 @@ describe('MotoredGiftService', () => {
         expect(await h.giftService.splitIsSafe(shelter)).toEqual({ ok: true });
         h.chain.ethCall.mockImplementation(async (_c: any, _to: string, data: string) => {
             if (data.startsWith('0x5c975abb')) {
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
                 return require('../onchain/shelter-chain').shelterSplitInterface.encodeFunctionResult('paused', [true]);
             }
             return '0x';
@@ -103,7 +104,10 @@ describe('MotoredGiftService', () => {
     it('unlocks a stale sending row back to due', async () => {
         const h = motoredHarness();
         const row = await seedDue(h);
-        await h.gifts.updateOne({ _id: row._id }, { $set: { state: 'sending', lockedAt: new Date(M_T0.getTime() - 40 * 60 * 1000) } });
+        await h.gifts.updateOne(
+            { _id: row._id },
+            { $set: { state: 'sending', lockedAt: new Date(M_T0.getTime() - 40 * 60 * 1000) } }
+        );
         // A run with no ready RPC still unlocks stale rows before returning.
         const run = await h.giftService.runOnce(new Date(M_T0), readMotoredConfig(M_ENV), shelter);
         expect(run.skipped).toBeNull();
@@ -138,7 +142,9 @@ describe('MotoredGiftService', () => {
         const h = motoredHarness();
         await seedDue(h);
         // Definite broadcast refusal on the donate().
-        h.chain.sendDonation.mockRejectedValueOnce(new DonationBroadcastError({ hash: '0x1', nonce: 0, from: '0x' } as any, { code: 'NONCE_EXPIRED' }));
+        h.chain.sendDonation.mockRejectedValueOnce(
+            new DonationBroadcastError({ hash: '0x1', nonce: 0, from: '0x' } as any, { code: 'NONCE_EXPIRED' })
+        );
         const cfg = readMotoredConfig(M_ENV);
         const run = await h.giftService.runOnce(new Date(M_T0), cfg, shelter);
         expect(run.sent).toBe(0);
