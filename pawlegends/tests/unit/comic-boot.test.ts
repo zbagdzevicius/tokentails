@@ -108,6 +108,9 @@ describe('boot comic loading screen (src/boot/comicBoot.js)', () => {
     expect(comicSize(1440, 900, 1)).toBe(640);
     expect(comicSize(1440, 900, 2)).toBe(1280);
     expect(comicSize(3440, 1440, 1)).toBe(1280);
+    // a slow connection or data saving: the small set everywhere
+    expect(comicSize(1440, 900, 2, true)).toBe(640);
+    expect(comicSize(3440, 1440, 1, true)).toBe(640);
   });
 
   it('progress eases up, stays below 92 % until the game is ready, never below what the game reported', () => {

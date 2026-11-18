@@ -77,8 +77,13 @@ export function comicUrl(root, id, size) {
   return root + id + '-' + size + '.webp?r=' + COMIC_REV;
 }
 
-/** 640 px pictures unless a panel is drawn over ~760 device pixels (big screens, retina laptops; a phone's 3x counts as 2x). */
-export function comicSize(w, h, dpr) {
+/**
+ * 640 px pictures unless a panel is drawn over ~760 device pixels (big screens, retina laptops; a phone's 3x counts as
+ * 2x). Always 640 on a slow connection or with data saving on (`slow`): the 1280 set is ~1 MB, and on a slow 3G
+ * desktop it arrived ~4 s after the 640 set and held the game's own files back (live check Nov 18).
+ */
+export function comicSize(w, h, dpr, slow) {
+  if (slow) return 640;
   const wide = w >= h;
   const panelPx = Math.max(wide ? (w / 4) * 1.3 : w / 3, wide ? h / 2 : h / 3) * Math.min(dpr || 1, 2);
   return panelPx > 760 ? 1280 : 640;
@@ -172,7 +177,9 @@ export function comicStart(win) {
   const tallMq = win.matchMedia ? win.matchMedia('(orientation: portrait)') : null;
   const picks = pickComic(Math.random, tallMq && tallMq.matches ? COMIC_LAYOUTS.tall : COMIC_LAYOUTS.wide);
   const base = comicRoot(win.location ? win.location.hostname : '');
-  const size = comicSize(win.innerWidth || 1280, win.innerHeight || 720, win.devicePixelRatio || 1);
+  const net = win.navigator && win.navigator.connection;
+  const slow = !!net && (net.saveData === true || /(^|-)(2g|3g)$/.test(net.effectiveType || ''));
+  const size = comicSize(win.innerWidth || 1280, win.innerHeight || 720, win.devicePixelRatio || 1, slow);
   const state = { picks, tallMq, imgs: [], done: 0, lastIn: 0, onDone: [] };
   picks.forEach((p, i) => {
     const img = new win.Image();
