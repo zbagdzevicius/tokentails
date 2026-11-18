@@ -3,7 +3,7 @@
  * out (structure only; every piece of art and every shape here is our own). It supersedes LANDING-PICK-UX.md Part A
  * (the left column) and keeps its rules: no scroll, 44 px targets, safe areas, no feature flags.
  *
- * Layers, back to front: L0 the painted key art (ui/stage/artStage.ts, render/lobby/lobbyBg.ts `legends`), L1 the
+ * Layers, back to front: L0 the drawn poster (render/lobby/poster.ts, HOME-POSTER.md; was the painted key art), L1 the
  * picked hero as painted art in its gold card (its splash, or the worn skin's splash; no 3D on menus, founder Nov 13),
  * centred, L2 rose stars and sky sparks on a canvas (motes.ts; Med/High only), L4 this UI:
  * - top left: the profile chip (avatar in its frame ring with the Season XP ring, name, XP bar, tier);

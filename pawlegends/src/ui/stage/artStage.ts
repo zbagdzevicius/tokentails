@@ -4,7 +4,7 @@
  * replaces the 3D lobby (render/lobby.ts: the hero model on a turntable, a pedestal and a shader backdrop drawn by the
  * game renderer behind every menu). The 3D models stay in the match and in the champion browser's skill clips.
  *
- * - L0 the screen's scene (render/lobby/lobbyBg.ts: Home's `legends` key art, the pick's spotlight stage, the
+ * - L0 the screen's scene (render/lobby/lobbyBg.ts: Home's poster as CSS fields, the pick's spotlight stage, the
  *   results' victory or defeat scene for the hero's species), a cover-fit background;
  * - L1 the hero card: the worn skin's splash (pawlegends.app skin art) over the hero's own splash (ui/art.ts
  *   `artImgAttrs`, a load error falls back), in a gold frame, standing on the scene's ring;
@@ -168,6 +168,11 @@ export class ArtStage {
     document.documentElement.dataset.lobbyBg = bg;
     if (url === this.shownBg) return;
     this.shownBg = url;
+    // Home's poster has no file (the 3D lobby draws it): the stage's CSS fields stand in
+    if (!url) {
+      this.bg.style.backgroundImage = 'linear-gradient(105deg, #ff3d7f 0 52%, #ffe14a 52% 55%, #39a6ff 55%)';
+      return;
+    }
     let abs = url;
     try {
       abs = new URL(url, document.baseURI).href;

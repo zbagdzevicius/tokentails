@@ -6,6 +6,11 @@
  * two-tier pedestal with a turning paw-rune ring and a light cone (Med/High), pointer parallax, the Play dolly
  * (`playOut`), the equip burst and the card's Nature motes (render/nature/lobbyNature.ts, a lazy chunk). The framing
  * keeps the whole pedestal in view (it was cut off at 1280x720 and 844x390). Cosmetic only.
+ *
+ * Home poster (docs/plans/moba/HOME-POSTER.md, `poster = true`): on Home the painted arena and the pedestal give way
+ * to the flat poster drawn by the backdrop (render/lobby/poster.ts): the champion stands big on its own field (a cat
+ * left, a dog right), framed clear of the Home HUD, with a warm rim from its side and its rival's silhouette across the
+ * bolt. A champion of the other species swings the layout over in SWAP_S.
  */
 import * as THREE from 'three';
 import type { HeroId } from '../sim/api';
@@ -15,7 +20,10 @@ import { CONFETTI_COLORS } from './ppk/fx/palette.js';
 import { ELEMENT_COLOR, lookKey, mixColor, type Look } from './cosmetics';
 import type { CatTier, Element } from '../meta/roster';
 import { HERO_COLOR_CSS } from './palette';
-import { createBackdrop, type Backdrop } from './lobby/backdrop';
+import { createBackdrop, SWAP_S, type Backdrop } from './lobby/backdrop';
+import { posterBox, posterFlip, posterSide, rivalFor, silhouetteFile, type PosterBox, type Rect } from './lobby/poster';
+import { artRoot } from '../ui/art';
+import { assetRev } from '../ui/assetRev';
 import { HOME_BG, lobbyBgFor, lobbyBgOverride, lobbyBgUrl, lobbyBgVisit, screenBg, type LobbyBg } from './lobby/lobbyBg';
 import { HEROES } from '../data/heroes';
 import { createPedestal, PEDESTAL_BOTTOM, PEDESTAL_R, type Pedestal } from './lobby/pedestal';
@@ -49,6 +57,14 @@ const cssToHex = (c: string): number => {
 /** NDC limits the framing keeps the hero top and the pedestal's front rim inside. */
 const NDC_TOP = 0.9;
 const NDC_BOTTOM = -0.92;
+
+/** The poster frames a champion by its bind-pose reach widened by this much: the idle sway and a held shield swing wider. */
+const REACH_K = 1.2;
+
+/** The Home HUD the poster's champion keeps clear of (the overlap audit's Home keys). */
+const HOME_HUD = ['.hm-profile', '.hm-cur', '.hm-corner', '.hm-left', '.hm-slot > *', '.hm-promo', '.hm-plate', '.hm-nav', '.hm-play', '.hm-line', '.lb-peek', '.lb-ver']
+  .map((k) => `.pl-home ${k}`)
+  .join(', ');
 
 export class Lobby {
   readonly scene = new THREE.Scene();
@@ -100,6 +116,21 @@ export class Lobby {
   private natureRung: CatTier | null = null;
   /** The tint of the current look (element colour of a worn card, else the hero colour). */
   private tint = 0xff9f6b;
+  /** Home's poster (the app sets it while Home is up): on the title screen the poster replaces the scene and pedestal. */
+  poster = false;
+  private posterOn = false;
+  /** The hero's own drawn top and widest reach (m): the poster frames each champion by its own size. */
+  private ownTop = 1.4;
+  private reach = 0.8;
+  /** The poster box the champion is framed in (CSS px), eased toward the HUD-clear target on a swap. */
+  private box: PosterBox | null = null;
+  private boxFrom: PosterBox | null = null;
+  private boxTo: PosterBox | null = null;
+  private boxT = 1;
+  private hud: Rect[] = [];
+  private hudAt = -1;
+  private readonly rimWarm: THREE.DirectionalLight;
+  private readonly rimField: THREE.DirectionalLight;
 
   constructor(private readonly gr: GameRenderer) {
     // gaps5: the lobby lives as long as the app; a coat with parts rebuilds when the part builders land
@@ -128,6 +159,8 @@ export class Lobby {
     const rimSky = new THREE.DirectionalLight(0x7cc6ff, 1.3);
     rimSky.position.set(5, 4, -6);
     s.add(rimSky);
+    this.rimWarm = rim;
+    this.rimField = rimSky;
     // backdrop, two-tier pedestal and rune ring (render/lobby/*)
     this.backdrop = createBackdrop();
     s.add(this.backdrop.mesh);
@@ -186,6 +219,9 @@ export class Lobby {
     const sc = this.hero.ch.inner.scale;
     const reach = bb ? Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x), Math.abs(bb.min.z), Math.abs(bb.max.z)) * Math.max(sc.x, sc.z) : 0;
     this.halfWide = Math.max(1.85, reach);
+    this.ownTop = Math.max(0.6, (g.boundingBox?.max.y ?? 1.05) * this.hero.ch.height);
+    this.reach = Math.max(0.45, reach);
+    this.layoutPoster();
     this.scene.add(this.hero.object);
     this.hero.ch.anim.respawn();
     this.hop = 0;
@@ -243,6 +279,128 @@ export class Lobby {
     return this.stage.playOut();
   }
 
+  /** The poster's side, rival and lights for the current hero (a swap animates unless reduced motion or Low). */
+  private layoutPoster(instant = false): void {
+    if (!this.posterOn || !this.heroId) return;
+    const side = posterSide(this.heroId);
+    const still = instant || reducedMotion() || this.gr.settings.tier === 'low';
+    this.backdrop.setLayout(side, `${artRoot()}${silhouetteFile(rivalFor(this.heroId))}${assetRev()}`, still);
+    // a warm rim from the champion's own side, and a soft rim in its field's colour from the bolt side
+    const f = posterFlip(side);
+    this.rimWarm.color.setHex(0xffc27a);
+    this.rimWarm.intensity = 2.4;
+    this.rimWarm.position.set(-5 * f, 4, -5);
+    this.rimField.color.setHex(side === 'cat' ? 0xff86a5 : 0x7cc6ff);
+    this.rimField.intensity = 1.2;
+    this.rimField.position.set(5 * f, 3, -6);
+    this.hudAt = -1;
+    if (still) this.boxT = 1;
+  }
+
+  /** Leaves the poster: the arena lights and pedestal of the other lobby screens come back. */
+  private posterOff(): void {
+    this.rimWarm.color.setHex(0xff86a5);
+    this.rimWarm.intensity = 1.5;
+    this.rimWarm.position.set(-5, 4, -6);
+    this.rimField.color.setHex(0x7cc6ff);
+    this.rimField.intensity = 1.3;
+    this.rimField.position.set(5, 4, -6);
+    this.box = this.boxTo = this.boxFrom = null;
+    delete document.documentElement.dataset.poster;
+    delete document.documentElement.dataset.posterHero;
+  }
+
+  /** The Home HUD's rects (CSS px), re-read a few times a second. */
+  private hudRects(): Rect[] {
+    if (this.t - this.hudAt < 0.25 && this.hudAt >= 0) return this.hud;
+    this.hudAt = this.t;
+    const out: Rect[] = [];
+    for (const el of document.querySelectorAll<HTMLElement>(HOME_HUD)) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden') out.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+    }
+    this.hud = out;
+    return out;
+  }
+
+  /** The poster framing: the champion fills its HUD-clear box (eased over SWAP_S when it moves to the other side). */
+  private placePoster(cam: THREE.PerspectiveCamera): void {
+    const w = window.innerWidth || 1;
+    const h = window.innerHeight || 1;
+    const side = this.heroId ? posterSide(this.heroId) : 'cat';
+    const want = posterBox({ w, h, side, aspect: (2 * REACH_K * this.reach) / this.ownTop, hud: this.hudRects() });
+    const prev = this.boxTo;
+    if (!prev || Math.abs(prev.cx - want.cx) > 1 || Math.abs(prev.top - want.top) > 1 || Math.abs(prev.bottom - want.bottom) > 1) {
+      // a side swap glides; a resize or a HUD change snaps
+      const swing = !!prev && !!this.box && Math.sign(prev.cx - w / 2) !== Math.sign(want.cx - w / 2) && !reducedMotion() && this.gr.settings.tier !== 'low';
+      this.boxFrom = this.box ?? want;
+      this.boxTo = want;
+      this.boxT = swing ? 0 : 1;
+    }
+    this.boxT = Math.min(1, this.boxT + this.dtLast / SWAP_S);
+    const k = this.boxT < 0.5 ? 4 * this.boxT ** 3 : 1 - (-2 * this.boxT + 2) ** 3 / 2;
+    const a = this.boxFrom ?? want;
+    const b = this.boxTo ?? want;
+    const box = (this.box = { cx: a.cx + (b.cx - a.cx) * k, top: a.top + (b.top - a.top) * k, bottom: a.bottom + (b.bottom - a.bottom) * k });
+    const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
+    const yTop = 1 - (2 * box.top) / h;
+    const yBot = 1 - (2 * box.bottom) / h;
+    const xN = (2 * box.cx) / w - 1;
+    const top = this.ownTop;
+    let dist = Math.max(3, (top * 2) / ((yTop - yBot) * tanV));
+    let cy = top / 2;
+    let off = 0;
+    for (let i = 0; i < 5; i++) {
+      off = xN * tanV * dist * cam.aspect;
+      cam.position.set(-off, cy + dist * 0.12, dist);
+      cam.lookAt(-off, cy, 0);
+      cam.updateMatrixWorld();
+      cam.updateProjectionMatrix();
+      const t = P.set(0, top, 0).project(cam).y;
+      const f = P.set(0, 0, 0).project(cam).y;
+      const span = t - f;
+      if (Math.abs(span - (yTop - yBot)) < 0.004 && Math.abs((t + f) / 2 - (yTop + yBot) / 2) < 0.004) break;
+      dist = Math.max(2, dist * (span / (yTop - yBot)));
+      cy += ((t + f) / 2 - (yTop + yBot) / 2) * tanV * dist;
+    }
+    this.camOff = off;
+    this.camDist = dist;
+    cam.position.set(-off, cy + dist * 0.12, dist);
+    LOOK.set(-off, cy, 0);
+    this.stage.apply(cam, LOOK);
+    cam.updateMatrixWorld();
+    this.backdrop.setFoot(box.cx / w, 1 - box.bottom / h, (box.bottom - box.top) * 0.3 / h);
+    if (E2E) this.reportPoster(cam, side, w, h);
+  }
+
+  private posterKey = '';
+  /** `?e2e=1`: the poster's side and the champion's drawn box (CSS px, from its bounds) on `html[data-poster(-hero)]`. */
+  private reportPoster(cam: THREE.PerspectiveCamera, side: string, w: number, h: number): void {
+    let l = Infinity;
+    let r = -Infinity;
+    let t = Infinity;
+    let b = -Infinity;
+    const q = this.reach * REACH_K;
+    // the body turns toward the camera, so its reach is measured across (x) at its own depth
+    for (const x of [-q, q]) for (const y of [0, this.ownTop]) for (const z of [0]) {
+      P.set(x, y, z).project(cam);
+      const px = ((P.x + 1) / 2) * w;
+      const py = ((1 - P.y) / 2) * h;
+      l = Math.min(l, px);
+      r = Math.max(r, px);
+      t = Math.min(t, py);
+      b = Math.max(b, py);
+    }
+    const st = this.backdrop.posterState();
+    const k = `${side},${st.flip.toFixed(2)},${st.rival.toFixed(2)}|${[l, t, r, b].map((n) => Math.round(n)).join(',')}`;
+    if (k === this.posterKey) return;
+    this.posterKey = k;
+    document.documentElement.dataset.poster = k.split('|')[0];
+    document.documentElement.dataset.posterHero = k.split('|')[1];
+  }
+
+  private dtLast = 0;
+
   enter(): void {
     this.gr.active = this.scene;
     this.gr.preRender = null;
@@ -254,6 +412,10 @@ export class Lobby {
     // QA: Low drew both bokeh layers per pixel every frame for a frozen picture; none on Low
     this.backdrop.setBokeh(low ? 0 : 1);
     this.gr.place = (cam) => {
+      if (this.posterOn) {
+        this.placePoster(cam);
+        return;
+      }
       const aspect = cam.aspect;
       const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
       // the whole hero (~10% headroom) and the whole pedestal: its front rim (r PEDESTAL_R, toward the tilted camera)
@@ -353,7 +515,7 @@ export class Lobby {
     return r ? (r.classList.contains('won') ? 'cheer' : 'sad') : null;
   }
 
-  /** UX pass 2: the visit's painted scene behind the turntable (the gradient shows until it loads). */
+  /** UX pass 2: the visit's painted scene behind the turntable (the gradient shows until it loads; Home: the poster). */
   private loadScene(): void {
     if (typeof window === 'undefined') return;
     const forced = lobbyBgOverride(window.location.search);
@@ -368,8 +530,19 @@ export class Lobby {
     const side = this.heroId ? HEROES[this.heroId].side : 'cat';
     const won = !!document.querySelector('.pl-results.won');
     const bg = screenBg(document.documentElement.dataset.screen, { won, side, forced: this.bgForced }) ?? this.visitBg;
+    // Home's poster: drawn, no picture, no pedestal (the champion stands on the poster's floor)
+    const poster = bg === HOME_BG && this.poster;
+    if (poster !== this.posterOn) {
+      this.posterOn = poster;
+      this.backdrop.setPoster(poster ? 1 : 0);
+      this.pedestal.group.visible = !poster;
+      if (poster) this.layoutPoster(true);
+      else this.posterOff();
+    }
     if (bg === this.shownBg) return;
     this.shownBg = bg;
+    document.documentElement.dataset.lobbyBg = bg;
+    if (bg === HOME_BG) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const url = lobbyBgUrl(bg, {
       base: import.meta.env.BASE_URL ?? './',
@@ -377,9 +550,7 @@ export class Lobby {
       low: this.gr.settings.tier === 'low',
       aspect: (window.innerWidth || 16) / (window.innerHeight || 9),
     });
-    document.documentElement.dataset.lobbyBg = bg;
-    // Home's key art is shown as painted (no dim, tint or vignette: the rose and sky sides are in the art)
-    this.backdrop.setSplit(bg === HOME_BG ? 1 : 0);
+    this.backdrop.setSplit(0);
     this.backdrop.setImage(url, reducedMotion());
   }
 
@@ -391,6 +562,7 @@ export class Lobby {
 
   update(dt: number): void {
     this.t += dt;
+    this.dtLast = dt;
     setCharTime(this.t);
     const h = this.hero;
     if (this.t - this.moodAt > 0.3) this.syncScene();
@@ -401,7 +573,9 @@ export class Lobby {
       h.object.position.set(0, bounce * 0.4, 0);
       // face the camera at a three-quarter turn (~30° off), with a gentle sway (the old ±52° swing showed backs)
       const toCam = Math.atan2(-this.camDist, -this.camOff);
-      h.object.rotation.y = toCam + 0.3 + Math.sin(this.spin) * 0.22;
+      // on the poster the champion turns toward the bolt (a cat looks right, a dog left), with a smaller sway
+      const facing = this.posterOn && this.heroId ? -0.55 * posterFlip(posterSide(this.heroId)) : 0.3;
+      h.object.rotation.y = toCam + facing + Math.sin(this.spin) * (this.posterOn ? 0.12 : 0.22);
       if (this.t - this.moodAt > 0.3) {
         this.moodAt = this.t;
         h.ch.anim.mood = this.mood();

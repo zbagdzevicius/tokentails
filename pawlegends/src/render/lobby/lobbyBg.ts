@@ -19,13 +19,11 @@ export const LOBBY_BGS = ['castles', 'meadow', 'arena'] as const;
 /** Scenes tied to a screen (public/assets/screens/), not to the visit. */
 export const SCREEN_BGS = ['stage', 'win-cat', 'win-dog', 'lose-cat', 'lose-dog'] as const;
 /**
- * Home (docs/plans/moba/HOME-MODES.md §4): the key art behind the title screen on every visit, "Storm Clash Arena"
- * (Nov 13): a midday comic arena, rose storm clouds and the cat castle with cats left, sky-blue clouds and the dog house
- * with dogs right, a yellow bolt striking left of centre, and calm sand centre-lower where the 3D hero's pedestal stands.
- * One painting in two crops: 16:9 (`legends-*`) for desktop and 21:9 (`legends-wide-*`) for phones wider than ~1.9:1,
- * so the stage floor and both teams stay in frame under the cover fit.
+ * Home (docs/plans/moba/HOME-MODES.md §4): the poster (docs/plans/moba/HOME-POSTER.md, Nov 18), drawn by the lobby
+ * backdrop's shader (render/lobby/poster.ts): rose and sky fields split by a halftone bolt, mirrored for a dog
+ * champion. No picture file (it replaced the painted "Storm Clash Arena" key art, `legends-*.webp`).
  */
-export const HOME_BG = 'legends' as const;
+export const HOME_BG = 'poster' as const;
 export type LobbyBg = (typeof LOBBY_BGS)[number] | (typeof SCREEN_BGS)[number] | typeof HOME_BG;
 
 const VISIT_KEY = 'tt.pawlegends.lobbybg.v1';
@@ -37,7 +35,7 @@ export function lobbyBgFor(visit: number): (typeof LOBBY_BGS)[number] {
 }
 
 /**
- * The screen's own scene (`data-screen` on <html>), or null to keep the visit's scene. Home (`title`) shows the key art
+ * The screen's own scene (`data-screen` on <html>), or null to keep the visit's scene. Home (`title`) shows the poster
  * unless `forced` (a `?lobbybg=` override for e2e and screenshots).
  */
 export function screenBg(screen: string | undefined, o: { won: boolean; side: 'cat' | 'dog'; forced?: boolean }): LobbyBg | null {
@@ -47,11 +45,11 @@ export function screenBg(screen: string | undefined, o: { won: boolean; side: 'c
   return null;
 }
 
-/** The file for a scene: the 1920 px one on a wide, not-Low screen; Home's 21:9 crop on a screen wider than 1.9:1. */
+/** The file for a scene: the 1920 px one on a wide, not-Low screen; '' for Home's poster (drawn, no file). */
 export function lobbyBgUrl(bg: LobbyBg, o: { base: string; bufferWidth: number; low: boolean; aspect?: number }): string {
   const w = !o.low && o.bufferWidth > 1400 ? 1920 : 1280;
   if (bg === 'stage') return `${o.base}assets/screens/pick-stage-${w}.webp`;
-  if (bg === HOME_BG) return `${o.base}assets/lobby/${(o.aspect ?? 0) > 1.9 ? 'legends-wide' : 'legends'}-${w}.webp`;
+  if (bg === HOME_BG) return '';
   const dir = (SCREEN_BGS as readonly string[]).includes(bg) ? 'screens' : 'lobby';
   return `${o.base}assets/${dir}/${bg}-${w}.webp`;
 }

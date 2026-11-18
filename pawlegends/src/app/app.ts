@@ -784,6 +784,8 @@ export class App {
     this.lobby.side = home ? 0 : 0.45;
     this.lobby.heroScale = home ? 0.72 : 1;
     this.lobby.footShare = home ? 0.09 : 0;
+    // Home's poster (HOME-POSTER.md): the drawn rose/sky fields, the champion big on its side, its rival's silhouette
+    this.lobby.poster = home;
     this.lobbyOn = true;
     this.champFrozen = false;
     document.documentElement.dataset.stage = home ? 'home3d' : 'results3d';

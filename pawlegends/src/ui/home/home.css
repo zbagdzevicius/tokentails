@@ -580,3 +580,8 @@ html[data-touch='1'] .pl-home .hm-round.live::after, html[data-phone='1'] .pl-ho
 @keyframes hm-new-pulse { 50% { transform: skewX(var(--v6-slant, -8deg)) scale(1.12); } }
 .pl-home.low .hm-play-new { animation: none; }
 @media (prefers-reduced-motion: reduce) { .hm-play-new { animation: none; } }
+
+/* Home poster (HOME-POSTER.md): the poster's fields as a CSS gradient behind the game canvas, so the first paint (and a
+   context loss) already shows rose | bolt | sky on the champion's side before the shader's first frame */
+html[data-screen='title'] body { background: linear-gradient(104deg, #ff3d7f 0 53%, #ff8a1e 53% 54%, #ffe14a 54% 57.5%, #ff8a1e 57.5% 58.5%, #39a6ff 58.5%); }
+html[data-screen='title']:has(.pl-home[data-side='dog']) body { background: linear-gradient(76deg, #ff3d7f 0 41.5%, #ff8a1e 41.5% 42.5%, #ffe14a 42.5% 46%, #ff8a1e 46% 47%, #39a6ff 47%); }

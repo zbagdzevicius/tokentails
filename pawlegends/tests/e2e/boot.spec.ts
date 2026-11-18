@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { serveSilhouettes } from './helpers';
 
 // The page boots into the title with Home's 3D hero on the game canvas, with no
 // crash overlay and no debug globals.
@@ -8,6 +9,7 @@ test('boots to the title screen', async ({ page }) => {
   page.on('console', (m) => {
     if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(m.text());
   });
+  await serveSilhouettes(page);
   await page.goto('/');
   await page.waitForSelector('html[data-ready="1"]');
   await expect(page.locator('#game-canvas')).toHaveCount(1);
