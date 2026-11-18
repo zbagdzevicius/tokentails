@@ -196,7 +196,7 @@ export interface SkillInfo {
   facts: string[];
 }
 
-const KIND: Readonly<Record<PanelSlot, string>> = { passive: 'Passive', q: 'Skill 1', w: 'Skill 2', e: 'Skill 3', r: 'Ultimate' };
+const KIND: Readonly<Record<PanelSlot, string>> = { passive: 'Passive', q: 'Ability 1', w: 'Ability 2', e: 'Ability 3', r: 'Ultimate' };
 
 /** One skill tab's words and numbers. Pure (the codex adds its own line and facts once loaded). */
 export function skillInfo(h: HeroId, slot: PanelSlot): SkillInfo {
@@ -325,7 +325,7 @@ function skillTextHtml(h: HeroId, slot: PanelSlot, numbers: boolean, kind: 'solo
 
 /** The hero panel (§B2.5). */
 export function panelHtml(h: HeroId | null, o: { numbers: boolean; kind: 'solo' | 'party'; look?: boolean; toggle?: boolean; sheet?: string }): string {
-  if (!h) return `<section class="cs-panel empty" aria-label="Champion"><p class="cs-what">Tap a champion to see its skills.</p></section>`;
+  if (!h) return `<section class="cs-panel empty" aria-label="Champion"><p class="cs-what">Tap a champion to see its abilities.</p></section>`;
   const t = HERO_TEXT[h];
   const role = HEROES[h].role;
   loadCodex();
@@ -370,7 +370,7 @@ function tricksHtml(m: CsModel): string {
 function lockHtml(m: CsModel): string {
   const act = m.kind === 'party' ? 'data-p="lock" data-testid="party-lock"' : 'data-a="start"';
   if (m.lock.locked) {
-    return `<button type="button" class="pl-btn ghost cs-unlock" data-p="unlock" data-testid="party-unlock">${esc(m.lock.unlockLabel ?? 'Change hero')}</button><button type="button" class="pl-btn big cs-lock done" ${act} disabled><span>${esc(m.lock.label)}</span>${m.lock.sub ? `<small>${esc(m.lock.sub)}</small>` : ''}</button>`;
+    return `<button type="button" class="pl-btn ghost cs-unlock" data-p="unlock" data-testid="party-unlock">${esc(m.lock.unlockLabel ?? 'Change champion')}</button><button type="button" class="pl-btn big cs-lock done" ${act} disabled><span>${esc(m.lock.label)}</span>${m.lock.sub ? `<small>${esc(m.lock.sub)}</small>` : ''}</button>`;
   }
   return `<button type="button" class="pl-btn big cs-lock" ${act} aria-keyshortcuts="Control+Enter"${m.lock.enabled ? '' : ' disabled'}><span>${esc(m.lock.label)}</span>${m.lock.sub ? `<small class="cs-why">${esc(m.lock.sub)}</small>` : ''}</button>`;
 }

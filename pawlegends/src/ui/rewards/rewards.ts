@@ -184,11 +184,11 @@ export function openLuckyChest(g: Grant, table: LuckyTable, onDone?: () => void,
     const rarity = daily ? 'daily' : (g.rarity ?? 'common');
     card.classList.remove('sealed');
     card.classList.add('opened', `r-${rarity}`);
-    const what = g.item ? itemName(g.item) : `+${g.xp ?? 0} Treat XP`;
+    const what = g.item ? itemName(g.item) : `+${g.xp ?? 0} Season XP`;
     const tag = daily ? 'Daily Treat' : `${RARITY_NAME[g.rarity ?? 'common']}${g.floor ? ' · lucky 10th' : ''}`;
     (card.querySelector('.rw-kick') as HTMLElement).textContent = tag;
     (card.querySelector('.rw-title') as HTMLElement).textContent = what;
-    (card.querySelector('.rw-what') as HTMLElement).textContent = g.item ? 'Added to your collection.' : g.xp && !daily ? 'You own every look of this rarity, so you get Treat XP instead.' : 'Added to your Treat Track.';
+    (card.querySelector('.rw-what') as HTMLElement).textContent = g.item ? 'Added to your collection.' : g.xp && !daily ? 'You own every look of this rarity, so you get Season XP instead.' : 'Added to your Treat Track.';
     const chest = card.querySelector('.rw-chest') as HTMLButtonElement;
     chest.disabled = true;
     chest.setAttribute('aria-label', what);
@@ -219,7 +219,7 @@ export function openLuckyOdds(table: LuckyTable = loadCloud().lucky ?? LUCKY_DEF
   root.dataset.testid = 'lucky-odds-sheet';
   const opener = document.activeElement as HTMLElement | null;
   const rows = table.odds
-    .map((r) => `<tr class="r-${r.rarity}"><th scope="row"><i class="rw-gem" aria-hidden="true"></i>${RARITY_NAME[r.rarity]}</th><td class="pct">${r.pct % 1 ? r.pct.toFixed(1) : r.pct}%</td><td>${r.rarity === 'common' ? 'Palette coats' : r.rarity === 'rare' ? 'Treat Track coats, Wave emote' : 'Champion frames and titles'}<small>${r.items} looks · all owned: +${r.dupXp} Treat XP</small></td></tr>`)
+    .map((r) => `<tr class="r-${r.rarity}"><th scope="row"><i class="rw-gem" aria-hidden="true"></i>${RARITY_NAME[r.rarity]}</th><td class="pct">${r.pct % 1 ? r.pct.toFixed(1) : r.pct}%</td><td>${r.rarity === 'common' ? 'Palette coats' : r.rarity === 'rare' ? 'Treat Track coats, Wave emote' : 'Champion frames and titles'}<small>${r.items} looks · all owned: +${r.dupXp} Season XP</small></td></tr>`)
     .join('');
   const n = untilFloor(table);
   root.innerHTML = `<div class="rw-card rw-odds">
@@ -233,7 +233,7 @@ export function openLuckyOdds(table: LuckyTable = loadCloud().lucky ?? LUCKY_DEF
       <li>You only earn it. It's never sold, and nothing you buy opens one.</li>
       <li>Cosmetic only. You never get a look you already own.</li>
     </ul>`
-        : `<p class="rw-what">Your first win each day gives a Daily Treat: +${table.dailyTreatXp} Treat XP. No random rewards on this account.</p>`
+        : `<p class="rw-what">Your first win each day gives a Daily Treat: +${table.dailyTreatXp} Season XP. No random rewards on this account.</p>`
     }
     <div class="rw-actions"><button type="button" class="pl-btn small" data-k="close">Close</button></div>
   </div>`;
@@ -256,7 +256,7 @@ function welcomeToast(g: Grant, parent: HTMLElement = document.body): void {
   el.className = 'rw-toast';
   el.setAttribute('role', 'status');
   el.dataset.testid = 'welcome-toast';
-  el.innerHTML = `<b>Welcome gift · Day ${g.n ?? '?'}</b><span>${esc(g.item ? itemName(g.item) : `+${g.xp ?? 0} Treat XP`)}</span>`;
+  el.innerHTML = `<b>Welcome gift · Day ${g.n ?? '?'}</b><span>${esc(g.item ? itemName(g.item) : `+${g.xp ?? 0} Season XP`)}</span>`;
   parent.appendChild(el);
   setTimeout(() => el.classList.add('out'), 3600);
   setTimeout(() => el.remove(), 4100);
@@ -299,7 +299,7 @@ export function todayExtraHtml(): string {
     parts.push(
       c.lucky.eligible
         ? `<button type="button" class="rw-lrow" data-rw="odds" data-testid="today-lucky"><i class="rw-mini-chest" aria-hidden="true"></i><span><b>Lucky Treat</b><small>Your first win each day · see odds</small></span></button>`
-        : `<div class="rw-lrow"><i class="rw-mini-chest" aria-hidden="true"></i><span><b>Daily Treat</b><small>First win each day: +${c.lucky.dailyTreatXp} Treat XP</small></span></div>`,
+        : `<div class="rw-lrow"><i class="rw-mini-chest" aria-hidden="true"></i><span><b>Daily Treat</b><small>First win each day: +${c.lucky.dailyTreatXp} Season XP</small></span></div>`,
     );
   return parts.length ? `<div class="rw-today">${parts.join('')}</div>` : '';
 }

@@ -59,7 +59,7 @@ export const COPY = Object.freeze({
   banVoted: (name: string) => `Your vote: ${name}`,
   banRule: (side: string) => `Your team bans one of the ${side}. Most votes wins. A bot team bans too.`,
   lockIn: 'Lock in',
-  skillsLore: 'Skills & lore',
+  skillsLore: 'Abilities & lore',
   lockedIn: 'Locked in',
   trick: 'Paw Trick',
   tryThis: 'New? Try this',

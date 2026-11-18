@@ -224,7 +224,7 @@ describe('GAPS A2 + A3: the results screen', () => {
     const root = resultsScreen(document.body, { ...base, won: true, teamKills: [14, 9], onAgain: () => {}, onChange: () => {}, tryHero: 'sage', grade: { grade: 'C', xp: 0, mvp: { name: 'Clem', you: true }, bestOnTeam: null } });
     expect(root.querySelector('[data-mvp="you"]')!.textContent).toContain('MVP: You');
     expect(root.querySelector('[data-best]')).toBeNull();
-    expect(root.querySelector('.pl-grade')!.textContent).not.toContain('Treat XP');
+    expect(root.querySelector('.pl-grade')!.textContent).not.toContain('Season XP');
     expect(root.querySelector('[data-a="change"]')!.textContent).toMatch(/Switch cat.*Try Sage/);
     root.remove();
   });

@@ -62,6 +62,8 @@ export const TARGETS = [
     app: true,
     gameCopy: true,
     storeFiles: ['pawlegends/src/money/**', 'pawlegends/src/ui/store.ts', 'pawlegends/src/ui/storeCore.ts', 'pawlegends/src/ui/offerCard.ts'],
+    // R14 (the glossary) skips the VFX spec notes, which no player reads.
+    glossaryExempt: ['pawlegends/src/render/identity.ts'],
   },
   {
     name: 'backend',
@@ -217,7 +219,7 @@ export function lintSource(file, text, { facts, target, toneExempt = false }) {
       for (const r of checkCitation(u.claim, { facts, surface })) add(u.line, r.rule, r.message, u.text);
     }
     const fiction = markers.fiction.some((x) => fictionReasonOk(x.reason) && x.line >= lo && x.line <= hi);
-    const ctx = { facts, surface, toneExempt, appScope: !!target.app, gameCopy, near: { ids, fiction } };
+    const ctx = { facts, surface, toneExempt, appScope: !!target.app, gameCopy, gameGlossary: !!target.gameCopy && !matcher(target.glossaryExempt || [])(file), near: { ids, fiction } };
     for (const r of checkUnit(u, ctx)) add(u.line, r.rule, r.message, u.text);
   }
   return findings;

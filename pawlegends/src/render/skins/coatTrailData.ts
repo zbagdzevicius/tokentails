@@ -47,10 +47,10 @@ export function paradeStage(level: number, takedowns: number): number {
 }
 
 /** Words for the store and the Heroes browser (looks only). */
-export const PARADE_STAGE_WORDS = 'Starts as a lantern head. The parade body grows at levels 4, 7 and 10 (or 2, 4 and 6 takedowns) and stretches to 12 lanterns during his ultimate.';
+export const PARADE_STAGE_WORDS = 'Starts as a lantern head. The parade body grows at levels 4, 7 and 10 (or after 2, 4 and 6 knockouts or assists) and stretches to 12 lanterns during his ultimate.';
 /** gaps6: the Chairman's and the Mega Meal's evolving forms, in words (the same stages as the parade). */
-export const BOARD_STAGE_WORDS = 'Starts as the new hire. A stock-chart arrow rises at level 4, the gold office chair rolls in at 7, and the full Chairman mech arrives at 10 (or 2, 4 and 6 takedowns).';
-export const TOWER_STAGE_WORDS = 'Starts as a slider. It becomes a Double at level 4, a 3-patty tower at 7 and the 5-patty Mega Meal on a golden tray at 10 (or 2, 4 and 6 takedowns).';
+export const BOARD_STAGE_WORDS = 'Starts as the new hire. A stock-chart arrow rises at level 4, the gold office chair rolls in at 7, and the full Chairman mech arrives at 10 (or after 2, 4 and 6 knockouts or assists).';
+export const TOWER_STAGE_WORDS = 'Starts as a slider. It becomes a Double at level 4, a 3-patty tower at 7 and the 5-patty Mega Meal on a golden tray at 10 (or after 2, 4 and 6 knockouts or assists).';
 
 /** The evolving forms' trail kinds (the parade body and gaps6's two). */
 const EVOLVING_KINDS: readonly TrailKind[] = ['parade', 'board', 'tower'];

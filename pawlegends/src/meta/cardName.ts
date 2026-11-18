@@ -98,7 +98,7 @@ export const getEquippedCard = cardIdentity;
 
 /** The champion's display name: the worn cat's, else the hero title. */
 export function displayName(hero: HeroId, look: Pick<Look, 'coat'> | null | undefined): string {
-  return cardIdentity(hero, look)?.name ?? HERO_TEXT[hero]?.title ?? 'A hero';
+  return cardIdentity(hero, look)?.name ?? HERO_TEXT[hero]?.title ?? 'A champion';
 }
 
 /** The slot names with only the player's slot renamed to the worn cat (bots and allies keep theirs). */
@@ -117,5 +117,5 @@ export function cutName(name: string, max = 14): string {
 /** The loading veil's hero line: "Simas (Clem)" in a card, else "Clem" ("First match as Simas (Clem)"). */
 export function veilName(hero: HeroId, look: Pick<Look, 'coat'> | null | undefined): string {
   const id = cardIdentity(hero, look);
-  return id ? `${id.name} (${id.heroTitle})` : (HERO_TEXT[hero]?.title ?? 'A hero');
+  return id ? `${id.name} (${id.heroTitle})` : (HERO_TEXT[hero]?.title ?? 'A champion');
 }

@@ -561,7 +561,7 @@ export class ObjectiveClock {
     const mid = { x: MAP.width / 2, y: MAP.height / 2 };
     if (this.phase === 'gate') return { key: 'gates', title: `Gates open in ${fmtSecs(s)}`, sub: 'Get ready to run to your lane', icon: 'paw', secs: s, ...mid };
     if (this.phase === 'play') return { key: 'sunset', title: `Sunset in ${fmtSecs(s)}`, sub: 'At Sunset, towers and the core take more damage', icon: 'sun', secs: s, ...mid };
-    if (this.phase === 'sunset') return { key: 'whistle', title: `Time's up in ${fmtSecs(s)}`, sub: 'Then most towers wins, then core health, then takedowns', icon: 'sun', secs: s, ...mid };
+    if (this.phase === 'sunset') return { key: 'whistle', title: `Time's up in ${fmtSecs(s)}`, sub: 'Then most towers wins, then core health, then knockouts', icon: 'sun', secs: s, ...mid };
     return null;
   }
 }

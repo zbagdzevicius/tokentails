@@ -1,4 +1,4 @@
-// Copy lint rules R1 to R13 (docs/CLAIMS.md; plan F11, G5, G11; R13 docs/plans/moba/POC.md §15 item 24).
+// Copy lint rules R1 to R14 (docs/CLAIMS.md; plan F11, G5, G11; R13 docs/plans/moba/POC.md §15 item 24; R14 the Paw Legends glossary).
 //
 // Each rule gets one copy unit and the file context, and returns zero or more messages.
 // Context: { facts: Map<id, entry>, surface, toneExempt, appScope, near: { ids, fiction, badFiction } }
@@ -17,6 +17,7 @@ export const RULES = {
   R11: 'SEI-era figures say SEI',
   R12: 'Company-reported figures say so, and cited numbers carry their date',
   R13: 'Game copy (Pawlegends): no shelter, impact or money words outside the store',
+  R14: 'Game copy (Pawlegends): one name per thing (the glossary)',
 };
 
 const BRAND = /\bToken[\s_-]*Tails\b|\btokentails\b/gi;
@@ -108,6 +109,24 @@ export const GAME_COPY_WORDS = [
   { re: /[$€£]\s?\d|\b\d[\d,.]*\s?(?:USD|EUR|dollars?|euros?|cents?)\b|\b(?:USD|EUR)\b|\breal money\b|\bcash\b|\bprices?\b|\brefunds?\b/i, what: 'a money word' },
 ];
 
+// R14: the Paw Legends glossary (plain-text pass, Nov 2026). One name per thing, every game file including the store.
+export const GAME_GLOSSARY = [
+  { re: /(?<![\w.(-])takedowns?(?![\w(-])/i, use: 'knockout (or "knockouts or assists")' },
+  { re: /(?<![\w.(-])slain(?![\w(-])/i, use: 'knocked out' },
+  { re: /(?<![\w.(-])heroe?s?(?![\w(-])/i, use: 'champion' },
+  { re: /(?<![\w.(-])skills?(?![\w(-])/i, use: 'ability' },
+  { re: /\bvs\.? AI\b/, use: 'bots ("vs bots")' },
+  { re: /(?<![\w.(-])recall(?![\w(-])/i, use: 'Nap' },
+  { re: /\bTreat XP\b/, use: 'Season XP' },
+]
+
+/** The words a player reads: no template spans, tags, attributes or CSS (`{hero}`, `class="pl-hero"`). */
+function visibleText(text) {
+  let t = text;
+  for (let i = 0; i < 4 && /\{[^{}]*\}/.test(t); i++) t = t.replace(/\{[^{}]*\}/g, ' ');
+  return t.replace(/<[^>]*>?/g, ' ').replace(/[\w-]+="[^"]*"?/g, ' ').replace(/[.#][\w-]+\s*\{[^}]*\}?/g, ' ');
+}
+
 const DATE_MARK = /\b(?:19|20)\d{2}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\b|\{[^}]*(?:asOf|date|Date)[^}]*\}/;
 
 function sentences(text) {
@@ -153,6 +172,15 @@ export function checkUnit(u, ctx) {
     for (const { re, what } of GAME_COPY_WORDS) {
       const m = re.exec(plain);
       if (m) { add('R13', `game copy must not carry ${what}: "${m[0]}" (prices live only in the store files)`); break; }
+    }
+  }
+
+  // R14 the game glossary (Pawlegends, store files included).
+  if (ctx.gameGlossary && vocab) {
+    const shown = visibleText(plain);
+    for (const { re, use } of GAME_GLOSSARY) {
+      const m = re.exec(shown);
+      if (m) { add('R14', `game copy says "${m[0]}": use ${use} (one name per thing)`); break; }
     }
   }
 

@@ -55,7 +55,7 @@ export function recordLadder(o: { won: boolean; difficulty: Difficulty; hero: He
     best.fastest = o.seconds;
   }
   if (o.takedowns > best.takedowns) {
-    if (best.takedowns > 0) lines.push(`most takedowns (knockouts + assists) with ${o.heroName}: ${o.takedowns}`);
+    if (best.takedowns > 0) lines.push(`most knockouts + assists with ${o.heroName}: ${o.takedowns}`);
     best.takedowns = o.takedowns;
   }
   p.bests[o.hero] = best;

@@ -58,3 +58,21 @@ test('the target scans src/ (ts and lifted js) but never the sim or tests', () =
   assert.equal(byTarget.pawlegends.files, 2);
   assert.equal(byTarget.pawlegends.findings, 2);
 });
+
+test('R14: one name per thing in game copy (store included); class names and code stay out of it', () => {
+  for (const line of [
+    "const t = 'Get 5 takedowns';",
+    "const t = 'You have been slain';",
+    "const t = 'Tap a hero to pick it';",
+    "const t = 'Skill 1';",
+    "const t = 'Ranked vs AI';",
+    "const t = 'Press B to recall';",
+    "const t = '+20 Treat XP';",
+  ]) {
+    assert.ok(rules('pawlegends/src/ui/hud.ts', line).includes('R14'), line);
+  }
+  assert.ok(rules('pawlegends/src/ui/store.ts', "const t = 'Abilities and hero lore';").includes('R14'));
+  assert.deepEqual(rules('pawlegends/src/ui/hud.ts', "const t = 'Get 5 knockouts or assists';"), []);
+  assert.deepEqual(rules('pawlegends/src/ui/hud.ts', 'const t = `<div class="pl-hero cs-skills" data-hero="${hero}">Abilities</div>`;'), []);
+  assert.deepEqual(rules('pawlegends/src/render/identity.ts', "const t = 'the hero dims for a beat';"), []);
+});

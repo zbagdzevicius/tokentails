@@ -42,7 +42,7 @@ export function parseWelcome(raw: unknown): WelcomeState | null {
 /** A gift's short label ("Wave emote", "+150 Treat XP"). Pure. */
 export function giftLabel(g: Pick<WelcomeGift, 'item' | 'xp'>): string {
   const r = g.item ? treatReward(g.item) : null;
-  return r ? r.name : `+${g.xp} Treat XP`;
+  return r ? r.name : `+${g.xp} Season XP`;
 }
 
 /** The path is shown while it runs (days 0..6 claimed) and for the day it finished. Pure. */

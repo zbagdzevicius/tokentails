@@ -133,7 +133,7 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
         <div class="pass-scroll"><div class="pass-track" role="list" aria-label="Reward tiers" tabindex="0">${cols}</div><span class="more" aria-hidden="true">more ▸</span></div>
       </div>
       <div class="pass-bar"><button type="button" class="bk-done gold" data-a="all"${ready.length ? '' : ' disabled'}>Claim all${ready.length ? ` (${ready.length})` : ''}</button>${buys}<p class="line" role="status">${esc(line)}</p></div>
-      <p class="fine">Every match you finish gives Season XP. Wins, takedowns and your first win of the day give more. No random rewards.</p>
+      <p class="fine">Every match you finish gives Season XP. Wins, knockouts and your first win of the day give more. No random rewards.</p>
     </div>`;
     const track = root.querySelector<HTMLElement>('.pass-track');
     const sc = root.querySelector<HTMLElement>('.pass-scroll');

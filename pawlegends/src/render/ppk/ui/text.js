@@ -151,7 +151,7 @@ export const UI_STRINGS = Object.freeze({
   'settings.camLockMode.semi': 'Semi (edge pan)',
   'settings.camLockMode.free': 'Free (Y)',
   'settings.camCursorLead': 'Look toward the cursor',
-  'settings.biggerHero': 'Bigger hero',
+  'settings.biggerHero': 'Bigger champion',
   'settings.hudMode': 'HUD',
   'settings.hudMode.calm': 'Calm',
   'settings.hudMode.full': 'Full',

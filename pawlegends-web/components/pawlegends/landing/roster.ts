@@ -82,7 +82,7 @@ export const LANDING_ROSTER: readonly LandingHero[] = Object.freeze([
   { id: "pixel", name: "Pixel", side: "cat", role: "Marksman", blurb: "Shoots from a cardboard robot she built herself.", portrait: P("pixel", "dac9c02e"), since: 11 },
   { id: "duchess", name: "Duchess", side: "cat", role: "Mage", blurb: "Floats about on her cushion. Three snubs and a dog can’t move.", portrait: P("duchess", "09a7d4f9"), since: 11 },
   { id: "stilts", name: "Stilts", side: "cat", role: "Assassin", blurb: "All legs and ears. Runs to build Stride, then pounces.", portrait: P("stilts", "2ce19c52"), since: 11 },
-  { id: "brutus", name: "Sir Brutus", side: "dog", role: "Tank", breed: "Pug knight", blurb: "A pug of honour. Stands in front so friends do not have to.", portrait: P("brutus", "b8e8e407"), since: 1 },
+  { id: "brutus", name: "Sir Brutus", side: "dog", role: "Tank", breed: "Pug knight", blurb: "A pug of honour. Stands in front so his friends don’t have to.", portrait: P("brutus", "b8e8e407"), since: 1 },
   { id: "cacklejaw", name: "Cacklejaw", side: "dog", role: "Assassin", breed: "Hyena", blurb: "Giggles in the bushes. Then pounces.", portrait: P("cacklejaw", "e7dfabb6"), since: 1 },
   { id: "nugget", name: "Nugget", side: "dog", role: "Support", breed: "Pembroke corgi", blurb: "A loaf with legs. Herds cats, rushes to friends and heals by splooting.", portrait: P("nugget", "cd0e61fc"), since: 14 },
   { id: "marshmallow", name: "Marshmallow", side: "dog", role: "Mage", breed: "Samoyed puppy", blurb: "Pure smile. Snow on the ground, and cats who stay get frozen.", portrait: P("marshmallow", "0e2b5546"), since: 14 },
@@ -90,7 +90,7 @@ export const LANDING_ROSTER: readonly LandingHero[] = Object.freeze([
   { id: "chili", name: "Chili", side: "dog", role: "Marksman", breed: "Chihuahua", blurb: "Tiny. Shaking. Furious. Gets faster the angrier he gets.", portrait: P("chili", "d224d43a"), since: 14 },
   { id: "howler", name: "Howler", side: "dog", role: "Fighter", breed: "Siberian husky", blurb: "A husky with opinions. Every ability is a scream.", portrait: P("howler", "75a27b88"), since: 14 },
   // sim v15 (DOGS-V15.md): three more dogs, 10 v 10 with the same roles on both sides
-  { id: "rocket", name: "Rocket", side: "dog", role: "Marksman", breed: "Greyhound", blurb: "Fastest dog on the island. Hits hardest from far away, then needs a nap.", portrait: P("rocket", "246b1c99"), since: 15 },
+  { id: "rocket", name: "Rocket", side: "dog", role: "Marksman", breed: "Greyhound", blurb: "Fastest dog on the island. Hits hardest from far away, then needs a snooze.", portrait: P("rocket", "246b1c99"), since: 15 },
   { id: "frankie", name: "Frankie", side: "dog", role: "Assassin", breed: "Dachshund in a hot-dog costume", blurb: "A sausage dog dressed as a hot dog. Digs, rolls, and stretches across half the map.", portrait: P("frankie", "01cab27c"), since: 15 },
   { id: "domino", name: "Domino", side: "dog", role: "Mage", breed: "Dalmatian puppy", blurb: "Throws his own spots at cats. Then connects the dots.", portrait: P("domino", "8bfe11ac"), since: 15 },
   // sim v29 (ROSTER-V29.md): the second fighter and support of each side

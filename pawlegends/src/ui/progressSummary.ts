@@ -39,7 +39,7 @@ export interface FishSource {
 const GROUPS: readonly { key: string; label: string; reasons: readonly string[] }[] = [
   { key: 'lastHit', label: 'Last hits', reasons: ['lastHit'] },
   { key: 'minion', label: 'Lane share', reasons: ['minion'] },
-  { key: 'takedown', label: 'Takedowns', reasons: ['kill', 'assist', 'firstBlood', 'shutdown'] },
+  { key: 'takedown', label: 'Knockouts + assists', reasons: ['kill', 'assist', 'firstBlood', 'shutdown'] },
   { key: 'camp', label: 'Rat camp', reasons: ['camp'] },
   { key: 'objective', label: 'Objectives', reasons: ['tower', 'pudding'] },
   { key: 'snack', label: 'Snacks', reasons: ['pickup'] },

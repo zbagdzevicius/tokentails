@@ -146,17 +146,17 @@ describe('the skill panel', () => {
     expect(skillInfo('sage', 'r').cooldown).toMatch(/s/);
     const off = mount();
     click(off.querySelector('[data-cs="slot"][data-slot="q"]'));
-    expect(off.querySelector('.cs-meta span')?.textContent).toBe('Q · Skill 1');
+    expect(off.querySelector('.cs-meta span')?.textContent).toBe('Q · Ability 1');
     expect(off.querySelector('.cs-facts')).toBeNull();
     document.body.innerHTML = '';
     const onNumbers = vi.fn();
     const on = mount({ numbers: true, onNumbers });
-    expect(on.querySelector('.cs-meta span')?.textContent).toMatch(/^Q · Skill 1 · Cooldown \d/);
+    expect(on.querySelector('.cs-meta span')?.textContent).toMatch(/^Q · Ability 1 · Cooldown \d/);
     expect(on.querySelector('.cs-facts li')).not.toBeNull();
     // the 123 toggle turns them off in place
     click(on.querySelector('[data-cs="numbers"]'));
     expect(onNumbers).toHaveBeenCalledWith(false);
-    expect(on.querySelector('.cs-meta span')?.textContent).toBe('Q · Skill 1');
+    expect(on.querySelector('.cs-meta span')?.textContent).toBe('Q · Ability 1');
   });
 });
 

@@ -60,7 +60,7 @@ import type { CoatVfx } from './skins/coatFx';
 /** "Press R" on a keyboard; touch buttons carry icons, not letters, so name the button there. */
 export function ultHint(): string {
   try {
-    return document.documentElement.dataset.touch === '1' ? 'Tap the big gold button' : 'Press R';
+    return document.documentElement.dataset.touch === '1' ? 'Tap your ultimate' : 'Press R';
   } catch {
     return 'Press R';
   }

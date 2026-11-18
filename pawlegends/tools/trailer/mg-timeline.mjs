@@ -13,7 +13,7 @@ export const BEAT_FRAMES = (60 * 60) / BPM;
 /**
  * The 15 s cut as segments of the 30 s master (storyboard §7): [cutFrom, cutTo, offset], so master = cut + offset.
  * v4: the hook as is; the roll call as eight eighth-note cuts round each hero's apex; 3V3; Moonshot and the charm;
- * Pack Hunt (TRIPLE TAKEDOWN.); the tower toppling (2 beats); the wide teamfight and the first triplet cuts; TAKE THEIR
+ * Pack Hunt (TRIPLE KNOCKOUT.); the tower toppling (2 beats); the wide teamfight and the first triplet cuts; TAKE THEIR
  * CORE (1 beat) into the core burst (cut f703 = master f1528); the end card from f750 (2.5 s).
  */
 export const CUT15_SEGMENTS = [

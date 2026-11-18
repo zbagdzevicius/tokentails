@@ -508,7 +508,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
         acts.push(`<button type="button" class="pl-btn ghost small buy" data-buy="${sku}" data-k="buy:${sku}"${waiting ? ' disabled' : ''}>${waiting === sku ? 'Opening…' : `Buy ${esc(catalogPrice({ cents: c.cents }, currency))}`}</button>`);
       }
     }
-    acts.push(`<button type="button" class="pl-btn ghost small" data-a="info" data-k="info">Skills &amp; lore</button>`);
+    acts.push(`<button type="button" class="pl-btn ghost small" data-a="info" data-k="info">Abilities &amp; lore</button>`);
     return `<div class="cst-detail" role="dialog" aria-modal="true" aria-label="${esc(c.name)}"><div class="cst-dpanel" data-tier="${c.tier ?? 'starter'}" data-hero="${hero}">
       <div class="cst-dart"><img alt="${esc(`${c.name} splash art`)}" decoding="async" ${splashAttrs(base, hero, low(), '(min-height: 700px) 420px, 240px')}></div>
       <div class="cst-dinfo">

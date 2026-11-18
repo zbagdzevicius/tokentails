@@ -23,7 +23,7 @@ export interface Quest {
 export const QUEST_XP = 50;
 
 export const QUEST_POOL: readonly Quest[] = Object.freeze([
-  { id: 'takedowns5', text: 'Get 5 takedowns (knockouts or assists)', goal: 5, metric: 'takedowns' },
+  { id: 'takedowns5', text: 'Get 5 knockouts or assists', goal: 5, metric: 'takedowns' },
   { id: 'pudding', text: 'Calm Pudding', goal: 1, metric: 'pudding' },
   { id: 'win', text: 'Win a match', goal: 1, metric: 'win' },
   { id: 'win_clem', text: 'Win with Clem', goal: 1, metric: 'win', hero: 'clem' },
@@ -33,7 +33,7 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
   { id: 'play2', text: 'Play 2 matches', goal: 2, metric: 'matches' },
   { id: 'towers2', text: 'Take down 2 towers', goal: 2, metric: 'towers' },
   { id: 'combo3', text: 'Land 3 combos', goal: 3, metric: 'combos' },
-  { id: 'takedowns10', text: 'Get 10 takedowns (knockouts or assists)', goal: 10, metric: 'takedowns' },
+  { id: 'takedowns10', text: 'Get 10 knockouts or assists', goal: 10, metric: 'takedowns' },
   // GAPS A1: the four shelter champions join the hero slot, plus two play goals. A quest may lead to a champion; its
   // reward is Treat XP only, never an offer, and finishing it never opens one (money/offer.ts is unchanged)
   { id: 'win_lambo', text: 'Win with Lambo', goal: 1, metric: 'win', hero: 'lambo' },

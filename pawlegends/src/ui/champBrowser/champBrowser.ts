@@ -215,7 +215,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
     <section class="cb-hero" aria-live="polite"></section>
     <section class="cb-main">
       <div class="cb-tabs" role="tablist" aria-label="Champion pages">
-        <button type="button" class="cb-tab" role="tab" data-tab="skills" id="cb-tab-skills" aria-controls="cb-skills">Skills</button>
+        <button type="button" class="cb-tab" role="tab" data-tab="skills" id="cb-tab-skills" aria-controls="cb-skills">Abilities</button>
         <button type="button" class="cb-tab" role="tab" data-tab="lore" id="cb-tab-lore" aria-controls="cb-lore">Lore</button>
         <button type="button" class="cb-tab" role="tab" data-tab="coats" id="cb-tab-coats" aria-controls="cb-skills">Coats</button>
       </div>
@@ -253,7 +253,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   let clipFailed = clipFactory === null;
   const setClipState = (s: 'loading' | 'playing' | 'paused' | 'none' | 'off'): void => {
     root.dataset.clip = s;
-    clipEl.setAttribute('aria-label', s === 'playing' ? 'Pause the skill preview' : s === 'paused' ? 'Play the skill preview' : '');
+    clipEl.setAttribute('aria-label', s === 'playing' ? 'Pause the ability preview' : s === 'paused' ? 'Play the ability preview' : '');
   };
   const ensurePlayer = (h: HeroId, s: ClipSlot): Promise<ClipPlayer | null> => {
     if (player) return Promise.resolve(player);
@@ -340,7 +340,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
     root.style.setProperty('--hero', HERO_COLOR_CSS[hero]);
     root.dataset.hero = hero;
     root.dataset.side = side;
-    root.setAttribute('aria-label', `${x.title}: skills and lore`);
+    root.setAttribute('aria-label', `${x.title}: abilities and lore`);
     heroEl.innerHTML = `
       <div class="cb-face">
         <button type="button" class="cb-nav cb-prev" data-a="prev" aria-label="Previous champion">‹</button>

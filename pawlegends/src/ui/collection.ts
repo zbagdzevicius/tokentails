@@ -123,11 +123,11 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
         <div class="tp-path">${path}</div>
         <div class="tp-info">
           <p class="next-chest" data-next="${esc(next.id)}"><span class="kick">Next chest</span><b>${esc(next.name)}</b></p>
-          <span class="tp-bar" role="progressbar" aria-label="Treat XP to the next chest" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fill}"><i style="width:${fill}%"></i><span class="gem" style="left:${fill}%"></span></span>
+          <span class="tp-bar" role="progressbar" aria-label="Season XP to the next chest" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fill}"><i style="width:${fill}%"></i><span class="gem" style="left:${fill}%"></span></span>
           <small data-togo="${n}">${esc(toGoText(n))}</small>
         </div>
       </section>
-      <p class="champs-row"><button type="button" class="bk-pill" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: skills &amp; lore</button>${o.onHistory ? `<button type="button" class="bk-pill" data-a="history" data-testid="open-history" aria-haspopup="dialog">${icon('arrows')}Match history</button>` : ''}${o.champions ? `<small class="champ-count" data-champs="${o.champions.owned}">Champions ${o.champions.owned}/${o.champions.total} · ${o.champions.yarn.toLocaleString('en-US')} Yarn${o.champions.founders ? ' · <b class="founders-badge">Founders roster</b>' : ''}</small>` : ''}</p>
+      <p class="champs-row"><button type="button" class="bk-pill" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: abilities &amp; lore</button>${o.onHistory ? `<button type="button" class="bk-pill" data-a="history" data-testid="open-history" aria-haspopup="dialog">${icon('arrows')}Match history</button>` : ''}${o.champions ? `<small class="champ-count" data-champs="${o.champions.owned}">Champions ${o.champions.owned}/${o.champions.total} · ${o.champions.yarn.toLocaleString('en-US')} Yarn${o.champions.founders ? ' · <b class="founders-badge">Founders roster</b>' : ''}</small>` : ''}</p>
       <h3 class="bk-h3">Whose reward comes next?</h3>
       <div class="targets"><div class="md-row" role="group" aria-label="Whose reward comes next"><button type="button" class="target md order${s.target === null ? ' on' : ''}" data-target="" aria-pressed="${s.target === null}" aria-label="Track order, any champion"><span class="md-ring"><span class="md-face">${icon('arrows')}</span></span><b>Track order</b><small>Any champion</small></button><span class="grp" aria-hidden="true">Cats</span>${cats.map(medal).join('')}<span class="grp dog" aria-hidden="true">Dogs</span>${dogs.map(medal).join('')}</div></div>
       <h3 class="bk-h3">Meet the real cat</h3>

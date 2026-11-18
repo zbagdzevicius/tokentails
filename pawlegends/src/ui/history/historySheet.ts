@@ -25,7 +25,7 @@ export type Outcome = 'won' | 'lost' | 'draw';
 export type ServerMode = 'skirmish' | 'classic' | 'blitz' | 'pvp' | 'ranked' | 'coop' | 'practice' | 'arcade';
 export type Filter = 'all' | 'ranked' | 'pvp' | 'ai' | 'blitz' | 'arcade';
 export const FILTERS: readonly Filter[] = Object.freeze(['all', 'ranked', 'pvp', 'ai', 'blitz', 'arcade'] as Filter[]);
-const FILTER_LABEL: Readonly<Record<Filter, string>> = Object.freeze({ all: 'All', ranked: 'Ranked', pvp: 'PvP', ai: 'vs AI', blitz: 'Blitz', arcade: 'Arcade' });
+const FILTER_LABEL: Readonly<Record<Filter, string>> = Object.freeze({ all: 'All', ranked: 'Ranked', pvp: 'PvP', ai: 'vs bots', blitz: 'Blitz', arcade: 'Arcade' });
 
 /** The server's list row (MATCH-HISTORY.md). */
 export interface ServerRow {
@@ -322,7 +322,7 @@ function teamHtml(m: ServerMatch, team: 0 | 1): string {
     })
     .join('');
   return `<section class="mh-team ${won ? 'won' : m.winner === -1 ? 'draw' : 'lost'}" data-team="${team}">
-    <h3><span>${esc(label)}</span><small>${kills} ${kills === 1 ? 'takedown' : 'takedowns'}</small></h3>
+    <h3><span>${esc(label)}</span><small>${kills} ${kills === 1 ? 'knockout' : 'knockouts'}</small></h3>
     <table class="mh-table"><thead><tr><th scope="col">Player</th><th scope="col" title="Level">Lv</th><th scope="col">K/D/A</th><th scope="col" title="Last hits">CS</th><th scope="col">Fish</th><th scope="col" class="mh-toys">Toys</th><th scope="col">Grade</th></tr></thead><tbody>${rows}</tbody></table>
   </section>`;
 }

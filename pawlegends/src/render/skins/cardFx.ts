@@ -105,13 +105,13 @@ export function cardFxLine(rung: CatTier, name: string, source: 'card' | 'coat' 
 export function cardFxDetail(rung: CatTier, awakened = false): string {
   switch (rung) {
     case 'RARE':
-      return 'Trails, ribbons and hits take the coat colour, and a pattern ring circles the recall nap.';
+      return 'Trails, ribbons and hits take the coat colour. So does the ring around your Nap.';
     case 'EPIC':
-      return 'Coat-colour trails and skill effects, a sparkle on every cast, element motifs on ability hits, a takedown stamp in the coat pattern and a tinted ghost.';
+      return 'Trails and abilities in the coat colour, a sparkle on every cast, element marks on hits and a knockout stamp in the coat pattern.';
     case 'LEGENDARY':
       return awakened
-        ? 'Awakened: everything Legendary has, and the foil and the ultimate paw wave grow as your champion levels up (Kitten, Brave, Legend).'
-        : 'Everything Epic has, plus paw-print hit bursts, an element foil, a card glyph on recall, a multi-kill card and a purr.';
+        ? 'Awakened: everything Legendary has. The shine and the ultimate paw wave grow as your champion levels up (Kitten, Brave, Legend).'
+        : 'Everything Epic has, plus paw-print bursts, an element shine, a card mark on Nap, a multi-knockout card and a purr.';
     default:
       return 'The default effects. Bond 3 adds the coat-colour tint.';
   }

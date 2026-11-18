@@ -73,9 +73,9 @@ export const SKILL_WORDS: Readonly<Record<HeroId, HeroWords>> = Object.freeze({ 
 const KIND: Readonly<Record<SkillSlot, string>> = Object.freeze({
   passive: 'Passive',
   basic: 'Basic attack',
-  q: 'Skill 1',
-  w: 'Skill 2',
-  e: 'Skill 3',
+  q: 'Ability 1',
+  w: 'Ability 2',
+  e: 'Ability 3',
   r: 'Ultimate',
 });
 

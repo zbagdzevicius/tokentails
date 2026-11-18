@@ -218,7 +218,7 @@ export function rotationFeatured(now: number): { id: string; endsAt: number } {
 export const TWIST_INFO: Readonly<Record<string, { name: string; rules: string[] }>> = Object.freeze({
   toybox: { name: 'Toy Box', rules: ['You earn Fish twice as fast, so you buy Toys sooner.', 'Frenzy Catnip and Fish Snacks appear twice as often.'] },
   rapid: { name: 'Rapid Paws', rules: ['Every ability and Paw Trick cools down 40% faster.'] },
-  bounty: { name: 'Bounty Hunt', rules: ['Champions on a takedown streak are worth 3 times the bounty.', 'Ending a streak pays 3 times the Fish.'] },
+  bounty: { name: 'Bounty Hunt', rules: ['Champions on a knockout streak are worth 3 times the bounty.', 'Ending a streak pays 3 times the Fish.'] },
 });
 
 /** Sim v27: the baked twist rotation, one twist a week (the same as the server's `rotationTwist`). Pure. */

@@ -191,7 +191,7 @@ describe('Lucky Treat', () => {
     expect(el.querySelector('[data-k="odds"]')).toBeNull();
     expect(el.textContent).toContain('Daily Treat');
     (el.querySelector('.pl-btn[data-k="open"]') as HTMLElement).click();
-    expect(el.textContent).toContain('+150 Treat XP');
+    expect(el.textContent).toContain('+150 Season XP');
     const sheet = openLuckyOdds({ ...LUCKY_DEFAULT, eligible: false });
     expect(sheet.querySelector('table')).toBeNull();
     expect(sheet.textContent).toContain('No random rewards');
@@ -255,7 +255,7 @@ describe('foreground sync (founder, Nov 16: progression stale until a restart)',
 
 describe('Welcome Path and Home Today', () => {
   it('labels gifts and shows while it runs', () => {
-    expect(giftLabel(WELCOME_PATH[0])).toBe('+100 Treat XP');
+    expect(giftLabel(WELCOME_PATH[0])).toBe('+100 Season XP');
     expect(giftLabel(WELCOME_PATH[1])).toBe('Wave emote');
     expect(welcomeVisible(parseWelcome({ days: 3, today: false }))).toBe(true);
     expect(welcomeVisible(parseWelcome({ days: 7, today: false }))).toBe(false);
