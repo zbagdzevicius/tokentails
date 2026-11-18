@@ -92,8 +92,18 @@ export function summarise(rows) {
       if (heroes[low][0] === 0) zero.push([heroes[top][0], heroes[top][2] - heroes[low][2]]);
       if (heroes[top][0] - heroes[low][0] >= 8) big.push(heroes[top][2] - heroes[low][2]);
     }
+    // A "10-0" hero (10+ kills, at most 1 death) against the lowest-level hero and against the mean of the others.
+    const tenOh = [];
+    for (const heroes of s) {
+      heroes.forEach((h, i) => {
+        if (h[0] < 10 || h[1] > 1) return;
+        const others = heroes.filter((_, j) => j !== i);
+        tenOh.push([h[2] - Math.min(...others.map((o) => o[2])), h[2] - mean(others.map((o) => o[2]))]);
+      });
+    }
     const z5 = zero.filter((x) => x[0] >= 5);
-    out.gaps[t] = { n: s.length, topVsLow: r1(mean(gap)), zeroKillN: zero.length, topVsZero: r1(mean(zero.map((x) => x[1]))), top5VsZeroN: z5.length, top5VsZero: r1(mean(z5.map((x) => x[1]))), killGap8N: big.length, killGap8: r1(mean(big)), killGap8Share2: share(big.filter((x) => x >= 2).length, big.length), killGap8Share3: share(big.filter((x) => x >= 3).length, big.length) };
+    out.gaps[t] = {
+      tenOhN: tenOh.length, tenOhVsLow: r1(mean(tenOh.map((x) => x[0]))), tenOhVsMean: r1(mean(tenOh.map((x) => x[1]))), tenOhShare3: share(tenOh.filter((x) => x[0] >= 3).length, tenOh.length), n: s.length, topVsLow: r1(mean(gap)), zeroKillN: zero.length, topVsZero: r1(mean(zero.map((x) => x[1]))), top5VsZeroN: z5.length, top5VsZero: r1(mean(z5.map((x) => x[1]))), killGap8N: big.length, killGap8: r1(mean(big)), killGap8Share2: share(big.filter((x) => x >= 2).length, big.length), killGap8Share3: share(big.filter((x) => x >= 3).length, big.length) };
   }
   let td = 0;
   let all = 0;
@@ -137,7 +147,7 @@ else {
     console.log(`deaths probe ${map}: ${s.matches} matches in ${Math.round((Date.now() - t0) / 1000)} s`);
     console.log(`  respawn by death #: ${Object.entries(s.byDeath).map(([k, v]) => `${k}: ${v.mean}s (p90 ${v.p90}, ~${v.atMin}min, n ${v.n})`).join('; ')}`);
     console.log(`  respawn by minute: ${Object.entries(s.byMinute).map(([k, v]) => `${k}: ${v.mean}s (p90 ${v.p90}, max ${v.max}, n ${v.n})`).join('; ')}`);
-    for (const [t, g] of Object.entries(s.gaps)) console.log(`  ${t === '99' ? 'end' : `${t}:00`} (n ${g.n}) level gap top killer vs lowest +${g.topVsLow}; vs a 0-kill hero +${g.topVsZero} (n ${g.zeroKillN}); 5+ kills vs 0 +${g.top5VsZero} (n ${g.top5VsZeroN}); kill gap 8+ +${g.killGap8} (2+: ${g.killGap8Share2}%, 3+: ${g.killGap8Share3}%, n ${g.killGap8N})`);
+    for (const [t, g] of Object.entries(s.gaps)) console.log(`  ${t === '99' ? 'end' : `${t}:00`} (n ${g.n}) level gap top killer vs lowest +${g.topVsLow}; vs a 0-kill hero +${g.topVsZero} (n ${g.zeroKillN}); 5+ kills vs 0 +${g.top5VsZero} (n ${g.top5VsZeroN}); kill gap 8+ +${g.killGap8} (2+: ${g.killGap8Share2}%, 3+: ${g.killGap8Share3}%, n ${g.killGap8N}); 10-0 hero vs lowest +${g.tenOhVsLow} (3+: ${g.tenOhShare3}%), vs mean +${g.tenOhVsMean} (n ${g.tenOhN})`);
     console.log(`  XP from champion takedowns: ${s.xp.takedownShare}% of all XP; top killer ${s.xp.topKillerTakedownShare}%`);
     console.log(`  most-dying hero: ${s.misery.deaths} deaths, dead ${s.misery.deadShare}% of the match (p90 ${s.misery.p90}%)`);
     console.log(`  comeback: behind at the check wins ${s.comeback.behindWins}% of ${s.comeback.behindN}`);

@@ -21,7 +21,7 @@ import { G } from '../../src/sim/world';
 
 describe('sim v35: version and the v34 freeze', () => {
   it('SIM_VERSION 35, v34 frozen at its sim commit on main (0be26b01) with its maps fixture', () => {
-    expect(SIM_VERSION).toBe(35);
+    expect(SIM_VERSION).toBe(36);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');
     const entry = /simVersion: 34,\s*commit: '([0-9a-f]{40})'[^]*?\]\)/.exec(tool);
     expect(entry?.[1].startsWith('0be26b01')).toBe(true);

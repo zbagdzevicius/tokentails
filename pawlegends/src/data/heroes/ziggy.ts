@@ -8,7 +8,8 @@ export const ZIGGY: HeroData = Object.freeze<HeroData>({
   role: 'fighter',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v29 (ROSTER-V29.md §4): the first fit. */
   // sim v33 (V33-KILLS.md, bigger kill rewards moved the 3v3 rows): 7300 / 9900
-  pvp: { dmgBp: 7385, takenBp: 9790 },
+  // sim v36 (V36-BALANCE.md, the v35 hero pass on 8,000 pool-rotation matches): 7385 / 9790
+  pvp: { dmgBp: 7485, takenBp: 9690 },
   element: 'ELECTRIC',
   base: { hp: 600, hpPerLevel: 60, attack: 58, attackPerLevel: 6, attackEvery: 28, range: 1600, speed: 5100, armour: 24, armourPerLevel: 2 },
   /** Static Step: after a Zig or a Tail Flick his next basic within 2.5 s deals +30 (+5/lvl). */

@@ -152,6 +152,9 @@ Per-hero rows were not refitted for v35. The heroes outside 46–54 on one 2,000
 Crossing: Aviete, Ziggy, Mochi, Bengas) are the next balance pass, judged pooled over 8,000 seeds (V20-CHASE.md §10).
 Bengas at 57.9% on the Crossing is the one clearly outside noise (±2.4 points).
 
+**Done in sim v36** (V36-BALANCE.md): the 3v3 and Hearthwood rows were refitted on 8,000-match runs; every hero is
+now 46.1–53.2% on the pool rotation and 48.0–52.4% in 5v5.
+
 ## 4. Freeze, backend build memory and release
 
 - `SIM_VERSION` 35. v34 is frozen at 0be26b01 (its sim commit on main) with its fixtures, `maps-replay` included.

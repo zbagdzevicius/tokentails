@@ -47,7 +47,9 @@ describe('party-pilot', { timeout: limit(900_000) }, () => {
     }
     const near = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol * Math.max(a, b);
     console.log(`party-pilot: ${SEEDS} seeds, XP pilot ${pilotXp} vs bot ${botXp.toFixed(0)}, K+A pilot ${pilotK} vs bot ${botK.toFixed(1)}`);
-    expect(near(pilotXp, botXp, 0.1)).toBe(true);
+    // Sim v35 made champion kills two thirds of all XP, so XP over 16 seeds is as streaky as takedowns: the quick run
+    // allows 15% (sim v36 rows: 10.5% on seeds 1000-1015), the nightly 50 seeds hold 10% (V36-BALANCE.md §4).
+    expect(near(pilotXp, botXp, NIGHTLY ? 0.1 : 0.15)).toBe(true);
     expect(near(pilotK, botK, NIGHTLY ? 0.1 : 0.25)).toBe(true);
   });
 });
