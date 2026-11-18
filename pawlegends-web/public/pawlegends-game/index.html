@@ -3,70 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#12091f" />
-    <meta name="robots" content="noindex" />
-    <meta name="format-detection" content="telephone=no" />
-    <title>Pawlegends</title>
-    <!-- the PawLegends app icon (brand/pawlegends: favicon.ico, favicon-32.png, apple-touch-icon-180.png) -->
-    <link rel="icon" href="/pawlegends-game/favicon.ico" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/pawlegends-game/favicon-32.png" type="image/png" sizes="32x32" />
-    <link rel="apple-touch-icon" href="/pawlegends-game/apple-touch-icon.png" sizes="180x180" />
-    <link rel="preload" href="/pawlegends-game/assets/brand/logo-720.webp" as="image" type="image/webp" />
-    <!-- LATENCY-PLAN C2: the party relay and API host; the lobby socket's DNS (and an API fetch's TLS) start with the page -->
-    <link rel="preconnect" href="https://api.tokentails.com" crossorigin />
-    <link rel="dns-prefetch" href="https://api.tokentails.com" />
-    <meta name="description" content="Pawlegends: 3v3 cats and dogs. Seven-minute matches." />
-    <!-- audit GFX-14 / UX-13: the one Fredoka file, fetched with the page (app.ts installFont uses the same URL) -->
-    <link rel="preload" href="/pawlegends-game/assets/fonts/Fredoka-Ext.woff2" as="font" type="font/woff2" crossorigin />
-    <style>:root{--bg:#12091f;--cream:#fff3e3;--butter:#ffe14a;--peach:#ff8a1e;--rose:#ff3d7f;--sage:#9be3c4;--sky:#39a6ff;--ink:#12091f;--danger:#ff4f58}html,body{background:var(--bg);height:100%;color:var(--cream);-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;overscroll-behavior:none;-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;text-size-adjust:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}#app{touch-action:none;overscroll-behavior:none;position:fixed;inset:0}#boot{z-index:1;pointer-events:none;background:var(--bg);--cm-g:3px;transition:opacity .35s ease-out,visibility 0s linear .35s;position:fixed;inset:0;overflow:hidden}@media (min-width:900px) and (min-height:520px){#boot{--cm-g:5px}}#boot .cm,#boot .cm>b{position:absolute;inset:0}#boot .cm>b{overflow:hidden}#boot .cm s{--halftone:radial-gradient(#ffffff2b 1.3px, transparent 1.9px) 0 0 / 10px 10px;--bolt:linear-gradient(118deg, transparent 46%, #ffe14a80 46% 54%, transparent 54%);text-decoration:none;position:absolute;overflow:hidden}#boot .cat.v0 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #ff86b0, #ff3d7f 45%, #b0164f)}#boot .cat.v1 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #ffa27a, #ff5c8a 45%, #a8124d)}#boot .cat.v2 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #ffb3d0, #e8357a 45%, #7a1040)}#boot .dog.v0 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #8fd0ff, #39a6ff 45%, #1453b0)}#boot .dog.v1 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #9ee8ff, #2f8ff0 45%, #123f8f)}#boot .dog.v2 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #bcdcff, #4a9cff 45%, #23317f)}#boot .cm img{object-fit:cover;object-position:50% 36%;opacity:0;width:100%;height:100%;transition:opacity .45s ease-out;position:absolute;inset:0}#boot .cm .in img{opacity:1;animation:cm-kb 11s ease-in-out var(--kd,0s) infinite alternate}#boot:after{content:"";background:radial-gradient(34% 30% at 50% 46%,#12091f99,#12091f00 100%),linear-gradient(#12091f00 72%,#12091fc7);position:absolute;inset:0}#boot .cm-logo{z-index:2;filter:drop-shadow(0 0 16px #ffe14a99)drop-shadow(0 5px #12091fe6);width:clamp(240px,34vw,min(460px,70vh));height:auto;animation:1.6s ease-in-out infinite boot-paw;position:absolute;top:46%;left:50%;transform:translate(-50%,-50%)}#boot .cm-pr{z-index:2;left:50%;bottom:max(16px, env(safe-area-inset-bottom));justify-items:center;gap:6px;display:grid;position:absolute;transform:translate(-50%)}#boot .cm-pct{color:var(--cream);font-variant-numeric:tabular-nums;text-shadow:0 3px 0 var(--ink), 0 0 12px #ffe14a8c;font:italic 900 22px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}#boot .cm-bar{background:var(--ink);border:2px solid var(--ink);width:min(360px,56vw);height:10px;box-shadow:0 0 0 2px var(--cream), 0 4px 10px #00000073;display:block;overflow:hidden;transform:skew(-14deg)}#boot .cm-bar u{transform-origin:0;background:linear-gradient(90deg, var(--rose), var(--butter) 50%, var(--sky));height:100%;transition:transform .3s ease-out;display:block;transform:scaleX(0)}html[data-ready="1"] #boot{opacity:0;visibility:hidden}body:has(#crash) #boot{opacity:0;visibility:hidden}@keyframes boot-paw{50%{transform:translate(-50%,-50%)scale(1.025)}}@keyframes cm-kb{0%{transform:scale(1.04)}to{transform:scale(1.12) translate(var(--kx,0), var(--ky,0))}}@media (prefers-reduced-motion:reduce){#boot .cm-logo,#boot .cm .in img{animation:none}}</style>
-    <script type="module" crossorigin src="/pawlegends-game/build/index-CwLOwjLC.js"></script>
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/chunkRetry-DNCRIdcf.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/catalog-BS2076As.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/coatParts-B0IdwrDj.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/timeline-ChEPX7Js.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/api-CQ_duaIG.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/toys-uAASwtsV.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/heroes-DZ7OsWnQ.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/xp-CN6S6ivh.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/voiceLines-DxE0X8p9.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/sfx-D78JMYqK.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/art-Bo0c9fgP.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/platform-DqHThekL.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/bridge-DKgwa-bX.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/skinStore-CfV4WSNT.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/cosmetics-Nmng5YEL.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/three-CE68GREw.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/chibi-DhDGeihZ.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/ranger-DzmzXjJ0.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/palette-DDhyufbz.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/registry-DpkWz8Eh.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/profile-DXEbLab9.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/skus-By83dUGs.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/fixed-Byonp_GT.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/map-CDImwpFH.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/world-CIGovK9S.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/talents-C_gZ1ya8.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/tricks-C41mSTnn.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/heroText-DXJcyCTZ.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/Particles-sLWaYFGO.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/charMaterial-BPLPp6No.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/device-DCA0QNu2.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/coords-O4Cf6lzh.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/ambient-hSIWxGK7.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/renderer-BCfFmjRD.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/portraits-DKK8jeIB.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/ranked-B3bw7T9z.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/modes-BUOT6JAr.js">
-    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/chatPhrases-DEVpdup9.js">
-    <link rel="stylesheet" crossorigin href="/pawlegends-game/build/index-BdS_NvKH.css">
-  </head>
-  <body>
-    <div id="app"></div>
-    <div id="boot" aria-hidden="true">
-      <div class="cm"></div>
-      <img class="cm-logo" src="/pawlegends-game/assets/brand/logo-720.webp" alt="" width="720" height="454" />
-      <div class="cm-pr"><span class="cm-pct">0%</span><i class="cm-bar"><u></u></i></div>
-    </div>
+    <!-- the loading screen's panel pictures start first (vite.config.ts comicBootPlugin, src/boot/comicBoot.js) -->
     <script>(function(){
 const COMIC_REV = 1;
 const COMIC_PANELS = [
@@ -177,16 +114,40 @@ function comicSlots(layout) {
 function comicProgress(ms, floor) {
   return Math.min(100, Math.max(floor || 0, 92 * (1 - Math.exp(-ms / 2600))));
 }
+const COMIC_FADE_MS = 250;
+function comicStart(win) {
+  const tallMq = win.matchMedia ? win.matchMedia('(orientation: portrait)') : null;
+  const picks = pickComic(Math.random, tallMq && tallMq.matches ? COMIC_LAYOUTS.tall : COMIC_LAYOUTS.wide);
+  const base = comicRoot(win.location ? win.location.hostname : '');
+  const size = comicSize(win.innerWidth || 1280, win.innerHeight || 720, win.devicePixelRatio || 1);
+  const state = { picks, tallMq, imgs: [], done: 0, lastIn: 0, onDone: [] };
+  picks.forEach((p, i) => {
+    const img = new win.Image();
+    img.alt = '';
+    img.decoding = 'async';
+    img.setAttribute('fetchpriority', 'high');
+    const settle = (ok) => {
+      if (img.__settled) return;
+      img.__settled = ok ? 'ok' : 'err';
+      state.done++;
+      state.onDone.forEach((f) => f(i, ok));
+    };
+    img.onload = () => settle(true);
+    img.onerror = () => settle(false);
+    img.src = comicUrl(base, p.id, size);
+    state.imgs.push(img);
+  });
+  win.__plComic = state;
+  return state;
+}
 function comicBoot(doc, win) {
   const root = doc.getElementById('boot');
   const stage = root && root.querySelector('.cm');
   if (!stage) return;
-  const tallMq = win.matchMedia ? win.matchMedia('(orientation: portrait)') : null;
+  const state = win.__plComic || comicStart(win);
+  const tallMq = state.tallMq;
   const layoutNow = () => (tallMq && tallMq.matches ? COMIC_LAYOUTS.tall : COMIC_LAYOUTS.wide);
-  const picks = pickComic(Math.random, layoutNow());
-  const base = comicRoot(win.location ? win.location.hostname : '');
-  const size = comicSize(win.innerWidth || 1280, win.innerHeight || 720, win.devicePixelRatio || 1);
-  const panels = picks.map((p, i) => {
+  const panels = state.picks.map((p, i) => {
     const b = doc.createElement('b');
     b.className = p.side + ' v' + (i % 3);
     // a slow ken-burns per panel, each drifting its own way (CSS: off with reduced motion)
@@ -195,17 +156,18 @@ function comicBoot(doc, win) {
     b.style.setProperty('--kd', (-1.3 * i).toFixed(1) + 's');
     // the panel's own box (its fallback colours and its picture), inside the clipped full-screen layer
     const box = doc.createElement('s');
-    const img = doc.createElement('img');
-    img.alt = '';
-    img.decoding = 'async';
-    img.setAttribute('fetchpriority', 'high');
-    img.onload = () => b.classList.add('in');
-    img.src = comicUrl(base, p.id, size);
-    box.appendChild(img);
+    box.appendChild(state.imgs[i]);
     b.appendChild(box);
     stage.appendChild(b);
     return b;
   });
+  const show = (i, ok) => {
+    if (!ok || !panels[i]) return;
+    panels[i].classList.add('in');
+    state.lastIn = Date.now();
+  };
+  state.imgs.forEach((img, i) => show(i, img.__settled === 'ok'));
+  state.onDone.push(show);
   const place = () => {
     comicSlots(layoutNow()).forEach((s, i) => {
       const b = panels[i];
@@ -224,6 +186,23 @@ function comicBoot(doc, win) {
     if (tallMq.addEventListener) tallMq.addEventListener('change', place);
     else if (tallMq.addListener) tallMq.addListener(place);
   }
+  // the game waits for this before its first heavy frame (src/main.ts): every picture settled and faded in, or `cap`
+  // ms, then two frames so the pictures are painted
+  win.__plBootArt = (cap) =>
+    new Promise((resolve) => {
+      const t = Date.now();
+      // two frames, or 100 ms when frames do not come (a hidden tab must still boot)
+      const frames = () => {
+        win.setTimeout(resolve, 100);
+        if (win.requestAnimationFrame) win.requestAnimationFrame(() => win.requestAnimationFrame(() => resolve()));
+      };
+      const check = () => {
+        const now = Date.now();
+        if (!root.isConnected || now - t >= (cap || 0) || (state.done >= state.imgs.length && now - state.lastIn >= COMIC_FADE_MS)) frames();
+        else win.setTimeout(check, 30);
+      };
+      check();
+    });
   // progress
   const fill = root.querySelector('.cm-bar u');
   const pct = root.querySelector('.cm-pct');
@@ -251,6 +230,72 @@ function comicBoot(doc, win) {
   }, 120);
 }
 
-comicBoot(document, window);})();</script>
+window.__plComicBoot = comicBoot;
+comicStart(window);})();</script>
+    <meta name="theme-color" content="#12091f" />
+    <meta name="robots" content="noindex" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>Pawlegends</title>
+    <!-- the PawLegends app icon (brand/pawlegends: favicon.ico, favicon-32.png, apple-touch-icon-180.png) -->
+    <link rel="icon" href="/pawlegends-game/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/pawlegends-game/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/pawlegends-game/apple-touch-icon.png" sizes="180x180" />
+    <link rel="preload" href="/pawlegends-game/assets/brand/logo-720.webp" as="image" type="image/webp" />
+    <!-- LATENCY-PLAN C2: the party relay and API host; the lobby socket's DNS (and an API fetch's TLS) start with the page -->
+    <link rel="preconnect" href="https://api.tokentails.com" crossorigin />
+    <link rel="dns-prefetch" href="https://api.tokentails.com" />
+    <meta name="description" content="Pawlegends: 3v3 cats and dogs. Seven-minute matches." />
+    <!-- audit GFX-14 / UX-13: the one Fredoka file, fetched with the page (app.ts installFont uses the same URL) -->
+    <link rel="preload" href="/pawlegends-game/assets/fonts/Fredoka-Ext.woff2" as="font" type="font/woff2" crossorigin />
+    <style>:root{--bg:#12091f;--cream:#fff3e3;--butter:#ffe14a;--peach:#ff8a1e;--rose:#ff3d7f;--sage:#9be3c4;--sky:#39a6ff;--ink:#12091f;--danger:#ff4f58}html,body{background:var(--bg);height:100%;color:var(--cream);-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;overscroll-behavior:none;-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;text-size-adjust:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}#app{touch-action:none;overscroll-behavior:none;position:fixed;inset:0}#boot{z-index:1;pointer-events:none;background:var(--bg);--cm-g:3px;transition:opacity .35s ease-out,visibility 0s linear .35s;position:fixed;inset:0;overflow:hidden}@media (min-width:900px) and (min-height:520px){#boot{--cm-g:5px}}#boot .cm,#boot .cm>b{position:absolute;inset:0}#boot .cm>b{overflow:hidden}#boot .cm s{--halftone:radial-gradient(#ffffff2b 1.3px, transparent 1.9px) 0 0 / 10px 10px;--bolt:linear-gradient(118deg, transparent 46%, #ffe14a80 46% 54%, transparent 54%);text-decoration:none;position:absolute;overflow:hidden}#boot .cat.v0 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #ff86b0, #ff3d7f 45%, #b0164f)}#boot .cat.v1 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #ffa27a, #ff5c8a 45%, #a8124d)}#boot .cat.v2 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #ffb3d0, #e8357a 45%, #7a1040)}#boot .dog.v0 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #8fd0ff, #39a6ff 45%, #1453b0)}#boot .dog.v1 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #9ee8ff, #2f8ff0 45%, #123f8f)}#boot .dog.v2 s{background:var(--halftone), var(--bolt), radial-gradient(110% 90% at 50% 38%, #bcdcff, #4a9cff 45%, #23317f)}#boot .cm img{object-fit:cover;object-position:50% 36%;opacity:0;width:100%;height:100%;transition:opacity .25s ease-out;position:absolute;inset:0}#boot .cm .in img{opacity:1;animation:cm-kb 11s ease-in-out var(--kd,0s) infinite alternate}#boot:after{content:"";background:radial-gradient(34% 30% at 50% 46%,#12091f99,#12091f00 100%),linear-gradient(#12091f00 72%,#12091fc7);position:absolute;inset:0}#boot .cm-logo{z-index:2;filter:drop-shadow(0 0 16px #ffe14a99)drop-shadow(0 5px #12091fe6);width:clamp(240px,34vw,min(460px,70vh));height:auto;animation:1.6s ease-in-out infinite boot-paw;position:absolute;top:46%;left:50%;transform:translate(-50%,-50%)}#boot .cm-pr{z-index:2;left:50%;bottom:max(16px, env(safe-area-inset-bottom));justify-items:center;gap:6px;display:grid;position:absolute;transform:translate(-50%)}#boot .cm-pct{color:var(--cream);font-variant-numeric:tabular-nums;text-shadow:0 3px 0 var(--ink), 0 0 12px #ffe14a8c;font:italic 900 22px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}#boot .cm-bar{background:var(--ink);border:2px solid var(--ink);width:min(360px,56vw);height:10px;box-shadow:0 0 0 2px var(--cream), 0 4px 10px #00000073;display:block;overflow:hidden;transform:skew(-14deg)}#boot .cm-bar u{transform-origin:0;background:linear-gradient(90deg, var(--rose), var(--butter) 50%, var(--sky));height:100%;transition:transform .3s ease-out;display:block;transform:scaleX(0)}html[data-ready="1"] #boot{opacity:0;visibility:hidden}body:has(#crash) #boot{opacity:0;visibility:hidden}@keyframes boot-paw{50%{transform:translate(-50%,-50%)scale(1.025)}}@keyframes cm-kb{0%{transform:scale(1.04)}to{transform:scale(1.12) translate(var(--kx,0), var(--ky,0))}}@media (prefers-reduced-motion:reduce){#boot .cm-logo,#boot .cm .in img{animation:none}}</style>
+    <script type="module" crossorigin src="/pawlegends-game/build/index-DN1e3HK9.js"></script>
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/chunkRetry-DNCRIdcf.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/catalog-BS2076As.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/coatParts-B0IdwrDj.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/timeline-ChEPX7Js.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/api-CQ_duaIG.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/toys-uAASwtsV.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/heroes-DZ7OsWnQ.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/xp-CN6S6ivh.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/voiceLines-DxE0X8p9.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/sfx-D78JMYqK.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/art-DtyiDdaO.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/platform-DqHThekL.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/bridge-DKgwa-bX.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/skinStore-CfV4WSNT.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/cosmetics-Nmng5YEL.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/three-CE68GREw.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/chibi-DhDGeihZ.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/ranger-DzmzXjJ0.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/palette-DDhyufbz.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/registry-DpkWz8Eh.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/profile-DXEbLab9.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/skus-By83dUGs.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/fixed-Byonp_GT.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/map-CDImwpFH.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/world-CIGovK9S.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/talents-C_gZ1ya8.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/tricks-C41mSTnn.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/heroText-DXJcyCTZ.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/Particles-sLWaYFGO.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/charMaterial-BPLPp6No.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/device-DCA0QNu2.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/coords-O4Cf6lzh.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/ambient-hSIWxGK7.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/renderer-BCfFmjRD.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/portraits-B3MQepl8.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/ranked-B3bw7T9z.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/modes-BUOT6JAr.js">
+    <link rel="modulepreload" crossorigin href="/pawlegends-game/build/chatPhrases-DEVpdup9.js">
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="boot" aria-hidden="true">
+      <div class="cm"></div>
+      <img class="cm-logo" src="/pawlegends-game/assets/brand/logo-720.webp" alt="" width="720" height="454" />
+      <div class="cm-pr"><span class="cm-pct">0%</span><i class="cm-bar"><u></u></i></div>
+    </div>
+    <script>window.__plComicBoot && window.__plComicBoot(document, window);</script>
+    <link rel="stylesheet" crossorigin href="/pawlegends-game/build/index-BdS_NvKH.css">
   </body>
 </html>
