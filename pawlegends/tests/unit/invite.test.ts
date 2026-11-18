@@ -4,7 +4,7 @@
  * row shows the code, progress and a Claim button only when a coat is ready, a typed code goes to `growth.redeem`, a
  * claim to `growth.claim`, and names stay text. No price anywhere (the row shows in the apps too).
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResult } from '../../src/embed/api';
 import { cleanInviteCode, coatLabel, inviteError, inviteLine, inviteStateOf } from '../../src/share/invite';
 import { SocialSheet } from '../../src/social/socialSheet';
@@ -60,7 +60,7 @@ function sheet(inv: Record<string, unknown>, friends = 7) {
     joinParty: vi.fn(),
     signIn: vi.fn(),
     playCasual: vi.fn(),
-    height: () => 375,
+    height: () => 800,
   });
   return { s, calls };
 }
@@ -82,10 +82,12 @@ describe('invite helpers', () => {
 });
 
 describe('the invite row in the Social sheet', () => {
+  // the card starts open (a choice made on this device); with no choice it folds once there are friends to show
+  beforeEach(() => localStorage.setItem('pl.social.inviteFolded', '0'));
+
   it('folds to one line and remembers it; Copy copies the code', async () => {
     const writes: string[] = [];
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t: string) => void writes.push(t) } });
-    localStorage.removeItem('pl.social.inviteFolded');
     const t = sheet(invite({ invited: [], accepted: null }));
     await flush();
     const row = () => document.querySelector<HTMLElement>('[data-testid="invite-row"]')!;

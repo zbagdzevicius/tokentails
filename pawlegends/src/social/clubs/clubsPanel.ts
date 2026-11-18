@@ -8,6 +8,7 @@
  */
 import type { ApiArgs, ApiOp, ApiResult } from '../../embed/api';
 import { avatarHtml } from '../../ui/avatar';
+import { icon } from '../socialIcons';
 import {
   CLUB_CHEST_TIERS,
   clubErrorText,
@@ -112,8 +113,8 @@ export class ClubsPanel {
   footer(per: number): string {
     const s = this.state;
     if (!s) return '';
-    if (!s.club)
-      return `<form class="pl-social-add pl-club-join"><input name="club" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CL-XXXXXX" aria-label="Club code" inputmode="text" data-testid="club-code"><button type="submit" class="pl-btn small" data-testid="club-join">Join</button></form>`;
+    // no club: the join field sits under its caption in the body (no footer)
+    if (!s.club) return '';
     if (this.view === 'members') {
       const pages = Math.max(1, Math.ceil(s.club.members.length / per));
       const page = Math.min(this.page, pages - 1);
@@ -121,7 +122,7 @@ export class ClubsPanel {
       return `<button type="button" class="pl-btn ghost small" data-club="back">&lsaquo; Club</button>${pager}`;
     }
     const leave = this.confirm === 'leave' ? 'Tap again to leave' : 'Leave';
-    return `<button type="button" class="pl-btn ghost small" data-club="members" data-testid="club-members">Members <b>${s.club.size}/${s.club.cap}</b></button><button type="button" class="pl-btn small" data-club="chat" data-testid="club-chat">💬 Chat</button><button type="button" class="pl-btn ghost small pl-club-leave${this.confirm === 'leave' ? ' armed' : ''}" data-club="leave" data-testid="club-leave">${leave}</button>`;
+    return `<button type="button" class="pl-btn ghost small" data-club="members" data-testid="club-members">Members <b>${s.club.size}/${s.club.cap}</b></button><button type="button" class="pl-btn small" data-club="chat" data-testid="club-chat">${icon('chat', 18)}<span>Chat</span></button><button type="button" class="pl-btn ghost small pl-club-leave${this.confirm === 'leave' ? ' armed' : ''}" data-club="leave" data-testid="club-leave">${leave}</button>`;
   }
 
   private kudosHtml(k: KudosView | null): string {
@@ -133,7 +134,7 @@ export class ClubsPanel {
 
   private noClubBody(k: KudosView | null): string {
     const name = clubNameText(this.name[0], this.name[1]);
-    return `<div class="pl-club-intro"><p class="pl-club-lede"><b>Clubs</b> · up to 30 players, a club chat and a weekly chest that your wins fill.</p><div class="pl-club-make"><button type="button" class="pl-btn ghost small pl-club-die" data-club="roll" aria-label="Another name" data-testid="club-roll">🎲</button><span class="pl-club-newname" data-name="${esc(name)}" data-testid="club-name"></span><button type="button" class="pl-btn small" data-club="create" data-testid="club-create">Create</button></div><small class="pl-club-hint">Or join a friend's club with its code below.</small></div>${this.kudosHtml(k)}`;
+    return `<div class="pl-club-intro"><p class="pl-club-title">Clubs</p><p class="pl-club-lede">Up to 30 players, a club chat and a weekly chest that your wins fill.</p><div class="pl-club-make"><button type="button" class="pl-ico pl-club-die" data-club="roll" aria-label="Another name" title="Another name" data-testid="club-roll">${icon('dice', 22)}</button><span class="pl-club-newname" data-name="${esc(name)}" data-testid="club-name"></span><button type="button" class="pl-btn small" data-club="create" data-testid="club-create">Create</button></div><p class="pl-club-hint">Or join a friend's club with its code:</p><form class="pl-social-add pl-club-join"><input name="club" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CL-XXXXXX" aria-label="Club code" inputmode="text" data-testid="club-code"><button type="submit" class="pl-btn small ghost" data-testid="club-join">Join</button></form></div>${this.kudosHtml(k)}`;
   }
 
   private clubBody(c: ClubView, k: KudosView | null): string {

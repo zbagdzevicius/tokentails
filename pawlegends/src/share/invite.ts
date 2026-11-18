@@ -155,7 +155,7 @@ export function inviteRowHtml(s: InviteState | null, entering: boolean, folded =
   const chip = `<button type="button" class="pl-inv-code" data-a="inv-copy" data-testid="invite-copy" aria-label="${esc(`Copy invite code ${s.code}`)}" title="Copy code"><small>Code</small><b>${esc(s.code)}</b>${ICON_COPY}</button>`;
   const fold = `<button type="button" class="pl-ico pl-inv-fold" data-a="inv-fold" aria-expanded="${!folded}" aria-label="${folded ? 'Show invite' : 'Hide invite'}" title="${folded ? 'Show' : 'Hide'}">${ICON_CHEVRON}</button>`;
   if (folded)
-    return `<div class="pl-invite-row is-folded" data-testid="invite-row"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title === 'Invite a friend' ? 'Invite' : title)}"></span></span>${claim || chip}${fold}</div>`;
+    return `<div class="pl-invite-row is-folded" data-testid="invite-row"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="Invite"></span></span>${claim || chip}${fold}</div>`;
   const enter = !s.accepted ? `<button type="button" class="pl-inv-have" data-a="inv-enter" data-testid="invite-enter" aria-label="Enter an invite code">Got a code from a friend?</button>` : '';
   return `<div class="pl-invite-row" data-testid="invite-row"><div class="pl-inv-top"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span><small class="pl-inv-sub">${esc(sub)}</small></span>${fold}</div><div class="pl-inv-acts">${chip}${claim}<button type="button" class="pl-btn small ghost pl-inv-share" data-a="inv-share" data-testid="invite-share">${ICON_SHARE}<span>Share link</span></button></div>${enter}</div>`;
 }
@@ -167,19 +167,19 @@ const ICON_GIFT = icon('gift', 20);
 const ICON_SHARE = icon('share', 16);
 
 /**
- * The fold choice is remembered on this device only (a per-viewer convenience; storage can fail). With no choice yet,
- * the card starts folded on short screens (a phone held sideways), where friends need the room.
+ * The fold choice is remembered on this device only (a per-viewer convenience; storage can fail). With no choice yet
+ * the sheet decides (`autoFold`): folded on a short screen (a phone held sideways) and once the player has friends to
+ * look at; open for a new player, who needs it most.
  */
 const FOLD_KEY = 'pl.social.inviteFolded';
-const readFold = (): boolean => {
+const readFold = (): boolean | null => {
   let v: string | null = null;
   try {
     v = typeof localStorage !== 'undefined' ? localStorage.getItem(FOLD_KEY) : null;
   } catch {
     v = null;
   }
-  if (v === '1' || v === '0') return v === '1';
-  return typeof window !== 'undefined' && window.innerHeight <= 500;
+  return v === '1' || v === '0' ? v === '1' : null;
 };
 
 export interface InviteDeps {
@@ -195,8 +195,10 @@ export interface InviteDeps {
 export class InviteRow {
   state: InviteState | null = null;
   entering = false;
-  /** The card folded to one line (remembered on this device). */
-  folded = readFold();
+  /** The player's fold choice (remembered on this device), or null: then `autoFold` decides. */
+  folded: boolean | null = readFold();
+  /** The fold with no choice yet (the sheet sets it: a short screen, or friends to show). */
+  autoFold = typeof window !== 'undefined' && window.innerHeight <= 500;
 
   constructor(private readonly deps: InviteDeps) {}
 
@@ -206,15 +208,20 @@ export class InviteRow {
     this.deps.render();
   }
 
+  /** Folded to one line (a coat to claim always unfolds it). */
+  get isFolded(): boolean {
+    return (this.folded ?? this.autoFold) && !this.state?.claimable;
+  }
+
   html(): string {
-    return inviteRowHtml(this.state, this.entering, this.folded && !this.state?.claimable);
+    return inviteRowHtml(this.state, this.entering, this.isFolded);
   }
 
   /** The row's buttons (`data-a` starting with `inv-`). */
   async act(a: string): Promise<void> {
     if (a === 'inv-share') return this.share();
     if (a === 'inv-fold') {
-      this.folded = !this.folded;
+      this.folded = !this.isFolded;
       try {
         localStorage.setItem(FOLD_KEY, this.folded ? '1' : '0');
       } catch {

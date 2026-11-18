@@ -23,6 +23,7 @@ import {
 } from '../data/chatPhrases';
 import { avatarHtml } from '../ui/avatar';
 import { morphHtml } from '../ui/morph';
+import { icon } from './socialIcons';
 
 export interface ChatMessage {
   mid: string;
@@ -48,6 +49,15 @@ export interface ChatSheetDeps {
   onBlocked?(): void;
   /** Analytics (no names, codes, ids or text in props). */
   track?(event: string, props?: Record<string, string | number | boolean>): void;
+  /**
+   * Docked beside the friends list (a wide screen, LoL style): the list stays usable, the head shows Close instead of
+   * Back. Not docked, the thread covers the list at the list's own width.
+   */
+  docked?: boolean;
+  /** The friend's presence for the head ("In match · Ranked · 12m") and its state for the dot. */
+  status?(): { text: string; state: string } | null;
+  /** Unread messages in other threads (a badge on Back, so they are not lost while this thread covers the list). */
+  unreadElsewhere?(): number;
 }
 
 /** The text a bubble shows (phrases and stickers by id; '' for an unknown id). Pure. */
@@ -97,7 +107,7 @@ export class ChatSheet {
   ) {
     const doc = parent.ownerDocument;
     this.root = doc.createElement('aside');
-    this.root.className = 'pl-chat';
+    this.root.className = deps.docked ? 'pl-chat is-docked' : 'pl-chat';
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-label', 'Chat');
     this.root.dataset.testid = 'chat-sheet';
@@ -136,6 +146,10 @@ export class ChatSheet {
 
   get closed(): boolean {
     return this.disposed;
+  }
+
+  get docked(): boolean {
+    return !!this.deps.docked;
   }
 
   /** The opaque thread id once open (a relay `chat.notice` names it). */
@@ -331,7 +345,15 @@ export class ChatSheet {
       .join('');
     const empty = !this.messages.length ? `<li class="pl-chat-empty">${this.loading ? 'Loading…' : 'Say hi! 👋'}</li>` : '';
     const earlier = this.more ? `<li><button type="button" class="pl-btn ghost small pl-chat-earlier" data-a="earlier">Load earlier</button></li>` : '';
-    const html = `<header class="pl-chat-head"><button type="button" class="pl-social-x" data-a="back" aria-label="Back">&lsaquo;</button>${this.deps.thread ? '<span class="pl-club-crest" aria-hidden="true">' + this.esc(f.name.slice(0, 1)) + '</span>' : avatarHtml(f.av, 40)}<span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${this.muted ? '<small class="pl-social-st">Muted</small>' : ''}<button type="button" class="pl-social-x" data-a="menu" aria-label="More" aria-expanded="${this.menu}">&hellip;</button></header><div class="pl-chat-menuwrap">${menu}</div><ul class="pl-chat-list" data-testid="chat-list">${earlier}${empty}${bubbles}</ul><p class="pl-sr" aria-live="polite" data-name="${this.esc(this.announce)}"></p><footer class="pl-chat-foot">${this.composerHtml()}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</footer>`;
+    const st = this.deps.thread ? null : (this.deps.status?.() ?? null);
+    const others = this.deps.docked ? 0 : (this.deps.unreadElsewhere?.() ?? 0);
+    const back = this.deps.docked
+      ? `<button type="button" class="pl-ico pl-chat-x" data-a="back" aria-label="Close chat" title="Close chat">${icon('close', 20)}</button>`
+      : `<button type="button" class="pl-ico pl-chat-back" data-a="back" aria-label="${others ? `Back to friends, ${others} unread` : 'Back to friends'}" title="Back"><span class="pl-ic">${icon('chevron', 22)}${others ? `<i class="pl-chat-unread">${Math.min(99, others)}</i>` : ''}</span></button>`;
+    const av = this.deps.thread ? '<span class="pl-club-crest" aria-hidden="true">' + this.esc(f.name.slice(0, 1)) + '</span>' : `<span class="pl-fr-av"${st ? ` data-state="${this.esc(st.state)}"` : ''}>${avatarHtml(f.av, 40)}${st ? `<i class="pl-dot" data-state="${this.esc(st.state)}"></i>` : ''}</span>`;
+    const sub = this.muted ? 'Muted' : (st?.text ?? '');
+    const who = `<span class="pl-chat-who-h"><span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${sub ? `<small class="pl-social-st"${st && !this.muted ? ` data-state="${this.esc(st.state)}"` : ''}>${this.esc(sub)}</small>` : ''}</span>`;
+    const html = `<header class="pl-chat-head">${this.deps.docked ? '' : back}${av}${who}<button type="button" class="pl-ico" data-a="menu" aria-label="Chat options" aria-expanded="${this.menu}" title="Options">${icon('more', 20)}</button>${this.deps.docked ? back : ''}</header><div class="pl-chat-menuwrap">${menu}</div><ul class="pl-chat-list" data-testid="chat-list">${earlier}${empty}${bubbles}</ul><p class="pl-sr" aria-live="polite" data-name="${this.esc(this.announce)}"></p><footer class="pl-chat-foot">${this.composerHtml()}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</footer>`;
     morphHtml(this.root, html, (tree) => {
       for (const el of tree.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
       for (const el of tree.querySelectorAll<HTMLElement>('[data-text]')) el.textContent = el.dataset.text ?? '';

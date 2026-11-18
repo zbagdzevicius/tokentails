@@ -6,7 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResult } from '../../src/embed/api';
-import { groupFolded, INVITE_PARTY_RETRY_MS, looksLikeCode, pageOf, rowAction, rowsForHeight, SocialSheet } from '../../src/social/socialSheet';
+import { groupFolded, INVITE_PARTY_RETRY_MS, looksLikeCode, pageOf, presenceText, rowAction, rowsForHeight, SocialSheet, spanText } from '../../src/social/socialSheet';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -44,7 +44,7 @@ function sheet(opts: { signedIn?: boolean; friends?: number; height?: number; pa
     ...(opts.onInviteSent ? { onInviteSent: opts.onInviteSent } : {}),
     signIn: vi.fn(),
     playCasual: vi.fn(),
-    height: () => opts.height ?? 375,
+    height: () => opts.height ?? 800,
   });
   return { s, calls, joinParty };
 }
@@ -110,6 +110,64 @@ describe('social sheet', () => {
     await flush();
     expect(document.querySelector('.pl-social-more')!.classList.contains('is-current')).toBe(true);
     expect(document.querySelector('[role="tab"][aria-selected="true"]')).toBeNull();
+  });
+
+  it('presence lines carry the detail the backend sends (mode, time, seats, last seen) and never invent it', () => {
+    const now = Date.UTC(2026, 10, 19, 12, 0, 0);
+    expect(presenceText({ state: 'match', mode: 'ranked', since: now - 12 * 60_000 }, now)).toBe('In match · Ranked · 12m');
+    expect(presenceText({ state: 'queue', mode: 'casual', since: now - 2 * 60_000 }, now)).toBe('In queue · Casual · 2m');
+    expect(presenceText({ state: 'party', joinable: true, party: 'AB', size: 2, max: 3 }, now)).toBe('In lobby · 2/3 · open');
+    expect(presenceText({ state: 'offline', seen: now - 2 * 86_400_000 }, now)).toBe('Offline · 2d');
+    // an older backend: the state alone; an unknown mode or a future time is left out
+    expect(presenceText({ state: 'match', room: 'abcdefghijkl' }, now)).toBe('In match');
+    expect(presenceText({ state: 'match', mode: '<b>x</b>', since: now + 3_600_000 }, now)).toBe('In match');
+    expect(presenceText({ state: 'party', size: 9, max: 3 }, now)).toBe('In lobby');
+    expect([30_000, 5 * 60_000, 3 * 3_600_000, 3 * 86_400_000].map((d) => spanText(now - d, now))).toEqual(['now', '5m', '3h', '3d']);
+  });
+
+  it('a short screen (phone sideways): friends come first; requests fold to one header, the invite and me sit in the tools row', async () => {
+    expect(groupFolded('requests', undefined, { on: 1, off: 0 }, true)).toBe(true);
+    expect(groupFolded('requests', undefined, { on: 0, off: 3 }, true)).toBe(false);
+    expect(groupFolded('requests', undefined, { on: 1, off: 0 }, false)).toBe(false);
+    localStorage.removeItem('pl.social.groups.v1');
+    localStorage.setItem('pl.social.inviteFolded', '1');
+    const { calls } = sheet({
+      height: 375,
+      answer: (op) => (op === 'growth.invite' ? { id: 'x', ok: true, status: 200, body: { code: 'K7QX2MP', link: 'https://pawlegends.app/?ref=K7QX2MP', need: 3, invited: [], accepted: null, claimable: 0, nextCoat: null, earned: 0, cap: 5 } } : null),
+    });
+    await flush();
+    expect(document.querySelector('[data-group="requests"]')!.getAttribute('aria-expanded')).toBe('false');
+    expect(document.querySelectorAll('.pl-rq')).toHaveLength(0);
+    expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
+    expect(document.querySelector('.pl-social-tools [data-testid="invite-open"]')).toBeTruthy();
+    expect(document.querySelector('.pl-me-row')).toBeNull();
+    expect(document.querySelector('.pl-social-tools [data-testid="social-me"]')).toBeTruthy();
+    // the gift opens the card; my avatar opens my status card; Appear offline goes to social.me
+    document.querySelector<HTMLElement>('[data-testid="invite-open"]')!.click();
+    await flush();
+    expect(document.querySelector('[data-testid="invite-row"]')).toBeTruthy();
+    document.querySelector<HTMLElement>('[data-testid="social-me"]')!.click();
+    await flush();
+    expect(document.querySelector('[data-testid="social-me-card"]')).toBeTruthy();
+    document.querySelector<HTMLElement>('.pl-me-opt[data-v="invisible"]')!.click();
+    await flush();
+    expect(calls.find((c) => c.op === 'social.me')?.args).toEqual({ invisible: true });
+    expect(document.querySelector('[data-testid="social-me-card"]')).toBeNull();
+    expect(document.querySelector('[data-testid="social-me"]')!.getAttribute('aria-label')).toContain('Appear offline');
+    localStorage.removeItem('pl.social.inviteFolded');
+  });
+
+  it('a tall screen shows my row (name and status) above the search; request rows use icon actions in the shared columns', async () => {
+    sheet({ height: 900 });
+    await flush();
+    expect(document.querySelector('.pl-me-row .pl-social-name')!.textContent).toBe('Witty Biscuit');
+    expect(document.querySelector('.pl-me-row .pl-social-st')!.textContent).toBe('Online');
+    const rq = document.querySelector('.pl-rq')!;
+    expect(rq.querySelector('[data-a="accept"]')!.classList.contains('pl-act-1')).toBe(true);
+    expect(rq.querySelector('[data-a="decline"]')!.classList.contains('pl-act-2')).toBe(true);
+    // the party invite has its own glyph and label, not the add-friend one
+    const inv = document.querySelector('[data-testid="social-invite"]');
+    if (inv) expect(inv.getAttribute('title')).toBe('Invite to party');
   });
 
   it('groups fold and unfold; Offline starts folded when friends are online and more than 6 are offline', async () => {
@@ -181,7 +239,7 @@ describe('social sheet', () => {
     await flush();
     const row = document.querySelector('.pl-fr[data-code="PL-AAAA-AAA1"]')!;
     expect(row.querySelector('.pl-social-st')!.textContent).toBe('In lobby · open');
-    expect(row.querySelector('.pl-social-preview')!.textContent).toBe('gg! one more?');
+    expect(row.querySelector('.pl-social-msg')!.textContent).toBe('gg! one more?');
     expect(row.querySelector('[data-testid="chat-unread"]')!.textContent).toBe('2');
     expect(document.querySelector('[data-testid="social-unread"]')!.textContent).toBe('2');
   });

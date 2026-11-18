@@ -33,6 +33,11 @@ export interface HostConfig {
   catGrants?: Record<string, unknown[]>;
   /** localStorage profile written before the game loads (same origin as the game). */
   profile?: Record<string, unknown>;
+  /**
+   * Give the host page `<meta name=viewport content="width=device-width">` (a real site has it). Without it a mobile
+   * (isMobile) project lays the page out at 980 px and scales it down, so phone sizes and text sizes are not real.
+   */
+  viewport?: boolean;
   /** Extra game query (e.g. `&speed=64`). */
   query?: string;
   /** Where the game is served from (default: the host's own origin). */
@@ -90,7 +95,7 @@ export const fakeToken = (items: string[], skus: string[]): string =>
   `${b64url(JSON.stringify({ items, skus, expiresAt: Date.now() + 86_400_000 }))}.${'x'.repeat(43)}`;
 
 function hostHtml(cfg: HostConfig): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#111}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}</style></head><body>
+  return `<!doctype html><html><head><meta charset="utf-8">${cfg.viewport ? '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' : ''}<style>html,body{margin:0;height:100%;background:#111}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}</style></head><body>
 <script>
   (function () {
     var cfg = ${JSON.stringify({ ...cfg, champState: cfg.champState === undefined ? ALL_CHAMPS : cfg.champState })};

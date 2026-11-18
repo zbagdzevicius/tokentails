@@ -61,7 +61,6 @@ html .pl-mi.danger.armed .pl-i { color: #fff; }
 
 /* ── tools: my avatar, search, Add ─────────────────────────────────────────────────────────────────────────────── */
 html .pl-social-tools { flex: none; display: flex; align-items: center; gap: 6px; min-height: 44px; }
-html .pl-social .pl-me-av .pl-av { --av: 36px !important; }
 html .pl-social-search {
   flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; box-sizing: border-box;
   border-radius: var(--v6-r-s); background: var(--v6-night-0); box-shadow: inset 0 0 0 1px var(--v6-line-strong); color: var(--v6-muted); cursor: text;
@@ -91,7 +90,7 @@ html .pl-social-mycode {
 }
 html .pl-social-mycode small { display: block; margin-bottom: 2px; color: var(--v6-muted); font-size: 13px; }
 html .pl-social-mycode strong { color: var(--v6-bolt); font: 800 16px/1.1 var(--font); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
-html .pl-social-mycode .pl-btn, html .pl-social-none .pl-btn, html .pl-social-live .pl-btn { display: inline-flex; align-items: center; gap: 6px; }
+html .pl-social-mycode .pl-btn, html .pl-social-none .pl-btn { display: inline-flex; align-items: center; gap: 6px; }
 html .pl-social-hint { margin: 6px 4px 8px; color: var(--v6-muted); font-size: 13px; line-height: 1.35; }
 html .pl-social-suggest { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
 
@@ -134,14 +133,6 @@ html .pl-inv-have {
 html .pl-social .pl-invite-form { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 4px; background: rgb(var(--v6-bolt-rgb) / 0.08); box-shadow: none; }
 html .pl-social .pl-invite-form input { min-height: 40px; font-size: 16px; }
 
-/* the featured live match strip */
-html .pl-social .pl-social-live {
-  flex: none; display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 0 0 6px; padding: 0 2px 0 12px;
-  border-radius: var(--v6-r-s); background: rgb(255 79 88 / 0.1); box-shadow: inset 3px 0 0 var(--v6-enemy);
-}
-html .pl-live-txt { flex: 1 1 auto; min-width: 0; font: 700 14px/1.2 var(--font); }
-html .pl-social .pl-social-live .pl-btn { min-height: 36px; padding: 0 12px; }
-
 /* groups: a sticky header with a chevron and a count */
 html .pl-group { display: grid; grid-template-columns: minmax(0, 1fr); }
 html .pl-group-h {
@@ -161,67 +152,123 @@ html .pl-group[data-g='requests'] .pl-group-n { background: var(--v6-rose); colo
 html .pl-group[data-g='online'] .pl-group-n { color: var(--v6-success); }
 html .pl-group-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 2px 0 6px; }
 
+/* ── me (LoL's top block): my avatar with my status, my name, my status ▾; the card under it ────────────────── */
+html .pl-me-row { flex: none; }
+html .pl-me {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 8px 4px 6px; border: 0; border-radius: var(--v6-r-s);
+  background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+@media (hover: hover) { html .pl-me:hover { background: rgb(var(--v6-cream-rgb) / 0.06); } }
+html .pl-me:focus-visible, html .pl-social .pl-me-av:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+html .pl-me .pl-social-line { align-items: center; gap: 2px; }
+html .pl-me .pl-social-line .pl-i { flex: none; transition: transform var(--v6-dur-fast) var(--v6-ease-out); }
+html .pl-me[aria-expanded='true'] .pl-social-line .pl-i { transform: rotate(180deg); }
+html .pl-social .pl-me-av { min-width: 40px; width: 40px; border-radius: var(--v6-r-s); }
+html .pl-me-card {
+  flex: none; display: grid; gap: 4px; padding: 6px; border-radius: var(--v6-r-s); background: var(--v6-night-0);
+  box-shadow: inset 0 0 0 1px var(--v6-line-strong), var(--v6-shadow-2); animation: pl-soc-pop var(--v6-dur-fast) var(--v6-ease-out) both;
+}
+html .pl-me-card-name { margin: 4px 8px 2px; font: 800 15px/1.3 var(--font); color: var(--v6-cream); overflow-wrap: anywhere; }
+html .pl-me-card [role='radiogroup'], html .pl-me-card-acts { display: grid; gap: 2px; }
+html .pl-me-card-acts { padding-top: 4px; border-top: 1px solid var(--v6-line); }
+html .pl-me-opt { min-height: 48px; }
+html .pl-me-opt > span { flex: 1 1 auto; display: grid; gap: 2px; min-width: 0; }
+html .pl-me-opt small { color: var(--v6-muted); font: 600 13px/1.25 var(--font); }
+html .pl-me-opt .pl-dot { width: 12px; height: 12px; margin: 0 4px; }
+html .pl-me-opt .pl-i { color: var(--v6-bolt); }
+html .pl-me-code { color: var(--v6-bolt); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+
+/* the featured live match: a chip in the tools row */
+html .pl-live-chip {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 10px; border: 0; border-radius: var(--v6-r-s);
+  background: rgb(255 79 88 / 0.14); box-shadow: inset 0 0 0 1px rgb(255 79 88 / 0.45); color: var(--v6-cream); font: 800 14px/1 var(--font); cursor: pointer;
+}
+@media (hover: hover) { html .pl-live-chip:hover { background: rgb(255 79 88 / 0.24); } }
+html .pl-live-chip:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+html .pl-live-chip .pl-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--v6-enemy, #ff4f58); animation: pl-live-pulse 1.6s ease-in-out infinite; }
+@keyframes pl-live-pulse { 50% { opacity: 0.35; } }
+html .pl-ico-gift { color: var(--v6-bolt); }
+
 /* ── rows ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
 html .pl-social .pl-fr, html .pl-social .pl-rq, html .pl-social .pl-rc { position: relative; gap: 4px; min-height: var(--soc-row); padding: 0 2px 0 0; border-radius: var(--v6-r-s); }
 html .pl-social .pl-rq, html .pl-social .pl-rc { gap: 10px; padding-left: 6px; }
-html .pl-social .pl-fr.is-open, html .pl-social .pl-fr:focus-within { background: rgb(var(--v6-cream-rgb) / 0.06); }
+html .pl-social .pl-fr.is-open, html .pl-social .pl-fr:focus-within, html .pl-social .pl-fr.is-chat { background: rgb(var(--v6-cream-rgb) / 0.06); }
+html .pl-social .pl-fr.is-chat { box-shadow: inset 3px 0 0 var(--v6-sky); }
 html .pl-fr-main {
   flex: 1 1 auto; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 6px; border: 0;
   border-radius: var(--v6-r-s); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation;
 }
 html .pl-fr-main:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
-html .pl-fr-av { position: relative; flex: none; display: grid; place-items: center; width: var(--soc-av); height: var(--soc-av); border-radius: 50%; box-shadow: 0 0 0 2px var(--ring, transparent); }
-html .pl-social .pl-fr-av .pl-av { --av: var(--soc-av) !important; }
+
+/* presence: the avatar's ring IS the status colour (its own art ring is off here), the corner dot adds a shape for
+   colour-blind players: online a disc, lobby a disc, queue a hollow ring, match a square, offline a faint hollow disc */
+html .pl-fr-av {
+  --ring: rgb(var(--v6-cream-rgb) / 0.22);
+  position: relative; flex: none; display: grid; place-items: center; width: var(--soc-av, 36px); height: var(--soc-av, 36px); border-radius: 50%;
+}
+html .pl-fr-av .pl-av { --av: var(--soc-av, 36px) !important; border: 0 !important; box-shadow: 0 0 0 2px var(--v6-night-2), 0 0 0 4px var(--ring) !important; }
+/* the portrait art has its own coloured rim: crop it, so the only ring is the presence ring */
+html .pl-fr-av .pl-av img { transform: scale(1.2); }
 html .pl-fr-av[data-state='online'] { --ring: var(--v6-success); }
-html .pl-fr-av[data-state='party'], html .pl-fr-av[data-state='queue'] { --ring: var(--v6-bolt); }
+html .pl-fr-av[data-state='party'] { --ring: var(--v6-bolt); }
+html .pl-fr-av[data-state='queue'] { --ring: var(--v6-sky); }
 html .pl-fr-av[data-state='match'] { --ring: var(--v6-rose); }
 html .pl-fr-av[data-state='offline'] .pl-av { filter: grayscale(0.85) brightness(0.72); }
-/* the presence dot: colour plus shape (online round, lobby/queue a hollow ring, in match a square, offline faint) */
-html .pl-social .pl-fr-av .pl-dot { position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px; box-shadow: 0 0 0 2.5px var(--v6-night-2); }
-html .pl-social .pl-fr-av .pl-dot[data-state='queue'] { background: var(--v6-night-2); box-shadow: inset 0 0 0 3px var(--v6-bolt), 0 0 0 2.5px var(--v6-night-2); }
-html .pl-social .pl-fr-av .pl-dot[data-state='match'] { border-radius: 3px; }
-html .pl-social .pl-fr-av .pl-dot[data-state='offline'] { background: var(--v6-night-3); box-shadow: inset 0 0 0 2px var(--v6-faint), 0 0 0 2.5px var(--v6-night-2); }
-html .pl-social .pl-social-who { gap: 3px; }
+html .pl-fr-av .pl-dot, html .pl-me-opt .pl-dot { width: 12px; height: 12px; box-shadow: 0 0 0 2.5px var(--v6-night-2); }
+html .pl-fr-av .pl-dot { position: absolute; right: -5px; bottom: -5px; z-index: 1; }
+html .pl-dot[data-state='queue'] { background: var(--v6-night-2); box-shadow: inset 0 0 0 3px var(--v6-sky), 0 0 0 2.5px var(--v6-night-2); }
+html .pl-dot[data-state='match'] { border-radius: 3px; }
+html .pl-dot[data-state='offline'] { background: var(--v6-night-3); box-shadow: inset 0 0 0 2px var(--v6-faint), 0 0 0 2.5px var(--v6-night-2); }
+
+/* names never end in "…": they wrap to a second line (a 40-letter name still fits); the flag keeps its gap */
+html .pl-social .pl-social-who, html .pl-chat .pl-chat-who-h { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
 html .pl-social .pl-social-nm { gap: 6px; min-width: 0; }
-html .pl-social .pl-social-nm .pl-social-name { flex: 0 1 auto; font: 700 var(--soc-name)/1.2 var(--font); color: var(--v6-cream); }
-html .pl-social .pl-social-nm .pl-cc { margin: 0; font-size: 14px; }
+html .pl-social .pl-social-row .pl-social-name, html .pl-me .pl-social-name, html .pl-chat .pl-chat-who-h .pl-social-name {
+  flex: 0 1 auto; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; font: 700 var(--soc-name, 15px)/1.2 var(--font); color: var(--v6-cream);
+}
+html .pl-social .pl-social-nm .pl-cc { flex: none; margin: 0; font-size: 14px; }
 html .pl-social .pl-fr[data-state='offline'] .pl-social-name { color: rgb(var(--v6-cream-rgb) / 0.78); }
-html .pl-social-line { display: flex; min-width: 0; font: 600 var(--soc-st)/1.25 var(--font); color: var(--v6-muted); white-space: nowrap; overflow: hidden; }
-html .pl-social .pl-social-line .pl-social-st { flex: none; font-size: inherit; color: inherit; }
-html .pl-social .pl-social-st[data-state='online'] { color: var(--v6-success); }
-html .pl-social .pl-social-st[data-state='party'], html .pl-social .pl-social-st[data-state='queue'] { color: var(--v6-bolt); }
-html .pl-social .pl-social-st[data-state='match'] { color: #ff9cc0; }
-html .pl-social .pl-social-line .pl-social-preview { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--v6-rose-light); font-weight: 700; }
-html .pl-social .pl-social-line .pl-social-preview::before { content: ' · '; color: var(--v6-muted); white-space: pre; }
+html .pl-social-line { display: flex; flex-wrap: wrap; min-width: 0; font: 600 var(--soc-st, 13px)/1.25 var(--font); color: var(--v6-muted); }
+html .pl-social .pl-social-line .pl-social-st, html .pl-chat .pl-chat-who-h .pl-social-st { flex: 0 1 auto; font: 600 var(--soc-st, 13px)/1.25 var(--font); color: var(--v6-muted); }
+html .pl-social-st[data-state='online'] { color: var(--v6-success) !important; }
+html .pl-social-st[data-state='party'] { color: var(--v6-bolt) !important; }
+html .pl-social-st[data-state='queue'] { color: var(--v6-sky-top, var(--v6-sky)) !important; }
+html .pl-social-st[data-state='match'] { color: #ff9cc0 !important; }
+/* an unread message: its own line under the status (the status never disappears), up to two lines, never cut mid-word */
+html .pl-social-msg {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+  color: var(--v6-rose-light); font: 700 var(--soc-st, 13px)/1.3 var(--font);
+}
+html .pl-social .pl-fr.has-msg .pl-fr-main { padding-top: 6px; padding-bottom: 6px; }
 html .pl-rc[data-team='ally'] .pl-team { color: #8cc4ff; }
 html .pl-rc[data-team='enemy'] .pl-team { color: #ff9aa0; }
 
-/* quick actions: small icon buttons (no boxes); the one primary action is a bolt pill */
-html .pl-fr-acts { flex: none; display: flex; align-items: center; gap: 2px; }
-html .pl-rc .pl-fr-acts { min-width: 40px; justify-content: flex-end; }
-html .pl-fr-join {
-  position: relative; flex: none; display: inline-flex; align-items: center; gap: 6px; height: 36px; margin: 0 4px; padding: 0 12px 0 10px; border: 0;
-  border-radius: 18px; background: var(--v6-bolt); color: var(--v6-night); font: 800 14px/1 var(--font); cursor: pointer; touch-action: manipulation;
-  transition: background-color var(--v6-dur-fast) var(--v6-ease-out), transform var(--v6-dur-press) var(--v6-ease-out);
-}
-/* a 44 px touch target around the 36 px pill */
-html .pl-fr-join::after { content: ''; position: absolute; inset: -4px -2px; }
-@media (hover: hover) { html .pl-fr-join:hover { background: var(--v6-bolt-top); } }
-html .pl-fr-join:active { transform: scale(0.96); }
-html .pl-fr-join:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--v6-cream); }
+/* trailing actions: two fixed 40 px columns (Chat, then the row's action flush right); every row lines up */
+html .pl-fr-acts { flex: none; display: grid; grid-template-columns: 40px 40px; align-items: center; column-gap: 2px; }
+html .pl-fr-acts .pl-act-1 { grid-column: 1; }
+html .pl-fr-acts .pl-act-2 { grid-column: 2; }
+html .pl-fr-acts .pl-ico { width: 40px; height: 44px; }
+/* Join: the one filled (bolt) action in the list, the same size as the icons */
+html .pl-fr-acts .pl-ico.is-primary { height: 36px; margin: 4px 0; background: var(--v6-bolt); color: var(--v6-night); }
+html .pl-fr-acts .pl-ico.is-primary::after { content: ''; position: absolute; inset: -4px 0; }
+@media (hover: hover) { html .pl-fr-acts .pl-ico.is-primary:hover { background: var(--v6-bolt-top, var(--v6-bolt)); color: var(--v6-night); } }
+html .pl-fr-acts .pl-ico.is-accept { color: var(--v6-success); }
+/* the unread count sits on the bubble's corner */
+html .pl-ic { position: relative; display: grid; place-items: center; }
+html .pl-ic .pl-chat-unread { top: -7px; right: -9px; min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; border-radius: 9px; font: 800 12px/18px var(--font); }
 html .pl-social .pl-chat-btn.is-unread { color: var(--v6-rose-light); }
-html .pl-social .pl-chat-btn .pl-chat-unread { top: 3px; right: 0; }
-/* a mouse: the icon actions show on hover and keyboard focus (their space stays reserved: nothing shifts) */
+/* a mouse: Invite, Watch and a read Chat show on hover and keyboard focus (their columns stay: nothing shifts) */
 @media (hover: hover) and (pointer: fine) {
-  html .pl-fr .pl-fr-acts .pl-ico:not(.is-unread) { opacity: 0; }
-  html .pl-fr:hover .pl-fr-acts .pl-ico, html .pl-fr:focus-within .pl-fr-acts .pl-ico, html .pl-fr.is-open .pl-fr-acts .pl-ico { opacity: 1; }
+  html .pl-fr .pl-fr-acts .pl-ico:not(.is-unread):not(.is-primary) { opacity: 0; }
+  html .pl-fr:hover .pl-fr-acts .pl-ico.pl-ico, html .pl-fr:focus-within .pl-fr-acts .pl-ico.pl-ico, html .pl-fr.is-open .pl-fr-acts .pl-ico.pl-ico, html .pl-fr.is-chat .pl-fr-acts .pl-ico.pl-ico { opacity: 1; }
   html .pl-social .pl-fr:hover { background: rgb(var(--v6-cream-rgb) / 0.06); }
 }
-/* touch: only the action that matters (Join, Invite or Watch; Chat when unread); the rest is in the row menu */
+/* touch: the row's action shows; Chat only when unread (its column stays, so icons line up); the rest is in the menu */
 @media (hover: none), (pointer: coarse) {
-  html .pl-fr .pl-chat-btn:not(.is-unread) { display: none; }
-  html .pl-fr-acts .pl-ico { color: var(--v6-cream); }
+  html .pl-fr .pl-chat-btn:not(.is-unread) { visibility: hidden; }
+  html .pl-fr-acts .pl-ico:not(.is-primary):not(.is-accept):not(.is-unread) { color: var(--v6-cream); }
 }
 
 /* a friend's menu: under the row, in the list's flow */
@@ -229,9 +276,45 @@ html .pl-fr-menu {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 2px 0 8px 8px; padding: 6px; border-radius: var(--v6-r-s); background: var(--v6-night-0);
   box-shadow: inset 0 0 0 1px var(--v6-line-strong), var(--v6-shadow-2); animation: pl-soc-pop var(--v6-dur-fast) var(--v6-ease-out) both;
 }
-html .pl-fr-menu-name { margin: 4px 8px 2px; font: 800 15px/1.3 var(--font); color: var(--v6-cream); overflow-wrap: anywhere; }
+html .pl-fr-menu-h { display: grid; gap: 2px; margin: 4px 8px 2px; }
+html .pl-fr-menu-name { margin: 0; font: 800 15px/1.3 var(--font); color: var(--v6-cream); overflow-wrap: anywhere; }
+html .pl-fr-menu-h small { color: var(--v6-muted); font: 600 13px/1.25 var(--font); }
 html .pl-fr-menu-acts, html .pl-fr-menu-danger { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 2px; }
 html .pl-fr-menu-danger { padding-top: 4px; border-top: 1px solid var(--v6-line); }
+
+/* ── one button system in the sheet: bolt = the one primary, ghost = quiet, rose = the one CTA of an empty state ── */
+html .pl-social .pl-btn, html .pl-chat .pl-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 0; border-radius: var(--v6-r-s);
+  background: var(--v6-bolt); color: var(--v6-night); text-shadow: none; box-shadow: none; font: 800 14px/1 var(--font); transform: none;
+}
+@media (hover: hover) { html .pl-social .pl-btn:hover, html .pl-chat .pl-btn:hover { background: var(--v6-bolt-top, var(--v6-bolt)); transform: none; } }
+html .pl-social .pl-btn:active, html .pl-chat .pl-btn:active { transform: scale(0.97); box-shadow: none; }
+html .pl-social .pl-btn.ghost, html .pl-chat .pl-btn.ghost { background: transparent; color: var(--v6-cream); box-shadow: inset 0 0 0 1px var(--v6-line-strong); }
+@media (hover: hover) { html .pl-social .pl-btn.ghost:hover, html .pl-chat .pl-btn.ghost:hover { background: rgb(var(--v6-cream-rgb) / 0.08); box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb) / 0.5); } }
+html .pl-social .pl-btn.ghost[aria-pressed='true'] { background: rgb(var(--v6-cream-rgb) / 0.12); box-shadow: inset 0 0 0 1px var(--v6-cream); }
+html .pl-social .pl-btn.cta { background: var(--v6-rose); color: #fff; }
+@media (hover: hover) { html .pl-social .pl-btn.cta:hover { background: var(--v6-rose-light); color: var(--v6-night); } }
+html .pl-social .pl-btn:focus-visible, html .pl-chat .pl-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--v6-cream); }
+/* the invite code chip: the same quiet line as a ghost button (no dashes) */
+html .pl-social .pl-inv-code { border: 0; box-shadow: inset 0 0 0 1px var(--v6-line-strong); }
+@media (hover: hover) { html .pl-social .pl-inv-code:hover { box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb) / 0.5); } }
+
+/* ── DM thread: the list's width over it on a phone; docked beside the list on a wide screen (LoL) ──────────── */
+html .pl-chat { width: min(100vw, clamp(352px, 26vw, 420px)); }
+html .pl-chat.is-docked {
+  top: auto; right: min(100vw, clamp(352px, 26vw, 420px)); bottom: 0; width: 360px; height: min(560px, 78vh);
+  border-radius: var(--v6-r-m, 10px) var(--v6-r-m, 10px) 0 0; box-shadow: -8px -4px 28px rgb(0 0 0 / 0.5), inset 0 0 0 1px var(--v6-line-strong);
+  padding: 8px; animation-name: pl-dock-in;
+}
+@keyframes pl-dock-in { from { opacity: 0; transform: translateY(16px); } }
+html .pl-chat.is-docked::before { display: none; }
+html .pl-chat-head { gap: 8px; }
+html .pl-chat-head .pl-fr-av { --soc-av: 36px; }
+html .pl-chat .pl-chat-back .pl-i { transform: rotate(90deg); }
+html .pl-chat .pl-ico { flex: none; position: relative; display: inline-grid; place-items: center; width: 40px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s); background: transparent; color: var(--v6-muted); cursor: pointer; }
+@media (hover: hover) { html .pl-chat .pl-ico:hover { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); } }
+html .pl-chat .pl-ico:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+html .pl-chat-who-h { flex: 1 1 auto; }
 
 /* the status note: in the flow under the list (it never covers a row) */
 html .pl-social .pl-social-note {
@@ -243,10 +326,28 @@ html .pl-social .pl-social-undo {
   font: 800 14px/1 var(--font); cursor: pointer;
 }
 
-/* empty states */
-html .pl-social .pl-social-none { justify-items: start; gap: 8px; margin: 8px 4px; }
-html .pl-social .pl-social-none p { font: 700 15px/1.3 var(--font); }
-html .pl-social .pl-social-none small { color: var(--v6-muted); font-size: 14px; line-height: 1.4; }
+/* empty states: a mark, one line, what to do; one rose CTA at most */
+html .pl-social .pl-social-none { display: grid; justify-items: center; gap: 8px; margin: 16px 8px 8px; text-align: center; }
+html .pl-none-art {
+  display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: var(--v6-bolt);
+  background: radial-gradient(circle at 50% 40%, rgb(var(--v6-bolt-rgb) / 0.18), rgb(var(--v6-rose-rgb) / 0.12) 70%); box-shadow: inset 0 0 0 1px var(--v6-line);
+}
+html .pl-social .pl-social-none p { margin: 0; font: 800 16px/1.3 var(--font); color: var(--v6-cream); }
+html .pl-social .pl-social-none small { max-width: 30ch; color: var(--v6-muted); font: 600 14px/1.45 var(--font); }
+html .pl-social .pl-social-none small .pl-i { vertical-align: -3px; color: var(--v6-bolt); }
+html .pl-social .pl-none-sub { margin-top: 12px; }
+
+/* Clubs (no club yet): the same type and tokens as Friends; the join field under its caption */
+html .pl-social .pl-club-intro { gap: 10px; padding: 8px 4px 4px; }
+html .pl-social .pl-club-title { margin: 0; font: 800 17px/1.2 var(--font); color: var(--v6-cream); }
+html .pl-social .pl-club-lede { margin: 0; color: var(--v6-muted); font: 600 14px/1.4 var(--font); }
+html .pl-social .pl-club-hint { margin: 6px 0 0; color: rgb(var(--v6-cream-rgb) / 0.78); font: 600 14px/1.35 var(--font); }
+html .pl-social .pl-club-make { display: flex; align-items: center; gap: 8px; }
+html .pl-social .pl-club-newname { flex: 1 1 auto; min-width: 0; font: 800 15px/1.25 var(--font); overflow-wrap: anywhere; }
+html .pl-social .pl-club-die { color: var(--v6-bolt); }
+html .pl-social .pl-club-intro .pl-club-join { display: flex; gap: 6px; margin: 0; padding: 0; background: none; box-shadow: none; }
+html .pl-social .pl-club-intro .pl-club-join input { flex: 1 1 auto; min-width: 0; min-height: 40px; font-size: 16px; }
+html .pl-social .pl-club-kt small, html .pl-social .pl-club-kudos small { font-size: 13px; }
 
 /* Leaderboards (under More): rows scroll; names keep their room */
 html .pl-social .pl-social-sub { flex: none; margin-bottom: 4px; }
@@ -258,6 +359,7 @@ html .pl-social .pl-bd .pl-social-st { font-size: 13px; }
 @media (max-height: 300px) { html .pl-social .pl-social-st { display: inline; } }
 
 @media (prefers-reduced-motion: reduce) {
-  html .pl-social-moremenu, html .pl-fr-menu { animation: none; }
-  html .pl-ico, html .pl-fr-join, html .pl-group-h .pl-i, html .pl-social-more .pl-i, html .pl-inv-fold .pl-i { transition: none; }
+  html .pl-social-moremenu, html .pl-fr-menu, html .pl-me-card, html .pl-chat.is-docked { animation: none; }
+  html .pl-live-chip .pl-live-dot { animation: none; }
+  html .pl-ico, html .pl-me .pl-i, html .pl-group-h .pl-i, html .pl-social-more .pl-i, html .pl-inv-fold .pl-i { transition: none; }
 }
