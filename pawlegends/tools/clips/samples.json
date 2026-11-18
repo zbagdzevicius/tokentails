@@ -1,0 +1,10 @@
+[
+  {"id":"sample-teamfight-vertical","mode":"classic","seed":3,"start":{"event":"teamfight","lead":5},"duration":22,"aspect":"vertical","camera":"punch","slowmo":{"dur":2.0,"speed":0.3},"hud":false,
+   "caption":"Nine heroes collide in the Hearthwood jungle (Classic 5v5)"},
+  {"id":"sample-toys-horizontal","mode":"blitz","seed":3,"start":{"event":"chaos","lead":3},"duration":24,"aspect":"horizontal","camera":"cuts","hud":false,
+   "caption":"Kibble Cannon, Boing Beds and the Mega Yarn Ball in one Blitz minute"},
+  {"id":"sample-skins-vertical","mode":"skins","hero":"clem","looks":[null,"coat.clem.store_calico","coat.clem.s1_tortie","coat.clem.s1_sunforged"],"duration":20,"aspect":"vertical",
+   "caption":"Clem's coats: default, Calico, Tortie, Sunforged (Legendary)"},
+  {"id":"sample-victory-horizontal","mode":"skirmish","seed":1,"start":{"event":"victory"},"duration":20,"aspect":"horizontal","camera":"push","hud":false,
+   "caption":"The last push: the core falls (Skirmish 3v3)"}
+]
