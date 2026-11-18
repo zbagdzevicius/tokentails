@@ -1056,16 +1056,15 @@ export class PartyService {
         return any ? 'text' : 'quick';
     }
 
-    /** All chat's tier in the match: 'text' only when every seated human, on both teams, is a registered 16+ account. */
-    matchChatAllTier(p: Party): 'text' | 'quick' {
-        let any = false;
-        for (const m of p.members) {
-            if (m.slot === undefined) continue;
-            any = true;
-            if (!m.identity.ticketed || m.identity.guest || !m.identity.accountId) return 'quick';
-            if (this.events.chatOf?.(m.id)?.tier !== 'text') return 'quick';
-        }
-        return any ? 'text' : 'quick';
+    /**
+     * One member's own in-match chat tier (MATCH-CHAT.md §2, revised Nov 2026): 'text' when this member is a registered
+     * account the relay resolved as 16+. A 16+ player always types in a match (team and all); who reads a typed line is
+     * decided per recipient at delivery (a guest, an unknown band or an under-16 never receives free text), so one
+     * guest or kid on the team no longer turns everybody's chat into phrases.
+     */
+    memberChatTier(m: Member): 'text' | 'quick' {
+        if (!m.identity.ticketed || m.identity.guest || !m.identity.accountId) return 'quick';
+        return this.events.chatOf?.(m.id)?.tier === 'text' ? 'text' : 'quick';
     }
 
     /** The chat thread id of this party (reports name it). */
@@ -1167,10 +1166,9 @@ export class PartyService {
                     .map(m => ({ member: m.id, hero: d.votes.get(m.id)! }));
         }
         view.chat = { tier: this.chatTier(p), thread: this.chatThread(p) };
-        // PROTO 6: the recipient's team tier in the match (its composer swaps to phrases when it is quick)
-        if (me?.slot !== undefined) view.chat.match = this.matchChatTier(p, this.teamOfMember(p, me));
-        // all chat: free text only when every seated human of both teams is text tier
-        if (me?.slot !== undefined) view.chat.all = this.matchChatAllTier(p);
+        // PROTO 6: the recipient's own in-match tier, the same for team and all (its composer shows phrases only
+        // when it is quick); a typed line reaches only text-tier readers (party-relay deliverMatchChat)
+        if (me?.slot !== undefined) view.chat.match = view.chat.all = this.memberChatTier(me);
         const blocked = this.events.chatOf?.(forMember)?.blocked;
         if (blocked?.length) {
             const ids = p.members

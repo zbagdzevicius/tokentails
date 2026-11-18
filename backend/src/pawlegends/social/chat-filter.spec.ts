@@ -46,6 +46,15 @@ describe('chat filter normalisation', () => {
         expect(normalizeChatText('‘hi’')).toBe("'hi'");
     });
 
+    it('HTML tags are dropped (the words stay); a lone < or > is kept as text', () => {
+        expect(normalizeChatText('<b>go</b> mid')).toBe('go mid');
+        expect(filterChatText('<img src=x onerror=alert(1)>push top')).toEqual({ ok: true, text: 'push top' });
+        expect(filterChatText('<script>alert(1)</script>')).toEqual({ ok: true, text: 'alert(1)' });
+        expect(filterChatText('<div></div>')).toEqual({ ok: false, why: 'empty' });
+        expect(normalizeChatText('3 < 5 > 2')).toBe('3 < 5 > 2');
+        expect(normalizeChatText('<3 love it')).toBe('<3 love it');
+    });
+
     it('never throws and refuses non-strings', () => {
         for (const v of [undefined, null, 5, {}, [], 'x'.repeat(10_000)]) expect(() => filterChatText(v)).not.toThrow();
         expect(filterChatText(42)).toEqual({ ok: false, why: 'empty' });

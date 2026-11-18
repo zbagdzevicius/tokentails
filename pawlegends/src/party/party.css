@@ -146,7 +146,7 @@
   padding: 4px 8px; border-radius: var(--v6-r-xs); border: 2px solid var(--v6-line); background: var(--v6-glass); }
 .pl-party .pp-lc[data-me] { border-color: rgb(var(--v6-bolt-rgb) / 0.55); }
 .pl-party .pp-lc.bot { opacity: 0.55; border-style: dashed; background: none; }
-.pl-party .pp-lc b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-party .pp-lc b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-party .pp-lc small { font-size: 11px; text-transform: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-party .pp-side-note { margin: 0; padding: 3px 10px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-cream-rgb) / 0.1); font-weight: 700; font-size: 13px; white-space: nowrap; }
 

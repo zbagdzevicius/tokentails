@@ -305,7 +305,7 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 html[data-touch='1'] .pl-strip .pp .pl-cc { font-size: 10px; left: -4px; bottom: -3px; }
 .pl-strip .pp.dead .pl-cc { filter: grayscale(0.6) drop-shadow(0 0 1px rgb(0 0 0 / 0.9)); }
 /* and before a hero's name in the kill feed */
-.pl-feed-row b .pl-cc { margin-right: 3px; font-size: 0.9em; }
+.pl-feed-row b .pl-cc { margin-right: 0.4em; font-size: 0.9em; }
 .pl-strip .pp.unseen { opacity: 0.55; }
 .pl-strip .pp.locked { border-color: #ff4d5e; box-shadow: 0 0 0 3px rgba(255, 77, 94, 0.65), 0 3px 8px rgba(0, 0, 0, 0.35); }
 html[data-touch='1'] .pl-strip.ally { right: auto; left: calc(80px + var(--safe-l)); top: calc(70px + var(--safe-t)); }

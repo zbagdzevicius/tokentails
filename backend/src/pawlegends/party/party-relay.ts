@@ -1893,11 +1893,18 @@ export class PartyRelay {
             if (msg.id !== undefined || msg.text === undefined) return reject('scope');
             const cooldown = Math.max(c.cooldownUntil, info?.cooldownUntil ?? 0);
             if (cooldown > now) return reject('cooldown', cooldown);
-            // team text: every human on the team is a registered 16+ account; all chat text: every human in the match
-            if (ch === 'all' ? this.parties.matchChatAllTier(p) !== 'text' : this.matchTier(live, team) !== 'text')
-                return reject('quick_only');
+            // the sender's own tier (a registered 16+ account) decides whether it may type, team or all; who reads
+            // the line is decided per recipient in deliverMatchChat (only text-tier readers get free text)
+            const me = p.members.find(m => m.id === member);
+            if (!me || this.parties.memberChatTier(me) !== 'text') return reject('quick_only');
+            // the probe filter: when a 16-17 and an 18+ account would read (or write) this line
             const bands = p.members
-                .filter(m => m.slot !== undefined && (ch === 'all' || this.parties.teamOfMember(p, m) === team))
+                .filter(
+                    m =>
+                        m.slot !== undefined &&
+                        (ch === 'all' || this.parties.teamOfMember(p, m) === team) &&
+                        this.parties.memberChatTier(m) === 'text'
+                )
                 .map(m => this.chatInfo.get(m.id)?.info.band ?? null);
             const checked = filterChatText(msg.text, { probes: crossesAdultLine(bands) });
             if (!checked.ok) {
@@ -1975,6 +1982,9 @@ export class PartyRelay {
         const sockets = this.socketsOfSeats(live);
         for (const o of sockets) {
             if (ch === 'team' && teamOfSlot(o.seatSlot, n) !== team) continue;
+            // free text reaches only a text-tier reader (a registered 16+ account); a guest, an unknown band or an
+            // under-16 gets phrases only (MATCH-CHAT.md §2); the sender always sees its own line
+            if (body.k === 't' && o.seatSlot !== slot && !this.readsText(p, o)) continue;
             if (fromAcc && o.seatSlot !== slot) {
                 const toAcc = o.identity?.accountId;
                 if (toAcc && mineBlocked.includes(toAcc)) continue;
@@ -2001,6 +2011,12 @@ export class PartyRelay {
             );
         }
         return true;
+    }
+
+    /** May this seated socket read free text (its member's own tier is 'text')? */
+    private readsText(p: Party | null | undefined, o: Sock): boolean {
+        const m = p && o.memberId ? p.members.find(x => x.id === o.memberId) : undefined;
+        return !!m && this.parties.memberChatTier(m) === 'text';
     }
 
     /** The member id seated in `live` for an account (its blocks are resolved by member). */

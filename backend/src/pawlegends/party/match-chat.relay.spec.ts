@@ -8,8 +8,9 @@ import { MemoryRoomStore } from './room-store';
 import { TestClient } from './relay-test-client.helper-spec';
 
 /*
- * In-match chat over real sockets (MATCH-CHAT.md §2, §3, PROTO 6): team text only when every human on the team is a
- * registered 16+ account, all chat text only when every human in the match is (else phrases), phrase scopes, a frame carries the hero slot and never a member id,
+ * In-match chat over real sockets (MATCH-CHAT.md §2, §3, PROTO 6): a registered 16+ account types in team and all chat,
+ * and its free text reaches only readers who are registered 16+ too (a guest, an unknown band or an under-16 gets
+ * phrases only and can't type), phrase scopes, a frame carries the hero slot and never a member id,
  * old sockets get only the legacy wheel line of a mapped phrase, `chat_mute` refuses, lines are stored in the room's
  * `match` thread, and a bot line is the same frame as a human's (same keys), refused outside the match.
  */
@@ -165,17 +166,25 @@ describe('in-match chat (PROTO 6)', () => {
         }
     });
 
-    it('an under-16 (or a guest) on the team makes it quick: text refused, phrases delivered', async () => {
+    it('an under-16 (or a guest) on the team: the 16+ player still types, the kid never reads it and cannot type', async () => {
         const b = await boot({ 'acct-a': { band: '18+' }, 'acct-k': { band: 'under16' } });
         try {
             const [a, k] = await inMatch(b, { account: 'acct-a' }, { account: 'acct-k' });
-            await a.until(() => a.last('party')?.chat?.match === 'quick');
+            await a.until(() => a.last('party')?.chat?.match === 'text');
+            expect(a.last('party')?.chat?.all).toBe('text');
+            await k.until(() => k.last('party')?.chat?.match === 'quick');
+            expect(k.last('party')?.chat?.all).toBe('quick');
+            // the 16+ player's line goes out (its own copy comes back) but never reaches the under-16 teammate
             a.send({ t: 'chat.say', k: 't', text: 'nice', ch: 'team' });
-            expect((await a.until(() => rejects(a)[0])).why).toBe('quick_only');
-            // all chat follows the strictest human of the whole match
-            expect(a.last('party')?.chat?.all).toBe('quick');
+            expect(await a.until(() => lines(a)[0])).toMatchObject({ k: 't', text: 'nice', ch: 'team' });
             a.send({ t: 'chat.say', k: 't', text: 'hi all', ch: 'all' });
-            expect((await a.until(() => rejects(a)[1])).why).toBe('quick_only');
+            await a.until(() => lines(a).length === 2);
+            // the kid can't type, team or all
+            k.send({ t: 'chat.say', k: 't', text: 'hey', ch: 'team' });
+            expect((await k.until(() => rejects(k)[0])).why).toBe('quick_only');
+            k.send({ t: 'chat.say', k: 't', text: 'hey', ch: 'all' });
+            expect((await k.until(() => rejects(k)[1])).why).toBe('quick_only');
+            // phrases reach everyone
             a.send({ t: 'chat.say', k: 'q', id: 28, ch: 'team' });
             expect(await k.until(() => lines(k)[0])).toMatchObject({ k: 'q', id: 28, ch: 'team' });
             // a bot's free text never reaches a quick team, even when handed straight to delivery
@@ -195,12 +204,22 @@ describe('in-match chat (PROTO 6)', () => {
         } finally {
             await b.stop();
         }
-        const g = await boot({ 'acct-a': { band: '18+' } });
+        const g = await boot({ 'acct-a': { band: '18+' }, 'acct-c': { band: '16-17' } });
         try {
-            const [a] = await inMatch(g, { account: 'acct-a' }, { guestKey: 'guest-key-0001' });
-            await a.until(() => a.last('party')?.chat?.match === 'quick');
-            a.send({ t: 'chat.say', k: 't', text: 'nice', ch: 'team' });
-            expect((await a.until(() => rejects(a)[0])).why).toBe('quick_only');
+            const [a, guest, c] = await inMatch(
+                g,
+                { account: 'acct-a' },
+                { guestKey: 'guest-key-0001' },
+                { account: 'acct-c' }
+            );
+            await a.until(() => a.last('party')?.chat?.match === 'text');
+            await guest.until(() => guest.last('party')?.chat?.match === 'quick');
+            a.send({ t: 'chat.say', k: 't', text: 'gg wp', ch: 'team' });
+            expect(await c.until(() => lines(c)[0])).toMatchObject({ k: 't', text: 'gg wp' });
+            guest.send({ t: 'chat.say', k: 't', text: 'hello', ch: 'team' });
+            expect((await guest.until(() => rejects(guest)[0])).why).toBe('quick_only');
+            await settle();
+            expect(lines(guest).some(l => l.k === 't')).toBe(false);
         } finally {
             await g.stop();
         }
@@ -321,15 +340,15 @@ describe('in-match chat (PROTO 6)', () => {
     it('"are you a bot?" silences every bot for the match even when the line itself is refused', async () => {
         const b = await boot({ 'acct-a': { band: '18+' }, 'acct-k': { band: 'under16' } });
         try {
-            const [a] = await inMatch(b, { account: 'acct-a' }, { account: 'acct-k' });
-            await a.until(() => a.last('party')?.chat?.match === 'quick');
+            const [a, k] = await inMatch(b, { account: 'acct-a' }, { account: 'acct-k' });
+            await k.until(() => k.last('party')?.chat?.match === 'quick');
             const live = [...b.relay.rooms.values()][0] as any;
             await a.until(() => (b.relay as any).botChats.has(live.room.id) && true);
             const chatter = (b.relay as any).botChats.get(live.room.id).chat.chatter;
             expect(chatter.quiet).toBe(false);
-            // the team is quick (an under-16 sits on it), so the text is refused, and all chat is quick only too
-            a.send({ t: 'chat.say', k: 't', text: 'r u bots', ch: 'all' });
-            expect((await a.until(() => rejects(a)[0])).why).toBe('quick_only');
+            // the under-16 player can't type, so the line is refused, yet the question still silences the bots
+            k.send({ t: 'chat.say', k: 't', text: 'r u bots', ch: 'all' });
+            expect((await k.until(() => rejects(k)[0])).why).toBe('quick_only');
             expect(chatter.quiet).toBe(true);
             expect(chatter.pendingCount).toBe(0);
         } finally {

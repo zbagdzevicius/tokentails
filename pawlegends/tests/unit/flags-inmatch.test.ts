@@ -101,6 +101,11 @@ describe('flags in the match (FLAGS.md)', () => {
     const ana = texts.find((t) => t.text === 'Ana')!;
     const de = texts.find((t) => t.text === flagEmoji('DE'))!;
     expect(de.x).toBeLessThan(ana.x);
+    // a real gap between the flag and the name (founder, Nov 2026: "too tight"): both are centre-aligned, the stand-in
+    // measures 6 px a character, the flag slot is at least 1.3 em of the 12 px name size, the gap half the name size
+    const flagRight = de.x + Math.ceil(12 * 1.3) / 2;
+    const nameLeft = ana.x - (3 * 6) / 2;
+    expect(nameLeft - flagRight).toBeGreaterThanOrEqual(5);
     // a colour glyph takes the fill's alpha: every flag is drawn with an opaque fill (FR sits on a bot pill after its keyline ink)
     for (const t of texts.filter((x) => /[\u{1F1E6}-\u{1F1FF}]/u.test(x.text))) expect(t.fill).toBe('#000');
     expect(texts.some((t) => t.text === 'Di')).toBe(true);

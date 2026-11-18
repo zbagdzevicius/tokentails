@@ -37,11 +37,11 @@ describe('unit bar trailing chunk (C1)', () => {
     c = chunkStep(c, 650, 1000, 600);
     expect(c.trail).toBe(650);
   });
-  it('hero bars: 10 px on desktop, 8 on phones; names 11 / 9 px', () => {
+  it('hero bars: 10 px on desktop, 8 on phones; names 12 / 10 px', () => {
     expect(heroBarH(false)).toBe(10);
     expect(heroBarH(true)).toBe(8);
-    expect(nameFont(false)).toBe(11);
-    expect(nameFont(true)).toBe(9);
+    expect(nameFont(false)).toBe(12);
+    expect(nameFont(true)).toBe(10);
   });
 });
 

@@ -41,6 +41,11 @@ export interface HostConfig {
   sendTarget?: string;
   /** Party play (P9): answer `party-ticket-request{id}` with this ticket (null: answer `ticket: null`). */
   partyTicket?: string | null;
+  /**
+   * Party play as a registered account: answer every `party-ticket-request{id}` with a fresh ticket from
+   * `window.plTicket()` (the test's `context.exposeFunction`, e.g. the relay harness's `/e2e/ticket`). Wins over `partyTicket`.
+   */
+  ticketFn?: boolean;
   /** STORE-PASS.md: `store{items, season}` sent on every ready (GET /pawlegends/me). */
   store?: { items: string[]; season: unknown };
   /** STORE-PASS.md: answer `purchase-intent{sku}` for a store SKU with `purchase-result{sku, ok:true}` and this store state (a Stripe test-mode return). */
@@ -141,6 +146,10 @@ function hostHtml(cfg: HostConfig): string {
             send('store', withChamps(store));
           }, so.storeDelayMs || 0);
         }, 50);
+      }
+      if (m.type === 'party-ticket-request' && cfg.ticketFn && window.plTicket) {
+        window.plTicket().then(function (t) { send('party-ticket', t ? { id: m.id, ticket: t } : { id: m.id, ticket: null, error: 'PAWLEGENDS_PARTY_TICKET_UNAVAILABLE' }); });
+        return;
       }
       if (m.type === 'party-ticket-request' && cfg.partyTicket !== undefined) {
         send('party-ticket', cfg.partyTicket ? { id: m.id, ticket: cfg.partyTicket } : { id: m.id, ticket: null, error: 'PAWLEGENDS_PARTY_TICKET_UNAVAILABLE' });

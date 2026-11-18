@@ -68,13 +68,19 @@ Both doc comments must be updated in the same commit.
 
 ## 2. Channels and tiers in a match
 
-| Channel | Who receives | Tier | Content |
-|---|---|---|---|
-| Team | Own team (humans and bots' hidden recipients) | `text` if the sender **and every human on the team** is registered and 16+ (`ChatBandResolver`). Otherwise `quick` | Text (1–120 characters after the filter), or a phrase id with the `match` scope |
-| All | Both teams | Always `quick` | Phrase ids with the `all` scope only |
+**Revised Nov 2026 (founder: "allow to type").** The tier is now the sender's own and the reader's own, not the
+strictest human on the team. One guest, unknown band or under-16 on a team no longer turns everyone's chat into
+phrases.
 
-- **The tier is computed per message.** It is recomputed on seat changes: a claim, a drop, or a pilot taking a seat. The strictest human decides. A pilot counts as the human whose seat it flies.
-- **Mixed teams.** Free text never reaches a quick-tier recipient. When a team is `quick`, the composer is replaced by the phrase tray for everyone on that team. Nobody is told why ("Quick chat keeps everyone safe"), the same as CHAT-AVATARS §6.2.
+| Channel | Who receives | Who may type | Content |
+|---|---|---|---|
+| Team | Own team (humans and bots' hidden recipients) | A registered 16+ sender (`PartyService.memberChatTier`) | Text (1–120 characters after the filter, HTML tags dropped) reaches only text-tier readers; a phrase id with the `match` scope reaches everyone |
+| All | Both teams | The same rule | Text reaches only text-tier readers on both teams; phrase ids with the `all` scope reach everyone |
+
+- **Per recipient.** `deliverMatchChat` skips a free-text frame for any seated socket whose member is not a registered 16+ account. The sender always gets its own line back. A guest, an unknown band or an under-16 player sees phrases only and gets the phrase tray instead of the text field.
+- **Probes.** The age and meeting probe filter applies when the sender and the text-tier readers of that channel include both a 16-17 and an 18+ account.
+- **Bots** still type only to a team where every human is text tier (`matchChatTier`, the old strict rule), as defence in depth.
+- **Party view.** `chat.match` and `chat.all` both carry the member's own tier.
 - **Guests** are `quick`.
 - **Blocks:** the relay already sends `PartyView.blocks`, and the client hides blocked senders.
 - **Mute:** client-side per slot. It hides chat, quick lines and emotes, the same as the scoreboard 🔇 and the existing "mute all opponents".

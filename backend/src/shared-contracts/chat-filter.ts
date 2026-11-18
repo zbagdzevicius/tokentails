@@ -8,7 +8,7 @@
  * Reject, never mask: a message that fails is not stored and not delivered; the sender sees only the reason class
  * (`words`, `contact`, `link`, `charset`), never the matched token.
  *
- * Pipeline: normalise (NFKC, invisible and bidi characters removed, one line, runs of 4+ repeated characters cut to
+ * Pipeline: normalise (NFKC, HTML tags dropped, invisible and bidi characters removed, one line, runs of 4+ repeated characters cut to
  * 3, trimmed), 1–120 characters, Latin/Lithuanian letters + digits + basic punctuation + emoji only, then profanity
  * (the cat-name word lists on the folded skeleton, per word and over spaced-out letters, plus a chat-only list),
  * emails and @handles, links (schemes, `www.`, a TLD list, "dot" spellings, social apps), phone numbers (7+ digits,
@@ -34,6 +34,8 @@ const SPACES_RE = /[\s\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]+/g;
 const APOSTROPHES_RE = /[\u2018\u2019\u201A\u201B\u2032\u02BC\u00B4`]/g;
 const QUOTES_RE = /[\u201C\u201D\u201E\u201F\u2033]/g;
 const DASHES_RE = /[\u2010-\u2015\u2212\uFE63\uFF0D]/g;
+/** An HTML tag or comment (`<b>`, `</div>`, `<img src=x>`, `<!-- -->`): dropped, the words around it kept. */
+const HTML_TAG_RE = /<\/?[a-zA-Z!][^<>]{0,200}>/g;
 const REPEAT_RE = /([\uD800-\uDBFF][\uDC00-\uDFFF]|[\s\S])\1{3,}/g;
 
 /**
@@ -53,6 +55,7 @@ const codePoints = (s: string) => s.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '
 export function normalizeChatText(input: string): string {
     return String(input)
         .normalize('NFKC')
+        .replace(HTML_TAG_RE, ' ')
         .replace(/[\r\n\t]+/g, ' ')
         .replace(INVISIBLE_RE, '')
         .replace(CONTROL_RE, '')

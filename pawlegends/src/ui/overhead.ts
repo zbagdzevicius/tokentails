@@ -77,8 +77,8 @@ export function plateBox(scale: number, phone = false): { left: number; right: n
 
 /** LoL pass (lane C): hero bar height (px): 10 on desktop, 8 on a phone (short landscape, ≤ 480 px tall). */
 export const heroBarH = (phone: boolean): number => (phone ? 8 : 10);
-/** LoL pass (lane C): hero name size (px) above the bar: 11 on desktop, 9 on a phone. */
-export const nameFont = (phone: boolean): number => (phone ? 9 : 11);
+/** LoL pass (lane C): hero name size (px) above the bar: 12 on desktop, 10 on a phone (one up, Nov 2026: read at a glance). */
+export const nameFont = (phone: boolean): number => (phone ? 10 : 12);
 
 /** LoL pass (lane C): the trailing damage chunk on unit bars holds this long (ms) after a drop, then drains. */
 export const CHUNK_HOLD_MS = 300;
@@ -243,7 +243,8 @@ export function strideMeter(e: Pick<ViewEntity, 'hero' | 'resource' | 'state'>):
  */
 const FONT = (weight: number, px: number): string => `${weight} ${px}px Fredoka, system-ui, sans-serif`;
 /** FLAGS.md: the gap between a plate's flag and its name (CSS px), and the no-flag answer. */
-const FLAG_GAP = 3;
+/** The space between a plate's flag and its name: half the name size (6 px desktop, 5 on a phone). */
+const flagGap = (nf: number): number => Math.round(nf / 2);
 const NO_FLAG = Object.freeze({ cc: '', glyph: '', font: '', w: 0 });
 const DANGER_RGB = '#ff3b4d';
 const FOUNTAIN_RGB = '#ff4d5e';
@@ -1047,7 +1048,9 @@ export class Overhead {
     if (!cc || !canvasFlagsReady()) return NO_FLAG;
     const font = canvasFlagFont(nf);
     const glyph = flagEmoji(cc);
-    return { cc, glyph, font, w: this.atlas.measure(glyph, font) + FLAG_GAP };
+    // a colour flag glyph draws wider than some platforms measure it (Apple ~1.3 em): never less than 1.3 em, so the
+    // gap after it stays a real gap and the flag never touches the first letter
+    return { cc, glyph, font, w: Math.max(this.atlas.measure(glyph, font), Math.ceil(nf * 1.3)) + flagGap(nf) };
   }
 
   private nameOf(e: ViewEntity): string {
@@ -1216,7 +1219,7 @@ export class Overhead {
       g.font = fl.font;
       // a colour glyph still takes the fill's alpha: an opaque fill, or the pill's 0.28 keyline ink fades the flag
       g.fillStyle = '#000';
-      g.fillText(fl.glyph, -tw / 2 + (fw - FLAG_GAP) / 2, yy);
+      g.fillText(fl.glyph, -tw / 2 + (fw - flagGap(nf)) / 2, yy);
     };
     const seat = this.seats?.get(e.id);
     if (e.id !== this.mySlot) {

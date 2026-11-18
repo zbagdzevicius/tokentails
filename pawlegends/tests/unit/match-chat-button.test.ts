@@ -137,6 +137,6 @@ describe('bot match typing', () => {
     const c = solo(false, { link, solo: undefined });
     tap(c.button.el);
     expect(c.drawer.el.querySelector('.cd-input')).toBeNull();
-    expect(c.drawer.el.querySelector('.cd-why')?.textContent).toMatch(/team/);
+    expect(c.drawer.el.querySelector('.cd-why')?.textContent).toMatch(/Friends/);
   });
 });

@@ -9,8 +9,8 @@
  *   Esc cancels, Up recalls the last line. While the input has focus no game key fires (input/desktop.ts `isTyping`).
  *
  * Header: a Team | All toggle and ✕. Footer: one text input (120 characters, `enterkeyhint="send"`) plus the phrase
- * chips when the channel's tier is `text` (Team: every human on the team is a registered 16+ account; All: every human
- * in the match is); otherwise phrase chips and one line saying when typing opens. A long-press (or right-click) on someone else's line offers Mute
+ * chips when this player's own tier is `text` (a registered 16+ account; the relay shows its lines only to readers who
+ * are too); otherwise phrase chips and one line saying how typing opens. A long-press (or right-click) on someone else's line offers Mute
  * player and Report.
  */
 import { CHAT_LIMITS_CLIENT, CHAT_REPORT_KINDS, CHAT_REPORT_LABELS, matchPhraseText, phrasesFor, type ChatReportKind } from '../data/chatPhrases';
@@ -33,7 +33,7 @@ export interface ChatDrawerDeps {
   muteAll?(on: boolean): void;
   /** Report a line (the host's `chat.report`); absent: no Report (a solo match). */
   report?(mid: string, kind: ChatReportKind): Promise<boolean>;
-  /** A bot match (no other human reads it): the quick-only note names the age setting, not teammates. */
+  /** A bot match (no other human reads it). */
   solo?: boolean;
   /** The drawer opened or closed (the session hides the wheel, tests). */
   onToggle?(open: boolean): void;
@@ -218,9 +218,7 @@ export class ChatDrawer {
     this.foot.innerHTML = `${
       typed
         ? `<div class="cd-row"><input class="cd-input" type="text" maxlength="${CHAT_LIMITS_CLIENT.textMax}" enterkeyhint="send" autocomplete="off" autocapitalize="sentences" spellcheck="true" aria-label="${all ? 'Message to everyone' : 'Team message'}" placeholder="${all ? 'Message everyone' : 'Message your team'}"><button type="submit" class="cd-send" aria-label="Send">Send</button></div>`
-        : this.deps.solo
-          ? `<p class="cd-why">Quick chat here. Typing opens for players 16+ with an account (set your age in Friends).</p>`
-          : `<p class="cd-why">${all ? 'Typing to everyone opens when every player is 16+ with an account.' : 'Typing opens when everyone on your team is 16+ with an account (set your age in Friends).'}</p>`
+        : `<p class="cd-why">Typing is for players 16+ with an account. Set your age in Friends.</p>`
     }<div class="cd-chips" role="group" aria-label="Quick chat">${chips}</div>`;
     this.el.classList.toggle('typed', typed);
   }

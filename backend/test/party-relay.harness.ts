@@ -35,6 +35,7 @@ const season = seasonDef(CURRENT_SEASON_ID)!;
 
 process.env.PAWLEGENDS_PARTY_TICKET_SECRET = randomBytes(24).toString('hex');
 const port = Number(process.env.PORT || 3105);
+const tickets = new PartyTicketService();
 const origins = (process.env.FRONT_END_URLS || '').split(',').filter(Boolean);
 const server = createServer((req, res) => {
     // a tiny health and counters route for the e2e driver
@@ -42,6 +43,14 @@ const server = createServer((req, res) => {
         res.setHeader('content-type', 'application/json');
         res.setHeader('access-control-allow-origin', '*');
         res.end(JSON.stringify({ ok: true, ...relay.counters() }));
+        return;
+    }
+    // e2e only (this harness, never production): a fresh party ticket for a test account, handed to the game frame by
+    // the mock embed host (tests/e2e/host.ts `ticketFn`), so a spec can play as a registered account
+    const t = /^\/e2e\/ticket\?account=([a-z0-9-]{3,40})$/.exec(req.url ?? '');
+    if (t) {
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify(tickets.issue({ accountId: t[1], guest: false })));
         return;
     }
     // the game's PvP capability check (pawlegends/src/meta/pvpCapability.ts)
@@ -88,7 +97,16 @@ const relay = new PartyRelay({
     },
     server,
     store,
-    tickets: new PartyTicketService(),
+    tickets,
+    // chat (MATCH-CHAT.md §2): a test account named `e2e-adult-*` is a registered 18+ account (free text in a
+    // match); any other account has no known age band (phrases only); nothing is stored
+    chat: {
+        info: async (account: string) => ({
+            band: account.startsWith('e2e-adult-') ? '18+' : null,
+            muted: false,
+            blocked: [],
+        }),
+    },
     referee: new RefereePool({ inline: process.env.REFEREE_INLINE === '1' }),
     allowNoOrigin: true,
     // SPECTATE.md: e2e spectators run a short delay (production: SPECTATE_DELAY_MS per room kind)

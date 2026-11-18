@@ -415,7 +415,7 @@ html:not([data-touch='1']) .pl-chatline .cl-row { background: rgb(var(--v6-night
 
 /* FLAGS.md: a country flag chip (or a neutral paw for a hidden or unknown flag), inline before a name */
 .pl-cc {
-  display: inline-block; flex: none; margin-right: 4px; font-size: 0.95em; line-height: 1; vertical-align: -0.08em;
+  display: inline-block; flex: none; margin-right: 0.45em; font-size: 0.95em; line-height: 1; vertical-align: -0.08em;
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-style: normal; font-weight: 400;
 }
 html[data-flag-font='1'] .pl-cc { font-family: "PL Flags", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
