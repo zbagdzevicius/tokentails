@@ -127,7 +127,11 @@ describe('boot comic loading screen (src/boot/comicBoot.js)', () => {
     // the pictures start before any stylesheet, preload or script (an inline script after a stylesheet waits for it)
     const head = html.indexOf('<!--pl-comic-head-->');
     expect(head).toBeGreaterThan(0);
-    for (const tag of ['<style', '<script', 'rel="stylesheet"', 'rel="icon"']) expect(head).toBeLessThan(html.indexOf(tag));
+    // (the game's own stylesheet is added by the build, at the end of <body>: vite.config.ts lateStylesheetPlugin)
+    for (const tag of ['<style', '<script', 'rel="icon"', 'rel="preconnect"']) {
+      expect(html.indexOf(tag)).toBeGreaterThan(0);
+      expect(head).toBeLessThan(html.indexOf(tag));
+    }
     // only the logo comes before them (high priority): on a slow phone it arrived ~8 s late behind the panels
     const logo = html.indexOf('assets/brand/logo-720.webp');
     expect(logo).toBeGreaterThan(0);
