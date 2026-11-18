@@ -296,3 +296,175 @@ html[data-quality='low'] .cst-tab.on { text-shadow: none; }
   border: 2px solid rgb(var(--v6-cream-rgb, 255 243 227) / 0.45); box-shadow: inset 0 -6px 0 rgb(0 0 0 / 0.18);
 }
 .cst-dye:hover, .cst-dye:focus-visible { border-color: var(--v6-bolt); }
+
+/* ------------------------------------------------------------------------------------------------------------------
+   The champion screen (store.ts hero detail; founder Nov 18: "broken in-app on mobile ... more aligned with other
+   immersive screens"). Full screen like Home: the lightning split behind, the splash full-bleed on the champion's
+   side (cats left, dogs right) with a bolt edge, the name, chips and kit on the other side (the only part that
+   scrolls), Back top-left, and one bar pinned to the bottom with the Yarn unlock as the rose pill (like PLAY and
+   LOCK IN). Every inset reads the safe areas; every control is at least 44 px. */
+.cst-detail.cst-hd-wrap { padding: 0; display: block; background: var(--v6-night); }
+.cst-dpanel.cst-hd {
+  --hd-split: 104deg;
+  position: absolute; inset: 0; width: auto; height: auto; max-width: none; border-radius: 0; box-shadow: none; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 46fr) minmax(0, 54fr); grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: 'art info' 'bar bar';
+  background: var(--v6-night); animation: cst-hd-in var(--v6-dur-screen) var(--v6-ease-out) both;
+}
+/* a fade, no scale: a full screen that grows in reads as a modal popping up */
+@keyframes cst-hd-in { from { opacity: 0; } }
+.cst-hd[data-cside='dog'] { --hd-split: 256deg; grid-template-columns: minmax(0, 54fr) minmax(0, 46fr); grid-template-areas: 'info art' 'bar bar'; }
+.cst-hd-bg {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(circle at 24% 40%, rgb(255 255 255 / 0.16), transparent 42%),
+    linear-gradient(var(--hd-split), var(--v6-rose) 0 41%, var(--v6-bolt) 41% 43.5%, var(--v6-sky) 43.5% 100%);
+}
+.cst-hd[data-cside='dog'] .cst-hd-bg {
+  background:
+    radial-gradient(circle at 76% 40%, rgb(255 255 255 / 0.16), transparent 42%),
+    linear-gradient(var(--hd-split), var(--v6-sky) 0 41%, var(--v6-bolt) 41% 43.5%, var(--v6-rose) 43.5% 100%);
+}
+/* the art: full height (under the bar too), cut on the inner edge with a bolt-yellow rim */
+.cst-hd .cst-dart.cst-hd-art {
+  grid-area: 1 / 1 / 3 / 2; z-index: 1; height: auto; width: auto; aspect-ratio: auto; border-radius: 0; overflow: hidden; position: relative;
+  background: var(--v6-bolt); clip-path: polygon(0 0, 100% 0, 86% 100%, 0 100%);
+}
+.cst-hd[data-cside='dog'] .cst-dart.cst-hd-art { grid-area: 1 / 2 / 3 / 3; clip-path: polygon(0 0, 100% 0, 100% 100%, 14% 100%); }
+.cst-hd .cst-hd-art img { object-fit: cover; object-position: 50% 28%; clip-path: polygon(0 0, calc(100% - 9px) 0, calc(86% - 9px) 100%, 0 100%); }
+.cst-hd[data-cside='dog'] .cst-hd-art img { clip-path: polygon(9px 0, 100% 0, 100% 100%, calc(14% + 9px) 100%); }
+.cst-hd .cst-hd-art::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent 35%, rgb(var(--v6-rose-rgb) / 0.42)), linear-gradient(180deg, transparent 62%, color-mix(in srgb, var(--v6-rose-deep) 50%, transparent));
+}
+.cst-hd[data-cside='dog'] .cst-hd-art::after { background: linear-gradient(270deg, transparent 35%, rgb(var(--v6-sky-rgb) / 0.42)), linear-gradient(180deg, transparent 62%, rgb(var(--v6-sky-deep-rgb) / 0.5)); }
+/* Back: top-left on every side, like the other screens */
+.cst-hd .cst-hd-back { position: absolute; z-index: 4; top: max(8px, var(--safe-t, 0px)); left: max(12px, var(--safe-l, 0px)); background: rgb(var(--v6-night-rgb) / 0.82); }
+/* the info column: the one scroll region, on night glass that fades in over the far colour */
+.cst-hd .cst-dinfo.cst-hd-info {
+  grid-area: info; z-index: 2; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: max(10px, var(--safe-t, 0px)) max(16px, var(--safe-r, 0px)) 12px clamp(16px, 3vw, 40px);
+  background: linear-gradient(90deg, rgb(var(--v6-night-rgb) / 0.5), rgb(var(--v6-night-rgb) / 0.9) 26%, rgb(var(--v6-night-rgb) / 0.94));
+}
+.cst-hd[data-cside='dog'] .cst-dinfo.cst-hd-info {
+  padding: max(10px, var(--safe-t, 0px)) clamp(16px, 3vw, 40px) 12px max(16px, var(--safe-l, 0px));
+  background: linear-gradient(270deg, rgb(var(--v6-night-rgb) / 0.5), rgb(var(--v6-night-rgb) / 0.9) 26%, rgb(var(--v6-night-rgb) / 0.94));
+}
+.cst-hd[data-cside='dog'] .cst-hd-head { padding-left: 56px; }
+.cst-hd-head { display: flex; align-items: center; gap: 10px; min-height: 48px; }
+.cst-hd .cst-hd-head h3 {
+  flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; overflow-wrap: anywhere;
+  font: italic 900 clamp(28px, 7.5vh, 64px)/0.95 var(--v6-font-display); text-transform: uppercase; letter-spacing: var(--v6-track-display);
+  color: var(--v6-cream); text-shadow: 0 3px 0 var(--v6-plum-deep);
+}
+.cst-hd .cst-wallet { position: absolute; z-index: 4; top: max(10px, var(--safe-t, 0px)); right: max(16px, var(--safe-r, 0px)); margin: 0; }
+.cst-hd-head { padding-right: 96px; }
+.cst-hd[data-cside='dog'] .cst-hd-head { padding-right: 0; }
+.cst-hd .cst-tags { gap: 6px; }
+.cst-tag {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: var(--v6-r-xs); white-space: nowrap;
+  background: rgb(var(--v6-night-2-rgb) / 0.8); border: 1px solid var(--v6-line-strong); font: 700 13px/1 var(--font); color: var(--v6-cream);
+}
+.cst-tag.side-cat { background: rgb(var(--v6-rose-rgb) / 0.85); border-color: transparent; }
+.cst-tag.side-dog { background: rgb(var(--v6-sky-rgb) / 0.85); border-color: transparent; color: var(--v6-night); }
+.cst-tag .cst-stars { margin: 0; }
+.cst-tag .cst-role { width: 14px; height: 14px; }
+.cst-hd .cst-blurb { font-size: 15px; opacity: 0.92; max-width: 46em; }
+/* the kit: five square chips (P Q W E R); the chosen one's name and line under them */
+.cst-hd .cst-skills { flex-direction: row; flex-wrap: wrap; gap: 8px; margin: 2px 0 0; }
+.cst-hd .cst-skills li { display: block; }
+.cst-skill {
+  position: relative; width: 48px; height: 48px; padding: 0; display: grid; place-items: center; cursor: pointer;
+  border-radius: var(--v6-r-xs); background: rgb(var(--v6-night-2-rgb) / 0.9); border: 1.5px solid var(--v6-line-strong); color: var(--v6-bolt-top);
+  transition: border-color var(--v6-dur-fast), transform var(--v6-dur-press) ease-out;
+}
+.cst-skill .pl-icon { width: 28px; height: 28px; }
+.cst-skill:hover { border-color: var(--v6-sky); }
+.cst-skill:active { transform: scale(0.94); }
+.cst-skill.on { border-color: var(--v6-bolt); background: rgb(var(--v6-navy-rgb) / 0.95); box-shadow: 0 0 0 2px rgb(var(--v6-bolt-rgb) / 0.35); }
+.cst-hd .cst-skill .k, .cst-skill-line .k {
+  font: 800 11px/1 var(--font); color: var(--v6-night); background: var(--v6-cream); border-radius: 3px; padding: 2px 4px; text-align: center;
+}
+.cst-hd .cst-skill .k { position: absolute; right: -4px; bottom: -5px; }
+.cst-skill.on .k { background: var(--v6-bolt); }
+.cst-skill-line { margin: 2px 0 0; font-size: 14px; line-height: 1.35; min-height: 2.7em; max-width: 46em; }
+.cst-skill-line b { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; font-size: 15px; color: var(--v6-cream); }
+.cst-skill-line > span { opacity: 0.85; }
+.cst-hd-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 2px; }
+.cst-hd .cst-lore { min-height: 44px; }
+.cst-finebtn { min-height: 44px; padding: 0 4px; border: 0; background: none; cursor: pointer; color: var(--v6-muted); font: 600 13px/1 var(--font); text-decoration: underline; text-underline-offset: 3px; }
+.cst-finebtn:hover { color: var(--v6-cream); }
+.cst-finebox { flex-basis: 100%; display: flex; flex-direction: column; gap: 4px; }
+/* the bar: pinned to the bottom across the screen, the unlock last (bottom-right, where PLAY and LOCK IN sit) */
+.cst-hd .cst-acts.cst-hd-bar {
+  grid-area: bar; z-index: 3; margin: 0; display: flex; flex-wrap: nowrap; justify-content: flex-end; align-items: center; gap: 10px; min-height: 64px; box-sizing: border-box;
+  padding: 8px max(16px, var(--safe-r, 0px)) max(8px, var(--safe-b, 0px)) max(16px, var(--safe-l, 0px));
+  background: linear-gradient(180deg, rgb(var(--v6-night-rgb) / 0.62), rgb(var(--v6-night-rgb) / 0.94)); border-top: 1px solid rgb(var(--v6-sky-rgb) / 0.25);
+}
+.cst-hd .cst-hd-bar .pl-btn { min-height: 48px; flex: none; white-space: nowrap; }
+.cst-hd .cst-hd-bar .cst-yarnbtn { min-height: 52px; padding: 0 22px; font-size: 18px; border-radius: var(--v6-r-s); }
+.cst-hd .cst-hd-bar .cst-yarnbtn img { width: 22px; height: 22px; }
+.cst-need { flex: 0 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.cst-prog { display: block; height: 8px; border-radius: 4px; overflow: hidden; background: rgb(var(--v6-cream-rgb) / 0.16); }
+.cst-prog i { display: block; height: 100%; background: var(--v6-grad-rose, var(--v6-rose)); border-radius: inherit; }
+.cst-hd .cst-togo { display: block; font-size: 12px; line-height: 1.25; color: rgb(var(--v6-cream-rgb) / 0.85); }
+.cst-done { font-size: 15px; font-weight: 700; }
+.cst-done .cst-have, .cst-done .cst-rot { display: inline-flex; align-items: center; gap: 6px; }
+/* desktop and tablets: more room, bigger kit */
+@media (min-width: 1100px) and (min-height: 700px) {
+  .cst-hd .cst-dinfo.cst-hd-info { gap: 12px; padding-top: max(64px, var(--safe-t, 0px)); justify-content: center; }
+  .cst-hd .cst-dinfo.cst-hd-info > * { max-width: 760px; }
+  .cst-hd[data-cside='dog'] .cst-hd-head { padding-left: 0; }
+  .cst-hd .cst-blurb { font-size: 18px; }
+  .cst-skill { width: 64px; height: 64px; }
+  .cst-skill .pl-icon { width: 38px; height: 38px; }
+  .cst-skill-line { font-size: 16px; }
+  .cst-skill-line b { font-size: 18px; }
+  .cst-hd .cst-acts.cst-hd-bar { min-height: 92px; gap: 14px; padding-top: 14px; padding-bottom: max(14px, var(--safe-b, 0px)); }
+  .cst-hd .cst-hd-bar .cst-yarnbtn { min-height: 60px; font-size: 22px; padding: 0 32px; }
+  .cst-hd .cst-togo { font-size: 14px; }
+  .cst-tag { height: 32px; font-size: 15px; }
+}
+/* phones held sideways: a tighter column, a shorter bar */
+@media (max-height: 430px) {
+  .cst-hd .cst-dinfo.cst-hd-info { gap: 6px; padding-bottom: 8px; }
+  .cst-hd .cst-hd-head { min-height: 44px; }
+  .cst-hd .cst-hd-head h3 { font-size: 28px; }
+  .cst-hd .cst-blurb { -webkit-line-clamp: unset; display: block; font-size: 13px; }
+  .cst-tag { height: 26px; font-size: 12px; }
+  .cst-hd .cst-status { font-size: 13px; }
+  .cst-skill-line { font-size: 13px; min-height: 0; }
+  .cst-skill-line b { font-size: 14px; }
+  .cst-hd .cst-acts.cst-hd-bar { min-height: 60px; padding-top: 6px; padding-bottom: max(6px, var(--safe-b, 0px)); gap: 8px; }
+  .cst-hd .cst-hd-bar .cst-yarnbtn { min-height: 48px; font-size: 16px; padding: 0 16px; }
+  .cst-hd .cst-hd-bar .pl-btn.small { padding: 8px 12px; }
+}
+@media (max-width: 720px) and (max-height: 430px) {
+  .cst-hd { grid-template-columns: minmax(0, 40fr) minmax(0, 60fr); }
+  .cst-hd[data-cside='dog'] { grid-template-columns: minmax(0, 60fr) minmax(0, 40fr); }
+  .cst-hd .cst-hd-head h3 { font-size: 24px; }
+  .cst-hd .cst-togo { font-size: 11px; }
+  .cst-hd .cst-chip.pick { display: none; }
+}
+/* portrait (a phone held upright, a tablet): the art on top, the info under it, the bar at the foot */
+@media (max-aspect-ratio: 1/1) {
+  .cst-dpanel.cst-hd, .cst-hd[data-cside='dog'] {
+    grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(140px, 36%) minmax(0, 1fr) auto; grid-template-areas: 'art' 'info' 'bar';
+  }
+  .cst-hd .cst-dart.cst-hd-art, .cst-hd[data-cside='dog'] .cst-dart.cst-hd-art { grid-area: art; clip-path: polygon(0 0, 100% 0, 100% 88%, 0 100%); }
+  .cst-hd .cst-hd-art img, .cst-hd[data-cside='dog'] .cst-hd-art img { clip-path: polygon(0 0, 100% 0, 100% calc(88% - 8px), 0 calc(100% - 8px)); object-position: 50% 30%; }
+  .cst-hd .cst-dinfo.cst-hd-info, .cst-hd[data-cside='dog'] .cst-dinfo.cst-hd-info {
+    padding: 8px max(16px, var(--safe-r, 0px)) 12px max(16px, var(--safe-l, 0px)); background: rgb(var(--v6-night-rgb) / 0.94);
+  }
+  .cst-hd[data-cside='dog'] .cst-hd-head { padding: 0; }
+  .cst-hd-head { padding-right: 0; }
+  .cst-hd .cst-acts.cst-hd-bar { flex-wrap: wrap; }
+  .cst-need { flex: 1 1 100%; }
+  .cst-hd .cst-hd-bar .cst-yarnbtn { flex: 1 1 auto; }
+}
+/* the status line ("Unlocking…") sits just above the champion screen's bar */
+.cst-frame:has(.cst-hd) .cst-line { bottom: calc(var(--safe-b, 0px) + 74px); }
+@media (min-width: 1100px) and (min-height: 700px) { .cst-frame:has(.cst-hd) .cst-line { bottom: calc(var(--safe-b, 0px) + 104px); } }
+html[data-quality='low'] .cst-dpanel.cst-hd { animation: none; }
+@media (prefers-reduced-motion: reduce) { .cst-dpanel.cst-hd { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .cst-skill { transition: none; } }

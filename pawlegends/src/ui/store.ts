@@ -25,7 +25,7 @@ import type { HeroId, HeroRole } from '../data/heroes/types';
 import { ROLE_NAME, ROLE_ORDER, isNewHero } from './champSelect/roles';
 import { HERO_TEXT } from './heroText';
 import { DIFFICULTY_NAME, HERO_DIFFICULTY } from './champBrowser/meta';
-import { DEFAULT_FILTER, SORT_KEYS, SORT_LABEL, allCards, champCard, loadSort, newestHeroes, saveSort, splashAttrs, visibleCards, type ChampCard, type ChampFilter, type SideFilter, type SortKey } from './champStore/model';
+import { DEFAULT_FILTER, SORT_KEYS, SORT_LABEL, allCards, champCard, heroBar, loadSort, newestHeroes, saveSort, splashAttrs, visibleCards, type ChampCard, type ChampFilter, type SideFilter, type SortKey } from './champStore/model';
 import './champStore/champStore.css';
 import { PAID_COATS, coatPalette } from '../render/cosmetics';
 import { CHROMAS, chromaPalette, cssHex } from '../render/skins/coatChromas';
@@ -178,6 +178,9 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   let line = '';
   /** The grid's scrollTop, kept across re-renders of the same tab. */
   let gridScroll = 0;
+  /** The champion screen's selected ability (0 = the passive) and whether its price and terms lines are open. */
+  let skillSel = 0;
+  let fineOpen = false;
   const money = (): boolean => !app();
 
   // ------------------------------------------------------------------------------------------- champion cards
@@ -468,17 +471,25 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
           ${fine}
         </div></div></div>`;
     }
+    // The champion screen (founder, Nov 18: "broken in-app on mobile ... more aligned with other immersive screens"):
+    // full screen like Home, the splash full-bleed on the champion's side (cats left, dogs right) over the lightning
+    // split, the name, chips and kit on the other side, and one bar pinned to the bottom with the unlock. Only the info
+    // column scrolls; Back, the kit and the bar always show. Mockups: pawlegends-pages/champion-screen/.
     const hero = detail.hero!;
     const c = champCard(hero, champs(), app());
     if (!c) return '';
     const t = HERO_TEXT[hero];
     const diff = HERO_DIFFICULTY[hero] ?? 2;
+    const have = champs().yarn.balance;
+    const bar = heroBar(c, have, money());
     const stars = `<span class="cst-stars" aria-label="Difficulty ${DIFFICULTY_NAME[diff]}">${[1, 2, 3].map((i) => `<i class="${i <= diff ? 'on' : ''}"></i>`).join('')}<small>${DIFFICULTY_NAME[diff]}</small></span>`;
-    const skills = t
-      ? `<ul class="cst-skills">
-          <li><span class="k">P</span>${icon('paw')}<b>${esc(t.passive.name)}</b><small>${esc(t.passive.text)}</small></li>
-          ${t.abilities.map((a, i) => `<li><span class="k">${'QWER'[i]}</span>${icon(a.icon)}<b>${esc(a.name)}</b><small>${esc(a.text)}</small></li>`).join('')}
-        </ul>`
+    const kit = t ? [{ key: 'P', icon: 'paw', name: t.passive.name, text: t.passive.text }, ...t.abilities.map((a, i) => ({ key: 'QWER'[i], icon: a.icon, name: a.name, text: a.text }))] : [];
+    const sk = Math.min(skillSel, Math.max(0, kit.length - 1));
+    const skills = kit.length
+      ? `<ul class="cst-skills" role="group" aria-label="Abilities">${kit
+          .map((k, i) => `<li><button type="button" class="cst-skill${i === sk ? ' on' : ''}" data-skill="${i}" data-k="skill:${i}" aria-pressed="${i === sk}" aria-label="${esc(`${k.key}: ${k.name}`)}">${icon(k.icon as never)}<span class="k">${k.key}</span></button></li>`)
+          .join('')}</ul>
+        <p class="cst-skill-line" aria-live="polite"><b><span class="k">${kit[sk].key}</span>${esc(kit[sk].name)}</b><span>${esc(kit[sk].text)}</span></p>`
       : '';
     const status =
       c.status === 'starter'
@@ -489,39 +500,44 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
             ? `<span class="cst-rot">Free this week · ${esc(rotationEndText(champs()).replace(/^Free until /, 'until '))}</span>`
             : c.hidden
               ? `<span class="cst-have locked">${LOCK_SVG}Locked</span>`
-              : `<span class="cst-rot off">Free in a later week. You can practice with it any time from champion select.</span>`;
+              : `<span class="cst-rot off">Free in a later week. Practice with it any time from champion select.</span>`;
     const acts: string[] = [];
-    if (c.unlockable && c.yarn !== null) {
+    if (bar.unlock) {
       // founder Nov 17 ("there's no way to purchase using earned points"): the Yarn unlock is always there; short of
-      // Yarn it is disabled and says what is missing, against the balance shown in the top bar
-      const have = champs().yarn.balance;
-      acts.push(
-        `<button type="button" class="pl-btn small cst-yarnbtn" data-unlock="yarn" data-k="unlock:yarn" data-testid="store-unlock" data-togo="${c.toGo}"${c.toGo > 0 ? ` disabled aria-describedby="cst-togo-${hero}"` : ''}>Unlock · <img src="${base}assets/splash/yarn.svg" alt="" width="18" height="18"> ${yarnText(c.yarn)} Yarn</button>`,
-      );
-      if (c.toGo > 0)
+      // Yarn it is disabled, with a bar of how far the balance goes and what is missing
+      const u = bar.unlock;
+      if (u.toGo > 0)
         acts.push(
-          `<span class="cst-togo" id="cst-togo-${hero}" data-testid="store-togo">${LOCK_SVG}You have ${yarnText(have)} Yarn. ${yarnText(c.toGo)} more to go (about ${matchesFor(c.toGo)} ${matchesFor(c.toGo) === 1 ? 'match' : 'matches'})</span>`,
+          `<span class="cst-need"><span class="cst-prog" role="progressbar" aria-label="Yarn" aria-valuemin="0" aria-valuemax="${u.cost}" aria-valuenow="${Math.min(u.have, u.cost)}"><i style="width:${u.pct}%"></i></span><span class="cst-togo" id="cst-togo-${hero}" data-testid="store-togo">You have ${yarnText(u.have)} Yarn. ${yarnText(u.toGo)} more to go (about ${matchesFor(u.toGo)} ${matchesFor(u.toGo) === 1 ? 'match' : 'matches'})</span></span>`,
         );
-      if (c.pick) acts.push(`<button type="button" class="pl-btn small" data-unlock="pick" data-k="unlock:pick" data-testid="store-pick">Use a Champion Pick</button>`);
-      if (money() && c.cents) {
+      if (bar.buy) {
         const sku = champSkuOf(hero);
-        acts.push(`<button type="button" class="pl-btn ghost small buy" data-buy="${sku}" data-k="buy:${sku}"${waiting ? ' disabled' : ''}>${waiting === sku ? 'Opening…' : `Buy ${esc(catalogPrice({ cents: c.cents }, currency))}`}</button>`);
+        acts.push(`<button type="button" class="pl-btn ghost small buy" data-buy="${sku}" data-k="buy:${sku}"${waiting ? ' disabled' : ''}>${waiting === sku ? 'Opening…' : `Buy ${esc(catalogPrice({ cents: c.cents! }, currency))}`}</button>`);
       }
-    }
-    acts.push(`<button type="button" class="pl-btn ghost small" data-a="info" data-k="info">Abilities &amp; lore</button>`);
-    return `<div class="cst-detail" role="dialog" aria-modal="true" aria-label="${esc(c.name)}"><div class="cst-dpanel" data-tier="${c.tier ?? 'starter'}" data-hero="${hero}">
-      <div class="cst-dart"><img alt="${esc(`${c.name} splash art`)}" decoding="async" ${splashAttrs(base, hero, low(), '(min-height: 700px) 420px, 240px')}></div>
-      <div class="cst-dinfo">
-        <button type="button" class="cst-x" data-a="detail-close" aria-label="Close">${X_SVG}</button>
-        <h3>${esc(c.name)}</h3>
-        <p class="cst-tags">${roleImg(c.role)}${esc(ROLE_NAME[c.role] ?? c.role)} · ${c.side === 'cat' ? 'Cat' : 'Dog'}${c.tier ? ` · ${TIER_WORD[c.tier]}` : ''} ${stars}</p>
-        <p class="cst-status">${status}</p>
+      if (bar.pick) acts.push(`<button type="button" class="pl-btn small" data-unlock="pick" data-k="unlock:pick" data-testid="store-pick">Use a Champion Pick</button>`);
+      acts.push(
+        `<button type="button" class="pl-btn small cst-yarnbtn" data-unlock="yarn" data-k="unlock:yarn" data-testid="store-unlock" data-togo="${u.toGo}"${u.enabled ? '' : ` disabled aria-describedby="cst-togo-${hero}"`}>Unlock · <img src="${base}assets/splash/yarn.svg" alt="" width="18" height="18"> ${yarnText(u.cost)} Yarn</button>`,
+      );
+    } else acts.push(`<span class="cst-done">${status}</span>`);
+    const fineBits = bar.fine
+      ? `<button type="button" class="cst-finebtn" data-a="fine" data-k="fine" aria-expanded="${fineOpen}">Prices and terms</button>${fineOpen ? `<div class="cst-finebox"><p class="fine">A bought champion plays the same as one unlocked with Yarn.</p>${fine}</div>` : ''}`
+      : '';
+    const side = c.side === 'dog' ? 'dog' : 'cat';
+    return `<div class="cst-detail cst-hd-wrap" role="dialog" aria-modal="true" aria-label="${esc(c.name)}"><div class="cst-dpanel cst-hd" data-tier="${c.tier ?? 'starter'}" data-hero="${hero}" data-cside="${side}" data-bar="${bar.kind}">
+      <div class="cst-hd-bg" aria-hidden="true"></div>
+      <div class="cst-dart cst-hd-art"><img alt="${esc(`${c.name} splash art`)}" decoding="async" ${splashAttrs(base, hero, low(), '(min-width: 900px) 720px, 360px')}></div>
+      <button type="button" class="cst-back cst-hd-back" data-a="detail-close" aria-label="Back">${BACK_SVG}</button>
+      <div class="cst-wallet">${yarnChip()}</div>
+      <div class="cst-dinfo cst-hd-info" data-scroll="hero">
+        <div class="cst-hd-head"><h3>${esc(c.name)}</h3></div>
+        <p class="cst-tags"><span class="cst-tag">${roleImg(c.role)}${esc(ROLE_NAME[c.role] ?? c.role)}</span><span class="cst-tag side-${side}">${side === 'cat' ? 'Cat' : 'Dog'}</span>${c.tier ? `<span class="cst-tag">${TIER_WORD[c.tier]}</span>` : ''}<span class="cst-tag">${stars}</span></p>
+        ${bar.unlock ? `<p class="cst-status">${status}</p>` : ''}
         ${t ? `<p class="cst-blurb">${esc(t.blurb)}</p>` : ''}
         ${skills}
-        <div class="cst-acts">${acts.join('')}</div>
-        ${money() && c.unlockable ? '<p class="fine">A bought champion plays the same as one unlocked with Yarn.</p>' : ''}
-        ${money() && c.unlockable ? fine : ''}
-      </div></div></div>`;
+        <div class="cst-hd-links"><button type="button" class="pl-btn ghost small cst-lore" data-a="info" data-k="info">Abilities &amp; lore</button>${fineBits}</div>
+      </div>
+      <div class="cst-acts cst-hd-bar">${acts.join('')}</div>
+    </div></div>`;
   };
 
   // --------------------------------------------------------------------------------------------- render
@@ -593,6 +609,8 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   };
   const openDetail = (d: { hero?: HeroId; sku?: string; sel?: string }, from: string): void => {
     detail = d;
+    skillSel = 0;
+    fineOpen = false;
     detailFrom = from;
     line = '';
   };
@@ -654,6 +672,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const card = t.closest<HTMLElement>('.cst-card[data-hero]')?.dataset.hero as HeroId | undefined;
     const bundle = t.closest<HTMLElement>('[data-bundle]')?.dataset.bundle;
     const unlock = t.closest<HTMLElement>('[data-unlock]')?.dataset.unlock as 'yarn' | 'pick' | undefined;
+    const skill = t.closest<HTMLElement>('[data-skill]')?.dataset.skill;
     if (detail && t.classList.contains('cst-detail')) {
       closeDetail();
     } else if (tb) setTab(tb);
@@ -686,6 +705,10 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       }
     } else if (a === 'detail-close') {
       closeDetail();
+    } else if (skill !== undefined && detail?.hero) {
+      skillSel = Number(skill) || 0;
+    } else if (a === 'fine' && detail) {
+      fineOpen = !fineOpen;
     } else if (a === 'info' && detail?.hero) {
       o.onInfo?.(detail.hero, root);
       return;

@@ -128,3 +128,31 @@ export function splashAttrs(base: string, hero: string, low: boolean, sizes: str
   const s360 = splashUrl(base, hero, 360);
   return low ? `src="${s360}"` : `src="${s360}" srcset="${s360} 360w, ${splashUrl(base, hero, 720)} 720w" sizes="${sizes}"`;
 }
+
+/** What the champion screen's bottom bar shows (ui/store.ts hero detail): pure, so each state is unit tested. */
+export interface HeroBar {
+  /** starter or owned: a done line; locked: nothing to do here (app-hidden, or no Yarn price); unlock: the Yarn pill. */
+  kind: 'starter' | 'owned' | 'locked' | 'unlock';
+  /** Free this week (still unlockable for keeps). */
+  free: boolean;
+  /** The Yarn unlock: enabled once the balance covers it; `pct` fills the progress bar (0 to 100). */
+  unlock: { cost: number; have: number; toGo: number; enabled: boolean; pct: number } | null;
+  /** A Champion Pick can unlock it now. */
+  pick: boolean;
+  /** The web price button (never in an app build: `money` is false there). */
+  buy: boolean;
+  /** The VAT, spend-limit and terms lines (web only, for something that can be bought). */
+  fine: boolean;
+}
+
+export function heroBar(c: ChampCard, have: number, money: boolean): HeroBar {
+  const free = c.status === 'free';
+  const none = { free, unlock: null, pick: false, buy: false, fine: false };
+  if (c.status === 'starter') return { kind: 'starter', ...none };
+  if (c.status === 'owned') return { kind: 'owned', ...none };
+  if (c.hidden || !c.unlockable || c.yarn === null) return { kind: 'locked', ...none };
+  const cost = c.yarn;
+  const pct = cost > 0 ? Math.max(0, Math.min(100, Math.round((Math.min(have, cost) / cost) * 100))) : 100;
+  const buy = money && !!c.cents;
+  return { kind: 'unlock', free, unlock: { cost, have, toGo: c.toGo, enabled: c.toGo <= 0, pct }, pick: c.pick, buy, fine: money };
+}
