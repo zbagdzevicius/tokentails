@@ -544,9 +544,11 @@ platform :android do
 
   desc "Upload the store listing (text, icon, feature graphic, phone screenshots), no binary"
   lane :metadata do
+    # supply looks up a release on the track even for listing-only uploads; production has none until launch.
     upload_to_play_store(
       package_name: APP_ID,
       json_key_data: play_json_key!,
+      track: ENV["PLAY_TRACK"].to_s.strip.empty? ? "internal" : ENV["PLAY_TRACK"],
       metadata_path: ANDROID_METADATA,
       skip_upload_apk: true,
       skip_upload_aab: true,
