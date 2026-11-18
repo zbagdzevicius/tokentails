@@ -1,0 +1,263 @@
+/* The Social sheet, Nov 18 redesign (socialSheet.ts). Loaded with the lazy sheet chunk; it refines the shared shell in
+   css/social.css (the DM thread, the Profile sheet and the Clubs panel keep using that shell). Every selector starts
+   with `html`: the main stylesheet can be linked after this chunk's, so equal specificity would lose to it.
+   v6 Lightning Rivalry: night-2 panel, cream type, the bolt for the one primary action and focus, rose for unread and
+   requests. LoL-style density: 48–56 px rows, 32–40 px avatars with a presence ring, small icon actions, collapsible
+   groups. Type: names 15 px (16 on big screens, 17 with the large-text setting), status and labels 13–14 px. */
+html .pl-social {
+  --soc-row: 52px; --soc-name: 15px; --soc-st: 13px; --soc-av: 36px;
+  width: min(100vw, clamp(352px, 26vw, 420px)); min-width: 0; gap: 6px;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 10px;
+  font: 600 14px/1.25 var(--font);
+}
+@media (min-width: 1600px) and (min-height: 800px) { html .pl-social { --soc-row: 56px; --soc-name: 16px; --soc-st: 14px; --soc-av: 40px; } }
+@media (max-height: 430px) { html .pl-social { --soc-row: 48px; --soc-av: 32px; gap: 4px; } }
+html[data-menu-text='large'] .pl-social { --soc-row: 60px; --soc-name: 17px; --soc-st: 15px; --soc-av: 40px; }
+
+/* ── header: tabs, More, Close ─────────────────────────────────────────────────────────────────────────────────── */
+html .pl-social > .pl-social-head { position: relative; gap: 2px; padding: 0; }
+html .pl-social-tabs { display: flex; flex: 1 1 auto; min-width: 0; gap: 2px; }
+html .pl-social .pl-social-tab {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 6px;
+  font: 700 14px/1 var(--font); overflow: visible; text-overflow: clip;
+}
+html .pl-social .pl-social-badge {
+  display: inline-grid; place-items: center; box-sizing: border-box; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+  font: 800 12px/1 var(--font); text-shadow: none;
+}
+html .pl-social-more {
+  flex: none; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 6px 0 10px; border: 0; border-radius: var(--v6-r-xs);
+  background: transparent; color: var(--v6-muted); font: 700 14px/1 var(--font); cursor: pointer;
+  transition: background-color var(--v6-dur-fast) var(--v6-ease-out), color var(--v6-dur-fast) var(--v6-ease-out);
+}
+html .pl-social-more .pl-i { transition: transform var(--v6-dur-fast) var(--v6-ease-out); }
+html .pl-social-more[aria-expanded='true'] .pl-i { transform: rotate(180deg); }
+html .pl-social-more.is-current { background: var(--v6-cream); color: var(--v6-night); box-shadow: inset 0 -4px 0 var(--v6-bolt); }
+@media (hover: hover) { html .pl-social-more:not(.is-current):hover { color: var(--v6-cream); background: rgb(var(--v6-cream-rgb) / 0.06); } }
+html .pl-social-more:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+html .pl-social .pl-social-x { display: grid; place-items: center; color: var(--v6-muted); }
+@media (hover: hover) { html .pl-social .pl-social-x:hover { color: var(--v6-cream); } }
+html .pl-social-moremenu {
+  position: absolute; right: 44px; top: calc(100% + 4px); z-index: 3; display: grid; min-width: 190px; padding: 4px;
+  border-radius: var(--v6-r-s); background: var(--v6-night-0); box-shadow: inset 0 0 0 1px var(--v6-line-strong), var(--v6-shadow-2);
+  animation: pl-soc-pop var(--v6-dur-fast) var(--v6-ease-out) both;
+}
+html .pl-social-moremenu[hidden] { display: none; }
+@keyframes pl-soc-pop { from { opacity: 0; transform: translateY(-4px); } }
+
+/* menu items (More, a friend's row menu) */
+html .pl-mi {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--v6-r-xs);
+  background: transparent; color: var(--v6-cream); font: 700 14px/1.2 var(--font); text-align: left; cursor: pointer;
+}
+html .pl-mi .pl-i { flex: none; color: var(--v6-muted); }
+@media (hover: hover) { html .pl-mi:hover { background: rgb(var(--v6-cream-rgb) / 0.08); } }
+html .pl-mi:active { background: rgb(var(--v6-cream-rgb) / 0.14); }
+html .pl-mi:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+html .pl-mi[aria-current='true'] { color: var(--v6-bolt); }
+html .pl-mi.danger, html .pl-mi.danger .pl-i { color: #ff9aa0; }
+html .pl-mi.danger.armed { background: var(--v6-enemy); color: #fff; }
+html .pl-mi.danger.armed .pl-i { color: #fff; }
+
+/* ── tools: my avatar, search, Add ─────────────────────────────────────────────────────────────────────────────── */
+html .pl-social-tools { flex: none; display: flex; align-items: center; gap: 6px; min-height: 44px; }
+html .pl-social .pl-me-av .pl-av { --av: 36px !important; }
+html .pl-social-search {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; box-sizing: border-box;
+  border-radius: var(--v6-r-s); background: var(--v6-night-0); box-shadow: inset 0 0 0 1px var(--v6-line-strong); color: var(--v6-muted); cursor: text;
+}
+html .pl-social-search:focus-within { box-shadow: inset 0 0 0 2px var(--v6-bolt); color: var(--v6-cream); }
+html .pl-social-search .pl-i { flex: none; }
+/* 16 px: iOS does not zoom into the field */
+html .pl-social-search input { flex: 1 1 auto; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; color: var(--v6-cream); font: 600 16px/1 var(--font); outline: none; }
+html .pl-social-search input::placeholder, html .pl-social > .pl-social-add input::placeholder { color: rgb(var(--v6-cream-rgb) / 0.55); }
+html .pl-social-search input::-webkit-search-cancel-button { filter: invert(1) opacity(0.6); }
+html .pl-ico {
+  flex: none; position: relative; display: inline-grid; place-items: center; width: 40px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s);
+  background: transparent; color: var(--v6-muted); cursor: pointer; touch-action: manipulation;
+  transition: background-color var(--v6-dur-fast) var(--v6-ease-out), color var(--v6-dur-fast) var(--v6-ease-out), opacity var(--v6-dur-fast) var(--v6-ease-out);
+}
+@media (hover: hover) { html .pl-ico:hover { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); } }
+html .pl-ico:active { background: rgb(var(--v6-cream-rgb) / 0.16); }
+html .pl-ico:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); opacity: 1; }
+html .pl-ico-add { width: 44px; color: var(--v6-bolt); }
+/* the add form takes the tools row's place */
+html .pl-social > .pl-social-add.pl-social-tools { width: auto; }
+html .pl-social > .pl-social-add input { min-height: 40px; height: 40px; font-size: 16px; text-transform: none; letter-spacing: 0.01em; }
+html .pl-social > .pl-social-add .pl-btn { min-height: 40px; }
+html .pl-social-mycode {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 6px; padding: 6px 6px 6px 12px;
+  border-radius: var(--v6-r-s); background: rgb(var(--v6-bolt-rgb) / 0.08); box-shadow: inset 0 0 0 1px rgb(var(--v6-bolt-rgb) / 0.25);
+}
+html .pl-social-mycode small { display: block; margin-bottom: 2px; color: var(--v6-muted); font-size: 13px; }
+html .pl-social-mycode strong { color: var(--v6-bolt); font: 800 16px/1.1 var(--font); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+html .pl-social-mycode .pl-btn, html .pl-social-none .pl-btn, html .pl-social-live .pl-btn { display: inline-flex; align-items: center; gap: 6px; }
+html .pl-social-hint { margin: 6px 4px 8px; color: var(--v6-muted); font-size: 13px; line-height: 1.35; }
+html .pl-social-suggest { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+
+/* ── the list: the sheet's one scroll region ───────────────────────────────────────────────────────────────────── */
+html .pl-social .pl-social-body {
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; gap: 2px; padding: 2px 2px 8px 0;
+  scrollbar-width: thin; scrollbar-color: var(--v6-line-strong) transparent;
+}
+
+/* the invite card (share/invite.ts): a title, one short line, the code chip and Share; folds to one line */
+html .pl-social .pl-invite-row {
+  flex: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-height: 0; margin: 0 0 6px; padding: 10px 6px 6px 12px; border-radius: var(--v6-r-s);
+  background: linear-gradient(135deg, rgb(var(--v6-rose-rgb) / 0.16), rgb(var(--v6-sky-rgb) / 0.1)); box-shadow: inset 0 0 0 1px var(--v6-line);
+}
+html .pl-social .pl-invite-row.is-folded { display: flex; align-items: center; gap: 8px; padding: 0 0 0 12px; min-height: 44px; }
+html .pl-inv-top { display: flex; align-items: flex-start; gap: 10px; }
+html .pl-inv-ic { flex: none; display: grid; place-items: center; width: 22px; height: 22px; color: var(--v6-bolt); }
+html .pl-inv-txt { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+html .pl-social .pl-invite-row .pl-social-name { font: 800 15px/1.25 var(--font); white-space: normal; overflow: visible; }
+html .pl-social .pl-invite-row.is-folded .pl-social-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html .pl-inv-sub { color: var(--v6-muted); font-size: 13px; line-height: 1.3; }
+html .pl-inv-fold { margin: -10px 0 -10px 0; }
+html .pl-inv-fold .pl-i { transform: rotate(180deg); transition: transform var(--v6-dur-fast) var(--v6-ease-out); }
+html .pl-inv-fold[aria-expanded='false'] .pl-i { transform: none; }
+html .pl-inv-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+html .pl-inv-code {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px; border: 1px dashed rgb(var(--v6-bolt-rgb) / 0.6);
+  border-radius: var(--v6-r-s); background: var(--v6-night-0); color: var(--v6-muted); font: inherit; cursor: pointer;
+}
+html .pl-inv-code small { color: var(--v6-muted); font: 700 13px/1 var(--font); }
+html .pl-inv-code b { color: var(--v6-bolt); font: 800 15px/1 var(--font); letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+@media (hover: hover) { html .pl-inv-code:hover { border-style: solid; color: var(--v6-cream); } }
+html .pl-inv-code:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+html .pl-social .pl-inv-share { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; }
+html .pl-inv-have {
+  justify-self: start; min-height: 32px; margin: -4px 0 0; padding: 0; border: 0; background: none; color: var(--v6-muted);
+  font: 600 13px/1.2 var(--font); text-decoration: underline; text-decoration-color: rgb(var(--v6-bolt-rgb) / 0.6); text-underline-offset: 3px; cursor: pointer;
+}
+@media (hover: hover) { html .pl-inv-have:hover { color: var(--v6-cream); } }
+html .pl-social .pl-invite-form { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 4px; background: rgb(var(--v6-bolt-rgb) / 0.08); box-shadow: none; }
+html .pl-social .pl-invite-form input { min-height: 40px; font-size: 16px; }
+
+/* the featured live match strip */
+html .pl-social .pl-social-live {
+  flex: none; display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 0 0 6px; padding: 0 2px 0 12px;
+  border-radius: var(--v6-r-s); background: rgb(255 79 88 / 0.1); box-shadow: inset 3px 0 0 var(--v6-enemy);
+}
+html .pl-live-txt { flex: 1 1 auto; min-width: 0; font: 700 14px/1.2 var(--font); }
+html .pl-social .pl-social-live .pl-btn { min-height: 36px; padding: 0 12px; }
+
+/* groups: a sticky header with a chevron and a count */
+html .pl-group { display: grid; grid-template-columns: minmax(0, 1fr); }
+html .pl-group-h {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 6px; width: 100%; min-height: 40px; padding: 0 8px 0 4px;
+  border: 0; border-radius: var(--v6-r-xs); background: var(--v6-night-2); color: var(--v6-muted); font: 800 13px/1 var(--font);
+  letter-spacing: 0.06em; text-transform: uppercase; text-align: left; cursor: pointer;
+}
+html .pl-group-h .pl-i { flex: none; transition: transform var(--v6-dur-fast) var(--v6-ease-out); }
+html .pl-group-h[aria-expanded='false'] .pl-i { transform: rotate(-90deg); }
+@media (hover: hover) { html .pl-group-h:hover { color: var(--v6-cream); } }
+html .pl-group-h:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+html .pl-group-n {
+  margin-left: auto; min-width: 24px; padding: 3px 7px; box-sizing: border-box; border-radius: 10px; background: rgb(var(--v6-cream-rgb) / 0.08);
+  color: var(--v6-cream); letter-spacing: 0; text-align: center; font-variant-numeric: tabular-nums;
+}
+html .pl-group[data-g='requests'] .pl-group-n { background: var(--v6-rose); color: #fff; }
+html .pl-group[data-g='online'] .pl-group-n { color: var(--v6-success); }
+html .pl-group-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 2px 0 6px; }
+
+/* ── rows ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
+html .pl-social .pl-fr, html .pl-social .pl-rq, html .pl-social .pl-rc { position: relative; gap: 4px; min-height: var(--soc-row); padding: 0 2px 0 0; border-radius: var(--v6-r-s); }
+html .pl-social .pl-rq, html .pl-social .pl-rc { gap: 10px; padding-left: 6px; }
+html .pl-social .pl-fr.is-open, html .pl-social .pl-fr:focus-within { background: rgb(var(--v6-cream-rgb) / 0.06); }
+html .pl-fr-main {
+  flex: 1 1 auto; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 6px; border: 0;
+  border-radius: var(--v6-r-s); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation;
+}
+html .pl-fr-main:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+html .pl-fr-av { position: relative; flex: none; display: grid; place-items: center; width: var(--soc-av); height: var(--soc-av); border-radius: 50%; box-shadow: 0 0 0 2px var(--ring, transparent); }
+html .pl-social .pl-fr-av .pl-av { --av: var(--soc-av) !important; }
+html .pl-fr-av[data-state='online'] { --ring: var(--v6-success); }
+html .pl-fr-av[data-state='party'], html .pl-fr-av[data-state='queue'] { --ring: var(--v6-bolt); }
+html .pl-fr-av[data-state='match'] { --ring: var(--v6-rose); }
+html .pl-fr-av[data-state='offline'] .pl-av { filter: grayscale(0.85) brightness(0.72); }
+/* the presence dot: colour plus shape (online round, lobby/queue a hollow ring, in match a square, offline faint) */
+html .pl-social .pl-fr-av .pl-dot { position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px; box-shadow: 0 0 0 2.5px var(--v6-night-2); }
+html .pl-social .pl-fr-av .pl-dot[data-state='queue'] { background: var(--v6-night-2); box-shadow: inset 0 0 0 3px var(--v6-bolt), 0 0 0 2.5px var(--v6-night-2); }
+html .pl-social .pl-fr-av .pl-dot[data-state='match'] { border-radius: 3px; }
+html .pl-social .pl-fr-av .pl-dot[data-state='offline'] { background: var(--v6-night-3); box-shadow: inset 0 0 0 2px var(--v6-faint), 0 0 0 2.5px var(--v6-night-2); }
+html .pl-social .pl-social-who { gap: 3px; }
+html .pl-social .pl-social-nm { gap: 6px; min-width: 0; }
+html .pl-social .pl-social-nm .pl-social-name { flex: 0 1 auto; font: 700 var(--soc-name)/1.2 var(--font); color: var(--v6-cream); }
+html .pl-social .pl-social-nm .pl-cc { margin: 0; font-size: 14px; }
+html .pl-social .pl-fr[data-state='offline'] .pl-social-name { color: rgb(var(--v6-cream-rgb) / 0.78); }
+html .pl-social-line { display: flex; min-width: 0; font: 600 var(--soc-st)/1.25 var(--font); color: var(--v6-muted); white-space: nowrap; overflow: hidden; }
+html .pl-social .pl-social-line .pl-social-st { flex: none; font-size: inherit; color: inherit; }
+html .pl-social .pl-social-st[data-state='online'] { color: var(--v6-success); }
+html .pl-social .pl-social-st[data-state='party'], html .pl-social .pl-social-st[data-state='queue'] { color: var(--v6-bolt); }
+html .pl-social .pl-social-st[data-state='match'] { color: #ff9cc0; }
+html .pl-social .pl-social-line .pl-social-preview { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--v6-rose-light); font-weight: 700; }
+html .pl-social .pl-social-line .pl-social-preview::before { content: ' · '; color: var(--v6-muted); white-space: pre; }
+html .pl-rc[data-team='ally'] .pl-team { color: #8cc4ff; }
+html .pl-rc[data-team='enemy'] .pl-team { color: #ff9aa0; }
+
+/* quick actions: small icon buttons (no boxes); the one primary action is a bolt pill */
+html .pl-fr-acts { flex: none; display: flex; align-items: center; gap: 2px; }
+html .pl-rc .pl-fr-acts { min-width: 40px; justify-content: flex-end; }
+html .pl-fr-join {
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 6px; height: 36px; margin: 0 4px; padding: 0 12px 0 10px; border: 0;
+  border-radius: 18px; background: var(--v6-bolt); color: var(--v6-night); font: 800 14px/1 var(--font); cursor: pointer; touch-action: manipulation;
+  transition: background-color var(--v6-dur-fast) var(--v6-ease-out), transform var(--v6-dur-press) var(--v6-ease-out);
+}
+/* a 44 px touch target around the 36 px pill */
+html .pl-fr-join::after { content: ''; position: absolute; inset: -4px -2px; }
+@media (hover: hover) { html .pl-fr-join:hover { background: var(--v6-bolt-top); } }
+html .pl-fr-join:active { transform: scale(0.96); }
+html .pl-fr-join:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--v6-cream); }
+html .pl-social .pl-chat-btn.is-unread { color: var(--v6-rose-light); }
+html .pl-social .pl-chat-btn .pl-chat-unread { top: 3px; right: 0; }
+/* a mouse: the icon actions show on hover and keyboard focus (their space stays reserved: nothing shifts) */
+@media (hover: hover) and (pointer: fine) {
+  html .pl-fr .pl-fr-acts .pl-ico:not(.is-unread) { opacity: 0; }
+  html .pl-fr:hover .pl-fr-acts .pl-ico, html .pl-fr:focus-within .pl-fr-acts .pl-ico, html .pl-fr.is-open .pl-fr-acts .pl-ico { opacity: 1; }
+  html .pl-social .pl-fr:hover { background: rgb(var(--v6-cream-rgb) / 0.06); }
+}
+/* touch: only the action that matters (Join, Invite or Watch; Chat when unread); the rest is in the row menu */
+@media (hover: none), (pointer: coarse) {
+  html .pl-fr .pl-chat-btn:not(.is-unread) { display: none; }
+  html .pl-fr-acts .pl-ico { color: var(--v6-cream); }
+}
+
+/* a friend's menu: under the row, in the list's flow */
+html .pl-fr-menu {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 2px 0 8px 8px; padding: 6px; border-radius: var(--v6-r-s); background: var(--v6-night-0);
+  box-shadow: inset 0 0 0 1px var(--v6-line-strong), var(--v6-shadow-2); animation: pl-soc-pop var(--v6-dur-fast) var(--v6-ease-out) both;
+}
+html .pl-fr-menu-name { margin: 4px 8px 2px; font: 800 15px/1.3 var(--font); color: var(--v6-cream); overflow-wrap: anywhere; }
+html .pl-fr-menu-acts, html .pl-fr-menu-danger { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 2px; }
+html .pl-fr-menu-danger { padding-top: 4px; border-top: 1px solid var(--v6-line); }
+
+/* the status note: in the flow under the list (it never covers a row) */
+html .pl-social .pl-social-note {
+  position: static; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; min-height: 40px;
+  box-sizing: border-box; font-size: 14px; line-height: 1.3;
+}
+html .pl-social .pl-social-undo {
+  flex: none; min-height: 36px; padding: 0 12px; border: 0; border-radius: var(--v6-r-xs); background: var(--v6-bolt); color: var(--v6-night);
+  font: 800 14px/1 var(--font); cursor: pointer;
+}
+
+/* empty states */
+html .pl-social .pl-social-none { justify-items: start; gap: 8px; margin: 8px 4px; }
+html .pl-social .pl-social-none p { font: 700 15px/1.3 var(--font); }
+html .pl-social .pl-social-none small { color: var(--v6-muted); font-size: 14px; line-height: 1.4; }
+
+/* Leaderboards (under More): rows scroll; names keep their room */
+html .pl-social .pl-social-sub { flex: none; margin-bottom: 4px; }
+html .pl-social .pl-bd { gap: 10px; min-height: 48px; padding: 0 8px; }
+html .pl-social .pl-bd .pl-social-nm { flex: 1 1 auto; min-width: 0; }
+html .pl-social .pl-bd .pl-social-st { font-size: 13px; }
+
+/* the old hide ladder hid status lines on short screens: they stay now (the list scrolls) */
+@media (max-height: 300px) { html .pl-social .pl-social-st { display: inline; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html .pl-social-moremenu, html .pl-fr-menu { animation: none; }
+  html .pl-ico, html .pl-fr-join, html .pl-group-h .pl-i, html .pl-social-more .pl-i, html .pl-inv-fold .pl-i { transition: none; }
+}

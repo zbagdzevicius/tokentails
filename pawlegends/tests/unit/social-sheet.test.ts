@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
 /**
- * The Social sheet (SOCIAL-RANKED.md §14.2–§14.4): the hide ladder, paging instead of scrolling, the row action rules,
- * names through textContent only, guests see the sign-in panel, and add-by-code calls friend.add.
+ * The Social sheet (SOCIAL-RANKED.md §14.2–§14.4, Nov 18 redesign): grouped friends that fold (no pages), the header
+ * tabs and More, search, the row menu, the row action rules, names through textContent only, guests see the sign-in
+ * panel, and add-by-code calls friend.add.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResult } from '../../src/embed/api';
-import { INVITE_PARTY_RETRY_MS, looksLikeCode, pageOf, rowAction, rowsForHeight, SocialSheet } from '../../src/social/socialSheet';
+import { groupFolded, INVITE_PARTY_RETRY_MS, looksLikeCode, pageOf, rowAction, rowsForHeight, SocialSheet } from '../../src/social/socialSheet';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -49,7 +50,7 @@ function sheet(opts: { signedIn?: boolean; friends?: number; height?: number; pa
 }
 
 describe('social sheet', () => {
-  it('hide ladder and paging', () => {
+  it('hide ladder and paging (the Clubs panel still pages)', () => {
     expect([400, 375, 340, 320, 300, 280].map(rowsForHeight)).toEqual([5, 5, 4, 4, 3, 3]);
     expect(pageOf([1, 2, 3, 4, 5, 6, 7], 1, 5)).toEqual({ rows: [6, 7], page: 1, pages: 2 });
     expect(pageOf([], 3, 5)).toEqual({ rows: [], page: 0, pages: 1 });
@@ -71,26 +72,118 @@ describe('social sheet', () => {
     expect(rowAction({ state: 'online' }, false)).toBe('invite');
   });
 
-  it('pages friends, sets names as text, and joins in one tap', async () => {
+  it('lists every friend in groups (no pages), sets names as text, and joins in one tap', async () => {
     const t = sheet({ friends: 7 });
     await flush();
-    const rows = document.querySelectorAll('.pl-social-row');
-    expect(rows).toHaveLength(5);
+    // 7 friends and Mira's request: one row each, no pager anywhere
+    expect(document.querySelectorAll('.pl-fr')).toHaveLength(7);
+    expect(document.querySelectorAll('.pl-rq')).toHaveLength(1);
+    expect(document.querySelector('.pl-pager')).toBeNull();
     // names never become markup: the only pictures are painted hero faces (ui/art.ts)
     expect(document.querySelector('img:not([src*="/assets/faces/"])')).toBeNull();
-    // CHAT-AVATARS §6.1: a joinable party first (Friend 1), then offline A–Z; names stay text
-    expect(rows[0].querySelector('.pl-social-name')!.textContent).toBe('Friend 1');
+    // groups with counts: requests first, then online (Friend 1 in a joinable lobby), then offline A–Z
+    expect([...document.querySelectorAll('.pl-group')].map((g) => (g as HTMLElement).dataset.g)).toEqual(['requests', 'online', 'offline']);
+    expect([...document.querySelectorAll('.pl-group-n')].map((n) => n.textContent)).toEqual(['1', '1', '6']);
+    const first = document.querySelector('.pl-fr')!;
+    expect(first.querySelector('.pl-social-name')!.textContent).toBe('Friend 1');
+    expect(first.querySelector('.pl-social-st')!.textContent).toBe('In lobby · open');
+    // the full name is the tooltip (an ellipsis never hides it for good)
+    expect((first.querySelector('.pl-social-name') as HTMLElement).title).toBe('Friend 1');
     expect([...document.querySelectorAll('.pl-social-name')].map((n) => n.textContent)).toContain('<img src=x onerror=alert(1)>');
-    expect(document.querySelector('.pl-pager small')!.textContent).toBe('1/2');
+    // the Friends tab has one badge: 1 request
+    expect(document.querySelector('[data-testid="social-unread"]')!.textContent).toBe('1');
     document.querySelector<HTMLElement>('[data-a="join"]')!.click();
     expect(t.joinParty).toHaveBeenCalledWith('WXYZ');
     expect(t.s.closed).toBe(true);
   });
 
-  it('at 300 px tall, 3 rows a page', async () => {
-    sheet({ friends: 7, height: 300 });
+  it('header: three tabs plus More (Ranked, Leaderboards) and Close outside the tablist', async () => {
+    sheet();
     await flush();
-    expect(document.querySelectorAll('.pl-social-row')).toHaveLength(3);
+    expect([...document.querySelectorAll('[role="tab"]')].map((b) => b.textContent!.replace(/\d+$/, ''))).toEqual(['Friends', 'Recent', 'Clubs']);
+    expect(document.querySelector('[role="tablist"] [data-a="close"]')).toBeNull();
+    const more = document.querySelector<HTMLElement>('[data-a="tabs-more"]')!;
+    expect(document.querySelector<HTMLElement>('.pl-social-moremenu')!.hidden).toBe(true);
+    more.click();
+    expect(document.querySelector<HTMLElement>('.pl-social-moremenu')!.hidden).toBe(false);
+    document.querySelector<HTMLElement>('.pl-social-moremenu [data-tab="boards"]')!.click();
+    await flush();
+    expect(document.querySelector('.pl-social-more')!.classList.contains('is-current')).toBe(true);
+    expect(document.querySelector('[role="tab"][aria-selected="true"]')).toBeNull();
+  });
+
+  it('groups fold and unfold; Offline starts folded when friends are online and more than 6 are offline', async () => {
+    expect(groupFolded('offline', undefined, { on: 1, off: 7 })).toBe(true);
+    expect(groupFolded('offline', undefined, { on: 0, off: 30 })).toBe(false);
+    expect(groupFolded('offline', false, { on: 1, off: 7 })).toBe(false);
+    expect(groupFolded('sent', undefined, { on: 0, off: 0 })).toBe(true);
+    localStorage.removeItem('pl.social.groups.v1');
+    sheet({ friends: 9 });
+    await flush();
+    const offline = () => document.querySelector<HTMLElement>('[data-group="offline"]')!;
+    expect(offline().getAttribute('aria-expanded')).toBe('false');
+    expect(document.querySelectorAll('.pl-fr')).toHaveLength(1);
+    offline().click();
+    expect(offline().getAttribute('aria-expanded')).toBe('true');
+    expect(document.querySelectorAll('.pl-fr')).toHaveLength(9);
+    expect(JSON.parse(localStorage.getItem('pl.social.groups.v1')!)).toEqual({ offline: false });
+    localStorage.removeItem('pl.social.groups.v1');
+  });
+
+  it('search filters the groups as you type and keeps the field focused', async () => {
+    sheet({ friends: 7 });
+    await flush();
+    const q = document.querySelector<HTMLInputElement>('input[name="q"]')!;
+    q.focus();
+    q.value = 'friend 3';
+    q.dispatchEvent(new Event('input', { bubbles: true }));
+    expect([...document.querySelectorAll('.pl-fr .pl-social-name')].map((n) => n.textContent)).toEqual(['Friend 3']);
+    expect(document.activeElement).toBe(q);
+    q.value = 'zzz';
+    q.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(document.querySelector('[data-testid="social-search-none"]')).toBeTruthy();
+    // Esc clears the search first, then closes the sheet
+    q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.querySelectorAll('.pl-fr')).toHaveLength(7);
+  });
+
+  it('a row opens its menu (tap, right-click); Remove takes two taps; Esc closes the menu then the sheet', async () => {
+    const t = sheet({ friends: 3 });
+    await flush();
+    const main = document.querySelector<HTMLElement>('.pl-fr-main[data-code="PL-AAAA-AAA2"]')!;
+    main.click();
+    const menu = () => document.querySelector<HTMLElement>('.pl-fr-menu');
+    expect(menu()).toBeTruthy();
+    expect(menu()!.querySelector('.pl-fr-menu-name')!.textContent).toBe('Friend 2');
+    expect([...menu()!.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent)).toEqual(['Message', 'Remove friend', 'Block']);
+    menu()!.querySelector<HTMLElement>('[data-a="remove"]')!.click();
+    expect(t.calls.some((c) => c.op === 'friend.remove')).toBe(false);
+    expect(menu()!.querySelector('[data-a="remove"]')!.textContent).toBe('Tap again to remove');
+    menu()!.querySelector<HTMLElement>('[data-a="remove"]')!.click();
+    await flush();
+    expect(t.calls.find((c) => c.op === 'friend.remove')?.args).toEqual({ code: 'PL-AAAA-AAA2' });
+    document.querySelector('.pl-fr')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    expect(menu()).toBeTruthy();
+    document.querySelector('.pl-social')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(menu()).toBeNull();
+    expect(t.s.closed).toBe(false);
+    document.querySelector('.pl-social')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(t.s.closed).toBe(true);
+  });
+
+  it('a friend with unread messages keeps the presence line and adds the preview after it', async () => {
+    const api = vi.fn(async (op: string): Promise<ApiResult> => {
+      if (op === 'social.get') return { id: 'x', ok: true, status: 200, body: { ...state(2), requests: { in: [], out: [] }, chat: { unread: 2 } } };
+      if (op === 'chat.list') return { id: 'x', ok: true, status: 200, body: { threads: [{ id: 't', with: { code: 'PL-AAAA-AAA1', name: 'Friend 1' }, tier: 'text', lastPreview: 'gg! one more?', lastMine: false, unread: 2, muted: false }] } };
+      return { id: 'x', ok: true, status: 200, body: {} };
+    });
+    new SocialSheet(document.body, { api: api as never, signedIn: () => true, partyCode: () => null, joinParty: vi.fn(), signIn: vi.fn(), playCasual: vi.fn(), height: () => 375 });
+    await flush();
+    const row = document.querySelector('.pl-fr[data-code="PL-AAAA-AAA1"]')!;
+    expect(row.querySelector('.pl-social-st')!.textContent).toBe('In lobby · open');
+    expect(row.querySelector('.pl-social-preview')!.textContent).toBe('gg! one more?');
+    expect(row.querySelector('[data-testid="chat-unread"]')!.textContent).toBe('2');
+    expect(document.querySelector('[data-testid="social-unread"]')!.textContent).toBe('2');
   });
 
   it('guests see the sign-in panel and no social call is made', async () => {
@@ -104,6 +197,8 @@ describe('social sheet', () => {
     const t = sheet();
     await flush();
     document.querySelector<HTMLElement>('[data-a="add"]')!.click();
+    // the add form shows my own friend code to share
+    expect(document.querySelector('.pl-social-mycode strong')!.textContent).toBe('PL-7KQ2-M9XR');
     const input = document.querySelector<HTMLInputElement>('input[name="code"]')!;
     input.value = 'pl-7kq2-m9xr';
     document.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -124,6 +219,7 @@ describe('social sheet pulse', () => {
     });
     const s = new SocialSheet(document.body, { api: api as never, signedIn: () => true, partyCode: () => null, joinParty: vi.fn(), signIn: vi.fn(), playCasual: vi.fn(), height: () => 375 });
     await flush();
+    document.querySelector<HTMLElement>('[data-a="tabs-more"]')!.click();
     document.querySelector<HTMLElement>('[data-tab="ranked"]')!.click();
     await flush();
     calls.length = 0;
@@ -139,6 +235,7 @@ describe('social sheet pulse', () => {
     try {
       const t = sheet();
       await flush();
+      document.querySelector<HTMLElement>('[data-a="add"]')!.click();
       document.querySelector<HTMLElement>('[data-a="copy"]')!.click();
       expect(document.querySelector('.pl-social-note')).toBeTruthy();
       vi.advanceTimersByTime(3100);

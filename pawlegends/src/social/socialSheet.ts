@@ -1,12 +1,24 @@
 /**
- * The Social sheet (docs/plans/moba/SOCIAL-RANKED.md §14.2–§14.4): Friends, Requests, Recent, Ranked and Boards in one
- * right-side sheet over the lobby's 3D half. Phone first and no-scroll: pages of rows (`< 1/3 >`) instead of a scroll,
- * a hide ladder by height, 44 px targets, no confirm dialogs (Block has a 5 s Undo). Names are always set with
- * `textContent`. Every call goes through the host (`api-request`); the game never sees a token, an account id or a URL.
- * Polling: one pulse every 30 s while the sheet or the title is shown and the tab is visible; never in a match.
+ * The Social sheet (docs/plans/moba/SOCIAL-RANKED.md §14.2–§14.4, social sidebar redesign Nov 18): a right-side panel
+ * over the lobby's 3D half, built like a game client's friends list (League of Legends' social panel is the bar).
+ *
+ * - One header: three tabs (Friends with one badge for unread DMs and requests, Recent, Clubs), a More menu for Ranked
+ *   and Leaderboards (not friend-list content), and Close. Arrow keys move between tabs; Esc closes the top layer.
+ * - Friends: search your friends and Add (a name or a friend code, with nickname suggestions), the invite card (folds
+ *   to one line), then collapsible groups with counts: Requests, Online, In match, Offline, Sent. The list scrolls (one
+ *   scroll region) instead of the old 3-to-5-row pages.
+ * - A friend row: avatar with a presence ring and dot, the full name (ellipsis only when it cannot fit; the title and
+ *   the row menu show it whole), the flag, and a status line that never disappears (an unread message is added after
+ *   it). Quick actions are small icon buttons: with a mouse they show on hover and keyboard focus; on touch only the one
+ *   that matters shows (Join, Invite or Watch; Chat when unread). Tapping the row, right-click or a long press opens
+ *   its menu: Message, Match history, Remove (tap twice) and Block (5 s Undo).
+ *
+ * Names are always set with `textContent`. Every call goes through the host (`api-request`); the game never sees a
+ * token, an account id or a URL. Polling: one pulse every 30 s while the sheet or the title is shown and the tab is
+ * visible; never in a match.
  */
 import { rememberAgeBand } from './ageBand';
-import { ccHtml, myFlag } from './flags';
+import { ccHtmlOrNone } from './flags';
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import { parseRankedStatus, primeTimeText, rankedLabel, rankedLiveText } from '../meta/ranked';
 import { HERO_IDS } from '../data/heroes';
@@ -16,16 +28,21 @@ import { ChatSheet } from './chatSheet';
 import { InviteRow } from '../share/invite';
 import { ClubsPanel } from './clubs/clubsPanel';
 import { buildSim } from './inviteInbox';
+import { icon } from './socialIcons';
+import './socialSheet.css';
 
 export type SocialTab = 'friends' | 'requests' | 'recent' | 'clubs' | 'ranked' | 'boards';
 export const SOCIAL_TABS: readonly SocialTab[] = Object.freeze(['friends', 'requests', 'recent', 'clubs', 'ranked', 'boards']);
+/** The tabs in the header; Requests is a group at the top of Friends (LoL style), Ranked and Boards sit under More. */
+export const MAIN_TABS = Object.freeze(['friends', 'recent', 'clubs'] as const);
+export const MORE_TABS = Object.freeze(['ranked', 'boards'] as const);
 const TAB_LABEL: Readonly<Record<SocialTab, string>> = Object.freeze({
   friends: 'Friends',
   requests: 'Requests',
   recent: 'Recent',
   clubs: 'Clubs',
   ranked: 'Ranked',
-  boards: 'Boards',
+  boards: 'Leaderboards',
 });
 
 export interface Presence {
@@ -69,7 +86,7 @@ export interface SocialState {
   rev: string;
   /** CHAT-AVATARS §4: unread DMs (the Friends tab and the landing badge). */
   chat?: { unread: number; top?: { thread: string; fromName: string; preview: string } };
-  /** SPECTATE.md: a featured live match can be watched now (the Friends tab's "Watch live" row). */
+  /** SPECTATE.md: a featured live match can be watched now (the Friends tab's "Watch live" strip). */
   live?: { featured?: boolean };
 }
 
@@ -93,7 +110,29 @@ export function friendOrder(list: readonly FriendRow[]): FriendRow[] {
   return [...list].sort((a, b) => rank(a.presence) - rank(b.presence) || a.name.localeCompare(b.name));
 }
 
-/** Rows a page shows at a viewport height (§14.2 hide ladder). Pure. */
+/** The friend groups (LoL style): Online (online, in a lobby or a queue), In match, Offline; each in friendOrder. Pure. */
+export type FriendGroupId = 'requests' | 'online' | 'match' | 'offline' | 'sent';
+export function friendGroups(list: readonly FriendRow[]): { id: 'online' | 'match' | 'offline'; rows: FriendRow[] }[] {
+  const sorted = friendOrder(list);
+  return [
+    { id: 'online' as const, rows: sorted.filter((f) => f.presence.state === 'online' || f.presence.state === 'party' || f.presence.state === 'queue') },
+    { id: 'match' as const, rows: sorted.filter((f) => f.presence.state === 'match') },
+    { id: 'offline' as const, rows: sorted.filter((f) => f.presence.state === 'offline') },
+  ];
+}
+
+/**
+ * Is a group folded? The player's own choice wins; by default Sent is folded, and Offline folds once friends are
+ * online and more than 6 are offline (the people you can play with stay on the first screen). Pure.
+ */
+export function groupFolded(id: FriendGroupId, choice: boolean | undefined, counts: { on: number; off: number }): boolean {
+  if (typeof choice === 'boolean') return choice;
+  if (id === 'sent') return true;
+  if (id === 'offline') return counts.on > 0 && counts.off > 6;
+  return false;
+}
+
+/** Rows a page shows at a viewport height (§14.2 hide ladder; the Clubs panel still pages by it). Pure. */
 export function rowsForHeight(h: number): number {
   if (h <= 300) return 3;
   if (h <= 340) return 4;
@@ -116,18 +155,39 @@ export const PRESENCE_TEXT: Readonly<Record<Presence['state'], string>> = Object
   match: 'In match',
 });
 
+const ROOM = /^[a-z0-9]{12}$/;
+
+/** The status line: the presence word plus what you can do about it ("In lobby · open", "In match · can watch"). Pure. */
+export function presenceText(p: Presence): string {
+  if (p.state === 'party' && p.joinable && p.party) return 'In lobby · open';
+  if (p.state === 'match' && p.room && ROOM.test(p.room)) return 'In match · can watch';
+  return PRESENCE_TEXT[p.state];
+}
+
 /**
  * The friend row's one action (§14.2, SOCIAL-INVITES.md): in a party, Invite any friend not already in it (LoL style;
  * an offline friend gets the invite as a notification and the inviter is told they are offline); out of one, Join a friend's joinable party, Watch a friend's live match (SPECTATE.md, when the
  * friend lets friends watch), Invite an online friend (the party opens through PLAY first: the one play path), else the
- * "…" menu. `myParty`: this player's party code, or null. Pure.
+ * row menu only. `myParty`: this player's party code, or null. Pure.
  */
 export function rowAction(p: Presence, inParty: boolean, myParty: string | null = null): 'join' | 'watch' | 'invite' | 'more' {
   const online = p.state === 'online' || p.state === 'party' || p.state === 'queue';
   if (inParty) return p.state !== 'match' && !(myParty && p.party === myParty) ? 'invite' : 'more';
   if (p.state === 'party' && p.joinable && p.party) return 'join';
-  if (p.state === 'match' && p.room && /^[a-z0-9]{12}$/.test(p.room)) return 'watch';
+  if (p.state === 'match' && p.room && ROOM.test(p.room)) return 'watch';
   return online ? 'invite' : 'more';
+}
+
+/** A typed friend code (`PL-7KQ2-M9XR`, any case, with or without dashes); anything else is a nickname. */
+export const looksLikeCode = (v: string): boolean => /^\s*(pl[-\s]?)?[0-9a-z]{4}[-\s]?[0-9a-z]{4}\s*$/i.test(v);
+
+/** One nickname suggestion (`social.search`): never a code or an account id. */
+export interface Suggestion {
+  name: string;
+  av?: AvatarView;
+  cc?: string;
+  /** Already a friend, a request sent, or one they sent. */
+  rel?: 'friend' | 'sent' | 'asked';
 }
 
 export interface SocialSheetDeps {
@@ -146,7 +206,7 @@ export interface SocialSheetDeps {
   playCasual(): void;
   /** Analytics (no names, codes or ids in props). */
   track?(event: string, props?: Record<string, string | number | boolean>): void;
-  /** The viewport height (the hide ladder); default window.innerHeight. */
+  /** The viewport height (the Clubs panel's hide ladder); default window.innerHeight. */
   height?(): number;
   /** Owned store and pass items (frames and titles the avatar picker offers). */
   ownedItems?(): readonly string[];
@@ -154,7 +214,7 @@ export interface SocialSheetDeps {
   inMatch?(): boolean;
   /** The unread DM count changed (the landing badge). */
   onUnread?(n: number): void;
-  /** MATCH-HISTORY.md: open a friend's match history (their row's name, or History in the row menu). */
+  /** MATCH-HISTORY.md: open a friend's match history (Match history in the row menu). */
   history?(friend: { code: string; name: string }): void;
   /**
    * SOCIAL-INVITES.md: Invite on a friend's row while not in a party. The app opens PLAY's Mode Select on With Friends
@@ -163,18 +223,6 @@ export interface SocialSheetDeps {
   inviteFriend?(friend: { code: string; name: string }): void;
   /** An invite went out (its id and how long it lives): the app tells the inviter when it expires unanswered. */
   onInviteSent?(invite: { id: string; name: string; ttl: number }): void;
-}
-
-/** A typed friend code (`PL-7KQ2-M9XR`, any case, with or without dashes); anything else is a nickname. */
-export const looksLikeCode = (v: string): boolean => /^\s*(pl[-\s]?)?[0-9a-z]{4}[-\s]?[0-9a-z]{4}\s*$/i.test(v);
-
-/** One nickname suggestion (`social.search`): never a code or an account id. */
-export interface Suggestion {
-  name: string;
-  av?: AvatarView;
-  cc?: string;
-  /** Already a friend, a request sent, or one they sent. */
-  rel?: 'friend' | 'sent' | 'asked';
 }
 
 const errorText = (r: ApiResult): string => {
@@ -196,10 +244,31 @@ const errorText = (r: ApiResult): string => {
 export const INVITE_PARTY_RETRIES = 4;
 export const INVITE_PARTY_RETRY_MS = 2_000;
 
+/** The folded groups, remembered on this device only (a per-viewer convenience; storage can fail). */
+const FOLD_KEY = 'pl.social.groups.v1';
+function readFolds(): Partial<Record<FriendGroupId, boolean>> {
+  try {
+    const v = JSON.parse(localStorage.getItem(FOLD_KEY) ?? '{}') as unknown;
+    return v && typeof v === 'object' ? (v as Partial<Record<FriendGroupId, boolean>>) : {};
+  } catch {
+    return {};
+  }
+}
+
+const GROUP_LABEL: Readonly<Record<FriendGroupId, string>> = Object.freeze({
+  requests: 'Friend requests',
+  online: 'Online',
+  match: 'In match',
+  offline: 'Offline',
+  sent: 'Sent requests',
+});
+
+/** A CSS attribute value, quoted for a selector. */
+const attr = (v: string): string => `"${v.replace(/["\\]/g, '\\$&')}"`;
+
 export class SocialSheet {
   readonly root: HTMLElement;
   private tab: SocialTab = 'friends';
-  private page = 0;
   private state: SocialState | null = null;
   private recent: { room: string; slot: number; name: string; team: string; canAdd: boolean; av?: AvatarView }[] | null = null;
   private ranked: { status?: Record<string, any>; me?: Record<string, any> } = {};
@@ -209,6 +278,14 @@ export class SocialSheet {
   private addText = '';
   private suggest: { q: string; rows: Suggestion[] } | null = null;
   private suggestTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The friends search (filters the groups as you type; client side). */
+  private query = '';
+  /** The friend whose row menu is open, the More menu, and an armed Remove (tap twice). */
+  private menuFor: string | null = null;
+  private moreOpen = false;
+  private armed: string | null = null;
+  private armTimer: ReturnType<typeof setTimeout> | null = null;
+  private folds = readFolds();
   private note = '';
   private undo: { code: string; timer: ReturnType<typeof setTimeout> } | null = null;
   private pulseTimer: ReturnType<typeof setInterval> | null = null;
@@ -218,7 +295,7 @@ export class SocialSheet {
   private chat: ChatSheet | null = null;
   /** The avatar picker (Me): its page and the choice not saved yet. */
   private picking: { avatarKind: string; avatarRef: string; frame: string } | null = null;
-  /** Invite and comeback codes (share/invite.ts): the first row of the Friends tab. */
+  /** Invite and comeback codes (share/invite.ts): the card at the top of the Friends tab. */
   private readonly invite: InviteRow;
   /** CLUBS-KUDOS.md §6: the Clubs tab (its own module; the sheet only hosts it). */
   private readonly clubs = new ClubsPanel({
@@ -236,12 +313,22 @@ export class SocialSheet {
     private readonly deps: SocialSheetDeps,
     tab: SocialTab = 'friends',
   ) {
-    this.tab = tab;
+    // Requests is a group at the top of Friends now: opening on it unfolds that group
+    this.tab = tab === 'requests' ? 'friends' : tab;
+    if (tab === 'requests') this.folds.requests = false;
     this.root = parent.ownerDocument.createElement('aside');
     this.root.className = 'pl-social';
     this.root.setAttribute('role', 'dialog');
-    this.root.setAttribute('aria-label', 'Friends and ranked');
+    this.root.setAttribute('aria-label', 'Friends');
     this.root.addEventListener('click', (e) => this.onClick(e));
+    this.root.addEventListener('keydown', (e) => this.onKey(e));
+    // right-click, or a long press on touch, opens a friend's row menu
+    this.root.addEventListener('contextmenu', (e) => {
+      const row = (e.target as HTMLElement).closest?.<HTMLElement>('.pl-fr');
+      if (!row?.dataset.code) return;
+      e.preventDefault();
+      if (this.menuFor !== row.dataset.code) this.openMenu(row.dataset.code);
+    });
     this.root.addEventListener('submit', (e) => {
       e.preventDefault();
       const club = (e.target as HTMLElement).closest?.('.pl-club-join');
@@ -253,9 +340,16 @@ export class SocialSheet {
       if (form?.dataset?.form === 'invite') void this.invite.redeem(form.querySelector<HTMLInputElement>('input[name="invite"]')?.value ?? '');
       else void this.addByCode();
     });
-    // Add friend: nickname suggestions while typing (300 ms after the last key, 2 letters at least)
     this.root.addEventListener('input', (e) => {
       const input = e.target as HTMLInputElement | null;
+      if (input?.name === 'q') {
+        // the search repaints the list only: the field keeps its focus and caret
+        this.query = input.value;
+        this.menuFor = null;
+        this.paintBody();
+        return;
+      }
+      // Add friend: nickname suggestions while typing (300 ms after the last key, 2 letters at least)
       if (input?.name !== 'code') return;
       this.addText = input.value;
       if (this.suggestTimer) clearTimeout(this.suggestTimer);
@@ -270,21 +364,12 @@ export class SocialSheet {
       track: (event, props) => this.deps.track?.(event, props),
     });
     parent.appendChild(this.root);
-    this.deps.track?.('social_open', { tab });
+    this.deps.track?.('social_open', { tab: this.tab });
     this.render();
+    // the dialog's first focus: the selected tab (keyboard and screen reader users land inside the sheet)
+    this.root.querySelector<HTMLElement>('.pl-social-tab[aria-selected="true"], .pl-social-more')?.focus({ preventScroll: true });
     void this.load();
     this.pulseTimer = setInterval(() => void this.pulse(), 30_000);
-  }
-
-  /** Friend rows per page: one row fewer while the invite row shows, and one fewer for the "Watch live" row. */
-  private get friendsPer(): number {
-    return Math.max(1, this.per - (this.invite.state || this.invite.entering ? 1 : 0) - (this.liveRow() ? 1 : 0));
-  }
-
-  /** SPECTATE.md: the featured live match row (only when one is live and the host can open the viewer). */
-  private liveRow(): string {
-    if (!this.deps.watch || !this.state?.live?.featured || this.deps.partyCode()) return '';
-    return `<div class="pl-social-row pl-social-live" data-testid="social-watch-live"><i class="pl-live-dot" aria-hidden="true"></i><span class="pl-social-who"><b>A match is live</b><small class="pl-social-st">Watch the featured match</small></span><button type="button" class="pl-btn small" data-a="watch-live">Watch live</button></div>`;
   }
 
   private get per(): number {
@@ -348,7 +433,7 @@ export class SocialSheet {
     if (!r.ok || r.status === 204 || !r.body) return;
     // keep the rev current on every tab (the Ranked and Boards tabs never refetch `social.get`, so without this every
     // later pulse would answer "changed" again), and refetch only the lists that show friends' state. Never while the
-    // add-code field is open: a re-render would wipe what the player is typing.
+    // add field is open: a re-render would wipe what the player is typing.
     const rev = (r.body as { rev?: unknown }).rev;
     if (this.state && typeof rev === 'string') this.state.rev = rev;
     const chat = (r.body as { chat?: SocialState['chat'] }).chat;
@@ -366,39 +451,109 @@ export class SocialSheet {
   private noteTimer: ReturnType<typeof setTimeout> | null = null;
   private noteShown = '';
 
-  /** A status note fades after 3 s: it sits over the last row and its buttons. */
+  /** A status note fades after 3 s (5 s while Block's Undo shows). It sits under the list, never over a row. */
   private armNote(): void {
     if (!this.note || this.note === this.noteShown) return;
     this.noteShown = this.note;
     if (this.noteTimer) clearTimeout(this.noteTimer);
-    this.noteTimer = setTimeout(() => {
-      this.noteTimer = null;
-      this.note = '';
-      this.noteShown = '';
-      this.root.querySelector('.pl-social-note')?.remove();
-    }, 3000);
+    this.noteTimer = setTimeout(
+      () => {
+        this.noteTimer = null;
+        this.note = '';
+        this.noteShown = '';
+        if (!this.undo) this.root.querySelector('.pl-social-note')?.remove();
+      },
+      this.undo ? 5000 : 3000,
+    );
   }
 
   private esc(s: string): string {
     return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
   }
 
+  /** The tab the header shows as selected (Requests lives inside Friends). */
+  private get shownTab(): SocialTab {
+    return this.tab === 'requests' ? 'friends' : this.tab;
+  }
+
+  /** A selector for the focused control, so a re-render (a pulse) puts focus back where it was. */
+  private focusKey(): { sel: string; caret?: number } | null {
+    const a = this.root.ownerDocument.activeElement as HTMLElement | null;
+    if (!a || a === this.root || !this.root.contains(a)) return null;
+    if (a instanceof HTMLInputElement && a.name) return { sel: `input[name="${a.name}"]`, caret: a.selectionStart ?? a.value.length };
+    // `role` tells a menu item from the row button with the same action (the menu comes after the row)
+    const sel = ['data-a', 'data-tab', 'data-code', 'data-group', 'data-board', 'data-age', 'role']
+      .map((k) => {
+        const v = a.getAttribute(k);
+        return v === null ? '' : `[${k}=${attr(v)}]`;
+      })
+      .join('');
+    return sel ? { sel } : null;
+  }
+
   /** Markup with `data-name` holes; names are filled by textContent after. */
   render(): void {
     if (this.disposed) return;
-    const tabs = SOCIAL_TABS.map((t) => {
-      const unread = this.state?.chat?.unread ?? 0;
-      const badge =
-        t === 'requests' && this.state?.requests.in.length
-          ? ` <i class="pl-social-badge">${this.state.requests.in.length}</i>`
-          : t === 'friends' && unread
-            ? ` <i class="pl-social-badge" data-testid="social-unread">${Math.min(99, unread)}</i>`
-            : '';
-      return `<button type="button" role="tab" class="pl-social-tab" data-tab="${t}" aria-selected="${t === this.tab}">${TAB_LABEL[t]}${badge}</button>`;
-    }).join('');
-    this.root.innerHTML = `<header class="pl-social-head" role="tablist">${tabs}<button type="button" class="pl-social-x" data-a="close" aria-label="Close">&times;</button></header><div class="pl-social-body">${this.body()}</div><footer class="pl-social-foot">${this.footer()}</footer>${this.note ? `<p class="pl-social-note" role="status">${this.esc(this.note)}</p>` : ''}`;
-    for (const el of this.root.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
+    const focus = this.focusKey();
+    const scroll = this.root.querySelector('.pl-social-body')?.scrollTop ?? 0;
+    const foot = this.footer();
+    const note =
+      this.note || this.undo
+        ? `<p class="pl-social-note" role="status">${this.esc(this.note || 'Blocked')}${this.undo ? ' <button type="button" class="pl-social-undo" data-a="undo">Undo</button>' : ''}</p>`
+        : '';
+    this.root.dataset.view = this.shownTab;
+    this.root.innerHTML = `${this.head()}${this.tools()}<div class="pl-social-body" id="pl-social-panel" role="tabpanel" aria-label="${TAB_LABEL[this.shownTab]}">${this.body()}</div>${note}${foot ? `<footer class="pl-social-foot">${foot}</footer>` : ''}`;
+    this.fillNames(this.root);
+    const body = this.root.querySelector<HTMLElement>('.pl-social-body');
+    if (body && scroll) body.scrollTop = scroll;
+    if (focus) {
+      const el = this.root.querySelector<HTMLElement>(focus.sel);
+      el?.focus({ preventScroll: true });
+      if (el instanceof HTMLInputElement && focus.caret !== undefined) el.setSelectionRange(focus.caret, focus.caret);
+    }
     this.armNote();
+  }
+
+  /** Names by textContent; a name that can be cut by an ellipsis carries its full text as a tooltip. */
+  private fillNames(scope: HTMLElement): void {
+    for (const el of scope.querySelectorAll<HTMLElement>('[data-name]')) {
+      el.textContent = el.dataset.name ?? '';
+      if (el.classList.contains('pl-social-name')) el.title = el.dataset.name ?? '';
+    }
+  }
+
+  /** Repaint the list only (the search): the header keeps its focus, caret and the typed text. */
+  private paintBody(): void {
+    const body = this.root.querySelector<HTMLElement>('.pl-social-body');
+    if (!body) return;
+    body.innerHTML = this.body();
+    this.fillNames(body);
+  }
+
+  private head(): string {
+    const unread = this.state?.chat?.unread ?? 0;
+    const asks = this.state?.requests.in.length ?? 0;
+    const tabs = MAIN_TABS.map((t) => {
+      const n = t === 'friends' ? unread + asks : 0;
+      const what = [unread ? `${unread} unread` : '', asks ? `${asks} ${asks === 1 ? 'request' : 'requests'}` : ''].filter(Boolean).join(', ');
+      const badge = n ? `<i class="pl-social-badge" data-testid="social-unread" aria-hidden="true">${Math.min(99, n)}</i>` : '';
+      const on = this.shownTab === t;
+      const label = n ? ` aria-label="${TAB_LABEL[t]}, ${what}"` : '';
+      return `<button type="button" role="tab" class="pl-social-tab" id="pl-social-tab-${t}" data-tab="${t}" aria-selected="${on}" aria-controls="pl-social-panel" tabindex="${on ? 0 : -1}"${label}><span>${TAB_LABEL[t]}</span>${badge}</button>`;
+    }).join('');
+    const inMore = (MORE_TABS as readonly SocialTab[]).includes(this.shownTab);
+    const more = `<button type="button" class="pl-social-more${inMore ? ' is-current' : ''}" data-a="tabs-more" aria-haspopup="menu" aria-expanded="${this.moreOpen}" aria-label="More: Ranked and leaderboards"><span>${inMore ? (this.shownTab === 'boards' ? 'Boards' : TAB_LABEL[this.shownTab]) : 'More'}</span>${icon('chevron', 16)}</button>`;
+    const menu = `<div class="pl-social-moremenu" role="menu" aria-label="More"${this.moreOpen ? '' : ' hidden'}>${MORE_TABS.map((t) => `<button type="button" role="menuitem" class="pl-mi" data-tab="${t}" aria-current="${this.shownTab === t}">${TAB_LABEL[t]}</button>`).join('')}</div>`;
+    return `<header class="pl-social-head"><div class="pl-social-tabs" role="tablist" aria-label="Social">${tabs}</div>${more}<button type="button" class="pl-social-x" data-a="close" aria-label="Close" title="Close (Esc)">${icon('close', 20)}</button>${menu}</header>`;
+  }
+
+  /** The Friends tools under the header: my avatar, the search field and Add; while adding, the add form. */
+  private tools(): string {
+    const s = this.state;
+    if (this.shownTab !== 'friends' || !this.deps.signedIn() || !s?.me.ageBand || this.picking) return '';
+    if (this.adding)
+      return `<form class="pl-social-add pl-social-tools" data-form="add"><button type="button" class="pl-ico" data-a="add-cancel" aria-label="Back to friends" title="Back">${icon('close', 20)}</button><input name="code" maxlength="24" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Name or PL-XXXX-XXXX" aria-label="Friend's name or code" inputmode="text" enterkeyhint="send" data-testid="social-add-input" value="${this.esc(this.addText)}"><button type="submit" class="pl-btn small" data-testid="social-add-send">Add</button></form>`;
+    return `<div class="pl-social-tools"><button type="button" class="pl-me-av" data-a="avatar" aria-label="My avatar" title="Change my avatar" data-testid="avatar-open">${avatarHtml(s.me.av, 40)}</button><label class="pl-social-search">${icon('search', 18)}<input type="search" name="q" autocomplete="off" spellcheck="false" placeholder="Search friends" aria-label="Search friends" enterkeyhint="search" value="${this.esc(this.query)}"></label><button type="button" class="pl-ico pl-ico-add" data-a="add" aria-label="Add a friend" title="Add a friend">${icon('addUser', 22)}</button></div>`;
   }
 
   private guestPanel(): string {
@@ -407,6 +562,12 @@ export class SocialSheet {
 
   private agePanel(): string {
     return `<div class="pl-social-empty"><p>How old are you? We ask once.</p><div class="pl-social-age"><button type="button" class="pl-btn ghost small" data-age="under16">Under 16</button><button type="button" class="pl-btn ghost small" data-age="16-17">16 or 17</button><button type="button" class="pl-btn ghost small" data-age="18+">18 or older</button></div><button type="button" class="pl-social-later" data-a="close">Not now</button></div>`;
+  }
+
+  /** SPECTATE.md: the featured live match strip (only when one is live and the host can open the viewer). */
+  private liveRow(): string {
+    if (!this.deps.watch || !this.state?.live?.featured || this.deps.partyCode()) return '';
+    return `<div class="pl-social-live" data-testid="social-watch-live"><i class="pl-live-dot" aria-hidden="true"></i><span class="pl-live-txt">A match is live</span><button type="button" class="pl-btn small ghost" data-a="watch-live">${icon('eye', 18)}<span>Watch</span></button></div>`;
   }
 
   private body(): string {
@@ -418,56 +579,106 @@ export class SocialSheet {
     if (!s.me.ageBand) return this.agePanel();
     if (this.picking) return this.pickerBody();
     if (this.tab === 'clubs') return this.clubs.body(this.per);
-    if (this.tab === 'friends' && this.adding) return this.suggestBody();
-    if (this.tab === 'friends') {
-      // the invite row (share/invite.ts) takes the first row's place
-      const inv = this.invite.html() + this.liveRow();
-      if (!s.friends.length) return `${inv}<p class="pl-social-empty">No friends yet. Share your code or add theirs.</p>`;
-      const { rows } = pageOf(friendOrder(s.friends), this.page, this.friendsPer);
-      const myParty = this.deps.partyCode();
-      const inParty = !!myParty;
-      return rows
-        .map((f) => {
-          const act = rowAction(f.presence, inParty, myParty);
-          const btn =
-            act === 'join'
-              ? `<button type="button" class="pl-btn small" data-a="join" data-party="${this.esc(f.presence.party ?? '')}">Join</button>`
-              : act === 'watch' && this.deps.watch
-                ? `<button type="button" class="pl-btn small" data-a="watch" data-room="${this.esc(f.presence.room ?? '')}" data-code="${this.esc(f.code)}" data-testid="social-watch" aria-label="${this.esc(`Watch ${f.name}'s match`)}">Watch</button>`
-                : act === 'invite'
-                ? `<button type="button" class="pl-btn ghost small" data-a="invite" data-code="${this.esc(f.code)}" data-testid="social-invite" aria-label="${this.esc(`Invite ${f.name}`)}">Invite</button>`
-                : `<button type="button" class="pl-btn ghost small pl-more" data-a="more" data-code="${this.esc(f.code)}" aria-label="More">&hellip;</button>`;
-          const t = this.threads.get(f.code);
-          const dot = t?.unread && !t.muted ? `<i class="pl-chat-unread" data-testid="chat-unread">${Math.min(99, t.unread)}</i>` : '';
-          const chat = `<button type="button" class="pl-btn ghost small pl-chat-btn" data-a="chat" data-code="${this.esc(f.code)}" aria-label="${this.esc(`Chat with ${f.name}${dot ? `, ${t!.unread} unread` : ''}`)}">💬${dot}</button>`;
-          const sub = t?.unread && !t.muted ? `<small class="pl-social-st pl-social-preview" data-name="${this.esc(previewText(t.lastPreview))}"></small>` : `<small class="pl-social-st">${PRESENCE_TEXT[f.presence.state]}</small>`;
-          return `<div class="pl-social-row" data-state="${f.presence.state}" data-code="${this.esc(f.code)}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i>${this.deps.history ? `<button type="button" class="pl-social-who pl-social-hist" data-a="history" data-code="${this.esc(f.code)}" aria-label="${this.esc(`${f.name}: match history`)}">` : '<span class="pl-social-who">'}<span class="pl-social-nm">${ccHtml(f.cc)}<span class="pl-social-name" data-name="${this.esc(f.name)}"></span></span>${sub}${this.deps.history ? '</button>' : '</span>'}${btn}${chat}</div>`;
-        })
-        .reduce((html, row) => html + row, inv);
-    }
-    if (this.tab === 'requests') {
-      const list = [...s.requests.in.map((r) => ({ ...r, dir: 'in' as const })), ...s.requests.out.map((r) => ({ ...r, dir: 'out' as const }))];
-      if (!list.length) return `<p class="pl-social-empty">No requests.</p>`;
-      const { rows } = pageOf(list, this.page, this.per);
-      return rows
-        .map((r) =>
-          r.dir === 'in'
-            ? `<div class="pl-social-row">${avatarHtml(r.av, 40)}<span class="pl-social-name" data-name="${this.esc(r.name)}"></span><button type="button" class="pl-btn small" data-a="accept" data-code="${this.esc(r.code)}">Accept</button><button type="button" class="pl-btn ghost small" data-a="decline" data-code="${this.esc(r.code)}">Decline</button></div>`
-            : `<div class="pl-social-row">${avatarHtml(r.av, 40)}<span class="pl-social-name" data-name="${this.esc(r.name)}"></span><small class="pl-social-st">Sent</small><button type="button" class="pl-btn ghost small" data-a="decline" data-code="${this.esc(r.code)}">Cancel</button></div>`,
-        )
-        .join('');
-    }
-    // recent
+    if (this.tab === 'recent') return this.recentBody();
+    if (this.adding) return this.addBody();
+    return this.friendsBody(s);
+  }
+
+  private friendsBody(s: SocialState): string {
+    const typed = this.query.trim();
+    const q = typed.toLowerCase();
+    const hit = (n: string) => !q || n.toLowerCase().includes(q);
+    const friends = s.friends.filter((f) => hit(f.name));
+    const asks = s.requests.in.filter((r) => hit(r.name));
+    const sent = s.requests.out.filter((r) => hit(r.name));
+    const top = q ? '' : this.invite.html() + this.liveRow();
+    if (!s.friends.length && !s.requests.in.length && !s.requests.out.length)
+      return `${top}<div class="pl-social-empty pl-social-none"><p>No friends yet.</p><small>Add a friend by name or code, or share your invite.</small><button type="button" class="pl-btn small" data-a="add-empty">${icon('addUser', 18)}<span>Add a friend</span></button></div>`;
+    if (q && !friends.length && !asks.length && !sent.length)
+      return `<div class="pl-social-empty pl-social-none" data-testid="social-search-none"><p>No friend matches "<span data-name="${this.esc(typed)}"></span>".</p><button type="button" class="pl-btn small ghost" data-a="add-empty" data-q="${this.esc(typed)}">${icon('addUser', 18)}<span>Find this player</span></button></div>`;
+    const myParty = this.deps.partyCode();
+    const groups = friendGroups(friends);
+    const counts = { on: groups[0].rows.length + groups[1].rows.length, off: groups[2].rows.length };
+    let html = top;
+    if (asks.length) html += this.group('requests', asks.length, counts, asks.map((r) => this.requestRow(r, 'in')).join(''));
+    for (const g of groups) if (g.rows.length) html += this.group(g.id, g.rows.length, counts, g.rows.map((f) => this.friendRow(f, myParty)).join(''));
+    if (sent.length) html += this.group('sent', sent.length, counts, sent.map((r) => this.requestRow(r, 'out')).join(''));
+    return html;
+  }
+
+  /** A collapsible group: a header button with a count, then its rows (none while folded; a search unfolds all). */
+  private group(id: FriendGroupId, n: number, counts: { on: number; off: number }, rows: string): string {
+    const open = !!this.query.trim() || !groupFolded(id, this.folds[id], counts);
+    return `<section class="pl-group" data-g="${id}"><button type="button" class="pl-group-h" data-a="fold" data-group="${id}" data-nav aria-expanded="${open}" aria-controls="pl-g-${id}">${icon('chevron', 16)}<span class="pl-group-t">${GROUP_LABEL[id]}</span><span class="pl-group-n">${n}</span></button>${open ? `<div class="pl-group-list" id="pl-g-${id}" role="list">${rows}</div>` : ''}</section>`;
+  }
+
+  private friendRow(f: FriendRow, myParty: string | null): string {
+    const act = rowAction(f.presence, !!myParty, myParty);
+    const name = f.name;
+    const st = presenceText(f.presence);
+    const t = this.threads.get(f.code);
+    const unread = t?.unread && !t.muted ? t.unread : 0;
+    const code = this.esc(f.code);
+    const primary =
+      act === 'join'
+        ? `<button type="button" class="pl-fr-join" data-a="join" data-party="${this.esc(f.presence.party ?? '')}" data-code="${code}" aria-label="${this.esc(`Join ${name}'s lobby`)}">${icon('join', 18)}<span>Join</span></button>`
+        : act === 'watch' && this.deps.watch
+          ? `<button type="button" class="pl-ico pl-fr-act" data-a="watch" data-room="${this.esc(f.presence.room ?? '')}" data-code="${code}" data-testid="social-watch" aria-label="${this.esc(`Watch ${name}'s match`)}" title="Watch">${icon('eye')}</button>`
+          : act === 'invite'
+            ? `<button type="button" class="pl-ico pl-fr-act" data-a="invite" data-code="${code}" data-testid="social-invite" aria-label="${this.esc(`Invite ${name}`)}" title="Invite to party">${icon('addUser')}</button>`
+            : '';
+    const chat = `<button type="button" class="pl-ico pl-chat-btn${unread ? ' is-unread' : ''}" data-a="chat" data-code="${code}" aria-label="${this.esc(`Chat with ${name}${unread ? `, ${unread} unread` : ''}`)}" title="Message">${icon('chat')}${unread ? `<i class="pl-chat-unread" data-testid="chat-unread">${Math.min(99, unread)}</i>` : ''}</button>`;
+    const preview = unread ? `<span class="pl-social-preview" data-name="${this.esc(previewText(t!.lastPreview))}"></span>` : '';
+    const open = this.menuFor === f.code;
+    const label = `${name}, ${st}${unread ? `, ${unread} unread` : ''}`;
+    return `<div class="pl-social-row pl-fr${open ? ' is-open' : ''}" role="listitem" data-state="${f.presence.state}" data-code="${code}"><button type="button" class="pl-fr-main" data-a="menu" data-code="${code}" data-nav aria-haspopup="menu" aria-expanded="${open}" aria-label="${this.esc(label)}"><span class="pl-fr-av" data-state="${f.presence.state}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i></span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(name)}"></span>${ccHtmlOrNone(f.cc)}</span><small class="pl-social-line"><span class="pl-social-st" data-state="${f.presence.state}">${st}</span>${preview}</small></span></button><span class="pl-fr-acts">${primary}${chat}</span></div>${open ? this.rowMenu(f, act) : ''}`;
+  }
+
+  /** A friend's row menu (under the row, in the list's flow: nothing covers another row). */
+  private rowMenu(f: FriendRow, act: ReturnType<typeof rowAction>): string {
+    const code = this.esc(f.code);
+    const mi = (a: string, ic: string, text: string, extra = '') => `<button type="button" role="menuitem" class="pl-mi" data-a="${a}" data-code="${code}"${extra}>${icon(ic, 18)}<span>${text}</span></button>`;
+    const first =
+      act === 'join'
+        ? mi('join', 'join', 'Join lobby', ` data-party="${this.esc(f.presence.party ?? '')}"`)
+        : act === 'watch' && this.deps.watch
+          ? mi('watch', 'eye', 'Watch match', ` data-room="${this.esc(f.presence.room ?? '')}"`)
+          : act === 'invite'
+            ? mi('invite', 'addUser', 'Invite to party')
+            : '';
+    const armed = this.armed === `remove:${f.code}`;
+    const remove = `<button type="button" role="menuitem" class="pl-mi danger${armed ? ' armed' : ''}" data-a="remove" data-code="${code}">${icon('remove', 18)}<span>${armed ? 'Tap again to remove' : 'Remove friend'}</span></button>`;
+    return `<div class="pl-fr-menu" role="menu" aria-label="${this.esc(`${f.name}: options`)}"><p class="pl-fr-menu-name" data-name="${this.esc(f.name)}"></p><div class="pl-fr-menu-acts">${first}${mi('chat', 'chat', 'Message')}${this.deps.history ? mi('history', 'history', 'Match history') : ''}</div><div class="pl-fr-menu-danger">${remove}${mi('block', 'block', 'Block').replace('class="pl-mi"', 'class="pl-mi danger"')}</div></div>`;
+  }
+
+  private requestRow(r: PersonRow, dir: 'in' | 'out'): string {
+    const code = this.esc(r.code);
+    const acts =
+      dir === 'in'
+        ? `<button type="button" class="pl-fr-join" data-a="accept" data-code="${code}" aria-label="${this.esc(`Accept ${r.name}`)}">${icon('check', 18)}<span>Accept</span></button><button type="button" class="pl-ico" data-a="decline" data-code="${code}" aria-label="${this.esc(`Decline ${r.name}`)}" title="Decline">${icon('close')}</button>`
+        : `<button type="button" class="pl-ico" data-a="decline" data-code="${code}" aria-label="${this.esc(`Cancel the request to ${r.name}`)}" title="Cancel request">${icon('close')}</button>`;
+    return `<div class="pl-social-row pl-rq" role="listitem" data-code="${code}"><span class="pl-fr-av">${avatarHtml(r.av, 40)}</span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(r.name)}"></span></span><small class="pl-social-line"><span class="pl-social-st">${dir === 'in' ? 'Wants to be friends' : 'Request sent'}</span></small></span><span class="pl-fr-acts is-shown">${acts}</span></div>`;
+  }
+
+  private recentBody(): string {
     const rec = this.recent;
     if (!rec) return `<p class="pl-social-empty">Loading…</p>`;
-    if (!rec.length) return `<p class="pl-social-empty">Players from your matches in the last 7 days show here.</p>`;
-    const { rows } = pageOf(rec, this.page, this.per);
-    return rows
+    if (!rec.length) return `<div class="pl-social-empty pl-social-none"><p>No recent players yet.</p><small>Players from your matches in the last 7 days show here.</small></div>`;
+    return `<p class="pl-social-hint">From your matches in the last 7 days</p><div class="pl-group-list" role="list">${rec
       .map(
         (p) =>
-          `<div class="pl-social-row">${avatarHtml(p.av, 40)}<span class="pl-social-name" data-name="${this.esc(p.name)}"></span><small class="pl-social-st">${p.team === 'ally' ? 'Teammate' : 'Opponent'}</small>${p.canAdd ? `<button type="button" class="pl-btn ghost small" data-a="add-recent" data-room="${this.esc(p.room)}" data-slot="${p.slot}" aria-label="Add friend">+</button>` : ''}</div>`,
+          `<div class="pl-social-row pl-rc" role="listitem" data-team="${p.team === 'ally' ? 'ally' : 'enemy'}"><span class="pl-fr-av">${avatarHtml(p.av, 40)}</span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(p.name)}"></span></span><small class="pl-social-line"><span class="pl-social-st pl-team">${p.team === 'ally' ? 'Teammate' : 'Opponent'}</span></small></span><span class="pl-fr-acts is-shown">${p.canAdd ? `<button type="button" class="pl-ico" data-a="add-recent" data-room="${this.esc(p.room)}" data-slot="${p.slot}" aria-label="${this.esc(`Add ${p.name} as a friend`)}" title="Add friend">${icon('addUser')}</button>` : ''}</span></div>`,
       )
-      .join('');
+      .join('')}</div>`;
+  }
+
+  /** Add friend: my own friend code to share, then the nickname suggestions. */
+  private addBody(): string {
+    const me = this.state?.me;
+    const mine = me
+      ? `<div class="pl-social-mycode"><span><small>Your friend code</small><strong>${this.esc(me.code)}</strong></span><button type="button" class="pl-btn small ghost" data-a="copy" aria-label="${this.esc(`Copy your friend code ${me.code}`)}">${icon('copy', 16)}<span>Copy</span></button></div>`
+      : '';
+    return `${mine}<div class="pl-social-suggest">${this.suggestBody()}</div>`;
   }
 
   private rankedBody(): string {
@@ -497,39 +708,30 @@ export class SocialSheet {
       .join('');
     const d = b.data;
     if (!d) return `<div class="pl-social-sub">${sub}</div><p class="pl-social-empty">Loading…</p>`;
-    const rows = ((d.rows ?? []) as { rank: number; name: string; value: number; tier?: string; me?: boolean; av?: AvatarView; cc?: string }[]).slice(0, this.per + 1);
+    // the list scrolls: every row the server sent shows (the old page cut the last one behind the footer)
+    const rows = (d.rows ?? []) as { rank: number; name: string; value: number; tier?: string; me?: boolean; av?: AvatarView; cc?: string }[];
     const list = rows.length
       ? rows
           .map(
             (r) =>
-              `<div class="pl-social-row${r.me ? ' me' : ''}"><b class="pl-rank">${r.rank}</b>${isAvatarView(r.av) ? avatarHtml(r.av, 32) : ''}${ccHtml(r.cc)}<span class="pl-social-name" data-name="${this.esc(String(r.name))}"></span><small class="pl-social-st">${r.tier ? this.esc(r.tier) : `${r.value} wins`}</small></div>`,
+              `<div class="pl-social-row pl-bd${r.me ? ' me' : ''}"><b class="pl-rank">${r.rank}</b>${isAvatarView(r.av) ? avatarHtml(r.av, 32) : ''}<span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(String(r.name))}"></span>${ccHtmlOrNone(r.cc)}</span><small class="pl-social-st">${r.tier ? this.esc(r.tier) : `${r.value} wins`}</small></div>`,
           )
           .join('')
       : `<p class="pl-social-empty">${d.error ? this.esc(String(d.error)) : 'No one here yet this week.'}</p>`;
-    const me = d.me ? `<div class="pl-social-row me"><b class="pl-rank">#${Number(d.me.rank)}</b><span>You</span><small class="pl-social-st">${Number(d.me.value)}</small></div>` : '';
+    const me = d.me ? `<div class="pl-social-row pl-bd me"><b class="pl-rank">#${Number(d.me.rank)}</b><span class="pl-social-nm">You</span><small class="pl-social-st">${Number(d.me.value)}</small></div>` : '';
     return `<div class="pl-social-sub">${sub}</div>${list}${me}`;
   }
 
   private footer(): string {
-    const pages =
-      this.tab === 'boards'
-        ? Math.max(1, Number(this.board.data?.pages ?? 1))
-        : this.tab === 'friends'
-          ? pageOf(this.state?.friends ?? [], 0, this.friendsPer).pages
-          : this.tab === 'requests'
-            ? pageOf([...(this.state?.requests.in ?? []), ...(this.state?.requests.out ?? [])], 0, this.per).pages
-            : this.tab === 'recent'
-              ? pageOf(this.recent ?? [], 0, this.per).pages
-              : 1;
-    const page = this.tab === 'boards' ? this.board.page : Math.min(this.page, pages - 1);
-    const pager = pages > 1 ? `<span class="pl-pager"><button type="button" class="pl-btn ghost small" data-a="prev" aria-label="Previous page"${page <= 0 ? ' disabled' : ''}>&lsaquo;</button><small>${page + 1}/${pages}</small><button type="button" class="pl-btn ghost small" data-a="next" aria-label="Next page"${page >= pages - 1 ? ' disabled' : ''}>&rsaquo;</button></span>` : '';
     if (this.picking)
       return `<button type="button" class="pl-btn ghost small" data-a="pick-cancel">Cancel</button><button type="button" class="pl-btn small" data-a="pick-save" data-testid="avatar-save">Save</button>`;
     if (this.tab === 'clubs' && this.state?.me.ageBand && this.deps.signedIn()) return this.clubs.footer(this.per);
-    if (this.tab !== 'friends' || !this.state || !this.deps.signedIn() || !this.state.me.ageBand) return pager;
-    if (this.adding)
-      return `<form class="pl-social-add"><input name="code" maxlength="24" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Name or PL-XXXX-XXXX" aria-label="Friend's name or code" inputmode="text" data-testid="social-add-input" value="${this.esc(this.addText)}"><button type="submit" class="pl-btn small" data-testid="social-add-send">Add</button><button type="button" class="pl-btn ghost small" data-a="add-cancel" aria-label="Cancel">&times;</button></form>`;
-    return `${pager}<button type="button" class="pl-me-av" data-a="avatar" aria-label="My avatar" data-testid="avatar-open">${avatarHtml(this.state.me.av, 40)}</button><span class="pl-social-code">${ccHtml(myFlag())}My code <b>${this.esc(this.state.me.code)}</b></span><button type="button" class="pl-btn ghost small" data-a="copy">Copy</button><button type="button" class="pl-btn small" data-a="add">Add</button>`;
+    if (this.tab !== 'boards') return '';
+    const pages = Math.max(1, Number(this.board.data?.pages ?? 1));
+    const page = this.board.page;
+    return pages > 1
+      ? `<span class="pl-pager"><button type="button" class="pl-btn ghost small" data-a="prev" aria-label="Previous page"${page <= 0 ? ' disabled' : ''}>&lsaquo;</button><small>${page + 1}/${pages}</small><button type="button" class="pl-btn ghost small" data-a="next" aria-label="Next page"${page >= pages - 1 ? ' disabled' : ''}>&rsaquo;</button></span>`
+      : '';
   }
 
   private async act(op: ApiOp, args: ApiArgs, ok?: string): Promise<boolean> {
@@ -578,38 +780,158 @@ export class SocialSheet {
     this.paintSuggest();
   }
 
-  /** The suggestions repaint the body only: the input keeps its text, focus and caret. */
+  /** The suggestions repaint their own box only: the input keeps its text, focus and caret. */
   private paintSuggest(): void {
-    const body = this.root.querySelector<HTMLElement>('.pl-social-body');
-    if (!body || !this.adding || this.tab !== 'friends') return;
-    body.innerHTML = this.suggestBody();
-    for (const el of body.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
+    const box = this.root.querySelector<HTMLElement>('.pl-social-suggest');
+    if (!box || !this.adding || this.tab !== 'friends') return;
+    box.innerHTML = this.suggestBody();
+    this.fillNames(box);
   }
 
   private suggestBody(): string {
     const q = this.addText.trim();
-    if (!this.suggest || this.suggest.q !== q) return `<p class="pl-social-empty">Type a friend's name or their code.</p>`;
-    if (!this.suggest.rows.length) return `<p class="pl-social-empty" data-testid="social-suggest-none">No player has this name.</p>`;
+    if (!this.suggest || this.suggest.q !== q) return `<p class="pl-social-hint">Type a friend's name or their friend code.</p>`;
+    if (!this.suggest.rows.length) return `<p class="pl-social-hint" data-testid="social-suggest-none">No player has this name.</p>`;
     const rel = { friend: 'Friends', sent: 'Request sent', asked: 'Wants to be friends' } as const;
     return this.suggest.rows
-      .slice(0, this.per)
       .map((p) => {
-        const act = p.rel === 'friend' || p.rel === 'sent' ? '' : `<button type="button" class="pl-btn small" data-a="add-name" data-nick="${this.esc(p.name)}" aria-label="${this.esc(`Add ${p.name}`)}">${p.rel === 'asked' ? 'Accept' : 'Add'}</button>`;
-        return `<div class="pl-social-row" data-testid="social-suggest">${avatarHtml(p.av, 40)}<span class="pl-social-who"><span class="pl-social-nm">${ccHtml(p.cc)}<span class="pl-social-name" data-name="${this.esc(p.name)}"></span></span>${p.rel ? `<small class="pl-social-st">${rel[p.rel]}</small>` : ''}</span>${act}</div>`;
+        const act =
+          p.rel === 'friend' || p.rel === 'sent'
+            ? ''
+            : `<button type="button" class="pl-fr-join" data-a="add-name" data-nick="${this.esc(p.name)}" aria-label="${this.esc(`${p.rel === 'asked' ? 'Accept' : 'Add'} ${p.name}`)}">${icon(p.rel === 'asked' ? 'check' : 'addUser', 18)}<span>${p.rel === 'asked' ? 'Accept' : 'Add'}</span></button>`;
+        return `<div class="pl-social-row pl-rq" data-testid="social-suggest"><span class="pl-fr-av">${avatarHtml(p.av, 40)}</span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(p.name)}"></span>${ccHtmlOrNone(p.cc)}</span>${p.rel ? `<small class="pl-social-line"><span class="pl-social-st">${rel[p.rel]}</span></small>` : ''}</span><span class="pl-fr-acts is-shown">${act}</span></div>`;
       })
       .join('');
+  }
+
+  private setTab(tab: SocialTab): void {
+    this.tab = tab === 'requests' ? 'friends' : tab;
+    this.note = '';
+    this.query = '';
+    this.menuFor = null;
+    this.moreOpen = false;
+    this.adding = false;
+    this.render();
+    this.root.querySelector<HTMLElement>(`[role="tab"][data-tab="${this.tab}"], .pl-social-more`)?.focus({ preventScroll: true });
+    void this.load();
+  }
+
+  private openMenu(code: string): void {
+    this.menuFor = this.menuFor === code ? null : code;
+    this.armed = null;
+    this.render();
+    if (!this.menuFor) return;
+    const menu = this.root.querySelector<HTMLElement>('.pl-fr-menu');
+    menu?.scrollIntoView?.({ block: 'nearest' });
+    menu?.querySelector<HTMLElement>('.pl-mi')?.focus({ preventScroll: true });
+  }
+
+  private closeMenu(): void {
+    const code = this.menuFor;
+    this.menuFor = null;
+    this.armed = null;
+    this.render();
+    if (code) this.root.querySelector<HTMLElement>(`.pl-fr-main[data-code=${attr(code)}]`)?.focus({ preventScroll: true });
+  }
+
+  /** Keyboard: Esc closes the top layer, arrows move between tabs and through the list, Tab stays inside the sheet. */
+  private onKey(e: KeyboardEvent): void {
+    const t = e.target as HTMLElement;
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      e.preventDefault();
+      if (this.menuFor) return this.closeMenu();
+      if (this.moreOpen) {
+        this.moreOpen = false;
+        this.render();
+        this.root.querySelector<HTMLElement>('.pl-social-more')?.focus({ preventScroll: true });
+        return;
+      }
+      if (t instanceof HTMLInputElement && t.name === 'q' && t.value) {
+        this.query = '';
+        t.value = '';
+        this.paintBody();
+        return;
+      }
+      if (this.adding) {
+        this.adding = false;
+        this.addText = '';
+        this.suggest = null;
+        this.render();
+        this.root.querySelector<HTMLElement>('[data-a="add"]')?.focus({ preventScroll: true });
+        return;
+      }
+      if (this.invite.entering) return void this.invite.act('inv-cancel');
+      if (this.picking) {
+        this.picking = null;
+        return this.render();
+      }
+      return this.dispose();
+    }
+    if (t.getAttribute('role') === 'tab' && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+      const tabs = [...this.root.querySelectorAll<HTMLElement>('[role="tab"]')];
+      const i = tabs.indexOf(t);
+      const n = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      e.preventDefault();
+      const tab = tabs[n]?.dataset.tab as SocialTab | undefined;
+      if (tab) this.setTab(tab);
+      return;
+    }
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && (t.hasAttribute('data-nav') || t.getAttribute('role') === 'menuitem' || t.closest('.pl-fr-acts'))) {
+      const inMenu = t.getAttribute('role') === 'menuitem';
+      const scope = inMenu ? (t.closest('[role="menu"]') ?? this.root) : this.root;
+      const items = [...scope.querySelectorAll<HTMLElement>(inMenu ? '[role="menuitem"]' : '[data-nav]')];
+      const from = inMenu ? t : (t.closest('.pl-fr')?.querySelector<HTMLElement>('[data-nav]') ?? t);
+      const i = items.indexOf(from);
+      const next = items[Math.max(0, Math.min(items.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+      if (next) {
+        e.preventDefault();
+        next.focus();
+        next.scrollIntoView?.({ block: 'nearest' });
+      }
+      return;
+    }
+    if (e.key === 'ArrowRight' && t.classList.contains('pl-fr-main')) {
+      const act = t.parentElement?.querySelector<HTMLElement>('.pl-fr-acts button');
+      if (act) {
+        e.preventDefault();
+        act.focus();
+      }
+      return;
+    }
+    if (e.key === 'ArrowLeft' && t.closest('.pl-fr-acts')) {
+      e.preventDefault();
+      t.closest('.pl-fr')?.querySelector<HTMLElement>('.pl-fr-main')?.focus();
+      return;
+    }
+    if (e.key === 'Tab') {
+      // the sheet keeps focus while it is open (a dialog)
+      const all = [...this.root.querySelectorAll<HTMLElement>('button:not([disabled]), input, [tabindex="0"]')].filter((el) => !el.closest('[hidden]') && el.getAttribute('tabindex') !== '-1');
+      if (!all.length) return;
+      const first = all[0];
+      const last = all[all.length - 1];
+      if (e.shiftKey && t === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && t === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
   }
 
   private onClick(e: Event): void {
     const t = e.target as HTMLElement;
     const tab = t.closest<HTMLElement>('[data-tab]')?.dataset.tab as SocialTab | undefined;
     if (tab) {
-      this.tab = tab;
-      this.page = 0;
-      this.note = '';
-      this.render();
-      void this.load();
+      this.setTab(tab);
       return;
+    }
+    // a click outside the More menu closes it
+    if (this.moreOpen && !t.closest('.pl-social-moremenu, [data-a="tabs-more"]')) {
+      this.moreOpen = false;
+      this.root.querySelector('.pl-social-moremenu')?.setAttribute('hidden', '');
+      this.root.querySelector('.pl-social-more')?.setAttribute('aria-expanded', 'false');
     }
     const board = t.closest<HTMLElement>('[data-board]')?.dataset.board as 'weekly' | 'global' | 'friends' | undefined;
     if (board) {
@@ -629,6 +951,9 @@ export class SocialSheet {
     const a = el?.dataset.a;
     if (!a || !el || el.hasAttribute('disabled')) return;
     const code = el.dataset.code ?? '';
+    // any action but the row menu's own buttons closes an open row menu
+    if (this.menuFor && a !== 'menu' && !el.closest('.pl-fr-menu')) this.menuFor = null;
+    if (a !== 'remove') this.armed = null;
     if (a.startsWith('inv-')) {
       void this.invite.act(a).then(() => {
         if (this.invite.entering) this.root.querySelector<HTMLInputElement>('input[name="invite"]')?.focus();
@@ -639,6 +964,30 @@ export class SocialSheet {
       case 'close':
         this.dispose();
         return;
+      case 'tabs-more': {
+        this.moreOpen = !this.moreOpen;
+        const m = this.root.querySelector<HTMLElement>('.pl-social-moremenu');
+        if (m) m.hidden = !this.moreOpen;
+        el.setAttribute('aria-expanded', String(this.moreOpen));
+        if (this.moreOpen) m?.querySelector<HTMLElement>('.pl-mi')?.focus({ preventScroll: true });
+        return;
+      }
+      case 'menu':
+      case 'more':
+        this.openMenu(code);
+        return;
+      case 'fold': {
+        const g = el.dataset.group as FriendGroupId | undefined;
+        if (!g) return;
+        this.folds[g] = el.getAttribute('aria-expanded') === 'true';
+        try {
+          localStorage.setItem(FOLD_KEY, JSON.stringify(this.folds));
+        } catch {
+          // private window or blocked storage: the fold lasts while the sheet is open
+        }
+        this.render();
+        return;
+      }
       case 'signin':
         this.deps.signIn();
         return;
@@ -648,34 +997,34 @@ export class SocialSheet {
         return;
       case 'prev':
       case 'next':
-        if (this.tab === 'boards') {
-          this.board.page = Math.max(0, this.board.page + (a === 'next' ? 1 : -1));
-          void this.loadBoard();
-        } else {
-          this.page = Math.max(0, this.page + (a === 'next' ? 1 : -1));
-          this.render();
-        }
+        this.board.page = Math.max(0, this.board.page + (a === 'next' ? 1 : -1));
+        void this.loadBoard();
         return;
       case 'add-name':
         void this.addByCode(el.dataset.nick ?? '');
         return;
       case 'add':
+      case 'add-empty':
+        this.tab = 'friends';
         this.adding = true;
-        this.addText = '';
+        this.addText = el.dataset.q ?? '';
         this.suggest = null;
+        this.query = '';
         this.render();
         this.root.querySelector<HTMLInputElement>('input[name="code"]')?.focus();
+        if (this.addText) void this.findNames();
         return;
       case 'add-cancel':
         this.adding = false;
         this.addText = '';
         this.suggest = null;
         this.render();
+        this.root.querySelector<HTMLElement>('[data-a="add"]')?.focus({ preventScroll: true });
         return;
       case 'copy': {
         const c = this.state?.me.code ?? '';
         void (typeof navigator !== 'undefined' ? navigator.clipboard?.writeText(c) : undefined)?.catch(() => undefined);
-        this.note = 'Code copied';
+        this.note = 'Friend code copied';
         this.render();
         return;
       }
@@ -690,7 +1039,7 @@ export class SocialSheet {
       case 'watch': {
         const room = el.dataset.room ?? '';
         const name = this.state?.friends.find((f) => f.code === code)?.name ?? '';
-        if (!/^[a-z0-9]{12}$/.test(room) || !this.deps.watch) return;
+        if (!ROOM.test(room) || !this.deps.watch) return;
         this.dispose();
         this.deps.watch({ room, name });
         return;
@@ -702,6 +1051,7 @@ export class SocialSheet {
         return;
       case 'invite': {
         const f = this.state?.friends.find((x) => x.code === code);
+        this.menuFor = null;
         if (!this.deps.partyCode()) {
           // SOCIAL-INVITES.md: no party yet: PLAY → a mode → With Friends opens it, then the invite goes out
           if (f && this.deps.inviteFriend) {
@@ -729,9 +1079,6 @@ export class SocialSheet {
         this.deps.track?.('friend_request', { via: 'recent' });
         void this.act('friend.add', { room: el.dataset.room ?? '', slot: Number(el.dataset.slot) }, 'Request sent');
         return;
-      case 'more':
-        this.moreMenu(el, code);
-        return;
       case 'history': {
         const name = this.state?.friends.find((f) => f.code === code)?.name ?? '';
         if (!code || !this.deps.history) return;
@@ -741,6 +1088,7 @@ export class SocialSheet {
         return;
       }
       case 'chat':
+        this.menuFor = null;
         this.openChat(code);
         return;
       case 'avatar':
@@ -765,9 +1113,23 @@ export class SocialSheet {
         void this.saveAvatar();
         return;
       case 'remove':
+        // Remove has no Undo: the first tap arms it, the second (within 4 s) removes
+        if (this.armed !== `remove:${code}`) {
+          this.armed = `remove:${code}`;
+          if (this.armTimer) clearTimeout(this.armTimer);
+          this.armTimer = setTimeout(() => {
+            this.armed = null;
+            this.render();
+          }, 4000);
+          this.render();
+          return;
+        }
+        this.armed = null;
+        this.menuFor = null;
         void this.act('friend.remove', { code }, 'Removed');
         return;
       case 'block':
+        this.menuFor = null;
         this.block(code);
         return;
       case 'undo':
@@ -781,17 +1143,6 @@ export class SocialSheet {
     }
   }
 
-  /** The "…" row menu: Remove, Block (no confirm; Block has a 5 s Undo). */
-  private moreMenu(anchor: HTMLElement, code: string): void {
-    const row = anchor.closest<HTMLElement>('.pl-social-row');
-    if (!row) return;
-    row.querySelector('.pl-social-menu')?.remove();
-    const m = row.ownerDocument.createElement('span');
-    m.className = 'pl-social-menu';
-    m.innerHTML = `${this.deps.history ? `<button type="button" class="pl-btn ghost small" data-a="history" data-code="${this.esc(code)}">History</button>` : ''}<button type="button" class="pl-btn ghost small" data-a="remove" data-code="${this.esc(code)}">Remove</button><button type="button" class="pl-btn ghost small" data-a="block" data-code="${this.esc(code)}">Block</button>`;
-    row.appendChild(m);
-  }
-
   private block(code: string): void {
     this.deps.track?.('friend_block');
     void this.deps.api('block.add', { code }).then((r) => {
@@ -801,12 +1152,15 @@ export class SocialSheet {
         return;
       }
       if (this.undo) clearTimeout(this.undo.timer);
-      this.undo = { code, timer: setTimeout(() => (this.undo = null), 5000) };
-      this.note = '';
-      void this.load().then(() => {
-        const foot = this.root.querySelector('.pl-social-foot');
-        if (foot && this.undo) foot.insertAdjacentHTML('afterbegin', '<span class="pl-social-undo">Blocked <button type="button" class="pl-btn ghost small" data-a="undo">Undo</button></span>');
-      });
+      this.undo = {
+        code,
+        timer: setTimeout(() => {
+          this.undo = null;
+          this.root.querySelector('.pl-social-note')?.remove();
+        }, 5000),
+      };
+      this.note = 'Blocked';
+      void this.load();
     });
   }
 
@@ -815,6 +1169,8 @@ export class SocialSheet {
     this.disposed = true;
     if (this.pulseTimer) clearInterval(this.pulseTimer);
     if (this.noteTimer) clearTimeout(this.noteTimer);
+    if (this.suggestTimer) clearTimeout(this.suggestTimer);
+    if (this.armTimer) clearTimeout(this.armTimer);
     if (this.undo) clearTimeout(this.undo.timer);
     this.chat?.dispose();
     this.root.remove();

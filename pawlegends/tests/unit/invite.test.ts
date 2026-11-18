@@ -82,6 +82,28 @@ describe('invite helpers', () => {
 });
 
 describe('the invite row in the Social sheet', () => {
+  it('folds to one line and remembers it; Copy copies the code', async () => {
+    const writes: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t: string) => void writes.push(t) } });
+    localStorage.removeItem('pl.social.inviteFolded');
+    const t = sheet(invite({ invited: [], accepted: null }));
+    await flush();
+    const row = () => document.querySelector<HTMLElement>('[data-testid="invite-row"]')!;
+    expect(row().querySelector('.pl-social-name')!.textContent).toBe('Invite a friend');
+    expect(row().textContent).toContain('They play 3 matches, you both get a coat');
+    document.querySelector<HTMLElement>('[data-testid="invite-copy"]')!.click();
+    await flush();
+    expect(writes).toEqual(['K7QX2MP']);
+    expect(document.querySelector('.pl-social-note')!.textContent).toBe('Invite code copied');
+    document.querySelector<HTMLElement>('[data-a="inv-fold"]')!.click();
+    await flush();
+    expect(row().classList.contains('is-folded')).toBe(true);
+    expect(row().querySelector('[data-testid="invite-share"]')).toBeNull();
+    expect(localStorage.getItem('pl.social.inviteFolded')).toBe('1');
+    t.s.dispose();
+    localStorage.removeItem('pl.social.inviteFolded');
+  });
+
   it('shows the code and progress, takes the first row, and keeps names as text', async () => {
     sheet(invite());
     await flush();
@@ -91,8 +113,12 @@ describe('the invite row in the Social sheet', () => {
     expect(row.querySelector('.pl-social-name')!.textContent).toBe('<b>Mia</b>: 1/3 matches');
     expect(document.querySelector('b b, .pl-invite-row b:not(:only-child) b')).toBeNull();
     expect(document.querySelector('[data-testid="invite-claim"]')).toBeNull();
-    // the invite row plus 4 friends: the page still has 5 rows
-    expect(document.querySelectorAll('.pl-social-row')).toHaveLength(5);
+    // the invite card sits above the list (no paging: every friend has a row, the card takes none of their slots)
+    expect(document.querySelectorAll('.pl-fr')).toHaveLength(7);
+    expect(row.closest('.pl-social-body')!.firstElementChild).toBe(row);
+    // a title and a short line, never one long cut sentence; the code is a copy chip, Share is the one button
+    expect(row.querySelector('[data-testid="invite-copy"]')!.textContent).toContain('K7QX2MP');
+    expect(row.querySelector('[data-testid="invite-share"]')).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/[$€]\s?\d/);
   });
 
@@ -136,6 +162,6 @@ describe('the invite row in the Social sheet', () => {
     sheet({});
     await flush();
     expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
-    expect(document.querySelectorAll('.pl-social-row')).toHaveLength(5);
+    expect(document.querySelectorAll('.pl-fr')).toHaveLength(7);
   });
 });

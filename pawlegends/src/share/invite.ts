@@ -10,6 +10,7 @@
  * the game. Pure helpers plus one small controller the sheet owns.
  */
 import type { ApiArgs, ApiOp } from '../embed/api';
+import { icon } from '../social/socialIcons';
 
 /** What the host answers (`api-result`). */
 export interface InviteApiResult {
@@ -132,17 +133,54 @@ export function inviteLine(s: InviteState): string {
   return `Invite a friend: ${s.need} matches, you both get a coat`;
 }
 
-/** The row's markup (inside the Friends tab). Names are filled by textContent through `data-name`. */
-export function inviteRowHtml(s: InviteState | null, entering: boolean): string {
+/** The card's two lines: a title and a short line under it (never one long sentence cut by an ellipsis). Pure. */
+export function inviteCardText(s: InviteState): { title: string; sub: string } {
+  const line = inviteLine(s);
+  if (line.startsWith('Invite a friend:')) return { title: 'Invite a friend', sub: `They play ${s.need} matches, you both get a coat` };
+  return { title: line, sub: s.claimable ? 'A coat is ready to claim' : 'Invite more friends with your code' };
+}
+
+/**
+ * The invite card's markup (the top of the Friends tab): a title, one short line, the code as a copy chip and Share.
+ * Folded, it is one line (the title and the code chip). Names are filled by textContent through `data-name`.
+ */
+export function inviteRowHtml(s: InviteState | null, entering: boolean, folded = false): string {
   if (entering)
-    return `<form class="pl-social-add pl-invite-row" data-form="invite" data-testid="invite-code-form"><input name="invite" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Invite code" aria-label="Invite code" inputmode="text"><button type="submit" class="pl-btn small">Accept</button><button type="button" class="pl-btn ghost small" data-a="inv-cancel" aria-label="Cancel">&times;</button></form>`;
+    return `<form class="pl-social-add pl-invite-row pl-invite-form" data-form="invite" data-testid="invite-code-form"><input name="invite" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Their invite code" aria-label="Invite code" inputmode="text"><button type="submit" class="pl-btn small">Accept</button><button type="button" class="pl-ico" data-a="inv-cancel" aria-label="Cancel" title="Cancel">${ICON_X}</button></form>`;
   if (!s) return '';
+  const { title, sub } = inviteCardText(s);
   const claim = s.claimable
     ? `<button type="button" class="pl-btn small" data-a="inv-claim" data-testid="invite-claim">Claim coat${s.claimable > 1 ? ` ×${s.claimable}` : ''}</button>`
     : '';
-  const enter = !s.accepted ? `<button type="button" class="pl-btn ghost small" data-a="inv-enter" data-testid="invite-enter" aria-label="Enter an invite code">Code</button>` : '';
-  return `<div class="pl-social-row pl-invite-row" data-testid="invite-row"><span class="pl-social-who"><span class="pl-social-name" data-name="${esc(inviteLine(s))}"></span><small class="pl-social-st">Your invite code <b>${esc(s.code)}</b></small></span>${claim}<button type="button" class="pl-btn ghost small" data-a="inv-share" data-testid="invite-share">Invite</button>${enter}</div>`;
+  const chip = `<button type="button" class="pl-inv-code" data-a="inv-copy" data-testid="invite-copy" aria-label="${esc(`Copy invite code ${s.code}`)}" title="Copy code"><small>Code</small><b>${esc(s.code)}</b>${ICON_COPY}</button>`;
+  const fold = `<button type="button" class="pl-ico pl-inv-fold" data-a="inv-fold" aria-expanded="${!folded}" aria-label="${folded ? 'Show invite' : 'Hide invite'}" title="${folded ? 'Show' : 'Hide'}">${ICON_CHEVRON}</button>`;
+  if (folded)
+    return `<div class="pl-invite-row is-folded" data-testid="invite-row"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span></span>${claim || chip}${fold}</div>`;
+  const enter = !s.accepted ? `<button type="button" class="pl-inv-have" data-a="inv-enter" data-testid="invite-enter" aria-label="Enter an invite code">Got a code from a friend?</button>` : '';
+  return `<div class="pl-invite-row" data-testid="invite-row"><div class="pl-inv-top"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span><small class="pl-inv-sub">${esc(sub)}</small></span>${fold}</div><div class="pl-inv-acts">${chip}${claim}<button type="button" class="pl-btn small ghost pl-inv-share" data-a="inv-share" data-testid="invite-share">${ICON_SHARE}<span>Share link</span></button></div>${enter}</div>`;
 }
+
+const ICON_X = icon('close', 18);
+const ICON_COPY = icon('copy', 16);
+const ICON_CHEVRON = icon('chevron', 18);
+const ICON_GIFT = icon('gift', 20);
+const ICON_SHARE = icon('share', 16);
+
+/**
+ * The fold choice is remembered on this device only (a per-viewer convenience; storage can fail). With no choice yet,
+ * the card starts folded on short screens (a phone held sideways), where friends need the room.
+ */
+const FOLD_KEY = 'pl.social.inviteFolded';
+const readFold = (): boolean => {
+  let v: string | null = null;
+  try {
+    v = typeof localStorage !== 'undefined' ? localStorage.getItem(FOLD_KEY) : null;
+  } catch {
+    v = null;
+  }
+  if (v === '1' || v === '0') return v === '1';
+  return typeof window !== 'undefined' && window.innerHeight <= 430;
+};
 
 export interface InviteDeps {
   api(op: ApiOp, args?: ApiArgs): Promise<InviteApiResult>;
@@ -157,6 +195,8 @@ export interface InviteDeps {
 export class InviteRow {
   state: InviteState | null = null;
   entering = false;
+  /** The card folded to one line (remembered on this device). */
+  folded = readFold();
 
   constructor(private readonly deps: InviteDeps) {}
 
@@ -167,12 +207,34 @@ export class InviteRow {
   }
 
   html(): string {
-    return inviteRowHtml(this.state, this.entering);
+    return inviteRowHtml(this.state, this.entering, this.folded && !this.state?.claimable);
   }
 
   /** The row's buttons (`data-a` starting with `inv-`). */
   async act(a: string): Promise<void> {
     if (a === 'inv-share') return this.share();
+    if (a === 'inv-fold') {
+      this.folded = !this.folded;
+      try {
+        localStorage.setItem(FOLD_KEY, this.folded ? '1' : '0');
+      } catch {
+        // private window or blocked storage: the fold lasts this session only
+      }
+      this.deps.render();
+      return;
+    }
+    if (a === 'inv-copy') {
+      const code = this.state?.code ?? '';
+      if (!code) return;
+      try {
+        await navigator.clipboard?.writeText(code);
+        this.deps.note('Invite code copied');
+      } catch {
+        this.deps.note(`Your invite code: ${code}`);
+      }
+      this.deps.render();
+      return;
+    }
     if (a === 'inv-enter' || a === 'inv-cancel') {
       this.entering = a === 'inv-enter';
       this.deps.render();

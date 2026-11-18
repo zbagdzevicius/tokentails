@@ -106,7 +106,7 @@ test('Clubs: create with a generated name, the club card and chest, members, clu
   const { game, sheet } = await openClubs(context, page, baseURL!);
   const name = sheet.locator('[data-testid="club-name"]');
   await expect(name).toHaveText(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
-  // all six tabs fit, none is cut to an ellipsis
+  // every tab fits, none is cut to an ellipsis
   for (const t of await sheet.locator('.pl-social-tab').all()) expect(await t.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   if (SHOTS) await page.screenshot({ path: join(SHOTS, `after-01-no-club-${info.project.name}.png`) });
   const before = await name.textContent();
