@@ -544,11 +544,16 @@ platform :android do
 
   desc "Upload the store listing (text, icon, feature graphic, phone screenshots), no binary"
   lane :metadata do
-    # supply looks up a release on the track even for listing-only uploads; production has none until launch.
+    # supply looks up one release on the track even for listing-only uploads (production has none until launch,
+    # internal can hold several), so name the track and its newest versionCode.
+    track = ENV["PLAY_TRACK"].to_s.strip.empty? ? "internal" : ENV["PLAY_TRACK"]
+    codes = google_play_track_version_codes(package_name: APP_ID, json_key_data: play_json_key!, track: track)
+    UI.user_error!("No release on the #{track} track yet: run the upload lane first") if codes.empty?
     upload_to_play_store(
       package_name: APP_ID,
       json_key_data: play_json_key!,
-      track: ENV["PLAY_TRACK"].to_s.strip.empty? ? "internal" : ENV["PLAY_TRACK"],
+      track: track,
+      version_code: codes.map(&:to_i).max,
       metadata_path: ANDROID_METADATA,
       skip_upload_apk: true,
       skip_upload_aab: true,
