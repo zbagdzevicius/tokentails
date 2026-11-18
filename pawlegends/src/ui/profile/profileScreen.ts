@@ -392,7 +392,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     // a tab bar that scrolls (narrow screens) keeps the open tab in view
     const on = root.querySelector<HTMLElement>('.cst-tab.on');
     const bar = on?.parentElement;
-    if (on && bar && bar.scrollWidth > bar.clientWidth) bar.scrollLeft = Math.max(0, on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2);
+    if (on && bar && bar.scrollWidth > bar.clientWidth) {
+      const x = on.getBoundingClientRect().left - bar.getBoundingClientRect().left + bar.scrollLeft;
+      bar.scrollLeft = Math.max(0, x - (bar.clientWidth - on.offsetWidth) / 2);
+    }
     if (focusTab) root.querySelector<HTMLElement>(`.cst-tab[data-tab="${focusTab}"]`)?.focus({ preventScroll: true });
     else if (edit && !root.querySelector('.pfx-editor')?.contains(doc.activeElement)) root.querySelector<HTMLElement>('.pfx-editor [data-a="edit-close"]')?.focus({ preventScroll: true });
   };

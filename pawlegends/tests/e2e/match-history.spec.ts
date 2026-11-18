@@ -148,12 +148,13 @@ test('Match history: season stats, filters, a match scoreboard and damage, publi
   await press('[data-a="close"]');
   await expect(hist).toHaveCount(0);
 
-  // a friend's history from their row in Social
+  // a friend's history: their row in Social opens their profile (Matches), then the full history
   await expect(game.locator('[data-testid="lobby-social"]')).toBeVisible({ timeout: limit(30_000) });
   await press('[data-testid="lobby-social"]');
   // a tap on the friend's row opens its menu; Match history is in it
   await press('.pl-social .pl-fr-main[data-code="PL-AAAA-AAAA"]');
   await press('.pl-social .pl-fr-menu [data-a="history"][data-code="PL-AAAA-AAAA"]');
+  await press('[data-testid="profile-full-history"]');
   await expect(hist).toBeVisible();
   await expect.poll(async () => (await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'history.list' && m.args?.code === 'PL-AAAA-AAAA')).toBe(true);
   await expect(hist.locator('.mh-row')).toHaveCount(2);

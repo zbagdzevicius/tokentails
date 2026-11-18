@@ -193,6 +193,9 @@ for (const kind of ['guest', 'new', 'vet', 'other'] as Kind[])
           await game.locator('[data-testid="lobby-social"]').first().click({ timeout: limit(60_000) });
           await game.locator('.pl-social-hist').first().click({ timeout: limit(10_000) });
           await expect(screen).toHaveAttribute('data-self', '0');
+          // a friend's row opens their profile on Matches
+          await expect(screen).toHaveAttribute('data-tab', 'matches');
+          await screen.locator('[data-testid="profile-tab-overview"]').click();
           await expect(screen.locator('[data-testid="profile-name"]')).toHaveText('Mira');
         } else {
           await game.locator('[data-testid="home-profile"]').first().click({ timeout: limit(60_000) });

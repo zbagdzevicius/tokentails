@@ -189,7 +189,7 @@
 .pfx-note.bad { box-shadow: inset 4px 0 0 var(--v6-rose), inset 0 0 0 1px var(--v6-line); }
 
 /* the tab bar: six sections; on narrow screens it scrolls sideways inside itself (never the page) */
-.pfx-tabs { overflow-x: auto; scrollbar-width: none; justify-content: flex-start; }
+.pfx .pfx-tabs { overflow-x: auto; scrollbar-width: none; justify-content: flex-start; }
 /* auto margins centre the tabs while they fit and never clip the first one when they scroll */
 .pfx-tabs > .cst-tab:first-child { margin-left: auto; }
 .pfx-tabs > .cst-tab:last-child { margin-right: auto; }
