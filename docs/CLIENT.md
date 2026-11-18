@@ -63,7 +63,8 @@ npm run app:*          # Capacitor sync, open, build, run (see MOBILE.md)
 | `NEXT_PUBLIC_IS_PROD` | Switches Stellar mainnet vs testnet and CDN vs local assets |
 | `NEXT_PUBLIC_IS_APP` | Marks a Capacitor build: static export, no ISR, no robots or sitemap extras, no feed ad slots, web checkout hidden, app-only profile UI |
 | `NEXT_PUBLIC_GTM_ID` | Google Tag Manager container, loaded on every page for every visitor. Omit to disable GTM |
-| `NEXT_PUBLIC_POSTHOG_KEY` | PostHog project key (EU host `eu.i.posthog.com`, fixed in code). Omit to turn product analytics off |
+| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | PostHog project token (public, ingest-only; the one Token Tails project, also used by pawlegends-web and the Paw Legends game build). Omit to turn product analytics off |
+| `NEXT_PUBLIC_POSTHOG_HOST` | PostHog host, `https://us.i.posthog.com` (US Cloud) |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Passed to `loadStripe` |
 | `NEXT_PUBLIC_FB_APP_ID`, `NEXT_PUBLIC_FB_PAGES`, `NEXT_PUBLIC_TWITTER_PAGE` | Social meta tags |
 | `NEXT_PUBLIC_THEME` | Legacy asset-path prefix |

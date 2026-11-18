@@ -1,9 +1,10 @@
 /**
  * Analytics (POC.md §13), consent-gated (pattern: bad-cat/src/platform/posthog.ts and analytics.ts). `track`
  * queues events in memory; events leave the device only when ALL of these hold: a project key is set
- * (VITE_PAWLEGENDS_POSTHOG_KEY) AND the player granted consent (the `tt-analytics-consent` key; the game asks from the
- * second session, `askConsent`). Events queued before the answer go out when the player says yes. A denial drops the
- * queue. One fetch POST of a batch to PostHog EU `/capture/`, no SDK, no cookies, `keepalive`.
+ * (NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN, the one Token Tails PostHog project, US Cloud; the host from
+ * NEXT_PUBLIC_POSTHOG_HOST, default POSTHOG_US_HOST) AND the player granted consent (the `tt-analytics-consent` key; the
+ * game asks from the second session, `askConsent`). Events queued before the answer go out when the player says yes. A
+ * denial drops the queue. One fetch POST of a batch to `${host}/capture/`, no SDK, no cookies, `keepalive`.
  *
  * Embedded on tokentails.com (launch finding PUB-02) the game has no PostHog of its own: every event is relayed over the
  * bridge (`analytics{event, props}`) and the host sends it with its own `analytics.track`, so it follows the site's
@@ -87,6 +88,10 @@ export type AnalyticsEvent =
    * PostHog filter sees both; sent from here only when the game is not embedded (embedded, the host reports it).
    */
   | 'app_error'
+  /** The in-match chat drawer opened (once a match; `party`: a party match, else the bot chatter). */
+  | 'chat_open'
+  /** A Settings choice changed: `setting` (sound, quality, tips, skin_fx, fps, saver, stats, flag) and its `value`. */
+  | 'settings_change'
   /** Party play (docs/plans/moba/MULTIPLAYER.md §10): never a party code or room id in any prop. */
   | MpEvent;
 
@@ -142,7 +147,23 @@ export interface TrackedEvent {
   at: number;
 }
 
-export const POSTHOG_CAPTURE_URL = 'https://eu.i.posthog.com/capture/';
+/** PostHog US Cloud ingestion (the Token Tails project); NEXT_PUBLIC_POSTHOG_HOST may name another https host. */
+export const POSTHOG_US_HOST = 'https://us.i.posthog.com';
+
+/** `${host}/capture/` for an https PostHog host; anything else (empty, http, junk) is the US host. Pure. */
+export function posthogCaptureUrl(host?: string | null): string {
+  let base = POSTHOG_US_HOST;
+  try {
+    const u = new URL((host ?? '').trim());
+    if (u.protocol === 'https:' && u.hostname) base = `${u.origin}${u.pathname.replace(/\/+$/, '')}`;
+  } catch {
+    /* not a URL: the US host */
+  }
+  return `${base}/capture/`;
+}
+
+/** The capture URL of the default (US) host. */
+export const POSTHOG_CAPTURE_URL = posthogCaptureUrl(POSTHOG_US_HOST);
 export const POSTHOG_MAX_BODY = 56_000;
 export const CONSENT_KEY = 'tt-analytics-consent';
 export const ANON_KEY = 'tt.pawlegends.anon.v1';
@@ -236,6 +257,8 @@ export function posthogBodies(key: string, distinctId: string, batch: readonly T
 
 export interface AnalyticsOptions {
   key?: string | null;
+  /** PostHog host (`NEXT_PUBLIC_POSTHOG_HOST`); empty or invalid = POSTHOG_US_HOST. */
+  host?: string | null;
   fetch?: Fetch | null;
   kv?: KV | null;
   now?: () => number;
@@ -251,6 +274,8 @@ export class Analytics {
   private consent: ConsentState;
   private timer: unknown = null;
   private readonly key: string | null;
+  /** Where batches are posted (`${host}/capture/`). */
+  readonly captureUrl: string;
   private readonly kv: KV | null;
   private readonly now: () => number;
   private readonly fetcher: Fetch | null;
@@ -262,6 +287,7 @@ export class Analytics {
 
   constructor(o: AnalyticsOptions = {}) {
     this.key = o.key && o.key.trim() ? o.key.trim() : null;
+    this.captureUrl = posthogCaptureUrl(o.host);
     this.kv = o.kv === undefined ? store() : o.kv;
     this.now = o.now ?? (() => Date.now());
     this.fetcher = o.fetch === undefined ? ((globalThis as { fetch?: Fetch }).fetch?.bind(globalThis) ?? null) : o.fetch;
@@ -353,7 +379,7 @@ export class Analytics {
     try {
       for (const body of posthogBodies(this.key, this.anonId(), batch)) {
         this.sent++;
-        void Promise.resolve(this.fetcher(POSTHOG_CAPTURE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true, credentials: 'omit', mode: 'cors' })).catch(() => undefined);
+        void Promise.resolve(this.fetcher(this.captureUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true, credentials: 'omit', mode: 'cors' })).catch(() => undefined);
       }
     } catch {
       /* dropped */
@@ -406,8 +432,18 @@ export class Analytics {
   }
 }
 
+/**
+ * The build's PostHog config: the same two names as every Token Tails surface (client, pawlegends-web), inlined by Vite
+ * (`envPrefix` lets `NEXT_PUBLIC_POSTHOG_` through, vite.config.ts). The app build (pawlegends-app/scripts/build-web.mjs)
+ * sets the token empty: no analytics there. Pure over its input (tests pass an env object).
+ */
+export function posthogEnv(env: Record<string, unknown> = import.meta.env): { key: string | null; host: string | null } {
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  return { key: str(env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN), host: str(env.NEXT_PUBLIC_POSTHOG_HOST) };
+}
+
 /** The page's analytics (the key comes from the build env; embedded, `relay` sends through the host instead). */
 export function createAnalytics(common: () => AnalyticsProps, relay?: AnalyticsRelay | null): Analytics {
-  const key = (import.meta.env.VITE_PAWLEGENDS_POSTHOG_KEY as string | undefined) ?? null;
-  return new Analytics({ key, common, relay: relay ?? null });
+  const { key, host } = posthogEnv();
+  return new Analytics({ key, host, common, relay: relay ?? null });
 }

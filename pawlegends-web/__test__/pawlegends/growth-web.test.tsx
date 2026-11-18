@@ -11,7 +11,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 jest.mock("next/router", () => ({
   useRouter: () => ({ asPath: window.location.pathname, events: { on: jest.fn(), off: jest.fn() } }),
 }));
-jest.mock("@/analytics", () => ({ analytics: { init: jest.fn() }, reportAppError: jest.fn() }));
+jest.mock("@/analytics", () => ({ analytics: { init: jest.fn() }, reportAppError: jest.fn(), setAnalyticsConsent: jest.fn() }));
 jest.mock("@/constants/utils", () => ({ cdnFile: (p: string) => `/${p}` }));
 
 import { CONSENT_STORAGE_KEY } from "@/analytics/gtm";

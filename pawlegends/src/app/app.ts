@@ -242,6 +242,8 @@ export class App {
   private pushAskEl: { close(): void } | null = null;
   private pushBooted = false;
   private session: MatchSession | null = null;
+  /** The running match's mode and map for `match_end` (set with `match_start`); the scheme comes from the session. */
+  private matchMeta: { mode: string; map: string; practice: boolean } = { mode: 'skirmish', map: 'crossing', practice: false };
   private tier: QualityTier;
   private probe: FpsProbe | null;
   /** PERF-IOS P1-3: the thermal governor (a phone that ended its last visit hot starts one step cooler). */
@@ -1953,7 +1955,8 @@ export class App {
       },
     };
     this.lastSetup = setup;
-    this.analytics.track('match_start', { hero, difficulty, trick, dare: false, party: true, load_ms: sinceLoadMs(), first_match: p.matches === 0 });
+    this.matchMeta = { mode: match.mode === 'casual' ? 'casual' : match.mode === 'coop' ? 'coop' : 'party', map: 'crossing', practice: false };
+    this.analytics.track('match_start', { hero, difficulty, trick, dare: false, party: true, load_ms: sinceLoadMs(), first_match: p.matches === 0, mode: this.matchMeta.mode, map: this.matchMeta.map });
     const veil = loadingVeil(this.root, 'Into the Crossing...', match.mode === 'casual' ? 'PvP' : match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', { name: HERO_TEXT[hero].title, matches: p.heroMatches[hero] ?? 0 });
     this.setScreen('match', null);
     this.leaveHomeLobby();
@@ -2071,7 +2074,8 @@ export class App {
       showcase: [],
     };
     this.lastSetup = setup;
-    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined, load_ms: sinceLoadMs(), first_match: p.matches === 0, mode: map ? 'classic' : mutator ? MUTATOR_MODE[mutator] : 'skirmish', map: map ?? pool ?? 'crossing', mutator: mutator ?? 'none' });
+    this.matchMeta = { mode: map ? 'classic' : mutator ? MUTATOR_MODE[mutator] : 'skirmish', map: map ?? pool ?? 'crossing', practice: this.practice };
+    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined, load_ms: sinceLoadMs(), first_match: p.matches === 0, mode: this.matchMeta.mode, map: this.matchMeta.map, mutator: mutator ?? 'none', practice: this.practice });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
     // GAPS A6: the loading screen names this hero's match count
@@ -2141,6 +2145,7 @@ export class App {
       onTalent: (tier, choice) => this.analytics.track('talent_pick', { hero: c.hero, tier, choice }),
       // party play analytics (MULTIPLAYER.md §10): mp_* names only, flat props
       track: (event, props) => {
+        if (event === 'chat_open') return this.analytics.track('chat_open', props);
         if (!isMpEvent(event)) return;
         // M1A-IMPL.md §7.1: the match events say whether this was a friend party or Quick Play co-op
         const mode = event === 'mp_match_start' || event === 'mp_match_end' ? { mode: setup.party?.coop ? 'coop' : 'party', backfill: setup.party?.backfill === true } : {};
@@ -2181,7 +2186,12 @@ export class App {
     const seconds = Math.floor(at.ticks / 30);
     recordMatch(false, seconds, c.difficulty);
     recordLadder({ won: false, difficulty: c.difficulty, hero: c.hero, heroName: HERO_TEXT[c.hero].title, seconds, takedowns: at.takedowns, grade: 'C', forfeit: true });
-    this.analytics.track('match_end', { result: 'lost', reason: 'leave', length: seconds, hero: c.hero, difficulty: c.difficulty, takedowns: at.takedowns, pl_match_len_s: seconds, pl_rookie: isRookie(c.difficulty) });
+    this.analytics.track('match_end', { result: 'lost', reason: 'leave', length: seconds, hero: c.hero, difficulty: c.difficulty, takedowns: at.takedowns, pl_match_len_s: seconds, pl_rookie: isRookie(c.difficulty), ...this.matchEndMeta() });
+  }
+
+  /** `match_end`'s mode, map, map colour scheme and Practice flag (the running match's, matchMeta). */
+  private matchEndMeta(): { mode: string; map: string; scheme: string; practice: boolean } {
+    return { ...this.matchMeta, scheme: this.session?.schemeId ?? 'native' };
   }
 
   /** Sim v22: the Choice fields that start `mode` (Classic: the map; Blitz: the mutator; Skirmish: neither). */
@@ -2282,6 +2292,7 @@ export class App {
       pl_level4_s: e.fun.level4S,
       pl_match_len_s: seconds,
       pl_rookie: isRookie(e.replay.difficulty),
+      ...this.matchEndMeta(),
     });
     // Sim v27: leaving the Practice ground (or its 11:00 end) goes straight back Home: no results, nothing saved
     if (sandbox) {
@@ -3075,6 +3086,8 @@ export class App {
       if (this.overlay) return;
       const p = loadProfile();
       const account = this.integration.accountModel();
+      // one event for every Settings choice: which one and its new value (never free text)
+      const changed = (setting: string, value: string | number | boolean) => this.analytics.track('settings_change', { setting, value });
       const el = settingsPanel(this.root, {
         state: {
           muted: sfx.isMuted,
@@ -3091,28 +3104,45 @@ export class App {
         onFps: (f) => {
           setMatchFps(f);
           this.pacer.reset();
+          changed('fps', f);
           this.analytics.track('quality_tier', { tier: this.tier, fps: f, by: 'user' });
         },
         onSaver: (on) => {
           setBatterySaver(on);
+          changed('saver', on);
           this.analytics.track('quality_tier', { tier: this.tier, saver: on, by: 'user' });
         },
         onSkinFx: (m) => {
           const q = loadProfile();
           q.skinFx = m;
           saveProfile(q);
+          changed('skin_fx', m);
         },
-        onMute: (m) => this.setMuted(m),
-        onTier: (t) => this.setTier(t),
+        onMute: (m) => {
+          this.setMuted(m);
+          changed('sound', !m);
+        },
+        onTier: (t) => {
+          this.setTier(t);
+          changed('quality', t);
+        },
         onTips: (on) => {
           const q = loadProfile();
           q.tipsOff = !on;
           q.tipsNext = on;
           saveProfile(q);
+          changed('tips', on);
         },
-        onStats: (on) => this.analytics.setConsent(on),
+        // a stats choice is sent only when it turns stats on (off drops the queue, so it is never sent)
+        onStats: (on) => {
+          this.analytics.setConsent(on);
+          changed('stats', on);
+        },
         // FLAGS.md: the relay, friends and boards read the hide choice from the backend
-        onFlag: (hide) => void setFlagHidden(hide, (op, args) => this.integration.api(op, args)),
+        onFlag: (hide) => {
+          changed('flag_hidden', hide);
+          void setFlagHidden(hide, (op, args) => this.integration.api(op, args));
+        },
         termsUrl: this.termsUrl(),
         ...(account ? { account: { model: account, send: (a) => void this.integration.account(a) } } : {}),
         ...(this.pushKey && pushSupported()

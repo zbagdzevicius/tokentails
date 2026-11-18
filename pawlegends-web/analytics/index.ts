@@ -1,11 +1,12 @@
-import { createAnalytics, type AnalyticsClient } from "./client";
+import { createAnalytics, type AnalyticsClient, type AnalyticsConsent } from "./client";
+import { asksForConsent, pawlegendsWebOnly, readConsentChoice, type ConsentChoice } from "./gtm";
 import { createErrorReporter, type AppErrorContext } from "./errors";
 import { createGameRunTracker } from "./game-run";
 import { getDeviceTier, getPlatform } from "./platform";
 
 export * from "./events";
 export { getPlatform, getDeviceTier } from "./platform";
-export { createAnalytics, POSTHOG_EU_HOST } from "./client";
+export { accountDistinctId, createAnalytics, posthogHost, POSTHOG_US_HOST } from "./client";
 export { createGameRunTracker } from "./game-run";
 export {
   createErrorReporter,
@@ -16,7 +17,7 @@ export {
 export type { AppErrorContext, ErrorReporter } from "./errors";
 export { scrubText, scrubStack, scrubContext, scrubRoute } from "./scrub";
 export type { GameRunTracker } from "./game-run";
-export type { Analytics, AnalyticsClient, AnalyticsOptions } from "./client";
+export type { Analytics, AnalyticsClient, AnalyticsConsent, AnalyticsOptions } from "./client";
 
 /**
  * posthog-js is imported lazily and only in the browser, so it never runs
@@ -33,7 +34,8 @@ const loadPostHog = async (
   posthog.init(apiKey, {
     api_host: host,
     persistence: "localStorage",
-    person_profiles: "never",
+    // a person profile only for a signed-in account (identify with the hashed uid, never an email)
+    person_profiles: "identified_only",
     autocapture: false,
     capture_pageview: false,
     capture_pageleave: false,
@@ -53,8 +55,29 @@ const loadPostHog = async (
   return posthog as unknown as AnalyticsClient;
 };
 
+/** This page's consent choice (the bar's Allow or No thanks), kept here too so it holds when storage is blocked. */
+let pageChoice: ConsentChoice | null = null;
+
+/**
+ * PostHog follows the Paw Legends consent bar exactly like GTM (analytics/gtm.ts): never in a native WebView; a stored
+ * or this-page choice wins; with none, the visitors the bar asks (European or unknown time zone) are held (nothing
+ * leaves the device, posthog-js is not even loaded) and everyone else is granted.
+ */
+export function pawlegendsAnalyticsConsent(
+  choice: ConsentChoice | null = pageChoice ?? readConsentChoice(),
+  asks: () => boolean = asksForConsent,
+  web: () => boolean = pawlegendsWebOnly,
+): AnalyticsConsent {
+  if (!web()) return "denied";
+  if (choice) return choice;
+  return asks() ? "held" : "granted";
+}
+
 export const analytics = createAnalytics({
-  apiKey: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+  // the one Token Tails PostHog project (US Cloud): the same two names as client/ and the game build
+  apiKey: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
+  host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  consent: () => pawlegendsAnalyticsConsent(),
   load: loadPostHog,
   superProperties: () => ({
     app: "core",
@@ -81,4 +104,10 @@ export function reportAppError(
   context?: AppErrorContext,
 ): boolean {
   return errorReporter.report(code, error, context);
+}
+
+/** The consent bar's choice: PostHog sends what waited (Allow) or drops it (No thanks). */
+export function setAnalyticsConsent(choice: ConsentChoice): void {
+  pageChoice = choice;
+  analytics.consentChanged();
 }

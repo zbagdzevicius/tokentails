@@ -128,9 +128,9 @@ Names only; values stay in Vercel, DigitalOcean and your local env files.
 |---|---|---|
 | Vercel Production | `NEXT_PUBLIC_PAWLEGENDS` | `0` from step 2 to step 6, then unset (unset = on) |
 | Vercel Production | `NEXT_PUBLIC_PAWLEGENDS_PICKER` | unset (kill switch for the picker card only) |
-| Vercel Production | `NEXT_PUBLIC_POSTHOG_KEY` | set (every b.1 metric depends on it) |
+| Vercel Production + Preview | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST` | set (every b.1 metric depends on them; US Cloud) |
 | Vercel Production | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_BE_URL` | already set for the shelter-cat checkout |
-| Your machine, at `build:client` | `VITE_PAWLEGENDS_POSTHOG_KEY`, `VITE_PAWLEGENDS_BUILD` | optional (standalone URL and the build label) |
+| Your machine, at `build:client` | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST` (`pawlegends/.env.local`), `VITE_PAWLEGENDS_BUILD` | optional (standalone URL and the build label) |
 | Backend | `STRIPE_SECRET_KEY` | already set (the $5 cat uses the shared Token Tails checkout) |
 | Backend | `SENDGRID_API_KEY` | already set (notify-me; without it the button hides) |
 | Backend | `INVALIDATE_CACHE_SECRET` or `PAWLEGENDS_ENTITLEMENT_SECRET` | one of them set (entitlement routes; else 503) |

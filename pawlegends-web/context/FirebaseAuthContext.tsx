@@ -478,6 +478,14 @@ const FirebaseAuthProvider = ({
     };
   }, [adapter, onUser]);
 
+  // One analytics identity across the landing, /play and the game frame: a signed-in account links this browser's
+  // anonymous PostHog id to a hash of its uid (analytics/client.ts accountDistinctId; never the email). Guests stay
+  // anonymous; sign-out resets (signOutAll).
+  const accountUid = user && !user.isAnonymous ? user.uid : null;
+  React.useEffect(() => {
+    if (accountUid) analytics.identify(accountUid);
+  }, [accountUid]);
+
   // A new or changed user (sign-in, link, verified email): load its profile.
   const userKey = user ? `${user.uid}|${user.isAnonymous}|${user.emailVerified}|${user.email}` : "";
   React.useEffect(() => {
@@ -631,6 +639,8 @@ const FirebaseAuthProvider = ({
 
   const signOutAll = useCallback(async () => {
     resetAnonymous();
+    // the next player on this browser starts a fresh anonymous analytics id
+    analytics.reset();
     fallbackShownRef.current = false;
     pendingLinkRef.current = null;
     // A merge kept for retry belongs to the account being left (review round 3).

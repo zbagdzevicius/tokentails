@@ -38,7 +38,8 @@ npm run test:e2e       # Playwright against E2E_BASE_URL (default http://localho
 | Name | Needed | What |
 |---|---|---|
 | `NEXT_PUBLIC_BE_URL` | yes | the backend base URL (the same value as client: the shared account backend) |
-| `NEXT_PUBLIC_POSTHOG_KEY` | optional | the host relays the game's PostHog events; unset = no PostHog |
+| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | optional | the one Token Tails PostHog project's public ingest token (same as `client/` and the game build); the host sends its own events and relays the game's; unset = no PostHog |
+| `NEXT_PUBLIC_POSTHOG_HOST` | optional | PostHog ingestion host, default `https://us.i.posthog.com` (US Cloud) |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | optional | Firebase auth domain; default `news-ccd33.firebaseapp.com`. Leave it unset: this app has no `/__/auth` proxy rewrites, so do not copy client's value if client points it at its own host |
 | `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` | optional | reCAPTCHA Enterprise key for App Check (its domain list must include pawlegends.app) |
 | `NEXT_PUBLIC_E2E` | tests only | `1` compiles the E2E hooks in; unset everywhere else |

@@ -14,7 +14,7 @@ Change it together with `pawlegends-app/ios/App/App/PrivacyInfo.xcprivacy` and `
 | Area | App build | Where |
 |---|---|---|
 | Account, login, Firebase | Optional sign-in from 1.1.0: Sign in with Apple (iPhone, Mac), Google (iPhone), email and password, through Firebase Authentication (JS SDK holds the session; Apple and Google run natively with `@capacitor-firebase/authentication`, `skipNativeAuth`). Everything plays without it. Online, a Firebase anonymous guest is made lazily at the first match save, party ticket or pass claim; offline nothing is made. In-app deletion: title chip or Settings → Account → Delete account (`DELETE /user/me`, Apple token revoked) | `pawlegends-app/src/host/`, `pawlegends/src/ui/account.ts`, `backend/src/user/guest/account-deletion.ts` |
-| Analytics (PostHog) | Off: `VITE_PAWLEGENDS_POSTHOG_KEY=''`, so no events and no consent row in Settings | `pawlegends-app/scripts/build-web.mjs` |
+| Analytics (PostHog) | Off: `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=''` (wins over `pawlegends/.env.local`), so no events and no consent row in Settings | `pawlegends-app/scripts/build-web.mjs` |
 | Crash reporting, ads, IDFA, ATT | None | `pawlegends-app/package.json`, `PrivacyInfo.xcprivacy` (`NSPrivacyTracking` false) |
 | Purchases, crypto, donations | None. App mode hides checkout, offers and featured cats | `pawlegends/src/app/platform.ts`, `client/__test__/pawlegends-host.test.tsx` ("app builds") |
 | On-device storage | Profile, settings, progress, party key `pl.party.guest`, sprite probe cache | `pawlegends/src/meta/profile.ts`, `src/app/app.ts` `partyGuestKey` |

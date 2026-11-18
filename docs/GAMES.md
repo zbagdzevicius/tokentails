@@ -461,7 +461,8 @@ Dec 1; v9 is retired).
 - **Analytics**: embedded on `/pawlegends` the game's events (`title_view`, `match_start`, `match_end` and the rest)
   go over the bridge as `analytics {event, props}` and the host sends them with its own `analytics.track`, so they
   follow the site's policy and share its anonymous id; no prompt there, Settings → Stats still turns them off
-  (launch finding PUB-02). Standalone, consent-gated PostHog in the game (`VITE_PAWLEGENDS_POSTHOG_KEY`, inlined by
+  (launch finding PUB-02). Standalone, consent-gated PostHog in the game (`NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` and
+  `NEXT_PUBLIC_POSTHOG_HOST`, US Cloud, the same project as the site, inlined by
   `npm run build:client`, LAUNCH.md a.6; without it nothing is sent; the `tt-analytics-consent` key, which only the
   game reads and writes; the "anonymous play stats?" prompt on the title screen from session 2). Every event carries a
   `human` flag. Host events from

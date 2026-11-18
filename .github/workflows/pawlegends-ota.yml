@@ -110,6 +110,11 @@ concurrency:
 
 env:
   NODE_VERSION: 22
+  # The one Token Tails PostHog project (US Cloud; public, ingest-only token, repo variables). The same names as client/,
+  # pawlegends-web and pawlegends/.env.example. scripts/build-web.mjs still forces the token empty for the app bundle:
+  # no analytics in the app until its App Store and Google Play privacy answers list it.
+  NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN }}
+  NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.NEXT_PUBLIC_POSTHOG_HOST }}
 
 jobs:
   check:

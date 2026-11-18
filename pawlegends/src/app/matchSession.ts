@@ -460,6 +460,8 @@ export class MatchSession {
   private mp: import('./mpHud').MpHud | null = null;
   /** MATCH-CHAT.md: the in-match chat (ticker, drawer) and, solo, the bot chatter. */
   private chat: MatchChat | null = null;
+  /** The match's map colour scheme id (render/mapSchemes.ts), for analytics; null until the welcome. */
+  schemeId: string | null = null;
   private chatKeysOff: (() => void) | null = null;
   /** Count of real input events (analytics human filter). */
   activity = 0;
@@ -689,6 +691,7 @@ export class MatchSession {
     // picks one by hand.
     const look = pickScheme(currentMap(), w.seed, schemeWish());
     this.view.setScheme(look);
+    this.schemeId = look.id;
     document.documentElement.dataset.mapScheme = look.id;
     this.view.dress(this.setup.look ?? null, this.setup.companions ?? []);
     this.view.setSkinFx(this.setup.skinFx ?? 'all');
@@ -1682,6 +1685,7 @@ export class MatchSession {
       isMuted: (slot) => this.mp?.isMuted(slot) ?? false,
       tick: () => this.buffer.latest?.clock.tick ?? 0,
       e2e: this.e2e,
+      opened: () => this.hooks.track?.('chat_open', { party: !!link }),
     });
     const onKey = (e: KeyboardEvent): void => {
       if (this.chat?.key(e, !this.ended && !this.menu && !this.talentsBlock())) e.stopPropagation();

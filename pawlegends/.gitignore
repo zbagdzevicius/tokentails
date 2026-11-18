@@ -14,3 +14,6 @@ dist-app/
 # fun-toys investigation harness and its playwright profile (never commit)
 .toys/
 .toys-pw/
+
+# local env (the shared PostHog token and others; never commit)
+.env*.local

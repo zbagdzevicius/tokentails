@@ -160,8 +160,9 @@ function lateStylesheetPlugin(): Plugin {
 }
 
 export default defineConfig({
-  // Only VITE_* reaches the page (VITE_EMBED_ORIGINS, VITE_PAWLEGENDS_POSTHOG_KEY, ...).
-  envPrefix: ['VITE_'],
+  // Only VITE_* (VITE_EMBED_ORIGINS, ...) and the shared PostHog pair reach the page: NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN
+  // and NEXT_PUBLIC_POSTHOG_HOST, the same names as client/ and pawlegends-web (one project, one public ingest key).
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_POSTHOG_'],
   base,
   define: { ...simDefines(), ...buildDefines() },
   server: { port: 5176, host: '127.0.0.1', strictPort: true },

@@ -11,7 +11,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 jest.mock("next/router", () => ({
   useRouter: () => ({ asPath: window.location.pathname, events: { on: jest.fn(), off: jest.fn() } }),
 }));
-jest.mock("@/analytics", () => ({ analytics: { init: jest.fn() } }));
+jest.mock("@/analytics", () => ({ analytics: { init: jest.fn() }, setAnalyticsConsent: jest.fn() }));
 
 import { CONSENT_STORAGE_KEY } from "@/analytics/gtm";
 import { forwardPawlegendsEvent, pawlegendsDataLayerEntry } from "@/analytics/pawlegends-datalayer";

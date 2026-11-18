@@ -127,8 +127,8 @@ export function afterLandingReady(
 }
 
 /**
- * Starts GTM and PostHog on mount for every visitor (see `analytics/gtm.ts`: the Paw Legends container, with Consent
- * Mode v2) and pushes `page_view` on route changes. On the Pawlegends landings the start
+ * Starts GTM and PostHog on mount (see `analytics/gtm.ts`: the Paw Legends container, with Consent Mode v2; PostHog
+ * follows the same consent, `pawlegendsAnalyticsConsent` in analytics/index.ts) and pushes `page_view` on route changes. On the Pawlegends landings the start
  * is deferred (afterLandingReady, DEFERRED_PATHS); a route change starts it at once,
  * and the first page_view is still the page the visitor landed on.
  * Renders nothing and only touches `window` in effects, so it is SSR safe.

@@ -1,3 +1,4 @@
+import { setAnalyticsConsent } from "@/analytics";
 import { asksForConsent, gtm as defaultGtm, readConsentChoice, type ConsentChoice, type Gtm } from "@/analytics/gtm";
 import { afterLandingReady } from "@/components/GoogleTagManager";
 import Link from "next/link";
@@ -121,6 +122,8 @@ export function PawlegendsConsent({ gtm = defaultGtm, asks = asksForConsent }: P
 
   const choose = (choice: ConsentChoice) => {
     gtm.setConsent(choice);
+    // PostHog follows the same choice (analytics/index.ts)
+    setAnalyticsConsent(choice);
     setOpen(false);
   };
 

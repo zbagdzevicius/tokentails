@@ -285,7 +285,9 @@ there (`docs/plans/moba/PAWLEGENDS-WEB.md`). Rebuild with `npm run build:client`
 `npm run vendor-sim:check-remote -- <backend url>` (or `PAWLEGENDS_BACKEND_URL`) compares the deployed
 `GET /pawlegends/sim` hash. Build env: `VITE_EMBED_ORIGINS` (comma-separated host origins; default
 pawlegends.app, tokentails.com and www.tokentails.com; the game's own origin is always allowed when the parent is
-same-origin), `VITE_PAWLEGENDS_POSTHOG_KEY` (analytics, consent-gated), `VITE_PAWLEGENDS_BUILD` (the
+same-origin), `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` and `NEXT_PUBLIC_POSTHOG_HOST` (analytics, consent-gated; the one
+Token Tails PostHog project on US Cloud, the same names as `client/` and pawlegends-web, from `pawlegends/.env.local`;
+the app build forces the token empty), `VITE_PAWLEGENDS_BUILD` (the
 version in `ready`), `PAWLEGENDS_BASE` (base path). `?speed=1..64` speeds up the local host for tests and
 never changes the replay. `npm run lift` (`PPK_DIR`, default `../../swordcat`) copies the Pink Paw Knight
 files the game reuses; `node tools/lift-ppk.mjs --check` checks their provenance headers.

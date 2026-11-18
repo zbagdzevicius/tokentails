@@ -129,8 +129,9 @@ if (!args.includes('--skip-game')) {
     VITE_PAWLEGENDS_APP: '1',
     VITE_PAWLEGENDS_API: API_ORIGIN,
     VITE_PAWLEGENDS_BUILD: `app-${version}`,
-    // no analytics in v1 (no analytics data on the privacy label): an empty key wins over any .env file
-    VITE_PAWLEGENDS_POSTHOG_KEY: '',
+    // no analytics in v1 (no analytics data on the privacy label): an empty token wins over any .env file
+    // (pawlegends/.env.local holds the shared NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN for the web build)
+    NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: '',
   };
   execFileSync('npx', ['tsc', '--noEmit'], { cwd: gameDir, stdio: 'inherit', env });
   execFileSync('npx', ['vite', 'build', '--outDir', gameOut, '--emptyOutDir'], { cwd: gameDir, stdio: 'inherit', env });

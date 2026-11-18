@@ -72,9 +72,20 @@ export interface PawlegendsEventProperties {
  */
 export const PAWLEGENDS_GAME_EVENTS = [
   "title_view",
+  // the one play path (HOME-MODES.md §5): PLAY opened Mode Select, a mode and variant went on
+  "play_open",
+  "play_start",
+  "practice_try",
   "match_start",
   "match_end",
   "second_match",
+  // funnel: a mode unlocked (MODE-UNLOCKS.md), a champion unlocked with Yarn or a Pick (`via`), the match chat opened,
+  // a Settings choice changed, a party invite shown, declined or joined (`action`)
+  "mode_unlock",
+  "champ_unlock",
+  "chat_open",
+  "settings_change",
+  "party_invite",
   "rematch_click",
   "talent_pick",
   "tip_done",

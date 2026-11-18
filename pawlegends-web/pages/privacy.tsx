@@ -11,7 +11,7 @@ export const PAWLEGENDS_PRIVACY_SEO = Object.freeze({
   // NO-TOKENTAILS.md: the share card and tab name Paw Legends, not the site
   siteName: PAWLEGENDS_TITLE,
   title: `${PAWLEGENDS_TITLE} privacy`,
-  description: `What the ${PAWLEGENDS_TITLE} app for iPhone and Android keeps on your phone, what signing in and party play send to our server, what the website measures with Google Analytics, and how long we keep it.`,
+  description: `What the ${PAWLEGENDS_TITLE} app for iPhone and Android keeps on your phone, what signing in and party play send to our server, what the website measures with Google Analytics and PostHog, and how long we keep it.`,
   path: "/privacy",
   image: PAWLEGENDS_OG_IMAGE,
 });
@@ -65,7 +65,7 @@ export default function PawlegendsPrivacyPage() {
               <li>In the app: no ads, no purchases, no analytics, no tracking, no advertising identifier.</li>
               <li>
                 On the website (pawlegends.app and tokentails.com/pawlegends) we use Google Analytics through Google
-                Tag Manager to count visits. In Europe it stays off until you allow it.
+                Tag Manager, and PostHog, to count visits. In Europe they stay off until you allow them.
               </li>
               <li>Playing against bots offline sends nothing to us.</li>
               <li>
@@ -191,18 +191,21 @@ export default function PawlegendsPrivacyPage() {
           </Section>
 
           <section id="web-analytics" className="flex flex-col gap-2">
-            <h2 className="font-primary text-h6 text-tt-gold-400">On the website: Google Analytics</h2>
+            <h2 className="font-primary text-h6 text-tt-gold-400">On the website: Google Analytics and PostHog</h2>
             <p>
               The {PAWLEGENDS_TITLE} web pages (pawlegends.app, tokentails.com/pawlegends and the game in your browser)
               load Google Tag Manager, which runs Google Analytics. It tells us how many people visit, which pages and
               links bring them, and how they use the game: pressing play or the App Store badge, starting and finishing
-              a match, opening the store and starting a checkout. These events carry no name, email or account id, and
-              no amounts tied to you. The apps for iPhone and Android do not load it.
+              a match, opening the store and starting a checkout. We send the same events to PostHog, our product
+              analytics service, which stores them in the United States. These events carry no name or email, and no
+              amounts tied to you. If you sign in, PostHog links them to a code made from your account id (a one-way
+              hash, not the id itself), so we can count one player across visits; signing out starts a new code. The
+              apps for iPhone and Android load neither.
             </p>
             <p>
-              In Europe (the EU, the EEA, the UK and Switzerland) we ask first: Google Tag Manager does not run, and
-              Google Analytics sets no cookies and receives nothing, until you press Allow on the bar at the bottom of the page. If
-              you press No thanks, it stays off. We also use Google Consent Mode, so if your browser is set to a time
+              In Europe (the EU, the EEA, the UK and Switzerland) we ask first: Google Tag Manager and PostHog do not
+              run, and Google Analytics and PostHog set no cookies and receive nothing, until you press Allow on the bar at the bottom of the page. If
+              you press No thanks, they stay off. We also use Google Consent Mode, so if your browser is set to a time
               zone outside Europe while you are in Europe, Google Analytics sets no cookies and receives only cookieless
               signals without an identifier. Elsewhere cookies are on unless you say no. Your choice is kept in your
               browser, and you can change it here at any time.
@@ -211,7 +214,9 @@ export default function PawlegendsPrivacyPage() {
             <p>
               Google processes this data for us as described in{" "}
               <A href="https://policies.google.com/technologies/partner-sites">How Google uses information from sites that use its services</A>.
-              Google Analytics keeps this data for at most 14 months.
+              Google Analytics keeps this data for at most 14 months. PostHog (PostHog, Inc.) processes the events for
+              us in the United States, as described in{" "}
+              <A href="https://posthog.com/privacy">the PostHog privacy policy</A>.
             </p>
           </section>
 
@@ -227,7 +232,7 @@ export default function PawlegendsPrivacyPage() {
             <p>
               Nobody buys or receives your data from us. Our server runs at our hosting provider (DigitalOcean), the
               website at Vercel, sign-in at Google Firebase Authentication, and website analytics at Google Analytics
-              (see above); they process it only to run those
+              and PostHog in the United States (see above); they process it only to run those
               services for us. If you choose Sign in with Apple or Google, Apple or Google confirm who you are to us. We
               do not sell or share data for advertising.
             </p>

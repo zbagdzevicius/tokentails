@@ -234,7 +234,8 @@ imports `@/api/user-api`, `@/components/heist/heistSaves`, `@/components/pawlege
 | name | needed | note |
 |---|---|---|
 | `NEXT_PUBLIC_BE_URL` | yes | backend base URL (same value as client) |
-| `NEXT_PUBLIC_POSTHOG_KEY` | optional | host relays the game's PostHog events; omit = off (same project key as client) |
+| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | optional | the one Token Tails PostHog project (US Cloud, public ingest token, same as client and the game build); host events plus the relayed game events; follows the consent bar; omit = off |
+| `NEXT_PUBLIC_POSTHOG_HOST` | optional | default `https://us.i.posthog.com` |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | optional | default `news-ccd33.firebaseapp.com` |
 | `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` | optional | reCAPTCHA Enterprise key; must list pawlegends.app |
 | `NEXT_PUBLIC_E2E` | test only | E2E hooks, defaults to "" in next.config |

@@ -46,6 +46,8 @@ export interface MatchChatHost {
   /** Match time in ticks (30 a second). */
   tick(): number;
   e2e?: boolean;
+  /** The drawer opened for the first time this match (analytics `chat_open`). */
+  opened?(): void;
 }
 
 const SEEN_KEY = 'pl.botSeen';
@@ -97,6 +99,8 @@ export class MatchChat {
   private readonly muted = new Set<number>();
   /** Mute all (the drawer's head): every other player's lines are hidden until it is turned off. */
   private mutedAll = false;
+  /** `opened` fires once a match. */
+  private openedOnce = false;
 
   constructor(private readonly h: MatchChatHost) {
     this.ticker = new ChatTicker(h.ui, { touch: h.touch });
@@ -116,6 +120,10 @@ export class MatchChat {
       ...(h.link ? {} : { solo: true }),
       onToggle: (open) => {
         this.button.open = open;
+        if (open && !this.openedOnce) {
+          this.openedOnce = true;
+          h.opened?.();
+        }
         if (h.e2e) document.documentElement.dataset.chatDrawer = open ? '1' : '';
       },
     });
