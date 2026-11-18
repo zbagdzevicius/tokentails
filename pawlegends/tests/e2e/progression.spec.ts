@@ -145,7 +145,7 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   });
   await expect(page.locator('.pl-fish.burst')).toHaveCount(1);
   // it may wait behind a busier line (an announcer banner, a tip): the rail's said list records it once shown
-  await expect.poll(async () => (await said(page)).some((t) => /^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I — \+\d+|^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I \+\d+.* · Lv \d+$/.test(t)), { timeout: limit(60_000) }).toBe(true);
+  await expect.poll(async () => (await said(page)).some((t) => /^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I: \+\d+|^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I \+\d+.* · Lv \d+$/.test(t)), { timeout: limit(60_000) }).toBe(true);
   await page.screenshot({ path: `${SHOTS}/${sizes[0].w}x${sizes[0].h}-toy.png` });
 
   // F3: the level-up line says what is new; level 4 unlocks the ultimate. When the ult tip or goal chip guides it, that

@@ -215,7 +215,7 @@ test('Yarn unlock: disabled with what is missing, then spent; the champion is ow
   await expect(btn).toBeDisabled();
   await expect(btn).toContainText('Unlock');
   await expect(btn).toContainText('3,500 Yarn');
-  await expect(detail.locator('[data-testid="store-togo"]')).toHaveText(/You have 3,000 Yarn: 500 to go \(about \d+ match(es)?\)/);
+  await expect(detail.locator('[data-testid="store-togo"]')).toHaveText(/You have 3,000 Yarn\. 500 more to go \(about \d+ match(es)?\)/);
   // a match paid more Yarn: the detail follows the fresh store
   await send(champs(4000));
   await expect(btn).toBeEnabled();
