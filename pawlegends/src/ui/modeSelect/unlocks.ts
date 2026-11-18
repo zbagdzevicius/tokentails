@@ -91,12 +91,12 @@ export function progressOf(id: ModeId, c: Counts): { pct: number; line: string; 
   return { pct, line: `Lv ${need.level}`, short: `Lv ${levelOf(c.matches)}, ${done}/${of} matches`, need };
 }
 
-/** "Unlocks at Lv 3 (you are Lv 1: 2 more matches)": the lock line for the strip, toasts, the nav and screen readers. */
+/** "Unlocks at Lv 3 · 2 more matches": the lock line for the strip, toasts, the nav and screen readers. */
 export function lockLine(id: ModeId, c: Counts): string {
   const need = needOf(id);
   if (!need) return '';
   const left = Math.max(0, matchesForLevel(need.level) - Math.max(0, Math.floor(c.matches)));
-  return `${needText(need)} (you are Lv ${levelOf(c.matches)}: ${moreMatches(left)})`;
+  return `${needText(need)} · ${moreMatches(left)}`;
 }
 
 /**

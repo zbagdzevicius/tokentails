@@ -92,7 +92,7 @@ test('Home → PLAY → Skirmish → vs Bots Hard → champion select → LOCK I
   await expect(ms).toHaveAttribute('data-stage', 'variant');
   // standalone (no relay): Co-op, PvP and With Friends show, locked with the reason
   await expect(ms.locator('[data-testid="variant-coop"]')).toHaveAttribute('aria-disabled', 'true');
-  await expect(ms.locator('[data-testid="variant-coop"]')).toContainText('party server');
+  await expect(ms.locator('[data-testid="variant-coop"]')).toContainText('Online play is not available');
   await ms.locator('[data-testid="bots-hard"]').click();
   await expect(ms.locator('[data-testid="bots-hard"]')).toHaveAttribute('aria-checked', 'true');
   await ms.locator('[data-testid="mode-go"]').click();
@@ -105,7 +105,7 @@ test('Home → PLAY → Skirmish → vs Bots Hard → champion select → LOCK I
   await page.waitForSelector('html[data-match="live"]', { timeout: limit(90_000) });
 });
 
-test('Ranked (round 4, SOCIAL-RANKED.md §7.11): always open, the rules say bots honestly; standalone says PvP is offline', async ({ page }) => {
+test('Ranked (round 4, SOCIAL-RANKED.md §7.11): always open, the rules say bots honestly; standalone says PvP is not available', async ({ page }) => {
   // mode unlocking (MODE-UNLOCKS.md): Ranked opens at 10 matches and 3 wins; last chosen, it is the third big tile
   await page.addInitScript(() => {
     // midweek, so Boss Weekend does not take the spotlight
@@ -135,7 +135,7 @@ test('Ranked (round 4, SOCIAL-RANKED.md §7.11): always open, the rules say bots
   await tile.click();
   await ms.locator('[data-testid="mode-next"]').click();
   await expect(ms.locator('[data-testid="variant-pvp"]')).toHaveAttribute('aria-disabled', 'true');
-  await expect(ms.locator('[data-testid="variant-pvp"]')).toContainText('offline');
+  await expect(ms.locator('[data-testid="variant-pvp"]')).toContainText('PvP is not available right now');
   await shot(page, 'r4-ranked-variant');
 });
 

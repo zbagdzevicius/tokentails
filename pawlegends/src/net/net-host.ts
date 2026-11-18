@@ -591,7 +591,7 @@ export class NetHost implements PartyLink {
     switch (m.t) {
       case 'slot': {
         if (m.slot === this.match.you.slot) {
-          if (m.reason === 'desync') this.note({ key: 'mp-resync', title: 'Re-syncing…', tone: 'info' });
+          if (m.reason === 'desync') this.note({ key: 'mp-resync', title: 'Catching up…', tone: 'info' });
           this.emit('slot', m.slot, m.reason as SlotReasonText, false);
           return;
         }
@@ -611,10 +611,10 @@ export class NetHost implements PartyLink {
         this.transport.post({ t: 'rebuild' });
         this.lastTurn = -1;
         this.startCatching();
-        this.note({ key: 'mp-resync', title: 'Re-syncing…', tone: 'info' });
+        this.note({ key: 'mp-resync', title: 'Catching up…', tone: 'info' });
         return;
       case 'afk':
-        this.note({ key: 'mp-afk', title: 'Still there? Bot in 15s', tone: 'bad', ttl: 6000 });
+        this.note({ key: 'mp-afk', title: 'Still there? A bot takes over in 15s', tone: 'bad', ttl: 6000 });
         return;
       case 'paused':
         this.transport.post({ t: 'paused', paused: m.paused });
@@ -666,7 +666,7 @@ export class NetHost implements PartyLink {
         // so plainly instead of a "Reconnecting…" that never ends (never a silent divergence)
         else if (m.code === 'room_gone' && (m as { watch?: boolean }).watch === true) {
           this.desynced = true;
-          this.note({ key: 'mp-desync', title: 'Out of sync with the match · a bot plays your hero', tone: 'bad', ttl: 15_000 });
+          this.note({ key: 'mp-desync', title: 'Connection lost · a bot plays your champion', tone: 'bad', ttl: 15_000 });
           this.opts.track?.('mp_desync', { abort: true, turn: this.lastTurn });
         } else if (m.code === 'room_gone' || m.code === 'server_moving' || m.code === 'room_elsewhere') {
           this.quietUntil = this.now() + QUIET_WAIT_MS;
@@ -697,7 +697,7 @@ export class NetHost implements PartyLink {
     switch (m.t) {
       case 'selftest':
         this.selftestOk = m.ok;
-        if (!m.ok) this.note({ key: 'mp-update', title: 'Update to play together', tone: 'bad', ttl: 10_000 });
+        if (!m.ok) this.note({ key: 'mp-update', title: 'Update the game to play together', tone: 'bad', ttl: 10_000 });
         return;
       case 'snap': {
         const snap = decodeSnap(m.buf);
@@ -761,7 +761,7 @@ export class NetHost implements PartyLink {
         if (this.serverEnd && !this.coreEnded && this.now() - this.endAtMs > 2000) this.retrySync(m.lastTurn + 1);
         if (m.waiting && !this.waitingShown && this.now() >= this.quietUntil) {
           this.waitingShown = true;
-          this.note({ key: 'mp-wait', title: 'Waiting for server…', tone: 'bad', ttl: 3000 });
+          this.note({ key: 'mp-wait', title: 'Waiting for the match…', tone: 'bad', ttl: 3000 });
         } else if (!m.waiting) this.waitingShown = false;
         return;
       case 'progress':

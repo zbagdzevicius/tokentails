@@ -42,16 +42,16 @@ export const MUTATOR_MODE: Readonly<Record<Mutator, string>> = Object.freeze({
 });
 /** Sim v27: the loading line of a mutator match. */
 export const MUTATOR_VEIL: Readonly<Record<Mutator, string>> = Object.freeze({
-  none: 'Into the Crossing...',
-  blitz: 'Blitz! Into the Crossing...',
-  cannon: 'Cannon Chaos! Into the Crossing...',
-  practice: 'Into the Practice ground...',
-  toybox: 'Weekly Twist: Toy Box...',
-  rapid: 'Weekly Twist: Rapid Paws...',
-  bounty: 'Weekly Twist: Bounty Hunt...',
-  onelane: 'One Lane Brawl! Onto Sunny Lane...',
-  duel: 'Duel! Onto Sunny Lane...',
-  boss: 'Boss Weekend! Mega Brutus waits on the bridge...',
+  none: 'Into the Crossing…',
+  blitz: 'Blitz! Into the Crossing…',
+  cannon: 'Cannon Chaos! Into the Crossing…',
+  practice: 'Into the Practice ground…',
+  toybox: 'Weekly Twist: Toy Box…',
+  rapid: 'Weekly Twist: Rapid Paws…',
+  bounty: 'Weekly Twist: Bounty Hunt…',
+  onelane: 'One Lane Brawl! Onto Sunny Lane…',
+  duel: 'Duel! Onto Sunny Lane…',
+  boss: 'Boss Weekend! Mega Brutus waits on the bridge…',
 });
 
 export const modeOfMap = (map: MapId | undefined, mutator?: Mutator): MatchMode =>

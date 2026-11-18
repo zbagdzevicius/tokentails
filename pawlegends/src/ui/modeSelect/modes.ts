@@ -80,7 +80,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     art: 'blitz',
     state: 'live',
     mutator: 'blitz',
-    rules: ['3v3 on the Crossing in about 3 minutes: start at level 4, double XP.', 'Kibble Cannon at 0:20, the final whistle at 3:15.'],
+    rules: ['3v3 on the Crossing in about 3 minutes.', 'Start at level 4 with double XP.', 'Kibble Cannon at 0:20. Time\'s up at 3:15.'],
   },
   {
     id: 'skirmish',
@@ -92,7 +92,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     state: 'live',
     // Nov 12: Co-op is Skirmish's variant (the separate "Co-op vs Bots" tile was the same match)
     queues: ['bots', 'coop', 'pvp', 'friends'],
-    rules: ['3v3 on one of five maps, a new one each match: Purrhaven Crossing, Lanternfall Ridge, Twinbark Thicket, Geode Quarry or Pawball Park.', 'Destroy the enemy core to win.', 'Solo vs bots, co-op vs bots, PvP or with friends.'],
+    rules: ['3v3 on one of 5 maps, a new one each match.', 'Destroy the enemy core to win.', 'Solo vs bots, co-op vs bots, PvP or with friends.'],
   },
   {
     id: 'classic',
@@ -104,7 +104,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     state: 'live',
     // the matchmaker's co-op queue and friend parties play 3v3 (PROTO 4: `classic` is the 10-player PvP queue)
     queues: ['bots', 'pvp'],
-    rules: ['5v5 on Hearthwood Divide: three lanes and a jungle.', 'Take towers and objectives, then the core.'],
+    rules: ['5v5 on Hearthwood Divide: 3 lanes and a jungle.', 'Take towers and objectives, then the core.'],
   },
   // Round 4 (SOCIAL-RANKED.md §7.11): Ranked is always open; `rankedModeDef` adds the live counts and Prime Time once
   // GET /pawlegends/ranked/status answers.
@@ -121,7 +121,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     state: 'live',
     isNew: true,
     mutator: 'cannon',
-    rules: ['The Kibble Cannon from 0:15 and again 20 s after every shot: grab it, blast towers and heroes.', 'Start at level 3, cooldowns 30% shorter, about 5 minutes.'],
+    rules: ['The Kibble Cannon is ready at 0:15, then 20 s after every shot. Grab it to blast towers and champions.', 'Start at level 3 with 30% shorter cooldowns. About 5 minutes.'],
   },
   {
     // Sim v27 (V27.md §2): the solo sandbox, no rewards
@@ -136,7 +136,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     isNew: true,
     mutator: 'practice',
     practice: true,
-    rules: ['Your champion on any 3v3 map (pick one, or Random) with three training dummies: one stands, one walks, one waits under a tower.', 'Reset, level up and refresh cooldowns any time. Any champion, no rewards.'],
+    rules: ['Any champion on any 3v3 map, with 3 training dummies: one stands, one walks, one waits under a tower.', 'Reset, level up and refresh cooldowns any time. No rewards.'],
   },
   {
     // Sim v28 (docs/plans/moba/V28.md §2): ARAM-like, one lane, no recall
@@ -151,7 +151,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     state: 'live',
     isNew: true,
     mutator: 'onelane',
-    rules: ['3v3 on Sunny Lane only: one lane, nonstop fights.', 'Start at level 3, Fish twice as fast. No Nap and no fountain heal: grab the Fish Snacks.', 'Sunset 5:00, time up 8:00.'],
+    rules: ['3v3 on Sunny Lane only: one lane, nonstop fights.', 'Start at level 3 and earn Fish twice as fast.', 'No Nap and no fountain heal. Grab Fish Snacks to heal.', 'Sunset at 5:00. Time\'s up at 8:00.'],
   },
   {
     // Sim v28 (V28.md §3): 1v1, first to 2 takedowns or the first tower
@@ -166,7 +166,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     state: 'live',
     isNew: true,
     mutator: 'duel',
-    rules: ['1v1 on Sunny Lane with its minions.', 'First to 2 takedowns or the first tower wins.', 'Start at level 3; no Nap, Fish Snacks heal. Time up at 5:00.'],
+    rules: ['1v1 on Sunny Lane with minions.', 'First to 2 knockouts or the first tower wins.', 'Start at level 3. No Nap: Fish Snacks heal. Time\'s up at 5:00.'],
   },
   // Sim v28 (V28.md §4): Boss Weekend, Friday to Monday 00:00 UTC; meta/liveops.ts re-registers it from the server
   bossModeDef(bossWeekend(Date.now())),
@@ -201,7 +201,7 @@ export function bossModeDef(win: { startsAt: number; endsAt: number }): ModeDef 
     state: { event: { startsAt: win.startsAt, endsAt: win.endsAt } },
     mutator: 'boss',
     short: 'Co-op vs Mega Brutus',
-    rules: ['Your team of three against Mega Brutus on the Sunny Lane bridge.', 'Red circles are his Ground Pound and Meteor Paw: step out before they fill.', 'He calls pups at 66% and 33% and enrages at 5:30. Fell him before 6:30.'],
+    rules: ['Your team of 3 against Mega Brutus on the Sunny Lane bridge.', 'Red circles are his Ground Pound and Meteor Paw. Step out before they fill.', 'He calls pups at 66% and 33% health and enrages at 5:30. Beat him before 6:30.'],
   };
 }
 
@@ -334,7 +334,7 @@ export const VARIANT_LINE: Readonly<Record<Queue, string>> = Object.freeze({
   bots: 'Solo against bots',
   coop: 'Team up with players vs bots',
   pvp: 'Players vs players',
-  friends: 'Party up, invite, share a code',
+  friends: 'Invite friends or share a code',
 });
 
 /** The mode pill on Home: "Classic 5v5 · vs Bots". Pure. */
@@ -354,8 +354,8 @@ export const queueFor = (m: Pick<ModeDef, 'queues'>, q: Queue | null | undefined
 export function variantLock(q: Queue, available: readonly Queue[], pvpLock: string | null = null): string | null {
   if (q === 'pvp' && pvpLock) return pvpLock;
   if (available.includes(q)) return null;
-  if (q === 'pvp') return 'PvP is offline right now';
-  return 'Needs the party server (offline right now)';
+  if (q === 'pvp') return 'PvP is not available right now';
+  return 'Online play is not available right now';
 }
 
 /** The old toggle's value for a mode (the app still saves it, so the pick and party screens keep their map). */

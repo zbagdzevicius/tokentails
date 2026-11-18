@@ -6,7 +6,7 @@
 export function consentPrompt(parent: HTMLElement, onChoice: (granted: boolean) => void): HTMLElement {
   const root = document.createElement('div');
   root.className = 'pl-consent';
-  root.innerHTML = `<span>Help us tune Pawlegends with anonymous play stats?</span>
+  root.innerHTML = `<span>Share anonymous play stats to help us tune Paw Legends?</span>
     <button class="pl-btn small" data-c="1">Sure</button><button class="pl-btn ghost small" data-c="0">No thanks</button>`;
   root.addEventListener('click', (e) => {
     const c = (e.target as HTMLElement).closest<HTMLElement>('[data-c]')?.dataset.c;

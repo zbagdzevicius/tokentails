@@ -11,9 +11,9 @@ const TEXT: Record<string, RegExp> = {
   // "Click or right-click" while Auto trackpad still watches, "Right-click" once the player right-clicked
   move: /right-click the ground to walk/i,
   attack: /right-click an enemy minion to attack/i,
-  q: /Enemy hero! Press Q to strike/,
+  q: /Enemy champion! Press Q to strike/,
   dodge: /Incoming! Press E to Tumble out of the way/,
-  ult: /Level 4! Press R for your ultimate/,
+  ult: /Level 4! Press R to use your ultimate/,
 };
 
 const list = async (page: Page, name: string) => (await attr(page, name)).split(',').filter(Boolean);

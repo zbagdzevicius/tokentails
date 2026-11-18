@@ -96,8 +96,8 @@ describe('party lobby (P4)', () => {
     expect(mount(lobbyHtml(model(solo))).querySelector('[data-testid="party-start"]')!.textContent).toBe('Play');
     const open = mount(lobbyHtml(model({ ...solo, openSeats: true })));
     expect(open.querySelector('[data-testid="party-start"]')!.textContent).toBe('Start');
-    expect(open.textContent).toContain('Bots get the human buff while seats are open');
-    expect(open.textContent).toContain('Unfilled seats lower rewards');
+    expect(open.textContent).toContain('Bots in open seats get the same boost as players');
+    expect(open.textContent).toContain('A seat still empty after 1 minute lowers rewards one difficulty');
   });
 
   it('the waiting chip: "Waiting for <name> · Nudge", then Nudged; Start anyway after 10 s', () => {
@@ -192,7 +192,7 @@ describe('shared pick (P7)', () => {
     expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="hero"]')].some((b) => b.getAttribute('aria-disabled') === 'true')).toBe(false);
     expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="trick"]')].every((b) => b.disabled)).toBe(true);
     expect(el.querySelector('[data-testid="party-lock"]')!.textContent).toBe('Locked in');
-    expect(el.querySelector('[data-testid="party-unlock"]')!.textContent).toBe('Change hero');
+    expect(el.querySelector('[data-testid="party-unlock"]')!.textContent).toBe('Change champion');
   });
 
   it('a viewed hero (taken, the other side) fills the panel; LOCK IN says why and the seat keeps the hover', () => {
@@ -228,7 +228,7 @@ describe('loading (P8)', () => {
     const el = mount(loadingHtml(v));
     expect(el.querySelectorAll('.pp-lc:not(.bot)')).toHaveLength(2);
     expect(el.querySelector('.pp-lc.bot')).not.toBeNull();
-    expect(el.textContent).toContain('Bot covers until Mira Cat loads');
+    expect(el.textContent).toContain('A bot plays for Mira Cat until they load');
     expect(el.querySelectorAll('[role="progressbar"]')[1].getAttribute('aria-valuenow')).toBe('30');
   });
 });

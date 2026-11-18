@@ -191,11 +191,11 @@ describe('home screen: one play path', () => {
     click(ms, 'mode-next');
     const coop = ms.querySelector<HTMLElement>('[data-testid="variant-coop"]')!;
     expect(coop.getAttribute('aria-disabled')).toBe('true');
-    expect(coop.textContent).toContain('party server');
+    expect(coop.textContent).toContain('Online play is not available');
     coop.click();
     expect(ms.querySelector('[data-testid="variant-bots"]')?.getAttribute('aria-checked')).toBe('true');
-    expect(ms.querySelector('.ms-toast')?.textContent).toContain('party server');
-    expect(ms.querySelector('[data-testid="variant-pvp"]')?.textContent).toContain('PvP is offline');
+    expect(ms.querySelector('.ms-toast')?.textContent).toContain('Online play is not available');
+    expect(ms.querySelector('[data-testid="variant-pvp"]')?.textContent).toContain('PvP is not available');
     disposeHome(root);
     document.body.innerHTML = '';
     root = mount(online({ onStart, onlineMode: om({ locked: true }) }));
@@ -265,9 +265,9 @@ describe('home screen: one play path', () => {
   it('first visit: the guided match in one tap, no Mode Select, the nav shown with Heroes and Pass locked (no Cards item)', async () => {
     const onPlay = vi.fn();
     const onHeroes = vi.fn();
-    const root = mount(base({ firstTime: true, onPlay, onHeroes, firstLine: 'Your first match is a guided Rookie match.' }));
+    const root = mount(base({ firstTime: true, onPlay, onHeroes, firstLine: 'Your first match is a guided match.' }));
     expect(root.querySelector('[data-testid="mode-pill"]')).toBeNull();
-    expect(root.querySelector('.hm-line')?.textContent).toBe('Your first match is a guided Rookie match.');
+    expect(root.querySelector('.hm-line')?.textContent).toBe('Your first match is a guided match.');
     const nav = root.querySelector('.hm-nav')!;
     expect(nav.querySelectorAll('.hm-ni.locked').length).toBeGreaterThanOrEqual(3);
     expect(nav.querySelector('[data-a="cards"]')).toBeNull();

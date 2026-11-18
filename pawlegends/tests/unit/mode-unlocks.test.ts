@@ -99,8 +99,8 @@ describe('the ladder', () => {
     expect(needText({ level: 3 })).toBe('Unlocks at Lv 3');
     expect(progressOf('classic', prof(2, 0))).toMatchObject({ line: 'Lv 3', pct: 0.5, short: 'Lv 2, 2/4 matches' });
     expect(progressOf('ranked', prof(5, 0))!.pct).toBeCloseTo(0.5);
-    expect(lockLine('classic', prof(3, 0))).toBe('Unlocks at Lv 3 (you are Lv 2: 1 more match)');
-    expect(lockLine('ranked', prof(4, 1))).toBe('Unlocks at Lv 6 (you are Lv 3: 6 more matches)');
+    expect(lockLine('classic', prof(3, 0))).toBe('Unlocks at Lv 3 · 1 more match');
+    expect(lockLine('ranked', prof(4, 1))).toBe('Unlocks at Lv 6 · 6 more matches');
   });
 
   it('each level unlocks exactly its modes', () => {
@@ -135,7 +135,7 @@ describe('the layout: never more than 3 big tiles', () => {
     const m = more(l);
     expect(ids(m)).toEqual(['blitz', 'classic', 'duel', 'onelane', 'cannon', 'boss', 'ranked']);
     expect(m.every((x) => x.state === 'locked')).toBe(true);
-    expect(m.find((x) => x.id === 'blitz')).toMatchObject({ lockText: 'Unlocks at Lv 2 (you are Lv 1: 1 more match)', progress: { line: 'Lv 2' } });
+    expect(m.find((x) => x.id === 'blitz')).toMatchObject({ lockText: 'Unlocks at Lv 2 · 1 more match', progress: { line: 'Lv 2' } });
     expect(m.find((x) => x.id === 'classic')!.progress!.line).toBe('Lv 3');
     expect(m.some((x) => x.isNew)).toBe(false);
   });

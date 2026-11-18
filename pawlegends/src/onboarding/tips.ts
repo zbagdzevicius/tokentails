@@ -22,7 +22,7 @@ export interface TipNames {
   r: string;
 }
 
-const DEFAULT_NAMES: TipNames = { q: 'your first ability', e: 'your third ability', r: 'the big gold button' };
+const DEFAULT_NAMES: TipNames = { q: 'your first ability', e: 'your third ability', r: 'your ultimate button' };
 
 /** Is left-click moving: true (trackpad mode), false (a mouse), null (Auto still watching, both buttons work). */
 export type PadMode = boolean | null;
@@ -41,11 +41,11 @@ export function tipText(id: TipId, touch: boolean, n: TipNames = DEFAULT_NAMES, 
     case 'attack':
       return touch ? 'Tap ATK to attack the nearest enemy' : `${click} an enemy minion to attack`;
     case 'q':
-      return touch ? `Enemy hero! Tap ${n.q} (glowing) to strike` : 'Enemy hero! Press Q to strike';
+      return touch ? `Enemy champion! Tap ${n.q} (glowing) to strike` : 'Enemy champion! Press Q to strike';
     case 'dodge':
       return touch ? `Incoming! Tap ${n.e} (glowing) to get out of the way` : 'Incoming! Press E to Tumble out of the way';
     case 'ult':
-      return touch ? `Level 4! Tap ${n.r} (glowing) for your ultimate` : 'Level 4! Press R for your ultimate';
+      return touch ? `Level 4! Tap ${n.r} (glowing) to use your ultimate` : 'Level 4! Press R to use your ultimate';
   }
 }
 
@@ -58,11 +58,11 @@ export function tipShort(id: TipId, touch: boolean, pad: PadMode = savedPadMode(
     case 'attack':
       return 'Tap ATK to attack';
     case 'q':
-      return 'Enemy hero! Tap the glowing skill';
+      return 'Enemy champion! Tap the glowing ability';
     case 'dodge':
-      return 'Incoming! Tap the glowing skill';
+      return 'Incoming! Tap the glowing ability';
     case 'ult':
-      return 'Level 4! Tap the gold button';
+      return 'Level 4! Tap your ultimate';
   }
 }
 

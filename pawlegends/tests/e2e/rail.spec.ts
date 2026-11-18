@@ -54,7 +54,7 @@ for (const s of SIZES) {
       { key: 'tower', title: 'Tower aiming at you!', sub: 'Step out of its ring.', prio: 1, tone: 'bad' },
       { title: 'First Blood!', sub: 'Tofu got the first knockout.', prio: 2, tone: 'gold', big: true },
       { title: 'Knockout!', prio: 3, tone: 'gold', count: true },
-      { key: 'tip:q', title: 'Enemy hero! Tap the glowing skill', prio: 4, tone: 'info' },
+      { key: 'tip:q', title: 'Enemy champion! Tap the glowing ability', prio: 4, tone: 'info' },
     ];
     for (const n of notes) {
       await page.evaluate((note) => {

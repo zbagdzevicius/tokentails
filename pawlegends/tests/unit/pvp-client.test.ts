@@ -144,7 +144,7 @@ describe('casual PvP client', () => {
     const v = pvpView();
     const html = pickHtml({ view: v, hover: 'brutus', trick: 'hiss', secondsLeft: 20, error: null });
     expect(html).toContain('data-pvp="1"');
-    expect(html).toContain('Their picks show at loading');
+    expect(html).toContain('You see their picks on the loading screen');
     expect(html).not.toContain('Quick Paws');
     const load = loadingHtml({ ...v, phase: 'loading' });
     expect(load).toContain('data-testid="pvp-load-theirs"');

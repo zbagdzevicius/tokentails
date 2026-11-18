@@ -18,7 +18,7 @@ export function pushAskCard(parent: HTMLElement, o: PushAskOpts): { el: HTMLElem
   root.dataset.testid = 'push-ask';
   root.innerHTML = `<button class="x" data-a="close" aria-label="Close">✕</button>
     <b class="head">Never miss a match</b>
-    <p>A ping when a friend invites you, your club chest fills, ranked opens or a new event starts. Quiet at night; turn any of them off in Settings.</p>
+    <p>Get a ping when a friend invites you, your club chest fills, Ranked opens or an event starts. No pings at night. Turn any of them off in Settings.</p>
     <div class="acts"><button class="pl-btn ghost small" data-a="no">Not now</button><button class="pl-btn small" data-a="yes" data-testid="push-yes">Turn on</button></div>
     <small class="note" aria-live="polite"></small>`;
   const note = root.querySelector<HTMLElement>('.note')!;

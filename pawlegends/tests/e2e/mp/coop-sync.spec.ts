@@ -54,7 +54,7 @@ test('3v3 party: both clients run one world (hashes, enemies, towers); Play agai
   expect(hashes).toBeGreaterThan(100);
   expect(probes).toBeGreaterThan(10);
   // no client was ever resynced or told it drifted
-  for (const p of [a, b]) expect(await notes(p)).not.toMatch(/Re-syncing|Out of sync/);
+  for (const p of [a, b]) expect(await notes(p)).not.toMatch(/Catching up…|Connection lost · a bot plays/);
   await surrender(a);
   await surrender(b);
   for (const p of [a, b]) await p.page.waitForSelector('html[data-screen="results"]', { timeout: 60_000 });

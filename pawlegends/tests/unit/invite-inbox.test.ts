@@ -61,7 +61,7 @@ describe('one sim build per party', () => {
   });
 
   it('the relay\'s update_required reads as a clear "update your game" line', () => {
-    expect(errorText('update_required')).toMatch(/out of date: reload to update/);
+    expect(errorText('update_required')).toMatch(/new version is out. Reload to play together/);
   });
 });
 

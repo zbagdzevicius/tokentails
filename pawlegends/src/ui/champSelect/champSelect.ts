@@ -270,7 +270,7 @@ function tabsHtml(m: CsModel): string {
           const on = sd === side;
           const n = sd === 'all' ? m.heroes.length : m.heroes.filter((h) => HEROES[h].side === sd).length;
           const lock = sd === 'dog' && m.dogsLocked;
-          const label = `${SIDE_NAME[sd]}, ${n} heroes${lock ? ', unlock after your first match' : ''}`;
+          const label = `${SIDE_NAME[sd]}, ${n} champions${lock ? ', unlock after your first match' : ''}`;
           return `<button type="button" class="cs-tab side-tab ${sd}${on ? ' on' : ''}"${sd === 'all' ? '' : ` style="--side:${SIDE_TAB_CSS[sd]}"`} role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" data-cs="side" data-side="${sd}" aria-label="${esc(label)}" title="${esc(label)}">${sd === 'all' ? GRID : icon(SIDE_ICON[sd])}<b>${SIDE_NAME[sd]}</b>${lock ? '<span class="cs-tlock" aria-hidden="true">🔒</span>' : ''}</button>`;
         })
         .join('')}</div><i class="cs-div" aria-hidden="true"></i>`
@@ -325,7 +325,7 @@ function skillTextHtml(h: HeroId, slot: PanelSlot, numbers: boolean, kind: 'solo
 
 /** The hero panel (§B2.5). */
 export function panelHtml(h: HeroId | null, o: { numbers: boolean; kind: 'solo' | 'party'; look?: boolean; toggle?: boolean; sheet?: string }): string {
-  if (!h) return `<section class="cs-panel empty" aria-label="Hero"><p class="cs-what">Tap a hero to see its skills.</p></section>`;
+  if (!h) return `<section class="cs-panel empty" aria-label="Champion"><p class="cs-what">Tap a champion to see its skills.</p></section>`;
   const t = HERO_TEXT[h];
   const role = HEROES[h].role;
   loadCodex();
@@ -394,7 +394,7 @@ export function champSelectHtml(m: CsModel): string {
   return `<div class="cs ${m.rootClass ?? ''}" data-kind="${m.kind}" data-seats="${m.seats.length}"${m.rootAttrs ? ` ${m.rootAttrs}` : ''}>
     <header class="cs-head"><div class="cs-hl">${m.headLeft ?? ''}</div><div class="cs-title"><h2>${esc(m.title ?? 'Choose your legend')}</h2>${timer}${m.headNote ?? ''}</div><div class="cs-hr">${m.headRight ?? ''}</div></header>
     <aside class="cs-team" aria-label="Your team"><ol class="cs-seats pp-strip" style="--n:${Math.max(1, m.seats.length)}">${seats}</ol>${m.teamNote ?? ''}</aside>
-    <section class="cs-mid">${tabsHtml(m)}<div class="cs-gridwrap"><div class="cs-grid${m.kind === 'party' ? ' pp-heroes' : ''}" role="group" aria-label="Heroes">${m.heroes.map((h) => tileHtml(m, h, focusH)).join('')}</div><button type="button" class="cs-more" data-cs="more" tabindex="-1" hidden>▾ more</button></div></section>
+    <section class="cs-mid">${tabsHtml(m)}<div class="cs-gridwrap"><div class="cs-grid${m.kind === 'party' ? ' pp-heroes' : ''}" role="group" aria-label="Champions">${m.heroes.map((h) => tileHtml(m, h, focusH)).join('')}</div><button type="button" class="cs-more" data-cs="more" tabindex="-1" hidden>▾ more</button></div></section>
     ${panelHtml(m.selected, { numbers: m.numbers, kind: m.kind, look: m.look, toggle: m.numbersToggle, sheet: m.lookSheet })}
     <div class="cs-fl">${m.footLeft ?? ''}</div>
     <div class="cs-fc">${why}${m.champBar ? `<div class="cs-champ" role="group" aria-label="Unlock">${m.champBar}</div>` : ''}${lockHtml(m)}</div>

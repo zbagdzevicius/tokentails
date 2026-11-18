@@ -63,7 +63,7 @@ export function accountChipHtml(m: AccountModel, lobby: boolean): string {
 /** The signed-in panel's markup (also the Settings row's body). */
 export function accountPanelHtml(m: AccountModel): string {
   if (!m.signedIn) {
-    return `<p class="pl-acct-line">Play without an account. Sign in to keep your wins, unlocks and Treat Track on every device.</p>
+    return `<p class="pl-acct-line">Play without an account. Sign in to keep your wins, unlocks and Pass progress on every device.</p>
       <div class="pl-acct-actions"><button type="button" class="pl-btn small" data-acct="sign-in" data-testid="account-sign-in">Sign in</button></div>`;
   }
   const who = m.name ? `<b class="pl-acct-name">${esc(m.name)}</b>` : '';

@@ -29,7 +29,7 @@ describe('first-match tips', () => {
       attack: /right-click an enemy minion/i,
       q: /Press Q/,
       dodge: /Press E to Tumble out of the way/,
-      ult: /Press R for your ultimate/,
+      ult: /Press R to use your ultimate/,
     };
     for (const id of Object.keys(text) as TipId[]) {
       tips.trigger(id);

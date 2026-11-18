@@ -26,12 +26,12 @@ function wildChip(): string {
 
 describe('ftue-3: the Pudding beat and the standing chip agree', () => {
   for (const pad of [null, true, false] as const) {
-    it(`desktop (pad ${String(pad)}): both say "Hit him in the river"`, () => {
+    it(`desktop (pad ${String(pad)}): both say "Land the last hit on him in the river"`, () => {
       const beat = beatText('pudding', false, undefined, pad);
       const chip = wildChip();
       expect(beat.title).toBe('Calm Pudding!');
-      expect(beat.sub.startsWith('Hit him in the river')).toBe(true);
-      expect(chip.startsWith('Hit him in the river')).toBe(true);
+      expect(beat.sub.startsWith('Land the last hit on him in the river')).toBe(true);
+      expect(chip.startsWith('Land the last hit on him in the river')).toBe(true);
     });
   }
 

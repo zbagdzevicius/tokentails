@@ -65,7 +65,7 @@ describe('honest lines', () => {
   });
   it('touch tips name the skill, not a key letter', () => {
     const n = { q: 'Sunrise Slash', e: 'Tumble', r: 'Golden Hour' };
-    expect(tipText('q', true, n)).toBe('Enemy hero! Tap Sunrise Slash (glowing) to strike');
+    expect(tipText('q', true, n)).toBe('Enemy champion! Tap Sunrise Slash (glowing) to strike');
     expect(tipText('ult', true, n)).not.toMatch(/\bR\b/);
     expect(tipText('q', false, n)).toMatch(/Press Q/);
   });

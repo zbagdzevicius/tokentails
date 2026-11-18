@@ -64,7 +64,7 @@ test('a level-1 player: only Skirmish and Practice are playable; every other mod
   await page.waitForSelector('html[data-screen="title"] .pl-home');
   // the account level on Home, and the nav Ranked item names its level and the matches to go
   await expect(page.locator('.hm-pf-sub')).toContainText('Lv 1');
-  await expect(page.locator('.hm-nav [data-a="locked"][data-why^="Ranked"]')).toHaveAttribute('data-why', 'Ranked: Unlocks at Lv 6 (you are Lv 1: 9 more matches).');
+  await expect(page.locator('.hm-nav [data-a="locked"][data-why^="Ranked"]')).toHaveAttribute('data-why', 'Ranked: Unlocks at Lv 6 · 9 more matches.');
   await expect(page.locator('.hm-slide[data-mode="cannon"]')).toHaveCount(0);
   await tap(page, '[data-testid="home-play"]', touch);
   await expect(page.locator('[data-testid="mode-select"]')).toBeVisible();
@@ -78,7 +78,7 @@ test('a level-1 player: only Skirmish and Practice are playable; every other mod
   for (const id of ['blitz', 'classic', 'duel', 'twist', 'onelane', 'cannon', 'boss', 'ranked']) await expect(more.locator(`[data-testid="mode-${id}"]`)).toHaveAttribute('data-state', 'locked');
   await expect(more.locator('[data-testid="mode-classic"]')).toContainText('Lv 3');
   await expect(more.locator('[data-testid="mode-ranked"]')).toContainText('Lv 6');
-  await expect(more.locator('[data-testid="mode-duel"]')).toHaveAttribute('aria-label', 'Duel, locked. Unlocks at Lv 4 (you are Lv 1: 5 more matches)');
+  await expect(more.locator('[data-testid="mode-duel"]')).toHaveAttribute('aria-label', 'Duel, locked. Unlocks at Lv 4 · 5 more matches');
   // one screen: no scroll, every icon inside the viewport and at least 44 px
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1 && document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   const boxes = await page.locator('[data-testid="mode-select"] .ms-pick, [data-testid="mode-next"]').evaluateAll((els) =>
@@ -94,7 +94,7 @@ test('a level-1 player: only Skirmish and Practice are playable; every other mod
   const sheet = page.locator('[data-testid="mode-lock-sheet"]');
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText('Classic');
-  await expect(sheet.locator('[data-testid="mode-lock-how"]')).toHaveText('Unlocks at Lv 3 (you are Lv 1: 3 more matches).');
+  await expect(sheet.locator('[data-testid="mode-lock-how"]')).toHaveText('Unlocks at Lv 3 · 3 more matches.');
   await expect(sheet.locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '25');
   await shot(page, 'locked-sheet');
   await tap(page, '[data-testid="mode-lock-sheet"] .ms-pop-x', touch);

@@ -174,14 +174,14 @@ describe('the ranked queue card', () => {
   it('players first: says when labelled bots fill and when it becomes vs AI; the live count and the region', () => {
     const early = card({ ranked: { casualAfterS: RANKED_CASUAL_AFTER_S, searching: 2, region: { name: 'Europe', ms: 41 } } });
     expect(early.querySelector('[data-ranked]')).not.toBeNull();
-    expect(early.querySelector('[data-testid="mm-ranked-note"]')?.textContent).toBe(`Players first. Bots fill empty seats in ${RANKED_BOTS.fillS - 12}s (half points); vs AI at 1:10 if no one else is searching`);
+    expect(early.querySelector('[data-testid="mm-ranked-note"]')?.textContent).toBe(`Players first. Bots fill empty seats in ${RANKED_BOTS.fillS - 12}s (half points). At 1:10 with no one else searching, your team plays bots (quarter points)`);
     expect(early.querySelector('[data-testid="mm-ranked-live"]')?.textContent).toBe('2 searching · Europe · 41 ms');
     expect(early.querySelector('[data-testid="mm-play-casual"]')).toBeNull();
     const prime = card({ ranked: { casualAfterS: RANKED_CASUAL_AFTER_S, prime: true } });
     expect(prime.textContent).toContain(`in ${RANKED_BOTS.primeFillS - 12}s`);
     expect(prime.querySelector('[data-testid="mm-ranked-live"]')?.textContent).toBe('Prime Time');
     const quiet = card({ waitedS: 50 });
-    expect(quiet.querySelector('[data-testid="mm-ranked-note"]')?.textContent).toMatch(/^Quiet queue: bots fill/);
+    expect(quiet.querySelector('[data-testid="mm-ranked-note"]')?.textContent).toMatch(/^Few players now: bots fill/);
     // only a relay that never fills ranked keeps a search this long: the card then offers Casual
     expect(card({ waitedS: RANKED_CASUAL_AFTER_S }).querySelector('[data-testid="mm-play-casual"]')).not.toBeNull();
   });
@@ -189,7 +189,7 @@ describe('the ranked queue card', () => {
   it('vs AI found: the strip says your team against bots and quarter points', () => {
     const el = card({ match: { humans: 1, bots: 2, side: 'cat', difficulty: 'normal', ai: true } });
     expect(el.querySelector('[data-ai]')).not.toBeNull();
-    expect(el.querySelector('h2')?.textContent).toBe('Ranked vs AI');
+    expect(el.querySelector('h2')?.textContent).toBe('Ranked vs bots');
     expect(el.querySelector('[data-testid="mm-found-ai"]')?.textContent).toMatch(/against bots · quarter points/);
   });
 

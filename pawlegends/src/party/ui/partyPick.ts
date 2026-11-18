@@ -216,7 +216,7 @@ export function pickModel(o: PickModel, x: PickHtmlExtra = {}): CsModel {
   const peek = o.peek && o.peek in HEROES && o.peek !== o.hover ? (o.peek as HeroId) : null;
   const shown = peek ?? hover;
   const block = shown ? heroBlock(v, shown, hide) : '';
-  const lockWhy = !shown ? 'Tap a hero' : taken.get(shown) ? `Taken by ${taken.get(shown)}` : block;
+  const lockWhy = !shown ? 'Tap a champion' : taken.get(shown) ? `Taken by ${taken.get(shown)}` : block;
   return {
     kind: 'party',
     seats: partySeats(v, o.hover, (m) => shownName(v, m, hide), per, casual),

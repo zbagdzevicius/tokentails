@@ -774,7 +774,7 @@ export class App {
     el.className = 'pl-new';
     el.setAttribute('role', 'status');
     el.innerHTML = `<b>New!</b><span></span>`;
-    (el.querySelector('span') as HTMLElement).textContent = def.kind === 'pass' ? `${def.label} is yours. Every reached premium reward is ready to claim.` : champ ? `${def.label} is yours. Pick it in any mode.` : `${def.label} is yours. Wearing it now.`;
+    (el.querySelector('span') as HTMLElement).textContent = def.kind === 'pass' ? `${def.label} is yours. Claim the Legends Pass rewards you reached.` : champ ? `${def.label} is yours. Pick it in any mode.` : `${def.label} is yours. Wearing it now.`;
     this.root.appendChild(el);
     setTimeout(() => el.classList.add('out'), 3600);
     setTimeout(() => el.remove(), 4200);
@@ -1278,9 +1278,9 @@ export class App {
       portrait: this.badgePortrait(),
       signedIn: accountState().signedIn,
       isApp: this.isApp(),
-      firstLine: rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.',
+      firstLine: rookieAvailable() ? 'Your first match is a guided match.' : 'Your first match is a guided match vs Easy bots.',
       difficulties: pickable(),
-      difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `More bots after ${PICK_DIFFICULTY_FROM} matches.`,
+      difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `Pick bot difficulty after ${PICK_DIFFICULTY_FROM} matches.`,
       // the variant step's bots difficulty: remembered at once (the next PLAY opens on it)
       onDifficulty: (d) => {
         this.choice = { ...this.choice, difficulty: d };
@@ -1471,7 +1471,7 @@ export class App {
           this.showTitle();
         },
         difficulties: pickable(),
-        difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `Easy bots. More bots after ${PICK_DIFFICULTY_FROM} matches.`,
+        difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `Easy bots. Pick harder bots after ${PICK_DIFFICULTY_FROM} matches.`,
         numbers: p.numbers,
         onNumbers: (on) => {
           const q = loadProfile();
@@ -1832,7 +1832,7 @@ export class App {
     if (inv.id) {
       const r = await this.integration.api('invite.answer', { invite: inv.id, answer: 'accept' });
       if (r.status === 410) {
-        mod.lineToast(document, 'That invite has expired', 'invite-expired');
+        mod.lineToast(document, 'That invite has expired.', 'invite-expired');
         return;
       }
       const p = (r.body as { party?: unknown } | undefined)?.party;
@@ -1883,7 +1883,7 @@ export class App {
       if (!r.ok && code === 'PAWLEGENDS_SOCIAL_NO_PARTY' && Date.now() - p.lobbyAt < 15_000) return;
       stop();
       const offline = (r.body as { offline?: boolean } | undefined)?.offline;
-      lineToast(document, r.ok ? (offline ? `Invite sent. ${p.name} is offline right now` : `Invite sent to ${p.name}`) : `Couldn't invite ${p.name}. Try Invite in Friends`, r.ok ? 'invite-sent' : 'invite-failed');
+      lineToast(document, r.ok ? (offline ? `Invite sent. ${p.name} is offline right now` : `Invite sent to ${p.name}`) : `Couldn't invite ${p.name}. Try again from Friends.`, r.ok ? 'invite-sent' : 'invite-failed');
     } finally {
       this.pendingBusy = false;
     }
@@ -1957,7 +1957,7 @@ export class App {
     this.lastSetup = setup;
     this.matchMeta = { mode: match.mode === 'casual' ? 'casual' : match.mode === 'coop' ? 'coop' : 'party', map: 'crossing', practice: false };
     this.analytics.track('match_start', { hero, difficulty, trick, dare: false, party: true, load_ms: sinceLoadMs(), first_match: p.matches === 0, mode: this.matchMeta.mode, map: this.matchMeta.map });
-    const veil = loadingVeil(this.root, 'Into the Crossing...', match.mode === 'casual' ? 'PvP' : match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', { name: HERO_TEXT[hero].title, matches: p.heroMatches[hero] ?? 0 });
+    const veil = loadingVeil(this.root, 'Into the Crossing…', match.mode === 'casual' ? 'PvP' : match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', { name: HERO_TEXT[hero].title, matches: p.heroMatches[hero] ?? 0 });
     this.setScreen('match', null);
     this.leaveHomeLobby();
     this.stage.leave();
@@ -2080,7 +2080,7 @@ export class App {
     this.frameMs = [];
     // GAPS A6: the loading screen names this hero's match count
     // sim v34: the loading card names the map and its one-line rule
-    const veil = loadingVeil(this.root, map ? 'Into Hearthwood Divide...' : pool ? `Into ${MAP_CARDS[pool].name}...` : mutator ? MUTATOR_VEIL[mutator] : 'Into the Crossing...', pool ? MAP_CARDS[pool].line : undefined, {
+    const veil = loadingVeil(this.root, map ? 'Into Hearthwood Divide…' : pool ? `Into ${MAP_CARDS[pool].name}…` : mutator ? MUTATOR_VEIL[mutator] : 'Into the Crossing…', pool ? MAP_CARDS[pool].line : undefined, {
       name: HERO_TEXT[c.hero].title,
       matches: p.heroMatches[c.hero] ?? 0,
     });
@@ -2423,7 +2423,7 @@ export class App {
                       anchor.classList.remove('done');
                       anchor.innerHTML = '&#9873;';
                     }
-                    reportToast(document, out === 'failed' ? 'Report not sent. Try again' : REPORT_THANKS);
+                    reportToast(document, out === 'failed' ? 'Report not sent. Try again.' : REPORT_THANKS);
                   });
                 }),
             }
@@ -2556,7 +2556,7 @@ export class App {
     const hlSlot = resultsEl.querySelector<HTMLElement>('[data-slot="highlights"]');
     if (hlSlot) {
       // the player's hero by its own name (a worn card's cat name); the bots by their seed names ("(bot)" is added by the titles)
-      const hlNames = e.welcome.picks.map((h, slot) => (slot === mySlot ? momentName || HERO_TEXT[h]?.title : names[slot]) ?? HERO_TEXT[h]?.title ?? 'A hero');
+      const hlNames = e.welcome.picks.map((h, slot) => (slot === mySlot ? momentName || HERO_TEXT[h]?.title : names[slot]) ?? HERO_TEXT[h]?.title ?? 'A champion');
       this.hlNames = { id: moment.id, names: hlNames };
       const record = replayOf(moment.id);
       const emotes = moment.emotes;

@@ -10,7 +10,7 @@ test('Open seats: the leader starts alone, a friend joins by link mid-match and 
   const a = await player(browser, 'desktop');
   const code = await createParty(a);
   await a.page.locator('input[data-p="open"]').check();
-  await expect(a.page.locator('.pp-ctl')).toContainText('Unfilled seats lower rewards');
+  await expect(a.page.locator('.pp-ctl')).toContainText('lowers rewards one difficulty');
   await expect(a.page.locator('[data-testid="party-start"]')).toHaveText('Start');
   await shot(a, 'lane-P', '50-open-seats');
   await a.page.locator('[data-testid="party-start"]').click();

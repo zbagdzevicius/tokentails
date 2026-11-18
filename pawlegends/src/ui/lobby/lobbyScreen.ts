@@ -226,7 +226,7 @@ const pvpLockedIn = (o: LobbyScreenOpts, mode: MatchMode | null): boolean => !!o
  */
 function onlineRowHtml(o: LobbyScreenOpts, mode: MatchMode | null = null): string {
   if (!o.onOnline && !o.onParty) return '';
-  if (mode === 'blitz') return `<div class="lb-friends-row lb-online-row" role="group" aria-label="Play online"><p class="lb-solo-note">Blitz: you and bots, ~3 minutes. Online play is on Skirmish and Classic.</p></div>`;
+  if (mode === 'blitz') return `<div class="lb-friends-row lb-online-row" role="group" aria-label="Play online"><p class="lb-solo-note">Blitz is solo vs bots. Play online in Skirmish or Classic.</p></div>`;
   const m = o.onlineMode;
   const pvpLocked = pvpLockedIn(o, mode);
   const need = m?.needed ?? 5;
@@ -283,7 +283,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
   // returning players: the whole name block opens the champion select (as Heroes and H do; `data-a="name"`, so the
   // one `data-a="choose"` stays the Heroes rail item)
   const nameBlock = returning
-    ? `<button type="button" class="lb-name" data-a="name"${id.name.length > 10 ? ' data-long="1"' : ''} aria-keyshortcuts="H" aria-label="${esc(`${id.name}, ${subLine}. Change hero`)}">${nameInner}</button>`
+    ? `<button type="button" class="lb-name" data-a="name"${id.name.length > 10 ? ' data-long="1"' : ''} aria-keyshortcuts="H" aria-label="${esc(`${id.name}, ${subLine}. Change champion`)}">${nameInner}</button>`
     : `<div class="lb-name"${id.name.length > 10 ? ' data-long="1"' : ''}>${nameInner}</div>`;
   const diffShort = (d: Difficulty): string => (DIFFICULTY_TEXT as Record<string, string>)[d]?.replace(' bots', '') ?? d;
   root.innerHTML = `

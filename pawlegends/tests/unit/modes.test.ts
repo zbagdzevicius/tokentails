@@ -129,9 +129,9 @@ describe('mode registry', () => {
 
   it('a variant this build cannot start says why (party server, PvP sim, the PvP match lock)', () => {
     expect(variantLock('bots', ['bots'])).toBeNull();
-    expect(variantLock('coop', ['bots'])).toContain('party server');
-    expect(variantLock('friends', ['bots', 'coop'])).toContain('party server');
-    expect(variantLock('pvp', ['bots', 'coop'])).toBe('PvP is offline right now');
+    expect(variantLock('coop', ['bots'])).toBe('Online play is not available right now');
+    expect(variantLock('friends', ['bots', 'coop'])).toBe('Online play is not available right now');
+    expect(variantLock('pvp', ['bots', 'coop'])).toBe('PvP is not available right now');
     expect(variantLock('pvp', ['bots', 'coop', 'pvp'], 'PvP unlocks after 5 matches')).toBe('PvP unlocks after 5 matches');
     expect(variantLock('pvp', ['bots', 'coop', 'pvp'])).toBeNull();
   });

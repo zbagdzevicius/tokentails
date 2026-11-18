@@ -77,7 +77,7 @@ describe('a join whose party is on another relay (§14)', () => {
     expect(s.error?.code).toBe('party_unreachable');
     expect(s.joining).toBeNull();
     expect(screenOf(s)).toBe('joincode');
-    expect(errorText('party_unreachable')).toMatch(/Could not reach that party/);
+    expect(errorText('party_unreachable')).toBe('No connection. Try again.');
     // no more joins after the give-up, whatever reconnects later
     expect(sends(run(s, welcome('late'), decide).fx)).toEqual([]);
   });
@@ -164,7 +164,7 @@ describe('a seat the relay forgot mid-match (§14)', () => {
     expect(fx).toContainEqual({ t: 'seat-taken' });
     expect(screenOf(s)).toBe('ended');
     expect(s.error?.code).toBe('match_lost');
-    expect(errorText('match_lost')).toBe('Lost the connection to the match');
+    expect(errorText('match_lost')).toBe('Lost connection to the match.');
     expect(sends(fx)).toEqual([]);
   });
 });

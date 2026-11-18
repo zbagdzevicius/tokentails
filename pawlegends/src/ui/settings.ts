@@ -120,17 +120,17 @@ const linkAttr = (url: string): string => url.replace(/[&"<>]/g, (c) => ({ '&': 
 const SKIN_FX_NAME = { all: 'All', mine: 'Mine only', off: 'Off' } as const;
 
 const TIER_NAME: Record<QualityTier, string> = { low: 'Low', med: 'Medium', high: 'High' };
-const CAST_NAME: Record<CastMode, string> = { hold: 'Cast on key release (hold to see range)', quick: 'Quick cast (on press)' };
+const CAST_NAME: Record<CastMode, string> = { hold: 'On release (hold to see range)', quick: 'On press' };
 const PAD_NAME: Record<TrackpadPref, string> = { auto: 'Auto', on: 'On', off: 'Off' };
 const CURSOR_NAME: Record<CursorSize, string> = { normal: 'Normal', large: 'Large' };
-const TARGET_NAME: Record<TargetFirst, string> = { heroes: 'Heroes', absolute: 'Weakest hero', lowest: 'Lowest HP %', closest: 'Closest' };
+const TARGET_NAME: Record<TargetFirst, string> = { heroes: 'Champions', absolute: 'Weakest champion', lowest: 'Lowest HP %', closest: 'Closest' };
 const SHAKE_NAME: Record<ShakePref, string> = { full: 'Full', low: 'Low', off: 'Off' };
 const TSIZE_NAME: Record<TouchSize, string> = { normal: 'Normal', large: 'Large' };
 const TCAST_NAME: Record<TouchCast, string> = { quick: 'Quick', indicator: 'Indicator', normal: 'Normal' };
 const TCAST_HELP: Record<TouchCast, string> = {
-  quick: 'tap casts at the best target',
-  indicator: 'shows the aim as you press; lift to cast',
-  normal: 'tap arms it, then tap the field to cast there',
+  quick: 'Tap to cast at the best target',
+  indicator: 'Press to see the aim, lift to cast',
+  normal: 'Tap the ability, then tap where to cast it',
 };
 const SLOT_NAME: Record<CastSlot, string> = { q: 'Q', w: 'W', e: 'E', r: 'R', trick: 'Trick' };
 
@@ -196,16 +196,16 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
         .join('')}</span></div>
       ${row('Last-hit button', 'lasthit', ctl.lastHit)}
       ${row('Tower button', 'tower', ctl.tower)}
-      ${row('Aim assist (skillshots snap to a nearby hero)', 'magnet', ctl.magnet)}
+      ${row('Aim assist (snaps aim to a nearby champion)', 'magnet', ctl.magnet)}
       ${row('Left-handed (buttons left, stick right)', 'lefty', ctl.lefty)}
       <div class="set-row"><span>Button size</span><span class="chips">${(['normal', 'large'] as const)
         .map((m) => `<button class="chip ${ctl.tsize === m ? 'on' : ''}" data-tsize="${m}">${TSIZE_NAME[m]}</button>`)
         .join('')}</span></div>
       <div class="set-row"><span>HUD layout (buttons, minimap, joystick)</span><button class="chip" data-a="hudedit" data-testid="hud-edit">Edit</button></div>
       <details class="set-tcast" data-testid="tcast"${castOpen ? ' open' : ''}><summary>Ability casting and aim</summary>
-        <p class="fine">Quick: a tap casts at the best target. Indicator: the aim shows as you press, lift to cast. Normal: a tap arms the skill, then tap the field to cast there. Dashes always go on the press. Aim: how little thumb travel reaches full range.</p>
+        <p class="fine">Quick: tap to cast at the best target. Indicator: press to see the aim, lift to cast. Normal: tap the ability, then tap where to cast it. Dashes always cast on press. Aim: how short a drag reaches full range.</p>
         ${castRows()}</details>`}
-      ${o.onSkinFx ? `<div class="set-row"><span>Skin effects</span><span class="chips">${(['all', 'mine', 'off'] as const)
+      ${o.onSkinFx ? `<div class="set-row"><span>Coat effects</span><span class="chips">${(['all', 'mine', 'off'] as const)
         .map((m) => `<button class="chip ${(s.skinFx ?? 'all') === m ? 'on' : ''}" data-skinfx="${m}">${SKIN_FX_NAME[m]}</button>`)
         .join('')}</span></div>` : ''}
       <div class="set-row"><span>Minimap size</span><span class="chips">${MINIMAP_SIZES.map((m) => `<button class="chip ${ctl.mm === m ? 'on' : ''}" data-mm="${m}">${m.toUpperCase()}</button>`).join('')}</span></div>
@@ -215,11 +215,11 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${row('Hide friends\' names (party)', 'hidenames', ctl.hide)}
       ${row('Let friends watch my matches', 'watch', ctl.watch)}
       ${row('Show my country flag', 'flag', ctl.flag)}
-      <p class="fine" data-testid="flag-note">Your flag is the country of your connection; only the country is kept, never your IP. Off: other players see a paw. Flag art: Twemoji, CC BY 4.0.</p>
+      <p class="fine" data-testid="flag-note">Your flag comes from your connection's country. We keep only the country, never your IP. Off: other players see a paw. Flag art: Twemoji, CC BY 4.0.</p>
       ${o.push ? pushRows(o.push) : ''}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
       ${accountRowHtml(o.account?.model ?? null)}
-      <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
+      <p class="fine">Play stats are anonymous: champion, difficulty, match length. No names, no emails.</p>
       <p class="fine links" data-testid="settings-legal"><a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy</a>${o.termsUrl ? ` · <a href="${linkAttr(o.termsUrl)}" target="_blank" rel="noopener">Terms</a>` : ''}</p>
       <p class="fine set-ver" data-testid="settings-version">${versionMarkHtml()}</p>
       <button class="pl-btn big" data-a="close">Done</button></div>`;

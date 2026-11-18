@@ -42,7 +42,7 @@ test('kick: the member is told, the code rotates, the old link says it is out of
   await expect(a.page.locator('[data-testid="party-code"]')).not.toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`);
   const c = await player(browser, 'phone-small');
   await c.page.goto(`/?e2e=1&party=${code}`, { waitUntil: 'commit' });
-  await expect(c.page.locator('[data-testid="party-ended"]')).toContainText('This invite is out of date', { timeout: 120_000 });
+  await expect(c.page.locator('[data-testid="party-ended"]')).toContainText('This invite is old', { timeout: 120_000 });
   await tap(c, c.page.locator('[data-testid="party-own"]'));
   await expect(c.page.locator('[data-testid="party-code"]')).toBeVisible({ timeout: 30_000 });
 });

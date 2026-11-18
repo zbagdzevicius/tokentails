@@ -45,7 +45,7 @@ describe('A4: next objective chip', () => {
     c.feed({ type: 'pudding', tick: TIMELINE.pudding, what: 'spawn' });
     expect(c.chip()).toMatchObject({ key: 'calm', title: 'Calm Pudding!', secs: null });
     c.feed({ type: 'pudding', tick: 4600, what: 'calmed', team: 0 });
-    expect(c.chip().title).toBe('Pudding joins your next wave');
+    expect(c.chip().title).toBe('Pudding walks with your next minions');
     c.feed({ type: 'pudding', tick: 4700, what: 'escort', team: 0 });
     c.frame([snap({ id: 62, kind: 'pudding', team: 0, hp: 1840, maxHp: PUDDING.escortHp })], clock(4700, 'play', 5000));
     expect(c.chip()).toMatchObject({ key: 'escort', title: 'Escort: 1,840 HP' });
@@ -110,7 +110,7 @@ describe('A4: next objective chip', () => {
     const c = new ObjectiveClock(0);
     c.feed({ type: 'pudding', tick: 11000, what: 'leave' });
     c.frame([], clock(12000, 'sunset', 600));
-    expect(c.chip()).toMatchObject({ key: 'whistle', title: 'Final whistle in 0:20' });
+    expect(c.chip()).toMatchObject({ key: 'whistle', title: "Time's up in 0:20" });
     c.frame([], clock(13000, 'sunset', 0));
     // no countdown left: the next timer (Pudding's return) leads, never a Sudden Death chip
     expect(c.chip().key).toBe('pudding');

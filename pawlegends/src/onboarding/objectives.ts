@@ -58,11 +58,11 @@ export function beatText(id: BeatId, touch: boolean, n: BeatNames = { q: 'Q', r:
       return { title: 'ULTIMATE READY', sub: touch ? `Tap ${n.r} near the enemy` : 'Press R near the enemy', icon: 'crown' };
     case 'pudding':
       // damage fills his calm meter and the last hit calms him (sim/units/pudding.ts): standing near him does nothing
-      return { title: 'Calm Pudding!', sub: touch ? 'Tap ATK on him in the river' : 'Hit him in the river: the last hit calms him', icon: 'heart' };
+      return { title: 'Calm Pudding!', sub: touch ? 'Tap ATK on him in the river' : 'Land the last hit on him in the river to win him over', icon: 'heart' };
     case 'push':
       return { title: 'Push with your minions', sub: 'Walk in behind them: the tower hits them first', icon: 'shield' };
     case 'sunset':
-      return { title: 'Sunset! Push their core', sub: 'Towers crumble faster now: finish them!', icon: 'sun' };
+      return { title: 'Sunset! Push their core', sub: 'Towers and the core take more damage now', icon: 'sun' };
   }
 }
 
@@ -305,7 +305,7 @@ const PHASE_FIRST = 60 * TICK_HZ;
 const PACK_LINE = `+${RAT_CAMP_STATS.packDmgBp / 100}% damage for ${Math.round(RAT_CAMP_STATS.packTicks / TICK_HZ)} s`;
 
 /** Sim v32: with nothing on a timer (no Sudden Death any more), the chip points at the push. */
-const FINISH_CHIP: ObjectiveChip = Object.freeze({ key: 'finish', title: 'Take their core!', sub: 'Push with your wave: towers fall faster every minute', icon: 'sun', secs: null, x: MAP.width / 2, y: MAP.height / 2 });
+const FINISH_CHIP: ObjectiveChip = Object.freeze({ key: 'finish', title: 'Take their core!', sub: 'Push with your minions: towers fall faster every minute', icon: 'sun', secs: null, x: MAP.width / 2, y: MAP.height / 2 });
 
 /** Camp `c`'s centre (sim mm): 0 is Purrhaven's side, 1 Woof's. */
 export const campPoint = (c: number): { x: number; y: number } => ({ x: c === 0 ? RAT_CAMP.x : mirrorX(RAT_CAMP.x), y: RAT_CAMP.y });
@@ -469,7 +469,7 @@ export class ObjectiveClock {
     const grizz = MAP.point === 1 ? this.hw?.objectives.find((o) => o.kind === 'grizzlechop') : undefined;
     if (grizz?.state === 'up') return { key: 'sinkGrizzlechop', title: 'Sink Grizzlechop!', sub: 'Fish for the team and a Hoard shield', icon: 'crown', secs: null, x: grizz.x, y: grizz.y };
     const ours = p.team === this.myTeam;
-    if (p.state === 'wild') return { key: 'calm', title: 'Calm Pudding!', sub: 'Hit him in the river: he marches with the team that calms him', icon: 'heart', secs: null, x: p.x, y: p.y };
+    if (p.state === 'wild') return { key: 'calm', title: 'Calm Pudding!', sub: 'Land the last hit on him in the river and he walks with your minions', icon: 'heart', secs: null, x: p.x, y: p.y };
     if (p.state === 'escort') {
       // only a live reading: out of sight, the last HP seen would pass for the current one
       const hp = p.hp > 0 && p.seen === this.tick ? p.hp.toLocaleString('en-US') : null;
@@ -478,7 +478,7 @@ export class ObjectiveClock {
         : { key: 'escort', title: hp ? `Their escort: ${hp} HP` : 'Their Pudding is coming', sub: 'Hit him together to send him home', icon: 'heart', secs: null, x: p.x, y: p.y };
     }
     if (p.state === 'waiting')
-      return { key: 'escort', title: ours ? 'Pudding joins your next wave' : 'Pudding joins their next wave', sub: ours ? 'Walk out with that wave' : 'Meet their wave together', icon: 'heart', secs: null, x: p.x, y: p.y };
+      return { key: 'escort', title: ours ? 'Pudding walks with your next minions' : 'Pudding walks with their next minions', sub: ours ? 'Walk out with them' : 'Meet them together', icon: 'heart', secs: null, x: p.x, y: p.y };
     const phase = this.phaseChip();
     // sim v34: the pool map's objective comes before the phase line when it calls for action now
     const live = this.poolChip(false);
@@ -487,7 +487,7 @@ export class ObjectiveClock {
     const cands: ObjectiveChip[] = [];
     const soon = this.poolChip(true);
     if (soon) cands.push(soon);
-    if (p.at > this.tick && TIMELINE.pudding < TIMELINE.safetyEnd) cands.push({ key: 'pudding', title: `Pudding in ${fmtSecs(secsOf(p.at - this.tick))}`, sub: 'Calm him and he marches with your wave', icon: 'heart', secs: secsOf(p.at - this.tick), x: PUDDING_SPOT.x, y: PUDDING_SPOT.y });
+    if (p.at > this.tick && TIMELINE.pudding < TIMELINE.safetyEnd) cands.push({ key: 'pudding', title: `Pudding in ${fmtSecs(secsOf(p.at - this.tick))}`, sub: 'Calm him and he walks with your minions', icon: 'heart', secs: secsOf(p.at - this.tick), x: PUDDING_SPOT.x, y: PUDDING_SPOT.y });
     for (const c of MAP.point === 1 || pool() ? [] : [0, 1]) {
       const t = this.camps[c];
       if (!t.known || t.upAt === null || t.upAt <= this.tick) continue;
@@ -560,8 +560,8 @@ export class ObjectiveClock {
     const s = secsOf(this.nextPhaseIn);
     const mid = { x: MAP.width / 2, y: MAP.height / 2 };
     if (this.phase === 'gate') return { key: 'gates', title: `Gates open in ${fmtSecs(s)}`, sub: 'Get ready to run to your lane', icon: 'paw', secs: s, ...mid };
-    if (this.phase === 'play') return { key: 'sunset', title: `Sunset in ${fmtSecs(s)}`, sub: 'Towers crumble faster at Sunset', icon: 'sun', secs: s, ...mid };
-    if (this.phase === 'sunset') return { key: 'whistle', title: `Final whistle in ${fmtSecs(s)}`, sub: 'Then towers, core health and takedowns decide', icon: 'sun', secs: s, ...mid };
+    if (this.phase === 'play') return { key: 'sunset', title: `Sunset in ${fmtSecs(s)}`, sub: 'At Sunset, towers and the core take more damage', icon: 'sun', secs: s, ...mid };
+    if (this.phase === 'sunset') return { key: 'whistle', title: `Time's up in ${fmtSecs(s)}`, sub: 'Then most towers wins, then core health, then takedowns', icon: 'sun', secs: s, ...mid };
     return null;
   }
 }

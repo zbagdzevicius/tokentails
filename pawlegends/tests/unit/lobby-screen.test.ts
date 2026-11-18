@@ -53,9 +53,9 @@ describe('lobby screen', () => {
   });
 
   it('first time: Play as Clem, a guided line, no bots or hero change', () => {
-    const root = mount(base({ firstTime: true, identity: heroIdentity('clem', 'FAIRY'), firstLine: 'Your first match is a guided Rookie match.' }));
+    const root = mount(base({ firstTime: true, identity: heroIdentity('clem', 'FAIRY'), firstLine: 'Your first match is a guided match.' }));
     expect(root.querySelector('.pl-btn.big')?.textContent).toBe('Play as Clem');
-    expect(root.querySelector('.lb-line')?.textContent).toBe('Your first match is a guided Rookie match.');
+    expect(root.querySelector('.lb-line')?.textContent).toBe('Your first match is a guided match.');
     expect(root.querySelector('.lb-seg')).toBeNull();
     expect(root.querySelector('[data-a="choose"]')).toBeNull();
     expect(root.querySelector('[data-a="cards"]')).toBeNull();
@@ -81,9 +81,9 @@ describe('lobby screen', () => {
   });
 
   it('locked bots show the note instead of the segment', () => {
-    const root = mount(base({ difficultyNote: 'More bots after 3 matches.' }));
+    const root = mount(base({ difficultyNote: 'Pick bot difficulty after 3 matches.' }));
     expect(root.querySelector('.lb-seg')).toBeNull();
-    expect(root.querySelector('.lb-locked')?.textContent).toContain('More bots after 3 matches.');
+    expect(root.querySelector('.lb-locked')?.textContent).toContain('Pick bot difficulty after 3 matches.');
   });
 
   it('the bots segment is one tab stop moved with the arrow keys', () => {
