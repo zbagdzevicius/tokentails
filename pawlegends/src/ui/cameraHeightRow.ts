@@ -1,5 +1,5 @@
 /**
- * Feel pass B1: the "Camera height" row (Settings and the pause menu): a five-way segmented control, Close, Normal,
+ * Feel pass B1: the "Camera height" row (Settings and the pause menu): a five-way segmented control, Low, Normal,
  * High, Higher, Max (render/camera/height.ts). Picking one saves it and calls `onPick`, so a running match follows
  * at once.
  */

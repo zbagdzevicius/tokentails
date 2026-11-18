@@ -1,6 +1,6 @@
 /**
  * Feel pass B1: the one camera setting, "Camera height", replacing the old wheel, pinch and slider zoom. Five fixed
- * steps, closest first: Close 0.88, Normal 1 (the default), High 1.12, Higher 1.25, Max 1.4. It is a factor on the
+ * steps, closest first: Low 0.88, Normal 1 (the default), High 1.12, Higher 1.25, Max 1.4. It is a factor on the
  * fixed framing distance (camera/frame.ts frameDist), so the camera stays fixed on the hero at every step (no pinch,
  * no free zoom); only the distance changes. Remembered per device (browser storage, a convenience only: missing,
  * blocked or unknown storage gives Normal). On desktop each wheel notch or +/− moves one step, clamped at the ends.
@@ -13,7 +13,7 @@ export type CameraHeight = 'close' | 'normal' | 'high' | 'higher' | 'max';
 /** The steps, closest first. */
 export const CAMERA_STEPS: readonly CameraHeight[] = Object.freeze(['close', 'normal', 'high', 'higher', 'max'] as const);
 export const CAMERA_HEIGHTS: Readonly<Record<CameraHeight, number>> = Object.freeze({ close: 0.88, normal: 1, high: 1.12, higher: 1.25, max: 1.4 });
-export const CAMERA_HEIGHT_LABELS: Readonly<Record<CameraHeight, string>> = Object.freeze({ close: 'Close', normal: 'Normal', high: 'High', higher: 'Higher', max: 'Max' });
+export const CAMERA_HEIGHT_LABELS: Readonly<Record<CameraHeight, string>> = Object.freeze({ close: 'Low', normal: 'Normal', high: 'High', higher: 'Higher', max: 'Max' });
 /** The furthest step's factor: what view-sized bounds (shadow box, outer dressing) must cover. */
 export const CAMERA_HEIGHT_MAX = CAMERA_HEIGHTS.max;
 export const CAMERA_HEIGHT_KEY = 'pawlegends.camHeight.v1';

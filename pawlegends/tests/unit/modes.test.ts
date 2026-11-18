@@ -16,6 +16,7 @@ import {
   pillText,
   playable,
   queueFor,
+  summaryLine,
   registerMode,
   resetModes,
   saveModeChoice,
@@ -122,9 +123,17 @@ describe('mode registry', () => {
     expect(pillText(modeById('classic')!, 'bots')).toBe('Classic 5v5 · vs Bots');
     expect(pillText(modeById('skirmish')!, 'pvp')).toBe('Skirmish 3v3 · PvP');
     expect(pillText(modeById('skirmish')!, 'friends')).toBe('Skirmish 3v3 · With Friends');
+    expect(pillText(modeById('practice')!, 'bots')).toBe('Practice · Solo training');
     expect(queueFor(modeById('classic')!, 'coop')).toBe('bots');
     expect(queueFor(modeById('classic')!, 'pvp')).toBe('pvp');
     expect(queueFor(modeById('classic')!, null)).toBe('bots');
+  });
+
+  it('the Mode Select summary says the size once ("Skirmish 3v3 · ~7 min"); Practice says what it is', () => {
+    expect(summaryLine(modeById('skirmish')!, NOW)).toBe('~7 min');
+    expect(summaryLine(modeById('classic')!, NOW)).toBe('~13 min');
+    expect(summaryLine(modeById('practice')!, NOW)).toBe('Solo training');
+    expect(summaryLine({ ...modeById('cannon')!, state: 'soon' }, NOW)).toBe('Coming soon');
   });
 
   it('a variant this build cannot start says why (party server, PvP sim, the PvP match lock)', () => {

@@ -1165,7 +1165,7 @@ export class Hud {
       setTimeout(() => el.classList.remove('rankup'), 1400);
     }
     // LoL pass (lane B): phones keep the bottom band clear: no toast over the bar. Lane F (F3): the level line on the
-    // rail says it ("Level 5 — Skills rank 3"), so phones push no extra rank lines; desktop keeps the toast
+    // rail says it ("Level 5: Abilities rank 3"), so phones push no extra rank lines; desktop keeps the toast
     if (typeof document !== 'undefined' && document.documentElement.dataset.touch === '1') return lines;
     let t = this.rankToast;
     if (!t) {

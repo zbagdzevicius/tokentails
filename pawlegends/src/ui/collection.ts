@@ -75,7 +75,7 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
     const next = nextReward(o.owned, s.target, o.treats.chests);
     const n = matchesToGo(o.treats);
     const fill = Math.round((100 * (Math.max(0, o.treats.xp) % TREAT_STEP)) / TREAT_STEP);
-    // Target chooser: portrait medallions in one scrolling row, cats then dogs (Track order first)
+    // Target chooser: portrait medallions in one scrolling row, cats then dogs ("Any champion", the track's own order, first)
     const medal = (h: HeroId): string => {
       const t = heroTrack(h, o.owned);
       const done = t.have >= t.total && !t.next;
@@ -129,11 +129,11 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       </section>
       <p class="champs-row"><button type="button" class="bk-pill" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: abilities &amp; lore</button>${o.onHistory ? `<button type="button" class="bk-pill" data-a="history" data-testid="open-history" aria-haspopup="dialog">${icon('arrows')}Match history</button>` : ''}${o.champions ? `<small class="champ-count" data-champs="${o.champions.owned}">Champions ${o.champions.owned}/${o.champions.total} · ${o.champions.yarn.toLocaleString('en-US')} Yarn${o.champions.founders ? ' · <b class="founders-badge">Founders roster</b>' : ''}</small>` : ''}</p>
       <h3 class="bk-h3">Whose reward comes next?</h3>
-      <div class="targets"><div class="md-row" role="group" aria-label="Whose reward comes next"><button type="button" class="target md order${s.target === null ? ' on' : ''}" data-target="" aria-pressed="${s.target === null}" aria-label="Track order, any champion"><span class="md-ring"><span class="md-face">${icon('arrows')}</span></span><b>Track order</b><small>Any champion</small></button><span class="grp" aria-hidden="true">Cats</span>${cats.map(medal).join('')}<span class="grp dog" aria-hidden="true">Dogs</span>${dogs.map(medal).join('')}</div></div>
+      <div class="targets"><div class="md-row" role="group" aria-label="Whose reward comes next"><button type="button" class="target md order${s.target === null ? ' on' : ''}" data-target="" aria-pressed="${s.target === null}" aria-label="Any champion: the next reward in line"><span class="md-ring"><span class="md-face">${icon('arrows')}</span></span><b>Any champion</b><small>Next in line</small></button><span class="grp" aria-hidden="true">Cats</span>${cats.map(medal).join('')}<span class="grp dog" aria-hidden="true">Dogs</span>${dogs.map(medal).join('')}</div></div>
       <h3 class="bk-h3">Meet the real cat</h3>
       <div class="postcards">${TRACK_CHAMPIONS.map(card).join('')}</div>
       ${titles.length || frames.length ? `<h3 class="bk-h3">Wear</h3>${wearRow('title', titles, (id) => TRACK_TITLES[id] ?? STORE_TITLE_NAME[id] ?? id, s.title)}${wearRow('frame', frames, (id) => FRAME_NAME[id] ?? id, s.frame)}` : ''}
-      <p class="fine">Free. Earn it by playing. Rewards come in a fixed order.</p>
+      <p class="fine">Free. Matches fill the bar. Each chest holds the next reward in line, or the next one for the champion you pick.</p>
       </div>
       <div class="bk-foot"><button type="button" class="bk-done" data-a="close">Done</button></div></div>`;
     const row = root.querySelector<HTMLElement>('.md-row');

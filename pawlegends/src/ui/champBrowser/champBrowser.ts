@@ -221,7 +221,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       </div>
       <button type="button" class="cb-x" data-a="close" aria-label="Close">✕</button>
       <div class="cb-skills" id="cb-skills" role="tabpanel" aria-labelledby="cb-tab-skills">
-        <div class="cb-icons" role="tablist" aria-label="Skills"></div>
+        <div class="cb-icons" role="tablist" aria-label="Abilities"></div>
         <div class="cb-skill">
           <div class="cb-clip" data-a="clip">
             <div class="cb-clip-host"></div>

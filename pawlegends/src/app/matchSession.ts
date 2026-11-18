@@ -2638,7 +2638,7 @@ export class MatchSession {
     const ours = toys[this.welcome.team];
     if (toys[1 - this.welcome.team] - ours < 2) return;
     this.underdogSaid = true;
-    this.view.juice.push({ key: 'underdog', title: `Behind on Toys: +${FISH.comebackPerSecond} Fish/s`, sub: 'Whoever on your team has the least Fish earns extra until you catch up.', tone: 'info', prio: 4 });
+    this.view.juice.push({ key: 'underdog', title: `Behind on Toys: +${FISH.comebackPerSecond} Fish/s`, sub: 'Goes to your lowest-Fish teammate', tone: 'info', prio: 4 });
   }
 
   /**

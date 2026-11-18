@@ -281,7 +281,7 @@ export class Announcer {
         const shooter = e.src === this.mySlot ? 'You' : this.name(e.src);
         const victim = e.dst === this.mySlot ? 'you' : this.name(e.dst);
         const mine = e.src === this.mySlot;
-        const m: Moment = { key: 'kaboom', title: 'KABOOM!', sub: `${shooter} kibbled ${victim}`, tone: good ? 'gold' : 'bad', size: 'banner', big: true, slowmo: { ms: 900, scale: 0.3 }, shake: 0.9, crowd: 'roar', face: e.src };
+        const m: Moment = { key: 'kaboom', title: 'KABOOM!', sub: `${shooter} knocked out ${victim}`, tone: good ? 'gold' : 'bad', size: 'banner', big: true, slowmo: { ms: 900, scale: 0.3 }, shake: 0.9, crowd: 'roar', face: e.src };
         // the results' best moment and the dare text name the victim ("KABOOM on Brutus"); the banner stays "KABOOM!"
         if (mine) this.note({ ...m, rank: 45, title: `KABOOM on ${victim}` });
         return [m];
@@ -597,7 +597,7 @@ export class Announcer {
         if (isNineLives(e) && e.id === this.mySlot) {
           // Round 2: a centre "Nine Lives" banner just before a death read like a save that did not work, and the word
           // meant nothing to a new player. Now a plain verb over the hero (and the white rim flash): never a banner.
-          return [{ key: 'nineLives', title: this.nineSeen++ === 0 ? 'You take less damage: run!' : 'Run!', tone: 'gold', size: 'pop', crowd: 'ooh' }];
+          return [{ key: 'nineLives', title: this.nineSeen++ === 0 ? 'Low health: you take less damage. Run!' : 'Low health: run!', tone: 'gold', size: 'pop', crowd: 'ooh' }];
         }
         if (isCampBuff(e) && e.id === this.mySlot) return [{ key: 'pack', title: 'Pack power!', sub: 'The rat camp gives your team +15% damage.', tone: 'good', size: 'banner', crowd: 'cheer', voice: 'packPower' }];
         return [];

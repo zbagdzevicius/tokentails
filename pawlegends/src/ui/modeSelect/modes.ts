@@ -129,7 +129,7 @@ export const BASE_MODES: readonly ModeDef[] = Object.freeze([
     name: 'Practice',
     map: 'crossing',
     size: '',
-    minutes: 'Sandbox',
+    minutes: 'Solo training',
     queues: ['bots'],
     art: 'coop',
     state: 'live',
@@ -327,6 +327,15 @@ export function metaLine(m: ModeDef, now: number): string {
   return [m.size, m.liveLine ?? m.minutes].filter(Boolean).join(' · ');
 }
 
+/** Mode Select's summary after "Skirmish 3v3": the meta line without the size the name already shows ("~7 min"). Pure. */
+export function summaryLine(m: ModeDef, now: number): string {
+  const line = metaLine(m, now);
+  return m.size && line.startsWith(`${m.size} · `) ? line.slice(m.size.length + 3) : line;
+}
+
+/** The Practice ground's one variant card: a solo session with training dummies, not a bots match. */
+export const PRACTICE_VARIANT = Object.freeze({ name: 'Solo', line: 'You vs 3 training dummies' });
+
 export const QUEUE_LABEL: Readonly<Record<Queue, string>> = Object.freeze({ bots: 'vs Bots', coop: 'Co-op', pvp: 'PvP', friends: 'With Friends' });
 
 /** Each variant card's line under its name. */
@@ -339,8 +348,8 @@ export const VARIANT_LINE: Readonly<Record<Queue, string>> = Object.freeze({
 
 /** The mode pill on Home: "Classic 5v5 · vs Bots". Pure. */
 export function pillText(m: Pick<ModeDef, 'name' | 'size'> & { practice?: boolean }, q: Queue): string {
-  // sim v27: the Practice ground is a sandbox, not a bots match
-  if (m.practice) return `${m.name} · Sandbox`;
+  // sim v27: the Practice ground is solo training with dummies, not a bots match
+  if (m.practice) return `${m.name} · Solo training`;
   return `${m.name}${m.size ? ` ${m.size}` : ''} · ${QUEUE_LABEL[q]}`;
 }
 

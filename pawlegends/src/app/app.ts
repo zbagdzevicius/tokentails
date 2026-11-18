@@ -1194,7 +1194,7 @@ export class App {
         ? [
             season
               ? { id: 'pass', title: 'Legends Pass', sub: `Tier ${season.tier}${ends ? ` · ends ${ends}` : ''}`, art: `${base}assets/lobby/promo-pass.webp${assetRev()}`, action: 'pass' as const }
-              : { id: 'track', title: 'Treat Track', sub: 'Pick your next reward', art: `${base}assets/lobby/promo-pass.webp${assetRev()}`, action: 'pass' as const },
+              : { id: 'track', title: 'Treat Track', sub: 'Free rewards for playing', art: `${base}assets/lobby/promo-pass.webp${assetRev()}`, action: 'pass' as const },
           ]
         : []),
       // sim v27: Cannon Chaos is live; the slide opens Mode Select on it

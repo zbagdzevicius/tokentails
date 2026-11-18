@@ -120,8 +120,8 @@ describe('announcer', () => {
     expect(a.feed({ type: 'pickupSpawn', tick: 5, index: 0, kind: 'frenzy', x: 50000, y: 40000 })[0]?.size).toBe('ping');
     // round 2: Nine Lives is never a centre banner: a plain verb over the hero, longer the first time
     const nine = a.feed({ type: 'buff', tick: 6, id: 0, buff: 'nineLives' })[0];
-    expect([nine?.title, nine?.size]).toEqual(['You take less damage: run!', 'pop']);
-    expect(a.feed({ type: 'buff', tick: 7, id: 0, buff: 'nineLives' })[0]).toMatchObject({ title: 'Run!', size: 'pop' });
+    expect([nine?.title, nine?.size]).toEqual(['Low health: you take less damage. Run!', 'pop']);
+    expect(a.feed({ type: 'buff', tick: 7, id: 0, buff: 'nineLives' })[0]).toMatchObject({ title: 'Low health: run!', size: 'pop' });
     expect(a.pickups).toBe(1);
     // unknown events are ignored
     expect(a.feed({ type: 'somethingNew', tick: 7 })).toEqual([]);

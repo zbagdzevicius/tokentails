@@ -24,7 +24,7 @@ import './modeSelect.css';
 import type { Difficulty } from '../../sim/api';
 import { DIFFICULTY_HINT, DIFFICULTY_TEXT } from '../heroText';
 import { crestSvg } from './crest';
-import { countdownText, effectiveState, metaLine, playable, queueFor, QUEUE_LABEL, VARIANT_LINE, variantLock, type ModeChoice, type ModeDef, type Queue } from './modes';
+import { countdownText, effectiveState, metaLine, playable, PRACTICE_VARIANT, queueFor, QUEUE_LABEL, summaryLine, VARIANT_LINE, variantLock, type ModeChoice, type ModeDef, type Queue } from './modes';
 
 /** A page-relative asset path as an absolute URL (CSS custom properties need one). */
 export const absUrl = (p: string): string => {
@@ -147,11 +147,12 @@ export function miniHtml(m: ModeDef, o: { selected: boolean; now: number; base: 
 }
 
 /** One variant card's markup. `lock`: why it cannot start (shown instead of its line). Pure. */
-export function variantHtml(q: Queue, o: { selected: boolean; lock: string | null; i: number; line?: string }): string {
+export function variantHtml(q: Queue, o: { selected: boolean; lock: string | null; i: number; line?: string; name?: string }): string {
   const line = o.lock ?? o.line ?? VARIANT_LINE[q];
-  return `<button type="button" role="radio" class="ms-var${o.selected ? ' on' : ''}${o.lock ? ' locked' : ''}" aria-checked="${o.selected}" tabindex="${o.selected ? 0 : -1}" data-v="${q}" data-testid="variant-${q}"${o.lock ? ` aria-disabled="true" data-why="${esc(o.lock)}"` : ''} aria-label="${esc(`${QUEUE_LABEL[q]}. ${line}`)}" style="--i:${o.i}">
+  const name = o.name ?? QUEUE_LABEL[q];
+  return `<button type="button" role="radio" class="ms-var${o.selected ? ' on' : ''}${o.lock ? ' locked' : ''}" aria-checked="${o.selected}" tabindex="${o.selected ? 0 : -1}" data-v="${q}" data-testid="variant-${q}"${o.lock ? ` aria-disabled="true" data-why="${esc(o.lock)}"` : ''} aria-label="${esc(`${name}. ${line}`)}" style="--i:${o.i}">
     <span class="ms-var-i" aria-hidden="true">${QUEUE_ICON[q]}${o.lock ? `<span class="ms-var-lk">${LOCK}</span>` : ''}</span>
-    <b class="ms-var-n">${esc(QUEUE_LABEL[q])}</b>
+    <b class="ms-var-n">${esc(name)}</b>
     <small class="ms-var-l">${esc(line)}</small>
   </button>`;
 }
@@ -243,7 +244,7 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
       sub.textContent = '';
       row.hidden = false;
       vw.hidden = true;
-      d.innerHTML = m ? `<p class="ms-qline ms-sum"><b>${esc(m.name)}${m.size ? ` ${esc(m.size)}` : ''}</b> · ${esc(metaLine(m, now()))}</p>` : '';
+      d.innerHTML = m ? `<p class="ms-qline ms-sum"><b>${esc(m.name)}${m.size ? ` ${esc(m.size)}` : ''}</b> · ${esc(summaryLine(m, now()))}</p>` : '';
       c.dataset.a = 'ms-next';
       c.dataset.testid = 'mode-next';
       c.innerHTML = '<span>Next</span>';
@@ -263,8 +264,8 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
     const vrow = el.querySelector<HTMLElement>('.ms-vrow')!;
     if (vrow.dataset.mode !== sel) {
       vrow.dataset.mode = sel;
-      // sim v27: the Practice ground's one card is the sandbox, not a bots match
-      vrow.innerHTML = qs.map((q, i) => variantHtml(q, { selected: q === queue, lock: lockOf(m, q), i, ...(m?.practice ? { line: 'Solo with training dummies' } : {}) })).join('');
+      // sim v27: the Practice ground's one card is solo training with dummies, not a bots match
+      vrow.innerHTML = qs.map((q, i) => variantHtml(q, { selected: q === queue, lock: lockOf(m, q), i, ...(m?.practice ? PRACTICE_VARIANT : {}) })).join('');
     } else
       for (const b of vrow.querySelectorAll<HTMLElement>('.ms-var')) {
         const on = b.dataset.v === queue;
@@ -278,7 +279,7 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
     c.dataset.testid = 'mode-go';
     c.innerHTML = `<span>${esc(goLabel(queue))}</span>`;
     c.disabled = !ok || !can.includes(queue);
-    c.setAttribute('aria-label', m ? `${goLabel(queue)}: ${m.name}, ${QUEUE_LABEL[queue]}` : goLabel(queue));
+    c.setAttribute('aria-label', m ? `${goLabel(queue)}: ${m.name}, ${m.practice ? PRACTICE_VARIANT.name : QUEUE_LABEL[queue]}` : goLabel(queue));
   };
 
   let toastTimer: ReturnType<typeof setTimeout> | null = null;

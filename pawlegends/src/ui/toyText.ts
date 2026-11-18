@@ -118,13 +118,13 @@ export function mmss(ticks: number): string {
 // ------------------------------------------------------------------------------------------------- level text (F3)
 
 /**
- * What a level brings (F3), from the rank and talent tables: "Ultimate unlocked!", "Q W E rank 3" (touch: "Skills
+ * What a level brings (F3), from the rank and talent tables: "Ultimate unlocked!", "Q W E rank 3" (touch: "Abilities
  * rank 3"), "pick a talent", "Ultimate rank 2"; the top level adds "max level". Pure.
  */
 export function levelWhat(level: number, touch = false): string {
   const bits: string[] = [];
   const basic = RANK_LEVELS.basic.indexOf(level);
-  if (basic >= 1) bits.push(`${touch ? 'Skills' : 'Q W E'} rank ${basic + 1}`);
+  if (basic >= 1) bits.push(`${touch ? 'Abilities' : 'Q W E'} rank ${basic + 1}`);
   const ult = RANK_LEVELS.ultimate.indexOf(level);
   if (ult === 0) bits.push('Ultimate unlocked!');
   else if (ult > 0) bits.push(`Ultimate rank ${ult + 1}`);

@@ -76,7 +76,7 @@ describe('level words (F3)', () => {
       'Level 9: pick a talent',
       'Level 10: Ultimate rank 3 · max level',
     ]);
-    expect(levelWhat(5, true)).toBe('Skills rank 3');
+    expect(levelWhat(5, true)).toBe('Abilities rank 3');
     for (let lv = 1; lv <= XP.maxLevel; lv++) expect(levelLine(lv, true).length, levelLine(lv, true)).toBeLessThanOrEqual(28);
   });
 });

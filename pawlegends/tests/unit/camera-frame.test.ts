@@ -192,7 +192,7 @@ describe('Camera height setting', () => {
     document.body.appendChild(root);
     const segs = [...root.querySelectorAll<HTMLElement>('[data-camh]')];
     expect(segs.map((b) => b.dataset.camh)).toEqual([...CAMERA_STEPS]);
-    expect(segs.map((b) => b.textContent)).toEqual(['Close', 'Normal', 'High', 'Higher', 'Max']);
+    expect(segs.map((b) => b.textContent)).toEqual(['Low', 'Normal', 'High', 'Higher', 'Max']);
     expect(segs.filter((b) => b.classList.contains('on')).map((b) => b.dataset.camh)).toEqual(['normal']);
     expect(root.querySelector('[data-camh="normal"]')!.getAttribute('aria-pressed')).toBe('true');
     const picked: string[] = [];

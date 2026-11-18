@@ -946,7 +946,7 @@ export class Effects {
         sfx.play('horn', { rate: 1.3 });
         // sim v22 (Hearthwood): the Great Pudding's own line, and his Sugar Rush (MAP-5V5-STANDARD.md §6.3)
         if (MAP.point === 1) this.juice.banner({ title: 'The Great Pudding wobbles awake!', sub: 'Calm him in his hollow: Sugar Rush for your whole team.', tone: 'gold' });
-        else this.juice.banner({ title: 'Pudding is here!', sub: 'Calm him in the river to win his courage.', tone: 'gold' });
+        else this.juice.banner({ title: 'Pudding is here!', sub: 'Calm Pudding in the river and he walks with your minions.', tone: 'gold' });
         sfx.voice('puddingWild', { sting: false });
         break;
       case 'hop':

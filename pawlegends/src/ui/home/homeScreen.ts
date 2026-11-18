@@ -281,7 +281,7 @@ function navHtml(o: HomeScreenOpts, returning: boolean): string {
     `<button type="button" class="hm-ni${opts.locked ? ' locked' : ''}" data-a="${opts.locked ? 'locked' : a}"${opts.locked ? ` data-why="${esc(opts.locked)}" aria-label="${esc(`${label}, locked. ${opts.locked}`)}"` : ''}${opts.extra ?? ''}><span class="hm-ni-i">${ico}${opts.locked ? LOCK : ''}${opts.badge ?? ''}</span><span class="hm-nl">${label}</span></button>`;
   const after = 'Unlocks after your first match.';
   const items = [
-    o.onHeroes ? item('heroes', icon('paw'), 'Champions', lockedFirst || o.dare ? { locked: o.dare ? 'Finish the dare first.' : after } : { extra: ' aria-keyshortcuts="H" aria-haspopup="dialog" aria-label="Champions: skills and lore"' }) : '',
+    o.onHeroes ? item('heroes', icon('paw'), 'Champions', lockedFirst || o.dare ? { locked: o.dare ? 'Finish the dare first.' : after } : { extra: ' aria-keyshortcuts="H" aria-haspopup="dialog" aria-label="Champions: abilities and lore"' }) : '',
     item('collection', TROPHY, 'Pass', o.onCollection && returning ? { badge: o.profile.tier !== null ? `<b class="hm-count tier" aria-hidden="true">${o.profile.tier}</b>` : '', extra: ' aria-label="Pass"' } : { locked: o.onCollection ? 'Finish the dare first.' : after }),
     // gap plan P4: the Ranked item follows the live gate (open: Mode Select on the Ranked tile; closed: the gate line)
     item('ranked', crestSvg('ranked').replace('<svg ', '<svg class="hm-ico" '), 'Ranked', rankedNavOpts(o, returning)),
