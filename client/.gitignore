@@ -47,3 +47,4 @@ tokentails-keystore
 
 # blog RSS, written after the build (scripts/build-feed-rss.mjs)
 /public/feed/rss.xml
+.env

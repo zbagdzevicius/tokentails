@@ -19,42 +19,21 @@ export type { GameRunTracker } from "./game-run";
 export type { Analytics, AnalyticsClient, AnalyticsOptions } from "./client";
 
 /**
- * posthog-js is imported lazily and only in the browser, so it never runs
- * during SSR or static export.
+ * Custom product events use the singleton initialized by instrumentation-client.ts.
+ * The dynamic browser-only import preserves SSR/static-export safety without creating
+ * a competing PostHog client or changing its default capture settings.
  */
-const loadPostHog = async (
-  apiKey: string,
-  host: string,
-): Promise<AnalyticsClient> => {
+const loadPostHog = async (): Promise<AnalyticsClient> => {
   if (typeof window === "undefined") {
     throw new Error("Analytics is browser only");
   }
   const { default: posthog } = await import("posthog-js");
-  posthog.init(apiKey, {
-    api_host: host,
-    persistence: "localStorage",
-    person_profiles: "never",
-    autocapture: false,
-    capture_pageview: false,
-    capture_pageleave: false,
-    capture_performance: false,
-    capture_exceptions: false,
-    capture_dead_clicks: false,
-    capture_heatmaps: false,
-    rageclick: false,
-    disable_session_recording: true,
-    disable_surveys: true,
-    disable_web_experiments: true,
-    disable_external_dependency_loading: true,
-    advanced_disable_flags: true,
-    save_referrer: false,
-    mask_personal_data_properties: true,
-  });
   return posthog as unknown as AnalyticsClient;
 };
 
 export const analytics = createAnalytics({
-  apiKey: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+  apiKey: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
+  host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   load: loadPostHog,
   superProperties: () => ({
     app: "core",
