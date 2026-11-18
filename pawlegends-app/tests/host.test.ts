@@ -608,7 +608,7 @@ describe('providers per build', () => {
     // an email sign-in keeps the email copy
     document.querySelector<HTMLElement>('[data-testid="native-auth-email"]')!.click();
     ui.error({ code: 'auth/invalid-credential' });
-    expect(document.querySelector('[data-testid="native-auth-message"]')?.textContent).toContain('email and password');
+    expect(document.querySelector('[data-testid="native-auth-message"]')?.textContent).toContain('Wrong email or password');
     // NoAuth: one plain sentence, not the in-app-browser copy
     const outcome = await new NoAuth().signInEmail();
     ui.error((outcome as { error: unknown }).error);
