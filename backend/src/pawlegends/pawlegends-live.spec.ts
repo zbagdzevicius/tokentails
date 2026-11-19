@@ -1009,3 +1009,93 @@ describe('PAWLEGENDS /live branch', () => {
         expect(users.get(userId).pawlegendsFastestWin).toBeUndefined();
     });
 });
+
+/*
+ * Founder, Nov 19 ("sometimes matches not recorded in match history"): the record's `map` was not part of what the
+ * backend re-simulated, so a Classic 5v5 (Hearthwood) or a Skirmish on a 3v3 pool map re-ran on the Crossing, failed
+ * (PAWLEGENDS_NOT_ENDED / TOO_LONG) and the host dropped the match: no history row, no XP.
+ */
+describe('PAWLEGENDS /live: the map is part of the record', () => {
+    const vendor = join(__dirname, '..', 'vendor', 'pawlegends-sim', `v${SIM_VERSION}`);
+    const pool = (): PawlegendsReplayRecord[] =>
+        JSON.parse(readFileSync(join(vendor, 'maps-replay.fixture.json'), 'utf8'));
+
+    it('canonicalRecord keeps a map other than the Crossing; a Crossing record keeps its old digest', () => {
+        const r = genuine();
+        expect(canonicalRecord({ ...r, map: 'ridge' } as any)).toMatchObject({ map: 'ridge' });
+        expect(canonicalRecord({ ...r, map: 'crossing' } as any)).not.toHaveProperty('map');
+        expect(pawlegendsDigest({ ...r, map: 'crossing' } as any)).toBe(pawlegendsDigest(r));
+        expect(pawlegendsDigest({ ...r, map: 'ridge' } as any)).not.toBe(pawlegendsDigest(r));
+    });
+
+    it('the DTO accepts a known map and refuses an unknown one', async () => {
+        const ok = plainToInstance(PawlegendsReplayDto, { ...genuine(), map: 'thicket' });
+        expect(await validate(ok)).toEqual([]);
+        const bad = plainToInstance(PawlegendsReplayDto, { ...genuine(), map: 'moon' });
+        expect((await validate(bad)).map(e => e.property)).toEqual(['map']);
+    });
+
+    it('a pool-map and a Hearthwood record verify with the real sim, and the history row names that map', async () => {
+        const records = [...pool().slice(0, 2), fixture(SIM_VERSION, 'hearthwood')];
+        for (const record of records) {
+            const { deps, userId } = freshDeps();
+            const rows: any[] = [];
+            const save = savePawlegendsMatch(
+                {
+                    ...deps,
+                    verify: async (r: PawlegendsReplayRecord) => verifyBySimVersion(r),
+                    history: { record: async (i: any) => rows.push(i) },
+                } as any,
+                userId,
+                { pawlegends: record as any }
+            );
+            await expect(save).resolves.toMatchObject({ outcome: record.outcome, finalHash: record.finalHash });
+            expect(rows).toHaveLength(1);
+            expect(rows[0]).toMatchObject({
+                map: record.map,
+                mode: record.map === 'hearthwood' ? 'classic' : 'skirmish',
+            });
+            // before the fix: the same record without its map re-ran on the Crossing and was refused
+            expect(verifyBySimVersion({ ...record, map: undefined } as any).ok).toBe(false);
+        }
+    }, 300_000);
+
+    it('an XP-capped match (the solo daily cap or real-time gap: no Season XP) still gets its history row', async () => {
+        const record = genuine();
+        const { deps, userId } = setup(record);
+        const rows: any[] = [];
+        const r = await savePawlegendsMatch(
+            {
+                ...deps,
+                history: { record: async (i: any) => rows.push(i) },
+                season: { addXp: async () => ({ gained: 0, xp: 100, tier: 1, prevTier: 1, capped: true }) },
+            } as any,
+            userId,
+            { pawlegends: record as any }
+        );
+        expect(r).toMatchObject({ season: { gained: 0 } });
+        expect(rows).toHaveLength(1);
+    });
+
+    it('the history row is written even when Season XP fails after the Game row (a retry is a 409)', async () => {
+        const record = genuine();
+        const { deps, userId } = setup(record);
+        const rows: any[] = [];
+        const run = savePawlegendsMatch(
+            {
+                ...deps,
+                history: { record: async (i: any) => rows.push(i) },
+                season: {
+                    addXp: async () => {
+                        throw new Error('season down');
+                    },
+                },
+            } as any,
+            userId,
+            { pawlegends: record as any }
+        );
+        await expect(run).rejects.toThrow('season down');
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ map: 'crossing', mode: 'skirmish', finalHash: record.finalHash });
+    });
+});

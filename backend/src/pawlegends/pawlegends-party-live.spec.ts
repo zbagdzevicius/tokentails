@@ -138,6 +138,37 @@ describe('pawlegends party live (N8)', () => {
         expect(await codeOf(unverified.save(unverified.a, unverified.body(0)))).toBe('PAWLEGENDS_PARTY_ROOM');
     });
 
+    it('a result posted while the relay still verifies the room (status live) is a retryable 503, then saves; the history row comes before Season XP', async () => {
+        // founder, Nov 19: the referee re-runs the whole match before it stores the verdict; an early post was a 400
+        const live = room({ status: 'live', verdict: null as any });
+        const s = setup(live);
+        const early = await s.save(s.a, s.body(0)).then(
+            () => null,
+            (e: any) => ({ status: e.getStatus?.(), code: e.getResponse?.()?.code })
+        );
+        expect(early).toEqual({ status: 503, code: 'PAWLEGENDS_PARTY_ROOM' });
+        expect(s.games.rows).toHaveLength(0);
+        // the verdict lands; the retry saves, and a Season XP failure no longer costs the history row
+        Object.assign(live, { status: 'ended', verdict: room().verdict });
+        const rows: any[] = [];
+        const run = savePawlegendsPartyMatch(
+            {
+                ...s.deps,
+                history: { record: async (i: any) => rows.push(i) },
+                season: {
+                    addXp: async () => {
+                        throw new Error('season down');
+                    },
+                },
+            } as any,
+            s.a,
+            s.body(0) as any
+        );
+        await expect(run).rejects.toThrow('season down');
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ matchId: 'party:room1', slot: 0, outcome: 'won' });
+    });
+
     it('51% drop/away/afk → PAWLEGENDS_PARTY_AFK, while 90% late or desync still scores', async () => {
         const afk = setup(
             room({

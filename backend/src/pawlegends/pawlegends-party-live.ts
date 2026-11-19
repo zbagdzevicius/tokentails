@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { GamePlatform, GameType, replayDigestLookup } from 'src/game/game.schema';
 import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_TICK_HZ } from 'src/shared-contracts/caps';
@@ -162,6 +162,17 @@ export async function savePawlegendsPartyMatch(
     if (since === null || r.simVersion < since)
         throw reject(ErrorCode.PAWLEGENDS_SIM_VERSION, `party play needs a party sim (simVersion ${r.simVersion})`);
     const room = await deps.rooms.get(r.room);
+    // Founder, Nov 19 ("matches not recorded in match history"): the relay stores the verdict only after its referee
+    // re-ran the whole match, which can take longer than the game's results reveal; a result posted before that was a
+    // 400 the host never retries. A room still live is "not yet": a 503 the host retries (2 s, 6 s, 18 s ...).
+    if (room && room.status === 'live') {
+        log.warn('pawlegends party save early: code=PAWLEGENDS_PARTY_ROOM (room not verified yet)');
+        throw new ServiceUnavailableException({
+            statusCode: 503,
+            code: ErrorCode.PAWLEGENDS_PARTY_ROOM,
+            message: 'the match is still being verified; try again in a few seconds',
+        });
+    }
     if (!room || room.status !== 'ended' || !room.verdict || room.verdict.verified !== true) {
         throw reject(ErrorCode.PAWLEGENDS_PARTY_ROOM, 'no verified party match with this room');
     }
@@ -245,27 +256,9 @@ export async function savePawlegendsPartyMatch(
         if ((error as { code?: unknown })?.code === 11000) throw pawlegendsDuplicate();
         throw error;
     }
-    // party matches never touch the fastest win (v1)
-    await deps.users.update(userId, {
-        $inc: { [`${PAWLEGENDS_MATCHES_FIELD}.${difficulty}`]: 1 },
-        $set: { lastPlayedAt: now },
-    });
-    const catnipCount = await recomputeCatnipCount(deps.users, userId);
-    // Legends Pass Season XP: after the Game row (unique per room and slot); none over the daily cap.
-    const season = deps.season
-        ? await deps.season.addXp(String(userId), {
-              won,
-              forfeit: v.reason === 'forfeit',
-              takedowns: takedownsOf(v.stats, r.slot),
-              capped: daily,
-              // CHAMPION-STORE.md: Yarn once per room and slot (the relay checked the hero at the pick, §8.1)
-              ref: digest,
-          })
-        : null;
-    // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per room and slot
-    if (deps.rewards) await deps.rewards.applyLive(String(userId), { won, hero: room.config.picks?.[r.slot] ?? null });
     // MATCH-HISTORY.md: the history row from the referee's verified stats; the human seats by account (names are
-    // resolved when read), every other seat a bot. Never fails the save.
+    // resolved when read), every other seat a bot. Never fails the save. Right after the Game row, before Season XP
+    // and the rewards: a later step that fails must not leave the match saved (a retry is a 409) with no history row.
     if (deps.history) {
         const mmRoom = deps.mm ? await deps.mm.rooms.get(r.room).catch(() => null) : null;
         await deps.history.record({
@@ -288,6 +281,25 @@ export async function savePawlegendsPartyMatch(
             simVersion: r.simVersion,
         });
     }
+    // party matches never touch the fastest win (v1)
+    await deps.users.update(userId, {
+        $inc: { [`${PAWLEGENDS_MATCHES_FIELD}.${difficulty}`]: 1 },
+        $set: { lastPlayedAt: now },
+    });
+    const catnipCount = await recomputeCatnipCount(deps.users, userId);
+    // Legends Pass Season XP: after the Game row (unique per room and slot); none over the daily cap.
+    const season = deps.season
+        ? await deps.season.addXp(String(userId), {
+              won,
+              forfeit: v.reason === 'forfeit',
+              takedowns: takedownsOf(v.stats, r.slot),
+              capped: daily,
+              // CHAMPION-STORE.md: Yarn once per room and slot (the relay checked the hero at the pick, §8.1)
+              ref: digest,
+          })
+        : null;
+    // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per room and slot
+    if (deps.rewards) await deps.rewards.applyLive(String(userId), { won, hero: room.config.picks?.[r.slot] ?? null });
     // Live ops (LIVEOPS.md): the community goal and the Winter Nap day, once per room and slot, from the verdict
     await applyCommunityGoal({
         accountId: String(userId),

@@ -30,6 +30,10 @@ export const PAWLEGENDS_V27_MUTATORS: readonly string[] = ['cannon', 'toybox', '
 export const PAWLEGENDS_V28_MUTATORS: readonly string[] = ['onelane', 'duel', 'boss'];
 export type PawlegendsMutatorId = typeof PAWLEGENDS_MUTATORS[number];
 
+/** The maps a solo replay may name (the vendored sim's MAP_IDS); the sim checks the map against its own version. */
+export const PAWLEGENDS_MAPS = ['crossing', 'hearthwood', 'ridge', 'thicket', 'quarry', 'pitch'] as const;
+export type PawlegendsMapId = typeof PAWLEGENDS_MAPS[number];
+
 /**
  * The Pawlegends replay posted with a `PAWLEGENDS` save in the `pawlegends` field (POC.md §11.3): the
  * `ReplayRecord` of `pawlegends/src/sim/api.ts` as the game recorded it (sim v10 to v15).
@@ -85,6 +89,15 @@ export class PawlegendsReplayDto {
     @IsOptional()
     @IsIn(PAWLEGENDS_MUTATORS)
     mutator?: PawlegendsMutatorId;
+
+    /**
+     * Sim v19: the map the match played (omitted = the Crossing); sim v34: or a 3v3 pool map. Founder, Nov 19 ("matches
+     * not recorded in match history"): the map was not part of the record, so every Classic 5v5 and every Skirmish on a
+     * pool map re-simulated on the Crossing, failed and was dropped (no history row, no XP).
+     */
+    @IsOptional()
+    @IsIn(PAWLEGENDS_MAPS)
+    map?: PawlegendsMapId;
 }
 
 /**

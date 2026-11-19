@@ -98,6 +98,7 @@ const RECORD_KEYS: (keyof PawlegendsReplayRecord)[] = [
     'outcome',
     'finalHash',
     'mutator',
+    'map',
 ];
 
 /** The first sim version whose records carry `mutator` (GAPS B0). */
@@ -118,7 +119,10 @@ export const canonicalRecord = (replay: PawlegendsReplayDto | PawlegendsReplayRe
     const source = replay as any;
     const entries: [string, unknown][] = [];
     for (const key of RECORD_KEYS) {
-        if (key !== 'mutator') entries.push([key, source[key]]);
+        if (key === 'map') {
+            // the Crossing is the default map: omitted, so a Crossing record keeps the digest it always had
+            if (typeof source.map === 'string' && source.map !== 'crossing') entries.push([key, source.map]);
+        } else if (key !== 'mutator') entries.push([key, source[key]]);
         else if (source.simVersion >= PAWLEGENDS_MUTATOR_SINCE) entries.push([key, source.mutator ?? 'none']);
     }
     return Object.fromEntries(entries) as unknown as PawlegendsReplayRecord;
@@ -521,6 +525,32 @@ export async function savePawlegendsMatch(
         throw error;
     }
 
+    // MATCH-HISTORY.md: the history row, from the re-sim's own stats (the human is slot 0, every other seat a bot).
+    // Written right after the Game row, before Season XP and the rewards: a later step that fails would leave the Game
+    // row (a retry is a 409, "saved") with no history row; and an XP cap never touches it (history and XP are separate).
+    if (deps.history) {
+        const map = record.map ?? 'crossing';
+        await deps.history.record({
+            accountId: String(userId),
+            matchId: digest,
+            at: (deps.now || (() => new Date()))(),
+            // the verified record's own map (the digest covers it): the Crossing, Hearthwood or a 3v3 pool map
+            mode: soloMode(map, record.mutator),
+            map,
+            mutator: record.mutator,
+            difficulty,
+            outcome: result.outcome,
+            draw: !!(result as { draw?: boolean }).draw,
+            reason: result.reason,
+            ticks: result.ticks,
+            finalHash: result.finalHash,
+            slot: 0,
+            stats: (result as { stats?: unknown }).stats,
+            humans: new Map([[0, String(userId)]]),
+            winner: (result as { winner?: unknown }).winner,
+            simVersion: replay.simVersion,
+        });
+    }
     await deps.users.update(userId, {
         ...(won && ranked ? { $min: { [`${PAWLEGENDS_FASTEST_FIELD}.${difficulty}`]: result.ticks } } : {}),
         $inc: { [`${PAWLEGENDS_MATCHES_FIELD}.${difficulty}`]: 1 },
@@ -551,28 +581,6 @@ export async function savePawlegendsMatch(
     });
     // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per saved match
     if (deps.rewards) await deps.rewards.applyLive(String(userId), { won, hero: replay.hero });
-    // MATCH-HISTORY.md: the history row, from the re-sim's own stats (the human is slot 0, every other seat a bot)
-    if (deps.history)
-        await deps.history.record({
-            accountId: String(userId),
-            matchId: digest,
-            at: (deps.now || (() => new Date()))(),
-            // the verified record (the digest's fields): the re-sim plays the Crossing, so that is the map shown
-            mode: soloMode('crossing', record.mutator),
-            map: 'crossing',
-            mutator: record.mutator,
-            difficulty,
-            outcome: result.outcome,
-            draw: !!(result as { draw?: boolean }).draw,
-            reason: result.reason,
-            ticks: result.ticks,
-            finalHash: result.finalHash,
-            slot: 0,
-            stats: (result as { stats?: unknown }).stats,
-            humans: new Map([[0, String(userId)]]),
-            winner: (result as { winner?: unknown }).winner,
-            simVersion: replay.simVersion,
-        });
     // Live ops (LIVEOPS.md): the community goal and the Winter Nap day, once, from the re-sim's own numbers
     await applyCommunityGoal({
         accountId: String(userId),
