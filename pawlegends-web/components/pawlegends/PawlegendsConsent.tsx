@@ -36,6 +36,21 @@ const readDock = () => {
   }
 };
 
+/**
+ * The game's own consent key (pawlegends/src/analytics/posthog.ts CONSENT_KEY). The game on /play is a same-origin frame,
+ * so both pages share it: the bar writes it (the game's Settings chip follows), and the game's Settings "Share play
+ * stats" writes it (the site follows: Off stops PostHog, replay and GTM here too, not only the game's relayed events).
+ */
+export const GAME_CONSENT_KEY = "tt-analytics-consent";
+
+function writeGameConsent(choice: ConsentChoice): void {
+  try {
+    window.localStorage.setItem(GAME_CONSENT_KEY, choice);
+  } catch {
+    // blocked storage: the game keeps its own choice
+  }
+}
+
 /** How often the bar re-reads the game frame's match flag while it is open (ms). */
 export const MATCH_POLL_MS = 500;
 
@@ -97,6 +112,20 @@ export function PawlegendsConsent({ gtm = defaultGtm, asks = asksForConsent }: P
     };
   }, [gtm, asks]);
 
+  // the game frame's Settings "Share play stats" (a `storage` event: another same-origin page changed the key) is the
+  // player's choice for the whole site, as if made on the bar
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== GAME_CONSENT_KEY || (e.newValue !== "granted" && e.newValue !== "denied")) return;
+      if (e.newValue === readConsentChoice()) return;
+      gtm.setConsent(e.newValue);
+      setAnalyticsConsent(e.newValue);
+      setOpen(false);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [gtm]);
+
   const inMatch = useSyncExternalStore(subscribeMatch, isInMatch, () => false);
   const compact = useSyncExternalStore(subscribeCompact, readCompact, () => false);
   const dock = useSyncExternalStore(noSubscription, readDock, () => false);
@@ -122,8 +151,9 @@ export function PawlegendsConsent({ gtm = defaultGtm, asks = asksForConsent }: P
 
   const choose = (choice: ConsentChoice) => {
     gtm.setConsent(choice);
-    // PostHog follows the same choice (analytics/index.ts)
+    // PostHog follows the same choice (analytics/index.ts), and the game's Settings chip too
     setAnalyticsConsent(choice);
+    writeGameConsent(choice);
     setOpen(false);
   };
 

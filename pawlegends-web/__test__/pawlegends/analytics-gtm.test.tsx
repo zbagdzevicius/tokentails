@@ -15,7 +15,8 @@ jest.mock("@/analytics", () => ({ analytics: { init: jest.fn() }, setAnalyticsCo
 
 import { CONSENT_STORAGE_KEY } from "@/analytics/gtm";
 import { forwardPawlegendsEvent, pawlegendsDataLayerEntry } from "@/analytics/pawlegends-datalayer";
-import { asksForConsent, ConsentChoiceButton, openConsentChoice, PawlegendsConsent } from "@/components/pawlegends/PawlegendsConsent";
+import { setAnalyticsConsent } from "@/analytics";
+import { asksForConsent, ConsentChoiceButton, GAME_CONSENT_KEY, openConsentChoice, PawlegendsConsent } from "@/components/pawlegends/PawlegendsConsent";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { GTM_NOSCRIPT } = require("@/pages/_document");
 
@@ -133,6 +134,32 @@ describe("the consent bar", () => {
     render(<PawlegendsConsent gtm={gtm} asks={yes} />);
     fireEvent.click(screen.getByTestId("pawlegends-consent-deny"));
     expect(gtm.setConsent).toHaveBeenCalledWith("denied");
+    // the game frame's Settings chip follows the bar
+    expect(window.localStorage.getItem(GAME_CONSENT_KEY)).toBe("denied");
+  });
+
+  it("the game's Settings 'Share play stats' is the site's choice too (a storage event from the frame)", () => {
+    setPath("/play");
+    window.localStorage.setItem(CONSENT_STORAGE_KEY, "granted");
+    const gtm = fakeGtm();
+    render(<PawlegendsConsent gtm={gtm} asks={yes} />);
+    const fromFrame = (newValue: string | null, key = GAME_CONSENT_KEY) =>
+      act(() => {
+        window.dispatchEvent(new StorageEvent("storage", { key, newValue }));
+      });
+    fromFrame("denied");
+    expect(gtm.setConsent).toHaveBeenLastCalledWith("denied");
+    expect(setAnalyticsConsent).toHaveBeenLastCalledWith("denied");
+    // the same answer again, another key, or a cleared key: nothing to apply
+    gtm.setConsent.mockClear();
+    fromFrame("denied");
+    fromFrame("granted", "something-else");
+    fromFrame(null);
+    expect(gtm.setConsent).not.toHaveBeenCalled();
+    fromFrame("granted");
+    expect(gtm.setConsent).toHaveBeenLastCalledWith("granted");
+    expect(setAnalyticsConsent).toHaveBeenLastCalledWith("granted");
+    expect(screen.queryByTestId("pawlegends-consent")).toBeNull();
   });
 
   it("is not shown without consent mode, without a container, or outside Europe", () => {

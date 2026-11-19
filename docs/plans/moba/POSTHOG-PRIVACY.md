@@ -37,7 +37,9 @@ the rules they must keep for this notice to stay true are in "Rules for the code
    network request/response bodies or headers. Replay, heatmaps and surveys load only after consent and stay out of
    first-load JS.
 6. **Withdrawal:** Settings "Share play stats" Off stops sending at once, clears the random code and stops replay; the
-   website button reopens the bar. Account deletion: we delete the PostHog person on request (founder step 9).
+   website button reopens the bar. On pawlegends.app/play the game frame and the site share the `tt-analytics-consent`
+   key, so the game's Off is the site's No thanks too (PostHog, replay and GTM stop; `PawlegendsConsent.tsx`), and the
+   bar's answer sets the game's chip. Account deletion: we delete the PostHog person on request (founder step 9).
 7. **No ads, no ad id, no third-party tracking, no data sale.** If any of this changes, update this file, the privacy
    page and both store forms first.
 
