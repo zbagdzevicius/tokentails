@@ -71,6 +71,8 @@ export interface ChatSheetDeps {
    * focus still moves into the thread). Absent: focus is left alone.
    */
   autofocus?: 'input' | 'head';
+  /** Docked and minimised (round 8): the bar sits on the screen's bottom edge under the list, which keeps room for it. */
+  onMinimise?(on: boolean): void;
 }
 
 /** One open conversation on the thread's tab strip. */
@@ -164,7 +166,9 @@ export class ChatSheet {
   private menu = false;
   private tray = false;
   private trayPage = 0;
+  /** The friend's message whose menu is open (Copy, Report, Block), and whether it shows the report reasons. */
   private reporting: string | null = null;
+  private reportStep = false;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private sending = false;
   private polling = false;
@@ -204,11 +208,20 @@ export class ChatSheet {
       if (e.key !== 'Escape') return;
       e.stopPropagation();
       e.preventDefault();
+      if (this.reporting && this.reportStep) {
+        // the reasons go back to the message's menu (one step at a time)
+        this.reportStep = false;
+        this.render();
+        this.root.querySelector<HTMLElement>('.pl-chat-msgmenu [role="menuitem"]')?.focus({ preventScroll: true });
+        return;
+      }
       if (this.menu || this.reporting || this.tray) {
+        const back = this.reporting;
         this.menu = false;
         this.reporting = null;
         this.tray = false;
         this.render();
+        if (back) this.focusMore(back);
         return;
       }
       this.dispose();
@@ -228,6 +241,8 @@ export class ChatSheet {
       this.pressTimer = setTimeout(() => this.openReport(mid), 500);
     });
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'scroll'] as const) this.root.addEventListener(ev, () => this.cancelPress(), true);
+    // a message's menu follows its bubble while the thread scrolls
+    this.root.addEventListener('scroll', () => this.placeMsgMenu(), true);
     // docked: the corner grip resizes the window (it grows up and to the left: the window sits on the bottom edge)
     this.root.addEventListener('pointerdown', (e) => {
       if (!(e.target as HTMLElement).closest?.('.pl-chat-grip')) return;
@@ -343,8 +358,43 @@ export class ChatSheet {
   private openReport(mid: string): void {
     this.cancelPress();
     this.reporting = mid;
+    this.reportStep = false;
     this.render();
-    this.root.querySelector<HTMLElement>('.pl-report-chip')?.focus({ preventScroll: true });
+    this.root.querySelector<HTMLElement>('.pl-chat-msgmenu [role="menuitem"]')?.focus({ preventScroll: true });
+  }
+
+  /** Focus a message's "…" (after its menu closes), or the composer when it has none in sight. */
+  private focusMore(mid: string): void {
+    const more = this.root.querySelector<HTMLElement>(`.pl-chat-msg[data-mid="${mid.replace(/["\\]/g, "\\$&")}"] .pl-chat-more`);
+    (more ?? this.root.querySelector<HTMLElement>('input[name="chat"]'))?.focus({ preventScroll: true });
+  }
+
+  /**
+   * Round 8: a message's menu is a small context menu (LoL) floating by its bubble, over the thread: it never pushes
+   * the messages. Under the bubble, or above it when the composer is in the way; always inside the window.
+   */
+  private placeMsgMenu(): void {
+    const pop = this.root.querySelector<HTMLElement>('.pl-chat-msgmenu');
+    if (!pop || !this.reporting) return;
+    const bubble = this.root.querySelector<HTMLElement>(`.pl-chat-msg[data-mid="${this.reporting.replace(/["\\]/g, "\\$&")}"] .pl-chat-bubble`);
+    const list = this.root.querySelector<HTMLElement>('.pl-chat-list');
+    if (!bubble || !list) return;
+    const rr = this.root.getBoundingClientRect();
+    const br = bubble.getBoundingClientRect();
+    const lr = list.getBoundingClientRect();
+    const h = pop.offsetHeight;
+    const w = pop.offsetWidth;
+    // inside the message list (never over the head's tabs and buttons, nor the composer): under the bubble, else
+    // above it, else as close as the list allows
+    const lo = lr.top - rr.top + 4;
+    const hi = lr.bottom - rr.top - h - 4;
+    let top = br.bottom + 4 - rr.top;
+    if (top > hi) top = br.top - 4 - h - rr.top;
+    top = Math.max(lo, Math.min(top, hi));
+    if (hi < lo) top = Math.max(4, Math.min(lo, rr.height - h - 4));
+    const left = Math.max(4, Math.min(br.left - rr.left, rr.width - w - 4));
+    pop.style.top = `${Math.round(top)}px`;
+    pop.style.left = `${Math.round(left)}px`;
   }
 
   /**
@@ -356,6 +406,11 @@ export class ChatSheet {
     const win = doc.defaultView;
     if (!win || this.disposed) return;
     this.root.style.bottom = '';
+    // minimised: a bar on the screen's bottom edge under the friends list (the list keeps room for it): no lift
+    if (this.minimised) {
+      this.root.style.maxHeight = '';
+      return;
+    }
     const r = this.root.getBoundingClientRect();
     let lift = 0;
     for (const nav of doc.querySelectorAll<HTMLElement>(DOCK_AVOID)) {
@@ -535,7 +590,7 @@ export class ChatSheet {
             .join('')
         : CHAT_STICKERS.map((s, i) => `<button type="button" class="pl-chat-chip sticker" data-a="say" data-k="s" data-id="${i}" aria-label="Sticker ${i + 1}">${s}</button>`).join('');
     const dots = Array.from({ length: pages }, (_, i) => `<i class="pl-chat-dot"${i === page ? ' data-on="1"' : ''}></i>`).join('');
-    return `<div class="pl-chat-tray" data-testid="chat-tray"><div class="pl-chat-chips">${chips}</div><div class="pl-chat-pages"><button type="button" class="pl-btn ghost small" data-a="tray-prev" aria-label="Previous phrases"${page === 0 ? ' disabled' : ''}>&lsaquo;</button><span class="pl-chat-dots">${dots}</span><button type="button" class="pl-btn ghost small" data-a="tray-next" aria-label="More phrases"${page >= pages - 1 ? ' disabled' : ''}>&rsaquo;</button></div></div>`;
+    return `<div class="pl-chat-tray" data-testid="chat-phrases"><div class="pl-chat-chips">${chips}</div><div class="pl-chat-pages"><button type="button" class="pl-btn ghost small" data-a="tray-prev" aria-label="Previous phrases"${page === 0 ? ' disabled' : ''}>&lsaquo;</button><span class="pl-chat-dots">${dots}</span><button type="button" class="pl-btn ghost small" data-a="tray-next" aria-label="More phrases"${page >= pages - 1 ? ' disabled' : ''}>&rsaquo;</button></div></div>`;
   }
 
   private composerHtml(): string {
@@ -564,17 +619,13 @@ export class ChatSheet {
         const valid = !Number.isNaN(at.getTime());
         const stamp = valid && needsStamp(this.messages, i) ? `<li class="pl-chat-day" role="separator"><span>${this.esc(chatStamp(at, now))}</span></li>` : '';
         const cls = `pl-chat-msg${m.mine ? ' mine' : ''}${m.k === 's' ? ' sticker' : m.k === 'q' ? ' phrase' : ''}${this.reporting === m.mid ? ' is-reporting' : ''}${this.picked === m.mid ? ' is-picked' : ''}`;
-        const report =
-          !m.mine && this.reporting === m.mid
-            ? `<span class="pl-chat-report">${CHAT_REPORT_KINDS.map((k) => `<button type="button" class="pl-report-chip" data-a="report-kind" data-kind="${k}" data-mid="${this.esc(m.mid)}">${this.esc(CHAT_REPORT_LABELS[k])}</button>`).join('')}</span>`
-            : '';
-        const more = m.mine ? '' : `<button type="button" class="pl-chat-more" data-a="report" data-mid="${this.esc(m.mid)}" aria-label="Report this message">&hellip;</button>`;
+        const more = m.mine ? '' : `<button type="button" class="pl-chat-more" data-a="report" data-mid="${this.esc(m.mid)}" aria-haspopup="menu" aria-expanded="${this.reporting === m.mid}" aria-label="Message options: copy, report">&hellip;</button>`;
         const who = m.who && !m.mine ? `<small class="pl-chat-who" data-name="${this.esc(m.who)}"></small>` : '';
         const title = valid ? ` title="${this.esc(chatStamp(at, now))}"` : '';
         const pick = m.mine ? '' : ' data-a="pick"';
         // round 7: every run of messages ends with its time (LoL stamps each line; a run keeps the thread calm)
         const time = valid && endsRun(this.messages, i) ? `<time class="pl-chat-time" datetime="${this.esc(at.toISOString())}" data-testid="chat-time">${msgTime(at)}</time>` : '';
-        return `${stamp}<li class="${cls}${time ? ' ends-run' : ''}" data-mid="${this.esc(m.mid)}">${who}<span class="pl-chat-bubble"${title}${pick} data-text="${this.esc(bubbleText(m))}"></span>${more}${report}${time}</li>`;
+        return `${stamp}<li class="${cls}${time ? ' ends-run' : ''}" data-mid="${this.esc(m.mid)}">${who}<span class="pl-chat-bubble"${title}${pick} data-text="${this.esc(bubbleText(m))}"></span>${more}${time}</li>`;
       })
       .join('');
     // loading: a skeleton of the thread (three bubbles, both sides), never a bare "Loading…"
@@ -601,10 +652,10 @@ export class ChatSheet {
         : `<span class="pl-fr-av"${st ? ` data-state="${this.esc(st.state)}"` : ''}>${avatarHtml(f.av, 40)}${st ? `<i class="pl-dot" data-state="${this.esc(st.state)}"></i>` : ''}</span>`;
     const sub = this.muted ? 'Muted' : (st?.text ?? '');
     const fresh = this.minimised && this.unseen ? `<b class="pl-chat-new">${this.unseen} new</b>` : '';
-    const who = `<span class="pl-chat-who-h${tabbed ? ' is-tabbed' : ''}${this.deps.docked && tabbed ? ' pl-sr' : ''}"><span class="pl-social-name${tabbed ? ' pl-sr' : ''}" data-name="${this.esc(f.name)}"></span>${sub || fresh ? `<small class="pl-social-st"${st && !this.muted ? ` data-state="${this.esc(st.state)}"` : ''}>${fresh}${this.esc(sub)}</small>` : ''}</span>`;
+    const who = `<span class="pl-chat-who-h${tabbed ? ' is-tabbed pl-sr' : ''}"><span class="pl-social-name${tabbed ? ' pl-sr' : ''}" data-name="${this.esc(f.name)}"></span>${sub || fresh ? `<small class="pl-social-st"${st && !this.muted ? ` data-state="${this.esc(st.state)}"` : ''}>${fresh}${this.esc(sub)}</small>` : ''}</span>`;
     // docked: Minimise folds the window to its head (LoL's chat tab); the head then opens it again
     const min = this.deps.docked
-      ? `<button type="button" class="pl-ico pl-chat-min" data-a="min" aria-expanded="${!this.minimised}" aria-label="${this.minimised ? 'Open chat' : 'Minimise chat'}" title="${this.minimised ? 'Open' : 'Minimise'}">${icon(this.minimised ? 'chevron' : 'minus', 20)}</button>`
+      ? `<button type="button" class="pl-ico pl-chat-min" data-a="min" aria-expanded="${!this.minimised}" aria-label="${this.minimised ? 'Open chat' : 'Minimise chat'}" title="${this.minimised ? 'Open' : 'Minimise'}">${icon(this.minimised ? 'chevronUp' : 'minus', 20)}</button>`
       : '';
     const opts = this.minimised ? '' : `<button type="button" class="pl-ico" data-a="menu" aria-label="Chat options" aria-expanded="${this.menu}" title="Options">${icon('more', 20)}</button>`;
     this.root.classList.toggle('is-min', this.minimised);
@@ -612,20 +663,21 @@ export class ChatSheet {
       ? `<nav class="pl-chat-tabs" role="tablist" aria-label="Conversations" data-testid="chat-tabs">${tabs
           .map(
             (t) =>
-              `<button type="button" role="tab" class="pl-chat-tab${t.unread ? ' has-unread' : ''}" data-a="tab" data-code="${this.esc(t.code)}" aria-selected="${t.active}" aria-label="${this.esc(`${t.name}${t.unread ? `, ${t.unread} unread` : ''}`)}" title="${this.esc(t.name)}"><span class="pl-fr-av" data-state="${this.esc(t.state)}">${avatarHtml(t.av, 32)}<i class="pl-dot" data-state="${this.esc(t.state)}"></i></span>${t.active && this.deps.docked && st ? `<span class="pl-chat-tab-who"><span class="pl-chat-tab-n" data-name="${this.esc(t.name)}"></span><small class="pl-chat-tab-s pl-social-st" data-state="${this.esc(st.state)}">${this.esc(this.muted ? 'Muted' : st.text)}</small></span>` : `<span class="pl-chat-tab-n" data-name="${this.esc(t.name)}"></span>`}${t.unread ? `<b class="pl-chat-tab-u">${Math.min(99, t.unread)}</b>` : ''}</button>`,
+              `<button type="button" role="tab" class="pl-chat-tab${t.unread ? ' has-unread' : ''}" data-a="tab" data-code="${this.esc(t.code)}" aria-selected="${t.active}" aria-label="${this.esc(`${t.name}${t.unread ? `, ${t.unread} unread` : ''}`)}" title="${this.esc(t.name)}"><span class="pl-fr-av" data-state="${this.esc(t.state)}">${avatarHtml(t.av, 32)}<i class="pl-dot" data-state="${this.esc(t.state)}"></i></span>${t.active && st ? `<span class="pl-chat-tab-who"><span class="pl-chat-tab-n" data-name="${this.esc(t.name)}"></span><small class="pl-chat-tab-s pl-social-st" data-state="${this.esc(st.state)}">${this.esc(this.muted ? 'Muted' : st.text)}</small></span>` : `<span class="pl-chat-tab-n" data-name="${this.esc(t.name)}"></span>`}${t.unread ? `<b class="pl-chat-tab-u">${Math.min(99, t.unread)}</b>` : ''}</button>`,
           )
           .join('')}</nav>`
       : '';
     this.root.classList.toggle('has-tabs', !!strip);
     // round 7: docked with tabs, the tabs ARE the head (one row of chrome: tabs, then options, minimise, close; the
     // selected tab carries the friend's status), like LoL's chat window
-    const merged = this.deps.docked && tabbed;
+    // round 8: a phone too (one row: Back, the tabs with the friend's status, options), never a second row of chrome
+    const merged = tabbed;
     this.root.classList.toggle('is-merged', merged);
     const grip = this.deps.docked && !this.minimised ? `<span class="pl-chat-grip" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Resize chat: drag, or use the arrow keys" title="Drag to resize" data-testid="chat-grip"></span>` : '';
     const head = merged
-      ? `<header class="pl-chat-head is-strip">${strip}${who}${opts}${min}${back}</header>`
-      : `${this.minimised ? '' : strip}<header class="pl-chat-head">${this.deps.docked ? '' : back}${av}${who}${opts}${min}${this.deps.docked ? back : ''}</header>`;
-    const html = `${grip}${head}<div class="pl-chat-menuwrap">${menu}</div><ul class="pl-chat-list" data-testid="chat-list"${this.loading && !this.messages.length ? ' aria-busy="true"' : ''}>${earlier}${empty}${bubbles}</ul><p class="pl-sr" aria-live="polite" data-name="${this.esc(this.announce)}"></p><footer class="pl-chat-foot">${this.composerHtml()}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</footer>`;
+      ? `<header class="pl-chat-head is-strip">${this.deps.docked ? '' : back}${strip}${who}${opts}${min}${this.deps.docked ? back : ''}</header>`
+      : `${this.minimised ? '' : strip}<header class="pl-chat-head"${this.minimised ? ' data-testid="chat-tray"' : ''}>${this.deps.docked ? '' : back}${av}${who}${opts}${min}${this.deps.docked ? back : ''}</header>`;
+    const html = `${grip}${head}<div class="pl-chat-menuwrap">${menu}</div>${this.msgMenuHtml()}<ul class="pl-chat-list" data-testid="chat-list"${this.loading && !this.messages.length ? ' aria-busy="true"' : ''}>${earlier}${empty}${bubbles}</ul><p class="pl-sr" aria-live="polite" data-name="${this.esc(this.announce)}"></p><footer class="pl-chat-foot">${this.composerHtml()}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</footer>`;
     morphHtml(this.root, html, (tree) => {
       for (const el of tree.querySelectorAll<HTMLElement>('[data-name]')) {
         el.textContent = el.dataset.name ?? '';
@@ -636,6 +688,19 @@ export class ChatSheet {
     });
     const ul = this.root.querySelector<HTMLElement>('.pl-chat-list');
     if (ul && (stickToBottom || atBottom)) ul.scrollTop = ul.scrollHeight;
+    this.placeMsgMenu();
+  }
+
+  /** The open message's menu: Copy text, Report message (then its reasons under a heading), Block (a DM only). */
+  private msgMenuHtml(): string {
+    const m = this.reporting ? this.messages.find((x) => x.mid === this.reporting && !x.mine) : null;
+    if (!m) return '';
+    const mid = this.esc(m.mid);
+    const item = (a: string, ic: string, text: string, extra = '') => `<button type="button" role="menuitem" class="pl-mi" data-a="${a}" data-mid="${mid}"${extra}>${icon(ic, 18)}<span>${text}</span></button>`;
+    const body = this.reportStep
+      ? `<p class="pl-chat-msgmenu-h" id="pl-report-h">${icon('flag', 16)}<span>Report message</span></p><div role="group" aria-labelledby="pl-report-h">${CHAT_REPORT_KINDS.map((k) => `<button type="button" role="menuitem" class="pl-mi pl-report-chip" data-a="report-kind" data-kind="${k}" data-mid="${mid}"><span>${this.esc(CHAT_REPORT_LABELS[k])}</span></button>`).join('')}</div><button type="button" role="menuitem" class="pl-mi pl-mi-back" data-a="report-back" data-mid="${mid}">${icon('chevron', 18)}<span>Back</span></button>`
+      : `${m.k === 't' ? item('msg-copy', 'copy', 'Copy text') : ''}${item('report-open', 'flag', 'Report message', ' aria-haspopup="menu"')}${this.deps.thread ? '' : item('block', 'block', `Block ${this.esc(this.deps.friend.name)}`).replace('class="pl-mi"', 'class="pl-mi danger"')}`;
+    return `<div class="pl-chat-msgmenu" role="menu" aria-label="${this.reportStep ? 'Report message' : 'Message options'}" data-testid="chat-msg-menu">${body}</div>`;
   }
 
   private setMinimised(on: boolean): void {
@@ -645,6 +710,8 @@ export class ChatSheet {
     this.reporting = null;
     if (!on) this.unseen = 0;
     this.render(!on);
+    this.fitDock();
+    this.deps.onMinimise?.(on);
     if (!on) this.markRead();
     const to = on ? null : this.root.querySelector<HTMLElement>('input[name="chat"]');
     (to ?? this.root.querySelector<HTMLElement>('.pl-chat-min'))?.focus({ preventScroll: true });
@@ -725,13 +792,39 @@ export class ChatSheet {
         });
         return;
       case 'report':
-        this.reporting = this.reporting === el.dataset.mid ? null : (el.dataset.mid ?? null);
-        this.render();
+        if (this.reporting === el.dataset.mid) {
+          this.reporting = null;
+          this.render();
+          return;
+        }
+        this.openReport(el.dataset.mid ?? '');
         return;
+      case 'report-open':
+      case 'report-back':
+        this.reportStep = a === 'report-open';
+        this.render();
+        this.root.querySelector<HTMLElement>('.pl-chat-msgmenu [role="menuitem"]')?.focus({ preventScroll: true });
+        return;
+      case 'msg-copy': {
+        const m = this.messages.find((x) => x.mid === el.dataset.mid);
+        const mid = this.reporting;
+        this.reporting = null;
+        const done = () => {
+          this.render();
+          if (mid) this.focusMore(mid);
+        };
+        if (!m) return done();
+        void Promise.resolve(navigator.clipboard?.writeText(bubbleText(m)))
+          .then(() => this.showError('Copied'))
+          .catch(() => this.showError('Could not copy'))
+          .finally(done);
+        return;
+      }
       case 'report-kind': {
         const msg = el.dataset.mid ?? '';
         const kind = el.dataset.kind as ChatReportKind;
         this.reporting = null;
+        this.reportStep = false;
         this.deps.track?.('chat_report', { kind });
         void this.deps.api('chat.report', { msg, kind }).then((r) => {
           this.showError(r.ok ? 'Thanks. We review every report.' : r.status === 429 ? 'Too many reports. Try again later.' : 'Something went wrong. Try again.');
@@ -757,5 +850,6 @@ export class ChatSheet {
     this.cancelPress();
     this.unwatchViewport();
     this.root.remove();
+    if (this.minimised) this.deps.onMinimise?.(false);
   }
 }

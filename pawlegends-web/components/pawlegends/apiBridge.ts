@@ -137,6 +137,8 @@ const ARG_KEYS = [
   "sim",
   "invite",
   "answer",
+  // social sidebar round 8: the pulse's device ("m" phone or tablet, "d" computer)
+  "dev",
 ] as const;
 export type PawlegendsApiArgs = Partial<Record<(typeof ARG_KEYS)[number], string | number | boolean>>;
 
@@ -238,7 +240,8 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
     case "social.get":
       return { method: "GET", path: "/pawlegends/social", auth: "registered" };
     case "social.pulse":
-      return { method: "GET", path: `/pawlegends/social/pulse${q({ rev: str(a.rev, /^[A-Za-z0-9_-]{1,32}$/) })}`, auth: "registered" };
+      // round 8: the device (m phone or tablet, d computer) marks friends who are on mobile
+      return { method: "GET", path: `/pawlegends/social/pulse${q({ rev: str(a.rev, /^[A-Za-z0-9_-]{1,32}$/), dev: str(a.dev, /^[md]$/) })}`, auth: "registered" };
     case "friend.add": {
       // SOCIAL-INVITES.md: a friend by their exact nickname too (case-insensitive on the server)
       const nick = a.code === undefined ? str(a.name, NICK) : null;

@@ -27,6 +27,7 @@
 import { rememberAgeBand } from './ageBand';
 import { ccHtmlOrNone } from './flags';
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
+import { pulseDevice } from '../embed/api';
 import { parseRankedStatus, primeTimeText, rankedLabel, rankedLiveText } from '../meta/ranked';
 import { HERO_IDS, HEROES } from '../data/heroes';
 import { isAvatarView, previewText, type AvatarView } from '../data/chatPhrases';
@@ -72,6 +73,8 @@ export interface Presence {
   away?: boolean;
   /** In a match: the champion played (a hero id; round 6, LoL's "In Game · Sage"). */
   hero?: string;
+  /** Round 8: on a phone or tablet (a small phone mark by the name, LoL's mobile marker); absent on a computer. */
+  dev?: 'm';
 }
 export interface FriendRow {
   code: string;
@@ -368,6 +371,21 @@ export function busyText(p: Presence, myParty: string | null = null): string {
 }
 
 /** A typed friend code (`PL-7KQ2-M9XR`, any case, with or without dashes); anything else is a nickname. */
+/** The list's last child: a bar stuck to its bottom edge naming the groups below the fold (`moreBelow`). */
+const MORE_BELOW = '<button type="button" class="pl-more-below" data-a="more-below" data-testid="social-more-below" hidden></button>';
+
+/** The one separator of a status line ("In match · Ranked · 8m · Sage"): the same gap on both sides everywhere. */
+// the spaces keep the text readable when copied or read aloud ("In match · Ranked"); they take no room (CSS)
+export const SEP_HTML = '<span class="pl-sep"><i class="pl-sp"> </i>·<i class="pl-sp"> </i></span>';
+
+/** Escape a " · "-joined line and draw each separator as `SEP_HTML`. */
+export function dotsHtml(text: string): string {
+  return text
+    .split(' · ')
+    .map((p) => p.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`))
+    .join(SEP_HTML);
+}
+
 export const looksLikeCode = (v: string): boolean => /^\s*(pl[-\s]?)?[0-9a-z]{4}[-\s]?[0-9a-z]{4}\s*$/i.test(v);
 
 /** One nickname suggestion (`social.search`): never a code or an account id. */
@@ -499,6 +517,10 @@ export class SocialSheet {
   private undo: { code: string; timer: ReturnType<typeof setTimeout> } | null = null;
   private pulseTimer: ReturnType<typeof setInterval> | null = null;
   private disposed = false;
+  /** The control that opened the panel (the lobby's Friends button): focus returns to it on close. */
+  private readonly opener: HTMLElement | null;
+  /** A short screen: the invite card is open as a sheet over the list (never remembered: it starts folded). */
+  private invShort = false;
   /** DM threads by friend code (unread dots on the rows). */
   private threads = new Map<string, ChatThreadRow>();
   private chat: ChatSheet | null = null;
@@ -525,6 +547,9 @@ export class SocialSheet {
     // Requests is a group at the top of Friends now: opening on it unfolds that group
     this.tab = tab === 'requests' ? 'friends' : tab;
     if (tab === 'requests') this.folds.requests = false;
+    // round 8 (WCAG 2.4.3): the control that opened the panel gets focus back when it closes
+    const was = parent.ownerDocument.activeElement as HTMLElement | null;
+    this.opener = was && was !== parent.ownerDocument.body ? was : null;
     this.root = parent.ownerDocument.createElement('aside');
     this.root.className = 'pl-social';
     this.root.setAttribute('role', 'dialog');
@@ -592,10 +617,10 @@ export class SocialSheet {
       this.scrollCue();
       if (this.menuFor && !this.sheetMenu) this.placeMenu();
     }, true);
-    // a scroll that comes to rest with a group header half pushed out by the next: a thin sliver (up to 24 px) is
-    // nudged out, like a snap; a bigger part stays (the player is reading it)
+    // a scroll that comes to rest with a group header half pushed out by the next: its rows are gone, so the rest of
+    // it is nudged out, like a snap (round 8: never a stuck heading with nothing under it)
     this.root.addEventListener('scrollend', (e) => {
-      if ((e.target as HTMLElement).classList?.contains('pl-social-body')) this.clearSliver(24);
+      if ((e.target as HTMLElement).classList?.contains('pl-social-body')) this.clearSliver();
     }, true);
     this.invite = new InviteRow({
       api: (op, args) => this.deps.api(op, args),
@@ -609,9 +634,32 @@ export class SocialSheet {
     // a phone turned, or a window resized across the short-screen line: the tools row and groups change shape
     const win = parent.ownerDocument.defaultView;
     const mq = win?.matchMedia?.(`(max-height: ${SHORT_PX}px)`);
-    const onShort = () => this.render();
+    const onShort = () => {
+      // a viewport change folds the invite sheet (it never buries the list on a short screen)
+      this.invShort = false;
+      this.render();
+    };
     mq?.addEventListener?.('change', onShort);
-    this.unwatch = () => mq?.removeEventListener?.('change', onShort);
+    // round 8: the more-below bar sits on the list's bottom edge: it follows the panel's size (a window resized)
+    // a phone turned (its width changes; a keyboard only changes the height) folds the invite sheet too
+    let lastW = win?.innerWidth ?? 0;
+    const fit = () => {
+      const w = win?.innerWidth ?? 0;
+      if (w !== lastW && this.invShort) {
+        this.invShort = false;
+        this.render();
+      }
+      lastW = w;
+      this.scrollCue();
+    };
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(fit) : null;
+    ro?.observe(this.root);
+    win?.addEventListener('resize', fit);
+    this.unwatch = () => {
+      mq?.removeEventListener?.('change', onShort);
+      win?.removeEventListener('resize', fit);
+      ro?.disconnect();
+    };
     this.deps.track?.('social_open', { tab: this.tab });
     this.render();
     // the dialog's first focus: the selected tab (keyboard and screen reader users land inside the sheet)
@@ -698,7 +746,7 @@ export class SocialSheet {
   async pulse(): Promise<void> {
     if (this.disposed || !this.deps.signedIn()) return;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-    const r = await this.deps.api('social.pulse', this.state?.rev ? { rev: this.state.rev } : {});
+    const r = await this.deps.api('social.pulse', { ...(this.state?.rev ? { rev: this.state.rev } : {}), dev: pulseDevice() });
     if (!r.ok || r.status === 204 || !r.body) return;
     // keep the rev current on every tab (the Ranked and Boards tabs never refetch `social.get`, so without this every
     // later pulse would answer "changed" again), and refetch only the lists that show friends' state. Never while the
@@ -786,7 +834,7 @@ export class SocialSheet {
     this.root.dataset.density = this.density;
     // the invite card starts folded on a short screen and once there are friends to look at (a choice wins)
     this.invite.autoFold = (this.state?.friends.length ?? 0) > 0;
-    this.root.innerHTML = `${this.head()}${this.tabBar()}${this.searchRow()}${this.meCard()}<div class="pl-social-body" id="pl-social-panel" role="tabpanel" aria-label="${TAB_LABEL[this.shownTab]}">${this.body()}</div>${note}${foot ? `<footer class="pl-social-foot">${foot}</footer>` : ''}${this.menuSheet()}`;
+    this.root.innerHTML = `${this.head()}${this.tabBar()}${this.searchRow()}${this.meCard()}<div class="pl-social-body" id="pl-social-panel" role="tabpanel" aria-label="${TAB_LABEL[this.shownTab]}">${this.body()}${MORE_BELOW}</div>${note}${foot ? `<footer class="pl-social-foot">${foot}</footer>` : ''}${this.menuSheet()}${this.inviteSheet()}`;
     this.fillNames(this.root);
     const body = this.root.querySelector<HTMLElement>('.pl-social-body');
     if (body && scroll) body.scrollTop = scroll;
@@ -807,6 +855,34 @@ export class SocialSheet {
     if (!body) return;
     const more = body.scrollHeight - body.scrollTop - body.clientHeight > 4;
     this.root.classList.toggle('has-more', more);
+    this.moreBelow(body, more);
+  }
+
+  /**
+   * Round 8 (LoL always shows its Offline header): while group headers sit below the fold, a bar on the list's bottom
+   * edge names them with their counts ("Offline 15 · Sent requests 1"); a click scrolls the first one to the top.
+   */
+  private moreBelow(body: HTMLElement, more: boolean): void {
+    const bar = this.root.querySelector<HTMLElement>('.pl-more-below');
+    if (!bar) return;
+    const br = body.getBoundingClientRect();
+    const h = bar.offsetHeight || 40;
+    const hidden = more
+      ? [...body.querySelectorAll<HTMLElement>('.pl-group > .pl-group-h[data-group]')].filter((g) => g.getBoundingClientRect().top >= br.bottom - h - 2)
+      : [];
+    if (!hidden.length) {
+      bar.hidden = true;
+      return;
+    }
+    const parts = hidden.map((g) => ({ t: GROUP_LABEL[g.dataset.group as FriendGroupId] ?? '', n: g.querySelector('.pl-group-n')?.textContent?.trim() ?? '' }));
+    const key = parts.map((p) => `${p.t}${p.n}`).join('|');
+    if (bar.dataset.key !== key) {
+      bar.dataset.key = key;
+      bar.dataset.to = hidden[0].dataset.group ?? '';
+      bar.innerHTML = `${icon('chevron', 16)}${parts.map((p) => `<span class="pl-mb-g"><span class="pl-mb-t">${this.esc(p.t)}</span><b class="pl-mb-n">${this.esc(p.n)}</b></span>`).join(SEP_HTML)}`;
+      bar.setAttribute('aria-label', `Below: ${parts.map((p) => `${p.t}, ${p.n}`).join('; ')}. Show`);
+    }
+    bar.hidden = false;
   }
 
   /**
@@ -817,10 +893,14 @@ export class SocialSheet {
     const body = this.root.querySelector<HTMLElement>('.pl-social-body');
     if (!body) return;
     const top = body.getBoundingClientRect().top;
-    for (const h of body.querySelectorAll<HTMLElement>('.pl-group-h')) {
+    for (const h of body.querySelectorAll<HTMLElement>('.pl-group > .pl-group-h')) {
       const r = h.getBoundingClientRect();
-      if (r.top < top - 0.5 && r.bottom > top + 0.5 && r.bottom - top <= max) {
-        const need = Math.ceil(r.bottom - top);
+      // round 8: a stuck header with less than 20 px of its own rows under it goes too (never a heading over nothing)
+      const sec = h.parentElement!.getBoundingClientRect();
+      const stuck = sec.top < top - 0.5 && Math.abs(r.top - top) <= 1 && sec.bottom - r.bottom < 20;
+      const sliver = r.top < top - 0.5 && r.bottom > top + 0.5;
+      if ((sliver || stuck) && sec.bottom - top > 0.5 && sec.bottom - top <= max) {
+        const need = Math.ceil(sec.bottom - top);
         // at the end of the list there is no room to scroll it out: a little more room under the last row (this
         // body only; the next render drops it)
         const room = body.scrollHeight - body.clientHeight - body.scrollTop;
@@ -903,9 +983,10 @@ export class SocialSheet {
   private paintBody(): void {
     const body = this.root.querySelector<HTMLElement>('.pl-social-body');
     if (!body) return;
-    body.innerHTML = this.body();
+    body.innerHTML = this.body() + MORE_BELOW;
     this.fillNames(body);
     this.rove();
+    this.scrollCue();
   }
 
   /** The list's one Tab stop (round 6, a roving tabindex): the row last focused, else the first. */
@@ -928,6 +1009,18 @@ export class SocialSheet {
     for (const el of items) el.tabIndex = el === cur ? 0 : -1;
   }
 
+  /** The invite card is in sight on Friends (the gift shows pressed only then: never on Recent or Clubs). */
+  private get inviteShown(): boolean {
+    if (this.shownTab !== 'friends' || !this.invite.state || this.adding || this.query.trim()) return false;
+    return this.short ? this.invShort : !this.invite.isFolded && !this.meOpen;
+  }
+
+  /** A short screen: the invite card as a bottom sheet over the list (a scrim behind; Esc or the scrim folds it). */
+  private inviteSheet(): string {
+    if (!this.short || !this.invShort || !this.inviteShown || !(this.state?.friends.length ?? 0)) return '';
+    return `<div class="pl-fr-scrim" data-a="inv-fold" aria-hidden="true"></div><div class="pl-inv-sheet" role="dialog" aria-label="Invite friends" data-testid="invite-sheet">${this.invite.html(true)}</div>`;
+  }
+
   /**
    * The header (LoL's top block): me (avatar with my status ring, name, status ▾) on the left, then the invite gift
    * (once there are friends: the card folds away), Add a friend and Close. One row on every screen.
@@ -940,13 +1033,13 @@ export class SocialSheet {
     if (tools && s) {
       const st = this.myStatus();
       const note = noteText(s.me.note);
-      const line = `<span class="pl-social-st" data-state="${st.state}">${st.text}</span>${note ? `<span class="pl-st-note" data-name="${this.esc(note)}"></span>` : ''}`;
+      const line = `<span class="pl-social-st" data-state="${st.state}">${st.text}</span>${note ? `${SEP_HTML}<span class="pl-st-note" data-name="${this.esc(note)}"></span>` : ''}`;
       who = `<button type="button" class="pl-me" data-a="me" data-testid="social-me" aria-haspopup="true" aria-expanded="${this.meOpen}" aria-controls="pl-me-card" aria-label="${this.esc(`${s.me.name}, ${st.text}${note ? `, ${note}` : ''}. Status, friend code and avatar`)}" title="My status">${this.myAvatar(32)}<span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(s.me.name)}"></span></span><small class="pl-social-line">${line}${icon('chevron', 14)}</small></span></button>`;
     }
     const inv = this.invite;
     const gift =
       tools && inv.state && (s?.friends.length ?? 0) > 0
-        ? `<button type="button" class="pl-ico pl-ico-gift${inv.state.claimable ? ' has-dot' : ''}" data-a="inv-fold" data-testid="invite-open" aria-expanded="${!inv.isFolded}" aria-label="${inv.state.claimable ? 'Invite friends: a coat to claim' : 'Invite friends'}" title="Invite friends">${icon('gift', 20)}</button>`
+        ? `<button type="button" class="pl-ico pl-ico-gift${inv.state.claimable ? ' has-dot' : ''}" data-a="inv-fold" data-testid="invite-open" aria-expanded="${this.inviteShown}" aria-label="${inv.state.claimable ? 'Invite friends: a coat to claim' : 'Invite friends'}" title="Invite friends">${icon('gift', 20)}</button>`
         : '';
     const add = this.deps.signedIn() && s?.me.ageBand ? `<button type="button" class="pl-ico pl-ico-add" data-a="add" data-testid="social-add" aria-expanded="${this.adding}" aria-label="Add a friend" title="Add a friend">${icon('addUser', 20)}</button>` : '';
     return `<header class="pl-social-head">${who}<span class="pl-head-acts">${gift}${add}<button type="button" class="pl-ico pl-social-x" data-a="close" aria-label="Close" title="Close (Esc)">${icon('close', 20)}</button></span></header>`;
@@ -1038,7 +1131,8 @@ export class SocialSheet {
       return `<button type="button" role="radio" class="pl-mi pl-me-opt" data-a="status" data-v="${v}" aria-checked="${on}" tabindex="${on ? 0 : -1}"><i class="pl-dot" data-state="${st}"></i><span><b>${text}</b><small>${sub}</small></span>${on ? icon('check', 18) : ''}</button>`;
     };
     const opts = [`<option value="-1"${noteText(me.note) ? '' : ' selected'}>No status note</option>`, ...STATUS_NOTES.map((t, i) => `<option value="${i}"${me.note === i ? ' selected' : ''}>${this.esc(t)}</option>`)].join('');
-    const note = `<label class="pl-me-note"><span>Status note</span><select name="note" data-testid="social-note" aria-label="Status note friends see">${opts}</select></label>`;
+    // round 8: notes are picked from a list on purpose (a young audience: no free text to moderate); the card says so
+    const note = `<label class="pl-me-note"><span>Status note<small class="pl-me-note-hint" id="pl-note-hint">Picked from a safe list</small></span><select name="note" data-testid="social-note" aria-label="Status note friends see" aria-describedby="pl-note-hint">${opts}</select></label>`;
     // touch or a short screen: a bottom sheet over the panel (it never runs past the screen; it scrolls when tall);
     // a mouse: under the header, in the flow, capped and scrolling
     const sheet = this.sheetMenu;
@@ -1086,7 +1180,7 @@ export class SocialSheet {
     const sent = s.requests.out.filter((r) => hit(r.name));
     // the top of the list: the add card while adding, else the invite card when opened (the gift in the header)
     const none = !s.friends.length && !s.requests.in.length && !s.requests.out.length;
-    const top = this.adding ? this.addCard() : q || none || this.meOpen || this.invite.isFolded ? '' : this.invite.html(true);
+    const top = this.adding ? this.addCard() : q || none || this.meOpen || this.short || this.invite.isFolded ? '' : this.invite.html(true);
     if (none) return `${top}${this.emptyFriends()}`;
     if (q && !friends.length && !asks.length && !sent.length)
       return `<div class="pl-social-empty pl-social-none" data-testid="social-search-none"><span class="pl-none-art" aria-hidden="true">${icon('search', 28)}</span><p>No friend matches "<span data-name="${this.esc(typed)}"></span>".</p><small>Look for this name among all players.</small><button type="button" class="pl-btn small cta" data-a="add-empty" data-q="${this.esc(typed)}">${icon('addUser', 18)}<span>Find this player</span></button></div>`;
@@ -1111,11 +1205,11 @@ export class SocialSheet {
     // one way to add (Find a player) and one way to share (the invite card's Share link): no second share button
     const find = this.adding ? '' : `<button type="button" class="pl-btn small ghost" data-a="add-empty">${icon('addUser', 18)}<span>Find a player by name</span></button>`;
     const card = this.invite.state ? this.invite.html(false) : '';
-    // the invite card says what you both get: the empty state only says what to do (no line said twice)
-    const lead = `<small>Add a player you met by name${card ? ', or share your invite' : ''}.</small>`;
-    // a short screen: the invite (code and Share) first, above the fold, then one compact line and Find
+    // round 8: the empty line says what to do only; the invite card below it says what you both get (nothing twice)
+    const lead = `<small>Add a player you met by name.</small>`;
+    // a short screen: one compact row first ("No friends yet" and Find, above the fold), then the invite card
     if (this.short)
-      return `${card}<div class="pl-social-empty pl-social-none is-compact" data-testid="social-empty"><p>No friends yet</p>${lead}${find}</div>${recent}`;
+      return `<div class="pl-social-empty pl-social-none is-compact is-row" data-testid="social-empty"><p>No friends yet</p>${this.adding ? '' : `<button type="button" class="pl-btn small ghost" data-a="add-empty" aria-label="Find a player by name">${icon('addUser', 18)}<span>Find a player</span></button>`}</div>${card}${recent}`;
     return `<div class="pl-social-empty pl-social-none" data-testid="social-empty"><span class="pl-none-art" aria-hidden="true">${icon('friends', 32)}</span><p>No friends yet</p>${lead}${find}</div>${card}${recent}`;
   }
 
@@ -1164,7 +1258,7 @@ export class SocialSheet {
       act === 'join'
         ? `<button type="button" class="pl-ico pl-act-2 is-primary" data-a="join" data-party="${this.esc(f.presence.party ?? '')}" data-code="${code}" data-testid="social-join" aria-label="${this.esc(`Join ${name}'s lobby`)}" title="Join lobby"><span class="pl-ic">${icon('join', 20)}${word('Join')}</span></button>`
         : act === 'watch' && this.deps.watch
-          ? `<button type="button" class="pl-ico pl-act-2" data-a="watch" data-room="${this.esc(f.presence.room ?? '')}" data-code="${code}" data-testid="social-watch" aria-label="${this.esc(`Watch ${name}'s match`)}" title="Watch match">${icon('eye')}${word('Watch')}</button>`
+          ? `<button type="button" class="pl-ico pl-act-2" data-a="watch" data-room="${this.esc(f.presence.room ?? '')}" data-code="${code}" data-testid="social-watch" aria-label="${this.esc(`Spectate ${name}'s match`)}" title="Spectate match">${icon('eye')}${word('Watch')}</button>`
           : act === 'invite'
             ? `<button type="button" class="pl-ico pl-act-2" data-a="invite" data-code="${code}" data-testid="social-invite" aria-label="${this.esc(`Invite ${name} to your party`)}" title="Invite to party">${icon('party', 22)}${word('Invite')}</button>`
             : act === 'ask'
@@ -1181,19 +1275,20 @@ export class SocialSheet {
     const extra = unread
       ? `<span class="pl-social-msg" title="${this.esc(previewText(t!.lastPreview))}">${icon('chat', 14)}<span data-name="${this.esc(previewText(t!.lastPreview))}"></span></span>`
       : later
-        ? `<span class="pl-st-note pl-st-later" data-testid="social-later-tag">${icon('clock', 14)}<span>Invite queued</span></span>`
+        ? `${SEP_HTML}<span class="pl-st-note pl-st-later" data-testid="social-later-tag">${icon('clock', 14)}<span>Invite queued</span></span>`
         : champ
-          ? `<span class="pl-st-note pl-st-champ" data-testid="social-champ" data-name="${this.esc(champ)}"></span>`
+          ? `${SEP_HTML}<span class="pl-st-note pl-st-champ" data-testid="social-champ" data-name="${this.esc(champ)}"></span>`
           : note
-            ? `<span class="pl-st-note" data-name="${this.esc(note)}"></span>`
+            ? `${SEP_HTML}<span class="pl-st-note" data-name="${this.esc(note)}"></span>`
             : played && (f.presence.state === 'online' || f.presence.state === 'offline')
-              ? `<span class="pl-st-note pl-st-played" data-testid="social-played" data-name="${this.esc(played.replace('Played together ', 'Played '))}"></span>`
+              ? `${SEP_HTML}<span class="pl-st-note pl-st-played" data-testid="social-played">${dotsHtml(played.replace('Played together ', 'Played '))}</span>`
               : '';
     const open = this.menuFor === f.code;
     const shown = shownState(f.presence);
-    const label = `${name}, ${st}${champ ? `, playing ${champ}` : ''}${note ? `, ${note}` : ''}${unread ? `, ${unread} unread` : ''}${later ? ', invite queued' : ''}${f.fav ? ', favourite' : ''}${played ? `, ${played}` : ''}`;
+    const mobile = f.presence.dev === 'm' && f.presence.state !== 'offline';
+    const label = `${name}${mobile ? ', on mobile' : ''}, ${st}${champ ? `, playing ${champ}` : ''}${note ? `, ${note}` : ''}${unread ? `, ${unread} unread` : ''}${later ? ', invite queued' : ''}${f.fav ? ', favourite' : ''}${played ? `, ${played}` : ''}`;
     const chatting = this.chatCode === f.code && !!this.chat && !this.chat.closed;
-    return `<div class="pl-social-row pl-fr${open ? ' is-open' : ''}${unread ? ' has-msg' : ''}${chatting ? ' is-chat' : ''}" role="listitem" data-state="${f.presence.state}" data-code="${code}"><button type="button" class="pl-fr-main" data-a="menu" data-code="${code}" data-nav aria-haspopup="menu" aria-expanded="${open}" aria-label="${this.esc(label)}"><span class="pl-fr-av" data-state="${shown}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${shown}"></i></span><span class="pl-social-who"><span class="pl-social-nm">${ccHtmlOrNone(f.cc)}<span class="pl-social-name" data-name="${this.esc(name)}"></span></span><small class="pl-social-line"><span class="pl-social-st" data-state="${shown}">${this.esc(word0)}${st.length > word0.length ? `<span class="pl-st-more">${this.esc(st.slice(word0.length))}</span>` : ''}</span>${extra}</small></span></button><span class="pl-fr-acts">${chat}${primary}</span></div>`;
+    return `<div class="pl-social-row pl-fr${open ? ' is-open' : ''}${unread ? ' has-msg' : ''}${chatting ? ' is-chat' : ''}" role="listitem" data-state="${f.presence.state}" data-code="${code}"><button type="button" class="pl-fr-main" data-a="menu" data-code="${code}" data-nav aria-haspopup="menu" aria-expanded="${open}" aria-label="${this.esc(label)}"><span class="pl-fr-av" data-state="${shown}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${shown}"></i></span><span class="pl-social-who"><span class="pl-social-nm">${ccHtmlOrNone(f.cc)}<span class="pl-social-name" data-name="${this.esc(name)}"></span>${mobile ? `<span class="pl-dev" title="On mobile" data-testid="social-mobile">${icon('phone', 14)}</span>` : ''}</span><small class="pl-social-line"><span class="pl-social-st" data-state="${shown}">${this.esc(word0)}${st.length > word0.length ? `<span class="pl-st-more">${SEP_HTML}${dotsHtml(st.slice(word0.length + 3))}</span>` : ''}</span>${extra}</small></span></button><span class="pl-fr-acts">${chat}${primary}</span></div>`;
   }
 
   /** A friend's row menu (under the row, in the list's flow: nothing covers another row). */
@@ -1204,7 +1299,7 @@ export class SocialSheet {
       act === 'join'
         ? mi('join', 'join', 'Join lobby', ` data-party="${this.esc(f.presence.party ?? '')}"`)
         : act === 'watch' && this.deps.watch
-          ? mi('watch', 'eye', 'Watch match', ` data-room="${this.esc(f.presence.room ?? '')}"`)
+          ? mi('watch', 'eye', 'Spectate match', ` data-room="${this.esc(f.presence.room ?? '')}"`)
           : act === 'invite'
             ? mi('invite', 'party', 'Invite to party')
             : act === 'ask'
@@ -1234,11 +1329,15 @@ export class SocialSheet {
     const played = playedText(f.played);
     const info = played ? `<p class="pl-fr-menu-info" data-testid="social-menu-played">${icon('history', 16)}<span>${this.esc(played)}</span></p>` : '';
     const head = sheet
-      ? `<div class="pl-fr-menu-h"><span class="pl-fr-grab" aria-hidden="true"></span><div class="pl-fr-menu-who"><span class="pl-fr-av" data-state="${shown}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${shown}"></i></span><span class="pl-social-who"><p class="pl-fr-menu-name" data-name="${this.esc(f.name)}"></p><small class="pl-social-line"><span class="pl-social-st" data-state="${shown}">${this.esc(presenceText(f.presence))}</span>${champ ? `<span class="pl-st-note pl-st-champ" data-name="${this.esc(champ)}"></span>` : note ? `<span class="pl-st-note" data-name="${this.esc(note)}"></span>` : ''}</small></span></div>${info}</div>`
+      ? `<div class="pl-fr-menu-h"><span class="pl-fr-grab" aria-hidden="true"></span><div class="pl-fr-menu-who"><span class="pl-fr-av" data-state="${shown}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${shown}"></i></span><span class="pl-social-who"><p class="pl-fr-menu-name" data-name="${this.esc(f.name)}"></p><small class="pl-social-line"><span class="pl-social-st" data-state="${shown}">${dotsHtml(presenceText(f.presence))}</span>${champ ? `${SEP_HTML}<span class="pl-st-note pl-st-champ" data-name="${this.esc(champ)}"></span>` : note ? `${SEP_HTML}<span class="pl-st-note" data-name="${this.esc(note)}"></span>` : ''}</small></span></div>${info}</div>`
       : `<p class="pl-fr-menu-name pl-sr" data-name="${this.esc(f.name)}"></p>${info}`;
     const fav = mi('fav', 'star', f.fav ? 'Unpin from favourites' : 'Pin to favourites', ` data-on="${f.fav ? 0 : 1}" data-testid="social-fav"`);
     const cancel = sheet ? `<button type="button" class="pl-btn ghost pl-fr-cancel" data-a="menu-close">Cancel</button>` : '';
-    return `<div class="pl-fr-menu${sheet ? ' is-sheet' : ' is-pop'}" role="menu" aria-label="${this.esc(`${f.name}: options`)}" data-testid="social-row-menu">${head}<div class="pl-fr-menu-acts">${first}${mi('chat', 'chat', 'Message')}${this.deps.history ? mi('history', 'history', 'Match history') : ''}${fav}${busy}</div><div class="pl-fr-menu-danger">${remove}${mi('block', 'block', 'Block').replace('class="pl-mi"', 'class="pl-mi danger"')}</div>${cancel}</div>`;
+    // round 8: the bottom sheet's two columns never leave a lone cell: with an odd count the first action (Join,
+    // Spectate, Invite: the reason the menu was opened) spans the row as the lead
+    const items = [first, mi('chat', 'chat', 'Message'), this.deps.history ? mi('history', 'history', 'Match history') : '', fav, busy].filter(Boolean);
+    if (sheet && items.length % 2) items[0] = items[0].replace('class="pl-mi', 'class="pl-mi pl-mi-lead');
+    return `<div class="pl-fr-menu${sheet ? ' is-sheet' : ' is-pop'}" role="menu" aria-label="${this.esc(`${f.name}: options`)}" data-testid="social-row-menu">${head}<div class="pl-fr-menu-acts">${items.join('')}</div><div class="pl-fr-menu-danger">${remove}${mi('block', 'block', 'Block').replace('class="pl-mi"', 'class="pl-mi danger"')}</div>${cancel}</div>`;
   }
 
   /** A request row: Decline (a quiet cross), then Accept (the filled bolt check, the row's one primary), lined up with a friend's actions. */
@@ -1264,7 +1363,7 @@ export class SocialSheet {
     // "Clem · 3 games" fits the row; the tooltip and label say the rest ("3 games together in the last 7 days")
     const n = typeof p.together === 'number' && p.together > 1 ? p.together : 0;
     const more = [champ, n ? `${n} games` : ''].filter(Boolean).join(' · ');
-    const together = more ? `<span class="pl-st-note"${n ? ` title="${n} games together in the last 7 days"` : ''}>${this.esc(more)}</span>` : '';
+    const together = more ? `${SEP_HTML}<span class="pl-st-note"${n ? ` title="${n} games together in the last 7 days"` : ''}>${dotsHtml(more)}</span>` : '';
     return `<div class="pl-social-row pl-rc" role="listitem" data-team="${p.team === 'ally' ? 'ally' : 'enemy'}"><span class="pl-fr-av">${avatarHtml(p.av, 40)}</span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(p.name)}"></span></span><small class="pl-social-line"><span class="pl-social-st pl-team">${p.team === 'ally' ? 'Teammate' : 'Opponent'}</span>${together}</small></span><span class="pl-fr-acts is-shown">${p.canAdd ? `<button type="button" class="pl-ico pl-act-2" data-a="add-recent" data-room="${this.esc(p.room)}" data-slot="${p.slot}" aria-label="${this.esc(`Add ${p.name} as a friend`)}" title="Add friend">${icon('addUser')}</button>` : ''}</span></div>`;
   }
 
@@ -1277,7 +1376,7 @@ export class SocialSheet {
     if (!all.length) return `<div class="pl-social-empty pl-social-none"><span class="pl-none-art" aria-hidden="true">${icon('history', 28)}</span><p>No recent players yet</p><small>Players from your matches in the last 7 days show here.</small></div>`;
     // grouped by match, newest first (LoL's match history feel): "Casual · Victory · 2h ago", then its players
     const matches = recentMatches(rec);
-    return `${matches.map((m) => `<section class="pl-group pl-rc-match" data-room="${this.esc(m.room)}"${typeof m.won === 'boolean' ? ` data-won="${m.won}"` : ''}><h3 class="pl-group-h is-static">${icon('history', 16)}<span class="pl-group-t">${this.esc(m.title)}</span></h3><div class="pl-group-list" role="list">${m.rows.map((p) => this.recentRow(p)).join('')}</div></section>`).join('')}<p class="pl-social-hint pl-rc-foot">Players from your matches in the last 7 days</p>`;
+    return `${matches.map((m) => `<section class="pl-group pl-rc-match" data-room="${this.esc(m.room)}"${typeof m.won === 'boolean' ? ` data-won="${m.won}"` : ''}><h3 class="pl-group-h is-static" aria-label="${this.esc(m.title)}">${icon('history', 16)}<span class="pl-group-t"><span data-testid="social-recent-title">${dotsHtml(m.title)}</span></span></h3><div class="pl-group-list" role="list">${m.rows.map((p) => this.recentRow(p)).join('')}</div></section>`).join('')}<p class="pl-social-hint pl-rc-foot">Players from your matches in the last 7 days</p>`;
   }
 
   private rankedBody(): string {
@@ -1488,6 +1587,12 @@ export class SocialSheet {
       if (this.searchShown) return this.closeSearch();
       if (this.adding) return this.closeAdd();
       if (this.invite.entering) return void this.invite.act('inv-cancel');
+      if (this.invShort) {
+        this.invShort = false;
+        this.render();
+        this.root.querySelector<HTMLElement>('[data-testid="invite-open"]')?.focus({ preventScroll: true });
+        return;
+      }
       if (this.picking) {
         this.picking = null;
         return this.render();
@@ -1611,12 +1716,23 @@ export class SocialSheet {
     if (a !== 'remove') this.armed = null;
     if (this.meOpen && a !== 'me' && a !== 'me-close' && a !== 'status' && a !== 'copy' && !el.closest('.pl-me-card')) this.meOpen = false;
     if (a.startsWith('inv-')) {
-      // the gift sits in the header on every tab: it opens the card at the top of Friends
-      if (this.tab !== 'friends') {
+      // the gift sits in the header on every tab: it opens the card at the top of Friends (never closes it from there)
+      const away = this.tab !== 'friends';
+      if (away) {
         this.tab = 'friends';
+        this.searchOpen = false;
+        this.query = '';
         void this.load();
       }
       this.meOpen = false;
+      // round 8: a short screen opens the card as a sheet over the list (the list is never buried); it starts folded
+      if (a === 'inv-fold' && this.short && (this.state?.friends.length ?? 0) > 0) {
+        this.invShort = away ? true : !this.invShort;
+        this.render();
+        this.root.querySelector<HTMLElement>(this.invShort ? '.pl-inv-sheet [data-testid="invite-copy"]' : '[data-testid="invite-open"]')?.focus({ preventScroll: true });
+        return;
+      }
+      if (a === 'inv-fold' && away && !this.invite.isFolded) return this.render();
       void this.invite.act(a).then(() => {
         if (this.invite.entering) this.root.querySelector<HTMLInputElement>('input[name="invite"]')?.focus();
         else if (a === 'inv-fold') this.root.querySelector<HTMLElement>('.pl-inv-fold, [data-testid="invite-open"]')?.focus({ preventScroll: true });
@@ -1627,6 +1743,16 @@ export class SocialSheet {
       case 'close':
         this.dispose();
         return;
+      case 'more-below': {
+        // the first group below the fold comes to the top of the list (its header, then its rows)
+        const body = this.root.querySelector<HTMLElement>('.pl-social-body');
+        const g = body?.querySelector<HTMLElement>(`.pl-group-h[data-group=${attr(el.dataset.to ?? '')}]`);
+        if (!body || !g) return;
+        body.scrollTop += g.getBoundingClientRect().top - body.getBoundingClientRect().top;
+        this.scrollCue();
+        g.focus({ preventScroll: true });
+        return;
+      }
       case 'menu-close':
         this.closeMenu();
         return;
@@ -1651,6 +1777,7 @@ export class SocialSheet {
       case 'me':
         this.meOpen = !this.meOpen;
         this.moreOpen = false;
+        this.invShort = false;
         this.render();
         if (this.meOpen) this.root.querySelector<HTMLElement>('.pl-me-opt[aria-checked="true"]')?.focus({ preventScroll: true });
         return;
@@ -1988,6 +2115,10 @@ export class SocialSheet {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    const doc = this.root.ownerDocument;
+    const act = doc.activeElement;
+    // focus was in the panel or its DM (or already lost): it goes back to the opener, else the lobby's Friends button
+    const inside = !act || act === doc.body || this.root.contains(act) || !!this.chat?.root.contains(act);
     if (this.pulseTimer) clearInterval(this.pulseTimer);
     if (this.noteTimer) clearTimeout(this.noteTimer);
     if (this.suggestTimer) clearTimeout(this.suggestTimer);
@@ -1996,6 +2127,10 @@ export class SocialSheet {
     this.chat?.dispose();
     this.unwatch();
     this.root.remove();
+    if (inside) {
+      const back = this.opener?.isConnected ? this.opener : doc.querySelector<HTMLElement>('[data-testid="lobby-social"]');
+      back?.focus({ preventScroll: true });
+    }
   }
 
   /**
@@ -2149,6 +2284,8 @@ export class SocialSheet {
       onBlocked: () => {
         this.note = 'Blocked';
       },
+      // round 8: a minimised DM is a bar on the bottom edge under the list; the list keeps room for it
+      onMinimise: (on) => this.root.classList.toggle('has-chat-tray', on),
     });
     this.coverList(!docked);
     // the row under (or beside) the thread drops its badge and preview now
@@ -2162,7 +2299,7 @@ export class SocialSheet {
    */
   private growHint(s: SocialState, bar = false): string {
     if (this.query.trim() || this.adding || s.friends.length >= GROW_UNDER) return '';
-    const invite = this.invite.state && this.invite.isFolded ? `<button type="button" class="pl-btn small ghost" data-a="inv-fold">${icon('gift', 18)}<span>Invite a friend</span></button>` : '';
+    const invite = this.invite.state && (this.short ? !this.invShort : this.invite.isFolded) ? `<button type="button" class="pl-btn small ghost" data-a="inv-fold">${icon('gift', 18)}<span>Invite a friend</span></button>` : '';
     if (bar) return `<div class="pl-social-grow is-bar" data-testid="social-grow" role="group" aria-label="More friends, more parties">${`<button type="button" class="pl-btn small ghost" data-a="add-empty">${icon('addUser', 18)}<span>Find a player</span></button>`}${invite}</div>`;
     return `<div class="pl-social-grow" data-testid="social-grow"><small>More friends, more parties. Find players by name or send an invite.</small><div class="pl-grow-acts"><button type="button" class="pl-btn small ghost" data-a="add-empty">${icon('addUser', 18)}<span>Find a player</span></button>${invite}</div></div>`;
   }

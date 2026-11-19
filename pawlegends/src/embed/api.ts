@@ -136,6 +136,8 @@ export const API_ARG_KEYS = Object.freeze([
   'sim',
   'invite',
   'answer',
+  // social sidebar round 8: the pulse's device ('m' phone or tablet, 'd' computer)
+  'dev',
 ] as const);
 
 export type ApiArgs = Partial<Record<(typeof API_ARG_KEYS)[number], string | number | boolean>>;
@@ -147,6 +149,9 @@ const MAX_TEXT = 240;
 const MAX_BLOB = 30000;
 /** push: a push service endpoint URL. */
 const MAX_ENDPOINT = 1000;
+
+/** Round 8: the device the menus run on for the presence pulse ('m' a touch screen, 'd' a computer). */
+export const pulseDevice = (): 'm' | 'd' => (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 'm' : 'd');
 
 /** Flat args: known keys, short strings, finite numbers, booleans; anything else is dropped. Null when not an object. */
 export function cleanApiArgs(v: unknown): ApiArgs | null {

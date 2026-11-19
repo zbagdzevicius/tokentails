@@ -619,6 +619,32 @@ describe('pawlegends presence (SOCIAL-RANKED.md §4)', () => {
         });
     });
 
+    it('round 8: a phone pulse marks the friend as on mobile (any fresh state); a computer or an old client does not', () => {
+        const now = Date.UTC(2026, 10, 19);
+        const at = new Date(now - 5_000);
+        expect(readPresence({ _id: 'x', api: { at, dev: 'm' } }, now)).toEqual({ state: 'online', dev: 'm' });
+        expect(readPresence({ _id: 'x', api: { at, dev: 'd' } }, now)).toEqual({ state: 'online' });
+        expect(readPresence({ _id: 'x', api: { at } }, now)).toEqual({ state: 'online' });
+        expect(readPresence({ _id: 'x', relay: { state: 'queue', at }, api: { at, dev: 'm' } }, now)).toEqual({
+            state: 'queue',
+            dev: 'm',
+        });
+        expect(readPresence({ _id: 'x', api: { at, dev: 'm' } }, now, true)).toEqual({ state: 'offline' });
+    });
+
+    it('round 8: the pulse stores the device and keeps it on later writes; a change of device writes at once', async () => {
+        const { clock, models, svc } = harness();
+        await svc.pulse('A', undefined, 'm');
+        expect(models.presence.docs[0]).toMatchObject({ _id: 'A', api: { at: clock.now(), dev: 'm' } });
+        clock.advance(61_000);
+        await svc.pulse('A', undefined, 'bogus');
+        expect(models.presence.docs[0]).toMatchObject({ api: { dev: 'm' } });
+        clock.advance(5_000);
+        await svc.pulse('A', undefined, 'd');
+        expect(models.presence.docs[0]).toMatchObject({ api: { dev: 'd' } });
+        expect(models.presence.calls.filter(c => c === 'updateOne')).toHaveLength(3);
+    });
+
     it('the pulse writes api.at at most once a minute (exp with $max, rk from saved matches) and answers unchanged', async () => {
         const { clock, models, svc } = harness();
         const first = await svc.pulse('A', undefined);

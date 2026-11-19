@@ -21,7 +21,8 @@ export interface PresenceRow {
         q?: string;
         at: Date;
     } | null;
-    api?: { at: Date } | null;
+    /** `dev` (social sidebar round 8): 'm' when the last menu pulse came from a phone or tablet. */
+    api?: { at: Date; dev?: 'm' | 'd' } | null;
     rk?: number;
     exp?: Date;
 }
@@ -40,6 +41,8 @@ export interface PresenceView {
     hero?: string;
     mode?: string;
     since?: number;
+    /** Round 8: on a phone or tablet (LoL marks mobile friends); absent on a computer or from an older client. */
+    dev?: 'm';
 }
 
 const MODES = new Set(['ranked', 'casual', 'classic', 'bots', 'custom']);
@@ -71,15 +74,17 @@ export function readPresence(row: PresenceRow | null | undefined, nowMs: number,
                 v.since = Math.min(r.t0, nowMs);
         }
         if (row.relay.state === 'queue' && row.relay.q === 'ranked') v.mode = 'ranked';
+        if (row.api?.dev === 'm') v.dev = 'm';
         return v;
     }
-    if (row.api && nowMs - ms(row.api.at) < PRESENCE.apiFreshMs) return { state: 'online' };
+    if (row.api && nowMs - ms(row.api.at) < PRESENCE.apiFreshMs)
+        return row.api.dev === 'm' ? { state: 'online', dev: 'm' } : { state: 'online' };
     return { state: 'offline' };
 }
 
 /** The `$set`/`$max` of a presence write (relay or API). `exp` only moves forward. */
 export function presenceUpdate(
-    part: { relay: NonNullable<PresenceRow['relay']> } | { api: { at: Date } },
+    part: { relay: NonNullable<PresenceRow['relay']> } | { api: { at: Date; dev?: 'm' | 'd' } },
     now: Date,
     rk?: 0 | 1
 ): Record<string, unknown> {

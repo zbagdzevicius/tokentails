@@ -179,7 +179,7 @@ test('an under-16 friend: phrases and stickers only on both sides', async ({ bro
   await k.game.locator('[data-testid="lobby-social"]').click({ timeout: limit(60_000) });
   await openDm(k.game.locator(`.pl-social-row[data-code="${CODE.A}"]`));
   const sheet = k.game.locator('[data-testid="chat-sheet"]');
-  await expect(sheet.locator('[data-testid="chat-tray"]')).toBeVisible();
+  await expect(sheet.locator('[data-testid="chat-phrases"]')).toBeVisible();
   await expect(sheet.locator('[data-testid="chat-input"]')).toHaveCount(0);
   await expect(sheet.locator('[data-testid="chat-quick-note"]')).toBeVisible();
   await sheet.locator('[data-a="say"][data-id="0"]').click();

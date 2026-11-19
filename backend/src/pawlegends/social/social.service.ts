@@ -115,6 +115,8 @@ const validNote = (n: unknown): n is number =>
 export class SocialService {
     /** accountId → last api.at write (ms): the pulse writes at most once a minute per account. */
     private readonly pulseWrites = new Map<string, number>();
+    /** Round 8: the device of each account's last menu pulse (`m` phone or tablet, `d` computer). */
+    private readonly pulseDev = new Map<string, 'm' | 'd'>();
 
     constructor(
         @InjectModel(PawlegendsSocial.name) readonly social: AnyModel,
@@ -507,8 +509,16 @@ export class SocialService {
 
     async pulse(
         me: string,
-        rev: unknown
+        rev: unknown,
+        dev?: unknown
     ): Promise<{ changed: false } | { changed: true; rev: string; invites: unknown[] }> {
+        // round 8: the device the menus run on ('m' phone or tablet, 'd' computer); kept for the inbox's writes too
+        if (dev === 'm' || dev === 'd') {
+            if (this.pulseDev.get(me) !== dev) this.pulseWrites.delete(me);
+            this.pulseDev.set(me, dev);
+            if (this.pulseDev.size > 20_000)
+                for (const k of [...this.pulseDev.keys()].slice(0, 5000)) this.pulseDev.delete(k);
+        }
         await this.markOnline(me);
         const profile = await this.profile(me);
         const token = await this.revToken(me, profile);
@@ -530,7 +540,14 @@ export class SocialService {
             for (const k of [...this.pulseWrites.keys()].slice(0, 5000)) this.pulseWrites.delete(k);
         const user = await this.users.findById(me).select({ pawlegendsMatches: 1 }).lean();
         const rk = playedOf(user?.pawlegendsMatches).matches >= RANKED_MIN_MATCHES ? 1 : 0;
-        await this.presence.updateOne({ _id: me }, presenceUpdate({ api: { at: now } }, now, rk), { upsert: true });
+        const dev = this.pulseDev.get(me);
+        await this.presence.updateOne(
+            { _id: me },
+            presenceUpdate({ api: { at: now, ...(dev ? { dev } : {}) } }, now, rk),
+            {
+                upsert: true,
+            }
+        );
     }
 
     // ---------------------------------------------------------------------------------------------------------------

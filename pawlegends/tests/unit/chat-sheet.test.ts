@@ -120,10 +120,26 @@ describe('chat sheet', () => {
     expect(m.calls.some((c) => c.op === 'chat.since')).toBe(false);
   });
 
-  it('report a received message by id with one tap on a reason', async () => {
+  it('a message menu (round 8): Copy, Report message (its reasons under a heading), Block; a reason reports by id', async () => {
     const t = sheet();
     await flush();
+    const count = document.querySelectorAll('.pl-chat-msg').length;
     document.querySelector<HTMLElement>('[data-a="report"]')!.click();
+    // a small context menu over the thread, never chips pushed into the message list
+    const menu = document.querySelector<HTMLElement>('[data-testid="chat-msg-menu"]')!;
+    expect(menu.closest('.pl-chat-list')).toBeNull();
+    expect(document.querySelectorAll('.pl-chat-list .pl-report-chip')).toHaveLength(0);
+    expect(document.querySelectorAll('.pl-chat-msg').length).toBe(count);
+    expect([...menu.querySelectorAll('[role="menuitem"]')].map((b) => b.getAttribute('data-a'))).toEqual(
+      expect.arrayContaining(['report-open', 'block']),
+    );
+    document.querySelector<HTMLElement>('[data-a="report-open"]')!.click();
+    expect(document.querySelector('.pl-chat-msgmenu-h')!.textContent).toBe('Report message');
+    // Esc steps back to the message's menu, then closes it
+    document.querySelector('.pl-chat-msgmenu')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.querySelector('.pl-chat-msgmenu-h')).toBeNull();
+    expect(document.querySelector('[data-testid="chat-msg-menu"]')).toBeTruthy();
+    document.querySelector<HTMLElement>('[data-a="report-open"]')!.click();
     document.querySelector<HTMLElement>('[data-a="report-kind"][data-kind="contact"]')!.click();
     await flush();
     expect(t.calls.find((c) => c.op === 'chat.report')!.args).toEqual({ msg: 'a'.repeat(24), kind: 'contact' });
@@ -150,7 +166,7 @@ describe('chat sheet', () => {
     expect(document.activeElement).toBe(input);
     // toggling the phrase tray does not replace the input either
     document.querySelector<HTMLElement>('[data-a="tray"]')!.click();
-    expect(document.querySelector('[data-testid="chat-tray"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="chat-phrases"]')).not.toBeNull();
     expect(document.querySelector('[data-testid="chat-input"]')).toBe(input);
     t.s.dispose();
   });

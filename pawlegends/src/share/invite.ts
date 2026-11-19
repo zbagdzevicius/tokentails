@@ -156,8 +156,11 @@ export function inviteRowHtml(s: InviteState | null, entering: boolean, closable
   const chip = `<button type="button" class="pl-inv-code" data-a="inv-copy" data-testid="invite-copy" aria-label="${esc(`Copy invite code ${s.code}`)}" title="Copy code"><small>Invite code</small><b>${esc(s.code)}</b>${ICON_COPY}</button>`;
   const fold = closable ? `<button type="button" class="pl-ico pl-inv-fold" data-a="inv-fold" aria-expanded="true" aria-label="Hide invite" title="Hide">${ICON_X}</button>` : '';
   // a real secondary button (round 6), not an underlined text link
-  const enter = !s.accepted ? `<button type="button" class="pl-btn small ghost pl-inv-have" data-a="inv-enter" data-testid="invite-enter">${ICON_KEY}<span>Got a code? Enter it</span></button>` : '';
-  return `<div class="pl-invite-row" data-testid="invite-row"><div class="pl-inv-top"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span><small class="pl-inv-sub">${esc(sub)}</small></span>${fold}</div><div class="pl-inv-acts">${chip}${claim}<button type="button" class="pl-btn small ghost pl-inv-share" data-a="inv-share" data-testid="invite-share">${ICON_SHARE}<span>Share link</span></button></div>${enter}</div>`;
+  const enter = !s.accepted ? `<button type="button" class="pl-btn small ghost pl-inv-have" data-a="inv-enter" data-testid="invite-enter" aria-label="Got an invite code? Enter it">${ICON_KEY}<span>Enter a code</span></button>` : '';
+  // round 8: one even grid on every screen: a coat to claim, then the code across the card, then Share link and
+  // Enter a code side by side at equal width (no lone half-width button)
+  const share = `<button type="button" class="pl-btn small ghost pl-inv-share" data-a="inv-share" data-testid="invite-share">${ICON_SHARE}<span>Share link</span></button>`;
+  return `<div class="pl-invite-row" data-testid="invite-row"><div class="pl-inv-top"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span><small class="pl-inv-sub">${esc(sub)}</small></span>${fold}</div><div class="pl-inv-acts${enter ? '' : ' is-one'}">${claim}${chip}${share}${enter}</div></div>`;
 }
 
 const ICON_X = icon('close', 18);

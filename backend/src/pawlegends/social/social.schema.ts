@@ -203,7 +203,7 @@ export class PawlegendsPresence {
 
     /** Written by the API pulse. */
     @Prop({ type: Object, default: undefined })
-    api?: { at: Date };
+    api?: { at: Date; dev?: 'm' | 'd' };
 
     /** 1: ranked-eligible (the online count `ranked/status` shows). */
     @Prop({ default: 0 })

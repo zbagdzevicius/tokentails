@@ -219,6 +219,9 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("club.remove", { to: "0123456789ab" })?.body).toEqual({ to: "0123456789ab" });
     expect(routeOf("club.remove", { to: "PL-7KQ2-M9XR" })).toBeNull();
     expect(routeOf("club.claim", {})).toMatchObject({ method: "POST", path: "/pawlegends/clubs/chest/claim" });
+    // social sidebar round 8: the pulse names the device (m phone or tablet, d computer); anything else is dropped
+    expect(routeOf("social.pulse", { rev: "r1", dev: "m" })?.path).toBe("/pawlegends/social/pulse?rev=r1&dev=m");
+    expect(routeOf("social.pulse", { dev: "x" })?.path).toBe("/pawlegends/social/pulse");
     expect(routeOf("kudos.give", { room: "r1", slot: 2 })).toEqual({ method: "POST", path: "/pawlegends/kudos", body: { room: "r1", slot: 2 }, auth: "registered" });
     expect(routeOf("kudos.give", { room: "r1", slot: 12 })).toBeNull();
     const club = "cAAAAAAAAAAAAAAAAAAAAAA";

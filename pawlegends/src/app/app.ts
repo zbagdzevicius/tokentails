@@ -53,6 +53,7 @@ import { PUSH_CAT_NAME, PUSH_CATS, disablePush, enablePush, loadPushPrefs, permi
 import { pushAskCard } from '../ui/pushAsk';
 import { clipSupported } from '../share/clipSupport';
 import type { ApiArgs, ApiOp } from '../embed/api';
+import { pulseDevice } from '../embed/api';
 import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { inviteUrl, partyApi, partyFromUrl, watchFromUrl } from '../share/partyLink';
@@ -1835,7 +1836,7 @@ export class App {
     const beat = async (): Promise<void> => {
       if (this.screen !== 'title' || !accountState().signedIn) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      const r = await this.integration.api('social.pulse', this.socialRev ? { rev: this.socialRev } : {});
+      const r = await this.integration.api('social.pulse', { ...(this.socialRev ? { rev: this.socialRev } : {}), dev: pulseDevice() });
       if (!r.ok || r.status === 204 || !r.body) return;
       const body = r.body as { rev?: string; invites?: { id?: string; from?: { name?: string }; party?: string; mode?: string }[]; chat?: { unread?: number } };
       this.socialRev = typeof body.rev === 'string' ? body.rev : undefined;

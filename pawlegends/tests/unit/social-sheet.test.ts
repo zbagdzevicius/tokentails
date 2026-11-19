@@ -167,13 +167,22 @@ describe('social sheet', () => {
     expect(document.querySelector('.pl-social-head [data-testid="invite-open"]')).toBeTruthy();
     document.querySelector<HTMLElement>('[role="tab"][data-tab="friends"]')!.click();
     await flush();
-    // the gift opens the card at the top of the list; its × folds it again
+    // a short screen (round 8): the gift opens the card as a sheet over the list (the list stays as it was); its ×,
+    // the scrim or Esc folds it again, and it never comes back open by itself
     document.querySelector<HTMLElement>('[data-testid="invite-open"]')!.click();
     await flush();
-    expect(document.querySelector('.pl-social-body [data-testid="invite-row"]')).toBeTruthy();
+    expect(document.querySelector('.pl-social-body [data-testid="invite-row"]')).toBeNull();
+    expect(document.querySelector('.pl-inv-sheet [data-testid="invite-row"]')).toBeTruthy();
+    expect(document.querySelector('[data-testid="invite-open"]')!.getAttribute('aria-expanded')).toBe('true');
     document.querySelector<HTMLElement>('[data-testid="invite-row"] [data-a="inv-fold"]')!.click();
     await flush();
     expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
+    document.querySelector<HTMLElement>('[data-testid="invite-open"]')!.click();
+    await flush();
+    document.querySelector('.pl-inv-sheet')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await flush();
+    expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
+    expect(document.querySelector('.pl-social')).toBeTruthy();
     localStorage.removeItem('pl.social.inviteFolded');
     // me opens my status card; Appear offline goes to social.me
     document.querySelector<HTMLElement>('[data-testid="social-me"]')!.click();
@@ -333,7 +342,7 @@ describe('social sheet pulse', () => {
     await s.pulse();
     await s.pulse();
     expect(calls).toEqual(['social.pulse', 'social.pulse']);
-    expect(api.mock.calls.at(-1)?.[1]).toEqual({ rev: 'r2' });
+    expect(api.mock.calls.at(-1)?.[1]).toEqual({ rev: 'r2', dev: 'd' });
     s.dispose();
   });
 

@@ -95,9 +95,14 @@ export class PawlegendsSocialController {
      */
     @UseGuards(AppAuthGuard)
     @Get('pulse')
-    async pulse(@Query('rev') rev: string, @Req() req: any, @Res({ passthrough: true }) res: any) {
+    async pulse(
+        @Query('rev') rev: string,
+        @Query('dev') dev: string,
+        @Req() req: any,
+        @Res({ passthrough: true }) res: any
+    ) {
         const me = await this.gate('pulse', req, res);
-        const out = await this.social.pulse(me, rev);
+        const out = await this.social.pulse(me, rev, dev === 'm' || dev === 'd' ? dev : undefined);
         if (!out.changed) {
             res?.status?.(204);
             return undefined;
