@@ -45,6 +45,26 @@ export interface ProfileRow {
   map: string | null;
   /** Match length in seconds (0: unknown). */
   seconds: number;
+  /** The match's mutator ('cannon', 'toybox'…): an Arcade match's own name. Null: none or not known. */
+  mutator?: string | null;
+  /**
+   * The stats line (Nov 19, founder: "show more stats"; the account's rows only). Null: not stored for this match,
+   * and the row hides it (never a zero).
+   */
+  lv?: number | null;
+  cs?: number | null;
+  fish?: number | null;
+  /** Damage to champions, and the match's most (the bar). */
+  dmg?: number | null;
+  dmgTop?: number | null;
+  /** Kill participation, 0..100. */
+  kp?: number | null;
+  /** Team kills: ours, theirs. */
+  score?: [number, number] | null;
+  /** Toy tiers owned at the end, 1..4. */
+  toys?: number | null;
+  /** Allies who are friends. */
+  party?: number | null;
 }
 
 /** The season numbers (`history.list` stats, or counted from the rows here). */
@@ -274,14 +294,86 @@ export function rowOf(raw: unknown, fallbackId = ''): ProfileRow | null {
     mvp: o.mvp === 'mvp' || o.mvp === 'svp' ? o.mvp : null,
     map: typeof o.map === 'string' && /^[a-z0-9_-]{1,24}$/.test(o.map) ? o.map : null,
     seconds: typeof o.seconds === 'number' && Number.isFinite(o.seconds) && o.seconds > 0 ? Math.min(36_000, Math.floor(o.seconds)) : 0,
+    mutator: typeof o.mutator === 'string' && /^[a-z0-9_-]{1,16}$/.test(o.mutator) && o.mutator !== 'none' ? o.mutator : null,
+    lv: pos(o.lv, 30),
+    cs: pos(o.cs, 9_999),
+    fish: pos(o.fish, 999_999),
+    dmg: pos(o.dmg, 9_999_999),
+    dmgTop: pos(o.dmgTop, 9_999_999),
+    kp: pos(o.kp, 100),
+    score: Array.isArray(o.score) && o.score.length === 2 && o.score.every((x) => typeof x === 'number' && Number.isFinite(x) && x >= 0) && (o.score[0] as number) + (o.score[1] as number) > 0 ? [Math.min(999, Math.floor(o.score[0] as number)), Math.min(999, Math.floor(o.score[1] as number))] : null,
+    toys: pos(o.toys, 4),
+    party: pos(o.party, 9),
   };
 }
+
+/** A whole number above 0 (capped), else null: a stat that was not stored. Pure. */
+const pos = (v: unknown, max: number): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.min(max, Math.floor(v)) : null);
+
+/** Arcade modes by mutator (the history sheet's names). */
+const ARCADE_NAME: Readonly<Record<string, string>> = Object.freeze({
+  cannon: 'Cannon Chaos',
+  toybox: 'Toy Box',
+  rapid: 'Rapid Paws',
+  bounty: 'Bounty Hunt',
+  onelane: 'One Lane',
+  duel: 'Duel',
+  boss: 'Boss Weekend',
+});
+
+/**
+ * The row's queue name: "Ranked 3v3", "PvP 3v3", "Co-op 3v3", "Skirmish 3v3", "Classic 5v5", "Blitz", "Practice", and
+ * an Arcade match by its own mode ("Cannon Chaos", "Toy Box"); "Arcade" only when the server did not say which. Pure.
+ */
+export function modeText(r: Pick<ProfileRow, 'mode' | 'map' | 'mutator'>): string {
+  const size = r.map === 'hearthwood' ? '5v5' : '3v3';
+  switch (r.mode) {
+    case 'ranked':
+      return `Ranked ${size}`;
+    case 'pvp':
+      return `PvP ${size}`;
+    case 'coop':
+      return `Co-op ${size}`;
+    case 'party':
+      return `Party ${size}`;
+    case 'classic':
+      return 'Classic 5v5';
+    case 'blitz':
+      return 'Blitz';
+    case 'practice':
+      return 'Practice';
+    case 'arcade':
+      return ARCADE_NAME[r.mutator ?? ''] ?? 'Arcade';
+    case 'skirmish':
+      return `Skirmish ${size}`;
+    default:
+      return r.mode ? r.mode.charAt(0).toUpperCase() + r.mode.slice(1) : `Skirmish ${size}`;
+  }
+}
+
+/** "4.5" ((K + A) / D, one decimal), "Perfect" with no deaths, null with no takedowns. Pure. */
+export function kdaRatio(r: Pick<ProfileRow, 'k' | 'd' | 'a'>): string | null {
+  if (r.k + r.a <= 0) return r.d > 0 ? '0.0' : null;
+  if (r.d <= 0) return 'Perfect';
+  return ((r.k + r.a) / r.d).toFixed(1);
+}
+
+/** "8.2k", "1.1M", "940". Pure. */
+export const short = (n: number): string =>
+  n >= 999_500 ? `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M` : n >= 10_000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(Math.max(0, Math.floor(n)));
+
+/** The row's damage bar, 0..1 of the match's most (null: no damage stored). Pure. */
+export const dmgShare = (r: Pick<ProfileRow, 'dmg' | 'dmgTop'>): number | null =>
+  r.dmg ? Math.max(0.04, Math.min(1, r.dmg / Math.max(r.dmg, r.dmgTop ?? r.dmg))) : null;
 
 /** "12:34" (match length). Pure. */
 export const duration = (s: number): string => (s > 0 ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '');
 
-/** "Hearthwood" from a map id. Pure. */
-export const mapName = (id: string | null): string => (id ? id.replace(/[_-]+/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase()) : '');
+/** The maps' short names (ui/mapPick.ts MAP_CARDS). */
+const MAP_SHORT: Readonly<Record<string, string>> = Object.freeze({ crossing: 'Crossing', hearthwood: 'Hearthwood', ridge: 'Ridge', thicket: 'Thicket', quarry: 'Quarry', pitch: 'Park' });
+
+/** "Hearthwood" from a map id ("Park" for the pitch). Pure. */
+export const mapName = (id: string | null): string => (id ? (MAP_SHORT[id] ?? id.replace(/[_-]+/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase())) : '');
 
 /** The ranked card as the Profile draws it: crest tier, label, a line, the points bar (0..1), division pips, peak. Pure. */
 export interface RankShown {

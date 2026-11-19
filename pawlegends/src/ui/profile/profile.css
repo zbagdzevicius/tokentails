@@ -531,3 +531,66 @@
   .pfx-detail .mh-table th:nth-child(2), .pfx-detail .mh-table td:nth-child(2), .pfx-detail .mh-table th:nth-child(5), .pfx-detail .mh-table td:nth-child(5) { display: none; }
   .pfx-detail .mh-dtop { flex-wrap: wrap; }
 }
+
+/* ------------------------------------------------------------------ Matches tab rows (Nov 19, founder: "show more stats")
+ * Wild Rift style: portrait with level, result and queue with the map, K / D / A with the ratio, grade and MVP / ACE,
+ * then the stats line (CS, Fish, damage with its bar, kill participation, team score, Toys, party) and length / when.
+ * Desktop: one wide row. Phones and narrow windows: two lines. Text 14 px and up; nothing clips, nothing scrolls sideways. */
+.pfx-mrowi.pfx-rich {
+  grid-template-columns: 52px 136px 132px 72px minmax(0, 1fr) 88px; grid-template-areas: 'port oc kd badge st tm';
+  gap: 6px 12px; min-height: 66px; padding: 8px 14px 8px 8px; font-size: 14px;
+}
+.pfx-mrowi.pfx-rich > * { min-width: 0; }
+.pfx-mrowi.pfx-rich .pfx-port { grid-area: port; position: relative; width: 48px; height: 48px; }
+.pfx-mrowi.pfx-rich .pfx-port .pfx-face { width: 48px; height: 48px; display: block; }
+.pfx-lvb { position: absolute; right: -4px; bottom: -4px; min-width: 22px; height: 20px; padding: 0 4px; border-radius: 10px; display: grid; place-items: center; font: 800 14px/1 var(--font); font-style: normal; color: var(--v6-cream); background: var(--v6-night-3, #10223a); box-shadow: 0 0 0 1.5px var(--v6-gold-3, #c9a24a); font-variant-numeric: tabular-nums; }
+.pfx-mrowi.pfx-rich .pfx-oc { grid-area: oc; }
+.pfx-mrowi.pfx-rich .pfx-oc small, .pfx-mrowi.pfx-rich small { font-size: 14px; color: var(--v6-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.pfx-mapl { display: flex; align-items: center; gap: 5px; }
+.pfx-mapdot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #8fd16a; box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.35); }
+.pfx-mapdot[data-map='hearthwood'] { background: #3f9e5a; }
+.pfx-mapdot[data-map='ridge'] { background: #f2a64a; }
+.pfx-mapdot[data-map='thicket'] { background: #9ccc4a; }
+.pfx-mapdot[data-map='quarry'] { background: #b48cff; }
+.pfx-mapdot[data-map='pitch'] { background: #4fc3f7; }
+.pfx-mrowi.pfx-rich .pfx-kd { grid-area: kd; display: flex; flex-direction: column; gap: 1px; }
+.pfx-mrowi.pfx-rich .pfx-hn { display: block; font-weight: 700; color: var(--v6-cream); }
+.pfx-mrowi.pfx-rich .pfx-kda { font-size: 16px; }
+.pfx-mrowi.pfx-rich .pfx-ratio { color: var(--v6-sky-top); font-weight: 800; }
+.pfx-mrowi.pfx-rich .pfx-badge { grid-area: badge; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pfx-mrowi.pfx-rich .pfx-badge .pfx-grade, .pfx-mrowi.pfx-rich .pfx-badge .pfx-mvp { display: block; font-size: 16px; }
+.pfx-mrowi.pfx-rich .pfx-badge .pfx-mvp { font-size: 14px; padding: 3px 6px; border-radius: 4px; background: rgb(var(--v6-bolt-rgb) / 0.18); box-shadow: inset 0 0 0 1px rgb(var(--v6-bolt-rgb) / 0.6); }
+.pfx-mrowi.pfx-rich .pfx-badge .pfx-mvp[data-m='svp'] { color: #ffc4d8; background: rgb(var(--v6-rose-rgb) / 0.2); box-shadow: inset 0 0 0 1px rgb(var(--v6-rose-rgb) / 0.6); }
+.pfx-mrowi.pfx-rich .pfx-stats { grid-area: st; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.pfx-s { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.pfx-s b { font: 800 14px/1.2 var(--font); color: var(--v6-cream); font-variant-numeric: tabular-nums; }
+.pfx-s b em { font-style: normal; color: var(--v6-muted); padding: 0 2px; }
+.pfx-mrowi.pfx-rich .pfx-s small { overflow: visible; }
+.pfx-sdmg { align-items: center; }
+.pfx-dbar { display: inline-block; width: 52px; height: 6px; border-radius: 3px; background: rgb(255 255 255 / 0.12); overflow: hidden; align-self: center; }
+.pfx-dbar > i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #ff8f5a, #ffcf5a); }
+.pfx-stoys, .pfx-sparty { align-items: center; }
+.pfx-pips { display: inline-flex; gap: 3px; }
+.pfx-pips i { width: 9px; height: 9px; border-radius: 2px; transform: rotate(45deg); background: rgb(255 255 255 / 0.16); }
+.pfx-pips i.on { background: var(--v6-bolt); }
+.pfx-pico { width: 20px; height: 20px; color: var(--v6-bolt); flex: none; }
+.pfx-mrowi.pfx-rich .pfx-tm { grid-area: tm; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+.pfx-mrowi.pfx-rich .pfx-tm b { font: 700 14px/1.2 var(--font); color: var(--v6-cream); font-variant-numeric: tabular-nums; }
+/* mid widths, phones in landscape, narrow windows: two lines (the badge under the portrait, the stats line beside it) */
+@media (max-width: 1100px), (max-height: 500px) {
+  .pfx-mrowi.pfx-rich { grid-template-columns: 48px minmax(0, 1fr) auto auto; grid-template-areas: 'port oc kd tm' 'badge st st st'; gap: 6px 10px; padding: 8px 10px 8px 8px; }
+  .pfx-mrowi.pfx-rich .pfx-port, .pfx-mrowi.pfx-rich .pfx-port .pfx-face { width: 44px; height: 44px; }
+  .pfx-mrowi.pfx-rich .pfx-badge { flex-direction: row; justify-content: center; gap: 4px; flex-wrap: wrap; }
+  .pfx-mrowi.pfx-rich .pfx-badge .pfx-mvp { padding: 2px 4px; }
+  .pfx-mrowi.pfx-rich .pfx-stats { gap: 4px 12px; }
+  .pfx-mrowi.pfx-rich .pfx-hn, .pfx-mrowi.pfx-rich .pfx-map, .pfx-mrowi.pfx-rich .pfx-grade, .pfx-mrowi.pfx-rich .pfx-mvp { display: block; }
+  /* a row with no stats stored (older matches, this device's): one line */
+  .pfx-mrowi.pfx-rich.nost { grid-template-columns: 48px minmax(0, 1fr) auto auto auto; grid-template-areas: 'port oc kd badge tm'; }
+  .pfx-mrowi.pfx-rich.nost .pfx-badge { flex-direction: column; }
+}
+@media (max-width: 640px) {
+  .pfx-mrowi.pfx-rich .pfx-dbar { width: 40px; }
+  .pfx-mrowi.pfx-rich .pfx-stats { gap: 4px 10px; }
+}
+/* Recordings: the best moment wraps (never cut off); the line under the result too */
+.pfx-rec .pfx-oc small, .pfx-recbest { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; font-size: 14px; }

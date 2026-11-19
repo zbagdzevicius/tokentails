@@ -26,6 +26,11 @@ import {
   rankView,
   roleSplit,
   rowOf,
+  modeText,
+  kdaRatio,
+  short,
+  dmgShare,
+  mapName,
   statsOfRows,
   tabsFor,
   topMastery,
@@ -143,6 +148,49 @@ describe('profile model', () => {
     expect(wearableFrames(['frame.store.goldpaw', 'frame.bad', 'frame.legend'])).toEqual(['none', 'frame.store.goldpaw', 'frame.legend']);
     expect(tabsFor(true)).toContain('account');
     expect(tabsFor(false)).not.toContain('account');
+  });
+});
+
+describe('match rows: the stats line (Nov 19, founder: "show more stats")', () => {
+  const base = { id: 'r', at: 5, hero: 'sage', outcome: 'won', k: 6, d: 3, a: 6, mode: 'arcade', map: 'crossing', seconds: 350, grade: 'A', mvp: null };
+
+  it('the queue name: an Arcade match says its own mode; every queue reads as its real name', () => {
+    expect(modeText(rowOf({ ...base, mutator: 'toybox' })!)).toBe('Toy Box');
+    expect(modeText(rowOf({ ...base, mutator: 'cannon' })!)).toBe('Cannon Chaos');
+    // an older server that sent no mutator: still Arcade (nothing better is known)
+    expect(modeText(rowOf(base)!)).toBe('Arcade');
+    expect(modeText(rowOf({ ...base, mode: 'ranked' })!)).toBe('Ranked 3v3');
+    expect(modeText(rowOf({ ...base, mode: 'pvp', map: 'hearthwood' })!)).toBe('PvP 5v5');
+    expect(modeText(rowOf({ ...base, mode: 'coop' })!)).toBe('Co-op 3v3');
+    expect(modeText(rowOf({ ...base, mode: 'practice', mutator: 'practice' })!)).toBe('Practice');
+    expect(modeText(rowOf({ ...base, mode: 'skirmish', mutator: null })!)).toBe('Skirmish 3v3');
+    expect(modeText(rowOf({ ...base, mode: 'party' })!)).toBe('Party 3v3');
+    expect(mapName('pitch')).toBe('Park');
+    expect(mapName('ridge')).toBe('Ridge');
+  });
+
+  it('a new row keeps every stat; an old row (no stats line) and bad values come back null, never 0', () => {
+    const full = rowOf({ ...base, mode: 'pvp', lv: 12, cs: 42, fish: 6400, dmg: 8200, dmgTop: 12000, kp: 71, score: [19, 7], toys: 3, party: 2 })!;
+    expect(full).toMatchObject({ lv: 12, cs: 42, fish: 6400, dmg: 8200, dmgTop: 12000, kp: 71, score: [19, 7], toys: 3, party: 2 });
+    const old = rowOf(base)!;
+    for (const k of ['lv', 'cs', 'fish', 'dmg', 'dmgTop', 'kp', 'score', 'toys', 'party'] as const) expect(old[k]).toBeNull();
+    const bad = rowOf({ ...base, lv: 0, cs: -1, fish: 'x', kp: 140, score: [0, 0], toys: 9, mutator: '<b>' })!;
+    expect(bad).toMatchObject({ lv: null, cs: null, fish: null, kp: 100, score: null, toys: 4, mutator: null });
+    expect(rowOf({ ...base, score: [3] })!.score).toBeNull();
+  });
+
+  it('KDA ratio, short numbers and the damage bar', () => {
+    expect(kdaRatio({ k: 6, d: 3, a: 6 })).toBe('4.0');
+    expect(kdaRatio({ k: 2, d: 0, a: 1 })).toBe('Perfect');
+    expect(kdaRatio({ k: 0, d: 0, a: 0 })).toBeNull();
+    expect(kdaRatio({ k: 0, d: 4, a: 0 })).toBe('0.0');
+    expect(short(940)).toBe('940');
+    expect(short(8200)).toBe('8.2k');
+    expect(short(12_400)).toBe('12k');
+    expect(short(1_250_000)).toBe('1.3M');
+    expect(dmgShare({ dmg: 6000, dmgTop: 12000 })).toBe(0.5);
+    expect(dmgShare({ dmg: 6000, dmgTop: null })).toBe(1);
+    expect(dmgShare({ dmg: null, dmgTop: 100 })).toBeNull();
   });
 });
 
@@ -273,6 +321,37 @@ describe('profile screen', () => {
     expect(q('.pfx-cgrid').children.length).toBeGreaterThan(10);
     q('[data-testid="profile-tab-account"]').click();
     expect(q('[data-testid="profile-code"]').textContent).toBe('PL-7KQ2-M9XR');
+  });
+
+  it('Matches tab: rich rows (stats line, real queue name), old rows without stats show no zeros', async () => {
+    const rows = [
+      { id: 'n1', at: NOW - 60_000, mode: 'arcade', mutator: 'toybox', map: 'crossing', seconds: 350, hero: 'sage', outcome: 'won', k: 6, d: 3, a: 6, grade: 'A', mvp: 'mvp', lv: 11, cs: 38, fish: 5200, dmg: 9100, dmgTop: 9100, kp: 75, score: [16, 9], toys: 3, party: 1 },
+      { id: 'o1', at: NOW - 120_000, mode: 'arcade', map: 'crossing', seconds: 300, hero: 'clem', outcome: 'lost', k: 1, d: 4, a: 2, grade: 'C', mvp: 'svp' },
+    ];
+    open({ tab: 'matches', hist: res(200, { owner: { name: 'Witty Biscuit', self: true }, rows, next: null }) });
+    await flush();
+    const items = [...document.querySelectorAll<HTMLElement>('[data-testid="profile-match-list"] [data-a="match"]')];
+    expect(items).toHaveLength(2);
+    const [a, b] = items;
+    expect(a.querySelector('.pfx-oc small')!.textContent).toBe('Toy Box');
+    expect(a.querySelector('.pfx-lvb')!.textContent).toBe('11');
+    expect(a.querySelector('.pfx-ratio')!.textContent).toBe('4.0 KDA');
+    expect(a.querySelector('[data-s="cs"]')!.textContent).toBe('38CS');
+    expect(a.querySelector('[data-s="fish"]')!.textContent).toBe('5.2kFish');
+    expect(a.querySelector('[data-s="dmg"] .pfx-dbar > i')!.getAttribute('style')).toBe('width:100%');
+    expect(a.querySelector('[data-s="kp"]')!.textContent).toBe('75%KP');
+    expect(a.querySelector('[data-s="score"] b')!.textContent).toBe('16–9');
+    expect(a.querySelectorAll('[data-s="toys"] .pfx-pips i.on')).toHaveLength(3);
+    expect(a.querySelector('[data-s="party"]')!.textContent).toBe('With a friend');
+    expect(a.querySelector('.pfx-mvp')!.textContent).toBe('MVP');
+    expect(a.querySelector('.pfx-mapl')!.textContent).toBe('Crossing');
+    expect(a.getAttribute('aria-label')).toContain('75% kill participation');
+    // the older row: still Arcade (no mutator sent), no stat chips and no level badge, never a 0
+    expect(b.querySelector('.pfx-oc small')!.textContent).toBe('Arcade');
+    expect(b.querySelectorAll('.pfx-s')).toHaveLength(0);
+    expect(b.querySelector('.pfx-lvb')).toBeNull();
+    expect(b.querySelector('.pfx-mvp')!.textContent).toBe('ACE');
+    expect(b.textContent).not.toMatch(/\b0(CS|Fish|%)/);
   });
 
   it('first name change from Edit profile: suggestion, confirm step, free, new name on the banner', async () => {

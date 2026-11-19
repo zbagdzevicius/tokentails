@@ -37,23 +37,27 @@ import { collectionOf, ownedOf, ownedSet, type CollectionEntry } from './collect
 import {
   bannerHero,
   championRows,
+  dmgShare,
   duration,
   formOf,
   highlightsOf,
   HISTORY_FILTERS,
   honorView,
   isProfileTab,
+  kdaRatio,
   LADDER,
   nextOf,
   mapName,
   masteryScore,
   maxedCount,
+  modeText,
   num,
   parsePlayerCard,
   parseStats,
   rankView,
   roleSplit,
   rowOf,
+  short,
   shownName,
   SOURCES_IDLE,
   statsOfRows,
@@ -133,7 +137,8 @@ const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;',
 const BACK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
 const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z"/></svg>';
-const MODE_WORD: Readonly<Record<string, string>> = Object.freeze({ skirmish: 'Skirmish', classic: 'Classic', blitz: 'Blitz', pvp: 'PvP', ranked: 'Ranked', coop: 'Co-op', practice: 'Practice', arcade: 'Arcade', party: 'Party' });
+const PARTY_ICON =
+  '<svg class="pfx-pico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2c2.4.1 4.3 1.6 4.9 4.6"/></svg>';
 const OUTCOME_WORD = Object.freeze({ won: 'Victory', lost: 'Defeat', draw: 'Draw' });
 const heroName = (h: string): string => (h in HEROES ? HEROES[h as HeroId].name : h);
 const DELETE_URL = 'https://pawlegends.app/account';
@@ -377,8 +382,51 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     );
   };
 
+  /** The Matches tab's row (Wild Rift style): the portrait with its level, result and queue, map, K / D / A with the
+   * ratio, grade and MVP, then the stats line (CS, Fish, damage with its bar, kill participation, team score, Toys,
+   * the party) and length / when. A stat the match did not store is left out, never a zero. */
+  const richRowHtml = (r: ProfileRow, i: number): string => {
+    const mode = modeText(r);
+    const map = mapName(r.map);
+    const len = duration(r.seconds);
+    const open = d.rowsLocal ? `local:${r.id}` : r.id;
+    const ratio = kdaRatio(r);
+    const bar = dmgShare(r);
+    const stat = (k: string, v: string, label: string, extra = ''): string => `<span class="pfx-s" data-s="${k}">${extra}<b>${esc(v)}</b><small>${esc(label)}</small></span>`;
+    const stats = [
+      r.cs ? stat('cs', num(r.cs), 'CS') : '',
+      r.fish ? stat('fish', short(r.fish), 'Fish') : '',
+      r.dmg && bar !== null ? `<span class="pfx-s pfx-sdmg" data-s="dmg"><b>${esc(short(r.dmg))}</b><small>Damage</small><i class="pfx-dbar" aria-hidden="true"><i style="width:${Math.round(bar * 100)}%"></i></i></span>` : '',
+      r.kp ? stat('kp', `${r.kp}%`, 'KP') : '',
+      r.score ? `<span class="pfx-s" data-s="score"><b>${r.score[0]}<em>–</em>${r.score[1]}</b><small>Score</small></span>` : '',
+      r.toys ? `<span class="pfx-s pfx-stoys" data-s="toys"><span class="pfx-pips" aria-hidden="true">${[1, 2, 3, 4].map((t) => `<i${t <= (r.toys ?? 0) ? ' class="on"' : ''}></i>`).join('')}</span><small>${r.toys}/4 Toys</small></span>` : '',
+      r.party ? `<span class="pfx-s pfx-sparty" data-s="party">${PARTY_ICON}<small>${r.party === 1 ? 'With a friend' : `With ${r.party} friends`}</small></span>` : '',
+    ].filter(Boolean);
+    const badge = `${r.grade ? `<i class="pfx-grade" data-g="${esc(r.grade[0])}">${esc(r.grade)}</i>` : ''}${r.mvp ? `<i class="pfx-mvp" data-m="${r.mvp}">${r.mvp === 'mvp' ? 'MVP' : 'ACE'}</i>` : ''}`;
+    const label = [
+      OUTCOME_WORD[r.outcome],
+      mode,
+      map,
+      heroName(r.hero),
+      r.lv ? `level ${r.lv}` : '',
+      `${r.k} kills, ${r.d} deaths, ${r.a} assists`,
+      ratio ? `KDA ${ratio}` : '',
+      r.cs ? `${r.cs} CS` : '',
+      r.fish ? `${r.fish} Fish` : '',
+      r.dmg ? `${r.dmg} damage to champions` : '',
+      r.kp ? `${r.kp}% kill participation` : '',
+      r.score ? `score ${r.score[0]} to ${r.score[1]}` : '',
+      r.toys ? `${r.toys} of 4 Toys` : '',
+      r.party ? `with ${r.party} ${r.party === 1 ? 'friend' : 'friends'}` : '',
+      r.grade ? `grade ${r.grade}` : '',
+      r.mvp ? (r.mvp === 'mvp' ? 'MVP' : 'ACE') : '',
+      len,
+    ].filter(Boolean).join(', ');
+    return `<button type="button" class="pfx-mrowi pfx-rich${stats.length ? '' : ' nost'}" data-a="match" data-id="${esc(open)}" data-o="${r.outcome}" data-i="${i}" aria-label="${esc(`${label}: open the match`)}"><span class="pfx-port">${face(r.hero)}${r.lv ? `<i class="pfx-lvb">${r.lv}</i>` : ''}</span><span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(mode)}</small>${map ? `<small class="pfx-mapl"><i class="pfx-mapdot" data-map="${esc(r.map ?? '')}"></i>${esc(map)}</small>` : ''}</span><span class="pfx-kd"><small class="pfx-hn">${esc(heroName(r.hero))}</small><b class="pfx-kda">${r.k} / <em>${r.d}</em> / ${r.a}</b>${ratio ? `<small class="pfx-ratio">${esc(ratio)}${ratio === 'Perfect' ? '' : ' KDA'}</small>` : ''}</span><span class="pfx-badge">${badge}</span><span class="pfx-stats">${stats.join('')}</span><span class="pfx-tm"><b>${esc(len)}</b><small>${r.at ? esc(ago(r.at, now())) : ''}</small></span></button>`;
+  };
+
   const rowHtml = (r: ProfileRow, i: number): string => {
-    const mode = MODE_WORD[r.mode] ?? r.mode;
+    const mode = modeText(r);
     const map = mapName(r.map);
     const len = duration(r.seconds);
     const open = d.rowsLocal ? `local:${r.id}` : r.id;
@@ -414,7 +462,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
           .slice(0, 12)
           .map(
             (r) =>
-              `<div class="pfx-rec" data-o="${r.outcome}">${face(r.hero)}<span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(heroName(r.hero))}${r.at ? ` · ${esc(ago(r.at, now()))}` : ''}</small></span><span class="pfx-recbest">${r.best ? esc(r.best) : ''}</span>${o.watch ? `<button type="button" class="pl-btn small" data-a="watch" data-id="${esc(r.id)}" data-testid="profile-watch" aria-label="${esc(`Watch the replay: ${heroName(r.hero)}, ${OUTCOME_WORD[r.outcome]}`)}">Watch</button>` : ''}</div>`,
+              `<div class="pfx-rec" data-o="${r.outcome}">${face(r.hero)}<span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(heroName(r.hero))}${r.at ? ` · ${esc(ago(r.at, now()))}` : ''}</small></span><span class="pfx-recbest"${r.best ? ` title="${esc(r.best)}"` : ''}>${r.best ? esc(r.best) : ''}</span>${o.watch ? `<button type="button" class="pl-btn small" data-a="watch" data-id="${esc(r.id)}" data-testid="profile-watch" aria-label="${esc(`Watch the replay: ${heroName(r.hero)}, ${OUTCOME_WORD[r.outcome]}`)}">Watch</button>` : ''}</div>`,
           )
           .join('')}</div>`
       : `<p class="pfx-empty">No replays yet. Your newest matches are kept on this device to watch again.</p>`;
@@ -436,7 +484,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       const r = d.rows.find((x) => x.id === lid);
       const kept = r && (d.replays ?? []).some((x) => x.id === lid) && o.watch ? lid : null;
       body = r
-        ? `<div class="mh-detail" data-testid="history-match"><div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back" aria-label="Back to the list">‹ Back</button><span class="mh-dres ${r.outcome}"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc([MODE_WORD[r.mode] ?? r.mode, mapName(r.map), duration(r.seconds), r.at ? ago(r.at, now()) : ''].filter(Boolean).join(' · '))}</small></span>${kept ? `<button type="button" class="pl-btn small mh-watch" data-watch="${esc(kept)}" data-testid="history-watch">▶ Watch replay</button>` : ''}</div><p class="mh-mvpline">${face(r.hero)}<span><b>${esc(heroName(r.hero))}</b> · ${r.k}/${r.d}/${r.a}${r.grade ? ` · Grade ${esc(r.grade)}` : ''}</span></p><p class="pfx-empty">Only matches saved to your account keep both teams. This one is on this device.</p></div>`
+        ? `<div class="mh-detail" data-testid="history-match"><div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back" aria-label="Back to the list">‹ Back</button><span class="mh-dres ${r.outcome}"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc([modeText(r), mapName(r.map), duration(r.seconds), r.at ? ago(r.at, now()) : ''].filter(Boolean).join(' · '))}</small></span>${kept ? `<button type="button" class="pl-btn small mh-watch" data-watch="${esc(kept)}" data-testid="history-watch">▶ Watch replay</button>` : ''}</div><p class="mh-mvpline">${face(r.hero)}<span><b>${esc(heroName(r.hero))}</b> · ${r.k}/${r.d}/${r.a}${r.grade ? ` · Grade ${esc(r.grade)}` : ''}</span></p><p class="pfx-empty">Only matches saved to your account keep both teams. This one is on this device.</p></div>`
         : `<p class="pfx-empty">Match not found.</p>`;
     } else {
       const m = details.get(id);
@@ -488,7 +536,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     else if (src.hist === 'failed' && !d.rows.length) body = failed('matches');
     else if (!d.rows.length)
       body = `<div class="pfx-mid pfx-emptybox"><p class="pfx-empty" data-testid="profile-no-matches">${filter !== 'all' ? `No ${esc(HISTORY_FILTERS.find((f) => f.id === filter)?.label ?? '')} matches yet.` : self ? 'No matches yet. Play one and it shows here.' : 'No matches yet.'}</p>${self && filter === 'all' && o.play ? `<button type="button" class="pl-btn small" data-a="play">Play a match</button>` : ''}</div>`;
-    else body = `<div class="pfx-list pfx-mlist" data-testid="profile-match-list">${d.rows.map(rowHtml).join('')}</div>`;
+    else body = `<div class="pfx-list pfx-mlist" data-testid="profile-match-list">${d.rows.map(richRowHtml).join('')}</div>`;
     const shown = d.rows;
     const w = shown.filter((r) => r.outcome === 'won').length;
     const l = shown.filter((r) => r.outcome === 'lost').length;
