@@ -79,7 +79,7 @@ import { botsChoice, disposeHome, homeScreen, openHomeQuests, patchHome, type Ho
 import { currentSeason, seasonEndText } from '../meta/pass';
 import { levelInfo } from '../meta/accountLevel';
 import { initLiveops, liveopsState, setDropAction } from '../meta/liveops';
-import { loadSeen, markSeen, queueFor, saveSeen, showcaseFeed, isSeen, type ShowcaseItem, type ShowcaseTarget } from '../meta/showcase';
+import { EXTRA_ITEMS, loadSeen, markSeen, queueFor, saveSeen, showcaseFeed, isSeen, type ShowcaseEntry, type ShowcaseHeroKit, type ShowcaseItem, type ShowcaseTarget } from '../meta/showcase';
 import { countdownText, legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef, type ModeId } from '../ui/modeSelect/modes';
 import { isUnlocked, loadModeLocal, lockLine, MAIN_MODE, menuExtras, newlyUnlocked, notePlayed, RANKED_PLAYED, saveModeLocal, unseenFresh } from '../ui/modeSelect/unlocks';
 import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard, type RankedKind } from '../meta/ranked';
@@ -1387,8 +1387,15 @@ export class App {
     const ctx = { now, isApp: this.isApp(), storeOpen: s.storeOpen, drop: lo.drop, nap: lo.nap, artRoot: artRoot(), lowTier: this.tier === 'low' || short };
     const thingArt = (item: string, hero: string | null): string | undefined =>
       SKIN_ART_IDS.has(item) ? skinArtUrl(item, 256) : hero && HERO_IDS.includes(hero as HeroId) ? heroFaceUrl(hero as HeroId) : undefined;
+    const heroArt = (h: HeroId): string | undefined => (HERO_IDS.includes(h) ? heroSplashUrl(h, ctx.lowTier ? 360 : 720) : undefined);
+    const heroKit = (h: HeroId): ShowcaseHeroKit | undefined => {
+      const t = HERO_IDS.includes(h) ? HERO_TEXT[h] : undefined;
+      return t ? { side: t.side, role: t.role, passive: t.passive.name, ultimate: t.abilities[3].name } : undefined;
+    };
+    // e2e: a spec may add hand-written entries (a champion, a patch) the way EXTRA_ITEMS would
+    const test = typeof navigator !== 'undefined' && navigator.webdriver ? ((window as unknown as { __plShowcaseExtra?: ShowcaseEntry[] }).__plShowcaseExtra ?? []) : [];
     const seen = loadSeen();
-    return queueFor(showcaseFeed({ ...ctx, thingArt }), (id) => isSeen(seen, id), now, ctx);
+    return queueFor(showcaseFeed({ ...ctx, thingArt, heroArt, heroKit }, [...EXTRA_ITEMS, ...test]), (id) => isSeen(seen, id), now, ctx);
   }
 
   private openShowcasePages(open: typeof import('../ui/showcase/showcaseModal').openShowcase, items: ShowcaseItem[]): void {
@@ -3773,7 +3780,8 @@ export class App {
     const saver = batterySaver().on || this.gr.settings.fpsCap < MATCH_FPS;
     // PERF-IOS §8 Track C: the champion browser covers the 3D view (its own clip runs on its own canvas): over Home the
     // lobby is drawn once more and then not at all until it closes; over a match it counts as a covering panel
-    const champ = champCovered();
+    // What's New over Home covers the 3D view too: one more frame, then none until it closes (its entrances get the GPU)
+    const champ = champCovered() || (!!this.showcase && !this.session);
     if (champ && !this.session) {
       if (this.champFrozen) return;
       this.champFrozen = true;

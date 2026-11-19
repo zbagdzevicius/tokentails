@@ -70,7 +70,8 @@ const TYPE_NAME: Readonly<Record<ShowcaseType, string>> = Object.freeze({
 function fxHtml(t: ShowcaseType, low: boolean): string {
   if (t === 'pass-season') return '<i class="sc-ribbon"></i><i class="sc-flash"></i>';
   if (t === 'event') return low ? '' : `<span class="sc-confetti">${Array.from({ length: 8 }, (_, i) => `<i style="--i:${i}">${PAW}</i>`).join('')}</span>`;
-  if (t === 'champion') return `${low ? '' : '<i class="sc-speed"></i>'}<i class="sc-flash"></i>`;
+  if (t === 'champion') return `${low ? '' : '<i class="sc-speed"></i><i class="sc-speed sc-speed-2"></i>'}<i class="sc-flash"></i>`;
+  if (t === 'patch') return '<i class="sc-curl"></i>';
   return '';
 }
 
@@ -80,9 +81,21 @@ function thingsHtml(x: ShowcaseItem): string {
   return `<ul class="sc-things" data-n="${ts.length}" aria-label="${esc(x.type === 'pass-season' ? 'Free rewards' : x.type === 'store-drop' ? 'The coats' : 'Gifts')}">${ts
     .map(
       (t, i) =>
-        `<li class="sc-thing" style="--i:${i}" title="${esc(t.sub ? `${t.label}: ${t.sub}` : t.label)}"><span class="sc-thing-pic${t.art ? '' : ' glyph'}"${t.art ? ` style="background-image:url('${esc(cssUrl(t.art))}')"` : ''}>${t.art ? '' : GLYPH[t.kind ?? 'gift']}</span><b>${esc(t.label)}</b>${t.sub ? `<small>${esc(t.sub)}</small>` : ''}</li>`,
+        `<li class="sc-thing" style="--i:${i}" title="${esc(t.sub ? `${t.label}: ${t.sub}` : t.label)}"><span class="sc-thing-pic${t.art ? '' : ' glyph'}"${t.art ? ` style="background-image:url('${esc(cssUrl(t.art))}')"` : ''}>${t.art ? '' : GLYPH[t.kind ?? 'gift']}</span><span class="sc-thing-txt"><b>${esc(t.label)}</b>${t.sub ? `<small>${esc(t.sub)}</small>` : ''}</span></li>`,
     )
     .join('')}</ul>`;
+}
+
+/** Caption boxes (patch notes, a champion's kit): "Passive: Valor" → a small "Passive" over "Valor". */
+function notesHtml(x: ShowcaseItem): string {
+  const ns = (x.notes ?? []).slice(0, 3);
+  if (!ns.length || x.things?.length) return '';
+  return `<ol class="sc-notes" aria-label="${esc(x.type === 'patch' ? 'What changed' : 'Highlights')}">${ns
+    .map((n, i) => {
+      const m = /^([^:]{1,14}):\s*(.+)$/.exec(n);
+      return `<li class="sc-note" style="--i:${i}"><i aria-hidden="true">${i + 1}</i><span>${m ? `<small>${esc(m[1]!)}</small><b>${esc(m[2]!)}</b>` : `<b>${esc(n)}</b>`}</span></li>`;
+    })
+    .join('')}</ol>`;
 }
 
 /** One page's markup (pure; `n` pages, this is `i`). */
@@ -98,6 +111,7 @@ export function pageHtml(x: ShowcaseItem, i: number, n: number, now: number, cou
       ${x.kicker ? `<p class="sc-kicker">${esc(x.kicker)}</p>` : ''}
       <p class="sc-bubble">${esc(x.blurb)}</p>
       ${thingsHtml(x)}
+      ${notesHtml(x)}
       ${time ? `<p class="sc-time" data-testid="showcase-time">${CLOCK}<b>${esc(time)}</b></p>` : ''}
       <div class="sc-acts">
         ${info ? '' : `<button type="button" class="sc-cta" data-sc="cta" data-testid="showcase-cta">${esc(x.cta.label)}</button>`}
@@ -116,9 +130,10 @@ export function openShowcase(parent: HTMLElement, o: ShowcaseOpts): ShowcaseHand
   const ov = document.createElement('div');
   ov.className = `sc-ov${reduced ? ' reduced' : ''}${low ? ' low' : ''}`;
   ov.dataset.testid = 'showcase';
-  const dots = n > 1 ? `<span class="sc-dots" role="tablist" aria-label="Pages">${items.map((x, i) => `<button type="button" role="tab" class="sc-dot" data-sc="dot" data-i="${i}" aria-label="${esc(`Page ${i + 1}: ${x.title}`)}"><i></i></button>`).join('')}</span>` : '';
+  // the page tabs are the only page count (numbered, so they read as pages and not as decoration)
+  const dots = n > 1 ? `<span class="sc-dots" role="tablist" aria-label="Pages">${items.map((x, i) => `<button type="button" role="tab" class="sc-dot" data-sc="dot" data-i="${i}" aria-label="${esc(`Page ${i + 1} of ${n}: ${x.title}`)}"><i aria-hidden="true">${i + 1}</i></button>`).join('')}</span>` : '';
   ov.innerHTML = `<section class="sc-book" role="dialog" aria-modal="true" aria-label="What's new">
-    <header class="sc-mast"><b class="sc-mast-t">What’s new</b><span class="sc-issue" data-testid="showcase-issue" aria-hidden="true"></span>${dots}<button type="button" class="sc-x" data-sc="x" data-testid="showcase-close" aria-label="Close">${X}</button></header>
+    <header class="sc-mast"><b class="sc-mast-t">What’s new</b>${dots}<button type="button" class="sc-x" data-sc="x" data-testid="showcase-close" aria-label="Close">${X}</button></header>
     <div class="sc-stage"></div>
   </section>`;
   const book = ov.querySelector<HTMLElement>('.sc-book')!;
@@ -149,8 +164,6 @@ export function openShowcase(parent: HTMLElement, o: ShowcaseOpts): ShowcaseHand
     // the art never blocks the page: a failed picture leaves the split-colour panel and the type name
     const img = page.querySelector<HTMLImageElement>('.sc-art img');
     img?.addEventListener('error', () => page.classList.add('noart'), { once: true });
-    const issue = ov.querySelector<HTMLElement>('.sc-issue');
-    if (issue) issue.textContent = `${i + 1}/${n}`;
     ov.querySelectorAll<HTMLElement>('.sc-dot').forEach((d, j) => {
       d.setAttribute('aria-selected', String(j === i));
       d.tabIndex = j === i ? 0 : -1;

@@ -48,7 +48,7 @@ describe('What\'s New modal', () => {
     const dlg = q('.sc-book');
     expect(dlg.getAttribute('role')).toBe('dialog');
     expect(dlg.getAttribute('aria-modal')).toBe('true');
-    expect(q('[data-testid="showcase-issue"]').textContent).toBe('1/3');
+    expect(q('.sc-dot[aria-selected="true"]').textContent).toBe('1');
     expect(q('.sc-page').dataset.type).toBe('store-drop');
     expect(q('.sc-title').textContent).toBe('November Drop');
     expect(q('.sc-burst').textContent).toBe('NEW!');
@@ -57,7 +57,7 @@ describe('What\'s New modal', () => {
     expect(onPage).toHaveBeenCalledTimes(1);
     expect(onPage.mock.calls[0]![0].id).toBe('drop-2026-11');
     q('[data-testid="showcase-next"]').click();
-    expect(q('[data-testid="showcase-issue"]').textContent).toBe('2/3');
+    expect(q('.sc-dot[aria-selected="true"]').textContent).toBe('2');
     expect(q('.sc-page').dataset.type).toBe('pass-season');
     q('[data-testid="showcase-next"]').click();
     // an info-only page: no button, Next alone reads Got it
@@ -80,9 +80,9 @@ describe('What\'s New modal', () => {
   it('Esc, the X and a tap outside close it; arrows and dots move between pages', () => {
     let r = open();
     key('ArrowRight');
-    expect(q('[data-testid="showcase-issue"]').textContent).toBe('2/3');
+    expect(q('.sc-dot[aria-selected="true"]').textContent).toBe('2');
     key('ArrowLeft');
-    expect(q('[data-testid="showcase-issue"]').textContent).toBe('1/3');
+    expect(q('.sc-dot[aria-selected="true"]').textContent).toBe('1');
     q('.sc-dot[data-i="2"]').click();
     expect(q('.sc-dot[data-i="2"]').getAttribute('aria-selected')).toBe('true');
     key('Escape');
@@ -127,5 +127,18 @@ describe('What\'s New modal', () => {
     expect(at('champion')).toContain('sc-speed');
     expect(pageHtml(item({ type: 'event' }), 0, 1, NOW, countdownText, true)).not.toContain('sc-confetti');
     expect(pageHtml(item({ startsAt: NOW + 2 * DAY }), 0, 1, NOW, countdownText)).toContain('Starts in 2d 0h');
+    expect(at('patch')).toContain('sc-curl');
+  });
+
+  it('notes: up to 3 numbered caption boxes, "Label: value" split, escaped; none when the page has things', () => {
+    const h = pageHtml(item({ type: 'patch', things: [], notes: ['Passive: <Valor>', 'Plain line', 'Three', 'Four'] }), 0, 1, NOW, countdownText);
+    document.body.innerHTML = h;
+    const notes = Array.from(document.querySelectorAll('.sc-note'));
+    expect(notes).toHaveLength(3);
+    expect(notes[0]!.querySelector('small')!.textContent).toBe('Passive');
+    expect(notes[0]!.querySelector('b')!.textContent).toBe('<Valor>');
+    expect(notes[1]!.querySelector('small')).toBeNull();
+    expect(notes[2]!.querySelector('i')!.textContent).toBe('3');
+    expect(pageHtml(item({ notes: ['x'], things: [{ id: 'a', label: 'A' }] }), 0, 1, NOW, countdownText)).not.toContain('sc-note');
   });
 });

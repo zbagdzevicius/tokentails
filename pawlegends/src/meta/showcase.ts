@@ -58,8 +58,29 @@ export interface ShowcaseItem {
   priority: number;
   cta: { label: string; target: ShowcaseTarget };
   things?: ShowcaseThing[];
+  /**
+   * Up to 3 caption boxes (each ≤ 7 words) for a page without things: patch notes, a champion's kit. "Passive: Valor"
+   * shows "Passive" small over "Valor".
+   */
+  notes?: string[];
+  /** A champion page's hero (its splash is the art and its kit the notes when the entry gives none). */
+  hero?: HeroId;
   /** Web store only (never in the apps, never with the store closed). */
   web?: boolean;
+}
+
+/**
+ * A hand-written entry (EXTRA_ITEMS, later the backend): the art and the priority may be left out (the type's default
+ * art, or a champion's splash; PRIORITY by type), and a champion's notes come from its kit.
+ */
+export type ShowcaseEntry = Omit<ShowcaseItem, 'art' | 'priority'> & { art?: string; priority?: number };
+
+/** What a champion page needs to know about its hero (ui/heroText.ts, passed in so this module stays light). */
+export interface ShowcaseHeroKit {
+  side: string;
+  role: string;
+  passive: string;
+  ultimate: string;
 }
 
 export interface ShowcaseCtx {
@@ -74,6 +95,10 @@ export interface ShowcaseCtx {
   lowTier: boolean;
   /** A thing's picture (ui/art.ts: the skin art, else the hero's face); absent: no pictures (glyphs). */
   thingArt?: (item: string, hero: string | null) => string | undefined;
+  /** A champion's splash URL (ui/art.ts heroSplashUrl). */
+  heroArt?: (hero: HeroId) => string | undefined;
+  /** A champion's kit for its notes. */
+  heroKit?: (hero: HeroId) => ShowcaseHeroKit | undefined;
 }
 
 const DAY = 86_400_000;
@@ -81,14 +106,41 @@ const DAY = 86_400_000;
 /** Type priorities (spec §3): the drop first, then a champion, the season, events, patches, the rest. */
 export const PRIORITY: Readonly<Record<ShowcaseType, number>> = Object.freeze({ 'store-drop': 50, champion: 45, 'pass-season': 40, event: 30, patch: 20, generic: 10 });
 
+/** The art a type shows when its entry names none (showcase/<key>-{360|720}.webp). */
+export const DEFAULT_ART: Readonly<Record<ShowcaseType, string>> = Object.freeze({
+  'store-drop': 'generic',
+  'pass-season': 'generic',
+  event: 'generic',
+  champion: 'champion',
+  patch: 'patch',
+  generic: 'generic',
+});
+
 /**
  * Hand-written showcases (patch notes, champion releases, anything else): a new entry here is the whole change. Times
- * are ms UTC. Example:
- *   { id: 'patch-1-4', type: 'patch', title: 'Patch 1.4', blurb: 'Faster queues and a fairer Blitz.', art: 'generic',
- *     startsAt: Date.parse('2026-12-01T00:00:00Z'), endsAt: Date.parse('2026-12-15T00:00:00Z'), priority: PRIORITY.patch,
+ * are ms UTC; art and priority are optional (DEFAULT_ART, PRIORITY). Examples:
+ *   { id: 'patch-1-4', type: 'patch', title: 'Patch 1.4', blurb: 'Faster queues and a fairer Blitz.',
+ *     notes: ['Queues fill 30% faster', 'Blitz bans the last pick', 'New Quarry lighting'],
+ *     startsAt: Date.parse('2026-12-01T00:00:00Z'), endsAt: Date.parse('2026-12-15T00:00:00Z'),
  *     cta: { label: 'Got it', target: { screen: 'none' } } }
+ *   { id: 'champ-nova-202612', type: 'champion', hero: 'nova', title: 'Nova', kicker: 'New champion',
+ *     blurb: 'A star-catching cat who drops meteors on crowded lanes.', burst: 'NEW!',
+ *     startsAt: Date.parse('2026-12-05T00:00:00Z'), endsAt: Date.parse('2026-12-19T00:00:00Z'),
+ *     cta: { label: 'Meet Nova', target: { screen: 'champion', hero: 'nova' } } }
  */
-export const EXTRA_ITEMS: readonly ShowcaseItem[] = Object.freeze([]);
+export const EXTRA_ITEMS: readonly ShowcaseEntry[] = Object.freeze([]);
+
+/** A hand-written entry made whole: its art, priority and (a champion's) notes. Pure. */
+export function fromEntry(e: ShowcaseEntry, ctx: Pick<ShowcaseCtx, 'heroArt' | 'heroKit'>): ShowcaseItem {
+  const hero = e.hero ?? (e.cta.target.screen === 'champion' ? e.cta.target.hero : undefined);
+  const splash = e.type === 'champion' && hero ? ctx.heroArt?.(hero) : undefined;
+  let notes = e.notes;
+  if (!notes && e.type === 'champion' && hero) {
+    const k = ctx.heroKit?.(hero);
+    if (k) notes = [`${k.side} ${k.role}`, `Passive: ${k.passive}`, `Ultimate: ${k.ultimate}`];
+  }
+  return { ...e, art: e.art ?? splash ?? DEFAULT_ART[e.type], priority: e.priority ?? PRIORITY[e.type], ...(notes ? { notes: notes.slice(0, 3) } : {}) };
+}
 
 /** The page's art URL: a key under showcase/ (360 or 720 wide), or an absolute URL as it is. Pure. */
 export function showcaseArt(art: string, ctx: Pick<ShowcaseCtx, 'artRoot' | 'lowTier'>): string {
@@ -169,7 +221,7 @@ function napItem(n: LiveopsNap, ctx: ShowcaseCtx): ShowcaseItem {
     type: 'event',
     title: n.name,
     kicker: `${days} days of gifts`,
-    blurb: 'Each day you play opens the next gift. Skipped days never reset it.',
+    blurb: 'Play any day to open the next gift. Missed days cost you nothing.',
     art: n.id,
     burst: 'EVENT',
     startsAt: n.startsAt,
@@ -190,13 +242,13 @@ function napItem(n: LiveopsNap, ctx: ShowcaseCtx): ShowcaseItem {
 }
 
 /** Every showcase item there is now or soon (live or pre-announced, seen or not). Pure. */
-export function showcaseFeed(ctx: ShowcaseCtx, extra: readonly ShowcaseItem[] = EXTRA_ITEMS): ShowcaseItem[] {
+export function showcaseFeed(ctx: ShowcaseCtx, extra: readonly ShowcaseEntry[] = EXTRA_ITEMS): ShowcaseItem[] {
   const out: ShowcaseItem[] = [];
   if (ctx.drop && ctx.now < ctx.drop.endsAt) out.push(dropItem(ctx.drop, ctx));
   const s = seasonAt(ctx.now);
   if (s) out.push(passItem(s, ctx));
   if (ctx.nap && ctx.now < ctx.nap.endsAt) out.push(napItem(ctx.nap, ctx));
-  out.push(...extra);
+  out.push(...extra.map((e) => fromEntry(e, ctx)));
   return out.map((x) => ({ ...x, art: showcaseArt(x.art, ctx) }));
 }
 

@@ -79,7 +79,22 @@ async function checkLayout(game: Frame, tag: string): Promise<void> {
     const x = document.querySelector('.sc-x')!;
     const xr = x.getBoundingClientRect();
     const xa = getComputedStyle(x, '::after');
-    const texts = Array.from(document.querySelectorAll<HTMLElement>('.sc-kicker, .sc-bubble, .sc-thing b, .sc-time, .sc-cta, .sc-next')).filter(vis).map((e) => ({ cls: e.className, px: parseFloat(getComputedStyle(e).fontSize) }));
+    const texts = Array.from(document.querySelectorAll<HTMLElement>('.sc-kicker, .sc-bubble, .sc-thing b, .sc-thing small, .sc-note b, .sc-note small, .sc-time, .sc-cta, .sc-next')).filter(vis).map((e) => ({ cls: e.className, px: parseFloat(getComputedStyle(e).fontSize) }));
+    // nothing is cut short: no text wider than its box (an ellipsis or a clip), and a thing's or a note's lines stay
+    // inside its card; every thing's sub-line on show
+    const inside = (c: DOMRect, p: DOMRect): boolean => c.right <= p.right + 1 && c.bottom <= p.bottom + 1 && c.left >= p.left - 1 && c.top >= p.top - 1;
+    const cut = [
+      ...Array.from(document.querySelectorAll<HTMLElement>('.sc-title, .sc-kicker, .sc-bubble, .sc-thing b, .sc-thing small, .sc-note b, .sc-note small, .sc-time b, .sc-cta, .sc-next'))
+        .filter(vis)
+        .filter((e) => e.scrollWidth > e.clientWidth + 1)
+        .map((e) => `${e.tagName} ${e.className}: ${e.textContent}`),
+      ...Array.from(document.querySelectorAll<HTMLElement>('.sc-thing b, .sc-thing small, .sc-note b, .sc-note small'))
+        .filter(vis)
+        .filter((e) => !inside(e.getBoundingClientRect(), e.closest('.sc-thing, .sc-note')!.getBoundingClientRect()))
+        .map((e) => `outside its card: ${e.textContent}`),
+    ];
+    const hiddenSubs = Array.from(document.querySelectorAll<HTMLElement>('.sc-thing small')).filter((e) => !vis(e)).length;
+    const things = Array.from(document.querySelectorAll<HTMLElement>('.sc-thing, .sc-note')).filter(vis).length;
     return {
       vw: innerWidth,
       vh: innerHeight,
@@ -91,6 +106,9 @@ async function checkLayout(game: Frame, tag: string): Promise<void> {
       targets,
       x: { w: xr.width, h: xr.height, after: xa.content !== 'none' && xa.content !== 'normal' },
       texts,
+      cut,
+      hiddenSubs,
+      things,
     };
   });
   expect(r.sw, `${tag}: no sideways scroll`).toBeLessThanOrEqual(r.vw);
@@ -109,6 +127,8 @@ async function checkLayout(game: Frame, tag: string): Promise<void> {
   for (const t of r.targets) expect(t.height, `${tag}: ${t.cls} target`).toBeGreaterThanOrEqual(44);
   expect(r.x.w >= 44 || r.x.after, `${tag}: close target`).toBe(true);
   for (const t of r.texts) expect(t.px, `${tag}: ${t.cls} text`).toBeGreaterThanOrEqual(14);
+  expect(r.cut, `${tag}: text cut short`).toEqual([]);
+  expect(r.hiddenSubs, `${tag}: a thing's sub-line is hidden`).toBe(0);
 }
 
 const shot = async (page: Page, name: string): Promise<void> => {
@@ -126,7 +146,8 @@ test('What\'s New: shown once after onboarding, the drop first, Next to the seas
   await expect(sc).toBeVisible({ timeout: limit(60_000) });
   // Home has no promo card any more
   await expect(game.locator('.hm-promo')).toHaveCount(0);
-  await expect(game.locator('[data-testid="showcase-issue"]')).toHaveText('1/2');
+  await expect(game.locator('.sc-dot')).toHaveCount(2);
+  await expect(game.locator('.sc-dot[aria-selected="true"]')).toHaveText('1');
   const pg = sc.locator('.sc-page');
   await expect(pg).toHaveAttribute('data-type', 'store-drop');
   await expect(pg.locator('.sc-title')).toHaveText('November Drop');
@@ -169,7 +190,7 @@ test('What\'s New: shown once after onboarding, the drop first, Next to the seas
   await third.waitForSelector('html[data-ready="1"]');
   const sc3 = third.locator('[data-testid="showcase"]');
   await expect(sc3).toBeVisible({ timeout: limit(60_000) });
-  await expect(third.locator('[data-testid="showcase-issue"]')).toHaveText('1/1');
+  await expect(third.locator('.sc-dot')).toHaveCount(0);
   await expect(sc3.locator('.sc-title')).toHaveText('December Drop');
   // Esc closes it and Home is back in reach
   await page.keyboard.press('Escape');
@@ -192,7 +213,8 @@ test('What\'s New: the drop\'s button opens the store\'s coats on the web; the e
   const game = await open(context, page, baseURL!, { drop: drop(), nap });
   const sc = game.locator('[data-testid="showcase"]');
   await expect(sc).toBeVisible({ timeout: limit(60_000) });
-  await expect(game.locator('[data-testid="showcase-issue"]')).toHaveText('1/3');
+  await expect(game.locator('.sc-dot')).toHaveCount(3);
+  await expect(game.locator('.sc-dot[aria-selected="true"]')).toHaveText('1');
   // the event page, pre-announced: "Starts in", gifts 1 to 3 and day 7
   await game.locator('.sc-dot[data-i="2"]').click();
   const pg = sc.locator('.sc-page');
@@ -245,6 +267,65 @@ const SIZES = [
   { w: 667, h: 375 },
   { w: 390, h: 844 },
 ];
+
+/** Hand-written entries the way EXTRA_ITEMS holds them: a champion (its splash and kit filled in) and a patch. */
+const EXTRA = [
+  { id: 'champ-nova-test', type: 'champion', hero: 'nova', title: 'Nova', kicker: 'New champion', blurb: 'A star-catching cat who drops meteors on crowded lanes.', burst: 'NEW!', startsAt: now - day, endsAt: now + 9 * day, cta: { label: 'Meet Nova', target: { screen: 'champion', hero: 'nova' } } },
+  { id: 'patch-test', type: 'patch', title: 'Patch 1.4', kicker: 'Fixes and tuning', blurb: 'Faster queues and a fairer Blitz.', notes: ['Queues fill 30% faster', 'Blitz: the last pick bans', 'Quarry: brighter lanes'], startsAt: now - day, endsAt: now + 6 * day, cta: { label: 'Got it', target: { screen: 'none' } } },
+];
+
+test('What\'s New: a champion and a patch page (hand-written entries) fill their column, fit every screen, and each entrance ends by 900 ms', async ({ context, page, baseURL }, info) => {
+  test.skip(info.project.name !== 'desktop', 'sizes set here');
+  test.setTimeout(limit(300_000));
+  await context.addInitScript((x) => void ((window as unknown as { __plShowcaseExtra: unknown }).__plShowcaseExtra = x), EXTRA);
+  const nap = {
+    id: 'nap-2026',
+    name: 'Winter Nap',
+    startsAt: iso(now - day),
+    endsAt: iso(now + 20 * day),
+    open: true,
+    today: iso(now).slice(0, 10),
+    gifts: Array.from({ length: 7 }, (_, i) => ({ day: i + 1, item: 'coat.sage.loop.slate', name: 'Slate coat for Sage' })),
+  };
+  const game = await open(context, page, baseURL!, { drop: null, nap });
+  const sc = game.locator('[data-testid="showcase"]');
+  await expect(sc).toBeVisible({ timeout: limit(60_000) });
+  // champion 45, pass 40, event 30, patch 20: four pages
+  await expect(game.locator('.sc-dot')).toHaveCount(4);
+  const pg = sc.locator('.sc-page');
+  const types = ['champion', 'pass-season', 'event', 'patch'];
+  for (let i = 0; i < 4; i++) {
+    await game.locator(`.sc-dot[data-i="${i}"]`).click();
+    await expect(pg).toHaveAttribute('data-type', types[i]!);
+    // every animation of the page (and the modal's own) ends within 900 ms of the page showing
+    const ends = await game.evaluate(() =>
+      document
+        .querySelector('.sc-ov')!
+        .getAnimations({ subtree: true })
+        .map((a) => ({ n: (a as CSSAnimation).animationName, end: Number(a.effect?.getComputedTiming().endTime ?? 0) })),
+    );
+    for (const e of ends) expect(e.end, `${types[i]} ${e.n}`).toBeLessThanOrEqual(900);
+  }
+  await game.locator('.sc-dot[data-i="0"]').click();
+  // the kit from ui/heroText.ts: side and role, the passive, the ultimate
+  await expect(pg.locator('.sc-note b')).toHaveText(['Cat Mage', 'Starlight', 'METEOR SHOWER']);
+  await expect(pg.locator('.sc-note small')).toHaveText(['Passive', 'Ultimate']);
+  await expect(pg.locator('.sc-art img')).toHaveAttribute('src', /splash|nova/);
+  await game.locator('.sc-dot[data-i="3"]').click();
+  await expect(pg.locator('.sc-note')).toHaveCount(3);
+  await expect(pg.locator('.sc-art img')).toHaveAttribute('src', /showcase\/patch-720\.webp$/);
+  for (const s of SIZES) {
+    await page.setViewportSize({ width: s.w, height: s.h });
+    await page.waitForTimeout(300);
+    for (const i of [0, 1, 2, 3]) {
+      await game.locator(`.sc-dot[data-i="${i}"]`).click();
+      await expect(game.locator('.sc-dot[aria-selected="true"]')).toHaveText(`${i + 1}`);
+      await page.waitForTimeout(950);
+      await checkLayout(game, `${s.w}x${s.h} ${types[i]}`);
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/size-${s.w}x${s.h}-${types[i]}.png` });
+    }
+  }
+});
 test('What\'s New: fits every screen (no overlap, no sideways scroll, 44 px targets, 14 px text)', async ({ context, page, baseURL }, info) => {
   test.skip(info.project.name !== 'desktop', 'sizes set here');
   test.setTimeout(limit(300_000));
@@ -255,16 +336,10 @@ test('What\'s New: fits every screen (no overlap, no sideways scroll, 44 px targ
     await page.waitForTimeout(300);
     for (const i of [0, 1]) {
       await game.locator(`.sc-dot[data-i="${i}"]`).click();
-      await expect(game.locator('[data-testid="showcase-issue"]')).toHaveText(`${i + 1}/2`);
+      await expect(game.locator('.sc-dot[aria-selected="true"]')).toHaveText(`${i + 1}`);
       await page.waitForTimeout(950);
       await checkLayout(game, `${s.w}x${s.h} page ${i + 1}`);
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/size-${s.w}x${s.h}-${i + 1}.png` });
-    }
-    // 667x375: three things at most
-    if (s.w <= 720 && s.h <= 500) {
-      await game.locator('.sc-dot[data-i="1"]').click();
-      const shown = await game.locator('.sc-thing').evaluateAll((els) => els.filter((e) => getComputedStyle(e).display !== 'none').length);
-      expect(shown).toBeLessThanOrEqual(3);
     }
   }
 });

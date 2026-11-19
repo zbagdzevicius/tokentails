@@ -7,7 +7,9 @@ import { statSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DROP_CALENDAR, dropAt, NAP_FALLBACK, type LiveopsNap } from '../../src/meta/liveops';
 import {
+  DEFAULT_ART,
   EXTRA_ITEMS,
+  fromEntry,
   isLive,
   isSeen,
   loadSeen,
@@ -25,6 +27,7 @@ import {
   showcaseFeed,
   timeLine,
   type ShowcaseCtx,
+  type ShowcaseEntry,
   type ShowcaseItem,
 } from '../../src/meta/showcase';
 import { SYNCED_KEYS } from '../../src/meta/progressCloud';
@@ -104,6 +107,27 @@ describe('the feed (a pure function of time, live ops and the catalogue)', () =>
     expect(showcaseFeed(ctx({ now: at, nap: NAP_FALLBACK })).find((x) => x.type === 'event')!.things).toBeUndefined();
   });
 
+  it('hand-written entries: default art by type, priority by type, a champion gets its splash and kit as notes', () => {
+    const champ: ShowcaseEntry = { id: 'champ-nova-202612', type: 'champion', hero: 'nova', title: 'Nova', blurb: 'A star-catching cat.', startsAt: NOW - DAY, endsAt: NOW + DAY, cta: { label: 'Meet Nova', target: { screen: 'champion', hero: 'nova' } } };
+    const patch: ShowcaseEntry = { id: 'patch-1-4', type: 'patch', title: 'Patch 1.4', blurb: 'Faster queues.', notes: ['a', 'b', 'c', 'd'], startsAt: NOW - DAY, endsAt: NOW + DAY, cta: { label: 'Got it', target: { screen: 'none' } } };
+    const kit = { heroArt: (h: string) => `https://x/splash/${h}.webp`, heroKit: () => ({ side: 'Cat', role: 'Mage', passive: 'Starlight', ultimate: 'Meteor Shower' }) };
+    const c = fromEntry(champ, kit);
+    expect(c.art).toBe('https://x/splash/nova.webp');
+    expect(c.priority).toBe(PRIORITY.champion);
+    expect(c.notes).toEqual(['Cat Mage', 'Passive: Starlight', 'Ultimate: Meteor Shower']);
+    // no splash or kit known: the type's art, no notes
+    const bare = fromEntry(champ, {});
+    expect(bare.art).toBe('champion');
+    expect(bare.notes).toBeUndefined();
+    const p = fromEntry(patch, kit);
+    expect(p.art).toBe('patch');
+    expect(p.notes).toEqual(['a', 'b', 'c']);
+    expect(fromEntry({ ...patch, art: 'generic', priority: 99 }, kit)).toMatchObject({ art: 'generic', priority: 99 });
+    // through the feed: the art becomes a URL
+    const feed = showcaseFeed(ctx(), [patch]);
+    expect(feed.find((x) => x.id === 'patch-1-4')!.art).toBe('https://pawlegends.app/pawlegends-art/showcase/patch-720.webp');
+  });
+
   it('copy rules: blurb ≤ 14 words, burst ≤ 8 characters, ids versioned and stable', () => {
     const all = [
       ...showcaseFeed(ctx({ now: T('2026-12-20T00:00:00Z'), drop: dropAt(T('2026-11-20T00:00:00Z')) })),
@@ -123,7 +147,7 @@ describe('the feed (a pure function of time, live ops and the catalogue)', () =>
     expect(showcaseArt('nap-2026', { artRoot: 'https://a/', lowTier: true })).toBe('https://a/showcase/nap-2026-360.webp');
     expect(showcaseArt('https://cdn/x.webp', { artRoot: 'https://a/', lowTier: false })).toBe('https://cdn/x.webp');
     const dir = new URL('../../../pawlegends-web/public/pawlegends-art/showcase/', import.meta.url);
-    for (const key of [...DROP_CALENDAR.map((d) => d.id), 'pass-s1', 'nap-2026', 'generic'])
+    for (const key of [...DROP_CALENDAR.map((d) => d.id), 'pass-s1', 'nap-2026', ...Object.values(DEFAULT_ART)])
       for (const w of [360, 720]) {
         const st = statSync(new URL(`${key}-${w}.webp`, dir));
         expect(st.size, `${key}-${w}`).toBeLessThanOrEqual(120 * 1024);
