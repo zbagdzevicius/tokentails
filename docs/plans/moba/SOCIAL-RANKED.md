@@ -224,7 +224,7 @@ A room counts toward boards only when **all** of these hold:
 
 ### 6.3 Reads
 
-`GET /pawlegends/boards/:kind` with kind `global|friends|hero|weekly` and query `season`, `hero`, `week` and `page` (pages of 8). The response is `{rows: [{rank, name, value, tier?, hero?}], me?: {rank, value}, period}`.
+`GET /pawlegends/boards/:kind` with kind `global|friends|hero|weekly|local` (Local, Nov 19: Global's ladder for the caller's country, from their visible flag; signed in only) and query `season`, `hero`, `week` and `page` (pages of 8). The response is `{rows: [{rank, name, value, tier?, hero?}], me?: {rank, value}, period}`.
 
 - **Cache:** 60 s per (kind, period, hero, page) in process. `me` is computed per caller with an indexed `countDocuments` of rows above.
 - **Public:** global, hero and weekly need no token (IP throttle 60/min). Friends needs auth.

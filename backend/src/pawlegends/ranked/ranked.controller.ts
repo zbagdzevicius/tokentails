@@ -6,7 +6,8 @@ import { needAccount, RankedService } from './ranked.service';
 
 /*
  * Ranked and leaderboard reads (docs/plans/moba/SOCIAL-RANKED.md §10). `ranked/status`, `ping` (§7.11) and the global,
- * hero and weekly boards are public (60 a minute per client IP); the friends board and `ranked/me` need a token.
+ * hero and weekly boards are public (60 a minute per client IP); the friends and local boards and `ranked/me` need a
+ * token (Local is the caller's own country, from their flag).
  * Nothing here writes.
  */
 
@@ -53,11 +54,11 @@ export class PawlegendsRankedController {
         @Res({ passthrough: true }) res: any
     ) {
         await this.ipThrottler.consume('PawlegendsRanked.board', req, { limit: 60, ttl: MINUTE }, res);
-        if (kind === 'friends') throw needAccount();
+        if (kind === 'friends' || kind === 'local') throw needAccount();
         return this.ranked.board(kind, query || {}, null);
     }
 
-    /** With a token: the friends board, and `me` on the others (registered accounts). */
+    /** With a token: the friends and local boards, and `me` on the others (registered accounts). */
     @UseGuards(AppAuthGuard)
     @Get('boards/:kind/me')
     async boardMe(

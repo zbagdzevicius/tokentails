@@ -68,6 +68,18 @@ describe('board reads (SOCIAL-RANKED.md §6.3)', () => {
             sanctions: new SocialMemoryModel([{ accountId: 'X', kind: 'board_exclude', until: null }], [], clock.now),
             social: new SocialMemoryModel([], [], clock.now),
             rooms: new SocialMemoryModel([], [], clock.now),
+            // FLAGS.md: A and C show LT, B shows LV, X (sanctioned) shows LT, H hid an LT flag
+            flags: new SocialMemoryModel(
+                [
+                    { _id: 'A', cc: 'LT', off: false, at: clock.now() },
+                    { _id: 'B', cc: 'LV', off: false, at: clock.now() },
+                    { _id: 'C', cc: 'LT', off: false, at: clock.now() },
+                    { _id: 'X', cc: 'LT', off: false, at: clock.now() },
+                    { _id: 'H', cc: 'LT', off: true, at: clock.now() },
+                ],
+                [],
+                clock.now
+            ),
             users: new SocialMemoryModel(
                 [
                     { _id: 'A', pawlegendsMatches: { hard: 12 } },
@@ -99,7 +111,8 @@ describe('board reads (SOCIAL-RANKED.md §6.3)', () => {
             { ...ranked('A', 7, 40), games: 12 },
             ranked('B', 12, 300, 20),
             ranked('C', 12, 10),
-            ranked('X', 12, 900)
+            ranked('X', 12, 900),
+            ranked('H', 12, 500)
         );
         const gate = { read: async () => ({ open: false, online: 3, need: 24, since: null, lowSince: null }) } as any;
         const svc = new RankedService(
@@ -112,16 +125,18 @@ describe('board reads (SOCIAL-RANKED.md §6.3)', () => {
             m.users,
             gate,
             null,
-            clock
+            clock,
+            undefined,
+            m.flags
         );
-        return { svc, week };
+        return { svc, week, m };
     }
 
     it('weekly: by wins, then fewer games; sanctioned rows hidden; my rank', async () => {
         const { svc } = harness();
         const b = await svc.board('weekly', {}, 'A');
         expect(b.rows.map(r => r.value)).toEqual([9, 5, 5]);
-        expect(b.me).toEqual({ rank: 4, value: 5 });
+        expect(b.me).toMatchObject({ rank: 4, value: 5, cc: 'LT' });
         expect(JSON.stringify(b)).not.toMatch(/"(A|B|C|X)"/);
     });
 
@@ -134,8 +149,83 @@ describe('board reads (SOCIAL-RANKED.md §6.3)', () => {
     it('global: placed ranked rows; inactive Legends and sanctioned players hidden', async () => {
         const { svc } = harness();
         const b = await svc.board('global', {}, 'A');
-        expect(b.rows.map(r => r.tier)).toEqual(['Legend · 10 pts', 'Alley II']);
-        expect(b.me).toEqual({ rank: expect.any(Number), value: 40 });
+        // H hid the flag: still on Global, with no flag
+        expect(b.rows.map(r => [r.tier, r.cc ?? null])).toEqual([
+            ['Legend · 500 pts', null],
+            ['Legend · 10 pts', 'LT'],
+            ['Alley II', 'LT'],
+        ]);
+        expect(b.me).toMatchObject({ rank: expect.any(Number), value: 40, tier: 'Alley II', cc: 'LT' });
+    });
+
+    it("weekly and global: the caller's own row on the page is marked me (no second pinned row needed)", async () => {
+        const { svc } = harness();
+        const w = await svc.board('weekly', {}, 'C');
+        expect(w.rows.map(r => [r.value, r.me ?? false])).toEqual([
+            [9, true],
+            [5, false],
+            [5, false],
+        ]);
+        // `me.rank` still counts the sanctioned X above C (an existing quirk of countMe); the marked row is what
+        // the game uses to skip its pinned row
+        expect(w.me).toMatchObject({ value: 9 });
+        // the public (cached) page never carries a me mark or an account id
+        const pub = await svc.board('weekly', {}, null);
+        expect(pub.rows.some(r => r.me)).toBe(false);
+        expect(JSON.stringify(pub)).not.toMatch(/"(A|B|C|X)"/);
+    });
+
+    it('local: needs a caller; the season ladder kept to players showing my flag; hidden, sanctioned and other countries off', async () => {
+        const { svc } = harness();
+        await expect(svc.board('local', {}, null)).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_NEED_ACCOUNT' },
+        });
+        const b = await svc.board('local', {}, 'A');
+        // LT: C (Legend 10) and A (Alley II); not B (LV), not X (sanctioned), not H (hid the flag)
+        expect(b.rows.map(r => [r.tier, r.cc, r.me ?? false])).toEqual([
+            ['Legend · 10 pts', 'LT', false],
+            ['Alley II', 'LT', true],
+        ]);
+        expect(b.local).toEqual({ cc: 'LT', hidden: false });
+        expect(b.me).toMatchObject({ rank: 2, value: 40, tier: 'Alley II', cc: 'LT' });
+        expect(b.period).toBe('s1');
+        // B (LV) is an inactive Legend: off the ladder until the next match, so an empty LV board
+        const lv = await svc.board('local', {}, 'B');
+        expect(lv).toMatchObject({ rows: [], me: null, local: { cc: 'LV', hidden: false } });
+    });
+
+    it("local: a caller who hid the flag (or has no country) gets no board, only why; never on anyone's board", async () => {
+        const { svc } = harness();
+        const h = await svc.board('local', {}, 'H');
+        expect(h).toMatchObject({ rows: [], me: null, local: { cc: 'LT', hidden: true } });
+        const n = await svc.board('local', {}, 'N');
+        expect(n).toMatchObject({ rows: [], me: null, local: { cc: null, hidden: false } });
+        const a = await svc.board('local', {}, 'A');
+        expect(JSON.stringify(a)).not.toMatch(/500 pts/);
+    });
+
+    it('local: scans the ladder in steps on its index and stops at the top 100', async () => {
+        const { svc, m } = harness();
+        // 1,300 placed LV players above everyone: the LT board still finds A and C past them
+        for (let i = 0; i < 1300; i++) {
+            m.ratings.docs.push({
+                _id: `v${i}:ranked`,
+                accountId: `v${i}`,
+                queue: 'ranked',
+                season: 's1',
+                tierIdx: 11,
+                points: 50,
+                placementsLeft: 0,
+                ladder: 1150,
+                lastRankedAt: new Date(),
+            });
+            m.flags.docs.push({ _id: `v${i}`, cc: 'LV', off: false, at: new Date() });
+        }
+        const lt = await svc.board('local', {}, 'A');
+        expect(lt.rows.map(r => r.cc)).toEqual(['LT', 'LT']);
+        const lv = await svc.board('local', { page: 12 }, 'B');
+        expect(lv.pages).toBe(13); // top 100 = 13 pages of 8
+        expect(lv.me).toBeNull(); // B is past the LV top 100
     });
 
     it('friends: needs a caller; the caller and friends by ladder', async () => {
