@@ -177,7 +177,6 @@
 .pfx-chip b { color: var(--v6-cream); }
 .pfx-chip.win b { color: var(--v6-sky-top); }
 .pfx-chip.loss b { color: #ff8fb3; }
-.pfx-narrow { width: 100%; max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--pfx-gap); }
 
 /* champions */
 .pfx-cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
@@ -272,7 +271,7 @@
 .pfx-wear[aria-pressed='true'] { border-color: var(--v6-bolt); background: rgb(var(--v6-bolt-rgb) / 0.16); color: var(--v6-bolt); }
 
 /* account */
-.pfx-agrid { width: 100%; max-width: 1100px; margin: 0 auto; display: grid; gap: var(--pfx-gap); grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.pfx-agrid { width: 100%; display: grid; gap: var(--pfx-gap); grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 .pfx-acctname { font: 800 20px/1.2 var(--font); overflow-wrap: anywhere; }
 .pfx-acct { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .pfx-acct { font: 600 14px/1.35 var(--font); }
@@ -475,3 +474,62 @@
 .pfx-rolerow .pfx-chip { min-height: 30px; padding: 0 10px; font-size: 13px; color: var(--v6-cream); }
 .pfx-rolerow .pfx-chip b { color: var(--v6-bolt); }
 .pfx-link { min-width: 44px; justify-content: center; }
+
+/* ------------------------------------------------------------------ round 4 */
+/* the level ring reads as XP progress over any border: the arc drawn on top, at the ring's edge */
+.pfx-ring::after {
+  content: ''; position: absolute; inset: 0; z-index: 1; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(var(--v6-bolt) var(--p), rgb(var(--v6-cream-rgb, 255 243 227) / 0.22) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+}
+.pfx-lv { z-index: 2; }
+.pfx-xp { font-size: 13px; color: var(--v6-muted); white-space: nowrap; }
+.pfx-link { white-space: nowrap; }
+/* the match detail inside the Matches tab */
+.pfx-detail { gap: 8px; }
+.pfx-detail .mh-team { background: rgb(var(--v6-navy-rgb) / 0.55); }
+.pfx-detail .mh-dres small, .pfx-detail .mh-team h3 small, .pfx-detail .mh-legend, .pfx-detail .mh-gn, .pfx-detail .mh-pn small, .pfx-detail .mh-table th { font-size: 13px; }
+.pfx-detail .mh-tab { min-height: 44px; }
+/* every text 13 px or more here (the history sheet's own table is tighter) */
+.pfx-detail .mh-table, .pfx-detail .mh-num, .pfx-detail .mh-mvp, .pfx-detail .mh-bot, .pfx-detail .mh-you, .pfx-detail .mh-bar small, .pfx-detail .mh-mvpline, .pfx-detail .mh-pn b { font-size: 13px; }
+.pfx-detail .mh-table td { padding: 4px 6px; }
+.pfx-detail .mh-mvpline .pfx-face { width: 36px; height: 36px; }
+/* collection icons */
+.pfx-icongrid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.pfx-icon { padding-top: 12px; gap: 6px; min-height: 112px; }
+.pfx-icon .pfx-ifoot { padding-top: 4px; background: none; text-align: center; }
+/* another player's roster: the champions they never played this season, dimmer */
+.pfx-ccard.dim { opacity: 0.7; }
+/* the tab bar fades at an edge that has more tabs past it */
+.pfx-tabs[data-more~='l'] { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 36px); mask-image: linear-gradient(90deg, transparent 0, #000 36px); }
+.pfx-tabs[data-more~='r'] { -webkit-mask-image: linear-gradient(270deg, transparent 0, #000 36px); mask-image: linear-gradient(270deg, transparent 0, #000 36px); }
+.pfx-tabs[data-more='l r'] { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%); }
+/* short landscape phones: recent matches keep the result, the KDA and the time readable */
+@media (max-height: 500px) {
+  .pfx-recent .pfx-mrowi { grid-template-columns: 40px minmax(0, 1fr) auto auto; gap: 8px; }
+  .pfx-recent .pfx-hn { display: none; }
+  .pfx-xp { display: none; }
+  .pfx-detail .mh-team h3 small { font-size: 13px; }
+}
+@media (max-height: 500px) and (max-width: 760px) {
+  .pfx-ov { grid-template-columns: minmax(170px, 30%) minmax(0, 1fr); }
+  .pfx-recent .pfx-mrowi { grid-template-columns: 36px minmax(0, 1fr) auto; }
+  .pfx-recent .pfx-when { display: none; }
+  .pfx-recent .pfx-face { width: 36px; height: 36px; }
+  .pfx-rankbody { gap: 12px; }
+  .pfx-crest { width: 72px; }
+  /* the identity column is narrow here: name, title, flag and one action (the code and Friends are in Account) */
+  .pfx-who .pfx-code, .pfx-who [data-a='social'] { display: none; }
+  .pfx-who { align-self: stretch; justify-content: flex-end; min-height: 0; overflow-y: auto; scrollbar-width: none; gap: 4px; padding-bottom: 6px; }
+  .pfx-who > *, .pfx-whotext > * { flex-shrink: 0; }
+  .pfx-ring { width: 58px; height: 58px; }
+  .pfx-ring > .pl-av { --av: 48px !important; }
+  .pfx-acts { flex-direction: column; align-items: stretch; gap: 6px; }
+  .pfx-who .pfx-name { margin-top: 12px; line-height: 1.25; overflow: visible; }
+  .pfx-whotext { gap: 6px; }
+}
+@media (max-width: 560px) {
+  /* portrait phones: the scoreboard keeps player, K/D/A, CS and grade */
+  .pfx-detail .mh-table th:nth-child(2), .pfx-detail .mh-table td:nth-child(2), .pfx-detail .mh-table th:nth-child(5), .pfx-detail .mh-table td:nth-child(5) { display: none; }
+  .pfx-detail .mh-dtop { flex-wrap: wrap; }
+}

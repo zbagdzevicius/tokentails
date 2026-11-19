@@ -207,6 +207,7 @@ for (const kind of ['guest', 'new', 'vet', 'other', 'fail'] as Kind[])
         const page = await context.newPage();
         await mockHost(context, baseURL!, {
           app: { isApp: false, store: true },
+        viewport: true,
           signedIn: kind !== 'guest',
           liveApi: true,
           profile: kind === 'new' || kind === 'guest' ? NEW : VET,
@@ -294,17 +295,20 @@ for (const kind of ['guest', 'new', 'vet', 'other', 'fail'] as Kind[])
           await expect(screen.locator('.pfx-ladder [aria-current="true"]')).toContainText('Tabby');
           // the account lives here: no second Account chip on Home once signed in
           await expect(game.locator('[data-testid="account-chip"]')).toHaveCount(0);
-          // Matches: the history inline; a row opens the full history on that match; closing it comes back here
+          // Matches: the history inline; a row opens that match inside the screen (LoL), Escape comes back to the list
           await screen.locator('[data-testid="profile-tab-matches"]').click();
           await expect(screen.locator('[data-testid="profile-match-list"] [data-a="match"]')).toHaveCount(4);
           await screen.locator('[data-testid="profile-match-list"] [data-a="match"]').first().click();
-          const hist = game.locator('[data-testid="match-history"]');
-          await expect(hist.locator('[data-testid="history-match"]')).toBeVisible();
+          await expect(game.locator('[data-testid="match-history"]')).toHaveCount(0);
+          await expect(screen.locator('[data-testid="history-match"]')).toBeVisible();
+          await expect(screen.locator('.pfx-skel')).toHaveCount(0, { timeout: limit(10_000) });
           await shot(page, `${tag}-match-detail`);
+          const dprob = await audit(game);
+          expect(dprob, dprob.join('\n')).toEqual([]);
           await page.keyboard.press('Escape');
-          await page.keyboard.press('Escape');
-          await expect(hist).toHaveCount(0);
+          await expect(screen.locator('[data-testid="history-match"]')).toHaveCount(0);
           await expect(screen).toHaveAttribute('data-tab', 'matches');
+          await expect(screen.locator('[data-testid="profile-match-list"]')).toBeVisible();
           await screen.locator('[data-testid="profile-tab-overview"]').click();
           await screen.locator('[data-testid="profile-edit"]').click();
           await expect(screen.locator('[data-testid="profile-editor"]')).toBeVisible();
@@ -360,6 +364,7 @@ for (const [vp, w, h] of [SIZES[0], SIZES[2]])
       const page = await context.newPage();
       await mockHost(context, baseURL!, {
         app: { isApp: false, store: true },
+        viewport: true,
         signedIn: true,
         liveApi: true,
         profile: VET,
@@ -371,9 +376,8 @@ for (const [vp, w, h] of [SIZES[0], SIZES[2]])
       const screen = game.locator('[data-testid="profile-screen"]');
       await screen.locator('[data-testid="open-history"]').click();
       await screen.locator('[data-testid="profile-match-list"] [data-a="match"]').first().click();
-      const hist = game.locator('[data-testid="match-history"]');
-      await expect(hist).toBeVisible();
-      await hist.locator('.mh-pbtn[data-profile="PL-BBBB-CCCC"]').click();
+      await expect(screen.locator('[data-testid="history-match"]')).toBeVisible();
+      await screen.locator('.mh-pbtn[data-profile="PL-BBBB-CCCC"]').click();
       await expect(screen).toHaveAttribute('data-self', '0');
       await expect(screen.locator('[data-testid="profile-name"]')).toHaveText('Rex');
       await expect(screen.locator('.pfx-skel')).toHaveCount(0, { timeout: limit(10_000) });

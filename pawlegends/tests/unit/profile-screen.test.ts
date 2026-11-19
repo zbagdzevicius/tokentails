@@ -391,8 +391,9 @@ describe('profile screen', () => {
     expect(q('[data-testid="profile-screen"]').dataset.tab).toBe('overview');
   });
 
-  it("another player's profile: read-only, their history by code inline on Matches, a row opens that match", async () => {
-    const t = open({ friend: { code: 'PL-AAAA-BBBB', name: 'Mira', av: { i: 'h:howler' } }, tab: 'matches' });
+  it("another player's profile: read-only, their history by code inline on Matches, a row opens that match inside the screen", async () => {
+    const openPlayer = vi.fn();
+    const t = open({ friend: { code: 'PL-AAAA-BBBB', name: 'Mira', av: { i: 'h:howler' } }, tab: 'matches', extra: { 'history.match': () => res(200, { id: 'a', at: NOW - 60_000, mode: 'ranked', map: 'hearthwood', mutator: null, difficulty: 'normal', outcome: 'won', seconds: 754, hero: 'lambo', k: 7, d: 2, a: 9, grade: 'S', mvp: 'mvp', slot: 0, winner: 1, mvpSlot: 0, svpSlot: null, reason: null, players: [{ slot: 0, team: 1, hero: 'lambo', name: 'Mira Real', bot: false, owner: true, level: 9, k: 7, d: 2, a: 9, damage: 9000, taken: 4000, tower: 0, heal: 0, fish: 800, toys: 1, cs: 40, grade: 'S' }, { slot: 1, team: 0, hero: 'sage', name: 'Rex', code: 'PL-REXX-0001', bot: false, owner: false, level: 7, k: 2, d: 5, a: 1, damage: 5000, taken: 7000, tower: 0, heal: 0, fish: 500, toys: 0, cs: 30, grade: 'C' }] }) }, more: { openPlayer } });
     await flush();
     expect(t.calls.map((c) => c.op)).toEqual(['history.list']);
     expect(t.calls[0].args).toEqual({ code: 'PL-AAAA-BBBB' });
@@ -402,7 +403,23 @@ describe('profile screen', () => {
     // no Recordings for someone else (they are this device's)
     expect(q('[data-testid="profile-recordings"]')).toBeNull();
     q('[data-testid="profile-match-list"] [data-a="match"]').click();
-    expect(t.openHistory).toHaveBeenCalledWith({ code: 'PL-AAAA-BBBB', name: 'Mira Real' }, 'a');
+    await flush();
+    // LoL: the detail opens in the Matches tab, never a sheet over Home
+    expect(t.openHistory).not.toHaveBeenCalled();
+    expect(t.calls.find((c) => c.op === 'history.match')?.args).toEqual({ match: 'a', code: 'PL-AAAA-BBBB' });
+    expect(q('[data-testid="profile-screen"] [data-testid="history-match"]').textContent).toContain('Rex');
+    q('.mh-tab[data-tab="damage"]').click();
+    expect(q('.mh-pane[data-pane="damage"]').hidden).toBe(false);
+    // Escape goes back to the list (not out of the screen)
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(q('[data-testid="history-match"]')).toBeNull();
+    expect(q('[data-testid="profile-match-list"]')).not.toBeNull();
+    expect(t.onClose).not.toHaveBeenCalled();
+    // a player in the match opens their profile
+    q('[data-testid="profile-match-list"] [data-a="match"]').click();
+    await flush();
+    q('[data-profile="PL-REXX-0001"]').click();
+    expect(openPlayer).toHaveBeenCalledWith({ code: 'PL-REXX-0001', name: 'Rex' });
   });
 
   it("Match history shows once on another player's Overview: no banner button, the card links to the Matches tab", async () => {
@@ -466,7 +483,13 @@ describe('profile screen', () => {
     expect(t.calls.at(-1)?.args).toEqual({ mode: 'ranked' });
     expect(q('[data-a="filter"][data-f="ranked"]').getAttribute('aria-pressed')).toBe('true');
     q('[data-testid="profile-match-list"] [data-a="match"]').click();
-    expect(openHistory).toHaveBeenCalledWith(null, 'c');
+    await flush();
+    expect(openHistory).not.toHaveBeenCalled();
+    expect(t.calls.at(-1)).toEqual({ op: 'history.match', args: { match: 'c' } });
+    // a failed match load says so in the screen; Back returns to the list
+    expect(q('[data-testid="profile-failed"]')).not.toBeNull();
+    q('.mh-back').click();
+    expect(q('[data-testid="profile-match-list"]')).not.toBeNull();
   });
 
   it("your Matches tab lists this device's recordings with Watch; device rows open as local matches", async () => {
@@ -481,7 +504,26 @@ describe('profile screen', () => {
     await flush();
     expect(q('[data-testid="profile-recordings"]').textContent).toMatch(/No replays yet/);
     q('[data-testid="profile-match-list"] [data-a="match"]').click();
-    expect(t.openHistory).toHaveBeenCalledWith(null, 'local:dev1');
+    expect(t.openHistory).not.toHaveBeenCalled();
+    expect(q('[data-testid="history-match"]').textContent).toMatch(/on this device/);
+  });
+
+  it('round 4: Collection lists every icon and wears one; another player\'s Champions shows the whole roster, played first', async () => {
+    const t = open({ tab: 'collection' });
+    await flush();
+    expect(q('[data-testid="profile-count-icons"]').textContent).toMatch(/Icons/);
+    q('#pfx-icons [data-a="wear-icon"][data-id="lambo"]').click();
+    await flush();
+    expect(t.calls.find((c) => c.op === 'social.me')?.args).toEqual({ avatarKind: 'hero', avatarRef: 'lambo' });
+    expect(q('#pfx-icons [data-id="lambo"]').getAttribute('aria-pressed')).toBe('true');
+    document.body.innerHTML = '';
+    open({ friend: { code: 'PL-AAAA-BBBB', name: 'Mira' }, tab: 'champions' });
+    await flush();
+    const cards = [...document.querySelectorAll<HTMLElement>('.pfx-ccard')];
+    expect(cards.length).toBeGreaterThan(2);
+    expect(cards[0].dataset.hero).toBe('lambo');
+    expect(cards[1].classList.contains('dim')).toBe(true);
+    expect(q('.pfx-panehead h3').textContent).toMatch(/this season/);
   });
 
   it('Stats with no matches: one empty state with Play your first match, not five empty cards', async () => {

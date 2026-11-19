@@ -60,7 +60,7 @@ async function noSideScroll(game: Frame): Promise<void> {
   const over = await game.evaluate(() => {
     const out: string[] = [];
     const vw = document.documentElement.clientWidth;
-    for (const el of document.querySelectorAll<HTMLElement>('[data-testid="match-history"] *')) {
+    for (const el of document.querySelectorAll<HTMLElement>('[data-testid="match-history"] *, [data-testid="profile-screen"] .pfx-main *')) {
       const r = el.getBoundingClientRect();
       if (r.width && (r.right > vw + 1 || r.left < -1)) out.push(`${el.className || el.tagName}:${Math.round(r.left)}-${Math.round(r.right)}`);
     }
@@ -94,21 +94,15 @@ test('Match history: season stats, filters, a match scoreboard and damage, publi
   const press = async (sel: string) => (touch ? game.locator(sel).first().tap() : game.locator(sel).first().click());
   await expect(game.locator('[data-testid="home-profile"]')).toBeVisible({ timeout: limit(60_000) });
   await press('[data-testid="home-profile"]');
-  // Profile → Matches (the history inline); a row opens the full history on that match, Back shows its list
+  // Profile → Matches: the history inline; a row opens its match inside the Profile (LoL), Back shows the list again
   await press('[data-testid="open-history"]');
-  await expect(game.locator('[data-testid="profile-match-list"] [data-a="match"]')).toHaveCount(2);
-  await press('[data-testid="profile-match-list"] [data-a="match"]');
-  const hist = game.locator('[data-testid="match-history"]');
-  await expect(hist).toBeVisible();
-  await press('.mh-back');
-  await expect(hist.locator('[data-testid="history-winrate"]')).toHaveText('58%');
-  await expect(hist.locator('.mh-row')).toHaveCount(2);
-  await expect(hist.locator('.mh-row').first()).toContainText('Victory');
-  await expect(hist.locator('.mh-row').first()).toContainText('Ranked 3v3');
-  await expect(hist.locator('.mh-row').first().locator('.mh-mvp')).toHaveText('MVP');
+  const prof = game.locator('[data-testid="profile-screen"]');
+  const rows = prof.locator('[data-testid="profile-match-list"] [data-a="match"]');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText('Victory');
+  await expect(rows.first()).toContainText('Ranked');
   // founder Nov 17: match history is public, so there is no privacy toggle
-  await expect(hist.locator('[data-testid="history-privacy"], select')).toHaveCount(0);
-  await expect(hist).toContainText('other players can see it');
+  await expect(prof.locator('[data-testid="history-privacy"], select')).toHaveCount(0);
 
   const views: [number, number][] = touch ? [[844, 390], [667, 375]] : [[1440, 900], [1280, 590]];
   for (const [w, h] of views) {
@@ -119,15 +113,16 @@ test('Match history: season stats, filters, a match scoreboard and damage, publi
   }
 
   // a filter chip asks the server for that mode
-  await press('.mh-chip[data-filter="blitz"]');
+  await press('.pfx-filter[data-f="blitz"]');
   await expect.poll(async () => (await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'history.list' && m.args?.mode === 'blitz')).toBe(true);
-  await press('.mh-chip[data-filter="all"]');
-  await expect(hist.locator('.mh-row')).toHaveCount(2);
+  await press('.pfx-filter[data-f="all"]');
+  await expect(rows).toHaveCount(2);
 
-  // the match: both teams, MVP, the damage graph
-  await press(`.mh-row[data-open="${ID1}"]`);
-  const detail = hist.locator('[data-testid="history-match"]');
+  // the match: both teams, MVP, the damage graph, in the Profile (no sheet over Home)
+  await press(`[data-testid="profile-match-list"] [data-a="match"][data-id="${ID1}"]`);
+  const detail = prof.locator('[data-testid="history-match"]');
   await expect(detail).toBeVisible();
+  await expect(game.locator('[data-testid="match-history"]')).toHaveCount(0);
   await expect(detail.locator('.mh-team')).toHaveCount(2);
   await expect(detail.locator('.mh-team').first()).toContainText('Your team');
   await expect(detail.locator('tr.me')).toContainText('You');
@@ -144,32 +139,27 @@ test('Match history: season stats, filters, a match scoreboard and damage, publi
   await expect(detail.locator('.mh-grow')).toHaveCount(6);
   await noSideScroll(game);
   await shot(page, 'damage');
-  await press('[data-a="back"]');
-  await expect(hist.locator('.mh-row')).toHaveCount(2);
+  await press('.mh-back');
+  await expect(rows).toHaveCount(2);
+  await expect(prof).toHaveAttribute('data-tab', 'matches');
 
   // no privacy op is ever sent
   expect((await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'history.privacy')).toBe(false);
-  await press('[data-a="close"]');
-  await expect(hist).toHaveCount(0);
-  // closing the history returns to the Profile it came from (Matches); Back goes Home
-  const prof = game.locator('[data-testid="profile-screen"]');
-  await expect(prof).toHaveAttribute('data-tab', 'matches');
   await press('[data-testid="profile-back"]');
   await expect(prof).toHaveCount(0);
 
-  // a friend's history: their row in Social opens their profile (Matches), then the full history
+  // a friend's history: their row in Social opens their profile (Matches); a row opens that match there
   await expect(game.locator('[data-testid="lobby-social"]')).toBeVisible({ timeout: limit(30_000) });
   await press('[data-testid="lobby-social"]');
   // a tap on the friend's row opens its menu; Match history is in it
   await press('.pl-social .pl-fr-main[data-code="PL-AAAA-AAAA"]');
   await press('.pl-social .pl-fr-menu [data-a="history"][data-code="PL-AAAA-AAAA"]');
-  await press('[data-testid="profile-match-list"] [data-a="match"]');
-  await expect(hist).toBeVisible();
-  await press('.mh-back');
   await expect.poll(async () => (await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'history.list' && m.args?.code === 'PL-AAAA-AAAA')).toBe(true);
-  await expect(hist.locator('.mh-row')).toHaveCount(2);
-  // a friend's rows never offer this device's replays
-  await expect(hist.locator('.mh-watch')).toHaveCount(0);
+  await expect(rows).toHaveCount(2);
+  await press('[data-testid="profile-match-list"] [data-a="match"]');
+  await expect(detail).toBeVisible();
+  // a friend's matches never offer this device's replays
+  await expect(prof.locator('.mh-watch')).toHaveCount(0);
   await noSideScroll(game);
   await shot(page, 'friend');
 

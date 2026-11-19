@@ -1719,6 +1719,8 @@ export class App {
             return sn && df ? { tier: sn.tier, tiers: df.tiers, pct: (Math.max(0, sn.xp) % df.xpPerTier) / df.xpPerTier, xp: sn.xp, premium: sn.premium !== 'none', name: df.name } : null;
           },
           ...(self ? { watch: (id: string) => this.openReplay(id) } : {}),
+          // a player in a match's detail (Matches tab): their profile, this same screen read-only
+          openPlayer: (pl) => this.openProfile(pl),
           // the empty states' "Play your first match": Home's own PLAY (the one play path)
           ...(self
             ? {

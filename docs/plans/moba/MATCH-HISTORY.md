@@ -65,3 +65,7 @@ detail's human seats carry `code` (their player code) so a name opens that playe
 
 - A guest's rows stay on the guest account when it signs in to another account (the guest merge does not re-key them).
 - Gold over time and other timelines need per-minute samples the sim does not record; the damage graph uses the totals.
+
+Profile screen, round 4 (Nov 19): a row in Profile → Matches opens that match inside the Profile (both teams, the
+damage graph, a player's name opens their profile, Watch for a replay kept on this device), as League of Legends does.
+Escape or Back returns to the list. The full history sheet stays for the Collection screen's "Match history" pill.

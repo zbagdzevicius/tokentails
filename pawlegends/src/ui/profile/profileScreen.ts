@@ -31,6 +31,7 @@ import { MASTERY_MAX } from '../../meta/mastery';
 import { parseRankedCard } from '../../meta/ranked';
 import { ago } from '../../replay/store';
 import { crestSvg } from './crest';
+import { matchHtml, type ServerMatch } from '../history/historySheet';
 import { parseClubsState } from '../../social/clubs/clubData';
 import { collectionOf, ownedOf, ownedSet, type CollectionEntry } from './collection';
 import {
@@ -110,6 +111,8 @@ export interface ProfileScreenOpts {
   openSocial?(tab?: 'friends' | 'clubs'): void;
   /** Watch a replay kept on this device. */
   watch?(id: string): void;
+  /** A player in a match's detail: their profile (this same screen, read-only). */
+  openPlayer?(p: { code: string; name: string }): void;
   /** Start playing (the empty states' "Play your first match"): Home's PLAY. */
   play?(): void;
   /** Another player: open a chat with them (Social's chat). */
@@ -160,6 +163,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   /** The Matches tab's mode filter and its own paging (the first page is the Overview's). */
   let filter: HistoryFilter = 'all';
   let moreBusy = false;
+  /** The Matches tab's open match (a server id or `local:<id>`): its detail inside the screen, LoL style. */
+  let detail: string | null = null;
+  const details = new Map<string, ServerMatch | 'failed'>();
+  let listScroll = 0;
   let filterBusy = false;
   let info: NameInfo | null = null;
   let edit: { draft: string; confirm: string | null; busy: boolean; hero: HeroId; frame: string; title: string; hint: string } | null = null;
@@ -240,6 +247,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         <div class="pfx-whotext">
           ${nameBusy ? '<span class="pfx-skel pfx-nameskel" aria-hidden="true"><i></i></span>' : nameSpan('pfx-name', nm, 'profile-name')}
           <div class="pfx-tags">${title}${flag}${code}</div>
+          ${d.level ? `<small class="pfx-xp" data-testid="profile-xp">${esc(d.level.toNext ? `${moreMatches(d.level.toNext)} to Lv ${d.level.level + 1}` : 'Top level')}</small>` : ''}
         </div>
         <div class="pfx-bact">${act}</div>
       </div>`;
@@ -278,7 +286,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       ? top.map((t) => `<button type="button" class="pfx-mtile" data-a="tab" data-tab="champions" aria-label="${esc(`${heroName(t.hero)}, mastery ${t.level}`)}">${splash(t.hero, '(min-width: 1200px) 240px, 140px')}<i class="pfx-m" data-m="${t.level}">M${t.level}</i><span>${esc(heroName(t.hero))}</span></button>`).join('')
       : favs.map((f) => `<button type="button" class="pfx-mtile" data-a="tab" data-tab="champions" aria-label="${esc(`${heroName(f.hero)}, ${f.matches} matches`)}">${splash(f.hero, '(min-width: 1200px) 240px, 140px')}<span>${esc(heroName(f.hero))}<small>${f.matches} played</small></span></button>`).join('');
     const score = masteryScore(d.mastery);
-    const head = `Top champions${score ? ` <small>Mastery ${num(score)}</small>` : ''}`;
+    const head = `Top champions <small>${top.length ? `All time${score ? ` · mastery ${num(score)}` : ''}` : 'This season'}</small>`;
     if (!tiles) {
       if (busy(src.hist)) return card('Top champions', skel(3), 'pfx-top');
       if (src.hist === 'failed') return card('Top champions', failed('champions'), 'pfx-top');
@@ -413,7 +421,67 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     return `<section class="pfx-sec pfx-recs" id="pfx-recordings" data-testid="profile-recordings"><div class="pfx-panehead"><h3>Recordings <small>on this device</small></h3></div>${body}</section>`;
   };
 
+  /** A replay kept on this device for this match (yours): the same champion, finished within two minutes. */
+  const replayFor = (hero: string, at: number): string | null => {
+    if (!self) return null;
+    const r = (d.replays ?? []).find((x) => x.hero === hero && Math.abs(x.at - at) < 120_000);
+    return r ? r.id : null;
+  };
+
+  /** One match inside the Matches tab (both teams, damage): the history's own scoreboard, never a sheet over Home. */
+  const detailView = (id: string): string => {
+    let body: string;
+    if (id.startsWith('local:')) {
+      const lid = id.slice(6);
+      const r = d.rows.find((x) => x.id === lid);
+      const kept = r && (d.replays ?? []).some((x) => x.id === lid) && o.watch ? lid : null;
+      body = r
+        ? `<div class="mh-detail" data-testid="history-match"><div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back" aria-label="Back to the list">‹ Back</button><span class="mh-dres ${r.outcome}"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc([MODE_WORD[r.mode] ?? r.mode, mapName(r.map), duration(r.seconds), r.at ? ago(r.at, now()) : ''].filter(Boolean).join(' · '))}</small></span>${kept ? `<button type="button" class="pl-btn small mh-watch" data-watch="${esc(kept)}" data-testid="history-watch">▶ Watch replay</button>` : ''}</div><p class="mh-mvpline">${face(r.hero)}<span><b>${esc(heroName(r.hero))}</b> · ${r.k}/${r.d}/${r.a}${r.grade ? ` · Grade ${esc(r.grade)}` : ''}</span></p><p class="pfx-empty">Only matches saved to your account keep both teams. This one is on this device.</p></div>`
+        : `<p class="pfx-empty">Match not found.</p>`;
+    } else {
+      const m = details.get(id);
+      body =
+        m === 'failed'
+          ? `<div class="mh-detail"><div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back">‹ Back</button></div>${failed('this match')}</div>`
+          : m
+            ? matchHtml(m, now(), o.watch ? replayFor(m.players.find((x) => x.owner)?.hero ?? m.hero, m.at) : null)
+            : `<div class="mh-detail"><div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back">‹ Back</button></div>${skel(6)}</div>`;
+    }
+    return pane(`<div class="pfx-card pfx-detail">${body}</div>`, 'pfx-mdetail');
+  };
+
+  const loadMatch = async (id: string): Promise<void> => {
+    if (!o.api || id.startsWith('local:') || (details.has(id) && details.get(id) !== 'failed')) return;
+    details.delete(id);
+    const r = await settle(o.api('history.match', { match: id, ...(o.friend ? { code: o.friend.code } : {}) }));
+    if (disposed) return;
+    details.set(id, r.ok && r.body && Array.isArray((r.body as ServerMatch).players) ? (r.body as ServerMatch) : 'failed');
+    if (detail === id) render();
+  };
+
+  const openMatch = (id: string): void => {
+    listScroll = scrollTop;
+    detail = id;
+    if (tab !== 'matches') tab = 'matches';
+    scrollTop = 0;
+    say('');
+    o.track?.('history_match', { friend: !self, local: id.startsWith('local:'), from: 'profile' });
+    render();
+    root.querySelector<HTMLElement>('.mh-back')?.focus({ preventScroll: true });
+    void loadMatch(id);
+  };
+
+  const closeMatch = (): void => {
+    const from = detail;
+    detail = null;
+    scrollTop = listScroll;
+    render();
+    const row = from ? [...root.querySelectorAll<HTMLElement>('.pfx-mlist [data-a="match"]')].find((el) => el.dataset.id === from) : null;
+    row?.focus({ preventScroll: true });
+  };
+
   const matchesView = (): string => {
+    if (detail) return detailView(detail);
     let body: string;
     if (priv) body = `<p class="pfx-empty pfx-center">This player keeps their matches private.</p>`;
     else if ((busy(src.hist) && !d.rows.length) || filterBusy) body = skel(5);
@@ -432,7 +500,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const more = d.next && !priv && !d.rowsLocal ? `<button type="button" class="pl-btn ghost small pfx-more" data-a="more" data-testid="profile-more"${moreBusy ? ' disabled' : ''}>${moreBusy ? 'Loading…' : 'Show more'}</button>` : '';
     const stale = src.hist === 'failed' && d.rows.length ? `<p class="pfx-fine bad">Showing this device's matches. <button type="button" class="pfx-link" data-a="retry">Try again</button></p>` : '';
     return pane(
-      `<div class="pfx-narrow"><div class="pfx-panehead">${chips}${sum}</div>${stale}${body}${more}${shown.length ? `<p class="pfx-fine">Open a match to see both teams${self ? ' and its replay' : ''}.</p>` : ''}${recordingsHtml()}</div>`,
+      `<div class="pfx-panehead">${chips}${sum}</div>${stale}${body}${more}${shown.length ? `<p class="pfx-fine">Open a match to see both teams${self ? ' and its replay' : ''}.</p>` : ''}${recordingsHtml()}`,
     );
   };
 
@@ -444,14 +512,16 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       known ? `<span class="pfx-chip">Mastery score <b>${num(score)}</b></span><span class="pfx-chip">M${MASTERY_MAX} <b>${maxedCount(d.mastery)}</b></span>` : '',
       self && d.champs ? `<span class="pfx-chip">Owned <b>${d.champs.owned} / ${d.champs.total}</b></span>` : '',
     ].join('');
-    const head = `<div class="pfx-panehead"><h3>${known ? 'Champion mastery' : 'Champions played'}</h3>${chips ? `<span class="pfx-chips">${chips}</span>` : ''}</div>${known || self ? `<p class="pfx-fine" data-testid="profile-mastery-legend">Mastery points: 1 for each match, 1 more for a win. M${MASTERY_MAX} is the top.</p>` : ''}`;
+    // another player: their champions first, then the rest of the roster dimmed (the grid reads like LoL's, never two lone cards)
+    if (!self && rows.length) for (const h of HERO_IDS) if (!rows.some((r) => r.hero === h)) rows.push({ hero: h, level: 0, matches: 0, wins: 0, toNext: null });
+    const head = `<div class="pfx-panehead"><h3>${known ? 'Champion mastery' : 'Champions played'} <small>${known ? 'all time' : 'this season'}</small></h3>${chips ? `<span class="pfx-chips">${chips}</span>` : ''}</div>${known || self ? `<p class="pfx-fine" data-testid="profile-mastery-legend">Mastery points: 1 for each match, 1 more for a win. M${MASTERY_MAX} is the top.</p>` : ''}`;
     if (!rows.length) {
       const body = busy(src.hist) ? skel(3) : src.hist === 'failed' ? failed('champions') : `<p class="pfx-empty">${self ? 'Play any champion to start its mastery.' : 'No champions played this season.'}</p>`;
       return pane(`${head}${body}`);
     }
     const cards = rows
       .map((r) => {
-        const line = r.level >= MASTERY_MAX ? 'Top mastery' : r.toNext !== null ? `${r.toNext} ${r.toNext === 1 ? 'point' : 'points'} to M${r.level + 1}` : self ? 'Not played yet' : '';
+        const line = r.level >= MASTERY_MAX ? 'Top mastery' : r.toNext !== null ? `${r.toNext} ${r.toNext === 1 ? 'point' : 'points'} to M${r.level + 1}` : self ? 'Not played yet' : r.matches ? '' : 'Not played this season';
         const wr = r.matches ? `${Math.round((r.wins / r.matches) * 100)}% won` : '';
         return `<div class="pfx-ccard${r.level || r.matches ? '' : ' dim'}" data-hero="${r.hero}">${splash(r.hero, '(min-width: 900px) 200px, 140px', 'pfx-art', true)}${r.level ? `<i class="pfx-m" data-m="${r.level}">M${r.level}</i>` : ''}<span class="pfx-cfoot"><b>${esc(heroName(r.hero))}</b><small>${esc(ROLE_NAME[HEROES[r.hero].role] ?? '')}</small>${r.matches ? `<small class="pfx-played">${r.matches} played · ${wr}</small>` : ''}${line ? `<small class="pfx-next">${esc(line)}</small>` : ''}</span></div>`;
       })
@@ -505,7 +575,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         )
       : '';
     const per = card(
-      `Per match <small>last ${shown.length}</small>`,
+      `Per match <small>last ${shown.length} ${shown.length === 1 ? 'match' : 'matches'}</small>`,
       `<div class="pfx-stats">${[
         [avg((r) => r.k), 'Knockouts'],
         [avg((r) => r.d), 'Deaths'],
@@ -518,7 +588,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     );
     const stale = src.hist === 'failed' ? `<p class="pfx-fine bad pfx-wide">Showing this device's matches. <button type="button" class="pfx-link" data-a="retry">Try again</button></p>` : '';
     return pane(
-      `${stale}<div class="pfx-sgrid${d.level ? '' : ' nolv'}">${card(seasonHead(), donut, 'pfx-wr')}${lv}${per}${card('Recent form', formHtml, 'pfx-formcard')}${card('By role', roleHtml, 'pfx-roles')}${card('Favourite champions', favHtml, 'pfx-favcard')}</div>`,
+      `${stale}<div class="pfx-sgrid${d.level ? '' : ' nolv'}">${card(seasonHead(), donut, 'pfx-wr')}${lv}${per}${card('Recent form', formHtml, 'pfx-formcard')}${card('By role', roleHtml, 'pfx-roles')}${card(`Favourite champions <small>${esc(d.stats?.from === 'device' ? 'this device' : 'this season')}</small>`, favHtml, 'pfx-favcard')}</div>`,
     );
   };
 
@@ -563,7 +633,14 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const champs = d.champs
       ? `<button type="button" class="pfx-ctile" data-a="${o.openStore ? 'store-champions' : 'noop'}"><b>${d.champs.owned} / ${d.champs.total}</b><span>Champions</span></button>`
       : '';
+    // icons: every champion's face is free to wear (the editor's Icon row, here with the rest of the look)
+    const curIcon = ((d.av as { i?: string } | null)?.i ?? '').startsWith('h:') ? (d.av as { i: string }).i.slice(2) : null;
+    const icons = HERO_IDS.map((h) => {
+      const on = curIcon === h;
+      return `<button type="button" class="pfx-item pfx-icon own" data-a="${edit ? 'wear-icon' : 'noop'}" data-id="${h}"${edit ? ` aria-pressed="${on}"` : ' aria-disabled="true"'} aria-label="${esc(`${heroName(h)} icon: ${on ? 'worn' : edit ? 'tap to wear' : 'owned'}`)}">${avatarHtml({ i: `h:${h}` }, 56)}<span class="pfx-ifoot"><b>${esc(heroName(h))}</b>${on ? '<small>Worn</small>' : ''}</span></button>`;
+    }).join('');
     const sum = `<div class="pfx-ctiles" data-testid="profile-collection-counts">${champs}${[
+      ['Icons', HERO_IDS.map((h) => ({ id: h, owned: true })), 'icons'],
       ['Coats', c.coats, 'coats'],
       ['Borders', c.frames, 'frames'],
       ['Titles', c.titles, 'titles'],
@@ -576,6 +653,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const hint = edit ? '<p class="pfx-fine">Tap an owned border or title to wear it. Locked items open where you get them.</p>' : `<p class="pfx-fine">${d.signedIn ? 'Wearing items needs a connection.' : 'Sign in to wear titles and borders.'}</p>`;
     return pane(
       `${sum}${hint}
+      <section class="pfx-sec" id="pfx-icons"><div class="pfx-panehead"><h3>Icons <small>${HERO_IDS.length} / ${HERO_IDS.length}</small></h3></div><div class="pfx-igrid pfx-fgrid pfx-icongrid">${icons}</div></section>
       <section class="pfx-sec" id="pfx-frames"><div class="pfx-panehead"><h3>Borders ${count(c.frames)}</h3>${off('frame')}</div><div class="pfx-igrid pfx-fgrid">${frames}</div></section>
       <section class="pfx-sec" id="pfx-titles"><div class="pfx-panehead"><h3>Titles ${count(c.titles)}</h3><span class="pfx-acts">${off('title')}${o.openTrack ? '<button type="button" class="pl-btn ghost small" data-a="track" data-testid="profile-track">Treat Track</button>' : ''}</span></div><div class="pfx-wears">${titles}</div></section>
       <section class="pfx-sec" id="pfx-coats"><div class="pfx-panehead"><h3>Coats ${count(c.coats)}</h3>${o.openStore ? '<button type="button" class="pl-btn ghost small" data-a="store-coats">Store</button>' : ''}</div><div class="pfx-igrid">${coats}</div></section>`,
@@ -612,7 +690,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       ? card('Privacy', `<label class="pfx-switch"><input type="checkbox" data-a="flag" data-testid="profile-flag"${hidden ? '' : ' checked'}><span>Show my country flag${d.cc && !hidden ? ` ${ccHtml(d.cc)}` : ''}</span></label><p class="pfx-fine">Match history is public. More choices are in Settings.</p>`)
       : '';
     const set = card('Settings', `<p class="pfx-fine">Sound, graphics, controls, notifications and privacy.</p><button type="button" class="pl-btn ghost small" data-a="settings" data-testid="profile-settings">Open Settings</button>`);
-    return pane(`<div class="pfx-agrid">${acc}${code}${flag}${set}</div>`);
+    return pane(`<div class="pfx-agrid">${acc}${code}${flag}${set}</div>`, 'pfx-apane');
   };
 
   // ------------------------------------------------------------------------------------------------ editor
@@ -703,6 +781,16 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     if (on && bar && bar.scrollWidth > bar.clientWidth) {
       const x = on.getBoundingClientRect().left - bar.getBoundingClientRect().left + bar.scrollLeft;
       bar.scrollLeft = Math.max(0, x - (bar.clientWidth - on.offsetWidth) / 2);
+    }
+    // a scrolling tab bar fades at each edge that has tabs past it
+    if (bar) {
+      const edges = (): void => {
+        const l = bar.scrollLeft > 4;
+        const r = bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 4;
+        bar.dataset.more = [l ? 'l' : '', r ? 'r' : ''].filter(Boolean).join(' ');
+      };
+      edges();
+      bar.addEventListener('scroll', edges, { passive: true });
     }
     if (focusTab) root.querySelector<HTMLElement>(`.cst-tab[data-tab="${tab}"]`)?.focus({ preventScroll: true });
     else if (edit && !root.querySelector('.pfx-editor')?.contains(doc.activeElement)) root.querySelector<HTMLElement>('.pfx-editor [data-a="edit-close"]')?.focus({ preventScroll: true });
@@ -966,8 +1054,9 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
 
   const goTab = (t: ProfileTab, focus: boolean): void => {
     if (!tabs.includes(t)) return;
-    if (t !== tab) {
+    if (t !== tab || detail) {
       tab = t;
+      detail = null;
       scrollTop = 0;
       say('');
       o.track?.('profile_tab', { tab: t });
@@ -1018,6 +1107,21 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       // the host's sheet takes over (sign in, sign out, manage, delete): Home is what shows after it
       return leave(() => send(acct));
     }
+    // the match detail's own controls (its scoreboard / damage tabs, a player's profile, Watch)
+    const mtab = target.closest<HTMLElement>('.mh-tab');
+    if (mtab) {
+      const t = mtab.dataset.tab;
+      root.querySelectorAll<HTMLElement>('.mh-tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+      root.querySelectorAll<HTMLElement>('.mh-pane').forEach((x) => (x.hidden = x.dataset.pane !== t));
+      return;
+    }
+    const prof = target.closest<HTMLElement>('[data-profile]');
+    if (prof) {
+      const p = { code: prof.dataset.profile ?? '', name: prof.dataset.pname ?? '' };
+      return p.code && o.openPlayer ? leave(() => o.openPlayer!(p)) : undefined;
+    }
+    const wid = target.closest<HTMLElement>('[data-watch]')?.dataset.watch;
+    if (wid) return o.watch ? leave(() => o.watch!(wid)) : undefined;
     const el = target.closest<HTMLElement>('[data-a]');
     if (edit && target.classList.contains('pfx-editor')) {
       edit = null;
@@ -1048,8 +1152,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         return leave(() => o.openHistory(fr));
       case 'match': {
         const id = el.dataset.id ?? '';
-        return leave(() => o.openHistory(fr, id || null));
+        return id ? openMatch(id) : undefined;
       }
+      case 'back':
+        return closeMatch();
       case 'more':
         if (moreBusy || !d.next) return;
         moreBusy = true;
@@ -1136,6 +1242,12 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
           });
         }
         return;
+      case 'wear-icon': {
+        const h = el.dataset.id ?? '';
+        if (!canEdit() || !(h in HEROES)) return;
+        void saveMe({ avatarKind: 'hero', avatarRef: h }, 'Icon saved');
+        return;
+      }
       case 'wear': {
         if (!canEdit()) return;
         const kind = el.dataset.kind === 'frame' ? 'frame' : 'title';
@@ -1153,7 +1265,8 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     if (edit) {
       edit = null;
       render();
-    } else {
+    } else if (detail) closeMatch();
+    else {
       close();
       o.onClose();
     }

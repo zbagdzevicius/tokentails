@@ -135,15 +135,12 @@ test('recordings: a PvP match is listed and its replay plays from the player sea
   await press(page, touch, '[data-testid="open-history"]');
   // Recordings lists only the replay this version can play
   await expect(page.locator('[data-testid="profile-recordings"] [data-testid="profile-watch"]')).toHaveCount(1);
-  // the full history (a row, then Back) still lists both and says why the older one cannot play
-  await press(page, touch, '[data-testid="profile-match-list"] [data-a="match"]');
-  await press(page, touch, '.mh-back');
-  const hist = page.locator('[data-testid="match-history"]');
-  await expect(hist.locator('.mh-row')).toHaveCount(2);
-  await expect(hist.locator('.mh-row').first()).toContainText('PvP');
-  // the older version's row stays listed and says why it cannot play
-  await expect(hist.locator('[data-testid="history-older"]')).toHaveCount(1);
-  await expect(hist.locator('.mh-watch')).toHaveCount(1);
+  // Profile → Matches lists both; the PvP match opens inside the Profile with its replay
+  const rows = page.locator('[data-testid="profile-match-list"] [data-a="match"]');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText('PvP');
+  await press(page, touch, '[data-testid="profile-match-list"] [data-a="match"][data-id="local:pvp-1"]');
+  await expect(page.locator('[data-testid="profile-screen"] [data-testid="history-match"]')).toBeVisible();
   await press(page, touch, '.mh-watch[data-watch="pvp-1"]');
   await page.waitForFunction(() => document.documentElement.dataset.replay === 'playing', null, { timeout: limit(60_000) });
   await expect.poll(async () => Number(await page.evaluate(() => document.documentElement.dataset.replayTick ?? 0)), { timeout: limit(20_000) }).toBeGreaterThan(30);
