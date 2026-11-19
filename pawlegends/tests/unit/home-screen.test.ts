@@ -8,6 +8,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { availableQueues, botsChoice, disposeHome, homeScreen, mainQueue, patchHome, pvpLockText, resolveChoice, ringPct, type HomeScreenOpts } from '../../src/ui/home/homeScreen';
 import { modeById, modeList } from '../../src/ui/modeSelect/modes';
+import { goalsPanelHtml, questsResetText } from '../../src/ui/home/goalsPanel';
 
 const NOW = Date.now();
 const om = (o: { locked?: boolean } = {}) => ({ mode: 'coop' as const, locked: o.locked ?? false, needed: 5, played: 2, onMode: vi.fn() });
@@ -42,6 +43,13 @@ const modesOpen = async (): Promise<HTMLElement> => {
 const play = (root: HTMLElement): void => root.querySelector<HTMLElement>('[data-testid="home-play"]')!.click();
 const click = (ms: HTMLElement, id: string): void => ms.querySelector<HTMLElement>(`[data-testid="${id}"]`)!.click();
 const esc = (): void => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+/** The Quests panel is its own chunk: click Quests and wait for it. */
+const openGoals = async (root: HTMLElement): Promise<HTMLElement> => {
+  root.querySelector<HTMLElement>('[data-testid="home-goals"]')!.click();
+  await vi.waitFor(() => expect(root.querySelector('[data-testid="goals-panel"]')).toBeTruthy());
+  return root.querySelector<HTMLElement>('[data-testid="goals-panel"]')!;
+};
+const panelOf = (root: HTMLElement): HTMLElement | null => root.querySelector<HTMLElement>('[data-testid="goals-panel"]');
 
 afterEach(() => {
   for (const el of document.querySelectorAll<HTMLElement>('.pl-home')) disposeHome(el);
@@ -339,17 +347,19 @@ describe('home patch (no rebuild under modals)', () => {
     expect(root.dataset.variants).toBe('bots coop pvp friends');
   });
 
-  it('follows a new name on the nameplate, and keeps an open popover open', () => {
+  it('follows a new name on the nameplate, and keeps an open Quests panel open', async () => {
     const quests = [{ quest: { id: 'q1', text: 'Win one', goal: 1 }, value: 0, done: false }] as unknown as HomeScreenOpts['quests'];
     const root = mount(base({ quests }));
-    const today = root.querySelector<HTMLDetailsElement>('.hm-today')!;
-    today.open = true;
+    const panel = await openGoals(root);
     const done = [{ quest: { id: 'q1', text: 'Win one', goal: 1 }, value: 1, done: true }] as unknown as HomeScreenOpts['quests'];
     expect(patchHome(root, base({ quests: done, identity: { name: 'Pumpkin', sub: 'Sage the Marksman', element: 'FIRE', role: 'Marksman' } }))).toBe(true);
     expect(root.querySelector('.hm-plate-n')?.textContent).toContain('Pumpkin');
-    expect(root.querySelector('.hm-today')).not.toBe(today);
-    expect(root.querySelector<HTMLDetailsElement>('.hm-today')!.open).toBe(true);
-    expect(root.querySelector('.hm-today .hm-rl')?.textContent).toBe('1/1');
+    const now = panelOf(root)!;
+    expect(now).not.toBe(panel);
+    expect(now.getAttribute('aria-modal')).toBe('true');
+    expect(root.querySelector('[data-testid="home-goals"]')?.getAttribute('aria-expanded')).toBe('true');
+    expect(root.querySelector('[data-testid="home-goals"]')?.getAttribute('aria-label')).toBe('Quests: 1 of 1 done today');
+    expect(now.querySelector('.hm-qlist .q.done')?.textContent).toContain('Done');
   });
 
   it('syncs the Sound switch and keeps the handlers on the new options', () => {
@@ -371,10 +381,96 @@ describe('home patch (no rebuild under modals)', () => {
   });
 });
 
-describe('Events list (one main queue)', () => {
-  it('lists the live-ops cards and the season, never a mode row (timed modes are off the menu)', () => {
-    const root = mount(base({ modes: modeList(NOW), seasonEnd: 'Ends 5 Jan' }));
-    expect(root.querySelector('.hm-evlist .ev[data-mode]')).toBeNull();
-    expect(root.querySelector('.hm-evlist')?.textContent).toContain('Legends Pass season');
+// Founder Nov 19 ("events" and "tasks" overlap too much): one Quests button opens one panel, Today then Events.
+describe('Quests panel (Today and Events in one place)', () => {
+  const quests = [
+    { quest: { id: 'win', text: 'Win a match', goal: 1 }, value: 1, done: true },
+    { quest: { id: 'play2', text: 'Play 2 matches', goal: 2 }, value: 1, done: false },
+    { quest: { id: 'combo3', text: 'Land 3 combos', goal: 3 }, value: 0, done: false },
+    { quest: { id: 'party', text: 'Play 2 matches with a friend', goal: 2, bonus: true }, value: 0, done: false },
+  ] as unknown as HomeScreenOpts['quests'];
+
+  it('replaces the Events and Today buttons with one Quests button beside # Join; no season row, no mode row', () => {
+    const root = mount(base({ quests, seasonEnd: 'Ends 5 Jan 2027', onJoinCode: vi.fn(), onCollection: vi.fn() }));
+    const left = root.querySelector('.hm-left')!;
+    expect(left.querySelectorAll('.hm-round')).toHaveLength(2);
+    expect(left.querySelector('details')).toBeNull();
+    expect(root.querySelector('.hm-events, .hm-today, .hm-evlist')).toBeNull();
+    const btn = left.querySelector<HTMLElement>('[data-testid="home-goals"]')!;
+    expect(btn.textContent).toContain('Quests');
+    expect(btn.getAttribute('aria-label')).toBe('Quests: 1 of 3 done today');
+    expect(btn.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(goalsPanelHtml({ quests })).not.toContain('Legends Pass season');
+    expect(goalsPanelHtml({ quests })).not.toContain('data-mode');
+    // the season end moved to the nav Pass item
+    const pass = root.querySelector('.hm-nav [data-a="collection"]')!;
+    expect(pass.getAttribute('aria-label')).toBe('Pass · season ends 5 Jan 2027');
+    expect(pass.getAttribute('title')).toBe('Pass · season ends 5 Jan 2027');
+  });
+
+  it('opens Today (progress and Treat XP per quest) and the live events; closes on Esc, the close button and a tap outside', async () => {
+    const root = mount(base({ quests }));
+    const btn = root.querySelector<HTMLElement>('[data-testid="home-goals"]')!;
+    expect(panelOf(root)).toBeNull();
+    let panel = await openGoals(root);
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    expect(panel.getAttribute('aria-modal')).toBe('true');
+    expect(root.classList.contains('hm-gp-on')).toBe(true);
+    const rows = panel.querySelectorAll('[data-testid="goals-today"] .q');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]!.textContent).toContain('Done');
+    expect(rows[1]!.textContent).toContain('1/2');
+    expect(rows[1]!.textContent).toContain('+50 XP');
+    expect(rows[1]!.getAttribute('aria-label')).toBe('Play 2 matches: 1 of 2. 50 Treat XP');
+    expect(rows[3]!.classList.contains('bonus')).toBe(true);
+    expect(panel.querySelector('[data-testid="goals-today"] h3')?.textContent).toMatch(/^Today 1 of 3 done · new in \d+[hm]$/);
+    // the Events section holds the live-ops cards
+    expect(panel.querySelector('[data-testid="goals-events"] [data-testid="lo-cards"]')).toBeTruthy();
+    // Esc closes it (the app's Android back is an Escape) and focus returns to the button
+    esc();
+    expect(panelOf(root)).toBeNull();
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    expect(root.classList.contains('hm-gp-on')).toBe(false);
+    expect(document.activeElement).toBe(btn);
+    panel = await openGoals(root);
+    panel.querySelector<HTMLElement>('.hm-gp-x')!.click();
+    expect(panelOf(root)).toBeNull();
+    panel = await openGoals(root);
+    // a tap inside keeps it open, a tap outside closes it
+    panel.querySelector('.q')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(panelOf(root)).toBe(panel);
+    root.querySelector('.hm-stage')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(panelOf(root)).toBeNull();
+    // the button toggles
+    await openGoals(root);
+    btn.click();
+    expect(panelOf(root)).toBeNull();
+  });
+
+  it('Enter does not start a match while the panel is open', async () => {
+    const onStart = vi.fn();
+    const root = mount(base({ quests, onStart }));
+    await openGoals(root);
+    document.body.focus();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
+  it('no Quests button on the first visit or a dare (PLAY is the one job), nor without quests', () => {
+    expect(mount(base({ firstTime: true, quests })).querySelector('[data-testid="home-goals"]')).toBeNull();
+    document.body.innerHTML = '';
+    expect(mount(base({ quests: [] })).querySelector('[data-testid="home-goals"]')).toBeNull();
+  });
+
+  it('all done: the ring turns green and the label says so', () => {
+    const all = (quests ?? []).map((q) => ({ ...q, value: q.quest.goal, done: !q.quest.bonus || q.done }));
+    const root = mount(base({ quests: all }));
+    expect(root.querySelector('[data-testid="home-goals"] .hm-qring.all')).toBeTruthy();
+    expect(root.querySelector('[data-testid="home-goals"]')?.getAttribute('aria-label')).toBe('Quests: 3 of 3 done today');
+  });
+
+  it('questsResetText counts to the next local midnight', () => {
+    expect(questsResetText(new Date(2026, 10, 19, 17, 0, 0))).toBe('7h');
+    expect(questsResetText(new Date(2026, 10, 19, 23, 15, 0))).toBe('45m');
   });
 });

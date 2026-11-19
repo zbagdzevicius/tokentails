@@ -127,9 +127,9 @@ test('the same account in two browsers: same Treat Track; a Lucky Treat opens wi
   await expect.poll(() => srv.blob().applied, { timeout: limit(10_000) }).toContain(`lucky:${DAY}`);
 
   // B's Home: Today has the friend quest, the Welcome Path and the Lucky Treat odds row
-  const today = b.game.locator('.hm-today');
+  const today = b.game.locator('[data-testid="home-goals"]');
   await expect(today).toBeVisible({ timeout: limit(20_000) });
-  await today.locator('summary').click();
+  await today.click();
   await expect(b.game.locator('.hm-qlist .q.bonus')).toContainText('Play 2 matches with a friend');
   await expect(b.game.locator('[data-testid="welcome-path"]')).toBeVisible();
   await expect(b.game.locator('[data-testid="welcome-path"] .rw-days li.got')).toHaveCount(2);

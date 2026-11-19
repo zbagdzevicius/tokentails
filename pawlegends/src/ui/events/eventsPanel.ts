@@ -1,10 +1,10 @@
 /**
- * The Events popover's live-ops cards (docs/plans/moba/LIVEOPS.md): the community goal with its shared progress bar,
- * Winter Nap's gift calendar and the fan vote between two coat concepts. Home's `eventRows` (ui/home/homeScreen.ts)
- * puts `liveopsCardsHtml()` above the mode rows; `bindEvents` wires the buttons and redraws the cards in place when the
- * server answers, so the open popover never closes or jumps.
+ * The live-ops cards (docs/plans/moba/LIVEOPS.md) in the Events section of Home's Quests panel: the community goal with
+ * its shared progress bar, Winter Nap's gift calendar and the fan vote between two coat concepts, each with its time
+ * left. Home's `goalsPanelHtml` (ui/home/homeScreen.ts) puts `liveopsCardsHtml()` under Today's quests; `bindEvents`
+ * wires the buttons and redraws the cards in place when the server answers, so the open panel never closes or jumps.
  *
- * Buttons carry `data-lo` (not Home's `data-a`): a claim or a vote keeps the popover open. CSS only, no new art (the
+ * Buttons carry `data-lo` (not Home's `data-a`): a claim or a vote keeps the panel open. CSS only, no new art (the
  * vote's concepts are three colour swatches each). Names from the server are always escaped. Nothing here costs money.
  */
 import '../css/events.css';
@@ -55,7 +55,7 @@ function napCard(s: LiveopsState, now: number): string {
   const phase = napPhase(n, now);
   if (phase === 'after' && !(s.me?.nap && s.me.nap.earned > s.me.nap.claimed)) return '';
   const last = day(n.endsAt - 1);
-  const head = `<div class="lo-h"><span class="ev-crest" aria-hidden="true">${MOON}</span><span class="t"><b>${esc(n.name)}</b><small>${day(n.startsAt)} – ${last} · a gift for each day you play</small></span></div>`;
+  const head = `<div class="lo-h"><span class="ev-crest" aria-hidden="true">${MOON}</span><span class="t"><b>${esc(n.name)}</b><small>${phase === 'on' ? `A gift for each day you play · ${esc(countdownText(n.endsAt - now))} left` : `${day(n.startsAt)} – ${last} · a gift for each day you play`}</small></span></div>`;
   if (phase === 'before' || !n.gifts.length) {
     const count = n.gifts.length || 7;
     return `<div class="lo-card lo-nap" role="listitem" data-testid="lo-nap">${head}<small class="lo-hint">Starts ${day(n.startsAt)}. Play on ${count} days to open ${count} gifts. The last one is a coat. Missed a day? Nothing resets.</small></div>`;
@@ -96,7 +96,7 @@ function voteCard(s: LiveopsState, now: number): string {
   return `<div class="lo-card lo-vote" role="listitem" data-testid="lo-vote"><div class="lo-h"><span class="ev-crest" aria-hidden="true">${BALLOT}</span><span class="t"><b>${esc(v.question)}</b><small>Fan vote · ${esc(countdownText(v.endsAt - now))} left</small></span></div><div class="lo-opts">${opts}</div>${mine ? '<small class="lo-hint">You voted. The winner becomes a coat.</small>' : ''}</div>`;
 }
 
-/** The cards Home's Events list shows above its mode rows (empty when nothing is on). */
+/** The cards of the Quests panel's Events section (empty when nothing is on: home.css hides the section then). */
 export function liveopsCardsHtml(s: LiveopsState = liveopsState(), now = Date.now()): string {
   const toast = s.toast ? `<p class="lo-toast" role="status">${esc(s.toast)}</p>` : '';
   return `<div class="lo-cards" data-testid="lo-cards">${toast}${goalCard(s, now)}${napCard(s, now)}${voteCard(s, now)}</div>`;
@@ -130,21 +130,18 @@ export function bindEvents(root: HTMLElement, signal?: AbortSignal | null): void
     }
     const cards = root.querySelector('.lo-cards');
     if (cards) cards.outerHTML = liveopsCardsHtml(s);
-    const summary = root.querySelector('.hm-events > summary');
-    if (summary && needsTap(s) && !summary.querySelector('.hm-dot')) {
-      summary.classList.add('live');
-      summary.insertAdjacentHTML('beforeend', '<i class="hm-dot" aria-hidden="true"></i>');
+    // the Quests button's rose dot follows a card that asks for a tap (a reached goal, a gift, an open vote)
+    const btn = root.querySelector<HTMLElement>('[data-a="goals"]');
+    if (btn) {
+      const want = needsTap(s);
+      btn.classList.toggle('live', want);
+      const dot = btn.querySelector('.hm-dot');
+      if (want && !dot) btn.insertAdjacentHTML('beforeend', '<i class="hm-dot" aria-hidden="true"></i>');
+      else if (!want) dot?.remove();
+      const label = (btn.getAttribute('aria-label') ?? '').replace(/\. An event needs you$/, '');
+      btn.setAttribute('aria-label', want ? `${label}. An event needs you` : label);
     }
   };
-  // opening Events re-reads a config older than 15 s (the shared goal bar moves with everyone's matches)
-  root.addEventListener(
-    'toggle',
-    (e) => {
-      const d = e.target as HTMLElement;
-      if (d instanceof HTMLDetailsElement && d.open && d.classList.contains('hm-events')) void refreshLiveops(15_000);
-    },
-    signal ? { capture: true, signal } : { capture: true },
-  );
   const off = onLiveops(redraw);
   signal?.addEventListener('abort', off);
   void refreshLiveops();

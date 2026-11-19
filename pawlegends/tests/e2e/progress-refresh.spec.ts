@@ -18,7 +18,7 @@ const chip = (game: Frame) => game.locator('.hm-curb');
 const yarn = (game: Frame) => game.locator('[data-testid="home-yarn"]');
 const CHAMPS = (balance: number) => ({ owned: [], founders: false, rotation: { week: 0 }, yarn: { balance, matches: 7, picksLeft: 0, nextPickAt: 15 }, bundles: [] });
 const loadMarker = (game: Frame): Promise<number> => game.evaluate(() => ((window as unknown as { __plLoad?: number }).__plLoad ??= Math.random()));
-const tallyOf = async (game: Frame): Promise<number> => Number(/(\d+)\//.exec((await game.locator('.hm-today .hm-rl').textContent()) ?? '')?.[1] ?? -1);
+const tallyOf = async (game: Frame): Promise<number> => Number(/(\d+) of \d+ done/.exec((await game.locator('[data-testid="home-goals"]').getAttribute('aria-label')) ?? '')?.[1] ?? -1);
 
 test('Season XP, tier and quests on Home follow a saved bots match and a pass claim without a reload', async ({ context, page, baseURL }) => {
   test.setTimeout(limit(300_000));
@@ -35,7 +35,7 @@ test('Season XP, tier and quests on Home follow a saved bots match and a pass cl
   });
   const game = await openHost(page);
   await expect(chip(game)).toContainText('900');
-  await expect(chip(game)).toHaveAttribute('aria-label', /Season XP 900, tier 2/);
+  await expect(chip(game)).toHaveAttribute('aria-label', /Season XP 900, Tier 2/);
   // founder Nov 17: the Yarn balance on Home too
   await expect(yarn(game)).toHaveAttribute('data-yarn', '652');
   const tally0 = await tallyOf(game);
@@ -52,7 +52,7 @@ test('Season XP, tier and quests on Home follow a saved bots match and a pass cl
   await game.locator('[data-a="home"]').click();
   await game.waitForSelector('html[data-screen="title"]');
   // the late `store` lands while Home is up: the chips, the profile ring and its tier follow in place
-  await expect(chip(game)).toHaveAttribute('aria-label', /Season XP 1210, tier 3/, { timeout: limit(15_000) });
+  await expect(chip(game)).toHaveAttribute('aria-label', /Season XP 1210, Tier 3/, { timeout: limit(15_000) });
   await expect(chip(game)).toContainText('1,210');
   await expect(game.locator('[data-testid="home-profile"] .hm-pf-sub')).toHaveText('Lv 4 · Tier 3');
   // the Yarn the match paid shows on Home without a reload (the host's next `store`, storeSync.ts)

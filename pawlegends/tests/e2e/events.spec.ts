@@ -3,10 +3,11 @@ import { mockHost, openHost, received } from './host';
 import { limit } from '../unit/cpu-budget';
 
 /*
- * Live ops (docs/plans/moba/LIVEOPS.md): a returning player opens Events on Home and sees the community goal's shared
- * bar, Winter Nap's dates and the fan vote; a vote goes through the host as `api-request{op: 'liveops.vote'}` and the
- * card turns into the shares, the popover staying open. A reached goal is claimed with one tap. The popover fits the
- * screen (desktop and a landscape phone).
+ * Live ops (docs/plans/moba/LIVEOPS.md): a returning player opens Quests on Home and, under Today's quests, sees the
+ * Events section: the community goal's shared bar, Winter Nap's dates and the fan vote; a vote goes through the host as
+ * `api-request{op: 'liveops.vote'}` and the card turns into the shares, the panel staying open. A reached goal is
+ * claimed with one tap. The panel fits the screen and covers neither the profile, the nav, the promo nor PLAY (desktop
+ * and a landscape phone).
  */
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop' && info.project.name !== 'landscape', 'desktop and landscape only'));
 
@@ -65,13 +66,19 @@ const me = (claimed: boolean, choice: 'a' | 'b' | null) => ({
 const profile = { v: 1, sessions: 3, matches: 5, wins: 2, firstWinDone: true, hero: 'sage', trick: 'hiss', difficulty: 'easy', veteran: true };
 
 async function openEvents(game: import('@playwright/test').Frame) {
-  const summary = game.locator('.hm-events > summary');
-  await expect(summary).toBeVisible({ timeout: limit(60_000) });
-  await summary.click();
-  const pop = game.locator('.hm-events .hm-evlist');
+  const btn = game.locator('[data-testid="home-goals"]');
+  await expect(btn).toBeVisible({ timeout: limit(60_000) });
+  await btn.click();
+  const panel = game.locator('[data-testid="goals-panel"]');
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('[data-testid="goals-today"]')).toBeVisible();
+  const pop = panel.locator('[data-testid="goals-events"]');
   await expect(pop).toBeVisible();
   return pop;
 }
+
+type Box = { x: number; y: number; width: number; height: number };
+const meets = (a: Box, b: Box): boolean => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
 test('Events: the community goal bar, Winter Nap dates and a fan vote through the host', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, {
@@ -93,15 +100,17 @@ test('Events: the community goal bar, Winter Nap dates and a fan vote through th
   await expect(goal.locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '1500');
   await expect(goal).toContainText('1,500 / 2,000');
   await expect(pop.locator('[data-testid="lo-nap"]')).toContainText('Winter Nap');
-  // the featured mode's row
-  // the server's featured mode replaces the baked one (Home redraws its modes, the popover stays open)
-  await expect(pop.locator('.ev.ev-feat')).toContainText('Skirmish');
-  await expect(pop.locator('.ev.ev-feat')).toContainText('Featured');
-  // the whole popover is on screen
-  const box = (await pop.boundingBox())!;
+  // no Legends Pass season row (Pass has its own nav item) and no mode rows (one main queue)
+  await expect(game.locator('[data-testid="goals-panel"]')).not.toContainText('Legends Pass season');
+  // the whole panel is on screen and clear of the profile chip, the nav, the promo and the PLAY cluster
+  const panel = (await game.locator('[data-testid="goals-panel"]').boundingBox())!;
   const vp = page.viewportSize()!;
-  expect(box.y + box.height).toBeLessThanOrEqual(vp.height + 1);
-  expect(box.x + box.width).toBeLessThanOrEqual(vp.width + 1);
+  expect(panel.y + panel.height).toBeLessThanOrEqual(vp.height + 1);
+  expect(panel.x + panel.width).toBeLessThanOrEqual(vp.width + 1);
+  for (const sel of ['.hm-profile', '.hm-nav', '.hm-promo', '.hm-play', '.hm-extras']) {
+    const b = await game.locator(sel).first().boundingBox();
+    if (b) expect(meets(panel, b), sel).toBe(false);
+  }
   // vote: the popover stays open and turns into the shares
   await pop.locator('[data-testid="lo-vote-b"]').click();
   await expect.poll(async () => (await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'liveops.vote' && m.args?.option === 'b')).toBe(true);
@@ -128,8 +137,8 @@ test('Events: a reached goal is claimed with one tap and the coat is kept', asyn
     },
   });
   const game = await openHost(page);
-  // a claimable reward lights the Events button
-  await expect(game.locator('.hm-events > summary .hm-dot')).toBeVisible({ timeout: limit(60_000) });
+  // a claimable reward lights the Quests button
+  await expect(game.locator('[data-testid="home-goals"] .hm-dot')).toBeVisible({ timeout: limit(60_000) });
   const pop = await openEvents(game);
   await pop.locator('[data-testid="lo-claim"]').click();
   await expect(pop.locator('[data-testid="lo-goal"]')).toContainText('Claimed');

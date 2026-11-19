@@ -151,7 +151,6 @@ button.hm-profile:active::before { background: linear-gradient(90deg, rgb(var(--
   animation: hm-slide-l 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.18s both;
 }
 @keyframes hm-slide-l { from { opacity: 0; transform: translateX(-24px); } }
-.hm-left details { position: relative; }
 .hm-round {
   position: relative; width: var(--hm-round); height: var(--hm-round); border-radius: 50%; box-sizing: border-box; border: 0; padding: 0; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; list-style: none; color: var(--v6-cream, #fff3e3);
@@ -166,16 +165,15 @@ button.hm-profile:active::before { background: linear-gradient(90deg, rgb(var(--
   box-shadow: inset 4px 0 0 var(--hm-side), inset 0 0 0 1px rgb(var(--v6-ice-rgb, 214 236 255) / 0.18), inset 0 -4px 0 rgb(var(--v6-night-rgb, 18 9 31) / 0.55), var(--v6-shadow-1, 0 4px 12px rgb(0 0 0 / 0.35));
   transition: background var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out);
 }
-.hm-round::-webkit-details-marker { display: none; }
 .hm-round:hover::before { background: linear-gradient(180deg, var(--v6-sky, #39a6ff), var(--v6-sky-deep, #0d4fb8)); }
 .hm-round:active { transform: translateY(2px); }
 /* open (selected): cream-lit slab with the bolt underline (kit tabs) */
-details[open] > .hm-round::before {
+.hm-round[aria-expanded='true']::before {
   background: linear-gradient(180deg, rgb(var(--v6-sky-deep-rgb, 13 79 184) / 0.85), var(--v6-navy, #071334));
   box-shadow: inset 4px 0 0 var(--hm-side), inset 0 0 0 1.5px rgb(var(--v6-cream-rgb, 255 243 227) / 0.55), inset 0 -4px 0 var(--v6-bolt, #ffe14a), var(--v6-shadow-1, 0 4px 12px rgb(0 0 0 / 0.35));
 }
 .hm-round .hm-ico { width: 20px; height: 20px; color: var(--v6-ice, #d6ecff); }
-.hm-round:hover .hm-ico, details[open] > .hm-round .hm-ico { color: #fff; }
+.hm-round:hover .hm-ico, .hm-round[aria-expanded='true'] .hm-ico { color: #fff; }
 .hm-rl { font: 700 12px/1 var(--font, sans-serif); white-space: nowrap; font-variant-numeric: tabular-nums; }
 /* a live event: a rose halo breathing behind the slab (opacity only) */
 .hm-round.live::after {
@@ -192,35 +190,64 @@ details[open] > .hm-round::before {
 }
 .hm-qring.all { background: radial-gradient(closest-side, var(--v6-navy, #071334) 74%, transparent 76%), conic-gradient(var(--v6-success, #9be3c4) 100%, transparent 0); }
 .hm-qring .hm-ico { width: 14px; height: 14px; }
-.hm-pop {
-  position: absolute; z-index: 8; left: calc(100% + 12px); top: 0; width: 280px; box-sizing: border-box; padding: 8px; border-radius: var(--v6-r-xs, 4px);
+/* the Quests panel (founder Nov 19: one place for Today's quests and the live events). homeScreen.ts `placeGoals` sets
+   left, top, width and max-height to the free space right of the stack (never over the profile, nav, promo or PLAY);
+   these are the defaults before it measures. 14 px text at least, 44 px targets, scrolls inside itself when short. */
+.hm-gp {
+  position: absolute; z-index: 8; left: calc(100% + 12px); top: 0; width: 320px; max-height: calc(100dvh - var(--hm-t, 12px) - 96px);
+  box-sizing: border-box; display: flex; flex-direction: column; border-radius: var(--v6-r-xs, 4px); overflow: hidden;
   background: var(--hm-glass-solid);
   box-shadow: inset 0 4px 0 var(--v6-rose, #ff3d7f), inset 0 0 0 1px var(--v6-line, rgb(255 243 227 / 0.14)), var(--v6-shadow-2, 0 10px 24px rgb(0 0 0 / 0.42));
-  display: flex; flex-direction: column; gap: 4px; padding-top: 12px; animation: hm-pop var(--v6-dur-fast, 180ms) var(--v6-ease-pop, ease-out) both;
+  animation: hm-gp-in var(--v6-dur-fast, 180ms) var(--v6-ease-pop, ease-out) both;
 }
-@keyframes hm-pop { from { opacity: 0; transform: translateX(-8px); } }
-.hm-qlist .q { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 8px; border-radius: var(--v6-r-xs, 4px); background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.06); }
-.hm-qlist .tick { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgb(var(--v6-cream-rgb, 255 243 227) / 0.3); display: grid; place-items: center; font-size: 11px; flex: none; }
+@keyframes hm-gp-in { from { opacity: 0; transform: translateX(-8px); } }
+.hm-gp-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 4px 0 14px; flex: none; }
+.hm-gp-h b { font: italic 900 20px/1 var(--v6-font-display, var(--font, sans-serif)); letter-spacing: 0.02em; text-transform: uppercase; color: var(--v6-cream, #fff3e3); }
+.hm-gp-x {
+  width: 44px; height: 44px; display: grid; place-items: center; border: 0; padding: 0; border-radius: var(--v6-r-xs, 4px); cursor: pointer;
+  color: var(--v6-ice, #d6ecff); background: none;
+}
+.hm-gp-x:hover { background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.2); color: #fff; }
+.hm-gp-body {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  display: grid; grid-template-columns: 1fr; align-content: start; gap: 14px; padding: 4px 12px 12px;
+}
+/* wide enough (desktop, tablets): Today and Events side by side */
+.hm-gp.wide .hm-gp-body { grid-template-columns: 1fr 1fr; align-items: start; }
+.hm-gp-sec { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hm-gp-sec h3 {
+  margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  font: 800 16px/1.2 var(--font, sans-serif); color: var(--v6-bolt, #ffe14a);
+}
+.hm-gp-sec h3 small { font: 600 14px/1.2 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); }
+/* no live event: no Events section (no empty state) */
+.hm-gp-ev:not(:has(.lo-card, .lo-toast)) { display: none; }
+.hm-gp-fine { margin: 0; font: 600 14px/1.3 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.8; }
+.hm-qlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hm-qlist .q {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; box-sizing: border-box; padding: 6px 10px; border-radius: var(--v6-r-xs, 4px);
+  font: 600 14px/1.25 var(--font, sans-serif); background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.06);
+}
+.hm-qlist .tick {
+  width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgb(var(--v6-cream-rgb, 255 243 227) / 0.3);
+  display: grid; place-items: center; font-size: 14px; flex: none;
+}
 .hm-qlist .q.done .tick { background: var(--v6-success, #9be3c4); color: var(--v6-night, #12091f); box-shadow: none; }
-.hm-qlist .t { flex: 1; }
-.hm-qlist .n { opacity: 0.75; font-weight: 600; font-variant-numeric: tabular-nums; }
-.hm-evlist .ev {
-  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 8px; border: 0; border-radius: var(--v6-r-xs, 4px); cursor: pointer; text-align: left;
-  color: inherit; background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.06);
-  transition: background var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out);
-}
-.hm-evlist .ev:hover { background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.2); }
-.hm-evlist .ev:active { background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.32); }
+.hm-qlist .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.hm-qlist .qbar { display: block; height: 4px; border-radius: 2px; overflow: hidden; background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.16); }
+.hm-qlist .qbar i { display: block; height: 100%; background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a)); }
+.hm-qlist .q.done .qbar i { background: var(--v6-success, #9be3c4); }
+.hm-qlist .n { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; font-variant-numeric: tabular-nums; }
+.hm-qlist .n b { font: 800 14px/1 var(--font, sans-serif); }
+.hm-qlist .n small { font: 700 14px/1 var(--font, sans-serif); color: var(--v6-bolt, #ffe14a); }
+.hm-qlist .q.done .n b { color: var(--v6-success, #9be3c4); }
+.hm-qlist .q.done .t { opacity: 0.8; }
 /* the kit's icon-in-a-diamond-disc, bolt for events and rewards */
 .ev-crest {
   width: 30px; height: 30px; flex: none; display: grid; place-items: center; color: var(--v6-night, #12091f);
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a));
 }
 .ev-crest svg, .ev-crest .pl-icon { width: 16px; height: 16px; }
-.hm-evlist .t { display: flex; flex-direction: column; gap: 2px; }
-.hm-evlist .t b { font: 700 14px/1.1 var(--font, sans-serif); }
-.hm-evlist .t small { font: 600 11px/1 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.8; }
-.ev-none { margin: 4px 6px; font-size: 13px; opacity: 0.8; }
 
 /* the host's cards slot (embed: champion chip, sign-in, squad, level chips): beside the left stack, never over PLAY.
    s7 ui (founder, Nov 15): it starts under the champion nameplate (--hm-slot-t), so a long name on a narrow phone, or
@@ -236,9 +263,9 @@ details[open] > .hm-round::before {
 .pl-home .hm-slot { overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; z-index: 6; }
 .pl-home .hm-slot::-webkit-scrollbar { display: none; }
 .pl-home .hm-slot > * { flex: none; max-width: 100%; }
-/* a left popover (Events, Today) opens where the slot sits: it goes on top and the slot steps aside */
+/* the Quests panel opens where the slot sits: it goes on top and the slot steps aside */
 .pl-home .hm-left { z-index: 9; }
-.pl-home:has(.hm-left details[open]) .hm-slot { visibility: hidden; }
+.pl-home.hm-gp-on .hm-slot { visibility: hidden; }
 
 /* ------------------------------------------------------------------------ right edge: promo rotator */
 .hm-promo {
@@ -577,7 +604,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
   .hm-left { top: calc(var(--hm-t) + 52px); gap: 8px; }
   .pl-home { --hm-slot-t: calc(var(--hm-t) + 100px); }
 }
-/* step 2 (<= 320): no left stack (Today stays in Events' place), no promo */
+/* step 2 (<= 320): no left stack, no promo */
 @media (max-height: 320px) {
   .hm-left, .hm-promo, .pl-home .hm-slot { display: none; }
   .pl-home { --hm-play: 80px; }

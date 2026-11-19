@@ -1,11 +1,9 @@
 /*
- * Live ops cards in Home's Events popover (docs/plans/moba/LIVEOPS.md, ui/events/eventsPanel.ts). v6 Lightning Rivalry
- * tokens only: night glass, the bolt gradient for progress and calls to action, rose and sky accents, chamfered
- * 4 px corners. CSS only, no images. 44 px targets. On a short landscape phone the popover widens into two columns so
- * the whole calendar fits above the fold (it scrolls inside itself only as a last resort).
+ * Live ops cards in the Events section of Home's Quests panel (docs/plans/moba/LIVEOPS.md, ui/events/eventsPanel.ts). v6
+ * Lightning Rivalry tokens only: night glass, the bolt gradient for progress and calls to action, rose and sky accents,
+ * chamfered 4 px corners. CSS only, no images. 44 px targets, 14 px text at least (the panel scrolls inside itself).
  */
 
-.hm-evlist { max-height: calc(100dvh - var(--hm-t, 12px) - 84px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .lo-cards { display: flex; flex-direction: column; gap: 6px; }
 .lo-cards:empty { display: none; }
 .lo-card {
@@ -15,15 +13,15 @@
 }
 .lo-h { display: flex; align-items: center; gap: 10px; }
 .lo-h .t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.lo-h .t b { font: 700 14px/1.15 var(--font, sans-serif); }
-.lo-h .t small { font: 600 11px/1.2 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.85; }
-.lo-hint { font: 600 11px/1.3 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.8; }
+.lo-h .t b { font: 700 16px/1.2 var(--font, sans-serif); }
+.lo-h .t small { font: 600 14px/1.25 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.85; }
+.lo-hint { font: 600 14px/1.3 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.8; }
 .lo-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
-.lo-done { font: 800 12px/1 var(--font, sans-serif); color: var(--v6-success, #9be3c4); }
+.lo-done { font: 800 14px/1 var(--font, sans-serif); color: var(--v6-success, #9be3c4); }
 
 /* the community goal: a bolt-yellow bar on night glass, the count inside it */
 .lo-bar {
-  position: relative; height: 18px; border-radius: 9px; overflow: hidden;
+  position: relative; height: 22px; border-radius: 11px; overflow: hidden;
   background: rgb(var(--v6-night-rgb, 18 9 31) / 0.7); box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb, 255 243 227) / 0.18);
 }
 .lo-bar i {
@@ -34,14 +32,14 @@
 }
 .lo-bar.full i { background: linear-gradient(90deg, var(--v6-bolt, #ffe14a), var(--v6-flame, #ff8a3d), var(--v6-rose, #ff3d7f)); }
 .lo-bar span {
-  position: relative; display: block; text-align: center; font: 800 11px/18px var(--font, sans-serif); font-variant-numeric: tabular-nums;
+  position: relative; display: block; text-align: center; font: 800 14px/22px var(--font, sans-serif); font-variant-numeric: tabular-nums;
   color: var(--v6-cream, #fff3e3); text-shadow: 0 1px 0 rgb(0 0 0 / 0.7), 0 0 4px rgb(0 0 0 / 0.6);
 }
 
 /* the call to action: the kit's bolt button */
 .lo-btn {
-  min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--v6-r-xs, 4px); cursor: pointer;
-  font: italic 900 13px/1 var(--v6-font-display, var(--font, sans-serif)); letter-spacing: 0.02em; text-transform: uppercase;
+  min-height: 44px; padding: 0 16px; border: 0; border-radius: var(--v6-r-xs, 4px); cursor: pointer;
+  font: italic 900 15px/1 var(--v6-font-display, var(--font, sans-serif)); letter-spacing: 0.02em; text-transform: uppercase;
   color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a));
   box-shadow: 0 3px 0 var(--v6-bolt-ledge, #c79a00), var(--v6-glow-bolt, 0 0 12px rgb(255 225 74 / 0.5));
   transition: transform var(--v6-dur-press, 90ms) ease-out;
@@ -52,8 +50,8 @@
 /* Winter Nap: one pip per gift, the last one the coat */
 .lo-pips { display: flex; gap: 4px; }
 .lo-pip {
-  flex: 1; height: 26px; display: grid; place-items: center; border-radius: var(--v6-r-xs, 4px);
-  font: 800 11px/1 var(--font, sans-serif); font-style: normal; color: rgb(var(--v6-cream-rgb, 255 243 227) / 0.7);
+  flex: 1; height: 30px; display: grid; place-items: center; border-radius: var(--v6-r-xs, 4px);
+  font: 800 14px/1 var(--font, sans-serif); font-style: normal; color: rgb(var(--v6-cream-rgb, 255 243 227) / 0.7);
   background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.12); box-shadow: inset 0 0 0 1px rgb(var(--v6-sky-rgb, 57 166 255) / 0.3);
 }
 .lo-pip svg { width: 15px; height: 15px; }
@@ -79,29 +77,16 @@ div.lo-opt::before {
 .lo-opt.mine::before { background: rgb(var(--v6-bolt-rgb, 255 225 74) / 0.22); }
 .lo-opt > * { position: relative; }
 .lo-opt .t { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.lo-opt .t b { font: 700 12px/1.15 var(--font, sans-serif); }
-.lo-opt .t small { font: 600 10px/1 var(--font, sans-serif); opacity: 0.75; }
+.lo-opt .t b { font: 700 14px/1.15 var(--font, sans-serif); }
+.lo-opt .t small { font: 600 14px/1.1 var(--font, sans-serif); opacity: 0.75; }
 .lo-sw { display: grid; grid-template-columns: repeat(2, 9px); gap: 2px; flex: none; }
 .lo-sw i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); }
 .lo-sw i:first-child { grid-column: span 2; width: 20px; border-radius: 5px; }
-.lo-share { font: 800 12px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; }
+.lo-share { font: 800 14px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; }
 
 .lo-toast {
-  margin: 0; padding: 6px 8px; border-radius: var(--v6-r-xs, 4px); font: 700 12px/1.3 var(--font, sans-serif);
+  margin: 0; padding: 6px 8px; border-radius: var(--v6-r-xs, 4px); font: 700 14px/1.3 var(--font, sans-serif);
   color: var(--v6-night, #12091f); background: var(--v6-success, #9be3c4);
-}
-
-/* the featured mode's row in the list */
-.hm-evlist .ev.ev-feat { box-shadow: inset 3px 0 0 var(--v6-rose, #ff3d7f); }
-.hm-evlist .ev.ev-feat small { color: var(--v6-bolt, #ffe14a); opacity: 1; }
-
-/* two columns on a short landscape phone; the width stops short of PLAY (bottom right, ~120 px), so the open popover never covers it */
-@media (max-height: 500px) and (min-width: 640px) {
-  .hm-pop.hm-evlist { width: min(540px, calc(100vw - var(--hm-l, 12px) - 232px)); display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 4px 6px; }
-  .hm-evlist .lo-cards { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .hm-evlist .lo-cards .lo-toast { grid-column: 1 / -1; }
-  .hm-evlist .ev-none { grid-column: 1 / -1; }
-  .lo-card { padding: 6px 8px; gap: 5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

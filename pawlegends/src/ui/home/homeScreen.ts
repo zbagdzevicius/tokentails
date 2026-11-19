@@ -10,7 +10,7 @@
  * - top centre: Season XP and tier chips (only numbers that exist; tap opens the pass);
  * - top right (`.lb-corner`, where the account chip mounts): Friends and ranked (embedded), Settings, Sound (the old
  *   "< Games" button is gone, Nov 12: the founder found it redundant; no exit to the host's games, NO-TOKENTAILS.md);
- * - left edge: Events, Today (quests ring) and # (join with a code), round buttons;
+ * - left edge: Quests (one panel: Today's quests, then the live events) and # (join with a code), round buttons;
  * - right edge: the promo rotator (pass season, events, store on the web only);
  * - bottom: a glass nav (Heroes, Pass, Store on the web), on the first visit too with the items that need a match
  *   locked. Heroes only browses (skills, lore): it never starts a match;
@@ -44,8 +44,8 @@ import { modeById, playable, queueFor, type ModeChoice, type ModeDef, type ModeI
 import { crestSvg } from '../modeSelect/crest';
 import { startMotes } from './motes';
 import { HEROES } from '../../data/heroes';
-import { bindEvents, liveopsCardsHtml, needsTap } from '../events/eventsPanel';
-import { dropAction, liveopsState } from '../../meta/liveops';
+import { bindEvents, needsTap } from '../events/eventsPanel';
+import { dropAction, liveopsState, onLiveops } from '../../meta/liveops';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 /** Absolute art URL (a relative url() in a custom property would resolve against the CSS chunk); quotes dropped. */
@@ -94,7 +94,7 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   modeChoice: ModeChoice;
   onModeChoice(c: ModeChoice): void;
   promos?: readonly Promo[];
-  /** Season end ("ends 5 Jan 2027") for the Events list; '' when unknown. */
+  /** Season end ("Ends 5 Jan 2027") for the nav Pass item's label and tooltip; '' when unknown. */
   seasonEnd?: string;
   /** Asset base (import.meta.env.BASE_URL). */
   base: string;
@@ -132,7 +132,6 @@ const PEOPLE =
 const BAG = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M6 8h12l1 13H5zM9 8V6a3 3 0 0 1 6 0v2h-2V6a1 1 0 0 0-2 0v2z"/></svg>';
 const TROPHY = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M7 3h10v2h3v3a4 4 0 0 1-4 4h-.3A5 5 0 0 1 13 14.9V18h3v3H8v-3h3v-3.1A5 5 0 0 1 8.3 12H8a4 4 0 0 1-4-4V5h3zm0 4H6v1a2 2 0 0 0 1 1.7zm10 0v2.7A2 2 0 0 0 18 8V7z"/></svg>';
 const SCROLL = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M6 3h11a3 3 0 0 1 3 3v1h-3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-1h3V6a3 3 0 0 1 3-3zm2 5v2h7V8zm0 4v2h7v-2z"/></svg>';
-const FLAG = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M5 2h2v20H5zM8 3h11l-2.5 4L19 11H8z"/></svg>';
 const LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-lk"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm2 0h6V8a3 3 0 0 0-6 0z"/></svg>';
 /** The embossed paw on PLAY. */
 const PAW =
@@ -222,26 +221,23 @@ function currencyHtml(o: HomeScreenOpts): string {
   return pass || yarn ? `<div class="hm-cur">${pass}${yarn}</div>` : '';
 }
 
-/** The left stack: Events, Today (quests ring) and join with a code. */
+/**
+ * The left stack (founder Nov 19: "events" and "tasks" overlap too much): ONE Quests button and # Join. Quests opens one
+ * panel with two sections, Today (the daily quests, their progress and Treat XP) and Events (the live-ops cards, each
+ * with its time left; hidden by home.css while no card is on). The Legends Pass season row is gone: Pass has its own nav
+ * item. A first visit and a dare show no Quests (their one job is PLAY; quests start after the first match).
+ */
 function leftHtml(o: HomeScreenOpts, live: boolean): string {
   const qs = o.quests ?? [];
+  const returning = !o.firstTime && !o.dare;
   const t = questTally(qs);
   const pct = Math.round((100 * t.done) / Math.max(1, t.total));
-  const today = qs.length
-    ? `<details class="hm-today"><summary class="hm-round" aria-label="${esc(`Today's quests: ${t.done} of ${t.total} done`)}"><span class="hm-qring${t.done === t.total ? ' all' : ''}" style="--p:${pct}%" aria-hidden="true">${SCROLL}</span><span class="hm-rl">${t.done}/${t.total}</span></summary><div class="hm-pop hm-qlist" role="list">${qs
-        .map((q) => `<div role="listitem" class="q ${q.done ? 'done' : ''}${q.quest.bonus ? ' bonus' : ''}"><span class="tick" aria-hidden="true">${q.done ? '✓' : ''}</span><span class="t">${esc(q.quest.text)}</span><span class="n">${q.done ? 'Done' : `${q.value}/${q.quest.goal}`}</span></div>`)
-        .join('')}${o.todayExtra ?? ''}</div></details>`
-    : '';
-  const events = `<details class="hm-events"><summary class="hm-round${live ? ' live' : ''}" aria-label="Events">${FLAG}<span class="hm-rl">Events</span>${live ? '<i class="hm-dot" aria-hidden="true"></i>' : ''}</summary><div class="hm-pop hm-evlist" role="list">${eventRows(o)}</div></details>`;
+  const goals =
+    returning && qs.length
+      ? `<button type="button" class="hm-round hm-goals${live ? ' live' : ''}" data-a="goals" data-testid="home-goals" aria-haspopup="dialog" aria-expanded="false" aria-label="${esc(`Quests: ${t.done} of ${t.total} done today${live ? '. An event needs you' : ''}`)}"><span class="hm-qring${t.done === t.total ? ' all' : ''}" style="--p:${pct}%" aria-hidden="true">${SCROLL}</span><span class="hm-rl">Quests</span>${live ? '<i class="hm-dot" aria-hidden="true"></i>' : ''}</button>`
+      : '';
   const code = o.onJoinCode ? `<button type="button" class="hm-round hm-code" data-a="joincode" data-testid="join-code" aria-label="Join a party with a code" title="Join a party with a code"><b aria-hidden="true">#</b><span class="hm-rl">Join</span></button>` : '';
-  return `<div class="hm-left">${events}${today}${code}</div>`;
-}
-
-/** The Events list (LIVEOPS.md): the live-ops cards (community goal, Winter Nap, fan vote; ui/events), then the Legends
- * Pass season. Timed modes are off the menu (one main queue, MODE-UNLOCKS.md). */
-function eventRows(o: HomeScreenOpts): string {
-  const rows = o.seasonEnd ? [`<button type="button" role="listitem" class="ev" data-a="pass"><span class="ev-crest" aria-hidden="true">${icon('crown')}</span><span class="t"><b>Legends Pass season</b><small>${esc(o.seasonEnd)}</small></span></button>`] : [];
-  return liveopsCardsHtml() + (rows.join('') || '<p class="ev-none">No events right now.</p>');
+  return `<div class="hm-left">${goals}${code}</div>`;
 }
 
 function promoHtml(o: HomeScreenOpts): string {
@@ -285,6 +281,12 @@ export function extrasHtml(o: Pick<HomeScreenOpts, 'extras' | 'reveal' | 'modes'
   return `<div class="hm-extras" role="group" aria-label="More ways to play" data-testid="home-extras">${ids.map(btn).join('')}${partyBtn}</div>`;
 }
 
+/** The nav Pass item's label and tooltip carry the season end (the Quests panel no longer lists the season). Pure. */
+export function passExtra(seasonEnd?: string): string {
+  const line = seasonEnd ? `Pass · season ${seasonEnd.replace(/^Ends/, 'ends')}` : 'Pass';
+  return ` aria-label="${esc(line)}"${seasonEnd ? ` title="${esc(line)}"` : ''}`;
+}
+
 function navHtml(o: HomeScreenOpts, returning: boolean): string {
   const lockedFirst = o.firstTime;
   const item = (a: string, ico: string, label: string, opts: { extra?: string; badge?: string; locked?: string } = {}): string =>
@@ -292,7 +294,7 @@ function navHtml(o: HomeScreenOpts, returning: boolean): string {
   const after = 'Unlocks after your first match.';
   const items = [
     o.onHeroes ? item('heroes', icon('paw'), 'Champions', lockedFirst || o.dare ? { locked: o.dare ? 'Finish the dare first.' : after } : { extra: ' aria-keyshortcuts="H" aria-haspopup="dialog" aria-label="Champions: abilities and lore"' }) : '',
-    item('collection', TROPHY, 'Pass', o.onCollection && returning ? { badge: o.profile.tier !== null ? `<b class="hm-count tier" aria-hidden="true">${o.profile.tier}</b>` : '', extra: ' aria-label="Pass"' } : { locked: o.onCollection ? 'Finish the dare first.' : after }),
+    item('collection', TROPHY, 'Pass', o.onCollection && returning ? { badge: o.profile.tier !== null ? `<b class="hm-count tier" aria-hidden="true">${o.profile.tier}</b>` : '', extra: passExtra(o.seasonEnd) } : { locked: o.onCollection ? 'Finish the dare first.' : after }),
     o.storeOpen && !o.isApp ? item('store', BAG, 'Store', { extra: ' aria-label="Store"' }) : '',
   ].filter(Boolean);
   return `<nav class="hm-nav" aria-label="Menu" data-n="${items.length}">${items.join('')}</nav>`;
@@ -516,14 +518,35 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       });
   };
 
+  // ------------------------------------------------------- the Quests panel (Today and Events; its own small chunk)
+  let goals: typeof import('./goalsPanel') | null = null;
+  const goalsOpen = (): boolean => !!root.querySelector('.hm-gp');
+  const openGoals = (quiet = false): void => {
+    void import('./goalsPanel')
+      .then((m) => {
+        goals = m;
+        if (root.isConnected && !leaving) m.showGoals(root, o, quiet);
+      })
+      .catch(() => toast('No connection. Try again.'));
+  };
+  const closeGoals = (): void => goals?.hideGoals(root);
+  const placeGoals = (): void => {
+    if (goalsOpen()) goals?.placeGoals(root);
+  };
+  window.addEventListener('resize', placeGoals, ac ? { signal: ac.signal, passive: true } : { passive: true });
+
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     const btn = t.closest<HTMLElement>('[data-a]');
     const a = btn?.dataset.a;
     if (!a || (leaving && a !== 'mute')) return;
     if (t.closest('.ms-overlay')) return;
-    // a tap on a list row inside a popover closes it
-    for (const d of root.querySelectorAll<HTMLDetailsElement>('details[open]')) if (!d.contains(t) || btn?.closest('.hm-pop')) d.open = false;
+    if (a === 'goals') {
+      if (goalsOpen()) return closeGoals();
+      o.sound?.('click');
+      return openGoals();
+    }
+    if (a === 'goals-close') return closeGoals();
     if (a === 'clem' || a === 'play' || a === 'dare') playNow();
     else if (a === 'ranked') {
       // Ranked (Lv 10): one tap into the Ranked queue (the relay checks the account and the matches)
@@ -571,23 +594,14 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       o.onMute(nowMuted);
     }
   });
-  // popovers close on an outside tap; only one is open at a time
+  // the Quests panel closes on a tap outside it
   root.addEventListener('pointerdown', (e) => {
-    for (const d of root.querySelectorAll<HTMLDetailsElement>('details[open]')) if (!d.contains(e.target as Node)) d.open = false;
+    if (goalsOpen() && !(e.target as Element).closest?.('.hm-gp, [data-a="goals"]')) goals?.hideGoals(root, false);
   });
-  const bindDetails = (scope: ParentNode): void => {
-    for (const d of scope.querySelectorAll<HTMLDetailsElement>('details')) {
-      d.addEventListener('toggle', () => {
-        if (d.open) {
-          o.sound?.('click');
-          for (const x of root.querySelectorAll<HTMLDetailsElement>('details[open]')) if (x !== d) x.open = false;
-        }
-      });
-    }
-  };
-  bindDetails(root);
   // live ops (LIVEOPS.md): the Events cards' buttons and their in-place redraw
   bindEvents(root, ac?.signal);
+  // a card that appears or goes (the server answered) resizes the open panel
+  const offLo = onLiveops(() => queueMicrotask(placeGoals));
   const onKey = (e: KeyboardEvent): void => {
     if (!root.isConnected) {
       disposeHome(root);
@@ -596,15 +610,12 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || leaving) return;
     const t = e.target instanceof HTMLElement ? e.target : null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    if (e.key === 'Escape') {
-      const d = root.querySelector<HTMLDetailsElement>('details[open]');
-      if (d) {
-        d.open = false;
-        d.querySelector('summary')?.focus();
-        e.preventDefault();
-      }
+    if (e.key === 'Escape' && goalsOpen()) {
+      goals?.hideGoals(root, true);
+      e.preventDefault();
       return;
     }
+    if (e.key === 'Escape') return;
     if (overlayOpen() || modeSel) return;
     const onControl = !!t && t !== document.body && t !== root && !!t.closest('button, a, summary, [role="radio"]');
     if (e.key === 'Enter' && !onControl) {
@@ -699,6 +710,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     raf = 0;
     stopMotes();
     modeSel?.close();
+    offLo();
     ac?.abort();
     document.removeEventListener('keydown', onKey);
     patchers.delete(root);
@@ -725,6 +737,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     root.style.setProperty('--hm-el', elColorOf());
     root.dataset.side = sideOf(o);
     const want = regionHtml();
+    const goalsWas = goalsOpen();
     for (let r = 0; r < REGIONS.length; r++) {
       const sel = REGIONS[r]!;
       if (want[sel] === shown[sel]) continue;
@@ -733,8 +746,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       tpl.innerHTML = want[sel].trim();
       const nu = tpl.content.firstElementChild as HTMLElement | null;
       if (nu) {
-        // a popover the player has open stays open; a focused control keeps focus (same data-a)
-        for (const d of old?.querySelectorAll<HTMLDetailsElement>('details[open]') ?? []) nu.querySelector<HTMLDetailsElement>(`details.${d.classList[0]}`)?.setAttribute('open', '');
+        // a focused control keeps focus (same data-a)
         if (modeSel) nu.inert = true;
         const focused = old?.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.a : undefined;
         if (old) old.replaceWith(nu);
@@ -744,7 +756,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
           for (let k = r + 1; k < REGIONS.length && !anchor; k++) anchor = root.querySelector(`:scope > ${REGIONS[k]}`);
           root.insertBefore(nu, anchor ?? root.querySelector(':scope > .hm-toast'));
         }
-        bindDetails(nu);
         if (focused) nu.querySelector<HTMLElement>(`[data-a="${focused}"]`)?.focus({ preventScroll: true });
         if (sel === '.hm-promo') {
           const slides = Array.from(old?.querySelectorAll('.hm-slide') ?? []);
@@ -756,6 +767,8 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       }
     }
     shown = want;
+    // an open Quests panel stays open across a redraw (a quest counted, an event changed)
+    if (goalsWas) goals?.showGoals(root, o, true);
     // the corner's Sound switch follows a mute changed elsewhere (Settings, the host)
     const mute = root.querySelector<HTMLElement>('[data-a="mute"]');
     if (mute && mute.getAttribute('aria-pressed') !== String(!o.muted)) {
