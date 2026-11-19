@@ -10,8 +10,10 @@ export const N = 1800;
 /**
  * Section starts (master frames). Round 2: the VS beat holds 0.8 s, the low point is the real tower fall (1.6 s).
  * Round 3: the payoff is 1.6 s (the burst at full scale, then the cats on the rubble), glory 4.0 s, the end card 3.6 s.
+ * Round 4: glory is a 1.6 s slam (was 4.0 s of a slow card wall); the time goes to the fight (three quick cuts at 0.8 s)
+ * and a 1.2 s shot of the cats actually hitting the dog core under TAKE THEIR CORE.
  */
-export const CUTS = { hook: 0, vs: 72, charge: 120, montage: 192, war: 576, low: 648, eyes: 744, fight: 792, key: 1200, core: 1248, glory: 1344, end: 1584 };
+export const CUTS = { hook: 0, vs: 72, charge: 120, montage: 192, war: 576, low: 648, eyes: 744, fight: 792, key: 1344, core: 1392, glory: 1488, end: 1584 };
 
 /** The montage: take, the champion card's splash key, name, ultimate, side. */
 export const MONTAGE = [
@@ -29,7 +31,7 @@ export const MONTAGE = [
  * Take in-points (take frames) per shot; edit.mjs and the QC read them. Set from the round 2 takes (frame dumps).
  */
 export const IN = {
-  hook: 0, charge: 60, montage: 26, freezeAt: 14, tower: 72, t1: 12, t2: 22, t3: 22, t4: 22, t5: 60, t6: 20, t7: 20, t9: 20, t10: 36, core: 72, cheer: 212,
+  hook: 0, charge: 60, montage: 26, freezeAt: 14, tower: 72, t1: 12, t2: 22, t3: 22, t4: 22, t5: 60, t6: 20, t7: 20, t9: 20, t10: 36, siege: 0, core: 72, cheer: 212,
 };
 
 /**
@@ -55,14 +57,15 @@ export const EDL = [
   { f: 936, len: 48, gp: { take: 't3-brutus', in: IN.t3 } },
   { f: 984, len: 48, gp: { take: 't4-clem', in: IN.t4 } },
   { f: 1032, len: 48, gp: { take: 't5-triple', in: IN.t5 } },
-  { f: 1080, len: 24, gp: { take: 't6-sage', in: IN.t6 } },
-  { f: 1104, len: 24, gp: { take: 't7-gabby', in: IN.t7 } },
-  { f: 1128, len: 24, gp: { take: 't9-bengal', in: IN.t9 } },
-  { f: 1152, len: 48, gp: { take: 't10-wedge', in: IN.t10 }, ov: { mg: 'caption', text: 'TAKE THEIR CORE.', color: '#FF3D9A' } },
-  { f: 1200, len: 48, mg: 'keyart', still: { take: 't10-wedge', at: IN.t10 + 47 } },
-  { f: 1248, len: 48, gp: { take: 'v1-core', in: IN.core }, ov: { mg: 'victory', at: 0 } },
-  { f: 1296, len: 48, gp: { take: 'v1-core', in: IN.cheer, punch: [1.3, 0.56, 0.42] }, ov: { mg: 'victory', at: 48 } },
-  { f: 1344, len: 240, mg: 'glory' },
+  { f: 1080, len: 48, gp: { take: 't6-sage', in: IN.t6 } },
+  { f: 1128, len: 48, gp: { take: 't7-gabby', in: IN.t7 } },
+  { f: 1176, len: 48, gp: { take: 't9-bengal', in: IN.t9 } },
+  { f: 1224, len: 48, gp: { take: 't10-wedge', in: IN.t10 } },
+  { f: 1272, len: 72, gp: { take: 'v1-core', in: IN.siege }, ov: { mg: 'caption', text: 'TAKE THEIR CORE.', color: '#FF3D9A' } },
+  { f: 1344, len: 48, mg: 'keyart', still: { take: 'v1-core', at: IN.siege + 71 } },
+  { f: 1392, len: 48, gp: { take: 'v1-core', in: IN.core }, ov: { mg: 'victory', at: 0 } },
+  { f: 1440, len: 48, gp: { take: 'v1-core', in: IN.cheer, punch: [1.3, 0.56, 0.42] }, ov: { mg: 'victory', at: 48 } },
+  { f: 1488, len: 96, mg: 'glory' },
   { f: 1584, len: 216, mg: 'end' },
 ];
 
@@ -70,18 +73,18 @@ export const EDL = [
 export const HIT = {
   hookInk: 48,
   towerCrack: 692,
-  fightCuts: [792, 864, 936, 984, 1032, 1080, 1104, 1128, 1152],
+  fightCuts: [792, 864, 936, 984, 1032, 1080, 1128, 1176, 1224, 1272],
   triple: 1032,
-  comeback: 1152,
-  coreFalling: 1176,
-  victory: 1272,
+  comeback: 1224,
+  coreFalling: 1290,
+  victory: 1416,
 };
 
 /** Announcer name calls on the montage cuts (every line checked by transcription: Bengal, Gabby, ...). */
 export const VO = { names: ['name_clem', 'name_brutus', 'name_sage', 'name_cacklejaw', 'name_bengas', 'name_marshmallow', 'name_gabe', 'name_howler'] };
 
 /** Near-silent holes before the two biggest hits (the tower's crack, the core burst). */
-export const SILENCE = [[HIT.towerCrack - 6, HIT.towerCrack], [1244, 1248]];
+export const SILENCE = [[HIT.towerCrack - 6, HIT.towerCrack], [1388, 1392]];
 
 /** On-screen words (copy gate): nothing else is set in type. */
-export const COPY = ['CATS', 'DOGS', 'TOPPLE THEIR TOWERS.', ...MONTAGE.flatMap((m) => [m.name, m.ult]), 'PICK A SIDE.', 'NOT OUT.', 'TAKE THEIR CORE.', 'VICTORY!', 'TEAM CAT', 'TEAM DOG', 'CATS VS DOGS. PICK A SIDE.', '5V5 AND 3V3 TEAM BATTLES', 'PLAY FREE IN YOUR BROWSER', 'pawlegends.app'];
+export const COPY = ['CATS', 'DOGS', 'TOPPLE THEIR TOWERS.', ...MONTAGE.flatMap((m) => [m.name, m.ult]), 'PICK A SIDE.', 'HOLD THE LINE.', 'TAKE THEIR CORE.', 'VICTORY!', 'TEAM CAT', 'TEAM DOG', 'CATS VS DOGS. PICK A SIDE.', '5V5 AND 3V3 TEAM BATTLES', 'PLAY FREE IN YOUR BROWSER', 'pawlegends.app'];

@@ -298,7 +298,7 @@ SEG.vs = (f, p) => {
     strokeBolt(bolt, 70 * S() * (1 - t), '#fff', 70, 1 - t);
   }
   strokeBolt(bolt, 12 * S(), C.bolt, 40 * S(), f < 10 ? 0.95 : 0.45 + 0.25 * Math.sin(f * 1.3));
-  flash(f < 3 ? 0.85 - f * 0.28 : f === 12 ? 0.3 : 0);
+  flash(f < 3 ? 0.45 - f * 0.15 : f === 12 ? 0.2 : 0, C.bolt);
   vignette(0.38);
   const sz = (stack ? 200 : 220) * S();
   const o = { per: 1, rise: 6 };
@@ -371,7 +371,7 @@ SEG.war = (f, p) => {
   slamWord('PICK A SIDE.', W / 2, v ? H * 0.5 : H * 0.84, sz * (v ? 0.86 : 1), f - 12, { shadow: C.bolt, per: 1, rise: 6 });
 };
 
-/** NOT OUT.: Clem's eyes narrow, a bolt in each. */
+/** HOLD THE LINE.: Clem's eyes narrow, a bolt in each. */
 SEG.eyes = (f, p) => {
   ctx.fillStyle = C.night;
   ctx.fillRect(0, 0, W, H);
@@ -403,8 +403,8 @@ SEG.eyes = (f, p) => {
   ctx.fillRect(0, cy + bandH / 2, W, 6 * S());
   speedLines(W / 2, cy, 50, 31 + (f >> 2), 0.2 * clamp(1 - f / 30), C.cream, 0.4);
   embers(f, 24, 33, [C.bolt, C.rose], 0.5, 1.5, 0.7);
-  flash(f < 3 ? 0.7 - f * 0.25 : 0);
-  slamWord('NOT OUT.', W / 2, v ? H * 0.78 : H * 0.87, (v ? 150 : 140) * S(), f - 6, { shadow: C.rose, per: 1, rise: 6 });
+  flash(f < 3 ? 0.4 - f * 0.14 : 0, C.bolt);
+  slamWord('HOLD THE LINE.', W / 2, v ? H * 0.78 : H * 0.87, Math.min((v ? 150 : 140) * S(), (W * 0.88 * (v ? 150 : 140) * S()) / (textW('HOLD THE LINE.', (v ? 150 : 140) * S()) + 1)), f - 6, { shadow: C.rose, per: 1, rise: 6 });
 };
 
 /** The last gameplay frame flashes into painted key art of Clem; rays, embers and a push carry it to the burst. */
@@ -438,7 +438,7 @@ SEG.keyart = (f, p) => {
     ctx.restore();
   }
   embers(f, 50, 57, [C.bolt, '#ffb347', C.cream], 0.7, 2.2, 0.9);
-  flash(f >= 4 && f < 10 ? 0.6 * (1 - (f - 4) / 6) : 0, '#fff6d8');
+  flash(f >= 4 && f < 10 ? 0.35 * (1 - (f - 4) / 6) : 0, '#fff6d8');
   // the silence hole: the frame dims over its last 4 frames
   if (f >= p.n - 4) flash(0.35 * ((f - (p.n - 4) + 1) / 4), C.night);
   vignette(0.35);
@@ -511,10 +511,14 @@ SEG.name = (f, p) => {
   const cat = p.side === 'cat';
   const v = H > W, sq = W === H;
   const im = img[`l_${p.hero}`];
-  const inT = outBack(clamp(f / 8), 1.6);
-  const outT = clamp((f - (p.n - 7)) / 6);
+  const inT = outBack(clamp(f / 5), 1.4);
+  const outT = clamp((f - (p.n - 8)) / 5);
+  if (outT >= 1 || f < 0) return;
   const dir = cat ? -1 : 1;
-  const slide = (1 - inT) * W * 0.5 * dir + outT * outT * W * 0.6 * dir;
+  // round 4: a short punch-in (a long slide-in read as a half name on the cut frame, CACKL)
+  const slide = (1 - inT) * W * 0.1 * dir + outT * outT * W * 1.2 * dir;
+  ctx.save();
+  ctx.globalAlpha = clamp(f / 3 + 0.2) * (1 - outT);
   const ch = v ? H * 0.15 : sq ? H * 0.26 : H * 0.3;
   const cw = ch * 0.8;
   const m = v ? W * 0.07 : W * 0.035;
@@ -565,6 +569,7 @@ SEG.name = (f, p) => {
   ctx.restore();
   // the card on top of the band's end
   card(im, cx + slide, cy, ch, p.side, { skew: cat ? -0.08 : 0.08, rot: (1 - inT) * 0.2 * dir });
+  ctx.restore();
 };
 
 /**
@@ -619,7 +624,7 @@ SEG.victory = (f0, p) => {
   const f = f0 + (p.at ?? 0);
   const v = H > W;
   const cx = W / 2, cy = v ? H * 0.46 : H * 0.5;
-  if (f < 3) flash(0.9 - f * 0.3);
+  if (f < 3) flash(0.45 - f * 0.15, C.bolt);
   // shockwave rings
   for (const [d, col, wd] of [[0, C.bolt, 26], [4, C.cream, 12], [8, C.rose, 10]]) {
     const t = clamp((f - d) / 22);
@@ -713,9 +718,14 @@ SEG.glory = (f, p) => {
     ctx.beginPath();
     ctx.rect(sign < 0 ? 0 : W / 2 + W * 0.012, 0, W / 2 - W * 0.012, H);
     ctx.clip();
+    const beat = f % 24, pk = 1 + 0.07 * Math.max(0, 1 - beat / 6) * (side === 'cat' ? 1 : (f % 48) >= 24 ? 1 : 0.4);
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(pk, pk);
+    ctx.translate(-W / 2, -H / 2);
     for (let c = 0; c < cols; c++) {
       const x = sign < 0 ? W / 2 - W * 0.03 - colW * (c + 0.5) : W / 2 + W * 0.03 + colW * (c + 0.5);
-      const speed = (side === 'cat' ? -1 : 1) * (1.6 + c * 0.5) * S() * (v ? 1.3 : 1);
+      // round 4: 1.6 s instead of 4 s, so the wall runs 3x faster and punches on every beat
+      const speed = (side === 'cat' ? -1 : 1) * (1.6 + c * 0.5) * S() * (v ? 1.3 : 1) * 3;
       const off = ((((f * speed + rush * step * 3 * Math.sign(speed) + c * step * 0.5) % step) + step) % step);
       const n = Math.ceil(H / step) + 2;
       for (let k = -1; k < n; k++) {
@@ -737,7 +747,7 @@ SEG.glory = (f, p) => {
   vignette(0.5);
   // team headers
   const hs = (v ? 74 : sq ? 70 : 92) * S();
-  const ht = clamp((f - 8) / 8);
+  const ht = clamp((f - 2) / 4);
   if (ht > 0) {
     const y = v ? H * 0.065 : H * 0.1;
     for (const [txt, x, sh, al] of [['TEAM CAT', v ? W * 0.25 : W * 0.25, C.rose, 'center'], ['TEAM DOG', v ? W * 0.75 : W * 0.75, C.sky, 'center']]) {

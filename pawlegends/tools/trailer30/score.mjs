@@ -224,14 +224,14 @@ for (let f = cLow; f < cEyes; f += BEAT) if (f < SILENCE[0][0] - 4 || f > HIT.to
 }
 voice(HIT.towerCrack + 10, 'ourTurret', 0.95);
 
-// NOT OUT: match strike and a riser into the fight
+// HOLD THE LINE: match strike and a riser into the fight
 matchStrike(cEyes);
 {
   const [L, R] = I.riser(fs(cFight - cEyes), 71);
   music.addStereo(smp(cEyes), L, R, 0.35);
 }
 music.add(smp(cEyes + 6), I.snare(2, 190), 0.4);
-cue(cEyes + 6, 'NOT OUT');
+cue(cEyes + 6, 'HOLD THE LINE');
 
 // the fight: double-time drums, a game hit on every cut
 music.add(smp(cFight), I.crash(5, 2), 0.5);

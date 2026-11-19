@@ -1,6 +1,6 @@
 # Trailer 30 ("The Rivalry", dev only)
 
-A 30 s trailer for Paw Legends: Classic 5v5 gameplay (72 % of the runtime) cut on a 150 BPM grid with short story
+A 30 s trailer for Paw Legends: Classic 5v5 gameplay (71 % of the runtime) cut on a 150 BPM grid with short story
 beats (Gemini key art, comic panels) and motion graphics. Nothing here is part of `build` or `build:client`; outputs
 go to a scratch folder, never the repo.
 
@@ -12,11 +12,12 @@ go to a scratch folder, never the repo.
 | 3.20-9.60 | Eight ultimates, cat / dog alternating: a name call, a halftone freeze and a champion card (comic panel, name, ultimate) on each |
 | 9.60-10.80 | War room panels slide in along the bolt: PICK A SIDE. |
 | 10.80-12.40 | The low point: the cat tower (id 115, seed 36) cracks and topples, 0.55x through the fall |
-| 12.40-13.20 | Clem's eyes, a bolt in each: NOT OUT. |
-| 13.20-20.00 | The comeback (seed 36): river fight, Lambo's landing, Brutus's ring, Clem, the triple, quick cuts, the push: TAKE THEIR CORE. |
-| 20.00-20.80 | The last gameplay frame flashes into painted key art of Clem |
-| 20.80-22.40 | The dog core bursts on the downbeat (0.35x) under VICTORY!, then a cut to the cats on the rubble (VICTORY! drops to the lower third) |
-| 22.40-26.40 | Glory: the champions' comic panels on two conveyors meeting at the bolt (TEAM CAT, TEAM DOG), entering in one whip |
+| 12.40-13.20 | Clem's eyes, a bolt in each: HOLD THE LINE. |
+| 13.20-21.20 | The comeback (seed 36): river fight, Lambo's landing, Brutus's ring, Clem, the triple, three quick ult cuts, the push |
+| 21.20-22.40 | The cats hit the dog core and it cracks: TAKE THEIR CORE. |
+| 22.40-23.20 | The last gameplay frame flashes into painted key art of Clem |
+| 23.20-24.80 | The dog core bursts on the downbeat (0.35x) under VICTORY!, then a cut to the cats on the rubble (VICTORY! drops to the lower third) |
+| 24.80-26.40 | Glory: the champions' comic panels slam in on two fast conveyors meeting at the bolt (TEAM CAT, TEAM DOG), punching on each beat |
 | 26.40-30.00 | A full-height bolt, the v6 logo lands on it, CATS VS DOGS. PICK A SIDE., 5V5 AND 3V3 TEAM BATTLES, PLAY FREE IN YOUR BROWSER · pawlegends.app |
 
 Round 2 (critic fixes): takes are drawn clean (no overhead bars, numbers or banners: `plates: false` in the clip
@@ -32,6 +33,11 @@ read as a font fallback) and the mission plate is wiped by its own text; montage
 centred on the caster; a hue-selective gameplay grade (greens and the floor, not the lane browns); the payoff cut to
 1.6 s; a sound on frame 0 and a heartbeat pulse under the low point; a full-height bolt opens the end card; larger
 end-card type.
+
+Round 4 (critic fixes): the 4 s card wall became a 1.6 s slam and the time went to gameplay (three quick ult cuts at
+0.8 s, and 1.2 s of the cats hitting the core under TAKE THEIR CORE., so the climax has a visible hit); NOT OUT. became
+HOLD THE LINE.; champion plates punch in (a short move, no long slide) and are gone 2 frames before the cut; the cut
+flashes are bolt-yellow and at most 45 % (no near-white frames).
 
 | File | Role |
 |---|---|

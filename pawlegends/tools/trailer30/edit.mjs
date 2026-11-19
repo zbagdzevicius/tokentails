@@ -251,7 +251,7 @@ try {
   // posters (16:9 frames) and the web copy (1080p30, two-pass, ~6 MB)
   const m16 = report.masters['16x9']?.file;
   if (m16) {
-    for (const [name, f] of [['poster', 1700], ['poster-core', 1262], ['poster-vs', 88]]) ff(['-i', m16, '-vf', `select=eq(n\\,${f})`, '-frames:v', '1', '-q:v', '2', join(OUT, `pawlegends-trailer30-${name}.jpg`)]);
+    for (const [name, f] of [['poster', 1700], ['poster-core', 1406], ['poster-vs', 88]]) ff(['-i', m16, '-vf', `select=eq(n\\,${f})`, '-frames:v', '1', '-q:v', '2', join(OUT, `pawlegends-trailer30-${name}.jpg`)]);
     const web = join(OUT, 'pawlegends-trailer30-web.mp4');
     const pass = join(WORK, 'x264pass');
     const v = ['-i', m16, '-vf', 'fps=30', '-c:v', 'libx264', '-preset', 'slow', '-b:v', '1500k', '-maxrate', '3000k', '-bufsize', '6000k', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-passlogfile', pass];
