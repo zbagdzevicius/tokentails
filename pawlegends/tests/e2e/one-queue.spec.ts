@@ -138,8 +138,9 @@ test('Lv 10 in the embed: Ranked and Practice beside PLAY, PLAY is the PvP queue
   await expect(game.locator('[data-testid="home-ranked"]')).toBeVisible({ timeout: limit(20_000) });
   await expect(game.locator('[data-testid="home-practice"]')).toBeVisible();
   await expect(game.locator('[data-testid="home-play"]')).toHaveAttribute('data-queue', 'pvp');
-  await expect(game.locator('.hm-alt')).toHaveCount(2);
-  expect(await game.locator('.hm-alt').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.mode))).toEqual(['ranked', 'practice']);
+  // Party sits in the same cluster, under Ranked and Practice (founder Nov 19)
+  await expect(game.locator('.hm-alt')).toHaveCount(3);
+  expect(await game.locator('.hm-alt').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.mode))).toEqual(['ranked', 'practice', 'party']);
   await shot(page, `${info.project.name}-lv10-home`);
 });
 

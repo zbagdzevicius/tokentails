@@ -376,6 +376,8 @@ html[data-quality='low'] .hm-nav, .pl-home.low .hm-nav { background: rgb(var(--v
   flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: var(--v6-night, #12091f);
   background: var(--v6-grad-gold, linear-gradient(180deg, var(--hm-gold-1), var(--hm-gold-2))); box-shadow: 0 0 0 1.5px var(--hm-ink), inset 0 -2px 0 rgb(var(--v6-night-rgb, 18 9 31) / 0.25);
 }
+.hm-alt[data-mode='party'] .hm-alt-i { background: linear-gradient(180deg, #ffd3e6, var(--v6-cat, #e8336f)); }
+.hm-alt[data-mode='party'] .hm-alt-i svg { width: 22px; height: 22px; }
 .hm-alt[data-mode='practice'] .hm-alt-i { background: linear-gradient(180deg, var(--v6-ice, #d6ecff), var(--v6-sky, #39a6ff)); }
 .hm-alt-i svg { width: 20px; height: 20px; }
 .hm-alt-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

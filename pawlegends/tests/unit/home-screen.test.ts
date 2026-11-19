@@ -126,6 +126,9 @@ describe('home screen: one main queue (MODE-UNLOCKS.md, founder Nov 19)', () => 
     const root = mount(online({ onParty }));
     root.querySelector<HTMLElement>('[data-testid="home-party"]')!.click();
     expect(onParty).toHaveBeenCalledTimes(1);
+    // Party sits in PLAY's cluster, not in the left stack
+    expect(root.querySelector('.hm-playrow [data-testid="home-party"]')).toBeTruthy();
+    expect(root.querySelector('.hm-left [data-testid="home-party"]')).toBeNull();
     document.body.innerHTML = '';
     expect(mount(online({ onParty, firstTime: true })).querySelector('[data-testid="home-party"]')).toBeNull();
   });
@@ -133,7 +136,8 @@ describe('home screen: one main queue (MODE-UNLOCKS.md, founder Nov 19)', () => 
   it('Ranked and Practice show beside PLAY only when the app passes them (Lv 10, Lv 5): never locked, never teased', async () => {
     const onStart = vi.fn();
     const none = mount(online({ onStart, extras: [] }));
-    expect(none.querySelector('[data-testid="home-extras"]')).toBeNull();
+    // Lv 1: the cluster beside PLAY holds Party only (founder Nov 19: Party sits around PLAY)
+    expect(Array.from(none.querySelectorAll<HTMLElement>('.hm-alt')).map((x) => x.dataset.mode).filter((m) => m !== 'party')).toEqual([]);
     expect(none.querySelector('[data-testid="home-ranked"], [data-testid="home-practice"]')).toBeNull();
     document.body.innerHTML = '';
     const lv5 = mount(online({ onStart, extras: ['practice'] }));
@@ -141,7 +145,7 @@ describe('home screen: one main queue (MODE-UNLOCKS.md, founder Nov 19)', () => 
     expect(lv5.querySelector('[data-testid="home-ranked"]')).toBeNull();
     document.body.innerHTML = '';
     const root = mount(online({ onStart, extras: ['ranked', 'practice'] }));
-    const order = Array.from(root.querySelectorAll<HTMLElement>('.hm-alt')).map((b) => b.dataset.mode);
+    const order = Array.from(root.querySelectorAll<HTMLElement>('.hm-alt')).map((b) => b.dataset.mode).filter((m) => m !== 'party');
     expect(order).toEqual(['ranked', 'practice']);
     // inside PLAY's cluster, before PLAY
     expect(root.querySelector('.hm-playrow > .hm-extras + .hm-play')).toBeTruthy();

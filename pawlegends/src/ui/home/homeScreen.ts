@@ -234,10 +234,7 @@ function leftHtml(o: HomeScreenOpts, live: boolean): string {
     : '';
   const events = `<details class="hm-events"><summary class="hm-round${live ? ' live' : ''}" aria-label="Events">${FLAG}<span class="hm-rl">Events</span>${live ? '<i class="hm-dot" aria-hidden="true"></i>' : ''}</summary><div class="hm-pop hm-evlist" role="list">${eventRows(o)}</div></details>`;
   const code = o.onJoinCode ? `<button type="button" class="hm-round hm-code" data-a="joincode" data-testid="join-code" aria-label="Join a party with a code" title="Join a party with a code"><b aria-hidden="true">#</b><span class="hm-rl">Join</span></button>` : '';
-  // one main queue (MODE-UNLOCKS.md): Mode Select's "With Friends" was the way to open a party; it lives here now (a
-  // party lobby with its code and link; its leader queues the 3v3 queue, or Ranked)
-  const party = o.onParty && !o.firstTime && !o.dare ? `<button type="button" class="hm-round" data-a="party" data-testid="home-party" aria-label="Party: play with friends" title="Play with friends">${PEOPLE}<span class="hm-rl">Party</span></button>` : '';
-  return `<div class="hm-left">${events}${today}${party}${code}</div>`;
+  return `<div class="hm-left">${events}${today}${code}</div>`;
 }
 
 /** The Events list (LIVEOPS.md): the live-ops cards (community goal, Winter Nap, fan vote; ui/events), then the Legends
@@ -269,9 +266,9 @@ const DUMMY =
  * The smaller buttons beside PLAY (MODE-UNLOCKS.md, founder Nov 19): Ranked (Lv 10) above Practice (Lv 5), only those
  * this player has. A just-unlocked one carries NEW and pops in once. Ranked shows the player's rank line. Pure.
  */
-export function extrasHtml(o: Pick<HomeScreenOpts, 'extras' | 'reveal' | 'modes'>): string {
+export function extrasHtml(o: Pick<HomeScreenOpts, 'extras' | 'reveal' | 'modes'>, party = false): string {
   const ids = (o.extras ?? []).filter((id) => EXTRA_NAME[id]);
-  if (!ids.length) return '';
+  if (!ids.length && !party) return '';
   const btn = (id: ModeId): string => {
     const name = EXTRA_NAME[id]!;
     const fresh = (o.reveal ?? []).includes(id);
@@ -281,7 +278,11 @@ export function extrasHtml(o: Pick<HomeScreenOpts, 'extras' | 'reveal' | 'modes'
     const ico = id === 'ranked' ? crestSvg('ranked') : DUMMY;
     return `<button type="button" class="hm-alt${fresh ? ' fresh' : ''}" data-a="${id}" data-mode="${id}" data-testid="home-${id}" aria-label="${esc(`${label}${fresh ? '. New' : ''}`)}"><span class="hm-alt-i" aria-hidden="true">${ico}</span><span class="hm-alt-t"><b>${name}</b><small>${esc(sub)}</small></span>${fresh ? '<i class="hm-alt-new" aria-hidden="true">NEW</i>' : ''}</button>`;
   };
-  return `<div class="hm-extras" role="group" aria-label="More ways to play" data-testid="home-extras">${ids.map(btn).join('')}</div>`;
+  // Nov 19 (the founder: "party button ... should be around the play button"): Party sits with the pills beside PLAY
+  const partyBtn = party
+    ? `<button type="button" class="hm-alt" data-a="party" data-mode="party" data-testid="home-party" aria-label="Party: play with friends"><span class="hm-alt-i" aria-hidden="true">${PEOPLE}</span><span class="hm-alt-t"><b>Party</b><small>Play with friends</small></span></button>`
+    : '';
+  return `<div class="hm-extras" role="group" aria-label="More ways to play" data-testid="home-extras">${ids.map(btn).join('')}${partyBtn}</div>`;
 }
 
 function navHtml(o: HomeScreenOpts, returning: boolean): string {
@@ -372,7 +373,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     return `<div class="hm-playc lb-play">
       ${line}
       <div class="hm-playrow">
-        ${returning ? extrasHtml(o) : ''}
+        ${returning ? extrasHtml(o, !!o.onParty && !o.dare) : ''}
         <button type="button" class="pl-btn big hm-play" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'play'}" data-testid="home-play" data-queue="${returning ? mainQueue(avail) : ''}" aria-keyshortcuts="Enter" aria-label="${esc(returning ? 'Play: 3v3 match' : playLabel(o))}">
           <span class="hm-play-glow" aria-hidden="true"></span><span class="hm-play-glow b" aria-hidden="true"></span>
           <span class="hm-play-face" aria-hidden="true">${PAW}<b>${dare ? 'DARE' : 'PLAY'}</b><span class="hm-sheen"></span></span>
