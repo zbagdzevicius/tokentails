@@ -12,7 +12,8 @@
  *   "< Games" button is gone, Nov 12: the founder found it redundant; no exit to the host's games, NO-TOKENTAILS.md);
  * - left edge: Quests (one panel: Today's quests, then the live events), # Join (a party code) and Boards (the
  *   leaderboards window), round buttons;
- * - right edge: the promo rotator (pass season, events, store on the web only);
+ * - right edge: nothing (founder Nov 19: the drop, the season and the events are told once in What's New, the comic
+ *   page of ui/showcase, opened by the app over Home; their own screens stay one tap away in the nav and Quests);
  * - bottom: a glass nav (Heroes, Pass, Store on the web), on the first visit too with the items that need a match
  *   locked. Heroes only browses (skills, lore): it never starts a match;
  * - bottom right: the big round PLAY (the 3v3 main queue) and, once the account reaches their level, the smaller Ranked
@@ -48,17 +49,10 @@ import { crestSvg } from '../modeSelect/crest';
 import { startMotes } from './motes';
 import { HEROES } from '../../data/heroes';
 import { bindEvents, needsTap } from '../events/eventsBind';
-import { dropAction, liveopsState, onLiveops } from '../../meta/liveops';
+import { liveopsState, onLiveops } from '../../meta/liveops';
+import type { GoalsTab } from './goalsPanel';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
-/** Absolute art URL (a relative url() in a custom property would resolve against the CSS chunk); quotes dropped. */
-const absArt = (p: string): string => {
-  try {
-    return new URL(p, document.baseURI).href.replace(/['"()\\]/g, '');
-  } catch {
-    return '';
-  }
-};
 const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 
 /** The profile strip: the account's name (escaped here), the Season XP tier and progress when the server sent them. */
@@ -80,23 +74,11 @@ export interface HomeProfile {
   yarnGuest?: boolean;
 }
 
-/** One promo slide (right edge). `action`: what a tap opens. */
-export interface Promo {
-  id: string;
-  title: string;
-  sub: string;
-  art?: string;
-  action: 'pass' | 'store' | 'heroes' | 'drop';
-  /** gaps6 `drop` only: the coat the slide previews where the store is closed (the apps). */
-  coat?: string;
-}
-
 export interface HomeScreenOpts extends LobbyScreenOpts {
   profile: HomeProfile;
   modes: readonly ModeDef[];
   modeChoice: ModeChoice;
   onModeChoice(c: ModeChoice): void;
-  promos?: readonly Promo[];
   /** Season end ("Ends 5 Jan 2027") for the nav Pass item's label and tooltip; '' when unknown. */
   seasonEnd?: string;
   /** Asset base (import.meta.env.BASE_URL). */
@@ -108,7 +90,7 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   /** Open Practice's map pick as Home opens (Back from Practice's champion select). Other modes: ignored. */
   openAt?: ModeChoice | null;
   /** Practice's map pick opened (analytics `play_open`). */
-  onModesOpen?(from: 'play' | 'key' | 'promo' | 'event' | 'back'): void;
+  onModesOpen?(from: 'play' | 'key' | 'event' | 'back'): void;
   /** The buttons beside PLAY, drawn only once unlocked (MODE-UNLOCKS.md: Ranked at Lv 10, Practice at Lv 5). */
   extras?: readonly ModeId[];
   /** Extras this Home reveals once ("New: Ranked"); `onRevealed` is told when it showed. */
@@ -270,19 +252,6 @@ function leftHtml(o: HomeScreenOpts, live: boolean): string {
   return `<div class="hm-left">${goals}${code}${boards}</div>`;
 }
 
-function promoHtml(o: HomeScreenOpts): string {
-  const ps = (o.promos ?? []).filter((p) => p.action !== 'store' || (o.storeOpen && !o.isApp));
-  if (!ps.length) return '';
-  const slides = ps
-    .map(
-      (p, i) =>
-        `<button type="button" class="hm-slide${i === 0 ? ' on' : ''}" data-a="promo" data-act="${p.action}"${p.coat ? ` data-coat="${esc(p.coat)}" data-testid="promo-drop"` : ''} data-i="${i}" tabindex="${i === 0 ? 0 : -1}" aria-label="${esc(`${p.title}. ${p.sub}`)}"${p.art ? ` style="--art:url('${esc(absArt(p.art))}')"` : ''}><span class="hm-slide-t"><b>${esc(p.title)}</b><small>${esc(p.sub)}</small></span></button>`,
-    )
-    .join('');
-  const dots = ps.length > 1 ? `<span class="hm-dots" aria-hidden="true">${ps.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</span>` : '';
-  return `<div class="hm-promo" role="region" aria-label="News" data-n="${ps.length}">${slides}${dots}</div>`;
-}
-
 const EXTRA_NAME: Readonly<Record<string, string>> = Object.freeze({ ranked: 'Ranked', practice: 'Practice' });
 /** Practice's crest: a training dummy on its post. */
 const DUMMY =
@@ -330,6 +299,13 @@ function navHtml(o: HomeScreenOpts, returning: boolean): string {
   return `<nav class="hm-nav" aria-label="Menu" data-n="${items.length}">${items.join('')}</nav>`;
 }
 
+/** Each Home's Quests opener (What's New's event page opens the Quests panel on a tab). */
+const questOpeners = new WeakMap<HTMLElement, (tab: GoalsTab) => boolean>();
+/** Open the Quests panel of the Home on screen on `tab`; false when this Home has no Quests button. */
+export function openHomeQuests(el: HTMLElement | null | undefined, tab: GoalsTab = 'events'): boolean {
+  return !!el?.isConnected && (questOpeners.get(el)?.(tab) ?? false);
+}
+
 /** Each Home's teardown (document listeners, timers, the motes loop). */
 const teardown = new WeakMap<HTMLElement, () => void>();
 export function disposeHome(el: HTMLElement | null | undefined): void {
@@ -353,7 +329,7 @@ export function patchHome(el: HTMLElement | null | undefined, o: HomeScreenOpts)
 }
 
 /**
- * The entrance animations (bars drop in, the left stack and promo slide, PLAY pops in) run on the first Home of a visit
+ * The entrance animations (bars drop in, the left stack slides, PLAY pops in) run on the first Home of a visit
  * and on the one after a match only. `.hm-still` turns them off (home.css) for every later Home and every patch.
  */
 export const HOME_ENTRANCE = ['hm-drop', 'hm-slide-l', 'hm-slide-r', 'hm-rise', 'hm-rise-c', 'hm-pop-in'] as const;
@@ -362,7 +338,7 @@ export const HOME_ENTRANCE = ['hm-drop', 'hm-slide-l', 'hm-slide-r', 'hm-rise', 
  * The patched regions, in DOM order (the corner, the cards slot, the fx layer and the toast stay put). The release line
  * lives in Settings (s7 ui, founder Nov 15: on a phone it ran under the nav and through a champion).
  */
-const REGIONS = ['.hm-top', '.hm-left', '.hm-promo', '.hm-stage', '.hm-nav', '.hm-playc'] as const;
+const REGIONS = ['.hm-top', '.hm-left', '.hm-stage', '.hm-nav', '.hm-playc'] as const;
 type Region = (typeof REGIONS)[number];
 
 export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: boolean }): HTMLElement {
@@ -422,7 +398,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       ${returning ? currencyHtml(o) : ''}
     </header>`,
       '.hm-left': leftHtml(o, needsTap(liveopsState())),
-      '.hm-promo': returning ? promoHtml(o) : '',
       '.hm-stage': `<div class="hm-stage">${plateHtml()}</div>`,
       '.hm-nav': navHtml(o, returning),
       '.hm-playc': playcHtml(),
@@ -442,7 +417,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     </div>
     ${shown['.hm-left']}
     <div class="hm-slot lb-cards" data-slot="cards"></div>
-    ${shown['.hm-promo']}
     ${shown['.hm-stage']}
     ${shown['.hm-nav']}
     ${shown['.hm-playc']}
@@ -551,15 +525,20 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
   // ------------------------------------------------------- the Quests panel (Today and Events; its own small chunk)
   let goals: typeof import('./goalsPanel') | null = null;
   const goalsOpen = (): boolean => !!root.querySelector('.hm-gp');
-  const openGoals = (quiet = false): void => {
+  const openGoals = (quiet = false, tab?: GoalsTab): void => {
     void import('./goalsPanel')
       .then((m) => {
         goals = m;
-        if (root.isConnected && !leaving) m.showGoals(root, o, quiet);
+        if (root.isConnected && !leaving) m.showGoals(root, o, quiet, tab);
       })
       .catch(() => toast('No connection. Try again.'));
   };
   const closeGoals = (): void => goals?.hideGoals(root);
+  questOpeners.set(root, (tab) => {
+    if (leaving || !root.querySelector('[data-a="goals"]')) return false;
+    openGoals(false, tab);
+    return true;
+  });
   const placeGoals = (): void => {
     if (goalsOpen()) goals?.placeGoals(root);
   };
@@ -607,18 +586,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       o.sound?.('click');
       shake(btn!);
       toast(btn!.dataset.why ?? 'Locked.');
-    } else if (a === 'promo') {
-      const act = btn!.dataset.act;
-      o.sound?.('click');
-      if (act === 'pass') o.onCollection?.();
-      else if (act === 'store') o.onStore?.();
-      else if (act === 'heroes') o.onHeroes?.();
-      // gaps6 the coat drop: the web store's coats (the drop first), else a preview of the drop's lead coat
-      else if (act === 'drop') {
-        const d = dropAction();
-        if (d.store && d.canStore?.()) d.store();
-        else if (btn!.dataset.coat) d.preview?.(btn!.dataset.coat);
-      }
     } else if (a === 'mute') {
       const b = root.querySelector<HTMLElement>('[data-a="mute"]');
       if (!b) return;
@@ -672,40 +639,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
   if (ac) document.addEventListener('keydown', onKey, { signal: ac.signal });
   else document.addEventListener('keydown', onKey);
 
-  // the promo rotator: a 5 s crossfade (paused while hovered or focused; still on Low or reduced motion)
-  let promoTimer: ReturnType<typeof setInterval> | null = null;
-  const startPromo = (at = 0): void => {
-    if (promoTimer) clearInterval(promoTimer);
-    promoTimer = null;
-    const promo = root.querySelector<HTMLElement>('.hm-promo');
-    const slides = promo ? Array.from(promo.querySelectorAll<HTMLElement>('.hm-slide')) : [];
-    if (slides.length < 2 || low || reduced) return;
-    // a patched promo keeps the slide it was showing (no jump back to the first)
-    let i = at % slides.length;
-    if (i) {
-      slides.forEach((s, j) => {
-        s.classList.toggle('on', j === i);
-        s.tabIndex = j === i ? 0 : -1;
-      });
-      promo!.querySelectorAll('.hm-dots i').forEach((d, j) => d.classList.toggle('on', j === i));
-    }
-    let hold = false;
-    promo!.addEventListener('pointerenter', () => (hold = true));
-    promo!.addEventListener('pointerleave', () => (hold = false));
-    promo!.addEventListener('focusin', () => (hold = true));
-    promo!.addEventListener('focusout', () => (hold = false));
-    promoTimer = setInterval(() => {
-      if (hold || document.hidden) return;
-      i = (i + 1) % slides.length;
-      slides.forEach((s, j) => {
-        s.classList.toggle('on', j === i);
-        s.tabIndex = j === i ? 0 : -1;
-      });
-      promo!.querySelectorAll('.hm-dots i').forEach((d, j) => d.classList.toggle('on', j === i));
-    }, 5000);
-  };
-  startPromo();
-
   // parallax (pointer): the motes ±18 px and the light ±10 px, lerped at 0.08 on the menu's 30 fps budget
   let raf = 0;
   let stopMotes: () => void = () => undefined;
@@ -744,7 +677,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
 
   teardown.set(root, () => {
     if (toastTimer) clearTimeout(toastTimer);
-    if (promoTimer) clearInterval(promoTimer);
     cancelAnimationFrame(raf);
     raf = 0;
     stopMotes();
@@ -753,6 +685,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     ac?.abort();
     document.removeEventListener('keydown', onKey);
     patchers.delete(root);
+    questOpeners.delete(root);
   });
   parent.appendChild(root);
   if (o.notice) toast(o.notice);
@@ -796,14 +729,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
           root.insertBefore(nu, anchor ?? root.querySelector(':scope > .hm-toast'));
         }
         if (focused) nu.querySelector<HTMLElement>(`[data-a="${focused}"]`)?.focus({ preventScroll: true });
-        if (sel === '.hm-promo') {
-          const slides = Array.from(old?.querySelectorAll('.hm-slide') ?? []);
-          startPromo(Math.max(0, slides.findIndex((x) => x.classList.contains('on'))));
-        }
-      } else {
-        old?.remove();
-        if (sel === '.hm-promo') startPromo();
-      }
+      } else old?.remove();
     }
     shown = want;
     // an open Quests panel stays open across a redraw (a quest counted, an event changed)

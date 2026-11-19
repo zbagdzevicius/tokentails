@@ -101,6 +101,15 @@ export type AnalyticsEvent =
   | 'settings_change'
   /** The leaderboards opened in one tap (`source`: home, the chip under the promo). */
   | 'leaderboard_open'
+  /**
+   * What's New (meta/showcase.ts, founder Nov 19): the comic pages opened (`pages`, `first`, `first_type`), a page shown
+   * (`id`, `type`, `page`), its button (`id`, `type`, `target`), closed without it (`how`: close, esc, outside, done).
+   * Item ids and types only, never a player field.
+   */
+  | 'showcase_open'
+  | 'showcase_page'
+  | 'showcase_cta'
+  | 'showcase_dismiss'
   /** Party play (docs/plans/moba/MULTIPLAYER.md §10): never a party code or room id in any prop. */
   | MpEvent;
 

@@ -55,6 +55,8 @@ export const SYNCED_KEYS: readonly string[] = Object.freeze([
   // (short comma lists; the unlocks themselves ride `unlocks` as `mode.<id>`)
   'pawlegends.modes.new',
   'pawlegends.modes.seen',
+  // What's New (meta/showcase.ts): the short hashes of the newest pages seen, so another device skips them too
+  'pawlegends.showcase.seen',
 ]);
 
 /** Profile choices that follow the account (never counters: those merge by max in `counts`). */

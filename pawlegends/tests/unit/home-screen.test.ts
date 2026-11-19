@@ -248,16 +248,21 @@ describe('home screen: one main queue (MODE-UNLOCKS.md, founder Nov 19)', () => 
     expect(mount(base()).querySelector('[data-a="heroes"]')).toBeNull();
   });
 
-  it('the app build never shows the Store or a store promo; the web does when the store is open', () => {
-    const promos = [{ id: 's', title: 'Store', sub: 'New coats', action: 'store' as const }, { id: 'p', title: 'Pass', sub: 'Season', action: 'pass' as const }];
-    let root = mount(base({ storeOpen: true, isApp: true, promos, onStore: vi.fn() }));
+  it('the app build never shows the Store; the web does when the store is open', () => {
+    let root = mount(base({ storeOpen: true, isApp: true, onStore: vi.fn() }));
     expect(root.querySelector('[data-a="store"]')).toBeNull();
-    expect(root.querySelector('[data-act="store"]')).toBeNull();
     expect(root.textContent).not.toMatch(/\$|€|price|buy/i);
     document.body.innerHTML = '';
-    root = mount(base({ storeOpen: true, promos, onStore: vi.fn() }));
+    root = mount(base({ storeOpen: true, onStore: vi.fn() }));
     expect(root.querySelector('[data-a="store"]')).toBeTruthy();
-    expect(root.querySelector('[data-act="store"]')).toBeTruthy();
+  });
+
+  it('no promo card on the right edge (founder Nov 19: What\'s New tells the news once)', () => {
+    const root = mount(base({ storeOpen: true, onStore: vi.fn(), onCollection: vi.fn() }));
+    expect(root.querySelector('.hm-promo, .hm-slide, [data-a="promo"]')).toBeNull();
+    // the owning screens stay one tap away in the nav
+    expect(root.querySelector('.hm-nav [data-a="store"]')).toBeTruthy();
+    expect(root.querySelector('.hm-nav [data-a="collection"]')).toBeTruthy();
   });
 
   it('escapes host names (profile, champion, title)', () => {
@@ -485,10 +490,9 @@ describe('Quests panel (Today and Events in one place)', () => {
 });
 
 describe('Home Boards (founder Nov 19: under # Join, the leaderboards window)', () => {
-  const promos = [{ id: 'drop', title: 'November drop', sub: 'New coats', action: 'pass' as const }];
-  it('sits in the left stack right under Join and opens the Boards in one tap; no Leaderboard pill by the promo', () => {
+  it('sits in the left stack right under Join and opens the Boards in one tap; no Leaderboard pill on the right', () => {
     const onBoards = vi.fn();
-    const root = mount(base({ promos, onBoards, onJoinCode: vi.fn() }));
+    const root = mount(base({ onBoards, onJoinCode: vi.fn() }));
     const btn = root.querySelector<HTMLElement>('[data-testid="home-boards"]')!;
     expect(btn.textContent).toBe('Boards');
     expect(btn.getAttribute('aria-label')).toBe('Leaderboards');
@@ -500,15 +504,15 @@ describe('Home Boards (founder Nov 19: under # Join, the leaderboards window)', 
   });
 
   it('hidden in the first guided match, a dare, and where the host has no social (no onBoards)', () => {
-    expect(mount(base({ firstTime: true, promos, onBoards: vi.fn() })).querySelector('[data-testid="home-boards"]')).toBeNull();
+    expect(mount(base({ firstTime: true, onBoards: vi.fn() })).querySelector('[data-testid="home-boards"]')).toBeNull();
     document.body.innerHTML = '';
-    expect(mount(base({ promos })).querySelector('[data-testid="home-boards"]')).toBeNull();
+    expect(mount(base()).querySelector('[data-testid="home-boards"]')).toBeNull();
   });
 
   it('a patched Home keeps one Boards button', () => {
     const onBoards = vi.fn();
-    const root = mount(base({ promos, onBoards }));
-    expect(patchHome(root, base({ promos: [], onBoards }))).toBe(true);
+    const root = mount(base({ onBoards }));
+    expect(patchHome(root, base({ onBoards, muted: true }))).toBe(true);
     expect(root.querySelectorAll('[data-testid="home-boards"]')).toHaveLength(1);
   });
 });

@@ -106,7 +106,7 @@ describe('identity hand-off (embedded)', () => {
 
   it('the host relays the funnel events the game sends', () => {
     const host = readFileSync(resolve(__dirname, '../../../pawlegends-web/analytics/pawlegends-events.ts'), 'utf8');
-    for (const e of ['title_view', 'play_open', 'play_start', 'practice_try', 'match_start', 'match_end', 'second_match', 'mode_unlock', 'champ_unlock', 'store_open', 'checkout_start', 'store_item_granted', 'party_share', 'party_invite', 'chat_open', 'settings_change'])
+    for (const e of ['title_view', 'play_open', 'play_start', 'practice_try', 'match_start', 'match_end', 'second_match', 'mode_unlock', 'champ_unlock', 'store_open', 'checkout_start', 'store_item_granted', 'party_share', 'party_invite', 'chat_open', 'settings_change', 'showcase_open', 'showcase_page', 'showcase_cta', 'showcase_dismiss'])
       expect(host).toContain(`"${e}"`);
   });
 });

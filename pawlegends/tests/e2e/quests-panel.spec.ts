@@ -180,7 +180,7 @@ for (const size of SIZES) {
         expect(box.y).toBeGreaterThanOrEqual(0);
         expect(box.x + box.width).toBeLessThanOrEqual(vp.width + 1);
         expect(box.y + box.height).toBeLessThanOrEqual(vp.height + 1);
-        for (const sel of ['.hm-profile', '.hm-nav', '.hm-promo', '.hm-play', '.hm-extras', ...(size.phone ? [] : ['.hm-plate'])]) {
+        for (const sel of ['.hm-profile', '.hm-nav', '.hm-play', '.hm-extras', ...(size.phone ? [] : ['.hm-plate'])]) {
           const b = await game.locator(sel).first().boundingBox();
           if (b && b.width && b.height) expect(meets(box, b), `${size.name} ${s}: panel over ${sel}`).toBe(false);
         }

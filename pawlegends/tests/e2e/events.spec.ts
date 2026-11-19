@@ -6,7 +6,7 @@ import { limit } from '../unit/cpu-budget';
  * Live ops (docs/plans/moba/LIVEOPS.md): a returning player opens Quests on Home and, under Today's quests, sees the
  * Events section: the community goal's shared bar, Winter Nap's dates and the fan vote; a vote goes through the host as
  * `api-request{op: 'liveops.vote'}` and the card turns into the shares, the panel staying open. A reached goal is
- * claimed with one tap. The panel fits the screen and covers neither the profile, the nav, the promo nor PLAY (desktop
+ * claimed with one tap. The panel fits the screen and covers neither the profile, the nav nor PLAY (desktop
  * and a landscape phone).
  */
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop' && info.project.name !== 'landscape', 'desktop and landscape only'));
@@ -113,7 +113,7 @@ test('Events: the community goal bar, Winter Nap dates and a fan vote through th
   const vp = page.viewportSize()!;
   expect(panel.y + panel.height).toBeLessThanOrEqual(vp.height + 1);
   expect(panel.x + panel.width).toBeLessThanOrEqual(vp.width + 1);
-  for (const sel of ['.hm-profile', '.hm-nav', '.hm-promo', '.hm-play', '.hm-extras']) {
+  for (const sel of ['.hm-profile', '.hm-nav', '.hm-play', '.hm-extras']) {
     const b = await game.locator(sel).first().boundingBox();
     if (b) expect(meets(panel, b), sel).toBe(false);
   }
@@ -154,9 +154,10 @@ test('Events: a reached goal is claimed with one tap and the coat is kept', asyn
 });
 
 /*
- * gaps6 the monthly coat drop (LIVEOPS.md "Coat drop"): Home's promo rotator leads with the drop ("3 new coats · new
- * for 12d"); on the web its tap opens the store's coats with the drop first, ribboned "New drop"; in the app (no store)
- * it previews the lead coat in Heroes → Coats (the Chairman's Evolve clip). Screenshots go to
+ * gaps6 the monthly coat drop (LIVEOPS.md "Coat drop"): What's New (founder Nov 19; it replaced Home's promo rotator) leads
+ * with the drop's page ("3 new coats", "Ends in 12d"); on the web its button opens the store's coats with the drop
+ * first, ribboned "New drop"; in the app (no store) it previews the lead coat in Heroes → Coats (the Chairman's Evolve
+ * clip). Screenshots go to
  * ~/Downloads/paw-legends/gaps6/ranked-coats/ when that folder exists (never in CI).
  */
 const drop = {
@@ -168,8 +169,10 @@ const drop = {
   next: null,
 };
 for (const isApp of [false, true])
-  test(`Coat drop: Home's slide ${isApp ? 'previews the Mythic in the app' : 'opens the store with the drop first'}`, async ({ context, page, baseURL }, info) => {
+  test(`Coat drop: What's New's drop page ${isApp ? 'previews the Mythic in the app' : 'opens the store with the drop first'}`, async ({ context, page, baseURL }, info) => {
     test.setTimeout(limit(240_000));
+    // the e2e build shows What's New only when a spec asks for it
+    await context.addInitScript(() => void ((window as unknown as { __plShowcase: boolean }).__plShowcase = true));
     await mockHost(context, baseURL!, {
       app: { isApp, store: !isApp },
       signedIn: true,
@@ -182,10 +185,12 @@ for (const isApp of [false, true])
       },
     });
     const game = await openHost(page);
-    const slide = game.locator('[data-testid="promo-drop"]');
+    const slide = game.locator('[data-testid="showcase"] .sc-page[data-type="store-drop"]');
     await expect(slide).toBeVisible({ timeout: limit(60_000) });
-    await expect(slide).toContainText('November Drop');
-    await expect(slide).toContainText(/3 new coats · new for 1[12]d/);
+    await expect(slide.locator('.sc-title')).toHaveText('November Drop');
+    await expect(slide.locator('.sc-bubble')).toContainText('3 new coats');
+    await expect(slide.locator('[data-testid="showcase-time"]')).toHaveText(/Ends in 1[12]d/);
+    await expect(slide.locator('[data-testid="showcase-cta"]')).toHaveText(isApp ? 'Try it on' : 'See the coats');
     const os = await import('node:os');
     const path = await import('node:path');
     const fs = await import('node:fs');
@@ -193,7 +198,7 @@ for (const isApp of [false, true])
     const shots = fs.existsSync(dir) && !process.env.CI;
     const tag = `${info.project.name}${isApp ? '-app' : ''}`;
     if (shots) await page.screenshot({ path: `${dir}/${tag}-drop-home.png` });
-    await slide.click();
+    await slide.locator('[data-testid="showcase-cta"]').click();
     if (isApp) {
       const dlg = game.locator('.pl-champ[data-ready="1"]');
       await expect(dlg).toBeVisible({ timeout: limit(30_000) });

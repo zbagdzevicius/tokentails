@@ -62,7 +62,7 @@ const NDC_BOTTOM = -0.92;
 const REACH_K = 1.2;
 
 /** The Home HUD the poster's champion keeps clear of (the overlap audit's Home keys). */
-const HOME_HUD = ['.hm-profile', '.hm-cur', '.hm-corner', '.hm-left', '.hm-slot > *', '.hm-promo', '.hm-plate', '.hm-nav', '.hm-play', '.hm-line', '.lb-peek', '.lb-ver']
+const HOME_HUD = ['.hm-profile', '.hm-cur', '.hm-corner', '.hm-left', '.hm-slot > *', '.hm-plate', '.hm-nav', '.hm-play', '.hm-line', '.lb-peek', '.lb-ver']
   .map((k) => `.pl-home ${k}`)
   .join(', ');
 

@@ -87,6 +87,11 @@ export const PAWLEGENDS_GAME_EVENTS = [
   "settings_change",
   // the leaderboards opened in one tap (`source`: home, the chip under the promo)
   "leaderboard_open",
+  // What's New (the comic pages that tell a drop, a season or an event once): opened, a page shown, its button, closed
+  "showcase_open",
+  "showcase_page",
+  "showcase_cta",
+  "showcase_dismiss",
   "party_invite",
   "rematch_click",
   "talent_pick",

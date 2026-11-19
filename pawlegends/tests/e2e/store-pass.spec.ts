@@ -30,28 +30,9 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   });
   const game = await openHost(page);
 
-  // every Home promo slide has its picture (the Store slide was a bare gradient), and each one loads
-  const slides = game.locator('.hm-slide');
-  // 3 slides, plus Boss Weekend's first while it runs (Friday to Monday UTC, from the live-ops config), plus the
-  // monthly coat drop's while a drop is live (the baked calendar: November 15 to December 1)
-  await expect.poll(() => slides.count()).toBeGreaterThanOrEqual(3);
-  const boss = await game.locator('.hm-slide[data-mode="boss"]').count();
-  const drop = await game.locator('.hm-slide[data-testid="promo-drop"]').count();
-  await expect(slides).toHaveCount(3 + boss + drop);
-  const arts = await slides.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.getPropertyValue('--art')));
-  expect(arts.every((a) => /url\(.+\.webp/.test(a))).toBe(true);
-  expect(arts.some((a) => a.includes('promo-store'))).toBe(true);
-  for (const a of arts) {
-    const url = /url\('?([^')]+)'?\)/.exec(a)![1];
-    // the coat drop's slide shows the coat's painted store art, which lives on the art origin (ui/art.ts artRoot), not
-    // in the build: the mock host blocks the live site, so that one is only checked for its address
-    if (/\/pawlegends-art\/skins\//.test(url)) {
-      expect(url).toMatch(/\/pawlegends-art\/skins\/coat\.[a-z0-9._]+-360\.webp/);
-      continue;
-    }
-    // fetched from inside the game frame, so the host mock's routes serve it (never the live site)
-    expect(await game.evaluate(async (u) => (await fetch(u)).status, url), url).toBe(200);
-  }
+  // Home's promo card is gone (founder Nov 19: What's New tells the news once); the Store keeps its nav item
+  await expect(game.locator('.hm-nav [data-a="store"]')).toBeVisible({ timeout: limit(60_000) });
+  await expect(game.locator('.hm-promo')).toHaveCount(0);
 
   // browse: the rail's Store opens one screen with tabs; only the grid scrolls
   await game.locator('.hm-nav [data-a="store"]').click();

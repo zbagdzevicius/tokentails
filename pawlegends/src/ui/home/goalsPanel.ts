@@ -173,7 +173,7 @@ export function topBelowPlate(y0: number, y1: number, x0: number, x1: number, pl
 
 /**
  * Place the open panel in the free space right of the left stack: under the profile chip, left of the PLAY cluster and
- * the promo, above the nav where they share columns, and under the champion nameplate where there is height for it
+ * the right edge, above the nav where they share columns, and under the champion nameplate where there is height for it
  * (no overlap at any size; it scrolls inside itself when short).
  */
 export function placeGoals(root: HTMLElement): void {
@@ -192,7 +192,7 @@ export function placeGoals(root: HTMLElement): void {
   let y0 = Math.max(L.top, (box('.hm-profile')?.bottom ?? R.top) + 8);
   let x1 = R.right - gap;
   let y1 = R.bottom - gap;
-  for (const sel of ['.hm-extras', '.hm-play', '.hm-line', '.hm-promo']) {
+  for (const sel of ['.hm-extras', '.hm-play', '.hm-line', '.hm-lb']) {
     const b = box(sel);
     if (b && b.left > x0 && b.bottom > y0) x1 = Math.min(x1, b.left - gap);
   }
@@ -236,7 +236,7 @@ function setTab(panel: HTMLElement, tab: GoalsTab, focus = false): void {
  * Open the panel, or redraw the open one with new options (`quiet`: a Home patch; the tab, the scroll and a focused
  * close button stay, no refresh, no focus move, and no fade-in: a replayed fade once left the panel at opacity 0).
  */
-export function showGoals(root: HTMLElement, o: Pick<HomeScreenOpts, 'quests' | 'todayExtra'>, quiet = false): void {
+export function showGoals(root: HTMLElement, o: Pick<HomeScreenOpts, 'quests' | 'todayExtra'>, quiet = false, at?: GoalsTab): void {
   const left = root.querySelector<HTMLElement>('.hm-left');
   const btn = root.querySelector<HTMLElement>('[data-a="goals"]');
   if (!left || !btn) return;
@@ -244,7 +244,8 @@ export function showGoals(root: HTMLElement, o: Pick<HomeScreenOpts, 'quests' | 
   const scroll = old?.querySelector('.hm-gp-body')?.scrollTop ?? 0;
   const hadFocus = !!old?.contains(document.activeElement);
   // an event that needs a tap (the button's rose dot) is what the player came for: a narrow panel opens on Events
-  const tab: GoalsTab = old ? (old.dataset.tab === 'events' ? 'events' : 'today') : !quiet && btn.classList.contains('live') ? 'events' : 'today';
+  // `at`: What's New's event page asks for a tab
+  const tab: GoalsTab = at ?? (old ? (old.dataset.tab === 'events' ? 'events' : 'today') : !quiet && btn.classList.contains('live') ? 'events' : 'today');
   const tpl = document.createElement('template');
   tpl.innerHTML = goalsPanelHtml(o, tab).trim();
   const panel = tpl.content.firstElementChild as HTMLElement;

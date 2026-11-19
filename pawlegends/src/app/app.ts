@@ -36,7 +36,8 @@ import { PAID_COATS, bestFrame, coatDyes, coatPalette, hasChromas, lookItems, lo
 import { chromaDef, chromasEarned } from '../render/skins/coatChromas';
 import { ArtStage } from '../ui/stage/artStage';
 import { Lobby } from '../render/lobby';
-import { heroSplashUrl, onSkinArt, skinArtUrl, splashFor } from '../ui/art';
+import { artRoot, heroFaceUrl, heroSplashUrl, onSkinArt, skinArtUrl, splashFor } from '../ui/art';
+import { SKIN_ART_IDS } from '../ui/art/skinArt.gen';
 import { loadHistory, newEntryId, noteSave, recordMoment, reelOf, replayOf, replayState, saveReel, soloRecord, statsLine, type HistoryEntry, type LocalBoard, type RowSave, type StoredReplay } from '../replay/store';
 import { boardOf } from '../replay/board';
 
@@ -74,10 +75,11 @@ import type { Choice } from '../ui/screens';
 /** gaps5 polish 8: the champion select, the results and the pause menu are one lazy chunk (ui/screens.ts). */
 type ScreensMod = typeof import('../ui/screens');
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
-import { botsChoice, disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
+import { botsChoice, disposeHome, homeScreen, openHomeQuests, patchHome, type HomeProfile, type HomeScreenOpts } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
 import { levelInfo } from '../meta/accountLevel';
-import { dropLine, initLiveops, liveopsState, setDropAction } from '../meta/liveops';
+import { initLiveops, liveopsState, setDropAction } from '../meta/liveops';
+import { loadSeen, markSeen, queueFor, saveSeen, showcaseFeed, isSeen, type ShowcaseItem, type ShowcaseTarget } from '../meta/showcase';
 import { countdownText, legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef, type ModeId } from '../ui/modeSelect/modes';
 import { isUnlocked, loadModeLocal, lockLine, MAIN_MODE, menuExtras, newlyUnlocked, notePlayed, RANKED_PLAYED, saveModeLocal, unseenFresh } from '../ui/modeSelect/unlocks';
 import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard, type RankedKind } from '../meta/ranked';
@@ -103,7 +105,6 @@ import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
 import { flagHidden, hasMatchFlags, matchFlag, myCountry, refreshMyFlag, setFlagHidden } from '../social/flags';
 import { loadMastery } from '../meta/mastery';
-import { assetRev } from '../ui/assetRev';
 import { RewardsCloud, todayExtraHtml } from '../ui/rewards/rewards';
 
 type Screen = 'title' | 'pick' | 'match' | 'results';
@@ -886,6 +887,13 @@ export class App {
     // force update: an outdated build reloads on the title only (never in a pick, a match or on results)
     if (s === 'title') this.updates.onTitle();
     else this.updates.offTitle();
+    // What's New lives on Home only: another screen closes it (its unseen pages wait for the next Home)
+    if (s !== 'title') {
+      this.showcase?.close('away');
+      this.showcase = null;
+      if (this.showcaseTimer) clearTimeout(this.showcaseTimer);
+      this.showcaseTimer = null;
+    } else if (this.showcase && el) el.inert = true;
     // the notifications card belongs to the results it came with
     if (s !== 'results') {
       this.pushAskEl?.close();
@@ -1123,7 +1131,7 @@ export class App {
     // lobby spec §3a: the redesigned lobby (ui/lobby), named after the hero
     const hero = this.dare?.hero ?? this.choice.hero;
     const identity: LobbyIdentity = heroIdentity(hero, heroElement(hero));
-    // Home's profile strip, season and promos (HOME-MODES.md §4): only numbers the server or this device has
+    // Home's profile strip and season (HOME-MODES.md §4): only numbers the server or this device has
     const season = s.season;
     const def = season ? currentSeason() : null;
     const profile: HomeProfile = {
@@ -1141,22 +1149,6 @@ export class App {
     };
     const ends = season ? seasonEndText(season.endsAt) : '';
     const base = import.meta.env.BASE_URL ?? './';
-    // gaps6 the monthly coat drop leads the rotator while its coats are new (the countdown in its line)
-    const drop = liveopsState().config.drop;
-    const dropNow = !!drop && Date.now() >= drop.startsAt && Date.now() < drop.endsAt;
-    const promos: Promo[] = [
-      ...(dropNow && drop
-        ? [{ id: 'drop', title: drop.name.replace(/:.*$/, ''), sub: dropLine(drop, Date.now(), countdownText), art: skinArtUrl(drop.coats[0], 360), action: 'drop' as const, coat: drop.coats[0] }]
-        : []),
-      ...(p.matches > 0
-        ? [
-            season
-              ? { id: 'pass', title: 'Legends Pass', sub: `Tier ${season.tier}${ends ? ` · ends ${ends}` : ''}`, art: `${base}assets/lobby/promo-pass.webp${assetRev()}`, action: 'pass' as const }
-              : { id: 'track', title: 'Treat Track', sub: 'Free rewards for playing', art: `${base}assets/lobby/promo-pass.webp${assetRev()}`, action: 'pass' as const },
-          ]
-        : []),
-      { id: 'store', title: 'Store', sub: 'Champions, coats and frames', art: `${base}assets/lobby/promo-store${this.tier === 'low' ? '-lo' : ''}.webp${assetRev()}`, action: 'store' },
-    ];
     // live ops (LIVEOPS.md): Events reads the server through the host; the featured mode registers before modeList
     initLiveops((op, args) => this.integration.api(op, args), () => loadProfile().matches > 0, () => this.screen === 'title' && this.refreshMeta(false));
     // FLAGS.md: the player's own country (twice a day at most; the backend keeps only the ISO code)
@@ -1219,7 +1211,6 @@ export class App {
       onHeroes: () => this.openHeroBrowser(),
       // the Yarn chip (founder Nov 17): the store's Champions (Unlock · N Yarn); apps, which open no store: Heroes
       onYarn: () => (s.storeOpen && !this.isApp() ? this.openStore('lobby', 'champions') : this.openHeroBrowser()),
-      promos,
       seasonEnd: ends ? `Ends ${ends}` : '',
       base,
       firstTime: p.matches === 0,
@@ -1328,6 +1319,117 @@ export class App {
     if (first) this.analytics.track('title_view', { first_time: p.matches === 0, dare: !!this.dare });
     if (offer) this.maybeOffer('lobby');
     this.maybeConsent();
+    this.maybeShowcase();
+  }
+
+  // ------------------------------------------------------------------------------------ What's New (showcase)
+  /** The open What's New page (ui/showcase), and whether this page load already tried one. */
+  private showcase: { close(how?: 'away'): void } | null = null;
+  private showcaseTried = false;
+  private showcaseTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Something else holds the screen: a panel, a card, a prompt, the loading veil, a modal. */
+  private screenBusy(): boolean {
+    return (
+      !!this.overlay ||
+      !!this.offerEl ||
+      !!this.consentEl ||
+      !!this.pushAskEl ||
+      !!document.querySelector('[aria-modal="true"], .pl-menu, .pl-store, .pl-pass, .plc-meet, .pl-offer, .rw-scrim, .hm-gp, .ms-overlay, .pl-champ, .pl-loading:not(.out)')
+    );
+  }
+
+  /**
+   * What's New (founder Nov 19): the news that used to rotate on Home's promo card is told once, as comic pages over
+   * Home. Only on a Home after the first guided match (never a first visit, a dare, a match or onboarding), never over
+   * another modal (it waits for a calm Home, then gives up until the next Home), once a page load. Each page shown is
+   * marked seen (meta/showcase.ts: this device and the account), so the next opening shows only what is new since.
+   */
+  private maybeShowcase(): void {
+    if (this.showcase || this.showcaseTried || this.showcaseTimer) return;
+    if (loadProfile().matches < 1 || this.dare) return;
+    // e2e: the older specs drive Home without this page in the way; a spec that wants it sets window.__plShowcase
+    if (typeof navigator !== 'undefined' && navigator.webdriver && !(window as unknown as { __plShowcase?: boolean }).__plShowcase) return;
+    let tries = 0;
+    const go = (): void => {
+      this.showcaseTimer = null;
+      if (this.screen !== 'title' || !this.screenEl || this.dare || this.showcase) return;
+      // a prompt or panel came first: wait for it (up to ~30 s), else the next Home tries again; the live-ops answer
+      // (this month's drop, the event dates) is worth a few seconds' wait too, then the baked calendar speaks
+      if (this.screenBusy() || (!liveopsState().config.live && tries < 4)) {
+        if (++tries < 20) this.showcaseTimer = setTimeout(go, 1500);
+        return;
+      }
+      const queue = this.showcaseQueue();
+      if (!queue.length) return;
+      this.showcaseTried = true;
+      void import('../ui/showcase/showcaseModal')
+        .then(({ openShowcase }) => {
+          if (this.screen !== 'title' || this.screenBusy() || this.showcase) {
+            this.showcaseTried = false;
+            return;
+          }
+          this.openShowcasePages(openShowcase, queue);
+        })
+        .catch(() => {
+          this.showcaseTried = false;
+        });
+    };
+    this.showcaseTimer = setTimeout(go, 900);
+  }
+
+  /** The pages for this opening (meta/showcase.ts: live, unseen, by priority, at most 4). */
+  private showcaseQueue(): ShowcaseItem[] {
+    const s = this.ent.snapshot();
+    const now = Date.now();
+    const lo = liveopsState().config;
+    const short = typeof innerHeight === 'number' && innerHeight <= 400;
+    const ctx = { now, isApp: this.isApp(), storeOpen: s.storeOpen, drop: lo.drop, nap: lo.nap, artRoot: artRoot(), lowTier: this.tier === 'low' || short };
+    const thingArt = (item: string, hero: string | null): string | undefined =>
+      SKIN_ART_IDS.has(item) ? skinArtUrl(item, 256) : hero && HERO_IDS.includes(hero as HeroId) ? heroFaceUrl(hero as HeroId) : undefined;
+    const seen = loadSeen();
+    return queueFor(showcaseFeed({ ...ctx, thingArt }), (id) => isSeen(seen, id), now, ctx);
+  }
+
+  private openShowcasePages(open: typeof import('../ui/showcase/showcaseModal').openShowcase, items: ShowcaseItem[]): void {
+    const home = this.screenEl;
+    if (!home) return;
+    // Home behind the page leaves the tab order and the accessibility tree
+    home.inert = true;
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.analytics.track('showcase_open', { pages: items.length, first: items[0]!.id, first_type: items[0]!.type });
+    const h = open(this.root, {
+      items,
+      now: () => Date.now(),
+      countdown: countdownText,
+      reduced,
+      low: this.tier === 'low',
+      sound: (n) => sfx.play(n),
+      onPage: (x, i) => {
+        saveSeen(markSeen(loadSeen(), [x], Date.now()));
+        this.analytics.track('showcase_page', { id: x.id, type: x.type, page: i + 1, pages: items.length });
+      },
+      onCta: (x) => {
+        this.analytics.track('showcase_cta', { id: x.id, type: x.type, target: x.cta.target.screen });
+        this.showcaseGo(x.cta.target);
+      },
+      onClose: (how, i) => {
+        this.showcase = null;
+        home.inert = false;
+        if (this.screenEl) this.screenEl.inert = false;
+        if (how !== 'cta' && how !== 'away') this.analytics.track('showcase_dismiss', { how, page: i + 1, pages: items.length, id: items[i]?.id ?? '' });
+      },
+    });
+    this.showcase = { close: (how) => h.close(how) };
+  }
+
+  /** A page's button: the screen that owns the thing (What's New never copies it). */
+  private showcaseGo(t: ShowcaseTarget): void {
+    if (t.screen === 'store') {
+      if (this.ent.snapshot().storeOpen && !this.isApp()) this.openStore('lobby', t.tab);
+    } else if (t.screen === 'pass') this.openCollection();
+    else if (t.screen === 'quests') openHomeQuests(this.screenEl, t.tab);
+    else if (t.screen === 'champion' && HERO_IDS.includes(t.hero)) void openChampInfo({ hero: t.hero, within: this.screenEl, ...(t.coat ? { coat: t.coat } : {}), coatWear: this.coatWear(), look: (x) => this.lookFor(x) });
   }
 
   /** The variant Home reopens Mode Select on (Back from the champion select), once. */
