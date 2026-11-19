@@ -1312,6 +1312,7 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   g.resize();
   if (!s.audio) sfx.setMuted(true);
   else audioHold();
+  sfx.setPlayerMusic(s.noMusic ? 0 : 1);
   await installFonts();
   await document.fonts.ready;
   vclock().free(false);
@@ -1328,7 +1329,6 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   projLock = -1;
   lastFrame = -1e9;
   eventLog.length = 0;
-  sfx.setPlayerMusic(s.noMusic ? 0 : 1);
   flashState.clear();
   xrayOp.clear();
   twinDone = false;
