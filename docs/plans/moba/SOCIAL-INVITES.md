@@ -50,8 +50,27 @@ nickname. Generated and cat names are never searched. Answers carry no code or a
 blocked players are left out; 40 searches a minute per account (200 per IP), and Add by name counts in the code-lookup
 bucket.
 
+## Invites that vanished unseen (Nov 19)
+
+Reported, verbatim: "My friend invite me [Friends sidebar, Irvidas on mobile, Online, row menu "Invite to party"] through
+this while was in party, it was written invitation sent but I haven't received anything anywhere. Popup should've
+appeared for me to either confirm or reject". The invite row was stored (the inviter saw "Invite sent"), but the
+friend's game only polled the inbox off-match, and the row died after 60 s.
+
+| Root cause | Fix | Where |
+|---|---|---|
+| The inbox stopped while `this.session` or `party.state.inMatch` was set. The party's results keep `inMatch` until Play again or Home, so a player sitting on a party's results (or in any match) got nothing, and `showInvites` dropped the invite on the floor. | The inbox polls on every screen (every other beat in a live match). In a match an invite is a small top notice that takes no input ("Mira invited you to a party. Answer after the match."), the server is told `later`, and the card shows when the match ends. Party results show the card. | `app.ts` `startInbox`, `playingMatch`, `showInvites`, `flushHeldInvite`; `inviteInbox.ts` `matchNotice` |
+| The row lived 60 s (`exp`, TTL index). A locked phone, a hidden tab, a match or a backed-off poll (status 0 → up to 60 s) meant the invite expired before the friend's game asked. There is no push (no VAPID keys). | `exp` is now the row's life (10 min; 40 min once `later`), `live` the 60 s popup window. Past its window an unanswered invite still comes back as `missed` with its age while the inviter is in that lobby ("Irvidas invited you to a party 3 min ago"), and Accept works while they are. A tab or app coming back to the front polls at once. | `social.service.ts` `pendingInvites`, `stillInParty`, `answerInvite`; `social.contracts.ts` `INVITE_KEEP_MS`, `INVITE_HOLD_MS` |
+| A friend in another lobby could not be invited ("In another lobby", greyed), and accepting from a lobby gave no hint it leaves it. | Invite shows for a friend in another lobby. Their card reads "Leave your party and join Mira?" with Join and Decline; Join leaves the lobby (or the party's results) and joins. | `socialSheet.ts` `rowAction`, `inviteInbox.ts` `inviteCard` (`inParty`) |
+| The inviter saw "Invite sent" whatever the friend was doing. | "Sent" only with the stored invite's id. The note says "Mira is in a match: they see it when it ends" or "They are in another lobby" (`busy`), and the inbox answers `later` ("Mira is in a match: they see your invite when it ends") besides accepted and declined; "didn't answer" still comes after the window. | `social.service.ts` `invite`, `inbox`; `socialSheet.ts` `sendInvite` |
+| The App Store channel still ran the Nov 18 20:43 UTC bundle (`20261118204310-245a689`), from before the Nov 18 invite fix (0db6eed49). The hourly promote ran twice in 24 h (GitHub skips scheduled runs under load), and each run found nothing soaked newer than that bundle. | Promoted once these fixes shipped (`promote_now`). | `.github/workflows/pawlegends-ota.yml` |
+
+Host contract: `invite.answer` takes `later` (`pawlegends-web` `apiBridge.ts`; the app's host ships in the same OTA bundle).
+An older host refuses `later` (the invite then simply runs out on the inviter's side); an older game ignores
+`missed`, `held` and `later` (a missed row arrives with `ttl: 0`, so its card closes at once).
+
 ## Known limits (not fixed here)
 
-- Pushes for an offline friend still depend on VAPID keys, which are not set. The invite row expires after 60 s either way.
+- Pushes for an offline friend still depend on VAPID keys, which are not set. The invite pops up for 60 s and waits up to 10 min while the inviter is in that lobby.
 - On GCP's split roles (API on Cloud Run, relay on a VM), `ChatBus` does not reach the relay. The 4 s inbox covers DMs and invites on every layout.
 - A player still on an older game build without the inbox op falls back to the 30 s pulse, and its invite toast keeps the old Join-only layout until it reloads.

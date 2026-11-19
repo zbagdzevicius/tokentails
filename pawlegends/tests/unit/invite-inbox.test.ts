@@ -6,7 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SIM_VERSION } from '../../src/sim/version';
-import { answerLine, buildSim, dmToast, inviteCard, inviteOf, parseInbox, simCheck, simLine } from '../../src/social/inviteInbox';
+import { agoWords, answerLine, buildSim, dmToast, inviteCard, inviteOf, matchNotice, parseInbox, simCheck, simLine } from '../../src/social/inviteInbox';
 import { lobbyHtml } from '../../src/party/ui/partyLobby';
 import { errorText } from '../../src/party/ui/copy';
 import { API_ARG_KEYS, API_OPS, cleanApiArgs } from '../../src/embed/api';
@@ -155,5 +155,51 @@ describe('the lobby and the host ops', () => {
     expect(API_OPS).toContain('invite.answer');
     for (const k of ['sim', 'invite', 'answer']) expect(API_ARG_KEYS).toContain(k);
     expect(cleanApiArgs({ invite: ID, answer: 'accept', sim: '33.ab12', evil: { x: 1 } })).toEqual({ invite: ID, answer: 'accept', sim: '33.ab12' });
+  });
+});
+
+describe('Nov 19: invites never vanish unseen', () => {
+  const base = { id: 'a'.repeat(24), from: { code: 'PL-AAAA-AAAA', name: 'Irvidas' }, party: 'ABC123' };
+
+  it('parses a missed or held invite and the `later` answer', () => {
+    const box = parseInbox({
+      rev: 'i9',
+      invites: [{ ...base, ttl: 0, missed: true, age: 180_000 }, { ...base, id: 'b'.repeat(24), ttl: 0, missed: true, age: 'x', held: true }],
+      answers: [{ id: 'c'.repeat(24), name: 'Mira', answer: 'later' }],
+    });
+    expect(box.invites[0]).toMatchObject({ missed: true, age: 180_000, ttl: 0 });
+    expect(box.invites[0].held).toBeUndefined();
+    expect(box.invites[1]).toMatchObject({ missed: true, age: 0, held: true });
+    expect(box.answers).toEqual([{ id: 'c'.repeat(24), name: 'Mira', answer: 'later' }]);
+    expect(answerLine(box.answers[0])).toBe('Mira is in a match: they see your invite when it ends');
+    expect(agoWords(20_000)).toBe('a moment ago');
+    expect(agoWords(180_000)).toBe('3 min ago');
+  });
+
+  it('in a party of my own the card asks to leave it, Join answers; a missed invite says how long ago', () => {
+    const onAccept = vi.fn();
+    const el = inviteCard(document, { ...inviteOf({ ...base, ttl: 0, missed: true, age: 120_000 })!, ttl: 60_000 }, { inParty: true, onAccept, onDecline: vi.fn() });
+    expect(el.textContent).toContain('Irvidas invited you to a party 2 min ago');
+    expect(el.querySelector('[data-testid="invite-leave"]')?.textContent).toBe('Leave your party and join Irvidas?');
+    const join = el.querySelector<HTMLButtonElement>('[data-testid="invite-accept"]')!;
+    expect(join.textContent).toBe('Join');
+    expect(el.querySelector('[data-testid="invite-left"]')?.textContent).toBe('60s');
+    join.click();
+    expect(onAccept).toHaveBeenCalledOnce();
+    expect(document.querySelector('[data-testid="invite-toast"]')).toBeNull();
+  });
+
+  it('in a match: a small notice that takes no input, gone after 5 s', () => {
+    vi.useFakeTimers();
+    try {
+      const el = matchNotice(document, inviteOf({ ...base, ttl: 60_000 })!);
+      expect(el.dataset.testid).toBe('invite-notice');
+      expect(el.textContent).toBe('Irvidas invited you to a party. Answer after the match.');
+      expect(el.querySelector('button')).toBeNull();
+      vi.advanceTimersByTime(5_001);
+      expect(el.isConnected).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

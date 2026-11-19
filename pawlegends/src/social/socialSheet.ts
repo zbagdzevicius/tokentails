@@ -289,8 +289,9 @@ export function presenceText(p: Presence, now = Date.now()): string {
 export function rowAction(p: Presence, inParty: boolean, myParty: string | null = null): 'join' | 'watch' | 'invite' | 'ask' | 'more' {
   if (inParty) {
     if (myParty && p.party === myParty) return 'more';
-    // SPECTATE.md: no Watch from a party (watching would leave it)
-    return p.state === 'online' || p.state === 'offline' ? 'invite' : 'more';
+    // SPECTATE.md: no Watch from a party (watching would leave it). Nov 19: a friend in another lobby can be invited
+    // too (LoL): their card asks "Leave your party and join …?"
+    return p.state === 'online' || p.state === 'offline' || p.state === 'party' ? 'invite' : 'more';
   }
   if (p.state === 'party' && p.joinable && p.party) return 'join';
   // a lobby that is not open: ask to join (a "Wanna play?" in their DM), LoL's "Ask to join"
@@ -2258,11 +2259,19 @@ export class SocialSheet {
       r = await this.deps.api('invite.send', { to: code, sim: buildSim(), ...(this.deps.partyMode?.() === 'ranked' ? { mode: 'ranked' } : {}) });
     }
     if (this.disposed) return;
-    const b = r.body as { offline?: boolean; code?: string; id?: string; ttl?: number } | undefined;
-    if (r.ok) {
-      this.note = b?.offline ? `Invite sent. ${name || 'Your friend'} is offline: they get a notification.` : `Invite sent to ${who}`;
-      if (typeof b?.id === 'string') this.deps.onInviteSent?.({ id: b.id, name: name || 'Your friend', ttl: typeof b.ttl === 'number' ? b.ttl : 60_000 });
-    } else this.note = errorText(r);
+    const b = r.body as { offline?: boolean; code?: string; id?: string; ttl?: number; busy?: string } | undefined;
+    // Nov 19: "sent" only for a stored invite (the server answers its id); the note says what the friend is doing
+    if (r.ok && typeof b?.id === 'string') {
+      const them = name || 'Your friend';
+      this.note = b.offline
+        ? `Invite sent. ${them} is offline: they get a notification.`
+        : b.busy === 'match'
+          ? `Invite sent. ${them} is in a match: they see it when it ends.`
+          : b.busy === 'party'
+            ? `Invite sent to ${who}. They are in another lobby.`
+            : `Invite sent to ${who}`;
+      this.deps.onInviteSent?.({ id: b.id, name: them, ttl: typeof b.ttl === 'number' ? b.ttl : 60_000 });
+    } else this.note = r.ok ? `Couldn't invite ${who}. Try again.` : errorText(r);
     this.render();
   }
 

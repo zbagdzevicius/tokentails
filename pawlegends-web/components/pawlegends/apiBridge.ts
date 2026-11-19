@@ -492,7 +492,8 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
     }
     case "invite.answer": {
       const id = str(a.invite, /^[a-f0-9]{24}$/);
-      const answer = str(a.answer, /^(accept|decline)$/);
+      // `later`: the game got the invite in a match (the card shows when it ends; Nov 19)
+      const answer = str(a.answer, /^(accept|decline|later)$/);
       return id && answer ? { method: "POST", path: `/pawlegends/social/invite/${id}/answer`, body: { answer }, auth: "registered" } : null;
     }
     default:

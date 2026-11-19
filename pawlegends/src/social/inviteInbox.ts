@@ -17,12 +17,20 @@ export interface InboxInvite {
   sim?: string;
   /** Milliseconds left when the server answered. */
   ttl: number;
+  /**
+   * Nov 19: past its 60 s window but the inviter still waits in that lobby (the phone was locked, the tab hidden, or a
+   * match was on): `age` is how long ago it was sent; `held` when this game said `later` during a match.
+   */
+  missed?: true;
+  age?: number;
+  held?: true;
 }
 
 export interface InboxAnswer {
   id: string;
   name: string;
-  answer: 'accepted' | 'declined';
+  /** `later`: the friend is in a match; the invite waits for its end (Nov 19). */
+  answer: 'accepted' | 'declined' | 'later';
 }
 
 export interface InboxChat {
@@ -63,6 +71,8 @@ export function inviteOf(v: unknown): InboxInvite | null {
     ...(r.mode === 'ranked' ? { mode: 'ranked' as const } : {}),
     ...(typeof r.sim === 'string' && SIM.test(r.sim) ? { sim: r.sim } : {}),
     ttl,
+    ...(r.missed === true ? { missed: true as const, age: typeof r.age === 'number' && Number.isFinite(r.age) ? Math.max(0, r.age) : 0 } : {}),
+    ...(r.held === true ? { held: true as const } : {}),
   };
 }
 
@@ -73,7 +83,7 @@ export function parseInbox(body: unknown): Inbox {
   const answers = (Array.isArray(b.answers) ? b.answers : [])
     .map((a): InboxAnswer | null => {
       const r = (a ?? {}) as Record<string, unknown>;
-      if (typeof r.id !== 'string' || typeof r.name !== 'string' || (r.answer !== 'accepted' && r.answer !== 'declined')) return null;
+      if (typeof r.id !== 'string' || typeof r.name !== 'string' || (r.answer !== 'accepted' && r.answer !== 'declined' && r.answer !== 'later')) return null;
       return { id: r.id.slice(0, 24), name: r.name.slice(0, 40), answer: r.answer };
     })
     .filter((x): x is InboxAnswer => !!x)
@@ -131,6 +141,8 @@ export interface InviteToastOpts {
   onReload?(): void;
   /** The countdown ran out without an answer. */
   onExpire?(): void;
+  /** Nov 19: this player is in a party lobby of their own (Accept leaves it): the card asks so. */
+  inParty?: boolean;
   now?(): number;
 }
 
@@ -180,7 +192,8 @@ export function inviteCard(doc: Document, inv: InboxInvite, o: InviteToastOpts):
   const el = shell(doc, 'pl-invite-toast pl-invite-card', 'invite-toast', 'alertdialog');
   el.setAttribute('aria-label', 'Party invite');
   if (inv.mode === 'ranked') el.dataset.ranked = o.locked ? 'locked' : 'open';
-  const text = line(doc, inv.from.name, inv.mode === 'ranked' ? ' invites you to a Ranked duo' : ' invites you to a party');
+  const what = inv.mode === 'ranked' ? 'a Ranked duo' : 'a party';
+  const text = line(doc, inv.from.name, inv.missed ? ` invited you to ${what} ${agoWords(inv.age ?? 0)}` : ` invites you to ${what}`);
   const sub = (cls: string, words: string, testid: string) => {
     const s = doc.createElement('small');
     s.className = cls;
@@ -188,6 +201,7 @@ export function inviteCard(doc: Document, inv: InboxInvite, o: InviteToastOpts):
     s.textContent = words;
     text.append(doc.createElement('br'), s);
   };
+  if (o.inParty) sub('pl-invite-leave', `Leave your party and join ${inv.from.name}?`, 'invite-leave');
   if (inv.mode === 'ranked' && o.locked) sub('pl-invite-lock', `Ranked is locked for you: ${o.locked}. Join to play Casual together.`, 'invite-ranked-lock');
   const check = o.sim ?? 'ok';
   if (check !== 'ok') sub('pl-invite-lock pl-invite-sim', simLine(check, inv.from.name), 'invite-update');
@@ -205,7 +219,7 @@ export function inviteCard(doc: Document, inv: InboxInvite, o: InviteToastOpts):
   row.className = 'pl-invite-acts';
   row.append(
     left,
-    check === 'me' && o.onReload ? act(doc, el, 'Reload', 'pl-btn small', 'invite-reload', o.onReload, done) : act(doc, el, 'Accept', 'pl-btn small', 'invite-accept', o.onAccept, done),
+    check === 'me' && o.onReload ? act(doc, el, 'Reload', 'pl-btn small', 'invite-reload', o.onReload, done) : act(doc, el, o.inParty ? 'Join' : 'Accept', 'pl-btn small', 'invite-accept', o.onAccept, done),
     act(doc, el, 'Decline', 'pl-btn ghost small', 'invite-decline', o.onDecline, done),
   );
   el.append(text, row, bar);
@@ -232,8 +246,26 @@ export function lineToast(doc: Document, words: string, testid = 'social-toast',
   return el;
 }
 
-/** "Mira declined your invite" / "Mira is joining your party". */
-export const answerLine = (a: InboxAnswer): string => `${a.name} ${a.answer === 'declined' ? 'declined your invite' : 'is joining your party'}`;
+/** "Mira declined your invite" / "Mira is joining your party" / "Mira is in a match: …". */
+export const answerLine = (a: InboxAnswer): string =>
+  `${a.name} ${a.answer === 'declined' ? 'declined your invite' : a.answer === 'later' ? 'is in a match: they see your invite when it ends' : 'is joining your party'}`;
+
+/** "just now", "2 min ago" (a missed invite's age). */
+export function agoWords(ms: number): string {
+  const min = Math.floor(ms / 60_000);
+  return min < 1 ? 'a moment ago' : `${min} min ago`;
+}
+
+/**
+ * Nov 19: an invite that came during a match: a small notice at the top that takes no input and never covers the
+ * HUD's controls (pointer-events none, 5 s). The card shows when the match ends.
+ */
+export function matchNotice(doc: Document, inv: InboxInvite, ms = 5000): HTMLElement {
+  const el = shell(doc, 'pl-invite-notice', 'invite-notice');
+  el.append(line(doc, inv.from.name, ` invited you to ${inv.mode === 'ranked' ? 'a Ranked duo' : 'a party'}. Answer after the match.`));
+  setTimeout(() => el.remove(), ms);
+  return el;
+}
 
 /** A friend's DM while the Social sheet is closed: "Mira: see you at 7" with Open (6 s). Muted threads never get here. */
 export function dmToast(doc: Document, from: string, preview: string, onOpen: () => void, ms = 6000): HTMLElement {

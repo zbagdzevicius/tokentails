@@ -1843,7 +1843,10 @@ export class App {
 
   // ------------------------------------------------------------------------------------------------ invites (LoL style)
 
-  /** SOCIAL-INVITES.md: the fast inbox poll (menus, Home overlays and the party lobby; never a match or a hidden tab). */
+  /**
+   * SOCIAL-INVITES.md: the fast inbox poll, on every screen (Nov 19: a match too, every other beat; an invite there is a
+   * small notice and its card shows when the match ends). Never in a hidden tab; a tab coming back polls at once.
+   */
   private inboxTimer: ReturnType<typeof setInterval> | null = null;
   private inboxRev: string | undefined;
   private inboxBusy = false;
@@ -1856,12 +1859,23 @@ export class App {
   private pendingInvite: { code: string; name: string; at: number; lobbyAt: number } | null = null;
   private pendingTimer: ReturnType<typeof setInterval> | null = null;
 
+  private inboxOdd = false;
+
+  /** A match is being played (solo or party): invites wait for its end (results and the party lobby are not). */
+  private playingMatch(): boolean {
+    return this.screen === 'match' && (!!this.session || !!this.party?.state.inMatch);
+  }
+
   private startInbox(): void {
     if (this.inboxTimer || !this.bridge.active) return;
     const beat = async (): Promise<void> => {
       if (this.inboxBusy || !accountState().signedIn) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      if (this.session || this.party?.state.inMatch) return;
+      // Nov 19: the match is over: the invite held during it shows now
+      if (!this.playingMatch()) this.flushHeldInvite();
+      // in a match: every other beat (8 s), a light read; it used to stop here, so an invite during a match (or on the
+      // party results, which keep the party "in match" until Play again) expired unseen
+      if (this.playingMatch() && (this.inboxOdd = !this.inboxOdd)) return;
       if (this.inboxSkip > 0) {
         this.inboxSkip--;
         return;
@@ -1870,9 +1884,10 @@ export class App {
       try {
         const r = await this.integration.api('social.inbox', this.inboxRev ? { rev: this.inboxRev } : {});
         if (r.status === 0) {
-          // no host answer (offline, or an older host without the op): back off, the 30 s pulse still runs
+          // no host answer (offline, a slow host): back off a little, never past 3 beats (Nov 19: 15 beats, a minute,
+          // outlived a whole invite)
           this.inboxZeros++;
-          this.inboxSkip = Math.min(15, this.inboxZeros * 2);
+          this.inboxSkip = Math.min(3, this.inboxZeros);
           return;
         }
         this.inboxZeros = 0;
@@ -1889,6 +1904,14 @@ export class App {
     };
     this.inboxTimer = setInterval(() => void beat(), 4_000);
     void beat();
+    // a phone unlocked or a tab brought back: ask at once (an invite sent meanwhile still waits, SOCIAL-INVITES.md)
+    if (typeof document !== 'undefined')
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          this.inboxSkip = 0;
+          void beat();
+        }
+      });
   }
 
   private onInbox(box: import('../social/inviteInbox').Inbox, mod: typeof import('../social/inviteInbox')): void {
@@ -1901,7 +1924,7 @@ export class App {
       const top = box.chat.top;
       if (top && box.chat.unread > before) {
         if (this.social && !this.social.closed) this.social.dmNotice(top.thread);
-        else if (primed && !this.session && !this.party?.state.inMatch && top.code) {
+        else if (primed && !this.playingMatch() && top.code) {
           const code = top.code;
           mod.dmToast(document, top.fromName, top.preview, () => this.openSocial('friends', code));
         }
@@ -1912,6 +1935,7 @@ export class App {
       const t = this.sentInvites.get(a.id);
       if (t) clearTimeout(t);
       this.sentInvites.delete(a.id);
+      if (this.playingMatch()) continue;
       mod.lineToast(document, mod.answerLine(a), `invite-answer-${a.answer}`);
     }
     this.showInvites(box.invites, mod);
@@ -1942,22 +1966,53 @@ export class App {
     );
   }
 
-  /** The newest invite not shown yet, as the LoL-style card (Accept / Decline, 60 s). Never in a match. */
+  /** Invites that came during a match (id or party → the invite and when it came): their card shows at the match end. */
+  private heldInvites = new Map<string, { inv: import('../social/inviteInbox').InboxInvite; at: number }>();
+
+  /**
+   * The newest invite not shown yet, as the LoL-style card (Accept / Decline, 60 s). In a match (Nov 19): a small
+   * notice, the server is told `later` (the inviter hears "in a match"), and the card waits for the match end.
+   */
   private showInvites(list: readonly import('../social/inviteInbox').InboxInvite[], mod: typeof import('../social/inviteInbox')): void {
-    if (this.session || this.party?.state.inMatch) return;
-    const inv = list.find((i) => !this.socialToasted.has(i.id || i.party));
-    if (!inv) return;
-    this.socialToasted.add(inv.id || inv.party);
+    const fresh = list.filter((i) => !this.socialToasted.has(i.id || i.party) && this.party?.state.view?.code !== i.party);
+    if (!fresh.length) return;
+    for (const i of fresh) this.socialToasted.add(i.id || i.party);
     if (this.socialToasted.size > 200) this.socialToasted.clear();
-    // already in that party: nothing to answer
-    if (this.party?.state.view?.code === inv.party) return;
+    if (this.playingMatch()) {
+      for (const i of fresh) {
+        this.heldInvites.set(i.id || i.party, { inv: i, at: Date.now() });
+        if (i.id && !i.held) void this.integration.api('invite.answer', { invite: i.id, answer: 'later' });
+      }
+      mod.matchNotice(document, fresh[0]);
+      this.analytics.track('party_invite' as never, { action: 'held' } as never);
+      return;
+    }
+    this.inviteCardFor(fresh[0], mod);
+  }
+
+  /** The match ended: the newest invite held during it, as the card ("Mira invited you 6 min ago"). */
+  private flushHeldInvite(): void {
+    if (!this.heldInvites.size) return;
+    const all = [...this.heldInvites.values()];
+    this.heldInvites.clear();
+    const newest = all.sort((x, y) => y.at - x.at)[0];
+    if (!newest || this.party?.state.view?.code === newest.inv.party) return;
+    const age = (newest.inv.age ?? 0) + (Date.now() - newest.at);
+    void import('../social/inviteInbox').then((mod) => this.inviteCardFor({ ...newest.inv, missed: true, age, ttl: mod.INVITE_MAX_MS }, mod));
+  }
+
+  private inviteCardFor(inv: import('../social/inviteInbox').InboxInvite, mod: typeof import('../social/inviteInbox')): void {
     // gaps5 polish 4: a Ranked duo invite checks this player's own Ranked unlock and shows the lock line
     const locked = inv.mode === 'ranked' && !this.modeOpen('ranked') ? lockLine('ranked', loadProfile()) : null;
     const sim = mod.simCheck(inv.sim);
-    this.analytics.track('party_invite' as never, { action: 'shown', sim } as never);
-    mod.inviteCard(document, inv, {
+    this.analytics.track('party_invite' as never, { action: 'shown', sim, ...(inv.missed ? { missed: true } : {}) } as never);
+    // a missed or held invite gets a full 60 s on the card (the server keeps it while the inviter is in that lobby)
+    const card = inv.missed ? { ...inv, ttl: mod.INVITE_MAX_MS } : inv;
+    mod.inviteCard(document, card, {
       locked,
       sim,
+      // Nov 19: in a party of my own (its lobby or its results): Join leaves it ("Leave your party and join Mira?")
+      inParty: !!this.party && !!this.party.state.view && this.party.state.view.code !== inv.party,
       onAccept: () => void this.acceptInvite(inv, mod),
       onDecline: () => {
         this.analytics.track('party_invite' as never, { action: 'decline' } as never);
@@ -1974,19 +2029,22 @@ export class App {
     if (inv.id) {
       const r = await this.integration.api('invite.answer', { invite: inv.id, answer: 'accept' });
       if (r.status === 410) {
-        mod.lineToast(document, 'That invite has expired.', 'invite-expired');
+        mod.lineToast(document, inv.missed ? `${inv.from.name}'s party has closed.` : 'That invite has expired.', 'invite-expired');
         return;
       }
       const p = (r.body as { party?: unknown } | undefined)?.party;
       if (r.ok && typeof p === 'string') party = p;
     }
-    if (this.session) return;
+    if (this.playingMatch()) return;
     if (this.social && !this.social.closed) this.social.dispose();
     if (this.party) {
       if (this.party.state.view?.code === party) return void (this.party.suspended ? undefined : this.party.show());
-      if (this.party.state.inMatch) return;
-      // LoL: accepting moves you out of the lobby you were in
+      // LoL: accepting moves you out of the lobby you were in (Nov 19: from the party's results too)
       this.party.leaveParty();
+    }
+    if (this.session) {
+      this.session.dispose();
+      this.session = null;
     }
     this.party = null;
     this.openParty('join', party);
@@ -2053,9 +2111,21 @@ export class App {
       // the relay writes the lobby's presence a moment after it opens: retry "no party" for 15 s
       if (!r.ok && code === 'PAWLEGENDS_SOCIAL_NO_PARTY' && Date.now() - p.lobbyAt < 15_000) return;
       stop();
-      const body = r.body as { offline?: boolean; id?: string; ttl?: number } | undefined;
-      lineToast(document, r.ok ? (body?.offline ? `Invite sent. ${p.name} is offline: they get a notification.` : `Invite sent to ${p.name}`) : `Couldn't invite ${p.name}. Try again from Friends.`, r.ok ? 'invite-sent' : 'invite-failed');
-      if (r.ok && typeof body?.id === 'string') this.watchSentInvite({ id: body.id, name: p.name, ttl: typeof body.ttl === 'number' ? body.ttl : 60_000 });
+      const body = r.body as { offline?: boolean; id?: string; ttl?: number; busy?: string } | undefined;
+      // Nov 19: "sent" only for a stored invite (an id), with what the friend is doing
+      const sent = r.ok && typeof body?.id === 'string';
+      lineToast(
+        document,
+        sent
+          ? body?.offline
+            ? `Invite sent. ${p.name} is offline: they get a notification.`
+            : body?.busy === 'match'
+              ? `Invite sent. ${p.name} is in a match: they see it when it ends.`
+              : `Invite sent to ${p.name}`
+          : `Couldn't invite ${p.name}. Try again from Friends.`,
+        sent ? 'invite-sent' : 'invite-failed',
+      );
+      if (sent && typeof body?.id === 'string') this.watchSentInvite({ id: body.id, name: p.name, ttl: typeof body.ttl === 'number' ? body.ttl : 60_000 });
     } finally {
       this.pendingBusy = false;
     }

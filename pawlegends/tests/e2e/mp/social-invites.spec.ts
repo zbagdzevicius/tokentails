@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Frame, type Page } from '@playwright/test';
 import { mockHost, openHost } from '../host';
-import { closeAll, player, RELAY, tap, title } from './party.helpers';
+import { closeAll, joinByLink, player, RELAY, tap, title } from './party.helpers';
 
 /*
  * LoL-style invites, friend DMs and join by code (docs/plans/moba/SOCIAL-INVITES.md), two browsers against the local
@@ -36,7 +36,7 @@ function server(opts: { friends?: boolean } = {}) {
   /** The nicknames the search finds. */
   const NICK: Record<Who, string> = { A: 'zygis', B: 'Mira' };
   const partyOf: Partial<Record<Who, string>> = {};
-  const invites: { id: string; from: Who; to: Who; party: string; sim?: string; answer?: 'accepted' | 'declined'; seen?: boolean; exp: number }[] = [];
+  const invites: { id: string; from: Who; to: Who; party: string; sim?: string; answer?: 'accepted' | 'declined'; seen?: boolean; later?: boolean; laterSeen?: boolean; exp: number }[] = [];
   const msgs: { mid: string; from: Who; k: string; text?: string; id?: number; at: string }[] = [];
   const read: Record<Who, number> = { A: 0, B: 0 };
   const thread = `d${'A'.repeat(22)}`;
@@ -78,9 +78,11 @@ function server(opts: { friends?: boolean } = {}) {
           return { status: 204 };
         case 'social.inbox': {
           if (a.rev === `i${rev[w]}`) return { status: 204 };
-          const answers = invites
-            .filter((i) => i.from === w && i.answer && !i.seen)
-            .map((i) => ((i.seen = true), { id: i.id, name: NAME[i.to], answer: i.answer }));
+          const answers = [
+            ...invites.filter((i) => i.from === w && i.answer && !i.seen).map((i) => ((i.seen = true), { id: i.id, name: NAME[i.to], answer: i.answer })),
+            // Nov 19: the friend's game got it in a match (`later`), told once
+            ...invites.filter((i) => i.from === w && i.later && !i.laterSeen && !i.answer).map((i) => ((i.laterSeen = true), { id: i.id, name: NAME[i.to], answer: 'later' })),
+          ];
           return { status: 200, body: { rev: `i${rev[w]}`, invites: pending(w), answers, chat: chat(w) } };
         }
         case 'social.search':
@@ -97,11 +99,18 @@ function server(opts: { friends?: boolean } = {}) {
           const id = (++n).toString(16).padStart(24, '0');
           invites.push({ id, from: w, to: f, party: partyOf[w]!, sim: a.sim, exp: Date.now() + 60_000 });
           rev[f]++;
-          return { status: 200, body: { ok: true, id, ttl: 60_000, ...(offline.has(f) ? { offline: true } : {}) } };
+          return { status: 200, body: { ok: true, id, ttl: 60_000, ...(offline.has(f) ? { offline: true } : partyOf[f] ? { busy: 'party' } : {}) } };
         }
         case 'invite.answer': {
           const i = invites.find((x) => x.id === a.invite && x.to === w);
-          if (!i || i.answer || i.exp < Date.now()) return a.answer === 'decline' ? { status: 200, body: { ok: true } } : { status: 410, body: { code: 'PAWLEGENDS_SOCIAL_INVITE_GONE' } };
+          if (!i || i.answer || i.exp < Date.now()) return a.answer !== 'accept' ? { status: 200, body: { ok: true } } : { status: 410, body: { code: 'PAWLEGENDS_SOCIAL_INVITE_GONE' } };
+          if (a.answer === 'later') {
+            // held for the match end (the server keeps it 40 min); the inviter hears it once
+            if (!i.later) rev[i.from]++;
+            i.later = true;
+            i.exp = Date.now() + 40 * 60_000;
+            return { status: 200, body: { ok: true } };
+          }
           i.answer = a.answer === 'accept' ? 'accepted' : 'declined';
           rev[i.from]++;
           return { status: 200, body: a.answer === 'accept' ? { ok: true, party: i.party } : { ok: true } };
@@ -152,7 +161,11 @@ async function friend(browser: Browser, baseURL: string, who: Who, srv: Srv, acc
       /* opaque origin */
     }
   }, { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', trick: 'hiss', difficulty: 'easy', veteran: true });
-  await context.exposeFunction('plApi', async (op: string, args: Record<string, unknown>) => srv.handle(who, op, args));
+  await context.exposeFunction('plApi', async (op: string, args: Record<string, unknown>) => {
+    const r = srv.handle(who, op, args);
+    if (process.env.MP_API_LOG) console.log(`[${who}] ${op} ${JSON.stringify(args)} -> ${r.status}`);
+    return r;
+  });
   // a registered account on the relay (the harness mints its ticket), so the lobby shows the account's nickname
   if (account)
     await context.exposeFunction('plTicket', async () => {
@@ -359,4 +372,127 @@ test('add a friend by nickname, invite them (offline feedback too), they accept 
   await nickname('e2e-nick-b', 'Mirabel');
   await expect.poll(async () => (await seatNames(ga)).sort(), { timeout: 30_000 }).toEqual(['Mirabel', 'zygis']);
   await expect.poll(async () => (await seatNames(gb)).sort(), { timeout: 30_000 }).toEqual(['Mirabel', 'zygis']);
+});
+
+/** A opens a party (Home's Party) and the fake server knows it. */
+async function aParty(ga: Frame, srv: Srv): Promise<string> {
+  await expect(ga.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
+  await ga.locator('[data-testid="home-party"]').click();
+  const codeEl = ga.locator('[data-testid="party-code"]');
+  await expect(codeEl).toBeVisible({ timeout: 60_000 });
+  const code = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');
+  srv.partyOf.A = code;
+  return code;
+}
+
+/** A taps Invite on B's row (the Friends sheet over A's lobby) and sees the note; returns when it was sent. */
+async function inviteB(ga: Frame, note: string | RegExp = `Invite sent to ${NAME.B}`): Promise<number> {
+  if (!(await ga.locator('.pl-social-row').count())) await ga.locator('[data-testid="party-invite-friends"]').click();
+  await ga.locator(`.pl-social-row[data-code="${CODE.B}"] [data-testid="social-invite"]`).click();
+  await expect(ga.locator('.pl-social-note')).toContainText(note);
+  return Date.now();
+}
+
+/** B (the host frame) opens its own party and C, a guest, joins it by link: a party of two for champion select. */
+async function bPartyWithC(browser: Browser, gb: Frame, srv: Srv): Promise<string> {
+  await expect(gb.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
+  await gb.locator('[data-testid="home-party"]').click();
+  const codeEl = gb.locator('[data-testid="party-code"]');
+  await expect(codeEl).toBeVisible({ timeout: 60_000 });
+  const code = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');
+  srv.partyOf.B = code;
+  const c = await player(browser, 'desktop');
+  await joinByLink(c, code);
+  await expect(gb.locator('[data-testid="party-seat"]')).toHaveCount(2, { timeout: 30_000 });
+  return code;
+}
+
+/*
+ * Founder report (Nov 19): "My friend invite me … while was in party, it was written invitation sent but I haven't
+ * received anything anywhere. Popup should've appeared for me to either confirm or reject". A is in a party and
+ * invites B wherever B is: the card shows within the 4 s poll, Accept joins A, Decline tells A.
+ */
+test('Nov 19: B in the Store, in its own lobby, in champion select: the card every time; Join leaves B\'s party', async ({ browser, baseURL }) => {
+  test.setTimeout(420_000);
+  const srv = server();
+  const a = await friend(browser, baseURL!, 'A', srv);
+  const b = await friend(browser, baseURL!, 'B', srv);
+  const ga = a.game();
+  const gb = b.game();
+  await expect(gb.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
+  const code = await aParty(ga, srv);
+  const card = () => b.game().locator('[data-testid="invite-toast"]');
+
+  // B in the Store: the card over it; Decline tells A
+  await gb.locator('.hm-ni[data-a="store"]').click();
+  let at = await inviteB(ga);
+  await expect(card()).toBeVisible({ timeout: 6_000 });
+  expect(Date.now() - at).toBeLessThan(6_500);
+  await card().locator('[data-testid="invite-decline"]').click();
+  await expect(ga.locator('[data-testid="invite-answer-declined"]')).toContainText(`${NAME.B} declined your invite`, { timeout: 6_000 });
+
+  // B in its own lobby (A's row says In lobby and still offers Invite): the card asks to leave B's party
+  await b.reopen();
+  await bPartyWithC(browser, b.game(), srv);
+  await ga.locator('.pl-social [data-a="close"]').first().click();
+  at = await inviteB(ga, `Invite sent to ${NAME.B}. They are in another lobby.`);
+  await expect(card()).toBeVisible({ timeout: 6_000 });
+  await expect(card().locator('[data-testid="invite-leave"]')).toHaveText(`Leave your party and join ${NAME.A}?`);
+  await expect(card().locator('[data-testid="invite-accept"]')).toHaveText('Join');
+  await card().locator('[data-testid="invite-decline"]').click();
+
+  // B's party starts: champion select. The card shows there too; Join leaves B's party for A's lobby
+  const g2 = b.game();
+  await g2.locator('[data-p="diff"][data-v="easy"]').click();
+  await g2.locator('[data-testid="party-start"]').click();
+  await expect(g2.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 30_000 });
+  at = await inviteB(ga, /Invite sent to/);
+  await expect(card()).toBeVisible({ timeout: 6_000 });
+  await card().locator('[data-testid="invite-accept"]').click();
+  await expect(g2.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 60_000 });
+  await expect(ga.locator('[data-testid="party-seat"]')).toHaveCount(2, { timeout: 30_000 });
+  await expect(ga.locator('[data-testid="invite-answer-accepted"]')).toContainText(`${NAME.B} is joining your party`, { timeout: 6_000 });
+});
+
+test('Nov 19: B in a match: a small notice (no card mid-match), A hears "in a match", the card when B is back; Join', async ({ browser, baseURL }) => {
+  test.setTimeout(480_000);
+  const srv = server();
+  const a = await friend(browser, baseURL!, 'A', srv);
+  const b = await friend(browser, baseURL!, 'B', srv);
+  const ga = a.game();
+  const gb = b.game();
+  const code = await aParty(ga, srv);
+  // B and C play a party match
+  await bPartyWithC(browser, gb, srv);
+  await gb.locator('[data-p="diff"][data-v="easy"]').click();
+  await gb.locator('[data-testid="party-start"]').click();
+  await expect(gb.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 30_000 });
+  await gb.locator('[data-testid="party-lock"]').click();
+  await expect(gb.locator('html[data-screen="match"]')).toHaveCount(1, { timeout: 150_000 });
+  await gb.page().waitForTimeout(3_000);
+  // a software-rendered match starves the frame's timers: measure it (the notice waits on the in-match poll)
+  const lag = await gb.evaluate(() => new Promise<number>((r) => { const t = performance.now(); setTimeout(() => r(performance.now() - t - 1000), 1000); }));
+  console.log(`B's timer lag in the match: ${Math.round(lag)} ms`);
+
+  // A invites: B gets the notice within the in-match poll (8 s), never the card; A is told B is in a match
+  await inviteB(ga, /Invite sent/);
+  const notice = gb.locator('[data-testid="invite-notice"]');
+  await expect(notice).toContainText(`${NAME.A} invited you to a party. Answer after the match.`, { timeout: 30_000 });
+  await expect(gb.locator('[data-testid="invite-toast"]')).toHaveCount(0);
+  await expect.poll(() => srv.invites[0].later).toBe(true);
+  await expect(ga.locator('[data-testid="invite-answer-later"]')).toContainText(`${NAME.B} is in a match`, { timeout: 8_000 });
+  // past the invite's 60 s: still held
+  await gb.page().waitForTimeout(62_000);
+  await expect(gb.locator('[data-testid="invite-toast"]')).toHaveCount(0);
+
+  // B leaves the match: Home, and the card for the held invite within a beat; Join takes B to A's lobby
+  await gb.locator('body').press('Escape');
+  await gb.locator('.pl-menu [data-a="leave"]').click();
+  await gb.locator('.pl-menu [data-a="leave-yes"]').click();
+  const card = gb.locator('[data-testid="invite-toast"]');
+  await expect(card).toBeVisible({ timeout: 8_000 });
+  await expect(card).toContainText(`${NAME.A} invited you to a party`);
+  await card.locator('[data-testid="invite-accept"]').click();
+  await expect(gb.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 60_000 });
+  await expect.poll(() => srv.invites[0].answer).toBe('accepted');
 });

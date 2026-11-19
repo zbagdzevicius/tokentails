@@ -61,8 +61,9 @@ describe('social sheet', () => {
     expect(rowAction({ state: 'online' }, true)).toBe('invite');
     expect(rowAction({ state: 'match' }, true)).toBe('more');
     expect(rowAction({ state: 'offline' }, false)).toBe('more');
-    // LoL greys invite out for busy friends: in a queue, in another lobby, already in my party
-    expect(rowAction({ state: 'party', joinable: true, party: 'AB' }, true, 'CD')).toBe('more');
+    // LoL greys invite out for busy friends: in a queue, already in my party. Nov 19: a friend in another lobby gets
+    // Invite (their card asks "Leave your party and join …?")
+    expect(rowAction({ state: 'party', joinable: true, party: 'AB' }, true, 'CD')).toBe('invite');
     expect(rowAction({ state: 'party', joinable: true, party: 'CD' }, true, 'CD')).toBe('more');
     expect(rowAction({ state: 'queue' }, true, 'CD')).toBe('more');
     expect(rowAction({ state: 'queue', mode: 'ranked' }, false)).toBe('more');

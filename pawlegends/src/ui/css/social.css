@@ -94,6 +94,10 @@
 /* SOCIAL-INVITES.md: the LoL-style invite card at the top (Accept / Decline, a 60 s countdown bar), above every screen
    and the party lobby; the DM toast and one-line social toasts keep the bottom slot. */
 .pl-invite-card { top: max(12px, env(safe-area-inset-top)); bottom: auto; z-index: 72; flex-wrap: wrap; gap: 6px 10px; padding: 8px 12px 10px; overflow: hidden; width: min(440px, calc(100vw - 32px)); box-sizing: border-box; }
+/* Nov 19: "Leave your party and join Mira?" on the card; an invite that came in a match: a small top notice that takes
+   no input (the HUD stays playable) and the card after the match */
+.pl-invite-card .pl-invite-leave { display: inline-block; margin-top: 2px; font-size: 12px; line-height: 1.25; color: var(--v6-muted); }
+.pl-invite-notice { top: max(8px, env(safe-area-inset-top)); bottom: auto; z-index: 72; min-height: 32px; padding: 0 12px; font-size: 13px; pointer-events: none; opacity: .94; box-shadow: inset 4px 0 0 var(--v6-rose), var(--v6-shadow-2); }
 .pl-invite-text { flex: 1 1 200px; min-width: 0; line-height: 1.25; }
 .pl-invite-acts { display: inline-flex; align-items: center; gap: 6px; }
 .pl-invite-left { min-width: 3ch; color: var(--v6-muted); }
