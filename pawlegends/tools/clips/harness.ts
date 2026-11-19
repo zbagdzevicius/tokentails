@@ -104,6 +104,8 @@ export interface ShotSpec {
   hq?: { dpr: number; ss: number; shadowMap?: number } | null;
   /** Clips: the music never drops below this intensity layer (0-3). */
   musicMin?: number;
+  /** Trailer Wild Rivals: the game's SFX only, no match music (the trailer brings its own score). */
+  noMusic?: boolean;
   /** Clips: render audio in lockstep with the frames (OfflineAudioContext). */
   audio?: boolean;
   /** Render tick at frame f0 (match mode). */
@@ -1310,6 +1312,7 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   projLock = -1;
   lastFrame = -1e9;
   eventLog.length = 0;
+  sfx.setPlayerMusic(s.noMusic ? 0 : 1);
   flashState.clear();
   xrayOp.clear();
   twinDone = false;

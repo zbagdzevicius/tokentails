@@ -17,6 +17,14 @@
  * - `holdR`: never cast the ultimate (the pilot's R casts are dropped).
  * - `castR`: cast R at the nearest enemy hero within `range` mm when ready (an ultimate on demand for a showcase).
  * - `avoid`: keep off a cannon lying on the ground (step away inside `radius`, default 4000 mm), so a teammate takes it.
+ * - `gag` (trailer Wild Rivals): hold ability `key` (the pilot never casts it, so it is ready) and cast it when `when`
+ *   fires: `foes` (at least `foes` enemy heroes within `range`, default 1 and 6000 mm), `cast` (hero `hero` casts its
+ *   `trigKey`, default 3, within `near` mm, default 12000; ally, enemy or the seat's own hero), `clip` (this seat's own clip event `clip`,
+ *   e.g. 'flop'), or `hp` (own HP under `hpBp` / 10000 with an enemy hero within `range`). `delay` ticks after the
+ *   trigger (default 0). `aim`: 'foe' (the nearest enemy hero in `range`, `hero` first; default), 'self' (own feet),
+ *   'centre' (the centre of the enemy heroes in `range`). `chase`: an enemy hero to walk toward while the gag is
+ *   ready and it is farther than `chaseR` mm (default 5000), so the pair meets. `still`: stand still while a delayed
+ *   cast is due. With `when: 'foes'` and `hero`, that enemy hero must be among the foes in range.
  */
 import { NO_TARGET, Op, type Command, type HeroId, type SimEvent } from '../../src/sim/api';
 import type { MatchHandle } from '../../src/sim/state';
@@ -24,7 +32,21 @@ import { CANNON_STATE, G, Kind } from '../../src/sim/world';
 
 export interface ScriptRule {
   slot: number;
-  do: 'encore' | 'stage' | 'cannon' | 'zzz' | 'holdR' | 'castR' | 'avoid';
+  do: 'encore' | 'stage' | 'cannon' | 'zzz' | 'holdR' | 'castR' | 'avoid' | 'gag';
+  /** gag: the ability (0 Q, 1 W, 2 E, 3 R) and its trigger (see the header). */
+  key?: 0 | 1 | 2 | 3;
+  when?: 'foes' | 'cast' | 'clip' | 'hp';
+  foes?: number;
+  hero?: HeroId;
+  trigKey?: number;
+  clip?: string;
+  hpBp?: number;
+  delay?: number;
+  aim?: 'foe' | 'self' | 'centre';
+  chase?: HeroId;
+  chaseR?: number;
+  /** gag: stand still between the trigger and the delayed cast. */
+  still?: boolean;
   /** Only from this game second on (and before `until`). */
   from?: number;
   until?: number;
@@ -38,6 +60,9 @@ export interface ScriptRule {
 }
 
 const HZ = 30;
+/** gag: armed triggers per match (rule index -> the tick the cast is due). Deterministic: the Node scan and the browser
+ * run the same ticks from tick 0, so both arm the same triggers. */
+const armed = new WeakMap<MatchHandle, Map<string, number>>();
 const d2 = (ax: number, ay: number, bx: number, by: number): number => (ax - bx) ** 2 + (ay - by) ** 2;
 const ready = (m: MatchHandle, s: number, k: number): boolean => m.world.cooldowns[s * 5 + k] === 0;
 const cast = (k: 0 | 1 | 2 | 3, x: number, y: number, id = NO_TARGET): Command => ({ op: Op.Cast, slot: k, x: Math.round(x), y: Math.round(y), id });
@@ -57,9 +82,54 @@ export function scriptCommands(m: MatchHandle, picks: readonly HeroId[], rules: 
   const enemyCarrier = carried && by >= 0 && w.team[by] !== team && w.alive[by] === 1 ? by : -1;
   const iCarry = carried && by === slot;
   const holdR = mine.some((r) => r.do === 'holdR' || r.do === 'encore' || r.do === 'zzz') || (iCarry && mine.some((r) => r.do === 'cannon'));
-  let out: Command[] = holdR ? pilot.filter((c) => !(c.op === Op.Cast && c.slot === 3)) : pilot.slice();
+  const held = new Set(mine.filter((r) => r.do === 'gag').map((r) => r.key ?? 3));
+  let out: Command[] = (holdR ? pilot.filter((c) => !(c.op === Op.Cast && c.slot === 3)) : pilot.slice()).filter((c) => !(c.op === Op.Cast && held.has(c.slot as number)));
   const think = tick % 6 === slot % 6;
   for (const r of mine) {
+    if (r.do === 'gag') {
+      const k = r.key ?? 3;
+      if (!ready(m, slot, k)) continue;
+      const rg = r.range ?? 6000;
+      const foes: number[] = [];
+      for (let s = 0; s < picks.length; s++) if (w.team[s] !== team && w.alive[s] === 1 && d2(x, y, w.x[s], w.y[s]) <= rg * rg) foes.push(s);
+      let st = armed.get(m);
+      if (!st) armed.set(m, (st = new Map()));
+      const id = `${slot}:${rules.indexOf(r)}`;
+      let due = st.get(id);
+      if (due === undefined) {
+        let fire = false;
+        const when = r.when ?? 'foes';
+        if (when === 'foes') fire = foes.length >= (r.foes ?? 1) && (!r.hero || foes.some((f) => picks[f] === r.hero));
+        else if (when === 'cast') fire = lastEvents.some((e) => e.type === 'cast' && (e.src !== slot || r.hero === picks[slot]) && e.slot === (r.trigKey ?? 3) && (!r.hero || picks[e.src] === r.hero) && d2(x, y, w.x[e.src], w.y[e.src]) <= (r.near ?? 12000) ** 2);
+        else if (when === 'clip') fire = lastEvents.some((e) => e.type === 'clip' && e.id === slot && e.what === (r.clip ?? 'flop'));
+        else if (when === 'hp') fire = foes.length > 0 && w.hp[slot] * 10000 < (r.hpBp ?? 3000) * w.maxHp[slot];
+        if (fire) st.set(id, (due = tick + (r.delay ?? 0)));
+      }
+      if (due !== undefined && tick < due && r.still) return [move(x, y)];
+      if (due !== undefined && tick >= due) {
+        st.delete(id);
+        const aim = r.aim ?? 'foe';
+        if (aim === 'self') return [cast(k, x, y)];
+        if (!foes.length) continue;
+        if (aim === 'centre') {
+          let cx = 0, cy = 0;
+          for (const s of foes) (cx += w.x[s]), (cy += w.y[s]);
+          return [cast(k, cx / foes.length, cy / foes.length)];
+        }
+        let best = foes.find((s) => r.hero && picks[s] === r.hero) ?? -1;
+        if (best < 0) {
+          let bd = Infinity;
+          for (const s of foes) if (d2(x, y, w.x[s], w.y[s]) < bd) (bd = d2(x, y, w.x[s], w.y[s])), (best = s);
+        }
+        return [cast(k, w.x[best], w.y[best], best)];
+      }
+      if (r.chase && think) {
+        const c = picks.findIndex((h, s) => h === r.chase && w.team[s] !== team && w.alive[s] === 1);
+        const cr = r.chaseR ?? 5000;
+        if (c >= 0 && d2(x, y, w.x[c], w.y[c]) > cr * cr && d2(x, y, w.x[c], w.y[c]) < 26000 * 26000) out = [move(w.x[c], w.y[c])];
+      }
+      continue;
+    }
     if (r.do === 'encore' && enemyCarrier >= 0 && ready(m, slot, 3)) {
       const cx = w.x[enemyCarrier], cy = w.y[enemyCarrier];
       const dd = d2(x, y, cx, cy);
