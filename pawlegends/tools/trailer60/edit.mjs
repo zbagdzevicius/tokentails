@@ -531,6 +531,13 @@ try {
     const af = CUTDOWN.map(([a, b], i) => `[0:a]atrim=start=${(a / FPS).toFixed(4)}:end=${(b / FPS).toFixed(4)},asetpts=PTS-STARTPTS,afade=t=in:d=0.02,afade=t=out:st=${((b - a) / FPS - 0.03).toFixed(4)}:d=0.03[a${i}]`).join(';');
     const cat = CUTDOWN.map((_, i) => `[v${i}][a${i}]`).join('') + `concat=n=${CUTDOWN.length}:v=1:a=1[v][a0];[a0]loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[a]`;
     ff(['-i', m, '-filter_complex', `${vf};${af};${cat}`, '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart', out]);
+    // round 4: one-pass loudnorm landed the 15 s cut at -13.2 LUFS; a measured gain brings it to -14 (video copied)
+    const l15 = loudness(out);
+    if (Math.abs(l15.I + 14) > 0.3) {
+      const tmp = out.replace(/\.mp4$/, '-gain.mp4');
+      ff(['-i', out, '-map', '0:v', '-map', '0:a', '-c:v', 'copy', '-af', `volume=${(-14 - l15.I).toFixed(2)}dB`, '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart', tmp]);
+      execFileSync('mv', [tmp, out]);
+    }
     report[`cut15-${aspect}`] = { file: out, probe: probe(out), loudness: loudness(out) };
   }
   writeFileSync(join(OUT, 'report.json'), JSON.stringify(report, null, 1) + '\n');
