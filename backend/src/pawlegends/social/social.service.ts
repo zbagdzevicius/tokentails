@@ -29,6 +29,8 @@ import {
     INVITE_ANSWERS,
     INVITE_ID_RE,
     INVITE_SIM_RE,
+    INVITE_HOLD_MS,
+    INVITE_KEEP_MS,
     INVITE_TTL_MS,
     InviteAnswer,
     pairId,
@@ -111,6 +113,24 @@ const PLAYED_DAYS = 30;
 const PLAYED_ROOMS = 100;
 const validNote = (n: unknown): n is number =>
     Number.isInteger(n) && (n as number) >= 0 && (n as number) < STATUS_NOTE_COUNT;
+
+/** An invite row as the service reads it. */
+interface InviteRow {
+    _id: unknown;
+    from: string;
+    to: string;
+    party: string;
+    mode?: string;
+    sim?: string;
+    answer?: 'accepted' | 'declined';
+    later?: Date;
+    live?: Date;
+    exp: Date;
+    createdAt?: Date;
+}
+
+/** When an invite's 60 s popup window ends: `live`, or `exp` on a row written before Nov 19. */
+const liveOf = (r: { live?: Date | null; exp: Date }): number => new Date(r.live ?? r.exp).getTime();
 
 @Injectable()
 export class SocialService {
@@ -349,24 +369,24 @@ export class SocialService {
         return out;
     }
 
+    /**
+     * The invites waiting for `me`, newest first, at most 5. An invite inside its 60 s window pops up with its countdown
+     * (`ttl`). Nov 19: an older unanswered one (the phone was locked, the tab hidden, a match was on) still comes, as
+     * `missed` with its age, while the inviter is in that party lobby; one held for after a match (`later`) as `held`.
+     */
     private async pendingInvites(me: string) {
         const now = this.now();
         const rows = (await this.invites
             .find({ to: me, exp: { $gt: now } })
             .sort({ createdAt: -1 })
             .limit(8)
-            .lean()) as Array<{
-            _id: unknown;
-            from: string;
-            party: string;
-            mode?: string;
-            sim?: string;
-            answer?: string;
-            exp: Date;
-        }>;
+            .lean()) as InviteRow[];
+        const open = rows.filter(x => !x.answer);
+        const late = open.filter(r => liveOf(r) <= now.getTime());
+        const still = late.length ? await this.stillInParty(late) : new Set<string>();
         const live = [];
         // an answered invite (SOCIAL-INVITES.md) is gone from the friend's toasts; at most 5 waiting
-        for (const r of rows.filter(x => !x.answer).slice(0, 5))
+        for (const r of open.filter(x => liveOf(x) > now.getTime() || still.has(String(x._id))).slice(0, 5))
             if (!(await this.blockedEither(me, r.from))) live.push(r);
         if (!live.length) return [];
         const [names, profiles] = await Promise.all([
@@ -380,16 +400,42 @@ export class SocialService {
                 .lean() as Promise<Array<{ _id: string; code: string }>>,
         ]);
         const codes = new Map(profiles.map(p => [String(p._id), p.code]));
-        return live.map(r => ({
-            id: String(r._id),
-            from: { code: formatPlayerCode(codes.get(r.from) ?? ''), name: names.get(r.from) },
-            party: r.party,
-            ...(r.mode === 'ranked' ? { mode: 'ranked' as const } : {}),
-            ...(typeof r.sim === 'string' ? { sim: r.sim } : {}),
-            exp: r.exp,
-            /** Milliseconds left (the toast's countdown, independent of the device clock). */
-            ttl: Math.max(0, new Date(r.exp).getTime() - now.getTime()),
-        }));
+        return live.map(r => {
+            const ttl = Math.max(0, liveOf(r) - now.getTime());
+            return {
+                id: String(r._id),
+                from: { code: formatPlayerCode(codes.get(r.from) ?? ''), name: names.get(r.from) },
+                party: r.party,
+                ...(r.mode === 'ranked' ? { mode: 'ranked' as const } : {}),
+                ...(typeof r.sim === 'string' ? { sim: r.sim } : {}),
+                exp: r.exp,
+                /** Milliseconds left in the popup window (the toast's countdown, independent of the device clock). */
+                ttl,
+                // Nov 19: past its window but the inviter still waits in that lobby (age in ms: "3 min ago")
+                ...(ttl === 0
+                    ? {
+                          missed: true,
+                          age: Math.max(0, now.getTime() - new Date(r.createdAt ?? now).getTime()),
+                          ...(r.later ? { held: true } : {}),
+                      }
+                    : {}),
+            };
+        });
+    }
+
+    /** The invite ids (of `rows`) whose inviter is still in that party's lobby (fresh relay presence). */
+    private async stillInParty(rows: readonly InviteRow[]): Promise<Set<string>> {
+        const nowMs = this.now().getTime();
+        const pres = (await this.presence
+            .find({ _id: { $in: [...new Set(rows.map(r => r.from))] } })
+            .lean()) as PresenceRow[];
+        const byId = new Map(pres.map(p => [String(p._id), readPresence(p, nowMs)]));
+        const out = new Set<string>();
+        for (const r of rows) {
+            const v = byId.get(r.from);
+            if (v?.state === 'party' && v.party === r.party) out.add(String(r._id));
+        }
+        return out;
     }
 
     async state(me: string) {
@@ -524,7 +570,8 @@ export class SocialService {
         const profile = await this.profile(me);
         const token = await this.revToken(me, profile);
         const invites = await this.pendingInvites(me);
-        if (token === rev && !invites.length) return { changed: false };
+        // a missed invite (past its 60 s) never forces a 200 on every pulse: the rev covers it
+        if (token === rev && !invites.some(i => !i.missed)) return { changed: false };
         return { changed: true, rev: token, invites };
     }
 
@@ -997,11 +1044,13 @@ export class SocialService {
         if (view.state !== 'party' || !view.party || !view.joinable) throw SOCIAL_ERRORS.noParty();
         const [recent, toTarget] = await Promise.all([
             this.invites.countDocuments({ from: me, createdAt: { $gte: new Date(now.getTime() - 10 * 60_000) } }),
+            // one invite at a time per friend while it pops up (60 s): one past its window can be sent again
             this.invites.countDocuments({
                 from: me,
                 to: target._id,
                 answer: { $exists: false },
-                exp: { $gt: now },
+                later: { $exists: false },
+                $or: [{ live: { $gt: now } }, { live: { $exists: false }, exp: { $gt: now } }],
             }),
         ]);
         if (recent >= 10 || toTarget >= 1) throw SOCIAL_ERRORS.limit();
@@ -1012,9 +1061,16 @@ export class SocialService {
             party: view.party,
             ...(mode === 'ranked' ? { mode: 'ranked' } : {}),
             ...(typeof sim === 'string' && INVITE_SIM_RE.test(sim) ? { sim } : {}),
-            exp: new Date(now.getTime() + INVITE_TTL_MS),
+            live: new Date(now.getTime() + INVITE_TTL_MS),
+            exp: new Date(now.getTime() + INVITE_KEEP_MS),
             createdAt: now,
         });
+        const id =
+            created && (created as { _id?: unknown })._id !== undefined
+                ? String((created as { _id: unknown })._id)
+                : '';
+        // "Invite sent" only for a stored invite (Nov 19): no id, no claim
+        if (!id) throw SOCIAL_ERRORS.limit();
         await this.bump([target._id]);
         // SHARE-PUSH.md §2: a push to the friend's devices (their rules decide; never waits, never fails the invite)
         void displayNames({ social: this.social, cats: this.cats }, [me])
@@ -1028,10 +1084,6 @@ export class SocialService {
                 })
             )
             .catch(() => undefined);
-        const id =
-            created && (created as { _id?: unknown })._id !== undefined
-                ? String((created as { _id: unknown })._id)
-                : '';
         serverTrack(
             me,
             'invite_sent',
@@ -1040,9 +1092,13 @@ export class SocialService {
         );
         return {
             ok: true,
-            ...(id ? { id } : {}),
+            id,
             ttl: INVITE_TTL_MS,
             ...(!theirs || theirs.state === 'offline' ? { offline: true } : {}),
+            // Nov 19: what the friend is doing, so the inviter's note is honest ("Mira is in a match: …")
+            ...(theirs && (theirs.state === 'match' || theirs.state === 'queue' || theirs.state === 'party')
+                ? { busy: theirs.state }
+                : {}),
         };
     }
 
@@ -1056,19 +1112,32 @@ export class SocialService {
             throw SOCIAL_ERRORS.invalid('answer');
         const a = answer as InviteAnswer;
         const now = this.now();
-        const row = (await this.invites.findOne({ _id: id, to: me }).lean()) as {
-            _id: unknown;
-            from: string;
-            party: string;
-            answer?: string;
-            exp: Date;
-        } | null;
-        const live = !!row && !row.answer && new Date(row.exp).getTime() > now.getTime();
+        const row = (await this.invites.findOne({ _id: id, to: me }).lean()) as InviteRow | null;
+        const open = !!row && !row.answer && new Date(row.exp).getTime() > now.getTime();
+        // Nov 19: past the 60 s window an invite still takes Accept while the inviter is in that party (a friend who was
+        // away or in a match); `later` and `decline` need only the row
+        const live =
+            open &&
+            (a !== 'accept' ||
+                liveOf(row!) > now.getTime() ||
+                !!row!.later ||
+                (await this.stillInParty([row!])).has(String(row!._id)));
         if (!live) {
-            if (a === 'decline') return { ok: true };
+            if (a !== 'accept') return { ok: true };
             throw SOCIAL_ERRORS.inviteGone();
         }
         if (a === 'accept' && (await this.blockedEither(me, row!.from))) throw SOCIAL_ERRORS.inviteGone();
+        if (a === 'later') {
+            // the friend's game got it in a match: kept for the match's end; the inviter hears it once
+            if (row!.later) return { ok: true };
+            await this.invites.updateOne(
+                { _id: row!._id, answer: { $exists: false } },
+                { $set: { later: now, exp: new Date(now.getTime() + INVITE_HOLD_MS) } }
+            );
+            await this.bump([row!.from]);
+            serverTrack(me, 'invite_answered', { answer: 'later' }, `invite:${id}`);
+            return { ok: true };
+        }
         await this.invites.updateOne(
             { _id: row!._id, answer: { $exists: false } },
             { $set: { answer: a === 'accept' ? 'accepted' : 'declined' } }
@@ -1094,7 +1163,7 @@ export class SocialService {
               changed: true;
               rev: string;
               invites: unknown[];
-              answers: Array<{ id: string; name: string; answer: 'accepted' | 'declined' }>;
+              answers: Array<{ id: string; name: string; answer: 'accepted' | 'declined' | 'later' }>;
           }
     > {
         // the inbox polls on every menu: it keeps the player "online" for friends (one write a minute at most)
@@ -1104,28 +1173,43 @@ export class SocialService {
         if (token === rev) return { changed: false };
         if (!row) return { changed: true, rev: token, invites: [], answers: [] };
         const now = this.now();
+        // rows live until `exp` (TTL): a minute's grace covers an answer given at the last moment
+        const recent = { $gt: new Date(now.getTime() - INVITE_TTL_MS) };
         const answered = (await this.invites
-            .find({
-                from: me,
-                answer: { $exists: true },
-                seen: { $ne: true },
-                exp: { $gt: new Date(now.getTime() - INVITE_TTL_MS) },
-            })
+            .find({ from: me, answer: { $exists: true }, seen: { $ne: true }, exp: recent })
             .sort({ createdAt: -1 })
             .limit(5)
             .lean()) as Array<{ _id: unknown; to: string; answer: 'accepted' | 'declined' }>;
-        let answers: Array<{ id: string; name: string; answer: 'accepted' | 'declined' }> = [];
-        if (answered.length) {
-            await this.invites.updateMany({ _id: { $in: answered.map(a => a._id) } }, { $set: { seen: true } });
+        // Nov 19: "Mira is in a match: your invite waits for them" (once)
+        const held = (await this.invites
+            .find({
+                from: me,
+                later: { $exists: true },
+                laterSeen: { $ne: true },
+                answer: { $exists: false },
+                exp: recent,
+            })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .lean()) as Array<{ _id: unknown; to: string }>;
+        let answers: Array<{ id: string; name: string; answer: 'accepted' | 'declined' | 'later' }> = [];
+        if (answered.length || held.length) {
+            if (answered.length)
+                await this.invites.updateMany({ _id: { $in: answered.map(a => a._id) } }, { $set: { seen: true } });
+            if (held.length)
+                await this.invites.updateMany({ _id: { $in: held.map(a => a._id) } }, { $set: { laterSeen: true } });
             const names = await displayNames(
                 { social: this.social, cats: this.cats },
-                answered.map(a => a.to)
+                [...answered, ...held].map(a => a.to)
             );
-            answers = answered.map(a => ({
-                id: String(a._id),
-                name: names.get(a.to) ?? 'Your friend',
-                answer: a.answer,
-            }));
+            answers = [
+                ...answered.map(a => ({ id: String(a._id), name: names.get(a.to) ?? 'Your friend', answer: a.answer })),
+                ...held.map(a => ({
+                    id: String(a._id),
+                    name: names.get(a.to) ?? 'Your friend',
+                    answer: 'later' as const,
+                })),
+            ];
         }
         return { changed: true, rev: token, invites: await this.pendingInvites(me), answers };
     }

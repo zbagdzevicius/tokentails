@@ -424,9 +424,15 @@ describe('pawlegends invites, LoL style (SOCIAL-INVITES.md)', () => {
         // a bad sim is dropped, never stored
         expect(models.invites.docs.every(d => d.sim === undefined || /^\d+\./.test(d.sim))).toBe(true);
         clock.advance(61_000);
+        // Nov 19: past its 60 s window it still waits while A is in that lobby ("missed", no countdown left)
+        expect((await svc.state('B')).invites).toEqual([
+            expect.objectContaining({ id: sent.id, ttl: 0, missed: true, age: 61_000 }),
+        ]);
+        // A left the party: nothing waits
+        models.presence.docs[0].relay = null;
         expect((await svc.state('B')).invites).toEqual([]);
-        // once expired, the same friend can be invited again at once
-        models.presence.docs[0].relay.at = clock.now();
+        // past its window, the same friend can be invited again at once
+        models.presence.docs[0].relay = { state: 'party', party: 'WXYZ', joinable: true, at: clock.now() };
         await expect(svc.invite('A', await codeOf(svc, 'B'), undefined, '<script>')).resolves.toMatchObject({
             ok: true,
         });
@@ -479,14 +485,97 @@ describe('pawlegends invites, LoL style (SOCIAL-INVITES.md)', () => {
         });
     });
 
-    it('accepting an expired invite is refused (410)', async () => {
-        const { clock, svc } = await friendsInParty();
+    it('accepting an expired invite is refused (410): the inviter left the party, or the row is 10 min old', async () => {
+        const { clock, models, svc } = await friendsInParty();
         const { id } = await svc.invite('A', await codeOf(svc, 'B'));
         clock.advance(60_001);
+        models.presence.docs[0].relay = null;
         await expect(svc.answerInvite('B', id, 'accept')).rejects.toMatchObject({
             response: { code: 'PAWLEGENDS_SOCIAL_INVITE_GONE' },
             status: 410,
         });
+        const again = await (async () => {
+            models.presence.docs[0].relay = { state: 'party', party: 'WXYZ', joinable: true, at: clock.now() };
+            return svc.invite('A', await codeOf(svc, 'B'));
+        })();
+        clock.advance(10 * 60_000 + 1);
+        models.presence.docs[0].relay = { state: 'party', party: 'WXYZ', joinable: true, at: clock.now() };
+        await expect(svc.answerInvite('B', again.id, 'accept')).rejects.toMatchObject({ status: 410 });
+    });
+
+    it('Nov 19: a friend away for 3 min (phone locked, a hidden tab) still gets it and can accept while A waits in the lobby', async () => {
+        const { clock, models, svc } = await friendsInParty();
+        const first = (await svc.inbox('B', undefined)) as { rev: string };
+        const { id } = await svc.invite('A', await codeOf(svc, 'B'));
+        clock.advance(3 * 60_000);
+        models.presence.docs[0].relay.at = clock.now();
+        const box = (await svc.inbox('B', first.rev)) as { changed: true; invites: Array<Record<string, unknown>> };
+        expect(box.changed).toBe(true);
+        expect(box.invites).toEqual([
+            expect.objectContaining({ id, party: 'WXYZ', missed: true, ttl: 0, age: 180_000 }),
+        ]);
+        await expect(svc.answerInvite('B', id, 'accept')).resolves.toEqual({ ok: true, party: 'WXYZ' });
+    });
+
+    it('Nov 19: in a match the friend answers `later`: A hears it once, the invite waits for the match end, A may invite again', async () => {
+        const { clock, models, svc } = await friendsInParty();
+        const code = await codeOf(svc, 'B');
+        const { id } = await svc.invite('A', code);
+        const aRev = ((await svc.inbox('A', undefined)) as { rev: string }).rev;
+        await expect(svc.answerInvite('B', id, 'later')).resolves.toEqual({ ok: true });
+        await expect(svc.answerInvite('B', id, 'later')).resolves.toEqual({ ok: true });
+        const heard = (await svc.inbox('A', aRev)) as { changed: true; answers: Array<{ id: string; answer: string }> };
+        expect(heard.answers).toEqual([expect.objectContaining({ id, answer: 'later' })]);
+        expect(((await svc.inbox('A', undefined)) as { answers: unknown[] }).answers).toEqual([]);
+        // a held invite never blocks a fresh one
+        await expect(svc.invite('A', code)).resolves.toMatchObject({ ok: true });
+        // the match ran 25 min; A still waits in the lobby: B accepts the held invite
+        clock.advance(25 * 60_000);
+        models.presence.docs[0].relay.at = clock.now();
+        await expect(svc.answerInvite('B', id, 'accept')).resolves.toEqual({ ok: true, party: 'WXYZ' });
+        const box = (await svc.inbox('A', undefined)) as { answers: Array<{ answer: string }> };
+        expect(box.answers).toEqual([expect.objectContaining({ answer: 'accepted' })]);
+    });
+
+    it('Nov 19: the friend in another party of their own gets the invite and can accept (the game leaves that party)', async () => {
+        const { clock, models, svc } = await friendsInParty();
+        models.presence.docs.push({
+            _id: 'B',
+            relay: { state: 'party', party: 'BBBB', joinable: true, at: clock.now() },
+            exp: new Date(clock.ms + 60_000),
+        });
+        const first = (await svc.inbox('B', undefined)) as { rev: string };
+        const sent = await svc.invite('A', await codeOf(svc, 'B'));
+        expect(sent).toMatchObject({ ok: true, busy: 'party' });
+        expect(sent.offline).toBeUndefined();
+        const box = (await svc.inbox('B', first.rev)) as { invites: Array<Record<string, unknown>> };
+        expect(box.invites).toEqual([expect.objectContaining({ id: sent.id, party: 'WXYZ', ttl: 60_000 })]);
+        await expect(svc.answerInvite('B', sent.id, 'accept')).resolves.toEqual({ ok: true, party: 'WXYZ' });
+    });
+
+    it('Nov 19: two API instances share the invite (Mongo, never memory): sent on one, shown and answered on the other', async () => {
+        const { clock, models, svc } = await friendsInParty();
+        const other = new SocialService(
+            models.social as never,
+            models.friends as never,
+            models.blocks as never,
+            models.presence as never,
+            models.invites as never,
+            models.buyers as never,
+            models.rooms as never,
+            models.users as never,
+            models.cats as never,
+            clock
+        );
+        const bRev = ((await other.inbox('B', undefined)) as { rev: string }).rev;
+        const aRev = ((await svc.inbox('A', undefined)) as { rev: string }).rev;
+        const sent = await svc.invite('A', await codeOf(svc, 'B'));
+        const box = (await other.inbox('B', bRev)) as { changed: true; invites: Array<{ id: string }> };
+        expect(box.changed).toBe(true);
+        expect(box.invites.map(i => i.id)).toEqual([sent.id]);
+        await expect(other.answerInvite('B', sent.id, 'decline')).resolves.toEqual({ ok: true });
+        const back = (await svc.inbox('A', aRev)) as { changed: true; answers: Array<{ answer: string }> };
+        expect(back.answers).toEqual([expect.objectContaining({ answer: 'declined' })]);
     });
 
     it('the inbox: one read while nothing changed, then the invite; a DM-style rev bump wakes it too', async () => {

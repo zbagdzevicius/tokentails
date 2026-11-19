@@ -243,6 +243,20 @@ export class PawlegendsInvite {
     @Prop({ type: Boolean, required: false })
     seen?: boolean;
 
+    /**
+     * Nov 19: the end of the 60 s popup window (`exp` is now the row's whole life, INVITE_KEEP_MS, so a friend who
+     * was away or in a match still sees it). Rows written before have no `live`: their `exp` is the window.
+     */
+    @Prop({ type: Date, required: false })
+    live?: Date;
+
+    /** The friend's game got it during a match (`later`): the card shows when the match ends; the inviter is told once. */
+    @Prop({ type: Date, required: false })
+    later?: Date;
+
+    @Prop({ type: Boolean, required: false })
+    laterSeen?: boolean;
+
     @Prop({ type: Date, required: true })
     exp: Date;
 
