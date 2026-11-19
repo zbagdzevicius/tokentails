@@ -43,11 +43,12 @@ const LOOKS = {
  * game distance), push (dist factor at the end), slow: [[atOutS, speed, rampFrames], ...], looks.
  */
 const SHOTS = [
-  // S01 hook: Bravo poses (Opening Night), a Sage hit drops him to the floor: Dramatic Flop (seed 26, 185.17)
-  { id: 'h01-flop', set: 'A', seed: 26, t: 185.17, lead: 1.1, dur: 1.9, unit: 'bravo', dist: 0.42, push: 0.9, looks: looksA(BRAVO.night) },
-  // S03-S04 the cannon spawns (139.3, 55, 24 m); Rocket and Sage race for it side by side, Sage takes it 0.8 m ahead
-  // of him (seed 68, 142.2); a fixed frame on the run-up so both come into it
-  { id: 'c01-miss', set: 'A', seed: 68, t: 142.2, lead: 2.2, dur: 3.4, point: [54500, 19500], dist: 0.8, push: 0.85, looks: looksA(BRAVO.understudy) },
+  // S01 hook (round 2: the flop read as a blur of stars on a tiny body): the camera punches in on the flop (0.42 to
+  // 0.24 of the game distance over 10 frames) and holds, so the legs-up pose fills the frame before the iris
+  { id: 'h01-flop', set: 'A', seed: 26, t: 185.17, lead: 1.1, dur: 2.2, unit: 'bravo', dist: 0.42, keys: [[0, 1], [60, 0.95], [72, 0.58, 'out'], [131, 0.55]], looks: looksA(BRAVO.night) },
+  // S03-S04 the cannon spawns; Rocket and Sage race for it side by side, Sage takes it 0.8 m ahead of him (seed 68,
+  // 142.2); round 2 follows Rocket (the race and the miss are his) so his name tag can ride on him
+  { id: 'c01-miss', set: 'A', seed: 68, t: 142.2, lead: 3.0, dur: 4.2, unit: 'rocket', dist: 0.7, push: 0.85, looks: looksA(BRAVO.understudy) },
   // S05 audition #1: Sage's Moonshot leaves from his spotlight (seed 37, 297.43)
   { id: 'a01-sage', set: 'A', seed: 37, t: 297.43, lead: 0.5, dur: 2.6, unit: 'bravo', dist: 0.6, push: 0.9, looks: looksA(BRAVO.understudy) },
   // S06 Rocket's ZOOM... ZZZ past Pixel and the cannon, a nap 0.4 m from her (seed 55, nap 68.53)
@@ -56,39 +57,39 @@ const SHOTS = [
   { id: 'a02-nova', set: 'A', seed: 24, t: 81.4, lead: 0.5, dur: 2.6, unit: 'bravo', dist: 0.6, push: 0.9, looks: looksA(BRAVO.understudy) },
   // S10 audition #3: his own Champ's KNOCKOUT! (seed 17, 133.6)
   { id: 'a03-champ', set: 'A', seed: 17, t: 133.6, lead: 0.5, dur: 2.2, unit: 'bravo', dist: 0.6, push: 0.9, looks: looksA(BRAVO.understudy) },
-  // S12 the costume change: one take, four coats (seed 55, Center Stage on 104.23)
-  ...['understudy', 'harlequin', 'opera', 'night'].map((k) => ({ id: `k-${k}`, set: 'A', seed: 55, t: 104.23, lead: 0.3, dur: 2.6, unit: 'bravo', dist: 0.4, push: 0.92, looks: looksA(BRAVO[k]) })),
+  // S12 the costume change (round 2: Center Stage's white bloom hid the coats, and a dog stood blurred in the
+    // foreground, on the pale tower ground): seed 26 in the fountain, 2 s before the hook's footage, Bravo in the clear
+  ...['understudy', 'harlequin', 'opera', 'night'].map((k) => ({ id: `k-${k}`, set: 'A', seed: 26, t: 184.0, lead: 2.6, dur: 2.4, unit: 'bravo', dist: 0.42, push: 0.9, looks: looksA(BRAVO[k]) })),
   // S13 the bush: Ranger hides, Meatball (Mega Meal) sits in the same bush (seed 47, 169.93)
-  { id: 'b01-bush', set: 'C', seed: 47, t: 169.93, lead: 1.1, dur: 3.0, point: [39500, 45500], dist: 0.55, push: 0.92 },
+  { id: 'b01-bush', set: 'C', seed: 47, t: 169.93, lead: 1.1, dur: 3.4, point: [39500, 45500], dist: 0.55, push: 0.92 },
   // S14 + S18 the payoff (seed 43): Pixel carries it to the dog tower and winds up, Bravo bows (ENCORE!), she fumbles
   { id: 'p01-plant', set: 'A', seed: 43, t: 201.2, lead: 2.8, dur: 2.0, unit: 'pixel', dist: 0.6, push: 0.9, looks: looksA(BRAVO.night) },
   { id: 'p02-encore', set: 'A', seed: 43, t: 201.2, lead: 1.4, dur: 5.6, unit: 'bravo', dist: 0.5, push: 0.9, looks: looksA(BRAVO.night) },
-  // S19 Rocket steals the cannon Bravo's ENCORE! knocked loose (seed 2: Sage fumbles on 194.37, Rocket takes it on 196.3)
-  // and fires: KABOOM on Nova on 197.33 (round 1's seed 43 tower kill was a minion's, 30 m from his shot)
-  { id: 'p03-rocket', set: 'A', seed: 2, t: 197.1, lead: 1.5, dur: 3.4, point: [55300, 27000], dist: 0.72, push: 0.9, looks: looksA(BRAVO.night) },
-  // S15 Act II: seven ultimates (B, C)
-  { id: 'u-brutus', set: 'B', seed: 9, t: 274.17, lead: 0.35, dur: 1.6, unit: 'brutus', dist: 0.55, push: 0.9 },
-  { id: 'u-aviete', set: 'B', seed: 15, t: 289.47, lead: 0.35, dur: 1.6, unit: 'aviete', dist: 0.55, push: 0.9 },
-  { id: 'u-barkula', set: 'C', seed: 2, t: 237.33, lead: 0.35, dur: 1.6, unit: 'barkula', dist: 0.55, push: 0.9 },
-  { id: 'u-ziggy', set: 'B', seed: 1, t: 171.67, lead: 0.35, dur: 1.6, unit: 'ziggy', dist: 0.55, push: 0.9 },
-  { id: 'u-stilts', set: 'C', seed: 137, t: 246.47, lead: 0.35, dur: 1.6, unit: 'stilts', dist: 0.55, push: 0.9 },
-  { id: 'u-chili', set: 'B', seed: 3, t: 281.53, lead: 0.35, dur: 1.6, unit: 'chili', dist: 0.55, push: 0.9 },
-  { id: 'u-meatball', set: 'B', seed: 5, t: 268.1, lead: 0.35, dur: 1.6, unit: 'meatball', dist: 0.55, push: 0.9 },
+  // S19 Rocket steals the cannon Bravo's ENCORE! knocked loose (seed 2: Sage fumbles on 194.37, Rocket takes it on
+  // 196.3) and fires: KABOOM on Nova on 197.33. Round 2 follows Rocket (a viewer could not tell who scored)
+  { id: 'p03-rocket', set: 'A', seed: 2, t: 197.1, lead: 1.5, dur: 3.4, unit: 'rocket', dist: 0.62, push: 0.9, looks: looksA(BRAVO.night) },
+  // S15 Act II (round 2: seven 1 s cuts read as clutter): three hero moments, cast > hit > result, 0.8x on the cast
+  { id: 'u-ziggy', set: 'B', seed: 1, t: 171.67, lead: 0.8, dur: 3.0, unit: 'ziggy', dist: 0.6, push: 0.88, slow: [[0.7, 0.8, 8], [1.9, 1, 10]] },
+  { id: 'u-brutus', set: 'B', seed: 9, t: 274.17, lead: 0.8, dur: 3.0, unit: 'brutus', dist: 0.6, push: 0.88, slow: [[0.7, 0.8, 8], [1.9, 1, 10]] },
+  { id: 'u-meatball', set: 'B', seed: 5, t: 268.1, lead: 0.8, dur: 3.0, unit: 'meatball', dist: 0.6, push: 0.88, slow: [[0.7, 0.8, 8], [1.9, 1, 10]] },
   // S16 Bravo plays dead in slow motion (a Ziggy hit, seed 3, 87.27)
   { id: 'f02-flop', set: 'B', seed: 3, t: 87.27, lead: 0.7, dur: 2.2, unit: 'bravo', dist: 0.45, push: 0.9, slow: [[0.7, 0.3, 6]] },
-  // S20 the cat core falls (B seed 29, 239.8): 0.4x round the burst
-  { id: 'v01-core', set: 'B', seed: 29, t: 239.8, lead: 0.8, dur: 3.6, point: [90000, 30000], dist: 0.7, push: 0.8, slow: [[0.9, 0.4, 6], [2.4, 1, 12]] },
+  // S20 the cat core falls (round 1: B seed 29, 239.8). Round 2: seed 40, Brutus (Chairman) and Meatball in the shot; (review: the burning core's dark smoke column drew a black blob
+  // over the top of the frame): the look point 7 m toward the camera (-y), so the core sits high and the smoke rises out
+  // of the frame, and the dogs pushing it stand in the lower half (the 9:16 cut frames this landscape take: edit.mjs wideV)
+  { id: 'v01-core', set: 'B', seed: 40, t: 226.17, lead: 1.2, dur: 4.4, point: [90000, 30000], off: [0, -1], dist: 0.85, push: 0.9 },
   // S23 the stinger: Meatball rolls through Bravo in his spotlight; he plays dead (C seed 74, 192.43)
   { id: 's01-bowl', set: 'C', seed: 74, t: 192.43, lead: 1.6, dur: 3.0, unit: 'bravo', dist: 0.45, push: 0.9 },
-  // S09 the credits: eight ultimates in coats (D, E)
-  { id: 'r1-meatball', set: 'D', seed: 19, t: 200.3, lead: 0.3, dur: 1.5, unit: 'meatball', dist: 0.5, push: 0.9 },
-  { id: 'r2-frankie', set: 'D', seed: 13, t: 163.17, lead: 0.3, dur: 1.5, unit: 'frankie', dist: 0.5, push: 0.9 },
-  { id: 'r3-pixel', set: 'D', seed: 2, t: 208.07, lead: 0.3, dur: 1.5, unit: 'pixel', dist: 0.5, push: 0.9 },
-  { id: 'r4-domino', set: 'D', seed: 17, t: 218.73, lead: 0.3, dur: 1.5, unit: 'domino', dist: 0.5, push: 0.9 },
-  { id: 'r5-duchess', set: 'D', seed: 19, t: 200.5, lead: 0.3, dur: 1.5, unit: 'duchess', dist: 0.5, push: 0.9 },
-  { id: 'r6-nugget', set: 'D', seed: 6, t: 282.8, lead: 0.3, dur: 1.5, unit: 'nugget', dist: 0.5, push: 0.9 },
-  { id: 'r7-gabe', set: 'E', seed: 7, t: 183.93, lead: 0.3, dur: 1.5, unit: 'gabe', dist: 0.5, push: 0.9 },
-  { id: 'r8-howler', set: 'E', seed: 8, t: 296.87, lead: 0.3, dur: 1.5, unit: 'howler', dist: 0.5, push: 0.9 },
+  // S09 the credits, round 2: five ultimates, each shot twice (the base coat, then the store coat: a match cut on the
+  // half beat; looks never reach the sim, so both takes play the same ticks)
+  ...[
+    ['r1-meatball', 19, 200.3, 'meatball'], ['r2-frankie', 13, 163.17, 'frankie'], ['r3-pixel', 2, 208.07, 'pixel'], ['r4-domino', 17, 218.73, 'domino'], ['r5-duchess', 19, 200.5, 'duchess'],
+  ].flatMap(([id, seed, t, unit]) => [
+    { id, set: 'D', seed, t, lead: 0.3, dur: 1.5, unit, dist: 0.5, push: 0.9 },
+    { id: `${id}-base`, set: 'D', seed, t, lead: 0.3, dur: 1.5, unit, dist: 0.5, push: 0.9, looks: [[null, null, null], [null, null, null]] },
+  ]),
+  // Gemini references: Bravo in the game's own render, close (the comic panels stay on-model)
+  { id: 'ref-bravo', set: 'A', seed: 26, t: 183.9, lead: 0, dur: 0.3, unit: 'bravo', dist: 0.2, push: 1, looks: looksA(BRAVO.night) },
 ];
 
 // The game's fixed play camera (src/render/camera/frame.ts): pitch 52, FOV 36, yaw 0; takes keep that angle and lens
@@ -98,9 +99,14 @@ const GAMECAM = { horizontal: { pitch: 52, fov: 36 }, vertical: { pitch: 56, fov
 function camFor(s, aspect) {
   const v = aspect === 'vertical';
   const N = Math.round(s.dur * FPS);
-  const target = s.unit ? { unit: slotOf(s.set, s.unit), lift: 1 } : { point: s.point, lift: 1 };
+  // round 2: `off` [x, y] metres moves a point target (sim mm; +y is away from the camera at yaw 0)
+  const off = s.off;
+  const pt = s.point && off ? [s.point[0] + off[0] * 1000 * (s.offM ?? 7), s.point[1] + off[1] * 1000 * (s.offM ?? 7)] : s.point;
+  const target = s.unit ? { unit: slotOf(s.set, s.unit), lift: 1 } : { point: pt, lift: 1 };
   const k = { ...GAMECAM[aspect], yaw: 0, lift: 1 };
   const d = s.dist * (v ? 0.9 : 1);
+  // round 2: `keys` [[frame, dist factor, ease]] for a punch-in (the hook)
+  if (s.keys) return { target, smooth: 0.2, keys: s.keys.map(([f, m, e]) => ({ f: Math.min(f, N - 1), dist: d * m, ...k, ...(e ? { ease: e } : {}) })) };
   return { target, smooth: 0.2, keys: [{ f: 0, dist: d, ...k }, { f: N - 1, dist: d * (s.push ?? 1), ...k, ease: 'ease' }] };
 }
 
@@ -120,7 +126,9 @@ function rampFor(s) {
 const CATS = ['clem', 'sage', 'meatball', 'pixel', 'duchess', 'stilts', 'aviete', 'bengas', 'gabe', 'lambo', 'nova', 'ziggy', 'mochi', 'dusty'];
 const DOGS = ['bravo', 'brutus', 'cacklejaw', 'nugget', 'marshmallow', 'chili', 'domino', 'frankie', 'rocket', 'howler', 'barkula', 'biscuit', 'champ', 'ranger'];
 // (14 on one stage left them a few pixels tall and showed the backdrop's edge: four lineups of 7)
-const LINEUP = [['cc-cats1', CATS.slice(0, 7)], ['cc-dogs1', DOGS.slice(0, 7)], ['cc-cats2', CATS.slice(7)], ['cc-dogs2', DOGS.slice(7)]];
+// round 2 (review: 3.4 s of near-static lineups of 7, tiny with jaggy outlines): seven quick lineups of four, two cats
+// and two dogs each, closer, every hero acting; the edit cuts them on the half beat
+const LINEUP = Array.from({ length: 7 }, (_, i) => [`cc${i + 1}`, [CATS[2 * i], CATS[2 * i + 1], DOGS[2 * i], DOGS[2 * i + 1]]]);
 const LINEUPS = { horizontal: LINEUP, vertical: LINEUP };
 const CC_LOOKS = { bravo: BRAVO.night, meatball: MEGA, brutus: CHAIR, frankie: 'coat.frankie.store_kebab_king', domino: 'coat.domino.store_pizzaiolo', pixel: 'coat.pixel.store_moonwhisker', duchess: 'coat.duchess.store_blue_point', nugget: 'coat.nugget.store_robo_vac' };
 
@@ -154,7 +162,7 @@ for (const aspect of ['horizontal', 'vertical']) {
   }
   for (const [id, heroes] of LINEUPS[aspect]) {
     if (only && !only.includes(id)) continue;
-    out.push({ id: `${id}-${aspect === 'vertical' ? 'v' : 'h'}`, mode: 'skins', style: 'lineup', heroes, looks: heroes.map((h) => CC_LOOKS[h] ?? null), duration: 1.6, fps: FPS, aspect, music: 2, zoom: aspect === 'vertical' ? 0.5 : 0.68, actEvery: 0.8, caption: `trailer60 curtain call ${id}` });
+    out.push({ id: `${id}-${aspect === 'vertical' ? 'v' : 'h'}`, mode: 'skins', style: 'lineup', heroes, looks: heroes.map((h) => CC_LOOKS[h] ?? null), duration: 1.2, fps: FPS, aspect, music: 2, zoom: aspect === 'vertical' ? 0.9 : 1.1, actEvery: 0.35, caption: `trailer60 curtain call ${id}` });
   }
 }
 process.stdout.write(JSON.stringify(out, null, 1) + '\n');

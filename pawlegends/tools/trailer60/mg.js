@@ -333,7 +333,7 @@ SEG.iris = (f, p) => {
   halftone(C.night, 0.25 * t, 12 * S(), -0.6, 0.5);
   flash(f < 2 ? 0.35 : 0, C.bolt);
   const size = (V() ? 96 : 110) * S();
-  slamWord(p.text, W / 2, V() ? H * 0.78 : H * 0.84, size, f - 2, { shadow: C.sky, per: 0.6, rise: 4 });
+  slamWord(p.text, W / 2, V() ? H * 0.66 : H * 0.84, size, f - 2, { shadow: C.sky, per: 0.6, rise: 4 });
 };
 
 /** S02: two curtains (magenta, blue) close over the frozen hook frame; the logo PRESENTS, BRAVO, IN THE UNDERSTUDY. */
@@ -405,26 +405,45 @@ ITEM.counter = (f, it) => {
   ctx.translate(-x, -y);
   ctx.font = `900 italic ${s}px RubikD, sans-serif`;
   const wn = ctx.measureText(it.who).width + s * 0.84;
-  const wd = s * 1.4;
+  const wd = s * 1.1;
   const tot = wn + wd;
   const x0 = V() ? x - tot / 2 : x - tot;
   chip(it.who, x0, y, s, { fill: C.sky, color: C.cream });
-  const flip = it.win ? clamp((f - it.at - 8) / 6) : 1;
-  const digit = it.win && flip < 0.5 ? '0' : it.score;
+  // round 2 (review: mid-flip the box read empty, like a missing digit): the box always holds a digit; on a win the
+  // old one drops out of the box and the new one drops in from above (6 frames each way, clipped to the box)
+  const cx = x0 + wn + wd / 2;
+  const g8 = f - it.at - 8;
+  const swapT = it.win ? clamp(g8 / 6) : 1;
+  const won = it.win && g8 >= 0;
+  {
+    // the digit box: the same height as the name chip, exactly wd wide, an ink rim
+    const h = s * 1.32;
+    ctx.fillStyle = C.ink;
+    ctx.fillRect(cx - wd / 2 - s * 0.09, y - h / 2 - s * 0.09, wd + s * 0.18, h + s * 0.18);
+    ctx.fillStyle = won ? C.bolt : C.cream;
+    ctx.fillRect(cx - wd / 2, y - h / 2, wd, h);
+  }
   ctx.save();
-  ctx.translate(x0 + wn + wd / 2, y);
-  ctx.scale(1, it.win ? Math.abs(Math.cos(flip * Math.PI)) * 0.85 + 0.15 : 1);
-  chip(digit, -wd / 2, 0, s, { fill: it.win && flip >= 0.5 ? C.bolt : C.cream, color: C.ink, pad: 0.42 });
+  ctx.beginPath();
+  ctx.rect(cx - wd / 2, y - s * 0.66, wd, s * 1.32);
+  ctx.clip();
+  ctx.font = `900 italic ${s}px RubikD, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = C.ink;
+  if (it.win && swapT < 1) ctx.fillText('0', cx, y + s * 0.05 + outCubic(swapT) * s * 1.4);
+  const dropIn = it.win ? (g8 < 0 ? -1 : outBack(swapT, 2.2)) : 1;
+  if (dropIn >= 0) ctx.fillText(it.score, cx, y + s * 0.05 - (1 - dropIn) * s * 1.4);
   ctx.restore();
-  if (it.win && f - it.at >= 11) {
-    const g = f - it.at - 11;
+  if (it.win && f - it.at >= 13) {
+    const g = f - it.at - 13;
     ctx.save();
     const r = rng(9);
     for (let i = 0; i < 26; i++) {
       const ang = r() * 6.28, sp = (4 + r() * 10) * S();
       ctx.fillStyle = [C.bolt, C.rose, C.sky, C.cream][i % 4];
       ctx.globalAlpha = clamp(1 - g / 40);
-      ctx.fillRect(x0 + wn + wd / 2 + Math.cos(ang) * sp * g, y + Math.sin(ang) * sp * g + 0.4 * g * g * S(), 9 * S(), 14 * S());
+      ctx.fillRect(cx + Math.cos(ang) * sp * g, y + Math.sin(ang) * sp * g + 0.4 * g * g * S(), 9 * S(), 14 * S());
     }
     ctx.restore();
   }
@@ -478,6 +497,68 @@ ITEM.slate = (f, it) => {
   chip(it.text, 0, 0, s, { fill: C.ink, color: C.cream });
   ctx.restore();
 };
+/**
+ * Round 2: a name tag that rides on its hero (the take's QC box, `it.pts[f]` = [x, y] the top centre of the body in
+ * frame fractions, or null): a chip in the side colour, a sub line, an ink arrow pointing down at the hero.
+ */
+ITEM.pointer = (f, it) => {
+  if (f < it.at || f > it.out) return;
+  let p = null;
+  for (let k = f; k >= 0 && !p; k--) p = it.pts?.[k] ?? null;
+  if (!p) for (let k = f; k < (it.pts?.length ?? 0) && !p; k++) p = it.pts[k];
+  if (!p) return;
+  const g = f - it.at;
+  const fade = f > it.out - 4 ? clamp((it.out - f) / 4) : 1;
+  const s = (V() ? 66 : 62) * S();
+  const k = popScale(f, it.at);
+  const bob = Math.sin(g * 0.25) * 6 * S();
+  const x = clamp(p[0] * W, W * 0.14, W * 0.86), tip = clamp(p[1] * H - 10 * S(), H * 0.2, H * 0.9);
+  const y = tip - s * (it.sub ? 2.1 : 1.35) + bob;
+  ctx.save();
+  ctx.globalAlpha = fade * clamp(g / 3);
+  ctx.translate(x, tip + bob);
+  ctx.scale(k, k);
+  ctx.translate(-x, -(tip + bob));
+  // the arrow
+  ctx.fillStyle = C.ink;
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.42, y + s * 0.55);
+  ctx.lineTo(x + s * 0.42, y + s * 0.55);
+  ctx.lineTo(x, tip + bob);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = it.side === 'cat' ? C.rose : C.sky;
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.26, y + s * 0.55);
+  ctx.lineTo(x + s * 0.26, y + s * 0.55);
+  ctx.lineTo(x, tip + bob - s * 0.22);
+  ctx.closePath();
+  ctx.fill();
+  chip(it.text, x, y, s, { fill: it.side === 'cat' ? C.rose : C.sky, color: C.cream, align: 'center' });
+  if (it.sub) chip(it.sub, x, y - s * 1.25, s * 0.62, { fill: C.bolt, color: C.ink, align: 'center', font: 'Fredoka', weight: 700, italic: false });
+  ctx.restore();
+};
+/** Round 2 Act II: the hero's name and the ultimate's name, a slanted card low left (9:16: centred above the captions). */
+ITEM.ult = (f, it) => {
+  if (f < it.at || f > it.out) return;
+  const g = f - it.at;
+  const v = V() || SQ();
+  const col = it.side === 'cat' ? C.rose : C.sky;
+  const t = outCubic(clamp(g / 7));
+  const fade = f > it.out - 5 ? clamp((it.out - f) / 5) : 1;
+  const s = (v ? 80 : 84) * S();
+  const x = v ? W / 2 : W * 0.06, y = v ? H * 0.6 : H * 0.8;
+  ctx.save();
+  ctx.globalAlpha = fade;
+  ctx.translate((1 - t) * (v ? 0 : -W * 0.3), (1 - t) * (v ? H * 0.05 : 0));
+  setLine(it.name, x, y - s * 0.62, s, { color: C.cream, shadow: col, align: v ? 'center' : 'left' });
+  ctx.globalAlpha = fade * clamp((g - 5) / 4);
+  const k = popScale(f, it.at + 5);
+  ctx.translate(x, y + s * 0.62);
+  ctx.scale(k, k);
+  chip(it.ult, 0, 0, s * 0.62, { fill: C.bolt, color: C.ink, align: v ? 'center' : 'left' });
+  ctx.restore();
+};
 ITEM.zzz = (f, it) => {
   if (f < it.at || f > it.out) return;
   const g = f - it.at;
@@ -489,6 +570,28 @@ ITEM.zzz = (f, it) => {
     ctx.globalAlpha = clamp(t / 4);
     setLine('Z', W * 0.5 + (30 + i * 46 + Math.sin(t * 0.2) * 10) * S(), H * 0.44 - (i * 58 + t * 1.2) * S(), s, { color: C.cream, shadow: C.sky, align: 'center' });
   }
+  ctx.restore();
+};
+/** Round 2: a sound-off caption (9:16), a dark pill at 77 % of the frame height, drawn once per caption. */
+SEG.caption = (f, p) => {
+  const s = 46 * S();
+  ctx.save();
+  ctx.font = `700 ${s}px Fredoka, sans-serif`;
+  const w = ctx.measureText(p.text).width + s * 1.2;
+  const y = H * 0.775;
+  ctx.fillStyle = 'rgba(11,6,18,0.78)';
+  const h = s * 1.5, x0 = W / 2 - w / 2, r = h / 2;
+  ctx.beginPath();
+  ctx.moveTo(x0 + r, y - h / 2);
+  ctx.arcTo(x0 + w, y - h / 2, x0 + w, y + h / 2, r);
+  ctx.arcTo(x0 + w, y + h / 2, x0, y + h / 2, r);
+  ctx.arcTo(x0, y + h / 2, x0, y - h / 2, r);
+  ctx.arcTo(x0, y - h / 2, x0 + w, y - h / 2, r);
+  ctx.fill();
+  ctx.fillStyle = C.cream;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(p.text, W / 2, y + s * 0.04);
   ctx.restore();
 };
 SEG.multi = (f, p) => {
@@ -506,36 +609,73 @@ SEG.panel = (f, p) => {
   if (f < 2) flash(0.4, C.bolt);
   if (p.text) {
     const s = (v ? 190 : 210) * S();
-    slamWord(p.text, W / 2 + sx, (p.img === 'eye' ? (v ? H * 0.86 : H * 0.84) : v ? H * 0.12 : H * 0.17) + sy, p.img === 'eye' ? s * 0.6 : s, f, { color: p.img === 'eye' ? C.cream : C.bolt, shadow: C.rose, per: 0.5, rise: 3 });
+    slamWord(p.text, W / 2 + sx, (p.img === 'eye' ? (v ? H * 0.68 : H * 0.84) : v ? H * 0.12 : H * 0.17) + sy, p.img === 'eye' ? s * 0.6 : s, f, { color: p.img === 'eye' ? C.cream : C.bolt, shadow: C.rose, per: 0.5, rise: 3 });
   }
   vignette(0.25);
 };
 
-/** S09 credit lower third: side bar, NAME as Role, the ultimate (and coat) small. */
+/**
+ * S09 credit card, round 2 (review: a bare rectangle clipped at the frame edge, sublines under 18 px): a slanted panel
+ * inside the frame, NAME big, "as Role" large under it; on the swap (half beat) a bolt puff round the hero and the
+ * coat's name pops in a chip.
+ */
 SEG.credit = (f, p) => {
   const v = V() || SQ();
   const col = p.side === 'cat' ? C.rose : C.sky;
   const t = outCubic(clamp(f / 6));
-  const out = clamp((f - (p.n - 6)) / 5);
-  const s = (v ? 92 : 96) * S();
-  const x = v ? W * 0.07 : W * 0.06, y = v ? H * 0.72 : H * 0.74;
+  const out = clamp((f - (p.n - 5)) / 5);
+  const s = (v ? 100 : 104) * S();
+  const x = v ? W * 0.08 : W * 0.06, y = v ? H * 0.56 : H * 0.72;
   ctx.save();
   ctx.globalAlpha = 1 - out;
-  ctx.translate((1 - t) * -W * 0.4, 0);
-  // the bar
+  ctx.translate((1 - t) * -W * 0.5, 0);
+  ctx.font = `900 italic ${s}px RubikD, sans-serif`;
+  const nw = ctx.measureText(p.name).width;
+  ctx.font = `700 ${s * 0.62}px Fredoka, sans-serif`;
+  const aw = ctx.measureText(`as ${p.as}`).width;
+  const pw = Math.min(W * 0.9, Math.max(nw, aw) + s * 0.9), ph = s * 2.25;
+  const px = x - s * 0.3, py = y - s * 0.78;
+  // the panel: ink border, side colour, a skew so it reads as a card, fully inside the frame
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.transform(1, 0, -0.12, 1, 0, 0);
   ctx.fillStyle = C.ink;
-  ctx.fillRect(0, y - s * 0.95, x + s * 0.22, s * 2.6);
+  ctx.fillRect(-s * 0.08, -s * 0.08, pw + s * 0.16, ph + s * 0.16);
   ctx.fillStyle = col;
-  ctx.fillRect(0, y - s * 0.86, x + s * 0.12, s * 2.42);
-  const nw = setLine(p.name, x + s * 0.4, y, s, { color: C.cream, shadow: col, align: 'left' });
-  const as = `as ${p.as}`;
-  const aw = clamp((f - 4) / 5);
-  ctx.globalAlpha = (1 - out) * aw;
-  setLine(as, x + s * 0.4 + (v ? 0 : nw + s * 0.35), v ? y + s * 0.95 : y + s * 0.08, s * (v ? 0.58 : 0.55), { font: 'Fredoka', weight: 700, italic: false, color: C.bolt, shadow: C.ink, align: 'left', outline: 0.22 });
-  const small = p.coat ? `${p.ult}  ·  ${p.coat} coat` : p.ult;
-  ctx.globalAlpha = (1 - out) * clamp((f - 8) / 5);
-  setLine(small, x + s * 0.4, v ? y + s * 1.62 : y + s * 1.05, s * 0.5, { font: 'Fredoka', weight: 700, italic: false, color: C.cream, shadow: null, align: 'left', outline: 0.25 });
+  ctx.fillRect(0, 0, pw, ph);
+  ctx.fillStyle = 'rgba(18,9,31,0.35)';
+  ctx.fillRect(0, ph * 0.56, pw, ph * 0.44);
   ctx.restore();
+  setLine(p.name, x + s * 0.12, y, s, { color: C.cream, shadow: C.ink, align: 'left' });
+  ctx.globalAlpha = (1 - out) * clamp((f - 4) / 4);
+  setLine(`as ${p.as}`, x + s * 0.02, y + s * 0.98, s * 0.62, { font: 'Fredoka', weight: 700, italic: false, color: C.bolt, shadow: C.ink, align: 'left', outline: 0.22 });
+  ctx.restore();
+  // the coat swap: a bolt-yellow puff round the frame centre (the hero) and the coat chip
+  const g = f - p.swapAt;
+  if (g >= 0 && g < 3) {
+    ctx.save();
+    const a = g < 2 ? 0.7 : 0.3;
+    const cy = H * (V() ? 0.42 : 0.45);
+    const gr = ctx.createRadialGradient(W / 2, cy, 0, W / 2, cy, Math.min(W, H) * 0.3);
+    gr.addColorStop(0, `rgba(255,210,31,${a})`);
+    gr.addColorStop(0.6, `rgba(255,236,170,${a * 0.5})`);
+    gr.addColorStop(1, 'rgba(255,210,31,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+  if (g >= 0) {
+    const k = popScale(f, p.swapAt);
+    const cs = (v ? 54 : 56) * S();
+    ctx.save();
+    ctx.globalAlpha = 1 - out;
+    const cx = v ? W / 2 : W * 0.75, cy = v ? H * 0.16 : H * 0.14;
+    ctx.translate(cx, cy);
+    ctx.scale(k, k);
+    ctx.rotate(-0.04);
+    chip(`${p.coat} COAT`, 0, 0, cs, { fill: C.bolt, color: C.ink, align: 'center' });
+    ctx.restore();
+  }
 };
 
 /** S12 the coat name on every beat and a bolt-yellow puff on the swap (2 frames). */
@@ -563,7 +703,7 @@ SEG.coat = (f, p) => {
   const s = (v ? 80 : 84) * S();
   const k = popScale(f, 0);
   ctx.save();
-  ctx.translate(W / 2, v ? H * 0.8 : H * 0.85);
+  ctx.translate(W / 2, v ? H * 0.66 : H * 0.85);
   ctx.scale(k, k);
   chip(p.name, 0, 0, s, { fill: p.i === 3 ? C.bolt : C.cream, color: C.ink, align: 'center' });
   ctx.restore();
@@ -579,8 +719,8 @@ SEG.bush = (f, p) => {
     spotlight(W / 2, H / 2, Math.min(W, H) * 0.7, 0.35 * dim, 0.6);
   }
   const s = (v ? 70 : 76) * S();
-  if (f >= p.dimA && f < p.dimB) slamWord('RANGER: TOTALLY INVISIBLE.', W / 2, v ? H * 0.82 : H * 0.86, v ? s * 0.8 : s, f - p.dimA, { color: C.cream, shadow: C.sky, per: 0.4, rise: 3 });
-  if (f >= p.dimB + 4) slamWord('…NOT ANYMORE.', W / 2, v ? H * 0.82 : H * 0.86, s * 1.15, f - p.dimB - 4, { color: C.bolt, shadow: C.rose, per: 0.6, rise: 3 });
+  if (f >= p.dimA && f < p.dimB) slamWord('RANGER: TOTALLY INVISIBLE.', W / 2, v ? H * 0.66 : H * 0.86, v ? s * 0.8 : s, f - p.dimA, { color: C.cream, shadow: C.sky, per: 0.4, rise: 3 });
+  if (f >= p.dimB + 4) slamWord('…NOT ANYMORE.', W / 2, v ? H * 0.66 : H * 0.86, s * 1.15, f - p.dimB - 4, { color: C.bolt, shadow: C.rose, per: 0.6, rise: 3 });
 };
 
 /** S18 the curtain call type and roses falling once the charm lands. */
@@ -588,7 +728,8 @@ SEG.bravo = (f, p) => {
   const v = V();
   const g = f - p.at;
   if (g < 0) return;
-  const out = g > 170 ? clamp((g - 170) / 8) : 0;
+  const end = p.bonk !== undefined ? p.bonk - p.at - 30 : 160;
+  const out = g > end ? clamp((g - end) / 8) : 0;
   ctx.save();
   ctx.globalAlpha = 1 - out;
   const r = rng(77);
@@ -625,11 +766,73 @@ SEG.bravo = (f, p) => {
   const s = (v ? 210 : 240) * S();
   slamWord('BRAVO!', W / 2, v ? H * 0.2 : H * 0.22, s, g, { color: C.bolt, shadow: C.rose, per: 1, rise: 4 });
   ctx.restore();
+  // round 2 the button (review: 1 s of falling roses and no action): one last rose drops straight onto his head, BONK!
+  if (p.bonk !== undefined) {
+    const b = f - p.bonk;
+    let hp = null;
+    for (let k = f; k >= 0 && !hp; k--) hp = p.pts?.[k] ?? null;
+    const hx = (hp?.[0] ?? 0.5) * W, hy = (hp?.[1] ?? 0.45) * H;
+    if (b >= -22 && b < 0) {
+      const t = (b + 22) / 22;
+      rose(hx, -80 * S() + (hy + 80 * S()) * t * t, t * 4, 1.4);
+    }
+    if (b >= 0) {
+      const t = clamp(b / 30);
+      rose(hx + 60 * S() * t, hy - 60 * S() * Math.sin(t * Math.PI) + t * 60 * S(), 4 + t * 3, 1.4);
+      const [sx, sy] = shake(b, b < 6 ? 8 * S() : 0, 5);
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.globalAlpha = b > 36 ? clamp((44 - b) / 8) : 1;
+      slamWord('BONK!', hx + 150 * S(), hy - 110 * S(), (v ? 110 : 120) * S(), b, { color: C.cream, shadow: C.rose, per: 0.5, rise: 3, skew: -0.2 });
+      // stars round his head
+      for (let i = 0; i < 3; i++) {
+        const a = b * 0.18 + (i * 6.28) / 3;
+        star(hx + Math.cos(a) * 60 * S(), hy - 30 * S() + Math.sin(a) * 18 * S(), 16 * S());
+      }
+      ctx.restore();
+    }
+  }
 };
+function rose(x, y, rot, k = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.scale(k, k);
+  ctx.strokeStyle = '#2E9E4A';
+  ctx.lineWidth = 7 * S();
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, 70 * S());
+  ctx.stroke();
+  ctx.fillStyle = C.ink;
+  ctx.beginPath();
+  ctx.arc(0, 0, 25 * S(), 0, 7);
+  ctx.fill();
+  ctx.fillStyle = '#E8304A';
+  ctx.beginPath();
+  ctx.arc(0, 0, 21 * S(), 0, 7);
+  ctx.fill();
+  ctx.restore();
+}
+function star(x, y, r) {
+  ctx.save();
+  ctx.fillStyle = C.bolt;
+  ctx.strokeStyle = C.ink;
+  ctx.lineWidth = 3 * S();
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r * 0.45 : r;
+    ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
 
 /** S21 the cast line over the four lineups (continuous across them). */
 SEG.cast = (f0, p) => {
-  const f = f0 + p.i * 52;
+  const f = f0 + (p.f0 ?? p.i * 52);
   const v = V();
   const s = (v ? 78 : 92) * S();
   if (v) {
@@ -652,7 +855,7 @@ SEG.returns = (f, p) => {
   ctx.globalAlpha = clamp((f - 4) / 6);
   ctx.drawImage(L, v ? W / 2 - lw / 2 : W - lw - W * 0.03, v ? H * 0.06 : H * 0.05, lw, (lw * L.height) / L.width);
   ctx.globalAlpha = clamp((f - 8) / 8);
-  setLine('Bravo will return.', W / 2, v ? H * 0.8 : H * 0.85, (v ? 80 : 84) * S(), { font: 'Fredoka', weight: 700, italic: false, color: C.cream, shadow: C.plum, align: 'center', outline: 0.18 });
+  setLine('Bravo will return.', W / 2, v ? H * 0.68 : H * 0.85, (v ? 80 : 84) * S(), { font: 'Fredoka', weight: 700, italic: false, color: C.cream, shadow: C.plum, align: 'center', outline: 0.18 });
   ctx.globalAlpha = 1;
   if (f >= p.n - 8) flash(((f - (p.n - 8)) / 8) * 0.9, C.night);
 };

@@ -177,8 +177,11 @@ async function record(spec, chromium) {
   const enc = ffmpegVideo(vtmp, every ? Math.max(1, Math.round(fps / every)) : fps);
   const write = (buf) => new Promise((res, rej) => enc.p.stdin.write(buf, (e) => (e ? rej(e) : res())));
   let ticks = [];
+  // trailer 60 r2: per-frame drawn hero boxes (the harness's frame QC), written next to the take as <id>.qc.json
+  const qcRows = [];
   for (let k = 0; k < N; k++) {
     const r = await page.evaluate(([f, kk]) => window.__trailer.frameA(f, kk), [k, audio ? k : 0]);
+    qcRows.push(r?.qc ? r.qc.heroes.map((h) => ({ hero: h.hero, team: h.team, box: h.box.map((v) => +v.toFixed(4)), ...(h.at ? { at: h.at.map((v) => +v.toFixed(4)) } : {}) })) : null);
     if (k === 0 && audio) await page.evaluate((n) => window.__trailer.audioStart(n[0], n[1]), [N, spec.mode === 'skins' ? (spec.music ?? 2) : -1]);
     if (hasFlag('--debug') && k % 30 === 0) {
       const inf = await page.evaluate(() => window.__trailer.info());
@@ -202,6 +205,7 @@ async function record(spec, chromium) {
   if (audio) ln = mux(vtmp, wav, out, N / fps);
   else execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-i', vtmp, '-c', 'copy', '-movflags', '+faststart', out]);
   const pr = probe(out);
+  if (qcRows.some(Boolean)) writeFileSync(out.replace(/\.mp4$/, '.qc.json'), JSON.stringify(qcRows) + '\n');
   const row = {
     id: spec.id,
     out,

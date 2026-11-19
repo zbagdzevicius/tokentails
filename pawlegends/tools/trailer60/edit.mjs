@@ -12,14 +12,18 @@
  */
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argValue } from '../lib/args.mjs';
-import { COPY, CUTS, EDL, FPS, N } from './timeline.mjs';
+import { CAPS, COPY, CUTS, EDL, FPS, N } from './timeline.mjs';
 
-/** The 15 s cutdown: master frame ranges, 900 frames, every join on the beat. */
-const CUTDOWN = [[0, 150], [1680, 1800], [2250, 2700], [3060, 3240]];
+/**
+ * The 15 s cutdown, round 2 (review: no setup, so the payoff carried no joke): one whole gag arc. STARRING: BRAVO, a
+ * failed audition, CUT!, two quick ultimates, the ENCORE! payoff with its BONK!, the end card. 900 frames, every join
+ * on the half beat.
+ */
+const CUTDOWN = [[0, 105], [630, 780], [1590, 1680], [1770, 1860], [2250, 2490], [3030, 3255]];
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PKG = resolve(HERE, '..', '..');
@@ -53,6 +57,53 @@ function takeOf(name, aspect) {
   return { file: f, crop: aspect === '1x1' ? 'crop=1080:1080:420:0,' : aspect === '9x16' ? 'crop=iw/1.1:ih/1.1,scale=1080:1920:flags=lanczos,' : '' };
 }
 
+/** Round 2: a take's per-frame QC (tools/clips/record.mjs `<id>.qc.json`: drawn hero boxes, frame fractions). */
+const qcCache = new Map();
+function qcOf(name, aspect) {
+  const f = join(TAKES, `${name}-${aspect === '9x16' ? 'v' : 'h'}.qc.json`);
+  if (!qcCache.has(f)) qcCache.set(f, existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null);
+  return qcCache.get(f);
+}
+/** A take-frame point (fractions of the capture) in the output frame of an aspect (its crop and punch). */
+function toOut([x, y], aspect) {
+  if (aspect === '1x1') return [(x * 1920 - 420) / 1080, y];
+  if (aspect === '9x16') return [(x - 0.5) * 1.1 + 0.5, (y - 0.5) * 1.1 + 0.5];
+  return [x, y];
+}
+/** The take frame shown at segment frame k (freezes hold, then the take resumes one frame on). */
+function takeFrameAt(g, k) {
+  if (!g.freeze) return g.in + k;
+  const [at, n] = g.freeze;
+  return k < at ? g.in + k : k < at + n ? g.in + at : g.in + k - n + 1;
+}
+/**
+ * Per-segment-frame screen points of a tracked hero (the top centre of its drawn body box, output fractions), smoothed
+ * over 5 frames; null where the hero is not drawn.
+ */
+function trackPts(g, len, aspect, track) {
+  const qc = qcOf(g.take, aspect);
+  if (!qc) throw new Error(`no QC for ${g.take} (${aspect}): record it with the round 2 recorder`);
+  const raw = [];
+  for (let k = 0; k < len; k++) {
+    const row = qc[takeFrameAt(g, k)] ?? [];
+    const h = row.find((r) => r.hero === track.hero && (track.team === undefined || r.team === track.team)) ?? row.find((r) => r.hero === track.hero);
+    raw.push(h ? toOut([(h.box[0] + h.box[2]) / 2, h.box[1]], aspect) : null);
+  }
+  return raw.map((p, k) => {
+    if (!p) return null;
+    const near = raw.slice(Math.max(0, k - 2), k + 3).filter(Boolean);
+    return [near.reduce((a, q) => a + q[0], 0) / near.length, near.reduce((a, q) => a + q[1], 0) / near.length].map((v) => +v.toFixed(4));
+  });
+}
+/** The overlay with its tracked items' points filled in. */
+function withTracks(ov, g, len, aspect) {
+  if (!ov) return ov;
+  const o = { ...ov };
+  if (o.track) o.pts = trackPts(g, len, aspect, o.track);
+  if (o.items) o.items = o.items.map((it) => (it.track ? { ...it, pts: trackPts(g, len, aspect, it.track) } : it));
+  return o;
+}
+
 /**
  * The gameplay grade (round 3: the autumn ground read muddy next to the comic frames): more contrast, vibrance on the
  * greens and the blue-grey floor only (the lane browns stay put), a soft toe, a light sharpen.
@@ -68,9 +119,63 @@ function punchOf(punch, aspect) {
   return `crop=${cw}:${chh}:${x}:${y},scale=1920:1080:flags=lanczos,`;
 }
 
-function gpSegment(out, take, aspect, a, len, punch = null) {
+/**
+ * Round 2 (review: some takes on the pale stone plaza read washed out next to the green lanes): each take's mean luma
+ * and saturation after the grade are measured once, and a take brighter or paler than the cut's target is brought to it
+ * (gamma down, saturation up), so the grade matches across takes.
+ */
+const TARGET = { y: 150, sat: 50 };
+const normCache = new Map();
+function normOf(take, aspect) {
+  const k = `${take}/${aspect}`;
+  if (normCache.has(k)) return normCache.get(k);
+  if (/^cc\d/.test(take)) {
+    // the lobby lineups keep their painted backdrops' own light
+    const r = { vf: '' };
+    normCache.set(k, r);
+    return r;
+  }
   const { file, crop } = takeOf(take, aspect);
-  ff(['-i', file, '-vf', `trim=start_frame=${a}:end_frame=${a + len},setpts=PTS-STARTPTS,${punchOf(punch, aspect)}${crop}${GRADE}`, '-frames:v', String(len), ...ENC, out]);
+  const txt = execFileSync('sh', ['-c', `ffmpeg -v error -threads 4 -i "${file}" -vf "select=not(mod(n\\,6)),${crop}${GRADE},signalstats,metadata=print:file=-" -f null - 2>&1`], { encoding: 'utf8', maxBuffer: 1 << 26 });
+  const avg = (key) => {
+    const v = [...txt.matchAll(new RegExp(`${key}=([\\d.]+)`, 'g'))].map((m) => Number(m[1]));
+    return v.reduce((a, b) => a + b, 0) / Math.max(1, v.length);
+  };
+  const y = avg('lavfi.signalstats.YAVG'), sat = avg('lavfi.signalstats.SATAVG');
+  // gamma: map the mean (16-235) onto the target; only darken washed takes (never lift a dark one more than a touch)
+  const yn = Math.min(0.99, Math.max(0.01, (y - 16) / 219)), tn = (TARGET.y - 16) / 219;
+  const gamma = Math.max(0.6, Math.min(1.06, Math.log(yn) / Math.log(tn)));
+  const sats = Math.max(1, Math.min(1.35, TARGET.sat / Math.max(1, sat)));
+  const r = { y: +y.toFixed(1), sat: +sat.toFixed(1), gamma: +gamma.toFixed(3), sats: +sats.toFixed(3) };
+  r.vf = Math.abs(gamma - 1) < 0.03 && sats < 1.04 ? '' : `,eq=gamma=${r.gamma}:saturation=${r.sats}`;
+  normCache.set(k, r);
+  report.norm[k] = r;
+  return r;
+}
+
+/** zoomOut [frames, zoom]: punch in on the centre over the segment's last frames (ease-in), output size kept. */
+function zoomOf(zoom, len, aspect, focus = [0.5, 0.5]) {
+  if (!zoom) return '';
+  const [n, z] = zoom;
+  const [W, H] = SIZE[aspect];
+  const s = len - n;
+  // the punch lands on `focus` (output fractions; the tracked hero's body), kept inside the frame
+  const [fx, fy] = focus.map((v) => Math.min(0.75, Math.max(0.25, v)));
+  return `,zoompan=z='if(gte(on\\,${s})\\,1+${z - 1}*pow((on-${s})/${n}\\,2)\\,1)':x='max(0\\,min(iw-iw/zoom\\,iw*${fx.toFixed(3)}-iw/zoom/2))':y='max(0\\,min(ih-ih/zoom\\,ih*${fy.toFixed(3)}-ih/zoom/2))':d=1:s=${W}x${H}:fps=${FPS}`;
+}
+
+function gpSegment(out, take, aspect, a, len, punch = null, zoom = null, focus = undefined, wideV = false) {
+  if (wideV && aspect === '9x16') {
+    // round 2: the vertical core shot hung the burning core's smoke column over the top of the tall frame; the 9:16 cut
+    // shows the landscape take (no smoke in it) across the middle over a blurred, darkened copy of itself
+    const { file } = takeOf(take, '16x9');
+    const norm = normOf(take, '16x9');
+    ff(['-i', file, '-filter_complex', `[0:v]trim=start_frame=${a}:end_frame=${a + len},setpts=PTS-STARTPTS,${GRADE}${norm.vf},split[a][b];[a]scale=-2:1920,crop=1080:1920,boxblur=24:2,eq=brightness=-0.12:saturation=0.8[bg];[b]scale=1080:-2:flags=lanczos[fg];[bg][fg]overlay=0:(H-h)/2+80,format=yuv420p[v]`, '-map', '[v]', '-frames:v', String(len), ...ENC, out]);
+    return;
+  }
+  const { file, crop } = takeOf(take, aspect);
+  const norm = normOf(take, aspect);
+  ff(['-i', file, '-vf', `trim=start_frame=${a}:end_frame=${a + len},setpts=PTS-STARTPTS,${punchOf(punch, aspect)}${crop}${GRADE}${norm.vf}${zoomOf(zoom, len, aspect, focus)}`, '-frames:v', String(len), ...ENC, out]);
   const n = Number(execFileSync('ffprobe', ['-v', 'error', '-count_frames', '-select_streams', 'v', '-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', out], { encoding: 'utf8' }).trim().split('\n')[0].replace(/,$/, ''));
   if (n !== len) throw new Error(`${take} [${a}, ${a + len}) gave ${n} frames: the take is too short`);
 }
@@ -78,7 +183,7 @@ function gpSegment(out, take, aspect, a, len, punch = null) {
 function stillOf(take, aspect, at) {
   const { file, crop } = takeOf(take, aspect);
   const out = join(WORK, `still-${take}-${aspect}-${at}.png`);
-  if (!existsSync(out)) ff(['-i', file, '-vf', `select=eq(n\\,${at}),${crop}${GRADE}`, '-frames:v', '1', out]);
+  if (!existsSync(out)) ff(['-i', file, '-vf', `select=eq(n\\,${at}),${crop}${GRADE}${normOf(take, aspect).vf}`, '-frames:v', '1', out]);
   return out;
 }
 
@@ -164,9 +269,22 @@ async function buildAspect(aspect, browser, base) {
         ff(['-loop', '1', '-framerate', String(FPS), '-i', still, '-frames:v', String(n), ...ENC, b]);
         gpSegment(c, g.take, aspect, g.in + at + 1, seg.len - at - n);
         segParts.push(a, b, c);
+      } else if (g.swap) {
+        // a coat change: the same ticks in another take from frame `at` on (a match cut)
+        const a = join(dir, `${id}a.mp4`), b = join(dir, `${id}b.mp4`);
+        gpSegment(a, g.take, aspect, g.in, g.swap.at);
+        gpSegment(b, g.swap.take, aspect, g.in + g.swap.at, seg.len - g.swap.at);
+        segParts.push(a, b);
       } else {
         const a = join(dir, `${id}g.mp4`);
-        gpSegment(a, g.take, aspect, g.in, seg.len, g.punch);
+        // the bridge punch-in aims at Bravo's body on the last frame (the hero box centre)
+        let focus;
+        if (g.zoomOut) {
+          const pts = trackPts(g, seg.len, aspect, { hero: 'bravo', team: 0 });
+          const p = pts.slice().reverse().find(Boolean);
+          if (p) focus = [p[0], Math.min(0.9, p[1] + 0.06)];
+        }
+        gpSegment(a, g.take, aspect, g.in, seg.len, g.punch, g.zoomOut, focus, g.wideV);
         segParts.push(a);
       }
       const plain = join(dir, seg.ov ? `${id}p.mp4` : `${id}.mp4`);
@@ -179,7 +297,7 @@ async function buildAspect(aspect, browser, base) {
         // the overlay (name card, mission line, VICTORY!) drawn over the moving gameplay
         const odir = join(dir, `${id}-ov`);
         execFileSync('rm', ['-rf', odir]);
-        await renderOverlay(page, seg.ov, seg.len, odir);
+        await renderOverlay(page, withTracks(seg.ov, g, seg.len, aspect), seg.len, odir);
         const a = join(dir, `${id}.mp4`);
         ff(['-i', plain, '-framerate', String(FPS), '-i', join(odir, '%04d.png'), '-filter_complex', '[0:v][1:v]overlay=0:0:format=auto,format=yuv420p', '-frames:v', String(seg.len), ...ENC, a]);
         execFileSync('rm', ['-rf', odir]);
@@ -209,7 +327,29 @@ async function buildAspect(aspect, browser, base) {
   const joined = join(dir, 'joined.mp4');
   ff(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', joined]);
   const master = join(OUT, `pawlegends-trailer60-${aspect}.mp4`);
-  ff(['-i', joined, '-i', join(AUDIO, 'score.wav'), '-map', '0:v', '-map', '1:a', '-vf', 'noise=alls=3:allf=t,format=yuv420p',
+  // round 2: the vertical cut burns the sound-off captions (one transparent PNG each, enabled over its frames)
+  const capIn = [];
+  let vf = 'noise=alls=3:allf=t';
+  if (aspect === '9x16') {
+    const cdir = join(dir, 'caps');
+    mkdirSync(cdir, { recursive: true });
+    const ctx2 = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
+    const pg = await ctx2.newPage();
+    await pg.goto(`${base}${HERE}/mg.html`);
+    await pg.evaluate((o) => window.__mg.setup(o), { W, H, assets: {}, fonts: FONTS ? { rubik: `${base}${FONTS}/rubik-italic-900.woff2`, fredoka: `${base}${FONTS}/fredoka-600-700.woff2` } : { rubik: `${base}${PKG}/public/assets/fonts/Rubik-Italic-Display.woff2`, fredoka: `${base}${PKG}/public/assets/fonts/Fredoka-Ext.woff2` } });
+    await pg.evaluate(() => window.__mg.transparent(true));
+    let chain = '[0:v]noise=alls=3:allf=t[c0]';
+    for (const [i, [a, b, text]] of CAPS.entries()) {
+      const png = join(cdir, `${i}.png`);
+      await pg.evaluate((t) => window.__mg.draw('caption', 0, { text: t }), text);
+      writeFileSync(png, await pg.locator('#c').screenshot({ type: 'png', omitBackground: true, scale: 'css' }));
+      capIn.push('-i', png);
+      chain += `;[c${i}][${i + 2}:v]overlay=0:0:enable='between(n\\,${a}\\,${b - 1})'[c${i + 1}]`;
+    }
+    await ctx2.close();
+    vf = `${chain};[c${CAPS.length}]format=yuv420p[v]`;
+  }
+  ff(['-i', joined, '-i', join(AUDIO, 'score.wav'), ...capIn, ...(aspect === '9x16' ? ['-filter_complex', vf, '-map', '[v]'] : ['-map', '0:v', '-vf', `${vf},format=yuv420p`]), '-map', '1:a',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-profile:v', 'high', '-level', '4.2', '-pix_fmt', 'yuv420p', '-r', String(FPS),
     '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-g', '120',
     '-c:a', 'aac', '-b:a', '320k', '-ar', '48000', '-frames:v', String(N), '-t', (N / FPS).toFixed(3), '-movflags', '+faststart', master]);
@@ -239,7 +379,7 @@ const cleanup = async () => {
   server?.close();
 };
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => void cleanup().finally(() => process.exit(130)));
-const report = { cuts: CUTS, masters: {} };
+const report = { cuts: CUTS, masters: {}, norm: {} };
 try {
   server = await serve();
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -254,7 +394,7 @@ try {
   // posters (16:9 frames) and the web copy (1080p30, two-pass, ~6 MB)
   const m16 = report.masters['16x9']?.file;
   if (m16) {
-    for (const [name, f] of [['poster', 2330], ['poster-title', 140], ['poster-credits', 770], ['poster-rocket', 2650]]) ff(['-i', m16, '-vf', `select=eq(n\\,${f})`, '-frames:v', '1', '-q:v', '2', join(OUT, `pawlegends-trailer60-${name}.jpg`)]);
+    for (const [name, f] of [['poster', 2330], ['poster-title', 140], ['poster-credits', 830], ['poster-rocket', 2600]]) ff(['-i', m16, '-vf', `select=eq(n\\,${f})`, '-frames:v', '1', '-q:v', '2', join(OUT, `pawlegends-trailer60-${name}.jpg`)]);
     const web = join(OUT, 'pawlegends-trailer60-web.mp4');
     const pass = join(WORK, 'x264pass');
     const v = ['-i', m16, '-vf', 'fps=30', '-c:v', 'libx264', '-preset', 'slow', '-b:v', '1500k', '-maxrate', '3000k', '-bufsize', '6000k', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-passlogfile', pass];

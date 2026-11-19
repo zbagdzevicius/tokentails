@@ -2,7 +2,7 @@
 /**
  * Trailer 60 ("The Understudy", feat. Rocket) score: an original comedy cue at 120 BPM (a beat = 30 frames at 60 fps,
  * a bar = 120), cut to timeline.mjs. An oom-pah overture under the gags (tuba, pizzicato, music box), the band from
- * 28.0 s, and the comedy cues timed to the picture: record scratches, a wah-wah-waah, a slide whistle, a boxing bell, a
+ * 26.0 s, and the comedy cues timed to the picture: record scratches, a wah-wah-waah, a slide whistle, a boxing bell, a
  * violin screech, ta-das, a choir, a rimshot. Our own synthesised instruments (../trailer/instruments.mjs and the
  * functions below), the game's own sounds (bravoSob, rocketSnore, sadTrombone, cheer, cannonBoom ...), the game's
  * announcer lines (public/voice) and the v6 brand sting; no samples or stock audio.
@@ -18,7 +18,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { argValue } from '../lib/args.mjs';
 import { Bus, SR, biquad, brown, compress, dbToGain, decay, freeverb, hz, limit, mix, mul, noise, saw, sec, sine, sweep, writeWav, writeWavFloat } from '../trailer/dsp.mjs';
-import { BEAT, CREDITS, CUTS, FPS, HIT, N } from './timeline.mjs';
+import { ACT2, BEAT, CREDITS, CUTS, FPS, HIT, N } from './timeline.mjs';
 
 const I = await bundleImport('tools/trailer/instruments.mjs');
 /** Bundle an entry with Vite (TypeScript, extensionless imports) into one ES module and import it. */
@@ -252,23 +252,26 @@ const theme = (f, g = 0.4) => {
   [[0, 72], [6, 76], [12, 79], [18, 81], [24, 79], [30, 76], [36, 84]].forEach(([d, m], i) => music.add(smp(f + d), I.musicBox(m, i === 6 ? 0.8 : 0.3), g));
 };
 
-// ---------------------------------------------------------------- the cue sheet
-// S01 hook: an orchestra hit on frame 0, the hit, his sob, the record scratch on the flop freeze
+// ---------------------------------------------------------------- the cue sheet (round 2 timing)
+// S01 hook: an orchestra hit on frame 0, the hit, his sob as he flops, the record scratch on the iris freeze
 orchHit(0, [60, 64, 67, 72]);
 theme(4, 0.35);
 game(HIT.flop - 6, 'hitHeavy', 0.6);
 game(HIT.flop, 'bravoSob', 0.9);
-recordScratch(60, 0.8);
+recordScratch(C.iris, 0.8);
 // S02 the title: drumroll into a cymbal on the cannon cut
 drumroll(C.title, C.cannon - 2, 0.45);
 game(C.title + 12, 'slam', 0.5);
 music.add(smp(C.title + 20), I.tuba(36, 0.5), 0.6);
 tada(C.title + 20, [60, 64, 67, 72], 0.5, 0.6);
 music.add(smp(C.cannon), I.crash(5, 2), 0.55);
-// S03-S04 the race: the overture starts, a chase snare, the pick, a squeaky deflate on ROCKET: 0
+// S03-S04 the race: the overture starts, a chase snare, Rocket's name card (his name call), the pick, a squeaky
+// deflate on ROCKET: 0
 oompah(C.cannon, C.cut);
 game(C.cannon + 2, 'cannonClank', 0.6);
 for (let f = C.cannon; f < HIT.missPick; f += BEAT / 2) music.add(smp(f), I.snare(2, 230), 0.12 + 0.18 * ((f - C.cannon) / (HIT.missPick - C.cannon)));
+voice(C.cannon + 88, 'name_rocket', 0.95);
+game(C.cannon + 90, 'rocketWhoosh', 0.45);
 game(HIT.missPick, 'pickup', 0.7);
 deflate(HIT.missPick + 6, 0.55);
 game(HIT.missPick + 8, 'rocketSqueak', 0.6);
@@ -282,29 +285,34 @@ game(C.aud1 + 92, 'sadTrombone', 0.45);
 game(C.zzz + 8, 'rocketWhoosh', 0.8);
 game(HIT.nap, 'rocketSnore', 0.9);
 tickTock(HIT.nap + 6, C.aud2, 0.35);
-// S07 audition #2: meteor booms on the beats, a slide whistle fall
+// S07 audition #2: meteor booms on the beats, a slide whistle fall into the punch-in
 for (let k = 0; k < 3; k++) game(C.aud2 + k * BEAT, 'boom', 0.55, k % 2 ? 0.2 : -0.2);
-slideWhistle(C.aud2 + 90, 1600, 300, 0.45, 0.4);
+slideWhistle(C.aud2 + 66, 1600, 300, 0.45, 0.4);
+sfx.add(smp(C.cut - 14), I.whoosh(0.22, 85, 1), 0.45);
 // S08 CUT!: everything stops, a megaphone squeal and the shout (the game's bark under it)
 squeal(C.cut, 0.3);
 game(C.cut + 2, 'bravoGasp', 0.8);
 sfx.add(smp(C.cut + 2), I.crackle(0.25, 93), 0.4);
-// S09 the credits: a brass stab and a name call on every downbeat, the ultimate's sound
+// S09 the credits: a brass stab and a name call on every downbeat, the ultimate's sound, a poof and a ta-da on the
+// coat swap (the half beat)
 music.add(smp(C.credits), I.crash(5, 1.6), 0.45);
 CREDITS.forEach((c, i) => {
   const f = C.credits + i * 60;
-  const chord = ['C', 'G', 'Am', 'F', 'C', 'G', 'F', 'G'][i];
+  const chord = ['C', 'G', 'Am', 'F', 'G'][i];
   const [L, R] = I.stab(CH[chord].tri, 0.26, 1.1);
   music.addStereo(smp(f), L, R, 0.55);
   music.add(smp(f), I.tuba(CH[chord].root, 0.4), 0.5);
   voice(f + 4, `name_${c.take.split('-')[1]}`, 1.0);
-  game(f + 10, i % 2 ? 'slam' : 'ult', 0.45);
+  game(f + 10, i % 2 ? 'slam' : 'ult', 0.4);
+  game(f + 30, 'poof', 0.55);
+  tada(f + 30, CH[chord].tri.map((m) => m + 12), 0.35, 0.25);
 });
-// S10 audition #3: the bell, the whoosh, the crash
+// S10 audition #3: the bell, the whoosh, the crash, a whoosh into the punch-in
 bell(C.aud3 + 6, 0.45);
 sfx.add(smp(C.aud3 + 30), I.whoosh(0.3, 86, 1), 0.6);
 game(C.aud3 + 44, 'hitHeavy', 0.7);
 game(C.aud3 + 46, 'kibbleClang', 0.5);
+sfx.add(smp(C.eye - 12), I.whoosh(0.2, 87, 1), 0.4);
 // S11 THAT'S IT.: a violin screech, then silence (the hole below)
 screech(C.eye, 0.3, 0.4);
 // S12 the costume change: ta-da x3 and a TA-DAAA
@@ -317,18 +325,27 @@ for (let k = 0; k < 4; k++) game(C.costume + k * 30, 'poof', 0.5);
 shhh(C.bush + 18, 0.45);
 squeak(C.bush + 70, 0.5);
 game(C.bush + 74, 'gasp', 0.5);
+game(C.bush + 120, 'nuggetSqueak', 0.35);
 // S14 ACT II: drumroll into the band
 drumroll(C.act2, C.fight, 0.55);
 game(C.act2, 'cannonClank', 0.5);
-// S15 the fight: the band, an ultimate's sound on every cut
+// S15 the fight: the band; each hero moment: a crash on the cut, the name call, the ultimate on its cast (take frame
+// 48, a 0.8x ramp), impacts on the hits
 music.add(smp(C.fight), I.crash(5, 2.4), 0.6);
 music.add(smp(C.fight), I.kick(1, { punch: 1.5 }), 1);
 band(C.fight, C.flop, { hype: true });
-for (let k = 0; k < 7; k++) {
-  game(C.fight + k * 60 + 2, k % 2 ? 'slam' : 'ult', 0.5);
-  sfx.add(smp(C.fight + k * 60 + 2), I.impact(90 + k, { sub: 50, len: 0.5 }), 0.4);
-}
-voice(C.fight + 300, 'triple', 0.9);
+ACT2.forEach((u, i) => {
+  const f = C.fight + i * 180;
+  if (i) music.add(smp(f), I.crash(5, 1.6), 0.45);
+  voice(f + 8, `name_${u.hero}`, 0.95);
+  game(f + 50, 'ult', 0.6);
+  sfx.add(smp(f + 50), I.riser(0.3, 74 + i)[0], 0.25);
+  for (let k = 0; k < 3; k++) {
+    game(f + 66 + k * 22, k % 2 ? 'hitHeavy' : 'slam', 0.45);
+    sfx.add(smp(f + 66 + k * 22), I.impact(90 + i * 3 + k, { sub: 50, len: 0.5 }), 0.4);
+  }
+});
+game(C.fight + 180 + 60, 'bedBoing', 0.3);
 // S16 the slow-mo flop: a choir aah, then the record scratch back to 1x
 choir(C.flop + 6, [60, 64, 67, 72], 1.5, 0.35);
 game(C.flop + 40, 'bravoSob', 0.8, 0, 0.8);
@@ -336,17 +353,22 @@ recordScratch(C.flop + 92, 0.7);
 band(C.flop + 96, C.peek, { g: 0.6 });
 // S17 one eye opens: a single pizzicato pluck
 music.add(smp(C.peek + 10), I.pluck(79, 0.2, 51), 0.6);
-// S18 the payoff: the windup, his bow, the fumble, the crowd, the bow chord
+// S18 the payoff: the windup, his bow, the fumble, the crowd, the bow chord; the button: a rose BONK! and a boing
 band(C.payoff, C.victory, { g: 0.85 });
 game(C.payoff + 20, 'windup', 0.5);
 game(HIT.encoreFumble - 42, 'bravoBow', 0.9);
 sfx.add(smp(HIT.encoreFumble - 40), I.riser(0.65, 73)[0], 0.3);
 game(HIT.encoreFumble, 'cannonClatter', 0.8);
 game(HIT.encoreFumble + 2, 'cheer', 0.8);
-applause(HIT.encoreFumble, 3.2, 0.35);
+applause(HIT.encoreFumble, 2.4, 0.35);
 tada(HIT.encoreFumble, [60, 64, 67, 72], 0.7, 1.0);
 game(HIT.encoreFumble + 40, 'ooh', 0.5);
+slideWhistle(HIT.bonk - 22, 1800, 700, 0.35, 0.3);
+sfx.add(smp(HIT.bonk), mix([I.tom(160, 8), 0.8], [I.rim(9), 0.6]), 0.8);
+game(HIT.bonk + 1, 'kibbleBoing', 0.7);
+game(HIT.bonk + 8, 'bravoGasp', 0.6);
 // S19 ROCKET: 1: the shot, KABOOM, a sports horn
+voice(C.score + 6, 'name_rocket', 0.9);
 game(HIT.rocketFire - 22, 'windup', 0.5);
 game(HIT.rocketFire, 'cannonBoom', 0.85);
 game(HIT.kaboom, 'boom', 0.9);
@@ -357,26 +379,38 @@ voice(HIT.kaboom + 24, 'enemySlain', 0.9);
 game(HIT.coreBurst, 'boom', 0.9);
 sfx.add(smp(HIT.coreBurst), I.subDrop(55, 28, 0.8, 0.9), 0.9);
 music.add(smp(HIT.coreBurst), I.crash(5, 3), 0.7);
-tada(HIT.coreBurst, [60, 64, 67, 72], 0.7, 0.5);
-tada(HIT.coreBurst + 30, [65, 69, 72], 0.6, 0.4);
-tada(HIT.coreBurst + 45, [67, 71, 74], 0.6, 0.4);
-tada(HIT.coreBurst + 60, [72, 76, 79, 84], 0.8, 1.2);
-voice(HIT.coreBurst + 20, 'victory', 1.0);
-// S21 the curtain call: applause and the overture reprise
-applause(C.curtain, 3.6, 0.45);
+tada(HIT.coreBurst + 23, [60, 64, 67, 72], 0.7, 0.5);
+tada(HIT.coreBurst + 53, [65, 69, 72], 0.6, 0.4);
+tada(HIT.coreBurst + 68, [67, 71, 74], 0.6, 0.4);
+tada(HIT.coreBurst + 83, [72, 76, 79, 84], 0.8, 1.2);
+voice(HIT.coreBurst + 33, 'victory', 1.0);
+// S21 the curtain call: applause, a pop per lineup, the overture reprise
+applause(C.curtain, 3, 0.45);
 oompah(C.curtain, C.end, { g: 0.9 });
 theme(C.curtain + 30, 0.45);
-// S22 the end card: the v6 sting
+for (const off of [0, 30, 60, 90, 120, 150, 165]) game(C.curtain + off, 'poof', 0.3);
+// S22 the end card: the v6 sting, then (round 2: 2 s of dead air) a soft oompah bed under the logo and the line
 if (STING) {
   sfx.add(smp(C.end), decode(STING, 1), 1.0);
   cue(C.end, 'brand sting');
 } else orchHit(C.end, [60, 64, 67, 72]);
 music.add(smp(C.end), I.crash(5, 3), 0.4);
-// S23 the stinger: his la-la, the bowling strike, his sob, the rimshot on 59.5 s
+oompah(C.end + 90, C.stinger, { g: 0.55 });
+theme(C.end + 150, 0.3);
+// S23 the stinger: his la-la, the bowling strike, his sob; under the freeze a tick-tock bed, a pluck on the line
+// (Bravo will return.) and the rimshot on 59.5 s
+oompah(C.stinger, C.returns, { g: 0.45, pizz: false });
 theme(C.stinger + 20, 0.45);
 strike(HIT.bowl, 0.8);
 game(HIT.bowl + 2, 'bravoGasp', 0.7);
 game(HIT.bowl + 40, 'bravoSob', 0.6);
+tickTock(C.returns, 3555, 0.55);
+{
+  const [L, R] = I.pad([60, 64, 67], fs(3555 - C.returns), { cutoff: 1400 });
+  music.addStereo(smp(C.returns), L, R, 0.12);
+}
+music.add(smp(HIT.returnsLine), I.pluck(72, 0.3, 52), 0.55);
+music.add(smp(HIT.returnsLine + 8), I.pluck(76, 0.3, 53), 0.5);
 rimshot(3570, 0.85);
 
 // ---------------------------------------------------------------- space, ducking, holes, master
@@ -425,7 +459,7 @@ function master() {
   bus.mixIn(vo, 1.25);
   compress(bus, { threshDb: -16, ratio: 1.8, attack: 0.012, release: 0.2 });
   // the arc: the overture sits under the gags, the band lifts it, the payoff and the victory peak
-  const ARC = [[0, 0], [C.cannon, -3], [C.credits, -1], [C.aud3, -3], [C.fight, 0], [C.flop, -3], [C.payoff, -1], [HIT.encoreFumble, 1], [C.victory, 1], [C.curtain, -2], [C.end, 0], [C.stinger, -2]];
+  const ARC = [[0, 0], [C.cannon, -3], [C.credits, -1], [C.aud3, -3], [C.fight, 0], [C.flop, -3], [C.payoff, -1], [HIT.encoreFumble, 1], [C.victory, 1], [C.curtain, -2], [C.end, 0], [C.end + 60, -3], [C.stinger, -2], [C.returns, -2], [3568, 0]];
   const arcDb = (f) => {
     for (let k = ARC.length - 1; k >= 0; k--) if (f >= ARC[k][0]) {
       const t = Math.min(1, (f - ARC[k][0]) / 6);

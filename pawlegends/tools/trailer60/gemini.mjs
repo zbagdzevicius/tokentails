@@ -14,11 +14,14 @@ if (!key) throw new Error('GEMINI_API_KEY is not set');
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
 const STYLE = 'Style: the Paw Legends v6 "Lightning Rivalry" key-art look of the reference images: bold clean ink outlines, cel shading, saturated candy colours, cats side in magenta/rose, dogs side in electric blue, a yellow lightning bolt motif, plum night (#12091F) shadows, comic halftone accents. Keep every champion exactly on-model with the references (face, fur colours, markings, armour, weapons). Absolutely no text, letters, numbers, logos, signatures or watermarks anywhere in the image. Rivals, never enemies: playful heroic energy, no blood, no injury.';
 
+// round 2 (review: the comic-style Bravo was off-model next to the small in-game unit): `style: 'game'` asks for the
+// game's own 3D toy render, from in-engine captures of the champion as references
+const GAME_STYLE = 'Style: exactly the 3D look of the in-game reference renders: a smooth low-poly toy figure, soft cel lighting, rounded chunky shapes, glossy big eyes, saturated candy colours, a thin dark outline. The character must be the SAME character as the references (same body shape, same proportions, same fur colours, same white ruff collar, same yellow-to-white cape, same big brown eyes with a little teardrop), not a realistic dog and not a hand-drawn illustration. Absolutely no text, letters, numbers, logos, signatures or watermarks anywhere in the image. Family friendly, no injury.';
 const jobs = JSON.parse(readFileSync(jobsFile, 'utf8')).filter((j) => !only || only.includes(j.id));
 await Promise.all(jobs.map(async (j) => {
   const out = join(outDir, `${j.id}.jpg`);
   if (existsSync(out) && !only) return console.log(`${j.id}: exists`);
-  const parts = [{ text: `${j.prompt}\n\n${STYLE}` }];
+  const parts = [{ text: `${j.prompt}\n\n${j.style === 'game' ? GAME_STYLE : STYLE}` }];
   for (const r of j.refs ?? []) parts.push({ inline_data: { mime_type: MIME[extname(r).toLowerCase()], data: readFileSync(r).toString('base64') } });
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent', {
