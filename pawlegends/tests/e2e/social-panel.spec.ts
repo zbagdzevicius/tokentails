@@ -79,6 +79,7 @@ async function openSheet(context: Parameters<typeof mockHost>[0], page: Page, ba
       'club.get': { status: 200, body: { club: null, kudos: null } },
       'growth.invite': { status: 200, body: invite },
       'friend.remove': { status: 200, body: {} },
+      'social.search': { status: 200, body: { players: [{ name: 'Mira Moonpaw', av: { i: 'h:clem' }, cc: 'LT' }, { name: 'Mira', rel: 'friend', av: { i: 'h:sage' } }] } },
     },
   });
   const game = await openHost(page);
@@ -89,8 +90,8 @@ async function openSheet(context: Parameters<typeof mockHost>[0], page: Page, ba
   // the e2e build holds CSS animations at their first frame: the sheet's slide-in would leave it 24 px to the right
   await game.addStyleTag({ content: '.pl-social, .pl-chat, .pl-fr-menu, .pl-me-card, .pl-social-moremenu { animation: none !important; } .pl-social *, .pl-chat * { transition: none !important; }' });
   await expect(sheet.locator('.pl-fr').first()).toBeVisible();
-  // the invite: the card on a tall screen, the gift in the tools row on a short one
-  await expect(sheet.locator('[data-testid="invite-row"], [data-testid="invite-open"]').first()).toBeVisible();
+  // friends to show: the invite folds into the header's gift
+  await expect(sheet.locator('[data-testid="invite-open"]')).toBeVisible();
   return { game, sheet };
 }
 
@@ -102,7 +103,7 @@ async function layoutProblems(game: Frame): Promise<string[]> {
     const sr = sheet.getBoundingClientRect();
     const vw = document.documentElement.clientWidth;
     if (sr.right > vw + 1 || sr.left < -1) out.push(`sheet off screen ${sr.left}-${sr.right} of ${vw}`);
-    for (const el of [sheet, ...sheet.querySelectorAll<HTMLElement>('.pl-social-body, .pl-social-head, .pl-social-tools, .pl-invite-row')])
+    for (const el of [sheet, ...sheet.querySelectorAll<HTMLElement>('.pl-social-body, .pl-social-head, .pl-social-tabbar, .pl-social-searchrow, .pl-add-card, .pl-invite-row')])
       if (el.scrollWidth > el.clientWidth + 1) out.push(`horizontal scroll in ${el.className}: ${el.scrollWidth} > ${el.clientWidth}`);
     const hit = (a: DOMRect, b: DOMRect) => a.width > 0 && b.width > 0 && a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
     const body = sheet.querySelector<HTMLElement>('.pl-social-body')!.getBoundingClientRect();
@@ -124,15 +125,30 @@ async function layoutProblems(game: Frame): Promise<string[]> {
       }
       if (parseFloat(getComputedStyle(name).fontSize) < 14) out.push(`name under 14px: ${getComputedStyle(name).fontSize}`);
     }
-    // nothing is cut: no name, status, preview or invite title ends in an ellipsis or is clipped
-    for (const el of sheet.querySelectorAll<HTMLElement>('.pl-social-name, .pl-social-st, .pl-social-msg, .pl-inv-sub, .pl-social-tab span, .pl-group-t, .pl-mi span, .pl-live-chip span')) {
+    // a stuck group header is opaque and on top: every point across it belongs to it (no row, dot or avatar shows
+    // through or sits over its label), and no row text peeks out above it
+    for (const h of sheet.querySelectorAll<HTMLElement>('.pl-group-h')) {
+      const r = h.getBoundingClientRect();
+      if (r.top < body.top - 0.5 || r.bottom > body.bottom) continue;
+      for (let x = r.left + 6; x < r.right - 6; x += 12)
+        for (const y of [r.top + 2, r.top + r.height / 2, r.bottom - 2]) {
+          const el = document.elementFromPoint(x, y);
+          // an open popover (More) floats over the list on purpose
+          if (el && !h.contains(el) && !el.closest('.pl-social-moremenu')) out.push(`group header covered at ${Math.round(x - r.left)},${Math.round(y - r.top)} by .${(el as HTMLElement).className || el.tagName}`);
+        }
+      const bg = getComputedStyle(h).backgroundColor;
+      if (!/^rgb\(/.test(bg)) out.push(`group header not opaque: ${bg}`);
+    }
+    // nothing is cut: no name, status or invite title ends in an ellipsis or is clipped (the one-line unread preview
+    // is cut on purpose: its tooltip and the thread show it whole)
+    for (const el of sheet.querySelectorAll<HTMLElement>('.pl-social-row .pl-social-name, .pl-social-st, .pl-inv-sub, .pl-social-tab span, .pl-social-more span, .pl-group-t, .pl-mi span')) {
       const r = el.getBoundingClientRect();
       if (!r.width || r.bottom < body.top || r.top > body.bottom + 400) continue;
       if (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2) out.push(`text cut: "${el.textContent!.trim().slice(0, 40)}" .${el.className}`);
     }
     // the trailing actions share one right edge per column (the row's action, then Chat)
     for (const col of ['.pl-act-1', '.pl-act-2']) {
-      const rights = new Set([...sheet.querySelectorAll<HTMLElement>(`.pl-social-body ${col}`)].filter((b) => b.getBoundingClientRect().width).map((b) => Math.round(b.getBoundingClientRect().right)));
+      const rights = new Set([...sheet.querySelectorAll<HTMLElement>(`.pl-social-body .pl-group-list ${col}`)].filter((b) => b.getBoundingClientRect().width).map((b) => Math.round(b.getBoundingClientRect().right)));
       if (rights.size > 1) out.push(`${col} not aligned: ${[...rights].join(',')}`);
     }
     // an unread badge sits on its icon's corner
@@ -151,10 +167,10 @@ async function layoutProblems(game: Frame): Promise<string[]> {
       if (fs < 13) out.push(`text under 13px (${fs}px): "${el.textContent!.trim().slice(0, 30)}" .${el.className}`);
     }
     // touch targets: every button in the list is at least 40 px tall (44 with its hit area) and 36 wide
-    for (const b of sheet.querySelectorAll<HTMLElement>('.pl-social-body button, .pl-social-head button, .pl-social-tools button')) {
+    for (const b of sheet.querySelectorAll<HTMLElement>('.pl-social-body button, .pl-social-head button, .pl-social-tabbar button, .pl-social-searchrow button')) {
       const r = b.getBoundingClientRect();
       if (!r.width || getComputedStyle(b).display === 'none') continue;
-      if (r.height < 32 || r.width < 32) out.push(`small target ${Math.round(r.width)}x${Math.round(r.height)}: ${b.getAttribute('aria-label') ?? b.textContent}`);
+      if (r.height < 36 || r.width < 36) out.push(`small target ${Math.round(r.width)}x${Math.round(r.height)}: ${b.getAttribute('aria-label') ?? b.textContent}`);
     }
     return [...new Set(out)];
   });
@@ -203,17 +219,35 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
   // presence detail: mode and time in a match, seats in a lobby
   await expect(sheet.locator(`.pl-fr[data-code="${friends[3].code}"] .pl-social-st`)).toHaveText(/^In match · Ranked · \d+m$/);
   await expect(sheet.locator(`.pl-fr[data-code="${friends[0].code}"] .pl-social-st`)).toHaveText('In lobby · 2/3 · open');
-  await expect(sheet.locator('[data-testid="social-unread"]')).toHaveText('4');
-  // the joinable lobby shows Join (one tap), everyone online gets a small Invite icon
+  // on Friends the tab has no badge: requests and unread messages show their own counts (no "4" to misread)
+  await expect(sheet.locator('[data-testid="social-unread"]')).toHaveCount(0);
+  // one header row, no live chip and no search field until Search is tapped
+  await expect(sheet.locator('.pl-social-head [data-testid="social-me"]')).toBeVisible();
+  await expect(sheet.locator('input[name="q"]')).toHaveCount(0);
+  await expect(sheet.locator('.pl-social-body [data-testid="social-watch-live"]')).toHaveCount(0);
+  // the joinable lobby shows Join (one tap), a free friend a small Invite icon; a queued or lobbied friend none
   await expect(sheet.locator(`.pl-fr[data-code="${friends[0].code}"] [data-a="join"]`)).toBeVisible();
+  await expect(sheet.locator(`.pl-fr[data-code="${friends[2].code}"] [data-a="invite"]`)).toHaveCount(0);
+  await expect(sheet.locator(`.pl-fr[data-code="${friends[10].code}"] [data-a="invite"]`)).toHaveCount(0);
+  await expect(sheet.locator(`.pl-fr[data-code="${friends[4].code}"] [data-a="invite"]`)).toHaveCount(1);
 
   for (const [w, h] of views) {
     await page.setViewportSize({ width: w, height: h });
     await page.waitForTimeout(300);
     await realViewport(page, game);
     expect(await layoutProblems(game), `${w}x${h}`).toEqual([]);
-    expect(await friendsOnFirstScreen(game), `${w}x${h} friends on the first screen`).toBeGreaterThanOrEqual(touch ? 3 : 8);
+    // phones: 4 friends under the header and the two group headers; desktop: all 10 online and in-match friends
+    expect(await friendsOnFirstScreen(game), `${w}x${h} friends on the first screen`).toBeGreaterThanOrEqual(touch ? 4 : 10);
+    // the chrome above the first group: one header row and the tab bar (LoL uses about 90 px)
+    const chrome = await game.evaluate(() => document.querySelector('.pl-social .pl-group-h')!.getBoundingClientRect().top - document.querySelector('.pl-social')!.getBoundingClientRect().top);
+    expect(chrome, `${w}x${h} chrome`).toBeLessThanOrEqual(touch ? 104 : 112);
     await shot(page, 'list');
+    // scrolled a little: the stuck header stays opaque and on top
+    await sheet.locator('.pl-social-body').evaluate((el) => el.scrollTo(0, 70));
+    await page.waitForTimeout(100);
+    expect(await layoutProblems(game), `${w}x${h} scrolled`).toEqual([]);
+    await shot(page, 'scrolled');
+    await sheet.locator('.pl-social-body').evaluate((el) => el.scrollTo(0, 0));
     if (!touch) {
       // hover shows the row's icons (Invite to party, Chat)
       await sheet.locator(`.pl-fr[data-code="${friends[4].code}"]`).hover();
@@ -254,6 +288,9 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
   await expect(menu).toBeVisible();
   await expect(menu.locator('.pl-fr-menu-name')).toHaveText(friends[3].name);
   await expect(menu.locator('[data-a="chat"]')).toBeVisible();
+  // a friend in a match can't be invited: the menu says why (greyed, never a button that does nothing)
+  await expect(menu.locator('[data-testid="social-invite-busy"]')).toBeDisabled();
+  await expect(menu.locator('[data-testid="social-invite-busy"]')).toContainText('In a match');
   expect(await layoutProblems(game)).toEqual([]);
   await shot(page, 'menu');
   await page.keyboard.press('Escape');
@@ -275,7 +312,7 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
     await expect(main).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(menu).toBeVisible();
-    await expect(menu.locator('[role="menuitem"]').first()).toBeFocused();
+    await expect(menu.locator('[role="menuitem"]:not([disabled])').first()).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
     await expect(main).toBeFocused();
@@ -287,12 +324,18 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
     await expect(sheet.locator('[role="tab"][data-tab="friends"]')).toHaveAttribute('aria-selected', 'true');
   } else {
     // touch: the primary action shows without hover; chat shows only when unread
-    await expect(sheet.locator(`.pl-fr[data-code="${friends[2].code}"] [data-testid="social-invite"]`)).toBeVisible();
-    await expect(sheet.locator(`.pl-fr[data-code="${friends[2].code}"] [data-a="chat"]`)).toBeHidden();
+    await expect(sheet.locator(`.pl-fr[data-code="${friends[4].code}"] [data-testid="social-invite"]`)).toBeVisible();
+    await expect(sheet.locator(`.pl-fr[data-code="${friends[4].code}"] [data-a="chat"]`)).toBeHidden();
+    // Join is a 44 px target
+    const jb = await sheet.locator(`.pl-fr[data-code="${friends[0].code}"] [data-a="join"]`).boundingBox();
+    expect(Math.round(jb!.width)).toBeGreaterThanOrEqual(44);
+    expect(Math.round(jb!.height)).toBeGreaterThanOrEqual(44);
     await expect(unreadRow.locator('[data-a="chat"]')).toBeVisible();
   }
 
-  // search filters as you type
+  // search: Search in the tab bar opens the field; it filters as you type
+  await sheet.locator('[data-a="search"]').click();
+  await expect(sheet.locator('input[name="q"]')).toBeFocused();
   await sheet.locator('input[name="q"]').fill('bark');
   await expect(sheet.locator('.pl-fr')).toHaveCount(2);
   await expect(sheet.locator('.pl-rq')).toHaveCount(1);
@@ -301,37 +344,35 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
   await expect(sheet.locator('[data-testid="social-search-none"]')).toBeVisible();
   expect(await layoutProblems(game)).toEqual([]);
   await shot(page, 'noresult');
-  await sheet.locator('input[name="q"]').fill('');
+  await sheet.locator('[data-a="search-close"]').click();
+  await expect(sheet.locator('input[name="q"]')).toHaveCount(0);
+  await expect(sheet.locator('.pl-fr').first()).toBeVisible();
 
-  // Add friend: the form with my code to share
-  await sheet.locator('[data-a="add"]').first().click();
-  await expect(sheet.locator('.pl-social-mycode strong')).toHaveText('PL-7KQ2-M9XR');
+  // Add a friend: a card over the top of the list (the list stays), nickname suggestions as you type, one code only
+  await sheet.locator('.pl-social-head [data-a="add"]').click();
+  const addCard = sheet.locator('[data-testid="social-add-card"]');
+  await expect(addCard).toBeVisible();
+  await expect(sheet.locator('[data-testid="social-add-input"]')).toBeFocused();
+  await sheet.locator('[data-testid="social-add-input"]').pressSequentially('mir', { delay: 40 });
+  await expect(addCard.locator('[data-testid="social-suggest"]')).toHaveCount(2);
+  await expect(addCard.locator('[data-testid="social-suggest"]').first().locator('[data-a="add-name"]')).toBeVisible();
+  expect(await sheet.locator('.pl-fr').count()).toBeGreaterThan(0);
+  await expect(sheet.locator('.pl-social-mycode')).toHaveCount(0);
   expect(await layoutProblems(game)).toEqual([]);
   await shot(page, 'add');
-  await sheet.locator('[data-a="add-cancel"]').click();
+  await addCard.locator('[data-a="add-cancel"]').click();
+  await expect(addCard).toHaveCount(0);
 
-  // the invite: on a phone held sideways a gift in the tools row opens the card; on desktop the card folds to one line
+  // the invite: folded into the header's gift (friends first); the gift opens the card at the top of the list
   const card = sheet.locator('[data-testid="invite-row"]');
-  if (touch) {
-    await expect(card).toHaveCount(0);
-    await sheet.locator('[data-testid="invite-open"]').click();
-    await expect(card).toBeVisible();
-    await expect(card).not.toHaveClass(/is-folded/);
-    expect(await layoutProblems(game)).toEqual([]);
-    await shot(page, 'invite-open');
-    await card.locator('[data-a="inv-fold"]').click();
-    await expect(card).toHaveCount(0);
-  } else {
-    // 25 friends: the card starts folded to one line ("Invite", the code chip) so friends come first
-    await expect(card).toHaveClass(/is-folded/);
-    await expect(card.locator('.pl-social-name')).toHaveText('Invite');
-    await card.locator('[data-a="inv-fold"]').click();
-    await expect(card).not.toHaveClass(/is-folded/);
-    expect(await layoutProblems(game)).toEqual([]);
-    await shot(page, 'invite-open');
-    await card.locator('[data-a="inv-fold"]').click();
-    await expect(card).toHaveClass(/is-folded/);
-  }
+  await expect(card).toHaveCount(0);
+  await sheet.locator('[data-testid="invite-open"]').click();
+  await expect(card).toBeVisible();
+  await expect(card.locator('[data-testid="invite-copy"]')).toContainText('Invite code');
+  expect(await layoutProblems(game)).toEqual([]);
+  await shot(page, 'invite-open');
+  await card.locator('[data-a="inv-fold"]').click();
+  await expect(card).toHaveCount(0);
 
   // me: my status card (Online / Appear offline), my code, Change avatar
   await sheet.locator('[data-testid="social-me"]').click();
@@ -372,6 +413,9 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
   // More: Ranked and Leaderboards
   await sheet.locator('[data-a="tabs-more"]').click();
   await expect(sheet.locator('.pl-social-moremenu')).toBeVisible();
+  // the featured live match lives in More
+  await expect(sheet.locator('.pl-social-moremenu [data-testid="social-watch-live"]')).toBeVisible();
+  expect(await layoutProblems(game)).toEqual([]);
   await shot(page, 'more');
 
   const reqs = (await received(page)).filter((m: any) => m.type === 'api-request') as any[];
@@ -398,8 +442,12 @@ test('Social panel: empty list and a guest', async ({ context, page, baseURL }) 
   const sheet = game.locator('.pl-social');
   await game.addStyleTag({ content: '.pl-social { animation: none !important; }' });
   await expect(sheet.locator('.pl-social-none')).toContainText('No friends yet');
-  // one way to add (the tools row), a share CTA and players from recent matches to add
-  await expect(sheet.locator('.pl-social-none [data-a="inv-share"]')).toBeVisible();
+  // one way to add (Find a player), one share CTA (the invite card's), players from recent matches to add
+  await expect(sheet.locator('.pl-social-none [data-a="add-empty"]')).toBeVisible();
+  await expect(sheet.locator('[data-a="inv-share"]')).toHaveCount(1);
+  await expect(sheet.locator('[data-testid="invite-row"] [data-a="inv-share"]')).toBeVisible();
+  await expect(sheet.locator('[data-testid="invite-row"] [data-a="inv-fold"]')).toHaveCount(0);
+  await expect(sheet.locator('[data-testid="invite-open"]')).toHaveCount(0);
   await expect(sheet.locator('.pl-rc')).toHaveCount(2);
   expect(await layoutProblems(game)).toEqual([]);
   await shot(page, 'empty');

@@ -85,7 +85,7 @@ describe('the invite row in the Social sheet', () => {
   // the card starts open (a choice made on this device); with no choice it folds once there are friends to show
   beforeEach(() => localStorage.setItem('pl.social.inviteFolded', '0'));
 
-  it('folds to one line and remembers it; Copy copies the code', async () => {
+  it('its × folds it away and remembers it; Copy copies the code', async () => {
     const writes: string[] = [];
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t: string) => void writes.push(t) } });
     const t = sheet(invite({ invited: [], accepted: null }));
@@ -99,8 +99,8 @@ describe('the invite row in the Social sheet', () => {
     expect(document.querySelector('.pl-social-note')!.textContent).toBe('Invite code copied');
     document.querySelector<HTMLElement>('[data-a="inv-fold"]')!.click();
     await flush();
-    expect(row().classList.contains('is-folded')).toBe(true);
-    expect(row().querySelector('[data-testid="invite-share"]')).toBeNull();
+    expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
+    expect(document.querySelector('[data-testid="invite-open"]')!.getAttribute('aria-expanded')).toBe('false');
     expect(localStorage.getItem('pl.social.inviteFolded')).toBe('1');
     t.s.dispose();
     localStorage.removeItem('pl.social.inviteFolded');

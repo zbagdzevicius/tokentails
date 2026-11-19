@@ -148,7 +148,6 @@ test('two friends: a phrase and text DM, the unread badge, the reply in the open
 
   // B: the Social sheet shows the unread badge and the dot on A's row; the thread shows both messages
   await b.game.locator('[data-testid="lobby-social"]').click({ timeout: limit(60_000) });
-  await expect(b.game.locator('[data-testid="social-unread"]')).toHaveText('2');
   const rowA = b.game.locator(`.pl-social-row[data-code="${CODE.A}"]`);
   await expect(rowA.locator('[data-testid="chat-unread"]')).toHaveText('2');
   await rowA.locator('[data-a="chat"]').click();

@@ -141,10 +141,11 @@ export function inviteCardText(s: InviteState): { title: string; sub: string } {
 }
 
 /**
- * The invite card's markup (the top of the Friends tab): a title, one short line, the code as a copy chip and Share.
- * Folded, it is one line (the title and the code chip). Names are filled by textContent through `data-name`.
+ * The invite card's markup (the top of the Friends tab, or the empty state): a title, one short line, the invite code
+ * as a copy chip and Share link. `closable`: a × folds it away (the gift in the sheet's header opens it again); a new
+ * player with no friends sees it without one. Names are filled by textContent through `data-name`.
  */
-export function inviteRowHtml(s: InviteState | null, entering: boolean, folded = false): string {
+export function inviteRowHtml(s: InviteState | null, entering: boolean, closable = true): string {
   if (entering)
     return `<form class="pl-social-add pl-invite-row pl-invite-form" data-form="invite" data-testid="invite-code-form"><input name="invite" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Their invite code" aria-label="Invite code" inputmode="text"><button type="submit" class="pl-btn small">Accept</button><button type="button" class="pl-ico" data-a="inv-cancel" aria-label="Cancel" title="Cancel">${ICON_X}</button></form>`;
   if (!s) return '';
@@ -152,17 +153,14 @@ export function inviteRowHtml(s: InviteState | null, entering: boolean, folded =
   const claim = s.claimable
     ? `<button type="button" class="pl-btn small" data-a="inv-claim" data-testid="invite-claim">Claim coat${s.claimable > 1 ? ` ×${s.claimable}` : ''}</button>`
     : '';
-  const chip = `<button type="button" class="pl-inv-code" data-a="inv-copy" data-testid="invite-copy" aria-label="${esc(`Copy invite code ${s.code}`)}" title="Copy code"><small>Code</small><b>${esc(s.code)}</b>${ICON_COPY}</button>`;
-  const fold = `<button type="button" class="pl-ico pl-inv-fold" data-a="inv-fold" aria-expanded="${!folded}" aria-label="${folded ? 'Show invite' : 'Hide invite'}" title="${folded ? 'Show' : 'Hide'}">${ICON_CHEVRON}</button>`;
-  if (folded)
-    return `<div class="pl-invite-row is-folded" data-testid="invite-row"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="Invite"></span></span>${claim || chip}${fold}</div>`;
+  const chip = `<button type="button" class="pl-inv-code" data-a="inv-copy" data-testid="invite-copy" aria-label="${esc(`Copy invite code ${s.code}`)}" title="Copy code"><small>Invite code</small><b>${esc(s.code)}</b>${ICON_COPY}</button>`;
+  const fold = closable ? `<button type="button" class="pl-ico pl-inv-fold" data-a="inv-fold" aria-expanded="true" aria-label="Hide invite" title="Hide">${ICON_X}</button>` : '';
   const enter = !s.accepted ? `<button type="button" class="pl-inv-have" data-a="inv-enter" data-testid="invite-enter" aria-label="Enter an invite code">Got a code from a friend?</button>` : '';
   return `<div class="pl-invite-row" data-testid="invite-row"><div class="pl-inv-top"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span><small class="pl-inv-sub">${esc(sub)}</small></span>${fold}</div><div class="pl-inv-acts">${chip}${claim}<button type="button" class="pl-btn small ghost pl-inv-share" data-a="inv-share" data-testid="invite-share">${ICON_SHARE}<span>Share link</span></button></div>${enter}</div>`;
 }
 
 const ICON_X = icon('close', 18);
 const ICON_COPY = icon('copy', 16);
-const ICON_CHEVRON = icon('chevron', 18);
 const ICON_GIFT = icon('gift', 20);
 const ICON_SHARE = icon('share', 16);
 
@@ -213,8 +211,9 @@ export class InviteRow {
     return (this.folded ?? this.autoFold) && !this.state?.claimable;
   }
 
-  html(): string {
-    return inviteRowHtml(this.state, this.entering, this.isFolded);
+  /** The card (the sheet decides when it shows: `isFolded`). */
+  html(closable = true): string {
+    return inviteRowHtml(this.state, this.entering, closable);
   }
 
   /** The row's buttons (`data-a` starting with `inv-`). */
