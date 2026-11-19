@@ -152,7 +152,11 @@ function voice(f, key, g = 1) {
 // ---------------------------------------------------------------- cue sheet (timeline.mjs)
 const [cHook, cVs, cCharge, cMont, cWar, cLow, cEyes, cFight, cKey, cCore, cGlory, cEnd] = ['hook', 'vs', 'charge', 'montage', 'war', 'low', 'eyes', 'fight', 'key', 'core', 'glory', 'end'].map((k) => CUTS[k]);
 
-// cold open: heartbeat x2, an air whistle, the game's whoosh, the sub thud on the ink frame
+// cold open: round 3 lands a sound on frame 0 (autoplay feeds): a thunder crack, a short impact and a whoosh tail,
+// then heartbeat x2, an air whistle, the game's whoosh, the sub thud on the ink frame
+sfx.add(0, I.crackle(0.35, 95), 0.7);
+sfx.add(0, I.impact(97, { sub: 46, len: 0.7 }), 0.75);
+sfx.add(smp(2), I.game('slam'), 0.5);
 heartbeat(0, 0.9);
 heartbeat(26, 0.8);
 airWhistle(12, 40);
@@ -199,7 +203,7 @@ for (let i = 0; i < 8; i++) {
 }
 
 // PICK A SIDE: half-time, low choir (dark pads), the body ~3 LU under the climax
-groove(cWar, cLow, { half: true, energy: 0.75 });
+groove(cWar, cLow, { half: true, energy: 0.9 });
 padAt(cWar, 'Am', fs(72), 0.22, 700, -24);
 padAt(cWar, 'E', fs(72), 0.16, 600, -12);
 stabAt(cWar + 18, 'Am', 0.4, 0.4, -12);
@@ -210,7 +214,14 @@ cue(cWar + 18, 'PICK A SIDE');
 cue(SILENCE[0][0], 'silence hole 1');
 hit(HIT.towerCrack, 'slam', 0.7, true);
 rumble(HIT.towerCrack, 1.4, 0.9);
-padAt(cLow, 'Am', fs(cEyes - cLow), 0.12, 500, -24);
+padAt(cLow, 'Am', fs(cEyes - cLow), 0.16, 500, -24);
+// round 3: a low pulse (a heartbeat on every beat, a sub drone) carries the low point, so the only real hole is the
+// 6 frames before the crack (round 2 sat 2.5 s at -20 to -25 LUFS here)
+for (let f = cLow; f < cEyes; f += BEAT) if (f < SILENCE[0][0] - 4 || f > HIT.towerCrack + 4) heartbeat(f, 1.1);
+{
+  const n = sec(fs(cEyes - cLow));
+  music.add(smp(cLow), mul(sine(n, 55), decay(n, 1.6, 0.3)), 0.4);
+}
 voice(HIT.towerCrack + 10, 'ourTurret', 0.95);
 
 // NOT OUT: match strike and a riser into the fight
@@ -254,7 +265,6 @@ cue(cCore, 'CORE BURST');
 groove(cCore + 48, cGlory, { energy: 1, tai: true });
 voice(HIT.victory, 'victory', 1.1);
 catMotif(HIT.victory, 0.5);
-music.add(smp(cCore + 144), I.musicBox(84, 1.1), 0.35);
 
 // glory: a brass swell, both motifs together
 padAt(cGlory, 'C', fs(cEnd - cGlory), 0.28, 2600, 0);
@@ -332,7 +342,7 @@ function master() {
   bus.mixIn(vo, 1.25);
   compress(bus, { threshDb: -16, ratio: 1.8, attack: 0.012, release: 0.2 });
   // the arc: section levels set before the limiter so the quiet parts stay quiet (LRA) and the two climaxes peak
-  const ARC = [[0, -12], [46, -12], [48, 0], [70, -2], [96, -2], [cMont, -5.5], [cWar, -9], [cLow, -10], [cEyes, -8], [cFight, -5], [cKey, -7], [cCore, 3], [cCore + 60, 0], [cCore + 144, -4], [cGlory, -6], [cEnd, -2], [N, -3]];
+  const ARC = [[0, 1], [10, -6], [46, -7], [48, 0], [70, -2], [96, -2], [cMont, -5.5], [cWar, -9], [cLow, -5], [cEyes, -8], [cFight, -4], [cKey, -7], [cCore, 3], [cCore + 60, 0], [cGlory, -8], [cEnd, -2], [N, -3]];
   const arcDb = (f) => {
     for (let k = ARC.length - 1; k >= 0; k--) if (f >= ARC[k][0]) {
       const [f0, d0] = ARC[k], [f1, d1] = ARC[k + 1] ?? [N, d0];

@@ -50,12 +50,24 @@ function takeOf(name, aspect) {
   return { file: f, crop: aspect === '1x1' ? 'crop=1080:1080:420:0,' : aspect === '9x16' ? 'crop=iw/1.1:ih/1.1,scale=1080:1920:flags=lanczos,' : '' };
 }
 
-/** The gameplay grade: a little more contrast and colour, a soft toe, a light sharpen. */
-const GRADE = 'eq=contrast=1.07:saturation=1.16:gamma=0.97,curves=master=0/0.02 0.5/0.48 1/0.98,unsharp=5:5:0.35';
+/**
+ * The gameplay grade (round 3: the autumn ground read muddy next to the comic frames): more contrast, vibrance on the
+ * greens and the blue-grey floor only (the lane browns stay put), a soft toe, a light sharpen.
+ */
+const GRADE = 'eq=contrast=1.1:saturation=1.1:gamma=0.97,huesaturation=colors=g+c:saturation=0.35:intensity=0.05,huesaturation=colors=y:saturation=-0.08,curves=master=0/0.01 0.25/0.23 0.5/0.5 0.8/0.83 1/1,unsharp=5:5:0.4';
 
-function gpSegment(out, take, aspect, a, len) {
+/** punch: [zoom, fx, fy] on the 16:9 take (also feeds the 1:1 crop), a lanczos punch-in centred on (fx, fy). */
+function punchOf(punch, aspect) {
+  if (!punch || aspect === '9x16') return '';
+  const [z, fx, fy] = punch;
+  const cw = Math.round(1920 / z / 2) * 2, chh = Math.round(1080 / z / 2) * 2;
+  const x = Math.round(Math.min(1920 - cw, Math.max(0, fx * 1920 - cw / 2))), y = Math.round(Math.min(1080 - chh, Math.max(0, fy * 1080 - chh / 2)));
+  return `crop=${cw}:${chh}:${x}:${y},scale=1920:1080:flags=lanczos,`;
+}
+
+function gpSegment(out, take, aspect, a, len, punch = null) {
   const { file, crop } = takeOf(take, aspect);
-  ff(['-i', file, '-vf', `trim=start_frame=${a}:end_frame=${a + len},setpts=PTS-STARTPTS,${crop}${GRADE}`, '-frames:v', String(len), ...ENC, out]);
+  ff(['-i', file, '-vf', `trim=start_frame=${a}:end_frame=${a + len},setpts=PTS-STARTPTS,${punchOf(punch, aspect)}${crop}${GRADE}`, '-frames:v', String(len), ...ENC, out]);
   const n = Number(execFileSync('ffprobe', ['-v', 'error', '-count_frames', '-select_streams', 'v', '-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', out], { encoding: 'utf8' }).trim().split('\n')[0].replace(/,$/, ''));
   if (n !== len) throw new Error(`${take} [${a}, ${a + len}) gave ${n} frames: the take is too short`);
 }
@@ -68,7 +80,7 @@ function stillOf(take, aspect, at) {
 }
 
 // ---------------------------------------------------------------- a tiny file server for the MG page
-const ROOTS = [PKG, GEM, BRAND, WORK, join(PKG, '..', 'pawlegends-web', 'public'), ...(FONTS ? [FONTS] : [])];
+const ROOTS = [PKG, resolve(PKG, '..', 'pawlegends-web', 'public'), GEM, BRAND, WORK, join(PKG, '..', 'pawlegends-web', 'public'), ...(FONTS ? [FONTS] : [])];
 const MIME = { '.html': 'text/html', '.json': 'application/json', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2' };
 function serve() {
   const s = createServer((req, res) => {
@@ -83,9 +95,11 @@ function serve() {
   return new Promise((ok) => s.listen(0, '127.0.0.1', () => ok(s)));
 }
 
-// the whole roster as the game's painted splash cards (public/assets/splash/<id>-720.webp), captains first
-const CATS = ['lambo', 'clem', 'sage', 'bengas', 'gabe', 'aviete', 'meatball', 'pixel', 'duchess', 'stilts', 'dusty', 'mochi', 'nova', 'ziggy'];
-const DOGS = ['brutus', 'cacklejaw', 'marshmallow', 'howler', 'nugget', 'barkula', 'biscuit', 'bravo', 'champ', 'chili', 'domino', 'frankie', 'ranger', 'rocket'];
+// round 3: the cards are the champions' comic panels (pawlegends-web/public/pawlegends-art/loading/<id>-640.webp), the
+// same comic style as the Gemini story frames (round 2's painted splash art was a third visual language)
+const CATS = ['lambo', 'clem', 'sage', 'bengas', 'gabe', 'nova', 'stilts', 'dusty', 'ziggy'];
+const DOGS = ['brutus', 'cacklejaw', 'marshmallow', 'howler', 'nugget', 'barkula', 'chili', 'ranger'];
+const ART = join(PKG, '..', 'pawlegends-web', 'public', 'pawlegends-art', 'loading');
 
 /** Overlay frames (transparent PNGs) for a segment, into dir/%04d.png. */
 async function renderOverlay(page, ov, len, dir) {
@@ -123,7 +137,7 @@ async function buildAspect(aspect, browser, base) {
     vsWide: `${base}${GEM}/vs-wide.jpg`, vsTall: `${base}${GEM}/vs-tall.jpg`, warCats: `${base}${GEM}/war-cats.jpg`, warDogs: `${base}${GEM}/war-dogs.jpg`,
     eyes: `${base}${GEM}/eyes-clem.jpg`, keyClem: `${base}${GEM}/key-clem.jpg`, stadium: `${base}${GEM}/stadium.jpg`, stadiumTall: `${base}${GEM}/stadium-tall.jpg`,
     logo: `${base}${BRAND}/logos/pawlegends-logo-primary.png`,
-    ...Object.fromEntries([...CATS, ...DOGS].map((n) => [`s_${n}`, `${base}${PKG}/public/assets/splash/${n}-720.webp`])),
+    ...Object.fromEntries([...CATS, ...DOGS].map((n) => [`l_${n}`, `${base}${ART}/${n}-640.webp`])),
   };
   const fonts = FONTS
     ? { rubik: `${base}${FONTS}/rubik-italic-900.woff2`, fredoka: `${base}${FONTS}/fredoka-600-700.woff2` }
@@ -150,7 +164,7 @@ async function buildAspect(aspect, browser, base) {
         segParts.push(a, b, c);
       } else {
         const a = join(dir, `${id}g.mp4`);
-        gpSegment(a, g.take, aspect, g.in, seg.len);
+        gpSegment(a, g.take, aspect, g.in, seg.len, g.punch);
         segParts.push(a);
       }
       const plain = join(dir, seg.ov ? `${id}p.mp4` : `${id}.mp4`);
@@ -237,7 +251,7 @@ try {
   // posters (16:9 frames) and the web copy (1080p30, two-pass, ~6 MB)
   const m16 = report.masters['16x9']?.file;
   if (m16) {
-    for (const [name, f] of [['poster', 1560], ['poster-core', 1290], ['poster-vs', 88]]) ff(['-i', m16, '-vf', `select=eq(n\\,${f})`, '-frames:v', '1', '-q:v', '2', join(OUT, `pawlegends-trailer30-${name}.jpg`)]);
+    for (const [name, f] of [['poster', 1700], ['poster-core', 1262], ['poster-vs', 88]]) ff(['-i', m16, '-vf', `select=eq(n\\,${f})`, '-frames:v', '1', '-q:v', '2', join(OUT, `pawlegends-trailer30-${name}.jpg`)]);
     const web = join(OUT, 'pawlegends-trailer30-web.mp4');
     const pass = join(WORK, 'x264pass');
     const v = ['-i', m16, '-vf', 'fps=30', '-c:v', 'libx264', '-preset', 'slow', '-b:v', '1500k', '-maxrate', '3000k', '-bufsize', '6000k', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-passlogfile', pass];

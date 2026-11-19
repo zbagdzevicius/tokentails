@@ -142,10 +142,11 @@ function vignette(a = 0.45, color = '0,0,0') {
 }
 
 /**
- * Kinetic type: letters slam in one after another (2.2x, drop, overshoot, settle), cream fill, ink outline, a
- * coloured offset shadow. f = frames since the word started.
+ * Kinetic type: letters slam in one after another (1.45x down to 1x, never smaller, full opacity from the first frame:
+ * round 2's overshoot shrank letters below size and faded them, which read as a font fallback), cream fill, ink
+ * outline, a coloured offset shadow. f = frames since the word started.
  */
-function slamWord(word, x, y, size, f, { color = C.cream, shadow = C.rose, per = 2, align = 'center', skew = -0.12, out = null, rise = 7 } = {}) {
+function slamWord(word, x, y, size, f, { color = C.cream, shadow = C.rose, per = 1, align = 'center', skew = -0.12, out = null, rise = 4 } = {}) {
   ctx.save();
   ctx.font = `900 italic ${size}px RubikD, Rubik, sans-serif`;
   ctx.textBaseline = 'middle';
@@ -161,11 +162,11 @@ function slamWord(word, x, y, size, f, { color = C.cream, shadow = C.rose, per =
       cx += widths[i] + size * 0.02;
       return;
     }
-    const s = t < 1 ? 2.2 - 1.2 * outBack(t, 2.2) : 1;
-    const a = clamp(t * 3) * (1 - outT);
+    const s = 1 + 0.45 * (1 - outCubic(t));
+    const a = 1 - outT;
     const lx = cx + widths[i] / 2;
     ctx.save();
-    ctx.translate(lx, y + (1 - outCubic(t)) * -size * 0.25 - outT * size * 0.6);
+    ctx.translate(lx, y + (1 - outCubic(t)) * -size * 0.18 - outT * size * 0.6);
     ctx.transform(1, 0, skew, 1, 0, 0);
     ctx.scale(s, s);
     ctx.globalAlpha = a * base;
@@ -443,16 +444,19 @@ SEG.keyart = (f, p) => {
   vignette(0.35);
 };
 
-/** A splash card: the in-game painted art in a skewed frame, team border and glow. (x, y) = card centre. */
-function card(im, x, y, h, side, { skew = -0.08, alpha = 1, glow = 1, rot = 0 } = {}) {
-  const w = (h * 2) / 3;
+/**
+ * A champion card: the champion's comic panel (the game's loading art, the same comic style as the story frames) in a
+ * skewed frame, thick ink border, team border and glow. (x, y) = card centre; ar = width / height.
+ */
+function card(im, x, y, h, side, { skew = -0.08, alpha = 1, glow = 1, rot = 0, ar = 0.8, fy = 0.42 } = {}) {
+  const w = h * ar;
   const col = side === 'cat' ? C.rose : C.sky;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(x, y);
   ctx.rotate(rot);
   ctx.transform(1, 0, skew, 1, 0, 0);
-  const bw = Math.max(4, h * 0.03);
+  const bw = Math.max(4, h * 0.028);
   ctx.shadowColor = col;
   ctx.shadowBlur = 30 * S() * glow;
   ctx.fillStyle = C.ink;
@@ -464,7 +468,8 @@ function card(im, x, y, h, side, { skew = -0.08, alpha = 1, glow = 1, rot = 0 } 
   ctx.rect(-w / 2, -h / 2, w, h);
   ctx.clip();
   const s = Math.max(w / im.width, h / im.height);
-  ctx.drawImage(im, -(im.width * s) / 2, -(im.height * s) / 2, im.width * s, im.height * s);
+  const iw = im.width * s, ih = im.height * s;
+  ctx.drawImage(im, -iw / 2, Math.min(-h / 2, Math.max(h / 2 - ih, -fy * ih)), iw, ih);
   ctx.restore();
 }
 
@@ -505,19 +510,19 @@ function textW(text, size, font = 'RubikD', weight = 900, italic = true) {
 SEG.name = (f, p) => {
   const cat = p.side === 'cat';
   const v = H > W, sq = W === H;
-  const im = img[`s_${p.hero}`];
+  const im = img[`l_${p.hero}`];
   const inT = outBack(clamp(f / 8), 1.6);
   const outT = clamp((f - (p.n - 7)) / 6);
   const dir = cat ? -1 : 1;
   const slide = (1 - inT) * W * 0.5 * dir + outT * outT * W * 0.6 * dir;
-  const ch = v ? H * 0.2 : sq ? H * 0.34 : H * 0.42;
-  const cw = (ch * 2) / 3;
+  const ch = v ? H * 0.15 : sq ? H * 0.26 : H * 0.3;
+  const cw = ch * 0.8;
   const m = v ? W * 0.07 : W * 0.035;
-  const cy = v ? H * 0.72 : H - ch / 2 - (sq ? H * 0.06 : H * 0.05);
+  const cy = v ? H * 0.8 : H - ch / 2 - (sq ? H * 0.06 : H * 0.05);
   const cx = cat ? m + cw / 2 : W - m - cw / 2;
   // a team-coloured skewed band behind the type
   // the name shrinks to fit beside the card inside the safe area (MARSHMALLOW in 9:16)
-  const ns0 = (v ? 104 : sq ? 96 : 132) * S();
+  const ns0 = (v ? 92 : sq ? 84 : 108) * S();
   const room = W - cw - m * 2 - ns0 * 1.2;
   const ns = Math.min(ns0, (ns0 * room) / Math.max(1, textW(p.name.toUpperCase(), ns0)));
   const us = Math.min(ns0 * 0.42, ns * 0.5);
@@ -562,36 +567,56 @@ SEG.name = (f, p) => {
   card(im, cx + slide, cy, ch, p.side, { skew: cat ? -0.08 : 0.08, rot: (1 - inT) * 0.2 * dir });
 };
 
-/** Overlay: a mission line on a skewed ink plate (TOPPLE THEIR TOWERS. / TAKE THEIR CORE.). p: { text, color } */
+/**
+ * Overlay: a mission line on a skewed ink plate (TOPPLE THEIR TOWERS. / TAKE THEIR CORE.). The text drives the wipe:
+ * the plate's right edge runs just ahead of the last letter set, so the plate is never on screen empty (round 2 wiped
+ * it in 8 frames before the first letter). p: { text, color }
+ */
 SEG.caption = (f, p) => {
   const v = H > W;
-  const size = (v ? 96 : W === H ? 84 : 104) * S();
+  const size0 = (v ? 96 : W === H ? 84 : 104) * S();
   const y = v ? H * 0.8 : H * 0.85;
-  const inT = outCubic(clamp((f - 2) / 6));
-  const outT = clamp((f - (p.n - 6)) / 5);
-  if (inT <= 0) return;
   const words = p.text;
-  const tw = textW(words, size) * (v ? 1 : 1);
-  const pw = Math.min(W * 0.96, tw + size * 1.4) * inT;
-  ctx.save();
-  ctx.globalAlpha = 1 - outT;
-  ctx.translate(W / 2 + outT * W * 0.3, y);
-  ctx.transform(1, 0, -0.2, 1, 0, 0);
-  ctx.fillStyle = 'rgba(18,9,31,0.86)';
-  ctx.fillRect(-pw / 2, -size * 0.72, pw, size * 1.44);
-  ctx.fillStyle = p.color ?? C.bolt;
-  ctx.fillRect(-pw / 2, size * 0.72 - 7 * S(), pw, 7 * S());
-  ctx.restore();
+  const size = Math.min(size0, (W * 0.86 * size0) / (textW(words, size0) + 1));
+  const per = 0.7;
+  const outT = clamp((f - (p.n - 6)) / 5);
+  if (f < 0) return;
+  const tw = textW(words, size);
+  const pad = size * 0.7;
+  // the reveal: letters set so far (fractional), measured in the face
+  const k = clamp((f + 2) / per + 1, 0, words.length);
+  const k0 = Math.floor(k);
+  const shown = textW(words.slice(0, k0), size) + (k0 < words.length ? (k - k0) * textW(words[k0], size) : 0);
+  const x0 = W / 2 - tw / 2 - pad;
+  const pw = Math.min(tw + pad * 2, shown + pad * 1.6);
   ctx.save();
   ctx.globalAlpha = 1 - outT;
   ctx.translate(outT * W * 0.3, 0);
-  const fitted = Math.min(size, (W * 0.9 * size) / (tw + 1));
-  slamWord(words, W / 2, y, fitted, f - 4, { shadow: p.color ?? C.bolt, per: 1, rise: 5 });
+  ctx.save();
+  ctx.translate(x0, y);
+  ctx.transform(1, 0, -0.2, 1, 0, 0);
+  ctx.fillStyle = 'rgba(18,9,31,0.88)';
+  ctx.fillRect(0, -size * 0.72, pw, size * 1.44);
+  ctx.fillStyle = p.color ?? C.bolt;
+  ctx.fillRect(0, size * 0.72 - 7 * S(), pw, 7 * S());
+  // the wipe's leading edge: a bolt-yellow sliver while the line is still being set
+  if (k < words.length) {
+    ctx.fillStyle = p.color ?? C.bolt;
+    ctx.fillRect(pw - 9 * S(), -size * 0.72, 9 * S(), size * 1.44);
+  }
+  ctx.restore();
+  // the first letter is already set on the plate's first frame
+  slamWord(words, W / 2, y, size, f + 2, { shadow: p.color ?? C.bolt, per, rise: 4 });
   ctx.restore();
 };
 
-/** Overlay: the core burst. A flash, a bolt-yellow shockwave, gold rays, VICTORY! slammed in, confetti raining. */
-SEG.victory = (f, p) => {
+/**
+ * Overlay: the core burst. A flash, a bolt-yellow shockwave, gold rays, VICTORY! slammed in, confetti raining. It spans
+ * two gameplay cuts (the burst, then the cats on the rubble): p.at is this segment's offset into the overlay; at the
+ * second cut VICTORY! drops to the lower third so the cats stay clear.
+ */
+SEG.victory = (f0, p) => {
+  const f = f0 + (p.at ?? 0);
   const v = H > W;
   const cx = W / 2, cy = v ? H * 0.46 : H * 0.5;
   if (f < 3) flash(0.9 - f * 0.3);
@@ -611,8 +636,9 @@ SEG.victory = (f, p) => {
     ctx.restore();
   }
   // rays behind the word
-  const ty = v ? H * 0.24 : H * 0.22;
-  const ra = clamp((f - 4) / 8) * (1 - clamp((f - 110) / 20));
+  const drop = ease(clamp((f - 46) / 6));
+  const ty = (v ? H * 0.24 : H * 0.22) + drop * (v ? H * 0.58 : H * 0.62);
+  const ra = clamp((f - 4) / 8) * (1 - clamp((f - 40) / 8));
   if (ra > 0) {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
@@ -650,7 +676,7 @@ SEG.victory = (f, p) => {
     ctx.fillRect(-7 * S(), -3.5 * S(), 14 * S(), 7 * S());
     ctx.restore();
   }
-  const size = (v ? 175 : W === H ? 170 : 210) * S();
+  const size = (v ? 175 : W === H ? 170 : 210) * S() * (1 - 0.25 * drop);
   const outT = clamp((f - 120) / 10);
   ctx.save();
   ctx.globalAlpha = 1 - outT;
@@ -670,10 +696,13 @@ SEG.glory = (f, p) => {
   cover(img[v ? 'stadiumTall' : 'stadium'], 1.08 + 0.1 * t, 0.5, 0.45, 0, 0, W, H, 0, -H * 0.02 * t);
   ctx.fillStyle = 'rgba(18,9,31,0.42)';
   ctx.fillRect(0, 0, W, H);
-  const enter = outCubic(clamp(f / 16));
+  // the entry: the wall is full on frame 0 and both conveyors whip in fast, then settle to their drift (round 2 moved
+  // each column on its own and the layout strobed; an empty stadium never shows)
+  const whip = 0;
+  const rush = (1 - outCubic(clamp(f / 10))) * 0.9;
   const cols = 2;
-  const ch = v ? H * 0.2 : sq ? H * 0.36 : H * 0.46;
-  const cw = (ch * 2) / 3;
+  const ch = v ? H * 0.17 : sq ? H * 0.3 : H * 0.36;
+  const cw = ch * 0.8;
   const gap = ch * 0.16;
   const step = ch + gap;
   const half = W * 0.5 - (v ? W * 0.03 : W * 0.04);
@@ -686,15 +715,15 @@ SEG.glory = (f, p) => {
     ctx.clip();
     for (let c = 0; c < cols; c++) {
       const x = sign < 0 ? W / 2 - W * 0.03 - colW * (c + 0.5) : W / 2 + W * 0.03 + colW * (c + 0.5);
-      const speed = (side === 'cat' ? -1 : 1) * (2.2 + c * 0.6) * S() * (v ? 1.3 : 1);
-      const off = (f * speed + c * step * 0.5) % step;
+      const speed = (side === 'cat' ? -1 : 1) * (1.6 + c * 0.5) * S() * (v ? 1.3 : 1);
+      const off = ((((f * speed + rush * step * 3 * Math.sign(speed) + c * step * 0.5) % step) + step) % step);
       const n = Math.ceil(H / step) + 2;
       for (let k = -1; k < n; k++) {
-        const idx = (((k + c * 3 + Math.floor((f * speed + c * step * 0.5) / step) * (side === 'cat' ? 1 : -1)) % list.length) + list.length * 4) % list.length;
-        const im = img[`s_${list[idx]}`];
+        const idx = (((k + c * 3 + Math.floor((f * speed + rush * step * 3 * Math.sign(speed) + c * step * 0.5) / step) * (side === 'cat' ? 1 : -1)) % list.length) + list.length * 4) % list.length;
+        const im = img[`l_${list[idx]}`];
         if (!im) continue;
-        const y = k * step + off + (1 - enter) * H * (sign < 0 ? 1 : -1) * (1 + c * 0.2);
-        card(im, x + (1 - enter) * sign * W * 0.2, y, ch, side, { skew: sign * 0.06, glow: 0.7 });
+        const y = k * step + off;
+        card(im, x - whip, y, ch, side, { skew: sign * 0.06, glow: 0.7 });
       }
     }
     ctx.restore();
@@ -727,9 +756,8 @@ SEG.glory = (f, p) => {
       ctx.restore();
     }
   }
-  flash(f < 3 ? 0.5 - f * 0.16 : 0);
-  // the bolt flares white into the end card's strike
-  if (f >= p.n - 6) flash(0.15 * (f - (p.n - 6)), '#fff6d8');
+  // motion blur streaks on the whip
+  if (f < 7) speedLines(W / 2, H / 2, 40, 71 + f, 0.35 * (1 - f / 7), C.cream, 0.3);
 };
 
 /** End card: the bolt strikes, the logo slams, the line and the call to action land; the roster keeps drifting behind. */
@@ -740,8 +768,8 @@ SEG.end = (f, p) => {
   // a slow diagonal drift of the roster cards, dim, behind everything
   if (p.cats) {
     ctx.save();
-    ctx.globalAlpha = 0.16;
-    const ch = (v ? H * 0.13 : H * 0.26), step = ch * 0.75;
+    ctx.globalAlpha = 0.1;
+    const ch = (v ? H * 0.13 : H * 0.26), step = ch * 0.85;
     const all = [];
     for (let i = 0; i < Math.max(p.cats.length, p.dogs.length); i++) all.push(['cat', p.cats[i % p.cats.length]], ['dog', p.dogs[i % p.dogs.length]]);
     const rows = Math.ceil(H / ch) + 2;
@@ -750,13 +778,13 @@ SEG.end = (f, p) => {
       const off = ((f * 1.6 * S() * dir) % step + step) % step;
       for (let k = -2; k < W / step + 2; k++) {
         const [side, h] = all[((k + r * 5) % all.length + all.length) % all.length];
-        const im = img[`s_${h}`];
+        const im = img[`l_${h}`];
         if (im) card(im, k * step + off, r * ch * 1.08, ch, side, { skew: 0, glow: 0 });
       }
     }
     ctx.restore();
   }
-  ctx.fillStyle = 'rgba(18,9,31,0.55)';
+  ctx.fillStyle = 'rgba(18,9,31,0.62)';
   ctx.fillRect(0, 0, W, H);
   for (const [x, col] of [[0, '255,61,154'], [W, '46,139,255']]) {
     const g = ctx.createRadialGradient(x, H * 0.5, 0, x, H * 0.5, Math.max(W, H) * 0.6);
@@ -766,17 +794,15 @@ SEG.end = (f, p) => {
     ctx.fillRect(0, 0, W, H);
   }
   embers(f, 50, 61, [C.bolt, C.cream, C.rose, C.sky], 0.55, 1.2, 0.9);
-  // the strike (f0-6): a bolt draws from the top to the logo, then a flash
-  const bolt = boltPts(W * 0.56, -0.02 * H, W * 0.47, H * 0.42, 7, 0.08, 21);
-  const st = clamp(f / 4);
-  if (f < 14) {
-    const k = Math.max(2, Math.round(st * bolt.length));
-    strokeBolt(bolt.slice(0, k), 18 * S(), '#fff', 50 * S(), 1 - clamp((f - 6) / 8));
-    strokeBolt(bolt.slice(0, k), 8 * S(), C.bolt, 0, 1 - clamp((f - 6) / 8));
-  }
-  flash(f >= 4 && f < 9 ? 0.85 * (1 - (f - 4) / 5) : 0);
+  // the strike: a full-height bolt is there on frame 0 and the logo lands on it (round 2 opened on 4 dim frames with a
+  // small bolt squiggle); it settles to a glowing seam behind the logo
+  const bolt = boltPts(W * 0.57, -0.03 * H, W * 0.43, H * 1.03, 8, 0.07, 21);
+  const bk = 1 - clamp((f - 4) / 14);
+  strokeBolt(bolt, (30 + 30 * bk) * S(), C.ink, 0, 0.9);
+  strokeBolt(bolt, (12 + 22 * bk) * S(), C.bolt, (30 + 50 * bk) * S(), 0.55 + 0.45 * bk);
+  strokeBolt(bolt, (4 + 8 * bk) * S(), '#fff', 0, 0.5 + 0.5 * bk);
   const cy = v ? H * 0.34 : sq ? H * 0.3 : H * 0.33;
-  const lt = clamp((f - 4) / 10);
+  const lt = clamp((f - 1) / 9);
   let lh = 0;
   if (lt > 0) {
     const L = img.logo;
@@ -817,28 +843,24 @@ SEG.end = (f, p) => {
   // what it is: a small descriptor
   const dt = clamp((f - 44) / 8);
   if (dt > 0) {
-    const ds = (v ? 42 : sq ? 38 : 42) * S();
+    // round 3: set large enough to read on a phone (cap height >= 28 px at 1080p)
+    const ds = (v ? 54 : sq ? 46 : 54) * S();
     ctx.save();
     ctx.globalAlpha = dt;
-    ctx.font = `700 ${ds}px Fredoka, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = C.cream;
-    ctx.letterSpacing = `${ds * 0.12}px`;
-    ctx.fillText('5V5 AND 3V3 TEAM BATTLES', W / 2, (v || sq ? ly + ts * 2.25 : ly + ts * 1.1) + (1 - dt) * 10 * S());
+    setLine('5V5 AND 3V3 TEAM BATTLES', W / 2, (v || sq ? ly + ts * 2.3 : ly + ts * 1.15) + (1 - dt) * 10 * S(), ds, { font: 'Fredoka', weight: 700, italic: false, shadow: C.plum, align: 'center', outline: 0.2 });
     ctx.restore();
   }
   // the call to action (f60): PLAY FREE IN YOUR BROWSER + pawlegends.app, inside the safe area
   const ct = outCubic(clamp((f - 60) / 10));
   if (ct > 0) {
-    const fs = (v ? 54 : sq ? 46 : 58) * S();
+    const fs = (v ? 62 : sq ? 50 : 62) * S();
     ctx.save();
     ctx.font = `700 ${fs}px Fredoka, sans-serif`;
     const a = 'PLAY FREE IN YOUR BROWSER', b = 'pawlegends.app';
     const wa = ctx.measureText(a).width + fs * 1.0;
-    ctx.font = `700 ${fs * 1.25}px Fredoka, sans-serif`;
-    const wb = ctx.measureText(b).width + fs * 1.2;
-    const bh = fs * 1.7;
+    ctx.font = `700 ${fs * 1.4}px Fredoka, sans-serif`;
+    const wb = ctx.measureText(b).width + fs * 1.3;
+    const bh = fs * 1.85;
     const y0 = (v ? H * 0.71 : sq ? H * 0.75 : H * 0.8) + (1 - ct) * H * 0.12;
     ctx.globalAlpha = ct;
     ctx.textBaseline = 'middle';
@@ -859,7 +881,7 @@ SEG.end = (f, p) => {
       ctx.font = `700 ${fs}px Fredoka, sans-serif`;
       ctx.fillText(a, 0, bh / 2 + fs * 0.04);
       ctx.fillStyle = C.plum;
-      ctx.font = `700 ${fs * 1.25}px Fredoka, sans-serif`;
+      ctx.font = `700 ${fs * 1.4}px Fredoka, sans-serif`;
       ctx.fillText(b, 0, bh * 1.65 + fs * 0.04);
     } else {
       const tot = wa + wb;
@@ -876,7 +898,7 @@ SEG.end = (f, p) => {
       ctx.font = `700 ${fs}px Fredoka, sans-serif`;
       ctx.fillText(a, wa / 2, bh / 2 + fs * 0.04);
       ctx.fillStyle = C.plum;
-      ctx.font = `700 ${fs * 1.25}px Fredoka, sans-serif`;
+      ctx.font = `700 ${fs * 1.4}px Fredoka, sans-serif`;
       ctx.fillText(b, wa + wb / 2, bh / 2 + fs * 0.04);
     }
     ctx.restore();

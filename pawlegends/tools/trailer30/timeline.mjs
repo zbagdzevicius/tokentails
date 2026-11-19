@@ -7,8 +7,11 @@ export const FPS = 60;
 export const BEAT = 24;
 export const N = 1800;
 
-/** Section starts (master frames). Round 2: the VS beat holds 0.8 s, the low point is the real tower fall (1.6 s). */
-export const CUTS = { hook: 0, vs: 72, charge: 120, montage: 192, war: 576, low: 648, eyes: 744, fight: 792, key: 1200, core: 1248, glory: 1440, end: 1632 };
+/**
+ * Section starts (master frames). Round 2: the VS beat holds 0.8 s, the low point is the real tower fall (1.6 s).
+ * Round 3: the payoff is 1.6 s (the burst at full scale, then the cats on the rubble), glory 4.0 s, the end card 3.6 s.
+ */
+export const CUTS = { hook: 0, vs: 72, charge: 120, montage: 192, war: 576, low: 648, eyes: 744, fight: 792, key: 1200, core: 1248, glory: 1344, end: 1584 };
 
 /** The montage: take, the champion card's splash key, name, ultimate, side. */
 export const MONTAGE = [
@@ -26,7 +29,7 @@ export const MONTAGE = [
  * Take in-points (take frames) per shot; edit.mjs and the QC read them. Set from the round 2 takes (frame dumps).
  */
 export const IN = {
-  hook: 0, charge: 60, montage: 26, freezeAt: 14, tower: 72, t1: 12, t2: 22, t3: 22, t4: 22, t5: 60, t6: 20, t7: 20, t9: 20, t10: 36, core: 76,
+  hook: 0, charge: 60, montage: 26, freezeAt: 14, tower: 72, t1: 12, t2: 22, t3: 22, t4: 22, t5: 60, t6: 20, t7: 20, t9: 20, t10: 36, core: 72, cheer: 212,
 };
 
 /**
@@ -57,9 +60,10 @@ export const EDL = [
   { f: 1128, len: 24, gp: { take: 't9-bengal', in: IN.t9 } },
   { f: 1152, len: 48, gp: { take: 't10-wedge', in: IN.t10 }, ov: { mg: 'caption', text: 'TAKE THEIR CORE.', color: '#FF3D9A' } },
   { f: 1200, len: 48, mg: 'keyart', still: { take: 't10-wedge', at: IN.t10 + 47 } },
-  { f: 1248, len: 192, gp: { take: 'v1-core', in: IN.core }, ov: { mg: 'victory', at: 0 } },
-  { f: 1440, len: 192, mg: 'glory' },
-  { f: 1632, len: 168, mg: 'end' },
+  { f: 1248, len: 48, gp: { take: 'v1-core', in: IN.core }, ov: { mg: 'victory', at: 0 } },
+  { f: 1296, len: 48, gp: { take: 'v1-core', in: IN.cheer, punch: [1.3, 0.56, 0.42] }, ov: { mg: 'victory', at: 48 } },
+  { f: 1344, len: 240, mg: 'glory' },
+  { f: 1584, len: 216, mg: 'end' },
 ];
 
 /** Designed hits (master frames). towerCrack: the tower's death tick on screen (set from the take). */
