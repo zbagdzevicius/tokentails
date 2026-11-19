@@ -1454,3 +1454,149 @@ test('Social panel round 8 (phones sideways): stuck headers, row sheets without 
   await chat.locator('[data-a="back"]').tap();
   await expect(chat).toHaveCount(0);
 });
+
+/*
+ * Nov 19 (founder: "points on mobile overlaps"): a phone got the desktop popover over the list. The friend menu is a
+ * bottom sheet on every phone-like device (touch, no hover, the app WebView, an Android browser that reports a fine
+ * pointer, any screen up to 900 px wide or 500 px tall); only a wide screen with a mouse keeps the popover, and that
+ * one never covers its own row and stays on screen. Screenshots go to $SOCIAL_SHOTS/devices when it is set.
+ */
+const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
+const DEVICES = [
+  { name: 'phone-390x844', viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, sheet: true },
+  { name: 'phone-844x390', viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, sheet: true },
+  { name: 'phone-667x375', viewport: { width: 667, height: 375 }, hasTouch: true, isMobile: true, sheet: true },
+  { name: 'android-fine-412x915', viewport: { width: 412, height: 915 }, hasTouch: false, isMobile: true, userAgent: ANDROID_UA, sheet: true },
+  { name: 'desktop-1440x900', viewport: { width: 1440, height: 900 }, hasTouch: false, isMobile: false, sheet: false },
+] as const;
+
+for (const d of DEVICES) {
+  test(`Social panel friend menu on ${d.name}: ${d.sheet ? 'a bottom sheet over a backdrop' : 'a popover by its row'}`, async ({ browser, baseURL }, info) => {
+    test.skip(info.project.name !== 'desktop', 'own device contexts');
+    // a touch phone upright shows the game's "turn your phone sideways" overlay over the lobby: the panel opens
+    // sideways, then the phone turns upright (as the portrait test above does)
+    const upright = d.hasTouch && d.viewport.height > d.viewport.width;
+    const context = await browser.newContext({
+      viewport: upright ? { width: d.viewport.height, height: d.viewport.width } : d.viewport,
+      hasTouch: d.hasTouch,
+      isMobile: d.isMobile,
+      ...('userAgent' in d ? { userAgent: d.userAgent } : {}),
+    });
+    try {
+      const page = await context.newPage();
+      const { game, sheet } = await openSheet(context, page, baseURL!);
+      // the "turn your phone sideways" overlay covers every screen upright: hidden to look at the panel itself
+      await game.addStyleTag({ content: '.pl-rotate { display: none !important; }' });
+      if (upright) {
+        await page.setViewportSize(d.viewport);
+        await page.waitForTimeout(300);
+      }
+      const dir = SHOTS ? join(SHOTS, 'devices') : null;
+      if (dir) mkdirSync(dir, { recursive: true });
+      const snap = async (n: string) => {
+        if (dir) await page.screenshot({ path: join(dir, `${d.name}-${n}.png`) });
+      };
+      // the founder's case: an online friend near the top, with groups below it
+      const f = friends[1];
+      const row = sheet.locator(`.pl-fr[data-code="${f.code}"]`);
+      // a turn re-renders the panel: tap and click wait for the row and scroll it into view themselves
+      await expect(row).toBeVisible();
+      if (d.hasTouch) await row.locator('.pl-fr-main').tap();
+      else await row.locator('.pl-fr-main').click();
+      const menu = sheet.locator('.pl-fr-menu');
+      await expect(menu).toBeVisible();
+      await snap('menu');
+      const vp = d.viewport;
+      const mb = (await menu.boundingBox())!;
+      if (d.sheet) {
+        await expect(menu).toHaveClass(/is-sheet/);
+        // attached to the bottom edge of the screen, full width of the panel (at most 480 px, centred)
+        expect(Math.abs(mb.y + mb.height - vp.height), 'sheet on the bottom edge').toBeLessThanOrEqual(1);
+        const sb = (await sheet.boundingBox())!;
+        const want = Math.min(sb.width, 480);
+        expect(Math.abs(mb.width - want), 'sheet width').toBeLessThanOrEqual(1);
+        expect(Math.abs(mb.x + mb.width / 2 - (sb.x + sb.width / 2)), 'sheet centred').toBeLessThanOrEqual(1);
+        // it names the friend, with 44 px or taller rows and Cancel
+        await expect(menu.locator('.pl-fr-menu-who .pl-fr-menu-name')).toHaveText(f.name);
+        for (const h of await menu.locator('.pl-mi, .pl-fr-cancel').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height)))
+          expect(h).toBeGreaterThanOrEqual(44);
+        // nothing of the list is reachable behind the backdrop: every point of the list hits the backdrop, the list is inert
+        const behind = await game.evaluate(() => {
+          const out: string[] = [];
+          const m = document.querySelector('.pl-fr-menu')!.getBoundingClientRect();
+          for (const el of document.querySelectorAll<HTMLElement>('.pl-social .pl-social-row, .pl-social .pl-group-h, .pl-social-head button, .pl-social .pl-social-none')) {
+            const r = el.getBoundingClientRect();
+            if (!r.width || !r.height) continue;
+            const x = r.left + r.width / 2;
+            const y = r.top + r.height / 2;
+            if (y >= m.top || y < 0 || y > innerHeight) continue;
+            const hit = document.elementFromPoint(x, y);
+            if (!hit?.closest('.pl-fr-scrim')) out.push(`${el.className} reachable at ${Math.round(x)},${Math.round(y)}`);
+          }
+          const body = document.querySelector<HTMLElement>('.pl-social-body')!;
+          if (!body.inert) out.push('list not inert');
+          return out;
+        });
+        expect(behind).toEqual([]);
+        // focus stays in the sheet (a trap): Tab from Cancel wraps to the first action
+        await menu.locator('.pl-fr-cancel').focus();
+        await page.keyboard.press('Tab');
+        expect(await game.evaluate(() => !!document.activeElement?.closest('.pl-fr-menu'))).toBe(true);
+        await page.keyboard.press('Shift+Tab');
+        expect(await game.evaluate(() => !!document.activeElement?.closest('.pl-fr-menu'))).toBe(true);
+        // a tap on the backdrop closes it, focus back on the row
+        const sc = (await sheet.locator('.pl-fr-scrim').boundingBox())!;
+        if (d.hasTouch) await page.touchscreen.tap(sc.x + sc.width / 2, sc.y + 20);
+        else await page.mouse.click(sc.x + sc.width / 2, sc.y + 20);
+        await expect(menu).toHaveCount(0);
+        expect(await game.evaluate((c) => (document.activeElement as HTMLElement | null)?.dataset.code === c, f.code)).toBe(true);
+        expect(await sheet.locator('.pl-social-body').evaluate((el) => (el as HTMLElement).inert)).toBe(false);
+        // Esc (the Android back button sends Escape) closes it too, focus back on the row
+        if (d.hasTouch) await row.locator('.pl-fr-main').tap();
+        else await row.locator('.pl-fr-main').click();
+        await expect(menu).toHaveClass(/is-sheet/);
+        await page.keyboard.press('Escape');
+        await expect(menu).toHaveCount(0);
+        await expect(sheet).toBeVisible();
+        expect(await game.evaluate((c) => (document.activeElement as HTMLElement | null)?.dataset.code === c, f.code)).toBe(true);
+      } else {
+        await expect(menu).toHaveClass(/is-pop/);
+        await expect(sheet.locator('.pl-fr-scrim')).toHaveCount(0);
+        // never over its own row, inside the screen and the panel
+        const check = async (label: string) => {
+          const m = (await menu.boundingBox())!;
+          const r = (await row.boundingBox())!;
+          const s = (await sheet.boundingBox())!;
+          const overlap = Math.min(m.y + m.height, r.y + r.height) - Math.max(m.y, r.y);
+          expect(overlap, `${label}: popover over its row`).toBeLessThanOrEqual(0.5);
+          expect(m.y, label).toBeGreaterThanOrEqual(-0.5);
+          expect(m.y + m.height, label).toBeLessThanOrEqual(vp.height + 0.5);
+          expect(m.x, label).toBeGreaterThanOrEqual(s.x - 0.5);
+          expect(m.x + m.width, label).toBeLessThanOrEqual(s.x + s.width + 0.5);
+        };
+        await check('near the top');
+        // a row near the bottom of the list: the popover flips above it
+        await page.keyboard.press('Escape');
+        await expect(menu).toHaveCount(0);
+        const last = await sheet.locator('.pl-fr').evaluateAll((els) => {
+          const body = document.querySelector('.pl-social-body')!.getBoundingClientRect();
+          const seen = els.filter((e) => e.getBoundingClientRect().bottom <= body.bottom - 2);
+          return (seen[seen.length - 1] as HTMLElement).dataset.code!;
+        });
+        const lastRow = sheet.locator(`.pl-fr[data-code="${last}"]`);
+        await lastRow.locator('.pl-fr-main').click();
+        await expect(menu).toHaveClass(/is-pop/);
+        const m = (await menu.boundingBox())!;
+        const r = (await lastRow.boundingBox())!;
+        expect(Math.min(m.y + m.height, r.y + r.height) - Math.max(m.y, r.y), 'popover over the last row').toBeLessThanOrEqual(0.5);
+        expect(m.y + m.height).toBeLessThanOrEqual(vp.height + 0.5);
+        await snap('menu-low');
+        await page.keyboard.press('Escape');
+        await expect(menu).toHaveCount(0);
+        expect(await game.evaluate((c) => (document.activeElement as HTMLElement | null)?.dataset.code === c, last)).toBe(true);
+      }
+    } finally {
+      await context.close();
+    }
+  });
+}

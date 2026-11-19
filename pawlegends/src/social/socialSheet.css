@@ -368,7 +368,7 @@ html .pl-mi.pl-mi-busy .pl-i { color: var(--v6-muted); }
 html .pl-fr-scrim { position: absolute; inset: 0; z-index: 20; background: rgb(8 4 20 / 0.55); animation: pl-scrim-in var(--v6-dur-fast) var(--v6-ease-out) both; }
 @keyframes pl-scrim-in { from { opacity: 0; } }
 html .pl-fr-menu.is-sheet {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; margin: 0; max-height: 86%; overflow-y: auto; overscroll-behavior: contain;
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; margin: 0 auto; max-width: 480px; max-height: 86%; overflow-y: auto; overscroll-behavior: contain;
   padding: 4px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 10px; border-radius: var(--v6-r-m, 10px) var(--v6-r-m, 10px) 0 0;
   box-shadow: 0 -1px 0 var(--v6-line-strong), 0 -12px 32px rgb(0 0 0 / 0.5); animation-name: pl-sheet-up;
 }

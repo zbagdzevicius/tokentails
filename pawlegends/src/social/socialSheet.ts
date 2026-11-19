@@ -37,6 +37,7 @@ import { InviteRow } from '../share/invite';
 import { ClubsPanel } from './clubs/clubsPanel';
 import { buildSim } from './inviteInbox';
 import { icon } from './socialIcons';
+import { sheetDevice } from './sheetDevice';
 import './socialSheet.css';
 
 export type SocialTab = 'friends' | 'requests' | 'recent' | 'clubs' | 'ranked' | 'boards';
@@ -704,6 +705,10 @@ export class SocialSheet {
         this.render();
       }
       lastW = w;
+      // a window resized across the sheet line (or a phone turned) with a friend's menu open: sheet <-> popover
+      const open = this.root.querySelector('.pl-fr-menu');
+      if (open && open.classList.contains('is-sheet') !== this.sheetMenu) this.render();
+      else if (open) this.placeMenu();
       this.scrollCue();
     };
     const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(fit) : null;
@@ -890,6 +895,9 @@ export class SocialSheet {
     this.invite.autoFold = (this.state?.friends.length ?? 0) > 0;
     this.root.innerHTML = `${this.head()}${this.tabBar()}${this.searchRow()}${this.meCard()}<div class="pl-social-body" id="pl-social-panel" role="tabpanel" aria-label="${TAB_LABEL[this.shownTab]}">${this.body()}${MORE_BELOW}</div>${note}${foot ? `<footer class="pl-social-foot">${foot}</footer>` : ''}${this.menuSheet()}${this.inviteSheet()}`;
     this.fillNames(this.root);
+    // a friend's bottom sheet is modal: nothing behind the backdrop can be tapped, focused or read (Nov 19)
+    if (this.root.querySelector('.pl-fr-menu.is-sheet'))
+      for (const el of this.root.children) if (!el.matches('.pl-fr-menu, .pl-fr-scrim')) (el as HTMLElement).inert = true;
     const body = this.root.querySelector<HTMLElement>('.pl-social-body');
     if (body && scroll) body.scrollTop = scroll;
     this.rove();
@@ -967,12 +975,12 @@ export class SocialSheet {
   }
 
   /**
-   * Touch (or a short screen): a friend's menu is a bottom sheet over the panel (it never runs off the screen or
-   * pushes the list); with a mouse it opens under the row, in the list's flow.
+   * A phone-like device (touch, no hover, the app WebView, a mobile browser, or a screen up to 900 px wide or 500 px
+   * tall: sheetDevice.ts): a friend's menu is a bottom sheet over a backdrop; a wide screen with a mouse gets the
+   * popover by its row. Nov 19: an Android phone that reported a fine pointer got the popover over the list.
    */
   private get sheetMenu(): boolean {
-    const win = this.root.ownerDocument.defaultView;
-    return this.short || !!win?.matchMedia?.('(hover: none), (pointer: coarse)').matches;
+    return this.short || sheetDevice(this.root.ownerDocument.defaultView as unknown as Parameters<typeof sheetDevice>[0]);
   }
 
   /**
@@ -1001,12 +1009,22 @@ export class SocialSheet {
     const br = body.getBoundingClientRect();
     // the row scrolled out of the list: the menu waits hidden until it is back
     menu.style.visibility = rr.bottom < br.top + 8 || rr.top > br.bottom - 8 ? 'hidden' : '';
-    const mh = menu.offsetHeight;
+    // never over its own row (Nov 19): under it when it fits, else above it, else on the roomier side with a
+    // shorter, scrolling menu; a right click keeps the cursor's x only
+    menu.style.maxHeight = '';
     const mw = menu.offsetWidth;
     const at = this.menuAt;
-    let top = (at ? at.y : rr.bottom + 2) - sr.top;
-    if (top + mh > sr.height - 8) top = (at ? at.y : rr.top - 2) - sr.top - mh;
-    top = Math.max(8, Math.min(top, sr.height - mh - 8));
+    const gap = 2;
+    const edge = 8;
+    const below = sr.bottom - edge - (rr.bottom + gap);
+    const above = rr.top - gap - (sr.top + edge);
+    let mh = menu.offsetHeight;
+    const under = mh <= below || (mh > above && below >= above);
+    if (mh > (under ? below : above)) {
+      mh = Math.max(0, Math.floor(under ? below : above));
+      menu.style.maxHeight = `${mh}px`;
+    }
+    const top = under ? rr.bottom + gap - sr.top : rr.top - gap - mh - sr.top;
     let left = at ? at.x - sr.left : sr.width - mw - 12;
     left = Math.max(8, Math.min(left, sr.width - mw - 8));
     menu.style.top = `${Math.round(top)}px`;
@@ -1728,7 +1746,7 @@ export class SocialSheet {
     if (e.key === 'Tab') {
       // the sheet keeps focus while it is open (a dialog); input/tabGuard.ts cancelled it outside a text field
       if (e.defaultPrevented) return;
-      const all = [...this.root.querySelectorAll<HTMLElement>('button:not([disabled]), input, [tabindex="0"]')].filter((el) => !el.closest('[hidden]') && el.getAttribute('tabindex') !== '-1');
+      const all = [...this.root.querySelectorAll<HTMLElement>('button:not([disabled]), input, [tabindex="0"]')].filter((el) => !el.closest('[hidden]') && !el.closest('[inert]') && el.getAttribute('tabindex') !== '-1');
       if (!all.length) return;
       const first = all[0];
       const last = all[all.length - 1];
