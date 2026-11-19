@@ -2602,7 +2602,7 @@ export class App {
       }
     }
     // MATCH-MOMENTS.md §1: the history row (this device) and, for a solo match, its replay record
-    const moment = this.saveMoment(e, { name: momentName, mode: partyEnd ? (setup?.party?.pvp ? 'pvp' : 'party') : practice ? 'practice' : playedMode, grade: e.result.reason === 'forfeit' ? null : myGrade, party: !!partyEnd });
+    const moment = this.saveMoment(e, { name: momentName, mode: partyEnd ? (setup?.party?.pvp ? 'pvp' : setup?.party?.coop ? 'coop' : 'party') : practice ? 'practice' : playedMode, grade: e.result.reason === 'forfeit' ? null : myGrade, party: !!partyEnd });
     const s = this.ent.snapshot();
     const lp = loadProfile();
     if (e.fun.usedUlt && !lp.knowsUlt) {
@@ -2908,7 +2908,7 @@ export class App {
             a: m.a,
             grade: m.grade,
             best: bestLine,
-            line: `${MODE_NAME[m.mode as MatchMode] ?? (m.mode === 'pvp' ? 'PvP' : m.mode === 'party' ? 'Party' : 'Practice')} · ${Math.floor(m.seconds / 60)}:${String(m.seconds % 60).padStart(2, '0')}`,
+            line: `${MODE_NAME[m.mode as MatchMode] ?? (m.mode === 'pvp' ? 'PvP' : m.mode === 'party' ? 'Party' : m.mode === 'coop' ? 'Co-op' : 'Practice')} · ${Math.floor(m.seconds / 60)}:${String(m.seconds % 60).padStart(2, '0')}`,
             player,
             art: splashFor(hero, look ?? undefined, 720),
             artFallback: heroSplashUrl(hero, 720),
@@ -2924,7 +2924,7 @@ export class App {
           },
           track: (ev, props) => this.analytics.track(ev as 'share_card', props),
           // SHARE-PUSH.md §1: a video of the best moment, recorded from the kept replay
-          onClip: m.replay && m.simVersion === SIM_VERSION && m.mode !== 'party' && m.mode !== 'pvp' && clipSupported() ? (framing) => this.openReplay(m.id, { clip: framing, clipTitle: bestLine, ...(topHl ? { highlight: topHl.id } : {}) }) : null,
+          onClip: m.replay && m.simVersion === SIM_VERSION && m.mode !== 'party' && m.mode !== 'coop' && m.mode !== 'pvp' && clipSupported() ? (framing) => this.openReplay(m.id, { clip: framing, clipTitle: bestLine, ...(topHl ? { highlight: topHl.id } : {}) }) : null,
         }),
       )
       .catch((err: unknown) => reportCrash('window', err));

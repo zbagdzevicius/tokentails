@@ -22,7 +22,8 @@ export const REPLAY_MAX = 20;
 /** A kept replay: solo (v1), party (v2) or PvP (v3). */
 export type StoredReplay = ReplayRecord | PartyReplayRecord | PvpReplayRecord;
 
-export type HistoryMode = 'skirmish' | 'classic' | 'blitz' | 'party' | 'pvp' | 'practice';
+/** 'coop' (Nov 19): a matchmade Co-op match vs bots (rows saved before say 'party'). */
+export type HistoryMode = 'skirmish' | 'classic' | 'blitz' | 'party' | 'coop' | 'pvp' | 'practice';
 
 export interface HistoryEntry {
   /** Unique per match on this device. */
@@ -251,4 +252,4 @@ export function ago(at: number, now: number): string {
   return new Date(at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export const MODE_LABEL: Readonly<Record<HistoryMode, string>> = Object.freeze({ skirmish: 'Skirmish 3v3', classic: 'Classic 5v5', blitz: 'Blitz', party: 'Party', pvp: 'PvP', practice: 'Practice' });
+export const MODE_LABEL: Readonly<Record<HistoryMode, string>> = Object.freeze({ skirmish: 'Skirmish 3v3', classic: 'Classic 5v5', blitz: 'Blitz', party: 'Party', coop: 'Co-op', pvp: 'PvP', practice: 'Practice' });

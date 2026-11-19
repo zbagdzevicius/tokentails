@@ -67,19 +67,31 @@ test('live: guest match → Profile → Matches rows', async ({ browser }, info)
     const page = await play.newPage();
     await page.goto(`${SITE}/pawlegends-game/?e2e=1&speed=16`);
     await page.waitForSelector('html[data-screen="title"] .pl-home', { timeout: 120_000 });
-    await page.locator('[data-testid="home-play"]').tap();
-    await page.locator('[data-testid="mode-blitz"]').tap();
-    await page.locator('[data-testid="mode-next"]').tap();
-    await page.locator('[data-testid="variant-bots"]').tap();
-    await page.locator('[data-testid="mode-go"]').tap();
-    await page.locator('.pl-pick .cs-lock:not([disabled])').tap();
+    const playBtn = page.locator('[data-testid="home-play"]');
+    notes.queue = await playBtn.getAttribute('data-queue', { timeout: 60_000 });
+    await playBtn.tap({ timeout: 60_000 });
+    await page.screenshot({ path: `${OUT}/after-play-844x390.png` });
+    // the PvP queue: accept the found match (co-op vs bots after 45 s without an opponent), then LOCK IN
+    const lock = page.locator('[data-testid="party-lock"]:not([disabled]), .pl-pick .cs-lock:not([disabled])').first();
+    for (let i = 0; i < 400 && !(await lock.isVisible()); i++) {
+      const accept = page.locator('[data-testid="mm-accept"]');
+      if (await accept.isVisible()) {
+        notes.accepted = true;
+        await accept.tap().catch(() => undefined);
+      }
+      if (i % 40 === 0) await page.screenshot({ path: `${OUT}/queue-${i}-844x390.png` });
+      await page.waitForTimeout(750);
+    }
+    await lock.tap({ timeout: 30_000 });
     await page.waitForSelector('html[data-match="live"]', { timeout: 240_000 });
+    await page.screenshot({ path: `${OUT}/match-844x390.png` });
     await page.waitForSelector('html[data-screen="results"]', { timeout: 1_200_000 });
     await page.waitForTimeout(3000);
     await page.screenshot({ path: `${OUT}/results-844x390.png` });
     notes.results = (await page.locator('.pl-results').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 600);
     notes.history = await page.evaluate(() => JSON.parse(localStorage.getItem('tt.pawlegends.history.v1') ?? '[]')[0] ?? null);
     state = await play.storageState();
+    writeFileSync(`${OUT}/notes.json`, JSON.stringify(notes, null, 2));
   } finally {
     await play.close();
   }
@@ -97,9 +109,10 @@ test('live: guest match → Profile → Matches rows', async ({ browser }, info)
       notes[`rowText-${vp}`] = (await list.first().innerText()).replace(/\s+/g, ' ');
       notes[`stats-${vp}`] = await list.first().locator('.pfx-s').evaluateAll((els) => els.map((e) => `${(e as HTMLElement).dataset.s}:${e.textContent!.trim()}`));
       notes[`audit-${vp}`] = await audit(frame);
+      writeFileSync(`${OUT}/notes.json`, JSON.stringify(notes, null, 2));
       await shot(`${OUT}/matches-${vp}.png`);
       const rec = screen.locator('.pfx-recbest').first();
-      if (await rec.count()) {
+      if (await rec.count() && (await rec.innerText()).trim()) {
         notes[`rec-${vp}`] = await rec.innerText();
         await rec.scrollIntoViewIfNeeded();
         await frame.waitForTimeout(300);
