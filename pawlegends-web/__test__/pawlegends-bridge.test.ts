@@ -285,6 +285,13 @@ describe("pawlegends host messages", () => {
     expect(replayOf({ ...REPLAY, mutator: "<x>" })).toBeNull();
   });
 
+  it("replayOf keeps the map a Classic or pool-map match played (founder, Nov 19: those matches were never saved); 'crossing' is dropped", () => {
+    expect(replayOf({ ...REPLAY, map: "ridge" })).toEqual({ ...REPLAY, map: "ridge" });
+    expect(replayOf({ ...REPLAY, map: "hearthwood" })).toEqual({ ...REPLAY, map: "hearthwood" });
+    expect(replayOf({ ...REPLAY, map: "crossing" })).toEqual(REPLAY);
+    expect(replayOf({ ...REPLAY, map: "<x>" })).toBeNull();
+  });
+
   it("replayOf enforces the backend DTO bounds", () => {
     expect(replayOf(REPLAY)).toEqual(REPLAY);
     expect(replayOf({ ...REPLAY, difficulty: "nightmare" })).toBeNull();

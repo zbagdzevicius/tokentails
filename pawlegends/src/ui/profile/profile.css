@@ -444,6 +444,14 @@
 .pfx-recbest { grid-area: best; font-size: 13px; color: var(--v6-gold-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pfx-recbest:empty { display: none; }
 .pfx-rec .pl-btn { grid-area: btn; }
+.pfx-rec[data-a] { cursor: pointer; }
+.pfx-rec[data-a]:hover { filter: brightness(1.12); }
+/* a replay of another game version says why before the tap (founder, Nov 19) */
+.pfx-recold { grid-area: btn; font-size: 12px; color: var(--v6-faint); }
+/* a device match the account does not list yet: where its save stands */
+.pfx-save { font-size: 11px; font-weight: 700; color: var(--v6-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pfx-save[data-tone='busy'] { color: var(--v6-sky-top, #8fd3ff); }
+.pfx-save[data-tone='bad'] { color: #ff8fb3; }
 .pfx-emptybox { align-items: center; text-align: center; padding: 28px 12px; border-radius: var(--v6-r-sm, 8px); background: var(--pfx-card); box-shadow: inset 0 0 0 1px var(--v6-line); }
 /* Stats with no matches: one empty state (the art, a line, one action) */
 .pfx-zero { margin: auto; width: min(760px, 100%); display: grid; grid-template-columns: minmax(140px, 260px) minmax(0, 1fr); align-items: center; gap: 22px; padding: 18px; border-radius: var(--v6-r-sm, 8px); background: var(--pfx-card); box-shadow: inset 0 0 0 1px var(--v6-line-strong), 0 10px 28px rgb(0 0 0 / 0.25); }

@@ -286,6 +286,12 @@ export interface PawlegendsReplay {
    * backend re-sims with it and its digest covers it), so a Blitz record must keep it; 'none' is dropped as before.
    */
   mutator?: string;
+  /**
+   * Sim v19 / v34: the map the match played when it is not the Crossing (Hearthwood, or a 3v3 pool map). Like the
+   * mutator it is part of what was played; dropping it made the backend re-sim every Classic and pool-map match on the
+   * Crossing and refuse it (founder, Nov 19: "matches not recorded in match history"). 'crossing' is dropped.
+   */
+  map?: string;
 }
 
 /** What the game says about the match for display and analytics; never trusted for a save. */
@@ -554,7 +560,10 @@ export function replayOf(value: unknown): PawlegendsReplay | null {
   const { mutator } = value;
   if (mutator !== undefined && mutator !== "none" && (typeof mutator !== "string" || !/^[a-z]{1,16}$/i.test(mutator))) return null;
   const mut = typeof mutator === "string" && mutator !== "none" ? { mutator } : {};
-  return { v: 1, simVersion, seed, difficulty, hero, trick, ticks, inputs, outcome, finalHash, ...mut };
+  const { map } = value;
+  if (map !== undefined && (typeof map !== "string" || !/^[a-z]{1,16}$/.test(map))) return null;
+  const onMap = typeof map === "string" && map !== "crossing" ? { map } : {};
+  return { v: 1, simVersion, seed, difficulty, hero, trick, ticks, inputs, outcome, finalHash, ...mut, ...onMap };
 }
 
 const shortId = (value: unknown, max = 16): string | null =>

@@ -36,7 +36,9 @@ import { chromaDef, chromasEarned } from '../render/skins/coatChromas';
 import { ArtStage } from '../ui/stage/artStage';
 import { Lobby } from '../render/lobby';
 import { heroSplashUrl, onSkinArt, skinArtUrl, splashFor } from '../ui/art';
-import { loadHistory, newEntryId, recordMoment, reelOf, replayOf, saveReel, soloRecord, statsLine, type HistoryEntry, type StoredReplay } from '../replay/store';
+import { loadHistory, newEntryId, noteSave, recordMoment, reelOf, replayOf, replayState, saveReel, soloRecord, statsLine, type HistoryEntry, type LocalBoard, type RowSave, type StoredReplay } from '../replay/store';
+import { boardOf } from '../replay/board';
+import { localMatch } from '../ui/history/localMatch';
 
 import { portraitUrl, warmPortraits } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
@@ -384,6 +386,11 @@ export class App {
       lobbyHero: () => this.choice.hero,
       // a save refused because this build's sim is too old: update (web: on the next title; app: the shell's gate)
       onUpdateNeeded: () => void this.updates.check('rejected'),
+      // the device row of that match takes the save status; an open Profile redraws (and asks the account again once saved)
+      onSaveResult: (v) => {
+        const row = noteSave(v.matchId, v.status as RowSave['st'], v.code ?? null);
+        if (row && this.overlay?.kind === 'profile') this.overlay.refresh?.();
+      },
       // the account lives in Profile → Account (the Home avatar chip opens it): no second corner chip once signed in
       accountInProfile: true,
       // the app's host names the signed-in account's analytics code; signed out (after an account), a new anonymous id
@@ -1594,6 +1601,13 @@ export class App {
         if (this.overlay) return;
         const { emptyData, rowOf } = await import('../ui/profile/model');
         if (this.overlay) return;
+        // this device's rows (practice never: it is not a match of the account), with their match key and save status
+        const deviceProfileRows = () =>
+          loadHistory()
+            .filter((h) => h.mode !== 'practice')
+            .map((h) => rowOf(h, h.id))
+            .filter((r): r is NonNullable<typeof r> => !!r)
+            .sort((a, b) => b.at - a.at);
         const p = loadProfile();
         const s = this.ent.snapshot();
         const acc = accountState();
@@ -1617,17 +1631,15 @@ export class App {
             mastery: loadMastery(),
             champs: { owned: ownedCount(this.champs(), this.isApp()), total: CHAMPION_IDS.length },
             items: [...s.items],
-            rows: loadHistory()
-              .filter((h) => h.mode !== 'practice')
-              .map((h) => rowOf(h, h.id))
-              .filter((r): r is NonNullable<typeof r> => !!r)
-              .sort((a, b) => b.at - a.at),
-            // the replays this device kept (Profile → Matches → Recordings)
-            // (the history sheet's own rule: a kept replay made on this sim version)
+            rows: deviceProfileRows(),
+            // the replays this device kept (Profile → Matches → Recordings); founder, Nov 19: one made with another
+            // game version stays listed and says why before the tap ("Older version"), never "not available" after it
             replays: loadHistory()
-              .filter((h) => h.replay && h.noReplay !== 'party' && h.simVersion === SIM_VERSION)
-              .sort((a, b) => b.at - a.at)
-              .map((h) => ({ id: h.id, at: h.at, hero: h.hero, outcome: h.outcome, best: h.best ?? null })),
+              .filter((h) => h.replay && h.noReplay !== 'party')
+              .map((h) => ({ h, st: replayState(h) }))
+              .filter((x) => x.st !== 'none')
+              .sort((a, b) => b.h.at - a.h.at)
+              .map(({ h, st }) => ({ id: h.id, at: h.at, hero: h.hero, outcome: h.outcome, best: h.best ?? null, ...(st === 'older' ? { older: true } : {}) })),
           });
         }
         const account = this.bridge.active ? this.integration.accountModel() : null;
@@ -1663,7 +1675,18 @@ export class App {
             const df = sn ? currentSeason() : null;
             return sn && df ? { tier: sn.tier, tiers: df.tiers, pct: (Math.max(0, sn.xp) % df.xpPerTier) / df.xpPerTier, xp: sn.xp, premium: sn.premium !== 'none', name: df.name } : null;
           },
-          ...(self ? { watch: (id: string) => this.openReplay(id) } : {}),
+          ...(self
+            ? {
+                watch: (id: string) => this.openReplay(id),
+                // founder, Nov 19: a device match's full detail (its kept scoreboard), its replay state, its save status
+                localMatch: (id: string) => {
+                  const h = loadHistory().find((x) => x.id === id);
+                  const row = h ? rowOf(h, h.id) : null;
+                  return h && row ? { row, match: localMatch(h), watch: replayState(h) } : null;
+                },
+                deviceRows: deviceProfileRows,
+              }
+            : {}),
           // a player in a match's detail (Matches tab): their profile, this same screen read-only
           openPlayer: (pl) => this.openProfile(pl),
           // the empty states' "Play your first match": Home's own PLAY (the one play path)
@@ -2500,8 +2523,12 @@ export class App {
     // Party play (MULTIPLAYER.md §6): a party match never posts a solo replay; its v:2 result goes to the host, which
     // posts it to `/live` (checked against the relay's stored room log). Only its owner ever sees the save status. A
     // room the relay said is unscored (no ticket, no secret, a suspected referee) posts nothing.
-    const partyEnd = (e.replay as { party?: { room: string; slot: number; scored: boolean | null } }).party;
+    const partyEnd = (e.replay as { party?: { room: string; slot: number; scored: boolean | null; why?: string } }).party;
+    // the device row's save status (Profile → Matches shows it until the account lists the match): the id the host's
+    // `save-result` answers with, or why nothing is posted
+    let save: RowSave = !this.bridge.active ? { st: 'off', why: 'device' } : { st: 'off', why: 'unscored' };
     if (partyEnd && partyEnd.scored !== false && (e.replay.outcome === 'won' || e.replay.outcome === 'lost')) {
+      if (this.bridge.active) save = { id: partyEnd.room, st: 'saving' };
       this.integration.partyResult(
         { v: 2, room: partyEnd.room, slot: partyEnd.slot, simVersion: e.replay.simVersion, ticks: e.result.ticks, outcome: e.replay.outcome, finalHash: e.replay.finalHash },
         { ticks: e.result.ticks, difficulty: e.replay.difficulty, won },
@@ -2512,8 +2539,11 @@ export class App {
     this.practice = false;
     // Practice: the results chip must not show the previous match's save
     if (practice) this.integration.unsaved();
+    if (practice) save = { st: 'off', why: 'practice' };
+    else if (partyEnd && partyEnd.scored === false) save = { st: 'off', why: partyEnd.why ?? 'unscored' };
     if (!partyEnd && !practice) {
       const matchId = this.integration.nextMatchId({ ticks: e.result.ticks, difficulty: e.replay.difficulty, won });
+      if (this.bridge.active) save = { id: matchId, st: 'saving' };
       this.bridge.post('match-result', {
         matchId,
         replay: e.replay,
@@ -2602,7 +2632,13 @@ export class App {
       }
     }
     // MATCH-MOMENTS.md §1: the history row (this device) and, for a solo match, its replay record
-    const moment = this.saveMoment(e, { name: momentName, mode: partyEnd ? (setup?.party?.pvp ? 'pvp' : setup?.party?.coop ? 'coop' : 'party') : practice ? 'practice' : playedMode, grade: e.result.reason === 'forfeit' ? null : myGrade, party: !!partyEnd });
+    // the scoreboard kept on the row (founder, Nov 19: the last match's full stats, before the account has them)
+    const boardNames = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, userName ? { name: userName } : null);
+    const boardParty = (partyEnd as { names?: (string | null)[] } | undefined)?.names;
+    if (boardParty) boardParty.forEach((n, slot) => n && (boardNames[slot] = n));
+    const humanSlots = new Set<number>([mySlot, ...(boardParty ? boardParty.map((n, slot) => (n ? slot : -1)).filter((x) => x >= 0) : [])]);
+    const board = boardOf(e.result, grades, { map: e.replay.map, mutator: e.replay.mutator, names: boardNames, humans: humanSlots, me: mySlot });
+    const moment = this.saveMoment(e, { name: momentName, mode: partyEnd ? (setup?.party?.pvp ? 'pvp' : setup?.party?.coop ? 'coop' : 'party') : practice ? 'practice' : playedMode, grade: e.result.reason === 'forfeit' ? null : myGrade, party: !!partyEnd, board, save });
     const s = this.ent.snapshot();
     const lp = loadProfile();
     if (e.fun.usedUlt && !lp.knowsUlt) {
@@ -2854,7 +2890,7 @@ export class App {
    * MATCH-MOMENTS.md §1: save the history row and the match's replay (solo, party or PvP; a party match's MatchEnd
    * carries its PartyReplayRecord or PvpReplayRecord, net-core.ts). Display only, on this device.
    */
-  private saveMoment(e: MatchEnd, o: { name: string | null; mode: HistoryEntry['mode']; grade: string | null; party: boolean }): HistoryEntry {
+  private saveMoment(e: MatchEnd, o: { name: string | null; mode: HistoryEntry['mode']; grade: string | null; party: boolean; board?: LocalBoard | null; save?: RowSave }): HistoryEntry {
     const at = Date.now();
     return recordMoment(
       {
@@ -2881,7 +2917,10 @@ export class App {
         // Profile → Matches: the row's queue name and stats line on this device too (a guest's rows)
         ...(e.replay.mutator && e.replay.mutator !== 'none' ? { mutator: e.replay.mutator } : {}),
         ...statsLine(e.result.stats, e.welcome.slot, e.teamKills),
+        ...(o.board ? { board: o.board } : {}),
+        ...(o.save ? { save: o.save } : {}),
       },
+      // a party or PvP match keeps its real record (party.record), never the display stub (keptRecord)
       e.replay as StoredReplay,
     );
   }

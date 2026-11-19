@@ -188,15 +188,32 @@ describe("party saves (P9, §6)", () => {
     ]);
   });
 
-  it("retries a network or server failure 3 times (2 s, 6 s, 18 s), then fails", async () => {
+  it("retries a network or server failure 4 times (2 s, 6 s, 18 s, 45 s), then fails", async () => {
     const waits: number[] = [];
     const statuses: string[] = [];
     const save = jest.fn().mockResolvedValue({ ok: false, status: 503, code: null });
     const s = new PartySaves({ save, onStatus: (_id, st) => statuses.push(st), schedule: (fn, ms) => (waits.push(ms), fn()) });
     await s.submit(RESULT);
     expect(waits).toEqual([...PARTY_SAVE_RETRIES_MS]);
-    expect(save).toHaveBeenCalledTimes(4);
+    expect(save).toHaveBeenCalledTimes(5);
     expect(statuses.at(-1)).toBe("failed");
+  });
+
+  it("a room the relay is still verifying (founder, Nov 19) is retried until it saves: a 503 now, a 400 PARTY_ROOM from an older backend", async () => {
+    for (const early of [
+      { ok: false, status: 503, code: "PAWLEGENDS_PARTY_ROOM" },
+      { ok: false, status: 400, code: "PAWLEGENDS_PARTY_ROOM" },
+    ]) {
+      const statuses: string[] = [];
+      const save = jest
+        .fn()
+        .mockResolvedValueOnce(early)
+        .mockResolvedValueOnce(early)
+        .mockResolvedValueOnce({ ok: true, status: 200, code: null, body: {} });
+      await new PartySaves({ save, onStatus: (_id, st) => statuses.push(st), schedule: (fn) => fn() }).submit(RESULT);
+      expect(save).toHaveBeenCalledTimes(3);
+      expect(statuses.at(-1)).toBe("saved");
+    }
   });
 
   it("a duplicate and the AFK refusal are final (saved, with their code); a forged result is rejected", async () => {

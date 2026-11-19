@@ -257,3 +257,7 @@ html[data-touch='1'] .mm-bar { width: calc(100vw - 24px - var(--safe-l, 0px) - v
   .mm-chip { padding: 3px 8px; font-size: 12px; }
 }
 @media (max-width: 700px) { .mm-hlb .mm-hll { display: none; } }
+/* founder, Nov 19: a device match's account save ("Saving…", "Couldn't save, retrying") in its detail */
+.mh-save { margin: 4px 0 0; font-size: 12px; font-weight: 700; color: var(--v6-faint); }
+.mh-save.busy { color: var(--v6-sky-top, #8fd3ff); }
+.mh-save.bad { color: #ff8fb3; }

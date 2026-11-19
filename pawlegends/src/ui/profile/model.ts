@@ -65,6 +65,12 @@ export interface ProfileRow {
   toys?: number | null;
   /** Allies who are friends. */
   party?: number | null;
+  /** The match key (`finalHash:ticks`): the account's own rows and this device's rows carry it (they are merged by it). */
+  key?: string;
+  /** A row of this device's history shown in the account's list (the account does not list it yet). */
+  local?: boolean;
+  /** A device row's account save (`saving`, `failed`, ...), when known. */
+  save?: { st: string; code?: string; why?: string };
 }
 
 /** The season numbers (`history.list` stats, or counted from the rows here). */
@@ -130,6 +136,8 @@ export interface ProfileReplay {
   outcome: 'won' | 'lost' | 'draw';
   /** The best moment's title ("Triple Pounce"), or null. */
   best: string | null;
+  /** Made with another game version: listed with the reason, no Watch (founder, Nov 19: say why before the tap). */
+  older?: boolean;
 }
 
 /** Each source the screen loads, on its own: a failed one shows "Couldn't load" in its own card, never an empty state. */
@@ -304,6 +312,8 @@ export function rowOf(raw: unknown, fallbackId = ''): ProfileRow | null {
     score: Array.isArray(o.score) && o.score.length === 2 && o.score.every((x) => typeof x === 'number' && Number.isFinite(x) && x >= 0) && (o.score[0] as number) + (o.score[1] as number) > 0 ? [Math.min(999, Math.floor(o.score[0] as number)), Math.min(999, Math.floor(o.score[1] as number))] : null,
     toys: pos(o.toys, 4),
     party: pos(o.party, 9),
+    ...(typeof o.key === 'string' && /^[0-9a-f]{8}:\d{1,6}$/.test(o.key) ? { key: o.key } : {}),
+    ...(saveOf(o.save) ? { save: saveOf(o.save)! } : {}),
   };
 }
 
@@ -367,6 +377,26 @@ export const short = (n: number): string =>
 /** The row's damage bar, 0..1 of the match's most (null: no damage stored). Pure. */
 export const dmgShare = (r: Pick<ProfileRow, 'dmg' | 'dmgTop'>): number | null =>
   r.dmg ? Math.max(0.04, Math.min(1, r.dmg / Math.max(r.dmg, r.dmgTop ?? r.dmg))) : null;
+
+
+const saveOf = (v: unknown): ProfileRow['save'] | null => {
+  const x = v as { st?: unknown; code?: unknown; why?: unknown } | null;
+  if (!x || typeof x !== 'object' || typeof x.st !== 'string') return null;
+  return { st: x.st, ...(typeof x.code === 'string' ? { code: x.code } : {}), ...(typeof x.why === 'string' ? { why: x.why } : {}) };
+};
+
+/**
+ * Founder, Nov 19 ("the match from 1 min ago is in Recordings but not in Matches"): the account's rows, then this
+ * device's rows the account does not list (by match key) that are newer than the page's oldest row (or any, when the
+ * page is the whole history), marked `local`. A device row without a key (saved before Nov 17) is left out. Newest
+ * first. Practice rows never come here (the app leaves them out). Pure.
+ */
+export function mergeDeviceRows(server: readonly ProfileRow[], device: readonly ProfileRow[], complete: boolean): ProfileRow[] {
+  const keys = new Set(server.map((r) => r.key).filter((k): k is string => !!k));
+  const oldest = server.length ? Math.min(...server.map((r) => r.at)) : -Infinity;
+  const extra = device.filter((r) => !!r.key && !keys.has(r.key) && (complete || r.at >= oldest)).map((r) => ({ ...r, local: true }));
+  return [...server, ...extra].sort((a, b) => b.at - a.at);
+}
 
 /** "12:34" (match length). Pure. */
 export const duration = (s: number): string => (s > 0 ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '');

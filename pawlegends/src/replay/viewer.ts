@@ -274,7 +274,8 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
     ctx.track?.('replay_error', { why });
     teardownSession();
     veil.classList.remove('out');
-    veil.innerHTML = `<div class="mm-err" role="alert"><b>Replay not available</b><p>${esc(ERROR_TEXT[why])}</p><button type="button" class="pl-btn" data-r="exit">Back</button></div>`;
+    // the reason's code under the text (founder, Nov 19: "not available" alone could not tell which check refused it)
+    veil.innerHTML = `<div class="mm-err" role="alert"><b>Replay not available</b><p>${esc(ERROR_TEXT[why])}</p><small class="mm-errcode" data-testid="replay-error-code">Code: ${esc(why)}</small><button type="button" class="pl-btn" data-r="exit">Back</button></div>`;
   };
 
   const drawMarks = (): void => {
@@ -334,7 +335,10 @@ export function openReplayViewer(ctx: ViewerContext): ReplayViewer {
   engine.listener = {
     info: (i) => {
       info = i;
-      if (i.slow) return fail('slow');
+      // Founder, Nov 19 (Watch said "Replay not available" on a phone): one slow measuring stretch (a busy phone while
+      // the match view warms up) closed the replay for good, though playing needs only 30 ticks a second. A slow device
+      // now plays; only its seeks take longer (they wait for the scout, "Loading…").
+      html.dataset.replaySlow = i.slow ? '1' : '0';
       drawMarks();
       cue();
     },

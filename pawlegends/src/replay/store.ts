@@ -72,6 +72,13 @@ export interface HistoryEntry {
   kp?: number;
   score?: [number, number];
   toys?: number;
+  /**
+   * Founder, Nov 19 ("I can't see stats of last match"): both teams' scoreboard from the match's own result, so the
+   * match's full detail shows at once, before (or without) the account's row. Rows saved before Nov 19 have none.
+   */
+  board?: LocalBoard;
+  /** The account save of this match (the host's `save-result` for `save.id`), shown on the row until the account lists it. */
+  save?: RowSave;
 }
 
 /** The device row's stats line from the match's own per-slot stats (the account row's rule, history.model.ts
@@ -97,6 +104,50 @@ export function statsLine(
   if (ours + theirs) out.score = [ours, theirs];
   if (n(me.toys)) out.toys = Math.min(4, n(me.toys));
   return out;
+}
+
+/**
+ * Where a match's account save stands: `saving` (posted), `saved`, `queued` (kept on the device: signed out or
+ * offline), `failed` (the server failed; retried), `rejected` (refused; `code` says why), `off` (never posted: `why`).
+ */
+export type SaveState = 'saving' | 'saved' | 'queued' | 'failed' | 'rejected' | 'off';
+export interface RowSave {
+  /** The host's match id (a solo save) or the party room (a party or PvP save). */
+  id?: string;
+  st: SaveState;
+  code?: string;
+  /** `off`: 'practice' (never saved), 'device' (no account host), or the relay's unscored reason. */
+  why?: string;
+}
+
+/** One seat of a kept scoreboard (the account's history row keeps the same numbers). */
+export interface LocalPlayer {
+  s: number;
+  t: 0 | 1;
+  h: string;
+  /** The display name (a party name or yours), else null: the champion's name is shown. */
+  n: string | null;
+  bot: boolean;
+  lv: number;
+  k: number;
+  d: number;
+  a: number;
+  hd: number;
+  dt: number;
+  td: number;
+  hs: number;
+  f: number;
+  ty: number;
+  cs: number;
+  g: string | null;
+}
+export interface LocalBoard {
+  winner: 0 | 1 | -1;
+  reason: string | null;
+  mvp: number | null;
+  svp: number | null;
+  mutator?: string;
+  players: LocalPlayer[];
 }
 
 /** Most emote ticks a row keeps. */
@@ -160,6 +211,21 @@ export function loadReplays(s: KVStore | null = store()): Record<string, StoredR
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, StoredReplay>) : {};
 }
 
+/**
+ * The record to keep for a match. Founder, Nov 19 (Watch said "Replay not available"): a party, co-op or PvP match's
+ * MatchEnd carries a display stub (`inputs: ''`, `party: {room, slot, record}`), and that stub was stored, so the viewer
+ * refused every Quick Play, party and PvP replay ("Party match replays are not available yet"). The real record is `party.record`
+ * (PartyReplayRecord or PvpReplayRecord), null when the relay sent none. Rows saved Nov 18-19 are read the same way. Pure.
+ */
+export function keptRecord(r: unknown): StoredReplay | null {
+  const x = r as { party?: { record?: unknown } | null } | null;
+  if (x && typeof x === 'object' && x.party !== undefined && x.party !== null && typeof x.party === 'object') {
+    const inner = x.party.record;
+    return isStoredReplay(inner) && (inner as { party?: unknown }).party === undefined ? inner : null;
+  }
+  return isStoredReplay(r) ? r : null;
+}
+
 /** A stored record that can be read: a seed, and one stream (solo) or one per human seat (party, PvP). Pure. */
 export function isStoredReplay(r: unknown): r is StoredReplay {
   const x = r as { inputs?: unknown; seed?: unknown; humans?: unknown } | null;
@@ -169,8 +235,28 @@ export function isStoredReplay(r: unknown): r is StoredReplay {
 }
 
 export function replayOf(id: string, s: KVStore | null = store()): StoredReplay | null {
-  const r = loadReplays(s)[id];
-  return isStoredReplay(r) ? r : null;
+  return keptRecord(loadReplays(s)[id]);
+}
+
+/** Can this device play the row's replay: 'watch', 'older' (another game version), or 'none' (none kept). */
+export function replayState(row: Pick<HistoryEntry, 'id' | 'replay'>, s: KVStore | null = store(), simVersion = SIM_VERSION): 'watch' | 'older' | 'none' {
+  if (!row.replay) return 'none';
+  const r = replayOf(row.id, s);
+  if (!r) return 'none';
+  return r.simVersion === simVersion ? 'watch' : 'older';
+}
+
+/** A host `save-result` for match `id`: the row that posted it takes the status. Returns the row when it changed. */
+export function noteSave(id: string, st: SaveState, code: string | null = null, s: KVStore | null = store()): HistoryEntry | null {
+  const rows = loadHistory(s);
+  const row = rows.find((r) => r.save?.id === id);
+  if (!row || !row.save) return null;
+  // a later "saving" never takes back a final answer
+  if (st === 'saving' && row.save.st !== 'saving') return null;
+  if (row.save.st === st && (row.save.code ?? null) === code) return null;
+  row.save = { id, st, ...(code ? { code } : {}) };
+  write(s, HISTORY_KEY, rows);
+  return row;
 }
 
 /** The solo record of a row (the highlights strip, the Legend Moment clip), or null for a party or PvP one. Pure. */
@@ -188,8 +274,9 @@ export function recordMoment(entry: Omit<HistoryEntry, 'replay'>, record: Stored
   const rows = loadHistory(s);
   const replays = loadReplays(s);
   let kept = false;
-  if (record && !entry.noReplay) {
-    replays[entry.id] = record;
+  const rec = keptRecord(record);
+  if (rec && !entry.noReplay) {
+    replays[entry.id] = rec;
     kept = true;
   }
   const emotes = kept ? cleanEmotes(entry.emotes) : undefined;
@@ -204,7 +291,8 @@ export function recordMoment(entry: Omit<HistoryEntry, 'replay'>, record: Stored
   // full storage: drop replays one by one until the write fits, those of another sim version first, then the oldest
   // (never the new one while another can go)
   const listed = order.slice(0, REPLAY_MAX).filter((id) => id !== row.id).reverse();
-  const victims = [...listed.filter((id) => replays[id]?.simVersion !== simVersion), ...listed.filter((id) => replays[id]?.simVersion === simVersion), ...(replays[row.id] ? [row.id] : [])];
+  const ver = (id: string): number | undefined => keptRecord(replays[id])?.simVersion;
+  const victims = [...listed.filter((id) => ver(id) !== simVersion), ...listed.filter((id) => ver(id) === simVersion), ...(replays[row.id] ? [row.id] : [])];
   while (!write(s, REPLAYS_KEY, replays) && victims.length > 0) {
     const id = victims.shift()!;
     delete replays[id];

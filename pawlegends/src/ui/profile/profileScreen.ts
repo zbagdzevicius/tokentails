@@ -31,7 +31,7 @@ import { MASTERY_MAX } from '../../meta/mastery';
 import { parseRankedCard } from '../../meta/ranked';
 import { ago } from '../../replay/store';
 import { crestSvg } from './crest';
-import { matchHtml, type ServerMatch } from '../history/historySheet';
+import { matchHtml, OLDER_TIP, saveLine, type ServerMatch } from '../history/historySheet';
 import { parseClubsState } from '../../social/clubs/clubData';
 import { collectionOf, ownedOf, ownedSet, type CollectionEntry } from './collection';
 import {
@@ -49,6 +49,7 @@ import {
   nextOf,
   mapName,
   masteryScore,
+  mergeDeviceRows,
   maxedCount,
   modeText,
   num,
@@ -115,6 +116,13 @@ export interface ProfileScreenOpts {
   openSocial?(tab?: 'friends' | 'clubs'): void;
   /** Watch a replay kept on this device. */
   watch?(id: string): void;
+  /**
+   * Founder, Nov 19 ("I can't see stats of last match"): a device match by its device id: its row, its kept scoreboard
+   * as the account's match shape (null on rows saved before Nov 19), and whether its replay plays here.
+   */
+  localMatch?(id: string): { row: ProfileRow; match: ServerMatch | null; watch: 'watch' | 'older' | 'none' } | null;
+  /** This device's rows as they are now (a save status changed since the screen opened). */
+  deviceRows?(): ProfileRow[];
   /** A player in a match's detail: their profile (this same screen, read-only). */
   openPlayer?(p: { code: string; name: string }): void;
   /** Start playing (the empty states' "Play your first match"): Home's PLAY. */
@@ -389,7 +397,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const mode = modeText(r);
     const map = mapName(r.map);
     const len = duration(r.seconds);
-    const open = d.rowsLocal ? `local:${r.id}` : r.id;
+    const open = d.rowsLocal || r.local ? `local:${r.id}` : r.id;
+    // a device row the account does not list yet says where its save stands ("Saving…", "Couldn't save, retrying")
+    const sv = self && (d.rowsLocal || r.local) ? saveLine(r.save as Parameters<typeof saveLine>[0], d.signedIn) : null;
+    const chip = sv?.text ? `<small class="pfx-save" data-tone="${sv.tone}" data-testid="profile-row-save">${esc(sv.text)}</small>` : '';
     const ratio = kdaRatio(r);
     const bar = dmgShare(r);
     const stat = (k: string, v: string, label: string, extra = ''): string => `<span class="pfx-s" data-s="${k}">${extra}<b>${esc(v)}</b><small>${esc(label)}</small></span>`;
@@ -421,16 +432,20 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       r.grade ? `grade ${r.grade}` : '',
       r.mvp ? (r.mvp === 'mvp' ? 'MVP' : 'ACE') : '',
       len,
+      sv?.text ?? '',
     ].filter(Boolean).join(', ');
-    return `<button type="button" class="pfx-mrowi pfx-rich${stats.length ? '' : ' nost'}" data-a="match" data-id="${esc(open)}" data-o="${r.outcome}" data-i="${i}" aria-label="${esc(`${label}: open the match`)}"><span class="pfx-port">${face(r.hero)}${r.lv ? `<i class="pfx-lvb">${r.lv}</i>` : ''}</span><span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(mode)}</small>${map ? `<small class="pfx-mapl"><i class="pfx-mapdot" data-map="${esc(r.map ?? '')}"></i>${esc(map)}</small>` : ''}</span><span class="pfx-kd"><small class="pfx-hn">${esc(heroName(r.hero))}</small><b class="pfx-kda">${r.k} / <em>${r.d}</em> / ${r.a}</b>${ratio ? `<small class="pfx-ratio">${esc(ratio)}${ratio === 'Perfect' ? '' : ' KDA'}</small>` : ''}</span><span class="pfx-badge">${badge}</span><span class="pfx-stats">${stats.join('')}</span><span class="pfx-tm"><b>${esc(len)}</b><small>${r.at ? esc(ago(r.at, now())) : ''}</small></span></button>`;
+    return `<button type="button" class="pfx-mrowi pfx-rich${stats.length ? '' : ' nost'}" data-a="match" data-id="${esc(open)}" data-o="${r.outcome}" data-i="${i}"${r.local ? ' data-local="1"' : ''} aria-label="${esc(`${label}: open the match`)}"><span class="pfx-port">${face(r.hero)}${r.lv ? `<i class="pfx-lvb">${r.lv}</i>` : ''}</span><span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(mode)}</small>${map ? `<small class="pfx-mapl"><i class="pfx-mapdot" data-map="${esc(r.map ?? '')}"></i>${esc(map)}</small>` : ''}${chip}</span><span class="pfx-kd"><small class="pfx-hn">${esc(heroName(r.hero))}</small><b class="pfx-kda">${r.k} / <em>${r.d}</em> / ${r.a}</b>${ratio ? `<small class="pfx-ratio">${esc(ratio)}${ratio === 'Perfect' ? '' : ' KDA'}</small>` : ''}</span><span class="pfx-badge">${badge}</span><span class="pfx-stats">${stats.join('')}</span><span class="pfx-tm"><b>${esc(len)}</b><small>${r.at ? esc(ago(r.at, now())) : ''}</small></span></button>`;
   };
 
   const rowHtml = (r: ProfileRow, i: number): string => {
     const mode = modeText(r);
     const map = mapName(r.map);
     const len = duration(r.seconds);
-    const open = d.rowsLocal ? `local:${r.id}` : r.id;
-    return `<button type="button" class="pfx-mrowi" data-a="match" data-id="${esc(open)}" data-o="${r.outcome}" data-i="${i}" aria-label="${esc(`${OUTCOME_WORD[r.outcome]}, ${heroName(r.hero)}, ${r.k} ${r.d} ${r.a}, ${mode}${map ? `, ${map}` : ''}${len ? `, ${len}` : ''}: open the match`)}">${face(r.hero)}<span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(mode)}</small></span><span class="pfx-hn">${esc(heroName(r.hero))}</span><span class="pfx-kda">${r.k} / <em>${r.d}</em> / ${r.a}</span>${r.mvp ? `<i class="pfx-mvp">${r.mvp.toUpperCase()}</i>` : r.grade ? `<i class="pfx-grade" data-g="${esc(r.grade[0])}">${esc(r.grade)}</i>` : '<i class="pfx-nog"></i>'}<span class="pfx-map">${esc(map)}</span><span class="pfx-len">${esc(len)}</span><span class="pfx-when">${r.at ? esc(ago(r.at, now())) : ''}</span></button>`;
+    const open = d.rowsLocal || r.local ? `local:${r.id}` : r.id;
+    // a device row the account does not list yet says where its save stands ("Saving…", "Couldn't save, retrying")
+    const sv = self && (d.rowsLocal || r.local) ? saveLine(r.save as Parameters<typeof saveLine>[0], d.signedIn) : null;
+    const chip = sv?.text ? `<small class="pfx-save" data-tone="${sv.tone}" data-testid="profile-row-save">${esc(sv.text)}</small>` : '';
+    return `<button type="button" class="pfx-mrowi" data-a="match" data-id="${esc(open)}" data-o="${r.outcome}" data-i="${i}"${r.local ? ' data-local="1"' : ''} aria-label="${esc(`${OUTCOME_WORD[r.outcome]}, ${heroName(r.hero)}, ${r.k} ${r.d} ${r.a}, ${mode}${map ? `, ${map}` : ''}${len ? `, ${len}` : ''}${sv?.text ? `, ${sv.text}` : ''}: open the match`)}">${face(r.hero)}<span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(mode)}</small>${chip}</span><span class="pfx-hn">${esc(heroName(r.hero))}</span><span class="pfx-kda">${r.k} / <em>${r.d}</em> / ${r.a}</span>${r.mvp ? `<i class="pfx-mvp">${r.mvp.toUpperCase()}</i>` : r.grade ? `<i class="pfx-grade" data-g="${esc(r.grade[0])}">${esc(r.grade)}</i>` : '<i class="pfx-nog"></i>'}<span class="pfx-map">${esc(map)}</span><span class="pfx-len">${esc(len)}</span><span class="pfx-when">${r.at ? esc(ago(r.at, now())) : ''}</span></button>`;
   };
 
   const recentCard = (): string => {
@@ -462,7 +477,14 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
           .slice(0, 12)
           .map(
             (r) =>
-              `<div class="pfx-rec" data-o="${r.outcome}">${face(r.hero)}<span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(heroName(r.hero))}${r.at ? ` · ${esc(ago(r.at, now()))}` : ''}</small></span><span class="pfx-recbest"${r.best ? ` title="${esc(r.best)}"` : ''}>${r.best ? esc(r.best) : ''}</span>${o.watch ? `<button type="button" class="pl-btn small" data-a="watch" data-id="${esc(r.id)}" data-testid="profile-watch" aria-label="${esc(`Watch the replay: ${heroName(r.hero)}, ${OUTCOME_WORD[r.outcome]}`)}">Watch</button>` : ''}</div>`,
+              // founder, Nov 19: a card opens the match's stats (Watch inside it too); an older one says why first
+              `<div class="pfx-rec" data-o="${r.outcome}" data-a="match" data-id="local:${esc(r.id)}" role="button" tabindex="0" data-testid="profile-rec" aria-label="${esc(`${OUTCOME_WORD[r.outcome]}, ${heroName(r.hero)}: open the match`)}">${face(r.hero)}<span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(heroName(r.hero))}${r.at ? ` · ${esc(ago(r.at, now()))}` : ''}</small></span><span class="pfx-recbest"${r.best ? ` title="${esc(r.best)}"` : ''}>${r.best ? esc(r.best) : ''}</span>${
+                r.older
+                  ? `<small class="pfx-recold" data-testid="profile-rec-older" title="${esc(OLDER_TIP)}">Older version</small>`
+                  : o.watch
+                    ? `<button type="button" class="pl-btn small" data-a="watch" data-id="${esc(r.id)}" data-testid="profile-watch" aria-label="${esc(`Watch the replay: ${heroName(r.hero)}, ${OUTCOME_WORD[r.outcome]}`)}">Watch</button>`
+                    : ''
+              }</div>`,
           )
           .join('')}</div>`
       : `<p class="pfx-empty">No replays yet. Your newest matches are kept on this device to watch again.</p>`;
@@ -470,9 +492,12 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   };
 
   /** A replay kept on this device for this match (yours): the same champion, finished within two minutes. */
-  const replayFor = (hero: string, at: number): string | null => {
+  const replayFor = (hero: string, at: number, key?: string): string | null => {
     if (!self) return null;
-    const r = (d.replays ?? []).find((x) => x.hero === hero && Math.abs(x.at - at) < 120_000);
+    const live = (d.replays ?? []).filter((x) => !x.older);
+    const byKey = key ? deviceRows.find((x) => x.key === key && live.some((p) => p.id === x.id)) : undefined;
+    if (byKey) return byKey.id;
+    const r = live.find((x) => x.hero === hero && Math.abs(x.at - at) < 120_000);
     return r ? r.id : null;
   };
 
@@ -481,8 +506,12 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     let body: string;
     if (id.startsWith('local:')) {
       const lid = id.slice(6);
-      const r = d.rows.find((x) => x.id === lid);
-      const kept = r && (d.replays ?? []).some((x) => x.id === lid) && o.watch ? lid : null;
+      const lm = o.localMatch?.(lid) ?? null;
+      const r = lm?.row ?? d.rows.find((x) => x.id === lid) ?? deviceRows.find((x) => x.id === lid);
+      const kept = r && (lm ? lm.watch === 'watch' : (d.replays ?? []).some((x) => x.id === lid && !x.older)) && o.watch ? lid : null;
+      const sv = r ? saveLine(r.save as Parameters<typeof saveLine>[0], d.signedIn) : null;
+      const extra = `${sv?.text ? `<p class="mh-save ${sv.tone}" data-testid="history-save">${esc(sv.text)}</p>` : ''}${lm?.watch === 'older' ? `<p class="pfx-empty" data-testid="history-older-why">${esc(OLDER_TIP)}</p>` : ''}`;
+      if (r && lm?.match) return pane(`<div class="pfx-card pfx-detail">${matchHtml(lm.match, now(), kept, extra)}</div>`, 'pfx-mdetail');
       body = r
         ? `<div class="mh-detail" data-testid="history-match"><div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back" aria-label="Back to the list">‹ Back</button><span class="mh-dres ${r.outcome}"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc([modeText(r), mapName(r.map), duration(r.seconds), r.at ? ago(r.at, now()) : ''].filter(Boolean).join(' · '))}</small></span>${kept ? `<button type="button" class="pl-btn small mh-watch" data-watch="${esc(kept)}" data-testid="history-watch">▶ Watch replay</button>` : ''}</div><p class="mh-mvpline">${face(r.hero)}<span><b>${esc(heroName(r.hero))}</b> · ${r.k}/${r.d}/${r.a}${r.grade ? ` · Grade ${esc(r.grade)}` : ''}</span></p><p class="pfx-empty">Only matches saved to your account keep both teams. This one is on this device.</p></div>`
         : `<p class="pfx-empty">Match not found.</p>`;
@@ -492,7 +521,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         m === 'failed'
           ? `<div class="mh-detail"><div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back">‹ Back</button></div>${failed('this match')}</div>`
           : m
-            ? matchHtml(m, now(), o.watch ? replayFor(m.players.find((x) => x.owner)?.hero ?? m.hero, m.at) : null)
+            ? matchHtml(m, now(), o.watch ? replayFor(m.players.find((x) => x.owner)?.hero ?? m.hero, m.at, m.key) : null)
             : `<div class="mh-detail"><div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back">‹ Back</button></div>${skel(6)}</div>`;
     }
     return pane(`<div class="pfx-card pfx-detail">${body}</div>`, 'pfx-mdetail');
@@ -845,7 +874,9 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   };
 
   // -------------------------------------------------------------------------------------------------- data
-  const deviceRows = d.rows;
+  let deviceRows = d.rows;
+  /** Yours, all modes: the account's rows plus this device's the account does not list yet (founder, Nov 19). */
+  const withDevice = (server: ProfileRow[], complete: boolean): ProfileRow[] => (self && filter === 'all' ? mergeDeviceRows(server, deviceRows, complete) : server);
   const settle = (p: Promise<ApiResult>): Promise<ApiResult> => p.catch((): ApiResult => ({ id: 'x', ok: false, status: 0 }));
   const fetchAll = async (): Promise<void> => {
     if (!remote()) {
@@ -880,7 +911,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
           const rows = (Array.isArray(b.rows) ? b.rows : []).map((x, i) => rowOf(x, `s${i}`)).filter((x): x is ProfileRow => !!x);
           // yours with no account rows yet: this device's rows stay (their ids are device ids)
           if (rows.length || !self || filter !== 'all') {
-            d.rows = rows;
+            d.rows = withDevice(rows, !nextOf(r.body));
             d.rowsLocal = false;
             d.next = nextOf(r.body);
           }
@@ -963,9 +994,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     if (r.ok && r.body) {
       const b = r.body as { rows?: unknown[] };
       const rows = (Array.isArray(b.rows) ? b.rows : []).map((x, i) => rowOf(x, `p${d.rows.length + i}`)).filter((x): x is ProfileRow => !!x);
-      const seen = new Set(append ? d.rows.map((x) => x.id) : []);
-      d.rows = append ? [...d.rows, ...rows.filter((x) => !seen.has(x.id))] : rows;
+      const kept = append ? d.rows.filter((x) => !x.local) : [];
+      const seen = new Set(kept.map((x) => x.id));
       d.next = nextOf(r.body);
+      d.rows = withDevice(append ? [...kept, ...rows.filter((x) => !seen.has(x.id))] : rows, !d.next);
       d.rowsLocal = false;
       o.track?.('profile_history_page', { append, filter });
     } else say("Couldn't load more matches. Try again.", true);
@@ -1320,6 +1352,14 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     }
   };
   doc.addEventListener('keydown', onKey, true);
+  // a recording card is a div (its Watch button sits inside it): Enter or Space opens the match like a click
+  root.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLElement | null;
+    if ((e.key === 'Enter' || e.key === ' ') && t?.classList.contains('pfx-rec')) {
+      e.preventDefault();
+      t.click();
+    }
+  });
   const close = (): void => {
     if (disposed) return;
     disposed = true;
@@ -1333,10 +1373,27 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   render();
   root.querySelector<HTMLElement>('.cst-back')?.focus({ preventScroll: true });
   void fetchAll();
+  /** A device row's save changed: merge the device rows again; once one is saved, ask the account for its list again. */
+  const refresh = (): void => {
+    if (disposed) return;
+    if (self && o.deviceRows) {
+      const before = new Map(deviceRows.map((r) => [r.id, r.save?.st]));
+      deviceRows = o.deviceRows();
+      const landed = deviceRows.some((r) => r.save?.st === 'saved' && before.get(r.id) !== 'saved');
+      if (d.rowsLocal) d.rows = deviceRows;
+      else if (filter === 'all') d.rows = mergeDeviceRows(d.rows.filter((r) => !r.local), deviceRows, !d.next);
+      if (landed && remote() && !d.rowsLocal) {
+        src.hist = 'idle';
+        void fetchAll();
+        return;
+      }
+    }
+    render();
+  };
   return {
     el: root,
     close,
-    refresh: render,
+    refresh,
     setTab: (t) => {
       if (tabs.includes(t)) {
         tab = t;

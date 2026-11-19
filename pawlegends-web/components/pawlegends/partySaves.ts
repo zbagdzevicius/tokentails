@@ -9,17 +9,23 @@
  * - **Results** (`PartySaves`): a party match's v:2 result goes to the one write path, `POST /user/catbassadors/live`.
  *   The backend checks it against the room log its relay stored, so there is no device queue to claim later (the
  *   ticket fixed the account when the match started): it is posted once, retried on a network or server failure
- *   (2 s, 6 s, 18 s), and its status goes back as `save-result{matchId: room}`, seen only by its owner.
+ *   (2 s, 6 s, 18 s, 45 s; a room the relay is still verifying too), and its status goes back as `save-result{matchId: room}`, seen only by its owner.
  *
  * No React here: transports and timers are injected, so every rule is unit-tested.
  */
 import type { MatchSaveResult, PartyTicketResult } from "@/api/user-api";
 import type { PawlegendsPartyResult, PawlegendsSaveResultStatus } from "./bridge";
+import { ErrorCode } from "@/shared-contracts/errors";
 import { classifyPawlegendsSave, statusOf, type PawlegendsSaveDetail } from "./saves";
 import { liveAnswerOf } from "./session";
 
 export const PARTY_TICKETS_PER_MINUTE = 10;
-export const PARTY_SAVE_RETRIES_MS = [2000, 6000, 18000] as const;
+/**
+ * Founder, Nov 19 ("matches not recorded in match history"): the relay stores a room's verdict only after its referee
+ * re-ran the whole match, which can outlast the results reveal; an early post is "not verified yet" (a 503 from the
+ * backend since Nov 19, a 400 PAWLEGENDS_PARTY_ROOM before), so it is retried, the last try 45 s on.
+ */
+export const PARTY_SAVE_RETRIES_MS = [2000, 6000, 18000, 45000] as const;
 
 export interface PartyTicketsOptions {
   mint: () => Promise<PartyTicketResult>;
@@ -83,7 +89,9 @@ export class PartySaves {
     } catch {
       r = { ok: false, status: 0, code: null };
     }
-    const outcome = classifyPawlegendsSave(r);
+    // an older backend answers a room it has not verified yet with a 400: retried like a server failure
+    const early = r.status === 400 && r.code === ErrorCode.PAWLEGENDS_PARTY_ROOM;
+    const outcome = early ? "backoff" : classifyPawlegendsSave(r);
     const detail: PawlegendsSaveDetail = {
       outcome,
       httpStatus: r.status,

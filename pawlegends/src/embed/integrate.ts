@@ -72,6 +72,12 @@ export interface IntegrationDeps {
    */
   onUpdateNeeded?: () => void;
   /**
+   * Every host `save-result`, also for an earlier match than the results on screen (a queued save, a party retry): the
+   * device history row that posted `matchId` takes its status (founder, Nov 19: the last match must show in Matches
+   * with "Saving…" until the account lists it).
+   */
+  onSaveResult?: (v: { matchId: string; status: string; code?: string }) => void;
+  /**
    * The Profile screen holds the account (Profile → Account: Manage, Sign out, Delete). Then a signed-in player gets
    * no corner chip (it repeated the Profile); a signed-out one still gets "Sign in".
    */
@@ -409,6 +415,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         const v = parseSaveResult(m);
         // a refused sim is never silent, even for an older queued match: this build must update
         if (v?.status === 'rejected' && v.code === SIM_VERSION_CODE) deps.onUpdateNeeded?.();
+        if (v) deps.onSaveResult?.({ matchId: v.matchId, status: v.status, ...(v.code ? { code: v.code } : {}) });
         if (!v || (s.matchId !== null && v.matchId !== s.matchId)) return;
         s.save = v;
         redraw(false, true);

@@ -16,6 +16,7 @@ import type { ApiArgs, ApiOp, ApiResult } from '../../embed/api';
 import { HERO_TEXT } from '../heroText';
 import { heroFaceUrl } from '../art';
 import { ago, clock, loadHistory, MODE_LABEL, REPLAY_MAX, replayOf, type HistoryEntry } from '../../replay/store';
+import { localMatch, saveLine } from './localMatch';
 import '../css/moments.css';
 import '../css/history.css';
 
@@ -171,6 +172,8 @@ function modeBase(r: Pick<ServerRow, 'mode' | 'map' | 'mutator'>): string {
       return `Skirmish ${size}`;
   }
 }
+
+export { localMatch, saveLine, serverModeOf } from './localMatch';
 
 export const filterOfServer = (m: ServerMode): Filter => (m === 'ranked' ? 'ranked' : m === 'pvp' ? 'pvp' : m === 'blitz' ? 'blitz' : m === 'practice' || m === 'arcade' ? 'arcade' : 'ai');
 export const filterOfLocal = (m: HistoryEntry['mode']): Filter => (m === 'pvp' ? 'pvp' : m === 'blitz' ? 'blitz' : m === 'practice' ? 'arcade' : 'ai');
@@ -355,13 +358,14 @@ function damageHtml(m: ServerMatch): string {
   </div>`;
 }
 
-export function matchHtml(m: ServerMatch, now: number, watchId: string | null): string {
+/** `extra`: HTML under the top line (a device match's save status, why its replay does not play). */
+export function matchHtml(m: ServerMatch, now: number, watchId: string | null, extra = ''): string {
   const mine = m.players.find((p) => p.owner)?.team ?? 0;
   const mvp = m.players.find((p) => p.slot === m.mvpSlot);
   return `<div class="mh-detail" data-testid="history-match">
     <div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back" aria-label="Back to the list">‹ Back</button>
       <span class="mh-dres ${m.outcome}"><b>${resultWord(m.outcome)}</b><small>${esc(modeLabel(m))} · ${clock(m.seconds)} · ${esc(ago(m.at, now))}</small></span>
-      ${watchId ? `<button type="button" class="pl-btn small mh-watch" data-watch="${esc(watchId)}" data-testid="history-watch">▶ Watch replay</button>` : ''}</div>
+      ${watchId ? `<button type="button" class="pl-btn small mh-watch" data-watch="${esc(watchId)}" data-testid="history-watch">▶ Watch replay</button>` : ''}</div>${extra}
     ${mvp ? `<p class="mh-mvpline">${face(mvp.hero, 28, 'mh-pface')}<span><b class="mh-mvp mvp">MVP</b> ${esc(playerName(mvp))}${mvp.bot ? ' <i class="mh-bot">Bot</i>' : ''} · ${mvp.k}/${mvp.d}/${mvp.a}</span></p>` : ''}
     <div class="mh-tabs" role="tablist"><button type="button" role="tab" class="mh-tab" data-tab="board" aria-selected="true">Scoreboard</button><button type="button" role="tab" class="mh-tab" data-tab="damage" aria-selected="false">Damage</button></div>
     <div class="mh-pane" data-pane="board">${teamHtml(m, mine as 0 | 1)}${teamHtml(m, (1 - mine) as 0 | 1)}</div>
@@ -369,10 +373,15 @@ export function matchHtml(m: ServerMatch, now: number, watchId: string | null): 
   </div>`;
 }
 
-/** A device-only row: its own numbers (the full scoreboard is kept for matches saved to the account). */
+/** A device-only row: its kept scoreboard when it has one, else its own numbers. */
 function localDetailHtml(r: ShownRow, now: number): string {
   const state = r.local ? watchState(r.local) : 'none';
   const w = state === 'watch' ? r.local!.id : null;
+  const full = r.local ? localMatch(r.local) : null;
+  if (full) {
+    const sv = saveLine(r.local?.save);
+    return matchHtml(full, now, w, `${sv.text ? `<p class="mh-save ${sv.tone}" data-testid="history-save">${esc(sv.text)}</p>` : ''}${state === 'older' ? `<p class="mh-empty" data-testid="history-older-why">${esc(OLDER_TIP)}</p>` : ''}`);
+  }
   return `<div class="mh-detail" data-testid="history-match">
     <div class="mh-dtop"><button type="button" class="pl-btn ghost small mh-back" data-a="back" aria-label="Back to the list">‹ Back</button>
       <span class="mh-dres ${r.outcome}"><b>${resultWord(r.outcome)}</b><small>${esc(r.mode)} · ${clock(r.seconds)} · ${esc(ago(r.at, now))}</small></span>
