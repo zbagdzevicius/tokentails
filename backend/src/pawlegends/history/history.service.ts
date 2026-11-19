@@ -4,6 +4,8 @@ import { Types } from 'mongoose';
 import { Cat } from 'src/cat/cat.schema';
 import { User } from 'src/user/user.schema';
 import { pawlegendsError } from '../pawlegends.errors';
+import { serverTrack } from '../analytics/analytics-sink';
+import { PAWLEGENDS_TICK_HZ } from 'src/shared-contracts/caps';
 import { CURRENT_SEASON_ID } from '../pawlegends-catalog';
 import { displayNames } from '../social/display-name';
 import { pairId, parsePlayerCode } from '../social/social.contracts';
@@ -292,4 +294,52 @@ export class MatchHistoryService extends MatchHistoryCore {
             },
         });
     }
+
+    /** Stores the row (MatchHistoryCore.record), then reports a fresh one as `match_saved` (consenting accounts only). */
+    async record(input: BuildInput): Promise<boolean> {
+        const fresh = await super.record(input);
+        if (fresh) {
+            try {
+                const props = matchSavedProps(input);
+                if (props) serverTrack(input.accountId, 'match_saved', props, input.matchId);
+            } catch {
+                // analytics never fails the save
+            }
+        }
+        return fresh;
+    }
+}
+
+/** The `match_saved` properties of one stored match, from the same verified row history stores. Pure. */
+export function matchSavedProps(input: BuildInput): Record<string, string | number | boolean> | null {
+    const row = buildRow(input);
+    if (!row) return null;
+    const mine = row.players.find(p => p.s === row.slot);
+    const team = mine?.t ?? 0;
+    const humans = row.players.filter(p => !!p.u).length;
+    return {
+        mode: row.mode,
+        group: row.group,
+        map: row.map,
+        ...(row.mutator ? { mutator: row.mutator } : {}),
+        difficulty: row.difficulty,
+        outcome: row.outcome,
+        ...(row.reason ? { reason: row.reason } : {}),
+        ticks: row.ticks,
+        length_s: Math.round(row.ticks / PAWLEGENDS_TICK_HZ),
+        hero: row.hero,
+        takedowns: row.k + row.a,
+        kills: row.k,
+        deaths: row.d,
+        assists: row.a,
+        ...(row.grade ? { grade: row.grade } : {}),
+        mvp: row.mvpSlot === row.slot,
+        svp: row.svpSlot === row.slot,
+        party_size: row.players.filter(p => p.t === team && !!p.u).length || 1,
+        humans: humans || 1,
+        bots: row.players.filter(p => !p.u).length - (mine && !mine.u ? 1 : 0),
+        solo: !row.matchId.startsWith('party:'),
+        ...(typeof input.simVersion === 'number' ? { sim_version: input.simVersion } : {}),
+        season: row.season,
+    };
 }

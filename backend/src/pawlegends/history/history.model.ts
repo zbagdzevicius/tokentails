@@ -166,6 +166,8 @@ export interface BuildInput {
     humans: ReadonlyMap<number, string | null>;
     /** The winning team (team 0's view): -1 on a draw; absent: derived from the owner's outcome. */
     winner?: unknown;
+    /** The record's sim version: not stored, reported with the `match_saved` analytics event only. */
+    simVersion?: number;
 }
 
 /** The season a match at `at` belongs to: the last one started by then (XP keeps counting until the next). Pure. */

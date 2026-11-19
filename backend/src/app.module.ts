@@ -208,6 +208,9 @@ import { PawlegendsKudosController } from './pawlegends/kudos/kudos.controller';
 import { PawlegendsFlagsController } from './pawlegends/flags/flags.controller';
 import { FlagsService } from './pawlegends/flags/flags.service';
 import { PawlegendsFlag, PawlegendsFlagSchema } from './pawlegends/flags/flags.schema';
+import { PawlegendsAnalyticsController } from './pawlegends/analytics/analytics.controller';
+import { PawlegendsAnalyticsService } from './pawlegends/analytics/analytics.service';
+import { PawlegendsAnalyticsConsent, PawlegendsAnalyticsConsentSchema } from './pawlegends/analytics/analytics.schema';
 import { PAWLEGENDS_PROGRESS_SCHEMAS } from './pawlegends/progress/progress.schema';
 import { PawlegendsProgressService } from './pawlegends/progress/progress.service';
 import { PawlegendsProgressController } from './pawlegends/progress/progress.controller';
@@ -335,6 +338,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             ...PAWLEGENDS_CLUB_SCHEMAS,
             // Pawlegends country flags (docs/plans/moba/FLAGS.md): the ISO country per account, never the IP.
             { name: PawlegendsFlag.name, schema: PawlegendsFlagSchema },
+            // Pawlegends analytics consent per account (docs/BACKEND.md "Pawlegends server analytics").
+            { name: PawlegendsAnalyticsConsent.name, schema: PawlegendsAnalyticsConsentSchema },
             // Pawlegends live ops: Events, the community goal, Winter Nap and the fan vote (docs/plans/moba/LIVEOPS.md).
             ...PAWLEGENDS_LIVEOPS_SCHEMAS,
             ...PAWLEGENDS_PUSH_SCHEMAS,
@@ -426,6 +431,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsKudosController,
         // Pawlegends country flags (FLAGS.md): GET/POST /pawlegends/flag.
         PawlegendsFlagsController,
+        // Pawlegends analytics consent (docs/BACKEND.md "Pawlegends server analytics"): GET/POST /pawlegends/analytics/consent.
+        PawlegendsAnalyticsController,
         // Pawlegends account progress (gap plan P2 rewards-cloud): GET/POST /pawlegends/progress.
         PawlegendsProgressController,
         // Pawlegends match history (MATCH-HISTORY.md): GET /pawlegends/history, a friend's, the privacy choice.
@@ -560,6 +567,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsProgressService,
         // Pawlegends match history (MATCH-HISTORY.md), written only by /live.
         MatchHistoryService,
+        // Pawlegends server-side PostHog (consent per account, batched fetch, no SDK).
+        PawlegendsAnalyticsService,
     ],
 });
 

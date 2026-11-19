@@ -11,6 +11,7 @@ import { getPackCardTier } from 'src/shared/utils/content.utils';
 import { ShelterClaimService } from 'src/shelter/onchain/shelter-claim.service';
 import { shelterConfigFor } from 'src/shelter/onchain/shelter-onchain.config';
 import { isPawlegendsContext, PawlegendsCheckoutGuard } from 'src/pawlegends/pawlegends-checkout-guard.service';
+import { serverTrackOrCount } from 'src/pawlegends/analytics/analytics-sink';
 import { ShelterCatSaleService } from 'src/shelter/shelter-cat-sale.service';
 import { UserRepository } from 'src/user/user.repository';
 import { LOOT_BOX_ENTITY, LOOT_BOX_PRICE_CENTS } from 'src/web3/order-catalogue';
@@ -993,6 +994,22 @@ export class CryptoCheckoutService {
         };
         const status = result.success ? 'COMPLETE' : 'FAILED_GRANT';
         await this.storeGrant(doc, status, grant, cfg);
+        // Paw Legends analytics: a cat bought from the game (only game orders carry `consent`); consenting account,
+        // else an anonymous count. Keyed by the order, so a re-run grant reports once.
+        if (result.success && doc.sku.kind === 'CAT' && doc.consent)
+            serverTrackOrCount(
+                String(user),
+                'purchase_completed',
+                {
+                    store: 'shelter_cat',
+                    item: 'shelter_cat',
+                    kind: 'cat',
+                    amount_cents: doc.priceUsdCents,
+                    currency: 'usd',
+                    method: 'crypto',
+                },
+                `tt:${doc.orderId}`
+            );
         return {
             orderId: doc.orderId,
             status,

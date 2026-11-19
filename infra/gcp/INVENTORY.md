@@ -186,7 +186,8 @@ Observations on that list (not fixed here, reported):
 - Not set on DO although the code reads them: `PAWLEGENDS_PARTY_TICKET_SECRET` (party rooms run
   unscored), `PAWLEGENDS_STRIPE_WEBHOOK_SECRET`, `BADCAT_STRIPE_WEBHOOK_SECRET`, `CLUB_STRIPE_WEBHOOK_SECRET`,
   `STRIPE_CLUB_PRICE_MONTH/YEAR`, `BADCAT_VAPID_*`, `SENDGRID_FROM_EMAIL`, `IMPACT_JOBS_ENABLED`,
-  `SHELTER_RELAY_*`, `SHELTER_MATCH_*`, `SHELTER_X402_EXACT_*`, `AI_UPLOAD_IP_SALT`, `APPLE_*`. The
+  `SHELTER_RELAY_*`, `SHELTER_MATCH_*`, `SHELTER_X402_EXACT_*`, `AI_UPLOAD_IP_SALT`, `APPLE_*`,
+  `POSTHOG_PROJECT_TOKEN` and `POSTHOG_PERSONAL_API_KEY` (Paw Legends server analytics, 2026-11-19). The
   migration should carry the current set 1:1 and add new ones only on the founder's decision.
 
 **Backend secrets (Secret Manager candidates):** `MONGODB_URI`, `FB_PRIVATE_KEY`, `OPENAI_API_KEY`,
@@ -198,6 +199,7 @@ Observations on that list (not fixed here, reported):
 `INVALIDATE_CACHE_SECRET` (**seeds the AES key of custodial Stellar wallet secrets: must be copied
 exactly, never rotated**), `SHELTER_DONATE_PRIVATE_KEY` (hot wallet, signs on 7 mainnets),
 `SHELTER_TRY_PRIVATE_KEY`, per-chain keys named by `SHELTER_CHAIN_<id>_KEY_ENV`, `SHELTER_RELAY_IP_PEPPER`,
+`POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_TOKEN` (public, carried as a secret like the other DO keys),
 `SHELTER_TREAT_IP_SALT`, `AI_UPLOAD_IP_SALT`, `SHELTER_X402_FACILITATOR_AUTH`, `APPLE_PRIVATE_KEY`,
 `ML_ACCESS_TOKEN`.
 
@@ -207,7 +209,8 @@ exactly, never rotated**), `SHELTER_DONATE_PRIVATE_KEY` (hot wallet, signs on 7 
 the remaining `SHELTER_*`, `CRYPTO_PAY_*`, `RAVE_*`, `CLUB_*`, `BADCAT_*` URLs and limits, `PAWLEGENDS_PUBLIC_URL`,
 `AI_*` budgets, `YOURCAT_*`, `PORTRAIT_*`, `TAILS_*`, `STELLAR_*`, `APPLE_TEAM_ID/KEY_ID/CLIENT_ID/AUDIENCE`,
 `AUTH_*`, `APP_CHECK_ENFORCE`, `NEW_ACCOUNTS_PER_IP_PER_HOUR`, `GUEST_SESSIONS_PER_IP_PER_HOUR`,
-`DISPOSABLE_EMAIL_DOMAINS`, `MONGO_TRANSACTIONS`, `IDENTITY_BACKFILL_DONE`, `TAILS_EARNED_BACKFILL_DONE`.
+`DISPOSABLE_EMAIL_DOMAINS`, `MONGO_TRANSACTIONS`, `IDENTITY_BACKFILL_DONE`, `TAILS_EARNED_BACKFILL_DONE`,
+`POSTHOG_HOST`, `POSTHOG_PROJECT_ID`, `POSTHOG_API_HOST`.
 Full groups: docs/BACKEND.md "Environment variables".
 
 **Client build-time (`NEXT_PUBLIC_*`, inlined, public):** `NEXT_PUBLIC_BE_URL`, `NEXT_PUBLIC_IS_PROD`,

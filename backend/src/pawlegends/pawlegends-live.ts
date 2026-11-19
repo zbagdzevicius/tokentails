@@ -571,6 +571,7 @@ export async function savePawlegendsMatch(
             stats: (result as { stats?: unknown }).stats,
             humans: new Map([[0, String(userId)]]),
             winner: (result as { winner?: unknown }).winner,
+            simVersion: replay.simVersion,
         });
     // Live ops (LIVEOPS.md): the community goal and the Winter Nap day, once, from the re-sim's own numbers
     await applyCommunityGoal({

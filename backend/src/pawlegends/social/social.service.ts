@@ -49,6 +49,7 @@ import {
     PawlegendsPresence,
     PawlegendsSocial,
 } from './social.schema';
+import { serverTrack } from '../analytics/analytics-sink';
 
 /*
  * Friends, blocks, recent players, invites and the API side of presence (SOCIAL-RANKED.md §2–§5, lane L2). Registered
@@ -1031,6 +1032,12 @@ export class SocialService {
             created && (created as { _id?: unknown })._id !== undefined
                 ? String((created as { _id: unknown })._id)
                 : '';
+        serverTrack(
+            me,
+            'invite_sent',
+            { mode: mode === 'ranked' ? 'ranked' : 'party', offline: !theirs || theirs.state === 'offline' },
+            id ? `invite:${id}` : undefined
+        );
         return {
             ok: true,
             ...(id ? { id } : {}),
@@ -1067,6 +1074,7 @@ export class SocialService {
             { $set: { answer: a === 'accept' ? 'accepted' : 'declined' } }
         );
         await this.bump([row!.from]);
+        serverTrack(me, 'invite_answered', { answer: a === 'accept' ? 'accepted' : 'declined' }, `invite:${id}`);
         return a === 'accept' ? { ok: true, party: row!.party } : { ok: true };
     }
 

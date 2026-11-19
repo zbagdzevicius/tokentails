@@ -36,6 +36,7 @@ import {
     PawlegendsReferral,
     PawlegendsReferralCode,
 } from './growth.schema';
+import { serverTrack } from '../analytics/analytics-sink';
 
 /*
  * Invites, creator codes and the first-purchase gift (growth.rules.ts). Invites are free and allowed in the apps;
@@ -252,6 +253,8 @@ export class GrowthService {
             if (await this.referrals.findOne({ inviteeId: accountId }).lean()) throw GROWTH_ERRORS.already();
             throw GROWTH_ERRORS.device();
         }
+        // analytics (consenting accounts only): the invitee's side; never the inviter or the code
+        serverTrack(accountId, 'referral_redeemed', { kind: String(kind) }, 'referral');
         return this.state(accountId, now);
     }
 

@@ -61,6 +61,8 @@ export interface VerifiedPaymentIntent {
     discount?: string;
     amountCents: number;
     amountUsd: number;
+    /** `pawlegends`: the intent was created from the game (its metadata `context`); analytics only. */
+    context?: 'pawlegends';
 }
 
 export type ClaimResult = { claimed: true; order: IOrder } | { claimed: false; order: IOrder | null };
@@ -240,6 +242,7 @@ export class StripePaymentService {
                 catId,
                 amountCents: received,
                 amountUsd: received / 100,
+                ...(metadata.context === 'pawlegends' ? { context: 'pawlegends' as const } : {}),
             };
         }
         const entityType = metadata.entityType === EntityType.IMAGE ? EntityType.IMAGE : EntityType.PACK;

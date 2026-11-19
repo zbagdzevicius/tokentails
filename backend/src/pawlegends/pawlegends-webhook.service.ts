@@ -28,6 +28,27 @@ import {
 } from './pawlegends-stripe.service';
 import { grantPurchase, revokeSession, syncPremium } from './pawlegends-season.service';
 import { GrowthService } from './growth/growth.service';
+import { serverTrackOrCount } from './analytics/analytics-sink';
+import type { ServerProps } from './analytics/analytics-events';
+
+/**
+ * A store purchase or refund as an analytics event: under the account when it consented (checked by the sink), else
+ * as an anonymous count (revenue without a person), so revenue totals do not depend on consent. Keyed by the session,
+ * so Stripe's retries report it once.
+ */
+export function reportPurchase(
+    event: 'purchase_completed' | 'purchase_refunded',
+    accountId: unknown,
+    sessionId: string,
+    props: ServerProps
+): void {
+    serverTrackOrCount(
+        accountId ? String(accountId) : null,
+        event,
+        { store: 'pawlegends', method: 'card', ...props },
+        `pl:${sessionId}`
+    );
+}
 
 /*
  * Two ways in, one handler. The store runs on the Token Tails Stripe account: the Token Tails endpoint
@@ -254,6 +275,13 @@ export class PawlegendsWebhookService {
             $unset: { holdUntil: '' },
             $setOnInsert: base,
         });
+        // analytics: the paid fact once per session (a retried event repeats the same uuid); no email, card or session id
+        reportPurchase('purchase_completed', buyer.accountId, session.id, {
+            sku,
+            kind: def.kind,
+            amount_cents: base.amountCents,
+            currency: base.currency,
+        });
         // Store and pass SKUs: the items and the pass row (read from the paid rows). Idempotent: if this fails, the
         // event id is not recorded, Stripe retries, and the `paid` branch above grants again.
         if (isCatalogSku(sku)) {
@@ -387,6 +415,16 @@ export class PawlegendsWebhookService {
             { $set: { status: 'refunded', refundedAt: this.now(), ...extra } }
         );
         let healed = false;
+        for (const row of rows) {
+            if (row.status !== 'paid') continue;
+            reportPurchase('purchase_refunded', row.accountId, String(row.sessionId), {
+                sku: row.sku,
+                kind: PAWLEGENDS_SKUS[row.sku as PawlegendsSku]?.kind,
+                amount_cents: row.amountCents,
+                currency: row.currency,
+                reason: extra.disputeId ? 'dispute' : extra.termsRefund || row.termsRefund ? 'terms' : 'refund',
+            });
+        }
         // Store and pass purchases: the items go (unless refunded under the terms), and the pass row is downgraded.
         for (const row of rows) {
             if (!isCatalogSku(row.sku) || !row.accountId) continue;

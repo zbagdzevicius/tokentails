@@ -305,7 +305,7 @@ export async function unlockChampion(
     models: Models,
     accountId: string,
     body: { hero?: unknown; requestId?: unknown; via?: unknown }
-): Promise<{ hero: string; unlocked: boolean; via: 'yarn' | 'pick' }> {
+): Promise<{ hero: string; unlocked: boolean; via: 'yarn' | 'pick'; fresh?: { price: number; tier: string | null } }> {
     const hero = typeof body?.hero === 'string' ? body.hero : '';
     const via = body?.via === 'pick' ? 'pick' : 'yarn';
     if (!CHAMPION_IDS.includes(hero)) throw CHAMP_ERRORS.unknown();
@@ -366,7 +366,8 @@ export async function unlockChampion(
         if (!isDuplicateKeyError(error)) throw error;
     }
     await grantUnlock(models, accountId, hero, via === 'pick' ? 'milestone' : 'yarn');
-    return { hero, unlocked: true, via };
+    // `fresh`: this call spent (the analytics event); a retry or a healed grant answers without it
+    return { hero, unlocked: true, via, fresh: { price, tier: tier ?? null } };
 }
 
 async function grantUnlock(

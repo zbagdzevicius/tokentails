@@ -22,6 +22,8 @@ import { earnTailsInc } from './tails-ledger';
 
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { EncryptionService } from 'src/shared/encryption.service';
+import { serverTrackAnonymous, serverTrackOrCount } from 'src/pawlegends/analytics/analytics-sink';
+import { surfaceOf } from 'src/pawlegends/analytics/analytics-env';
 
 export const ANONYMOUS_PROVIDER = 'anonymous';
 
@@ -56,6 +58,8 @@ export function normalizeEmail(value: unknown): string | null {
 /** Context of the request being authenticated (the client IP for the new-account throttle). */
 export interface IResolveContext {
     ip?: string;
+    /** The request's Origin header: only which app made an account (the anonymous `account_created` count). */
+    origin?: string;
 }
 
 /** 409 GUEST_MERGE_IN_PROGRESS for a guest whose progress is being merged into another account (F5.5). */
@@ -281,7 +285,7 @@ export class UserService {
                 throw await this.deletedAccount(uid);
             }
             if ((owner as any).isGuest) {
-                return this.promoteGuest(owner, token, email, verified, context.ip || 'unknown');
+                return this.promoteGuest(owner, token, email, verified, context.ip || 'unknown', context.origin);
             }
             // Decision #3, final rollout step: existing unverified password accounts verify first.
             if (config.requireVerifiedExisting && !verified && !(owner as any).emailVerifiedAt) {
@@ -344,7 +348,7 @@ export class UserService {
 
         // 4. New account.
         return this.singleFlight(`registered:${uid}`, () =>
-            this.createRegistered(token, email, uid, verified, context.ip || 'unknown')
+            this.createRegistered(token, email, uid, verified, context.ip || 'unknown', context.origin)
         );
     }
 
@@ -353,7 +357,8 @@ export class UserService {
         email: string,
         uid: string,
         verified: boolean,
-        ip: string
+        ip: string,
+        origin?: string
     ): Promise<any> {
         const config = identityConfig();
         if (isDisposableEmail(email, config.extraDisposableDomains)) {
@@ -404,6 +409,12 @@ export class UserService {
         }
         if (doc._id?.toString() === userId.toString()) {
             this.newAccountThrottle.record(ip);
+            // analytics: an anonymous count (a new account has no consent yet), never the id, email or provider
+            serverTrackAnonymous(
+                'account_created',
+                { kind: 'registered', surface: surfaceOf(origin) },
+                `acct:${userId}`
+            );
         }
 
         await ensureStarterCat(this.cats, this.users, doc._id);
@@ -419,7 +430,8 @@ export class UserService {
         token: FirebaseUser,
         email: string,
         verified: boolean,
-        ip: string
+        ip: string,
+        origin?: string
     ): Promise<any> {
         // 1a. Verified only; the guest doc is untouched and keeps playing.
         if (!verified) {
@@ -506,6 +518,13 @@ export class UserService {
 
             if (promoted) {
                 this.newAccountThrottle.record(ip);
+                // analytics: the guest became an account (under it when the guest consented, else a count)
+                serverTrackOrCount(
+                    String(promoted._id),
+                    'account_created',
+                    { kind: 'promoted', surface: surfaceOf(origin) },
+                    `acct:${String(promoted._id)}`
+                );
                 // The starter stops being excluded from public lists and gets its token id.
                 await this.cats.updateMany(
                     { owner: promoted._id, isStarter: true, isGuestStarter: true },
@@ -684,7 +703,7 @@ export class UserService {
      * `POST /user/guest/session` (F5.5): idempotent upsert of the guest doc for an anonymous uid,
      * then the guest starter. No email, no wallet.
      */
-    async createGuestSession(uid: string, ip: string): Promise<any> {
+    async createGuestSession(uid: string, ip: string, origin?: string): Promise<any> {
         if (typeof uid !== 'string' || !uid) {
             throw new UnauthorizedException();
         }
@@ -733,6 +752,11 @@ export class UserService {
             }
             if (doc._id.toString() === guestId.toString()) {
                 this.guestSessionThrottle.record(ip);
+                serverTrackAnonymous(
+                    'account_created',
+                    { kind: 'guest', surface: surfaceOf(origin) },
+                    `acct:${guestId}`
+                );
             }
             await ensureStarterCat(this.cats, this.users, doc._id, { guest: true });
             return this.users.findOne({ _id: doc._id }).lean();

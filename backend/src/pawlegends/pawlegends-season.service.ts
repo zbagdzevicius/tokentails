@@ -34,6 +34,7 @@ import {
 } from './pawlegends-catalog';
 import { PAWLEGENDS_SKUS } from './pawlegends.contracts';
 import { pawlegendsError } from './pawlegends.errors';
+import { serverTrack } from './analytics/analytics-sink';
 import { PawlegendsOwnedSource, PawlegendsPremium, PawlegendsStore } from './pawlegends.schema';
 
 /*
@@ -490,6 +491,21 @@ export class PawlegendsSeasonService {
                 );
         }
         const r = await unlockChampion(this.store, accountId, body);
+        if (r.fresh) {
+            serverTrack(
+                accountId,
+                'champion_unlocked',
+                { hero: r.hero, via: r.via, tier: r.fresh.tier ?? undefined },
+                `unlock:${r.hero}`
+            );
+            if (r.fresh.price > 0)
+                serverTrack(
+                    accountId,
+                    'yarn_spent',
+                    { reason: 'champion', amount: r.fresh.price, hero: r.hero },
+                    `unlock:${r.hero}`
+                );
+        }
         return { hero: r.hero, champions: await this.champions(accountId) };
     }
 
@@ -529,16 +545,44 @@ export class PawlegendsSeasonService {
                         { ref: m.ref, won: m.won, forfeit: m.forfeit, takedowns: m.takedowns, firstWinToday },
                         now
                     );
-                    if (yarn) return { ...gain, yarn };
+                    if (yarn) {
+                        this.report(id, gain, m.ref, yarn);
+                        return { ...gain, yarn };
+                    }
                 } catch (error) {
                     this.logger.warn(`yarn failed: ${String((error as Error)?.message || error).slice(0, 200)}`);
                 }
             }
+            this.report(id, gain, m.ref);
             return gain;
         } catch (error) {
             this.logger.warn(`season xp failed: ${String((error as Error)?.message || error).slice(0, 200)}`);
             return null;
         }
+    }
+
+    /** Analytics (consenting accounts only): a tier reached and the Yarn a match paid, keyed by the save's ref. */
+    private report(accountId: string, gain: SeasonXpGain, ref: string | undefined, yarn?: YarnGain): void {
+        const key = ref ? `match:${ref}` : undefined;
+        if (gain.tier > gain.prevTier)
+            serverTrack(
+                accountId,
+                'season_tier_up',
+                { season: gain.seasonId, tier: gain.tier, prev_tier: gain.prevTier, xp: gain.xp },
+                key
+            );
+        if (yarn && yarn.gained > 0)
+            serverTrack(
+                accountId,
+                'yarn_granted',
+                {
+                    reason: yarn.chest > 0 ? 'match_and_weekly_chest' : 'match',
+                    amount: yarn.gained,
+                    balance: yarn.balance,
+                    new_picks: yarn.newPicks,
+                },
+                key
+            );
     }
 
     /**

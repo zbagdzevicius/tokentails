@@ -31,6 +31,7 @@ import {
     PawlegendsClubWeek,
     PawlegendsClubWin,
 } from './clubs.schema';
+import { serverTrack } from '../analytics/analytics-sink';
 
 /*
  * Clubs (docs/plans/moba/CLUBS-KUDOS.md): create with a generated name, join by code, up to 30 members, one club per
@@ -410,7 +411,17 @@ export class ClubsService {
                 } catch (error) {
                     if ((error as { code?: unknown })?.code !== 11000) throw error;
                 }
-                if (fresh) got.push(await payChest(this.store, me, 'club', CLUB_CHEST_YARN));
+                if (fresh) {
+                    const paid = await payChest(this.store, me, 'club', CLUB_CHEST_YARN);
+                    got.push(paid);
+                    if (paid.startsWith('yarn:'))
+                        serverTrack(
+                            me,
+                            'yarn_granted',
+                            { reason: 'club_chest', amount: CLUB_CHEST_YARN },
+                            `club:${week}:${tier}`
+                        );
+                }
             }
         }
         if (!contributed) throw CLUB_ERRORS.needWin();

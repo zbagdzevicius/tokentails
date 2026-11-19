@@ -108,6 +108,7 @@ import { drawWheel, IWheelOdds, wheelOdds } from './wheel';
 import { ITokenStatus, TOKEN_STATUS_CACHE_CONTROL, tokenStatus } from './token-status';
 import { UserThrottle, UserThrottlerGuard } from 'src/shared/guards/user-throttler.guard';
 import { tailsRewardMessage } from 'src/shared-contracts/copy';
+import { serverForget, serverTrackAnonymous } from 'src/pawlegends/analytics/analytics-sink';
 
 const twitters: string[] = [];
 const MAX_LEGIT_CATNIP_SCORE = totalCatnipCap;
@@ -585,7 +586,7 @@ export class UserController {
         }
         await this.verifyAppCheck(appCheckToken);
         const uid = authUser.transient ? authUser.firebaseUid : authUser.firebaseUids?.[0];
-        const guest = await this.userService.createGuestSession(uid as string, visitorIp(req));
+        const guest = await this.userService.createGuestSession(uid as string, visitorIp(req), req?.headers?.origin);
         return this.loadProfile(guest._id.toString());
     }
 
@@ -654,7 +655,11 @@ export class UserController {
         }
         const uids = authUser.transient ? [authUser.firebaseUid as string] : authUser.firebaseUids || [];
         const guestId = authUser.transient ? null : new Types.ObjectId(authUser._id as string);
+        // Paw Legends analytics: the consent row, waiting events and (when configured) the PostHog person go first,
+        // while the uids that name them still exist
+        if (guestId) await serverForget(String(guestId));
         await eraseGuest(this.guestDeps(), guestId, uids.filter(Boolean));
+        if (guestId) serverTrackAnonymous('account_deleted', { kind: 'guest' });
         return { success: true };
     }
 
@@ -670,6 +675,8 @@ export class UserController {
         @USER_ID() userId: string,
         @Body(guestBodyPipe) body: DeleteAccountDto
     ): Promise<IAccountDeletionResult> {
+        // Paw Legends analytics: forgotten before the record is anonymised (its uids name the PostHog person)
+        await serverForget(userId);
         const result = await deleteAccount(
             {
                 users: this.repository.model,
@@ -688,6 +695,7 @@ export class UserController {
             body?.appleClientId
         );
         this.pawMatchLeaderboardCache.clear();
+        serverTrackAnonymous('account_deleted', { kind: 'registered' });
         this.logger.log(
             `account deleted (cats released: ${result.catsReleased}, to the shelter pool: ${result.catsToShelterPool}, apple: ${result.apple})`
         );

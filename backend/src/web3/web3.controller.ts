@@ -46,6 +46,7 @@ import { ChainType } from './web3.model';
 import { Web3Service } from './web3.service';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ShelterCatSaleService } from 'src/shelter/shelter-cat-sale.service';
+import { serverTrackOrCount } from 'src/pawlegends/analytics/analytics-sink';
 
 export { PACK_GRANT_FAILED_MESSAGE };
 
@@ -510,6 +511,21 @@ export class Web3Controller {
                 });
                 if (granted.success) {
                     await this.recordCardShelterShare(userId, verified.intentId, verified.catId!, granted);
+                    // Paw Legends analytics: a cat bought from the game (consenting account, else an anonymous count)
+                    if (verified.context === 'pawlegends')
+                        serverTrackOrCount(
+                            userId,
+                            'purchase_completed',
+                            {
+                                store: 'shelter_cat',
+                                item: 'shelter_cat',
+                                kind: 'cat',
+                                amount_cents: verified.amountCents,
+                                currency: 'usd',
+                                method: 'card',
+                            },
+                            `tt:${verified.intentId}`
+                        );
                 }
                 return granted;
             }

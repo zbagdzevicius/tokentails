@@ -15,6 +15,7 @@ import {
     tiersReached,
 } from '../clubs/clubs.contracts';
 import { PawlegendsKudos, PawlegendsKudosMonth } from '../clubs/clubs.schema';
+import { serverTrack } from '../analytics/analytics-sink';
 
 /*
  * Good-teammate kudos (docs/plans/moba/CLUBS-KUDOS.md §5): after a PvP match a registered player gives a thumbs-up to a
@@ -134,6 +135,13 @@ export class KudosService {
             const r = await this.months.updateOne({ _id: id, paid: { $ne: tier } }, { $addToSet: { paid: tier } });
             if (!(r?.modifiedCount ?? 0)) continue;
             const got = await payChest(this.store, to, 'kudos', KUDOS_CHEST_YARN);
+            if (got.startsWith('yarn:'))
+                serverTrack(
+                    to,
+                    'yarn_granted',
+                    { reason: 'kudos_chest', amount: KUDOS_CHEST_YARN },
+                    `kudos:${id}:${tier}`
+                );
             await this.months.updateOne({ _id: id }, { $push: { got } });
         }
     }

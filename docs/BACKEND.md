@@ -1106,10 +1106,66 @@ Module map (`src/pawlegends/`, registered in the one `AppModule`: 6 schemas, the
 
 The game no longer sells the `pl_*` SKUs; the routes stay so earlier purchases restore and dress the heroes.
 
-Known gaps: the `purchase{sku}` analytics event is not sent from the webhook (no
-server-side PostHog); the specs mock the sim (the real bundle is exercised by the game's tests and was checked
+Known gaps: the specs mock the sim (the real bundle is exercised by the game's tests and was checked
 by hand against browser-recorded replays).
 
+
+### Pawlegends server analytics (PostHog)
+
+`src/pawlegends/analytics/`: the facts only the server knows go to the same PostHog project (US cloud) as the game,
+pawlegends.app and the app shell, with plain `fetch` (no SDK): events wait in memory and leave as one
+`POST <POSTHOG_HOST>/batch/` every 5 s or per 50 events. A network error, 429 or 5xx keeps the batch for a later try
+(backoff up to 60 s, at most 4 sends per event), a 4xx drops it, more than 2,000 waiting events drop the oldest, and
+Nest's shutdown (SIGTERM, `onModuleDestroy`) sends what is left within 3 s and drops the rest. One warning a minute at
+most. Nothing waits for PostHog and nothing fails when it is down. No on/off flag: without `POSTHOG_PROJECT_TOKEN`
+nothing is built and nothing is sent.
+
+Consent is per account. The game's consent card and Settings toggle, pawlegends.app's banner and the app shell send
+the player's answer to `POST /pawlegends/analytics/consent` `{granted, distinctId?, version?}` (AppAuthGuard, guests
+with an account too; 20 a minute per IP). It is stored in `pawlegendsanalytics` (`_id` account id, `granted`, `id`,
+`v` = privacy notice version, `at`); `GET` answers `{granted, distinctId, configured, at, version}`. Server events
+of an account are sent only while its row says `granted`. A denial or a later withdrawal stores `granted: false`,
+clears the id and drops that account's waiting events at once (other processes re-read within 60 s).
+
+The id is the clients' own: `pl_` + the first 32 hex of SHA-256(`pawlegends:<firebase uid>`)
+(`analyticsDistinctId`, the same function as `pawlegends-web/analytics/client.ts` `accountDistinctId`). A client may
+send the id it uses; the server keeps it only when it hashes one of the account's own `firebaseUids`, else it takes
+the first uid's hash, and answers the id so the client can identify with it. Never the raw uid, email, name, account
+id, room code, card or IP: each event has a fixed list of allowed properties (`analytics-events.ts`
+`SERVER_EVENTS`), everything else is dropped, and strings must be short id-like values. Events carry
+`$lib: pawlegends-server`, `source: server` and `$geoip_disable: true` (the request comes from our server). A fact
+the server may report twice (a retried save or webhook) carries a deterministic `uuid`, so PostHog keeps one.
+
+Guests and anonymous counts: a guest with a guest account consents like anyone (its id is the hash of its anonymous
+uid, which survives the upgrade to a registered account); a transient guest (no account yet) sends nothing.
+Facts that must be counted whatever the consent go as anonymous counts: a fresh random `srv_<uuid>` id each and
+`$process_person_profile: false`, so no person and no link between two events. A merged guest's consent row is not
+carried into the target account (the target's own choice applies).
+
+| Event | Fires | Kind | Properties |
+|---|---|---|---|
+| `match_saved` | `MatchHistoryService.record` after a fresh history row: every verified solo (`/live` re-sim) and party (referee) match, once per account and match | account | `mode`, `group`, `map`, `mutator`, `difficulty`, `outcome`, `reason`, `ticks`, `length_s`, `hero`, `takedowns`, `kills`, `deaths`, `assists`, `grade`, `mvp`, `svp`, `party_size` (humans on the player's team), `humans`, `bots`, `solo`, `sim_version`, `season` |
+| `ranked_result` | `pawlegends-party-live.ts` `applyRankedRating`, after the ranked row is written | account | `kind` (`players`/`ai`), `won`, `delta`, `tier_idx`, `points`, `placements_left`, `grade`, `saved` (points the S grade kept), `season` |
+| `season_tier_up` | `PawlegendsSeasonService.addXp`, when the match moved the Legends Pass tier | account | `season`, `tier`, `prev_tier`, `xp` |
+| `yarn_granted` | `addXp` (a match, with the weekly chest), the club chest (`ClubsService`), the kudos chest (`KudosService`) when it pays Yarn | account | `reason` (`match`, `match_and_weekly_chest`, `club_chest`, `kudos_chest`), `amount`, `balance`, `new_picks` |
+| `yarn_spent` | a champion unlock with Yarn (`PawlegendsSeasonService.unlock`), a paid name change (`NicknameService.change`) | account | `reason` (`champion`, `name_change`), `amount`, `hero` |
+| `champion_unlocked` | `PawlegendsSeasonService.unlock`, only the call that spent (`unlockChampion` `fresh`) | account | `hero`, `via` (`yarn`/`pick`), `tier` |
+| `invite_sent`, `invite_answered` | `SocialService.invite` and `answerInvite` (party invites) | account | `mode` (`party`/`ranked`), `offline`; `answer` |
+| `referral_redeemed` | `GrowthService.redeem` (the invitee's side) | account | `kind` |
+| `purchase_completed` | the store webhook when a session becomes `paid`; a game cat bought by card (`POST /web3/confirm-payment`, intent `context: pawlegends`) or USDC (a crypto order with `consent`) | account if it consented, else anonymous | `store` (`pawlegends`/`shelter_cat`), `item`, `sku`, `kind`, `amount_cents`, `currency`, `method` (`card`/`crypto`) |
+| `purchase_refunded` | the store webhook's refund and dispute path (`endPayment`), per paid row | account if it consented, else anonymous | the same plus `reason` (`refund`, `dispute`, `terms`) |
+| `account_created` | a new registered account, a guest promoted in place, a new guest account (`UserService`) | anonymous (promoted: account if the guest consented) | `kind` (`registered`, `promoted`, `guest`), `surface` (`pawlegends`: pawlegends.app or the Android app; `app`: the shared iOS `capacitor://localhost` origin; `tokentails`) |
+| `account_deleted` | `DELETE /user/me`, `DELETE /user/guest` | anonymous | `kind` (`registered`, `guest`) |
+
+Deletion: `DELETE /user/me` and `DELETE /user/guest` call `serverForget` first, while the account's uids still
+exist: the waiting events of every id of the account are dropped, the consent row is deleted, and with
+`POSTHOG_PERSONAL_API_KEY` and `POSTHOG_PROJECT_ID` the PostHog persons of those ids are deleted with their events
+(`POST https://us.posthog.com/api/projects/<id>/persons/bulk_delete/`, only for an account that ever had a consent
+row). Without the key, delete the person by hand in PostHog (Persons, search the `pl_` id) when a deletion request
+comes in; the hashed id cannot be traced back to the player from PostHog alone.
+
+Not covered on the server: Token Tails cat refunds (manual), co-op and casual rating moves (hidden ratings). The
+client events (`pawlegends/src/analytics/posthog.ts`, `pawlegends-web/analytics/*`) are unchanged by this.
 
 ### Pawlegends party relay (docs/plans/moba/MULTIPLAYER.md)
 
@@ -1317,6 +1373,7 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | Email | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` (missing from the example file) |
 | Bad Cat Daily (always on, no on/off flags; docs "Bad Cat Daily (badcat)") | `BADCAT_STRIPE_SECRET_KEY` (optional; unset: the shared `STRIPE_SECRET_KEY` is used; live keys only in production, test keys only elsewhere), `BADCAT_STRIPE_WEBHOOK_SECRET` (required to take money: unset, status reports `checkout: false`, checkout answers 503 and the webhook answers 503), `BADCAT_ENTITLEMENT_SECRET` (optional; unset: an HMAC of `INVALIDATE_CACHE_SECRET` with a fixed label; with neither, entitlement routes answer 503), `BADCAT_PUBLIC_URL` (default `https://tokentails.com`; Stripe return URLs, restore links, the typed redirect), `BADCAT_RESTORE_DEV_LINK` (off; local testing only: the restore answer carries the link itself, never with `NODE_ENV=production`), `SENDGRID_API_KEY` (shared; restore, seen and streak emails are sent only when it is set; restore mails only addresses with a purchase), `DO_SPACES_*` (shared; cameo and `/yourcat` faces). Phase 2: `BADCAT_SCORE_GRACE_DAYS` (0..7, default 1), `BADCAT_SHORT_LINK_BASE` and `BADCAT_API_PUBLIC_URL` (origin in short links; default `https://api.tokentails.com`), `BADCAT_FEED_AUTO_APPROVE` (moderation policy, off: feed rooms wait for an admin), `BADCAT_FEED_REPORT_HIDE` (default 3), `BADCAT_VAPID_PUBLIC_KEY`, `BADCAT_VAPID_PRIVATE_KEY`, `BADCAT_VAPID_SUBJECT` (`mailto:` or `https:`, default `mailto:hello@tokentails.com`; push works only when the keys are set) |
 | Pawlegends (always on, no on/off flags; "Pawlegends" above) | `PAWLEGENDS_STRIPE_SECRET_KEY` (optional; unset: the shared `STRIPE_SECRET_KEY`; live keys only in production, test keys only elsewhere), `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` (optional: the signing secret of an own `POST /pawlegends/stripe/webhook` endpoint, which answers 503 without it; unset, the store is carried by the shared `POST /image/webhook` and `STRIPE_WEBHOOK_SECRET`, but only while checkout uses the shared key: a separate `PAWLEGENDS_STRIPE_SECRET_KEY` needs this own secret; with neither, status reports `store: false` and checkout answers 503), `PAWLEGENDS_ENTITLEMENT_SECRET` (optional; unset: an HMAC of `INVALIDATE_CACHE_SECRET` with a fixed label; with neither, entitlement routes answer 503), `PAWLEGENDS_PUBLIC_URL` (default `https://pawlegends.app`; Stripe return URLs and email links; their `/pawlegends?...` paths redirect to `/play` there), `PAWLEGENDS_DEV_LINKS` (`true` puts the restore and notify links in the answer; never with `NODE_ENV=production`), `SENDGRID_API_KEY` (shared; restore and notify emails), `PAWLEGENDS_VAPID_PUBLIC_KEY` and `PAWLEGENDS_VAPID_PRIVATE_KEY` (web push, `docs/plans/moba/SHARE-PUSH.md` §2: the P-256 pair as base64url, 87 and 43 characters; unset or not a matching pair: `GET /pawlegends/push/key` answers `{key: null}`, the game shows no opt-in and nothing is sent), `PAWLEGENDS_VAPID_SUBJECT` (optional contact for the push services, `mailto:` or `https:`, default `https://pawlegends.app`) |
+| Paw Legends server analytics (always on with a token; "Pawlegends server analytics" above) | `POSTHOG_PROJECT_TOKEN` (the public PostHog project token, the same value as the clients' `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`; unset: no server events), `POSTHOG_HOST` (default `https://us.i.posthog.com`, https only), optional for account deletion: `POSTHOG_PERSONAL_API_KEY` (secret, a personal key with person write access), `POSTHOG_PROJECT_ID` (numeric), `POSTHOG_API_HOST` (default `https://us.posthog.com`) |
 | Print | `PRINTIFY_API_KEY` |
 | Rescue points (G5) | `TAILS_TOKEN_MODE` (`POINTS` default, or `TOKEN`; read by the public `GET /user/token-status`), `TAILS_TGE_AT` (ISO date, exposed only in `TOKEN` mode), `TAILS_EARNED_BACKFILL_DONE` (`true` once `scripts/backfill-tails-earned.js --apply` ran; the earned board then sorts on `tailsEarned`) |
 | Unused | `GTM_ID` |

@@ -46,6 +46,9 @@ export const GUEST_ALLOW_LIST: Readonly<Record<string, Readonly<AllowGuestOption
     // Pawlegends country flags (FLAGS.md): a guest's own ISO country (never the IP) and its hide choice.
     'GET /pawlegends/flag': {},
     'POST /pawlegends/flag': {},
+    // Paw Legends analytics consent: a guest account stores its own choice (docs/BACKEND.md)
+    'GET /pawlegends/analytics/consent': {},
+    'POST /pawlegends/analytics/consent': {},
     // Pawlegends match history (MATCH-HISTORY.md): a guest's own rows, one of its matches and who may see them.
     // Read only (rows are written by /live alone); another player's history needs a registered account.
     'GET /pawlegends/history': {},

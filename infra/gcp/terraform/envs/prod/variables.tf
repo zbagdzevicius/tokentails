@@ -250,6 +250,9 @@ variable "extra_secret_keys" {
     "BADCAT_ENTITLEMENT_SECRET", "BADCAT_VAPID_PRIVATE_KEY", "CLUB_STRIPE_WEBHOOK_SECRET", "CLUB_TOKEN_SECRET",
     "RAVE_STRIPE_WEBHOOK_SECRET", "SHELTER_RELAY_IP_PEPPER", "SHELTER_TREAT_IP_SALT", "AI_UPLOAD_IP_SALT",
     "SHELTER_X402_FACILITATOR_AUTH", "SHELTER_TRY_PRIVATE_KEY", "APPLE_PRIVATE_KEY",
+    # Paw Legends server analytics (docs/BACKEND.md): the public project token, and the optional personal key that
+    # deletes a deleted account's PostHog person (a real secret)
+    "POSTHOG_PROJECT_TOKEN", "POSTHOG_PERSONAL_API_KEY",
   ]
 }
 

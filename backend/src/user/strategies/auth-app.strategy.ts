@@ -25,6 +25,9 @@ export class AuthStrategy extends PassportStrategy(AppAuthStrategy, 'appauth') {
             throw new UnauthorizedException();
         }
 
-        return this.userService.getFirebaseUser(payload, { ip: visitorIp(req) });
+        return this.userService.getFirebaseUser(payload, {
+            ip: visitorIp(req),
+            ...(typeof req?.headers?.origin === 'string' ? { origin: req.headers.origin } : {}),
+        });
     }
 }

@@ -4,6 +4,7 @@ import { PawlegendsYarn, PawlegendsYarnLog } from '../pawlegends.schema';
 import { displayNames } from './display-name';
 import { checkNick, NAME_CHANGE, NAME_ERRORS } from './nickname';
 import { SocialService } from './social.service';
+import { serverTrack } from '../analytics/analytics-sink';
 
 /*
  * The nickname change (nickname.ts has the rules and the price). Server-authoritative and safe against double taps and
@@ -143,7 +144,10 @@ export class NicknameService {
             await refund();
             throw NAME_ERRORS.changed();
         }
-        if (price > 0) await this.yarnLog.updateOne({ accountId: me, ref }, { $set: { done: true } }).catch(() => null);
+        if (price > 0) {
+            await this.yarnLog.updateOne({ accountId: me, ref }, { $set: { done: true } }).catch(() => null);
+            serverTrack(me, 'yarn_spent', { reason: 'name_change', amount: price }, ref);
+        }
         return { ...(await this.view(me)), paid: price };
     }
 }

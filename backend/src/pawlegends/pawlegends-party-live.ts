@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { GamePlatform, GameType, replayDigestLookup } from 'src/game/game.schema';
 import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_TICK_HZ } from 'src/shared-contracts/caps';
+import { serverTrack } from './analytics/analytics-sink';
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { ILiveGameRow, recomputeCatnipCount } from 'src/user/utils/live-game';
 import { simFor } from 'src/vendor/pawlegends-sim';
@@ -284,6 +285,7 @@ export async function savePawlegendsPartyMatch(
             stats: v.stats,
             humans: new Map(room.occupants.filter(o => !!o.accountId).map(o => [o.slot, o.accountId as string])),
             winner: v.winner,
+            simVersion: r.simVersion,
         });
     }
     // Live ops (LIVEOPS.md): the community goal and the Winter Nap day, once per room and slot, from the verdict
@@ -425,7 +427,9 @@ async function applyRankedRating(
 ): Promise<void> {
     const grade = extra.grade ?? null;
     const casual = ((await mm.ratings.findById(`${accountId}:casual`).lean()) as MmRatingRow | null) ?? null;
-    await writeRating(mm, roomId, `${accountId}:ranked`, 'ranked', log, (room, row) => {
+    // the last step computed (the write retries once on a version conflict): reported once the row is written
+    let applied: Record<string, string | number | boolean> | null = null;
+    const written = await writeRating(mm, roomId, `${accountId}:ranked`, 'ranked', log, (room, row) => {
         const prev = row as (MmRatingRow & Partial<RankedFields>) | null;
         const season = room.season || CURRENT_SEASON_ID;
         let base: MmRatingRow | null = prev;
@@ -499,9 +503,23 @@ async function applyRankedRating(
                 ...(saved > 0 ? { saved } : {}),
             },
         };
+        applied = {
+            kind,
+            won,
+            delta: next.delta,
+            tier_idx: next.state.tierIdx,
+            points: next.state.points,
+            placements_left: next.state.placementsLeft,
+            ...(grade ? { grade } : {}),
+            ...(saved > 0 ? { saved } : {}),
+            season,
+        };
         // keep the stored row's version (writeRating updates by it)
         return { row: { ...step.row, ...fields, v: (row?.v ?? 0) + 1 } as MmRatingRow };
     });
+    // analytics (consenting accounts only): one event per room, whatever retried
+    const result = applied as Record<string, string | number | boolean> | null;
+    if (written && result) serverTrack(accountId, 'ranked_result', result, roomId);
 }
 
 /**
@@ -608,22 +626,22 @@ async function writeRating(
     queue: string,
     log: Pick<Logger, 'warn'>,
     stepOf: (room: MmRoomRecord, row: MmRatingRow | null) => { row?: MmRatingRow }
-): Promise<void> {
+): Promise<boolean> {
     try {
         const room = await mm.rooms.get(roomId);
-        if (!room) return;
+        if (!room) return false;
         for (let attempt = 0; attempt < 2; attempt++) {
             const row = ((await mm.ratings.findById(rowId).lean()) as MmRatingRow | null) ?? null;
             const step = stepOf(room, row);
-            if (!step.row) return;
+            if (!step.row) return false;
             const { _id, v, ...fields } = step.row;
             try {
                 if (!row) {
                     await mm.ratings.create({ _id, v, ...fields });
-                    return;
+                    return true;
                 }
                 const res = await mm.ratings.updateOne({ _id, v: row.v ?? 0 }, { $set: fields, $inc: { v: 1 } });
-                if ((res?.modifiedCount ?? 0) === 1) return;
+                if ((res?.modifiedCount ?? 0) === 1) return true;
             } catch (error) {
                 if ((error as { code?: unknown })?.code !== 11000) throw error;
             }
@@ -634,6 +652,7 @@ async function writeRating(
             `pawlegends ${queue} rating write failed: ${String((error as Error)?.message || error).slice(0, 200)}`
         );
     }
+    return false;
 }
 
 /** Is this `/live` PAWLEGENDS body a party result (v: 2)? */
