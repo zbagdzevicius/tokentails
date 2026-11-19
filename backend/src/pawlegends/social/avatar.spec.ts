@@ -78,6 +78,45 @@ describe('avatar write check', () => {
     });
 });
 
+describe('Treat Track titles and frames (owned through progress)', () => {
+    function withProgress() {
+        const d = deps();
+        const progress = new SocialMemoryModel(
+            [
+                {
+                    _id: 'A',
+                    blob: { unlocks: ['title.champ.aviete', 'frame.champ.lambo', 'title.store.moonlit'] },
+                    grants: [{ id: 'lucky:2026-11-18', kind: 'lucky', item: 'frame.champ.gabe' }],
+                },
+            ],
+            [{ fields: ['_id'] }]
+        );
+        return { ...d, progress };
+    }
+
+    it('wears a champion title or frame from the blob or a Lucky grant; never a store item written to the blob', async () => {
+        const d = withProgress();
+        expect(await checkAvatarChoice(d, 'A', { title: 'title.champ.aviete', frame: 'frame.champ.lambo' })).toEqual({
+            set: { title: 'title.champ.aviete', frame: 'frame.champ.lambo' },
+        });
+        expect(await checkAvatarChoice(d, 'A', { frame: 'frame.champ.gabe' })).toEqual({
+            set: { frame: 'frame.champ.gabe' },
+        });
+        // a store title in the client-written blob is not owned
+        expect(await checkAvatarChoice(d, 'A', { title: 'title.store.moonlit' })).toEqual({ bad: 'title' });
+        // another account's progress never counts
+        expect(await checkAvatarChoice(d, 'B', { title: 'title.champ.aviete' })).toEqual({ bad: 'title' });
+        // no progress model: as before
+        expect(await checkAvatarChoice(deps(), 'A', { title: 'title.champ.aviete' })).toEqual({ bad: 'title' });
+    });
+
+    it('the read keeps a worn Treat Track title', async () => {
+        const d = withProgress();
+        await d.social.create({ _id: 'A', avatar: { kind: 'hero', hero: 'sage' }, title: 'title.champ.aviete' });
+        expect((await resolveAvatars(d, ['A'])).get('A')).toEqual({ i: 'h:sage', t: 'title.champ.aviete' });
+    });
+});
+
 describe('avatar read', () => {
     it('resolves worn items and falls back when an item or a cat is lost, without a write', async () => {
         const d = deps();

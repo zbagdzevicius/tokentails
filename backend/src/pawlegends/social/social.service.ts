@@ -3,6 +3,7 @@ import { HttpStatus, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { createHash } from 'crypto';
 import { Cat } from 'src/cat/cat.schema';
+import { PawlegendsProgress } from '../progress/progress.schema';
 import { User } from 'src/user/user.schema';
 import { PawlegendsMmRoom } from '../mm/mm-room.schema';
 import { PawlegendsMatchHistory } from '../history/history.schema';
@@ -155,7 +156,9 @@ export class SocialService {
         // FLAGS.md: friends' country flags (hidden ones are absent)
         @Optional() private readonly flags?: FlagsService,
         // social sidebar round 6: the champion each recent player played (MATCH-HISTORY.md rows, `party:<room>`)
-        @Optional() @InjectModel(PawlegendsMatchHistory.name) readonly history?: AnyModel
+        @Optional() @InjectModel(PawlegendsMatchHistory.name) readonly history?: AnyModel,
+        // the Treat Track's champion titles and frames are owned through progress (social/avatar.ts)
+        @Optional() @InjectModel(PawlegendsProgress.name) readonly progress?: AnyModel
     ) {}
 
     /**
@@ -193,7 +196,13 @@ export class SocialService {
     /** Avatars of these accounts (CHAT-AVATARS.md §7): checked against what each still owns, default hero otherwise. */
     async avatarsOf(ids: readonly string[]): Promise<Map<string, AvatarView>> {
         return resolveAvatars(
-            { social: this.social, owned: this.owned ?? null, cats: this.cats ?? null, heroes: liveHeroIds() },
+            {
+                social: this.social,
+                owned: this.owned ?? null,
+                progress: this.progress ?? null,
+                cats: this.cats ?? null,
+                heroes: liveHeroIds(),
+            },
             ids
         );
     }
@@ -812,6 +821,7 @@ export class SocialService {
                 {
                     social: this.social,
                     owned: this.owned ?? null,
+                    progress: this.progress ?? null,
                     cats: this.cats ?? null,
                     heroes: liveHeroIds(),
                     catById: async id => (this.cats ? this.cats.findOne({ _id: id }).lean() : null),

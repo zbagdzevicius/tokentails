@@ -36,7 +36,16 @@ export interface AvatarDeps {
     cats?: { find(filter: Record<string, unknown>): any } | null;
     /** The live sim's hero ids. */
     heroes: readonly string[];
+    /**
+     * `pawlegendsprogress` (find only): `{_id: accountId, blob.unlocks, grants}`. The Treat Track and the Lucky Treat
+     * pay champion titles and frames into the account's progress, not into `pawlegendsowned`; those count as owned
+     * here, so the Profile can wear what the Treat Track shows as earned. Absent: only `owned` counts.
+     */
+    progress?: { find(filter: Record<string, unknown>): any } | null;
 }
+
+/** The free champion titles and frames (Treat Track, Lucky Treat): the only items progress can make owned. */
+export const PROGRESS_ITEM_RE = /^(title|frame)\.champ\.[a-z0-9_-]{1,32}$/;
 
 /** The default icon of an account: a stable champion picked from the account id (every hero, the default look). */
 export function defaultHero(accountId: string, heroes: readonly string[]): string {
@@ -53,11 +62,28 @@ const ITEM_RE = /^(frame|title|icon)\.[a-z0-9._-]{1,48}$/;
 
 async function ownedItems(deps: AvatarDeps, ids: readonly string[], items: readonly string[]) {
     const out = new Set<string>();
-    if (!deps.owned || !ids.length || !items.length) return out;
-    const rows = (await deps.owned
-        .find({ accountId: { $in: [...ids] }, item: { $in: [...new Set(items)] }, revokedAt: { $exists: false } })
-        .lean()) as Array<{ accountId: string; item: string }>;
-    for (const r of rows) out.add(`${r.accountId}|${r.item}`);
+    if (!ids.length || !items.length) return out;
+    if (deps.owned) {
+        const rows = (await deps.owned
+            .find({ accountId: { $in: [...ids] }, item: { $in: [...new Set(items)] }, revokedAt: { $exists: false } })
+            .lean()) as Array<{ accountId: string; item: string }>;
+        for (const r of rows) out.add(`${r.accountId}|${r.item}`);
+    }
+    const free = items.filter(i => PROGRESS_ITEM_RE.test(i));
+    if (deps.progress && free.length) {
+        const wanted = new Set(free);
+        const docs = (await deps.progress
+            .find({ _id: { $in: [...ids] } })
+            .select({ blob: 1, grants: 1 })
+            .lean()) as Array<{ _id: unknown; blob?: { unlocks?: unknown }; grants?: unknown }>;
+        for (const d of docs) {
+            const raw = d.blob?.unlocks;
+            const unlocks: unknown[] = Array.isArray(raw) ? raw : [];
+            const granted = Array.isArray(d.grants) ? d.grants.map(g => (g as { item?: unknown } | null)?.item) : [];
+            for (const i of [...unlocks, ...granted])
+                if (typeof i === 'string' && wanted.has(i)) out.add(`${String(d._id)}|${i}`);
+        }
+    }
     return out;
 }
 

@@ -15,6 +15,7 @@ import { displayNames } from '../social/display-name';
 import { liveHeroIds, resolveAvatars } from '../social/avatar';
 import type { AvatarView } from '../../shared-contracts/chat';
 import { PawlegendsOwned } from '../pawlegends.schema';
+import { PawlegendsProgress } from '../progress/progress.schema';
 import { PawlegendsBoard, PawlegendsFriend, PawlegendsSanction, PawlegendsSocial } from '../social/social.schema';
 import { BOARD_PAGE, HERO_MIN_GAMES, isoWeek } from './boards';
 import { decayedPoints, ladderOf, legendInactive } from './points';
@@ -114,14 +115,22 @@ export class RankedService {
         @Optional() private readonly clock?: { now(): Date },
         @Optional() @InjectModel(PawlegendsOwned.name) private readonly owned?: AnyModel,
         // FLAGS.md: board rows carry the player's country flag (hidden ones are absent)
-        @Optional() @InjectModel(PawlegendsFlag.name) private readonly flagRows?: AnyModel
+        @Optional() @InjectModel(PawlegendsFlag.name) private readonly flagRows?: AnyModel,
+        // the Treat Track's champion titles and frames are owned through progress (social/avatar.ts)
+        @Optional() @InjectModel(PawlegendsProgress.name) private readonly progress?: AnyModel
     ) {}
 
     /** Board rows' avatars (CHAT-AVATARS.md §7.3), checked against what each player still owns. Never fails a board. */
     private async avatars(ids: readonly string[]): Promise<Map<string, AvatarView>> {
         try {
             return await resolveAvatars(
-                { social: this.social, owned: this.owned ?? null, cats: this.cats ?? null, heroes: liveHeroIds() },
+                {
+                    social: this.social,
+                    owned: this.owned ?? null,
+                    progress: this.progress ?? null,
+                    cats: this.cats ?? null,
+                    heroes: liveHeroIds(),
+                },
                 ids
             );
         } catch {
