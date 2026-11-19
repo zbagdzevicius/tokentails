@@ -3,7 +3,7 @@
  * Scene finder (tools/clips/README.md): plays a take headless (clip-driver.ts bundled for Node, the same code the
  * browser harness runs) and lists the interesting moments with their ticks, so a clip spec can target them.
  *
- *   node tools/clips/scenes.mjs --mode skirmish --seeds 1-20 [--variant bots] [--hero clem] [--out scenes.json]
+ *   node tools/clips/scenes.mjs --mode skirmish [--map quarry] --seeds 1-20 [--variant bots] [--hero clem] [--out scenes.json]
  *   node tools/clips/scenes.mjs --mode classic --seeds 7 --pretty
  *
  * Moment types: firstBlood, kill, multikill (2+ by one hero inside 10 s), ace (a whole team down), teamfight
@@ -34,17 +34,24 @@ export const MODES = {
   cannon: { map: 'crossing', mutator: 'cannon', variants: ['bots', 'coop'] },
 };
 
+/** sim/api.ts MAP_IDS: Crossing, Hearthwood (5v5), Lanternfall Ridge, Twinbark Thicket, Geode Quarry, Pawball Park. */
+export const MAP_CHOICES = ['crossing', 'hearthwood', 'ridge', 'thicket', 'quarry', 'pitch'];
+
 /** A take object from a clip spec (mode, variant, seed, heroes). */
 export function takeOf(spec) {
   const mode = MODES[spec.mode ?? 'skirmish'];
   if (!mode) throw new Error(`unknown mode ${spec.mode} (${Object.keys(MODES).join(', ')})`);
   const variant = spec.variant ?? 'bots';
   if (!mode.variants.includes(variant)) throw new Error(`mode ${spec.mode} has no variant ${variant}`);
-  const per = mode.map === 'hearthwood' ? 5 : 3;
+  // trailers-hq: `map` picks any map of the pool for a mode (skirmish on Geode Quarry: `{ mode: 'skirmish', map: 'quarry' }`)
+  const map = spec.map ?? mode.map;
+  if (!MAP_CHOICES.includes(map)) throw new Error(`unknown map ${map} (${MAP_CHOICES.join(', ')})`);
+  if ((map === 'hearthwood') !== (mode.map === 'hearthwood')) throw new Error(`mode ${spec.mode} plays ${mode.map === 'hearthwood' ? '5v5' : '3v3'}; map ${map} does not`);
+  const per = map === 'hearthwood' ? 5 : 3;
   const picks = [...(spec.teams?.[0] ?? []), ...Array(Math.max(0, per - (spec.teams?.[0]?.length ?? 0))).fill(null), ...(spec.teams?.[1] ?? [])].map((h) => h ?? null);
   return {
     seed: spec.seed >>> 0,
-    map: mode.map,
+    map,
     mutator: mode.mutator,
     variant,
     hero: spec.teams?.[0]?.[0] ?? spec.hero ?? 'clem',
@@ -253,11 +260,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const res = [];
   for (const seed of seeds) {
     const t0 = Date.now();
-    const take = takeOf({ mode, seed, variant: argValue('--variant'), hero: argValue('--hero'), difficulty: argValue('--difficulty') });
+    const take = takeOf({ mode, seed, map: argValue('--map'), variant: argValue('--variant'), hero: argValue('--hero'), difficulty: argValue('--difficulty') });
     const r = await scan(take);
     const counts = {};
     for (const m of r.moments) counts[m.type] = (counts[m.type] ?? 0) + 1;
-    console.error(`seed ${seed} ${mode}: ${r.endTick} ticks (${(r.endTick / HZ / 60).toFixed(1)} min) winner ${r.winner} ${JSON.stringify(counts)} [${Date.now() - t0} ms]`);
+    console.error(`seed ${seed} ${mode}${take.map !== MODES[mode].map ? ` on ${take.map}` : ''}: ${r.endTick} ticks (${(r.endTick / HZ / 60).toFixed(1)} min) winner ${r.winner} ${JSON.stringify(counts)} [${Date.now() - t0} ms]`);
     res.push(r);
   }
   const json = JSON.stringify(res, null, hasFlag('--pretty') ? 2 : 0);

@@ -22,7 +22,7 @@ import { skinIdOf } from '../../src/render/skins/skinStore';
 import { cardLook, type Look } from '../../src/render/cosmetics';
 import { lobbyHero, type LobbyHero } from '../../src/render/views/heroView';
 import { BONE_INDEX, type BoneName } from '../../src/render/chars/skeleton';
-import { setOutlineViewport } from '../../src/render/chars/charMaterial';
+import { MATCH_OUTLINE_PX, setOutlineViewport, setOutlineWidth } from '../../src/render/chars/charMaterial';
 import type { ViewFrame } from '../../src/render/interp';
 import type { Difficulty, HeroId, SimEvent, TrickId } from '../../src/sim/api';
 import { ClipWorker as FakeWorker } from './clip-worker';
@@ -95,6 +95,13 @@ export interface ShotSpec {
   take?: (ClipTake & { look?: string | null; looks?: Record<string, string | null>; check?: { tick: number; eventHash: string } }) | null;
   /** Clips: output frame rate (default 60, the trailer's). */
   fps?: number;
+  /**
+   * trailers-hq: render for a supersampled master. `dpr` is the page's device pixel ratio (output DPR x the
+   * supersample factor `ss`): the High tier's DPR cap (1.5) is lifted to it, the overhead canvas follows, the sun's
+   * shadow map is `shadowMap` px (default 4096) and the hero outline is `ss` x its match width, so after the record
+   * tool's downscale every line is as thick as a player sees it. Render only: the sim is untouched.
+   */
+  hq?: { dpr: number; ss: number; shadowMap?: number } | null;
   /** Clips: the music never drops below this intensity layer (0-3). */
   musicMin?: number;
   /** Clips: render audio in lockstep with the frames (OfflineAudioContext). */
@@ -409,7 +416,49 @@ function ensureRenderer(): GameRenderer {
   if (gr) return gr;
   gr = createRenderer(root, 'high');
   gr.resize();
+  // trailers-hq: the match hull is drawn `outlineK` x thicker (drawing-buffer px), set after the renderer's own width
+  const g = gr;
+  const draw3d = g.renderer.render.bind(g.renderer);
+  g.renderer.render = (scene, camera) => {
+    if (outlineK !== 1 && !g.place) setOutlineWidth(MATCH_OUTLINE_PX * outlineK);
+    draw3d(scene, camera);
+  };
   return gr;
+}
+
+/** trailers-hq: the hull width factor (the supersample factor while an `hq` shot is loaded). */
+let outlineK = 1;
+
+/** trailers-hq: lift the tier's caps to the shot's supersampled DPR (ShotSpec.hq). Before the session is built. */
+function applyHq(g: GameRenderer, hq: ShotSpec['hq']): void {
+  outlineK = hq ? hq.ss : 1;
+  if (!hq) return;
+  g.apply({ ...g.settings, tier: 'high', maxDpr: hq.dpr, overheadDpr: hq.dpr, shadowMap: hq.shadowMap ?? 4096, shadows: true, bloom: true, antialias: true, resScale: 1, step: 0, phone: false, vfxTier: 'high', forestHalf: false, shadowEvery: 1 });
+}
+
+/**
+ * trailers-hq: what the GPU and the renderer really are this frame (the record tool refuses a software renderer and a
+ * drawing buffer smaller than CSS size x DPR).
+ */
+function gpu(): unknown {
+  const r = gr?.renderer;
+  if (!r) return null;
+  const gl = r.getContext();
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  const st = gr!.settings;
+  return {
+    renderer: String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)),
+    vendor: String(ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR)),
+    css: [gr!.cssW, gr!.cssH],
+    buffer: [gl.drawingBufferWidth, gl.drawingBufferHeight],
+    pixelRatio: r.getPixelRatio(),
+    devicePixelRatio: window.devicePixelRatio,
+    msaa: Number(gl.getParameter(gl.SAMPLES)),
+    outlinePx: MATCH_OUTLINE_PX * outlineK,
+    // the map colour scheme the match really drew (matchSession sets it; `?scheme=` on the harness URL asks for one)
+    mapScheme: document.documentElement.dataset.mapScheme ?? null,
+    settings: { tier: st.tier, maxDpr: st.maxDpr, resScale: st.resScale, step: st.step, phone: st.phone, shadows: st.shadows, shadowMap: st.shadowMap, bloom: st.bloom, outlines: st.outlines, antialias: st.antialias, vfxTier: st.vfxTier, overheadDpr: st.overheadDpr, forestHalf: st.forestHalf },
+  };
 }
 
 /**
@@ -1014,6 +1063,8 @@ function patchScenery(g: GameRenderer, s: ShotSpec): void {
     if (!m || !m.isMesh) continue;
     const geo = m.geometry;
     const pos = geo.attributes.position;
+    // trailers-hq: the newer maps (quarry, pitch, ...) build some of these as empty placeholder meshes
+    if (!pos) continue;
     if (name === 'props' && s.banners !== true && !geo.userData.trailerBanners) {
       // the base banners are the only props above 1 m: their poles (to the ground) and flags drop out
       const poles: [number, number][] = [];
@@ -1239,6 +1290,7 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   spec = s;
   setLayers(s.layers ?? ['pops'], s.hide ?? []);
   const g = ensureRenderer();
+  applyHq(g, s.hq ?? null);
   g.resize();
   if (!s.audio) sfx.setMuted(true);
   else audioHold();
@@ -2274,5 +2326,5 @@ function heroesNow(): unknown {
   return (session?.view.frame?.entities ?? []).filter((e) => e.kind === 'hero').map((e) => ({ id: e.id, hero: e.hero, team: e.team, x: e.fx, y: e.fy, state: e.state }));
 }
 
-window.__trailer = { load, frame, frameA, audioPrep, audioStart, audioDone, play, heroesNow, info, verify, touch, layerMode, pick, debug, ready: true };
+window.__trailer = { load, frame, frameA, audioPrep, audioStart, audioDone, play, heroesNow, info, verify, touch, layerMode, pick, debug, gpu, ready: true };
 document.documentElement.dataset.trailer = 'ready';

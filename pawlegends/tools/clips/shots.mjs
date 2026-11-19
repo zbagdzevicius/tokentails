@@ -137,7 +137,7 @@ export function buildShot(spec, ctx) {
     ghosts: true,
   };
   if (spec.mode === 'skins') return skinsShot(spec, ctx, base, aspect);
-  const per = spec.mode === 'classic' ? 5 : 3;
+  const per = (ctx.take?.map ?? (spec.mode === 'classic' ? 'hearthwood' : 'crossing')) === 'hearthwood' ? 5 : 3;
   const focus = spec.focus ?? ctx.moment?.slots?.[0] ?? 0;
   const cam = spec.camera ?? 'game';
   const target = targetOf(spec, ctx.moment, focus, ctx);

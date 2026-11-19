@@ -1,7 +1,7 @@
 # Clip engine (Paw Legends social clips)
 
-One JSON clip spec in, one finished MP4 out: H.264 High (yuv420p, BT.709 tv range, +faststart, CRF 17, maxrate 20M)
-with AAC 192k 48 kHz stereo of the game's own SFX and music, rendered in lockstep with the frames and normalised to
+One JSON clip spec in, one finished MP4 out: H.264 High (yuv420p, BT.709 tv range, +faststart, CRF 10, no rate cap;
+rendered at 2x and downscaled, see "High quality" below) with AAC 192k 48 kHz stereo of the game's own SFX and music, rendered in lockstep with the frames and normalised to
 -14 LUFS / -1.5 dBTP (two-pass loudnorm). Frames come from a virtual clock (`tools/trailer/vclock.js`), so a frame is
 never dropped and a clip renders the same every run.
 
@@ -9,19 +9,57 @@ never dropped and a clip renders the same every run.
 cd <snapshot>/pawlegends
 node tools/clips/record.mjs <spec.json | specs.json> [--only id,id] [--port 5480] [--out-dir DIR] [--report rows.json]
                             [--every N]   # preview: every Nth frame, no audio
+                            [--ss 2] [--crf 10] [--draft] [--lock FILE]
                             [--debug] [--verbose] [--keep]
-node tools/clips/scenes.mjs --mode classic --seeds 1-20 [--variant coop] [--out scenes.json] [--pretty]
+node tools/clips/scenes.mjs --mode classic --seeds 1-20 [--map quarry] [--variant coop] [--out scenes.json] [--pretty]
+node tools/clips/quality-check.mjs <video...> [--report rows.json] [--crop x,y,w,h] [--sample 6] [--json out.json]
 ```
 
 A spec file may hold one spec or an array. One Vite server (port from `--port`, use 5480-5499, one per agent) and one
 Chromium profile folder serve the whole batch; both are removed in `finally` and on SIGINT/SIGTERM. Each clip prints
 one JSON row (ffprobe streams, size, raw audio peak/RMS, input loudness, sim hash check, record time, page errors).
 
+## High quality (trailers-hq, the default)
+
+Why the trailer 30 / 60 gameplay looked soft (measured on their takes and masters, `quality-check.mjs`):
+
+- **Resolution.** The High tier caps the drawing buffer at DPR 1.5 (`render/quality.ts`). A 9:16 take asks for DPR 2
+  (540x960 CSS), so the game drew 810x1440 and the screenshot upscaled it to 1080x1920 (the trailer edit then cropped
+  1.1x and upscaled again). 16:9 drew 1920x1080 with no supersampling, and the edit's punch-ins upscaled that too.
+- **Generations.** Each frame was a JPEG (q94), then x264 CRF 17 capped at 20 Mbps, then CRF 8 per edit segment, then
+  the master at CRF 16 with film grain (`noise=alls=3`) added, plus `unsharp` on upscaled pixels.
+- **Not the cause:** the GPU (headless Chromium runs ANGLE Metal on the Apple GPU, not SwiftShader) and frame pacing
+  (frames are stepped on the virtual clock; the render tick is monotonic and no frame repeats).
+
+What record.mjs does now:
+
+| Step | Setting |
+|---|---|
+| Render | Page DPR = aspect DPR x `--ss` (2): 3840x2160 for a 1920x1080 take, 2160x3840 for 1080x1920. The harness lifts the tier's DPR cap and the overhead canvas's to it (`ShotSpec.hq`), keeps High with bloom, shadows (4096 px map), MSAA, full VFX, no dynamic resolution, and draws the hero hull `ss` x as wide so it is the player's line width after the downscale. |
+| Check | Before frame 0: the WebGL renderer string (a software renderer fails the take), the drawing buffer (must be CSS x DPR), the adaptive-quality fields (`resScale` 1, governor step 0, not a phone). Frame 0's grab must be the full render size. The drawn map scheme must be the spec's `scheme`. |
+| Grab | Playwright `page.screenshot({ type: 'png', scale: 'device' })`, lossless. Not CDP `Page.captureScreenshot`: headless returns that at CSS size. |
+| Encode | One pass: Lanczos downscale in RGB (accurate rounding, full chroma), one BT.709 tv conversion, x264 High 4:2:0 `-preset slow -crf 10`, no VBV cap, a keyframe a second. |
+| Report | `quality` in each row: renderer, render DPR, buffer at the first and last frame, grabbed size, output size, tier settings, frames written vs expected, tick monotonic, ms per grab, map and drawn scheme. |
+
+`--draft` keeps the old fast path (JPEG frames, CRF 17 at 20 Mbps, no supersampling). `--lock FILE` waits while
+FILE exists and holds it while the browser captures (one capture at a time on a shared machine). A spec may set `map`
+(`crossing`, `ridge` Lanternfall Ridge, `thicket` Twinbark Thicket, `quarry` Geode Quarry, `pitch` Pawball Park with a
+3v3 mode; `hearthwood` with `classic`) and `scheme` (`native`, `bloom`, `harvest`, `frost`, or a map's own such as
+`verdant`). Edits should take their encoder settings from `encode.mjs` (CRF 6 segments, a CRF 12 master capped at
+60 Mbps, a 1080p60 web copy at CRF 19 / 10 Mbps, no grain, Lanczos only) and re-capture closer rather than punch in.
+
+`quality-check.mjs` measures any video (stream facts, mean Sobel `edge`, `blur`, `detail` = 1 - SSIM against the
+frame halved and scaled back up, bit-identical repeated frames, freezes) and, with `--report`, the capture facts above;
+it exits 1 on a software renderer, a short buffer or grab, missing frames, a backwards tick, a short side under 1080,
+a take under 60 fps or `detail` under `--min-detail`.
+
 ## Files
 
 | File | What it does |
 |---|---|
-| `record.mjs` | The batch runner: plans each spec (scene scan → start tick → shot), drives the harness frame by frame, pipes JPEG frames to ffmpeg, fetches the WAV, muxes, probes. |
+| `record.mjs` | The batch runner: plans each spec (scene scan → start tick → shot), drives the harness frame by frame, pipes 2x PNG frames to ffmpeg (JPEG in `--draft`), fetches the WAV, muxes, probes. |
+| `quality-check.mjs` | The quality self-check: renderer, effective resolution, sharpness, repeated frames (see "High quality"). |
+| `encode.mjs` | Encoder settings for trailer edits: segments, ProRes, master, web, audio. |
 | `scenes.mjs` | Scene finder. Plays a take headless in Node (same `clip-driver.ts` the browser runs) and lists moments with ticks. Also the `MODES` table and `takeOf(spec)`. |
 | `shots.mjs` | Spec → harness ShotSpec: aspect sizes, camera presets and cut lists, slow motion, HUD/pops layers, looks, the skins stage. |
 | `harness.ts` / `harness.html` | The in-browser renderer (forked from `tools/trailer/harness.ts`): real `MatchSession` + `GameRenderer`, director camera, lobby stage, OfflineAudioContext audio. Exposes `window.__trailer`. |

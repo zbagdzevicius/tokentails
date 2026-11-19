@@ -5,6 +5,15 @@
  *
  *   node tools/clips/record.mjs <spec.json | specs.json> [--only id,id] [--port 5480] [--out-dir DIR] [--keep]
  *                               [--every N] (preview: every Nth frame only, no audio)
+ *                               [--ss 2] [--crf 10] [--draft] [--lock FILE]
+ *
+ * trailers-hq (the default): every frame is rendered at `ss` x the output size (3840x2160 for a 1920x1080 take, the
+ * High tier's DPR cap lifted, a 4096 px sun shadow map, hull width x ss), grabbed as a lossless PNG and downscaled
+ * with Lanczos in RGB, then encoded once (x264 High 4:2:0, CRF 10, no rate cap). The GPU renderer string and the
+ * drawing-buffer size are checked before frame 0: a software renderer or a buffer under CSS size x DPR fails the take.
+ * `--draft` is the old fast path (no supersampling, JPEG q94 frames, CRF 17 capped at 20 Mbps).
+ * `--lock FILE`: wait while FILE exists, hold it while the browser captures, remove it in finally (a shared machine).
+ * A spec may set `map` (any map id, sim/api.ts MAP_IDS) and `scheme` (`frost`, `harvest`, `bloom`, `native`).
  *
  * A file may hold one spec or an array. One Vite server and one browser profile folder serve the whole batch.
  */
@@ -21,7 +30,7 @@ const PKG = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const FFMPEG = existsSync('/opt/homebrew/bin/ffmpeg') ? '/opt/homebrew/bin/ffmpeg' : 'ffmpeg';
 const FFPROBE = existsSync('/opt/homebrew/bin/ffprobe') ? '/opt/homebrew/bin/ffprobe' : 'ffprobe';
 
-const files = positionals(['--only', '--port', '--out-dir', '--every', '--report']);
+const files = positionals(['--only', '--port', '--out-dir', '--every', '--report', '--ss', '--crf', '--lock']);
 if (!files.length) {
   console.error('usage: node tools/clips/record.mjs <spec.json> [--only id] [--port 5480] [--out-dir DIR]');
   process.exit(2);
@@ -36,6 +45,12 @@ if (only) specs = specs.filter((s) => only.includes(s.id));
 const port = Number(argValue('--port') ?? 5480);
 const outDir = argValue('--out-dir');
 const every = Number(argValue('--every') ?? 0);
+const DRAFT = hasFlag('--draft');
+// supersample factor: the page renders at ss x the output size, the encoder downscales (1 in --draft)
+const SS = DRAFT ? 1 : Math.max(1, Number(argValue('--ss') ?? 2));
+const CRF = Number(argValue('--crf') ?? 10);
+const LOCK = argValue('--lock');
+let lockHeld = false;
 
 // one profile folder for the batch, removed in finally and on a signal
 const profile = mkdtempSync(join(tmpdir(), 'pl-clips-profile-'));
@@ -58,6 +73,22 @@ async function cleanup() {
   }
   rmSync(profile, { recursive: true, force: true });
   if (!hasFlag('--keep')) rmSync(work, { recursive: true, force: true });
+  if (lockHeld) rmSync(LOCK, { force: true });
+}
+
+/** `--lock`: one browser capture at a time across agents sharing the machine (wait, then hold the file). */
+async function takeLock() {
+  if (!LOCK) return;
+  for (let i = 0; ; i++) {
+    try {
+      writeFileSync(LOCK, `${process.pid} ${new Date().toISOString()}\n`, { flag: 'wx' });
+      lockHeld = true;
+      return;
+    } catch {
+      if (i % 12 === 0) console.error(`waiting for ${LOCK} (${readFileSync(LOCK, 'utf8').trim()})`);
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
 }
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {
@@ -101,6 +132,20 @@ async function startServer() {
   return s;
 }
 
+/**
+ * trailers-hq: lossless PNG frames at ss x the output size in, a Lanczos downscale in RGB (supersampling), then one
+ * BT.709 limited-range conversion and one x264 encode (High, 4:2:0, CRF `CRF`, no VBV cap, a keyframe a second).
+ */
+function ffmpegVideoHq(out, fps, w, h) {
+  const args = ['-y', '-loglevel', 'error', '-threads', '4', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-',
+    '-vf', `scale=${w}:${h}:flags=lanczos+accurate_rnd+full_chroma_int,scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p`,
+    '-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709',
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', String(CRF), '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-g', String(fps), '-r', String(fps), '-an', out];
+  const p = spawn(FFMPEG, args, { stdio: ['pipe', 'inherit', 'inherit'] });
+  const done = new Promise((res, rej) => p.on('close', (c) => (c === 0 ? res() : rej(new Error(`ffmpeg video exit ${c}`)))));
+  return { p, done };
+}
+
 function ffmpegVideo(out, fps) {
   const args = ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
     '-vf', 'scale=in_range=pc:out_range=tv,format=yuv420p', '-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-maxrate', '20M', '-bufsize', '40M', '-pix_fmt', 'yuv420p',
@@ -136,10 +181,14 @@ async function record(spec, chromium) {
   mkdirSync(dirname(out), { recursive: true });
   const vtmp = join(work, `${spec.id}.video.mp4`);
   const wav = join(work, `${spec.id}.wav`);
+  // the output size is CSS size x the aspect's DPR; the page renders at ss x that
+  const outW = Math.round(shot.width * shot.dpr);
+  const outH = Math.round(shot.height * shot.dpr);
+  const renderDpr = shot.dpr * SS;
   ctx = await chromium.launchPersistentContext(profile, {
     headless: true,
     viewport: { width: shot.width, height: shot.height },
-    deviceScaleFactor: shot.dpr,
+    deviceScaleFactor: renderDpr,
     reducedMotion: 'no-preference',
     args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-gpu', '--force-color-profile=srgb', '--autoplay-policy=no-user-gesture-required'],
   });
@@ -156,7 +205,7 @@ async function record(spec, chromium) {
   });
   // a cold Vite may re-optimise its deps on the first load (504 Outdated Optimize Dep): reload and wait again
   for (let attempt = 0; ; attempt++) {
-    await page.goto(`http://127.0.0.1:${port}/tools/clips/harness.html`);
+    await page.goto(`http://127.0.0.1:${port}/tools/clips/harness.html${spec.scheme ? `?scheme=${encodeURIComponent(spec.scheme)}` : ''}`);
     const ok = await page.waitForFunction(() => window.__trailer?.ready, null, { timeout: 60000 }).then(() => true, () => false);
     if (ok) break;
     if (attempt >= 2) throw new Error(`harness not ready: ${errors.join(' | ').slice(0, 600)}`);
@@ -165,7 +214,15 @@ async function record(spec, chromium) {
   const audio = !every;
   const lead = 0.5;
   if (audio) await page.evaluate(([sec, f]) => window.__trailer.audioPrep(sec, f), [N / fps + lead + 1, fps]);
-  const loaded = await page.evaluate((s) => window.__trailer.load(s), { ...shot, audio });
+  // the tier's DPR cap is lifted to the page's DPR (High caps it at 1.5: a 9:16 take at DPR 2 drew 810x1440 and was
+  // upscaled to 1080x1920 by the screenshot); --hq also gets the 4096 px shadow map and the ss x hull
+  const hq = { dpr: renderDpr, ss: SS, shadowMap: DRAFT ? 2048 : 4096 };
+  const loaded = await page.evaluate((s) => window.__trailer.load(s), { ...shot, audio, hq });
+  const gpu = await page.evaluate(() => window.__trailer.gpu());
+  if (/swiftshader|llvmpipe|software|basic render/i.test(gpu?.renderer ?? 'none')) throw new Error(`${spec.id}: software renderer (${gpu?.renderer}); run on a GPU`);
+  const wantBuf = [Math.round(shot.width * renderDpr), Math.round(shot.height * renderDpr)];
+  if (!gpu || gpu.buffer[0] < wantBuf[0] - 1 || gpu.buffer[1] < wantBuf[1] - 1) throw new Error(`${spec.id}: drawing buffer ${gpu?.buffer?.join('x')} under ${wantBuf.join('x')} (tier cap or dynamic resolution)`);
+  if (gpu.settings.resScale !== 1 || gpu.settings.step !== 0 || gpu.settings.phone) throw new Error(`${spec.id}: adaptive quality is on (${JSON.stringify(gpu.settings)})`);
   // the lobby's painted backdrop and fonts load in real time: give them a moment before frame 0
   if (shot.mode === 'lobby') {
     await page.waitForTimeout(2500);
@@ -174,7 +231,16 @@ async function record(spec, chromium) {
       for (let i = 0; i < 90; i++) window.__trailer.frame(-1000 + i);
     });
   }
-  const enc = ffmpegVideo(vtmp, every ? Math.max(1, Math.round(fps / every)) : fps);
+  const encFps = every ? Math.max(1, Math.round(fps / every)) : fps;
+  const enc = DRAFT ? ffmpegVideo(vtmp, encFps) : ffmpegVideoHq(vtmp, encFps, outW, outH);
+  // a lossless grab of the composited page (the WebGL canvas and the DOM pops over it) at the render DPR. Not CDP's
+  // Page.captureScreenshot: headless returns it at CSS size (1280x720 from a 3840x2160 buffer); Playwright's
+  // `scale: 'device'` returns device pixels (checked on frame 0 below)
+  const grab = () => (DRAFT ? page.screenshot({ type: 'jpeg', quality: 94 }) : page.screenshot({ type: 'png', scale: 'device' }));
+  let grabMs = 0;
+  let written = 0;
+  let firstPng = null;
+  const allTicks = [];
   const write = (buf) => new Promise((res, rej) => enc.p.stdin.write(buf, (e) => (e ? rej(e) : res())));
   let ticks = [];
   // trailer 60 r2: per-frame drawn hero boxes (the harness's frame QC), written next to the take as <id>.qc.json
@@ -187,10 +253,24 @@ async function record(spec, chromium) {
       const inf = await page.evaluate(() => window.__trailer.info());
       console.error(`  f${k} tick ${inf.tick.toFixed(1)} look ${JSON.stringify(inf.look)} cam ${JSON.stringify(inf.cam)} heroes ${inf.heroes.filter((h) => h.kind === 'hero').map((h) => `${h.id}:${(h.x / 1000).toFixed(1)},${(-h.y / 1000).toFixed(1)}:${h.state}`).join(' ')}`);
     }
+    allTicks.push(r.tick);
     if (every && k % every !== 0) continue;
     ticks.push(r.tick);
-    await write(await page.screenshot({ type: 'jpeg', quality: 94 }));
+    const tg = Date.now();
+    const img = await grab();
+    grabMs += Date.now() - tg;
+    if (!firstPng && !DRAFT) {
+      firstPng = img;
+      const g = [img.readUInt32BE(16), img.readUInt32BE(20)];
+      if (g[0] < wantBuf[0] - 1 || g[1] < wantBuf[1] - 1) throw new Error(`${spec.id}: the grab is ${g.join('x')}, not the ${wantBuf.join('x')} render`);
+    }
+    await write(img);
+    written++;
   }
+  // the frame size the browser really delivered (a PNG's IHDR width and height)
+  const grabbed = firstPng ? [firstPng.readUInt32BE(16), firstPng.readUInt32BE(20)] : null;
+  const gpuEnd = await page.evaluate(() => window.__trailer.gpu());
+  if (spec.scheme && gpuEnd?.mapScheme && !gpuEnd.mapScheme.endsWith(`:${spec.scheme}`) && gpuEnd.mapScheme !== spec.scheme) throw new Error(`${spec.id}: drew scheme ${gpuEnd.mapScheme}, not ${spec.scheme}`);
   enc.p.stdin.end();
   await enc.done;
   const verify = shot.take?.check ? await page.evaluate(() => window.__trailer.verify()) : null;
@@ -225,6 +305,28 @@ async function record(spec, chromium) {
     sizeMB: +(statSync(out).size / 1e6).toFixed(1),
     probe: { duration: +pr.format.duration, streams: pr.streams.map((s) => `${s.codec_type}:${s.codec_name}${s.width ? ` ${s.width}x${s.height} ${s.r_frame_rate} ${s.pix_fmt}` : ` ${s.sample_rate}Hz ${s.channels}ch`}`) },
     errors: [...new Set(errors)].slice(0, 5),
+    // trailers-hq: what was rendered and how (tools/clips/quality-check.mjs reads this)
+    quality: {
+      mode: DRAFT ? 'draft' : 'hq',
+      ss: SS,
+      renderDpr,
+      renderer: gpu.renderer,
+      bufferStart: gpu.buffer,
+      bufferEnd: gpuEnd?.buffer ?? null,
+      grabbed,
+      output: [outW, outH],
+      settings: gpu.settings,
+      outlinePx: gpu.outlinePx,
+      framesExpected: every ? Math.ceil(N / every) : N,
+      framesWritten: written,
+      // deterministic stepping: the render tick never runs backwards and every output frame was rendered
+      ticksMonotonic: allTicks.every((t, i) => i === 0 || t >= allTicks[i - 1] - 1e-6),
+      grabMsPerFrame: written ? Math.round(grabMs / written) : null,
+      crf: DRAFT ? 17 : CRF,
+      map: p.take?.map ?? null,
+      scheme: spec.scheme ?? null,
+      mapScheme: gpuEnd?.mapScheme ?? null,
+    },
     recordSeconds: Math.round((Date.now() - t0) / 1000),
     loaded,
   };
@@ -235,6 +337,7 @@ async function record(spec, chromium) {
 const { chromium } = await import('@playwright/test');
 const rows = [];
 try {
+  await takeLock();
   server = await startServer();
   for (const spec of specs) {
     try {
