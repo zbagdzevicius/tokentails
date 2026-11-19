@@ -85,6 +85,6 @@ if (AS === 'h') ff(['-i', mOut, '-map', '0:v', '-map', '0:a', ...web(FPS), '-c:a
 // posters: the end card (logo, PLAY FREE) and the core burst under VICTORY!
 const endc = segs.find((x) => x.kind === 'end');
 const vic = segs.find((x) => x.take === 't20b-victory');
-for (const [name, t] of [['poster', endc.a + (endc.logoAt ?? 0.1) + 1.6], ['poster-victory', vic.victory + 0.3]]) ff(['-ss', t.toFixed(3), '-i', mOut, '-frames:v', '1', '-q:v', '1', join(OUT, `${base}-${name}-${TAG}.jpg`)]);
+for (const [name, t] of [['poster', endc.a + (endc.logoAt ?? 0.1) + 1.6], ['poster-victory', vic.victory + 0.15]]) ff(['-ss', t.toFixed(3), '-i', mOut, '-frames:v', '1', '-q:v', '1', join(OUT, `${base}-${name}-${TAG}.jpg`)]);
 if (!process.argv.includes('--keep')) rmSync(SEGD, { recursive: true, force: true });
 console.log(`${mOut}`);

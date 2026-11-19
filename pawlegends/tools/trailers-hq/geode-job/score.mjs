@@ -299,11 +299,21 @@ groove(logo + 0.9, gongAt, { bassOnly: true, energy: 0.55 });
   const [L, R] = I.pad([45, 52, 57, 60], DUR - logo - 0.9, { cutoff: 1100, attack: 0.6 });
   music.addStereo(S(logo + 0.9), L, R, 0.09);
 }
-sfx.add(S(gongAt), gong(1.8), 0.9);
+sfx.add(S(gongAt), gong(1.8), 0.9); // settles with the card below
 cue(gongAt, 'gong');
 // the breath before the burst: music and game sound out, only the riser
 music.mute(S(gap), S(burst));
 game.mute(S(gap), S(burst));
+// the story set-up (title, crew, villain) sits 5 dB under the action that starts with PLAN vs REALITY
+{
+  const a0 = S(A.a), a1 = S(Sp.a), rr = S(0.25), lo = dbToGain(-5);
+  music.gainCurve((i) => (i < a0 + rr ? 1 - (1 - lo) * (i - a0) / rr : i > a1 - rr ? lo + (1 - lo) * (i - (a1 - rr)) / rr : lo), a0, a1);
+}
+// and the end card settles 7 dB under the climax once the logo has landed (a real arc instead of a flat wall: LRA)
+{
+  const r0 = S(logo + 1.0), r1 = S(logo + 1.5), lo = dbToGain(-7);
+  for (const bus of [music, sfx]) bus.gainCurve((i) => 1 - (1 - lo) * Math.min(1, (i - r0) / (r1 - r0)), r0, N);
+}
 
 // ---------------------------------------------------------------- mix and master
 function measure(path) {
