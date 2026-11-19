@@ -198,7 +198,7 @@ for (const kind of ['phone', 'desktop'] as const) {
     // the other species on the grid, BAN; one vote ends the phase, the bots ban one of ours (labelled Bot ban)
     const bans = p.page.locator('[data-testid="draft-bans"]');
     await expect(bans).toHaveAttribute('data-stage', 'ban', { timeout: 15_000 });
-    await expect(p.page.locator('[data-testid="draft-rule"]')).toContainText('Ranked draft');
+    await expect(p.page.locator('[data-testid="draft-rule"]')).toContainText('Your team bans one of the');
     await shot(p, 'ranked', '04-draft-ban');
     const banTile = p.page.locator('.pp-draft .pp-heroes [data-h]').first();
     const banned = await banTile.getAttribute('data-h');

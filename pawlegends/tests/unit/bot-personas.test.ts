@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { PartyView, PersonaView } from '../../src/net/proto';
 import { matchPersona, matchPersonaSlots, matchPersonas, personaMap, setMatchPersonas, withPersonaNames } from '../../src/party/personas';
 import { partySeats } from '../../src/ui/champSelect/seats';
-import { pickHtml } from '../../src/party/ui/partyPick';
+import { lockedByOthers, pickHtml } from '../../src/party/ui/partyPick';
 import { loadingHtml } from '../../src/party/ui/partyLoading';
 import { partyRows, partyRowsHtml } from '../../src/party/ui/partyResults';
 import { kudosMates } from '../../src/social/kudos';
@@ -133,5 +133,18 @@ describe('every screen shows a persona like a player, never "Bot"', () => {
     const v = view({ mm: { side: 'dog', strangers: true, mode: 'casual', team: 1, species: ['cat', 'dog'] } });
     expect(partySeats(v, '', (m) => m.name, 3, true).filter((s) => s.state === 'bot')).toHaveLength(2);
     expect((loadingHtml({ ...v, phase: 'loading' }).match(/pp-lc bot/g) ?? []).length).toBe(5);
+  });
+});
+
+describe('a persona teammate holds its locked champion', () => {
+  it('counts as taken for its own team only (the other team stays hidden), named like a player or hidden', () => {
+    const t = lockedByOthers(view());
+    expect(t.get('brutus')).toBe('Sunny Biscuit');
+    // slot 0 is the other team's: never taken for this player
+    expect(t.has('clem')).toBe(false);
+    expect(lockedByOthers(view(), true).get('brutus')).toBe('Teammate 2');
+    // no personas (ranked, an older relay): only members
+    const mm = view().mm!;
+    expect(lockedByOthers(view({ mm: { ...mm, fill: undefined } })).size).toBe(0);
   });
 });

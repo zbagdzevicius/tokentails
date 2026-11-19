@@ -123,3 +123,48 @@ test('alone on PLAY: a bot seat every 3 s from 3 s, a full match at 15 s, every 
   // nothing anywhere ever said Bot
   expect(await botSeen(p.page)).toEqual([]);
 });
+
+test('alone on PLAY at 844x390 (touch): bot seats from 3 s, the match at about 15 s, named players to the live match', async ({ browser }) => {
+  test.setTimeout(400_000);
+  const p = await player(browser, 'phone');
+  await watchBots(p.page);
+  await title(p);
+  await playVariant(p, 'pvp');
+  await expect(p.page.locator('[data-testid="mm-queue"][data-mode="pvp"]')).toBeVisible({ timeout: 15_000 });
+  const t0 = Date.now();
+  let firstBotS = -1;
+  let found = false;
+  while (Date.now() - t0 < 30_000) {
+    found = await p.page.locator('[data-testid="mm-accept-card"]').isVisible();
+    if (found) break;
+    const bots = Number((await p.page.locator('.pp-pvp-pips').getAttribute('data-bots').catch(() => '0')) ?? 0);
+    if (bots > 0 && firstBotS < 0) firstBotS = (Date.now() - t0) / 1000;
+    await p.page.waitForTimeout(150);
+  }
+  const acceptS = (Date.now() - t0) / 1000;
+  console.log(`[queue-fill phone] first bot pip at ${firstBotS.toFixed(1)} s; Accept at ${acceptS.toFixed(1)} s`);
+  expect(found).toBe(true);
+  expect(firstBotS).toBeGreaterThan(1.5);
+  expect(firstBotS).toBeLessThan(6);
+  expect(acceptS).toBeLessThan(22);
+  await expect(p.page.locator('[data-testid="mm-found"]')).toContainText('3 players vs 3');
+  // the Accept button fits the landscape phone and is tappable
+  const box = await p.page.locator('[data-testid="mm-accept"]').boundingBox();
+  expect(box && box.y + box.height <= 390 && box.x + box.width <= 844).toBe(true);
+  await shot(p, 'queue-fill', 'phone-01-accept');
+  await tap(p, p.page.locator('[data-testid="mm-accept"]'));
+  await expect(p.page.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 20_000 });
+  await expect(p.page.locator('.pp-strip .pp-ts.bot')).toHaveCount(0);
+  await shot(p, 'queue-fill', 'phone-02-pick');
+  await tap(p, p.page.locator('.pp-heroes [data-p="hero"]:not([disabled])').first());
+  await tap(p, p.page.locator('[data-testid="party-lock"]'));
+  await p.page.waitForSelector('html[data-match="live"]', { timeout: 150_000 });
+  const plates = (await p.page.evaluate(() => document.documentElement.dataset.plateNames ?? '')).split('|');
+  console.log(`[queue-fill phone] plates ${plates.join(' | ')}`);
+  expect(plates).toHaveLength(6);
+  for (const n of plates) expect(n).not.toMatch(/\bbot\b/i);
+  expect(plates.filter((n) => /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(n)).length).toBeGreaterThanOrEqual(5);
+  await p.page.waitForFunction(() => Number(document.documentElement.dataset.tick ?? 0) >= 150, null, { timeout: 120_000, polling: 500 });
+  await shot(p, 'queue-fill', 'phone-03-live');
+  expect(await botSeen(p.page)).toEqual([]);
+});

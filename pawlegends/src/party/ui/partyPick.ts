@@ -16,6 +16,7 @@ import { champSelectHtml, type CsModel } from '../../ui/champSelect/champSelect'
 import { partySeats } from '../../ui/champSelect/seats';
 import { COPY, DIFF_LABEL, esc, sideText } from './copy';
 import { seatsPerTeam, shownName } from './partyLobby';
+import { personaMap } from '../personas';
 
 /** The "New? Try this" hero (the relay's newbie auto-lock uses the same one). */
 export const NEWBIE_HERO: HeroId = 'clem';
@@ -54,7 +55,13 @@ const sideOf = (h: string | undefined): 'cat' | 'dog' | null => (h && h in HEROE
 
 /** Heroes another human locked: hero → their name. */
 export function lockedByOthers(v: PartyView, hide = false): Map<string, string> {
-  return new Map(v.members.filter((m) => m.id !== v.you && m.locked && m.hero).map((m) => [m.hero!, shownName(v, m, hide)]));
+  const out = new Map(v.members.filter((m) => m.id !== v.you && m.locked && m.hero).map((m) => [m.hero!, shownName(v, m, hide)]));
+  // casual: a teammate the relay shows as a player (`mm.fill`, a bot seat) holds its locked champion like one
+  const per = seatsPerTeam(v);
+  const team = v.mm?.team ?? 0;
+  for (const p of personaMap(v.mm?.fill, 2 * per).values())
+    if (p.hero && Math.floor(p.slot / per) === team && !out.has(p.hero)) out.set(p.hero, hide ? `Teammate ${(p.slot % per) + 1}` : p.name);
+  return out;
 }
 
 /**
