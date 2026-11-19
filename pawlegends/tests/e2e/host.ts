@@ -65,7 +65,8 @@ export interface HostConfig {
   /** STORE-PASS.md: answer `pass-claim` with this store state (POST /pawlegends/pass/claim). */
   passClaim?: { items: string[]; season: unknown };
   /** SOCIAL-RANKED.md §13: answer `api-request{op}` with this status and body (unlisted ops: status 0). */
-  api?: Record<string, { status: number; body?: unknown }>;
+  /** Canned answers per op; `delay` (ms, default 20) holds one back (a slow network: loading states). */
+  api?: Record<string, { status: number; body?: unknown; delay?: number }>;
   /**
    * CHAMPION-STORE.md: `store.champions` sent with every `store`. Default: every champion owned (a Founders roster),
    * so the older specs pick any hero in any week; null sends none (the starters and the week's rotation only).
@@ -170,7 +171,7 @@ function hostHtml(cfg: HostConfig): string {
         var a = (cfg.api || {})[m.op];
         setTimeout(function () {
           send('api-result', a ? Object.assign({ id: m.id, ok: a.status >= 200 && a.status < 300, status: a.status }, a.body ? { body: a.body } : {}) : { id: m.id, ok: false, status: 0 });
-        }, 20);
+        }, a && typeof a.delay === 'number' ? a.delay : 20);
       }
       if (m.type === 'match-result') {
         fetch('/user/catbassadors/live', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'PAWLEGENDS', pawlegends: m.replay }) });

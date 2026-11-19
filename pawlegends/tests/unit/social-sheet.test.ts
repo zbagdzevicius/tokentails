@@ -144,12 +144,13 @@ describe('social sheet', () => {
       answer: (op) => (op === 'growth.invite' ? { id: 'x', ok: true, status: 200, body: { code: 'K7QX2MP', link: 'https://pawlegends.app/?ref=K7QX2MP', need: 3, invited: [], accepted: null, claimable: 0, nextCoat: null, earned: 0, cap: 5 } } : null),
     });
     await flush();
-    // never folded: on a short screen the request rows stand without a header (round 6: friends get the room) and
-    // each row says what it is
-    expect(document.querySelector('[data-group="requests"]')).toBeNull();
-    expect(document.querySelector('.pl-group.is-bare[data-g="requests"] [role="list"]')!.getAttribute('aria-label')).toMatch(/^Friend requests, \d+$/);
+    // never folded: a short screen keeps the "Friend requests" heading like every other screen (round 7); the row's
+    // Tab stop is the person, never Accept
+    expect(document.querySelector('[data-group="requests"]')!.tagName).toBe('H3');
+    expect(document.querySelector('[data-group="requests"]')!.getAttribute('aria-label')).toMatch(/^Friend requests, \d+$/);
     expect(document.querySelectorAll('.pl-rq').length).toBeGreaterThan(0);
-    expect(document.querySelector('.pl-rq .pl-social-st')!.textContent).toMatch(/^Friend request/);
+    expect(document.querySelector('.pl-rq [data-a="accept"]')!.hasAttribute('data-nav')).toBe(false);
+    expect(document.querySelector('.pl-rq .pl-rq-main')!.hasAttribute('data-nav')).toBe(true);
     // friends to show: the invite card starts folded into the header's gift; no search field until Search is tapped
     expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
     expect(document.querySelector('.pl-social-head [data-testid="invite-open"]')).toBeTruthy();

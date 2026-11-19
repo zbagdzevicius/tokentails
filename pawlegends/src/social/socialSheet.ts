@@ -13,9 +13,12 @@
  *   Sent, with opaque sticky headers. The list scrolls (one scroll region) instead of the old 3-to-5-row pages.
  * - A friend row: avatar with a presence ring and dot, the full name (ellipsis only when it cannot fit; the title and
  *   the row menu show it whole), the flag, and a status line that never disappears (an unread message is added after
- *   it). Quick actions are small icon buttons: with a mouse they show on hover and keyboard focus; on touch only the one
- *   that matters shows (Join, Invite or Watch; Chat when unread; a busy friend none: the menu says why). Tapping the row, right-click or a long press opens
- *   its menu: Message, Match history, Remove (tap twice) and Block (5 s Undo).
+ *   it). Quick actions are small icon buttons: with a mouse they show on hover and keyboard focus; on touch only a
+ *   time-sensitive one shows (Join, Watch; Chat when unread), Invite and Ask sit in the row's sheet. Tapping the row,
+ *   right-click or a long press opens its menu (a floating context menu with a mouse, a bottom sheet on touch):
+ *   Message, Match history, Remove (tap twice) and Block (5 s Undo).
+ * - Round 7: Enter on a row opens the DM with focus in its composer (Esc closes the DM only); a request's Tab stop is
+ *   the person, never Accept; More → Compact list shows one line per friend (LoL density).
  *
  * Names are always set with `textContent`. Every call goes through the host (`api-request`); the game never sees a
  * token, an account id or a URL. Polling: one pulse every 30 s while the sheet or the title is shown and the tab is
@@ -441,6 +444,16 @@ function readFolds(): Partial<Record<FriendGroupId, boolean>> {
   }
 }
 
+/** The list density, remembered on this device only (a per-viewer convenience; storage can fail). */
+const DENSITY_KEY = 'pl.social.density.v1';
+function readDensity(): 'comfy' | 'compact' {
+  try {
+    return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'comfy';
+  } catch {
+    return 'comfy';
+  }
+}
+
 const GROUP_LABEL: Readonly<Record<FriendGroupId, string>> = Object.freeze({
   requests: 'Friend requests',
   fav: 'Favourites',
@@ -474,6 +487,10 @@ export class SocialSheet {
   private searchOpen = false;
   /** My status card (Online / Appear offline, my code, Change avatar). */
   private meOpen = false;
+  /** Where a right click opened the row menu (the popover opens at the cursor, LoL's context menu), or null. */
+  private menuAt: { x: number; y: number } | null = null;
+  /** List density (round 7): one line per friend ("compact", LoL's density) or two; remembered on this device. */
+  private density: 'comfy' | 'compact' = readDensity();
   private readonly unwatch: () => void;
   private armed: string | null = null;
   private armTimer: ReturnType<typeof setTimeout> | null = null;
@@ -528,7 +545,12 @@ export class SocialSheet {
       const row = (e.target as HTMLElement).closest?.<HTMLElement>('.pl-fr');
       if (!row?.dataset.code) return;
       e.preventDefault();
-      if (this.menuFor !== row.dataset.code) this.openMenu(row.dataset.code);
+      const at = e instanceof MouseEvent && (e.clientX || e.clientY) ? { x: e.clientX, y: e.clientY } : null;
+      if (this.menuFor !== row.dataset.code) this.openMenu(row.dataset.code, at);
+      else {
+        this.menuAt = at;
+        this.placeMenu();
+      }
     });
     this.root.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -566,7 +588,9 @@ export class SocialSheet {
     });
     // the list's scroll cue (a fade at the bottom while more rows sit below); the body is rebuilt on render
     this.root.addEventListener('scroll', (e) => {
-      if ((e.target as HTMLElement).classList?.contains('pl-social-body')) this.scrollCue();
+      if (!(e.target as HTMLElement).classList?.contains('pl-social-body')) return;
+      this.scrollCue();
+      if (this.menuFor && !this.sheetMenu) this.placeMenu();
     }, true);
     // a scroll that comes to rest with a group header half pushed out by the next: a thin sliver (up to 24 px) is
     // nudged out, like a snap; a bigger part stays (the player is reading it)
@@ -759,6 +783,7 @@ export class SocialSheet {
         : '';
     this.root.dataset.view = this.shownTab;
     this.root.dataset.short = String(this.short);
+    this.root.dataset.density = this.density;
     // the invite card starts folded on a short screen and once there are friends to look at (a choice wins)
     this.invite.autoFold = (this.state?.friends.length ?? 0) > 0;
     this.root.innerHTML = `${this.head()}${this.tabBar()}${this.searchRow()}${this.meCard()}<div class="pl-social-body" id="pl-social-panel" role="tabpanel" aria-label="${TAB_LABEL[this.shownTab]}">${this.body()}</div>${note}${foot ? `<footer class="pl-social-foot">${foot}</footer>` : ''}${this.menuSheet()}`;
@@ -767,6 +792,7 @@ export class SocialSheet {
     if (body && scroll) body.scrollTop = scroll;
     this.rove();
     this.scrollCue();
+    this.placeMenu();
     if (focus) {
       const el = this.root.querySelector<HTMLElement>(focus.sel);
       el?.focus({ preventScroll: true });
@@ -815,12 +841,42 @@ export class SocialSheet {
     return this.short || !!win?.matchMedia?.('(hover: none), (pointer: coarse)').matches;
   }
 
+  /**
+   * A friend's row menu: on touch a bottom sheet over a scrim; with a mouse a compact vertical context menu floating
+   * by its row (or at the cursor after a right click), LoL style: it never pushes the rows below it down.
+   */
   private menuSheet(): string {
-    if (!this.menuFor || !this.sheetMenu || this.shownTab !== 'friends' || !this.state) return '';
+    if (!this.menuFor || this.shownTab !== 'friends' || !this.state) return '';
     const f = this.state.friends.find((x) => x.code === this.menuFor);
     if (!f) return '';
     const myParty = this.deps.partyCode();
-    return `<div class="pl-fr-scrim" data-a="menu-close" aria-hidden="true"></div>${this.rowMenu(f, rowAction(f.presence, !!myParty, myParty), myParty, true)}`;
+    const act = rowAction(f.presence, !!myParty, myParty);
+    if (!this.sheetMenu) return this.rowMenu(f, act, myParty, false);
+    return `<div class="pl-fr-scrim" data-a="menu-close" aria-hidden="true"></div>${this.rowMenu(f, act, myParty, true)}`;
+  }
+
+  /** Place the floating row menu: under its row (above it when there is no room), or at the cursor; inside the sheet. */
+  private placeMenu(): void {
+    const menu = this.root.querySelector<HTMLElement>('.pl-fr-menu.is-pop');
+    if (!menu || !this.menuFor) return;
+    const row = this.root.querySelector<HTMLElement>(`.pl-fr[data-code=${attr(this.menuFor)}]`);
+    const body = this.root.querySelector<HTMLElement>('.pl-social-body');
+    if (!row || !body) return;
+    const sr = this.root.getBoundingClientRect();
+    const rr = row.getBoundingClientRect();
+    const br = body.getBoundingClientRect();
+    // the row scrolled out of the list: the menu waits hidden until it is back
+    menu.style.visibility = rr.bottom < br.top + 8 || rr.top > br.bottom - 8 ? 'hidden' : '';
+    const mh = menu.offsetHeight;
+    const mw = menu.offsetWidth;
+    const at = this.menuAt;
+    let top = (at ? at.y : rr.bottom + 2) - sr.top;
+    if (top + mh > sr.height - 8) top = (at ? at.y : rr.top - 2) - sr.top - mh;
+    top = Math.max(8, Math.min(top, sr.height - mh - 8));
+    let left = at ? at.x - sr.left : sr.width - mw - 12;
+    left = Math.max(8, Math.min(left, sr.width - mw - 8));
+    menu.style.top = `${Math.round(top)}px`;
+    menu.style.left = `${Math.round(left)}px`;
   }
 
   /**
@@ -917,9 +973,13 @@ export class SocialSheet {
     const live = this.liveShown
       ? `<button type="button" role="menuitem" class="pl-mi" data-a="watch-live" data-testid="social-watch-live">${icon('live', 18)}<span>Watch a live match</span><i class="pl-live-dot" aria-hidden="true"></i></button>`
       : '';
-    const menu = `<div class="pl-social-moremenu" role="menu" aria-label="More"${this.moreOpen ? '' : ' hidden'}>${MORE_TABS.map((t) => `<button type="button" role="menuitem" class="pl-mi" data-tab="${t}" aria-current="${this.shownTab === t}">${icon(t === 'ranked' ? 'trophy' : 'list', 18)}<span>${TAB_LABEL[t]}</span></button>`).join('')}${live}</div>`;
+    // round 7: one line per friend (LoL density) as a choice, remembered on this device
+    const dense = `<button type="button" role="menuitemcheckbox" class="pl-mi pl-mi-check" data-a="density" data-testid="social-density" aria-checked="${this.density === 'compact'}">${icon('list', 18)}<span>Compact list</span>${this.density === 'compact' ? icon('check', 18) : ''}</button>`;
+    const menu = `<div class="pl-social-moremenu" role="menu" aria-label="More"${this.moreOpen ? '' : ' hidden'}>${MORE_TABS.map((t) => `<button type="button" role="menuitem" class="pl-mi" data-tab="${t}" aria-current="${this.shownTab === t}">${icon(t === 'ranked' ? 'trophy' : 'list', 18)}<span>${TAB_LABEL[t]}</span></button>`).join('')}${live}${dense}</div>`;
+    // round 7: Search on every tab (the bar never changes shape): it searches Friends or Recent, and from another tab
+    // it opens Friends with the field ready
     const search =
-      this.friendsTools && !this.adding
+      this.headTools && !this.adding
         ? `<button type="button" class="pl-ico pl-search-btn" data-a="search" data-testid="social-search" aria-expanded="${this.searchShown}" aria-controls="pl-social-q" aria-label="Search friends" title="Search friends">${icon('search', 20)}</button>`
         : '';
     return `<nav class="pl-social-tabbar"><div class="pl-social-tabs" role="tablist" aria-label="Social">${tabs}</div>${more}${search}${menu}</nav>`;
@@ -932,23 +992,18 @@ export class SocialSheet {
 
   /** The search field shows once opened (Search in the tab bar) or while it holds text. */
   private get searchShown(): boolean {
-    return this.friendsTools && !this.adding && (this.searchOpen || !!this.query);
+    return (this.shownTab === 'friends' || this.shownTab === 'recent') && this.headTools && !this.adding && (this.searchOpen || !!this.query);
   }
 
   /** The friends search: one row under the tabs, filtering as you type; its × (or Esc) clears and closes it. */
   private searchRow(): string {
     if (!this.searchShown) return '';
-    return `<div class="pl-social-searchrow" role="search"><label class="pl-social-search">${icon('search', 18)}<input type="search" id="pl-social-q" name="q" autocomplete="off" spellcheck="false" placeholder="Search friends" aria-label="Search friends" enterkeyhint="search" value="${this.esc(this.query)}"></label><button type="button" class="pl-ico" data-a="search-close" aria-label="Close search" title="Close search">${icon('close', 18)}</button></div>`;
+    return `<div class="pl-social-searchrow" role="search"><label class="pl-social-search">${icon('search', 18)}<input type="search" id="pl-social-q" name="q" autocomplete="off" spellcheck="false" placeholder="${this.shownTab === 'recent' ? 'Search recent players' : 'Search friends'}" aria-label="${this.shownTab === 'recent' ? 'Search recent players' : 'Search friends'}" enterkeyhint="search" value="${this.esc(this.query)}"></label><button type="button" class="pl-ico" data-a="search-close" aria-label="Close search" title="Close search">${icon('close', 18)}</button></div>`;
   }
 
   /** A short screen (a phone held sideways, ≤ 500 px): denser group headers, Requests folds to its header. */
   private get short(): boolean {
     return (this.deps.height?.() ?? (typeof window !== 'undefined' ? window.innerHeight : 640)) <= SHORT_PX;
-  }
-
-  /** The Friends tools can show (signed in, age asked, not picking an avatar). */
-  private get friendsTools(): boolean {
-    return this.shownTab === 'friends' && this.headTools;
   }
 
   /** The header's me, gift and Add show on every tab once signed in and the age is asked (not while picking). */
@@ -1043,7 +1098,7 @@ export class SocialSheet {
     if (asks.length) html += this.group('requests', asks.length, counts, asks.map((r) => this.requestRow(r, 'in')).join(''));
     for (const g of groups) if (g.rows.length) html += this.group(g.id, g.rows.length, counts, g.rows.map((f) => this.friendRow(f, myParty, now)).join(''));
     if (sent.length) html += this.group('sent', sent.length, counts, sent.map((r) => this.requestRow(r, 'out')).join(''));
-    return html + this.growHint(s);
+    return html + (this.short ? '' : this.growHint(s));
   }
 
   /** No friends yet: what to do (no second Add button: Add sits in the tools row), and players from recent matches. */
@@ -1082,8 +1137,6 @@ export class SocialSheet {
   private group(id: FriendGroupId, n: number, counts: { on: number; off: number }, rows: string): string {
     const open = !!this.query.trim() || !groupFolded(id, this.folds[id], counts);
     const label = `${GROUP_LABEL[id]}, ${n}`;
-    // a short screen (a phone held sideways): requests stand without a header (their rows say "Friend request")
-    if (id === 'requests' && this.short) return `<section class="pl-group is-bare" data-g="${id}"><div class="pl-group-list" role="list" aria-label="${this.esc(label)}">${rows}</div></section>`;
     const head =
       id === 'requests'
         ? `<h3 class="pl-group-h is-static" data-group="${id}" aria-label="${this.esc(label)}">${icon('addUser', 16)}<span class="pl-group-t">${GROUP_LABEL[id]}</span><span class="pl-group-n">${n}</span></h3>`
@@ -1099,6 +1152,8 @@ export class SocialSheet {
     const act = rowAction(f.presence, !!myParty, myParty);
     const name = f.name;
     const st = presenceText(f.presence, now);
+    // the presence word ("In match"), then its detail (" · Ranked · 12m"), which the compact list leaves out (LoL)
+    const word0 = PRESENCE_TEXT[shownState(f.presence)];
     const t = this.threads.get(f.code);
     const unread = t?.unread && !t.muted ? t.unread : 0;
     const code = this.esc(f.code);
@@ -1138,7 +1193,7 @@ export class SocialSheet {
     const shown = shownState(f.presence);
     const label = `${name}, ${st}${champ ? `, playing ${champ}` : ''}${note ? `, ${note}` : ''}${unread ? `, ${unread} unread` : ''}${later ? ', invite queued' : ''}${f.fav ? ', favourite' : ''}${played ? `, ${played}` : ''}`;
     const chatting = this.chatCode === f.code && !!this.chat && !this.chat.closed;
-    return `<div class="pl-social-row pl-fr${open ? ' is-open' : ''}${unread ? ' has-msg' : ''}${chatting ? ' is-chat' : ''}" role="listitem" data-state="${f.presence.state}" data-code="${code}"><button type="button" class="pl-fr-main" data-a="menu" data-code="${code}" data-nav aria-haspopup="menu" aria-expanded="${open}" aria-label="${this.esc(label)}"><span class="pl-fr-av" data-state="${shown}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${shown}"></i></span><span class="pl-social-who"><span class="pl-social-nm">${ccHtmlOrNone(f.cc)}<span class="pl-social-name" data-name="${this.esc(name)}"></span></span><small class="pl-social-line"><span class="pl-social-st" data-state="${shown}">${this.esc(st)}</span>${extra}</small></span></button><span class="pl-fr-acts">${chat}${primary}</span></div>${open && !this.sheetMenu ? this.rowMenu(f, act, myParty) : ''}`;
+    return `<div class="pl-social-row pl-fr${open ? ' is-open' : ''}${unread ? ' has-msg' : ''}${chatting ? ' is-chat' : ''}" role="listitem" data-state="${f.presence.state}" data-code="${code}"><button type="button" class="pl-fr-main" data-a="menu" data-code="${code}" data-nav aria-haspopup="menu" aria-expanded="${open}" aria-label="${this.esc(label)}"><span class="pl-fr-av" data-state="${shown}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${shown}"></i></span><span class="pl-social-who"><span class="pl-social-nm">${ccHtmlOrNone(f.cc)}<span class="pl-social-name" data-name="${this.esc(name)}"></span></span><small class="pl-social-line"><span class="pl-social-st" data-state="${shown}">${this.esc(word0)}${st.length > word0.length ? `<span class="pl-st-more">${this.esc(st.slice(word0.length))}</span>` : ''}</span>${extra}</small></span></button><span class="pl-fr-acts">${chat}${primary}</span></div>`;
   }
 
   /** A friend's row menu (under the row, in the list's flow: nothing covers another row). */
@@ -1183,7 +1238,7 @@ export class SocialSheet {
       : `<p class="pl-fr-menu-name pl-sr" data-name="${this.esc(f.name)}"></p>${info}`;
     const fav = mi('fav', 'star', f.fav ? 'Unpin from favourites' : 'Pin to favourites', ` data-on="${f.fav ? 0 : 1}" data-testid="social-fav"`);
     const cancel = sheet ? `<button type="button" class="pl-btn ghost pl-fr-cancel" data-a="menu-close">Cancel</button>` : '';
-    return `<div class="pl-fr-menu${sheet ? ' is-sheet' : ''}" role="menu" aria-label="${this.esc(`${f.name}: options`)}" data-testid="social-row-menu">${head}<div class="pl-fr-menu-acts">${first}${mi('chat', 'chat', 'Message')}${this.deps.history ? mi('history', 'history', 'Match history') : ''}${fav}${busy}</div><div class="pl-fr-menu-danger">${remove}${mi('block', 'block', 'Block').replace('class="pl-mi"', 'class="pl-mi danger"')}</div>${cancel}</div>`;
+    return `<div class="pl-fr-menu${sheet ? ' is-sheet' : ' is-pop'}" role="menu" aria-label="${this.esc(`${f.name}: options`)}" data-testid="social-row-menu">${head}<div class="pl-fr-menu-acts">${first}${mi('chat', 'chat', 'Message')}${this.deps.history ? mi('history', 'history', 'Match history') : ''}${fav}${busy}</div><div class="pl-fr-menu-danger">${remove}${mi('block', 'block', 'Block').replace('class="pl-mi"', 'class="pl-mi danger"')}</div>${cancel}</div>`;
   }
 
   /** A request row: Decline (a quiet cross), then Accept (the filled bolt check, the row's one primary), lined up with a friend's actions. */
@@ -1191,28 +1246,35 @@ export class SocialSheet {
     const code = this.esc(r.code);
     const acts =
       dir === 'in'
-        ? `<button type="button" class="pl-ico pl-act-1 is-pill is-decline" data-a="decline" data-code="${code}" aria-label="${this.esc(`Decline ${r.name}`)}" title="Decline"><span class="pl-ic">${icon('close', 20)}</span></button><button type="button" class="pl-ico pl-act-2 is-primary is-accept" data-a="accept" data-code="${code}" data-nav aria-label="${this.esc(`Accept ${r.name}, friend request`)}" title="Accept"><span class="pl-ic">${icon('check', 20)}</span></button>`
-        : `<button type="button" class="pl-ico pl-act-2" data-a="decline" data-code="${code}" data-nav aria-label="${this.esc(`Cancel the request to ${r.name}`)}" title="Cancel request">${icon('close')}</button>`;
+        ? `<button type="button" class="pl-ico pl-act-1 is-pill is-decline" data-a="decline" data-code="${code}" aria-label="${this.esc(`Decline ${r.name}`)}" title="Decline"><span class="pl-ic">${icon('close', 20)}</span></button><button type="button" class="pl-ico pl-act-2 is-primary is-accept" data-a="accept" data-code="${code}" aria-label="${this.esc(`Accept ${r.name}, friend request`)}" title="Accept"><span class="pl-ic">${icon('check', 20)}</span></button>`
+        : `<button type="button" class="pl-ico pl-act-2" data-a="decline" data-code="${code}" aria-label="${this.esc(`Cancel the request to ${r.name}`)}" title="Cancel request">${icon('close')}</button>`;
     // the group says what it is ("Friend requests"): the row says when (LoL: "2h ago")
     const ago = agoText(r.at);
-    // a short screen has no "Friend requests" header (the rows themselves say it: friends get the room)
-    const line = dir === 'in' ? (this.short ? (ago ? `Friend request · ${ago}` : 'Friend request') : ago || 'Friend request') : ago ? `Sent ${ago}` : 'Request sent';
-    return `<div class="pl-social-row pl-rq" role="listitem" data-code="${code}"><span class="pl-fr-av">${avatarHtml(r.av, 40)}</span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(r.name)}"></span></span><small class="pl-social-line"><span class="pl-social-st">${this.esc(line)}</span></small></span><span class="pl-fr-acts is-shown">${acts}</span></div>`;
+    const line = dir === 'in' ? ago || 'Friend request' : ago ? `Sent ${ago}` : 'Request sent';
+    // round 7: the row's Tab stop is the person, never Accept (Tab then Enter must not accept by accident); ArrowRight
+    // reaches Decline, then Accept
+    const label = dir === 'in' ? `${r.name}, friend request${ago ? `, ${ago}` : ''}. Arrow right for Decline and Accept` : `${r.name}, request sent${ago ? ` ${ago}` : ''}. Arrow right to cancel it`;
+    return `<div class="pl-social-row pl-rq" role="listitem" data-code="${code}"><span class="pl-fr-av">${avatarHtml(r.av, 40)}</span><span class="pl-social-who pl-rq-main" data-a="rq" data-code="${code}" data-nav tabindex="-1" aria-label="${this.esc(label)}"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(r.name)}"></span></span><small class="pl-social-line"><span class="pl-social-st">${this.esc(line)}</span></small></span><span class="pl-fr-acts is-shown">${acts}</span></div>`;
   }
 
   /** A recent player: the team and how often we played together ("Teammate · 3 games"), Add as an icon. */
   private recentRow(p: RecentRow): string {
     // round 6: the champion they played in that match, then how often we played together
     const champ = champText(p.hero);
-    const more = [champ, typeof p.together === 'number' && p.together > 1 ? `${p.together} games together` : ''].filter(Boolean).join(' · ');
-    const together = more ? `<span class="pl-st-note">${this.esc(more)}</span>` : '';
+    // "Clem · 3 games" fits the row; the tooltip and label say the rest ("3 games together in the last 7 days")
+    const n = typeof p.together === 'number' && p.together > 1 ? p.together : 0;
+    const more = [champ, n ? `${n} games` : ''].filter(Boolean).join(' · ');
+    const together = more ? `<span class="pl-st-note"${n ? ` title="${n} games together in the last 7 days"` : ''}>${this.esc(more)}</span>` : '';
     return `<div class="pl-social-row pl-rc" role="listitem" data-team="${p.team === 'ally' ? 'ally' : 'enemy'}"><span class="pl-fr-av">${avatarHtml(p.av, 40)}</span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(p.name)}"></span></span><small class="pl-social-line"><span class="pl-social-st pl-team">${p.team === 'ally' ? 'Teammate' : 'Opponent'}</span>${together}</small></span><span class="pl-fr-acts is-shown">${p.canAdd ? `<button type="button" class="pl-ico pl-act-2" data-a="add-recent" data-room="${this.esc(p.room)}" data-slot="${p.slot}" aria-label="${this.esc(`Add ${p.name} as a friend`)}" title="Add friend">${icon('addUser')}</button>` : ''}</span></div>`;
   }
 
   private recentBody(): string {
-    const rec = this.recent;
-    if (!rec) return `<p class="pl-social-empty">Loading…</p>`;
-    if (!rec.length) return `<div class="pl-social-empty pl-social-none"><span class="pl-none-art" aria-hidden="true">${icon('history', 28)}</span><p>No recent players yet</p><small>Players from your matches in the last 7 days show here.</small></div>`;
+    const all = this.recent;
+    if (!all) return `<p class="pl-social-empty">Loading…</p>`;
+    const typed = this.query.trim();
+    const rec = typed ? all.filter((p) => p.name.toLowerCase().includes(typed.toLowerCase())) : all;
+    if (typed && !rec.length) return `<div class="pl-social-empty pl-social-none" data-testid="social-search-none"><span class="pl-none-art" aria-hidden="true">${icon('search', 28)}</span><p>No recent player matches "<span data-name="${this.esc(typed)}"></span>".</p></div>`;
+    if (!all.length) return `<div class="pl-social-empty pl-social-none"><span class="pl-none-art" aria-hidden="true">${icon('history', 28)}</span><p>No recent players yet</p><small>Players from your matches in the last 7 days show here.</small></div>`;
     // grouped by match, newest first (LoL's match history feel): "Casual · Victory · 2h ago", then its players
     const matches = recentMatches(rec);
     return `${matches.map((m) => `<section class="pl-group pl-rc-match" data-room="${this.esc(m.room)}"${typeof m.won === 'boolean' ? ` data-won="${m.won}"` : ''}><h3 class="pl-group-h is-static">${icon('history', 16)}<span class="pl-group-t">${this.esc(m.title)}</span></h3><div class="pl-group-list" role="list">${m.rows.map((p) => this.recentRow(p)).join('')}</div></section>`).join('')}<p class="pl-social-hint pl-rc-foot">Players from your matches in the last 7 days</p>`;
@@ -1263,6 +1325,7 @@ export class SocialSheet {
     if (this.picking)
       return `<button type="button" class="pl-btn ghost small" data-a="pick-cancel">Cancel</button><button type="button" class="pl-btn small" data-a="pick-save" data-testid="avatar-save">Save</button>`;
     if (this.tab === 'clubs' && this.state?.me.ageBand && this.deps.signedIn()) return this.clubs.footer(this.per);
+    if (this.tab === 'friends' && this.short && this.state?.me.ageBand && this.deps.signedIn() && this.state.friends.length) return this.growHint(this.state, true);
     if (this.tab !== 'boards') return '';
     const pages = Math.max(1, Number(this.board.data?.pages ?? 1));
     const page = this.board.page;
@@ -1355,23 +1418,24 @@ export class SocialSheet {
     void this.load();
   }
 
-  private openMenu(code: string): void {
+  private openMenu(code: string, at: { x: number; y: number } | null = null): void {
     this.menuFor = this.menuFor === code ? null : code;
+    this.menuAt = this.menuFor ? at : null;
     this.armed = null;
+    if (this.menuFor && !this.sheetMenu) {
+      // the row in full view first (below the stuck header), then the menu floats by it
+      this.root.querySelector<HTMLElement>(`.pl-fr[data-code=${attr(code)}]`)?.scrollIntoView?.({ block: 'nearest' });
+      this.clearSliver();
+    }
     this.render();
     if (!this.menuFor) return;
-    const menu = this.root.querySelector<HTMLElement>('.pl-fr-menu');
-    if (!this.sheetMenu) {
-      this.root.querySelector<HTMLElement>(`.pl-fr[data-code=${attr(code)}]`)?.scrollIntoView?.({ block: 'nearest' });
-      menu?.scrollIntoView?.({ block: 'nearest' });
-    }
-    this.clearSliver();
-    menu?.querySelector<HTMLElement>('.pl-mi:not(:disabled)')?.focus({ preventScroll: true });
+    this.root.querySelector<HTMLElement>('.pl-fr-menu .pl-mi:not(:disabled)')?.focus({ preventScroll: true });
   }
 
   private closeMenu(): void {
     const code = this.menuFor;
     this.menuFor = null;
+    this.menuAt = null;
     this.armed = null;
     this.render();
     if (code) this.root.querySelector<HTMLElement>(`.pl-fr-main[data-code=${attr(code)}]`)?.focus({ preventScroll: true });
@@ -1413,6 +1477,8 @@ export class SocialSheet {
         this.root.querySelector<HTMLElement>('.pl-social-more')?.focus({ preventScroll: true });
         return;
       }
+      // round 7: an open DM is the top layer (one Esc never closes the thread and the whole panel at once)
+      if (this.chat && !this.chat.closed) return this.closeChatLayer();
       if (t instanceof HTMLInputElement && t.name === 'q' && t.value) {
         this.query = '';
         t.value = '';
@@ -1441,7 +1507,14 @@ export class SocialSheet {
     if (e.key === 'Enter' && t.classList.contains('pl-fr-main') && t.dataset.code && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       this.menuFor = null;
-      this.openChat(t.dataset.code);
+      this.openChat(t.dataset.code, 'input');
+      return;
+    }
+    // a request's own Tab stop (the person): Enter and Space do nothing (never accept by accident), and never reach
+    // the lobby's own keys behind the sheet
+    if ((e.key === 'Enter' || e.key === ' ') && t.classList.contains('pl-rq-main')) {
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
     // the list by keyboard: arrows step, Home and End jump to the first and last, PageUp and PageDown move a screen
@@ -1460,8 +1533,10 @@ export class SocialSheet {
       if (next) {
         e.preventDefault();
         next.focus({ preventScroll: true });
-        next.closest('.pl-fr')?.scrollIntoView?.({ block: 'nearest' });
-        if (!next.closest('.pl-fr')) next.scrollIntoView?.({ block: 'nearest' });
+        // Home and End go to the list's very top and bottom (the first row sits under its group header, never
+        // behind it); a step brings the row into view below the stuck header (scroll-margin-top)
+        if (!inMenu && body && (e.key === 'Home' || e.key === 'End')) body.scrollTop = e.key === 'Home' ? 0 : body.scrollHeight;
+        else (next.closest<HTMLElement>('.pl-social-row') ?? next).scrollIntoView?.({ block: 'nearest' });
         if (!inMenu) this.clearSliver();
       }
       return;
@@ -1469,7 +1544,7 @@ export class SocialSheet {
     // across a row: ArrowRight and ArrowLeft step between the row and its shown actions (Decline ↔ Accept on a request)
     if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && t.closest('.pl-social-body .pl-social-row') && t.getAttribute('role') !== 'menuitem') {
       const row = t.closest('.pl-social-row')!;
-      const btns = [...row.querySelectorAll<HTMLElement>('button')].filter((b) => b.getClientRects().length > 0);
+      const btns = [...row.querySelectorAll<HTMLElement>('[data-nav], button')].filter((b) => b.getClientRects().length > 0);
       const next = btns[btns.indexOf(t) + (e.key === 'ArrowRight' ? 1 : -1)];
       if (next) {
         e.preventDefault();
@@ -1505,6 +1580,13 @@ export class SocialSheet {
       this.moreOpen = false;
       this.root.querySelector('.pl-social-moremenu')?.setAttribute('hidden', '');
       this.root.querySelector('.pl-social-more')?.setAttribute('aria-expanded', 'false');
+    }
+    // a click outside the floating row menu or my status card closes it (the click does nothing else)
+    if (this.menuFor && !this.sheetMenu && !t.closest('.pl-fr-menu, [data-a]')) return this.closeMenu();
+    if (this.meOpen && !this.sheetMenu && !t.closest('.pl-me-card, [data-a]')) {
+      this.meOpen = false;
+      this.render();
+      return;
     }
     const board = t.closest<HTMLElement>('[data-board]')?.dataset.board as 'weekly' | 'global' | 'friends' | undefined;
     if (board) {
@@ -1556,6 +1638,16 @@ export class SocialSheet {
         if (this.moreOpen) m?.querySelector<HTMLElement>('.pl-mi')?.focus({ preventScroll: true });
         return;
       }
+      case 'density':
+        this.density = this.density === 'compact' ? 'comfy' : 'compact';
+        try {
+          localStorage.setItem(DENSITY_KEY, this.density);
+        } catch {
+          // private window or blocked storage: the choice lasts while the sheet is open
+        }
+        this.deps.track?.('social_density', { compact: this.density === 'compact' });
+        this.render();
+        return;
       case 'me':
         this.meOpen = !this.meOpen;
         this.moreOpen = false;
@@ -1630,6 +1722,11 @@ export class SocialSheet {
         return;
       case 'search':
         if (this.searchShown) return this.closeSearch();
+        if (this.tab !== 'friends' && this.tab !== 'recent') {
+          this.tab = 'friends';
+          this.moreOpen = false;
+          void this.load();
+        }
         this.searchOpen = true;
         this.menuFor = null;
         this.render();
@@ -1732,7 +1829,7 @@ export class SocialSheet {
       }
       case 'chat':
         this.menuFor = null;
-        this.openChat(code);
+        this.openChat(code, this.finePointer ? 'input' : 'head');
         return;
       case 'avatar':
         this.meOpen = false;
@@ -1972,8 +2069,29 @@ export class SocialSheet {
     }
   }
 
+  /** A mouse (or trackpad) is the main pointer: opening a DM may focus its input (no on-screen keyboard pops up). */
+  private get finePointer(): boolean {
+    return !!this.root.ownerDocument.defaultView?.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
+  }
+
+  /**
+   * A thread that covers the list (a phone) makes the list inert: no Tab, click or screen reader lands on the hidden
+   * rows behind it. A docked thread leaves the list usable (LoL).
+   */
+  private coverList(on: boolean): void {
+    this.root.inert = on;
+    this.root.classList.toggle('is-covered', on);
+  }
+
+  /** Esc with a DM open: close the thread only; focus returns to its friend's row (or the tab it came from). */
+  private closeChatLayer(): void {
+    const chat = this.chat;
+    if (!chat || chat.closed) return;
+    chat.close('esc');
+  }
+
   /** Open the DM thread with a friend over the sheet (CHAT-AVATARS §6.2); back reloads the unread dots. */
-  openChat(code: string): void {
+  openChat(code: string, focus: 'input' | 'head' = 'head'): void {
     const f = this.state?.friends.find((x) => x.code === code);
     if (!this.state) {
       this.chatWhenLoaded = code;
@@ -2007,19 +2125,21 @@ export class SocialSheet {
         return n;
       },
       tabs: () => this.chatTabs(code),
+      autofocus: focus,
       onTab: (c) => {
-        if (c !== code) this.openChat(c);
+        if (c !== code) this.openChat(c, focus);
       },
       onClose: (how) => {
         this.chat = null;
         this.chatCode = null;
+        this.coverList(false);
         // Close (a docked window's ×) ends this conversation: the next open one takes its place, like LoL's chat
         // tabs; Back (a phone) only returns to the list and keeps the tabs
+        if (how === 'close' || (how === 'esc' && docked)) this.convos = this.convos.filter((c) => c !== code);
         if (how === 'close') {
-          this.convos = this.convos.filter((c) => c !== code);
           const next = this.convos[this.convos.length - 1];
           if (next) {
-            this.openChat(next);
+            this.openChat(next, focus);
             return;
           }
         }
@@ -2030,14 +2150,20 @@ export class SocialSheet {
         this.note = 'Blocked';
       },
     });
+    this.coverList(!docked);
     // the row under (or beside) the thread drops its badge and preview now
     this.render();
   }
 
-  /** Few friends: one quiet line under the list, so the panel is not a lone row over empty space. */
-  private growHint(s: SocialState): string {
+  /**
+   * Few friends: one quiet line under the list, so the panel is not a lone row over empty space. On a short screen
+   * (a phone sideways) it is a bar pinned under the list instead (round 7: always above the fold, however many
+   * requests sit on top).
+   */
+  private growHint(s: SocialState, bar = false): string {
     if (this.query.trim() || this.adding || s.friends.length >= GROW_UNDER) return '';
     const invite = this.invite.state && this.invite.isFolded ? `<button type="button" class="pl-btn small ghost" data-a="inv-fold">${icon('gift', 18)}<span>Invite a friend</span></button>` : '';
+    if (bar) return `<div class="pl-social-grow is-bar" data-testid="social-grow" role="group" aria-label="More friends, more parties">${`<button type="button" class="pl-btn small ghost" data-a="add-empty">${icon('addUser', 18)}<span>Find a player</span></button>`}${invite}</div>`;
     return `<div class="pl-social-grow" data-testid="social-grow"><small>More friends, more parties. Find players by name or send an invite.</small><div class="pl-grow-acts"><button type="button" class="pl-btn small ghost" data-a="add-empty">${icon('addUser', 18)}<span>Find a player</span></button>${invite}</div></div>`;
   }
 
@@ -2051,10 +2177,14 @@ export class SocialSheet {
       thread,
       inMatch: () => this.deps.inMatch?.() ?? false,
       track: this.deps.track,
+      autofocus: this.finePointer ? 'input' : 'head',
       onClose: () => {
         this.chat = null;
+        this.coverList(false);
+        this.root.querySelector<HTMLElement>('[role="tab"][data-tab="clubs"]')?.focus({ preventScroll: true });
       },
     });
+    this.coverList(true);
   }
 
   private openPicker(): void {
