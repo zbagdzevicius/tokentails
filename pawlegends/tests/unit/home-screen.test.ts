@@ -441,6 +441,12 @@ describe('Quests panel (Today and Events in one place)', () => {
     expect(panelOf(root)).toBe(panel);
     root.querySelector('.hm-stage')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     expect(panelOf(root)).toBeNull();
+    // a tap on the 3D scene (a canvas outside Home's pointer-events:none root) closes it too
+    panel = await openGoals(root);
+    const scene = document.body.appendChild(document.createElement('canvas'));
+    scene.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    scene.remove();
+    expect(panelOf(root)).toBeNull();
     // the button toggles
     await openGoals(root);
     btn.click();

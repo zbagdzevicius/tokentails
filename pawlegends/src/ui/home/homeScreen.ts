@@ -594,10 +594,15 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       o.onMute(nowMuted);
     }
   });
-  // the Quests panel closes on a tap outside it
-  root.addEventListener('pointerdown', (e) => {
-    if (goalsOpen() && !(e.target as Element).closest?.('.hm-gp, [data-a="goals"]')) goals?.hideGoals(root, false);
-  });
+  // the Quests panel closes on a tap outside it, the 3D scene included: Home's root is pointer-events:none, so a tap on
+  // the empty background lands on the canvas, never on root (live check Nov 19). Listen on the document while Home lives.
+  const outside = (e: Event): void => {
+    if (!root.isConnected) return;
+    const t = e.target instanceof Element ? e.target : null;
+    if (goalsOpen() && !t?.closest('.hm-gp, [data-a="goals"]')) goals?.hideGoals(root, false);
+  };
+  if (ac) document.addEventListener('pointerdown', outside, { capture: true, signal: ac.signal });
+  else root.addEventListener('pointerdown', outside);
   // live ops (LIVEOPS.md): the Events cards' buttons and their in-place redraw
   bindEvents(root, ac?.signal);
   // a card that appears or goes (the server answered) resizes the open panel
