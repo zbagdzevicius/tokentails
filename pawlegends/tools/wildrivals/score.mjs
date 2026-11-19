@@ -108,10 +108,12 @@ const D = K.double;
 music.add(0, pizz(38, 0.9), 0.9, -0.1);
 music.add(0, pizz(50, 0.7), 0.7, 0.1);
 cue(0, 'pizz hook');
+// v2 hook: the clash opens the spot, an impact on each ult cut
+for (const h of K.hookHits ?? []) { music.add(at(h), I.impact(88 + (h > 0 ? 1 : 0), { sub: 40, len: 0.9 }), 0.8); music.add(at(h), I.crash(3 + (h > 0 ? 1 : 0)), 0.45); cue(h, 'hook hit'); }
 // cello theme from the title on
 const THEME = [[57, 2], [53, 1], [55, 1], [57, 1.5], [58, 0.5], [57, 1], [53, 1], [60, 2], [57, 1], [53, 1], [55, 3], [52, 1], [50, 2], [53, 1], [57, 1], [58, 2], [57, 1], [55, 1], [53, 3], [57, 1]];
 {
-  let s = 1.4;
+  let s = K.title ?? 1.4;
   for (let rep = 0; s < D - 0.4; rep++) {
     for (const [m, b] of THEME) {
       if (s >= D - 0.4) break;
@@ -120,10 +122,10 @@ const THEME = [[57, 2], [53, 1], [55, 1], [57, 1.5], [58, 0.5], [57, 1], [53, 1]
       s += b * BEAT;
     }
   }
-  cue(1.4, 'cello theme');
+  cue(K.title ?? 1.4, 'cello theme');
 }
 // pizzicato bass on beats 1 and 3, kalimba 8ths from the first gag on
-for (let s = 1.4; s < D - 0.3; s += BEAT * 2) music.add(at(s), pizz(chordAt(s)[0] - 12, 0.6), 0.6, 0);
+for (let s = K.title ?? 1.4; s < D - 0.3; s += BEAT * 2) music.add(at(s), pizz(chordAt(s)[0] - 12, 0.6), 0.6, 0);
 for (let s = 3.2, k = 0; s < D - 0.35; s += BEAT / 2, k++) {
   const c = chordAt(s);
   const m = [c[0], c[1], c[2], c[1] + 12][k % 4] + 24;

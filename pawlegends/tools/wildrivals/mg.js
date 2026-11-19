@@ -46,7 +46,6 @@
       const idx = cut.segs.indexOf(seg);
       if (seg.gem) drawGem(seg, t);
       if (seg.wipe) wipe(t - seg.t0);
-      matte(t, seg);
       if (seg.card && !seg.gem) fieldCard(seg, idx, t);
       for (const tx of cut.text) if (t >= tx.t0 && t < tx.t1) word(tx, t);
       for (const f of cut.flashes) if (t >= f.t - 1e-6 && t < f.t + f.frames / FPS - 1e-6) { g.fillStyle = 'rgba(255,255,255,0.92)'; g.fillRect(0, 0, W, H); }
@@ -68,8 +67,9 @@
     const im = img[seg.gem];
     if (seg.wheel) return wheel(seg, t, p);
     if (seg.move === 'pan') cover(im, 1.1 - 0.03 * p, 0.035 - 0.07 * ease(p), 0);
-    else if (seg.move === 'parallax') cover(im, 1.04 + 0.07 * ease(p), -0.015 * p, 0.01 * p);
-    else cover(im, 1.0 + 0.06 * out3(p));
+    else if (seg.move === 'parallax') cover(im, 1.08 + 0.06 * ease(p), -0.012 * p, 0.008 * p);
+    else if (seg.end) cover(im, 1.08 + 0.05 * out3((t - seg.t0) / 3.0)); // the end card settles by +3 s
+    else cover(im, 1.08 + 0.05 * out3(p));
     if (seg.reveal) reveal(t - seg.t0);
     if (seg.snow) snow(t - seg.t0, 1);
   }
@@ -264,8 +264,7 @@
 
   // ------------------------------------------------------------------ matte, cards, type
   function barH() {
-    if (A === 'h') return (H - W / 2.39) / 2;
-    return A === 'v' ? 0.105 * H : 0.1 * H;
+    return 0; // v2: no documentary matte, gameplay is full frame
   }
   function matteK(t) {
     let k = ease(t / (10 / FPS));
@@ -288,7 +287,10 @@
     // to a story frame
     let t0 = seg.t0;
     for (let j = idx; j > 0 && cut.segs[j - 1].card && !cut.segs[j - 1].gem && JSON.stringify(cut.segs[j - 1].card) === JSON.stringify(seg.card); j--) t0 = cut.segs[j - 1].t0;
-    const kin = back((t - t0) / (12 / FPS));
+    const title = cut.text.find((x) => x.style === 'title');
+    if (title && t0 < title.t1 + 0.15 && seg.t1 > title.t0) t0 = Math.max(t0, title.t1 + 0.15);
+    if (t < t0) return;
+    const kin = clamp((t - t0) / (10 / FPS));
     const next = cut.segs[idx + 1];
     const leaving = !next || next.gem || !next.card || JSON.stringify(next.card) !== JSON.stringify(seg.card);
     const kout = leaving ? 1 - ease((t - (seg.t1 - 7 / FPS)) / (6 / FPS)) : 1;
@@ -301,10 +303,16 @@
     const w = pad * 2 + n * gs + (n - 1) * 14 * u + 10 * u;
     const h = gs + pad * 1.4;
     const bh = barH();
-    const x = (A === 'h' ? 0.045 : 0.05) * W - (1 - a) * (w + 60 * u);
-    const y = H - bh - h * 0.55; // the card sits on the matte's top edge
+    // bottom-left inside the title-safe area (no matte any more): fades and pops in place, so no frame ever shows
+    // a half-cut card at the frame edge
+    const x = (A === 'h' ? 0.04 : 0.06) * W;
+    const y = H - h - (A === 'v' ? 0.085 : 0.06) * H;
+    const sc = 0.9 + 0.1 * back(kin);
     g.save();
-    g.globalAlpha = clamp(a * 1.2);
+    g.translate(x, y + h);
+    g.scale(sc, sc);
+    g.translate(-x, -(y + h));
+    g.globalAlpha = clamp(a);
     g.fillStyle = C.cream;
     rr(x, y, w, h, 14 * u);
     g.fill();
@@ -354,58 +362,73 @@
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     if (tx.style === 'title') {
-      const s = (A === 'h' ? 150 : 128) * u;
-      const y = A === 'h' ? H * 0.5 : H * 0.5;
-      const sc = 1.06 - 0.06 * out3(dt / 0.4);
+      // WILD (cat rose) / RIVALS (dog blue) in the brand display face (Rubik Black Italic, as 3V3 and PLAY FREE), night
+      // stroke, upper third so the fight under it stays readable; the bolt sits in a measured gap, never under a letter
+      const s = (A === 'h' ? 190 : 165) * u;
+      const y = H * (A === 'v' ? 0.25 : 0.27);
+      const sc = 1.12 - 0.12 * out3(dt / (9 / FPS));
+      // a soft plum glow behind the words for contrast on bright maps
+      const grd = g.createRadialGradient(W / 2, y, 0, W / 2, y, (A === 'h' ? 0.42 : 0.62) * W);
+      grd.addColorStop(0, 'rgba(18,9,31,0.5)');
+      grd.addColorStop(1, 'rgba(18,9,31,0)');
+      g.fillStyle = grd;
+      g.fillRect(0, 0, W, H);
       g.translate(W / 2, y);
       g.scale(sc, sc);
-      g.font = `900 ${s}px Fraunces`;
+      g.font = `italic 900 ${s}px Rubik`;
       g.lineJoin = 'round';
-      g.lineWidth = s * 0.16;
-      g.strokeStyle = C.paper;
-      const lines = A === 'h' ? [tx.word] : tx.word.split(' ');
-      const lh = s * 1.0;
-      lines.forEach((l, i) => { const ly = (i - (lines.length - 1) / 2) * lh; g.strokeText(l, 0, ly); g.fillStyle = C.ink; g.fillText(l, 0, ly); });
-      // the underline draws itself: rose half, sky half, a bolt between
-      const wTxt = Math.max(...lines.map((l) => g.measureText(l).width));
-      const uy = ((lines.length - 1) / 2) * lh + s * 0.6;
-      const p = out3((dt - 0.15) / 0.45);
-      g.lineCap = 'round';
-      g.lineWidth = s * 0.075;
-      g.strokeStyle = C.rose;
-      g.beginPath(); g.moveTo(-wTxt / 2, uy); g.lineTo(-wTxt / 2 + (wTxt / 2 - s * 0.18) * p, uy); g.stroke();
-      g.strokeStyle = C.sky;
-      g.beginPath(); g.moveTo(wTxt / 2, uy); g.lineTo(wTxt / 2 - (wTxt / 2 - s * 0.18) * p, uy); g.stroke();
-      if (p > 0.6) bolt(0, uy, s * 0.42 * back((p - 0.6) / 0.4), C.bolt);
+      const wW = g.measureText('WILD').width, wR = g.measureText('RIVALS').width;
+      const ink = (txt, x0, yy, col) => { g.lineWidth = s * 0.17; g.strokeStyle = C.night; g.strokeText(txt, x0, yy); g.fillStyle = col; g.fillText(txt, x0, yy); };
+      const bk = back(clamp((dt - 0.12) / 0.3));
+      if (A === 'h') {
+        const gap = s * 0.78;
+        const total = wW + gap + wR;
+        const x0 = -total / 2;
+        ink('WILD', x0 + wW / 2, 0, C.rose);
+        ink('RIVALS', x0 + wW + gap + wR / 2, 0, C.sky);
+        if (bk > 0) { bolt(x0 + wW + gap / 2, 0, s * 1.3 * bk, C.night); bolt(x0 + wW + gap / 2, 0, s * 1.12 * bk, C.bolt); }
+      } else {
+        const lh = s * 1.02;
+        ink('WILD', 0, -lh / 2, C.rose);
+        ink('RIVALS', 0, lh / 2, C.sky);
+        // the bolt beside WILD, in the empty space right of the shorter word
+        if (bk > 0) { const bx = wW / 2 + s * 0.45; bolt(bx, -lh / 2, s * 1.0 * bk, C.night); bolt(bx, -lh / 2, s * 0.86 * bk, C.bolt); }
+      }
     } else if (tx.style === 'big') {
-      const s = (A === 'v' ? 230 : 260) * u;
+      // 3V3: a quick slam in the upper third, off the team fight in the centre
+      const s = (A === 'v' ? 200 : 210) * u;
       const k = 1.5 - 0.5 * out3(dt / (8 / FPS));
-      g.translate(W / 2, H * 0.5);
+      g.translate(W / 2, H * (A === 'v' ? 0.2 : 0.2));
+      g.rotate(-0.04);
       g.scale(k, k);
       g.font = `italic 900 ${s}px Rubik`;
       g.lineJoin = 'round';
-      g.lineWidth = s * 0.14;
+      g.lineWidth = s * 0.16;
       g.strokeStyle = C.night;
       g.strokeText(tx.word, 0, 0);
       g.fillStyle = C.bolt;
       g.fillText(tx.word, 0, 0);
     } else {
-      // CATS / VS / DOGS: set in the bottom matte bar, the documentary's caption line
-      const bh = barH();
-      const s = Math.min(bh * 0.72, 104 * u);
-      const k = 1.25 - 0.25 * out3(dt / (7 / FPS));
-      g.translate(W / 2, H - bh / 2 + s * 0.04);
+      // CATS / VS / DOGS: big supers in the upper third (under the score bar), off the champions
+      const s = (A === 'h' ? 170 : 150) * u;
+      const k = 1.3 - 0.3 * out3(dt / (7 / FPS));
+      g.translate(W / 2, H * (A === 'v' ? 0.2 : 0.21));
+      g.rotate(tx.style === 'cat' ? -0.05 : tx.style === 'dog' ? 0.05 : 0);
       g.scale(k, k);
       g.font = `italic 900 ${s}px Rubik`;
+      g.lineJoin = 'round';
       if (tx.style === 'vs') {
-        bolt(0, 0, s * 1.15, C.bolt);
-        g.lineWidth = s * 0.12;
-        g.strokeStyle = C.matte;
-        g.lineJoin = 'round';
+        bolt(0, 0, s * 1.6, C.night);
+        bolt(0, 0, s * 1.4, C.bolt);
+        g.lineWidth = s * 0.16;
+        g.strokeStyle = C.night;
         g.strokeText('VS', 0, 0);
         g.fillStyle = C.cream;
         g.fillText('VS', 0, 0);
       } else {
+        g.lineWidth = s * 0.16;
+        g.strokeStyle = C.night;
+        g.strokeText(tx.word, 0, 0);
         g.fillStyle = tx.style === 'cat' ? C.rose : C.sky;
         g.fillText(tx.word, 0, 0);
       }

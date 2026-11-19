@@ -79,18 +79,18 @@ async function render() {
     await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent;overflow:hidden}canvas{display:block}</style></head><body><canvas id="c" width="${W}" height="${H}"></canvas></body></html>`);
     await page.addScriptTag({ content: readFileSync(join(HERE, 'mg.js'), 'utf8') });
     const assets = { logo: dataUrl(LOGO, 'image/png') };
-    for (const k of ['A', 'B', 'C', 'D', 'E']) {
+    for (const k of new Set(K.segs.filter((s) => s.gem).map((s) => s.gem))) {
       const p = join(GEM, `${k}-${GEMSUF}.jpg`);
-      if (existsSync(p)) assets[k] = dataUrl(p, 'image/jpeg');
+      if (!existsSync(p)) throw new Error(`missing story frame ${p}`);
+      assets[k] = dataUrl(p, 'image/jpeg');
     }
     const fonts = [
-      { family: 'Fraunces', src: dataUrl(join(FONTS, 'fraunces-900.woff2'), 'font/woff2'), weight: '900' },
       { family: 'Rubik', src: dataUrl(join(FONTS, 'rubik-italic-900.woff2'), 'font/woff2'), weight: '900', style: 'italic' },
       { family: 'Fredoka', src: dataUrl(join(FONTS, 'fredoka-600-700.woff2'), 'font/woff2'), weight: '700' },
     ];
     const ok = await page.evaluate((o) => window.__mg.setup(o), { W, H, aspect: ASP, cut: K, fps: FPS, assets, fonts });
     console.error(`[edit ${NAME}] mg ready ${JSON.stringify(ok.fonts)}`);
-    for (const [font, text] of [['900 80px Fraunces', 'WILD RIVALS'], ['italic 900 80px Rubik', 'CATS VS DOGS 3V3 PLAY FREE'], ['700 80px Fredoka', 'pawlegends.app']]) {
+    for (const [font, text] of [['italic 900 80px Rubik', 'WILD RIVALS CATS VS DOGS 3V3 PLAY FREE'], ['700 80px Fredoka', 'pawlegends.app']]) {
       if (!(await page.evaluate(([t, f]) => window.__mg.check(t, f), [text, font]))) throw new Error(`font ${font} is missing glyphs for ${text}`);
     }
     const grab = async (f) => {

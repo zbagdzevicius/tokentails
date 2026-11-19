@@ -7,6 +7,9 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const [R, outDir] = process.argv.slice(2);
+const styleArg = process.argv.indexOf('--style');
+// --style <jpg>: the approved end poster (C); the M and L frames copy its look so every still reads as one identity
+const STYLE_REF = styleArg > 0 ? process.argv[styleArg + 1] : null;
 const onlyArg = process.argv.indexOf('--only');
 const only = onlyArg > 0 ? process.argv[onlyArg + 1].split(',') : null;
 const key = process.env.GEMINI_API_KEY;
@@ -16,7 +19,12 @@ const NO_TEXT = 'Absolutely no text, letters, numbers, logos, signatures, labels
 const ON_MODEL = 'Every animal is one of the champions in the reference renders and must stay exactly on-model (body shape, fur colours, markings, outfit, accessories, big glossy eyes).';
 const SKETCH = 'Style: a naturalist field sketchbook: pencil line drawings with loose watercolour washes on warm cream paper (#F4EAD8) with a faint paper grain, no handwriting, no annotations, no captions and no words of any kind (the only marks besides the drawings are tiny paw-print and arrow doodles), ink in deep plum (#3A1748), touches of magenta (#E0358C) on the cats and electric blue (#2F6BFF) on the dogs, one small yellow lightning-bolt doodle (#FFD23F). Elegant, charming, hand made, like a nature documentary illustrator\'s notebook.';
 const PAINT = 'Style: the Paw Legends v6 "Lightning Rivalry" key-art look: bold clean ink outlines, cel shading, saturated candy colours, the cats side in magenta/rose, the dogs side in electric blue, a yellow lightning bolt motif, plum night (#12091F) shadows.';
+const COMIC = 'Style: match the FIRST reference image exactly (the approved end poster): the same bold clean ink outlines, cel shading, glossy big eyes, plum night sky (#12091F to #471F5D) with soft stars, the cats side rim-lit magenta-rose (#FF3D9A), the dogs side rim-lit electric blue (#2E8BFF), and a jagged yellow lightning bolt (#FFD21F) between the two sides. Same rendering, same palette, same line weight: it must look like the next panel of the same comic.';
 const JOBS = [
+  { id: 'M', refs: ['clem', 'meatball', 'sage', 'sir-brutus', 'chili', 'nugget'], style: COMIC, styleRef: true,
+    prompt: 'First snow at night: the two herds meet. A wide shot of a snowy valley at night, a frozen river ford in the middle. On the left bank the cats (Clem the white knight cat with a sword, Meatball the chubby orange cat, Sage the archer cat) lead a column of small cat minions; on the right bank the dogs (Sir Brutus the armoured pug knight, Chili the chihuahua, Nugget the corgi) lead a column of small dog minions. Both leaders stare across the ice at each other, ready to charge. Snow falling, a crackling yellow lightning bolt strikes the ice between them. Keep the centre third clear of characters (only the bolt and the ice).' },
+  { id: 'L', refs: ['howler', 'pixel', 'duchess'], style: COMIC, styleRef: true,
+    prompt: 'Lantern night: on the right, the husky-like dog (Howler) stands on a rock, head thrown back, howling at a huge full moon tinted red; on the left, two cats (Pixel and Duchess) peek over a low stone wall with glowing paper lanterns, ears flat, eyes wide, about to pounce. Autumn leaves drifting. Keep the middle of the frame open for the moon and the bolt.' },
   { id: 'A', refs: ['meatball', 'chili', 'bravo', 'howler'], style: SKETCH,
     prompt: 'A double-page spread of a naturalist sketchbook studying four behaviours, each a separate vignette study with a little ground shadow: (1) a chubby orange cat (Meatball) curled into a perfect bread-loaf shape, eyes shut, hibernating; (2) a tiny chihuahua (Chili) hiding inside a stylish handbag with only his eyes and ears peeking out; (3) a pug in a costume (Bravo) lying on his back legs up, tongue out, playing dead very dramatically; (4) a husky-like dog (Howler) sitting with his head thrown back, howling at a small crescent moon. Plenty of cream paper around each study.' },
   { id: 'B', refs: ['clem', 'meatball', 'sage', 'sir-brutus', 'chili', 'nugget'], style: PAINT,
@@ -35,6 +43,7 @@ await Promise.all(jobs.map(async (j) => {
   if (existsSync(out)) return console.log(`${out}: exists`);
   const lay = j.aspect === '16:9' ? 'Wide landscape composition.' : j.aspect === '9:16' ? 'Tall portrait composition: stack the subjects vertically to fill the tall frame.' : 'Square composition.';
   const parts = [{ text: `${j.prompt} ${lay}\n\n${j.style}\n${ON_MODEL}\n${NO_TEXT}` }];
+  if (j.styleRef) { if (!STYLE_REF) throw new Error(`${j.id} needs --style <end poster jpg>`); parts.push({ inline_data: { mime_type: 'image/jpeg', data: readFileSync(STYLE_REF).toString('base64') } }); }
   for (const n of j.refs) parts.push({ inline_data: { mime_type: 'image/png', data: readFileSync(r(n)).toString('base64') } });
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent', {
