@@ -391,6 +391,8 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     // the HUD layout editor over Settings owns the keys while it is open
     if (document.querySelector('.pl-hudedit')) return;
     if (e.key === 'Tab') {
+      // input/tabGuard.ts cancelled it (focus is not in a text field): Tab moves no focus
+      if (e.defaultPrevented) return;
       // pawlegends (QA): a modal keeps focus: Tab and Shift+Tab wrap inside the panel (they reached Play behind it)
       const f = Array.from(root.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((n) => !(n as HTMLButtonElement).disabled && n.getClientRects().length > 0);
       if (!f.length) return;

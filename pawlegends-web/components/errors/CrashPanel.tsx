@@ -52,7 +52,6 @@ export const NIGHT = {
   coinShade: "#b7791f",
   lavender: "#c9b8ec",
   violet: "#9966cc",
-  focus: "#c4e2fc",
 } as const;
 
 const FONT_DISPLAY = `"${FONT_FAMILIES.display}", "${FONT_FAMILIES.hud}", ui-rounded, system-ui, sans-serif`;
@@ -64,7 +63,7 @@ const PANEL_CSS = `
 .tt-crash-btn{transition:transform .08s ease,filter .12s ease}
 .tt-crash-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .tt-crash-btn:active{transform:translateY(2px)}
-.tt-crash-btn:focus-visible{outline:3px solid ${NIGHT.focus};outline-offset:3px}
+.tt-crash-btn:focus,.tt-crash-btn:focus-visible{outline:none}
 @keyframes tt-crash-in{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes tt-crash-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 .tt-crash-card{animation:tt-crash-in .22s ease-out both}

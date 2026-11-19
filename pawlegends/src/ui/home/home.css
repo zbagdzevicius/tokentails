@@ -299,8 +299,7 @@ details[open] > .hm-round::before {
 button.hm-plate { pointer-events: auto; cursor: pointer; font: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 button.hm-plate { transition: transform var(--v6-dur-press, 120ms) var(--v6-ease-out, ease-out); }
 button.hm-plate:hover::before { background: var(--v6-split-rule, linear-gradient(90deg, #ff3d7f 0 48%, #ffe14a 48% 52%, #39a6ff 52%)) bottom / 100% 3px no-repeat, linear-gradient(90deg, rgb(var(--v6-sky-deep-rgb, 13 79 184) / 0.9), rgb(var(--v6-navy-rgb, 7 19 52) / 0.88)); }
-button.hm-plate:hover .hm-plate-cue, button.hm-plate:focus-visible .hm-plate-cue { background: var(--v6-sky, #39a6ff); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6); }
-button.hm-plate:focus-visible { outline: 3px solid var(--v6-bolt, #ffe14a); outline-offset: 3px; }
+button.hm-plate:hover .hm-plate-cue { background: var(--v6-sky, #39a6ff); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6); }
 button.hm-plate:active { transform: scale(0.97); }
 .hm-plate-cue {
   display: inline-grid; place-items: center; width: 0.95em; height: 0.95em; border-radius: 50%; font: 800 0.62em/1 var(--font, sans-serif); font-style: normal;
@@ -417,7 +416,6 @@ html[data-quality='low'] .hm-nav, .pl-home.low .hm-nav { background: rgb(var(--v
   animation: hm-shock 0.5s ease-out both;
 }
 @keyframes hm-shock { to { transform: scale(2.1); opacity: 0; border-width: 1px; } }
-.pl-home .hm-play:focus-visible { outline: 3px solid var(--v6-bolt, #ffe14a); outline-offset: 12px; }
 
 /* the card peek (desktop only): above the PLAY cluster. Review: the old lobby drew it bare on a dark gradient; over the
    key art the caption and the empty card back read as a stray, broken element, so it sits on the same glass card as
@@ -447,9 +445,6 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 .hm-toast.on { opacity: 1; transform: translate(-50%, 0); }
 .shake { animation: hm-shake 0.36s ease both !important; }
 @keyframes hm-shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
-
-/* focus */
-.pl-home button:focus-visible:not(.hm-play), .pl-home summary:focus-visible { outline: 3px solid var(--v6-bolt, #ffe14a); outline-offset: 3px; }
 
 /* leaving (PLAY): the top bar up, the nav down, the rest fades */
 .pl-home.leaving .hm-top, .pl-home.leaving .hm-corner, .pl-home.leaving .hm-cur { transform: translateY(-24px); opacity: 0; transition: opacity 0.22s ease-in, transform 0.22s ease-in; }

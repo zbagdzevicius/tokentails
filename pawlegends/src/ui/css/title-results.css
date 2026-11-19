@@ -35,7 +35,6 @@
 }
 @media (hover: hover) { .pl-mute:hover { background: var(--v6-night-3); border-color: rgb(var(--v6-sky-rgb) / 0.7); } }
 .pl-mute:active { transform: translateY(1px); }
-.pl-mute:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
 @keyframes pl-bob { 50% { transform: translateY(-6px) rotate(-6deg); } }
 .pl-portrait.pic { background-color: var(--hero); background-size: 118%; background-position: 50% 30%; background-repeat: no-repeat; }
 .chip {

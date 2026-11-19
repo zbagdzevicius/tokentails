@@ -721,7 +721,8 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
     else if (k.length === 1 && SLOT_KEYS[k.toLowerCase()]) api.setSlot(SLOT_KEYS[k.toLowerCase()] as SkillSlot);
     else if (k === 'l' || k === 'L') api.setTab('lore');
     else if (k === 'Tab') {
-      // keep focus inside the dialog
+      // keep focus inside the dialog; input/tabGuard.ts cancelled it outside a text field (no focus move then)
+      if (e.defaultPrevented) return;
       const f = [...root.querySelectorAll<HTMLElement>('button:not([disabled]):not([tabindex="-1"]), [tabindex="0"]')].filter((x) => x.offsetParent !== null || x === document.activeElement);
       if (!f.length) return;
       const first = f[0] as HTMLElement;

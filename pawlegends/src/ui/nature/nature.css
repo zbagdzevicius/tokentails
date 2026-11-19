@@ -43,11 +43,11 @@
   transition: opacity 0.25s ease-out;
 }
 
-.pl-nature[data-nature]:is(:hover, :focus-visible, [aria-pressed='true'], .pl-nature-live)::before {
+.pl-nature[data-nature]:is(:hover, [aria-pressed='true'], .pl-nature-live)::before {
   opacity: 1;
   animation: pl-nat-move var(--nat-dur) linear infinite, var(--nat-blink);
 }
-.pl-nature[data-nature]:is(:hover, :focus-visible, [aria-pressed='true'], .pl-nature-live)::after {
+.pl-nature[data-nature]:is(:hover, [aria-pressed='true'], .pl-nature-live)::after {
   opacity: 1;
   animation: pl-nat-breathe 2.4s ease-in-out infinite;
 }

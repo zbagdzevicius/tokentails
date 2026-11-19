@@ -228,9 +228,9 @@ details.lb-quests.lb-ri { position: static; padding: 0; background: none; box-sh
 .lb-mini.n0 { transform: rotate(0deg); z-index: 3; }
 .lb-mini.n1 { transform: rotate(-12deg) translateX(-14px); z-index: 2; }
 .lb-mini.n2 { transform: rotate(12deg) translateX(14px); z-index: 1; }
-.lb-peek:hover .lb-mini.n0, .lb-peek:focus-visible .lb-mini.n0 { transform: translateY(-8px); }
-.lb-peek:hover .lb-mini.n1, .lb-peek:focus-visible .lb-mini.n1 { transform: rotate(-18deg) translateX(-22px); }
-.lb-peek:hover .lb-mini.n2, .lb-peek:focus-visible .lb-mini.n2 { transform: rotate(18deg) translateX(22px); }
+.lb-peek:hover .lb-mini.n0 { transform: translateY(-8px); }
+.lb-peek:hover .lb-mini.n1 { transform: rotate(-18deg) translateX(-22px); }
+.lb-peek:hover .lb-mini.n2 { transform: rotate(18deg) translateX(22px); }
 .lb-mini.tt-card > .tt-in { background: radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.14), #0b0b2a 70%); }
 .lb-noart { color: var(--v6-faint); }
 .lb-noart .pl-icon { width: 40%; height: auto; }
@@ -269,11 +269,6 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
 .lb-cards:empty { display: none; }
 .lb-cards .plc { margin: 0; align-items: flex-start; }
 .lb-cards .plc-champ-chip { min-height: 40px; }
-
-/* focus: a clear ring on every control (keyboard) */
-.pl-lobby button:focus-visible, .pl-lobby summary:focus-visible {
-  outline: 3px solid var(--butter); outline-offset: 3px;
-}
 
 /* ------------------------------------------------------------------------------------------- phones */
 /* Landscape phones (667x375, 844x390, 932x430): a 296-360 px column anchored to the top, the rail at the bottom.
@@ -390,8 +385,7 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   color: var(--cream); opacity: 0.4; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); text-align: right; user-select: text; -webkit-user-select: text;
 }
 .pl-lobby .lb-ver span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.pl-lobby .lb-ver:hover, .pl-lobby .lb-ver:focus-visible, .pl-lobby .lb-ver[data-copied] { opacity: 0.8; }
-.pl-lobby .lb-ver:focus-visible { outline: 2px solid var(--butter); outline-offset: 1px; border-radius: 4px; }
+.pl-lobby .lb-ver:hover, .pl-lobby .lb-ver[data-copied] { opacity: 0.8; }
 /* very small screens: no room beside the column (portrait or split screen), or too short for a clear corner */
 @media (max-width: 560px), (max-height: 260px) {
   .pl-lobby .lb-ver { display: none; }

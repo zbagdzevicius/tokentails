@@ -64,7 +64,7 @@ export function modalButtonClass({
   return clsx(
     "relative inline-flex select-none items-center justify-center font-primary uppercase leading-none tracking-wide",
     "transition-[filter,background-color,color,transform] duration-150 active:translate-y-[2px] motion-reduce:transition-none motion-reduce:active:translate-y-0",
-    "outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[4px] focus-visible:outline-tt-gold-400",
+    "outline-none",
     "disabled:cursor-not-allowed disabled:opacity-50 disabled:saturate-50",
     busy ? "cursor-wait" : "cursor-pointer",
     VARIANT_CLASSES[variant],

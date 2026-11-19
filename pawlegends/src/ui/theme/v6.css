@@ -92,9 +92,6 @@
   --v6-lean-clip: polygon(var(--v6-lean-x, 8px) 0, 100% 0, calc(100% - var(--v6-lean-x, 8px)) 100%, 0 100%);
   --v6-chamfer-clip: polygon(0 0, 100% 0, 100% calc(100% - var(--v6-chamfer)), calc(100% - var(--v6-chamfer)) 100%, 0 100%);
 
-  /* ---- focus */
-  --v6-focus-ring: 0 0 0 3px var(--v6-night), 0 0 0 6px var(--v6-bolt);
-  --v6-focus-inset: inset 0 0 0 3px var(--v6-bolt);
 
   /* ---- motion (kit Round 09) */
   --v6-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -201,9 +198,9 @@
 .v6-xp { position: relative; height: 12px; background: rgb(var(--v6-cream-rgb) / 0.1); transform: skewX(var(--v6-slant)); overflow: hidden; }
 .v6-xp::before { content: ''; position: absolute; inset: 0; right: auto; width: calc(var(--v6-p, 0) * 100%); background: var(--v6-xp-fill); }
 
-/* focus: one visible ring everywhere (bolt on a night gap) */
-.v6-focus:focus-visible, .v6-btn:focus-visible, .v6-tab:focus-visible, .v6-chip:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
-.v6-lean:focus-visible, .v6-chamfer:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+/* focus: no ring anywhere, keyboard or click (founder, Nov 19). Tab never moves focus in the game (input/tabGuard.ts);
+   a text field shows its caret. The only focus rule in src/ (tests/unit/no-focus-ring.test.ts). */
+:focus, :focus-visible { outline: none !important; }
 
 /* motion: the kit's moves as reusable keyframes (transform / opacity only) */
 @keyframes v6-pop-in { from { opacity: 0; transform: scale(0.92); } }

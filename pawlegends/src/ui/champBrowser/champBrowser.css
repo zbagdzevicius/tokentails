@@ -13,7 +13,6 @@
   animation: cb-in var(--v6-dur-fast) var(--v6-ease-out);
 }
 .pl-champ[data-side='dog'] { --cb-side: var(--v6-sky); --cb-side-deep: var(--v6-sky-deep); --cb-side-light: var(--v6-ice); --cb-side-rgb: var(--v6-sky-rgb); }
-.pl-champ:focus { outline: none; }
 @keyframes cb-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pl-champ { animation: none; } }
 /* PERF-IOS §8 Track C: no full-screen backdrop blur on phones (WebKit re-blurred the whole screen at native resolution
@@ -52,7 +51,6 @@ html[data-champ] .tt-card > .tt-sp, html[data-champ] .tt-card > .tt-glare, html[
 .cb-nav::before { content: ''; position: absolute; inset: -6px; }
 .cb-nav:hover { border-color: var(--v6-sky); color: #fff; }
 .cb-nav:active { transform: scale(0.92); }
-.cb-nav:focus-visible, .cb-tab:focus-visible, .cb-skill-btn:focus-visible, .cb-link:focus-visible, .cb-x:focus-visible, .cb-clip:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 .cb-id { text-align: center; min-height: 0; }
 /* the name: Rubik 900 italic caps (display), plum drop */
 .cb-name {
@@ -93,7 +91,6 @@ html[data-champ] .tt-card > .tt-sp, html[data-champ] .tt-card > .tt-glare, html[
 /* already selected: a calm night slab with the "done" green, not a washed-out rose */
 /* the current hero's SELECTED: a flat disabled slab (muted text, faint rim, no ledge), never a live-looking button */
 .cb-act-btn[aria-disabled='true'] { cursor: default; background: var(--v6-night-2); color: var(--v6-muted); text-shadow: none; box-shadow: inset 0 0 0 1px var(--v6-line-strong); transform: none; }
-.cb-act-btn:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 .cb-act + .cb-count { margin-top: 2px; }
 .cb-count { margin: auto 0 0; text-align: center; font-size: 12px; color: var(--v6-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.08em; }
 .cb-pick { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
@@ -258,7 +255,6 @@ html[data-champ] .tt-card > .tt-sp, html[data-champ] .tt-card > .tt-glare, html[
   min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 10px 14px 14px; border-radius: var(--v6-r-xs); background: var(--cb-card);
   border: 1px solid var(--v6-line); box-shadow: inset 0 var(--v6-bar) 0 var(--cb-side); font-size: 13px; line-height: 1.45;
 }
-.cb-lore:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: -3px; }
 .cb-lore p { margin: 0 0 8px; }
 .cb-quote { margin: 0 0 10px; padding: 6px 12px; border-left: 4px solid var(--cb-side); font-style: normal; font-size: 14px; background: rgb(var(--cb-side-rgb) / 0.1); border-radius: 0 var(--v6-r-xs) var(--v6-r-xs) 0; }
 .cb-links { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0 10px; }

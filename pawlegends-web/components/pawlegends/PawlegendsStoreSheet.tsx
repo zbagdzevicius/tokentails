@@ -62,7 +62,7 @@ export const giftChoices = (growth: GrowthCheckout | null, sku: string) =>
   growth?.gift.eligible ? growth.gift.coats.map((c) => ({ ...c, blocked: c.owned || skuHasCoat(sku, c.id) })) : [];
 
 const inputClass =
-  "min-h-[44px] w-full rounded-md border-2 border-tt-night-950 bg-tt-cream px-3 font-sans text-p5 text-tt-night-950 outline-none focus-visible:ring-4 focus-visible:ring-tt-gold-400";
+  "min-h-[44px] w-full rounded-md border-2 border-tt-night-950 bg-tt-cream px-3 font-sans text-p5 text-tt-night-950 outline-none";
 
 /** The line under the purchase button: what pressing it agrees to. */
 export const CONSENT_LINE = "Delivered right away, so the 14-day withdrawal right ends at delivery.";
@@ -178,7 +178,7 @@ export const PawlegendsStoreSheet = ({
                   onClick={() => setGift(c.id)}
                   data-testid="pawlegends-store-gift-coat"
                   data-coat={c.id}
-                  className={`min-h-[44px] rounded-md border-2 border-tt-night-950 px-3 text-p6 font-bold outline-none focus-visible:ring-4 focus-visible:ring-tt-cream disabled:opacity-40 ${
+                  className={`min-h-[44px] rounded-md border-2 border-tt-night-950 px-3 text-p6 font-bold outline-none disabled:opacity-40 ${
                     gift === c.id ? "bg-tt-gold-400 text-tt-night-950" : "bg-tt-night-900 text-tt-cream"
                   }`}
                 >

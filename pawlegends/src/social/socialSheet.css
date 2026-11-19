@@ -52,7 +52,6 @@ html .pl-social .pl-social-tab {
 }
 html .pl-social .pl-social-tab[aria-selected='true'] { background: transparent; color: var(--v6-cream); box-shadow: inset 0 -3px 0 var(--v6-bolt); }
 @media (hover: hover) { html .pl-social .pl-social-tab:not([aria-selected='true']):hover { color: var(--v6-cream); background: rgb(var(--v6-cream-rgb) / 0.05); } }
-html .pl-social .pl-social-tab:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 /* the Friends tab's dot: something waits there (a request or an unread message) while another tab is open */
 html .pl-tab-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--v6-rose); box-shadow: 0 0 0 2px var(--v6-night-2); }
 html .pl-social-more {
@@ -64,7 +63,6 @@ html .pl-social-more .pl-i { flex: none; transition: transform var(--v6-dur-fast
 html .pl-social-more[aria-expanded='true'] .pl-i { transform: rotate(180deg); }
 html .pl-social-more.is-current { color: var(--v6-cream); box-shadow: inset 0 -3px 0 var(--v6-bolt); }
 @media (hover: hover) { html .pl-social-more:not(.is-current):hover { color: var(--v6-cream); background: rgb(var(--v6-cream-rgb) / 0.05); } }
-html .pl-social-more:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 html .pl-social .pl-search-btn { width: 44px; border-radius: 0; }
 html .pl-social .pl-search-btn[aria-expanded='true'] { color: var(--v6-bolt); }
 html .pl-social-moremenu {
@@ -85,7 +83,6 @@ html .pl-mi {
 html .pl-mi .pl-i { flex: none; color: var(--v6-muted); }
 @media (hover: hover) { html .pl-mi:hover { background: rgb(var(--v6-cream-rgb) / 0.08); } }
 html .pl-mi:active { background: rgb(var(--v6-cream-rgb) / 0.14); }
-html .pl-mi:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 html .pl-mi[aria-current='true'] { color: var(--v6-bolt); }
 html .pl-mi.danger, html .pl-mi.danger .pl-i { color: #ff9aa0; }
 html .pl-mi:disabled { cursor: default; color: var(--v6-faint); background: none; }
@@ -101,7 +98,6 @@ html .pl-social-search {
   flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; box-sizing: border-box;
   border-radius: var(--v6-r-s); background: var(--v6-night-0); box-shadow: inset 0 0 0 1px var(--v6-line-strong); color: var(--v6-muted); cursor: text;
 }
-html .pl-social-search:focus-within { box-shadow: inset 0 0 0 2px var(--v6-bolt); color: var(--v6-cream); }
 html .pl-social-search .pl-i { flex: none; }
 /* 16 px: iOS does not zoom into the field */
 html .pl-social-search input { flex: 1 1 auto; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; color: var(--v6-cream); font: 600 16px/1 var(--font); outline: none; }
@@ -117,7 +113,6 @@ html .pl-ico {
 }
 @media (hover: hover) { html .pl-ico:hover { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); } }
 html .pl-ico:active { background: rgb(var(--v6-cream-rgb) / 0.16); }
-html .pl-ico:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); opacity: 1; }
 html .pl-social .pl-ico-add { width: 44px; color: var(--v6-bolt); }
 html .pl-social .pl-ico-add[aria-expanded='true'] { background: rgb(var(--v6-bolt-rgb) / 0.14); }
 html .pl-social .pl-head-acts .pl-ico { width: 44px; }
@@ -160,7 +155,6 @@ html .pl-inv-code {
 html .pl-inv-code small { color: var(--v6-muted); font: 700 14px/1 var(--font); }
 html .pl-inv-code b { color: var(--v6-bolt); font: 800 15px/1 var(--font); letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
 @media (hover: hover) { html .pl-inv-code:hover { border-style: solid; color: var(--v6-cream); } }
-html .pl-inv-code:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 html .pl-social .pl-inv-share { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; }
 /* "Got a code? Enter it": a real secondary button (round 6), the ghost style, sized to its words */
 html .pl-social .pl-inv-have { justify-self: start; }
@@ -189,7 +183,6 @@ html .pl-rc-match[data-won='true'] .pl-group-h { box-shadow: 0 -2px 0 var(--v6-n
 html .pl-rc-match[data-won='false'] .pl-group-h { box-shadow: 0 -2px 0 var(--v6-night-2), inset 3px 0 0 var(--v6-enemy), inset 0 -1px 0 var(--v6-line); }
 html .pl-social .pl-rc-foot { margin-top: 10px; text-align: center; }
 @media (hover: hover) { html .pl-group-h:hover { color: var(--v6-cream); } }
-html .pl-group-h:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 /* count pills: 13 px on a solid fill (no faint 8 % wash) */
 html .pl-group-n {
   margin-left: auto; min-width: 26px; padding: 4px 8px; box-sizing: border-box; border-radius: 11px; background: var(--v6-night-3, #3a2a55);
@@ -218,7 +211,6 @@ html .pl-me {
 }
 html .pl-me .pl-social-name { -webkit-line-clamp: 1; line-clamp: 1; overflow-wrap: anywhere; }
 @media (hover: hover) { html .pl-me:hover { background: rgb(var(--v6-cream-rgb) / 0.06); } }
-html .pl-me:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 html .pl-me .pl-social-line { align-items: center; gap: 2px; }
 html .pl-me .pl-social-line .pl-i { flex: none; transition: transform var(--v6-dur-fast) var(--v6-ease-out); }
 html .pl-me[aria-expanded='true'] .pl-social-line .pl-i { transform: rotate(180deg); }
@@ -239,7 +231,6 @@ html .pl-me-note select {
   min-width: 0; min-height: 44px; padding: 0 10px; border: 0; border-radius: var(--v6-r-s); background: var(--v6-night-2); color: var(--v6-cream);
   box-shadow: inset 0 0 0 1px var(--v6-line-strong); font: 600 16px/1.2 var(--font); cursor: pointer;
 }
-html .pl-me-note select:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--v6-bolt); }
 html .pl-me-opt .pl-i { color: var(--v6-bolt); }
 html .pl-me-code { color: var(--v6-bolt); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
 
@@ -250,14 +241,13 @@ html .pl-social .pl-ico-gift.has-dot::after { content: ''; position: absolute; t
 /* ── rows ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
 html .pl-social .pl-fr, html .pl-social .pl-rq, html .pl-social .pl-rc { position: relative; gap: 4px; min-height: var(--soc-row); padding: 0 2px 0 0; border-radius: var(--v6-r-s); }
 html .pl-social .pl-rq, html .pl-social .pl-rc { gap: 10px; padding-left: 6px; }
-html .pl-social .pl-fr.is-open, html .pl-social .pl-fr:focus-within, html .pl-social .pl-fr.is-chat { background: rgb(var(--v6-cream-rgb) / 0.06); }
+html .pl-social .pl-fr.is-open, html .pl-social .pl-fr.is-chat { background: rgb(var(--v6-cream-rgb) / 0.06); }
 html .pl-social .pl-fr.is-chat { box-shadow: inset 3px 0 0 var(--v6-sky); }
 html .pl-fr-main {
   flex: 1 1 auto; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 6px; border: 0;
   border-radius: var(--v6-r-s); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation;
 }
-html .pl-fr-main:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 
 /* presence: the avatar's ring IS the status colour (its own art ring is off here), the corner dot adds a shape for
    colour-blind players: online a disc, lobby a disc, queue a hollow ring, match a square, offline a faint hollow disc */
@@ -405,7 +395,6 @@ html .pl-social .pl-btn.ghost, html .pl-chat .pl-btn.ghost { background: transpa
 html .pl-social .pl-btn.ghost[aria-pressed='true'] { background: rgb(var(--v6-cream-rgb) / 0.12); box-shadow: inset 0 0 0 1px var(--v6-cream); }
 html .pl-social .pl-btn.cta { background: var(--v6-rose); color: #fff; }
 @media (hover: hover) { html .pl-social .pl-btn.cta:hover { background: var(--v6-rose-light); color: var(--v6-night); } }
-html .pl-social .pl-btn:focus-visible, html .pl-chat .pl-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--v6-cream); }
 /* the invite code chip: the same quiet line as a ghost button (no dashes) */
 html .pl-social .pl-inv-code { border: 0; box-shadow: inset 0 0 0 1px var(--v6-line-strong); }
 @media (hover: hover) { html .pl-social .pl-inv-code:hover { box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb) / 0.5); } }
@@ -427,7 +416,6 @@ html .pl-chat-head .pl-fr-av { --soc-av: 36px; }
 html .pl-chat .pl-chat-back .pl-i { transform: rotate(90deg); }
 html .pl-chat .pl-ico { flex: none; position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s); background: transparent; color: var(--v6-muted); cursor: pointer; }
 @media (hover: hover) { html .pl-chat .pl-ico:hover { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); } }
-html .pl-chat .pl-ico:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 html .pl-chat-who-h { flex: 1 1 auto; }
 /* minimised (docked): only the head shows, like LoL's chat tab; what arrived meanwhile shows as "2 new" */
 html .pl-chat.is-docked.is-min { height: auto; min-height: 0; padding-top: 4px; padding-bottom: 4px; cursor: pointer; }
@@ -450,7 +438,6 @@ html .pl-chat-tab-n { min-width: 0; overflow: hidden; white-space: nowrap; text-
 html .pl-chat-tab[aria-selected='true'] { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); box-shadow: inset 0 -3px 0 var(--v6-sky); }
 html .pl-chat-tab.has-unread { color: var(--v6-cream); }
 @media (hover: hover) { html .pl-chat-tab:not([aria-selected='true']):hover { background: rgb(var(--v6-cream-rgb) / 0.06); color: var(--v6-cream); } }
-html .pl-chat-tab:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 html .pl-chat-tab-u { flex: none; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; background: var(--v6-rose); color: #fff; font: 800 13px/20px var(--font); text-align: center; }
 /* the newest messages sit on the composer (a short thread does not float at the top) */
 html .pl-chat .pl-chat-list > :first-child { margin-top: auto; }
@@ -608,8 +595,6 @@ html .pl-chat-who-h.is-tabbed { justify-content: center; }
 /* ── round 7 ───────────────────────────────────────────────────────────────────────────────────────────────────── */
 /* a request row's Tab stop is the person (never Accept): it shows focus like a friend's row */
 html .pl-social .pl-rq-main { align-self: stretch; justify-content: center; border-radius: var(--v6-r-s); outline: none; }
-html .pl-social .pl-rq-main:focus-visible { box-shadow: var(--v6-focus-inset); }
-html .pl-social .pl-rq:focus-within { background: rgb(var(--v6-cream-rgb) / 0.06); }
 /* a row brought into view by the keyboard stops below the stuck group header (requests too) */
 html .pl-social .pl-rq { scroll-margin-top: 44px; }
 html .pl-social .pl-social-body { scroll-padding-top: 44px; }
@@ -705,7 +690,6 @@ html .pl-chat-grip {
   position: absolute; left: 0; top: 0; z-index: 3; width: 18px; height: 18px; cursor: nwse-resize; touch-action: none; border-radius: var(--v6-r-m, 10px) 0 0 0;
   background: linear-gradient(135deg, rgb(var(--v6-cream-rgb) / 0.45) 0 2px, transparent 2px 5px, rgb(var(--v6-cream-rgb) / 0.3) 5px 7px, transparent 7px);
 }
-html .pl-chat-grip:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--v6-bolt); }
 /* docked with tabs: the tabs are the head (one row of chrome); options, minimise and close at its end */
 html .pl-chat-head.is-strip { gap: 2px; min-height: 48px; }
 html .pl-chat-head.is-strip .pl-chat-tabs { flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; box-shadow: none; }
@@ -752,7 +736,6 @@ html .pl-mb-g { display: inline-flex; align-items: center; gap: 6px; min-width: 
 html .pl-mb-t { letter-spacing: 0.04em; text-transform: uppercase; }
 html .pl-mb-n { min-width: 22px; padding: 3px 7px; box-sizing: border-box; border-radius: 10px; background: var(--v6-night-3, #3a2a55); box-shadow: inset 0 0 0 1px var(--v6-line-strong); color: var(--v6-cream); font: 800 13px/1 var(--font); text-align: center; font-variant-numeric: tabular-nums; }
 @media (hover: hover) { html .pl-more-below:hover { color: var(--v6-cream); background: var(--v6-night-3, #3a2a55); } }
-html .pl-more-below:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 /* the bar names what is below: the fade under it is not needed too */
 html .pl-social.has-more:has(.pl-more-below:not([hidden])) .pl-social-body::after { opacity: 0; }
 
@@ -786,7 +769,6 @@ html .pl-fr-menu.is-sheet .pl-fr-menu-acts > .pl-mi-lead { grid-column: 1 / -1; 
 /* me: one resting style (a quiet pill), the same right after the panel opens, on hover and with keyboard focus */
 html .pl-me { background: rgb(var(--v6-cream-rgb) / 0.04); }
 @media (hover: hover) { html .pl-me:hover { background: rgb(var(--v6-cream-rgb) / 0.08); } }
-html .pl-me:focus:not(:focus-visible) { box-shadow: none; }
 html .pl-me-note > span { display: grid; gap: 2px; }
 html .pl-me-note-hint { color: var(--v6-muted); font: 600 14px/1.2 var(--font); }
 

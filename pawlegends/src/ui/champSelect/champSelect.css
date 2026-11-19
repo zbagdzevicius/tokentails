@@ -49,7 +49,6 @@
 .cs *, .cs *::before, .cs *::after { box-sizing: border-box; }
 .cs small, .pl-party .cs small { text-transform: none; letter-spacing: 0; opacity: 1; }
 .cs button { font-family: inherit; }
-.cs button:focus-visible { outline: 3px solid var(--cs-gold); outline-offset: 2px; }
 /* the party overlay: the champion select fills it (its own gradient is the backdrop) */
 .pl-party .pp-card.cs { position: absolute; inset: 0; width: auto; max-height: none; display: grid; gap: 6px var(--cs-gap); background: none; }
 
@@ -422,7 +421,6 @@
   .cs-title::after { bottom: -8px; height: 4px; }
   /* desktop tabs lean -8deg (parallelogram clip: the layout box and the label stay upright) */
   .cs-tab { --v6-lean-x: 7px; clip-path: var(--v6-lean-clip); }
-  .cs .cs-tab:focus-visible { outline: none; box-shadow: var(--v6-focus-inset, inset 0 0 0 3px #ffe14a); }
   .cs-ri, .cs-ri .pl-icon { width: 30px; height: 30px; }
   .cs-name { font-size: 24px; }
   .cs-role { font-size: 14px; }

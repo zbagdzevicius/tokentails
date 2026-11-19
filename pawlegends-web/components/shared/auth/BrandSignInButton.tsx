@@ -89,7 +89,6 @@ export const BrandSignInButton = ({ provider, onClick, disabled, label, classNam
         className={clsx(
           "relative flex h-[48px] min-h-[44px] w-full items-center justify-center gap-[10px] rounded-[4px] px-3 shadow-[0_3px_0_rgb(var(--tt-night-950))] short:!h-[44px]",
           "transition-colors disabled:cursor-not-allowed disabled:opacity-60",
-          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-tt-gold-400",
           variant.button
         )}
       >

@@ -303,6 +303,8 @@ export function openHudEditor(parent: HTMLElement, o: HudEditorOpts = {}): HTMLE
       return;
     }
     if (e.key === 'Tab') {
+      // input/tabGuard.ts: Tab never walks the buttons (no focus move, no ring)
+      if (e.defaultPrevented) return;
       // focus stays in the editor
       const f = Array.from(root.querySelectorAll<HTMLElement>('button:not([disabled])'));
       if (!f.length) return;

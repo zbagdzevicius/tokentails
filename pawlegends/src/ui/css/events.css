@@ -48,7 +48,6 @@
 }
 .lo-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--v6-bolt-ledge, #c79a00); }
 .lo-btn:disabled { opacity: 0.6; cursor: default; }
-.lo-btn:focus-visible, .lo-opt:focus-visible { outline: var(--v6-focus-ring, 2px solid #39a6ff); outline-offset: 2px; }
 
 /* Winter Nap: one pip per gift, the last one the coat */
 .lo-pips { display: flex; gap: 4px; }

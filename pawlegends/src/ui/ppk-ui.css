@@ -1023,7 +1023,7 @@ body.ui-bar .touch-root .touch-cluster .tbtn { opacity: 0; pointer-events: none;
 /* TT3 §11.5 K8: the rebinding buttons (keyboard and mouse column of the active preset) */
 .ctl-bind { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 36px;
   padding: 2px 4px; border-radius: 10px; cursor: pointer; border: 2px dashed transparent; transition: border-color .15s, background .15s; }
-.ctl-bind:hover, .ctl-bind.is-focus, .ctl-bind:focus-visible { border-color: #F2A2B8; background: #FFF0F4; }
+.ctl-bind:hover, .ctl-bind.is-focus { border-color: #F2A2B8; background: #FFF0F4; }
 .ctl-bind.is-disabled { cursor: default; border-color: transparent; background: none; }
 .ctl-bind.is-capturing { border-color: var(--tt-love, #E8577E); border-style: solid; background: #FFE3EC; animation: ctl-blink .9s ease-in-out infinite; }
 .ctl-bind.is-capturing .ui-key { opacity: .35; }
@@ -1452,7 +1452,7 @@ body.ui-touch .cel-card.is-sticker { right: auto; left: calc(50% + 64px); top: 1
 .title-gear { position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); width: 48px; height: 48px; padding: 0; border: 0; background: none;
   cursor: pointer; pointer-events: auto; opacity: 0; transition: opacity .4s, transform .2s var(--ease-pop); }
 .ui-title.is-logo .title-gear { opacity: 1; }
-.title-gear:hover, .title-gear:focus-visible { transform: rotate(30deg) scale(1.08); }
+.title-gear:hover { transform: rotate(30deg) scale(1.08); }
 .title-gear svg { width: 100%; height: 100%; }
 /* the footer sits on its own cream pill (it used to be drawn straight over her armour) */
 .title-foot { left: 50%; right: auto; transform: translateX(-50%); bottom: max(10px, env(safe-area-inset-bottom)); font-size: 16px; font-weight: 500; color: var(--cocoa);
@@ -1649,7 +1649,7 @@ html[data-embed="1"] .title-wordmark { top: calc(14px + var(--embed-gut, 56px));
   font: 800 16px/1 var(--f-body); color: var(--tt-goldHi); background: #2A1F45CC; border: 2px solid #FFCC5599; box-shadow: 0 2px 0 #0B082080;
   opacity: 0; transition: opacity .4s, border-color .2s, transform .2s var(--ease-pop); }
 .menu--home.is-on .title-skip { opacity: .92; }
-.title-skip:hover, .title-skip:focus-visible { opacity: 1; border-color: var(--tt-gold); transform: translateY(-1px); outline: none; box-shadow: 0 0 0 3px var(--tt-love); }
+.title-skip:hover { opacity: 1; border-color: var(--tt-gold); transform: translateY(-1px); outline: none; box-shadow: 0 0 0 3px var(--tt-love); }
 .title-skip-arr { color: var(--tt-love); letter-spacing: -.12em; }
 /* phones: the footer pill takes the centre; the skip link sits above the right end of the CTA row instead */
 @media (max-height: 460px) { .title-skip { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 48px); font-size: 16px; } }

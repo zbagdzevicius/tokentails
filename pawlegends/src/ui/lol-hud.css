@@ -34,12 +34,11 @@ html:not([data-touch='1']) .pl-hud .pl-rankup { bottom: calc(150px + var(--safe-
   box-shadow: inset 0 0 0 1px var(--hx-gold-dd), inset 0 -3px 0 rgb(var(--v6-night-rgb) / 0.55), 0 2px 6px rgba(0, 0, 0, 0.45);
   transition: transform var(--v6-dur-press) var(--v6-ease-out), border-color var(--v6-dur-fast);
 }
-/* hover / press / keyboard focus (desktop): a brighter hairline, a 1 px press, the bolt focus ring */
+/* hover / press (desktop): a brighter hairline, a 1 px press */
 @media (hover: hover) and (pointer: fine) {
   .pl-hud .pl-slot:not(.locked):hover { border-color: rgb(var(--v6-cream-rgb) / 0.5); }
 }
 .pl-hud .pl-slot:not(.locked):active { transform: translateY(1px); }
-.pl-hud .pl-slot:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 .pl-hud .pl-slot > svg { position: relative; z-index: 0; }
 .pl-hud .pl-slot.ult {
   width: 64px; height: 64px; border: 3px solid rgb(var(--v6-bolt-rgb) / 0.7);

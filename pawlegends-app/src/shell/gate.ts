@@ -81,6 +81,7 @@ const CHIP_MS = 6000;
 type Screen = 'checking' | 'updating' | 'offline' | 'retry' | 'failed' | 'store' | 'maintenance';
 
 const STYLE = `
+#pl-gate :focus{outline:none}
 #pl-gate{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;pointer-events:all;touch-action:none;
 background:radial-gradient(circle at 50% 42%,rgba(18,9,31,0) 30%,#12091f 72%),linear-gradient(118deg,#3a0f2a 0 49.6%,rgba(255,225,74,.55) 49.6% 50.4%,#0c1f4a 50.4%);
 color:#fff3e3;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-user-select:none;user-select:none;

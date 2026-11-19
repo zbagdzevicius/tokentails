@@ -61,7 +61,6 @@ kbd {
   background: var(--v6-grad-rose); color: #fff; letter-spacing: 0.02em; text-shadow: 0 2px 0 var(--v6-plum-deep);
   box-shadow: var(--v6-ledge-rose), 0 10px 24px rgba(0, 0, 0, 0.3); transition: transform var(--v6-dur-press) ease-out, box-shadow var(--v6-dur-press) ease-out;
 }
-.pl-btn:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
 .pl-btn:hover { transform: translateY(-1px); }
 .pl-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--v6-rose-deep), 0 4px 10px rgba(0, 0, 0, 0.3); }
 .pl-btn.big { font-size: 24px; padding: 18px 40px; }

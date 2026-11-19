@@ -131,7 +131,6 @@
 .ms-var.locked .ms-var-n { color: var(--v6-muted); }
 .ms-var.locked .ms-var-l { color: var(--v6-muted); }
 .ms-var.locked .ms-var-i::after { filter: grayscale(0.85) brightness(0.8); }
-.ms-var:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 4px; }
 
 /* the tile row: centred; a sideways scroller with snap only when it overflows */
 .ms-rowwrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; }
@@ -264,8 +263,6 @@
 }
 @keyframes ms-burst { from { transform: scale(0.6); opacity: 0; } }
 .ms-pick:hover:not(.on):not([aria-disabled='true']) .ms-ring { transform: scale(1.04); }
-.ms-pick:focus-visible { outline: none; }
-.ms-pick:focus-visible .ms-ring { outline: 3px solid var(--v6-bolt); outline-offset: 5px; }
 .shake { animation: ms-shake 0.36s ease both !important; }
 @keyframes ms-shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 
@@ -314,7 +311,6 @@
 .ms-mini.on .ms-mring { transform: scale(1.1); box-shadow: 0 0 0 2px var(--ms-ink), 0 0 0 4px var(--ms-sel), 0 0 14px 4px rgb(var(--v6-bolt-rgb) / 0.45); }
 .ms-mini.on .ms-mname { color: var(--v6-cream); }
 .ms-mini[data-state='locked'] { cursor: pointer; }
-.ms-mini:focus-visible .ms-mring { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
 /* a just-unlocked mode grows into the third tile and its padlock pops (once; none on low tier or reduced motion) */
 .ms-tile.ms-fresh { animation: ms-grow 0.6s var(--v6-ease-pop) both; animation-delay: 0.2s; }
 @keyframes ms-grow { from { opacity: 0.2; transform: translateY(70%) scale(0.34); } }
@@ -368,7 +364,6 @@
 .ms-confirm:active:not(:disabled)::before { box-shadow: 0 2px 0 var(--v6-rose-deep), 0 0 0 2px var(--ms-ink), 0 4px 0 var(--ms-ink), 0 6px 14px rgb(0 0 0 / 0.4), inset 0 2px 0 rgb(255 255 255 / 0.35); }
 .ms-confirm:disabled { cursor: not-allowed; color: var(--v6-faint); text-shadow: none; }
 .ms-confirm:disabled::before { background: var(--v6-night-3); box-shadow: var(--v6-ledge-night), 0 0 0 2px var(--ms-ink), inset 0 0 0 1px var(--ms-line-strong); }
-.ms-overlay button:focus-visible:not(.ms-pick) { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
 
 /* the info popover and the toast: night glass panels, 4 px radius, a rose top bar / a bolt note bar */
 .ms-pop {
@@ -472,6 +467,5 @@ html[data-quality='low'] .ms-tile, html[data-quality='low'] .ms-runes, html[data
 .ms-scheme.rnd i { background: conic-gradient(#6fbf4a 0 25%, #f6b3cc 0 50%, #e0602a 0 75%, #eef3fa 0); }
 .ms-scheme:hover i { transform: rotate(-12deg); }
 .ms-scheme:active { transform: scale(0.92); }
-.ms-scheme:focus-visible { outline: 2px solid var(--v6-bolt); outline-offset: 2px; }
 @media (max-width: 900px) { .ms-scheme { width: 38px; height: 38px; margin-left: 4px; } .ms-scheme i { inset: 6px; } }
 @media (prefers-reduced-motion: reduce) { .ms-scheme, .ms-scheme i { transition: none; } .ms-scheme:hover i { transform: none; } }

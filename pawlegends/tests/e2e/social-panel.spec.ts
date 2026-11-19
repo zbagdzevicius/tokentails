@@ -641,7 +641,8 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
   }
 
   if (!touch) {
-    // one Tab stop for the whole list (a roving tabindex): Tab from a row leaves the list; arrows move inside it
+    // one Tab stop for the whole list (a roving tabindex); arrows move inside it. Tab walks no buttons (founder, Nov 19;
+    // input/tabGuard.ts): focus stays on the row
     const navStops = await game.evaluate(() => ({
       nav: document.querySelectorAll('.pl-social-body [data-nav][tabindex="0"]').length,
       acts: document.querySelectorAll('.pl-social-body .pl-fr-acts button:not([tabindex="-1"])').length,
@@ -649,7 +650,7 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
     expect(navStops).toEqual({ nav: 1, acts: 0 });
     await sheet.locator('.pl-social-body [data-nav][tabindex="0"]').focus();
     await page.keyboard.press('Tab');
-    expect(await game.evaluate(() => !!document.activeElement?.closest('.pl-social-body .pl-group'))).toBe(false);
+    expect(await game.evaluate(() => document.activeElement?.matches('.pl-social-body [data-nav][tabindex="0"]') ?? false)).toBe(true);
     // a request: Decline and Accept are one row (ArrowLeft from Accept reaches Decline)
     await sheet.locator('.pl-rq[data-code="PL-REQQ-0001"] [data-a="accept"]').focus();
     await page.keyboard.press('ArrowLeft');

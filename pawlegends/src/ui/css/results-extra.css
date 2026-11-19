@@ -85,7 +85,6 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
   min-width: 44px; min-height: 44px; margin-left: 6px; padding: 0; border: 0; border-radius: var(--v6-r-xs); vertical-align: middle;
   background: rgb(var(--v6-night-rgb) / 0.08); color: var(--ink); font: 700 16px/1 var(--font); cursor: pointer; touch-action: manipulation;
 }
-.pl-flag:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 .pl-flag.done, .pl-flag[disabled] { opacity: 0.6; cursor: default; }
 /* In the scoreboard and the results table the flag must not grow the rows (the 3v3 board fits 667x375 only at its old
    row height, and the 5v5 phone board clips its name cell at 132 px): a 34x28 chip pinned to the cell's right edge, its
@@ -112,7 +111,6 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
 }
 @media (hover: hover) { .pl-report-chip:hover { background: rgb(var(--v6-sky-rgb) / 0.2); } }
 .pl-report-chip:active { background: rgb(var(--v6-sky-rgb) / 0.3); transform: translateY(2px); box-shadow: inset 0 -1px 0 var(--v6-night-0); }
-.pl-report-chip:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 .pl-report-toast {
   position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70;
   min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: var(--v6-r-xs); background: var(--v6-night-2); color: var(--v6-cream);
@@ -156,7 +154,6 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
 
 /* the folded scoreboard: relation reads (you gold, enemy red) and flat 2 px tags */
 .pl-results .pl-table summary { color: var(--v6-cream); letter-spacing: 0.04em; }
-.pl-results .pl-table summary:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 3px; }
 .pl-results .pl-table th { color: var(--v6-muted); opacity: 1; text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em; }
 .pl-results .pl-table tr.self td { color: var(--v6-you); }
 .pl-results .pl-table tr.enemy td { color: #ffa3a8; }

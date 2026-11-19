@@ -73,8 +73,6 @@ html[data-quality='low'] .pl-book {
 .pl-screen.pl-book .bk-ti { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 0; color: var(--v6-night, #12091f); background: var(--bk-sky); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .pl-screen.pl-book .bk-tab.on .bk-ti { background: var(--bk-rose); color: #fff; }
 .pl-screen.pl-book .bk-ti .pl-icon { width: 13px; height: 13px; }
-.pl-screen.pl-book .bk-tab:focus-visible { outline: none; box-shadow: var(--v6-focus-inset, inset 0 0 0 3px #ffe14a); }
-.pl-screen.pl-book .bk-x:focus-visible, .pl-book button:not(.bk-tab):focus-visible, .pl-book [tabindex]:focus-visible { outline: 3px solid var(--bk-bolt); outline-offset: 3px; }
 .pl-screen.pl-book .card > .pl-x.bk-x {
   position: absolute; top: 8px; right: 10px; margin: 0; z-index: 4; width: 44px; height: 44px; border: 0; border-radius: 50%; padding: 0; cursor: pointer;
   display: grid; place-items: center; color: var(--bk-cream);

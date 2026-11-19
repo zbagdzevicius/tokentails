@@ -25,7 +25,7 @@ export const LEGENDS_CSS = `@font-face{font-family:"Fredoka";src:url("${LEGENDS_
   background:radial-gradient(closest-side,#93d26688,#93d26600) 0 0/700px 560px,radial-gradient(closest-side,#74b84d66,#74b84d00) 350px 280px/700px 560px}
 .lgb img{max-width:100%;display:block}
 .lgb a{color:inherit}
-.lgb :focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:10px}
+.lgb :focus,.lgb :focus-visible{outline:none}
 .lgb .skip{position:absolute;left:12px;top:-60px;z-index:100;background:var(--paper);padding:10px 14px;border-radius:10px;font-weight:800;text-decoration:none}
 .lgb .skip:focus{top:12px}
 .lgb .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -216,16 +216,16 @@ export const LEGENDS_CSS = `@font-face{font-family:"Fredoka";src:url("${LEGENDS_
 .lgb .sk::after{content:"";position:absolute;inset:3px;border-radius:9px;background:conic-gradient(#ffffff59 var(--cd,0deg),#0000 0);pointer-events:none}
 .lgb .sk svg{width:26px;height:26px;position:relative;z-index:1}
 .lgb .sk kbd{position:absolute;right:3px;bottom:2px;font:800 10px/1 var(--body);opacity:.75}
-.lgb .sk:hover,.lgb .sk:focus-visible{border-color:var(--gold)}
+.lgb .sk:hover{border-color:var(--gold)}
 .lgb .sk.held{background:linear-gradient(#ec5a8d,#a8295a);border-color:#fff}
 .lgb .tip{position:absolute;bottom:calc(100% + 12px);left:50%;width:200px;transform:translate(-50%,6px) scale(.96);opacity:0;pointer-events:none;background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:12px;padding:10px 12px;
   font:600 13px/1.35 var(--body);text-align:left;box-shadow:0 4px 0 var(--ink);transition:.22s var(--ease-out);z-index:3}
 .lgb .tip b{display:block;font:700 15px/1.1 var(--disp);margin-bottom:3px}
-.lgb .sk:hover .tip,.lgb .sk:focus-visible .tip{opacity:1;transform:translate(-50%,0) scale(1)}
+.lgb .sk:hover .tip{opacity:1;transform:translate(-50%,0) scale(1)}
 .lgb .sk:first-child .tip{left:0;transform:translate(0,6px) scale(.96)}
-.lgb .sk:first-child:hover .tip,.lgb .sk:first-child:focus-visible .tip{transform:none}
+.lgb .sk:first-child:hover .tip{transform:none}
 .lgb .sk:last-child .tip{left:auto;right:0;transform:translate(0,6px) scale(.96)}
-.lgb .sk:last-child:hover .tip,.lgb .sk:last-child:focus-visible .tip{transform:none}
+.lgb .sk:last-child:hover .tip{transform:none}
 .lgb .cap-note{font-size:13px;color:var(--ink2);margin:10px 4px 0;font-weight:700}
 .lgb .scout{position:relative;margin:0;border:3px solid var(--ink);border-radius:20px;overflow:hidden;box-shadow:0 8px 0 var(--ink),0 24px 50px #1d4f2440;background:#000}
 .lgb .scout img{width:100%;aspect-ratio:1000/563;object-fit:cover;transform:scale(1.08);transition:transform 1.2s var(--ease-out)}
@@ -273,7 +273,7 @@ export const LEGENDS_CSS = `@font-face{font-family:"Fredoka";src:url("${LEGENDS_
 .lgb .hc .stage{position:relative;aspect-ratio:300/360;background:radial-gradient(ellipse 70% 60% at 50% 40%,#5a3a7e,#2d1b44);overflow:hidden}
 .lgb .hc .stage::after{content:"";position:absolute;left:18%;right:18%;bottom:7%;height:12%;border-radius:50%;background:radial-gradient(closest-side,#ec5a8d,#ec5a8d00);opacity:.0;transition:opacity .4s,transform .5s var(--ease-back);transform:scale(.6)}
 .lgb .hc.dog .stage::after{background:radial-gradient(closest-side,#5d86ff,#5d86ff00)}
-.lgb .hc:hover .stage::after,.lgb .slot:focus-within .stage::after{opacity:1;transform:scale(1.2)}
+.lgb .hc:hover .stage::after{opacity:1;transform:scale(1.2)}
 .lgb .hc .stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;transform-origin:50% 100%}
 .lgb .hc .meta{padding:9px 11px 11px;display:flex;flex-direction:column;gap:5px}
 .lgb .hc .nm{font:700 17px/1.05 var(--disp)}

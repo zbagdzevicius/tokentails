@@ -10,9 +10,7 @@
 .pfx h3 { margin: 0; font: italic 800 15px/1.1 var(--v6-font-display); letter-spacing: 0.05em; text-transform: uppercase; color: var(--v6-cream); }
 .pfx h3 small { margin-left: 6px; font: 700 13px/1 var(--font); letter-spacing: 0; text-transform: none; color: var(--v6-muted); }
 .pfx .pl-btn { min-height: 44px; }
-.pfx button:focus-visible, .pfx a:focus-visible, .pfx input:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 /* the tab bar scrolls sideways inside itself, which clips an outside ring: draw it inside the tab */
-.pfx .cst-tab:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: -5px; border-radius: var(--v6-r-xs); }
 
 /* ------------------------------------------------------------------ the backdrop: the champion, full height */
 .pfx-backdrop { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; background: var(--v6-night); }

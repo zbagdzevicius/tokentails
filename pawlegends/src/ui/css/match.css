@@ -149,7 +149,6 @@
 }
 .pl-talents button:hover { border-color: var(--butter); background: linear-gradient(180deg, #33224f, var(--v6-night-3)); }
 .pl-talents button:active { border-color: var(--butter); box-shadow: inset 0 -1px 0 var(--v6-plum-deep), 0 3px 10px rgb(0 0 0 / 0.4); }
-.pl-talents button:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 .pl-talents button kbd { grid-row: span 2; }
 .pl-talents button b { font-size: 13px; color: var(--butter); }
 .pl-talents button span { font-size: 11px; opacity: 0.85; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -185,7 +184,6 @@ html[data-touch='1'] .pl-score { pointer-events: auto; }
   transition: transform var(--v6-dur-press) var(--v6-ease-out), border-color var(--v6-dur-fast);
 }
 @media (hover: hover) and (pointer: fine) { .pl-emote:hover { border-color: rgb(var(--v6-rose-rgb) / 0.7); } }
-.pl-emote:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 .pl-emote .pl-icon { width: 18px; height: 18px; color: var(--rose); }
 .pl-emote kbd { font-size: 9px; padding: 1px 4px; }
 .pl-emote:active { transform: scale(0.94); }

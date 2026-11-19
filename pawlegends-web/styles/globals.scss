@@ -11,6 +11,13 @@
 @tailwind components;
 @tailwind utilities;
 
+// No focus ring anywhere (founder, Nov 19: "remove that indicator when clicking TAB from buttons everywhere"); the
+// game does the same (pawlegends/src/ui/theme/v6.css).
+:focus,
+:focus-visible {
+  outline: none !important;
+}
+
 body,
 html {
   margin: 0;
@@ -220,8 +227,7 @@ html[data-zoom="locked"] body {
 }
 
 /* Modal buttons (components/ui/modal/ModalButton.tsx): a 2 px rounded edge (no notched pixel corners), a bottom bevel that
- * disappears on press. Focus uses `outline` (Tailwind rings are box-shadows and would replace the
- * edge). */
+ * disappears on press. No focus ring (see the :focus rule at the top). */
 .tt-btn {
   border-radius: 10px;
   --tt-btn-edge: rgb(var(--tt-gold-shadow));

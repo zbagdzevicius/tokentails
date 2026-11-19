@@ -57,10 +57,10 @@ const readCompact = () => {
 };
 
 const buttonClass =
-  "inline-flex min-h-[44px] items-center justify-center rounded-md border-2 border-tt-night-950 px-4 font-sans text-p6 font-bold outline-none focus-visible:ring-4 focus-visible:ring-tt-cream";
+  "inline-flex min-h-[44px] items-center justify-center rounded-md border-2 border-tt-night-950 px-4 font-sans text-p6 font-bold outline-none";
 
 const dockButtonClass =
-  "inline-flex min-h-[36px] items-center justify-center rounded-md border-2 border-tt-night-950 px-3 font-sans text-p6 font-bold outline-none focus-visible:ring-4 focus-visible:ring-tt-cream";
+  "inline-flex min-h-[36px] items-center justify-center rounded-md border-2 border-tt-night-950 px-3 font-sans text-p6 font-bold outline-none";
 
 interface PawlegendsConsentProps {
   /** The GTM router (tests pass a fake). */

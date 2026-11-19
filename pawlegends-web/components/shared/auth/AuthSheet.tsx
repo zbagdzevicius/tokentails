@@ -80,7 +80,7 @@ export const RESEND_COOLDOWN_S = 60;
 export const VERIFY_POLL_MS = 5000;
 
 const textButton =
-  "inline-flex min-h-[44px] items-center justify-center px-3 font-sans text-p5 text-tt-lilac underline underline-offset-4 decoration-tt-lilac/50 hover:text-tt-cream hover:decoration-tt-cream rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400 disabled:no-underline disabled:opacity-60";
+  "inline-flex min-h-[44px] items-center justify-center px-3 font-sans text-p5 text-tt-lilac underline underline-offset-4 decoration-tt-lilac/50 hover:text-tt-cream hover:decoration-tt-cream rounded-[4px] disabled:no-underline disabled:opacity-60";
 
 /** ModalButton keeps a 44 px minimum on its own; max-w-full keeps a long label inside the sheet. */
 const CTA_CLASS = "max-w-full min-h-[44px]";
@@ -90,8 +90,8 @@ const bodyText = "font-sans text-p5 leading-snug text-tt-cream";
 const inputClass = (invalid: boolean) =>
   clsx(
     "h-[44px] w-full rounded-[4px] border-2 bg-tt-night-600 px-3 font-sans text-[16px] text-tt-cream",
-    "placeholder:text-tt-muted focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
-    invalid ? "border-tt-rust" : "border-tt-gold-500/70 focus:border-tt-gold-400"
+    "placeholder:text-tt-muted",
+    invalid ? "border-tt-rust" : "border-tt-gold-500/70"
   );
 
 const Divider = () => (
@@ -552,7 +552,6 @@ const EmailView = ({
       onKeyDown={onTabKeyDown}
       className={clsx(
         "min-h-[44px] flex-1 rounded-[4px] font-primary text-p5 uppercase tracking-wide transition-colors",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tt-gold-400",
         tab === value ? "bg-tt-gold-400 text-tt-gold-ink" : "text-tt-lilac hover:text-tt-cream"
       )}
     >
@@ -642,7 +641,7 @@ const EmailView = ({
               onClick={() => setShowPassword((value) => !value)}
               aria-pressed={showPassword}
               aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-0 top-0 grid h-[44px] w-[48px] place-items-center rounded-[4px] text-tt-lilac hover:text-tt-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-tt-gold-400"
+              className="absolute right-0 top-0 grid h-[44px] w-[48px] place-items-center rounded-[4px] text-tt-lilac hover:text-tt-cream"
             >
               <PixelIcon name={showPassword ? "eye-off" : "eye"} className="text-[22px]" />
             </button>

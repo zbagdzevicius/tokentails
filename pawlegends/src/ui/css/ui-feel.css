@@ -347,7 +347,6 @@ html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolut
 }
 .pl-pingwheel .slice svg { width: 18px; height: 18px; color: var(--c); }
 .pl-pingwheel .slice.hot, .pl-pingwheel .slice:active { background: var(--c); color: var(--v6-night, #12091f); box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.22), 0 0 0 2px var(--v6-night, #12091f); }
-.pl-pingwheel .slice:focus-visible { outline: 3px solid var(--v6-bolt, #ffe14a); outline-offset: 2px; }
 .pl-pingwheel .slice.hot svg, .pl-pingwheel .slice:active svg { color: var(--v6-night, #12091f); }
 @media (prefers-reduced-motion: reduce) { .pl-pingwheel .slice { transition: none; } }
 .pl-pingbtn {
@@ -355,7 +354,6 @@ html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolut
   border: 2px solid rgb(var(--v6-sky-rgb) / 0.7); background: var(--v6-glass-navy, var(--panel)); color: var(--v6-ice, var(--cream)); pointer-events: auto; touch-action: none;
 }
 .pl-pingbtn:active { background: var(--v6-sky-deep, #0d4fb8); }
-.pl-pingbtn:focus-visible { outline: 3px solid var(--v6-bolt, #ffe14a); outline-offset: 2px; }
 .pl-pingbtn svg { width: 24px; height: 24px; }
 .pl-pingbtn.cool { opacity: 0.45; }
 html[data-touch='1'] .pl-pingbtn { display: block; right: calc(68px + var(--mm-w) + var(--safe-r)); top: calc(66px + var(--safe-t)); }

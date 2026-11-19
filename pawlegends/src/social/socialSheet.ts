@@ -1658,7 +1658,8 @@ export class SocialSheet {
       return;
     }
     if (e.key === 'Tab') {
-      // the sheet keeps focus while it is open (a dialog)
+      // the sheet keeps focus while it is open (a dialog); input/tabGuard.ts cancelled it outside a text field
+      if (e.defaultPrevented) return;
       const all = [...this.root.querySelectorAll<HTMLElement>('button:not([disabled]), input, [tabindex="0"]')].filter((el) => !el.closest('[hidden]') && el.getAttribute('tabindex') !== '-1');
       if (!all.length) return;
       const first = all[0];

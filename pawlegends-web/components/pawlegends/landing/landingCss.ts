@@ -16,7 +16,7 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
 .pll{background:var(--ink);color:var(--white);font-family:var(--body);font-size:17px;line-height:1.55;overflow-x:clip;-webkit-font-smoothing:antialiased}
 .pll img{display:block;max-width:100%}
 .pll a{color:inherit}
-.pll :focus-visible{outline:4px solid var(--bolt);outline-offset:4px;border-radius:6px}
+.pll :focus,.pll :focus-visible{outline:none}
 .pll .sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .pll .skip{position:fixed;left:12px;top:-60px;z-index:400;background:var(--bolt);color:var(--ink);padding:10px 16px;font-weight:800;border-radius:8px;text-decoration:none}
 .pll .skip:focus{top:12px}
@@ -137,7 +137,6 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
    clear space. No hover motion: Apple's guidelines say not to animate the badge. On iPhone and iPad (.ios, set by PawlegendsLanding) it grows to the play button's height as the second action. */
 .pll .appstore{display:inline-flex;align-self:center;line-height:0;border-radius:8px}
 .pll .appstore img{display:block;height:clamp(40px,3.4vw,52px);width:auto}
-.pll .appstore:focus-visible{outline:3px solid var(--bolt);outline-offset:4px}
 .pll.ios .appstore img{height:clamp(50px,6.4vw,72px)}
 .pll .flash{position:absolute;inset:0;z-index:20;background:#fff;opacity:0;pointer-events:none}
 .pll .slash{position:absolute;inset:0;z-index:19;width:100%;height:100%;pointer-events:none;overflow:visible}
@@ -233,14 +232,12 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
 .pll .tile.dog .cur{right:-6px}.pll .tile.dog .cur b{background:var(--ice)}
 .pll .tile .new{position:absolute;z-index:2;top:4px;left:4px;font-family:var(--disp);font-weight:700;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:1px 5px;background:var(--bolt);color:var(--ink);border:2px solid var(--ink);border-radius:4px;pointer-events:none}
 .pll .tile .nm.long{font-size:clamp(9.5px,.82vw,12px)}
-.pll .tile:hover,.pll .tile:focus-visible{transform:skewX(-6deg) translateY(-6px) scale(1.06);z-index:2}
-.pll .tile:hover img,.pll .tile:focus-visible img{transform:skewX(6deg) scale(1.34)}
+.pll .tile:hover{transform:skewX(-6deg) translateY(-6px) scale(1.06);z-index:2}
+.pll .tile:hover img{transform:skewX(6deg) scale(1.34)}
 .pll .tile[aria-pressed="true"]::after{border-color:var(--bolt);animation:pll-selpulse 1s cubic-bezier(.45,0,.55,1) infinite}
 .pll .tile[aria-pressed="true"] .cur{opacity:1;transform:none}
 .pll .tile.cat[aria-pressed="true"]::after{box-shadow:0 0 0 3px var(--pink)}
 .pll .tile.dog[aria-pressed="true"]::after{box-shadow:0 0 0 3px var(--blue)}
-.pll .tile:focus-visible{outline:none}
-.pll .tile:focus-visible::after{border-color:var(--white)}
 @keyframes pll-selpulse{50%{border-color:var(--white)}}
 .pll .grid-legend{display:flex;justify-content:space-between;gap:12px;margin-top:clamp(14px,1.6vw,22px);font-family:var(--disp);font-weight:600;font-size:clamp(13px,1.1vw,15px);
   letter-spacing:.12em;text-transform:uppercase}

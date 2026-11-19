@@ -90,7 +90,7 @@ export function ModalTabs<T extends string>({
             }}
             className={clsx(
               "tt-btn relative inline-flex min-h-[44px] shrink-0 items-center gap-1.5 whitespace-nowrap px-3 font-primary text-p5 uppercase leading-none tracking-wide",
-              "outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-tt-gold-400",
+              "outline-none",
               "transition-colors duration-150 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-50",
               selected
                 ? "bg-tt-gold-400 text-tt-gold-ink"
@@ -132,7 +132,7 @@ export const ModalTabPanel = ({
     id={panelId(idBase, id)}
     aria-labelledby={tabId(idBase, id)}
     tabIndex={0}
-    className={clsx("outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-tt-gold-400/60", className)}
+    className={clsx("outline-none", className)}
   >
     {children}
   </div>

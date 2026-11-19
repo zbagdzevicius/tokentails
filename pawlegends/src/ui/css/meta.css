@@ -87,7 +87,6 @@
 .pl-offer .row { display: flex; flex-direction: column; gap: 6px; }
 .pl-offer .x { position: absolute; right: 8px; top: 6px; background: none; border: 0; color: var(--v6-cream); font-size: 16px; cursor: pointer; opacity: 0.7; border-radius: var(--v6-r-xs); transition: opacity var(--v6-dur-fast), color var(--v6-dur-fast); }
 .pl-offer .x:hover { opacity: 1; color: var(--v6-rose-light); }
-.pl-offer .x:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; opacity: 1; }
 .pl-offer .pl-sku { box-shadow: inset 4px 0 0 var(--v6-sky); }
 
 .pl-settings .card { text-align: left; }
@@ -109,12 +108,10 @@
 .pl-settings.pl-menu .chip.on {
   background: var(--v6-cream); border-color: var(--v6-cream); color: var(--v6-night); box-shadow: inset 0 -3px 0 var(--v6-bolt);
 }
-.pl-settings.pl-menu .chip:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 .pl-settings .set-acct .pl-acct-line { color: var(--v6-muted); opacity: 1; }
 /* the corner close (ui-feel.css .pl-x): navy glass with a sky keyline, like the other secondary actions */
 .pl-settings.pl-menu .card > .pl-x { background: rgb(var(--v6-navy-rgb) / 0.92); border-color: rgb(var(--v6-sky-rgb) / 0.5); color: var(--v6-ice); transition: border-color var(--v6-dur-fast), background-color var(--v6-dur-fast); }
 .pl-settings.pl-menu .card > .pl-x:hover { background: var(--v6-navy); border-color: var(--v6-sky); }
-.pl-settings.pl-menu .card > .pl-x:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 /* the sticky Done keeps its 4 px ledge (ui-feel.css: bottom -6px so ledge stays on screen), in v6 rose-deep */
 /* the sticky Done: its old 6 px spread halo greyed whole chips of the row behind it (the Target row's picked "Heroes"
    read as disabled); a tight shade under the button only, so every row's picked chip keeps the cream + bolt look */
@@ -130,7 +127,6 @@
 }
 .set-camh .camh-seg:hover { background: rgb(var(--v6-sky-rgb) / 0.16); }
 .set-camh .camh-seg.on { background: var(--v6-cream); color: var(--v6-night); box-shadow: inset 0 -3px 0 var(--v6-bolt); }
-.set-camh .camh-seg:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 1px; }
 .pl-settings .pl-btn.big { align-self: center; }
 
 .pl-consent {
@@ -186,7 +182,6 @@
 }
 .shop-tile:hover { border-color: rgb(var(--v6-sky-rgb) / 0.6); background-color: rgb(var(--v6-navy-rgb) / 0.62); }
 .shop-tile:active { transform: translateY(1px); }
-.shop-tile:focus-visible { outline: 3px solid var(--v6-bolt); outline-offset: 2px; }
 .shop-tile b { font-size: 12px; line-height: 1.2; }
 .shop-tile small { font-size: 11px; color: var(--v6-rose-light); font-variant-numeric: tabular-nums; }
 .shop-tile.on { border-color: var(--v6-cream); box-shadow: 0 0 0 1px var(--v6-cream) inset, inset 0 -3px 0 var(--v6-bolt); background-color: rgb(var(--v6-navy-rgb) / 0.75); }
@@ -241,7 +236,7 @@
   font: 500 11px/20px var(--font, sans-serif); opacity: 0.55; text-align: left;
 }
 .pl-settings .lb-ver span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.pl-settings .lb-ver:hover, .pl-settings .lb-ver:focus-visible, .pl-settings .lb-ver[data-copied] { opacity: 0.9; }
+.pl-settings .lb-ver:hover, .pl-settings .lb-ver[data-copied] { opacity: 0.9; }
 
 /* SHARE-PUSH.md §2: the notifications card (the offer card's corner and look) and its Settings rows */
 .pl-pushask p { margin: 0; font-size: 13px; line-height: 1.35; color: var(--v6-ice); }

@@ -71,7 +71,7 @@ export const CloseButton = ({
         // Sizes are in px, not rem: on phones globals.scss sets `html { font-size: 100vw / 25 }`,
         // which would shrink `h-11` to 35 px at 320 wide (arbitrary px values stay px).
         "group inline-flex h-[44px] min-h-[44px] w-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md lg:h-[64px] lg:w-[64px]",
-        "outline-none focus-visible:ring-4 focus-visible:ring-tt-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-tt-night-900",
+        "outline-none",
         PLACEMENT_CLASSES[placement],
         disabled ? "cursor-not-allowed" : "cursor-pointer",
         className
@@ -86,7 +86,7 @@ export const CloseButton = ({
           "pointer-events-none h-auto w-full transition-all duration-300",
           disabled
             ? "opacity-40 grayscale"
-            : "opacity-70 group-hover:brightness-150 group-hover:opacity-100 group-hover:scale-125 group-focus-visible:opacity-100 group-focus-visible:brightness-125 motion-reduce:group-hover:scale-100"
+            : "opacity-70 group-hover:brightness-150 group-hover:opacity-100 group-hover:scale-125 motion-reduce:group-hover:scale-100"
         )}
       />
     </button>

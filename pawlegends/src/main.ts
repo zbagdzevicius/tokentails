@@ -9,6 +9,7 @@ import { installCrashOverlay, reportCrash, setCrashExit, setCrashHook, showCrash
 import { createAnalytics } from './analytics/posthog';
 import { SIM_VERSION } from './sim/version';
 import { installNoZoom } from './app/noZoom';
+import { installTabGuard } from './input/tabGuard';
 import { installBridge } from './embed/bridge';
 import { inAppShell, shellPlatform } from './app/platform';
 import { lockAppBuild } from './meta/roster';
@@ -23,6 +24,7 @@ function boot(): void {
   }
   installCrashOverlay();
   installNoZoom();
+  installTabGuard();
   const bridge = installBridge();
   // embedded: the crash panel's "Back to games" leaves through the host (no host close button any more); the app's
   // in-page host has no games page to go back to

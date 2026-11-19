@@ -291,6 +291,8 @@ export class ChatSheet {
 
   /** Tab stays inside the thread (a dialog): from the last control back to the first and the other way. */
   private trapTab(e: KeyboardEvent): void {
+    // input/tabGuard.ts cancelled it (focus is not in a text field): Tab moves no focus
+    if (e.defaultPrevented) return;
     const all = [...this.root.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [tabindex="0"]')].filter((el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden');
     if (!all.length) return;
     const t = e.target as HTMLElement;
