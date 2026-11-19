@@ -206,7 +206,7 @@ export const HAPTICS = {
   guardBreak: [40, 40, 40], hurt: 55, holy: 70, golden: 110, kitten: [15, 60, 15], orderRejected: [10, 40, 10],
 };
 
-export const ATTACKS = {
+export const ATTACKS = /* @__PURE__ */ keyed({
   // ---- player (dmg on ×10 scale) ----
   slash1:   { dur: .40, active: [.10, .22], arc: { range: 1.9, from:  1.2, to: -1.2, y0: 0, y1: 1.4 }, dmg: 10, knock: 4, poise: 1, hitstop: .05, shake: .15, lunge: 2.5, combo: [.18, .40], next: 'slash2', valor: 'light' },
   slash2:   { dur: .40, active: [.10, .22], arc: { range: 1.9, from: -1.2, to:  1.2, y0: 0, y1: 1.4 }, dmg: 10, knock: 4, poise: 1, hitstop: .05, shake: .15, lunge: 2.5, combo: [.18, .40], next: 'slash3', valor: 'light' },
@@ -239,9 +239,9 @@ export const ATTACKS = {
   dummy_swing:  { telegraph: 'parry', windup: .8, every: 2.0, dur: .4, active: [0, .12], arc: { range: 1.6, from: .8, to: -.8, y0: 0, y1: 1.2 }, dmg: 0, knock: 2, poise: 1, recover: 1.2, parriedSpin: 1.0 },  // Wobble Knight; first glint → 0.25× slow-mo hint once
   sack_swing:   { period: 2.0, r: .3, dmg: 0, knock: 3, poise: 1 },   // swinging sack (0.6 m) on a 1.8 m rope; a hit just knocks her back
   // bosses: see BOSSES.*.moves (same fields)
-};
+});
 
-export const ENEMIES = {
+export const ENEMIES = /* @__PURE__ */ keyed({
   rat_pike:  { model: 'models/creatures/polypizza/Rat.glb', fit: { h: 0.8 }, radius: .30, height: .8, mass: .8, hp: 30, poise: 2, walk: 1.6, run: 3.8, sight: 10, fov: 2.09, leash: 18, patrolRadius: 4,
                attacks: [{ id: 'rat_poke', weight: 1, range: 1.9 }], followUp: { id: 'rat_poke2', chance: .3 }, fleeBelow: .2, fleeDur: 2.0, fish: [2, 3], props: ['kettleHelm', 'spear', 'buckler'] },
   rat_xbow:  { model: 'models/creatures/polypizza/Rat.glb', fit: { h: 0.8 }, radius: .30, height: .8, mass: .8, hp: 20, poise: 1, walk: 1.6, run: 3.6, sight: 16, fov: 2.09, leash: 22,
@@ -280,11 +280,11 @@ export const ENEMIES = {
   warhound:  { model: 'models/creatures/animals/Husky.glb', fit: { z: 1.1 }, tint: '#3A3436', hp: 45, poise: 3, walk: 3.0, run: 7.5, fetch: { radius: 8, chance: .6, chew: 3.0 }, fish: [4, 4] },
   bat:       { model: 'models/creatures/polypizza/Bat.glb', fit: { h: 0.4 }, hp: 10, poise: 0, speed: 6, fish: [1, 1] },
   hornet:    { model: 'models/creatures/polypizza/Wasp.glb', fit: { h: 0.6 }, hp: 25, poise: 1, hover: 1.2, fish: [3, 3] },
-};
+}, ['hyena', 'stealer']);
 
 export const DIZZY = { perPoise: 4, perParry: 35, decayDelay: 2.0, decayPerSec: 8, dur: 3.0, critMul: 2 };
 
-export const BOSSES = {
+export const BOSSES = /* @__PURE__ */ keyed({
   grizzlechop: { name: 'CAPTAIN GRIZZLECHOP', hp: 450, poise: 12, dizzyMax: 100, fit: { h: 1.6 }, arenaR: 12, pillars: { n: 6, r: 8, radius: .8, height: 2.5 }, fish: 100,
                  phases: [ { at: 1.00, moves: ['sabreFlurry', 'cheeseToss'], weights: [3, 2], events: [{ at: .80, spawn: [['rat_pike', 2]] }] },
                            { at: 0.60, moves: ['wheelRide', 'sabreFlurry'], weights: [2, 1], wheel: { laps: 3, tele: 1.0, speed: 9, every: 12, laneW: 3, dizzyAfter: 2.0 }, events: [{ at: .60, spawn: [['rat_xbow', 2]] }] },
@@ -302,7 +302,7 @@ export const BOSSES = {
                            { at: 0.35, moves: ['shardSlam', 'cleaverCombo'], shardSlam: { every: 6, tele: .8, dmg: 2, blockChip: 1, parriesNeeded: 3, dizzyAfter: 5 }, windupMul: .85, hpFloor: .10 } ],
                  rallyAt: .10 },
   sovereign:   { name: 'THE SLIME SOVEREIGN', hp: [300, 150, 60], counts: [1, 2, 4], sizes: [4, 2.8, 1.8], dizzyMax: 80, fish: 100 },   // MVP+
-};
+});
 
 export const COMPANIONS = {
   maxActive: 1, maxActiveAfterGate: 2 /* MVP+ */, hp: 8, napTime: 8, follow: 2.5, teleportBeyond: 15, teleportLos: 4, engage: 6, dmg: 5, rate: 1.6, tokenShare: .2,
@@ -338,16 +338,16 @@ export const LINE = { durationAtFullRate: 240, winch: [0, 41], winchRadius: 4, l
 
 // WA §12 (core.W1): warm danger hues (red #FF3B30 → #FF5A4E, aoe #FF6A3D → #FF9A3D), the crow shadow plum #3A2346 (never
 // black, WA §2.7); `glyph` = the shape language of WA §3.4 (fx maps each to a GroundDecals SDF), `ink` = the cocoa sandwich
-export const TELEGRAPH = { colors: { parry: '#FFFFFF', gold: '#FFD34D', red: '#FF5A4E', aoe: '#FF9A3D', aim: '#FFFFFF', grab: '#9B5CFF', jeer: '#B07CFF', shadow: '#3A2346' },
+export const TELEGRAPH = /* @__PURE__ */ freezeParts({ colors: { parry: '#FFFFFF', gold: '#FFD34D', red: '#FF5A4E', aoe: '#FF9A3D', aim: '#FFFFFF', grab: '#9B5CFF', jeer: '#B07CFF', shadow: '#3A2346' },
                            minLead: { parry: .45, gold: .6, red: .6, aoe: .5, aim: .8, grab: .6, jeer: .5, shadow: 1.0 }, arrowRadius: 15, maxArrows: 4, decalPool: 32,
                            glyph: { parry: 'shield', gold: 'star8', red: 'chevron2', aoe: 'dots6', grab: 'paw', shadow: 'crowfoot', aim: 'arrow' },
-                           ink: { color: '#4A2A1F', width: 0.03, alpha: 0.35 }, glyphSize: 0.45, glyphSizeTouch: 0.55, rimMinTouch: 0.14 };
+                           ink: { color: '#4A2A1F', width: 0.03, alpha: 0.35 }, glyphSize: 0.45, glyphSizeTouch: 0.55, rimMinTouch: 0.14 }, ['glyph', 'ink']);
 
-export const JUICE = { light: { hitstop: .05, shake: .15, rumble: [.25, 0, 60] }, heavy: { hitstop: .09, shake: .35, rumble: [.4, .5, 120] },
+export const JUICE = /* @__PURE__ */ freezeParts({ light: { hitstop: .05, shake: .15, rumble: [.25, 0, 60] }, heavy: { hitstop: .09, shake: .35, rumble: [.4, .5, 120] },
                        holy: { hitstop: .14, shake: .6, rumble: [.8, .8, 250], bloom: [.55, 1.2, .4], fovPunch: 5 }, parry: { hitstop: .12, shake: .25, rumble: [.3, .7, 90] },
                        block: { hitstop: .04, shake: .1, rumble: [.2, .2, 60] }, guardBreak: { hitstop: .08, shake: .4, rumble: [.5, .5, 150] },
                        kill: { hitstopAdd: .04, shakeAdd: .1 }, hurt: { hitstop: .07, shakeMul: 1.4, rumble: [.6, .3, 150] }, dizzy: { hitstop: .1, shake: .3, rumble: [.3, .3, 120] },
-                       finalBlow: { hitstopAdd: 0.06, slowMo: 0.25, timeScale: 0.35 } };   // WA §12: the last alerted enemy of an encounter (via game.slowMo)
+                       finalBlow: { hitstopAdd: 0.06, slowMo: 0.25, timeScale: 0.35 } }, ['finalBlow']);   // WA §12: the last alerted enemy of an encounter (via game.slowMo)
 
 
 /**
@@ -392,9 +392,18 @@ export const MODEL_FIT = {
 // ---------------------------------------------------------------------------------------------
 
 // Every table entry knows its own key (HIT events carry def.id; enemy/boss defs carry their type id).
-for (const [k, v] of Object.entries(ATTACKS)) v.id = k;
-for (const [k, v] of Object.entries(ENEMIES)) v.id = k;
-for (const [k, v] of Object.entries(BOSSES)) v.id = k;
+// pawlegends: set by keyed() inside each (pure) table, so the bundle can drop the tables the game never reads.
+/** Each entry gets `id` = its key; `frozenWords` names the entries whose `plateWordsFriend` is frozen. */
+function keyed(o, frozenWords = []) {
+  for (const [k, v] of Object.entries(o)) v.id = k;
+  for (const k of frozenWords) Object.freeze(o[k].plateWordsFriend);
+  return o;
+}
+/** Freezes the named sub-tables of `o` (they used to be frozen at the end of this file). */
+function freezeParts(o, keys) {
+  for (const k of keys) Object.freeze(o[k]);
+  return o;
+}
 
 /** Placeholder Swordcat parts (M0–M1; the player agent replaces them with characters' buildKitten). */
 export const PLACEHOLDER = { swordcat: 'models/cats/Cat_Blocky.glb', sword: 'models/weapons/kaykit/sword_2handed.glb' };
@@ -413,12 +422,12 @@ export const LEVEL_IDS = ['meadow', 'forest', 'town', 'gate', 'bog', 'keep'];
 /** §3.5: the 18 lost kittens, in level order (3 per level). */
 export const KITTEN_IDS = ['biscuit', 'noodle', 'button', 'pickles', 'pebble', 'sprout', 'waffles', 'toffee', 'muffin',
   'tater', 'mittens', 'socks', 'juniper', 'bramble', 'fennel', 'bean', 'crumpet', 'dumpling'];
-export const KITTENS_BY_LEVEL = { meadow: KITTEN_IDS.slice(0, 3), forest: KITTEN_IDS.slice(3, 6), town: KITTEN_IDS.slice(6, 9),
-  gate: KITTEN_IDS.slice(9, 12), bog: KITTEN_IDS.slice(12, 15), keep: KITTEN_IDS.slice(15, 18) };
+export const KITTENS_BY_LEVEL = /* @__PURE__ */ (() => ({ meadow: KITTEN_IDS.slice(0, 3), forest: KITTEN_IDS.slice(3, 6), town: KITTEN_IDS.slice(6, 9),
+  gate: KITTEN_IDS.slice(9, 12), bog: KITTEN_IDS.slice(12, 15), keep: KITTEN_IDS.slice(15, 18) }))();
 /** Levels that are still bootable stubs with no kittens in them (STATUS.md Known issues). */
 export const STUB_LEVEL_IDS = ['bog', 'keep'];
 /** The kittens a player can rescue today (12 until bog and keep ship). Progress counts and public copy use this. */
-export const REACHABLE_KITTEN_IDS = KITTEN_IDS.filter((id) => !STUB_LEVEL_IDS.some((l) => KITTENS_BY_LEVEL[l].includes(id)));
+export const REACHABLE_KITTEN_IDS = /* @__PURE__ */ KITTEN_IDS.filter((id) => !STUB_LEVEL_IDS.some((l) => KITTENS_BY_LEVEL[l].includes(id)));
 
 /** Game modes (§19.1 A7). */
 export const MODES = ['play', 'dialog', 'cutscene', 'menu', 'memecam'];
@@ -818,4 +827,4 @@ export const SETTING_VALUES = /* @__PURE__ */ deepFreeze({
   pathPreview: ['auto', 'on', 'off'],                 // WA §3.6 ('auto' = touch during the prologue and Chapter 1)
 });
 
-for (const t of [ENEMIES.hyena.plateWordsFriend, ENEMIES.stealer.plateWordsFriend, TELEGRAPH.glyph, TELEGRAPH.ink, JUICE.finalBlow]) Object.freeze(t);
+// pawlegends: ENEMIES.*.plateWordsFriend, TELEGRAPH.glyph / ink and JUICE.finalBlow are frozen by keyed() / freezeParts() above.

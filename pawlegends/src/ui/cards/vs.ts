@@ -10,7 +10,7 @@ import type { AvatarView } from '../../data/chatPhrases';
 import type { HeroId } from '../../sim/api';
 import type { CatTier } from '../../meta/roster';
 import { HERO_TEXT } from '../heroText';
-import { elBg, fxUrl, heroElement, preloadCardArt } from './art';
+import { REMOTE_FX, elBg, fxUrl, heroElement, preloadCardArt } from './art';
 import { flipCard, heroCard } from './hero';
 import './vs.css';
 
@@ -50,7 +50,8 @@ export interface VsIntroOpts {
 export function showVsIntro(parent: HTMLElement, o: VsIntroOpts): () => void {
   const calm = reduced();
   const myTeam = o.mySlot < 3 ? 0 : 1;
-  preloadCardArt([fxUrl('golden-burst'), fxUrl('sparkle'), ...o.picks.map((h) => elBg(heroElement(h)))]);
+  // the results' MVP decorations stream from pawlegends.app (REMOTE_FX): warm them during the intro
+  preloadCardArt([fxUrl('golden-burst'), fxUrl('sparkle'), ...o.picks.map((h) => elBg(heroElement(h))), ...[...REMOTE_FX].map(fxUrl)]);
   const row = (team: 0 | 1, startIdx: number): string => {
     const cards = [0, 1, 2]
       .map((k) => {

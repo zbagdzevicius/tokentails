@@ -24,6 +24,7 @@ import { TICK_HZ, TIMELINE } from '../data/timeline';
 import { NetCore, type CoreIn, type CoreOut } from './net-core';
 import { TURN_MS } from './lockstep';
 import { Pacer } from './pacer';
+import { NET_WORKER_NAME } from './net-worker';
 import { HEROES } from '../data/heroes/index';
 import type { ViewFrame } from '../render/interp';
 import { watchVisibility } from './visibility';
@@ -110,7 +111,7 @@ function mpProbe(snap: Snapshot): void {
 export function workerTransport(onMsg: (m: CoreOut | { t: 'error'; message: string }) => void, onFail: (msg: string) => void) {
   if (typeof Worker === 'undefined') return null;
   try {
-    const w = new Worker(new URL('./net-host.worker.ts', import.meta.url), { type: 'module', name: 'pawlegends-net' });
+    const w = new Worker(new URL('../host/local-host.worker.ts', import.meta.url), { type: 'module', name: NET_WORKER_NAME });
     w.addEventListener('message', (e) => onMsg(e.data));
     w.addEventListener('error', (e) => {
       e.preventDefault?.();

@@ -44,7 +44,7 @@ import { modeById, playable, queueFor, type ModeChoice, type ModeDef, type ModeI
 import { crestSvg } from '../modeSelect/crest';
 import { startMotes } from './motes';
 import { HEROES } from '../../data/heroes';
-import { bindEvents, needsTap } from '../events/eventsPanel';
+import { bindEvents, needsTap } from '../events/eventsBind';
 import { dropAction, liveopsState, onLiveops } from '../../meta/liveops';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);

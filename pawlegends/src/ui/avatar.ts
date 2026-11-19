@@ -6,7 +6,7 @@
  * Nov 13: no pixel art in Paw Legends). No data shows the default; a guest shows a paw. Pure markup or a DOM node.
  */
 import { HEROES, type HeroId } from '../data/heroes';
-import { isAvatarView, type AvatarView } from '../data/chatPhrases';
+import { isAvatarView, type AvatarView } from '../data/avatarView';
 import { portraitUrl } from '../render/portraits';
 
 export type AvatarSize = 24 | 32 | 40 | 56 | 88;

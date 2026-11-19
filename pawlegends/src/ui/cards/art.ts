@@ -7,6 +7,8 @@
  * resolves against the stylesheet that uses it, not the page, and the embed build serves under `/pawlegends-game/`.
  */
 import type { CatTier, Element } from '../../meta/roster';
+import { artRoot } from '../art';
+import { assetRev } from '../assetRev';
 export { TIER_NAME, cardAttrs, heroElement } from './el';
 
 export type CardElement = Element;
@@ -53,8 +55,15 @@ export const TIER_SHEEN: Readonly<Record<CatTier, string>> = Object.freeze({
   LEGENDARY: 'linear-gradient(115deg, rgba(255, 205, 90, 0) 12%, rgba(255, 205, 90, 0.8) 38%, rgba(255, 255, 255, 0.9) 50%, rgba(255, 134, 165, 0.75) 62%, rgba(255, 205, 90, 0) 88%)',
 });
 export const tierPattern = (t: CatTier): string => TIER_SHEEN[t];
+/**
+ * fx art served by pawlegends.app beside the skin art (`pawlegends-web/public/pawlegends-art/cards-fx/`), outside the
+ * 10 MB game budget: the MVP card's decorations (results only) and the reveal flash. Never needed to play; the VS
+ * intro warms them (`preloadCardArt`), and when they cannot load (offline) the card shows without them.
+ */
+export const REMOTE_FX: ReadonlySet<string> = new Set(['legendary-bg', 'rare-swirl', 'epic-claw', 'epic-paw', 'whiskers-left', 'whiskers-right', 'white-burst', 'reveal-sparkle']);
+
 /** fx art: sparkle, legendary-sparkle, golden-burst, white-burst, reveal-sparkle, legendary-bg, legendary-paws, ... */
-export const fxUrl = (name: string): string => cardUrl(`fx/${name}.webp`);
+export const fxUrl = (name: string): string => (REMOTE_FX.has(name) ? `${artRoot()}cards-fx/${name}.webp${assetRev()}` : cardUrl(`fx/${name}.webp`));
 
 /** `cardsBorderColor` (client/models/cats.ts). */
 export const CARD_BORDER: Readonly<Record<Element, string>> = Object.freeze({

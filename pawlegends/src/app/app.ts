@@ -38,7 +38,6 @@ import { Lobby } from '../render/lobby';
 import { heroSplashUrl, onSkinArt, skinArtUrl, splashFor } from '../ui/art';
 import { loadHistory, newEntryId, noteSave, recordMoment, reelOf, replayOf, replayState, saveReel, soloRecord, statsLine, type HistoryEntry, type LocalBoard, type RowSave, type StoredReplay } from '../replay/store';
 import { boardOf } from '../replay/board';
-import { localMatch } from '../ui/history/localMatch';
 
 import { portraitUrl, warmPortraits } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
@@ -67,7 +66,8 @@ import { showUpdateCard, UpdateWatch } from '../meta/clientPolicy';
 import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
-import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
+import type { PerfReadout } from '../ui/perfReadout';
+import { perfFromUrl } from '../ui/perfFlag';
 import { lateS, loadingVeil, rotatePrompt } from '../ui/screensCore';
 import type { Choice } from '../ui/screens';
 /** gaps5 polish 8: the champion select, the results and the pause menu are one lazy chunk (ui/screens.ts). */
@@ -102,7 +102,6 @@ import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
 import { flagHidden, hasMatchFlags, matchFlag, myCountry, refreshMyFlag, setFlagHidden } from '../social/flags';
 import { loadMastery } from '../meta/mastery';
-import { kudosMates, mountKudos } from '../social/kudos';
 import { assetRev } from '../ui/assetRev';
 import { RewardsCloud, todayExtraHtml } from '../ui/rewards/rewards';
 
@@ -288,7 +287,7 @@ export class App {
   private pendingReveal: string | null = null;
   private frameMs: number[] = [];
   /** `?perf=1` on-screen readout for the device gate (§15 item 27); null otherwise. */
-  private readonly perf: PerfReadout | null;
+  private perf: PerfReadout | null = null;
   private readonly sessionNo: number;
   private readonly dayN: number;
   /** Force update (FORCE-UPDATE.md §5): an outdated web build reloads on the title; the app hands over to its shell. */
@@ -305,7 +304,13 @@ export class App {
     this.gr = createRenderer(root, this.tier);
     if (this.governor.step > 0) this.gr.apply(tierSettings(this.tier, { phone: this.phone, step: this.governor.step }));
     document.documentElement.dataset.phone = this.phone ? '1' : '0';
-    this.perf = perfFromUrl() ? new PerfReadout(root) : null;
+    // ?perf=1 only: the readout is its own chunk
+    if (perfFromUrl())
+      void import('../ui/perfReadout')
+        .then((m) => {
+          this.perf = new m.PerfReadout(root);
+        })
+        .catch(() => undefined);
     document.documentElement.dataset.quality = this.gr.settings.tier;
     // founder, Nov 13: the menus show the heroes as painted art (faces, splashes, skin art), never a 3D render
     this.stage = new ArtStage(root, this.gr.renderer.domElement, () => this.gr.settings.tier === 'low');
@@ -1599,7 +1604,7 @@ export class App {
     void import('../ui/profile/profileScreen')
       .then(async ({ profileScreen }) => {
         if (this.overlay) return;
-        const { emptyData, rowOf } = await import('../ui/profile/model');
+        const [{ emptyData, rowOf }, { localMatch }] = await Promise.all([import('../ui/profile/model'), import('../ui/history/localMatch')]);
         if (this.overlay) return;
         // this device's rows (practice never: it is not a match of the account), with their match key and save status
         const deviceProfileRows = () =>
@@ -2873,7 +2878,11 @@ export class App {
     if (party && this.rankedRun) this.fillRanked(resultsEl, won);
     // CLUBS-KUDOS.md §5: a PvP match's results offer a thumbs-up to each human teammate (signed-in players only)
     if (reportBook && partyNames && accountState().signedIn)
-      mountKudos(resultsEl, { mates: kudosMates(mySlot, partyNames, e.welcome.picks.length), send: (slot) => this.integration.api('kudos.give', { room: reportBook.room, slot }) });
+      void import('../social/kudos')
+        .then(({ kudosMates, mountKudos }) => {
+          if (resultsEl.isConnected) mountKudos(resultsEl, { mates: kudosMates(mySlot, partyNames, e.welcome.picks.length), send: (slot) => this.integration.api('kudos.give', { room: reportBook.room, slot }) });
+        })
+        .catch(() => undefined);
     // the offer card waits for the staged results reveal, and shows only after a win (never on a Defeat screen),
     // never after the Rookie match (fun plan F4)
     // SHARE-PUSH.md §2: the notifications card after a win (never the first launch); it takes the corner before the offer

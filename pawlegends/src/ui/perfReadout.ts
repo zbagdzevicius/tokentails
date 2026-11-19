@@ -7,13 +7,7 @@
  * Opt-in only, off by default, and not a debug hook: nothing is put on `window`, it reads only what the game already
  * has (frame times, `renderer.info`), and it adds a DOM node only when the URL asks for it.
  */
-export function perfFromUrl(search: string = typeof location !== 'undefined' ? location.search : ''): boolean {
-  try {
-    return new URLSearchParams(search).get('perf') === '1';
-  } catch {
-    return false;
-  }
-}
+export { perfFromUrl } from './perfFlag';
 
 /** p95 of `xs[0..n)` (ms, one decimal). */
 export function p95Of(xs: ArrayLike<number>, n: number = xs.length): number {

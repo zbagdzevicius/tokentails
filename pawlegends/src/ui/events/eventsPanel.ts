@@ -2,13 +2,16 @@
  * The live-ops cards (docs/plans/moba/LIVEOPS.md) in the Events section of Home's Quests panel: the community goal with
  * its shared progress bar, Winter Nap's gift calendar and the fan vote between two coat concepts, each with its time
  * left. Home's `goalsPanelHtml` (ui/home/homeScreen.ts) puts `liveopsCardsHtml()` under Today's quests; `bindEvents`
- * wires the buttons and redraws the cards in place when the server answers, so the open panel never closes or jumps.
+ * (ui/events/eventsBind.ts, first load) wires the buttons and redraws the cards in place when the server answers, so the open panel never closes or jumps.
  *
  * Buttons carry `data-lo` (not Home's `data-a`): a claim or a vote keeps the panel open. No new art: inline SVG, our
  * champions' faces from the bundle (the goal's coat owner, each vote option's hero) and the vote's colour swatches. Names from the server are always escaped. Nothing here costs money.
  */
 import '../css/events.css';
-import { castVote, claimGoal, claimNap, goalPct, liveopsState, napPhase, onLiveops, refreshLiveops, voteShares, type LiveopsState } from '../../meta/liveops';
+import { goalPct, liveopsState, napPhase, voteShares, type LiveopsState } from '../../meta/liveops';
+import { needsTap } from './eventsBind';
+
+export { needsTap };
 import { countdownText } from '../modeSelect/modes';
 import { HEROES } from '../../data/heroes';
 import { heroFaceUrl } from '../art';
@@ -29,14 +32,6 @@ const PAWPRINT =
 const BALLOT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 13h16v8H4zM7 3h10v9H7zm2.2 4.6l1.6 1.6 3.8-3.8 1 1-4.8 4.8-2.6-2.6z"/></svg>';
 const GIFT =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 9h18v4H3zM4.5 13h15v8h-15z"/><path fill="rgb(0 0 0 / 0.35)" d="M10.8 9h2.4v12h-2.4z"/><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" d="M12 8.5C10.5 5 6.5 3.8 6.5 6.4S10 8.5 12 8.5zm0 0c1.5-3.5 5.5-4.7 5.5-2.1S14 8.5 12 8.5z"/></svg>';
-
-/** True when a card asks for a tap: a reached goal or an earned gift not claimed, or an open vote not cast. Pure. */
-export function needsTap(s: LiveopsState, now = Date.now()): boolean {
-  const { config: c, me } = s;
-  if (c.goal?.reached && me?.goal && !me.goal.claimed) return true;
-  if (c.nap && me?.nap && napPhase(c.nap, now) !== 'before' && me.nap.earned > me.nap.claimed) return true;
-  return !!(c.vote?.open && me?.vote && !me.vote.choice && c.vote.endsAt > now);
-}
 
 /** "25d left" from one day up, "9h 12m left" under a day. Pure. */
 export function leftText(ms: number): string {
@@ -134,44 +129,3 @@ export function liveopsCardsHtml(s: LiveopsState = liveopsState(), now = Date.no
 /** The featured mode's id (Home tags its row "Featured"). */
 export const featuredModeId = (): string | null => liveopsState().config.featuredMode?.id ?? null;
 
-/**
- * Wire one Home: the card buttons, the in-place redraw on every live-ops change, and a refresh of the config (at most
- * once a minute). The listener drops itself when this Home leaves the page.
- */
-export function bindEvents(root: HTMLElement, signal?: AbortSignal | null): void {
-  root.addEventListener(
-    'click',
-    (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-lo]');
-      if (!b || b.disabled) return;
-      e.stopPropagation();
-      const k = b.dataset.lo;
-      if (k === 'goal') void claimGoal();
-      else if (k === 'nap') void claimNap();
-      else if (k === 'vote' && (b.dataset.opt === 'a' || b.dataset.opt === 'b')) void castVote(b.dataset.opt);
-    },
-    signal ? { signal } : undefined,
-  );
-  const redraw = (s: LiveopsState): void => {
-    if (!root.isConnected) {
-      off();
-      return;
-    }
-    const cards = root.querySelector('.lo-cards');
-    if (cards) cards.outerHTML = liveopsCardsHtml(s);
-    // the Quests button's rose dot follows a card that asks for a tap (a reached goal, a gift, an open vote)
-    const btn = root.querySelector<HTMLElement>('[data-a="goals"]');
-    if (btn) {
-      const want = needsTap(s);
-      btn.classList.toggle('live', want);
-      const dot = btn.querySelector('.hm-dot');
-      if (want && !dot) btn.insertAdjacentHTML('beforeend', '<i class="hm-dot" aria-hidden="true"></i>');
-      else if (!want) dot?.remove();
-      const label = (btn.getAttribute('aria-label') ?? '').replace(/\. An event needs you$/, '');
-      btn.setAttribute('aria-label', want ? `${label}. An event needs you` : label);
-    }
-  };
-  const off = onLiveops(redraw);
-  signal?.addEventListener('abort', off);
-  void refreshLiveops();
-}
