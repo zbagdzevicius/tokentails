@@ -57,6 +57,7 @@ import { pulseDevice } from '../embed/api';
 import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { inviteUrl, partyApi, partyFromUrl, watchFromUrl } from '../share/partyLink';
+import { LinkRouter, listenLinks } from './links';
 import type { PartyClient } from '../party';
 import { PVP_UNLOCK_MATCHES, hideNames, lastQueueSide, onlineMode, setLastQueueSide, setOnlineMode, type OnlineMode } from '../meta/partyPrefs';
 import { pvpAvailable, pvpKnown } from '../meta/pvpCapability';
@@ -498,6 +499,8 @@ export class App {
     // a closed tab that was a stranger in a live Quick Play match (no code): ask the relay for that seat back
     else if (this.partyApi && lastMmMatch()) this.openParty('back');
     if (this.partyCode) stripPartyParam();
+    // DEEP-LINKS.md: a party link the app was opened with (the shell's queue: the launch link, then warm ones)
+    if (this.partyApi) this.listenLinks();
     // the party chunk is fetched while idle once the title is up (never part of the first load, §11)
     // gaps5 polish 8: warm the champion select and results chunk once the title is up (PLAY then opens it at once)
     idle(() => void this.loadScreens().catch(() => undefined));
@@ -1987,6 +1990,34 @@ export class App {
     }
     this.party = null;
     this.openParty('join', party);
+  }
+
+  /** DEEP-LINKS.md: party links from the app shell (a QR scan or a tapped `pawlegends.app/p/<code>`). */
+  private links: LinkRouter | null = null;
+  private listenLinks(): void {
+    if (this.links) return;
+    const router = new LinkRouter({
+      busy: () => !!this.session || this.partyOpening || !!this.party?.state.inMatch,
+      currentCode: () => this.party?.state.view?.code ?? this.party?.state.joining ?? null,
+      showParty: () => {
+        if (this.social && !this.social.closed) this.social.dispose();
+        this.party?.show();
+      },
+      join: (code) => {
+        this.analytics.track('party_invite' as never, { action: 'link' } as never);
+        if (this.social && !this.social.closed) this.social.dispose();
+        // like accepting an invite: a link moves you out of the lobby you were in
+        if (this.party) this.party.leaveParty();
+        this.party = null;
+        this.openParty('join', code);
+      },
+      bad: () => void import('../social/inviteInbox').then((m) => m.lineToast(document, 'That party link is broken. Ask your friend for a new one, or start your own party.', 'party-link-bad')),
+      now: () => Date.now(),
+      setTimeout: (fn, ms) => setTimeout(fn, ms),
+      clearTimeout: (t) => clearTimeout(t as ReturnType<typeof setTimeout>),
+    });
+    this.links = router;
+    listenLinks(window, (url) => void router.open(url));
   }
 
   /**

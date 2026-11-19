@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "BVLDTU9V83.com.tokentails.pawlegends"
+        ],
+        "components": [
+          {
+            "/": "/p/*",
+            "comment": "Paw Legends party invite"
+          }
+        ]
+      }
+    ]
+  }
+}

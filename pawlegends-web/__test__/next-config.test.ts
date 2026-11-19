@@ -14,13 +14,29 @@ describe("next.config.js", () => {
     rules = await config.redirects();
   });
 
-  it("sends www to the apex, keeping the path", () => {
+  it("sends www to the apex, keeping the path, except the app association files (no redirect allowed)", () => {
     expect(rules[0]).toEqual({
-      source: "/:path*",
+      source: "/:path((?!\\.well-known/|apple-app-site-association).*)",
       has: [{ type: "host", value: "www.pawlegends.app" }],
-      destination: "https://pawlegends.app/:path*",
+      destination: "https://pawlegends.app/:path",
       permanent: true,
     });
+    const re = new RegExp(`^/${"((?!\\.well-known/|apple-app-site-association).*)"}$`);
+    expect(re.test("/play")).toBe(true);
+    expect(re.test("/p/K7QX2M")).toBe(true);
+    expect(re.test("/.well-known/apple-app-site-association")).toBe(false);
+    expect(re.test("/.well-known/assetlinks.json")).toBe(false);
+    expect(re.test("/apple-app-site-association")).toBe(false);
+  });
+
+  it("serves the app association files as JSON (DEEP-LINKS.md)", async () => {
+    const headers: { source: string; headers: { key: string; value: string }[] }[] = await config.headers();
+    for (const source of ["/.well-known/apple-app-site-association", "/apple-app-site-association", "/.well-known/assetlinks.json"])
+      expect(headers.find((h) => h.source === source)?.headers).toContainEqual({ key: "Content-Type", value: "application/json" });
+  });
+
+  it("never redirects /p/<code> (the app claims it; a redirect would break Universal Links)", () => {
+    for (const r of rules) expect(/^\/p(\/|$)/.test(r.source)).toBe(false);
   });
 
   it("moves the old /pawlegends paths to the new ones for good", () => {

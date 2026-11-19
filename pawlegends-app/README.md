@@ -154,6 +154,14 @@ champion art, `pawlegends-web/context/auth/link.ts` for the sign-in flows; no ro
 Release builds refuse without the files: the Xcode phase "Firebase config (sign-in)" for iPhone Release builds, the
 Gradle release tasks (`-PplAllowNoFirebase` skips it), and the fastlane `build` lanes.
 
+## Party links
+
+`https://pawlegends.app/p/<code>` (the lobby QR and Share) opens the app straight into the party: iOS Universal Links
+(`applinks:pawlegends.app` in `App-iOS.entitlements`; the fastlane `build` lane enables Associated Domains on the App
+ID) and Android App Links (the `autoVerify` intent filter in `AndroidManifest.xml`). `src/shell/links.ts` queues the
+URL for the game. Founder step for Android: the Play App Signing SHA-256 into `pawlegends-web/app-links.json`. Details,
+behaviour per device and checks: `docs/plans/moba/DEEP-LINKS.md`.
+
 ## Over-the-air updates
 
 - `www/` is zipped (reproducibly), encrypted with AES-128 under a fresh key, and the key and the SHA-256 are

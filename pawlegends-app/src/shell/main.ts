@@ -14,6 +14,8 @@
  * - the compat-1 bridge bundle (`__PL_BRIDGE__`, build-web.mjs --bridge) keeps only the OTA, haptics and back handling:
  *   no gate (the page itself is the "Update Paw Legends" screen) and no host channel.
  * - the release watermark: `window.__PL_APP_INFO__` (app version, build, active OTA bundle) for the title (appInfo.ts);
+ * - party links (links.ts, DEEP-LINKS.md): a QR scan or a tapped `pawlegends.app/p/<code>` opens the app; the URL is
+ *   queued for the game (`window.__PL_LINKS__`, `pl:link`), which joins that party;
  * - sign-in: the same-window channel to the in-page host (`window.__PL_HOST__`, src/host/channel.ts), installed here,
  *   before the game's module runs, so the game's bridge finds it at boot; the host itself (`host.js`, Firebase and
  *   the sign-in sheet) loads after the game and attaches to it.
@@ -28,6 +30,7 @@ import { installVibrate } from './haptics';
 import { Ota, takesOtaUpdates, type KV } from './ota';
 import { CHANNEL_GLOBAL, createChannel } from '../host/channel';
 import { publishAppInfo } from './appInfo';
+import { installLinks } from './links';
 import { Gate } from './gate';
 import { fetchPolicy, offlineVerdict, readCache } from './policy';
 import { CLIENT_POLICY_STORE_URLS, CLIENT_POLICY_WEB_URL, type ClientPolicyQuery } from '@/shared-contracts/client-policy';
@@ -104,6 +107,8 @@ function start(): void {
     } catch (e) {
       console.warn('[shell] no host channel', e);
     }
+    // party links (DEEP-LINKS.md): queued for the game before its module runs, so the launch link is never missed
+    installLinks(App, window);
   }
   // the Mac app (Mac Catalyst) has no Taptic Engine: no vibrate bridge there, the game's haptics stay silent
   const platform = (window as unknown as { __PL_PLATFORM__?: unknown }).__PL_PLATFORM__;

@@ -30,11 +30,12 @@ const legacyRedirects = [
   { source: `/pawlegends/:page(${PAGES.join("|")})`, destination: "/:page", permanent: true },
 ];
 
-// www goes to the apex, keeping the path and query.
+// www goes to the apex, keeping the path and query. The app association files stay on www (Apple and Google fetch
+// them without following redirects; DEEP-LINKS.md), should www ever get DNS.
 const wwwRedirect = {
-  source: "/:path*",
+  source: "/:path((?!\\.well-known/|apple-app-site-association).*)",
   has: [{ type: "host", value: `www.${HOST}` }],
-  destination: `https://${HOST}/:path*`,
+  destination: `https://${HOST}/:path`,
   permanent: true,
 };
 
@@ -75,6 +76,15 @@ const headers = [
   // The theme soundtrack (pawlegends tools/music/compose.mjs, outside the game budget): the game fetches it from the
   // native app (capacitor://localhost, https://localhost) and other hosts too, so it is readable cross-origin.
   { source: "/pawlegends-art/music/:path*", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
+  // Party links open the app (docs/plans/moba/DEEP-LINKS.md): the association files are JSON without an extension;
+  // Apple wants application/json and no redirect. Re-read now and then, so a short cache.
+  ...["/.well-known/apple-app-site-association", "/apple-app-site-association", "/.well-known/assetlinks.json"].map((source) => ({
+    source,
+    headers: [
+      { key: "Content-Type", value: "application/json" },
+      { key: "Cache-Control", value: "public, max-age=3600" },
+    ],
+  })),
   // The push service worker (docs/plans/moba/SHARE-PUSH.md §2): browsers check it for updates; never cached for long.
   cache("/push-sw.js", REVALIDATE),
 ];

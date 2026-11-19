@@ -60,9 +60,19 @@ describe("party links on the host (P9)", () => {
     expect(withoutParty("https://tokentails.com/pawlegends?x=1")).toBeNull();
   });
 
-  it("the party share link is only the tokentails.com embed URL", () => {
+  it("the party share link is Paw Legends' own /p/<code> (older builds: ?party= links)", () => {
+    expect(PAWLEGENDS_PARTY_LINK.test("https://pawlegends.app/p/K7QX2M")).toBe(true);
+    expect(PAWLEGENDS_PARTY_LINK.test("https://pawlegends.app/?party=K7QX2M")).toBe(true);
     expect(PAWLEGENDS_PARTY_LINK.test("https://tokentails.com/pawlegends?party=K7QX2M")).toBe(true);
-    for (const bad of ["https://evil.com/pawlegends?party=K7QX2M", "https://tokentails.com/pawlegends?party=K7QX2M&x=1", "http://tokentails.com/pawlegends?party=K7QX2M"])
+    for (const bad of [
+      "https://evil.com/pawlegends?party=K7QX2M",
+      "https://tokentails.com/pawlegends?party=K7QX2M&x=1",
+      "http://tokentails.com/pawlegends?party=K7QX2M",
+      "https://pawlegends.app/p/K7QX2M/x",
+      "https://pawlegends.app/p/K7QX0M",
+      "https://evil.com/p/K7QX2M",
+      "http://pawlegends.app/p/K7QX2M",
+    ])
       expect(PAWLEGENDS_PARTY_LINK.test(bad)).toBe(false);
   });
 });

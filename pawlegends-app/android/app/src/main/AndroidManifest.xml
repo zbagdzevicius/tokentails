@@ -33,6 +33,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+              Party links (docs/plans/moba/DEEP-LINKS.md): https://pawlegends.app/p/<code> opens the app (Android App
+              Links), verified against https://pawlegends.app/.well-known/assetlinks.json (pawlegends-web/app-links.json).
+              Apex only: www.pawlegends.app has no DNS, and before Android 12 one unverifiable host in an autoVerify
+              filter fails the whole app's verification. Capacitor's App plugin hands the URL to the shell
+              (src/shell/links.ts): getLaunchUrl on a cold start, appUrlOpen on a warm one (singleTask: onNewIntent).
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="pawlegends.app" />
+                <data android:pathPrefix="/p/" />
+            </intent-filter>
+
         </activity>
 
         <provider

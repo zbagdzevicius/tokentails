@@ -9,5 +9,13 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<!-- Party links (docs/plans/moba/DEEP-LINKS.md): https://pawlegends.app/p/<code> opens the app (Universal Links),
+	     checked against https://pawlegends.app/.well-known/apple-app-site-association (pawlegends-web/app-links.json).
+	     The App ID needs the Associated Domains capability: `bundle exec fastlane ios bootstrap`. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:pawlegends.app</string>
+		<string>applinks:www.pawlegends.app</string>
+	</array>
 </dict>
 </plist>

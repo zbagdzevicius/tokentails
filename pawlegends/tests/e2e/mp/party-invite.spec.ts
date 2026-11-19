@@ -18,6 +18,34 @@ test('a link opens "Joining…" then the lobby; the address bar drops ?party=', 
   await shot(b, 'lane-P', '10-lobby-two');
 });
 
+test('DEEP-LINKS.md: the app opened with pawlegends.app/p/<code> joins that party (cold start and warm)', async ({ browser }) => {
+  const a = await player(browser, 'desktop');
+  const code = await createParty(a);
+  // cold: the shell queued the launch link before the game booted
+  const b = await player(browser, 'phone');
+  await b.ctx.addInitScript((url) => ((window as unknown as { __PL_LINKS__: string[] }).__PL_LINKS__ = [url]), `https://pawlegends.app/p/${code.toLowerCase()}`);
+  await title(b);
+  await expect(b.page.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 120_000 });
+  await expect(a.page.locator('[data-testid="party-seat"]')).toHaveCount(2);
+  // warm: a player on the title gets the link from the shell (the app was in the background)
+  const c = await player(browser, 'phone-small');
+  await title(c);
+  await c.page.evaluate((url) => {
+    const w = window as unknown as { __PL_LINKS__?: string[] };
+    (w.__PL_LINKS__ ??= []).push(url);
+    window.dispatchEvent(new Event('pl:link'));
+  }, `https://pawlegends.app/p/${code}`);
+  await expect(c.page.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 120_000 });
+  await expect(a.page.locator('[data-testid="party-seat"]')).toHaveCount(3);
+  // a broken code says so; an ended party offers "Start your own party"
+  await c.page.evaluate(() => {
+    const w = window as unknown as { __PL_LINKS__?: string[] };
+    (w.__PL_LINKS__ ??= []).push('https://pawlegends.app/p/K7QX0M');
+    window.dispatchEvent(new Event('pl:link'));
+  });
+  await expect(c.page.locator('[data-testid="party-link-bad"]')).toContainText('start your own party');
+});
+
 test('Share falls back to Copy when navigator.share is missing ("Link copied", the embed URL)', async ({ browser }) => {
   const a = await player(browser, 'desktop', { noShare: true });
   // every origin of the context (the page is still about:blank here, and the preview port varies)
@@ -25,7 +53,7 @@ test('Share falls back to Copy when navigator.share is missing ("Link copied", t
   const code = await createParty(a);
   await a.page.locator('[data-testid="party-share"]').click();
   await expect(a.page.locator('.pp-notes')).toContainText('Link copied');
-  expect(await a.page.evaluate(() => navigator.clipboard.readText())).toBe(`https://pawlegends.app/?party=${code}`);
+  expect(await a.page.evaluate(() => navigator.clipboard.readText())).toBe(`https://pawlegends.app/p/${code}`);
 });
 
 test('an unknown code: "No party with that code" with Play now (a solo match) and Start your own party', async ({ browser }) => {

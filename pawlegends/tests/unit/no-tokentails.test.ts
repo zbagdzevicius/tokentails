@@ -68,7 +68,7 @@ describe('no Token Tails in the game source', () => {
 
   it('links point at Paw Legends\' own domain', () => {
     expect(PRIVACY_URL).toBe('https://pawlegends.app/privacy');
-    expect(inviteUrl('K7QX2M')).toBe('https://pawlegends.app/?party=K7QX2M');
+    expect(inviteUrl('K7QX2M')).toBe('https://pawlegends.app/p/K7QX2M');
     expect(PUBLIC_GAME_URL).toBe('https://pawlegends.app/');
   });
 

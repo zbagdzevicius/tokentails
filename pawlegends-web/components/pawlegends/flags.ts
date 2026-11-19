@@ -28,11 +28,20 @@ export function partyCodeOf(search: string): string | null {
   return PARTY_CODE.test(code) ? code : null;
 }
 /**
- * The invite link the game shares (D12: Paw Legends' own domain, docs/plans/moba/NO-TOKENTAILS.md; `/?party=` goes on
- * to `/play`). An older game build's link to the previous host page is still accepted.
+ * The code of a `/p/<code>` party link's path segment (DEEP-LINKS.md; any case, spaces and dashes ignored), or null.
+ */
+export function partyCodeOfPath(segment: unknown): string | null {
+  if (typeof segment !== "string" || segment.length > 32) return null;
+  const code = segment.toUpperCase().replace(/[\s-]/g, "");
+  return PARTY_CODE.test(code) ? code : null;
+}
+/**
+ * The invite link the game shares (D12: Paw Legends' own domain, docs/plans/moba/NO-TOKENTAILS.md): `/p/K7QX2M`
+ * (DEEP-LINKS.md: opens the app when installed, else the page joins on the web). Older game builds' links
+ * (`/?party=`, which goes on to `/play`, and the previous host page) are still accepted.
  */
 export const PAWLEGENDS_PARTY_LINK =
-  /^https:\/\/(pawlegends\.app\/|tokentails\.com\/pawlegends)\?party=[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/;
+  /^https:\/\/(pawlegends\.app\/p\/[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}|(pawlegends\.app\/|tokentails\.com\/pawlegends)\?party=[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6})$/;
 /**
  * The iframe's src for this page URL (launch finding PUB-03). A shared dare link points at the host page
  * (`/?dare=…`, which goes on to `/play`), but the game reads the dare from its own URL, so the host forwards a well-formed `dare`

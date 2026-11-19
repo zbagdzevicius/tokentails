@@ -740,4 +740,4 @@ Screenshots of every pre-match screen and in-match rail state go under `/private
 | Spectator link with a 20 s delay | Cheap later: TURN fan-out with a delay queue. | later |
 | WebTransport datagrams with 3-deep redundancy | Progressive upgrade once TCP stalls are measured. | when `mp_net` shows the need |
 | Discord Activity wrapper | Separate SDK and review. | later |
-| Capacitor deep links (Android intent filter with `autoVerify`, `client/public/.well-known/assetlinks.json`, `apple-app-site-association`, `appUrlOpen` listener) | Needs a native release; links open in the browser meanwhile and cross-play works. Manual device check. | next native release |
+| Capacitor deep links (Android intent filter with `autoVerify`, `assetlinks.json`, `apple-app-site-association`, `appUrlOpen` listener) | Built Nov 19 2026: `DEEP-LINKS.md` (`pawlegends.app/p/<code>`). Opens the app from the next native build; links open in the browser meanwhile. | done |

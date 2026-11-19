@@ -1,0 +1,14 @@
+{
+  "_doc": "Party links open the app (docs/plans/moba/DEEP-LINKS.md). Source of public/.well-known/apple-app-site-association, public/apple-app-site-association and public/.well-known/assetlinks.json: edit this file, then run `node scripts/app-links.mjs` and commit the outputs. `npm run build` refuses when they differ or a fingerprint is malformed.",
+  "ios": {
+    "_doc": "Team ID and bundle id from pawlegends-app/ios/App/App.xcodeproj (DEVELOPMENT_TEAM, PRODUCT_BUNDLE_IDENTIFIER).",
+    "teamId": "BVLDTU9V83",
+    "bundleId": "com.tokentails.pawlegends",
+    "paths": ["/p/*"]
+  },
+  "android": {
+    "_doc": "SHA-256 certificate fingerprints (AA:BB:... 32 bytes) that sign the installed app. Founder step: Play Console → Paw Legends → Test and release → App integrity → App signing: copy the SHA-256 of the 'App signing key certificate' (what Play installs), and of the 'Upload key certificate' (internal sideloads), into sha256. Empty: no assetlinks.json is published and Android opens party links in the browser.",
+    "package": "com.tokentails.pawlegends",
+    "sha256": []
+  }
+}

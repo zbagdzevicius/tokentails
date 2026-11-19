@@ -79,8 +79,8 @@ Where the build differs from the plan below, the build wins:
   `.github/workflows/pawlegends-ota.yml` (checks on pull requests, publish on `main`, manual rollback).
 - Signing: Xcode cloud signing with the API key needs the key's role to be **Admin**. With an App Manager key, run
   `fastlane ios certs` once and add `DIST_CERT_P12` and `DIST_CERT_PASSWORD`.
-- Associated Domains (invite links opening the app) is not in v1: it needs a capability on the App ID and an
-  `apple-app-site-association` change shared with `com.tokentails.app`. Invite links open the web game.
+- Associated Domains (invite links opening the app): added Nov 19 2026 for `applinks:pawlegends.app` (DEEP-LINKS.md);
+  the fastlane `build` lane enables the capability on the App ID. Older binaries open invite links in the web game.
 - Backend: no change. `capacitor://localhost` is already allowed for CORS and the party relay.
 
 ## Goal
@@ -116,7 +116,7 @@ Ship Pawlegends to the Apple App Store as its own iPhone app.
 - At launch and on every return to the foreground: `AVAudioSession` category `.playback` with `.mixWithOthers` (changed from `.ambient` on 2026-11-09: `.ambient` follows the silent switch, so most players heard no sound at all; `.playback` plays with the switch on and still mixes with the player's music; the in-game Sound toggle silences the game; ships with the next native build, an OTA bundle cannot change it). The web build asks Safari for the same through `navigator.audioSession.type = 'playback'` while the game is unmuted (`'ambient'` while muted). `isIdleTimerDisabled = true` while in the foreground.
 - Capacitor `ios` config: `scrollEnabled: false`, `allowsLinkPreview: false`, `contentInset: 'never'`, `backgroundColor: '#2b1d2e'`.
 - `PrivacyInfo.xcprivacy` in the app target (see Privacy).
-- Associated Domains `applinks:tokentails.com`, plus `client/public/.well-known/apple-app-site-association` for `/pawlegends?party=*`. Invite links then open the app.
+- Associated Domains `applinks:pawlegends.app`, plus `pawlegends-web/public/.well-known/apple-app-site-association` for `/p/*` (DEEP-LINKS.md). Invite links then open the app.
 
 ### Game changes for the app build (`pawlegends/`)
 
