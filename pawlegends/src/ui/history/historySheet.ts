@@ -431,11 +431,16 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
     return mergeRows(server, local, !next);
   };
 
+  // one main queue (MODE-UNLOCKS.md, Nov 19): a chip only for a mode this history holds, so a new player never sees
+  // "Ranked" or "Blitz" before playing them (the set only grows, so a server-side filter keeps its siblings)
+  const seen = new Set<Filter>(['all']);
   const listHtml = (): string => {
     const all = shown();
+    for (const r of all) seen.add(r.filter);
+    seen.add(filter);
     const rows = filter === 'all' ? all : all.filter((r) => r.filter === filter);
     const title = friend ? `${esc(ownerName || friend.name)}'s history` : 'Match history';
-    const chips = server ? `<div class="mh-filters" role="tablist" aria-label="Filter by mode">${FILTERS.map((f) => `<button type="button" role="tab" class="mh-chip" data-filter="${f}" aria-selected="${f === filter}">${FILTER_LABEL[f]}</button>`).join('')}</div>` : '';
+    const chips = server ? `<div class="mh-filters" role="tablist" aria-label="Filter by mode">${FILTERS.filter((f) => seen.has(f)).map((f) => `<button type="button" role="tab" class="mh-chip" data-filter="${f}" aria-selected="${f === filter}">${FILTER_LABEL[f]}</button>`).join('')}</div>` : '';
     const wins = rows.filter((r) => r.outcome === 'won').length;
     const sum = !server && !loading && rows.length ? `<p class="mh-sum">Last ${rows.length} ${rows.length === 1 ? 'match' : 'matches'} · ${wins} ${wins === 1 ? 'win' : 'wins'} · replays of your last ${REPLAY_MAX} matches</p>` : '';
     const list =

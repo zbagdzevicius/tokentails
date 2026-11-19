@@ -157,7 +157,7 @@ describe('match history: ops and helpers', () => {
 
 describe('match history: the sheet', () => {
   it('yours: the account rows, season, filters, a match opens with Watch; Back and Escape', async () => {
-    const page: ServerPage = { owner: { name: 'Me', self: true }, rows: [srow()], next: null, stats: { season: 's1', name: 'Season 1', matches: 1, wins: 1, winRate: 100, kda: 7, mvp: 1, favourites: [] } };
+    const page: ServerPage = { owner: { name: 'Me', self: true }, rows: [srow({ mode: 'ranked' })], next: null, stats: { season: 's1', name: 'Season 1', matches: 1, wins: 1, winRate: 100, kda: 7, mvp: 1, favourites: [] } };
     const api = vi.fn(async (op: string, args?: Record<string, unknown>) => (op === 'history.list' ? ok(page) : op === 'history.match' ? ok(match()) : ok({ visibility: args?.visibility })));
     const onWatch = vi.fn();
     const onClose = vi.fn();
@@ -172,6 +172,8 @@ describe('match history: the sheet', () => {
     // founder Nov 17: history is public, no privacy choice
     expect(el.querySelector('[data-testid="history-privacy"], select')).toBeNull();
     expect(el.textContent).toContain('other players can see it');
+    // a chip only for a mode the history holds (one main queue: no Blitz/Arcade teaser for a new player)
+    expect([...el.querySelectorAll<HTMLElement>('[data-filter]')].map((b) => b.dataset.filter)).toEqual(['all', 'ranked', 'ai']);
     // a filter asks the server
     el.querySelector<HTMLElement>('[data-filter="ranked"]')!.click();
     await flush();
