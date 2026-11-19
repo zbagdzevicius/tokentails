@@ -20,7 +20,7 @@ import { CAPS, COPY, CREDIT_AT, CUTS, EDL, FPS, N } from './timeline.mjs';
 
 /**
  * The 15 s cutdown, round 3 (review: no skin swap, the end card took 23 % of it): one whole gag arc. STARRING: BRAVO, a
- * failed audition, CUT!, the costume change (four coats), the ENCORE! payoff with its BONK!, ROCKET 1, a 2 s end card.
+ * failed audition, CUT!, the costume change (four coats), the ENCORE! payoff (FUMBLE!), ROCKET 1, a 2 s end card.
  * 900 frames, every join on the half beat.
  */
 const CUTDOWN = [[CUTS.hook, CUTS.title], [CUTS.aud2, CUTS.credits], [CUTS.costume, CUTS.bush], [CUTS.payoff, CUTS.score], [CUTS.score + 60, CUTS.victory], [CUTS.end, CUTS.end + 120]];
@@ -161,12 +161,34 @@ function colorPts(g, len, aspect, rule) {
   });
 }
 
+/**
+ * Round 4: a fixed point of the take (a prop that does not move, e.g. the cat core; take-frame fractions of the 16:9
+ * capture) in the output frame, through the segment's punch and, in 9:16, the `wideV` landscape inset.
+ */
+function anchorPts(g, len, aspect, [ax, ay]) {
+  let u = ax, v = ay;
+  if (g.punch) {
+    const [z, fx, fy] = g.punch;
+    const cw = 1920 / z, ch = 1080 / z;
+    const x0 = Math.min(1920 - cw, Math.max(0, fx * 1920 - cw / 2)), y0 = Math.min(1080 - ch, Math.max(0, fy * 1080 - ch / 2));
+    u = (ax * 1920 - x0) / cw;
+    v = (ay * 1080 - y0) / ch;
+  }
+  let p;
+  if (aspect === '9x16' && g.wideV === true) {
+    const w = 1320 * (16 / 9);
+    p = [(u * w - (w - 1080) / 2) / 1080, (v * 1320 + 340) / 1920];
+  } else if (aspect === '9x16') p = toOut([ax, ay], aspect);
+  else p = toOut([u, v], aspect);
+  return Array.from({ length: len }, () => p.map((x) => +x.toFixed(4)));
+}
+
 /** The overlay with its tracked items' points filled in. */
 function withTracks(ov, g, len, aspect) {
   if (!ov) return ov;
   const o = { ...ov };
   if (o.track) o.pts = trackPts(g, len, aspect, o.track);
-  if (o.items) o.items = o.items.map((it) => (it.track ? { ...it, pts: trackPts(g, len, aspect, it.track) } : it.colorTrack ? { ...it, pts: colorPts(g, len, aspect, it.colorTrack) } : it));
+  if (o.items) o.items = o.items.map((it) => (it.track ? { ...it, pts: trackPts(g, len, aspect, it.track) } : it.colorTrack ? { ...it, pts: colorPts(g, len, aspect, it.colorTrack) } : it.anchor ? { ...it, pts: anchorPts(g, len, aspect, it.anchor) } : it));
   return o;
 }
 
@@ -361,8 +383,18 @@ async function buildAspect(aspect, browser, base) {
         // a coat change: the same ticks in another take from frame `at` on (a match cut)
         const a = join(dir, `${id}a.mp4`), b = join(dir, `${id}b.mp4`);
         gpSegment(a, g.take, aspect, g.in, g.swap.at);
-        gpSegment(b, g.swap.take, aspect, g.in + g.swap.at, seg.len - g.swap.at);
-        segParts.push(a, b);
+        if (g.swap.hold) {
+          // round 4: a before/after hold (the base coat's last frame, then the new coat's first), the take resumes after
+          const [h0, h1] = g.swap.hold;
+          const c = join(dir, `${id}c.mp4`), d = join(dir, `${id}d.mp4`);
+          ff(['-loop', '1', '-framerate', String(FPS), '-i', stillOf(g.take, aspect, g.in + g.swap.at - 1), '-frames:v', String(h0), ...ENC, c]);
+          ff(['-loop', '1', '-framerate', String(FPS), '-i', stillOf(g.swap.take, aspect, g.in + g.swap.at), '-frames:v', String(h1), ...ENC, d]);
+          gpSegment(b, g.swap.take, aspect, g.in + g.swap.at + 1, seg.len - g.swap.at - h0 - h1);
+          segParts.push(a, c, d, b);
+        } else {
+          gpSegment(b, g.swap.take, aspect, g.in + g.swap.at, seg.len - g.swap.at);
+          segParts.push(a, b);
+        }
       } else {
         const a = join(dir, `${id}g.mp4`);
         // the bridge punch-in aims at Bravo's body on the last frame (the hero box centre)

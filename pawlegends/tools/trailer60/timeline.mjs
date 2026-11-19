@@ -1,5 +1,5 @@
 /**
- * Trailer 60 ("The Understudy", feat. Rocket) timeline, round 3: 60.000 s at 60 fps, 120 BPM (a beat is 30 frames, a
+ * Trailer 60 ("The Understudy", feat. Rocket) timeline, round 4: 60.000 s at 60 fps, 120 BPM (a beat is 30 frames, a
  * bar 120), every cut on the beat or half-beat grid. A segment is gameplay (`gp`: take frames from `in`, master-frame
  * aligned; `freeze: [at, len]` holds the take frame at segment frame `at` for `len` frames under an mg overlay;
  * `swap: { take, at }` match-cuts to another take of the same ticks at segment frame `at` (a coat change); `zoomOut:
@@ -38,6 +38,13 @@ export const CREDITS = [
 /** Credit card starts (master frames). */
 export const CREDIT_AT = CREDITS.map((_, i) => CUTS.credits + CREDITS.slice(0, i).reduce((a, c) => a + c.len, 0));
 export const CREDIT_SWAP = 21;
+/**
+ * Round 4 (review: the swaps read only inside the ultimates' flashes): a before/after hold on every swap, the base coat's
+ * last frame for 6 frames, then the new coat's first frame for 8 (the card keeps its length; the ultimate plays later).
+ */
+export const CREDIT_HOLD = [6, 8];
+/** The segment frame the new coat appears on (the coat chip and the swap sound land here). */
+export const CREDIT_SWAP_AT = CREDIT_SWAP + CREDIT_HOLD[0];
 
 /**
  * Act II (S15), round 3 (review: Brutus idles 0.75 s, Ziggy is tiny, the tag and the lower third say the same name at
@@ -60,7 +67,7 @@ export const COATS = [
 /** Take in-points (take frames), set from the round 3 frame sheets. */
 export const IN = {
   miss: 60, missFreeze: 128, aud1: 6, zzz: 6, zzzFreeze: 114, aud2: 6, credit: 12, aud3: 12, costume: 0,
-  bush: 0, plant: 30, flop: 0, encore: 10, rocket: 24, core: 88, bow: 18, cc: 30, bowl: 0,
+  bush: 0, plant: 30, flop: 0, encore: 10, rocket: 24, core: 58, bow: 18, cc: 30, bowl: 0,
 };
 /**
  * The hook (round 3: the hit frames put a white Moonshot puff and a cyan sprite over his face): the pose (take frames
@@ -78,6 +85,15 @@ const BRAVO = { hero: 'bravo', team: 0 };
  * BRAVO tag with THE STAR under it rides on him through every audition.
  */
 const STAR = (out) => ({ mg: 'pointer', text: 'BRAVO', sub: 'THE STAR', side: 'star', track: BRAVO, at: 0, out });
+/**
+ * Round 4 (review: the auditions never show him failing, so CUT! and THAT'S IT. follow nothing the viewer can see): on the
+ * steal his tag hands over to the thief's (who stole the scene) and a rubber stamp slams on the take.
+ */
+const STEAL = (at, len, thief, stamp) => [
+  STAR(at - 2),
+  { mg: 'pointer', ...thief, at, out: len - 1 },
+  { mg: 'stamp', text: stamp, at: at + 8, out: len - 1 },
+];
 /** The curtain call (round 3: seven 0.5 s cuts read as filler): five lineups of 0.5 s, every champion named. */
 const CC_N = 5;
 const CC = Array.from({ length: CC_N }, (_, i) => ({ take: `cc${i + 1}`, f: C.curtain + i * 30, len: 30 }));
@@ -100,12 +116,14 @@ export const EDL = [
     ov: { mg: 'multi', items: [
       tag('ALSO STARRING:', { at: 4, out: 66, y: 0.62, size: 0.045, color: 'bolt' }), tag('ONE KIBBLE CANNON', { at: 10, out: 66, y: 0.74, size: 0.065 }),
       { mg: 'pointer', text: 'THE CANNON', side: 'star', colorTrack: 'cannon', below: 1, at: 2, out: 70 },
-      { mg: 'pointer', text: 'ROCKET', sub: 'FASTEST DOG ALIVE', side: 'dog', track: ROCKET, at: 72, out: 126 },
+      { mg: 'pointer', text: 'ROCKET', sub: 'FASTEST DOG ALIVE', side: 'dog', track: ROCKET, at: 72, out: 100 },
+      // round 4 (review: nobody could tell who took the cannon): Sage, tagged, gets there first
+      { mg: 'pointer', text: 'SAGE', sub: 'GOT THERE FIRST', side: 'cat', track: { hero: 'sage', team: 1 }, at: 102, out: 170 },
       { mg: 'counter', who: 'ROCKET', score: '0', at: 130, out: 194 },
     ] },
   },
   // S05 audition #1: Sage's Moonshot from his spotlight (the steal at segment frame 58, then 1.5 s on the result)
-  { f: C.aud1, len: 150, gp: { take: 'a01-sage', in: IN.aud1 }, ov: { mg: 'multi', items: [STAR(149), { mg: 'slate', text: 'AUDITION #1', at: 0, out: 80 }] } },
+  { f: C.aud1, len: 150, gp: { take: 'a01-sage', in: IN.aud1 }, ov: { mg: 'multi', items: [...STEAL(58, 150, { text: 'SAGE', sub: 'STEALS THE SHOW', side: 'cat', track: { hero: 'sage', team: 1 } }, 'UPSTAGED.'), { mg: 'slate', text: 'AUDITION #1', at: 0, out: 56 }] } },
   // S06 ZOOM... ZZZ (round 3: the Zs floated over the wrong unit, AND ASLEEP was tiny): Rocket tagged, he naps, the Zs
   // rise from him, the freeze holds 0.5 s under a big AND ASLEEP chip
   {
@@ -113,17 +131,17 @@ export const EDL = [
     ov: { mg: 'multi', items: [{ mg: 'pointer', text: 'ROCKET', side: 'dog', track: ROCKET, at: 0, out: 96 }, { mg: 'zzz', at: 104, out: 149, track: ROCKET }, { mg: 'counter', who: 'ROCKET', score: '0', sub: '(AND ASLEEP)', at: 114, out: 149 }] },
   },
   // S07 audition #2: Nova's ultimate lands on the stage; the camera punches in on him (the bridge into CUT!)
-  { f: C.aud2, len: 150, gp: { take: 'a02-nova', in: IN.aud2, zoomOut: [14, 1.7] }, ov: { mg: 'multi', items: [STAR(134), { mg: 'slate', text: 'AUDITION #2', at: 0, out: 80 }] } },
+  { f: C.aud2, len: 150, gp: { take: 'a02-nova', in: IN.aud2, zoomOut: [14, 1.7] }, ov: { mg: 'multi', items: [...STEAL(50, 136, { text: 'NOVA', sub: 'STEALS THE SHOW', side: 'cat', track: { hero: 'nova', team: 1 } }, 'UPSTAGED. AGAIN.'), { mg: 'slate', text: 'AUDITION #2', at: 0, out: 48 }] } },
   // S08 CUT! (a hard cut in, round 3: the yellow wash read as a grading error)
   { f: C.cut, len: 30, mg: 'panel', img: 'cut', text: 'CUT!' },
   // S09 the credits: six mini gags, the coat swap on a clean frame before the ultimate; Duchess declines
   ...CREDITS.map((c, i) => ({
     f: CREDIT_AT[i], len: c.len, side: c.side,
-    gp: c.refuse ? { take: `${c.take}-base`, in: IN.credit } : { take: `${c.take}-base`, in: IN.credit, swap: { take: c.take, at: CREDIT_SWAP } },
-    ov: { mg: 'credit', ...c, swapAt: CREDIT_SWAP },
+    gp: c.refuse ? { take: `${c.take}-base`, in: IN.credit } : { take: `${c.take}-base`, in: IN.credit, swap: { take: c.take, at: CREDIT_SWAP, hold: CREDIT_HOLD } },
+    ov: { mg: 'credit', ...c, swapAt: c.refuse ? CREDIT_SWAP : CREDIT_SWAP_AT },
   })),
   // S10 audition #3: his own teammate's KNOCKOUT!; the punch-in bridge into THAT'S IT.
-  { f: C.aud3, len: 120, gp: { take: 'a03-champ', in: IN.aud3, zoomOut: [12, 1.7] }, ov: { mg: 'multi', items: [STAR(106), { mg: 'slate', text: 'AUDITION #3', at: 0, out: 70 }] } },
+  { f: C.aud3, len: 120, gp: { take: 'a03-champ', in: IN.aud3, zoomOut: [12, 1.7] }, ov: { mg: 'multi', items: [...STEAL(46, 108, { text: 'CHAMP', sub: 'HIS OWN TEAMMATE', side: 'dog', track: { hero: 'champ', team: 0 } }, 'UPSTAGED. BY HIS OWN TEAM.'), { mg: 'slate', text: 'AUDITION #3', at: 0, out: 44 }] } },
   // S11 THAT'S IT.
   { f: C.eye, len: 30, mg: 'panel', img: 'eye', text: 'THAT’S IT.', shake: 1 },
   // S12 the costume change: four coats, one take, a match cut and a bolt puff on every beat
@@ -138,18 +156,31 @@ export const EDL = [
     ov: { mg: 'multi', items: [{ mg: 'pointer', text: u.name, side: u.side, track: { hero: u.hero, team: u.team }, at: 0, out: Math.max(14, ACT2_CAST - u.in - 4) }, { mg: 'ult', name: u.name, ult: u.ult, side: u.side, at: ACT2_CAST - u.in, out: ACT2_LEN - 6 }] },
   })),
   // S16 he plays dead in slow motion; nobody stops
-  { f: C.flop, len: 120, gp: { take: 'f02-flop', in: IN.flop } },
+  // round 4 (review: a flat yellow sprite by Bravo read as a render glitch; it is Ziggy's knockout ghost rising): both tagged,
+  // the joke made plain, he plays dead, she is actually out
+  {
+    f: C.flop, len: 120, gp: { take: 'f02-flop', in: IN.flop },
+    ov: { mg: 'multi', items: [{ mg: 'pointer', text: 'BRAVO', sub: 'PLAYING DEAD', side: 'star', track: BRAVO, at: 4, out: 114 }, { mg: 'pointer', text: 'ZIGGY', sub: 'ACTUALLY K.O.’D', side: 'cat', track: { hero: 'ziggy', team: 1 }, at: 62, out: 98 }] },
+  },
   // S17 one eye opens (round 3: redrawn on-model, in the CUT! panel's style)
   { f: C.peek, len: 30, mg: 'panel', img: 'peek' },
   // S18 the payoff: Pixel winds up, Bravo bows (ENCORE!), she is charmed and fumbles; BRAVO! and roses; a rose BONK!
-  { f: C.payoff, len: 270, gp: { take: 'p02-encore', in: IN.encore }, ov: { mg: 'bravo', at: 64, bonk: 226, track: BRAVO } },
+  // round 4 (review: BONK! had no visible cause and muddled who won): the carrier is tagged winding up, FUMBLE! names the
+  // gag, no bonk
+  {
+    f: C.payoff, len: 270, gp: { take: 'p02-encore', in: IN.encore },
+    ov: { mg: 'multi', items: [
+      { mg: 'pointer', text: 'PIXEL', sub: 'WINDING UP THE CANNON', side: 'cat', track: { hero: 'pixel', team: 1 }, at: 6, out: 60 },
+      { mg: 'bravo', at: 64, track: BRAVO }, tag('FUMBLE!', { at: 76, out: 150, y: 0.84, size: 0.08, color: 'cream' }),
+    ] },
+  },
   // S19 Rocket (tagged) fires the stolen cannon: KABOOM on Nova. ROCKET: 1
   {
     f: C.score, len: 180, gp: { take: 'p03-rocket', in: IN.rocket },
-    ov: { mg: 'multi', items: [{ mg: 'pointer', text: 'ROCKET', side: 'dog', track: ROCKET, at: 0, out: 84 }, { mg: 'counter', who: 'ROCKET', score: '1', at: 84, out: 179, win: 1 }] },
+    ov: { mg: 'multi', items: [{ mg: 'pointer', text: 'ROCKET', sub: 'HAS THE CANNON!', side: 'dog', track: ROCKET, at: 0, out: 70 }, tag('KABOOM!', { at: 80, out: 118, y: 0.3, size: 0.09, color: 'bolt' }), { mg: 'counter', who: 'ROCKET', score: '1', at: 84, out: 179, win: 1 }] },
   },
   // S20 the cat core falls: VICTORY! (round 3: 2 s shorter, punched in on the core, the word low so the burst stays clear)
-  { f: C.victory, len: 120, gp: { take: 'v01-core', in: IN.core, wideV: true, punch: [1.35, 0.42, 0.3] }, ov: { mg: 'multi', items: [tag('VICTORY!', { at: 26, out: 119, y: 0.84, size: 0.1, color: 'bolt' })] } },
+  { f: C.victory, len: 120, gp: { take: 'v01-core', in: IN.core, wideV: true, punch: [1.35, 0.42, 0.3] }, ov: { mg: 'multi', items: [{ mg: 'pointer', text: 'CAT CORE', sub: 'GOING DOWN', side: 'cat', anchor: [0.494, 0.2], at: 2, out: 36 }, tag('VICTORY!', { at: 50, out: 119, y: 0.84, size: 0.1, color: 'bolt' })] } },
   // S20b (round 3: the win had no Bravo in it) he takes the bow for it
   { f: C.welcome, len: 60, gp: { take: 'w01-bow', in: IN.bow }, ov: { mg: 'multi', items: [STAR(59), tag('“YOU’RE WELCOME.”', { at: 6, out: 59, y: 0.84, size: 0.07, color: 'cream' })] } },
   // S21 the curtain call: five lineups, every champion named
@@ -164,8 +195,8 @@ export const EDL = [
 
 /** Designed hits (master frames) the score lands on. */
 export const HIT = {
-  hit: 30, flop: 34, missPick: C.cannon + 126, steal1: C.aud1 + 58, nap: C.zzz + 114, encoreFumble: C.payoff + 74, bonk: C.payoff + 226, rocketFire: C.score + 66, kaboom: C.score + 80,
-  coreBurst: C.victory + 3, bowl: C.stinger + 96, returnsLine: C.returns + 20, returnsLogo: C.returns + 54,
+  hit: 30, flop: 34, missPick: C.cannon + 126, steal1: C.aud1 + 58, nap: C.zzz + 114, encoreFumble: C.payoff + 74, rocketFire: C.score + 66, kaboom: C.score + 80,
+  coreBurst: C.victory + 33, bowl: C.stinger + 96, returnsLine: C.returns + 20, returnsLogo: C.returns + 54,
 };
 
 /**
@@ -177,7 +208,7 @@ export const CAPS = [
   [0, 30, '[DRAMATIC ORCHESTRA]'], [60, 90, '[RECORD SCRATCH]'], [90, 180, '[DRUMROLL]'], [306, 375, '[SQUEAKY TOY DEFLATES]'], [459, 525, '[SAD TROMBONE]'],
   [630, 675, '[SNORING]'], [741, 825, '[SLIDE WHISTLE]'], [825, 855, '[MEGAPHONE SQUEAL]'], [1155, 1245, '[RECORD SCRATCH]'], [1245, 1305, '[BOXING BELL]'], [1365, 1395, '[VIOLIN SCREECH]'],
   [1395, 1515, '[TA-DA!]'], [1525, 1585, '[SHHH…]'], [1585, 1635, '[SQUEAK]'], [1755, 1815, '[THE BAND KICKS IN]'], [2205, 2295, '[ANGELIC CHOIR]'], [2295, 2325, '[RECORD SCRATCH]'],
-  [2425, 2525, '[CROWD CHEERS]'], [2565, 2625, '[BONK]'], [2691, 2755, '[KABOOM!]'], [2985, 3135, '[APPLAUSE]'], [3381, 3441, '[BOWLING STRIKE]'],
+  [2425, 2525, '[CROWD CHEERS]'], [2691, 2755, '[KABOOM!]'], [2985, 3135, '[APPLAUSE]'], [3381, 3441, '[BOWLING STRIKE]'],
 ];
 
 /** On-screen words (copy gate). */
@@ -185,6 +216,7 @@ export const COPY = [
   'STARRING: BRAVO', 'PAW LEGENDS', 'PRESENTS', 'BRAVO', 'IN', 'THE UNDERSTUDY', 'ALSO STARRING:', 'ONE KIBBLE CANNON', 'THE CANNON', 'ROCKET', 'FASTEST DOG ALIVE', '0', '1', '(AND ASLEEP)',
   'THE STAR', 'AUDITION #1', 'AUDITION #2', 'AUDITION #3', 'CUT!',
   ...CREDITS.flatMap((c) => [c.name, `as ${c.as}`, `${c.coat} COAT`]), 'COAT DECLINED.',
-  'THAT’S IT.', ...COATS.map((k) => k.name), 'RANGER: TOTALLY INVISIBLE.', '…NOT ANYMORE.', 'ACT II', ...ACT2.flatMap((u) => [u.name, u.ult]), 'BRAVO!', 'BONK!', 'VICTORY!', '“YOU’RE WELCOME.”',
+  'THAT’S IT.', ...COATS.map((k) => k.name), 'RANGER: TOTALLY INVISIBLE.', '…NOT ANYMORE.', 'ACT II', ...ACT2.flatMap((u) => [u.name, u.ult]), 'BRAVO!', 'FUMBLE!', 'VICTORY!', 'SAGE', 'GOT THERE FIRST', 'STEALS THE SHOW', 'UPSTAGED.', 'NOVA', 'UPSTAGED. AGAIN.', 'CHAMP', 'HIS OWN TEAMMATE',
+  'UPSTAGED. BY HIS OWN TEAM.', 'PLAYING DEAD', 'ACTUALLY K.O.’D', 'PIXEL', 'WINDING UP THE CANNON', 'HAS THE CANNON!', 'KABOOM!', 'CAT CORE', 'GOING DOWN', '“YOU’RE WELCOME.”',
   'THE CAST OF PAW LEGENDS', ...CC_NAMES.flat(), 'CATS VS DOGS.', 'PICK A SIDE.', 'PLAY FREE', 'pawlegends.app', 'Bravo will return.',
 ];

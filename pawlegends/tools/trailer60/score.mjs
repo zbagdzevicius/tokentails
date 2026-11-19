@@ -18,7 +18,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { argValue } from '../lib/args.mjs';
 import { Bus, SR, biquad, brown, compress, dbToGain, decay, freeverb, hz, limit, mix, mul, noise, saw, sec, sine, sweep, writeWav, writeWavFloat } from '../trailer/dsp.mjs';
-import { ACT2, ACT2_CAST, ACT2_LEN, BEAT, CREDIT_AT, CREDIT_SWAP, CREDITS, CUTS, FPS, HIT, N } from './timeline.mjs';
+import { ACT2, ACT2_CAST, ACT2_LEN, BEAT, CREDIT_AT, CREDIT_SWAP, CREDIT_SWAP_AT, CREDITS, CUTS, FPS, HIT, N } from './timeline.mjs';
 
 const I = await bundleImport('tools/trailer/instruments.mjs');
 /** Bundle an entry with Vite (TypeScript, extensionless imports) into one ES module and import it. */
@@ -285,6 +285,8 @@ sfx.add(smp(HIT.steal1), I.whoosh(0.35, 84, 1), 0.6);
 game(HIT.steal1, 'ult', 0.5);
 wahwah(HIT.steal1 + 26, 0.55);
 game(HIT.steal1 + 52, 'sadTrombone', 0.45);
+// round 4: the UPSTAGED. stamps (a rubber-stamp slam on each audition's fail)
+for (const f of [C.aud1 + 66, C.aud2 + 58, C.aud3 + 54]) game(f, 'slam', 0.55);
 // S06 ZOOM... ZZZ: whoosh, the snore, tick-tock
 game(C.zzz + 38, 'rocketWhoosh', 0.8);
 game(HIT.nap, 'rocketSnore', 0.9);
@@ -316,8 +318,9 @@ CREDITS.forEach((c, i) => {
   music.addStereo(smp(f), L, R, 0.55);
   music.add(smp(f), I.tuba(CH[chord].root, 0.4), 0.5);
   voice(f + 4, `name_${c.take.split('-')[1]}`, 1.0);
-  SWAP_SFX[i](f + CREDIT_SWAP, CH[chord].tri.map((m) => m + 12));
-  game(f + 27, i % 2 ? 'slam' : 'ult', 0.4);
+  // round 4: the swap sound on the new coat's held frame (the refusal keeps its own timing); the ultimate plays 13 frames later
+  SWAP_SFX[i](f + (c.refuse ? CREDIT_SWAP : CREDIT_SWAP_AT), CH[chord].tri.map((m) => m + 12));
+  game(f + (c.refuse ? 27 : 40), i % 2 ? 'slam' : 'ult', 0.4);
 });
 // S10 audition #3: the bell, the whoosh, the crash, a whoosh into the punch-in
 bell(C.aud3 + 6, 0.45);
@@ -378,10 +381,8 @@ game(HIT.encoreFumble + 2, 'cheer', 0.8);
 applause(HIT.encoreFumble, 2.4, 0.35);
 tada(HIT.encoreFumble, [60, 64, 67, 72], 0.7, 1.0);
 game(HIT.encoreFumble + 40, 'ooh', 0.5);
-slideWhistle(HIT.bonk - 22, 1800, 700, 0.35, 0.3);
-sfx.add(smp(HIT.bonk), mix([I.tom(160, 8), 0.8], [I.rim(9), 0.6]), 0.8);
-game(HIT.bonk + 1, 'kibbleBoing', 0.7);
-game(HIT.bonk + 8, 'bravoGasp', 0.6);
+// round 4: no rose BONK! (review: no visible cause, it muddled who won); a FUMBLE! slide whistle on the dropped cannon
+slideWhistle(HIT.encoreFumble + 2, 1600, 600, 0.35, 0.3);
 // S19 ROCKET: 1: the shot, KABOOM, a sports horn
 voice(C.score + 6, 'name_rocket', 0.9);
 game(HIT.rocketFire - 22, 'windup', 0.5);

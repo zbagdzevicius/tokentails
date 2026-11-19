@@ -10,25 +10,32 @@ folder, never the repo.
 |---|---|
 | 0.0-1.0 | Hook: Bravo (Opening Night) poses; a jump cut and a white flash on Sage's hit, straight to the legs-up flop |
 | 1.0-3.0 | Iris freeze STARRING: BRAVO; curtains close: the logo PRESENTS BRAVO IN THE UNDERSTUDY, held a second once set |
-| 3.0-6.25 | ALSO STARRING: ONE KIBBLE CANNON with a pointer on the cannon itself; Rocket's tag; Sage takes it a step ahead: ROCKET 0 |
-| 6.25-8.75 | AUDITION #1: Sage's Moonshot steals his spotlight; BRAVO / THE STAR rides on him in every audition |
+| 3.0-6.25 | ALSO STARRING: ONE KIBBLE CANNON with a pointer on the cannon itself; Rocket's tag; Sage (tagged GOT THERE FIRST) takes it a step ahead: ROCKET 0 |
+| 6.25-8.75 | AUDITION #1: Sage's Moonshot steals his spotlight; BRAVO / THE STAR rides on him until the steal, then the thief's tag (STEALS THE SHOW) and an UPSTAGED. stamp |
 | 8.75-11.25 | ZOOM... ZZZ: Rocket sprints past the carrier and naps; the Zs rise from him; ROCKET 0 (AND ASLEEP) held 0.5 s |
-| 11.25-13.75 | AUDITION #2: Nova's ultimate on his stage; punch-in into CUT! (hard cuts into every panel) |
+| 11.25-13.75 | AUDITION #2: Nova's ultimate on his stage, UPSTAGED. AGAIN.; punch-in into CUT! (hard cuts into every panel) |
 | 13.75-14.25 | Comic panel: CUT! |
-| 14.25-20.75 | Credits: six cards; the store coat lands on a clean frame before each ultimate, each swap its own sound; Duchess declines hers (COAT DECLINED.) |
-| 20.75-22.75 | AUDITION #3: his own Champ's KNOCKOUT!; punch-in into THAT'S IT. |
+| 14.25-20.75 | Credits: six cards; a before/after hold on each coat swap (6 + 8 frames), each swap its own sound; Duchess declines hers (COAT DECLINED.) |
+| 20.75-22.75 | AUDITION #3: his own teammate Champ's KNOCKOUT!, UPSTAGED. BY HIS OWN TEAM.; punch-in into THAT'S IT. |
 | 23.25-25.25 | Costume change: four coats, a match cut and a bolt puff on every beat |
 | 25.25-28.25 | The bush: Ranger hides (the screen dims), Meatball (Mega Meal) sits in the same bush (the dim lifts) |
 | 28.25-29.25 | ACT II (an orchestra hit and a drumroll) |
 | 29.25-36.75 | The band: Ziggy (punched in), Sir Brutus, Meatball, 2.5 s each from the first move; the tag, then the ultimate's card |
-| 36.75-39.25 | He plays dead in slow motion; comic panel (redrawn on-model): one eye opens |
-| 39.25-43.75 | The payoff: Bravo bows (ENCORE!), the carrier fumbles: BRAVO! and roses; a rose BONK! |
-| 43.75-46.75 | Rocket fires the stolen cannon: KABOOM, ROCKET 1 |
-| 46.75-48.75 | The cat core falls, punched in: VICTORY! |
+| 36.75-39.25 | He plays dead in slow motion (PLAYING DEAD) beside Ziggy's rising knockout ghost (ACTUALLY K.O.’D); comic panel: one eye opens |
+| 39.25-43.75 | The payoff: Pixel tagged WINDING UP THE CANNON, Bravo bows (ENCORE!), she fumbles: FUMBLE!, BRAVO! and roses |
+| 43.75-46.75 | Rocket (HAS THE CANNON!) fires it: KABOOM!, ROCKET 1 |
+| 46.75-48.75 | The cat core, tagged GOING DOWN, bursts at 0.55 s: VICTORY! |
 | 48.75-49.75 | Bravo takes the bow for it: "YOU'RE WELCOME." |
 | 49.75-52.25 | The curtain call: five lineups, every champion named (9:16 and 1:1 fit the landscape lineup to the width) |
 | 52.25-54.75 | End card: the v6 logo, CATS VS DOGS. PICK A SIDE., PLAY FREE · pawlegends.app |
 | 54.75-60.0 | Stinger: Meatball rolls through his spotlight; freeze: Bravo will return., then the logo and PLAY FREE · pawlegends.app (rimshot) |
+
+Round 4 (jury of round 3, 7.1/10): every audition shows its failure without sound (his tag hands over to the thief's,
+an UPSTAGED. stamp with a slam), the cannon has a taker (SAGE: GOT THERE FIRST) and a shooter (ROCKET: HAS THE CANNON!,
+KABOOM!), the payoff drops the rose BONK! (no visible cause) for FUMBLE! on the carrier, the core is tagged before it
+bursts (`anchor`: a fixed take point mapped through the punch and the 9:16 inset), the slow-motion flop tags the yellow
+figure that read as a glitch (Ziggy's knockout ghost: ACTUALLY K.O.’D), and each credit swap holds the before and after
+frames (`swap.hold`) with a lighter puff and bigger credit lines.
 
 Round 3 (jury of round 2, 6.3/10): Bravo is tagged in every audition, the title holds, the Zs and AND ASLEEP sit on
 Rocket and read, the hook skips the hit's white puff (a jump cut), the peek panel is redrawn from the CUT! panel (on

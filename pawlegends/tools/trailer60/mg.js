@@ -394,6 +394,38 @@ ITEM.tag = (f, it) => {
   slamWord(it.text, W / 2, H * it.y, it.size * Math.min(W, H) * (V() ? 1.25 : 1.6), f - it.at, { color: COL[it.color ?? 'cream'], shadow: it.color === 'bolt' ? C.plum : C.rose, per: 0.5, rise: 4 });
   ctx.restore();
 };
+/**
+ * Round 4 (review: the auditions never showed him failing): a rubber stamp slammed on the take, rose ink on cream, a
+ * shake on the hit; low centre in 16:9 and 1:1, above the caption band in 9:16.
+ */
+ITEM.stamp = (f, it) => {
+  const g = f - it.at;
+  if (g < 0 || f > it.out) return;
+  const v = V();
+  const fade = f > it.out - 4 ? clamp((it.out - f) / 4) : 1;
+  const cs = (v ? 66 : 76) * S();
+  const k = 1 + 0.7 * (1 - outCubic(clamp(g / 5)));
+  const [sx, sy] = shake(g, g < 8 ? 7 * S() : 0, 11);
+  ctx.save();
+  ctx.globalAlpha = fade * clamp(g / 2 + 0.3);
+  ctx.translate(W / 2 + sx, H * (v ? 0.64 : 0.8) + sy);
+  ctx.scale(k, k);
+  ctx.rotate(-0.1);
+  ctx.font = `900 italic ${cs}px RubikD, sans-serif`;
+  const tw = Math.min(W * 0.92, ctx.measureText(it.text).width + cs * 0.9);
+  ctx.fillStyle = 'rgba(255,243,227,0.93)';
+  ctx.fillRect(-tw / 2, -cs * 0.85, tw, cs * 1.7);
+  ctx.strokeStyle = C.rose;
+  ctx.lineWidth = 10 * S();
+  ctx.strokeRect(-tw / 2, -cs * 0.85, tw, cs * 1.7);
+  ctx.fillStyle = C.rose;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(it.text, 0, cs * 0.05, tw - cs * 0.6);
+  ctx.restore();
+};
+/** Round 4: the payoff's roses and BRAVO! as an item (the carrier's tag and FUMBLE! ride with it). */
+ITEM.bravo = (f, it) => SEG.bravo(f, it);
 /** Round 3: a white impact flash (the hook's jump cut). */
 ITEM.flash = (f, it) => {
   const g = f - it.at;
@@ -653,16 +685,17 @@ SEG.credit = (f, p) => {
   const col = p.side === 'cat' ? C.rose : C.sky;
   const t = outCubic(clamp(f / 6));
   const out = clamp((f - (p.n - 5)) / 5);
-  const s = (v ? 100 : 104) * S();
-  const x = v ? W * 0.08 : W * 0.06, y = v ? H * 0.56 : H * 0.72;
+  // round 4 (review: the credit lines were small on mobile): bigger name and role
+  const s = (v ? 112 : 120) * S();
+  const x = v ? W * 0.08 : W * 0.06, y = v ? H * 0.56 : H * 0.7;
   ctx.save();
   ctx.globalAlpha = 1 - out;
   ctx.translate((1 - t) * -W * 0.5, 0);
   ctx.font = `900 italic ${s}px RubikD, sans-serif`;
   const nw = ctx.measureText(p.name).width;
-  ctx.font = `700 ${s * 0.62}px Fredoka, sans-serif`;
+  ctx.font = `700 ${s * 0.72}px Fredoka, sans-serif`;
   const aw = ctx.measureText(`as ${p.as}`).width;
-  const pw = Math.min(W * 0.9, Math.max(nw, aw) + s * 0.9), ph = s * 2.25;
+  const pw = Math.min(W * 0.9, Math.max(nw, aw) + s * 0.9), ph = s * 2.4;
   const px = x - s * 0.3, py = y - s * 0.78;
   // the panel: ink border, side colour, a skew so it reads as a card, fully inside the frame
   ctx.save();
@@ -677,7 +710,7 @@ SEG.credit = (f, p) => {
   ctx.restore();
   setLine(p.name, x + s * 0.12, y, s, { color: C.cream, shadow: C.ink, align: 'left' });
   ctx.globalAlpha = (1 - out) * clamp((f - 4) / 4);
-  setLine(`as ${p.as}`, x + s * 0.02, y + s * 0.98, s * 0.62, { font: 'Fredoka', weight: 700, italic: false, color: C.bolt, shadow: C.ink, align: 'left', outline: 0.22 });
+  setLine(`as ${p.as}`, x + s * 0.02, y + s * 1.02, s * 0.72, { font: 'Fredoka', weight: 700, italic: false, color: C.bolt, shadow: C.ink, align: 'left', outline: 0.22 });
   ctx.restore();
   // the coat swap: a bolt-yellow puff round the frame centre (the hero) and the coat chip; round 3 `refuse`: the puff
   // clears on the same coat and a COAT DECLINED. stamp slams in (the last card's twist)
@@ -710,7 +743,8 @@ SEG.credit = (f, p) => {
   }
   if (g >= 0 && g < 3) {
     ctx.save();
-    const a = g < 2 ? 0.7 : 0.3;
+    // round 4: a lighter puff, so the held frame shows the new coat
+    const a = g < 1 ? 0.4 : g < 2 ? 0.2 : 0.08;
     const cy = H * (V() ? 0.42 : 0.45);
     const gr = ctx.createRadialGradient(W / 2, cy, 0, W / 2, cy, Math.min(W, H) * 0.3);
     gr.addColorStop(0, `rgba(255,210,31,${a})`);
