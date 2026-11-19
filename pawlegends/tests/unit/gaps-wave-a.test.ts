@@ -32,7 +32,7 @@ import { bestFrame, FREE_COATS, lookCoat, titleOf, wardrobe, type Owned } from '
 import { EMPTY_ROSTER } from '../../src/meta/roster';
 import { heroBuilt } from '../../src/render/chars';
 import { Announcer, BARKS, WINDOW } from '../../src/render/announcer';
-import { collectionPanel, postcardStory } from '../../src/ui/collection';
+import { collectionPanel, newWearable, postcardStory } from '../../src/ui/collection';
 import { loadingVeil, pickScreen } from '../../src/ui/screens';
 
 const owned = (unlocks: string[] = [], items: string[] = []): Owned => ({ items: new Set(items), unlocks: new Set(unlocks), roster: EMPTY_ROSTER });
@@ -300,10 +300,11 @@ describe('A1: collection panel', () => {
     document.body.innerHTML = '';
   });
 
-  it('chooses a target, shows N matches to go, unlocked postcards with the real cat photo (splash as the fallback; never the Token Tails card art) and a CLAIMS-safe story, and wears titles', () => {
+  it('chooses a target, shows N matches to go, unlocked postcards with the real cat photo (splash as the fallback; never the Token Tails card art) and a CLAIMS-safe story; wearing lives in Profile', () => {
     const targets: (HeroId | null)[] = [];
-    const worn: [string, string | null][] = [];
+    let wearIt = 0;
     let closed = false;
+    localStorage.removeItem('tt.pawlegends.wearhint.v1');
     const root = collectionPanel(document.body, {
       treats: { ...freshTreats(), xp: 100 },
       owned: new Set(['postcard.lambo', 'title.champ.lambo']),
@@ -312,7 +313,7 @@ describe('A1: collection panel', () => {
       wornTitle: null,
       wornFrame: null,
       onTarget: (h) => targets.push(h),
-      onWear: (k, id) => worn.push([k, id]),
+      onWearIt: () => wearIt++,
       onClose: () => {
         closed = true;
       },
@@ -325,13 +326,39 @@ describe('A1: collection panel', () => {
     (root.querySelector('[data-target="gabe"]') as HTMLElement).click();
     expect(targets).toEqual(['gabe']);
     expect(root.querySelector('[data-next]')?.getAttribute('data-next')).toBe('postcard.gabe');
-    (root.querySelector('[data-wear="title"][data-id="title.champ.lambo"]') as HTMLElement).click();
-    expect(worn).toEqual([['title', 'title.champ.lambo']]);
+    // founder, Nov 19: no inline title or frame chooser, no champion or history buttons; one "Wear it" link to Profile
+    expect(root.querySelector('[data-wear]')).toBeNull();
+    expect(root.querySelector('[data-a="champions"], [data-a="history"], [data-testid="open-history"], .champ-count')).toBeNull();
+    expect(root.textContent ?? '').not.toMatch(/abilities|Match history|Yarn|Wear\b(?! it)/);
+    expect(root.querySelector('[data-new]')?.getAttribute('data-new')).toBe('title.champ.lambo');
     // no purchase, no price, no link
     expect(root.querySelector('a, [data-sku], [data-buy]')).toBeNull();
     expect(root.textContent ?? '').not.toMatch(/\$|buy|price|adopt|donat|fund|help|save/i);
-    (root.querySelector('[data-a="close"]') as HTMLElement).click();
+    (root.querySelector('[data-testid="track-wear-it"]') as HTMLElement).click();
+    expect(wearIt).toBe(1);
     expect(closed).toBe(true);
+    expect(root.isConnected).toBe(false);
+  });
+
+  it('"Wear it" shows once for the newest track title or frame, and never when it is worn', () => {
+    localStorage.removeItem('tt.pawlegends.wearhint.v1');
+    const owned = new Set(['title.champ.lambo', 'frame.champ.lambo']);
+    const fresh = newWearable(owned, { title: null, frame: null });
+    expect(fresh && ['title.champ.lambo', 'frame.champ.lambo']).toContain(fresh?.id);
+    expect(newWearable(owned, { title: fresh!.id, frame: fresh!.id })).toBeNull();
+    expect(newWearable(new Set(), { title: null, frame: null })).toBeNull();
+    const open = () =>
+      collectionPanel(document.body, { treats: freshTreats(), owned, art: {}, portrait: () => null, wornTitle: null, wornFrame: null, onTarget: () => undefined, onWearIt: () => undefined, onClose: () => undefined });
+    const a = open();
+    expect(a.querySelector('[data-testid="track-wear-it"]')).not.toBeNull();
+    (a.querySelector('[data-a="close"]') as HTMLElement).click();
+    const b = open();
+    expect(b.querySelector('[data-testid="track-wear-it"]')).toBeNull();
+    (b.querySelector('[data-a="close"]') as HTMLElement).click();
+    // no Profile to open: no link
+    localStorage.removeItem('tt.pawlegends.wearhint.v1');
+    const c = collectionPanel(document.body, { treats: freshTreats(), owned, art: {}, portrait: () => null, wornTitle: null, wornFrame: null, onTarget: () => undefined, onClose: () => undefined });
+    expect(c.querySelector('[data-testid="track-wear-it"]')).toBeNull();
   });
 
   it('the stories name the real cat without money or impact words', () => {

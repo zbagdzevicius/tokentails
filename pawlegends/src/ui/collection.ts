@@ -1,14 +1,15 @@
 /**
- * Collection (GAPS A1): the Treat Track's chest screen and the player's profile shelf. "Pick your next target"
- * chooses the hero whose next reward the next chest holds ("N matches to go"; the order inside each hero is fixed),
- * the champions' "Meet the real cat" postcards show the real cat's photo (the splash art while it cannot load) and a short story, and the track titles
- * and frames can be worn. Free and local: no price, no buy button, no link, and nothing here opens an offer.
+ * Collection (GAPS A1): the Treat Track's chest screen. The chest path and bar, "Next reward for" (the hero whose next
+ * reward the next chest holds; the order inside each hero is fixed) and the champions' "Meet the real cat" postcards
+ * (the real cat's photo, the splash art while it cannot load, and a short story). Founder, Nov 19 ("each thing should
+ * serve its own purpose"): nothing here is worn or browsed. Titles and frames are worn in Profile only; a title or
+ * frame the track just gave shows one "Wear it" link that opens Profile's Collection. No champion or history buttons
+ * (Champions and Profile > Matches own those). Free and local: no price, no buy button, and nothing here opens an offer.
  * Copy follows docs/CLAIMS.md: the stories are the cards' own jokes, with no money or impact words.
  */
 import type { HeroId } from '../sim/api';
 import { championOf } from '../data/heroes/shelter';
-import { FRAME_NAME, STORE_TITLE_NAME, isStoreFrame, isTrackFrame } from '../render/cosmetics';
-import { TRACK_CHAMPIONS, TRACK_ORIGINALS, TRACK_TITLES, TREAT_STEP, heroTrack, matchesToGo, nextReward, type TreatState } from '../meta/treats';
+import { TRACK_CHAMPIONS, TRACK_ORIGINALS, TREAT_REWARDS, TREAT_STEP, heroTrack, matchesToGo, nextReward, type TreatReward, type TreatState } from '../meta/treats';
 import { HERO_TEXT } from './heroText';
 import { icon } from './icons';
 import { openChampInfo } from './champBrowser/open';
@@ -28,17 +29,45 @@ export interface CollectionOpts {
   art: Partial<Record<HeroId, string>>;
   /** A hero portrait (the fallback picture of a postcard), or null. */
   portrait(hero: HeroId): string | null;
+  /** What the player wears now (the "Wear it" link hides once the new title or frame is worn). */
   wornTitle: string | null;
   wornFrame: string | null;
   onTarget(hero: HeroId | null): void;
-  onWear(kind: 'title' | 'frame', id: string | null): void;
+  /** "Wear it": open Profile's Collection, the one place a title or frame is worn (absent: no link). */
+  onWearIt?(): void;
   onClose(): void;
   /** STORE-PASS.md §6: the Track's second tab, the Legends Pass (absent: no tab bar). */
   onPass?(): void;
-  /** MATCH-MOMENTS.md §1: the Match history pill (the last 20 matches and their replays). */
-  onHistory?(): void;
-  /** CHAMPION-STORE.md §10: "Champions 9/20", and the Founders roster badge. */
-  champions?: { owned: number; total: number; founders: boolean; yarn: number };
+}
+
+const SEEN_KEY = 'tt.pawlegends.wearhint.v1';
+
+/** The wear hint already shown for this id (per device; storage can be blocked, then it shows again). */
+export function wearHintSeen(id: string): boolean {
+  try {
+    return localStorage.getItem(SEEN_KEY) === id;
+  } catch {
+    return false;
+  }
+}
+
+export function markWearHintSeen(id: string): void {
+  try {
+    localStorage.setItem(SEEN_KEY, id);
+  } catch {
+    /* blocked */
+  }
+}
+
+/**
+ * The title or frame the track gave last (the latest one in track order the player owns), when it is not worn: the
+ * one "Wear it" link. Null when none is owned or the newest is already worn. Pure.
+ */
+export function newWearable(owned: ReadonlySet<string>, worn: { title: string | null; frame: string | null }): TreatReward | null {
+  let last: TreatReward | null = null;
+  for (const r of TREAT_REWARDS) if ((r.kind === 'title' || r.kind === 'frame') && owned.has(r.id)) last = r;
+  if (!last) return null;
+  return (last.kind === 'title' ? worn.title : worn.frame) === last.id ? null : last;
 }
 
 /** A postcard's story: who the real cat is and the card's own joke (no health details, no money or impact words). */
@@ -63,7 +92,11 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
   root.setAttribute('aria-label', 'Treat Track');
-  const s = { target: o.treats.target, title: o.wornTitle, frame: o.wornFrame };
+  const s = { target: o.treats.target };
+  // "Wear it" shows for a new title or frame until the panel closes once with it on screen (Done, ✕, Esc or the link)
+  const fresh = o.onWearIt ? newWearable(o.owned, { title: o.wornTitle, frame: o.wornFrame }) : null;
+  const wear = fresh && !wearHintSeen(fresh.id) ? fresh : null;
+  let tabbing = false;
   const cats = [...TRACK_ORIGINALS, ...TRACK_CHAMPIONS].filter(isCat);
   const dogs = TRACK_ORIGINALS.filter((h) => !isCat(h));
   let rowScroll = 0;
@@ -71,7 +104,7 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
     // a re-render (a target or a worn item picked) keeps the book's scroll and the focused control
     const bodyTop = root.querySelector('.bk-body')?.scrollTop ?? 0;
     const f = document.activeElement as HTMLElement | null;
-    const refocus = f && root.contains(f) ? (f.dataset.target !== undefined ? `[data-target="${f.dataset.target}"]` : f.dataset.wear ? `[data-wear="${f.dataset.wear}"][data-id="${f.dataset.id ?? ''}"]` : null) : null;
+    const refocus = f && root.contains(f) && f.dataset.target !== undefined ? `[data-target="${f.dataset.target}"]` : null;
     const next = nextReward(o.owned, s.target, o.treats.chests);
     const n = matchesToGo(o.treats);
     const fill = Math.round((100 * (Math.max(0, o.treats.xp) % TREAT_STEP)) / TREAT_STEP);
@@ -102,15 +135,6 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
           : `<span class="pic">${icon('paw')}</span>`;
       return `<div class="postcard" data-postcard="${h}" style="--i:${i}" tabindex="0" role="button" aria-label="${esc(`${c.cardName}: meet the real cat`)}"><span class="pc-photo">${img}<span class="stamp" aria-hidden="true">${icon('paw')}</span></span><b>${esc(c.cardName)}</b><small>${esc(postcardStory(h))}</small></div>`;
     };
-    // Treat Track titles and frames, plus store and Legends Pass ones the account owns (STORE-PASS.md §4)
-    const titles = [...Object.keys(TRACK_TITLES), ...Object.keys(STORE_TITLE_NAME)].filter((id) => o.owned.has(id));
-    const frames = Object.keys(FRAME_NAME).filter((id) => (isTrackFrame(id) || isStoreFrame(id)) && o.owned.has(id));
-    const wearRow = (kind: 'title' | 'frame', ids: string[], name: (id: string) => string, on: string | null): string =>
-      ids.length
-        ? `<div class="set-row"><span class="lbl">${kind === 'title' ? 'Title' : 'Frame'}</span><span class="chips"><button type="button" class="chip bk-chip ${on === null ? 'on' : ''}" data-wear="${kind}" data-id="">None</button>${ids
-            .map((id) => `<button type="button" class="chip bk-chip ${on === id ? 'on' : ''}" data-wear="${kind}" data-id="${esc(id)}"${kind === 'frame' ? ` data-frame="${esc(id)}"` : ''}>${esc(name(id))}</button>`)
-            .join('')}</span></div>`
-        : '';
     // the storybook path: the chest just opened, the next chest (its art and the bar), and the three after it
     const c0 = o.treats.chests;
     const stop = (k: number, cls: string): string => `<span class="tp-stop ${cls}" aria-hidden="true"><i></i><em>${k}</em></span>`;
@@ -125,15 +149,14 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
           <p class="next-chest" data-next="${esc(next.id)}"><span class="kick">Next chest</span><b>${esc(next.name)}</b></p>
           <span class="tp-bar" role="progressbar" aria-label="Season XP to the next chest" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fill}"><i style="width:${fill}%"></i><span class="gem" style="left:${fill}%"></span></span>
           <small data-togo="${n}">${esc(toGoText(n))}</small>
+          ${wear ? `<p class="wear-new" data-new="${esc(wear.id)}"><span>${esc(wear.name.replace(/^"(.*)" title$/, '$1'))} is yours.</span><button type="button" class="bk-link" data-a="wear" data-testid="track-wear-it">Wear it</button></p>` : ''}
         </div>
       </section>
-      <p class="champs-row"><button type="button" class="bk-pill" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: abilities &amp; lore</button>${o.onHistory ? `<button type="button" class="bk-pill" data-a="history" data-testid="open-history" aria-haspopup="dialog">${icon('arrows')}Match history</button>` : ''}${o.champions ? `<small class="champ-count" data-champs="${o.champions.owned}">Champions ${o.champions.owned}/${o.champions.total} · ${o.champions.yarn.toLocaleString('en-US')} Yarn${o.champions.founders ? ' · <b class="founders-badge">Founders roster</b>' : ''}</small>` : ''}</p>
-      <h3 class="bk-h3">Whose reward comes next?</h3>
-      <div class="targets"><div class="md-row" role="group" aria-label="Whose reward comes next"><button type="button" class="target md order${s.target === null ? ' on' : ''}" data-target="" aria-pressed="${s.target === null}" aria-label="Any champion: the next reward in line"><span class="md-ring"><span class="md-face">${icon('arrows')}</span></span><b>Any champion</b><small>Next in line</small></button><span class="grp" aria-hidden="true">Cats</span>${cats.map(medal).join('')}<span class="grp dog" aria-hidden="true">Dogs</span>${dogs.map(medal).join('')}</div></div>
+      <h3 class="bk-h3 bk-kick">Next reward for</h3>
+      <div class="targets"><div class="md-row" role="group" aria-label="Next reward for"><button type="button" class="target md order${s.target === null ? ' on' : ''}" data-target="" aria-pressed="${s.target === null}" aria-label="Any champion: the next reward in line"><span class="md-ring"><span class="md-face">${icon('arrows')}</span></span><b>Any</b><small>Next in line</small></button><span class="grp" aria-hidden="true">Cats</span>${cats.map(medal).join('')}<span class="grp dog" aria-hidden="true">Dogs</span>${dogs.map(medal).join('')}</div></div>
       <h3 class="bk-h3">Meet the real cat</h3>
       <div class="postcards">${TRACK_CHAMPIONS.map(card).join('')}</div>
-      ${titles.length || frames.length ? `<h3 class="bk-h3">Wear</h3>${wearRow('title', titles, (id) => TRACK_TITLES[id] ?? STORE_TITLE_NAME[id] ?? id, s.title)}${wearRow('frame', frames, (id) => FRAME_NAME[id] ?? id, s.frame)}` : ''}
-      <p class="fine">Free. Matches fill the bar. Each chest holds the next reward in line, or the next one for the champion you pick.</p>
+      <p class="fine">Free. Matches fill the bar; each chest holds the next reward.</p>
       </div>
       <div class="bk-foot"><button type="button" class="bk-done" data-a="close">Done</button></div></div>`;
     const row = root.querySelector<HTMLElement>('.md-row');
@@ -158,17 +181,15 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
     const t = e.target as HTMLElement;
     // champion browser: every champion's skills and lore; a postcard opens its champion on Lore
     if (t.closest('[data-a="pass"]') && o.onPass) {
+      // a tab switch is not a close: the link stays for the way back
+      tabbing = true;
       close();
       o.onPass();
       return;
     }
-    if (t.closest('[data-a="history"]') && o.onHistory) {
+    if (t.closest('[data-a="wear"]') && o.onWearIt) {
       close();
-      o.onHistory();
-      return;
-    }
-    if (t.closest('[data-a="champions"]')) {
-      void openChampInfo({ hero: s.target ?? 'clem', within: root });
+      o.onWearIt();
       return;
     }
     const pc = t.closest<HTMLElement>('.postcard:not(.locked)')?.dataset.postcard as HeroId | undefined;
@@ -177,16 +198,9 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       return;
     }
     const tg = t.closest<HTMLElement>('[data-target]');
-    const wear = t.closest<HTMLElement>('[data-wear]');
     if (tg) {
       s.target = (tg.dataset.target || null) as HeroId | null;
       o.onTarget(s.target);
-    } else if (wear) {
-      const kind = wear.dataset.wear as 'title' | 'frame';
-      const id = wear.dataset.id || null;
-      if (kind === 'title') s.title = id;
-      else s.frame = id;
-      o.onWear(kind, id);
     } else if (t.closest('[data-a="close"], [data-a="x"]') || t === root) {
       close();
       return;
@@ -197,6 +211,7 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
   const close = (): void => {
     if (!root.isConnected) return;
     document.removeEventListener('keydown', onKey, true);
+    if (wear && !tabbing) markWearHintSeen(wear.id);
     root.remove();
     o.onClose();
   };

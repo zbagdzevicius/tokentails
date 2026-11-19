@@ -98,7 +98,7 @@ describe('UX-09 Settings in the pause menu', () => {
 
 describe('UX-10 Treat Track and Settings exits', () => {
   const track = (onClose: () => void) =>
-    collectionPanel(document.body, { treats: freshTreats(), owned: new Set(), art: {}, portrait: () => null, wornTitle: null, wornFrame: null, onTarget: () => undefined, onWear: () => undefined, onClose });
+    collectionPanel(document.body, { treats: freshTreats(), owned: new Set(), art: {}, portrait: () => null, wornTitle: null, wornFrame: null, onTarget: () => undefined, onClose });
 
   it('the Treat Track has a corner ✕ and closes on Esc', () => {
     let n = 0;

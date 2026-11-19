@@ -3285,6 +3285,12 @@ export class App {
         },
         portrait: (h, item) => portraitUrl(h, { coat: item, chroma: null }),
         onTrack: () => this.openCollection(),
+        worn: () => {
+          const q = loadProfile();
+          return { title: q.wornTitle, frame: q.wornFrame };
+        },
+        // founder, Nov 19: a claimed title or frame is worn in Profile only
+        onWearIt: () => this.openProfile(null, 'collection'),
         onClose: () => {
           this.overlay = null;
           this.refreshMeta(false);
@@ -3419,16 +3425,9 @@ export class App {
           t.target = h;
           saveTreats(t);
         },
-        onWear: (kind, id) => {
-          const q = loadProfile();
-          if (kind === 'title') q.wornTitle = id;
-          else q.wornFrame = id;
-          saveProfile(q);
-        },
+        // founder, Nov 19: a title or frame is worn in Profile only; the track links there
+        onWearIt: () => this.openProfile(null, 'collection'),
         onPass: () => this.openPass(),
-        // MATCH-MOMENTS.md §1: the profile entry's Match history
-        onHistory: () => this.openHistory(),
-        champions: { owned: ownedCount(this.champs(), this.isApp()), total: CHAMPION_IDS.length, founders: this.champs().founders, yarn: this.champs().yarn.balance },
         onClose: () => {
           this.overlay = null;
           // one redraw, without the offer check: the Treat Track panel never leads to an offer

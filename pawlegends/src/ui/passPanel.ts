@@ -8,6 +8,8 @@
  * through the host (`pass-claim`), which answers a fresh `store`. In an app build there is no price, no buy button and
  * no "buy on the web" wording: the premium row shows locked with no call to action (STORE-PASS.md §7).
  * Copy (CLAIMS R8): "Season XP", never Tails, coins or money; every reward is listed up front, nothing random.
+ * Founder, Nov 19 ("each thing should serve its own purpose"): nothing is worn here. A title or frame claimed on this
+ * screen shows one "Wear it" link that opens Profile's Collection, the one place it is worn.
  */
 import { catalogSku, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU } from '../money/catalog';
 import type { StoreSnapshot } from '../money/entitlements';
@@ -33,6 +35,10 @@ export interface PassOpts {
   portrait?(hero: HeroId, item: string): string | null;
   /** Back to the Treat Track tab. */
   onTrack?(): void;
+  /** What the player wears now (the "Wear it" link hides once the claimed title or frame is worn). */
+  worn?(): { title: string | null; frame: string | null };
+  /** "Wear it": open Profile's Collection (absent: no link). */
+  onWearIt?(): void;
   onClose(): void;
 }
 
@@ -48,6 +54,12 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
   const def = currentSeason();
   let line = '';
   let scrolled = false;
+  /** Titles and frames claimed on this screen, in claim order (the newest one owned and not worn gets "Wear it"). */
+  const claimedHere: { id: string; name: string }[] = [];
+  const wearable = (r: { item: string }): boolean => r.item.startsWith('title.') || r.item.startsWith('frame.');
+  const remember = (rows: { item: string; name: string }[]): void => {
+    for (const r of rows) if (wearable(r) && !claimedHere.some((c) => c.id === r.item)) claimedHere.push({ id: r.item, name: r.name });
+  };
   const rarity = (row: PassRow, n: number, item: string): string => {
     if (row === 'p' && n === def.tiers) return 'legendary';
     const rung = PAID_COATS[item]?.rung;
@@ -106,6 +118,12 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
           .filter((d) => itemState(d, snap) === 'buy')
           .map((d) => `<button type="button" class="bk-buy buy" data-buy="${d.sku}">${esc(d.sku === PASS_SKU ? 'Legends Pass' : d.sku === PASS_PLUS_SKU ? 'Pass+' : 'Upgrade to Pass+')} ${esc(catalogPrice(d, currency))}</button>`)
           .join('');
+    // the newest title or frame claimed here that the account now owns and does not wear
+    const worn = o.worn?.() ?? { title: null, frame: null };
+    const fresh = o.onWearIt
+      ? [...claimedHere].reverse().find((c) => snap.items.has(c.id) && (c.id.startsWith('title.') ? worn.title : worn.frame) !== c.id)
+      : undefined;
+    const wearIt = fresh ? `<p class="wear-new" data-new="${esc(fresh.id)}"><span>${esc(fresh.name)} is yours.</span><button type="button" class="bk-link" data-a="wear" data-testid="pass-wear-it">Wear it</button></p>` : '';
     const [kick, title] = def.name.includes(': ') ? def.name.split(': ', 2) : ['', def.name];
     const prevLeft = root.querySelector<HTMLElement>('.pass-track')?.scrollLeft;
     // a re-render (a claim, Claim all, a host refresh) keeps keyboard focus: the same tile, else the same control,
@@ -132,8 +150,8 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
         <div class="pass-rows"><span class="rl f">Free</span><span class="rl p">${premium ? (s.premium === 'plus' ? 'Pass+' : 'Pass') : 'Pass'}</span></div>
         <div class="pass-scroll"><div class="pass-track" role="list" aria-label="Reward tiers" tabindex="0">${cols}</div><span class="more" aria-hidden="true">more ▸</span></div>
       </div>
-      <div class="pass-bar"><button type="button" class="bk-done gold" data-a="all"${ready.length ? '' : ' disabled'}>Claim all${ready.length ? ` (${ready.length})` : ''}</button>${buys}<p class="line" role="status">${esc(line)}</p></div>
-      <p class="fine">Every match you finish gives Season XP. Wins, knockouts and your first win of the day give more. No random rewards.</p>
+      <div class="pass-bar"><button type="button" class="bk-done gold" data-a="all"${ready.length ? '' : ' disabled'}>Claim all${ready.length ? ` (${ready.length})` : ''}</button>${buys}${wearIt}<p class="line" role="status">${esc(line)}</p></div>
+      <p class="fine">Every match gives Season XP; wins and knockouts give more. No random rewards.</p>
     </div>`;
     const track = root.querySelector<HTMLElement>('.pass-track');
     const sc = root.querySelector<HTMLElement>('.pass-scroll');
@@ -177,9 +195,25 @@ export function passPanel(parent: HTMLElement, o: PassOpts): { el: HTMLElement; 
     const pc = t.closest<HTMLElement>('.pc.ready');
     const buy = t.closest<HTMLElement>('[data-buy]')?.dataset.buy;
     if (pc) {
-      line = o.claim(pc.dataset.row as PassRow, Number(pc.dataset.tier)) ? 'Claiming…' : 'Sign in to claim rewards.';
+      const row = pc.dataset.row as PassRow;
+      const n = Number(pc.dataset.tier);
+      const ok = o.claim(row, n);
+      line = ok ? 'Claiming…' : 'Sign in to claim rewards.';
+      const r = (row === 'f' ? def.free : def.premium).find((x) => x.tier === n);
+      if (ok && r) remember([r]);
     } else if (a === 'all') {
-      line = o.claim(null, null) ? 'Claiming…' : 'Sign in to claim rewards.';
+      const ok = o.claim(null, null);
+      line = ok ? 'Claiming…' : 'Sign in to claim rewards.';
+      if (ok) {
+        const snap = o.snapshot();
+        const s = (snap.season as PassState | null) ?? { ...EMPTY, endsAt: def.endsAt };
+        remember(readyRewards(def, s).map((r) => ({ item: r.item, name: (r.row === 'f' ? def.free : def.premium).find((x) => x.tier === r.tier)?.name ?? r.item })));
+      }
+    } else if (a === 'wear' && o.onWearIt) {
+      close();
+      o.onClose();
+      o.onWearIt();
+      return;
     } else if (buy) {
       line = o.buy?.(buy) ? 'Finish on the purchase sheet.' : "The store isn't open right now.";
     } else if (a === 'track') {

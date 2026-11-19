@@ -128,7 +128,6 @@ describe('real cat photos', () => {
       wornTitle: null,
       wornFrame: null,
       onTarget: () => {},
-      onWear: () => {},
       onClose: () => {},
     });
     for (const h of CHAMPION_IDS) {

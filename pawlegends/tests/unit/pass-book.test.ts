@@ -10,6 +10,7 @@ import type { StoreSnapshot } from '../../src/money/entitlements';
 import { collectionPanel } from '../../src/ui/collection';
 import { passPanel } from '../../src/ui/passPanel';
 import { freshTreats } from '../../src/meta/treats';
+import { currentSeason } from '../../src/meta/pass';
 import { hex, isCat } from '../../src/ui/passBook';
 
 const snap = (over: Partial<StoreSnapshot> = {}): StoreSnapshot => ({
@@ -44,7 +45,6 @@ describe('Treat Track storybook', () => {
       wornTitle: null,
       wornFrame: null,
       onTarget: () => undefined,
-      onWear: () => undefined,
       onClose: () => undefined,
       onPass,
     });
@@ -138,6 +138,39 @@ describe('Legends Pass book', () => {
     p.refresh();
     expect((document.activeElement as HTMLElement).dataset.a).toBe('all');
     p.close();
+  });
+
+  it('a claimed title shows one "Wear it" link to Profile (no chooser here), gone once it is worn', () => {
+    const def = currentSeason();
+    const r = def.free.find((x) => x.item.startsWith('title.') && x.tier <= 6 && x.tier !== 3)!;
+    expect(r).toBeTruthy();
+    let items = new Set<string>();
+    let worn: string | null = null;
+    let wearIt = 0;
+    let closed = 0;
+    const p = passPanel(document.body, {
+      snapshot: () => snap({ items }),
+      claim: () => true,
+      worn: () => ({ title: worn, frame: null }),
+      onWearIt: () => wearIt++,
+      onClose: () => closed++,
+    });
+    expect(p.el.querySelector('[data-testid="pass-wear-it"]')).toBeNull();
+    (p.el.querySelector(`.pc.ready[data-row="f"][data-tier="${r.tier}"]`) as HTMLElement).click();
+    // the host answers with the item owned
+    items = new Set([r.item]);
+    p.refresh();
+    expect(p.el.querySelector('[data-new]')?.getAttribute('data-new')).toBe(r.item);
+    expect(p.el.querySelector('[data-wear], .set-row')).toBeNull();
+    worn = r.item;
+    p.refresh();
+    expect(p.el.querySelector('[data-testid="pass-wear-it"]')).toBeNull();
+    worn = null;
+    p.refresh();
+    (p.el.querySelector('[data-testid="pass-wear-it"]') as HTMLElement).click();
+    expect(wearIt).toBe(1);
+    expect(closed).toBe(1);
+    expect(p.el.isConnected).toBe(false);
   });
 
   it('hex() pads palette numbers', () => {

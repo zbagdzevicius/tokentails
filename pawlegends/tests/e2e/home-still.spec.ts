@@ -84,12 +84,12 @@ test('Home stays mounted and still while the Treat Track, Legends Pass and Setti
   await expect(page.locator('.pl-collection')).toHaveCount(0);
   await still('treat track closed');
 
-  // the profile chip opens it too; Esc closes it
+  // the profile chip opens the Profile (founder, Nov 18: one place for the name, look and collection); Esc closes it
   await page.locator('[data-a="profile"]').click();
-  await expect(page.locator('.pl-collection')).toBeVisible();
+  await expect(page.locator('[data-testid="profile-screen"]')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.pl-collection')).toHaveCount(0);
-  await still('treat track via profile, Esc');
+  await expect(page.locator('[data-testid="profile-screen"]')).toHaveCount(0);
+  await still('profile, Esc');
 
   // (the Cards drawer and its nav item were removed with every Token Tails mention, NO-TOKENTAILS.md, Nov 12)
   await expect(page.locator('.hm-nav [data-a="cards"]')).toHaveCount(0);

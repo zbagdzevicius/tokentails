@@ -131,7 +131,7 @@ describe('no cats-become-skins UI on any screen', () => {
       won: true, seconds: 432, hero: 'clem', difficulty: 'easy', kills: 2, deaths: 1, level: 6, teamKills: [9, 4], firstWin: false, best: false,
       onAgain: vi.fn(), onChange: vi.fn(), onShare: vi.fn(), dareLink: 'https://pawlegends.app/?dare=x',
     });
-    const col = collectionPanel(document.body, { treats: freshTreats(), owned: new Set(), art: {}, portrait: () => null, wornTitle: null, wornFrame: null, onTarget: vi.fn(), onWear: vi.fn(), onClose: vi.fn() });
+    const col = collectionPanel(document.body, { treats: freshTreats(), owned: new Set(), art: {}, portrait: () => null, wornTitle: null, wornFrame: null, onTarget: vi.fn(), onClose: vi.fn() });
     for (const [name, el] of [['pick', pick], ['veil', veil], ['results', res], ['collection', col]] as const) {
       expect(el.querySelector(GONE), name).toBeNull();
       expect(el.textContent ?? '', name).not.toMatch(TT);
