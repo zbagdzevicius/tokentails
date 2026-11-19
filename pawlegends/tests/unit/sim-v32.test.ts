@@ -25,7 +25,7 @@ const BEFORE_LATE = ['dog-replay', 'new-dog-replay', 'roster-replay', 'kite-repl
 
 describe('sim v32: no Sudden Death', { timeout: limit(600000) }, () => {
   it('SIM_VERSION 32, v31 frozen (read from 59dafddf on main since the 2026-11-18 rebase; frozen at 345fb655) with its roster31 fixture', () => {
-    expect(SIM_VERSION).toBe(37);
+    expect(SIM_VERSION).toBe(38);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');
     const entry = /simVersion: 31,\s*commit: '([0-9a-f]{40})'[^]*?\]\)/.exec(tool);
     expect(entry?.[1].startsWith('59dafddf')).toBe(true);

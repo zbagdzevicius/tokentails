@@ -37,6 +37,8 @@
  * differently, so VENDOR points at the live v36 fixtures and the golden was regenerated from the v36 sim the same way.
  * Sim v37 (bots commit to a walk goal on the 3v3 maps, V37.md): every 3v3 bot match plays differently, so VENDOR points
  * at the live v37 fixtures and the golden was regenerated from the v37 sim the same way (v37 adds no party code).
+ * Sim v38 (the human's allies lane like the enemy bots, V38.md): every Rookie and Easy bot match plays differently, so
+ * VENDOR points at the live v38 fixtures and the golden was regenerated from the v38 sim the same way (no party code).
  * Part of the merge checklist.
  *
  * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
@@ -54,7 +56,7 @@ import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
 import { SIM_VERSION } from '../../src/sim/version';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v37');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v38');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {

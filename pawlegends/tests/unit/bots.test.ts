@@ -33,7 +33,7 @@ describe('bots (§7.2)', { timeout: limit(300000) }, () => {
   });
 
   it('bots walk out to their lanes: Sunny, Puddle and the roamer', () => {
-    // Normal: on Rookie and Easy the human's allies carry (follow the human, DifficultyRules.carryAllies).
+    // Normal: on Rookie the roamer carries (follows the human, DifficultyRules.carryAllies; Easy too before sim v38).
     const m = quietMatch(13, true, 'normal'); // sim v29: seed 13 (12 before the roster four joined the picks; 11 before sim v10 B5)
     while (m.world.globals[G.Tick] < TIMELINE.firstWave + 600) step(m);
     const w = m.world;

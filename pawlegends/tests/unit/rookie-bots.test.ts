@@ -26,12 +26,13 @@ function arena(difficulty: 'rookie' | 'easy' | 'normal' = 'rookie') {
 }
 
 describe('Rookie and Easy bots (sim v4)', () => {
-  it('carry allies: both on Rookie and Easy, none on Normal', () => {
-    expect([DIFFICULTY_RULES.rookie.carryAllies, DIFFICULTY_RULES.easy.carryAllies, DIFFICULTY_RULES.normal.carryAllies]).toEqual([2, 2, 0]);
+  it('sim v38: one carry ally (the roamer) on Rookie only; Rookie and Easy allies still help in the human\'s fights', () => {
+    expect([DIFFICULTY_RULES.rookie.carryAllies, DIFFICULTY_RULES.easy.carryAllies, DIFFICULTY_RULES.normal.carryAllies, DIFFICULTY_RULES.hard.carryAllies]).toEqual([1, 0, 0, 0]);
+    expect([DIFFICULTY_RULES.rookie.helpAllies, DIFFICULTY_RULES.easy.helpAllies, DIFFICULTY_RULES.normal.helpAllies, DIFFICULTY_RULES.hard.helpAllies]).toEqual([2, 2, 0, 0]);
   });
 
   it('kill-steal guard: an ally leaves a nearly dead enemy hero the human is fighting close by', () => {
-    const allyHits = (difficulty: 'rookie' | 'normal', hpBp: number): number => {
+    const allyHits = (difficulty: 'rookie' | 'easy' | 'normal', hpBp: number): number => {
       const m = arena(difficulty);
       const w = m.world;
       place(m, 3, 50000, 30000, 2048);
@@ -56,6 +57,7 @@ describe('Rookie and Easy bots (sim v4)', () => {
     };
     const low = BOT_AI.stealHpBp - 500;
     expect(allyHits('rookie', low)).toBe(0); // left to the human
+    expect(allyHits('easy', low)).toBe(0); // sim v38: an Easy ally helps (helpAllies) without following
     expect(allyHits('rookie', 6000)).toBeGreaterThan(0); // above the line: the ally fights
     expect(allyHits('normal', low)).toBeGreaterThan(0); // Normal allies do not carry
   });

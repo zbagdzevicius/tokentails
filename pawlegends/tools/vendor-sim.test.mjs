@@ -21,7 +21,11 @@ describe('vendor-sim', () => {
     // toys; v26: stronger towers early) stay frozen beside the live sim v27 (executions, Cannon Chaos, the Practice
     // ground and the weekly twists, docs/plans/moba/V27.md) stays frozen too beside the live sim v28 (One Lane Brawl, the
     // Duel, Boss Weekend, docs/plans/moba/V28.md; v9 retired), and the root index dispatches by simVersion.
-    expect(SIM_VERSION).toBe(37);
+    expect(SIM_VERSION).toBe(38);
+    // Sim v38 (the human's allies lane like the enemy bots, V38.md) froze v37 with its fixtures
+    expect(JSON.parse(files['v37/pawlegends-sim.sha256.json']).simVersion).toBe(37);
+    expect(files['v37/maps-replay.fixture.json']).toBeDefined();
+    expect(files['v37/blitz-replay.fixture.json']).toBeDefined();
     // Sim v37 (bots commit to a walk goal, the Blitz refit, V37.md) froze v36 with its fixtures
     expect(JSON.parse(files['v36/pawlegends-sim.sha256.json']).simVersion).toBe(36);
     expect(files['v36/maps-replay.fixture.json']).toBeDefined();

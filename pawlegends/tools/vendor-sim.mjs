@@ -42,7 +42,7 @@
  * 14. maps-replay.fixture.json (sim v34, docs/plans/moba/V34-MAPS.md): one genuine Normal match on each 3v3 pool map
  *    (Lanternfall Ridge, Twinbark Thicket, Geode Quarry, Pawball Park; a JSON array of four records), so the spec
  *    shows a v34 record with a pool `map` verifies and the same record labelled v33 is refused.
- * backend/src/vendor/pawlegends-sim/v24/ to v36/: those files, frozen (FROZEN below; sim v37 is live; v10 to v23 retired).
+ * backend/src/vendor/pawlegends-sim/v24/ to v37/: those files, frozen (FROZEN below; sim v38 is live; v10 to v23 retired).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -143,6 +143,10 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * 2026-11-11 and 2026-11-12, before the first client that obeys the force-update policy (sim v27, 2026-11-14), and
  * the OTA channel's minSim is 35. A device-queued v20 to v23 match is refused with PAWLEGENDS_SIM_VERSION and purged
  * by the host, as v10 to v19 were.
+ * Sim v38 (the human's allies lane like the enemy bots on every difficulty but Rookie, which keeps one roamer beside
+ * the human; Rookie and Easy allies still peel and leave kills in fights they reach, docs/plans/moba/V38.md) froze
+ * the released v37 at aaa8033d (its sim commit on main, byte for byte the live v37 dir) and keeps v24 to v36, so the
+ * backend verifies 24 to 38.
  * The same rebase left every older FROZEN commit (v20 at 4f9c97d4 to v34 at 0be26b01) off main, so CI's checkout
  * (fetch-depth 0) no longer had them and `git show` failed. Every entry now reads from 59dafddf too: its v20 to v35
  * directories are byte for byte the ones those commits froze (each bundle sha below is still checked on read).
@@ -382,6 +386,27 @@ export const FROZEN = Object.freeze([
     commit: 'df3424329c3b7c7cda9bec20ec2af6ee4fd2392f',
     from: 'backend/src/vendor/pawlegends-sim/v36',
     bundle: '53f785e658ade81b721b237c7d150aec1013a1fbb995c1390feefe5a9f0d767d',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+      'blitz-replay.fixture.json',
+      'kite-replay.fixture.json',
+      'roster-replay.fixture.json',
+      'roster31-replay.fixture.json',
+      'late-replay.fixture.json',
+      'maps-replay.fixture.json',
+    ]),
+  }),
+  Object.freeze({
+    simVersion: 37,
+    commit: 'aaa8033d183eaac3609289c05c56d9178bd93ccd',
+    from: 'backend/src/vendor/pawlegends-sim/v37',
+    bundle: 'fa58ba9af096ed6b531e33b25a64b05e21928d7c1f65c6374b2f8ddc85e99f7f',
     extra: Object.freeze([
       'forfeit-replay.fixture.json',
       'dog-replay.fixture.json',

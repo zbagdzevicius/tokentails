@@ -11,7 +11,6 @@ import { HERO_IDS } from '../../src/data/heroes';
 import { MUTATOR_RULES } from '../../src/data/mutators';
 import { BOT_AI } from '../../src/data/bots';
 import { SIM_VERSION } from '../../src/sim/version';
-import { verifyReplay } from '../../src/sim/server';
 import { verifyPartyReplay, verifyPvpReplay } from '../../src/sim/party';
 import { timeUpWinner } from '../../src/sim/match';
 import { createMatch, createPlayerBot, fillPicks, playerBotCommands, result, step, type MatchHandle } from '../../src/sim/index';
@@ -81,8 +80,8 @@ function stuckBots(seed: number, map: MapId): number {
 }
 
 describe('sim v37: bot commitment on the 3v3 maps, the Blitz rout and rows', { timeout: limit(600000) }, () => {
-  it('SIM_VERSION 37, v36 frozen at df342432 (its sim commit on main) with every fixture', () => {
-    expect(SIM_VERSION).toBe(37);
+  it('SIM_VERSION 38 (37 at release), v36 frozen at df342432 (its sim commit on main) with every fixture', () => {
+    expect(SIM_VERSION).toBe(38);
     const tool = readFileSync(join(__dirname, '..', '..', 'tools', 'vendor-sim.mjs'), 'utf8');
     const entry = /simVersion: 36,\s*commit: '([0-9a-f]{40})'[^]*?\]\)/.exec(tool);
     expect(entry?.[1].startsWith('df342432')).toBe(true);
@@ -90,13 +89,12 @@ describe('sim v37: bot commitment on the 3v3 maps, the Blitz rout and rows', { t
     expect(entry?.[0]).toContain('hearthwood-pvp.fixture.json');
   });
 
-  it('every frozen v36 Hearthwood record (solo, party, PvP), relabelled 37, re-sims to the same hash on v37', () => {
-    const solo = read(36, 'hearthwood-replay.fixture.json');
-    expect(verifyReplay({ ...solo, simVersion: 37 })).toMatchObject({ ok: true, finalHash: solo.finalHash, ticks: solo.ticks });
+  it('every frozen v36 Hearthwood record (party, PvP; the Easy solo one until v38), relabelled live, re-sims to the same hash', () => {
+    // Sim v38 (V38.md): Easy allies stopped carrying, so the Easy solo record changed; Normal and Hard did not.
     const party = read(36, 'hearthwood-party.fixture.json');
-    expect(verifyPartyReplay({ ...party, simVersion: 37 })).toMatchObject({ ok: true, finalHash: party.finalHash, ticks: party.ticks });
+    expect(verifyPartyReplay({ ...party, simVersion: SIM_VERSION })).toMatchObject({ ok: true, finalHash: party.finalHash, ticks: party.ticks });
     const pvp = read(36, 'hearthwood-pvp.fixture.json');
-    expect(verifyPvpReplay({ ...pvp, simVersion: 37 })).toMatchObject({ ok: true, finalHash: pvp.finalHash, ticks: pvp.ticks });
+    expect(verifyPvpReplay({ ...pvp, simVersion: SIM_VERSION })).toMatchObject({ ok: true, finalHash: pvp.finalHash, ticks: pvp.ticks });
   });
 
   it('the walk hold is one rule for the 3v3 maps: 2 s, 4 m', () => {

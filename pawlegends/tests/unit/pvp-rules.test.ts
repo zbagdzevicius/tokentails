@@ -16,6 +16,7 @@ const NEUTRAL_IN_PVP: Partial<Record<keyof DifficultyRules, number | boolean>> =
   humanRespawnBp: 10000,
   towerKnockback: false,
   carryAllies: 0,
+  helpAllies: 0,
   enemiesToHuman: false,
   humanDamageBp: 10000,
   humanTakenBp: 10000,

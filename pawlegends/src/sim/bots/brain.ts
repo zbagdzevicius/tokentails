@@ -284,7 +284,7 @@ function pickFoe(
   tick: number,
   slip: boolean,
   out: Int32Array,
-  carry: boolean,
+  carry: boolean, // sim v38: helpAllies (peel, leave the kill), not only carry allies
   brave: boolean,
   spare: number,
   focus = -1,
@@ -1111,6 +1111,9 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   // Sim v10: an ordered bot follows its order instead.
   const carry = !ordered && id !== HUMAN_SLOT && w.team[id] === w.team[HUMAN_SLOT] && rules.carryAllies >= (roams(w, id) ? 1 : 2) && humanEngaged(w);
   thinkingCarry = carry;
+  // Sim v38 (V38.md §2, DifficultyRules.helpAllies): an ally that does not follow still peels for the human and leaves it
+  // a nearly dead foe in a fight it reaches from its own lane (pickFoe); where it walks is the enemy bots' lane logic.
+  const help = carry || (!ordered && id !== HUMAN_SLOT && w.team[id] === w.team[HUMAN_SLOT] && rules.helpAllies >= (roams(w, id) ? 1 : 2));
   // Rookie: slot 3 walks into Sunny Lane early and picks the first fight (DifficultyRules.scriptFrom).
   const script = id === 3 && MAP.point === 0 && rules.scriptFrom > 0 && tick >= rules.scriptFrom && tick < rules.scriptUntil;
   // Sim v7: enemy heroes at the own core come before any fight elsewhere (a base race is not a lead).
@@ -1129,7 +1132,7 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   }
   const foe = low
     ? -1
-    : pickFoe(w, id, mem, p, tick, slip === SLIP.Chase, scratch, carry, script, w.team[id] === w.team[HUMAN_SLOT] ? 0 : rules.spareHuman, focus);
+    : pickFoe(w, id, mem, p, tick, slip === SLIP.Chase, scratch, help, script, w.team[id] === w.team[HUMAN_SLOT] ? 0 : rules.spareHuman, focus);
   if (low) {
     scratch[0] = -1;
     scratch[1] = -1;
