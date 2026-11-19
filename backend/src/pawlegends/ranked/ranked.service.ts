@@ -20,7 +20,16 @@ import { decayedPoints, ladderOf, legendInactive } from './points';
 import { pendingRoomsFilter } from './settlement';
 import { RankedStatusService } from './status';
 import { primeTime } from './windows';
-import { LEGEND_IDX, PLACEMENTS, RANKED_BOTS, RANKED_MIN_MATCHES, RANKED_REGIONS, tierIdOf, tierLabel } from './tiers';
+import {
+    LEGEND_IDX,
+    PLACEMENTS,
+    RANKED_BOTS,
+    RANKED_MIN_MATCHES,
+    RANKED_REGIONS,
+    rankedByMatches,
+    tierIdOf,
+    tierLabel,
+} from './tiers';
 
 /*
  * Ranked and board reads (docs/plans/moba/SOCIAL-RANKED.md §6.3, §7.9, §10). Read only: nothing here writes a score, a
@@ -383,7 +392,14 @@ export class RankedService {
             : row
             ? PLACEMENTS.season
             : PLACEMENTS.first;
-        const why = matches < RANKED_MIN_MATCHES ? 'matches' : lock ? 'locked' : pending.length ? 'pending' : null;
+        // Lv 10 of saved matches, or a ranked row with games (an earned rank is kept, MODE-UNLOCKS.md)
+        const why = !rankedByMatches(matches, row?.games)
+            ? 'matches'
+            : lock
+            ? 'locked'
+            : pending.length
+            ? 'pending'
+            : null;
         return {
             eligible: !why,
             why,

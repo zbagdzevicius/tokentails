@@ -1,10 +1,11 @@
 /*
- * Mode unlocks by account level (docs/plans/moba/MODE-UNLOCKS.md, founder Nov 17: "by default initially 3x3 (skirmish)
- * and practise (sandbox) modes should be available (unlocked). then other modes unlocks upon reaching certain LVL").
- * The account level counts finished matches. The game's copy is pawlegends/src/meta/accountLevel.ts (a unit test there
- * pins the two tables equal). The server checks the modes it runs a queue for: 5v5 Classic here (the relay's
- * `mm.join {queue:'classic'}`), Ranked through its own saved-match rule (RANKED_MIN_MATCHES = the Ranked level's
- * matches). Every other mode is played against bots on the device.
+ * One main queue (docs/plans/moba/MODE-UNLOCKS.md, founder Nov 19: "keep: 3v3 as main queue. Practise appears from
+ * Level 5 only ... Ranked appears from level 10"). The account level counts finished matches. The game's copy is
+ * pawlegends/src/meta/accountLevel.ts and pawlegends/src/ui/modeSelect/unlocks.ts (a unit test there pins the tables
+ * equal). The server runs two queues a player picks: the 3v3 main queue (`casual`, with its co-op move) from Lv 1 and
+ * Ranked from Lv 10 (RANKED_MIN_MATCHES = this level's matches, ranked/tiers.ts). Practice (Lv 5) is played on the
+ * device, so the server has no gate for it. 5v5 Classic is retired from the menu: the relay refuses new
+ * `mm.join {queue:'classic'}` with `mode_retired` (its rooms, replays and history stay).
  */
 
 /** Finished matches needed for each level: index 0 is Lv 1. Past the table, every LEVEL_STEP_AFTER matches is a level. */
@@ -29,5 +30,8 @@ export function matchesForLevel(level: number): number {
     return LEVEL_MATCHES[LEVEL_MATCHES.length - 1] + (l - LEVEL_MATCHES.length) * LEVEL_STEP_AFTER;
 }
 
-/** The level each server-run queue needs (the game's MODE_UNLOCKS rows of the same modes). */
-export const QUEUE_LEVEL: Readonly<Record<string, number>> = Object.freeze({ classic: 3, ranked: 6 });
+/** The level each gated server-run queue needs (the game's MODE_UNLOCKS row of the same mode). */
+export const QUEUE_LEVEL = Object.freeze({ ranked: 10 } as const);
+
+/** Queues the relay no longer takes new joins for (MODE-UNLOCKS.md: one main queue, Nov 19). */
+export const RETIRED_QUEUES: readonly string[] = Object.freeze(['classic']);

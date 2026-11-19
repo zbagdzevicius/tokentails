@@ -4,6 +4,7 @@
  *
  * A tier index runs 0..12: Kitten III, II, I (0..2), Tabby (3..5), Alley (6..8), Lion (9..11), Legend (12).
  */
+import { matchesForLevel, QUEUE_LEVEL } from '../mode-unlocks';
 
 export interface RankedTierDef {
     id: 'kitten' | 'tabby' | 'alley' | 'lion' | 'legend';
@@ -74,8 +75,18 @@ export const RANKED_PRIME_TIME = Object.freeze({
     weekend: Object.freeze({ fromH: 12, toH: 18 }),
 });
 
-/** Ranked eligibility (§7.1). The game shows the server's values; no copy there. */
-export const RANKED_MIN_MATCHES = 10;
+/**
+ * Ranked eligibility (§7.1; one queue, founder Nov 19: "Ranked appears from level 10"): the saved matches of account
+ * Lv 10 (mode-unlocks.ts QUEUE_LEVEL.ranked, 25 matches). The game shows the server's values; no copy there.
+ */
+export const RANKED_MIN_MATCHES = matchesForLevel(QUEUE_LEVEL.ranked);
+
+/**
+ * May this account queue Ranked on its match count? Lv 10 of saved matches, or a ranked row with games already (a player
+ * who played Ranked under the old Lv 6 rule keeps it: an earned rank is never taken away). Pure.
+ */
+export const rankedByMatches = (matches: number, rankedGames: number | null | undefined): boolean =>
+    matches >= RANKED_MIN_MATCHES || (typeof rankedGames === 'number' && rankedGames > 0);
 
 /**
  * Queue regions (§7.11, groundwork): the game times `ping` (a path on the API) for each and shows the result. One

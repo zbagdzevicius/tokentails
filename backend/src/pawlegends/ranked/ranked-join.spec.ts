@@ -25,6 +25,20 @@ describe('rankedJoinSource', () => {
         expect(await src.check('a')).toEqual({ code: 'mm_ranked_matches', have: 3, need: RANKED_MIN_MATCHES });
     });
 
+    it('Lv 10 is 25 saved matches; a ranked row with games keeps Ranked below it (an earned rank stays)', async () => {
+        expect(RANKED_MIN_MATCHES).toBe(25);
+        const at = (matches: number, row: unknown) =>
+            rankedJoinSource({
+                played: async () => ({ matches, top: 'easy' }),
+                rooms: null,
+                ratings: { findById: () => ({ lean: async () => row }) },
+            });
+        expect(await at(24, null).check('a')).toEqual({ code: 'mm_ranked_matches', have: 24, need: 25 });
+        expect(await at(24, { games: 0 }).check('a')).toEqual({ code: 'mm_ranked_matches', have: 24, need: 25 });
+        expect(await at(12, { games: 3 }).check('a')).toBeNull();
+        expect(await at(25, null).check('a')).toBeNull();
+    });
+
     it('an ended ranked room not applied to the ranked row: mm_ranked_pending (applied rooms excluded)', async () => {
         const r = rooms([{ _id: 'room-9' }]);
         const src = rankedJoinSource({

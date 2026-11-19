@@ -64,7 +64,7 @@ function harness() {
         rooms: new SocialMemoryModel([mmRoom('r1', clock)], [], now),
         users: new SocialMemoryModel(
             [
-                ...ACCS.map(id => ({ _id: id, isGuest: false, pawlegendsMatches: { hard: id === 'A' ? 12 : 2 } })),
+                ...ACCS.map(id => ({ _id: id, isGuest: false, pawlegendsMatches: { hard: id === 'A' ? 25 : 2 } })),
                 { _id: 'G', isGuest: true },
             ],
             [],

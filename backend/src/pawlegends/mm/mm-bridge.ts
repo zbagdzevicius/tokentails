@@ -30,7 +30,7 @@ import {
 import { MM_CASUAL, MM_HOME_REGION, MM_LIMITS, MM_RANKED } from './mm-limits';
 import { CURRENT_SEASON_ID } from '../pawlegends-catalog';
 import { RANKED_MIN_MATCHES } from '../ranked/tiers';
-import { matchesForLevel, QUEUE_LEVEL } from '../mode-unlocks';
+import { RETIRED_QUEUES } from '../mode-unlocks';
 import { identityHash, type MmRoomMember, type MmRoomStore } from './mm-room.schema';
 import type { MmRatingSource } from './rating.schema';
 import type { SanctionSource } from './sanction-reader';
@@ -349,7 +349,13 @@ export class MmBridge implements MmHooks {
         this.api.log('mm_refused', { reason });
         const msg: Record<string, unknown> = { ...(extra ?? {}), t: 'error', code };
         if (retryMs !== undefined) msg.retryMs = retryMs;
-        if (reason === 'pvp_newbie' || reason === 'ranked_party' || reason === 'mode_level') msg.reason = reason;
+        if (
+            reason === 'pvp_newbie' ||
+            reason === 'ranked_party' ||
+            reason === 'mode_level' ||
+            reason === 'mode_retired'
+        )
+            msg.reason = reason;
         this.api.send(member, msg);
     }
 
@@ -398,35 +404,6 @@ export class MmBridge implements MmHooks {
                 else this.tierOf.delete(s.member);
             }
         return false;
-    }
-
-    /**
-     * Mode unlocks by account level (MODE-UNLOCKS.md, founder Nov 17): 5v5 Classic opens at Lv 3. Every member of the
-     * entry needs the level's finished matches on server records (`playedFor`: saved matches, rated games, completed
-     * Quick Play rooms) for a registered account. A guest (no account: a web visitor) has no server record of its bot
-     * matches, which the game plays on the device, so its count is the larger of the server's and the client's
-     * `hint.matches` (Nov 17 verification: a guest at Lv 3 was refused 5v5 Classic for good). A guest key is free, so
-     * the level is progression, not a security line; accounts stay on server records. Refused with `mm_locked`, reason
-     * `mode_level`, and `{mode, level, have, need}` (an older game shows its generic lock line and may search again).
-     */
-    private async levelRefusal(member: string, socks: MmSock[], queue: string): Promise<boolean> {
-        const level = QUEUE_LEVEL[queue];
-        if (!level) return false;
-        const need = matchesForLevel(level);
-        const have = await Promise.all(
-            socks.map(async s => {
-                const server = await this.playedFor(s).catch(() => 0);
-                if (s.identity.accountId && !s.identity.guest) return server;
-                const h = s.hint?.matches;
-                const hint =
-                    typeof h === 'number' && Number.isFinite(h) && h > 0 ? Math.min(1_000_000, Math.floor(h)) : 0;
-                return Math.max(server, hint);
-            })
-        );
-        const low = Math.min(...have);
-        if (low >= need) return false;
-        this.refuse(member, 'mm_locked', undefined, 'mode_level', { mode: queue, level, have: low, need });
-        return true;
     }
 
     /**
@@ -494,6 +471,10 @@ export class MmBridge implements MmHooks {
         const api = this.api;
         const sock = api.sock(member);
         if (!sock || sock.proto < 2) return;
+        // one main queue (MODE-UNLOCKS.md, Nov 19): 5v5 Classic is off the menu; an older game that still offers it is
+        // told so (its matches, replays and history stay)
+        if (RETIRED_QUEUES.includes(queue))
+            return this.refuse(member, 'mm_locked', undefined, 'mode_retired', { mode: queue });
         const pvp = isPvpQueue(queue);
         if (pvp && !this.pvpCapable(sock, queue))
             return this.refuse(
@@ -596,7 +577,6 @@ export class MmBridge implements MmHooks {
             return;
         }
         if (queue === 'ranked' && (await this.rankedRefusal(member, socks))) return;
-        if (queue === 'classic' && (await this.levelRefusal(member, socks, queue))) return;
         // the live-room caps (1 per identity, 4 per IP) are checked now, not after the fill: a seat this identity
         // still holds from a closed tab is given up; anything else is refused with a time (never a silent cancel)
         for (const s of socks) if (!api.canSeat(s.identity)) api.release(s.identity, s.member);

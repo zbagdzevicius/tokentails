@@ -1,7 +1,7 @@
 import type { RankedJoinSource, RankedRefusal } from '../mm/mm-bridge';
 import type { MmPlayed } from '../mm/rating.schema';
 import { pendingRoomsFilter } from './settlement';
-import { RANKED_MIN_MATCHES } from './tiers';
+import { RANKED_MIN_MATCHES, rankedByMatches } from './tiers';
 import { CURRENT_SEASON_ID } from '../pawlegends-catalog';
 
 /*
@@ -29,11 +29,14 @@ export function rankedJoinSource(deps: RankedJoinDeps): RankedJoinSource {
         async check(accountId: string): Promise<RankedRefusal | null> {
             const played = await deps.played(accountId);
             const have = played?.matches ?? 0;
-            if (have < RANKED_MIN_MATCHES) return { code: 'mm_ranked_matches', have, need: RANKED_MIN_MATCHES };
-            if (!deps.rooms) return null;
             const row = (deps.ratings ? await deps.ratings.findById(`${accountId}:ranked`).lean() : null) as {
                 appliedRooms?: string[];
+                games?: number;
             } | null;
+            // Lv 10 of saved matches, or ranked games already played (an earned rank is kept, MODE-UNLOCKS.md)
+            if (!rankedByMatches(have, row?.games))
+                return { code: 'mm_ranked_matches', have, need: RANKED_MIN_MATCHES };
+            if (!deps.rooms) return null;
             const pending = (await deps.rooms
                 .find(pendingRoomsFilter(accountId, row?.appliedRooms ?? [], now()))
                 .select({ _id: 1 })

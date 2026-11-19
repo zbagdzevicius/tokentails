@@ -94,7 +94,13 @@ describe('board reads (SOCIAL-RANKED.md §6.3)', () => {
             peakIdx: tierIdx,
             shield: 1,
         });
-        m.ratings.docs.push(ranked('A', 7, 40), ranked('B', 12, 300, 20), ranked('C', 12, 10), ranked('X', 12, 900));
+        // A played Ranked (12 games) below Lv 10 and keeps it; B's row has no games, so B waits for Lv 10
+        m.ratings.docs.push(
+            { ...ranked('A', 7, 40), games: 12 },
+            ranked('B', 12, 300, 20),
+            ranked('C', 12, 10),
+            ranked('X', 12, 900)
+        );
         const gate = { read: async () => ({ open: false, online: 3, need: 24, since: null, lowSince: null }) } as any;
         const svc = new RankedService(
             m.ratings,
@@ -144,12 +150,12 @@ describe('board reads (SOCIAL-RANKED.md §6.3)', () => {
         ]);
     });
 
-    it('ranked/me: eligibility from saved matches, the status (always open since round 4) passes through', async () => {
+    it('ranked/me: eligibility from saved matches (Lv 10 = 25) or ranked games played, the status (always open since round 4) passes through', async () => {
         const { svc } = harness();
         expect(await svc.me('B', false)).toMatchObject({
             eligible: false,
             why: 'matches',
-            matches: { have: 3, need: 10 },
+            matches: { have: 3, need: 25 },
         });
         const a = await svc.me('A', false);
         expect(a).toMatchObject({
