@@ -7,6 +7,8 @@
 export const ASPECTS = {
   horizontal: { width: 1280, height: 720, dpr: 1.5 },
   vertical: { width: 540, height: 960, dpr: 2 },
+  // trailers-hq: 1:1 rendered natively (1080x1080; 2160x2160 with --ss 2), the game camera only
+  square: { width: 720, height: 720, dpr: 1.5 },
 };
 
 /** Per aspect: a 9:16 frame gets a wider vertical FOV and a steeper look, so the fight spreads up the frame. */
@@ -35,6 +37,8 @@ function looksOf(spec, per) {
 
 /** The camera target for a moment. */
 function targetOf(spec, moment, focus, ctx = {}) {
+  // trailers-hq: `point: [x, y]` (sim mm) holds the camera on a fixed spot (the Ridge's Pudding pit, a goal)
+  if (Array.isArray(spec.point)) return { point: spec.point, lift: 1 };
   // target 'point': hold on the moment's fixed spot (e.g. a tower about to fall) instead of a drifting fight centre
   if (spec.target === 'point' && moment && (moment.x || moment.y)) return { point: [moment.x, moment.y], lift: 1 };
   if (spec.target === 'unit' || (spec.camera === 'follow' && spec.focus !== undefined)) return { unit: focus, lift: 1 };
@@ -118,7 +122,8 @@ function cutsFor(aspect, N, fps, target, focus, ctx = {}) {
  */
 export function buildShot(spec, ctx) {
   const aspect = spec.aspect === 'vertical' ? 'vertical' : 'horizontal';
-  const size = ASPECTS[aspect];
+  const sq = spec.aspect === 'square';
+  const size = ASPECTS[sq ? 'square' : aspect];
   const { fps, N } = ctx;
   const base = {
     id: spec.id,
@@ -146,8 +151,11 @@ export function buildShot(spec, ctx) {
     // the game's own camera (its follow, lead, fight pull-back and shake), its look point moved onto the subject;
     // in 9:16 a wider lens and a slightly steeper pitch
     const v = aspect === 'vertical';
-    if (!v && focus === 0 && !spec.target) shotCam = null;
-    else shotCam = { base: 'game', target, keys: [{ f: 0, dist: v ? 1.0 : 1, pitch: v ? 6 : 0, yaw: 0, fov: v ? 56 : 38, lift: 0, blend: 1 }] };
+    // trailers-hq: `gameKeys` = accent moves on the game camera ([{ f, dist, pitch, ... }], merged onto the aspect's
+    // default key; f in output frames); 1:1 gets a 46 deg lens so the square sees what the 16:9 sees across
+    const k0 = { f: 0, dist: 1, pitch: v ? 6 : 0, yaw: 0, fov: v ? 56 : sq ? 46 : 38, lift: 0, blend: 1 };
+    if (!v && !sq && focus === 0 && !spec.target && !spec.gameKeys) shotCam = null;
+    else shotCam = { base: 'game', target, keys: spec.gameKeys ? spec.gameKeys.map((k) => ({ ...k0, ...k })) : [k0] };
   } else if (cam === 'cuts') {
     const c = cutsFor(aspect, N, fps, target, focus, ctx);
     shotCam = { target: c.target, keys: c.keys, smooth: 0.18 };

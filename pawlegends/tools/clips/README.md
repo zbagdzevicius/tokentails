@@ -306,3 +306,23 @@ sheets of 6-9 frames each. `report.json` next to them has the full rows.
   left/right edges near each coat swap). Use `"sweep": 16` for horizontal turntables (checked: no wedge at zoom 1.7).
 - Each coat swap has a ~6-frame pop-in (the hero scales up from small): a contact-sheet frame taken exactly on a swap
   time (5 s, 10 s, ...) looks like a tiny hero; that is the animation, not a framing bug.
+
+## Trailers-hq additions (Grudge Tour; additive, absent = unchanged)
+
+- **`aspect: "square"`**: 1:1 rendered natively at 720x720 CSS, DPR 1.5 (1080x1080 out, 2160x2160 with `--ss 2`). The
+  game camera gets a 46 deg lens so the square sees about what 16:9 sees across. Use it with `camera: "game"`.
+- **`gameKeys`**: accent moves on the game camera, `[{ f, dist, pitch, yaw, fov, ease }]` (f in output frames, `dist`
+  a factor on the game distance: 0.926 = a 1.08x push), merged onto the aspect's default game key. Absent = the plain
+  game camera.
+- **`point: [x, y]`** (sim mm): holds the camera on a fixed spot (the Ridge's Pudding pit at `[50000, 22000]`), without
+  needing a `start.event` moment.
+- HUD game look per aspect: pass `shot: { noMusic: true, css: ".pl-chatopen { display: none !important; }" }` to drop
+  the match music (a trailer scores its own) and the chat button; in 9:16 and 1:1 also hide `.pl-minimap`, which
+  overlaps the ability bar in narrow viewports.
+- **`dev/find-cast.mjs`**: rank seeds for one event of a spec's exact take by how readable it is on screen:
+  `node tools/clips/dev/find-cast.mjs '<spec>' cast:0:3 1-20` (Q/W/E/R = 0..3), `hero:<id>:<k>`, `yarn:<slot>`,
+  `goal:<team>`, `pudding:hop|calmed`, `shrine`, `gem`, `surge`, `cannon:<sub>`, `clip:<what>`. A row scores enemy
+  heroes the caster hits in the next 1.5 s and heroes near it. Casts by a dead seat are skipped: the sim emitted a
+  slot-3 `cast` for Sir Brutus while he was down, and that take showed only the death screen.
+- Gotcha: an ultimate's on-screen beat is often 1-2 s after its `cast` tick (Sage's Moonshot lands ~1.8 s later,
+  Stilts' Zoomies ~1 s), so check a numbered contact sheet before cutting on the event time.
