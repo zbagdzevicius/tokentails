@@ -3985,10 +3985,15 @@ export class PartyRelay {
             if (s.seatRoom) {
                 // SPECTATE.md: a watchable match carries its room id (accepted friends only read it, as a party code)
                 const live = this.rooms.get(s.seatRoom);
+                // social sidebar round 6: the champion played, the queue and when the clock started (LoL's status)
+                const hero = live?.config.picks?.[s.seatSlot];
                 e = {
                     accountId: id.accountId,
                     state: 'match',
                     ...(live && !this.watchableOf(live).closed ? { room: live.room.id } : {}),
+                    ...(typeof hero === 'string' && /^[a-z][a-z0-9]{0,23}$/.test(hero) ? { hero } : {}),
+                    ...(live ? { mode: this.presenceModeOf(live) } : {}),
+                    ...(live && Number.isFinite(live.room.startMs) ? { t0: Math.round(live.room.startMs) } : {}),
                 };
             } else if (s.memberId && this.mm.queued(s.memberId)) e = this.queuePresence(id.accountId, s.memberId);
             else {
@@ -4007,6 +4012,14 @@ export class PartyRelay {
             if (!prev || rank[e.state] > rank[prev.state]) out.set(e.accountId, e);
         }
         return [...out.values()];
+    }
+
+    /** A live room's queue as friends read it ("In match · Ranked"): ranked, 5v5 Classic, casual, vs bots, custom. */
+    private presenceModeOf(live: LiveRoom): NonNullable<PresenceEntry['mode']> {
+        const kind = this.watchKindOf(live);
+        if (kind === 'ranked') return 'ranked';
+        if (kind === 'casual') return live.config.map === 'hearthwood' ? 'classic' : 'casual';
+        return kind === 'coop' ? 'bots' : 'custom';
     }
 
     /** A queued account's presence: `q: 'ranked'` while it searches ranked (the ranked searching count). */

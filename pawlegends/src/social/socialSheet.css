@@ -162,11 +162,8 @@ html .pl-inv-code b { color: var(--v6-bolt); font: 800 15px/1 var(--font); lette
 @media (hover: hover) { html .pl-inv-code:hover { border-style: solid; color: var(--v6-cream); } }
 html .pl-inv-code:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 html .pl-social .pl-inv-share { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; }
-html .pl-inv-have {
-  justify-self: start; min-height: 44px; margin: -6px 0 -4px; padding: 0; border: 0; background: none; color: var(--v6-muted);
-  font: 600 14px/1.2 var(--font); text-decoration: underline; text-decoration-color: rgb(var(--v6-bolt-rgb) / 0.6); text-underline-offset: 3px; cursor: pointer;
-}
-@media (hover: hover) { html .pl-inv-have:hover { color: var(--v6-cream); } }
+/* "Got a code? Enter it": a real secondary button (round 6), the ghost style, sized to its words */
+html .pl-social .pl-inv-have { justify-self: start; }
 html .pl-social .pl-invite-form { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 4px; background: rgb(var(--v6-bolt-rgb) / 0.08); box-shadow: none; }
 html .pl-social .pl-invite-form input { min-height: 44px; font-size: 16px; }
 
@@ -373,7 +370,8 @@ html .pl-fr-menu-name { margin: 0; font: 800 15px/1.3 var(--font); color: var(--
 html .pl-fr-menu-h small { color: var(--v6-muted); font: 600 14px/1.25 var(--font); }
 html .pl-fr-menu-acts, html .pl-fr-menu-danger { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 2px; }
 /* Invite greyed with its reason: one line across the menu */
-html .pl-mi-busy { grid-column: 1 / -1; }
+html .pl-mi-busy, html .pl-mi-wide { grid-column: 1 / -1; }
+html .pl-mi-wide > span { white-space: nowrap; }
 html .pl-mi-busy > span { white-space: nowrap; color: var(--v6-muted); font-weight: 600; }
 html .pl-mi.pl-mi-busy .pl-i { color: var(--v6-muted); }
 /* touch or a short screen: the menu is a bottom sheet over the panel (a scrim behind it; tap it to close) */
@@ -531,3 +529,78 @@ html .pl-social .pl-bd .pl-social-st { font-size: 14px; }
   html .pl-social-moremenu .pl-live-dot { animation: none; }
   html .pl-ico, html .pl-me .pl-i, html .pl-group-h .pl-i, html .pl-social-more .pl-i { transition: none; }
 }
+
+/* ── round 6 ───────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* AA contrast on the rose: night text on every rose pill, badge and CTA (white on #ff3d7f is 3.4:1, night is 5.7:1) */
+html .pl-group[data-g='requests'] .pl-group-n, html .pl-social .pl-ic .pl-chat-unread, html .pl-chat .pl-chat-new, html .pl-chat .pl-back-n,
+html .pl-chat .pl-chat-tab-u, html .pl-social .pl-btn.cta { color: var(--v6-night); }
+html .pl-social .pl-ic .pl-chat-unread { background: var(--v6-rose); }
+
+/* one row height in the list: requests and friends alike (44 px with a mouse, 48 on touch) */
+html .pl-social .pl-social-body .pl-fr, html .pl-social .pl-social-body .pl-rq { height: var(--soc-row); min-height: var(--soc-row); box-sizing: border-box; }
+html .pl-social .pl-social-body .pl-rq .pl-fr-av { margin: 0; }
+
+/* the champion a friend plays in a match, a queued invite, when we last played: after the status, not italic */
+html .pl-social .pl-st-champ { font-style: normal; color: var(--v6-cream); }
+html .pl-social .pl-st-later { display: inline-flex; align-items: center; gap: 4px; font-style: normal; color: var(--pr-queue-t); }
+html .pl-social .pl-st-later .pl-i { flex: none; }
+html .pl-social .pl-st-played { font-style: normal; color: var(--v6-muted); }
+/* the row menu: "Played together 2d ago · 4 games" over the actions */
+html .pl-fr-menu-info { display: flex; align-items: center; gap: 8px; margin: 2px 8px 2px 12px; color: var(--v6-muted); font: 600 14px/1.3 var(--font); }
+html .pl-fr-menu-info .pl-i { flex: none; }
+html .pl-fr-menu.is-sheet .pl-fr-menu-info { justify-self: stretch; margin: 0 6px; }
+
+/* a short screen: Friend requests stand without a header (the rows say it), marked by a rose edge */
+html .pl-group.is-bare .pl-rq { box-shadow: inset 3px 0 0 var(--v6-rose); }
+html .pl-group.is-bare .pl-group-list { padding-top: 0; }
+/* a short screen: no padding around a group's rows (one more friend on the first screen) */
+@media (max-height: 500px) { html .pl-social .pl-group-list { padding: 0; } }
+
+/* touch: the row's one action names itself ("Invite", "Ask", "Watch", "Join") beside its icon */
+html .pl-act-t { display: none; }
+@media (hover: none), (pointer: coarse) {
+  /* a fixed right column (the longest word fits), so every action and Chat line up down the list */
+  html .pl-fr-acts { grid-template-columns: auto 88px; }
+  html .pl-fr-acts .pl-act-2 { justify-self: end; }
+  html .pl-fr .pl-fr-acts .pl-ico.pl-act-2:not(.is-primary) { width: 88px; min-width: 44px; height: 44px; padding: 0 8px; gap: 4px; display: inline-flex; align-items: center; justify-content: center; color: var(--v6-cream); }
+  /* a quiet outlined pill inside the full 44 px target */
+  html .pl-fr .pl-fr-acts .pl-ico.pl-act-2:not(.is-primary)::after { content: ''; position: absolute; inset: 5px 0; border-radius: var(--v6-r-s); box-shadow: inset 0 0 0 1px var(--v6-line-strong); pointer-events: none; }
+  html .pl-fr .pl-fr-acts .pl-ico.pl-act-2 .pl-act-t { display: inline; font: 700 14px/1 var(--font); }
+  html .pl-fr-acts .pl-ico.is-primary:not(.is-accept) { width: 88px; }
+  /* a request keeps Decline and Accept side by side, the same size (Accept flush right like every row's action) */
+  html .pl-rq .pl-fr-acts { grid-template-columns: auto 44px; }
+  html .pl-fr-acts .pl-ico.is-primary:not(.is-accept) .pl-ic { width: 84px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 6px; box-sizing: border-box; }
+}
+
+/* my status card: never past the screen. A mouse: in the flow, capped, scrolls. Touch or a short screen: a bottom
+   sheet over the panel like the row menu (a scrim behind; it scrolls when taller than the panel) */
+html .pl-me-card { max-height: min(70vh, 520px); overflow-y: auto; overscroll-behavior: contain; }
+html .pl-me-card.is-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; max-height: calc(100% - 8px); margin: 0;
+  padding: 4px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 10px; border-radius: var(--v6-r-m, 10px) var(--v6-r-m, 10px) 0 0;
+  box-shadow: 0 -1px 0 var(--v6-line-strong), 0 -12px 32px rgb(0 0 0 / 0.5); animation-name: pl-sheet-up;
+}
+html .pl-me-card-h { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+html .pl-me-card-h .pl-fr-grab { grid-column: 1 / -1; justify-self: center; margin: 2px 0 2px; }
+html .pl-me-card-h .pl-me-card-name { margin: 0 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+@media (max-height: 500px) {
+  /* sideways phone: the three statuses side by side (their word only), the code and avatar side by side */
+  html .pl-me-card.is-sheet [role='radiogroup'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  html .pl-me-card.is-sheet .pl-me-opt { min-height: 44px; padding: 0 8px; gap: 6px; }
+  html .pl-me-card.is-sheet .pl-me-opt small, html .pl-me-card.is-sheet .pl-me-opt > .pl-i { display: none; }
+  html .pl-me-card.is-sheet .pl-me-opt[aria-checked='true'] { background: rgb(var(--v6-cream-rgb) / 0.1); box-shadow: inset 0 0 0 1px var(--v6-line-strong); }
+  html .pl-me-card.is-sheet .pl-me-card-acts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* no friends on a short screen: the invite first, then one compact line and Find */
+html .pl-social .pl-social-none.is-compact { margin: 6px 8px 4px; gap: 6px; }
+html .pl-social .pl-social-none.is-compact p { font-size: 15px; }
+
+/* DM tabs: the selected conversation shows its whole name; the others are their avatar (status dot, unread count;
+   the name in the tooltip and label), so no name is ever cut to "Brave Mi…" */
+html .pl-chat-tab { flex: 0 0 auto; max-width: none; }
+html .pl-chat-tab[aria-selected='true'] { flex: 0 1 auto; min-width: 0; }
+html .pl-chat-tab[aria-selected='false'] { padding: 0 6px; gap: 4px; }
+html .pl-chat-tab[aria-selected='false'] .pl-chat-tab-n { display: none; }
+html .pl-chat-who-h.is-tabbed { justify-content: center; }
+

@@ -155,7 +155,8 @@ export function inviteRowHtml(s: InviteState | null, entering: boolean, closable
     : '';
   const chip = `<button type="button" class="pl-inv-code" data-a="inv-copy" data-testid="invite-copy" aria-label="${esc(`Copy invite code ${s.code}`)}" title="Copy code"><small>Invite code</small><b>${esc(s.code)}</b>${ICON_COPY}</button>`;
   const fold = closable ? `<button type="button" class="pl-ico pl-inv-fold" data-a="inv-fold" aria-expanded="true" aria-label="Hide invite" title="Hide">${ICON_X}</button>` : '';
-  const enter = !s.accepted ? `<button type="button" class="pl-inv-have" data-a="inv-enter" data-testid="invite-enter" aria-label="Enter an invite code">Got a code from a friend?</button>` : '';
+  // a real secondary button (round 6), not an underlined text link
+  const enter = !s.accepted ? `<button type="button" class="pl-btn small ghost pl-inv-have" data-a="inv-enter" data-testid="invite-enter">${ICON_KEY}<span>Got a code? Enter it</span></button>` : '';
   return `<div class="pl-invite-row" data-testid="invite-row"><div class="pl-inv-top"><span class="pl-inv-ic">${ICON_GIFT}</span><span class="pl-inv-txt"><span class="pl-social-name" data-name="${esc(title)}"></span><small class="pl-inv-sub">${esc(sub)}</small></span>${fold}</div><div class="pl-inv-acts">${chip}${claim}<button type="button" class="pl-btn small ghost pl-inv-share" data-a="inv-share" data-testid="invite-share">${ICON_SHARE}<span>Share link</span></button></div>${enter}</div>`;
 }
 
@@ -163,6 +164,7 @@ const ICON_X = icon('close', 18);
 const ICON_COPY = icon('copy', 16);
 const ICON_GIFT = icon('gift', 20);
 const ICON_SHARE = icon('share', 16);
+const ICON_KEY = icon('key', 16);
 
 /**
  * The fold choice is remembered on this device only (a per-viewer convenience; storage can fail). With no choice yet

@@ -191,6 +191,9 @@ export class PawlegendsPresence {
         joinable?: boolean;
         mode?: string;
         room?: string;
+        /** `match` (social sidebar round 6): the champion played and when the match clock started (epoch ms). */
+        hero?: string;
+        t0?: number;
         at: Date;
     };
 

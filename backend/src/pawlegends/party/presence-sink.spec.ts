@@ -51,6 +51,23 @@ describe('presence sink (SOCIAL-RANKED.md §4.3)', () => {
         expect(await t.s.flush()).toBe(1);
     });
 
+    it('round 6: a match writes the champion, the queue and its start, and a new champion is a change', async () => {
+        let list: PresenceEntry[] = [{ accountId: 'A', state: 'match', hero: 'sage', mode: 'ranked', t0: 900_000 }];
+        const t = sink(() => list);
+        expect(await t.s.flush()).toBe(1);
+        expect(t.calls[0][0].updateOne.update.$set.relay).toMatchObject({
+            state: 'match',
+            hero: 'sage',
+            mode: 'ranked',
+            t0: 900_000,
+        });
+        t.advance(5000);
+        expect(await t.s.flush()).toBe(0);
+        list = [{ accountId: 'A', state: 'match', hero: 'clem', mode: 'ranked', t0: 900_000 }];
+        t.advance(5000);
+        expect(await t.s.flush()).toBe(1);
+    });
+
     it('a write error is counted and logged, never thrown', async () => {
         const t = sink(() => [{ accountId: 'A', state: 'match' }], true);
         await expect(t.s.flush()).resolves.toBe(1);

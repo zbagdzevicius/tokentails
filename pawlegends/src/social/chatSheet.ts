@@ -463,22 +463,29 @@ export class ChatSheet {
     const empty = !this.messages.length ? `<li class="pl-chat-empty">${this.loading ? 'Loading…' : 'Say hi! 👋'}</li>` : '';
     const earlier = this.more ? `<li><button type="button" class="pl-btn ghost small pl-chat-earlier" data-a="earlier">Load earlier</button></li>` : '';
     const st = this.deps.thread ? null : (this.deps.status?.() ?? null);
-    const others = this.deps.docked ? 0 : (this.deps.unreadElsewhere?.() ?? 0);
+    // the open conversations (LoL's chat tabs): switch without going Back; unread ones carry their count
+    const tabs = this.deps.thread ? [] : (this.deps.tabs?.() ?? []);
+    // round 6: with tabs, the selected tab names the friend (avatar and name once); the head keeps the status and the
+    // controls, and the tabs carry the other threads' counts (never a second count beside Back)
+    const tabbed = tabs.length > 0 && !this.minimised;
+    const others = this.deps.docked || tabbed ? 0 : (this.deps.unreadElsewhere?.() ?? 0);
     const back = this.deps.docked
       ? `<button type="button" class="pl-ico pl-chat-x" data-a="back" aria-label="Close chat" title="Close chat">${icon('close', 20)}</button>`
       : `<button type="button" class="pl-ico pl-chat-back${others ? ' has-n' : ''}" data-a="back" aria-label="${others ? `Back to friends, ${others} unread` : 'Back to friends'}" title="Back">${icon('chevron', 22)}${others ? `<b class="pl-back-n">${Math.min(99, others)}</b>` : ''}</button>`;
-    const av = this.deps.thread ? '<span class="pl-club-crest" aria-hidden="true">' + this.esc(f.name.slice(0, 1)) + '</span>' : `<span class="pl-fr-av"${st ? ` data-state="${this.esc(st.state)}"` : ''}>${avatarHtml(f.av, 40)}${st ? `<i class="pl-dot" data-state="${this.esc(st.state)}"></i>` : ''}</span>`;
+    const av = tabbed
+      ? ''
+      : this.deps.thread
+        ? '<span class="pl-club-crest" aria-hidden="true">' + this.esc(f.name.slice(0, 1)) + '</span>'
+        : `<span class="pl-fr-av"${st ? ` data-state="${this.esc(st.state)}"` : ''}>${avatarHtml(f.av, 40)}${st ? `<i class="pl-dot" data-state="${this.esc(st.state)}"></i>` : ''}</span>`;
     const sub = this.muted ? 'Muted' : (st?.text ?? '');
     const fresh = this.minimised && this.unseen ? `<b class="pl-chat-new">${this.unseen} new</b>` : '';
-    const who = `<span class="pl-chat-who-h"><span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${sub || fresh ? `<small class="pl-social-st"${st && !this.muted ? ` data-state="${this.esc(st.state)}"` : ''}>${fresh}${this.esc(sub)}</small>` : ''}</span>`;
+    const who = `<span class="pl-chat-who-h${tabbed ? ' is-tabbed' : ''}"><span class="pl-social-name${tabbed ? ' pl-sr' : ''}" data-name="${this.esc(f.name)}"></span>${sub || fresh ? `<small class="pl-social-st"${st && !this.muted ? ` data-state="${this.esc(st.state)}"` : ''}>${fresh}${this.esc(sub)}</small>` : ''}</span>`;
     // docked: Minimise folds the window to its head (LoL's chat tab); the head then opens it again
     const min = this.deps.docked
       ? `<button type="button" class="pl-ico pl-chat-min" data-a="min" aria-expanded="${!this.minimised}" aria-label="${this.minimised ? 'Open chat' : 'Minimise chat'}" title="${this.minimised ? 'Open' : 'Minimise'}">${icon(this.minimised ? 'chevron' : 'minus', 20)}</button>`
       : '';
     const opts = this.minimised ? '' : `<button type="button" class="pl-ico" data-a="menu" aria-label="Chat options" aria-expanded="${this.menu}" title="Options">${icon('more', 20)}</button>`;
     this.root.classList.toggle('is-min', this.minimised);
-    // the open conversations (LoL's chat tabs): switch without going Back; unread ones carry their count
-    const tabs = this.deps.thread ? [] : (this.deps.tabs?.() ?? []);
     const strip = tabs.length
       ? `<nav class="pl-chat-tabs" role="tablist" aria-label="Conversations" data-testid="chat-tabs">${tabs
           .map(

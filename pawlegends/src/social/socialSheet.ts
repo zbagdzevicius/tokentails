@@ -25,7 +25,7 @@ import { rememberAgeBand } from './ageBand';
 import { ccHtmlOrNone } from './flags';
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import { parseRankedStatus, primeTimeText, rankedLabel, rankedLiveText } from '../meta/ranked';
-import { HERO_IDS } from '../data/heroes';
+import { HERO_IDS, HEROES } from '../data/heroes';
 import { isAvatarView, previewText, type AvatarView } from '../data/chatPhrases';
 import { avatarHtml, titleText } from '../ui/avatar';
 import { ChatSheet, type ChatTab } from './chatSheet';
@@ -67,6 +67,8 @@ export interface Presence {
   seen?: number;
   /** Online in the menus but set Away (LoL's status); the backend never sends it with a lobby, queue or match. */
   away?: boolean;
+  /** In a match: the champion played (a hero id; round 6, LoL's "In Game · Sage"). */
+  hero?: string;
 }
 export interface FriendRow {
   code: string;
@@ -80,6 +82,8 @@ export interface FriendRow {
   av?: AvatarView;
   /** FLAGS.md: the friend's country flag (absent: hidden, unknown or an older backend). */
   cc?: string;
+  /** Round 6: when we last played together (epoch ms) and how often in the last 30 days (absent: never). */
+  played?: { at: number; n: number };
 }
 export interface PersonRow {
   code: string;
@@ -221,7 +225,20 @@ export const PRESENCE_TEXT: Readonly<Record<ShownState, string>> = Object.freeze
 
 const ROOM = /^[a-z0-9]{12}$/;
 
-const MODE_TEXT: Readonly<Record<string, string>> = Object.freeze({ ranked: 'Ranked', casual: 'Casual', pvp: 'Casual', bots: 'Vs bots', practice: 'Practice', custom: 'Custom' });
+const MODE_TEXT: Readonly<Record<string, string>> = Object.freeze({ ranked: 'Ranked', casual: 'Casual', pvp: 'Casual', classic: '5v5 Classic', bots: 'Vs bots', practice: 'Practice', custom: 'Custom' });
+
+/** A champion's name from its id ("sage" → "Sage"); '' for an unknown id (a newer champion than this build). Pure. */
+export function champText(id: unknown): string {
+  return typeof id === 'string' && Object.prototype.hasOwnProperty.call(HEROES, id) ? ((HEROES as Record<string, { name?: string }>)[id]?.name ?? '') : '';
+}
+
+/** "Played together 2d ago · 4 games" (the row menu), from `played`; '' when we never played. Pure. */
+export function playedText(p: FriendRow['played'], now = Date.now()): string {
+  if (!p || typeof p.at !== 'number') return '';
+  const ago = agoText(p.at, now);
+  if (!ago) return '';
+  return `Played together ${ago.toLowerCase()}${p.n > 1 ? ` · ${p.n} games` : ''}`;
+}
 
 /** "12m", "3h", "2d": a short span from `at` to `now` (epoch ms); '' for a missing or future time. Pure. */
 export function spanText(at: number | undefined, now: number): string {
@@ -291,6 +308,8 @@ export interface RecentRow {
   queue?: string;
   won?: boolean;
   together?: number;
+  /** The champion this player played in that match (round 6). */
+  hero?: string;
 }
 
 const QUEUE_TEXT: Readonly<Record<string, string>> = Object.freeze({ coop: 'Vs bots', casual: 'Casual', classic: '5v5 Classic', ranked: 'Ranked' });
@@ -315,6 +334,25 @@ export function recentMatches(rows: readonly RecentRow[], now = Date.now()): { r
 export function agoText(at: number | undefined, now = Date.now()): string {
   const t = spanText(at, now);
   return !t ? '' : t === 'now' ? 'Just now' : `${t} ago`;
+}
+
+/**
+ * Invites queued for after a friend's match or queue (LoL lets you invite a friend in game: it arrives when they are
+ * back). Kept for this session (module scope: the sheet can close and open again), dropped after LATER_MS.
+ */
+export const LATER = new Map<string, { name: string; at: number }>();
+export const LATER_MS = 90 * 60_000;
+
+/**
+ * What to do with a queued invite now (round 6): wait while the friend is busy (queue or match), send it once they are
+ * free (online or in a lobby) and I have a party, tell me when they are free and I have no party, drop it when they
+ * went offline or it is too old. Pure.
+ */
+export function laterStep(p: Presence | undefined, queuedAt: number, inParty: boolean, now = Date.now()): 'wait' | 'send' | 'tell' | 'drop' {
+  if (!p || now - queuedAt > LATER_MS) return 'drop';
+  if (p.state === 'match' || p.state === 'queue') return 'wait';
+  if (p.state === 'offline') return 'drop';
+  return inParty ? 'send' : 'tell';
 }
 
 /** Why a friend can't be invited now (the row menu shows Invite greyed with this), or '' when they can. Pure. */
@@ -476,6 +514,15 @@ export class SocialSheet {
     this.root.setAttribute('aria-label', 'Friends');
     this.root.addEventListener('click', (e) => this.onClick(e));
     this.root.addEventListener('keydown', (e) => this.onKey(e));
+    // the roving Tab stop follows focus inside the list (a click, an arrow, a row's action)
+    this.root.addEventListener('focusin', (e) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest?.('.pl-social-body')) return;
+      const nav = t.hasAttribute('data-nav') ? t : t.closest('.pl-social-row')?.querySelector<HTMLElement>('[data-nav]');
+      if (!nav) return;
+      this.navKey = SocialSheet.navKeyOf(nav);
+      for (const el of this.root.querySelectorAll<HTMLElement>('.pl-social-body [data-nav]')) el.tabIndex = el === nav ? 0 : -1;
+    });
     // right-click, or a long press on touch, opens a friend's row menu
     this.root.addEventListener('contextmenu', (e) => {
       const row = (e.target as HTMLElement).closest?.<HTMLElement>('.pl-fr');
@@ -574,6 +621,7 @@ export class SocialSheet {
       this.state = s.body as SocialState;
       rememberAgeBand(this.state.me?.ageBand);
       this.deps.onUnread?.(this.state.chat?.unread ?? 0);
+      this.runLater();
     } else if (!s.ok) this.note = errorText(s);
     if (threads?.ok) {
       this.threads = new Map(((threads.body as { threads?: ChatThreadRow[] })?.threads ?? []).map((t) => [t.with.code, t]));
@@ -587,6 +635,21 @@ export class SocialSheet {
     const want = this.chatWhenLoaded;
     this.chatWhenLoaded = null;
     if (want && this.state && !this.disposed) this.openChat(want);
+  }
+
+  /** Queued invites (round 6): send the ones whose friend is free now, say so when I have no party, drop the stale. */
+  private runLater(): void {
+    if (!this.state || !LATER.size) return;
+    const party = this.deps.partyCode();
+    for (const [code, q] of [...LATER]) {
+      const f = this.state.friends.find((x) => x.code === code);
+      const step = laterStep(f?.presence, q.at, !!party);
+      if (step === 'wait') continue;
+      LATER.delete(code);
+      if (step === 'send') void this.sendInvite(code, q.name);
+      else if (step === 'tell') this.note = `${q.name} is free now: invite them from their row`;
+      else if (f?.presence.state === 'offline') this.note = `${q.name} went offline: invite not sent`;
+    }
   }
 
   private async loadRanked(): Promise<void> {
@@ -702,6 +765,7 @@ export class SocialSheet {
     this.fillNames(this.root);
     const body = this.root.querySelector<HTMLElement>('.pl-social-body');
     if (body && scroll) body.scrollTop = scroll;
+    this.rove();
     this.scrollCue();
     if (focus) {
       const el = this.root.querySelector<HTMLElement>(focus.sel);
@@ -730,7 +794,12 @@ export class SocialSheet {
     for (const h of body.querySelectorAll<HTMLElement>('.pl-group-h')) {
       const r = h.getBoundingClientRect();
       if (r.top < top - 0.5 && r.bottom > top + 0.5 && r.bottom - top <= max) {
-        body.scrollTop += Math.ceil(r.bottom - top);
+        const need = Math.ceil(r.bottom - top);
+        // at the end of the list there is no room to scroll it out: a little more room under the last row (this
+        // body only; the next render drops it)
+        const room = body.scrollHeight - body.clientHeight - body.scrollTop;
+        if (room < need) body.style.paddingBottom = `${parseFloat(getComputedStyle(body).paddingBottom) + need - room + 1}px`;
+        body.scrollTop += need;
         break;
       }
     }
@@ -780,6 +849,27 @@ export class SocialSheet {
     if (!body) return;
     body.innerHTML = this.body();
     this.fillNames(body);
+    this.rove();
+  }
+
+  /** The list's one Tab stop (round 6, a roving tabindex): the row last focused, else the first. */
+  private navKey: string | null = null;
+  private static navKeyOf(el: HTMLElement): string {
+    return `${el.dataset.a ?? ''}|${el.dataset.code ?? ''}|${el.dataset.group ?? ''}`;
+  }
+
+  /**
+   * One Tab stop for the whole list (WAI-ARIA's roving tabindex): Tab enters the list on one row and leaves it on the
+   * next control; arrows, Home, End and PageUp/PageDown move inside it; ArrowRight reaches a row's actions.
+   */
+  private rove(): void {
+    const body = this.root.querySelector<HTMLElement>('.pl-social-body');
+    if (!body) return;
+    for (const b of body.querySelectorAll<HTMLElement>('.pl-fr-acts button')) b.tabIndex = -1;
+    const items = [...body.querySelectorAll<HTMLElement>('[data-nav]')];
+    if (!items.length) return;
+    const cur = (this.navKey && items.find((el) => SocialSheet.navKeyOf(el) === this.navKey)) || items[0];
+    for (const el of items) el.tabIndex = el === cur ? 0 : -1;
   }
 
   /**
@@ -894,7 +984,13 @@ export class SocialSheet {
     };
     const opts = [`<option value="-1"${noteText(me.note) ? '' : ' selected'}>No status note</option>`, ...STATUS_NOTES.map((t, i) => `<option value="${i}"${me.note === i ? ' selected' : ''}>${this.esc(t)}</option>`)].join('');
     const note = `<label class="pl-me-note"><span>Status note</span><select name="note" data-testid="social-note" aria-label="Status note friends see">${opts}</select></label>`;
-    return `<div class="pl-me-card" id="pl-me-card" data-testid="social-me-card"><p class="pl-me-card-name" data-name="${this.esc(me.name)}"></p><div role="radiogroup" aria-label="My status">${radio('online', 'Online', 'Friends can invite you')}${radio('away', 'Away', 'Online, but not at the keys')}${radio('invisible', 'Appear offline', 'You still see your friends')}</div>${note}<div class="pl-me-card-acts"><button type="button" class="pl-mi" data-a="copy" aria-label="${this.esc(`Copy your friend code ${me.code}`)}">${icon('copy', 18)}<span>Friend code <b class="pl-me-code">${this.esc(me.code)}</b></span></button><button type="button" class="pl-mi" data-a="avatar" data-testid="avatar-open">${icon('friends', 18)}<span>Change avatar</span></button></div></div>`;
+    // touch or a short screen: a bottom sheet over the panel (it never runs past the screen; it scrolls when tall);
+    // a mouse: under the header, in the flow, capped and scrolling
+    const sheet = this.sheetMenu;
+    const head = sheet
+      ? `<div class="pl-me-card-h"><span class="pl-fr-grab" aria-hidden="true"></span><p class="pl-me-card-name" data-name="${this.esc(me.name)}"></p><button type="button" class="pl-ico" data-a="me-close" aria-label="Close status" title="Close">${icon('close', 18)}</button></div>`
+      : `<p class="pl-me-card-name" data-name="${this.esc(me.name)}"></p>`;
+    return `${sheet ? '<div class="pl-fr-scrim" data-a="me-close" aria-hidden="true"></div>' : ''}<div class="pl-me-card${sheet ? ' is-sheet' : ''}" id="pl-me-card" data-testid="social-me-card" role="dialog" aria-label="My status">${head}<div role="radiogroup" aria-label="My status">${radio('online', 'Online', 'Friends can invite you')}${radio('away', 'Away', 'Also set after 10 min idle')}${radio('invisible', 'Appear offline', 'You still see your friends')}</div>${note}<div class="pl-me-card-acts"><button type="button" class="pl-mi" data-a="copy" aria-label="${this.esc(`Copy your friend code ${me.code}`)}">${icon('copy', 18)}<span>Friend code <b class="pl-me-code">${this.esc(me.code)}</b></span></button><button type="button" class="pl-mi" data-a="avatar" data-testid="avatar-open">${icon('friends', 18)}<span>Change avatar</span></button></div></div>`;
   }
 
   /**
@@ -960,7 +1056,12 @@ export class SocialSheet {
     // one way to add (Find a player) and one way to share (the invite card's Share link): no second share button
     const find = this.adding ? '' : `<button type="button" class="pl-btn small ghost" data-a="add-empty">${icon('addUser', 18)}<span>Find a player by name</span></button>`;
     const card = this.invite.state ? this.invite.html(false) : '';
-    return `<div class="pl-social-empty pl-social-none" data-testid="social-empty"><span class="pl-none-art" aria-hidden="true">${icon('friends', 32)}</span><p>No friends yet</p><small>Add a player you met, or invite a friend: you both get a coat.</small>${find}</div>${card}${recent}`;
+    // the invite card says what you both get: the empty state only says what to do (no line said twice)
+    const lead = `<small>Add a player you met by name${card ? ', or share your invite' : ''}.</small>`;
+    // a short screen: the invite (code and Share) first, above the fold, then one compact line and Find
+    if (this.short)
+      return `${card}<div class="pl-social-empty pl-social-none is-compact" data-testid="social-empty"><p>No friends yet</p>${lead}${find}</div>${recent}`;
+    return `<div class="pl-social-empty pl-social-none" data-testid="social-empty"><span class="pl-none-art" aria-hidden="true">${icon('friends', 32)}</span><p>No friends yet</p>${lead}${find}</div>${card}${recent}`;
   }
 
   private recentAsked = false;
@@ -981,6 +1082,8 @@ export class SocialSheet {
   private group(id: FriendGroupId, n: number, counts: { on: number; off: number }, rows: string): string {
     const open = !!this.query.trim() || !groupFolded(id, this.folds[id], counts);
     const label = `${GROUP_LABEL[id]}, ${n}`;
+    // a short screen (a phone held sideways): requests stand without a header (their rows say "Friend request")
+    if (id === 'requests' && this.short) return `<section class="pl-group is-bare" data-g="${id}"><div class="pl-group-list" role="list" aria-label="${this.esc(label)}">${rows}</div></section>`;
     const head =
       id === 'requests'
         ? `<h3 class="pl-group-h is-static" data-group="${id}" aria-label="${this.esc(label)}">${icon('addUser', 16)}<span class="pl-group-t">${GROUP_LABEL[id]}</span><span class="pl-group-n">${n}</span></h3>`
@@ -999,31 +1102,43 @@ export class SocialSheet {
     const t = this.threads.get(f.code);
     const unread = t?.unread && !t.muted ? t.unread : 0;
     const code = this.esc(f.code);
+    // round 6: on touch the row's one action says what it does in a word beside its icon (no guessing an icon)
+    const word = (w: string) => `<span class="pl-act-t">${w}</span>`;
     // the one filled action in the list is Join (bolt); Invite and Watch are quiet icons
     const primary =
       act === 'join'
-        ? `<button type="button" class="pl-ico pl-act-2 is-primary" data-a="join" data-party="${this.esc(f.presence.party ?? '')}" data-code="${code}" data-testid="social-join" aria-label="${this.esc(`Join ${name}'s lobby`)}" title="Join lobby"><span class="pl-ic">${icon('join', 20)}</span></button>`
+        ? `<button type="button" class="pl-ico pl-act-2 is-primary" data-a="join" data-party="${this.esc(f.presence.party ?? '')}" data-code="${code}" data-testid="social-join" aria-label="${this.esc(`Join ${name}'s lobby`)}" title="Join lobby"><span class="pl-ic">${icon('join', 20)}${word('Join')}</span></button>`
         : act === 'watch' && this.deps.watch
-          ? `<button type="button" class="pl-ico pl-act-2" data-a="watch" data-room="${this.esc(f.presence.room ?? '')}" data-code="${code}" data-testid="social-watch" aria-label="${this.esc(`Watch ${name}'s match`)}" title="Watch match">${icon('eye')}</button>`
+          ? `<button type="button" class="pl-ico pl-act-2" data-a="watch" data-room="${this.esc(f.presence.room ?? '')}" data-code="${code}" data-testid="social-watch" aria-label="${this.esc(`Watch ${name}'s match`)}" title="Watch match">${icon('eye')}${word('Watch')}</button>`
           : act === 'invite'
-            ? `<button type="button" class="pl-ico pl-act-2" data-a="invite" data-code="${code}" data-testid="social-invite" aria-label="${this.esc(`Invite ${name} to your party`)}" title="Invite to party">${icon('party', 22)}</button>`
+            ? `<button type="button" class="pl-ico pl-act-2" data-a="invite" data-code="${code}" data-testid="social-invite" aria-label="${this.esc(`Invite ${name} to your party`)}" title="Invite to party">${icon('party', 22)}${word('Invite')}</button>`
             : act === 'ask'
-              ? `<button type="button" class="pl-ico pl-act-2" data-a="ask" data-code="${code}" data-testid="social-ask" aria-label="${this.esc(`Ask ${name} to join their lobby`)}" title="Ask to join">${icon('ask', 22)}</button>`
+              ? `<button type="button" class="pl-ico pl-act-2" data-a="ask" data-code="${code}" data-testid="social-ask" aria-label="${this.esc(`Ask ${name} to join their lobby`)}" title="Ask to join">${icon('ask', 22)}${word('Ask')}</button>`
               : '';
     const chat = `<button type="button" class="pl-ico pl-act-1 pl-chat-btn${unread ? ' is-unread' : ''}" data-a="chat" data-code="${code}" aria-label="${this.esc(`Chat with ${name}${unread ? `, ${unread} unread` : ''}`)}" title="Message"><span class="pl-ic">${icon('chat')}${unread ? `<i class="pl-chat-unread" data-testid="chat-unread">${Math.min(99, unread)}</i>` : ''}</span></button>`;
-    // an unread message: one line after the status (the status never disappears, the row keeps its height), marked by
-    // a small bubble (no bare quote); else the friend's status note
+    // after the status, one more thing at most (the status never disappears, the row keeps its height): an unread
+    // message (a small bubble, no bare quote), an invite queued for after their match, the champion they play in a
+    // match (LoL's "In Game · Sage"), their status note, or when we last played together
     const note = noteText(f.note);
-    const preview = unread
+    const champ = f.presence.state === 'match' ? champText(f.presence.hero) : '';
+    const later = LATER.has(f.code);
+    const played = playedText(f.played, now);
+    const extra = unread
       ? `<span class="pl-social-msg" title="${this.esc(previewText(t!.lastPreview))}">${icon('chat', 14)}<span data-name="${this.esc(previewText(t!.lastPreview))}"></span></span>`
-      : note
-        ? `<span class="pl-st-note" data-name="${this.esc(note)}"></span>`
-        : '';
+      : later
+        ? `<span class="pl-st-note pl-st-later" data-testid="social-later-tag">${icon('clock', 14)}<span>Invite queued</span></span>`
+        : champ
+          ? `<span class="pl-st-note pl-st-champ" data-testid="social-champ" data-name="${this.esc(champ)}"></span>`
+          : note
+            ? `<span class="pl-st-note" data-name="${this.esc(note)}"></span>`
+            : played && (f.presence.state === 'online' || f.presence.state === 'offline')
+              ? `<span class="pl-st-note pl-st-played" data-testid="social-played" data-name="${this.esc(played.replace('Played together ', 'Played '))}"></span>`
+              : '';
     const open = this.menuFor === f.code;
     const shown = shownState(f.presence);
-    const label = `${name}, ${st}${note ? `, ${note}` : ''}${unread ? `, ${unread} unread` : ''}${f.fav ? ', favourite' : ''}`;
+    const label = `${name}, ${st}${champ ? `, playing ${champ}` : ''}${note ? `, ${note}` : ''}${unread ? `, ${unread} unread` : ''}${later ? ', invite queued' : ''}${f.fav ? ', favourite' : ''}${played ? `, ${played}` : ''}`;
     const chatting = this.chatCode === f.code && !!this.chat && !this.chat.closed;
-    return `<div class="pl-social-row pl-fr${open ? ' is-open' : ''}${unread ? ' has-msg' : ''}${chatting ? ' is-chat' : ''}" role="listitem" data-state="${f.presence.state}" data-code="${code}"><button type="button" class="pl-fr-main" data-a="menu" data-code="${code}" data-nav aria-haspopup="menu" aria-expanded="${open}" aria-label="${this.esc(label)}"><span class="pl-fr-av" data-state="${shown}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${shown}"></i></span><span class="pl-social-who"><span class="pl-social-nm">${ccHtmlOrNone(f.cc)}<span class="pl-social-name" data-name="${this.esc(name)}"></span></span><small class="pl-social-line"><span class="pl-social-st" data-state="${shown}">${this.esc(st)}</span>${preview}</small></span></button><span class="pl-fr-acts">${chat}${primary}</span></div>${open && !this.sheetMenu ? this.rowMenu(f, act, myParty) : ''}`;
+    return `<div class="pl-social-row pl-fr${open ? ' is-open' : ''}${unread ? ' has-msg' : ''}${chatting ? ' is-chat' : ''}" role="listitem" data-state="${f.presence.state}" data-code="${code}"><button type="button" class="pl-fr-main" data-a="menu" data-code="${code}" data-nav aria-haspopup="menu" aria-expanded="${open}" aria-label="${this.esc(label)}"><span class="pl-fr-av" data-state="${shown}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${shown}"></i></span><span class="pl-social-who"><span class="pl-social-nm">${ccHtmlOrNone(f.cc)}<span class="pl-social-name" data-name="${this.esc(name)}"></span></span><small class="pl-social-line"><span class="pl-social-st" data-state="${shown}">${this.esc(st)}</span>${extra}</small></span></button><span class="pl-fr-acts">${chat}${primary}</span></div>${open && !this.sheetMenu ? this.rowMenu(f, act, myParty) : ''}`;
   }
 
   /** A friend's row menu (under the row, in the list's flow: nothing covers another row). */
@@ -1040,19 +1155,32 @@ export class SocialSheet {
             : act === 'ask'
               ? mi('ask', 'ask', 'Ask to join')
               : '';
-    // a busy friend: Invite shows greyed with the reason (never a button that does nothing)
-    const why = act === 'invite' || act === 'ask' ? '' : busyText(f.presence, myParty);
-    // one short line across the menu ("In a match: invite after it"), never a wrapped title plus a grey note
-    const busy = why ? `<button type="button" role="menuitem" class="pl-mi pl-mi-busy" disabled aria-disabled="true" aria-label="${this.esc(`Invite to party. ${why}`)}" data-testid="social-invite-busy">${icon('party', 18)}<span>${this.esc(why)}</span></button>` : '';
+    // a friend in a match or a queue: invite them for after it (LoL's in-game invite: it arrives when they are back);
+    // already in my party: greyed with the reason; Join or Ask offered: nothing more (no "In another lobby" beside Join)
+    const why = act === 'more' || act === 'watch' ? busyText(f.presence, myParty) : '';
+    const busyState = f.presence.state === 'match' || f.presence.state === 'queue';
+    const mine = !!myParty && f.presence.party === myParty;
+    const busy =
+      why && busyState && !mine
+        ? LATER.has(f.code)
+          ? mi('later-cancel', 'clock', 'Cancel the queued invite', ' data-testid="social-later-cancel"').replace('class="pl-mi"', 'class="pl-mi pl-mi-wide"')
+          : mi('later', 'clock', `Invite when their ${f.presence.state === 'queue' ? 'queue' : 'match'} ends`, ' data-testid="social-invite-later"').replace('class="pl-mi"', 'class="pl-mi pl-mi-wide"')
+        : why
+          ? `<button type="button" role="menuitem" class="pl-mi pl-mi-busy" disabled aria-disabled="true" aria-label="${this.esc(`Invite to party. ${why}`)}" data-testid="social-invite-busy">${icon('party', 18)}<span>${this.esc(why)}</span></button>`
+          : '';
     const armed = this.armed === `remove:${f.code}`;
     const remove = `<button type="button" role="menuitem" class="pl-mi danger${armed ? ' armed' : ''}" data-a="remove" data-code="${code}">${icon('remove', 18)}<span>${armed ? 'Tap again to remove' : 'Remove friend'}</span></button>`;
     // under the row the name and status are already in sight (the name stays for screen readers); a bottom sheet
     // covers the row, so it shows the friend as the row did: avatar, name, status (and their note)
     const shown = shownState(f.presence);
     const note = noteText(f.note);
+    const champ = f.presence.state === 'match' ? champText(f.presence.hero) : '';
+    // round 6 (LoL's friend card): when we last played together, in both menus
+    const played = playedText(f.played);
+    const info = played ? `<p class="pl-fr-menu-info" data-testid="social-menu-played">${icon('history', 16)}<span>${this.esc(played)}</span></p>` : '';
     const head = sheet
-      ? `<div class="pl-fr-menu-h"><span class="pl-fr-grab" aria-hidden="true"></span><div class="pl-fr-menu-who"><span class="pl-fr-av" data-state="${shown}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${shown}"></i></span><span class="pl-social-who"><p class="pl-fr-menu-name" data-name="${this.esc(f.name)}"></p><small class="pl-social-line"><span class="pl-social-st" data-state="${shown}">${this.esc(presenceText(f.presence))}</span>${note ? `<span class="pl-st-note" data-name="${this.esc(note)}"></span>` : ''}</small></span></div></div>`
-      : `<p class="pl-fr-menu-name pl-sr" data-name="${this.esc(f.name)}"></p>`;
+      ? `<div class="pl-fr-menu-h"><span class="pl-fr-grab" aria-hidden="true"></span><div class="pl-fr-menu-who"><span class="pl-fr-av" data-state="${shown}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${shown}"></i></span><span class="pl-social-who"><p class="pl-fr-menu-name" data-name="${this.esc(f.name)}"></p><small class="pl-social-line"><span class="pl-social-st" data-state="${shown}">${this.esc(presenceText(f.presence))}</span>${champ ? `<span class="pl-st-note pl-st-champ" data-name="${this.esc(champ)}"></span>` : note ? `<span class="pl-st-note" data-name="${this.esc(note)}"></span>` : ''}</small></span></div>${info}</div>`
+      : `<p class="pl-fr-menu-name pl-sr" data-name="${this.esc(f.name)}"></p>${info}`;
     const fav = mi('fav', 'star', f.fav ? 'Unpin from favourites' : 'Pin to favourites', ` data-on="${f.fav ? 0 : 1}" data-testid="social-fav"`);
     const cancel = sheet ? `<button type="button" class="pl-btn ghost pl-fr-cancel" data-a="menu-close">Cancel</button>` : '';
     return `<div class="pl-fr-menu${sheet ? ' is-sheet' : ''}" role="menu" aria-label="${this.esc(`${f.name}: options`)}" data-testid="social-row-menu">${head}<div class="pl-fr-menu-acts">${first}${mi('chat', 'chat', 'Message')}${this.deps.history ? mi('history', 'history', 'Match history') : ''}${fav}${busy}</div><div class="pl-fr-menu-danger">${remove}${mi('block', 'block', 'Block').replace('class="pl-mi"', 'class="pl-mi danger"')}</div>${cancel}</div>`;
@@ -1063,17 +1191,21 @@ export class SocialSheet {
     const code = this.esc(r.code);
     const acts =
       dir === 'in'
-        ? `<button type="button" class="pl-ico pl-act-1 is-pill is-decline" data-a="decline" data-code="${code}" aria-label="${this.esc(`Decline ${r.name}`)}" title="Decline"><span class="pl-ic">${icon('close', 20)}</span></button><button type="button" class="pl-ico pl-act-2 is-primary is-accept" data-a="accept" data-code="${code}" aria-label="${this.esc(`Accept ${r.name}`)}" title="Accept"><span class="pl-ic">${icon('check', 20)}</span></button>`
-        : `<button type="button" class="pl-ico pl-act-2" data-a="decline" data-code="${code}" aria-label="${this.esc(`Cancel the request to ${r.name}`)}" title="Cancel request">${icon('close')}</button>`;
+        ? `<button type="button" class="pl-ico pl-act-1 is-pill is-decline" data-a="decline" data-code="${code}" aria-label="${this.esc(`Decline ${r.name}`)}" title="Decline"><span class="pl-ic">${icon('close', 20)}</span></button><button type="button" class="pl-ico pl-act-2 is-primary is-accept" data-a="accept" data-code="${code}" data-nav aria-label="${this.esc(`Accept ${r.name}, friend request`)}" title="Accept"><span class="pl-ic">${icon('check', 20)}</span></button>`
+        : `<button type="button" class="pl-ico pl-act-2" data-a="decline" data-code="${code}" data-nav aria-label="${this.esc(`Cancel the request to ${r.name}`)}" title="Cancel request">${icon('close')}</button>`;
     // the group says what it is ("Friend requests"): the row says when (LoL: "2h ago")
     const ago = agoText(r.at);
-    const line = dir === 'in' ? ago || 'Friend request' : ago ? `Sent ${ago}` : 'Request sent';
+    // a short screen has no "Friend requests" header (the rows themselves say it: friends get the room)
+    const line = dir === 'in' ? (this.short ? (ago ? `Friend request · ${ago}` : 'Friend request') : ago || 'Friend request') : ago ? `Sent ${ago}` : 'Request sent';
     return `<div class="pl-social-row pl-rq" role="listitem" data-code="${code}"><span class="pl-fr-av">${avatarHtml(r.av, 40)}</span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(r.name)}"></span></span><small class="pl-social-line"><span class="pl-social-st">${this.esc(line)}</span></small></span><span class="pl-fr-acts is-shown">${acts}</span></div>`;
   }
 
   /** A recent player: the team and how often we played together ("Teammate · 3 games"), Add as an icon. */
   private recentRow(p: RecentRow): string {
-    const together = typeof p.together === 'number' && p.together > 1 ? `<span class="pl-st-note">${p.together} games together</span>` : '';
+    // round 6: the champion they played in that match, then how often we played together
+    const champ = champText(p.hero);
+    const more = [champ, typeof p.together === 'number' && p.together > 1 ? `${p.together} games together` : ''].filter(Boolean).join(' · ');
+    const together = more ? `<span class="pl-st-note">${this.esc(more)}</span>` : '';
     return `<div class="pl-social-row pl-rc" role="listitem" data-team="${p.team === 'ally' ? 'ally' : 'enemy'}"><span class="pl-fr-av">${avatarHtml(p.av, 40)}</span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(p.name)}"></span></span><small class="pl-social-line"><span class="pl-social-st pl-team">${p.team === 'ally' ? 'Teammate' : 'Opponent'}</span>${together}</small></span><span class="pl-fr-acts is-shown">${p.canAdd ? `<button type="button" class="pl-ico pl-act-2" data-a="add-recent" data-room="${this.esc(p.room)}" data-slot="${p.slot}" aria-label="${this.esc(`Add ${p.name} as a friend`)}" title="Add friend">${icon('addUser')}</button>` : ''}</span></div>`;
   }
 
@@ -1318,7 +1450,7 @@ export class SocialSheet {
       const inMenu = t.getAttribute('role') === 'menuitem';
       const scope = inMenu ? (t.closest('[role="menu"]') ?? this.root) : this.root;
       const items = [...scope.querySelectorAll<HTMLElement>(inMenu ? '[role="menuitem"]:not(:disabled)' : '[data-nav]')];
-      const from = inMenu ? t : (t.closest('.pl-fr')?.querySelector<HTMLElement>('[data-nav]') ?? t);
+      const from = inMenu ? t : (t.closest('.pl-social-row')?.querySelector<HTMLElement>('[data-nav]') ?? t);
       const i = items.indexOf(from);
       const body = this.root.querySelector<HTMLElement>('.pl-social-body');
       const page = Math.max(1, Math.floor((body?.clientHeight ?? 400) / 52) - 1);
@@ -1334,17 +1466,15 @@ export class SocialSheet {
       }
       return;
     }
-    if (e.key === 'ArrowRight' && t.classList.contains('pl-fr-main')) {
-      const act = t.parentElement?.querySelector<HTMLElement>('.pl-fr-acts button');
-      if (act) {
+    // across a row: ArrowRight and ArrowLeft step between the row and its shown actions (Decline ↔ Accept on a request)
+    if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && t.closest('.pl-social-body .pl-social-row') && t.getAttribute('role') !== 'menuitem') {
+      const row = t.closest('.pl-social-row')!;
+      const btns = [...row.querySelectorAll<HTMLElement>('button')].filter((b) => b.getClientRects().length > 0);
+      const next = btns[btns.indexOf(t) + (e.key === 'ArrowRight' ? 1 : -1)];
+      if (next) {
         e.preventDefault();
-        act.focus();
+        next.focus();
       }
-      return;
-    }
-    if (e.key === 'ArrowLeft' && t.closest('.pl-fr-acts')) {
-      e.preventDefault();
-      t.closest('.pl-fr')?.querySelector<HTMLElement>('.pl-fr-main')?.focus();
       return;
     }
     if (e.key === 'Tab') {
@@ -1397,7 +1527,7 @@ export class SocialSheet {
     // any action but the row menu's own buttons closes an open row menu
     if (this.menuFor && a !== 'menu' && a !== 'menu-close' && !el.closest('.pl-fr-menu')) this.menuFor = null;
     if (a !== 'remove') this.armed = null;
-    if (this.meOpen && a !== 'me' && a !== 'status' && a !== 'copy' && !el.closest('.pl-me-card')) this.meOpen = false;
+    if (this.meOpen && a !== 'me' && a !== 'me-close' && a !== 'status' && a !== 'copy' && !el.closest('.pl-me-card')) this.meOpen = false;
     if (a.startsWith('inv-')) {
       // the gift sits in the header on every tab: it opens the card at the top of Friends
       if (this.tab !== 'friends') {
@@ -1442,6 +1572,30 @@ export class SocialSheet {
       case 'ask':
         this.menuFor = null;
         void this.askToJoin(code);
+        return;
+      case 'later': {
+        // LoL's in-game invite: queued here, sent when the friend's match or queue ends (laterStep)
+        const f = this.state?.friends.find((x) => x.code === code);
+        this.menuFor = null;
+        if (!f) return;
+        LATER.set(code, { name: f.name, at: Date.now() });
+        this.deps.track?.('party_invite', { action: 'later' });
+        this.note = `${f.name} gets your invite when their ${f.presence.state === 'queue' ? 'queue' : 'match'} ends`;
+        this.render();
+        this.root.querySelector<HTMLElement>(`.pl-fr-main[data-code=${attr(code)}]`)?.focus({ preventScroll: true });
+        return;
+      }
+      case 'later-cancel':
+        this.menuFor = null;
+        LATER.delete(code);
+        this.note = 'Queued invite cancelled';
+        this.render();
+        this.root.querySelector<HTMLElement>(`.pl-fr-main[data-code=${attr(code)}]`)?.focus({ preventScroll: true });
+        return;
+      case 'me-close':
+        this.meOpen = false;
+        this.render();
+        this.root.querySelector<HTMLElement>('[data-a="me"]')?.focus({ preventScroll: true });
         return;
       case 'menu':
       case 'more':

@@ -252,6 +252,44 @@ describe('pawlegends social core (SOCIAL-RANKED.md §2, §3)', () => {
         expect(asC.find(p => p.slot === 0)).toMatchObject({ won: false });
     });
 
+    it('round 6: friends carry last played together; recent rows the champion each player played', async () => {
+        const { clock, models } = harness();
+        const history = new SocialMemoryModel(
+            [
+                { accountId: 'B', matchId: 'party:r1', hero: 'sage' },
+                { accountId: 'C', matchId: 'party:r1', hero: '<script>' },
+                { accountId: 'B', matchId: 'party:other', hero: 'clem' },
+            ],
+            [],
+            clock.now
+        );
+        const svc = new SocialService(
+            models.social,
+            models.friends,
+            models.blocks,
+            models.presence,
+            models.invites,
+            models.buyers,
+            models.rooms,
+            models.users,
+            models.cats,
+            clock,
+            undefined,
+            undefined,
+            undefined,
+            history
+        );
+        const { players } = await svc.recent('A');
+        expect(players.find(p => p.slot === 1)).toMatchObject({ hero: 'sage' });
+        expect(players.find(p => p.slot === 3)).not.toHaveProperty('hero');
+        await svc.request('A', 'B', 'code');
+        await svc.request('B', 'A', 'code');
+        const st = await svc.state('A');
+        expect(st.friends[0]).toMatchObject({ played: { at: clock.ms - 4000_000, n: 1 } });
+        // never an account id in what the client gets
+        expect(JSON.stringify(st.friends)).not.toMatch(/"B"/);
+    });
+
     it('away, a preset status note and favourites: friends see away and the note, favourites stay mine', async () => {
         const { clock, models, svc } = harness();
         await svc.request('A', 'B', 'code');
@@ -556,6 +594,29 @@ describe('pawlegends presence (SOCIAL-RANKED.md §4)', () => {
         expect(readPresence({ _id: 'x', api: { at: at(130_000) } }, now)).toEqual({ state: 'offline' });
         expect(readPresence({ _id: 'x', api: { at: at(1000) } }, now, true)).toEqual({ state: 'offline' });
         expect(readPresence(null, now)).toEqual({ state: 'offline' });
+    });
+
+    it('round 6: a match carries the champion, the queue and its start; bad values are dropped', () => {
+        const now = Date.UTC(2026, 10, 19);
+        const at = new Date(now - 5_000);
+        expect(
+            readPresence(
+                { _id: 'x', relay: { state: 'match', at, hero: 'sage', mode: 'ranked', t0: now - 8 * 60_000 } },
+                now
+            )
+        ).toEqual({ state: 'match', hero: 'sage', mode: 'ranked', since: now - 8 * 60_000 });
+        // a countdown a few seconds ahead reads as now; garbage is left out
+        expect(
+            readPresence({ _id: 'x', relay: { state: 'match', at, hero: '<b>', mode: 'nope', t0: now + 10_000 } }, now)
+        ).toEqual({ state: 'match', since: now });
+        expect(readPresence({ _id: 'x', relay: { state: 'match', at, t0: now - 3 * 86_400_000 } }, now)).toEqual({
+            state: 'match',
+        });
+        // a ranked queue says so
+        expect(readPresence({ _id: 'x', relay: { state: 'queue', at, q: 'ranked' } }, now)).toEqual({
+            state: 'queue',
+            mode: 'ranked',
+        });
     });
 
     it('the pulse writes api.at at most once a minute (exp with $max, rk from saved matches) and answers unchanged', async () => {

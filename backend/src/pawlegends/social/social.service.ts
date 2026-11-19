@@ -5,6 +5,7 @@ import { createHash } from 'crypto';
 import { Cat } from 'src/cat/cat.schema';
 import { User } from 'src/user/user.schema';
 import { PawlegendsMmRoom } from '../mm/mm-room.schema';
+import { PawlegendsMatchHistory } from '../history/history.schema';
 import type { MmRoomRecord } from '../mm/mm-room.schema';
 import { playedOf } from '../mm/rating.schema';
 import { AgeBand, isAgeBand, stricterBand } from '../pawlegends.contracts';
@@ -104,6 +105,9 @@ interface Edge {
 const other = (e: Pick<Edge, 'a' | 'b'>, me: string) => (e.a === me ? e.b : e.a);
 const utcDay = (d: Date) => d.toISOString().slice(0, 10);
 const recentOk = (band: string | null) => band === '16-17' || band === '18+';
+/** Last played together on a friend's row: rooms of the last 30 days, the newest 100 at most. */
+const PLAYED_DAYS = 30;
+const PLAYED_ROOMS = 100;
 const validNote = (n: unknown): n is number =>
     Number.isInteger(n) && (n as number) >= 0 && (n as number) < STATUS_NOTE_COUNT;
 
@@ -126,8 +130,42 @@ export class SocialService {
         @Optional() @InjectModel(PawlegendsOwned.name) readonly owned?: AnyModel,
         @Optional() private readonly chat?: ChatService,
         // FLAGS.md: friends' country flags (hidden ones are absent)
-        @Optional() private readonly flags?: FlagsService
+        @Optional() private readonly flags?: FlagsService,
+        // social sidebar round 6: the champion each recent player played (MATCH-HISTORY.md rows, `party:<room>`)
+        @Optional() @InjectModel(PawlegendsMatchHistory.name) readonly history?: AnyModel
     ) {}
+
+    /**
+     * Last played together (LoL's friend card): per account, the newest room this player shared with them in the last
+     * PLAYED_DAYS and how many rooms in that window (at most PLAYED_ROOMS rooms read). Never fails the caller.
+     */
+    async playedWith(me: string, ids: readonly string[]): Promise<Map<string, { at: number; n: number }>> {
+        const out = new Map<string, { at: number; n: number }>();
+        if (!ids.length) return out;
+        const want = new Set(ids);
+        try {
+            const rooms = (await this.rooms
+                .find({
+                    'members.accountId': me,
+                    createdAt: { $gte: new Date(this.now().getTime() - PLAYED_DAYS * DAY) },
+                })
+                .sort({ createdAt: -1 })
+                .limit(PLAYED_ROOMS)
+                .select({ members: 1, createdAt: 1 })
+                .lean()) as Array<Pick<MmRoomRecord, 'members' | 'createdAt'>>;
+            for (const room of rooms) {
+                const at = new Date(room.createdAt).getTime();
+                for (const id of new Set((room.members ?? []).map(m => m.accountId))) {
+                    if (!id || id === me || !want.has(id)) continue;
+                    const prev = out.get(id);
+                    out.set(id, { at: Math.max(prev?.at ?? 0, at), n: (prev?.n ?? 0) + 1 });
+                }
+            }
+        } catch {
+            // a slow or failed read leaves the friend cards without "last played" (never the whole sheet)
+        }
+        return out;
+    }
 
     /** Avatars of these accounts (CHAT-AVATARS.md §7): checked against what each still owns, default hero otherwise. */
     async avatarsOf(ids: readonly string[]): Promise<Map<string, AvatarView>> {
@@ -376,6 +414,7 @@ export class SocialService {
         const presence = await this.presenceOf(accepted.filter(id => !blockedBy.has(id)));
         const avatars = await this.avatarsOf([me, ...ids]);
         const ccs = (await this.flags?.visible(accepted)) ?? new Map<string, string>();
+        const played = await this.playedWith(me, accepted);
         const row = (id: string) => ({ code: codes.get(id) ?? '', name: names.get(id) ?? '', av: avatars.get(id) });
         const order = { match: 0, queue: 1, party: 2, online: 3, offline: 4 } as const;
         const friends = accepted
@@ -386,6 +425,8 @@ export class SocialService {
                     ...row(id),
                     ...(ccs.get(id) ? { cc: ccs.get(id) } : {}),
                     ...(favs.has(id) ? { fav: true } : {}),
+                    // last played together (epoch ms) and how often in the last 30 days
+                    ...(played.get(id) ? { played: played.get(id) } : {}),
                     // a status note shows while the friend is not offline (an invisible friend reads offline)
                     ...(p.state !== 'offline' && validNote(note) ? { note } : {}),
                     presence: p,
@@ -872,6 +913,7 @@ export class SocialService {
         for (const id of ids) bands.set(id, await this.band(id));
         const meOk = reg.has(me) && myProfile.allowRecent && recentOk(myBand);
         const avatars = await this.avatarsOf(ids);
+        const heroes = await this.heroesIn(rows);
         return {
             players: rows.map(r => ({
                 room: r.room,
@@ -883,6 +925,7 @@ export class SocialService {
                 queue: r.queue,
                 ...(r.won === undefined ? {} : { won: r.won }),
                 together: together.get(r.acc) ?? 1,
+                ...(heroes.get(`${r.acc}|${r.room}`) ? { hero: heroes.get(`${r.acc}|${r.room}`) } : {}),
                 canAdd:
                     meOk &&
                     reg.has(r.acc) &&
@@ -892,6 +935,28 @@ export class SocialService {
                     recentOk(bands.get(r.acc) ?? null),
             })),
         };
+    }
+
+    /** The champion each recent player played in that room (their saved history row), keyed `account|room`. */
+    private async heroesIn(rows: ReadonlyArray<{ acc: string; room: string }>): Promise<Map<string, string>> {
+        const out = new Map<string, string>();
+        if (!this.history || !rows.length) return out;
+        try {
+            const found = (await this.history
+                .find({
+                    accountId: { $in: [...new Set(rows.map(r => r.acc))] },
+                    matchId: { $in: [...new Set(rows.map(r => `party:${r.room}`))] },
+                })
+                .select({ accountId: 1, matchId: 1, hero: 1 })
+                .limit(64)
+                .lean()) as Array<{ accountId: string; matchId: string; hero?: string }>;
+            for (const h of found)
+                if (typeof h.hero === 'string' && /^[a-z][a-z0-9]{0,23}$/.test(h.hero))
+                    out.set(`${h.accountId}|${String(h.matchId).slice('party:'.length)}`, h.hero);
+        } catch {
+            // no champion on the row is fine
+        }
+        return out;
     }
 
     // ---------------------------------------------------------------------------------------------------------------

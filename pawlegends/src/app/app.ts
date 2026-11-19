@@ -197,6 +197,10 @@ export function framePcts(xs: readonly number[]): { p50: number; p95: number; p9
   return { p50: at(0.5), p95: at(0.95), p99: at(0.99) };
 }
 
+
+/** Away on its own after this long without input in the menus (social sidebar round 6). */
+const AUTO_AWAY_MS = 10 * 60_000;
+const AUTO_AWAY_KEY = 'pl.social.autoAway';
 export class App {
   readonly gr: GameRenderer;
   /** The menu stage: the screen's painted scene and the hero's art (ui/stage/artStage.ts; no 3D on menus). */
@@ -1605,6 +1609,21 @@ export class App {
   private chatUnread = 0;
   private socialPulse: ReturnType<typeof setInterval> | null = null;
   private socialRev: string | undefined;
+  /**
+   * Away on its own (social sidebar round 6, LoL's idle Away): no key, tap or pointer for AUTO_AWAY_MS in the menus
+   * sets Away; the next input sets Online again. Only when the player was plainly Online (a chosen Away or Appear
+   * offline stays theirs). The flag survives a reload (this device only) so a later visit clears it on first input.
+   */
+  private lastInput = Date.now();
+  private autoAway = ((): boolean => {
+    try {
+      return typeof localStorage !== 'undefined' && localStorage.getItem(AUTO_AWAY_KEY) === '1';
+    } catch {
+      return false;
+    }
+  })();
+  private autoAwayBusy = false;
+  private idleAsked = 0;
   /** Invite ids already toasted (an invite lives 60 s, SOCIAL-INVITES.md; the set is tiny). */
   private readonly socialToasted = new Set<string>();
 
@@ -1830,9 +1849,61 @@ export class App {
         this.showInvites((body.invites ?? []).map(mod.inviteOf).filter((x): x is import('../social/inviteInbox').InboxInvite => !!x), mod);
       }
     };
-    this.socialPulse = setInterval(() => void beat(), 30_000);
+    this.socialPulse = setInterval(() => {
+      void beat();
+      void this.idleAway();
+    }, 30_000);
     void beat();
     this.startInbox();
+    if (typeof window !== 'undefined') {
+      const touched = (): void => {
+        this.lastInput = Date.now();
+        if (this.autoAway) void this.idleBack();
+      };
+      for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const) window.addEventListener(ev, touched, { passive: true, capture: true });
+    }
+  }
+
+  /** No input for AUTO_AWAY_MS on the title: Away (only from a plain Online; one `social.get`, one `social.me`). */
+  private async idleAway(): Promise<void> {
+    if (this.autoAway || this.autoAwayBusy || !accountState().signedIn || this.session || this.party?.state.inMatch) return;
+    // one check per idle stretch (a chosen Away or Appear offline is not asked about again until the next input)
+    if (Date.now() - this.lastInput < AUTO_AWAY_MS || this.idleAsked === this.lastInput) return;
+    this.idleAsked = this.lastInput;
+    this.autoAwayBusy = true;
+    try {
+      const r = await this.integration.api('social.get');
+      const me = (r.body as { me?: { invisible?: boolean; away?: boolean } } | undefined)?.me;
+      if (!r.ok || !me || me.invisible || me.away || Date.now() - this.lastInput < AUTO_AWAY_MS) return;
+      const w = await this.integration.api('social.me', { away: true });
+      if (!w.ok) return;
+      this.autoAway = true;
+      try {
+        localStorage.setItem(AUTO_AWAY_KEY, '1');
+      } catch {
+        // storage blocked: the flag lasts this visit
+      }
+      this.analytics.track('social_status' as 'history_open', { invisible: false, away: true, auto: true });
+    } finally {
+      this.autoAwayBusy = false;
+    }
+  }
+
+  /** Back at the keys after an automatic Away: Online again. */
+  private async idleBack(): Promise<void> {
+    if (!this.autoAway || this.autoAwayBusy || !accountState().signedIn) return;
+    this.autoAwayBusy = true;
+    this.autoAway = false;
+    try {
+      localStorage.removeItem(AUTO_AWAY_KEY);
+    } catch {
+      // nothing to clear
+    }
+    try {
+      await this.integration.api('social.me', { away: false });
+    } finally {
+      this.autoAwayBusy = false;
+    }
   }
 
   // ------------------------------------------------------------------------------------------------ invites (LoL style)

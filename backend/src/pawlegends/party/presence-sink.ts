@@ -17,6 +17,13 @@ export interface PresenceEntry {
     joinable?: boolean;
     /** SPECTATE.md: a watchable match's room id (accepted friends read it to watch). */
     room?: string;
+    /**
+     * `match` (social sidebar round 6, LoL's "In Game · Sage · 12m"): the champion this account plays (a hero id), the
+     * match's queue and when its clock started (epoch ms). Friends read them like the room id.
+     */
+    hero?: string;
+    mode?: 'ranked' | 'casual' | 'classic' | 'bots' | 'custom';
+    t0?: number;
 }
 
 /** SPECTATE.md: the row that says how many live matches a featured spectate could pick now (not an account). */
@@ -34,7 +41,10 @@ export interface PresenceWriter {
 export const PRESENCE_FLUSH_MS = 5_000;
 export const PRESENCE_REFRESH_MS = 60_000;
 
-const keyOf = (e: PresenceEntry) => `${e.state}|${e.q ?? ''}|${e.party ?? ''}|${e.joinable ? 1 : 0}|${e.room ?? ''}`;
+const keyOf = (e: PresenceEntry) =>
+    `${e.state}|${e.q ?? ''}|${e.party ?? ''}|${e.joinable ? 1 : 0}|${e.room ?? ''}|${e.hero ?? ''}|${e.mode ?? ''}|${
+        e.t0 ?? ''
+    }`;
 
 export class PresenceSink {
     private last = new Map<string, string>();
@@ -96,6 +106,9 @@ export class PresenceSink {
                                     ...(e.q ? { q: e.q } : {}),
                                     ...(e.party ? { party: e.party, joinable: !!e.joinable } : {}),
                                     ...(e.room ? { room: e.room } : {}),
+                                    ...(e.hero ? { hero: e.hero } : {}),
+                                    ...(e.mode ? { mode: e.mode } : {}),
+                                    ...(typeof e.t0 === 'number' ? { t0: e.t0 } : {}),
                                 },
                             },
                             $max: { exp },
