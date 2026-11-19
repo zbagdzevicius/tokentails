@@ -1,7 +1,7 @@
 // Trailer 30 timeline: the edit covers 30.000 s exactly, every cut sits on the 150 BPM beat grid (or the hook's
 // ink frame), gameplay stays at least 60 % of the runtime, and the on-screen copy is the short list in COPY.
 import { describe, expect, it } from 'vitest';
-import { BEAT, CUTS, EDL, FPS, N, SILENCE } from './timeline.mjs';
+import { BEAT, CUTS, EDL, FPS, HIT, N, SILENCE } from './timeline.mjs';
 
 describe('trailer30 timeline', () => {
   it('covers 1800 frames at 60 fps with no gap or overlap', () => {
@@ -26,7 +26,7 @@ describe('trailer30 timeline', () => {
   });
 
   it('opens each silence hole right before a big hit', () => {
-    expect(SILENCE.map(([, b]) => b)).toEqual([CUTS.low + 6, CUTS.core]);
+    expect(SILENCE.map(([, b]) => b)).toEqual([HIT.towerCrack, CUTS.core]);
   });
 
   it('freezes inside the segment', () => {

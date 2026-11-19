@@ -265,6 +265,8 @@ export interface ShotSpec {
   edgeArrows?: boolean;
   tags?: boolean;
   minionBars?: boolean;
+  /** trailer30 r2: false = no overhead bars at all (the WebGL plate overlay draws nothing). */
+  plates?: boolean;
   /**
    * v3.2 `popCull` (default on with gameLook): a damage number or word is dropped when its anchor is outside the
    * frame's 3 % margin or behind the lens, when its unit is gone or more than 3 m from it, or when it has lived
@@ -703,6 +705,14 @@ function cleanUp(g: GameRenderer): void {
   const view = ses.view as unknown as { heroes: { rigs: Map<number, RigLike> }; structures: { items: Map<number, StructLike> }; effects: { numbers: { pool: { el: HTMLElement | null; pos: THREE.Vector3; active: boolean }[] } } };
   const oh = (ses as unknown as { overhead: { selfEdge: boolean; names: readonly string[]; selfName: boolean; edgeArrows: boolean; statusChips: boolean; minionBars: boolean; boxes: unknown[] | null } }).overhead;
   oh.selfEdge = s.selfEdge !== false;
+  // trailer30 r2 (`plates: false`): the overhead bars are WebGL now (PERF-IOS), so the CSS layers cannot hide them;
+  // the overlay draws an empty frame instead (no HP bars, names, levels or chips)
+  const ohd = oh as unknown as { draw: (fr: unknown, ...rest: unknown[]) => void; __noPlates?: boolean };
+  if (s.plates === false && !ohd.__noPlates) {
+    const draw = ohd.draw.bind(ohd);
+    ohd.draw = (_fr: unknown, ...rest: unknown[]) => draw(null, ...rest);
+    ohd.__noPlates = true;
+  }
   if (s.heroNames && oh.names.length && !twinDone) {
     // v3.4 twinNames: the persona plate only on a hero picked twice by one team
     const keep: string[] = [];

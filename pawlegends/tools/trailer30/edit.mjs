@@ -16,7 +16,7 @@ import { createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argValue } from '../lib/args.mjs';
-import { CUTS, EDL, FPS, N } from './timeline.mjs';
+import { COPY, CUTS, EDL, FPS, N } from './timeline.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PKG = resolve(HERE, '..', '..');
@@ -26,6 +26,11 @@ const AUDIO = resolve(argValue('--audio'));
 const OUT = resolve(argValue('--out'));
 const BRAND = resolve(argValue('--brand') ?? join(process.env.HOME, 'Downloads/paw-legends/brandbook/v6-lightning-rivalry/kit'));
 const ASPECTS = (argValue('--aspect') ?? '16x9,9x16,1x1').split(',');
+// --fonts DIR: rubik-italic-900.woff2 + fredoka-600-700.woff2 (Google Fonts, OFL; the brand book's faces). The game's
+// own Rubik-Italic-Display.woff2 is a subset; setup() refuses any face that falls back on a glyph of the copy.
+const FONTS = argValue('--fonts') ? resolve(argValue('--fonts')) : null;
+// --only-seg 3,5 (debug): render just those EDL segments as stills / clips into work/<aspect>/
+const ONLY = argValue('--only-seg') ? argValue('--only-seg').split(',').map(Number) : null;
 const SIZE = { '16x9': [1920, 1080], '9x16': [1080, 1920], '1x1': [1080, 1080] };
 const T = ['-threads', '4'];
 mkdirSync(OUT, { recursive: true });
@@ -37,12 +42,12 @@ const ENC = ['-c:v', 'libx264', '-preset', 'medium', '-crf', '8', '-pix_fmt', 'y
 
 /**
  * The take file and the crop for an aspect: 1:1 is the centre of the 16:9 take (the camera keeps its subject there);
- * 9:16 punches 1.3x into the portrait take (its wider lens left the heroes small).
+ * 9:16 punches 1.1x into the portrait take (round 2 takes are shot closer, without the clip engine's autoFit).
  */
 function takeOf(name, aspect) {
   const f = join(TAKES, `${name}-${aspect === '9x16' ? 'v' : 'h'}.mp4`);
   if (!existsSync(f)) throw new Error(`missing take ${f}`);
-  return { file: f, crop: aspect === '1x1' ? 'crop=1080:1080:420:0,' : aspect === '9x16' ? 'crop=iw/1.3:ih/1.3,scale=1080:1920:flags=lanczos,' : '' };
+  return { file: f, crop: aspect === '1x1' ? 'crop=1080:1080:420:0,' : aspect === '9x16' ? 'crop=iw/1.1:ih/1.1,scale=1080:1920:flags=lanczos,' : '' };
 }
 
 /** The gameplay grade: a little more contrast and colour, a soft toe, a light sharpen. */
@@ -63,8 +68,8 @@ function stillOf(take, aspect, at) {
 }
 
 // ---------------------------------------------------------------- a tiny file server for the MG page
-const ROOTS = [PKG, GEM, BRAND, WORK, join(PKG, '..', 'pawlegends-web', 'public')];
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2' };
+const ROOTS = [PKG, GEM, BRAND, WORK, join(PKG, '..', 'pawlegends-web', 'public'), ...(FONTS ? [FONTS] : [])];
+const MIME = { '.html': 'text/html', '.json': 'application/json', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2' };
 function serve() {
   const s = createServer((req, res) => {
     const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -78,24 +83,20 @@ function serve() {
   return new Promise((ok) => s.listen(0, '127.0.0.1', () => ok(s)));
 }
 
-const CATS = ['clem', 'lambo', 'sage', 'raspberry', 'gabby', 'bengal', 'meatball', 'pixel', 'duchess', 'stilts'];
-const DOGS = ['sir-brutus', 'cacklejaw', 'marshmallow', 'howler', 'nugget', 'bravo', 'chili', 'rocket', 'frankie', 'domino'];
-const GLORY_ROWS = (aspect) => {
-  if (aspect === '16x9') {
-    return [
-      { cats: CATS.slice(6, 10), dogs: DOGS.slice(6, 10), y: 0.64, h: 0.22, par: 0.01 },
-      { cats: CATS.slice(2, 6), dogs: DOGS.slice(2, 6), y: 0.82, h: 0.3, par: 0.025 },
-      { cats: CATS.slice(0, 2), dogs: DOGS.slice(0, 2), y: 1.02, h: 0.46, par: 0.05 },
-    ];
+// the whole roster as the game's painted splash cards (public/assets/splash/<id>-720.webp), captains first
+const CATS = ['lambo', 'clem', 'sage', 'bengas', 'gabe', 'aviete', 'meatball', 'pixel', 'duchess', 'stilts', 'dusty', 'mochi', 'nova', 'ziggy'];
+const DOGS = ['brutus', 'cacklejaw', 'marshmallow', 'howler', 'nugget', 'barkula', 'biscuit', 'bravo', 'champ', 'chili', 'domino', 'frankie', 'ranger', 'rocket'];
+
+/** Overlay frames (transparent PNGs) for a segment, into dir/%04d.png. */
+async function renderOverlay(page, ov, len, dir) {
+  mkdirSync(dir, { recursive: true });
+  await page.evaluate(() => window.__mg.transparent(true));
+  for (let f = 0; f < len; f++) {
+    await page.evaluate(([s, k, p]) => window.__mg.draw(s, k, p), [ov.mg, f, { ...ov, n: len }]);
+    writeFileSync(join(dir, `${String(f).padStart(4, '0')}.png`), await page.locator('#c').screenshot({ type: 'png', omitBackground: true, scale: 'css' }));
   }
-  // 9:16 and 1:1: fewer heroes per row, so nobody stands inside another
-  const sq = aspect === '1x1';
-  return [
-    { cats: CATS.slice(3, 6), dogs: DOGS.slice(3, 6), y: sq ? 0.62 : 0.6, h: sq ? 0.2 : 0.11, par: 0.01 },
-    { cats: CATS.slice(1, 3), dogs: DOGS.slice(1, 3), y: sq ? 0.8 : 0.74, h: sq ? 0.28 : 0.15, par: 0.025 },
-    { cats: CATS.slice(0, 1), dogs: DOGS.slice(0, 1), y: sq ? 1.03 : 0.98, h: sq ? 0.42 : 0.24, par: 0.05 },
-  ];
-};
+  await page.evaluate(() => window.__mg.transparent(false));
+}
 
 async function renderMg(page, seg, aspect, out, params) {
   const enc = spawn('ffmpeg', ['-y', '-v', 'error', ...T, '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'png', '-i', '-', ...ENC, out], { stdio: ['pipe', 'inherit', 'inherit'] });
@@ -118,19 +119,26 @@ async function buildAspect(aspect, browser, base) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`${base}${HERE}/mg.html`);
-  const R = (n) => `${base}${BRAND}/renders/pawlegends-${n}-render.png`;
   const assets = {
     vsWide: `${base}${GEM}/vs-wide.jpg`, vsTall: `${base}${GEM}/vs-tall.jpg`, warCats: `${base}${GEM}/war-cats.jpg`, warDogs: `${base}${GEM}/war-dogs.jpg`,
     eyes: `${base}${GEM}/eyes-clem.jpg`, keyClem: `${base}${GEM}/key-clem.jpg`, stadium: `${base}${GEM}/stadium.jpg`, stadiumTall: `${base}${GEM}/stadium-tall.jpg`,
     logo: `${base}${BRAND}/logos/pawlegends-logo-primary.png`,
-    ...Object.fromEntries([...CATS, ...DOGS].map((n) => [`r_${n}`, R(n)])),
+    ...Object.fromEntries([...CATS, ...DOGS].map((n) => [`s_${n}`, `${base}${PKG}/public/assets/splash/${n}-720.webp`])),
   };
-  await page.evaluate((o) => window.__mg.setup(o), { W, H, assets, fonts: { rubik: `${base}${PKG}/public/assets/fonts/Rubik-Italic-Display.woff2`, fredoka: `${base}${PKG}/public/assets/fonts/Fredoka-Ext.woff2` } });
+  const fonts = FONTS
+    ? { rubik: `${base}${FONTS}/rubik-italic-900.woff2`, fredoka: `${base}${FONTS}/fredoka-600-700.woff2` }
+    : { rubik: `${base}${PKG}/public/assets/fonts/Rubik-Italic-Display.woff2`, fredoka: `${base}${PKG}/public/assets/fonts/Fredoka-Ext.woff2` };
+  await page.evaluate((o) => window.__mg.setup(o), { W, H, assets, fonts });
+  // round 1 set the last S of CATS / DOGS in a fallback face: refuse to render with a face missing a glyph
+  const missing = await page.evaluate((t) => window.__mg.glyphs(t), COPY.join('').toUpperCase());
+  if (missing.length) throw new Error(`display face lacks ${JSON.stringify(missing.join(''))}: pass --fonts`);
   const parts = [];
   for (const [i, seg] of EDL.entries()) {
     const id = `${String(i).padStart(2, '0')}`;
+    if (ONLY && !ONLY.includes(i)) continue;
     if (seg.gp) {
       const g = seg.gp;
+      const segParts = [];
       if (g.freeze) {
         const [at, n] = g.freeze;
         const a = join(dir, `${id}a.mp4`), b = join(dir, `${id}b.mp4`), c = join(dir, `${id}c.mp4`);
@@ -139,12 +147,28 @@ async function buildAspect(aspect, browser, base) {
         await page.evaluate(([k, src]) => window.__mg.still(k, src), ['still', `${base}${still}`]);
         await renderMg(page, { mg: 'freeze', len: n }, aspect, b, { still: 'still', side: seg.side });
         gpSegment(c, g.take, aspect, g.in + at + 1, seg.len - at - n);
-        parts.push(a, b, c);
+        segParts.push(a, b, c);
       } else {
-        const a = join(dir, `${id}.mp4`);
+        const a = join(dir, `${id}g.mp4`);
         gpSegment(a, g.take, aspect, g.in, seg.len);
-        parts.push(a);
+        segParts.push(a);
       }
+      const plain = join(dir, seg.ov ? `${id}p.mp4` : `${id}.mp4`);
+      if (segParts.length > 1 || seg.ov) {
+        const l = join(dir, `${id}.txt`);
+        writeFileSync(l, segParts.map((x) => `file '${x}'`).join('\n') + '\n');
+        ff(['-f', 'concat', '-safe', '0', '-i', l, '-c', 'copy', plain]);
+      } else ff(['-i', segParts[0], '-c', 'copy', plain]);
+      if (seg.ov) {
+        // the overlay (name card, mission line, VICTORY!) drawn over the moving gameplay
+        const odir = join(dir, `${id}-ov`);
+        execFileSync('rm', ['-rf', odir]);
+        await renderOverlay(page, seg.ov, seg.len, odir);
+        const a = join(dir, `${id}.mp4`);
+        ff(['-i', plain, '-framerate', String(FPS), '-i', join(odir, '%04d.png'), '-filter_complex', '[0:v][1:v]overlay=0:0:format=auto,format=yuv420p', '-frames:v', String(seg.len), ...ENC, a]);
+        execFileSync('rm', ['-rf', odir]);
+        parts.push(a);
+      } else parts.push(plain);
     } else {
       const params = {};
       if (seg.still) {
@@ -152,7 +176,7 @@ async function buildAspect(aspect, browser, base) {
         await page.evaluate(([k, src]) => window.__mg.still(k, src), ['still', `${base}${still}`]);
         params.still = 'still';
       }
-      if (seg.mg === 'glory') params.rows = GLORY_ROWS(aspect);
+      if (seg.mg === 'glory' || seg.mg === 'end') Object.assign(params, { cats: CATS, dogs: DOGS });
       const a = join(dir, `${id}.mp4`);
       await renderMg(page, seg, aspect, a, params);
       parts.push(a);
@@ -161,6 +185,7 @@ async function buildAspect(aspect, browser, base) {
   }
   await ctx.close();
   if (errors.length) throw new Error(`mg page errors: ${errors.join(' | ')}`);
+  if (ONLY) return null;
   // concat (identical encodes), then the master: a fine grain, the score, H.264 High
   const list = join(dir, 'list.txt');
   writeFileSync(list, parts.map((p) => `file '${p}'`).join('\n') + '\n');
@@ -205,6 +230,7 @@ try {
   browser = await chromium.launch({ headless: true, args: ['--force-color-profile=srgb'] });
   for (const aspect of ASPECTS) {
     const m = await buildAspect(aspect, browser, base);
+    if (!m) continue;
     report.masters[aspect] = { file: m, probe: probe(m), loudness: loudness(m), sizeMB: +(statSync(m).size / 1e6).toFixed(1) };
     console.log(`[edit] ${aspect}: ${JSON.stringify(report.masters[aspect].loudness)} ${report.masters[aspect].sizeMB} MB`);
   }

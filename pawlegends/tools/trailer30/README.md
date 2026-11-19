@@ -7,17 +7,24 @@ go to a scratch folder, never the repo.
 | Time | Shot |
 |---|---|
 | 0.00-1.20 | Hook: Lambo's ultimate in a pile of dogs, an ink impact frame on 0.80, 0.3x after it |
-| 1.20-1.60 | The frame tears along the bolt into Lambo vs Sir Brutus (CATS, DOGS) |
-| 1.60-3.20 | Both teams meet at the cat tower (seed 36) |
-| 3.20-9.60 | Eight ultimates, cat / dog alternating, a name call and a halftone freeze on each |
+| 1.20-2.00 | The frame tears along the bolt (both halves fly off with their torn edge) into Lambo vs Sir Brutus: CATS, DOGS |
+| 2.00-3.20 | Wide establishing shot of the cat base and lanes (seed 36): TOPPLE THEIR TOWERS. |
+| 3.20-9.60 | Eight ultimates, cat / dog alternating: a name call, a halftone freeze and a champion card (splash art, name, ultimate) on each |
 | 9.60-10.80 | War room panels slide in along the bolt: PICK A SIDE. |
-| 10.80-12.00 | The low point: the cat tower falls (seed 36, 617.8 s), 0.2x on the crack |
-| 12.00-12.80 | Clem's eyes, a bolt in each: NOT OUT. |
-| 12.80-20.00 | The comeback (seed 36): the fight at the cat tower, Lambo's landing, Brutus's ring, Clem, the triple, quick cuts, the push to the doghouse |
-| 20.00-21.20 | The last gameplay frame turns into painted key art of Clem |
-| 21.20-25.20 | The dog core bursts on the downbeat, the game's Victory!, the cats celebrating |
-| 25.20-27.20 | Glory: both rosters (the kit renders) across the bolt in a night stadium |
-| 27.20-30.00 | The bolt strikes, the v6 logo, PLAY FREE · pawlegends.app |
+| 10.80-12.40 | The low point: the cat tower (id 115, seed 36) cracks and topples, 0.55x through the fall |
+| 12.40-13.20 | Clem's eyes, a bolt in each: NOT OUT. |
+| 13.20-20.00 | The comeback (seed 36): river fight, Lambo's landing, Brutus's ring, Clem, the triple, quick cuts, the push: TAKE THEIR CORE. |
+| 20.00-20.80 | The last gameplay frame flashes into painted key art of Clem |
+| 20.80-24.00 | The dog core bursts on the downbeat (0.35x), VICTORY!, the cats celebrating |
+| 24.00-27.20 | Glory: all 28 champions as the game's splash cards on two conveyors meeting at the bolt (TEAM CAT, TEAM DOG) |
+| 27.20-30.00 | The bolt strikes, the v6 logo, CATS VS DOGS. PICK A SIDE., 5V5 AND 3V3 TEAM BATTLES, PLAY FREE IN YOUR BROWSER · pawlegends.app |
+
+Round 2 (critic fixes): takes are drawn clean (no overhead bars, numbers or banners: `plates: false` in the clip
+harness, since the bars are WebGL now and CSS cannot hide them) and closer, at the game's angle with no roll; 9:16 takes
+are shot closer without the clip engine's autoFit (it widened them 1.45x); overlays (champion cards, mission lines,
+VICTORY!) are transparent mg frames composited over the moving gameplay; the display type is the brand book's Rubik
+Italic 900 and Fredoka (`--fonts`), and setup refuses a face that falls back on any glyph of the copy (round 1 set the
+last S of CATS / DOGS in a fallback face).
 
 | File | Role |
 |---|---|
@@ -35,7 +42,7 @@ node tools/trailer30/specs.mjs > specs.json
 node tools/clips/record.mjs specs.json --out-dir <dir>/takes          # one browser, 60 fps, ~45 min for all 44
 node tools/trailer30/gemini.mjs jobs.json <dir>/gem                   # jobs: id, prompt, refs, aspect, size
 node tools/trailer30/score.mjs --out <dir>/audio --sting <kit>/audio/pawlegends-sting-lightning-rivalry.wav
-node tools/trailer30/edit.mjs --takes <dir>/takes --gem <dir>/gem --audio <dir>/audio --out <dir>/out
+node tools/trailer30/edit.mjs --takes <dir>/takes --gem <dir>/gem --audio <dir>/audio --fonts <dir>/fonts --out <dir>/out   # fonts: rubik-italic-900.woff2, fredoka-600-700.woff2 (Google Fonts)
 ```
 
 `tools/clips/` is the social clip engine (forked from `tools/trailer/harness.ts`), now in the repo; its harness loads

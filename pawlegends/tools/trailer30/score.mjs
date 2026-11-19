@@ -166,7 +166,7 @@ sfx.add(smp(HIT.hookInk + 6), I.game('hit'), 0.4);
 sfx.add(smp(cVs), I.crackle(0.5, 93), 0.8);
 sfx.add(smp(cVs), I.impact(91, { sub: 44, len: 1.2 }), 0.8);
 stabAt(cVs, 'Am', 0.45, 0.3, 12);
-catMotif(cVs, 0.6);
+catMotif(cVs + 2, 0.6);
 sfx.add(smp(cVs), I.thump(92), 0.6);
 dogMotif(cVs + 12, 0.75);
 sfx.add(smp(cVs + 12), I.thump(92), 0.6);
@@ -210,8 +210,8 @@ cue(cWar + 18, 'PICK A SIDE');
 cue(SILENCE[0][0], 'silence hole 1');
 hit(HIT.towerCrack, 'slam', 0.7, true);
 rumble(HIT.towerCrack, 1.4, 0.9);
-padAt(cLow + 6, 'Am', fs(66), 0.12, 500, -24);
-voice(cLow + 8, 'ourTurret', 0.95);
+padAt(cLow, 'Am', fs(cEyes - cLow), 0.12, 500, -24);
+voice(HIT.towerCrack + 10, 'ourTurret', 0.95);
 
 // NOT OUT: match strike and a riser into the fight
 matchStrike(cEyes);
