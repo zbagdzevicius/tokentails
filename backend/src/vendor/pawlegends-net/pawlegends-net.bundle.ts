@@ -857,6 +857,12 @@ export interface PartyView {
     /** PROTO 4 classic: the map and seats per team (absent: Crossing, 3). */
     map?: MapId;
     teamSize?: 3 | 5;
+    /**
+     * Casual (never ranked): the bot seats of both teams as players (founder, 2026-11-19), shown like members in the
+     * pick and on loading; `hero` once the seat locked one (the other team's stays hidden in the pick). Absent from
+     * older relays (bot seats read "Bot").
+     */
+    fill?: PersonaView[];
   };
   /** PROTO 2: the friend party is queued for Quick Play (every member shows the queue card). */
   queue?: { sinceMs: number; side: MmSide };
@@ -899,6 +905,16 @@ export interface MatchConfigView {
   map?: MapId;
 }
 
+/** A casual bot seat shown as a player: its generated name, flag, avatar and locked champion (backend bot-persona.ts). */
+export interface PersonaView {
+  slot: number;
+  name: string;
+  cc?: string;
+  av?: AvatarWire;
+  hero?: string;
+  locked?: boolean;
+}
+
 export interface MatchMsg {
   t: 'match';
   room: string;
@@ -912,6 +928,11 @@ export interface MatchMsg {
    * seeded flag for it). Absent from older relays.
    */
   flags?: (string | null)[];
+  /**
+   * Casual (never ranked): the bot seats shown as players (their names and flags; `names` keeps null there, so every
+   * rule that needs a person, such as reports, kudos and mutes, still skips them). Absent: none, or an older relay.
+   */
+  personas?: PersonaView[];
   turnTicks: number;
   startTurn: number;
   startInMs: number;

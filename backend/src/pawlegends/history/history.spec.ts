@@ -10,6 +10,7 @@ import { savePawlegendsPartyMatch } from '../pawlegends-party-live';
 import {
     buildRow,
     canView,
+    matchView,
     rowStats,
     rowView,
     groupOf,
@@ -203,6 +204,28 @@ describe('match history: the row', () => {
         const big = buildRow(input({ map: 'hearthwood', stats: ten, slot: 7, outcome: 'lost', winner: 0 }))!;
         expect(big.players.filter(p => p.t === 1).map(p => p.s)).toEqual([5, 6, 7, 8, 9]);
         expect(big.winner).toBe(0);
+    });
+
+    it('a casual bot seat shown as a player: stored a bot (u null) with its persona; read as a name with no profile link', () => {
+        const row = buildRow(
+            input({
+                personas: [
+                    { slot: 3, name: 'Fancy Calico', cc: 'LT' },
+                    { slot: 0, name: 'Not Shown' },
+                    { slot: 4, name: '<b>' },
+                ],
+            })
+        )!;
+        expect(row.players[3]).toMatchObject({ s: 3, u: null, pn: 'Fancy Calico', pc: 'LT' });
+        // a human seat never takes a persona; a bad name is dropped
+        expect(row.players[0].pn).toBeUndefined();
+        expect(row.players[4].pn).toBeUndefined();
+        const view = matchView({ ...row, _id: 'x' }, true, new Map([['acc-a', 'Ana']]), new Map([['acc-a', 'ANA-1']]));
+        const seat = view.players.find(p => p.slot === 3)!;
+        expect(seat).toMatchObject({ name: 'Fancy Calico', bot: false });
+        expect(seat.code).toBeUndefined();
+        // a plain bot stays a bot
+        expect(view.players.find(p => p.slot === 4)).toMatchObject({ name: null, bot: true });
     });
 
     it('no row without the owner seat or stats', () => {

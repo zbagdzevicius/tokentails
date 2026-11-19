@@ -22,6 +22,18 @@ export interface Occupant {
     ticketed: boolean;
 }
 
+/**
+ * Casual (never ranked): a bot seat shown as a player (bot-persona.ts): its name, flag and avatar, kept with the room so
+ * a restore and the history row read the same identity. The seat stays a bot everywhere else (`config.humans`,
+ * `occupants`, rating, history `u: null`).
+ */
+export interface StoredPersona {
+    slot: number;
+    name: string;
+    cc?: string;
+    av?: { i: string };
+}
+
 export interface StoredRoom {
     _id: string;
     party: string;
@@ -45,6 +57,8 @@ export interface StoredRoom {
     lastSeq: number[];
     pilotTicks: Record<string, Record<string, number>>;
     openUnclaimedAt1800: boolean;
+    /** Casual bot seats shown as players (absent: none). */
+    personas?: StoredPersona[];
     unscored: string | null;
     status: StoredRoomStatus;
     /** PvP: a passed remake voided the room (status abandoned; no verdict, no rewards, no rating). */
@@ -394,6 +408,9 @@ export class PawlegendsRoom {
 
     @Prop({ default: false })
     openUnclaimedAt1800: boolean;
+
+    @Prop({ type: [Object], default: undefined })
+    personas?: StoredPersona[];
 
     @Prop({ type: String, default: null })
     unscored: string | null;

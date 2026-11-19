@@ -73,7 +73,7 @@ import type { PresenceEntry } from './presence-sink';
 import type { RefereeOut } from './referee-host';
 import { AFK_REASONS, Room, type PilotReason } from './room';
 import { RoomScheduler, phaseOf } from './room-scheduler';
-import type { Occupant, RelayRow, RoomStore, StoredParty, StoredRoom } from './room-store';
+import type { Occupant, RelayRow, RoomStore, StoredParty, StoredPersona, StoredRoom } from './room-store';
 import { memoryMm, type MmHookFactory, type MmHooks, type MmRelayApi, type MmRoomView } from '../mm/mm-bridge';
 import { MemoryMmRoomStore } from '../mm/mm-room.schema';
 import { draftSeed } from '../ranked/draft';
@@ -346,6 +346,8 @@ interface LiveRoom {
     coop?: boolean;
     /** A casual PvP room (`match.mode: 'casual'`): humans on both teams, team-scoped social and votes. */
     casual?: { species: ['cat' | 'dog', 'cat' | 'dog'] };
+    /** Casual (never ranked): the bot seats shown as players (bot-persona.ts), in the `match` frame. */
+    personas?: StoredPersona[];
     /** The checkpoint being written (a handoff waits for it, so its append never races a regular one). */
     inflight?: Promise<boolean>;
     /** The room is being handed to another relay (its clock is stopped; nothing else may end or move it). */
@@ -366,6 +368,12 @@ interface LiveRoom {
     /** SPECTATE.md: the end as the spectators get it, once the delayed stream reaches it. */
     watchEnd?: { atMs: number; turn: number; msg: Record<string, unknown> } | null;
 }
+
+/** Sim v34: the 3v3 pool map a seed draws (omitted when it is the Crossing, so such a room is v33's shape). */
+const pickedMap3v3 = (ps: PawlegendsPartySim, seed: number) => {
+    const drawn = ps.pickMap3v3 ? ps.pickMap3v3(seed) : undefined;
+    return drawn && drawn !== 'crossing' ? drawn : undefined;
+};
 
 /** Seats per team of a live room (5v5 Classic on Hearthwood: 5). */
 const teamSizeOfLive = (live: { config: { map?: string } }): 3 | 5 => (live.config.map === 'hearthwood' ? 5 : 3);
@@ -519,6 +527,8 @@ export class PartyRelay {
                 allowed: (p, m, hero) => this.championAllowed(p.rotationWeek, m.identity, hero),
                 // ranked draft (§7.13): a bot ban prefers a champion every player has this week
                 free: (p, hero) => isFreeChampion(hero, p.rotationWeek ?? rotationWeek(this.now())),
+                // casual personas show the champion the room's sim gives their seat for the pick's seed
+                botPicks: (p, seed, lead) => this.botPicksOf(p, seed, lead),
             },
             {
                 changed: p => {
@@ -627,6 +637,25 @@ export class PartyRelay {
     }
 
     /** The party API of the sim the party is pinned to (its leader's), or null before the leader's hello. */
+    /**
+     * The heroes every seat of a casual room gets for `seed` (the same `fillPicksParty` call and map draw as
+     * `startMatch`), with `lead` on slot 0. Null without the party's sim.
+     */
+    private botPicksOf(p: Party, seed: number, lead: { slot: 0; hero: string; trick: string }): string[] | null {
+        const ps = this.pinnedSimOf(p);
+        if (!ps) return null;
+        const map = p.mm?.casual?.map;
+        const roomMap = map ?? pickedMap3v3(ps, seed);
+        try {
+            const out = roomMap
+                ? ps.fillPicksParty(seed, [lead] as never, roomMap)
+                : ps.fillPicksParty(seed, [lead] as never);
+            return out.picks as string[];
+        } catch {
+            return null;
+        }
+    }
+
     private pinnedSimOf(p: Party): PawlegendsPartySim | null {
         const s = this.byMember.get(p.leader)?.sim;
         return (s && partySimFor(s.version, s.hash)?.party) || null;
@@ -2419,8 +2448,7 @@ export class PartyRelay {
         // sim v34 (V34-MAPS.md §7): a 3v3 room plays the map its final seed draws from the pool (the same rule as the
         // client's Skirmish and the backend's replay); omitted when it is the Crossing, so such a room is v33's shape.
         // 5v5 Classic keeps Hearthwood; a sim before v34 has no pool (Crossing).
-        const drawn = !map && n === 3 && ps.pickMap3v3 ? ps.pickMap3v3(seed) : undefined;
-        const roomMap = map ?? (drawn && drawn !== 'crossing' ? drawn : undefined);
+        const roomMap = map ?? (n === 3 ? pickedMap3v3(ps, seed) : undefined);
         const { picks, tricks } = roomMap ? ps.fillPicksParty(seed, plan.seats as never, roomMap) : picksOf(seed);
         const config: StoredRoom['config'] = {
             seed,
@@ -2443,6 +2471,13 @@ export class PartyRelay {
         const seats = new Map<string, number>(party.members.map(m => [m.id, m.slot!]));
         const names: (string | null)[] = new Array(2 * n).fill(null);
         for (const m of party.members) names[m.slot!] = m.name;
+        // casual bot seats as players (never ranked): only seats no member holds keep a persona
+        const personas: StoredPersona[] =
+            plan.pvp && !party.mm?.ranked
+                ? (party.mm?.casual?.personas ?? [])
+                      .filter(x => x.slot < 2 * n && names[x.slot] === null)
+                      .map(x => ({ slot: x.slot, name: x.name, ...(x.cc ? { cc: x.cc } : {}), av: { ...x.av } }))
+                : [];
         const startMs = now + PARTY_TIMING.startInMs;
         const room = new Room(
             {
@@ -2482,6 +2517,7 @@ export class PartyRelay {
             ips: ipsHere,
             ...(party.mm && !plan.pvp ? { coop: true } : {}),
             ...(plan.pvp ? { casual: { species: plan.pvp.species } } : {}),
+            ...(personas.length ? { personas } : {}),
         };
         this.rooms.set(id, live);
         party.room = id;
@@ -2498,6 +2534,7 @@ export class PartyRelay {
                 lastSeq: room.slots.map(() => 0),
                 pilotTicks: {},
                 openUnclaimedAt1800: false,
+                ...(personas.length ? { personas } : {}),
                 unscored: this.opts.tickets.available ? null : 'no_secret',
                 status: 'live',
                 verdict: null,
@@ -2584,7 +2621,13 @@ export class PartyRelay {
             ...(live.coop ? { mode: 'coop' as const } : {}),
             ...(live.casual ? { mode: 'casual' as const, species: live.casual.species } : {}),
             ...(live.config.map ? { map: live.config.map, teamSize: teamSizeOfLive(live) } : {}),
+            ...(live.personas?.length ? { personas: this.personasOf(live) } : {}),
         };
+    }
+
+    /** The personas of the seats no player holds now (a backfill or a claim takes the seat and its own name). */
+    private personasOf(live: LiveRoom): StoredPersona[] {
+        return (live.personas ?? []).filter(x => live.names[x.slot] === null).map(x => ({ ...x }));
     }
 
     /**
@@ -3483,6 +3526,7 @@ export class PartyRelay {
                 heroSkins: new Array(room.slotCount).fill(null),
                 keys: new Set(),
                 ips: new Set(),
+                ...(claimed.personas?.length ? { personas: claimed.personas } : {}),
             };
             await this.restoreParty(claimed, live);
             this.rooms.set(claimed._id, live);

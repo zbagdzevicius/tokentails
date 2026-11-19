@@ -277,6 +277,8 @@ export async function savePawlegendsPartyMatch(
             slot: r.slot,
             stats: v.stats,
             humans: new Map(room.occupants.filter(o => !!o.accountId).map(o => [o.slot, o.accountId as string])),
+            // casual bot seats shown as players: the names they showed (the seats stay bots in the row)
+            ...(room.personas?.length ? { personas: room.personas } : {}),
             winner: v.winner,
             simVersion: r.simVersion,
         });

@@ -71,18 +71,24 @@ describe('casual PvP matchmaker', () => {
         expect(mm.size).toBe(0);
     });
 
-    it('a trio queues casual (and never co-op); a trio party faces a trio party before 40 s', () => {
+    it('a trio queues casual (and never co-op); a trio party faces a trio party, else a team of bots at 9 s', () => {
         const { clock, mm, advance } = make();
         expect(mm.join(entry(clock, ['t1', 't2', 't3'], { queue: 'coop' }))).toBe('bad_entry');
         expect(mm.join(entry(clock, ['a1', 'a2', 'a3']))).toBe('ok');
-        // three solos: a 3v3 by shape, but a trio party does not face solos before 40 s
-        for (const k of ['s1', 's2', 's3']) mm.join(entry(clock, [k]));
-        expect(matchesOf(advance(20_000))).toHaveLength(0);
+        expect(matchesOf(advance(5000))).toHaveLength(0);
         mm.join(entry(clock, ['b1', 'b2', 'b3']));
         const [m] = matchesOf(advance(500));
         expect(m.teams!.map(t => t.humans)).toEqual([3, 3]);
-        const trios = m.teams!.map(t => t.entries.length);
-        expect(trios).toEqual([1, 1]);
+        expect(m.teams!.map(t => t.entries.length)).toEqual([1, 1]);
+        // a lone trio with three solos waiting: parties face parties until 40 s, so the trio plays bots at 9 s
+        const two = make();
+        const trio = entry(two.clock, ['c1', 'c2', 'c3']);
+        two.mm.join(trio);
+        for (const k of ['s1', 's2', 's3']) two.mm.join(entry(two.clock, [k]));
+        const out = matchesOf(two.advance(9000));
+        const vsBots = out.find(x => x.entries.includes(trio.id))!;
+        expect(vsBots.teams!.map(t => t.humans).sort()).toEqual([0, 3]);
+        expect(out.every(x => x.mode === 'casual')).toBe(true);
     });
 
     it('never puts the same address on opposite teams (teammates are fine)', () => {
@@ -90,21 +96,25 @@ describe('casual PvP matchmaker', () => {
         const shared = 'ip-home';
         mm.join(entry(clock, [member('x', { ipKey: shared })]));
         mm.join(entry(clock, [member('y', { ipKey: shared })]));
-        // two lone players from one home: no 1v1 even after the fill
-        const early = matchesOf(advance(MM_CASUAL.fillMs + 1000));
-        expect(early).toHaveLength(0);
-        // two more players arrive: each home player gets an opponent, and the home stays on one team
-        mm.join(entry(clock, ['p']));
-        mm.join(entry(clock, ['q']));
-        const [m] = matchesOf(advance(1000));
-        expect(m).toBeDefined();
+        // two lone players from one home: no 1v1, they play together against a team of bots (four bot seats, 12 s)
+        const [home] = matchesOf(advance(MM_CASUAL.fillMs));
+        expect(home.teams!.map(t => t.humans).sort()).toEqual([0, 2]);
+        expect(teamOf(home, 'm-x')).toBe(teamOf(home, 'm-y'));
+        // with two more players: each home player gets an opponent, and the home stays on one team
+        const two = make();
+        two.mm.join(entry(two.clock, [member('x', { ipKey: shared })]));
+        two.mm.join(entry(two.clock, [member('y', { ipKey: shared })]));
+        two.mm.join(entry(two.clock, ['p']));
+        two.mm.join(entry(two.clock, ['q']));
+        const [m] = matchesOf(two.advance(MM_CASUAL.fillMs));
+        expect(m.humans).toBe(4);
         expect(teamOf(m, 'm-x')).toBe(teamOf(m, 'm-y'));
     });
 
-    it('prefers symmetric fills: four humans become 2v2 plus a bot each at the second bot seat (20 s), not 3v1', () => {
+    it('prefers symmetric fills: four humans become 2v2 plus a bot each at the second bot seat (6 s), not 3v1', () => {
         const { clock, mm, advance } = make();
         for (const k of ['a', 'b', 'c', 'd']) mm.join(entry(clock, [k]));
-        expect(matchesOf(advance(19_500))).toHaveLength(0);
+        expect(matchesOf(advance(5500))).toHaveLength(0);
         const [m] = matchesOf(advance(500));
         expect(m.teams!.map(t => t.humans)).toEqual([2, 2]);
         expect(m.teams!.map(t => t.bots)).toEqual([1, 1]);
@@ -115,17 +125,24 @@ describe('casual PvP matchmaker', () => {
         expect(shapeRank(3, 1)).toBeGreaterThan(shapeRank(2, 1));
         expect(shapeRank(2, 2)).toBeLessThan(shapeRank(3, 2));
         const { clock, mm, advance } = make();
-        // a trio party and a solo: 3v1 is the only shape; the solo is never set against them before the 45 s mark
-        // (it moves to co-op first), and a second solo within the window gives a 1v1 instead
-        mm.join(entry(clock, ['t1', 't2', 't3']));
+        // a trio party and a solo: 3v1 (two bot seats) is held back; the trio plays bots at 9 s, and a second solo
+        // that arrives in time gives the first one a 1v1 at 12 s
+        const trio = entry(clock, ['t1', 't2', 't3']);
+        mm.join(trio);
         const s = entry(clock, ['s']);
         mm.join(s);
-        expect(matchesOf(advance(MM_CASUAL.fillMs + 5000))).toHaveLength(0);
+        const early = matchesOf(advance(8500));
+        expect(early).toHaveLength(0);
         mm.join(entry(clock, ['s2']));
-        const [m] = matchesOf(advance(1000));
-        expect(m.teams!.map(t => t.humans)).toEqual([1, 1]);
-        const ticks = advance(MM_CASUAL.switchMs);
-        expect(matchesOf(ticks).some(x => x.mode === 'casual' && x.humans === 4)).toBe(false);
+        const out = matchesOf(advance(MM_CASUAL.switchMs));
+        expect(out.some(x => x.humans === 4)).toBe(false);
+        expect(
+            out
+                .find(x => x.entries.includes(trio.id))!
+                .teams!.map(t => t.humans)
+                .sort()
+        ).toEqual([0, 3]);
+        expect(out.find(x => x.entries.includes(s.id))!.teams!.map(t => t.humans)).toEqual([1, 1]);
     });
 
     it('widens the rating window with the wait: 75 + 12/s, capped at 400', () => {
@@ -134,22 +151,26 @@ describe('casual PvP matchmaker', () => {
         expect(casualWindow([e], 0)).toBe(75);
         expect(casualWindow([e], 10_000)).toBe(195);
         expect(casualWindow([e], 100_000)).toBe(400);
-        // 1500 vs 1800 (300 apart): no 1v1 at the 30 s fill (window 435? no: 75 + 360 = 400 cap... 435 capped to 400)
         mm.join(e);
         mm.join(entry(clock, [member('b', { rating: { r: 1950, rd: 50 } })]));
-        // 450 apart: never inside the 400 cap; at the switch both go to co-op instead
-        const ticks = advance(MM_CASUAL.switchMs + 1000);
-        expect(matchesOf(ticks).filter(m => m.mode === 'casual')).toHaveLength(0);
-        expect(ticks.flatMap(t => t.switched).length).toBe(2);
+        // 450 apart: never inside the 400 cap, so never opponents in a 1v1 (as teammates against a fair team of bots
+        // they may play: the window bounds the two teams' means, as in a 2v2)
+        const ms = matchesOf(advance(MM_CASUAL.switchMs + 1000));
+        expect(ms.length).toBeGreaterThan(0);
+        for (const m of ms) expect(m.teams!.every(t => t.humans === 0 || t.humans === m.humans)).toBe(true);
     });
 
-    it('honours a side request inside 25 s, then relaxes it', () => {
+    it('honours a side request: six players who all asked for cats play cats against bots rather than as dogs', () => {
         const { clock, mm, advance } = make();
-        // six players who all asked for cats: no 3v3 before 25 s (one team would have to be dogs)
         for (const k of ['a', 'b', 'c', 'd', 'e', 'f']) mm.join(entry(clock, [k], { side: 'cat' }));
-        expect(matchesOf(advance(MM_CASUAL.sideRelaxMs - 1000))).toHaveLength(0);
-        const [m] = matchesOf(advance(2000));
-        expect(m.teams!.map(t => t.humans)).toEqual([3, 3]);
+        // no 3v3 (one team would have to be dogs): two trios of cats against teams of bots at the third bot seat
+        expect(matchesOf(advance(8500))).toHaveLength(0);
+        const ms = matchesOf(advance(500));
+        expect(ms).toHaveLength(2);
+        for (const m of ms) {
+            const humans = m.teams!.find(t => t.humans === 3)!;
+            expect(humans.species).toBe('cat');
+        }
     });
 
     it('alternates the species on the left (team 0) per pool', () => {
@@ -166,11 +187,14 @@ describe('casual PvP matchmaker', () => {
         expect(left).toEqual(['cat', 'dog', 'cat', 'dog']);
     });
 
-    it('moves a lone search to co-op at 45 s (wait credited, a short Keep-waiting grace); Keep waiting puts it back', () => {
+    it('moves a search no fair plan takes to co-op at 40 s (wait credited, a short Keep-waiting grace); Keep waiting puts it back', () => {
+        // far above the Hard bots (2400 vs 1800): no fair team of bots, so the co-op switch is the safety net
+        const strong = { rating: { r: 2400, rd: 50 } };
         const { clock, mm, advance } = make();
-        const e = entry(clock, ['solo']);
+        const e = entry(clock, [member('solo', strong)]);
         mm.join(e);
         const ticks = advance(MM_CASUAL.switchMs);
+        expect(matchesOf(ticks)).toHaveLength(0);
         const switched = ticks.flatMap(t => t.switched);
         expect(switched.map(x => x.id)).toEqual([e.id]);
         expect(mm.entry(e.id)!.queue).toBe('coop');
@@ -180,7 +204,7 @@ describe('casual PvP matchmaker', () => {
         expect(advance(60_000).flatMap(t => [...t.switched, ...t.matches])).toHaveLength(0);
         // without Keep waiting the co-op fill seats it once the grace is over (a fresh pool)
         const two = make();
-        const f = entry(two.clock, ['solo2']);
+        const f = entry(two.clock, [member('solo2', strong)]);
         two.mm.join(f);
         const later = two.advance(MM_CASUAL.switchMs + MM_CASUAL.switchGraceMs + 1000);
         const coop = matchesOf(later);
@@ -217,8 +241,10 @@ describe('casual PvP matchmaker', () => {
         const { clock, mm, advance } = make();
         mm.join(entry(clock, [member('lo', { rating: { r: 1200, rd: 60 } })]));
         mm.join(entry(clock, [member('hi', { rating: { r: 1600, rd: 60 } })]));
+        // never against each other (1200 + 2 bots vs 1600 + 2 bots is 33 %): teammates against a fair team of bots
         const out = matchesOf(advance(MM_CASUAL.switchMs - 1000));
-        expect(out.filter(m => m.mode === 'casual')).toHaveLength(0);
+        expect(out.length).toBeGreaterThan(0);
+        for (const m of out) expect(m.teams!.every(t => t.humans === 0 || t.humans === m.humans)).toBe(true);
     });
 
     it('a co-op entry never joins a casual match and the other way round', () => {

@@ -2,8 +2,9 @@ import { Matchmaker, type MmEntry, type MmMatch, type MmMember } from './matchma
 import { MM_CASUAL, MM_CLASSIC, MM_LIMITS, MM_RANKED, trickleBots } from './mm-limits';
 
 /*
- * Bots trickle in (founder, 2026-11-17): no bot seat before 17 s, then exactly one every 3 s, players first, a full
- * match at once. Fake clock, pure matchmaker.
+ * Bots trickle in (founder, 2026-11-19: "add a bot / 3s from 3s, not from 17s"): no bot seat before 3 s, then exactly
+ * one every 3 s, players first, a full match at once; casual 3v3 fills a whole team of bots, so a lone search is seated
+ * at 15 s. Fake clock, pure matchmaker.
  */
 
 let n = 0;
@@ -51,15 +52,16 @@ function make() {
 }
 
 describe('bot trickle', () => {
-    it('no bot seat before 17 s, then exactly one every 3 s', () => {
+    it('no bot seat before 3 s, then exactly one every 3 s', () => {
         expect(trickleBots(0, MM_CASUAL)).toBe(0);
-        expect(trickleBots(16_999, MM_CASUAL)).toBe(0);
-        expect(trickleBots(17_000, MM_CASUAL)).toBe(1);
-        expect(trickleBots(19_999, MM_CASUAL)).toBe(1);
-        expect(trickleBots(20_000, MM_CASUAL)).toBe(2);
-        expect(trickleBots(23_000, MM_CASUAL)).toBe(3);
-        expect(trickleBots(26_000, MM_CASUAL)).toBe(4);
-        expect(trickleBots(20_000, MM_CLASSIC)).toBe(2);
+        expect(trickleBots(2999, MM_CASUAL)).toBe(0);
+        expect(trickleBots(3000, MM_CASUAL)).toBe(1);
+        expect(trickleBots(5999, MM_CASUAL)).toBe(1);
+        expect(trickleBots(6000, MM_CASUAL)).toBe(2);
+        expect(trickleBots(9000, MM_CASUAL)).toBe(3);
+        expect(trickleBots(12_000, MM_CASUAL)).toBe(4);
+        expect(trickleBots(15_000, MM_CASUAL)).toBe(5);
+        expect(trickleBots(6000, MM_CLASSIC)).toBe(2);
         // a 1v1 is full at the last bot seat: 4 bots on Purrhaven, 8 on Hearthwood
         expect(trickleBots(MM_CASUAL.fillMs, MM_CASUAL)).toBe(4);
         expect(trickleBots(MM_CASUAL.fillMs - 1, MM_CASUAL)).toBe(3);
@@ -71,10 +73,11 @@ describe('bot trickle', () => {
     });
 
     it.each([
-        [5, 17_000, 1],
-        [4, 20_000, 2],
-        [3, 23_000, 3],
-        [2, 26_000, 4],
+        [5, 3000, 1],
+        [4, 6000, 2],
+        [3, 9000, 3],
+        [2, 12_000, 4],
+        [1, 15_000, 5],
     ])('%i players: the match forms the moment the bot seats fill the rest (%i ms, %i bots)', (humans, at, bots) => {
         const { clock, mm, until } = make();
         for (let i = 0; i < humans; i++) mm.join(entry(clock, `p${i}`));
@@ -84,18 +87,43 @@ describe('bot trickle', () => {
         expect(out[0].m).toMatchObject({ mode: 'casual', humans, bots });
     });
 
-    it('a player arriving at 19 s takes a seat and the schedule goes on from the first search', () => {
+    it('a lone search plays a team of bots at 15 s: its own team filled first, never moved to co-op', () => {
+        const { clock, mm, until } = make();
+        mm.join(entry(clock, 'solo'));
+        expect(until(14_500)).toHaveLength(0);
+        const out = until(15_000);
+        expect(out).toHaveLength(1);
+        const m = out[0].m;
+        expect(m).toMatchObject({ mode: 'casual', queue: 'casual', humans: 1, bots: 5 });
+        expect(m.teams!.map(t => t.humans).sort()).toEqual([0, 1]);
+        expect(m.teams!.find(t => t.humans === 1)!.bots).toBe(2);
+        expect(m.teams!.find(t => t.humans === 0)!.bots).toBe(3);
+    });
+
+    it('a player arriving at 5 s takes a seat and the schedule goes on from the first search', () => {
         const { clock, mm, until } = make();
         mm.join(entry(clock, 'a'));
         mm.join(entry(clock, 'b'));
-        expect(until(19_000)).toHaveLength(0);
+        expect(until(5000)).toHaveLength(0);
         mm.join(entry(clock, 'c'));
         const out = until(30_000);
         expect(out).toHaveLength(1);
-        // three players need three bot seats: the third opens at 23 s
-        expect(out[0].at).toBe(23_000);
+        // three players need three bot seats: the third opens at 9 s
+        expect(out[0].at).toBe(9000);
         expect(out[0].m).toMatchObject({ humans: 3, bots: 3 });
         expect(out[0].m.members.slice().sort()).toEqual(['m-a', 'm-b', 'm-c']);
+    });
+
+    it('players first: a second player before 15 s turns a lone search into a 1v1, never two bot matches', () => {
+        const { clock, mm, until } = make();
+        mm.join(entry(clock, 'a'));
+        expect(until(11_000)).toHaveLength(0);
+        mm.join(entry(clock, 'b'));
+        // a 1v1 needs four bot seats (open since 12 s): it forms at 12 s, before a's bot team at 15 s
+        const out = until(30_000);
+        expect(out).toHaveLength(1);
+        expect(out[0].at).toBe(12_000);
+        expect(out[0].m.teams!.map(t => t.humans)).toEqual([1, 1]);
     });
 
     it('a full match starts at once, before and during the trickle', () => {
@@ -108,14 +136,14 @@ describe('bot trickle', () => {
         const two = make();
         two.mm.join(entry(two.clock, 'a'));
         two.mm.join(entry(two.clock, 'b'));
-        expect(two.until(21_000)).toHaveLength(0);
+        expect(two.until(5000)).toHaveLength(0);
         for (const k of ['c', 'd', 'e', 'f']) two.mm.join(entry(two.clock, k));
-        const out = two.until(21_500);
+        const out = two.until(5500);
         expect(out).toHaveLength(1);
         expect(out[0].m).toMatchObject({ humans: 6, bots: 0 });
     });
 
-    it('5v5 Classic trickles the same way: a 1v1 gets its 8th bot seat at 38 s', () => {
+    it('5v5 Classic trickles the same way: a 1v1 gets its 8th bot seat at 24 s, a lone search keeps waiting', () => {
         const { clock, mm, until } = make();
         mm.join(entry(clock, 'a', 'classic'));
         mm.join(entry(clock, 'b', 'classic'));
@@ -123,5 +151,18 @@ describe('bot trickle', () => {
         expect(out).toHaveLength(1);
         expect(out[0].at).toBe(MM_CLASSIC.fillMs);
         expect(out[0].m).toMatchObject({ map: 'hearthwood', humans: 2, bots: 8 });
+        const lone = make();
+        lone.mm.join(entry(lone.clock, 'c', 'classic'));
+        expect(lone.until(60_000)).toHaveLength(0);
+    });
+
+    it('the queue estimate is the moment the trickle seats the entry (15 s alone, 9 s for a trio)', () => {
+        const { clock, mm } = make();
+        const e = entry(clock, 'solo');
+        mm.join(e);
+        expect(mm.status(e.id)!.estimateMs).toBe(15_000);
+        const trio: MmEntry = { ...entry(clock, 'x'), members: [member('x'), member('y'), member('z')], partyId: 'p1' };
+        mm.join(trio);
+        expect(mm.status(trio.id)!.estimateMs).toBe(10_000);
     });
 });

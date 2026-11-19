@@ -28,8 +28,19 @@ export interface PvpQueueRules {
     apartByNet?: boolean;
     /** Ranked (§7.11): bots fill a match only when every entry in it sent `bots: true` (a game that labels them). */
     fillNeedsOptIn?: boolean;
+    /**
+     * Casual 3v3 (founder, 2026-11-19): the other team may be all bots once the trickle opened every empty seat, so a
+     * lone search (or a party nobody of its size faces) is seated at 15 s instead of moving to co-op at 40 s. Any shape
+     * with an opponent human ranks first (`botTeamRank`). Classic and ranked keep needing a player on each team.
+     */
+    botTeam?: boolean;
 }
-export const CASUAL_RULES: PvpQueueRules = Object.freeze({ queue: 'casual', teamSize: 3, limits: MM_CASUAL });
+export const CASUAL_RULES: PvpQueueRules = Object.freeze({
+    queue: 'casual',
+    teamSize: 3,
+    limits: MM_CASUAL,
+    botTeam: true,
+});
 export const CLASSIC_RULES: PvpQueueRules = Object.freeze({ queue: 'classic', teamSize: 5, limits: MM_CLASSIC });
 /** Ranked: 3v3 on the Crossing, players first, labelled bots after the fill (opted-in entries only), the network rule. */
 export const RANKED_RULES: PvpQueueRules = Object.freeze({
@@ -141,6 +152,11 @@ export function shapeRankN(a: number, b: number, teamSize: number): number {
     return 1 + (teamSize - lo) * teamSize + (hi - lo);
 }
 
+/** A team of humans against a team of bots: after every shape with an opponent human, the fuller team first. */
+export function botTeamRank(humans: number, teamSize: number): number {
+    return 6 + (teamSize - humans);
+}
+
 /** The species a group can play: those every entry's side allows (strict), or both once relaxed. */
 function speciesFor(group: readonly MmEntry[], relaxed: boolean): Species[] {
     if (relaxed) return ['cat', 'dog'];
@@ -231,11 +247,12 @@ export function bestCasual(
         const ha = humansOf(teamA);
         const restA = cands.filter(o => !mates.includes(o));
         for (const foes of subsets(restA, n, n)) {
-            if (!foes.length) continue;
+            // casual: no opponent human is a team of bots (its seats all opened by the trickle)
+            if (!foes.length && !rules.botTeam) continue;
             const teamB = [...foes];
             if (!teamOk(teamB, n) || !apartOk(teamA, teamB, rules.apartByNet)) continue;
             const hb = humansOf(teamB);
-            const rank = shapeRankN(ha, hb, n);
+            const rank = hb === 0 ? botTeamRank(ha, n) : shapeRankN(ha, hb, n);
             // bots trickle in: the open bot seats and the humans must fill both teams
             if (rank !== 0 && 2 * n - ha - hb > botSeats) continue;
             // ranked (§7.11): never a bot for an entry whose game does not label them
@@ -244,7 +261,7 @@ export function bestCasual(
             // a lone human never faces a full team while a 2-human team can still form (15 s after the fill)
             if (Math.min(ha, hb) === 1 && Math.max(ha, hb) === n && waited < c.fillMs + c.loneVsThreeMs) continue;
             // parties face parties of the same size or larger until 40 s
-            if (partyRule) {
+            if (partyRule && hb > 0) {
                 const pa = Math.max(...teamA.map(e => e.members.length));
                 const pb = Math.max(...teamB.map(e => e.members.length));
                 if ((pa > 1 || pb > 1) && pa !== pb) continue;
@@ -252,7 +269,8 @@ export function bestCasual(
             const ra = teamRating(teamA);
             const rb = teamRating(teamB);
             const window = casualWindow([...teamA, ...teamB], waited, c);
-            if (Math.abs(ra - rb) > window) continue;
+            // a team of bots has no rating of its own: the fairness rule below judges it at the bot level
+            if (hb > 0 && Math.abs(ra - rb) > window) continue;
             // predicted on the whole team: both sides' bots play at one level, from the mean of every human
             const bot = BOT_RATING[matchFillDifficulty([teamA, teamB])];
             const p = winChance(effectiveRating(teamA, bot, n), effectiveRating(teamB, bot, n));

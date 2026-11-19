@@ -19,7 +19,9 @@ Before its level a button is not drawn at all: no locked tile, no teaser, no "un
 
 **PLAY** (`homeScreen.ts` `mainQueue`) is one tap into the 3v3 main queue, Skirmish:
 - where the backend runs PvP for this build (`GET /pawlegends/sim`): the casual 3v3 queue. Players first; bots fill an
-  empty seat from 17 s; a solo or duo with no opponent moves to co-op vs bots at 40 s (the matchmaker's existing rules).
+  empty seat from 3 s, one more every 3 s (founder, 2026-11-19), so a solo with no opponent plays a team of bots at
+  15 s; a search no fair plan takes by 40 s moves to co-op vs bots. Casual bots play as players (a generated name, a
+  flag, a champion locked in the pick; backend `party/bot-persona.ts`), never labelled "Bot"; Ranked bots stay labelled.
   The champion select follows the match found;
 - with a relay but no PvP answer yet: the co-op queue;
 - with no party server (offline, a local build, the e2e build): the champion select of a 3v3 match vs bots, on the 5-map

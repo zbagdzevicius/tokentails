@@ -66,7 +66,8 @@ export interface MmEntry {
     partyId: string | null;
     members: MmMember[];
     /**
-     * 'casual': PvP (solo, duo or trio). A casual entry moves to 'coop' at 45 s without an opponent. 'classic': 5v5 on
+     * 'casual': PvP (solo, duo or trio). A casual entry plays a team of bots once the trickle opened its seats (15 s
+     * alone); one the fairness rule keeps out of every plan moves to 'coop' at 45 s. 'classic': 5v5 on
      * Hearthwood (PROTO 4); it never moves to co-op, bots fill at 45 s.
      */
     queue: 'coop' | MmPvpQueue;
@@ -378,7 +379,11 @@ export class Matchmaker {
         const waitedMs = Math.max(0, now - e.enqueuedMs);
         const lowPriorityMs = Math.max(0, e.notBeforeMs - now);
         const lambda = this.poolRate(e);
-        const pvpFill = e.queue === 'classic' ? MM_CLASSIC.fillMs : MM_CASUAL.fillMs;
+        // casual: the trickle seats a team of bots too, so this entry's own humans plus the open seats fill the match
+        const pvpFill =
+            e.queue === 'classic'
+                ? MM_CLASSIC.fillMs
+                : MM_CASUAL.fillStartMs + Math.max(0, 6 - e.members.length - 1) * MM_CASUAL.fillStepMs;
         const toFill = Math.max(0, (isPvpQueue(e.queue) ? pvpFill : fillAtMs(lambda)) - waitedMs);
         const toArrival = lambda > 0 ? 60_000 / lambda : Infinity;
         // ranked: the arrival of the five other players (at least a minute, never "never"); with bots, at most the vs AI
@@ -526,7 +531,7 @@ export class Matchmaker {
             this.offerLog.set(key, log);
             out.offers.push(offer);
         }
-        // casual: no opponent by 45 s moves a solo or duo to co-op (its wait is credited; Keep waiting undoes it)
+        // casual: no match by 40 s (the fairness rule kept it out of every plan) moves it to co-op (its wait is credited; Keep waiting undoes it)
         for (const e of sorted) {
             // a trio switches too: co-op seats three humans against bots
             if (e.queue !== 'casual' || e.keepCasual) continue;

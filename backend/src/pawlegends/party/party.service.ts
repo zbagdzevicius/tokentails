@@ -13,6 +13,7 @@ import { dedupeNames, memberName } from './party-names';
 import { rotationWeek } from '../pawlegends-catalog';
 import { partyThreadId } from '../social/chat-ids';
 import { botBan, RANKED_DRAFT, teamBan, type DraftBanBy } from '../ranked/draft';
+import { makePersonas, personaHero, personaView, type BotPersona } from './bot-persona';
 
 export const PARTY_TIMING = Object.freeze({
     pickMs: 30_000,
@@ -28,6 +29,8 @@ export const PARTY_TIMING = Object.freeze({
     idleMs: 30 * 60_000,
     hardMaxMs: 3 * 3600_000,
     startInMs: 3000,
+    /** A casual fill bot's persona locks its champion this long into the pick (a random moment in the window). */
+    personaLockMs: Object.freeze([4000, 14_000]) as readonly [number, number],
 });
 
 export const MAX_MEMBERS = 3;
@@ -53,6 +56,13 @@ export interface PartyCasual {
     premade?: number[][];
     /** 5v5 Classic: 'hearthwood' (slots 0..4 and 5..9, leads 0 and 5). Absent: Crossing 3v3. */
     map?: 'hearthwood';
+    /**
+     * Casual (never ranked): every bot seat plays as a player (bot-persona.ts), the same name, flag and champion from
+     * the pick to the results. Made when the pick opens.
+     */
+    personas?: BotPersona[];
+    /** With personas: the match's seed, fixed when the pick opens (the personas' champions come from it). */
+    seed?: number;
 }
 
 export interface MemberIdentity {
@@ -211,6 +221,11 @@ export interface PartyRules {
     allowed?(p: Party, m: Member, hero: string): boolean;
     /** Free to everyone in this pick's week (a starter or on rotation): a bot ban prefers these. Absent: every hero. */
     free?(p: Party, hero: string): boolean;
+    /**
+     * The heroes the party's sim gives every seat for `seed` with `lead` on slot 0 (the room's own `fillPicksParty`,
+     * on the map the seed draws): a casual persona shows its seat's champion. Absent: personas show no champion.
+     */
+    botPicks?(p: Party, seed: number, lead: { slot: 0; hero: string; trick: string }): readonly string[] | null;
 }
 
 export type PartyError =
@@ -603,6 +618,7 @@ export class PartyService {
             // a rematch never keeps a hero the member may no longer pick (a rotation flip, a refund)
             if (m.hero && this.rules.allowed && !this.rules.allowed(p, m, m.hero)) m.hero = undefined;
         });
+        if (casual && !p.mm?.ranked && !rematch) this.makePersonas(p, casual);
         const lead = ordered[0];
         if (p.mm) p.side = p.mm.side;
         else if (lead.hero) p.side = this.rules.sideOf(lead.hero);
@@ -722,6 +738,78 @@ export class PartyService {
         return p.mm?.casual && m.slot !== undefined ? teamOf(m.slot, casualTeamSize(p.mm.casual)) : 0;
     }
 
+    /** Casual bot seats as players (bot-persona.ts): one persona per seat no matched human holds. */
+    private makePersonas(p: Party, casual: PartyCasual): void {
+        const n = casualTeamSize(casual);
+        const human = new Set(Object.values(casual.slots));
+        const slots = Array.from({ length: 2 * n }, (_, s) => s).filter(s => !human.has(s));
+        if (!slots.length) {
+            delete casual.personas;
+            return;
+        }
+        const [lo, hi] = PARTY_TIMING.personaLockMs;
+        const now = this.now();
+        casual.personas = makePersonas({
+            slots,
+            playerFlags: p.members.map(m => this.events.flagOf?.(m.id) ?? null),
+            taken: p.members.map(m => m.name),
+            heroes: this.heroesOf(p),
+        }).map(x => ({ ...x, lockAtMs: now + randomInt(lo, hi + 1) }));
+        // the match's seed is fixed now, so a persona shows the champion the sim gives its seat
+        casual.seed = randomInt(0, 2 ** 32 - 1) >>> 0;
+    }
+
+    /**
+     * Personas whose moment came (or every one: `all`, the pick is over) lock a champion like a player. The champion is
+     * the one the sim gives that bot seat for the match's seed (`PartyRules.botPicks`, fixed when the pick opened), so
+     * the persona plays what it showed and the replay re-sims; the lead seat of a team of bots (slot 0) picks its own.
+     * Team 0's bots depend on slot 0's champion: while a player there has not locked, they wait.
+     */
+    private lockPersonas(p: Party, all: boolean): boolean {
+        const c = p.mm?.casual;
+        if (!c?.personas || c.seed === undefined || p.phase !== 'pick' || p.draft?.stage === 'ban') return false;
+        const now = this.now();
+        const n = casualTeamSize(c);
+        const due = c.personas.filter(x => !x.hero && (all || (x.lockAtMs ?? 0) <= now));
+        if (!due.length) return false;
+        const lead0 = c.personas.find(x => x.slot === 0);
+        if (lead0 && !lead0.hero) {
+            const hero = personaHero({
+                heroes: this.heroesOf(p),
+                sideOf: h => this.rules.sideOf(h),
+                species: c.species[0],
+                taken: [],
+                locked: [],
+            });
+            if (hero) {
+                lead0.hero = hero;
+                lead0.trick = this.rules.tricks[randomInt(0, this.rules.tricks.length)];
+            }
+        }
+        const slot0 = p.members.find(m => m.slot === 0);
+        const leadHero = lead0?.hero ?? (slot0?.locked ? slot0.hero : undefined);
+        const anyOfSide0 = this.heroesOf(p).find(h => this.rules.sideOf(h) === c.species[0]);
+        const picks =
+            leadHero || anyOfSide0
+                ? this.rules.botPicks?.(p, c.seed, {
+                      slot: 0,
+                      hero: (leadHero ?? anyOfSide0)!,
+                      trick: this.rules.tricks[0],
+                  })
+                : null;
+        let changed = !!lead0?.hero && due.includes(lead0);
+        for (const x of due) {
+            if (x.slot === 0) continue;
+            // team 0's bots follow slot 0's champion: none until it is known
+            if (teamOf(x.slot, n) === 0 && !leadHero) continue;
+            const hero = picks?.[x.slot];
+            if (!hero) continue;
+            x.hero = hero;
+            changed = true;
+        }
+        return changed;
+    }
+
     /** The species a member must pick: its team's in casual PvP, the match's in co-op, else null. */
     private speciesOf(p: Party, m: Member): string | null {
         if (p.mm?.casual) return p.mm.casual.species[this.teamOfMember(p, m)];
@@ -801,6 +889,8 @@ export class PartyService {
     }
 
     private toLoading(p: Party): void {
+        // the pick is over: a persona that has not locked yet locks now (a player's auto-lock)
+        this.lockPersonas(p, true);
         p.phase = 'loading';
         p.deadlineMs = this.now() + PARTY_TIMING.loadMs;
         this.touch(p);
@@ -866,7 +956,8 @@ export class PartyService {
 
     /**
      * Casual PvP: every planned human slot plays (a member who left in the pick leaves a piloted seat with a free hero of
-     * its team's species), slots 0 and 3 always among them (0 and 5 on Hearthwood); the sim runs `mode: 'pvp'`.
+     * its team's species), slots 0 and 3 always among them (0 and 5 on Hearthwood); the sim runs `mode: 'pvp'`. A
+     * persona's seat plays its locked champion (a bot seat; slot 0 or 3 of a team of bots is piloted).
      */
     private launchCasual(p: Party, casual: PartyCasual, seed: number, occupied: number[]): void {
         const n = casualTeamSize(casual);
@@ -875,6 +966,11 @@ export class PartyService {
         const seats = p.members
             .map(m => ({ slot: m.slot!, hero: m.hero!, trick: m.trick! }))
             .sort((a, b) => a.slot - b.slot);
+        // a persona on the lead seat of a team of bots (slot 0 or 3) plays the champion it showed; every other persona
+        // seat is the sim's own bot pick for this seed, which is what it showed
+        for (const x of casual.personas ?? [])
+            if (x.hero && humans.includes(x.slot) && !seats.some(y => y.slot === x.slot))
+                seats.push({ slot: x.slot, hero: x.hero, trick: x.trick ?? this.rules.tricks[0] });
         const heroes = this.heroesOf(p);
         for (const s of humans) {
             if (seats.some(x => x.slot === s)) continue;
@@ -894,7 +990,7 @@ export class PartyService {
         this.touch(p);
         this.events.startMatch({
             party: p,
-            seed,
+            seed: casual.seed ?? seed,
             humans,
             occupied,
             seats,
@@ -946,8 +1042,10 @@ export class PartyService {
             if (p.phase === 'pick' && p.draft?.stage === 'ban') {
                 if (p.deadlineMs !== undefined && now >= p.deadlineMs) this.endBans(p);
             } else if (p.phase === 'pick' && p.deadlineMs !== undefined && now >= p.deadlineMs) this.autoLock(p);
-            else if (p.phase === 'pick') this.maybeLoad(p);
-            else if (p.phase === 'loading' && p.deadlineMs !== undefined && now >= p.deadlineMs) this.launch(p);
+            else if (p.phase === 'pick') {
+                if (this.lockPersonas(p, false)) this.touch(p);
+                this.maybeLoad(p);
+            } else if (p.phase === 'loading' && p.deadlineMs !== undefined && now >= p.deadlineMs) this.launch(p);
             if (p.phase === 'lobby' || p.phase === 'results') {
                 const lead = p.members.find(m => m.id === p.leader);
                 if (
@@ -1147,6 +1245,14 @@ export class PartyService {
                 team: myTeam,
                 species: [...casual.species] as [Species, Species],
                 ...(casual.map ? { map: casual.map, teamSize: casualTeamSize(casual) } : {}),
+                // casual bot seats as players (bot-persona.ts); the other team's champions stay hidden in the pick
+                ...(casual.personas?.length
+                    ? {
+                          fill: casual.personas.map(x =>
+                              personaView(x, hideOther && teamOf(x.slot, casualTeamSize(casual)) !== myTeam)
+                          ),
+                      }
+                    : {}),
             };
         else if (p.mm) view.mm = { side: p.mm.side, strangers: p.mm.strangers.size > 0 };
         if (p.queued) view.queue = { sinceMs: Math.max(0, this.now() - p.queued.sinceMs), side: p.queued.side };

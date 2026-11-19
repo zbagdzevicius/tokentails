@@ -9,7 +9,7 @@ describe('mm queue simulation', () => {
         for (const r of results) expect(r.max).toBeLessThanOrEqual(30_500);
     });
 
-    it('casual PvP: every search seated by 45 s, p50 < 30 s from 6/min, >= 4 humans and fair matches when busy', () => {
+    it('casual PvP: every search seated by 45 s, p50 <= 15.5 s at every rate, >= 4 humans and fair matches when busy', () => {
         const results = CASUAL_RATES.map(r => simulateCasual(r, 1));
         expect(casualVerdict(results)).toEqual([]);
     });

@@ -126,7 +126,8 @@ export function verdict(results: SimResult[]): string[] {
 
 // -------------------------------------------------------------------------------------------------------------------
 // Casual PvP (docs/plans/moba/V16.md §4.6): solos 70 %, duos 20 %, trios 10 %; every unit queues casual; a unit with no
-// opponent moves to co-op at the switch and is seated there. The wait is to the first seat, casual or co-op.
+// opponent plays a team of bots once the trickle opened its seats; one the fairness rule keeps out of every plan moves to
+// co-op at the switch and is seated there. The wait is to the first seat, casual or co-op.
 
 export interface CasualSimResult {
     rate: number;
@@ -245,10 +246,10 @@ export const CASUAL_RATES = [0.25, 0.5, 1, 2, 4, 6, 10, 20, 60, 120];
 
 /**
  * The casual gates: every unit seated (casual or co-op) by the switch plus its grace (p95 and max <= 45.5 s) at every
- * rate; p50 < 30 s once a pool is busy enough for PvP (>= 6 joins per minute: below it most units have no opponent
- * within the 30 s fill and seat in co-op at 45 s by design); at >= 60 joins per minute >= 70 % of casual matches seat
- * >= 4 humans and p50 < 20 s; from 20 joins per minute (where human-only matches are common) >= 80 % of them are
- * predicted inside 40..60 %.
+ * rate; p50 <= 15.5 s at every rate (founder, 2026-11-19: bots trickle in from 3 s, one every 3 s, and a lone search
+ * plays a team of bots at 15 s, so the co-op switch is only the fairness rule's safety net); at >= 60 joins per minute
+ * >= 45 % of casual matches seat >= 4 humans (the price of the 3 s trickle: 70 % with the 17 s one) and p50 < 8 s; from
+ * 20 joins per minute (where human-only matches are common) >= 80 % of them are predicted inside 40..60 %.
  */
 export function casualVerdict(results: CasualSimResult[]): string[] {
     const fails: string[] = [];
@@ -256,12 +257,12 @@ export function casualVerdict(results: CasualSimResult[]): string[] {
     for (const r of results) {
         if (r.p95 > seatBy) fails.push(`casual ${r.rate}/min: p95 ${r.p95} ms > ${seatBy}`);
         if (r.max > seatBy + 500) fails.push(`casual ${r.rate}/min: max ${r.max} ms > ${seatBy + 500}`);
-        if (r.rate >= 6 && r.p50 > 30_500) fails.push(`casual ${r.rate}/min: p50 ${r.p50} ms > 30500`);
-        if (r.rate >= 60 && r.matches && r.fourPlus / r.matches < 0.7)
+        if (r.p50 > 15_500) fails.push(`casual ${r.rate}/min: p50 ${r.p50} ms > 15500`);
+        if (r.rate >= 60 && r.matches && r.fourPlus / r.matches < 0.45)
             fails.push(
-                `casual ${r.rate}/min: ${((r.fourPlus / r.matches) * 100).toFixed(0)} % with >= 4 humans < 70 %`
+                `casual ${r.rate}/min: ${((r.fourPlus / r.matches) * 100).toFixed(0)} % with >= 4 humans < 45 %`
             );
-        if (r.rate >= 60 && r.p50 >= 20_000) fails.push(`casual ${r.rate}/min: p50 ${r.p50} ms >= 20000`);
+        if (r.rate >= 60 && r.p50 >= 8000) fails.push(`casual ${r.rate}/min: p50 ${r.p50} ms >= 8000`);
         if (r.boundedAll !== r.matches)
             fails.push(
                 `casual ${r.rate}/min: ${r.matches - r.boundedAll} matches predicted outside ${MM_CASUAL.fairAfter.join(

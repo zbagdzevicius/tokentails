@@ -134,10 +134,12 @@ describe('casual PvP relay (M1b)', () => {
             expect(a.last('mm.found')).toBeUndefined();
             b.skew.ms += 31_000;
             const fa = await a.until(() => a.last('mm.found'));
+            // casual bots play as players (founder, 2026-11-19): the card counts every seat as a player
             expect(fa.teams).toEqual([
-                [1, 2],
-                [1, 2],
+                [3, 0],
+                [3, 0],
             ]);
+            expect(fa).toMatchObject({ humans: 3, bots: 0 });
             c.send({ t: 'mm.accept', match: fa.match, yes: false });
             expect((await c.until(() => c.last('mm.cancel'))).reason).toBe('declined');
             const back = await a.until(() => a.json.find(j => j.t === 'mm.status' && j.requeued === true) ?? null);
@@ -210,6 +212,50 @@ describe('casual PvP relay (M1b)', () => {
             const room = await b.store.get(t0.last('match')!.room);
             expect(room!.config.mode).toBe('pvp');
             expect(room!.verdict).toMatchObject({ winner: 0, reason: 'forfeit', verified: true });
+            // the bot seats were personas: named in the match frame, stored with the room, never in `names`
+            const m0 = t0.last('match')!;
+            expect(m0.personas.map((x: { slot: number }) => x.slot)).toEqual([1, 2, 4, 5]);
+            expect(m0.names.filter((n: string | null) => n !== null)).toHaveLength(2);
+            expect(room!.personas!.map(x => x.slot)).toEqual([1, 2, 4, 5]);
+        } finally {
+            await b.stop();
+        }
+    });
+
+    it('alone: a team of bots at 15 s, its bots shown as players everywhere, the room verified and still a 1-human room', async () => {
+        const b = await bootMm();
+        try {
+            const [a] = await vets(b, 1);
+            a.send({ t: 'mm.join', queue: 'casual', side: 'any' });
+            await a.until(() => a.last('mm.status'));
+            b.skew.ms += 14_000;
+            await nextTick();
+            expect(a.last('mm.found')).toBeUndefined();
+            b.skew.ms += 1500;
+            const found = await a.until(() => a.last('mm.found'));
+            expect(found).toMatchObject({ mode: 'casual', humans: 3, bots: 0 });
+            expect(JSON.stringify(found)).not.toMatch(/"bots":[1-9]/);
+            const [view] = await acceptAll([a]);
+            // the pick: five personas with generated names, no "Bot"
+            expect(view.mm.fill).toHaveLength(5);
+            for (const f of view.mm.fill) expect(f.name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+            expect(JSON.stringify(view)).not.toMatch(/"Bot"/);
+            const [m] = await pickAndLoad([a], [view]);
+            // one real player; the other team's lead seat is piloted (sim PvP needs both leads), named by its persona
+            expect(m.config.humans).toHaveLength(2);
+            expect(m.names.filter((n: string | null) => n !== null)).toHaveLength(1);
+            expect(m.personas).toHaveLength(5);
+            // each persona plays the champion it showed in the pick
+            const shown = (a.last('party')!.mm.fill as { slot: number; hero?: string }[]).filter(f => f.hero);
+            for (const f of shown) expect(m.config.picks[f.slot]).toBe(f.hero);
+            // the lone player's team surrenders at 4:00: the room still verifies
+            b.skew.ms += 4 * 60_000 + 15_000;
+            await a.until(() => (a.turns.length && a.turns[a.turns.length - 1].turn >= 3650 ? true : null), 60_000);
+            a.send({ t: 'vote', kind: 'surrender', yes: true });
+            await a.until(() => a.last('end'), 120_000);
+            const room = await b.store.get(m.room);
+            expect(room!.verdict).toMatchObject({ reason: 'forfeit', verified: true });
+            expect(room!.occupants).toHaveLength(1);
         } finally {
             await b.stop();
         }

@@ -232,7 +232,15 @@ interface LiveMm {
         teamSize: 3 | 5;
         queue: MmPvpQueue;
     };
+    /** Casual bot seats shown as players (party/bot-persona.ts): never offered as a backfill (a seat of a team of bots). */
+    personaSlots?: Set<number>;
 }
+
+/**
+ * Casual (never ranked) bot seats play as players (founder, 2026-11-19): the Accept card counts every seat as a player
+ * and every bot as accepted, so it never says how many people are in the match. Ranked keeps its honest counts.
+ */
+const disguised = (m: MmMatch): boolean => !!m.teams && queueOfMatch(m) !== 'ranked';
 
 /** The team of a slot in a room with `teamSize` seats a side (casual 3, classic 5). */
 const teamOf = (slot: number, teamSize = 3): 0 | 1 => teamOfSlot(slot, teamSize);
@@ -1152,18 +1160,25 @@ export class MmBridge implements MmHooks {
             const t = teams[0].members.includes(member) ? 0 : 1;
             const mine = teams[t];
             const theirs = teams[1 - t];
+            const n = teamSizeOfMatch(match);
+            const hide = disguised(match);
             api.send(member, {
                 t: 'mm.found',
                 mode: 'casual',
                 match: match.id,
                 side: mine.species,
-                humans: mine.humans,
-                bots: mine.bots,
+                humans: hide ? n : mine.humans,
+                bots: hide ? 0 : mine.bots,
                 difficulty: 'hard',
-                teams: [
-                    [mine.humans, mine.bots],
-                    [theirs.humans, theirs.bots],
-                ],
+                teams: hide
+                    ? [
+                          [n, 0],
+                          [n, 0],
+                      ]
+                    : [
+                          [mine.humans, mine.bots],
+                          [theirs.humans, theirs.bots],
+                      ],
                 acceptByMs: MM_CASUAL.acceptMs,
                 ...(match.map ? { map: match.map, teamSize: teamSizeOfMatch(match) } : {}),
                 // ranked: the same Accept card (a decline is a dodge), labelled ranked (only a ranked join gets it)
@@ -1184,8 +1199,10 @@ export class MmBridge implements MmHooks {
         if (!pend || !pend.need.has(member)) return;
         if (!yes) return this.failAccept(pend, [member], 'declined');
         pend.yes.add(member);
-        for (const m of pend.need)
-            this.api.send(m, { t: 'mm.accepted', match: matchId, yes: pend.yes.size, need: pend.need.size });
+        // disguised: every seat counts, the bot seats already accepted
+        const seats = disguised(pend.match) ? 2 * teamSizeOfMatch(pend.match) : pend.need.size;
+        const yesShown = pend.yes.size + (seats - pend.need.size);
+        for (const m of pend.need) this.api.send(m, { t: 'mm.accepted', match: matchId, yes: yesShown, need: seats });
         if (pend.yes.size === pend.need.size) this.acceptDone(pend);
     }
 
@@ -1284,6 +1301,9 @@ export class MmBridge implements MmHooks {
             pilotSince: new Map(),
             offSince: new Map(),
             left: new Map(),
+            ...(party.mm.casual?.personas?.length && !party.mm.ranked
+                ? { personaSlots: new Set(party.mm.casual.personas.map(x => x.slot)) }
+                : {}),
             ...(pend.match.teams
                 ? {
                       casual: {
@@ -1345,6 +1365,8 @@ export class MmBridge implements MmHooks {
             const hostParty = this.api.parties.byId(lm.party);
             for (const s of room.slots) {
                 if (!room.humans.includes(s.slot)) continue;
+                // the lead seat of a team of bots is a persona's (piloted from the start): never a backfill
+                if (lm.personaSlots?.has(s.slot)) continue;
                 if (!s.connected) {
                     if (!lm.offSince.has(s.slot)) lm.offSince.set(s.slot, now);
                 } else lm.offSince.delete(s.slot);

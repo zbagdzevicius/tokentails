@@ -116,19 +116,22 @@ export function trickleBots(
  */
 export const MM_CASUAL = Object.freeze({
     /**
-     * Bots trickle in (founder, 2026-11-17): the first bot seat opens once the oldest entry waited `fillStartMs`, then
-     * one more every `fillStepMs` (17 s, 20 s, 23 s ...). A plan with bots forms once its humans plus the open bot seats
-     * fill both teams, so every player who arrives first takes a seat and a full match starts at once. The client shows
-     * the same schedule as bot pips (pawlegends/src/party/botTrickle.ts: keep both copies equal).
+     * Bots trickle in (founder, 2026-11-19: "add a bot / 3s from 3s, not from 17s"): the first bot seat opens once the
+     * oldest entry waited `fillStartMs`, then one more every `fillStepMs` (3 s, 6 s, 9 s ...). A plan with bots forms
+     * once its humans plus the open bot seats fill both teams, so every player who arrives first takes a seat and a full
+     * match starts at once. Casual 3v3 also fills a whole team of bots (`botTeam` in casual.ts): a lone search is seated
+     * at 15 s (five bot seats), a duo at 12 s, a trio at 9 s. The client shows the same schedule as bot pips
+     * (pawlegends/src/party/botTrickle.ts: keep both copies equal).
      */
-    fillStartMs: 17_000,
+    fillStartMs: 3000,
     fillStepMs: 3000,
-    /** When a 1v1 is full of bots (the 4th bot seat, 17 s + 3 × 3 s): the lone-vs-three and estimate rules count from here. */
-    fillMs: 26_000,
+    /** When a 1v1 is full of bots (the 4th bot seat, 3 s + 3 × 3 s): the lone-vs-three and estimate rules count from here. */
+    fillMs: 12_000,
     /**
-     * No opponent human by then: the entry moves to the co-op pool (Keep waiting puts it back). The card then shows
-     * Keep waiting for `switchGraceMs` before the co-op fill seats it, so a lone search is seated by 45 s (V16.md §4.1
-     * step 4: "no PvP opponent by 45 s").
+     * No match by then: the entry moves to the co-op pool (Keep waiting puts it back). Since the 3 s trickle a lone
+     * search forms against a team of bots at 15 s, so this is only the safety net for a search the fairness rule keeps
+     * out of every PvP plan (a rating far above the bots' band); the card then shows Keep waiting for `switchGraceMs`
+     * before the co-op fill seats it.
      */
     switchMs: 40_000,
     switchGraceMs: 5000,
@@ -174,17 +177,17 @@ export const MM_CASUAL = Object.freeze({
 
 /**
  * 5v5 Classic (docs/plans/moba/MAP-5V5.md §9.3): the `classic` pool on Hearthwood Divide (sim v19+, PROTO 4). The
- * casual rules with five seats a team: bots trickle into the empty seats from 17 s like casual, a search never moves to
+ * casual rules with five seats a team: bots trickle into the empty seats from 3 s like casual, a search never moves to
  * co-op (there is no 5v5 co-op), and the subset search looks at fewer candidates (a team holds up to five entries).
  */
 export const MM_CLASSIC = Object.freeze({
     ...MM_CASUAL,
-    /** A 1v1 is full of bots at the 8th bot seat (17 s + 7 × 3 s). */
-    fillMs: 38_000,
+    /** A 1v1 is full of bots at the 8th bot seat (3 s + 7 × 3 s). */
+    fillMs: 24_000,
     /** Never: a classic search stays classic (Infinity keeps the casual switch code a no-op). */
     switchMs: Number.POSITIVE_INFINITY,
     /** Parties face parties of the same size until the first bot seat opens (players before bots). */
-    partiesUntilMs: 17_000,
+    partiesUntilMs: 3000,
     /** A lone human never faces five humans while a fuller team can still form within this long after the fill. */
     loneVsThreeMs: 15_000,
     /** Bounds the subset search: anchor + 9 candidates is one full 10-human match. */

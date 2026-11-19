@@ -92,6 +92,12 @@ export interface HistoryPlayer {
     /** lane last hits (CS) */
     cs: number;
     g: 'S' | 'A' | 'B' | 'C' | null;
+    /**
+     * Casual bot seats shown as players (party/bot-persona.ts): the persona's name and flag, for display only. The seat
+     * stays a bot here (`u: null`): stats, friends, ratings and analytics read it as one.
+     */
+    pn?: string;
+    pc?: string;
 }
 
 export interface HistoryRowDoc {
@@ -164,6 +170,8 @@ export interface BuildInput {
     stats: unknown;
     /** Account id by slot for the human seats (bots absent or null). */
     humans: ReadonlyMap<number, string | null>;
+    /** Casual bot seats shown as players: the name (and flag) each such seat showed in the match. */
+    personas?: readonly { slot: number; name: string; cc?: string }[];
     /** The winning team (team 0's view): -1 on a draw; absent: derived from the owner's outcome. */
     winner?: unknown;
     /** The record's sim version: not stored, reported with the `match_saved` analytics event only. */
@@ -176,6 +184,16 @@ export function seasonAt(at: Date): string {
     const t = at.getTime();
     for (const s of SEASONS) if (Date.parse(s.startsAt) <= t) id = s.id;
     return id;
+}
+
+const PERSONA_NAME = /^[A-Za-z][A-Za-z '-]{1,31}$/;
+
+/** A bot seat's persona fields (`pn`, `pc`), or nothing (a human seat, or a seat with no valid persona). */
+function personaOf(i: BuildInput, slot: number): Pick<HistoryPlayer, 'pn' | 'pc'> {
+    if (i.humans.get(slot)) return {};
+    const p = i.personas?.find(x => x.slot === slot);
+    if (!p || typeof p.name !== 'string' || !PERSONA_NAME.test(p.name)) return {};
+    return { pn: p.name, ...(typeof p.cc === 'string' && /^[A-Z]{2}$/.test(p.cc) ? { pc: p.cc } : {}) };
 }
 
 /** The stored row, or null when the stats do not hold the owner's seat. Pure. */
@@ -219,6 +237,7 @@ export function buildRow(i: BuildInput): HistoryRowDoc | null {
                 ty: n0(s.toys),
                 cs: n0(s.lastHits),
                 g: slotGrade(grades, slot, teamSize),
+                ...personaOf(i, slot),
             };
         })
         .sort((a, b) => a.s - b.s);
@@ -417,6 +436,10 @@ export interface HistoryPlayerView {
     name: string | null;
     /** The human's player code (opens their profile); absent for a bot or an unknown account. */
     code?: string;
+    /**
+     * A bot, except a casual bot seat shown as a player (its persona `name`, no `code`, so no profile link): the list
+     * shows it like a player who keeps their profile private. The stored row keeps it a bot.
+     */
     bot: boolean;
     /** The history's owner. */
     owner: boolean;
@@ -518,9 +541,9 @@ export function matchView(
             slot: p.s,
             team: p.t,
             hero: p.h,
-            name: p.u ? names.get(p.u) ?? null : null,
+            name: p.u ? names.get(p.u) ?? null : p.pn ?? null,
             ...(p.u && codes.get(p.u) ? { code: codes.get(p.u) } : {}),
-            bot: !p.u,
+            bot: !p.u && !p.pn,
             owner: p.s === r.slot,
             level: n0(p.lv),
             k: n0(p.k),
