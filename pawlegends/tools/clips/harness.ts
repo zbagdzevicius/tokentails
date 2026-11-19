@@ -132,6 +132,8 @@ export interface ShotSpec {
    * game's own structure x-ray and shockwaves at full strength: only the camera is the director's.
    */
   gameLook?: boolean;
+  /** trailers-hq: [frame, zoom] keys for the game camera's height factor (1 = the default framing; 0.9 = a 1.11x push). */
+  zoomKeys?: [number, number][];
   /**
    * v3 `uiFade`: [frame, alpha] keys (linear) for the world-anchored UI (name plates, damage numbers, pops): a crane up
    * to the whole map fades the plates out instead of shrinking them into a cloud of labels.
@@ -584,6 +586,20 @@ function resolve(t: Target, f: number, frame: ViewFrame | null): Vec3 | null {
 }
 
 /** Place the render camera for frame `f` (director shots); returns false for the gameplay camera. */
+/** trailers-hq: the zoom at output frame `f` (smoothstep between keys, held outside them). */
+function zoomAt(keys: [number, number][], f: number): number {
+  if (f <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) {
+    const [f0, z0] = keys[i - 1];
+    const [f1, z1] = keys[i];
+    if (f <= f1) {
+      const t = f1 > f0 ? (f - f0) / (f1 - f0) : 1;
+      return z0 + (z1 - z0) * t * t * (3 - 2 * t);
+    }
+  }
+  return keys[keys.length - 1][1];
+}
+
 function direct(f: number, dtReal: number): boolean {
   const s = spec;
   const g = gr;
@@ -1647,6 +1663,9 @@ function matchStep(f: number, dtReal: number, ramp: number): void {
       wheelOpen = false;
     }
   }
+  // trailers-hq accent moves on the real game camera: `zoomKeys` [frame, zoom] (the Camera height factor, < 1 = closer),
+  // eased between keys; the game's own placement (frameDist x zoom, fixed pitch and FOV) does the rest
+  if (s.zoomKeys?.length && gr) gr.zoom = zoomAt(s.zoomKeys, f);
   const directed = direct(f, dtReal);
   if (!directed && gr) gr.place = null;
   ses.frame(dt);
