@@ -71,7 +71,13 @@ async function openEvents(game: import('@playwright/test').Frame) {
   await btn.click();
   const panel = game.locator('[data-testid="goals-panel"]');
   await expect(panel).toBeVisible();
-  await expect(panel.locator('[data-testid="goals-today"]')).toBeVisible();
+  // a landscape phone shows one tab at a time (Today / Events); an event that needs a tap opens on Events
+  const tabs = panel.locator('.hm-gp-tabs');
+  if (await tabs.isVisible()) {
+    await panel.locator('[data-gtab="today"]').click();
+    await expect(panel.locator('[data-testid="goals-today"]')).toBeVisible();
+    await panel.locator('[data-gtab="events"]').click();
+  } else await expect(panel.locator('[data-testid="goals-today"]')).toBeVisible();
   const pop = panel.locator('[data-testid="goals-events"]');
   await expect(pop).toBeVisible();
   return pop;
@@ -116,7 +122,7 @@ test('Events: the community goal bar, Winter Nap dates and a fan vote through th
   await expect.poll(async () => (await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'liveops.vote' && m.args?.option === 'b')).toBe(true);
   await expect(pop).toBeVisible();
   await expect(pop.locator('[data-testid="lo-vote"]')).toContainText('43%');
-  await expect(pop.locator('[data-testid="lo-vote"]')).toContainText('You voted');
+  await expect(pop.locator('[data-testid="lo-vote"]')).toContainText('Your pick is in');
   await expect(pop.locator('[data-testid="lo-vote-a"]')).toHaveCount(0);
   for (const r of (await received(page)).filter((m: any) => m.type === 'api-request') as any[]) {
     // op and args only: the request id is random and can contain "fb" + letters (a false token hit, QA flaky-qa)
@@ -141,7 +147,7 @@ test('Events: a reached goal is claimed with one tap and the coat is kept', asyn
   await expect(game.locator('[data-testid="home-goals"] .hm-dot')).toBeVisible({ timeout: limit(60_000) });
   const pop = await openEvents(game);
   await pop.locator('[data-testid="lo-claim"]').click();
-  await expect(pop.locator('[data-testid="lo-goal"]')).toContainText('Claimed');
+  await expect(pop.locator('[data-testid="lo-goal"]')).toContainText('Yours');
   await expect(pop.locator('.lo-toast')).toContainText('unlocked');
   const unlocks = await game.evaluate(() => JSON.parse(localStorage.getItem('tt.pawlegends.profile.v1') ?? '{}').unlocks ?? []);
   expect(unlocks).toContain('coat.clem.loop.honey');

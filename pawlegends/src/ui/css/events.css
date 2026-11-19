@@ -1,45 +1,63 @@
 /*
  * Live ops cards in the Events section of Home's Quests panel (docs/plans/moba/LIVEOPS.md, ui/events/eventsPanel.ts). v6
- * Lightning Rivalry tokens only: night glass, the bolt gradient for progress and calls to action, rose and sky accents,
- * chamfered 4 px corners. CSS only, no images. 44 px targets, 14 px text at least (the panel scrolls inside itself).
+ * Lightning Rivalry tokens only. Nov 19 facelift (the "sticker board"): each card is a chunky sticker with a coloured
+ * art band on top (the goal's cat-vs-dog split, Winter Nap's night sky, the vote's plum), a big count, a chunky bar and
+ * our champions' faces. CSS and inline SVG, no images beyond the bundle's faces. 44 px targets, 14 px text at least.
  */
 
-.lo-cards { display: flex; flex-direction: column; gap: 6px; }
+.lo-cards { display: flex; flex-direction: column; gap: 10px; }
 .lo-cards:empty { display: none; }
 .lo-card {
-  display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: var(--v6-r-xs, 4px);
-  background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.06);
-  box-shadow: inset 0 0 0 1px var(--v6-line, rgb(255 243 227 / 0.14));
+  display: flex; flex-direction: column; gap: 8px; padding: 0 0 10px; border-radius: 12px; overflow: hidden;
+  background: var(--v6-night-3, #281a42);
+  box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612), 0 3px 0 2px var(--v6-night-0, #0a0612);
 }
-.lo-h { display: flex; align-items: center; gap: 10px; }
-.lo-h .t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.lo-h .t b { font: 700 16px/1.2 var(--font, sans-serif); }
-.lo-h .t small { font: 600 14px/1.25 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.85; }
-.lo-hint { font: 600 14px/1.3 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); opacity: 0.8; }
+.lo-card > :not(.lo-h) { margin-inline: 10px; }
+.lo-h { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 30px; }
+.lo-h::after { content: ''; position: absolute; inset: 0; background: var(--v6-halftone); opacity: 0.5; pointer-events: none; }
+.lo-h > * { position: relative; z-index: 1; }
+.lo-art-goal { background: linear-gradient(118deg, var(--v6-rose-deep, #c8135b) 0 50%, var(--v6-sky-deep, #0d4fb8) 50%); }
+.lo-art-nap {
+  background:
+    radial-gradient(1.5px 1.5px at 62% 30%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 78% 70%, #fff 50%, transparent 51%),
+    radial-gradient(2px 2px at 90% 25%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 70% 52%, rgb(255 255 255 / 0.7) 50%, transparent 51%),
+    linear-gradient(180deg, var(--v6-navy, #071334), var(--v6-plum-deep, #471f5d));
+}
+.lo-art-vote { background: linear-gradient(118deg, var(--v6-logo-plum, #633077) 0 62%, var(--v6-rose-deep, #c8135b) 62%); }
+.lo-h .t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.lo-h .t b { font: 800 16px/1.2 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); text-shadow: var(--v6-ts-ui, 0 2px 0 rgb(0 0 0 / 0.35)); }
+.lo-h .t small { font: 700 14px/1.2 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); }
+.lo-hint { font: 600 14px/1.3 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); }
 .lo-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
-.lo-done { font: 800 14px/1 var(--font, sans-serif); color: var(--v6-success, #9be3c4); }
+.lo-done { font: 800 15px/1 var(--font, sans-serif); color: var(--v6-success, #9be3c4); }
+.lo-face { width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover; background: var(--v6-night-0, #0a0612); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612); }
 
-/* the community goal: a bolt-yellow bar on night glass, the count inside it */
+/* the community goal: a big count, a chunky bolt bar, the coat for everyone on a chip */
+.lo-big { font: 800 16px/1 var(--font, sans-serif); color: var(--v6-muted, rgb(255 243 227 / 0.68)); font-variant-numeric: tabular-nums; }
+.lo-big b { font: italic 900 26px/1 var(--v6-font-display, var(--font, sans-serif)); color: var(--v6-bolt, #ffe14a); text-shadow: var(--v6-ts-ui, 0 2px 0 rgb(0 0 0 / 0.35)); }
 .lo-bar {
-  position: relative; height: 22px; border-radius: 11px; overflow: hidden;
-  background: rgb(var(--v6-night-rgb, 18 9 31) / 0.7); box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb, 255 243 227) / 0.18);
+  position: relative; height: 12px; border-radius: 6px; overflow: hidden;
+  background: var(--v6-navy, #071334); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612);
 }
 .lo-bar i {
-  position: absolute; inset: 0 auto 0 0; border-radius: inherit; min-width: 4px;
+  position: absolute; inset: 0 auto 0 0; border-radius: inherit; min-width: 6px;
   background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a));
-  box-shadow: 0 0 10px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.55);
   transition: width var(--v6-dur-score, 600ms) var(--v6-ease-out, ease-out);
 }
 .lo-bar.full i { background: linear-gradient(90deg, var(--v6-bolt, #ffe14a), var(--v6-flame, #ff8a3d), var(--v6-rose, #ff3d7f)); }
-.lo-bar span {
-  position: relative; display: block; text-align: center; font: 800 14px/22px var(--font, sans-serif); font-variant-numeric: tabular-nums;
-  color: var(--v6-cream, #fff3e3); text-shadow: 0 1px 0 rgb(0 0 0 / 0.7), 0 0 4px rgb(0 0 0 / 0.6);
+.lo-prize {
+  display: flex; align-items: center; gap: 8px; align-self: flex-start; max-width: calc(100% - 20px); box-sizing: border-box; padding: 3px 12px 3px 3px; border-radius: 999px;
+  font: 700 14px/1.2 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); background: rgb(var(--v6-bolt-rgb, 255 225 74) / 0.14);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.45);
 }
+.lo-prize b { color: var(--v6-bolt, #ffe14a); }
+.lo-coat { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, #ffe14a); }
+.lo-coat svg { width: 18px; height: 18px; }
 
 /* the call to action: the kit's bolt button */
 .lo-btn {
-  min-height: 44px; padding: 0 16px; border: 0; border-radius: var(--v6-r-xs, 4px); cursor: pointer;
-  font: italic 900 15px/1 var(--v6-font-display, var(--font, sans-serif)); letter-spacing: 0.02em; text-transform: uppercase;
+  min-height: 44px; padding: 0 18px; border: 0; border-radius: 10px; cursor: pointer;
+  font: italic 900 16px/1 var(--v6-font-display, var(--font, sans-serif)); letter-spacing: 0.02em; text-transform: uppercase;
   color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a));
   box-shadow: 0 3px 0 var(--v6-bolt-ledge, #c79a00), var(--v6-glow-bolt, 0 0 12px rgb(255 225 74 / 0.5));
   transition: transform var(--v6-dur-press, 90ms) ease-out;
@@ -47,45 +65,50 @@
 .lo-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--v6-bolt-ledge, #c79a00); }
 .lo-btn:disabled { opacity: 0.6; cursor: default; }
 
-/* Winter Nap: one pip per gift, the last one the coat */
-.lo-pips { display: flex; gap: 4px; }
+/* Winter Nap: one gift per day, the last one the coat */
+.lo-pips { display: flex; gap: 5px; }
 .lo-pip {
-  flex: 1; height: 30px; display: grid; place-items: center; border-radius: var(--v6-r-xs, 4px);
-  font: 800 14px/1 var(--font, sans-serif); font-style: normal; color: rgb(var(--v6-cream-rgb, 255 243 227) / 0.7);
-  background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.12); box-shadow: inset 0 0 0 1px rgb(var(--v6-sky-rgb, 57 166 255) / 0.3);
+  flex: 1; height: 34px; display: grid; place-items: center; border-radius: 8px;
+  font: 900 16px/1 var(--font, sans-serif); font-style: normal; color: var(--v6-rose-top, #ff86a5);
+  background: var(--v6-night-0, #0a0612); box-shadow: inset 0 0 0 2px rgb(var(--v6-rose-rgb, 255 61 127) / 0.4);
 }
-.lo-pip svg { width: 15px; height: 15px; }
-.lo-pip.last { color: var(--v6-rose, #ff3d7f); }
+.lo-pip svg { width: 20px; height: 20px; }
+.lo-pip.last { color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, #ffe14a); box-shadow: 0 2px 0 var(--v6-bolt-ledge, #b98a00); }
 .lo-pip.ready { color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a)); box-shadow: none; animation: lo-glow 1.4s ease-in-out infinite; }
 .lo-pip.got { color: var(--v6-night, #12091f); background: var(--v6-success, #9be3c4); box-shadow: none; }
-@keyframes lo-glow { 50% { box-shadow: 0 0 10px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.8); } }
+@keyframes lo-glow { 50% { box-shadow: 0 0 12px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.9); } }
 
-/* the fan vote: two concept cards, three swatches each; after voting, each fills to its share */
-.lo-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+/* the fan vote: one row per concept (swatch, the hero's face, the names); after voting, each fills to its share */
+.lo-opts { display: flex; flex-direction: column; gap: 6px; }
 .lo-opt {
-  position: relative; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px; box-sizing: border-box; overflow: hidden;
-  border: 0; border-radius: var(--v6-r-xs, 4px); text-align: left; color: inherit; font: inherit;
-  background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.06); box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb, 255 243 227) / 0.16);
+  position: relative; display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 4px 8px; box-sizing: border-box; overflow: hidden;
+  border: 0; border-radius: 10px; text-align: left; color: inherit; font: inherit;
+  background: var(--v6-night-2, #1c1230); box-shadow: inset 0 0 0 2px rgb(var(--v6-cream-rgb, 255 243 227) / 0.16);
 }
-button.lo-opt { cursor: pointer; transition: background var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out); }
-button.lo-opt:hover { background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.2); }
+button.lo-opt { cursor: pointer; box-shadow: inset 0 0 0 2px rgb(var(--v6-sky-rgb, 57 166 255) / 0.55), 0 3px 0 var(--v6-night-0, #0a0612); transition: background var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out), transform var(--v6-dur-press, 90ms) ease-out; }
+button.lo-opt:hover { background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.22); }
+button.lo-opt:active { transform: translateY(2px); }
 div.lo-opt::before {
-  content: ''; position: absolute; inset: 0 auto 0 0; width: var(--share, 0%); background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.22);
+  content: ''; position: absolute; inset: 0 auto 0 0; width: var(--share, 0%); background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.28);
   transition: width var(--v6-dur-score, 600ms) var(--v6-ease-out, ease-out);
 }
 .lo-opt.mine { box-shadow: inset 0 0 0 2px var(--v6-bolt, #ffe14a); }
-.lo-opt.mine::before { background: rgb(var(--v6-bolt-rgb, 255 225 74) / 0.22); }
+.lo-opt.mine::before { background: rgb(var(--v6-bolt-rgb, 255 225 74) / 0.3); }
 .lo-opt > * { position: relative; }
 .lo-opt .t { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.lo-opt .t b { font: 700 14px/1.15 var(--font, sans-serif); }
-.lo-opt .t small { font: 600 14px/1.1 var(--font, sans-serif); opacity: 0.75; }
-.lo-sw { display: grid; grid-template-columns: repeat(2, 9px); gap: 2px; flex: none; }
-.lo-sw i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); }
-.lo-sw i:first-child { grid-column: span 2; width: 20px; border-radius: 5px; }
-.lo-share { font: 800 14px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; }
+.lo-opt .t b { font: 800 15px/1.15 var(--font, sans-serif); overflow-wrap: anywhere; }
+.lo-opt .t small { font: 600 14px/1.1 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); overflow-wrap: anywhere; }
+.lo-sw { display: flex; flex-direction: column; width: 10px; height: 32px; flex: none; border-radius: 5px; overflow: hidden; box-shadow: 0 0 0 1.5px var(--v6-night-0, #0a0612); }
+.lo-sw i { flex: 1; }
+.lo-share { display: inline-flex; align-items: center; gap: 4px; font: 900 16px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; }
+.lo-share i { font-style: normal; color: var(--v6-bolt, #ffe14a); }
+.lo-go {
+  flex: none; padding: 6px 10px; border-radius: 999px; font: italic 900 14px/1 var(--v6-font-display, var(--font, sans-serif)); text-transform: uppercase;
+  color: var(--v6-night, #12091f); background: var(--v6-grad-sky, #39a6ff);
+}
 
 .lo-toast {
-  margin: 0; padding: 6px 8px; border-radius: var(--v6-r-xs, 4px); font: 700 14px/1.3 var(--font, sans-serif);
+  margin: 0; padding: 8px 10px; border-radius: 10px; font: 700 14px/1.3 var(--font, sans-serif);
   color: var(--v6-night, #12091f); background: var(--v6-success, #9be3c4);
 }
 

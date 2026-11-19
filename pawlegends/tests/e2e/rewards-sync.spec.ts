@@ -130,7 +130,7 @@ test('the same account in two browsers: same Treat Track; a Lucky Treat opens wi
   const today = b.game.locator('[data-testid="home-goals"]');
   await expect(today).toBeVisible({ timeout: limit(20_000) });
   await today.click();
-  await expect(b.game.locator('.hm-qlist .q.bonus')).toContainText('Play 2 matches with a friend');
+  await expect(b.game.locator('.hm-qlist .q.bonus')).toContainText('2 matches with a friend');
   await expect(b.game.locator('[data-testid="welcome-path"]')).toBeVisible();
   await expect(b.game.locator('[data-testid="welcome-path"] .rw-days li.got')).toHaveCount(2);
   await shot(b.page, `today-${info.project.name}`);

@@ -1,0 +1,207 @@
+/*
+ * Home's Quests panel (ui/home/goalsPanel.ts), the Nov 19 "sticker board": a plum-night panel with the cat-vs-dog stripe
+ * under its header; quest cards with a picture, a chunky bar, a big count and a treat chip; a "Nailed it" stamp on a
+ * finished quest; the Welcome Path as a paw-print trail; the Lucky Treat as a treat jar. Wide (desktop, tablets): Today
+ * and Events side by side. Narrow with events (landscape phones): Today and Events tabs in the header.
+ *
+ * Its own CSS chunk, loaded with the panel. `placeGoals` sets left, top, width and max-height to the free space right of
+ * the stack (never over the profile, nav, promo, PLAY or, where there is height, the nameplate); these are the defaults
+ * before it measures. 14 px text at least, 44 px targets, it scrolls inside itself when short.
+ */
+.hm-gp {
+  position: absolute; z-index: 8; left: calc(100% + 12px); top: 0; width: 320px; max-height: calc(100dvh - var(--hm-t, 12px) - 96px);
+  box-sizing: border-box; display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; container-type: inline-size;
+  background: var(--hm-glass-solid, rgb(28 18 48 / 0.94));
+  box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612), 0 0 0 4px rgb(var(--v6-cream-rgb, 255 243 227) / 0.12), var(--v6-shadow-2, 0 10px 24px rgb(0 0 0 / 0.42));
+  /* a 1 ms delay and no backwards fill: an animation that never starts (no frame yet, a starved iframe; seen in e2e)
+     stays in its delay and shows the panel as is, never stuck at the first keyframe */
+  animation: hm-gp-in var(--v6-dur-fast, 180ms) var(--v6-ease-pop, ease-out) 1ms forwards;
+}
+/* a redraw of the open panel (a Home patch) never replays the fade: a replay once left it at opacity 0 */
+.hm-gp.still { animation: none; }
+@keyframes hm-gp-in { from { opacity: 0; transform: translateX(-8px); } }
+
+/* header: QUESTS, the tabs (narrow with events), close; the rose | bolt | sky stripe under it */
+.hm-gp-h { position: relative; display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 4px 4px 8px 16px; flex: none; box-sizing: border-box; }
+.hm-gp-h::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: linear-gradient(118deg, var(--v6-rose, #ff3d7f) 0 46%, var(--v6-bolt, #ffe14a) 46% 54%, var(--v6-sky, #39a6ff) 54%); }
+.hm-gp-h b {
+  font: italic 900 22px/1 var(--v6-font-display, var(--font, sans-serif)); letter-spacing: 0.02em; text-transform: uppercase; color: var(--v6-cream, #fff3e3);
+  text-shadow: 0 3px 0 var(--v6-plum-deep, #471f5d);
+}
+.hm-gp-x {
+  width: 44px; height: 44px; margin-left: auto; display: grid; place-items: center; border: 0; padding: 0; border-radius: 10px; cursor: pointer; flex: none;
+  color: var(--v6-ice, #d6ecff); background: none;
+}
+.hm-gp-x:hover { background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.2); color: #fff; }
+.hm-gp-x .hm-ico { width: 22px; height: 22px; }
+
+.hm-gp-tabs { display: none; gap: 6px; }
+.hm-gp.has-ev:not(.wide) .hm-gp-tabs { display: flex; }
+.hm-gp-tab {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 0; border-radius: 999px; cursor: pointer;
+  font: italic 900 15px/1 var(--v6-font-display, var(--font, sans-serif)); text-transform: uppercase; color: var(--v6-ice, #d6ecff);
+  background: var(--v6-night-0, #0a0612); box-shadow: inset 0 0 0 2px rgb(var(--v6-cream-rgb, 255 243 227) / 0.14);
+}
+.hm-gp-tab small { font: 800 14px/1 var(--font, sans-serif); font-style: normal; font-variant-numeric: tabular-nums; color: var(--v6-bolt, #ffe14a); }
+.hm-gp-tab[aria-selected='true'] { color: var(--v6-cream, #fff3e3); background: var(--v6-grad-rose, #ff3d7f); box-shadow: 0 3px 0 var(--v6-rose-deep, #c8135b); text-shadow: var(--v6-ts-rose, 0 2px 0 #3e0820); }
+.hm-gp-tab[aria-selected='true'] small { color: var(--v6-cream, #fff3e3); }
+.hm-gp-tdot { display: none; width: 10px; height: 10px; border-radius: 50%; background: var(--v6-rose, #ff3d7f); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612); }
+.hm-gp-tab.live[aria-selected='false'] .hm-gp-tdot { display: block; }
+
+.hm-gp-body {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  display: grid; grid-template-columns: 1fr; align-content: start; gap: 16px; padding: 12px 16px 16px;
+}
+.hm-gp-body.more { -webkit-mask-image: linear-gradient(#000 calc(100% - 32px), transparent); mask-image: linear-gradient(#000 calc(100% - 32px), transparent); }
+.hm-gp.wide .hm-gp-body { grid-template-columns: 1fr 1fr; align-items: start; }
+/* narrow with events: one tab at a time */
+.hm-gp.has-ev:not(.wide)[data-tab='events'] .hm-gp-today, .hm-gp.has-ev:not(.wide)[data-tab='today'] .hm-gp-ev { display: none; }
+.hm-gp.has-ev:not(.wide) .hm-gp-ev h3 { display: none; }
+/* the tab already says Today and its count: the head keeps only the reset clock */
+.hm-gp.has-ev:not(.wide) .hm-gp-today h3 :is(.hm-gp-st, .hm-gp-chip) { display: none; }
+.hm-gp.has-ev:not(.wide) .hm-gp-today h3 { min-height: 0; }
+/* no live event: no Events section (no empty state) */
+.hm-gp-ev:not(:has(.lo-card, .lo-toast)) { display: none; }
+
+.hm-gp-sec { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.hm-gp-sec h3 { margin: 0; display: flex; align-items: center; gap: 8px; min-height: 28px; font: 800 18px/1.1 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); }
+.hm-gp-chip {
+  padding: 4px 9px; border-radius: 999px; font: 800 16px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums;
+  color: var(--v6-bolt, #ffe14a); background: var(--v6-night-0, #0a0612);
+}
+.hm-gp-chip.all { color: var(--v6-night, #12091f); background: var(--v6-success, #9be3c4); }
+.hm-gp-clock { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font: 700 14px/1 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); white-space: nowrap; }
+.hm-gp-clock svg { width: 16px; height: 16px; }
+
+/* quest cards */
+.hm-qlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.hm-qlist .q {
+  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
+  min-height: 60px; box-sizing: border-box; padding: 8px 10px; border-radius: 12px;
+  background: var(--v6-night-3, #281a42); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612), 0 3px 0 2px var(--v6-night-0, #0a0612);
+}
+.hm-qlist .qi {
+  width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; box-sizing: border-box;
+  color: var(--v6-cream, #fff3e3); background: var(--v6-sky-deep, #0d4fb8); box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.25);
+}
+.hm-qlist .qi svg { width: 26px; height: 26px; }
+.hm-qlist .qi.k-win { color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, #ffe14a); }
+.hm-qlist .qi.k-takedowns { background: var(--v6-rose, #ff3d7f); }
+.hm-qlist .qi.k-towers { background: var(--v6-sky, #39a6ff); }
+.hm-qlist .qi.k-combos { color: var(--v6-rose, #ff3d7f); background: var(--v6-rose-light, #ffb3cd); }
+.hm-qlist .qi.k-pudding { color: var(--v6-gold-1, #fff1b8); background: var(--v6-flame, #ff8a1e); }
+.hm-qlist .qi.k-party { color: var(--v6-rose-light, #ffb3cd); background: linear-gradient(118deg, var(--v6-rose-deep, #c8135b) 0 50%, var(--v6-sky-deep, #0d4fb8) 50%); }
+.hm-qlist .qi.face, .hm-qlist .qi.faces { background: none; box-shadow: none; }
+.hm-qlist .qf { display: block; width: 40px; height: 40px; border-radius: 10px; object-fit: cover; box-sizing: border-box; background: var(--v6-night-0, #0a0612); box-shadow: 0 0 0 2px var(--v6-rose, #ff3d7f); }
+.hm-qlist .qf.dog { box-shadow: 0 0 0 2px var(--v6-sky, #39a6ff); }
+.hm-qlist .qi.faces { width: auto; display: flex; padding-left: 8px; }
+.hm-qlist .qi.faces .qf { width: 26px; height: 26px; margin-left: -8px; border-radius: 50%; }
+.hm-qlist .t { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.hm-qlist .tx { font: 600 16px/1.15 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); }
+.hm-qlist .qtag {
+  display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 999px; vertical-align: 1px;
+  font: 800 14px/1 var(--font, sans-serif); font-style: normal; color: var(--v6-night, #12091f); background: var(--v6-sky-top, #7cc6ff);
+}
+.hm-qlist .qbar { display: block; height: 10px; border-radius: 5px; overflow: hidden; background: var(--v6-navy, #071334); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612); }
+.hm-qlist .qbar i { display: block; height: 100%; min-width: 0; border-radius: inherit; background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a)); }
+.hm-qlist .n { font: 800 16px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; color: var(--v6-cream, #fff3e3); }
+.hm-qlist .qx {
+  min-width: 56px; height: 32px; box-sizing: border-box; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; border-radius: 8px;
+  font: 900 16px/1 var(--font, sans-serif); color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, #ffe14a); box-shadow: 0 3px 0 var(--v6-bolt-ledge, #b98a00);
+}
+.hm-qlist .qx svg { width: 16px; height: 16px; flex: none; }
+.hm-qlist .qx.done { color: var(--v6-night, #12091f); background: var(--v6-success, #9be3c4); box-shadow: 0 3px 0 var(--v6-success-deep, #0e8f5b); }
+.hm-qlist .qx.done svg { width: 20px; height: 20px; }
+/* the friend quest: a sky outline and the Duo tag */
+.hm-qlist .q.bonus { box-shadow: 0 0 0 2px var(--v6-sky, #39a6ff), 0 3px 0 2px var(--v6-sky-deep, #0d4fb8); }
+/* done: a mint card and the stamp */
+.hm-qlist .q.done { background: linear-gradient(90deg, rgb(155 227 196 / 0.26), rgb(155 227 196 / 0.1)); box-shadow: 0 0 0 2px var(--v6-success-deep, #0e8f5b), 0 3px 0 2px var(--v6-night-0, #0a0612); }
+.hm-qlist .q.done .qbar i { background: var(--v6-success, #9be3c4); }
+.hm-qlist .q.done .tx { color: var(--v6-success, #9be3c4); }
+/* the stamp takes the count's place (the name stays readable) */
+.hm-qlist .qstamp {
+  padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
+  font: italic 900 15px/1 var(--v6-font-display, var(--font, sans-serif)); text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--v6-rose, #ff3d7f); background: rgb(var(--v6-night-rgb, 18 9 31) / 0.85); box-shadow: inset 0 0 0 2.5px var(--v6-rose, #ff3d7f);
+  transform: rotate(-8deg);
+  animation: hm-stamp 380ms var(--v6-ease-pop, cubic-bezier(0.34, 1.56, 0.64, 1)) 1ms forwards;
+}
+.hm-gp.still .qstamp { animation: none; }
+@keyframes hm-stamp { from { transform: rotate(-16deg) scale(1.8); } }
+
+/* Welcome Path (a paw-print trail) and the Lucky Treat jar (ui/rewards/rewards.ts todayExtraHtml) */
+.rw-today { display: flex; flex-direction: column; gap: 10px; }
+.rw-wp { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--v6-night-3, #281a42); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612); }
+.rw-wp-t { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.rw-wp-t b { font: 800 16px/1.1 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); }
+.rw-wp-t small { font: 700 14px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; color: var(--v6-ice, #d6ecff); }
+.rw-days { position: relative; display: flex; justify-content: space-between; margin: 0; padding: 2px 0 0; list-style: none; }
+.rw-days.bub { padding-bottom: 28px; }
+.rw-days::before { content: ''; position: absolute; left: 16px; right: 16px; top: 19px; border-top: 3px dotted rgb(var(--v6-cream-rgb, 255 243 227) / 0.25); }
+.rw-days li { position: relative; display: grid; place-items: center; width: 34px; }
+.rw-paw { position: relative; display: grid; place-items: center; width: 34px; height: 34px; color: rgb(var(--v6-cream-rgb, 255 243 227) / 0.3); transform: rotate(-12deg); }
+.rw-days li:nth-child(even) .rw-paw { transform: rotate(12deg) translateY(-3px); }
+.rw-paw svg { width: 30px; height: 30px; }
+.rw-paw b {
+  position: absolute; right: -6px; bottom: -4px; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%;
+  font: 900 14px/1 var(--font, sans-serif); color: var(--v6-night, #12091f); background: var(--v6-cream, #fff3e3);
+}
+.rw-days li.got .rw-paw { color: var(--v6-success, #9be3c4); }
+.rw-days li.next .rw-paw { color: var(--v6-bolt, #ffe14a); filter: drop-shadow(0 0 8px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.8)); animation: rw-paw 1.6s ease-in-out infinite; }
+.rw-days li.soon .rw-paw { color: rgb(var(--v6-bolt-rgb, 255 225 74) / 0.6); }
+@keyframes rw-paw { 50% { scale: 1.12; } }
+.rw-bub {
+  position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%); padding: 4px 8px; border-radius: 6px; white-space: nowrap;
+  font: 800 14px/1 var(--font, sans-serif); font-style: normal; color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, #ffe14a);
+}
+.rw-bub.l { left: 0; transform: none; }
+.rw-bub.r { left: auto; right: 0; transform: none; }
+.rw-days li.soon .rw-bub { color: var(--v6-bolt, #ffe14a); background: var(--v6-night-0, #0a0612); box-shadow: inset 0 0 0 1.5px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.5); }
+.rw-lrow {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; box-sizing: border-box; padding: 6px 10px; border: 0; border-radius: 12px; text-align: left;
+  font: inherit; color: var(--v6-cream, #fff3e3); cursor: pointer;
+  background: linear-gradient(90deg, rgb(var(--v6-bolt-rgb, 255 225 74) / 0.16), var(--v6-night-3, #281a42) 70%);
+  box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612), 0 3px 0 2px var(--v6-night-0, #0a0612);
+}
+button.rw-lrow:hover { background: linear-gradient(90deg, rgb(var(--v6-bolt-rgb, 255 225 74) / 0.26), var(--v6-night-3, #281a42) 80%); }
+div.rw-lrow { cursor: default; }
+.rw-lrow > span:not(.rw-oddsbtn) { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rw-lrow b { font: 800 16px/1.1 var(--font, sans-serif); }
+.rw-lrow small { font: 600 14px/1.2 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); }
+.rw-jar { width: 38px; height: 38px; flex: none; display: grid; place-items: center; }
+.rw-jar svg { width: 38px; height: 38px; }
+.rw-oddsbtn {
+  flex: none; padding: 7px 12px; border-radius: 999px; font: italic 900 14px/1 var(--v6-font-display, var(--font, sans-serif)); text-transform: uppercase;
+  color: var(--v6-sky-top, #7cc6ff); box-shadow: inset 0 0 0 2px var(--v6-sky, #39a6ff);
+}
+
+/* phones (landscape, short): tighter cards, same type floor */
+@media (max-height: 500px) {
+  .hm-gp { border-radius: 14px; }
+  .hm-gp-h { min-height: 50px; padding: 2px 2px 6px 12px; }
+  .hm-gp-h b { font-size: 18px; }
+  .hm-gp-body { gap: 12px; padding: 10px 12px 12px; }
+  .hm-gp-sec { gap: 8px; }
+  .hm-gp-sec h3 { font-size: 16px; min-height: 24px; }
+  .hm-qlist { gap: 8px; }
+  .hm-qlist .q { min-height: 52px; padding: 6px 8px; gap: 8px; }
+  .hm-qlist .qi, .hm-qlist .qf { width: 36px; height: 36px; }
+  .hm-qlist .qi svg { width: 22px; height: 22px; }
+  .hm-qlist .tx { font-size: 15px; }
+  .hm-qlist .qx { min-width: 50px; height: 30px; padding: 0 6px; }
+  /* the stamp sits on the (full) bar instead of taking a column: the name keeps its width */
+  .hm-qlist .q.done { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .hm-qlist .qstamp { position: absolute; right: 64px; bottom: 3px; font-size: 14px; padding: 3px 6px; }
+}
+/* narrow panel with room: the events side by side two by two (an 844-wide phone) */
+@container (min-width: 440px) and (max-width: 599px) {
+  .hm-gp-ev .lo-cards { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+}
+/* a very narrow panel: no title beside the tabs */
+@container (max-width: 380px) {
+  .hm-gp.has-ev .hm-gp-h b { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-gp, .hm-qlist .qstamp, .rw-days li.next .rw-paw { animation: none; }
+}

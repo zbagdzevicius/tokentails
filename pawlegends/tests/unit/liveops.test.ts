@@ -216,7 +216,7 @@ describe('the store and the cards', () => {
     expect(loadProfile().unlocks).toContain('coat.clem.loop.honey');
     expect(liveopsState().toast).toMatch(/unlocked/);
     const html = liveopsCardsHtml(liveopsState(), NOW);
-    expect(html).toContain('Claimed ✓');
+    expect(html).toContain('Yours ✓');
     expect(await castVote('b')).toBe(true);
     expect(liveopsState().config.vote?.tallies).toEqual({ a: 3, b: 2 });
     const voted = liveopsCardsHtml(liveopsState(), NOW);
@@ -233,7 +233,7 @@ describe('the store and the cards', () => {
     expect(html).toContain('data-testid="lo-vote-a"');
     expect(html).toContain('&lt;b&gt;Candy&lt;/b&gt;');
     expect(html).not.toContain('<b>Candy</b>');
-    expect(html).toMatch(/Starts 15 Dec/);
+    expect(html).toMatch(/15 Dec to /);
   });
 
   it('Winter Nap on: one pip per gift, ready gifts glow and open with one button', () => {
@@ -243,7 +243,7 @@ describe('the store and the cards', () => {
     expect((html.match(/class="lo-pip[ "]/g) ?? []).length).toBe(3);
     expect(html).toContain('lo-pip got');
     expect(html).toContain('lo-pip ready');
-    expect(html).toContain('Open your gift');
+    expect(html).toContain('Open gift');
   });
 });
 

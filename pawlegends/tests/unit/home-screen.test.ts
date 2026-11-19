@@ -359,7 +359,10 @@ describe('home patch (no rebuild under modals)', () => {
     expect(now.getAttribute('aria-modal')).toBe('true');
     expect(root.querySelector('[data-testid="home-goals"]')?.getAttribute('aria-expanded')).toBe('true');
     expect(root.querySelector('[data-testid="home-goals"]')?.getAttribute('aria-label')).toBe('Quests: 1 of 1 done today');
-    expect(now.querySelector('.hm-qlist .q.done')?.textContent).toContain('Done');
+    expect(now.querySelector('.hm-qlist .q.done')?.textContent).toContain('Nailed it');
+    // the redraw never replays the fade-in (a replayed fade once left the panel at opacity 0)
+    expect(now.classList.contains('still')).toBe(true);
+    expect(panel.classList.contains('still')).toBe(false);
   });
 
   it('syncs the Sound switch and keeps the handlers on the new options', () => {
@@ -418,12 +421,12 @@ describe('Quests panel (Today and Events in one place)', () => {
     expect(root.classList.contains('hm-gp-on')).toBe(true);
     const rows = panel.querySelectorAll('[data-testid="goals-today"] .q');
     expect(rows).toHaveLength(4);
-    expect(rows[0]!.textContent).toContain('Done');
+    expect(rows[0]!.textContent).toContain('Nailed it');
     expect(rows[1]!.textContent).toContain('1/2');
-    expect(rows[1]!.textContent).toContain('+50 XP');
-    expect(rows[1]!.getAttribute('aria-label')).toBe('Play 2 matches: 1 of 2. 50 Treat XP');
+    expect(rows[1]!.textContent).toContain('+50');
+    expect(rows[1]!.getAttribute('aria-label')).toBe('Play 2 matches: 1 of 2. 50 Season XP, added when the match ends');
     expect(rows[3]!.classList.contains('bonus')).toBe(true);
-    expect(panel.querySelector('[data-testid="goals-today"] h3')?.textContent).toMatch(/^Today 1 of 3 done · new in \d+[hm]$/);
+    expect(panel.querySelector('[data-testid="goals-today"] h3')?.textContent).toMatch(/^Today1\/3New in \d+[hm]$/);
     // the Events section holds the live-ops cards
     expect(panel.querySelector('[data-testid="goals-events"] [data-testid="lo-cards"]')).toBeTruthy();
     // Esc closes it (the app's Android back is an Escape) and focus returns to the button

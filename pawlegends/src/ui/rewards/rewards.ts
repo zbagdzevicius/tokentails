@@ -277,29 +277,42 @@ export function installRewardsClicks(): void {
   });
 }
 
+const PAWPRINT =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 11c3 0 6 3.6 6 6.6 0 2-1.5 3-3 3-1.2 0-2-.6-3-.6s-1.8.6-3 .6c-1.5 0-3-1-3-3C6 14.6 9 11 12 11z"/><ellipse fill="currentColor" cx="5.2" cy="9.6" rx="2.1" ry="2.6"/><ellipse fill="currentColor" cx="9.2" cy="5.4" rx="2.1" ry="2.7"/><ellipse fill="currentColor" cx="14.8" cy="5.4" rx="2.1" ry="2.7"/><ellipse fill="currentColor" cx="18.8" cy="9.6" rx="2.1" ry="2.6"/></svg>';
+/** A treat jar with a bone inside (the Lucky Treat row). */
+const JAR =
+  '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="9" y="3" width="14" height="5" rx="2" fill="#ff3d7f" stroke="#12091f" stroke-width="2"/><path d="M8 9h16c2 0 3 2 3 4v12c0 2.5-1.5 4-4 4H9c-2.5 0-4-1.5-4-4V13c0-2 1-4 3-4z" fill="#d6ecff" fill-opacity="0.9" stroke="#12091f" stroke-width="2"/><path d="M11.5 17.2a1.8 1.8 0 0 1 3-1l3 3a1.8 1.8 0 1 1 1.1 2.6 1.8 1.8 0 1 1-2.6 1.1l-3-3a1.8 1.8 0 1 1-1.5-2.7z" fill="#ffe14a" stroke="#b98a00" stroke-width="1"/><path d="M8 12h3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+
+/** A gift's short form for the Welcome Path bubble: "+200" for Season XP, else the item's name. Pure. */
+const bubbleGift = (g: (typeof WELCOME_PATH)[number]): string => (g.item ? giftLabel(g) : `+${g.xp}`);
+
 /**
- * Home's Today list, under the quests: the Welcome Path (while it runs) and the Lucky Treat row (its odds one tap
- * away). Empty before the account has answered once.
+ * Home's Today list, under the quests: the Welcome Path (a paw-print trail while it runs, a bubble on today's or
+ * tomorrow's paw) and the Lucky Treat jar (its odds one tap away). Empty before the account has answered once.
  */
 export function todayExtraHtml(): string {
   const c = loadCloud();
   const parts: string[] = [];
   if (welcomeVisible(c.welcome)) {
     const days = c.welcome!.days;
-    const items = WELCOME_PATH.map((g) => {
-      const st = g.day <= days ? 'got' : g.day === days + 1 && !c.welcome!.today ? 'next' : '';
+    const today = c.welcome!.today;
+    // the bubble sits on the paw the next gift comes from: today's (not played yet) or tomorrow's
+    const at = days < WELCOME_DAYS ? days : -1;
+    const items = WELCOME_PATH.map((g, i) => {
+      const st = g.day <= days ? 'got' : i === at && !today ? 'next' : i === at ? 'soon' : '';
       const label = `Day ${g.day}: ${giftLabel(g)}${st === 'got' ? ', received' : ''}`;
-      return `<li class="${st}" title="${esc(label)}" aria-label="${esc(label)}"><span aria-hidden="true">${st === 'got' ? '✓' : g.day}</span></li>`;
+      const side = i < 2 ? ' l' : i > 4 ? ' r' : '';
+      const bub = i === at ? `<em class="rw-bub${side}">${esc(`${today ? 'Tomorrow' : 'Today'}: ${bubbleGift(g)}`)}</em>` : '';
+      return `<li class="${st}" title="${esc(label)}" aria-label="${esc(label)}"><span class="rw-paw" aria-hidden="true">${PAWPRINT}${st === 'got' ? '<b>✓</b>' : ''}</span>${bub}</li>`;
     }).join('');
-    const next = WELCOME_PATH[days];
-    const sub = days >= WELCOME_DAYS ? 'All 7 gifts received' : c.welcome!.today ? `Tomorrow: ${giftLabel(next)}` : `Play today: ${giftLabel(next)}`;
-    parts.push(`<div class="rw-wp" role="group" aria-label="${esc(`Welcome Path: ${days} of ${WELCOME_DAYS} days`)}" data-testid="welcome-path"><span class="rw-wp-t"><b>Welcome Path</b><small>${esc(sub)}</small></span><ol class="rw-days">${items}</ol></div>`);
+    const sub = days >= WELCOME_DAYS ? 'Path complete' : `Day ${Math.min(WELCOME_DAYS, today ? days : days + 1)}/${WELCOME_DAYS}`;
+    parts.push(`<div class="rw-wp" role="group" aria-label="${esc(`Welcome Path: ${days} of ${WELCOME_DAYS} days`)}" data-testid="welcome-path"><span class="rw-wp-t"><b>Welcome Path</b><small>${esc(sub)}</small></span><ol class="rw-days${at >= 0 ? ' bub' : ''}">${items}</ol></div>`);
   }
   if (c.lucky)
     parts.push(
       c.lucky.eligible
-        ? `<button type="button" class="rw-lrow" data-rw="odds" data-testid="today-lucky"><i class="rw-mini-chest" aria-hidden="true"></i><span><b>Lucky Treat</b><small>Your first win each day · see odds</small></span></button>`
-        : `<div class="rw-lrow"><i class="rw-mini-chest" aria-hidden="true"></i><span><b>Daily Treat</b><small>First win each day: +${c.lucky.dailyTreatXp} Season XP</small></span></div>`,
+        ? `<button type="button" class="rw-lrow" data-rw="odds" data-testid="today-lucky" aria-label="Lucky Treat: win once today. See the odds"><i class="rw-jar" aria-hidden="true">${JAR}</i><span><b>Lucky Treat</b><small>Win once today</small></span><span class="rw-oddsbtn" aria-hidden="true">Odds</span></button>`
+        : `<div class="rw-lrow"><i class="rw-jar" aria-hidden="true">${JAR}</i><span><b>Daily Treat</b><small>Win once today: +${c.lucky.dailyTreatXp} XP</small></span></div>`,
     );
   return parts.length ? `<div class="rw-today">${parts.join('')}</div>` : '';
 }
