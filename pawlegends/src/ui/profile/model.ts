@@ -327,6 +327,8 @@ const ARCADE_NAME: Readonly<Record<string, string>> = Object.freeze({
  */
 export function modeText(r: Pick<ProfileRow, 'mode' | 'map' | 'mutator'>): string {
   const size = r.map === 'hearthwood' ? '5v5' : '3v3';
+  // a device row of a solo Arcade match (mode 'skirmish' with its mutator) by its own mode too
+  if ((r.mode === 'skirmish' || r.mode === 'classic') && r.mutator && ARCADE_NAME[r.mutator]) return ARCADE_NAME[r.mutator];
   switch (r.mode) {
     case 'ranked':
       return `Ranked ${size}`;

@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiResult } from '../../src/embed/api';
 import { API_ARG_KEYS, API_OPS } from '../../src/embed/api';
-import type { HistoryEntry } from '../../src/replay/store';
+import { statsLine, type HistoryEntry } from '../../src/replay/store';
 import { SIM_VERSION } from '../../src/sim/version';
 import { errText, filterOfLocal, historySheet, localKey, localModeLabel, matchHtml, mergeRows, modeLabel, seasonHtml, type ServerMatch, type ServerPage, type ServerRow } from '../../src/ui/history/historySheet';
 
@@ -225,5 +225,15 @@ describe('match history: the sheet', () => {
     const el2 = historySheet(document.body, { now: NOW, api: hidden as never, friend: { code: 'PL-7KQ2-M9XR', name: 'Mochi' }, onWatch: () => undefined, onClose: () => undefined });
     await flush();
     expect(el2.querySelector('[data-testid="history-error"]')?.textContent).toBe('Mochi keeps their match history private.');
+  });
+});
+
+describe('device rows: the stats line (Nov 19, a guest\'s Profile → Matches rows)', () => {
+  const seat = (slot: number, o: Partial<{ kills: number; assists: number; heroDamage: number; level: number; fish: number; toys: number; lastHits: number }> = {}) => ({ slot, kills: 0, assists: 0, heroDamage: 0, level: 0, fish: 0, toys: 0, lastHits: 0, ...o });
+  it('keeps level, CS, Fish, damage with the match top, KP, score and Toys; a 0 is left out', () => {
+    const stats = [seat(0, { kills: 6, assists: 6, heroDamage: 7900, level: 10, fish: 5100, toys: 3, lastHits: 31 }), seat(1, { heroDamage: 11200 }), seat(3, { kills: 9 })];
+    expect(statsLine(stats, 0, [19, 23])).toEqual({ lv: 10, cs: 31, fish: 5100, dmg: 7900, dmgTop: 11200, kp: 63, score: [19, 23], toys: 3 });
+    expect(statsLine([seat(0)], 0, [0, 0])).toEqual({});
+    expect(statsLine(stats, 5, [1, 1])).toEqual({});
   });
 });

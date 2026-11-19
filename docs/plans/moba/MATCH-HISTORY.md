@@ -77,3 +77,6 @@ derived at read time from the stored seats (no new write path, so every stored m
 read per page). A stat the match's sim did not count (0) is left out, and the client hides it (never a zero). The row
 names its real queue: "Arcade" was the group word for every solo mutator match; rows now show the mutator's own name
 (Toy Box, Cannon Chaos, One Lane, Duel, Boss Weekend…), and Ranked / PvP / Co-op / Skirmish with 3v3 or 5v5.
+The device row (`tt.pawlegends.history.v1`, a guest's only rows) keeps the same line from the match's own per-slot
+stats (`statsLine` in `src/replay/store.ts`, the same rule as `rowStats`; no `party`) and the mutator, so a guest's
+Toy Box match reads "Toy Box" with its stats too. Display only, on the device; rows saved before show no stats.

@@ -58,6 +58,44 @@ export interface HistoryEntry {
   key?: string;
   /** Sim v34: the 3v3 pool map the match played (omitted on the Crossing and on rows saved before Nov 17 2026). */
   map?: string;
+  /**
+   * Nov 19 2026 (Profile → Matches rows): the stats line of the account's row, kept on the device too, so a guest's
+   * row shows it. Omitted when 0 and on rows saved before. The mutator other than 'none' names an Arcade match.
+   */
+  mutator?: string;
+  lv?: number;
+  cs?: number;
+  fish?: number;
+  dmg?: number;
+  dmgTop?: number;
+  kp?: number;
+  score?: [number, number];
+  toys?: number;
+}
+
+/** The device row's stats line from the match's own per-slot stats (the account row's rule, history.model.ts
+ * `rowStats`): a 0 is left out. Pure. */
+export function statsLine(
+  stats: readonly { slot: number; kills: number; assists: number; heroDamage: number; level: number; fish: number; toys: number; lastHits: number }[],
+  slot: number,
+  teamKills: readonly [number, number],
+): Partial<Pick<HistoryEntry, 'lv' | 'cs' | 'fish' | 'dmg' | 'dmgTop' | 'kp' | 'score' | 'toys'>> {
+  const me = stats.find((s) => s.slot === slot);
+  if (!me) return {};
+  const n = (v: number): number => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+  const out: Partial<Pick<HistoryEntry, 'lv' | 'cs' | 'fish' | 'dmg' | 'dmgTop' | 'kp' | 'score' | 'toys'>> = {};
+  if (n(me.level)) out.lv = n(me.level);
+  if (n(me.lastHits)) out.cs = n(me.lastHits);
+  if (n(me.fish)) out.fish = n(me.fish);
+  if (n(me.heroDamage)) {
+    out.dmg = n(me.heroDamage);
+    out.dmgTop = Math.max(out.dmg, ...stats.map((s) => n(s.heroDamage)));
+  }
+  const [ours, theirs] = [n(teamKills[0]), n(teamKills[1])];
+  if (ours) out.kp = Math.min(100, Math.round((100 * (n(me.kills) + n(me.assists))) / ours));
+  if (ours + theirs) out.score = [ours, theirs];
+  if (n(me.toys)) out.toys = Math.min(4, n(me.toys));
+  return out;
 }
 
 /** Most emote ticks a row keeps. */

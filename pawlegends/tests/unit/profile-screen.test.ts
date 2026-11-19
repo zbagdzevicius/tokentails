@@ -165,6 +165,9 @@ describe('match rows: the stats line (Nov 19, founder: "show more stats")', () =
     expect(modeText(rowOf({ ...base, mode: 'practice', mutator: 'practice' })!)).toBe('Practice');
     expect(modeText(rowOf({ ...base, mode: 'skirmish', mutator: null })!)).toBe('Skirmish 3v3');
     expect(modeText(rowOf({ ...base, mode: 'party' })!)).toBe('Party 3v3');
+    // a device row (guest) of a solo Arcade match: mode 'skirmish' with its mutator
+    expect(modeText(rowOf({ ...base, mode: 'skirmish', mutator: 'toybox' })!)).toBe('Toy Box');
+    expect(modeText(rowOf({ ...base, mode: 'blitz', mutator: 'blitz' })!)).toBe('Blitz');
     expect(mapName('pitch')).toBe('Park');
     expect(mapName('ridge')).toBe('Ridge');
   });

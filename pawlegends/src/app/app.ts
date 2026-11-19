@@ -36,7 +36,7 @@ import { chromaDef, chromasEarned } from '../render/skins/coatChromas';
 import { ArtStage } from '../ui/stage/artStage';
 import { Lobby } from '../render/lobby';
 import { heroSplashUrl, onSkinArt, skinArtUrl, splashFor } from '../ui/art';
-import { loadHistory, newEntryId, recordMoment, reelOf, replayOf, saveReel, soloRecord, type HistoryEntry, type StoredReplay } from '../replay/store';
+import { loadHistory, newEntryId, recordMoment, reelOf, replayOf, saveReel, soloRecord, statsLine, type HistoryEntry, type StoredReplay } from '../replay/store';
 
 import { portraitUrl, warmPortraits } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
@@ -2777,6 +2777,9 @@ export class App {
         key: `${e.result.finalHash}:${e.result.ticks}`,
         // sim v34: the device row names its pool map ("Skirmish 3v3 · Park"), like the account's row
         ...(e.replay.map && e.replay.map !== 'crossing' ? { map: e.replay.map } : {}),
+        // Profile → Matches: the row's queue name and stats line on this device too (a guest's rows)
+        ...(e.replay.mutator && e.replay.mutator !== 'none' ? { mutator: e.replay.mutator } : {}),
+        ...statsLine(e.result.stats, e.welcome.slot, e.teamKills),
       },
       e.replay as StoredReplay,
     );
