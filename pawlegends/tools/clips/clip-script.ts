@@ -82,7 +82,7 @@ export function scriptCommands(m: MatchHandle, picks: readonly HeroId[], rules: 
   const enemyCarrier = carried && by >= 0 && w.team[by] !== team && w.alive[by] === 1 ? by : -1;
   const iCarry = carried && by === slot;
   const holdR = mine.some((r) => r.do === 'holdR' || r.do === 'encore' || r.do === 'zzz') || (iCarry && mine.some((r) => r.do === 'cannon'));
-  const held = new Set(mine.filter((r) => r.do === 'gag').map((r) => r.key ?? 3));
+  const held = new Set<number>(mine.filter((r) => r.do === 'gag').map((r) => r.key ?? 3));
   let out: Command[] = (holdR ? pilot.filter((c) => !(c.op === Op.Cast && c.slot === 3)) : pilot.slice()).filter((c) => !(c.op === Op.Cast && held.has(c.slot as number)));
   const think = tick % 6 === slot % 6;
   for (const r of mine) {
