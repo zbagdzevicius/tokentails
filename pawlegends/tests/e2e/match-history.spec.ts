@@ -7,7 +7,7 @@ import { limit } from '../unit/cpu-budget';
 
 /*
  * Match history (docs/plans/moba/MATCH-HISTORY.md): a signed-in player opens Profile → Match history, sees this
- * season's numbers, filters by mode, opens a match (both teams' scoreboard, the Damage graph) and sets who can see the
+ * season's numbers, every match (no mode chips), opens a match (both teams' scoreboard, the Damage graph) and sets who can see the
  * history; a friend's history opens from their row in Social. Every call goes through the host (`api-request`), and
  * the sheet fits without horizontal scroll at 1440x900, 1280x590, 844x390 and 667x375.
  */
@@ -77,7 +77,7 @@ async function shot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: join(SHOTS, `${name}-${v?.width}x${v?.height}.png`) });
 }
 
-test('Match history: season stats, filters, a match scoreboard and damage, public (no privacy toggle), a friend', async ({ context, page, baseURL }, info) => {
+test('Match history: season stats, every match, a match scoreboard and damage, public (no privacy toggle), a friend', async ({ context, page, baseURL }, info) => {
   const touch = info.project.name === 'landscape';
   await mockHost(context, baseURL!, {
     app: { isApp: false, store: true },
@@ -112,10 +112,8 @@ test('Match history: season stats, filters, a match scoreboard and damage, publi
     await shot(page, 'list');
   }
 
-  // a filter chip asks the server for that mode
-  await press('.pfx-filter[data-f="blitz"]');
-  await expect.poll(async () => (await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'history.list' && m.args?.mode === 'blitz')).toBe(true);
-  await press('.pfx-filter[data-f="all"]');
+  // founder Nov 19: no mode filter chips, every match is listed
+  await expect(prof.locator('.pfx-filter')).toHaveCount(0);
   await expect(rows).toHaveCount(2);
 
   // the match: both teams, MVP, the damage graph, in the Profile (no sheet over Home)

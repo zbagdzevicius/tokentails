@@ -94,6 +94,8 @@ for (const [vp, w, h] of SIZES)
       await context.addInitScript((rows) => {
         try {
           localStorage.setItem('tt.pawlegends.history.v1', JSON.stringify(rows));
+          // a Recordings card lists only a replay this device really kept (replay/store.ts replayState, Nov 19)
+          localStorage.setItem('tt.pawlegends.replays.v1', JSON.stringify(Object.fromEntries((rows as { id: string; simVersion: number }[]).map((r) => [r.id, { seed: 7, inputs: '', simVersion: r.simVersion }]))));
         } catch {
           /* the host page's origin may refuse */
         }
