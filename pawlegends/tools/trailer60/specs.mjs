@@ -30,6 +30,8 @@ const slotOf = (set, hero) => SETS[set].teams.flat().indexOf(hero);
 const BRAVO = { understudy: 'coat.bravo.understudy', harlequin: 'coat.bravo.store_harlequin', opera: 'coat.bravo.opera', night: 'coat.bravo.s1_opening_night' };
 const MEGA = 'coat.meatball.store_mega_meal';
 const CHAIR = 'coat.brutus.store_chairman';
+/** A set's looks with only `hero`'s coat on (every other seat in its base coat). */
+const soloLook = (set, hero) => LOOKS[set].map((team, ti) => team.map((l, si) => (SETS[set].teams[ti][si] === hero ? l : null)));
 const looksA = (bravo) => [[bravo, null, null], [null, null, null]];
 const LOOKS = {
   B: [[BRAVO.night, CHAIR, null], [MEGA, null, null]],
@@ -80,14 +82,19 @@ const SHOTS = [
   { id: 'v01-core', set: 'B', seed: 40, t: 226.17, lead: 1.2, dur: 4.4, point: [90000, 30000], off: [0, -1], dist: 0.85, push: 0.9 },
   // S23 the stinger: Meatball rolls through Bravo in his spotlight; he plays dead (C seed 74, 192.43)
   { id: 's01-bowl', set: 'C', seed: 74, t: 192.43, lead: 1.6, dur: 3.0, unit: 'bravo', dist: 0.45, push: 0.9 },
-  // S09 the credits, round 2: five ultimates, each shot twice (the base coat, then the store coat: a match cut on the
-  // half beat; looks never reach the sim, so both takes play the same ticks)
+  // S09 the credits, round 3 (review: the coat swaps hid inside the ultimates' VFX): each take starts 0.65 s before the
+  // cast, so the match cut into the store coat lands on a clean idle frame and the ultimate then plays in the coat. A
+  // sixth card (Nugget, Robo-Vac); Duchess, the last card, refuses her coat (only her base take is used).
   ...[
-    ['r1-meatball', 19, 200.3, 'meatball'], ['r2-frankie', 13, 163.17, 'frankie'], ['r3-pixel', 2, 208.07, 'pixel'], ['r4-domino', 17, 218.73, 'domino'], ['r5-duchess', 19, 200.5, 'duchess'],
+    ['r1-meatball', 19, 200.3, 'meatball'], ['r2-frankie', 13, 163.17, 'frankie'], ['r3-pixel', 2, 208.07, 'pixel'], ['r4-domino', 17, 218.73, 'domino'],
+    ['r6-nugget', 6, 282.8, 'nugget'], ['r5-duchess', 19, 200.5, 'duchess'],
   ].flatMap(([id, seed, t, unit]) => [
-    { id, set: 'D', seed, t, lead: 0.3, dur: 1.5, unit, dist: 0.5, push: 0.9 },
-    { id: `${id}-base`, set: 'D', seed, t, lead: 0.3, dur: 1.5, unit, dist: 0.5, push: 0.9, looks: [[null, null, null], [null, null, null]] },
+    // only the credited champion changes coat (round 2 swapped every coated unit in the shot: a second burger)
+    ...(unit === 'duchess' ? [] : [{ id, set: 'D', seed, t, lead: 0.65, dur: 1.5, unit, dist: 0.5, push: 0.9, looks: soloLook('D', unit) }]),
+    { id: `${id}-base`, set: 'D', seed, t, lead: 0.65, dur: unit === 'duchess' ? 1.9 : 1.5, unit, dist: 0.5, push: 0.9, looks: [[null, null, null], [null, null, null]] },
   ]),
+  // round 3: after VICTORY! Bravo takes the bow for it (YOU'RE WELCOME.): seed 26 in the fountain, Opening Night, close
+  { id: 'w01-bow', set: 'A', seed: 26, t: 183.2, lead: 0, dur: 1.3, unit: 'bravo', dist: 0.34, push: 0.92, looks: looksA(BRAVO.night) },
   // Gemini references: Bravo in the game's own render, close (the comic panels stay on-model)
   { id: 'ref-bravo', set: 'A', seed: 26, t: 183.9, lead: 0, dur: 0.3, unit: 'bravo', dist: 0.2, push: 1, looks: looksA(BRAVO.night) },
 ];

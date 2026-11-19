@@ -16,14 +16,14 @@ import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeF
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argValue } from '../lib/args.mjs';
-import { CAPS, COPY, CUTS, EDL, FPS, N } from './timeline.mjs';
+import { CAPS, COPY, CREDIT_AT, CUTS, EDL, FPS, N } from './timeline.mjs';
 
 /**
- * The 15 s cutdown, round 2 (review: no setup, so the payoff carried no joke): one whole gag arc. STARRING: BRAVO, a
- * failed audition, CUT!, two quick ultimates, the ENCORE! payoff with its BONK!, the end card. 900 frames, every join
- * on the half beat.
+ * The 15 s cutdown, round 3 (review: no skin swap, the end card took 23 % of it): one whole gag arc. STARRING: BRAVO, a
+ * failed audition, CUT!, the costume change (four coats), the ENCORE! payoff with its BONK!, ROCKET 1, a 2 s end card.
+ * 900 frames, every join on the half beat.
  */
-const CUTDOWN = [[0, 105], [630, 780], [1590, 1680], [1770, 1860], [2250, 2490], [3030, 3255]];
+const CUTDOWN = [[CUTS.hook, CUTS.title], [CUTS.aud2, CUTS.credits], [CUTS.costume, CUTS.bush], [CUTS.payoff, CUTS.score], [CUTS.score + 60, CUTS.victory], [CUTS.end, CUTS.end + 120]];
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PKG = resolve(HERE, '..', '..');
@@ -33,7 +33,7 @@ const AUDIO = resolve(argValue('--audio'));
 const OUT = resolve(argValue('--out'));
 const BRAND = resolve(argValue('--brand') ?? join(process.env.HOME, 'Downloads/paw-legends/brandbook/v6-lightning-rivalry/kit'));
 const ASPECTS = (argValue('--aspect') ?? '16x9,9x16,1x1').split(',');
-// --fonts DIR: rubik-italic-900.woff2 + fredoka-600-700.woff2 (Google Fonts, OFL; the brand book's faces). The game's
+// --fonts DIR: rubik-italic-900.woff2 + fredoka-600-700.woff2 (and their -ext latin-ext subsets) (Google Fonts, OFL; the brand book's faces). The game's
 // own Rubik-Italic-Display.woff2 is a subset; setup() refuses any face that falls back on a glyph of the copy.
 const FONTS = argValue('--fonts') ? resolve(argValue('--fonts')) : null;
 // --only-seg 3,5 (debug): render just those EDL segments as stills / clips into work/<aspect>/
@@ -72,6 +72,15 @@ function toOut([x, y], aspect) {
 }
 /** The take frame shown at segment frame k (freezes hold, then the take resumes one frame on). */
 function takeFrameAt(g, k) {
+  if (g.parts) {
+    let r = k;
+    for (const [a, n] of g.parts) {
+      if (r < n) return a + r;
+      r -= n;
+    }
+    const [a, n] = g.parts.at(-1);
+    return a + n - 1;
+  }
   if (!g.freeze) return g.in + k;
   const [at, n] = g.freeze;
   return k < at ? g.in + k : k < at + n ? g.in + at : g.in + k - n + 1;
@@ -95,12 +104,69 @@ function trackPts(g, len, aspect, track) {
     return [near.reduce((a, q) => a + q[0], 0) / near.length, near.reduce((a, q) => a + q[1], 0) / near.length].map((v) => +v.toFixed(4));
   });
 }
+/**
+ * Round 3: a prop's screen points by colour (the Kibble Cannon's bolt-yellow spawn ring), per segment frame, from a
+ * 480 px wide decode of the take: the densest blob of the colour, smoothed; null once it is gone (picked up).
+ */
+const COLOR_RULE = { cannon: ([r, g, b]) => r > 220 && g > 180 && b < 80 };
+function colorPts(g, len, aspect, rule) {
+  const { file } = takeOf(g.take, aspect);
+  const w = 480, h = aspect === '9x16' ? 853 : 270;
+  const buf = execFileSync('ffmpeg', ['-v', 'error', ...T, '-i', file, '-vf', `scale=${w}:${h}`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 1 << 30 });
+  const fr = w * h * 3;
+  const test = COLOR_RULE[rule];
+  const raw = [];
+  for (let k = 0; k < len; k++) {
+    const t = takeFrameAt(g, k);
+    if ((t + 1) * fr > buf.length) {
+      raw.push(null);
+      continue;
+    }
+    const xs = [], ys = [];
+    for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) {
+      const o = t * fr + (y * w + x) * 3;
+      if (test([buf[o], buf[o + 1], buf[o + 2]])) {
+        xs.push(x);
+        ys.push(y);
+      }
+    }
+    if (xs.length < 8) {
+      raw.push(null);
+      continue;
+    }
+    let best = null;
+    for (let i = 0; i < xs.length; i += 3) {
+      let n = 0;
+      for (let j = 0; j < xs.length; j++) if (Math.abs(xs[j] - xs[i]) < 20 && Math.abs(ys[j] - ys[i]) < 20) n++;
+      if (!best || n > best[0]) best = [n, xs[i], ys[i]];
+    }
+    const sel = xs.map((x, j) => (Math.abs(x - best[1]) < 25 && Math.abs(ys[j] - best[2]) < 25 ? j : -1)).filter((j) => j >= 0);
+    if (sel.length < 8) {
+      raw.push(null);
+      continue;
+    }
+    const px = sel.reduce((a, j) => a + xs[j], 0) / sel.length / w, py = sel.reduce((a, j) => a + ys[j], 0) / sel.length / h;
+    raw.push(toOut([px, py], aspect));
+  }
+  // drop jumps (another yellow blob), then smooth over 7 frames
+  const clean = raw.map((p, k) => {
+    if (!p) return null;
+    const prev = raw.slice(Math.max(0, k - 4), k).filter(Boolean).at(-1);
+    return prev && Math.hypot(p[0] - prev[0], p[1] - prev[1]) > 0.08 ? null : p;
+  });
+  return clean.map((p, k) => {
+    if (!p) return null;
+    const near = clean.slice(Math.max(0, k - 3), k + 4).filter(Boolean);
+    return [near.reduce((a, q) => a + q[0], 0) / near.length, near.reduce((a, q) => a + q[1], 0) / near.length].map((v) => +v.toFixed(4));
+  });
+}
+
 /** The overlay with its tracked items' points filled in. */
 function withTracks(ov, g, len, aspect) {
   if (!ov) return ov;
   const o = { ...ov };
   if (o.track) o.pts = trackPts(g, len, aspect, o.track);
-  if (o.items) o.items = o.items.map((it) => (it.track ? { ...it, pts: trackPts(g, len, aspect, it.track) } : it));
+  if (o.items) o.items = o.items.map((it) => (it.track ? { ...it, pts: trackPts(g, len, aspect, it.track) } : it.colorTrack ? { ...it, pts: colorPts(g, len, aspect, it.colorTrack) } : it));
   return o;
 }
 
@@ -165,12 +231,21 @@ function zoomOf(zoom, len, aspect, focus = [0.5, 0.5]) {
 }
 
 function gpSegment(out, take, aspect, a, len, punch = null, zoom = null, focus = undefined, wideV = false) {
-  if (wideV && aspect === '9x16') {
+  if (wideV === 'fit' && aspect !== '16x9') {
+    // round 3: the curtain call's portrait lineup left the champions a few pixels tall and the 1:1 crop cut the outer
+    // two off: both show the landscape lineup fitted to the width over a blurred copy of itself
+    const [W, H] = SIZE[aspect];
+    const { file } = takeOf(take, '16x9');
+    ff(['-i', file, '-filter_complex', `[0:v]trim=start_frame=${a}:end_frame=${a + len},setpts=PTS-STARTPTS,split[a][b];[a]scale=-2:${H},crop=${W}:${H},boxblur=24:2,eq=brightness=-0.12:saturation=0.8[bg];[b]scale=${W}:-2:flags=lanczos[fg];[bg][fg]overlay=0:(H-h)/2,format=yuv420p[v]`, '-map', '[v]', '-frames:v', String(len), ...ENC, out]);
+    return;
+  }
+  if (wideV === true && aspect === '9x16') {
     // round 2: the vertical core shot hung the burning core's smoke column over the top of the tall frame; the 9:16 cut
-    // shows the landscape take (no smoke in it) across the middle over a blurred, darkened copy of itself
+    // shows the landscape take (no smoke in it) over a blurred, darkened copy of itself. Round 3 (review: a thin strip
+    // inside a big blur): the landscape take's centre 1080 x 1320, so gameplay fills 69 % of the tall frame
     const { file } = takeOf(take, '16x9');
     const norm = normOf(take, '16x9');
-    ff(['-i', file, '-filter_complex', `[0:v]trim=start_frame=${a}:end_frame=${a + len},setpts=PTS-STARTPTS,${GRADE}${norm.vf},split[a][b];[a]scale=-2:1920,crop=1080:1920,boxblur=24:2,eq=brightness=-0.12:saturation=0.8[bg];[b]scale=1080:-2:flags=lanczos[fg];[bg][fg]overlay=0:(H-h)/2+80,format=yuv420p[v]`, '-map', '[v]', '-frames:v', String(len), ...ENC, out]);
+    ff(['-i', file, '-filter_complex', `[0:v]trim=start_frame=${a}:end_frame=${a + len},setpts=PTS-STARTPTS,${GRADE}${norm.vf},split[a][b];[a]scale=-2:1920,crop=1080:1920,boxblur=24:2,eq=brightness=-0.12:saturation=0.8[bg];[b]${punchOf(punch, '16x9').replace(/,$/, '')}${punch ? ',' : ''}scale=-2:1320:flags=lanczos,crop=1080:1320[fg];[bg][fg]overlay=0:(H-h)/2+40,format=yuv420p[v]`, '-map', '[v]', '-frames:v', String(len), ...ENC, out]);
     return;
   }
   const { file, crop } = takeOf(take, aspect);
@@ -247,7 +322,7 @@ async function buildAspect(aspect, browser, base) {
     ...Object.fromEntries([...CATS, ...DOGS].filter((h) => existsSync(join(ART, `${h}-640.webp`))).map((n) => [`l_${n}`, `${base}${ART}/${n}-640.webp`])),
   };
   const fonts = FONTS
-    ? { rubik: `${base}${FONTS}/rubik-italic-900.woff2`, fredoka: `${base}${FONTS}/fredoka-600-700.woff2` }
+    ? { rubik: `${base}${FONTS}/rubik-italic-900.woff2`, fredoka: `${base}${FONTS}/fredoka-600-700.woff2`, ...(existsSync(join(FONTS, 'rubik-italic-900-ext.woff2')) ? { rubikExt: `${base}${FONTS}/rubik-italic-900-ext.woff2`, fredokaExt: `${base}${FONTS}/fredoka-600-700-ext.woff2` } : {}) }
     : { rubik: `${base}${PKG}/public/assets/fonts/Rubik-Italic-Display.woff2`, fredoka: `${base}${PKG}/public/assets/fonts/Fredoka-Ext.woff2` };
   await page.evaluate((o) => window.__mg.setup(o), { W, H, assets, fonts });
   // round 1 set the last S of CATS / DOGS in a fallback face: refuse to render with a face missing a glyph
@@ -260,7 +335,20 @@ async function buildAspect(aspect, browser, base) {
     if (seg.gp) {
       const g = seg.gp;
       const segParts = [];
-      if (g.freeze) {
+      if (g.parts) {
+        // jump cuts inside one take; `hold` pads with the last frame (round 3 hook)
+        g.parts.forEach(([a, n], k) => {
+          const x = join(dir, `${id}${String.fromCharCode(97 + k)}.mp4`);
+          gpSegment(x, g.take, aspect, a, n);
+          segParts.push(x);
+        });
+        if (g.hold) {
+          const [a, n] = g.parts.at(-1);
+          const x = join(dir, `${id}h.mp4`);
+          ff(['-loop', '1', '-framerate', String(FPS), '-i', stillOf(g.take, aspect, a + n - 1), '-frames:v', String(g.hold), ...ENC, x]);
+          segParts.push(x);
+        }
+      } else if (g.freeze) {
         // hold the take frame at segment frame `at` for `n` frames (the overlay draws on it)
         const [at, n] = g.freeze;
         const a = join(dir, `${id}a.mp4`), b = join(dir, `${id}b.mp4`), c = join(dir, `${id}c.mp4`);
@@ -336,7 +424,7 @@ async function buildAspect(aspect, browser, base) {
     const ctx2 = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
     const pg = await ctx2.newPage();
     await pg.goto(`${base}${HERE}/mg.html`);
-    await pg.evaluate((o) => window.__mg.setup(o), { W, H, assets: {}, fonts: FONTS ? { rubik: `${base}${FONTS}/rubik-italic-900.woff2`, fredoka: `${base}${FONTS}/fredoka-600-700.woff2` } : { rubik: `${base}${PKG}/public/assets/fonts/Rubik-Italic-Display.woff2`, fredoka: `${base}${PKG}/public/assets/fonts/Fredoka-Ext.woff2` } });
+    await pg.evaluate((o) => window.__mg.setup(o), { W, H, assets: {}, fonts: FONTS ? { rubik: `${base}${FONTS}/rubik-italic-900.woff2`, fredoka: `${base}${FONTS}/fredoka-600-700.woff2`, ...(existsSync(join(FONTS, 'rubik-italic-900-ext.woff2')) ? { rubikExt: `${base}${FONTS}/rubik-italic-900-ext.woff2`, fredokaExt: `${base}${FONTS}/fredoka-600-700-ext.woff2` } : {}) } : { rubik: `${base}${PKG}/public/assets/fonts/Rubik-Italic-Display.woff2`, fredoka: `${base}${PKG}/public/assets/fonts/Fredoka-Ext.woff2` } });
     await pg.evaluate(() => window.__mg.transparent(true));
     let chain = '[0:v]noise=alls=3:allf=t[c0]';
     for (const [i, [a, b, text]] of CAPS.entries()) {
@@ -394,7 +482,7 @@ try {
   // posters (16:9 frames) and the web copy (1080p30, two-pass, ~6 MB)
   const m16 = report.masters['16x9']?.file;
   if (m16) {
-    for (const [name, f] of [['poster', 2330], ['poster-title', 140], ['poster-credits', 830], ['poster-rocket', 2600]]) ff(['-i', m16, '-vf', `select=eq(n\\,${f})`, '-frames:v', '1', '-q:v', '2', join(OUT, `pawlegends-trailer60-${name}.jpg`)]);
+    for (const [name, f] of [['poster', CUTS.title + 75], ['poster-credits', CREDIT_AT[1] + 45], ['poster-rocket', CUTS.score + 130], ['poster-payoff', CUTS.payoff + 170]]) ff(['-i', m16, '-vf', `select=eq(n\\,${f})`, '-frames:v', '1', '-q:v', '2', join(OUT, `pawlegends-trailer60-${name}.jpg`)]);
     const web = join(OUT, 'pawlegends-trailer60-web.mp4');
     const pass = join(WORK, 'x264pass');
     const v = ['-i', m16, '-vf', 'fps=30', '-c:v', 'libx264', '-preset', 'slow', '-b:v', '1500k', '-maxrate', '3000k', '-bufsize', '6000k', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-passlogfile', pass];

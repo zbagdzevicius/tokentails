@@ -8,26 +8,35 @@ folder, never the repo.
 
 | Time | Shot |
 |---|---|
-| 0.0-1.25 | Hook: Bravo (Opening Night) poses, a Sage hit, the camera punches in as he flops legs-up |
-| 1.25-2.5 | Iris freeze STARRING: BRAVO; curtains close: the logo PRESENTS BRAVO IN THE UNDERSTUDY |
-| 2.5-6.5 | ALSO STARRING: ONE KIBBLE CANNON; Rocket's name tag rides on him (FASTEST DOG ALIVE); Sage takes it a step ahead: ROCKET 0 |
-| 6.5-8.5 | AUDITION #1: Sage's Moonshot steals his spotlight (wah-wah-waah) |
-| 8.5-10.5 | ZOOM... ZZZ: Rocket (tagged) sprints past the carrier and naps: ROCKET 0 (AND ASLEEP) |
-| 10.5-12.5 | AUDITION #2: Nova's ultimate on his stage; the camera punches in on him into the CUT! panel |
-| 12.5-13.0 | Comic panel (Gemini, in-engine Bravo as the reference): CUT! |
-| 13.0-18.0 | Credits: five 1 s mini gags, NAME as Role, the ultimate, a match cut into the store coat on the half beat |
-| 18.0-19.5 | AUDITION #3: his own Champ's KNOCKOUT!; punch-in into THAT'S IT. |
-| 20.0-22.0 | Costume change: the same ticks in four coats, a match cut and a bolt puff on every beat |
-| 22.0-25.0 | The bush: Ranger hides (the screen dims), Meatball (Mega Meal) sits in the same bush (the dim lifts) |
-| 25.0-26.0 | ACT II: Pixel carries the cannon to the dog tower |
-| 26.0-35.0 | The band enters: three hero moments, cast > hit > result at 0.8x, named (Ziggy, Sir Brutus, Meatball) |
-| 35.0-37.5 | He plays dead in slow motion; comic panel: one eye opens |
-| 37.5-41.5 | The payoff: Bravo bows (ENCORE!), the carrier fumbles: BRAVO! and roses; the button: a rose BONK! |
-| 41.5-44.5 | Rocket (tagged) fires the stolen cannon: KABOOM, ROCKET 1 (the digit drops into its box) |
-| 44.5-47.5 | The cat core falls (framed so its smoke column leaves the frame): VICTORY! |
-| 47.5-50.5 | The curtain call: seven quick lineups of two cats and two dogs, an accelerando into the logo |
-| 50.5-55.0 | End card: the v6 logo, CATS VS DOGS. PICK A SIDE., PLAY FREE · pawlegends.app (a soft bed, no dead air) |
-| 55.0-60.0 | Stinger: Meatball rolls through his spotlight, he plays dead; freeze, Bravo will return. (rimshot on 59.5) |
+| 0.0-1.0 | Hook: Bravo (Opening Night) poses; a jump cut and a white flash on Sage's hit, straight to the legs-up flop |
+| 1.0-3.0 | Iris freeze STARRING: BRAVO; curtains close: the logo PRESENTS BRAVO IN THE UNDERSTUDY, held a second once set |
+| 3.0-6.25 | ALSO STARRING: ONE KIBBLE CANNON with a pointer on the cannon itself; Rocket's tag; Sage takes it a step ahead: ROCKET 0 |
+| 6.25-8.75 | AUDITION #1: Sage's Moonshot steals his spotlight; BRAVO / THE STAR rides on him in every audition |
+| 8.75-11.25 | ZOOM... ZZZ: Rocket sprints past the carrier and naps; the Zs rise from him; ROCKET 0 (AND ASLEEP) held 0.5 s |
+| 11.25-13.75 | AUDITION #2: Nova's ultimate on his stage; punch-in into CUT! (hard cuts into every panel) |
+| 13.75-14.25 | Comic panel: CUT! |
+| 14.25-20.75 | Credits: six cards; the store coat lands on a clean frame before each ultimate, each swap its own sound; Duchess declines hers (COAT DECLINED.) |
+| 20.75-22.75 | AUDITION #3: his own Champ's KNOCKOUT!; punch-in into THAT'S IT. |
+| 23.25-25.25 | Costume change: four coats, a match cut and a bolt puff on every beat |
+| 25.25-28.25 | The bush: Ranger hides (the screen dims), Meatball (Mega Meal) sits in the same bush (the dim lifts) |
+| 28.25-29.25 | ACT II (an orchestra hit and a drumroll) |
+| 29.25-36.75 | The band: Ziggy (punched in), Sir Brutus, Meatball, 2.5 s each from the first move; the tag, then the ultimate's card |
+| 36.75-39.25 | He plays dead in slow motion; comic panel (redrawn on-model): one eye opens |
+| 39.25-43.75 | The payoff: Bravo bows (ENCORE!), the carrier fumbles: BRAVO! and roses; a rose BONK! |
+| 43.75-46.75 | Rocket fires the stolen cannon: KABOOM, ROCKET 1 |
+| 46.75-48.75 | The cat core falls, punched in: VICTORY! |
+| 48.75-49.75 | Bravo takes the bow for it: "YOU'RE WELCOME." |
+| 49.75-52.25 | The curtain call: five lineups, every champion named (9:16 and 1:1 fit the landscape lineup to the width) |
+| 52.25-54.75 | End card: the v6 logo, CATS VS DOGS. PICK A SIDE., PLAY FREE · pawlegends.app |
+| 54.75-60.0 | Stinger: Meatball rolls through his spotlight; freeze: Bravo will return., then the logo and PLAY FREE · pawlegends.app (rimshot) |
+
+Round 3 (jury of round 2, 6.3/10): Bravo is tagged in every audition, the title holds, the Zs and AND ASLEEP sit on
+Rocket and read, the hook skips the hit's white puff (a jump cut), the peek panel is redrawn from the CUT! panel (on
+model, one style), VICTORY! is 2 s and punched in, Bravo then takes the bow, the end card is 2.5 s and the last frame
+carries the logo and the address, the overture runs under the costume change and the bush (no silent hole before ACT
+II), the credits are six cards with six different swap sounds and a twist, the coat takes put only the credited
+champion in a coat (round 2 also dressed the others: a second burger), the curtain call names everyone, the cannon is
+pointed at from its first frame on screen (`colorTrack`), and the 15 s cut carries the costume change and ROCKET 1.
 
 Round 2 (jury of round 1): the burning core's dark smoke no longer blobs over the frame, the hook punches in, Rocket is
 tagged wherever he matters, the credits are five short gags with five coat swaps, takes are graded to one target (mean

@@ -18,7 +18,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { argValue } from '../lib/args.mjs';
 import { Bus, SR, biquad, brown, compress, dbToGain, decay, freeverb, hz, limit, mix, mul, noise, saw, sec, sine, sweep, writeWav, writeWavFloat } from '../trailer/dsp.mjs';
-import { ACT2, BEAT, CREDITS, CUTS, FPS, HIT, N } from './timeline.mjs';
+import { ACT2, ACT2_CAST, ACT2_LEN, BEAT, CREDIT_AT, CREDIT_SWAP, CREDITS, CUTS, FPS, HIT, N } from './timeline.mjs';
 
 const I = await bundleImport('tools/trailer/instruments.mjs');
 /** Bundle an entry with Vite (TypeScript, extensionless imports) into one ES module and import it. */
@@ -256,62 +256,74 @@ const theme = (f, g = 0.4) => {
 // S01 hook: an orchestra hit on frame 0, the hit, his sob as he flops, the record scratch on the iris freeze
 orchHit(0, [60, 64, 67, 72]);
 theme(4, 0.35);
-game(HIT.flop - 6, 'hitHeavy', 0.6);
+// round 3: the jump cut on the impact (a white flash) carries the hit
+game(HIT.hit, 'hitHeavy', 0.75);
+sfx.add(smp(HIT.hit), I.impact(96, { sub: 48, len: 0.5 }), 0.5);
 game(HIT.flop, 'bravoSob', 0.9);
 recordScratch(C.iris, 0.8);
 // S02 the title: drumroll into a cymbal on the cannon cut
 drumroll(C.title, C.cannon - 2, 0.45);
 game(C.title + 12, 'slam', 0.5);
-music.add(smp(C.title + 20), I.tuba(36, 0.5), 0.6);
-tada(C.title + 20, [60, 64, 67, 72], 0.5, 0.6);
+music.add(smp(C.title + 16), I.tuba(36, 0.5), 0.6);
+tada(C.title + 16, [60, 64, 67, 72], 0.5, 0.6);
+tada(C.title + 32, [65, 69, 72, 77], 0.45, 0.8);
 music.add(smp(C.cannon), I.crash(5, 2), 0.55);
 // S03-S04 the race: the overture starts, a chase snare, Rocket's name card (his name call), the pick, a squeaky
 // deflate on ROCKET: 0
 oompah(C.cannon, C.cut);
 game(C.cannon + 2, 'cannonClank', 0.6);
 for (let f = C.cannon; f < HIT.missPick; f += BEAT / 2) music.add(smp(f), I.snare(2, 230), 0.12 + 0.18 * ((f - C.cannon) / (HIT.missPick - C.cannon)));
-voice(C.cannon + 88, 'name_rocket', 0.95);
-game(C.cannon + 90, 'rocketWhoosh', 0.45);
+game(C.cannon + 8, 'cannonChunk', 0.5);
+voice(C.cannon + 74, 'name_rocket', 0.95);
+game(C.cannon + 76, 'rocketWhoosh', 0.45);
 game(HIT.missPick, 'pickup', 0.7);
 deflate(HIT.missPick + 6, 0.55);
 game(HIT.missPick + 8, 'rocketSqueak', 0.6);
 // S05 audition #1: his la-la (the theme) cut off by the whoosh; wah-wah-waah
 theme(C.aud1 + 4, 0.45);
-sfx.add(smp(C.aud1 + 40), I.whoosh(0.35, 84, 1), 0.6);
-game(C.aud1 + 40, 'ult', 0.5);
-wahwah(C.aud1 + 66, 0.55);
-game(C.aud1 + 92, 'sadTrombone', 0.45);
+sfx.add(smp(HIT.steal1), I.whoosh(0.35, 84, 1), 0.6);
+game(HIT.steal1, 'ult', 0.5);
+wahwah(HIT.steal1 + 26, 0.55);
+game(HIT.steal1 + 52, 'sadTrombone', 0.45);
 // S06 ZOOM... ZZZ: whoosh, the snore, tick-tock
-game(C.zzz + 8, 'rocketWhoosh', 0.8);
+game(C.zzz + 38, 'rocketWhoosh', 0.8);
 game(HIT.nap, 'rocketSnore', 0.9);
 tickTock(HIT.nap + 6, C.aud2, 0.35);
 // S07 audition #2: meteor booms on the beats, a slide whistle fall into the punch-in
 for (let k = 0; k < 3; k++) game(C.aud2 + k * BEAT, 'boom', 0.55, k % 2 ? 0.2 : -0.2);
-slideWhistle(C.aud2 + 66, 1600, 300, 0.45, 0.4);
+slideWhistle(C.cut - 40, 1600, 300, 0.45, 0.4);
 sfx.add(smp(C.cut - 14), I.whoosh(0.22, 85, 1), 0.45);
 // S08 CUT!: everything stops, a megaphone squeal and the shout (the game's bark under it)
 squeal(C.cut, 0.3);
 game(C.cut + 2, 'bravoGasp', 0.8);
 sfx.add(smp(C.cut + 2), I.crackle(0.25, 93), 0.4);
-// S09 the credits: a brass stab and a name call on every downbeat, the ultimate's sound, a poof and a ta-da on the
-// coat swap (the half beat)
+// S09 the credits (round 3, review: the same ult-poof-ta-da five times): a brass stab and a name call on each card, and
+// every coat swap its own sound, escalating; the last card's swap is refused (a record scratch and the game's deny)
+oompah(C.credits, C.eye, { g: 0.45 });
 music.add(smp(C.credits), I.crash(5, 1.6), 0.45);
+const SWAP_SFX = [
+  (f, ch) => { game(f, 'poof', 0.55); tada(f, ch, 0.35, 0.25); },
+  (f, ch) => { game(f, 'kibbleBoing', 0.6); tada(f, ch, 0.4, 0.3); },
+  (f, ch) => { game(f, 'poof', 0.5); slideWhistle(f, 500, 1500, 0.3, 0.3); },
+  (f, ch) => { game(f, 'shieldChime', 0.55); tada(f, ch, 0.4, 0.3); },
+  (f, ch) => { game(f, 'nuggetSqueak', 0.6); game(f + 6, 'horn', 0.45); tada(f, ch, 0.5, 0.5); },
+  (f) => { recordScratch(f + 2, 0.75); game(f + 8, 'deny', 0.8); game(f + 30, 'pfft', 0.6); },
+];
 CREDITS.forEach((c, i) => {
-  const f = C.credits + i * 60;
-  const chord = ['C', 'G', 'Am', 'F', 'G'][i];
+  const f = CREDIT_AT[i];
+  const chord = ['C', 'G', 'Am', 'F', 'G', 'D'][i];
   const [L, R] = I.stab(CH[chord].tri, 0.26, 1.1);
   music.addStereo(smp(f), L, R, 0.55);
   music.add(smp(f), I.tuba(CH[chord].root, 0.4), 0.5);
   voice(f + 4, `name_${c.take.split('-')[1]}`, 1.0);
-  game(f + 10, i % 2 ? 'slam' : 'ult', 0.4);
-  game(f + 30, 'poof', 0.55);
-  tada(f + 30, CH[chord].tri.map((m) => m + 12), 0.35, 0.25);
+  SWAP_SFX[i](f + CREDIT_SWAP, CH[chord].tri.map((m) => m + 12));
+  game(f + 27, i % 2 ? 'slam' : 'ult', 0.4);
 });
 // S10 audition #3: the bell, the whoosh, the crash, a whoosh into the punch-in
 bell(C.aud3 + 6, 0.45);
-sfx.add(smp(C.aud3 + 30), I.whoosh(0.3, 86, 1), 0.6);
-game(C.aud3 + 44, 'hitHeavy', 0.7);
-game(C.aud3 + 46, 'kibbleClang', 0.5);
+sfx.add(smp(C.aud3 + 48), I.whoosh(0.3, 86, 1), 0.6);
+game(C.aud3 + 62, 'hitHeavy', 0.7);
+game(C.aud3 + 64, 'kibbleClang', 0.5);
 sfx.add(smp(C.eye - 12), I.whoosh(0.2, 87, 1), 0.4);
 // S11 THAT'S IT.: a violin screech, then silence (the hole below)
 screech(C.eye, 0.3, 0.4);
@@ -321,13 +333,16 @@ tada(C.costume + 30, [62, 65, 69], 0.5);
 tada(C.costume + 60, [64, 67, 71], 0.5);
 tada(C.costume + 90, [65, 69, 72, 77], 0.75, 0.9);
 for (let k = 0; k < 4; k++) game(C.costume + k * 30, 'poof', 0.5);
+// round 3 (review: 1.5 s of near-silence before ACT II): the overture bed runs under the costume change and the bush
+oompah(C.costume, C.act2, { g: 0.5 });
 // S13 the bush: shhh, the squeak, a gasp
 shhh(C.bush + 18, 0.45);
 squeak(C.bush + 70, 0.5);
 game(C.bush + 74, 'gasp', 0.5);
 game(C.bush + 120, 'nuggetSqueak', 0.35);
 // S14 ACT II: drumroll into the band
-drumroll(C.act2, C.fight, 0.55);
+orchHit(C.act2, [57, 60, 64, 69], 0.7);
+drumroll(C.act2 + 4, C.fight, 0.75);
 game(C.act2, 'cannonClank', 0.5);
 // S15 the fight: the band; each hero moment: a crash on the cut, the name call, the ultimate on its cast (take frame
 // 48, a 0.8x ramp), impacts on the hits
@@ -335,17 +350,17 @@ music.add(smp(C.fight), I.crash(5, 2.4), 0.6);
 music.add(smp(C.fight), I.kick(1, { punch: 1.5 }), 1);
 band(C.fight, C.flop, { hype: true });
 ACT2.forEach((u, i) => {
-  const f = C.fight + i * 180;
+  const f = C.fight + i * ACT2_LEN;
+  const cast = f + ACT2_CAST - u.in;
   if (i) music.add(smp(f), I.crash(5, 1.6), 0.45);
-  voice(f + 8, `name_${u.hero}`, 0.95);
-  game(f + 50, 'ult', 0.6);
-  sfx.add(smp(f + 50), I.riser(0.3, 74 + i)[0], 0.25);
+  voice(f + 4, `name_${u.hero}`, 0.95);
+  game(cast + 2, 'ult', 0.6);
+  sfx.add(smp(cast + 2), I.riser(0.3, 74 + i)[0], 0.25);
   for (let k = 0; k < 3; k++) {
-    game(f + 66 + k * 22, k % 2 ? 'hitHeavy' : 'slam', 0.45);
-    sfx.add(smp(f + 66 + k * 22), I.impact(90 + i * 3 + k, { sub: 50, len: 0.5 }), 0.4);
+    game(cast + 18 + k * 22, k % 2 ? 'hitHeavy' : 'slam', 0.45);
+    sfx.add(smp(cast + 18 + k * 22), I.impact(90 + i * 3 + k, { sub: 50, len: 0.5 }), 0.4);
   }
 });
-game(C.fight + 180 + 60, 'bedBoing', 0.3);
 // S16 the slow-mo flop: a choir aah, then the record scratch back to 1x
 choir(C.flop + 6, [60, 64, 67, 72], 1.5, 0.35);
 game(C.flop + 40, 'bravoSob', 0.8, 0, 0.8);
@@ -384,19 +399,23 @@ tada(HIT.coreBurst + 53, [65, 69, 72], 0.6, 0.4);
 tada(HIT.coreBurst + 68, [67, 71, 74], 0.6, 0.4);
 tada(HIT.coreBurst + 83, [72, 76, 79, 84], 0.8, 1.2);
 voice(HIT.coreBurst + 33, 'victory', 1.0);
+// S20b he takes the bow for the win: his bow, his theme, a smug little pluck
+band(C.victory, C.welcome, { g: 0.6 });
+game(C.welcome + 4, 'bravoBow', 0.9);
+theme(C.welcome + 10, 0.5);
+music.add(smp(C.welcome + 50), I.pluck(84, 0.25, 54), 0.5);
 // S21 the curtain call: applause, a pop per lineup, the overture reprise
-applause(C.curtain, 3, 0.45);
+applause(C.curtain, 2.5, 0.45);
 oompah(C.curtain, C.end, { g: 0.9 });
-theme(C.curtain + 30, 0.45);
-for (const off of [0, 30, 60, 90, 120, 150, 165]) game(C.curtain + off, 'poof', 0.3);
+theme(C.curtain + 20, 0.45);
+for (let off = 0; off < C.end - C.curtain; off += 30) game(C.curtain + off, 'poof', 0.3);
 // S22 the end card: the v6 sting, then (round 2: 2 s of dead air) a soft oompah bed under the logo and the line
 if (STING) {
   sfx.add(smp(C.end), decode(STING, 1), 1.0);
   cue(C.end, 'brand sting');
 } else orchHit(C.end, [60, 64, 67, 72]);
 music.add(smp(C.end), I.crash(5, 3), 0.4);
-oompah(C.end + 90, C.stinger, { g: 0.55 });
-theme(C.end + 150, 0.3);
+oompah(C.end + 60, C.stinger, { g: 0.55 });
 // S23 the stinger: his la-la, the bowling strike, his sob; under the freeze a tick-tock bed, a pluck on the line
 // (Bravo will return.) and the rimshot on 59.5 s
 oompah(C.stinger, C.returns, { g: 0.45, pizz: false });
@@ -411,6 +430,8 @@ tickTock(C.returns, 3555, 0.55);
 }
 music.add(smp(HIT.returnsLine), I.pluck(72, 0.3, 52), 0.55);
 music.add(smp(HIT.returnsLine + 8), I.pluck(76, 0.3, 53), 0.5);
+// round 3: the logo lands on the freeze (the address follows)
+tada(HIT.returnsLogo, [60, 64, 67, 72], 0.45, 0.5);
 rimshot(3570, 0.85);
 
 // ---------------------------------------------------------------- space, ducking, holes, master
@@ -459,7 +480,7 @@ function master() {
   bus.mixIn(vo, 1.25);
   compress(bus, { threshDb: -16, ratio: 1.8, attack: 0.012, release: 0.2 });
   // the arc: the overture sits under the gags, the band lifts it, the payoff and the victory peak
-  const ARC = [[0, 0], [C.cannon, -3], [C.credits, -1], [C.aud3, -3], [C.fight, 0], [C.flop, -3], [C.payoff, -1], [HIT.encoreFumble, 1], [C.victory, 1], [C.curtain, -2], [C.end, 0], [C.end + 60, -3], [C.stinger, -2], [C.returns, -2], [3568, 0]];
+  const ARC = [[0, 0], [C.cannon, -3], [C.credits, -1], [C.aud3, -3], [C.fight, 0], [C.flop, -3], [C.payoff, -1], [HIT.encoreFumble, 1], [C.victory, 1], [C.curtain, -2], [C.end, 0], [C.end + 60, -2], [C.stinger, -2], [C.returns, -2], [3568, 0]];
   const arcDb = (f) => {
     for (let k = ARC.length - 1; k >= 0; k--) if (f >= ARC[k][0]) {
       const t = Math.min(1, (f - ARC[k][0]) / 6);

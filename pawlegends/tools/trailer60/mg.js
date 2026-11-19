@@ -331,7 +331,8 @@ SEG.iris = (f, p) => {
   const r = Math.hypot(W, H) * (0.75 - 0.5 * t);
   spotlight(W / 2, H / 2, Math.max(r, Math.min(W, H) * 0.24), 0.86, 0.18);
   halftone(C.night, 0.25 * t, 12 * S(), -0.6, 0.5);
-  flash(f < 2 ? 0.35 : 0, C.bolt);
+  // round 3: a white pop, not a yellow wash (the panels' wash read as a grading error)
+  flash(f < 2 ? 0.3 : 0, '#fff');
   const size = (V() ? 96 : 110) * S();
   slamWord(p.text, W / 2, V() ? H * 0.66 : H * 0.84, size, f - 2, { shadow: C.sky, per: 0.6, rise: 4 });
 };
@@ -370,14 +371,15 @@ SEG.title = (f, p) => {
     ctx.globalAlpha = 1;
     setLine('PRESENTS', W / 2, (v ? H * 0.2 : H * 0.15) + lh * 0.5 + 40 * S(), (v ? 60 : 54) * S(), { font: 'Fredoka', weight: 700, italic: false, shadow: C.plum, align: 'center', outline: 0.2 });
   }
-  slamWord('BRAVO', W / 2, v ? H * 0.47 : H * 0.52, (v ? 210 : 230) * S(), f - 20, { shadow: C.sky, per: 1, rise: 4 });
-  const it = clamp((f - 30) / 5);
+  // round 3 (review: the subtitle was whole for 3 frames): BRAVO at 16, IN at 22, THE UNDERSTUDY set by ~36, held to 90
+  slamWord('BRAVO', W / 2, v ? H * 0.47 : H * 0.52, (v ? 210 : 230) * S(), f - 16, { shadow: C.sky, per: 0.8, rise: 4 });
+  const it = clamp((f - 22) / 4);
   if (it > 0) {
     ctx.globalAlpha = it;
     setLine('IN', W / 2, v ? H * 0.585 : H * 0.665, (v ? 60 : 56) * S(), { font: 'Fredoka', weight: 700, italic: false, shadow: C.plum, align: 'center', outline: 0.2 });
     ctx.globalAlpha = 1;
   }
-  slamWord('THE UNDERSTUDY', W / 2, v ? H * 0.67 : H * 0.78, (v ? 104 : 112) * S(), f - 34, { shadow: C.rose, color: C.bolt, per: 0.6, rise: 4 });
+  slamWord('THE UNDERSTUDY', W / 2, v ? H * 0.67 : H * 0.78, (v ? 104 : 112) * S(), f - 24, { shadow: C.rose, color: C.bolt, per: 0.6, rise: 4 });
   ctx.restore();
   vignette(0.3);
 };
@@ -391,6 +393,11 @@ ITEM.tag = (f, it) => {
   ctx.globalAlpha = f > it.out - 3 ? clamp((it.out - f) / 3) : 1;
   slamWord(it.text, W / 2, H * it.y, it.size * Math.min(W, H) * (V() ? 1.25 : 1.6), f - it.at, { color: COL[it.color ?? 'cream'], shadow: it.color === 'bolt' ? C.plum : C.rose, per: 0.5, rise: 4 });
   ctx.restore();
+};
+/** Round 3: a white impact flash (the hook's jump cut). */
+ITEM.flash = (f, it) => {
+  const g = f - it.at;
+  if (g >= 0 && g < it.len) flash(0.85 * (1 - g / it.len), '#fff');
 };
 /** A sports scoreboard chip, top right: ROCKET | 0, the sub line under it; `win` flips the digit with a burst. */
 ITEM.counter = (f, it) => {
@@ -448,9 +455,18 @@ ITEM.counter = (f, it) => {
     ctx.restore();
   }
   if (it.sub) {
-    const st = clamp((f - it.at - 6) / 5);
-    ctx.globalAlpha = st;
-    setLine(it.sub, V() ? x : x - tot / 2, y + s * 1.25, s * 0.62, { font: 'Fredoka', weight: 700, italic: false, shadow: C.plum, align: 'center', outline: 0.2 });
+    // round 3 (review: grey on grey, unreadable at 1080p): a bolt chip as big as the name, slammed in under it
+    const st = clamp((f - it.at - 5) / 4);
+    if (st > 0) {
+      const k2 = popScale(f, it.at + 5);
+      const sx = V() ? x : x - tot / 2, sy = y + s * 1.55;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.scale(k2, k2);
+      ctx.rotate(-0.04);
+      chip(it.sub, 0, 0, s * 0.9, { fill: C.bolt, color: C.ink, align: 'center' });
+      ctx.restore();
+    }
   }
   ctx.restore();
 };
@@ -512,8 +528,11 @@ ITEM.pointer = (f, it) => {
   const s = (V() ? 66 : 62) * S();
   const k = popScale(f, it.at);
   const bob = Math.sin(g * 0.25) * 6 * S();
-  const x = clamp(p[0] * W, W * 0.14, W * 0.86), tip = clamp(p[1] * H - 10 * S(), H * 0.2, H * 0.9);
-  const y = tip - s * (it.sub ? 2.1 : 1.35) + bob;
+  const below = !!it.below;
+  const x = clamp(p[0] * W, W * 0.14, W * 0.86), tip = below ? clamp(p[1] * H + 30 * S(), H * 0.03, H * 0.7) : clamp(p[1] * H - 10 * S(), H * 0.2, H * 0.9);
+  // round 3 `below`: the chip under its target, the arrow pointing up (a prop at the top of the frame)
+  const y = below ? tip + s * 1.35 + bob : tip - s * (it.sub ? 2.1 : 1.35) + bob;
+  const fill = it.side === 'cat' ? C.rose : it.side === 'star' ? C.bolt : C.sky, ink = it.side === 'star' ? C.ink : C.cream;
   ctx.save();
   ctx.globalAlpha = fade * clamp(g / 3);
   ctx.translate(x, tip + bob);
@@ -522,20 +541,26 @@ ITEM.pointer = (f, it) => {
   // the arrow
   ctx.fillStyle = C.ink;
   ctx.beginPath();
-  ctx.moveTo(x - s * 0.42, y + s * 0.55);
-  ctx.lineTo(x + s * 0.42, y + s * 0.55);
+  const e = below ? -s * 0.55 : s * 0.55, d = below ? s * 0.22 : -s * 0.22;
+  ctx.moveTo(x - s * 0.42, y + e);
+  ctx.lineTo(x + s * 0.42, y + e);
   ctx.lineTo(x, tip + bob);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = it.side === 'cat' ? C.rose : C.sky;
+  ctx.fillStyle = fill;
   ctx.beginPath();
-  ctx.moveTo(x - s * 0.26, y + s * 0.55);
-  ctx.lineTo(x + s * 0.26, y + s * 0.55);
-  ctx.lineTo(x, tip + bob - s * 0.22);
+  ctx.moveTo(x - s * 0.26, y + e);
+  ctx.lineTo(x + s * 0.26, y + e);
+  ctx.lineTo(x, tip + bob + d);
   ctx.closePath();
   ctx.fill();
-  chip(it.text, x, y, s, { fill: it.side === 'cat' ? C.rose : C.sky, color: C.cream, align: 'center' });
-  if (it.sub) chip(it.sub, x, y - s * 1.25, s * 0.62, { fill: C.bolt, color: C.ink, align: 'center', font: 'Fredoka', weight: 700, italic: false });
+  // round 3 (9:16 clipped THE CANNON at the edge): the chip slides to stay inside the frame, the arrow keeps its target
+  ctx.font = `900 italic ${s}px RubikD, sans-serif`;
+  const half = (ctx.measureText(it.text).width + s * 0.84) / 2 + 12 * S();
+  chip(it.text, clamp(x, half, W - half), y, s, { fill, color: ink, align: 'center' });
+  ctx.font = `700 ${s * 0.62}px Fredoka, sans-serif`;
+  const halfSub = (ctx.measureText(it.sub ?? '').width + s * 0.52) / 2 + 12 * S();
+  if (it.sub) chip(it.sub, clamp(x, halfSub, W - halfSub), y - s * 1.25, s * 0.62, { fill: it.side === 'star' ? C.rose : C.bolt, color: it.side === 'star' ? C.cream : C.ink, align: 'center', font: 'Fredoka', weight: 700, italic: false });
   ctx.restore();
 };
 /** Round 2 Act II: the hero's name and the ultimate's name, a slanted card low left (9:16: centred above the captions). */
@@ -559,16 +584,20 @@ ITEM.ult = (f, it) => {
   chip(it.ult, 0, 0, s * 0.62, { fill: C.bolt, color: C.ink, align: v ? 'center' : 'left' });
   ctx.restore();
 };
+/** Round 3 (review: the Zs floated over the cat): the Zs rise from the tracked hero (Rocket), big. */
 ITEM.zzz = (f, it) => {
   if (f < it.at || f > it.out) return;
+  let p = null;
+  for (let k = f; k >= 0 && !p; k--) p = it.pts?.[k] ?? null;
+  const [hx, hy] = p ? [p[0] * W, p[1] * H] : [W * 0.5, H * 0.44];
   const g = f - it.at;
   ctx.save();
   for (let i = 0; i < 3; i++) {
     const t = g - i * 6;
     if (t < 0) continue;
-    const s = (52 + i * 22) * S();
+    const s = (64 + i * 26) * S();
     ctx.globalAlpha = clamp(t / 4);
-    setLine('Z', W * 0.5 + (30 + i * 46 + Math.sin(t * 0.2) * 10) * S(), H * 0.44 - (i * 58 + t * 1.2) * S(), s, { color: C.cream, shadow: C.sky, align: 'center' });
+    setLine('Z', hx + (20 + i * 50 + Math.sin(t * 0.2) * 10) * S(), hy - (10 + i * 62 + t * 0.8) * S(), s, { color: C.cream, shadow: C.sky, align: 'center' });
   }
   ctx.restore();
 };
@@ -606,7 +635,7 @@ SEG.panel = (f, p) => {
   const t = f / p.n;
   const [sx, sy] = shake(f, p.shake ? 7 * S() : f < 5 ? 10 * S() : 0, 11);
   cover(im, 1.1 + 0.05 * t, 0.5, 0.5, 0, 0, W, H, sx, sy);
-  if (f < 2) flash(0.4, C.bolt);
+  // round 3 (review: a 2-frame muddy yellow wash read as a grading error): a hard cut in
   if (p.text) {
     const s = (v ? 190 : 210) * S();
     slamWord(p.text, W / 2 + sx, (p.img === 'eye' ? (v ? H * 0.68 : H * 0.84) : v ? H * 0.12 : H * 0.17) + sy, p.img === 'eye' ? s * 0.6 : s, f, { color: p.img === 'eye' ? C.cream : C.bolt, shadow: C.rose, per: 0.5, rise: 3 });
@@ -650,8 +679,35 @@ SEG.credit = (f, p) => {
   ctx.globalAlpha = (1 - out) * clamp((f - 4) / 4);
   setLine(`as ${p.as}`, x + s * 0.02, y + s * 0.98, s * 0.62, { font: 'Fredoka', weight: 700, italic: false, color: C.bolt, shadow: C.ink, align: 'left', outline: 0.22 });
   ctx.restore();
-  // the coat swap: a bolt-yellow puff round the frame centre (the hero) and the coat chip
+  // the coat swap: a bolt-yellow puff round the frame centre (the hero) and the coat chip; round 3 `refuse`: the puff
+  // clears on the same coat and a COAT DECLINED. stamp slams in (the last card's twist)
   const g = f - p.swapAt;
+  if (p.refuse && g >= 0) {
+    if (g < 3) flash(g < 2 ? 0.35 : 0.15, C.bolt);
+    const k = 1 + 0.6 * (1 - outCubic(clamp((g - 6) / 5)));
+    if (g >= 6) {
+      const cs = (v ? 64 : 70) * S();
+      const [sx, sy] = shake(g, g < 12 ? 6 * S() : 0, 3);
+      ctx.save();
+      ctx.globalAlpha = 1 - out;
+      ctx.translate((v ? W / 2 : W * 0.72) + sx, (v ? H * 0.17 : H * 0.18) + sy);
+      ctx.scale(k, k);
+      ctx.rotate(-0.12);
+      ctx.strokeStyle = C.rose;
+      ctx.lineWidth = 10 * S();
+      ctx.font = `900 italic ${cs}px RubikD, sans-serif`;
+      const tw = ctx.measureText('COAT DECLINED.').width + cs * 0.9;
+      ctx.fillStyle = 'rgba(255,243,227,0.92)';
+      ctx.fillRect(-tw / 2, -cs * 0.85, tw, cs * 1.7);
+      ctx.strokeRect(-tw / 2, -cs * 0.85, tw, cs * 1.7);
+      ctx.fillStyle = C.rose;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('COAT DECLINED.', 0, cs * 0.05);
+      ctx.restore();
+    }
+    return;
+  }
   if (g >= 0 && g < 3) {
     ctx.save();
     const a = g < 2 ? 0.7 : 0.3;
@@ -839,8 +895,21 @@ SEG.cast = (f0, p) => {
     slamWord('THE CAST OF', W / 2, H * 0.16, s, f - 4, { color: C.cream, shadow: C.plum, per: 0.5, rise: 4 });
     slamWord('PAW LEGENDS', W / 2, H * 0.16 + s * 1.15, s * 1.2, f - 10, { color: C.bolt, shadow: C.rose, per: 0.5, rise: 4 });
   } else slamWord('THE CAST OF PAW LEGENDS', W / 2, H * 0.13, s, f - 4, { color: C.bolt, shadow: C.rose, per: 0.4, rise: 4 });
-  // a flash on each lineup cut
-  if (p.i > 0 && f0 < 2) flash(0.2, C.bolt);
+  // round 3 (review: no names, a 0.5 s strobe): every champion named under its stand; the 9:16 and 1:1 cuts show the
+  // landscape lineup fitted to the width (edit.mjs wideV 'fit'), so the names follow that mapping
+  if (p.names) {
+    const fitH = W * 0.5625, top = W === 1920 ? 0 : (H - fitH) / 2;
+    const ny = top + (W === 1920 ? 0.86 : 0.9) * (W === 1920 ? H : fitH);
+    const ns = (W === 1920 ? 44 : 30) * S() * (W === 1920 ? 1 : 1.25);
+    [0.18, 0.4, 0.61, 0.86].forEach((fx, k) => {
+      const a = clamp((f0 - 2 - k * 2) / 4);
+      if (a <= 0) return;
+      ctx.save();
+      ctx.globalAlpha = a;
+      chip(p.names[k], fx * W, ny, ns, { fill: k < 2 ? C.rose : C.sky, color: C.cream, align: 'center' });
+      ctx.restore();
+    });
+  }
 };
 
 /** S23 the stinger's last frame: a spotlight freeze, the logo in the corner, Bravo will return. */
@@ -850,14 +919,50 @@ SEG.returns = (f, p) => {
   const t = outCubic(clamp(f / 8));
   spotlight(W / 2, H / 2, Math.min(W, H) * (0.9 - 0.55 * t), 0.88, 0.2);
   if (f < 2) flash(0.3, C.bolt);
+  // round 3 (review: the last frame had no address): Bravo will return., then the logo lands top centre and the
+  // PLAY FREE · pawlegends.app bar under the line, held to the end
   const L = img.logo;
-  const lw = v ? W * 0.42 : W * 0.17;
-  ctx.globalAlpha = clamp((f - 4) / 6);
-  ctx.drawImage(L, v ? W / 2 - lw / 2 : W - lw - W * 0.03, v ? H * 0.06 : H * 0.05, lw, (lw * L.height) / L.width);
+  const lt = clamp((f - 34) / 9);
+  if (lt > 0) {
+    const lw = (v ? W * 0.72 : W * 0.34) * (lt < 1 ? 1.4 - 0.4 * outBack(lt, 2.2) : 1);
+    ctx.save();
+    ctx.globalAlpha = clamp(lt * 3);
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 24 * S();
+    ctx.drawImage(L, W / 2 - lw / 2, v ? H * 0.07 : H * 0.04, lw, (lw * L.height) / L.width);
+    ctx.restore();
+  }
   ctx.globalAlpha = clamp((f - 8) / 8);
-  setLine('Bravo will return.', W / 2, v ? H * 0.68 : H * 0.85, (v ? 80 : 84) * S(), { font: 'Fredoka', weight: 700, italic: false, color: C.cream, shadow: C.plum, align: 'center', outline: 0.18 });
+  setLine('Bravo will return.', W / 2, v ? H * 0.64 : H * 0.74, (v ? 80 : 84) * S(), { font: 'Fredoka', weight: 700, italic: false, color: C.cream, shadow: C.plum, align: 'center', outline: 0.18 });
   ctx.globalAlpha = 1;
-  if (f >= p.n - 8) flash(((f - (p.n - 8)) / 8) * 0.9, C.night);
+  const ct = outCubic(clamp((f - 46) / 8));
+  if (ct > 0) {
+    const fs = (v ? 58 : 54) * S();
+    ctx.save();
+    ctx.globalAlpha = ct;
+    ctx.font = `700 ${fs}px Fredoka, sans-serif`;
+    const a = 'PLAY FREE', b = 'pawlegends.app';
+    const wa = ctx.measureText(a).width + fs;
+    ctx.font = `700 ${fs * 1.3}px Fredoka, sans-serif`;
+    const wb = ctx.measureText(b).width + fs * 1.2;
+    const bh = fs * 1.8, tot = wa + wb;
+    ctx.translate(W / 2 - tot / 2, (v ? H * 0.72 : H * 0.83) + (1 - ct) * 40 * S());
+    ctx.fillStyle = C.ink;
+    ctx.fillRect(-6 * S(), -6 * S(), tot + 12 * S(), bh + 12 * S());
+    ctx.fillStyle = C.bolt;
+    ctx.fillRect(0, 0, wa, bh);
+    ctx.fillStyle = C.cream;
+    ctx.fillRect(wa, 0, wb, bh);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = C.ink;
+    ctx.font = `700 ${fs}px Fredoka, sans-serif`;
+    ctx.fillText(a, wa / 2, bh / 2 + fs * 0.04);
+    ctx.fillStyle = C.plum;
+    ctx.font = `700 ${fs * 1.3}px Fredoka, sans-serif`;
+    ctx.fillText(b, wa + wb / 2, bh / 2 + fs * 0.04);
+    ctx.restore();
+  }
 };
 SEG.end = (f, p) => {
   const v = H > W, sq = W === H;
@@ -1007,6 +1112,10 @@ window.__mg = {
     cv.style.height = `${H}px`;
     ctx = cv.getContext('2d', { willReadFrequently: true });
     const faces = [new FontFace('RubikD', `url(${o.fonts.rubik})`, { style: 'italic', weight: '100 900' }), new FontFace('Fredoka', `url(${o.fonts.fredoka})`, { weight: '300 700' })];
+    // round 3: the latin-ext subsets (Lithuanian names in the curtain call: AVIETĖ, GABĖ)
+    const EXT = 'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF';
+    if (o.fonts.rubikExt) faces.push(new FontFace('RubikD', `url(${o.fonts.rubikExt})`, { style: 'italic', weight: '100 900', unicodeRange: EXT }));
+    if (o.fonts.fredokaExt) faces.push(new FontFace('Fredoka', `url(${o.fonts.fredokaExt})`, { weight: '300 700', unicodeRange: EXT }));
     for (const fc of faces) document.fonts.add(await fc.load());
     await Promise.all(Object.entries(o.assets).map(([k, v]) => load(k, v)));
     return Object.keys(img).length;
