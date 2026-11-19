@@ -3,8 +3,11 @@
  * Build the web bundle the app ships and updates (docs/plans/moba/APP-STORE.md "Game changes for the app build"):
  *
  * 1. `pawlegends` built for the app: relative base (served from capacitor://localhost), VITE_PAWLEGENDS_APP=1 (no
- *    purchase links, app build locked), the production API for party play, and no PostHog key (the App Store privacy
- *    label has no analytics data; nothing is sent, so there is no consent prompt and no tracking).
+ *    purchase links, app build locked), the production API for party play, and the shared PostHog project token
+ *    (NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN / _HOST from the environment or pawlegends/.env.local, as for the web build). The
+ *    game asks before anything is sent (Home after the first match, Settings → Share play stats) and stays silent on a
+ *    native binary older than APP_ANALYTICS_MIN_NATIVE (pawlegends/src/analytics/posthog.ts), whose store privacy labels
+ *    do not declare analytics. No advertising id, no tracking, no ATT.
  * 2. The shell (src/shell/main.ts) bundled to `www/shell.js` with this bundle's stamp, and loaded before the game;
  *    the in-page host (src/host/main.ts: sign-in, saves, social; it reuses the web host's React-free modules from
  *    ../pawlegends-web) bundled to `www/host.js`, a deferred script after the game.
@@ -129,9 +132,8 @@ if (!args.includes('--skip-game')) {
     VITE_PAWLEGENDS_APP: '1',
     VITE_PAWLEGENDS_API: API_ORIGIN,
     VITE_PAWLEGENDS_BUILD: `app-${version}`,
-    // no analytics in v1 (no analytics data on the privacy label): an empty token wins over any .env file
-    // (pawlegends/.env.local holds the shared NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN for the web build)
-    NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: '',
+    // analytics: the same public, ingest-only project token as the web build (CI: the repo variable; locally
+    // pawlegends/.env.local), consent-gated in the game; nothing here overrides it
   };
   execFileSync('npx', ['tsc', '--noEmit'], { cwd: gameDir, stdio: 'inherit', env });
   execFileSync('npx', ['vite', 'build', '--outDir', gameOut, '--emptyOutDir'], { cwd: gameDir, stdio: 'inherit', env });

@@ -26,7 +26,7 @@ Play Console answers and founder steps: [`docs/plans/moba/PLAY-STORE.md`](../doc
 | `capacitor.config.ts` | App id, WebView settings, the updater in manual self-hosted mode, the OTA public key |
 | `src/shell/` | `shell.js`, loaded before the game: OTA (`ota.ts`, `manifest.ts`), the update gate (`gate.ts`, `policy.ts`) and native haptics (`haptics.ts`) |
 | `bridge/` | The compat-1 bridge bundle (`build-web.mjs --bridge`): the "Update Paw Legends" page the 1.0.x apps get as their last OTA |
-| `scripts/build-web.mjs` | Builds `../pawlegends` for the app into `www/` (app build flag, production API, no analytics key) and adds `shell.js` |
+| `scripts/build-web.mjs` | Builds `../pawlegends` for the app into `www/` (app build flag, production API, the shared PostHog token: consent-gated in the game, silent on a native binary older than `APP_ANALYTICS_MIN_NATIVE`) and adds `shell.js` |
 | `scripts/ota-publish.mjs` | Zips, encrypts and signs `www/` into `client/public/pawlegends-app/updates/ios/<compat>/` |
 | `scripts/ota-local.mjs` | Publishes into a scratch folder and serves it on `localhost:8787` for a Debug build (try an update before it ships) |
 | `scripts/ota-keygen.mjs` | Makes the OTA RSA key pair (done once; public key committed in `ota/public-key.pem`) |

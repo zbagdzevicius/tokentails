@@ -7,7 +7,7 @@
 import { MAP_CARDS, drawSeed, poolMapOf, practiceMap, rememberMap, rollMap } from '../ui/mapPick';
 import { fishSources, medals, progressRows } from '../ui/progressSummary';
 import { HumanFilter } from '../analytics/human';
-import { askConsent, createAnalytics, type Analytics } from '../analytics/posthog';
+import { appGate, askConsent, createAnalytics, systemProps, type Analytics } from '../analytics/posthog';
 import { retentionDay, sinceLoadMs } from '../analytics/kpi';
 import { sfx } from '../audio/sfx';
 import { applyMusicPref } from '../audio/musicPref';
@@ -16,7 +16,7 @@ import { nameLine } from '../audio/voiceLines';
 import { crashSender, reportCrash, setCrashHook, showCrash } from './crash';
 import { setChunkRetryEnv } from './chunkRetry';
 import { SIM_VERSION } from '../sim/version';
-import { inAppShell, shareBase } from './platform';
+import { inAppShell, shareBase, shellPlatform } from './platform';
 import type { Bridge, HostMessage } from '../embed/bridge';
 import { EMPTY_ROSTER, isAppBuild } from '../meta/roster';
 import { onSkinsChanged } from '../render/skins/registry';
@@ -202,6 +202,9 @@ export function framePcts(xs: readonly number[]): { p50: number; p95: number; p9
 /** Away on its own after this long without input in the menus (social sidebar round 6). */
 const AUTO_AWAY_MS = 10 * 60_000;
 const AUTO_AWAY_KEY = 'pl.social.autoAway';
+/** The last play stats choice the server took for an account (`pl_…:granted|denied`). */
+const CONSENT_SYNC_KEY = 'tt.pawlegends.consent-sync.v1';
+
 export class App {
   readonly gr: GameRenderer;
   /** The menu stage: the screen's painted scene and the hero's art (ui/stage/artStage.ts; no 3D on menus). */
@@ -337,17 +340,40 @@ export class App {
     // sim v14: the hero follows the side the switch was left on (the last hero picked there)
     this.choice = { hero: HEROES[p.hero].side === p.side ? p.hero : heroForSide(p, p.side), trick: p.trick, difficulty: p.difficulty };
     this.human.install(window);
-    // PUB-02: embedded, events go to the host's analytics (the site's policy and id); standalone, to PostHog after consent
+    // PUB-02: framed (pawlegends.app/play, tokentails.com), events go to the host's analytics (the site's consent bar and
+    // id); standalone and in the native app (its in-page host has no analytics of its own), to PostHog after consent
+    const framed = bridge.kind === 'frame';
+    const platform = shellPlatform();
+    const nativeInfo = (): { native?: string; nativeBuild?: string; ota?: string } | null => {
+      try {
+        const i = (window as { __PL_APP_INFO__?: unknown }).__PL_APP_INFO__;
+        return i && typeof i === 'object' ? (i as { native?: string; nativeBuild?: string; ota?: string }) : null;
+      } catch {
+        return null;
+      }
+    };
     this.analytics = createAnalytics(
       // day_n: whole days since this browser first played (D1 / D7 retention, analytics/kpi.ts)
-      () => ({ human: this.human.human, embed: bridge.active, session: this.sessionNo, quality: this.tier, day_n: this.dayN }),
-      bridge.active ? (event, props) => bridge.post('analytics', { event, props: { ...props } }) : null,
+      () => ({ human: this.human.human, embed: framed, session: this.sessionNo, quality: this.tier, day_n: this.dayN }),
+      framed ? (event, props) => bridge.post('analytics', { event, props: { ...props } }) : null,
+      {
+        // $os, the app and OTA versions, the platform: never an advertising or device id
+        system: () => systemProps(platform, nativeInfo(), typeof __PL_BUILD__ !== 'undefined' ? __PL_BUILD__.sha : undefined),
+        gate: () => appGate(platform, nativeInfo()?.native),
+      },
     );
-    // Launch finding R1: crashes go to the host (embedded) or this page's consent-gated analytics (app/crash.ts).
+    // the shell publishes the native version a moment after boot (pawlegends-app/src/shell/appInfo.ts): what waited for
+    // the app gate goes now, and Home may ask
+    addEventListener('pl:appinfo', () => {
+      this.analytics.flush();
+      if (this.screen === 'title') this.maybeConsent();
+    });
+    // Launch finding R1: crashes go to the host (framed) or this page's consent-gated analytics (app/crash.ts).
     setCrashHook(
       crashSender({
         consent: () => this.analytics.consentState,
-        post: (props) => bridge.post('client-error', { ...props }),
+        // only a frame host reports `client-error`; the app's in-page host has no analytics, so the game sends it
+        post: (props) => framed && bridge.post('client-error', { ...props }),
         track: (props) => this.analytics.track('app_error', { ...props }),
         flush: () => this.analytics.flush(),
         context: () => ({ screen: this.screen, tier: this.tier, sim: SIM_VERSION }),
@@ -379,6 +405,12 @@ export class App {
       onUpdateNeeded: () => void this.updates.check('rejected'),
       // the account lives in Profile → Account (the Home avatar chip opens it): no second corner chip once signed in
       accountInProfile: true,
+      // the app's host names the signed-in account's analytics code; signed out (after an account), a new anonymous id
+      onIdentity: (aid) => {
+        if (aid) this.analytics.identify(aid);
+        else if (aid === null) this.analytics.reset();
+        this.syncConsent();
+      },
     });
     this.updates = new UpdateWatch({
       mode: inAppShell() || bridge.kind === 'native' ? 'app' : bridge.kind === 'frame' ? 'frame' : 'web',
@@ -456,6 +488,8 @@ export class App {
     addEventListener('pl-thermal', () => queueMicrotask(() => this.onThermal()));
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
+        // a closed tab or a killed app loses what waits for the 1.5 s batch: send it now (keepalive)
+        this.analytics.flush();
         // party play (§4.5): a hidden tab is "away" (NetHost; a bot flies the hero) and comes back to the match, not
         // to a menu over it (the menu would also hide a friend's vote on the rail)
         if (!this.lastSetup?.party || this.screen !== 'match') this.session?.setPaused(true);
@@ -3359,6 +3393,7 @@ export class App {
         onStats: (on) => {
           this.analytics.setConsent(on);
           changed('stats', on);
+          this.syncConsent();
         },
         // FLAGS.md: the relay, friends and boards read the hide choice from the backend
         onFlag: (hide) => {
@@ -3401,13 +3436,44 @@ export class App {
 
   private consentEl: HTMLElement | null = null;
   private maybeConsent(): void {
-    // Standalone only, from the second session, on the title screen (setScreen hides it). Embedded, the events go to
-    // the host and follow the site's policy (PUB-02), so the game never asks there.
-    if (this.consentEl || !askConsent({ configured: this.analytics.configured, consent: this.analytics.consentState, embedded: this.bridge.active, sessionNo: this.sessionNo })) return;
+    // Standalone and in the native app, on Home (setScreen hides it): after the first match in the first session (the
+    // guided match is never interrupted), and on any Home from the second session. Framed, the events go to the host
+    // and follow the site's consent bar (PUB-02), so the game never asks there.
+    if (
+      this.consentEl ||
+      !askConsent({ configured: this.analytics.configured, consent: this.analytics.consentState, embedded: this.bridge.kind === 'frame', sessionNo: this.sessionNo, matches: loadProfile().matches })
+    )
+      return;
     this.consentEl = consentPrompt(this.root, (granted) => {
       this.analytics.setConsent(granted);
       this.consentEl = null;
+      this.syncConsent();
     });
+  }
+
+  /**
+   * The server's own events (match results, Yarn, purchases: backend pawlegends/analytics) follow the play stats
+   * choice: a signed-in account's choice goes to `POST /pawlegends/analytics/consent` through the host, once per account
+   * and answer (a failed call tries again on the next change or session). Framed, the site's host reports its bar's
+   * choice itself; guests are never reported (their server events stay anonymous counts).
+   */
+  private syncConsent(): void {
+    try {
+      if (this.bridge.kind === 'frame' || !this.integration?.state().signedIn) return;
+      const aid = this.analytics.accountId;
+      const c = this.analytics.consentState;
+      if (!aid || c === 'unset') return;
+      const mark = `${aid}:${c}`;
+      if (localStorage.getItem(CONSENT_SYNC_KEY) === mark) return;
+      void this.integration
+        .api('analytics.consent', { granted: c === 'granted', distinctId: aid })
+        .then((r) => {
+          if (r.ok) localStorage.setItem(CONSENT_SYNC_KEY, mark);
+        })
+        .catch(() => undefined);
+    } catch {
+      /* storage blocked: the next change tries again */
+    }
   }
 
   // ------------------------------------------------------------------------------------------ frame loop

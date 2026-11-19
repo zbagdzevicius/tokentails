@@ -276,6 +276,11 @@ export interface SessionInfo {
   name?: string;
   /** Sign-in: the signed-in player's sign-in method (absent: unknown or not signed in). */
   provider?: SignInProvider;
+  /**
+   * The signed-in account's analytics code (`pl_` + 32 hex of a SHA-256 of the uid; never the uid or an email). Sent by
+   * the app's in-page host, where the game itself sends analytics; a frame host identifies on its own side.
+   */
+  aid?: string;
 }
 
 /** Most characters of `session.name` kept (the plate cuts it to 14 with an ellipsis). */
@@ -299,7 +304,8 @@ export function parseSession(m: Record<string, unknown>): SessionInfo | null {
   if (typeof m.signedIn !== 'boolean') return null;
   const name = m.signedIn ? parsePlayerName(m.name) : null;
   const provider = m.signedIn && (SIGN_IN_PROVIDERS as readonly unknown[]).includes(m.provider) ? (m.provider as SignInProvider) : null;
-  return { signedIn: m.signedIn, progress: m.signedIn ? parseProgress(m.progress) : null, ...(name ? { name } : {}), ...(provider ? { provider } : {}) };
+  const aid = m.signedIn && typeof m.aid === 'string' && /^pl_[0-9a-f]{32}$/.test(m.aid) ? m.aid : null;
+  return { signedIn: m.signedIn, progress: m.signedIn ? parseProgress(m.progress) : null, ...(name ? { name } : {}), ...(provider ? { provider } : {}), ...(aid ? { aid } : {}) };
 }
 
 export const SAVE_STATUSES = Object.freeze(['saving', 'saved', 'queued', 'failed', 'rejected'] as const);

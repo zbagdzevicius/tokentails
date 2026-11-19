@@ -10,12 +10,13 @@ import {
   accountDistinctId,
   createAnalytics,
   HELD_EVENT_LIMIT,
+  HELD_STORAGE_KEY,
   posthogHost,
   POSTHOG_US_HOST,
   type AnalyticsClient,
   type AnalyticsConsent,
 } from "@/analytics/client";
-import { pawlegendsAnalyticsConsent } from "@/analytics";
+import { pawlegendsAnalyticsConsent, richAnalyticsAllowed, scrubCapture, SESSION_RECORDING, stripUrlQuery } from "@/analytics";
 import { PAWLEGENDS_GAME_EVENTS } from "@/analytics/pawlegends-events";
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -32,7 +33,7 @@ function fakeClient() {
   return { client, calls };
 }
 
-function setup(consent: { now: AnalyticsConsent }, apiKey = "phc_test", host?: string) {
+function setup(consent: { now: AnalyticsConsent }, apiKey = "phc_test", host?: string, held = memoryStore()) {
   const { client, calls } = fakeClient();
   const loads: { apiKey: string; host: string }[] = [];
   const analytics = createAnalytics({
@@ -45,8 +46,20 @@ function setup(consent: { now: AnalyticsConsent }, apiKey = "phc_test", host?: s
     },
     superProperties: () => ({ app: "core", platform: "web" as never, device_tier: "high" }),
     hash: async (text) => `hash(${text})`.padEnd(80, "0"),
+    heldStore: () => held,
   });
-  return { analytics, calls, loads };
+  return { analytics, calls, loads, held };
+}
+
+/** An in-memory sessionStorage for the held queue (one per setup, or shared to act as a reload in the same tab). */
+function memoryStore() {
+  const m = new Map<string, string>();
+  return {
+    m,
+    getItem: (k: string) => m.get(k) ?? null,
+    setItem: (k: string, v: string) => void m.set(k, v),
+    removeItem: (k: string) => void m.delete(k),
+  };
 }
 
 const event = (name: string) => ({ name, properties: {} }) as never;
@@ -171,5 +184,101 @@ describe("funnel events relayed from the game", () => {
   it("the host allowlist carries the play path, unlocks, chat, settings and invites", () => {
     for (const e of ["title_view", "play_open", "play_start", "practice_try", "match_start", "match_end", "second_match", "mode_unlock", "champ_unlock", "store_open", "checkout_start", "store_item_granted", "party_share", "party_invite", "chat_open", "settings_change"])
       expect(PAWLEGENDS_GAME_EVENTS).toContain(e);
+  });
+});
+
+describe("first visit: the held queue survives a reload in the same tab", () => {
+  it("events held on the landing go out after Allow on /play (a full page load later), in order", async () => {
+    const tab = memoryStore();
+    const landing = setup({ now: "held" }, "phc_test", undefined, tab);
+    landing.analytics.track(event("pawlegends_landing_view"));
+    landing.analytics.track(event("pawlegends_landing_cta"));
+    expect(JSON.parse(tab.m.get(HELD_STORAGE_KEY)!)).toHaveLength(2);
+    expect(landing.loads).toHaveLength(0);
+    // the next page of the same tab: a new module instance
+    const consent = { now: "held" as AnalyticsConsent };
+    const play = setup(consent, "phc_test", undefined, tab);
+    play.analytics.track(event("match_start"));
+    await flush();
+    expect(play.loads).toHaveLength(0);
+    consent.now = "granted";
+    play.analytics.consentChanged();
+    await flush();
+    expect(play.calls.filter((c) => c.method === "capture").map((c) => c.args[0])).toEqual(["pawlegends_landing_view", "pawlegends_landing_cta", "match_start"]);
+    expect(tab.m.has(HELD_STORAGE_KEY)).toBe(false);
+  });
+
+  it("No thanks deletes the stored events: a later page never sends them", async () => {
+    const tab = memoryStore();
+    const consent = { now: "held" as AnalyticsConsent };
+    const one = setup(consent, "phc_test", undefined, tab);
+    one.analytics.track(event("pawlegends_landing_view"));
+    consent.now = "denied";
+    one.analytics.consentChanged();
+    expect(tab.m.has(HELD_STORAGE_KEY)).toBe(false);
+    const two = setup({ now: "granted" }, "phc_test", undefined, tab);
+    two.analytics.init();
+    await flush();
+    expect(two.calls.filter((c) => c.method === "capture")).toHaveLength(0);
+  });
+
+  it("reads back names and flat props only, at most HELD_EVENT_LIMIT", async () => {
+    const tab = memoryStore();
+    tab.m.set(
+      HELD_STORAGE_KEY,
+      JSON.stringify([{ name: "match_start", properties: { hero: "clem", nested: { a: 1 }, n: 2 } }, { name: "BAD NAME", properties: {} }, 5])
+    );
+    const s = setup({ now: "granted" }, "phc_test", undefined, tab);
+    s.analytics.init();
+    await flush();
+    expect(s.calls.filter((c) => c.method === "capture").map((c) => c.args)).toEqual([["match_start", { hero: "clem", n: 2 }]]);
+  });
+
+  it("without a token nothing is stored", () => {
+    const tab = memoryStore();
+    const s = setup({ now: "held" }, "", undefined, tab);
+    s.analytics.track(event("pawlegends_landing_view"));
+    expect(tab.m.size).toBe(0);
+  });
+});
+
+describe("replay, heatmaps and surveys", () => {
+  it("run only after an explicit Allow, in a web browser", () => {
+    expect(richAnalyticsAllowed("granted", () => true)).toBe(true);
+    expect(richAnalyticsAllowed(null, () => true)).toBe(false);
+    expect(richAnalyticsAllowed("denied", () => true)).toBe(false);
+    expect(richAnalyticsAllowed("granted", () => false)).toBe(false);
+  });
+
+  it("replays mask every input and personal text, and leave out the game frame and canvases", () => {
+    expect(SESSION_RECORDING.maskAllInputs).toBe(true);
+    expect(SESSION_RECORDING.blockSelector).toContain("iframe");
+    expect(SESSION_RECORDING.blockSelector).toContain("canvas");
+    expect(SESSION_RECORDING.maskTextSelector).toContain("data-ph-mask");
+    expect(SESSION_RECORDING.recordBody).toBe(false);
+    expect(SESSION_RECORDING.recordHeaders).toBe(false);
+    const src = readFileSync(resolve(__dirname, "../analytics/index.ts"), "utf8");
+    // extensions bundled from our origin, never an external script host; flags stay off
+    expect(src).toContain("disable_external_dependency_loading: true");
+    expect(src).toContain('import("posthog-js/dist/posthog-recorder")');
+    expect(src).toContain("advanced_disable_feature_flags: true");
+    expect(src).toContain("enable_recording_console_log: false");
+  });
+
+  it("URL props lose their query and hash (party codes, dare seeds); replay snapshots pass untouched", () => {
+    expect(stripUrlQuery("https://pawlegends.app/play?party=ABC123#x")).toBe("https://pawlegends.app/play");
+    const cr = scrubCapture({
+      event: "match_start",
+      properties: { $current_url: "https://pawlegends.app/play?party=ABC123", hero: "clem", $set: { $initial_current_url: "https://pawlegends.app/?ref=x" } },
+    });
+    expect(cr.properties).toEqual({
+      $current_url: "https://pawlegends.app/play",
+      hero: "clem",
+      $set: { $initial_current_url: "https://pawlegends.app/" },
+      $geoip_disable: true,
+    });
+    const snap = { event: "$snapshot", properties: { $current_url: "https://pawlegends.app/play?party=1" } };
+    expect(scrubCapture(snap)).toBe(snap);
+    expect(snap.properties.$current_url).toContain("?party=1");
   });
 });

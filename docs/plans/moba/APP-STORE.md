@@ -197,7 +197,7 @@ Rules:
 
 - No login. The profile lives in localStorage on the device. It survives OTA updates (same origin).
 - No App Tracking Transparency prompt. No IDFA.
-- v1 ships without the PostHog key. Nutrition label (corrected 2026-11-07, see APP-STORE-ANSWERS.md): no analytics, no tracking; optional party play collects a random party key (User ID) and Gameplay Content for App Functionality, because the relay keeps finished rooms 30 days.
+- v1 shipped without the PostHog key. From 2026-11-19 the app bundle carries it (`pawlegends-app/scripts/build-web.mjs`): the game asks on Home after the first match and sends nothing before a yes, and nothing at all on a native binary older than `APP_ANALYTICS_MIN_NATIVE` (1.2.0, `pawlegends/src/analytics/posthog.ts`), whose store labels predate analytics; the 1.2.0 labels: `docs/plans/moba/POSTHOG-PRIVACY.md`. Until then: Nutrition label (corrected 2026-11-07, see APP-STORE-ANSWERS.md): no analytics, no tracking; optional party play collects a random party key (User ID) and Gameplay Content for App Functionality, because the relay keeps finished rooms 30 days.
 - If PostHog is turned on later (a native release): Usage Data (Product Interaction) and Diagnostics (crashes), not linked to identity, not used for tracking. Update the label first.
 - `PrivacyInfo.xcprivacy`: `NSPrivacyTracking = false`, no tracking domains, no collected data in v1, `NSPrivacyAccessedAPICategoryUserDefaults` reason `CA92.1`. Add others only if our code uses them.
 - After `pod install`, CI checks that Capacitor, CapacitorCordova and CapgoCapacitorUpdater ship their own privacy manifests.

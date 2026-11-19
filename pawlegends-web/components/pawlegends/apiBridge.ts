@@ -77,6 +77,9 @@ export const PAWLEGENDS_API_OPS = [
   "invite.answer",
   // SOCIAL-INVITES.md: nickname suggestions while typing in Add friend (`name`: the typed text)
   "social.search",
+  // analytics: the player's play stats choice (the game's card or Settings), so the server's own events follow it
+  // (backend pawlegends/analytics; registered accounts only: a guest is answered 403 without a call)
+  "analytics.consent",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -139,6 +142,9 @@ const ARG_KEYS = [
   "answer",
   // social sidebar round 8: the pulse's device ("m" phone or tablet, "d" computer)
   "dev",
+  // analytics.consent: the choice (a boolean) and the account's analytics code (`pl_` + 32 hex)
+  "granted",
+  "distinctId",
 ] as const;
 export type PawlegendsApiArgs = Partial<Record<(typeof ARG_KEYS)[number], string | number | boolean>>;
 
@@ -447,6 +453,16 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
     case "flag.get":
       // a visitor with no session (web /play creates none) still learns their country: the token-free read stores nothing
       return { method: "GET", path: "/pawlegends/flag", auth: "any", anon: { method: "GET", path: "/pawlegends/flag/here", auth: "none" } };
+    case "analytics.consent": {
+      if (typeof a.granted !== "boolean") return null;
+      const distinctId = str(a.distinctId, /^pl_[0-9a-f]{32}$/);
+      return {
+        method: "POST",
+        path: "/pawlegends/analytics/consent",
+        body: { granted: a.granted, ...(distinctId ? { distinctId } : {}) },
+        auth: "registered",
+      };
+    }
     case "flag.set":
       return typeof a.hideFlag === "boolean" ? { method: "POST", path: "/pawlegends/flag", body: { hideFlag: a.hideFlag }, auth: "any" } : null;
     // match history (MATCH-HISTORY.md): your own with the session (guests too); another player's by code (registered)

@@ -1,4 +1,4 @@
-import { analytics, buildEvent } from "@/analytics";
+import { analytics, buildEvent, setAnalyticsAccount } from "@/analytics";
 import { ApiError, installApiInterceptor, setAuthBridge } from "@/api/api";
 import { USER_API } from "@/api/user-api";
 import { AuthSheet } from "@/components/shared/auth/AuthSheet";
@@ -482,8 +482,9 @@ const FirebaseAuthProvider = ({
   // anonymous PostHog id to a hash of its uid (analytics/client.ts accountDistinctId; never the email). Guests stay
   // anonymous; sign-out resets (signOutAll).
   const accountUid = user && !user.isAnonymous ? user.uid : null;
+  // The same account's explicit bar choice goes to the server once (analytics/index.ts syncServerConsent).
   React.useEffect(() => {
-    if (accountUid) analytics.identify(accountUid);
+    setAnalyticsAccount(accountUid);
   }, [accountUid]);
 
   // A new or changed user (sign-in, link, verified email): load its profile.

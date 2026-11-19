@@ -76,6 +76,11 @@ export interface IntegrationDeps {
    * no corner chip (it repeated the Profile); a signed-out one still gets "Sign in".
    */
   accountInProfile?: boolean;
+  /**
+   * The host's `session`: the signed-in account's analytics code (`session.aid`), null when signed out, undefined when
+   * signed in without a code yet (the host is still hashing it: no change). The app identifies or resets with it.
+   */
+  onIdentity?: (aid: string | null | undefined) => void;
 }
 
 export interface MatchInfo {
@@ -387,6 +392,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         s.playerName = v.name ?? null;
         s.provider = v.provider ?? null;
         s.progress = v.progress;
+        deps.onIdentity?.(v.signedIn ? v.aid : null);
         setAccountState({ signedIn: v.signedIn, progress: v.progress, name: v.name ?? null, provider: v.provider ?? null });
         // a panel opened for the old account must not act for the new one
         closeAccountPanel();

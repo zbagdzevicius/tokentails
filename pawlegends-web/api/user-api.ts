@@ -261,7 +261,23 @@ const pawlegendsApiCall = async (asked: PawlegendsApiRoute): Promise<PawlegendsA
   return { status: response.status, body };
 };
 
+/**
+ * `POST /pawlegends/analytics/consent` (backend pawlegends/analytics): the visitor's analytics choice on the consent bar
+ * for the signed-in account, so the server's own events (match results, Yarn, purchases) follow it. Never throws;
+ * true when the server took it.
+ */
+const analyticsConsent = async (granted: boolean, distinctId?: string | null): Promise<boolean> => {
+  try {
+    const body = JSON.stringify({ granted, ...(distinctId && /^pl_[0-9a-f]{32}$/.test(distinctId) ? { distinctId } : {}) });
+    const response = await rawApiFetch(`${apiUrl}/pawlegends/analytics/consent`, { method: "POST", headers: authHeaders(), body });
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
+
 export const USER_API = {
+  analyticsConsent,
   pawlegendsApiCall,
   profile,
   guestSession,

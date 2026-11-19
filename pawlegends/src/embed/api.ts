@@ -74,6 +74,8 @@ export const API_OPS = Object.freeze([
   'invite.answer',
   // SOCIAL-INVITES.md: nickname suggestions while typing in Add friend (`name`: the typed text)
   'social.search',
+  // analytics: the play stats choice for the server's own events (registered accounts; the host answers a guest 403)
+  'analytics.consent',
 ] as const);
 export type ApiOp = (typeof API_OPS)[number];
 export const isApiOp = (v: unknown): v is ApiOp => typeof v === 'string' && (API_OPS as readonly string[]).includes(v);
@@ -138,6 +140,9 @@ export const API_ARG_KEYS = Object.freeze([
   'answer',
   // social sidebar round 8: the pulse's device ('m' phone or tablet, 'd' computer)
   'dev',
+  // analytics.consent: the choice (a boolean) and the account's analytics code
+  'granted',
+  'distinctId',
 ] as const);
 
 export type ApiArgs = Partial<Record<(typeof API_ARG_KEYS)[number], string | number | boolean>>;

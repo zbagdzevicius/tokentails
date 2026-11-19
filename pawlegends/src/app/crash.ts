@@ -4,14 +4,16 @@
  *
  * Reports (launch finding R1): each crash also goes to the `onError` hook (App sends it as `app_error`, to the host
  * when embedded, else through the game's consent-gated analytics). The hook gets only `crashCode(err)`: the first
- * line of the message, lower-case, letters, digits, `_` and spaces, at most 80 characters. At most
- * CRASH_REPORT_MAX reports a page; crashes before the hook is set wait (inside that cap) and go out when it is.
+ * line of the message, lower-case, letters, digits, `_` and spaces, at most 80 characters, and `stackHash(err)`: 8 hex
+ * of a hash of where it broke (the stack's function names and file names, no URLs, paths or queries), so one PostHog
+ * breakdown groups a crash across players without sending a stack. At most CRASH_REPORT_MAX reports a page; crashes
+ * before the hook is set wait (inside that cap) and go out when it is.
  */
 let shown = false;
 
 export type CrashSource = 'window' | 'rejection' | 'worker' | 'boot';
 export const CRASH_SOURCES: readonly CrashSource[] = Object.freeze(['window', 'rejection', 'worker', 'boot']);
-export type CrashHook = (source: CrashSource, msg: string) => void;
+export type CrashHook = (source: CrashSource, msg: string, stackHash?: string) => void;
 
 /** Most crash reports one page sends (a crash loop cannot flood analytics). */
 export const CRASH_REPORT_MAX = 5;
@@ -19,7 +21,7 @@ export const CRASH_CODE_MAX = 80;
 
 let hook: CrashHook | null = null;
 let reported = 0;
-const waiting: [CrashSource, string][] = [];
+const waiting: [CrashSource, string, string][] = [];
 /** Errors a caller already reported with its own source (the worker), so the window listener skips them. */
 const tagged = new WeakSet<object>();
 
@@ -41,9 +43,41 @@ export function crashCode(err: unknown): string {
   return s || 'unknown error';
 }
 
-function send(source: CrashSource, msg: string): void {
+/** One stack line as a stable key: `fn@file.js:line:col` with the file's name only (no scheme, host, path or query). */
+function frameKey(line: string): string {
+  const t = line.trim();
+  if (!/:\d+:\d+\)?$/.test(t)) return '';
+  return t
+    .replace(/^at\s+/, '')
+    .replace(/[a-z][\w+.-]*:\/\/[^\s()]*\/([^\s()/?#]+)(?:[?#][^\s():]*)?/gi, '$1')
+    .replace(/[^\w.$<>:@() -]/g, '')
+    .slice(0, 120);
+}
+
+/**
+ * 8 hex (FNV-1a 32) of the crash's top stack frames; with no usable stack, of its crash code. Same crash, same build:
+ * same hash on every device. Nothing readable leaves: only the hash. Pure.
+ */
+export function stackHash(err: unknown): string {
+  let stack = '';
   try {
-    hook?.(source, msg);
+    stack = err instanceof Error && typeof err.stack === 'string' ? err.stack : '';
+  } catch {
+    stack = '';
+  }
+  const frames = stack.split('\n').map(frameKey).filter(Boolean).slice(0, 8);
+  const basis = frames.length ? frames.join('|') : crashCode(err);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < basis.length; i++) {
+    h ^= basis.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
+function send(source: CrashSource, msg: string, hash: string): void {
+  try {
+    hook?.(source, msg, hash);
   } catch {
     // Reporting must never become the next crash.
   }
@@ -58,8 +92,9 @@ export function reportCrash(source: CrashSource, err: unknown): boolean {
   if (reported >= CRASH_REPORT_MAX) return false;
   reported++;
   const msg = crashCode(err);
-  if (hook) send(source, msg);
-  else waiting.push([source, msg]);
+  const hash = stackHash(err);
+  if (hook) send(source, msg, hash);
+  else waiting.push([source, msg, hash]);
   return true;
 }
 
@@ -67,7 +102,7 @@ export function reportCrash(source: CrashSource, err: unknown): boolean {
 export function setCrashHook(fn: CrashHook | null): void {
   hook = fn;
   if (!fn) return;
-  for (const [source, msg] of waiting.splice(0)) send(source, msg);
+  for (const [source, msg, hash] of waiting.splice(0)) send(source, msg, hash);
 }
 
 export interface CrashProps {
@@ -76,6 +111,8 @@ export interface CrashProps {
   screen: string;
   tier: string;
   sim: number;
+  /** `stackHash`: where it broke, as 8 hex. */
+  stack_hash?: string;
 }
 
 /** What `crashSender` needs (App passes its bridge and analytics). */
@@ -95,9 +132,9 @@ export interface CrashSink {
  * budget), else the game's consent-gated analytics. Never after the player said no.
  */
 export function crashSender(sink: CrashSink): CrashHook {
-  return (source, msg) => {
+  return (source, msg, hash) => {
     if (sink.consent() === 'denied') return;
-    const props: CrashProps = { source, msg, ...sink.context() };
+    const props: CrashProps = { source, msg, ...sink.context(), ...(hash && /^[0-9a-f]{8}$/.test(hash) ? { stack_hash: hash } : {}) };
     if (sink.post(props)) return;
     sink.track(props);
     sink.flush();

@@ -131,7 +131,10 @@ test.describe("PostHog on pawlegends.app", () => {
     await playFirstMatch(page);
     await expect.poll(() => seen.flatMap((s) => s.events).some((e) => e.event === "match_start"), { timeout: 45_000 }).toBe(true);
 
-    for (const s of seen) expect(new URL(s.url).hostname).toBe("us.i.posthog.com");
+    // events go to the ingestion host; the project's remote config (replay on or off, surveys) is a GET from its
+    // assets host (analytics/index.ts: no external script, the JSON only)
+    for (const s of seen) expect(new URL(s.url).hostname).toBe(s.events.length ? "us.i.posthog.com" : new URL(s.url).hostname);
+    for (const s of seen) expect(new URL(s.url).hostname).toMatch(/^us(-assets)?\.i\.posthog\.com$/);
     const events = seen.flatMap((s) => s.events);
     const landing = events.find((e) => e.event === "pawlegends_landing_view")!;
     const start = events.find((e) => e.event === "match_start")!;

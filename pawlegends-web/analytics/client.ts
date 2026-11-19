@@ -31,13 +31,62 @@ export interface AnalyticsClient {
 
 /**
  * Where the visitor stands on analytics (the Paw Legends consent bar, analytics/gtm.ts): `granted` sends, `held` keeps
- * events in memory (the bar asks and has no answer yet: nothing leaves the device, the client is not even loaded),
+ * events on the device (the bar asks and has no answer yet: nothing leaves it, the client is not even loaded; they are
+ * kept in sessionStorage for this tab, so the landing's events still go when the visitor allows on `/play`),
  * `denied` drops them.
  */
 export type AnalyticsConsent = "granted" | "held" | "denied";
 
-/** Most events kept in memory while consent is held; older ones are dropped. */
+/** Most events kept while consent is held; older ones are dropped. */
 export const HELD_EVENT_LIMIT = 50;
+/** sessionStorage: the held events of this tab (a reload or a full navigation keeps them until the answer). */
+export const HELD_STORAGE_KEY = "pawlegends.analytics-held.v1";
+
+/** The part of Storage the held queue uses. */
+export type HeldStore = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+const defaultHeldStore = (): HeldStore | undefined => {
+  try {
+    return typeof window === "undefined" ? undefined : window.sessionStorage;
+  } catch {
+    return undefined;
+  }
+};
+
+const EVENT_NAME = /^[a-z][a-z0-9_]{1,63}$/;
+
+/** Held events read back: names and flat props only (a string, number, boolean or null), anything else dropped. */
+function readHeld(store: HeldStore | undefined): AnalyticsEvent[] {
+  try {
+    const raw = store?.getItem(HELD_STORAGE_KEY);
+    const rows: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(rows)) return [];
+    const out: AnalyticsEvent[] = [];
+    for (const r of rows.slice(-HELD_EVENT_LIMIT)) {
+      const e = r as { name?: unknown; properties?: unknown } | null;
+      if (!e || typeof e.name !== "string" || !EVENT_NAME.test(e.name) || !e.properties || typeof e.properties !== "object") continue;
+      const properties: Record<string, string | number | boolean | null> = {};
+      for (const [k, v] of Object.entries(e.properties as Record<string, unknown>)) {
+        if (!/^[A-Za-z0-9_]{1,40}$/.test(k)) continue;
+        if (typeof v === "string") properties[k] = v.slice(0, 200);
+        else if ((typeof v === "number" && Number.isFinite(v)) || typeof v === "boolean" || v === null) properties[k] = v;
+      }
+      out.push({ name: e.name, properties } as unknown as AnalyticsEvent);
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+function writeHeld(store: HeldStore | undefined, events: readonly AnalyticsEvent[]): void {
+  try {
+    if (events.length) store?.setItem(HELD_STORAGE_KEY, JSON.stringify(events.slice(-HELD_EVENT_LIMIT)));
+    else store?.removeItem(HELD_STORAGE_KEY);
+  } catch {
+    // blocked or full: memory only
+  }
+}
 
 export interface AnalyticsOptions {
   /** PostHog project token (`NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`). Empty or missing turns analytics into a no-op. */
@@ -51,6 +100,8 @@ export interface AnalyticsOptions {
   consent?: () => AnalyticsConsent;
   /** SHA-256 hex of a string (the browser's crypto.subtle by default). */
   hash?: (text: string) => Promise<string>;
+  /** Where held events wait (this tab's sessionStorage by default; tests pass a fake). */
+  heldStore?: () => HeldStore | undefined;
 }
 
 export interface Analytics {
@@ -91,10 +142,17 @@ export function createAnalytics(options: AnalyticsOptions): Analytics {
   const enabled = apiKey.length > 0;
   const consent = options.consent ?? (() => "granted" as const);
   const hash = options.hash ?? sha256Hex;
+  const heldStore = options.heldStore ?? defaultHeldStore;
 
   let clientPromise: Promise<AnalyticsClient | null> | null = null;
   let loaded: AnalyticsClient | null = null;
-  let held: AnalyticsEvent[] = [];
+  // what an earlier page of this tab held (read on first use, never during SSR)
+  let held: AnalyticsEvent[] | null = null;
+  const heldNow = (): AnalyticsEvent[] => (held ??= enabled ? readHeld(heldStore()) : []);
+  const setHeld = (events: AnalyticsEvent[]) => {
+    held = events;
+    writeHeld(heldStore(), events);
+  };
   /** The account to identify once the client runs (set by `identify`, cleared by `reset`). */
   let pendingUid: string | null = null;
   let identifiedUid: string | null = null;
@@ -159,13 +217,13 @@ export function createAnalytics(options: AnalyticsOptions): Analytics {
     if (!enabled) return;
     const now = state();
     if (now === "denied") {
-      held = [];
+      setHeld([]);
       return;
     }
     if (now !== "granted") return;
     void getClient();
-    const queued = held;
-    held = [];
+    const queued = heldNow();
+    if (queued.length) setHeld([]);
     for (const event of queued) send(event);
   };
 
@@ -174,7 +232,7 @@ export function createAnalytics(options: AnalyticsOptions): Analytics {
     const now = state();
     if (now === "denied") return;
     if (now === "held") {
-      held = [...held, event].slice(-HELD_EVENT_LIMIT);
+      setHeld([...heldNow(), event].slice(-HELD_EVENT_LIMIT));
       return;
     }
     send(event);

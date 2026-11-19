@@ -39,6 +39,8 @@ import { PAWLEGENDS_GAME_EVENTS, type PawlegendsGameEventName, type PawlegendsGa
 import { PAWLEGENDS_LEVELS, PAWLEGENDS_MAX_INPUT_CHARS, PAWLEGENDS_MAX_TICKS } from "@/shared-contracts/caps";
 
 export const PAWLEGENDS_NS = "tt-pawlegends";
+/** `session.aid`: a signed-in account's analytics code (analytics/client.ts accountDistinctId). */
+export const PAWLEGENDS_ANALYTICS_ID = /^pl_[0-9a-f]{32}$/;
 export const PAWLEGENDS_BRIDGE_VERSION = 1;
 export const PAWLEGENDS_HELLO_RETRY_MS = 500;
 export const PAWLEGENDS_HELLO_SLOW_MS = 10_000;
@@ -399,7 +401,7 @@ type Envelope = { ns: typeof PAWLEGENDS_NS; v: 1 };
 export type HostToPawlegendsMessage = Envelope &
   (
     | { type: "hello" | "pause" | "resume" }
-    | { type: "session"; signedIn: boolean; progress: PawlegendsProgress | null; name?: string; provider?: PawlegendsSignInProvider }
+    | { type: "session"; signedIn: boolean; progress: PawlegendsProgress | null; name?: string; provider?: PawlegendsSignInProvider; aid?: string }
     | { type: "roster"; cats: PawlegendsRosterCat[] }
     | { type: "featured"; cats: PawlegendsFeaturedCat[] }
     | { type: "offer"; offer: PawlegendsMeetOffer | null }
@@ -639,6 +641,7 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
       if (typeof data.signedIn !== "boolean") return null;
       const name = data.signedIn ? playerNameOf(data.name) : null;
       const provider = data.signedIn && oneOf(PAWLEGENDS_SIGN_IN_PROVIDERS, data.provider) ? data.provider : null;
+      const aid = data.signedIn && typeof data.aid === "string" && PAWLEGENDS_ANALYTICS_ID.test(data.aid) ? data.aid : null;
       return {
         ...base,
         type: "session",
@@ -646,6 +649,7 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
         progress: progressOf(data.progress),
         ...(name ? { name } : {}),
         ...(provider ? { provider } : {}),
+        ...(aid ? { aid } : {}),
       };
     }
     case "roster": {
@@ -768,6 +772,7 @@ export function hostMessage(
     progress?: PawlegendsProgress | null;
     name?: string | null;
     provider?: PawlegendsSignInProvider | null;
+    aid?: string | null;
   }
 ): HostToPawlegendsMessage;
 export function hostMessage(type: "roster", payload: { cats: PawlegendsRosterCat[] }): HostToPawlegendsMessage;
@@ -1017,13 +1022,16 @@ export interface PawlegendsBridge {
   readonly ready: boolean;
   /**
    * `name`: the profile name (signed in only; UX pass 2: shown over the player's own hero). `provider`: the sign-in
-   * method (signed in only; the account chip's icon).
+   * method (signed in only; the account chip's icon). `aid`: the account's analytics code (`pl_` + 32 hex,
+   * analytics/client.ts accountDistinctId; signed in only), sent by the app's in-page host, where the game sends its own
+   * analytics; the web host identifies in posthog-js and sends none.
    */
   setSession(
     signedIn: boolean,
     progress: PawlegendsProgress | null,
     name?: string | null,
-    provider?: PawlegendsSignInProvider | null
+    provider?: PawlegendsSignInProvider | null,
+    aid?: string | null
   ): void;
   setRoster(cats: PawlegendsRosterCat[]): void;
   setFeatured(cats: PawlegendsFeaturedCat[]): void;
@@ -1249,8 +1257,8 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
     get ready() {
       return ready;
     },
-    setSession: (signedIn, progress, name, provider) =>
-      keep("session", hostMessage("session", { signedIn, progress, name, provider })),
+    setSession: (signedIn, progress, name, provider, aid) =>
+      keep("session", hostMessage("session", { signedIn, progress, name, provider, aid })),
     setRoster(cats) {
       const message = hostMessage("roster", { cats });
       rosterIds = new Set(

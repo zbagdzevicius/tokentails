@@ -32,11 +32,11 @@ describe('PostHog env wiring', () => {
     for (const bad of [null, undefined, '', 'us.i.posthog.com', 'http://us.i.posthog.com', 'javascript:alert(1)']) expect(posthogCaptureUrl(bad)).toBe('https://us.i.posthog.com/capture/');
   });
 
-  it('vite lets the PostHog pair through, and the app build forces the token empty', () => {
+  it('vite lets the PostHog pair through, and the app build keeps the shared token (consent and the native gate decide)', () => {
     const vite = readFileSync(resolve(__dirname, '../../vite.config.ts'), 'utf8');
     expect(vite).toMatch(/envPrefix:\s*\['VITE_',\s*'NEXT_PUBLIC_POSTHOG_'\]/);
     const app = readFileSync(resolve(__dirname, '../../../pawlegends-app/scripts/build-web.mjs'), 'utf8');
-    expect(app).toMatch(/NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN:\s*''/);
+    expect(app).not.toMatch(/NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN:\s*''/);
     expect(readFileSync(resolve(__dirname, '../../src/analytics/posthog.ts'), 'utf8')).not.toContain('eu.i.posthog.com');
   });
 });

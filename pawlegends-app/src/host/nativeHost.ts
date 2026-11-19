@@ -30,6 +30,7 @@ import { StoreSync } from "@/components/pawlegends/storeSync";
 import { profileAfterSave, progressFromProfile, type PawlegendsLiveAnswer, type PawlegendsProfileFields } from "@/components/pawlegends/session";
 import { clearLastMethod, rememberLastMethod } from "@/context/auth/lastMethod";
 import type { QueueStorage } from "@/components/heist/heistSaves";
+import { accountDistinctId } from "@/analytics/client";
 import type { MatchSaveResult, PartyTicketResult } from "@/api/user-api";
 import type { ApiAnswer, HostApi } from "./api";
 import { providerOf, type AuthOutcome, type AuthPort, type ShellPlatform } from "./auth";
@@ -173,6 +174,29 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
   });
 
   // ---- what the game is told -------------------------------------------------------------------
+  /**
+   * The signed-in account's analytics code (`pl_` + 32 hex of a SHA-256 of the uid, the web's accountDistinctId): the
+   * game identifies its own consent-gated PostHog events with it (it never sees the uid). Hashed once per uid; the
+   * session goes again when it is ready.
+   */
+  let aid: string | null = null;
+  let aidUid: string | null = null;
+  const analyticsId = (): string | null => {
+    const u = user();
+    if (!isAccount() || !u) return null;
+    if (aidUid === u.uid) return aid;
+    aidUid = u.uid;
+    aid = null;
+    const uid = u.uid;
+    void accountDistinctId(uid)
+      .then((id) => {
+        if (disposed || aidUid !== uid) return;
+        aid = id;
+        sendSession();
+      })
+      .catch(() => undefined);
+    return null;
+  };
   const sendSession = () => {
     // as on the web (PawlegendsHost): signed in follows Firebase, not the profile read. A persisted account that
     // launches offline (or whose profile read failed) still shows as signed in, so the chip offers Sign out and
@@ -180,7 +204,7 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
     const signedIn = isAccount();
     const known = signedIn && !!profile && !profile.transient && profileUid === user()?.uid;
     const name = known && typeof profile?.name === "string" ? profile.name : null;
-    bridge.setSession(signedIn, known ? progressFromProfile(profile) : null, name, signedIn ? providerOf(user()) : null);
+    bridge.setSession(signedIn, known ? progressFromProfile(profile) : null, name, signedIn ? providerOf(user()) : null, analyticsId());
     if (championsBody) bridge.setChampions(championArtOf(championsBody));
   };
 

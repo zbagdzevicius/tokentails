@@ -77,9 +77,20 @@ describe("pawlegends api bridge (host)", () => {
         visibility: "friends",
         invite: mid,
         answer: "accept",
+        granted: true,
       });
       expect([op, r?.path.startsWith("/pawlegends/")]).toEqual([op, true]);
     }
+    // analytics: the play stats choice for the server's events; registered only, the code only when well-formed
+    const aid = `pl_${"0a".repeat(16)}`;
+    expect(routeOf("analytics.consent", { granted: false, distinctId: aid })).toEqual({
+      method: "POST",
+      path: "/pawlegends/analytics/consent",
+      body: { granted: false, distinctId: aid },
+      auth: "registered",
+    });
+    expect(routeOf("analytics.consent", { granted: true, distinctId: "firebase-uid" })?.body).toEqual({ granted: true });
+    expect(routeOf("analytics.consent", {})).toBeNull();
     // SOCIAL-INVITES.md: the fast inbox, the toast's answer, and the inviter's sim build on an invite
     expect(routeOf("social.inbox", { rev: "i12" })).toMatchObject({ method: "GET", path: "/pawlegends/social/inbox?rev=i12", auth: "registered" });
     expect(routeOf("social.inbox", { rev: "../x" })?.path).toBe("/pawlegends/social/inbox");

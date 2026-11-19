@@ -47,6 +47,8 @@ on:
       - 'pawlegends-web/context/auth/**'
       - 'pawlegends-web/api/**'
       - 'pawlegends-web/analytics/pawlegends-events.ts'
+      # the account analytics code the app's host sends the game (accountDistinctId)
+      - 'pawlegends-web/analytics/client.ts'
       - 'pawlegends-web/shared-contracts/**'
       - '.github/workflows/pawlegends-ota.yml'
   pull_request:
@@ -60,6 +62,8 @@ on:
       - 'pawlegends-web/context/auth/**'
       - 'pawlegends-web/api/**'
       - 'pawlegends-web/analytics/pawlegends-events.ts'
+      # the account analytics code the app's host sends the game (accountDistinctId)
+      - 'pawlegends-web/analytics/client.ts'
       - 'pawlegends-web/shared-contracts/**'
       - '.github/workflows/pawlegends-ota.yml'
   schedule:

@@ -301,7 +301,7 @@ const LastMethodLine = ({ last, inAppBrowser }: { last: LastMethod; inAppBrowser
       {last.emailHint ? (
         <>
           {" "}
-          (<span className="font-semibold">{last.emailHint}</span>)
+          (<span className="font-semibold" data-ph-mask="">{last.emailHint}</span>)
         </>
       ) : null}
       .
@@ -582,7 +582,7 @@ const EmailView = ({
         onSubmit={submit}
         noValidate
       >
-        {view.notice && <p className={clsx(bodyText, "text-tt-mint")}>{view.notice}</p>}
+        {view.notice && <p className={clsx(bodyText, "text-tt-mint")} data-ph-mask="">{view.notice}</p>}
         <div className="flex flex-col gap-1">
           <label htmlFor={ids.email} className="font-sans text-p6 font-extrabold uppercase tracking-wider text-tt-lilac">
             Email
@@ -822,7 +822,7 @@ const LinkAccountView = ({
       <p className={bodyText}>
         {view.email ? (
           <>
-            <strong className="font-bold text-tt-gold-400">{view.email}</strong> already signs in another way.
+            <strong className="font-bold text-tt-gold-400" data-ph-mask="">{view.email}</strong> already signs in another way.
           </>
         ) : (
           "This email already signs in another way."
@@ -937,7 +937,7 @@ const ProfileErrorView = ({
         )}
       </div>
       {reference && (
-        <p className="select-all break-all text-center font-sans text-p6 font-semibold text-tt-muted" data-testid="profile-error-reference">
+        <p className="select-all break-all text-center font-sans text-p6 font-semibold text-tt-muted" data-testid="profile-error-reference" data-ph-mask="">
           {reference}
         </p>
       )}
@@ -959,6 +959,7 @@ const ConflictView = ({ controller }: BodyProps) => {
         <p
           className="select-all break-all rounded-[4px] border-2 border-tt-gold-500/60 bg-tt-night-900/80 px-3 py-2 font-sans text-p5 font-semibold text-tt-cream"
           data-testid="conflict-reference"
+          data-ph-mask=""
         >
           {reference}
         </p>
