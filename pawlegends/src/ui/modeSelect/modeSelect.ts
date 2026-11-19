@@ -57,6 +57,8 @@ export interface ModeSelectOpts {
   onClose(went: boolean): void;
   /** Open at the variant stage of `choice.mode` (Back from the champion select). Default the mode stage. */
   stage?: ModeStage;
+  /** The variant stage alone (Home's Practice, MODE-UNLOCKS.md): Back and Esc close instead of showing the modes. */
+  only?: boolean;
   sound?(name: 'click' | 'magic' | 'horn'): void;
   /** Asset base (import.meta.env.BASE_URL). */
   base: string;
@@ -419,7 +421,7 @@ export function openModeSelect(parent: HTMLElement, o: ModeSelectOpts): ModeSele
   /** Back one step: the popover, the variant stage, then the overlay. */
   const back = (): void => {
     if (closePop()) return;
-    if (stage === 'variant') toStage('mode');
+    if (stage === 'variant' && !o.only) toStage('mode');
     else close();
   };
 

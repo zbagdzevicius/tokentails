@@ -6,7 +6,7 @@ import { limit } from '../unit/cpu-budget';
 // popping in) replayed behind the panel. Home now stays the same node and still while the panels come and go; data the
 // panel changed (here the Sound switch) is patched into it. The entrance still plays on the first Home of the visit.
 
-const PLAYED = { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
+const PLAYED = { v: 1, sessions: 3, matches: 8, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
 const ENTRANCE = ['hm-drop', 'hm-slide-l', 'hm-slide-r', 'hm-rise', 'hm-rise-c', 'hm-pop-in'];
 
 type Probe = { starts: number; churn: number; same: boolean };
@@ -106,10 +106,10 @@ test('Home stays mounted and still while the Treat Track, Legends Pass and Setti
   await expect(mute).toHaveAttribute('aria-pressed', 'false');
   await still('settings closed');
 
-  // Mode Select (it mounts inside Home; Home behind it stays put)
-  await page.locator('[data-testid="home-play"]').click();
+  // Practice's map pick (Lv 5, MODE-UNLOCKS.md; it mounts inside Home; Home behind it stays put)
+  await page.locator('[data-testid="home-practice"]').click();
   await expect(page.locator('[data-testid="mode-select"]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-testid="mode-select"]')).toHaveCount(0);
-  await still('mode select');
+  await still('practice pick');
 });

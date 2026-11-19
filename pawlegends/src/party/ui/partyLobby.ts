@@ -31,6 +31,8 @@ export interface LobbyModel {
   online?: boolean;
   /** SOCIAL-INVITES.md: "Invite friends" opens the Friends sheet (absent standalone: no host, no friends). */
   friends?: boolean;
+  /** MODE-UNLOCKS.md: the leader has Ranked (Lv 10): a Ranked search beside "Play online" (solo or duo). */
+  ranked?: boolean;
 }
 
 /** The peer-visible name of a member for this viewer (the owner sees its own custom cat name). */
@@ -122,10 +124,10 @@ export function lobbyHtml(o: LobbyModel): string {
         ? ''
         : `<p class="pp-dim pp-wait" data-testid="party-wait-leader">${COPY.waitingLeader}</p>`;
   const err = o.error ? `<p class="pp-err" role="alert">${esc(o.error)}</p>` : '';
-  const online =
-    o.online && leader && !v.mm && v.members.length <= 2 && (v.phase === 'lobby' || v.phase === 'results')
-      ? `<button type="button" class="pl-btn small pp-online" data-p="queue" data-testid="party-queue">${COPY.online}</button>`
-      : '';
+  const canQueue = o.online && leader && !v.mm && v.members.length <= 2 && (v.phase === 'lobby' || v.phase === 'results');
+  const online = canQueue
+    ? `${o.ranked ? `<button type="button" class="pl-btn ghost small pp-online" data-p="queue-ranked" data-testid="party-queue-ranked">${COPY.rankedQueue}</button>` : ''}<button type="button" class="pl-btn small pp-online" data-p="queue" data-testid="party-queue">${COPY.online}</button>`
+    : '';
   return `<div class="pp-card pp-lobby" data-phase="${v.phase}">
     <div class="pp-head"><h2>${COPY.party}${v.locked ? ' <span class="pp-pill">Locked</span>' : ''}</h2><span class="pp-row">${online}<button type="button" class="pl-btn ghost small" data-p="leave" data-testid="party-leave">${COPY.leave}</button></span></div>
     <div class="pp-grid">

@@ -7,6 +7,10 @@ are respected and nothing sits behind a feature flag.
 The founder asked for a home screen and a mode picker on the level of Wild Rift and the League client. We borrowed
 the structure and the finish. Every piece of art, every shape and all the text are our own.
 
+> **Nov 19: replaced by one main queue** (MODE-UNLOCKS.md). PLAY is one tap into the 3v3 queue; Practice (Lv 5) and
+> Ranked (Lv 10) sit beside it once unlocked; Mode Select only opens as Practice's map pick; Home's left stack has a
+> Party button. The other modes left the menu. The rest of this page is the Nov 11 to 17 design.
+
 ## One play path (Nov 12)
 
 The founder: "current UX on how to start a match is scattered ... there should be one path. PLAY -> SELECT MODE ->

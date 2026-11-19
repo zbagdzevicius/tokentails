@@ -360,6 +360,55 @@ html[data-quality='low'] .hm-nav, .pl-home.low .hm-nav { background: rgb(var(--v
 .hm-line.dare { color: var(--v6-bolt, #ffe14a); box-shadow: inset 4px 0 0 var(--v6-bolt, #ffe14a), inset 0 0 0 1px var(--hm-line), var(--v6-shadow-1, 0 4px 12px rgb(0 0 0 / 0.35)); }
 .hm-playrow { display: flex; align-items: flex-end; gap: 10px; }
 
+/* One main queue (MODE-UNLOCKS.md, founder Nov 19): Ranked (Lv 10) and Practice (Lv 5) as smaller v6 pills beside
+   PLAY, Ranked on top; nothing of them before their level. 44 px targets; a just-unlocked one pops in with NEW. */
+.hm-extras { display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; padding-bottom: 6px; }
+.hm-alt {
+  position: relative; display: flex; align-items: center; gap: 8px; min-height: 44px; min-width: 132px; margin: 0; padding: 4px 16px 4px 5px; border: 0;
+  border-radius: 999px; cursor: pointer; text-align: left; color: var(--v6-cream, #fff3e3);
+  background: linear-gradient(180deg, rgb(var(--v6-sky-deep-rgb, 13 79 184) / 0.95), rgb(var(--v6-navy-rgb, 7 19 52) / 0.96));
+  box-shadow: 0 0 0 2px var(--hm-ink), 0 0 0 3.5px var(--hm-gold-3), inset 0 1px 0 rgb(255 255 255 / 0.28), inset 0 -3px 0 rgb(var(--v6-night-rgb, 18 9 31) / 0.45), var(--v6-shadow-1, 0 4px 12px rgb(0 0 0 / 0.35));
+  animation: hm-rise 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.24s both;
+  transition: transform var(--v6-dur-press, 120ms) var(--v6-ease-out, ease-out);
+}
+.hm-alt[data-mode='ranked'] { background: linear-gradient(180deg, var(--v6-logo-plum, #633077), rgb(var(--v6-night-rgb, 18 9 31) / 0.96)); }
+.hm-alt-i {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: var(--v6-night, #12091f);
+  background: var(--v6-grad-gold, linear-gradient(180deg, var(--hm-gold-1), var(--hm-gold-2))); box-shadow: 0 0 0 1.5px var(--hm-ink), inset 0 -2px 0 rgb(var(--v6-night-rgb, 18 9 31) / 0.25);
+}
+.hm-alt[data-mode='practice'] .hm-alt-i { background: linear-gradient(180deg, var(--v6-ice, #d6ecff), var(--v6-sky, #39a6ff)); }
+.hm-alt-i svg { width: 20px; height: 20px; }
+.hm-alt-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hm-alt-t b { font: 700 15px/1 'Fredoka', var(--font, sans-serif); letter-spacing: 0.04em; text-transform: uppercase; text-shadow: 0 1px 0 rgb(0 0 0 / 0.6); }
+.hm-alt-t small { font: 600 11px/1.1 var(--font, sans-serif); color: var(--v6-muted, rgb(255 243 227 / 0.78)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+.hm-alt:hover { transform: translateY(-2px); }
+.hm-alt:active { transform: scale(0.95); }
+.hm-alt.fresh { animation: hm-alt-pop var(--v6-dur-punch, 500ms) var(--v6-ease-pop, cubic-bezier(0.34, 1.56, 0.64, 1)) 0.4s both; box-shadow: 0 0 0 2px var(--hm-ink), 0 0 0 3.5px var(--v6-bolt, #ffe14a), 0 0 18px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.55); }
+@keyframes hm-alt-pop { 0% { opacity: 0; transform: scale(0.3); } 70% { transform: scale(1.12); } }
+.hm-alt-new {
+  position: absolute; right: -6px; top: -9px; padding: 2px 6px; border-radius: 2px; pointer-events: none; font: italic 800 10px/1.2 var(--v6-font-display, sans-serif); font-style: italic;
+  letter-spacing: 0.08em; transform: skewX(var(--v6-slant, -8deg)); color: var(--v6-night, #12091f); background: var(--v6-bolt, #ffe14a); box-shadow: 0 0 0 2px var(--hm-ink);
+}
+@media (min-height: 600px) and (min-width: 1000px) {
+  .hm-extras { gap: 12px; padding-bottom: 10px; }
+  .hm-alt { min-height: 52px; min-width: 156px; padding-right: 20px; }
+  .hm-alt-i { width: 40px; height: 40px; }
+  .hm-alt-i svg { width: 24px; height: 24px; }
+  .hm-alt-t b { font-size: 17px; }
+  .hm-alt-t small { font-size: 12px; }
+}
+/* narrow screens (a phone held upright): the pills stack on top of PLAY, so the cluster stays clear of the nav */
+@media (max-width: 560px) {
+  .hm-playrow { flex-direction: column; align-items: flex-end; }
+  .hm-extras { padding-bottom: 0; }
+}
+/* short phones: the pills stay 44 px, their sub line goes */
+@media (max-height: 360px) {
+  .hm-extras { gap: 4px; padding-bottom: 2px; }
+  .hm-alt { min-width: 0; padding-right: 12px; }
+  .hm-alt-t small { display: none; }
+}
+
 /* PLAY (v6 kit): a gold double bevelled ring, the rose face with the bolt-yellow slash cut through it, the white paw and
    PLAY in Fredoka 700, a dashed bolt spark ring spinning (6 s). The only rose button on Home */
 .pl-home .hm-play.pl-btn.big {
@@ -542,7 +591,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 /* ----------------------------------------------------- a settled Home (homeScreen.ts `patchHome`, `still`) */
 /* The entrance (bars drop in, the left stack and the promo slide in, PLAY pops in) plays on the first Home and the one
    after a match only: a Home redrawn under a panel, a tab switch or a data refresh stays still. Loops keep running. */
-.pl-screen.pl-home.hm-still :is(.hm-top, .hm-corner, .hm-left, .hm-promo, .hm-stage, .hm-nav, .hm-line, .hm-qb, .hm-play, .lb-peek) { animation: none; }
+.pl-screen.pl-home.hm-still :is(.hm-top, .hm-corner, .hm-left, .hm-promo, .hm-stage, .hm-nav, .hm-line, .hm-qb, .hm-play, .hm-alt:not(.fresh), .lb-peek) { animation: none; }
 
 /* ------------------------------------------------------------------------- Low tier, reduced motion */
 .pl-home.low *, html[data-quality='low'] .pl-home * { animation: none !important; }
@@ -563,18 +612,6 @@ html[data-touch='1'] .pl-home .hm-round.live::after, html[data-phone='1'] .pl-ho
   .hm-play-glow.b { opacity: 0.9; transform: none; }
   .hm-round.live::after { opacity: 0.8; }
 }
-
-/* mode unlocking (MODE-UNLOCKS.md): a NEW tag on PLAY while a just-unlocked mode waits in Mode Select (inside PLAY's
-   own box, so the HUD-free Home footprint does not grow) */
-.hm-play-new {
-  position: absolute; right: 2px; top: 2px; z-index: 3; padding: 2px 6px; border-radius: 2px; pointer-events: none;
-  transform: skewX(var(--v6-slant, -8deg)); font: italic 800 11px/1.2 var(--v6-font-display, sans-serif); letter-spacing: 0.08em;
-  color: var(--v6-night, #12091f); background: var(--v6-bolt, #ffe14a); box-shadow: 0 0 0 2px var(--hm-ink), 0 2px 6px rgb(0 0 0 / 0.5);
-  animation: hm-new-pulse 1.6s ease-in-out infinite;
-}
-@keyframes hm-new-pulse { 50% { transform: skewX(var(--v6-slant, -8deg)) scale(1.12); } }
-.pl-home.low .hm-play-new { animation: none; }
-@media (prefers-reduced-motion: reduce) { .hm-play-new { animation: none; } }
 
 /* Home poster (HOME-POSTER.md): the poster's fields as a CSS gradient behind the game canvas, so the first paint (and a
    context loss) already shows rose | bolt | sky on the champion's side before the shader's first frame */

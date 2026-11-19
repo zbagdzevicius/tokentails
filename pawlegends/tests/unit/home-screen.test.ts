@@ -1,13 +1,12 @@
 // @vitest-environment happy-dom
 /**
- * Home (docs/plans/moba/HOME-MODES.md §4) and the one play path (§5, Nov 12): PLAY opens Mode Select (a returning
- * player), a mode then a variant (vs Bots with its difficulty, Co-op, PvP, With Friends) goes on to `onStart`; the
- * variants show only what the mode supports and lock what this build cannot start; Back and Esc step back one stage.
- * Home has no other match start (no quick Co-op or PvP, no nameplate or Heroes lock-in, no Friends nav, no Games
- * button); the first visit keeps the guided one-tap match; the app build never shows the Store; names are escaped.
+ * Home (docs/plans/moba/HOME-MODES.md §4) and the one main queue (MODE-UNLOCKS.md, founder Nov 19): PLAY is one tap
+ * into the 3v3 queue; Ranked and Practice sit beside it only once unlocked (the app passes them), revealed once. Home
+ * has no other match start (no quick Co-op or PvP, no nameplate or Heroes lock-in, no Friends nav, no Games button); the
+ * first visit keeps the guided one-tap match; the app build never shows the Store; names are escaped.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { availableQueues, botsChoice, disposeHome, homeScreen, patchHome, pvpLockText, resolveChoice, ringPct, type HomeScreenOpts } from '../../src/ui/home/homeScreen';
+import { availableQueues, botsChoice, disposeHome, homeScreen, mainQueue, patchHome, pvpLockText, resolveChoice, ringPct, type HomeScreenOpts } from '../../src/ui/home/homeScreen';
 import { modeById, modeList } from '../../src/ui/modeSelect/modes';
 
 const NOW = Date.now();
@@ -89,177 +88,110 @@ describe('home state logic', () => {
   });
 });
 
-describe('home screen: one play path', () => {
-  it('one round PLAY, and no other match start on Home', () => {
-    const root = mount(online({ onCollection: vi.fn(), onJoinCode: vi.fn(), onHeroes: vi.fn() }));
+describe('home screen: one main queue (MODE-UNLOCKS.md, founder Nov 19)', () => {
+  it('PLAY is one tap into the 3v3 main queue: PvP where the backend runs it, else co-op, else vs bots', async () => {
+    const onStart = vi.fn();
+    let root = mount(online({ onStart }));
     expect(root.querySelectorAll('.pl-btn.big')).toHaveLength(1);
-    expect(root.querySelector('[data-testid="home-play"]')?.getAttribute('aria-label')).toBe('Play: choose a mode');
-    // gone: the quick Co-op and PvP buttons, the Friends nav, the nameplate lock-in, the Games button
-    for (const sel of ['[data-testid="play-online"]', '[data-testid="play-pvp"]', '[data-testid="play-friends"]', '[data-a="online"]', '[data-a="party"]', '[data-a="name"]', '[data-a="choose"]', '[data-testid="lobby-exit"]', '.hm-quick'])
-      expect(root.querySelector(sel), sel).toBeNull();
-    // the nameplate opens the champion browser (Nov 12: SELECT switches the Home hero there), never a match
-    expect(root.querySelector('.hm-plate')?.tagName).toBe('BUTTON');
-    expect(root.querySelector('.hm-plate')?.getAttribute('data-a')).toBe('plate');
-    // nothing above PLAY for a returning player: no mode pill, no line (Mode Select opens on the last choice)
-    expect(root.querySelector('[data-testid="mode-pill"]')).toBeNull();
-    expect(root.querySelector('.hm-pill, .hm-playc .hm-line')).toBeNull();
-    expect(root.querySelector('.hm-playc')?.textContent).not.toContain('Skirmish');
-    // # Code stays (it joins a party lobby, not a match)
-    expect(root.querySelector('[data-testid="join-code"]')).toBeTruthy();
-  });
-
-  it('PLAY → Skirmish → vs Bots Hard → Choose champion starts the champion select', async () => {
-    const onStart = vi.fn();
-    const onDifficulty = vi.fn();
-    const onModeChoice = vi.fn();
-    const onPlay = vi.fn();
-    const root = mount(online({ onStart, onDifficulty, onModeChoice, onPlay }));
+    const btn = root.querySelector<HTMLElement>('[data-testid="home-play"]')!;
+    expect(btn.getAttribute('aria-label')).toBe('Play: 3v3 match');
+    expect(btn.getAttribute('aria-haspopup')).toBeNull();
     play(root);
-    const ms = await modesOpen();
-    expect(ms.getAttribute('aria-modal')).toBe('true');
-    // the separate "Co-op vs Bots" tile is gone (co-op is Skirmish's variant); sim v27: Cannon Chaos and Practice live
-    // sim v28: One Lane Brawl and the Duel; Boss Weekend's place depends on the weekday (live Friday to Monday)
-    expect(Array.from(ms.querySelectorAll<HTMLElement>('.ms-pick')).map((b) => b.dataset.mode).filter((m) => m !== 'boss')).toEqual(['blitz', 'skirmish', 'classic', 'ranked', 'cannon', 'practice', 'onelane', 'duel']);
-    expect(ms.querySelector('.ms-pick.on')?.getAttribute('data-mode')).toBe('skirmish');
-    click(ms, 'mode-next');
-    expect(ms.dataset.stage).toBe('variant');
-    expect(Array.from(ms.querySelectorAll<HTMLElement>('.ms-var')).map((b) => b.dataset.v)).toEqual(['bots', 'coop', 'pvp', 'friends']);
-    expect(ms.querySelector('.ms-title')?.textContent).toBe('Skirmish 3v3');
-    // the bots difficulty lives on the vs Bots variant
-    click(ms, 'bots-hard');
-    expect(onDifficulty).toHaveBeenCalledWith('hard');
-    expect(ms.querySelector('[data-testid="mode-go"]')?.textContent).toContain('Choose champion');
-    click(ms, 'mode-go');
-    expect(onModeChoice).toHaveBeenCalledWith({ mode: 'skirmish', queue: 'bots' });
-    expect(onStart).toHaveBeenCalledWith({ mode: 'skirmish', queue: 'bots' });
-    expect(onPlay).not.toHaveBeenCalled();
     await tick();
+    expect(onStart).toHaveBeenLastCalledWith({ mode: 'skirmish', queue: 'pvp' });
     expect(document.querySelector('[data-testid="mode-select"]')).toBeNull();
-  });
-
-  it('Co-op and PvP go to the queue, With Friends to the party; the action names it', async () => {
-    for (const [v, word] of [
-      ['coop', 'Find match'],
-      ['pvp', 'Find match'],
-      ['friends', 'Open party'],
-    ] as const) {
-      const onStart = vi.fn();
-      const root = mount(online({ onStart }));
-      play(root);
-      const ms = await modesOpen();
-      click(ms, 'mode-next');
-      click(ms, `variant-${v}`);
-      expect(ms.querySelector(`[data-testid="variant-${v}"]`)?.getAttribute('aria-checked')).toBe('true');
-      expect(ms.querySelector('[data-testid="mode-go"]')?.textContent).toContain(word);
-      // the bots row shows only on vs Bots
-      expect(ms.querySelector('.ms-seg')).toBeNull();
-      click(ms, 'mode-go');
-      expect(onStart).toHaveBeenCalledWith({ mode: 'skirmish', queue: v });
-      disposeHome(root);
-      document.body.innerHTML = '';
-    }
-  });
-
-  it('Classic shows only its own variants (vs Bots, PvP); Blitz only vs Bots', async () => {
-    const onStart = vi.fn();
-    const root = mount(online({ onStart }));
-    play(root);
-    const ms = await modesOpen();
-    click(ms, 'mode-classic');
-    expect(ms.querySelector('.ms-sum')?.textContent).toContain('Classic 5v5');
-    click(ms, 'mode-next');
-    expect(Array.from(ms.querySelectorAll<HTMLElement>('.ms-var')).map((b) => b.dataset.v)).toEqual(['bots', 'pvp']);
-    click(ms, 'variant-bots');
-    click(ms, 'mode-go');
-    expect(onStart).toHaveBeenCalledWith({ mode: 'classic', queue: 'bots' });
-    disposeHome(root);
     document.body.innerHTML = '';
-    const r2 = mount(online());
-    play(r2);
-    const ms2 = await modesOpen();
-    click(ms2, 'mode-blitz');
-    click(ms2, 'mode-next');
-    expect(Array.from(ms2.querySelectorAll<HTMLElement>('.ms-var')).map((b) => b.dataset.v)).toEqual(['bots']);
-  });
-
-  it('a variant this build cannot start is locked and says why; the 3v3 PvP lock is explained', async () => {
-    const onStart = vi.fn();
-    // no relay, no party server: only vs Bots can start
-    let root = mount(base({ onStart }));
+    root = mount(base({ onStart, onOnline: vi.fn() }));
     play(root);
-    let ms = await modesOpen();
-    click(ms, 'mode-next');
-    const coop = ms.querySelector<HTMLElement>('[data-testid="variant-coop"]')!;
-    expect(coop.getAttribute('aria-disabled')).toBe('true');
-    expect(coop.textContent).toContain('Online play is not available');
-    coop.click();
-    expect(ms.querySelector('[data-testid="variant-bots"]')?.getAttribute('aria-checked')).toBe('true');
-    expect(ms.querySelector('.ms-toast')?.textContent).toContain('Online play is not available');
-    expect(ms.querySelector('[data-testid="variant-pvp"]')?.textContent).toContain('PvP is not available');
-    disposeHome(root);
+    expect(onStart).toHaveBeenLastCalledWith({ mode: 'skirmish', queue: 'coop' });
     document.body.innerHTML = '';
-    root = mount(online({ onStart, onlineMode: om({ locked: true }) }));
+    root = mount(base({ onStart }));
     play(root);
-    ms = await modesOpen();
-    click(ms, 'mode-next');
-    click(ms, 'variant-pvp');
-    expect(ms.querySelector('.ms-toast')?.textContent).toContain('PvP unlocks after 5 matches');
-    expect(onStart).not.toHaveBeenCalled();
+    expect(onStart).toHaveBeenLastCalledWith({ mode: 'skirmish', queue: 'bots' });
+    expect(mainQueue(['bots', 'coop', 'pvp', 'friends'])).toBe('pvp');
   });
 
-  it('locked tiles never select; Back and Esc step back one stage, then close', async () => {
+  it('no other match start on Home, and no mode picker, no timed-mode rows, no Ranked in the nav', () => {
+    const root = mount(online({ onCollection: vi.fn(), onJoinCode: vi.fn(), onHeroes: vi.fn(), storeOpen: true, onStore: vi.fn() }));
+    for (const sel of ['[data-testid="play-online"]', '[data-testid="play-pvp"]', '[data-testid="play-friends"]', '[data-a="online"]', '[data-a="choose"]', '[data-testid="lobby-exit"]', '[data-testid="mode-pill"]', '[data-testid="play-new"]', '[data-a="modes"]', '.hm-nav [data-a="ranked"]', '.hm-nav [data-a="locked"][data-why*="Ranked"]'])
+      expect(root.querySelector(sel), sel).toBeNull();
+    expect(root.querySelector('.hm-playc .hm-line')).toBeNull();
+    expect(root.textContent).not.toMatch(/Classic|Blitz|Duel|One Lane|Cannon|Boss Weekend|Twist|Unlocks at/);
+    expect(root.querySelector('[data-testid="join-code"]')).toBeTruthy();
+    expect(root.querySelector('.hm-plate')?.getAttribute('data-a')).toBe('plate');
+  });
+
+  it('Party (left stack) opens a party lobby, where Mode Select\'s With Friends was; not on a first visit', () => {
+    const onParty = vi.fn();
+    const root = mount(online({ onParty }));
+    root.querySelector<HTMLElement>('[data-testid="home-party"]')!.click();
+    expect(onParty).toHaveBeenCalledTimes(1);
+    document.body.innerHTML = '';
+    expect(mount(online({ onParty, firstTime: true })).querySelector('[data-testid="home-party"]')).toBeNull();
+  });
+
+  it('Ranked and Practice show beside PLAY only when the app passes them (Lv 10, Lv 5): never locked, never teased', async () => {
     const onStart = vi.fn();
-    const vault = { id: 'vault', name: 'Vault', size: '3v3' as const, minutes: '~5 min', queues: ['pvp' as const], art: 'cannon', state: 'locked' as const, lockText: 'Unlocks after 5 matches', rules: ['a', 'b'] };
-    const root = mount(online({ onStart, modes: [...modeList(NOW), vault] }));
-    play(root);
+    const none = mount(online({ onStart, extras: [] }));
+    expect(none.querySelector('[data-testid="home-extras"]')).toBeNull();
+    expect(none.querySelector('[data-testid="home-ranked"], [data-testid="home-practice"]')).toBeNull();
+    document.body.innerHTML = '';
+    const lv5 = mount(online({ onStart, extras: ['practice'] }));
+    expect(lv5.querySelector('[data-testid="home-practice"]')).toBeTruthy();
+    expect(lv5.querySelector('[data-testid="home-ranked"]')).toBeNull();
+    document.body.innerHTML = '';
+    const root = mount(online({ onStart, extras: ['ranked', 'practice'] }));
+    const order = Array.from(root.querySelectorAll<HTMLElement>('.hm-alt')).map((b) => b.dataset.mode);
+    expect(order).toEqual(['ranked', 'practice']);
+    // inside PLAY's cluster, before PLAY
+    expect(root.querySelector('.hm-playrow > .hm-extras + .hm-play')).toBeTruthy();
+    root.querySelector<HTMLElement>('[data-testid="home-ranked"]')!.click();
+    expect(onStart).toHaveBeenLastCalledWith({ mode: 'ranked', queue: 'pvp' });
+    // Practice opens its map pick alone (Mode Select's variant stage for Practice), then the champion select
+    root.querySelector<HTMLElement>('[data-testid="home-practice"]')!.click();
     const ms = await modesOpen();
-    ms.querySelector<HTMLElement>('[data-testid="mode-vault"]')!.click();
-    expect(ms.querySelector('.ms-pick.on')?.getAttribute('data-mode')).toBe('skirmish');
-    expect(ms.querySelector('.ms-toast')?.textContent).toContain('Vault');
-    click(ms, 'mode-next');
     expect(ms.dataset.stage).toBe('variant');
-    click(ms, 'mode-back');
-    expect(ms.dataset.stage).toBe('mode');
-    click(ms, 'mode-next');
-    esc();
-    expect(ms.dataset.stage).toBe('mode');
+    expect(ms.querySelector('.ms-title')?.textContent).toBe('Practice');
+    expect(ms.querySelector('[data-testid="practice-maps"]')).toBeTruthy();
+    expect(ms.querySelectorAll('.ms-pick')).toHaveLength(1);
+    click(ms, 'mode-go');
+    expect(onStart).toHaveBeenLastCalledWith({ mode: 'practice', queue: 'bots' });
+  });
+
+  it('Practice: Back and Esc close the map pick (no mode tiles behind it)', async () => {
+    const root = mount(online({ extras: ['practice'] }));
+    root.querySelector<HTMLElement>('[data-testid="home-practice"]')!.click();
+    await modesOpen();
     esc();
     await new Promise((r) => setTimeout(r, 250));
     expect(document.querySelector('[data-testid="mode-select"]')).toBeNull();
-    expect(onStart).not.toHaveBeenCalled();
   });
 
-  it('Enter on a tile goes to the variants, Enter on a variant goes on', async () => {
-    const onStart = vi.fn();
-    const root = mount(online({ onStart }));
-    play(root);
+  it('a just-unlocked button is revealed once: NEW on it, "New: Ranked", and the app is told', async () => {
+    const onRevealed = vi.fn();
+    const root = mount(online({ extras: ['ranked', 'practice'], reveal: ['ranked'], onRevealed }));
+    const r = root.querySelector<HTMLElement>('[data-testid="home-ranked"]')!;
+    expect(r.classList.contains('fresh')).toBe(true);
+    expect(r.querySelector('.hm-alt-new')?.textContent).toBe('NEW');
+    expect(root.querySelector('[data-testid="home-practice"]')!.classList.contains('fresh')).toBe(false);
+    expect(root.querySelector('.hm-toast')?.textContent).toBe('New: Ranked');
+    expect(onRevealed).toHaveBeenCalledWith(['ranked']);
+    // a reveal for a button not shown (Ranked without the PvP queue) says nothing
+    document.body.innerHTML = '';
+    const quiet = vi.fn();
+    mount(online({ extras: ['practice'], reveal: ['ranked'], onRevealed: quiet }));
+    expect(quiet).not.toHaveBeenCalled();
+  });
+
+  it('openAt reopens Practice\'s map pick (Back from its champion select); any other mode is ignored', async () => {
+    mount(online({ extras: ['practice'], openAt: { mode: 'skirmish', queue: 'bots' } }));
+    await tick();
+    await tick();
+    expect(document.querySelector('[data-testid="mode-select"]')).toBeNull();
+    document.body.innerHTML = '';
+    mount(online({ extras: ['practice'], modes: modeList(NOW), openAt: { mode: 'practice', queue: 'bots' } }));
     const ms = await modesOpen();
-    const tile = ms.querySelector<HTMLElement>('[data-testid="mode-classic"]')!;
-    tile.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     expect(ms.dataset.stage).toBe('variant');
-    ms.querySelector<HTMLElement>('[data-testid="variant-pvp"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    expect(onStart).toHaveBeenCalledWith({ mode: 'classic', queue: 'pvp' });
-  });
-
-  it('openAt reopens Mode Select on the variant (Back from the champion select)', async () => {
-    mount(online({ openAt: { mode: 'classic', queue: 'bots' } }));
-    const ms = await modesOpen();
-    expect(ms.dataset.stage).toBe('variant');
-    expect(ms.querySelector('.ms-title')?.textContent).toBe('Classic 5v5');
-    expect(ms.querySelector('[data-testid="variant-bots"]')?.getAttribute('aria-checked')).toBe('true');
-  });
-
-  it('the info button opens the rules; Escape closes it first', async () => {
-    const root = mount(base());
-    play(root);
-    await modesOpen();
-    document.querySelector<HTMLElement>('[data-info="classic"]')!.click();
-    const pop = document.querySelector<HTMLElement>('.ms-pop')!;
-    expect(pop.hidden).toBe(false);
-    expect(pop.textContent).toContain('Hearthwood Divide');
-    esc();
-    expect(pop.hidden).toBe(true);
-    expect(document.querySelector('[data-testid="mode-select"]')).toBeTruthy();
   });
 
   it('first visit: the guided match in one tap, no Mode Select, the nav shown with Heroes and Pass locked (no Cards item)', async () => {
@@ -269,7 +201,9 @@ describe('home screen: one play path', () => {
     expect(root.querySelector('[data-testid="mode-pill"]')).toBeNull();
     expect(root.querySelector('.hm-line')?.textContent).toBe('Your first match is a guided match.');
     const nav = root.querySelector('.hm-nav')!;
-    expect(nav.querySelectorAll('.hm-ni.locked').length).toBeGreaterThanOrEqual(3);
+    expect(nav.querySelectorAll('.hm-ni.locked').length).toBeGreaterThanOrEqual(2);
+    // no Ranked item before Lv 10 (MODE-UNLOCKS.md): not even a locked one
+    expect(nav.querySelector('[data-why*="Ranked"], [data-a="ranked"]')).toBeNull();
     expect(nav.querySelector('[data-a="cards"]')).toBeNull();
     (nav.querySelector('.hm-ni.locked') as HTMLElement).click();
     expect(onHeroes).not.toHaveBeenCalled();
@@ -314,12 +248,6 @@ describe('home screen: one play path', () => {
     expect(root.querySelector('[data-act="store"]')).toBeTruthy();
   });
 
-  it('a modes promo names the mode it opens on (sim v27: the Cannon Chaos slide opens on Cannon Chaos)', () => {
-    const promos = [{ id: 'cannon', title: 'Cannon Chaos', sub: 'Live now', action: 'modes' as const, mode: 'cannon' }];
-    const root = mount(base({ promos }));
-    expect(root.querySelector<HTMLElement>('[data-act="modes"]')?.dataset.mode).toBe('cannon');
-  });
-
   it('escapes host names (profile, champion, title)', () => {
     const x = '<img src=x onerror=alert(1)>';
     const root = mount(base({ profile: { name: x, tier: 2, pct: 0.5, xp: 120, matches: 3 }, identity: { ...base().identity, name: x }, title: x }));
@@ -327,31 +255,24 @@ describe('home screen: one play path', () => {
     expect(root.querySelector('.hm-pf-name')?.textContent).toBe(x);
   });
 
-  it('keyboard: Enter opens Mode Select, M too, H opens Heroes; disposeHome removes the listener', async () => {
-    const onPlay = vi.fn();
+  it('keyboard: Enter plays, H opens Heroes, M does nothing; disposeHome removes the listener', async () => {
+    const onStart = vi.fn();
     const onHeroes = vi.fn();
-    const root = mount(base({ onPlay, onHeroes }));
+    const root = mount(base({ onStart, onHeroes }));
     (document.activeElement as HTMLElement | null)?.blur();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await modesOpen();
-    esc();
-    await new Promise((r) => setTimeout(r, 250));
+    expect(onStart).toHaveBeenCalledWith({ mode: 'skirmish', queue: 'bots' });
+    const btn = root.querySelector<HTMLElement>('[data-testid="home-play"]')!;
+    btn.focus();
+    btn.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', bubbles: true }));
+    await tick();
     expect(document.querySelector('[data-testid="mode-select"]')).toBeNull();
-    const prof = root.querySelector<HTMLElement>('[data-testid="home-play"]')!;
-    prof.focus();
-    prof.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', bubbles: true }));
-    await modesOpen();
-    esc();
-    await new Promise((r) => setTimeout(r, 250));
-    prof.focus();
-    prof.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }));
+    btn.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }));
     expect(onHeroes).toHaveBeenCalledTimes(1);
     disposeHome(root);
     (document.activeElement as HTMLElement | null)?.blur();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await tick();
-    expect(document.querySelector('[data-testid="mode-select"]')).toBeNull();
-    expect(onPlay).not.toHaveBeenCalled();
+    expect(onStart).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -405,13 +326,12 @@ describe('home patch (no rebuild under modals)', () => {
     expect(g.getAttribute('aria-label')).toBe('0 Yarn. Sign in to earn Yarn');
   });
 
-  it('a patch with openAt opens Mode Select on that variant (Social "Play casual" over a Home still on screen)', async () => {
-    const root = mount(online());
-    expect(patchHome(root, online({ openAt: { mode: 'skirmish', queue: 'pvp' } }))).toBe(true);
+  it('a patch keeps the extras in step: Practice appears when a refresh raised the level', () => {
+    const root = mount(online({ extras: [] }));
+    expect(root.querySelector('[data-testid="home-practice"]')).toBeNull();
+    expect(patchHome(root, online({ extras: ['practice'] }))).toBe(true);
     expect(document.querySelectorAll('.pl-home')).toHaveLength(1);
-    const ms = await modesOpen();
-    expect(ms.dataset.stage).toBe('variant');
-    expect(ms.querySelector('[data-testid="variant-pvp"]')?.getAttribute('aria-checked')).toBe('true');
+    expect(root.querySelector('[data-testid="home-practice"]')).toBeTruthy();
     expect(root.dataset.variants).toBe('bots coop pvp friends');
   });
 
@@ -447,19 +367,10 @@ describe('home patch (no rebuild under modals)', () => {
   });
 });
 
-describe('Events list rows (round 3 review)', () => {
-  it('a live mode reads Live now (Cannon Chaos was "Coming soon" there since sim v27); Boss Weekend off its window reads Next: Fri', () => {
-    // a Wednesday: Boss Weekend's window is ahead
-    const wed = Date.parse('2026-11-18T12:00:00Z');
-    vi.useFakeTimers({ now: wed, toFake: ['Date'] });
-    try {
-      const root = mount(base({ modes: modeList(wed) }));
-      const row = (id: string) => root.querySelector<HTMLElement>(`.hm-evlist .ev[data-mode="${id}"]`);
-      expect(row('cannon')?.textContent).toContain('Live now');
-      expect(root.querySelector('.hm-evlist')?.textContent).not.toContain('Coming soon');
-      expect(row('boss')?.textContent).toContain('Next: Fri');
-    } finally {
-      vi.useRealTimers();
-    }
+describe('Events list (one main queue)', () => {
+  it('lists the live-ops cards and the season, never a mode row (timed modes are off the menu)', () => {
+    const root = mount(base({ modes: modeList(NOW), seasonEnd: 'Ends 5 Jan' }));
+    expect(root.querySelector('.hm-evlist .ev[data-mode]')).toBeNull();
+    expect(root.querySelector('.hm-evlist')?.textContent).toContain('Legends Pass season');
   });
 });

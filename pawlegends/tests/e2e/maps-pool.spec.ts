@@ -7,7 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { limit } from '../unit/cpu-budget';
 import { me, simTick, waitGameSeconds } from './helpers';
 
-const PLAYED = { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
+const PLAYED = { v: 1, sessions: 3, matches: 8, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
 const OBJ: Record<string, string> = { ridge: 'mill', thicket: 'shrines', quarry: 'gems', pitch: 'goal' };
 const CHIP: Record<string, RegExp> = { ridge: /Fish Mill/, thicket: /Paw Shrine/, quarry: /Gems|Surge/, pitch: /Goals/ };
 
@@ -36,9 +36,8 @@ for (const map of ['ridge', 'thicket', 'quarry', 'pitch']) {
       if (touch) await l.tap();
       else await l.click();
     };
-    await tap('[data-testid="home-play"]');
-    await tap('[data-testid="mode-practice"]');
-    await tap('[data-testid="mode-next"]');
+    // Practice (Lv 5, beside PLAY, MODE-UNLOCKS.md): its map pick
+    await tap('[data-testid="home-practice"]');
     await expect(page.locator('[data-testid="practice-maps"] button')).toHaveCount(6);
     await tap(`[data-testid="practice-map-${map}"]`);
     await expect(page.locator(`[data-testid="practice-map-${map}"]`)).toHaveAttribute('aria-checked', 'true');

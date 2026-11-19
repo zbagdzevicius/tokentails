@@ -12,10 +12,10 @@ type Box = { x: number; y: number; width: number; height: number };
 const overlap = (a: Box, b: Box): boolean => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
 async function knockedOut(page: Page, info: TestInfo, tag: string): Promise<void> {
-  await seedSide(page, 'cat', { matches: 3 });
+  await seedSide(page, 'cat', { matches: 3, difficulty: 'hard' });
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await playFromHome(page, { difficulty: 'hard' });
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));

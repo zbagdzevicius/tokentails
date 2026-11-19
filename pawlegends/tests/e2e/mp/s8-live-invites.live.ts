@@ -58,11 +58,8 @@ test('live: Invite friends in the lobby, join by code, the inbox and answer rout
     const pb = await cb.newPage();
     const ga = await home(pa);
     notes.version = await (await fetch('https://pawlegends.app/pawlegends-game/version.json?' + Date.now())).json();
-    await ga.locator('[data-testid="home-play"]').click();
-    await ga.locator('[data-testid="mode-skirmish"]').click();
-    await ga.locator('[data-testid="mode-next"]').click();
-    await ga.locator('[data-testid="variant-friends"]').click();
-    await ga.locator('[data-testid="mode-go"]').click();
+    // Home's Party (MODE-UNLOCKS.md: Mode Select's With Friends left with one main queue)
+    await ga.locator('[data-testid=\"home-party\"]').click();
     const codeEl = ga.locator('[data-testid="party-code"]');
     await expect(codeEl).toBeVisible({ timeout: 90_000 });
     const code = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');

@@ -162,23 +162,16 @@ test('667x375 phone: the mode chip and the Accept card fit; a decline is a dodge
  * The backend ranked-relay.spec.ts checks six players, the bot-filled 1v1 and that a game without `bots` never fills.
  */
 for (const kind of ['phone', 'desktop'] as const) {
-  test(`${kind}: ranked is always open: PLAY → Ranked → PvP queues ranked; the card is honest about bots; alone it plays vs AI`, async ({ browser }) => {
+  test(`${kind}: Ranked (Lv 10) is one tap into its queue; the card is honest about bots; alone it plays vs AI`, async ({ browser }) => {
     test.setTimeout(300_000);
-    const p = await player(browser, kind);
+    // Ranked sits beside PLAY from Lv 10 (25 matches, MODE-UNLOCKS.md): one tap into its queue
+    const p = await player(browser, kind, { profile: { v: 1, sessions: 3, matches: 25, wins: 12, firstWinDone: true, hero: 'sage', trick: 'hiss', difficulty: 'easy', veteran: true } });
     await title(p);
-    await expect(p.page.locator('.hm-nav [data-a="ranked"][data-live="1"]')).toBeVisible({ timeout: 30_000 });
-    await tap(p, p.page.locator('[data-testid="home-play"]'));
-    const tile = p.page.locator('[data-testid="mode-ranked"]');
-    await expect(tile).not.toHaveAttribute('aria-disabled', 'true');
-    await expect(tile).toContainText('searching', { timeout: 15_000 });
-    await shot(p, 'ranked', '00-tile');
-    await tap(p, tile);
-    await tap(p, p.page.locator('[data-testid="mode-next"]'));
-    // PvP only
-    for (const v of ['bots', 'coop', 'friends']) await expect(p.page.locator(`[data-testid="variant-${v}"]`)).toHaveCount(0);
-    await tap(p, p.page.locator('[data-testid="variant-pvp"]'));
-    await shot(p, 'ranked', '01-variant-pvp');
-    await tap(p, p.page.locator('[data-testid="mode-go"]'));
+    const btn = p.page.locator('[data-testid="home-ranked"]');
+    await expect(btn).toBeVisible({ timeout: 30_000 });
+    await shot(p, 'ranked', '00-home');
+    await tap(p, btn);
+    await expect(p.page.locator('[data-testid="mode-select"]')).toHaveCount(0);
     const q = p.page.locator('[data-testid="mm-queue"][data-ranked="1"]');
     await expect(q).toBeVisible({ timeout: 15_000 });
     await expect(q).toContainText('Finding a Ranked match');

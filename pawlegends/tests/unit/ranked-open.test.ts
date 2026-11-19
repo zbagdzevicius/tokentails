@@ -24,7 +24,7 @@ import { initialParty, mmJoinMsg, reduceParty, rankedStop } from '../../src/part
 import { queueCardHtml, type QueueModel } from '../../src/party/ui/queueCard';
 import { acceptCardHtml } from '../../src/party/ui/acceptCard';
 import { rankedBlockHtml } from '../../src/ui/screens';
-import { rankedNavOpts } from '../../src/ui/home/homeScreen';
+import { extrasHtml } from '../../src/ui/home/homeScreen';
 
 const NOW = Date.UTC(2026, 10, 20, 12);
 afterEach(() => resetModes());
@@ -91,10 +91,13 @@ describe('the Ranked tile: always open (round 4)', () => {
     expect(parseRankedStatus(null)).toBeNull();
   });
 
-  it('Home nav Ranked: live for a returning player (with the count), first-match lock for a new one', () => {
-    const modes = [rankedModeDef(status({ searching: 5 }))];
-    expect(rankedNavOpts({ modes }, true)).toEqual({ extra: ' aria-label="Ranked: open now, 5 searching" data-live="1"' });
-    expect(rankedNavOpts({ modes }, false).locked).toMatch(/first match/);
+  it('Home Ranked (Lv 10, beside PLAY): the rank line; no button at all when the player does not have it', () => {
+    const modes = [rankedModeDef(status({ searching: 5 }), { tier: 'Alley II', lp: 40 })];
+    const html = extrasHtml({ modes, extras: ['ranked'] });
+    expect(html).toContain('data-testid="home-ranked"');
+    expect(html).toContain('Alley II · 40 pts');
+    expect(extrasHtml({ modes, extras: [] })).toBe('');
+    expect(extrasHtml({ modes, extras: ['practice'] })).not.toContain('home-ranked');
   });
 
   it('the region line: name and the measured ping (or … while measuring)', () => {

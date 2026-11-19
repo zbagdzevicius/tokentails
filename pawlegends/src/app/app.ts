@@ -58,7 +58,7 @@ import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { inviteUrl, partyApi, partyFromUrl, watchFromUrl } from '../share/partyLink';
 import type { PartyClient } from '../party';
-import { PVP_UNLOCK_MATCHES, hideNames, lastQueueSide, onlineMode, pvpQueueFor, setLastQueueSide, setOnlineMode, type OnlineMode } from '../meta/partyPrefs';
+import { PVP_UNLOCK_MATCHES, hideNames, lastQueueSide, onlineMode, setLastQueueSide, setOnlineMode, type OnlineMode } from '../meta/partyPrefs';
 import { pvpAvailable, pvpKnown } from '../meta/pvpCapability';
 import { showUpdateCard, UpdateWatch } from '../meta/clientPolicy';
 import { isMpEvent } from '../analytics/posthog';
@@ -75,27 +75,7 @@ import { currentSeason, seasonEndText } from '../meta/pass';
 import { levelInfo } from '../meta/accountLevel';
 import { dropLine, initLiveops, liveopsState, setDropAction } from '../meta/liveops';
 import { countdownText, legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef, type ModeId } from '../ui/modeSelect/modes';
-import {
-  isUnlocked,
-  levelNeeded,
-  loadModeLocal,
-  lockLine,
-  markModesMigrated,
-  markModesPlayedScanned,
-  markModesLevelScanned,
-  modesLevelScanned,
-  migrateUnlocks,
-  modesMigrated,
-  modesPlayedScanned,
-  playedBefore,
-  newlyUnlocked,
-  notePlayed,
-  playerModes,
-  saveModeLocal,
-  silentUnlocks,
-  unlockId,
-  unseenFresh,
-} from '../ui/modeSelect/unlocks';
+import { isUnlocked, loadModeLocal, lockLine, MAIN_MODE, menuExtras, newlyUnlocked, notePlayed, RANKED_PLAYED, saveModeLocal, unseenFresh } from '../ui/modeSelect/unlocks';
 import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard, type RankedKind } from '../meta/ranked';
 import { heroElement } from '../ui/cards/el';
 import { consentPrompt } from '../ui/consentPrompt';
@@ -927,94 +907,31 @@ export class App {
   private pickFromFlow = false;
 
   /**
-   * Mode unlocking (MODE-UNLOCKS.md): the profile records every mode open to the player as `mode.<id>` in `unlocks`
-   * (synced). First run of this build on a device: the player keeps every mode they had (saved choice, history, a
-   * veteran gets all). Every time: modes whose condition is met (a server merge raised the counts) and, for an account
-   * with VETERAN_MATCHES+ matches and no `mode.` id yet, all of them. Silent: no banner, no NEW.
+   * One main queue (MODE-UNLOCKS.md, Nov 19): a remembered Classic or Blitz (the old title toggle, read by the champion
+   * select's seats and the match start) goes back to the 3v3 Skirmish the menu starts now.
    */
-  private syncModeUnlocks(): void {
-    const p = loadProfile();
-    const all = modeList();
-    let add: string[] = [];
-    if (!modesMigrated()) {
-      let saved: string | null = null;
-      try {
-        const raw = localStorage.getItem('pawlegends.mode.v1');
-        saved = raw ? String((JSON.parse(raw) as { mode?: unknown }).mode ?? '') || null : null;
-      } catch {
-        saved = null;
-      }
-      let history: string[] = [];
-      try {
-        history = loadHistory().map((h) => h.mode);
-      } catch {
-        history = [];
-      }
-      // a saved choice with no finished match is not "played before" (a link or a first look writes it too)
-      add = migrateUnlocks(p, { saved: p.matches > 0 ? saved : null, history }, all);
-      markModesMigrated();
-      if (add.length) this.analytics.track('mode_unlock', { mode: add.join(','), matches: p.matches, wins: p.wins, via: 'migrate' });
-    }
-    // the modes the kept replays played before mode unlocking shipped (history rows do not name Duel, One Lane Brawl
-    // or Cannon Chaos): once per device, also on devices that ran the first migration already
-    if (!modesPlayedScanned()) {
-      let played: string[] = [];
-      try {
-        played = playedBefore(loadHistory(), (id) => replayOf(id)?.mutator);
-      } catch {
-        played = [];
-      }
-      const more = played.length ? migrateUnlocks({ ...p, unlocks: [...p.unlocks, ...add] }, { history: played }, all) : [];
-      markModesPlayedScanned();
-      if (more.length) this.analytics.track('mode_unlock', { mode: more.join(','), matches: p.matches, wins: p.wins, via: 'migrate' });
-      add = [...add, ...more];
-    }
-    // the level ladder (founder Nov 17): Classic, the Weekly Twist and Boss Weekend were open to everyone before it. A
-    // player keeps each one they already played (history rows, kept replays) or last chose: once per device
-    if (!modesLevelScanned()) {
-      let modes: string[] = [];
-      let saved: string | null = null;
-      try {
-        modes = [...loadHistory().map((h) => h.mode), ...playedBefore(loadHistory(), (id) => replayOf(id)?.mutator, Number.POSITIVE_INFINITY)].map((m) =>
-          ['toybox', 'rapid', 'bounty'].includes(m) ? 'twist' : m,
-        );
-        const raw = localStorage.getItem('pawlegends.mode.v1');
-        saved = raw ? String((JSON.parse(raw) as { mode?: unknown }).mode ?? '') || null : null;
-      } catch {
-        modes = [];
-      }
-      const more = migrateUnlocks({ ...p, unlocks: [...p.unlocks, ...add] }, { saved: p.matches > 0 ? saved : null, history: modes }, all).filter((u) =>
-        ['mode.classic', 'mode.twist', 'mode.boss'].includes(u),
-      );
-      markModesLevelScanned();
-      if (more.length) this.analytics.track('mode_unlock', { mode: more.join(','), matches: p.matches, wins: p.wins, via: 'migrate' });
-      add = [...add, ...more];
-    }
-    const merged = { ...p, unlocks: [...p.unlocks, ...add] };
-    const s = silentUnlocks(merged, all);
-    if (s.add.length && (s.veteran || add.length === 0)) this.analytics.track('mode_unlock', { mode: s.add.join(','), matches: p.matches, wins: p.wins, via: 'sync' });
-    add = [...add, ...s.add];
-    if (!add.length) return;
-    const q = loadProfile();
-    for (const u of add) if (!q.unlocks.includes(u)) q.unlocks.push(u);
-    saveProfile(q);
+  private retireModes(): void {
+    if ((this.matchModeNow ?? loadMatchMode()) === 'skirmish') return;
+    this.matchModeNow = 'skirmish';
+    saveMatchMode('skirmish');
   }
 
-  /** Grant one mode silently (a ranked card that shows games: the player played Ranked before mode unlocking). */
-  private grantMode(id: ModeId): boolean {
+  /** A ranked card that shows games: this account keeps Ranked below Lv 10 (an earned rank stays). True when new. */
+  private grantRanked(): boolean {
     const q = loadProfile();
-    const u = unlockId(id);
-    if (q.unlocks.includes(u)) return false;
-    q.unlocks.push(u);
+    if (q.unlocks.includes(RANKED_PLAYED)) return false;
+    q.unlocks.push(RANKED_PLAYED);
     saveProfile(q);
     return true;
   }
 
-  /** The registry as this player sees it (locks, NEW, 3 big + the strip). */
-  private playerModeList(choice?: ModeId | null): ModeDef[] {
-    const all = modeList();
-    const c = choice ?? this.modeChoiceNow?.mode ?? loadModeChoice(all).mode;
-    return playerModes(all, loadProfile(), loadModeLocal(), Date.now(), c);
+  /**
+   * The modes this player's menu starts (MODE-UNLOCKS.md): the 3v3 main queue, then Ranked (Lv 10, or ranked games
+   * played; it needs the PvP queue) and Practice (Lv 5).
+   */
+  private menuModes(): ModeId[] {
+    const online = !!this.partyApi && pvpKnown() === true;
+    return [MAIN_MODE, ...menuExtras(loadProfile()).filter((id) => id !== 'ranked' || online)];
   }
 
   /** Is this mode open to the player now (the results' "Quick Blitz?" and the promos)? */
@@ -1033,14 +950,12 @@ export class App {
     return 'skirmish';
   }
 
-  /** After recordMatch: the played mode loses NEW; modes this match unlocked are recorded and the first is announced. */
+  /** After recordMatch: the played mode loses NEW; Practice or Ranked this match unlocked is announced (results, then Home). */
   private noteModeResult(played: ModeId, before: { matches: number; wins: number }): { name: string; line: string; art: string } | null {
     const local = notePlayed(loadModeLocal(), played);
     const p = loadProfile();
     const fresh = newlyUnlocked(before, p);
     if (fresh.length) {
-      for (const id of fresh) if (!p.unlocks.includes(unlockId(id))) p.unlocks.push(unlockId(id));
-      saveProfile(p);
       local.fresh = [...new Set([...local.fresh, ...fresh])];
       for (const id of fresh) this.analytics.track('mode_unlock', { mode: id, matches: p.matches, wins: p.wins, via: 'play' });
     }
@@ -1064,6 +979,8 @@ export class App {
     const lm = legacyMode(c.mode);
     this.matchModeNow = lm;
     saveMatchMode(lm);
+    // the queue Ranked or the main queue reads (queueModeFor)
+    this.modeChoiceNow = c;
     if (c.queue === 'bots') return this.showPick(mode);
     sfx.play('click');
     if (c.queue === 'friends') return this.openParty('create');
@@ -1128,9 +1045,9 @@ export class App {
           : r && typeof r.placementsLeft === 'number'
             ? { tier: `Placements ${Math.max(0, (r.placementsOf ?? 5) - r.placementsLeft)}/${r.placementsOf ?? 5}` }
             : undefined;
-      // mode unlocking: a ranked card that shows games keeps Ranked open for a player who played it before
+      // MODE-UNLOCKS.md: a ranked card that shows games keeps Ranked for a player below Lv 10 (an earned rank stays)
       const played = !!r && (typeof r.tierIdx === 'number' || (typeof r.placementsLeft === 'number' && r.placementsLeft < (r.placementsOf ?? 5)));
-      const granted = played && this.grantMode('ranked');
+      const granted = played && this.grantRanked();
       const def = rankedModeDef(st, rank);
       const key = JSON.stringify([def.state, def.liveLine ?? '', def.rank ?? null, granted]);
       registerMode(def);
@@ -1149,27 +1066,13 @@ export class App {
   showTitle(offer = true): void {
     // CHAMPION-STORE.md: the lobby's hero is one the player may pick (its quick Play starts it)
     this.keepPlayable();
-    // sim v22: a `?mode=` link picks its tile once (an unknown one says so and keeps Skirmish)
-    let notice: string | undefined;
+    // one main queue (MODE-UNLOCKS.md): a `?mode=` link no longer picks a mode (PLAY is the 3v3 queue); it is counted
     if (this.linkMode) {
       const lm = this.linkMode;
       this.linkMode = null;
-      // mode unlocking: the once-per-device migrations read the saved mode as "chosen before", so they run before the
-      // link writes it (Nov 17 verification: `?mode=classic` on a new device kept Classic open for good), and a link
-      // to a mode above the player's level picks Skirmish and says when it opens
-      this.syncModeUnlocks();
-      const linked = modeById(lm.mode, modeList());
-      const open = !linked || isUnlocked(linked, loadProfile(), Date.now());
-      const mode: MatchMode = open ? lm.mode : 'skirmish';
-      this.matchModeNow = mode;
-      saveMatchMode(mode);
-      // Home reads its own mode key (Mode Select): the link's tile, vs Bots
-      this.modeChoiceNow = { mode, queue: 'bots' };
-      saveModeChoice(this.modeChoiceNow);
-      if (!lm.known) notice = `Update to play ${lm.asked.charAt(0).toUpperCase()}${lm.asked.slice(1)}. Playing Skirmish for now.`;
-      else if (!open && linked) notice = `${linked.name} unlocks at Lv ${levelNeeded(linked.id)}. Playing Skirmish for now.`;
       this.analytics.track('mode_link', { mode: lm.known ? lm.mode : 'unknown', asked: lm.asked });
     }
+    this.retireModes();
     // gap plan P4: the Ranked tile follows the live gate (GET /pawlegends/ranked/status, 30 s cache)
     if (this.partyApi) this.refreshRanked(this.partyApi);
     // casual PvP: ask the backend once; the title redraws with the mode chip when it answers yes
@@ -1218,19 +1121,12 @@ export class App {
     };
     const ends = season ? seasonEndText(season.endsAt) : '';
     const base = import.meta.env.BASE_URL ?? './';
-    // sim v28: while Boss Weekend runs (the server's window, else the baked Friday to Monday one), it leads the promo
-    // rotator and opens Mode Select on it, as the featured event it is
-    const boss = liveopsState().config.boss;
-    const bossNow = !!boss && Date.now() >= boss.startsAt && Date.now() < boss.endsAt;
     // gaps6 the monthly coat drop leads the rotator while its coats are new (the countdown in its line)
     const drop = liveopsState().config.drop;
     const dropNow = !!drop && Date.now() >= drop.startsAt && Date.now() < drop.endsAt;
     const promos: Promo[] = [
       ...(dropNow && drop
         ? [{ id: 'drop', title: drop.name.replace(/:.*$/, ''), sub: dropLine(drop, Date.now(), countdownText), art: skinArtUrl(drop.coats[0], 360), action: 'drop' as const, coat: drop.coats[0] }]
-        : []),
-      ...(bossNow && p.matches > 0
-        ? [{ id: 'boss', title: 'Boss Weekend', sub: 'Live now · co-op vs Mega Brutus', art: `${base}assets/modes/boss-256.webp${assetRev()}`, action: 'modes' as const, mode: 'boss' }]
         : []),
       ...(p.matches > 0
         ? [
@@ -1239,9 +1135,6 @@ export class App {
               : { id: 'track', title: 'Treat Track', sub: 'Free rewards for playing', art: `${base}assets/lobby/promo-pass.webp${assetRev()}`, action: 'pass' as const },
           ]
         : []),
-      // sim v27: Cannon Chaos is live; the slide opens Mode Select on it
-      // mode unlocking: never a promo of a mode the player has not unlocked
-      ...(this.modeOpen('cannon') ? [{ id: 'cannon', title: 'Cannon Chaos', sub: 'Live now · start at level 3', art: `${base}assets/lobby/promo-cannon.webp${assetRev()}`, action: 'modes' as const, mode: 'cannon' }] : []),
       { id: 'store', title: 'Store', sub: 'Champions, coats and frames', art: `${base}assets/lobby/promo-store${this.tier === 'low' ? '-lo' : ''}.webp${assetRev()}`, action: 'store' },
     ];
     // live ops (LIVEOPS.md): Events reads the server through the host; the featured mode registers before modeList
@@ -1264,28 +1157,23 @@ export class App {
       canStore: () => this.ent.snapshot().storeOpen && !this.isApp(),
     });
     this.pushBoot();
-    // mode unlocking (MODE-UNLOCKS.md): 3 big tiles and the strip, per player
-    this.syncModeUnlocks();
-    const modes = this.playerModeList();
-    const modeLocal = loadModeLocal();
+    // one main queue (MODE-UNLOCKS.md, founder Nov 19): PLAY is the 3v3 queue; Ranked (Lv 10) and Practice (Lv 5) sit
+    // beside it once unlocked, and a button a match just unlocked is revealed once ("New: Ranked")
+    const menu = this.menuModes();
+    const all = modeList();
+    const modes = menu.map((id) => modeById(id, all)).filter((m): m is ModeDef => !!m);
+    const extras = menu.filter((id) => id !== MAIN_MODE);
     const opts: HomeScreenOpts = {
       profile,
       modes,
-      // a mode just unlocked and not announced yet: Mode Select opens on it (its big tile, preselected)
-      modeChoice: ((): ModeChoice => {
-        const f = modes.find((m) => m.fresh && m.slot === 'big');
-        return f ? { mode: f.id, queue: f.queues[0] ?? 'bots' } : (this.modeChoiceNow ?? loadModeChoice(modes));
-      })(),
-      playNew: unseenFresh(modeLocal).some((id) => modes.some((m) => m.id === id)),
-      onModesSeen: (ids) => {
+      modeChoice: { mode: MAIN_MODE, queue: 'bots' },
+      extras,
+      reveal: unseenFresh(loadModeLocal()).filter((id) => extras.includes(id)),
+      onRevealed: (ids) => {
         const l = loadModeLocal();
         saveModeLocal({ ...l, seen: [...new Set([...l.seen, ...ids])] });
       },
-      onLockedMode: (m) => {
-        const q = loadProfile();
-        this.analytics.track('mode_locked_tap', { mode: m.id, matches: q.matches, wins: q.wins });
-      },
-      // Mode Select's Confirm: saved, and the old 3v3 | 5v5 key follows (the pick, party queue and rematch read it)
+      // Practice's Go: remembered, and the old 3v3 | 5v5 key follows (the pick and rematch read it)
       onModeChoice: (c) => {
         this.modeChoiceNow = c;
         saveModeChoice(c);
@@ -1297,12 +1185,12 @@ export class App {
           setOnlineMode(c.queue);
         }
       },
-      // PLAY → Mode Select → variant: the champion select, the queue or the party (the one play path)
+      // PLAY (the 3v3 queue, or vs bots without a party server), Ranked (its queue) and Practice (the champion select)
       onStart: (c) => this.startFlow(c),
       openAt: this.takeModesAt(),
       onModesOpen: (from) => this.analytics.track('play_open', { from }),
       // nav Heroes and the nameplate: the champion browser on the Home hero, with SELECT / BUY / UNLOCK under the
-      // description (Nov 12, the founder). Never a match: the match still starts only from PLAY → Mode Select.
+      // description (Nov 12, the founder). Never a match: a match starts only from PLAY, Ranked or Practice.
       onHeroes: () => this.openHeroBrowser(),
       // the Yarn chip (founder Nov 17): the store's Champions (Unlock · N Yarn); apps, which open no store: Heroes
       onYarn: () => (s.storeOpen && !this.isApp() ? this.openStore('lobby', 'champions') : this.openHeroBrowser()),
@@ -1330,8 +1218,6 @@ export class App {
         q.difficulty = d;
         saveProfile(q);
       },
-      // sim v22: a `?mode=` link's unknown mode says "Update to play …" as Home opens
-      ...(notice ? { notice } : {}),
       // the match chunk loads during the 0.4 s dolly (it is usually prefetched already)
       playOut: () => {
         void loadMatch().catch(() => undefined);
@@ -1539,15 +1425,13 @@ export class App {
 
   /** Open the party chunk: create a party at once (the first tap), join a link's code, type a code, or resume a seat. */
   /**
-   * The Quick Play queue the title's online buttons start: Co-op, or PvP. PvP is 5v5 Classic when the mode toggle
-   * picks it (no match-count lock; the toggle shows after the guided first match), else 3v3 casual (no match-count
-   * lock either while PVP_UNLOCK_MATCHES is 0).
+   * The queue a search starts (MODE-UNLOCKS.md, one main queue): Ranked after the Ranked button this visit, else the 3v3
+   * main queue: casual PvP where the backend runs it (players first, bots fill, a co-op move after a quiet wait), else
+   * co-op. Never 5v5 Classic (the relay refuses it).
    */
-  private queueModeFor(matches: number): 'coop' | 'casual' | 'classic' | 'ranked' {
+  private queueModeFor(): 'coop' | 'casual' | 'ranked' {
     if (pvpKnown() !== true) return 'coop';
-    // gap plan P4: PLAY → Ranked → PvP queues ranked (the relay checks the gate and the account)
-    if (this.onlineMode === 'pvp' && (this.modeChoiceNow ?? loadModeChoice()).mode === 'ranked') return 'ranked';
-    return pvpQueueFor(this.onlineMode ?? onlineMode(matches), matches, (this.matchModeNow ?? loadMatchMode()) === 'classic');
+    return this.modeChoiceNow?.mode === 'ranked' ? 'ranked' : 'casual';
   }
 
   private openParty(mode: 'create' | 'join' | 'code' | 'resume' | 'queue' | 'back', code: string | null = null): void {
@@ -1579,7 +1463,9 @@ export class App {
             matches: p.matches,
             // PvP from the title's button: 5v5 Classic when picked (open to every player after the guided first
             // match), else 3v3 casual (no match-count lock for now: a 0-match guest queues it too)
-            queueMode: this.queueModeFor(p.matches),
+            queueMode: this.queueModeFor(),
+            // MODE-UNLOCKS.md: the party leader with Ranked (Lv 10) may search Ranked for the party
+            rankedOpen: () => this.menuModes().includes('ranked'),
             build: String(import.meta.env.VITE_PAWLEGENDS_BUILD ?? 'dev').toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 32) || 'dev',
             // P9: the embed host mints a single-use ticket with its own session; standalone players are unscored guests
             ticket: () => this.integration.partyTicket(),
@@ -1831,14 +1717,13 @@ export class App {
               return v && v.phase === 'lobby' && !this.party?.state.inMatch ? v.code : null;
             },
             joinParty: (code) => this.openParty('join', code),
-            partyMode: () => (this.party && this.queueModeFor(loadProfile().matches) === 'ranked' ? 'ranked' : null),
+            partyMode: () => (this.party && this.queueModeFor() === 'ranked' ? 'ranked' : null),
             // SPECTATE.md: Watch on a friend's row, and the featured "Watch live" row (needs the relay)
             ...(this.partyApi ? { watch: (target: { room: string; name: string } | { featured: true }) => this.openSpectate(target) } : {}),
             signIn: () => this.integration.requestSignIn('save-progress'),
-            // the one play path: Play Casual opens Mode Select on Skirmish's PvP variant (Find match is one tap)
+            // one main queue: Play Casual is PLAY (the 3v3 queue)
             playCasual: () => {
-              this.modesAt = { mode: 'skirmish', queue: 'pvp' };
-              if (this.screen === 'title' && !this.session) this.showTitle(false);
+              if (this.screen === 'title' && !this.session && !this.party) this.startFlow({ mode: MAIN_MODE, queue: pvpKnown() === true ? 'pvp' : 'coop' });
             },
             // CHAT-AVATARS §7.4: the picker's owned borders (champions only: no Token Tails cats, NO-TOKENTAILS.md)
             ownedItems: () => [...this.ent.snapshot().items],
@@ -1849,7 +1734,7 @@ export class App {
             },
             // a friend's row opens their profile (read-only) on its Matches tab; the full history is one tap from there
             history: (friend) => this.openProfile({ ...friend, friend: true }, 'matches'),
-            // SOCIAL-INVITES.md: Invite with no party yet opens PLAY's Mode Select on With Friends, then sends it
+            // SOCIAL-INVITES.md: Invite with no party yet opens a party lobby, then sends it
             inviteFriend: (friend) => this.inviteAfterParty(friend),
             // the inviter is told when an invite runs out unanswered (accept and decline come through the inbox)
             onInviteSent: (inv) => this.watchSentInvite(inv),
@@ -2093,13 +1978,14 @@ export class App {
   }
 
   /**
-   * Invite on a friend's row with no party yet (SOCIAL-INVITES.md): PLAY's Mode Select opens on With Friends (the one
-   * play path: this player picks the mode), and the invite goes out once the lobby is up. Gives up after 2 minutes.
+   * Invite on a friend's row with no party yet (SOCIAL-INVITES.md): a party lobby opens, and the invite goes out once
+   * the lobby is up. Gives up after 2 minutes.
    */
   private inviteAfterParty(friend: { code: string; name: string }): void {
     this.pendingInvite = { ...friend, at: Date.now(), lobbyAt: 0 };
-    this.modesAt = { mode: this.modeChoiceNow?.mode ?? 'skirmish', queue: 'friends' };
-    if (this.screen === 'title' && !this.session) this.showTitle(false);
+    // one main queue: the party lobby opens at once (its leader queues the 3v3 queue, or Ranked)
+    this.modeChoiceNow = { mode: MAIN_MODE, queue: 'friends' };
+    if (this.screen === 'title' && !this.session) this.openParty('create');
     if (this.pendingTimer) clearInterval(this.pendingTimer);
     this.pendingTimer = setInterval(() => void this.flushPendingInvite(), 1_500);
   }

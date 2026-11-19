@@ -13,11 +13,11 @@ const SIZES = [
 
 const PLAYED = { v: 1, sessions: 3, matches: 8, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
 
-/** A returning player at Home → PLAY → Mode Select (the first-ever match starts in one tap instead). */
-async function openModes(page: Page, touch: boolean): Promise<void> {
+/** A Lv 5 player at Home → Practice (MODE-UNLOCKS.md: beside PLAY from Lv 5) → its map pick. */
+async function openPractice(page: Page, touch: boolean): Promise<void> {
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await tap(page, '[data-testid="home-play"]', touch);
+  await tap(page, '[data-testid="home-practice"]', touch);
   await expect(page.locator('[data-testid="mode-select"]')).toBeVisible();
 }
 
@@ -28,7 +28,7 @@ async function tap(page: Page, sel: string, touch: boolean): Promise<void> {
 }
 
 for (const s of SIZES) {
-  test(`${s.w}x${s.h}: Mode Select says the size once, Practice is solo training, PvP keeps its casing`, async ({ page }, info) => {
+  test(`${s.w}x${s.h}: Practice is solo training (one "Solo" card, not vs Bots)`, async ({ page }, info) => {
     test.skip(info.project.name !== s.project, s.project);
     test.setTimeout(limit(90_000));
     await page.setViewportSize({ width: s.w, height: s.h });
@@ -37,23 +37,11 @@ for (const s of SIZES) {
       if (!localStorage.getItem('tt.pawlegends.profile.v1')) localStorage.setItem('tt.pawlegends.profile.v1', v);
     }, JSON.stringify(PLAYED));
     const ms = page.locator('[data-testid="mode-select"]');
-    // Practice: its own subtitle, and one "Solo" card that says what it is (not "vs Bots")
-    await openModes(page, touch);
-    await tap(page, '[data-testid="mode-practice"]', touch);
-    await expect(ms.locator('.ms-sum')).toHaveText('Practice · Solo training');
-    await tap(page, '[data-testid="mode-next"]', touch);
+    await openPractice(page, touch);
     await expect(ms).toHaveAttribute('data-stage', 'variant');
     await expect(ms.locator('.ms-var .ms-var-n')).toHaveText(['Solo']);
     await expect(ms.locator('.ms-var .ms-var-l')).toHaveText(['You vs 3 training dummies']);
-    // Skirmish: "Skirmish 3v3 · ~7 min" (the size once); the variants keep their casing ("PvP")
-    await openModes(page, touch);
-    await tap(page, '[data-testid="mode-skirmish"]', touch);
-    await expect(ms.locator('.ms-sum')).toHaveText('Skirmish 3v3 · ~7 min');
-    await tap(page, '[data-testid="mode-next"]', touch);
-    const pvp = ms.locator('[data-testid="variant-pvp"] .ms-var-n');
-    await expect(pvp).toHaveText('PvP');
-    expect(await pvp.evaluate((e) => getComputedStyle(e).textTransform)).toBe('none');
-    await page.screenshot({ path: `test-results/copy-polish/${s.w}x${s.h}-variants.png` });
+    await page.screenshot({ path: `test-results/copy-polish/${s.w}x${s.h}-practice.png` });
   });
 
   test(`${s.w}x${s.h}: the catch-up line fits the rail; a long kill-feed name ends in an ellipsis inside its row`, async ({ page }, info) => {

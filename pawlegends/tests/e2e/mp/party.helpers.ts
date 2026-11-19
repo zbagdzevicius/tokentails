@@ -55,23 +55,18 @@ export async function title(p: Player, query = ''): Promise<void> {
 }
 
 /**
- * The one play path (HOME-MODES.md §5): PLAY → `mode` → Next → the variant → its action ("Find match" for Co-op and
- * PvP: the queue; "Open party" for With Friends: the party lobby). Waits until this build offers the variant (PvP
- * needs the relay's sim check, which answers after Home first draws).
+ * One main queue (MODE-UNLOCKS.md, Nov 19): 'friends' taps Home's Party (the party lobby); 'pvp' and 'coop' tap PLAY,
+ * the 3v3 main queue (casual PvP once the relay answered the PvP check: players first, bots fill, a co-op move after a
+ * quiet wait). Waits until this build offers the variant.
  */
-export async function playVariant(p: Player, variant: 'coop' | 'pvp' | 'friends', mode = 'skirmish'): Promise<void> {
+export async function playVariant(p: Player, variant: 'coop' | 'pvp' | 'friends'): Promise<void> {
   await expect(p.page.locator(`.pl-home[data-variants~="${variant}"]`)).toBeVisible({ timeout: 30_000 });
+  if (variant === 'friends') return tap(p, p.page.locator('[data-testid="home-party"]'));
+  if (variant === 'pvp') await expect(p.page.locator('[data-testid="home-play"][data-queue="pvp"]')).toBeVisible({ timeout: 30_000 });
   await tap(p, p.page.locator('[data-testid="home-play"]'));
-  await expect(p.page.locator('[data-testid="mode-select"]')).toBeVisible({ timeout: 15_000 });
-  await tap(p, p.page.locator(`[data-testid="mode-${mode}"]`));
-  await tap(p, p.page.locator('[data-testid="mode-next"]'));
-  const v = p.page.locator(`[data-testid="variant-${variant}"]`);
-  await expect(v).not.toHaveAttribute('aria-disabled', 'true');
-  await tap(p, v);
-  await tap(p, p.page.locator('[data-testid="mode-go"]'));
 }
 
-/** The leader goes PLAY → Skirmish → With Friends: the party exists at once. Returns its code. */
+/** The leader taps Party: the party exists at once. Returns its code. */
 export async function createParty(p: Player): Promise<string> {
   await title(p);
   await playVariant(p, 'friends');

@@ -1,6 +1,6 @@
 /**
- * Map colour schemes (render only, render/mapSchemes.ts): each of the six maps in Practice (Hearthwood in Classic vs
- * Bots), at 1440 × 900 and 844 × 390. The session picked a scheme from the match seed at welcome (html
+ * Map colour schemes (render only, render/mapSchemes.ts): each of the five 3v3 maps in Practice (Hearthwood left the menu
+ * with 5v5 Classic, MODE-UNLOCKS.md), at 1440 × 900 and 844 × 390. The session picked a scheme from the match seed at welcome (html
  * data-map-scheme, one of the map's); then every scheme of the map in turn (GameView.setScheme, the same uniforms the
  * welcome sets): one shot at the spawn and one over the jungle each, into MAP_SCHEMES_OUT (default: the test's
  * output folder). The frame must change between schemes (the grade reaches the GPU) and no shader may fail.
@@ -11,8 +11,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { limit } from '../unit/cpu-budget';
 import { mapSchemes } from '../../src/render/mapSchemes';
 
-const PLAYED = { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
-const MAPS = (process.env.MAP_SCHEMES_MAPS ?? 'crossing,ridge,thicket,quarry,pitch,hearthwood').split(',');
+const PLAYED = { v: 1, sessions: 3, matches: 8, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
+const MAPS = (process.env.MAP_SCHEMES_MAPS ?? 'crossing,ridge,thicket,quarry,pitch').split(',');
 /** A jungle point (m, sim x / y) per map. */
 const LOOK: Record<string, [number, number]> = { crossing: [27, 39], ridge: [30, 38], thicket: [30, 38], quarry: [36, 44], pitch: [30, 30], hearthwood: [40, 30] };
 
@@ -30,16 +30,9 @@ async function enter(page: Page, map: string, touch: boolean): Promise<void> {
     if (touch) await l.tap();
     else await l.click();
   };
-  await tap('[data-testid="home-play"]');
-  if (map === 'hearthwood') {
-    await tap('[data-testid="mode-classic"]');
-    await tap('[data-testid="mode-next"]');
-    await tap('[data-testid="variant-bots"]');
-  } else {
-    await tap('[data-testid="mode-practice"]');
-    await tap('[data-testid="mode-next"]');
-    await tap(`[data-testid="practice-map-${map}"]`);
-  }
+  // Practice (Lv 5, beside PLAY): its map pick, then the champion select
+  await tap('[data-testid="home-practice"]');
+  await tap(`[data-testid="practice-map-${map}"]`);
   await tap('[data-testid="mode-go"]');
   await page.waitForSelector('html[data-screen="pick"] .cs');
   await tap('.cs-lock');

@@ -636,6 +636,9 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         const modeLock = { mode: String(m.mode ?? s.queue.mode), level: Math.max(1, Number(m.level) || 1), have: Math.max(0, Number(m.have) || 0), need: Math.max(0, Number(m.need) || 0) };
         return { state: { ...s, queue: { ...s.queue, stopped: 'mode_level', status: null, modeLock }, offer: null }, effects: [{ t: 'track', event: 'mode_locked_queue', props: { mode: modeLock.mode, level: modeLock.level } }] };
       }
+      // one main queue (MODE-UNLOCKS.md): the relay no longer takes this queue; the card offers the 3v3 queue
+      if (s.queue && m.code === 'mm_locked' && String(m.reason) === 'mode_retired')
+        return { state: { ...s, queue: { ...s.queue, stopped: 'mode_retired', status: null }, offer: null }, effects: [] };
       // casual PvP refused: the relay's match-count lock (lifted for now), or a game without PvP
       if (s.queue && m.code === 'mm_locked' && m.reason === 'pvp_newbie')
         return { state: { ...s, queue: { ...s.queue, stopped: 'newbie', status: null }, offer: null }, effects: [] };
@@ -719,6 +722,8 @@ export interface PartyHooks {
   queueSide?: MmSide;
   /** Casual PvP: the first search's queue (the title's mode chip). */
   queueMode?: MmQueue;
+  /** MODE-UNLOCKS.md: this player has Ranked (Lv 10, or ranked games played): the lobby offers a Ranked search. */
+  rankedOpen?(): boolean;
   /** Completed matches (the casual PvP newbie lock hint). */
   matches?: number;
   /** Quick Play: the player changed the side (remembered for the next search). */
@@ -1130,13 +1135,12 @@ export class PartyClient {
     this.dispatch({ e: 'queue', side: this.state.queue?.side ?? this.h.queueSide ?? 'any', requeue, mode: m });
   }
 
-  /** The PvP queue to search again after a PvP match or a remake: 5v5 Classic after a Hearthwood room, else 3v3. */
-  private pvpQueue(): 'casual' | 'classic' | 'ranked' {
+  /** The PvP queue to search again after a PvP match or a remake: Ranked after Ranked, else the 3v3 main queue (5v5
+   * Classic is retired, MODE-UNLOCKS.md: after an old Hearthwood room it searches 3v3). */
+  private pvpQueue(): 'casual' | 'ranked' {
     // ranked: Play again searches ranked again (this chunk was opened for ranked)
     if (this.state.queue?.mode === 'ranked' || this.h.queueMode === 'ranked') return 'ranked';
-    const mm = this.state.view?.mm;
-    if (mm) return mm.map === 'hearthwood' || mm.teamSize === 5 ? 'classic' : 'casual';
-    return this.state.queue?.mode === 'classic' || this.h.queueMode === 'classic' ? 'classic' : 'casual';
+    return 'casual';
   }
 
   /** Seconds searched now. */
@@ -1642,6 +1646,10 @@ export class PartyClient {
       case 'queue':
         this.queueNow(false);
         return;
+      // one main queue (MODE-UNLOCKS.md): a leader with Ranked searches it for the party (the relay checks every member)
+      case 'queue-ranked':
+        this.queueNow(false, 'ranked');
+        return;
       case 'mm-again':
         this.queueNow(false);
         return;
@@ -1889,6 +1897,7 @@ export class PartyClient {
           difficulties: this.h.difficulties ?? DIFFS,
           hideNames: hideNames(),
           online: s.mmOk,
+          ranked: s.mmOk && !!this.h.rankedOpen?.(),
           friends: !!this.h.friends,
         });
         break;

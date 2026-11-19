@@ -70,13 +70,10 @@ test('two 16+ players type to each other in a match: desktop Enter and a phone k
   const ga = a.game();
   const gb = b.game();
 
-  // A: PLAY → Skirmish → With Friends: the party lobby and its code
+  // A: Party: the party lobby and its code
   await expect(ga.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 90_000 });
-  await ga.locator('[data-testid="home-play"]').click();
-  await ga.locator('[data-testid="mode-skirmish"]').click();
-  await ga.locator('[data-testid="mode-next"]').click();
-  await ga.locator('[data-testid="variant-friends"]').click();
-  await ga.locator('[data-testid="mode-go"]').click();
+  // Home's Party (MODE-UNLOCKS.md: Mode Select's With Friends left with one main queue)
+  await ga.locator('[data-testid=\"home-party\"]').click();
   const codeEl = ga.locator('[data-testid="party-code"]');
   await expect(codeEl).toBeVisible({ timeout: 60_000 });
   const code = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');

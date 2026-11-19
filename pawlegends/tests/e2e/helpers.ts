@@ -46,51 +46,37 @@ export async function seedSide(page: Page, side: 'cat' | 'dog', extra: Record<st
 }
 
 /**
- * Home → a bots match through the one play path (HOME-MODES.md §5): PLAY; for a returning player Mode Select opens,
- * then `mode` (default: the remembered one) → Next → vs Bots (with `difficulty`) → Choose champion → LOCK IN. The
- * first-ever match (and a dare) still starts in one tap.
+ * Home → a bots match (MODE-UNLOCKS.md, one main queue): PLAY is one tap into the 3v3 match; the e2e build has no party
+ * server, so it is the champion select of a match vs bots → LOCK IN. `mode: 'practice'` takes Practice (Lv 5) instead:
+ * its map pick → Choose champion → LOCK IN. The first-ever match (and a dare) still starts in one tap. The bots
+ * difficulty is the profile's (seed it with `seedSide(page, side, { difficulty })`).
  */
-export async function playFromHome(
-  root: Root,
-  opts: { mode?: string; difficulty?: 'easy' | 'normal' | 'hard'; timeout?: number } = {},
-): Promise<void> {
+export async function playFromHome(root: Root, opts: { mode?: 'practice'; timeout?: number } = {}): Promise<void> {
   const t = opts.timeout !== undefined ? { timeout: opts.timeout } : {};
   const play = root.locator('[data-testid="home-play"]');
   // read before the tap: the first match's PLAY leaves the page as the match loads
-  const flow = (await play.getAttribute('aria-haspopup', t)) === 'dialog';
-  await play.click(t);
-  if (!flow) return;
-  await root.locator('[data-testid="mode-select"]').waitFor(t);
-  if (opts.mode) await root.locator(`[data-testid="mode-${opts.mode}"]`).click(t);
-  await root.locator('[data-testid="mode-next"]').click(t);
-  await root.locator('[data-testid="variant-bots"]').click(t);
-  if (opts.difficulty) await root.locator(`[data-testid="bots-${opts.difficulty}"]`).click(t);
-  await root.locator('[data-testid="mode-go"]').click(t);
+  const queue = await play.getAttribute('data-queue', t);
+  if (opts.mode === 'practice') {
+    await root.locator('[data-testid="home-practice"]').click(t);
+    await root.locator('[data-testid="mode-go"]').click(t);
+  } else {
+    await play.click(t);
+    if (!queue) return;
+  }
   await root.locator('.pl-pick .cs-lock:not([disabled])').click(t);
 }
 
-/**
- * Home → the champion select through the one play path: PLAY → `mode` (default: the remembered one) → Next → vs Bots
- * → Choose champion (a returning player; the nav Heroes only browses now).
- */
-/** Home → With Friends through the one play path (PLAY → Skirmish → With Friends → Open party): the party lobby. */
-export async function withFriends(root: Root): Promise<void> {
-  await root.locator('[data-testid="home-play"]').click();
-  await root.locator('[data-testid="mode-select"]').waitFor();
-  await root.locator('[data-testid="mode-skirmish"]').click();
-  await root.locator('[data-testid="mode-next"]').click();
-  await root.locator('[data-testid="variant-friends"]').click();
-  await root.locator('[data-testid="mode-go"]').click();
+/** Home → the party chunk: where a party server answers, PLAY is the 3v3 queue (MODE-UNLOCKS.md, one main queue). */
+export async function playOnline(root: Root): Promise<void> {
+  await root.locator('[data-testid="home-play"]:not([data-queue="bots"]):not([data-queue=""])').click();
 }
 
-export async function toChampSelect(root: Root, opts: { mode?: string; difficulty?: 'easy' | 'normal' | 'hard' } = {}): Promise<void> {
-  await root.locator('[data-testid="home-play"]').click();
-  await root.locator('[data-testid="mode-select"]').waitFor();
-  if (opts.mode) await root.locator(`[data-testid="mode-${opts.mode}"]`).click();
-  await root.locator('[data-testid="mode-next"]').click();
-  await root.locator('[data-testid="variant-bots"]').click();
-  if (opts.difficulty) await root.locator(`[data-testid="bots-${opts.difficulty}"]`).click();
-  await root.locator('[data-testid="mode-go"]').click();
+/** Home → the champion select: PLAY (the 3v3 match vs bots in the e2e build), or Practice's Choose champion. */
+export async function toChampSelect(root: Root, opts: { mode?: 'practice' } = {}): Promise<void> {
+  if (opts.mode === 'practice') {
+    await root.locator('[data-testid="home-practice"]').click();
+    await root.locator('[data-testid="mode-go"]').click();
+  } else await root.locator('[data-testid="home-play"]').click();
   await root.locator('.pl-pick').waitFor();
 }
 

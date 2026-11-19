@@ -29,9 +29,8 @@ test('Practice: Pounce (the Flash), Q/W/E and the Nap each play their own sound'
   }, JSON.stringify(PLAYED));
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await page.locator('[data-testid="home-play"]').click();
-  await page.locator('[data-testid="mode-practice"]').click();
-  await page.locator('[data-testid="mode-next"]').click();
+  // Practice (Lv 5, beside PLAY, MODE-UNLOCKS.md)
+  await page.locator('[data-testid="home-practice"]').click();
   await page.locator('[data-testid="mode-go"]').click();
   await page.waitForSelector('html[data-screen="pick"] .cs');
   await page.locator('.cs-lock').click();

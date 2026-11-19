@@ -177,6 +177,8 @@ export const COPY = Object.freeze({
   rankedMate: (have: number, need: number) => `Your duo partner has not unlocked Ranked yet (${have}/${need} matches). Play solo, or play Casual together.`,
   rankedPending: 'Saving your last Ranked match. Search again in a moment.',
   rankedParty: 'Ranked is solo or duo',
+  rankedQueue: 'Ranked',
+  modeRetired: 'This mode is gone. PLAY starts a 3v3 match.',
   pvpFoundLine: (mine: [number, number], theirs: [number, number], side: string) =>
     `You: ${side} · ${mine[0]} ${mine[0] === 1 ? 'player' : 'players'}${mine[1] ? ` + ${mine[1]} ${mine[1] === 1 ? 'bot' : 'bots'}` : ''} vs ${theirs[0]}${theirs[1] ? ` + ${theirs[1]} ${theirs[1] === 1 ? 'bot' : 'bots'}` : ''}`,
   accept: 'Accept',

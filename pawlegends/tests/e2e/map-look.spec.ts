@@ -9,8 +9,9 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { limit } from '../unit/cpu-budget';
 
-const PLAYED = { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
-const MAPS = ['crossing', 'ridge', 'thicket', 'quarry', 'pitch', 'hearthwood'] as const;
+const PLAYED = { v: 1, sessions: 3, matches: 8, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
+// Hearthwood (5v5 Classic) is off the menu since Nov 19 (MODE-UNLOCKS.md): the five 3v3 maps, through Practice
+const MAPS = ['crossing', 'ridge', 'thicket', 'quarry', 'pitch'] as const;
 /** Ground points (m, sim x / y) to look at per map: a jungle edge and the middle. */
 const LOOK: Record<string, [number, number][]> = {
   crossing: [
@@ -52,17 +53,9 @@ async function enter(page: Page, map: string, touch: boolean): Promise<void> {
     if (touch) await l.tap();
     else await l.click();
   };
-  await tap('[data-testid="home-play"]');
-  if (map === 'hearthwood') {
-    // the 5v5 map is Classic's (vs Bots)
-    await tap('[data-testid="mode-classic"]');
-    await tap('[data-testid="mode-next"]');
-    await tap('[data-testid="variant-bots"]');
-  } else {
-    await tap('[data-testid="mode-practice"]');
-    await tap('[data-testid="mode-next"]');
-    await tap(`[data-testid="practice-map-${map}"]`);
-  }
+  // Practice (Lv 5, beside PLAY): its map pick, then the champion select
+  await tap('[data-testid="home-practice"]');
+  await tap(`[data-testid="practice-map-${map}"]`);
   await tap('[data-testid="mode-go"]');
   await page.waitForSelector('html[data-screen="pick"] .cs');
   await tap('.cs-lock');

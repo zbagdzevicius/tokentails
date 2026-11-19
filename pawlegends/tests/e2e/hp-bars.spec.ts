@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { playFromHome, seedSide, toChampSelect } from './helpers';
+import { seedSide, toChampSelect } from './helpers';
 import { limit } from '../unit/cpu-budget';
 
 // Health bars in a running match (Nov 12 regression). The overhead plates draw with the live WebGLRenderer
@@ -47,20 +47,5 @@ test('health bars draw in a match after a skill clip in the champion browser', a
   await expect(page.locator('.pl-champ')).toHaveCount(0);
   await press(page, '[data-a="start"]', touch);
   await page.waitForSelector('html[data-match="live"]', { timeout: limit(90_000) });
-  await barsDraw(page);
-});
-
-test('Home → PLAY → Classic → vs Bots → LOCK IN reaches a live 5v5 match with health bars', async ({ page }) => {
-  // a 5v5 Hearthwood match loads on SwiftShader here
-  test.setTimeout(limit(180_000));
-  await seedSide(page, 'cat', { matches: 6, sessions: 3, hero: 'sage' });
-  await page.goto('/?e2e=1');
-  await page.waitForSelector('html[data-screen="title"] .pl-home');
-  // the one play path: PLAY → Classic → vs Bots → champion select → LOCK IN
-  await playFromHome(page, { mode: 'classic', timeout: limit(60_000) });
-  await page.waitForSelector('html[data-match="live"]', { timeout: limit(120_000) });
-  await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
-  // ten heroes: a 5v5 match
-  await expect.poll(async () => (await page.evaluate(() => document.documentElement.dataset.plateNames ?? '')).split('|').filter(Boolean).length).toBe(10);
   await barsDraw(page);
 });

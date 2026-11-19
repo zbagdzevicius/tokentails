@@ -42,7 +42,7 @@ test('Season XP, tier and quests on Home follow a saved bots match and a pass cl
   const marker = await loadMarker(game);
 
   // a bots match at speed 64, played to its end by the bots (as store-pass.spec.ts does)
-  await playFromHome(game, { difficulty: 'easy' });
+  await playFromHome(game);
   await game.waitForSelector('html[data-match="live"]', { timeout: limit(60_000) });
   await game.waitForSelector('html[data-screen="results"]', { timeout: limit(240_000) });
   await expect(game.locator('.plc-season')).toContainText('+310');

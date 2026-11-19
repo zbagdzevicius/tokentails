@@ -3,8 +3,8 @@ import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { limit } from '../unit/cpu-budget';
 
-// Sim v27 (docs/plans/moba/V27.md): the Practice ground, Cannon Chaos and the Weekly Twist, each on the one play path
-// (Home → PLAY → Mode Select → vs Bots → champion select → LOCK IN). Practice: three dummies, Reset / Level +1 /
+// Sim v27 (docs/plans/moba/V27.md): the Practice ground (Home → Practice, Lv 5 → champion select → LOCK IN; Cannon
+// Chaos and the Weekly Twist left the menu Nov 19, MODE-UNLOCKS.md). Practice: three dummies, Reset / Level +1 /
 // Cooldowns in the top plate (the score's place), Leave goes straight Home and saves nothing. V27_SHOTS=1 saves each
 // step to ~/Downloads/paw-legends/gaps2/sim27/.
 
@@ -30,19 +30,16 @@ async function tap(page: Page, sel: string, touch: boolean): Promise<void> {
   else await l.click();
 }
 
-async function startMode(page: Page, mode: string, touch: boolean): Promise<void> {
+/** Home → Practice (Lv 5, beside PLAY; MODE-UNLOCKS.md) → its one Solo card → champion select → LOCK IN. */
+async function startPractice(page: Page, touch: boolean): Promise<void> {
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await tap(page, '[data-testid="home-play"]', touch);
+  await tap(page, '[data-testid="home-practice"]', touch);
   const ms = page.locator('[data-testid="mode-select"]');
-  await expect(ms).toBeVisible();
-  await tap(page, `[data-testid="mode-${mode}"]`, touch);
-  await shot(page, `${mode}-1-mode`);
-  await tap(page, '[data-testid="mode-next"]', touch);
   await expect(ms).toHaveAttribute('data-stage', 'variant');
-  // vs Bots only
   await expect(ms.locator('.ms-var')).toHaveCount(1);
+  await shot(page, 'practice-1-pick');
   await tap(page, '[data-testid="mode-go"]', touch);
   await page.waitForSelector('html[data-screen="pick"] .cs');
   await tap(page, '.cs-lock', touch);
@@ -50,25 +47,10 @@ async function startMode(page: Page, mode: string, touch: boolean): Promise<void
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), null, { timeout: limit(30_000) });
 }
 
-test('Mode Select lists Cannon Chaos and Practice live and the Weekly Twist as the featured timed event', async ({ page }, info) => {
-  const touch = info.project.name === 'landscape';
-  await seed(page);
-  await page.goto('/?e2e=1');
-  await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await tap(page, '[data-testid="home-play"]', touch);
-  const ms = page.locator('[data-testid="mode-select"]');
-  await expect(ms.locator('[data-testid="mode-cannon"]')).not.toHaveAttribute('aria-disabled', 'true');
-  await expect(ms.locator('[data-testid="mode-practice"]')).not.toHaveAttribute('aria-disabled', 'true');
-  await expect(ms.locator('[data-testid="mode-twist"]')).toBeVisible();
-  await expect(ms.locator('[data-testid="mode-twist"]')).toContainText(/Toy Box|Rapid Paws|Bounty Hunt/);
-  await expect(ms).not.toContainText('Coming soon');
-  await shot(page, 'modes');
-});
-
 test('Practice: dummies, the three controls in the top plate, Level +1 works, Leave goes Home and saves nothing', async ({ page }, info) => {
   test.setTimeout(limit(150_000));
   const touch = info.project.name === 'landscape';
-  await startMode(page, 'practice', touch);
+  await startPractice(page, touch);
   const bar = page.locator('.pl-practice');
   await expect(bar).toBeVisible();
   await expect(bar.locator('button')).toHaveText(['Reset', 'Level +1', 'Cooldowns']);
@@ -95,14 +77,4 @@ test('Practice: dummies, the three controls in the top plate, Level +1 works, Le
   await page.waitForSelector('html[data-screen="title"] .pl-home', { timeout: limit(20_000) });
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem('tt.pawlegends.profile.v1') ?? '{}').matches);
   expect(after).toBe(before);
-});
-
-test('Cannon Chaos: a live Crossing match that starts at level 3', async ({ page }, info) => {
-  test.setTimeout(limit(150_000));
-  const touch = info.project.name === 'landscape';
-  await startMode(page, 'cannon', touch);
-  await expect(page.locator('.pl-portrait .lvl')).toHaveText('3', { timeout: limit(15_000) });
-  await expect(page.locator('.pl-practice')).toHaveCount(0);
-  await page.waitForTimeout(1000);
-  await shot(page, 'cannon-match');
 });

@@ -149,7 +149,7 @@ async function sweep(
   return bad;
 }
 
-const HOME_KEYS = ['.pl-home .hm-profile', '.pl-home .hm-cur', '.pl-home .hm-corner', '.pl-home .hm-left', '.pl-home .hm-slot > *', '.pl-home .hm-promo', '.pl-home .hm-plate', '.pl-home .hm-nav', '.pl-home .hm-play', '.pl-home .hm-line', '.pl-home .lb-peek', '.pl-home .lb-ver'];
+const HOME_KEYS = ['.pl-home .hm-profile', '.pl-home .hm-cur', '.pl-home .hm-corner', '.pl-home .hm-left', '.pl-home .hm-slot > *', '.pl-home .hm-promo', '.pl-home .hm-plate', '.pl-home .hm-nav', '.pl-home .hm-play', '.pl-home .hm-alt', '.pl-home .hm-line', '.pl-home .lb-peek', '.pl-home .lb-ver'];
 const RESULTS_KEYS = ['.pl-results .pl-results-col', '.pl-results .pl-reward', '.pl-results .actions.pinned', '.pl-results .tt-mvp', '.pl-results .pl-tohome'];
 const HUD_KEYS = ['.pl-hud .pl-minimap', '.pl-hud .pl-bar', '.pl-hud .pl-pause', '.pl-hud .pl-chat', '.pl-hud .pl-score', '.pl-hud .pl-tbtn'];
 
@@ -159,19 +159,21 @@ async function tap(_page: Page, s: Scope, sel: string, touch: boolean): Promise<
   else await l.click();
 }
 
-/** Home → PLAY → Blitz vs bots → the champion select (at 844x390; `onModes` runs while Mode Select is open). */
+/**
+ * Home → PLAY → the 3v3 champion select (at 844x390; one main queue, MODE-UNLOCKS.md: no party server here, so PLAY is
+ * the match vs bots). `onModes` runs while Practice's map pick is open (Lv 5, beside PLAY), which then closes.
+ */
 async function toPick(page: Page, touch: boolean, onModes?: () => Promise<void>): Promise<void> {
   await page.setViewportSize({ width: 844, height: 390 });
-  await tap(page, page, '[data-testid="home-play"]', touch);
-  await expect(page.locator('[data-testid="mode-select"]')).toBeVisible();
   if (onModes) {
+    await tap(page, page, '[data-testid="home-practice"]', touch);
+    await expect(page.locator('[data-testid="mode-select"]')).toBeVisible();
     await onModes();
     await page.setViewportSize({ width: 844, height: 390 });
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-testid="mode-select"]')).toHaveCount(0);
   }
-  await tap(page, page, '[data-testid="mode-blitz"]', touch);
-  await tap(page, page, '[data-testid="mode-next"]', touch);
-  await tap(page, page, '[data-testid="variant-bots"]', touch);
-  await tap(page, page, '[data-testid="mode-go"]', touch);
+  await tap(page, page, '[data-testid="home-play"]', touch);
   await page.waitForSelector('.pl-pick');
 }
 
@@ -192,7 +194,7 @@ for (const touch of [true, false]) {
   const sizes = touch ? TOUCH : DESKTOP;
   const kind = touch ? 'touch' : 'desktop';
 
-  test(`overlap audit (${kind}): Home, Mode Select, champion select, HUD and results`, async ({ browser, baseURL }, info) => {
+  test(`overlap audit (${kind}): Home, Practice's map pick, champion select, HUD and results`, async ({ browser, baseURL }, info) => {
     test.skip(info.project.name !== 'desktop', 'sizes and touch are set per test');
     test.setTimeout(limit(1_200_000));
     const { ctx, page } = await device(browser, touch);
@@ -220,7 +222,7 @@ for (const touch of [true, false]) {
       bad.push(...(await sweep(page, page, sizes, `${kind}-hud`, '.pl-hud', HUD_KEYS, undefined, true)));
       expect(await page.locator('html').getAttribute('data-match'), 'the match is still live after the HUD sweep').toBe('live');
 
-      // pass 2, fast: a whole Blitz to the results
+      // pass 2, fast: a whole 3v3 match to the results
       await page.goto(`${baseURL}/?e2e=1&speed=8`);
       await page.waitForSelector('html[data-screen="title"] .pl-home');
       await toPick(page, touch);

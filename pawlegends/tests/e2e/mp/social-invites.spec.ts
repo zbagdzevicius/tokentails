@@ -203,14 +203,11 @@ test('invite a friend LoL style, they accept into your lobby; a DM arrives live 
   const a = await friend(browser, baseURL!, 'A', srv);
   const b = await friend(browser, baseURL!, 'B', srv);
 
-  // A: PLAY → Skirmish → With Friends (the one play path): the lobby with its code and "Invite friends"
+  // A: Party: the lobby with its code and "Invite friends"
   const ga = a.game();
   await expect(ga.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
-  await ga.locator('[data-testid="home-play"]').click();
-  await ga.locator('[data-testid="mode-skirmish"]').click();
-  await ga.locator('[data-testid="mode-next"]').click();
-  await ga.locator('[data-testid="variant-friends"]').click();
-  await ga.locator('[data-testid="mode-go"]').click();
+  // Home's Party (MODE-UNLOCKS.md: Mode Select's With Friends left with one main queue)
+  await ga.locator('[data-testid=\"home-party\"]').click();
   const codeEl = ga.locator('[data-testid="party-code"]');
   await expect(codeEl).toBeVisible({ timeout: 60_000 });
   const code = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');
@@ -286,11 +283,8 @@ test('Decline: the card closes and the inviter is told', async ({ browser, baseU
   const b = await friend(browser, baseURL!, 'B', srv);
   const ga = a.game();
   await expect(ga.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
-  await ga.locator('[data-testid="home-play"]').click();
-  await ga.locator('[data-testid="mode-skirmish"]').click();
-  await ga.locator('[data-testid="mode-next"]').click();
-  await ga.locator('[data-testid="variant-friends"]').click();
-  await ga.locator('[data-testid="mode-go"]').click();
+  // Home's Party (MODE-UNLOCKS.md: Mode Select's With Friends left with one main queue)
+  await ga.locator('[data-testid=\"home-party\"]').click();
   const codeEl = ga.locator('[data-testid="party-code"]');
   await expect(codeEl).toBeVisible({ timeout: 60_000 });
   srv.partyOf.A = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');
@@ -323,11 +317,8 @@ test('add a friend by nickname, invite them (offline feedback too), they accept 
   // A opens a party: their own seat shows the nickname from the first view (not a generated "Fancy Calico")
   const ga = a.game();
   await expect(ga.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
-  await ga.locator('[data-testid="home-play"]').click();
-  await ga.locator('[data-testid="mode-skirmish"]').click();
-  await ga.locator('[data-testid="mode-next"]').click();
-  await ga.locator('[data-testid="variant-friends"]').click();
-  await ga.locator('[data-testid="mode-go"]').click();
+  // Home's Party (MODE-UNLOCKS.md: Mode Select's With Friends left with one main queue)
+  await ga.locator('[data-testid=\"home-party\"]').click();
   const codeEl = ga.locator('[data-testid="party-code"]');
   await expect(codeEl).toBeVisible({ timeout: 60_000 });
   const code = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');

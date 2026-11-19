@@ -6,7 +6,7 @@
 import { expect, test } from '@playwright/test';
 import { limit } from '../unit/cpu-budget';
 
-const PLAYED = { v: 1, sessions: 3, matches: 6, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
+const PLAYED = { v: 1, sessions: 3, matches: 8, wins: 3, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
 type Box = { x: number; y: number; width: number; height: number };
 const apart = (a: Box, b: Box): boolean => a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
 
@@ -21,9 +21,8 @@ test('Practice map colours: fits 667 × 375 and the match plays the pick', async
   }, JSON.stringify(PLAYED));
   await page.goto('/?e2e=1&speed=2');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
-  await page.locator('[data-testid="home-play"]').tap();
-  await page.locator('[data-testid="mode-practice"]').tap();
-  await page.locator('[data-testid="mode-next"]').tap();
+  // Practice (Lv 5, beside PLAY, MODE-UNLOCKS.md): its map pick
+  await page.locator('[data-testid="home-practice"]').tap();
   await page.locator('[data-testid="practice-map-crossing"]').tap();
   const chip = page.locator('[data-testid="practice-scheme"]');
   await expect(chip).toHaveAttribute('data-ps', 'random');

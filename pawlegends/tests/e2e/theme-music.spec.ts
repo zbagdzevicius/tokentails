@@ -77,10 +77,8 @@ test('home theme after the first tap, the select build in champion select, the l
   await expect(page.locator('[data-testid="music-row"] output')).toHaveText('35%');
   await page.locator('.pl-settings [data-a="close"]').click();
 
+  // one main queue (MODE-UNLOCKS.md): no party server in this build, so PLAY is the 3v3 champion select vs bots
   await page.locator('[data-testid="home-play"]').click();
-  await page.locator('[data-testid="mode-next"]').click();
-  await page.locator('[data-testid="variant-bots"]').click();
-  await page.locator('[data-testid="mode-go"]').click();
   await page.waitForSelector('.pl-pick .cs-lock');
   await played(page, 'select');
   await page.locator('.pl-pick .cs-lock:not([disabled])').click();

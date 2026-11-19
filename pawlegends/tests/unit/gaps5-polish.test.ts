@@ -72,8 +72,8 @@ describe('Ranked duo (polish 4)', () => {
   });
 
   it('the invite toast says Ranked duo, with the lock line when this player has not unlocked Ranked', () => {
-    const locked = lockLine('ranked', { matches: 4, wins: 1 });
-    expect(locked).toBe('Unlocks at Lv 6 · 6 more matches');
+    const locked = lockLine('ranked', { matches: 19, wins: 1 });
+    expect(locked).toBe('Unlocks at Lv 10 · 6 more matches');
     // SOCIAL-INVITES.md: the LoL-style invite card (Accept / Decline) replaced the Join-only toast
     const inv = (mode?: 'ranked') => ({ id: '', from: { code: '', name: 'Sam' }, party: 'K7QX2M', ttl: 50, ...(mode ? { mode } : {}) });
     const cb = { onAccept: () => undefined, onDecline: () => undefined };

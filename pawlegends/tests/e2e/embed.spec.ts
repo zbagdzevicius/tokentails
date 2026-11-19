@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { playFromHome, withFriends } from './helpers';
+import { playFromHome, playOnline } from './helpers';
 
 /** A returning player (the one play path: PLAY opens Mode Select). */
 const PLAYED = { v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true, hero: 'sage', firstPlaySession: 1 };
@@ -118,7 +118,7 @@ test('party play (P9): the game asks its host for a ticket and sends it in the r
   });
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, partyTicket: TICKET, profile: PLAYED });
   const game = await openHost(page);
-  await withFriends(game);
+  await playOnline(game);
   await expect.poll(() => hellos.length, { timeout: limit(30_000) }).toBeGreaterThan(0);
   expect(hellos[0].ticket).toBe(TICKET);
   const asks = (await received(page)).filter((m) => m.type === 'party-ticket-request');
@@ -145,7 +145,7 @@ test('party play (P9): a host without a ticket answers null and the player joins
   });
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, partyTicket: null, profile: PLAYED });
   const game = await openHost(page);
-  await withFriends(game);
+  await playOnline(game);
   await expect.poll(() => hellos.length, { timeout: limit(30_000) }).toBeGreaterThan(0);
   expect(hellos[0].ticket).toBeUndefined();
   expect(typeof hellos[0].guestKey).toBe('string');

@@ -12,18 +12,19 @@
  *   "< Games" button is gone, Nov 12: the founder found it redundant; no exit to the host's games, NO-TOKENTAILS.md);
  * - left edge: Events, Today (quests ring) and # (join with a code), round buttons;
  * - right edge: the promo rotator (pass season, events, store on the web only);
- * - bottom: a glass nav (Heroes, Pass, Ranked, Store on the web), on the first visit too with the items that
- *   need a match locked. Heroes only browses (skills, lore): it never starts a match;
- * - bottom right: the last mode and variant as a label, and the big round PLAY.
+ * - bottom: a glass nav (Heroes, Pass, Store on the web), on the first visit too with the items that need a match
+ *   locked. Heroes only browses (skills, lore): it never starts a match;
+ * - bottom right: the big round PLAY (the 3v3 main queue) and, once the account reaches their level, the smaller Ranked
+ *   (Lv 10) and Practice (Lv 5) buttons beside it (MODE-UNLOCKS.md; nothing of them shows before).
  * Under the hero: the champion's nameplate; a returning player's opens the champion browser on that hero, whose SELECT
  * makes another owned hero the Home hero (and the champion select's first pick). BUY / UNLOCK go to the store detail.
  *
- * One play path (Nov 12, the founder: "there should be one path"): PLAY → Mode Select (mode, then variant: vs Bots
- * with its difficulty, Co-op, PvP, With Friends) → the champion select (bots) or the queue or the party lobby. The
- * first-ever match keeps its one-tap guided start (FTUE) and a dare link its direct start; # Code joins a friend's
- * party (its lobby, not a match).
+ * One main queue (Nov 19, the founder: "keep: 3v3 as main queue"): PLAY is one tap into the 3v3 queue (players first,
+ * bots fill; the champion select follows the match found), or, where no party server answers, the champion select of a
+ * 3v3 match vs bots. Ranked queues Ranked at once; Practice opens its map pick, then the champion select. The first-ever
+ * match keeps its one-tap guided start (FTUE) and a dare link its direct start; # Code joins a friend's party.
  *
- * Keyboard: Enter plays (when no button has focus); H heroes and M modes while focus is inside Home
+ * Keyboard: Enter plays (when no button has focus); H heroes while focus is inside Home
  * (WCAG 2.1.4); Esc closes a popover. Every document listener is removed by `disposeHome` (app setScreen).
  * Names are host data: always escaped. Cosmetic only. The app build never shows a price or a store.
  */
@@ -39,11 +40,11 @@ import { cssPicUrl } from '../cssUrl';
 import { icon } from '../icons';
 import type { Choice } from '../screens';
 import type { ModeSelectHandle } from '../modeSelect/modeSelect';
-import { countdownText, effectiveState, metaLine, modeById, playable, queueFor, type ModeChoice, type ModeDef, type Queue } from '../modeSelect/modes';
+import { modeById, playable, queueFor, type ModeChoice, type ModeDef, type ModeId, type Queue } from '../modeSelect/modes';
 import { crestSvg } from '../modeSelect/crest';
 import { startMotes } from './motes';
 import { HEROES } from '../../data/heroes';
-import { bindEvents, featuredModeId, liveopsCardsHtml, needsTap } from '../events/eventsPanel';
+import { bindEvents, liveopsCardsHtml, needsTap } from '../events/eventsPanel';
 import { dropAction, liveopsState } from '../../meta/liveops';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -82,9 +83,7 @@ export interface Promo {
   title: string;
   sub: string;
   art?: string;
-  action: 'pass' | 'modes' | 'store' | 'heroes' | 'drop';
-  /** `modes` only: the mode Mode Select opens on (default: the first timed event that is not featured). */
-  mode?: string;
+  action: 'pass' | 'store' | 'heroes' | 'drop';
   /** gaps6 `drop` only: the coat the slide previews where the store is closed (the apps). */
   coat?: string;
 }
@@ -101,20 +100,19 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   base: string;
   /** Nav Heroes and the nameplate: the champion browser (SELECT / BUY / UNLOCK; never a match). Absent: no item. */
   onHeroes?(): void;
-  /** The end of Mode Select: start the champion select (bots), the queue (co-op, PvP) or the party (friends). */
+  /** PLAY, Ranked and Practice's Go: the champion select (bots, Practice), the queue (co-op, PvP, Ranked). */
   onStart(c: ModeChoice): void;
-  /** Open Mode Select at this choice's variant stage as Home opens (Back from the champion select). */
+  /** Open Practice's map pick as Home opens (Back from Practice's champion select). Other modes: ignored. */
   openAt?: ModeChoice | null;
-  /** Mode Select opened (analytics): from PLAY, the M key, a promo or an event row. */
+  /** Practice's map pick opened (analytics `play_open`). */
   onModesOpen?(from: 'play' | 'key' | 'promo' | 'event' | 'back'): void;
+  /** The buttons beside PLAY, drawn only once unlocked (MODE-UNLOCKS.md: Ranked at Lv 10, Practice at Lv 5). */
+  extras?: readonly ModeId[];
+  /** Extras this Home reveals once ("New: Ranked"); `onRevealed` is told when it showed. */
+  reveal?: readonly ModeId[];
+  onRevealed?(ids: string[]): void;
   /** Rewards cloud (ui/rewards): the Welcome Path and the Lucky Treat row, under Today's quests (markup, escaped there). */
   todayExtra?: string;
-  /** Mode unlocking (MODE-UNLOCKS.md): a mode unlocked that Mode Select has not shown yet: a NEW dot on PLAY. */
-  playNew?: boolean;
-  /** Mode unlocking: Mode Select announced these fresh modes (the dot and the unlock animation are done). */
-  onModesSeen?(ids: string[]): void;
-  /** Mode unlocking: a locked mode icon was tapped (analytics). */
-  onLockedMode?(m: ModeDef): void;
   /** The profile chip (SOCIAL-RANKED.md §2.3): the Profile sheet (name, avatar, title). Absent: the chip opens the pass. */
   onProfile?(): void;
   /** The Yarn chip (founder Nov 17): where Yarn unlocks champions (the store's Champions, the Heroes browser in apps). */
@@ -145,6 +143,10 @@ const PAW =
 export function availableQueues(o: Pick<LobbyScreenOpts, 'onOnline' | 'onlineMode' | 'onParty'>): Queue[] {
   return ['bots', ...(o.onOnline ? (['coop'] as const) : []), ...(o.onOnline && o.onlineMode ? (['pvp'] as const) : []), ...(o.onParty ? (['friends'] as const) : [])];
 }
+
+/** PLAY's queue (the 3v3 main queue): PvP where the backend runs it (players first, bots fill, a co-op move after a
+ * quiet wait), else co-op with a relay, else vs bots on this device. Pure. */
+export const mainQueue = (avail: readonly Queue[]): Queue => (avail.includes('pvp') ? 'pvp' : avail.includes('coop') ? 'coop' : 'bots');
 
 /** The PvP lock line for a mode (3v3 casual PvP's match count; 5v5 Classic never locks), or null. Pure. */
 export function pvpLockText(o: Pick<LobbyScreenOpts, 'onlineMode'>, m: Pick<ModeDef, 'id'>): string | null {
@@ -232,25 +234,16 @@ function leftHtml(o: HomeScreenOpts, live: boolean): string {
     : '';
   const events = `<details class="hm-events"><summary class="hm-round${live ? ' live' : ''}" aria-label="Events">${FLAG}<span class="hm-rl">Events</span>${live ? '<i class="hm-dot" aria-hidden="true"></i>' : ''}</summary><div class="hm-pop hm-evlist" role="list">${eventRows(o)}</div></details>`;
   const code = o.onJoinCode ? `<button type="button" class="hm-round hm-code" data-a="joincode" data-testid="join-code" aria-label="Join a party with a code" title="Join a party with a code"><b aria-hidden="true">#</b><span class="hm-rl">Join</span></button>` : '';
-  return `<div class="hm-left">${events}${today}${code}</div>`;
+  // one main queue (MODE-UNLOCKS.md): Mode Select's "With Friends" was the way to open a party; it lives here now (a
+  // party lobby with its code and link; its leader queues the 3v3 queue, or Ranked)
+  const party = o.onParty && !o.firstTime && !o.dare ? `<button type="button" class="hm-round" data-a="party" data-testid="home-party" aria-label="Party: play with friends" title="Play with friends">${PEOPLE}<span class="hm-rl">Party</span></button>` : '';
+  return `<div class="hm-left">${events}${today}${party}${code}</div>`;
 }
 
-/**
- * The Events list (LIVEOPS.md): the live-ops cards (community goal, Winter Nap, fan vote; ui/events), the Legends Pass
- * season, then the timed and coming-soon modes, the featured one tagged with its end.
- */
+/** The Events list (LIVEOPS.md): the live-ops cards (community goal, Winter Nap, fan vote; ui/events), then the Legends
+ * Pass season. Timed modes are off the menu (one main queue, MODE-UNLOCKS.md). */
 function eventRows(o: HomeScreenOpts): string {
-  const now = Date.now();
-  const featured = featuredModeId();
-  const rows = o.modes
-    .filter((m) => typeof m.state === 'object' || m.id === 'cannon')
-    .map((m) => {
-      const st = effectiveState(m, now);
-      // a live mode (Cannon Chaos since sim v27) reads Live now; a timed one before its window its next day ("Next: Fri")
-      const tag = st === 'event' && m.id === featured && typeof m.state === 'object' ? `Featured · ${countdownText(m.state.event.endsAt - now)} left` : st === 'event' || st === 'live' ? 'Live now' : metaLine(m, now);
-      return `<button type="button" role="listitem" class="ev${m.id === featured && st === 'event' ? ' ev-feat' : ''}" data-a="modes" data-mode="${esc(m.id)}"><span class="ev-crest" aria-hidden="true">${crestSvg(m.id)}</span><span class="t"><b>${esc(m.name)}</b><small>${esc(tag)}</small></span></button>`;
-    });
-  if (o.seasonEnd) rows.unshift(`<button type="button" role="listitem" class="ev" data-a="pass"><span class="ev-crest" aria-hidden="true">${icon('crown')}</span><span class="t"><b>Legends Pass season</b><small>${esc(o.seasonEnd)}</small></span></button>`);
+  const rows = o.seasonEnd ? [`<button type="button" role="listitem" class="ev" data-a="pass"><span class="ev-crest" aria-hidden="true">${icon('crown')}</span><span class="t"><b>Legends Pass season</b><small>${esc(o.seasonEnd)}</small></span></button>`] : [];
   return liveopsCardsHtml() + (rows.join('') || '<p class="ev-none">No events right now.</p>');
 }
 
@@ -260,19 +253,35 @@ function promoHtml(o: HomeScreenOpts): string {
   const slides = ps
     .map(
       (p, i) =>
-        `<button type="button" class="hm-slide${i === 0 ? ' on' : ''}" data-a="promo" data-act="${p.action}"${p.mode ? ` data-mode="${esc(p.mode)}"` : ''}${p.coat ? ` data-coat="${esc(p.coat)}" data-testid="promo-drop"` : ''} data-i="${i}" tabindex="${i === 0 ? 0 : -1}" aria-label="${esc(`${p.title}. ${p.sub}`)}"${p.art ? ` style="--art:url('${esc(absArt(p.art))}')"` : ''}><span class="hm-slide-t"><b>${esc(p.title)}</b><small>${esc(p.sub)}</small></span></button>`,
+        `<button type="button" class="hm-slide${i === 0 ? ' on' : ''}" data-a="promo" data-act="${p.action}"${p.coat ? ` data-coat="${esc(p.coat)}" data-testid="promo-drop"` : ''} data-i="${i}" tabindex="${i === 0 ? 0 : -1}" aria-label="${esc(`${p.title}. ${p.sub}`)}"${p.art ? ` style="--art:url('${esc(absArt(p.art))}')"` : ''}><span class="hm-slide-t"><b>${esc(p.title)}</b><small>${esc(p.sub)}</small></span></button>`,
     )
     .join('');
   const dots = ps.length > 1 ? `<span class="hm-dots" aria-hidden="true">${ps.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</span>` : '';
   return `<div class="hm-promo" role="region" aria-label="News" data-n="${ps.length}">${slides}${dots}</div>`;
 }
 
-/** The nav Ranked item (round 4, SOCIAL-RANKED.md §7.11: always open): live for a returning player. Pure. */
-export function rankedNavOpts(o: Pick<HomeScreenOpts, 'modes'>, returning: boolean): { locked?: string; extra?: string } {
-  const m = o.modes.find((x) => x.id === 'ranked');
-  if (m && returning && effectiveState(m, Date.now()) === 'live') return { extra: ` aria-label="${esc(`Ranked: open now${m.liveLine ? `, ${m.liveLine}` : ''}`)}" data-live="1"` };
-  if (!returning) return { locked: 'Unlocks after your first match.' };
-  return { locked: m?.lockText ? `Ranked: ${m.lockText}.` : 'Ranked is closed right now.' };
+const EXTRA_NAME: Readonly<Record<string, string>> = Object.freeze({ ranked: 'Ranked', practice: 'Practice' });
+/** Practice's crest: a training dummy on its post. */
+const DUMMY =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5.5" r="3" fill="currentColor"/><path d="M6 10h12v2.4h-4.6V22h-2.8v-9.6H6z" fill="currentColor"/></svg>';
+
+/**
+ * The smaller buttons beside PLAY (MODE-UNLOCKS.md, founder Nov 19): Ranked (Lv 10) above Practice (Lv 5), only those
+ * this player has. A just-unlocked one carries NEW and pops in once. Ranked shows the player's rank line. Pure.
+ */
+export function extrasHtml(o: Pick<HomeScreenOpts, 'extras' | 'reveal' | 'modes'>): string {
+  const ids = (o.extras ?? []).filter((id) => EXTRA_NAME[id]);
+  if (!ids.length) return '';
+  const btn = (id: ModeId): string => {
+    const name = EXTRA_NAME[id]!;
+    const fresh = (o.reveal ?? []).includes(id);
+    const rank = id === 'ranked' ? o.modes.find((m) => m.id === 'ranked')?.rank : undefined;
+    const sub = id === 'ranked' ? (rank ? `${rank.tier}${typeof rank.lp === 'number' ? ` · ${rank.lp} pts` : ''}` : '3v3') : 'Any champion';
+    const label = id === 'ranked' ? `Ranked 3v3: ${sub}` : 'Practice: any champion vs training dummies';
+    const ico = id === 'ranked' ? crestSvg('ranked') : DUMMY;
+    return `<button type="button" class="hm-alt${fresh ? ' fresh' : ''}" data-a="${id}" data-mode="${id}" data-testid="home-${id}" aria-label="${esc(`${label}${fresh ? '. New' : ''}`)}"><span class="hm-alt-i" aria-hidden="true">${ico}</span><span class="hm-alt-t"><b>${name}</b><small>${esc(sub)}</small></span>${fresh ? '<i class="hm-alt-new" aria-hidden="true">NEW</i>' : ''}</button>`;
+  };
+  return `<div class="hm-extras" role="group" aria-label="More ways to play" data-testid="home-extras">${ids.map(btn).join('')}</div>`;
 }
 
 function navHtml(o: HomeScreenOpts, returning: boolean): string {
@@ -283,8 +292,6 @@ function navHtml(o: HomeScreenOpts, returning: boolean): string {
   const items = [
     o.onHeroes ? item('heroes', icon('paw'), 'Champions', lockedFirst || o.dare ? { locked: o.dare ? 'Finish the dare first.' : after } : { extra: ' aria-keyshortcuts="H" aria-haspopup="dialog" aria-label="Champions: abilities and lore"' }) : '',
     item('collection', TROPHY, 'Pass', o.onCollection && returning ? { badge: o.profile.tier !== null ? `<b class="hm-count tier" aria-hidden="true">${o.profile.tier}</b>` : '', extra: ' aria-label="Pass"' } : { locked: o.onCollection ? 'Finish the dare first.' : after }),
-    // gap plan P4: the Ranked item follows the live gate (open: Mode Select on the Ranked tile; closed: the gate line)
-    item('ranked', crestSvg('ranked').replace('<svg ', '<svg class="hm-ico" '), 'Ranked', rankedNavOpts(o, returning)),
     o.storeOpen && !o.isApp ? item('store', BAG, 'Store', { extra: ' aria-label="Store"' }) : '',
   ].filter(Boolean);
   return `<nav class="hm-nav" aria-label="Menu" data-n="${items.length}">${items.join('')}</nav>`;
@@ -341,10 +348,8 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
   const layoutKey = (x: HomeScreenOpts): string => [!!x.firstTime, x.dare ? JSON.stringify(x.dare) : '', !!x.onSocial, !!x.onSettings, !!x.onJoinCode].join('|');
   const layout = layoutKey(o);
   let diff: Difficulty = o.last.difficulty;
-  let choice: ModeChoice = o.modeChoice;
   let avail = availableQueues(o);
   const now = (): number => Date.now();
-  const cur = (): { mode: ModeDef; queue: Queue } => resolveChoice(o.modes, choice, avail, now());
   const elColorOf = (): string => cssHex(ELEMENT_COLOR[o.identity.element]);
   root.style.setProperty('--hm-el', elColorOf());
   // v6 facelift: the Home hero's side (cats rose, dogs sky) for the nameplate and profile accents (home.css)
@@ -362,15 +367,15 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     return `<div class="hm-plate"><span class="hm-plate-n">${esc(id.name)}</span><small class="hm-plate-s">${esc(subLine)}</small></div>`;
   };
   const playcHtml = (): string => {
-    // a returning player sees PLAY alone (Mode Select opens on the last mode and variant); the first match and a dare keep their line
+    // a returning player sees PLAY (and the extras unlocked); the first match and a dare keep their line
     const line = returning ? '' : `<p class="hm-line${dare ? ' dare' : ''}">${esc(playLine(o))}</p>`;
     return `<div class="hm-playc lb-play">
       ${line}
       <div class="hm-playrow">
-        <button type="button" class="pl-btn big hm-play" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'play'}" data-testid="home-play" aria-keyshortcuts="Enter M"${returning ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(returning ? `Play: choose a mode${o.playNew ? '. New mode unlocked' : ''}` : playLabel(o))}">
+        ${returning ? extrasHtml(o) : ''}
+        <button type="button" class="pl-btn big hm-play" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'play'}" data-testid="home-play" data-queue="${returning ? mainQueue(avail) : ''}" aria-keyshortcuts="Enter" aria-label="${esc(returning ? 'Play: 3v3 match' : playLabel(o))}">
           <span class="hm-play-glow" aria-hidden="true"></span><span class="hm-play-glow b" aria-hidden="true"></span>
           <span class="hm-play-face" aria-hidden="true">${PAW}<b>${dare ? 'DARE' : 'PLAY'}</b><span class="hm-sheen"></span></span>
-          ${returning && o.playNew ? '<span class="hm-play-new" data-testid="play-new" aria-hidden="true">NEW</span>' : ''}
         </button>
       </div>
     </div>`;
@@ -383,7 +388,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       ${profileHtml(o, elColor)}
       ${returning ? currencyHtml(o) : ''}
     </header>`,
-      '.hm-left': leftHtml(o, o.modes.some((m) => effectiveState(m, now()) === 'event') || needsTap(liveopsState())),
+      '.hm-left': leftHtml(o, needsTap(liveopsState())),
       '.hm-promo': returning ? promoHtml(o) : '',
       '.hm-stage': `<div class="hm-stage">${plateHtml()}</div>`,
       '.hm-nav': navHtml(o, returning),
@@ -439,9 +444,9 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     if (out) void out.then(go, go);
     else go();
   };
-  /** PLAY: the guided first match and a dare start at once; everyone else goes through Mode Select. */
-  const playNow = (from: 'play' | 'key' = 'play'): void => {
-    if (leaving) return;
+  /** PLAY: the guided first match and a dare start at once; everyone else starts the 3v3 main queue in one tap. */
+  const playNow = (): void => {
+    if (leaving || modeSel) return;
     const btn = root.querySelector<HTMLElement>('.hm-play');
     if (dare) {
       btn?.classList.add('pressed');
@@ -451,17 +456,22 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       btn?.classList.add('pressed');
       return leave(() => o.onPlay({ hero: 'clem', trick: 'pounce', difficulty: 'easy' }));
     }
-    openModes(undefined, from);
+    o.sound?.('click');
+    o.onStart({ mode: 'skirmish', queue: mainQueue(avail) });
   };
   let modesLoading = false;
-  /** Mode Select is its own chunk (loaded on the first open, so Home's first load stays small). */
-  const openModes = (focusMode?: string, from: 'play' | 'key' | 'promo' | 'event' | 'back' = 'play', at?: ModeChoice): void => {
+  /**
+   * Practice's map pick: Mode Select's variant stage for Practice alone (its own chunk, loaded on the first open, so
+   * Home's first load stays small). Back closes it.
+   */
+  const openPractice = (from: 'play' | 'back' = 'play'): void => {
     if (modeSel || modesLoading || leaving || !returning) return;
+    const practice = modeById('practice', o.modes);
+    if (!practice || !playable(practice, now())) return;
     o.sound?.('click');
     modesLoading = true;
     o.onModesOpen?.(from);
-    const want = focusMode ? modeById(focusMode, o.modes) : undefined;
-    const start: ModeChoice = at ?? { mode: want && playable(want, now()) ? want.id : cur().mode.id, queue: cur().queue };
+    const start: ModeChoice = { mode: 'practice', queue: 'bots' };
     void import('../modeSelect/modeSelect')
       .then(({ openModeSelect }) => {
         modesLoading = false;
@@ -470,14 +480,11 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
         // a modal: Home behind it leaves the tab order and the accessibility tree (aria-modal alone does not)
         const behind = Array.from(root.children) as HTMLElement[];
         for (const n of behind) n.inert = true;
-        // mode unlocking: opening Mode Select is seeing the new mode (the PLAY dot goes)
-        root.querySelector('.hm-play-new')?.remove();
         modeSel = openModeSelect(root, {
-          modes: o.modes,
-          ...(o.onModesSeen ? { onSeen: (ids: string[]) => o.onModesSeen?.(ids) } : {}),
-          ...(o.onLockedMode ? { onLockedTap: (m: ModeDef) => o.onLockedMode?.(m) } : {}),
+          modes: [practice],
           choice: start,
-          ...(at ? { stage: 'variant' as const } : {}),
+          stage: 'variant',
+          only: true,
           available: avail,
           pvpLock: (m) => pvpLockText(o, m),
           difficulties: o.difficulties,
@@ -488,7 +495,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
             o.onDifficulty?.(d);
           },
           onConfirm: (c) => {
-            choice = c;
             o.onModeChoice(c);
           },
           onGo: (c) => o.onStart(c),
@@ -496,7 +502,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
             modeSel = null;
             for (const n of behind) n.inert = false;
             root.classList.remove('hm-dim');
-            if (!went) root.querySelector<HTMLElement>('.hm-play')?.focus({ preventScroll: true });
+            if (!went) root.querySelector<HTMLElement>('[data-a="practice"]')?.focus({ preventScroll: true });
           },
           ...(o.sound ? { sound: o.sound } : {}),
           base: o.base,
@@ -518,11 +524,17 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     // a tap on a list row inside a popover closes it
     for (const d of root.querySelectorAll<HTMLDetailsElement>('details[open]')) if (!d.contains(t) || btn?.closest('.hm-pop')) d.open = false;
     if (a === 'clem' || a === 'play' || a === 'dare') playNow();
-    else if (a === 'modes') openModes(btn?.dataset.mode, 'event');
+    else if (a === 'ranked') {
+      // Ranked (Lv 10): one tap into the Ranked queue (the relay checks the account and the matches)
+      if (modeSel) return;
+      o.sound?.('click');
+      o.onStart({ mode: 'ranked', queue: 'pvp' });
+    } else if (a === 'practice') openPractice();
     else if (a === 'heroes' || a === 'plate') {
       o.sound?.('click');
       o.onHeroes?.();
     } else if (a === 'joincode') o.onJoinCode?.();
+    else if (a === 'party') o.onParty?.();
     else if (a === 'store') o.onStore?.();
     else if (a === 'yarn') {
       o.sound?.('click');
@@ -537,8 +549,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       o.sound?.('click');
       shake(btn!);
       toast(btn!.dataset.why ?? 'Locked.');
-    } else if (a === 'ranked') openModes('ranked', 'promo');
-    else if (a === 'promo') {
+    } else if (a === 'promo') {
       const act = btn!.dataset.act;
       o.sound?.('click');
       if (act === 'pass') o.onCollection?.();
@@ -550,7 +561,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
         if (d.store && d.canStore?.()) d.store();
         else if (btn!.dataset.coat) d.preview?.(btn!.dataset.coat);
       }
-      else openModes(btn!.dataset.mode ?? o.modes.find((m) => typeof m.state === 'object' && m.id !== featuredModeId())?.id, 'promo');
     } else if (a === 'mute') {
       const b = root.querySelector<HTMLElement>('[data-a="mute"]');
       if (!b) return;
@@ -598,7 +608,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     const onControl = !!t && t !== document.body && t !== root && !!t.closest('button, a, summary, [role="radio"]');
     if (e.key === 'Enter' && !onControl) {
       e.preventDefault();
-      playNow('key');
+      playNow();
       return;
     }
     if (!t || !root.contains(t)) return;
@@ -606,9 +616,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     if (k === 'h' && returning) {
       e.preventDefault();
       root.querySelector<HTMLElement>('[data-a="heroes"]')?.click();
-    } else if (k === 'm' && returning) {
-      e.preventDefault();
-      openModes(undefined, 'key');
     }
   };
   if (ac) document.addEventListener('keydown', onKey, { signal: ac.signal });
@@ -696,14 +703,20 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     patchers.delete(root);
   });
   parent.appendChild(root);
-  // sim v22: a `?mode=` link's mode this build does not know ("Update to play …, playing Skirmish for now")
   if (o.notice) toast(o.notice);
+  /** A button that just unlocked: "New: Ranked" once (its NEW tag and pop are in the markup); the app records it. */
+  function reveal(): void {
+    const ids = returning ? (o.reveal ?? []).filter((id) => (o.extras ?? []).includes(id)) : [];
+    if (!ids.length) return;
+    toast(`New: ${ids.map((id) => EXTRA_NAME[id] ?? id).join(' and ')}`);
+    o.sound?.('magic');
+    o.onRevealed?.([...ids]);
+  }
 
   patchers.set(root, (next) => {
     if (leaving || layoutKey(next) !== layout || (document.documentElement.dataset.quality ?? 'med') !== quality) return false;
     o = next;
     diff = o.last.difficulty;
-    choice = o.modeChoice;
     avail = availableQueues(o);
     root.dataset.variants = avail.join(' ');
     // from here on nothing replays its entrance (a region that changes is swapped in place, already settled)
@@ -749,11 +762,13 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       mute.innerHTML = SPEAKER(!o.muted);
     }
     if (o.notice) toast(o.notice);
-    // Back from the champion select onto a Home still on screen: Mode Select again, on the chosen variant
-    if (o.openAt && returning) openModes(undefined, 'back', o.openAt);
+    // Back from Practice's champion select onto a Home still on screen: its map pick again
+    if (o.openAt?.mode === 'practice' && returning) openPractice('back');
+    reveal();
     return true;
   });
-  // Back from the champion select: Mode Select again, on the variant the player had chosen
-  if (o.openAt && returning) openModes(undefined, 'back', o.openAt);
+  // Back from Practice's champion select: its map pick again
+  if (o.openAt?.mode === 'practice' && returning) openPractice('back');
+  reveal();
   return root;
 }

@@ -1,6 +1,76 @@
 # Paw Legends: mode unlocking
 
-## Nov 17: modes open by account level
+## Nov 19: one main queue (current rule)
+
+Founder decision (Nov 19): "keep: 3v3 as main queue. Practise appears from Level 5 only (without appearing before
+that). Ranked appears from level 10 (without appearing before that). so basically there'll be a button PLAY for main
+queue, on top of it near it (around it). Ranked And practise will show up once they'll be unlocked." It follows the
+proposal to drop the other modes from the menu, like Brawl Stars' single main queue, so the few players online meet in
+one queue. No rotating event slot.
+
+**The rule.** Home has one PLAY. Practice appears beside it at account Lv 5 (8 finished matches), Ranked at Lv 10 (25).
+Before its level a button is not drawn at all: no locked tile, no teaser, no "unlocks at" line, no Ranked nav item.
+
+| Level | Matches | Home shows |
+|---|---|---|
+| 1 to 4 | 0 to 7 | PLAY |
+| 5 to 9 | 8 to 24 | PLAY, Practice |
+| 10+ | 25+ | PLAY, Ranked, Practice (Ranked only where the PvP queue answers) |
+
+**PLAY** (`homeScreen.ts` `mainQueue`) is one tap into the 3v3 main queue, Skirmish:
+- where the backend runs PvP for this build (`GET /pawlegends/sim`): the casual 3v3 queue. Players first; bots fill an
+  empty seat from 17 s; a solo or duo with no opponent moves to co-op vs bots at 40 s (the matchmaker's existing rules).
+  The champion select follows the match found;
+- with a relay but no PvP answer yet: the co-op queue;
+- with no party server (offline, a local build, the e2e build): the champion select of a 3v3 match vs bots, on the 5-map
+  rotation (the first three matches stay on the Crossing).
+The first-ever match is still the guided Rookie match in one tap, and a dare link still starts its dare.
+
+**Ranked** (Lv 10) is one tap into the Ranked queue (3v3, solo or duo). Its other rules stay: a registered account
+(a guest is told "Sign in to play Ranked" and offered Casual), no unsettled ranked match, and the server's match count.
+**Practice** (Lv 5) opens its map and colour pick (Mode Select's variant stage for Practice alone; Back closes it), then
+the champion select. Practice has no server gate: it runs on the device.
+
+**Layout.** PLAY stays the big round button bottom right. Ranked and Practice are smaller v6 pills (44 px tall, 52 on
+desktop) to its left, Ranked on top. On a screen 560 px wide or less (a phone held upright) they stack above PLAY.
+A button a match just unlocked carries NEW, pops in once and Home says "New: Practice" or "New: Ranked" once
+(`pawlegends.modes.new` / `.seen`, synced). The results screen still shows "New mode unlocked" for it.
+
+**Off the menu:** 5v5 Classic, Blitz, Duel, One Lane Brawl, Cannon Chaos, Boss Weekend, the Weekly Twist, and their
+promos, Events rows, the results' "Quick Blitz?" and `?mode=` links (a link is only counted now). Their sim modes stay
+(no sim change): old replays play, history and profiles keep their rows. A remembered Classic or Blitz on the device
+goes back to Skirmish. `unlocks.ts` `RETIRED_MODES` lists them; a mode added later must be put on the menu or there.
+
+**Party.** Mode Select's "With Friends" was the way to open a party; Home's left stack has a **Party** button now
+(plus # Join and the Friends sheet's Invite). The party leader's "Play online" searches the 3v3 main queue; a leader
+with Ranked also gets a **Ranked** button (solo or duo; the relay checks every member, and a partner below Lv 10 is told
+"Your duo partner has not unlocked Ranked yet"). Practice is solo, never in a party.
+
+**Server** (`backend/src/pawlegends/mode-unlocks.ts`, `ranked/tiers.ts`, `mm/mm-bridge.ts`):
+- `QUEUE_LEVEL = { ranked: 10 }`; `RANKED_MIN_MATCHES = matchesForLevel(10)` = 25 saved matches (was 10).
+- `mm.join {queue:'classic'}` is refused with `mm_locked`, reason `mode_retired` (an older game still offering Classic
+  shows its generic lock line; this build never asks for it, and its queue card would say "This mode is gone. PLAY
+  starts a 3v3 match." and offer the 3v3 queue). The 5v5 matchmaker code stays for old rooms.
+- Practice has no server gate.
+- `tests/unit/mode-unlocks.test.ts` pins the client and backend tables equal (levels, the Ranked level and its 25
+  matches, the retired queue).
+
+**Nobody loses an earned rank.** A player who already played Ranked keeps it below Lv 10: the server lets an account
+with ranked games (`<id>:ranked` row, `games > 0`) queue and shows it eligible on `ranked/me` (`rankedByMatches`); the
+game keeps the Ranked button once a ranked card shows a tier or a started placement (`ranked.played` in the synced
+unlocks). The old ladder's `mode.<id>` ids (written to everyone by level) no longer open anything. Players below Lv 10
+who could see Ranked under the Lv 6 rule but never played it wait for Lv 10. Practice was open to everyone before; a
+player below Lv 5 no longer sees it. The presence "ranked-ready" count (`rk`, ranked/status) uses 25 saved matches only.
+
+Code: `pawlegends/src/ui/modeSelect/unlocks.ts` (rules), `ui/home/homeScreen.ts` + `home.css` (PLAY cluster, Party),
+`app/app.ts` (`menuModes`, `startFlow`, `queueModeFor`), `party/partyClient.ts` + `party/ui/partyLobby.ts` (party
+Ranked). Tests: `tests/unit/mode-unlocks.test.ts`, `tests/unit/home-screen.test.ts`, `tests/e2e/one-queue.spec.ts`
+(levels 1, 4, 5, 9, 10, an existing ranked player, the reveal, the cluster at 667x375, 844x390, 1280x720, 1440x900 and
+390x844).
+
+The sections below are history: the Nov 17 level ladder and the Nov 14 tiles are replaced by the rule above.
+
+## Nov 17: modes open by account level (replaced Nov 19)
 
 Founder ask (Nov 17): "by default initially 3x3 ( skirmish ) and practise ( sandbox ) modes should be available
 ( unlocked ). then other modes unlocks upon reaching certain LVL ( must be progression )".
@@ -48,7 +118,7 @@ the relay's Classic PvP queue (vs Bots works).
 The Nov 14 design below still holds for the layout, the NEW state, the unlock moment and the data; its match-and-win
 ladder is replaced by the table above.
 
-## Nov 14 design
+## Nov 14 design (replaced)
 
 Founder ask (Nov 14): "lock some game modes so that no more than 3 game modes will be displayed initially (others
 will be displayed only as smaller version of icons until they'll be unlocked, as currently they're creating

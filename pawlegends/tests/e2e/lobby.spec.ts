@@ -35,7 +35,7 @@ test('the lobby: Play on top, the 3D hero in frame on the poster, named champion
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
   const play = page.locator('.pl-home .pl-btn.big');
-  await expect(play).toHaveAttribute('aria-label', 'Play: choose a mode');
+  await expect(play).toHaveAttribute('aria-label', 'Play: 3v3 match');
   await expect(play).toHaveText('PLAY');
   await expect(play).toBeInViewport();
   expect(await onTop(page, '.pl-home .pl-btn.big')).toBe(true);
@@ -73,23 +73,17 @@ test('Settings closes on Escape and gives focus back to its button', async ({ pa
   expect(await onTop(page, '.pl-home .pl-btn.big')).toBe(true);
 });
 
-test('keyboard: M opens Mode Select, Escape closes it; Enter, Enter, Enter, Ctrl+Enter plays', async ({ page }) => {
+test('keyboard: M does nothing, Enter plays (the 3v3 champion select), Ctrl+Enter locks in', async ({ page }) => {
   test.setTimeout(limit(120_000));
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('.pl-home');
   await page.locator('[data-testid="home-play"]').focus();
   await page.keyboard.press('m');
-  await expect(page.locator('[data-testid="mode-select"]')).toBeVisible();
-  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
   await expect(page.locator('[data-testid="mode-select"]')).toHaveCount(0);
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  await page.keyboard.press('Enter');
-  await expect(page.locator('[data-testid="mode-select"]')).toHaveAttribute('data-stage', 'mode');
-  await page.keyboard.press('Enter');
-  await expect(page.locator('[data-testid="mode-select"]')).toHaveAttribute('data-stage', 'variant');
-  // the bots difficulty lives on the vs Bots variant
-  await expect(page.locator('.ms-seg [data-d]').first()).toBeVisible();
+  // one main queue (MODE-UNLOCKS.md): no party server in this build, so PLAY is the 3v3 champion select vs bots
   await page.keyboard.press('Enter');
   await page.waitForSelector('html[data-screen="pick"] .cs');
   await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('.pl-pick'))).toBe(true);

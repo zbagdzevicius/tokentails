@@ -29,6 +29,8 @@ export type QueueStop =
   | 'newbie'
   // Mode unlocks (MODE-UNLOCKS.md): the mode needs an account level a member has not reached
   | 'mode_level'
+  // one main queue (MODE-UNLOCKS.md): the relay no longer takes this queue (5v5 Classic)
+  | 'mode_retired'
   // Ranked (gap plan P4): the gate closed, a guest, too few matches, an unsaved ranked match, a trio
   | 'ranked_closed'
   | 'ranked_account'
@@ -37,7 +39,7 @@ export type QueueStop =
   | 'ranked_party';
 
 /** Ranked stops that Search again cannot fix now: the card offers Casual instead. */
-export const RANKED_TO_CASUAL: ReadonlySet<QueueStop> = new Set<QueueStop>(['ranked_closed', 'ranked_account', 'ranked_matches', 'ranked_party', 'mode_level']);
+export const RANKED_TO_CASUAL: ReadonlySet<QueueStop> = new Set<QueueStop>(['ranked_closed', 'ranked_account', 'ranked_matches', 'ranked_party', 'mode_level', 'mode_retired']);
 
 /** Ranked's queue numbers (gap plan P4, round 4 §7.11): the refusal's counts and the low-population lines. */
 export interface RankedQueueInfo {
@@ -111,12 +113,14 @@ const stopText = (m: QueueModel): string => {
       const name = l.mode === 'classic' ? '5v5 Classic' : l.mode === 'ranked' ? 'Ranked' : 'This mode';
       return l.mine ? COPY.modeLevelMate(name, l.level) : COPY.modeLevel(name, l.level, l.have, l.need);
     }
+    case 'mode_retired':
+      return COPY.modeRetired;
     case 'ranked_closed':
       return COPY.rankedClosed(m.ranked?.online ?? 0, m.ranked?.need ?? 24);
     case 'ranked_account':
       return COPY.rankedAccount;
     case 'ranked_matches':
-      return m.ranked?.mate ? COPY.rankedMate(m.ranked?.have ?? 0, m.ranked?.needMatches ?? 10) : COPY.rankedMatches(m.ranked?.have ?? 0, m.ranked?.needMatches ?? 10);
+      return m.ranked?.mate ? COPY.rankedMate(m.ranked?.have ?? 0, m.ranked?.needMatches ?? 25) : COPY.rankedMatches(m.ranked?.have ?? 0, m.ranked?.needMatches ?? 25);
     case 'ranked_pending':
       return COPY.rankedPending;
     case 'ranked_party':
