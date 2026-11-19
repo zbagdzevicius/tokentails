@@ -153,6 +153,9 @@ export const SHORT_PX = 500;
 /** A wide screen: a DM thread docks beside the list instead of covering it. */
 export const DOCK_MIN_PX = 1100;
 
+/** Under this many friends the list ends with a short "find or invite" line (it fills the empty panel). */
+const GROW_UNDER = 4;
+
 /** Rows a page shows at a viewport height (§14.2 hide ladder; the Clubs panel still pages by it). Pure. */
 export function rowsForHeight(h: number): number {
   if (h <= 300) return 3;
@@ -413,6 +416,9 @@ export class SocialSheet {
         this.query = input.value;
         this.menuFor = null;
         this.paintBody();
+        // the matches start at the top (no half row of an earlier scroll above the first group)
+        const body = this.root.querySelector<HTMLElement>('.pl-social-body');
+        if (body) body.scrollTop = 0;
         return;
       }
       // Add friend: nickname suggestions while typing (300 ms after the last key, 2 letters at least)
@@ -473,6 +479,8 @@ export class SocialSheet {
     if (threads?.ok) {
       this.threads = new Map(((threads.body as { threads?: ChatThreadRow[] })?.threads ?? []).map((t) => [t.with.code, t]));
     }
+    // the open thread is being read: its row shows no badge or preview (the server catches up on `chat.read`)
+    if (this.chatCode && this.chat && !this.chat.closed) this.clearUnread(this.chatCode);
     this.render();
     const want = this.chatWhenLoaded;
     this.chatWhenLoaded = null;
@@ -577,7 +585,7 @@ export class SocialSheet {
     this.root.dataset.short = String(this.short);
     // the invite card starts folded on a short screen and once there are friends to look at (a choice wins)
     this.invite.autoFold = (this.state?.friends.length ?? 0) > 0;
-    this.root.innerHTML = `${this.head()}${this.tabBar()}${this.searchRow()}${this.meCard()}<div class="pl-social-body" id="pl-social-panel" role="tabpanel" aria-label="${TAB_LABEL[this.shownTab]}">${this.body()}</div>${note}${foot ? `<footer class="pl-social-foot">${foot}</footer>` : ''}`;
+    this.root.innerHTML = `${this.head()}${this.tabBar()}${this.searchRow()}${this.meCard()}<div class="pl-social-body" id="pl-social-panel" role="tabpanel" aria-label="${TAB_LABEL[this.shownTab]}">${this.body()}</div>${note}${foot ? `<footer class="pl-social-foot">${foot}</footer>` : ''}${this.menuSheet()}`;
     this.fillNames(this.root);
     const body = this.root.querySelector<HTMLElement>('.pl-social-body');
     if (body && scroll) body.scrollTop = scroll;
@@ -589,11 +597,40 @@ export class SocialSheet {
     this.armNote();
   }
 
-  /** Names by textContent; a name that can be cut by an ellipsis carries its full text as a tooltip. */
+  /**
+   * Touch (or a short screen): a friend's menu is a bottom sheet over the panel (it never runs off the screen or
+   * pushes the list); with a mouse it opens under the row, in the list's flow.
+   */
+  private get sheetMenu(): boolean {
+    const win = this.root.ownerDocument.defaultView;
+    return this.short || !!win?.matchMedia?.('(hover: none), (pointer: coarse)').matches;
+  }
+
+  private menuSheet(): string {
+    if (!this.menuFor || !this.sheetMenu || this.shownTab !== 'friends' || !this.state) return '';
+    const f = this.state.friends.find((x) => x.code === this.menuFor);
+    if (!f) return '';
+    const myParty = this.deps.partyCode();
+    return `<div class="pl-fr-scrim" data-a="menu-close" aria-hidden="true"></div>${this.rowMenu(f, rowAction(f.presence, !!myParty, myParty), myParty, true)}`;
+  }
+
+  /**
+   * Names by textContent; a name that can be cut by an ellipsis carries its full text as a tooltip. While searching,
+   * the matched letters of a friend's name are marked (built from text nodes: a name is never parsed as markup).
+   */
   private fillNames(scope: HTMLElement): void {
+    const q = this.query.trim().toLowerCase();
     for (const el of scope.querySelectorAll<HTMLElement>('[data-name]')) {
-      el.textContent = el.dataset.name ?? '';
-      if (el.classList.contains('pl-social-name') || el.classList.contains('pl-social-msg')) el.title = el.dataset.name ?? '';
+      const name = el.dataset.name ?? '';
+      el.textContent = name;
+      if (el.classList.contains('pl-social-name') || el.classList.contains('pl-social-msg')) el.title = name;
+      const at = q && el.classList.contains('pl-social-name') && el.closest('.pl-social-body') ? name.toLowerCase().indexOf(q) : -1;
+      if (at < 0) continue;
+      const doc = el.ownerDocument;
+      const mark = doc.createElement('mark');
+      mark.className = 'pl-hl';
+      mark.textContent = name.slice(at, at + q.length);
+      el.replaceChildren(doc.createTextNode(name.slice(0, at)), mark, doc.createTextNode(name.slice(at + q.length)));
     }
   }
 
@@ -754,7 +791,7 @@ export class SocialSheet {
     if (asks.length) html += this.group('requests', asks.length, counts, asks.map((r) => this.requestRow(r, 'in')).join(''));
     for (const g of groups) if (g.rows.length) html += this.group(g.id, g.rows.length, counts, g.rows.map((f) => this.friendRow(f, myParty, now)).join(''));
     if (sent.length) html += this.group('sent', sent.length, counts, sent.map((r) => this.requestRow(r, 'out')).join(''));
-    return html;
+    return html + this.growHint(s);
   }
 
   /** No friends yet: what to do (no second Add button: Add sits in the tools row), and players from recent matches. */
@@ -813,11 +850,11 @@ export class SocialSheet {
     const open = this.menuFor === f.code;
     const label = `${name}, ${st}${unread ? `, ${unread} unread` : ''}`;
     const chatting = this.chatCode === f.code && !!this.chat && !this.chat.closed;
-    return `<div class="pl-social-row pl-fr${open ? ' is-open' : ''}${unread ? ' has-msg' : ''}${chatting ? ' is-chat' : ''}" role="listitem" data-state="${f.presence.state}" data-code="${code}"><button type="button" class="pl-fr-main" data-a="menu" data-code="${code}" data-nav aria-haspopup="menu" aria-expanded="${open}" aria-label="${this.esc(label)}"><span class="pl-fr-av" data-state="${f.presence.state}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i></span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(name)}"></span>${ccHtmlOrNone(f.cc)}</span><small class="pl-social-line"><span class="pl-social-st" data-state="${f.presence.state}">${this.esc(st)}</span>${preview}</small></span></button><span class="pl-fr-acts">${chat}${primary}</span></div>${open ? this.rowMenu(f, act, myParty) : ''}`;
+    return `<div class="pl-social-row pl-fr${open ? ' is-open' : ''}${unread ? ' has-msg' : ''}${chatting ? ' is-chat' : ''}" role="listitem" data-state="${f.presence.state}" data-code="${code}"><button type="button" class="pl-fr-main" data-a="menu" data-code="${code}" data-nav aria-haspopup="menu" aria-expanded="${open}" aria-label="${this.esc(label)}"><span class="pl-fr-av" data-state="${f.presence.state}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i></span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(name)}"></span>${ccHtmlOrNone(f.cc)}</span><small class="pl-social-line"><span class="pl-social-st" data-state="${f.presence.state}">${this.esc(st)}</span>${preview}</small></span></button><span class="pl-fr-acts">${chat}${primary}</span></div>${open && !this.sheetMenu ? this.rowMenu(f, act, myParty) : ''}`;
   }
 
   /** A friend's row menu (under the row, in the list's flow: nothing covers another row). */
-  private rowMenu(f: FriendRow, act: ReturnType<typeof rowAction>, myParty: string | null): string {
+  private rowMenu(f: FriendRow, act: ReturnType<typeof rowAction>, myParty: string | null, sheet = false): string {
     const code = this.esc(f.code);
     const mi = (a: string, ic: string, text: string, extra = '') => `<button type="button" role="menuitem" class="pl-mi" data-a="${a}" data-code="${code}"${extra}>${icon(ic, 18)}<span>${text}</span></button>`;
     const first =
@@ -830,10 +867,16 @@ export class SocialSheet {
             : '';
     // a busy friend: Invite shows greyed with the reason (never a button that does nothing)
     const why = act === 'invite' ? '' : busyText(f.presence, myParty);
-    const busy = why ? `<button type="button" role="menuitem" class="pl-mi" disabled aria-disabled="true" data-testid="social-invite-busy">${icon('party', 18)}<span>Invite to party<small>${this.esc(why)}</small></span></button>` : '';
+    // one short line across the menu ("In a match: invite after it"), never a wrapped title plus a grey note
+    const busy = why ? `<button type="button" role="menuitem" class="pl-mi pl-mi-busy" disabled aria-disabled="true" aria-label="${this.esc(`Invite to party. ${why}`)}" data-testid="social-invite-busy">${icon('party', 18)}<span>${this.esc(why)}</span></button>` : '';
     const armed = this.armed === `remove:${f.code}`;
     const remove = `<button type="button" role="menuitem" class="pl-mi danger${armed ? ' armed' : ''}" data-a="remove" data-code="${code}">${icon('remove', 18)}<span>${armed ? 'Tap again to remove' : 'Remove friend'}</span></button>`;
-    return `<div class="pl-fr-menu" role="menu" aria-label="${this.esc(`${f.name}: options`)}"><div class="pl-fr-menu-h"><p class="pl-fr-menu-name" data-name="${this.esc(f.name)}"></p><small>${this.esc(presenceText(f.presence))}</small></div><div class="pl-fr-menu-acts">${first}${busy}${mi('chat', 'chat', 'Message')}${this.deps.history ? mi('history', 'history', 'Match history') : ''}</div><div class="pl-fr-menu-danger">${remove}${mi('block', 'block', 'Block').replace('class="pl-mi"', 'class="pl-mi danger"')}</div></div>`;
+    // under the row the name and status are already in sight (the name stays for screen readers); a bottom sheet
+    // covers the row, so it names the friend in one line
+    const head = sheet
+      ? `<div class="pl-fr-menu-h"><span class="pl-fr-grab" aria-hidden="true"></span><p class="pl-fr-menu-name" data-name="${this.esc(f.name)}"></p></div>`
+      : `<p class="pl-fr-menu-name pl-sr" data-name="${this.esc(f.name)}"></p>`;
+    return `<div class="pl-fr-menu${sheet ? ' is-sheet' : ''}" role="menu" aria-label="${this.esc(`${f.name}: options`)}" data-testid="social-row-menu">${head}<div class="pl-fr-menu-acts">${first}${mi('chat', 'chat', 'Message')}${this.deps.history ? mi('history', 'history', 'Match history') : ''}${busy}</div><div class="pl-fr-menu-danger">${remove}${mi('block', 'block', 'Block').replace('class="pl-mi"', 'class="pl-mi danger"')}</div></div>`;
   }
 
   /** A request row: Decline (a quiet cross), then Accept (the filled bolt check, the row's one primary), lined up with a friend's actions. */
@@ -1001,8 +1044,10 @@ export class SocialSheet {
     this.render();
     if (!this.menuFor) return;
     const menu = this.root.querySelector<HTMLElement>('.pl-fr-menu');
-    this.root.querySelector<HTMLElement>(`.pl-fr[data-code=${attr(code)}]`)?.scrollIntoView?.({ block: 'nearest' });
-    menu?.scrollIntoView?.({ block: 'nearest' });
+    if (!this.sheetMenu) {
+      this.root.querySelector<HTMLElement>(`.pl-fr[data-code=${attr(code)}]`)?.scrollIntoView?.({ block: 'nearest' });
+      menu?.scrollIntoView?.({ block: 'nearest' });
+    }
     menu?.querySelector<HTMLElement>('.pl-mi:not(:disabled)')?.focus({ preventScroll: true });
   }
 
@@ -1149,7 +1194,7 @@ export class SocialSheet {
     if (!a || !el || el.hasAttribute('disabled')) return;
     const code = el.dataset.code ?? '';
     // any action but the row menu's own buttons closes an open row menu
-    if (this.menuFor && a !== 'menu' && !el.closest('.pl-fr-menu')) this.menuFor = null;
+    if (this.menuFor && a !== 'menu' && a !== 'menu-close' && !el.closest('.pl-fr-menu')) this.menuFor = null;
     if (a !== 'remove') this.armed = null;
     if (this.meOpen && a !== 'me' && a !== 'status' && a !== 'copy' && !el.closest('.pl-me-card')) this.meOpen = false;
     if (a.startsWith('inv-')) {
@@ -1162,6 +1207,9 @@ export class SocialSheet {
     switch (a) {
       case 'close':
         this.dispose();
+        return;
+      case 'menu-close':
+        this.closeMenu();
         return;
       case 'tabs-more': {
         this.moreOpen = !this.moreOpen;
@@ -1463,6 +1511,18 @@ export class SocialSheet {
   /** A DM to open once the friends list has loaded (the DM toast's Open). */
   private chatWhenLoaded: string | null = null;
 
+  /** A thread opened: its badge, preview and share of the unread total go at once (LoL clears on open). */
+  private clearUnread(code: string): void {
+    const t = this.threads.get(code);
+    if (!t?.unread) return;
+    const was = t.unread;
+    t.unread = 0;
+    if (this.state?.chat && !t.muted) {
+      this.state.chat = { ...this.state.chat, unread: Math.max(0, this.state.chat.unread - was) };
+      this.deps.onUnread?.(this.state.chat.unread);
+    }
+  }
+
   /** Open the DM thread with a friend over the sheet (CHAT-AVATARS §6.2); back reloads the unread dots. */
   openChat(code: string): void {
     const f = this.state?.friends.find((x) => x.code === code);
@@ -1476,6 +1536,7 @@ export class SocialSheet {
     // LoL docks chat beside the list: on a wide screen the list stays usable (invite while you chat)
     const docked = !!win && win.innerWidth >= DOCK_MIN_PX;
     this.chatCode = f.code;
+    this.clearUnread(f.code);
     this.chat = new ChatSheet(this.root.parentElement, {
       api: (op, args) => this.deps.api(op, args),
       friend: { code: f.code, name: f.name, av: f.av },
@@ -1501,7 +1562,15 @@ export class SocialSheet {
         this.note = 'Blocked';
       },
     });
-    if (docked) this.render();
+    // the row under (or beside) the thread drops its badge and preview now
+    this.render();
+  }
+
+  /** Few friends: one quiet line under the list, so the panel is not a lone row over empty space. */
+  private growHint(s: SocialState): string {
+    if (this.query.trim() || this.adding || s.friends.length >= GROW_UNDER) return '';
+    const invite = this.invite.state && this.invite.isFolded ? `<button type="button" class="pl-btn small ghost" data-a="inv-fold">${icon('gift', 18)}<span>Invite a friend</span></button>` : '';
+    return `<div class="pl-social-grow" data-testid="social-grow"><small>More friends, more parties. Find players by name or send an invite.</small><div class="pl-grow-acts"><button type="button" class="pl-btn small ghost" data-a="add-empty">${icon('addUser', 18)}<span>Find a player</span></button>${invite}</div></div>`;
   }
 
   /** The club chat (CLUBS-KUDOS.md §6): the DM thread sheet on the club's thread; Back returns to the Clubs tab. */

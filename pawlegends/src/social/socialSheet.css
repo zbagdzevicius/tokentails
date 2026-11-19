@@ -15,6 +15,8 @@ html .pl-social {
 @media (min-width: 1600px) and (min-height: 800px) { html .pl-social { --soc-row: 50px; --soc-name: 16px; --soc-st: 14px; --soc-av: 36px; } }
 @media (max-height: 500px) { html .pl-social { gap: 4px; padding-top: max(4px, env(safe-area-inset-top)); padding-bottom: max(4px, env(safe-area-inset-bottom)); } }
 html[data-menu-text='large'] .pl-social { --soc-row: 56px; --soc-name: 17px; --soc-st: 15px; --soc-av: 36px; }
+/* a phone held upright: the panel and a DM take the whole width (no strip of game beside them) */
+@media (max-width: 480px) { html .pl-social, html .pl-chat, html .pl-chat.is-docked { width: 100vw; } }
 
 /* ── header: me, the invite gift, Add, Close (one row) ─────────────────────────────────────────────────────────── */
 html .pl-social > .pl-social-head {
@@ -93,7 +95,10 @@ html .pl-social-search .pl-i { flex: none; }
 /* 16 px: iOS does not zoom into the field */
 html .pl-social-search input { flex: 1 1 auto; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; color: var(--v6-cream); font: 600 16px/1 var(--font); outline: none; }
 html .pl-social-search input::placeholder { color: rgb(var(--v6-cream-rgb) / 0.55); }
-html .pl-social-search input::-webkit-search-cancel-button { filter: invert(1) opacity(0.6); }
+/* one × only: the field's own clear button is off, the row's Close clears and closes */
+html .pl-social-search input::-webkit-search-cancel-button, html .pl-social-search input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }
+/* the letters a search matched, in a friend's name */
+html .pl-social .pl-hl { padding: 0; border-radius: 2px; background: rgb(var(--v6-bolt-rgb) / 0.28); color: var(--v6-cream); box-shadow: inset 0 -2px 0 var(--v6-bolt); }
 html .pl-ico {
   flex: none; position: relative; display: inline-grid; place-items: center; width: 40px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s);
   background: transparent; color: var(--v6-muted); cursor: pointer; touch-action: manipulation;
@@ -240,12 +245,13 @@ html .pl-dot[data-state='queue'] { background: var(--v6-night-2); box-shadow: in
 html .pl-dot[data-state='match'] { border-radius: 3px; }
 html .pl-dot[data-state='offline'] { background: var(--v6-night-3); box-shadow: inset 0 0 0 2px var(--v6-faint), 0 0 0 2.5px var(--v6-night-2); }
 
-/* names never end in "…": they wrap to a second line (a 40-letter name still fits); the flag keeps its gap */
+/* names keep one line, so every row is one height (LoL): a long one ends in "…" with the whole name as its tooltip
+   (fillNames), in the row menu and in the thread head; the flag keeps its gap right after the name */
 html .pl-social .pl-social-who, html .pl-chat .pl-chat-who-h { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
 html .pl-social .pl-social-nm { gap: 6px; min-width: 0; }
 html .pl-social .pl-social-row .pl-social-name, html .pl-me .pl-social-name, html .pl-chat .pl-chat-who-h .pl-social-name {
-  flex: 0 1 auto; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
-  overflow: hidden; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; font: 700 var(--soc-name, 15px)/1.2 var(--font); color: var(--v6-cream);
+  flex: 0 1 auto; min-width: 0; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font: 700 var(--soc-name, 15px)/1.25 var(--font); color: var(--v6-cream);
 }
 html .pl-social .pl-social-nm .pl-cc { flex: none; margin: 0; font-size: 14px; }
 html .pl-social .pl-fr[data-state='offline'] .pl-social-name { color: rgb(var(--v6-cream-rgb) / 0.78); }
@@ -311,6 +317,22 @@ html .pl-fr-menu-h { display: grid; gap: 2px; margin: 4px 8px 2px; }
 html .pl-fr-menu-name { margin: 0; font: 800 15px/1.3 var(--font); color: var(--v6-cream); overflow-wrap: anywhere; }
 html .pl-fr-menu-h small { color: var(--v6-muted); font: 600 13px/1.25 var(--font); }
 html .pl-fr-menu-acts, html .pl-fr-menu-danger { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 2px; }
+/* Invite greyed with its reason: one line across the menu */
+html .pl-mi-busy { grid-column: 1 / -1; }
+html .pl-mi-busy > span { white-space: nowrap; color: var(--v6-faint); font-weight: 600; }
+/* touch or a short screen: the menu is a bottom sheet over the panel (a scrim behind it; tap it to close) */
+html .pl-fr-scrim { position: absolute; inset: 0; z-index: 20; background: rgb(8 4 20 / 0.55); animation: pl-scrim-in var(--v6-dur-fast) var(--v6-ease-out) both; }
+@keyframes pl-scrim-in { from { opacity: 0; } }
+html .pl-fr-menu.is-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; margin: 0; max-height: 86%; overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 10px; border-radius: var(--v6-r-m, 10px) var(--v6-r-m, 10px) 0 0;
+  box-shadow: 0 -1px 0 var(--v6-line-strong), 0 -12px 32px rgb(0 0 0 / 0.5); animation-name: pl-sheet-up;
+}
+@keyframes pl-sheet-up { from { transform: translateY(24px); opacity: 0; } }
+html .pl-fr-menu.is-sheet .pl-fr-menu-h { display: grid; justify-items: center; gap: 6px; margin: 2px 8px 2px; }
+html .pl-fr-grab { width: 36px; height: 4px; border-radius: 2px; background: var(--v6-line-strong); }
+html .pl-fr-menu.is-sheet .pl-fr-menu-name { justify-self: stretch; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center; font-size: 14px; color: var(--v6-muted); }
+html .pl-fr-menu.is-sheet .pl-mi { min-height: 48px; }
 html .pl-fr-menu-danger { padding-top: 4px; border-top: 1px solid var(--v6-line); }
 
 /* ── one button system in the sheet: bolt = the one primary, ghost = quiet, rose = the one CTA of an empty state ── */
@@ -333,7 +355,7 @@ html .pl-social .pl-inv-code { border: 0; box-shadow: inset 0 0 0 1px var(--v6-l
 /* ── DM thread: the list's width over it on a phone; docked beside the list on a wide screen (LoL) ──────────── */
 html .pl-chat { width: min(100vw, clamp(352px, 26vw, 420px)); }
 html .pl-chat.is-docked {
-  top: auto; right: min(100vw, clamp(352px, 26vw, 420px)); bottom: 0; width: 360px; height: min(560px, 78vh);
+  top: auto; right: min(100vw, clamp(352px, 26vw, 420px)); bottom: 0; width: 360px; height: min(440px, 62vh);
   border-radius: var(--v6-r-m, 10px) var(--v6-r-m, 10px) 0 0; box-shadow: -8px -4px 28px rgb(0 0 0 / 0.5), inset 0 0 0 1px var(--v6-line-strong);
   padding: 8px; animation-name: pl-dock-in;
 }
@@ -346,6 +368,26 @@ html .pl-chat .pl-ico { flex: none; position: relative; display: inline-grid; pl
 @media (hover: hover) { html .pl-chat .pl-ico:hover { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); } }
 html .pl-chat .pl-ico:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 html .pl-chat-who-h { flex: 1 1 auto; }
+/* minimised (docked): only the head shows, like LoL's chat tab; what arrived meanwhile shows as "2 new" */
+html .pl-chat.is-docked.is-min { height: auto; padding-top: 4px; padding-bottom: 4px; cursor: pointer; }
+html .pl-chat.is-min .pl-chat-menuwrap, html .pl-chat.is-min .pl-chat-list, html .pl-chat.is-min .pl-chat-foot { display: none; }
+html .pl-chat.is-min .pl-chat-head { box-shadow: none; }
+html .pl-chat-new { margin-right: 6px; padding: 1px 6px; border-radius: 9px; background: var(--v6-rose); color: #fff; font: 800 13px/1.3 var(--font); }
+/* the newest messages sit on the composer (a short thread does not float at the top) */
+html .pl-chat .pl-chat-list > :first-child { margin-top: auto; }
+/* time lines: the first message, a new day, or 15 minutes of quiet */
+html .pl-chat-day { align-self: center; margin: 6px 0 2px; color: var(--v6-faint); font: 700 13px/1.2 var(--font); font-variant-numeric: tabular-nums; }
+/* Report sits behind a hover (mouse), a right click or a long press (touch): no "…" on every bubble */
+html .pl-chat .pl-chat-msg { position: relative; }
+html .pl-chat .pl-chat-more { opacity: 0; transition: opacity var(--v6-dur-fast) var(--v6-ease-out); }
+html .pl-chat .pl-chat-msg:hover .pl-chat-more, html .pl-chat .pl-chat-more:focus-visible, html .pl-chat .pl-chat-msg.is-reporting .pl-chat-more { opacity: 1; }
+@media (hover: none), (pointer: coarse) {
+  html .pl-chat .pl-chat-more { position: absolute; width: 1px; height: 1px; min-width: 0; min-height: 0; padding: 0; overflow: hidden; clip: rect(0 0 0 0); }
+  html .pl-chat .pl-chat-bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+}
+/* the phrases button says what it is (an icon and "Phrases"; the icon alone when the window is narrow) */
+html .pl-chat .pl-chat-phr { flex: none; gap: 6px; padding: 0 10px; min-height: 44px; }
+@media (max-width: 359px) { html .pl-chat .pl-chat-phr span { display: none; } }
 
 /* the status note: in the flow under the list (it never covers a row) */
 html .pl-social .pl-social-note {
@@ -367,6 +409,11 @@ html .pl-social .pl-social-none p { margin: 0; font: 800 16px/1.3 var(--font); c
 html .pl-social .pl-social-none small { max-width: 30ch; color: var(--v6-muted); font: 600 14px/1.45 var(--font); }
 html .pl-social .pl-social-none small .pl-i { vertical-align: -3px; color: var(--v6-bolt); }
 html .pl-social .pl-none-sub { margin-top: 12px; }
+/* a few friends: one quiet line and two quiet buttons under the list (it fills the empty panel) */
+html .pl-social-grow { display: grid; gap: 8px; margin: 12px 4px 4px; padding: 12px; border-radius: var(--v6-r-s); box-shadow: inset 0 0 0 1px var(--v6-line); }
+html .pl-social-grow small { color: var(--v6-muted); font: 600 14px/1.4 var(--font); }
+html .pl-grow-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+html .pl-grow-acts .pl-btn { flex: 1 1 auto; }
 
 /* Clubs (no club yet): the same type and tokens as Friends; the join field under its caption */
 html .pl-social .pl-club-intro { gap: 10px; padding: 8px 4px 4px; }
@@ -390,7 +437,8 @@ html .pl-social .pl-bd .pl-social-st { font-size: 13px; }
 @media (max-height: 300px) { html .pl-social .pl-social-st { display: inline; } }
 
 @media (prefers-reduced-motion: reduce) {
-  html .pl-social-moremenu, html .pl-fr-menu, html .pl-me-card, html .pl-chat.is-docked { animation: none; }
+  html .pl-social-moremenu, html .pl-fr-menu, html .pl-me-card, html .pl-chat.is-docked, html .pl-fr-scrim { animation: none; }
+  html .pl-chat .pl-chat-more { transition: none; }
   html .pl-social-moremenu .pl-live-dot { animation: none; }
   html .pl-ico, html .pl-me .pl-i, html .pl-group-h .pl-i, html .pl-social-more .pl-i { transition: none; }
 }

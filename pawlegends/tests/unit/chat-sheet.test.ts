@@ -6,7 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResult } from '../../src/embed/api';
-import { ChatSheet, bubbleText, mergeMessages } from '../../src/social/chatSheet';
+import { ChatSheet, bubbleText, mergeMessages, chatStamp, needsStamp } from '../../src/social/chatSheet';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -175,5 +175,19 @@ describe('chat sheet', () => {
     const a = { mid: '1', mine: true, k: 'q' as const, id: 1, at: 2 };
     const b = { mid: '2', mine: true, k: 'q' as const, id: 1, at: 1 };
     expect(mergeMessages([a], [b, a]).map((m) => m.mid)).toEqual(['2', '1']);
+  });
+});
+
+describe('thread time lines', () => {
+  const now = new Date(2026, 10, 19, 21, 0);
+  it('names today, yesterday and older days', () => {
+    expect(chatStamp(new Date(2026, 10, 19, 9, 5), now)).toBe('Today 09:05');
+    expect(chatStamp(new Date(2026, 10, 18, 23, 59), now)).toBe('Yesterday 23:59');
+    expect(chatStamp(new Date(2026, 10, 12, 20, 5), now)).toBe('Nov 12, 20:05');
+  });
+  it('puts a line before the first message, a new day and a 15 minute gap only', () => {
+    const at = (h: number, m: number, d = 19) => ({ at: new Date(2026, 10, d, h, m).toISOString() });
+    const list = [at(23, 50, 18), at(0, 5), at(0, 10), at(0, 30)];
+    expect(list.map((_, i) => needsStamp(list, i))).toEqual([true, true, false, true]);
   });
 });

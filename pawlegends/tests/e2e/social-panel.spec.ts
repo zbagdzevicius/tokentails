@@ -133,19 +133,25 @@ async function layoutProblems(game: Frame): Promise<string[]> {
       for (let x = r.left + 6; x < r.right - 6; x += 12)
         for (const y of [r.top + 2, r.top + r.height / 2, r.bottom - 2]) {
           const el = document.elementFromPoint(x, y);
-          // an open popover (More) floats over the list on purpose
-          if (el && !h.contains(el) && !el.closest('.pl-social-moremenu')) out.push(`group header covered at ${Math.round(x - r.left)},${Math.round(y - r.top)} by .${(el as HTMLElement).className || el.tagName}`);
+          // an open popover (More) and the touch row menu (a bottom sheet with its scrim) float over the list on purpose
+          if (el && !h.contains(el) && !el.closest('.pl-social-moremenu, .pl-fr-menu.is-sheet, .pl-fr-scrim')) out.push(`group header covered at ${Math.round(x - r.left)},${Math.round(y - r.top)} by .${(el as HTMLElement).className || el.tagName}`);
         }
       const bg = getComputedStyle(h).backgroundColor;
       if (!/^rgb\(/.test(bg)) out.push(`group header not opaque: ${bg}`);
     }
-    // nothing is cut: no name, status or invite title ends in an ellipsis or is clipped (the one-line unread preview
-    // is cut on purpose: its tooltip and the thread show it whole)
+    // nothing is cut: no status, label or menu item ends in an ellipsis or is clipped. A name keeps one line (rows are
+    // one height): when it is cut its tooltip holds it whole; the one-line unread preview is cut on purpose too
     for (const el of sheet.querySelectorAll<HTMLElement>('.pl-social-row .pl-social-name, .pl-social-st, .pl-inv-sub, .pl-social-tab span, .pl-social-more span, .pl-group-t, .pl-mi span')) {
       const r = el.getBoundingClientRect();
       if (!r.width || r.bottom < body.top || r.top > body.bottom + 400) continue;
+      const name = el.classList.contains('pl-social-name');
+      if (name && el.scrollHeight > el.clientHeight + 2) out.push(`name on two lines: "${el.textContent}"`);
+      if (name && el.title === el.textContent) continue;
       if (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2) out.push(`text cut: "${el.textContent!.trim().slice(0, 40)}" .${el.className}`);
     }
+    // every friend row is one height (a long name or an unread line never makes a row taller)
+    const heights = new Set([...sheet.querySelectorAll<HTMLElement>('.pl-social-body .pl-fr')].map((r) => Math.round(r.getBoundingClientRect().height)).filter(Boolean));
+    if (heights.size > 1) out.push(`rows of different heights: ${[...heights].join(',')}`);
     // the trailing actions share one right edge per column (the row's action, then Chat)
     for (const col of ['.pl-act-1', '.pl-act-2']) {
       const rights = new Set([...sheet.querySelectorAll<HTMLElement>(`.pl-social-body .pl-group-list ${col}`)].filter((b) => b.getBoundingClientRect().width).map((b) => Math.round(b.getBoundingClientRect().right)));
@@ -291,11 +297,28 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
   // a friend in a match can't be invited: the menu says why (greyed, never a button that does nothing)
   await expect(menu.locator('[data-testid="social-invite-busy"]')).toBeDisabled();
   await expect(menu.locator('[data-testid="social-invite-busy"]')).toContainText('In a match');
+  // the reason is one short line, not a title plus a wrapped grey note
+  expect((await menu.locator('[data-testid="social-invite-busy"]').boundingBox())!.height).toBeLessThanOrEqual(52);
+  if (touch) {
+    // touch: a bottom sheet inside the panel, never past the bottom of the screen; it names the friend once
+    await expect(menu).toHaveClass(/is-sheet/);
+    const mb = (await menu.boundingBox())!;
+    expect(mb.y).toBeGreaterThanOrEqual(0);
+    expect(mb.y + mb.height).toBeLessThanOrEqual(page.viewportSize()!.height + 0.5);
+    await expect(menu.locator('small')).toHaveCount(0);
+  } else await expect(menu.locator('.pl-fr-menu-name')).toHaveClass(/pl-sr/);
   expect(await layoutProblems(game)).toEqual([]);
   await shot(page, 'menu');
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
   await expect(sheet).toBeVisible();
+  if (touch) {
+    // a tap on the scrim closes the sheet
+    await row.locator('.pl-fr-main').tap();
+    await expect(menu).toBeVisible();
+    await sheet.locator('.pl-fr-scrim').tap({ position: { x: 20, y: 20 } });
+    await expect(menu).toHaveCount(0);
+  }
 
   if (!touch) {
     const main = sheet.locator(`.pl-fr[data-code="${friends[2].code}"] .pl-fr-main`);
@@ -336,9 +359,15 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
   // search: Search in the tab bar opens the field; it filters as you type
   await sheet.locator('[data-a="search"]').click();
   await expect(sheet.locator('input[name="q"]')).toBeFocused();
+  await sheet.locator('.pl-social-body').evaluate((el) => el.scrollTo(0, 200));
   await sheet.locator('input[name="q"]').fill('bark');
   await expect(sheet.locator('.pl-fr')).toHaveCount(2);
   await expect(sheet.locator('.pl-rq')).toHaveCount(1);
+  // the matches start at the top, the matched letters are marked, and the row's one × is the only one
+  expect(await sheet.locator('.pl-social-body').evaluate((el) => el.scrollTop)).toBe(0);
+  await expect(sheet.locator('.pl-fr .pl-hl').first()).toHaveText(/bark/i);
+  await expect(sheet.locator('.pl-social-searchrow button')).toHaveCount(1);
+  expect(await layoutProblems(game)).toEqual([]);
   await shot(page, 'search');
   await sheet.locator('input[name="q"]').fill('Zorro');
   await expect(sheet.locator('[data-testid="social-search-none"]')).toBeVisible();
@@ -390,12 +419,42 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
   await expect(chat.locator('.pl-chat-who-h .pl-social-st')).toHaveText('Online');
   await expect(chat.locator('.pl-chat-msg')).toHaveCount(3);
   const [cb, sb] = [await chat.boundingBox(), await sheet.boundingBox()];
+  // opening the thread reads it: the row's badge and quoted preview go at once
+  await expect(unreadRow.locator('[data-testid="chat-unread"]')).toHaveCount(0);
+  await expect(unreadRow.locator('.pl-social-msg')).toHaveCount(0);
+  // one time line over the three messages (minutes apart); no "…" showing on every bubble
+  await expect(chat.locator('.pl-chat-day')).toHaveCount(1);
+  for (const more of await chat.locator('.pl-chat-more').all())
+    expect(await more.evaluate((el) => getComputedStyle(el).opacity === '0' || el.getBoundingClientRect().width <= 1)).toBe(true);
+  await expect(chat.locator('[data-a="tray"]')).toHaveAttribute('aria-label', 'Quick phrases and stickers');
   if (touch) expect(Math.round(cb!.width)).toBe(Math.round(sb!.width));
   else {
     expect(cb!.x + cb!.width).toBeLessThanOrEqual(sb!.x + 1);
     await expect(sheet.locator(`.pl-fr[data-code="${friends[1].code}"]`)).toHaveClass(/is-chat/);
+    // docked clear of the bottom menu bar, at both desktop sizes
+    for (const [w, h] of [[1920, 1080], [1440, 900]] as const) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.waitForTimeout(300);
+      const clash = await game.evaluate(() => {
+        const c = document.querySelector('[data-testid="chat-sheet"]')!.getBoundingClientRect();
+        return [...document.querySelectorAll<HTMLElement>('.hm-nav, .lb-rail')].some((n) => {
+          const r = n.getBoundingClientRect();
+          return r.width > 0 && r.left < c.right && r.right > c.left && r.top < c.bottom && r.bottom > c.top;
+        });
+      });
+      expect(clash, `${w}x${h} DM over the menu bar`).toBe(false);
+      await shot(page, 'dm');
+    }
+    // Minimise folds it to its head (LoL's chat tab); a click on the head opens it again
+    await chat.locator('[data-a="min"]').click();
+    await expect(chat).toHaveClass(/is-min/);
+    expect((await chat.boundingBox())!.height).toBeLessThanOrEqual(72);
+    await shot(page, 'dm-min');
+    await chat.locator('.pl-chat-head').click({ position: { x: 60, y: 20 } });
+    await expect(chat).not.toHaveClass(/is-min/);
+    await expect(chat.locator('.pl-chat-msg')).toHaveCount(3);
   }
-  await shot(page, 'dm');
+  if (touch) await shot(page, 'dm');
   await chat.locator('[data-a="back"]').click();
   await expect(chat).toHaveCount(0);
 
@@ -451,4 +510,41 @@ test('Social panel: empty list and a guest', async ({ context, page, baseURL }) 
   await expect(sheet.locator('.pl-rc')).toHaveCount(2);
   expect(await layoutProblems(game)).toEqual([]);
   await shot(page, 'empty');
+  // a phone held upright: the panel takes the whole width
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(300);
+  const box = (await sheet.boundingBox())!;
+  expect(Math.round(box.x)).toBe(0);
+  expect(Math.round(box.width)).toBe(390);
+  expect(await layoutProblems(game)).toEqual([]);
+  await shot(page, 'empty');
+});
+
+test('Social panel: one friend fills the panel with a way to find more', async ({ context, page, baseURL }) => {
+  await mockHost(context, baseURL!, {
+    viewport: true,
+    app: { isApp: false, store: true },
+    signedIn: true,
+    profile: { v: 1, sessions: 3, matches: 5, wins: 2, firstWinDone: true, hero: 'sage', trick: 'hiss', difficulty: 'easy', veteran: true },
+    api: {
+      'social.get': { status: 200, body: { ...social, friends: [friends[7]], requests: { in: [], out: [] }, chat: { unread: 0 }, live: {} } },
+      'social.pulse': { status: 204 },
+      'chat.list': { status: 200, body: { threads: [] } },
+      'growth.invite': { status: 200, body: invite },
+    },
+  });
+  const game = await openHost(page);
+  const btn = game.locator('[data-testid="lobby-social"]');
+  await expect(btn).toBeVisible({ timeout: limit(60_000) });
+  await btn.click();
+  const sheet = game.locator('.pl-social');
+  await game.addStyleTag({ content: '.pl-social { animation: none !important; }' });
+  await expect(sheet.locator('.pl-fr')).toHaveCount(1);
+  const grow = sheet.locator('[data-testid="social-grow"]');
+  await expect(grow).toBeVisible();
+  await expect(grow.locator('[data-a="add-empty"]')).toBeVisible();
+  expect(await layoutProblems(game)).toEqual([]);
+  await shot(page, 'one');
+  await grow.locator('[data-a="add-empty"]').click();
+  await expect(sheet.locator('[data-testid="social-add-input"]')).toBeFocused();
 });
