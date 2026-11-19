@@ -11,7 +11,8 @@
 .hm-gp {
   position: absolute; z-index: 8; left: calc(100% + 12px); top: 0; width: 320px; max-height: calc(100dvh - var(--hm-t, 12px) - 96px);
   box-sizing: border-box; display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; container-type: inline-size;
-  background: var(--hm-glass-solid, rgb(28 18 48 / 0.94));
+  /* opaque: the champion nameplate under it never ghosts through (landscape phones) */
+  background: var(--v6-night-2, #1c1230);
   box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612), 0 0 0 4px rgb(var(--v6-cream-rgb, 255 243 227) / 0.12), var(--v6-shadow-2, 0 10px 24px rgb(0 0 0 / 0.42));
   /* a 1 ms delay and no backwards fill: an animation that never starts (no frame yet, a starved iframe; seen in e2e)
      stays in its delay and shows the panel as is, never stuck at the first keyframe */
@@ -36,6 +37,11 @@
 .hm-gp-x .hm-ico { width: 22px; height: 22px; }
 
 .hm-gp-tabs { display: none; gap: 6px; }
+/* the reset clock sits in the header beside the tabs (narrow with events): Today's list starts right under the tabs */
+.hm-gp-hclock { display: none; align-items: center; gap: 4px; margin-left: auto; font: 800 14px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; color: var(--v6-ice, #d6ecff); white-space: nowrap; }
+.hm-gp-hclock svg { width: 16px; height: 16px; }
+.hm-gp.has-ev:not(.wide) .hm-gp-hclock { display: inline-flex; }
+.hm-gp.has-ev:not(.wide) .hm-gp-hclock + .hm-gp-x { margin-left: 0; }
 .hm-gp.has-ev:not(.wide) .hm-gp-tabs { display: flex; }
 .hm-gp-tab {
   position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 0; border-radius: 999px; cursor: pointer;
@@ -53,13 +59,15 @@
   display: grid; grid-template-columns: 1fr; align-content: start; gap: 16px; padding: 12px 16px 16px;
 }
 .hm-gp-body.more { -webkit-mask-image: linear-gradient(#000 calc(100% - 32px), transparent); mask-image: linear-gradient(#000 calc(100% - 32px), transparent); }
-.hm-gp.wide .hm-gp-body { grid-template-columns: 1fr 1fr; align-items: start; }
+.hm-gp.wide .hm-gp-body { grid-template-columns: 1fr 1fr; align-items: stretch; }
+/* two columns end together: the Welcome Path takes the shorter Today column's slack (no empty plum block under it) */
+.hm-gp.wide .hm-gp-today .rw-today { flex: 1; }
+.hm-gp.wide .hm-gp-today .rw-wp { flex: 1; justify-content: center; }
 /* narrow with events: one tab at a time */
 .hm-gp.has-ev:not(.wide)[data-tab='events'] .hm-gp-today, .hm-gp.has-ev:not(.wide)[data-tab='today'] .hm-gp-ev { display: none; }
 .hm-gp.has-ev:not(.wide) .hm-gp-ev h3 { display: none; }
-/* the tab already says Today and its count: the head keeps only the reset clock */
-.hm-gp.has-ev:not(.wide) .hm-gp-today h3 :is(.hm-gp-st, .hm-gp-chip) { display: none; }
-.hm-gp.has-ev:not(.wide) .hm-gp-today h3 { min-height: 0; }
+/* the tab says Today and its count, the header has the clock: no Today head */
+.hm-gp.has-ev:not(.wide) .hm-gp-today h3 { display: none; }
 /* no live event: no Events section (no empty state) */
 .hm-gp-ev:not(:has(.lo-card, .lo-toast)) { display: none; }
 
@@ -73,15 +81,15 @@
 .hm-gp-clock { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font: 700 14px/1 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); white-space: nowrap; }
 .hm-gp-clock svg { width: 16px; height: 16px; }
 
-/* quest cards */
+/* quest cards: picture | name over a bar + count | XP chip (or the stamp once done) */
 .hm-qlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .hm-qlist .q {
-  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
-  min-height: 60px; box-sizing: border-box; padding: 8px 10px; border-radius: 12px;
+  position: relative; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; grid-template-areas: 'pic tx tx tx end' 'pic bar bar n end';
+  align-items: center; column-gap: 10px; row-gap: 5px; box-sizing: border-box; padding: 7px 10px; border-radius: 12px;
   background: var(--v6-night-3, #281a42); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612), 0 3px 0 2px var(--v6-night-0, #0a0612);
 }
 .hm-qlist .qi {
-  width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; box-sizing: border-box;
+  grid-area: pic; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; box-sizing: border-box;
   color: var(--v6-cream, #fff3e3); background: var(--v6-sky-deep, #0d4fb8); box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.25);
 }
 .hm-qlist .qi svg { width: 26px; height: 26px; }
@@ -90,42 +98,49 @@
 .hm-qlist .qi.k-towers { background: var(--v6-sky, #39a6ff); }
 .hm-qlist .qi.k-combos { color: var(--v6-rose, #ff3d7f); background: var(--v6-rose-light, #ffb3cd); }
 .hm-qlist .qi.k-pudding { color: var(--v6-gold-1, #fff1b8); background: var(--v6-flame, #ff8a1e); }
-.hm-qlist .qi.k-party { color: var(--v6-rose-light, #ffb3cd); background: linear-gradient(118deg, var(--v6-rose-deep, #c8135b) 0 50%, var(--v6-sky-deep, #0d4fb8) 50%); }
+.hm-qlist .qi.k-party { color: var(--v6-cream, #fff3e3); background: linear-gradient(118deg, var(--v6-rose-deep, #c8135b) 0 50%, var(--v6-sky-deep, #0d4fb8) 50%); }
 .hm-qlist .qi.face, .hm-qlist .qi.faces { background: none; box-shadow: none; }
 .hm-qlist .qf { display: block; width: 40px; height: 40px; border-radius: 10px; object-fit: cover; box-sizing: border-box; background: var(--v6-night-0, #0a0612); box-shadow: 0 0 0 2px var(--v6-rose, #ff3d7f); }
 .hm-qlist .qf.dog { box-shadow: 0 0 0 2px var(--v6-sky, #39a6ff); }
-.hm-qlist .qi.faces { width: auto; display: flex; padding-left: 8px; }
-.hm-qlist .qi.faces .qf { width: 26px; height: 26px; margin-left: -8px; border-radius: 50%; }
-.hm-qlist .t { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.hm-qlist .tx { font: 600 16px/1.15 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); }
+/* the four shelter cats: a 2 x 2 photo tile, their names are in the label */
+.hm-qlist .qi.faces { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 0; }
+.hm-qlist .qi.faces .qf { width: 19px; height: 19px; border-radius: 5px; box-shadow: none; }
+.hm-qlist .tx { grid-area: tx; min-width: 0; font: 600 16px/1.15 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); }
+/* the bonus quest's tag sits at the start of its bar row (no extra line under a long name) */
+.hm-qlist .q.bonus { grid-template-areas: 'pic tx tx tx end' 'pic tag bar n end'; }
 .hm-qlist .qtag {
-  display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 999px; vertical-align: 1px;
+  grid-area: tag; justify-self: start; padding: 1px 7px; border-radius: 999px;
   font: 800 14px/1 var(--font, sans-serif); font-style: normal; color: var(--v6-night, #12091f); background: var(--v6-sky-top, #7cc6ff);
 }
-.hm-qlist .qbar { display: block; height: 10px; border-radius: 5px; overflow: hidden; background: var(--v6-navy, #071334); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612); }
-.hm-qlist .qbar i { display: block; height: 100%; min-width: 0; border-radius: inherit; background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a)); }
-.hm-qlist .n { font: 800 16px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; color: var(--v6-cream, #fff3e3); }
-.hm-qlist .qx {
-  min-width: 56px; height: 32px; box-sizing: border-box; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; border-radius: 8px;
-  font: 900 16px/1 var(--font, sans-serif); color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, #ffe14a); box-shadow: 0 3px 0 var(--v6-bolt-ledge, #b98a00);
+/* the empty track is outlined in cream so it reads on plum (3:1 for UI parts) */
+.hm-qlist .qbar {
+  grid-area: bar; display: block; height: 10px; border-radius: 5px; overflow: hidden;
+  background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.1); box-shadow: inset 0 0 0 1.5px rgb(var(--v6-cream-rgb, 255 243 227) / 0.42);
 }
-.hm-qlist .qx svg { width: 16px; height: 16px; flex: none; }
-.hm-qlist .qx.done { color: var(--v6-night, #12091f); background: var(--v6-success, #9be3c4); box-shadow: 0 3px 0 var(--v6-success-deep, #0e8f5b); }
-.hm-qlist .qx.done svg { width: 20px; height: 20px; }
-/* the friend quest: a sky outline and the Duo tag */
+.hm-qlist .qbar i { display: block; height: 100%; min-width: 0; border-radius: inherit; background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a)); }
+.hm-qlist .n { grid-area: n; font: 800 16px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; color: var(--v6-cream, #fff3e3); }
+.hm-qlist .qx {
+  grid-area: end; position: relative; height: 34px; box-sizing: border-box; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; white-space: nowrap;
+  font: 900 16px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, #ffe14a); box-shadow: 0 3px 0 var(--v6-bolt-ledge, #b98a00);
+}
+/* a little bone sticker on the chip's corner */
+.hm-qlist .qbone { position: absolute; right: -7px; top: -9px; width: 20px; height: 20px; color: var(--v6-cream, #fff3e3); transform: rotate(18deg); }
+.hm-qlist .qbone svg { width: 100%; height: 100%; display: block; }
+/* the friend quest: a sky outline and the Bonus tag (it is not in the day's tally) */
 .hm-qlist .q.bonus { box-shadow: 0 0 0 2px var(--v6-sky, #39a6ff), 0 3px 0 2px var(--v6-sky-deep, #0d4fb8); }
-/* done: a mint card and the stamp */
-.hm-qlist .q.done { background: linear-gradient(90deg, rgb(155 227 196 / 0.26), rgb(155 227 196 / 0.1)); box-shadow: 0 0 0 2px var(--v6-success-deep, #0e8f5b), 0 3px 0 2px var(--v6-night-0, #0a0612); }
+/* done: a mint card, a full mint bar and the stamp where the XP chip was */
+.hm-qlist .q.done { background: linear-gradient(90deg, rgb(155 227 196 / 0.24), rgb(155 227 196 / 0.08)); box-shadow: 0 0 0 2px var(--v6-success-deep, #0e8f5b), 0 3px 0 2px var(--v6-night-0, #0a0612); }
 .hm-qlist .q.done .qbar i { background: var(--v6-success, #9be3c4); }
-.hm-qlist .q.done .tx { color: var(--v6-success, #9be3c4); }
-/* the stamp takes the count's place (the name stays readable) */
+.hm-qlist .q.done :is(.tx, .n) { color: var(--v6-success, #9be3c4); }
+.hm-qlist .q.done .qi { opacity: 0.75; }
 .hm-qlist .qstamp {
-  padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
-  font: italic 900 15px/1 var(--v6-font-display, var(--font, sans-serif)); text-transform: uppercase; letter-spacing: 0.04em;
+  grid-area: end; display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
+  font: italic 900 14px/1 var(--v6-font-display, var(--font, sans-serif)); text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--v6-rose, #ff3d7f); background: rgb(var(--v6-night-rgb, 18 9 31) / 0.85); box-shadow: inset 0 0 0 2.5px var(--v6-rose, #ff3d7f);
   transform: rotate(-8deg);
   animation: hm-stamp 380ms var(--v6-ease-pop, cubic-bezier(0.34, 1.56, 0.64, 1)) 1ms forwards;
 }
+.hm-qlist .qstamp svg { width: 16px; height: 16px; flex: none; }
 .hm-gp.still .qstamp { animation: none; }
 @keyframes hm-stamp { from { transform: rotate(-16deg) scale(1.8); } }
 
@@ -137,9 +152,9 @@
 .rw-wp-t small { font: 700 14px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; color: var(--v6-ice, #d6ecff); }
 .rw-days { position: relative; display: flex; justify-content: space-between; margin: 0; padding: 2px 0 0; list-style: none; }
 .rw-days.bub { padding-bottom: 28px; }
-.rw-days::before { content: ''; position: absolute; left: 16px; right: 16px; top: 19px; border-top: 3px dotted rgb(var(--v6-cream-rgb, 255 243 227) / 0.25); }
+.rw-days::before { content: ''; position: absolute; left: 16px; right: 16px; top: 19px; border-top: 3px dotted rgb(var(--v6-cream-rgb, 255 243 227) / 0.45); }
 .rw-days li { position: relative; display: grid; place-items: center; width: 34px; }
-.rw-paw { position: relative; display: grid; place-items: center; width: 34px; height: 34px; color: rgb(var(--v6-cream-rgb, 255 243 227) / 0.3); transform: rotate(-12deg); }
+.rw-paw { position: relative; display: grid; place-items: center; width: 34px; height: 34px; color: rgb(var(--v6-cream-rgb, 255 243 227) / 0.58); transform: rotate(-12deg); }
 .rw-days li:nth-child(even) .rw-paw { transform: rotate(12deg) translateY(-3px); }
 .rw-paw svg { width: 30px; height: 30px; }
 .rw-paw b {
@@ -168,38 +183,55 @@ div.rw-lrow { cursor: default; }
 .rw-lrow > span:not(.rw-oddsbtn) { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rw-lrow b { font: 800 16px/1.1 var(--font, sans-serif); }
 .rw-lrow small { font: 600 14px/1.2 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); }
-.rw-jar { width: 38px; height: 38px; flex: none; display: grid; place-items: center; }
-.rw-jar svg { width: 38px; height: 38px; }
+.rw-jar { width: 48px; height: 48px; margin: -10px 0 -4px; flex: none; display: grid; place-items: center; filter: drop-shadow(0 0 10px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.45)); transform: rotate(-8deg); }
+.rw-jar svg { width: 48px; height: 48px; }
 .rw-oddsbtn {
   flex: none; padding: 7px 12px; border-radius: 999px; font: italic 900 14px/1 var(--v6-font-display, var(--font, sans-serif)); text-transform: uppercase;
   color: var(--v6-sky-top, #7cc6ff); box-shadow: inset 0 0 0 2px var(--v6-sky, #39a6ff);
 }
 
-/* phones (landscape, short): tighter cards, same type floor */
+/* phones (landscape, short): tighter cards so all four quests fit on one screen, same 14 px type floor */
 @media (max-height: 500px) {
   .hm-gp { border-radius: 14px; }
-  .hm-gp-h { min-height: 50px; padding: 2px 2px 6px 12px; }
+  .hm-gp-h { min-height: 48px; padding: 2px 2px 4px 12px; }
   .hm-gp-h b { font-size: 18px; }
-  .hm-gp-body { gap: 12px; padding: 10px 12px 12px; }
-  .hm-gp-sec { gap: 8px; }
+  .hm-gp-body { gap: 10px; padding: 6px 10px 4px; }
+  .hm-gp-sec { gap: 6px; }
   .hm-gp-sec h3 { font-size: 16px; min-height: 24px; }
-  .hm-qlist { gap: 8px; }
-  .hm-qlist .q { min-height: 52px; padding: 6px 8px; gap: 8px; }
-  .hm-qlist .qi, .hm-qlist .qf { width: 36px; height: 36px; }
-  .hm-qlist .qi svg { width: 22px; height: 22px; }
-  .hm-qlist .tx { font-size: 15px; }
-  .hm-qlist .qx { min-width: 50px; height: 30px; padding: 0 6px; }
-  /* the stamp sits on the (full) bar instead of taking a column: the name keeps its width */
-  .hm-qlist .q.done { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .hm-qlist .qstamp { position: absolute; right: 64px; bottom: 3px; font-size: 14px; padding: 3px 6px; }
+  .hm-qlist { gap: 4px; }
+  .hm-qlist .q { padding: 3px 8px; column-gap: 8px; row-gap: 3px; border-radius: 10px; }
+  .hm-qlist .qi, .hm-qlist .qf { width: 30px; height: 30px; border-radius: 8px; }
+  .hm-qlist .qi.faces .qf { width: 14px; height: 14px; border-radius: 4px; }
+  .hm-qlist .qi svg { width: 20px; height: 20px; }
+  .hm-qlist .tx { font-size: 15px; line-height: 1.1; }
+  .hm-qlist .qbar { height: 6px; }
+  .hm-qlist .n { font-size: 14px; line-height: 0.9; }
+  .hm-qlist .qx { height: 28px; padding: 0 7px; font-size: 14px; }
+  .hm-qlist .qbone { width: 15px; height: 15px; right: -5px; top: -7px; }
+  .hm-qlist .qstamp { padding: 4px 6px; }
+  .rw-wp { padding: 8px 10px; }
+  /* the champion nameplate sits right above the panel: hidden while it is open, never peeking over the tabs */
+  .hm-gp-on .hm-stage { visibility: hidden; }
+}
+/* a narrow panel (a small phone): a finished quest drops its bar and count, the stamp says it all */
+@container (max-width: 420px) {
+  .hm-qlist .tx { font-size: 14px; }
+  .hm-qlist .q.done { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'pic tx end'; }
+  .hm-qlist .q.done .qtag { display: none; }
+  .hm-qlist .q.done :is(.qbar, .n) { display: none; }
+  .hm-qlist .qstamp svg { display: none; }
 }
 /* narrow panel with room: the events side by side two by two (an 844-wide phone) */
 @container (min-width: 440px) and (max-width: 599px) {
   .hm-gp-ev .lo-cards { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
 }
-/* a very narrow panel: no title beside the tabs */
-@container (max-width: 380px) {
-  .hm-gp.has-ev .hm-gp-h b { display: none; }
+/* a narrow panel: no title beside the tabs and the clock; tighter tabs */
+@container (max-width: 470px) {
+  .hm-gp.has-ev:not(.wide) .hm-gp-h b { display: none; }
+}
+@container (max-width: 340px) {
+  .hm-gp-tab { padding: 0 10px; gap: 4px; }
+  .hm-gp-tabs { gap: 4px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

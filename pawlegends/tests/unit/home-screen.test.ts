@@ -423,7 +423,7 @@ describe('Quests panel (Today and Events in one place)', () => {
     expect(rows).toHaveLength(4);
     expect(rows[0]!.textContent).toContain('Nailed it');
     expect(rows[1]!.textContent).toContain('1/2');
-    expect(rows[1]!.textContent).toContain('+50');
+    expect(rows[1]!.textContent).toContain('+50 XP');
     expect(rows[1]!.getAttribute('aria-label')).toBe('Play 2 matches: 1 of 2. 50 Season XP, added when the match ends');
     expect(rows[3]!.classList.contains('bonus')).toBe(true);
     expect(panel.querySelector('[data-testid="goals-today"] h3')?.textContent).toMatch(/^Today1\/3New in \d+[hm]$/);

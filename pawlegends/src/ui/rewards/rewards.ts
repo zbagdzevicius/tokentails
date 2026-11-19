@@ -283,8 +283,8 @@ const PAWPRINT =
 const JAR =
   '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="9" y="3" width="14" height="5" rx="2" fill="#ff3d7f" stroke="#12091f" stroke-width="2"/><path d="M8 9h16c2 0 3 2 3 4v12c0 2.5-1.5 4-4 4H9c-2.5 0-4-1.5-4-4V13c0-2 1-4 3-4z" fill="#d6ecff" fill-opacity="0.9" stroke="#12091f" stroke-width="2"/><path d="M11.5 17.2a1.8 1.8 0 0 1 3-1l3 3a1.8 1.8 0 1 1 1.1 2.6 1.8 1.8 0 1 1-2.6 1.1l-3-3a1.8 1.8 0 1 1-1.5-2.7z" fill="#ffe14a" stroke="#b98a00" stroke-width="1"/><path d="M8 12h3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
 
-/** A gift's short form for the Welcome Path bubble: "+200" for Season XP, else the item's name. Pure. */
-const bubbleGift = (g: (typeof WELCOME_PATH)[number]): string => (g.item ? giftLabel(g) : `+${g.xp}`);
+/** A gift's short form for the Welcome Path bubble: "+200 XP" for Season XP, else the item's name. Pure. */
+const bubbleGift = (g: (typeof WELCOME_PATH)[number]): string => (g.item ? giftLabel(g) : `+${g.xp} XP`);
 
 /**
  * Home's Today list, under the quests: the Welcome Path (a paw-print trail while it runs, a bubble on today's or
@@ -311,8 +311,8 @@ export function todayExtraHtml(): string {
   if (c.lucky)
     parts.push(
       c.lucky.eligible
-        ? `<button type="button" class="rw-lrow" data-rw="odds" data-testid="today-lucky" aria-label="Lucky Treat: win once today. See the odds"><i class="rw-jar" aria-hidden="true">${JAR}</i><span><b>Lucky Treat</b><small>Win once today</small></span><span class="rw-oddsbtn" aria-hidden="true">Odds</span></button>`
-        : `<div class="rw-lrow"><i class="rw-jar" aria-hidden="true">${JAR}</i><span><b>Daily Treat</b><small>Win once today: +${c.lucky.dailyTreatXp} XP</small></span></div>`,
+        ? `<button type="button" class="rw-lrow" data-rw="odds" data-testid="today-lucky" aria-label="Lucky Treat: your first win today opens the jar. See the odds"><i class="rw-jar" aria-hidden="true">${JAR}</i><span><b>Lucky Treat</b><small>First win today opens the jar</small></span><span class="rw-oddsbtn" aria-hidden="true">Odds</span></button>`
+        : `<div class="rw-lrow"><i class="rw-jar" aria-hidden="true">${JAR}</i><span><b>Daily Treat</b><small>First win today: +${c.lucky.dailyTreatXp} XP</small></span></div>`,
     );
   return parts.length ? `<div class="rw-today">${parts.join('')}</div>` : '';
 }

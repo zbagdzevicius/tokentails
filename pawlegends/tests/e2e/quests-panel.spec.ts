@@ -42,7 +42,7 @@ const config = (events: boolean) => ({
       }
     : null,
   nap: events
-    ? { id: 'nap-2026', name: 'Winter Nap', startsAt: iso(now + 26 * day), endsAt: iso(now + 47 * day), open: false, today: iso(now).slice(0, 10), gifts: Array.from({ length: 7 }, (_, i) => ({ day: i + 1, item: i === 6 ? 'coat.cacklejaw.frost' : 'coat.sage.loop.slate', name: `Gift ${i + 1}` })) }
+    ? { id: 'nap-2026', name: 'Winter Nap', startsAt: iso(Math.floor(now / day + 26) * day), endsAt: iso(Math.floor(now / day + 47) * day), open: false, today: iso(now).slice(0, 10), gifts: Array.from({ length: 7 }, (_, i) => ({ day: i + 1, item: i === 6 ? 'coat.cacklejaw.frost' : 'coat.sage.loop.slate', name: `Gift ${i + 1}` })) }
     : null,
 });
 
@@ -171,7 +171,7 @@ for (const size of SIZES) {
         if (tabbed) await panel.locator('[data-gtab="today"]').click();
         await expect(panel.locator('[data-testid="goals-today"]')).toBeVisible();
         await expect(panel.locator('.hm-qlist .q')).toHaveCount(4);
-        if (s === 'all') await expect(panel.locator('.hm-gp-chip.all')).toHaveText('All done!');
+        if (s === 'all') await expect(panel.locator('.hm-gp-chip.all')).toHaveText('3/3 ✓');
         if (s !== 'none') await expect(panel.locator('.q.done .qstamp').first()).toHaveText('Nailed it');
         expect(await faults(game)).toEqual([]);
         const box = (await panel.boundingBox())!;

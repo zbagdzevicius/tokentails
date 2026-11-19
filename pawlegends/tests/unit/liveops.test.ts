@@ -233,7 +233,7 @@ describe('the store and the cards', () => {
     expect(html).toContain('data-testid="lo-vote-a"');
     expect(html).toContain('&lt;b&gt;Candy&lt;/b&gt;');
     expect(html).not.toContain('<b>Candy</b>');
-    expect(html).toMatch(/15 Dec to /);
+    expect(html).toMatch(/15 Dec – 4 Jan/);
   });
 
   it('Winter Nap on: one pip per gift, ready gifts glow and open with one button', () => {

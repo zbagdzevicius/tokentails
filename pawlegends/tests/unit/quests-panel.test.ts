@@ -37,8 +37,9 @@ describe('quest cards', () => {
     const shelter = questCard(view('champion', 0));
     expect(shelter.icon).toBe('shelter');
     expect(shelter.heroes).toHaveLength(4);
-    expect(shelter.label).toBe('Play any of these');
-    expect(shelter.aria).toMatch(/^Play any of these \(Lambo, .+\): 0 of 1/);
+    // the four cats by name: a new player can't tell them apart by their faces
+    expect(shelter.label).toBe('Play Lambo, Raspberry, Bengal or Gabby');
+    expect(shelter.aria).toMatch(/^Play Lambo, Raspberry, Bengal or Gabby: 0 of 1/);
     expect(questCard(view('towers2', 0))).toMatchObject({ icon: 'towers', label: 'Knock down 2 towers' });
     expect(questCard(view('party2', 1))).toMatchObject({ icon: 'party', bonus: true, label: '2 matches with a friend' });
   });
@@ -47,30 +48,33 @@ describe('quest cards', () => {
 describe('the panel markup', () => {
   const quests = [view('win_clem', 1, true), view('combo3', 1), view('towers2', 0), view('party2', 0)];
 
-  it('stamps done quests, chips the reward, drops the fine print', () => {
+  it('stamps done quests, chips the reward in XP, drops the fine print', () => {
     const p = frag(goalsPanelHtml({ quests }));
     const rows = p.querySelectorAll('.hm-qlist .q');
     expect(rows).toHaveLength(4);
     expect(rows[0]!.querySelector('.qstamp')?.textContent).toBe('Nailed it');
-    expect(rows[0]!.querySelector('.qx.done')).toBeTruthy();
+    // the stamp takes the XP chip's place: no second tick
+    expect(rows[0]!.querySelector('.qx')).toBeNull();
     expect(rows[1]!.querySelector('.qstamp')).toBeNull();
-    // the stamp takes the count's place
-    expect(rows[0]!.querySelector('.n')).toBeNull();
+    expect(rows[0]!.querySelector('.n')?.textContent).toBe('1/1');
     expect(rows[1]!.querySelector('.n')?.textContent).toBe('1/3');
-    expect(rows[1]!.querySelector('.qx')?.textContent).toBe(`+${QUEST_XP}`);
+    expect(rows[1]!.querySelector('.qx')?.textContent).toBe(`+${QUEST_XP} XP`);
     expect(rows[1]!.querySelector('.qx')?.getAttribute('title')).toBe(`${QUEST_XP} Season XP, added when the match ends`);
     expect(rows[1]!.querySelector<HTMLElement>('.qbar i')!.style.width).toBe('33%');
     expect(rows[0]!.querySelector('img.qf')).toBeTruthy();
-    expect(rows[3]!.querySelector('.qtag')?.textContent).toBe('Duo');
+    expect(rows[3]!.querySelector('.qtag')?.textContent).toBe('Bonus');
+    expect(rows[3]!.querySelector('.qi.k-party svg')).toBeTruthy();
     expect(p.textContent).not.toContain('Treat XP is added');
     expect(p.querySelector('.hm-gp-chip')?.textContent).toBe('1/3');
     expect(p.querySelector('.hm-gp-clock')?.textContent).toMatch(/^New in \d+[hm]$/);
+    expect(p.querySelector('.hm-gp-hclock')?.textContent).toMatch(/^\d+[hm]$/);
   });
 
-  it('all done: the chip says so; the bonus friend quest is outside the tally', () => {
+  it('all done: the chip counts 3/3 with a tick; the bonus friend quest is outside the tally and tagged Bonus', () => {
     const all = [view('win_clem', 1, true), view('combo3', 3, true), view('towers2', 2, true), view('party2', 0)];
     const p = frag(goalsPanelHtml({ quests: all }));
-    expect(p.querySelector('.hm-gp-chip.all')?.textContent).toBe('All done!');
+    expect(p.querySelector('.hm-gp-chip.all')?.textContent).toBe('3/3 ✓');
+    expect(p.querySelector('.q.bonus .qtag')?.textContent).toBe('Bonus');
     expect(p.querySelectorAll('.qstamp')).toHaveLength(3);
   });
 

@@ -21,7 +21,11 @@ const heroName = (id: string): string => (HEROES as Record<string, { name?: stri
 
 const GLOBE =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M3.5 12h17M12 3.5c2.6 2.6 2.6 14.4 0 17M12 3.5c-2.6 2.6-2.6 14.4 0 17" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
-const MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 3a8.5 8.5 0 1 0 5.5 14.9A7 7 0 0 1 15.5 3z"/><path fill="currentColor" d="M18 5l.6 1.4L20 7l-1.4.6L18 9l-.6-1.4L16 7l1.4-.6z"/></svg>';
+/** A curled-up sleeping cat with a "z": Winter Nap's crest. */
+const NAPCAT =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 19.5c0-4.6 3.6-8 8.5-8 3 0 5.4 1.3 6.8 3.4l.6-2.9 1.6 2.2c.9 1.2 1.5 2.7 1.5 4.3 0 .5-.4 1-1 1z"/><path fill="currentColor" d="M3.2 19.6c-1.6-.2-2.2-1.8-1-2.8 1-.8 2.6-.6 3.6.2"/><path fill="none" stroke="rgb(0 0 0 / 0.45)" stroke-width="1.3" stroke-linecap="round" d="M15.6 16.2q.9.7 1.8 0M8 17.5c1.5 1 4.5 1 6 0"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M13 3.5h3.5L13 7.5h3.5M18.5 7h2.4L18.5 9.6h2.4"/></svg>';
+const PAWPRINT =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 11c3 0 6 3.6 6 6.6 0 2-1.5 3-3 3-1.2 0-2-.6-3-.6s-1.8.6-3 .6c-1.5 0-3-1-3-3C6 14.6 9 11 12 11z"/><ellipse fill="currentColor" cx="5.2" cy="9.6" rx="2.1" ry="2.6"/><ellipse fill="currentColor" cx="9.2" cy="5.4" rx="2.1" ry="2.7"/><ellipse fill="currentColor" cx="14.8" cy="5.4" rx="2.1" ry="2.7"/><ellipse fill="currentColor" cx="18.8" cy="9.6" rx="2.1" ry="2.6"/></svg>';
 const BALLOT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 13h16v8H4zM7 3h10v9H7zm2.2 4.6l1.6 1.6 3.8-3.8 1 1-4.8 4.8-2.6-2.6z"/></svg>';
 const GIFT =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 9h18v4H3zM4.5 13h15v8h-15z"/><path fill="rgb(0 0 0 / 0.35)" d="M10.8 9h2.4v12h-2.4z"/><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" d="M12 8.5C10.5 5 6.5 3.8 6.5 6.4S10 8.5 12 8.5zm0 0c1.5-3.5 5.5-4.7 5.5-2.1S14 8.5 12 8.5z"/></svg>';
@@ -61,13 +65,14 @@ function goalCard(s: LiveopsState, now: number): string {
     ? claimed
       ? '<span class="lo-done">Yours ✓</span>'
       : `<button type="button" class="lo-btn" data-lo="goal" data-testid="lo-claim"${s.busy ? ' disabled' : ''}>${s.busy === 'goal' ? 'Claiming…' : 'Claim coat'}</button>`
-    : `<small class="lo-hint">${ended ? 'Ended' : `Every match counts · ${esc(leftText(g.endsAt - now))}`}</small>`;
+    : '';
+  const left = g.reached ? '' : `<small class="lo-left">${ended ? 'Ended' : esc(leftText(g.endsAt - now))}</small>`;
   return `<div class="lo-card lo-goal" role="listitem" data-testid="lo-goal">
-    ${head('goal', GLOBE, g.label, '')}
-    <div class="lo-big" aria-hidden="true"><b>${fmt(g.progress)}</b> / ${fmt(g.target)}</div>
+    ${head('goal', GLOBE, g.label, 'Cats and dogs on one team, for once')}
+    <div class="lo-big"><span aria-hidden="true"><b>${fmt(g.progress)}</b> / ${fmt(g.target)}</span>${left}</div>
     <div class="lo-bar${g.reached ? ' full' : ''}" role="progressbar" aria-label="Community goal" aria-valuemin="0" aria-valuemax="${g.target}" aria-valuenow="${Math.min(g.progress, g.target)}" aria-valuetext="${fmt(g.progress)} of ${fmt(g.target)}"><i style="width:${pct}%"></i></div>
-    <div class="lo-prize">${hero ? faceImg(hero) : `<span class="lo-coat" aria-hidden="true">${COAT}</span>`}<span>For everyone: <b>${esc(g.rewardName)}</b></span></div>
-    <div class="lo-foot">${act}</div>
+    <div class="lo-prize">${hero ? faceImg(hero) : `<span class="lo-coat" aria-hidden="true">${COAT}</span>`}<span>Everyone gets <b>${esc(g.rewardName)}</b></span></div>
+    ${act ? `<div class="lo-foot">${act}</div>` : ''}
   </div>`;
 }
 
@@ -76,8 +81,8 @@ function napCard(s: LiveopsState, now: number): string {
   if (!n) return '';
   const phase = napPhase(n, now);
   if (phase === 'after' && !(s.me?.nap && s.me.nap.earned > s.me.nap.claimed)) return '';
-  const sub = phase === 'on' ? `One gift per day you play · ${leftText(n.endsAt - now)}` : `${day(n.startsAt)} to ${day(n.endsAt - 1)}`;
-  const top = head('nap', MOON, n.name, sub);
+  const sub = phase === 'on' ? `One gift per day you play · ${leftText(n.endsAt - now)}` : `${day(n.startsAt)} – ${day(n.endsAt - 1)}`;
+  const top = head('nap', NAPCAT, n.name, sub);
   const count = n.gifts.length || 7;
   const me = phase === 'before' || !n.gifts.length ? { days: 0, earned: 0, claimed: 0, playedToday: false } : (s.me?.nap ?? { days: 0, earned: 0, claimed: 0, playedToday: false });
   const pips = Array.from({ length: count }, (_, i) => {
@@ -85,7 +90,7 @@ function napCard(s: LiveopsState, now: number): string {
     const last = i === count - 1;
     const cls = i < me.claimed ? 'got' : i < me.earned ? 'ready' : '';
     const title = g ? `Day ${g.day}: ${g.name}` : `Day ${i + 1}${last ? ': a coat' : ''}`;
-    return `<i class="lo-pip ${cls}${last ? ' last' : ''}" title="${esc(title)}">${i < me.claimed ? '✓' : last ? COAT : GIFT}</i>`;
+    return `<i class="lo-pip ${cls}${last ? ' last' : ''}" title="${esc(title)}">${i < me.claimed ? PAWPRINT : last ? COAT : GIFT}</i>`;
   }).join('');
   if (phase === 'before' || !n.gifts.length)
     return `<div class="lo-card lo-nap" role="listitem" data-testid="lo-nap">${top}<div class="lo-pips" aria-label="${esc(`${count} gifts, the last one a coat`)}">${pips}</div><small class="lo-hint">Play any ${count} days. No streak to break.</small></div>`;
@@ -107,9 +112,11 @@ function voteCard(s: LiveopsState, now: number): string {
   const showResults = !!mine || !v.open;
   const opts = v.options
     .map((o) => {
-      const sw = o.colors.map((c) => `<i style="background:${esc(c)}"></i>`).join('');
+      // the coat's palette as one round chip (a pie of its colours)
+      const cs = o.colors.length ? o.colors : ['#888'];
+      const sw = `background:conic-gradient(${cs.map((c, i) => `${esc(c)} ${Math.round((100 * i) / cs.length)}% ${Math.round((100 * (i + 1)) / cs.length)}%`).join(', ')})`;
       const label = `${o.name} for ${heroName(o.hero)}`;
-      const inner = `<span class="lo-sw" aria-hidden="true">${sw}</span>${o.hero in HEROES ? faceImg(o.hero) : ''}<span class="t"><b>${esc(o.name)}</b><small>${esc(heroName(o.hero))}</small></span>${showResults ? `<span class="lo-share">${mine === o.id ? '<i aria-hidden="true">✓</i>' : ''}${shares[o.id]}%</span>` : '<span class="lo-go" aria-hidden="true">Vote</span>'}`;
+      const inner = `<span class="lo-sw" style="${sw}" aria-hidden="true"></span>${o.hero in HEROES ? faceImg(o.hero) : ''}<span class="t"><b>${esc(o.name)}</b><small>${esc(heroName(o.hero))}</small></span>${showResults ? `<span class="lo-share">${mine === o.id ? '<i aria-hidden="true">✓</i>' : ''}${shares[o.id]}%</span>` : '<span class="lo-go" aria-hidden="true">Vote</span>'}`;
       return showResults
         ? `<div class="lo-opt${mine === o.id ? ' mine' : ''}" style="--share:${shares[o.id]}%" aria-label="${esc(`${label}: ${shares[o.id]}%${mine === o.id ? ', your vote' : ''}`)}">${inner}</div>`
         : `<button type="button" class="lo-opt" data-lo="vote" data-opt="${o.id}" data-testid="lo-vote-${o.id}" aria-label="${esc(`Vote for ${label}`)}"${s.busy ? ' disabled' : ''}>${inner}</button>`;

@@ -16,6 +16,11 @@
 .lo-h { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 30px; }
 .lo-h::after { content: ''; position: absolute; inset: 0; background: var(--v6-halftone); opacity: 0.5; pointer-events: none; }
 .lo-h > * { position: relative; z-index: 1; }
+/* the event cards' crest: a round sticker, big enough to read the art (Winter Nap's sleeping cat) */
+.lo-h .ev-crest { width: 34px; height: 34px; clip-path: none; border-radius: 50%; box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612), 0 2px 0 2px var(--v6-night-0, #0a0612); }
+.lo-h .ev-crest svg { width: 22px; height: 22px; }
+.lo-art-nap .ev-crest { color: var(--v6-plum-deep, #471f5d); background: var(--v6-ice, #d6ecff); }
+.lo-art-nap .ev-crest svg { width: 26px; height: 26px; }
 .lo-art-goal { background: linear-gradient(118deg, var(--v6-rose-deep, #c8135b) 0 50%, var(--v6-sky-deep, #0d4fb8) 50%); }
 .lo-art-nap {
   background:
@@ -33,11 +38,12 @@
 .lo-face { width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover; background: var(--v6-night-0, #0a0612); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612); }
 
 /* the community goal: a big count, a chunky bolt bar, the coat for everyone on a chip */
-.lo-big { font: 800 16px/1 var(--font, sans-serif); color: var(--v6-muted, rgb(255 243 227 / 0.68)); font-variant-numeric: tabular-nums; }
+.lo-big { display: flex; align-items: baseline; gap: 8px; font: 800 16px/1 var(--font, sans-serif); color: var(--v6-muted, rgb(255 243 227 / 0.68)); font-variant-numeric: tabular-nums; }
+.lo-left { margin-left: auto; font: 700 14px/1 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); white-space: nowrap; }
 .lo-big b { font: italic 900 26px/1 var(--v6-font-display, var(--font, sans-serif)); color: var(--v6-bolt, #ffe14a); text-shadow: var(--v6-ts-ui, 0 2px 0 rgb(0 0 0 / 0.35)); }
 .lo-bar {
   position: relative; height: 12px; border-radius: 6px; overflow: hidden;
-  background: var(--v6-navy, #071334); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612);
+  background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.1); box-shadow: inset 0 0 0 1.5px rgb(var(--v6-cream-rgb, 255 243 227) / 0.42);
 }
 .lo-bar i {
   position: absolute; inset: 0 auto 0 0; border-radius: inherit; min-width: 6px;
@@ -73,6 +79,7 @@
   background: var(--v6-night-0, #0a0612); box-shadow: inset 0 0 0 2px rgb(var(--v6-rose-rgb, 255 61 127) / 0.4);
 }
 .lo-pip svg { width: 20px; height: 20px; }
+.lo-pip.got svg { transform: rotate(-12deg); }
 .lo-pip.last { color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, #ffe14a); box-shadow: 0 2px 0 var(--v6-bolt-ledge, #b98a00); }
 .lo-pip.ready { color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a)); box-shadow: none; animation: lo-glow 1.4s ease-in-out infinite; }
 .lo-pip.got { color: var(--v6-night, #12091f); background: var(--v6-success, #9be3c4); box-shadow: none; }
@@ -98,8 +105,8 @@ div.lo-opt::before {
 .lo-opt .t { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .lo-opt .t b { font: 800 15px/1.15 var(--font, sans-serif); overflow-wrap: anywhere; }
 .lo-opt .t small { font: 600 14px/1.1 var(--font, sans-serif); color: var(--v6-ice, #d6ecff); overflow-wrap: anywhere; }
-.lo-sw { display: flex; flex-direction: column; width: 10px; height: 32px; flex: none; border-radius: 5px; overflow: hidden; box-shadow: 0 0 0 1.5px var(--v6-night-0, #0a0612); }
-.lo-sw i { flex: 1; }
+/* the coat's palette: a round chip, a pie of its colours */
+.lo-sw { width: 22px; height: 22px; flex: none; border-radius: 50%; transform: rotate(-30deg); box-shadow: 0 0 0 2px var(--v6-night-0, #0a0612), 0 0 0 3.5px rgb(var(--v6-cream-rgb, 255 243 227) / 0.35); }
 .lo-share { display: inline-flex; align-items: center; gap: 4px; font: 900 16px/1 var(--font, sans-serif); font-variant-numeric: tabular-nums; }
 .lo-share i { font-style: normal; color: var(--v6-bolt, #ffe14a); }
 .lo-go {
@@ -110,6 +117,19 @@ div.lo-opt::before {
 .lo-toast {
   margin: 0; padding: 8px 10px; border-radius: 10px; font: 700 14px/1.3 var(--font, sans-serif);
   color: var(--v6-night, #12091f); background: var(--v6-success, #9be3c4);
+}
+
+/* phones (landscape, short): a slimmer art band; the goal's joke line stays on bigger screens */
+@media (max-height: 500px) {
+  .lo-card { gap: 6px; padding-bottom: 8px; }
+  .lo-h { padding: 6px 8px; gap: 8px; }
+  .lo-h .ev-crest { width: 28px; height: 28px; }
+  .lo-h .ev-crest svg { width: 18px; height: 18px; }
+  .lo-art-nap .ev-crest svg { width: 22px; height: 22px; }
+  .lo-h .t b { font-size: 15px; }
+  .lo-goal .lo-h small { display: none; }
+  .lo-big b { font-size: 22px; }
+  .lo-pip { height: 30px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
