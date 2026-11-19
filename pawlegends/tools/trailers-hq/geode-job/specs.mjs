@@ -3,7 +3,7 @@
 // Every take is a real bots match; the featured champion sits in slot 0, so the camera is the game's own fixed play
 // camera on that champion (no director camera: `shot.cam: null`), HUD on in 16:9. Accent pushes are the game camera's
 // height factor (`zoomKeys`, at most 1.12x). Moments come from castscan.mjs (seed, cast second).
-// node tools/trailers-hq/geode-job/specs.mjs > specs.json
+// node tools/trailers-hq/geode-job/specs.mjs [id,id-h,...] > specs.json
 const FPS = 60;
 const LOOK = {
   stilts: 'coat.stilts.store_bengal', duchess: 'coat.duchess.store_blue_point', pixel: 'coat.pixel.store_moonwhisker',
@@ -15,13 +15,14 @@ const Q = { mode: 'skirmish', map: 'quarry', scheme: 'frost' };
 const TB = { mode: 'skirmish', map: 'thicket', scheme: 'bloom' };
 const TH = { mode: 'skirmish', map: 'thicket', scheme: 'harvest' };
 const RH = { mode: 'skirmish', map: 'ridge', scheme: 'harvest' };
-const XN = { mode: 'cannon', scheme: 'native' };
 const H = [['stilts', 'pixel', 'duchess'], ['ranger', 'rocket', 'howler']];
 const DOGQ = (a) => [a, ['meatball', 'stilts', 'duchess']];
 const ULT = [['clem', 'nova', 'duchess'], ['brutus', 'frankie', 'howler']];
 // id, where, seed, teams, at (game s), dur (s), push [fromS, toS, zoom], look overrides { hero: coat }
 const TAKES = [
-  { id: 't01-hook', ...Q, seed: 40, teams: H, at: 304.2, dur: 2.4, push: [0.9, 1.7, 0.92], look: { pixel: 'coat.pixel.store_leopard' } },
+  // rev 2 hook: a clean cats-win beat (Nova + Clem ults wipe all three dogs, no dog kill back; castscan ults seeds 7, 39)
+  { id: 't01-hook', ...Q, seed: 7, teams: ULT, at: 461.5, dur: 3.0 },
+  { id: 't01b-hook', ...Q, seed: 39, teams: ULT, at: 416.3, dur: 3.0 },
   { id: 't02-crew-duchess', ...TB, seed: 12, teams: [['duchess', 'pixel', 'stilts'], ['ranger', 'rocket', 'chili']], at: 295.9, dur: 1.6 },
   { id: 't03-crew-pixel', ...TB, seed: 8, teams: [['pixel', 'duchess', 'stilts'], ['ranger', 'rocket', 'chili']], at: 298.7, dur: 1.6 },
   { id: 't04-crew-stilts', ...TB, seed: 21, teams: [['stilts', 'duchess', 'pixel'], ['ranger', 'rocket', 'chili']], at: 328.3, dur: 1.6 },
@@ -34,9 +35,10 @@ const TAKES = [
   { id: 't11-brutus', ...Q, seed: 16, teams: DOGQ(['brutus', 'howler', 'frankie']), at: 330.6, dur: 3.2 },
   { id: 't12-loaf', ...Q, seed: 9, teams: [['meatball', 'stilts', 'duchess'], ['howler', 'brutus', 'frankie']], at: 363.3, dur: 2.2, push: [0.6, 1.6, 0.93] },
   { id: 't13-getaway', ...TH, seed: 2, teams: [['mochi', 'stilts', 'duchess'], ['cacklejaw', 'chili', 'rocket']], at: 352.4, dur: 3.2 },
-  { id: 't14-cannon', ...XN, seed: 1, teams: [['pixel', 'stilts', 'lambo'], ['chili', 'rocket', 'ranger']], at: 122.8, dur: 2.4 },
-  { id: 't15-flop', ...XN, seed: 9, teams: [['pixel', 'stilts', 'lambo'], ['chili', 'rocket', 'ranger']], at: 294.0, dur: 1.6 },
-  { id: 't16-fountain', ...XN, seed: 3, teams: [['pixel', 'stilts', 'lambo'], ['chili', 'rocket', 'ranger']], at: 84.2, dur: 2.2 },
+  // rev 2: the getaway stays in the Quarry (the Kibble Cannon river shots were out of the heist story): Meatball bowls
+  // through all three guards (castscan dogs: seed 15 W at 419.67 hits 3, 2 kills; seed 13 W at 430.47 hits 2, 2 kills)
+  { id: 't14-bowl-out', ...Q, seed: 15, teams: [['meatball', 'stilts', 'duchess'], ['howler', 'brutus', 'frankie']], at: 418.9, dur: 3.6 },
+  { id: 't16-bowl-out2', ...Q, seed: 13, teams: [['meatball', 'stilts', 'duchess'], ['howler', 'brutus', 'frankie']], at: 429.8, dur: 2.6 },
   { id: 't18-dig', ...Q, seed: 22, teams: DOGQ(['frankie', 'howler', 'brutus']), at: 246.4, dur: 3.4, push: [0.9, 1.6, 0.9] },
   { id: 't19a-clem', ...Q, seed: 35, teams: ULT, at: 369.3, dur: 1.4 },
   { id: 't19b-nova', ...Q, seed: 5, teams: [['nova', 'clem', 'duchess'], ULT[1]], at: 292.9, dur: 2.0 },
@@ -44,12 +46,15 @@ const TAKES = [
   { id: 't19d-megameal', ...Q, seed: 14, teams: [['meatball', 'stilts', 'duchess'], ['howler', 'brutus', 'frankie']], at: 415.7, dur: 1.4, look: { meatball: 'coat.meatball.store_mega_meal' } },
   { id: 't20a-surge', ...Q, seed: 5, teams: ULT, at: 414.6, dur: 2.4 },
   { id: 't20b-victory', ...Q, seed: 5, teams: ULT, victory: 1.6, dur: 4.0, push: [0.6, 1.6, 0.9] },
-  { id: 't22-brutus-nap', ...Q, seed: 4, teams: DOGQ(['brutus', 'howler', 'frankie']), at: 459.0, dur: 4.6 },
 ];
 
 const out = [];
+// rev 2: the desktop-only hints (the Chat/Enter button, the Q/W/E/R/D/B key caps) are hidden in the 16:9 HUD
+const HINTS = '.pl-chatopen, .pl-slot kbd { display: none !important; }';
+const ONLY = process.argv[2] ? process.argv[2].split(',') : null;
 for (const aspect of ['horizontal', 'vertical']) {
   for (const t of TAKES) {
+    if (ONLY && !ONLY.some((o) => o === t.id || o === `${t.id}-${aspect[0]}`)) continue;
     const N = Math.round(t.dur * FPS);
     const looks = t.teams.map((team) => team.map((h) => t.look?.[h] ?? LOOK[h] ?? null));
     const zoomKeys = t.push ? [[Math.round(t.push[0] * FPS), 1], [Math.min(N - 1, Math.round(t.push[1] * FPS)), t.push[2]]] : undefined;
@@ -71,7 +76,7 @@ for (const aspect of ['horizontal', 'vertical']) {
       xray: false,
       music: 2,
       // the game's own fixed camera on slot 0; 9:16 keeps the plates and pops but not the desktop HUD (it does not fit)
-      shot: { cam: null, noMusic: true, ...(zoomKeys ? { zoomKeys } : {}), ...(v ? { gameLook: true, layers: ['pops', 'banner', 'plates'] } : {}) },
+      shot: { cam: null, noMusic: true, ...(zoomKeys ? { zoomKeys } : {}), ...(v ? { gameLook: true, layers: ['pops', 'banner', 'plates'] } : { css: HINTS }) },
       caption: `geode-job ${t.id}: ${t.map ?? 'crossing'} ${t.scheme} seed ${t.seed}`,
     });
   }

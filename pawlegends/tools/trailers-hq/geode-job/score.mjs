@@ -242,14 +242,15 @@ villain(Dg.a, 0.7);
 cue(Dg.a, 'villain brass');
 tubaBump(T('t12-loaf').a + 0.05);
 cue(T('t12-loaf').a, 'tuba bump');
-const can = T('t14-cannon');
-hit(can.a + (is30 ? 1.03 : 0.93), 0.85, true);
-cue(can.a + 1.0, 'cannon boom');
+// rev 2: the getaway in the Quarry: Meatball's bowl lands on the guards
+const can = T('t14-bowl-out');
+hit(can.hit, 0.85, true);
+cue(can.hit, 'bowling hit');
 // the getaway panel: rising horns
 const Cp = T('C');
 horns(Cp.a, Cp.b - Cp.a);
 if (!is30) {
-  const fo = T('t16-fountain');
+  const fo = T('t16-bowl-out2');
   for (const [o, m] of [[0, 69], [0.25, 72], [0.5, 76], [0.75, 81]]) music.add(S(fo.a + o), I.stab([m, m + 4], 0.2, 1), 0.4);
   // the fanfare is cut short by the needle
   groove(fo.a, fo.b, { energy: 0.95 });
@@ -269,32 +270,40 @@ hit(dig.fx[0].flash, 0.8);
 const drop = dig.b;
 const vic = T('t20b-victory');
 const endc = T('end');
-const nap = T('t22-brutus-nap');
 music.add(S(drop), I.crash(5, 2.4), 0.5);
 groove(drop, endc.a, { dbl: true, energy: 1.15 });
 for (const s of segs) if (s.a >= drop && s.a < vic.a) hit(s.a, 0.55);
 const burst = vic.fx[0].flash;
+// rev 2: a breath before the reveal: everything drops out for 0.45 s under a riser, then the core burst
+const gap = burst - 0.45;
+sfx.add(S(gap), I.riser(0.45), 0.55);
+cue(gap, 'drop to silence');
 hit(burst, 1, true);
 sfx.add(S(burst), I.subDrop(60, 28, 0.6, 0.6), 0.9);
 music.add(S(burst), I.crash(6, 2.4), 0.7);
 cue(burst, 'core burst (loudest)');
-// the end card: a brass button and the v6 sting on the logo landing
+// the end card (rev 2: the last shot): the key art rides the crash tail, then a brass button and the v6 sting land
+// with the logo at endc.logoAt; a quiet bass groove under PLAY FREE, the board-meeting gong is the last sound
+const logo = endc.a + (endc.logoAt ?? 0.1);
 const [bl, br] = I.stab([57, 61, 64, 69], 0.5, 1);
-music.addStereo(S(endc.a + 0.1), bl, br, 0.6);
+music.addStereo(S(logo), bl, br, 0.6);
 if (STING) {
   const buf = execFileSync('ffmpeg', ['-v', 'error', '-i', STING, '-f', 'f32le', '-ac', '1', '-ar', String(SR), '-'], { maxBuffer: 1 << 26 });
-  sfx.add(S(endc.a + 0.1), new Float32Array(buf.buffer, buf.byteOffset, buf.length / 4), 0.8);
-  cue(endc.a + 0.1, 'v6 sting');
+  sfx.add(S(logo), new Float32Array(buf.buffer, buf.byteOffset, buf.length / 4), 0.8);
+  cue(logo, 'v6 sting');
 }
-music.add(S(endc.a + 0.1), upright(33, 1.4), 0.7);
-groove(endc.a + 1.0, nap.a + 0.5, { bassOnly: true, energy: 0.6 });
+music.add(S(logo), upright(33, 1.4), 0.7);
+const gongAt = DUR - 2.0;
+groove(logo + 0.9, gongAt, { bassOnly: true, energy: 0.55 });
 {
-  const [L, R] = I.pad([45, 52, 57, 60], nap.b - endc.a - 1.0, { cutoff: 1100, attack: 0.6 });
-  music.addStereo(S(endc.a + 1.0), L, R, 0.09);
+  const [L, R] = I.pad([45, 52, 57, 60], DUR - logo - 0.9, { cutoff: 1100, attack: 0.6 });
+  music.addStereo(S(logo + 0.9), L, R, 0.09);
 }
-// the button: the board-meeting gong is the last sound
-sfx.add(S(nap.a + 0.6), gong(1.6), 0.9);
-cue(nap.a + 0.6, 'gong');
+sfx.add(S(gongAt), gong(1.8), 0.9);
+cue(gongAt, 'gong');
+// the breath before the burst: music and game sound out, only the riser
+music.mute(S(gap), S(burst));
+game.mute(S(gap), S(burst));
 
 // ---------------------------------------------------------------- mix and master
 function measure(path) {

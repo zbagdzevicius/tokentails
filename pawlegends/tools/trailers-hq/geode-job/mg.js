@@ -49,7 +49,7 @@ function word(text, style, k, out) {
   ctx.translate(W / 2, y);
   ctx.scale(sc, sc);
   ctx.rotate(-0.06);
-  const fill = { title: C.rose, cat: C.rose, dog: C.sky, vs: C.bolt }[style];
+  const fill = { title: C.rose, cat: C.rose, dog: C.sky, vs: C.bolt, win: C.bolt }[style];
   // fit the width
   const m = ctx.measureText(text).width;
   const maxW = W * 0.86;
@@ -95,9 +95,9 @@ function boltPath(x0, y, x1, _y1, h) {
 function drawWords(words, t) {
   for (const w of words) {
     if (t < w.at || t >= w.to) continue;
+    // rev 2: a hard cut-off (no alpha fade): a fading title left a ghost over the next shot
     const k = clamp((t - w.at) / 0.14);
-    const out = clamp((t - (w.to - 0.12)) / 0.12);
-    word(w.word, w.style, k, out);
+    word(w.word, w.style, k, 0);
   }
 }
 
@@ -228,8 +228,10 @@ function zzz(map, at, t, a) {
     ctx.restore();
   }
 }
-function tunnel(map, t, a) {
-  const pts = [[0.04, 0.93], [0.22, 0.86], [0.3, 0.95], [0.42, 0.84], [0.36, 0.74], [0.5, 0.68]];
+function tunnel(map, t, a, art) {
+  const pts = art === 'v'
+    ? [[0.3, 0.95], [0.3, 0.82], [0.62, 0.82], [0.62, 0.66], [0.36, 0.66], [0.5, 0.47]]
+    : [[0.04, 0.93], [0.22, 0.86], [0.3, 0.95], [0.42, 0.84], [0.36, 0.74], [0.5, 0.68]];
   const k = clamp((t - a - 0.05) / 0.7);
   ctx.save();
   ctx.strokeStyle = C.sky;
@@ -256,7 +258,8 @@ function tunnel(map, t, a) {
 // ------------------------------------------------------------------ jobs
 const YARN = {
   h: { p: [[0.13, 0.19], [0.78, 0.17], [0.17, 0.69], [0.78, 0.69]], c: [0.52, 0.47] },
-  v: { p: [[0.15, 0.31], [0.85, 0.31], [0.15, 0.69], [0.82, 0.7]], c: [0.5, 0.51] },
+  // rev 2 A-v (re-staged from A-h): the four polaroids and the geode on the blueprint
+  v: { p: [[0.22, 0.17], [0.79, 0.22], [0.24, 0.79], [0.73, 0.8]], c: [0.49, 0.54] },
 };
 function gem(job, t) {
   const im = img[`${job.gem}`];
@@ -268,8 +271,8 @@ function gem(job, t) {
   if (job.yarn) yarn(map, YARN[job.art], job.a + 0.05, t);
   if (job.coins) particles('coins', t, job.a, job.b, 7);
   if (job.sparkle) particles('sparkle', t, job.a, job.b, 9);
-  if (job.zzz) zzz(map, job.art === 'v' ? [0.65, 0.5] : [0.36, 0.33], t, job.a);
-  if (job.tunnel) tunnel(map, t, job.a);
+  if (job.zzz) zzz(map, job.art === 'v' ? [0.42, 0.66] : [0.36, 0.33], t, job.a);
+  if (job.tunnel) tunnel(map, t, job.a, job.art);
   // a soft plum vignette ties the frames to the night palette
   const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
   g.addColorStop(0, 'rgba(18,9,31,0)');
@@ -280,21 +283,26 @@ function gem(job, t) {
 
 function endCard(job, t) {
   const d = t - job.a;
+  // rev 2: the key art holds alone for `logoAt` s (the reveal after the silence), then the logo slams in
+  const dl = d - (job.logoAt ?? 0.1) + 0.1;
   ctx.fillStyle = C.night;
   ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.globalAlpha = clamp(d / 0.1);
   cover(img.D, 1.08 - 0.06 * ease(clamp(d / (job.b - job.a))));
-  ctx.fillStyle = 'rgba(18,9,31,0.42)';
+  ctx.restore();
+  ctx.fillStyle = `rgba(18,9,31,${0.42 * clamp(dl / 0.25)})`;
   ctx.fillRect(0, 0, W, H);
   const v = W < H, sq = W === H;
   const lw = W * (v ? 0.84 : sq ? 0.7 : 0.44);
   const lh = (lw * img.logo.height) / img.logo.width;
   const cy = H * (v ? 0.36 : 0.4);
   // the logo lands (scale 1.3 -> 1 over 8 frames) with a white pop
-  const k = outCubic(clamp((d - 0.1) / 0.14));
-  if (d >= 0.1) {
+  const k = outCubic(clamp((dl - 0.1) / 0.14));
+  if (dl >= 0.1) {
     const s = 1.3 - 0.3 * k;
     ctx.save();
-    ctx.globalAlpha = clamp((d - 0.1) * 12);
+    ctx.globalAlpha = clamp((dl - 0.1) * 12);
     ctx.translate(W / 2, cy);
     ctx.scale(s, s);
     ctx.shadowColor = 'rgba(11,6,18,0.7)';
@@ -303,7 +311,7 @@ function endCard(job, t) {
     ctx.restore();
   }
   // a magenta yarn string ties under the logo, ending in a bow
-  const ky = clamp((d - 0.3) / 0.5);
+  const ky = clamp((dl - 0.3) / 0.5);
   if (ky > 0) {
     ctx.save();
     ctx.strokeStyle = C.rose;
@@ -328,7 +336,7 @@ function endCard(job, t) {
     ctx.restore();
   }
   const ty = cy + lh * 0.56 + 150 * U() * (v ? 1.1 : 1);
-  const kp = clamp((d - 0.55) / 0.12);
+  const kp = clamp((dl - 0.55) / 0.12);
   if (kp > 0) {
     ctx.save();
     ctx.translate(W / 2, ty);
@@ -346,7 +354,7 @@ function endCard(job, t) {
     ctx.fillText('PLAY FREE', 0, 0);
     ctx.restore();
   }
-  const ku = clamp((d - 0.8) / 0.2);
+  const ku = clamp((dl - 0.8) / 0.2);
   if (ku > 0) {
     ctx.save();
     ctx.globalAlpha = ku;
@@ -361,12 +369,7 @@ function endCard(job, t) {
     ctx.fillText('pawlegends.app', W / 2, ty + 115 * U());
     ctx.restore();
   }
-  // fade out over the last 4 frames into the button shot
-  const fo = clamp((t - (job.b - 4 / 60)) / (4 / 60));
-  if (fo > 0) {
-    ctx.fillStyle = `rgba(18,9,31,${fo * 0.6})`;
-    ctx.fillRect(0, 0, W, H);
-  }
+  // rev 2: the trailer ends on this card (no fade, nothing after it)
 }
 
 /** PLAN vs REALITY: the board half (left or top) with the sneak route; the bolt divider; the gameplay half clear. */

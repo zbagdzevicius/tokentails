@@ -35,7 +35,7 @@ segs.forEach((s, i) => {
   const ws = words.filter((w) => w.at < s.b && w.to > s.a);
   const base = { a: s.a, b: s.b, words: ws, fx: s.fx ?? [], art };
   if (s.kind === 'gem') { assets[s.gem] = `/w/gem/${s.gem}-${art}.jpg`; jobs.push({ i, ...base, kind: 'gem', gem: s.gem, push: s.push, yarn: s.yarn, coins: s.coins, sparkle: s.sparkle, zzz: s.zzz, tunnel: s.tunnel }); }
-  else if (s.kind === 'end') { assets.D = `/w/gem/D-${art}.jpg`; jobs.push({ i, ...base, kind: 'end' }); }
+  else if (s.kind === 'end') { assets.D = `/w/gem/D-${art}.jpg`; jobs.push({ i, ...base, kind: 'end', logoAt: s.logoAt }); }
   else if (s.kind === 'split') jobs.push({ i, ...base, kind: 'split', cross: s.a + (s.b - s.a === 2 ? 0.8 : 1.4) });
   else if (s.kind === 'freeze') {
     const slot = (s.b - s.a) / s.crew.length, freezeAt = 0.6;
