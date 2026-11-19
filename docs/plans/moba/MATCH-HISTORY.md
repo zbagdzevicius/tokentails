@@ -69,3 +69,11 @@ detail's human seats carry `code` (their player code) so a name opens that playe
 Profile screen, round 4 (Nov 19): a row in Profile → Matches opens that match inside the Profile (both teams, the
 damage graph, a player's name opens their profile, Watch for a replay kept on this device), as League of Legends does.
 Escape or Back returns to the list. The full history sheet stays for the Collection screen's "Match history" pill.
+
+Matches rows, more stats (Nov 19, founder: "show more stats"): each `history.list` row also carries the owner's line,
+derived at read time from the stored seats (no new write path, so every stored match has it): `lv`, `cs`, `fish`,
+`dmg` (damage to champions) and `dmgTop` (the match's most, for the row's bar), `kp` (kill participation %), `score`
+(team kills, ours then theirs), `toys` (Toy tiers 1..4) and `party` (allies who are the owner's friends, one friendship
+read per page). A stat the match's sim did not count (0) is left out, and the client hides it (never a zero). The row
+names its real queue: "Arcade" was the group word for every solo mutator match; rows now show the mutator's own name
+(Toy Box, Cannon Chaos, One Lane, Duel, Boss Weekend…), and Ranked / PvP / Co-op / Skirmish with 3v3 or 5v5.

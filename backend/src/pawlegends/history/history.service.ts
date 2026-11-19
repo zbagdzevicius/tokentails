@@ -17,6 +17,7 @@ import {
     isGroup,
     isVisibility,
     matchView,
+    humanAllies,
     rowView,
     seasonAt,
     statsId,
@@ -77,6 +78,8 @@ export interface HistoryPeople {
     names(ids: readonly string[]): Promise<Map<string, string>>;
     /** Player codes by account id (the match detail's "View profile"); optional for older harnesses. */
     codes?(ids: readonly string[]): Promise<Map<string, string>>;
+    /** Which of `ids` are `owner`'s accepted friends (the list's party icon); optional for older harnesses. */
+    friendsAmong?(owner: string, ids: readonly string[]): Promise<Set<string>>;
 }
 
 export interface HistoryPageView {
@@ -149,9 +152,15 @@ export class MatchHistoryCore {
         const more = rows.length > HISTORY_PAGE;
         const shown = rows.slice(0, HISTORY_PAGE);
         const name = (await this.people.names([who.id])).get(who.id) ?? '';
+        // the party icon: allies who are the owner's friends (one read for the page; a failure only hides the icon)
+        const allies = [...new Set(shown.flatMap(humanAllies))].filter(id => id !== who.id);
+        const friends =
+            allies.length && this.people.friendsAmong
+                ? await this.people.friendsAmong(who.id, allies).catch(() => new Set<string>())
+                : new Set<string>();
         const out: HistoryPageView = {
             owner: { name, self: who.self },
-            rows: shown.map(r => rowView(r, who.self)),
+            rows: shown.map(r => rowView(r, who.self, friends)),
             next: more && shown.length ? String(shown[shown.length - 1]._id) : null,
         };
         if (before === null) {
@@ -279,6 +288,15 @@ export class MatchHistoryService extends MatchHistoryCore {
             },
             async blockedEither(a, b) {
                 return (await blocks.countDocuments({ _id: { $in: [`${a}:${b}`, `${b}:${a}`] } })) > 0;
+            },
+            async friendsAmong(owner, ids) {
+                const want = [...new Set(ids)].filter(id => id && id !== owner).slice(0, 60);
+                if (!want.length) return new Set<string>();
+                const rows = (await friends
+                    .find({ _id: { $in: want.map(id => pairId(owner, id)) }, state: 'accepted' })
+                    .select({ a: 1, b: 1 })
+                    .lean()) as Array<{ a?: unknown; b?: unknown }>;
+                return new Set(rows.map(r => String(r.a === owner ? r.b : r.a)));
             },
             names: ids => displayNames({ social, cats: cats ?? null }, ids),
             async codes(ids) {

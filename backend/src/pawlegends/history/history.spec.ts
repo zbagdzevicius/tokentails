@@ -10,6 +10,8 @@ import { savePawlegendsPartyMatch } from '../pawlegends-party-live';
 import {
     buildRow,
     canView,
+    rowStats,
+    rowView,
     groupOf,
     HISTORY_KEEP,
     HISTORY_PAGE,
@@ -143,6 +145,7 @@ function people(over: { friends?: string[][]; blocks?: string[][] } = {}): Histo
         byCode: async code => CODES[code] ?? null,
         friends: async (a, b) => pair(a, b, over.friends),
         blockedEither: async (a, b) => pair(a, b, over.blocks),
+        friendsAmong: async (owner, ids) => new Set(ids.filter(id => pair(owner, id, over.friends))),
         names: async ids => new Map(ids.map(id => [id, `Name of ${id.replace('acc-', '')}`])),
         codes: async ids =>
             new Map(
@@ -306,6 +309,55 @@ describe('match history: the store and the reads', () => {
         expect(blitz.rows.every(r => r.mode === 'blitz')).toBe(true);
         expect(await codeOf(core.list('acc-a', { mode: 'nope' }, false))).toBe('PAWLEGENDS_HISTORY_INVALID');
         expect(await codeOf(core.list('acc-a', { before: 'x' }, false))).toBe('PAWLEGENDS_HISTORY_INVALID');
+    });
+
+    it('list rows carry the owner stats line from the stored seats (Nov 19); unknown stats are left out', async () => {
+        const { core, store } = setup({ friends: [['acc-a', 'acc-b']] });
+        await core.record(input());
+        const [row] = (await core.list('acc-a', {}, false)).rows;
+        // clem: 9/1/4, 6000 hero damage (the match's top), team kills 9 + 2 + 2 = 13 vs 5 + 2 + 2 = 9
+        expect(row).toMatchObject({
+            lv: 8,
+            cs: 30,
+            fish: 900,
+            dmg: 6000,
+            dmgTop: 6000,
+            kp: 100,
+            score: [13, 9],
+            toys: 2,
+        });
+        expect(row.party).toBeUndefined();
+        // an older row whose sim counted no Fish, Toys or CS: those are absent, never 0
+        const old = {
+            ...store.rows[0],
+            players: store.rows[0].players.map(p => ({ ...p, f: 0, ty: 0, cs: 0, lv: 0 })),
+        };
+        const v = rowView(old, true);
+        expect(v).not.toHaveProperty('fish');
+        expect(v).not.toHaveProperty('toys');
+        expect(v).not.toHaveProperty('cs');
+        expect(v).not.toHaveProperty('lv');
+        expect(v.kp).toBe(100);
+        // no stored seats at all: no stats line
+        expect(rowStats({ ...store.rows[0], players: [] })).toEqual({});
+        // a party with a friend (acc-b) and a stranger (acc-c) on the owner's team: one friend
+        await core.record(
+            input({
+                matchId: 'party:r1',
+                mode: 'coop',
+                humans: new Map([
+                    [0, 'acc-a'],
+                    [1, 'acc-b'],
+                    [2, 'acc-c'],
+                ]),
+            })
+        );
+        const page = await core.list('acc-a', {}, false);
+        expect(page.rows[0].party).toBe(1);
+        // a friend's view of the owner's rows counts the owner's friends, never sends an account id
+        const seen = await core.list('acc-b', { code: 'ABCD2345' }, true);
+        expect(seen.rows[0].party).toBe(1);
+        expect(JSON.stringify(seen)).not.toContain('acc-c');
     });
 
     it("anyone's history is public (founder Nov 17): a stored choice is ignored; blocks and guests still stop it", async () => {

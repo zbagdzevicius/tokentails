@@ -387,6 +387,26 @@ export interface HistoryRowView {
     mvp: 'mvp' | 'svp' | null;
     /** Own rows only: the device's replay key. */
     key?: string;
+    /**
+     * The owner's line in the list (Nov 19, founder: "show more stats"), from the stored seats (no new write). Each is
+     * present only when known: a stat the match's sim did not count (0) is left out, never shown as a zero.
+     */
+    /** Champion level at the end. */
+    lv?: number;
+    /** Lane last hits. */
+    cs?: number;
+    fish?: number;
+    /** Damage to champions, and the most any seat of the match dealt (the row's bar). */
+    dmg?: number;
+    dmgTop?: number;
+    /** Kill participation, whole percent: (K + A) / the team's kills. */
+    kp?: number;
+    /** Team kills: the owner's team, then the other. */
+    score?: [number, number];
+    /** Toy tiers owned at the end (0..4). */
+    toys?: number;
+    /** Allies who are the owner's friends (the list asks the friendships); absent: none or not asked. */
+    party?: number;
 }
 
 export interface HistoryPlayerView {
@@ -425,7 +445,42 @@ export interface HistoryMatchView extends HistoryRowView {
 
 const TICK_HZ = 30;
 
-export function rowView(r: HistoryRowDoc, self: boolean): HistoryRowView {
+/** The owner's stats line for the list, from the stored seats; `{}` when the owner's seat is not stored. Pure. */
+export function rowStats(r: HistoryRowDoc, friends?: ReadonlySet<string>): Partial<HistoryRowView> {
+    const seats = Array.isArray(r.players) ? r.players : [];
+    const me = seats.find(p => p.s === r.slot);
+    if (!me) return {};
+    const team = me.t;
+    const ours = seats.filter(p => p.t === team).reduce((n, p) => n + n0(p.k), 0);
+    const theirs = seats.filter(p => p.t !== team).reduce((n, p) => n + n0(p.k), 0);
+    const top = seats.reduce((m, p) => Math.max(m, n0(p.hd)), 0);
+    const out: Partial<HistoryRowView> = {};
+    if (n0(me.lv) > 0) out.lv = n0(me.lv);
+    if (n0(me.cs) > 0) out.cs = n0(me.cs);
+    if (n0(me.f) > 0) out.fish = n0(me.f);
+    if (n0(me.hd) > 0) {
+        out.dmg = n0(me.hd);
+        out.dmgTop = Math.max(top, out.dmg);
+    }
+    if (ours > 0) out.kp = Math.min(100, Math.round((100 * (n0(me.k) + n0(me.a))) / ours));
+    if (ours + theirs > 0) out.score = [ours, theirs];
+    if (n0(me.ty) > 0) out.toys = Math.min(4, n0(me.ty));
+    if (friends && friends.size) {
+        const n = seats.filter(p => p.t === team && p.s !== r.slot && !!p.u && friends.has(p.u)).length;
+        if (n > 0) out.party = n;
+    }
+    return out;
+}
+
+/** The owner's allies who are people (account ids, server only): the list asks which are the owner's friends. Pure. */
+export const humanAllies = (r: HistoryRowDoc): string[] => {
+    const seats = Array.isArray(r.players) ? r.players : [];
+    const me = seats.find(p => p.s === r.slot);
+    if (!me) return [];
+    return seats.filter(p => p.t === me.t && p.s !== r.slot && !!p.u).map(p => p.u as string);
+};
+
+export function rowView(r: HistoryRowDoc, self: boolean, friends?: ReadonlySet<string>): HistoryRowView {
     return {
         id: String(r._id),
         at: new Date(r.at).getTime(),
@@ -442,6 +497,7 @@ export function rowView(r: HistoryRowDoc, self: boolean): HistoryRowView {
         grade: r.grade ?? null,
         mvp: r.mvpSlot === r.slot ? 'mvp' : r.svpSlot === r.slot ? 'svp' : null,
         ...(self ? { key: r.key } : {}),
+        ...rowStats(r, friends),
     };
 }
 
