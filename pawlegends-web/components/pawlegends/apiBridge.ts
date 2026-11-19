@@ -90,6 +90,9 @@ const ARG_KEYS = [
   "name",
   "invisible",
   "allowRecent",
+  // the social sidebar: Away, a preset status note (its index; -1 clears it) and a favourite friend (code + favOn)
+  "away",
+  "favOn",
   "ageBand",
   "kind",
   "hero",
@@ -266,6 +269,11 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       }
       const dm = str(a.dmPolicy, /^(friends|off)$/);
       if (dm) body.dmPolicy = dm;
+      if (typeof a.away === "boolean") body.away = a.away;
+      const note = int(a.note, -1, 15);
+      if (note !== null) body.note = note < 0 ? null : note;
+      const fav = str(a.code, CODE);
+      if (fav && typeof a.favOn === "boolean") body.fav = { code: fav, on: a.favOn };
       return { method: "POST", path: "/pawlegends/social/me", body, auth: "registered" };
     }
     case "social.age":

@@ -35,6 +35,8 @@ import {
     PENDING_OUT_CAP,
     PENDING_TTL_DAYS,
     PRESENCE,
+    FAVS_CAP,
+    STATUS_NOTE_COUNT,
     RECENT_DAYS,
     RECENT_ROOMS,
     REQUESTS_PER_DAY,
@@ -82,6 +84,9 @@ export interface SocialProfile {
     name: { kind: 'generated' } | { kind: 'cat'; catId: string } | { kind: 'nick' };
     invisible: boolean;
     allowRecent: boolean;
+    away?: boolean;
+    note?: number | null;
+    favs?: string[];
     rev: number;
     rotations?: { day: string; n: number } | null;
 }
@@ -93,11 +98,14 @@ interface Edge {
     from: string;
     state: 'pending' | 'accepted';
     via: Via;
+    createdAt?: Date;
 }
 
 const other = (e: Pick<Edge, 'a' | 'b'>, me: string) => (e.a === me ? e.b : e.a);
 const utcDay = (d: Date) => d.toISOString().slice(0, 10);
 const recentOk = (band: string | null) => band === '16-17' || band === '18+';
+const validNote = (n: unknown): n is number =>
+    Number.isInteger(n) && (n as number) >= 0 && (n as number) < STATUS_NOTE_COUNT;
 
 @Injectable()
 export class SocialService {
@@ -285,12 +293,18 @@ export class SocialService {
             this.presence.find({ _id: { $in: [...ids] } }).lean() as Promise<PresenceRow[]>,
             this.social
                 .find({ _id: { $in: [...ids] } })
-                .select({ invisible: 1 })
-                .lean() as Promise<Array<{ _id: string; invisible?: boolean }>>,
+                .select({ invisible: 1, away: 1 })
+                .lean() as Promise<Array<{ _id: string; invisible?: boolean; away?: boolean }>>,
         ]);
         const invisible = new Set(profiles.filter(p => p.invisible).map(p => String(p._id)));
+        const away = new Set(profiles.filter(p => p.away).map(p => String(p._id)));
         const byId = new Map(rows.map(r => [String(r._id), r]));
-        for (const id of ids) out.set(id, readPresence(byId.get(id), nowMs, invisible.has(id)));
+        for (const id of ids) {
+            const v = readPresence(byId.get(id), nowMs, invisible.has(id));
+            // Away shows only in the menus: a lobby, a queue or a match says what the friend is doing
+            if (v.state === 'online' && away.has(id)) v.away = true;
+            out.set(id, v);
+        }
         return out;
     }
 
@@ -345,9 +359,11 @@ export class SocialService {
         const ids = [...new Set([...edges.map(e => other(e, me)), ...blockRows.map(b => b.blocked)])];
         const profiles = (await this.social
             .find({ _id: { $in: ids } })
-            .select({ code: 1 })
-            .lean()) as Array<{ _id: string; code: string }>;
+            .select({ code: 1, note: 1 })
+            .lean()) as Array<{ _id: string; code: string; note?: number | null }>;
         const codes = new Map(profiles.map(p => [String(p._id), formatPlayerCode(p.code)]));
+        const notes = new Map(profiles.map(p => [String(p._id), p.note]));
+        const favs = new Set(profile.favs ?? []);
         const names = await displayNames({ social: this.social, cats: this.cats }, ids);
         const accepted = edges.filter(e => e.state === 'accepted').map(e => other(e, me));
         const blockedBy = new Set(
@@ -363,11 +379,18 @@ export class SocialService {
         const row = (id: string) => ({ code: codes.get(id) ?? '', name: names.get(id) ?? '', av: avatars.get(id) });
         const order = { match: 0, queue: 1, party: 2, online: 3, offline: 4 } as const;
         const friends = accepted
-            .map(id => ({
-                ...row(id),
-                ...(ccs.get(id) ? { cc: ccs.get(id) } : {}),
-                presence: presence.get(id) ?? { state: 'offline' as const },
-            }))
+            .map(id => {
+                const p = presence.get(id) ?? { state: 'offline' as const };
+                const note = notes.get(id);
+                return {
+                    ...row(id),
+                    ...(ccs.get(id) ? { cc: ccs.get(id) } : {}),
+                    ...(favs.has(id) ? { fav: true } : {}),
+                    // a status note shows while the friend is not offline (an invisible friend reads offline)
+                    ...(p.state !== 'offline' && validNote(note) ? { note } : {}),
+                    presence: p,
+                };
+            })
             .sort((x, y) => order[x.presence.state] - order[y.presence.state] || x.name.localeCompare(y.name));
         return {
             me: {
@@ -375,6 +398,8 @@ export class SocialService {
                 name: (await displayNames({ social: this.social, cats: this.cats }, [me])).get(me),
                 nameKind: profile.name?.kind ?? 'generated',
                 invisible: !!profile.invisible,
+                away: !!profile.away,
+                note: validNote(profile.note) ? profile.note : null,
                 allowRecent: !!profile.allowRecent && recentOk(band),
                 ageBand: band,
                 av: avatars.get(me),
@@ -385,8 +410,19 @@ export class SocialService {
             },
             friends,
             requests: {
-                in: edges.filter(e => e.state === 'pending' && e.from !== me).map(e => row(other(e, me))),
-                out: edges.filter(e => e.state === 'pending' && e.from === me).map(e => row(other(e, me))),
+                // `at`: when the request was made (the row says "2h ago")
+                in: edges
+                    .filter(e => e.state === 'pending' && e.from !== me)
+                    .map(e => ({
+                        ...row(other(e, me)),
+                        ...(e.createdAt ? { at: new Date(e.createdAt).getTime() } : {}),
+                    })),
+                out: edges
+                    .filter(e => e.state === 'pending' && e.from === me)
+                    .map(e => ({
+                        ...row(other(e, me)),
+                        ...(e.createdAt ? { at: new Date(e.createdAt).getTime() } : {}),
+                    })),
             },
             blocks: blockRows.map(b => row(b.blocked)),
             invites: await this.pendingInvites(me),
@@ -635,10 +671,35 @@ export class SocialService {
             frame?: unknown;
             title?: unknown;
             dmPolicy?: unknown;
+            away?: unknown;
+            note?: unknown;
+            fav?: unknown;
         }
     ) {
-        await this.profile(me);
+        const mine = await this.profile(me);
         const set: Record<string, unknown> = {};
+        if (body.away !== undefined) {
+            if (typeof body.away !== 'boolean') throw SOCIAL_ERRORS.invalid('away');
+            set.away = body.away;
+        }
+        if (body.note !== undefined) {
+            if (body.note !== null && !validNote(body.note)) throw SOCIAL_ERRORS.invalid('note');
+            set.note = body.note;
+        }
+        if (body.fav !== undefined) {
+            // pin or unpin an accepted friend (by their code): this player's own list only, friends never see it
+            const f = body.fav as { code?: unknown; on?: unknown } | null;
+            if (!f || typeof f !== 'object' || typeof f.on !== 'boolean') throw SOCIAL_ERRORS.invalid('fav');
+            const target = await this.byCode(f.code);
+            const edge = (await this.friends.findById(pairId(me, target._id)).lean()) as Edge | null;
+            if (!edge || edge.state !== 'accepted') throw SOCIAL_ERRORS.refused();
+            const now = (mine.favs ?? []).filter(id => id !== target._id);
+            if (f.on) {
+                if (now.length >= FAVS_CAP) throw SOCIAL_ERRORS.cap('favourites');
+                now.push(target._id);
+            }
+            set.favs = now;
+        }
         // CHAT-AVATARS §7.2: every avatar part is checked against what the caller owns
         if (body.avatar !== undefined || body.frame !== undefined || body.title !== undefined) {
             const checked = await checkAvatarChoice(
@@ -725,13 +786,34 @@ export class SocialService {
             .limit(RECENT_ROOMS)
             .lean()) as MmRoomRecord[];
         const sorted = [...rooms].sort((x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime());
-        const rows: Array<{ room: string; slot: number; acc: string; team: 'ally' | 'foe' }> = [];
+        const rows: Array<{
+            room: string;
+            slot: number;
+            acc: string;
+            team: 'ally' | 'foe';
+            at: number;
+            queue: string;
+            won?: boolean;
+        }> = [];
         const seen = new Set<string>();
+        // matches played together in the window (LoL's "played together"): every room counts, not only the newest
+        const together = new Map<string, number>();
+        for (const room of sorted) {
+            const mine = room.members.find(m => m.accountId === me);
+            if (!mine) continue;
+            for (const id of new Set(room.members.map(m => m.accountId)))
+                if (id && id !== me) together.set(id, (together.get(id) ?? 0) + 1);
+        }
         for (const room of sorted) {
             const size = room.map === 'hearthwood' ? 5 : 3;
             const mine = room.members.find(m => m.accountId === me);
             if (!mine) continue;
             const myTeam = mine.slot >= size ? 1 : 0;
+            // the room's outcome is team 0's view; a remake or an unfinished room has none
+            const won =
+                room.void || (room.outcome !== 'won' && room.outcome !== 'lost')
+                    ? undefined
+                    : (room.outcome === 'won') === (myTeam === 0);
             // a (room, slot) names the slot's last holder (fromRecent): list only that one, so Add and Block reach the
             // player shown, never a backfiller who took the seat later
             const lastOf = new Map<number, typeof room.members[number]>();
@@ -748,6 +830,9 @@ export class SocialService {
                     slot: m.slot,
                     acc: m.accountId,
                     team: (m.slot >= size ? 1 : 0) === myTeam ? 'ally' : 'foe',
+                    at: new Date(room.createdAt).getTime(),
+                    queue: room.queue,
+                    ...(won === undefined ? {} : { won }),
                 });
                 if (rows.length >= 20) break;
             }
@@ -794,6 +879,10 @@ export class SocialService {
                 name: names.get(r.acc),
                 av: avatars.get(r.acc),
                 team: r.team,
+                at: r.at,
+                queue: r.queue,
+                ...(r.won === undefined ? {} : { won: r.won }),
+                together: together.get(r.acc) ?? 1,
                 canAdd:
                     meOk &&
                     reg.has(r.acc) &&

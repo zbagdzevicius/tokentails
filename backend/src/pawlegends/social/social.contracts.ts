@@ -41,6 +41,14 @@ export const PRESENCE = Object.freeze({
 });
 
 export const PRESENCE_STATES = ['offline', 'online', 'party', 'queue', 'match'] as const;
+
+/**
+ * Social sidebar (LoL's status message, kept safe for every age): a status note is one of these preset lines by its
+ * index, never free text. The game's copy is `STATUS_NOTES` in `pawlegends/src/social/socialSheet.ts` (same order).
+ */
+export const STATUS_NOTE_COUNT = 8;
+/** Favourites (pinned friends at the top of the list): at most this many. */
+export const FAVS_CAP = 20;
 export type PresenceState = typeof PRESENCE_STATES[number];
 
 export function generatePlayerCode(rand: (max: number) => number = randomInt): string {

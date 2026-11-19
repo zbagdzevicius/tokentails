@@ -30,6 +30,8 @@ export interface PresenceView {
     party?: string;
     /** SPECTATE.md: a watchable match's room id (Watch on the friend row): accepted, unblocked friends only. */
     room?: string;
+    /** Online in the menus but set Away (LoL's status); never on a party, queue or match state. */
+    away?: true;
 }
 
 const ms = (d: Date | string | undefined | null) => (d ? new Date(d).getTime() : 0);

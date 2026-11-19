@@ -41,8 +41,14 @@ export interface ChatSheetDeps {
   friend: { code: string; name: string; av?: AvatarView };
   /** A club chat (CLUBS-KUDOS.md §6): open this thread directly (no `chat.open`), lines name their sender, no Block. */
   thread?: string;
-  /** Back to the Social sheet (the sheet removed itself). */
-  onClose(): void;
+  /**
+   * The sheet removed itself: 'back' (a phone's Back, Esc: the conversation stays as a tab) or 'close' (a docked
+   * window's ×: the conversation ends; the next open one takes its place).
+   */
+  onClose(how?: 'back' | 'close'): void;
+  /** The open conversations as tabs (LoL's chat tabs; empty: no strip), and a tab tapped. */
+  tabs?(): ChatTab[];
+  onTab?(code: string): void;
   /** A match is running: the poll pauses. */
   inMatch?(): boolean;
   /** The friend was blocked from the menu: the Social sheet reloads. */
@@ -58,6 +64,16 @@ export interface ChatSheetDeps {
   status?(): { text: string; state: string } | null;
   /** Unread messages in other threads (a badge on Back, so they are not lost while this thread covers the list). */
   unreadElsewhere?(): number;
+}
+
+/** One open conversation on the thread's tab strip. */
+export interface ChatTab {
+  code: string;
+  name: string;
+  av?: AvatarView;
+  state: string;
+  unread: number;
+  active: boolean;
 }
 
 /** The text a bubble shows (phrases and stickers by id; '' for an unknown id). Pure. */
@@ -129,6 +145,8 @@ export class ChatSheet {
   private minimised = false;
   private unseen = 0;
   private pressTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Touch: the friend's message whose "…" shows (a tap on it). */
+  private picked: string | null = null;
   private readonly unwatchViewport: () => void;
 
   constructor(
@@ -158,7 +176,7 @@ export class ChatSheet {
         return;
       }
       this.dispose();
-      this.deps.onClose();
+      this.deps.onClose('back');
     });
     // a long press (touch) or a right click on a friend's message opens Report (no "…" on every bubble)
     this.root.addEventListener('contextmenu', (e) => {
@@ -430,7 +448,7 @@ export class ChatSheet {
         const at = new Date(m.at);
         const valid = !Number.isNaN(at.getTime());
         const stamp = valid && needsStamp(this.messages, i) ? `<li class="pl-chat-day" role="separator"><span>${this.esc(chatStamp(at, now))}</span></li>` : '';
-        const cls = `pl-chat-msg${m.mine ? ' mine' : ''}${m.k === 's' ? ' sticker' : m.k === 'q' ? ' phrase' : ''}${this.reporting === m.mid ? ' is-reporting' : ''}`;
+        const cls = `pl-chat-msg${m.mine ? ' mine' : ''}${m.k === 's' ? ' sticker' : m.k === 'q' ? ' phrase' : ''}${this.reporting === m.mid ? ' is-reporting' : ''}${this.picked === m.mid ? ' is-picked' : ''}`;
         const report =
           !m.mine && this.reporting === m.mid
             ? `<span class="pl-chat-report">${CHAT_REPORT_KINDS.map((k) => `<button type="button" class="pl-report-chip" data-a="report-kind" data-kind="${k}" data-mid="${this.esc(m.mid)}">${this.esc(CHAT_REPORT_LABELS[k])}</button>`).join('')}</span>`
@@ -438,7 +456,8 @@ export class ChatSheet {
         const more = m.mine ? '' : `<button type="button" class="pl-chat-more" data-a="report" data-mid="${this.esc(m.mid)}" aria-label="Report this message">&hellip;</button>`;
         const who = m.who && !m.mine ? `<small class="pl-chat-who" data-name="${this.esc(m.who)}"></small>` : '';
         const title = valid ? ` title="${this.esc(chatStamp(at, now))}"` : '';
-        return `${stamp}<li class="${cls}" data-mid="${this.esc(m.mid)}">${who}<span class="pl-chat-bubble"${title} data-text="${this.esc(bubbleText(m))}"></span>${more}${report}</li>`;
+        const pick = m.mine ? '' : ' data-a="pick"';
+        return `${stamp}<li class="${cls}" data-mid="${this.esc(m.mid)}">${who}<span class="pl-chat-bubble"${title}${pick} data-text="${this.esc(bubbleText(m))}"></span>${more}${report}</li>`;
       })
       .join('');
     const empty = !this.messages.length ? `<li class="pl-chat-empty">${this.loading ? 'Loading…' : 'Say hi! 👋'}</li>` : '';
@@ -447,7 +466,7 @@ export class ChatSheet {
     const others = this.deps.docked ? 0 : (this.deps.unreadElsewhere?.() ?? 0);
     const back = this.deps.docked
       ? `<button type="button" class="pl-ico pl-chat-x" data-a="back" aria-label="Close chat" title="Close chat">${icon('close', 20)}</button>`
-      : `<button type="button" class="pl-ico pl-chat-back" data-a="back" aria-label="${others ? `Back to friends, ${others} unread` : 'Back to friends'}" title="Back"><span class="pl-ic">${icon('chevron', 22)}${others ? `<i class="pl-chat-unread">${Math.min(99, others)}</i>` : ''}</span></button>`;
+      : `<button type="button" class="pl-ico pl-chat-back${others ? ' has-n' : ''}" data-a="back" aria-label="${others ? `Back to friends, ${others} unread` : 'Back to friends'}" title="Back">${icon('chevron', 22)}${others ? `<b class="pl-back-n">${Math.min(99, others)}</b>` : ''}</button>`;
     const av = this.deps.thread ? '<span class="pl-club-crest" aria-hidden="true">' + this.esc(f.name.slice(0, 1)) + '</span>' : `<span class="pl-fr-av"${st ? ` data-state="${this.esc(st.state)}"` : ''}>${avatarHtml(f.av, 40)}${st ? `<i class="pl-dot" data-state="${this.esc(st.state)}"></i>` : ''}</span>`;
     const sub = this.muted ? 'Muted' : (st?.text ?? '');
     const fresh = this.minimised && this.unseen ? `<b class="pl-chat-new">${this.unseen} new</b>` : '';
@@ -458,7 +477,18 @@ export class ChatSheet {
       : '';
     const opts = this.minimised ? '' : `<button type="button" class="pl-ico" data-a="menu" aria-label="Chat options" aria-expanded="${this.menu}" title="Options">${icon('more', 20)}</button>`;
     this.root.classList.toggle('is-min', this.minimised);
-    const html = `<header class="pl-chat-head">${this.deps.docked ? '' : back}${av}${who}${opts}${min}${this.deps.docked ? back : ''}</header><div class="pl-chat-menuwrap">${menu}</div><ul class="pl-chat-list" data-testid="chat-list">${earlier}${empty}${bubbles}</ul><p class="pl-sr" aria-live="polite" data-name="${this.esc(this.announce)}"></p><footer class="pl-chat-foot">${this.composerHtml()}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</footer>`;
+    // the open conversations (LoL's chat tabs): switch without going Back; unread ones carry their count
+    const tabs = this.deps.thread ? [] : (this.deps.tabs?.() ?? []);
+    const strip = tabs.length
+      ? `<nav class="pl-chat-tabs" role="tablist" aria-label="Conversations" data-testid="chat-tabs">${tabs
+          .map(
+            (t) =>
+              `<button type="button" role="tab" class="pl-chat-tab${t.unread ? ' has-unread' : ''}" data-a="tab" data-code="${this.esc(t.code)}" aria-selected="${t.active}" aria-label="${this.esc(`${t.name}${t.unread ? `, ${t.unread} unread` : ''}`)}" title="${this.esc(t.name)}"><span class="pl-fr-av" data-state="${this.esc(t.state)}">${avatarHtml(t.av, 32)}<i class="pl-dot" data-state="${this.esc(t.state)}"></i></span><span class="pl-chat-tab-n" data-name="${this.esc(t.name)}"></span>${t.unread ? `<b class="pl-chat-tab-u">${Math.min(99, t.unread)}</b>` : ''}</button>`,
+          )
+          .join('')}</nav>`
+      : '';
+    this.root.classList.toggle('has-tabs', !!strip);
+    const html = `${this.minimised ? '' : strip}<header class="pl-chat-head">${this.deps.docked ? '' : back}${av}${who}${opts}${min}${this.deps.docked ? back : ''}</header><div class="pl-chat-menuwrap">${menu}</div><ul class="pl-chat-list" data-testid="chat-list">${earlier}${empty}${bubbles}</ul><p class="pl-sr" aria-live="polite" data-name="${this.esc(this.announce)}"></p><footer class="pl-chat-foot">${this.composerHtml()}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</footer>`;
     morphHtml(this.root, html, (tree) => {
       for (const el of tree.querySelectorAll<HTMLElement>('[data-name]')) {
         el.textContent = el.dataset.name ?? '';
@@ -495,8 +525,22 @@ export class ChatSheet {
     switch (a) {
       case 'back':
         this.dispose();
-        this.deps.onClose();
+        this.deps.onClose(this.deps.docked ? 'close' : 'back');
         return;
+      case 'tab': {
+        const code = el.dataset.code ?? '';
+        if (!code || el.getAttribute('aria-selected') === 'true') return;
+        this.dispose();
+        this.deps.onTab?.(code);
+        return;
+      }
+      case 'pick': {
+        // touch: a tap on a friend's message shows its "…" (Report) beside it; a second tap hides it
+        const mid = el.closest<HTMLElement>('.pl-chat-msg')?.dataset.mid ?? null;
+        this.picked = this.picked === mid ? null : mid;
+        this.render();
+        return;
+      }
       case 'menu':
         this.menu = !this.menu;
         this.render();
@@ -540,7 +584,7 @@ export class ChatSheet {
           }
           this.dispose();
           this.deps.onBlocked?.();
-          this.deps.onClose();
+          this.deps.onClose('close');
         });
         return;
       case 'report':

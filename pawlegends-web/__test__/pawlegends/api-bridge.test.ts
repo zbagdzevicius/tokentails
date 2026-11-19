@@ -202,6 +202,12 @@ describe("pawlegends api bridge (host)", () => {
       frame: null,
     });
     expect(routeOf("social.me", { avatarKind: "photo", avatarRef: "https://x" })?.body).toEqual({});
+    // the social sidebar: Away, a preset note (-1 clears it), a favourite by code; free text never passes
+    expect(routeOf("social.me", { away: true, note: 3 })?.body).toEqual({ away: true, note: 3 });
+    expect(routeOf("social.me", { note: -1 })?.body).toEqual({ note: null });
+    expect(routeOf("social.me", { note: "Looking for duo" })?.body).toEqual({});
+    expect(routeOf("social.me", { code: "PL-7KQ2-M9XR", favOn: true })?.body).toEqual({ fav: { code: "PL-7KQ2-M9XR", on: true } });
+    expect(routeOf("social.me", { code: "../x", favOn: true })?.body).toEqual({});
   });
 
   it("club and kudos routes (CLUBS-KUDOS.md §3, §5): registered only, names are list positions, club threads chat", () => {

@@ -116,10 +116,11 @@ test('Clubs: create with a generated name, the club card and chest, members, clu
   await expect(card).toBeVisible();
   await expect(sheet.locator('[data-testid="club-code-text"]')).toHaveText('CL-7KQ2M9');
   await expect(sheet.locator('[data-testid="club-kudos"]')).toContainText('2/3');
-  // no scroll anywhere in the sheet
+  // the sheet never scrolls; on a tall screen the club fits without a scroll (a phone held sideways scrolls the
+  // list: 44 px touch targets and the constant header, social sidebar round 5)
   expect(await sheet.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
   const body = sheet.locator('.pl-social-body');
-  expect(await body.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+  if (info.project.name === 'desktop') expect(await body.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
   if (SHOTS) await page.screenshot({ path: join(SHOTS, `after-02-club-${info.project.name}.png`) });
   await sheet.locator('[data-testid="club-claim"]').click();
   await expect(sheet.locator('.pl-social-note')).toContainText('Rookie Legend title');

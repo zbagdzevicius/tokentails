@@ -54,6 +54,18 @@ export class PawlegendsSocial {
     @Prop({ default: true })
     allowRecent: boolean;
 
+    /** Away (LoL's status): online but not at the keys; friends see "Away" while the player is only in the menus. */
+    @Prop({ type: Boolean, default: undefined })
+    away?: boolean;
+
+    /** A preset status note (its index in STATUS_NOTE_COUNT), shown to friends under the name; null: none. */
+    @Prop({ type: Number, default: undefined })
+    note?: number | null;
+
+    /** Favourite friends (account ids, at most FAVS_CAP): pinned at the top of this player's list. */
+    @Prop({ type: [String], default: undefined })
+    favs?: string[];
+
     /** Bumped on any change a friend's list or a request touches (the pulse compares sums). */
     @Prop({ default: 0 })
     rev: number;

@@ -66,7 +66,8 @@ describe('social sheet', () => {
     expect(rowAction({ state: 'party', joinable: true, party: 'CD' }, true, 'CD')).toBe('more');
     expect(rowAction({ state: 'queue' }, true, 'CD')).toBe('more');
     expect(rowAction({ state: 'queue', mode: 'ranked' }, false)).toBe('more');
-    expect(rowAction({ state: 'party', size: 2, max: 3, party: 'AB' }, false)).toBe('more');
+    // a lobby that is not open: Ask to join (a "Wanna play?" in their DM), LoL's ask-to-join
+    expect(rowAction({ state: 'party', size: 2, max: 3, party: 'AB' }, false)).toBe('ask');
     expect(busyText({ state: 'queue' })).toBe('In a queue: invite after it');
     expect(busyText({ state: 'party', party: 'CD' }, 'CD')).toBe('Already in your party');
     expect(busyText({ state: 'party', party: 'AB' })).toBe('In another lobby');
@@ -131,10 +132,11 @@ describe('social sheet', () => {
     expect([30_000, 5 * 60_000, 3 * 3_600_000, 3 * 86_400_000].map((d) => spanText(now - d, now))).toEqual(['now', '5m', '3h', '3d']);
   });
 
-  it('one header row on every screen: me (status card), the invite gift, Add, Close; requests fold on a short screen', async () => {
-    expect(groupFolded('requests', undefined, { on: 1, off: 0 }, true)).toBe(true);
-    expect(groupFolded('requests', undefined, { on: 0, off: 3 }, true)).toBe(false);
-    expect(groupFolded('requests', undefined, { on: 1, off: 0 }, false)).toBe(false);
+  it('one header row on every screen and tab: me (status card), the invite gift, Add, Close; requests never fold', async () => {
+    // friend requests stay open at the top (LoL), whatever was chosen before
+    expect(groupFolded('requests', undefined, { on: 1, off: 0 })).toBe(false);
+    expect(groupFolded('requests', true, { on: 1, off: 0 })).toBe(false);
+    expect(groupFolded('offline', undefined, { on: 1, off: 7 })).toBe(true);
     localStorage.removeItem('pl.social.groups.v1');
     localStorage.removeItem('pl.social.inviteFolded');
     const { calls } = sheet({
@@ -142,8 +144,9 @@ describe('social sheet', () => {
       answer: (op) => (op === 'growth.invite' ? { id: 'x', ok: true, status: 200, body: { code: 'K7QX2MP', link: 'https://pawlegends.app/?ref=K7QX2MP', need: 3, invited: [], accepted: null, claimable: 0, nextCoat: null, earned: 0, cap: 5 } } : null),
     });
     await flush();
-    expect(document.querySelector('[data-group="requests"]')!.getAttribute('aria-expanded')).toBe('false');
-    expect(document.querySelectorAll('.pl-rq')).toHaveLength(0);
+    // a heading, not a fold button: the request rows show on a short screen too
+    expect(document.querySelector('[data-group="requests"]')!.tagName).toBe('H3');
+    expect(document.querySelectorAll('.pl-rq').length).toBeGreaterThan(0);
     // friends to show: the invite card starts folded into the header's gift; no search field until Search is tapped
     expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
     expect(document.querySelector('.pl-social-head [data-testid="invite-open"]')).toBeTruthy();
@@ -155,6 +158,9 @@ describe('social sheet', () => {
     await flush();
     expect(document.querySelector('[data-testid="social-unread"]')).toBeTruthy();
     expect(document.querySelector('[role="tab"][data-tab="friends"]')!.getAttribute('aria-label')).toBe('Friends, 1 request');
+    // the header does not change with the tab: me, the gift and Add stay
+    expect(document.querySelector('.pl-social-head [data-testid="social-me"]')).toBeTruthy();
+    expect(document.querySelector('.pl-social-head [data-testid="invite-open"]')).toBeTruthy();
     document.querySelector<HTMLElement>('[role="tab"][data-tab="friends"]')!.click();
     await flush();
     // the gift opens the card at the top of the list; its × folds it again
@@ -171,7 +177,7 @@ describe('social sheet', () => {
     expect(document.querySelector('[data-testid="social-me-card"]')).toBeTruthy();
     document.querySelector<HTMLElement>('.pl-me-opt[data-v="invisible"]')!.click();
     await flush();
-    expect(calls.find((c) => c.op === 'social.me')?.args).toEqual({ invisible: true });
+    expect(calls.find((c) => c.op === 'social.me')?.args).toEqual({ invisible: true, away: false });
     expect(document.querySelector('[data-testid="social-me-card"]')).toBeNull();
     expect(document.querySelector('[data-testid="social-me"]')!.getAttribute('aria-label')).toContain('Appear offline');
   });
@@ -248,7 +254,7 @@ describe('social sheet', () => {
     const menu = () => document.querySelector<HTMLElement>('.pl-fr-menu');
     expect(menu()).toBeTruthy();
     expect(menu()!.querySelector('.pl-fr-menu-name')!.textContent).toBe('Friend 2');
-    expect([...menu()!.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent)).toEqual(['Message', 'Remove friend', 'Block']);
+    expect([...menu()!.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent)).toEqual(['Message', 'Pin to favourites', 'Remove friend', 'Block']);
     menu()!.querySelector<HTMLElement>('[data-a="remove"]')!.click();
     expect(t.calls.some((c) => c.op === 'friend.remove')).toBe(false);
     expect(menu()!.querySelector('[data-a="remove"]')!.textContent).toBe('Tap again to remove');

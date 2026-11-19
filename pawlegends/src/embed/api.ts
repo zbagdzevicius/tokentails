@@ -89,6 +89,9 @@ export const API_ARG_KEYS = Object.freeze([
   'name',
   'invisible',
   'allowRecent',
+  // the social sidebar: Away, a preset status note (its index; -1 clears it) and a favourite friend (code + favOn)
+  'away',
+  'favOn',
   'ageBand',
   'kind',
   'hero',

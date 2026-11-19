@@ -4,15 +4,26 @@
    v6 Lightning Rivalry: night-2 panel, cream type, the bolt for the one primary action and focus, rose for unread and
    requests. LoL-style density: 48–56 px rows, 32–40 px avatars with a presence ring, small icon actions, collapsible
    groups. Type: names 15 px (16 on big screens, 17 with the large-text setting), status and labels 13–14 px. */
+/* presence has its own palette (round 5): never the bolt of a primary action or the rose of an alert. Each state is a
+   hue and a shape: online a green disc, away an amber crescent, in a lobby a violet disc, in a queue a teal ring, in
+   a match a slate square, offline a faint hollow disc. Text tints are the lighter step of the same hue. */
+html .pl-social, html .pl-chat {
+  --pr-online: #3fcf7f; --pr-online-t: #79e6a6;
+  --pr-away: #f2a65a; --pr-away-t: #ffc58c;
+  --pr-lobby: #a98bff; --pr-lobby-t: #cbb8ff;
+  --pr-queue: #2fc9c0; --pr-queue-t: #7fe3dc;
+  --pr-match: #8ea3cc; --pr-match-t: #bccbe8;
+}
+html .pl-chat { --soc-st: 14px; }
 html .pl-social {
-  --soc-row: 44px; --soc-name: 15px; --soc-st: 13px; --soc-av: 32px;
+  --soc-row: 44px; --soc-name: 15px; --soc-st: 14px; --soc-av: 32px;
   width: min(100vw, clamp(352px, 26vw, 420px)); min-width: 0; gap: 6px;
   padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 10px;
   font: 600 14px/1.25 var(--font);
 }
 /* LoL density with a mouse; touch keeps 48 px rows (44 px targets plus breathing room) */
 @media (pointer: coarse) { html .pl-social { --soc-row: 48px; } }
-@media (min-width: 1600px) and (min-height: 800px) { html .pl-social { --soc-row: 50px; --soc-name: 16px; --soc-st: 14px; --soc-av: 36px; } }
+@media (min-width: 1600px) and (min-height: 800px) { html .pl-social { --soc-row: 50px; --soc-name: 16px; --soc-st: 15px; --soc-av: 36px; } }
 @media (max-height: 500px) { html .pl-social { gap: 4px; padding-top: max(4px, env(safe-area-inset-top)); padding-bottom: max(4px, env(safe-area-inset-bottom)); } }
 html[data-menu-text='large'] .pl-social { --soc-row: 56px; --soc-name: 17px; --soc-st: 15px; --soc-av: 36px; }
 /* a phone held upright: the panel and a DM take the whole width (no strip of game beside them) */
@@ -80,14 +91,14 @@ html .pl-mi.danger, html .pl-mi.danger .pl-i { color: #ff9aa0; }
 html .pl-mi:disabled { cursor: default; color: var(--v6-faint); background: none; }
 html .pl-mi:disabled .pl-i { color: var(--v6-faint); }
 html .pl-mi > span { display: grid; gap: 2px; min-width: 0; }
-html .pl-mi > span small { color: var(--v6-muted); font: 600 13px/1.2 var(--font); }
+html .pl-mi > span small { color: var(--v6-muted); font: 600 14px/1.2 var(--font); }
 html .pl-mi.danger.armed { background: var(--v6-enemy); color: #fff; }
 html .pl-mi.danger.armed .pl-i { color: #fff; }
 
 /* ── the search row (opened from the tab bar) and the Add a friend card ────────────────────────────────────────── */
 html .pl-social-searchrow { flex: none; display: flex; align-items: center; gap: 2px; }
 html .pl-social-search {
-  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; box-sizing: border-box;
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; box-sizing: border-box;
   border-radius: var(--v6-r-s); background: var(--v6-night-0); box-shadow: inset 0 0 0 1px var(--v6-line-strong); color: var(--v6-muted); cursor: text;
 }
 html .pl-social-search:focus-within { box-shadow: inset 0 0 0 2px var(--v6-bolt); color: var(--v6-cream); }
@@ -100,7 +111,7 @@ html .pl-social-search input::-webkit-search-cancel-button, html .pl-social-sear
 /* the letters a search matched, in a friend's name */
 html .pl-social .pl-hl { padding: 0; border-radius: 2px; background: rgb(var(--v6-bolt-rgb) / 0.28); color: var(--v6-cream); box-shadow: inset 0 -2px 0 var(--v6-bolt); }
 html .pl-ico {
-  flex: none; position: relative; display: inline-grid; place-items: center; width: 40px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s);
+  flex: none; position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s);
   background: transparent; color: var(--v6-muted); cursor: pointer; touch-action: manipulation;
   transition: background-color var(--v6-dur-fast) var(--v6-ease-out), color var(--v6-dur-fast) var(--v6-ease-out), opacity var(--v6-dur-fast) var(--v6-ease-out);
 }
@@ -118,9 +129,9 @@ html .pl-add-card {
 html .pl-add-top { display: flex; align-items: center; gap: 4px; }
 html .pl-add-top .pl-social-search { box-shadow: inset 0 0 0 1px var(--v6-line-strong); background: var(--v6-night-2); }
 html .pl-add-top .pl-social-search .pl-i { color: var(--v6-bolt); }
-html .pl-social .pl-add-top .pl-btn { min-height: 40px; padding: 0 16px; }
+html .pl-social .pl-add-top .pl-btn { min-height: 44px; padding: 0 16px; }
 html .pl-social .pl-social-none .pl-btn { display: inline-flex; align-items: center; gap: 6px; }
-html .pl-social-hint { margin: 4px 6px 2px; color: var(--v6-muted); font-size: 13px; line-height: 1.35; }
+html .pl-social-hint { margin: 4px 6px 2px; color: var(--v6-muted); font-size: 14px; line-height: 1.35; }
 html .pl-social-suggest { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
 html .pl-social-suggest:empty { display: none; }
 
@@ -139,49 +150,68 @@ html .pl-inv-top { display: flex; align-items: flex-start; gap: 10px; }
 html .pl-inv-ic { flex: none; display: grid; place-items: center; width: 22px; height: 22px; color: var(--v6-bolt); }
 html .pl-inv-txt { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
 html .pl-social .pl-invite-row .pl-social-name { font: 800 15px/1.25 var(--font); white-space: normal; overflow: visible; }
-html .pl-inv-sub { color: var(--v6-muted); font-size: 13px; line-height: 1.3; }
+html .pl-inv-sub { color: var(--v6-muted); font-size: 14px; line-height: 1.35; }
 html .pl-social .pl-inv-fold { width: 44px; margin: -10px 0 -10px 0; }
 html .pl-inv-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 html .pl-inv-code {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px; border: 1px dashed rgb(var(--v6-bolt-rgb) / 0.6);
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px dashed rgb(var(--v6-bolt-rgb) / 0.6);
   border-radius: var(--v6-r-s); background: var(--v6-night-0); color: var(--v6-muted); font: inherit; cursor: pointer;
 }
-html .pl-inv-code small { color: var(--v6-muted); font: 700 13px/1 var(--font); }
+html .pl-inv-code small { color: var(--v6-muted); font: 700 14px/1 var(--font); }
 html .pl-inv-code b { color: var(--v6-bolt); font: 800 15px/1 var(--font); letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
 @media (hover: hover) { html .pl-inv-code:hover { border-style: solid; color: var(--v6-cream); } }
 html .pl-inv-code:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
-html .pl-social .pl-inv-share { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; }
+html .pl-social .pl-inv-share { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; }
 html .pl-inv-have {
   justify-self: start; min-height: 44px; margin: -6px 0 -4px; padding: 0; border: 0; background: none; color: var(--v6-muted);
-  font: 600 13px/1.2 var(--font); text-decoration: underline; text-decoration-color: rgb(var(--v6-bolt-rgb) / 0.6); text-underline-offset: 3px; cursor: pointer;
+  font: 600 14px/1.2 var(--font); text-decoration: underline; text-decoration-color: rgb(var(--v6-bolt-rgb) / 0.6); text-underline-offset: 3px; cursor: pointer;
 }
 @media (hover: hover) { html .pl-inv-have:hover { color: var(--v6-cream); } }
 html .pl-social .pl-invite-form { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 4px; background: rgb(var(--v6-bolt-rgb) / 0.08); box-shadow: none; }
-html .pl-social .pl-invite-form input { min-height: 40px; font-size: 16px; }
+html .pl-social .pl-invite-form input { min-height: 44px; font-size: 16px; }
 
 /* groups: a sticky header with a chevron and a count */
 /* the header is opaque and above the rows (rows stack in their own layer below it): nothing shows through or on top */
 html .pl-group { display: grid; grid-template-columns: minmax(0, 1fr); }
 html .pl-group-h {
-  position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: 6px; width: 100%; min-height: 40px; padding: 0 8px 0 4px;
+  position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: 6px; width: 100%; min-height: 44px; margin: 0; padding: 0 8px 0 4px; box-sizing: border-box;
   border: 0; border-radius: 0; background: var(--v6-night-2); box-shadow: 0 -2px 0 var(--v6-night-2), inset 0 -1px 0 var(--v6-line);
-  color: var(--v6-muted); font: 800 13px/1 var(--font); letter-spacing: 0.06em; text-transform: uppercase; text-align: left; cursor: pointer;
+  color: rgb(var(--v6-cream-rgb) / 0.78); font: 800 14px/1 var(--font); letter-spacing: 0.04em; text-transform: uppercase; text-align: left; cursor: pointer;
 }
-html .pl-group-h .pl-i { flex: none; transition: transform var(--v6-dur-fast) var(--v6-ease-out); }
-html .pl-group-h[aria-expanded='false'] .pl-i { transform: rotate(-90deg); }
+html .pl-group-h > .pl-i { flex: none; transition: transform var(--v6-dur-fast) var(--v6-ease-out); }
+html .pl-group-h[aria-expanded='false'] > .pl-i { transform: rotate(-90deg); }
+html .pl-group-t { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+html .pl-group-t .pl-i { flex: none; color: var(--v6-gold-2); }
+/* a heading that never folds (Friend requests, a recent match) */
+html .pl-group-h.is-static { cursor: default; }
+html .pl-group-h.is-static > .pl-i { color: var(--v6-muted); }
+html .pl-group[data-g='requests'] .pl-group-h { color: var(--v6-cream); }
+/* a recent match: "Casual · Victory · 2h ago" in sentence case, the result tinted */
+html .pl-rc-match .pl-group-h { text-transform: none; letter-spacing: 0; font-weight: 700; }
+html .pl-rc-match[data-won='true'] .pl-group-h { box-shadow: 0 -2px 0 var(--v6-night-2), inset 3px 0 0 var(--pr-online), inset 0 -1px 0 var(--v6-line); }
+html .pl-rc-match[data-won='false'] .pl-group-h { box-shadow: 0 -2px 0 var(--v6-night-2), inset 3px 0 0 var(--v6-enemy), inset 0 -1px 0 var(--v6-line); }
+html .pl-social .pl-rc-foot { margin-top: 10px; text-align: center; }
 @media (hover: hover) { html .pl-group-h:hover { color: var(--v6-cream); } }
 html .pl-group-h:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+/* count pills: 13 px on a solid fill (no faint 8 % wash) */
 html .pl-group-n {
-  margin-left: auto; min-width: 24px; padding: 3px 7px; box-sizing: border-box; border-radius: 10px; background: rgb(var(--v6-cream-rgb) / 0.08);
-  color: var(--v6-cream); letter-spacing: 0; text-align: center; font-variant-numeric: tabular-nums;
+  margin-left: auto; min-width: 26px; padding: 4px 8px; box-sizing: border-box; border-radius: 11px; background: var(--v6-night-3, #3a2a55);
+  box-shadow: inset 0 0 0 1px var(--v6-line-strong); color: var(--v6-cream); font: 800 13px/1 var(--font); letter-spacing: 0; text-align: center; font-variant-numeric: tabular-nums;
 }
-html .pl-group[data-g='requests'] .pl-group-n { background: var(--v6-rose); color: #fff; }
-html .pl-group[data-g='online'] .pl-group-n { color: var(--v6-success); }
+html .pl-group[data-g='requests'] .pl-group-n { background: var(--v6-rose); box-shadow: none; color: #fff; }
+html .pl-group[data-g='online'] .pl-group-n { background: rgb(63 207 127 / 0.22); box-shadow: inset 0 0 0 1px rgb(63 207 127 / 0.55); color: var(--pr-online-t); }
+html .pl-group[data-g='match'] .pl-group-n { background: rgb(142 163 204 / 0.22); box-shadow: inset 0 0 0 1px rgb(142 163 204 / 0.55); color: var(--pr-match-t); }
+html .pl-group[data-g='fav'] .pl-group-n { background: rgb(242 193 78 / 0.2); box-shadow: inset 0 0 0 1px rgb(242 193 78 / 0.55); color: var(--v6-gold-1); }
 html .pl-group-list { position: relative; z-index: 0; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 2px 0 6px; }
 @media (max-height: 500px) {
-  html .pl-group-h { min-height: 36px; }
   html .pl-social > .pl-social-head { min-height: 44px; }
 }
+/* the scroll cue: a fade over the list's bottom edge while more rows sit below */
+html .pl-social .pl-social-body::after {
+  content: ''; position: sticky; bottom: -8px; z-index: 5; flex: none; height: 28px; margin-top: -28px; pointer-events: none;
+  background: linear-gradient(180deg, rgb(var(--v6-night-2-rgb, 36 22 58) / 0), var(--v6-night-2)); opacity: 0; transition: opacity var(--v6-dur-fast) var(--v6-ease-out);
+}
+html .pl-social.has-more .pl-social-body::after { opacity: 1; }
 @media (pointer: coarse) { html .pl-group-list { gap: 0; } }
 
 /* ── me (LoL's top block, in the header): my avatar with my status, my name, my status ▾; the card under it ───── */
@@ -204,8 +234,15 @@ html .pl-me-card [role='radiogroup'], html .pl-me-card-acts { display: grid; gap
 html .pl-me-card-acts { padding-top: 4px; border-top: 1px solid var(--v6-line); }
 html .pl-me-opt { min-height: 48px; }
 html .pl-me-opt > span { flex: 1 1 auto; display: grid; gap: 2px; min-width: 0; }
-html .pl-me-opt small { color: var(--v6-muted); font: 600 13px/1.25 var(--font); }
+html .pl-me-opt small { color: var(--v6-muted); font: 600 14px/1.25 var(--font); }
 html .pl-me-opt .pl-dot { width: 12px; height: 12px; margin: 0 4px; }
+/* my status note: one of the presets, a native select (44 px, keyboard and screen reader for free) */
+html .pl-me-note { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 4px 6px 4px 12px; border-top: 1px solid var(--v6-line); color: var(--v6-muted); font: 700 14px/1.2 var(--font); }
+html .pl-me-note select {
+  min-width: 0; min-height: 44px; padding: 0 10px; border: 0; border-radius: var(--v6-r-s); background: var(--v6-night-2); color: var(--v6-cream);
+  box-shadow: inset 0 0 0 1px var(--v6-line-strong); font: 600 16px/1.2 var(--font); cursor: pointer;
+}
+html .pl-me-note select:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--v6-bolt); }
 html .pl-me-opt .pl-i { color: var(--v6-bolt); }
 html .pl-me-code { color: var(--v6-bolt); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
 
@@ -234,16 +271,22 @@ html .pl-fr-av {
 html .pl-fr-av .pl-av { --av: var(--soc-av, 36px) !important; border: 0 !important; box-shadow: 0 0 0 2px var(--v6-night-2), 0 0 0 4px var(--ring) !important; }
 /* the portrait art has its own coloured rim: crop it, so the only ring is the presence ring */
 html .pl-fr-av .pl-av img { transform: scale(1.2); }
-html .pl-fr-av[data-state='online'] { --ring: var(--v6-success); }
-html .pl-fr-av[data-state='party'] { --ring: var(--v6-bolt); }
-html .pl-fr-av[data-state='queue'] { --ring: var(--v6-sky); }
-html .pl-fr-av[data-state='match'] { --ring: var(--v6-rose); }
+html .pl-fr-av[data-state='online'] { --ring: var(--pr-online); }
+html .pl-fr-av[data-state='away'] { --ring: var(--pr-away); }
+html .pl-fr-av[data-state='party'] { --ring: var(--pr-lobby); }
+html .pl-fr-av[data-state='queue'] { --ring: var(--pr-queue); }
+html .pl-fr-av[data-state='match'] { --ring: var(--pr-match); }
 html .pl-fr-av[data-state='offline'] .pl-av { filter: grayscale(0.85) brightness(0.72); }
-html .pl-fr-av .pl-dot, html .pl-me-opt .pl-dot { width: 12px; height: 12px; box-shadow: 0 0 0 2.5px var(--v6-night-2); }
+html .pl-fr-av[data-state='away'] .pl-av { filter: saturate(0.6) brightness(0.88); }
+html .pl-social .pl-dot, html .pl-chat .pl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--v6-faint); box-shadow: 0 0 0 2.5px var(--v6-night-2); }
 html .pl-fr-av .pl-dot { position: absolute; right: -5px; bottom: -5px; z-index: 1; }
-html .pl-dot[data-state='queue'] { background: var(--v6-night-2); box-shadow: inset 0 0 0 3px var(--v6-sky), 0 0 0 2.5px var(--v6-night-2); }
-html .pl-dot[data-state='match'] { border-radius: 3px; }
-html .pl-dot[data-state='offline'] { background: var(--v6-night-3); box-shadow: inset 0 0 0 2px var(--v6-faint), 0 0 0 2.5px var(--v6-night-2); }
+html .pl-social .pl-dot[data-state='online'], html .pl-chat .pl-dot[data-state='online'] { background: var(--pr-online); }
+/* away: an amber crescent (a night bite out of the disc) */
+html .pl-social .pl-dot[data-state='away'], html .pl-chat .pl-dot[data-state='away'] { background: radial-gradient(circle at 72% 28%, var(--v6-night-2) 0 34%, transparent 36%), var(--pr-away); }
+html .pl-social .pl-dot[data-state='party'], html .pl-chat .pl-dot[data-state='party'] { background: var(--pr-lobby); }
+html .pl-social .pl-dot[data-state='queue'], html .pl-chat .pl-dot[data-state='queue'] { background: var(--v6-night-2); box-shadow: inset 0 0 0 3px var(--pr-queue), 0 0 0 2.5px var(--v6-night-2); }
+html .pl-social .pl-dot[data-state='match'], html .pl-chat .pl-dot[data-state='match'] { border-radius: 3px; background: var(--pr-match); }
+html .pl-social .pl-dot[data-state='offline'], html .pl-chat .pl-dot[data-state='offline'] { background: var(--v6-night-3); box-shadow: inset 0 0 0 2px var(--v6-faint), 0 0 0 2.5px var(--v6-night-2); }
 
 /* names keep one line, so every row is one height (LoL): a long one ends in "…" with the whole name as its tooltip
    (fillNames), in the row menu and in the thread head; the flag keeps its gap right after the name */
@@ -253,29 +296,38 @@ html .pl-social .pl-social-row .pl-social-name, html .pl-me .pl-social-name, htm
   flex: 0 1 auto; min-width: 0; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   font: 700 var(--soc-name, 15px)/1.25 var(--font); color: var(--v6-cream);
 }
-html .pl-social .pl-social-nm .pl-cc { flex: none; margin: 0; font-size: 14px; }
+/* the flag sits before the name: a long name ends in "…" and the flag never hides behind it */
+html .pl-social .pl-social-nm .pl-cc { flex: none; margin: 0; font-size: 14px; order: -1; }
 html .pl-social .pl-fr[data-state='offline'] .pl-social-name { color: rgb(var(--v6-cream-rgb) / 0.78); }
 html .pl-social-line { display: flex; flex-wrap: nowrap; align-items: baseline; gap: 6px; min-width: 0; font: 600 var(--soc-st, 13px)/1.25 var(--font); color: var(--v6-muted); }
 html .pl-social .pl-social-line .pl-social-st, html .pl-chat .pl-chat-who-h .pl-social-st { flex: none; font: 600 var(--soc-st, 13px)/1.25 var(--font); color: var(--v6-muted); }
 html .pl-social .pl-social-line .pl-social-st { white-space: nowrap; }
-html .pl-social-st[data-state='online'] { color: var(--v6-success) !important; }
-html .pl-social-st[data-state='party'] { color: var(--v6-bolt) !important; }
-html .pl-social-st[data-state='queue'] { color: var(--v6-sky-top, var(--v6-sky)) !important; }
-html .pl-social-st[data-state='match'] { color: #ff9cc0 !important; }
-/* an unread message: after the status on the same line (the row keeps its height), cut with an ellipsis (the
-   tooltip and the thread show it whole); the name turns bold cream, LoL's unread cue */
+html .pl-social-st[data-state='online'] { color: var(--pr-online-t) !important; }
+html .pl-social-st[data-state='away'] { color: var(--pr-away-t) !important; }
+html .pl-social-st[data-state='party'] { color: var(--pr-lobby-t) !important; }
+html .pl-social-st[data-state='queue'] { color: var(--pr-queue-t) !important; }
+html .pl-social-st[data-state='match'] { color: var(--pr-match-t) !important; }
+/* an unread message: after the status on the same line (the row keeps its height), a small bubble then the text,
+   cut with an ellipsis (the thread shows it whole); the name turns bold cream, LoL's unread cue */
 html .pl-social-msg {
-  flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  color: var(--v6-rose-light); font: 700 var(--soc-st, 13px)/1.25 var(--font);
+  flex: 1 1 auto; align-self: center; min-width: 0; display: inline-flex; align-items: center; gap: 4px; height: 1.25em; overflow: hidden; white-space: nowrap;
+  color: var(--v6-rose-light); font: 700 var(--soc-st, 14px)/1.25 var(--font);
 }
-html .pl-social-msg::before { content: '\201C'; }
+html .pl-social-msg .pl-i { flex: none; display: block; width: 14px; height: 14px; }
+html .pl-social-msg > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* a status note ("Looking for a duo"): after the status, quiet italic, cut with an ellipsis */
+html .pl-social .pl-st-note, html .pl-chat .pl-st-note {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  color: rgb(var(--v6-cream-rgb) / 0.78); font: italic 600 var(--soc-st, 14px)/1.25 var(--font);
+}
+html .pl-social .pl-social-st + .pl-st-note::before { content: '· '; font-style: normal; color: var(--v6-muted); }
 html .pl-social .pl-fr.has-msg .pl-social-name { font-weight: 800; color: var(--v6-cream); }
 html .pl-rc[data-team='ally'] .pl-team { color: #8cc4ff; }
 html .pl-rc[data-team='enemy'] .pl-team { color: #ff9aa0; }
 
 /* trailing actions: two columns (Chat, then the row's action flush right); the right column is always there, so
    every action lines up down the list; buttons are 40×44 with a mouse, 44×44 on touch */
-html .pl-fr-acts { --act: 40px; flex: none; display: grid; grid-template-columns: auto var(--act); align-items: center; column-gap: 2px; }
+html .pl-fr-acts { --act: 44px; flex: none; display: grid; grid-template-columns: auto var(--act); align-items: center; column-gap: 2px; }
 html .pl-fr-acts .pl-act-1 { grid-column: 1; }
 html .pl-fr-acts .pl-act-2 { grid-column: 2; }
 html .pl-fr-acts .pl-ico { width: var(--act); height: 44px; }
@@ -289,7 +341,10 @@ html .pl-fr-acts .pl-ico.is-primary .pl-ic { width: 36px; height: 32px; border-r
 html .pl-fr-acts .pl-ico.is-primary:active .pl-ic { transform: scale(0.94); }
 /* the unread count sits on the bubble's corner */
 html .pl-ic { position: relative; display: grid; place-items: center; }
-html .pl-ic .pl-chat-unread { top: -7px; right: -9px; min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; border-radius: 9px; font: 800 12px/18px var(--font); }
+html .pl-ic .pl-chat-unread { top: -8px; right: -10px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; font: 800 13px/20px var(--font); }
+/* Decline: the same pill as Accept (equal weight), outlined instead of filled */
+html .pl-fr-acts .pl-ico.is-pill .pl-ic { width: 36px; height: 32px; border-radius: var(--v6-r-s); box-shadow: inset 0 0 0 1.5px var(--v6-line-strong); color: var(--v6-cream); }
+@media (hover: hover) { html .pl-fr-acts .pl-ico.is-pill:hover { background: transparent; } html .pl-fr-acts .pl-ico.is-pill:hover .pl-ic { background: rgb(var(--v6-cream-rgb) / 0.1); } }
 html .pl-social .pl-chat-btn.is-unread { color: var(--v6-rose-light); }
 /* a mouse: Invite, Watch and a read Chat show on hover and keyboard focus (their columns stay: nothing shifts) */
 @media (hover: hover) and (pointer: fine) {
@@ -315,11 +370,12 @@ html .pl-fr-menu {
 }
 html .pl-fr-menu-h { display: grid; gap: 2px; margin: 4px 8px 2px; }
 html .pl-fr-menu-name { margin: 0; font: 800 15px/1.3 var(--font); color: var(--v6-cream); overflow-wrap: anywhere; }
-html .pl-fr-menu-h small { color: var(--v6-muted); font: 600 13px/1.25 var(--font); }
+html .pl-fr-menu-h small { color: var(--v6-muted); font: 600 14px/1.25 var(--font); }
 html .pl-fr-menu-acts, html .pl-fr-menu-danger { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 2px; }
 /* Invite greyed with its reason: one line across the menu */
 html .pl-mi-busy { grid-column: 1 / -1; }
-html .pl-mi-busy > span { white-space: nowrap; color: var(--v6-faint); font-weight: 600; }
+html .pl-mi-busy > span { white-space: nowrap; color: var(--v6-muted); font-weight: 600; }
+html .pl-mi.pl-mi-busy .pl-i { color: var(--v6-muted); }
 /* touch or a short screen: the menu is a bottom sheet over the panel (a scrim behind it; tap it to close) */
 html .pl-fr-scrim { position: absolute; inset: 0; z-index: 20; background: rgb(8 4 20 / 0.55); animation: pl-scrim-in var(--v6-dur-fast) var(--v6-ease-out) both; }
 @keyframes pl-scrim-in { from { opacity: 0; } }
@@ -329,15 +385,19 @@ html .pl-fr-menu.is-sheet {
   box-shadow: 0 -1px 0 var(--v6-line-strong), 0 -12px 32px rgb(0 0 0 / 0.5); animation-name: pl-sheet-up;
 }
 @keyframes pl-sheet-up { from { transform: translateY(24px); opacity: 0; } }
-html .pl-fr-menu.is-sheet .pl-fr-menu-h { display: grid; justify-items: center; gap: 6px; margin: 2px 8px 2px; }
+html .pl-fr-menu.is-sheet .pl-fr-menu-h { display: grid; justify-items: center; gap: 8px; margin: 2px 4px 4px; }
 html .pl-fr-grab { width: 36px; height: 4px; border-radius: 2px; background: var(--v6-line-strong); }
-html .pl-fr-menu.is-sheet .pl-fr-menu-name { justify-self: stretch; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center; font-size: 14px; color: var(--v6-muted); }
+/* the bottom sheet shows the friend as their row did: avatar with status, the name, the status line */
+html .pl-fr-menu-who { justify-self: stretch; display: flex; align-items: center; gap: 12px; min-width: 0; padding: 0 6px 8px; border-bottom: 1px solid var(--v6-line); }
+html .pl-fr-menu-who .pl-fr-av { --soc-av: 40px; }
+html .pl-fr-menu.is-sheet .pl-fr-menu-name { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 800 16px/1.25 var(--font); color: var(--v6-cream); }
 html .pl-fr-menu.is-sheet .pl-mi { min-height: 48px; }
+html .pl-social .pl-fr-cancel { width: 100%; min-height: 48px; margin-top: 4px; }
 html .pl-fr-menu-danger { padding-top: 4px; border-top: 1px solid var(--v6-line); }
 
 /* ── one button system in the sheet: bolt = the one primary, ghost = quiet, rose = the one CTA of an empty state ── */
 html .pl-social .pl-btn, html .pl-chat .pl-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 0; border-radius: var(--v6-r-s);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--v6-r-s);
   background: var(--v6-bolt); color: var(--v6-night); text-shadow: none; box-shadow: none; font: 800 14px/1 var(--font); transform: none;
 }
 @media (hover: hover) { html .pl-social .pl-btn:hover, html .pl-chat .pl-btn:hover { background: var(--v6-bolt-top, var(--v6-bolt)); transform: none; } }
@@ -354,8 +414,11 @@ html .pl-social .pl-inv-code { border: 0; box-shadow: inset 0 0 0 1px var(--v6-l
 
 /* ── DM thread: the list's width over it on a phone; docked beside the list on a wide screen (LoL) ──────────── */
 html .pl-chat { width: min(100vw, clamp(352px, 26vw, 420px)); }
+/* a phone held upright: the thread takes the whole width, like the list */
+@media (max-width: 480px) { html .pl-chat:not(.is-docked) { width: 100vw; } }
+/* docked: as tall as its messages (no dead space over a short thread), at most 460 px or 64 % of the screen */
 html .pl-chat.is-docked {
-  top: auto; right: min(100vw, clamp(352px, 26vw, 420px)); bottom: 0; width: 360px; height: min(440px, 62vh);
+  top: auto; right: min(100vw, clamp(352px, 26vw, 420px)); bottom: 0; width: 360px; height: auto; max-height: min(460px, 64vh); min-height: 220px;
   border-radius: var(--v6-r-m, 10px) var(--v6-r-m, 10px) 0 0; box-shadow: -8px -4px 28px rgb(0 0 0 / 0.5), inset 0 0 0 1px var(--v6-line-strong);
   padding: 8px; animation-name: pl-dock-in;
 }
@@ -364,26 +427,52 @@ html .pl-chat.is-docked::before { display: none; }
 html .pl-chat-head { gap: 8px; }
 html .pl-chat-head .pl-fr-av { --soc-av: 36px; }
 html .pl-chat .pl-chat-back .pl-i { transform: rotate(90deg); }
-html .pl-chat .pl-ico { flex: none; position: relative; display: inline-grid; place-items: center; width: 40px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s); background: transparent; color: var(--v6-muted); cursor: pointer; }
+html .pl-chat .pl-ico { flex: none; position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s); background: transparent; color: var(--v6-muted); cursor: pointer; }
 @media (hover: hover) { html .pl-chat .pl-ico:hover { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); } }
 html .pl-chat .pl-ico:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
 html .pl-chat-who-h { flex: 1 1 auto; }
 /* minimised (docked): only the head shows, like LoL's chat tab; what arrived meanwhile shows as "2 new" */
-html .pl-chat.is-docked.is-min { height: auto; padding-top: 4px; padding-bottom: 4px; cursor: pointer; }
+html .pl-chat.is-docked.is-min { height: auto; min-height: 0; padding-top: 4px; padding-bottom: 4px; cursor: pointer; }
 html .pl-chat.is-min .pl-chat-menuwrap, html .pl-chat.is-min .pl-chat-list, html .pl-chat.is-min .pl-chat-foot { display: none; }
 html .pl-chat.is-min .pl-chat-head { box-shadow: none; }
 html .pl-chat-new { margin-right: 6px; padding: 1px 6px; border-radius: 9px; background: var(--v6-rose); color: #fff; font: 800 13px/1.3 var(--font); }
+/* Back's count sits beside the chevron (never drawn over it) */
+html .pl-chat .pl-chat-back.has-n { width: auto; min-width: 44px; padding: 0 8px 0 2px; display: inline-flex; gap: 2px; }
+html .pl-back-n { min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; background: var(--v6-rose); color: #fff; font: 800 13px/20px var(--font); text-align: center; font-variant-numeric: tabular-nums; }
+/* the open conversations (LoL's chat tabs): one strip over the head, avatars with status, unread counts */
+html .pl-chat-tabs { flex: none; display: flex; gap: 4px; margin: 0 0 4px; padding: 0 0 4px; overflow-x: auto; scrollbar-width: none; box-shadow: inset 0 -1px 0 var(--v6-line); }
+html .pl-chat-tabs::-webkit-scrollbar { display: none; }
+html .pl-chat-tab {
+  flex: 0 1 auto; min-width: 44px; max-width: 150px; min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; border: 0;
+  border-radius: var(--v6-r-s); background: transparent; color: var(--v6-muted); font: 700 14px/1 var(--font); cursor: pointer;
+}
+html .pl-chat-tab .pl-fr-av { --soc-av: 26px; }
+html .pl-chat-tab .pl-dot { width: 10px; height: 10px; right: -4px; bottom: -4px; }
+html .pl-chat-tab-n { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+html .pl-chat-tab[aria-selected='true'] { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); box-shadow: inset 0 -3px 0 var(--v6-sky); }
+html .pl-chat-tab.has-unread { color: var(--v6-cream); }
+@media (hover: hover) { html .pl-chat-tab:not([aria-selected='true']):hover { background: rgb(var(--v6-cream-rgb) / 0.06); color: var(--v6-cream); } }
+html .pl-chat-tab:focus-visible { outline: none; box-shadow: var(--v6-focus-inset); }
+html .pl-chat-tab-u { flex: none; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; background: var(--v6-rose); color: #fff; font: 800 13px/20px var(--font); text-align: center; }
 /* the newest messages sit on the composer (a short thread does not float at the top) */
 html .pl-chat .pl-chat-list > :first-child { margin-top: auto; }
 /* time lines: the first message, a new day, or 15 minutes of quiet */
-html .pl-chat-day { align-self: center; margin: 6px 0 2px; color: var(--v6-faint); font: 700 13px/1.2 var(--font); font-variant-numeric: tabular-nums; }
+html .pl-chat-day { align-self: center; margin: 6px 0 2px; color: var(--v6-muted); font: 700 14px/1.2 var(--font); font-variant-numeric: tabular-nums; }
+/* the composer and its notes: 14 px floor; Send a 44 px target */
+html .pl-chat .pl-chat-line, html .pl-chat .pl-chat-err { font-size: 14px; }
+html .pl-chat .pl-chat-count { font-size: 13px; }
+html .pl-chat .pl-chat-chip { font-size: 14px; }
+html .pl-chat .pl-chat-form .pl-btn { min-height: 44px; min-width: 64px; }
 /* Report sits behind a hover (mouse), a right click or a long press (touch): no "…" on every bubble */
 html .pl-chat .pl-chat-msg { position: relative; }
 html .pl-chat .pl-chat-more { opacity: 0; transition: opacity var(--v6-dur-fast) var(--v6-ease-out); }
 html .pl-chat .pl-chat-msg:hover .pl-chat-more, html .pl-chat .pl-chat-more:focus-visible, html .pl-chat .pl-chat-msg.is-reporting .pl-chat-more { opacity: 1; }
+/* touch: a tap on a friend's message shows its "…" (a 44 px target beside the bubble); a long press opens Report */
 @media (hover: none), (pointer: coarse) {
-  html .pl-chat .pl-chat-more { position: absolute; width: 1px; height: 1px; min-width: 0; min-height: 0; padding: 0; overflow: hidden; clip: rect(0 0 0 0); }
-  html .pl-chat .pl-chat-bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  html .pl-chat .pl-chat-msg:not(.is-picked):not(.is-reporting) .pl-chat-more { display: none; }
+  html .pl-chat .pl-chat-msg.is-picked .pl-chat-more { opacity: 1; min-width: 44px; min-height: 44px; }
+  html .pl-chat .pl-chat-msg.is-picked .pl-chat-bubble { box-shadow: inset 0 0 0 2px var(--v6-sky), 0 2px 0 var(--v6-night-0); }
+  html .pl-chat .pl-chat-bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; cursor: pointer; }
 }
 /* the phrases button says what it is (an icon and "Phrases"; the icon alone when the window is narrow) */
 html .pl-chat .pl-chat-phr { flex: none; gap: 6px; padding: 0 10px; min-height: 44px; }
@@ -395,7 +484,7 @@ html .pl-social .pl-social-note {
   box-sizing: border-box; font-size: 14px; line-height: 1.3;
 }
 html .pl-social .pl-social-undo {
-  flex: none; min-height: 36px; padding: 0 12px; border: 0; border-radius: var(--v6-r-xs); background: var(--v6-bolt); color: var(--v6-night);
+  flex: none; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--v6-r-xs); background: var(--v6-bolt); color: var(--v6-night);
   font: 800 14px/1 var(--font); cursor: pointer;
 }
 
@@ -424,14 +513,14 @@ html .pl-social .pl-club-make { display: flex; align-items: center; gap: 8px; }
 html .pl-social .pl-club-newname { flex: 1 1 auto; min-width: 0; font: 800 15px/1.25 var(--font); overflow-wrap: anywhere; }
 html .pl-social .pl-club-die { color: var(--v6-bolt); }
 html .pl-social .pl-club-intro .pl-club-join { display: flex; gap: 6px; margin: 0; padding: 0; background: none; box-shadow: none; }
-html .pl-social .pl-club-intro .pl-club-join input { flex: 1 1 auto; min-width: 0; min-height: 40px; font-size: 16px; }
-html .pl-social .pl-club-kt small, html .pl-social .pl-club-kudos small { font-size: 13px; }
+html .pl-social .pl-club-intro .pl-club-join input { flex: 1 1 auto; min-width: 0; min-height: 44px; font-size: 16px; }
+html .pl-social .pl-club-kt small, html .pl-social .pl-club-kudos small { font-size: 14px; }
 
 /* Leaderboards (under More): rows scroll; names keep their room */
 html .pl-social .pl-social-sub { flex: none; margin-bottom: 4px; }
 html .pl-social .pl-bd { gap: 10px; min-height: 48px; padding: 0 8px; }
 html .pl-social .pl-bd .pl-social-nm { flex: 1 1 auto; min-width: 0; }
-html .pl-social .pl-bd .pl-social-st { font-size: 13px; }
+html .pl-social .pl-bd .pl-social-st { font-size: 14px; }
 
 /* the old hide ladder hid status lines on short screens: they stay now (the list scrolls) */
 @media (max-height: 300px) { html .pl-social .pl-social-st { display: inline; } }

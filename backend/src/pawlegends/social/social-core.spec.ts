@@ -241,6 +241,71 @@ describe('pawlegends social core (SOCIAL-RANKED.md §2, §3)', () => {
         expect((await svc.profile('A')).allowRecent).toBe(false);
     });
 
+    it('recent rows carry when, the queue, my result and how often we played together', async () => {
+        const { clock, svc } = harness();
+        const { players } = await svc.recent('A');
+        const b = players.find(p => p.slot === 1)!;
+        // r1: team 0 won; A sits on team 0, so A won with B (ally) and against C (slot 3, team 1)
+        expect(b).toMatchObject({ queue: 'casual', won: true, together: 1, at: clock.ms - 4000_000 });
+        expect(players.find(p => p.slot === 3)).toMatchObject({ won: true });
+        const { players: asC } = await svc.recent('C');
+        expect(asC.find(p => p.slot === 0)).toMatchObject({ won: false });
+    });
+
+    it('away, a preset status note and favourites: friends see away and the note, favourites stay mine', async () => {
+        const { clock, models, svc } = harness();
+        await svc.request('A', 'B', 'code');
+        await svc.request('B', 'A', 'code');
+        const bCode = await codeOf(svc, 'B');
+        // Away and a note: validated (a boolean, an index into the preset list or null)
+        await expect(svc.setMe('B', { away: 'yes' })).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_INVALID' },
+        });
+        await expect(svc.setMe('B', { note: 99 })).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_INVALID' },
+        });
+        await expect(svc.setMe('B', { note: 'Free text' })).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_INVALID' },
+        });
+        const meB = await svc.setMe('B', { away: true, note: 2 });
+        expect(meB.me).toMatchObject({ away: true, note: 2 });
+        // offline: no away flag and no note
+        let fr = (await svc.state('A')).friends.find(f => f.code === bCode)!;
+        expect(fr.presence).toEqual({ state: 'offline' });
+        expect(fr).not.toHaveProperty('note');
+        // online in the menus: Away and the note
+        models.presence.docs.push({ _id: 'B', api: { at: clock.now() }, exp: new Date(clock.ms + 60_000) });
+        fr = (await svc.state('A')).friends.find(f => f.code === bCode)!;
+        expect(fr.presence).toEqual({ state: 'online', away: true });
+        expect(fr).toMatchObject({ note: 2 });
+        // in a lobby: the lobby wins over Away
+        models.presence.docs[models.presence.docs.length - 1].relay = {
+            state: 'party',
+            party: 'P1',
+            joinable: true,
+            at: clock.now(),
+        };
+        fr = (await svc.state('A')).friends.find(f => f.code === bCode)!;
+        expect(fr.presence.away).toBeUndefined();
+        await svc.setMe('B', { note: null, away: false });
+        expect((await svc.state('A')).friends.find(f => f.code === bCode)).not.toHaveProperty('note');
+        // a request row says when it was made
+        await svc.request('C', 'A', 'code');
+        expect((await svc.state('A')).requests.in[0]).toMatchObject({ at: clock.ms });
+        // favourites: an accepted friend only, by code; the friend never sees it
+        const pin = await svc.setMe('A', { fav: { code: bCode, on: true } });
+        expect(pin.friends.find(f => f.code === bCode)).toMatchObject({ fav: true });
+        expect((await svc.state('B')).friends.every(f => !('fav' in f))).toBe(true);
+        await expect(svc.setMe('A', { fav: { code: await codeOf(svc, 'C'), on: true } })).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_REFUSED' },
+        });
+        await expect(svc.setMe('A', { fav: { code: bCode } })).rejects.toMatchObject({
+            response: { code: 'PAWLEGENDS_SOCIAL_INVALID' },
+        });
+        const unpin = await svc.setMe('A', { fav: { code: bCode, on: false } });
+        expect(unpin.friends.find(f => f.code === bCode)).not.toHaveProperty('fav');
+    });
+
     it('rotates the code at most 3 times a day', async () => {
         const { clock, svc } = harness();
         const first = await codeOf(svc, 'A');

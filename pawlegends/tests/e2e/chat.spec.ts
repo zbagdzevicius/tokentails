@@ -118,7 +118,8 @@ async function openDm(row: Locator): Promise<void> {
   const chat = row.locator('[data-a="chat"]');
   if (await chat.isVisible()) return chat.click();
   await row.locator('.pl-fr-main').click();
-  await row.locator('xpath=following-sibling::*[contains(@class,"pl-fr-menu")][1]').locator('[data-a="chat"]').click();
+  // the menu sits under the row with a mouse, or is a bottom sheet in the panel on touch
+  await row.locator('xpath=ancestor::aside[contains(@class,"pl-social")]').locator('[data-testid="social-row-menu"] [role="menuitem"][data-a="chat"]').click();
 }
 
 test('two friends: a phrase and text DM, the unread badge, the reply in the open thread within 5 s; avatars on rows', async ({ browser, baseURL }, info) => {
