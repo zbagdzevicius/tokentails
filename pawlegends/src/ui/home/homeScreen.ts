@@ -10,7 +10,8 @@
  * - top centre: Season XP and tier chips (only numbers that exist; tap opens the pass);
  * - top right (`.lb-corner`, where the account chip mounts): Friends and ranked (embedded), Settings, Sound (the old
  *   "< Games" button is gone, Nov 12: the founder found it redundant; no exit to the host's games, NO-TOKENTAILS.md);
- * - left edge: Quests (one panel: Today's quests, then the live events) and # (join with a code), round buttons;
+ * - left edge: Quests (one panel: Today's quests, then the live events), # Join (a party code) and Boards (the
+ *   leaderboards window), round buttons;
  * - right edge: the promo rotator (pass season, events, store on the web only);
  * - bottom: a glass nav (Heroes, Pass, Store on the web), on the first visit too with the items that need a match
  *   locked. Heroes only browses (skills, lore): it never starts a match;
@@ -35,7 +36,9 @@ import type { Difficulty } from '../../sim/api';
 import { ELEMENT_COLOR, FRAME_NAME } from '../../render/cosmetics';
 import { ELEMENT_NAME } from '../../meta/roster';
 import { cardAttrs } from '../cards/el';
-import { frameRing } from '../avatar';
+import { avatarParts, frameRing } from '../avatar';
+import { isAvatarView, type AvatarView } from '../../data/avatarView';
+import { portraitUrl } from '../../render/portraits';
 import { cssPicUrl } from '../cssUrl';
 import { icon } from '../icons';
 import type { Choice } from '../screens';
@@ -113,11 +116,13 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   onRevealed?(ids: string[]): void;
   /** Rewards cloud (ui/rewards): the Welcome Path and the Lucky Treat row, under Today's quests (markup, escaped there). */
   todayExtra?: string;
+  /** My avatar view (meta/myAvatar.ts): the chip draws what Profile and the friends list draw. Null: a guest's paw. */
+  avatar?: AvatarView | null;
   /** The profile chip (SOCIAL-RANKED.md §2.3): the Profile sheet (name, avatar, title). Absent: the chip opens the pass. */
   onProfile?(): void;
   /** The Yarn chip (founder Nov 17): where Yarn unlocks champions (the store's Champions, the Heroes browser in apps). */
   onYarn?(): void;
-  /** The Leaderboard chip under the promo (founder Nov 19): the social panel straight on Boards. Absent: no chip. */
+  /** Boards in the left stack, under Join (founder Nov 19): the leaderboards window. Absent: no button. */
   onBoards?(): void;
 }
 
@@ -133,6 +138,8 @@ const PEOPLE =
   '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2c2.4.1 4.3 1.6 4.9 4.6"/></svg>';
 const BAG = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M6 8h12l1 13H5zM9 8V6a3 3 0 0 1 6 0v2h-2V6a1 1 0 0 0-2 0v2z"/></svg>';
 const TROPHY = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M7 3h10v2h3v3a4 4 0 0 1-4 4h-.3A5 5 0 0 1 13 14.9V18h3v3H8v-3h3v-3.1A5 5 0 0 1 8.3 12H8a4 4 0 0 1-4-4V5h3zm0 4H6v1a2 2 0 0 0 1 1.7zm10 0v2.7A2 2 0 0 0 18 8V7z"/></svg>';
+/** Boards: a podium (the Pass keeps the trophy). */
+const PODIUM = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M9 8h6v13H9zM2 13h6v8H2zm14 3h6v5h-6zM12 1.5l1.1 2.2 2.4.4-1.7 1.7.4 2.4-2.2-1.1-2.2 1.1.4-2.4-1.7-1.7 2.4-.4z"/></svg>';
 const SCROLL = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M6 3h11a3 3 0 0 1 3 3v1h-3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-1h3V6a3 3 0 0 1 3-3zm2 5v2h7V8zm0 4v2h7v-2z"/></svg>';
 const LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-lk"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm2 0h6V8a3 3 0 0 0-6 0z"/></svg>';
 /** The embossed paw on PLAY. */
@@ -181,14 +188,33 @@ export function botsChoice(last: Choice, diff: Difficulty, mode: Pick<ModeDef, '
 /** The profile ring: Season XP progress as a conic arc (0 when no season is known). Pure. */
 export const ringPct = (p: HomeProfile): number => (p.tier === null ? 0 : Math.round(Math.max(0, Math.min(1, p.pct)) * 100));
 
+/**
+ * The profile chip's face (founder Nov 19: "avatar on left should be the same as right one, they must be in sync"): my
+ * avatar view, the one Profile, the friends list and chat draw (meta/myAvatar.ts, the server's `me.av`: icon and
+ * border); a guest's paw (as Profile shows it); signed in before the server first answered, the Home hero's face.
+ * Pure.
+ */
+export function homeFace(o: Pick<HomeScreenOpts, 'avatar' | 'signedIn' | 'portrait'>): { pic: string | null; letter: string | null; ring: string | null; guest: boolean } {
+  if (isAvatarView(o.avatar)) {
+    const p = avatarParts(o.avatar);
+    const pic = p.kind === 'hero' && p.hero ? portraitUrl(p.hero) : null;
+    return { pic, letter: pic ? null : p.letter, ring: p.ring, guest: false };
+  }
+  if (!o.signedIn) return { pic: null, letter: null, ring: null, guest: true };
+  return { pic: o.portrait ?? null, letter: null, ring: null, guest: false };
+}
+
 function avatarHtml(o: HomeScreenOpts, el: string): string {
   const hide = firstHidesBadge(o);
-  const frame = hide ? null : o.frame;
-  const pic = cssPicUrl(o.portrait);
+  const f = homeFace(o);
+  // my avatar view carries its own border (the server's); without one the worn local frame tints the ring
+  const frame = hide || isAvatarView(o.avatar) ? null : o.frame;
+  const pic = cssPicUrl(f.pic);
   const face = pic ? ` style="background-image:${pic}" ${cardAttrs(o.identity.element, null)}` : '';
-  // a worn profile frame tints the outer ring (CHAT-AVATARS.md §7.4 colours; the chat worktree's avatar plugs in here)
-  const ring = frame ? frameRing(frame) : null;
-  return `<span class="hm-av" style="--p:${ringPct(o.profile)}%;--el:${el}${ring && /^#[0-9a-f]{3,8}$/i.test(ring) ? `;--hm-frame:${ring}` : ''}"${frame ? ` data-frame="${frame}" title="${esc(FRAME_NAME[frame] ?? '')}"` : ''} aria-hidden="true"><span class="hm-av-in${pic ? ' pic' : ''}"${face}>${pic ? '' : icon('paw')}</span></span>`;
+  // a worn profile frame tints the outer ring (CHAT-AVATARS.md §7.4 colours)
+  const ring = hide ? null : (f.ring ?? (frame ? frameRing(frame) : null));
+  const inner = pic ? '' : f.letter ? `<b class="hm-av-l">${esc(f.letter)}</b>` : icon('paw');
+  return `<span class="hm-av" data-testid="home-avatar" data-av="${esc(isAvatarView(o.avatar) ? o.avatar.i : f.guest ? 'guest' : 'hero')}" style="--p:${ringPct(o.profile)}%;--el:${el}${ring && /^#[0-9a-f]{3,8}$/i.test(ring) ? `;--hm-frame:${ring}` : ''}"${frame ? ` data-frame="${frame}" title="${esc(FRAME_NAME[frame] ?? '')}"` : ''} aria-hidden="true"><span class="hm-av-in${pic ? ' pic' : ''}"${face}>${inner}</span></span>`;
 }
 
 function profileHtml(o: HomeScreenOpts, el: string): string {
@@ -239,7 +265,9 @@ function leftHtml(o: HomeScreenOpts, live: boolean): string {
       ? `<button type="button" class="hm-round hm-goals${live ? ' live' : ''}" data-a="goals" data-testid="home-goals" aria-haspopup="dialog" aria-expanded="false" aria-label="${esc(`Quests: ${t.done} of ${t.total} done today${live ? '. An event needs you' : ''}`)}"><span class="hm-qring${t.done === t.total ? ' all' : ''}" style="--p:${pct}%" aria-hidden="true">${SCROLL}</span><span class="hm-rl">Quests</span>${live ? '<i class="hm-dot" aria-hidden="true"></i>' : ''}</button>`
       : '';
   const code = o.onJoinCode ? `<button type="button" class="hm-round hm-code" data-a="joincode" data-testid="join-code" aria-label="Join a party with a code" title="Join a party with a code"><b aria-hidden="true">#</b><span class="hm-rl">Join</span></button>` : '';
-  return `<div class="hm-left">${goals}${code}</div>`;
+  // founder Nov 19: the leaderboards are their own window, opened from here (under Join); the one way in
+  const boards = returning && o.onBoards ? `<button type="button" class="hm-round hm-boards" data-a="boards" data-testid="home-boards" aria-haspopup="dialog" aria-label="Leaderboards" title="Leaderboards">${PODIUM}<span class="hm-rl">Boards</span></button>` : '';
+  return `<div class="hm-left">${goals}${code}${boards}</div>`;
 }
 
 function promoHtml(o: HomeScreenOpts): string {
@@ -334,7 +362,7 @@ export const HOME_ENTRANCE = ['hm-drop', 'hm-slide-l', 'hm-slide-r', 'hm-rise', 
  * The patched regions, in DOM order (the corner, the cards slot, the fx layer and the toast stay put). The release line
  * lives in Settings (s7 ui, founder Nov 15: on a phone it ran under the nav and through a champion).
  */
-const REGIONS = ['.hm-top', '.hm-left', '.hm-promo', '.hm-lb', '.hm-stage', '.hm-nav', '.hm-playc'] as const;
+const REGIONS = ['.hm-top', '.hm-left', '.hm-promo', '.hm-stage', '.hm-nav', '.hm-playc'] as const;
 type Region = (typeof REGIONS)[number];
 
 export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: boolean }): HTMLElement {
@@ -395,8 +423,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     </header>`,
       '.hm-left': leftHtml(o, needsTap(liveopsState())),
       '.hm-promo': returning ? promoHtml(o) : '',
-      // founder Nov 19: a small Leaderboard chip under the promo opens the Boards at once (never in the first match)
-      '.hm-lb': returning && o.onBoards ? `<button type="button" class="hm-lb" data-a="boards" data-testid="home-leaderboard" aria-label="Leaderboard"><span class="hm-lb-pill">${TROPHY}<b>Leaderboard</b></span></button>` : '',
       '.hm-stage': `<div class="hm-stage">${plateHtml()}</div>`,
       '.hm-nav': navHtml(o, returning),
       '.hm-playc': playcHtml(),
@@ -417,7 +443,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     ${shown['.hm-left']}
     <div class="hm-slot lb-cards" data-slot="cards"></div>
     ${shown['.hm-promo']}
-    ${shown['.hm-lb']}
     ${shown['.hm-stage']}
     ${shown['.hm-nav']}
     ${shown['.hm-playc']}
@@ -570,7 +595,10 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       o.onYarn?.();
     } else if (a === 'settings') o.onSettings?.();
     else if (a === 'social') o.onSocial?.();
-    else if (a === 'boards') o.onBoards?.();
+    else if (a === 'boards') {
+      o.sound?.('click');
+      o.onBoards?.();
+    }
     // the profile chip opens the Profile sheet (SOCIAL-RANKED.md §2.3); the nav Pass item and the Season XP chips (and
     // the chip where there is no Profile) open the Treat Track and its Pass tab
     else if (a === 'profile' && o.onProfile) o.onProfile();

@@ -24,6 +24,7 @@ import { recordLadder } from '../meta/ladder';
 import { GRADE_TREAT_XP, gradeMatch } from '../meta/grade';
 import { HERO_IDS, HEROES } from '../data/heroes';
 import { myName, refreshMyName, setMyName } from '../meta/myName';
+import { myAvatar, observeMyAvatar, onMyAvatar, refreshMyAvatar, setMyAvatar } from '../meta/myAvatar';
 import { accountState, heroForSide, loadProfile, noteChampionMatch, noteCoatMatch, noteHeroMatch, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
@@ -53,7 +54,7 @@ import { createRenderer, runFrameTap, type GameRenderer } from '../render/render
 import { PUSH_CAT_NAME, PUSH_CATS, disablePush, enablePush, loadPushPrefs, permission, pushSupported, resyncPush, savePushPrefs, serverKey, setPushCats, shouldAsk, type PushCat } from '../social/push';
 import { pushAskCard } from '../ui/pushAsk';
 import { clipSupported } from '../share/clipSupport';
-import type { ApiArgs, ApiOp } from '../embed/api';
+import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import { pulseDevice } from '../embed/api';
 import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
@@ -444,6 +445,10 @@ export class App {
         } else location.reload();
       },
       dispatch: (type) => dispatchEvent(new Event(type)),
+    });
+    // my avatar changed (Profile, the friends list, the server): Home's chip redraws in place, like a name change
+    onMyAvatar(() => {
+      if (this.screen === 'title' && this.screenEl) this.showTitle(false);
     });
     // rewards-cloud: the account's progress (signed in, or a guest whose /live saves made an account)
     this.rewards = new RewardsCloud({
@@ -1157,11 +1162,16 @@ export class App {
     // FLAGS.md: the player's own country (twice a day at most; the backend keeps only the ISO code)
     void refreshMyFlag((op, args) => this.integration.api(op, args));
     // SOCIAL-RANKED.md §2.3: the name others see (a nickname changed on another device shows here too)
-    if (this.bridge.active && accountState().signedIn)
+    if (this.bridge.active && accountState().signedIn) {
       void refreshMyName((op, args) => this.integration.api(op, args)).then((changed) => {
         if (changed && this.screen === 'title') this.showTitle(false);
       });
-    else if (!accountState().signedIn) setMyName(null);
+      // my avatar (one source of truth with Profile and the friends list): a change redraws Home through onMyAvatar
+      void refreshMyAvatar((op, args) => this.api(op, args));
+    } else if (!accountState().signedIn) {
+      setMyName(null);
+      setMyAvatar(null);
+    }
     // gaps6 coat drop: a tile previews the coat in Heroes → Coats (everywhere); the web also opens the store's coats
     setDropAction({
       preview: (coat) => {
@@ -1221,6 +1231,8 @@ export class App {
       frame: bestFrame(owned, p.wornFrame),
       title: titleOf(owned, p.wornTitle),
       portrait: this.badgePortrait(),
+      // the profile chip draws my avatar view, the same one Profile, the friends list and chat draw (founder Nov 19)
+      avatar: accountState().signedIn ? myAvatar() : null,
       signedIn: accountState().signedIn,
       isApp: this.isApp(),
       firstLine: rookieAvailable() ? 'Your first match is a guided match.' : 'Your first match is a guided match vs Easy bots.',
@@ -1288,7 +1300,7 @@ export class App {
       onSettings: () => this.openSettings(),
       // Social, ranked and boards (SOCIAL-RANKED.md §14): through the host's session, so embedded only
       onSocial: this.bridge.active ? () => this.openSocial() : undefined,
-      // founder Nov 19: the Leaderboard chip under the promo opens the Boards straight away (hidden in the first match)
+      // founder Nov 19: Boards under # Join opens the leaderboards window (the one way in; hidden in the first match)
       onBoards: this.bridge.active ? () => this.openBoards('home') : undefined,
       // the Profile screen (one way in: the avatar chip): yours, with the device's data where no host answers
       onProfile: () => this.openProfile(),
@@ -1652,7 +1664,7 @@ export class App {
           data,
           friend,
           ...(tab ? { tab } : {}),
-          ...(this.bridge.active ? { api: (op: ApiOp, args?: ApiArgs) => this.integration.api(op, args) } : {}),
+          ...(this.bridge.active ? { api: (op: ApiOp, args?: ApiArgs) => this.api(op, args) } : {}),
           base: import.meta.env.BASE_URL ?? './',
           low: document.documentElement.dataset.quality === 'low',
           account: account ? { model: account, send: (a) => void this.integration.account(a) } : null,
@@ -1731,14 +1743,41 @@ export class App {
       .catch((err: unknown) => reportCrash('window', err));
   }
 
-  /** The leaderboards in one tap: the social panel on Boards (the sub-tab used last), or switched there if open. */
+  /** The leaderboards window (founder Nov 19: its own modal, opened from Boards on Home); one at a time, lazy. */
+  private boards: import('../social/boardsModal').BoardsHandle | null = null;
+  private boardsOpening = false;
   private openBoards(source: 'home'): void {
+    if (this.boardsOpening || (this.boards && !this.boards.closed)) return;
     this.analytics.track('leaderboard_open', { source });
-    if (this.social && !this.social.closed) {
-      this.social.showTab('boards');
-      return;
-    }
-    this.openSocial('boards');
+    this.boardsOpening = true;
+    void import('../social/boardsModal')
+      .then(({ openBoards }) => {
+        this.boardsOpening = false;
+        if (this.boards && !this.boards.closed) return;
+        this.boards = openBoards(this.root, {
+          api: (op, args) => this.api(op, args),
+          signedIn: () => accountState().signedIn,
+          track: (e, p) => this.analytics.track(e as 'history_open', p),
+          onClose: () => {
+            this.boards = null;
+          },
+        });
+      })
+      .catch((err: unknown) => {
+        this.boardsOpening = false;
+        reportCrash('window', err);
+      });
+  }
+
+  /**
+   * The host api, watching for my avatar (meta/myAvatar.ts): every `social.get` / `social.me` answer that carries
+   * `me.av` (Profile's icon, border and title, the friends list, an idle Away) updates the one copy Home draws.
+   */
+  private api(op: ApiOp, args?: ApiArgs): Promise<ApiResult> {
+    return this.integration.api(op, args).then((r) => {
+      observeMyAvatar(op, r);
+      return r;
+    });
   }
 
   private openSocial(tab?: import('../social/socialSheet').SocialTab, chatWith?: string): void {
@@ -1753,7 +1792,7 @@ export class App {
         this.social = new SocialSheet(
           this.root,
           {
-            api: (op, args) => this.integration.api(op, args),
+            api: (op, args) => this.api(op, args),
             signedIn: () => accountState().signedIn,
             partyCode: () => {
               const v = this.party?.state.view;
@@ -1768,8 +1807,6 @@ export class App {
             playCasual: () => {
               if (this.screen === 'title' && !this.session && !this.party) this.startFlow({ mode: MAIN_MODE, queue: pvpKnown() === true ? 'pvp' : 'coop' });
             },
-            // CHAT-AVATARS §7.4: the picker's owned borders (champions only: no Token Tails cats, NO-TOKENTAILS.md)
-            ownedItems: () => [...this.ent.snapshot().items],
             inMatch: () => !!this.session,
             onUnread: (n) => {
               this.chatUnread = Math.max(0, n);
@@ -1835,10 +1872,10 @@ export class App {
     this.idleAsked = this.lastInput;
     this.autoAwayBusy = true;
     try {
-      const r = await this.integration.api('social.get');
+      const r = await this.api('social.get');
       const me = (r.body as { me?: { invisible?: boolean; away?: boolean } } | undefined)?.me;
       if (!r.ok || !me || me.invisible || me.away || Date.now() - this.lastInput < AUTO_AWAY_MS) return;
-      const w = await this.integration.api('social.me', { away: true });
+      const w = await this.api('social.me', { away: true });
       if (!w.ok) return;
       this.autoAway = true;
       try {
@@ -1863,7 +1900,7 @@ export class App {
       // nothing to clear
     }
     try {
-      await this.integration.api('social.me', { away: false });
+      await this.api('social.me', { away: false });
     } finally {
       this.autoAwayBusy = false;
     }

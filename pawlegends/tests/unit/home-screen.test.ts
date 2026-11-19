@@ -6,7 +6,7 @@
  * first visit keeps the guided one-tap match; the app build never shows the Store; names are escaped.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { availableQueues, botsChoice, disposeHome, homeScreen, mainQueue, patchHome, pvpLockText, resolveChoice, ringPct, type HomeScreenOpts } from '../../src/ui/home/homeScreen';
+import { availableQueues, botsChoice, disposeHome, homeFace, homeScreen, mainQueue, patchHome, pvpLockText, resolveChoice, ringPct, type HomeScreenOpts } from '../../src/ui/home/homeScreen';
 import { modeById, modeList } from '../../src/ui/modeSelect/modes';
 import { goalsPanelHtml, questsResetText } from '../../src/ui/home/goalsPanel';
 
@@ -484,30 +484,55 @@ describe('Quests panel (Today and Events in one place)', () => {
   });
 });
 
-describe('Home Leaderboard chip (founder Nov 19)', () => {
+describe('Home Boards (founder Nov 19: under # Join, the leaderboards window)', () => {
   const promos = [{ id: 'drop', title: 'November drop', sub: 'New coats', action: 'pass' as const }];
-  it('sits right after the promo and opens the Boards in one tap', () => {
+  it('sits in the left stack right under Join and opens the Boards in one tap; no Leaderboard pill by the promo', () => {
     const onBoards = vi.fn();
-    const root = mount(base({ promos, onBoards }));
-    const chip = root.querySelector<HTMLElement>('[data-testid="home-leaderboard"]')!;
-    expect(chip.textContent).toContain('Leaderboard');
-    // the CSS places it under the promo through the adjacent sibling rule
-    expect(chip.previousElementSibling?.classList.contains('hm-promo')).toBe(true);
-    chip.click();
+    const root = mount(base({ promos, onBoards, onJoinCode: vi.fn() }));
+    const btn = root.querySelector<HTMLElement>('[data-testid="home-boards"]')!;
+    expect(btn.textContent).toBe('Boards');
+    expect(btn.getAttribute('aria-label')).toBe('Leaderboards');
+    expect(btn.parentElement!.classList.contains('hm-left')).toBe(true);
+    expect(btn.previousElementSibling?.getAttribute('data-testid')).toBe('join-code');
+    expect(root.querySelector('[data-testid="home-leaderboard"], .hm-lb')).toBeNull();
+    btn.click();
     expect(onBoards).toHaveBeenCalledTimes(1);
   });
 
   it('hidden in the first guided match, a dare, and where the host has no social (no onBoards)', () => {
-    expect(mount(base({ firstTime: true, promos, onBoards: vi.fn() })).querySelector('[data-testid="home-leaderboard"]')).toBeNull();
+    expect(mount(base({ firstTime: true, promos, onBoards: vi.fn() })).querySelector('[data-testid="home-boards"]')).toBeNull();
     document.body.innerHTML = '';
-    expect(mount(base({ promos })).querySelector('[data-testid="home-leaderboard"]')).toBeNull();
+    expect(mount(base({ promos })).querySelector('[data-testid="home-boards"]')).toBeNull();
   });
 
-  it('a patched Home keeps one chip (no promo: it takes the promo spot)', () => {
+  it('a patched Home keeps one Boards button', () => {
     const onBoards = vi.fn();
     const root = mount(base({ promos, onBoards }));
     expect(patchHome(root, base({ promos: [], onBoards }))).toBe(true);
-    expect(root.querySelectorAll('[data-testid="home-leaderboard"]')).toHaveLength(1);
-    expect(root.querySelector('.hm-promo')).toBeNull();
+    expect(root.querySelectorAll('[data-testid="home-boards"]')).toHaveLength(1);
+  });
+});
+
+describe('Home avatar = my avatar (founder Nov 19: "they must be in sync")', () => {
+  it('draws my avatar view (the icon Profile and the friends list draw) and its border, not the Home hero', () => {
+    const f = homeFace({ avatar: { i: 'h:nova', f: 'frame.store.goldpaw' }, signedIn: true, portrait: 'https://x.test/sage.webp' });
+    expect(f.pic).toContain('nova');
+    expect(f.ring).toBe('#f5c542');
+    const root = mount(base({ avatar: { i: 'h:nova' }, signedIn: true }));
+    expect(root.querySelector('[data-testid="home-avatar"]')!.getAttribute('data-av')).toBe('h:nova');
+  });
+
+  it('an earned icon shows its medallion; a guest the paw (as Profile); signed in before the server answers, the hero', () => {
+    expect(homeFace({ avatar: { i: 'i:icon.s1.paw' }, signedIn: true, portrait: null })).toMatchObject({ pic: null, letter: '★', guest: false });
+    expect(homeFace({ avatar: null, signedIn: false, portrait: 'https://x.test/sage.webp' })).toMatchObject({ pic: null, guest: true });
+    expect(homeFace({ avatar: null, signedIn: true, portrait: 'https://x.test/sage.webp' }).pic).toBe('https://x.test/sage.webp');
+    const root = mount(base({ avatar: null, signedIn: false }));
+    expect(root.querySelector('[data-testid="home-avatar"]')!.getAttribute('data-av')).toBe('guest');
+  });
+
+  it('a new avatar patches into the same Home', () => {
+    const root = mount(base({ avatar: { i: 'h:nova' }, signedIn: true }));
+    expect(patchHome(root, base({ avatar: { i: 'h:clem' }, signedIn: true }))).toBe(true);
+    expect(root.querySelector('[data-testid="home-avatar"]')!.getAttribute('data-av')).toBe('h:clem');
   });
 });

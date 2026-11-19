@@ -2,11 +2,12 @@
  * The Social sheet (docs/plans/moba/SOCIAL-RANKED.md §14.2–§14.4, social sidebar redesign Nov 18): a right-side panel
  * over the lobby's 3D half, built like a game client's friends list (League of Legends' social panel is the bar).
  *
- * - One header row (LoL's top block): me (avatar with my status ring, name, status ▾ for Appear offline, my friend
- *   code and avatar), the invite gift, Add a friend, Close. Under it one tab bar: Friends, Recent, Clubs, More (Ranked,
- *   Leaderboards, Watch a live match: not friend-list content) and Search. No number on the Friends tab (its groups and
- *   rows carry the counts); a dot while another tab is open and something waits. Arrows move between tabs; Esc closes
- *   the top layer. Round 3: about 90 px of chrome above the first group on every screen.
+ * - One header row: the title, my status (a small dot button: Online, Away or Appear offline, a status note, my friend
+ *   code), the invite gift, Add a friend, Close. Founder Nov 19: no self card (my own name and "Online" told me nothing),
+ *   no avatar picker (the avatar is changed in Profile only), no Recent tab, no Compact list, no leaderboards (Boards
+ *   on Home opens them in their own window). Under the header one tab bar: Friends, Clubs, More (Ranked, Watch a live
+ *   match) and Search. No number on the Friends tab (its groups and rows carry the counts); a dot while another tab is
+ *   open and something waits. Arrows move between tabs; Esc closes the top layer.
  * - Friends: Search opens a field under the tabs; Add opens a card over the top of the list (a name or a friend code,
  *   with nickname suggestions; the list stays under it); the gift opens the invite card there (a new player sees it in
  *   the empty state, the only share button). Then collapsible groups with counts: Requests, Online, In match, Offline,
@@ -18,20 +19,20 @@
  *   right-click or a long press opens its menu (a floating context menu with a mouse, a bottom sheet on touch):
  *   Message, Match history, Remove (tap twice) and Block (5 s Undo).
  * - Round 7: Enter on a row opens the DM with focus in its composer (Esc closes the DM only); a request's Tab stop is
- *   the person, never Accept; More → Compact list shows one line per friend (LoL density).
+ *   the person, never Accept.
  *
  * Names are always set with `textContent`. Every call goes through the host (`api-request`); the game never sees a
  * token, an account id or a URL. Polling: one pulse every 30 s while the sheet or the title is shown and the tab is
  * visible; never in a match.
  */
 import { rememberAgeBand } from './ageBand';
-import { ccHtmlOrNone, countryName, flagEmoji, setFlagHidden } from './flags';
+import { ccHtmlOrNone } from './flags';
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import { pulseDevice } from '../embed/api';
 import { parseRankedStatus, primeTimeText, rankedLabel, rankedLiveText } from '../meta/ranked';
-import { HERO_IDS, HEROES } from '../data/heroes';
+import { HEROES } from '../data/heroes';
 import { isAvatarView, previewText, type AvatarView } from '../data/chatPhrases';
-import { avatarHtml, titleText } from '../ui/avatar';
+import { avatarHtml } from '../ui/avatar';
 import { ChatSheet, type ChatTab } from './chatSheet';
 import { InviteRow } from '../share/invite';
 import { ClubsPanel } from './clubs/clubsPanel';
@@ -40,18 +41,16 @@ import { icon } from './socialIcons';
 import { sheetDevice } from './sheetDevice';
 import './socialSheet.css';
 
-export type SocialTab = 'friends' | 'requests' | 'recent' | 'clubs' | 'ranked' | 'boards';
-export const SOCIAL_TABS: readonly SocialTab[] = Object.freeze(['friends', 'requests', 'recent', 'clubs', 'ranked', 'boards']);
-/** The tabs in the header; Requests is a group at the top of Friends (LoL style), Ranked and Boards sit under More. */
-export const MAIN_TABS = Object.freeze(['friends', 'recent', 'clubs'] as const);
-export const MORE_TABS = Object.freeze(['ranked', 'boards'] as const);
+export type SocialTab = 'friends' | 'requests' | 'clubs' | 'ranked';
+export const SOCIAL_TABS: readonly SocialTab[] = Object.freeze(['friends', 'requests', 'clubs', 'ranked']);
+/** The tabs in the header; Requests is a group at the top of Friends (LoL style), Ranked sits under More. */
+export const MAIN_TABS = Object.freeze(['friends', 'clubs'] as const);
+export const MORE_TABS = Object.freeze(['ranked'] as const);
 const TAB_LABEL: Readonly<Record<SocialTab, string>> = Object.freeze({
   friends: 'Friends',
   requests: 'Requests',
-  recent: 'Recent',
   clubs: 'Clubs',
   ranked: 'Ranked',
-  boards: 'Leaderboards',
 });
 
 export interface Presence {
@@ -417,8 +416,6 @@ export interface SocialSheetDeps {
   track?(event: string, props?: Record<string, string | number | boolean>): void;
   /** The viewport height (the Clubs panel's hide ladder); default window.innerHeight. */
   height?(): number;
-  /** Owned store and pass items (frames and titles the avatar picker offers). */
-  ownedItems?(): readonly string[];
   /** A match runs: chat polls pause. */
   inMatch?(): boolean;
   /** The unread DM count changed (the landing badge). */
@@ -464,68 +461,6 @@ function readFolds(): Partial<Record<FriendGroupId, boolean>> {
   }
 }
 
-/** The list density, remembered on this device only (a per-viewer convenience; storage can fail). */
-const DENSITY_KEY = 'pl.social.density.v1';
-function readDensity(): 'comfy' | 'compact' {
-  try {
-    return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'comfy';
-  } catch {
-    return 'comfy';
-  }
-}
-
-/** The leaderboards' sub-tabs (Local is the player's country, from their flag; Local and Friends need an account). */
-export type BoardKind = 'weekly' | 'global' | 'local' | 'friends';
-const BOARD_LABEL: Readonly<Record<BoardKind, string>> = Object.freeze({ weekly: 'Weekly', global: 'Global', local: 'Local', friends: 'Friends' });
-const BOARD_KEY = 'pl.social.board';
-
-/** The sub-tabs this player sees, in order. Pure. */
-export function boardKinds(signedIn: boolean): BoardKind[] {
-  return signedIn ? ['weekly', 'global', 'local', 'friends'] : ['weekly', 'global'];
-}
-
-/** The last sub-tab used on this device (the Home Leaderboard button opens it), Weekly by default. */
-export function readBoardKind(signedIn: boolean): BoardKind {
-  let v: string | null = null;
-  try {
-    v = localStorage.getItem(BOARD_KEY);
-  } catch {
-    v = null;
-  }
-  return (boardKinds(signedIn) as string[]).includes(v ?? '') ? (v as BoardKind) : 'weekly';
-}
-function rememberBoardKind(k: BoardKind): void {
-  try {
-    localStorage.setItem(BOARD_KEY, k);
-  } catch {
-    /* storage blocked: this session only */
-  }
-}
-
-/** A board row as the server sends it (the caller's own row carries `me`). */
-export interface BoardRow {
-  rank: number;
-  name: string;
-  value: number;
-  tier?: string;
-  me?: boolean;
-  av?: AvatarView;
-  cc?: string;
-}
-
-/**
- * The rows to draw and the pinned "You" row under them: no pinned row when I am already on the page (my row is
- * marked `me`, or an older server's row has my rank and name), so I never show twice. Pure.
- */
-export function boardView(d: { rows?: unknown; me?: unknown } | null | undefined): { rows: BoardRow[]; pinned: BoardRow | null } {
-  const rows = (Array.isArray(d?.rows) ? d!.rows : []) as BoardRow[];
-  const me = d?.me && typeof d.me === 'object' ? (d.me as Partial<BoardRow>) : null;
-  if (!me || !Number.isFinite(Number(me.rank))) return { rows, pinned: null };
-  const at = rows.findIndex((r) => r.me || (Number(r.rank) === Number(me.rank) && !!me.name && r.name === me.name));
-  if (at >= 0) return { rows: rows.map((r, i) => (i === at && !r.me ? { ...r, me: true } : r)), pinned: null };
-  return { rows, pinned: { rank: Number(me.rank), name: me.name || 'You', value: Number(me.value) || 0, tier: me.tier, av: me.av, cc: me.cc, me: true } };
-}
-
 const GROUP_LABEL: Readonly<Record<FriendGroupId, string>> = Object.freeze({
   requests: 'Friend requests',
   fav: 'Favourites',
@@ -544,7 +479,6 @@ export class SocialSheet {
   private state: SocialState | null = null;
   private recent: RecentRow[] | null = null;
   private ranked: { status?: Record<string, any>; me?: Record<string, any> } = {};
-  private board: { kind: BoardKind; page: number; data: Record<string, any> | null } = { kind: 'weekly', page: 0, data: null };
   private adding = false;
   /** Add friend: the typed text, its nickname suggestions, and the debounce timer. */
   private addText = '';
@@ -557,12 +491,10 @@ export class SocialSheet {
   private moreOpen = false;
   /** The friends search field is open (Search in the tab bar). */
   private searchOpen = false;
-  /** My status card (Online / Appear offline, my code, Change avatar). */
+  /** My status card (Online / Away / Appear offline, a status note, my friend code). */
   private meOpen = false;
   /** Where a right click opened the row menu (the popover opens at the cursor, LoL's context menu), or null. */
   private menuAt: { x: number; y: number } | null = null;
-  /** List density (round 7): one line per friend ("compact", LoL's density) or two; remembered on this device. */
-  private density: 'comfy' | 'compact' = readDensity();
   private readonly unwatch: () => void;
   private armed: string | null = null;
   private armTimer: ReturnType<typeof setTimeout> | null = null;
@@ -578,8 +510,6 @@ export class SocialSheet {
   /** DM threads by friend code (unread dots on the rows). */
   private threads = new Map<string, ChatThreadRow>();
   private chat: ChatSheet | null = null;
-  /** The avatar picker (Me): its page and the choice not saved yet. */
-  private picking: { avatarKind: string; avatarRef: string; frame: string } | null = null;
   /** Invite and comeback codes (share/invite.ts): the card at the top of the Friends tab. */
   private readonly invite: InviteRow;
   /** CLUBS-KUDOS.md §6: the Clubs tab (its own module; the sheet only hosts it). */
@@ -601,8 +531,6 @@ export class SocialSheet {
     // Requests is a group at the top of Friends now: opening on it unfolds that group
     this.tab = tab === 'requests' ? 'friends' : tab;
     if (tab === 'requests') this.folds.requests = false;
-    // the Boards open on the sub-tab used last (the Home Leaderboard button: no extra tap)
-    this.board.kind = readBoardKind(this.deps.signedIn());
     // round 8 (WCAG 2.4.3): the control that opened the panel gets focus back when it closes
     const was = parent.ownerDocument.activeElement as HTMLElement | null;
     this.opener = was && was !== parent.ownerDocument.body ? was : null;
@@ -734,16 +662,11 @@ export class SocialSheet {
 
   private async load(): Promise<void> {
     if (this.tab === 'ranked') return this.loadRanked();
-    if (this.tab === 'boards') return this.loadBoard();
     if (!this.deps.signedIn()) {
       rememberAgeBand(null);
       return this.render();
     }
     if (this.tab === 'friends') void this.invite.load();
-    if (this.tab === 'recent') {
-      const r = await this.deps.api('social.recent');
-      this.recent = r.ok ? ((r.body as { players?: SocialSheet['recent'] })?.players ?? []) : [];
-    }
     const [s, threads] = await Promise.all([
       this.deps.api('social.get'),
       this.tab === 'friends' ? this.deps.api('chat.list') : Promise.resolve(null),
@@ -792,23 +715,13 @@ export class SocialSheet {
     this.render();
   }
 
-  private async loadBoard(): Promise<void> {
-    const b = this.board;
-    if ((b.kind === 'friends' || b.kind === 'local') && !this.deps.signedIn()) b.kind = 'weekly';
-    const args: ApiArgs = { kind: b.kind, page: b.page, ...(this.deps.signedIn() ? { name: 'me' } : {}) };
-    const r = await this.deps.api('board.get', args);
-    b.data = r.ok ? (r.body as Record<string, any>) : { rows: [], error: errorText(r) };
-    this.deps.track?.('board_view', { kind: b.kind });
-    this.render();
-  }
-
   /** The pulse (§4.3): 204 while nothing changed, else refetch. Paused in hidden tabs. */
   async pulse(): Promise<void> {
     if (this.disposed || !this.deps.signedIn()) return;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     const r = await this.deps.api('social.pulse', { ...(this.state?.rev ? { rev: this.state.rev } : {}), dev: pulseDevice() });
     if (!r.ok || r.status === 204 || !r.body) return;
-    // keep the rev current on every tab (the Ranked and Boards tabs never refetch `social.get`, so without this every
+    // keep the rev current on every tab (the Ranked tab never refetches `social.get`, so without this every
     // later pulse would answer "changed" again), and refetch only the lists that show friends' state. Never while the
     // add field is open: a re-render would wipe what the player is typing.
     const rev = (r.body as { rev?: unknown }).rev;
@@ -818,7 +731,6 @@ export class SocialSheet {
       if (this.state) this.state.chat = chat;
       this.deps.onUnread?.(chat.unread);
     }
-    if (this.picking) return;
     // an open DM thread polls itself; its Back reloads the list, so nothing renders under it meanwhile. Its tab strip
     // still learns of new messages in other threads (one `chat.list`)
     if (this.chat && !this.chat.closed && !this.chat.docked) {
@@ -832,7 +744,7 @@ export class SocialSheet {
       }
       return;
     }
-    if (this.adding || this.meOpen || this.invite.entering || this.tab === 'ranked' || this.tab === 'boards' || this.tab === 'clubs') return;
+    if (this.adding || this.meOpen || this.invite.entering || this.tab === 'ranked' || this.tab === 'clubs') return;
     await this.load();
   }
 
@@ -870,7 +782,7 @@ export class SocialSheet {
     if (!a || a === this.root || !this.root.contains(a)) return null;
     if (a instanceof HTMLInputElement && a.name) return { sel: `input[name="${a.name}"]`, caret: a.selectionStart ?? a.value.length };
     // `role` tells a menu item from the row button with the same action (the menu comes after the row)
-    const sel = ['data-a', 'data-tab', 'data-code', 'data-group', 'data-board', 'data-age', 'role']
+    const sel = ['data-a', 'data-tab', 'data-code', 'data-group', 'data-age', 'role']
       .map((k) => {
         const v = a.getAttribute(k);
         return v === null ? '' : `[${k}=${attr(v)}]`;
@@ -891,7 +803,6 @@ export class SocialSheet {
         : '';
     this.root.dataset.view = this.shownTab;
     this.root.dataset.short = String(this.short);
-    this.root.dataset.density = this.density;
     // the invite card starts folded on a short screen and once there are friends to look at (a choice wins)
     this.invite.autoFold = (this.state?.friends.length ?? 0) > 0;
     this.root.innerHTML = `${this.head()}${this.tabBar()}${this.searchRow()}${this.meCard()}<div class="pl-social-body" id="pl-social-panel" role="tabpanel" aria-label="${TAB_LABEL[this.shownTab]}">${this.body()}${MORE_BELOW}</div>${note}${foot ? `<footer class="pl-social-foot">${foot}</footer>` : ''}${this.menuSheet()}${this.inviteSheet()}`;
@@ -1095,19 +1006,17 @@ export class SocialSheet {
   }
 
   /**
-   * The header (LoL's top block): me (avatar with my status ring, name, status ▾) on the left, then the invite gift
-   * (once there are friends: the card folds away), Add a friend and Close. One row on every screen.
+   * The header: the title, then my status (a dot button; founder Nov 19: no self card with my own name and "Online",
+   * it told me nothing), the invite gift (once there are friends: the card folds away), Add a friend and Close.
    */
   private head(): string {
     const s = this.state;
-    // one header on every tab (LoL never swaps its top block): me, the gift, Add, Close
     const tools = this.headTools;
-    let who = `<h2 class="pl-social-title">Friends</h2>`;
+    let status = '';
     if (tools && s) {
       const st = this.myStatus();
       const note = noteText(s.me.note);
-      const line = `<span class="pl-social-st" data-state="${st.state}">${st.text}</span>${note ? `${SEP_HTML}<span class="pl-st-note" data-name="${this.esc(note)}"></span>` : ''}`;
-      who = `<button type="button" class="pl-me" data-a="me" data-testid="social-me" aria-haspopup="true" aria-expanded="${this.meOpen}" aria-controls="pl-me-card" aria-label="${this.esc(`${s.me.name}, ${st.text}${note ? `, ${note}` : ''}. Status, friend code and avatar`)}" title="My status">${this.myAvatar(32)}<span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(s.me.name)}"></span></span><small class="pl-social-line">${line}${icon('chevron', 14)}</small></span></button>`;
+      status = `<button type="button" class="pl-ico pl-ico-st" data-a="me" data-testid="social-status" data-state="${st.state}" aria-haspopup="true" aria-expanded="${this.meOpen}" aria-controls="pl-me-card" aria-label="${this.esc(`My status: ${st.text}${note ? `, ${note}` : ''}. Change status`)}" title="${this.esc(`My status: ${st.text}`)}"><i class="pl-dot" data-state="${st.state}" aria-hidden="true"></i></button>`;
     }
     const inv = this.invite;
     const gift =
@@ -1115,12 +1024,12 @@ export class SocialSheet {
         ? `<button type="button" class="pl-ico pl-ico-gift${inv.state.claimable ? ' has-dot' : ''}" data-a="inv-fold" data-testid="invite-open" aria-expanded="${this.inviteShown}" aria-label="${inv.state.claimable ? 'Invite friends: a coat to claim' : 'Invite friends'}" title="Invite friends">${icon('gift', 20)}</button>`
         : '';
     const add = this.deps.signedIn() && s?.me.ageBand ? `<button type="button" class="pl-ico pl-ico-add" data-a="add" data-testid="social-add" aria-expanded="${this.adding}" aria-label="Add a friend" title="Add a friend">${icon('addUser', 20)}</button>` : '';
-    return `<header class="pl-social-head">${who}<span class="pl-head-acts">${gift}${add}<button type="button" class="pl-ico pl-social-x" data-a="close" aria-label="Close" title="Close (Esc)">${icon('close', 20)}</button></span></header>`;
+    return `<header class="pl-social-head"><h2 class="pl-social-title">Friends</h2><span class="pl-head-acts">${status}${gift}${add}<button type="button" class="pl-ico pl-social-x" data-a="close" aria-label="Close" title="Close (Esc)">${icon('close', 20)}</button></span></header>`;
   }
 
   /**
-   * The tab bar: Friends, Recent, Clubs (underlined text tabs on one track), More (Ranked, Leaderboards and the live
-   * match: not friend-list content) and, on Friends, Search. The Friends tab shows a dot only while another tab is
+   * The tab bar: Friends, Clubs (underlined text tabs on one track), More (Ranked and the live match: not friend-list
+   * content) and Search. The Friends tab shows a dot only while another tab is
    * open and something waits there (a request or an unread message); on Friends the groups and rows show the counts.
    */
   private tabBar(): string {
@@ -1134,16 +1043,14 @@ export class SocialSheet {
       return `<button type="button" role="tab" class="pl-social-tab" id="pl-social-tab-${t}" data-tab="${t}" aria-selected="${on}" aria-controls="pl-social-panel" tabindex="${on ? 0 : -1}"${label}><span>${TAB_LABEL[t]}</span>${dot}</button>`;
     }).join('');
     const inMore = (MORE_TABS as readonly SocialTab[]).includes(this.shownTab);
-    const more = `<button type="button" class="pl-social-more${inMore ? ' is-current' : ''}" data-a="tabs-more" aria-haspopup="menu" aria-expanded="${this.moreOpen}" aria-label="More: Ranked, leaderboards${this.liveShown ? ', watch live' : ''}"><span>${inMore ? (this.shownTab === 'boards' ? 'Boards' : TAB_LABEL[this.shownTab]) : 'More'}</span>${icon('chevron', 16)}</button>`;
+    const more = `<button type="button" class="pl-social-more${inMore ? ' is-current' : ''}" data-a="tabs-more" aria-haspopup="menu" aria-expanded="${this.moreOpen}" aria-label="More: Ranked${this.liveShown ? ', watch live' : ''}"><span>${inMore ? TAB_LABEL[this.shownTab] : 'More'}</span>${icon('chevron', 16)}</button>`;
     // SPECTATE.md: the featured live match sits in More (never a chip or a row in the friends list)
     const live = this.liveShown
       ? `<button type="button" role="menuitem" class="pl-mi" data-a="watch-live" data-testid="social-watch-live">${icon('live', 18)}<span>Watch a live match</span><i class="pl-live-dot" aria-hidden="true"></i></button>`
       : '';
-    // round 7: one line per friend (LoL density) as a choice, remembered on this device
-    const dense = `<button type="button" role="menuitemcheckbox" class="pl-mi pl-mi-check" data-a="density" data-testid="social-density" aria-checked="${this.density === 'compact'}">${icon('list', 18)}<span>Compact list</span>${this.density === 'compact' ? icon('check', 18) : ''}</button>`;
-    const menu = `<div class="pl-social-moremenu" role="menu" aria-label="More"${this.moreOpen ? '' : ' hidden'}>${MORE_TABS.map((t) => `<button type="button" role="menuitem" class="pl-mi" data-tab="${t}" aria-current="${this.shownTab === t}">${icon(t === 'ranked' ? 'trophy' : 'list', 18)}<span>${TAB_LABEL[t]}</span></button>`).join('')}${live}${dense}</div>`;
-    // round 7: Search on every tab (the bar never changes shape): it searches Friends or Recent, and from another tab
-    // it opens Friends with the field ready
+    const menu = `<div class="pl-social-moremenu" role="menu" aria-label="More"${this.moreOpen ? '' : ' hidden'}>${MORE_TABS.map((t) => `<button type="button" role="menuitem" class="pl-mi" data-tab="${t}" aria-current="${this.shownTab === t}">${icon('trophy', 18)}<span>${TAB_LABEL[t]}</span></button>`).join('')}${live}</div>`;
+    // round 7: Search on every tab (the bar never changes shape): it searches Friends, and from another tab it opens
+    // Friends with the field ready
     const search =
       this.headTools && !this.adding
         ? `<button type="button" class="pl-ico pl-search-btn" data-a="search" data-testid="social-search" aria-expanded="${this.searchShown}" aria-controls="pl-social-q" aria-label="Search friends" title="Search friends">${icon('search', 20)}</button>`
@@ -1158,13 +1065,13 @@ export class SocialSheet {
 
   /** The search field shows once opened (Search in the tab bar) or while it holds text. */
   private get searchShown(): boolean {
-    return (this.shownTab === 'friends' || this.shownTab === 'recent') && this.headTools && !this.adding && (this.searchOpen || !!this.query);
+    return this.shownTab === 'friends' && this.headTools && !this.adding && (this.searchOpen || !!this.query);
   }
 
   /** The friends search: one row under the tabs, filtering as you type; its × (or Esc) clears and closes it. */
   private searchRow(): string {
     if (!this.searchShown) return '';
-    return `<div class="pl-social-searchrow" role="search"><label class="pl-social-search">${icon('search', 18)}<input type="search" id="pl-social-q" name="q" autocomplete="off" spellcheck="false" placeholder="${this.shownTab === 'recent' ? 'Search recent players' : 'Search friends'}" aria-label="${this.shownTab === 'recent' ? 'Search recent players' : 'Search friends'}" enterkeyhint="search" value="${this.esc(this.query)}"></label><button type="button" class="pl-ico" data-a="search-close" aria-label="Close search" title="Close search">${icon('close', 18)}</button></div>`;
+    return `<div class="pl-social-searchrow" role="search"><label class="pl-social-search">${icon('search', 18)}<input type="search" id="pl-social-q" name="q" autocomplete="off" spellcheck="false" placeholder="Search friends" aria-label="Search friends" enterkeyhint="search" value="${this.esc(this.query)}"></label><button type="button" class="pl-ico" data-a="search-close" aria-label="Close search" title="Close search">${icon('close', 18)}</button></div>`;
   }
 
   /** A short screen (a phone held sideways, ≤ 500 px): denser group headers, Requests folds to its header. */
@@ -1172,9 +1079,9 @@ export class SocialSheet {
     return (this.deps.height?.() ?? (typeof window !== 'undefined' ? window.innerHeight : 640)) <= SHORT_PX;
   }
 
-  /** The header's me, gift and Add show on every tab once signed in and the age is asked (not while picking). */
+  /** The header's status, gift and Add show on every tab once signed in and the age is asked. */
   private get headTools(): boolean {
-    return this.deps.signedIn() && !!this.state?.me.ageBand && !this.picking;
+    return this.deps.signedIn() && !!this.state?.me.ageBand;
   }
 
   /** My status word ("Online", "Away" or "Appear offline") and its presence state for the dot. */
@@ -1184,15 +1091,9 @@ export class SocialSheet {
     return me?.away ? { text: 'Away', state: 'away' } : { text: 'Online', state: 'online' };
   }
 
-  /** My avatar with my status dot (the same ring and dot as a friend's row). */
-  private myAvatar(size: number): string {
-    const st = this.myStatus().state;
-    return `<span class="pl-fr-av" data-state="${st}">${avatarHtml(this.state?.me.av, size as 32)}<i class="pl-dot" data-state="${st}"></i></span>`;
-  }
-
   /**
-   * My status card (under the tabs, in the flow): Online, Away or Appear offline, a preset status note, my friend
-   * code, Change avatar. While it is open the invite card stays folded (one popover at a time).
+   * My status card (under the tabs, in the flow): Online, Away or Appear offline, a preset status note, my friend code
+   * (the avatar is changed in Profile only). While it is open the invite card stays folded (one popover at a time).
    */
   private meCard(): string {
     if (!this.meOpen || !this.headTools) return '';
@@ -1210,9 +1111,9 @@ export class SocialSheet {
     // a mouse: under the header, in the flow, capped and scrolling
     const sheet = this.sheetMenu;
     const head = sheet
-      ? `<div class="pl-me-card-h"><span class="pl-fr-grab" aria-hidden="true"></span><p class="pl-me-card-name" data-name="${this.esc(me.name)}"></p><button type="button" class="pl-ico" data-a="me-close" aria-label="Close status" title="Close">${icon('close', 18)}</button></div>`
-      : `<p class="pl-me-card-name" data-name="${this.esc(me.name)}"></p>`;
-    return `${sheet ? '<div class="pl-fr-scrim" data-a="me-close" aria-hidden="true"></div>' : ''}<div class="pl-me-card${sheet ? ' is-sheet' : ''}" id="pl-me-card" data-testid="social-me-card" role="dialog" aria-label="My status">${head}<div role="radiogroup" aria-label="My status">${radio('online', 'Online', 'Friends can invite you')}${radio('away', 'Away', 'Also set after 10 min idle')}${radio('invisible', 'Appear offline', 'You still see your friends')}</div>${note}<div class="pl-me-card-acts"><button type="button" class="pl-mi" data-a="copy" aria-label="${this.esc(`Copy your friend code ${me.code}`)}">${icon('copy', 18)}<span>Friend code <b class="pl-me-code">${this.esc(me.code)}</b></span></button><button type="button" class="pl-mi" data-a="avatar" data-testid="avatar-open">${icon('friends', 18)}<span>Change avatar</span></button></div></div>`;
+      ? `<div class="pl-me-card-h"><span class="pl-fr-grab" aria-hidden="true"></span><p class="pl-me-card-name">My status</p><button type="button" class="pl-ico" data-a="me-close" aria-label="Close status" title="Close">${icon('close', 18)}</button></div>`
+      : '';
+    return `${sheet ? '<div class="pl-fr-scrim" data-a="me-close" aria-hidden="true"></div>' : ''}<div class="pl-me-card${sheet ? ' is-sheet' : ''}" id="pl-me-card" data-testid="social-me-card" role="dialog" aria-label="My status">${head}<div role="radiogroup" aria-label="My status">${radio('online', 'Online', 'Friends can invite you')}${radio('away', 'Away', 'Also set after 10 min idle')}${radio('invisible', 'Appear offline', 'You still see your friends')}</div>${note}<div class="pl-me-card-acts"><button type="button" class="pl-mi" data-a="copy" aria-label="${this.esc(`Copy your friend code ${me.code}`)}">${icon('copy', 18)}<span>Friend code <b class="pl-me-code">${this.esc(me.code)}</b></span></button></div></div>`;
   }
 
   /**
@@ -1233,14 +1134,11 @@ export class SocialSheet {
 
   private body(): string {
     if (this.tab === 'ranked') return this.rankedBody();
-    if (this.tab === 'boards') return this.boardBody();
     if (!this.deps.signedIn()) return this.guestPanel();
     const s = this.state;
     if (!s) return `<p class="pl-social-empty">Loading…</p>`;
     if (!s.me.ageBand) return this.agePanel();
-    if (this.picking) return this.pickerBody();
     if (this.tab === 'clubs') return this.clubs.body(this.per);
-    if (this.tab === 'recent') return this.recentBody();
     return this.friendsBody(s);
   }
 
@@ -1440,18 +1338,6 @@ export class SocialSheet {
     return `<div class="pl-social-row pl-rc" role="listitem" data-team="${p.team === 'ally' ? 'ally' : 'enemy'}"><span class="pl-fr-av">${avatarHtml(p.av, 40)}</span><span class="pl-social-who"><span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(p.name)}"></span></span><small class="pl-social-line"><span class="pl-social-st pl-team">${p.team === 'ally' ? 'Teammate' : 'Opponent'}</span>${together}</small></span><span class="pl-fr-acts is-shown">${p.canAdd ? `<button type="button" class="pl-ico pl-act-2" data-a="add-recent" data-room="${this.esc(p.room)}" data-slot="${p.slot}" aria-label="${this.esc(`Add ${p.name} as a friend`)}" title="Add friend">${icon('addUser')}</button>` : ''}</span></div>`;
   }
 
-  private recentBody(): string {
-    const all = this.recent;
-    if (!all) return `<p class="pl-social-empty">Loading…</p>`;
-    const typed = this.query.trim();
-    const rec = typed ? all.filter((p) => p.name.toLowerCase().includes(typed.toLowerCase())) : all;
-    if (typed && !rec.length) return `<div class="pl-social-empty pl-social-none" data-testid="social-search-none"><span class="pl-none-art" aria-hidden="true">${icon('search', 28)}</span><p>No recent player matches "<span data-name="${this.esc(typed)}"></span>".</p></div>`;
-    if (!all.length) return `<div class="pl-social-empty pl-social-none"><span class="pl-none-art" aria-hidden="true">${icon('history', 28)}</span><p>No recent players yet</p><small>Players from your matches in the last 7 days show here.</small></div>`;
-    // grouped by match, newest first (LoL's match history feel): "Casual · Victory · 2h ago", then its players
-    const matches = recentMatches(rec);
-    return `${matches.map((m) => `<section class="pl-group pl-rc-match" data-room="${this.esc(m.room)}"${typeof m.won === 'boolean' ? ` data-won="${m.won}"` : ''}><h3 class="pl-group-h is-static" aria-label="${this.esc(m.title)}">${icon('history', 16)}<span class="pl-group-t"><span data-testid="social-recent-title">${dotsHtml(m.title)}</span></span></h3><div class="pl-group-list" role="list">${m.rows.map((p) => this.recentRow(p)).join('')}</div></section>`).join('')}<p class="pl-social-hint pl-rc-foot">Players from your matches in the last 7 days</p>`;
-  }
-
   private rankedBody(): string {
     const st = this.ranked.status;
     const me = this.ranked.me;
@@ -1471,53 +1357,10 @@ export class SocialSheet {
     return `${season}${card}${gate}<button type="button" class="pl-btn big" data-a="casual">Play Casual</button>`;
   }
 
-  /** One board row: rank, avatar, name and flag, the metric (a tier, else wins). The pinned "You" row is the same. */
-  private boardRowHtml(r: BoardRow, pinned = false): string {
-    return `<div class="pl-social-row pl-bd${r.me ? ' me' : ''}${pinned ? ' pin' : ''}"${pinned ? ' data-testid="board-pinned"' : ''}><b class="pl-rank">${pinned ? '#' : ''}${Number(r.rank)}</b>${isAvatarView(r.av) ? avatarHtml(r.av, 32) : ''}<span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(String(r.name ?? ''))}"></span>${ccHtmlOrNone(r.cc)}${r.me ? '<small class="pl-bd-you">You</small>' : ''}</span><small class="pl-social-st">${r.tier ? this.esc(r.tier) : `${Number(r.value) || 0} wins`}</small></div>`;
-  }
-
-  private boardBody(): string {
-    const b = this.board;
-    const sub = boardKinds(this.deps.signedIn())
-      .map((k) => `<button type="button" class="pl-btn ghost small" data-board="${k}" data-testid="board-${k}" aria-pressed="${b.kind === k}">${BOARD_LABEL[k]}</button>`)
-      .join('');
-    const d = b.data;
-    if (!d) return `<div class="pl-social-sub">${sub}</div><p class="pl-social-empty">Loading…</p>`;
-    const local = b.kind === 'local' ? ((d.local ?? null) as { cc?: string | null; hidden?: boolean } | null) : null;
-    const cc = typeof local?.cc === 'string' && /^[A-Z]{2}$/.test(local.cc) ? local.cc : null;
-    // Local: the country, with its flag, over the list (only my own country; it comes from my flag)
-    const head = b.kind === 'local' && cc && !local?.hidden ? `<p class="pl-bd-head" data-testid="board-local-head"><span aria-hidden="true">${flagEmoji(cc)}</span> ${this.esc(countryName(cc))} · this season</p>` : '';
-    if (b.kind === 'local' && !d.error && (local?.hidden || !cc)) {
-      const why = local?.hidden
-        ? `<p class="pl-social-empty">Show your flag to join your country's board. Only players who show their flag are on it.</p><button type="button" class="pl-btn small" data-a="board-flag" data-testid="board-show-flag">Show my flag</button>`
-        : `<p class="pl-social-empty">We don't know your country yet, so there is no local board for you. Only players who show their flag are on it.</p>`;
-      return `<div class="pl-social-sub">${sub}</div><div class="pl-bd-why" data-testid="board-local-why">${why}</div>`;
-    }
-    // the list scrolls: every row the server sent shows (the old page cut the last one behind the footer)
-    const view = boardView(d);
-    const empty = d.error
-      ? this.esc(String(d.error))
-      : b.kind === 'local'
-        ? `No ranked players from ${this.esc(countryName(cc ?? ''))} yet this season. Only players who show their flag are on it.`
-        : b.kind === 'global'
-          ? 'No ranked players yet this season.'
-          : 'No one here yet this week.';
-    const list = view.rows.length ? view.rows.map((r) => this.boardRowHtml(r)).join('') : `<p class="pl-social-empty">${empty}</p>`;
-    const me = view.pinned ? this.boardRowHtml(view.pinned, true) : '';
-    return `<div class="pl-social-sub">${sub}</div>${head}${list}${me}`;
-  }
-
   private footer(): string {
-    if (this.picking)
-      return `<button type="button" class="pl-btn ghost small" data-a="pick-cancel">Cancel</button><button type="button" class="pl-btn small" data-a="pick-save" data-testid="avatar-save">Save</button>`;
     if (this.tab === 'clubs' && this.state?.me.ageBand && this.deps.signedIn()) return this.clubs.footer(this.per);
     if (this.tab === 'friends' && this.short && this.state?.me.ageBand && this.deps.signedIn() && this.state.friends.length) return this.growHint(this.state, true);
-    if (this.tab !== 'boards') return '';
-    const pages = Math.max(1, Number(this.board.data?.pages ?? 1));
-    const page = this.board.page;
-    return pages > 1
-      ? `<span class="pl-pager"><button type="button" class="pl-btn ghost small" data-a="prev" aria-label="Previous page"${page <= 0 ? ' disabled' : ''}>&lsaquo;</button><small>${page + 1}/${pages}</small><button type="button" class="pl-btn ghost small" data-a="next" aria-label="Next page"${page >= pages - 1 ? ' disabled' : ''}>&rsaquo;</button></span>`
-      : '';
+    return '';
   }
 
   private async act(op: ApiOp, args: ApiArgs, ok?: string): Promise<boolean> {
@@ -1680,10 +1523,6 @@ export class SocialSheet {
         this.root.querySelector<HTMLElement>('[data-testid="invite-open"]')?.focus({ preventScroll: true });
         return;
       }
-      if (this.picking) {
-        this.picking = null;
-        return this.render();
-      }
       return this.dispose();
     }
     if (t.getAttribute('role') === 'tab' && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
@@ -1781,14 +1620,6 @@ export class SocialSheet {
       this.render();
       return;
     }
-    const board = t.closest<HTMLElement>('[data-board]')?.dataset.board as BoardKind | undefined;
-    if (board) {
-      this.board = { kind: board, page: 0, data: null };
-      rememberBoardKind(board);
-      this.render();
-      void this.loadBoard();
-      return;
-    }
     const club = t.closest<HTMLElement>('[data-club]');
     if (club && this.clubs.click(club)) return;
     const age = t.closest<HTMLElement>('[data-age]')?.dataset.age;
@@ -1853,16 +1684,6 @@ export class SocialSheet {
         if (this.moreOpen) m?.querySelector<HTMLElement>('.pl-mi')?.focus({ preventScroll: true });
         return;
       }
-      case 'density':
-        this.density = this.density === 'compact' ? 'comfy' : 'compact';
-        try {
-          localStorage.setItem(DENSITY_KEY, this.density);
-        } catch {
-          // private window or blocked storage: the choice lasts while the sheet is open
-        }
-        this.deps.track?.('social_density', { compact: this.density === 'compact' });
-        this.render();
-        return;
       case 'me':
         this.meOpen = !this.meOpen;
         this.moreOpen = false;
@@ -1928,28 +1749,12 @@ export class SocialSheet {
         this.dispose();
         this.deps.playCasual();
         return;
-      case 'prev':
-      case 'next':
-        this.board.page = Math.max(0, this.board.page + (a === 'next' ? 1 : -1));
-        void this.loadBoard();
-        return;
-      case 'board-flag':
-        // Local: one tap shows my flag (the same choice as Settings), then the board loads with me on it
-        el.setAttribute('disabled', '');
-        void setFlagHidden(false, (op, args) => this.deps.api(op, args)).then(() => {
-          if (this.disposed) return;
-          this.deps.track?.('settings_change', { setting: 'flag', value: 'shown' });
-          this.board.data = null;
-          this.render();
-          return this.loadBoard();
-        });
-        return;
       case 'add-name':
         void this.addByCode(el.dataset.nick ?? '');
         return;
       case 'search':
         if (this.searchShown) return this.closeSearch();
-        if (this.tab !== 'friends' && this.tab !== 'recent') {
+        if (this.tab !== 'friends') {
           this.tab = 'friends';
           this.moreOpen = false;
           void this.load();
@@ -2057,28 +1862,6 @@ export class SocialSheet {
       case 'chat':
         this.menuFor = null;
         this.openChat(code, this.finePointer ? 'input' : 'head');
-        return;
-      case 'avatar':
-        this.meOpen = false;
-        this.openPicker();
-        return;
-      case 'pick-icon':
-        if (this.picking) {
-          this.picking.avatarKind = el.dataset.kind ?? 'hero';
-          this.picking.avatarRef = el.dataset.ref ?? '';
-        }
-        this.render();
-        return;
-      case 'pick-frame':
-        if (this.picking) this.picking.frame = el.dataset.frame ?? 'none';
-        this.render();
-        return;
-      case 'pick-cancel':
-        this.picking = null;
-        this.render();
-        return;
-      case 'pick-save':
-        void this.saveAvatar();
         return;
       case 'remove':
         // Remove has no Undo: the first tap arms it, the second (within 4 s) removes
@@ -2432,62 +2215,9 @@ export class SocialSheet {
     this.coverList(true);
   }
 
-  private openPicker(): void {
-    const me = this.state?.me;
-    if (!me) return;
-    const a = me.avatar;
-    // NO-TOKENTAILS.md (Your call 4): a cat avatar chosen earlier keeps showing, but the picker offers champions only
-    this.picking = {
-      avatarKind: a?.kind === 'icon' ? 'icon' : 'hero',
-      avatarRef: a?.kind === 'icon' ? (a.icon ?? '') : (a?.hero ?? (me.av?.i.startsWith('h:') ? me.av.i.slice(2) : 'clem')),
-      frame: me.frame ?? 'none',
-    };
-    this.deps.track?.('avatar_open');
-    this.render();
-  }
-
-  /** The preview of the choice not saved yet. */
-  private pickedView(): AvatarView {
-    const p = this.picking!;
-    const v: AvatarView = { i: `h:${p.avatarRef || 'clem'}` };
-    if (p.frame !== 'none') v.f = p.frame;
-    const t = this.state?.me.title;
-    if (t) v.t = t;
-    return v;
-  }
-
-  /** Avatar picker (CHAT-AVATARS §7.4): champions (the one scroll region), owned borders, a live preview. */
-  private pickerBody(): string {
-    const p = this.picking!;
-    const tiles = HERO_IDS.map((h) => `<button type="button" class="pl-av-tile" data-a="pick-icon" data-kind="hero" data-ref="${h}" aria-pressed="${p.avatarKind === 'hero' && p.avatarRef === h}" aria-label="${this.esc(h)}">${avatarHtml({ i: `h:${h}` }, 40)}</button>`).join('');
-    const frames = ['none', ...(this.deps.ownedItems?.() ?? []).filter((i) => /^frame\.(store|s1)\.[a-z0-9._-]+$|^frame\.(legend|founder)$/.test(i))].slice(0, 7);
-    const ring = frames
-      .map((f) => `<button type="button" class="pl-av-tile" data-a="pick-frame" data-frame="${this.esc(f)}" aria-pressed="${p.frame === f}" aria-label="${f === 'none' ? 'No border' : this.esc(f)}">${avatarHtml({ i: `h:${p.avatarKind === 'hero' ? p.avatarRef || 'clem' : 'clem'}`, ...(f !== 'none' ? { f } : {}) }, 32)}</button>`)
-      .join('');
-    const title = this.state?.me.title ? `<small class="pl-social-st">${this.esc(titleText(this.state.me.title))}</small>` : '';
-    return `<div class="pl-av-pick" data-testid="avatar-picker"><div class="pl-av-preview">${avatarHtml(this.pickedView(), 56)}<span class="pl-social-name" data-name="${this.esc(this.state?.me.name ?? '')}"></span>${title}</div><div class="pl-av-grid">${tiles}</div><div class="pl-av-frames" aria-label="Border">${ring}</div></div>`;
-  }
-
-  private async saveAvatar(): Promise<void> {
-    const p = this.picking;
-    if (!p) return;
-    const r = await this.deps.api('social.me', { avatarKind: p.avatarKind, avatarRef: p.avatarRef, frame: p.frame });
-    if (r.ok) {
-      this.picking = null;
-      this.deps.track?.('avatar_save', { kind: p.avatarKind });
-      this.note = 'Avatar saved';
-      if (r.body) this.state = r.body as SocialState;
-      this.render();
-      return;
-    }
-    this.note = "Couldn't save your avatar. Try again.";
-    this.render();
-  }
-
-  /** Switch an open panel to a tab (the Home Leaderboard button while the panel is already open). */
+  /** Switch an open panel to a tab. */
   showTab(tab: SocialTab): void {
     if (this.disposed) return;
-    if (tab === 'boards') this.board = { kind: readBoardKind(this.deps.signedIn()), page: 0, data: null };
     this.setTab(tab);
   }
 

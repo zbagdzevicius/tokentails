@@ -177,11 +177,6 @@ html .pl-group-t .pl-i { flex: none; color: var(--v6-gold-2); }
 html .pl-group-h.is-static { cursor: default; }
 html .pl-group-h.is-static > .pl-i { color: var(--v6-muted); }
 html .pl-group[data-g='requests'] .pl-group-h { color: var(--v6-cream); }
-/* a recent match: "Casual · Victory · 2h ago" in sentence case, the result tinted */
-html .pl-rc-match .pl-group-h { text-transform: none; letter-spacing: 0; font-weight: 700; }
-html .pl-rc-match[data-won='true'] .pl-group-h { box-shadow: 0 -2px 0 var(--v6-night-2), inset 3px 0 0 var(--pr-online), inset 0 -1px 0 var(--v6-line); }
-html .pl-rc-match[data-won='false'] .pl-group-h { box-shadow: 0 -2px 0 var(--v6-night-2), inset 3px 0 0 var(--v6-enemy), inset 0 -1px 0 var(--v6-line); }
-html .pl-social .pl-rc-foot { margin-top: 10px; text-align: center; }
 @media (hover: hover) { html .pl-group-h:hover { color: var(--v6-cream); } }
 /* count pills: 13 px on a solid fill (no faint 8 % wash) */
 html .pl-group-n {
@@ -204,16 +199,9 @@ html .pl-social .pl-social-body::after {
 html .pl-social.has-more .pl-social-body::after { opacity: 1; }
 @media (pointer: coarse) { html .pl-group-list { gap: 0; } }
 
-/* ── me (LoL's top block, in the header): my avatar with my status, my name, my status ▾; the card under it ───── */
-html .pl-me {
-  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 2px 8px 2px 6px; border: 0;
-  border-radius: var(--v6-r-s); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
-}
-html .pl-me .pl-social-name { -webkit-line-clamp: 1; line-clamp: 1; overflow-wrap: anywhere; }
-@media (hover: hover) { html .pl-me:hover { background: rgb(var(--v6-cream-rgb) / 0.06); } }
-html .pl-me .pl-social-line { align-items: center; gap: 2px; }
-html .pl-me .pl-social-line .pl-i { flex: none; transition: transform var(--v6-dur-fast) var(--v6-ease-out); }
-html .pl-me[aria-expanded='true'] .pl-social-line .pl-i { transform: rotate(180deg); }
+/* ── my status (founder Nov 19: no self card): a dot button in the header; the card under it ───────────────────── */
+html .pl-social .pl-ico-st .pl-dot { width: 14px; height: 14px; box-shadow: 0 0 0 2px var(--v6-night-2), 0 0 0 3.5px rgb(var(--v6-cream-rgb) / 0.35); }
+html .pl-social .pl-ico-st[aria-expanded='true'] { background: rgb(var(--v6-cream-rgb) / 0.12); }
 html .pl-me-card {
   flex: none; display: grid; gap: 4px; padding: 6px; border-radius: var(--v6-r-s); background: var(--v6-night-0);
   box-shadow: inset 0 0 0 1px var(--v6-line-strong), var(--v6-shadow-2); animation: pl-soc-pop var(--v6-dur-fast) var(--v6-ease-out) both;
@@ -279,7 +267,7 @@ html .pl-social .pl-dot[data-state='offline'], html .pl-chat .pl-dot[data-state=
    (fillNames), in the row menu and in the thread head; the flag keeps its gap right after the name */
 html .pl-social .pl-social-who, html .pl-chat .pl-chat-who-h { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
 html .pl-social .pl-social-nm { gap: 6px; min-width: 0; }
-html .pl-social .pl-social-row .pl-social-name, html .pl-me .pl-social-name, html .pl-chat .pl-chat-who-h .pl-social-name {
+html .pl-social .pl-social-row .pl-social-name, html .pl-chat .pl-chat-who-h .pl-social-name {
   flex: 0 1 auto; min-width: 0; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   font: 700 var(--soc-name, 15px)/1.25 var(--font); color: var(--v6-cream);
 }
@@ -501,20 +489,6 @@ html .pl-social .pl-club-intro .pl-club-join { display: flex; gap: 6px; margin: 
 html .pl-social .pl-club-intro .pl-club-join input { flex: 1 1 auto; min-width: 0; min-height: 44px; font-size: 16px; }
 html .pl-social .pl-club-kt small, html .pl-social .pl-club-kudos small { font-size: 14px; }
 
-/* Leaderboards (under More): rows scroll; names keep their room */
-html .pl-social .pl-social-sub { flex: none; flex-wrap: wrap; margin-bottom: 4px; }
-html .pl-social .pl-bd { gap: 10px; min-height: 48px; padding: 0 8px; }
-html .pl-social .pl-bd .pl-social-nm { flex: 1 1 auto; min-width: 0; }
-html .pl-social .pl-bd .pl-social-st { font-size: 14px; }
-/* my own row: on the list when I am on the page, else pinned under it (the same row, never both) */
-html .pl-social .pl-bd.me { background: rgb(var(--v6-bolt-rgb, 255 225 74) / 0.12); box-shadow: inset 3px 0 0 var(--v6-bolt, #ffe14a); border-radius: var(--v6-r-s, 6px); }
-html .pl-social .pl-bd.pin { position: sticky; bottom: 0; z-index: 1; margin-top: 6px; background: var(--v6-night-2, #1c1230); box-shadow: inset 3px 0 0 var(--v6-bolt, #ffe14a), 0 -6px 12px rgb(0 0 0 / 0.35); }
-html .pl-social .pl-bd-you { flex: none; margin-left: 6px; padding: 1px 6px; border-radius: 3px; font: 800 11px/1.3 var(--font); color: var(--v6-night, #12091f); background: var(--v6-bolt, #ffe14a); }
-/* Local: the country over the list, and why there is no board (a hidden flag, an unknown country) */
-html .pl-social .pl-bd-head { flex: none; margin: 2px 8px 6px; font: 800 15px/1.3 var(--font); color: var(--v6-cream, #fff3e3); }
-html .pl-social .pl-bd-why { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 4px 8px; }
-html .pl-social .pl-bd-why .pl-btn { min-height: 44px; }
-
 /* the old hide ladder hid status lines on short screens: they stay now (the list scrolls) */
 @media (max-height: 300px) { html .pl-social .pl-social-st { display: inline; } }
 
@@ -522,7 +496,7 @@ html .pl-social .pl-bd-why .pl-btn { min-height: 44px; }
   html .pl-social-moremenu, html .pl-fr-menu, html .pl-me-card, html .pl-chat.is-docked, html .pl-fr-scrim { animation: none; }
   html .pl-chat .pl-chat-more { transition: none; }
   html .pl-social-moremenu .pl-live-dot { animation: none; }
-  html .pl-ico, html .pl-me .pl-i, html .pl-group-h .pl-i, html .pl-social-more .pl-i { transition: none; }
+  html .pl-ico, html .pl-group-h .pl-i, html .pl-social-more .pl-i { transition: none; }
 }
 
 /* ── round 6 ───────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -652,42 +626,12 @@ html .pl-me-card:not(.is-sheet) {
   html .pl-me-card.is-sheet .pl-me-opt .pl-dot { margin: 0; }
 }
 
-/* the Recent footer: readable (cream 82 %, AA on the night panel) */
-html .pl-social .pl-rc-foot { color: rgb(var(--v6-cream-rgb) / 0.82); }
 
 /* a short screen with few friends: Find and Invite pinned under the list (always above the fold) */
 html .pl-social .pl-social-foot:has(> .pl-social-grow) { flex: none; display: block; padding: 0; }
 html .pl-social-grow.is-bar { display: flex; gap: 8px; margin: 0; padding: 4px 0 0; box-shadow: inset 0 1px 0 var(--v6-line); border-radius: 0; }
 html .pl-social-grow.is-bar .pl-btn { flex: 1 1 0; min-width: 0; }
 
-/* compact list (More → Compact list): one line per friend, name then status, LoL's density; 40 px rows with a mouse,
-   44 on touch (the target floor) */
-html .pl-social[data-density='compact'] { --soc-row: 40px; --soc-av: 26px; }
-@media (pointer: coarse) { html .pl-social[data-density='compact'] { --soc-row: 44px; } }
-html .pl-social[data-density='compact'] .pl-social-body .pl-social-row .pl-social-who { flex-direction: row; align-items: baseline; gap: 8px; }
-/* the name then the status (never cut: the name gives way first and keeps its tooltip); the note, champion and
-   message preview stay in the comfortable list and the row's label (the unread count stays on Chat) */
-html .pl-social[data-density='compact'] .pl-social-body .pl-social-row .pl-social-nm { flex: 0 1 auto; min-width: 0; }
-html .pl-social[data-density='compact'] .pl-social-body .pl-social-row .pl-social-line { flex: none; }
-html .pl-social[data-density='compact'] .pl-social-body .pl-fr .pl-social-line > :not(.pl-social-st) { display: none; }
-html .pl-social[data-density='compact'] .pl-social-body { gap: 0; }
-html .pl-social[data-density='compact'] .pl-social-body .pl-fr .pl-st-more { display: none; }
-html .pl-social[data-density='compact'] .pl-social-body .pl-rq-main { justify-content: flex-start; }
-html .pl-social[data-density='compact'] .pl-social-body .pl-fr-main { padding-top: 0; padding-bottom: 0; }
-html .pl-social[data-density='compact'] .pl-social-body .pl-fr-av .pl-dot { width: 10px; height: 10px; right: -4px; bottom: -4px; }
-html .pl-social[data-density='compact'] .pl-group-list { gap: 0; padding: 0; }
-/* with a mouse the whole row is the target (a wide strip), so compact rows are 32 px (LoL's are about 34): about 20
-   friends on a 900 px screen; their hover icons are 40 × 32, past WCAG's 24 px minimum */
-@media (hover: hover) and (pointer: fine) {
-  html .pl-social[data-density='compact'] { --soc-row: 32px; --soc-av: 22px; }
-  html .pl-social[data-density='compact'] .pl-fr-acts { --act: 34px; }
-  html .pl-social[data-density='compact'] .pl-fr-acts .pl-ico { height: 32px; }
-  html .pl-social[data-density='compact'] .pl-fr-acts .pl-ico.is-primary .pl-ic, html .pl-social[data-density='compact'] .pl-fr-acts .pl-ico.is-pill .pl-ic { height: 26px; }
-  html .pl-social[data-density='compact'] .pl-group-h { min-height: 32px; }
-  html .pl-social[data-density='compact'] .pl-fr-av .pl-av { box-shadow: 0 0 0 2px var(--v6-night-2), 0 0 0 3px var(--ring) !important; }
-  html .pl-social[data-density='compact'] .pl-fr-av .pl-dot { width: 8px; height: 8px; right: -3px; bottom: -3px; }
-}
-html .pl-mi-check .pl-i:last-child { margin-left: auto; color: var(--v6-bolt); }
 
 /* ── the DM, round 7 ── */
 /* docked: a real chat window (420 × up to 500), resizable from its top-left grip; the messages sit on the composer */
@@ -728,7 +672,6 @@ html .pl-social .pl-social-st + .pl-st-note::before { content: none; }
 html .pl-social .pl-st-note > .pl-sep, html .pl-social .pl-st-more > .pl-sep { color: inherit; opacity: 0.8; }
 html .pl-social .pl-social-line > .pl-sep { flex: none; }
 html .pl-social .pl-social-st + .pl-social-msg { margin-left: 8px; }
-html .pl-me .pl-social-line > .pl-i { margin-left: 4px; }
 html .pl-group-t > span { min-width: 0; }
 
 /* the list's bottom edge names the groups still below it (LoL always shows its Offline header) */

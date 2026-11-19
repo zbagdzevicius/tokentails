@@ -1,0 +1,77 @@
+/* The leaderboards window (boardsModal.ts): a centred v6 dialog over a dim scrim. Night-2 card with the rivalry seam on
+   top, cream type, the bolt for the selected board and my own row. Rows reuse the shared social row (css/social.css).
+   Every selector starts with `html` (the main stylesheet can be linked after this chunk's). 16 px gutters, safe areas,
+   44 px targets; on a short landscape phone it takes the height, on a tall phone the width. */
+html .pl-boards-wrap {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; box-sizing: border-box;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+html .pl-boards-scrim { position: absolute; inset: 0; background: rgb(var(--v6-night-rgb, 18 9 31) / 0.62); animation: pl-boards-fade var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out) both; }
+@keyframes pl-boards-fade { from { opacity: 0; } }
+html .pl-boards {
+  position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;
+  width: min(520px, 100%); max-height: min(680px, 100%); min-height: min(360px, 100%); overflow: hidden;
+  padding: 12px 12px 10px; border-radius: var(--v6-r-m, 10px);
+  background: linear-gradient(180deg, rgb(var(--v6-bolt-rgb, 255 225 74) / 0.08), rgb(var(--v6-bolt-rgb, 255 225 74) / 0) 120px), var(--v6-night-2, #1c1230);
+  color: var(--v6-cream, #fff3e3); font: 600 14px/1.25 var(--font, sans-serif);
+  box-shadow: 0 0 0 1px var(--v6-line, rgb(255 243 227 / 0.12)), 0 24px 60px rgb(0 0 0 / 0.55);
+  animation: pl-boards-in var(--v6-dur-screen, 240ms) var(--v6-ease-out, ease-out) both;
+}
+/* the rivalry seam along the top edge */
+html .pl-boards::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; pointer-events: none;
+  background: linear-gradient(90deg, var(--v6-rose, #ff3d7f) 0 47%, var(--v6-bolt, #ffe14a) 47% 53%, var(--v6-sky, #39a6ff) 53%);
+}
+@keyframes pl-boards-in { from { transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { html .pl-boards, html .pl-boards-scrim { animation: none; } }
+
+html .pl-boards-head { flex: none; display: flex; align-items: center; gap: 10px; min-height: 44px; }
+html .pl-boards-ico {
+  flex: none; width: 34px; height: 34px; display: grid; place-items: center; color: var(--v6-night, #12091f);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a));
+}
+html .pl-boards-ico .pl-icon, html .pl-boards-ico svg { width: 18px; height: 18px; }
+html .pl-boards-head h2 { flex: 1 1 auto; min-width: 0; margin: 0; font: italic 900 22px/1.1 var(--v6-font-display, var(--font, sans-serif)); text-transform: uppercase; letter-spacing: 0.01em; color: var(--v6-cream, #fff3e3); }
+html .pl-boards .pl-boards-x {
+  flex: none; margin-left: auto; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s, 6px);
+  background: transparent; color: var(--v6-muted); cursor: pointer; touch-action: manipulation;
+  transition: background-color var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out), color var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out);
+}
+@media (hover: hover) { html .pl-boards .pl-boards-x:hover { background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.1); color: var(--v6-cream, #fff3e3); } }
+html .pl-boards .pl-boards-x:active { background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.16); }
+
+/* the boards: one segmented row, each the same width, the selected one cream with the bolt underline */
+html .pl-boards .pl-boards-sub { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin: 0; }
+html .pl-boards .pl-boards-sub .pl-btn { min-height: 44px; min-width: 0; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+html .pl-boards-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 2px;
+  padding: 2px 0; scrollbar-width: thin; scrollbar-color: rgb(var(--v6-cream-rgb, 255 243 227) / 0.25) transparent;
+}
+html .pl-boards .pl-bd { flex: none; gap: 10px; min-height: 48px; padding: 0 8px; }
+html .pl-boards .pl-bd .pl-social-nm { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; }
+html .pl-boards .pl-bd .pl-social-name { flex: 0 1 auto; font-size: 15px; font-weight: 700; }
+html .pl-boards .pl-bd .pl-social-st { font-size: 14px; color: var(--v6-muted); font-variant-numeric: tabular-nums; }
+html .pl-boards .pl-bd:nth-child(-n + 3):not(.pin) .pl-rank { color: var(--v6-bolt, #ffe14a); }
+/* my own row: on the list when I am on the page, else pinned under it (the same row, never both) */
+html .pl-boards .pl-bd.me { background: rgb(var(--v6-bolt-rgb, 255 225 74) / 0.12); box-shadow: inset 3px 0 0 var(--v6-bolt, #ffe14a); border-radius: var(--v6-r-s, 6px); }
+html .pl-boards .pl-bd.pin { position: sticky; bottom: 0; z-index: 1; margin-top: 6px; background: var(--v6-night-2, #1c1230); box-shadow: inset 3px 0 0 var(--v6-bolt, #ffe14a), 0 -6px 12px rgb(0 0 0 / 0.35); }
+html .pl-boards .pl-bd-you { flex: none; padding: 1px 6px; border-radius: 3px; font: 800 11px/1.3 var(--font, sans-serif); color: var(--v6-night, #12091f); background: var(--v6-bolt, #ffe14a); }
+/* Local: the country over the list, and why there is no board (a hidden flag, an unknown country) */
+html .pl-boards .pl-bd-head { flex: none; margin: 2px 8px 6px; font: 800 15px/1.3 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); }
+html .pl-boards .pl-bd-why { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 4px 8px; }
+html .pl-boards .pl-bd-why .pl-btn { min-height: 44px; }
+html .pl-boards .pl-social-empty { margin: 12px 8px; }
+
+html .pl-boards-foot { flex: none; display: flex; justify-content: center; min-height: 44px; }
+html .pl-boards-foot[hidden] { display: none; }
+html .pl-boards-foot .pl-btn { min-height: 44px; min-width: 44px; }
+
+/* a short landscape phone (844x390, 667x375): the full height, a tighter head */
+@media (max-height: 480px) {
+  html .pl-boards-wrap { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  html .pl-boards { gap: 6px; padding: 8px 10px 6px; height: 100%; max-height: none; }
+  html .pl-boards-head { min-height: 40px; }
+  html .pl-boards-head h2 { font-size: 18px; }
+  html .pl-boards-ico { width: 28px; height: 28px; }
+}

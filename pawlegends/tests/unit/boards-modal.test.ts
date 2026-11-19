@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
 /**
- * Leaderboards (founder Nov 19): the Local sub-tab (players of my country, from my flag), the last sub-tab remembered
- * for the Home Leaderboard chip, and my own row shown once (on the list when I am on the page, else pinned under it,
- * in the same row style).
+ * The leaderboards window (founder Nov 19: its own modal, opened from Boards under # Join on Home): Weekly, Global,
+ * Local (players of my country, from my flag) and Friends; the last board remembered; my own row shown once (on the
+ * list when I am on the page, else pinned under it, in the same row style); Esc and the scrim close it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResult } from '../../src/embed/api';
-import { boardKinds, boardView, readBoardKind, SocialSheet } from '../../src/social/socialSheet';
+import { boardKinds, boardView, openBoards, readBoardKind } from '../../src/social/boardsModal';
 
 beforeEach(() => {
   localStorage.clear();
@@ -27,13 +27,46 @@ function sheet(answer: (op: string, args: any) => ApiResult | null, signedIn = t
     calls.push({ op, args });
     return answer(op, args) ?? ok({});
   });
-  const s = new SocialSheet(
-    document.body,
-    { api: api as never, signedIn: () => signedIn, partyCode: () => null, joinParty: vi.fn(), signIn: vi.fn(), playCasual: vi.fn(), height: () => 800 },
-    'boards',
-  );
-  return { s, calls };
+  const track = vi.fn();
+  const onClose = vi.fn();
+  const h = openBoards(document.body, { api: api as never, signedIn: () => signedIn, track, onClose });
+  return { h, calls, track, onClose };
 }
+
+describe('the window', () => {
+  it('a modal dialog named Leaderboards; Esc closes it, focus goes back to the opener', async () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+    const { h, track, onClose } = sheet((op) => (op === 'board.get' ? ok({ rows: [{ rank: 1, name: 'Mira', value: 9 }], page: 0, pages: 1 }) : null));
+    const dlg = document.querySelector('.pl-boards')!;
+    expect(dlg.getAttribute('role')).toBe('dialog');
+    expect(dlg.getAttribute('aria-modal')).toBe('true');
+    expect(document.getElementById('pl-boards-h')!.textContent).toBe('Leaderboards');
+    await flush();
+    expect(track).toHaveBeenCalledWith('board_view', { kind: 'weekly' });
+    expect(document.querySelector('.pl-bd .pl-social-name')!.textContent).toBe('Mira');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(h.closed).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-testid="boards-modal"]')).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('the scrim and the close button close it; the pager loads the next page', async () => {
+    const { calls } = sheet((op, args) => (op === 'board.get' ? ok({ rows: [{ rank: args.page * 10 + 1, name: 'A', value: 1 }], page: args.page, pages: 3 }) : null));
+    await flush();
+    document.querySelector<HTMLElement>('[data-a="next"]')!.click();
+    await flush();
+    expect(calls.filter((c) => c.op === 'board.get').map((c) => c.args.page)).toEqual([0, 1]);
+    expect(document.querySelector('.pl-pager small')!.textContent).toBe('2/3');
+    document.querySelector<HTMLElement>('.pl-boards-scrim')!.click();
+    expect(document.querySelector('[data-testid="boards-modal"]')).toBeNull();
+    const again = sheet((op) => (op === 'board.get' ? ok({ rows: [], page: 0, pages: 1 }) : null));
+    document.querySelector<HTMLElement>('.pl-boards-x')!.click();
+    expect(again.h.closed).toBe(true);
+  });
+});
 
 describe('board sub-tabs', () => {
   it('Local and Friends only with an account; Weekly by default; the last one used is remembered', () => {

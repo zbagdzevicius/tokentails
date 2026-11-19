@@ -105,16 +105,19 @@ describe('social sheet', () => {
     expect(t.s.closed).toBe(true);
   });
 
-  it('header: three tabs plus More (Ranked, Leaderboards) and Close outside the tablist', async () => {
+  it('header: Friends and Clubs plus More (Ranked; founder Nov 19: no Recent, no Compact list, no leaderboards)', async () => {
     sheet();
     await flush();
-    expect([...document.querySelectorAll('[role="tab"]')].map((b) => b.textContent)).toEqual(['Friends', 'Recent', 'Clubs']);
+    expect([...document.querySelectorAll('[role="tab"]')].map((b) => b.textContent)).toEqual(['Friends', 'Clubs']);
     expect(document.querySelector('[role="tablist"] [data-a="close"]')).toBeNull();
     const more = document.querySelector<HTMLElement>('[data-a="tabs-more"]')!;
     expect(document.querySelector<HTMLElement>('.pl-social-moremenu')!.hidden).toBe(true);
     more.click();
     expect(document.querySelector<HTMLElement>('.pl-social-moremenu')!.hidden).toBe(false);
-    document.querySelector<HTMLElement>('.pl-social-moremenu [data-tab="boards"]')!.click();
+    expect([...document.querySelectorAll('.pl-social-moremenu .pl-mi')].map((b) => b.textContent)).toEqual(['Ranked']);
+    expect(document.querySelector('[data-testid="social-density"]')).toBeNull();
+    expect(document.querySelector('[data-tab="boards"], [data-tab="recent"], [data-board]')).toBeNull();
+    document.querySelector<HTMLElement>('.pl-social-moremenu [data-tab="ranked"]')!.click();
     await flush();
     expect(document.querySelector('.pl-social-more')!.classList.contains('is-current')).toBe(true);
     expect(document.querySelector('[role="tab"][aria-selected="true"]')).toBeNull();
@@ -133,7 +136,7 @@ describe('social sheet', () => {
     expect([30_000, 5 * 60_000, 3 * 3_600_000, 3 * 86_400_000].map((d) => spanText(now - d, now))).toEqual(['now', '5m', '3h', '3d']);
   });
 
-  it('one header row on every screen and tab: me (status card), the invite gift, Add, Close; requests never fold', async () => {
+  it('one header row on every screen and tab: the title, my status dot, the invite gift, Add, Close; requests never fold', async () => {
     // friend requests stay open at the top (LoL), whatever was chosen before
     expect(groupFolded('requests', undefined, { on: 1, off: 0 })).toBe(false);
     expect(groupFolded('requests', true, { on: 1, off: 0 })).toBe(false);
@@ -155,16 +158,20 @@ describe('social sheet', () => {
     // friends to show: the invite card starts folded into the header's gift; no search field until Search is tapped
     expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
     expect(document.querySelector('.pl-social-head [data-testid="invite-open"]')).toBeTruthy();
-    expect(document.querySelector('.pl-social-head .pl-me .pl-social-name')!.textContent).toBe('Witty Biscuit');
-    expect(document.querySelector('.pl-social-head .pl-me .pl-social-st')!.textContent).toBe('Online');
+    // founder Nov 19: no self card (my own name and "Online" told me nothing): the title and a status dot
+    expect(document.querySelector('.pl-social-head .pl-me')).toBeNull();
+    expect(document.querySelector('.pl-social-head')!.textContent).not.toContain('Witty Biscuit');
+    expect(document.querySelector('.pl-social-head .pl-social-title')!.textContent).toBe('Friends');
+    expect(document.querySelector('.pl-social-head [data-testid="social-status"]')!.getAttribute('aria-label')).toBe('My status: Online. Change status');
+    expect(document.querySelector('.pl-social-head .pl-av')).toBeNull();
     expect(document.querySelector('input[name="q"]')).toBeNull();
-    // Recent selected: Friends shows a dot that names what waits (1 request)
-    document.querySelector<HTMLElement>('[role="tab"][data-tab="recent"]')!.click();
+    // Clubs selected: Friends shows a dot that names what waits (1 request)
+    document.querySelector<HTMLElement>('[role="tab"][data-tab="clubs"]')!.click();
     await flush();
     expect(document.querySelector('[data-testid="social-unread"]')).toBeTruthy();
     expect(document.querySelector('[role="tab"][data-tab="friends"]')!.getAttribute('aria-label')).toBe('Friends, 1 request');
-    // the header does not change with the tab: me, the gift and Add stay
-    expect(document.querySelector('.pl-social-head [data-testid="social-me"]')).toBeTruthy();
+    // the header does not change with the tab: my status, the gift and Add stay
+    expect(document.querySelector('.pl-social-head [data-testid="social-status"]')).toBeTruthy();
     expect(document.querySelector('.pl-social-head [data-testid="invite-open"]')).toBeTruthy();
     document.querySelector<HTMLElement>('[role="tab"][data-tab="friends"]')!.click();
     await flush();
@@ -185,15 +192,16 @@ describe('social sheet', () => {
     expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
     expect(document.querySelector('.pl-social')).toBeTruthy();
     localStorage.removeItem('pl.social.inviteFolded');
-    // me opens my status card; Appear offline goes to social.me
-    document.querySelector<HTMLElement>('[data-testid="social-me"]')!.click();
+    // the status dot opens my status card (no Change avatar: Profile only); Appear offline goes to social.me
+    document.querySelector<HTMLElement>('[data-testid="social-status"]')!.click();
     await flush();
     expect(document.querySelector('[data-testid="social-me-card"]')).toBeTruthy();
+    expect(document.querySelector('[data-testid="avatar-open"]')).toBeNull();
     document.querySelector<HTMLElement>('.pl-me-opt[data-v="invisible"]')!.click();
     await flush();
     expect(calls.find((c) => c.op === 'social.me')?.args).toEqual({ invisible: true, away: false });
     expect(document.querySelector('[data-testid="social-me-card"]')).toBeNull();
-    expect(document.querySelector('[data-testid="social-me"]')!.getAttribute('aria-label')).toContain('Appear offline');
+    expect(document.querySelector('[data-testid="social-status"]')!.getAttribute('aria-label')).toContain('Appear offline');
   });
 
   it('request rows: Decline quiet, Accept the filled primary, in the shared columns', async () => {
@@ -352,7 +360,7 @@ describe('social sheet pulse', () => {
     try {
       const t = sheet();
       await flush();
-      document.querySelector<HTMLElement>('[data-testid="social-me"]')!.click();
+      document.querySelector<HTMLElement>('[data-testid="social-status"]')!.click();
       document.querySelector<HTMLElement>('[data-a="copy"]')!.click();
       expect(document.querySelector('.pl-social-note')).toBeTruthy();
       vi.advanceTimersByTime(3100);

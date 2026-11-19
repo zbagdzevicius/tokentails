@@ -133,25 +133,7 @@
   position: absolute; top: 2px; right: 2px; min-width: 16px; padding: 1px 4px; border-radius: var(--v6-r-xs); background: var(--v6-rose); color: #fff;
   font: 800 11px/14px var(--font); font-style: normal; text-align: center; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--v6-night-2);
 }
-.pl-me-av { flex: none; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; display: grid; place-items: center; }
-@media (hover: hover) { .pl-me-av:hover .pl-av { --av-ring: var(--v6-bolt); } }
 @media (max-height: 340px) { .pl-social-row .pl-av { --av: 32px !important; } }
-
-/* The avatar picker (CHAT-AVATARS.md §7.4): the grid is the sheet's one scroll region. */
-.pl-av-pick { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
-.pl-av-preview { display: flex; align-items: center; gap: 10px; }
-.pl-av-grid {
-  flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgb(var(--v6-cream-rgb) / 0.35) transparent;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 4px; align-content: start;
-}
-.pl-av-frames { flex: none; display: flex; gap: 4px; overflow: hidden; }
-.pl-av-tile {
-  min-width: 44px; min-height: 52px; display: grid; place-items: center; border: 2px solid transparent; border-radius: var(--v6-r-xs); background: transparent; cursor: pointer;
-  transition: background-color var(--v6-dur-fast) var(--v6-ease-out), border-color var(--v6-dur-fast) var(--v6-ease-out), transform var(--v6-dur-press) var(--v6-ease-out);
-}
-@media (hover: hover) { .pl-av-tile:hover { border-color: var(--v6-line-strong); background: rgb(var(--v6-cream-rgb) / 0.05); } }
-.pl-av-tile:active { transform: translateY(2px); }
-.pl-av-tile[aria-pressed='true'] { border-color: var(--v6-bolt); background: rgb(var(--v6-bolt-rgb) / 0.12); }
 
 /* A DM thread (CHAT-AVATARS.md §6.2): over the Social sheet; the message list is the one scroll region. */
 .pl-chat {
@@ -393,7 +375,7 @@ html:not([data-touch='1']) .pl-chatline .cl-row { background: rgb(var(--v6-night
 
 @media (prefers-reduced-motion: reduce) {
   .pl-social, .pl-chat, .pl-social-note, .pp-chat-drawer { animation: none; }
-  .pl-social-tab, .pl-social-row, .pl-av-tile, .pl-chat-chip, .pp-chat-strip, .pl-chatdrawer .cd-chip, .pl-chatdrawer .cd-send { transition: none; }
+  .pl-social-tab, .pl-social-row, .pl-chat-chip, .pp-chat-strip, .pl-chatdrawer .cd-chip, .pl-chatdrawer .cd-send { transition: none; }
 }
 
 /* SPECTATE.md: the featured live match row and a friend's Watch button */
