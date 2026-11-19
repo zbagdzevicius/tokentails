@@ -306,7 +306,7 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
     case "ranked.me":
       return { method: "GET", path: "/pawlegends/ranked/me", auth: "any" };
     case "board.get": {
-      const kind = str(a.kind, /^(global|friends|hero|weekly)$/);
+      const kind = str(a.kind, /^(global|friends|hero|weekly|local)$/);
       if (!kind) return null;
       const query = q({
         hero: str(a.hero, /^[a-z0-9_-]{1,32}$/i),
@@ -314,8 +314,8 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
         season: str(a.season, /^s\d{1,3}$/),
         page: int(a.page, 0, 50),
       });
-      // the friends board and the caller's own rank need a token; the rest are public
-      return kind === "friends" || a.name === "me"
+      // the friends and local boards (Local is the caller's own country) and the caller's own rank need a token
+      return kind === "friends" || kind === "local" || a.name === "me"
         ? { method: "GET", path: `/pawlegends/boards/${kind}/me${query}`, auth: "registered" }
         : { method: "GET", path: `/pawlegends/boards/${kind}${query}`, auth: "none" };
     }

@@ -287,6 +287,24 @@ button.hm-profile:active::before { background: linear-gradient(90deg, rgb(var(--
 .hm-dots i { width: 6px; height: 6px; border-radius: 1px; transform: skewX(var(--v6-slant, -8deg)); background: rgb(255 255 255 / 0.45); transition: width var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out); }
 .hm-dots i.on { width: 14px; background: var(--v6-bolt, #ffe14a); box-shadow: 0 0 6px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.7); }
 
+/* the Leaderboard chip (founder Nov 19): right-aligned under the promo, a 44 px tap target around a 32 px pill. With no
+   promo it takes the promo's place. --hm-pt / --hm-ph follow the promo's top and height at each size */
+.pl-home { --hm-pt: calc(var(--hm-t) + 60px); --hm-ph: 86px; }
+.hm-lb {
+  position: absolute; right: var(--hm-r); top: var(--hm-pt); height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+  display: flex; align-items: center; color: var(--v6-cream, #fff3e3); animation: hm-slide-r 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+}
+.hm-promo + .hm-lb { top: calc(var(--hm-pt) + var(--hm-ph) + 2px); }
+.hm-lb-pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 9px; border-radius: 16px;
+  background: var(--hm-glass); box-shadow: inset 0 0 0 1.5px rgb(var(--v6-ice-rgb, 214 236 255) / 0.28), var(--v6-shadow-1, 0 4px 12px rgb(0 0 0 / 0.35));
+  transition: background var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out), transform var(--v6-dur-press, 120ms) var(--v6-ease-out, ease-out);
+}
+.hm-lb-pill .hm-ico { width: 18px; height: 18px; color: var(--v6-bolt, #ffe14a); }
+.hm-lb-pill b { font: 800 13px/1 var(--font, sans-serif); letter-spacing: 0.01em; }
+.hm-lb:hover .hm-lb-pill { background: rgb(var(--v6-sky-deep-rgb, 13 79 184) / 0.72); }
+.hm-lb:active .hm-lb-pill { transform: scale(0.96); }
+
 /* ------------------------------------------------- top centre: the champion nameplate, over the hero's head */
 .hm-stage {
   position: absolute; left: 50%; top: calc(var(--hm-t) + 48px); transform: translateX(-50%);
@@ -529,7 +547,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 .pl-home.leaving .hm-cur { transform: translate(-50%, -24px); }
 .pl-home.leaving .hm-stage { opacity: 0; transition: opacity 0.22s ease-in; }
 .pl-home.leaving .hm-nav { translate: 0 24px; opacity: 0; transition: opacity 0.22s ease-in, translate 0.22s ease-in; }
-.pl-home.leaving .hm-left, .pl-home.leaving .hm-slot, .pl-home.leaving .hm-promo, .pl-home.leaving .lb-peek { opacity: 0; transition: opacity 0.22s ease-in; pointer-events: none; }
+.pl-home.leaving .hm-left, .pl-home.leaving .hm-slot, .pl-home.leaving .hm-promo, .pl-home.leaving .hm-lb, .pl-home.leaving .lb-peek { opacity: 0; transition: opacity 0.22s ease-in; pointer-events: none; }
 /* Mode Select open: Home dims under it */
 .pl-home.hm-dim > :not(.ms-overlay):not(.hm-fx) { opacity: 0.4; transition: opacity 0.3s; pointer-events: none; }
 
@@ -550,6 +568,9 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
   .hm-plate-n { font-size: 30px; }
   .hm-plate-s { font-size: 14px; }
   .hm-promo { width: 256px; height: 144px; top: calc(var(--hm-t) + 76px); }
+  .pl-home { --hm-pt: calc(var(--hm-t) + 76px); --hm-ph: 144px; }
+  .hm-lb-pill { height: 36px; padding: 0 14px 0 10px; border-radius: 18px; }
+  .hm-lb-pill b { font-size: 14px; }
   .hm-slide-t b { font-size: 17px; }
   .hm-slide-t small { font-size: 13px; }
   .hm-left { top: calc(var(--hm-t) + 86px); gap: 14px; }
@@ -579,6 +600,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
   .hm-yarn small { display: none; }
   .hm-yarn { padding: 0 10px 0 6px; }
   .hm-promo { width: 132px; height: 72px; }
+  .pl-home { --hm-ph: 72px; }
   .hm-xp { width: 96px; }
 }
 @media (max-width: 760px) and (max-height: 480px) {
@@ -598,6 +620,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
   .hm-nl, .hm-rl { display: none; }
   .hm-ni { width: 48px; }
   .hm-promo { width: 56px; height: 56px; }
+  .pl-home { --hm-ph: 56px; }
   .hm-slide-t, .hm-dots { display: none; }
   .hm-plate-s { display: none; }
   .hm-plate-n { font-size: 18px; }
@@ -606,7 +629,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 }
 /* step 2 (<= 320): no left stack, no promo */
 @media (max-height: 320px) {
-  .hm-left, .hm-promo, .pl-home .hm-slot { display: none; }
+  .hm-left, .hm-promo, .hm-lb, .pl-home .hm-slot { display: none; }
   .pl-home { --hm-play: 80px; }
 }
 @media (max-height: 260px) {
@@ -620,7 +643,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 /* ----------------------------------------------------- a settled Home (homeScreen.ts `patchHome`, `still`) */
 /* The entrance (bars drop in, the left stack and the promo slide in, PLAY pops in) plays on the first Home and the one
    after a match only: a Home redrawn under a panel, a tab switch or a data refresh stays still. Loops keep running. */
-.pl-screen.pl-home.hm-still :is(.hm-top, .hm-corner, .hm-left, .hm-promo, .hm-stage, .hm-nav, .hm-line, .hm-qb, .hm-play, .hm-alt:not(.fresh), .lb-peek) { animation: none; }
+.pl-screen.pl-home.hm-still :is(.hm-top, .hm-corner, .hm-left, .hm-promo, .hm-lb, .hm-stage, .hm-nav, .hm-line, .hm-qb, .hm-play, .hm-alt:not(.fresh), .lb-peek) { animation: none; }
 
 /* ------------------------------------------------------------------------- Low tier, reduced motion */
 .pl-home.low *, html[data-quality='low'] .pl-home * { animation: none !important; }

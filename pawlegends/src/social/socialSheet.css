@@ -502,10 +502,18 @@ html .pl-social .pl-club-intro .pl-club-join input { flex: 1 1 auto; min-width: 
 html .pl-social .pl-club-kt small, html .pl-social .pl-club-kudos small { font-size: 14px; }
 
 /* Leaderboards (under More): rows scroll; names keep their room */
-html .pl-social .pl-social-sub { flex: none; margin-bottom: 4px; }
+html .pl-social .pl-social-sub { flex: none; flex-wrap: wrap; margin-bottom: 4px; }
 html .pl-social .pl-bd { gap: 10px; min-height: 48px; padding: 0 8px; }
 html .pl-social .pl-bd .pl-social-nm { flex: 1 1 auto; min-width: 0; }
 html .pl-social .pl-bd .pl-social-st { font-size: 14px; }
+/* my own row: on the list when I am on the page, else pinned under it (the same row, never both) */
+html .pl-social .pl-bd.me { background: rgb(var(--v6-bolt-rgb, 255 225 74) / 0.12); box-shadow: inset 3px 0 0 var(--v6-bolt, #ffe14a); border-radius: var(--v6-r-s, 6px); }
+html .pl-social .pl-bd.pin { position: sticky; bottom: 0; z-index: 1; margin-top: 6px; background: var(--v6-night-2, #1c1230); box-shadow: inset 3px 0 0 var(--v6-bolt, #ffe14a), 0 -6px 12px rgb(0 0 0 / 0.35); }
+html .pl-social .pl-bd-you { flex: none; margin-left: 6px; padding: 1px 6px; border-radius: 3px; font: 800 11px/1.3 var(--font); color: var(--v6-night, #12091f); background: var(--v6-bolt, #ffe14a); }
+/* Local: the country over the list, and why there is no board (a hidden flag, an unknown country) */
+html .pl-social .pl-bd-head { flex: none; margin: 2px 8px 6px; font: 800 15px/1.3 var(--font); color: var(--v6-cream, #fff3e3); }
+html .pl-social .pl-bd-why { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 4px 8px; }
+html .pl-social .pl-bd-why .pl-btn { min-height: 44px; }
 
 /* the old hide ladder hid status lines on short screens: they stay now (the list scrolls) */
 @media (max-height: 300px) { html .pl-social .pl-social-st { display: inline; } }

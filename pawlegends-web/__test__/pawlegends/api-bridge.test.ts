@@ -46,6 +46,7 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("friend.remove", { code: "../../x" })).toBeNull();
     expect(routeOf("board.get", { kind: "weekly", page: 2 })).toMatchObject({ path: "/pawlegends/boards/weekly?page=2", auth: "none" });
     expect(routeOf("board.get", { kind: "friends" })).toMatchObject({ path: "/pawlegends/boards/friends/me", auth: "registered" });
+    expect(routeOf("board.get", { kind: "local", page: 1 })).toMatchObject({ path: "/pawlegends/boards/local/me?page=1", auth: "registered" });
     expect(routeOf("ranked.status", {})).toMatchObject({ auth: "none" });
     const thread = "dAAAAAAAAAAAAAAAAAAAAAA";
     const mid = "0123456789abcdef01234567";

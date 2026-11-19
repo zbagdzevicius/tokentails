@@ -117,6 +117,8 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   onProfile?(): void;
   /** The Yarn chip (founder Nov 17): where Yarn unlocks champions (the store's Champions, the Heroes browser in apps). */
   onYarn?(): void;
+  /** The Leaderboard chip under the promo (founder Nov 19): the social panel straight on Boards. Absent: no chip. */
+  onBoards?(): void;
 }
 
 const GEAR =
@@ -332,7 +334,7 @@ export const HOME_ENTRANCE = ['hm-drop', 'hm-slide-l', 'hm-slide-r', 'hm-rise', 
  * The patched regions, in DOM order (the corner, the cards slot, the fx layer and the toast stay put). The release line
  * lives in Settings (s7 ui, founder Nov 15: on a phone it ran under the nav and through a champion).
  */
-const REGIONS = ['.hm-top', '.hm-left', '.hm-promo', '.hm-stage', '.hm-nav', '.hm-playc'] as const;
+const REGIONS = ['.hm-top', '.hm-left', '.hm-promo', '.hm-lb', '.hm-stage', '.hm-nav', '.hm-playc'] as const;
 type Region = (typeof REGIONS)[number];
 
 export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: boolean }): HTMLElement {
@@ -393,6 +395,8 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     </header>`,
       '.hm-left': leftHtml(o, needsTap(liveopsState())),
       '.hm-promo': returning ? promoHtml(o) : '',
+      // founder Nov 19: a small Leaderboard chip under the promo opens the Boards at once (never in the first match)
+      '.hm-lb': returning && o.onBoards ? `<button type="button" class="hm-lb" data-a="boards" data-testid="home-leaderboard" aria-label="Leaderboard"><span class="hm-lb-pill">${TROPHY}<b>Leaderboard</b></span></button>` : '',
       '.hm-stage': `<div class="hm-stage">${plateHtml()}</div>`,
       '.hm-nav': navHtml(o, returning),
       '.hm-playc': playcHtml(),
@@ -413,6 +417,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     ${shown['.hm-left']}
     <div class="hm-slot lb-cards" data-slot="cards"></div>
     ${shown['.hm-promo']}
+    ${shown['.hm-lb']}
     ${shown['.hm-stage']}
     ${shown['.hm-nav']}
     ${shown['.hm-playc']}
@@ -565,6 +570,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       o.onYarn?.();
     } else if (a === 'settings') o.onSettings?.();
     else if (a === 'social') o.onSocial?.();
+    else if (a === 'boards') o.onBoards?.();
     // the profile chip opens the Profile sheet (SOCIAL-RANKED.md §2.3); the nav Pass item and the Season XP chips (and
     // the chip where there is no Profile) open the Treat Track and its Pass tab
     else if (a === 'profile' && o.onProfile) o.onProfile();

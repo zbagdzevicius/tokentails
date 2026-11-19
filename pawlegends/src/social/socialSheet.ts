@@ -25,7 +25,7 @@
  * visible; never in a match.
  */
 import { rememberAgeBand } from './ageBand';
-import { ccHtmlOrNone } from './flags';
+import { ccHtmlOrNone, countryName, flagEmoji, setFlagHidden } from './flags';
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import { pulseDevice } from '../embed/api';
 import { parseRankedStatus, primeTimeText, rankedLabel, rankedLiveText } from '../meta/ranked';
@@ -472,6 +472,58 @@ function readDensity(): 'comfy' | 'compact' {
   }
 }
 
+/** The leaderboards' sub-tabs (Local is the player's country, from their flag; Local and Friends need an account). */
+export type BoardKind = 'weekly' | 'global' | 'local' | 'friends';
+const BOARD_LABEL: Readonly<Record<BoardKind, string>> = Object.freeze({ weekly: 'Weekly', global: 'Global', local: 'Local', friends: 'Friends' });
+const BOARD_KEY = 'pl.social.board';
+
+/** The sub-tabs this player sees, in order. Pure. */
+export function boardKinds(signedIn: boolean): BoardKind[] {
+  return signedIn ? ['weekly', 'global', 'local', 'friends'] : ['weekly', 'global'];
+}
+
+/** The last sub-tab used on this device (the Home Leaderboard button opens it), Weekly by default. */
+export function readBoardKind(signedIn: boolean): BoardKind {
+  let v: string | null = null;
+  try {
+    v = localStorage.getItem(BOARD_KEY);
+  } catch {
+    v = null;
+  }
+  return (boardKinds(signedIn) as string[]).includes(v ?? '') ? (v as BoardKind) : 'weekly';
+}
+function rememberBoardKind(k: BoardKind): void {
+  try {
+    localStorage.setItem(BOARD_KEY, k);
+  } catch {
+    /* storage blocked: this session only */
+  }
+}
+
+/** A board row as the server sends it (the caller's own row carries `me`). */
+export interface BoardRow {
+  rank: number;
+  name: string;
+  value: number;
+  tier?: string;
+  me?: boolean;
+  av?: AvatarView;
+  cc?: string;
+}
+
+/**
+ * The rows to draw and the pinned "You" row under them: no pinned row when I am already on the page (my row is
+ * marked `me`, or an older server's row has my rank and name), so I never show twice. Pure.
+ */
+export function boardView(d: { rows?: unknown; me?: unknown } | null | undefined): { rows: BoardRow[]; pinned: BoardRow | null } {
+  const rows = (Array.isArray(d?.rows) ? d!.rows : []) as BoardRow[];
+  const me = d?.me && typeof d.me === 'object' ? (d.me as Partial<BoardRow>) : null;
+  if (!me || !Number.isFinite(Number(me.rank))) return { rows, pinned: null };
+  const at = rows.findIndex((r) => r.me || (Number(r.rank) === Number(me.rank) && !!me.name && r.name === me.name));
+  if (at >= 0) return { rows: rows.map((r, i) => (i === at && !r.me ? { ...r, me: true } : r)), pinned: null };
+  return { rows, pinned: { rank: Number(me.rank), name: me.name || 'You', value: Number(me.value) || 0, tier: me.tier, av: me.av, cc: me.cc, me: true } };
+}
+
 const GROUP_LABEL: Readonly<Record<FriendGroupId, string>> = Object.freeze({
   requests: 'Friend requests',
   fav: 'Favourites',
@@ -490,7 +542,7 @@ export class SocialSheet {
   private state: SocialState | null = null;
   private recent: RecentRow[] | null = null;
   private ranked: { status?: Record<string, any>; me?: Record<string, any> } = {};
-  private board: { kind: 'global' | 'friends' | 'weekly'; page: number; data: Record<string, any> | null } = { kind: 'weekly', page: 0, data: null };
+  private board: { kind: BoardKind; page: number; data: Record<string, any> | null } = { kind: 'weekly', page: 0, data: null };
   private adding = false;
   /** Add friend: the typed text, its nickname suggestions, and the debounce timer. */
   private addText = '';
@@ -547,6 +599,8 @@ export class SocialSheet {
     // Requests is a group at the top of Friends now: opening on it unfolds that group
     this.tab = tab === 'requests' ? 'friends' : tab;
     if (tab === 'requests') this.folds.requests = false;
+    // the Boards open on the sub-tab used last (the Home Leaderboard button: no extra tap)
+    this.board.kind = readBoardKind(this.deps.signedIn());
     // round 8 (WCAG 2.4.3): the control that opened the panel gets focus back when it closes
     const was = parent.ownerDocument.activeElement as HTMLElement | null;
     this.opener = was && was !== parent.ownerDocument.body ? was : null;
@@ -734,7 +788,7 @@ export class SocialSheet {
 
   private async loadBoard(): Promise<void> {
     const b = this.board;
-    if (b.kind === 'friends' && !this.deps.signedIn()) b.kind = 'weekly';
+    if ((b.kind === 'friends' || b.kind === 'local') && !this.deps.signedIn()) b.kind = 'weekly';
     const args: ApiArgs = { kind: b.kind, page: b.page, ...(this.deps.signedIn() ? { name: 'me' } : {}) };
     const r = await this.deps.api('board.get', args);
     b.data = r.ok ? (r.body as Record<string, any>) : { rows: [], error: errorText(r) };
@@ -1398,26 +1452,40 @@ export class SocialSheet {
     return `${season}${card}${gate}<button type="button" class="pl-btn big" data-a="casual">Play Casual</button>`;
   }
 
+  /** One board row: rank, avatar, name and flag, the metric (a tier, else wins). The pinned "You" row is the same. */
+  private boardRowHtml(r: BoardRow, pinned = false): string {
+    return `<div class="pl-social-row pl-bd${r.me ? ' me' : ''}${pinned ? ' pin' : ''}"${pinned ? ' data-testid="board-pinned"' : ''}><b class="pl-rank">${pinned ? '#' : ''}${Number(r.rank)}</b>${isAvatarView(r.av) ? avatarHtml(r.av, 32) : ''}<span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(String(r.name ?? ''))}"></span>${ccHtmlOrNone(r.cc)}${r.me ? '<small class="pl-bd-you">You</small>' : ''}</span><small class="pl-social-st">${r.tier ? this.esc(r.tier) : `${Number(r.value) || 0} wins`}</small></div>`;
+  }
+
   private boardBody(): string {
     const b = this.board;
-    const sub = (['weekly', 'global', 'friends'] as const)
-      .filter((k) => k !== 'friends' || this.deps.signedIn())
-      .map((k) => `<button type="button" class="pl-btn ghost small" data-board="${k}" aria-pressed="${b.kind === k}">${k === 'weekly' ? 'Weekly' : k === 'global' ? 'Global' : 'Friends'}</button>`)
+    const sub = boardKinds(this.deps.signedIn())
+      .map((k) => `<button type="button" class="pl-btn ghost small" data-board="${k}" data-testid="board-${k}" aria-pressed="${b.kind === k}">${BOARD_LABEL[k]}</button>`)
       .join('');
     const d = b.data;
     if (!d) return `<div class="pl-social-sub">${sub}</div><p class="pl-social-empty">Loading…</p>`;
+    const local = b.kind === 'local' ? ((d.local ?? null) as { cc?: string | null; hidden?: boolean } | null) : null;
+    const cc = typeof local?.cc === 'string' && /^[A-Z]{2}$/.test(local.cc) ? local.cc : null;
+    // Local: the country, with its flag, over the list (only my own country; it comes from my flag)
+    const head = b.kind === 'local' && cc && !local?.hidden ? `<p class="pl-bd-head" data-testid="board-local-head"><span aria-hidden="true">${flagEmoji(cc)}</span> ${this.esc(countryName(cc))} · this season</p>` : '';
+    if (b.kind === 'local' && !d.error && (local?.hidden || !cc)) {
+      const why = local?.hidden
+        ? `<p class="pl-social-empty">Show your flag to join your country's board. Only players who show their flag are on it.</p><button type="button" class="pl-btn small" data-a="board-flag" data-testid="board-show-flag">Show my flag</button>`
+        : `<p class="pl-social-empty">We don't know your country yet, so there is no local board for you. Only players who show their flag are on it.</p>`;
+      return `<div class="pl-social-sub">${sub}</div><div class="pl-bd-why" data-testid="board-local-why">${why}</div>`;
+    }
     // the list scrolls: every row the server sent shows (the old page cut the last one behind the footer)
-    const rows = (d.rows ?? []) as { rank: number; name: string; value: number; tier?: string; me?: boolean; av?: AvatarView; cc?: string }[];
-    const list = rows.length
-      ? rows
-          .map(
-            (r) =>
-              `<div class="pl-social-row pl-bd${r.me ? ' me' : ''}"><b class="pl-rank">${r.rank}</b>${isAvatarView(r.av) ? avatarHtml(r.av, 32) : ''}<span class="pl-social-nm"><span class="pl-social-name" data-name="${this.esc(String(r.name))}"></span>${ccHtmlOrNone(r.cc)}</span><small class="pl-social-st">${r.tier ? this.esc(r.tier) : `${r.value} wins`}</small></div>`,
-          )
-          .join('')
-      : `<p class="pl-social-empty">${d.error ? this.esc(String(d.error)) : 'No one here yet this week.'}</p>`;
-    const me = d.me ? `<div class="pl-social-row pl-bd me"><b class="pl-rank">#${Number(d.me.rank)}</b><span class="pl-social-nm">You</span><small class="pl-social-st">${Number(d.me.value)}</small></div>` : '';
-    return `<div class="pl-social-sub">${sub}</div>${list}${me}`;
+    const view = boardView(d);
+    const empty = d.error
+      ? this.esc(String(d.error))
+      : b.kind === 'local'
+        ? `No ranked players from ${this.esc(countryName(cc ?? ''))} yet this season. Only players who show their flag are on it.`
+        : b.kind === 'global'
+          ? 'No ranked players yet this season.'
+          : 'No one here yet this week.';
+    const list = view.rows.length ? view.rows.map((r) => this.boardRowHtml(r)).join('') : `<p class="pl-social-empty">${empty}</p>`;
+    const me = view.pinned ? this.boardRowHtml(view.pinned, true) : '';
+    return `<div class="pl-social-sub">${sub}</div>${head}${list}${me}`;
   }
 
   private footer(): string {
@@ -1694,9 +1762,10 @@ export class SocialSheet {
       this.render();
       return;
     }
-    const board = t.closest<HTMLElement>('[data-board]')?.dataset.board as 'weekly' | 'global' | 'friends' | undefined;
+    const board = t.closest<HTMLElement>('[data-board]')?.dataset.board as BoardKind | undefined;
     if (board) {
       this.board = { kind: board, page: 0, data: null };
+      rememberBoardKind(board);
       this.render();
       void this.loadBoard();
       return;
@@ -1844,6 +1913,17 @@ export class SocialSheet {
       case 'next':
         this.board.page = Math.max(0, this.board.page + (a === 'next' ? 1 : -1));
         void this.loadBoard();
+        return;
+      case 'board-flag':
+        // Local: one tap shows my flag (the same choice as Settings), then the board loads with me on it
+        el.setAttribute('disabled', '');
+        void setFlagHidden(false, (op, args) => this.deps.api(op, args)).then(() => {
+          if (this.disposed) return;
+          this.deps.track?.('settings_change', { setting: 'flag', value: 'shown' });
+          this.board.data = null;
+          this.render();
+          return this.loadBoard();
+        });
         return;
       case 'add-name':
         void this.addByCode(el.dataset.nick ?? '');
@@ -2375,6 +2455,13 @@ export class SocialSheet {
     }
     this.note = "Couldn't save your avatar. Try again.";
     this.render();
+  }
+
+  /** Switch an open panel to a tab (the Home Leaderboard button while the panel is already open). */
+  showTab(tab: SocialTab): void {
+    if (this.disposed) return;
+    if (tab === 'boards') this.board = { kind: readBoardKind(this.deps.signedIn()), page: 0, data: null };
+    this.setTab(tab);
   }
 
   get closed(): boolean {

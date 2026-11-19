@@ -1273,6 +1273,8 @@ export class App {
       onSettings: () => this.openSettings(),
       // Social, ranked and boards (SOCIAL-RANKED.md §14): through the host's session, so embedded only
       onSocial: this.bridge.active ? () => this.openSocial() : undefined,
+      // founder Nov 19: the Leaderboard chip under the promo opens the Boards straight away (hidden in the first match)
+      onBoards: this.bridge.active ? () => this.openBoards('home') : undefined,
       // the Profile screen (one way in: the avatar chip): yours, with the device's data where no host answers
       onProfile: () => this.openProfile(),
       socialBadge: this.socialBadge,
@@ -1696,6 +1698,16 @@ export class App {
         this.overlay = { close: panel.close, refresh: panel.refresh, kind: 'profile' };
       })
       .catch((err: unknown) => reportCrash('window', err));
+  }
+
+  /** The leaderboards in one tap: the social panel on Boards (the sub-tab used last), or switched there if open. */
+  private openBoards(source: 'home'): void {
+    this.analytics.track('leaderboard_open', { source });
+    if (this.social && !this.social.closed) {
+      this.social.showTab('boards');
+      return;
+    }
+    this.openSocial('boards');
   }
 
   private openSocial(tab?: import('../social/socialSheet').SocialTab, chatWith?: string): void {

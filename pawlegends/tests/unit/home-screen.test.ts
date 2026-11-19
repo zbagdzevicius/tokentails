@@ -480,3 +480,31 @@ describe('Quests panel (Today and Events in one place)', () => {
     expect(questsResetText(new Date(2026, 10, 19, 23, 15, 0))).toBe('45m');
   });
 });
+
+describe('Home Leaderboard chip (founder Nov 19)', () => {
+  const promos = [{ id: 'drop', title: 'November drop', sub: 'New coats', action: 'pass' as const }];
+  it('sits right after the promo and opens the Boards in one tap', () => {
+    const onBoards = vi.fn();
+    const root = mount(base({ promos, onBoards }));
+    const chip = root.querySelector<HTMLElement>('[data-testid="home-leaderboard"]')!;
+    expect(chip.textContent).toContain('Leaderboard');
+    // the CSS places it under the promo through the adjacent sibling rule
+    expect(chip.previousElementSibling?.classList.contains('hm-promo')).toBe(true);
+    chip.click();
+    expect(onBoards).toHaveBeenCalledTimes(1);
+  });
+
+  it('hidden in the first guided match, a dare, and where the host has no social (no onBoards)', () => {
+    expect(mount(base({ firstTime: true, promos, onBoards: vi.fn() })).querySelector('[data-testid="home-leaderboard"]')).toBeNull();
+    document.body.innerHTML = '';
+    expect(mount(base({ promos })).querySelector('[data-testid="home-leaderboard"]')).toBeNull();
+  });
+
+  it('a patched Home keeps one chip (no promo: it takes the promo spot)', () => {
+    const onBoards = vi.fn();
+    const root = mount(base({ promos, onBoards }));
+    expect(patchHome(root, base({ promos: [], onBoards }))).toBe(true);
+    expect(root.querySelectorAll('[data-testid="home-leaderboard"]')).toHaveLength(1);
+    expect(root.querySelector('.hm-promo')).toBeNull();
+  });
+});

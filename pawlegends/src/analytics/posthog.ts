@@ -99,6 +99,8 @@ export type AnalyticsEvent =
   | 'chat_open'
   /** A Settings choice changed: `setting` (sound, quality, tips, skin_fx, fps, saver, stats, flag) and its `value`. */
   | 'settings_change'
+  /** The leaderboards opened in one tap (`source`: home, the chip under the promo). */
+  | 'leaderboard_open'
   /** Party play (docs/plans/moba/MULTIPLAYER.md §10): never a party code or room id in any prop. */
   | MpEvent;
 

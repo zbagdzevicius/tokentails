@@ -85,6 +85,8 @@ export const PAWLEGENDS_GAME_EVENTS = [
   "champ_unlock",
   "chat_open",
   "settings_change",
+  // the leaderboards opened in one tap (`source`: home, the chip under the promo)
+  "leaderboard_open",
   "party_invite",
   "rematch_click",
   "talent_pick",
