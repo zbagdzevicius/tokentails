@@ -21,6 +21,7 @@ fx). No pack art, no NFT or host cat art.
 | `cards/fx/{sparkle,legendary-sparkle,blue-sparkle,purple-sparkle,blue-paw,claw,whiskers-left,whiskers-right}.webp` | `client/public/cards/backgrounds/` (same names, unchanged) | Token Tails, all rights reserved |
 | `cards/fx/{epic-paw,legendary-paws,epic-claw}.webp` | `client/public/cards/backgrounds/` (256 px) | Token Tails, all rights reserved |
 | `cards/fx/golden-burst.webp`, `white-burst.webp`, `reveal-sparkle.webp`, `legendary-bg.webp`, `rare-swirl.webp` | `client/public/cards/backgrounds/golden-opening-sparkle`, `white-opening-sparkle`, `opening-reveal-sparkle1`, `legendary-bg`, `rare-swirl2` (384 px) | Token Tails, all rights reserved |
+| Moved out of the game bundle (budget): `whiskers-left`, `whiskers-right`, `epic-paw`, `epic-claw`, `white-burst`, `reveal-sparkle`, `legendary-bg` and `rare-swirl` are served from `pawlegends-web/public/pawlegends-art/cards-fx/` (same files, `ui/cards/art.ts` REMOTE_FX) | same as above | Token Tails, all rights reserved |
 
 Lobby backgrounds (`lobby/`, UX pass 2, about 126 KB, loaded by the lobby only): painted scenes generated for
 Token Tails with Google Gemini (`gemini-3-pro-image-preview`, 2752 x 1536 masters, SynthID watermarked), edited
