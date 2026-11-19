@@ -142,7 +142,7 @@ gh secret set GOOGLE_PLAY_JSON_KEY < /path/to/play-service-account.json   # then
    Signing is enrolled automatically (Google keeps the app signing key, our key is the upload key). Add tester emails.
    Later uploads: lane `upload` (`release_status: draft` until the app leaves draft state).
 4. **App content** (Policy → App content):
-   - Privacy policy: `https://tokentails.com/pawlegends/privacy` (deploy `main` first; the page now names Android).
+   - Privacy policy: `https://pawlegends.app/privacy` (deploy `main` first; play statistics at `#play-stats`).
    - Ads: **No**. App access: **All functionality available without special access** (sign-in is optional; from 1.1.0
      Google or email sign-in saves progress, nothing is behind it).
    - Target audience: **13+** (13–15, 16–17, 18+), so the Families policy does not apply; not designed for children.
@@ -164,6 +164,12 @@ Same facts as the iOS privacy label (`APP-STORE-ANSWERS.md`, `PrivacyInfo.xcpriv
 offline sends nothing; online, saves go to an anonymous guest account until the player signs in; party play sends a
 random party key and the match.
 
+**2026-11-19: PostHog play statistics** ([POSTHOG-PRIVACY.md](POSTHOG-PRIVACY.md)): the app sends analytics after the
+player presses Allow (Settings → "Share play stats" turns it off). The rows marked *(analytics)* are new. **Update the
+form in Play Console (Policy → App content → Data safety) before the build or OTA bundle that sends analytics goes
+live**; the form can be changed any time without a new build. "Optional" in Play's sense: the user can choose
+whether it is collected.
+
 | Question | Answer |
 |---|---|
 | Does the app collect or share any of the required user data types? | **Yes** |
@@ -173,16 +179,20 @@ random party key and the match.
 | Does the app let users create an account? | **Yes**: Google or email and password (optional); in-app deletion: **Yes** |
 | **Personal info → Email address** (optional sign-in) | Collected, **not shared**, **optional**; purposes **App functionality**, **Account management** |
 | **Personal info → Name** (the Google name when shared, the profile name) | Collected, not shared, optional; purposes App functionality, Account management |
-| **Personal info → User IDs** (the Firebase account or guest id) | Collected, not shared, **required** (not optional: online, the first match save, party ticket or pass claim makes an anonymous guest id without asking; only fully offline play avoids it); purposes App functionality, Account management |
-| **Device or other IDs** (the random party key; the server keeps its hash) | Collected, **not shared**, **optional** (party play only), processed ephemerally: No; purposes **App functionality**, **Fraud prevention, security, and compliance** (per-key and per-network caps) |
-| **App activity → Other user-generated content / Other actions** (saved matches, Treat Track, friends and ranked if used; party: generated name, hero picks, match inputs, quick-chat phrases, result) | Collected, not shared, **required** (online, every finished match is saved to the guest or account without asking); purposes App functionality |
+| **Personal info → User IDs** (the Firebase account or guest id; *(analytics)* a one-way hash of it) | Collected, not shared, **required** (not optional: online, the first match save, party ticket or pass claim makes an anonymous guest id without asking; only fully offline play avoids it); purposes App functionality, Account management, **Analytics** |
+| **Device or other IDs** (the random party key, the server keeps its hash; *(analytics)* the random install code PostHog events carry before sign-in) | Collected, **not shared**, **optional** (party play only, analytics only after Allow), processed ephemerally: No; purposes **App functionality**, **Fraud prevention, security, and compliance** (per-key and per-network caps), **Analytics** |
+| **App activity → Other user-generated content / Other actions** (saved matches, Treat Track, friends and ranked if used; party: generated name, hero picks, match inputs, quick-chat phrases, result; *(analytics)* server-side match and Yarn events, answers to optional surveys) | Collected, not shared, **required** (online, every finished match is saved to the guest or account without asking); purposes App functionality, **Analytics** |
+| *(analytics)* **App activity → App interactions** (screens, taps on Play, picks, match start and end, store and pass screens; session replay and heatmaps when on, inputs masked) | Collected, not shared, **optional**; purposes **Analytics** |
+| *(analytics)* **App info and performance → Crash logs** (crash and error codes) | Collected, not shared, optional; purposes **Analytics**, App functionality |
+| *(analytics)* **App info and performance → Diagnostics** (load time, frame rate, quality tier, device type, OS and app version) | Collected, not shared, optional; purposes **Analytics** |
 | **Location → Approximate location** (round 7, FLAGS.md: the ISO country from Cloudflare, kept per account for the country flag; never the IP) | Collected, not shared, optional (Settings hides it from others), purposes App functionality |
 | **Messages → Other in-app messages** (typed match chat, registered 16+ only, kept 30 days for reports) | Collected, not shared, optional; purposes App functionality, Fraud prevention, security, and compliance |
-| Precise location, financial, health, photos, audio, files, calendar, contacts, web history, app info and performance, crash logs | **Not collected** |
-| Shared with third parties | **No** (Firebase Authentication is a processor acting for us, not sharing) |
+| Precise location, financial (the app sells nothing), health, photos, audio, files, calendar, contacts, web history, in-app search, installed apps, other app performance data | **Not collected** |
+| Shared with third parties | **No** (Firebase Authentication and PostHog are service providers acting for us, which Play does not count as sharing) |
 
-Guests and under-16 players send fixed phrases only; registered 16+ players can type (MATCH-CHAT.md), so "Messages" is declared. If analytics or a crash SDK is ever added (a native
-release, never by OTA), update this form, the iOS label and the privacy page before that version ships.
+Guests and under-16 players send fixed phrases only; registered 16+ players can type (MATCH-CHAT.md), so "Messages" is declared. Whenever the
+app starts collecting something new, update this form, the iOS label and the privacy page before that version (or
+OTA bundle) ships.
 
 ## Content rating answers (IARC questionnaire)
 

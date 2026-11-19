@@ -135,6 +135,7 @@
   max-width: calc(100vw - 32px); flex-wrap: wrap; justify-content: center; color: var(--v6-cream);
   box-shadow: inset 4px 0 0 var(--v6-bolt), var(--v6-shadow-2); animation: pl-consent-in var(--v6-dur-screen) var(--v6-ease-pop) both;
 }
+.pl-consent a { color: var(--v6-cream); text-decoration: underline; text-underline-offset: 3px; }
 @keyframes pl-consent-in { from { opacity: 0; transform: translateX(-50%) translateY(10px); } }
 /* v6: one rose action per screen (PLAY on Home): the consent's yes is a sky slab, the no a navy ghost */
 .pl-consent .pl-btn[data-c='1'] { background: var(--v6-grad-sky); color: var(--v6-navy); text-shadow: none; box-shadow: 0 3px 0 var(--v6-sky-deep), var(--v6-shadow-1); }

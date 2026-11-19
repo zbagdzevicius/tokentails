@@ -217,9 +217,9 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${row('Show my country flag', 'flag', ctl.flag)}
       <p class="fine" data-testid="flag-note">Your flag comes from your connection's country. We keep only the country, never your IP. Off: other players see a paw. Flag art: Twemoji, CC BY 4.0.</p>
       ${o.push ? pushRows(o.push) : ''}
-      ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
+      ${s.stats === null ? '' : row('Share play stats', 'stats', s.stats)}
       ${accountRowHtml(o.account?.model ?? null)}
-      <p class="fine">Play stats are anonymous: champion, difficulty, match length. No names, no emails.</p>
+      <p class="fine">Play stats: what you do in the game, device type and errors, under a random code. No names, no emails, no ads. Off stops them.</p>
       <p class="fine links" data-testid="settings-legal"><a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy</a>${o.termsUrl ? ` · <a href="${linkAttr(o.termsUrl)}" target="_blank" rel="noopener">Terms</a>` : ''}</p>
       <p class="fine set-ver" data-testid="settings-version">${versionMarkHtml()}</p>
       <button class="pl-btn big" data-a="close">Done</button></div>`;

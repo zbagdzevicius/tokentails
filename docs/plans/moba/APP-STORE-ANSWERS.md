@@ -7,15 +7,22 @@ the app build (`pawlegends-app/`, `com.tokentails.pawlegends`) from 1.1.0 (nativ
 upload with `fastlane ios metadata`; these answers do not upload and must be entered by hand.
 
 Re-check this file whenever the app build adds analytics, accounts, purchases, free-text chat or new network calls.
-Change it together with `pawlegends-app/ios/App/App/PrivacyInfo.xcprivacy` and `client/pages/pawlegends/privacy.tsx`.
+Change it together with `pawlegends-app/ios/App/App/PrivacyInfo.xcprivacy` and `pawlegends-web/pages/privacy.tsx`.
+
+**2026-11-19: PostHog play statistics in the app** (founder ask: "implement every gap ... consent, privacy policy
+updated"; facts and founder steps in [POSTHOG-PRIVACY.md](POSTHOG-PRIVACY.md)). The App Privacy answers below now
+include analytics. **Enter them in App Store Connect before the build or OTA bundle that sends analytics goes live**:
+the label can be edited any time without a new build; the updated `PrivacyInfo.xcprivacy` ships with the next
+native build.
 
 ## What the app build does (the evidence)
 
 | Area | App build | Where |
 |---|---|---|
 | Account, login, Firebase | Optional sign-in from 1.1.0: Sign in with Apple (iPhone, Mac), Google (iPhone), email and password, through Firebase Authentication (JS SDK holds the session; Apple and Google run natively with `@capacitor-firebase/authentication`, `skipNativeAuth`). Everything plays without it. Online, a Firebase anonymous guest is made lazily at the first match save, party ticket or pass claim; offline nothing is made. In-app deletion: title chip or Settings → Account → Delete account (`DELETE /user/me`, Apple token revoked) | `pawlegends-app/src/host/`, `pawlegends/src/ui/account.ts`, `backend/src/user/guest/account-deletion.ts` |
-| Analytics (PostHog) | Off: `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=''` (wins over `pawlegends/.env.local`), so no events and no consent row in Settings | `pawlegends-app/scripts/build-web.mjs` |
-| Crash reporting, ads, IDFA, ATT | None | `pawlegends-app/package.json`, `PrivacyInfo.xcprivacy` (`NSPrivacyTracking` false) |
+| Analytics (PostHog) | On from 2026-11-19, consent only: the title asks (Allow / No thanks), Settings → "Share play stats" turns it off; until Allow nothing leaves the phone. Events: screens, picks, match start/end, store and pass screens, device and app details, error and crash codes, load time and frame rate; a random install code, or `pl_` + SHA-256 of the Firebase uid once signed in. Server-side: match saved, Yarn earned or spent, web purchase completed (same code, only for a player who allowed it). Session replay / heatmaps / surveys when turned on, inputs masked. No IDFA, no ad SDK, PostHog is a processor (US) | `pawlegends/src/analytics/posthog.ts`, `pawlegends-app/scripts/build-web.mjs`, `backend/src/pawlegends` |
+| Crash reporting | Error and crash codes go to PostHog as events (consent only); no crash SDK | `pawlegends/src/app/crash.ts` |
+| Ads, IDFA, ATT | None | `pawlegends-app/package.json`, `PrivacyInfo.xcprivacy` (`NSPrivacyTracking` false) |
 | Purchases, crypto, donations | None. App mode hides checkout, offers and featured cats | `pawlegends/src/app/platform.ts`, `client/__test__/pawlegends-host.test.tsx` ("app builds") |
 | On-device storage | Profile, settings, progress, party key `pl.party.guest`, sprite probe cache | `pawlegends/src/meta/profile.ts`, `src/app/app.ts` `partyGuestKey` |
 | OTA updates | GET `manifest.json` and a bundle zip from tokentails.com; no device id, `statsUrl: ''` | `pawlegends-app/capacitor.config.ts`, `src/shell/ota.ts` |
@@ -36,33 +43,41 @@ device and is kept longer than needed to answer the request in real time, and th
 |---|---|---|---|---|
 | Contact Info → **Email Address** (optional sign-in; an Apple relay address with Hide My Email) | Yes | App Functionality | Yes | No |
 | Contact Info → **Name** (the Apple or Google name when shared, and the Token Tails profile name) | Yes | App Functionality | Yes | No |
-| Identifiers → **User ID** (the Firebase account or guest id; the random party key, kept only as a hash) | Yes | App Functionality | Yes | No |
-| User Content → **Gameplay Content** (saved matches, Treat Track, friends and ranked if used; party: generated name, picks, inputs, result) | Yes | App Functionality | Yes | No |
+| Identifiers → **User ID** (the Firebase account or guest id; the random party key, kept only as a hash; for analytics a one-way hash of the account id) | Yes | App Functionality, **Analytics** | Yes | No |
+| Identifiers → **Device ID** (the random install code PostHog events carry before sign-in; not the IDFA or IDFV) | Yes | Analytics | Yes | No |
+| User Content → **Gameplay Content** (saved matches, Treat Track, friends and ranked if used; party: generated name, picks, inputs, result; server-side match events) | Yes | App Functionality, **Analytics** | Yes | No |
+| Usage Data → **Product Interaction** (screens, taps on Play, picks, match start and end, store and pass screens; session replay and heatmaps when on, inputs masked) | Yes | Analytics | Yes | No |
+| Diagnostics → **Crash Data** (crash and error codes) | Yes | App Functionality, Analytics | Yes | No |
+| Diagnostics → **Performance Data** (load time, frame rate, quality tier) | Yes | Analytics | Yes | No |
+| Diagnostics → **Other Diagnostic Data** (device type, OS version, app version, chunk retries) | Yes | App Functionality, Analytics | Yes | No |
 | Location → **Coarse Location** (round 7, FLAGS.md: the ISO country Cloudflare derives from the connection, kept per account for the flag; never the IP) | Yes | App Functionality | Yes | No |
-| User Content → **Other User Content** (MATCH-CHAT.md: typed match chat of registered 16+ players, kept 30 days for reports) | Yes | App Functionality | Yes | No |
-| Health, Financial, Precise Location, Sensitive Info, Contacts, other User Content (photos, audio, emails), Browsing/Search History, Purchases, Diagnostics, Device ID, Product Interaction, Advertising Data | No | – | – | – |
+| User Content → **Other User Content** (MATCH-CHAT.md: typed match chat of registered 16+ players, kept 30 days for reports; answers to optional in-game surveys) | Yes | App Functionality, Analytics | Yes | No |
+| Health, Financial, Precise Location, Sensitive Info, Contacts, other User Content (photos, audio, emails), Browsing/Search History, Purchases, Other Usage Data, Advertising Data | No | – | – | – |
 
 Notes for the form:
 - Gameplay Content sits under **User Content → Gameplay Content** in the form ("saved games, multiplayer matching
   or gameplay logic"). Tick only that box under User Content.
 - Purpose "App Functionality" covers running the match, resuming a dropped connection, checking the result and
-  limiting abuse (per-key and per-network caps). Do not tick Analytics, Developer's Advertising, Third-Party
-  Advertising, Product Personalization or Other Purposes.
+  limiting abuse (per-key and per-network caps). "Analytics" covers the PostHog play statistics (consent only).
+  Do not tick Developer's Advertising, Third-Party Advertising, Product Personalization or Other Purposes.
+- Purchases: not declared. The app sells nothing; the server-side purchase event comes from the web store
+  (pawlegends.app), not from the app.
+- Optional, consent-gated collection is still declared: Apple asks what the app *can* collect.
 - **Linked to the user: Yes** for every row: a signed-in account ties email, name, account id and progress together
   (the processor is Google Firebase Authentication; Apple and Google confirm the identity).
 - Sign-in is optional, but the label covers the whole app, so the account rows are declared even though most players
   never sign in.
-- Tracking: No for every row. No IDFA, no data brokers, no ad networks, so no App Tracking Transparency prompt.
-- Expected listing: **Data Linked to You: Contact Info, Identifiers, User Content**. **Data Used to Track You: none.**
-- The privacy manifest (`PrivacyInfo.xcprivacy`) declares the same four types (EmailAddress, Name, UserID,
-  GameplayContent), linked, not tracking, App Functionality. The Firebase and GoogleSignIn pods ship their own.
+- Tracking: No for every row. No IDFA, no data brokers, no ad networks, and PostHog is our processor (it does not
+  combine our events with other companies' data), so no App Tracking Transparency prompt.
+- Expected listing: **Data Linked to You: Contact Info, Identifiers, User Content, Location, Usage Data,
+  Diagnostics**. **Data Used to Track You: none.**
+- The privacy manifest (`PrivacyInfo.xcprivacy`) declares the same types (EmailAddress, Name, UserID, DeviceID,
+  GameplayContent, OtherUserContent, ProductInteraction, CrashData, PerformanceData, OtherDiagnosticData), linked,
+  not tracking. Coarse Location is not in the manifest because the app never reads it: the server gets the country
+  from Cloudflare. The Firebase and GoogleSignIn pods ship their own.
 
-If analytics is ever turned on (a native release, never by OTA): add Usage Data → Product Interaction (and
-Diagnostics → Crash Data if a crash SDK is added), purpose Analytics, linked as built, not tracking; update the
-manifest, this file and the privacy page before that version is submitted.
-
-**Privacy Policy URL:** https://tokentails.com/pawlegends/privacy (`client/pages/pawlegends/privacy.tsx`). It must be
-deployed (merge to `main`, Vercel) before the listing is submitted. **User Privacy Choices URL:** leave empty.
+**Privacy Policy URL:** https://pawlegends.app/privacy (`pawlegends-web/pages/privacy.tsx`; play statistics at
+`#play-stats`). It must be deployed (merge to `main`, Vercel) before the listing is submitted. **User Privacy Choices URL:** leave empty.
 
 ## Age rating (App Store Connect → App Information → Age Ratings)
 

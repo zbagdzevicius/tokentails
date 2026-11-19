@@ -148,13 +148,13 @@ export function PawlegendsConsent({ gtm = defaultGtm, asks = asksForConsent }: P
       <div
         role="dialog"
         aria-modal="false"
-        aria-label="Analytics cookies"
+        aria-label="Analytics consent"
         data-testid="pawlegends-consent"
         data-dock="1"
         className="fixed inset-x-0 z-[60] flex items-center justify-center gap-2 border-b-2 border-tt-night-950 bg-tt-night-900 px-3 font-sans text-p6 leading-tight text-tt-cream"
         style={{ top: "env(safe-area-inset-top)", height: `${DOCK_HEIGHT_PX}px` }}
       >
-        <p className="min-w-0 truncate">May we use Google Analytics cookies? See the {privacy}.</p>
+        <p className="min-w-0 truncate">May we use analytics (Google Analytics, PostHog)? See the {privacy}.</p>
         <div className="flex shrink-0 gap-1">
           <button type="button" data-testid="pawlegends-consent-deny" onClick={() => choose("denied")} className={`${dockButtonClass} bg-tt-night-900 text-tt-cream`}>
             No thanks
@@ -171,13 +171,13 @@ export function PawlegendsConsent({ gtm = defaultGtm, asks = asksForConsent }: P
       <div
         role="dialog"
         aria-modal="false"
-        aria-label="Analytics cookies"
+        aria-label="Analytics consent"
         data-testid="pawlegends-consent"
         data-compact="1"
         className="fixed left-1/2 z-[60] flex w-[calc(100%-1rem)] max-w-[27rem] -translate-x-1/2 items-center gap-2 rounded-lg border-2 border-tt-night-950 bg-tt-night-900/95 py-1 pl-3 pr-1 font-sans text-p6 leading-tight text-tt-cream shadow-[0_2px_0_rgb(var(--tt-night-950))]"
         style={{ top: "max(0.25rem, env(safe-area-inset-top))" }}
       >
-        <p className="min-w-0 flex-1">May we use Google Analytics cookies? See the {privacy}.</p>
+        <p className="min-w-0 flex-1">May we use analytics (Google Analytics, PostHog)? See the {privacy}.</p>
         <div className="flex shrink-0 gap-1">{buttons}</div>
       </div>
     );
@@ -186,14 +186,14 @@ export function PawlegendsConsent({ gtm = defaultGtm, asks = asksForConsent }: P
     <div
       role="dialog"
       aria-modal="false"
-      aria-label="Analytics cookies"
+      aria-label="Analytics consent"
       data-testid="pawlegends-consent"
       className="fixed left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-[30rem] -translate-x-1/2 flex-col gap-3 rounded-lg border-2 border-tt-night-950 bg-tt-night-900/95 p-3 font-sans text-p6 text-tt-cream shadow-[0_2px_0_rgb(var(--tt-night-950))]"
       style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
     >
       <p>
-        May we use Google Analytics cookies to count visits and see which links bring players? You can change this any
-        time on the {privacy}.
+        May we use Google Analytics and PostHog to count visits, see which links bring players and how the game is played
+        (session recordings hide what you type)? No ads, never sold. You can change this any time on the {privacy}.
       </p>
       <div className="flex flex-wrap justify-end gap-2">{buttons}</div>
     </div>

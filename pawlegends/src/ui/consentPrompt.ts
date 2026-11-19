@@ -1,12 +1,15 @@
 /**
- * The anonymous play stats consent line on the title (gaps4 first-load JS: kept apart from the Settings panel, which
+ * The play stats consent line (PostHog, consent only; what it covers: pawlegends.app/privacy#play-stats) on the title (gaps4 first-load JS: kept apart from the Settings panel, which
  * loads when it first opens).
  */
+/** What the prompt's Privacy link opens (pawlegends-web/pages/privacy.tsx `#play-stats`; settings.ts WEB_PRIVACY_URL). */
+export const CONSENT_PRIVACY_URL = 'https://pawlegends.app/privacy#play-stats';
+
 /** One-line consent prompt (bottom of the title). */
 export function consentPrompt(parent: HTMLElement, onChoice: (granted: boolean) => void): HTMLElement {
   const root = document.createElement('div');
   root.className = 'pl-consent';
-  root.innerHTML = `<span>Share anonymous play stats to help us tune Paw Legends?</span>
+  root.innerHTML = `<span>Share play stats to help us tune Paw Legends? No name, no email, no ads. <a href="${CONSENT_PRIVACY_URL}" target="_blank" rel="noopener">Privacy</a></span>
     <button class="pl-btn small" data-c="1">Sure</button><button class="pl-btn ghost small" data-c="0">No thanks</button>`;
   root.addEventListener('click', (e) => {
     const c = (e.target as HTMLElement).closest<HTMLElement>('[data-c]')?.dataset.c;
