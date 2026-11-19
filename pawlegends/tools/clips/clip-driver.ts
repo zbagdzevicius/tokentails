@@ -12,6 +12,9 @@ import { createMatch, createPlayerBotFor, fillPicks, hash, playerBotCommands, re
 import type { Command, Difficulty, HeroId, MapId, MatchResult, Mutator, SimEvent, TrickId } from '../../src/sim/api';
 import type { PlayerProfile } from '../../src/data/bots';
 import { FNV_OFFSET, fnvString } from '../../src/sim/hash';
+import { scriptCommands, type ScriptRule } from './clip-script';
+
+export type { ScriptRule } from './clip-script';
 
 export { TICK_HZ, SIM_VERSION } from '../../src/sim/index';
 export { HERO_IDS, HEROES } from '../../src/data/heroes/index';
@@ -32,6 +35,8 @@ export interface ClipTake {
   picks?: readonly (HeroId | null)[];
   /** Player-bot profile of the piloted seats (default 'normal'). */
   profile?: PlayerProfile;
+  /** Trailer 60: scripted seats (clip-script.ts), team 0's piloted slots only. */
+  script?: readonly ScriptRule[];
 }
 
 export const slotsOf = (map: MapId | undefined): number => (map === 'hearthwood' ? 10 : 6);
@@ -101,6 +106,7 @@ export class ClipRun {
     if (result(m)) return (this.events = []);
     const cmds: Command[][] = [];
     for (const p of this.pilots) cmds[p.slot] = playerBotCommands(m, p).slice();
+    if (this.spec.script?.length) for (const p of this.pilots) cmds[p.slot] = scriptCommands(m, this.picks, this.spec.script, p.slot, cmds[p.slot] ?? [], this.events);
     const others = this.humans.length > 1 ? cmds.map((c, s) => (s === 0 ? undefined : c)) : undefined;
     step(m, cmds[0] ?? [], others);
     this.events = m.events;

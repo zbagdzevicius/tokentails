@@ -1356,7 +1356,7 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   }
   const take = s.take;
   if (!take) throw new Error(`${s.id}: no take`);
-  FakeWorker.take = { seed: take.seed, hero: take.hero, trick: take.trick, difficulty: take.difficulty, map: take.map, mutator: take.mutator, variant: take.variant, picks: take.picks, profile: take.profile };
+  FakeWorker.take = { seed: take.seed, hero: take.hero, trick: take.trick, difficulty: take.difficulty, map: take.map, mutator: take.mutator, variant: take.variant, picks: take.picks, profile: take.profile, script: take.script };
   (globalThis as unknown as { Worker: unknown }).Worker = FakeWorker;
   const setup: MatchSetup = {
     hero: take.hero as HeroId,

@@ -30,6 +30,8 @@ export const MODES = {
   skirmish: { map: 'crossing', mutator: 'none', variants: ['bots', 'coop', 'pvp'] },
   classic: { map: 'hearthwood', mutator: 'none', variants: ['bots', 'pvp'] },
   practice: { map: 'crossing', mutator: 'none', variants: ['bots'] },
+  // trailer 60: Cannon Chaos (sim v27, the Kibble Cannon every 20 s); coop lets a script drive team 0's three seats
+  cannon: { map: 'crossing', mutator: 'cannon', variants: ['bots', 'coop'] },
 };
 
 /** A take object from a clip spec (mode, variant, seed, heroes). */
@@ -50,6 +52,7 @@ export function takeOf(spec) {
     difficulty: spec.difficulty ?? (variant === 'pvp' ? 'hard' : 'normal'),
     picks: picks.slice(0, per * 2),
     profile: spec.profile ?? 'normal',
+    ...(spec.script ? { script: spec.script } : {}),
   };
 }
 

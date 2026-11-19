@@ -26,6 +26,7 @@ one JSON row (ffprobe streams, size, raw audio peak/RMS, input loudness, sim has
 | `shots.mjs` | Spec → harness ShotSpec: aspect sizes, camera presets and cut lists, slow motion, HUD/pops layers, looks, the skins stage. |
 | `harness.ts` / `harness.html` | The in-browser renderer (forked from `tools/trailer/harness.ts`): real `MatchSession` + `GameRenderer`, director camera, lobby stage, OfflineAudioContext audio. Exposes `window.__trailer`. |
 | `clip-driver.ts` | `ClipRun`: a deterministic sim run of a take (any map, mutator, variant, explicit picks), bots in every seat, an event hash for the browser/Node check. |
+| `clip-script.ts` | Trailer 60: scripted seats. Rules (`encore`, `stage`, `cannon`, `zzz`, `holdR`, `castR`, `avoid`) replace a piloted seat's commands with ordinary moves, casts and cannon fire on the ticks they fire; the sim is untouched and Node and browser run the same rules. |
 | `clip-worker.ts` | Stand-in for the sim Worker: full vision (no fog), both teams' public events, UI commands dropped. |
 | `samples.json` | The four proof clips (below). |
 | `dev/moments.mjs` | List the moments of one type for a spec's exact take: `node tools/clips/dev/moments.mjs specs.json <id> <type> [n]` (pick indices match `start.pick`). |
@@ -70,7 +71,8 @@ one JSON row (ffprobe streams, size, raw audio peak/RMS, input loudness, sim has
                                     //   tree canopies; dist 0.7-0.8 tightens the vertical "high" shot. Absent = unchanged.
   "xray": false,                    // (added, recorder 3) structure x-ray on/off (default on; off for tower moments)
   "shot": {},                       // raw harness ShotSpec overrides (expert)
-  "caption": "free text for the catalog (not rendered)"
+  "caption": "free text for the catalog (not rendered)",
+  "script": [{ "slot": 0, "do": "encore" }] // (added, trailer 60) scripted seats, team 0's piloted slots only: see clip-script.ts
 }
 ```
 
@@ -107,7 +109,7 @@ From `src/ui/modeSelect/modes.ts` (the one registry) and `src/sim/mutator.ts`:
 | `practice` | Practice try (champ select "try") | Crossing | 3v3 | bots | – | Same sim as Skirmish bots (identical seeds give identical matches); label it "practice" only for the catalog. |
 | `skins` | Home lobby stage | – | – | – | – | Turntable / lineup coat showcase. |
 | – | Ranked | Hearthwood | 5v5 | – | – | `locked` ("Coming soon"): not playable, no clips. |
-| – | Cannon Chaos (event) | – | 3v3 | – | – | `soon`: not in the sim. Its look is covered by Blitz `chaos` / `cannon` moments. |
+| `cannon` | Cannon Chaos (live, sim v27) | Crossing | 3v3 | bots, coop | ~5 min | mutator `cannon`: the Kibble Cannon at 0:15, then 20 s after every shot; level 3 start, cooldowns x0.7. |
 | – | With Friends | – | – | – | – | A party lobby around the same matches; no separate sim. |
 
 Fun toys on the Crossing (every mode there, most in Blitz): the Kibble Cannon (pick up, fire, KABOOM, parry, block),
@@ -208,7 +210,7 @@ sheets of 6-9 frames each. `report.json` next to them has the full rows.
   another seed, `pick`, or `any`. Blitz always ends near 2:55 (hard end), so Blitz `victory` is common; Classic
   matches run ~10 min, so its scan takes longer.
 - **Practice = Skirmish bots** (same sim); `coop`/`pvp` change seat layout and bot difficulty only (all seats are bots).
-- **Ranked and Cannon Chaos** are not playable in this build; do not label clips with them.
+- **Ranked** is not playable in this build; do not label clips with it.
 - **Lobby stage** (skins) loads its painted backdrop and fonts in real time: record.mjs waits 2.5 s and runs 90 unsaved
   frames before frame 0. The music floor for skins is `music` (default 2).
 - **Skins turntable corner wedge (fixed, recorder 4).** In 9:16 the turntable camera swung +-38 deg and, at each
