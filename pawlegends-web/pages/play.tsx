@@ -1,5 +1,6 @@
 import { PawlegendsHost } from "@/components/pawlegends/PawlegendsHost";
 import { lockPageZoom, PAWLEGENDS_VIEWPORT } from "@/components/pawlegends/noZoom";
+import { installTabGuard } from "@/components/pawlegends/tabGuard";
 import { PAWLEGENDS_PLAY_PATH } from "@/components/pawlegends/routes";
 import { PAWLEGENDS_SUBTITLE, PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
@@ -36,6 +37,8 @@ export const PAWLEGENDS_SEO = Object.freeze({
 export default function PawlegendsPage() {
   // No page zoom around the game iframe (components/pawlegends/noZoom.ts); restored when the page unmounts.
   useEffect(() => lockPageZoom(), []);
+  // Tab is a game key, never focus traversal over the host page (components/pawlegends/tabGuard.ts).
+  useEffect(() => installTabGuard(), []);
   return (
     <FirebaseAuthProvider authMode="optional">
       <SeoHead {...PAWLEGENDS_SEO} noindex />
