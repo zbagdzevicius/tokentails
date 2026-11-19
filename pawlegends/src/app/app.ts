@@ -104,6 +104,7 @@ import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
 import { flagHidden, hasMatchFlags, matchFlag, myCountry, refreshMyFlag, setFlagHidden } from '../social/flags';
+import { matchPersona, matchPersonaSlots } from '../party/personas';
 import { loadMastery } from '../meta/mastery';
 import { RewardsCloud, todayExtraHtml } from '../ui/rewards/rewards';
 
@@ -2380,6 +2381,7 @@ export class App {
         slot,
         names: match.names,
         flags: match.flags ?? null,
+        ...(match.personas?.length ? { personas: match.personas } : {}),
         rejoin: match.startInMs === 0,
         newbie: p.matches === 0,
         hideNames: hideNames(),
@@ -2807,7 +2809,10 @@ export class App {
     const boardNames = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, userName ? { name: userName } : null);
     const boardParty = (partyEnd as { names?: (string | null)[] } | undefined)?.names;
     if (boardParty) boardParty.forEach((n, slot) => n && (boardNames[slot] = n));
-    const humanSlots = new Set<number>([mySlot, ...(boardParty ? boardParty.map((n, slot) => (n ? slot : -1)).filter((x) => x >= 0) : [])]);
+    // casual personas (bots shown as players) keep their names on the device's row too
+    const personaSlots = partyEnd ? matchPersonaSlots() : new Set<number>();
+    for (const slot of personaSlots) boardNames[slot] = matchPersona(slot)?.name ?? boardNames[slot];
+    const humanSlots = new Set<number>([mySlot, ...personaSlots, ...(boardParty ? boardParty.map((n, slot) => (n ? slot : -1)).filter((x) => x >= 0) : [])]);
     const board = boardOf(e.result, grades, { map: e.replay.map, mutator: e.replay.mutator, names: boardNames, humans: humanSlots, me: mySlot });
     const moment = this.saveMoment(e, { name: momentName, mode: partyEnd ? (setup?.party?.pvp ? 'pvp' : setup?.party?.coop ? 'coop' : 'party') : practice ? 'practice' : playedMode, grade: e.result.reason === 'forfeit' ? null : myGrade, party: !!partyEnd, board, save });
     const s = this.ent.snapshot();
@@ -2829,6 +2834,8 @@ export class App {
     // party play: every human row (yours too), the MVP and "Best on your team" use the party names the friends saw
     const partyNames = (partyEnd as { names?: (string | null)[] } | undefined)?.names;
     if (partyNames) partyNames.forEach((n, slot) => n && (names[slot] = n));
+    // casual personas: the names they played under (never "Bot"; still no report flag, `partyNames` keeps them null)
+    if (partyEnd) for (const slot of matchPersonaSlots()) if (slot !== mySlot) names[slot] = matchPersona(slot)?.name ?? names[slot];
     const nameOf = (slot: number): string => names[slot] ?? HERO_TEXT[e.result.stats.find((st) => st.slot === slot)?.hero ?? e.replay.hero].title;
     const bestMine = grades.best[myTeam];
     // Party play (M6): results together, the party's rows and actions (the save chip stays this player's own)

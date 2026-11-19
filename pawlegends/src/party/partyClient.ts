@@ -34,6 +34,7 @@ import { qrSvg } from './qr';
 import { allowWatch, hideNames } from '../meta/partyPrefs';
 import type { SeatInfo } from '../app/mpTypes';
 import type { SlotStats } from '../sim/api';
+import { matchPersonas } from './personas';
 import { againLabel, partyRows, partyRowsHtml } from './ui/partyResults';
 import { PartyChat } from './ui/partyChat';
 import type { AvatarView, ChatReportKind } from '../data/chatPhrases';
@@ -1335,7 +1336,7 @@ export class PartyClient {
     const avs: (AvatarView | undefined)[] = [];
     if (v) for (const m of v.members) if (m.slot !== undefined && m.av) avs[m.slot] = m.av;
     return partyRowsHtml(
-      partyRows({ stats, mySlot, partyNames: end.names ?? [], baseNames, pilotPct: end.pilotPct ?? [], art, avs, hide: hideNames() }),
+      partyRows({ stats, mySlot, partyNames: end.names ?? [], baseNames, pilotPct: end.pilotPct ?? [], art, avs, hide: hideNames(), personas: matchPersonas() }),
     );
   }
 

@@ -12,16 +12,24 @@ import { HERO_TEXT } from '../../ui/heroText';
 import { COPY, esc, sideText } from './copy';
 import { seatsPerTeam, shownName } from './partyLobby';
 import { avatarHtml, titleText } from '../../ui/avatar';
+import { personaMap, type Persona } from '../personas';
 
 export function loadingHtml(v: PartyView, hideNames = false): string {
   const humans = [...v.members].sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9));
   // always a way out: a load that never finishes (or a match the others play on) never traps a player here
   const leave = `<button type="button" class="pl-btn ghost small" data-p="leave" data-testid="party-leave">${COPY.leaveMatch}</button>`;
-  // casual PvP (V16.md §5): both teams, every bot seat labelled Bot, the own team first
+  // casual PvP (V16.md §5): both teams, the own team first; a bot seat the relay shows as a player (`mm.fill`) loads
+  // like one, every other bot seat is labelled Bot
   const per = seatsPerTeam(v);
   if (v.mm?.mode === 'casual' || (v.mm && per === 5)) {
     const mine = v.mm.team ?? 0;
-    const team = (t: number) => Array.from({ length: per }, (_, i) => card(v.members.find((m) => m.slot === t * per + i))).join('');
+    const personas = personaMap(v.mm.fill, 2 * per);
+    const seat = (slot: number) => {
+      const m = v.members.find((x) => x.slot === slot);
+      const p = m ? undefined : personas.get(slot);
+      return p ? personaCard(p, slot % per) : card(m);
+    };
+    const team = (t: number) => Array.from({ length: per }, (_, i) => seat(t * per + i)).join('');
     const species = v.mm.species ?? ['cat', 'dog'];
     return `<div class="pp-card pp-narrow pp-loading" data-testid="party-loading" data-pvp="1"><h2>${COPY.loadingTitle}</h2><p class="pp-dim">${esc(COPY.yourTeam(sideText(species[mine])))}</p><ul class="pp-lcs" data-testid="pvp-load-mine">${team(mine)}</ul><p class="pp-dim">${esc(`${COPY.theirTeam}: ${sideText(species[1 - mine])}`)}</p><ul class="pp-lcs their" data-testid="pvp-load-theirs">${team(1 - mine)}</ul>${leave}</div>`;
   }
@@ -32,6 +40,15 @@ export function loadingHtml(v: PartyView, hideNames = false): string {
   // only when someone is late: who the bot covers for (the bot cards say the rest)
   const line = late ? `<p class="pp-dim">${esc(COPY.botCovers(shownName(v, late, hideNames)))}</p>` : '';
   return `<div class="pp-card pp-narrow pp-loading" data-testid="party-loading"><h2>${COPY.loadingTitle}</h2><ul class="pp-lcs">${cards}</ul>${line}${leave}</div>`;
+
+  /** A persona: a player's card (avatar, flag, name, champion), fully loaded. */
+  function personaCard(p: Persona, i: number): string {
+    const hero = p.hero && p.hero in HEROES ? (p.hero as HeroId) : null;
+    const pic = hero ? portraitUrl(hero) : null;
+    const av = `<span class="pp-lc-av" data-testid="loading-avatar">${avatarHtml(p.av ?? undefined, 40, { guest: false })}</span>`;
+    const name = hideNames ? `Teammate ${i + 1}` : p.name;
+    return `<li class="pp-lc">${av}<span class="pp-ts-face"${pic ? ` style="background-image:url('${esc(pic)}')"` : ''}></span><b>${ccHtml(hideNames ? null : p.cc)}${esc(name)}</b><small>${hero ? esc(HERO_TEXT[hero].title) : ''}</small><span class="pp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i style="width:100%"></i></span></li>`;
+  }
 
   function card(m: (typeof v.members)[number] | undefined): string {
       if (!m) return `<li class="pp-lc bot"><span class="pp-ts-face">?</span><b>${COPY.bot}</b></li>`;

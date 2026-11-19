@@ -29,6 +29,7 @@ import { QuickChat, WHEEL_ALL, type ChatPick } from '../party/ui/quickChat';
 import { shellPlatform } from './platform';
 import { SIM_VERSION } from '../sim/version';
 import { REPORT_THANKS, reportPopover, reportable, closeReportPopover, type ReportBook } from '../social/report';
+import { matchPersona } from '../party/personas';
 
 /** What the party HUD needs from the MatchSession (kept narrow: the session stays the owner of every view). */
 export interface MpHudHost {
@@ -273,7 +274,9 @@ export class MpHud {
 
   private isFriend(slot: number): boolean {
     const base = this.teamBase;
-    return slot !== this.link.mySlot && slot >= base && slot < base + SLOTS_PER_TEAM && this.link.names[slot] !== null && this.link.names[slot] !== undefined;
+    // a casual persona (a bot shown as a player, party/personas.ts) sits on the team like any stranger
+    const named = (this.link.names[slot] !== null && this.link.names[slot] !== undefined) || !!matchPersona(slot);
+    return slot !== this.link.mySlot && slot >= base && slot < base + SLOTS_PER_TEAM && named;
   }
 
   /** Casual PvP: a human on the other team (emotes only reach us; Mute opponents silences them). */
@@ -297,7 +300,9 @@ export class MpHud {
   // -------------------------------------------------------------------------------------------- identity (M1, M4)
 
   private applyNames(): void {
-    this.names = partySlotNames(this.h.baseNames, this.link.names, this.link.mySlot, { hide: this.hide, muted: this.muted });
+    // personas take Hide names and mutes like players (the relay's `names` keeps them null: no report, no kudos)
+    const shown = this.link.names.map((n, slot) => n ?? matchPersona(slot)?.name ?? null);
+    this.names = partySlotNames(this.h.baseNames, shown, this.link.mySlot, { hide: this.hide, muted: this.muted });
     this.h.setNames(this.names);
   }
 
@@ -312,7 +317,8 @@ export class MpHud {
         continue;
       }
       const ring = SLOT_RING[slot];
-      const bot = this.link.piloted(slot);
+      // a persona's seat is a bot's by design (the lead seat of a team of bots is piloted): it shows as a player here
+      const bot = !matchPersona(slot) && this.link.piloted(slot);
       const seat = this.link.seats.find((s) => s.slot === slot);
       plates.set(slot, { ring, bot });
       rows.set(slot, { ring, bot, conn: seat?.conn ?? (bot ? 'off' : 'on'), muted: this.muted.has(slot) });

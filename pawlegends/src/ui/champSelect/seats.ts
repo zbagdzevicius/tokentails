@@ -1,10 +1,12 @@
 /**
  * Champion select seats (docs/plans/moba/LANDING-PICK-UX.md §B5): the team column's models, from the solo choice and
  * its bots, or from a party view (slot order; casual PvP shows the own team only; hidden names stay hidden). Humans
- * show their usernames; bots keep champion names (or "Bot" while their hero is not known). Pure.
+ * show their usernames; bots keep champion names (or "Bot" while their hero is not known); a casual bot seat the relay
+ * shows as a player (`mm.fill`, party/personas.ts) is a player's seat: its name, its champion once it locks. Pure.
  */
 import { HEROES, type HeroId } from '../../data/heroes';
 import type { MemberView, PartyView } from '../../net/proto';
+import { personaMap } from '../../party/personas';
 import type { TrickId } from '../../sim/api';
 import { DIFFICULTY_TEXT } from '../heroText';
 import type { SeatModel } from './champSelect';
@@ -36,14 +38,20 @@ function memberSeat(v: PartyView, m: MemberView, name: string, hover: string): S
  * The party's seats: members by slot (`teamSize` seats, 3 or 5; an empty seat is a bot). PvP (casual, or a 5v5 Classic
  * queue): the own team's slots only. `shown(m)` names a member (its own name for you, "Teammate 2" with hidden names).
  */
-export function partySeats(v: PartyView, hover: string, shown: (m: MemberView) => string, teamSize = 3, pvp = v.mm?.mode === 'casual'): SeatModel[] {
+export function partySeats(v: PartyView, hover: string, shown: (m: MemberView) => string, teamSize = 3, pvp = v.mm?.mode === 'casual', hide = false): SeatModel[] {
   // labelled "Bot", no line explaining what a bot seat does (founder, 2026-11-17)
   const bot: SeatModel = { name: 'Bot', hero: null, state: 'bot', sub: '' };
+  const personas = personaMap(v.mm?.fill, 2 * teamSize);
   if (v.mm && pvp) {
     const team = v.mm.team ?? 0;
     return Array.from({ length: teamSize }, (_, i) => {
-      const m = v.members.find((x) => x.slot === team * teamSize + i);
-      return m ? memberSeat(v, m, shown(m), hover) : { ...bot };
+      const slot = team * teamSize + i;
+      const m = v.members.find((x) => x.slot === slot);
+      if (m) return memberSeat(v, m, shown(m), hover);
+      const p = personas.get(slot);
+      if (!p) return { ...bot };
+      const hero = heroOf(p.hero ?? undefined);
+      return { name: hide ? `Teammate ${i + 1}` : p.name, hero, state: hero ? 'locked' : 'empty' };
     });
   }
   const humans = [...v.members].sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9));

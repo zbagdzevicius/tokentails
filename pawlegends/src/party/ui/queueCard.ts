@@ -211,7 +211,7 @@ export function queueCardHtml(m: QueueModel): string {
   </div>`;
   }
   if (m.pvp) {
-    // casual PvP: both teams' pips, bots trickling in from 17 s; at the switch "playing Co-op vs bots" with Keep waiting
+    // casual PvP: both teams' pips, bots trickling in from 3 s; at the switch "playing Co-op vs bots" with Keep waiting
     const note = m.pvp.toCoop
       ? `<p class="pp-hint pp-tocoop" role="status" data-testid="mm-to-coop">${COPY.toCoop}</p><button type="button" class="pl-btn" data-p="mm-keep" data-testid="mm-keep">${COPY.keepWaiting}</button>`
       : '';

@@ -153,7 +153,7 @@ export function banModel(o: PickModel, x: PickHtmlExtra = {}): CsModel {
   const why = shown ? banBlock(v, shown) : '';
   return {
     kind: 'party',
-    seats: partySeats(v, '', (m) => shownName(v, m, hide), per, casual),
+    seats: partySeats(v, '', (m) => shownName(v, m, hide), per, casual, hide),
     heroes: order,
     selected: shown,
     sideTabs: false,
@@ -219,7 +219,7 @@ export function pickModel(o: PickModel, x: PickHtmlExtra = {}): CsModel {
   const lockWhy = !shown ? 'Tap a champion' : taken.get(shown) ? `Taken by ${taken.get(shown)}` : block;
   return {
     kind: 'party',
-    seats: partySeats(v, o.hover, (m) => shownName(v, m, hide), per, casual),
+    seats: partySeats(v, o.hover, (m) => shownName(v, m, hide), per, casual, hide),
     heroes: order,
     selected: shown,
     sideTabs: !mm,

@@ -15,6 +15,7 @@ import { portraitUrl } from '../../render/portraits';
 import { esc } from './copy';
 import { avatarHtml } from '../../ui/avatar';
 import type { AvatarView } from '../../data/chatPhrases';
+import type { Persona } from '../personas';
 
 /** A bot flew a friend for more than this share of the match: the row says so. */
 export const BOT_CHIP_PCT = 10;
@@ -32,8 +33,10 @@ export interface PartyResultRow {
   dmg: number;
   /** Share of the match a bot flew this human (0..100). */
   botPct: number;
-  /** CHAT-AVATARS §7.4: the player's avatar (humans only). */
+  /** CHAT-AVATARS §7.4: the player's avatar (humans and personas). */
   av?: AvatarView;
+  /** A casual bot seat shown as a player (party/personas.ts): a player's row, no "bot" tag, no player actions. */
+  persona?: boolean;
 }
 
 export interface PartyRowsInput {
@@ -49,6 +52,8 @@ export interface PartyRowsInput {
   /** Avatars per human slot (from the party view). */
   avs?: readonly (AvatarView | undefined)[];
   hide: boolean;
+  /** Casual bot seats shown as players, by slot. */
+  personas?: ReadonlyMap<number, Persona>;
 }
 
 /** The team's rows (the player's team, slot order). Pure. */
@@ -64,6 +69,25 @@ export function partyRows(o: PartyRowsInput): PartyResultRow[] {
     const me = slot === o.mySlot;
     const raw = o.partyNames[slot];
     const human = me || (raw !== null && raw !== undefined);
+    const persona = !human ? (o.personas?.get(slot) ?? null) : null;
+    if (persona) {
+      out.push({
+        slot,
+        name: o.hide ? `Teammate ${slot + 1}` : persona.name,
+        hero: st.hero,
+        human: false,
+        persona: true,
+        me: false,
+        art: null,
+        ...(persona.av ? { av: persona.av as AvatarView } : {}),
+        k: st.kills,
+        d: st.deaths,
+        a: st.assists,
+        dmg: st.heroDamage,
+        botPct: 0,
+      });
+      continue;
+    }
     const name = me ? (o.baseNames[slot] ?? 'You') : human ? (o.hide ? `Teammate ${slot + 1}` : (raw ?? '')) : (o.baseNames[slot] ?? HERO_TEXT[st.hero]?.title ?? 'Bot');
     out.push({
       slot,
@@ -93,8 +117,9 @@ export function partyRowsHtml(rows: readonly PartyResultRow[]): string {
         ? `<i class="pr-av" style="background-image:url('${esc(pic)}')"></i>`
         : '<i class="pr-av"></i>';
     const chip = r.human && r.botPct > BOT_CHIP_PCT ? `<span class="pr-bot" data-testid="party-bot-chip">bot ${r.botPct}%</span>` : '';
-    const tag = r.me ? '<span class="pr-you">you</span>' : r.human ? '' : '<span class="pr-tag">bot</span>';
-    return `<li class="pr-row${r.human ? ' human' : ' botrow'}${r.me ? ' me' : ''}" data-slot="${r.slot}" data-testid="${r.human ? 'party-result-human' : 'party-result-bot'}">${av}<span class="pr-who"><b>${esc(r.name)}</b><small>${esc(HERO_TEXT[r.hero as keyof typeof HERO_TEXT]?.title ?? r.hero)}</small></span>${tag}${chip}<span class="pr-kda">${r.k}/${r.d}/${r.a}</span><span class="pr-dmg" title="Hero damage">${r.dmg}</span></li>`;
+    const tag = r.me ? '<span class="pr-you">you</span>' : r.human || r.persona ? '' : '<span class="pr-tag">bot</span>';
+    const looks = r.human || r.persona;
+    return `<li class="pr-row${looks ? ' human' : ' botrow'}${r.me ? ' me' : ''}" data-slot="${r.slot}" data-testid="${looks ? 'party-result-human' : 'party-result-bot'}">${av}<span class="pr-who"><b>${esc(r.name)}</b><small>${esc(HERO_TEXT[r.hero as keyof typeof HERO_TEXT]?.title ?? r.hero)}</small></span>${tag}${chip}<span class="pr-kda">${r.k}/${r.d}/${r.a}</span><span class="pr-dmg" title="Hero damage">${r.dmg}</span></li>`;
   };
   return `<div class="pl-party-results" data-testid="party-results"><b class="pr-h">Your party</b><ul>${rows.map(row).join('')}</ul></div>`;
 }

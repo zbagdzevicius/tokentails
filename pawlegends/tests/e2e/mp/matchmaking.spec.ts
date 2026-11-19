@@ -4,8 +4,9 @@ import { closeAll, mpNames, player, shot, tap, tickOf, type Player, playVariant 
 test.afterEach(closeAll);
 
 // One main queue (MODE-UNLOCKS.md, Nov 19): PLAY searches the casual 3v3 queue wherever the relay runs PvP, and a solo
-// or duo only moves to co-op after 40 s of quiet. The co-op tests below start the co-op queue directly, which the menu
-// no longer offers: they are skipped until they are rewritten for the main queue (players first, bots fill from 17 s).
+// or duo plays a team of bots once the trickle fills it (15 s alone; co-op only when no fair plan forms by 40 s). The
+// co-op tests below start the co-op queue directly, which the menu no longer offers: they are skipped until they are
+// rewritten for the main queue (players first, bots fill from 3 s).
 // The co-op matchmaker itself is still covered by the backend relay specs (mm-relay*.spec.ts).
 
 /*

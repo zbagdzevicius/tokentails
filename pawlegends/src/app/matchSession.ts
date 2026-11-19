@@ -31,6 +31,7 @@ import { cardLook, ELEMENT_COLOR, lookKey, PAID_COATS, type FrameId, type Look }
 import { COAT_THEMES } from '../render/skins/coatThemes';
 import { setProbeBlocked } from '../render/skins/spriteProbe';
 import { matchFlag, matchFlagsFor, myFlag, setMatchFlags } from '../social/flags';
+import { personaMap, setMatchPersonas } from '../party/personas';
 import { cardIdentity, cutName, heroSub, selfNames, tidyName, type CardIdentity } from '../meta/cardName';
 import { coarsePointer } from './platform';
 import { getSkin, isCardSkinId, putSkin, type CatSkin } from '../render/skins/skinStore';
@@ -187,6 +188,8 @@ export interface MatchSetup {
     report?: import('../social/report').ReportBook | null;
     /** FLAGS.md: each seat's country flag from the relay (`match.flags`; null: a bot, or a hidden or unknown flag). */
     flags?: readonly (string | null)[] | null;
+    /** Casual: the bot seats shown as players (`match.personas`, party/personas.ts); absent: none. */
+    personas?: readonly import('../net/proto').PersonaView[] | null;
     /** MATCH-CHAT.md §3: report an in-match chat line (the host's `chat.report`); absent: no Report on lines. */
     chatReport?: (mid: string, kind: import('../data/chatPhrases').ChatReportKind) => Promise<boolean>;
   };
@@ -804,12 +807,18 @@ export class MatchSession {
     const watched = this.setup.spectate?.names;
     if (watched) this.names = this.names.map((n, i) => watched[i] ?? n);
     if (this.e2e) document.documentElement.dataset.plateNames = this.names.join('|');
-    // FLAGS.md: every seat's country flag (the relay's for humans, a seeded one for each bot, a paw when hidden)
+    // casual bot seats shown as players (party/personas.ts): a persona's name everywhere the match names the seat
+    setMatchPersonas(this.setup.party?.personas ?? null);
+    const personas = personaMap(this.setup.party?.personas ?? null, w.picks.length);
+    for (const [slot, p] of personas) if (slot !== w.slot) this.names[slot] = p.name;
+    if (this.e2e && personas.size) document.documentElement.dataset.plateNames = this.names.join('|');
+    // FLAGS.md: every seat's country flag (the relay's for humans and personas, a seeded one for each bot, a paw when hidden)
     const humanNames = this.setup.party?.names ?? this.setup.spectate?.names ?? null;
-    const isHuman = (slot: number): boolean => (humanNames ? humanNames[slot] != null : slot === w.slot);
+    const isHuman = (slot: number): boolean => (humanNames ? humanNames[slot] != null : slot === w.slot) || personas.has(slot);
     // the honesty rule (PARITY.md, SOCIAL-RANKED.md §8.1): every bot seat reads "Bot" in the match too (scoreboard,
-    // portrait strip, name plate), not only on the loading screen and in results
+    // portrait strip, name plate), not only on the loading screen and in results; a casual persona plays as a player
     const botSlots = new Set(Array.from({ length: w.picks.length }, (_, s) => s).filter((s) => !isHuman(s)));
+    const relayFlags = this.setup.party?.flags ?? null;
     this.overhead.bots = botSlots;
     setMatchFlags(
       matchFlagsFor({
@@ -818,7 +827,7 @@ export class MatchSession {
         mySlot: this.setup.spectate ? -1 : w.slot,
         mine: myFlag(),
         isHuman,
-        relay: this.setup.party?.flags ?? null,
+        relay: personas.size ? Array.from({ length: w.picks.length }, (_, s) => (personas.has(s) ? personas.get(s)!.cc : (relayFlags?.[s] ?? null))) : relayFlags,
       }),
     );
     if (this.e2e) document.documentElement.dataset.matchFlags = Array.from({ length: w.picks.length }, (_, i) => matchFlag(i) ?? '-').join(',');

@@ -4,9 +4,9 @@ import { closeAll, player, shot, tap, tickOf, type Player, playVariant } from '.
 test.afterEach(closeAll);
 
 /*
- * Casual PvP M1b (docs/plans/moba/V16.md §4.6, §5) against the relay harness (its in-memory matchmaker, the real 30 s
- * fill). Two browsers that never met pick PvP on the title's mode chip and Play: after the 30 s fill they get the
- * Accept card, accept, pick on opposite teams (each sees only its own team), load with both teams shown, and play a
+ * Casual PvP M1b (docs/plans/moba/V16.md §4.6, §5) against the relay harness (its in-memory matchmaker, the real
+ * trickle: a bot seat every 3 s from 3 s). Two browsers that never met pick PvP on the title's mode chip and Play: at
+ * the 4th bot seat (12 s) they get the Accept card (its bots counted as players, founder 2026-11-19), accept, pick on opposite teams (each sees only its own team), load with both teams shown, and play a
  * real match to its end: at 4:00 the desktop's team surrenders, and each side gets its own result (one Victory, one
  * Defeat). The phone is 844x390 touch; a second test checks the 667x375 phone's mode chip and Accept card (a decline
  * is a dodge, the other player goes back to the queue).
@@ -75,13 +75,13 @@ test('two strangers on opposite teams: PvP chip, Accept, a hidden-team pick, a r
   await shot(b, 'm1b', '00-title-mode-chip');
   await Promise.all([playPvp(a), playPvp(b)]);
   await shot(b, 'm1b', '01-queue-pvp');
-  // both pips (yours vs theirs), no fill note; bots trickle in as pips from 17 s, one every 3 s
+  // both pips (yours vs theirs), no fill note; bots trickle in as pips from 3 s, one every 3 s
   await expect(b.page.locator('.pp-pvp-pips')).toBeVisible();
   await expect(b.page.locator('.pp-queue .pp-note')).toHaveCount(0);
   await expect(b.page.locator('.pp-pvp-pips .pp-pip.bot').first()).toBeVisible({ timeout: 30_000 });
-  // the trickle fills a 1v1 at the 4th bot seat (26 s): two bots per team, behind the Accept card
+  // the trickle fills a 1v1 at the 4th bot seat (12 s): two bots per team, counted as players on the Accept card
   for (const p of [a, b]) await expect(p.page.locator('[data-testid="mm-accept-card"]')).toBeVisible({ timeout: 60_000 });
-  for (const p of [a, b]) await expect(p.page.locator('[data-testid="mm-found"]')).toContainText('1 player + 2 bots vs 1 + 2 bots');
+  for (const p of [a, b]) await expect(p.page.locator('[data-testid="mm-found"]')).toContainText('3 players vs 3');
   expect(await tappable(b.page, '[data-testid="mm-accept"]', 56)).toBe(true);
   expect(await noSideScroll(b.page)).toBe(true);
   await shot(b, 'm1b', '02-accept-card-phone');
@@ -95,7 +95,8 @@ test('two strangers on opposite teams: PvP chip, Accept, a hidden-team pick, a r
   expect(new Set([ta, tb])).toEqual(new Set(['0', '1']));
   for (const p of [a, b]) {
     await expect(p.page.locator('[data-testid="pvp-their-hidden"]')).toBeVisible();
-    await expect(p.page.locator('.pp-strip .pp-ts:not(.bot)')).toHaveCount(1);
+    // the own team's bot seats show as named players (bot personas), never "Bot"
+    await expect(p.page.locator('.pp-strip .pp-ts:not(.bot)')).toHaveCount(3);
   }
   const sa = await a.page.locator('[data-testid="mm-side-switch"]').getAttribute('data-side');
   const sb = await b.page.locator('[data-testid="mm-side-switch"]').getAttribute('data-side');
