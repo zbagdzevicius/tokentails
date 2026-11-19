@@ -89,6 +89,12 @@ function api(kind: Kind) {
         };
       case 'history.match':
         return { status: 200, body: MATCH };
+      case 'club.get':
+        return { status: 200, body: { club: vet ? { code: 'C1', name: 'Night Owls', size: 4, cap: 30, owner: false, thread: 't', tier: 'text', members: [], chest: {} } : null, kudos: { month: '2026-11', endsAt: '2026-12-01T00:00:00.000Z', n: vet ? 7 : 0, tiers: [5, 15, 30], paid: vet ? [5] : [], got: [], next: { id: 'x', name: 'Yarn' } } } };
+      case 'friend.add':
+        return { status: 201, body: { state: 'sent' } };
+      case 'block.add':
+        return { status: 200, body: {} };
       case 'flag.get':
         return { status: 200, body: { cc: 'LT', hidden: false } };
       default:
@@ -139,7 +145,7 @@ async function audit(game: Frame): Promise<string[]> {
     const ob = on ? vis(on) : null;
     if (!ob || ob.left < -1 || ob.right > W + 1) out.push(`open tab not in view: ${ob ? `${ob.left}..${ob.right}` : 'none'}`);
     // cards, the banner and the tiles never overlap each other
-    const boxes = [...scr.querySelectorAll('.pfx-card, .pfx-who, .pfx-ccard, .pfx-ctile, .pfx-mrowi, .pfx-item')].map((e) => ({ e, b: vis(e) })).filter((x) => x.b) as { e: Element; b: DOMRect }[];
+    const boxes = [...scr.querySelectorAll('.pfx-card, .pfx-who, .pfx-ccard, .pfx-ctile, .pfx-mrowi, .pfx-item, .pfx-rec, .pfx-zero, .pfx-filter')].map((e) => ({ e, b: vis(e) })).filter((x) => x.b) as { e: Element; b: DOMRect }[];
     for (let i = 0; i < boxes.length; i++)
       for (let j = i + 1; j < boxes.length; j++) {
         const a = boxes[i].b;
@@ -253,6 +259,19 @@ for (const kind of ['guest', 'new', 'vet', 'other', 'fail'] as Kind[])
           await expect(screen.locator('[data-testid="profile-flag-shown"]')).toBeVisible();
           await expect(screen.locator('[data-testid="profile-title"]')).toHaveText('Moonlit');
           await expect(screen.locator('[data-testid="profile-message"]')).toBeVisible();
+          // Match history once: the Matches tab (the card's link goes there), no banner button
+          await expect(screen.locator('[data-testid="profile-history"]')).toHaveCount(0);
+          await screen.locator('[data-testid="open-history"]').click();
+          await expect(screen).toHaveAttribute('data-tab', 'matches');
+          await expect(screen.locator('[data-testid="profile-match-list"] [data-a="match"]')).toHaveCount(3);
+          await expect(screen.locator('[data-testid="profile-recordings"]')).toHaveCount(0);
+        }
+        if (kind === 'new') {
+          // Stats: one empty state with one action, not empty cards
+          await screen.locator('[data-testid="profile-tab-stats"]').click();
+          await expect(screen.locator('[data-testid="profile-stats-empty"]')).toBeVisible();
+          await expect(screen.locator('.pfx-sgrid')).toHaveCount(0);
+          await expect(screen.locator('[data-testid="profile-play-first"]')).toBeVisible();
         }
         if (kind === 'vet') {
           // Collection agrees with Overview: the counts are the owned items (Founder is worn, so owned)
@@ -270,6 +289,23 @@ for (const kind of ['guest', 'new', 'vet', 'other', 'fail'] as Kind[])
           await expect(screen.locator('.cst-tab[tabindex="0"]')).toHaveCount(1);
           await expect(screen.locator('[data-testid="profile-rank"]')).toHaveText('Tabby II');
           await expect(screen.locator('[data-testid="profile-peak"]')).toHaveText('Best: Alley III');
+          // honor and the ladder fill the Overview
+          await expect(screen.locator('[data-testid="profile-kudos"]')).toHaveText('7');
+          await expect(screen.locator('.pfx-ladder [aria-current="true"]')).toContainText('Tabby');
+          // the account lives here: no second Account chip on Home once signed in
+          await expect(game.locator('[data-testid="account-chip"]')).toHaveCount(0);
+          // Matches: the history inline; a row opens the full history on that match; closing it comes back here
+          await screen.locator('[data-testid="profile-tab-matches"]').click();
+          await expect(screen.locator('[data-testid="profile-match-list"] [data-a="match"]')).toHaveCount(4);
+          await screen.locator('[data-testid="profile-match-list"] [data-a="match"]').first().click();
+          const hist = game.locator('[data-testid="match-history"]');
+          await expect(hist.locator('[data-testid="history-match"]')).toBeVisible();
+          await shot(page, `${tag}-match-detail`);
+          await page.keyboard.press('Escape');
+          await page.keyboard.press('Escape');
+          await expect(hist).toHaveCount(0);
+          await expect(screen).toHaveAttribute('data-tab', 'matches');
+          await screen.locator('[data-testid="profile-tab-overview"]').click();
           await screen.locator('[data-testid="profile-edit"]').click();
           await expect(screen.locator('[data-testid="profile-editor"]')).toBeVisible();
           await shot(page, `${tag}-edit`);
@@ -334,19 +370,28 @@ for (const [vp, w, h] of [SIZES[0], SIZES[2]])
       await game.locator('[data-testid="home-profile"]').first().click({ timeout: limit(60_000) });
       const screen = game.locator('[data-testid="profile-screen"]');
       await screen.locator('[data-testid="open-history"]').click();
+      await screen.locator('[data-testid="profile-match-list"] [data-a="match"]').first().click();
       const hist = game.locator('[data-testid="match-history"]');
       await expect(hist).toBeVisible();
-      await hist.locator('.mh-row').first().click();
       await hist.locator('.mh-pbtn[data-profile="PL-BBBB-CCCC"]').click();
       await expect(screen).toHaveAttribute('data-self', '0');
       await expect(screen.locator('[data-testid="profile-name"]')).toHaveText('Rex');
       await expect(screen.locator('.pfx-skel')).toHaveCount(0, { timeout: limit(10_000) });
-      // not a friend: no Message or Invite, the match history is there
+      // not a friend: Add friend and Block (asked once); no Message or Invite; Match history only once (its tab)
       await expect(screen.locator('[data-testid="profile-message"]')).toHaveCount(0);
-      await expect(screen.locator('[data-testid="profile-history"]')).toBeVisible();
+      await expect(screen.locator('[data-testid="profile-history"]')).toHaveCount(0);
+      await expect(screen.locator('[data-testid="profile-add-friend"]')).toBeVisible();
       const problems = await audit(game);
       expect(problems, problems.join('\n')).toEqual([]);
       await shot(page, `from-history-${vp}`);
+      await screen.locator('[data-testid="profile-add-friend"]').click();
+      await expect(screen.locator('[data-testid="profile-request-sent"]')).toBeVisible();
+      await screen.locator('[data-testid="profile-block"]').click();
+      await expect(screen.locator('[data-testid="profile-block-yes"]')).toBeVisible();
+      await shot(page, `from-history-${vp}-block`);
+      expect((await audit(game)).filter((p) => !p.includes('pfx-ask'))).toEqual([]);
+      await screen.locator('[data-testid="profile-block-yes"]').click();
+      await expect(screen.locator('[data-testid="profile-blocked"]')).toBeVisible();
       await page.keyboard.press('Escape');
       await expect(screen).toHaveCount(0);
     } finally {

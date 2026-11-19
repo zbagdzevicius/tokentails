@@ -91,6 +91,25 @@ export interface ProfileData {
   rankedNone?: boolean;
   /** Another player: the server sent their public card (rank, level). Absent on older backends: the rank card hides. */
   hasCard?: boolean;
+  /** Good-teammate kudos this month: the chest tiers (thumbs-up counts) and the club's name (`club.get`). */
+  kudosTiers?: number[];
+  club?: string | null;
+  /** Replays kept on this device (yours only), newest first. */
+  replays?: ProfileReplay[];
+  /** The history page cursor (`history.list` → `next`); null: no more. */
+  next?: string | null;
+  /** The rows are this device's (no account answer): their ids are device ids. */
+  rowsLocal?: boolean;
+}
+
+/** A replay kept on this device, as the Matches tab lists it. */
+export interface ProfileReplay {
+  id: string;
+  at: number;
+  hero: string;
+  outcome: 'won' | 'lost' | 'draw';
+  /** The best moment's title ("Triple Pounce"), or null. */
+  best: string | null;
 }
 
 /** Each source the screen loads, on its own: a failed one shows "Couldn't load" in its own card, never an empty state. */
@@ -100,8 +119,10 @@ export interface Sources {
   social: SourceState;
   ranked: SourceState;
   hist: SourceState;
+  /** `club.get`: the club and this month's kudos (honor). */
+  club: SourceState;
 }
-export const SOURCES_IDLE: Readonly<Sources> = Object.freeze({ name: 'idle', social: 'idle', ranked: 'idle', hist: 'idle' });
+export const SOURCES_IDLE: Readonly<Sources> = Object.freeze({ name: 'idle', social: 'idle', ranked: 'idle', hist: 'idle', club: 'idle' });
 
 /**
  * The name the banner shows. A guest is "Guest"; a signed-in player never is: their last known name, else a neutral
@@ -355,3 +376,69 @@ export function championRows(m: MasteryMap, favs: ProfileStats['favourites'], se
 
 /** "1,234". */
 export const num = (n: number): string => Math.max(0, Math.floor(n)).toLocaleString('en-US');
+
+/** One highlight on the Overview (LoL's highlights strip): a short label and its value. */
+export interface Highlight {
+  k: 'streak' | 'best' | 'mvp' | 'maxed' | 'kudos' | 'grade';
+  value: string;
+  label: string;
+}
+
+/**
+ * The season's highlights from what is known: the longest win streak and the best match in the rows, MVPs, top-mastery
+ * champions and this month's kudos. Only the ones earned (no zeros). Pure.
+ */
+export function highlightsOf(d: Pick<ProfileData, 'rows' | 'stats' | 'mastery' | 'kudos'>): Highlight[] {
+  const out: Highlight[] = [];
+  const rows = [...d.rows].sort((a, b) => a.at - b.at);
+  let run = 0;
+  let streak = 0;
+  for (const r of rows) {
+    run = r.outcome === 'won' ? run + 1 : 0;
+    streak = Math.max(streak, run);
+  }
+  if (streak >= 2) out.push({ k: 'streak', value: String(streak), label: 'Win streak' });
+  const best = rows.reduce<ProfileRow | null>((b, r) => (r.k + r.a > (b ? b.k + b.a : -1) ? r : b), null);
+  if (best && best.k + best.a > 0) out.push({ k: 'best', value: `${best.k}/${best.d}/${best.a}`, label: 'Best match' });
+  const mvp = d.stats?.mvp ?? 0;
+  if (mvp > 0) out.push({ k: 'mvp', value: num(mvp), label: mvp === 1 ? 'MVP' : 'MVPs' });
+  const maxed = maxedCount(d.mastery);
+  if (maxed > 0) out.push({ k: 'maxed', value: String(maxed), label: `At M${MASTERY_MAX}` });
+  if (d.kudos && d.kudos > 0) out.push({ k: 'kudos', value: num(d.kudos), label: 'Thumbs-up' });
+  return out;
+}
+
+/** This month's kudos against the chest tiers: the next tier and how far to it (0..1). Pure. */
+export function honorView(n: number, tiers: readonly number[]): { n: number; next: number | null; pct: number; opened: number } {
+  const t = [...tiers].filter((x) => Number.isFinite(x) && x > 0).sort((a, b) => a - b);
+  const next = t.find((x) => x > n) ?? null;
+  const prev = [...t].reverse().find((x) => x <= n) ?? 0;
+  const opened = t.filter((x) => x <= n).length;
+  return { n, next, pct: next === null ? 1 : Math.max(0, Math.min(1, (n - prev) / Math.max(1, next - prev))), opened };
+}
+
+/** The ranked ladder for the crest strip, low to high. */
+export const LADDER: readonly { tier: CrestTier; name: string }[] = Object.freeze([
+  { tier: 'kitten', name: 'Kitten' },
+  { tier: 'tabby', name: 'Tabby' },
+  { tier: 'alley', name: 'Alley' },
+  { tier: 'lion', name: 'Lion' },
+  { tier: 'legend', name: 'Legend' },
+] as { tier: CrestTier; name: string }[]);
+
+/** The history list's mode filters (the match history sheet's own). */
+export type HistoryFilter = 'all' | 'ranked' | 'pvp' | 'ai' | 'blitz' | 'arcade';
+export const HISTORY_FILTERS: readonly { id: HistoryFilter; label: string }[] = Object.freeze([
+  { id: 'all', label: 'All' },
+  { id: 'ranked', label: 'Ranked' },
+  { id: 'pvp', label: 'PvP' },
+  { id: 'ai', label: 'vs bots' },
+  { id: 'blitz', label: 'Blitz' },
+  { id: 'arcade', label: 'Arcade' },
+] as { id: HistoryFilter; label: string }[]);
+
+/** The `history.list` page cursor, checked. Pure. */
+export const nextOf = (b: unknown): string | null => {
+  const n = (b as { next?: unknown } | null)?.next;
+  return typeof n === 'string' && n.length > 0 && n.length < 200 ? n : null;
+};

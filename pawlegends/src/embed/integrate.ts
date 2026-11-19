@@ -71,6 +71,11 @@ export interface IntegrationDeps {
    * reloads to the latest build on the next title (meta/clientPolicy.ts).
    */
   onUpdateNeeded?: () => void;
+  /**
+   * The Profile screen holds the account (Profile → Account: Manage, Sign out, Delete). Then a signed-in player gets
+   * no corner chip (it repeated the Profile); a signed-out one still gets "Sign in".
+   */
+  accountInProfile?: boolean;
 }
 
 export interface MatchInfo {
@@ -280,8 +285,11 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       if (acct) acct.textContent = s.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.';
       // sign-in: the account chip in the corner (a host answered: the web page or the app's in-page host)
       const model = accountModel();
-      if (model) mountAccountChip(scr, model, (a) => void account(a));
-      else scr.querySelector('.pl-acct-chip')?.remove();
+      if (model && !(model.signedIn && deps.accountInProfile)) mountAccountChip(scr, model, (a) => void account(a));
+      else {
+        closeAccountPanel();
+        scr.querySelector('.pl-acct-chip')?.remove();
+      }
       slot.replaceChildren(titleCards({ badges: levelBadges(s.progress, p.fastest), askSignIn: ask && p.matches >= 1 }, { signIn: () => signIn('save-progress') }));
       dock.replaceChildren();
       const info = championPanel();

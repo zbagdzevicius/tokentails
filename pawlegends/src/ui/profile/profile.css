@@ -56,12 +56,13 @@
 .pfx-fine .pfx-link { min-height: 44px; padding: 0 4px; }
 
 .pfx-cards {
-  min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: var(--pfx-gap); padding: 0 2px 4px;
-  grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: 'rank top' 'season recent' 'pass recent';
-  grid-template-rows: minmax(min-content, 1.25fr) minmax(min-content, 1fr) minmax(min-content, 0.75fr);
+  /* round 3: rows size to their content (no stretched cards with empty middles); the cards start at the top */
+  min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: var(--pfx-gap); padding: 0 2px 4px; align-content: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: 'rank top' 'season recent' 'pass honor';
 }
-.pfx-ov.other .pfx-cards { grid-template-areas: 'rank top' 'season recent'; grid-template-rows: minmax(min-content, 1.2fr) minmax(min-content, 1fr); }
+.pfx-ov.other .pfx-cards { grid-template-areas: 'rank top' 'season recent'; }
 .pfx-ov.other.norank .pfx-cards { grid-template-areas: 'top top' 'season recent'; }
+.pfx-honor { grid-area: honor; }
 .pfx-rank { grid-area: rank; }
 .pfx-top { grid-area: top; }
 .pfx-cards .pfx-season { grid-area: season; }
@@ -74,8 +75,8 @@
 .pfx-card > small, .pfx-card p { font-size: 13px; }
 .pfx-card > small { color: var(--v6-muted); }
 .pfx-big { font: italic 900 26px/1.05 var(--v6-font-display); color: var(--v6-bolt); }
-.pfx-mid { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; }
-.pfx-mid .pfx-link { align-self: center; }
+.pfx-mid { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.pfx-mid .pfx-link { align-self: flex-start; }
 .pfx-mtile.ghost .pfx-art { filter: grayscale(0.75) brightness(0.55); }
 .pfx-stats.zero b { color: rgb(var(--v6-cream-rgb, 255 243 227) / 0.45); }
 .pfx-empty { margin: 0; color: var(--v6-muted); font-size: 14px; line-height: 1.4; }
@@ -85,7 +86,7 @@
 
 /* rank: the crest is the hero of the card */
 .pfx-rank { justify-content: flex-start; }
-.pfx-rankbody { flex: 1; display: flex; align-items: center; gap: 18px; min-height: 0; }
+.pfx-rankbody { display: flex; align-items: center; gap: 18px; min-height: 0; }
 .pfx-crest { position: relative; flex: none; width: clamp(96px, 9vw, 150px); display: flex; flex-direction: column; align-items: center; gap: 6px; filter: drop-shadow(0 8px 16px rgb(0 0 0 / 0.45)); }
 .pfx-crestsvg { width: 100%; height: auto; display: block; }
 .pfx-crest[data-tier='legend'] .pfx-crestsvg, .pfx-crest[data-tier='lion'] .pfx-crestsvg { filter: drop-shadow(0 0 14px rgb(255 209 102 / 0.35)); }
@@ -120,7 +121,7 @@
 .pfx-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; text-align: center; }
 .pfx-stat b { display: block; font: italic 900 clamp(22px, 2.2vw, 32px)/1.1 var(--v6-font-display); color: var(--v6-bolt); font-variant-numeric: tabular-nums; }
 .pfx-stat small { color: var(--v6-muted); font-size: 13px; }
-.pfx-season { justify-content: space-between; }
+.pfx-season { justify-content: flex-start; }
 .pfx-formrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .pfx-formrow > small { color: var(--v6-muted); font-size: 13px; }
 .pfx-bar { position: relative; display: block; height: 12px; border-radius: 6px; overflow: hidden; background: rgb(0 0 0 / 0.38); box-shadow: inset 0 0 0 1px var(--v6-line); }
@@ -190,14 +191,13 @@
 
 /* stats: a bento that fills the height (no masonry) */
 .pfx-sgrid {
-  flex: 1 0 auto; display: grid; gap: var(--pfx-gap); grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-areas: 'wr lv per' 'wr form form' 'roles fav fav'; grid-template-rows: auto minmax(min-content, 1.5fr) minmax(min-content, 1fr);
+  display: grid; gap: var(--pfx-gap); grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start;
+  grid-template-areas: 'wr lv per' 'wr form form' 'roles fav fav';
 }
 .pfx-sgrid.nolv { grid-template-areas: 'wr per per' 'wr form form' 'roles fav fav'; }
 .pfx-wr { grid-area: wr; align-items: center; justify-content: flex-start; }
 .pfx-wr h3 { align-self: flex-start; }
-.pfx-wr .pfx-donut { margin-top: auto; }
-.pfx-wr .pfx-wl { margin-bottom: auto; }
+.pfx-wr .pfx-donut { margin-top: 6px; }
 .pfx-lvcard { grid-area: lv; }
 .pfx-per { grid-area: per; justify-content: center; }
 .pfx-formcard { grid-area: form; }
@@ -220,7 +220,7 @@
 .pfx-lvrow .pfx-lv { display: none; }
 .pfx-lvrow > div { display: flex; flex-direction: column; gap: 2px; }
 .pfx-lvrow small { color: var(--v6-muted); font-size: 13px; }
-.pfx-formbars { flex: 1; min-height: 110px; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; align-items: end; }
+.pfx-formbars { height: 130px; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; align-items: end; }
 .pfx-formbars span { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
 .pfx-formbars i { width: 100%; max-width: 40px; height: var(--h); min-height: 8px; border-radius: 4px 4px 2px 2px; background: linear-gradient(180deg, var(--v6-sky-top), var(--v6-sky)); }
 .pfx-formbars span[data-r='L'] i { background: linear-gradient(180deg, #ff8fb3, var(--v6-rose)); }
@@ -234,7 +234,7 @@
 .pfx-fav small { color: var(--v6-muted); font-size: 13px; white-space: nowrap; }
 
 /* collection: the items themselves, owned first, locked dimmed with a lock */
-.pfx-ctiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pfx-ctiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .pfx-ctile {
   display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; min-height: 76px; padding: 10px 14px; border: 0; border-radius: var(--v6-r-sm, 8px); cursor: pointer; text-align: left; text-decoration: none;
   color: var(--v6-cream); background: var(--pfx-card); box-shadow: inset 0 0 0 1px var(--v6-line-strong), inset 0 4px 0 var(--v6-gold-3); font: 700 15px/1.2 var(--font);
@@ -272,8 +272,9 @@
 .pfx-wear[aria-pressed='true'] { border-color: var(--v6-bolt); background: rgb(var(--v6-bolt-rgb) / 0.16); color: var(--v6-bolt); }
 
 /* account */
-.pfx-agrid { width: 100%; max-width: 1100px; margin: 0 auto; display: grid; gap: var(--pfx-gap); grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
-.pfx-acc { grid-row: span 2; }
+.pfx-agrid { width: 100%; max-width: 1100px; margin: 0 auto; display: grid; gap: var(--pfx-gap); grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.pfx-acctname { font: 800 20px/1.2 var(--font); overflow-wrap: anywhere; }
+.pfx-acct { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .pfx-acct { font: 600 14px/1.35 var(--font); }
 .pfx-codebig { font: 800 24px/1.1 var(--font); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
 .pfx-switch { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; cursor: pointer; }
@@ -399,3 +400,78 @@
 }
 /* short screens show three recent matches; tall ones five */
 @media (max-height: 760px) and (min-width: 641px) { .pfx-recent .pfx-mrowi:nth-child(n + 4) { display: none; } }
+
+/* ------------------------------------------------------------------ round 3 */
+/* the ranked ladder under the crest: five tiers low to high, this one lit */
+.pfx-ladder { list-style: none; margin: 4px 0 0; padding: 10px 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; border-top: 1px solid var(--v6-line); }
+.pfx-ladder li { display: flex; flex-direction: column; align-items: center; gap: 3px; opacity: 0.45; }
+.pfx-ladder li[data-on='past'] { opacity: 0.75; }
+.pfx-ladder li[data-on='1'] { opacity: 1; }
+.pfx-ladder li[data-on='1'] small { color: var(--v6-bolt); font-weight: 800; }
+.pfx-lcrest { width: 30px; display: block; }
+.pfx-lcrest svg { width: 100%; height: auto; display: block; }
+.pfx-ladder small { font-size: 13px; color: var(--v6-muted); }
+/* highlights: earned moments only */
+.pfx-hl { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 6px; }
+.pfx-hl li { min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-navy-rgb) / 0.45); box-shadow: inset 0 0 0 1px var(--v6-line); }
+.pfx-hl b { display: flex; align-items: center; gap: 5px; font: 900 16px/1.15 var(--font); color: var(--v6-cream); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pfx-hl b span { font-size: 15px; }
+.pfx-hl small { font-size: 13px; color: var(--v6-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* a card title with its link on the right */
+.pfx-chead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -12px 0 -10px; }
+.pfx-chead .pfx-link { align-self: center; }
+/* honor */
+.pfx-honorrow { display: flex; align-items: center; gap: 14px; }
+.pfx-honorrow > span { min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.pfx-clubline { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pfx-honorrow small { color: var(--v6-muted); font-size: 13px; }
+.pfx-honor .pfx-lp small { color: var(--v6-muted); font-size: 13px; }
+.pfx-clubname { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pfx-acts.start { justify-content: flex-start; }
+/* another player's social actions */
+.pfx-done { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-night-rgb) / 0.7); color: var(--v6-bolt); font: 800 14px/1 var(--font); }
+.pfx-ask { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-night-rgb) / 0.82); font-size: 14px; }
+.pfx .pl-btn.danger { background: var(--v6-rose); color: var(--v6-cream); }
+/* the Matches tab: mode filters, Show more, recordings */
+.pfx-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.pfx-filter { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--v6-line-strong); background: var(--pfx-card); color: var(--v6-cream); font: 700 14px/1 var(--font); cursor: pointer; }
+.pfx-filter[aria-pressed='true'] { border-color: var(--v6-bolt); color: var(--v6-bolt); background: rgb(var(--v6-bolt-rgb) / 0.14); }
+.pfx-more { align-self: center; }
+.pfx-recs { margin-top: 8px; }
+.pfx-reclist { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
+.pfx-rec { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; grid-template-areas: 'face oc btn' 'face best btn'; align-items: center; column-gap: 10px; padding: 8px 10px 8px 8px; border-radius: var(--v6-r-xs); background: var(--pfx-card); box-shadow: inset 4px 0 0 var(--v6-sky), inset 0 0 0 1px var(--v6-line); }
+.pfx-rec[data-o='lost'] { box-shadow: inset 4px 0 0 var(--v6-rose), inset 0 0 0 1px var(--v6-line); }
+.pfx-rec .pfx-face { grid-area: face; }
+.pfx-rec .pfx-oc { grid-area: oc; min-width: 0; }
+.pfx-rec[data-o='lost'] .pfx-oc b { color: #ff8fb3; }
+.pfx-recbest { grid-area: best; font-size: 13px; color: var(--v6-gold-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pfx-recbest:empty { display: none; }
+.pfx-rec .pl-btn { grid-area: btn; }
+.pfx-emptybox { align-items: center; text-align: center; padding: 28px 12px; border-radius: var(--v6-r-sm, 8px); background: var(--pfx-card); box-shadow: inset 0 0 0 1px var(--v6-line); }
+/* Stats with no matches: one empty state (the art, a line, one action) */
+.pfx-zero { margin: auto; width: min(760px, 100%); display: grid; grid-template-columns: minmax(140px, 260px) minmax(0, 1fr); align-items: center; gap: 22px; padding: 18px; border-radius: var(--v6-r-sm, 8px); background: var(--pfx-card); box-shadow: inset 0 0 0 1px var(--v6-line-strong), 0 10px 28px rgb(0 0 0 / 0.25); }
+.pfx-zero > div { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.pfx-zero .pfx-zeroart { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; object-position: center 18%; border-radius: var(--v6-r-xs); filter: grayscale(0.55) brightness(0.75); box-shadow: inset 0 0 0 1.5px var(--v6-gold-3); }
+.pfx-zero h3 { font-size: 22px; }
+/* the editor's three groups */
+.pfx-eh { margin: 4px 0 0; font: 800 13px/1.2 var(--font); letter-spacing: 0.06em; text-transform: uppercase; color: var(--v6-muted); }
+.pfx-avf { display: flex; flex-direction: column; gap: 3px; padding: 6px 4px; }
+.pfx-avf small { font-size: 13px; color: var(--v6-cream); max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pfx-fgrid2 { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); }
+.pfx-box .pfx-earn { color: var(--v6-cream); }
+@media (max-height: 500px) {
+  .pfx-cards { grid-template-areas: 'rank' 'top' 'season' 'recent' 'pass' 'honor'; }
+  .pfx-ladder { display: none; }
+  .pfx-zero { grid-template-columns: 120px minmax(0, 1fr); gap: 14px; padding: 12px; }
+  .pfx-zero h3 { font-size: 18px; }
+  .pfx-reclist { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) and (min-height: 501px) {
+  .pfx-cards { grid-template-areas: 'rank' 'top' 'season' 'recent' 'pass' 'honor'; }
+  .pfx-zero { grid-template-columns: minmax(0, 1fr); }
+  .pfx-zero .pfx-zeroart { max-height: 260px; }
+  .pfx-reclist { grid-template-columns: minmax(0, 1fr); }
+}
+.pfx-rolerow .pfx-chip { min-height: 30px; padding: 0 10px; font-size: 13px; color: var(--v6-cream); }
+.pfx-rolerow .pfx-chip b { color: var(--v6-bolt); }
+.pfx-link { min-width: 44px; justify-content: center; }

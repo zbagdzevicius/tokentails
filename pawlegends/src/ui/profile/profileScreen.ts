@@ -21,7 +21,7 @@ import type { ApiArgs, ApiOp, ApiResult } from '../../embed/api';
 import type { AccountAction } from '../../embed/bridge';
 import { HEROES, HERO_IDS, type HeroId } from '../../data/heroes';
 import { avatarHtml, titleText } from '../avatar';
-import { accountActionOf, accountPanelHtml, type AccountModel } from '../account';
+import { accountActionOf, signedInLine, type AccountModel } from '../account';
 import { heroFaceUrl } from '../art';
 import { splashAttrs } from '../champStore/model';
 import { ROLE_NAME } from '../champSelect/roles';
@@ -31,13 +31,19 @@ import { MASTERY_MAX } from '../../meta/mastery';
 import { parseRankedCard } from '../../meta/ranked';
 import { ago } from '../../replay/store';
 import { crestSvg } from './crest';
+import { parseClubsState } from '../../social/clubs/clubData';
 import { collectionOf, ownedOf, ownedSet, type CollectionEntry } from './collection';
 import {
   bannerHero,
   championRows,
   duration,
   formOf,
+  highlightsOf,
+  HISTORY_FILTERS,
+  honorView,
   isProfileTab,
+  LADDER,
+  nextOf,
   mapName,
   masteryScore,
   maxedCount,
@@ -55,6 +61,7 @@ import {
   topMastery,
   wearableFrames,
   wearableTitles,
+  type HistoryFilter,
   type ProfileData,
   type ProfileRow,
   type ProfileTab,
@@ -90,14 +97,21 @@ export interface ProfileScreenOpts {
   flag?: { hidden: boolean; set(hide: boolean): void };
   /** The items owned now (the entitlements can arrive after the screen opened). */
   items?(): Iterable<string>;
+  /** The Pass as the app knows it now (the season can arrive after the screen opened). */
+  pass?(): ProfileData['pass'];
   onClose(): void;
   signIn(): void;
-  openHistory(friend: { code: string; name: string } | null): void;
+  /** The full match history sheet, on one match's detail when `match` is set (a server id or `local:<id>`). */
+  openHistory(friend: { code: string; name: string } | null, match?: string | null): void;
   openSettings(): void;
   openStore?(tab?: 'champions' | 'coats' | 'frames'): void;
   openPass?(): void;
   openTrack?(): void;
-  openSocial?(): void;
+  openSocial?(tab?: 'friends' | 'clubs'): void;
+  /** Watch a replay kept on this device. */
+  watch?(id: string): void;
+  /** Start playing (the empty states' "Play your first match"): Home's PLAY. */
+  play?(): void;
   /** Another player: open a chat with them (Social's chat). */
   message?(friend: { code: string; name: string }): void;
   /** Another player: invite them to a party (PLAY → With Friends, then the invite). */
@@ -136,12 +150,19 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     d.title = titleOfAv(d.av);
     d.frame = frameOfAv(d.av);
   }
+  if (self && d.rowsLocal === undefined) d.rowsLocal = true;
   const tabs = tabsFor(self);
   let tab: ProfileTab = o.tab && isProfileTab(o.tab) && tabs.includes(o.tab) ? o.tab : 'overview';
   const src: Sources = { ...SOURCES_IDLE };
   let priv = false;
+  /** Another player who is not a friend: Add friend, then Block (asked once). */
+  let rel: 'idle' | 'busy' | 'sent' | 'confirm-block' | 'blocked' = 'idle';
+  /** The Matches tab's mode filter and its own paging (the first page is the Overview's). */
+  let filter: HistoryFilter = 'all';
+  let moreBusy = false;
+  let filterBusy = false;
   let info: NameInfo | null = null;
-  let edit: { draft: string; confirm: string | null; busy: boolean; hero: HeroId; frame: string; hint: string } | null = null;
+  let edit: { draft: string; confirm: string | null; busy: boolean; hero: HeroId; frame: string; title: string; hint: string } | null = null;
   let note = '';
   let noteBad = false;
   let disposed = false;
@@ -169,7 +190,8 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   const splash = (h: string, sizes: string, cls = 'pfx-art', lazy = false): string => `<img class="${cls}" alt="" decoding="async" draggable="false"${lazy ? ' loading="lazy"' : ''} ${splashAttrs(base, h, !!o.low, sizes)}>`;
   const face = (h: string): string => (h in HEROES ? `<img class="pfx-face" alt="" decoding="async" src="${esc(heroFaceUrl(h as HeroId))}">` : `<span class="pfx-face"></span>`);
   const nameSpan = (cls: string, text: string, testid = ''): string => `<b class="${cls}" data-name="${esc(text)}"${testid ? ` data-testid="${testid}"` : ''}></b>`;
-  const card = (title: string, body: string, cls = '', extra = ''): string => `<section class="pfx-card ${cls}"${extra}><h3>${title}</h3>${body}</section>`;
+  const card = (title: string, body: string, cls = '', extra = '', aside = ''): string =>
+    `<section class="pfx-card ${cls}"${extra}>${aside ? `<div class="pfx-chead"><h3>${title}</h3>${aside}</div>` : `<h3>${title}</h3>`}${body}</section>`;
   const skel = (lines = 2): string => `<div class="pfx-skel" aria-hidden="true">${'<i></i>'.repeat(lines)}</div>`;
   const failed = (what: string): string => `<div class="pfx-fail" role="alert" data-testid="profile-failed"><p>Couldn't load ${esc(what)}.</p><button type="button" class="pl-btn ghost small" data-a="retry">Try again</button></div>`;
 
@@ -186,13 +208,30 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const flag = d.cc ? `<span class="pfx-flag" title="${esc(countryName(d.cc))}" data-testid="profile-flag-shown">${ccHtml(d.cc)}</span>` : '';
     const code = d.code ? `<span class="pfx-code">${esc(d.code)}</span>` : '';
     let act = '';
-    if (self && !d.signedIn) act = o.account || o.api ? `<button type="button" class="pl-btn small" data-a="signin" data-testid="profile-signin">Sign in</button><p class="pfx-fine">Sign in to choose your name and keep your progress.</p>` : '';
+    const friends = o.openSocial ? `<button type="button" class="pl-btn ghost small" data-a="social" data-testid="profile-friends">Friends</button>` : '';
+    if (self && !d.signedIn) act = o.account || o.api ? `<div class="pfx-acts"><button type="button" class="pl-btn small" data-a="signin" data-testid="profile-signin">Sign in</button>${friends}</div><p class="pfx-fine">Sign in to choose your name and keep your progress.</p>` : '';
     else if (canEdit()) {
       const why = src.name === 'failed' ? `<p class="pfx-fine bad">Couldn't load your name. <button type="button" class="pfx-link" data-a="retry">Try again</button></p>` : '';
       // no Edit until the name rules loaded (a failed load shows its own Try again instead of a dead button)
-      act = src.name === 'failed' && !info ? why : `<button type="button" class="pl-btn small" data-a="edit" data-testid="profile-edit"${info ? '' : ' disabled'}>Edit profile</button>`;
-    } else if (!self && o.friend) {
-      act = `<div class="pfx-acts">${o.message && o.friend.friend ? `<button type="button" class="pl-btn small" data-a="message" data-testid="profile-message">Message</button>` : ''}${o.invite && o.friend.friend ? `<button type="button" class="pl-btn ghost small" data-a="invite" data-testid="profile-invite">Invite to party</button>` : ''}<button type="button" class="pl-btn ghost small" data-a="history" data-testid="profile-history">Match history</button></div>`;
+      act = src.name === 'failed' && !info ? `${why}<div class="pfx-acts">${friends}</div>` : `<div class="pfx-acts"><button type="button" class="pl-btn small" data-a="edit" data-testid="profile-edit"${info ? '' : ' disabled'}>Edit profile</button>${friends}</div>`;
+    } else if (self) act = friends ? `<div class="pfx-acts">${friends}</div>` : '';
+    else if (o.friend?.friend) {
+      act = `<div class="pfx-acts">${o.message ? `<button type="button" class="pl-btn small" data-a="message" data-testid="profile-message">Message</button>` : ''}${o.invite ? `<button type="button" class="pl-btn ghost small" data-a="invite" data-testid="profile-invite">Invite to party</button>` : ''}</div>`;
+    } else if (o.friend && o.api) {
+      // a player from a match: Add friend (the social sheet's request by code), and Block, asked once
+      const add =
+        rel === 'sent'
+          ? `<span class="pfx-done" role="status" data-testid="profile-request-sent">Request sent</span>`
+          : rel === 'blocked'
+            ? `<span class="pfx-done" role="status" data-testid="profile-blocked">Blocked</span>`
+            : `<button type="button" class="pl-btn small" data-a="add-friend" data-testid="profile-add-friend"${rel === 'busy' ? ' disabled' : ''}>Add friend</button>`;
+      const block =
+        rel === 'confirm-block'
+          ? `<span class="pfx-ask" role="group" aria-label="Block this player?"><span>Block? They can't message or invite you.</span><button type="button" class="pl-btn small danger" data-a="block-yes" data-testid="profile-block-yes">Block</button><button type="button" class="pl-btn ghost small" data-a="block-no">Cancel</button></span>`
+          : rel === 'blocked'
+            ? ''
+            : `<button type="button" class="pl-btn ghost small" data-a="block" data-testid="profile-block"${rel === 'busy' ? ' disabled' : ''}>Block</button>`;
+      act = `<div class="pfx-acts">${add}${block}</div>`;
     }
     const nm = shownName(d);
     const nameBusy = self && d.signedIn && busy(src.name) && !d.name;
@@ -206,9 +245,15 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       </div>`;
   };
 
+  /** The five tiers low to high under the crest, this one lit (LoL's ladder flair). */
+  const ladder = (tier: string): string => {
+    const at = LADDER.findIndex((t) => t.tier === tier);
+    return `<ol class="pfx-ladder" aria-label="Ranked tiers">${LADDER.map((t, i) => `<li data-on="${i === at ? '1' : i < at ? 'past' : '0'}"${i === at ? ' aria-current="true"' : ''}><span class="pfx-lcrest" aria-hidden="true">${crestSvg(t.tier)}</span><small>${t.name}</small></li>`).join('')}</ol>`;
+  };
+
   const rankCard = (): string => {
     if (self && !d.signedIn)
-      return card('Ranked', `<div class="pfx-rankbody"><div class="pfx-crest" data-tier="none">${crestSvg('none')}</div><div class="pfx-rankinfo"><b class="pfx-big" data-testid="profile-rank" data-tier="none">Unranked</b><small>Sign in to play Ranked.</small></div></div>`, 'pfx-rank');
+      return card('Ranked', `<div class="pfx-rankbody"><div class="pfx-crest" data-tier="none">${crestSvg('none')}</div><div class="pfx-rankinfo"><b class="pfx-big" data-testid="profile-rank" data-tier="none">Unranked</b><small>Sign in to play Ranked.</small></div></div>${ladder('none')}`, 'pfx-rank');
     const s: SourceState = self ? src.ranked : src.hist;
     if (busy(s)) return card('Ranked', skel(3), 'pfx-rank');
     if (s === 'failed' && !d.ranked) return card('Ranked', failed(self ? 'your rank' : 'their rank'), 'pfx-rank');
@@ -221,7 +266,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const peak = r.peak ? `<span class="pfx-peak" data-testid="profile-peak">Best: ${esc(r.peak)}</span>` : '';
     return card(
       'Ranked',
-      `<div class="pfx-rankbody"><div class="pfx-crest" data-tier="${r.tier}">${crestSvg(r.tier)}${pips}</div><div class="pfx-rankinfo"><b class="pfx-big" data-testid="profile-rank" data-tier="${r.tier}">${esc(r.label)}</b>${bar}${peak}</div></div>`,
+      `<div class="pfx-rankbody"><div class="pfx-crest" data-tier="${r.tier}">${crestSvg(r.tier)}${pips}</div><div class="pfx-rankinfo"><b class="pfx-big" data-testid="profile-rank" data-tier="${r.tier}">${esc(r.label)}</b>${bar}${peak}</div></div>${ladder(r.tier)}`,
       'pfx-rank',
     );
   };
@@ -253,30 +298,74 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     return `<div class="pfx-stats">${t(num(s.matches), 'Matches', 'matches')}${t(s.winRate === null ? '–' : `${s.winRate}%`, 'Win rate', 'wr')}${t(s.kda.toFixed(1), 'KDA', 'kda')}${t(num(s.mvp), 'MVP', 'mvp')}</div>`;
   };
 
+  /** The last results, newest first, left to right (the Stats chart reads the same way). */
   const formStrip = (n = 10): string => {
     const form = formOf(d.rows, n);
-    return form.length ? `<div class="pfx-form" role="img" aria-label="${esc(`Last ${form.length} results: ${form.join(' ')}`)}">${form.map((x) => `<i data-r="${x}">${x}</i>`).join('')}</div>` : '';
+    return form.length ? `<div class="pfx-form" role="img" aria-label="${esc(`Last ${form.length} results, newest first: ${form.join(' ')}`)}">${form.map((x) => `<i data-r="${x}">${x}</i>`).join('')}</div>` : '';
   };
 
-  /** Season highlights: the numbers, then the last ten results (device numbers when the server failed). */
+  /** One card title everywhere: "This season", with the season's name (or "this device") beside it. */
+  const seasonHead = (): string => {
+    const sub = d.stats?.from === 'device' ? 'this device' : (d.stats?.season ?? '');
+    return `This season${sub ? ` <small>${esc(sub)}</small>` : ''}`;
+  };
+
+  const highlightIcon: Readonly<Record<string, string>> = Object.freeze({ streak: '🔥', best: '⚔️', mvp: '⭐', maxed: '🏅', kudos: '👍', grade: '🎖️' });
+  const highlightsHtml = (): string => {
+    const h = highlightsOf(d);
+    if (!h.length) return '';
+    return `<ul class="pfx-hl" aria-label="Highlights">${h.map((x) => `<li data-k="${x.k}"><b><span aria-hidden="true">${highlightIcon[x.k] ?? ''}</span>${esc(x.value)}</b><small>${esc(x.label)}</small></li>`).join('')}</ul>`;
+  };
+
+  /** Season: the numbers, the highlights, then the last ten results (device numbers when the server failed). */
   const seasonCard = (): string => {
     if (busy(src.hist) && !(self && d.stats)) return card('This season', skel(2), 'pfx-season');
     if (src.hist === 'failed' && !d.stats) return card('This season', failed('season numbers'), 'pfx-season');
-    const head = d.stats?.from === 'device' ? 'On this device' : d.stats?.season ? esc(d.stats.season) : 'This season';
     const form = formStrip(10);
     const stale = src.hist === 'failed' ? `<p class="pfx-fine bad">Showing this device's matches. <button type="button" class="pfx-link" data-a="retry">Try again</button></p>` : '';
-    return card(head, `${statTiles()}${form ? `<div class="pfx-formrow"><small>Recent form</small>${form}</div>` : ''}${stale}`, 'pfx-season');
+    // the roles they win with, one line (the Stats tab has the bars)
+    const roles = d.stats ? roleSplit(d.stats.favourites).slice(0, 3) : [];
+    const roleRow = roles.length ? `<div class="pfx-formrow pfx-rolerow"><small>Win rate by role</small>${roles.map((r) => `<span class="pfx-chip">${esc(ROLE_NAME[r.role] ?? r.role)} <b>${r.winRate}%</b></span>`).join('')}</div>` : '';
+    return card(seasonHead(), `${statTiles()}${highlightsHtml()}${form ? `<div class="pfx-formrow"><small>Recent form, newest first</small>${form}</div>` : ''}${roleRow}${stale}`, 'pfx-season');
+  };
+
+  /** Honor (yours): this month's good-teammate thumbs-up toward the monthly chest, and the club. */
+  const honorCard = (): string => {
+    if (!self) return '';
+    const clubBtn = o.openSocial ? `<button type="button" class="pfx-link" data-a="clubs" data-testid="profile-clubs">${d.club ? 'Your club' : 'Find a club'}</button>` : '';
+    if (!d.signedIn) return card('Honor', `<p class="pfx-empty">Sign in to get thumbs-up from teammates and join a club.</p>`, 'pfx-honor', '', clubBtn);
+    if (busy(src.club)) return card('Honor', skel(2), 'pfx-honor');
+    if (src.club === 'failed' && d.kudos === null) return card('Honor', failed('your honor'), 'pfx-honor');
+    const n = d.kudos ?? 0;
+    const hv = honorView(n, d.kudosTiers ?? []);
+    const line = hv.next !== null ? `${num(hv.next - n)} more for the next monthly chest` : d.kudosTiers?.length ? 'Every monthly chest opened' : 'Teammates give them after PvP matches';
+    const bar = hv.next !== null ? `<span class="pfx-bar" role="progressbar" aria-label="Thumbs-up toward the next chest" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(hv.pct * 100)}"><i style="width:${Math.round(hv.pct * 100)}%"></i></span>` : '';
+    const club = d.club ? `<small class="pfx-clubline">Club: <b class="pfx-clubname" data-name="${esc(d.club)}"></b></small>` : '';
+    return card(
+      'Honor',
+      `<div class="pfx-honorrow"><b class="pfx-big" data-testid="profile-kudos">${num(n)}</b><span class="pfx-honortext"><b>Thumbs-up this month</b><small>${esc(line)}</small>${club}</span></div>${bar}`,
+      'pfx-honor',
+      '',
+      clubBtn,
+    );
   };
 
   const passCard = (): string => {
     if (!self) return '';
-    const p = d.pass;
-    if (!p)
-      return card('Legends Pass', `<p class="pfx-empty">${d.signedIn ? 'Season progress shows here once it loads.' : 'Sign in to earn Season XP.'}</p>${o.openPass || o.openTrack ? `<button type="button" class="pl-btn ghost small" data-a="${o.openPass ? 'pass' : 'track'}">${o.openPass ? 'Open Pass' : 'Treat Track'}</button>` : ''}`, 'pfx-pass');
+    const p = o.pass?.() ?? d.pass;
+    const open = o.openPass || o.openTrack ? `<button type="button" class="pl-btn ghost small" data-a="${o.openPass ? 'pass' : 'track'}">${o.openPass ? 'Open Pass' : 'Treat Track'}</button>` : '';
+    if (!p) {
+      // signed in with no Pass row: the host's answer failed (the other sources failed too) or there is no progress yet
+      const down = d.signedIn && !!o.api && (Object.keys(src) as (keyof Sources)[]).some((k) => src[k] === 'failed');
+      if (down) return card('Legends Pass', failed('the Pass'), 'pfx-pass');
+      return card('Legends Pass', `<p class="pfx-empty">${d.signedIn ? 'No Season XP yet. Every match earns some.' : 'Sign in to earn Season XP.'}</p>${open}`, 'pfx-pass');
+    }
     return card(
       `Legends Pass${p.name ? ` <small>${esc(p.name.replace(/^Season \d+:\s*/, ''))}</small>` : ''}`,
-      `<div class="pfx-passrow"><b class="pfx-tier"><small>Tier</small>${p.tier}</b><div class="pfx-passbar"><span class="pfx-bar" role="progressbar" aria-label="${esc(`Tier ${p.tier} of ${p.tiers}`)}" aria-valuemin="0" aria-valuemax="${p.tiers}" aria-valuenow="${p.tier}"><i style="width:${Math.round(Math.max(0, Math.min(1, p.tier / Math.max(1, p.tiers))) * 100)}%"></i></span><p class="pfx-row"><span>${p.tier} / ${p.tiers}</span><span>${num(p.xp)} Season XP</span></p></div></div>${o.openPass ? `<button type="button" class="pl-btn ghost small" data-a="pass" data-testid="profile-open-pass">Open Pass</button>` : ''}`,
+      `<div class="pfx-passrow"><b class="pfx-tier"><small>Tier</small>${p.tier}</b><div class="pfx-passbar"><span class="pfx-bar" role="progressbar" aria-label="${esc(`Tier ${p.tier} of ${p.tiers}`)}" aria-valuemin="0" aria-valuemax="${p.tiers}" aria-valuenow="${p.tier}"><i style="width:${Math.round(Math.max(0, Math.min(1, p.tier / Math.max(1, p.tiers))) * 100)}%"></i></span><p class="pfx-row"><span>${p.tier} / ${p.tiers}</span><span>${num(p.xp)} Season XP</span></p></div></div>`,
       'pfx-pass',
+      '',
+      o.openPass ? `<button type="button" class="pfx-link" data-a="pass" data-testid="profile-open-pass">Open Pass</button>` : '',
     );
   };
 
@@ -284,7 +373,8 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const mode = MODE_WORD[r.mode] ?? r.mode;
     const map = mapName(r.map);
     const len = duration(r.seconds);
-    return `<button type="button" class="pfx-mrowi" data-a="history" data-o="${r.outcome}" data-i="${i}" aria-label="${esc(`${OUTCOME_WORD[r.outcome]}, ${heroName(r.hero)}, ${r.k} ${r.d} ${r.a}, ${mode}${map ? `, ${map}` : ''}${len ? `, ${len}` : ''}`)}">${face(r.hero)}<span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(mode)}</small></span><span class="pfx-hn">${esc(heroName(r.hero))}</span><span class="pfx-kda">${r.k} / <em>${r.d}</em> / ${r.a}</span>${r.mvp ? `<i class="pfx-mvp">${r.mvp.toUpperCase()}</i>` : r.grade ? `<i class="pfx-grade" data-g="${esc(r.grade[0])}">${esc(r.grade)}</i>` : '<i class="pfx-nog"></i>'}<span class="pfx-map">${esc(map)}</span><span class="pfx-len">${esc(len)}</span><span class="pfx-when">${r.at ? esc(ago(r.at, now())) : ''}</span></button>`;
+    const open = d.rowsLocal ? `local:${r.id}` : r.id;
+    return `<button type="button" class="pfx-mrowi" data-a="match" data-id="${esc(open)}" data-o="${r.outcome}" data-i="${i}" aria-label="${esc(`${OUTCOME_WORD[r.outcome]}, ${heroName(r.hero)}, ${r.k} ${r.d} ${r.a}, ${mode}${map ? `, ${map}` : ''}${len ? `, ${len}` : ''}: open the match`)}">${face(r.hero)}<span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(mode)}</small></span><span class="pfx-hn">${esc(heroName(r.hero))}</span><span class="pfx-kda">${r.k} / <em>${r.d}</em> / ${r.a}</span>${r.mvp ? `<i class="pfx-mvp">${r.mvp.toUpperCase()}</i>` : r.grade ? `<i class="pfx-grade" data-g="${esc(r.grade[0])}">${esc(r.grade)}</i>` : '<i class="pfx-nog"></i>'}<span class="pfx-map">${esc(map)}</span><span class="pfx-len">${esc(len)}</span><span class="pfx-when">${r.at ? esc(ago(r.at, now())) : ''}</span></button>`;
   };
 
   const recentCard = (): string => {
@@ -292,32 +382,57 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     if (busy(src.hist) && !d.rows.length) return card('Recent matches', skel(3), 'pfx-recent');
     if (src.hist === 'failed' && !d.rows.length) return card('Recent matches', failed('matches'), 'pfx-recent');
     const rows = d.rows.slice(0, 5);
-    const link = `<button type="button" class="pfx-link" data-a="history" data-testid="open-history" aria-haspopup="dialog">Match history</button>`;
-    const body = rows.length ? `<div class="pfx-list">${rows.map(rowHtml).join('')}</div>${link}` : `<div class="pfx-mid"><p class="pfx-empty">${self ? 'No matches yet. Your games show here.' : 'No matches yet.'}</p>${self ? link : ''}</div>`;
-    return card('Recent matches', body, 'pfx-recent');
+    // one way to the full list: the Matches tab (a row opens that match's detail)
+    const link = `<button type="button" class="pfx-link" data-a="tab" data-tab="matches" data-testid="open-history">All matches</button>`;
+    const body = rows.length
+      ? `<div class="pfx-list">${rows.map(rowHtml).join('')}</div>`
+      : `<div class="pfx-mid"><p class="pfx-empty">${self ? 'No matches yet. Your games show here.' : 'No matches yet.'}</p>${self && o.play ? `<button type="button" class="pl-btn small" data-a="play" data-testid="profile-play">Play a match</button>` : ''}</div>`;
+    return card('Recent matches', body, 'pfx-recent', '', rows.length ? link : '');
   };
 
   // --------------------------------------------------------------------------------------------- tab views
   const showRank = (): boolean => self || !!d.hasCard || busy(src.hist) || src.hist === 'failed';
   const overview = (): string =>
-    `<div class="pfx-ov${showRank() ? '' : ' norank'}${self ? '' : ' other'}" role="tabpanel" id="pfx-panel" aria-labelledby="pfx-tab-${tab}">${identity()}<div class="pfx-cards" data-scroll="main">${showRank() ? rankCard() : ''}${topChampsCard()}${seasonCard()}${passCard()}${recentCard()}</div></div>`;
+    `<div class="pfx-ov${showRank() ? '' : ' norank'}${self ? '' : ' other'}" role="tabpanel" id="pfx-panel" aria-labelledby="pfx-tab-${tab}">${identity()}<div class="pfx-cards" data-scroll="main">${showRank() ? rankCard() : ''}${topChampsCard()}${seasonCard()}${passCard()}${recentCard()}${honorCard()}</div></div>`;
 
   const pane = (body: string, cls = ''): string => `<div class="pfx-pane ${cls}" data-scroll="main" role="tabpanel" id="pfx-panel" aria-labelledby="pfx-tab-${tab}">${body}</div>`;
 
+  /** Replays kept on this device (yours): watch one here; the list is the device's own, never the account's. */
+  const recordingsHtml = (): string => {
+    if (!self) return '';
+    const list = d.replays ?? [];
+    const body = list.length
+      ? `<div class="pfx-reclist">${list
+          .slice(0, 12)
+          .map(
+            (r) =>
+              `<div class="pfx-rec" data-o="${r.outcome}">${face(r.hero)}<span class="pfx-oc"><b>${OUTCOME_WORD[r.outcome]}</b><small>${esc(heroName(r.hero))}${r.at ? ` · ${esc(ago(r.at, now()))}` : ''}</small></span><span class="pfx-recbest">${r.best ? esc(r.best) : ''}</span>${o.watch ? `<button type="button" class="pl-btn small" data-a="watch" data-id="${esc(r.id)}" data-testid="profile-watch" aria-label="${esc(`Watch the replay: ${heroName(r.hero)}, ${OUTCOME_WORD[r.outcome]}`)}">Watch</button>` : ''}</div>`,
+          )
+          .join('')}</div>`
+      : `<p class="pfx-empty">No replays yet. Your newest matches are kept on this device to watch again.</p>`;
+    return `<section class="pfx-sec pfx-recs" id="pfx-recordings" data-testid="profile-recordings"><div class="pfx-panehead"><h3>Recordings <small>on this device</small></h3></div>${body}</section>`;
+  };
+
   const matchesView = (): string => {
     let body: string;
-    if (priv) body = `<p class="pfx-empty">This player keeps their matches private.</p>`;
-    else if (busy(src.hist) && !d.rows.length) body = skel(5);
+    if (priv) body = `<p class="pfx-empty pfx-center">This player keeps their matches private.</p>`;
+    else if ((busy(src.hist) && !d.rows.length) || filterBusy) body = skel(5);
     else if (src.hist === 'failed' && !d.rows.length) body = failed('matches');
-    else if (!d.rows.length) body = `<p class="pfx-empty" data-testid="profile-no-matches">${self ? 'No matches yet. Play one and it shows here.' : 'No matches yet.'}</p>`;
-    else body = `<div class="pfx-list pfx-mlist">${d.rows.slice(0, 20).map(rowHtml).join('')}</div>`;
-    const shown = d.rows.slice(0, 20);
+    else if (!d.rows.length)
+      body = `<div class="pfx-mid pfx-emptybox"><p class="pfx-empty" data-testid="profile-no-matches">${filter !== 'all' ? `No ${esc(HISTORY_FILTERS.find((f) => f.id === filter)?.label ?? '')} matches yet.` : self ? 'No matches yet. Play one and it shows here.' : 'No matches yet.'}</p>${self && filter === 'all' && o.play ? `<button type="button" class="pl-btn small" data-a="play">Play a match</button>` : ''}</div>`;
+    else body = `<div class="pfx-list pfx-mlist" data-testid="profile-match-list">${d.rows.map(rowHtml).join('')}</div>`;
+    const shown = d.rows;
     const w = shown.filter((r) => r.outcome === 'won').length;
     const l = shown.filter((r) => r.outcome === 'lost').length;
-    const sum = shown.length ? `<span class="pfx-chips"><span class="pfx-chip">Last <b>${shown.length}</b></span><span class="pfx-chip win">Won <b>${w}</b></span><span class="pfx-chip loss">Lost <b>${l}</b></span></span>` : '';
+    const sum = shown.length && !filterBusy ? `<span class="pfx-chips"><span class="pfx-chip">Shown <b>${shown.length}</b></span><span class="pfx-chip win">Won <b>${w}</b></span><span class="pfx-chip loss">Lost <b>${l}</b></span></span>` : '';
+    // the mode filters ask the account again (device rows filter here)
+    const chips = !priv && remote() && !d.rowsLocal
+      ? `<div class="pfx-filters" role="group" aria-label="Mode">${HISTORY_FILTERS.map((f) => `<button type="button" class="pfx-filter" data-a="filter" data-f="${f.id}" aria-pressed="${f.id === filter}">${esc(f.label)}</button>`).join('')}</div>`
+      : '';
+    const more = d.next && !priv && !d.rowsLocal ? `<button type="button" class="pl-btn ghost small pfx-more" data-a="more" data-testid="profile-more"${moreBusy ? ' disabled' : ''}>${moreBusy ? 'Loading…' : 'Show more'}</button>` : '';
     const stale = src.hist === 'failed' && d.rows.length ? `<p class="pfx-fine bad">Showing this device's matches. <button type="button" class="pfx-link" data-a="retry">Try again</button></p>` : '';
     return pane(
-      `<div class="pfx-narrow"><div class="pfx-panehead">${sum}<button type="button" class="pl-btn small" data-a="history" data-testid="profile-full-history">Full match history</button></div>${stale}${body}<p class="pfx-fine">Open a match in the full history to see both teams${self ? ' and watch replays kept on this device' : ''}.</p></div>`,
+      `<div class="pfx-narrow"><div class="pfx-panehead">${chips}${sum}</div>${stale}${body}${more}${shown.length ? `<p class="pfx-fine">Open a match to see both teams${self ? ' and its replay' : ''}.</p>` : ''}${recordingsHtml()}</div>`,
     );
   };
 
@@ -329,14 +444,14 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       known ? `<span class="pfx-chip">Mastery score <b>${num(score)}</b></span><span class="pfx-chip">M${MASTERY_MAX} <b>${maxedCount(d.mastery)}</b></span>` : '',
       self && d.champs ? `<span class="pfx-chip">Owned <b>${d.champs.owned} / ${d.champs.total}</b></span>` : '',
     ].join('');
-    const head = `<div class="pfx-panehead"><h3>${known ? 'Champion mastery' : 'Champions played'}</h3>${chips ? `<span class="pfx-chips">${chips}</span>` : ''}</div>`;
+    const head = `<div class="pfx-panehead"><h3>${known ? 'Champion mastery' : 'Champions played'}</h3>${chips ? `<span class="pfx-chips">${chips}</span>` : ''}</div>${known || self ? `<p class="pfx-fine" data-testid="profile-mastery-legend">Mastery points: 1 for each match, 1 more for a win. M${MASTERY_MAX} is the top.</p>` : ''}`;
     if (!rows.length) {
       const body = busy(src.hist) ? skel(3) : src.hist === 'failed' ? failed('champions') : `<p class="pfx-empty">${self ? 'Play any champion to start its mastery.' : 'No champions played this season.'}</p>`;
       return pane(`${head}${body}`);
     }
     const cards = rows
       .map((r) => {
-        const line = r.level >= MASTERY_MAX ? 'Top mastery' : r.toNext !== null ? `${r.toNext} to M${r.level + 1}` : self ? 'Not played yet' : '';
+        const line = r.level >= MASTERY_MAX ? 'Top mastery' : r.toNext !== null ? `${r.toNext} ${r.toNext === 1 ? 'point' : 'points'} to M${r.level + 1}` : self ? 'Not played yet' : '';
         const wr = r.matches ? `${Math.round((r.wins / r.matches) * 100)}% won` : '';
         return `<div class="pfx-ccard${r.level || r.matches ? '' : ' dim'}" data-hero="${r.hero}">${splash(r.hero, '(min-width: 900px) 200px, 140px', 'pfx-art', true)}${r.level ? `<i class="pfx-m" data-m="${r.level}">M${r.level}</i>` : ''}<span class="pfx-cfoot"><b>${esc(heroName(r.hero))}</b><small>${esc(ROLE_NAME[HEROES[r.hero].role] ?? '')}</small>${r.matches ? `<small class="pfx-played">${r.matches} played · ${wr}</small>` : ''}${line ? `<small class="pfx-next">${esc(line)}</small>` : ''}</span></div>`;
       })
@@ -348,37 +463,40 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const s = d.stats;
     if (!s && busy(src.hist)) return pane(skel(4));
     if (!s && src.hist === 'failed') return pane(failed('stats'));
-    const roles = s ? roleSplit(s.favourites) : [];
+    if (!s || !s.matches) {
+      // one empty state, not five empty cards: the art, one line, one action
+      const h = bannerHero(d);
+      return pane(
+        `<div class="pfx-zero" data-testid="profile-stats-empty">${splash(h, '(min-width: 900px) 320px, 200px', 'pfx-zeroart')}<div><h3>No stats yet</h3><p class="pfx-empty">${self ? 'Win rate, KDA, roles and favourite champions show after your first match.' : 'This player has no matches this season.'}</p>${self && o.play ? `<button type="button" class="pl-btn" data-a="play" data-testid="profile-play-first">Play your first match</button>` : ''}</div></div>`,
+      );
+    }
+    const roles = roleSplit(s.favourites);
     const shown = d.rows.slice(0, 20);
     const avg = (f: (r: ProfileRow) => number): string => (shown.length ? (shown.reduce((t, r) => t + f(r), 0) / shown.length).toFixed(1) : '–');
     const lens = shown.filter((r) => r.seconds > 0);
     const avgLen = lens.length ? duration(Math.round(lens.reduce((t, r) => t + r.seconds, 0) / lens.length)) : '–';
-    const wr = s?.winRate ?? null;
-    const donut = s
-      ? `<div class="pfx-donut" style="--wr:${wr ?? 0}%" role="img" aria-label="${esc(wr === null ? 'No win rate yet' : `Win rate ${wr}%`)}"><b>${wr === null ? '–' : `${wr}%`}</b><small>Win rate</small></div><div class="pfx-wl"><span><b>${num(s.wins)}</b><small>Won</small></span><span><b>${num(Math.max(0, s.matches - s.wins))}</b><small>Not won</small></span><span><b>${s.kda.toFixed(1)}</b><small>KDA</small></span><span><b>${num(s.mvp)}</b><small>MVP</small></span></div>`
-      : `<p class="pfx-empty">${self ? 'Your numbers show after your first match.' : 'No matches this season.'}</p>`;
-    const head = s?.from === 'device' ? 'On this device' : s?.season ? esc(s.season) : 'This season';
+    const wr = s.winRate;
+    const donut = `<div class="pfx-donut" style="--wr:${wr ?? 0}%" role="img" aria-label="${esc(wr === null ? 'No win rate yet' : `Win rate ${wr}%`)}"><b>${wr === null ? '–' : `${wr}%`}</b><small>Win rate</small></div><div class="pfx-wl"><span><b>${num(s.wins)}</b><small>Won</small></span><span><b>${num(Math.max(0, s.matches - s.wins))}</b><small>Lost</small></span><span><b>${s.kda.toFixed(1)}</b><small>KDA</small></span><span><b>${num(s.mvp)}</b><small>MVP</small></span></div>`;
     const roleHtml = roles.length
-      ? roles.map((r) => `<div class="pfx-role"><span>${esc(ROLE_NAME[r.role] ?? r.role)}</span><span class="pfx-bar"><i style="width:${r.winRate}%"></i></span><small>${r.matches} · ${r.winRate}%</small></div>`).join('')
-      : `<p class="pfx-empty">Shows after a few matches.</p>`;
-    const favHtml = s?.favourites.length
+      ? roles.map((r) => `<div class="pfx-role"><span>${esc(ROLE_NAME[r.role] ?? r.role)}</span><span class="pfx-bar"><i style="width:${r.winRate}%"></i></span><small>${r.matches} played · ${r.winRate}% won</small></div>`).join('')
+      : `<p class="pfx-empty pfx-center">Shows after a few matches.</p>`;
+    const favHtml = s.favourites.length
       ? `<div class="pfx-favs">${s.favourites
           .slice(0, 5)
           .map((f) => `<div class="pfx-fav">${face(f.hero)}<b>${esc(heroName(f.hero))}</b><span class="pfx-bar"><i style="width:${f.winRate}%"></i></span><small>${f.matches} played · ${f.winRate}% won</small></div>`)
           .join('')}</div>`
-      : `<p class="pfx-empty">No favourites yet.</p>`;
-    const form = formOf(d.rows, 10);
-    const formHtml = form.length
-      ? `<div class="pfx-formbars" role="img" aria-label="${esc(`Last ${form.length} results: ${form.join(' ')}`)}">${[...d.rows]
-          .sort((a, b) => b.at - a.at)
-          .slice(0, 10)
-          .reverse()
+      : `<p class="pfx-empty pfx-center">No favourites yet.</p>`;
+    // newest first, left to right: the Overview's form chips read the same way
+    const recent = [...d.rows].sort((a, b) => b.at - a.at).slice(0, 10);
+    const formHtml = recent.length
+      ? `<div class="pfx-formbars" role="img" aria-label="${esc(`Last ${recent.length} results, newest first: ${formOf(d.rows, 10).join(' ')}`)}">${recent
           .map((r) => {
             const k = (r.k + r.a) / Math.max(1, r.d);
-            return `<span data-r="${r.outcome === 'won' ? 'W' : r.outcome === 'lost' ? 'L' : 'D'}" style="--h:${Math.round(Math.max(12, Math.min(100, k * 14)))}%"><i></i><small>${r.outcome === 'won' ? 'W' : r.outcome === 'lost' ? 'L' : 'D'}</small></span>`;
+            const x = r.outcome === 'won' ? 'W' : r.outcome === 'lost' ? 'L' : 'D';
+            return `<span data-r="${x}" style="--h:${Math.round(Math.max(12, Math.min(100, k * 14)))}%"><i></i><small>${x}</small></span>`;
           })
-          .join('')}${'<span data-r="" aria-hidden="true"><i></i><small>–</small></span>'.repeat(Math.max(0, 10 - Math.min(10, d.rows.length)))}</div><p class="pfx-fine">Last 10 matches, oldest first. Bar height: KDA of the match.</p>`
-      : `<p class="pfx-empty">No matches yet.</p>`;
+          .join('')}${'<span data-r="" aria-hidden="true"><i></i><small>–</small></span>'.repeat(Math.max(0, 10 - recent.length))}</div><p class="pfx-fine">Newest on the left. Bar height: KDA of the match.</p>`
+      : `<p class="pfx-empty pfx-center">No matches yet.</p>`;
     const lv = d.level
       ? card(
           'Account level',
@@ -387,10 +505,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         )
       : '';
     const per = card(
-      `Per match <small>last ${shown.length || 0}</small>`,
+      `Per match <small>last ${shown.length}</small>`,
       `<div class="pfx-stats">${[
         [avg((r) => r.k), 'Knockouts'],
-        [avg((r) => r.d), 'Naps'],
+        [avg((r) => r.d), 'Deaths'],
         [avg((r) => r.a), 'Assists'],
         [avgLen, 'Length'],
       ]
@@ -400,7 +518,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     );
     const stale = src.hist === 'failed' ? `<p class="pfx-fine bad pfx-wide">Showing this device's matches. <button type="button" class="pfx-link" data-a="retry">Try again</button></p>` : '';
     return pane(
-      `${stale}<div class="pfx-sgrid${d.level ? '' : ' nolv'}">${card(head, donut, 'pfx-wr')}${lv}${per}${card('Recent form', formHtml, 'pfx-formcard')}${card('By role', roleHtml, 'pfx-roles')}${card('Favourite champions', favHtml, 'pfx-favcard')}</div>`,
+      `${stale}<div class="pfx-sgrid${d.level ? '' : ' nolv'}">${card(seasonHead(), donut, 'pfx-wr')}${lv}${per}${card('Recent form', formHtml, 'pfx-formcard')}${card('By role', roleHtml, 'pfx-roles')}${card('Favourite champions', favHtml, 'pfx-favcard')}</div>`,
     );
   };
 
@@ -459,16 +577,29 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     return pane(
       `${sum}${hint}
       <section class="pfx-sec" id="pfx-frames"><div class="pfx-panehead"><h3>Borders ${count(c.frames)}</h3>${off('frame')}</div><div class="pfx-igrid pfx-fgrid">${frames}</div></section>
-      <section class="pfx-sec" id="pfx-titles"><div class="pfx-panehead"><h3>Titles ${count(c.titles)}</h3>${off('title')}</div><div class="pfx-wears">${titles}</div></section>
+      <section class="pfx-sec" id="pfx-titles"><div class="pfx-panehead"><h3>Titles ${count(c.titles)}</h3><span class="pfx-acts">${off('title')}${o.openTrack ? '<button type="button" class="pl-btn ghost small" data-a="track" data-testid="profile-track">Treat Track</button>' : ''}</span></div><div class="pfx-wears">${titles}</div></section>
       <section class="pfx-sec" id="pfx-coats"><div class="pfx-panehead"><h3>Coats ${count(c.coats)}</h3>${o.openStore ? '<button type="button" class="pl-btn ghost small" data-a="store-coats">Store</button>' : ''}</div><div class="pfx-igrid">${coats}</div></section>`,
       'pfx-coll',
     );
   };
 
+  /** The account card: one pink primary per state (Sign in; Manage account), Sign out a ghost, Delete a red link. */
+  const accountBody = (): string => {
+    const m = o.account?.model;
+    if (!m) return `<p class="pfx-empty">Accounts are on pawlegends.app.</p>`;
+    if (!m.signedIn)
+      return `<p class="pfx-fine">Play without an account. Sign in to keep your wins, unlocks and Pass progress on every device.</p><div class="pfx-acts start"><button type="button" class="pl-btn small" data-acct="sign-in" data-testid="account-sign-in">Sign in</button></div>`;
+    const who = m.name ? `<b class="pfx-acctname" data-name="${esc(m.name)}"></b>` : '';
+    const how = `<p class="pfx-fine" data-testid="account-status">${esc(signedInLine(m.provider))}. Your wins save to your account.</p>`;
+    const manage = m.isApp ? '' : `<button type="button" class="pl-btn small" data-acct="manage" data-testid="account-manage">Manage account</button>`;
+    const del = m.isApp
+      ? `<button type="button" class="pfx-link danger" data-acct="delete" data-testid="account-delete">Delete account</button>`
+      : `<a class="pfx-link danger" href="${DELETE_URL}" target="_blank" rel="noopener" data-testid="profile-delete">Delete account</a>`;
+    return `${who}${how}<div class="pfx-acts start">${manage}<button type="button" class="pl-btn ghost small" data-acct="sign-out" data-testid="account-sign-out">Sign out</button></div>${del}`;
+  };
+
   const accountView = (): string => {
-    const acc = o.account
-      ? card('Account', `<div class="pfx-acct">${accountPanelHtml(o.account.model)}</div>${o.account.model.signedIn && !o.account.model.isApp ? `<a class="pfx-link danger" href="${DELETE_URL}" target="_blank" rel="noopener" data-testid="profile-delete">Delete account</a>` : ''}`, 'pfx-acc')
-      : card('Account', `<p class="pfx-empty">Accounts are on pawlegends.app.</p>`, 'pfx-acc');
+    const acc = card('Account', `<div class="pfx-acct">${accountBody()}</div>`, 'pfx-acc');
     const code = d.code
       ? card('Player code', `<p class="pfx-row"><b class="pfx-codebig" data-testid="profile-code">${esc(d.code)}</b><button type="button" class="pl-btn ghost small" data-a="copy">Copy</button></p><p class="pfx-fine">Friends add you with this code.</p>${o.openSocial ? '<button type="button" class="pl-btn ghost small" data-a="social">Friends and invites</button>' : ''}`)
       : self && d.signedIn && busy(src.social)
@@ -480,10 +611,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const flag = o.flag
       ? card('Privacy', `<label class="pfx-switch"><input type="checkbox" data-a="flag" data-testid="profile-flag"${hidden ? '' : ' checked'}><span>Show my country flag${d.cc && !hidden ? ` ${ccHtml(d.cc)}` : ''}</span></label><p class="pfx-fine">Match history is public. More choices are in Settings.</p>`)
       : '';
-    const set = card(
-      'Settings',
-      `<p class="pfx-fine">Sound, graphics, controls and notifications.</p><button type="button" class="pl-btn ghost small" data-a="settings" data-testid="profile-settings">Open Settings</button>${o.openTrack ? '<button type="button" class="pl-btn ghost small" data-a="track">Treat Track</button>' : ''}`,
-    );
+    const set = card('Settings', `<p class="pfx-fine">Sound, graphics, controls, notifications and privacy.</p><button type="button" class="pl-btn ghost small" data-a="settings" data-testid="profile-settings">Open Settings</button>`);
     return pane(`<div class="pfx-agrid">${acc}${code}${flag}${set}</div>`);
   };
 
@@ -500,19 +628,32 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     } else {
       const wait = !i.free && !!i.nextAt && i.nextAt > t;
       const short = !i.free && !wait && i.yarn < i.price;
-      nameBox = `<form class="pfx-box" data-testid="profile-nick"><label for="pfx-nick">Name others see</label><div class="pfx-namerow"><input id="pfx-nick" name="nick" maxlength="${NAME_MAX}" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your name" data-testid="profile-nick-input"${wait ? ' disabled' : ''}><button type="submit" class="pl-btn small" data-testid="profile-nick-change"${wait || e.busy ? ' disabled' : ''}>Change</button></div><small class="pfx-price${i.free ? ' free' : ''}${short ? ' short' : ''}" data-testid="profile-price">${esc(priceLine(i, t))}</small><small class="pfx-hint" aria-live="polite">${esc(e.hint)}</small></form>`; // copy-lint-ignore R13 a CSS class and test id; the fee is Yarn earned by playing, never money
+      // not enough Yarn: no pink Change that can only fail; say how to get it
+      const btn = short
+        ? `<button type="submit" class="pl-btn ghost small" data-testid="profile-nick-change" disabled>Change</button>`
+        : `<button type="submit" class="pl-btn small" data-testid="profile-nick-change"${wait || e.busy ? ' disabled' : ''}>Change</button>`;
+      const earn = short ? `<small class="pfx-earn" data-testid="profile-earn">Every match earns Yarn.</small>` : '';
+      nameBox = `<form class="pfx-box" data-testid="profile-nick"><label for="pfx-nick">Name others see</label><div class="pfx-namerow"><input id="pfx-nick" name="nick" maxlength="${NAME_MAX}" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your name" data-testid="profile-nick-input"${wait || short ? ' disabled' : ''}>${btn}</div><small class="pfx-price${i.free ? ' free' : ''}${short ? ' short' : ''}" data-testid="profile-price">${esc(priceLine(i, t))}</small>${earn}<small class="pfx-hint" aria-live="polite">${esc(e.hint)}</small></form>`; // copy-lint-ignore R13 a CSS class and test id; the fee is Yarn earned by playing, never money
     }
     const icons = HERO_IDS.map((h) => `<button type="button" class="pfx-avt" data-a="pick-icon" data-ref="${h}" aria-pressed="${e.hero === h}" aria-label="${esc(heroName(h))}">${avatarHtml({ i: `h:${h}` }, 40)}</button>`).join('');
+    // borders: a labelled row of their own, each named under its ring (the chosen icon inside, as a preview)
     const frames = wearableFrames([...owned()])
-      .map((f) => `<button type="button" class="pfx-avt" data-a="pick-frame" data-frame="${esc(f)}" aria-pressed="${e.frame === f}" aria-label="${f === 'none' ? 'No border' : esc(frameName(f))}">${avatarHtml({ i: `h:${e.hero}`, ...(f !== 'none' ? { f } : {}) }, 40)}</button>`)
+      .map((f) => `<button type="button" class="pfx-avt pfx-avf" data-a="pick-frame" data-frame="${esc(f)}" aria-pressed="${e.frame === f}">${avatarHtml({ i: `h:${e.hero}`, ...(f !== 'none' ? { f } : {}) }, 40)}<small>${f === 'none' ? 'None' : esc(frameName(f))}</small></button>`)
+      .join('');
+    const titles = wearableTitles([...owned()])
+      .map((x) => `<button type="button" class="pfx-wear own" data-a="pick-title" data-id="${esc(x)}" aria-pressed="${e.title === x}">${x === 'none' ? 'None' : esc(titleText(x))}</button>`)
       .join('');
     return `<div class="pfx-editor" role="dialog" aria-modal="true" aria-label="Edit profile" data-testid="profile-editor"><div class="pfx-epanel">
       <header class="pfx-ehead"><h3>Edit profile</h3><button type="button" class="cst-back pfx-x" data-a="edit-close" aria-label="Close">${X_SVG}</button></header>
       <div class="pfx-ebody">
         ${nameBox}
-        <div class="pfx-box"><div class="pfx-avhead">${avatarHtml({ i: `h:${e.hero}`, ...(e.frame !== 'none' ? { f: e.frame } : {}) }, 56)}<span><b>Avatar</b><small>Pick a champion and a border.</small></span><button type="button" class="pl-btn small" data-a="pick-save" data-testid="profile-avatar-save">Save avatar</button></div>
-          <div class="pfx-avgrid" role="group" aria-label="Champion icon" data-testid="profile-picker">${icons}</div>
-          <div class="pfx-avgrid" role="group" aria-label="Border">${frames}</div>
+        <div class="pfx-box"><div class="pfx-avhead">${avatarHtml({ i: `h:${e.hero}`, ...(e.frame !== 'none' ? { f: e.frame } : {}) }, 56)}<span><b>Look</b><small>${e.title !== 'none' ? esc(titleText(e.title)) : 'No title'}</small></span><button type="button" class="pl-btn small" data-a="pick-save" data-testid="profile-avatar-save">Save</button></div>
+          <h4 class="pfx-eh" id="pfx-eh-icon">Icon</h4>
+          <div class="pfx-avgrid" role="group" aria-labelledby="pfx-eh-icon" data-testid="profile-picker">${icons}</div>
+          <h4 class="pfx-eh" id="pfx-eh-border">Border</h4>
+          <div class="pfx-avgrid pfx-fgrid2" role="group" aria-labelledby="pfx-eh-border" data-testid="profile-borders">${frames}</div>
+          <h4 class="pfx-eh" id="pfx-eh-title">Title</h4>
+          <div class="pfx-wears" role="group" aria-labelledby="pfx-eh-title" data-testid="profile-titles">${titles}</div>
         </div>
       </div>
     </div></div>`;
@@ -573,18 +714,27 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   const fetchAll = async (): Promise<void> => {
     if (!remote()) {
       for (const k of Object.keys(src) as (keyof Sources)[]) src[k] = 'ok';
+      if (self) d.rowsLocal = true;
       if (!d.stats) d.stats = statsOfRows(d.rows);
       return render();
     }
     const api = o.api!;
-    const want: (keyof Sources)[] = self ? ['name', 'social', 'ranked', 'hist'] : ['hist'];
+    const want: (keyof Sources)[] = self ? ['name', 'social', 'ranked', 'hist', 'club'] : ['hist'];
     // only what is not loaded yet (a retry asks again for the failed ones)
     const todo = want.filter((k) => src[k] !== 'ok');
     for (const k of todo) src[k] = 'loading';
-    if (!self) for (const k of ['name', 'social', 'ranked'] as const) src[k] = 'ok';
+    if (!self) for (const k of ['name', 'social', 'ranked', 'club'] as const) src[k] = 'ok';
     render();
     const call = (k: keyof Sources): Promise<ApiResult> =>
-      k === 'name' ? settle(api('name.get')) : k === 'social' ? settle(api('social.get')) : k === 'ranked' ? settle(api('ranked.me')) : settle(api('history.list', o.friend ? { code: o.friend.code } : {}));
+      k === 'name'
+        ? settle(api('name.get'))
+        : k === 'social'
+          ? settle(api('social.get'))
+          : k === 'ranked'
+            ? settle(api('ranked.me'))
+            : k === 'club'
+              ? settle(api('club.get'))
+              : settle(api('history.list', { ...(o.friend ? { code: o.friend.code } : {}), ...(filter !== 'all' ? { mode: filter } : {}) }));
     const res = await Promise.all(todo.map(async (k) => [k, await call(k)] as const));
     if (disposed) return;
     for (const [k, r] of res) {
@@ -592,7 +742,12 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         if (r.ok && r.body) {
           const b = r.body as { owner?: { name?: unknown }; rows?: unknown[]; stats?: unknown; player?: unknown };
           const rows = (Array.isArray(b.rows) ? b.rows : []).map((x, i) => rowOf(x, `s${i}`)).filter((x): x is ProfileRow => !!x);
-          if (rows.length || !self) d.rows = rows;
+          // yours with no account rows yet: this device's rows stay (their ids are device ids)
+          if (rows.length || !self || filter !== 'all') {
+            d.rows = rows;
+            d.rowsLocal = false;
+            d.next = nextOf(r.body);
+          }
           d.stats = parseStats(b.stats) ?? statsOfRows(d.rows);
           if (!self) {
             if (typeof b.owner?.name === 'string' && b.owner.name) d.name = b.owner.name.slice(0, 40);
@@ -618,7 +773,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         } else {
           src.hist = 'failed';
           // keep the last known rows; yours fall back to this device's
-          if (self && !d.rows.length) d.rows = deviceRows;
+          if (self && !d.rows.length) {
+            d.rows = deviceRows;
+            d.rowsLocal = true;
+          }
           if (!d.stats && self && d.rows.length) d.stats = statsOfRows(d.rows);
         }
       } else if (k === 'name') {
@@ -639,6 +797,14 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
           }
           src.social = 'ok';
         } else src.social = 'failed';
+      } else if (k === 'club') {
+        const st = r.ok ? parseClubsState(r.body) : null;
+        if (st) {
+          d.kudos = st.kudos?.n ?? 0;
+          d.kudosTiers = st.kudos?.tiers ?? [];
+          d.club = st.club?.name ?? null;
+          src.club = 'ok';
+        } else src.club = 'failed';
       } else if (k === 'ranked') {
         if (r.ok) {
           d.ranked = parseRankedCard(r.body) ?? d.ranked;
@@ -650,12 +816,32 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     render();
   };
 
+  /** The Matches tab: the next page (`before` the cursor), or the first page of another mode. */
+  const page = async (append: boolean): Promise<void> => {
+    if (!o.api || (append && !d.next)) return;
+    const args: ApiArgs = { ...(o.friend ? { code: o.friend.code } : {}), ...(filter !== 'all' ? { mode: filter } : {}), ...(append && d.next ? { before: d.next } : {}) };
+    const r = await settle(o.api('history.list', args));
+    if (disposed) return;
+    moreBusy = false;
+    filterBusy = false;
+    if (r.ok && r.body) {
+      const b = r.body as { rows?: unknown[] };
+      const rows = (Array.isArray(b.rows) ? b.rows : []).map((x, i) => rowOf(x, `p${d.rows.length + i}`)).filter((x): x is ProfileRow => !!x);
+      const seen = new Set(append ? d.rows.map((x) => x.id) : []);
+      d.rows = append ? [...d.rows, ...rows.filter((x) => !seen.has(x.id))] : rows;
+      d.next = nextOf(r.body);
+      d.rowsLocal = false;
+      o.track?.('profile_history_page', { append, filter });
+    } else say("Couldn't load more matches. Try again.", true);
+    render();
+  };
+
   // --------------------------------------------------------------------------------------------- actions
   const openEdit = (): void => {
     if (!info) return;
     const cur = (d.av as { i?: string } | null)?.i ?? '';
     const hero = (cur.startsWith('h:') && cur.slice(2) in HEROES ? cur.slice(2) : bannerHero(d)) as HeroId;
-    edit = { draft: info.nick ?? (info.changes === 0 ? (o.suggest?.() ?? '') : ''), confirm: null, busy: false, hero, frame: d.frame ?? 'none', hint: '' };
+    edit = { draft: info.nick ?? (info.changes === 0 ? (o.suggest?.() ?? '') : ''), confirm: null, busy: false, hero, frame: d.frame ?? 'none', title: d.title ?? 'none', hint: '' };
     say('');
     o.track?.('profile_edit');
   };
@@ -709,6 +895,55 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       after?.();
       say(ok);
     } else say("Couldn't save that. Try again.", true);
+    render();
+  };
+
+  /** Another player: a friend request by their code (the Social sheet's own op). */
+  const addFriend = async (): Promise<void> => {
+    if (!o.api || !o.friend || rel === 'busy') return;
+    rel = 'busy';
+    render();
+    const r = await settle(o.api('friend.add', { code: o.friend.code }));
+    if (disposed) return;
+    const code = (r.body as { code?: string } | undefined)?.code ?? '';
+    if (r.ok) {
+      rel = 'sent';
+      say((r.body as { state?: string } | undefined)?.state === 'friends' ? 'You are friends now' : 'Friend request sent');
+      o.track?.('profile_add_friend');
+    } else {
+      rel = 'idle';
+      say(
+        r.status === 0
+          ? 'No connection. Try again.'
+          : r.status === 429
+            ? 'Too many tries. Wait a minute.'
+            : r.status === 401 || code === 'PAWLEGENDS_NEED_ACCOUNT'
+              ? 'Sign in to add friends.'
+              : code === 'PAWLEGENDS_SOCIAL_CAP'
+                ? 'Your friends list is full.'
+                : code === 'PAWLEGENDS_SOCIAL_REFUSED'
+                  ? "You can't add this player."
+                  : "Couldn't send the request. Try again.",
+        true,
+      );
+    }
+    render();
+  };
+
+  const blockPlayer = async (): Promise<void> => {
+    if (!o.api || !o.friend) return;
+    rel = 'busy';
+    render();
+    const r = await settle(o.api('block.add', { code: o.friend.code }));
+    if (disposed) return;
+    if (r.ok) {
+      rel = 'blocked';
+      say('Blocked. They cannot message or invite you.');
+      o.track?.('profile_block');
+    } else {
+      rel = 'idle';
+      say(r.status === 0 ? 'No connection. Try again.' : "Couldn't block. Try again.", true);
+    }
     render();
   };
 
@@ -811,6 +1046,43 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         return leave(() => o.signIn());
       case 'history':
         return leave(() => o.openHistory(fr));
+      case 'match': {
+        const id = el.dataset.id ?? '';
+        return leave(() => o.openHistory(fr, id || null));
+      }
+      case 'more':
+        if (moreBusy || !d.next) return;
+        moreBusy = true;
+        render();
+        return void page(true);
+      case 'filter': {
+        const f = HISTORY_FILTERS.find((x) => x.id === el.dataset.f)?.id;
+        if (!f || f === filter || filterBusy) return;
+        filter = f;
+        filterBusy = true;
+        render();
+        return void page(false);
+      }
+      case 'watch': {
+        const id = el.dataset.id;
+        return id && o.watch ? leave(() => o.watch!(id)) : undefined;
+      }
+      case 'play':
+        return o.play ? leave(() => o.play!()) : undefined;
+      case 'clubs':
+        return o.openSocial ? leave(() => o.openSocial!('clubs')) : undefined;
+      case 'add-friend':
+        return void addFriend();
+      case 'block':
+        rel = 'confirm-block';
+        render();
+        return void root.querySelector<HTMLElement>('[data-a="block-no"]')?.focus({ preventScroll: true });
+      case 'block-no':
+        rel = 'idle';
+        render();
+        return void root.querySelector<HTMLElement>('[data-a="block"]')?.focus({ preventScroll: true });
+      case 'block-yes':
+        return void blockPlayer();
       case 'message':
         return fr && o.message ? leave(() => o.message!(fr)) : undefined;
       case 'invite':
@@ -849,10 +1121,19 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       case 'pick-frame':
         if (edit) edit.frame = el.dataset.frame ?? 'none';
         return render();
+      case 'pick-title':
+        if (edit) edit.title = el.dataset.id ?? 'none';
+        return render();
       case 'pick-save':
         if (edit) {
           const frame = edit.frame;
-          void saveMe({ avatarKind: 'hero', avatarRef: edit.hero, frame }, 'Avatar saved', () => o.onWear?.('frame', frame === 'none' ? null : frame));
+          const title = edit.title;
+          const args: ApiArgs = { avatarKind: 'hero', avatarRef: edit.hero, frame };
+          if (title !== (d.title ?? 'none')) args.title = title;
+          void saveMe(args, 'Saved', () => {
+            o.onWear?.('frame', frame === 'none' ? null : frame);
+            if (args.title !== undefined) o.onWear?.('title', title === 'none' ? null : title);
+          });
         }
         return;
       case 'wear': {

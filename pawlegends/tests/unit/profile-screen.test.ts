@@ -16,6 +16,9 @@ import {
   duration,
   emptyData,
   formOf,
+  highlightsOf,
+  honorView,
+  nextOf,
   parsePlayerCard,
   shownName,
   masteryScore,
@@ -143,6 +146,30 @@ describe('profile model', () => {
   });
 });
 
+describe('round 3 model', () => {
+  it('highlights: only what was earned (streak, best match, MVPs, M7, thumbs-up)', () => {
+    const d = emptyData(true, 'A');
+    expect(highlightsOf(d)).toEqual([]);
+    const rows = [row({ at: 1, outcome: 'won', k: 2, a: 1 }), row({ at: 2, outcome: 'won', k: 9, d: 1, a: 4 }), row({ at: 3, outcome: 'lost', k: 0, a: 0 }), row({ at: 4, outcome: 'won' })];
+    const h = highlightsOf({ ...d, rows, stats: statsOfRows(rows), mastery: { sage: { m: 300, w: 200, level: 7 } }, kudos: 3 });
+    expect(h.map((x) => x.k)).toEqual(['streak', 'best', 'maxed', 'kudos']);
+    expect(h.find((x) => x.k === 'best')!.value).toBe('9/1/4');
+  });
+
+  it('honor: the next chest tier and the way to it', () => {
+    expect(honorView(7, [5, 15, 30])).toMatchObject({ next: 15, opened: 1 });
+    expect(honorView(7, [5, 15, 30]).pct).toBeCloseTo(0.2);
+    expect(honorView(40, [5, 15, 30])).toMatchObject({ next: null, pct: 1, opened: 3 });
+    expect(honorView(0, [])).toMatchObject({ next: null, opened: 0 });
+  });
+
+  it('the history cursor is checked', () => {
+    expect(nextOf({ next: 'abc' })).toBe('abc');
+    expect(nextOf({ next: '' })).toBeNull();
+    expect(nextOf(null)).toBeNull();
+  });
+});
+
 describe('name rules', () => {
   it('price line: first free, then Yarn with the balance, then the cooldown in days', () => {
     expect(priceLine(info(), NOW)).toBe('First change free');
@@ -165,7 +192,7 @@ describe('name rules', () => {
   });
 });
 
-function open(o: { data?: Partial<ProfileData>; friend?: ProfileScreenOpts['friend']; set?: ApiResult; get?: NameInfo; hist?: ApiResult; fail?: boolean | string[]; noApi?: boolean; tab?: ProfileScreenOpts['tab']; items?: string[]; player?: unknown } = {}) {
+function open(o: { data?: Partial<ProfileData>; friend?: ProfileScreenOpts['friend']; set?: ApiResult; get?: NameInfo; hist?: ApiResult; fail?: boolean | string[]; noApi?: boolean; tab?: ProfileScreenOpts['tab']; items?: string[]; player?: unknown; extra?: Record<string, (args?: Record<string, unknown>) => ApiResult>; more?: Partial<ProfileScreenOpts> } = {}) {
   const calls: { op: string; args: unknown }[] = [];
   let cur = o.get ?? info();
   let failing: boolean | string[] = o.fail ?? false;
@@ -186,6 +213,8 @@ function open(o: { data?: Partial<ProfileData>; friend?: ProfileScreenOpts['frie
       return res(200, { ...cur, paid: 0 });
     }
     if (op === 'social.me') return res(200, { me: { av: { i: `h:${args?.avatarRef ?? 'sage'}` }, title: args?.title ?? null, frame: args?.frame ?? null } });
+    if (op === 'club.get') return res(200, { club: { code: 'C1', name: 'Night Owls', size: 3, cap: 30, owner: false, thread: 't', tier: 'text', members: [], chest: {} }, kudos: { month: '2026-11', endsAt: '', n: 7, tiers: [5, 15, 30], paid: [5], got: [], next: { id: 'x', name: 'x' } } });
+    if (o.extra?.[op]) return o.extra[op](args);
     return res(200, {});
   });
   const onClose = vi.fn();
@@ -209,6 +238,7 @@ function open(o: { data?: Partial<ProfileData>; friend?: ProfileScreenOpts['frie
     onName,
     suggest: () => 'Zyg',
     now: () => NOW,
+    ...o.more,
   });
   return { panel, calls, onClose, openHistory, onName, signIn, unfail: () => (failing = false) };
 }
@@ -298,7 +328,7 @@ describe('profile screen', () => {
     q('[data-testid="profile-avatar-save"]').click();
     await flush();
     expect(calls.find((c) => c.op === 'social.me')?.args).toEqual({ avatarKind: 'hero', avatarRef: 'howler', frame: 'none' });
-    expect(q('[data-testid="profile-note"]').textContent).toBe('Avatar saved');
+    expect(q('[data-testid="profile-note"]').textContent).toBe('Saved');
   });
 
   it("failed loads: each card says it couldn't load (never an empty state), the name is never 'Guest', Try again reloads", async () => {
@@ -361,7 +391,7 @@ describe('profile screen', () => {
     expect(q('[data-testid="profile-screen"]').dataset.tab).toBe('overview');
   });
 
-  it("another player's profile: read-only, their history by code, Matches tab, the full history link", async () => {
+  it("another player's profile: read-only, their history by code inline on Matches, a row opens that match", async () => {
     const t = open({ friend: { code: 'PL-AAAA-BBBB', name: 'Mira', av: { i: 'h:howler' } }, tab: 'matches' });
     await flush();
     expect(t.calls.map((c) => c.op)).toEqual(['history.list']);
@@ -369,8 +399,165 @@ describe('profile screen', () => {
     expect(q('[data-testid="profile-screen"]').dataset.tab).toBe('matches');
     expect(q('[data-testid="profile-tab-account"]')).toBeNull();
     expect(q('[data-testid="profile-edit"]')).toBeNull();
-    q('[data-testid="profile-full-history"]').click();
-    expect(t.openHistory).toHaveBeenCalledWith({ code: 'PL-AAAA-BBBB', name: 'Mira Real' });
+    // no Recordings for someone else (they are this device's)
+    expect(q('[data-testid="profile-recordings"]')).toBeNull();
+    q('[data-testid="profile-match-list"] [data-a="match"]').click();
+    expect(t.openHistory).toHaveBeenCalledWith({ code: 'PL-AAAA-BBBB', name: 'Mira Real' }, 'a');
+  });
+
+  it("Match history shows once on another player's Overview: no banner button, the card links to the Matches tab", async () => {
+    open({ friend: { code: 'PL-AAAA-BBBB', name: 'Mira' } });
+    await flush();
+    expect(q('[data-testid="profile-history"]')).toBeNull();
+    expect(document.querySelectorAll('.pfx-who [data-a="history"]')).toHaveLength(0);
+    q('[data-testid="open-history"]').click();
+    expect(q('[data-testid="profile-screen"]').dataset.tab).toBe('matches');
+  });
+
+  it('a player who is not a friend: Add friend by code, Block asked once', async () => {
+    const t = open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex' }, extra: { 'friend.add': () => res(201, { state: 'sent' }), 'block.add': () => res(200, {}) } });
+    await flush();
+    expect(q('[data-testid="profile-message"]')).toBeNull();
+    q('[data-testid="profile-add-friend"]').click();
+    await flush();
+    expect(t.calls.find((c) => c.op === 'friend.add')?.args).toEqual({ code: 'PL-AAAA-BBBB' });
+    expect(q('[data-testid="profile-request-sent"]').textContent).toBe('Request sent');
+    q('[data-testid="profile-block"]').click();
+    expect(t.calls.some((c) => c.op === 'block.add')).toBe(false);
+    q('[data-testid="profile-block-yes"]').click();
+    await flush();
+    expect(t.calls.find((c) => c.op === 'block.add')?.args).toEqual({ code: 'PL-AAAA-BBBB' });
+    expect(q('[data-testid="profile-blocked"]')).not.toBeNull();
+    // a refused request says why and offers the button again
+    document.body.innerHTML = '';
+    open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex' }, extra: { 'friend.add': () => res(403, { code: 'PAWLEGENDS_SOCIAL_REFUSED' }) } });
+    await flush();
+    q('[data-testid="profile-add-friend"]').click();
+    await flush();
+    expect(q('[data-testid="profile-note"]').textContent).toBe("You can't add this player.");
+    expect(q('[data-testid="profile-add-friend"]')).not.toBeNull();
+  });
+
+  it('Matches tab: the full history pages inline (Show more sends the cursor), mode filters ask again, rows open the detail', async () => {
+    let n = 0;
+    const page = (id: string, next: string | null) => res(200, { owner: { name: 'Witty Biscuit', self: true }, rows: [{ id, at: NOW - 60_000 - n * 1000, mode: 'pvp', hero: 'sage', outcome: 'lost', k: 1, d: 4, a: 2 }], next });
+    const t = open({ tab: 'matches', hist: page('a', 'cur1'), extra: {} });
+    await flush();
+    // the harness's history.list is fixed; swap it for paging
+    (t.calls as unknown[]).length = 0;
+    const api = vi.fn(async (op: string, args?: Record<string, unknown>) => {
+      t.calls.push({ op, args });
+      n++;
+      return args?.before ? page('b', null) : page('c', 'cur2');
+    });
+    document.body.innerHTML = '';
+    const data: ProfileData = { ...emptyData(true, 'W'), signedIn: true, level: levelInfo(5) };
+    const openHistory = vi.fn();
+    profileScreen(document.body, { data, tab: 'matches', api: api as never, base: '/', onClose: vi.fn(), signIn: vi.fn(), openHistory, openSettings: vi.fn(), now: () => NOW });
+    await flush();
+    expect(document.querySelectorAll('[data-testid="profile-match-list"] [data-a="match"]')).toHaveLength(1);
+    q('[data-testid="profile-more"]').click();
+    await flush();
+    expect(t.calls.find((c) => (c.args as { before?: string } | undefined)?.before)?.args).toEqual({ before: 'cur2' });
+    expect(document.querySelectorAll('[data-testid="profile-match-list"] [data-a="match"]')).toHaveLength(2);
+    expect(q('[data-testid="profile-more"]')).toBeNull();
+    q('[data-a="filter"][data-f="ranked"]').click();
+    await flush();
+    expect(t.calls.at(-1)?.args).toEqual({ mode: 'ranked' });
+    expect(q('[data-a="filter"][data-f="ranked"]').getAttribute('aria-pressed')).toBe('true');
+    q('[data-testid="profile-match-list"] [data-a="match"]').click();
+    expect(openHistory).toHaveBeenCalledWith(null, 'c');
+  });
+
+  it("your Matches tab lists this device's recordings with Watch; device rows open as local matches", async () => {
+    const watch = vi.fn();
+    open({ noApi: true, tab: 'matches', data: { signedIn: false, rows: [row({ id: 'dev1' })], replays: [{ id: 'dev1', at: NOW - 5000, hero: 'sage', outcome: 'won', best: 'Triple Pounce' }] }, more: { watch } });
+    await flush();
+    expect(q('[data-testid="profile-recordings"]').textContent).toContain('Triple Pounce');
+    q('[data-testid="profile-watch"]').click();
+    expect(watch).toHaveBeenCalledWith('dev1');
+    document.body.innerHTML = '';
+    const t = open({ noApi: true, tab: 'matches', data: { signedIn: false, rows: [row({ id: 'dev1' })] } });
+    await flush();
+    expect(q('[data-testid="profile-recordings"]').textContent).toMatch(/No replays yet/);
+    q('[data-testid="profile-match-list"] [data-a="match"]').click();
+    expect(t.openHistory).toHaveBeenCalledWith(null, 'local:dev1');
+  });
+
+  it('Stats with no matches: one empty state with Play your first match, not five empty cards', async () => {
+    const play = vi.fn();
+    const t = open({ tab: 'stats', hist: res(200, { owner: { name: 'W', self: true }, rows: [], next: null, stats: { name: 'Season 1', matches: 0, wins: 0, winRate: null, kda: 0, mvp: 0, favourites: [] } }), more: { play } });
+    await flush();
+    expect(q('[data-testid="profile-stats-empty"]')).not.toBeNull();
+    expect(document.querySelectorAll('.pfx-sgrid .pfx-card')).toHaveLength(0);
+    q('[data-testid="profile-play-first"]').click();
+    expect(play).toHaveBeenCalled();
+    expect(t.onClose).toHaveBeenCalled();
+  });
+
+  it('Stats read newest first like the Overview, and say Lost and Deaths', async () => {
+    const rows = [row({ id: '1', at: NOW - 3000, outcome: 'lost' }), row({ id: '2', at: NOW - 1000, outcome: 'won' }), row({ id: '3', at: NOW - 2000, outcome: 'won' })];
+    open({ noApi: true, tab: 'stats', data: { signedIn: false, rows } });
+    await flush();
+    const bars = [...document.querySelectorAll<HTMLElement>('.pfx-formbars span[data-r]:not([data-r=""])')].map((b) => b.dataset.r);
+    expect(bars).toEqual(['W', 'W', 'L']);
+    expect(bars).toEqual(formOf(rows, 10));
+    expect(q('.pfx-wr').textContent).toContain('Lost');
+    expect(q('.pfx-wr').textContent).not.toContain('Not won');
+    expect(q('.pfx-per').textContent).toContain('Deaths');
+  });
+
+  it("Overview: honor (this month's thumbs-up toward the chest, the club), the ranked ladder, and highlights", async () => {
+    open({ data: { mastery: { lambo: { m: 40, w: 30, level: 5 } } } });
+    await flush();
+    expect(q('[data-testid="profile-kudos"]').textContent).toBe('7');
+    expect(q('.pfx-honor').textContent).toContain('8 more for the next monthly chest');
+    expect(q('.pfx-honor').textContent).toContain('Night Owls');
+    expect(q('.pfx-ladder [aria-current="true"]').textContent).toBe('Tabby');
+    expect(q('.pfx-hl').textContent).toContain('MVPs');
+    expect(q('.pfx-hl').textContent).toContain('Thumbs-up');
+  });
+
+  it("the Pass: a failed host load says Couldn't load (never 'once it loads'); none yet says so plainly", async () => {
+    open({ fail: true });
+    await flush();
+    expect(q('.pfx-pass').textContent).toMatch(/Couldn't load the Pass/);
+    expect(q('.pfx-pass').textContent).not.toMatch(/once it loads/);
+    document.body.innerHTML = '';
+    open();
+    await flush();
+    expect(q('.pfx-pass').textContent).toMatch(/No Season XP yet/);
+    document.body.innerHTML = '';
+    open({ more: { pass: () => ({ tier: 4, tiers: 30, pct: 0.5, xp: 800, premium: false, name: 'Season 1: First Paws' }) } });
+    await flush();
+    expect(q('.pfx-pass').textContent).toContain('4 / 30');
+  });
+
+  it('Edit profile: no pink Change without the Yarn, labelled Icon / Border / Title groups, a title saves with the look', async () => {
+    const t = open({ get: info({ name: 'Mira', nick: 'Mira', changes: 1, free: false, price: 1500, yarn: 922 }), items: ['title.store.goldpaw', 'frame.store.goldpaw'] });
+    await flush();
+    q('[data-testid="profile-edit"]').click();
+    const change = q('[data-testid="profile-nick-change"]') as HTMLButtonElement;
+    expect(change.disabled).toBe(true);
+    expect(change.classList.contains('ghost')).toBe(true);
+    expect(q('[data-testid="profile-earn"]')).not.toBeNull();
+    expect(q('[data-testid="profile-borders"]').textContent).toContain('Goldpaw');
+    expect(document.querySelectorAll('[data-testid="profile-picker"] [aria-pressed="true"]')).toHaveLength(1);
+    q('[data-a="pick-title"][data-id="title.store.goldpaw"]').click();
+    q('[data-testid="profile-avatar-save"]').click();
+    await flush();
+    expect(t.calls.find((c) => c.op === 'social.me')?.args).toMatchObject({ title: 'title.store.goldpaw' });
+  });
+
+  it('Account: Manage account is the pink primary, Sign out a ghost, Delete a red link', async () => {
+    const sent: string[] = [];
+    open({ tab: 'account', more: { account: { model: { signedIn: true, name: 'Pat', provider: 'google', isApp: false }, send: (a) => void sent.push(a) } } });
+    await flush();
+    expect(q('[data-testid="account-manage"]').classList.contains('ghost')).toBe(false);
+    expect(q('[data-testid="account-sign-out"]').classList.contains('ghost')).toBe(true);
+    expect(q('[data-testid="profile-delete"]').getAttribute('href')).toBe('https://pawlegends.app/account');
+    q('[data-testid="account-sign-out"]').click();
+    expect(sent).toEqual(['sign-out']);
   });
 
   it("another player's card: their rank, level, flag, title and border; Message and Invite for a friend", async () => {
@@ -413,7 +600,7 @@ describe('profile screen', () => {
   it('device only (no host): local rows, Back closes', async () => {
     const t = open({ noApi: true, data: { signedIn: false, rows: [row(), row({ outcome: 'lost' })] } });
     await flush();
-    expect(q('.pfx-season h3').textContent).toBe('On this device');
+    expect(q('.pfx-season h3').textContent).toMatch(/^This season\s*this device$/);
     expect(q('.pfx-season').textContent).toContain('50%');
     q('[data-testid="profile-back"]').click();
     expect(t.onClose).toHaveBeenCalledTimes(1);

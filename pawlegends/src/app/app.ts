@@ -372,6 +372,8 @@ export class App {
       lobbyHero: () => this.choice.hero,
       // a save refused because this build's sim is too old: update (web: on the next title; app: the shell's gate)
       onUpdateNeeded: () => void this.updates.check('rejected'),
+      // the account lives in Profile → Account (the Home avatar chip opens it): no second corner chip once signed in
+      accountInProfile: true,
     });
     this.updates = new UpdateWatch({
       mode: inAppShell() || bridge.kind === 'native' ? 'app' : bridge.kind === 'frame' ? 'frame' : 'web',
@@ -1675,6 +1677,12 @@ export class App {
               .map((h) => rowOf(h, h.id))
               .filter((r): r is NonNullable<typeof r> => !!r)
               .sort((a, b) => b.at - a.at),
+            // the replays this device kept (Profile → Matches → Recordings)
+            // (the history sheet's own rule: a kept replay made on this sim version)
+            replays: loadHistory()
+              .filter((h) => h.replay && h.noReplay !== 'party' && h.simVersion === SIM_VERSION)
+              .sort((a, b) => b.at - a.at)
+              .map((h) => ({ id: h.id, at: h.at, hero: h.hero, outcome: h.outcome, best: h.best ?? null })),
           });
         }
         const account = this.bridge.active ? this.integration.accountModel() : null;
@@ -1702,8 +1710,23 @@ export class App {
             if (this.screen === 'title') this.refreshMeta(false);
           },
           signIn: () => this.integration.requestSignIn('save-progress'),
-          openHistory: (f) => this.openHistory(f),
+          // a row opens that match's detail; closing the history comes back to this profile's Matches tab
+          openHistory: (f, match) => this.openHistory(f, match ?? null, () => this.openProfile(friend, 'matches')),
           openSettings: () => this.openSettings(),
+          pass: () => {
+            const sn = this.ent.snapshot().season;
+            const df = sn ? currentSeason() : null;
+            return sn && df ? { tier: sn.tier, tiers: df.tiers, pct: (Math.max(0, sn.xp) % df.xpPerTier) / df.xpPerTier, xp: sn.xp, premium: sn.premium !== 'none', name: df.name } : null;
+          },
+          ...(self ? { watch: (id: string) => this.openReplay(id) } : {}),
+          // the empty states' "Play your first match": Home's own PLAY (the one play path)
+          ...(self
+            ? {
+                play: () => {
+                  if (this.screen === 'title' && !this.session) this.screenEl?.querySelector<HTMLElement>('[data-testid="home-play"]')?.click();
+                },
+              }
+            : {}),
           // the entitlements can arrive after the screen opened: Collection reads them on every draw
           items: () => this.ent.snapshot().items,
           ...(this.bridge.active
@@ -1715,7 +1738,7 @@ export class App {
           ...(s.storeOpen ? { openStore: (t?: StoreTab) => this.openStore('lobby', t) } : {}),
           ...(s.storeOpen ? { openPass: () => this.openPass() } : {}),
           ...(p.matches > 0 ? { openTrack: () => this.openCollection() } : {}),
-          ...(this.bridge.active ? { openSocial: () => this.openSocial() } : {}),
+          ...(this.bridge.active ? { openSocial: (t?: 'friends' | 'clubs') => this.openSocial(t) } : {}),
           onName: (name) => {
             setMyName(name);
           },
@@ -2801,7 +2824,7 @@ export class App {
    * MATCH-MOMENTS.md §1, MATCH-HISTORY.md: the match history (the Profile's entry), or a friend's (their row in Social):
    * the account's rows with this device's replays, season stats, filters and each match's scoreboard.
    */
-  private openHistory(friend: { code: string; name: string } | null = null): void {
+  private openHistory(friend: { code: string; name: string } | null = null, match: string | null = null, back?: () => void): void {
     if (this.overlay) this.overlay.close();
     this.overlay = null;
     this.analytics.track('history_open', { rows: loadHistory().length, friend: !!friend });
@@ -2813,6 +2836,8 @@ export class App {
           signedIn: accountState().signedIn,
           track: (ev, props) => this.analytics.track(ev as 'history_open', props),
           onWatch: (id) => this.openReplay(id),
+          ...(match ? { match } : {}),
+          ...(back ? { onBack: back } : {}),
           // a player in a match's detail opens their profile (the same screen, read-only)
           onProfile: (p) => {
             if (this.overlay?.close === close) this.overlay = null;

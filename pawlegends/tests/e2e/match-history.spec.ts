@@ -94,9 +94,13 @@ test('Match history: season stats, filters, a match scoreboard and damage, publi
   const press = async (sel: string) => (touch ? game.locator(sel).first().tap() : game.locator(sel).first().click());
   await expect(game.locator('[data-testid="home-profile"]')).toBeVisible({ timeout: limit(60_000) });
   await press('[data-testid="home-profile"]');
+  // Profile → Matches (the history inline); a row opens the full history on that match, Back shows its list
   await press('[data-testid="open-history"]');
+  await expect(game.locator('[data-testid="profile-match-list"] [data-a="match"]')).toHaveCount(2);
+  await press('[data-testid="profile-match-list"] [data-a="match"]');
   const hist = game.locator('[data-testid="match-history"]');
   await expect(hist).toBeVisible();
+  await press('.mh-back');
   await expect(hist.locator('[data-testid="history-winrate"]')).toHaveText('58%');
   await expect(hist.locator('.mh-row')).toHaveCount(2);
   await expect(hist.locator('.mh-row').first()).toContainText('Victory');
@@ -147,6 +151,11 @@ test('Match history: season stats, filters, a match scoreboard and damage, publi
   expect((await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'history.privacy')).toBe(false);
   await press('[data-a="close"]');
   await expect(hist).toHaveCount(0);
+  // closing the history returns to the Profile it came from (Matches); Back goes Home
+  const prof = game.locator('[data-testid="profile-screen"]');
+  await expect(prof).toHaveAttribute('data-tab', 'matches');
+  await press('[data-testid="profile-back"]');
+  await expect(prof).toHaveCount(0);
 
   // a friend's history: their row in Social opens their profile (Matches), then the full history
   await expect(game.locator('[data-testid="lobby-social"]')).toBeVisible({ timeout: limit(30_000) });
@@ -154,8 +163,9 @@ test('Match history: season stats, filters, a match scoreboard and damage, publi
   // a tap on the friend's row opens its menu; Match history is in it
   await press('.pl-social .pl-fr-main[data-code="PL-AAAA-AAAA"]');
   await press('.pl-social .pl-fr-menu [data-a="history"][data-code="PL-AAAA-AAAA"]');
-  await press('[data-testid="profile-full-history"]');
+  await press('[data-testid="profile-match-list"] [data-a="match"]');
   await expect(hist).toBeVisible();
+  await press('.mh-back');
   await expect.poll(async () => (await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'history.list' && m.args?.code === 'PL-AAAA-AAAA')).toBe(true);
   await expect(hist.locator('.mh-row')).toHaveCount(2);
   // a friend's rows never offer this device's replays

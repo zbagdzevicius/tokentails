@@ -231,7 +231,7 @@ function leftHtml(o: HomeScreenOpts, live: boolean): string {
         .join('')}${o.todayExtra ?? ''}</div></details>`
     : '';
   const events = `<details class="hm-events"><summary class="hm-round${live ? ' live' : ''}" aria-label="Events">${FLAG}<span class="hm-rl">Events</span>${live ? '<i class="hm-dot" aria-hidden="true"></i>' : ''}</summary><div class="hm-pop hm-evlist" role="list">${eventRows(o)}</div></details>`;
-  const code = o.onJoinCode ? `<button type="button" class="hm-round hm-code" data-a="joincode" data-testid="join-code" aria-label="Join with code" title="Join with code"><b aria-hidden="true">#</b><span class="hm-rl">Code</span></button>` : '';
+  const code = o.onJoinCode ? `<button type="button" class="hm-round hm-code" data-a="joincode" data-testid="join-code" aria-label="Join a party with a code" title="Join a party with a code"><b aria-hidden="true">#</b><span class="hm-rl">Join</span></button>` : '';
   return `<div class="hm-left">${events}${today}${code}</div>`;
 }
 

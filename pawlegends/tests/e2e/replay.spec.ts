@@ -84,7 +84,10 @@ test('replay: lane toast at load-in, Watch replay from the results, speeds, seek
 
   // History: the profile entry (Treat Track) → Match history lists the match with Watch
   await press(page, touch, '[data-testid="home-profile"]');
+  // Profile → Matches; a row opens the full history on that match, Back shows its list
   await press(page, touch, '[data-testid="open-history"]');
+  await press(page, touch, '[data-testid="profile-match-list"] [data-a="match"]');
+  await press(page, touch, '.mh-back');
   const hist = page.locator('[data-testid="match-history"]');
   await expect(hist).toBeVisible();
   await expect(hist.locator('.mh-row')).toHaveCount(1);
@@ -93,5 +96,7 @@ test('replay: lane toast at load-in, Watch replay from the results, speeds, seek
   await expect(hist.locator('.mh-watch')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(hist).toHaveCount(0);
+  // closing the history returns to the Profile's Matches tab
+  await expect(page.locator('[data-testid="profile-screen"]')).toHaveAttribute('data-tab', 'matches');
   expect(errors).toEqual([]);
 });

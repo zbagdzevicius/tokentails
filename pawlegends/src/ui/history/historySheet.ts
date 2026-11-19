@@ -125,6 +125,10 @@ export interface HistoryOpts {
   /** A player's name in a match's detail opens their profile (read-only). */
   onProfile?(player: { code: string; name: string }): void;
   onClose(): void;
+  /** Open on this match's detail (a server id, or `local:<device id>`), as from a Profile row. */
+  match?: string | null;
+  /** The player closed it (Done, ✕, Escape, the backdrop), not Watch or a profile: the caller returns where it came from. */
+  onBack?(): void;
   track?(event: string, props?: Record<string, string | number | boolean>): void;
 }
 
@@ -495,7 +499,7 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
     next = p.next;
     if (p.stats) stats = p.stats;
     if (p.owner?.name) ownerName = p.owner.name;
-    if (!detailOf) render();
+    if (!detailOf || details.has(detailOf) || detailOf.startsWith('local:')) render();
   };
 
   const openMatch = async (id: string): Promise<void> => {
@@ -522,18 +526,19 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
     (row ?? root.querySelector<HTMLElement>('[data-open]'))?.focus({ preventScroll: true });
   };
 
-  const close = (): void => {
+  const close = (byPlayer = false): void => {
     if (!root.isConnected) return;
     document.removeEventListener('keydown', onKey, true);
     root.remove();
     o.onClose();
+    if (byPlayer) o.onBack?.();
   };
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
       if (detailOf) back();
-      else close();
+      else close(true);
       return;
     }
     if (e.key === 'Enter' || e.key === ' ') {
@@ -563,7 +568,7 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
       return;
     }
     if (t.closest('[data-a="close"], [data-a="x"]') || t === root) {
-      close();
+      close(true);
       return;
     }
     if (t.closest('[data-a="back"]')) {
@@ -601,5 +606,6 @@ export function historySheet(parent: HTMLElement, o: HistoryOpts): HTMLElement {
   render();
   root.querySelector<HTMLElement>('.mh-watch, [data-a="close"]')?.focus({ preventScroll: true });
   void load(false);
+  if (o.match) void openMatch(o.match);
   return root;
 }

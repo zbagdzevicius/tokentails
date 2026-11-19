@@ -73,10 +73,10 @@ test('Profile: first name change is free, shows on Home and after a reload; the 
   await sheet.locator('[data-testid="profile-confirm-btn"]').click();
   await expect(screen.locator('[data-testid="profile-name"]')).toHaveText('Pawsome Zyg');
   await expect(sheet.locator('[data-testid="profile-price"]')).toContainText('1,500 Yarn');
-  // a second change without the Yarn: refused before a call
-  await input.fill('Zyg the Brave');
-  await sheet.locator('[data-testid="profile-nick-change"]').click();
-  await expect(screen.locator('[data-testid="profile-note"]')).toContainText('Not enough Yarn');
+  // a second change without the Yarn: no Change to press (never a pink button that can only fail), and how to earn it
+  await expect(input).toBeDisabled();
+  await expect(sheet.locator('[data-testid="profile-nick-change"]')).toBeDisabled();
+  await expect(sheet.locator('[data-testid="profile-earn"]')).toHaveText('Every match earns Yarn.');
   await sheet.locator('[data-a="edit-close"]').click();
   await screen.locator('[data-testid="profile-back"]').click();
   await expect(screen).toHaveCount(0);

@@ -37,14 +37,14 @@ test('recordings: three matches give three replays, newest first, each one plays
   expect(stored.rows).toHaveLength(3);
   expect(stored.replays).toHaveLength(3);
 
+  // Profile → Matches → Recordings: this device's replays, newest first, each with Watch
   await press(page, touch, '[data-testid="home-profile"]');
   await press(page, touch, '[data-testid="open-history"]');
-  const hist = page.locator('[data-testid="match-history"]');
-  await expect(hist).toBeVisible();
-  await expect(hist.locator('.mh-row')).toHaveCount(3);
-  await expect(hist.locator('.mh-watch')).toHaveCount(3);
-  const ids = await hist.locator('.mh-watch').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.watch));
-  expect(ids).toEqual(stored.rows.map((r: { id: string }) => r.id));
+  const recs = page.locator('[data-testid="profile-recordings"]');
+  await expect(recs).toBeVisible();
+  await expect(recs.locator('[data-testid="profile-watch"]')).toHaveCount(3);
+  const ids = await recs.locator('[data-testid="profile-watch"]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.id));
+  expect(ids).toEqual([...stored.rows].sort((a: { at: number }, b: { at: number }) => b.at - a.at).map((r: { id: string }) => r.id));
 
   // each replay plays (the oldest one too)
   for (let i = 0; i < 3; i++) {
@@ -52,7 +52,7 @@ test('recordings: three matches give three replays, newest first, each one plays
       await press(page, touch, '[data-testid="home-profile"]');
       await press(page, touch, '[data-testid="open-history"]');
     }
-    await press(page, touch, `.mh-watch[data-watch="${ids[i]}"]`);
+    await press(page, touch, `[data-testid="profile-watch"][data-id="${ids[i]}"]`);
     await page.waitForFunction(() => document.documentElement.dataset.replay === 'playing', null, { timeout: limit(60_000) });
     await expect.poll(async () => Number(await page.evaluate(() => document.documentElement.dataset.replayTick ?? 0)), { timeout: limit(20_000) }).toBeGreaterThan(30);
     if (i === 2) await saveChecks(page, touch);
@@ -133,6 +133,11 @@ test('recordings: a PvP match is listed and its replay plays from the player sea
   await page.waitForSelector('html[data-screen="title"]');
   await press(page, touch, '[data-testid="home-profile"]');
   await press(page, touch, '[data-testid="open-history"]');
+  // Recordings lists only the replay this version can play
+  await expect(page.locator('[data-testid="profile-recordings"] [data-testid="profile-watch"]')).toHaveCount(1);
+  // the full history (a row, then Back) still lists both and says why the older one cannot play
+  await press(page, touch, '[data-testid="profile-match-list"] [data-a="match"]');
+  await press(page, touch, '.mh-back');
   const hist = page.locator('[data-testid="match-history"]');
   await expect(hist.locator('.mh-row')).toHaveCount(2);
   await expect(hist.locator('.mh-row').first()).toContainText('PvP');

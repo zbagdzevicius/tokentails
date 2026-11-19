@@ -2,7 +2,8 @@ import { expect, test, type Frame } from '@playwright/test';
 import { mockHost, openHost } from './host';
 import { limit } from '../unit/cpu-budget';
 
-// Sign-in: the account chip joins the lobby's top-right corner (ui/account.ts). At the no-scroll phone sizes
+// Sign-in: the account chip joins the lobby's top-right corner (ui/account.ts) while signed out; signed in, the
+// account is in Profile → Account and the corner has no chip. At the no-scroll phone sizes
 // (no-scroll.spec.ts) the corner, chip included, stays inside the viewport, keeps 40 px touch targets and never
 // covers the left column; the page still never scrolls. Signed out ("Sign in") and signed in with a long name, in
 // the web host (Games button) and the app (no Games button, isApp).
@@ -51,7 +52,9 @@ for (const size of SIZES) {
         await mockHost(context, baseURL!, { app: variant.app, signedIn: variant.signedIn, name: 'Bartholomew Whiskerton' });
         const game = await openHost(page);
         await game.waitForSelector('html[data-screen="title"] .pl-home');
-        await expect(game.locator('[data-testid="account-chip"]')).toBeVisible();
+        // signed in, the account lives in Profile → Account (the avatar chip): no second chip in the corner
+        if (variant.signedIn) await expect(game.locator('[data-testid="account-chip"]')).toHaveCount(0);
+        else await expect(game.locator('[data-testid="account-chip"]')).toBeVisible();
         await game.waitForTimeout(500);
         expect(await cornerProblems(game)).toEqual([]);
       });
