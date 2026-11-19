@@ -22,10 +22,11 @@ describe('avatar', () => {
     expect(html).not.toContain('javascript');
   });
 
-  it('frames are CSS rings; titles read as words and are escaped', () => {
+  it('frames are CSS rings; titles use the catalogue names and are escaped', () => {
     expect(frameRing('frame.store.goldpaw')).toBe('#f5c542');
     expect(frameRing(undefined)).toBeNull();
-    expect(titleText('title.s1.rookie')).toBe('Rookie');
+    expect(titleText('title.s1.rookie')).toBe('Rookie Legend');
+    expect(titleText('title.unknown_one')).toBe('Unknown One');
     const el = avatarEl(document, { i: 'h:clem', f: 'frame.legend', t: 'title.s1.trailblazer' }, 56, { label: 'Mira <b>' });
     expect(el.dataset.ring).toBe('1');
     expect(el.getAttribute('title')).toBe('Trailblazer');

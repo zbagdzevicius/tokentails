@@ -8,6 +8,8 @@
 import { HEROES, type HeroId } from '../data/heroes';
 import { isAvatarView, type AvatarView } from '../data/avatarView';
 import { portraitUrl } from '../render/portraits';
+import { SEASONS, STORE_FRAMES } from '../money/catalog';
+import { TRACK_TITLES, treatReward } from '../meta/treats';
 
 export type AvatarSize = 24 | 32 | 40 | 56 | 88;
 
@@ -19,6 +21,18 @@ export const FRAME_RING: Readonly<Record<string, string>> = Object.freeze({
   'frame.store.bone': '#f2ead8',
   'frame.legend': '#c084fc',
   'frame.founder': '#ff7ab6',
+  // Legends Pass season 1: each its own colour (the Collection shows the real ring, never one grey placeholder)
+  'frame.s1.sprout': '#7ee08a',
+  'frame.s1.harvest': '#e8a13a',
+  'frame.s1.lantern': '#ffcf6b',
+  'frame.s1.starfall': '#9db8ff',
+  'frame.s1.aurora': '#c79bff',
+  'frame.s1.crown': '#ffd700',
+  // Treat Track champion frames
+  'frame.champ.lambo': '#ff8fb1',
+  'frame.champ.aviete': '#e0245e',
+  'frame.champ.bengas': '#ff9d3c',
+  'frame.champ.gabe': '#8fd3ff',
 });
 
 export function frameRing(f: string | undefined): string | null {
@@ -29,11 +43,22 @@ export function frameRing(f: string | undefined): string | null {
   return '#ffd166';
 }
 
-/** Title ids read as words (`title.s1.rookie` → "Rookie"). */
+const words = (id: string): string =>
+  (id.split('.').pop() ?? '').replace(/[_-]+/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase());
+/** The catalogue's own names (store, Legends Pass, Treat Track), so every screen calls an item the same thing. */
+const PASS_NAMES = new Map(SEASONS.flatMap((s) => [...s.free, ...s.premium]).map((r) => [r.item, r.name.replace(/ (title|frame)$/, '')]));
+const TITLE_NAMES: ReadonlyMap<string, string> = new Map([...STORE_FRAMES.map((f) => [f.title.id, f.title.name] as const), ...Object.entries(TRACK_TITLES)]);
+const FRAME_NAMES: ReadonlyMap<string, string> = new Map(STORE_FRAMES.map((f) => [f.id, f.name.replace(/ frame$/, '')] as const));
+
+/** A title's name (`title.champ.aviete` → "Raspberry's Pal", `title.s1.rookie` → "Rookie Legend"). */
 export function titleText(t: string | undefined): string {
   if (!t) return '';
-  const last = t.split('.').pop() ?? '';
-  return last.replace(/[_-]+/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase());
+  return TITLE_NAMES.get(t) ?? PASS_NAMES.get(t) ?? words(t);
+}
+
+/** A border's name (`frame.store.goldpaw` → "Gold Paw", `frame.champ.aviete` → "Raspberry"). */
+export function frameName(f: string): string {
+  return FRAME_NAMES.get(f) ?? PASS_NAMES.get(f) ?? treatReward(f)?.name.replace(/ frame$/, '') ?? words(f);
 }
 
 const PAW =

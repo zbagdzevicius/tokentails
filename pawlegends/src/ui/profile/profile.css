@@ -231,13 +231,6 @@
 .pfx-fav small { color: var(--v6-muted); font-size: 13px; white-space: nowrap; }
 
 /* collection: the items themselves, owned first, locked dimmed with a lock */
-.pfx-ctiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-.pfx-ctile {
-  display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; min-height: 76px; padding: 10px 14px; border: 0; border-radius: var(--v6-r-sm, 8px); cursor: pointer; text-align: left; text-decoration: none;
-  color: var(--v6-cream); background: var(--pfx-card); box-shadow: inset 0 0 0 1px var(--v6-line-strong), inset 0 4px 0 var(--v6-gold-3); font: 700 15px/1.2 var(--font);
-}
-.pfx-ctile[data-a='noop'] { cursor: default; }
-.pfx-ctile b { font: italic 900 24px/1.1 var(--v6-font-display); color: var(--v6-bolt); }
 .pfx-sec { display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 8px; }
 .pfx-igrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .pfx-item {
@@ -344,7 +337,7 @@
   .pfx-mrow { grid-template-rows: 150px; }
   .pfx-stat b { font-size: 22px; }
   .pfx-tabs .cst-tab { min-height: 44px; font-size: 13px; letter-spacing: 0.03em; min-width: 88px; }
-  .pfx-cgrid, .pfx-ctiles, .pfx-igrid { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
+  .pfx-cgrid, .pfx-igrid { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
   .pfx-sgrid, .pfx-sgrid.nolv { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: 'wr lv' 'wr per' 'form form' 'roles fav'; grid-template-rows: none; }
   .pfx-sgrid.nolv { grid-template-areas: 'wr per' 'wr per' 'form form' 'roles fav'; }
   .pfx-donut { width: 130px; }
@@ -429,10 +422,7 @@
 .pfx-done { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-night-rgb) / 0.7); color: var(--v6-bolt); font: 800 14px/1 var(--font); }
 .pfx-ask { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-night-rgb) / 0.82); font-size: 14px; }
 .pfx .pl-btn.danger { background: var(--v6-rose); color: var(--v6-cream); }
-/* the Matches tab: mode filters, Show more, recordings */
-.pfx-filters { display: flex; flex-wrap: wrap; gap: 6px; }
-.pfx-filter { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--v6-line-strong); background: var(--pfx-card); color: var(--v6-cream); font: 700 14px/1 var(--font); cursor: pointer; }
-.pfx-filter[aria-pressed='true'] { border-color: var(--v6-bolt); color: var(--v6-bolt); background: rgb(var(--v6-bolt-rgb) / 0.14); }
+/* the Matches tab: Show more, recordings */
 .pfx-more { align-self: center; }
 .pfx-recs { margin-top: 8px; }
 .pfx-reclist { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
@@ -602,3 +592,65 @@
 }
 /* Recordings: the best moment wraps (never cut off); the line under the result too */
 .pfx-rec .pfx-oc small, .pfx-recbest { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; font-size: 14px; }
+
+/* Champions (yours): owned first in full colour, a card opens its sheet; the main champion is gold */
+button.pfx-ccard { display: block; width: 100%; padding: 0; border: 0; color: var(--v6-cream); text-align: left; cursor: pointer; font: inherit; }
+.pfx-ccard.own { box-shadow: inset 0 0 0 1.5px var(--v6-gold-2); }
+.pfx-ccard.main { box-shadow: inset 0 0 0 3px var(--v6-bolt); }
+@media (hover: hover) { button.pfx-ccard:hover { box-shadow: inset 0 0 0 2px var(--v6-cream); } button.pfx-ccard.main:hover { box-shadow: inset 0 0 0 3px var(--v6-bolt); } }
+.pfx-cbadge { position: absolute; top: 6px; right: 6px; z-index: 2; padding: 3px 8px; border-radius: 999px; font: 800 13px/1.1 var(--font); font-style: normal; color: var(--v6-plum-deep, #1a0f2e); background: var(--v6-gold-1); }
+.pfx-cbadge.main { background: var(--v6-bolt); }
+.pfx-cbadge.free { background: var(--v6-sky); color: var(--v6-navy); }
+
+/* Collection: a segmented control with the counts, your look on the left, one kind at a time */
+.pfx-seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 999px; background: rgb(var(--v6-night-rgb) / 0.75); box-shadow: inset 0 0 0 1px var(--v6-line-strong); }
+.pfx-segb { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 10px; border: 0; border-radius: 999px; background: none; color: var(--v6-cream); font: 800 15px/1 var(--font); cursor: pointer; white-space: nowrap; }
+.pfx-segb b { font: 700 13px/1 var(--font); color: var(--v6-muted); }
+.pfx-segb[aria-selected='true'] { background: var(--v6-bolt); color: var(--v6-plum-deep, #1a0f2e); }
+.pfx-segb[aria-selected='true'] b { color: var(--v6-plum-deep, #1a0f2e); }
+@media (hover: hover) { .pfx-segb[aria-selected='false']:hover { background: rgb(var(--v6-cream-rgb) / 0.08); } }
+.pfx-cbody { display: grid; grid-template-columns: minmax(180px, 240px) minmax(0, 1fr); gap: var(--pfx-gap); align-items: start; }
+.pfx-cprev { position: sticky; top: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px 12px; border-radius: var(--v6-r-sm, 8px); background: var(--pfx-card); box-shadow: inset 0 0 0 1px var(--v6-line-strong); text-align: center; }
+.pfx-cprev .pl-av { margin-bottom: 6px; }
+.pfx-cprev .pl-av[data-ring='1'] { box-shadow: 0 0 0 5px var(--av-ring), 0 0 22px var(--av-ring); }
+.pfx-cname { font: italic 900 20px/1.1 var(--v6-font-display); overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; }
+.pfx-cprev small { font-size: 13px; color: var(--v6-muted); }
+.pfx-cprev .pfx-ctitle { color: var(--v6-bolt); font-weight: 800; font-size: 14px; }
+.pfx-cmain { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.pfx-chint { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pfx-chint .pfx-fine { margin: 0; }
+.pfx-worn { position: absolute; top: 6px; left: 6px; z-index: 2; padding: 3px 8px; border-radius: 999px; font: 800 13px/1.1 var(--font); font-style: normal; color: var(--v6-plum-deep, #1a0f2e); background: var(--v6-bolt); }
+/* borders: the real ring in its own colour, locked ones keep it (the portrait dims) */
+.pfx-ringart { display: grid; place-items: center; border-radius: 50%; padding: 4px; box-shadow: 0 0 0 4px var(--ring, #ffd166), 0 0 18px color-mix(in srgb, var(--ring, #ffd166) 60%, transparent); }
+.pfx-ringart .pl-av { box-shadow: none !important; }
+.pfx-frame:not(.own) .pfx-ringart { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ring, #ffd166) 55%, transparent); }
+.pfx-frame:not(.own) .pfx-ringart .pl-av { filter: grayscale(0.85) brightness(0.5); }
+.pfx-frame { padding-top: 18px; }
+/* titles: pills, the worn one in yellow */
+.pfx-titlegrid .pfx-wear { min-height: 44px; }
+.pfx-wear small { margin-left: 6px; font-size: 13px; }
+/* coats: one group per champion */
+.pfx-cgroup { display: flex; flex-direction: column; gap: 8px; }
+.pfx-cgroup h4 { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; font: italic 900 17px/1.1 var(--v6-font-display); }
+.pfx-cgroup h4 .pfx-face { width: 36px; height: 36px; }
+.pfx-cgroup h4 small { font: 700 13px/1 var(--font); color: var(--v6-muted); }
+/* the small sheet (a champion, a locked item) */
+.pfx-spanel { width: min(420px, 100%); }
+.pfx-shead { display: flex; align-items: center; gap: 12px; }
+.pfx-shead > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pfx-shead b { font: 800 17px/1.15 var(--font); }
+.pfx-shead small { font-size: 14px; color: var(--v6-muted); }
+.pfx-shead .pfx-face { width: 56px; height: 56px; }
+.pfx-sfacts { margin: 0; padding: 0 0 0 18px; display: grid; gap: 4px; font-size: 15px; }
+.pfx-sline { margin: 0; font-size: 15px; }
+@media (max-height: 500px) {
+  .pfx-cbody { grid-template-columns: minmax(0, 1fr); }
+  .pfx-cprev { display: none; }
+  .pfx-segb { font-size: 14px; }
+}
+@media (max-width: 640px) and (min-height: 501px) {
+  .pfx-cbody { grid-template-columns: minmax(0, 1fr); }
+  .pfx-cprev { display: none; }
+  .pfx-segb { flex-direction: column; gap: 2px; padding: 4px 6px; border-radius: 14px; }
+  .pfx-seg { border-radius: 18px; }
+}

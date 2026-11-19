@@ -480,13 +480,16 @@ export function collectionCounts(items: readonly string[]): { coats: number; fra
   return { coats, frames, titles };
 }
 
-/** The borders this player may wear (owned store, season, legend and founder borders), 'none' first. Pure. */
-export const wearableFrames = (items: readonly string[]): string[] => ['none', ...items.filter((i) => /^frame\.(store|s1|ranked)\.[a-z0-9._-]+$|^frame\.(legend|founder)$/.test(i))];
+/** The borders this player may wear (owned store, season, ranked, Treat Track, legend and founder borders), 'none' first. Pure. */
+export const wearableFrames = (items: readonly string[]): string[] => ['none', ...new Set(items.filter((i) => /^frame\.(store|s\d+|ranked|champ)\.[a-z0-9._-]+$|^frame\.(legend|founder)$/.test(i)))];
 /** The titles this player may wear, 'none' first. Pure. */
-export const wearableTitles = (items: readonly string[]): string[] => ['none', ...items.filter((x) => /^title\.[a-z0-9._-]{1,48}$/.test(x))];
+export const wearableTitles = (items: readonly string[]): string[] => ['none', ...new Set(items.filter((x) => /^title\.[a-z0-9._-]{1,48}$/.test(x)))];
 
-/** Champions as the Champions tab lists them: every champion with its mastery (played first), then the rest. Pure. */
-export function championRows(m: MasteryMap, favs: ProfileStats['favourites'], self: boolean): { hero: HeroId; level: number; matches: number; wins: number; toNext: number | null }[] {
+/**
+ * Champions as the Champions tab lists them: yours with every champion, the ones you own first (founder, Nov 19:
+ * "show purchased champions"), each group by mastery then matches; another player's, the ones they played. Pure.
+ */
+export function championRows(m: MasteryMap, favs: ProfileStats['favourites'], self: boolean, owned?: (h: HeroId) => boolean): { hero: HeroId; level: number; matches: number; wins: number; toNext: number | null }[] {
   const fav = new Map(favs.map((f) => [f.hero, f]));
   const heroes = self ? HERO_IDS : HERO_IDS.filter((h) => fav.has(h) || m[h]);
   return heroes
@@ -495,7 +498,7 @@ export function championRows(m: MasteryMap, favs: ProfileStats['favourites'], se
       const f = fav.get(h);
       return { hero: h, level: r?.level ?? 0, matches: r?.m ?? f?.matches ?? 0, wins: r?.w ?? f?.wins ?? 0, toNext: r ? masteryToNext(r) : null };
     })
-    .sort((a, b) => b.level - a.level || b.matches - a.matches || HERO_IDS.indexOf(a.hero) - HERO_IDS.indexOf(b.hero));
+    .sort((a, b) => (owned ? Number(owned(b.hero)) - Number(owned(a.hero)) : 0) || b.level - a.level || b.matches - a.matches || HERO_IDS.indexOf(a.hero) - HERO_IDS.indexOf(b.hero));
 }
 
 /** "1,234". */
@@ -549,17 +552,6 @@ export const LADDER: readonly { tier: CrestTier; name: string }[] = Object.freez
   { tier: 'lion', name: 'Lion' },
   { tier: 'legend', name: 'Legend' },
 ] as { tier: CrestTier; name: string }[]);
-
-/** The history list's mode filters (the match history sheet's own). */
-export type HistoryFilter = 'all' | 'ranked' | 'pvp' | 'ai' | 'blitz' | 'arcade';
-export const HISTORY_FILTERS: readonly { id: HistoryFilter; label: string }[] = Object.freeze([
-  { id: 'all', label: 'All' },
-  { id: 'ranked', label: 'Ranked' },
-  { id: 'pvp', label: 'PvP' },
-  { id: 'ai', label: 'vs bots' },
-  { id: 'blitz', label: 'Blitz' },
-  { id: 'arcade', label: 'Arcade' },
-] as { id: HistoryFilter; label: string }[]);
 
 /** The `history.list` page cursor, checked. Pure. */
 export const nextOf = (b: unknown): string | null => {

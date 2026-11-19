@@ -695,8 +695,8 @@ export class App {
    * Home's champion browser on the Home hero, with SELECT / BUY / UNLOCK under the description (Nov 12, the founder).
    * Never a match: the match still starts only from PLAY → Mode Select.
    */
-  private openHeroBrowser(): void {
-    const h = this.dare?.hero ?? this.choice.hero;
+  private openHeroBrowser(hero?: HeroId): void {
+    const h = hero ?? this.dare?.hero ?? this.choice.hero;
     void openChampInfo({
       hero: h,
       within: this.screenEl,
@@ -1647,7 +1647,8 @@ export class App {
             yarn: this.champs().server ? this.champs().yarn.balance : null,
             mastery: loadMastery(),
             champs: { owned: ownedCount(this.champs(), this.isApp()), total: CHAMPION_IDS.length },
-            items: [...s.items],
+            // one owned list: the entitlements plus the free unlocks (the Treat Track's titles, frames and coats)
+            items: [...s.items, ...p.unlocks],
             rows: deviceProfileRows(),
             // the replays this device kept (Profile → Matches → Recordings); founder, Nov 19: one made with another
             // game version stays listed and says why before the tap ("Older version"), never "not available" after it
@@ -1714,8 +1715,27 @@ export class App {
                 },
               }
             : {}),
-          // the entitlements can arrive after the screen opened: Collection reads them on every draw
-          items: () => this.ent.snapshot().items,
+          // the entitlements can arrive after the screen opened: Collection reads them (and the unlocks) on every draw
+          items: () => [...this.ent.snapshot().items, ...loadProfile().unlocks],
+          ...(self
+            ? {
+                // Champions: owned first; Select is Home's own (one main champion), Abilities & lore the browser
+                champs: {
+                  status: (h: HeroId) => champStatus(h, this.champs(), this.isApp()),
+                  main: () => (this.dare ? null : this.choice.hero),
+                  select: (h: HeroId) => this.selectHomeHero(h),
+                  open: (h: HeroId) => this.openHeroBrowser(h),
+                },
+                // Collection → Coats: the champion's look (the Heroes browser's own setter)
+                coats: {
+                  worn: (h: HeroId) => this.lookFor(h).coat,
+                  wear: (h: HeroId, coat: string | null) => {
+                    const cw = this.coatWear();
+                    cw.wear(h, { ...cw.worn(h), coat, dye: null });
+                  },
+                },
+              }
+            : {}),
           ...(this.bridge.active
             ? {
                 message: (f: { code: string; name: string }) => this.openSocial(undefined, f.code),

@@ -260,7 +260,7 @@ for (const kind of ['guest', 'new', 'vet', 'other', 'fail'] as Kind[])
           await expect(screen.locator('[data-testid="profile-peak"]')).toHaveText('Best: Alley I');
           await expect(screen.locator('[data-testid="profile-level"]')).toBeVisible();
           await expect(screen.locator('[data-testid="profile-flag-shown"]')).toBeVisible();
-          await expect(screen.locator('[data-testid="profile-title"]')).toHaveText('Moonlit');
+          await expect(screen.locator('[data-testid="profile-title"]')).toHaveText('Night Prowler');
           await expect(screen.locator('[data-testid="profile-message"]')).toBeVisible();
           // Match history once: the Matches tab (the card's link goes there), no banner button
           await expect(screen.locator('[data-testid="profile-history"]')).toHaveCount(0);
@@ -282,6 +282,7 @@ for (const kind of ['guest', 'new', 'vet', 'other', 'fail'] as Kind[])
           await expect(screen.locator('[data-testid="profile-count-titles"] b')).toHaveText(/^2 \//);
           await expect(screen.locator('[data-testid="profile-count-coats"] b')).toHaveText(/^2 \//);
           await expect(screen.locator('[data-testid="profile-count-frames"] b')).toHaveText(/^1 \//);
+          await screen.locator('[data-testid="profile-count-titles"]').click();
           await expect(screen.locator('[data-a="wear"][data-id="title.founder"]')).toHaveAttribute('aria-pressed', 'true');
           // keyboard: one Tab stop in the tab bar; arrows move between tabs
           await screen.locator('[data-testid="profile-tab-collection"]').focus();

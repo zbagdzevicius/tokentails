@@ -40,7 +40,9 @@ import {
 } from '../../src/ui/profile/model';
 import { profileScreen, type ProfileScreenOpts } from '../../src/ui/profile/profileScreen';
 import { levelInfo } from '../../src/meta/accountLevel';
-import { collectionOf, ownedSet } from '../../src/ui/profile/collection';
+import { coatGroups, collectionOf, ownedSet, whereOf } from '../../src/ui/profile/collection';
+import { frameName, titleText } from '../../src/ui/avatar';
+import type { HeroId } from '../../src/data/heroes';
 import { crestSvg } from '../../src/ui/profile/crest';
 
 const NOW = Date.UTC(2026, 10, 18, 12);
@@ -446,12 +448,18 @@ describe('profile screen', () => {
   it('Collection and Overview agree: the worn Founder title is owned, and the counts match the items', async () => {
     open({ items: ['coat.sage.store_silver_tabby', 'frame.store.goldpaw', 'title.store.goldpaw'], tab: 'collection' });
     await flush();
-    expect(q('[data-testid="profile-count-titles"]').textContent).toMatch(/^2 \//);
-    expect(q('[data-testid="profile-count-coats"]').textContent).toMatch(/^1 \//);
-    expect(q('[data-testid="profile-count-frames"]').textContent).toMatch(/^1 \//);
+    expect(q('[data-testid="profile-count-titles"] b').textContent).toMatch(/^2 \//);
+    expect(q('[data-testid="profile-count-coats"] b').textContent).toMatch(/^1 \//);
+    expect(q('[data-testid="profile-count-frames"] b').textContent).toMatch(/^1 \//);
+    // one kind at a time: the segmented control switches it
+    expect(q('[data-testid="profile-count-icons"]').getAttribute('aria-selected')).toBe('true');
+    q('[data-testid="profile-count-titles"]').click();
     expect(q('[data-a="wear"][data-id="title.founder"]').getAttribute('aria-pressed')).toBe('true');
+    q('[data-testid="profile-count-coats"]').click();
     expect(q('.pfx-coat.own')).not.toBeNull();
     expect(q('.pfx-coat:not(.own) .pfx-lock')).not.toBeNull();
+    // coats come grouped by champion, the champion with an owned coat first
+    expect(q('.pfx-cgroup').dataset.hero).toBe('sage');
   });
 
   it('tabs follow the ARIA pattern: one Tab stop, arrows, Home and End', async () => {
@@ -537,7 +545,7 @@ describe('profile screen', () => {
     expect(q('[data-testid="profile-add-friend"]')).not.toBeNull();
   });
 
-  it('Matches tab: the full history pages inline (Show more sends the cursor), mode filters ask again, rows open the detail', async () => {
+  it('Matches tab: the full history pages inline (Show more sends the cursor), no mode filters, rows open the detail', async () => {
     let n = 0;
     const page = (id: string, next: string | null) => res(200, { owner: { name: 'Witty Biscuit', self: true }, rows: [{ id, at: NOW - 60_000 - n * 1000, mode: 'pvp', hero: 'sage', outcome: 'lost', k: 1, d: 4, a: 2 }], next });
     const t = open({ tab: 'matches', hist: page('a', 'cur1'), extra: {} });
@@ -560,10 +568,9 @@ describe('profile screen', () => {
     expect(t.calls.find((c) => (c.args as { before?: string } | undefined)?.before)?.args).toEqual({ before: 'cur2' });
     expect(document.querySelectorAll('[data-testid="profile-match-list"] [data-a="match"]')).toHaveLength(2);
     expect(q('[data-testid="profile-more"]')).toBeNull();
-    q('[data-a="filter"][data-f="ranked"]').click();
-    await flush();
-    expect(t.calls.at(-1)?.args).toEqual({ mode: 'ranked' });
-    expect(q('[data-a="filter"][data-f="ranked"]').getAttribute('aria-pressed')).toBe('true');
+    // founder, Nov 19: every match in one list, no All / Ranked / PvP chips
+    expect(document.querySelectorAll('[data-a="filter"], .pfx-filters')).toHaveLength(0);
+    expect(t.calls.every((c) => !(c.args as { mode?: string } | undefined)?.mode)).toBe(true);
     q('[data-testid="profile-match-list"] [data-a="match"]').click();
     await flush();
     expect(openHistory).not.toHaveBeenCalled();
@@ -665,7 +672,7 @@ describe('profile screen', () => {
     expect(change.disabled).toBe(true);
     expect(change.classList.contains('ghost')).toBe(true);
     expect(q('[data-testid="profile-earn"]')).not.toBeNull();
-    expect(q('[data-testid="profile-borders"]').textContent).toContain('Goldpaw');
+    expect(q('[data-testid="profile-borders"]').textContent).toContain('Gold Paw');
     expect(document.querySelectorAll('[data-testid="profile-picker"] [aria-pressed="true"]')).toHaveLength(1);
     q('[data-a="pick-title"][data-id="title.store.goldpaw"]').click();
     q('[data-testid="profile-avatar-save"]').click();
@@ -694,7 +701,8 @@ describe('profile screen', () => {
     expect(q('[data-testid="profile-peak"]').textContent).toBe('Best: Alley I');
     expect(q('[data-testid="profile-level"]').textContent).toMatch(/^Lv \d+/);
     expect(q('[data-testid="profile-flag-shown"]')).not.toBeNull();
-    expect(q('[data-testid="profile-title"]').textContent).toBe('Moonlit');
+    // the catalogue's name for the title, the same everywhere
+    expect(q('[data-testid="profile-title"]').textContent).toBe('Night Prowler');
     expect(q('[data-testid="profile-message"]')).not.toBeNull();
     expect(q('[data-testid="profile-invite"]')).not.toBeNull();
     // never ranked: Unranked without advice aimed at the viewer
@@ -742,5 +750,106 @@ describe('public name cache', () => {
     expect(myName()).toBe('Pawsome Zyg');
     expect(setMyName(null)).toBe(true);
     expect(localStorage.getItem('pl.myName')).toBeNull();
+  });
+});
+
+describe('profile: one owned list, Champions and the Collection (founder, Nov 19)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it("the Treat Track's title counts as owned: Collection and Edit profile list Raspberry's Pal", async () => {
+    // the app passes the entitlements plus the profile's unlocks (the Treat Track's rewards) as one list
+    const t = open({ items: ['title.champ.aviete', 'frame.champ.lambo'] });
+    await flush();
+    q('[data-testid="profile-edit"]').click();
+    expect(q('[data-testid="profile-titles"]').textContent).toContain("Raspberry's Pal");
+    expect(q('[data-testid="profile-borders"]').textContent).toContain('Lambo');
+    q('[data-a="pick-title"][data-id="title.champ.aviete"]').click();
+    q('[data-testid="profile-avatar-save"]').click();
+    await flush();
+    expect(t.calls.find((c) => c.op === 'social.me')?.args).toMatchObject({ title: 'title.champ.aviete', frame: 'none' });
+    // the Collection reads the same list: owned, wearable, worn now
+    document.body.innerHTML = '';
+    open({ items: ['title.champ.aviete'], tab: 'collection' });
+    await flush();
+    q('[data-testid="profile-count-titles"]').click();
+    const pal = q('[data-a="wear"][data-id="title.champ.aviete"]');
+    expect(pal.textContent).toContain("Raspberry's Pal");
+    expect(pal.classList.contains('own')).toBe(true);
+  });
+
+  it('catalogue names for titles and borders; champion frames are wearable', () => {
+    expect(titleText('title.champ.aviete')).toBe("Raspberry's Pal");
+    expect(titleText('title.store.goldpaw')).toBe('Gold Paw');
+    expect(titleText('title.s1.rookie')).toBe('Rookie Legend');
+    expect(frameName('frame.store.goldpaw')).toBe('Gold Paw');
+    expect(frameName('frame.champ.aviete')).toBe('Raspberry');
+    expect(wearableFrames(['frame.champ.aviete', 'frame.champ.aviete'])).toEqual(['none', 'frame.champ.aviete']);
+    const c = collectionOf(ownedSet(['frame.champ.lambo']));
+    expect(c.frames[0].id).toBe('frame.champ.lambo');
+    // every border has its own ring colour (no shared grey placeholder)
+    expect(new Set(c.frames.map((f) => f.colors?.[0])).size).toBe(c.frames.length);
+    expect(whereOf({ from: 'pass' }).action).toBe('pass');
+    expect(coatGroups(c.coats).every((g) => g.coats.every((x) => x.hero === g.hero))).toBe(true);
+  });
+
+  it('a locked item opens a small sheet with where to get it and one button there', async () => {
+    const openStore = vi.fn();
+    const openPass = vi.fn();
+    open({ items: [], tab: 'collection', more: { openStore, openPass } });
+    await flush();
+    q('[data-testid="profile-count-frames"]').click();
+    q('[data-a="locked"][data-id="frame.s1.sprout"]').click();
+    expect(q('[data-testid="profile-sheet"]').textContent).toContain('Legends Pass');
+    expect(document.querySelectorAll('[data-testid="profile-sheet"] .pl-btn')).toHaveLength(1);
+    q('[data-testid="profile-lock-go"]').click();
+    expect(openPass).toHaveBeenCalled();
+    document.body.innerHTML = '';
+    open({ items: [], tab: 'collection', more: { openStore } });
+    await flush();
+    q('[data-testid="profile-count-coats"]').click();
+    q('.pfx-coat[data-a="locked"]').click();
+    q('[data-testid="profile-lock-go"]').click();
+    expect(openStore).toHaveBeenCalledWith('coats');
+  });
+
+  it('Collection → Coats: an owned coat is worn on its champion with a tap', async () => {
+    let worn: string | null = null;
+    const wear = vi.fn((_h: HeroId, c: string | null) => void (worn = c));
+    open({ items: ['coat.sage.store_silver_tabby'], tab: 'collection', more: { coats: { worn: () => worn, wear } } });
+    await flush();
+    q('[data-testid="profile-count-coats"]').click();
+    q('[data-a="wear-coat"][data-id="coat.sage.store_silver_tabby"]').click();
+    expect(wear).toHaveBeenCalledWith('sage', 'coat.sage.store_silver_tabby');
+    expect(q('[data-a="wear-coat"][data-id="coat.sage.store_silver_tabby"]').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('Champions: owned first in colour, a card opens its sheet, Select sets the main champion, lore opens the browser', async () => {
+    const own = new Set(['sage', 'clem', 'pixel']);
+    let main: HeroId = 'sage';
+    const select = vi.fn((h: HeroId) => void (main = h));
+    const openLore = vi.fn();
+    const status = (h: HeroId) => (h === 'clem' ? 'starter' : own.has(h) ? 'owned' : h === 'lambo' ? 'free' : 'locked') as 'starter' | 'owned' | 'free' | 'locked';
+    const t = open({ tab: 'champions', more: { champs: { status, main: () => main, select, open: openLore }, openStore: vi.fn() } });
+    await flush();
+    const cards = [...document.querySelectorAll<HTMLElement>('[data-testid="profile-champ-grid"] [data-a="champ"]')];
+    expect(cards.slice(0, 3).map((c) => c.dataset.owned)).toEqual(['1', '1', '1']);
+    expect(cards.slice(3).every((c) => c.dataset.owned === '0')).toBe(true);
+    expect(q('[data-testid="profile-owned-count"]').textContent).toContain('3 /');
+    expect(q('.pfx-ccard.main').dataset.hero).toBe('sage');
+    q('[data-a="champ"][data-hero="pixel"]').click();
+    expect(q('[data-testid="profile-sheet"]').textContent).toContain('Pixel');
+    q('[data-testid="profile-champ-select"]').click();
+    expect(select).toHaveBeenCalledWith('pixel');
+    expect(q('[data-testid="profile-sheet"]')).toBeNull();
+    expect(q('.pfx-ccard.main').dataset.hero).toBe('pixel');
+    // a locked champion: no Select, the Store instead
+    q('[data-a="champ"][data-hero="brutus"]').click();
+    expect(q('[data-testid="profile-champ-select"]')).toBeNull();
+    expect(q('[data-testid="profile-champ-store"]')).not.toBeNull();
+    q('[data-testid="profile-champ-lore"]').click();
+    expect(openLore).toHaveBeenCalledWith('brutus');
+    expect(t.onClose).toHaveBeenCalled();
   });
 });

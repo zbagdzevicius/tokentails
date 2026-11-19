@@ -5,7 +5,9 @@
  * favourite champion's splash stands full height behind the whole screen (sharp on the left, a blurred wash behind
  * the rest); the identity sits over it. Overview: rank crest (one crest per tier) with the points bar, peak and
  * placements, top mastery, season highlights with recent form, the Pass and recent matches. Then Matches, Champions
- * (mastery), Stats, Collection (every coat, border and title, owned or locked) and Account.
+ * (owned first; a card opens its mastery, Select as your main champion and its abilities and lore), Stats, Collection
+ * (Icons / Borders / Titles / Coats, owned first; an owned one is worn with a tap, a locked one says where to get it)
+ * and Account. Edit profile and the Collection wear things through one setter (`wear`, the server's `social.me`).
  *
  * One screen for every profile: yours (opened from the Home avatar chip) and another player's, read-only (from a
  * friend's row or a player in a match's detail; their public `history.list` answer and its `player` card). Its own
@@ -20,7 +22,7 @@ import './profile.css';
 import type { ApiArgs, ApiOp, ApiResult } from '../../embed/api';
 import type { AccountAction } from '../../embed/bridge';
 import { HEROES, HERO_IDS, type HeroId } from '../../data/heroes';
-import { avatarHtml, titleText } from '../avatar';
+import { avatarHtml, frameName, titleText } from '../avatar';
 import { accountActionOf, signedInLine, type AccountModel } from '../account';
 import { heroFaceUrl } from '../art';
 import { splashAttrs } from '../champStore/model';
@@ -33,7 +35,7 @@ import { ago } from '../../replay/store';
 import { crestSvg } from './crest';
 import { matchHtml, OLDER_TIP, saveLine, type ServerMatch } from '../history/historySheet';
 import { parseClubsState } from '../../social/clubs/clubData';
-import { collectionOf, ownedOf, ownedSet, type CollectionEntry } from './collection';
+import { coatGroups, collectionOf, COLLECTION_KINDS, isCollectionKind, KIND_LABEL, ownedOf, ownedSet, whereOf, type CollectionEntry, type CollectionKind } from './collection';
 import {
   bannerHero,
   championRows,
@@ -41,7 +43,6 @@ import {
   duration,
   formOf,
   highlightsOf,
-  HISTORY_FILTERS,
   honorView,
   isProfileTab,
   kdaRatio,
@@ -67,7 +68,6 @@ import {
   topMastery,
   wearableFrames,
   wearableTitles,
-  type HistoryFilter,
   type ProfileData,
   type ProfileRow,
   type ProfileTab,
@@ -135,6 +135,18 @@ export interface ProfileScreenOpts {
   onName?(name: string): void;
   /** A title or border worn (also kept on the device for Home's chip). */
   onWear?(kind: 'title' | 'frame', id: string | null): void;
+  /**
+   * Yours: each champion's state and your main champion (Home's hero and the champion select's first pick; the app's
+   * one setter), Select, and its abilities and lore (the champion browser). Absent: the cards only show mastery.
+   */
+  champs?: {
+    status(h: HeroId): 'starter' | 'owned' | 'free' | 'locked';
+    main(): HeroId | null;
+    select(h: HeroId): void;
+    open(h: HeroId): void;
+  };
+  /** Yours: the coat each champion wears and the setter (the champion's look; the same one the Heroes browser uses). */
+  coats?: { worn(h: HeroId): string | null; wear(h: HeroId, coat: string | null): void };
   /** A name to suggest for the first change (the account's profile name). */
   suggest?(): string | null;
   track?(event: string, props?: Record<string, string | number | boolean>): void;
@@ -173,14 +185,16 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   let priv = false;
   /** Another player who is not a friend: Add friend, then Block (asked once). */
   let rel: 'idle' | 'busy' | 'sent' | 'confirm-block' | 'blocked' = 'idle';
-  /** The Matches tab's mode filter and its own paging (the first page is the Overview's). */
-  let filter: HistoryFilter = 'all';
+  /** The Matches tab's paging (the first page is the Overview's); every mode, no filter (founder, Nov 19). */
   let moreBusy = false;
+  /** The Collection's open kind. */
+  let ctab: CollectionKind = 'icons';
+  /** A small sheet over the screen: a champion card's details, or where a locked item comes from. */
+  let sheet: { kind: 'champ'; hero: HeroId } | { kind: 'lock'; what: 'border' | 'title' | 'coat'; e: CollectionEntry } | null = null;
   /** The Matches tab's open match (a server id or `local:<id>`): its detail inside the screen, LoL style. */
   let detail: string | null = null;
   const details = new Map<string, ServerMatch | 'failed'>();
   let listScroll = 0;
-  let filterBusy = false;
   let info: NameInfo | null = null;
   let edit: { draft: string; confirm: string | null; busy: boolean; hero: HeroId; frame: string; title: string; hint: string } | null = null;
   let note = '';
@@ -561,49 +575,63 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     if (detail) return detailView(detail);
     let body: string;
     if (priv) body = `<p class="pfx-empty pfx-center">This player keeps their matches private.</p>`;
-    else if ((busy(src.hist) && !d.rows.length) || filterBusy) body = skel(5);
+    else if (busy(src.hist) && !d.rows.length) body = skel(5);
     else if (src.hist === 'failed' && !d.rows.length) body = failed('matches');
     else if (!d.rows.length)
-      body = `<div class="pfx-mid pfx-emptybox"><p class="pfx-empty" data-testid="profile-no-matches">${filter !== 'all' ? `No ${esc(HISTORY_FILTERS.find((f) => f.id === filter)?.label ?? '')} matches yet.` : self ? 'No matches yet. Play one and it shows here.' : 'No matches yet.'}</p>${self && filter === 'all' && o.play ? `<button type="button" class="pl-btn small" data-a="play">Play a match</button>` : ''}</div>`;
+      body = `<div class="pfx-mid pfx-emptybox"><p class="pfx-empty" data-testid="profile-no-matches">${self ? 'No matches yet. Play one and it shows here.' : 'No matches yet.'}</p>${self && o.play ? `<button type="button" class="pl-btn small" data-a="play">Play a match</button>` : ''}</div>`;
     else body = `<div class="pfx-list pfx-mlist" data-testid="profile-match-list">${d.rows.map(richRowHtml).join('')}</div>`;
     const shown = d.rows;
     const w = shown.filter((r) => r.outcome === 'won').length;
     const l = shown.filter((r) => r.outcome === 'lost').length;
-    const sum = shown.length && !filterBusy ? `<span class="pfx-chips"><span class="pfx-chip">Shown <b>${shown.length}</b></span><span class="pfx-chip win">Won <b>${w}</b></span><span class="pfx-chip loss">Lost <b>${l}</b></span></span>` : '';
-    // the mode filters ask the account again (device rows filter here)
-    const chips = !priv && remote() && !d.rowsLocal
-      ? `<div class="pfx-filters" role="group" aria-label="Mode">${HISTORY_FILTERS.map((f) => `<button type="button" class="pfx-filter" data-a="filter" data-f="${f.id}" aria-pressed="${f.id === filter}">${esc(f.label)}</button>`).join('')}</div>`
-      : '';
+    const sum = shown.length ? `<span class="pfx-chips"><span class="pfx-chip">Shown <b>${shown.length}</b></span><span class="pfx-chip win">Won <b>${w}</b></span><span class="pfx-chip loss">Lost <b>${l}</b></span></span>` : '';
     const more = d.next && !priv && !d.rowsLocal ? `<button type="button" class="pl-btn ghost small pfx-more" data-a="more" data-testid="profile-more"${moreBusy ? ' disabled' : ''}>${moreBusy ? 'Loading…' : 'Show more'}</button>` : '';
     const stale = src.hist === 'failed' && d.rows.length ? `<p class="pfx-fine bad">Showing this device's matches. <button type="button" class="pfx-link" data-a="retry">Try again</button></p>` : '';
     return pane(
-      `<div class="pfx-panehead">${chips}${sum}</div>${stale}${body}${more}${shown.length ? `<p class="pfx-fine">Open a match to see both teams${self ? ' and its replay' : ''}.</p>` : ''}${recordingsHtml()}`,
+      `${sum ? `<div class="pfx-panehead">${sum}</div>` : ''}${stale}${body}${more}${shown.length ? `<p class="pfx-fine">Open a match to see both teams${self ? ' and its replay' : ''}.</p>` : ''}${recordingsHtml()}`,
     );
   };
 
+  /** Yours: the champion is yours to play for good (a starter or bought; a free-rotation week is not owned). */
+  const ownsChamp = (h: HeroId): boolean => {
+    const st = o.champs?.status(h);
+    return st === 'starter' || st === 'owned';
+  };
+  const champLine = (r: { level: number; toNext: number | null; matches: number }): string =>
+    r.level >= MASTERY_MAX ? 'Top mastery' : r.toNext !== null ? `${r.toNext} ${r.toNext === 1 ? 'point' : 'points'} to M${r.level + 1}` : self ? 'Not played yet' : r.matches ? '' : 'Not played this season';
+
   const championsView = (): string => {
-    const rows = championRows(d.mastery, d.stats?.favourites ?? [], self);
+    const mine = self && !!o.champs;
+    const rows = championRows(d.mastery, d.stats?.favourites ?? [], self, mine ? ownsChamp : undefined);
     const score = masteryScore(d.mastery);
     const known = score > 0;
+    const ownedN = mine ? HERO_IDS.filter(ownsChamp).length : (d.champs?.owned ?? 0);
     const chips = [
       known ? `<span class="pfx-chip">Mastery score <b>${num(score)}</b></span><span class="pfx-chip">M${MASTERY_MAX} <b>${maxedCount(d.mastery)}</b></span>` : '',
-      self && d.champs ? `<span class="pfx-chip">Owned <b>${d.champs.owned} / ${d.champs.total}</b></span>` : '',
+      self && (d.champs || mine) ? `<span class="pfx-chip" data-testid="profile-owned-count">Owned <b>${ownedN} / ${d.champs?.total ?? HERO_IDS.length}</b></span>` : '',
     ].join('');
     // another player: their champions first, then the rest of the roster dimmed (the grid reads like LoL's, never two lone cards)
     if (!self && rows.length) for (const h of HERO_IDS) if (!rows.some((r) => r.hero === h)) rows.push({ hero: h, level: 0, matches: 0, wins: 0, toNext: null });
-    const head = `<div class="pfx-panehead"><h3>${known ? 'Champion mastery' : 'Champions played'} <small>${known ? 'all time' : 'this season'}</small></h3>${chips ? `<span class="pfx-chips">${chips}</span>` : ''}</div>${known || self ? `<p class="pfx-fine" data-testid="profile-mastery-legend">Mastery points: 1 for each match, 1 more for a win. M${MASTERY_MAX} is the top.</p>` : ''}`;
+    const head = `<div class="pfx-panehead"><h3>${mine ? 'Your champions' : known ? 'Champion mastery' : 'Champions played'} <small>${mine ? 'owned first' : known ? 'all time' : 'this season'}</small></h3>${chips ? `<span class="pfx-chips">${chips}</span>` : ''}</div>${known || self ? `<p class="pfx-fine" data-testid="profile-mastery-legend">${mine ? 'Tap a champion to see its mastery or make it your main. ' : ''}Mastery: 1 point a match, 1 more for a win. M${MASTERY_MAX} is the top.</p>` : ''}`;
     if (!rows.length) {
       const body = busy(src.hist) ? skel(3) : src.hist === 'failed' ? failed('champions') : `<p class="pfx-empty">${self ? 'Play any champion to start its mastery.' : 'No champions played this season.'}</p>`;
       return pane(`${head}${body}`);
     }
+    const main = mine ? o.champs!.main() : null;
     const cards = rows
       .map((r) => {
-        const line = r.level >= MASTERY_MAX ? 'Top mastery' : r.toNext !== null ? `${r.toNext} ${r.toNext === 1 ? 'point' : 'points'} to M${r.level + 1}` : self ? 'Not played yet' : r.matches ? '' : 'Not played this season';
+        const line = champLine(r);
         const wr = r.matches ? `${Math.round((r.wins / r.matches) * 100)}% won` : '';
-        return `<div class="pfx-ccard${r.level || r.matches ? '' : ' dim'}" data-hero="${r.hero}">${splash(r.hero, '(min-width: 900px) 200px, 140px', 'pfx-art', true)}${r.level ? `<i class="pfx-m" data-m="${r.level}">M${r.level}</i>` : ''}<span class="pfx-cfoot"><b>${esc(heroName(r.hero))}</b><small>${esc(ROLE_NAME[HEROES[r.hero].role] ?? '')}</small>${r.matches ? `<small class="pfx-played">${r.matches} played · ${wr}</small>` : ''}${line ? `<small class="pfx-next">${esc(line)}</small>` : ''}</span></div>`;
+        const st = mine ? o.champs!.status(r.hero) : null;
+        const own = mine ? ownsChamp(r.hero) : !!(r.level || r.matches);
+        const badge = r.hero === main ? '<i class="pfx-cbadge main">Main</i>' : st === 'owned' || st === 'starter' ? '<i class="pfx-cbadge own">Owned</i>' : st === 'free' ? '<i class="pfx-cbadge free">Free this week</i>' : '';
+        const inner = `${splash(r.hero, '(min-width: 900px) 200px, 140px', 'pfx-art', true)}${r.level ? `<i class="pfx-m" data-m="${r.level}">M${r.level}</i>` : ''}${badge}${mine && !own && st !== 'free' ? `<span class="pfx-lock" aria-hidden="true">${LOCK_SVG}</span>` : ''}<span class="pfx-cfoot"><b>${esc(heroName(r.hero))}</b><small>${esc(ROLE_NAME[HEROES[r.hero].role] ?? '')}</small>${r.matches ? `<small class="pfx-played">${r.matches} played · ${wr}</small>` : ''}${line ? `<small class="pfx-next">${esc(line)}</small>` : ''}</span>`;
+        const cls = `pfx-ccard${own ? ' own' : ' dim'}${r.hero === main ? ' main' : ''}`;
+        if (!mine) return `<div class="${cls}" data-hero="${r.hero}">${inner}</div>`;
+        const state = r.hero === main ? 'your main champion' : own ? 'owned' : st === 'free' ? 'free this week' : 'locked';
+        return `<button type="button" class="${cls}" data-a="champ" data-hero="${r.hero}" data-owned="${own ? 1 : 0}" aria-label="${esc(`${heroName(r.hero)}, ${state}${r.level ? `, mastery ${r.level}` : ''}`)}" aria-haspopup="dialog">${inner}</button>`;
       })
       .join('');
-    return pane(`${head}<div class="pfx-cgrid">${cards}</div>`);
+    return pane(`${head}<div class="pfx-cgrid" data-testid="profile-champ-grid">${cards}</div>`);
   };
 
   const statsView = (): string => {
@@ -669,73 +697,132 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     );
   };
 
+  /** The icon worn now (a champion face), else the banner hero. */
+  const curIcon = (): HeroId | null => {
+    const i = (d.av as { i?: string } | null)?.i ?? '';
+    return i.startsWith('h:') && i.slice(2) in HEROES ? (i.slice(2) as HeroId) : null;
+  };
+
+  /**
+   * Collection (founder, Nov 19: "improve collection UI/UX"): one kind at a time behind a segmented control whose
+   * buttons carry the counts; your look on the left; owned first, the worn one marked; a tap wears an owned item (the
+   * same setter as Edit profile) or opens a small sheet saying where a locked one comes from, with one button there.
+   */
   const collectionView = (): string => {
     const own = owned();
     const c = collectionOf(own);
     const edit = canEdit();
     const wearT = new Set(wearableTitles([...own]));
     const wearF = new Set(wearableFrames([...own]));
-    const count = (l: CollectionEntry[]): string => {
-      const x = ownedOf(l);
-      return `<small>${x.owned} / ${x.total}</small>`;
+    const icon = curIcon();
+    const shown = icon ?? bannerHero(d);
+    const lock = `<span class="pfx-lock" aria-hidden="true">${LOCK_SVG}</span>`;
+    const worn = '<i class="pfx-worn">Worn</i>';
+    const counts: Record<CollectionKind, { owned: number; total: number }> = {
+      icons: { owned: HERO_IDS.length, total: HERO_IDS.length },
+      frames: ownedOf(c.frames),
+      titles: ownedOf(c.titles),
+      coats: ownedOf(c.coats),
     };
-    const lock = (e: CollectionEntry): string => (e.owned ? '' : `<span class="pfx-lock" aria-hidden="true">${LOCK_SVG}</span>`);
-    const locked = (e: CollectionEntry, kind: 'coats' | 'frames'): string => (o.openStore && e.from === 'store' ? `store-${kind}` : o.openPass && e.from === 'pass' ? 'pass' : o.openTrack && e.from === 'earned' ? 'track' : 'noop');
-    const where = (e: CollectionEntry): string => (e.owned ? 'Owned' : e.from === 'store' ? 'Store' : e.from === 'pass' ? 'Legends Pass' : 'Treat Track');
-    const coats = c.coats
-      .map((e) => {
-        const a = e.owned ? 'noop' : locked(e, 'coats');
-        const sw = (e.colors ?? []).map((x) => `<i style="background:${esc(x)}"></i>`).join('');
-        return `<button type="button" class="pfx-item pfx-coat${e.owned ? ' own' : ''}" data-a="${a}" data-id="${esc(e.id)}" aria-label="${esc(`${e.name} coat for ${heroName(e.hero ?? '')}: ${where(e)}`)}"${a === 'noop' ? ' aria-disabled="true"' : ''}>${e.hero ? splash(e.hero, '160px', 'pfx-art', true) : ''}${lock(e)}<span class="pfx-sw" aria-hidden="true">${sw}</span><span class="pfx-ifoot"><b>${esc(e.name)}</b><small>${esc(heroName(e.hero ?? ''))} · ${esc(where(e))}</small></span></button>`;
-      })
-      .join('');
-    const hero = (((d.av as { i?: string } | null)?.i ?? '').startsWith('h:') ? (d.av as { i: string }).i.slice(2) : bannerHero(d)) as HeroId;
-    const frames = c.frames
-      .map((e) => {
-        const can = e.owned && edit && wearF.has(e.id);
-        const on = (d.frame ?? null) === e.id;
-        const a = can ? 'wear' : e.owned ? 'noop' : locked(e, 'frames');
-        return `<button type="button" class="pfx-item pfx-frame${e.owned ? ' own' : ''}" data-a="${a}" data-kind="frame" data-id="${esc(e.id)}"${can ? ` aria-pressed="${on}"` : ''} aria-label="${esc(`${e.name} border: ${on ? 'worn' : can ? 'tap to wear' : where(e)}`)}"${a === 'noop' ? ' aria-disabled="true"' : ''}>${avatarHtml({ i: `h:${hero}`, f: e.id }, 56)}${lock(e)}<span class="pfx-ifoot"><b>${esc(e.name)}</b><small>${on ? 'Worn' : esc(where(e))}</small></span></button>`;
-      })
-      .join('');
-    const titles = c.titles
-      .map((e) => {
-        const can = e.owned && edit && wearT.has(e.id);
-        const on = (d.title ?? null) === e.id;
-        const a = can ? 'wear' : e.owned ? 'noop' : locked(e, 'frames');
-        return `<button type="button" class="pfx-wear${e.owned ? ' own' : ''}" data-a="${a}" data-kind="title" data-id="${esc(e.id)}"${can ? ` aria-pressed="${on}"` : ''}${a === 'noop' ? ' aria-disabled="true"' : ''} aria-label="${esc(`${e.name} title: ${on ? 'worn' : can ? 'tap to wear' : where(e)}`)}">${e.owned ? '' : LOCK_SVG}${esc(e.name)}</button>`;
-      })
-      .join('');
-    const off = (kind: 'title' | 'frame'): string => (edit && (kind === 'title' ? d.title : d.frame) ? `<button type="button" class="pfx-link" data-a="wear" data-kind="${kind}" data-id="none">Wear none</button>` : '');
-    const champs = d.champs
-      ? `<button type="button" class="pfx-ctile" data-a="${o.openStore ? 'store-champions' : 'noop'}"><b>${d.champs.owned} / ${d.champs.total}</b><span>Champions</span></button>`
-      : '';
-    // icons: every champion's face is free to wear (the editor's Icon row, here with the rest of the look)
-    const curIcon = ((d.av as { i?: string } | null)?.i ?? '').startsWith('h:') ? (d.av as { i: string }).i.slice(2) : null;
-    const icons = HERO_IDS.map((h) => {
-      const on = curIcon === h;
-      return `<button type="button" class="pfx-item pfx-icon own" data-a="${edit ? 'wear-icon' : 'noop'}" data-id="${h}"${edit ? ` aria-pressed="${on}"` : ' aria-disabled="true"'} aria-label="${esc(`${heroName(h)} icon: ${on ? 'worn' : edit ? 'tap to wear' : 'owned'}`)}">${avatarHtml({ i: `h:${h}` }, 56)}<span class="pfx-ifoot"><b>${esc(heroName(h))}</b>${on ? '<small>Worn</small>' : ''}</span></button>`;
-    }).join('');
-    const sum = `<div class="pfx-ctiles" data-testid="profile-collection-counts">${champs}${[
-      ['Icons', HERO_IDS.map((h) => ({ id: h, owned: true })), 'icons'],
-      ['Coats', c.coats, 'coats'],
-      ['Borders', c.frames, 'frames'],
-      ['Titles', c.titles, 'titles'],
-    ]
-      .map(([l, list, k]) => {
-        const x = ownedOf(list as CollectionEntry[]);
-        return `<a class="pfx-ctile" href="#pfx-${k}" data-a="jump" data-k="${k}" data-testid="profile-count-${k}"><b>${x.owned} / ${x.total}</b><span>${l}</span></a>`;
-      })
-      .join('')}</div>`;
-    const hint = edit ? '<p class="pfx-fine">Tap an owned border or title to wear it. Locked items open where you get them.</p>' : `<p class="pfx-fine">${d.signedIn ? 'Wearing items needs a connection.' : 'Sign in to wear titles and borders.'}</p>`;
-    return pane(
-      `${sum}${hint}
-      <section class="pfx-sec" id="pfx-icons"><div class="pfx-panehead"><h3>Icons <small>${HERO_IDS.length} / ${HERO_IDS.length}</small></h3></div><div class="pfx-igrid pfx-fgrid pfx-icongrid">${icons}</div></section>
-      <section class="pfx-sec" id="pfx-frames"><div class="pfx-panehead"><h3>Borders ${count(c.frames)}</h3>${off('frame')}</div><div class="pfx-igrid pfx-fgrid">${frames}</div></section>
-      <section class="pfx-sec" id="pfx-titles"><div class="pfx-panehead"><h3>Titles ${count(c.titles)}</h3><span class="pfx-acts">${off('title')}${o.openTrack ? '<button type="button" class="pl-btn ghost small" data-a="track" data-testid="profile-track">Treat Track</button>' : ''}</span></div><div class="pfx-wears">${titles}</div></section>
-      <section class="pfx-sec" id="pfx-coats"><div class="pfx-panehead"><h3>Coats ${count(c.coats)}</h3>${o.openStore ? '<button type="button" class="pl-btn ghost small" data-a="store-coats">Store</button>' : ''}</div><div class="pfx-igrid">${coats}</div></section>`,
-      'pfx-coll',
-    );
+    const seg = `<div class="pfx-seg" role="tablist" aria-label="Collection" data-testid="profile-collection-counts">${COLLECTION_KINDS.map(
+      (k) =>
+        `<button type="button" role="tab" class="pfx-segb" data-a="ctab" data-k="${k}" aria-selected="${k === ctab}" tabindex="${k === ctab ? 0 : -1}" data-testid="profile-count-${k}"><span>${KIND_LABEL[k]}</span><b>${counts[k].owned} / ${counts[k].total}</b></button>`,
+    ).join('')}</div>`;
+    let grid: string;
+    if (ctab === 'icons') {
+      grid = `<div class="pfx-igrid pfx-fgrid pfx-icongrid">${HERO_IDS.map((h) => {
+        const on = icon === h;
+        return `<button type="button" class="pfx-item pfx-icon own" data-a="${edit ? 'wear-icon' : 'noop'}" data-id="${h}"${edit ? ` aria-pressed="${on}"` : ' aria-disabled="true"'} aria-label="${esc(`${heroName(h)} icon: ${on ? 'worn' : edit ? 'tap to wear' : 'owned'}`)}">${avatarHtml({ i: `h:${h}` }, 56)}${on ? worn : ''}<span class="pfx-ifoot"><b>${esc(heroName(h))}</b></span></button>`;
+      }).join('')}</div>`;
+    } else if (ctab === 'frames') {
+      grid = `<div class="pfx-igrid pfx-fgrid">${c.frames
+        .map((e) => {
+          const can = e.owned && edit && wearF.has(e.id);
+          const on = (d.frame ?? null) === e.id;
+          const a = can ? 'wear' : e.owned ? 'noop' : 'locked';
+          return `<button type="button" class="pfx-item pfx-frame${e.owned ? ' own' : ''}" data-a="${a}" data-kind="frame" data-id="${esc(e.id)}" style="--ring:${esc(e.colors?.[0] ?? '#ffd166')}"${can ? ` aria-pressed="${on}"` : ''} aria-label="${esc(`${e.name} border: ${on ? 'worn' : can ? 'tap to wear' : e.owned ? 'owned' : `locked, ${whereOf(e).label}`}`)}"${a === 'noop' ? ' aria-disabled="true"' : ''}><span class="pfx-ringart">${avatarHtml({ i: `h:${shown}` }, 56)}</span>${e.owned ? '' : lock}${on ? worn : ''}<span class="pfx-ifoot"><b>${esc(e.name)}</b><small>${e.owned ? 'Owned' : esc(whereOf(e).label)}</small></span></button>`;
+        })
+        .join('')}</div>`;
+    } else if (ctab === 'titles') {
+      grid = `<div class="pfx-wears pfx-titlegrid">${c.titles
+        .map((e) => {
+          const can = e.owned && edit && wearT.has(e.id);
+          const on = (d.title ?? null) === e.id;
+          const a = can ? 'wear' : e.owned ? 'noop' : 'locked';
+          return `<button type="button" class="pfx-wear${e.owned ? ' own' : ''}" data-a="${a}" data-kind="title" data-id="${esc(e.id)}"${can ? ` aria-pressed="${on}"` : ''}${a === 'noop' ? ' aria-disabled="true"' : ''} aria-label="${esc(`${e.name} title: ${on ? 'worn' : can ? 'tap to wear' : e.owned ? 'owned' : `locked, ${whereOf(e).label}`}`)}">${e.owned ? '' : LOCK_SVG}${esc(e.name)}${on ? '<small>Worn</small>' : ''}</button>`;
+        })
+        .join('')}</div>`;
+    } else {
+      const canCoat = self && !!o.coats;
+      grid = coatGroups(c.coats)
+        .map((g) => {
+          const wornCoat = canCoat ? o.coats!.worn(g.hero) : null;
+          const cards = g.coats
+            .map((e) => {
+              const on = wornCoat === e.id;
+              const a = e.owned ? (canCoat ? 'wear-coat' : 'noop') : 'locked';
+              const sw = (e.colors ?? []).map((x) => `<i style="background:${esc(x)}"></i>`).join('');
+              return `<button type="button" class="pfx-item pfx-coat${e.owned ? ' own' : ''}" data-a="${a}" data-kind="coat" data-id="${esc(e.id)}" data-hero="${g.hero}"${a === 'wear-coat' ? ` aria-pressed="${on}"` : ''}${a === 'noop' ? ' aria-disabled="true"' : ''} aria-label="${esc(`${e.name} coat for ${heroName(g.hero)}: ${on ? 'worn' : e.owned ? (canCoat ? 'tap to wear' : 'owned') : `locked, ${whereOf(e).label}`}`)}">${splash(g.hero, '160px', 'pfx-art', true)}${e.owned ? '' : lock}${on ? worn : ''}<span class="pfx-sw" aria-hidden="true">${sw}</span><span class="pfx-ifoot"><b>${esc(e.name)}</b><small>${e.owned ? 'Owned' : esc(whereOf(e).label)}</small></span></button>`;
+            })
+            .join('');
+          return `<section class="pfx-cgroup" data-hero="${g.hero}"><h4>${face(g.hero)}<b>${esc(heroName(g.hero))}</b><small>${g.owned} / ${g.coats.length}</small></h4><div class="pfx-igrid">${cards}</div></section>`;
+        })
+        .join('');
+    }
+    const hint =
+      ctab === 'coats'
+        ? '<p class="pfx-fine">Tap an owned coat to wear it on its champion.</p>'
+        : edit
+          ? `<p class="pfx-fine">Tap an owned ${ctab === 'icons' ? 'icon' : ctab === 'frames' ? 'border' : 'title'} to wear it.</p>`
+          : `<p class="pfx-fine">${d.signedIn ? 'Wearing items needs a connection.' : 'Sign in to wear titles and borders.'}</p>`;
+    const off = edit && ((ctab === 'titles' && d.title) || (ctab === 'frames' && d.frame)) ? `<button type="button" class="pfx-link" data-a="wear" data-kind="${ctab === 'titles' ? 'title' : 'frame'}" data-id="none">Wear none</button>` : '';
+    const look = `<aside class="pfx-cprev" aria-label="Your look">${avatarHtml({ i: `h:${shown}`, ...(d.frame ? { f: d.frame } : {}) }, 88)}${nameSpan('pfx-cname', shownName(d))}<small class="pfx-ctitle">${d.title ? esc(titleText(d.title)) : 'No title'}</small><small>${d.frame ? `${esc(frameName(d.frame))} border` : 'No border'}</small></aside>`;
+    return pane(`${seg}<div class="pfx-cbody">${look}<div class="pfx-cmain" id="pfx-${ctab}" data-kind="${ctab}"><div class="pfx-chint">${hint}${off}</div>${grid}</div></div>`, 'pfx-coll');
+  };
+
+  /** The sheet over the screen: a champion's mastery with Select and its lore, or where a locked item comes from. */
+  const sheetHtml = (): string => {
+    if (!sheet) return '';
+    let body: string;
+    let label: string;
+    if (sheet.kind === 'champ') {
+      const h = sheet.hero;
+      const row = championRows(d.mastery, d.stats?.favourites ?? [], true).find((r) => r.hero === h);
+      const st = o.champs?.status(h) ?? 'locked';
+      const own = ownsChamp(h);
+      const main = o.champs?.main() === h;
+      label = heroName(h);
+      const lv = row?.level ?? 0;
+      const facts = [lv ? `Mastery ${lv}` : 'No mastery yet', row?.matches ? `${row.matches} played · ${Math.round((row.wins / row.matches) * 100)}% won` : '', row ? champLine(row) : ''].filter(Boolean);
+      const primary = main
+        ? `<button type="button" class="pl-btn small" disabled data-testid="profile-champ-main">Your main champion</button>`
+        : own || st === 'free'
+          ? `<button type="button" class="pl-btn small" data-a="champ-select" data-hero="${h}" data-testid="profile-champ-select">Select</button>`
+          : o.openStore
+            ? `<button type="button" class="pl-btn small" data-a="store-champions" data-testid="profile-champ-store">Get it in the Store</button>`
+            : '';
+      body = `<div class="pfx-shead">${face(h)}<span><b>${esc(heroName(h))}</b><small>${esc(ROLE_NAME[HEROES[h].role] ?? '')} · ${main ? 'Main' : own ? 'Owned' : st === 'free' ? 'Free this week' : 'Locked'}</small></span></div><ul class="pfx-sfacts">${facts.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>${main || own ? '' : st === 'free' ? '<p class="pfx-fine">Free to play this week.</p>' : ''}<div class="pfx-act">${o.champs ? `<button type="button" class="pl-btn ghost small" data-a="champ-lore" data-hero="${h}" data-testid="profile-champ-lore">Abilities & lore</button>` : ''}${primary}</div>`;
+    } else {
+      const e = sheet.e;
+      const w = whereOf(e);
+      label = e.name;
+      const open =
+        w.action === 'store' && o.openStore
+          ? `<button type="button" class="pl-btn small" data-a="${sheet.what === 'coat' ? 'store-coats' : 'store-frames'}" data-testid="profile-lock-go">Open Store</button>`
+          : w.action === 'pass' && o.openPass
+            ? `<button type="button" class="pl-btn small" data-a="pass" data-testid="profile-lock-go">Open Legends Pass</button>`
+            : w.action === 'track' && o.openTrack
+              ? `<button type="button" class="pl-btn small" data-a="track" data-testid="profile-lock-go">Open Treat Track</button>`
+              : '';
+      const art =
+        sheet.what === 'border'
+          ? `<span class="pfx-ringart" style="--ring:${esc(e.colors?.[0] ?? '#ffd166')}">${avatarHtml({ i: `h:${curIcon() ?? bannerHero(d)}` }, 56)}</span>`
+          : sheet.what === 'coat' && e.hero
+            ? face(e.hero)
+            : `<span class="pfx-wear">${esc(e.name)}</span>`;
+      body = `<div class="pfx-shead">${art}<span><b>${esc(e.name)}</b><small>${sheet.what === 'coat' && e.hero ? `${esc(heroName(e.hero))} coat · ` : sheet.what === 'border' ? 'Border · ' : 'Title · '}Locked</small></span></div><p class="pfx-sline" data-testid="profile-lock-where">${esc(w.line)}</p><div class="pfx-act">${open}</div>`;
+    }
+    return `<div class="pfx-editor pfx-sheet" role="dialog" aria-modal="true" aria-label="${esc(label)}" data-testid="profile-sheet"><div class="pfx-epanel pfx-spanel"><header class="pfx-ehead"><h3>${sheet.kind === 'champ' ? 'Champion' : 'Locked'}</h3><button type="button" class="cst-back pfx-x" data-a="sheet-close" aria-label="Close">${X_SVG}</button></header><div class="pfx-ebody">${body}</div></div></div>`;
   };
 
   /** The account card: one pink primary per state (Sign in; Manage account), Sign out a ghost, Delete a red link. */
@@ -822,7 +909,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const focusName = active && root.contains(active) ? active.getAttribute('name') : null;
     const focusTab = active?.dataset.tab && root.contains(active) && active.classList.contains('cst-tab') ? active.dataset.tab : null;
     const view = tab === 'overview' ? overview() : tab === 'matches' ? matchesView() : tab === 'champions' ? championsView() : tab === 'stats' ? statsView() : tab === 'collection' ? collectionView() : accountView();
-    const inert = edit ? ' inert' : '';
+    const inert = edit || sheet ? ' inert' : '';
     const nav = tabs
       .map((t) => `<button type="button" role="tab" id="pfx-tab-${t}" class="cst-tab${t === tab ? ' on' : ''}" data-a="tab" data-tab="${t}" aria-selected="${t === tab}" aria-controls="pfx-panel" tabindex="${t === tab ? 0 : -1}" data-testid="profile-tab-${t}">${TAB_LABEL[t]}</button>`)
       .join('');
@@ -840,6 +927,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       ${note ? `<p class="line cst-line pfx-note${noteBad ? ' bad' : ''}" role="status" data-testid="profile-note">${esc(note)}</p>` : ''}
       <nav class="cst-tabs pfx-tabs" role="tablist" aria-label="Profile sections"${inert}>${nav}</nav>
       ${editorHtml()}
+      ${edit ? '' : sheetHtml()}
     </div>`;
     for (const el of root.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
     const input = root.querySelector<HTMLInputElement>('input[name="nick"]');
@@ -871,12 +959,13 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     }
     if (focusTab) root.querySelector<HTMLElement>(`.cst-tab[data-tab="${tab}"]`)?.focus({ preventScroll: true });
     else if (edit && !root.querySelector('.pfx-editor')?.contains(doc.activeElement)) root.querySelector<HTMLElement>('.pfx-editor [data-a="edit-close"]')?.focus({ preventScroll: true });
+    else if (sheet && !root.querySelector('.pfx-sheet')?.contains(doc.activeElement)) root.querySelector<HTMLElement>('.pfx-sheet [data-a="sheet-close"]')?.focus({ preventScroll: true });
   };
 
   // -------------------------------------------------------------------------------------------------- data
   let deviceRows = d.rows;
   /** Yours, all modes: the account's rows plus this device's the account does not list yet (founder, Nov 19). */
-  const withDevice = (server: ProfileRow[], complete: boolean): ProfileRow[] => (self && filter === 'all' ? mergeDeviceRows(server, deviceRows, complete) : server);
+  const withDevice = (server: ProfileRow[], complete: boolean): ProfileRow[] => (self ? mergeDeviceRows(server, deviceRows, complete) : server);
   const settle = (p: Promise<ApiResult>): Promise<ApiResult> => p.catch((): ApiResult => ({ id: 'x', ok: false, status: 0 }));
   const fetchAll = async (): Promise<void> => {
     if (!remote()) {
@@ -901,7 +990,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
             ? settle(api('ranked.me'))
             : k === 'club'
               ? settle(api('club.get'))
-              : settle(api('history.list', { ...(o.friend ? { code: o.friend.code } : {}), ...(filter !== 'all' ? { mode: filter } : {}) }));
+              : settle(api('history.list', o.friend ? { code: o.friend.code } : {}));
     const res = await Promise.all(todo.map(async (k) => [k, await call(k)] as const));
     if (disposed) return;
     for (const [k, r] of res) {
@@ -910,7 +999,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
           const b = r.body as { owner?: { name?: unknown }; rows?: unknown[]; stats?: unknown; player?: unknown };
           const rows = (Array.isArray(b.rows) ? b.rows : []).map((x, i) => rowOf(x, `s${i}`)).filter((x): x is ProfileRow => !!x);
           // yours with no account rows yet: this device's rows stay (their ids are device ids)
-          if (rows.length || !self || filter !== 'all') {
+          if (rows.length || !self) {
             d.rows = withDevice(rows, !nextOf(r.body));
             d.rowsLocal = false;
             d.next = nextOf(r.body);
@@ -983,14 +1072,13 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     render();
   };
 
-  /** The Matches tab: the next page (`before` the cursor), or the first page of another mode. */
+  /** The Matches tab: the next page (`before` the cursor). */
   const page = async (append: boolean): Promise<void> => {
     if (!o.api || (append && !d.next)) return;
-    const args: ApiArgs = { ...(o.friend ? { code: o.friend.code } : {}), ...(filter !== 'all' ? { mode: filter } : {}), ...(append && d.next ? { before: d.next } : {}) };
+    const args: ApiArgs = { ...(o.friend ? { code: o.friend.code } : {}), ...(append && d.next ? { before: d.next } : {}) };
     const r = await settle(o.api('history.list', args));
     if (disposed) return;
     moreBusy = false;
-    filterBusy = false;
     if (r.ok && r.body) {
       const b = r.body as { rows?: unknown[] };
       const rows = (Array.isArray(b.rows) ? b.rows : []).map((x, i) => rowOf(x, `p${d.rows.length + i}`)).filter((x): x is ProfileRow => !!x);
@@ -999,7 +1087,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       d.next = nextOf(r.body);
       d.rows = withDevice(append ? [...kept, ...rows.filter((x) => !seen.has(x.id))] : rows, !d.next);
       d.rowsLocal = false;
-      o.track?.('profile_history_page', { append, filter });
+      o.track?.('profile_history_page', { append });
     } else say("Couldn't load more matches. Try again.", true);
     render();
   };
@@ -1064,6 +1152,32 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       say(ok);
     } else say("Couldn't save that. Try again.", true);
     render();
+  };
+
+  /**
+   * The one way to wear an icon, a border or a title (Edit profile's Save and the Collection's taps): the server's
+   * `social.me`, then the device copy Home's chip reads (`onWear`).
+   */
+  const wear = (part: { icon?: HeroId; frame?: string; title?: string }, ok: string): Promise<void> => {
+    const args: ApiArgs = {};
+    if (part.icon) Object.assign(args, { avatarKind: 'hero', avatarRef: part.icon });
+    if (part.frame !== undefined) args.frame = part.frame;
+    if (part.title !== undefined) args.title = part.title;
+    return saveMe(args, ok, () => {
+      if (part.frame !== undefined) o.onWear?.('frame', part.frame === 'none' ? null : part.frame);
+      if (part.title !== undefined) o.onWear?.('title', part.title === 'none' ? null : part.title);
+    });
+  };
+
+  /** Close the sheet and give focus back to the card that opened it. */
+  let sheetFrom: HTMLElement | null = null;
+  const closeSheet = (): void => {
+    const from = sheetFrom;
+    sheet = null;
+    sheetFrom = null;
+    render();
+    const again = from?.dataset.id ? root.querySelector<HTMLElement>(`[data-id="${CSS.escape(from.dataset.id)}"]`) : from?.dataset.hero ? root.querySelector<HTMLElement>(`[data-a="champ"][data-hero="${from.dataset.hero}"]`) : null;
+    again?.focus({ preventScroll: true });
   };
 
   /** Another player: a friend request by their code (the Social sheet's own op). */
@@ -1203,9 +1317,9 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const wid = target.closest<HTMLElement>('[data-watch]')?.dataset.watch;
     if (wid) return o.watch ? leave(() => o.watch!(wid)) : undefined;
     const el = target.closest<HTMLElement>('[data-a]');
-    if (edit && target.classList.contains('pfx-editor')) {
+    if ((edit || sheet) && target.classList.contains('pfx-editor')) {
       edit = null;
-      return render();
+      return closeSheet();
     }
     const a = el?.dataset.a;
     if (!a || !el || el.hasAttribute('disabled')) return;
@@ -1217,11 +1331,6 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       case 'tab': {
         const t = el.dataset.tab;
         if (isProfileTab(t)) goTab(t, false);
-        return;
-      }
-      case 'jump': {
-        e.preventDefault();
-        root.querySelector<HTMLElement>(`#pfx-${el.dataset.k}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
         return;
       }
       case 'retry':
@@ -1241,14 +1350,6 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         moreBusy = true;
         render();
         return void page(true);
-      case 'filter': {
-        const f = HISTORY_FILTERS.find((x) => x.id === el.dataset.f)?.id;
-        if (!f || f === filter || filterBusy) return;
-        filter = f;
-        filterBusy = true;
-        render();
-        return void page(false);
-      }
       case 'watch': {
         const id = el.dataset.id;
         return id && o.watch ? leave(() => o.watch!(id)) : undefined;
@@ -1312,29 +1413,70 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         return render();
       case 'pick-save':
         if (edit) {
-          const frame = edit.frame;
           const title = edit.title;
-          const args: ApiArgs = { avatarKind: 'hero', avatarRef: edit.hero, frame };
-          if (title !== (d.title ?? 'none')) args.title = title;
-          void saveMe(args, 'Saved', () => {
-            o.onWear?.('frame', frame === 'none' ? null : frame);
-            if (args.title !== undefined) o.onWear?.('title', title === 'none' ? null : title);
-          });
+          void wear({ icon: edit.hero, frame: edit.frame, ...(title !== (d.title ?? 'none') ? { title } : {}) }, 'Saved');
         }
         return;
       case 'wear-icon': {
         const h = el.dataset.id ?? '';
         if (!canEdit() || !(h in HEROES)) return;
-        void saveMe({ avatarKind: 'hero', avatarRef: h }, 'Icon saved');
-        return;
+        return void wear({ icon: h as HeroId }, 'Icon saved');
       }
       case 'wear': {
         if (!canEdit()) return;
         const kind = el.dataset.kind === 'frame' ? 'frame' : 'title';
         const id = el.dataset.id ?? 'none';
-        void saveMe(kind === 'title' ? { title: id } : { frame: id }, kind === 'title' ? 'Title saved' : 'Border saved', () => o.onWear?.(kind, id === 'none' ? null : id));
-        return;
+        return void wear(kind === 'title' ? { title: id } : { frame: id }, kind === 'title' ? 'Title saved' : 'Border saved');
       }
+      case 'wear-coat': {
+        const h = el.dataset.hero as HeroId;
+        const id = el.dataset.id ?? '';
+        if (!o.coats || !(h in HEROES) || !id) return;
+        const off = o.coats.worn(h) === id;
+        o.coats.wear(h, off ? null : id);
+        say(off ? `${heroName(h)} wears the default coat` : `${heroName(h)} wears it now`);
+        return render();
+      }
+      case 'locked': {
+        const kind = el.dataset.kind;
+        const c = collectionOf(owned());
+        const list = kind === 'frame' ? c.frames : kind === 'title' ? c.titles : c.coats;
+        const e = list.find((x) => x.id === el.dataset.id);
+        if (!e) return;
+        sheetFrom = el;
+        sheet = { kind: 'lock', what: kind === 'frame' ? 'border' : kind === 'title' ? 'title' : 'coat', e };
+        return render();
+      }
+      case 'ctab': {
+        const k = el.dataset.k;
+        if (!isCollectionKind(k) || k === ctab) return;
+        ctab = k;
+        scrollTop = 0;
+        say('');
+        render();
+        return void root.querySelector<HTMLElement>(`.pfx-segb[data-k="${k}"]`)?.focus({ preventScroll: true });
+      }
+      case 'champ': {
+        const h = el.dataset.hero as HeroId;
+        if (!o.champs || !(h in HEROES)) return;
+        sheetFrom = el;
+        sheet = { kind: 'champ', hero: h };
+        o.track?.('profile_champ', { hero: h });
+        return render();
+      }
+      case 'champ-select': {
+        const h = el.dataset.hero as HeroId;
+        if (!o.champs || !(h in HEROES)) return;
+        o.champs.select(h);
+        say(`${heroName(h)} is your main champion`);
+        return closeSheet();
+      }
+      case 'champ-lore': {
+        const h = el.dataset.hero as HeroId;
+        return o.champs && h in HEROES ? leave(() => o.champs!.open(h)) : undefined;
+      }
+      case 'sheet-close':
+        return closeSheet();
     }
   });
 
@@ -1345,7 +1487,8 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     if (edit) {
       edit = null;
       render();
-    } else if (detail) closeMatch();
+    } else if (sheet) closeSheet();
+    else if (detail) closeMatch();
     else {
       close();
       o.onClose();
@@ -1381,7 +1524,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       deviceRows = o.deviceRows();
       const landed = deviceRows.some((r) => r.save?.st === 'saved' && before.get(r.id) !== 'saved');
       if (d.rowsLocal) d.rows = deviceRows;
-      else if (filter === 'all') d.rows = mergeDeviceRows(d.rows.filter((r) => !r.local), deviceRows, !d.next);
+      else d.rows = mergeDeviceRows(d.rows.filter((r) => !r.local), deviceRows, !d.next);
       if (landed && remote() && !d.rowsLocal) {
         src.hist = 'idle';
         void fetchAll();
@@ -1412,12 +1555,6 @@ const frameOfAv = (av: unknown): string | null => {
   const f = (av as { f?: unknown } | null)?.f;
   return typeof f === 'string' && /^frame\.[a-z0-9._-]{1,48}$/.test(f) ? f : null;
 };
-
-/** "Gold Paw border" style names for border ids (`frame.store.goldpaw` → "Goldpaw"). */
-function frameName(id: string): string {
-  const last = id.split('.').pop() ?? id;
-  return last.replace(/[_-]+/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase());
-}
 
 const absUrl = (p: string): string => {
   try {
