@@ -3,6 +3,7 @@ import { asksForConsent, pawlegendsWebOnly, readConsentChoice, type ConsentChoic
 import { createErrorReporter, type AppErrorContext } from "./errors";
 import { createGameRunTracker } from "./game-run";
 import { getDeviceTier, getPlatform } from "./platform";
+import { addCountry, loadCountry } from "./country";
 
 export * from "./events";
 export { getPlatform, getDeviceTier } from "./platform";
@@ -16,6 +17,7 @@ export {
 } from "./errors";
 export type { AppErrorContext, ErrorReporter } from "./errors";
 export { scrubText, scrubStack, scrubContext, scrubRoute } from "./scrub";
+export { addCountry, cleanCountry, currentCountry, loadCountry } from "./country";
 export type { GameRunTracker } from "./game-run";
 export type { Analytics, AnalyticsClient, AnalyticsConsent, AnalyticsOptions } from "./client";
 
@@ -44,11 +46,13 @@ type CaptureLike = { event?: string; properties?: Record<string, unknown>; $set?
 
 /**
  * posthog-js `before_send`: no query strings or hashes in URL props, and no GeoIP lookup (`$geoip_disable`,
- * docs/plans/moba/POSTHOG-PRIVACY.md rule 3). Replay snapshots pass through untouched. Pure apart from `cr`.
+ * docs/plans/moba/POSTHOG-PRIVACY.md rule 3); our own coarse `country` instead (analytics/country.ts, on the person
+ * too for an identified player). Replay snapshots pass through untouched. Pure apart from `cr`.
  */
 export function scrubCapture<T extends CaptureLike>(cr: T): T {
   if (!cr || cr.event === "$snapshot") return cr;
   if (cr.properties && typeof cr.properties === "object") cr.properties.$geoip_disable = true;
+  addCountry(cr);
   for (const bag of [cr.properties, cr.$set, cr.$set_once, cr.properties?.$set as Record<string, unknown> | undefined, cr.properties?.$set_once as Record<string, unknown> | undefined]) {
     if (!bag || typeof bag !== "object") continue;
     for (const k of URL_PROPS) if (k in bag) bag[k] = stripUrlQuery(bag[k]);
@@ -85,6 +89,8 @@ const loadPostHog = async (apiKey: string, host: string): Promise<AnalyticsClien
   const rich = richAnalyticsAllowed();
   const [{ default: posthog }] = await Promise.all([
     import("posthog-js"),
+    // the country is known before the first event leaves (at most COUNTRY_TIMEOUT_MS; unknown: none)
+    loadCountry(),
     ...(rich ? [import("posthog-js/dist/posthog-recorder"), import("posthog-js/dist/surveys")] : []),
   ]);
   posthog.init(apiKey, {

@@ -185,7 +185,7 @@ whether it is collected.
 | *(analytics)* **App activity → App interactions** (screens, taps on Play, picks, match start and end, store and pass screens; session replay and heatmaps when on, inputs masked) | Collected, not shared, **optional**; purposes **Analytics** |
 | *(analytics)* **App info and performance → Crash logs** (crash and error codes) | Collected, not shared, optional; purposes **Analytics**, App functionality |
 | *(analytics)* **App info and performance → Diagnostics** (load time, frame rate, quality tier, device type, OS and app version) | Collected, not shared, optional; purposes **Analytics** |
-| **Location → Approximate location** (round 7, FLAGS.md: the ISO country from Cloudflare, kept per account for the country flag; never the IP) | Collected, not shared, optional (Settings hides it from others), purposes App functionality |
+| **Location → Approximate location** (round 7, FLAGS.md: the ISO country from Cloudflare, kept per account for the country flag; never the IP; since 2026-11-20 also the `country` of play statistics, POSTHOG-PRIVACY.md) | Collected, not shared, optional (Settings hides it from others), purposes App functionality, Analytics |
 | **Messages → Other in-app messages** (typed match chat, registered 16+ only, kept 30 days for reports) | Collected, not shared, optional; purposes App functionality, Fraud prevention, security, and compliance |
 | Precise location, financial (the app sells nothing), health, photos, audio, files, calendar, contacts, web history, in-app search, installed apps, other app performance data | **Not collected** |
 | Shared with third parties | **No** (Firebase Authentication and PostHog are service providers acting for us, which Play does not count as sharing) |

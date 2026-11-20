@@ -50,7 +50,7 @@ device and is kept longer than needed to answer the request in real time, and th
 | Diagnostics → **Crash Data** (crash and error codes) | Yes | App Functionality, Analytics | Yes | No |
 | Diagnostics → **Performance Data** (load time, frame rate, quality tier) | Yes | Analytics | Yes | No |
 | Diagnostics → **Other Diagnostic Data** (device type, OS version, app version, chunk retries) | Yes | App Functionality, Analytics | Yes | No |
-| Location → **Coarse Location** (round 7, FLAGS.md: the ISO country Cloudflare derives from the connection, kept per account for the flag; never the IP) | Yes | App Functionality | Yes | No |
+| Location → **Coarse Location** (round 7, FLAGS.md: the ISO country Cloudflare derives from the connection, kept per account for the flag; never the IP; since 2026-11-20 also the `country` of play statistics, POSTHOG-PRIVACY.md) | Yes | App Functionality, Analytics | Yes | No |
 | User Content → **Other User Content** (MATCH-CHAT.md: typed match chat of registered 16+ players, kept 30 days for reports; answers to optional in-game surveys) | Yes | App Functionality, Analytics | Yes | No |
 | Health, Financial, Precise Location, Sensitive Info, Contacts, other User Content (photos, audio, emails), Browsing/Search History, Purchases, Other Usage Data, Advertising Data | No | – | – | – |
 

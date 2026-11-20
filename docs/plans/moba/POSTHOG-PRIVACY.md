@@ -19,6 +19,7 @@ the rules they must keep for this notice to stay true are in "Rules for the code
 | `pawlegends-app/ios/App/App/PrivacyInfo.xcprivacy` | Adds DeviceID, ProductInteraction, CrashData, PerformanceData, OtherDiagnosticData, OtherUserContent; Analytics purpose on UserID, GameplayContent. Linked, not tracking. Ships with the next native build |
 | `docs/plans/moba/APP-STORE-ANSWERS.md` | App Privacy rows for analytics (below) |
 | `docs/plans/moba/PLAY-STORE.md` | Data safety rows for analytics (below) |
+| Country (2026-11-20, founder: "just make sure Option A fix will rollout") | PostHog showed no country because every event sets `$geoip_disable`. Option A: GeoIP stays off and client IPs can be discarded; every event carries our own coarse `country` (ISO 3166-1 alpha-2, e.g. `LT`), the code we already keep for the flag (FLAGS.md, Cloudflare `cf-ipcountry`). Game: `posthog.ts` `country` option = `social/flags.ts` `myCountry()` (also when the flag is hidden), read at flush. Server: `analytics-events.ts` `COMMON_PROPS.country`; a consenting account's events take its `pawlegendsflags.cc`. Website: `analytics/country.ts` (the game's `pl.flag` cache, else `GET /pawlegends/flag/here`, asked only after consent) in `before_send`. Identified players get it as a person property (`$set.country`). Unknown: no `country`, never guessed from locale. Privacy page "Play statistics" says we record your country, not your IP address or precise location; store answers add Analytics to Coarse / Approximate location |
 | Hosted pages | `https://storage.googleapis.com/pawlegends-pages/android/index.html` (Data safety updated), `https://storage.googleapis.com/pawlegends-pages/privacy/index.html` (Apple App Privacy, PostHog setup, legal checks) |
 
 ## Rules for the code (so the notice stays true)
@@ -29,8 +30,10 @@ the rules they must keep for this notice to stay true are in "Rules for the code
 2. **Server-side events only for players who allowed it.** The backend must know the choice (store `granted` /
    `denied` with the profile when the client reports it) and send match / Yarn / purchase events only for `granted`.
    Same distinct id as the client (`pl_` + SHA-256 of the Firebase uid). Never the uid, email, name, IP or Stripe ids.
-3. **No IP, no location.** Every event sets `$geoip_disable: true`; server events never forward the player's IP;
-   the project setting "Discard client IP data" is on (founder step 2).
+3. **No IP, only a coarse country.** Every event sets `$geoip_disable: true`; server events never forward the
+   player's IP; the project setting "Discard client IP data" is on (founder step 2). Country comes only from our own
+   `country` property (ISO alpha-2 from the flag source, FLAGS.md), set on the person for identified players; never a
+   city, region or coordinates, and omitted when unknown.
 4. **Person profiles only for identified players** (`$process_person_profile: false` for anonymous events, or
    posthog-js `person_profiles: 'identified_only'`), so a deletion request can delete the person and its events.
 5. **Replay masking:** `maskAllInputs: true`, mask any element showing the email or account name, no console logs, no
@@ -59,7 +62,8 @@ every row. Linked to the user: **Yes** on every row.
 | Diagnostics → **Performance Data** | Analytics |
 | Diagnostics → **Other Diagnostic Data** | App Functionality, Analytics |
 
-Unchanged: Email Address, Name (App Functionality), Coarse Location (App Functionality). Not collected: Purchases (the
+Unchanged: Email Address, Name (App Functionality). Changed 2026-11-20: Coarse Location (App Functionality,
+**Analytics**; the flag country rides on play statistics). Not collected: Purchases (the
 app sells nothing), Advertising Data, Browsing History, Health, Financial, Contacts, Sensitive Info. ATT: not needed
 (no IDFA, no data combined with other companies' data for ads; PostHog is our processor).
 
@@ -77,7 +81,8 @@ and Firebase are service providers). Processed ephemerally: No. Optional = the u
 | App info and performance → **Crash logs** | Yes | Yes | Analytics, App functionality |
 | App info and performance → **Diagnostics** | Yes | Yes | Analytics |
 
-Unchanged: Email address, Name, Approximate location, Other in-app messages. Encrypted in transit: Yes. Deletion: Yes.
+Unchanged: Email address, Name, Other in-app messages. Changed 2026-11-20: Approximate location, purposes App
+functionality, **Analytics** (the flag country rides on play statistics). Encrypted in transit: Yes. Deletion: Yes.
 
 ## PostHog settings (founder; no personal API key here, so by hand)
 
@@ -90,7 +95,9 @@ for the bold words.
    androidScheme https, no hostname): add `https://localhost` too; PostHog may refuse `capacitor://localhost` (it
    wants http/https), which is fine because this list only drives the toolbar and heatmap overlay.
 2. **IP:** Settings → Project → **IP data capture** → turn on **Discard client IP data**. The privacy page says
-   PostHog does not store the network address; this makes it true.
+   PostHog does not store the network address; this makes it true. Safe to turn on now (2026-11-20): country no
+   longer depends on PostHog's GeoIP (which `$geoip_disable` already switched off); it comes from our own `country`
+   event and person property, so breakdowns use **country** (not `$geoip_country_code`).
 3. **Session replay:** Settings → Project → Session replay → **Record user sessions** On. **Authorized domains for
    replay**: leave empty, or list the URLs of step 1 plus `https://localhost` and `capacitor://localhost` (an unlisted
    origin is not recorded, so the app would record nothing). **Capture console logs** Off. **Capture network

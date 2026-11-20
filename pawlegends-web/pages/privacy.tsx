@@ -5,7 +5,7 @@ import { PAWLEGENDS_OG_IMAGE, PAWLEGENDS_TITLE } from "@/components/pawlegends/t
 import { SeoHead } from "@/components/seo/SeoHead";
 
 /** The date this notice last changed. Update it with every change to the text. */
-export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-19";
+export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-20";
 
 export const PAWLEGENDS_PRIVACY_SEO = Object.freeze({
   // NO-TOKENTAILS.md: the share card and tab name Paw Legends, not the site
@@ -48,7 +48,8 @@ const A = ({ href, children }: { href: string; children: React.ReactNode }) => (
  * accepted in the PostHog organisation settings and PostHog, Inc.'s Data Privacy Framework listing is current
  * (dataprivacyframework.gov); otherwise only the SCCs sentence holds; (2) the retention below (events 12 months,
  * recordings 30 days) must match the PostHog plan and project settings; (3) "PostHog does not store your network
- * address" holds only once Project settings → "Discard client IP data" is on; (4) the parental-consent sentence for
+ * address" holds only once Project settings → "Discard client IP data" is on (safe since 2026-11-20: country is our
+ * own `country` property, the flag's ISO code, not PostHog's GeoIP); (4) the parental-consent sentence for
  * under-16s is the minimum GDPR Art. 8 reading, not legal advice; (5) server-side events must follow the same consent
  * (the backend sends them only for a player whose stored choice is granted).
  */
@@ -225,6 +226,11 @@ export default function PawlegendsPrivacyPage() {
                 language, app or game version and the graphics quality setting;
               </li>
               <li>
+                <b>your country</b>: the two-letter country code we already use for your flag (worked out by Cloudflare
+                from your connection), also when you hide the flag. Not your network (IP) address and not your precise
+                location;
+              </li>
+              <li>
                 <b>diagnostics</b>: error and crash codes, load times and frame rate, so we can fix crashes and slow
                 devices;
               </li>
@@ -247,7 +253,8 @@ export default function PawlegendsPrivacyPage() {
               device. If you sign in, we use instead a code made from your account id by a one-way hash (not the id
               itself), so we can count one player across devices; signing out starts a new random code. Because we
               could link that code back to your account, the law still treats it as personal data, and we treat it so.
-              PostHog does not store your network address with these events, so they hold no location. We do not
+              We record your country with these events (the two-letter code above), not your IP address or precise
+              location: PostHog does not look up a location from your network address and does not store it. We do not
               use them for advertising and do not combine them with data from other companies.
             </p>
             <p>
