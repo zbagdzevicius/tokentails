@@ -24,6 +24,7 @@ import * as StellarSdk from '@stellar/stellar-sdk';
 import { EncryptionService } from 'src/shared/encryption.service';
 import { serverTrackAnonymous, serverTrackOrCount } from 'src/pawlegends/analytics/analytics-sink';
 import { surfaceOf } from 'src/pawlegends/analytics/analytics-env';
+import { applyLevelSync } from 'src/pawlegends/leaderboard/leaderboard-live';
 
 export const ANONYMOUS_PROVIDER = 'anonymous';
 
@@ -535,6 +536,8 @@ export class UserService {
                     { $set: { tokenId: generateRandomNumber() } }
                 );
                 await ensureStarterCat(this.cats, this.users, promoted._id);
+                // Paw Legends: a promoted guest's saved matches put it on the Global board now (LEADERBOARDS.md)
+                await applyLevelSync(String(promoted._id));
                 const fresh = await this.users.findOne({ _id: promoted._id }).lean();
                 // 1e. Only this request reports the promotion (it triggers the referral send, F5.7).
                 return { ...(fresh || promoted), promotedNow: true };

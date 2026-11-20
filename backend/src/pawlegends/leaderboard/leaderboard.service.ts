@@ -2,13 +2,13 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@ne
 import { InjectModel } from '@nestjs/mongoose';
 import { Cat } from 'src/cat/cat.schema';
 import { User } from 'src/user/user.schema';
+import { ACCOUNT_LEVEL_PROJECTION, accountMatchesOf, legacyCredit, playedOf } from '../account-level';
 import { countryOf, shownFlag, type FlagRow } from '../flags/flags';
 import { PawlegendsFlag } from '../flags/flags.schema';
 import { visibleFlags } from '../flags/flags.service';
 import { playerCodes } from '../social/player-codes';
 import { PawlegendsMatchHistory, PawlegendsMatchStats } from '../history/history.schema';
 import { seasonAt, statsId } from '../history/history.model';
-import { playedOf } from '../mm/rating.schema';
 import { levelOf } from '../mode-unlocks';
 import { CURRENT_SEASON_ID, SEASONS } from '../pawlegends-catalog';
 import { PawlegendsOwned } from '../pawlegends.schema';
@@ -20,53 +20,72 @@ import { PawlegendsSanction, PawlegendsSocial } from '../social/social.schema';
 import type { AvatarView } from '../../shared-contracts/chat';
 import { setLeaderboardSink, type LeaderboardSink } from './leaderboard-live';
 import { PawlegendsLevel, PawlegendsSideMatch, PawlegendsSideWins } from './leaderboard.schema';
-import { ownSideWins, sideCounterIds, winningSide, type SideRow } from './sides';
+import { ownSideWins, sideCounterIds, winningSide, type Side, type SideRow } from './sides';
 
 /*
  * The Leaderboards window (founder Nov 20: "top by Account Level (global), top in my country, Cats VS Dogs total wins
- * visual cool representation, Top Ranked"), docs/plans/moba/LEADERBOARDS.md. Ranked stays RankedService's `global`
- * board; this service answers the other three:
- * - `level`: registered accounts by verified finished matches (the account level's own count), the earliest to reach
- *   them first; the top 100, 20 a page. Guests, deleted and board-excluded accounts and sanctions in force are left out.
- * - `country`: the same board kept to the players whose flag shows the caller's country (a hidden flag never shows;
- *   a caller who hid theirs, or whose country is unknown, gets `local` saying why and no rows).
+ * visual cool representation, Top Ranked"; then "let's show Global ... Country to see which country is #1 OR what's my #
+ * in my country"), docs/plans/moba/LEADERBOARDS.md. Ranked stays RankedService's `global` board; this service answers:
+ * - `level` (the Global tab): registered accounts by the account level's matches (account-level.ts, the same number
+ *   the player's own Home and Profile show), the earliest to reach them first; the top 100, 20 a page. Guests, deleted
+ *   and board-excluded accounts and sanctions in force are left out.
+ * - `country`: "My country", the same board kept to the players whose flag shows the caller's country (a hidden flag
+ *   never shows), with the caller's exact rank; and "Top countries", every country ranked by the sum of its shown
+ *   players' account levels. A caller who hid their flag, or whose country is unknown, gets `local` saying why.
  * - `sides`: Cats vs Dogs wins this season, all time and this week (and last week, for the trend), plus, signed in,
  *   the caller's own wins this season by the species of their champion.
- * Every public answer is cached 60 s per key. Reads never write; the rows grow only through leaderboard-live.ts.
+ * Every public answer is cached 60 s per key. The rows grow through leaderboard-live.ts; a signed-in board read heals
+ * the caller's own Level row (a sign-in, a merge or a lifted exclusion shows at once).
  *
- * The one-time backfill (`backfill`, started ~60 s after boot): Level rows from every registered account's
- * `pawlegendsMatches`, and Cats vs Dogs from every stored history row. Safe to run again and from several instances at
- * once: Level rows only `$max` up, and a match is counted only by the instance that inserts its guard row
- * (`pawlegendssidematches`, `_id` = match id), the same guard a live save takes. A marker row per part
- * (`backfill:*:v1` in `pawlegendssidewins`) records that it finished; a crashed run's lock lapses after 30 minutes and
- * the next boot finishes it.
+ * The repair (`backfill`, started ~60 s after boot), in versioned parts; bumping a part's key re-runs it on the next
+ * boot (BACKFILL_KEYS):
+ * 1. `legacy`: freezes each account's legacy credit ONCE (account-level.ts). Never bumped.
+ * 2. `levels`: recomputes every Level row EXACTLY from the account level's matches (raises, lowers, creates the
+ *    missing, removes guests, deleted and excluded), so a wrong or missing row is corrected, never kept.
+ * 3. `sides`: rebuilds the Cats vs Dogs guard rows from the match history (side and season), then sets every counter
+ *    from the guard rows. A win a crash dropped between its guard and its counters comes back.
+ * Each part is idempotent and safe on several instances at once (a lock row per part in `pawlegendssidewins`, marked
+ * `done`; a crashed run's lock lapses after 30 minutes and the next boot finishes it).
  */
 
 type AnyModel = any;
 
-/** Places ranked on the Level and Country boards. */
+/** Places ranked on the Global and My country boards. */
 export const LEVEL_TOP = 100;
-/** Rows per page on the Level and Country boards. */
+/** Rows per page on the Global and My country boards. */
 export const LEVEL_PAGE = 20;
-/** Country board: up to this many shown flags of a country, its Level rows are read by id (one query each). */
+/** Country board: up to this many shown flags of a country, its Level rows are read by id (exact rank). */
 export const COUNTRY_IDS_MAX = 20_000;
 /** Country board, a bigger country: level rows read per step and at most in all. */
 export const COUNTRY_SCAN_STEP = 500;
 export const COUNTRY_SCAN_MAX = 20_000;
+/** Top countries: countries listed, and Level rows read at most to build them. */
+export const COUNTRIES_TOP = 50;
+export const COUNTRIES_SCAN_MAX = 50_000;
 /** Public answers live this long. */
 export const LEADERBOARD_CACHE_MS = 60_000;
-/** The backfill: rows per batch, and how long a run holds its lock. */
+/** The repair: rows per batch, and how long a run holds its lock. */
 export const BACKFILL_BATCH = 500;
 export const BACKFILL_LOCK_MS = 30 * 60_000;
 export const BACKFILL_DELAY_MS = 60_000;
-export const BACKFILL_KEYS = Object.freeze({ levels: 'backfill:levels:v1', sides: 'backfill:sides:v1' });
+/**
+ * The repair parts' marker rows (in `pawlegendssidewins`). Bump `levels` or `sides` (v3, ...) to recompute them on the
+ * next boot; `legacy` is frozen once and must never be bumped (it would credit accounts again).
+ */
+export const BACKFILL_KEYS = Object.freeze({
+    legacy: 'backfill:legacy:v1',
+    levels: 'backfill:levels:v2',
+    sides: 'backfill:sides:v2',
+});
+/** Rows checked per `keep` query. */
+const KEEP_BATCH = 1000;
 
 export interface LevelRowView {
     rank: number;
     name: string;
     /** The account level. */
     value: number;
-    /** Finished matches. */
+    /** The account level's matches. */
     m: number;
     me?: boolean;
     av?: AvatarView;
@@ -79,11 +98,23 @@ export interface LevelMe {
     rank: number;
     value: number;
     m: number;
-    /** Country board: below its top 100 (rank is then LEVEL_TOP + 1, shown as "100+"). */
+    /** A very big country only: below what the board scanned (rank is then LEVEL_TOP + 1, shown as "100+"). */
     over?: true;
     name?: string;
     av?: AvatarView;
     cc?: string;
+}
+
+/** Top countries: one country's place. */
+export interface CountryRowView {
+    rank: number;
+    cc: string;
+    /** Players showing the flag who are on the Global board. */
+    players: number;
+    /** The sum of their account levels (the ranking). */
+    levels: number;
+    /** The caller's own country. */
+    me?: boolean;
 }
 
 export interface LevelAnswer {
@@ -94,6 +125,8 @@ export interface LevelAnswer {
     me?: LevelMe | null;
     /** Country board: the caller's country (their own only) and whether they hid their flag. */
     local?: { cc: string | null; hidden: boolean };
+    /** Country board: Top countries (the first COUNTRIES_TOP), the caller's country when below them, and the count. */
+    countries?: { rows: CountryRowView[]; mine: CountryRowView | null; total: number };
 }
 
 export interface SidesAnswer {
@@ -116,7 +149,44 @@ interface Cached<T> {
     value: T;
 }
 
+interface BoardUser {
+    _id: unknown;
+    pawlegendsMatches?: Record<string, unknown>;
+    pawlegendsLegacyMatches?: number;
+    isGuest?: boolean;
+    deletedAt?: Date;
+    boardExcludedAt?: Date;
+    lastPlayedAt?: Date;
+}
+
 const isDup = (e: unknown) => (e as { code?: unknown })?.code === 11000;
+const onBoard = (u: BoardUser | null | undefined): u is BoardUser =>
+    !!u && !u.isGuest && !u.deletedAt && !u.boardExcludedAt;
+const BOARD_USER_FIELDS = Object.freeze({
+    ...ACCOUNT_LEVEL_PROJECTION,
+    isGuest: 1,
+    deletedAt: 1,
+    boardExcludedAt: 1,
+    lastPlayedAt: 1,
+});
+const tick = () => new Promise(r => setImmediate(r));
+
+/** Top countries from the kept Level rows and their shown flags: the sum of levels, then players, then the code. Pure. */
+export function rankCountries(
+    rows: ReadonlyArray<{ m: number; cc: string | null | undefined }>
+): Array<Omit<CountryRowView, 'me'>> {
+    const by = new Map<string, { players: number; levels: number }>();
+    for (const r of rows) {
+        if (!r.cc) continue;
+        const c = by.get(r.cc) ?? { players: 0, levels: 0 };
+        c.players++;
+        c.levels += levelOf(r.m);
+        by.set(r.cc, c);
+    }
+    return [...by.entries()]
+        .sort(([a, x], [b, y]) => y.levels - x.levels || y.players - x.players || (a < b ? -1 : a > b ? 1 : 0))
+        .map(([cc, c], i) => ({ rank: i + 1, cc, players: c.players, levels: c.levels }));
+}
 
 @Injectable()
 export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModuleDestroy {
@@ -142,11 +212,11 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
 
     onModuleInit(): void {
         setLeaderboardSink(this);
-        // the one-time backfill, off the boot path (jest never boots it: specs call `backfill` themselves)
+        // the versioned repair, off the boot path (jest never boots it: specs call `backfill` themselves)
         if (process.env.JEST_WORKER_ID) return;
         this.timer = setTimeout(() => {
             this.timer = null;
-            void this.backfill().catch(e => this.log.warn(`backfill failed: ${(e as Error)?.message ?? e}`));
+            void this.backfill().catch(e => this.log.warn(`repair failed: ${(e as Error)?.message ?? e}`));
         }, BACKFILL_DELAY_MS);
         this.timer.unref?.();
     }
@@ -161,45 +231,48 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
     }
 
     // -----------------------------------------------------------------------------------------------------------
-    // writes (leaderboard-live.ts and the backfill only)
+    // writes (leaderboard-live.ts, a signed-in read's own row, and the repair only)
 
-    /** The account's Level row from its verified `pawlegendsMatches` (never lowered; gone for a guest or a deleted account). */
-    async syncLevel(accountId: string): Promise<void> {
-        const user = (await this.users
-            .findById(accountId)
-            .select({ pawlegendsMatches: 1, isGuest: 1, deletedAt: 1, boardExcludedAt: 1 })
-            .lean()) as Record<string, any> | null;
-        if (!user) return;
-        if (user.isGuest || user.deletedAt || user.boardExcludedAt) {
+    /**
+     * The account's Level row, exactly the account level's matches (account-level.ts): raised (with `at` = now),
+     * lowered, created, or removed for a guest, a deleted or an excluded account and an account with no match. True when
+     * it changed the row.
+     */
+    async syncLevel(accountId: string): Promise<boolean> {
+        const [user, row] = await Promise.all([
+            this.users.findById(accountId).select(BOARD_USER_FIELDS).lean() as Promise<BoardUser | null>,
+            this.levels.findById(accountId).lean() as Promise<LevelDoc | null>,
+        ]);
+        const m = onBoard(user) ? accountMatchesOf(user) : 0;
+        if (m <= 0) {
+            if (!row) return false;
             await this.levels.deleteOne({ _id: accountId });
-            return;
+            return true;
         }
-        const m = playedOf(user.pawlegendsMatches).matches;
-        if (m <= 0) return;
-        const row = (await this.levels.findById(accountId).lean()) as LevelDoc | null;
-        if (row && row.m >= m) return;
+        if (row && row.m === m) return false;
         const at = this.now();
-        if (row) await this.levels.updateOne({ _id: accountId, m: { $lt: m } }, { $set: { m, at } });
-        else {
-            try {
-                await this.levels.updateOne(
-                    { _id: accountId },
-                    { $max: { m }, $setOnInsert: { at } },
-                    { upsert: true }
-                );
-            } catch (e) {
-                if (!isDup(e)) throw e;
-            }
+        if (row) {
+            await this.levels.updateOne({ _id: accountId, m: row.m }, { $set: { m, ...(m > row.m ? { at } : {}) } });
+            return true;
         }
+        try {
+            await this.levels.updateOne({ _id: accountId }, { $set: { m }, $setOnInsert: { at } }, { upsert: true });
+        } catch (e) {
+            if (!isDup(e)) throw e;
+        }
+        return true;
     }
 
-    /** Count one stored match for the side that won it, once per match id. True when this call counted it. */
+    /**
+     * Count one stored match for the side that won it, once per match id. True when this call counted it. The guard row
+     * keeps the side and season, so the repair can rebuild the counters from it if an increment below is lost.
+     */
     async countSides(row: SideRow): Promise<boolean> {
         const side = winningSide(row);
         if (!side) return false;
         const at = row.at instanceof Date ? row.at : new Date(row.at);
         try {
-            await this.sideMatches.create({ _id: row.matchId, s: side, at });
+            await this.sideMatches.create({ _id: row.matchId, s: side, se: row.season || seasonAt(at), at });
         } catch (e) {
             if (isDup(e)) return false;
             throw e;
@@ -209,7 +282,7 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         return true;
     }
 
-    /** Take a backfill part's lock: false when it finished already or another run holds it. */
+    /** Take a repair part's lock: false when it finished already or another run holds it. */
     private async claim(key: string): Promise<boolean> {
         const now = this.now();
         try {
@@ -236,29 +309,86 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         );
     }
 
-    /** The one-time backfill of both parts (see the header). Returns what each part did. */
-    async backfill(): Promise<{ levels: number | 'skipped'; sides: number | 'skipped' }> {
-        const out: { levels: number | 'skipped'; sides: number | 'skipped' } = { levels: 'skipped', sides: 'skipped' };
-        if (await this.claim(BACKFILL_KEYS.levels)) {
-            out.levels = await this.backfillLevels();
-            await this.finish(BACKFILL_KEYS.levels, out.levels);
-            this.log.log(`backfill levels done: rows=${out.levels}`);
-        }
-        if (await this.claim(BACKFILL_KEYS.sides)) {
-            out.sides = await this.backfillSides();
-            await this.finish(BACKFILL_KEYS.sides, out.sides);
-            this.log.log(`backfill sides done: counted=${out.sides}`);
-        }
+    /** The versioned repair (see the header). Returns what each part changed, or 'skipped'. */
+    async backfill(): Promise<{
+        legacy: number | 'skipped';
+        levels: number | 'skipped';
+        sides: number | 'skipped';
+    }> {
+        const out: { legacy: number | 'skipped'; levels: number | 'skipped'; sides: number | 'skipped' } = {
+            legacy: 'skipped',
+            levels: 'skipped',
+            sides: 'skipped',
+        };
+        const part = async (k: keyof typeof BACKFILL_KEYS, run: () => Promise<number>) => {
+            if (!(await this.claim(BACKFILL_KEYS[k]))) return;
+            const n = await run();
+            out[k] = n;
+            await this.finish(BACKFILL_KEYS[k], n);
+            this.log.log(`repair ${k} done: changed=${n}`);
+        };
+        // the credit first: the Level rows are computed with it
+        await part('legacy', () => this.freezeLegacy());
+        await part('levels', () => this.repairLevels());
+        await part('sides', () => this.repairSides());
+        if (out.levels !== 'skipped' || out.sides !== 'skipped') this.cache.clear();
         return out;
     }
 
-    private async backfillLevels(): Promise<number> {
+    /**
+     * `legacy`: each account with a synced progress row and no credit yet gets `pawlegendsLegacyMatches` = its synced
+     * device count above its saved count (account-level.ts legacyCredit). Writes only a credit above 0, only where the
+     * field is missing. Returns the accounts credited.
+     */
+    private async freezeLegacy(): Promise<number> {
+        if (!this.progress) return 0;
         let last: unknown = null;
         let n = 0;
         for (;;) {
+            const batch = (await this.progress
+                .find(last !== null ? { _id: { $gt: last } } : {})
+                .sort({ _id: 1 })
+                .limit(BACKFILL_BATCH)
+                .select({ blob: 1 })
+                .lean()) as Array<{ _id: string; blob?: { counts?: { matches?: unknown } } }>;
+            if (!batch.length) break;
+            last = batch[batch.length - 1]._id;
+            let users: BoardUser[] = [];
+            try {
+                users = (await this.users
+                    .find({ _id: { $in: batch.map(b => String(b._id)) } })
+                    .select(ACCOUNT_LEVEL_PROJECTION)
+                    .lean()) as BoardUser[];
+            } catch (e) {
+                this.log.warn(`repair legacy: a batch was skipped (${(e as Error)?.message ?? e})`);
+            }
+            const byId = new Map(users.map(u => [String(u._id), u]));
+            for (const b of batch) {
+                const u = byId.get(String(b._id));
+                if (!u || u.pawlegendsLegacyMatches !== undefined) continue;
+                const credit = legacyCredit(b.blob?.counts?.matches, playedOf(u.pawlegendsMatches).matches);
+                if (credit <= 0) continue;
+                await this.users.updateOne(
+                    { _id: u._id, pawlegendsLegacyMatches: { $exists: false } },
+                    { $set: { pawlegendsLegacyMatches: credit } }
+                );
+                n++;
+            }
+            if (batch.length < BACKFILL_BATCH) break;
+            await tick();
+        }
+        return n;
+    }
+
+    /** `levels`: every Level row recomputed exactly (see syncLevel), and every row that should not exist removed. */
+    private async repairLevels(): Promise<number> {
+        let n = 0;
+        // 1. every account with matches: create, raise or lower its row
+        let last: unknown = null;
+        for (;;) {
             const batch = (await this.users
                 .find({
-                    pawlegendsMatches: { $exists: true },
+                    $or: [{ pawlegendsMatches: { $exists: true } }, { pawlegendsLegacyMatches: { $gt: 0 } }],
                     isGuest: { $ne: true },
                     deletedAt: { $exists: false },
                     boardExcludedAt: { $exists: false },
@@ -266,31 +396,67 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
                 })
                 .sort({ _id: 1 })
                 .limit(BACKFILL_BATCH)
-                .select({ pawlegendsMatches: 1, lastPlayedAt: 1 })
-                .lean()) as Array<{ _id: unknown; pawlegendsMatches?: Record<string, unknown>; lastPlayedAt?: Date }>;
+                .select(BOARD_USER_FIELDS)
+                .lean()) as BoardUser[];
             if (!batch.length) break;
             last = batch[batch.length - 1]._id;
-            const ops = batch
-                .map(u => ({ id: String(u._id), m: playedOf(u.pawlegendsMatches).matches, at: u.lastPlayedAt }))
-                .filter(u => u.m > 0)
-                .map(u => ({
-                    updateOne: {
-                        filter: { _id: u.id },
-                        update: { $max: { m: u.m }, $setOnInsert: { at: u.at ? new Date(u.at) : this.now() } },
-                        upsert: true,
-                    },
-                }));
+            const ids = batch.map(u => String(u._id));
+            const rows = (await this.levels.find({ _id: { $in: ids } }).lean()) as LevelDoc[];
+            const have = new Map(rows.map(r => [String(r._id), r]));
+            const ops: unknown[] = [];
+            const drop: string[] = [];
+            for (const u of batch) {
+                const id = String(u._id);
+                const m = accountMatchesOf(u);
+                const row = have.get(id);
+                const at = u.lastPlayedAt ? new Date(u.lastPlayedAt) : this.now();
+                if (m <= 0) {
+                    if (row) drop.push(id);
+                } else if (!row)
+                    ops.push({
+                        updateOne: { filter: { _id: id }, update: { $set: { m }, $setOnInsert: { at } }, upsert: true },
+                    });
+                else if (row.m !== m)
+                    ops.push({
+                        updateOne: { filter: { _id: id }, update: { $set: { m, ...(m > row.m ? { at } : {}) } } },
+                    });
+            }
             if (ops.length) await this.levels.bulkWrite(ops, { ordered: false });
-            n += ops.length;
+            if (drop.length) await this.levels.deleteMany({ _id: { $in: drop } });
+            n += ops.length + drop.length;
             if (batch.length < BACKFILL_BATCH) break;
-            await new Promise(r => setImmediate(r));
+            await tick();
+        }
+        // 2. every row: gone when its account is gone, a guest, deleted or excluded
+        last = null;
+        for (;;) {
+            const rows = (await this.levels
+                .find(last !== null ? { _id: { $gt: last } } : {})
+                .sort({ _id: 1 })
+                .limit(BACKFILL_BATCH)
+                .select({ _id: 1 })
+                .lean()) as Array<{ _id: string }>;
+            if (!rows.length) break;
+            last = rows[rows.length - 1]._id;
+            const ids = rows.map(r => String(r._id));
+            const users = (await this.users
+                .find({ _id: { $in: ids } })
+                .select({ isGuest: 1, deletedAt: 1, boardExcludedAt: 1 })
+                .lean()) as BoardUser[];
+            const live = new Set(users.filter(onBoard).map(u => String(u._id)));
+            const drop = ids.filter(id => !live.has(id));
+            if (drop.length) await this.levels.deleteMany({ _id: { $in: drop } });
+            n += drop.length;
+            if (rows.length < BACKFILL_BATCH) break;
+            await tick();
         }
         return n;
     }
 
-    private async backfillSides(): Promise<number> {
+    /** `sides`: guard rows from the history (side, season), then every counter set from the guard rows. */
+    private async repairSides(): Promise<number> {
+        // 1. a guard per counted match of the stored history (a live save's guard is kept; its side and season set)
         let last: unknown = null;
-        let n = 0;
         const seen = new Set<string>();
         for (;;) {
             const batch = (await this.history
@@ -301,16 +467,60 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
                 .lean()) as Array<SideRow & { _id: unknown }>;
             if (!batch.length) break;
             last = batch[batch.length - 1]._id;
+            const ops: unknown[] = [];
             for (const row of batch) {
                 if (seen.has(row.matchId)) continue;
                 seen.add(row.matchId);
-                if (await this.countSides(row)) n++;
+                const side = winningSide(row);
+                if (!side) continue;
+                const at = row.at instanceof Date ? row.at : new Date(row.at);
+                if (!Number.isFinite(at.getTime())) continue;
+                ops.push({
+                    updateOne: {
+                        filter: { _id: row.matchId },
+                        update: { $set: { s: side, se: row.season || seasonAt(at) }, $setOnInsert: { at } },
+                        upsert: true,
+                    },
+                });
             }
+            if (ops.length) await this.sideMatches.bulkWrite(ops, { ordered: false });
             if (seen.size > 200_000) seen.clear();
             if (batch.length < BACKFILL_BATCH) break;
-            await new Promise(r => setImmediate(r));
+            await tick();
         }
-        return n;
+        // 2. the counters from the guard rows alone
+        const tally = new Map<string, { cat: number; dog: number }>();
+        let counted = 0;
+        last = null;
+        for (;;) {
+            const guards = (await this.sideMatches
+                .find(last !== null ? { _id: { $gt: last } } : {})
+                .sort({ _id: 1 })
+                .limit(BACKFILL_BATCH * 2)
+                .lean()) as Array<{ _id: string; s?: string; se?: string; at?: Date }>;
+            if (!guards.length) break;
+            last = guards[guards.length - 1]._id;
+            for (const g of guards) {
+                if (g.s !== 'cat' && g.s !== 'dog') continue;
+                const at = g.at ? new Date(g.at) : null;
+                if (!at || !Number.isFinite(at.getTime())) continue;
+                counted++;
+                for (const id of sideCounterIds({ at, season: g.se || seasonAt(at) } as SideRow)) {
+                    const c = tally.get(id) ?? { cat: 0, dog: 0 };
+                    c[g.s as Side]++;
+                    tally.set(id, c);
+                }
+            }
+            if (guards.length < BACKFILL_BATCH * 2) break;
+            await tick();
+        }
+        const existing = (await this.sideWins.find({}).select({ _id: 1 }).lean()) as Array<{ _id: string }>;
+        for (const { _id } of existing)
+            if (/^(all$|season:|week:)/.test(String(_id)) && !tally.has(String(_id)))
+                tally.set(String(_id), { cat: 0, dog: 0 });
+        for (const [id, c] of tally)
+            await this.sideWins.updateOne({ _id: id }, { $set: { cat: c.cat, dog: c.dog } }, { upsert: true });
+        return counted;
     }
 
     // -----------------------------------------------------------------------------------------------------------
@@ -324,6 +534,15 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         this.cache.set(key, { atMs: now, value });
         if (this.cache.size > 400) for (const k of [...this.cache.keys()].slice(0, 100)) this.cache.delete(k);
         return value;
+    }
+
+    /** A signed-in read heals the caller's own row first; a change drops the cached boards. Never fails the read. */
+    private async healOwn(caller: string): Promise<void> {
+        try {
+            if (await this.syncLevel(caller)) this.cache.clear();
+        } catch {
+            // the board still shows
+        }
     }
 
     private async avatars(ids: readonly string[]): Promise<Map<string, AvatarView>> {
@@ -344,8 +563,14 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
     }
 
     /** Level rows that may show: no sanction in force, a registered account that is not deleted or excluded. */
-    private async keep(rows: LevelDoc[]): Promise<LevelDoc[]> {
+    private async keep<T extends { _id: string }>(rows: T[]): Promise<T[]> {
         if (!rows.length) return rows;
+        if (rows.length > KEEP_BATCH) {
+            const out: T[] = [];
+            for (let i = 0; i < rows.length; i += KEEP_BATCH)
+                out.push(...(await this.keep(rows.slice(i, i + KEEP_BATCH))));
+            return out;
+        }
         const ids = rows.map(r => r._id);
         const now = this.now();
         const banned = (await this.sanctions
@@ -360,10 +585,8 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
             const users = (await this.users
                 .find({ _id: { $in: ids } })
                 .select({ isGuest: 1, deletedAt: 1, boardExcludedAt: 1 })
-                .lean()) as Array<{ _id: unknown; isGuest?: boolean; deletedAt?: Date; boardExcludedAt?: Date }>;
-            const live = new Set(
-                users.filter(u => !u.isGuest && !u.deletedAt && !u.boardExcludedAt).map(u => String(u._id))
-            );
+                .lean()) as BoardUser[];
+            const live = new Set(users.filter(onBoard).map(u => String(u._id)));
             for (const id of ids) if (!live.has(id)) out.add(id);
         } catch {
             // the users read failed: the sanctions alone decide (a stale row shows until the next sync)
@@ -371,7 +594,7 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         return rows.filter(r => !out.has(r._id));
     }
 
-    /** The Level board's kept order (top 100), cached. */
+    /** The Global board's kept order (top 100), cached. */
     private levelOrder(): Promise<LevelDoc[]> {
         return this.cached('level', async () => {
             const raw = (await this.levels
@@ -383,10 +606,13 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         });
     }
 
-    /** The Country board's kept order (top 100 showing `cc`), cached per country. */
-    private countryOrder(cc: string): Promise<LevelDoc[]> {
+    /**
+     * My country's kept order, cached per country: every shown row of a country up to COUNTRY_IDS_MAX flags (so my rank
+     * is exact however low), else the top 100 found by walking the Global order (`full` false).
+     */
+    private countryOrder(cc: string): Promise<{ rows: LevelDoc[]; full: boolean }> {
         return this.cached(`country|${cc}`, async () => {
-            if (!this.flagRows) return [];
+            if (!this.flagRows) return { rows: [], full: true };
             // the country's shown flags first (index `cc, off`): every player of a small country is found, however low
             const flagIds = (await this.flagRows
                 .find({ cc, off: { $ne: true } })
@@ -394,15 +620,14 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
                 .limit(COUNTRY_IDS_MAX + 1)
                 .lean()) as Array<{ _id: string }>;
             if (flagIds.length <= COUNTRY_IDS_MAX) {
-                if (!flagIds.length) return [];
+                if (!flagIds.length) return { rows: [], full: true };
                 const raw = (await this.levels
                     .find({ _id: { $in: flagIds.map(f => String(f._id)) } })
                     .sort({ m: -1, at: 1, _id: 1 })
-                    .limit(LEVEL_TOP + 60)
                     .lean()) as LevelDoc[];
-                return (await this.keep(raw)).slice(0, LEVEL_TOP);
+                return { rows: await this.keep(raw), full: true };
             }
-            // a big country: walk the Level order and keep its flags
+            // a big country: walk the Global order and keep its flags
             const out: LevelDoc[] = [];
             for (let skip = 0; skip < COUNTRY_SCAN_MAX && out.length < LEVEL_TOP; skip += COUNTRY_SCAN_STEP) {
                 const raw = (await this.levels
@@ -420,8 +645,57 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
                 out.push(...(await this.keep(raw.filter(r => set.has(r._id)))));
                 if (raw.length < COUNTRY_SCAN_STEP) break;
             }
-            return out.slice(0, LEVEL_TOP);
+            return { rows: out.slice(0, LEVEL_TOP), full: false };
         });
+    }
+
+    /**
+     * Top countries, cached: every kept Level row (up to COUNTRIES_SCAN_MAX, in the Global order) with a shown flag, by
+     * country: the sum of their account levels, then players, then the code.
+     */
+    private countryRanking(): Promise<Array<Omit<CountryRowView, 'me'>>> {
+        return this.cached('countries', async () => {
+            if (!this.flagRows) return [];
+            const rows: Array<{ m: number; cc: string | null }> = [];
+            for (let skip = 0; skip < COUNTRIES_SCAN_MAX; skip += KEEP_BATCH) {
+                const raw = (await this.levels
+                    .find({})
+                    .sort({ m: -1, at: 1, _id: 1 })
+                    .skip(skip)
+                    .limit(KEEP_BATCH)
+                    .lean()) as LevelDoc[];
+                if (!raw.length) break;
+                const kept = await this.keep(raw);
+                const flags = kept.length
+                    ? ((await this.flagRows
+                          .find({ _id: { $in: kept.map(r => r._id) } })
+                          .select({ cc: 1, off: 1 })
+                          .lean()) as Array<FlagRow & { _id: string }>)
+                    : [];
+                const cc = new Map(flags.map(f => [String(f._id), shownFlag(f)]));
+                for (const r of kept) rows.push({ m: r.m, cc: cc.get(r._id) ?? null });
+                if (raw.length < KEEP_BATCH) break;
+            }
+            return rankCountries(rows);
+        });
+    }
+
+    /** The caller's exact place: in the kept order, else every kept row above theirs (never inside the top 100). */
+    private async exactRank(mine: LevelDoc, order: LevelDoc[]): Promise<number> {
+        const at = order.findIndex(r => r._id === mine._id);
+        if (at >= 0) return at + 1;
+        const above = (await this.levels
+            .find({
+                $or: [
+                    { m: { $gt: mine.m } },
+                    { m: mine.m, at: { $lt: mine.at } },
+                    { m: mine.m, at: mine.at, _id: { $lt: mine._id } },
+                ],
+            })
+            .select({ _id: 1, m: 1, at: 1 })
+            .limit(COUNTRY_SCAN_MAX)
+            .lean()) as LevelDoc[];
+        return Math.max(order.length + 1, (await this.keep(above)).length + 1);
     }
 
     /** One dressed page of an order (names, avatars, visible flags), cached with the order's key. */
@@ -472,8 +746,15 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         };
     }
 
-    /** `GET boards/level[/me]`: the top 100 by account level; signed in, the caller's own row too. */
+    /** The caller's kept Level row, or null (not on the boards). */
+    private async ownRow(caller: string): Promise<LevelDoc | null> {
+        const mine = (await this.levels.findById(caller).lean()) as LevelDoc | null;
+        return mine && (await this.keep([mine])).length ? mine : null;
+    }
+
+    /** `GET boards/level[/me]` (the Global tab): the top 100 by account level; signed in, the caller's own row too. */
     async levelBoard(pageIn: number, caller: string | null): Promise<LevelAnswer> {
+        if (caller) await this.healOwn(caller);
         const order = await this.levelOrder();
         const out = await this.page('level', order, pageIn);
         const answer: LevelAnswer = {
@@ -484,24 +765,20 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         };
         if (!caller) return answer;
         answer.rows = out.rows.map((r, i) => (out.accs[i] === caller ? { ...r, me: true } : r));
-        const at = order.findIndex(r => r._id === caller);
-        let me: LevelMe | null = null;
-        if (at >= 0) me = { rank: at + 1, value: levelOf(order[at].m), m: order[at].m };
-        else {
-            const mine = (await this.levels.findById(caller).lean()) as LevelDoc | null;
-            if (mine && (await this.keep([mine])).length) {
-                const above = await this.levels.countDocuments({
-                    $or: [{ m: { $gt: mine.m } }, { m: mine.m, at: { $lt: mine.at } }],
-                });
-                me = { rank: Math.max(LEVEL_TOP + 1, above + 1), value: levelOf(mine.m), m: mine.m };
-            }
-        }
+        const mine = await this.ownRow(caller);
+        const me: LevelMe | null = mine
+            ? { rank: await this.exactRank(mine, order), value: levelOf(mine.m), m: mine.m }
+            : null;
         answer.me = me ? await this.dress(caller, me) : null;
         return answer;
     }
 
-    /** `GET boards/country/me`: the Level board kept to the caller's country (from their shown flag). */
+    /**
+     * `GET boards/country/me`: My country (the Global board kept to the caller's shown flag, with the caller's exact
+     * rank) and Top countries (every country by the sum of its players' account levels).
+     */
     async countryBoard(pageIn: number, caller: string): Promise<LevelAnswer> {
+        await this.healOwn(caller);
         let flag: FlagRow | null = null;
         try {
             flag = this.flagRows
@@ -512,15 +789,23 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         }
         const cc = shownFlag(flag);
         const local = { cc: cc ?? countryOf(flag?.cc), hidden: !!flag?.off };
-        if (!cc) return { period: 'all', page: 0, pages: 1, rows: [], me: null, local };
-        const order = await this.countryOrder(cc);
+        const ranking = await this.countryRanking().catch(() => [] as Array<Omit<CountryRowView, 'me'>>);
+        const mineAt = cc ? ranking.findIndex(r => r.cc === cc) : -1;
+        const countries = {
+            rows: ranking.slice(0, COUNTRIES_TOP).map(r => (r.cc === cc ? { ...r, me: true } : r)),
+            mine: mineAt >= COUNTRIES_TOP ? { ...ranking[mineAt], me: true } : null,
+            total: ranking.length,
+        };
+        if (!cc) return { period: 'all', page: 0, pages: 1, rows: [], me: null, local, countries };
+        const { rows: full, full: exact } = await this.countryOrder(cc);
+        const order = full.slice(0, LEVEL_TOP);
         const out = await this.page(`country|${cc}`, order, pageIn);
         const rows = out.rows.map((r, i) => (out.accs[i] === caller ? { ...r, me: true } : r));
-        const at = order.findIndex(r => r._id === caller);
         let me: LevelMe | null = null;
-        if (at >= 0) me = { rank: at + 1, value: levelOf(order[at].m), m: order[at].m };
-        else {
-            const mine = (await this.levels.findById(caller).lean()) as LevelDoc | null;
+        const at = full.findIndex(r => r._id === caller);
+        if (at >= 0) me = { rank: at + 1, value: levelOf(full[at].m), m: full[at].m };
+        else if (!exact) {
+            const mine = await this.ownRow(caller);
             if (mine) me = { rank: LEVEL_TOP + 1, value: levelOf(mine.m), m: mine.m, over: true };
         }
         return {
@@ -530,6 +815,7 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
             rows,
             me: me ? await this.dress(caller, me) : null,
             local,
+            countries,
         };
     }
 

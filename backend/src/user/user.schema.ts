@@ -349,6 +349,10 @@ export class User extends CommonSchema {
     @Prop({ type: Object, required: false, default: undefined })
     pawlegendsMatches?: Record<string, number>;
 
+    /** Paw Legends: the account level's one-time legacy credit (src/pawlegends/account-level.ts), frozen once. */
+    @Prop({ type: Number, required: false, default: undefined })
+    pawlegendsLegacyMatches?: number;
+
     @Prop({ required: false, default: 0 })
     monthPacks: number;
 

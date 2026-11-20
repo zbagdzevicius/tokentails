@@ -1,4 +1,5 @@
 import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_MAX_TICKS_ANY_MAP } from 'src/shared-contracts/caps';
+import { legacyOf } from './account-level';
 
 /*
  * Pawlegends progress in the guest merge (decision D44, POC.md §11.5). The guest merge
@@ -13,6 +14,8 @@ import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_MAX_TICKS_ANY_MAP 
  * - `pawlegendsFastestWin.<difficulty>`: `$min` of a valid tick count (1..PAWLEGENDS_MAX_TICKS_ANY_MAP).
  * - `pawlegendsMatches.<difficulty>`: `$inc`. Not idempotent, so it rides on the merge's exactly-once Tails credit
  *   (guarded by `mergedGuestIds`), never on the replayable bests step.
+ * - `pawlegendsLegacyMatches` (the account level's frozen legacy credit, account-level.ts): `$inc` in the same write
+ *   (every reader clamps it to LEGACY_MATCHES_CAP). The merge then re-syncs the account's Level row.
  *
  * Only the known difficulties are read; junk keys and junk values are ignored.
  */
@@ -49,12 +52,17 @@ export function pawlegendsBestsUpdate(
     return Object.keys(update).length ? update : null;
 }
 
-/** The `$inc` of the guest's saved matches per difficulty, for the exactly-once credit. Empty when there is none. */
+/**
+ * The `$inc` of the guest's saved matches per difficulty and its legacy credit, for the exactly-once credit. Empty when
+ * there is none.
+ */
 export function pawlegendsMatchesInc(guest: Record<string, any>): Record<string, number> {
     const inc: Record<string, number> = {};
     for (const [level, value] of entries(guest.pawlegendsMatches)) {
         inc[`pawlegendsMatches.${level}`] = Math.floor(value);
     }
+    const legacy = legacyOf(guest.pawlegendsLegacyMatches);
+    if (legacy > 0) inc.pawlegendsLegacyMatches = legacy;
     return inc;
 }
 

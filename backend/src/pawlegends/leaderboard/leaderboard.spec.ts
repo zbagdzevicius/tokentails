@@ -3,7 +3,7 @@ import { MatchHistoryCore, type HistoryPeople, type HistoryStore } from '../hist
 import { isoWeek } from '../ranked/boards';
 import { SocialMemoryModel, TestClock } from '../social/social-model.helper-spec';
 import { applyLevelSync, applyMatchSides, setLeaderboardSink } from './leaderboard-live';
-import { BACKFILL_KEYS, LEVEL_PAGE, LEVEL_TOP, LeaderboardService } from './leaderboard.service';
+import { BACKFILL_KEYS, LEVEL_PAGE, LEVEL_TOP, LeaderboardService, rankCountries } from './leaderboard.service';
 import { ownSideWins, sideSplit, winningSide, type SideRow } from './sides';
 
 /*
@@ -14,7 +14,15 @@ import { ownSideWins, sideSplit, winningSide, type SideRow } from './sides';
 const uniq = () => [{ fields: ['_id'] }];
 
 function harness(
-    o: { users?: any[]; levels?: any[]; flags?: any[]; sanctions?: any[]; history?: any[]; stats?: any[] } = {}
+    o: {
+        users?: any[];
+        levels?: any[];
+        flags?: any[];
+        sanctions?: any[];
+        history?: any[];
+        stats?: any[];
+        progress?: any[];
+    } = {}
 ) {
     const clock = new TestClock();
     const m = {
@@ -31,6 +39,7 @@ function harness(
             clock.now
         ),
         flags: new SocialMemoryModel(o.flags ?? [], [], clock.now),
+        progress: new SocialMemoryModel(o.progress ?? [], uniq(), clock.now),
     };
     const svc = new LeaderboardService(
         m.levels,
@@ -44,7 +53,7 @@ function harness(
         m.flags,
         undefined,
         undefined,
-        undefined,
+        m.progress,
         clock
     );
     return { clock, m, svc };
@@ -103,7 +112,7 @@ describe('Level board', () => {
         expect(low.me).toMatchObject({ rank: 104, m: 397 });
     });
 
-    it('syncs from the verified count after a save: up only, guests removed, cached 60 s', async () => {
+    it('syncs exactly from the account level after a save: raised, lowered, guests removed, cached 60 s', async () => {
         const { svc, m, clock } = harness({ users: [user('A', 3), user('G', 9, { isGuest: true })] });
         setLeaderboardSink(svc);
         try {
@@ -119,17 +128,129 @@ describe('Level board', () => {
             expect((await svc.levelBoard(0, null)).rows[0].m).toBe(3);
             clock.advance(60_000);
             expect((await svc.levelBoard(0, null)).rows[0].m).toBe(5);
-            // never lowered
+            // a wrong (too high) count is corrected, its `at` kept
+            const at = m.levels.docs[0].at;
             m.users.docs[0].pawlegendsMatches = { easy: 1 };
+            clock.advance(1000);
             await applyLevelSync('A');
-            expect(m.levels.docs[0].m).toBe(5);
-            // a guest promoted later and then deleted: the row goes
+            expect(m.levels.docs[0]).toMatchObject({ m: 1, at });
+            // the legacy credit counts (account-level.ts)
+            m.users.docs[0].pawlegendsLegacyMatches = 15;
+            await applyLevelSync('A');
+            expect(m.levels.docs[0].m).toBe(16);
+            // a promoted guest gets its row on the next sync; deleted later: the row goes
+            m.users.docs[1].isGuest = false;
+            await applyLevelSync('G');
+            expect(m.levels.docs.map(d => [d._id, d.m])).toEqual([
+                ['A', 16],
+                ['G', 9],
+            ]);
             m.users.docs[0].deletedAt = clock.now();
             await applyLevelSync('A');
-            expect(m.levels.docs).toHaveLength(0);
+            expect(m.levels.docs.map(d => d._id)).toEqual(['G']);
         } finally {
             setLeaderboardSink(null);
         }
+    });
+
+    it("a signed-in read heals the caller's own missing row (a player with no row shows at once)", async () => {
+        const t = new Date(Date.UTC(2026, 10, 1));
+        const { svc, m } = harness({
+            users: [
+                user('Z', 6, { pawlegendsLegacyMatches: 12 }),
+                user('I', 8),
+                user('N', 0, { pawlegendsLegacyMatches: 5 }),
+            ],
+            levels: [
+                { _id: 'Z', m: 6, at: t },
+                { _id: 'I', m: 8, at: t },
+            ],
+        });
+        // a public read never writes
+        expect((await svc.levelBoard(0, null)).rows.map(r => r.name)).toEqual(['NickI', 'NickZ']);
+        const b = await svc.levelBoard(0, 'N');
+        expect(b.rows.map(r => [r.name, r.value, !!r.me])).toEqual([
+            ['NickI', 5, false],
+            ['NickZ', 4, false],
+            ['NickN', 3, true],
+        ]);
+        expect(m.levels.docs.find(d => d._id === 'N')).toMatchObject({ m: 5 });
+        // Zygis's own read corrects his row to the level his profile shows: 6 saved + 12 credit = 18, Lv 8
+        const z = await svc.levelBoard(0, 'Z');
+        expect(z.rows[0]).toMatchObject({ rank: 1, name: 'NickZ', value: 8, m: 18, me: true });
+        expect(z.me).toMatchObject({ rank: 1, value: 8, m: 18 });
+    });
+});
+
+describe('Account level repair (legacy credit + exact recompute)', () => {
+    const t = new Date(Date.UTC(2026, 10, 1));
+    const blob = (matches: number) => ({ blob: { v: 1, counts: { matches } } });
+
+    it('freezes the legacy credit once, recomputes every row exactly, and is idempotent', async () => {
+        const { svc, m } = harness({
+            users: [
+                // Zygis: 6 saved, 18 on his synced device count (Lv 8 on his profile), row says 6 (Lv 4)
+                user('Z', 6, { lastPlayedAt: t }),
+                // Irvidas: 8 saved, 19 synced
+                user('I', 8, { lastPlayedAt: t }),
+                // Angelinnaa: no saved match (all forfeits/unsaved), 5 synced, no row at all
+                { _id: 'N', lastPlayedAt: t },
+                // a row too high (an older bug) and no device row
+                user('H', 2),
+                // a guest with a row, and an account that is gone
+                user('G', 9, { isGuest: true }),
+                // a client that wrote a huge synced count: capped
+                user('X', 1),
+            ],
+            levels: [
+                { _id: 'Z', m: 6, at: t },
+                { _id: 'I', m: 8, at: t },
+                { _id: 'H', m: 40, at: t },
+                { _id: 'G', m: 9, at: t },
+                { _id: 'GONE', m: 70, at: t },
+            ],
+            progress: [
+                { _id: 'Z', ...blob(18) },
+                { _id: 'I', ...blob(19) },
+                { _id: 'N', ...blob(5) },
+                { _id: 'G', ...blob(9) },
+                { _id: 'X', ...blob(1_000_000) },
+            ],
+        });
+        const first = await svc.backfill();
+        expect(first.legacy).toBe(4);
+        const u = (id: string) => m.users.docs.find(d => d._id === id) as Record<string, any>;
+        expect(u('Z').pawlegendsLegacyMatches).toBe(12);
+        expect(u('I').pawlegendsLegacyMatches).toBe(11);
+        expect(u('N').pawlegendsLegacyMatches).toBe(5);
+        expect(u('X').pawlegendsLegacyMatches).toBe(200);
+        expect(u('H').pawlegendsLegacyMatches).toBeUndefined();
+        expect(m.levels.docs.map(d => [d._id, d.m]).sort()).toEqual(
+            [
+                ['H', 2],
+                ['I', 19],
+                ['N', 5],
+                ['X', 201],
+                ['Z', 18],
+            ].sort()
+        );
+        const b = await svc.levelBoard(0, null);
+        expect(b.rows.map(r => [r.name, r.value])).toEqual([
+            ['NickX', 29],
+            ['NickI', 8],
+            ['NickZ', 8],
+            ['NickN', 3],
+            ['NickH', 2],
+        ]);
+        // a later sync of the device count never moves the frozen credit
+        (m.progress.docs.find(d => d._id === 'Z') as Record<string, any>).blob.counts.matches = 90;
+        m.sideWins.docs = m.sideWins.docs.filter(d => d._id !== BACKFILL_KEYS.levels);
+        expect(await svc.backfill()).toEqual({ legacy: 'skipped', levels: 0, sides: 'skipped' });
+        expect(u('Z').pawlegendsLegacyMatches).toBe(12);
+        // even with the legacy marker gone, an account already credited is never credited again
+        m.sideWins.docs = [];
+        expect((await svc.backfill()).legacy).toBe(0);
+        expect(u('Z').pawlegendsLegacyMatches).toBe(12);
     });
 });
 
@@ -191,6 +312,50 @@ describe('Country board', () => {
             me: null,
             local: { cc: null, hidden: false },
         });
+    });
+
+    it('Top countries: by the sum of account levels, my country marked; my exact rank below the top 100', async () => {
+        const { svc } = base();
+        const b = await svc.countryBoard(0, 'B');
+        // LT: A 50 (Lv 14) + B 40 (Lv 12) + C 30 (Lv 11) = 37; LV: L 99 (Lv 18); H hid the flag, M has none
+        expect(b.countries).toEqual({
+            rows: [
+                { rank: 1, cc: 'LT', players: 3, levels: 37, me: true },
+                { rank: 2, cc: 'LV', players: 1, levels: 18 },
+            ],
+            mine: null,
+            total: 2,
+        });
+        // no flag: Top countries still shows
+        expect((await svc.countryBoard(0, 'M')).countries?.rows.map(r => r.cc)).toEqual(['LT', 'LV']);
+        const many = Array.from({ length: LEVEL_TOP + 20 }, (_, i) => `P${String(i).padStart(3, '0')}`);
+        const big = harness({
+            users: [...many.map(id => user(id, 500)), user('Z', 1)],
+            levels: [...many.map(id => ({ _id: id, m: 500, at: t })), { _id: 'Z', m: 1, at: t }],
+            flags: [...many, 'Z'].map(id => ({ _id: id, cc: 'LT', off: false, at: t })),
+        });
+        const z = await big.svc.countryBoard(0, 'Z');
+        expect(z.rows).toHaveLength(LEVEL_PAGE);
+        expect(z.pages).toBe(LEVEL_TOP / LEVEL_PAGE);
+        expect(z.me).toMatchObject({ rank: LEVEL_TOP + 21, m: 1 });
+        expect(z.me?.over).toBeUndefined();
+    });
+
+    it('rankCountries: levels, then players, then the code; no flag never counts', () => {
+        expect(
+            rankCountries([
+                { m: 16, cc: 'LT' },
+                { m: 0, cc: 'LT' },
+                { m: 16, cc: 'PL' },
+                { m: 2, cc: 'EE' },
+                { m: 0, cc: 'EE' },
+                { m: 500, cc: null },
+            ])
+        ).toEqual([
+            { rank: 1, cc: 'LT', players: 2, levels: 9 },
+            { rank: 2, cc: 'PL', players: 1, levels: 8 },
+            { rank: 3, cc: 'EE', players: 2, levels: 3 },
+        ]);
     });
 });
 
@@ -315,7 +480,7 @@ describe('Cats vs Dogs', () => {
         }
     });
 
-    it('the backfill counts history once, is safe to run again, and never double counts a live save', async () => {
+    it('the repair counts history once, rebuilds lost counters from the guards, and is idempotent', async () => {
         const h = [
             {
                 _id: 'h1',
@@ -351,20 +516,35 @@ describe('Cats vs Dogs', () => {
                 user('Z', 0),
             ],
         });
-        // a live save of r3 landed before the backfill ran
+        // a live save of r3 landed before the repair ran
         expect(await svc.countSides(h[4] as SideRow)).toBe(true);
-        expect(await svc.backfill()).toEqual({ levels: 1, sides: 2 });
-        const all = () => m.sideWins.docs.find(d => d._id === 'all');
-        expect(all()).toMatchObject({ cat: 1, dog: 2 });
+        expect(m.sideMatches.docs[0]).toMatchObject({ _id: 'party:r3', s: 'dog', se: CURRENT_SEASON_ID });
+        // a crash after the guard of an older match, before its counters: the guard exists, the counters never moved
+        await m.sideMatches.create({
+            _id: 'party:old',
+            s: 'cat',
+            se: CURRENT_SEASON_ID,
+            at: new Date(Date.UTC(2026, 10, 3)),
+        });
+        // and a counter that drifted up
+        await m.sideWins.updateOne({ _id: 'all' }, { $inc: { dog: 5 } });
+        expect(await svc.backfill()).toEqual({ legacy: 0, levels: 1, sides: 4 });
+        const doc = (id: string) => m.sideWins.docs.find(d => d._id === id);
+        expect(doc('all')).toMatchObject({ cat: 2, dog: 2 });
+        expect(doc(`season:${CURRENT_SEASON_ID}`)).toMatchObject({ cat: 2, dog: 2 });
+        expect(doc(`week:${isoWeek(new Date(Date.UTC(2026, 10, 12, 12)))}`)).toMatchObject({ cat: 1, dog: 2 });
+        expect(doc(`week:${isoWeek(new Date(Date.UTC(2026, 10, 3)))}`)).toMatchObject({ cat: 1, dog: 0 });
         expect(m.levels.docs.map(d => [d._id, d.m])).toEqual([['A', 4]]);
         // run again: finished parts are skipped
-        expect(await svc.backfill()).toEqual({ levels: 'skipped', sides: 'skipped' });
-        // even forced (the markers gone), nothing counts twice and levels only go up
+        expect(await svc.backfill()).toEqual({ legacy: 'skipped', levels: 'skipped', sides: 'skipped' });
+        // a version bump (the markers gone): the same result, nothing counted twice
         m.sideWins.docs = m.sideWins.docs.filter(d => !String(d._id).startsWith('backfill:'));
         clock.advance(1000);
-        expect(await svc.backfill()).toEqual({ levels: 1, sides: 0 });
-        expect(all()).toMatchObject({ cat: 1, dog: 2 });
+        expect(await svc.backfill()).toEqual({ legacy: 0, levels: 0, sides: 4 });
+        expect(doc('all')).toMatchObject({ cat: 2, dog: 2 });
         expect(m.levels.docs.map(d => [d._id, d.m])).toEqual([['A', 4]]);
+        // a live save after the repair still counts once on top
+        expect(await svc.countSides(h[0] as SideRow)).toBe(false);
         // another run holding the lock: this one waits
         m.sideWins.docs = m.sideWins.docs.filter(d => !String(d._id).startsWith('backfill:'));
         await m.sideWins.create({ _id: BACKFILL_KEYS.sides, lockUntil: new Date(clock.ms + 60_000) });

@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { Model } from 'mongoose';
 import { MM_LIMITS } from './mm-limits';
+import { ACCOUNT_LEVEL_PROJECTION, accountMatchesOf, playedOf, type MmPlayed } from '../account-level';
 
 /*
  * The hidden Quick Play rating (docs/plans/moba/M1A-IMPL.md §4.2): one row per account and queue, `_id`
@@ -156,31 +157,13 @@ PawlegendsRatingSchema.index(
     { name: 'ranked_ladder', partialFilterExpression: { queue: 'ranked' } }
 );
 
-/** An account's replay-verified saved matches (`User.pawlegendsMatches`): how many, and the top difficulty played. */
-export interface MmPlayed {
-    matches: number;
-    top: string | null;
-}
+export { playedOf, type MmPlayed } from '../account-level';
 
 /** What the relay may read: one row per account, cached 60 s. */
 export interface MmRatingSource {
     get(accountId: string, queue?: MmRatingQueue): Promise<MmRatingRow | null>;
-    /** The account's saved matches (server records, never the client's hint), for the casual newbie lock and seed. */
+    /** The account level's matches (account-level.ts, server records, never the client's hint): the newbie lock, the seed, the Ranked gate. */
     played?(accountId: string): Promise<MmPlayed | null>;
-}
-
-/** The top difficulty with a saved match and the total, from `pawlegendsMatches` (junk keys and values ignored). */
-export function playedOf(counts: Record<string, unknown> | null | undefined): MmPlayed {
-    const order = ['rookie', 'easy', 'normal', 'hard'];
-    let matches = 0;
-    let top: string | null = null;
-    for (const d of order) {
-        const n = counts?.[d];
-        if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) continue;
-        matches += Math.floor(n);
-        top = d;
-    }
-    return { matches, top };
 }
 
 /** Built by MmService with the model (find only). */
@@ -201,10 +184,12 @@ export class MmRatingReader implements MmRatingSource {
         const now = this.now();
         const hit = this.playedCache.get(accountId);
         if (hit && now - hit.atMs < MM_LIMITS.readCacheMs) return hit.played;
-        const doc = (await this.users.findById(accountId).select({ pawlegendsMatches: 1 }).lean()) as {
+        const doc = (await this.users.findById(accountId).select(ACCOUNT_LEVEL_PROJECTION).lean()) as {
             pawlegendsMatches?: Record<string, unknown>;
+            pawlegendsLegacyMatches?: number;
         } | null;
-        const played = doc ? playedOf(doc.pawlegendsMatches) : null;
+        // the account level's matches (account-level.ts: saved + the frozen legacy credit), the top difficulty saved
+        const played = doc ? { matches: accountMatchesOf(doc), top: playedOf(doc.pawlegendsMatches).top } : null;
         this.playedCache.set(accountId, { played, atMs: now });
         if (this.playedCache.size > 5000)
             for (const k of [...this.playedCache.keys()].slice(0, 1000)) this.playedCache.delete(k);

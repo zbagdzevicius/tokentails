@@ -460,3 +460,19 @@ describe('champion mastery', () => {
         });
     });
 });
+
+describe('the account level in the view (account-level.ts, LEADERBOARDS.md)', () => {
+    it('the view and every sync answer carry the account level, never raised by the synced device count', async () => {
+        const { repo, s } = service();
+        const accountMatches = new Map([['Z', 18]]);
+        (repo as unknown as { accountMatches(id: string): Promise<number | null> }).accountMatches = async id =>
+            accountMatches.get(id) ?? null;
+        expect((await s.view('Z')).account).toEqual({ matches: 18, level: 8 });
+        // the device says 40: the progress blob keeps it (cosmetic), the account level does not move
+        const v = await s.sync('Z', { v: 1, counts: { matches: 40, wins: 3, firstWin: 1, heroMatches: {} } });
+        expect(v.blob.counts.matches).toBe(40);
+        expect(v.account).toEqual({ matches: 18, level: 8 });
+        // unknown (no users model): no `account`, the game keeps its own count
+        expect((await s.view('Q')).account).toBeUndefined();
+    });
+});

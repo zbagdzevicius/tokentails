@@ -8,7 +8,7 @@ import { User } from 'src/user/user.schema';
 import { PawlegendsMmRoom } from '../mm/mm-room.schema';
 import { PawlegendsMatchHistory } from '../history/history.schema';
 import type { MmRoomRecord } from '../mm/mm-room.schema';
-import { playedOf } from '../mm/rating.schema';
+import { ACCOUNT_LEVEL_PROJECTION, accountMatchesOf } from '../account-level';
 import { AgeBand, isAgeBand, stricterBand } from '../pawlegends.contracts';
 import { pawlegendsError } from '../pawlegends.errors';
 import { PawlegendsBuyer, PawlegendsOwned } from '../pawlegends.schema';
@@ -646,8 +646,8 @@ export class SocialService {
         this.pulseWrites.set(me, now.getTime());
         if (this.pulseWrites.size > 20_000)
             for (const k of [...this.pulseWrites.keys()].slice(0, 5000)) this.pulseWrites.delete(k);
-        const user = await this.users.findById(me).select({ pawlegendsMatches: 1 }).lean();
-        const rk = playedOf(user?.pawlegendsMatches).matches >= RANKED_MIN_MATCHES ? 1 : 0;
+        const user = await this.users.findById(me).select(ACCOUNT_LEVEL_PROJECTION).lean();
+        const rk = accountMatchesOf(user) >= RANKED_MIN_MATCHES ? 1 : 0;
         const dev = this.pulseDev.get(me);
         await this.presence.updateOne(
             { _id: me },

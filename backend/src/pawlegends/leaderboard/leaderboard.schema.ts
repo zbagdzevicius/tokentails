@@ -2,15 +2,18 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 /*
  * The Leaderboards window's own rows (docs/plans/moba/LEADERBOARDS.md). Derived data only: each is computed from what
- * the `/live` save already wrote (the account's verified `pawlegendsMatches`, the match history row) by
- * leaderboard-live.ts, and rebuilt by the one-time backfill (leaderboard.service.ts). Nothing a client sends lands here.
+ * the `/live` save already wrote (the account level's matches, the match history row) by leaderboard-live.ts, and
+ * recomputed by the versioned repair (leaderboard.service.ts). Nothing a client sends lands here.
  */
 
 export const LEVELS_COLLECTION = 'pawlegendslevels';
 export const SIDE_WINS_COLLECTION = 'pawlegendssidewins';
 export const SIDE_MATCHES_COLLECTION = 'pawlegendssidematches';
 
-/** `_id` = account id (registered accounts only): `m` = verified finished matches (the account level), `at` = when `m` last grew. */
+/**
+ * `_id` = account id (registered accounts only): `m` = the account level's matches (account-level.ts: saved plus the
+ * frozen legacy credit), `at` = when `m` last grew.
+ */
 @Schema({ collection: LEVELS_COLLECTION, versionKey: false })
 export class PawlegendsLevel {
     @Prop({ type: String })
@@ -51,6 +54,10 @@ export class PawlegendsSideMatch {
 
     @Prop({ type: String, required: true })
     s: string;
+
+    /** The season the match counted in (its history row's), so the counters can be rebuilt from these rows alone. */
+    @Prop({ type: String })
+    se?: string;
 
     @Prop({ type: Date, required: true })
     at: Date;

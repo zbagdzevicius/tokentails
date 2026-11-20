@@ -3,8 +3,9 @@ import type { SideRow } from './sides';
 /*
  * The `/live` side of the Leaderboards window (docs/plans/moba/LEADERBOARDS.md): the ONE place its derived rows grow.
  * - `applyLevelSync`: `savePawlegendsMatch` and `savePawlegendsPartyMatch` call it once, right after their
- *   `$inc pawlegendsMatches` (the account level's own counter): the Level row is re-read from that field, never counted
- *   on its own, so it cannot drift from it.
+ *   `$inc pawlegendsMatches`, and the guest promotion and merge after they move an account's matches: the Level row is
+ *   re-read from the account level's matches (account-level.ts), never counted on its own, so it cannot drift from it.
+ *   A relay-side writer of saved matches must call it too.
  * - `applyMatchSides`: the match history's `record` calls it once per freshly stored row (after the Game row exists);
  *   the Cats vs Dogs tally keeps the first row of each match id and ignores the rest (the other humans' rows).
  * Both never throw and never fail a save. LeaderboardService registers itself as the sink when Nest starts it; without
@@ -12,7 +13,7 @@ import type { SideRow } from './sides';
  */
 
 export interface LeaderboardSink {
-    syncLevel(accountId: string): Promise<void>;
+    syncLevel(accountId: string): Promise<unknown>;
     countSides(row: SideRow): Promise<unknown>;
 }
 

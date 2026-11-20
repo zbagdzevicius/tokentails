@@ -7,7 +7,8 @@ import { Cat } from 'src/cat/cat.schema';
 import { User } from 'src/user/user.schema';
 import { PawlegendsMmRoom } from '../mm/mm-room.schema';
 import type { MmRoomRecord } from '../mm/mm-room.schema';
-import { PawlegendsRating, playedOf } from '../mm/rating.schema';
+import { ACCOUNT_LEVEL_PROJECTION, accountMatchesOf } from '../account-level';
+import { PawlegendsRating } from '../mm/rating.schema';
 import type { MmRatingRow, RankedFields } from '../mm/rating.schema';
 import { CURRENT_SEASON_ID, SEASONS } from '../pawlegends-catalog';
 import { pawlegendsError } from '../pawlegends.errors';
@@ -524,7 +525,7 @@ export class RankedService {
         const status = await this.status();
         if (guest) return { eligible: false, why: 'sign_in', status };
         const [user, row, locks] = await Promise.all([
-            this.users.findById(accountId).select({ pawlegendsMatches: 1 }).lean(),
+            this.users.findById(accountId).select(ACCOUNT_LEVEL_PROJECTION).lean(),
             this.ratings.findById(`${accountId}:ranked`).lean() as Promise<RankedRow | null>,
             this.sanctions
                 .find({
@@ -534,7 +535,8 @@ export class RankedService {
                 })
                 .lean() as Promise<Array<{ kind: string; until: Date | null }>>,
         ]);
-        const matches = playedOf(user?.pawlegendsMatches).matches;
+        // the account level's matches (account-level.ts): the same number the game and the boards show
+        const matches = accountMatchesOf(user);
         // the same rooms `mm.join ranked` waits for (settlement.ts)
         const pending = (await this.rooms
             .find(pendingRoomsFilter(accountId, row?.appliedRooms ?? [], now))
@@ -608,7 +610,7 @@ export class RankedService {
     async publicCard(accountId: string): Promise<PublicPlayerCard> {
         const now = this.now();
         const [user, row, avs, ccs] = await Promise.all([
-            this.users.findById(accountId).select({ pawlegendsMatches: 1 }).lean(),
+            this.users.findById(accountId).select(ACCOUNT_LEVEL_PROJECTION).lean(),
             this.ratings.findById(`${accountId}:ranked`).lean() as Promise<RankedRow | null>,
             this.avatars([accountId]),
             visibleFlags(this.flagRows, [accountId]),
@@ -624,7 +626,7 @@ export class RankedService {
         const av = avs.get(accountId);
         const cc = ccs.get(accountId);
         return {
-            matches: playedOf(user?.pawlegendsMatches).matches,
+            matches: accountMatchesOf(user),
             ranked: {
                 placementsLeft,
                 placementsOf: row && row.peaks?.length ? PLACEMENTS.season : PLACEMENTS.first,

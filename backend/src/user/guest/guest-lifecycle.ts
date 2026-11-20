@@ -17,6 +17,7 @@ import {
 import { mergeRating, ratingModelBesides } from 'src/pawlegends/mm/rating-merge';
 import { mergeStoreProgress } from 'src/pawlegends/pawlegends-season.service';
 import { storeModelsBesides } from 'src/pawlegends/pawlegends-merge';
+import { applyLevelSync } from 'src/pawlegends/leaderboard/leaderboard-live';
 
 /*
  * Guest lifecycle without transactions (plan G1, F5.5): the resumable merge, the explicit erase and
@@ -402,6 +403,8 @@ export async function runGuestMerge(deps: IGuestLifecycleDeps, claimedGuest: any
             tailsCredited = await creditPendingTails(deps, guest, targetId);
         }
         state = await advance(deps, guestId, 'bestsMerged', 'done');
+        // the account level's Level row from the merged matches (LEADERBOARDS.md; never fails the merge)
+        await applyLevelSync(targetId.toString());
     }
 
     if (state === 'done') {

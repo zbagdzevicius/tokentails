@@ -1,6 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { User } from 'src/user/user.schema';
+import { ACCOUNT_LEVEL_PROJECTION, accountMatchesOf } from '../account-level';
+import { levelOf } from '../mode-unlocks';
 import { PawlegendsStore } from '../pawlegends.schema';
 import { drawLucky, DAILY_TREAT_XP, luckyOddsTable, LuckyRarity } from './lucky';
 import { MASTERY_HERO, masteryView } from './mastery';
@@ -59,6 +62,8 @@ export interface ProgressRepo {
     incMastery(id: string, hero: string, won: boolean): Promise<void>;
     /** The store's age band for the account (`pawlegendsbuyers` `account:<id>`), null when unknown. */
     ageBand(id: string): Promise<string | null>;
+    /** The account level's matches (account-level.ts), null when unknown. */
+    accountMatches?(id: string): Promise<number | null>;
 }
 
 export const GRANTS_KEPT = 40;
@@ -66,9 +71,18 @@ const utcDay = (d: Date) => d.toISOString().slice(0, 10);
 
 export function mongoProgressRepo(
     model: Model<PawlegendsProgressDocument>,
-    buyers: { findOne(f: Record<string, unknown>): any }
+    buyers: { findOne(f: Record<string, unknown>): any },
+    users?: { findById(id: string): any } | null
 ): ProgressRepo {
     return {
+        ...(users
+            ? {
+                  accountMatches: async (id: string) => {
+                      const u = await users.findById(id).select(ACCOUNT_LEVEL_PROJECTION).lean();
+                      return u ? accountMatchesOf(u) : null;
+                  },
+              }
+            : {}),
         find: async id => (await model.findOne({ _id: id }).lean()) as ProgressDoc | null,
         ensure: async id => {
             try {
@@ -147,9 +161,10 @@ export class PawlegendsProgressService {
 
     constructor(
         @InjectModel(PawlegendsProgress.name) model: Model<PawlegendsProgressDocument>,
-        store: PawlegendsStore
+        store: PawlegendsStore,
+        @Optional() @InjectModel(User.name) users?: Model<unknown>
     ) {
-        this.repo = mongoProgressRepo(model, store.buyers);
+        this.repo = mongoProgressRepo(model, store.buyers, users as unknown as { findById(id: string): any } | null);
     }
 
     /** Specs: a service over any repo and clock. */
@@ -161,11 +176,17 @@ export class PawlegendsProgressService {
 
     /** `GET /pawlegends/progress`: the stored blob and the server-side parts. Writes nothing. */
     async view(accountId: string) {
-        const [doc, band] = await Promise.all([
+        const [doc, band, matches] = await Promise.all([
             this.repo.find(accountId),
             this.repo.ageBand(accountId).catch(() => null),
+            this.accountMatches(accountId),
         ]);
-        return this.viewOf(doc, band);
+        return this.viewOf(doc, band, matches);
+    }
+
+    /** The account level's matches for the view (the game's Home and Profile show its level), null when unknown. */
+    private accountMatches(accountId: string): Promise<number | null> {
+        return this.repo.accountMatches ? this.repo.accountMatches(accountId).catch(() => null) : Promise.resolve(null);
     }
 
     /** `POST /pawlegends/progress`: max-merge the client's blob into the stored one; answers the view. Never draws. */
@@ -176,8 +197,15 @@ export class PawlegendsProgressService {
             const doc = await this.repo.find(accountId);
             const merged = mergeBlobs(sanitizeBlob(doc?.blob), incoming);
             if (await this.repo.casBlob(accountId, Number(doc?.rev) || 0, merged)) {
-                const band = await this.repo.ageBand(accountId).catch(() => null);
-                return this.viewOf({ ...(doc as ProgressDoc), blob: merged, rev: (Number(doc?.rev) || 0) + 1 }, band);
+                const [band, matches] = await Promise.all([
+                    this.repo.ageBand(accountId).catch(() => null),
+                    this.accountMatches(accountId),
+                ]);
+                return this.viewOf(
+                    { ...(doc as ProgressDoc), blob: merged, rev: (Number(doc?.rev) || 0) + 1 },
+                    band,
+                    matches
+                );
             }
         }
         // four lost races in a row: answer what is stored; the client syncs again later
@@ -258,7 +286,7 @@ export class PawlegendsProgressService {
         return owned;
     }
 
-    private viewOf(doc: ProgressDoc | null, band: string | null) {
+    private viewOf(doc: ProgressDoc | null, band: string | null, matches: number | null = null) {
         const blob = doc ? sanitizeBlob(doc.blob) : emptyBlob();
         const days = (doc?.welcomeDays ?? []).filter(d => typeof d === 'string');
         const today = utcDay(this.now());
@@ -275,6 +303,8 @@ export class PawlegendsProgressService {
             },
             welcome: { days: days.length, today: days.includes(today), path: WELCOME_PATH },
             mastery: masteryView(doc?.mastery),
+            // the account level (account-level.ts, LEADERBOARDS.md): the one number the boards, the cards and the game show
+            ...(matches !== null ? { account: { matches, level: levelOf(matches) } } : {}),
         };
     }
 }

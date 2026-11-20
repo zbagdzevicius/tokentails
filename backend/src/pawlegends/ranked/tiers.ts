@@ -76,8 +76,9 @@ export const RANKED_PRIME_TIME = Object.freeze({
 });
 
 /**
- * Ranked eligibility (§7.1; one queue, founder Nov 19: "Ranked appears from level 10"): the saved matches of account
- * Lv 10 (mode-unlocks.ts QUEUE_LEVEL.ranked, 25 matches). The game shows the server's values; no copy there.
+ * Ranked eligibility (§7.1; one queue, founder Nov 19: "Ranked appears from level 10"): the account level's matches
+ * (account-level.ts: saved plus the frozen legacy credit) of Lv 10 (mode-unlocks.ts QUEUE_LEVEL.ranked, 25 matches).
+ * The game shows the server's values; no copy there.
  */
 export const RANKED_MIN_MATCHES = matchesForLevel(QUEUE_LEVEL.ranked);
 
