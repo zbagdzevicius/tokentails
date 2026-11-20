@@ -327,9 +327,10 @@ describe('pawlegends chat: delivery, unread and read cursors', () => {
         await chat.send('A', thread, { k: 't', text: 'wanna play?' });
         await chat.send('A', thread, { k: 'q', id: 1 });
         expect(models.social.docs.find(d => d._id === 'C')!.rev).toBe(2);
+        // each notice carries one id (LIVE-MATCH-DEPLOYS.md §15: the bus and the stored row share it)
         expect(notices).toEqual([
-            { to: 'C', thread },
-            { to: 'C', thread },
+            { to: 'C', thread, id: expect.stringMatching(/^[0-9a-f]{24}$/) },
+            { to: 'C', thread, id: expect.stringMatching(/^[0-9a-f]{24}$/) },
         ]);
         const sum = await chat.summary('C');
         expect(sum.unread).toBe(2);

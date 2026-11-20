@@ -9,7 +9,13 @@
  */
 import { createServer } from 'http';
 import type { AddressInfo } from 'net';
-import { drainMaxMsFrom } from '../src/pawlegends/party/party-limits';
+import {
+    drainMaxMsFrom,
+    maxLiveRoomsFrom,
+    relayDeployIdFrom,
+    relayPoolFrom,
+    relayShardFrom,
+} from '../src/pawlegends/party/party-limits';
 import { PartyRelay } from '../src/pawlegends/party/party-relay';
 import { PartyTicketService } from '../src/pawlegends/party/party-ticket.service';
 import { RefereePool } from '../src/pawlegends/party/referee-pool';
@@ -68,6 +74,11 @@ const relay = new PartyRelay({
     originAllowed: () => true,
     gate: new LoopGate(() => 0),
     drainMaxMs: drainMaxMsFrom(),
+    // relay shards (LIVE-MATCH-DEPLOYS.md §15): the same env as PartyRelayService reads
+    pool: relayPoolFrom(process.env.BACKEND_ROLE),
+    shard: relayShardFrom(),
+    deployId: relayDeployIdFrom(),
+    maxLiveRooms: maxLiveRoomsFrom(),
     log: (event, props) => send({ log: { event, props } }),
 });
 

@@ -187,6 +187,7 @@ import { PawlegendsSocialController } from './pawlegends/social/social.controlle
 import { PawlegendsChatController } from './pawlegends/social/chat.controller';
 import { ChatService } from './pawlegends/social/chat.service';
 import { ChatBus } from './pawlegends/social/chat-bus';
+import { RelaysController } from './shared/runtime/relays.controller';
 import { RankedService } from './pawlegends/ranked/ranked.service';
 import { RankedStatusService } from './pawlegends/ranked/status';
 import { RankedSeasonRewardsService } from './pawlegends/ranked/season-rewards';
@@ -374,6 +375,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
     controllers: [
         HealthController,
         RelayDrainController,
+        // LIVE-MATCH-DEPLOYS.md §15: the relay shards, their paths and load (read from pawlegendsrelays)
+        RelaysController,
         AppController,
         UserController,
         StarterController,

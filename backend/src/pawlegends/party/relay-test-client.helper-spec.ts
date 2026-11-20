@@ -28,8 +28,14 @@ export class TestClient {
     private waiters: (() => void)[] = [];
     seq = 0;
 
-    constructor(port: number, origin: string | null = 'http://localhost:3000', headers: Record<string, string> = {}) {
-        this.ws = new WebSocket(`ws://127.0.0.1:${port}${WS_PATH}`, SUBPROTOCOL, {
+    constructor(
+        port: number,
+        origin: string | null = 'http://localhost:3000',
+        headers: Record<string, string> = {},
+        /** The upgrade path: the front door, or a relay shard's own (`/pawlegends/ws/<shard>`, §15). */
+        path: string = WS_PATH
+    ) {
+        this.ws = new WebSocket(`ws://127.0.0.1:${port}${path}`, SUBPROTOCOL, {
             headers: { ...(origin ? { origin } : {}), ...headers },
         });
         this.ws.on('message', (data, isBinary) => {

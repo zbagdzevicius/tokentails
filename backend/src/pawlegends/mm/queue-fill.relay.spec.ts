@@ -64,7 +64,10 @@ describe('Quick Play queue fill (founder, 2026-11-20)', () => {
             const c = await leaver(b, `leaver-fill-${process.pid}`, 2);
             c.send({ t: 'mm.join', queue: 'casual', side: 'any' });
             const st = await c.until(() => c.last('mm.status'));
-            expect(st).toMatchObject({ queue: 'casual', waitedMs: 0, lowPriorityMs: 60_000, warn: 'leaver' });
+            expect(st).toMatchObject({ queue: 'casual', waitedMs: 0, warn: 'leaver' });
+            // the status is computed a moment after the join (a store read): a millisecond may pass in between
+            expect(st.lowPriorityMs).toBeGreaterThan(59_000);
+            expect(st.lowPriorityMs).toBeLessThanOrEqual(60_000);
             // past the old 40 s switch, inside the wait: no switch, no match, still no search time
             b.skew.ms += 45_000;
             await nextTick();

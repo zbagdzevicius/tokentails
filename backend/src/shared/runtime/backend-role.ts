@@ -23,6 +23,17 @@ export function backendRole(env: NodeJS.ProcessEnv = process.env): BackendRole {
     throw new Error(`BACKEND_ROLE must be one of ${BACKEND_ROLES.join(', ')} (got "${raw}")`);
 }
 
+/**
+ * Whether a `cf-connecting-ip` that reached this process from one of our hops was set by Cloudflare. True for the split
+ * roles on Google Cloud, whose balancer admits Cloudflare ranges only. False for `all`, and for a split role behind the
+ * DigitalOcean ingress (ORIGIN_INGRESS=digitalocean: the relay shards and the API service, LIVE-MATCH-DEPLOYS.md §15),
+ * whose *.ondigitalocean.app origin anyone can call directly with a forged header; there the X-Forwarded-For rule of
+ * role `all` applies.
+ */
+export function cfHeaderTrusted(role: BackendRole, env: NodeJS.ProcessEnv = process.env): boolean {
+    return role !== 'all' && (env.ORIGIN_INGRESS ?? '').trim().toLowerCase() !== 'digitalocean';
+}
+
 /** Whether this role serves the party relay WebSocket. */
 export const servesRelay = (role: BackendRole): boolean => role === 'all' || role === 'relay';
 

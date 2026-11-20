@@ -132,6 +132,37 @@ export class PartyTicketService {
         return { accountId: p.accountId, guest: p.guest };
     }
 
+    /**
+     * The nonce and expiry of a ticket that would verify on MAC, audience, key id, shape and expiry (single use and the
+     * restart rule are not checked), or null. The relay spends the nonce for the whole fleet before `verify`
+     * (LIVE-MATCH-DEPLOYS.md §15: `pawlegendsticketnonces`), so a ticket spent on one relay never verifies on another.
+     */
+    peek(ticket: unknown, nowMs = Date.now()): { nonce: string; expMs: number } | null {
+        const s = this.secret();
+        if (!s || typeof ticket !== 'string' || ticket.length > 512) return null;
+        const dot = ticket.indexOf('.');
+        if (dot <= 0) return null;
+        const body = ticket.slice(0, dot);
+        const mac = Buffer.from(ticket.slice(dot + 1), 'base64url');
+        const want = createHmac('sha256', s.key).update(body).digest();
+        if (mac.length !== want.length || !timingSafeEqual(mac, want)) return null;
+        let p: Payload;
+        try {
+            p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Payload;
+        } catch {
+            return null;
+        }
+        if (p.aud !== PARTY_TICKET_AUD || p.v !== 1 || p.kid !== s.kid) return null;
+        if (typeof p.exp !== 'number' || p.exp * 1000 < nowMs || typeof p.nonce !== 'string' || !p.nonce) return null;
+        return { nonce: p.nonce, expMs: p.exp * 1000 };
+    }
+
+    /** A nonce another relay spent: `verify` refuses its ticket here too. */
+    burn(nonce: string, expMs: number): void {
+        this.sweep(Date.now());
+        this.used.set(nonce, expMs);
+    }
+
     private sweep(nowMs: number): void {
         if (this.used.size < 1000) return;
         for (const [n, exp] of this.used) if (exp < nowMs) this.used.delete(n);

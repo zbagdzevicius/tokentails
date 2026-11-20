@@ -31,13 +31,15 @@ import {
     PROTO_CHAT,
     PROTO_MATCH_CHAT,
     PROTO_WATCH,
+    PROTO_REDIRECT,
+    relayPath,
+    shardOfPath,
     SPECTATE_LIMITS,
     turnFromBody,
     CHAT_SAY_RATE,
     ProtoError,
     SUBPROTOCOL,
     TURN_TICKS,
-    WS_PATH,
     SocialLimiter,
     clampSocialPoint,
     decodeClientBinary,
@@ -74,7 +76,7 @@ import type { PresenceEntry } from './presence-sink';
 import type { RefereeOut } from './referee-host';
 import { AFK_REASONS, Room, type PilotReason } from './room';
 import { RoomScheduler, phaseOf } from './room-scheduler';
-import type { Occupant, RelayRow, RoomStore, StoredParty, StoredPersona, StoredRoom } from './room-store';
+import type { LeaseRow, Occupant, RelayRow, RoomStore, StoredParty, StoredPersona, StoredRoom } from './room-store';
 import {
     memoryMm,
     type MmHookFactory,
@@ -152,6 +154,19 @@ export interface RelayOptions {
      */
     pool?: string;
     /**
+     * Relay shards (LIVE-MATCH-DEPLOYS.md §15): RELAY_SHARD. A shard is addressable on `/pawlegends/ws/<shard>`, so a
+     * relay can send a PROTO 9 socket straight to the shard that owns its party, room, match to watch or queue
+     * (`relay_redirect`, close 4014) instead of a reconnect that lets the balancer pick again. Absent: one relay per
+     * pool, as before (DigitalOcean `all`, the GCP relay VM); nothing is ever redirected.
+     */
+    shard?: string | null;
+    /**
+     * The deployment of this process (RELAY_DEPLOY_ID or the pod's rollout, `relayDeployIdFrom`). Two serving relays
+     * of one pool and one deployment both serve (§15 A1: DigitalOcean `instance_count: 2`); only another deployment
+     * makes the older one drain. Absent on either side: the older relay of a pool drains, as before.
+     */
+    deployId?: string | null;
+    /**
      * CHAMPION-STORE.md §8.1: the champions a ticketed account owns (PawlegendsSeasonService.ownedHeroes, the
      * Founders roster checked first). With it, a member picks only starters, the pick's rotation and owned
      * champions; without it (specs, the harness) every hero is open.
@@ -208,7 +223,7 @@ export interface RelayChatHooks {
     /** Buffer a party line and the party's registered account ids (the ChatSink writes in batches). */
     store?(line: RelayChatLine, members: string[]): void;
     /** Subscribe to DM notices for accounts on this relay; returns the unsubscribe. */
-    onNotice?(fn: (n: { to: string; thread: string }) => void): () => void;
+    onNotice?(fn: (n: { to: string; thread: string; id?: string }) => void): () => void;
     /**
      * The social profiles' current `rev` of these accounts (one indexed read). The relay compares it with the rev its
      * chat info was read at, so a nickname changed on any API instance reaches the party within NAME_WATCH_MS.
@@ -250,6 +265,10 @@ const CHAMPS_CACHE_MAX = 20_000;
 
 /** What started a drain (LIVE-MATCH-DEPLOYS.md §4.1); a later trigger only makes it more final. */
 export type DrainTrigger = 'generation' | 'endpoint' | 'sigterm';
+/** Where an unknown resume token's party is (§5.4); `owner`: the relay holding it when another one does. */
+type PullVerdict = { v: 'local' | 'over' | 'none' } | { v: 'retry'; owner?: RelayRow };
+/** Where a party code lives (§14), or the shard that holds it (§15). */
+type FindVerdict = 'here' | 'retry' | 'ended' | 'none' | { to: RelayRow };
 const TRIGGER_RANK: Record<DrainTrigger, number> = { generation: 0, endpoint: 1, sigterm: 2 };
 export type RelayState = 'serving' | 'draining' | 'stopped';
 const DEFAULT_POOL = 'app';
@@ -318,6 +337,10 @@ interface Sock {
     joining?: boolean;
     /** PROTO 7: the live match this socket watches (SPECTATE.md); never a seat. */
     watch?: Watch | null;
+    /** §15: the shard path the socket dialed ('' = the front door `/pawlegends/ws`). */
+    via?: string;
+    /** The `hello.proto` before `welcome` (a redirect decided while the hello waits must know it). */
+    helloProto?: number;
 }
 
 /** A spectator's stream: the room, its delay, the next turn to send and the paced catch-up state. */
@@ -518,6 +541,12 @@ export class PartyRelay {
     private watching = 0;
     private watchTimer: NodeJS.Timeout | null = null;
     private readonly watchCounts = new Set<LiveRoom>();
+    /** §15: the `mm` lease as this relay last read it (its own or another shard's), or null. */
+    private lease: LeaseRow | null = null;
+    /** §15: DM notices from `pawlegendsnotices` are read from this time on; ids already delivered (in-process bus too). */
+    private noticeSince = 0;
+    private readonly noticeSeen = new Map<string, number>();
+    private noticing = false;
 
     constructor(private readonly opts: RelayOptions) {
         this.now = opts.now ?? Date.now;
@@ -568,7 +597,8 @@ export class PartyRelay {
         });
         this.scheduler.onAdvanced = room => this.afterAdvance(room);
         this.mm = (opts.mm ?? memoryMm({ rooms: new MemoryMmRoomStore(), ratings: null })).hooks(this.mmApi());
-        this.chatUnsubscribe = opts.chat?.onNotice?.(n => this.chatNotice(n.to, n.thread)) ?? null;
+        this.chatUnsubscribe = opts.chat?.onNotice?.(n => this.noticeOnce(n.id, n.to, n.thread)) ?? null;
+        this.noticeSince = this.now() - 5_000;
         this.botSeen = opts.chat?.botSeen ?? new BotSeenStore(null, () => this.now());
         this.botTimer = setInterval(() => this.botTick(), BOT_TICK_MS);
         this.botTimer.unref?.();
@@ -596,6 +626,87 @@ export class PartyRelay {
 
     private get pool(): string {
         return this.opts.pool || DEFAULT_POOL;
+    }
+
+    /** §15: this relay's shard, or null (not addressable on its own path). */
+    get shard(): string | null {
+        return this.opts.shard || null;
+    }
+
+    /**
+     * §15: a relay a PROTO 9 socket can be sent to: another shard's live, not draining relay with its own path. Never
+     * this relay, never a relay of this shard (a newer or older process of it shares the path: the balancer picks).
+     */
+    private redirectable(r: RelayRow | undefined | null, nowMs = this.now()): r is RelayRow {
+        return (
+            !!r &&
+            !!this.shard &&
+            !!r.shard &&
+            !!r.path &&
+            r.shard !== this.shard &&
+            r._id !== this.opts.tickets.boot &&
+            r.state !== 'draining' &&
+            !this.ownerDead(r, nowMs)
+        );
+    }
+
+    /**
+     * §15: send a PROTO 9 socket to the shard that owns what it asked for: `relay_redirect {shard}` and close 4014. The
+     * client dials `/pawlegends/ws/<shard>` at once with a fresh ticket and asks again. False when the socket cannot
+     * follow (an older game): the caller answers as before.
+     */
+    private redirect(s: Sock, to: RelayRow, why: string): boolean {
+        if (s.closed || !to.shard || this.socketProto(s) < PROTO_REDIRECT) return false;
+        this.log('relay_redirect', { why, to: to.shard });
+        if (s.ws.readyState === WebSocket.OPEN)
+            s.ws.send(JSON.stringify({ t: 'error', code: 'relay_redirect', retryMs: 0, shard: to.shard }));
+        s.ws.close(4014, 'redirect');
+        return true;
+    }
+
+    /** The PROTO a socket speaks: its hello's before `welcome` (pending), its own after. */
+    private socketProto(s: Sock): number {
+        return s.helloProto ?? s.proto;
+    }
+
+    /** §15: this relay's own row as the others see it (load for the redirect choice). */
+    private loadOf(r: RelayRow): number {
+        if (r._id === this.opts.tickets.boot) return this.rooms.size / this.cap;
+        return r.cap ? (r.rooms ?? 0) / r.cap : 0;
+    }
+
+    private get cap(): number {
+        return this.opts.maxLiveRooms ?? PARTY_LIMITS.maxLiveRooms;
+    }
+
+    /** §15: the holder of the `mm` lease, when it is another shard a socket can be sent to. */
+    private leaderElsewhere(nowMs = this.now()): RelayRow | null {
+        const l = this.lease;
+        if (!this.shard || !l || l.owner === this.opts.tickets.boot || new Date(l.expiresAt).getTime() <= nowMs)
+            return null;
+        const row = this.relayRows.find(r => r._id === l.owner);
+        return this.redirectable(row, nowMs) ? row : null;
+    }
+
+    /**
+     * §15: where a new session (a fresh `hello` on the front door) should start: the `mm` lease holder, or, when it is at
+     * `redirectLoad` of its cap, the least loaded shard under that line. Null: here.
+     */
+    private entryElsewhere(nowMs = this.now()): RelayRow | null {
+        if (!this.shard || this.state !== 'serving') return null;
+        const me = this.opts.tickets.boot;
+        const leader = this.leaderElsewhere(nowMs);
+        const mineLead = !!this.lease && this.lease.owner === me && new Date(this.lease.expiresAt).getTime() > nowMs;
+        if (leader && this.loadOf(leader) < PARTY_LIMITS.redirectLoad) return leader;
+        if (mineLead && this.loadOf({ _id: me } as RelayRow) < PARTY_LIMITS.redirectLoad) return null;
+        if (!leader && !mineLead) return null;
+        // the lease holder is full: the least loaded shard under the line (this one first on a tie)
+        const under = this.relayRows
+            .filter(r => this.redirectable(r, nowMs) && this.loadOf(r) < PARTY_LIMITS.redirectLoad)
+            .sort((a, b) => this.loadOf(a) - this.loadOf(b));
+        const best = under[0];
+        if (!best) return null;
+        return this.rooms.size / this.cap <= this.loadOf(best) ? null : best;
     }
 
     /**
@@ -721,7 +832,10 @@ export class PartyRelay {
 
     private onUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
         const url = req.url ?? '';
-        if (url.split('?')[0] !== WS_PATH) return;
+        // the front door (`/pawlegends/ws`) or a shard path (`/pawlegends/ws/<shard>`, §15). Any shard name is served:
+        // a path routed here by mistake (or after a rollback to one relay) costs nothing, the work redirects if needed
+        const via = shardOfPath(url.split('?')[0]);
+        if (via === null) return;
         if (this.state === 'stopped') return this.refuseUpgrade(socket, 503);
         const origin = req.headers.origin;
         if (!origin) {
@@ -746,7 +860,8 @@ export class PartyRelay {
                 ip,
                 ipKey,
                 regionOfCountry(req.headers['cf-ipcountry']),
-                countryOf(req.headers['cf-ipcountry'])
+                countryOf(req.headers['cf-ipcountry']),
+                via
             )
         );
     }
@@ -756,9 +871,11 @@ export class PartyRelay {
         ip: string,
         ipKey: string,
         region: RttRegion = 'unknown',
-        cc: string | null = null
+        cc: string | null = null,
+        via = ''
     ): void {
         const s: Sock = {
+            via,
             ws,
             id: token128(),
             ip,
@@ -955,78 +1072,123 @@ export class PartyRelay {
      */
     private async helloOrMove(s: Sock, msg: Extract<ClientJson, { t: 'hello' }>): Promise<void> {
         const token = typeof msg.resume?.token === 'string' ? msg.resume.token : null;
-        if (this.state !== 'serving') {
-            const member = token ? this.resume.get(hashKey(token))?.member : undefined;
-            const party = member ? this.parties.partyOf(member) : undefined;
-            const live = party?.room ? this.rooms.get(party.room) : undefined;
-            const here = !!party && ((!!live && !live.moving) || party.phase === 'pick' || party.phase === 'loading');
-            if (this.state === 'stopped' || !here) {
-                // its lobby or results party goes first, so the new relay finds it when this socket gets there
-                if (this.state === 'draining' && party && !live && this.parties.byId(party.id) === party)
-                    await this.handoffParty(party);
-                return this.moveSock(s);
-            }
-            return this.hello(s, msg);
-        }
-        if (!token || this.resume.has(hashKey(token)) || this.seatTaken.has(hashKey(token))) return this.hello(s, msg);
-        // the checks hello() makes first: an outdated client is told so without a store read
-        if (msg.proto < PROTO_MIN || msg.proto > PROTO || !partySimFor(msg.sim, msg.simHash)) return this.hello(s, msg);
+        s.helloProto = typeof msg.proto === 'number' ? msg.proto : undefined;
         s.pending = true;
-        if (s.helloTimer) clearTimeout(s.helloTimer);
-        let verdict: 'local' | 'retry' | 'over' | 'none' = 'none';
         try {
-            verdict = await this.pull(hashKey(token));
-        } catch (e) {
-            this.log('relay_pull_error', { message: String((e as Error)?.message || e).slice(0, 200) });
+            if (this.state !== 'serving') {
+                const member = token ? this.resume.get(hashKey(token))?.member : undefined;
+                const party = member ? this.parties.partyOf(member) : undefined;
+                const live = party?.room ? this.rooms.get(party.room) : undefined;
+                const here =
+                    !!party && ((!!live && !live.moving) || party.phase === 'pick' || party.phase === 'loading');
+                if (this.state === 'stopped' || !here) {
+                    // its lobby or results party goes first, so the new relay finds it when this socket gets there
+                    if (this.state === 'draining' && party && !live && this.parties.byId(party.id) === party)
+                        await this.handoffParty(party);
+                    return this.moveSock(s);
+                }
+                return await this.helloNow(s, msg);
+            }
+            const known = !!token && (this.resume.has(hashKey(token)) || this.seatTaken.has(hashKey(token)));
+            // the checks hello() makes first: an outdated client is told so without a store read
+            if (msg.proto < PROTO_MIN || msg.proto > PROTO || !partySimFor(msg.sim, msg.simHash))
+                return await this.helloNow(s, msg);
+            if (known) return await this.helloNow(s, msg);
+            if (s.helloTimer) clearTimeout(s.helloTimer);
+            let verdict: PullVerdict = { v: 'none' };
+            if (token) {
+                try {
+                    verdict = await this.pull(hashKey(token));
+                } catch (e) {
+                    this.log('relay_pull_error', { message: String((e as Error)?.message || e).slice(0, 200) });
+                }
+            }
+            if (s.closed) return;
+            if (verdict.v === 'retry') {
+                // §15: its room or party lives on another shard: go there directly (a PROTO 9 game)
+                if (this.redirectable(verdict.owner) && this.redirect(s, verdict.owner, 'resume')) return;
+                this.error(s, 'room_elsewhere', 500);
+                s.ws.close(4013, 'room elsewhere');
+                return;
+            }
+            // §15: a new session on the front door starts on the shard that takes new work (the mm lease holder, or
+            // the least loaded one when it is full). A socket that dialed a shard path stays where it was sent.
+            if (verdict.v === 'none' && !s.via) {
+                const to = this.entryElsewhere();
+                if (to && this.redirect(s, to, 'entry')) return;
+            }
+            await this.helloNow(s, msg);
+            if (verdict.v === 'over') this.error(s, 'room_over');
+        } finally {
+            s.pending = false;
         }
-        s.pending = false;
+    }
+
+    /**
+     * §15: spend the hello's ticket for the whole fleet first (a ticket is single use on every relay, not per process),
+     * then the hello. A ticket some relay spent already is burnt here too, so `verify` refuses it and only a resume token
+     * of its own account keeps the account (`resumedTicket`). A store error fails open (the per-process nonce memory and
+     * the restart rule still hold).
+     */
+    private async helloNow(s: Sock, msg: Extract<ClientJson, { t: 'hello' }>): Promise<void> {
+        const peek = msg.ticket ? this.opts.tickets.peek(msg.ticket, this.now()) : null;
+        if (peek) {
+            try {
+                if (!(await this.opts.store.spendNonce(peek.nonce, new Date(peek.expMs))))
+                    this.opts.tickets.burn(peek.nonce, peek.expMs);
+            } catch (e) {
+                this.log('relay_nonce_error', { message: String((e as Error)?.message || e).slice(0, 200) });
+            }
+        }
         if (s.closed) return;
-        if (verdict === 'retry') {
-            this.error(s, 'room_elsewhere', 500);
-            s.ws.close(4013, 'room elsewhere');
-            return;
-        }
         this.hello(s, msg);
-        if (verdict === 'over') this.error(s, 'room_over');
     }
 
     /**
      * Where the party of an unknown resume token is (LIVE-MATCH-DEPLOYS.md §5.4): `local` once it was claimed here,
-     * `retry` while another serving relay holds it (or the claim did not come in time), `over` when its match ended,
-     * `none` when nothing is known (a fresh member, as before).
+     * `retry` while another serving relay holds it (or the claim did not come in time; `owner` names that relay when it
+     * is known), `over` when its match ended, `none` when nothing is known (a fresh member, as before).
      */
-    private async pull(hash: string): Promise<'local' | 'retry' | 'over' | 'none'> {
+    private async pull(hash: string): Promise<PullVerdict> {
         const store = this.opts.store;
         const me = this.opts.tickets.boot;
         const nowMs = this.now();
         const party = await store.partyByResume(hash, new Date(nowMs - PARTY_LIMITS.partyHardMaxMs));
-        if (!party || party.ended) return 'none';
-        if (this.resume.has(hash)) return 'local';
+        if (!party || party.ended) return { v: 'none' };
+        if (this.resume.has(hash)) return { v: 'local' };
         const owners = await store.relays(new Date(nowMs - PARTY_LIMITS.relayStaleMs));
         const ownerOf = (id: string | undefined | null) => (id ? owners.find(r => r._id === id) : undefined);
         const roomId = ((party.doc as { room?: string | null }).room ?? null) as string | null;
         if (roomId) {
             const row = await store.get(roomId);
-            if (!row) return 'none';
-            if (row.status !== 'live') return 'over';
+            if (!row) return { v: 'none' };
+            if (row.status !== 'live') return { v: 'over' };
             // this relay runs the room and does not know the token: not a move (a backfilled leaver, a left member)
-            if (row.owner === me) return 'none';
+            if (row.owner === me) return { v: 'none' };
             if (!row.handoff) {
                 const owner = ownerOf(row.owner);
-                if (owner && owner.state !== 'draining' && !this.ownerDead(owner, nowMs)) return 'retry';
+                // §15: a room not checkpointed for `staleLeaseMs` has no running owner (a crash or SIGKILL): the restore
+                // pass below claims it now, whatever pool or shard left it, instead of waiting for the owner's relay row
+                // to go quiet (relayDeadMs)
+                const stale = nowMs - new Date(row.updatedAt).getTime() > PARTY_LIMITS.staleLeaseMs;
+                if (owner && owner.state !== 'draining' && !this.ownerDead(owner, nowMs) && !stale)
+                    return { v: 'retry', owner };
                 // a draining owner hands this room over within a poll; an owner without a row (a crash, or a relay
                 // from before live-match deploys) loses its lease and the restore loop claims the room
                 if (owner) await store.want(roomId, row.owner, me, new Date(nowMs));
             }
         } else if (!party.handoff) {
-            if (!party.owner || party.owner === me) return 'none';
+            if (!party.owner || party.owner === me) return { v: 'none' };
             const owner = ownerOf(party.owner);
             // §14: its owner is gone without a handoff (a crash): the party continues here, with its code and tokens
-            if (!owner || this.ownerDead(owner, nowMs)) return (await this.takeOver(party)) ? 'local' : 'retry';
-            if (owner.state !== 'draining') return 'retry';
+            if (!owner || this.ownerDead(owner, nowMs))
+                return (await this.takeOver(party)) ? { v: 'local' } : { v: 'retry' };
+            if (owner.state !== 'draining') return { v: 'retry', owner };
             // a draining owner hands its lobby parties over within a tick
         }
-        return (await this.waitHere(roomId ?? party._id, () => this.resume.has(hash))) ? 'local' : 'retry';
+        return (await this.waitHere(roomId ?? party._id, () => this.resume.has(hash)))
+            ? { v: 'local' }
+            : { v: 'retry' };
     }
 
     /**
@@ -1090,7 +1252,7 @@ export class PartyRelay {
      * - `retry`: another live relay holds it; the client reconnects (the balancer picks again) and joins again;
      * - `ended` or `none`: what the code means everywhere.
      */
-    private async findParty(code: string): Promise<'here' | 'retry' | 'ended' | 'none'> {
+    private async findParty(code: string): Promise<FindVerdict> {
         const store = this.opts.store;
         const me = this.opts.tickets.boot;
         const nowMs = this.now();
@@ -1117,16 +1279,27 @@ export class PartyRelay {
             // a party in a match: its room moves with its players (pull, push or the restore loop), never by a join
             const roomOwner = owners.find(r => r._id === room.owner);
             if (room.owner === me) return 'none';
-            if (roomOwner && !this.ownerDead(roomOwner, nowMs) && roomOwner.state !== 'draining' && !room.handoff)
-                return 'retry';
+            const stale = nowMs - new Date(room.updatedAt).getTime() > PARTY_LIMITS.staleLeaseMs;
+            if (
+                roomOwner &&
+                !this.ownerDead(roomOwner, nowMs) &&
+                roomOwner.state !== 'draining' &&
+                !room.handoff &&
+                !stale
+            )
+                return this.redirectable(roomOwner, nowMs) ? { to: roomOwner } : 'retry';
             if (roomOwner && roomOwner.state === 'draining' && !room.handoff)
                 await store.want(room._id, room.owner, me, new Date(nowMs));
             return (await this.waitHere(room._id, () => this.parties.hasCode(code))) ? 'here' : 'retry';
         }
         if (!owner || this.ownerDead(owner, nowMs)) return (await this.takeOver(row)) ? 'here' : 'retry';
-        // a serving owner newer than this relay keeps the party (this relay drains within a second): retry there
+        // §15: another shard holds it: go there directly
+        if (owner.state !== 'draining' && this.redirectable(owner, nowMs)) return { to: owner };
+        // a serving owner newer than this relay keeps the party (this relay drains within a second): retry there; so
+        // does a serving owner this relay never replaces (another pool, or the same deployment: both serve, §15 A1)
         const mine = this.announcedMs || Number.POSITIVE_INFINITY;
         if (owner.state !== 'draining' && new Date(owner.readyAt).getTime() > mine) return 'retry';
+        if (owner.state !== 'draining' && !this.replaces(owner)) return 'retry';
         // a draining owner hands its lobby parties over within a tick; an older serving one drains within a second
         // (this relay is the newer generation) and then does
         return (await this.waitHere(row._id, () => this.parties.hasCode(code))) ? 'here' : 'retry';
@@ -1136,7 +1309,7 @@ export class PartyRelay {
     private async joinElsewhere(s: Sock, code: string): Promise<void> {
         if (s.joining) return;
         s.joining = true;
-        let where: 'here' | 'retry' | 'ended' | 'none' = 'none';
+        let where: FindVerdict = 'none';
         try {
             where = await this.findParty(code);
         } catch (e) {
@@ -1147,6 +1320,11 @@ export class PartyRelay {
         }
         if (s.closed || !s.memberId) return;
         if (where === 'here') return this.joinHere(s, code, false);
+        // §15: a PROTO 9 game dials that shard and joins there; an older one reconnects and tries again (as before)
+        if (typeof where === 'object') {
+            if (this.redirect(s, where.to, 'join')) return;
+            where = 'retry';
+        }
         if (where === 'retry') {
             this.log('relay_join_elsewhere', {});
             this.error(s, 'party_elsewhere', PARTY_LIMITS.partyElsewhereRetryMs);
@@ -1593,6 +1771,13 @@ export class PartyRelay {
                 if (s.proto < 2) {
                     this.error(s, 'bad_message');
                     return this.strike(s);
+                }
+                // §15: one queue for the fleet: a search that starts on another shard than the lease holder's goes
+                // there (a lone player; a friend party already here searches from here)
+                if (msg.t === 'mm.join' && !this.mm.queued(member)) {
+                    const party = p.partyOf(member);
+                    const leader = !party || party.members.length <= 1 ? this.leaderElsewhere() : null;
+                    if (leader && this.redirect(s, leader, 'queue')) return;
                 }
                 return this.mm.onJson(member, msg as unknown as { t: string } & Record<string, unknown>);
         }
@@ -3052,33 +3237,36 @@ export class PartyRelay {
         );
         const verified = check.ok && !room.unscored;
         if (!check.ok) this.log('mp_verify_failed', { why: check.why });
-        // the Quick Play record (events, outcome) is written before the verdict, so a `/live` save sees it
-        await this.mm
-            .onRoomEnded(
+        // the Quick Play record (events, outcome) is written before the verdict, so a `/live` save sees it. §15: a failed
+        // write (a database blip) never holds the match end: it is retried with backoff while the players see results
+        await this.persist('mm_record', () =>
+            this.mm.onRoomEnded(
                 room.id,
                 end.outcome === 'won' || end.outcome === 'lost' ? end.outcome : null,
                 end.ticks,
                 null,
                 end.intel
             )
-            .catch(() => undefined);
-        await this.opts.store.finish(
-            room.id,
-            live.epoch,
-            {
-                status: check.ok ? 'ended' : 'abandoned',
-                verdict: {
-                    finalHash: end.finalHash,
-                    outcome: end.outcome,
-                    ticks: end.ticks,
-                    winner: end.winner,
-                    reason: end.reason,
-                    verified,
-                    stats: end.stats as unknown[],
+        );
+        await this.persist('verdict', () =>
+            this.opts.store.finish(
+                room.id,
+                live.epoch,
+                {
+                    status: check.ok ? 'ended' : 'abandoned',
+                    verdict: {
+                        finalHash: end.finalHash,
+                        outcome: end.outcome,
+                        ticks: end.ticks,
+                        winner: end.winner,
+                        reason: end.reason,
+                        verified,
+                        stats: end.stats as unknown[],
+                    },
+                    unscored: room.unscored,
                 },
-                unscored: room.unscored,
-            },
-            new Date(this.now())
+                new Date(this.now())
+            )
         );
         this.referee.close(room.id);
         for (const [member, slot] of live.seats) {
@@ -3106,6 +3294,35 @@ export class PartyRelay {
         this.partyEndedAt.set(live.party, this.now());
         this.rooms.delete(room.id);
         this.log('mp_match_end', { outcome: end.outcome, scored: verified });
+    }
+
+    /**
+     * §15 outbox: run an end-of-match write now; when it throws, retry it in the background with backoff
+     * (`persistRetries`, from `persistRetryBaseMs` doubling) and go on. Resolves after the first attempt.
+     */
+    private async persist(what: string, write: () => Promise<unknown>): Promise<void> {
+        try {
+            await write();
+            return;
+        } catch (e) {
+            this.log('relay_persist_retry', { what, message: String((e as Error)?.message || e).slice(0, 200) });
+        }
+        let attempt = 0;
+        const again = () => {
+            if (this.state === 'stopped' && attempt > 0) return;
+            const t = setTimeout(async () => {
+                attempt++;
+                try {
+                    await write();
+                    this.log('relay_persist_done', { what, attempt });
+                } catch {
+                    if (attempt < PARTY_LIMITS.persistRetries) again();
+                    else this.log('relay_persist_failed', { what });
+                }
+            }, PARTY_LIMITS.persistRetryBaseMs * 2 ** attempt);
+            t.unref?.();
+        };
+        again();
     }
 
     // -----------------------------------------------------------------------------------------------------------
@@ -3244,6 +3461,11 @@ export class PartyRelay {
         this.chatUnsubscribe = null;
         const wasDraining = this.state === 'draining';
         this.state = 'stopped';
+        if (this.lease?.owner === this.opts.tickets.boot)
+            await this.opts.store
+                .releaseLease('mm', this.opts.tickets.boot, new Date(this.now()))
+                .catch(() => undefined);
+        this.lease = null;
         if (this.loopTimer) clearInterval(this.loopTimer);
         if (this.drainTimer) clearInterval(this.drainTimer);
         this.scheduler.stop();
@@ -3304,6 +3526,8 @@ export class PartyRelay {
         this.mm.shutdown();
         if (trigger === 'endpoint') this.closeListener();
         void this.beat(true);
+        // §15: new sessions and the queue go to another shard from the next loop tick
+        void this.leaseTick();
         this.drainTimer = setInterval(() => void this.drainTick(), PARTY_LIMITS.pullPollMs);
         this.drainTimer.unref?.();
         void this.drainTick();
@@ -3402,8 +3626,76 @@ export class PartyRelay {
                 heartbeatAt: new Date(t),
                 simVersions: [...SIM_VERSIONS],
                 pool: this.pool,
+                shard: this.shard,
+                path: this.shard ? relayPath(this.shard) : null,
+                rooms: this.rooms.size,
+                socks: this.socks.size,
+                cap: this.cap,
+                deployId: this.opts.deployId ?? null,
             })
             .catch(() => undefined);
+    }
+
+    /**
+     * §15: the `mm` lease. A serving shard relay renews it while it holds it and takes it once it expired; the holder
+     * takes new sessions and the Quick Play queue (`entryElsewhere`, `mm.join`). Relays without a shard never take it.
+     */
+    private async leaseTick(): Promise<void> {
+        if (!this.shard || !this.readyAtMs) return;
+        const me = this.opts.tickets.boot;
+        const now = new Date(this.now());
+        if (this.state !== 'serving') {
+            if (this.lease?.owner === me) {
+                this.lease = null;
+                await this.opts.store.releaseLease('mm', me, now).catch(() => undefined);
+            }
+            return;
+        }
+        const before = this.lease?.owner;
+        try {
+            this.lease = await this.opts.store.lease('mm', me, this.shard, PARTY_LIMITS.mmLeaseMs, now);
+        } catch (e) {
+            this.log('relay_lease_error', { message: String((e as Error)?.message || e).slice(0, 200) });
+            return;
+        }
+        if (this.lease?.owner === me && before !== me)
+            this.log('relay_lease', { shard: this.shard, epoch: this.lease.epoch });
+    }
+
+    /** §15: deliver a DM notice once (the in-process bus and the store poll may both bring it). */
+    private noticeOnce(id: string | undefined, to: string, thread: string): void {
+        if (id) {
+            if (this.noticeSeen.has(id)) return;
+            this.noticeSeen.set(id, this.now());
+        }
+        this.chatNotice(to, thread);
+    }
+
+    /** §15: DM notices from `pawlegendsnotices` for the signed-in accounts on this relay (every `noticePollMs`). */
+    private async pollNotices(): Promise<void> {
+        if (this.noticing || this.state === 'stopped') return;
+        const accounts = new Set<string>();
+        for (const s of this.socks)
+            if (s.helloed && !s.closed && s.proto >= PROTO_CHAT && s.identity?.ticketed && s.identity.accountId)
+                accounts.add(s.identity.accountId);
+        const nowMs = this.now();
+        for (const [id, at] of this.noticeSeen) if (nowMs - at > PARTY_LIMITS.noticeTtlMs) this.noticeSeen.delete(id);
+        if (!accounts.size) {
+            this.noticeSince = nowMs - 5_000;
+            return;
+        }
+        this.noticing = true;
+        try {
+            const rows = await this.opts.store.notices([...accounts], new Date(this.noticeSince));
+            for (const n of rows) {
+                this.noticeSince = Math.max(this.noticeSince, new Date(n.at).getTime());
+                this.noticeOnce(n._id, n.to, n.thread);
+            }
+        } catch {
+            // the client's pulse delivers instead
+        } finally {
+            this.noticing = false;
+        }
     }
 
     /** The 1 s loop: restore (serving), heartbeat, newest-generation check, held rooms. */
@@ -3413,11 +3705,13 @@ export class PartyRelay {
         // gone, and another relay would take its lobby parties over while it still runs them (§14)
         void this.beat();
         void this.watchNames().catch(() => undefined);
+        void this.pollNotices();
         if (this.looping) return;
         this.looping = true;
         try {
             if (this.state === 'serving') await this.restore();
             await this.generations();
+            await this.leaseTick();
         } catch (e) {
             this.log('relay_loop_error', { message: String((e as Error)?.message || e).slice(0, 200) });
         } finally {
@@ -3437,10 +3731,31 @@ export class PartyRelay {
                 r._id !== me &&
                 (r.pool ?? DEFAULT_POOL) === this.pool &&
                 r.state === 'serving' &&
+                this.replacedBy(r) &&
                 (new Date(r.readyAt).getTime() > mine || (new Date(r.readyAt).getTime() === mine && r._id > me))
         );
         if (this.state === 'serving' && newer) this.drain('generation');
         else if (this.state === 'draining' && this.drainInfo?.trigger === 'generation' && !newer) this.undrain();
+    }
+
+    /**
+     * §15 A1: whether relay `r` of this pool is another deployment, so the newer of the two drains the older. Two
+     * processes of one deployment (DigitalOcean `instance_count: 2`) both serve: before this rule the older one drained
+     * for good and bounced about half of all connects. Unknown on either side: another deployment (as before).
+     */
+    private replacedBy(r: RelayRow): boolean {
+        const mine = this.opts.deployId;
+        return !mine || !r.deployId || r.deployId !== mine;
+    }
+
+    /** This relay is the newer generation of `owner`'s pool and deployment line: `owner` drains within a second. */
+    private replaces(owner: RelayRow): boolean {
+        const mine = this.announcedMs || Number.POSITIVE_INFINITY;
+        return (
+            (owner.pool ?? DEFAULT_POOL) === this.pool &&
+            this.replacedBy(owner) &&
+            new Date(owner.readyAt).getTime() < mine
+        );
     }
 
     /** Release a held restored room (§5.5): its clock continues from where the log ended, both teams together. */
@@ -3949,6 +4264,11 @@ export class PartyRelay {
             );
             live = pick ? this.rooms.get(pick.id) : undefined;
         }
+        // §15: a friend's match on another shard: watch it there
+        if (!live && msg.room && this.shard && this.socketProto(s) >= PROTO_REDIRECT) {
+            void this.watchElsewhere(s, msg.room).catch(() => undefined);
+            return;
+        }
         const why = watchRefusal(live ? this.watchableOf(live) : undefined, viewer, this.watching);
         if (why || !live) {
             this.log('spectate_refused', { why: why ?? 'watch_none', featured: !msg.room });
@@ -3984,6 +4304,19 @@ export class PartyRelay {
             this.watchTimer = setInterval(() => this.watchTick(), Math.round(TURN_MS / 2));
             this.watchTimer.unref?.();
         }
+    }
+
+    /** §15: the room a spectator asked for is not here: send it to the shard running it, else `watch_none`. */
+    private async watchElsewhere(s: Sock, roomId: string): Promise<void> {
+        const nowMs = this.now();
+        const row = await this.opts.store.get(roomId).catch(() => null);
+        const owners =
+            row?.status === 'live' ? await this.opts.store.relays(new Date(nowMs - PARTY_LIMITS.relayStaleMs)) : [];
+        const owner = row ? owners.find(r => r._id === row.owner) : undefined;
+        if (s.closed) return;
+        if (this.redirectable(owner, nowMs) && this.redirect(s, owner, 'watch')) return;
+        this.log('spectate_refused', { why: 'watch_none', featured: false });
+        this.error(s, 'watch_none');
     }
 
     /** Stop a socket's watch (`tell`: send `watch_none`, the room went away). */

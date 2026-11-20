@@ -1,7 +1,7 @@
 import type { IncomingHttpHeaders } from 'http';
 import { isIP } from 'net';
 import { isCloudflareIp } from './cloudflare-ips';
-import { BackendRole, backendRole } from './runtime/backend-role';
+import { BackendRole, backendRole, cfHeaderTrusted } from './runtime/backend-role';
 import { isTrustedProxyHop } from './trust-proxy';
 
 /*
@@ -12,7 +12,8 @@ import { isTrustedProxyHop } from './trust-proxy';
  * - A Cloudflare peer: its `cf-connecting-ip`.
  * - Split roles (`api`, `relay`: Google Cloud): the balancer admits Cloudflare ranges only (see `visitorIp` in
  *   client-ip.ts), so a valid `cf-connecting-ip` from one of our hops was set by Cloudflare.
- * - Role `all` (DigitalOcean, local): the app sits behind the DigitalOcean ingress, which is reachable directly (the
+ * - Role `all` (DigitalOcean, local), and a split role behind the DigitalOcean ingress (ORIGIN_INGRESS=digitalocean,
+ *   `cfHeaderTrusted`): the app sits behind the DigitalOcean ingress, which is reachable directly (the
  *   *.ondigitalocean.app domain). The header is trusted only when the request really came through Cloudflare: the
  *   first X-Forwarded-For entry from the right that is not one of our private hops is a Cloudflare edge. Otherwise
  *   that entry is the visitor (a direct caller cannot forge it: the ingress appends it). No X-Forwarded-For at all
@@ -36,7 +37,7 @@ export function relayClientIp(peer: string, headers: IncomingHttpHeaders, role: 
     const cfOk = !!cf && isIP(cf) !== 0;
     if (isCloudflareIp(peer)) return cfOk ? cf : peer;
     if (!isTrustedProxyHop(peer)) return peer;
-    if (role !== 'all') return cfOk ? cf : peer;
+    if (cfHeaderTrusted(role)) return cfOk ? cf : peer;
     const xffRaw = headers['x-forwarded-for'];
     const xff = (Array.isArray(xffRaw) ? xffRaw.join(',') : xffRaw ?? '').split(',').map(norm).filter(Boolean);
     for (let i = xff.length - 1; i >= 0; i--) {

@@ -117,6 +117,37 @@ export interface RelayRow {
     simVersions: number[];
     /** Generations compare only within a pool (RelayOptions.pool); absent on rows of relays that predate pools. */
     pool?: string;
+    /**
+     * Relay shards (LIVE-MATCH-DEPLOYS.md §15): the shard name and its public WebSocket path (`/pawlegends/ws/<shard>`);
+     * absent or null on a relay that is not addressable on its own (one relay per pool behind a balancer).
+     */
+    shard?: string | null;
+    path?: string | null;
+    /** Load at the last beat: live rooms, open sockets and this relay's live-room cap. */
+    rooms?: number;
+    socks?: number;
+    cap?: number;
+    /** The deployment (RELAY_DEPLOY_ID or the pod's rollout): two relays of one deployment never drain each other. */
+    deployId?: string | null;
+}
+
+/** A lease row (`pawlegendsleases`, §15): `mm` names the shard that takes new sessions and the Quick Play queue. */
+export interface LeaseRow {
+    _id: string;
+    /** The holder's boot id. */
+    owner: string;
+    shard: string | null;
+    /** Bumped on every change of holder (a fencing number for logs and specs). */
+    epoch: number;
+    expiresAt: Date;
+}
+
+/** A "DM arrived" notice from the API for one account (`pawlegendsnotices`, §15); never a message body. */
+export interface NoticeRow {
+    _id: string;
+    to: string;
+    thread: string;
+    at: Date;
 }
 
 /** A pull request (§5.4): relay `by` holds a player of this room and asks its draining owner to hand it over now. */
@@ -168,6 +199,22 @@ export interface RoomStore {
     wanted(owner: string): Promise<string[]>;
     /** Upsert this relay's generation row (§4.4). */
     heartbeat(row: RelayRow): Promise<void>;
+    /**
+     * Take or renew lease `id` for `owner` until `now + ttlMs` (§15): renewed while `owner` holds it, taken once it has
+     * expired. Answers the lease as it now stands (another holder's when this one could not take it), or null.
+     */
+    lease(id: string, owner: string, shard: string | null, ttlMs: number, now: Date): Promise<LeaseRow | null>;
+    /** Give lease `id` up at once (a draining relay), only while `owner` holds it. */
+    releaseLease(id: string, owner: string, now: Date): Promise<void>;
+    /** Read lease `id` (the relays route, never a take). */
+    leaseOf(id: string): Promise<LeaseRow | null>;
+    /**
+     * Spend a party ticket's nonce for the whole fleet (§15): true the first time, false when any relay spent it already.
+     * `expiresAt` is the ticket's expiry (the row is dropped after it).
+     */
+    spendNonce(nonce: string, expiresAt: Date): Promise<boolean>;
+    /** Notices for any of `accounts` written after `since` (oldest first, at most 200). */
+    notices(accounts: readonly string[], since: Date): Promise<NoticeRow[]>;
     /** Relay rows written since `since` (older rows belong to relays that are gone). */
     relays(since: Date): Promise<RelayRow[]>;
     /** The stored party whose members include this resume token hash (§5.4), or null. */
@@ -302,6 +349,50 @@ export class MemoryRoomStore implements RoomStore {
 
     async relays(since: Date): Promise<RelayRow[]> {
         return [...this.relayRows.values()].filter(r => r.heartbeatAt >= since).map(r => ({ ...r }));
+    }
+
+    readonly leases = new Map<string, LeaseRow>();
+    readonly nonces = new Map<string, Date>();
+    readonly noticeRows: NoticeRow[] = [];
+
+    async lease(id: string, owner: string, shard: string | null, ttlMs: number, now: Date): Promise<LeaseRow | null> {
+        const cur = this.leases.get(id);
+        const expiresAt = new Date(now.getTime() + ttlMs);
+        if (cur && cur.owner !== owner && cur.expiresAt > now) return { ...cur };
+        const next: LeaseRow = {
+            _id: id,
+            owner,
+            shard,
+            epoch: !cur ? 1 : cur.owner === owner ? cur.epoch : cur.epoch + 1,
+            expiresAt,
+        };
+        this.leases.set(id, next);
+        return { ...next };
+    }
+
+    async releaseLease(id: string, owner: string, now: Date): Promise<void> {
+        const cur = this.leases.get(id);
+        if (cur && cur.owner === owner) cur.expiresAt = new Date(now.getTime() - 1);
+    }
+
+    async leaseOf(id: string): Promise<LeaseRow | null> {
+        const cur = this.leases.get(id);
+        return cur ? { ...cur } : null;
+    }
+
+    async spendNonce(nonce: string, expiresAt: Date): Promise<boolean> {
+        if (this.nonces.has(nonce)) return false;
+        this.nonces.set(nonce, expiresAt);
+        return true;
+    }
+
+    async notices(accounts: readonly string[], since: Date): Promise<NoticeRow[]> {
+        const want = new Set(accounts);
+        return this.noticeRows
+            .filter(n => n.at > since && want.has(n.to))
+            .sort((a, b) => a.at.getTime() - b.at.getTime())
+            .slice(0, 200)
+            .map(n => ({ ...n }));
     }
 
     async partyByResume(hash: string, since: Date): Promise<StoredParty | null> {
@@ -510,14 +601,87 @@ export class PawlegendsRelay {
 
     @Prop({ type: String, default: null })
     pool: string | null;
+
+    @Prop({ type: String, default: null })
+    shard: string | null;
+
+    @Prop({ type: String, default: null })
+    path: string | null;
+
+    @Prop({ type: Number, default: 0 })
+    rooms: number;
+
+    @Prop({ type: Number, default: 0 })
+    socks: number;
+
+    @Prop({ type: Number, default: 0 })
+    cap: number;
+
+    @Prop({ type: String, default: null })
+    deployId: string | null;
 }
 export const PawlegendsRelaySchema = SchemaFactory.createForClass(PawlegendsRelay);
 PawlegendsRelaySchema.index({ heartbeatAt: 1 }, { expireAfterSeconds: 3600 });
+
+/** Leases between relays (LIVE-MATCH-DEPLOYS.md §15): `mm`, the shard that takes new sessions and the queue. */
+@Schema({ collection: 'pawlegendsleases' })
+export class PawlegendsLease {
+    @Prop({ type: String, required: true })
+    _id: string;
+
+    @Prop({ required: true })
+    owner: string;
+
+    @Prop({ type: String, default: null })
+    shard: string | null;
+
+    @Prop({ required: true, default: 0 })
+    epoch: number;
+
+    @Prop({ required: true })
+    expiresAt: Date;
+}
+export const PawlegendsLeaseSchema = SchemaFactory.createForClass(PawlegendsLease);
+
+/** Spent party-ticket nonces (§15): a ticket is single use across every relay, not only per process. */
+@Schema({ collection: 'pawlegendsticketnonces' })
+export class PawlegendsTicketNonce {
+    @Prop({ type: String, required: true })
+    _id: string;
+
+    @Prop({ required: true })
+    expiresAt: Date;
+}
+export const PawlegendsTicketNonceSchema = SchemaFactory.createForClass(PawlegendsTicketNonce);
+// a nonce is kept until its ticket expired (60 s), then a minute more for clock skew
+PawlegendsTicketNonceSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 60 });
+
+/** "A DM arrived for this account" from the API to every relay (§15; ChatBus works only inside one process). */
+@Schema({ collection: 'pawlegendsnotices' })
+export class PawlegendsNotice {
+    @Prop({ type: String, required: true })
+    _id: string;
+
+    @Prop({ required: true })
+    to: string;
+
+    @Prop({ required: true })
+    thread: string;
+
+    @Prop({ required: true })
+    at: Date;
+}
+export const PawlegendsNoticeSchema = SchemaFactory.createForClass(PawlegendsNotice);
+PawlegendsNoticeSchema.index({ at: 1 }, { expireAfterSeconds: Math.round(PARTY_LIMITS.noticeTtlMs / 1000) });
+PawlegendsNoticeSchema.index({ to: 1, at: 1 });
 
 export const PAWLEGENDS_PARTY_SCHEMAS = [
     { name: PawlegendsRoom.name, schema: PawlegendsRoomSchema },
     { name: PawlegendsParty.name, schema: PawlegendsPartySchema },
     { name: PawlegendsRelay.name, schema: PawlegendsRelaySchema },
+    { name: PawlegendsLease.name, schema: PawlegendsLeaseSchema },
+    { name: PawlegendsTicketNonce.name, schema: PawlegendsTicketNonceSchema },
+    { name: PawlegendsNotice.name, schema: PawlegendsNoticeSchema },
 ];
 
 const lean = (r: any): StoredRoom | null =>
@@ -528,7 +692,10 @@ export class MongoRoomStore implements RoomStore {
     constructor(
         @Optional() @InjectModel(PawlegendsRoom.name) private readonly rooms?: Model<PawlegendsRoom>,
         @Optional() @InjectModel(PawlegendsParty.name) private readonly partiesModel?: Model<PawlegendsParty>,
-        @Optional() @InjectModel(PawlegendsRelay.name) private readonly relayModel?: Model<PawlegendsRelay>
+        @Optional() @InjectModel(PawlegendsRelay.name) private readonly relayModel?: Model<PawlegendsRelay>,
+        @Optional() @InjectModel(PawlegendsLease.name) private readonly leaseModel?: Model<PawlegendsLease>,
+        @Optional() @InjectModel(PawlegendsTicketNonce.name) private readonly nonceModel?: Model<PawlegendsTicketNonce>,
+        @Optional() @InjectModel(PawlegendsNotice.name) private readonly noticeModel?: Model<PawlegendsNotice>
     ) {}
 
     private get r(): Model<PawlegendsRoom> {
@@ -644,6 +811,12 @@ export class MongoRoomStore implements RoomStore {
                     heartbeatAt: row.heartbeatAt,
                     simVersions: row.simVersions,
                     pool: row.pool ?? null,
+                    shard: row.shard ?? null,
+                    path: row.path ?? null,
+                    rooms: row.rooms ?? 0,
+                    socks: row.socks ?? 0,
+                    cap: row.cap ?? 0,
+                    deployId: row.deployId ?? null,
                 },
             },
             { upsert: true }
@@ -653,6 +826,62 @@ export class MongoRoomStore implements RoomStore {
     async relays(since: Date): Promise<RelayRow[]> {
         if (!this.relayModel) return [];
         return (await this.relayModel.find({ heartbeatAt: { $gte: since } }).lean()) as unknown as RelayRow[];
+    }
+
+    async lease(id: string, owner: string, shard: string | null, ttlMs: number, now: Date): Promise<LeaseRow | null> {
+        const m = this.leaseModel;
+        if (!m) return null;
+        const expiresAt = new Date(now.getTime() + ttlMs);
+        // renew while held
+        const renewed = await m
+            .findOneAndUpdate({ _id: id, owner }, { $set: { shard, expiresAt } }, { new: true })
+            .lean();
+        if (renewed) return renewed as unknown as LeaseRow;
+        // take it once expired (compare-and-set: two takers, one wins)
+        const taken = await m
+            .findOneAndUpdate(
+                { _id: id, expiresAt: { $lte: now } },
+                { $set: { owner, shard, expiresAt }, $inc: { epoch: 1 } },
+                { new: true }
+            )
+            .lean();
+        if (taken) return taken as unknown as LeaseRow;
+        try {
+            await m.create({ _id: id, owner, shard, epoch: 1, expiresAt });
+            return { _id: id, owner, shard, epoch: 1, expiresAt };
+        } catch (e) {
+            if ((e as { code?: number })?.code !== 11000) throw e;
+            return ((await m.findById(id).lean()) as unknown as LeaseRow | null) ?? null;
+        }
+    }
+
+    async releaseLease(id: string, owner: string, now: Date): Promise<void> {
+        await this.leaseModel?.updateOne({ _id: id, owner }, { $set: { expiresAt: new Date(now.getTime() - 1) } });
+    }
+
+    async leaseOf(id: string): Promise<LeaseRow | null> {
+        if (!this.leaseModel) return null;
+        return ((await this.leaseModel.findById(id).lean()) as unknown as LeaseRow | null) ?? null;
+    }
+
+    async spendNonce(nonce: string, expiresAt: Date): Promise<boolean> {
+        if (!this.nonceModel) return true;
+        try {
+            await this.nonceModel.create({ _id: nonce, expiresAt });
+            return true;
+        } catch (e) {
+            if ((e as { code?: number })?.code === 11000) return false;
+            throw e;
+        }
+    }
+
+    async notices(accounts: readonly string[], since: Date): Promise<NoticeRow[]> {
+        if (!this.noticeModel || !accounts.length) return [];
+        return (await this.noticeModel
+            .find({ to: { $in: accounts as string[] }, at: { $gt: since } })
+            .sort({ at: 1 })
+            .limit(200)
+            .lean()) as unknown as NoticeRow[];
     }
 
     async partyByResume(hash: string, since: Date): Promise<StoredParty | null> {

@@ -130,6 +130,20 @@ export const PARTY_LIMITS = Object.freeze({
     drainMaxMs: 90_000,
     /** `POST /pawlegends/relay/drain {maxMs}` is capped here. */
     drainEndpointMaxMs: 1_800_000,
+    /**
+     * Relay shards (LIVE-MATCH-DEPLOYS.md §15). The Quick Play lease (`pawlegendsleases` `_id: 'mm'`): the shard holding
+     * it takes new sessions and the queue; it renews every loop tick, another shard takes it once it is this old.
+     */
+    mmLeaseMs: 15_000,
+    /** A shard whose live rooms reach this share of its cap sends new sessions to the least loaded shard. */
+    redirectLoad: 0.8,
+    /** DM notices from the API (`pawlegendsnotices`): each relay polls for its own accounts this often. */
+    noticePollMs: 1_000,
+    /** A notice older than this is never delivered (the client's 30 s pulse covers it); the TTL index drops it. */
+    noticeTtlMs: 120_000,
+    /** A failed end-of-match write (verdict, Quick Play record) is retried with backoff this many times. */
+    persistRetries: 6,
+    persistRetryBaseMs: 500,
 });
 
 /** Turn length (D3): 2 ticks at 30 Hz. */
@@ -167,5 +181,33 @@ export function drainMaxMsFrom(env: NodeJS.ProcessEnv = process.env): number {
 export function relayPoolFrom(role?: string, env: NodeJS.ProcessEnv = process.env): string {
     const raw = env.RELAY_POOL?.trim().toLowerCase();
     if (raw && /^[a-z0-9-]{1,32}$/.test(raw)) return raw;
+    // a shard is its own pool (§15): only a newer process of the same shard drains it
+    const shard = relayShardFrom(env);
+    if (shard) return shard;
     return role === 'relay' ? 'vm' : 'app';
+}
+
+/**
+ * The relay shard (LIVE-MATCH-DEPLOYS.md §15): RELAY_SHARD ([a-z0-9-], up to 16), else null (one relay per pool, as
+ * before: DigitalOcean `all`, the GCP relay VM). A shard is addressable on its own path, `/pawlegends/ws/<shard>`.
+ */
+export function relayShardFrom(env: NodeJS.ProcessEnv = process.env): string | null {
+    const raw = env.RELAY_SHARD?.trim().toLowerCase();
+    return raw && /^[a-z0-9-]{1,16}$/.test(raw) ? raw : null;
+}
+
+/**
+ * The deployment this relay process belongs to (LIVE-MATCH-DEPLOYS.md §15, A1): two processes of one deployment (a
+ * DigitalOcean service with `instance_count: 2`) both serve; only a process of another deployment makes an older one
+ * drain. RELAY_DEPLOY_ID when set; else, on a Kubernetes pod (DigitalOcean App Platform), the pod name minus its own
+ * suffix, `<service>-<pod-template-hash>`, which every replica of one rollout shares and the next rollout changes
+ * (unverified on DigitalOcean: the founder checks `/healthz` after the first deploy); else null, and the older relay of a
+ * pool drains as before (the GCP VM, local runs, the specs).
+ */
+export function relayDeployIdFrom(env: NodeJS.ProcessEnv = process.env): string | null {
+    const raw = env.RELAY_DEPLOY_ID?.trim();
+    if (raw && /^[A-Za-z0-9._:-]{1,64}$/.test(raw)) return raw;
+    const host = env.HOSTNAME?.trim() ?? '';
+    const pod = /^([a-z0-9-]+)-([a-z0-9]{6,10})-([a-z0-9]{5})$/.exec(host);
+    return pod ? `${pod[1]}-${pod[2]}` : null;
 }

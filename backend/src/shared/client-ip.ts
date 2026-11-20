@@ -1,7 +1,7 @@
 import { isIP } from 'net';
 import { isUsableClientIp, requestIp } from 'src/user/guest/ip-throttle';
 import { isCloudflareIp } from './cloudflare-ips';
-import { BackendRole, backendRole } from './runtime/backend-role';
+import { BackendRole, backendRole, cfHeaderTrusted } from './runtime/backend-role';
 
 /*
  * The visitor's address for the AI quotas, the per-IP throttlers and the Heist replay bucket (bet #3,
@@ -87,7 +87,8 @@ export function clientIp(req: any, env: NodeJS.ProcessEnv = process.env): Client
  * Never null. An unusable result is skipped downstream (`IpWindowThrottle` fails open).
  */
 export function visitorIp(req: any, role: BackendRole = backendRole()): string {
-    if (role !== 'all') {
+    // a split role behind the DigitalOcean ingress (ORIGIN_INGRESS=digitalocean) is treated as `all` (§15)
+    if (cfHeaderTrusted(role)) {
         const header = req?.headers?.['cf-connecting-ip'];
         const cf = typeof header === 'string' ? header.trim() : '';
         if (isUsableClientIp(cf) && !isCloudflareIp(cf)) {

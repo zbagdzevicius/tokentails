@@ -10,7 +10,14 @@ import { HttpAdapterHost } from '@nestjs/core';
 import type { Server } from 'http';
 import { CatRepository } from '../../cat/cat.repository';
 import { partyCardResolver, type PartyCatDoc } from './party-cards';
-import { drainMaxMsFrom, maxLiveRoomsFrom, PARTY_LIMITS, relayPoolFrom } from './party-limits';
+import {
+    drainMaxMsFrom,
+    maxLiveRoomsFrom,
+    PARTY_LIMITS,
+    relayDeployIdFrom,
+    relayPoolFrom,
+    relayShardFrom,
+} from './party-limits';
 import { PartyRelay } from './party-relay';
 import { PartyTicketService } from './party-ticket.service';
 import { MongoRoomStore } from './room-store';
@@ -125,10 +132,13 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
             }),
             log: (event, props) => this.logger.log(`${event} ${JSON.stringify(props)}`),
             mm: this.mm,
-            // the GCP relay VM owns its listener (blue/green on one port); DigitalOcean shares it with the HTTP API
-            ownsServer: this.role === 'relay',
+            // the GCP relay VM owns its listener (blue/green on one port, a per-slot RELAY_CONTROL_PORT); a relay-only
+            // process anywhere else (a DigitalOcean relay shard, LIVE-MATCH-DEPLOYS.md §15) never closes its listener
+            ownsServer: this.role === 'relay' && !!process.env.RELAY_CONTROL_PORT,
             drainMaxMs: drainMaxMsFrom(),
             pool: relayPoolFrom(this.role),
+            shard: relayShardFrom(),
+            deployId: relayDeployIdFrom(),
             // CHAMPION-STORE.md §8.1: members pick starters, the rotation and the champions their account owns
             ...(this.season ? { champions: (accountId: string) => this.season!.ownedHeroes(accountId) } : {}),
             chat: this.chatHooks(),
