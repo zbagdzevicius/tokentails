@@ -120,6 +120,12 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("friend.add", { name: "zygis" })?.body).toEqual({ name: "zygis" });
     expect(routeOf("friend.add", { name: "zygis", code: "PL-7KQ2-M9XR" })?.body).toEqual({ code: "PL-7KQ2-M9XR" });
     expect(routeOf("friend.add", { name: "../x/y" })).toBeNull();
+    // Nov 20: the live name check (query-encoded) and the assigned-name notice seen
+    expect(routeOf("name.check", { name: "Mira Belle" })).toEqual({ method: "GET", path: "/pawlegends/name/check?name=Mira+Belle", auth: "registered" });
+    expect(routeOf("name.check", { name: "a/../b?x=1" })?.path).toBe("/pawlegends/name/check?name=a%2F..%2Fb%3Fx%3D1");
+    expect(routeOf("name.check", { name: "" })).toBeNull();
+    expect(routeOf("name.check", { name: "x".repeat(41) })).toBeNull();
+    expect(routeOf("name.seen", {})).toEqual({ method: "POST", path: "/pawlegends/name/notice", body: {}, auth: "registered" });
   });
 
   it("country flags (FLAGS.md): get for any session, set only with a boolean", () => {

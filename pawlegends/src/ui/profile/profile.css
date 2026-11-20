@@ -45,7 +45,6 @@
 .pfx-nameskel i { height: 30px; }
 .pfx-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; align-items: center; font-size: 14px; }
 .pfx-title { padding: 4px 10px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-night-rgb) / 0.7); box-shadow: inset 0 0 0 1px var(--v6-gold-3); color: var(--v6-gold-1); font-weight: 800; }
-.pfx-code { padding: 4px 8px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-night-rgb) / 0.6); color: var(--v6-cream); font-variant-numeric: tabular-nums; }
 .pfx-flag { font-size: 18px; }
 .pfx-bact { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .pfx-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
@@ -266,7 +265,6 @@
 .pfx-acctname { font: 800 20px/1.2 var(--font); overflow-wrap: anywhere; }
 .pfx-acct { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .pfx-acct { font: 600 14px/1.35 var(--font); }
-.pfx-codebig { font: 800 24px/1.1 var(--font); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
 .pfx-switch { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; cursor: pointer; }
 .pfx-switch input { width: 22px; height: 22px; accent-color: var(--v6-bolt); }
 
@@ -285,6 +283,7 @@
 .pfx-box .pfx-price.free { color: var(--v6-bolt); font-weight: 800; }
 .pfx-box .pfx-price.short, .pfx-box .pfx-hint { color: #ff8fb3; }
 .pfx-hint:empty { display: none; }
+.pfx-box .pfx-hint.ok { color: #8be3a3; }
 .pfx-preview { font: 800 22px/1.1 var(--font); overflow-wrap: anywhere; }
 .pfx-act { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .pfx-avhead { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; }
@@ -518,7 +517,7 @@
   .pfx-rankbody { gap: 12px; }
   .pfx-crest { width: 72px; }
   /* the identity column is narrow here: name, title, flag and one action (the code and Friends are in Account) */
-  .pfx-who .pfx-code, .pfx-who [data-a='social'] { display: none; }
+  .pfx-who [data-a='social'] { display: none; }
   .pfx-who { align-self: stretch; justify-content: flex-end; min-height: 0; overflow-y: auto; scrollbar-width: none; gap: 4px; padding-bottom: 6px; }
   .pfx-who > *, .pfx-whotext > * { flex-shrink: 0; }
   .pfx-ring { width: 58px; height: 58px; }

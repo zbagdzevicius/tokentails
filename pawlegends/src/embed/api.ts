@@ -71,6 +71,10 @@ export const API_OPS = Object.freeze([
   // nicknames (SOCIAL-RANKED.md §2.3): the name others see, the price of the next change, and the change itself
   'name.get',
   'name.set',
+  // Nov 20 (the nickname is the unique username): the live "taken / available" check while typing, and the one-time
+  // notice of an assigned name seen
+  'name.check',
+  'name.seen',
   // LoL-style invites and the fast inbox (SOCIAL-INVITES.md): invites and DMs within seconds
   'social.inbox',
   'invite.answer',

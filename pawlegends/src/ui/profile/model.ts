@@ -92,6 +92,7 @@ export interface ProfileData {
   /** A registered account (self) is signed in; another player's profile is always "signed in". */
   signedIn: boolean;
   name: string;
+  /** Another player: the server handle for history, friend add and block (never shown; Nov 20). */
   code: string | null;
   av: unknown;
   title: string | null;

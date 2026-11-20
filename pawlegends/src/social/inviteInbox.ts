@@ -267,6 +267,19 @@ export function matchNotice(doc: Document, inv: InboxInvite, ms = 5000): HTMLEle
   return el;
 }
 
+/**
+ * Nov 20 (the nickname is the unique username): an assigned name's one-time notice ("Scout" was taken, you are Scout2
+ * now) with Choose a name (Profile's name editor) and Keep it. Stays until answered; either answer marks it seen.
+ */
+export function nameNoticeCard(doc: Document, text: string, onChoose: () => void, onKeep: () => void): HTMLElement {
+  const el = shell(doc, 'pl-dm-toast pl-name-notice', 'name-notice', 'alertdialog');
+  const t = doc.createElement('span');
+  t.className = 'pl-invite-text';
+  t.textContent = text;
+  el.append(t, act(doc, el, 'Choose a name', 'pl-btn small', 'name-notice-choose', onChoose), act(doc, el, 'Keep it', 'pl-btn ghost small', 'name-notice-keep', onKeep));
+  return el;
+}
+
 /** A friend's DM while the Social sheet is closed: "Mira: see you at 7" with Open (6 s). Muted threads never get here. */
 export function dmToast(doc: Document, from: string, preview: string, onOpen: () => void, ms = 6000): HTMLElement {
   const el = shell(doc, 'pl-dm-toast', 'dm-toast');

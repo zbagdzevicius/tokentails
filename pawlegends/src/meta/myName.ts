@@ -4,6 +4,7 @@
  * a signed-in player; it is kept on this device so a reload shows it at once, and re-read at most once a minute.
  */
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
+import { noticeOf, type NameNotice } from '../ui/profile/name';
 
 type Api = (op: ApiOp, args?: ApiArgs) => Promise<ApiResult>;
 
@@ -12,6 +13,11 @@ const REFRESH_MS = 60_000;
 let name: string | null = null;
 let loaded = false;
 let lastRead = 0;
+/** Nov 20: the assigned-name notice from the last `name.get` (shown once, then `name.seen`). */
+let notice: NameNotice | null = null;
+
+/** The pending assigned-name notice, or null. */
+export const myNameNotice = (): NameNotice | null => notice;
 
 const clean = (v: unknown): string | null => (typeof v === 'string' && v.trim() && v.length <= 32 ? v.trim() : null);
 
@@ -48,14 +54,23 @@ export async function refreshMyName(api: Api, force = false, nowMs = Date.now())
   lastRead = nowMs;
   try {
     const r = await api('name.get');
+    if (r.ok) notice = noticeOf(r.body);
     return r.ok ? setMyName((r.body as { name?: unknown } | undefined)?.name) : false;
   } catch {
     return false;
   }
 }
 
+/** The notice was shown: tell the server (it never shows again on any device). */
+export function seenMyNameNotice(api: Api): void {
+  if (!notice) return;
+  notice = null;
+  void api('name.seen').catch(() => undefined);
+}
+
 /** Tests only. */
 export function resetMyName(): void {
+  notice = null;
   name = null;
   loaded = false;
   lastRead = 0;

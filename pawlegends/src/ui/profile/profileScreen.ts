@@ -74,7 +74,7 @@ import {
   type Sources,
   type SourceState,
 } from './model';
-import { NAME_MAX, nameErrorText, nameProblem, priceLine, yarnText, type NameInfo } from './name';
+import { checkLine, NAME_MAX, nameErrorText, nameProblem, priceLine, yarnText, type NameCheck, type NameInfo } from './name';
 
 export interface ProfileFriend {
   code: string;
@@ -139,6 +139,8 @@ export interface ProfileScreenOpts {
   invite?(friend: { code: string; name: string }): void;
   /** The public name changed (Home, the HUD and the results follow). */
   onName?(name: string): void;
+  /** Open the name editor as soon as the name rules load (the assigned-name notice's "Choose a name"). */
+  editName?: boolean;
   /** A title or border worn (also kept on the device for Home's chip). */
   onWear?(kind: 'title' | 'frame', id: string | null): void;
   /**
@@ -169,6 +171,8 @@ const PARTY_ICON =
 const OUTCOME_WORD = Object.freeze({ won: 'Victory', lost: 'Defeat', draw: 'Draw' });
 const heroName = (h: string): string => (h in HEROES ? HEROES[h as HeroId].name : h);
 const DELETE_URL = 'https://pawlegends.app/account';
+/** The live name check waits this long after the last key. */
+const CHECK_MS = 350;
 
 export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: HTMLElement; close(): void; refresh(): void; setTab(t: ProfileTab): void } {
   const doc = parent.ownerDocument;
@@ -209,7 +213,9 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   const details = new Map<string, ServerMatch | 'failed'>();
   let listScroll = 0;
   let info: NameInfo | null = null;
-  let edit: { draft: string; confirm: string | null; busy: boolean; hero: HeroId; frame: string; title: string; hint: string } | null = null;
+  /** `ok`: the hint is the live check's "available" line (founder, Nov 20: the rename shows taken / available while typing). */
+  let edit: { draft: string; confirm: string | null; busy: boolean; hero: HeroId; frame: string; title: string; hint: string; ok?: boolean; checked?: NameCheck & { q: string } } | null = null;
+  let checkTimer: ReturnType<typeof setTimeout> | null = null;
   let note = '';
   let noteBad = false;
   let disposed = false;
@@ -249,11 +255,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     return `<span class="pfx-ring" style="--p:${pct}%"${lv ? ` aria-label="${esc(`Level ${lv.level}, ${lv.toNext ? `${moreMatches(lv.toNext)} to level ${lv.level + 1}` : 'top level'}`)}" role="img"` : ''}>${av}${lv ? `<span class="pfx-lv" data-testid="profile-level">Lv ${lv.level}</span>` : ''}</span>`;
   };
 
-  /** The identity over the splash: the avatar in its level ring, the name, title, flag and code, the main actions. */
+  /** The identity over the splash: the avatar in its level ring, the name (the unique username), title and flag, the main actions. */
   const identity = (): string => {
     const title = d.title ? `<span class="pfx-title" data-testid="profile-title">${esc(titleText(d.title))}</span>` : '';
     const flag = d.cc ? `<span class="pfx-flag" title="${esc(countryName(d.cc))}" data-testid="profile-flag-shown">${ccHtml(d.cc)}</span>` : '';
-    const code = d.code ? `<span class="pfx-code">${esc(d.code)}</span>` : '';
     let act = '';
     const friends = o.openSocial ? `<button type="button" class="pl-btn ghost small" data-a="social" data-testid="profile-friends">Friends</button>` : '';
     if (self && !d.signedIn) act = o.account || o.api ? `<div class="pfx-acts"><button type="button" class="pl-btn small" data-a="signin" data-testid="profile-signin">Sign in</button>${friends}</div><p class="pfx-fine">Sign in to choose your name and keep your progress.</p>` : '';
@@ -293,7 +298,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         ${levelRing(88)}
         <div class="pfx-whotext">
           ${nameBusy ? '<span class="pfx-skel pfx-nameskel" aria-hidden="true"><i></i></span>' : nameSpan('pfx-name', nm, 'profile-name')}
-          <div class="pfx-tags">${title}${flag}${code}</div>
+          <div class="pfx-tags">${title}${flag}</div>
           ${d.level ? `<small class="pfx-xp" data-testid="profile-xp">${esc(d.level.toNext ? `${moreMatches(d.level.toNext)} to Lv ${d.level.level + 1}` : 'Top level')}</small>` : ''}
         </div>
         <div class="pfx-bact">${act}</div>
@@ -867,19 +872,12 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
 
   const accountView = (): string => {
     const acc = card('Account', `<div class="pfx-acct">${accountBody()}</div>`, 'pfx-acc');
-    const code = d.code
-      ? card('Player code', `<p class="pfx-row"><b class="pfx-codebig" data-testid="profile-code">${esc(d.code)}</b><button type="button" class="pl-btn ghost small" data-a="copy">Copy</button></p><p class="pfx-fine">Friends add you with this code.</p>${o.openSocial ? '<button type="button" class="pl-btn ghost small" data-a="social">Friends and invites</button>' : ''}`)
-      : self && d.signedIn && busy(src.social)
-        ? card('Player code', skel(2))
-        : self && d.signedIn && src.social === 'failed'
-          ? card('Player code', failed('your code'))
-          : '';
     const hidden = o.flag?.hidden ?? false;
     const flag = o.flag
       ? card('Privacy', `<label class="pfx-switch"><input type="checkbox" data-a="flag" data-testid="profile-flag"${hidden ? '' : ' checked'}><span>Show my country flag${d.cc && !hidden ? ` ${ccHtml(d.cc)}` : ''}</span></label><p class="pfx-fine">Match history is public. More choices are in Settings.</p>`)
       : '';
     const set = card('Settings', `<p class="pfx-fine">Sound, graphics, controls, notifications and privacy.</p><button type="button" class="pl-btn ghost small" data-a="settings" data-testid="profile-settings">Open Settings</button>`);
-    return pane(`<div class="pfx-agrid">${acc}${code}${flag}${set}</div>`, 'pfx-apane');
+    return pane(`<div class="pfx-agrid">${acc}${flag}${set}</div>`, 'pfx-apane');
   };
 
   // ------------------------------------------------------------------------------------------------ editor
@@ -900,7 +898,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         ? `<button type="submit" class="pl-btn ghost small" data-testid="profile-nick-change" disabled>Change</button>`
         : `<button type="submit" class="pl-btn small" data-testid="profile-nick-change"${wait || e.busy ? ' disabled' : ''}>Change</button>`;
       const earn = short ? `<small class="pfx-earn" data-testid="profile-earn">Every match earns Yarn.</small>` : '';
-      nameBox = `<form class="pfx-box" data-testid="profile-nick"><label for="pfx-nick">Name others see</label><div class="pfx-namerow"><input id="pfx-nick" name="nick" maxlength="${NAME_MAX}" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your name" data-testid="profile-nick-input"${wait || short ? ' disabled' : ''}>${btn}</div><small class="pfx-price${i.free ? ' free' : ''}${short ? ' short' : ''}" data-testid="profile-price">${esc(priceLine(i, t))}</small>${earn}<small class="pfx-hint" aria-live="polite">${esc(e.hint)}</small></form>`; // copy-lint-ignore R13 a CSS class and test id; the fee is Yarn earned by playing, never money
+      nameBox = `<form class="pfx-box" data-testid="profile-nick"><label for="pfx-nick">Name others see</label><div class="pfx-namerow"><input id="pfx-nick" name="nick" maxlength="${NAME_MAX}" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your name" data-testid="profile-nick-input"${wait || short ? ' disabled' : ''}>${btn}</div><small class="pfx-price${i.free ? ' free' : ''}${short ? ' short' : ''}" data-testid="profile-price">${esc(priceLine(i, t))}</small>${earn}<small class="pfx-hint${e.ok ? ' ok' : ''}" aria-live="polite" data-testid="profile-nick-hint">${esc(e.hint)}</small></form>`; // copy-lint-ignore R13 a CSS class and test id; the fee is Yarn earned by playing, never money
     }
     const icons = HERO_IDS.map((h) => `<button type="button" class="pfx-avt" data-a="pick-icon" data-ref="${h}" aria-pressed="${e.hero === h}" aria-label="${esc(heroName(h))}">${avatarHtml({ i: `h:${h}` }, 40)}</button>`).join('');
     // borders: a labelled row of their own, each named under its ring (the chosen icon inside, as a preview)
@@ -1080,6 +1078,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
           d.name = info.name || d.name;
           o.onName?.(info.name);
           src.name = 'ok';
+          if (o.editName && !edit && canEdit()) {
+            o.editName = false;
+            openEdit();
+          }
         } else src.name = 'failed';
       } else if (k === 'social') {
         if (r.ok && r.body) {
@@ -1132,11 +1134,44 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   };
 
   // --------------------------------------------------------------------------------------------- actions
+  const paintHint = (): void => {
+    const hint = root.querySelector<HTMLElement>('.pfx-hint');
+    if (!hint || !edit) return;
+    hint.textContent = edit.hint;
+    hint.classList.toggle('ok', !!edit.ok);
+  };
+
+  /** The live check (`name.check`, debounced): "Mira is available" or "That name is taken" while typing. */
+  const queueCheck = (): void => {
+    if (checkTimer) clearTimeout(checkTimer);
+    checkTimer = null;
+    if (!edit || !info || !o.api) return;
+    const v = edit.draft.trim().replace(/\s+/g, ' ');
+    if (!v || nameProblem(v) || v === info.nick) return;
+    const api = o.api;
+    checkTimer = setTimeout(() => {
+      checkTimer = null;
+      void api('name.check', { name: v })
+        .then((r) => {
+          if (disposed || !edit || edit.draft.trim().replace(/\s+/g, ' ') !== v) return;
+          const c = r.ok ? (r.body as NameCheck | undefined) : undefined;
+          // an older host without the op, or offline: the shape check only (Confirm still answers "taken")
+          if (!c || typeof c.available !== 'boolean') return;
+          edit.checked = { ...c, q: v };
+          [edit.hint, edit.ok] = checkLine(c);
+          paintHint();
+        })
+        .catch(() => undefined);
+    }, CHECK_MS);
+  };
+
   const openEdit = (): void => {
     if (!info) return;
     const cur = (d.av as { i?: string } | null)?.i ?? '';
     const hero = (cur.startsWith('h:') && cur.slice(2) in HEROES ? cur.slice(2) : bannerHero(d)) as HeroId;
-    edit = { draft: info.nick ?? (info.changes === 0 ? (o.suggest?.() ?? '') : ''), confirm: null, busy: false, hero, frame: d.frame ?? 'none', title: d.title ?? 'none', hint: '' };
+    // an assigned name (Nov 20: every account has one) starts from the suggestion, like a first pick
+    const draft = info.nick && !info.auto ? info.nick : info.changes === 0 ? (o.suggest?.() || info.nick || '') : (info.nick ?? '');
+    edit = { draft, confirm: null, busy: false, hero, frame: d.frame ?? 'none', title: d.title ?? 'none', hint: '' };
     say('');
     o.track?.('profile_edit');
   };
@@ -1147,6 +1182,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const err = nameProblem(v);
     if (err) return say(err, true);
     if (info.nick === v) return say('That is already your name.', true);
+    if (edit.checked && edit.checked.q === v && !edit.checked.available) return say(checkLine(edit.checked)[0], true);
     if (!info.free && info.yarn < info.price) return say(`Not enough Yarn: you need ${yarnText(info.price)}, you have ${yarnText(info.yarn)}. Play matches to earn more.`, true);
     edit.confirm = v;
     say('');
@@ -1289,16 +1325,6 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     render();
   };
 
-  const copyCode = (): void => {
-    if (!d.code) return;
-    try {
-      void navigator.clipboard?.writeText(d.code).catch(() => undefined);
-      say('Code copied');
-    } catch {
-      say(d.code);
-    }
-  };
-
   // leaving for another screen: close, then open it (one overlay at a time)
   const leave = (then: () => void): void => {
     close();
@@ -1324,8 +1350,9 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     if (t.name === 'nick' && edit) {
       edit.draft = t.value;
       edit.hint = edit.draft.trim() ? (nameProblem(edit.draft) ?? '') : '';
-      const hint = root.querySelector<HTMLElement>('.pfx-hint');
-      if (hint) hint.textContent = edit.hint;
+      edit.ok = false;
+      paintHint();
+      queueCheck();
     }
   });
   root.addEventListener('submit', (e) => {
@@ -1459,9 +1486,6 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         return o.openStore ? leave(() => o.openStore!('coats')) : undefined;
       case 'store-frames':
         return o.openStore ? leave(() => o.openStore!('frames')) : undefined;
-      case 'copy':
-        copyCode();
-        return render();
       case 'edit':
         openEdit();
         return render();
@@ -1577,6 +1601,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   const close = (): void => {
     if (disposed) return;
     disposed = true;
+    if (checkTimer) clearTimeout(checkTimer);
     doc.removeEventListener('keydown', onKey, true);
     root.remove();
   };

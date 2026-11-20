@@ -316,14 +316,15 @@ describe('social sheet', () => {
     expect(t.calls.filter((c) => c.op === 'social.get')).toEqual([]);
   });
 
-  it('add by code sends friend.add with the typed code', async () => {
+  it('an old friend code typed or pasted still sends friend.add by code (Nov 20: nothing shows or asks for one)', async () => {
     const t = sheet();
     await flush();
     document.querySelector<HTMLElement>('[data-a="add"]')!.click();
-    // the add card sits above the list (the list stays); only one code in view (the friend code lives in my card)
+    // the add card sits above the list (the list stays); no code anywhere (the nickname is the username)
     expect(document.querySelector('.pl-social-body > [data-testid="social-add-card"]')).toBeTruthy();
     expect(document.querySelectorAll('.pl-fr').length).toBeGreaterThan(0);
     expect(document.querySelector('.pl-social-mycode')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/PL-|friend code/i);
     const input = document.querySelector<HTMLInputElement>('input[name="code"]')!;
     input.value = 'pl-7kq2-m9xr';
     document.querySelector('[data-testid="social-add-card"]')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -361,8 +362,11 @@ describe('social sheet pulse', () => {
       const t = sheet();
       await flush();
       document.querySelector<HTMLElement>('[data-testid="social-status"]')!.click();
-      document.querySelector<HTMLElement>('[data-a="copy"]')!.click();
-      expect(document.querySelector('.pl-social-note')).toBeTruthy();
+      // Nov 20: my card copies my name (friends add you by it), never a code
+      const copy = document.querySelector<HTMLElement>('[data-testid="social-copy-name"]')!;
+      expect(copy.textContent).not.toMatch(/PL-|code/i);
+      copy.click();
+      expect(document.querySelector('.pl-social-note')!.textContent).toBe('Name copied');
       vi.advanceTimersByTime(3100);
       expect(document.querySelector('.pl-social-note')).toBeNull();
       t.s.dispose();
@@ -392,7 +396,7 @@ describe('social sheet: add by nickname, invites (SOCIAL-INVITES.md)', () => {
       await flush();
       document.querySelector<HTMLElement>('[data-a="add"]')!.click();
       const input = document.querySelector<HTMLInputElement>('input[name="code"]')!;
-      expect(input.placeholder).toBe('Name or friend code');
+      expect(input.placeholder).toBe('Player name');
       input.value = 'zy';
       input.dispatchEvent(new Event('input', { bubbles: true }));
       await vi.advanceTimersByTimeAsync(350);

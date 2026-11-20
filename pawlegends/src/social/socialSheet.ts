@@ -8,7 +8,7 @@
  *   on Home opens them in their own window). Under the header one tab bar: Friends, Clubs, More (Ranked, Watch a live
  *   match) and Search. No number on the Friends tab (its groups and rows carry the counts); a dot while another tab is
  *   open and something waits. Arrows move between tabs; Esc closes the top layer.
- * - Friends: Search opens a field under the tabs; Add opens a card over the top of the list (a name or a friend code,
+ * - Friends: Search opens a field under the tabs; Add opens a card over the top of the list (a player name,
  *   with nickname suggestions; the list stays under it); the gift opens the invite card there (a new player sees it in
  *   the empty state, the only share button). Then collapsible groups with counts: Requests, Online, In match, Offline,
  *   Sent, with opaque sticky headers. The list scrolls (one scroll region) instead of the old 3-to-5-row pages.
@@ -435,10 +435,10 @@ const errorText = (r: ApiResult): string => {
   const code = (r.body as { code?: string } | undefined)?.code ?? '';
   if (r.status === 0) return 'No connection. Try again.';
   if (r.status === 429) return 'Too many tries. Wait a minute.';
-  if (code === 'PAWLEGENDS_SOCIAL_NOT_FOUND') return 'No player has this code.';
+  if (code === 'PAWLEGENDS_SOCIAL_NOT_FOUND') return 'No player found.';
   if (code === 'PAWLEGENDS_SOCIAL_NO_NAME') return 'No player has this name.';
-  if (code === 'PAWLEGENDS_SOCIAL_INVALID') return 'Type a name or a code.';
-  if (code === 'PAWLEGENDS_SOCIAL_SELF') return "That's your own code.";
+  if (code === 'PAWLEGENDS_SOCIAL_INVALID') return "Type a player's name.";
+  if (code === 'PAWLEGENDS_SOCIAL_SELF') return "That's you.";
   if (code === 'PAWLEGENDS_SOCIAL_CAP') return 'Your friends list is full.';
   if (code === 'PAWLEGENDS_SOCIAL_REFUSED') return "You can't add this player.";
   if (code === 'PAWLEGENDS_SOCIAL_NO_PARTY') return "Your party isn't ready. Try again in a moment.";
@@ -491,7 +491,7 @@ export class SocialSheet {
   private moreOpen = false;
   /** The friends search field is open (Search in the tab bar). */
   private searchOpen = false;
-  /** My status card (Online / Away / Appear offline, a status note, my friend code). */
+  /** My status card (Online / Away / Appear offline, a status note, copy my name). */
   private meOpen = false;
   /** Where a right click opened the row menu (the popover opens at the cursor, LoL's context menu), or null. */
   private menuAt: { x: number; y: number } | null = null;
@@ -1092,7 +1092,7 @@ export class SocialSheet {
   }
 
   /**
-   * My status card (under the tabs, in the flow): Online, Away or Appear offline, a preset status note, my friend code
+   * My status card (under the tabs, in the flow): Online, Away or Appear offline, a preset status note, copy my name
    * (the avatar is changed in Profile only). While it is open the invite card stays folded (one popover at a time).
    */
   private meCard(): string {
@@ -1113,15 +1113,16 @@ export class SocialSheet {
     const head = sheet
       ? `<div class="pl-me-card-h"><span class="pl-fr-grab" aria-hidden="true"></span><p class="pl-me-card-name">My status</p><button type="button" class="pl-ico" data-a="me-close" aria-label="Close status" title="Close">${icon('close', 18)}</button></div>`
       : '';
-    return `${sheet ? '<div class="pl-fr-scrim" data-a="me-close" aria-hidden="true"></div>' : ''}<div class="pl-me-card${sheet ? ' is-sheet' : ''}" id="pl-me-card" data-testid="social-me-card" role="dialog" aria-label="My status">${head}<div role="radiogroup" aria-label="My status">${radio('online', 'Online', 'Friends can invite you')}${radio('away', 'Away', 'Also set after 10 min idle')}${radio('invisible', 'Appear offline', 'You still see your friends')}</div>${note}<div class="pl-me-card-acts"><button type="button" class="pl-mi" data-a="copy" aria-label="${this.esc(`Copy your friend code ${me.code}`)}">${icon('copy', 18)}<span>Friend code <b class="pl-me-code">${this.esc(me.code)}</b></span></button></div></div>`;
+    return `${sheet ? '<div class="pl-fr-scrim" data-a="me-close" aria-hidden="true"></div>' : ''}<div class="pl-me-card${sheet ? ' is-sheet' : ''}" id="pl-me-card" data-testid="social-me-card" role="dialog" aria-label="My status">${head}<div role="radiogroup" aria-label="My status">${radio('online', 'Online', 'Friends can invite you')}${radio('away', 'Away', 'Also set after 10 min idle')}${radio('invisible', 'Appear offline', 'You still see your friends')}</div>${note}<div class="pl-me-card-acts"><button type="button" class="pl-mi" data-a="copy" data-testid="social-copy-name" aria-label="${this.esc(`Copy your name ${me.name}`)}">${icon('copy', 18)}<span>Friends add you by your name <b class="pl-me-code">${this.esc(me.name)}</b></span></button></div></div>`;
   }
 
   /**
    * Add a friend (LoL's small add box): a card at the top of the list, the list stays under it. A name shows
-   * suggestions as you type (2 letters or more); a friend code (PL-XXXX-XXXX) is added as typed.
+   * suggestions as you type (2 letters or more). Nov 20: the nickname is the unique username; an old friend code
+   * (PL-XXXX-XXXX) typed or pasted still works, but nothing asks for one.
    */
   private addCard(): string {
-    return `<form class="pl-add-card" data-form="add" data-testid="social-add-card"><div class="pl-add-top"><label class="pl-social-search">${icon('addUser', 18)}<input name="code" maxlength="24" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Name or friend code" aria-label="Friend's name or friend code" inputmode="text" enterkeyhint="send" data-testid="social-add-input" value="${this.esc(this.addText)}"></label><button type="submit" class="pl-btn small" data-testid="social-add-send">Add</button><button type="button" class="pl-ico" data-a="add-cancel" aria-label="Close add a friend" title="Close">${icon('close', 18)}</button></div><div class="pl-social-suggest" aria-live="polite">${this.suggestBody()}</div></form>`;
+    return `<form class="pl-add-card" data-form="add" data-testid="social-add-card"><div class="pl-add-top"><label class="pl-social-search">${icon('addUser', 18)}<input name="code" maxlength="24" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Player name" aria-label="Friend's player name" inputmode="text" enterkeyhint="send" data-testid="social-add-input" value="${this.esc(this.addText)}"></label><button type="submit" class="pl-btn small" data-testid="social-add-send">Add</button><button type="button" class="pl-ico" data-a="add-cancel" aria-label="Close add a friend" title="Close">${icon('close', 18)}</button></div><div class="pl-social-suggest" aria-live="polite">${this.suggestBody()}</div></form>`;
   }
 
   private guestPanel(): string {
@@ -1419,7 +1420,7 @@ export class SocialSheet {
 
   private suggestBody(): string {
     const q = this.addText.trim();
-    if (!this.suggest || this.suggest.q !== q) return q.length >= 2 && !looksLikeCode(q) ? '' : `<p class="pl-social-hint">Type 2 letters of a name to see players, or a friend code.</p>`;
+    if (!this.suggest || this.suggest.q !== q) return q.length >= 2 && !looksLikeCode(q) ? '' : `<p class="pl-social-hint">Type 2 letters of a player's name.</p>`;
     if (!this.suggest.rows.length) return `<p class="pl-social-hint" data-testid="social-suggest-none">No player has this name.</p>`;
     const rel = { friend: 'Friends', sent: 'Request sent', asked: 'Wants to be friends' } as const;
     return this.suggest.rows
@@ -1794,9 +1795,10 @@ export class SocialSheet {
         this.closeAdd();
         return;
       case 'copy': {
-        const c = this.state?.me.code ?? '';
+        // Nov 20: friends add you by your name (the unique username); the code is never shown
+        const c = this.state?.me.name ?? '';
         void (typeof navigator !== 'undefined' ? navigator.clipboard?.writeText(c) : undefined)?.catch(() => undefined);
-        this.note = 'Friend code copied';
+        this.note = 'Name copied';
         this.render();
         return;
       }

@@ -23,7 +23,7 @@ import { onSkinsChanged } from '../render/skins/registry';
 import { recordLadder } from '../meta/ladder';
 import { GRADE_TREAT_XP, gradeMatch } from '../meta/grade';
 import { HERO_IDS, HEROES } from '../data/heroes';
-import { myName, refreshMyName, setMyName } from '../meta/myName';
+import { myName, myNameNotice, refreshMyName, seenMyNameNotice, setMyName } from '../meta/myName';
 import { myAvatar, observeMyAvatar, onMyAvatar, refreshMyAvatar, setMyAvatar } from '../meta/myAvatar';
 import { accountState, heroForSide, loadProfile, noteChampionMatch, noteCoatMatch, noteHeroMatch, recordMatch, saveProfile, startSession, tipsDue, type Profile } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
@@ -1178,6 +1178,7 @@ export class App {
     if (this.bridge.active && accountState().signedIn) {
       void refreshMyName((op, args) => this.integration.api(op, args)).then((changed) => {
         if (changed && this.screen === 'title') this.showTitle(false);
+        this.showNameNotice();
       });
       // my avatar (one source of truth with Profile and the friends list): a change redraws Home through onMyAvatar
       void refreshMyAvatar((op, args) => this.api(op, args));
@@ -1738,7 +1739,30 @@ export class App {
    * yours from the Home avatar chip, or another player's read-only from a friend's row. The one way in to the name,
    * avatar, border, title, flag, level, rank, mastery, stats, collection and account. Its own lazy chunk; one overlay.
    */
-  private openProfile(friend: { code: string; name: string; av?: unknown; cc?: string | null; friend?: boolean; source?: string } | null = null, tab?: import('../ui/profile/model').ProfileTab): void {
+  /**
+   * Nov 20 (the nickname is the unique username): an assigned name is told once, on Home, with Choose a name (Profile's
+   * name editor) and Keep it; either answer marks it seen on the server.
+   */
+  private showNameNotice(): void {
+    const n = myNameNotice();
+    const name = myName();
+    if (!n || !name || this.screen !== 'title' || this.overlay) return;
+    void Promise.all([import('../social/inviteInbox'), import('../ui/profile/name')]).then(([inbox, nm]) => {
+      if (!myNameNotice() || this.screen !== 'title') return;
+      const seen = () => seenMyNameNotice((op, args) => this.integration.api(op, args));
+      inbox.nameNoticeCard(
+        document,
+        nm.noticeText(n, name),
+        () => {
+          seen();
+          this.openProfile(null, undefined, { editName: true });
+        },
+        seen
+      );
+    });
+  }
+
+  private openProfile(friend: { code: string; name: string; av?: unknown; cc?: string | null; friend?: boolean; source?: string } | null = null, tab?: import('../ui/profile/model').ProfileTab, opts: { editName?: boolean } = {}): void {
     if (this.overlay) {
       if (this.overlay.kind !== 'profile') return;
       this.overlay.close();
@@ -1797,6 +1821,7 @@ export class App {
         const panel = profileScreen(this.root, {
           data,
           friend,
+          ...(opts.editName ? { editName: true } : {}),
           ...(tab ? { tab } : {}),
           ...(this.bridge.active ? { api: (op: ApiOp, args?: ApiArgs) => this.api(op, args) } : {}),
           base: import.meta.env.BASE_URL ?? './',

@@ -104,6 +104,8 @@
 .pl-invite-sim { color: var(--v6-bolt); }
 .pl-invite-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--v6-rose); transform-origin: left; transition: transform .25s linear; }
 .pl-dm-toast, .pl-social-toast { gap: 10px; z-index: 71; }
+/* Nov 20: an assigned name's one-time notice (Choose a name / Keep it): wraps, stays until answered; at the top like an invite card, clear of PLAY and the mode buttons */
+.pl-name-notice { top: max(12px, env(safe-area-inset-top)); bottom: auto; z-index: 72; flex-wrap: wrap; gap: 8px 10px; padding: 10px 14px; width: min(480px, calc(100vw - 32px)); box-sizing: border-box; box-shadow: inset 4px 0 0 var(--v6-bolt), var(--v6-shadow-2); }
 @media (max-height: 340px) { .pl-social-row { min-height: 44px; } }
 @media (max-height: 300px) { .pl-social-st { display: none; } }
 

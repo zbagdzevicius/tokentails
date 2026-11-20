@@ -838,7 +838,7 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
   expect(await layoutProblems(game, touch)).toEqual([]);
   await shot(page, 'me');
   if (touch) {
-    // a bottom sheet inside the screen at every phone size; its last control (the friend code) can be reached
+    // a bottom sheet inside the screen at every phone size; its last control (Copy my name) can be reached
     await expect(sheet.locator('.pl-me-card')).toHaveClass(/is-sheet/);
     for (const [w, h] of [[844, 390], [667, 375]] as const) {
       await page.setViewportSize({ width: w, height: h });
@@ -846,7 +846,7 @@ test('Social panel: groups, presence, actions, no overlap at every viewport', as
       expect(await layoutProblems(game, touch), `${w}x${h} me`).toEqual([]);
       await sheet.locator('.pl-me-card [data-a="copy"]').scrollIntoViewIfNeeded();
       const ab = (await sheet.locator('.pl-me-card [data-a="copy"]').boundingBox())!;
-      expect(ab.y + ab.height, `${w}x${h} friend code on screen`).toBeLessThanOrEqual(h + 0.5);
+      expect(ab.y + ab.height, `${w}x${h} copy name on screen`).toBeLessThanOrEqual(h + 0.5);
       // round 7: the three statuses each on one line ("Appear offline" never wraps)
       const lines = await sheet.locator('.pl-me-opt b').evaluateAll((els) => els.map((b) => Math.round(b.getBoundingClientRect().height / parseFloat(getComputedStyle(b).lineHeight || '18'))));
       expect(lines, `${w}x${h} status labels on one line`).toEqual([1, 1, 1]);

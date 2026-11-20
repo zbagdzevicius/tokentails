@@ -14,6 +14,49 @@ export interface NameInfo {
   cooldownDays: number;
   nextAt: number | null;
   yarn: number;
+  /** The name was assigned (never picked): Nov 20, every account has a unique nickname. */
+  auto?: boolean;
+  /** Shown once (then `name.seen`): why the name changed. */
+  notice?: NameNotice | null;
+}
+
+/** Nov 20: an assigned name's one-time notice (backend nick-assign.ts). */
+export interface NameNotice {
+  kind: 'taken' | 'invalid' | 'reset';
+  from?: string;
+}
+
+/** The notice from a `name.get` body, or null. Pure. */
+export function noticeOf(body: unknown): NameNotice | null {
+  const n = (body as { notice?: unknown } | null | undefined)?.notice as NameNotice | null | undefined;
+  if (!n || (n.kind !== 'taken' && n.kind !== 'invalid' && n.kind !== 'reset')) return null;
+  return { kind: n.kind, ...(typeof n.from === 'string' && n.from.length <= 40 ? { from: n.from } : {}) };
+}
+
+/** The notice as one line ("Scout" was taken …). Pure. */
+export function noticeText(n: NameNotice, name: string): string {
+  if (n.kind === 'reset') return `A moderator reset your name. You are ${name} for now: pick your own, it's free.`;
+  const from = n.from ? `"${n.from}"` : 'Your old name';
+  return n.kind === 'taken'
+    ? `${from} was already taken, so you are ${name} now. Pick your own name: your next change is free.`
+    : `${from} can't be a player name, so you are ${name} now. Pick your own name: your next change is free.`;
+}
+
+/** The live check's answer (`name.check`). */
+export interface NameCheck {
+  name: string;
+  available: boolean;
+  mine?: boolean;
+  reason?: string;
+  message?: string;
+}
+
+/** The line under the name field for a check answer: [text, ok]. Pure. */
+export function checkLine(c: NameCheck): [string, boolean] {
+  if (c.mine) return ['That is already your name.', false];
+  if (c.available) return [`${c.name} is available`, true];
+  if (c.reason === 'taken') return ['That name is taken. Try another one.', false];
+  return [typeof c.message === 'string' && c.message.length < 80 ? c.message : 'That name is not allowed.', false];
 }
 
 export const NAME_MIN = 2;

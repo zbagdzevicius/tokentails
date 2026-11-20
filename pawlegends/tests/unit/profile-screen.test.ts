@@ -325,7 +325,77 @@ describe('profile screen', () => {
     q('[data-testid="profile-tab-champions"]').click();
     expect(q('.pfx-cgrid').children.length).toBeGreaterThan(10);
     q('[data-testid="profile-tab-account"]').click();
-    expect(q('[data-testid="profile-code"]').textContent).toBe('PL-7KQ2-M9XR');
+    // founder, Nov 20: the nickname is the username; the player code is never shown (header or Account)
+    expect(document.querySelector('[data-testid="profile-code"]')).toBeNull();
+    expect(document.querySelector('.pfx-code')).toBeNull();
+    expect(q('[data-testid="profile-screen"]').textContent).not.toContain('PL-7KQ2-M9XR');
+    q('[data-testid="profile-tab-overview"]').click();
+    expect(q('[data-testid="profile-screen"]').textContent).not.toContain('PL-7KQ2-M9XR');
+  });
+
+  it('rename: a live check says taken or available while typing (debounced); a taken name is refused before Confirm', async () => {
+    vi.useFakeTimers();
+    try {
+      const { calls } = open({
+        extra: {
+          'name.check': (a) =>
+            String(a?.name).toLowerCase() === 'mira'
+              ? res(200, { name: 'Mira', available: false, reason: 'taken', message: 'That name is taken. Try another one.' })
+              : res(200, { name: String(a?.name), available: true }),
+        },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      await flush();
+      q('[data-testid="profile-edit"]').click();
+      const input = q('[data-testid="profile-nick-input"]') as HTMLInputElement;
+      const hint = () => q('[data-testid="profile-nick-hint"]');
+      for (const v of ['M', 'Mi', 'Mir', 'mira']) {
+        input.value = v;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      expect(calls.filter((c) => c.op === 'name.check')).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(400);
+      await flush();
+      // one call for the last text only
+      expect(calls.filter((c) => c.op === 'name.check').map((c) => c.args)).toEqual([{ name: 'mira' }]);
+      expect(hint().textContent).toBe('That name is taken. Try another one.');
+      expect(hint().classList.contains('ok')).toBe(false);
+      q('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      expect(document.querySelector('[data-testid="profile-confirm"]')).toBeNull();
+      expect(q('[data-testid="profile-note"]').textContent).toBe('That name is taken. Try another one.');
+      const again = q('[data-testid="profile-nick-input"]') as HTMLInputElement;
+      again.value = 'Mirabel';
+      again.dispatchEvent(new Event('input', { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(400);
+      await flush();
+      expect(hint().textContent).toBe('Mirabel is available');
+      expect(hint().classList.contains('ok')).toBe(true);
+      q('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      expect(q('[data-testid="profile-confirm"]').textContent).toContain('Mirabel');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rename: an older host without name.check keeps the shape check only; editName opens the editor on load', async () => {
+    vi.useFakeTimers();
+    try {
+      const { calls } = open({ extra: { 'name.check': () => res(400, { message: 'unknown op' }) }, more: { editName: true } });
+      await vi.advanceTimersByTimeAsync(0);
+      await flush();
+      expect(q('[data-testid="profile-editor"]')).toBeTruthy();
+      const input = q('[data-testid="profile-nick-input"]') as HTMLInputElement;
+      input.value = 'Pawsome';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(400);
+      await flush();
+      expect(calls.some((c) => c.op === 'name.check')).toBe(true);
+      expect(q('[data-testid="profile-nick-hint"]').textContent).toBe('');
+      q('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      expect(q('[data-testid="profile-confirm"]').textContent).toContain('Pawsome');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('Matches tab: rich rows (stats line, real queue name), old rows without stats show no zeros', async () => {

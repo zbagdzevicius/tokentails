@@ -74,6 +74,9 @@ export const PAWLEGENDS_API_OPS = [
   // nicknames (docs/plans/moba/SOCIAL-RANKED.md §2.3): the name others see and the next change's price; the change itself
   "name.get",
   "name.set",
+  // Nov 20 (the nickname is the unique username): the live "taken / available" check, and the assigned-name notice seen
+  "name.check",
+  "name.seen",
   // LoL-style invites and the fast inbox (docs/plans/moba/SOCIAL-INVITES.md): invites and DMs within seconds
   "social.inbox",
   "invite.answer",
@@ -493,6 +496,12 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       return typeof a.name === "string" && a.name.length >= 1 && a.name.length <= 64
         ? { method: "POST", path: "/pawlegends/name", body: { name: a.name }, auth: "registered" }
         : null;
+    case "name.check":
+      return typeof a.name === "string" && a.name.length >= 1 && a.name.length <= 40
+        ? { method: "GET", path: `/pawlegends/name/check${q({ name: a.name })}`, auth: "registered" }
+        : null;
+    case "name.seen":
+      return { method: "POST", path: "/pawlegends/name/notice", body: {}, auth: "registered" };
     case "social.inbox":
       return { method: "GET", path: `/pawlegends/social/inbox${q({ rev: str(a.rev, /^[A-Za-z0-9_-]{1,32}$/) })}`, auth: "registered" };
     case "social.search": {
