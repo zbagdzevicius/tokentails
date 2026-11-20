@@ -1,0 +1,1 @@
+var e=`pl.ageBand`;function t(t){try{t===`under16`||t===`16-17`||t===`18+`?localStorage.setItem(e,t):localStorage.removeItem(e)}catch{}}function n(){try{let t=localStorage.getItem(e);return t===`16-17`||t===`18+`}catch{return!1}}export{n,t};
