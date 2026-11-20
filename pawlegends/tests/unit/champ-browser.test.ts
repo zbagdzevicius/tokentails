@@ -151,6 +151,25 @@ describe('champion browser', () => {
     expect(f.players).toHaveLength(1);
   });
 
+  // founder Nov 20: "if I click on skills here it results in screen rerendering"
+  it('a skill tap moves the chosen state on the same buttons: the header, the row and the player stay', async () => {
+    const f = fakeClips();
+    const b = openChampBrowser({ hero: 'meatball', clips: f.factory });
+    await flush();
+    const head = b.root.querySelector('.cb-hero');
+    const btns = [...b.root.querySelectorAll<HTMLElement>('.cb-skill-btn')];
+    for (const s of ['w', 'r', 'passive', 'e', 'q']) {
+      click(b.root.querySelector(`.cb-skill-btn[data-slot="${s}"]`));
+      await flush();
+      expect([...b.root.querySelectorAll('.cb-skill-btn')]).toEqual(btns);
+      expect(b.root.querySelector('.cb-hero')).toBe(head);
+      expect(btns.filter((x) => x.classList.contains('on')).map((x) => x.dataset.slot)).toEqual([s]);
+      expect(btns.filter((x) => x.getAttribute('aria-selected') === 'true')).toHaveLength(1);
+      expect(btns.find((x) => x.dataset.slot === s)!.tabIndex).toBe(0);
+    }
+    expect(f.players).toHaveLength(1);
+  });
+
   it('a tap on the playing clip pauses it, another plays it; a skill tap always plays', async () => {
     const f = fakeClips();
     const b = openChampBrowser({ hero: 'clem', clips: f.factory });

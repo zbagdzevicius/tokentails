@@ -385,9 +385,13 @@ html[data-quality='low'] .cst-tab.on { text-shadow: none; }
 }
 .cst-hd .cst-skill .k { position: absolute; right: -4px; bottom: -5px; }
 .cst-skill.on .k { background: var(--v6-bolt); }
-.cst-skill-line { margin: 2px 0 0; font-size: 14px; line-height: 1.35; min-height: 2.7em; max-width: 46em; }
+/* every ability's line in one cell, only the chosen one shown: the cell is as tall as the longest line, so a chip
+   swaps the line without moving anything under it */
+.cst-skill-line { display: grid; margin: 2px 0 0; font-size: 14px; line-height: 1.35; min-height: 2.7em; max-width: 46em; }
+.cst-skill-line > .cst-sl { grid-area: 1 / 1; margin: 0; visibility: hidden; }
+.cst-skill-line > .cst-sl.on { visibility: visible; }
 .cst-skill-line b { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; font-size: 15px; color: var(--v6-cream); }
-.cst-skill-line > span { opacity: 0.85; }
+.cst-skill-line .cst-sl > span { opacity: 0.85; }
 .cst-hd-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 2px; }
 .cst-hd .cst-lore { min-height: 44px; }
 .cst-finebtn { min-height: 44px; padding: 0 4px; border: 0; background: none; cursor: pointer; color: var(--v6-muted); font: 600 13px/1 var(--font); text-decoration: underline; text-underline-offset: 3px; }

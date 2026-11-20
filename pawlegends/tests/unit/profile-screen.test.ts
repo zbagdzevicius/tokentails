@@ -404,6 +404,23 @@ describe('profile screen', () => {
     expect(b.calls.some((c) => c.op === 'name.set') || calls.filter((c) => c.op === 'name.set').length > 1).toBe(false);
   });
 
+  // founder Nov 20: "if I click on skills here it results in screen rerendering"
+  it('a pick in the editor keeps the backdrop splash and the focus on the picked option', async () => {
+    open();
+    await flush();
+    const bd = q('.pfx-backdrop');
+    const img = bd.querySelector('img');
+    q('[data-testid="profile-edit"]').click();
+    q('[data-a="pick-icon"][data-ref="howler"]').click();
+    expect(q('.pfx-backdrop')).toBe(bd);
+    expect(q('.pfx-backdrop img')).toBe(img);
+    expect(document.querySelectorAll('.pfx-backdrop')).toHaveLength(1);
+    expect(document.activeElement).toBe(q('[data-a="pick-icon"][data-ref="howler"]'));
+    expect(q('[data-a="pick-icon"][data-ref="howler"]').getAttribute('aria-pressed')).toBe('true');
+    q('[data-a="tab"][data-tab="champions"]')?.click();
+    expect(q('.pfx-backdrop')).toBe(bd);
+  });
+
   it('avatar save goes through social.me', async () => {
     const { calls } = open();
     await flush();

@@ -485,11 +485,16 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const stars = `<span class="cst-stars" aria-label="Difficulty ${DIFFICULTY_NAME[diff]}">${[1, 2, 3].map((i) => `<i class="${i <= diff ? 'on' : ''}"></i>`).join('')}<small>${DIFFICULTY_NAME[diff]}</small></span>`;
     const kit = t ? [{ key: 'P', icon: 'paw', name: t.passive.name, text: t.passive.text }, ...t.abilities.map((a, i) => ({ key: 'QWER'[i], icon: a.icon, name: a.name, text: a.text }))] : [];
     const sk = Math.min(skillSel, Math.max(0, kit.length - 1));
+    // every line is drawn, stacked in one cell, only the chosen one shown (founder Nov 20, "if I click on skills here
+    // it results in screen rerendering"): a chip swaps the line in place (pickSkill) and the cell is as tall as the
+    // longest line, so the row under it never jumps
     const skills = kit.length
       ? `<ul class="cst-skills" role="group" aria-label="Abilities">${kit
           .map((k, i) => `<li><button type="button" class="cst-skill${i === sk ? ' on' : ''}" data-skill="${i}" data-k="skill:${i}" aria-pressed="${i === sk}" aria-label="${esc(`${k.key}: ${k.name}`)}">${icon(k.icon as never)}<span class="k">${k.key}</span></button></li>`)
           .join('')}</ul>
-        <p class="cst-skill-line" aria-live="polite"><b><span class="k">${kit[sk].key}</span>${esc(kit[sk].name)}</b><span>${esc(kit[sk].text)}</span></p>`
+        <div class="cst-skill-line" aria-live="polite">${kit
+          .map((k, i) => `<p class="cst-sl${i === sk ? ' on' : ''}" data-line="${i}" aria-hidden="${i !== sk}"><b><span class="k">${k.key}</span>${esc(k.name)}</b><span>${esc(k.text)}</span></p>`)
+          .join('')}</div>`
       : '';
     const status =
       c.status === 'starter'
@@ -543,12 +548,8 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
   // --------------------------------------------------------------------------------------------- render
   /** The markup last drawn. */
   let lastHtml = '';
-  const render = (): void => {
-    // an unlock the host confirmed (a fresh `store`): say so once the champion shows as owned
-    if (line === 'Unlocking…' && detail?.hero && champStatus(detail.hero, champs(), app()) === 'owned') line = `${championDef(detail.hero)?.name ?? 'Champion'} unlocked. Pick it in any mode.`;
-    const active = document.activeElement as HTMLElement | null;
-    const focusKey = active && root.contains(active) ? (active.dataset.k ?? active.closest<HTMLElement>('[data-k]')?.dataset.k ?? null) : null;
-    const focusInDetail = !!active?.closest('.cst-detail');
+  /** The whole store's markup for the current state. */
+  const markup = (): string => {
     const tabs = BOTTOM_TABS.filter((b) => !app() || APP_TABS.includes(b.id))
       .map((b) => {
         const on = b.id === tab || b.also.includes(tab);
@@ -558,7 +559,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const view = tab === 'champions' ? championsView() : tab === 'featured' ? featuredView() : cosmeticsView();
     const inert = detail ? ' inert' : '';
     // copy-lint-ignore R10 'cst-wallet' is a CSS class (the yarn chip), never shown as text
-    const html = `<div class="card cst-frame">
+    return `<div class="card cst-frame">
       <header class="cst-top"${inert}>
         <button type="button" class="cst-back" data-a="close" data-k="close" aria-label="Back">${BACK_SVG}</button>
         <h2>Store</h2>
@@ -570,6 +571,14 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       <nav class="cst-tabs" role="tablist" aria-label="Store sections"${inert}>${tabs}</nav>
       ${detailHtml()}
     </div>`;
+  };
+  const render = (): void => {
+    // an unlock the host confirmed (a fresh `store`): say so once the champion shows as owned
+    if (line === 'Unlocking…' && detail?.hero && champStatus(detail.hero, champs(), app()) === 'owned') line = `${championDef(detail.hero)?.name ?? 'Champion'} unlocked. Pick it in any mode.`;
+    const active = document.activeElement as HTMLElement | null;
+    const focusKey = active && root.contains(active) ? (active.dataset.k ?? active.closest<HTMLElement>('[data-k]')?.dataset.k ?? null) : null;
+    const focusInDetail = !!active?.closest('.cst-detail');
+    const html = markup();
     // a refresh that changes nothing (the host resends its state) keeps the DOM: no lost tap, focus or scroll
     if (html === lastHtml && !detailFocus) return;
     lastHtml = html;
@@ -596,6 +605,44 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       const el = want === 'detail-close' ? root.querySelector<HTMLElement>('.cst-detail [data-a="detail-close"]') : root.querySelector<HTMLElement>(`[data-k="${CSS.escape(want)}"]`);
       (el?.matches('label') ? el.querySelector<HTMLElement>('input') : el)?.focus({ preventScroll: true });
     }
+  };
+  /**
+   * Small changes on the champion screen touch only what changed (founder Nov 20, "if I click on skills here it results
+   * in screen rerendering"): a whole render rebuilt the screen, so the splash <img> was a new element (decoded again, a
+   * flash) and the info column's scroll and the focus reset. `lastHtml` follows, so the host's next refresh with the
+   * same state keeps the DOM too.
+   */
+  const pickSkill = (i: number, focus: boolean): void => {
+    const hd = root.querySelector<HTMLElement>('.cst-hd');
+    const chips = hd ? [...hd.querySelectorAll<HTMLButtonElement>('.cst-skill')] : [];
+    if (!hd || !chips.length) return;
+    const n = ((i % chips.length) + chips.length) % chips.length;
+    skillSel = n;
+    chips.forEach((b, j) => {
+      b.classList.toggle('on', j === n);
+      b.setAttribute('aria-pressed', String(j === n));
+    });
+    hd.querySelectorAll<HTMLElement>('.cst-skill-line > .cst-sl').forEach((p, j) => {
+      p.classList.toggle('on', j === n);
+      p.setAttribute('aria-hidden', String(j !== n));
+    });
+    if (focus) chips[n].focus({ preventScroll: true });
+    lastHtml = markup();
+  };
+  /** Swap one part of the open detail for its fresh markup (the price and terms lines), keeping the rest. */
+  const patchDetail = (sel: string): boolean => {
+    const live = root.querySelector<HTMLElement>(`.cst-detail ${sel}`);
+    if (!live) return false;
+    const html = markup();
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    const fresh = tpl.content.querySelector<HTMLElement>(`.cst-detail ${sel}`);
+    if (!fresh) return false;
+    const k = (document.activeElement as HTMLElement | null)?.dataset.k;
+    live.replaceWith(fresh);
+    if (k) fresh.querySelector<HTMLElement>(`[data-k="${CSS.escape(k)}"]`)?.focus({ preventScroll: true });
+    lastHtml = html;
+    return true;
   };
   /** The control to focus after the next render (a detail opened or closed). */
   let detailFocus: string | null = null;
@@ -628,7 +675,21 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     render();
   });
   const onKey = (e: KeyboardEvent): void => {
-    if (e.key !== 'Escape' || !root.isConnected) return;
+    if (!root.isConnected) return;
+    // the champion screen's kit from the keyboard: P Q W E R pick an ability, the arrows walk the chips from a chip
+    if (e.key !== 'Escape') {
+      if (!detail?.hero || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || root.querySelector('.pl-champ')) return;
+      const t = e.target instanceof HTMLElement ? e.target : null;
+      if (t && (t.closest('input, textarea, select') || t.isContentEditable)) return;
+      const letter = 'PQWER'.indexOf(e.key.toUpperCase());
+      const onChip = t?.closest<HTMLElement>('.cst-skill');
+      const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+      if (e.key.length === 1 && letter >= 0) pickSkill(letter, !!onChip);
+      else if (step && onChip) pickSkill(skillSel + step, true);
+      else return;
+      e.preventDefault();
+      return;
+    }
     // the champion browser over the store closes itself first (it stops the key)
     e.preventDefault();
     if (detail) {
@@ -706,9 +767,11 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     } else if (a === 'detail-close') {
       closeDetail();
     } else if (skill !== undefined && detail?.hero) {
-      skillSel = Number(skill) || 0;
+      pickSkill(Number(skill) || 0, false);
+      return;
     } else if (a === 'fine' && detail) {
       fineOpen = !fineOpen;
+      if (patchDetail('.cst-hd-links')) return;
     } else if (a === 'info' && detail?.hero) {
       o.onInfo?.(detail.hero, root);
       return;

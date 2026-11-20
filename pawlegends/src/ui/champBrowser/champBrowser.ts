@@ -529,13 +529,24 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
     setSlot(s: SkillSlot) {
       if (!open) return;
       slot = s;
+      const wasSkills = tab === 'skills';
       if (tab !== 'skills') {
         tab = 'skills';
         drawTabs();
       }
       // a tap on a skill always plays it (also after a pause)
       clipPaused = false;
-      drawIcons();
+      // the skill row is already drawn: move the chosen state on the same buttons (founder Nov 20, "if I click on
+      // skills here it results in screen rerendering"), so the tapped button and its focus stay
+      const btns = wasSkills ? [...iconsEl.querySelectorAll<HTMLElement>('.cb-skill-btn')] : [];
+      if (btns.length && btns.some((b) => b.dataset.slot === s))
+        for (const b of btns) {
+          const on = b.dataset.slot === s;
+          b.classList.toggle('on', on);
+          b.setAttribute('aria-selected', String(on));
+          b.tabIndex = on ? 0 : -1;
+        }
+      else drawIcons();
       drawCard();
       root.dataset.skill = slot;
       syncClip();

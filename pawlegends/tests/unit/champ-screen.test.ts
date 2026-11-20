@@ -91,11 +91,67 @@ describe('the champion screen', () => {
     expect(chips).toHaveLength(5);
     expect([...chips].map((b) => b.querySelector('.k')!.textContent)).toEqual(['P', 'Q', 'W', 'E', 'R']);
     expect(chips[0].getAttribute('aria-pressed')).toBe('true');
-    const first = el.querySelector('.cst-skill-line')!.textContent;
+    const first = el.querySelector('.cst-skill-line .on')!.textContent;
     chips[1].click();
     expect(el.querySelector('.cst-skill[data-skill="1"]')!.getAttribute('aria-pressed')).toBe('true');
-    expect(el.querySelector('.cst-skill-line')!.textContent).not.toBe(first);
-    expect(el.querySelector('.cst-skill-line .k')!.textContent).toBe('Q');
+    expect(el.querySelector('.cst-skill-line .on')!.textContent).not.toBe(first);
+    expect(el.querySelector('.cst-skill-line .on .k')!.textContent).toBe('Q');
+    expect(el.querySelectorAll('.cst-skill-line .on')).toHaveLength(1);
+    expect(el.querySelectorAll('.cst-skill-line [aria-hidden="false"]')).toHaveLength(1);
+  });
+
+  // founder Nov 20: "if I click on skills here it results in screen rerendering"
+  it('a chip changes only the chosen state and the line: the splash, the screen and the chips stay the same nodes', () => {
+    const el = openOn('meatball', state(yarn(922)));
+    const img = el.querySelector('.cst-hd-art img');
+    const panel = el.querySelector('.cst-hd');
+    const chips = [...el.querySelectorAll<HTMLButtonElement>('.cst-skill')];
+    const lines = [...el.querySelectorAll('.cst-skill-line .cst-sl')];
+    expect(lines).toHaveLength(5);
+    let changed = 0;
+    const mo = new MutationObserver((r) => (changed += r.filter((x) => x.type === 'childList').length));
+    mo.observe(el, { childList: true, subtree: true });
+    for (const i of [2, 4, 0, 1, 3]) {
+      chips[i].click();
+      expect(el.querySelector('.cst-hd-art img')).toBe(img);
+      expect(el.querySelector('.cst-hd')).toBe(panel);
+      expect([...el.querySelectorAll('.cst-skill')]).toEqual(chips);
+      expect(el.querySelector('.cst-skill-line .on')).toBe(lines[i]);
+      expect(chips.map((b) => b.getAttribute('aria-pressed'))).toEqual(chips.map((_, j) => String(j === i)));
+    }
+    mo.disconnect();
+    expect(changed).toBe(0);
+  });
+
+  it('the keyboard: P Q W E R pick an ability, the arrows walk the chips from a chip', () => {
+    const el = openOn('meatball', state(yarn(922)));
+    const img = el.querySelector('.cst-hd-art img');
+    const on = (): string => el.querySelector('.cst-skill-line .on .k')!.textContent!;
+    const key = (k: string, t: EventTarget = document.body): void => void t.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+    key('w');
+    expect(on()).toBe('W');
+    key('R');
+    expect(on()).toBe('R');
+    const chip = el.querySelector<HTMLButtonElement>('.cst-skill[data-skill="4"]')!;
+    chip.focus();
+    key('ArrowRight', chip);
+    expect(on()).toBe('P');
+    expect(document.activeElement).toBe(el.querySelector('.cst-skill[data-skill="0"]'));
+    key('ArrowLeft', document.activeElement!);
+    expect(on()).toBe('R');
+    expect(el.querySelector('.cst-hd-art img')).toBe(img);
+  });
+
+  it('Prices and terms fold out in place: the splash stays the same node', () => {
+    const el = openOn('pixel', state(yarn(922)));
+    const img = el.querySelector('.cst-hd-art img');
+    el.querySelector<HTMLElement>('[data-a="fine"]')!.click();
+    expect(el.querySelector('.cst-finebox')).not.toBeNull();
+    expect(el.querySelector('[data-a="fine"]')!.getAttribute('aria-expanded')).toBe('true');
+    expect(el.querySelector('.cst-hd-art img')).toBe(img);
+    el.querySelector<HTMLElement>('[data-a="fine"]')!.click();
+    expect(el.querySelector('.cst-finebox')).toBeNull();
+    expect(el.querySelector('.cst-hd-art img')).toBe(img);
   });
 
   it('short of Yarn: the bar shows the progress and what is missing; the price lines open on tap', () => {

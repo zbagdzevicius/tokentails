@@ -103,7 +103,7 @@ for (const app of [false, true])
     }
     // a chip picks the ability its line describes
     await hd.locator('.cst-skill[data-skill="4"]').click();
-    await expect(hd.locator('.cst-skill-line .k')).toHaveText('R');
+    await expect(hd.locator('.cst-skill-line .on .k')).toHaveText('R');
     // the hardware/keyboard back closes the screen, then the store
     await game.locator('body').press('Escape');
     await expect(hd).toHaveCount(0);

@@ -917,7 +917,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const hero = bannerHero(d);
     root.dataset.tab = tab;
     root.dataset.side = HEROES[hero]?.side ?? 'cat';
-    root.innerHTML = `<div class="pfx-backdrop" aria-hidden="true">${splash(hero, '720px', 'pfx-bdwash')}${splash(hero, '(min-width: 600px) 720px, 360px', 'pfx-bdart')}</div><div class="card cst-frame">
+    const frame = `<div class="card cst-frame">
       <header class="cst-top"${inert}>
         <button type="button" class="cst-back" data-a="close" aria-label="Back" data-testid="profile-back">${BACK_SVG}</button>
         <h2>${self ? 'Profile' : 'Player'}</h2>
@@ -929,6 +929,14 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       ${editorHtml()}
       ${edit ? '' : sheetHtml()}
     </div>`;
+    // the backdrop splash stays the same element while the banner champion does (founder Nov 20, "if I click on
+    // skills here it results in screen rerendering"): a pick in the editor, a tab, a coat or a sheet redraws the
+    // screen, and a new <img> each time flashed the art while it decoded again
+    const bd = root.querySelector<HTMLElement>(':scope > .pfx-backdrop');
+    if (bd && bd.dataset.hero === hero) {
+      for (const n of [...root.childNodes]) if (n !== bd) n.remove();
+      bd.insertAdjacentHTML('afterend', frame);
+    } else root.innerHTML = `<div class="pfx-backdrop" aria-hidden="true" data-hero="${hero}">${splash(hero, '720px', 'pfx-bdwash')}${splash(hero, '(min-width: 600px) 720px, 360px', 'pfx-bdart')}</div>${frame}`;
     for (const el of root.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
     const input = root.querySelector<HTMLInputElement>('input[name="nick"]');
     if (input && edit) {
@@ -1293,6 +1301,15 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     e.preventDefault();
     goTab(next, true);
   });
+  /** Redraw after a pick in the editor and keep the focus on the picked option (and the editor's scroll). */
+  const refocus = (el: HTMLElement, key: string): void => {
+    const top = root.querySelector<HTMLElement>('.pfx-editor .pfx-ebody')?.scrollTop ?? 0;
+    const sel = `[data-a="${CSS.escape(el.dataset.a ?? '')}"][data-${key}="${CSS.escape(el.dataset[key] ?? '')}"]`;
+    render();
+    const nb = root.querySelector<HTMLElement>('.pfx-editor .pfx-ebody');
+    if (nb) nb.scrollTop = top;
+    root.querySelector<HTMLElement>(`.pfx-editor ${sel}`)?.focus({ preventScroll: true });
+  };
   root.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
     const acct = accountActionOf(target);
@@ -1404,13 +1421,13 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         return void changeName();
       case 'pick-icon':
         if (edit) edit.hero = (el.dataset.ref ?? 'clem') as HeroId;
-        return render();
+        return refocus(el, 'ref');
       case 'pick-frame':
         if (edit) edit.frame = el.dataset.frame ?? 'none';
-        return render();
+        return refocus(el, 'frame');
       case 'pick-title':
         if (edit) edit.title = el.dataset.id ?? 'none';
-        return render();
+        return refocus(el, 'id');
       case 'pick-save':
         if (edit) {
           const title = edit.title;
