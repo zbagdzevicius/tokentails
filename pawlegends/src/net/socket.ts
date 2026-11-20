@@ -11,7 +11,9 @@ import {
   Frame,
   PROTO,
   PROTO_MIN,
+  RELAY_SHARD_RE,
   SUBPROTOCOL,
+  WS_PATH,
   decodeServerBinary,
   encodeBeat,
   encodeCmdFrame,
@@ -51,6 +53,40 @@ export const HELLO_HOLD_MS = 4000;
  * could not invite them).
  */
 export const TICKET_FRESH_MS = 40_000;
+/**
+ * Relay shards (PROTO 9, LIVE-MATCH-DEPLOYS.md §15): `relay_redirect` names the shard to dial. At most this many
+ * redirects within REDIRECT_WINDOW_MS; past that the socket goes back to the front door (two relays that disagree
+ * never bounce a player between them).
+ */
+export const REDIRECT_MAX = 3;
+export const REDIRECT_WINDOW_MS = 30_000;
+/**
+ * Connects in a row that end before a `welcome` (not a planned move) before the socket tries the next relay it knows: a
+ * shard's own path, then the front door, then the shards `GET /pawlegends/relays` lists (the front door's relay may be
+ * down while another shard serves).
+ */
+export const SHARD_FAILS_MAX = 2;
+
+/**
+ * The relay shards that serve now, the `mm` lease holder first (`GET /pawlegends/relays` on the API, §15). Never throws:
+ * an error or a timeout is an empty list.
+ */
+export async function fetchRelayShards(api: string, timeoutMs = 3000): Promise<string[]> {
+  try {
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const t = ctl ? setTimeout(() => ctl.abort(), timeoutMs) : null;
+    const res = await fetch(`${api.replace(/\/+$/, '')}/pawlegends/relays`, ctl ? { signal: ctl.signal } : {});
+    if (t) clearTimeout(t);
+    if (!res.ok) return [];
+    const body = (await res.json()) as { shards?: { shard?: unknown; state?: unknown; leader?: unknown }[] };
+    return (body.shards ?? [])
+      .filter((x) => typeof x.shard === 'string' && RELAY_SHARD_RE.test(x.shard) && x.state !== 'draining')
+      .sort((a, b) => Number(!!b.leader) - Number(!!a.leader))
+      .map((x) => x.shard as string);
+  } catch {
+    return [];
+  }
+}
 export const RESEND_WITHIN_MS = 500;
 export const BEAT_MS = 500;
 const RTT_SAMPLES = 64;
@@ -92,6 +128,8 @@ export interface SocketListener {
 }
 
 const TOKEN_KEY = 'pl.party.resume';
+/** The relay shard this tab was last sent to (sessionStorage, as the resume token). */
+const SHARD_KEY = 'pl.party.relay';
 
 /**
  * The resume token lives in sessionStorage only (this tab, survives a reload, gone with the tab): never localStorage,
@@ -184,9 +222,71 @@ export class PartySocket {
   /** The relay speaks Quick Play (`welcome.proto` ≥ 2). */
   mm = false;
   private welcomedOnce = false;
+  /** §15: the relay shard to dial (`<url>/<shard>`), or null for the front door. */
+  shard: string | null = null;
+  /** §15: recent redirects (env time) and connects to the shard that ended before a `welcome`. */
+  private redirects: number[] = [];
+  private dialFails = 0;
+  /** Shards to try next when the current path keeps failing (from `discoverWith`), and the lookup itself. */
+  private candidates: string[] = [];
+  private discoverFn: (() => Promise<string[]>) | null = null;
+  private discovering = false;
+  /** A `welcome` came on the current socket (a redirect after it means the ticket was spent: fetch a fresh one). */
+  private welcomedHere = false;
+  private freshTicket = false;
 
+  /**
+   * `url` is the front door (`…/pawlegends/ws`); a redirect (PROTO 9) appends the shard. The shard a tab was sent to is
+   * remembered next to its resume token, so a reload dials the relay that holds its party.
+   */
   constructor(private readonly url: string, private readonly hello: HelloInfo, private readonly env: SocketEnv = browserSocketEnv()) {
     this.token = env.store?.get(TOKEN_KEY) ?? null;
+    const shard = env.store?.get(SHARD_KEY) ?? null;
+    this.shard = shard && RELAY_SHARD_RE.test(shard) ? shard : null;
+  }
+
+  /** The URL the next connect dials: the front door, or the shard's own path. */
+  get dialUrl(): string {
+    if (!this.shard) return this.url;
+    const base = this.url.replace(/\/+$/, '');
+    return base.endsWith(WS_PATH) ? `${base}/${this.shard}` : this.url;
+  }
+
+  private setShard(shard: string | null): void {
+    this.shard = shard && RELAY_SHARD_RE.test(shard) ? shard : null;
+    this.dialFails = 0;
+    if (this.shard) this.env.store?.set(SHARD_KEY, this.shard);
+    else this.env.store?.del(SHARD_KEY);
+  }
+
+  /** Where the relay shards are (`fetchRelayShards`): asked when every known path failed. */
+  discoverWith(fn: () => Promise<string[]>): void {
+    this.discoverFn = fn;
+  }
+
+  /** A connect ended before `welcome`: after SHARD_FAILS_MAX in a row, the next relay this socket knows. */
+  private dialFailed(): void {
+    if (++this.dialFails < SHARD_FAILS_MAX) return;
+    const next = this.candidates.shift();
+    if (next !== undefined) return this.setShard(next);
+    // every known shard tried (or none known): the front door, and ask where the shards are now
+    this.setShard(null);
+    if (!this.discoverFn || this.discovering) return;
+    this.discovering = true;
+    let ask: Promise<string[]>;
+    try {
+      ask = this.discoverFn();
+    } catch {
+      ask = Promise.resolve([]);
+    }
+    void ask
+      .then((list) => {
+        this.candidates = list.filter((x) => RELAY_SHARD_RE.test(x));
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        this.discovering = false;
+      });
   }
 
   listen(l: SocketListener): void {
@@ -233,9 +333,12 @@ export class PartySocket {
    * parallel with it, and `hello` carries it when it settles in time (else the hello goes as a guest).
    */
   connect(ticket?: Promise<string | null>): void {
+    const fresh = this.freshTicket;
+    this.freshTicket = false;
     if (ticket) this.ticketWait = this.waitTicket(ticket);
-    // a reconnect of a signed-in player: a fresh ticket once the held one may be spent or expired (the guest stays one)
-    else if (!this.ticketWait && this.ticketSource && this.hello.ticket && this.env.now() - this.ticketAtMs >= TICKET_FRESH_MS) {
+    // a reconnect of a signed-in player: a fresh ticket once the held one may be spent or expired (the guest stays one);
+    // after a redirect that followed a welcome the ticket is spent on every relay (§15): always a fresh one
+    else if (!this.ticketWait && this.ticketSource && this.hello.ticket && (fresh || this.env.now() - this.ticketAtMs >= TICKET_FRESH_MS)) {
       let fresh: Promise<string | null>;
       try {
         fresh = this.ticketSource();
@@ -247,7 +350,8 @@ export class PartySocket {
     this.stopped = false;
     // before the first `welcome` there is nothing to reconnect to: a bounce off a draining relay is still "connecting"
     this.emitState(this.attempt === 0 || !this.welcomedOnce ? 'connecting' : 'reconnecting');
-    const ws = this.env.open(this.url, SUBPROTOCOL);
+    this.welcomedHere = false;
+    const ws = this.env.open(this.dialUrl, SUBPROTOCOL);
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
     ws.onopen = () => {
@@ -366,6 +470,9 @@ export class PartySocket {
       if (m.t === 'welcome' && this.retryTicketless()) return;
       if (m.t === 'welcome') {
         this.welcomedOnce = true;
+        this.welcomedHere = true;
+        this.dialFails = 0;
+        this.candidates = [];
         this.mm = typeof m.proto === 'number' && m.proto >= 2;
         this.attempt = 0;
         this.moveRetries = 0;
@@ -394,6 +501,17 @@ export class PartySocket {
         // the relay closes these sockets right after the error; behind the load balancer that close reaches the client
         // about 1 s later (measured Nov 20 on api.tokentails.com). Hang up now and come back after `retryMs`.
         if (m.code !== 'room_gone') moveNow = true;
+      } else if (m.t === 'error' && m.code === 'relay_redirect') {
+        // §15: dial the shard that holds what we asked for, now; the listener asks again after the next welcome
+        const now = this.env.now();
+        this.redirects = this.redirects.filter((t) => now - t < REDIRECT_WINDOW_MS);
+        this.redirects.push(now);
+        const shard = typeof m.shard === 'string' && RELAY_SHARD_RE.test(m.shard) ? m.shard : null;
+        // too many in a row: back to the front door (it serves us, or sends us on once more later)
+        this.setShard(this.redirects.length > REDIRECT_MAX ? null : shard);
+        if (this.welcomedHere) this.freshTicket = true;
+        this.moveRetryMs = 0;
+        moveNow = true;
       } else if (m.t === 'error' && m.code === 'seat_elsewhere') {
         this.elsewhere = true;
         this.stopped = true;
@@ -502,7 +620,9 @@ export class PartySocket {
       return;
     }
     this.pilotedSince = this.inMatch ? this.pilotedSince : false;
-    const planned = code === 1012 || code === 4013 || this.moveRetryMs !== null;
+    // §15: a path that keeps failing before any welcome (its relay is down): the next relay this socket knows
+    if (!this.welcomedHere && this.moveRetryMs === null && code !== 1012 && code !== 4000 && code !== 4013 && code !== 4014) this.dialFailed();
+    const planned = code === 1012 || code === 4013 || code === 4014 || this.moveRetryMs !== null;
     let delay: number;
     if (planned && this.moveRetries < MOVE_RETRIES) {
       // LIVE-MATCH-DEPLOYS.md §6: the relay is moving the room, come back at once (a little jitter spreads a room)
@@ -590,6 +710,7 @@ export class PartySocket {
     if (forget) {
       this.token = null;
       this.env.store?.del(TOKEN_KEY);
+      this.setShard(null);
     }
     this.ws?.close(1000, 'bye');
     this.ws = null;

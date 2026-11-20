@@ -13,7 +13,7 @@
  * bytes for every frame type).
  */
 
-export const PROTO = 8;
+export const PROTO = 9;
 /**
  * The oldest PROTO the relay still accepts (M1a, docs/plans/moba/M1A-IMPL.md §5.5). PROTO 2 only adds the `mm.*`
  * JSON frames (Quick Play co-op); the binary frames and the framing are unchanged, so the subprotocol stays `pl.1`. The
@@ -64,6 +64,14 @@ export const PROTO_WATCH = 7;
  * No binary frame changes.
  */
 export const PROTO_DRAFT = 8;
+/**
+ * PROTO 9 (relay shards, docs/plans/moba/LIVE-MATCH-DEPLOYS.md §15): the error code `relay_redirect` with `shard` (the
+ * relay that owns this party, room or queue). The client dials `WS_PATH/<shard>` at once, with a fresh ticket, and
+ * keeps that shard for the tab; no banner. The relay sends it only to a PROTO 9 socket (an older one is served where it
+ * lands or told `party_elsewhere`, as before). The socket also accepts an upgrade on `WS_PATH/<shard>`. No binary
+ * frame changes.
+ */
+export const PROTO_REDIRECT = 9;
 export const SUBPROTOCOL = 'pl.1';
 /**
  * Quick Play queues: co-op (M1a), casual PvP (M1b, PROTO 3 on a sim >= PVP_SINCE) and 5v5 Classic (PROTO 4 on a sim
@@ -100,6 +108,17 @@ export const leadSlotOf = (team: 0 | 1, teamSize: number = SLOTS_PER_TEAM): numb
 /** Bits of a mode or ack mask: 10 slots (a 3v3 room only ever sets the low 6, which encode as one varint byte). */
 const SLOT_MASK = (1 << MAX_HUMANS) - 1;
 export const WS_PATH = '/pawlegends/ws';
+/** A relay shard name (PROTO 9): what `relay_redirect` names and what follows `WS_PATH/`. */
+export const RELAY_SHARD_RE = /^[a-z0-9-]{1,16}$/;
+/** The WebSocket path of a shard (`/pawlegends/ws/b`), or the front door (`/pawlegends/ws`) for none or a bad name. */
+export const relayPath = (shard?: string | null): string => (shard && RELAY_SHARD_RE.test(shard) ? `${WS_PATH}/${shard}` : WS_PATH);
+/** The shard named by an upgrade path: '' for the front door, null for a path that is not the relay's. */
+export function shardOfPath(path: string): string | null {
+  if (path === WS_PATH) return '';
+  if (!path.startsWith(WS_PATH + '/')) return null;
+  const s = path.slice(WS_PATH.length + 1);
+  return RELAY_SHARD_RE.test(s) ? s : null;
+}
 
 export class ProtoError extends Error {
   constructor(message: string) {
@@ -542,6 +561,11 @@ export const ERROR_CODES = [
    * on the older build is told `update_required`; everyone else gets this (non-fatal: the lobby stays).
    */
   'party_update',
+  /**
+   * PROTO 9: this party, room, match to watch or queue lives on relay shard `shard`: dial `WS_PATH/<shard>` now (the
+   * socket closes with 4014) with a fresh ticket and send the same request again. Never shown to the player.
+   */
+  'relay_redirect',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -1004,6 +1028,8 @@ export type ServerJson =
       have?: number;
       /** `mm_ranked_pending`: the unsaved ranked rooms. */
       rooms?: string[];
+      /** `relay_redirect` (PROTO 9): the shard to dial (`RELAY_SHARD_RE`). */
+      shard?: string;
     }
   | PartyView
   | MatchMsg

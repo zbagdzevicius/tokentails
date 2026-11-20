@@ -11,7 +11,7 @@
  */
 import { SIM_VERSION } from '../sim/version';
 import { NetHost, type NetNote } from '../net/net-host';
-import { PartySocket, browserSocketEnv, type SocketEnv } from '../net/socket';
+import { PartySocket, browserSocketEnv, fetchRelayShards, type SocketEnv } from '../net/socket';
 import { WS_PATH, normalizeCode, type ClientJson, type MatchMsg, type MmQueue, type MmSide, type PartyView, type ServerJson } from '../net/proto';
 import { TRICK_IDS } from '../data/tricks';
 import { HERO_IDS, HEROES } from '../data/heroes';
@@ -373,7 +373,8 @@ function joinRetry(s: PartyState, code: string): { state: PartyState; effects: P
     s.rejoin && s.inMatch
       ? { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: why }, asked: true, joining: null, joinTries: 0, rejoin: false }, effects: [{ t: 'seat-taken' }] }
       : { state: { ...s, error: { code: why }, asked: false, joining: null, joinTries: 0, rejoin: false }, effects: [] };
-  if (code === 'party_elsewhere') {
+  // §15: `relay_redirect` (PROTO 9): the socket dials the shard that holds the party and the welcome joins again
+  if (code === 'party_elsewhere' || code === 'relay_redirect') {
     if (tries > JOIN_RETRIES) return giveUp(s.rejoin ? 'match_lost' : 'party_unreachable');
     return { state: { ...s, joinTries: tries }, effects: [] };
   }
@@ -690,7 +691,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       // §14: a join still looking for its party, or a lost seat asking for itself back
       const retried = joinRetry(s, m.code);
       if (retried) return retried;
-      if (m.code === 'party_elsewhere') return { state: s, effects: [] };
+      if (m.code === 'party_elsewhere' || m.code === 'relay_redirect') return { state: s, effects: [] };
       // a teammate runs another build: nothing starts until they update (the relay told them `update_required`)
       if (m.code === 'party_update') return { state: s, effects: [{ t: 'note', note: { key: 'pp-update', title: COPY.teammateUpdate, tone: 'bad', ttl: 8000 } }] };
       // the live build asked for a seat in a room started on an older one: it plays the party's next match
@@ -994,6 +995,8 @@ export class PartyClient {
       () => h.ticket(),
       () => h.mmInfo?.().guest === false,
     );
+    // relay shards (LIVE-MATCH-DEPLOYS.md §15): when the front door's relay is down, try the shards the API lists
+    this.socket.discoverWith(() => fetchRelayShards(h.api));
     this.socket.connect(h.ticket());
     this.timer = setInterval(() => this.everySecond(), 250);
   }

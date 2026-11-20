@@ -16,7 +16,7 @@ import { HEROES } from '../data/heroes';
 import { HERO_TEXT } from '../ui/heroText';
 import type { HeroId, MatchResult, Snapshot } from '../sim/api';
 import { SIM_VERSION } from '../sim/version';
-import { PartySocket, browserSocketEnv, type SocketEnv } from '../net/socket';
+import { PartySocket, browserSocketEnv, fetchRelayShards, type SocketEnv } from '../net/socket';
 import { PROTO_WATCH, WS_PATH, type MatchMsg, type ServerJson, type SpectateInfo } from '../net/proto';
 import { NetHost } from '../net/net-host';
 import '../ui/css/moments.css';
@@ -335,7 +335,8 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
           if (m.code === 'update_required') return fail('watch_update');
           if (m.code === 'bad_message') return fail('old');
           // the relay hands the room to another relay: reconnect (the load balancer picks the serving one) and ask
-          // again; server_moving closes the socket by itself
+          // again; server_moving and relay_redirect (the match runs on another shard, PROTO 9) close the socket by
+          // themselves and the next welcome asks again
           if (m.code === 'room_gone') socket.bounce(typeof m.retryMs === 'number' ? m.retryMs : 250);
           return;
         default:
@@ -351,6 +352,7 @@ export function openSpectateViewer(ctx: SpectateContext): SpectateViewer {
   });
   // a reconnect after the ticket aged signs in again (a spent ticket would make the watcher a guest)
   socket.refreshTicketsWith(() => ctx.ticket());
+  socket.discoverWith(() => fetchRelayShards(ctx.api));
   socket.connect(ctx.ticket());
 
   // free camera: drag the map (as the replay viewer)

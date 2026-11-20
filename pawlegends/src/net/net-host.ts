@@ -669,7 +669,7 @@ export class NetHost implements PartyLink {
           this.desynced = true;
           this.note({ key: 'mp-desync', title: 'Connection lost · a bot plays your champion', tone: 'bad', ttl: 15_000 });
           this.opts.track?.('mp_desync', { abort: true, turn: this.lastTurn });
-        } else if (m.code === 'room_gone' || m.code === 'server_moving' || m.code === 'room_elsewhere') {
+        } else if (m.code === 'room_gone' || m.code === 'server_moving' || m.code === 'room_elsewhere' || m.code === 'relay_redirect') {
           this.quietUntil = this.now() + QUIET_WAIT_MS;
           this.noteReconnectLater();
         }
