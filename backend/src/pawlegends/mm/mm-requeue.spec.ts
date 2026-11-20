@@ -96,18 +96,21 @@ describe('Quick Play: play online again after a match', () => {
         }
     });
 
-    it('a second live tab keeps its seat: Play online elsewhere is refused with a time (mm_locked), not a hang', async () => {
+    it("a second live tab: Play online there gives the old tab's seat up (the newest wins), never mm_locked", async () => {
         const b = await bootMm();
         try {
             const key = `leaver-key-${process.pid}-4`;
-            await twoInARoom(b, key);
+            const { a, l, live, slot } = await twoInARoom(b, key);
             const n = await b.client();
             n.hello({ guestKey: key });
             await n.until(() => n.last('welcome'));
             n.send({ t: 'mm.join', queue: 'coop', side: 'any' });
-            const e = await n.until(() => n.last('error'));
-            expect(e).toMatchObject({ code: 'mm_locked' });
-            expect(e.retryMs).toBeGreaterThan(0);
+            await n.until(() => n.last('mm.status'));
+            expect(n.last('error')).toBeUndefined();
+            // the old tab is told its seat is gone; a bot flies it for the teammate
+            expect((await l.until(() => l.last('error'))).code).toBe('seat_taken');
+            await a.until(() => (a.last('party')?.members.length === 1 ? true : null));
+            expect(live.room.slots[slot].mode).toBe('pilot');
         } finally {
             await b.stop();
         }

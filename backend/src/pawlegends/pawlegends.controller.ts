@@ -56,7 +56,10 @@ import { ClientPolicyAnswer, parseClientPolicyQuery } from 'src/shared-contracts
  */
 
 const MINUTE = 60_000;
-/** Per client IP. */
+/**
+ * Per player: an account or guest (`req.user`) by its id; a caller without one by its address at 10 times the limit
+ * (`throttleBucket` in client-ip-throttler.guard.ts: many players share one address).
+ */
 export const PAWLEGENDS_THROTTLES: Record<string, ClientIpThrottleOptions> = {
     status: { limit: 60, ttl: MINUTE },
     checkout: { limit: 5, ttl: MINUTE },
@@ -69,8 +72,9 @@ export const PAWLEGENDS_THROTTLES: Record<string, ClientIpThrottleOptions> = {
     champions: { limit: 60, ttl: MINUTE },
     notify: { limit: 3, ttl: 10 * MINUTE },
     notifyConfirm: { limit: 10, ttl: MINUTE },
-    // Party play (MULTIPLAYER.md §5.2): 30 tickets per 10 minutes per client IP.
-    partyTicket: { limit: 30, ttl: 10 * MINUTE },
+    // Party play (MULTIPLAYER.md §5.2): every relay connect and every reconnect after 40 s asks for one, and relay
+    // bounces between instances add more; a 429 sent the player in as a guest. Per account, far above human use.
+    partyTicket: { limit: 300, ttl: 10 * MINUTE },
     // Store and Legends Pass (STORE-PASS.md)
     me: { limit: 60, ttl: MINUTE },
     passClaim: { limit: 30, ttl: MINUTE },

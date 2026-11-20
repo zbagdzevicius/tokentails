@@ -49,15 +49,20 @@ export const MM_LIMITS = Object.freeze({
     closedGraceMs: 10_000,
     /** §4.5 caps. */
     queueMax: 600,
-    joins: Object.freeze({ perIdentity: 30, perIp: 120, perNet: 600, windowMs: 10 * 60_000 }),
-    queued: Object.freeze({ perIdentity: 1, perIp: 12, perNet: 40 }),
+    /**
+     * Searches per identity (an account or a guest key) per window: a script guard far above human use. Nothing per IP
+     * or network (founder, 2026-11-20): a carrier NAT, a school or a party at home shares one address. A repeat join of
+     * a queued player only changes the side and is not counted; one identity holds one entry (the newest search wins).
+     */
+    joins: Object.freeze({ perIdentity: 200, windowMs: 10 * 60_000 }),
     sideEveryMs: 2000,
     statusEveryMs: 2000,
     /**
-     * Play online while a live-room cap still binds (this identity in a live room from a tab that is still open, or the
-     * address already in 4 live rooms): `mm_locked` with this retry (the card says when to search again).
+     * Play online while this identity still holds a live seat the relay could not give up (a race with a room start):
+     * `mm_locked` with this retry, which the game retries by itself. The older seat is normally given up at once (the
+     * newest search wins), so this is a safety net, never the 30 s dead end it was.
      */
-    liveRoomRetryMs: 30_000,
+    liveRoomRetryMs: 2_000,
     /** A formed match whose room has not started after this long is forgotten (the pick lasts 30 s). */
     pendingMaxMs: 5 * 60_000,
     /** A stranger idle this long in results leaves the matched party. */

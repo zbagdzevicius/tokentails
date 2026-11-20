@@ -1,6 +1,11 @@
 import { ThrottlerException } from '@nestjs/throttler';
 import { Reflector } from '@nestjs/core';
-import { ClientIpThrottle, ClientIpThrottlerGuard } from './client-ip-throttler.guard';
+import {
+    ClientIpThrottle,
+    ClientIpThrottlerGuard,
+    PLAYER_ANON_IP_FACTOR,
+    throttleBucket,
+} from './client-ip-throttler.guard';
 
 class FakeStorage {
     hits = new Map<string, number>();
@@ -103,6 +108,46 @@ describe('ClientIpThrottlerGuard', () => {
             const guard = new ClientIpThrottlerGuard(storage as any, new Reflector());
             await guard.consume('S.default', { headers: {}, ip: BALANCER, ips: [] }, { limit: 5, ttl: 60000 });
             expect([...storage.hits.keys()]).toEqual(['client-ip-throttle:S.default:unknown']);
+        });
+    });
+
+    describe('Paw Legends scopes count per player, never per shared address', () => {
+        const opts = { limit: 30, ttl: 600_000 };
+        const req = (id?: string) => ({
+            headers: { 'cf-connecting-ip': '85.206.1.7' },
+            ip: BALANCER,
+            ips: [],
+            ...(id ? { user: { _id: id } } : {}),
+        });
+
+        it('20 players behind one carrier NAT each get their own party-ticket bucket', async () => {
+            const storage = new FakeStorage();
+            const guard = new ClientIpThrottlerGuard(storage as any, new Reflector());
+            for (let i = 0; i < 20; i++)
+                for (let n = 0; n < opts.limit; n++)
+                    await expect(
+                        guard.consume('PawlegendsController.partyTicket', req(`acc${i}`), opts)
+                    ).resolves.toBeUndefined();
+            await expect(guard.consume('PawlegendsController.partyTicket', req('acc0'), opts)).rejects.toBeInstanceOf(
+                ThrottlerException
+            );
+        });
+
+        it('a caller without an account counts per address at 10x the limit', async () => {
+            const guard = new ClientIpThrottlerGuard(new FakeStorage() as any, new Reflector());
+            for (let n = 0; n < opts.limit * PLAYER_ANON_IP_FACTOR; n++)
+                await guard.consume('PawlegendsRanked.status', req(), opts);
+            await expect(guard.consume('PawlegendsRanked.status', req(), opts)).rejects.toBeInstanceOf(
+                ThrottlerException
+            );
+        });
+
+        it('other scopes keep the per-address bucket', () => {
+            expect(throttleBucket('YourcatController.upload', req('acc1'), opts)).toEqual({
+                key: '85.206.1.7',
+                limit: 30,
+            });
+            expect(throttleBucket('PawlegendsChat.send', req('acc1'), opts)).toEqual({ key: 'acct:acc1', limit: 30 });
         });
     });
 });

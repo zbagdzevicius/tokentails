@@ -265,11 +265,14 @@ export class MmBridge implements MmHooks {
     private readonly joining = new Set<string>();
     /** `mm.leave` arrived while the join's reads ran: that join is dropped when they return. */
     private readonly joinAborted = new Set<string>();
-    private readonly joins = {
-        byKey: new Map<string, number[]>(),
-        byIp: new Map<string, number[]>(),
-        byNet: new Map<string, number[]>(),
-    };
+    /** `mm.join` times per identity (never per IP or network: many players share one address). */
+    private readonly joins = { byKey: new Map<string, number[]>() };
+    /**
+     * The leaver ladder's low-priority wait per identity key: when it ends. Set at the first search that owes it and kept
+     * across Cancel, Search again and relay bounces (a re-search waits only what is left, never a fresh full wait);
+     * cleared when a match seats the identity, so the next search after a match owes it again.
+     */
+    private readonly lowPrioUntil = new Map<string, number>();
     private readonly leaverCache = new Map<string, { at: number; status: LeaverStatus }>();
     /** Casual matches waiting for Accept, by match id. */
     private readonly accepting = new Map<string, PendingAccept>();
@@ -361,7 +364,8 @@ export class MmBridge implements MmHooks {
             reason === 'pvp_newbie' ||
             reason === 'ranked_party' ||
             reason === 'mode_level' ||
-            reason === 'mode_retired'
+            reason === 'mode_retired' ||
+            reason === 'sanction'
         )
             msg.reason = reason;
         this.api.send(member, msg);
@@ -440,33 +444,50 @@ export class MmBridge implements MmHooks {
         return Math.max(0, list.length - MM_CASUAL.dodgeFreePerDay) * MM_CASUAL.dodgePenaltyStepMs;
     }
 
-    /** The ms until this socket may join again (0: allowed). Counts the attempt when allowed. */
-    private joinBlockedMs(sock: MmSock, ipKey: string): number {
+    /**
+     * The ms until this identity may start another search (0: allowed). Counts the attempt when allowed. Per identity
+     * only, far above human use (a script guard): an IP-only identity (many players behind one address share its key)
+     * is never counted, and nothing is keyed per IP or network (founder, 2026-11-20: "Too many searches from this
+     * network").
+     */
+    private joinBlockedMs(sock: MmSock): number {
+        const key = sock.identity.key;
+        if (key.startsWith('ip:')) return 0;
         const now = this.api.now();
         const j = MM_LIMITS.joins;
-        const check = (m: Map<string, number[]>, k: string, limit: number) => {
-            const list = (m.get(k) ?? []).filter(t => now - t < j.windowMs);
-            if (list.length) m.set(k, list);
-            else m.delete(k);
-            return list.length >= limit ? list[list.length - limit] + j.windowMs - now : 0;
-        };
-        const wait = Math.max(
-            check(this.joins.byKey, sock.identity.key, j.perIdentity),
-            check(this.joins.byIp, ipKey, j.perIp),
-            check(this.joins.byNet, sock.netKey, j.perNet)
-        );
-        if (wait > 0) return wait;
-        for (const [m, k] of [
-            [this.joins.byKey, sock.identity.key],
-            [this.joins.byIp, ipKey],
-            [this.joins.byNet, sock.netKey],
-        ] as const) {
-            const list = m.get(k) ?? [];
-            list.push(now);
-            if (list.length > 1024) list.splice(0, list.length - 1024);
-            m.set(k, list);
+        const list = (this.joins.byKey.get(key) ?? []).filter(t => now - t < j.windowMs);
+        if (list.length >= j.perIdentity) {
+            this.joins.byKey.set(key, list);
+            return list[list.length - j.perIdentity] + j.windowMs - now;
         }
+        list.push(now);
+        this.joins.byKey.set(key, list);
         return 0;
+    }
+
+    /**
+     * The low-priority wait this search still owes (ms): the ladder's and the dodges' wait, started once per identity
+     * and counted down across re-searches (never restarted by Cancel and Search again).
+     */
+    private lowPrioWaitMs(
+        socks: readonly MmSock[],
+        ladders: readonly LeaverStatus[],
+        pvp: boolean,
+        now: number
+    ): number {
+        let wait = 0;
+        socks.forEach((s, i) => {
+            const key = s.identity.key;
+            const owed = Math.max(ladders[i]?.waitMs ?? 0, pvp ? this.dodgeWaitMs(key, now) : 0);
+            if (owed <= 0) return;
+            let until = this.lowPrioUntil.get(key);
+            if (until === undefined) {
+                until = now + owed;
+                this.lowPrioUntil.set(key, until);
+            }
+            wait = Math.max(wait, until - now);
+        });
+        return Math.max(0, wait);
     }
 
     private async join(
@@ -547,8 +568,7 @@ export class MmBridge implements MmHooks {
             }
             if (old) return this.refuse(member, 'party_busy', undefined, 'party_proto');
         }
-        const ipKey = sha(`mm:${clientIpKey(sock.ip)}`);
-        const blocked = this.joinBlockedMs(sock, ipKey);
+        const blocked = this.joinBlockedMs(sock);
         if (blocked > 0) return this.refuse(member, 'mm_locked', blocked, 'join_rate');
         const memberIds = p ? p.members.map(m => m.id) : [member];
         // a moderator lock on any member stops the whole party's entry (SOCIAL-RANKED.md §8.4)
@@ -585,8 +605,9 @@ export class MmBridge implements MmHooks {
             return;
         }
         if (queue === 'ranked' && (await this.rankedRefusal(member, socks))) return;
-        // the live-room caps (1 per identity, 4 per IP) are checked now, not after the fill: a seat this identity
-        // still holds from a closed tab is given up; anything else is refused with a time (never a silent cancel)
+        // one live room per identity (no per-IP cap): the newest search wins, so a seat this identity still holds in
+        // another live room (a closed tab, an app relaunch or OTA reload mid-match, a second device) is given up now,
+        // whatever the mode. The game retries a refusal by itself (it no longer happens once the seat is given up)
         for (const s of socks) if (!api.canSeat(s.identity)) api.release(s.identity, s.member);
         if (socks.some(s => !api.canSeat(s.identity)))
             return this.refuse(member, 'mm_locked', MM_LIMITS.liveRoomRetryMs, 'live_room');
@@ -596,15 +617,8 @@ export class MmBridge implements MmHooks {
             for (const e of this.entries.values())
                 if (e.members.some(m => m.identityKey === s.identity.key)) this.cancelEntry(e, 'left');
         }
+        // no cap on searches per IP or network: a school, a home wifi or a carrier NAT queues many players at once
         const ipKeys = socks.map(s => sha(`mm:${clientIpKey(s.ip)}`));
-        let perIp = 0;
-        let perNet = 0;
-        for (const e of this.entries.values()) {
-            if (e.members.some(m => ipKeys.includes(m.ipKey))) perIp++;
-            if (e.members.some(m => m.netKey === sock.netKey)) perNet++;
-        }
-        if (perIp >= MM_LIMITS.queued.perIp || perNet >= MM_LIMITS.queued.perNet)
-            return this.refuse(member, 'mm_locked', 60_000, 'queued_cap');
         if (this.mm.size >= MM_LIMITS.queueMax) return this.refuse(member, 'server_busy', 15_000, 'queue_full');
         const partyId = p?.id ?? null;
         for (const id of memberIds) {
@@ -656,10 +670,7 @@ export class MmBridge implements MmHooks {
             (played.some(n => n < MM_CASUAL.newbieMatches) || members.some(m => m.rating.rd > MM_CASUAL.newbieRd))
         )
             return this.refuse(member, 'mm_locked', undefined, 'pvp_newbie');
-        const wait = Math.max(
-            ...ladders.map(l => l.waitMs),
-            ...(pvp ? socks.map(s => this.dodgeWaitMs(s.identity.key, now)) : [0])
-        );
+        const wait = this.lowPrioWaitMs(socks, ladders, pvp, now);
         const entry: MmEntry = {
             id: randomId(),
             partyId,
@@ -1035,7 +1046,11 @@ export class MmBridge implements MmHooks {
             for (const e of ok) this.mm.join({ ...e, awaySinceMs: null });
             return;
         }
-        for (const e of group) this.dropEntry(e);
+        for (const e of group) {
+            this.dropEntry(e);
+            // the low-priority wait was served for this match: the next search owes the ladder's wait again
+            for (const m of e.members) this.lowPrioUntil.delete(m.identityKey);
+        }
         // a host friend party keeps its party (the oldest one queued); a party of 1 that is not the host is left
         const host = group.find(e => e.partyId && api.parties.byId(e.partyId)?.members.length);
         const ordered = host ? [host, ...group.filter(e => e !== host)] : group;
@@ -1545,8 +1560,10 @@ export class MmBridge implements MmHooks {
             if (!waiting || now - pend.at > MM_LIMITS.pendingMaxMs) this.pending.delete(pid);
         }
         const j = MM_LIMITS.joins;
-        for (const m of [this.joins.byKey, this.joins.byIp, this.joins.byNet])
-            for (const [k, list] of m) if (!list.length || now - list[list.length - 1] >= j.windowMs) m.delete(k);
+        for (const [k, list] of this.joins.byKey)
+            if (!list.length || now - list[list.length - 1] >= j.windowMs) this.joins.byKey.delete(k);
+        // a served wait is forgotten an hour after it ended (the next search then owes the ladder's wait again)
+        for (const [k, until] of this.lowPrioUntil) if (now - until >= 3600_000) this.lowPrioUntil.delete(k);
         for (const [k, at] of this.lastSide) if (now - at >= MM_LIMITS.sideEveryMs) this.lastSide.delete(k);
         for (const [k, at] of this.leaverCache) if (now - at.at >= MM_LIMITS.readCacheMs) this.leaverCache.delete(k);
     }

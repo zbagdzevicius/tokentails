@@ -3,7 +3,6 @@ import type { AddressInfo } from 'net';
 import { CMD_OP, Frame, encodeBeat } from './net';
 import { LoopGate } from './loop-gate';
 import { PartyRelay } from './party-relay';
-import { PARTY_LIMITS } from './party-limits';
 import { PartyTicketService } from './party-ticket.service';
 import { RefereePool } from './referee-pool';
 import { MemoryRoomStore } from './room-store';
@@ -328,10 +327,10 @@ describe('party relay hardening', () => {
         await b.stop();
     });
 
-    it('rooms per IP are capped, guests included', async () => {
+    it('rooms per IP are not capped: 8 parties from one address all start (a home, a school, a carrier NAT)', async () => {
         const b = await boot();
         let refused = 0;
-        for (let i = 0; i < PARTY_LIMITS.roomsLivePerIp + 1; i++) {
+        for (let i = 0; i < 8; i++) {
             const s = await b.client('77.77.77.77');
             s.hello({ guestKey: `room-key-${i}-xxxxx` });
             await s.until(() => s.last('welcome'));
@@ -350,8 +349,8 @@ describe('party relay hardening', () => {
             );
             if (r.t === 'error') refused++;
         }
-        expect(refused).toBe(1);
-        expect(b.relay.rooms.size).toBe(PARTY_LIMITS.roomsLivePerIp);
+        expect(refused).toBe(0);
+        expect(b.relay.rooms.size).toBe(8);
         await b.stop();
     });
 

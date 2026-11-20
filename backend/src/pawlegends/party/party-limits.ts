@@ -15,20 +15,28 @@ export const PARTY_LIMITS = Object.freeze({
 
     socketsPerInstance: 2000,
     preHelloSockets: 200,
-    upgradesPerSecond: 50,
-    socketsPerIdentity: 4,
-    socketsPerIp: 50,
+    /**
+     * Upgrades per second for the whole instance: a reconnect storm after a deploy (every player of the other instance
+     * at once) must get through; the client backs off with jitter on a refused upgrade.
+     */
+    upgradesPerSecond: 400,
+    /**
+     * Open sockets of one identity (founder, 2026-11-20: "lift such restrictions"). A new `hello` over the cap closes the
+     * oldest socket of that identity (the newest wins), never the new one: relay bounces and app relaunches leave
+     * half-closed sockets behind for a moment.
+     */
+    socketsPerIdentity: 8,
+    /*
+     * No per-IP or per-network cap on sockets, parties, joins or live rooms (founder, 2026-11-20): many players share one
+     * address (carrier CGNAT, a home or school wifi, friends in a party), and a per-address cap blocked real players
+     * ("Too many searches from this network"). Abuse is bounded per identity (an account or a guest key) and by the
+     * instance caps above.
+     */
     partiesLivePerIdentity: 3,
-    partiesPerHourPerIdentity: 20,
-    partiesPerHourPerIp: 60,
-    partiesLivePerIp: 10,
+    partiesPerHourPerIdentity: 200,
+    /** Live rooms per identity: a new search or seat gives up the older seat (the newest wins), it is never refused. */
     roomsLivePerIdentity: 1,
-    /** Rooms with anyone from one IP (a home, a school or a carrier NAT shares one): enough for a few parties. */
-    roomsLivePerIp: 4,
-    joinFailPerIdentity: { limit: 10, windowMs: 10 * 60_000 },
-    joinFailPerIp: { limit: 30, windowMs: 10 * 60_000 },
-    /** Failed joins per /24 (IPv4) or /48 (IPv6) network: a backoff for that network only, never a global lock. */
-    joinFailPerNet: { limit: 100, windowMs: 10 * 60_000 },
+    joinFailPerIdentity: { limit: 60, windowMs: 10 * 60_000 },
     /** Counted for the `join_fail_global` alert only; never locks joins for everyone (one IP could hold it). */
     joinFailGlobal: { limit: 200, windowMs: 60_000 },
     /** Binary frames per socket (CMD, BEAT, HASH): a token bucket; over it each frame is a strike. */

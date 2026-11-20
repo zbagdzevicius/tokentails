@@ -308,8 +308,8 @@ Room log cap: `roomLogBytes` 160 KB → **256 KB** for 6-human rooms. Six per-sl
 
 | Limit | Value |
 |---|---|
-| `mm.join` per identity / per IP / per net | 30 / 120 / 600 per 10 min (NAT-friendly: per-IP is loose, identity is tight) |
-| Queued entries per identity / per IP | 1 / 12 |
+| `mm.join` per identity | 200 per 10 min; nothing per IP or net (founder, 2026-11-20) |
+| Queued entries per identity | 1 (the newest search wins) |
 | Accept declines per identity | 2 free per day, then the dodge ladder |
 | Ranked queue | signed-in account only (no guests), ≥ 10 completed matches, one ranked queue per identity, and ≤ 3 ranked accounts per IP per day (more get `mm_locked` for that IP, with a support line) |
 | Room tickets | single use, 60 s, bound to identity and room (the existing ticket HMAC with `aud: 'pl-room'`) |

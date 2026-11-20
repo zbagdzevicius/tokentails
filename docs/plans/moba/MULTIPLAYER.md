@@ -325,19 +325,18 @@ Sizes are enforced per type **before** decoding. Any other first byte is a strik
 
 ### 3.5 Caps (single serving relay per pool; `LIVE-MATCH-DEPLOYS.md` §4.4)
 
-Identity = account id, else guest key hash, else verified client IP. Caps are keyed on identity first; per-IP caps are loose because of carrier NAT and school Wi-Fi.
+Identity = account id, else guest key hash, else verified client IP. Caps are keyed on identity only: there is no per-IP or per-network cap on sockets, parties, joins, searches or live rooms (founder, 2026-11-20: carrier NAT, school Wi-Fi and friends at home share one address, and a per-address cap blocked real players). An IP-only identity is such an address and is never counted.
 
 | Item | Cap |
 |---|---|
-| Sockets per instance / pre-`hello` sockets / upgrades | 2,000 / 200 / 50 per second |
-| Sockets per identity / per IP | 4 / 50 |
-| Parties created per identity / per IP | 3 live and 20 per hour / 10 live and 60 per hour |
+| Sockets per instance / pre-`hello` sockets / upgrades | 2,000 / 200 / 400 per second |
+| Sockets per identity | 8; a new `hello` over it closes the identity's oldest socket (the newest wins), never the new one |
+| Parties created per identity | 3 live and 200 per hour |
 | Seats per person in one party | 1 (same account or guest key): joining again takes that one seat over, as a resume does (the older tab hears `seat_elsewhere`, "Playing in another tab"); the invite link gives a closed tab its seat back at once, even before the server noticed the old socket died |
-| Live rooms per identity / per IP | 1 / 4 (guests included: rooms are counted by every seated identity and IP) |
+| Live rooms per identity | 1, never a refusal: a new search, match start or backfill gives up the identity's older live seat in any mode (a closed tab, an app relaunch or OTA reload, or a second open tab, which hears `seat_taken`) |
 | Live rooms | `MAX_LIVE_ROOMS` (§3.3); unticketed rooms may use at most 50% |
-| Failed `party.join` per identity | 10 per 10 min (`rate_limited` with `retryMs`) |
-| Failed `party.join` per IP / per network (/24, /48) | 30 per 10 min / 100 per 10 min: each backs off only itself (a new guest key does not reset the IP count) |
-| Failed `party.join` per instance | 200 per minute logs `join_fail_global` (an alert). **Never a global lock:** one IP could otherwise stop joins for everyone. Guessing stays bounded by the per-IP and per-network caps (31⁶ codes) |
+| Failed `party.join` per identity | 60 per 10 min (`rate_limited` with `retryMs`) |
+| Failed `party.join` per instance | 200 per minute logs `join_fail_global` (an alert). **Never a global lock:** one IP could otherwise stop joins for everyone. Guessing stays bounded by the per-identity cap and the 31⁶ code space |
 | JSON frames per socket | 5 per second, burst 10 |
 | Binary frames per socket (CMD, BEAT, HASH) | 40 per second, burst 60; a frame over it is a strike (3 strikes close). A frame from a socket without a seat costs 4. At most one ECHO per 250 ms |
 | HASH | one per slot per 30-tick mark (a repeat or an off-cadence tick is refused and costs the binary budget again) |

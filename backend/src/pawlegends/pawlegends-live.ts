@@ -45,8 +45,11 @@ export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-
  * drifted apart (LAUNCH.md a.8 step 4).
  */
 
-/** Pawlegends replays: one at a time in the worker, up to 8 waiting (about 12 s of worst-case matches). */
-export const PAWLEGENDS_REPLAY_QUEUE = { concurrency: 1, maxQueued: 8 };
+/**
+ * Pawlegends replays: one at a time in the worker, up to 64 waiting. Every match ends with up to 10 saves at once (a
+ * 5v5 room), so 8 waiting answered 429 to real players at the end of a busy minute; a wait is better than a lost save.
+ */
+export const PAWLEGENDS_REPLAY_QUEUE = { concurrency: 1, maxQueued: 64 };
 /** A re-sim that takes longer than this kills its worker (a fresh one starts for the next replay). */
 export const PAWLEGENDS_REPLAY_TIMEOUT_MS = 10_000;
 /**

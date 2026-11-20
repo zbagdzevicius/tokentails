@@ -1,4 +1,3 @@
-import { MM_LIMITS } from './mm-limits';
 import { bootMm } from './mm-relay.helper-spec';
 
 /* Quick Play abuse guards (M1A-IMPL.md §4.5, §5.5). */
@@ -46,29 +45,6 @@ describe('Quick Play relay security', () => {
             await a2.until(() => a2.last('mm.status'));
             expect((await a1.until(() => a1.last('mm.cancel'))).reason).toBe('left');
             expect((b.relay.counters() as Record<string, number>).mm_queued).toBe(1);
-        } finally {
-            await b.stop();
-        }
-    });
-
-    it('join rate per identity: over 30 per 10 minutes is mm_locked with retryMs', async () => {
-        const b = await bootMm();
-        try {
-            const a = await b.guest();
-            let locked: Record<string, any> | undefined;
-            for (let i = 0; i < MM_LIMITS.joins.perIdentity + 1 && !locked; i++) {
-                a.send({ t: 'mm.join', queue: 'coop', side: 'any' });
-                await a.until(() => a.json.filter(j => j.t === 'mm.status').length > i || a.last('error'));
-                locked = a.last('error');
-                if (!locked) {
-                    a.send({ t: 'mm.leave' });
-                    await a.until(() => a.json.filter(j => j.t === 'mm.cancel').length > i);
-                }
-                // stay under the JSON frame rate (5 per second)
-                await new Promise(r => setTimeout(r, 450));
-            }
-            expect(locked).toMatchObject({ code: 'mm_locked' });
-            expect(locked!.retryMs).toBeGreaterThan(0);
         } finally {
             await b.stop();
         }

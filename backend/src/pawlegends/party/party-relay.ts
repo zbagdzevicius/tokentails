@@ -442,11 +442,9 @@ export class PartyRelay {
     private readonly joinFails = {
         global: [] as number[],
         byKey: new Map<string, number[]>(),
-        byIp: new Map<string, number[]>(),
-        byNet: new Map<string, number[]>(),
     };
-    /** Parties created per IP and per identity in the last hour. */
-    private readonly created = { byIp: new Map<string, number[]>(), byKey: new Map<string, number[]>() };
+    /** Parties created per identity in the last hour (never per IP: many players share one address). */
+    private readonly created = { byKey: new Map<string, number[]>() };
     private readonly pendingParty = new Set<string>();
     private partyFlush: NodeJS.Timeout | null = null;
     private partyTimer: NodeJS.Timeout | null = null;
@@ -722,9 +720,7 @@ export class PartyRelay {
         const ip = (this.opts.clientIp ?? PartyRelay.clientIp)(req);
         // an IPv6 host rotates through its /64: key it like the Quick Play caps (clientIpKey), not per address
         const ipKey = hashKey(`ip:${clientIpKey(ip)}`);
-        let perIp = 0;
-        for (const s of this.socks) if (s.ipKey === ipKey) perIp++;
-        if (perIp >= PARTY_LIMITS.socketsPerIp) return this.refuseUpgrade(socket, 429);
+        // no per-IP socket cap: a carrier NAT or a school puts hundreds of players behind one address
         this.upgrades.push(now);
         this.wss.handleUpgrade(req, socket, head, ws =>
             this.onSocket(
@@ -1188,12 +1184,14 @@ export class PartyRelay {
             guest: ticket ? ticket.guest : true,
             ipKey: s.ipKey,
         };
-        let perIdentity = 0;
-        for (const o of this.socks) if (o.identity?.key === key) perIdentity++;
-        if (perIdentity >= PARTY_LIMITS.socketsPerIdentity) {
-            this.error(s, 'rate_limited');
-            s.ws.close(4004, 'too many sockets');
-            return;
+        // over the per-identity cap the OLDEST socket of this identity goes (the newest wins): relay bounces and app
+        // relaunches leave half-closed sockets behind, and a refusal here was a dead end for the player
+        if (!key.startsWith('ip:')) {
+            const mine = [...this.socks].filter(o => o !== s && o.identity?.key === key);
+            for (const o of mine.slice(0, Math.max(0, mine.length - PARTY_LIMITS.socketsPerIdentity + 1))) {
+                o.ws.close(4004, 'too many sockets');
+                this.log('socket_replaced', {});
+            }
         }
         s.helloed = true;
         if (s.helloTimer) clearTimeout(s.helloTimer);
@@ -1308,9 +1306,6 @@ export class PartyRelay {
             }
         };
         prune(this.joinFails.byKey, PARTY_LIMITS.joinFailPerIdentity.windowMs);
-        prune(this.joinFails.byIp, PARTY_LIMITS.joinFailPerIp.windowMs);
-        prune(this.joinFails.byNet, PARTY_LIMITS.joinFailPerNet.windowMs);
-        prune(this.created.byIp, 3600_000);
         prune(this.created.byKey, 3600_000);
     }
 
@@ -1318,7 +1313,7 @@ export class PartyRelay {
     memo() {
         return {
             resume: this.resume.size,
-            joinFailKeys: this.joinFails.byKey.size + this.joinFails.byIp.size + this.joinFails.byNet.size,
+            joinFailKeys: this.joinFails.byKey.size,
             retiredCodes: this.parties.retiredCount,
             partyEnded: this.partyEndedAt.size,
             partySaves: this.partySaves.size,
@@ -1367,8 +1362,6 @@ export class PartyRelay {
             m.set(k, list);
         };
         add(this.joinFails.byKey, s.identity!.key);
-        add(this.joinFails.byIp, s.ipKey);
-        add(this.joinFails.byNet, netKey(s.ip));
         if (g.length >= PARTY_LIMITS.joinFailGlobal.limit) this.log('join_fail_global', { n: g.length });
     }
 
@@ -1379,42 +1372,32 @@ export class PartyRelay {
             const list = (m.get(k) ?? []).filter(t => now - t <= rule.windowMs);
             return list.length >= rule.limit ? list[list.length - rule.limit] + rule.windowMs - now : 0;
         };
-        return Math.max(
-            check(this.joinFails.byKey, s.identity!.key, PARTY_LIMITS.joinFailPerIdentity),
-            check(this.joinFails.byIp, s.ipKey, PARTY_LIMITS.joinFailPerIp),
-            check(this.joinFails.byNet, netKey(s.ip), PARTY_LIMITS.joinFailPerNet)
-        );
+        // per identity only: an address or a network is shared by many players (CGNAT, a school, a party at home), and
+        // an IP-only identity (no ticket, no guest key) is such an address
+        if (s.identity!.key.startsWith('ip:')) return 0;
+        return check(this.joinFails.byKey, s.identity!.key, PARTY_LIMITS.joinFailPerIdentity);
     }
 
-    /** Live parties with a member from this identity or IP, and parties created in the last hour by either. */
+    /** Live parties with a member from this identity, and parties it created in the last hour (never per IP). */
     private createRefused(s: Sock): boolean {
         const key = s.identity!.key;
+        // an IP-only identity is an address many players share: never capped
+        if (key.startsWith('ip:')) return false;
         let byKey = 0;
-        let byIp = 0;
-        for (const x of this.parties.all()) {
-            if (x.members.some(m => m.identity.key === key)) byKey++;
-            if (x.members.some(m => m.identity.ipKey === s.ipKey)) byIp++;
-        }
-        if (byKey >= PARTY_LIMITS.partiesLivePerIdentity || byIp >= PARTY_LIMITS.partiesLivePerIp) return true;
+        for (const x of this.parties.all()) if (x.members.some(m => m.identity.key === key)) byKey++;
+        if (byKey >= PARTY_LIMITS.partiesLivePerIdentity) return true;
         const now = this.now();
         const hour = (m: Map<string, number[]>, k: string) => (m.get(k) ?? []).filter(t => now - t < 3600_000).length;
-        return (
-            hour(this.created.byKey, key) >= PARTY_LIMITS.partiesPerHourPerIdentity ||
-            hour(this.created.byIp, s.ipKey) >= PARTY_LIMITS.partiesPerHourPerIp
-        );
+        return hour(this.created.byKey, key) >= PARTY_LIMITS.partiesPerHourPerIdentity;
     }
 
     private countCreate(s: Sock): void {
         const now = this.now();
-        for (const [m, k] of [
-            [this.created.byKey, s.identity!.key],
-            [this.created.byIp, s.ipKey],
-        ] as const) {
-            const list = m.get(k) ?? [];
-            list.push(now);
-            if (list.length > 64) list.shift();
-            m.set(k, list);
-        }
+        const m = this.created.byKey;
+        const list = m.get(s.identity!.key) ?? [];
+        list.push(now);
+        if (list.length > 256) list.shift();
+        m.set(s.identity!.key, list);
     }
 
     private onJson(s: Sock, msg: ClientJson): void {
@@ -1471,7 +1454,8 @@ export class PartyRelay {
             }
             case 'party.join': {
                 const wait = this.joinBlockedMs(s);
-                if (wait > 0) return this.error(s, 'rate_limited', Math.min(wait, PARTY_LIMITS.joinFailPerIp.windowMs));
+                if (wait > 0)
+                    return this.error(s, 'rate_limited', Math.min(wait, PARTY_LIMITS.joinFailPerIdentity.windowMs));
                 if (this.mm.queued(member)) this.mm.onJson(member, { t: 'mm.leave' });
                 this.resolveChat(s);
                 return this.joinHere(s, msg.code, true);
@@ -2360,18 +2344,14 @@ export class PartyRelay {
         if (!sim || this.state === 'stopped' || this.gate.busy() || this.liveUnits() + units > maxRooms)
             return refuse();
         if (!ticketed && unticketedRooms >= maxRooms * PARTY_LIMITS.unticketedRoomShare) return refuse();
-        // every member, guests included: one live room per identity, two per IP (a party from one home shares an IP,
-        // so the IP rule counts rooms, not seats)
-        const ipsHere = new Set(party.members.map(m => m.identity.ipKey).filter((x): x is string => !!x));
-        if (
-            party.members.some(
-                m =>
-                    !m.identity.key.startsWith('ip:') &&
-                    this.liveRoomsOf(m.identity.key).key >= PARTY_LIMITS.roomsLivePerIdentity
+        // one live room per identity: a member's older seat (a closed tab, a relaunched app, a second device) is given
+        // up so this match starts (the newest wins). No per-IP cap: a home, a school or a carrier NAT shares one address
+        for (const m of party.members)
+            if (
+                !m.identity.key.startsWith('ip:') &&
+                this.liveRoomsOf(m.identity.key).key >= PARTY_LIMITS.roomsLivePerIdentity
             )
-        )
-            return refuse();
-        for (const ip of ipsHere) if (this.liveRoomsOf('', ip).ip >= PARTY_LIMITS.roomsLivePerIp) return refuse();
+                this.releaseStale(m.identity, m.id);
         const entry = partySimFor(sim.version, sim.hash);
         if (!entry?.party) return refuse();
         // every member must run the leader's sim (the party is pinned to it): a member on another build would play its
@@ -2512,7 +2492,7 @@ export class PartyRelay {
                 (_, slot) => party.members.find(m => m.slot === slot)?.card?.image ?? null
             ),
             keys: new Set(party.members.map(m => m.identity.key)),
-            ips: ipsHere,
+            ips: new Set(party.members.map(m => m.identity.ipKey).filter((x): x is string => !!x)),
             ...(party.mm && !plan.pvp ? { coop: true } : {}),
             ...(plan.pvp ? { casual: { species: plan.pvp.species } } : {}),
             ...(personas.length ? { personas } : {}),
@@ -2686,7 +2666,8 @@ export class PartyRelay {
         );
         if (slot === undefined) return;
         const key = s.identity!.key;
-        if (!key.startsWith('ip:') && this.liveRoomsOf(key).key >= PARTY_LIMITS.roomsLivePerIdentity) return;
+        if (!key.startsWith('ip:') && this.liveRoomsOf(key).key >= PARTY_LIMITS.roomsLivePerIdentity)
+            this.releaseStale(s.identity!, memberId);
         const m = party.members.find(x => x.id === memberId);
         if (m) m.slot = slot;
         live.seats.set(memberId, slot);
@@ -3683,10 +3664,8 @@ export class PartyRelay {
             },
             send: (member, msg) => this.sendJsonTo(member, msg),
             canSeat: identity =>
-                !(
-                    !identity.key.startsWith('ip:') &&
-                    this.liveRoomsOf(identity.key).key >= PARTY_LIMITS.roomsLivePerIdentity
-                ) && !(identity.ipKey && this.liveRoomsOf('', identity.ipKey).ip >= PARTY_LIMITS.roomsLivePerIp),
+                identity.key.startsWith('ip:') ||
+                this.liveRoomsOf(identity.key).key < PARTY_LIMITS.roomsLivePerIdentity,
             room: roomId => this.mmRoomView(roomId),
             leaveParty: member => this.leaveParty(member),
             backfill: (member, roomId, slot, holder) => this.backfillSeat(member, roomId, slot, holder),
@@ -3730,8 +3709,10 @@ export class PartyRelay {
         const party = live ? this.parties.byId(live.party) : null;
         if (!s || !s.identity || !live || !party?.mm || live.ending || !live.room.live) return false;
         const key = s.identity.key;
+        // the newest seat wins: an older live seat of this identity is given up first (no per-IP cap)
+        if (!key.startsWith('ip:') && this.liveRoomsOf(key).key >= PARTY_LIMITS.roomsLivePerIdentity)
+            this.releaseStale(s.identity, member);
         if (!key.startsWith('ip:') && this.liveRoomsOf(key).key >= PARTY_LIMITS.roomsLivePerIdentity) return false;
-        if (s.ipKey && this.liveRoomsOf('', s.ipKey).ip >= PARTY_LIMITS.roomsLivePerIp) return false;
         if (live.room.slots[slot]?.mode !== 'pilot' || party.members.some(m => m.id === member)) return false;
         // every check that can refuse runs before the holder loses the seat (a refused backfill evicts no one)
         if (holder && holder !== member) this.evictSeat(holder, roomId);
@@ -3769,21 +3750,31 @@ export class PartyRelay {
     }
 
     /**
-     * Quick Play: give up the seats this identity still holds in live Quick Play rooms from a socket that is gone (a
-     * closed tab, a dead phone socket), so a new Play online is not blocked by the live-room cap. A bot keeps flying
-     * the seat (and it can be backfilled); the old member leaves the party as `party.leave` would.
+     * The newest seat wins (founder, 2026-11-20: "Too many searches from this network" after a reload): a new search, a
+     * new match or a backfill of this identity gives up the seats it still holds in other live rooms, of every mode
+     * (co-op, casual, ranked, a friend party), from a socket that is gone (a closed tab, a relaunched app, an OTA reload)
+     * or still open (a second tab or device, told `seat_taken`). A bot keeps flying the seat (and it can be backfilled);
+     * the old member leaves the party as `party.leave` would. Never a refusal: the old seat was the dead end.
      */
     private releaseStale(identity: MemberIdentity, except: string): void {
         if (identity.key.startsWith('ip:')) return;
         for (const live of [...this.rooms.values()]) {
-            if (!live.coop || !live.room.live || !live.keys.has(identity.key)) continue;
+            if (!live.room.live || !live.keys.has(identity.key)) continue;
             const party = this.parties.byId(live.party);
+            let held = false;
             for (const m of [...(party?.members ?? [])]) {
-                if (m.id === except || m.identity.key !== identity.key) continue;
+                if (m.identity.key !== identity.key) continue;
+                if (m.id === except) {
+                    held = true;
+                    continue;
+                }
                 const ms = this.byMember.get(m.id);
-                if (ms && !ms.closed) continue; // a live tab keeps its seat
+                const open = !!ms && !ms.closed;
                 this.giveUpSeat(live, m.id);
+                if (open) this.error(ms!, 'seat_taken');
             }
+            // a key with no member left behind it (a restored room, a seat already given up) no longer counts
+            if (!held) live.keys.delete(identity.key);
         }
     }
 

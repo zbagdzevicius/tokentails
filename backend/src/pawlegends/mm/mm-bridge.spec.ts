@@ -81,18 +81,92 @@ function make() {
 }
 
 describe('MmBridge', () => {
-    it('queued entries per address: 12, and an IPv6 home counts once per /64', async () => {
+    it('20 searches from one IP and one /24 network with different accounts all queue (no per-address cap)', async () => {
         const t = make();
-        const v6 = (i: number) => t.sock({ ip: `2a02:1234:5678:9abc::${(i + 1).toString(16)}`, netKey: `n${i}` });
-        for (let i = 0; i < MM_LIMITS.queued.perIp; i++) await t.join(v6(i));
-        expect(t.bridge.counters().mm_queued).toBe(MM_LIMITS.queued.perIp);
-        const over = v6(99);
-        await t.join(over);
-        expect(t.last(over.member, 'error')).toMatchObject({ code: 'mm_locked' });
-        // another /64 is another home
-        const other = t.sock({ ip: '2a02:1234:5678:9abd::1' });
+        const same = (i: number) =>
+            t.sock({
+                ip: '85.206.1.7',
+                netKey: 'carrier-nat',
+                identity: {
+                    accountId: `nat${i}`,
+                    guestKeyHash: null,
+                    key: `acct:nat${i}`,
+                    ticketed: true,
+                    guest: false,
+                    ipKey: 'one-address',
+                },
+            });
+        const all = Array.from({ length: 20 }, (_, i) => same(i));
+        for (const s of all) await t.join(s);
+        for (const s of all) {
+            expect(t.last(s.member, 'error')).toBeUndefined();
+            expect(t.last(s.member, 'mm.status')).toBeDefined();
+        }
+        expect(t.bridge.counters().mm_queued).toBe(20);
+    });
+
+    it('one player: rapid Cancel and Search again 40 times is never refused', async () => {
+        const t = make();
+        const s = t.sock();
+        for (let i = 0; i < 40; i++) {
+            await t.join(s);
+            expect(t.bridge.queued(s.member)).toBe(true);
+            t.bridge.onJson(s.member, { t: 'mm.leave' });
+            t.clock.now += 300;
+        }
+        await t.join(s);
+        expect(t.sent.filter(x => x.to === s.member && x.msg.t === 'error')).toEqual([]);
+        expect(t.bridge.queued(s.member)).toBe(true);
+    });
+
+    it('a second socket of the same account searching replaces the first entry (the newest wins)', async () => {
+        const t = make();
+        const a = t.sock();
+        const b = t.sock({ identity: { ...a.identity } });
+        await t.join(a);
+        await t.join(b);
+        expect(t.last(b.member, 'error')).toBeUndefined();
+        expect(t.bridge.queued(b.member)).toBe(true);
+        expect(t.bridge.queued(a.member)).toBe(false);
+        expect(t.bridge.counters().mm_queued).toBe(1);
+    });
+
+    it('a script guard per identity only: past 200 searches in 10 minutes one account waits, others do not', async () => {
+        const t = make();
+        const s = t.sock();
+        for (let i = 0; i < MM_LIMITS.joins.perIdentity; i++) {
+            await t.join(s);
+            t.bridge.onJson(s.member, { t: 'mm.leave' });
+        }
+        expect(t.sent.filter(x => x.to === s.member && x.msg.t === 'error')).toEqual([]);
+        await t.join(s);
+        expect(t.last(s.member, 'error')).toMatchObject({ code: 'mm_locked' });
+        const other = t.sock({
+            ip: s.ip,
+            netKey: s.netKey,
+            identity: { ...s.identity, key: 'acct:other', accountId: 'other' },
+        });
         await t.join(other);
-        expect(t.last(other.member, 'mm.status')).toBeDefined();
+        expect(t.last(other.member, 'error')).toBeUndefined();
+    });
+
+    it('an IP-only identity (many players behind one address) is never rate limited', async () => {
+        const t = make();
+        const s = t.sock({
+            identity: {
+                accountId: null,
+                guestKeyHash: null,
+                key: 'ip:shared',
+                ticketed: false,
+                guest: true,
+                ipKey: 'shared',
+            },
+        });
+        for (let i = 0; i < MM_LIMITS.joins.perIdentity + 5; i++) {
+            await t.join(s);
+            t.bridge.onJson(s.member, { t: 'mm.leave' });
+        }
+        expect(t.sent.filter(x => x.to === s.member && x.msg.t === 'error')).toEqual([]);
     });
 
     it('Play online with a seat from a closed tab: that seat is given up and the search starts', async () => {
@@ -155,7 +229,7 @@ describe('MmBridge', () => {
         t.bridge.onTick();
         const inner = t.bridge as unknown as {
             pending: Map<string, unknown>;
-            joins: { byKey: Map<string, unknown>; byIp: Map<string, unknown>; byNet: Map<string, unknown> };
+            joins: { byKey: Map<string, unknown> };
         };
         expect(inner.pending.size).toBeGreaterThan(0);
         // every matched party ends before its room starts (the pick was abandoned)
@@ -163,7 +237,7 @@ describe('MmBridge', () => {
         t.clock.now += MM_LIMITS.joins.windowMs + 61_000;
         t.bridge.onTick();
         expect(inner.pending.size).toBe(0);
-        expect(inner.joins.byKey.size + inner.joins.byIp.size + inner.joins.byNet.size).toBe(0);
+        expect(inner.joins.byKey.size).toBe(0);
     });
 
     it('a full queue answers server_busy with retryMs 15 s', async () => {
@@ -174,6 +248,48 @@ describe('MmBridge', () => {
         const late = t.sock({ ip: '11.0.0.1' });
         await t.join(late);
         expect(t.last(late.member, 'error')).toEqual({ t: 'error', code: 'server_busy', retryMs: 15_000 });
+    });
+
+    it('the leaver wait is served once: Cancel and Search again waits only what is left, never a fresh 60 s', async () => {
+        const t = make();
+        const s = t.sock();
+        const hash = identityHash(s.identity.key);
+        for (let i = 0; i < 2; i++)
+            await t.rooms.create({
+                _id: `lp${i}`,
+                queue: 'coop',
+                region: 'eu',
+                side: 'cat',
+                difficulty: 'easy',
+                sim: '14:abc',
+                fill: [],
+                queueMs: {},
+                members: [
+                    {
+                        slot: 0,
+                        identityHash: hash,
+                        accountId: null,
+                        joinedTick: 0,
+                        backfill: false,
+                        ratingAtStart: null,
+                        event: 'left',
+                        eventTick: 10,
+                    },
+                ],
+                createdAt: new Date(t.clock.now - 86_400_000),
+                endedAt: new Date(t.clock.now - 86_400_000),
+            });
+        await t.join(s);
+        expect(t.last(s.member, 'mm.status')!.lowPriorityMs).toBe(60_000);
+        t.clock.now += 20_000;
+        t.bridge.onJson(s.member, { t: 'mm.leave' });
+        await t.join(s);
+        expect(t.last(s.member, 'mm.status')!.lowPriorityMs).toBe(40_000);
+        t.clock.now += 45_000;
+        t.bridge.onJson(s.member, { t: 'mm.leave' });
+        await t.join(s);
+        // served: no second wait before the next match
+        expect(t.last(s.member, 'mm.status')!.lowPriorityMs ?? 0).toBe(0);
     });
 
     it('the leaver ladder: two events in 7 days queue with a 60 s low-priority wait and the warning', async () => {

@@ -317,6 +317,7 @@ cached 60 s; no penalty collection exists to tamper with or keep in sync):
 | 3 or more | `+ 3 min`, same card |
 
 - Decay: every 5 completed mm matches without an event erase the oldest event.
+- Served once per match (founder, 2026-11-20): the wait starts at the first search that owes it and counts down across Cancel, Search again and relay bounces (a re-search waits only what is left, never a fresh full wait). A match seating the player clears it, so the next search owes it again; a wait served and never followed by a match is forgotten an hour after it ended.
 - No catnip removal, no lock, no rating loss for the leaver in M1a. The ladder is the M1b ladder's first two steps.
 - Unticketed sockets with neither an account nor a guest key (an `ip:` identity) get no ladder: an IP is many people.
 
@@ -329,12 +330,12 @@ header only from a Cloudflare or trusted ingress hop). The mm `ipKey` is `hash('
 
 | Limit | Value | Over it |
 |---|---|---|
-| `mm.join` per identity / per IP / per net | 30 / 120 / 600 per 10 min | `error{code:'rate_limited', retryMs}` |
-| Queued entries per identity / per IP / per net | 1 / 12 / 40 | a second `mm.join` from the same identity moves the entry (the newest socket wins, as party seats do); over the IP or net cap: `rate_limited` |
+| `mm.join` per identity (never per IP or net, founder 2026-11-20) | 200 per 10 min; an IP-only identity is never counted | `error{code:'mm_locked', retryMs}`, which the game retries by itself |
+| Queued entries per identity | 1 (no per-IP or net cap) | a second `mm.join` from the same identity moves the entry (the newest socket wins, as party seats do) |
 | Queue size per instance | 600 entries | `server_busy` with `retryMs: 15 000` |
 | Backfill offers per identity | 3 per 10 min | not offered |
 | `mm.side` changes | 1 per 2 s | dropped |
-| Live rooms per identity / per IP | the existing 1 / 4 | checked at `mm.join`: a seat this identity still holds from a socket that is gone (a closed tab) is given up first (as `party.leave`; a bot keeps it, a backfill can take it); a cap that still binds answers `error{code:'mm_locked', retryMs: 30 000}` at once. A seat given up (`party.leave`, eviction) stops counting at once. At match time the same check repeats; never `mm.cancel{server}` (the client reads that as a restart) |
+| Live rooms per identity | 1 (no per-IP cap) | checked at `mm.join`: a seat this identity still holds in another live room of any mode, from a closed tab or a still-open one (told `seat_taken`), is given up first (as `party.leave`; a bot keeps it, a backfill can take it): the newest search wins. A cap that still binds (a race) answers `error{code:'mm_locked', retryMs: 2 000}`, which the game retries quietly; only a moderator lock (`reason: 'sanction'`) stops the card. A seat given up (`party.leave`, eviction) stops counting at once. At match time the same check repeats; never `mm.cancel{server}` (the client reads that as a restart) |
 | Unticketed rooms | the existing 50 % share of `maxLiveRooms` | the match waits for capacity, then `server_busy` |
 | JSON frames | the existing 5 per second, burst 10 | strike |
 
