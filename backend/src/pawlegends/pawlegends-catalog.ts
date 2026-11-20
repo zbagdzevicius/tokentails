@@ -680,6 +680,19 @@ export const SEASON_XP = Object.freeze({
     refTicks: 13500,
 });
 
+/**
+ * PARTY-XP.md (founder, Nov 20: "party gives 50%+ xp boost"): percent added to a verified party match's Season XP by
+ * the number of other humans from the player's pre-made party (party-bonus.ts counts them from the stored room).
+ */
+export const PARTY_XP_BONUS = Object.freeze({ oneMate: 50, moreMates: 75 });
+
+/** +50% with one party mate, +75% with two or more, 0 alone. Pure. */
+export function partyXpBonusPct(mates: number): number {
+    const n = Math.floor(Number(mates) || 0);
+    if (n <= 0) return 0;
+    return n === 1 ? PARTY_XP_BONUS.oneMate : PARTY_XP_BONUS.moreMates;
+}
+
 export function seasonXpFor(m: {
     won: boolean;
     forfeit: boolean;
@@ -689,6 +702,8 @@ export function seasonXpFor(m: {
     ticks?: number;
     /** Sim v22: a Blitz draw: the loss plus half the win bonus. */
     draw?: boolean;
+    /** PARTY-XP.md: percent added to the match part (party-bonus.ts partyXpBonusPct); the first win stays flat. */
+    partyPct?: number;
 }): number {
     const drawBase = SEASON_XP.loss + Math.floor((SEASON_XP.win - SEASON_XP.loss) / 2);
     const base = m.forfeit ? SEASON_XP.forfeit : m.won ? SEASON_XP.win : m.draw ? drawBase : SEASON_XP.loss;
@@ -698,6 +713,8 @@ export function seasonXpFor(m: {
         const share = Math.max(0, Math.min(1, (Number(m.ticks) || 0) / SEASON_XP.refTicks));
         match = Math.round(match * share);
     }
+    const pct = Math.max(0, Math.min(100, Math.floor(Number(m.partyPct) || 0)));
+    if (pct > 0) match += Math.round((match * pct) / 100);
     return match + (m.won && m.firstWinToday ? SEASON_XP.firstWinOfDay : 0);
 }
 

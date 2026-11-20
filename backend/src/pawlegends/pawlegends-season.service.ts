@@ -31,6 +31,7 @@ import {
     SeasonDef,
     seasonTier,
     seasonXpFor,
+    partyXpBonusPct,
 } from './pawlegends-catalog';
 import { PAWLEGENDS_SKUS } from './pawlegends.contracts';
 import { pawlegendsError } from './pawlegends.errors';
@@ -213,6 +214,11 @@ export interface SeasonXpGain {
     yarn?: YarnGain;
     /** CHAMPION-STORE.md §8.5: the solo save's hero was not the player's to pick; nothing was paid. */
     heroLocked?: true;
+    /**
+     * PARTY-XP.md: the party bonus inside `gained` (other humans from the player's pre-made party, the percent and the
+     * XP it added). Absent when the match had no party mate or paid nothing.
+     */
+    partyBonus?: { mates: number; pct: number; xp: number };
 }
 
 /** What addSeasonXp also tells the score hook (never sent to the client). */
@@ -245,6 +251,11 @@ export interface SeasonXpMatch {
     ref?: string;
     /** A solo save's hero: checked against the heroes the account could pick when the match started. */
     hero?: string;
+    /**
+     * PARTY-XP.md: other humans from the player's pre-made party who played the room (the party writer's
+     * `partyMatesOf`, never the client). +50% match XP with one, +75% with two or more.
+     */
+    partyMates?: number;
 }
 
 /** Solo matches that pay Season XP per UTC day (the party writer's PARTY_DAILY_CAP is the same number). */
@@ -318,14 +329,19 @@ export async function addSeasonXp(
             .lean();
         firstWinToday = !!claimed;
     }
-    const gained = seasonXpFor({
+    const xpIn = {
         won: m.won,
         forfeit: m.forfeit,
         takedowns: m.takedowns,
         firstWinToday,
         ...(m.ticks !== undefined ? { ticks: m.ticks } : {}),
         ...(m.draw ? { draw: true } : {}),
-    });
+    };
+    // PARTY-XP.md: the party bonus is part of the paid match (the daily cap above already returned 0)
+    const mates = Math.max(0, Math.floor(Number(m.partyMates) || 0));
+    const pct = partyXpBonusPct(mates);
+    const gained = seasonXpFor({ ...xpIn, ...(pct > 0 ? { partyPct: pct } : {}) });
+    const bonus = pct > 0 ? gained - seasonXpFor(xpIn) : 0;
     const after = (await models.seasons
         .findOneAndUpdate({ _id }, { $inc: { xp: gained }, $set: { updatedAt: now } }, { new: true })
         .lean()) as any;
@@ -336,6 +352,7 @@ export async function addSeasonXp(
         tier: seasonTier(def, xp, Number(after?.skips) || 0),
         prevTier,
         gained,
+        ...(bonus > 0 ? { partyBonus: { mates, pct, xp: bonus } } : {}),
         firstWinToday,
         capped: false,
     };

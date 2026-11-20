@@ -713,6 +713,9 @@ set is refused (409 `PAWLEGENDS_ALREADY_OWNED`) while any of its items is owned;
 `PAWLEGENDS_NEEDS_PASS`). The presale `pl_*` SKUs are retired: 410 `PAWLEGENDS_RETIRED`. `GET /pawlegends/status`
 lists every SKU with `kind`, `items`, `bundleOf`, `requires` and `retired`, plus `catalog` and `season`. The PAWLEGENDS
 answers of `POST /user/catbassadors/live` (solo and party) carry `season: {seasonId, xp, tier, prevTier, gained}`.
+A party save played with humans from the player's own pre-made party also carries `season.partyBonus: {mates, pct,
+xp}` (the XP inside `gained` the party XP bonus added: +50% match XP with one mate, +75% with two or more;
+docs/plans/moba/PARTY-XP.md).
 
 Outside production, `PAWLEGENDS_DEV_LINKS=true` puts the restore and notify links in the answers.
 

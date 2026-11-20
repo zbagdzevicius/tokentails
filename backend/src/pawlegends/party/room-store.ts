@@ -59,6 +59,11 @@ export interface StoredRoom {
     openUnclaimedAt1800: boolean;
     /** Casual bot seats shown as players (absent: none). */
     personas?: StoredPersona[];
+    /**
+     * PARTY-XP.md: the pre-made slot groups at the start (party-bonus.ts `premadeAtStart`); the party writer pays the
+     * party XP bonus from them. Absent on rooms made before the bonus (no bonus).
+     */
+    premade?: number[][];
     unscored: string | null;
     status: StoredRoomStatus;
     /** PvP: a passed remake voided the room (status abandoned; no verdict, no rewards, no rating). */
@@ -411,6 +416,9 @@ export class PawlegendsRoom {
 
     @Prop({ type: [Object], default: undefined })
     personas?: StoredPersona[];
+
+    @Prop({ type: Object, default: undefined })
+    premade?: number[][];
 
     @Prop({ type: String, default: null })
     unscored: string | null;

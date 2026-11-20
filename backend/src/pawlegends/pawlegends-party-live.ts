@@ -27,6 +27,7 @@ import { AFK_REASONS } from './party/room';
 import type { StoredRoom } from './party/room-store';
 import { PawlegendsPartyResultDto } from './pawlegends-replay.dto';
 import { applyInviteProgress } from './growth/apply-invite-progress';
+import { partyMatesOf } from './party-bonus';
 import {
     IPawlegendsLiveDeps,
     IPawlegendsSeasonAnswer,
@@ -301,6 +302,8 @@ export async function savePawlegendsPartyMatch(
               capped: daily,
               // CHAMPION-STORE.md: Yarn once per room and slot (the relay checked the hero at the pick, §8.1)
               ref: digest,
+              // PARTY-XP.md: +50% / +75% match XP with humans from the player's own pre-made party (the stored room)
+              partyMates: partyMatesOf(room, r.slot, v.ticks),
           })
         : null;
     // rewards-cloud: mastery, the Welcome Path day and the Lucky Treat (applyLuckyTreat), once per room and slot

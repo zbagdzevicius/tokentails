@@ -350,6 +350,8 @@ export interface IPawlegendsSeasonAnswer {
     tier: number;
     prevTier: number;
     gained: number;
+    /** PARTY-XP.md: the party bonus inside `gained` (party matches only). */
+    partyBonus?: { mates: number; pct: number; xp: number };
 }
 
 const pawlegendsLiveLogger = new Logger('PawlegendsLive');

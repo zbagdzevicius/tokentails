@@ -91,6 +91,7 @@ import { filterChatText, normalizeChatText } from '../../shared-contracts/chat-f
 import { BotChat, BotSeenStore, type BotSeen } from './bot-chat';
 import { isProbe } from '../../vendor/pawlegends-chat/botChatter';
 import type { MemberChat } from './party.service';
+import { premadeAtStart } from '../party-bonus';
 import {
     delayTurns,
     featuredCount,
@@ -2513,6 +2514,8 @@ export class PartyRelay {
                 pilotTicks: {},
                 openUnclaimedAt1800: false,
                 ...(personas.length ? { personas } : {}),
+                // PARTY-XP.md: who started as one pre-made party (the /live party writer pays the party XP bonus)
+                premade: premadeAtStart(party),
                 unscored: this.opts.tickets.available ? null : 'no_secret',
                 status: 'live',
                 verdict: null,
