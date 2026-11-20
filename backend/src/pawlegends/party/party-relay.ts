@@ -1773,10 +1773,11 @@ export class PartyRelay {
                     return this.strike(s);
                 }
                 // §15: one queue for the fleet: a search that starts on another shard than the lease holder's goes
-                // there (a lone player; a friend party already here searches from here)
+                // there (a lone player without a party). Any party, even one of a single member, searches from here: its
+                // stored row names this relay as owner, so its resume token would send the socket straight back (a
+                // redirect loop, review 2026-11-20)
                 if (msg.t === 'mm.join' && !this.mm.queued(member)) {
-                    const party = p.partyOf(member);
-                    const leader = !party || party.members.length <= 1 ? this.leaderElsewhere() : null;
+                    const leader = !p.partyOf(member) ? this.leaderElsewhere() : null;
                     if (leader && this.redirect(s, leader, 'queue')) return;
                 }
                 return this.mm.onJson(member, msg as unknown as { t: string } & Record<string, unknown>);

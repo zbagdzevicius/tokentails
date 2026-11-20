@@ -280,6 +280,33 @@ describe('relay shards: one process per relay, one shared store (LIVE-MATCH-DEPL
         expect(host.closed).toBeNull();
     });
 
+    it('a player alone in a party made on shard a searches there, never bounced between a and b (review 2026-11-20)', async () => {
+        const store = new MemoryRoomStore();
+        const lead = await relay(store, { shard: 'b' });
+        await until(() => lead.logs.find(l => l.event === 'relay_lease'), 3000);
+        const other = await relay(store, { shard: 'a', pool: 'app' });
+        await wait(PARTY_LIMITS.restoreEveryMs + 300);
+        const host = await client(other.port, relayPath('a'));
+        host.hello();
+        const w = await host.until(() => host.last('welcome'));
+        host.send({ t: 'party.create', difficulty: 'normal' });
+        await host.until(() => host.last('party'));
+        await wait(PARTY_LIMITS.restoreEveryMs + 300);
+        host.send({ t: 'mm.join', queue: 'coop', side: 'any' });
+        await host.until(() => host.json.some(j => String(j.t).startsWith('mm.')) || host.closed, 5000);
+        const hops: string[] = [];
+        if (host.closed) {
+            hops.push(String(host.json.find(j => j.code === 'relay_redirect')?.shard));
+            const again = await client(lead.port, relayPath('b'));
+            again.hello({ resume: { token: w.resumeToken } });
+            await again.until(() => again.last('welcome') || again.closed, 5000);
+            const red = again.json.find(j => j.code === 'relay_redirect');
+            if (red) hops.push(String(red.shard));
+        }
+        // either it searches on a (a party is searched where it is) or it goes to b and stays there
+        expect(hops.length).toBeLessThan(2);
+    });
+
     it('a ticket spent on one relay is refused on another (the fleet nonce), and keeps the account with its resume token', async () => {
         const store = new MemoryRoomStore();
         const one = await relay(store);
