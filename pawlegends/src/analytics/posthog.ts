@@ -148,7 +148,9 @@ export type MpEvent =
   | 'mm_penalty'
   // casual PvP (docs/plans/moba/V16.md §5, §6)
   | 'mm_keep_waiting'
-  | 'mp_void';
+  | 'mp_void'
+  // while-you-wait slides (ui/waitSlides): `kind`, `slide` (a short slide id), `n`, `how`; once per slide per wait
+  | 'mm_wait_slide';
 export const isMpEvent = (e: string): e is MpEvent => /^(mp|party|mm)_[a-z_]{2,24}$/.test(e);
 
 /** A party event's props, scrubbed: id-like keys dropped, and any string that looks like a party code or a random id. */

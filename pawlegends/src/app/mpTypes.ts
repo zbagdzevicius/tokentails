@@ -38,6 +38,8 @@ export const MP_EVENTS: readonly MpEvent[] = Object.freeze([
   // casual PvP (V16.md §5, §6)
   'mm_keep_waiting',
   'mp_void',
+  // while-you-wait slides (ui/waitSlides)
+  'mm_wait_slide',
 ] as MpEvent[]);
 
 /**

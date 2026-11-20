@@ -1,0 +1,169 @@
+/*
+ * While-you-wait slideshow (ui/waitSlides/waitSlides.ts), brand v6 Lightning Rivalry: a comic panel (ink outline, cream
+ * keyline, halftone, slanted tag) beside the queue card. Side by side on landscape (844x390 phones, desktop); stacked
+ * under the card on a narrow screen; hidden when there is no room. Motion is transform and opacity only, 280 ms; reduced
+ * motion: none. No focus ring (v6.css removes it app-wide).
+ */
+
+/* ------------------------------------------------------------------------------------- the queue screen layout */
+.pl-party[data-slides] { flex-direction: row; gap: clamp(16px, 3vw, 56px); }
+.pl-party[data-slides] > .pp-body { width: auto; flex: 0 1 400px; min-width: 300px; }
+.pl-party[data-slides] > .pw { flex: 0 1 540px; }
+@media (max-width: 760px) {
+  .pl-party[data-slides] { gap: 12px; }
+  .pw-dot { width: 18px; }
+  .pw-dot::before, .pw-dot i { width: 12px; }
+}
+/* a narrow panel keeps the bolt, the dots and the arrows; the words go */
+@media (max-width: 700px) { .pw-kicker { font-size: 0; letter-spacing: 0; } }
+@media (max-width: 599px), (max-aspect-ratio: 4/5) {
+  .pl-party[data-slides] { flex-direction: column; gap: 14px; }
+  .pl-party[data-slides] > .pp-body { flex: 0 0 auto; width: 100%; min-width: 0; }
+  .pl-party[data-slides] > .pw { flex: 0 1 auto; width: min(480px, 100%); }
+}
+/* a short narrow screen has no room for both: the card wins */
+@media (max-width: 599px) and (max-height: 560px) { .pl-party[data-slides] > .pw { display: none; } }
+
+/* ------------------------------------------------------------------------------------------------ the panel */
+.pw {
+  --pw-ink: #0a0612;
+  --pw-acc: var(--v6-bolt);
+  position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; max-height: 100%;
+  color: var(--v6-cream); font-family: var(--v6-font-ui); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+  animation: pw-arrive var(--v6-dur-screen, 260ms) var(--v6-ease-out) both;
+}
+.pw[hidden] { display: none; }
+@keyframes pw-arrive { from { opacity: 0; transform: translateY(8px); } }
+
+.pw-head { display: flex; align-items: center; gap: 6px; min-height: 36px; }
+.pw-kicker {
+  display: inline-flex; align-items: center; gap: 6px; margin-right: auto; white-space: nowrap;
+  font: italic 900 13px/1 var(--v6-font-display); text-transform: uppercase; letter-spacing: var(--v6-track-cap); color: var(--v6-bolt);
+}
+.pw-bolt { width: 9px; height: 18px; fill: currentColor; transform: skewX(var(--v6-slant)); }
+.pw-dots { display: flex; align-items: center; }
+.pw-dot { width: 26px; height: 36px; display: grid; place-items: center; padding: 0; border: 0; background: none; cursor: pointer; }
+.pw-dot::before {
+  content: ''; grid-area: 1 / 1; width: 18px; height: 6px; border-radius: 2px; transform: skewX(var(--v6-slant));
+  background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.22);
+}
+.pw-dot i { grid-area: 1 / 1; width: 18px; height: 6px; border-radius: 2px; transform-origin: left; transform: scaleX(0); background: var(--v6-bolt); opacity: 0; }
+.pw-dot[aria-current='true']::before { background: rgb(var(--v6-bolt-rgb) / 0.35); }
+.pw-dot[aria-current='true'] i { opacity: 1; transition: transform 100ms linear; }
+.pw-nav {
+  flex: none; width: 36px; height: 36px; display: grid; place-items: center; padding: 0; cursor: pointer; border-radius: var(--v6-r-xs);
+  background: var(--v6-glass); color: var(--v6-cream); border: 1px solid var(--v6-line-strong);
+  transition: transform var(--v6-dur-press) var(--v6-ease-out), background-color var(--v6-dur-fast);
+}
+.pw-nav svg { width: 18px; height: 18px; }
+.pw-nav:active { transform: translateY(2px) scale(0.95); }
+@media (hover: hover) { .pw-nav:hover { background: var(--v6-night-3); } }
+
+/* the stage stacks the leaving and the arriving card in one cell */
+.pw-stage { display: grid; min-height: 0; cursor: pointer; touch-action: pan-y; }
+.pw-card {
+  grid-area: 1 / 1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: clamp(12px, 2vw, 20px);
+  padding: clamp(12px, 2.2vh, 20px) clamp(12px, 2vw, 22px); margin: 0 10px 12px 4px; border-radius: 8px;
+  /* a steady height, so the panel does not hop between short and long slides */
+  min-height: 150px;
+  background: var(--v6-halftone), linear-gradient(160deg, var(--v6-night-3), var(--v6-night-2) 60%, var(--v6-plum-deep, #471f5d));
+  border: 3px solid var(--pw-ink);
+  box-shadow: 0 0 0 3px var(--v6-cream), 0 0 0 6px var(--pw-ink), 8px 10px 0 6px rgb(0 0 0 / 0.32);
+}
+.pw-card[data-kind='tip'] { --pw-acc: var(--v6-bolt); }
+.pw-card[data-kind='map'] { --pw-acc: var(--v6-sky-top); }
+.pw-card[data-kind='live'] { --pw-acc: var(--v6-rose-light); }
+.pw-card[data-kind='champ'] { --pw-acc: var(--v6-rose); }
+.pw-card[data-kind='champ']:has(.pw-face[data-side='dog']) { --pw-acc: var(--v6-sky); }
+
+.pw-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.pw-tag {
+  display: inline-block; padding: 3px 10px 2px; border-radius: 3px; transform: skewX(var(--v6-slant));
+  background: var(--pw-acc); color: var(--pw-ink); border: 2px solid var(--pw-ink);
+  font: 800 11px/1.1 var(--v6-font-ui); letter-spacing: var(--v6-track-cap); text-transform: uppercase; white-space: nowrap;
+}
+.pw-card h3 {
+  margin: 2px 0 0; font: italic 900 clamp(18px, 3.4vh, 26px)/1.05 var(--v6-font-display); text-transform: uppercase; letter-spacing: var(--v6-track-display);
+  color: var(--v6-cream); text-shadow: 0 3px 0 var(--v6-plum-deep), 0 6px 14px rgb(0 0 0 / 0.4); overflow-wrap: anywhere;
+}
+.pw-sub { margin: 0; font: italic 600 13px/1.25 var(--v6-font-ui); color: var(--pw-acc); }
+.pw-text { margin: 2px 0 0; font: 500 clamp(14px, 2.2vh, 16px)/1.36 var(--v6-font-ui); color: var(--v6-cream); }
+
+/* ------------------------------------------------------------------------------------------------------ art */
+.pw-art { flex: none; width: clamp(76px, 15vh, 112px); aspect-ratio: 1; display: grid; place-items: center; position: relative; }
+.pw-icon {
+  border-radius: 10px; transform: rotate(-4deg); background: var(--v6-halftone), var(--pw-acc); color: var(--pw-ink);
+  border: 3px solid var(--pw-ink); box-shadow: 4px 5px 0 var(--pw-ink);
+}
+.pw-icon[data-tone='rose'] { background: var(--v6-halftone), var(--v6-rose-light); }
+.pw-icon svg { width: 62%; height: 62%; transform: rotate(4deg); }
+.pw-face {
+  border-radius: 10px; overflow: hidden; transform: rotate(-3deg); border: 3px solid var(--pw-ink);
+  background: radial-gradient(circle at 50% 35%, var(--v6-rose-light), var(--v6-rose) 60%, var(--v6-rose-deep));
+  box-shadow: 0 0 0 3px var(--pw-acc), 5px 6px 0 3px var(--pw-ink);
+}
+.pw-face[data-side='dog'] { background: radial-gradient(circle at 50% 35%, var(--v6-ice, #d6ecff), var(--v6-sky) 60%, var(--v6-sky-deep)); }
+.pw-face img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; }
+.pw-face.noimg img { visibility: hidden; }
+.pw-map {
+  border-radius: 10px; overflow: hidden; transform: rotate(-3deg); border: 3px solid var(--pw-ink); background: #3f4a24;
+  box-shadow: 0 0 0 3px var(--pw-acc), 5px 6px 0 3px var(--pw-ink);
+}
+.pw-map svg { width: 100%; height: 100%; }
+.pw-map .ln { fill: none; stroke: #d6b07a; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.pw-map .rv { fill: none; stroke: #8fc3dc; stroke-width: 6; opacity: 0.7; }
+.pw-map .pud { fill: #ff7ac8; stroke: var(--pw-ink); stroke-width: 2; }
+.pw-map .camp { fill: #a8a29a; stroke: var(--pw-ink); stroke-width: 1.5; }
+.pw-map .obj, .pw-map .gem { fill: var(--v6-bolt); stroke: var(--pw-ink); stroke-width: 2; stroke-linejoin: round; }
+.pw-map .mill { stroke: var(--pw-ink); stroke-width: 2.5; stroke-linecap: round; }
+.pw-map .goal { fill: var(--v6-cream); stroke: var(--pw-ink); stroke-width: 1.5; }
+.pw-map .b0, .pw-map .b1 { stroke: var(--pw-ink); stroke-width: 2; }
+.pw-map .b0 { fill: var(--v6-rose); }
+.pw-map .b1 { fill: var(--v6-sky); }
+.pw-split {
+  display: flex; border-radius: 10px; overflow: hidden; transform: rotate(-3deg); border: 3px solid var(--pw-ink); box-shadow: 5px 6px 0 var(--pw-ink);
+  font: italic 900 12px/1 var(--v6-font-display); text-transform: uppercase;
+}
+.pw-split span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; overflow: hidden; }
+.pw-split b { font-size: clamp(16px, 3vh, 22px); }
+.pw-split .c { flex: 0 0 var(--cat); background: var(--v6-rose); color: #fff; }
+.pw-split .d { flex: 1 1 0; background: var(--v6-sky); color: var(--v6-navy, #071334); box-shadow: inset 3px 0 0 var(--v6-bolt); }
+
+/* -------------------------------------------------------------------------------------------------- motion */
+.pw-card.in-r { animation: pw-in-r 280ms var(--v6-ease-out) both; }
+.pw-card.in-l { animation: pw-in-l 280ms var(--v6-ease-out) both; }
+.pw-card.out { pointer-events: none; }
+.pw-card.out-l { animation: pw-out-l 220ms ease-in both; }
+.pw-card.out-r { animation: pw-out-r 220ms ease-in both; }
+@keyframes pw-in-r { from { opacity: 0; transform: translateX(28px) rotate(1deg); } }
+@keyframes pw-in-l { from { opacity: 0; transform: translateX(-28px) rotate(-1deg); } }
+@keyframes pw-out-l { to { opacity: 0; transform: translateX(-28px) rotate(-1deg); } }
+@keyframes pw-out-r { to { opacity: 0; transform: translateX(28px) rotate(1deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pw, .pw-card.in-r, .pw-card.in-l, .pw-card.out-l, .pw-card.out-r { animation: none; }
+  .pw-dot[aria-current='true'] i { transition: none; }
+}
+
+/* ------------------------------------------------------------------------------------------- big screens */
+@media (min-width: 1100px) and (min-height: 700px) {
+  .pl-party[data-slides] > .pw { flex-basis: 600px; }
+  .pw-art { width: 136px; }
+  .pw-card { padding: 22px 26px; gap: 24px; min-height: 204px; }
+  .pw-card h3 { font-size: 30px; }
+  .pw-sub { font-size: 15px; }
+  .pw-text { font-size: 18px; }
+  .pw-tag { font-size: 12px; }
+  .pw-kicker { font-size: 15px; }
+}
+
+/* ------------------------------------------------------------------------------------------- small screens */
+@media (max-height: 440px) {
+  .pw { gap: 4px; }
+  .pw-head { min-height: 32px; }
+  .pw-nav { width: 32px; height: 32px; }
+  .pw-card { padding: 10px 12px; gap: 12px; min-height: 124px; }
+  .pw-art { width: 72px; }
+  .pw-card h3 { font-size: 17px; }
+  .pw-sub { font-size: 12px; }
+  .pw-text { font-size: 13px; line-height: 1.3; }
+}

@@ -772,6 +772,11 @@ export interface PartyHooks {
   /** The embed host's share sheet; false when there is no host. */
   share?(url: string, text: string): boolean;
   analytics?(event: string, props: Record<string, string | number | boolean>): void;
+  /**
+   * While-you-wait slides (founder, Nov 20): the player's own numbers for the live panels (level, last match, Cats vs
+   * Dogs); resolves null offline. Absent: tips, champions and maps only.
+   */
+  waitLive?(): Promise<import('../ui/waitSlides/deck').LiveInfo | null>;
   /** Test seams. */
   env?: SocketEnv;
   now?(): number;
@@ -1901,6 +1906,7 @@ export class PartyClient {
     if (screen !== 'pick') closeChampInfo();
     const err = s.error ? errorText(s.error.code, Math.ceil((s.error.retryMs ?? 0) / 1000)) : null;
     this.el.dataset.screen = screen;
+    this.syncSlides(screen);
     this.chat.sync(s.view, screen);
     let html = '';
     switch (screen) {
@@ -2004,9 +2010,52 @@ export class PartyClient {
     } else this.codeBoxes = null;
   }
 
+  /**
+   * While-you-wait slides (founder, Nov 20: "some interesting info / slideshow to see while waiting"): beside the queue
+   * card while it waits (the Short wait and the search, every queue); hidden once a match is found, the search stops,
+   * or the screen changes. The module is its own lazy chunk, fetched the first time a wait shows.
+   */
+  private slides: import('../ui/waitSlides/waitSlides').WaitSlidesHandle | null = null;
+  private slidesLoading = false;
+  private syncSlides(screen: PartyScreen): void {
+    const q = this.state.queue;
+    const want = screen === 'queue' && !!q && !q.found && !q.stopped;
+    if (!want) {
+      this.slides?.show(false);
+      delete this.el.dataset.slides;
+      return;
+    }
+    const matches = this.h.mmInfo?.().matches ?? this.h.matches ?? 0;
+    if (this.slides) {
+      this.slides.show(true, matches);
+      this.el.dataset.slides = '1';
+      return;
+    }
+    if (this.slidesLoading) return;
+    this.slidesLoading = true;
+    void import('../ui/waitSlides/waitSlides')
+      .then(({ mountWaitSlides }) => {
+        this.slidesLoading = false;
+        if (this.closed || this.slides) return;
+        this.slides = mountWaitSlides(this.el, {
+          matches,
+          ...(this.h.waitLive ? { live: () => this.h.waitLive!() } : {}),
+          // consent-gated by the app's analytics; ids and kinds only
+          track: (p) => this.h.analytics?.('mm_wait_slide', p),
+        });
+        this.syncSlides(screenOf(this.state));
+      })
+      .catch(() => {
+        // an offline chunk: the card alone, as before
+        this.slidesLoading = false;
+      });
+  }
+
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    this.slides?.destroy();
+    this.slides = null;
     closeChampInfo();
     this.chat.dispose();
     rememberParty(null);

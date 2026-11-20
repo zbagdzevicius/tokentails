@@ -138,6 +138,8 @@ export const PAWLEGENDS_GAME_EVENTS = [
   // casual PvP (docs/plans/moba/V16.md §5, §6)
   "mm_keep_waiting",
   "mp_void",
+  // while-you-wait slides (pawlegends/src/ui/waitSlides): slide kind and short id only
+  "mm_wait_slide",
 ] as const;
 
 export type PawlegendsGameEventName = (typeof PAWLEGENDS_GAME_EVENTS)[number];

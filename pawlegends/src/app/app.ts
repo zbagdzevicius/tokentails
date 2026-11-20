@@ -81,7 +81,7 @@ import { levelInfo } from '../meta/accountLevel';
 import { initLiveops, liveopsState, setDropAction } from '../meta/liveops';
 import { EXTRA_ITEMS, loadSeen, markSeen, queueFor, saveSeen, showcaseFeed, isSeen, type ShowcaseEntry, type ShowcaseHeroKit, type ShowcaseItem, type ShowcaseTarget } from '../meta/showcase';
 import { countdownText, legacyMode, loadModeChoice, modeById, modeList, pillText, rankedModeDef, registerMode, saveModeChoice, type ModeChoice, type ModeDef, type ModeId } from '../ui/modeSelect/modes';
-import { isUnlocked, loadModeLocal, lockLine, MAIN_MODE, menuExtras, newlyUnlocked, notePlayed, RANKED_PLAYED, saveModeLocal, unseenFresh } from '../ui/modeSelect/unlocks';
+import { isUnlocked, levelNeeded, loadModeLocal, lockLine, MAIN_MODE, menuExtras, newlyUnlocked, notePlayed, RANKED_PLAYED, saveModeLocal, unseenFresh } from '../ui/modeSelect/unlocks';
 import { fetchRankedStatus, parseRankedCard, rankedLabel, rankedResult, type RankedCard, type RankedKind } from '../meta/ranked';
 import { heroElement } from '../ui/cards/el';
 import { consentPrompt } from '../ui/consentPrompt';
@@ -1641,6 +1641,8 @@ export class App {
             inviteUrl,
             share: (url, text) => this.bridge.post('share', { kind: 'party', url, text }),
             analytics: (event, props) => this.analytics.track(event as never, props as never),
+            // while-you-wait slides: the player's own numbers (the device's profile and history, the Cats vs Dogs board)
+            waitLive: () => this.waitLive(),
             // CHAT-AVATARS §2.7: report a party chat line through the host (signed-in players only)
             chatReport: (mid, kind) =>
               accountState().signedIn ? this.integration.api('chat.report', { msg: mid, kind }).then((r) => r.ok) : Promise.resolve(false),
@@ -1873,6 +1875,35 @@ export class App {
         this.overlay = { close: panel.close, refresh: panel.refresh, kind: 'profile' };
       })
       .catch((err: unknown) => reportCrash('window', err));
+  }
+
+  /**
+   * The live panels of the while-you-wait slides (ui/waitSlides): level and the next mode unlock, the last match on this
+   * device, and the season's Cats vs Dogs wins (`board.get {kind: 'sides'}`, 4 s at most). Offline or a failed board:
+   * the local parts only.
+   */
+  private async waitLive(): Promise<import('../ui/waitSlides/deck').LiveInfo> {
+    const p = loadProfile();
+    const h = loadHistory()[0];
+    const last =
+      h && h.hero in HEROES
+        ? { hero: h.hero, heroTitle: h.heroName || HERO_TEXT[h.hero as HeroId]?.title || h.hero, outcome: h.outcome, k: h.k, d: h.d, a: h.a, grade: h.grade, best: h.best ?? null, seconds: h.seconds }
+        : null;
+    const signedIn = accountState().signedIn;
+    const board = await Promise.race([
+      this.api('board.get', { kind: 'sides', ...(signedIn ? { name: 'me' } : {}) }).catch((): ApiResult => ({ id: 'x', ok: false, status: 0 })),
+      new Promise<null>((r) => setTimeout(() => r(null), 4000)),
+    ]);
+    const sides = board && board.ok && board.body && typeof board.body === 'object' ? (board.body as import('../ui/waitSlides/deck').SidesData) : null;
+    return {
+      matches: p.matches,
+      last,
+      sides,
+      unlocks: [
+        { name: 'Practice', level: levelNeeded('practice') },
+        { name: 'Ranked', level: levelNeeded('ranked') },
+      ],
+    };
   }
 
   /** The leaderboards window (founder Nov 19: its own modal, opened from Boards on Home); one at a time, lazy. */
