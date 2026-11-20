@@ -1,10 +1,13 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { PawlegendsYarn, PawlegendsYarnLog } from '../pawlegends.schema';
 import { displayNames } from './display-name';
 import { checkNick, NAME_CHANGE, NAME_ERRORS } from './nickname';
 import { SocialService } from './social.service';
 import { serverTrack } from '../analytics/analytics-sink';
+import { JOB_RUNS_COLLECTION } from '../../shared/jobs/lease';
+import { assignAutoNick, NickNotice } from './nick-assign';
+import { NICK_BACKFILL_JOB, runNickBackfill } from './nick-backfill';
 
 /*
  * The nickname change (nickname.ts has the rules and the price). Server-authoritative and safe against double taps and
@@ -37,10 +40,34 @@ export interface NameView {
     nextAt: number | null;
     /** The Yarn balance. */
     yarn: number;
+    /** The nickname was assigned (Nov 20 backfill or a new account), not picked by the player. */
+    auto: boolean;
+    /** Shown once in game (then `POST /pawlegends/name/notice`): why the name changed and that the next pick is free. */
+    notice: NickNotice | null;
 }
 
+export interface NameCheck {
+    /** The name as it would be saved (normalized), or the typed text when refused. */
+    name: string;
+    /** Valid and free (or already the caller's own). */
+    available: boolean;
+    /** Already the caller's nickname. */
+    mine?: boolean;
+    /** Why not: `taken`, or a shared/name.ts code (NAME_TOO_SHORT, NAME_RESERVED, …). */
+    reason?: string;
+    message?: string;
+}
+
+const validNotice = (n: unknown): NickNotice | null => {
+    const v = n as NickNotice | null;
+    if (!v || (v.kind !== 'taken' && v.kind !== 'invalid' && v.kind !== 'reset')) return null;
+    return { kind: v.kind, ...(typeof v.from === 'string' && v.from.length <= 40 ? { from: v.from } : {}) };
+};
+
 @Injectable()
-export class NicknameService {
+export class NicknameService implements OnApplicationBootstrap {
+    private readonly logger = new Logger('PawlegendsNickname');
+
     constructor(
         private readonly socialSvc: SocialService,
         @InjectModel(PawlegendsYarn.name) private readonly yarn: AnyModel,
@@ -74,7 +101,64 @@ export class NicknameService {
             cooldownDays: NAME_CHANGE.cooldownDays,
             nextAt: next > this.now() ? next : null,
             yarn: Math.max(0, Number((y as any)?.balance) || 0),
+            auto: !!p.nickAuto,
+            notice: validNotice(p.nickNotice),
         };
+    }
+
+    /**
+     * The live check while typing a new name (founder, Nov 20): valid, and free or already mine. Answers no account id,
+     * code or email; the same as the friend search already shows (whether a nickname exists).
+     */
+    async check(me: string, input: unknown): Promise<NameCheck> {
+        const c = checkNick(input);
+        if (!c.ok)
+            return {
+                name: typeof input === 'string' ? input.slice(0, 40) : '',
+                available: false,
+                reason: c.code,
+                message: c.message,
+            };
+        const owner = await this.socialSvc.social.findOne({ nickKey: c.key }).select({ _id: 1 }).lean();
+        if (owner && String(owner._id) === me) return { name: c.name, available: true, mine: true };
+        if (owner)
+            return { name: c.name, available: false, reason: 'taken', message: 'That name is taken. Try another one.' };
+        return { name: c.name, available: true };
+    }
+
+    /** The player saw the name notice: it never shows again. */
+    async seen(me: string): Promise<{ ok: true }> {
+        await this.socialSvc.social.updateOne({ _id: me }, { $unset: { nickNotice: 1 } });
+        return { ok: true };
+    }
+
+    /** Boot: the versioned nickname backfill (nick-backfill.ts), in the background, retried while another holds it. */
+    onApplicationBootstrap(): void {
+        if (process.env.NODE_ENV === 'test') return;
+        void this.backfill();
+    }
+
+    async backfill(tries = 30): Promise<void> {
+        const svc = this.socialSvc;
+        try {
+            const out = await runNickBackfill({
+                social: svc.social,
+                cats: svc.cats ?? null,
+                progress: svc.progress ?? null,
+                jobRuns: svc.social.db.collection(JOB_RUNS_COLLECTION),
+                registered: ids => svc.registered(ids),
+                ensureProfile: id => svc.profile(id),
+                log: m => this.logger.log(m),
+            });
+            if (out.state !== 'lease-held') {
+                svc.nickBackfillDone = true;
+                return;
+            }
+        } catch (error) {
+            this.logger.error(`${NICK_BACKFILL_JOB} failed`, (error as Error)?.stack);
+        }
+        // another instance holds the lease (or this run failed): look again after the lease could have expired
+        if (tries > 1) setTimeout(() => void this.backfill(tries - 1), 6 * 60_000).unref?.();
     }
 
     async change(me: string, body: { name?: unknown }): Promise<NameView & { paid: number }> {
@@ -132,6 +216,7 @@ export class NicknameService {
                         nameHistory: history,
                         nameFree: false,
                     },
+                    $unset: { nickAuto: 1, nickNotice: 1 },
                     $inc: { rev: 1 },
                 }
             );
@@ -153,8 +238,9 @@ export class NicknameService {
 }
 
 /**
- * Moderation (`name_reset`, report.service.ts): the nickname goes back to the generated name, its key is freed and the
- * next change is free with no cooldown. The old nickname stays in `nameHistory`. False when there was no nickname.
+ * Moderation (`name_reset`, report.service.ts): the nickname is replaced by an assigned one (the generated name, with a
+ * number when taken; every account keeps a unique nickname), the next change is free with no cooldown, and the player is
+ * told once in game. The old nickname stays in `nameHistory`. False when there was no nickname.
  */
 export async function resetNickname(social: AnyModel, accountId: string, now: Date): Promise<boolean> {
     const p = (await social.findOne({ _id: accountId }).lean()) as any;
@@ -167,9 +253,11 @@ export async function resetNickname(social: AnyModel, accountId: string, now: Da
         { _id: accountId },
         {
             $set: { name: { kind: 'generated' }, nameFree: true, nameHistory: history },
-            $unset: { nick: 1, nickKey: 1 },
+            $unset: { nick: 1, nickKey: 1, nickAuto: 1, nickNotice: 1 },
             $inc: { rev: 1 },
         }
     );
+    // '' as the shown name: the base is the generated name, never the reset one
+    await assignAutoNick(social, accountId, '', { notice: { kind: 'reset' } });
     return true;
 }

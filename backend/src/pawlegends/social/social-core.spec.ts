@@ -225,16 +225,13 @@ describe('pawlegends social core (SOCIAL-RANKED.md §2, §3)', () => {
         expect((await svc.targetOf('A', { room: 'r1', slot: 1 })).id).toBe('D');
     });
 
-    it('settings: a cat name only of your own cat, allowRecent forced off for under 16, age stricter wins', async () => {
+    it('settings: the nickname stays the name (an old build cat-name switch is ignored), allowRecent forced off for under 16, age stricter wins', async () => {
         const { svc } = harness();
+        const first = await svc.state('A');
+        expect(first.me.nameKind).toBe('nick');
         const me = await svc.setMe('A', { name: 'aaaaaaaaaaaaaaaaaaaaaaaa', invisible: true });
-        expect(me.me).toMatchObject({ name: 'Mochi', invisible: true });
-        await expect(svc.setMe('B', { name: 'aaaaaaaaaaaaaaaaaaaaaaaa' })).rejects.toMatchObject({
-            response: { code: 'PAWLEGENDS_SOCIAL_INVALID' },
-        });
-        await expect(svc.setMe('B', { name: 'Free text' })).rejects.toMatchObject({
-            response: { code: 'PAWLEGENDS_SOCIAL_INVALID' },
-        });
+        expect(me.me).toMatchObject({ name: first.me.name, nameKind: 'nick', invisible: true });
+        expect((await svc.setMe('B', { name: 'Free text' })).me.nameKind).toBe('nick');
         expect((await svc.setMe('K', { allowRecent: true })).me.allowRecent).toBe(false);
         expect(await svc.setAge('A', 'under16')).toEqual({ ageBand: 'under16' });
         expect(await svc.setAge('A', '18+')).toEqual({ ageBand: 'under16' });

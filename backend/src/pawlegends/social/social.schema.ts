@@ -14,7 +14,10 @@ export class PawlegendsSocial {
     @Prop({ type: String, required: true })
     _id: string;
 
-    /** 8 Crockford base32 characters; shown as PL-XXXX-XXXX. */
+    /**
+     * 8 Crockford base32 characters (PL-XXXX-XXXX). An internal handle since Nov 20: never shown in game (the nickname is
+     * the username), still accepted by every route that takes `code` (old builds, old links).
+     */
     @Prop({ type: String, required: true, unique: true })
     code: string;
 
@@ -32,6 +35,14 @@ export class PawlegendsSocial {
     /** The nickname's folded skeleton (lowercase, no accents or leet): unique, so `Bob` and `B0B` are one name. */
     @Prop({ type: String, default: undefined })
     nickKey?: string;
+
+    /** The nickname was assigned (nick-assign.ts: the Nov 20 backfill, a new account or a moderator reset), not picked. */
+    @Prop({ type: Boolean, default: undefined })
+    nickAuto?: boolean;
+
+    /** Told once in game, then removed (`POST /pawlegends/name/notice`): `{kind: 'taken'|'invalid'|'reset', from?}`. */
+    @Prop({ type: Object, default: undefined })
+    nickNotice?: { kind: 'taken' | 'invalid' | 'reset'; from?: string };
 
     /** Name changes made (the first is free, then NAME_CHANGE.yarn each). */
     @Prop({ type: Number, default: undefined })

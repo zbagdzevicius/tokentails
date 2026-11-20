@@ -59,7 +59,7 @@ Profile screen (Nov 19): another player's first page (`GET /pawlegends/history/u
 `player` (`RankedService.publicCard`): `matches` (the account level), `ranked` (placements, tier, decayed points,
 peak; `none: true` when never ranked this season), `av` (icon with its owned border `f` and title `t`) and `cc` (the
 shown flag). Nothing private (no locks, rooms, shield or rewards); a failure drops `player`, never the history. The match
-detail's human seats carry `code` (their player code) so a name opens that player's profile; bots never do.
+detail's human seats carry `code` (their player code, an opaque handle never shown: SOCIAL-RANKED.md §2.4) so a name opens that player's profile; bots never do.
 
 ## Follow-ups
 

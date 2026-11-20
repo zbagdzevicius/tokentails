@@ -321,7 +321,7 @@ These rules apply everywhere:
   - right side: **Invite** (44 px, disabled when they are in a match or you have no party) and **Chat** (bubble icon with an unread dot)
 - **Order:** online (party, then queue, then online), then in match, then offline, with "joinable party" first.
 - **Recent:** the last 20 rooms' teammates and opponents with avatars, each with Add (existing). Under-16 accounts keep the existing rule (no add from Recent).
-- **Footer (fixed):** your code `PL-XXXX-XXXX` with Copy and Add by code.
+- **Footer (fixed):** (Nov 20: gone; the nickname is the username, SOCIAL-RANKED.md §2.4) was your code `PL-XXXX-XXXX` with Copy and Add by code.
 - **Landing entry:** the existing friends button gains a red dot with the count of unread DMs plus requests. There are no new landing items.
 
 ### 6.2 Chat thread (`src/social/chatSheet.ts`, new)

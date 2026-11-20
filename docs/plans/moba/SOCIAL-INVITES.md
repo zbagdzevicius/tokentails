@@ -43,10 +43,11 @@ player who had set the nickname "zygis".
 | A friend on Heroes, Recordings or the store read as offline (only the title pulse wrote presence), so the row had no Invite. | The 4 s inbox marks the player online (once a minute). In a party, every friend not in it gets Invite, offline ones too (they get a notification, the inviter is told). | `social.service.ts` `markOnline`, `socialSheet.ts` `rowAction` |
 | Invite right after opening a lobby answered "Open a party first" (presence lands within 5 s). | The sheet retries "no party" 4 times, 2 s apart, and says "Inviting Mira…". An invite with no answer after 60 s says "Mira didn't answer your invite". | `socialSheet.ts` `sendInvite`, `app.ts` `watchSentInvite` |
 
-**Friends by nickname.** Add takes a nickname or a code. Typing 2+ letters shows up to 5 nicknames that start with
+**Friends by nickname.** Add takes a player name (Nov 20: the nickname is every account's unique username and the UI
+never shows a code, SOCIAL-RANKED.md §2.4; a pasted old code still works). Typing 2+ letters shows up to 5 nicknames that start with
 them (`GET /pawlegends/social/search?q=`, host op `social.search`), with avatar and flag. Add sends `{name}`, matched
 exactly on the unique folded `nickKey` (case, accents and look-alikes ignored), so two players can never share a
-nickname. Generated and cat names are never searched. Answers carry no code or account id; the caller, guests and
+nickname. Since Nov 20 every registered account has a nickname (assigned from its old shown name when never picked). Answers carry no code or account id; the caller, guests and
 blocked players are left out; 40 searches a minute per account (200 per IP), and Add by name counts in the code-lookup
 bucket.
 

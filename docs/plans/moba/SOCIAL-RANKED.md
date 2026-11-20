@@ -62,9 +62,10 @@ Hard rules this design keeps:
 
 | Field | Notes |
 |---|---|
-| `code` | The player code: 8 characters of Crockford base32, shown as `PL-7KQ2-M9XR`. Random, never derived from the account id. Unique index. Can be rotated (`POST /pawlegends/social/code/rotate`, 3 a day) |
+| `code` | The player code: 8 characters of Crockford base32 (`PL-7KQ2-M9XR`). Random, never derived from the account id. Unique index. Since Nov 20 an internal handle only (§2.4): never shown in game, still accepted by every route that takes `code`. The rotate route stays for old builds |
 | `name` | `{kind: 'generated'}` (default: `memberName(accountId)`), `{kind: 'cat', catId}` (one of the player's own cats; it shows the cat's current name, which G3 `name_reports` already moderates) or `{kind: 'nick'}` (the nickname, §2.3) |
 | `nick`, `nickKey`, `nameChanges`, `nameChangedAt`, `nameFree`, `nameHistory` | The nickname (§2.3), its folded unique key, the change count, the last change, a moderator's free change, and the old names (moderators only) |
+| `nickAuto`, `nickNotice` | The nickname was assigned, not picked (§2.4); the one-time in-game notice `{kind: 'taken' \| 'invalid' \| 'reset', from?}`, removed once seen |
 | `invisible` | boolean, default false |
 | `allowRecent` | Default true. Forced false when the band is `under16` or unknown |
 | `rev` | Increments on any change that a friend's list or a request touches. Drives the cheap pulse (§4.3) |
@@ -102,8 +103,38 @@ Hard rules this design keeps:
   the relay (MULTIPLAYER.md D8 amended): a ticketed registered member's chosen name replaces the generated party name in
   the lobby and the match (`relay-chat-info.ts` → `party.service.ts rename`). Guests keep generated names. The local
   Hide names setting still hides every name.
-- **Moderation:** the PvP report reason `name`; the CMS resolve action **Reset name** (`name_reset`) puts the player back
-  on the generated name, frees the nickname and gives one free change; the reports view lists the earlier names.
+- **Moderation:** the PvP report reason `name`; the CMS resolve action **Reset name** (`name_reset`) frees the nickname,
+  assigns the generated name (with a number when taken, §2.4), gives one free change and tells the player once; the
+  reports view lists the earlier names.
+- **Live check** (Nov 20): the Edit profile name field asks `GET /pawlegends/name/check` 350 ms after the last key and
+  shows "Mira is available" or "That name is taken"; a taken name never reaches the confirm step. An older host without
+  the op keeps the shape check, and Confirm still answers "taken".
+
+### 2.4 The nickname is the username (Nov 20, founder: "this PL-WF... code is redundant, we have nicknames that must be unique and represent actual username")
+
+- **Every registered account has a unique nickname.** A player who never picked one gets one assigned
+  (`backend/src/pawlegends/social/nick-assign.ts`): the name they already showed (a cat name or the generated name) when
+  it is a valid, free nickname, else that name with a number (`Scout2`, `Scout3`, … then a 4-digit suffix from a hash of
+  the account id), cut to 16 characters. New accounts get theirs on the first social call (`SocialService.profile`).
+  Assigned names are ordinary nicknames (`nickAuto: true`): friends add them, boards show them, and the first own change
+  stays free.
+- **Backfill `pl-nick-backfill-v1`** (`nick-backfill.ts`, run on boot by `NicknameService`): every row without a
+  nickname, oldest `createdAt` first, so the older account keeps a shared name and the later ones get a number; then a
+  social row for every registered account with Paw Legends progress that never opened a social screen. One lease in
+  `jobruns` (renewed per batch of 200; another instance takes over after it expires), compare-and-set per row and the
+  unique `nickKey` index make it safe on any number of instances and idempotent; `doneAt` ends it for good.
+- **Told once:** a player whose shown name was not kept gets `notice` on `GET /pawlegends/name`; Home shows it at the
+  top ("\"Scout\" was already taken, so you are Scout2 now…") with **Choose a name** (Profile's name editor) and **Keep
+  it**; either answer calls `POST /pawlegends/name/notice`.
+- **No player code in the UI:** the Profile header chip and the Account "Player code" card are gone, the Friends status
+  card copies the player's name ("Friends add you by your name"), and Add friend asks for a **Player name** with the
+  nickname suggestions (`social.search`). A pasted old code still works (the server resolves it); routes keep taking
+  `code` as the row handle, so old builds and old shared codes keep working. No friend link exists; the party link
+  `pawlegends.app/p/<CODE>` is a party code and unchanged.
+- **Old builds:** `POST /pawlegends/social/me {name: 'generated' | catId}` is ignored once the account has a nickname,
+  so every shown name stays unique. Guests are unchanged: no social row, generated names in the lobby, and nobody can
+  add a guest.
+- **Identity:** PostHog and every other key stay on the account id, never the nickname (it can change).
 
 ---
 

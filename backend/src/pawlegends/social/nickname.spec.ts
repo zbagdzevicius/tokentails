@@ -79,14 +79,27 @@ describe('pawlegends nicknames (SOCIAL-RANKED.md §2.3)', () => {
     it('the first change is free (from the generated name), shows everywhere and records the old name', async () => {
         const { m, svc } = harness({ A: 0 });
         const before = await svc.view('A');
-        expect(before).toMatchObject({ nick: null, changes: 0, free: true, price: 0, cost: NAME_CHANGE.yarn, yarn: 0 });
+        // every account has a nickname: a new one gets its generated name, assigned, with no notice
+        expect(before).toMatchObject({
+            nick: before.name,
+            auto: true,
+            notice: null,
+            changes: 0,
+            free: true,
+            price: 0,
+            cost: NAME_CHANGE.yarn,
+            yarn: 0,
+        });
         const out = await svc.change('A', { name: 'Mira' });
         expect(out).toMatchObject({ name: 'Mira', nick: 'Mira', changes: 1, free: false, paid: 0 });
         expect(out.price).toBe(NAME_CHANGE.yarn);
         expect(out.nextAt).toBe(new TestClock().ms + NAME_CHANGE.cooldownDays * DAY);
         const row = m.social.docs.find(d => d._id === 'A')!;
         expect(row.nickKey).toBe('mira');
-        expect(row.nameHistory).toEqual([expect.objectContaining({ name: before.name, kind: 'generated', paid: 0 })]);
+        expect(row.nameHistory).toEqual([expect.objectContaining({ name: before.name, kind: 'nick', paid: 0 })]);
+        // picked, not assigned: the flag and any notice are gone
+        expect(row.nickAuto).toBeUndefined();
+        expect(out.auto).toBe(false);
         // the one resolver of friends, boards, clubs, chat and history
         expect((await displayNames({ social: m.social }, ['A'])).get('A')).toBe('Mira');
         expect(m.yarnLog.docs).toHaveLength(0);
@@ -186,12 +199,22 @@ describe('pawlegends nicknames (SOCIAL-RANKED.md §2.3)', () => {
         expect(m.yarnLog.docs.filter(d => d.accountId === 'B')).toHaveLength(x.status === 'fulfilled' ? 1 : 0);
     });
 
-    it('a moderator reset frees the name, falls back to the generated one and makes the next change free', async () => {
+    it('a moderator reset frees the name, assigns the generated one, tells the player once and makes the next change free', async () => {
         const { clock, m, svc } = harness({ A: 0 });
         await svc.change('A', { name: 'Mira' });
         expect(await resetNickname(m.social, 'A', clock.now())).toBe(true);
         const v = await svc.view('A');
-        expect(v).toMatchObject({ nick: null, free: true, price: 0, nextAt: null });
+        expect(v).toMatchObject({
+            nick: v.name,
+            auto: true,
+            notice: { kind: 'reset' },
+            free: true,
+            price: 0,
+            nextAt: null,
+        });
+        expect(v.notice).not.toHaveProperty('from');
+        expect(await svc.seen('A')).toEqual({ ok: true });
+        expect((await svc.view('A')).notice).toBeNull();
         expect(v.name).not.toBe('Mira');
         expect(m.social.docs[0].nameHistory.slice(-1)[0]).toMatchObject({ name: 'Mira', reset: true });
         await svc.change('B', { name: 'Mira' });
@@ -217,7 +240,8 @@ describe('pawlegends nicknames (SOCIAL-RANKED.md §2.3)', () => {
         });
         expect(reports.docs[0].status).toBe('actioned');
         expect(sanctions.docs).toHaveLength(0);
-        expect(m.social.docs[0].nick).toBeUndefined();
+        expect(m.social.docs[0].nick).not.toBe('Mira');
+        expect(m.social.docs[0].nickAuto).toBe(true);
     });
 
     it('routes are registered-only (AppAuthGuard, no guest allow), and guests get NEED_ACCOUNT', async () => {

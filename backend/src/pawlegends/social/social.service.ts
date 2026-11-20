@@ -54,12 +54,14 @@ import {
     PawlegendsSocial,
 } from './social.schema';
 import { serverTrack } from '../analytics/analytics-sink';
+import { assignAutoNick } from './nick-assign';
 
 /*
  * Friends, blocks, recent players, invites and the API side of presence (SOCIAL-RANKED.md §2–§5, lane L2). Registered
- * accounts only: guests get 403 PAWLEGENDS_NEED_ACCOUNT. Clients only ever see player codes and display names, never an
- * account id; a request "from recent" names a (room, slot), resolved here. No free text exists: the only input is the
- * 8-character code.
+ * accounts only: guests get 403 PAWLEGENDS_NEED_ACCOUNT. Clients only ever see nicknames (unique usernames since Nov 20:
+ * every account has one, nick-assign.ts) and an opaque handle per row (the player code, never shown in game), never an
+ * account id; a request "from recent" names a (room, slot), resolved here. A friend is added by exact nickname (or by the
+ * old code: old builds and links still work).
  */
 
 const DAY = 86_400_000;
@@ -75,7 +77,7 @@ export const SOCIAL_ERRORS = {
     invalid: (m: string) => pawlegendsError(HttpStatus.BAD_REQUEST, 'PAWLEGENDS_SOCIAL_INVALID', m),
     notFound: () => pawlegendsError(HttpStatus.NOT_FOUND, 'PAWLEGENDS_SOCIAL_NOT_FOUND', 'No player with this code'),
     noName: () => pawlegendsError(HttpStatus.NOT_FOUND, 'PAWLEGENDS_SOCIAL_NO_NAME', 'No player with this name'),
-    self: () => pawlegendsError(HttpStatus.BAD_REQUEST, 'PAWLEGENDS_SOCIAL_SELF', 'That is your own code'),
+    self: () => pawlegendsError(HttpStatus.BAD_REQUEST, 'PAWLEGENDS_SOCIAL_SELF', 'That is you'),
     cap: (what: string) => pawlegendsError(HttpStatus.CONFLICT, 'PAWLEGENDS_SOCIAL_CAP', `${what} limit reached`),
     refused: () => pawlegendsError(HttpStatus.FORBIDDEN, 'PAWLEGENDS_SOCIAL_REFUSED', 'This player cannot be added'),
     limit: () =>
@@ -222,7 +224,12 @@ export class SocialService {
     /** The caller's profile, created on the first social call (registered accounts only). */
     async profile(accountId: string): Promise<SocialProfile> {
         const found = (await this.social.findById(accountId).lean()) as SocialProfile | null;
-        if (found) return found;
+        if (found) {
+            // a row the backfill has not reached cannot exist once it is done; one left (a moderator reset before
+            // Nov 20, a write the backfill raced) gets its nickname here, with the one-time notice
+            if (!(found as { nickKey?: string }).nickKey && this.nickBackfillDone) return this.withNick(found, true);
+            return found;
+        }
         const band = await this.band(accountId);
         for (let attempt = 0; attempt < 6; attempt++) {
             try {
@@ -237,7 +244,8 @@ export class SocialService {
                     createdAt: this.now(),
                 };
                 await this.social.create(doc);
-                return doc as SocialProfile;
+                // every registered account has a unique nickname from its first social call (no notice: it is new)
+                return this.withNick(doc as SocialProfile, false);
             } catch (error) {
                 if ((error as { code?: unknown })?.code !== 11000) throw error;
                 // a concurrent first call created it, or the code collided: read again, else retry with a new code
@@ -246,6 +254,17 @@ export class SocialService {
             }
         }
         throw new Error('pawlegends social: no free player code');
+    }
+
+    /** Set once `pl-nick-backfill-v1` finished (nick-backfill.ts): rows without a nickname then get one when read. */
+    nickBackfillDone = false;
+
+    /** Assigns the account's nickname (nick-assign.ts) and answers the row as stored. */
+    private async withNick(row: SocialProfile, notice: boolean): Promise<SocialProfile> {
+        const shown =
+            (await displayNames({ social: this.social, cats: this.cats ?? null }, [row._id])).get(row._id) ?? '';
+        await assignAutoNick(this.social, row._id, shown, { notice });
+        return ((await this.social.findById(row._id).lean()) as SocialProfile | null) ?? row;
     }
 
     async band(accountId: string): Promise<AgeBand | null> {
@@ -887,7 +906,9 @@ export class SocialService {
             if (body.dmPolicy !== 'friends' && body.dmPolicy !== 'off') throw SOCIAL_ERRORS.invalid('dmPolicy');
             set.dmPolicy = body.dmPolicy;
         }
-        if (body.name !== undefined) {
+        // Nov 20: the nickname is the account's unique username; an old build's switch to a cat or the generated
+        // name is ignored once the account has one (it always has after the backfill)
+        if (body.name !== undefined && !(mine as { nickKey?: string }).nickKey) {
             if (body.name === 'generated') set.name = { kind: 'generated' };
             else if (typeof body.name === 'string' && /^[a-f0-9]{24}$/i.test(body.name)) {
                 const cat = this.cats ? await this.cats.findOne({ _id: body.name, owner: me }).lean() : null;
