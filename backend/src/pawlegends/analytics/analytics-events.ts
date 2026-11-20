@@ -9,7 +9,16 @@
  *   that have no consenting account to hang on (an account created or deleted, a purchase without a session).
  */
 
+import { countryOf } from '../flags/flags';
+
 type Kind = 'n' | 'b' | 's';
+
+/**
+ * Properties every server event may carry on top of its own (docs/plans/moba/POSTHOG-PRIVACY.md): `country`, the
+ * ISO 3166-1 alpha-2 code of the account's flag row (Cloudflare's `cf-ipcountry`, never the IP), so PostHog shows
+ * country while `$geoip_disable` stays on. Checked by `countryOf`, not SAFE_STRING.
+ */
+export const COMMON_PROPS = { country: 's' } as const;
 
 const MATCH = {
     mode: 's',
@@ -100,6 +109,8 @@ export function cleanProps(
         else if (kind === 'b' && typeof v === 'boolean') out[key] = v;
         else if (kind === 's' && typeof v === 'string' && SAFE_STRING.test(v)) out[key] = v;
     }
+    const cc = countryOf((props as Record<string, unknown>).country);
+    if (cc) out.country = cc;
     return out;
 }
 

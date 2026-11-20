@@ -1133,7 +1133,11 @@ send the id it uses; the server keeps it only when it hashes one of the account'
 the first uid's hash, and answers the id so the client can identify with it. Never the raw uid, email, name, account
 id, room code, card or IP: each event has a fixed list of allowed properties (`analytics-events.ts`
 `SERVER_EVENTS`), everything else is dropped, and strings must be short id-like values. Events carry
-`$lib: pawlegends-server`, `source: server` and `$geoip_disable: true` (the request comes from our server). A fact
+`$lib: pawlegends-server`, `source: server` and `$geoip_disable: true` (the request comes from our server). Every
+event may also carry `country` (`COMMON_PROPS`, ISO 3166-1 alpha-2 checked by `countryOf`): a caller may pass the
+request's `cf-ipcountry`; otherwise a consenting account's event takes the country of its flag row
+(`pawlegendsflags.cc`, also when the flag is hidden) and sets it on the person (`$set.country`); unknown is omitted,
+never guessed (docs/plans/moba/POSTHOG-PRIVACY.md). A fact
 the server may report twice (a retried save or webhook) carries a deterministic `uuid`, so PostHog keeps one.
 
 Guests and anonymous counts: a guest with a guest account consents like anyone (its id is the hash of its anonymous

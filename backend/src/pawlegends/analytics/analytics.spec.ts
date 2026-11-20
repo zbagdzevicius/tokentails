@@ -3,7 +3,7 @@ import { PAWLEGENDS_TICK_HZ } from 'src/shared-contracts/caps';
 import { matchSavedProps } from '../history/history.service';
 import { reportPurchase } from '../pawlegends-webhook.service';
 import { analyticsDistinctId, posthogAdminConfig, posthogConfig, surfaceOf } from './analytics-env';
-import { cleanProps, SERVER_EVENTS } from './analytics-events';
+import { cleanProps, COMMON_PROPS, SERVER_EVENTS } from './analytics-events';
 import { AnalyticsSink, serverForget, serverTrack, serverTrackOrCount, setAnalyticsSink } from './analytics-sink';
 import { PawlegendsAnalyticsService } from './analytics.service';
 import { PosthogBatcher, PosthogFetch, stableUuid } from './posthog-batcher';
@@ -89,6 +89,13 @@ describe('cleanProps', () => {
             method: 42,
         });
         expect(out).toEqual({ sku: 'pl_founder', amount_cents: 499, currency: 'usd' });
+    });
+
+    it('every event may carry a real ISO country (uppercased), nothing else in that key', () => {
+        expect(cleanProps('match_saved', { mode: 'ranked', country: 'lt' })).toEqual({ mode: 'ranked', country: 'LT' });
+        for (const bad of ['XX', 'T1', 'LTU', 'L1', 12, '', null, '127.0.0.1'])
+            expect(cleanProps('yarn_granted', { amount: 1, country: bad })).toEqual({ amount: 1 });
+        expect(COMMON_PROPS).toEqual({ country: 's' });
     });
 
     it('every event declares its properties', () => {
@@ -222,15 +229,37 @@ function models(users: Record<string, { firebaseUids?: string[] }>) {
     return { consents, users: userModel };
 }
 
-function service(env: Record<string, string> = { POSTHOG_PROJECT_TOKEN: TOKEN }) {
+function flagModel(rows: Record<string, { cc?: string | null; off?: boolean }>) {
+    let reads = 0;
+    return {
+        get reads() {
+            return reads;
+        },
+        findById: (id: string) => ({
+            select: () => ({
+                lean: async () => {
+                    reads++;
+                    return rows[id] ?? null;
+                },
+            }),
+        }),
+    };
+}
+
+function service(env: Record<string, string> = { POSTHOG_PROJECT_TOKEN: TOKEN }, flags?: ReturnType<typeof flagModel>) {
     const m = models({ acc1: { firebaseUids: ['uid-a', 'uid-b'] }, acc2: { firebaseUids: ['uid-c'] }, acc3: {} });
     const net = mockFetch();
-    const svc = new PawlegendsAnalyticsService(m.consents, m.users, {
-        env,
-        fetch: net.fetch,
-        now: () => 1_700_000_000_000,
-        flushMs: 60_000,
-    });
+    const svc = new PawlegendsAnalyticsService(
+        m.consents,
+        m.users,
+        {
+            env,
+            fetch: net.fetch,
+            now: () => 1_700_000_000_000,
+            flushMs: 60_000,
+        },
+        flags
+    );
     return { svc, m, net };
 }
 
@@ -303,6 +332,31 @@ describe('PawlegendsAnalyticsService', () => {
         expect(JSON.stringify(a)).not.toContain('uid-a');
         // the same fact twice (a retried save) carries one uuid: PostHog keeps one
         expect(b.uuid).toBe(a.uuid);
+    });
+
+    it('country: the stored flag country (hidden flags too) on the event and the person; omitted when unknown', async () => {
+        const flags = flagModel({ acc1: { cc: 'LT', off: true }, acc2: { cc: 'XX' } });
+        const { svc, net } = service(undefined, flags);
+        await svc.setConsent('acc1', { granted: true });
+        await svc.setConsent('acc2', { granted: true });
+        await svc.track('acc1', 'match_saved', { mode: 'ranked' }, 'c1');
+        await svc.track('acc1', 'yarn_granted', { amount: 5, country: 'de' });
+        await svc.track('acc2', 'match_saved', { mode: 'ranked' }, 'c2');
+        await svc.anonymous('account_created', { kind: 'guest', country: 'FR' });
+        await svc.anonymous('account_created', { kind: 'guest' });
+        await svc.onModuleDestroy();
+        const [a, b, c, anon, anon2] = sent(net.calls);
+        expect(a.properties).toMatchObject({ country: 'LT', $set: { country: 'LT' }, $geoip_disable: true });
+        // the request's country, when a caller passes it, wins over the stored one
+        expect(b.properties).toMatchObject({ country: 'DE', $set: { country: 'DE' } });
+        expect(c.properties.country).toBeUndefined();
+        expect(c.properties.$set).toBeUndefined();
+        // an anonymous count has no person: the event property only, and only from the caller
+        expect(anon.properties.country).toBe('FR');
+        expect(anon.properties.$set).toBeUndefined();
+        expect(anon2.properties.country).toBeUndefined();
+        // cached: one read per account
+        expect(flags.reads).toBe(2);
     });
 
     it('a withdrawal stops events at once and drops the ones waiting', async () => {

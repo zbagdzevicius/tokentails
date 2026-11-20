@@ -1,6 +1,8 @@
 import { HttpStatus, Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/user/user.schema';
+import { countryOf } from '../flags/flags';
+import { PawlegendsFlag } from '../flags/flags.schema';
 import { pawlegendsError } from '../pawlegends.errors';
 import { AnalyticsEnv, analyticsDistinctId, DISTINCT_ID_RE, posthogAdminConfig, posthogConfig } from './analytics-env';
 import { cleanProps, ServerEvent, ServerProps } from './analytics-events';
@@ -56,6 +58,7 @@ export class PawlegendsAnalyticsService implements AnalyticsSink, OnModuleInit, 
     private readonly logger = new Logger('PawlegendsAnalytics');
     readonly batcher: PosthogBatcher | null;
     private readonly cache = new Map<string, { id: string | null; until: number }>();
+    private readonly countries = new Map<string, { cc: string | null; until: number }>();
     private readonly env: AnalyticsEnv;
     private readonly fetchImpl: PosthogFetch;
     private readonly now: () => number;
@@ -63,7 +66,8 @@ export class PawlegendsAnalyticsService implements AnalyticsSink, OnModuleInit, 
     constructor(
         @InjectModel(PawlegendsAnalyticsConsent.name) readonly consents: AnyModel,
         @InjectModel(User.name) readonly users: AnyModel,
-        @Optional() options?: AnalyticsServiceOptions
+        @Optional() options?: AnalyticsServiceOptions,
+        @Optional() @InjectModel(PawlegendsFlag.name) readonly flags?: AnyModel
     ) {
         this.env = options?.env ?? process.env;
         this.now = options?.now ?? (() => Date.now());
@@ -169,6 +173,30 @@ export class PawlegendsAnalyticsService implements AnalyticsSink, OnModuleInit, 
     }
 
     // -----------------------------------------------------------------------------------------------------------
+    // Country (docs/plans/moba/POSTHOG-PRIVACY.md): `$geoip_disable` stays on and PostHog gets our own coarse `country`
+
+    /**
+     * The account's country as its flag row stores it (FLAGS.md: the ISO code of Cloudflare's `cf-ipcountry`, never the
+     * IP; kept even when the player hides the flag, which is about display only), or null. Cached like consent; a read
+     * error is no country.
+     */
+    async accountCountry(accountId: string): Promise<string | null> {
+        if (!this.flags) return null;
+        const hit = this.countries.get(accountId);
+        if (hit && hit.until > this.now()) return hit.cc;
+        let cc: string | null = null;
+        try {
+            const row = (await this.flags.findById(accountId).select({ cc: 1 }).lean()) as { cc?: unknown } | null;
+            cc = countryOf(row?.cc);
+        } catch {
+            cc = null;
+        }
+        if (this.countries.size >= CACHE_MAX) this.countries.clear();
+        this.countries.set(accountId, { cc, until: this.now() + CONSENT_CACHE_MS });
+        return cc;
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
     // Events
 
     private base(event: ServerEvent, props: ServerProps): Record<string, unknown> {
@@ -185,10 +213,15 @@ export class PawlegendsAnalyticsService implements AnalyticsSink, OnModuleInit, 
         if (!this.batcher || !accountId) return;
         const id = await this.consentedId(accountId);
         if (!id) return;
+        const base = this.base(event, props);
+        // the request's country (a caller passed `country`) wins, else the account's stored one; none: omitted
+        const country = (base.country as string | undefined) ?? (await this.accountCountry(accountId));
+        if (country) base.country = country;
         this.batcher.enqueue({
             event,
             distinct_id: id,
-            properties: { ...this.base(event, props), distinct_id: id },
+            // a consenting account has a person profile: country is a person property too (breakdowns by person)
+            properties: { ...base, distinct_id: id, ...(country ? { $set: { country } } : {}) },
             timestamp: new Date(this.now()).toISOString(),
             uuid: key ? stableUuid(`${event}:${id}:${key}`) : newUuid(),
         });
