@@ -55,6 +55,8 @@ import {
 } from './social.schema';
 import { serverTrack } from '../analytics/analytics-sink';
 import { assignAutoNick } from './nick-assign';
+import { PawlegendsRating, ratingId } from '../mm/rating.schema';
+import { CURRENT_SEASON_ID } from '../pawlegends-catalog';
 
 /*
  * Friends, blocks, recent players, invites and the API side of presence (SOCIAL-RANKED.md §2–§5, lane L2). Registered
@@ -164,8 +166,33 @@ export class SocialService {
         // social sidebar round 6: the champion each recent player played (MATCH-HISTORY.md rows, `party:<room>`)
         @Optional() @InjectModel(PawlegendsMatchHistory.name) readonly history?: AnyModel,
         // the Treat Track's champion titles and frames are owned through progress (social/avatar.ts)
-        @Optional() @InjectModel(PawlegendsProgress.name) readonly progress?: AnyModel
+        @Optional() @InjectModel(PawlegendsProgress.name) readonly progress?: AnyModel,
+        // Home's friends panel (Nov 20): each friend's ranked tier badge (placed this season only)
+        @Optional() @InjectModel(PawlegendsRating.name) readonly ratings?: AnyModel
     ) {}
+
+    /**
+     * Friends' ranked tiers (Home friends panel, Nov 20): tier index 0..12 for each account placed in the current
+     * season (none during placements, none for an older season). One batched read; never fails the caller.
+     */
+    async tiersOf(ids: readonly string[]): Promise<Map<string, number>> {
+        const out = new Map<string, number>();
+        if (!this.ratings || !ids.length) return out;
+        try {
+            const rows = (await this.ratings
+                .find({ _id: { $in: ids.map(id => ratingId(id, 'ranked')) } })
+                .select({ accountId: 1, season: 1, tierIdx: 1, placementsLeft: 1 })
+                .lean()) as Array<{ accountId: string; season?: string; tierIdx?: number; placementsLeft?: number }>;
+            for (const r of rows) {
+                if (r.season !== CURRENT_SEASON_ID || (r.placementsLeft ?? 1) !== 0) continue;
+                const idx = Math.floor(Number(r.tierIdx));
+                if (Number.isFinite(idx) && idx >= 0 && idx <= 12) out.set(String(r.accountId), idx);
+            }
+        } catch {
+            // a badge is decoration: no tier rather than no friends list
+        }
+        return out;
+    }
 
     /**
      * Last played together (LoL's friend card): per account, the newest room this player shared with them in the last
@@ -543,6 +570,7 @@ export class SocialService {
         const avatars = await this.avatarsOf([me, ...ids]);
         const ccs = (await this.flags?.visible(accepted)) ?? new Map<string, string>();
         const played = await this.playedWith(me, accepted);
+        const tiers = await this.tiersOf(accepted);
         const row = (id: string) => ({ code: codes.get(id) ?? '', name: names.get(id) ?? '', av: avatars.get(id) });
         const order = { match: 0, queue: 1, party: 2, online: 3, offline: 4 } as const;
         const friends = accepted
@@ -555,6 +583,8 @@ export class SocialService {
                     ...(favs.has(id) ? { fav: true } : {}),
                     // last played together (epoch ms) and how often in the last 30 days
                     ...(played.get(id) ? { played: played.get(id) } : {}),
+                    // the ranked tier index (0..12) when placed this season: Home's rank badge
+                    ...(tiers.has(id) ? { rk: tiers.get(id) } : {}),
                     // a status note shows while the friend is not offline (an invisible friend reads offline)
                     ...(p.state !== 'offline' && validNote(note) ? { note } : {}),
                     presence: p,
