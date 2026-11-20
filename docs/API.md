@@ -784,6 +784,8 @@ Co-op against bots for 1 to 3 friends, deterministic lockstep through a relay. A
 |---|---|---|---|
 | POST | `/pawlegends/party/ticket` | `{ticket, expiresIn: 60}`: a single-use HMAC token naming the caller, sent inside the relay `hello`. 503 `PAWLEGENDS_PARTY_TICKET_UNAVAILABLE` without the secret | `AppAuthGuard` + `@AllowGuest()`, 30 per 10 min per IP |
 | WS | `/pawlegends/ws` (subprotocol `pl.1`) | The relay. JSON text frames (`hello`, `party.*`, `pick.*`, `load`, `loaded`, `vote`, `social`, `sync`, `away`, `back`, `bye`; server `welcome`, `error`, `party`, `match`, `slot`, `vote`, `social`, `resync`, `end`, ...) and binary frames (CMD, BEAT, HASH; TURN, CATCHUP, ECHO). Shapes and limits: `pawlegends/src/net/proto.ts` (vendored to `backend/src/vendor/pawlegends-net/`) | Origin in the CORS list; caps in `party-limits.ts` |
+| WS | `/pawlegends/ws/<shard>` (`[a-z0-9-]{1,16}`) | The same relay addressed by shard (LIVE-MATCH-DEPLOYS.md §15). A PROTO 9 game that reaches a shard not owning its party, room, match to watch or queue gets `error {code: 'relay_redirect', shard}` and close 4014, and reconnects to that shard's path; an older game is never redirected (`party_elsewhere`/`room_elsewhere` with `retryMs` instead) | As `/pawlegends/ws` |
+| GET | `/pawlegends/relays` | `{shards: [{shard, path, state, load: 'low'\|'mid'\|'high', leader}], leader}`: the serving relay shards and the Quick Play lease holder; empty when no relay sets `RELAY_SHARD`. No party-code lookup on purpose | Public, global throttler |
 
 `party.card {catId}` wears one of the caller's own cats in the party (ticketed accounts only; the relay checks
 ownership with `CatRepository`). Peers get only `{image, element, tier}` and a name from the card's catalog or breed
