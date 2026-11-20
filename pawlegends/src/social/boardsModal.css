@@ -52,13 +52,27 @@ html .pl-boards .pl-bd { flex: none; gap: 10px; min-height: 48px; padding: 0 8px
 html .pl-boards .pl-bd .pl-social-nm { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; }
 html .pl-boards .pl-bd .pl-social-name { flex: 0 1 auto; font-size: 15px; font-weight: 700; }
 html .pl-boards .pl-bd .pl-social-st { font-size: 14px; color: var(--v6-muted); font-variant-numeric: tabular-nums; }
+html .pl-boards .pl-bd-list { display: flex; flex-direction: column; gap: 2px; }
+html .pl-boards .pl-bd .pl-rank { flex: none; min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
+html .pl-boards .pl-bd-noav { flex: none; width: 32px; height: 32px; border-radius: 50%; background: rgb(var(--v6-cream-rgb, 255 243 227) / 0.1); }
+/* the metric: the level badge (or the ranked tier) over its matches (or points) */
+html .pl-boards .pl-bd-metric { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; text-align: right; font-variant-numeric: tabular-nums; }
+html .pl-boards .pl-bd-metric b {
+  padding: 1px 8px; border-radius: 999px; font: italic 900 14px/1.25 var(--v6-font-display, var(--font, sans-serif)); letter-spacing: 0.01em;
+  color: var(--v6-night, #12091f); background: var(--v6-grad-bolt, linear-gradient(180deg, #fff6a8, #ffe14a));
+}
+html .pl-boards .pl-bd-metric.rk b { color: var(--v6-cream, #fff3e3); background: rgb(var(--v6-sky-rgb, 57 166 255) / 0.28); box-shadow: inset 0 0 0 1px rgb(var(--v6-sky-rgb, 57 166 255) / 0.6); }
+html .pl-boards .pl-bd-metric small { font-size: 14px; line-height: 1.15; font-weight: 700; color: var(--v6-muted); }
+html .pl-boards .pl-bd-note { flex: none; margin: 8px 8px 2px; font-size: 14px; color: var(--v6-muted); }
 html .pl-boards .pl-bd:nth-child(-n + 3):not(.pin) .pl-rank { color: var(--v6-bolt, #ffe14a); }
 /* my own row: on the list when I am on the page, else pinned under it (the same row, never both) */
 html .pl-boards .pl-bd.me { background: rgb(var(--v6-bolt-rgb, 255 225 74) / 0.12); box-shadow: inset 3px 0 0 var(--v6-bolt, #ffe14a); border-radius: var(--v6-r-s, 6px); }
 html .pl-boards .pl-bd.pin { position: sticky; bottom: 0; z-index: 1; margin-top: 6px; background: var(--v6-night-2, #1c1230); box-shadow: inset 3px 0 0 var(--v6-bolt, #ffe14a), 0 -6px 12px rgb(0 0 0 / 0.35); }
 html .pl-boards .pl-bd-you { flex: none; padding: 1px 6px; border-radius: 3px; font: 800 11px/1.3 var(--font, sans-serif); color: var(--v6-night, #12091f); background: var(--v6-bolt, #ffe14a); }
 /* Local: the country over the list, and why there is no board (a hidden flag, an unknown country) */
-html .pl-boards .pl-bd-head { flex: none; margin: 2px 8px 6px; font: 800 15px/1.3 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); }
+html .pl-boards .pl-bd-head { flex: none; display: flex; align-items: center; gap: 8px; margin: 2px 8px 6px; font: 800 16px/1.3 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); }
+html .pl-boards .pl-bd-head .pl-bd-flag { font-size: 22px; line-height: 1; }
+html .pl-boards .pl-bd-head small { margin-left: auto; font-size: 14px; font-weight: 700; color: var(--v6-muted); }
 html .pl-boards .pl-bd-why { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 4px 8px; }
 html .pl-boards .pl-bd-why .pl-btn { min-height: 44px; }
 html .pl-boards .pl-social-empty { margin: 12px 8px; }
@@ -74,4 +88,79 @@ html .pl-boards-foot .pl-btn { min-height: 44px; min-width: 44px; }
   html .pl-boards-head { min-height: 40px; }
   html .pl-boards-head h2 { font-size: 18px; }
   html .pl-boards-ico { width: 28px; height: 28px; }
+}
+
+/* ------------------------------------------------------------------------------------------------ Cats vs Dogs
+   A tug-of-war: Clem and Howler face off, cat rose against dog sky, the bolt at the split (--cat, the cats' share).
+   The bar grows from the middle when the tab opens (.in), the counters roll up in JS; reduced motion shows the end. */
+html .pl-cvd { --cat: 50%; display: flex; flex-direction: column; gap: 10px; padding: 2px 4px 6px; }
+html .pl-cvd-range { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+html .pl-cvd-range .pl-btn { min-height: 44px; }
+html .pl-cvd-lead {
+  margin: 2px 0 0; text-align: center; font: italic 900 26px/1.05 var(--v6-font-display, var(--font, sans-serif)); text-transform: none; letter-spacing: 0.01em;
+  color: var(--v6-cream, #fff3e3); text-shadow: 0 2px 0 rgb(0 0 0 / 0.35);
+}
+html .pl-cvd.cat .pl-cvd-lead { color: var(--v6-rose-light, #ffb3cd); }
+html .pl-cvd.dog .pl-cvd-lead { color: var(--v6-ice, #d6ecff); }
+html .pl-cvd.empty .pl-cvd-lead { font: 700 15px/1.35 var(--font, sans-serif); color: var(--v6-muted); }
+html .pl-cvd-stage {
+  position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 0;
+  min-height: 176px; padding: 12px 12px 14px; border-radius: var(--v6-r-m, 10px);
+  background: linear-gradient(105deg, rgb(var(--v6-rose-rgb, 255 61 127) / 0.32) 0 calc(var(--cat) - 1px), rgb(var(--v6-sky-rgb, 57 166 255) / 0.3) calc(var(--cat) + 1px)), var(--v6-night, #12091f);
+  box-shadow: inset 0 0 0 1px var(--v6-line, rgb(255 243 227 / 0.12));
+}
+html .pl-cvd-art { position: absolute; bottom: 30px; z-index: -1; height: 150px; width: auto; max-width: 48%; object-fit: contain; pointer-events: none; filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.45)); }
+html .pl-cvd-art.cat { left: -6px; }
+html .pl-cvd-art.dog { right: -6px; transform: scaleX(-1); }
+html .pl-cvd-side { position: relative; display: flex; flex-direction: column; gap: 2px; padding-bottom: 26px; text-shadow: 0 2px 6px rgb(0 0 0 / 0.75); }
+html .pl-cvd-side.cat { align-items: flex-end; padding-right: 16px; text-align: right; }
+html .pl-cvd-side.dog { align-items: flex-start; padding-left: 16px; }
+html .pl-cvd-tag { font: italic 900 15px/1.1 var(--v6-font-display, var(--font, sans-serif)); text-transform: uppercase; letter-spacing: 0.04em; }
+html .pl-cvd-side.cat .pl-cvd-tag { color: var(--v6-rose-light, #ffb3cd); }
+html .pl-cvd-side.dog .pl-cvd-tag { color: var(--v6-ice, #d6ecff); }
+html .pl-cvd-n { font: italic 900 30px/1 var(--v6-font-display, var(--font, sans-serif)); color: var(--v6-cream, #fff3e3); font-variant-numeric: tabular-nums; }
+html .pl-cvd-pct { font-size: 14px; font-weight: 800; color: var(--v6-cream, #fff3e3); opacity: 0.85; }
+html .pl-cvd-bar {
+  position: absolute; left: 12px; right: 12px; bottom: 12px; height: 16px; border-radius: 999px; overflow: visible;
+  background: var(--v6-night-3, #2a1d44); box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb, 255 243 227) / 0.16);
+}
+html .pl-cvd-fill { position: absolute; top: 0; bottom: 0; transition: width 900ms var(--v6-ease-out, cubic-bezier(0.2, 0.8, 0.2, 1)); }
+html .pl-cvd-fill.cat { left: 0; width: 50%; border-radius: 999px 0 0 999px; background: linear-gradient(90deg, var(--v6-rose-deep, #c4185a), var(--v6-rose, #ff3d7f)); }
+html .pl-cvd-fill.dog { right: 0; width: 50%; border-radius: 0 999px 999px 0; background: linear-gradient(270deg, var(--v6-sky-deep, #1f6fd1), var(--v6-sky, #39a6ff)); }
+html .pl-cvd.in .pl-cvd-fill.cat { width: var(--cat); }
+html .pl-cvd.in .pl-cvd-fill.dog { width: calc(100% - var(--cat)); }
+html .pl-cvd-bolt {
+  position: absolute; top: 50%; left: 50%; width: 22px; height: 40px; transform: translate(-50%, -50%) rotate(8deg);
+  color: var(--v6-bolt, #ffe14a); filter: drop-shadow(0 0 6px rgb(var(--v6-bolt-rgb, 255 225 74) / 0.9)) drop-shadow(0 2px 0 rgb(0 0 0 / 0.5));
+  transition: left 900ms var(--v6-ease-out, cubic-bezier(0.2, 0.8, 0.2, 1));
+}
+html .pl-cvd.in .pl-cvd-bolt { left: var(--cat); animation: pl-cvd-zap 2.4s 1s ease-in-out infinite; }
+html .pl-cvd-bolt svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+@keyframes pl-cvd-zap { 0%, 86%, 100% { opacity: 1; } 90% { opacity: 0.45; } 94% { opacity: 1; } 97% { opacity: 0.6; } }
+html .pl-cvd-note, html .pl-cvd-trend, html .pl-cvd-mine { margin: 0 4px; font-size: 14px; line-height: 1.35; }
+html .pl-cvd-note { color: var(--v6-muted); }
+html .pl-cvd-trend { font-weight: 800; color: var(--v6-bolt, #ffe14a); }
+html .pl-cvd-mine { font-weight: 700; color: var(--v6-cream, #fff3e3); }
+@media (prefers-reduced-motion: reduce) {
+  html .pl-cvd-fill, html .pl-cvd-bolt { transition: none; }
+  html .pl-cvd.in .pl-cvd-bolt { animation: none; }
+}
+/* a narrow phone: smaller art and counters, the numbers stay clear of the art */
+@media (max-width: 430px) {
+  html .pl-cvd-lead { font-size: 22px; }
+  html .pl-cvd-art { height: 118px; }
+  html .pl-cvd-n { font-size: 24px; }
+  html .pl-cvd-stage { min-height: 150px; }
+}
+/* a short landscape phone: the stage shrinks so the whole tab fits without much scrolling */
+@media (max-height: 480px) {
+  html .pl-cvd { gap: 6px; }
+  html .pl-cvd-lead { font-size: 20px; }
+  html .pl-cvd-stage { min-height: 128px; padding-top: 8px; }
+  html .pl-cvd-art { height: 104px; }
+  html .pl-cvd-n { font-size: 24px; }
+}
+/* a narrow portrait phone (390 wide): the four tabs in two rows, each label whole */
+@media (max-width: 480px) {
+  html .pl-boards .pl-boards-sub { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

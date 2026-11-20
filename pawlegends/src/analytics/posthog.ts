@@ -101,7 +101,7 @@ export type AnalyticsEvent =
   | 'chat_open'
   /** A Settings choice changed: `setting` (sound, quality, tips, skin_fx, fps, saver, stats, flag) and its `value`. */
   | 'settings_change'
-  /** The leaderboards opened in one tap (`source`: home, the chip under the promo). */
+  /** The leaderboards opened in one tap (`source`: home; `tab`: level, country, sides, ranked, the tab it opened on). */
   | 'leaderboard_open'
   /**
    * What's New (meta/showcase.ts, founder Nov 19): the comic pages opened (`pages`, `first`, `first_type`), a page shown

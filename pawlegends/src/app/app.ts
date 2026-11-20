@@ -1880,7 +1880,6 @@ export class App {
   private boardsOpening = false;
   private openBoards(source: 'home'): void {
     if (this.boardsOpening || (this.boards && !this.boards.closed)) return;
-    this.analytics.track('leaderboard_open', { source });
     this.boardsOpening = true;
     void import('../social/boardsModal')
       .then(({ openBoards }) => {
@@ -1889,7 +1888,9 @@ export class App {
         this.boards = openBoards(this.root, {
           api: (op, args) => this.api(op, args),
           signedIn: () => accountState().signedIn,
-          track: (e, p) => this.analytics.track(e as 'history_open', p),
+          // `leaderboard_open {source, tab}` once open, `board_view {kind}` per tab
+          track: (e, p) => this.analytics.track(e as 'leaderboard_open', p),
+          source,
           onClose: () => {
             this.boards = null;
           },

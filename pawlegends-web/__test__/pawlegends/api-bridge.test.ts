@@ -47,6 +47,12 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("board.get", { kind: "weekly", page: 2 })).toMatchObject({ path: "/pawlegends/boards/weekly?page=2", auth: "none" });
     expect(routeOf("board.get", { kind: "friends" })).toMatchObject({ path: "/pawlegends/boards/friends/me", auth: "registered" });
     expect(routeOf("board.get", { kind: "local", page: 1 })).toMatchObject({ path: "/pawlegends/boards/local/me?page=1", auth: "registered" });
+    // the Leaderboards window: Level and Cats vs Dogs are public, Country is the caller's own
+    expect(routeOf("board.get", { kind: "level", page: 3 })).toMatchObject({ path: "/pawlegends/boards/level?page=3", auth: "none" });
+    expect(routeOf("board.get", { kind: "level", name: "me" })).toMatchObject({ path: "/pawlegends/boards/level/me", auth: "registered" });
+    expect(routeOf("board.get", { kind: "sides" })).toMatchObject({ path: "/pawlegends/boards/sides", auth: "none" });
+    expect(routeOf("board.get", { kind: "country" })).toMatchObject({ path: "/pawlegends/boards/country/me", auth: "registered" });
+    expect(routeOf("board.get", { kind: "nope" })).toBeNull();
     expect(routeOf("ranked.status", {})).toMatchObject({ auth: "none" });
     const thread = "dAAAAAAAAAAAAAAAAAAAAAA";
     const mid = "0123456789abcdef01234567";
