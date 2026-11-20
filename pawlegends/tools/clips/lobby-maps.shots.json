@@ -1,0 +1,20 @@
+[
+ {"id": "crossing-01-doghouse", "map": "crossing", "scheme": "native", "hero": "frankie", "feet": [13500, 24000], "az": 20, "gd": 10, "h": 2.2, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "crossing-02-bridge", "map": "crossing", "scheme": "bloom", "hero": "brutus", "feet": [48000, 53000], "az": -55, "gd": 15, "h": 3.2, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "crossing-03-lane-tower", "map": "crossing", "scheme": "frost", "hero": "howler", "feet": [38000, 48500], "az": -20, "gd": 13, "h": 2.8, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "ridge-01-fish-mill", "map": "ridge", "scheme": "harvest", "hero": "frankie", "feet": [45000, 19500], "az": -65, "gd": 10, "h": 2.2, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "ridge-02-outer-tower", "map": "ridge", "scheme": "native", "hero": "rocket", "feet": [39000, 50500], "az": 85, "gd": 12, "h": 2.6, "fov": 32, "rel": 45, "screen": [0.42, 0.8], "size": [1266, 585], "empty": true},
+ {"id": "ridge-03-ridge-road", "map": "ridge", "scheme": "frost", "hero": "nugget", "feet": [51000, 50000], "az": -95, "gd": 11, "h": 2.4, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "thicket-01-paw-shrine", "map": "thicket", "scheme": "bloom", "hero": "frankie", "feet": [35500, 28000], "az": 10, "gd": 10, "h": 2.2, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "thicket-02-south-tower", "map": "thicket", "scheme": "harvest", "hero": "marshmallow", "feet": [29500, 7000], "az": -62, "gd": 13, "h": 2.8, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "thicket-03-centre-glade", "map": "thicket", "scheme": "frost", "hero": "bravo", "feet": [48500, 28500], "az": -100, "gd": 11, "h": 2.4, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "quarry-01-geode", "map": "quarry", "scheme": "native", "hero": "frankie", "feet": [44500, 27500], "az": -45, "gd": 10, "h": 2.2, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "quarry-02-north-tower", "map": "quarry", "scheme": "frost", "hero": "brutus", "feet": [32000, 51000], "az": -100, "gd": 12, "h": 2.6, "fov": 32, "rel": 45, "screen": [0.42, 0.8], "size": [1266, 585], "empty": true},
+ {"id": "quarry-03-cat-gate", "map": "quarry", "scheme": "verdant", "hero": "chili", "feet": [59000, 51500], "az": -90, "gd": 11, "h": 2.4, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "pitch-01-centre-spot", "map": "pitch", "scheme": "native", "hero": "frankie", "feet": [47000, 28500], "az": -35, "gd": 10, "h": 2.2, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "pitch-02-goal-mouth", "map": "pitch", "scheme": "frost", "hero": "nugget", "feet": [23000, 29000], "az": 55, "gd": 12, "h": 2.6, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "pitch-03-south-tower", "map": "pitch", "scheme": "bloom", "hero": "rocket", "feet": [30000, 7500], "az": -70, "gd": 11, "h": 2.4, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "hearthwood-01-grizzlechop-pit", "map": "hearthwood", "scheme": "native", "hero": "frankie", "feet": [87000, 30500], "az": -45, "gd": 10, "h": 2.2, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "hearthwood-02-river-road", "map": "hearthwood", "scheme": "verdant", "hero": "howler", "feet": [54500, 50000], "az": -45, "gd": 9, "h": 2.0, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true},
+ {"id": "hearthwood-03-hearth-base", "map": "hearthwood", "scheme": "frost", "hero": "brutus", "feet": [23000, 21000], "az": 45, "gd": 15, "h": 3.2, "fov": 32, "rel": 45, "size": [1266, 585], "screen": [0.42, 0.8], "empty": true}
+]

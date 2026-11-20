@@ -3,7 +3,7 @@ import { serveSilhouettes, toChampSelect } from './helpers';
 import { limit } from '../unit/cpu-budget';
 
 // Home (HOME-MODES.md §4, was the lobby redesign), desktop 1280x720 and landscape 844x390: the round PLAY is visible and on
-// top, the 3D hero stays wholly in frame on the poster (HOME-POSTER.md) (founder, Nov 13: Home shows the 3D champion), Settings
+// top, the 3D hero stays wholly in frame on its map spot (HOME-MAP-BACKDROPS.md) (founder, Nov 13: Home shows the 3D champion), Settings
 // closes on Escape with focus back on its button, and the keyboard plays (Enter → Mode Select → Enter → Enter → LOCK IN)
 // into a live match.
 
@@ -17,8 +17,9 @@ async function seed(page: Page): Promise<void> {
 }
 
 
-const posterHero = async (page: Page): Promise<number[]> =>
-  (await page.evaluate(() => document.documentElement.dataset.posterHero ?? '')).split(',').filter(Boolean).map(Number);
+/** Home's map backdrop (HOME-MAP-BACKDROPS.md): the champion's drawn box [left, top, right, bottom] in CSS px. */
+const heroBox = async (page: Page): Promise<number[]> =>
+  (await page.evaluate(() => document.documentElement.dataset.heroBox ?? '')).split(',').filter(Boolean).map(Number);
 
 async function onTop(page: Page, sel: string): Promise<boolean> {
   return page.evaluate((s) => {
@@ -30,7 +31,7 @@ async function onTop(page: Page, sel: string): Promise<boolean> {
   }, sel);
 }
 
-test('the lobby: Play on top, the 3D hero in frame on the poster, named champion', async ({ page }) => {
+test('the lobby: Play on top, the 3D hero in frame on its map spot, named champion', async ({ page }) => {
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
@@ -43,16 +44,16 @@ test('the lobby: Play on top, the 3D hero in frame on the poster, named champion
   await expect(page.locator('.hm-plate-n')).toHaveText(/^Sage/);
   await expect(page.locator('.hm-plate-s')).toHaveText('Marksman · Wind');
   await expect(page.locator('.hm-plate')).toHaveCount(1);
-  // Home shows the 3D hero (founder, Nov 13) on the drawn poster (HOME-POSTER.md, no pedestal), wholly in frame: its
-  // drawn box [left, top, right, bottom] in CSS px; the painted stage is hidden and the canvas is visible
-  await expect.poll(async () => (await posterHero(page)).length).toBe(4);
-  const [left, top, right, bottom] = await posterHero(page);
+  // Home shows the 3D hero (founder, Nov 13) standing in a real map spot (HOME-MAP-BACKDROPS.md, no pedestal), wholly
+  // in frame: its drawn box [left, top, right, bottom] in CSS px; the painted stage is hidden and the canvas is visible
+  await expect.poll(async () => (await heroBox(page)).length).toBe(4);
+  const [left, top, right, bottom] = await heroBox(page);
   const vp = page.viewportSize()!;
   expect(top).toBeGreaterThanOrEqual(0);
   expect(bottom).toBeLessThanOrEqual(vp.height);
   expect(left).toBeGreaterThanOrEqual(0);
   expect(right).toBeLessThanOrEqual(vp.width);
-  await expect(page.locator('html')).toHaveAttribute('data-lobby-bg', 'poster');
+  await expect(page.locator('html')).toHaveAttribute('data-lobby-bg', 'map');
   await expect(page.locator('.pl-stage')).toBeHidden();
   expect(await page.locator('#game-canvas').evaluate((c) => getComputedStyle(c).visibility)).toBe('visible');
   // no money words on the lobby

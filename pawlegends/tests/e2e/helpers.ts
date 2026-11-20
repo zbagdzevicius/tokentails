@@ -116,12 +116,15 @@ export async function minimapPoint(page: Page, xMm: number, yMm: number): Promis
 }
 
 /**
- * Home poster (HOME-POSTER.md): the rival silhouettes stream from pawlegends.app. Serve this checkout's files instead,
- * so a spec runs offline and before the deploy that ships a new silhouette (no 404 in the console).
+ * Home's art on pawlegends.app: the poster's rival silhouettes (HOME-POSTER.md) and the map backdrops' pictures
+ * (HOME-MAP-BACKDROPS.md). Serve this checkout's files instead, so a spec runs offline and before the deploy that ships
+ * a new picture (no 404 in the console).
  */
 export async function serveSilhouettes(page: Page): Promise<void> {
-  const dir = new URL('../../../pawlegends-web/public/pawlegends-art/silhouettes/', import.meta.url);
-  await page.route('**/pawlegends-art/silhouettes/**', (r) =>
-    r.fulfill({ path: decodeURIComponent(new URL(new URL(r.request().url()).pathname.split('/').pop() ?? '', dir).pathname), contentType: 'image/webp', headers: { 'access-control-allow-origin': '*' } }),
-  );
+  for (const folder of ['silhouettes', 'lobby-maps']) {
+    const dir = new URL(`../../../pawlegends-web/public/pawlegends-art/${folder}/`, import.meta.url);
+    await page.route(`**/pawlegends-art/${folder}/**`, (r) =>
+      r.fulfill({ path: decodeURIComponent(new URL(new URL(r.request().url()).pathname.split('/').pop() ?? '', dir).pathname), contentType: 'image/webp', headers: { 'access-control-allow-origin': '*' } }),
+    );
+  }
 }

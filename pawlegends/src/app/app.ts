@@ -200,6 +200,8 @@ export class App {
   private lobbyOn = false;
   /** The lobby's last frame is up behind the champion browser: no more lobby frames until it closes. */
   private champFrozen = false;
+  /** When Home's cover check last ran (performance.now ms). */
+  private busyAt = -1e9;
   readonly ent = new Entitlements();
   readonly checkout: CheckoutBridge;
   readonly analytics: Analytics;
@@ -3855,6 +3857,11 @@ export class App {
     if ((this.frames = (this.frames + 1) % 60) === 0) document.documentElement.dataset.draws = String(this.gr.renderer.info.render.calls);
     if (this.session) this.session.frame(dt);
     else if (this.lobby) {
+      // Home's map backdrop waits while something covers Home (a panel, a modal, the loading veil); read 4 times a second
+      if (now - this.busyAt > 250) {
+        this.busyAt = now;
+        this.lobby.covered = this.screen !== 'title' || this.screenBusy();
+      }
       this.lobby.update(dt);
       this.gr.render();
     }

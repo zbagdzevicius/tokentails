@@ -24,7 +24,12 @@ export const SCREEN_BGS = ['stage', 'win-cat', 'win-dog', 'lose-cat', 'lose-dog'
  * champion. No picture file (it replaced the painted "Storm Clash Arena" key art, `legends-*.webp`).
  */
 export const HOME_BG = 'poster' as const;
-export type LobbyBg = (typeof LOBBY_BGS)[number] | (typeof SCREEN_BGS)[number] | typeof HOME_BG;
+/**
+ * Home since Nov 20 (docs/plans/moba/HOME-MAP-BACKDROPS.md): the champion stands in a real map spot that changes every
+ * few seconds (render/lobby/mapViews.ts). The poster above stays as its fallback when the pictures cannot load.
+ */
+export const HOME_MAP = 'map' as const;
+export type LobbyBg = (typeof LOBBY_BGS)[number] | (typeof SCREEN_BGS)[number] | typeof HOME_BG | typeof HOME_MAP;
 
 const VISIT_KEY = 'tt.pawlegends.lobbybg.v1';
 
@@ -35,21 +40,21 @@ export function lobbyBgFor(visit: number): (typeof LOBBY_BGS)[number] {
 }
 
 /**
- * The screen's own scene (`data-screen` on <html>), or null to keep the visit's scene. Home (`title`) shows the poster
- * unless `forced` (a `?lobbybg=` override for e2e and screenshots).
+ * The screen's own scene (`data-screen` on <html>), or null to keep the visit's scene. Home (`title`) shows the map
+ * backdrop unless `forced` (a `?lobbybg=` override for e2e and screenshots); render/lobby.ts falls back to the poster.
  */
 export function screenBg(screen: string | undefined, o: { won: boolean; side: 'cat' | 'dog'; forced?: boolean }): LobbyBg | null {
-  if (screen === 'title' && !o.forced) return HOME_BG;
+  if (screen === 'title' && !o.forced) return HOME_MAP;
   if (screen === 'pick') return 'stage';
   if (screen === 'results') return `${o.won ? 'win' : 'lose'}-${o.side}`;
   return null;
 }
 
-/** The file for a scene: the 1920 px one on a wide, not-Low screen; '' for Home's poster (drawn, no file). */
+/** The file for a scene: the 1920 px one on a wide, not-Low screen; '' for Home (the poster is drawn, the map has its own). */
 export function lobbyBgUrl(bg: LobbyBg, o: { base: string; bufferWidth: number; low: boolean; aspect?: number }): string {
   const w = !o.low && o.bufferWidth > 1400 ? 1920 : 1280;
   if (bg === 'stage') return `${o.base}assets/screens/pick-stage-${w}.webp`;
-  if (bg === HOME_BG) return '';
+  if (bg === HOME_BG || bg === HOME_MAP) return '';
   const dir = (SCREEN_BGS as readonly string[]).includes(bg) ? 'screens' : 'lobby';
   return `${o.base}assets/${dir}/${bg}-${w}.webp`;
 }

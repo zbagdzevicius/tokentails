@@ -45,6 +45,8 @@
   position: absolute; inset: -20px; width: calc(100% + 40px); height: calc(100% + 40px);
   transform: translate3d(calc(var(--px) * -18px), calc(var(--py) * -10px), 0);
 }
+/* the map backdrop (HOME-MAP-BACKDROPS.md) is a real place in daylight: no poster sparkles drifting over it */
+html[data-lobby-bg="map"] .hm-motes { display: none; }
 
 /* ------------------------------------------------------------------------------------- top left: profile */
 .hm-top {

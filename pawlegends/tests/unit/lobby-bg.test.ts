@@ -12,8 +12,9 @@ describe('lobby background', () => {
     expect(screenBg('pick', { won: false, side: 'dog' })).toBe('stage');
     expect(screenBg('results', { won: true, side: 'cat' })).toBe('win-cat');
     expect(screenBg('results', { won: false, side: 'dog' })).toBe('lose-dog');
-    // Home (HOME-POSTER.md): the drawn poster on every visit, unless a ?lobbybg= override forces a scene
-    expect(screenBg('title', { won: true, side: 'cat' })).toBe('poster');
+    // Home (HOME-MAP-BACKDROPS.md): the map backdrop on every visit (the poster is its fallback), unless a ?lobbybg=
+    // override forces a scene
+    expect(screenBg('title', { won: true, side: 'cat' })).toBe('map');
     expect(screenBg('title', { won: true, side: 'cat', forced: true })).toBeNull();
     expect(screenBg(undefined, { won: true, side: 'cat' })).toBeNull();
     expect(lobbyBgUrl('stage', { base: './', bufferWidth: 844, low: false })).toBe('./assets/screens/pick-stage-1280.webp');
@@ -25,6 +26,8 @@ describe('lobby background', () => {
     expect(lobbyBgUrl('poster', { base: './', bufferWidth: 844, low: false, aspect: 844 / 390 })).toBe('');
     expect(lobbyBgUrl('poster', { base: './', bufferWidth: 2880, low: false, aspect: 1440 / 900 })).toBe('');
     expect(lobbyBgUrl('poster', { base: './', bufferWidth: 2880, low: true, aspect: 16 / 9 })).toBe('');
+    // the map backdrop names its own pictures (render/lobby/mapViews.ts)
+    expect(lobbyBgUrl('map', { base: './', bufferWidth: 2880, low: false })).toBe('');
   });
 
   it('1280 px for phones and Low tier, 1920 px for wide screens', () => {

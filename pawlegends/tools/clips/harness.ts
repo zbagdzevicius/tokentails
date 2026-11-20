@@ -102,6 +102,14 @@ export interface ShotSpec {
    * tool's downscale every line is as thick as a player sees it. Render only: the sim is untouched.
    */
   hq?: { dpr: number; ss: number; shadowMap?: number } | null;
+  /**
+   * Lobby-map stills (tools/clips/stills.mjs): champions placed by hand on the live map, render only. Each is the lobby's
+   * full-detail model (`lobbyHero`) standing at (x, z) m on the playfield (y 0), turned `face` degrees (0 = toward +Z,
+   * 90 = toward +X, like LobbyStand.face), idling (or `act` once on frame `actAt`); `heroesOff` hides every sim hero, so
+   * the staged one is the only champion in the frame. The sim never sees any of it.
+   */
+  stage?: { hero: HeroId; team?: 0 | 1; look?: string | null; x: number; z: number; face?: number; scale?: number; act?: 'swing' | 'cheer'; actAt?: number }[];
+  heroesOff?: boolean;
   /** Clips: the music never drops below this intensity layer (0-3). */
   musicMin?: number;
   /** Trailer Wild Rivals: the game's SFX only, no match music (the trailer brings its own score). */
@@ -362,6 +370,8 @@ let gr: GameRenderer | null = null;
 let session: MatchSession | null = null;
 let lobby: Lobby | null = null;
 const extra: LobbyHero[] = [];
+/** ShotSpec.stage: the hand-placed champions of a lobby-map still (match mode). */
+const staged: LobbyHero[] = [];
 const extraPeds: THREE.Object3D[] = [];
 let spec: ShotSpec | null = null;
 let clockTick = 0;
@@ -887,6 +897,18 @@ function cleanUp(g: GameRenderer): void {
     }
   }
   if (s.hideIds?.length) for (const [id, r] of view.heroes.rigs) if (s.hideIds.includes(id)) r.ch.object.visible = false;
+  if (s.heroesOff) for (const r of view.heroes.rigs.values()) r.ch.object.visible = false;
+  // lobby-map stills: the staged champions idle (or act) in output time, just before the frame is drawn
+  staged.forEach((h, i) => {
+    const st = s.stage?.[i];
+    const anim = h.ch.anim as unknown as { swing(): void; emote(n: string, t?: number): void; popT: number };
+    anim.popT = 1;
+    if (st?.act && st.actAt === curF && curDtReal > 0) {
+      if (st.act === 'swing') anim.swing();
+      else anim.emote('cheer', 0.9);
+    }
+    h.ch.anim.update(curDtReal, { state: 'idle', speed: 0, height: h.ch.height, yawRate: 0 });
+  });
   for (const name of s.hideGroups ?? []) {
     const o = g.scene.getObjectByName(name);
     if (o) o.visible = false;
@@ -1514,6 +1536,18 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
   }
   pin = target;
   applyLooks(s);
+  for (const h of staged.splice(0)) {
+    h.object.removeFromParent();
+    h.dispose();
+  }
+  for (const st of s.stage ?? []) {
+    const h = lobbyHero(st.hero, st.team ?? 0, lookOf(st.look ?? null));
+    h.object.position.set(st.x, 0, st.z);
+    h.object.rotation.y = -Math.PI / 2 + ((st.face ?? 0) * Math.PI) / 180;
+    if (st.scale) h.object.scale.multiplyScalar(st.scale);
+    g.scene.add(h.object);
+    staged.push(h);
+  }
   return { ok: true, tick: clockTick };
 }
 

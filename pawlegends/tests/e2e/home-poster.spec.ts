@@ -4,7 +4,8 @@ import { homedir } from 'node:os';
 import { limit } from '../unit/cpu-budget';
 import { serveSilhouettes } from './helpers';
 
-// Home poster (docs/plans/moba/HOME-POSTER.md, founder pick #30 "Flat poster", Nov 18): the Home backdrop is a drawn
+// Home poster (docs/plans/moba/HOME-POSTER.md, founder pick #30 "Flat poster", Nov 18; since Nov 20 the fallback of the
+// map backdrops, HOME-MAP-BACKDROPS.md, forced here with ?mapbg=off): the Home backdrop is a drawn
 // poster, rose cats left and sky dogs right split by a halftone bolt. A cat champion stands big on the rose side with a
 // dog rival's silhouette across the bolt; a dog champion is the mirror. The champion never sits under the Home HUD, at
 // phone and desktop sizes and ultra-wide; switching to a champion of the other species swings the layout over.
@@ -70,7 +71,7 @@ for (const [hero, side] of [
       const page = await ctx.newPage();
       try {
         await seed(page, hero, side);
-        await page.goto('/?e2e=1');
+        await page.goto('/?e2e=1&mapbg=off');
         await page.waitForSelector('html[data-screen="title"] .pl-home');
         await expect(page.locator('html')).toHaveAttribute('data-lobby-bg', 'poster');
         await settled(page, side);
@@ -110,7 +111,7 @@ test('switching to a champion of the other species swings the poster to the mirr
   test.setTimeout(limit(180_000));
   await page.setViewportSize({ width: 844, height: 390 });
   await seed(page, 'clem', 'cat');
-  await page.goto('/?e2e=1');
+  await page.goto('/?e2e=1&mapbg=off');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
   await settled(page, 'cat');
   const before = (await poster(page)).box;
@@ -147,7 +148,7 @@ test('reduced motion: the swap is a cut (no swing, no flicker)', async ({ page }
   test.setTimeout(limit(180_000));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await seed(page, 'brutus', 'dog');
-  await page.goto('/?e2e=1');
+  await page.goto('/?e2e=1&mapbg=off');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
   await settled(page, 'dog');
   await page.evaluate(() => {

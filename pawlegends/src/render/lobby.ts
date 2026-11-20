@@ -11,6 +11,11 @@
  * to the flat poster drawn by the backdrop (render/lobby/poster.ts): the champion stands big on its own field (a cat
  * left, a dog right), framed clear of the Home HUD, with a warm rim from its side and its rival's silhouette across the
  * bolt. A champion of the other species swings the layout over in SWAP_S.
+ *
+ * Home map backdrops (docs/plans/moba/HOME-MAP-BACKDROPS.md, Nov 20, `poster = true` on Home): the champion stands in a
+ * real map spot (render/lobby/mapViews.ts), a picture of the empty spot behind it (render/lobby/mapBackdrop.ts) and the
+ * same camera and sun the picture was shot with; every ROTATE_S the next spot fades in and the camera and light ease
+ * over. The poster above is the fallback when the pictures cannot load (offline, before the art deploy).
  */
 import * as THREE from 'three';
 import type { HeroId } from '../sim/api';
@@ -24,7 +29,9 @@ import { createBackdrop, SWAP_S, type Backdrop } from './lobby/backdrop';
 import { posterBox, posterFlip, posterSide, posterTurn, rivalFor, silhouetteFile, type PosterBox, type Rect } from './lobby/poster';
 import { artRoot } from '../ui/art';
 import { assetRev } from '../ui/assetRev';
-import { HOME_BG, lobbyBgFor, lobbyBgOverride, lobbyBgUrl, lobbyBgVisit, screenBg, type LobbyBg } from './lobby/lobbyBg';
+import { HOME_MAP, lobbyBgFor, lobbyBgOverride, lobbyBgUrl, lobbyBgVisit, screenBg, type LobbyBg } from './lobby/lobbyBg';
+import { createMapBackdrop, type MapBackdrop } from './lobby/mapBackdrop';
+import { MAP_VIEWS, MapRotation, PIC_ASPECT, PIC_FOV, REL_DEG, coverCrop, mapViewEvery, mapViewOff, mapViewOrder, mapViewOverride, mapViewUrl, type RotationFrame } from './lobby/mapViews';
 import { HEROES } from '../data/heroes';
 import { createPedestal, PEDESTAL_BOTTOM, PEDESTAL_R, type Pedestal } from './lobby/pedestal';
 import { reducedMotion, StageFx } from './lobby/stageFx';
@@ -131,6 +138,24 @@ export class Lobby {
   private hudAt = -1;
   private readonly rimWarm: THREE.DirectionalLight;
   private readonly rimField: THREE.DirectionalLight;
+  private readonly hemi: THREE.HemisphereLight;
+  private readonly key: THREE.DirectionalLight;
+  /** Home's map backdrop (HOME-MAP-BACKDROPS.md): the picture, the shadow-only ground, the rotation and its frame. */
+  private readonly mapBg: MapBackdrop;
+  private readonly mapGround: THREE.Mesh;
+  private readonly rotation: MapRotation;
+  private mapFrame: RotationFrame;
+  /** `?mapbg=<id>`: that spot only (e2e, screenshots). */
+  private readonly mapHold: boolean;
+  private mapOn = false;
+  /** The pictures cannot load (two spots in a row failed, or `?mapbg=off`): Home falls back to the poster. */
+  private mapFailed = false;
+  private mapFails = 0;
+  private mapKey = '';
+  /** The camera's FOV outside the map backdrop (the map sets its picture's FOV and aspect; the other screens get these back). */
+  private readonly baseFov: number;
+  /** Something covers Home (a panel, a modal, the loading veil; the app sets it): the rotation waits. */
+  covered = false;
 
   constructor(private readonly gr: GameRenderer) {
     // gaps5: the lobby lives as long as the app; a coat with parts rebuilds when the part builders land
@@ -142,8 +167,11 @@ export class Lobby {
     // a white key from the front, a rose rim from the cat side (left) and a sky rim from the dog side (right)
     s.background = new THREE.Color(0x12091f);
     s.fog = null;
-    s.add(new THREE.HemisphereLight(0xffffff, 0xf3dcae, 2.0));
+    const hemi = new THREE.HemisphereLight(0xffffff, 0xf3dcae, 2.0);
+    s.add(hemi);
+    this.hemi = hemi;
     const key = new THREE.DirectionalLight(0xffffff, 2.6);
+    this.key = key;
     key.position.set(4, 8, 6);
     key.castShadow = true;
     key.shadow.mapSize.set(512, 512);
@@ -164,10 +192,38 @@ export class Lobby {
     // backdrop, two-tier pedestal and rune ring (render/lobby/*)
     this.backdrop = createBackdrop();
     s.add(this.backdrop.mesh);
-    // UX pass 2: the painted scene starts loading with the lobby (the first screen), so it is in by the first look
-    this.loadScene();
+    // Home's map backdrop: one picture at a time from pawlegends.app (outside the game bundle), uploaded on arrival
+    this.baseFov = gr.camera.fov;
+    this.mapBg = createMapBackdrop(
+      (v) =>
+        mapViewUrl(v.id, {
+          root: artRoot(),
+          rev: assetRev(),
+          bufferWidth: (typeof window !== 'undefined' ? window.innerWidth || 1280 : 1280) * Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1),
+          low: this.gr.settings.tier === 'low',
+        }),
+      (t) => this.gr.renderer.initTexture(t),
+    );
+    this.mapBg.mesh.visible = false;
+    s.add(this.mapBg.mesh);
+    this.mapGround = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.ShadowMaterial({ opacity: 0.3, depthWrite: false }));
+    this.mapGround.name = 'lobby-map-ground';
+    this.mapGround.rotation.x = -Math.PI / 2;
+    this.mapGround.receiveShadow = true;
+    this.mapGround.visible = false;
+    s.add(this.mapGround);
+    const search = typeof window !== 'undefined' ? window.location.search : '';
+    const order = mapViewOrder();
+    const pinned = mapViewOverride(search);
+    this.mapHold = pinned !== null;
+    this.mapFailed = mapViewOff(search);
+    // a random spot per page load (founder: rotate through all 18), then one spot of each map in turn
+    this.rotation = new MapRotation(order, pinned ?? order[Math.floor(Math.random() * order.length)], mapViewEvery(search));
+    this.mapFrame = { from: this.rotation.current, to: this.rotation.current, k: 0 };
     this.pedestal = createPedestal();
     s.add(this.pedestal.group);
+    // UX pass 2: the painted scene starts loading with the lobby (the first screen), so it is in by the first look
+    this.loadScene();
     this.particles.attach(s);
     this.stage = new StageFx(s, this.particles);
     // Register the shockwave fx modules before the fx uber program first compiles (else each gets its own program).
@@ -410,6 +466,147 @@ export class Lobby {
     document.documentElement.dataset.posterHero = k.split('|')[1];
   }
 
+  /**
+   * The map backdrop's camera: the blended spot's camera (champion-centred frame: the feet at the origin), the picture's
+   * FOV and aspect, and the picture's cover crop as the view offset, so the champion stands where the picture was shot.
+   */
+  private placeMap(cam: THREE.PerspectiveCamera): void {
+    const w = window.innerWidth || 1;
+    const h = window.innerHeight || 1;
+    const { from, to, k } = this.mapFrame;
+    const a = MAP_VIEWS[from];
+    const b = MAP_VIEWS[to];
+    const mix = (x: number, y: number): number => x + (y - x) * k;
+    const c = coverCrop(w / h);
+    cam.fov = PIC_FOV;
+    cam.aspect = PIC_ASPECT;
+    cam.position.set(0, mix(a.h, b.h), mix(a.gd, b.gd));
+    LOOK.set(mix(a.target[0], b.target[0]), mix(a.target[1], b.target[1]), mix(a.target[2], b.target[2]));
+    cam.lookAt(LOOK);
+    const FH = 1000;
+    const FW = FH * PIC_ASPECT;
+    cam.setViewOffset(FW, FH, c.x * FW, c.y * FH, c.w * FW, c.h * FH);
+    cam.updateProjectionMatrix();
+    cam.updateMatrixWorld();
+    this.camOff = 0;
+    this.camDist = cam.position.z;
+    this.mapBg.setAspect(w / h);
+    // a tall champion on a near spot would reach under the nameplate (844x390): it is drawn smaller, feet kept on the
+    // spot, so its head stays clear (never under 0.72 of its size)
+    const o = this.hero?.object;
+    if (o) {
+      const feetY = P.set(0, 0, 0).project(cam).y;
+      const topY = P.set(0, this.ownTop * 1.06, 0).project(cam).y;
+      const lim = this.plateBottom();
+      const limY = lim === null ? 1 : 1 - (2 * (lim + 6)) / h;
+      const k = topY > limY && topY > feetY ? Math.max(0.72, Math.min(1, (limY - feetY) / (topY - feetY))) : 1;
+      o.scale.setScalar(k);
+    }
+    // the contact shadow: the feet on screen and the body's half width (screen heights)
+    const f = P.set(0, 0, 0).project(cam);
+    const fx = f.x;
+    const fy = f.y;
+    const r = P.set(this.reach * (o?.scale.x ?? 1), 0, 0).project(cam).x;
+    this.mapBg.setFoot((fx + 1) / 2, (fy + 1) / 2, Math.max(0.02, (Math.abs(r - fx) / 2) * (w / h) * 1.15));
+    if (E2E) this.reportMap(cam, w, h);
+  }
+
+  /** `?e2e=1`: the spot shown (`html[data-map-bg]`), whether its picture is in, and the champion's drawn box (CSS px). */
+  private reportMap(cam: THREE.PerspectiveCamera, w: number, h: number): void {
+    let l = Infinity;
+    let r = -Infinity;
+    let t = Infinity;
+    let b = -Infinity;
+    const sc = this.hero?.object.scale.x ?? 1;
+    const q = this.reach * REACH_K * sc;
+    for (const x of [-q, q])
+      for (const y of [0, this.ownTop * sc]) {
+        P.set(x, y, 0).project(cam);
+        const px = ((P.x + 1) / 2) * w;
+        const py = ((1 - P.y) / 2) * h;
+        l = Math.min(l, px);
+        r = Math.max(r, px);
+        t = Math.min(t, py);
+        b = Math.max(b, py);
+      }
+    const v = MAP_VIEWS[this.mapFrame.from];
+    const k = `${v.id}|${this.mapBg.ready(v) ? 1 : 0}|${[l, t, r, b].map((n) => Math.round(n)).join(',')}`;
+    if (k === this.mapKey) return;
+    this.mapKey = k;
+    const [id, ready, box] = k.split('|');
+    const d = document.documentElement.dataset;
+    d.mapBg = id;
+    d.mapBgReady = ready;
+    d.heroBox = box;
+  }
+
+  private plateAt = -1;
+  private plate: number | null = null;
+  /** The bottom (CSS px) of Home's champion nameplate, re-read a few times a second; null when it is not shown. */
+  private plateBottom(): number | null {
+    if (this.t - this.plateAt < 0.25 && this.plateAt >= 0) return this.plate;
+    this.plateAt = this.t;
+    const r = document.querySelector<HTMLElement>('.pl-home .hm-plate')?.getBoundingClientRect();
+    this.plate = r && r.height > 0 ? r.bottom : null;
+    return this.plate;
+  }
+
+  /** Home's map backdrop on or off: the picture and the shadow ground replace the poster / scene and the pedestal. */
+  private setMap(on: boolean): void {
+    if (on === this.mapOn) return;
+    this.mapOn = on;
+    this.mapBg.mesh.visible = on;
+    this.backdrop.mesh.visible = !on;
+    if (on) {
+      this.rimWarm.intensity = 0;
+      this.rimField.intensity = 0;
+      return;
+    }
+    this.mapGround.visible = false;
+    this.hemi.color.setHex(0xffffff);
+    this.hemi.groundColor.setHex(0xf3dcae);
+    this.hemi.intensity = 2.0;
+    this.key.color.setHex(0xffffff);
+    this.key.intensity = 2.6;
+    this.key.position.set(4, 8, 6);
+    this.rimWarm.intensity = 1.5;
+    this.rimField.intensity = 1.3;
+    this.mapKey = '';
+    const d = document.documentElement.dataset;
+    delete d.mapBg;
+    delete d.mapBgReady;
+    delete d.heroBox;
+  }
+
+  /** The rotation's step and the blended spot's light (the map's sun and sky, so the champion is lit like the picture). */
+  private updateMap(dt: number): void {
+    const still = reducedMotion();
+    const hidden = typeof document !== 'undefined' && document.hidden;
+    let f = this.rotation.tick(dt, { paused: this.covered || hidden, hold: this.mapHold || still, ready: (i) => this.mapBg.ready(MAP_VIEWS[i]) });
+    // a spot whose picture failed is skipped; two in a row (offline, or the art not deployed yet) fall back to the poster
+    if (f.k === 0 && this.mapBg.failed(MAP_VIEWS[f.from])) {
+      this.mapFails++;
+      if (this.mapFails >= 2 || this.mapHold) {
+        this.mapFailed = true;
+        return;
+      }
+      this.rotation.skip();
+      f = { from: this.rotation.current, to: this.rotation.current, k: 0 };
+    } else if (this.mapBg.ready(MAP_VIEWS[f.from])) this.mapFails = 0;
+    this.mapFrame = f;
+    const a = MAP_VIEWS[f.from];
+    const b = MAP_VIEWS[f.to];
+    const hold = this.mapHold || still;
+    this.mapBg.show(a, b, f.k, hold ? null : MAP_VIEWS[this.rotation.upcoming]);
+    this.hemi.color.set(a.sky).lerp(C1.set(b.sky), f.k);
+    this.hemi.groundColor.set(a.ground).lerp(C1.set(b.ground), f.k);
+    this.hemi.intensity = a.hemiI + (b.hemiI - a.hemiI) * f.k;
+    this.key.color.set(a.sun).lerp(C1.set(b.sun), f.k);
+    this.key.intensity = a.sunI + (b.sunI - a.sunI) * f.k;
+    this.key.position.set(...a.sunDir).lerp(P.set(...b.sunDir), f.k).normalize().multiplyScalar(20);
+    this.mapGround.visible = this.gr.settings.shadows;
+  }
+
   private dtLast = 0;
 
   enter(): void {
@@ -423,6 +620,16 @@ export class Lobby {
     // QA: Low drew both bokeh layers per pixel every frame for a frozen picture; none on Low
     this.backdrop.setBokeh(low ? 0 : 1);
     this.gr.place = (cam) => {
+      if (this.mapOn) {
+        this.placeMap(cam);
+        return;
+      }
+      // the map backdrop set its picture's FOV and aspect (and may have drawn the champion smaller): the other framings
+      // start from the screen's own
+      this.hero?.object.scale.setScalar(1);
+      cam.fov = this.baseFov;
+      const size = this.gr.renderer.getSize(V2);
+      cam.aspect = size.x / Math.max(1, size.y);
       if (this.posterOn) {
         this.placePoster(cam);
         return;
@@ -540,20 +747,23 @@ export class Lobby {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
     const side = this.heroId ? HEROES[this.heroId].side : 'cat';
     const won = !!document.querySelector('.pl-results.won');
-    const bg = screenBg(document.documentElement.dataset.screen, { won, side, forced: this.bgForced }) ?? this.visitBg;
-    // Home's poster: drawn, no picture, no pedestal (the champion stands on the poster's floor)
-    const poster = bg === HOME_BG && this.poster;
+    let bg = screenBg(document.documentElement.dataset.screen, { won, side, forced: this.bgForced }) ?? this.visitBg;
+    // Home: the map backdrop (a real spot, no pedestal); the drawn poster when its pictures cannot load
+    const home = bg === HOME_MAP && this.poster;
+    if (home && this.mapFailed) bg = 'poster';
+    const poster = home && this.mapFailed;
+    this.setMap(home && !this.mapFailed);
     if (poster !== this.posterOn) {
       this.posterOn = poster;
       this.backdrop.setPoster(poster ? 1 : 0);
-      this.pedestal.group.visible = !poster;
       if (poster) this.layoutPoster(true);
       else this.posterOff();
     }
+    this.pedestal.group.visible = !home;
     if (bg === this.shownBg) return;
     this.shownBg = bg;
     document.documentElement.dataset.lobbyBg = bg;
-    if (bg === HOME_BG) return;
+    if (bg === 'poster' || bg === HOME_MAP) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const url = lobbyBgUrl(bg, {
       base: import.meta.env.BASE_URL ?? './',
@@ -591,6 +801,8 @@ export class Lobby {
       const facing = turn ? turn.body : 0.3;
       h.object.rotation.y = toCam + facing + Math.sin(this.spin) * (turn ? 0.12 * Math.min(1, Math.abs(turn.body) / 0.3) : 0.22);
       h.ch.anim.lookYaw = turn ? turn.head : 0;
+      // on a map spot: turned REL_DEG toward screen right (toward PLAY), as the picture was framed for, a small sway
+      if (this.mapOn) h.object.rotation.y = -Math.PI / 2 + THREE.MathUtils.degToRad(REL_DEG) + (reducedMotion() ? 0 : Math.sin(this.spin) * 0.08);
       if (this.t - this.moodAt > 0.3) {
         this.moodAt = this.t;
         h.ch.anim.mood = this.mood();
@@ -621,6 +833,11 @@ export class Lobby {
         });
       }
     }
+    if (this.mapOn) {
+      this.updateMap(dt);
+      // the pictures failed: the poster takes Home over at once
+      if (this.mapFailed) this.syncScene();
+    }
     const frozen = this.gr.settings.tier === 'low' || reducedMotion();
     const aim = this.stage.aim();
     this.backdrop.setParallax(-aim.x, aim.y);
@@ -641,3 +858,5 @@ const E2E = ((): boolean => {
   }
 })();
 const LOOK = new THREE.Vector3();
+const V2 = new THREE.Vector2();
+const C1 = new THREE.Color();
