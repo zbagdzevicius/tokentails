@@ -281,6 +281,43 @@ describe('PartySocket reconnect with a fresh ticket (SOCIAL-INVITES.md: the acco
   });
 });
 
+describe('PartySocket: a quick reconnect whose held ticket another relay spent (§15 fleet nonce) signs in again', () => {
+  const welcome = (w: FakeWs) => w.onmessage?.({ data: JSON.stringify({ t: 'welcome', proto: 9, member: 'm1', resumeToken: 'r'.repeat(24), serverMs: 0 }) });
+  const badTicket = (w: FakeWs) => w.onmessage?.({ data: JSON.stringify({ t: 'error', code: 'bad_ticket' }) });
+
+  it('bad_ticket then welcome: the guest welcome is not taken, a fresh ticket opens a new socket; once a minute at most', async () => {
+    const f = setup();
+    let asked = 0;
+    const seen: string[] = [];
+    f.s.listen({ json: (m) => seen.push(String((m as { code?: string }).code ?? m.t)) });
+    f.s.refreshTicketsWith(async () => `fresh-${++asked}`);
+    f.s.connect(Promise.resolve('first'));
+    await flush();
+    f.sockets[0].open();
+    await flush();
+    welcome(f.sockets[0]);
+    // a quick reconnect lands on another relay: the young ticket is reused and refused there
+    f.sockets[0].close();
+    f.advance(10_000);
+    f.sockets[1].open();
+    await flush();
+    expect(f.sockets[1].hellos().map((h) => h.ticket)).toEqual(['first']);
+    badTicket(f.sockets[1]);
+    welcome(f.sockets[1]);
+    expect(f.sockets).toHaveLength(3);
+    f.sockets[2].open();
+    await flush();
+    expect(asked).toBe(1);
+    expect(f.sockets[2].hellos().map((h) => h.ticket)).toEqual(['fresh-1']);
+    expect(seen.filter((x) => x === 'bad_ticket')).toEqual([]);
+    // the same within a minute: shown as before, no second retry
+    badTicket(f.sockets[2]);
+    welcome(f.sockets[2]);
+    expect(f.sockets).toHaveLength(3);
+    expect(seen.filter((x) => x === 'bad_ticket')).toEqual(['bad_ticket']);
+  });
+});
+
 describe('PartySocket: a signed-in first hello without a ticket is retried once (founder, 2026-11-20)', () => {
   const welcome = (w: FakeWs) => w.onmessage?.({ data: JSON.stringify({ t: 'welcome', proto: 8, member: 'm1', resumeToken: 'r'.repeat(24), serverMs: 0 }) });
 

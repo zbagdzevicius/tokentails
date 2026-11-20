@@ -315,6 +315,13 @@ export class PartySocket {
   /** The hello on the current socket carried no ticket. */
   private helloTicketless = false;
   private ticketRetried = false;
+  /**
+   * §15: the relay refused this socket's held ticket (`bad_ticket`: a quick reconnect reused it and it was spent on
+   * another relay; ticket nonces are single use across the fleet). The `welcome` that follows is not taken: a fresh
+   * ticket signs a new socket in, at most once a minute (env time of the last such retry).
+   */
+  private badTicketHere = false;
+  private badTicketRetryAt = -Infinity;
 
   /**
    * Reconnects fetch a fresh ticket from `fn` once the held one is older than TICKET_FRESH_MS (signed-in players).
@@ -351,6 +358,7 @@ export class PartySocket {
     // before the first `welcome` there is nothing to reconnect to: a bounce off a draining relay is still "connecting"
     this.emitState(this.attempt === 0 || !this.welcomedOnce ? 'connecting' : 'reconnecting');
     this.welcomedHere = false;
+    this.badTicketHere = false;
     const ws = this.env.open(this.dialUrl, SUBPROTOCOL);
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
@@ -425,6 +433,30 @@ export class PartySocket {
     return true;
   }
 
+  private canRetryBadTicket(): boolean {
+    return !!this.ticketSource && !!this.hello.ticket && !this.inMatch && this.env.now() - this.badTicketRetryAt >= 60_000;
+  }
+
+  /** The `welcome` after a `bad_ticket` this socket may retry: a fresh ticket and a new socket instead. True when it retried. */
+  private retryBadTicket(): boolean {
+    if (!this.badTicketHere) return false;
+    this.badTicketHere = false;
+    if (!this.canRetryBadTicket()) return false;
+    this.badTicketRetryAt = this.env.now();
+    this.ticketAtMs = -Infinity;
+    const ws = this.ws;
+    if (ws) {
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onerror = null;
+      ws.onclose = null;
+      ws.close(4000, 'ticket');
+    }
+    this.ws = null;
+    this.connect();
+    return true;
+  }
+
   /** Settles when the ticket is in `hello` (or failed, or took longer than TICKET_WAIT_MS: a guest hello). Never rejects. */
   private waitTicket(ticket: Promise<string | null>): Promise<void> {
     return new Promise<void>((resolve) => {
@@ -468,6 +500,12 @@ export class PartySocket {
         return;
       }
       if (m.t === 'welcome' && this.retryTicketless()) return;
+      if (m.t === 'welcome' && this.retryBadTicket()) return;
+      if (m.t === 'error' && m.code === 'bad_ticket' && this.canRetryBadTicket()) {
+        // the welcome right behind it is replaced by a signed-in one: no "signed out" note for a moment
+        this.badTicketHere = true;
+        return;
+      }
       if (m.t === 'welcome') {
         this.welcomedOnce = true;
         this.welcomedHere = true;
