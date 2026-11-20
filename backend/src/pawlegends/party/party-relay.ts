@@ -75,7 +75,16 @@ import type { RefereeOut } from './referee-host';
 import { AFK_REASONS, Room, type PilotReason } from './room';
 import { RoomScheduler, phaseOf } from './room-scheduler';
 import type { Occupant, RelayRow, RoomStore, StoredParty, StoredPersona, StoredRoom } from './room-store';
-import { memoryMm, type MmHookFactory, type MmHooks, type MmRelayApi, type MmRoomView } from '../mm/mm-bridge';
+import {
+    memoryMm,
+    type MmHookFactory,
+    type MmHooks,
+    type MmRelayApi,
+    type MmRoomView,
+    type Rejoinable,
+    type SeatLoss,
+} from '../mm/mm-bridge';
+import { MM_LIMITS } from '../mm/mm-limits';
 import { MemoryMmRoomStore } from '../mm/mm-room.schema';
 import { draftSeed } from '../ranked/draft';
 import { CHAMPION_IDS, isFreeChampion, rotationWeek } from '../pawlegends-catalog';
@@ -265,7 +274,9 @@ interface Sock {
     helloTimer: NodeJS.Timeout | null;
     identity: MemberIdentity | null;
     /** `hello.hint`: UI defaults only (the lowest member tier, the newbie hero); never trusted for anything else. */
-    hint: { maxDifficulty: string; newbie: boolean; matches?: number; watch?: boolean } | undefined;
+    hint: { maxDifficulty: string; newbie: boolean; matches?: number; watch?: boolean; reload?: 'update' } | undefined;
+    /** `hello.hint.reload: 'update'`: our own update reloaded the app then (ms); 0 otherwise. Its seat losses are drops. */
+    updatedAtMs?: number;
     memberId: string | null;
     sim: { version: number; hash: string } | null;
     /** The `hello.proto` of this socket (PROTO_MIN..PROTO): no `mm.*` frame or new error code ever reaches a PROTO 1. */
@@ -341,6 +352,12 @@ interface LiveRoom {
     ending: boolean;
     checkpointing?: boolean;
     heroSkins: (string | null)[];
+    /**
+     * Free seats given up mid-match and why (leaver.ts): `left` the player chose it (`party.leave`, a declined rejoin);
+     * `dropped` the newest search or match of the same identity freed it (a crash, a relaunch, an OTA reload). Cleared
+     * when the slot is claimed again.
+     */
+    vacated?: Map<number, SeatLoss>;
     /** Identity keys and IP keys of the members seated at the start (or later claims): per-identity and per-IP room caps. */
     keys: Set<string>;
     ips: Set<string>;
@@ -1200,6 +1217,7 @@ export class PartyRelay {
         // CHAMPION-STORE.md §8.1: the account's champions are read before its first pick
         if (identity.ticketed && identity.accountId) void this.loadChamps(identity.accountId);
         s.hint = msg.hint;
+        s.updatedAtMs = msg.hint?.reload === 'update' ? this.now() : 0;
         s.sim = { version: msg.sim, hash: msg.simHash };
         s.proto = msg.proto;
         let memberId: string | null = null;
@@ -1241,6 +1259,8 @@ export class PartyRelay {
         });
         if (taken !== undefined && taken > this.now()) this.error(s, 'seat_taken');
         this.mm.onPresence(memberId, 'on');
+        // a dropped player whose seat a backfill took is back: that drop is no leave (leaver.ts backfilledDrop)
+        this.mm.onReturn?.(identity.key);
         if (party) {
             this.sendJson(s, this.parties.view(party, memberId) as unknown as Record<string, unknown>);
             const live = party.room ? this.rooms.get(party.room) : undefined;
@@ -1578,10 +1598,13 @@ export class PartyRelay {
         }
     }
 
-    /** `party.leave` (and a stranger leaving a Quick Play party): the seat, the party, the resume token, a `left` frame. */
-    private leaveParty(member: string): void {
+    /**
+     * `party.leave` (and a stranger leaving a Quick Play party): the seat, the party, the resume token, a `left` frame.
+     * `dropped`: the player did not choose to leave (an older game searching from a seat still in a match).
+     */
+    private leaveParty(member: string, loss: SeatLoss = 'left'): void {
         const s = this.byMember.get(member);
-        if (s) this.leaveSeat(s, true);
+        if (s) this.leaveSeat(s, true, loss);
         this.parties.leave(member);
         this.dropResume(member);
         if (!s) return;
@@ -2674,6 +2697,7 @@ export class PartyRelay {
         const m = party.members.find(x => x.id === memberId);
         if (m) m.slot = slot;
         live.seats.set(memberId, slot);
+        live.vacated?.delete(slot);
         live.names[slot] = m?.name ?? null;
         // a seat left mid-match is claimed again: the newcomer replaces the old occupant row
         live.occupants = live.occupants.filter(o => o.slot !== slot);
@@ -2696,10 +2720,11 @@ export class PartyRelay {
      * `bye` (back to the title, the party kept) disconnects the seat; `party.leave` (`left`) also gives it up: the member
      * gets no more room messages, the seat is open again and the others see "left", not "dropped".
      */
-    private leaveSeat(s: Sock, left = false): void {
+    private leaveSeat(s: Sock, left = false, loss: SeatLoss = 'left'): void {
         const live = this.seatOf(s);
         if (!live) return;
         if (left) {
+            (live.vacated ??= new Map()).set(s.seatSlot, loss);
             live.seats.delete(s.memberId!);
             live.names[s.seatSlot] = null;
             live.room.vacate(s.seatSlot, this.now(), !!this.parties.byId(live.party)?.openSeats);
@@ -3663,6 +3688,9 @@ export class PartyRelay {
                     hint: s.hint,
                     sim: s.sim,
                     conn: s.away ? 'away' : 'on',
+                    ...(s.updatedAtMs && this.now() - s.updatedAtMs < MM_LIMITS.leaver.updateReloadMs
+                        ? { updated: true }
+                        : {}),
                 };
             },
             send: (member, msg) => this.sendJsonTo(member, msg),
@@ -3670,11 +3698,12 @@ export class PartyRelay {
                 identity.key.startsWith('ip:') ||
                 this.liveRoomsOf(identity.key).key < PARTY_LIMITS.roomsLivePerIdentity,
             room: roomId => this.mmRoomView(roomId),
-            leaveParty: member => this.leaveParty(member),
+            leaveParty: (member, loss) => this.leaveParty(member, loss),
             backfill: (member, roomId, slot, holder) => this.backfillSeat(member, roomId, slot, holder),
             evict: (member, roomId) => this.evictSeat(member, roomId),
-            release: (identity, except) => this.releaseStale(identity, except),
+            release: (identity, except, loss) => this.releaseStale(identity, except, loss),
             rejoin: member => this.rejoinMm(member),
+            rejoinable: member => this.rejoinableOf(member),
         };
     }
 
@@ -3699,6 +3728,7 @@ export class PartyRelay {
             })),
             keys: [...live.keys],
             seats: new Map(live.seats),
+            ...(live.vacated?.size ? { vacated: new Map(live.vacated) } : {}),
         };
     }
 
@@ -3759,7 +3789,7 @@ export class PartyRelay {
      * or still open (a second tab or device, told `seat_taken`). A bot keeps flying the seat (and it can be backfilled);
      * the old member leaves the party as `party.leave` would. Never a refusal: the old seat was the dead end.
      */
-    private releaseStale(identity: MemberIdentity, except: string): void {
+    private releaseStale(identity: MemberIdentity, except: string, loss: SeatLoss = 'dropped'): void {
         if (identity.key.startsWith('ip:')) return;
         for (const live of [...this.rooms.values()]) {
             if (!live.room.live || !live.keys.has(identity.key)) continue;
@@ -3773,7 +3803,7 @@ export class PartyRelay {
                 }
                 const ms = this.byMember.get(m.id);
                 const open = !!ms && !ms.closed;
-                this.giveUpSeat(live, m.id);
+                this.giveUpSeat(live, m.id, loss);
                 if (open) this.error(ms!, 'seat_taken');
             }
             // a key with no member left behind it (a restored room, a seat already given up) no longer counts
@@ -3782,11 +3812,12 @@ export class PartyRelay {
     }
 
     /** A member without a socket gives up its seat and party (as `party.leave`, without the `left` frame). */
-    private giveUpSeat(live: LiveRoom, member: string): void {
+    private giveUpSeat(live: LiveRoom, member: string, loss: SeatLoss = 'dropped'): void {
         const party = this.parties.byId(live.party);
         const identity = party?.members.find(m => m.id === member)?.identity;
         const slot = live.seats.get(member);
         if (slot !== undefined) {
+            (live.vacated ??= new Map()).set(slot, loss);
             live.seats.delete(member);
             live.names[slot] = null;
             live.room.vacate(slot, this.now(), !!party?.openSeats);
@@ -3803,23 +3834,62 @@ export class PartyRelay {
     }
 
     /**
-     * Quick Play `mm.back`: a stranger's closed tab has no party code to rejoin by, so the same identity takes its own
-     * live Quick Play seat back (as a `party.join` twin does). False when there is none.
+     * The live seat this socket's identity holds and can take back now (`mm.back`): its own member's seat (the title
+     * while the match runs) or a twin's (a crash, a reload, a relaunch). Any mode: a Quick Play co-op, casual, 5v5 or
+     * ranked room, or a friend party's. Only on the room's build (an OTA update to another sim cannot play it) and
+     * never in a room that is ending. Null when there is none.
+     */
+    private rejoinSeat(member: string): { live: LiveRoom; holder: string } | null {
+        const s = this.byMember.get(member);
+        if (!s?.identity || s.identity.key.startsWith('ip:') || s.closed) return null;
+        if (s.seatRoom && this.rooms.get(s.seatRoom)?.room.live) return null;
+        for (const live of this.rooms.values()) {
+            if (!live.room.live || live.ending || live.moving || !live.keys.has(s.identity.key)) continue;
+            if (s.sim && (s.sim.version !== live.sim.version || s.sim.hash !== live.sim.hash)) continue;
+            const party = this.parties.byId(live.party);
+            const holder = party?.members.find(m => m.identity.key === s.identity!.key && live.seats.has(m.id));
+            if (holder) return { live, holder: holder.id };
+        }
+        return null;
+    }
+
+    private rejoinableOf(member: string): Rejoinable | null {
+        const r = this.rejoinSeat(member);
+        if (!r) return null;
+        const p = this.parties.byId(r.live.party);
+        const kind = this.watchKindOf(r.live);
+        const mode: Rejoinable['mode'] = !p?.mm
+            ? 'party'
+            : kind === 'ranked'
+            ? 'ranked'
+            : r.live.config.map === 'hearthwood'
+            ? 'classic'
+            : r.live.casual || r.live.config.mode === 'pvp'
+            ? 'casual'
+            : 'coop';
+        return { mode, clockS: Math.floor(r.live.room.tick / 30) };
+    }
+
+    /**
+     * `mm.back`: the same identity takes its own live seat back, as a `party.join` twin does (a stranger's closed tab
+     * has no party code to rejoin by), or its own member's seat from the title. False when there is none.
      */
     private rejoinMm(member: string): boolean {
-        const s = this.byMember.get(member);
-        if (!s?.identity || s.identity.key.startsWith('ip:')) return false;
-        for (const live of this.rooms.values()) {
-            if (!live.coop || !live.room.live || live.ending || !live.keys.has(s.identity.key)) continue;
-            const party = this.parties.byId(live.party);
-            const twin = party?.members.find(
-                m => m.id !== member && m.identity.key === s.identity!.key && live.seats.has(m.id)
-            );
-            if (!twin) continue;
-            this.adopt(s, twin.id);
+        const r = this.rejoinSeat(member);
+        if (!r) return false;
+        const s = this.byMember.get(member)!;
+        if (r.holder !== member) {
+            this.adopt(s, r.holder);
             return true;
         }
-        return false;
+        // its own seat (back to the title with the party kept): the party view and the seat again
+        const party = this.parties.byId(r.live.party);
+        if (!party) return false;
+        this.parties.setConn(member, 'on');
+        this.sendJson(s, this.parties.view(party, member) as unknown as Record<string, unknown>);
+        this.bindSeat(s, r.live, member);
+        this.log('party_rejoin_self', {});
+        return true;
     }
 
     // -----------------------------------------------------------------------------------------------------------

@@ -77,10 +77,19 @@ export const MM_LIMITS = Object.freeze({
         /** §4.3: `left` when offline this long before the end; `afk` when AFK-reason pilot ticks exceed this share. */
         offlineBeforeEndMs: 180_000,
         afkShare: 0.35,
+        /** A served wait is forgotten this long after it ended: the next search then owes the ladder's wait again. */
+        servedForgetMs: 3600_000,
+        /**
+         * The ladder is read from Mongo at each search, cached this briefly per instance (and dropped when this instance
+         * writes a room's events): two instances never disagree for longer than this.
+         */
+        cacheMs: 5_000,
+        /** A socket whose hello said our own update reloaded the app: its seat losses in this window are `dropped`. */
+        updateReloadMs: 10 * 60_000,
     }),
     /** §4.2: loss forgiveness when a teammate left or went AFK before this tick (5:00). */
     forgiveBeforeTick: 9000,
-    /** Rating and leaver reads are cached this long per identity. */
+    /** Rating reads are cached this long per identity (the leaver ladder: `leaver.cacheMs`). */
     readCacheMs: 60_000,
     /** A seat taken by a backfill: the leaver's resume token answers `seat_taken` this long. */
     seatTakenMs: 30 * 60_000,

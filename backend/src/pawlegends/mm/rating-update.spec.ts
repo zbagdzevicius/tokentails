@@ -74,6 +74,8 @@ describe('coop rating step', () => {
     it('loss forgiveness: a teammate left or went AFK before tick 9,000', () => {
         expect(step(room([{}, { event: 'left', eventTick: 3000 }]), 'a0', 'lost', row()).skip).toBe('forgiven');
         expect(step(room([{}, { event: 'afk', eventTick: 0 }]), 'a0', 'lost', row()).skip).toBe('forgiven');
+        // a teammate who crashed out (dropped, no early leave) still forgives the loss
+        expect(step(room([{}, { event: 'dropped', eventTick: 2000 }]), 'a0', 'lost', row()).skip).toBe('forgiven');
         expect(step(room([{}, { event: 'left', eventTick: 9500 }]), 'a0', 'lost', row()).row).toBeDefined();
         // the leaver's own loss still counts
         expect(step(room([{ event: 'left', eventTick: 100 }, {}]), 'a0', 'lost', row()).row).toBeDefined();

@@ -15,7 +15,7 @@ import { AFK_REASONS } from '../party/room';
 import { PROTO_CLASSIC, PROTO_DRAFT, teamOfSlot } from '../party/net';
 import { RANKED_DRAFT } from '../ranked/draft';
 import { DEFAULT_GLICKO, growRd, seedRating, type Glicko } from './glicko2';
-import { CLEAN, leaverStatus, roomEvents, type LeaverStatus, type SeatEnd } from './leaver';
+import { backfilledDrop, CLEAN, leaverStatus, roomEvents, waitStart, type LeaverStatus, type SeatEnd } from './leaver';
 import {
     Matchmaker,
     randomId,
@@ -63,7 +63,22 @@ export interface MmSock {
     hint?: { maxDifficulty: string; newbie: boolean; matches?: number };
     sim: { version: number; hash: string };
     conn: 'on' | 'away';
+    /**
+     * The hello said our own update reloaded the app (`hint.reload: 'update'`) a short while ago: a seat it loses is
+     * `dropped`, never `left`, even when the player searches again instead of rejoining.
+     */
+    updated?: boolean;
 }
+
+/** The leaver ladder's wait of one searching identity: when it ends; `fresh` when this search started it. */
+interface LadderWait {
+    until: number;
+    waitMs: number;
+    fresh: boolean;
+}
+
+/** Why the relay freed a seat mid-match: the player's choice, or the newest search or match of the same identity. */
+export type SeatLoss = 'left' | 'dropped';
 
 export interface MmRoomSlot {
     slot: number;
@@ -86,6 +101,14 @@ export interface MmRoomView {
     keys: string[];
     /** member id → slot */
     seats: Map<string, number>;
+    /** Free seats given up mid-match, and why (until a new holder claims the slot). */
+    vacated?: ReadonlyMap<number, SeatLoss>;
+}
+
+/** A live seat this socket's identity can take back (`mm.rejoin`): the mode and the match clock. */
+export interface Rejoinable {
+    mode: 'coop' | 'casual' | 'classic' | 'ranked' | 'party';
+    clockS: number;
 }
 
 /** The relay, as the glue sees it. */
@@ -99,8 +122,11 @@ export interface MmRelayApi {
     /** The live-room caps (1 per identity, 4 per IP) allow seating this identity now. */
     canSeat(identity: MemberIdentity): boolean;
     room(roomId: string): MmRoomView | null;
-    /** As `party.leave`: the seat, the party and the resume token, then the `left` party frame. */
-    leaveParty(member: string): void;
+    /**
+     * As `party.leave`: the seat, the party and the resume token, then the `left` party frame. `dropped`: the player did
+     * not choose it (an older game searching from a seat still in a match).
+     */
+    leaveParty(member: string, loss?: SeatLoss): void;
     /**
      * A backfill: the member joins the room's party as a stranger and claims `slot` (Room.reopen + claimOpenSeat).
      * `holder` (the seat's AFK or dropped member) is evicted only once every check that can refuse has passed.
@@ -108,16 +134,23 @@ export interface MmRelayApi {
     backfill(member: string, roomId: string, slot: number, holder?: string): boolean;
     /** The leaver of a backfilled seat: out of the party and the seat; a resume answers `seat_taken`. */
     evict(member: string, roomId: string): void;
-    /** Give up this identity's seats in live Quick Play rooms held by a socket that is gone (not `except`). */
-    release(identity: MemberIdentity, except: string): void;
-    /** `mm.back`: this socket takes its identity's own live Quick Play seat back; false when there is none. */
+    /**
+     * Give up this identity's seats in live rooms held by another member (not `except`). `dropped` (the default): the
+     * newest search or match wins without the player choosing to leave; `left`: they declined the rejoin.
+     */
+    release(identity: MemberIdentity, except: string, loss?: SeatLoss): void;
+    /** `mm.back`: this socket takes its identity's own live seat back; false when there is none. */
     rejoin(member: string): boolean;
+    /** The live seat `mm.back` would give this socket now (same build, the room not ending), or null. */
+    rejoinable?(member: string): Rejoinable | null;
 }
 
 /** The relay's hooks into Quick Play. */
 export interface MmHooks {
     onJson(member: string, msg: { t: string } & Record<string, unknown>): void;
     onPresence(member: string, state: 'on' | 'away' | 'off'): void;
+    /** A socket of this identity said hello: a dropped seat a backfill took is no leave once its player is back. */
+    onReturn?(identityKey: string): void;
     onTick(): void;
     onRoomStarted(roomId: string, party: Party): void;
     onRoomEnded(
@@ -222,6 +255,13 @@ interface LiveMm {
     pilotSince: Map<number, number>;
     offSince: Map<number, number>;
     left: Map<number, number>;
+    /** Why each seat in `left` was given up (the relay's `vacated`). */
+    leftKind: Map<number, SeatLoss>;
+    /**
+     * Rows of dropped players a backfill replaced: offline since (ms), and whether they came back. At the end a row
+     * still not back after 180 s offline becomes `left` (backfilledDrop).
+     */
+    drops: Map<MmRoomMember, { offMs: number; back: boolean }>;
     /**
      * Casual PvP: slot → species of its team, and the address keys per team (a backfill never crosses them).
      * `teamSize` 5 for a 5v5 Classic room (queue 'classic', Hearthwood).
@@ -257,6 +297,8 @@ export class MmBridge implements MmHooks {
     /** Ranked (§7.13): each queued member's placed tier index, read at join (the draft decision at the seat). */
     private readonly tierOf = new Map<string, number>();
     private readonly warnOf = new Map<string, boolean>();
+    /** The leaver events behind a warning or a wait (the card's "You left 2 matches early"). */
+    private readonly eventsOf = new Map<string, number>();
     private readonly lastSide = new Map<string, number>();
     private readonly lastStatus = new Map<string, { ms: number; key: string }>();
     private readonly offSince = new Map<string, number>();
@@ -292,6 +334,11 @@ export class MmBridge implements MmHooks {
         mm_backfill_offers: 0,
         mm_backfills: 0,
         mm_leaver_events: 0,
+        /** Seats lost without a choice (a crash, a reload, an OTA update): never on the leaver ladder. */
+        mm_dropped: 0,
+        /** `mm.rejoin` offers sent, and seats taken back by `mm.back`. */
+        mm_rejoin_offers: 0,
+        mm_rejoins: 0,
         mm_refused: 0,
         mm_cancels: 0,
         mm_casual_matches: 0,
@@ -323,7 +370,8 @@ export class MmBridge implements MmHooks {
                     msg.region as string | undefined,
                     msg.queue === 'casual' || msg.queue === 'classic' || msg.queue === 'ranked' ? msg.queue : 'coop',
                     // ranked (SOCIAL-RANKED.md §7.11): the game labels bots, so a quiet queue may fill with them
-                    msg.queue === 'ranked' && msg.bots === true
+                    msg.queue === 'ranked' && msg.bots === true,
+                    msg.held === 'ask' || msg.held === 'leave' ? msg.held : undefined
                 ).catch(e => this.api.log('mm_error', { message: String((e as Error)?.message || e).slice(0, 200) }));
             case 'mm.leave':
                 return this.leaveQueue(member, 'left');
@@ -336,8 +384,16 @@ export class MmBridge implements MmHooks {
             case 'mm.back':
                 if (this.queued(member)) this.leaveQueue(member, 'left');
                 if (!this.api.rejoin(member)) this.api.send(member, { t: 'error', code: 'party_not_found' });
+                else this.tally.mm_rejoins++;
                 return;
         }
+    }
+
+    onReturn(identityKey: string): void {
+        if (identityKey.startsWith('ip:')) return;
+        const hash = identityHash(identityKey);
+        for (const lm of this.live.values())
+            for (const [row, d] of lm.drops) if (row.identityHash === hash) d.back = true;
     }
 
     queued(member: string): boolean {
@@ -471,23 +527,56 @@ export class MmBridge implements MmHooks {
      */
     private lowPrioWaitMs(
         socks: readonly MmSock[],
-        ladders: readonly LeaverStatus[],
+        ladderUntil: readonly LadderWait[],
         pvp: boolean,
         now: number
     ): number {
         let wait = 0;
         socks.forEach((s, i) => {
             const key = s.identity.key;
-            const owed = Math.max(ladders[i]?.waitMs ?? 0, pvp ? this.dodgeWaitMs(key, now) : 0);
-            if (owed <= 0) return;
-            let until = this.lowPrioUntil.get(key);
-            if (until === undefined) {
-                until = now + owed;
-                this.lowPrioUntil.set(key, until);
+            // the leaver ladder's wait: anchored in Mongo (ladderUntil), the same on both relay instances
+            // a wait anchored by this very search is owed in full (the clock moved a little during the write)
+            const l = ladderUntil[i];
+            let until = !l ? 0 : l.fresh ? now + l.waitMs : l.until;
+            const dodge = pvp ? this.dodgeWaitMs(key, now) : 0;
+            if (dodge > 0) {
+                let d = this.lowPrioUntil.get(key);
+                if (d === undefined) {
+                    d = now + dodge;
+                    this.lowPrioUntil.set(key, d);
+                }
+                until = Math.max(until, d);
             }
             wait = Math.max(wait, until - now);
         });
         return Math.max(0, wait);
+    }
+
+    /**
+     * When this identity's leaver wait ends (0: none owed). The wait starts at the first search that owes it and is
+     * stored on the event's own room row (one atomic write), so Cancel and Search again counts the same wait down on
+     * either relay instance; a wait served an hour ago, or taken by a match since, starts again.
+     */
+    private async ladderUntil(identity: MemberIdentity, ladder: LeaverStatus): Promise<LadderWait> {
+        if (ladder.waitMs <= 0 || !ladder.anchor || identity.key.startsWith('ip:'))
+            return { until: 0, waitMs: 0, fresh: false };
+        const now = this.api.now();
+        let from = waitStart(ladder, now);
+        let fresh = false;
+        if (from === null) {
+            const hash = identityHash(identity.key);
+            try {
+                from =
+                    (await this.deps.rooms.anchorWait(ladder.anchor.room, hash, ladder.anchor.waitFromMs, now)) ?? now;
+            } catch {
+                from = now;
+            }
+            this.leaverCache.delete(hash);
+            // another instance anchored a wait that is already over: this search owes a fresh one (no second write)
+            if (from !== now && now - (from + ladder.waitMs) >= MM_LIMITS.leaver.servedForgetMs) from = now;
+            fresh = from === now;
+        }
+        return { until: from + ladder.waitMs, waitMs: ladder.waitMs, fresh };
     }
 
     private async join(
@@ -495,11 +584,26 @@ export class MmBridge implements MmHooks {
         side: MmSideChoice,
         region?: string,
         queue: 'coop' | MmPvpQueue = 'coop',
-        bots = false
+        bots = false,
+        held?: 'ask' | 'leave'
     ): Promise<void> {
         const api = this.api;
         const sock = api.sock(member);
         if (!sock || sock.proto < 2) return;
+        // a game that asks (`held: 'ask'`) is offered its own live seat back before any search (a crash, a reload or the
+        // title while its match runs): Rejoin match, or Search new match (`held: 'leave'`, which counts as leaving). An
+        // older game, a seat on another build (an OTA update) or a room that is ending never gets the offer: its seat
+        // is given up as `dropped`, never as a leave
+        if (held === 'ask' && !this.byMember.has(member) && !this.joining.has(member)) {
+            const back = api.rejoinable?.(member);
+            if (back) {
+                this.tally.mm_rejoin_offers++;
+                api.log('mm_rejoin_offer', { mode: back.mode });
+                return api.send(member, { t: 'mm.rejoin', mode: back.mode, clockS: back.clockS });
+            }
+        }
+        // the seat's loss when this search frees it: a declined rejoin is a leave, unless our own update reloaded the app
+        const loss: 'left' | 'dropped' = held === 'leave' && !sock.updated ? 'left' : 'dropped';
         // one main queue (MODE-UNLOCKS.md, Nov 19): 5v5 Classic is off the menu; an older game that still offers it is
         // told so (its matches, replays and history stay)
         if (RETIRED_QUEUES.includes(queue))
@@ -533,7 +637,7 @@ export class MmBridge implements MmHooks {
         // Play online from a stranger's seat still in a match (the title after Leave, a second tab): that seat is given
         // up (a bot flies it, a backfill can take it), as `party.leave` would
         if (p?.mm && p.mm.strangers.has(member) && p.phase !== 'results' && p.phase !== 'lobby') {
-            api.leaveParty(member);
+            api.leaveParty(member, loss);
             p = null;
         }
         // Play again after a Quick Play match: a stranger leaves the matched party and queues alone; a host friend
@@ -608,7 +712,9 @@ export class MmBridge implements MmHooks {
         // one live room per identity (no per-IP cap): the newest search wins, so a seat this identity still holds in
         // another live room (a closed tab, an app relaunch or OTA reload mid-match, a second device) is given up now,
         // whatever the mode. The game retries a refusal by itself (it no longer happens once the seat is given up)
-        for (const s of socks) if (!api.canSeat(s.identity)) api.release(s.identity, s.member);
+        // the searching member's own loss follows its answer to the rejoin; a party member's older seat is `dropped`
+        for (const s of socks)
+            if (!api.canSeat(s.identity)) api.release(s.identity, s.member, s.member === member ? loss : 'dropped');
         if (socks.some(s => !api.canSeat(s.identity)))
             return this.refuse(member, 'mm_locked', MM_LIMITS.liveRoomRetryMs, 'live_room');
         // one entry per identity: the newest socket wins (the old entry is cancelled)
@@ -628,6 +734,7 @@ export class MmBridge implements MmHooks {
         let ratings: Glicko[];
         let ladders: LeaverStatus[];
         let played: number[];
+        let ladderUntil: LadderWait[];
         try {
             [ratings, ladders, played] = await Promise.all([
                 Promise.all(socks.map(s => this.ratingFor(s, queue))),
@@ -636,6 +743,7 @@ export class MmBridge implements MmHooks {
                     ? Promise.all(socks.map(s => this.playedFor(s)))
                     : Promise.resolve([]),
             ]);
+            ladderUntil = await Promise.all(socks.map((s, i) => this.ladderUntil(s.identity, ladders[i])));
         } finally {
             for (const id of memberIds) this.joining.delete(id);
         }
@@ -670,7 +778,7 @@ export class MmBridge implements MmHooks {
             (played.some(n => n < MM_CASUAL.newbieMatches) || members.some(m => m.rating.rd > MM_CASUAL.newbieRd))
         )
             return this.refuse(member, 'mm_locked', undefined, 'pvp_newbie');
-        const wait = this.lowPrioWaitMs(socks, ladders, pvp, now);
+        const wait = this.lowPrioWaitMs(socks, ladderUntil, pvp, now);
         const entry: MmEntry = {
             id: randomId(),
             partyId,
@@ -695,6 +803,8 @@ export class MmBridge implements MmHooks {
             this.byMember.set(s.member, entry.id);
             this.ratingOf.set(s.member, ratings[i]);
             this.warnOf.set(s.member, ladders[i].level >= 1);
+            if (ladders[i].events > 0) this.eventsOf.set(s.member, ladders[i].events);
+            else this.eventsOf.delete(s.member);
             this.offSince.delete(s.member);
         });
         if (partyId) {
@@ -797,7 +907,8 @@ export class MmBridge implements MmHooks {
         const hash = identityHash(identity.key);
         const now = this.api.now();
         const hit = this.leaverCache.get(hash);
-        if (hit && now - hit.at < MM_LIMITS.readCacheMs) return hit.status;
+        // a short cache (5 s): the ladder is Mongo's, so both relay instances read the same events
+        if (hit && now - hit.at < MM_LIMITS.leaver.cacheMs) return hit.status;
         try {
             const rooms = await this.deps.rooms.recentFor(hash, new Date(now - MM_LIMITS.leaver.windowMs));
             const status = leaverStatus(hash, rooms, now);
@@ -1007,7 +1118,12 @@ export class MmBridge implements MmHooks {
         if (e.queue === 'ranked' && st.searching !== undefined) msg.searching = st.searching;
         if (this.switched.has(e.id)) msg.from = 'casual';
         if (st.lowPriorityMs > 0) msg.lowPriorityMs = st.lowPriorityMs;
-        if (warn) msg.warn = 'leaver';
+        if (warn) {
+            msg.warn = 'leaver';
+            // how many early leaves the wait or warning is for (the card says so in one sentence)
+            const left = Math.max(0, ...e.members.map(m => this.eventsOf.get(m.member) ?? 0));
+            if (left > 0) msg.left = left;
+        }
         for (const m of e.members) this.api.send(m.member, msg);
     }
 
@@ -1125,6 +1241,7 @@ export class MmBridge implements MmHooks {
             this.ratingOf.delete(m.member);
             this.tierOf.delete(m.member);
             this.warnOf.delete(m.member);
+            this.eventsOf.delete(m.member);
             this.waits.push(m.queueMs);
             // casual: `mm.found` went out with the Accept card already
             if (match.mode === 'casual') continue;
@@ -1322,6 +1439,8 @@ export class MmBridge implements MmHooks {
             pilotSince: new Map(),
             offSince: new Map(),
             left: new Map(),
+            leftKind: new Map(),
+            drops: new Map(),
             ...(party.mm.casual?.personas?.length && !party.mm.ranked
                 ? { personaSlots: new Set(party.mm.casual.personas.map(x => x.slot)) }
                 : {}),
@@ -1392,7 +1511,10 @@ export class MmBridge implements MmHooks {
                     if (!lm.offSince.has(s.slot)) lm.offSince.set(s.slot, now);
                 } else lm.offSince.delete(s.slot);
                 const leftSeat = !s.occupied;
-                if (leftSeat && !lm.left.has(s.slot)) lm.left.set(s.slot, room.tick);
+                if (leftSeat && !lm.left.has(s.slot)) {
+                    lm.left.set(s.slot, room.tick);
+                    lm.leftKind.set(s.slot, room.vacated?.get(s.slot) ?? 'left');
+                }
                 // a friend in a host friend party is never backfilled while their seat exists (only a seat they left):
                 // a phone call or app switch must not cost them their friends' match
                 const holderNow = [...room.seats].find(([, slot]) => slot === s.slot)?.[0];
@@ -1487,12 +1609,19 @@ export class MmBridge implements MmHooks {
             .filter(m => m.slot === o.seat.slot && !m.event)
             .sort((a, b) => b.joinedTick - a.joinedTick)[0];
         if (holderRow) {
-            holderRow.event = 'left';
+            const slotNow = room!.slots[o.seat.slot];
+            const gaveUp = lm!.left.has(o.seat.slot) ? lm!.leftKind.get(o.seat.slot) ?? 'left' : null;
+            // a seat given up keeps its reason; a connected holder flown by a pilot was AFK; a disconnected one dropped,
+            // and becomes `left` at the end only if they never came back (backfilledDrop)
+            holderRow.event = gaveUp ?? (slotNow?.connected ? 'afk' : 'dropped');
             holderRow.eventTick = lm!.left.get(o.seat.slot) ?? room!.tick;
+            if (!gaveUp && holderRow.event === 'dropped')
+                lm!.drops.set(holderRow, { offMs: lm!.offSince.get(o.seat.slot) ?? this.api.now(), back: false });
         }
         this.dropEntry(e);
         lm!.backfilled.add(o.seat.slot);
         lm!.left.delete(o.seat.slot);
+        lm!.leftKind.delete(o.seat.slot);
         lm!.pilotSince.delete(o.seat.slot);
         lm!.offSince.delete(o.seat.slot);
         const m = e.members[0];
@@ -1531,11 +1660,23 @@ export class MmBridge implements MmHooks {
                 slot: s.slot,
                 left: lm.left.has(s.slot),
                 leftTick: lm.left.get(s.slot),
+                ...(lm.leftKind.get(s.slot) === 'dropped' ? { dropped: true } : {}),
                 offSinceMs: lm.offSince.get(s.slot) ?? null,
                 pilotTicks: Object.fromEntries(AFK_REASONS.map(r => [r, s.pilotTicks[r] ?? 0])),
             }));
+        // a dropped player a backfill replaced: back on the relay (here) or in a newer match (either instance) is no leave
+        for (const [row, d] of lm.drops) {
+            let back = d.back;
+            if (!back)
+                back = await this.deps.rooms.recentFor(row.identityHash, new Date(d.offMs)).then(
+                    list => list.some(r => r._id !== roomId),
+                    () => true
+                );
+            if (backfilledDrop(d.offMs, back, now) === 'left') row.event = 'left';
+        }
         const members = withIntel(roomEvents(lm.members, seats, endTick, now, 1000 / 30), intel);
-        this.tally.mm_leaver_events += members.filter(m => m.event).length;
+        this.tally.mm_leaver_events += members.filter(m => m.event === 'left' || m.event === 'afk').length;
+        this.tally.mm_dropped += members.filter(m => m.event === 'dropped').length;
         try {
             await this.deps.rooms.finish(roomId, members, outcome, new Date(now), voided);
         } catch {
@@ -1565,7 +1706,7 @@ export class MmBridge implements MmHooks {
         // a served wait is forgotten an hour after it ended (the next search then owes the ladder's wait again)
         for (const [k, until] of this.lowPrioUntil) if (now - until >= 3600_000) this.lowPrioUntil.delete(k);
         for (const [k, at] of this.lastSide) if (now - at >= MM_LIMITS.sideEveryMs) this.lastSide.delete(k);
-        for (const [k, at] of this.leaverCache) if (now - at.at >= MM_LIMITS.readCacheMs) this.leaverCache.delete(k);
+        for (const [k, at] of this.leaverCache) if (now - at.at >= MM_LIMITS.leaver.cacheMs) this.leaverCache.delete(k);
     }
 
     /** A stranger idle 60 s in results leaves the matched party. */

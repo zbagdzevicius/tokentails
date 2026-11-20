@@ -605,8 +605,13 @@ export interface HelloMsg {
   ticket?: string;
   guestKey?: string;
   resume?: { token: string };
-  /** `matches` (PROTO 3): completed matches, the casual PvP newbie lock (a hint: matching only, never trusted). */
-  hint?: { maxDifficulty: string; newbie: boolean; matches?: number; watch?: boolean };
+  /**
+   * `matches` (PROTO 3): completed matches, the casual PvP newbie lock (a hint: matching only, never trusted).
+   * `reload: 'update'`: the first hello after our own update (an OTA bundle or a new web build) reloaded the app, so a
+   * seat it loses is a drop, never an early leave (docs/plans/moba/M1A-IMPL.md §4.3). No PROTO bump: an older relay is
+   * never reached by a newer game (the backend deploys first).
+   */
+  hint?: { maxDifficulty: string; newbie: boolean; matches?: number; watch?: boolean; reload?: 'update' };
 }
 
 export type ClientJson =
@@ -639,7 +644,11 @@ export type ClientJson =
    * `bots` (ranked only, SOCIAL-RANKED.md §7.11): this game labels bots, so a quiet ranked queue may fill the search
    * with them or play it vs AI. Additive (no PROTO bump): the relay that understands it ships before the game sends it.
    */
-  | { t: 'mm.join'; queue: MmQueue; side: MmSide; region?: string; bots?: true }
+  /**
+   * `held` (M1A-IMPL.md §4.3, no PROTO bump: an older game never sends it): 'ask' offers this identity's own live seat
+   * back (`mm.rejoin`) before any search; 'leave' searches anyway and gives that seat up as an early leave.
+   */
+  | { t: 'mm.join'; queue: MmQueue; side: MmSide; region?: string; bots?: true; held?: 'ask' | 'leave' }
   | { t: 'mm.leave' }
   | { t: 'mm.side'; side: MmSide }
   | { t: 'mm.backfill'; offer: string; yes: boolean }
@@ -706,11 +715,12 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
     hint: [
       (v) =>
         isPlain(v) &&
-        keysOnly(v as object, ['maxDifficulty', 'newbie', 'matches', 'watch']) &&
+        keysOnly(v as object, ['maxDifficulty', 'newbie', 'matches', 'watch', 'reload']) &&
         isStr(ID)((v as { maxDifficulty: unknown }).maxDifficulty) &&
         isBool((v as { newbie: unknown }).newbie) &&
         ((v as { matches?: unknown }).matches === undefined || isInt(0, 1_000_000)((v as { matches: unknown }).matches)) &&
-        ((v as { watch?: unknown }).watch === undefined || isBool((v as { watch: unknown }).watch)),
+        ((v as { watch?: unknown }).watch === undefined || isBool((v as { watch: unknown }).watch)) &&
+        ((v as { reload?: unknown }).reload === undefined || (v as { reload: unknown }).reload === 'update'),
       true,
     ],
   },
@@ -747,6 +757,7 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
     side: [(v) => typeof v === 'string' && (MM_SIDES as readonly string[]).includes(v), false],
     region: [isStr(/^[a-z0-9-]{1,16}$/), true],
     bots: [(v) => v === true, true],
+    held: [(v) => v === 'ask' || v === 'leave', true],
   },
   'mm.leave': {},
   'mm.side': { side: [(v) => typeof v === 'string' && (MM_SIDES as readonly string[]).includes(v), false] },
@@ -1021,6 +1032,8 @@ export type ServerJson =
       found: number;
       lowPriorityMs?: number;
       warn?: 'leaver';
+      /** With `warn`: the early leaves in the last 7 days behind the warning or the wait ("You left 2 matches early"). */
+      left?: number;
       /** PROTO 3 casual: humans found per team ([yours, theirs]). */
       teams?: [number, number];
       /** PROTO 3: no PvP opponent by 45 s, so the search moved to co-op (Keep waiting re-sends casual). */
@@ -1063,7 +1076,12 @@ export type ServerJson =
   /** PROTO 5: a friend sent you a DM (no body: read it over the API). Held in loading and match, sent on results. */
   | { t: 'chat.notice'; thread: string }
   /** PROTO 7: the spectator count of the watched match changed. */
-  | { t: 'spectate'; viewers: number };
+  | { t: 'spectate'; viewers: number }
+  /**
+   * The answer to `mm.join{held:'ask'}` when this player's own match is still live (a crash, a reload, the title): no
+   * search yet; the card offers Rejoin match (`mm.back`) or Search new match (`mm.join{held:'leave'}`).
+   */
+  | { t: 'mm.rejoin'; mode: 'coop' | 'casual' | 'classic' | 'ranked' | 'party'; clockS: number };
 
 export type ServerJsonType = ServerJson['t'];
 const SERVER_TYPES: readonly ServerJsonType[] = [
@@ -1085,6 +1103,7 @@ const SERVER_TYPES: readonly ServerJsonType[] = [
   'mm.cancel',
   'mm.backfill.offer',
   'mm.accepted',
+  'mm.rejoin',
   'void',
   'chat.msg',
   'chat.reject',

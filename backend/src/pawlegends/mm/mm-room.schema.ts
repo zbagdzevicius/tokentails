@@ -20,8 +20,18 @@ export interface MmRoomMember {
     joinedTick: number;
     backfill: boolean;
     ratingAtStart: Glicko | null;
-    event?: 'left' | 'afk';
+    /**
+     * `left` and `afk` count on the leaver ladder (leaver.ts). `dropped` never does: the seat was lost without the player
+     * choosing to leave (a crash, an app relaunch or OTA reload, a network drop, a backfill of a dropped seat while the
+     * player came back), so it is neither an event nor a clean match.
+     */
+    event?: 'left' | 'afk' | 'dropped';
     eventTick?: number;
+    /**
+     * The leaver ladder's low-priority wait owed for this event started then (ms): set once, at the first search that
+     * owes it, on whichever relay instance (the cancel and re-search count down one wait across both instances).
+     */
+    waitFromMs?: number;
     /** PvP: the referee's "acts on hidden" counts (SOCIAL-RANKED.md §9.2); absent on sims without `heroSight`. */
     intel?: MemberIntel | null;
 }
@@ -79,7 +89,16 @@ export interface MmRoomStore {
     ): Promise<void>;
     /** The mm rooms of an identity since `since`, oldest first (the leaver ladder). */
     recentFor(identityHash: string, since: Date): Promise<MmRoomRecord[]>;
+    /**
+     * The leaver wait's start on the identity's event row of `id` (a counted `left`/`afk` row): set to `atMs` when it is
+     * still `prevMs` (null: not set yet), else left alone. Returns the start that holds (one atomic write, so two relay
+     * instances agree). Null when the row is gone.
+     */
+    anchorWait(id: string, identityHash: string, prevMs: number | null, atMs: number): Promise<number | null>;
 }
+
+/** A leaver event row (counted on the ladder). */
+const COUNTED = ['left', 'afk'];
 
 /** sha256 of an identity key (`acct:…` or `guest:…`); never called with an IP. */
 export const identityHash = (key: string): string => createHash('sha256').update(`mm:${key}`).digest('hex');
@@ -119,6 +138,13 @@ export class MemoryMmRoomStore implements MmRoomStore {
         r.outcome = outcome;
         r.endedAt = endedAt;
         if (voided) r.void = voided;
+    }
+
+    async anchorWait(id: string, hash: string, prevMs: number | null, atMs: number): Promise<number | null> {
+        const row = this.rooms.get(id)?.members.find(m => m.identityHash === hash && COUNTED.includes(m.event ?? ''));
+        if (!row) return null;
+        if ((row.waitFromMs ?? null) === prevMs) row.waitFromMs = atMs;
+        return row.waitFromMs ?? null;
     }
 
     async recentFor(hash: string, since: Date): Promise<MmRoomRecord[]> {
@@ -231,6 +257,28 @@ export class MongoMmRoomStore implements MmRoomStore {
             { _id: id },
             { $set: { members, outcome, endedAt, ...(voided ? { void: voided } : {}) } }
         );
+    }
+
+    async anchorWait(id: string, hash: string, prevMs: number | null, atMs: number): Promise<number | null> {
+        await this.m.updateOne(
+            {
+                _id: id,
+                members: {
+                    $elemMatch: {
+                        identityHash: hash,
+                        event: { $in: COUNTED },
+                        waitFromMs: prevMs === null ? { $exists: false } : prevMs,
+                    },
+                },
+            },
+            { $set: { 'members.$.waitFromMs': atMs } }
+        );
+        const doc = (await this.m.findById(id, { members: 1 }).lean()) as unknown as Pick<
+            MmRoomRecord,
+            'members'
+        > | null;
+        const row = doc?.members?.find(m => m.identityHash === hash && COUNTED.includes(m.event ?? ''));
+        return row ? row.waitFromMs ?? null : null;
     }
 
     async recentFor(hash: string, since: Date): Promise<MmRoomRecord[]> {

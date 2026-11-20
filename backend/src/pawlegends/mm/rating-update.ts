@@ -34,12 +34,12 @@ export function coopRatingStep(input: {
     const won = outcome === 'won';
     if (!won) {
         if (mine.backfill) return { skip: 'backfill_loss' };
-        // loss forgiveness: a teammate left or went AFK before 5:00 (the leaver takes the queue penalty instead)
+        // loss forgiveness: a teammate left, went AFK or dropped before 5:00 (a leaver takes the queue penalty instead)
         const forgiven = room.members.some(
             m =>
                 m !== mine &&
                 m.accountId !== accountId &&
-                (m.event === 'left' || m.event === 'afk') &&
+                (m.event === 'left' || m.event === 'afk' || m.event === 'dropped') &&
                 (m.eventTick ?? 0) < MM_LIMITS.forgiveBeforeTick
         );
         if (forgiven) return { skip: 'forgiven' };
@@ -113,7 +113,7 @@ export function casualRatingStep(input: {
                 m !== mine &&
                 m.accountId !== accountId &&
                 teamOfSlot(m.slot, n) === team &&
-                (m.event === 'left' || m.event === 'afk') &&
+                (m.event === 'left' || m.event === 'afk' || m.event === 'dropped') &&
                 (m.eventTick ?? 0) < MM_LIMITS.forgiveBeforeTick
         );
         if (forgiven) return { skip: 'forgiven' };

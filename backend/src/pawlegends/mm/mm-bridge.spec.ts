@@ -9,8 +9,8 @@ import { MemoryRatingSource } from './rating.schema';
 
 /* The relay glue without sockets (M1A-IMPL.md §4.4, §4.5): caps by address, queue size, ratings and the leaver ladder. */
 
-function make() {
-    const clock = { now: 1_700_000_000_000 };
+function make(shared?: { rooms: MemoryMmRoomStore; clock: { now: number } }) {
+    const clock = shared?.clock ?? { now: 1_700_000_000_000 };
     const sent: { to: string; msg: Record<string, any> }[] = [];
     const socks = new Map<string, MmSock>();
     /** Identity keys the live-room cap blocks (canSeat false); `release` frees the ones in `stale`. */
@@ -45,7 +45,7 @@ function make() {
         },
         rejoin: () => false,
     };
-    const rooms = new MemoryMmRoomStore();
+    const rooms = shared?.rooms ?? new MemoryMmRoomStore();
     const ratings = new MemoryRatingSource();
     const bridge = new MmBridge(api, { rooms, ratings });
     let n = 0;
@@ -290,6 +290,97 @@ describe('MmBridge', () => {
         await t.join(s);
         // served: no second wait before the next match
         expect(t.last(s.member, 'mm.status')!.lowPriorityMs ?? 0).toBe(0);
+    });
+
+    it('two relay instances: the leaver wait counts down once across both, and both read the same ladder', async () => {
+        const a = make();
+        const b = make({ rooms: a.rooms, clock: a.clock });
+        const s = a.sock();
+        const hash = identityHash(s.identity.key);
+        const leftRoom = (id: string) =>
+            a.rooms.create({
+                _id: id,
+                queue: 'coop',
+                region: 'eu',
+                side: 'cat',
+                difficulty: 'easy',
+                sim: '14:abc',
+                fill: [],
+                queueMs: {},
+                members: [
+                    {
+                        slot: 0,
+                        identityHash: hash,
+                        accountId: null,
+                        joinedTick: 0,
+                        backfill: false,
+                        ratingAtStart: null,
+                        event: 'left',
+                        eventTick: 10,
+                    },
+                ],
+                createdAt: new Date(a.clock.now - 3_600_000),
+                endedAt: new Date(a.clock.now - 3_600_000),
+            });
+        await leftRoom('x1');
+        // instance B reads the ladder first (1 event: a warning, no wait) and caches it
+        const sb = b.sock({ identity: { ...s.identity } });
+        await b.join(sb);
+        expect(b.last(sb.member, 'mm.status')).toMatchObject({ warn: 'leaver', left: 1 });
+        expect(b.last(sb.member, 'mm.status')!.lowPriorityMs ?? 0).toBe(0);
+        b.bridge.onJson(sb.member, { t: 'mm.leave' });
+        // a second leave is written (as instance A would at a room's end): B sees it within the short cache
+        await leftRoom('x2');
+        a.clock.now += MM_LIMITS.leaver.cacheMs;
+        await a.join(s);
+        expect(a.last(s.member, 'mm.status')).toMatchObject({ lowPriorityMs: 60_000, left: 2 });
+        a.clock.now += 20_000;
+        a.bridge.onJson(s.member, { t: 'mm.leave' });
+        // Search again lands on the other instance: the same wait, 40 s left
+        await b.join(sb);
+        expect(b.last(sb.member, 'mm.status')).toMatchObject({ lowPriorityMs: 40_000, left: 2 });
+        a.clock.now += 45_000;
+        b.bridge.onJson(sb.member, { t: 'mm.leave' });
+        await a.join(s);
+        expect(a.last(s.member, 'mm.status')!.lowPriorityMs ?? 0).toBe(0);
+    });
+
+    it('held: ask with a live seat answers mm.rejoin (no search); leave and an older game free it with their own loss', async () => {
+        const t = make();
+        const s = t.sock();
+        const losses: string[] = [];
+        let seat = true;
+        const api = (t.bridge as unknown as { api: MmRelayApi }).api;
+        api.rejoinable = () => (seat ? { mode: 'casual', clockS: 95 } : null);
+        api.release = (_i, _e, loss) => {
+            losses.push(loss ?? 'dropped');
+            seat = false;
+        };
+        t.bridge.onJson(s.member, { t: 'mm.join', queue: 'coop', side: 'any', held: 'ask' });
+        await new Promise(r => setImmediate(r));
+        expect(t.last(s.member, 'mm.rejoin')).toEqual({ t: 'mm.rejoin', mode: 'casual', clockS: 95 });
+        expect(t.bridge.queued(s.member)).toBe(false);
+        expect(t.bridge.counters().mm_rejoin_offers).toBe(1);
+        // Search new match: the seat goes as a leave
+        t.blocked.add(s.identity.key);
+        t.stale.add(s.identity.key);
+        api.release = (i, _e, loss) => {
+            losses.push(loss ?? 'dropped');
+            t.blocked.delete(i.key);
+        };
+        t.bridge.onJson(s.member, { t: 'mm.join', queue: 'coop', side: 'any', held: 'leave' });
+        await new Promise(r => setImmediate(r));
+        expect(t.bridge.queued(s.member)).toBe(true);
+        t.bridge.onJson(s.member, { t: 'mm.leave' });
+        // an older game (no held) and a socket our own update reloaded: a drop
+        t.blocked.add(s.identity.key);
+        await t.join(s);
+        const u = t.sock({ identity: { ...s.identity }, updated: true });
+        t.bridge.onJson(s.member, { t: 'mm.leave' });
+        t.blocked.add(s.identity.key);
+        t.bridge.onJson(u.member, { t: 'mm.join', queue: 'coop', side: 'any', held: 'leave' });
+        await new Promise(r => setImmediate(r));
+        expect(losses).toEqual(['left', 'dropped', 'dropped']);
     });
 
     it('the leaver ladder: two events in 7 days queue with a 60 s low-priority wait and the warning', async () => {
