@@ -95,9 +95,11 @@ button.hm-profile:active::before { background: linear-gradient(90deg, rgb(var(--
 .hm-av-in:has(.hm-av-l) { background: radial-gradient(circle at 35% 30%, var(--v6-gold-1, #fff1a8), var(--v6-logo-gold, #ffc93c) 60%, var(--v6-gold-3, #d8901a)); }
 .hm-pf-t { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
 .hm-pf-name { font: 800 16px/1.05 var(--font, sans-serif); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; text-shadow: var(--v6-ts-ui, 0 2px 0 rgb(0 0 0 / 0.35)), 0 2px 6px rgb(0 0 0 / 0.5); }
-.hm-pf-title { font: 700 10px/1 var(--font, sans-serif); color: var(--v6-logo-gold, #f7bc3c); letter-spacing: 0.04em; white-space: nowrap; }
+.hm-pf-title { font: 700 10px/1 var(--font, sans-serif); color: var(--v6-logo-gold, #f7bc3c); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hm-xp {
-  display: block; width: 120px; height: 4px; border-radius: 1px; background: rgb(var(--v6-night-rgb, 18 9 31) / 0.7); overflow: hidden;
+  /* a set width, never wider than the text column the chip's max-width leaves (founder Nov 20: the 240 px desktop bar
+     ran past the 300 px chip) */
+  display: block; width: 120px; max-width: 100%; height: 4px; border-radius: 1px; background: rgb(var(--v6-night-rgb, 18 9 31) / 0.7); overflow: hidden;
   transform: skewX(var(--v6-slant, -8deg)); box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb, 255 243 227) / 0.12);
 }
 .hm-xp i { display: block; height: 100%; border-radius: inherit; background: var(--v6-xp-fill, var(--v6-bolt, #ffe14a)); }
@@ -467,6 +469,8 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 /* ------------------------------------------------------------------------------------------ desktop */
 @media (min-height: 600px) and (min-width: 1000px) {
   .pl-home { --hm-l: max(40px, var(--safe-l, 0px)); --hm-r: max(40px, var(--safe-r, 0px)); --hm-t: 24px; --hm-b: 24px; --hm-play: 140px; --hm-nav-h: 68px; --hm-round: 64px; --hm-av: 64px; }
+  /* the chip fits the 240 px bar: avatar 64 + gap 10 + bar 240 + padding 16 = 330 */
+  .hm-profile { max-width: 340px; }
   .hm-pf-name { font-size: 20px; max-width: 260px; }
   .hm-xp { width: 240px; height: 5px; }
   .hm-pf-sub { font-size: 12px; }
