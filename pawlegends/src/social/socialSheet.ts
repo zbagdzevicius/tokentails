@@ -371,7 +371,6 @@ export function busyText(p: Presence, myParty: string | null = null): string {
   return '';
 }
 
-/** A typed friend code (`PL-7KQ2-M9XR`, any case, with or without dashes); anything else is a nickname. */
 /** The list's last child: a bar stuck to its bottom edge naming the groups below the fold (`moreBelow`). */
 const MORE_BELOW = '<button type="button" class="pl-more-below" data-a="more-below" data-testid="social-more-below" hidden></button>';
 
@@ -387,7 +386,9 @@ export function dotsHtml(text: string): string {
     .join(SEP_HTML);
 }
 
-export const looksLikeCode = (v: string): boolean => /^\s*(pl[-\s]?)?[0-9a-z]{4}[-\s]?[0-9a-z]{4}\s*$/i.test(v);
+// Nov 20: only an explicit `PL-` code counts. Eight letters ("Whiskers", "Fuzz Ball") are a name first; a bare pasted
+// code goes out as a name too and the server falls back to the code when no player has that name.
+export const looksLikeCode = (v: string): boolean => /^\s*pl[-\s]?[0-9a-z]{4}[-\s]?[0-9a-z]{4}\s*$/i.test(v);
 
 /** One nickname suggestion (`social.search`): never a code or an account id. */
 export interface Suggestion {

@@ -378,8 +378,9 @@ describe('social sheet pulse', () => {
 
 describe('social sheet: add by nickname, invites (SOCIAL-INVITES.md)', () => {
   it('a code is a code; anything else is a nickname', () => {
-    expect(['PL-7KQ2-M9XR', 'pl-7kq2-m9xr', '7KQ2M9XR', ' 7kq2 m9xr '].map(looksLikeCode)).toEqual([true, true, true, true]);
-    expect(['zygis', 'Mira', 'Big Cat 7', 'PL-7KQ2'].map(looksLikeCode)).toEqual([false, false, false, false]);
+    expect(['PL-7KQ2-M9XR', 'pl-7kq2-m9xr', 'PL7KQ2M9XR', ' pl 7kq2 m9xr '].map(looksLikeCode)).toEqual([true, true, true, true]);
+    // 8-letter names are names (a bare code goes out as a name; the server falls back to the code)
+    expect(['zygis', 'Mira', 'Big Cat 7', 'PL-7KQ2', 'Whiskers', 'Fuzz Ball', '7KQ2M9XR'].map(looksLikeCode)).toEqual([false, false, false, false, false, false, false]);
   });
 
   it('typing a name shows suggestions (names as text) and Add sends friend.add by the exact name', async () => {
@@ -426,6 +427,20 @@ describe('social sheet: add by nickname, invites (SOCIAL-INVITES.md)', () => {
     await flush();
     expect(t.calls.find((c) => c.op === 'friend.add')?.args).toEqual({ name: 'Nobody Here' });
     expect(document.querySelector('.pl-social-note')!.textContent).toBe('No player has this name.');
+  });
+
+  it('an 8-letter nickname ("Whiskers") is added by name; only a PL- code goes out as a code', async () => {
+    const t = sheet({ answer: (op) => (op === 'friend.add' ? { id: 'x', ok: true, status: 200, body: { state: 'sent' } } : null) });
+    await flush();
+    const submit = async (text: string) => {
+      document.querySelector<HTMLElement>('[data-a="add"]')!.click();
+      document.querySelector<HTMLInputElement>('input[name="code"]')!.value = text;
+      document.querySelector('[data-testid="social-add-card"]')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      await flush();
+    };
+    await submit('Whiskers');
+    await submit('PL-7KQ2-M9XR');
+    expect(t.calls.filter((c) => c.op === 'friend.add').map((c) => c.args)).toEqual([{ name: 'Whiskers' }, { code: 'PL-7KQ2-M9XR' }]);
   });
 
   it('Invite from a fresh lobby retries "no party" until the relay wrote it, then says sent and reports the id', async () => {
