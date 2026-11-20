@@ -306,5 +306,29 @@ describe('nickname = unique username (founder, Nov 20)', () => {
             }
             expect(found.players.map(p => p.name)).toContain(bNick);
         });
+
+        it('a code-shaped nickname ("Whiskers", "Fuzz Ball") and a bare pasted code both resolve, from any build', async () => {
+            const h = harness();
+            await h.svc.profile('A');
+            await h.svc.profile('B');
+            await h.svc.profile('C');
+            await h.social.updateOne({ _id: 'B' }, { $set: { nick: 'Whiskers', nickKey: 'whiskers' } });
+            await h.social.updateOne({ _id: 'C' }, { $set: { nick: 'Fuzz Ball', nickKey: 'fuzzball' } });
+            // new build: everything but a PL- code is sent as a name
+            expect(await h.svc.targetOf('A', { name: 'whiskers' })).toEqual({ id: 'B', via: 'name' });
+            expect(await h.svc.targetOf('A', { name: 'FUZZ BALL' })).toEqual({ id: 'C', via: 'name' });
+            const bare = (await h.svc.profile('C')).code;
+            expect(await h.svc.targetOf('A', { name: bare })).toEqual({ id: 'C', via: 'code' });
+            // old build: an 8-letter name went out as a code
+            expect(await h.svc.targetOf('A', { code: 'Whiskers' })).toEqual({ id: 'B', via: 'code' });
+            expect(await h.svc.targetOf('A', { code: 'fuzz ball' })).toEqual({ id: 'C', via: 'code' });
+            // nobody: the error of the field that was sent
+            await expect(h.svc.targetOf('A', { name: 'Nobody' })).rejects.toMatchObject({
+                response: expect.objectContaining({ code: 'PAWLEGENDS_SOCIAL_NO_NAME' }),
+            });
+            await expect(h.svc.targetOf('A', { code: 'ZZZZZZZZ' })).rejects.toMatchObject({
+                response: expect.objectContaining({ code: 'PAWLEGENDS_SOCIAL_NOT_FOUND' }),
+            });
+        });
     });
 });

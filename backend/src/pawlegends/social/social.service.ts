@@ -707,13 +707,28 @@ export class SocialService {
         me: string,
         body: { code?: unknown; name?: unknown; room?: unknown; slot?: unknown }
     ): Promise<{ id: string; via: Via }> {
+        // A nickname can have the shape of a code ("Whiskers", "Fuzz Ball": 8 letters, maybe split 4+4) and an old
+        // build sends such a name as `code`; a new build sends a bare pasted code as `name`. So each falls back to
+        // the other when it finds nobody (the error stays the one of the field that was sent).
         if (body.name !== undefined && body.code === undefined) {
-            const p = await this.byNick(body.name);
+            let via: Via = 'name';
+            const p = await this.byNick(body.name).catch(async error => {
+                if (!parsePlayerCode(body.name)) throw error;
+                via = 'code';
+                return this.byCode(body.name).catch(() => {
+                    throw error;
+                });
+            });
             if (p._id === me) throw SOCIAL_ERRORS.self();
-            return { id: p._id, via: 'name' };
+            return { id: p._id, via };
         }
         if (body.code !== undefined) {
-            const p = await this.byCode(body.code);
+            const p = await this.byCode(body.code).catch(async error => {
+                if (typeof body.code !== 'string') throw error;
+                return this.byNick(body.code).catch(() => {
+                    throw error;
+                });
+            });
             if (p._id === me) throw SOCIAL_ERRORS.self();
             return { id: p._id, via: 'code' };
         }
