@@ -83,7 +83,7 @@ while the relay drains, or when the role serves the relay and it has not started
 callers on the control port only (the socket peer and local port, never a forwarded header); without
 `RELAY_CONTROL_PORT` (DigitalOcean, Cloud Run) it refuses every caller. On the relay VM each blue/green slot also serves
 these three routes on its loopback `RELAY_CONTROL_PORT`. Live-match deploys (drain, pull and push handoff, the 1 s restore loop,
-relay generations and pools, `RELAY_DRAIN_MAX_MS`, `RELAY_POOL`): `docs/plans/moba/LIVE-MATCH-DEPLOYS.md`. `GET /` still answers `1`. The relay role also answers `GET /pawlegends/ws/healthz`
+relay generations and pools, `RELAY_DRAIN_MAX_MS`, `RELAY_POOL`; relay shards §15: `RELAY_SHARD`, `RELAY_DEPLOY_ID`, `ORIGIN_INGRESS=digitalocean`, `GET /pawlegends/relays`): `docs/plans/moba/LIVE-MATCH-DEPLOYS.md`. `GET /` still answers `1`. The relay role also answers `GET /pawlegends/ws/healthz`
 (proves a route reaches the relay) and logs one `relay_stats` JSON line a minute for log-based metrics. Both health
 routes are public and skip the throttler (no database I/O: `readyz` reads the Mongo connection state only); they show
 the role and readiness, never uptime or relay counters outside the relay role. In a split role

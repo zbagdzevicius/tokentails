@@ -1,7 +1,8 @@
 # Live-match deploys: no player notices a backend deploy
 
 Status: built, 2026-11-10, on branch `feat/pawlegends-live-match-deploys` (§12 lists what was built, what
-differs from this design and what is left). §14 (2026-11-11): party codes, joins and lost seats across relays. Nothing is applied to DigitalOcean or GCP: the DO spec change
+differs from this design and what is left). §14 (2026-11-11): party codes, joins and lost seats across relays. §15
+(2026-11-20): relay shards, several relays with continuity; it replaces the "one instance" rule of §4.4 and §7.1. Nothing is applied to DigitalOcean or GCP: the DO spec change
 (`infra/digitalocean/live-match-spec.sh`) and the Terraform (`infra/gcp`) wait for the founder.
 
 Founder ask (verbatim): "ultracode there was an issue where match paused disconnected - was it redeployment or smt like
@@ -647,3 +648,112 @@ Limits: a party owner whose heartbeat stalls for 15 s while its process is alive
 only) can lose the party to a takeover; its next save overwrites the row's owner, and members on the old relay keep a
 party that new joiners cannot reach until it ends. The logs still count joins only per minute; `relay_join_elsewhere`,
 `relay_takeover_party` and `relay_restore_party {via: 'join'}` are new log lines.
+
+## 15. Relay shards: several relays, one owner per room (2026-11-20)
+
+Founder ask (verbatim), on whether to go from 2 DigitalOcean instances to 1 to stop the relay bounces: "try to find the
+best practises in terms of gaming connectivity on how it's handled. if needed, there are frameworks that could handle it
+separately or multiple servers. but continueity must be established. go go go ultracode".
+
+### 15.1 What was wrong
+
+The backend runs as one DigitalOcean service with `instance_count: 2`, so both instances have the same env and the same
+pool (`app`). §4.4 makes the older of two serving relays of one pool drain, and DigitalOcean never removes it, so it
+drained for good: about half of all connects got `server_moving` and bounced (live `/healthz` showed `draining` about
+50 % of the time). Instances of one service are not addressable, so a balancer without room affinity cannot send a
+player to the instance that owns the party.
+
+### 15.2 The design (best practice for small rooms)
+
+Session-based games with small rooms (Valorant, Fortnite, Agones fleets, Photon, Colyseus, Cloudflare Durable Objects)
+all do the same thing: **one process owns each room, and the router sends every player of that room to its owner.**
+Frames are never forwarded between servers. We do this with what we already have (Mongo, the turn log, leases):
+
+- **Shards.** Each relay process is its own DigitalOcean component (`pawlegends-relay-a`, `-b`, …, one instance each)
+  with its own path, `/pawlegends/ws/<shard>`. `/pawlegends/ws` (the front door) goes to shard a. The HTTP API is a
+  separate, stateless service with 2 or more instances (`BACKEND_ROLE=api`).
+- **Directory.** `pawlegendsrelays` rows now carry `shard`, `path`, `rooms`, `socks`, `cap` and `deployId`; party and
+  room rows already name their owner. No Redis (none exists; none needed).
+- **Redirect, not bounce.** A relay that gets a request for something another shard owns answers `relay_redirect
+  {shard}` and closes 4014 (PROTO 9). The game dials `/pawlegends/ws/<shard>` at once, with a fresh ticket when the old
+  one was spent, and asks again; no banner. Cases: a resume token whose room or party lives on another shard, a join
+  by code, a spectate, a lone Quick Play search on a shard that does not hold the queue, and a new session on the front
+  door (it starts on the `mm` lease holder, or on the least loaded shard when the holder is at 80 % of its cap).
+- **One queue.** Lease `pawlegendsleases {_id:'mm'}` (15 s, renewed every second, taken by compare-and-set once
+  expired, released when the holder drains). Only relays with a shard take it.
+- **Continuity is unchanged:** turn log, epoch leases, pull and push handoff, the restore loop, `resync`, the fair hold.
+  New: a room not checkpointed for `staleLeaseMs` is claimed by any shard a player of it reaches (before, a crashed
+  owner's relay row had to go quiet for 15 s first).
+- **Same pool, same deployment both serve (A1).** Generations compare `deployId` (RELAY_DEPLOY_ID, else the pod name
+  minus its suffix, `<service>-<rollout hash>`); two processes of one deployment never drain each other. Unknown on
+  either side: the older one drains, as before (GCP VM, specs). This alone stops the 50 % bounce on today's spec.
+
+Rejected: forwarding frames between instances (two hops per turn, a second owner to fence); sticky sessions on the DO
+balancer (not offered, and a reconnect is a new connection anyway); Cloudflare Durable Objects (the right shape, but a
+rewrite of the 190 KB relay for a new runtime; the later exit path); Redis pub/sub (adds a store and solves only
+routing).
+
+### 15.3 What was built (Phase A, code only)
+
+| Piece | Where |
+|---|---|
+| `relay_redirect` (PROTO 9), `RELAY_SHARD_RE`, `relayPath`, `shardOfPath` | `pawlegends/src/net/proto.ts`, vendored net bundle |
+| Upgrades on `/pawlegends/ws` and `/pawlegends/ws/<shard>`; redirects on resume, join, spectate, `mm.join` and new front-door sessions; `mm` lease; deployment rule (A1); load fields on the relay row; stale-room pull across shards | `backend/src/pawlegends/party/party-relay.ts` |
+| `RELAY_SHARD` (pool defaults to the shard), `RELAY_DEPLOY_ID`/pod name, lease and notice limits | `party-limits.ts` |
+| `pawlegendsleases`, `pawlegendsticketnonces` (a ticket is single use across the fleet), `pawlegendsnotices` (DM notices from any API instance reach every relay; the in-process ChatBus stays and shares the id) | `room-store.ts`, `social/chat-bus.ts`, `party-ticket.service.ts` (`peek`, `burn`) |
+| End-of-match writes (Quick Play record, verdict) retried with backoff instead of failing the end | `party-relay.ts` `persist` |
+| `ownsServer` only with `RELAY_CONTROL_PORT` (a DO relay never closes its listener) | `party-relay.service.ts` |
+| `ORIGIN_INGRESS=digitalocean`: a split role behind the DO ingress keeps the X-Forwarded-For rule of `all` and never trusts a client-sent `cf-connecting-ip` | `shared/runtime/backend-role.ts`, `relay-client-ip.ts`, `client-ip.ts` |
+| `GET /pawlegends/relays`: shards, paths, state, a load bucket, the leader. No `?code=` lookup on purpose: it would let anyone test party codes past the relay's join-failure limits | `shared/runtime/relays.controller.ts` |
+| Client: shard in sessionStorage (`pl.party.relay`), redirect handling (at most 3 in 30 s, then the front door), fresh ticket after a spent one, a path that fails twice before `welcome` gives way to the next one it knows (front door, then the shards `GET /pawlegends/relays` lists), joins and searches re-sent after the new welcome | `pawlegends/src/net/socket.ts`, `party/partyClient.ts`, `net/net-host.ts`, `spectate/viewer.ts` |
+| DO spec script, steps `split`, `shard-b`, `rollback` (prepared, not applied) | `infra/digitalocean/relay-service-spec.sh` |
+
+Tests: `relay-shards.spec.ts` (in process: env rules, A1, lease, entry and queue redirects, overload spill, fleet
+nonce, notices, relays view) and `relay-shards.e2e.spec.ts` (forked relays behind `backend/test/rr-proxy.ts`, a
+round-robin non-sticky proxy that routes by path as the DO ingress will): create on A and join via B (one redirect),
+today's spec with two instances of one deployment (100 connects, 0 `server_moving`, both serving; a new deployment
+drains both), SIGKILL of shard a mid-match (players reach b, b claims after the stale lease, same game up to the
+checkpoint), a deploy of shard a (200 connects, 0 `server_moving`, at most one redirect each), queue failover, spectate
+redirect, an old PROTO 8 game, ticket replay. Client: `pawlegends/tests/unit/net-relay-shards.test.ts`.
+
+### 15.4 Phase B: what the founder applies (DigitalOcean)
+
+Order:
+
+1. Deploy the Phase A backend (push to `main`). On today's spec (2 × `all`) both instances now serve; the 50 % bounce
+   stops on the first deploy that runs it (if the pod-name rule does not hold on DO, set `RELAY_DEPLOY_ID` to any
+   fixed value per deploy; until then the old behaviour stays). `infra/digitalocean/live-match-spec.sh` is no longer
+   needed; do not set `instance_count: 1`.
+2. Ship the PROTO 9 game (OTA, and rebuild `pawlegends-web/public/pawlegends-game` and `client/public/pawlegends-game`).
+   The backend must be live first: an older relay answers PROTO 9 with `update_required` and the game falls back to
+   PROTO 1 for that session.
+3. `infra/digitalocean/relay-service-spec.sh` (read-only), then `APPLY=1 STEP=split …`: API on its own (2 instances),
+   relay shard a on `/pawlegends/ws`.
+4. Seven days after step 2: `APPLY=1 STEP=shard-b …`. From then on two relays serve: a crash of one costs its rooms an
+   8 to 20 s freeze and new sessions go to the other.
+5. Rollback at any step: `APPLY=1 STEP=rollback …` (back to 2 × `all`, safe with Phase A).
+
+Cost (unverified pricing): one more `apps-s-1vcpu-1gb` component per shard, about $12 a month each.
+
+GCP: the same build runs there unchanged. The relay VM sets no shard (one relay, blue/green slots, §8); to shard it,
+give each VM `RELAY_SHARD` and route `/pawlegends/ws/<shard>` in `edge_lb_regional` (already routes `/pawlegends/ws/*`).
+
+### 15.5 Limits
+
+- **Old games** (before PROTO 9) are never redirected. On the front door they are served there; a join to a party on
+  another shard is a bounded `party_elsewhere`, so a friend on an old build cannot join a party made on shard b. Hence
+  step 4 waits 7 days.
+- **Shard a is the front door.** If it is down, a PROTO 9 game finds the other shards through `GET
+  /pawlegends/relays` after two failed connects; an older game waits for DO to restart the container.
+- **Crash of the lease holder**: new searches stay on whichever shard players reach until the lease expires (≤ 15 s);
+  queued players re-search after their reconnect (their card keeps its time).
+- **A just-crashed shard** stays a redirect target until its relay row goes quiet (15 s); a player may bounce between
+  the shards a few times (at most 3 redirects in 30 s, then the front door) before the stale room (8 s) is claimed.
+- **Parties of a crashed shard** in the lobby are taken over after 15 s, as in §14.
+- `GET /pawlegends/relays` is public and shows coarse load buckets only.
+
+### 15.6 Unverified on DigitalOcean (check before applying)
+
+Longest-prefix routing between `/pawlegends/ws/b` and `/pawlegends/ws`; `preserve_path_prefix: true`; copied
+`EV[...]` secrets decrypting in another component; the pod hostname shape for `deployId`; whether DO restarts a crashed
+one-instance component within a minute.
