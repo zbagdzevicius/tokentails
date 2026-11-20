@@ -53,18 +53,15 @@ export class RelayProc {
                 } else if (msg.log) this.logs.push(msg.log);
                 else if (msg.counters) this.stateWaiters.splice(0).forEach(w => w(msg));
                 else if (typeof msg.rpc === 'number') {
+                    let reply: Record<string, unknown>;
                     try {
                         const fn = (store as any)[msg.m] as (...a: unknown[]) => Promise<unknown>;
                         const v = await fn.apply(store, buffers(msg.a) as unknown[]);
-                        if (this.child.connected) this.child.send({ rpc: msg.rpc, ok: true, v });
+                        reply = { rpc: msg.rpc, ok: true, v };
                     } catch (e: any) {
-                        if (this.child.connected)
-                            this.child.send({
-                                rpc: msg.rpc,
-                                ok: false,
-                                err: { message: String(e?.message), code: e?.code },
-                            });
+                        reply = { rpc: msg.rpc, ok: false, err: { message: String(e?.message), code: e?.code } };
                     }
+                    this.send(reply);
                 }
             });
             this.child.on('exit', (code, signal) => {
@@ -73,6 +70,18 @@ export class RelayProc {
             });
         });
         this.ready.catch(() => undefined);
+        // a store answer can race the child's exit (a killed relay): EPIPE / channel closed is not a test failure
+        this.child.on('error', () => undefined);
+    }
+
+    /** IPC to the child, quiet when it already exited or is exiting (the answer is moot then). */
+    private send(msg: Record<string, unknown>): void {
+        if (!this.child.connected) return;
+        try {
+            this.child.send(msg, () => undefined);
+        } catch {
+            /* channel closed between the check and the send */
+        }
     }
 
     start(): Promise<void> {
