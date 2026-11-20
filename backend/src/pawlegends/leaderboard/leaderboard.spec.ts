@@ -168,6 +168,21 @@ describe('Country board', () => {
         expect(b.me).toMatchObject({ rank: 2, m: 40 });
     });
 
+    it('finds a small country however far down the global order its players are', async () => {
+        const many = Array.from({ length: 1200 }, (_, i) => `P${i}`);
+        const { svc } = harness({
+            users: [...many.map(id => user(id, 500)), user('Z', 1)],
+            levels: [...many.map(id => ({ _id: id, m: 500, at: t })), { _id: 'Z', m: 1, at: t }],
+            flags: [
+                ...many.map(id => ({ _id: id, cc: 'LV', off: false, at: t })),
+                { _id: 'Z', cc: 'EE', off: false, at: t },
+            ],
+        });
+        const b = await svc.countryBoard(0, 'Z');
+        expect(b.rows.map(r => [r.rank, r.name, !!r.me])).toEqual([[1, 'NickZ', true]]);
+        expect(b.me).toMatchObject({ rank: 1, m: 1 });
+    });
+
     it('a hidden or unknown flag: no rows, the reason only', async () => {
         const { svc } = base();
         expect(await svc.countryBoard(0, 'H')).toMatchObject({ rows: [], me: null, local: { cc: 'LT', hidden: true } });

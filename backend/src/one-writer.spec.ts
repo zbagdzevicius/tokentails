@@ -125,6 +125,7 @@ describe('one writer for game scores', () => {
                     'impact/impact.service.ts', // reads: active30d
                     'pawlegends/growth/growth.rules.ts', // reads: the comeback invite kind (inviteKindOf)
                     'pawlegends/growth/growth.service.ts', // reads: a projection for inviteKindOf
+                    'pawlegends/leaderboard/leaderboard.service.ts', // reads: the Level backfill's first `at`
                     'badcat/badcat-live.ts', // /live, Bad Cat branch: $set
                     'pawlegends/pawlegends-live.ts', // /live, Pawlegends branch: $set
                     'pawlegends/pawlegends-party-live.ts', // /live, Pawlegends party branch: $set

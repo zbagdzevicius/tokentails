@@ -6,7 +6,7 @@ import { countryOf, shownFlag, type FlagRow } from '../flags/flags';
 import { PawlegendsFlag } from '../flags/flags.schema';
 import { visibleFlags } from '../flags/flags.service';
 import { PawlegendsMatchHistory, PawlegendsMatchStats } from '../history/history.schema';
-import { statsId } from '../history/history.model';
+import { seasonAt, statsId } from '../history/history.model';
 import { playedOf } from '../mm/rating.schema';
 import { levelOf } from '../mode-unlocks';
 import { CURRENT_SEASON_ID, SEASONS } from '../pawlegends-catalog';
@@ -47,7 +47,9 @@ type AnyModel = any;
 export const LEVEL_TOP = 100;
 /** Rows per page on the Level and Country boards. */
 export const LEVEL_PAGE = 20;
-/** Country board: level rows read per step and at most in all. */
+/** Country board: up to this many shown flags of a country, its Level rows are read by id (one query each). */
+export const COUNTRY_IDS_MAX = 20_000;
+/** Country board, a bigger country: level rows read per step and at most in all. */
 export const COUNTRY_SCAN_STEP = 500;
 export const COUNTRY_SCAN_MAX = 20_000;
 /** Public answers live this long. */
@@ -381,8 +383,24 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
     /** The Country board's kept order (top 100 showing `cc`), cached per country. */
     private countryOrder(cc: string): Promise<LevelDoc[]> {
         return this.cached(`country|${cc}`, async () => {
+            if (!this.flagRows) return [];
+            // the country's shown flags first (index `cc, off`): every player of a small country is found, however low
+            const flagIds = (await this.flagRows
+                .find({ cc, off: { $ne: true } })
+                .select({ _id: 1 })
+                .limit(COUNTRY_IDS_MAX + 1)
+                .lean()) as Array<{ _id: string }>;
+            if (flagIds.length <= COUNTRY_IDS_MAX) {
+                if (!flagIds.length) return [];
+                const raw = (await this.levels
+                    .find({ _id: { $in: flagIds.map(f => String(f._id)) } })
+                    .sort({ m: -1, at: 1, _id: 1 })
+                    .limit(LEVEL_TOP + 60)
+                    .lean()) as LevelDoc[];
+                return (await this.keep(raw)).slice(0, LEVEL_TOP);
+            }
+            // a big country: walk the Level order and keep its flags
             const out: LevelDoc[] = [];
-            if (!this.flagRows) return out;
             for (let skip = 0; skip < COUNTRY_SCAN_MAX && out.length < LEVEL_TOP; skip += COUNTRY_SCAN_STEP) {
                 const raw = (await this.levels
                     .find({})
@@ -514,8 +532,10 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         const now = this.now();
         const week = isoWeek(now);
         const lastWeek = isoWeek(new Date(now.getTime() - 7 * 86_400_000));
-        const season = SEASONS.find(s => s.id === CURRENT_SEASON_ID)!;
-        const shared = await this.cached(`sides|${week}`, async () => {
+        // the season the match history files a match under now (history.model seasonAt), so the counter and `mine` match
+        const seasonId = seasonAt(now);
+        const season = SEASONS.find(s => s.id === seasonId) ?? SEASONS.find(s => s.id === CURRENT_SEASON_ID)!;
+        const shared = await this.cached(`sides|${season.id}|${week}`, async () => {
             const ids = ['all', `season:${season.id}`, `week:${week}`, `week:${lastWeek}`];
             const rows = (await this.sideWins.find({ _id: { $in: ids } }).lean()) as Array<{
                 _id: string;

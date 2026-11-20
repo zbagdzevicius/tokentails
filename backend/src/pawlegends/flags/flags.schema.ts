@@ -20,3 +20,5 @@ export class PawlegendsFlag {
     at: Date;
 }
 export const PawlegendsFlagSchema = SchemaFactory.createForClass(PawlegendsFlag);
+// the Leaderboards' Country board (LEADERBOARDS.md): the shown flags of one country
+PawlegendsFlagSchema.index({ cc: 1, off: 1 });
