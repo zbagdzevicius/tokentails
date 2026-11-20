@@ -819,6 +819,24 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         };
     }
 
+    /**
+     * `GET boards/countries` (public, guests too; founder Nov 20 "yes"): Top countries alone, every country by the sum of
+     * its shown players' account levels. Only the country code, the rank, the players count and the level total: no
+     * player, id or code. Cached 60 s (the same ranking the signed-in Country board reads).
+     */
+    async countriesBoard(): Promise<{ countries: { rows: CountryRowView[]; mine: null; total: number } }> {
+        const ranking = await this.countryRanking().catch(() => [] as Array<Omit<CountryRowView, 'me'>>);
+        return {
+            countries: {
+                rows: ranking
+                    .slice(0, COUNTRIES_TOP)
+                    .map(r => ({ rank: r.rank, cc: r.cc, players: r.players, levels: r.levels })),
+                mine: null,
+                total: ranking.length,
+            },
+        };
+    }
+
     /** `GET boards/sides[/me]`: Cats vs Dogs wins (season, all time, this and last week); signed in, mine too. */
     async sidesBoard(caller: string | null): Promise<SidesAnswer> {
         const now = this.now();

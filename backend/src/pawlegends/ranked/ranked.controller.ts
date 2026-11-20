@@ -10,8 +10,9 @@ import { withoutCodes } from '../social/player-codes';
  * Ranked and leaderboard reads (docs/plans/moba/SOCIAL-RANKED.md §10). `ranked/status`, `ping` (§7.11) and the global,
  * hero and weekly boards are public (60 a minute per client IP); the friends and local boards and `ranked/me` need a
  * token (Local is the caller's own country, from their flag).
- * The Leaderboards window's own boards (LEADERBOARDS.md, LeaderboardService): `level` and `sides` are public, `country`
- * needs a token (the caller's own country); `/me` adds the caller's row (and, on `sides`, their own wins by species).
+ * The Leaderboards window's own boards (LEADERBOARDS.md, LeaderboardService): `level`, `sides` and `countries` (Top
+ * countries alone: country codes and totals, no players) are public, `country` needs a token (the caller's own country);
+ * `/me` adds the caller's row (and, on `sides`, their own wins by species).
  * Nothing here writes.
  */
 
@@ -31,6 +32,8 @@ export class PawlegendsRankedController {
         const page = Math.max(0, Math.min(50, Math.floor(Number(query.page) || 0)));
         if (kind === 'level') return this.leaderboard.levelBoard(page, caller);
         if (kind === 'sides') return this.leaderboard.sidesBoard(caller);
+        // Top countries alone (no players): public, the guest's Country tab
+        if (kind === 'countries') return this.leaderboard.countriesBoard();
         if (kind === 'country') {
             if (!caller) throw needAccount();
             return this.leaderboard.countryBoard(page, caller);
@@ -65,7 +68,7 @@ export class PawlegendsRankedController {
         return this.ranked.me(String(id), !!req.user.isGuest);
     }
 
-    /** Public: global, hero, weekly, level and sides. */
+    /** Public: global, hero, weekly, level, sides and countries. */
     @Get('boards/:kind')
     async board(
         @Param('kind') kind: string,

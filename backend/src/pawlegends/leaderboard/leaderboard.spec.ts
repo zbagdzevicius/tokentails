@@ -341,6 +341,20 @@ describe('Country board', () => {
         expect(z.me?.over).toBeUndefined();
     });
 
+    it('countries (public): Top countries alone, no player, id or mark', async () => {
+        const { svc } = base();
+        expect(await svc.countriesBoard()).toEqual({
+            countries: {
+                rows: [
+                    { rank: 1, cc: 'LT', players: 3, levels: 37 },
+                    { rank: 2, cc: 'LV', players: 1, levels: 18 },
+                ],
+                mine: null,
+                total: 2,
+            },
+        });
+    });
+
     it('rankCountries: levels, then players, then the code; no flag never counts', () => {
         expect(
             rankCountries([
@@ -582,7 +596,7 @@ describe('Cats vs Dogs', () => {
 });
 
 describe('routes (GET /pawlegends/boards/:kind[/me])', () => {
-    it('level and sides are public, country needs an account, ranked kinds go to RankedService', async () => {
+    it('level, sides and countries are public, country needs an account, ranked kinds go to RankedService', async () => {
         const { PawlegendsRankedController } = await import('../ranked/ranked.controller');
         const calls: string[] = [];
         const ranked = { board: async (k: string) => (calls.push(`ranked:${k}`), { k }) } as any;
@@ -590,11 +604,13 @@ describe('routes (GET /pawlegends/boards/:kind[/me])', () => {
             levelBoard: async (p: number, c: string | null) => (calls.push(`level:${p}:${c}`), {}),
             sidesBoard: async (c: string | null) => (calls.push(`sides:${c}`), {}),
             countryBoard: async (p: number, c: string) => (calls.push(`country:${p}:${c}`), {}),
+            countriesBoard: async () => (calls.push('countries'), {}),
         } as any;
         const ctl = new PawlegendsRankedController(ranked, { consume: async () => undefined } as any, lb);
         await ctl.board('level', { page: '2' }, {}, {});
         await ctl.board('sides', {}, {}, {});
         await ctl.board('global', {}, {}, {});
+        await ctl.board('countries', {}, {}, {});
         await expect(ctl.board('country', {}, {}, {})).rejects.toMatchObject({ status: 403 });
         const req = { user: { _id: 'A' } };
         await ctl.boardMe('country', { page: '1' }, req, {});
@@ -605,6 +621,7 @@ describe('routes (GET /pawlegends/boards/:kind[/me])', () => {
             'level:2:null',
             'sides:null',
             'ranked:global',
+            'countries',
             'country:1:A',
             'level:0:A',
             'sides:A',
