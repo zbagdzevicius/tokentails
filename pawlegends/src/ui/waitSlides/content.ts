@@ -135,10 +135,12 @@ export const TIP_SLIDES: readonly Slide[] = Object.freeze([
   tip('t-shutdown', 'End the streak', `Knock out a hero on a takedown streak for ${FISH.shutdownPerStreak} bonus Fish per takedown, up to ${FISH.shutdownMax}.`, 'hunt', { minLv: 3 }),
   // src: data/xp.ts RESPAWN.base, perLevel (late Sunset stretches it: data/timeline.ts LATE_SUNSET)
   tip('t-respawn', 'Falling costs time', `Early on a knockout costs ${sec(RESPAWN.base)} s plus ${sec(RESPAWN.perLevel)} s per level. Late in the match the wait grows a lot.`, 'nap', { minLv: 2 }),
-  // src: data/xp.ts NINE_LIVES (no hero loses much more than a third of its HP in one second)
-  tip('t-ninelives', 'Nine Lives', `Burst has a ceiling: damage past ${pct(NINE_LIVES.lossBp)}% of your health in one second is cut by ${pct(NINE_LIVES.reduceBp)}%.`, 'shield', { minLv: 4 }),
-  // src: data/minions.ts COMEBACK
-  tip('t-underdog', 'Underdog waves', `Fall ${COMEBACK.structuresBehind} structures or ${COMEBACK.takedownsBehind} takedowns behind and your next ${COMEBACK.waves} waves get ${pct(COMEBACK.hpBp)}% more health.`, 'shield', { minLv: 4 }),
+  // src: data/xp.ts NINE_LIVES.reduceBp; sim/effects/bonus.ts nineLives (the threshold is per mode: data/bots.ts
+  // nineLivesLossBp, 40% Normal, 45% Hard and PvP, so the slide names no share)
+  tip('t-ninelives', 'Nine Lives', `Burst has a ceiling: lose a big chunk of health inside one second and the rest of that second’s damage is cut by ${pct(NINE_LIVES.reduceBp)}%.`, 'shield', { minLv: 4 }),
+  // src: data/minions.ts COMEBACK; sim/units/minion.ts checkComeback (takedowns count only without lead pressure,
+  // i.e. Rookie and Easy: every queued match counts structures only)
+  tip('t-underdog', 'Underdog waves', `Fall ${COMEBACK.structuresBehind} structures behind and your next ${COMEBACK.waves} waves get ${pct(COMEBACK.hpBp)}% more health.`, 'shield', { minLv: 4 }),
   // src: data/timeline.ts CROSSING_TIMELINE.siegeFrom, siegeEveryNthWave; data/minions.ts MINIONS.siege.towerBp
   tip('t-siege', 'Siege carts', `From ${clock(CROSSING_TIMELINE.siegeFrom)}, every ${ordinal(CROSSING_TIMELINE.siegeEveryNthWave)} wave brings a siege cart. It hits towers ${MINIONS.siege.towerBp / 10000}× as hard.`, 'charge', { minLv: 2 }),
   // src: data/timeline.ts CROSSING_TIMELINE.firstWave, waveEvery
