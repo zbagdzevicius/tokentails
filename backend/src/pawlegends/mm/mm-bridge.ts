@@ -12,6 +12,7 @@ import { clientIpKey } from '../../shared/client-ip';
 import { partySimFor, simFor, SIM_VERSION as LIVE_SIM_VERSION } from '../../vendor/pawlegends-sim';
 import type { MemberIdentity, Party, PartyService } from '../party/party.service';
 import { AFK_REASONS } from '../party/room';
+import { PARTY_LIMITS } from '../party/party-limits';
 import { PROTO_CLASSIC, PROTO_DRAFT, teamOfSlot } from '../party/net';
 import { RANKED_DRAFT } from '../ranked/draft';
 import { DEFAULT_GLICKO, growRd, seedRating, type Glicko } from './glicko2';
@@ -1677,10 +1678,26 @@ export class MmBridge implements MmHooks {
         const members = withIntel(roomEvents(lm.members, seats, endTick, now, 1000 / 30), intel);
         this.tally.mm_leaver_events += members.filter(m => m.event === 'left' || m.event === 'afk').length;
         this.tally.mm_dropped += members.filter(m => m.event === 'dropped').length;
+        const write = () => this.deps.rooms.finish(roomId, members, outcome, new Date(now), voided);
         try {
-            await this.deps.rooms.finish(roomId, members, outcome, new Date(now), voided);
+            await write();
         } catch {
             this.api.log('mm_store_failed', {});
+            // LIVE-MATCH-DEPLOYS.md §15: the write is an idempotent $set, retried in the background with backoff (the
+            // relay's own retry of onRoomEnded finds the match gone from `live` and writes nothing, review 2026-11-20)
+            const retry = (attempt: number) => {
+                const t = setTimeout(() => {
+                    write().then(
+                        () => this.api.log('mm_store_retried', { attempt }),
+                        () =>
+                            attempt < PARTY_LIMITS.persistRetries
+                                ? retry(attempt + 1)
+                                : this.api.log('mm_store_lost', {})
+                    );
+                }, PARTY_LIMITS.persistRetryBaseMs * 2 ** attempt);
+                t.unref?.();
+            };
+            retry(0);
         }
         // the leaver ladders of these identities read fresh next time
         for (const m of members) this.leaverCache.delete(m.identityHash);
