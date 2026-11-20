@@ -141,7 +141,7 @@ describe('POST /pawlegends/party/ticket (P2)', () => {
     };
     beforeEach(() => (process.env.PAWLEGENDS_PARTY_TICKET_SECRET = SECRET));
 
-    it('mints a ticket for a signed-in account and for a guest, throttled 30 per 10 min per IP', async () => {
+    it('mints a ticket for a signed-in account and for a guest, throttled 300 per 10 min per player', async () => {
         const tickets = new PartyTicketService();
         const { c, throttler } = controller(tickets);
         const signed = await c.partyTicket({ user: { _id: 'u1' } }, {});
@@ -151,7 +151,7 @@ describe('POST /pawlegends/party/ticket (P2)', () => {
         expect(throttler.consume).toHaveBeenCalledWith(
             'PawlegendsController.partyTicket',
             expect.anything(),
-            { limit: 30, ttl: 10 * 60 * 1000 },
+            { limit: 300, ttl: 10 * 60 * 1000 },
             expect.anything()
         );
     });

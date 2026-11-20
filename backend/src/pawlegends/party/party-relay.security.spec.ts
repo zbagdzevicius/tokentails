@@ -125,38 +125,38 @@ describe('party relay hardening', () => {
         await b.stop();
     });
 
-    it('failed joins back off the failing IP only: another IP still joins (no global lock)', async () => {
+    it('failed joins back off the guessing identity only: another player on the same IP still joins', async () => {
         const b = await boot();
         const leader = await b.client('10.1.0.1');
         leader.hello({ guestKey: 'victim-leader-1' });
         await leader.until(() => leader.last('welcome'));
         leader.send({ t: 'party.create', difficulty: 'easy' });
         const pv = await leader.until(() => leader.last('party'));
-        // one IP, rotating guest keys, ~210 bad codes
+        // one identity on one address, bad codes one after another past the per-identity limit
+        const g = await b.client('66.66.66.66');
+        g.hello({ guestKey: 'guesser-key-0001' });
+        await g.until(() => g.last('welcome'));
         let limited = false;
-        for (let i = 0; i < 35 && !limited; i++) {
-            const s = await b.client('66.66.66.66');
-            s.hello({ guestKey: `rot-key-${i}-xxxxxx` });
-            await s.until(() => s.last('welcome'));
-            for (let k = 0; k < 6; k++)
-                s.send({ t: 'party.join', code: `ZZZZZ${'23456789ABCDEFGHJKMNPQRSTUVWXYZ'[(i * 6 + k) % 31]}` });
-            await sleep(30);
-            limited = s.json.some(j => j.t === 'error' && j.code === 'rate_limited');
-            s.close();
+        for (let i = 0; i < 70 && !limited; i++) {
+            g.send({
+                t: 'party.join',
+                code: `ZZZZ${'23456789ABCDEFGHJKMNPQRSTUVWXYZ'[Math.floor(i / 31) % 31]}${
+                    '23456789ABCDEFGHJKMNPQRSTUVWXYZ'[i % 31]
+                }`,
+            });
+            await g.until(() => (g.json.filter(j => j.t === 'error').length > i ? true : null));
+            limited = g.json.some(j => j.t === 'error' && j.code === 'rate_limited');
+            // stay under the JSON frame budget (5 a second)
+            await sleep(210);
         }
-        // the per-IP rule caught it (a new guest key does not reset it)
         expect(limited).toBe(true);
-        const again = await b.client('66.66.66.66');
-        again.hello({ guestKey: 'fresh-key-00001' });
-        await again.until(() => again.last('welcome'));
-        again.send({ t: 'party.join', code: pv.code });
-        expect((await again.until(() => again.last('error'))).code).toBe('rate_limited');
-        // an innocent player elsewhere joins at once
-        const victim = await b.client('10.2.0.9');
-        victim.hello({ guestKey: 'innocent-key-1' });
-        await victim.until(() => victim.last('welcome'));
-        victim.send({ t: 'party.join', code: pv.code });
+        // a different player behind the same address (a carrier NAT, a school) joins at once
+        const neighbour = await b.client('66.66.66.66');
+        neighbour.hello({ guestKey: 'neighbour-key-01' });
+        await neighbour.until(() => neighbour.last('welcome'));
+        neighbour.send({ t: 'party.join', code: pv.code });
         await leader.until(() => leader.last('party')?.members.length === 2);
+        expect(neighbour.json.some(j => j.t === 'error' && j.code === 'rate_limited')).toBe(false);
         await b.stop();
     });
 

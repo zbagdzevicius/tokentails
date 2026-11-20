@@ -105,16 +105,19 @@ describe('party relay (N2)', () => {
         await b.stop();
     });
 
-    it('caps sockets per identity', async () => {
+    it('caps sockets per identity: the oldest socket goes, the newest is welcomed', async () => {
         const b = await boot();
         const socks: TestClient[] = [];
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 9; i++) {
             const c = await b.client();
             c.hello({ guestKey: 'same-guest-key-123' });
+            await c.until(() => c.last('welcome'));
             socks.push(c);
         }
-        await socks[4].until(() => socks[4].closed);
-        expect(socks[4].last('error')!.code).toBe('rate_limited');
+        await socks[0].until(() => socks[0].closed);
+        expect(socks[0].closed!.code).toBe(4004);
+        expect(socks[8].closed).toBeFalsy();
+        expect(socks[8].json.some(j => j.t === 'error')).toBe(false);
         await b.stop();
     });
 
