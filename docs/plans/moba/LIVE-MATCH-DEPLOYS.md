@@ -733,6 +733,27 @@ Order:
    8 to 20 s freeze and new sessions go to the other.
 5. Rollback at any step: `APPLY=1 STEP=rollback …` (back to 2 × `all`, safe with Phase A).
 
+Status (2026-11-21):
+
+| Step | State |
+|---|---|
+| 1. Phase A backend | Live on DigitalOcean (deploy e874027b, commits 6bca601aa..6a0e77a1a). Live smoke: PROTO 9 welcome, party create and join from 2 sockets, resume after a reconnect, `mm.join` answered. On 2 × `all` a join or resume to the other instance still bounces (`party_elsewhere`/`room_elsewhere`, 0 to 5 retries each), as 15.7 says |
+| 2. PROTO 9 game | Source eb3025c0c, 6815a8557; game build 1d062ddab; Pawlegends OTA beta run started from cea9fca35 |
+| 3. `STEP=split` | Dry run validated (API: role `api`, NODE_ENV=production, ORIGIN_INGRESS, `/healthz`, 2 instances; `pawlegends-relay-a`: shard a, pool `app`, 1 instance; ingress `/pawlegends/ws` → relay-a, keep prefix). Not applied from the AI session (permission check): founder runs it, see below |
+| 4. `STEP=shard-b` | Scheduled **2026-11-27** (7 days after the PROTO 9 game), only after step 3 is live |
+
+Commands (repo root, `doctl` signed in to the account that owns app 2d200c50-57b8-4709-b5e6-f8fcc71dcdce):
+
+```sh
+STEP=split infra/digitalocean/relay-service-spec.sh            # read-only summary, validates the spec
+APPLY=1 STEP=split infra/digitalocean/relay-service-spec.sh    # now
+# then: doctl apps list-deployments 2d200c50-57b8-4709-b5e6-f8fcc71dcdce (wait for ACTIVE);
+#       curl -s https://api.tokentails.com/pawlegends/relays  -> shards [a], leader "a"
+#       curl -s https://api.tokentails.com/healthz            -> role "api" (relay-a answers on /pawlegends/ws)
+APPLY=1 STEP=shard-b infra/digitalocean/relay-service-spec.sh  # on 2026-11-27, not before
+APPLY=1 STEP=rollback infra/digitalocean/relay-service-spec.sh # any time: back to 2 x `all`
+```
+
 Cost (unverified pricing): one more `apps-s-1vcpu-1gb` component per shard, about $12 a month each.
 
 GCP: the same build runs there unchanged. The relay VM sets no shard (one relay, blue/green slots, §8); to shard it,

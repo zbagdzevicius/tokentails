@@ -10,6 +10,7 @@
 #
 # STEP=split     The relay leaves the API service:
 #                - service `tokentails-backend` becomes the stateless API: BACKEND_ROLE=api, ORIGIN_INGRESS=digitalocean,
+#                  NODE_ENV=production (a split role exits at boot when IS_PROD is set without it, backend-role.ts),
 #                  instance_count 2 (no rooms in it any more, so two instances are safe), health check /healthz;
 #                - new service `pawlegends-relay-a`: a copy of the backend service (same source, build and env) with
 #                  BACKEND_ROLE=relay, RELAY_SHARD=a, RELAY_POOL=app (it inherits today's handoffs), NODE_ENV=production,
@@ -84,7 +85,8 @@ split)
       (.services[] | select(.name == $s)) as $base
       | .services += [$base | relay("pawlegends-relay-a"; "a"; "app"; $size; "/pawlegends/ws")]
       | .services |= map(if .name == $s then
-            setenv("BACKEND_ROLE"; "api") | setenv("ORIGIN_INGRESS"; "digitalocean") | delenv("RELAY_DRAIN_MAX_MS")
+            setenv("BACKEND_ROLE"; "api") | setenv("ORIGIN_INGRESS"; "digitalocean") | setenv("NODE_ENV"; "production")
+            | delenv("RELAY_DRAIN_MAX_MS")
             | .instance_count = 2
             | .health_check = {http_path: "/healthz", initial_delay_seconds: 10, period_seconds: 10, timeout_seconds: 5,
                                failure_threshold: 6, success_threshold: 1}
