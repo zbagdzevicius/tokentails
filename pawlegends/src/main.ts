@@ -7,6 +7,7 @@ import './ui/theme/v6.css';
 import { App } from './app/app';
 import { installCrashOverlay, reportCrash, setCrashExit, setCrashHook, showCrash } from './app/crash';
 import { appGate, createAnalytics, systemProps } from './analytics/posthog';
+import { myCountry } from './social/flags';
 import { SIM_VERSION } from './sim/version';
 import { installNoZoom } from './app/noZoom';
 import { installTabGuard } from './input/tabGuard';
@@ -47,7 +48,7 @@ function start(): void {
     // The App never set its crash hook: a boot crash goes out through a bare, consent-gated analytics (R1).
     const platform = shellPlatform();
     const native = () => (window as { __PL_APP_INFO__?: { native?: string } }).__PL_APP_INFO__?.native;
-    const analytics = createAnalytics(() => ({}), null, { system: () => systemProps(platform, null), gate: () => appGate(platform, native()) });
+    const analytics = createAnalytics(() => ({}), null, { system: () => systemProps(platform, null), gate: () => appGate(platform, native()), country: () => myCountry() });
     setCrashHook((source, msg, stack_hash) => {
       analytics.track('app_error', { source, msg, screen: 'boot', tier: 'none', sim: SIM_VERSION, ...(stack_hash ? { stack_hash } : {}) });
       analytics.flush();

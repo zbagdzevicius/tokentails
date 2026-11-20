@@ -351,6 +351,8 @@ export class App {
         // $os, the app and OTA versions, the platform: never an advertising or device id
         system: () => systemProps(platform, nativeInfo(), typeof __PL_BUILD__ !== 'undefined' ? __PL_BUILD__.sha : undefined),
         gate: () => appGate(platform, nativeInfo()?.native),
+        // POSTHOG-PRIVACY.md: the country the backend gave for the flag (also when it is hidden: that is display only)
+        country: () => myCountry(),
       },
     );
     // the shell publishes the native version a moment after boot (pawlegends-app/src/shell/appInfo.ts): what waited for

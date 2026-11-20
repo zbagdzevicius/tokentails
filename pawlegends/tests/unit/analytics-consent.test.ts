@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACCOUNT_ID_RE,
   AID_KEY,
+  analyticsCountry,
   ANON_KEY,
   Analytics,
   APP_ANALYTICS_MIN_NATIVE,
@@ -29,7 +30,7 @@ const kv = () => {
 type Row = { event: string; properties: Record<string, unknown> };
 const AID = `pl_${'ab12'.repeat(8)}`;
 
-function make(o: { store?: ReturnType<typeof kv>; session?: ReturnType<typeof kv>; gate?: () => boolean | null; system?: () => Record<string, string> } = {}) {
+function make(o: { store?: ReturnType<typeof kv>; session?: ReturnType<typeof kv>; gate?: () => boolean | null; system?: () => Record<string, string>; country?: () => string | null } = {}) {
   const bodies: string[] = [];
   const store = o.store ?? kv();
   const session = o.session ?? kv();
@@ -42,6 +43,7 @@ function make(o: { store?: ReturnType<typeof kv>; session?: ReturnType<typeof kv
     now: () => 1_700_000_000_000,
     ...(o.gate ? { gate: o.gate } : {}),
     ...(o.system ? { system: o.system } : {}),
+    ...(o.country ? { country: o.country } : {}),
   });
   const rows = (): Row[] => bodies.flatMap((b) => (JSON.parse(b) as { batch: Row[] }).batch);
   return { a, bodies, rows, store, session };
@@ -269,6 +271,51 @@ describe('the native app', () => {
     a.flush();
     expect(rows()[0].properties).toMatchObject({ $os: 'iOS', $app_version: '1.2.0', ota_bundle: '20261119-abc1234' });
     expect(JSON.stringify(rows())).not.toMatch(/idfa|advertising|gaid/i);
+  });
+});
+
+describe('country (POSTHOG-PRIVACY.md: GeoIP off, our own coarse country)', () => {
+  it('every event carries the ISO country with GeoIP still off; an identified person gets it as $set', () => {
+    const { a, rows } = make({ country: () => 'LT' });
+    a.setConsent(true);
+    a.track('title_view');
+    a.flush();
+    const [anon] = rows();
+    expect(anon.properties).toMatchObject({ country: 'LT', $geoip_disable: true, $process_person_profile: false });
+    // no person for an anonymous player
+    expect(anon.properties.$set).toBeUndefined();
+    a.identify(AID);
+    a.track('match_start');
+    a.flush();
+    const [ident, start] = rows().slice(1);
+    expect(ident.event).toBe('$identify');
+    expect(ident.properties).toMatchObject({ country: 'LT', $set: { country: 'LT' } });
+    expect(start.properties).toMatchObject({ country: 'LT', $set: { country: 'LT' }, $geoip_disable: true });
+    // never an address of any kind
+    expect(JSON.stringify(rows())).not.toMatch(/\$ip|\d+\.\d+\.\d+\.\d+/);
+  });
+
+  it('read at flush time: events queued before the country arrived carry it', () => {
+    let cc: string | null = null;
+    const { a, rows } = make({ country: () => cc });
+    a.track('title_view');
+    cc = 'DE';
+    a.setConsent(true);
+    expect(rows()[0].properties.country).toBe('DE');
+  });
+
+  it('unknown, junk or a throwing source: no country at all (never a guess), and an event prop cannot fake one', () => {
+    for (const src of [() => null, () => 'XX', () => 'T1', () => 'lt', () => 'LTU', () => { throw new Error('x'); }]) {
+      const { a, rows } = make({ country: src as () => string | null });
+      a.setConsent(true);
+      a.track('title_view', { country: 'FR' });
+      a.flush();
+      expect(rows()).toHaveLength(1);
+      expect('country' in rows()[0].properties).toBe(false);
+      expect(rows()[0].properties.$set).toBeUndefined();
+    }
+    expect(analyticsCountry('LT')).toBe('LT');
+    expect(analyticsCountry(undefined)).toBeNull();
   });
 });
 

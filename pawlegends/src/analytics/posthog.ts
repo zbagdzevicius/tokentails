@@ -20,7 +20,9 @@
  * the host's first `hello` wait in the queue.
  *
  * No personal data: events carry hero, difficulty, counts and lengths only, and an anonymous random id made after
- * consent. Every event carries `human` (analytics/human.ts) so gate metrics can filter bot and headless sessions.
+ * consent. Location: PostHog's GeoIP stays off (`$geoip_disable`); events carry our own coarse `country` (ISO 3166-1
+ * alpha-2, the country the backend gave for the player's flag, social/flags.ts `myCountry`, also when the flag is
+ * hidden), and an identified player's person gets it too (`$set`). Unknown: no `country` at all, never a guess. Every event carries `human` (analytics/human.ts) so gate metrics can filter bot and headless sessions.
  * Never throws.
  */
 
@@ -182,6 +184,11 @@ export function posthogCaptureUrl(host?: string | null): string {
   return `${base}/capture/`;
 }
 
+/** A clean ISO 3166-1 alpha-2 country for analytics (`XX` and anything else: null). Pure. */
+export function analyticsCountry(v: unknown): string | null {
+  return typeof v === 'string' && /^[A-Z]{2}$/.test(v) && v !== 'XX' && v !== 'T1' ? v : null;
+}
+
 /** The capture URL of the default (US) host. */
 export const POSTHOG_CAPTURE_URL = posthogCaptureUrl(POSTHOG_US_HOST);
 export const POSTHOG_MAX_BODY = 56_000;
@@ -324,7 +331,8 @@ export function cleanProps(p: Record<string, unknown> | undefined): AnalyticsPro
  * The JSON bodies for a batch, each under POSTHOG_MAX_BODY. `distinctId` is the anonymous id; an event with `who` goes
  * under that account code with a person profile, and `$identify` links the anonymous id to it. Pure.
  */
-export function posthogBodies(key: string, distinctId: string, batch: readonly TrackedEvent[], system: Record<string, string> = {}): string[] {
+export function posthogBodies(key: string, distinctId: string, batch: readonly TrackedEvent[], system: Record<string, string> = {}, country: string | null = null): string[] {
+  const cc = analyticsCountry(country);
   const head = `{"api_key":${JSON.stringify(key)},"batch":[`;
   const out: string[] = [];
   let cur: string[] = [];
@@ -341,8 +349,12 @@ export function posthogBodies(key: string, distinctId: string, batch: readonly T
         ...(e.event === '$identify' ? { $anon_distinct_id: distinctId } : {}),
         $lib: 'pawlegends',
         $process_person_profile: !!who,
-        // no location from the network address (docs/plans/moba/POSTHOG-PRIVACY.md rule 3)
+        // no location from the network address (docs/plans/moba/POSTHOG-PRIVACY.md rule 3): our own coarse country
         $geoip_disable: true,
+        // ours only: an event prop of that name never passes (undefined is left out of the JSON)
+        country: cc ?? undefined,
+        // a person profile exists only for an identified player: country is a person property there too
+        ...(cc && who ? { $set: { country: cc } } : {}),
       },
     });
     if (row.length + head.length + 4 > POSTHOG_MAX_BODY) continue;
@@ -376,6 +388,8 @@ export interface AnalyticsOptions {
   system?: () => Record<string, string>;
   /** `appGate`: false = this page never sends (an app binary without analytics labels), null = not known yet. */
   gate?: () => boolean | null;
+  /** The player's ISO country at flush time (social/flags.ts `myCountry`), or null: then events carry none. */
+  country?: () => string | null;
 }
 
 export class Analytics {
@@ -394,6 +408,7 @@ export class Analytics {
   private readonly session: KV | null;
   private readonly system: () => Record<string, string>;
   private readonly gate: () => boolean | null;
+  private readonly country: () => string | null;
   /** The signed-in account's code (`pl_…`), or null (anonymous). */
   private aid: string | null = null;
   /** Bodies posted (tests). */
@@ -411,6 +426,7 @@ export class Analytics {
     this.session = o.session === undefined ? store('sessionStorage') : o.session;
     this.system = o.system ?? (() => ({}));
     this.gate = o.gate ?? (() => true);
+    this.country = o.country ?? (() => null);
     this.consent = readConsent(this.kv);
     if (this.relay) return;
     // what waited in this tab before a reload (first session: the landing, the first match)
@@ -592,7 +608,13 @@ export class Analytics {
       } catch {
         /* none */
       }
-      for (const body of posthogBodies(this.key, anon, batch, system)) {
+      let country: string | null = null;
+      try {
+        country = this.country();
+      } catch {
+        /* none */
+      }
+      for (const body of posthogBodies(this.key, anon, batch, system, country)) {
         this.sent++;
         void Promise.resolve(this.fetcher(this.captureUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true, credentials: 'omit', mode: 'cors' })).catch(() => undefined);
       }
@@ -652,7 +674,7 @@ export function posthogEnv(env: Record<string, unknown> = import.meta.env): { ke
 export function createAnalytics(
   common: () => AnalyticsProps,
   relay?: AnalyticsRelay | null,
-  more: Pick<AnalyticsOptions, 'system' | 'gate'> = {},
+  more: Pick<AnalyticsOptions, 'system' | 'gate' | 'country'> = {},
 ): Analytics {
   const { key, host } = posthogEnv();
   return new Analytics({ key, host, common, relay: relay ?? null, ...more });
