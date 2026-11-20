@@ -124,7 +124,7 @@ async function sweep(
   return bad;
 }
 
-const HOME_KEYS = ['.pl-home .hm-profile', '.pl-home .hm-cur', '.pl-home .hm-corner', '.pl-home .hm-left', '.pl-home .hm-slot > *', '.pl-home .hm-promo', '.pl-home .hm-plate', '.pl-home .hm-nav', '.pl-home .hm-play', '.pl-home .hm-line', '.pl-home .lb-peek', '.pl-home .lb-ver'];
+const HOME_KEYS = ['.pl-home .hm-profile', '.pl-home .hm-cur', '.pl-home .fr-rail', '.pl-home .hm-left', '.pl-home .hm-slot > *', '.pl-home .hm-promo', '.pl-home .hm-plate', '.pl-home .hm-nav', '.pl-home .hm-play', '.pl-home .hm-line', '.pl-home .lb-peek', '.pl-home .lb-ver'];
 const RESULTS_KEYS = ['.pl-results .pl-results-col', '.pl-results .pl-reward', '.pl-results .actions.pinned', '.pl-results .tt-mvp', '.pl-results .pl-tohome'];
 
 test('live overlap audit (touch): Home and a Blitz results screen', async ({ browser, baseURL }, info) => {

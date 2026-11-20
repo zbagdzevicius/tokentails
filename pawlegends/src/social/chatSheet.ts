@@ -8,6 +8,7 @@
  * DOM in place, so an arriving message never closes the phone keyboard, wipes the draft or yanks a player who scrolled
  * up. Every name and every message is set with textContent; the game never sees an account id.
  */
+import './social.css';
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import {
   CHAT_LIMITS_CLIENT,

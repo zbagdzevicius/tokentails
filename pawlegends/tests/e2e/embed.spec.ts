@@ -6,6 +6,7 @@ const PLAYED = { v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true, her
 import { SIM_VERSION } from '../../src/sim/version';
 import { EVIL, SITE, gattr, mockHost, openHost, received, recordPostTargets } from './host';
 import { limit } from '../unit/cpu-budget';
+import { openSettingsFromHome } from './openSettings';
 
 // POC.md §15 item 21, against the standalone build framed by a mock host (tests/e2e/host.ts).
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'bridge behaviour is viewport independent'));
@@ -158,7 +159,7 @@ test('NO-TOKENTAILS.md: no "Games" exit to the host\'s games page; the game neve
   await page.waitForTimeout(500);
   await expect(game.getByTestId('lobby-exit')).toHaveCount(0);
   await expect(game.locator('body')).not.toContainText(/token ?tails/i);
-  await game.locator('.pl-home [data-a="settings"]').click();
+  await openSettingsFromHome(game);
   await expect(game.locator('.pl-settings, [role="dialog"]').first()).toBeVisible();
   await expect(game.getByTestId('settings-exit')).toHaveCount(0);
   await expect(game.locator('body')).not.toContainText(/token ?tails/i);

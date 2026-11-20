@@ -60,7 +60,7 @@ function fitProblems(page: Page): Promise<string[]> {
       if (e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow !== 'ellipsis') out.push(`${sel} text spills (${e.scrollWidth} > ${e.clientWidth})`);
     }
     if (c.right > innerWidth || c.bottom > innerHeight) out.push('chip off screen');
-    for (const sel of ['.hm-cur > *', '.hm-plate', '.lb-corner > *']) {
+    for (const sel of ['.hm-cur > *', '.hm-plate', '.fr-rail']) {
       for (const n of document.querySelectorAll<HTMLElement>(sel)) {
         if (n.offsetParent === null) continue;
         const b = n.getBoundingClientRect();

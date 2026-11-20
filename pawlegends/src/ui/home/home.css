@@ -131,21 +131,8 @@ button.hm-profile:active::before { background: linear-gradient(90deg, rgb(var(--
 .hm-gem.xp { color: var(--v6-sky, #39a6ff); background: var(--v6-xp-gem, radial-gradient(circle at 35% 30%, #fff, var(--v6-sky, #39a6ff) 40%, var(--v6-sky-deep, #0d4fb8))); }
 .hm-gem.tier { color: var(--v6-logo-gold, #f7bc3c); background: radial-gradient(circle at 35% 30%, #fff, var(--hm-gold-2) 40%, var(--hm-gold-3)); }
 
-/* top right: the existing corner group (the account chip mounts here) */
-.pl-home .hm-corner { position: absolute; right: var(--hm-r); top: var(--hm-t); display: flex; gap: 8px; align-items: center; animation: hm-drop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.06s both; }
-.hm-icon {
-  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 44px; height: 44px; padding: 0;
-  border: 0; border-radius: 50%; cursor: pointer; color: var(--v6-ice, #d6ecff); background: radial-gradient(circle at 50% 30%, rgb(var(--v6-sky-deep-rgb, 13 79 184) / 0.55), var(--hm-glass) 70%);
-  box-shadow: inset 0 0 0 1.5px rgb(var(--v6-ice-rgb, 214 236 255) / 0.28), inset 0 -3px 0 rgb(var(--v6-night-rgb, 18 9 31) / 0.45), var(--v6-shadow-1, 0 4px 12px rgb(0 0 0 / 0.35));
-  font: 700 14px/1 var(--font, sans-serif);
-  transition: background var(--v6-dur-fast, 180ms) var(--v6-ease-out, ease-out), color var(--v6-dur-fast, 180ms), transform var(--v6-dur-press, 120ms) var(--v6-ease-out, ease-out);
-}
-.hm-icon.wide { width: auto; padding: 0 14px 0 10px; border-radius: var(--v6-r-s, 6px); }
-.hm-icon:hover { color: #fff; background: radial-gradient(circle at 50% 30%, var(--v6-sky, #39a6ff), var(--v6-sky-deep, #0d4fb8) 80%); }
-.hm-icon:active { transform: translateY(2px); }
-.hm-icon[aria-pressed='false'] { opacity: 0.75; color: var(--v6-muted, rgb(255 243 227 / 0.7)); }
 .hm-ico { width: 22px; height: 22px; flex: none; }
-.hm-badge, .pl-home .lb-social-badge {
+.hm-badge {
   position: absolute; top: 0; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; box-sizing: border-box;
   background: var(--v6-rose, #ff3d7f); color: #fff; font: 700 11px/16px var(--font, sans-serif); font-style: normal; text-align: center; pointer-events: none;
   box-shadow: 0 0 0 1.5px var(--hm-ink); font-variant-numeric: tabular-nums;
@@ -462,7 +449,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 @keyframes hm-shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
 
 /* leaving (PLAY): the top bar up, the nav down, the rest fades */
-.pl-home.leaving .hm-top, .pl-home.leaving .hm-corner, .pl-home.leaving .hm-cur { transform: translateY(-24px); opacity: 0; transition: opacity 0.22s ease-in, transform 0.22s ease-in; }
+.pl-home.leaving .hm-top, .pl-home.leaving .hm-cur { transform: translateY(-24px); opacity: 0; transition: opacity 0.22s ease-in, transform 0.22s ease-in; }
 .pl-home.leaving .hm-cur { transform: translate(-50%, -24px); }
 .pl-home.leaving .hm-stage { opacity: 0; transition: opacity 0.22s ease-in; }
 .pl-home.leaving .hm-nav { translate: 0 24px; opacity: 0; transition: opacity 0.22s ease-in, translate 0.22s ease-in; }
@@ -553,7 +540,7 @@ html[data-quality='low'] .pl-home .lb-peek, .pl-home.low .lb-peek { background: 
 /* ----------------------------------------------------- a settled Home (homeScreen.ts `patchHome`, `still`) */
 /* The entrance (bars drop in, the left stack slides in, PLAY pops in) plays on the first Home and the one
    after a match only: a Home redrawn under a panel, a tab switch or a data refresh stays still. Loops keep running. */
-.pl-screen.pl-home.hm-still :is(.hm-top, .hm-corner, .hm-left, .hm-stage, .hm-nav, .hm-line, .hm-qb, .hm-play, .hm-alt:not(.fresh), .lb-peek) { animation: none; }
+.pl-screen.pl-home.hm-still :is(.hm-top, .hm-left, .hm-stage, .hm-nav, .hm-line, .hm-qb, .hm-play, .hm-alt:not(.fresh), .lb-peek) { animation: none; }
 
 /* ------------------------------------------------------------------------- Low tier, reduced motion */
 .pl-home.low *, html[data-quality='low'] .pl-home * { animation: none !important; }

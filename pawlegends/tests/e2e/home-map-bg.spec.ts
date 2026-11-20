@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { serveSilhouettes } from './helpers';
 import { limit } from '../unit/cpu-budget';
+import { openSettingsFromHome } from './openSettings';
 
 // Home map backdrops (docs/plans/moba/HOME-MAP-BACKDROPS.md, founder Nov 20 "Real map backdrops that rotates"): Home
 // shows the champion standing in a real map spot (a picture from pawlegends.app, served from this checkout here), with
@@ -62,8 +63,7 @@ test('a panel over Home stops the rotation; ?mapbg= pins one spot', async ({ pag
   await page.goto('/?e2e=1&mapbgEvery=2');
   await page.waitForSelector('html[data-screen="title"] .pl-home');
   await expect(page.locator('html')).toHaveAttribute('data-map-bg-ready', '1', { timeout: limit(20_000) });
-  await page.locator('[data-a="settings"]').click();
-  await expect(page.locator('.pl-settings')).toBeVisible();
+  await openSettingsFromHome(page);
   const under = await shown(page);
   await page.waitForTimeout(5000);
   expect(await shown(page)).toBe(under);

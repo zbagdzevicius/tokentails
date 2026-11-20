@@ -3,9 +3,10 @@ import { mockHost, openHost, received } from './host';
 import { limit } from '../unit/cpu-budget';
 
 /*
- * Social (docs/plans/moba/SOCIAL-RANKED.md §14.2, §13): a signed-in returning player opens the Social sheet from the
- * lobby corner, sees friends without any scroll, and adds a friend by code; every call goes through the host as an
- * `api-request` (the game never sees a token or a URL). The host here is the mock of tests/e2e/host.ts.
+ * Social (docs/plans/moba/SOCIAL-RANKED.md §14.2, §13; friends panel Nov 20): a signed-in returning player sees friends
+ * on Home's friends panel without opening anything, and adds a friend by name from the panel's add-friend sheet; every
+ * call goes through the host as an `api-request` (the game never sees a token or a URL). The host here is the mock of
+ * tests/e2e/host.ts.
  */
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop' && info.project.name !== 'landscape', 'desktop and landscape only'));
 
@@ -21,7 +22,7 @@ const social = {
   rev: 'r1',
 };
 
-test('Social sheet: friends with presence, add a friend by code through the host', async ({ context, page, baseURL }) => {
+test('friends panel: friends with presence on Home, add a friend by name through the host', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, {
     app: { isApp: false, store: true },
     signedIn: true,
@@ -33,19 +34,15 @@ test('Social sheet: friends with presence, add a friend by code through the host
     },
   });
   const game = await openHost(page);
-  const btn = game.locator('[data-testid="lobby-social"]');
-  await expect(btn).toBeVisible({ timeout: limit(60_000) });
-  await btn.click();
-  const sheet = game.locator('.pl-social');
+  const panel = game.locator('[data-testid="home-friends"]');
+  await expect(panel.locator('[data-testid="home-friend"]')).toHaveCount(2, { timeout: limit(60_000) });
+  await expect(panel.locator('[data-testid="home-friend"]').first()).toContainText('In lobby'); // fc868b09: a friend in a party lobby reads "In lobby"
+  await game.locator('[data-testid="home-friends-add"]').click();
+  const sheet = game.locator('[data-testid="friends-sheet"]');
   await expect(sheet).toBeVisible();
-  await expect(sheet.locator('.pl-fr')).toHaveCount(2);
-  await expect(sheet.locator('.pl-fr').first()).toContainText('In lobby'); // fc868b09: a friend in a party lobby reads "In lobby"
-  // the sheet never scrolls (its list is the one scroll region)
-  expect(await sheet.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
-  await sheet.locator('[data-a="add"]').click();
-  await sheet.locator('input[name="code"]').fill('PL-CCCC-CCCC');
+  await sheet.locator('input[name="code"]').fill('Fuzzy Paws');
   await sheet.locator('form button[type="submit"]').click();
-  await expect.poll(async () => (await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'friend.add' && m.args?.code === 'PL-CCCC-CCCC')).toBe(true);
+  await expect.poll(async () => (await received(page)).some((m: any) => m.type === 'api-request' && m.op === 'friend.add' && m.args?.name === 'Fuzzy Paws')).toBe(true);
   const reqs = (await received(page)).filter((m: any) => m.type === 'api-request');
   // the game never sends a URL or a token, only allowlisted ops
   for (const r of reqs as any[]) {

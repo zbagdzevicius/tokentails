@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openSettingsFromHome } from './openSettings';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 
@@ -65,7 +66,7 @@ test('live: device match history, Settings flag toggle and version line, hidden 
     // Settings: the flag toggle and the version line
     await page.goto(`${baseURL}/?e2e=1`);
     await page.waitForSelector('html[data-screen="title"] .pl-home');
-    await page.locator('.pl-home [data-a="settings"]').tap();
+    await openSettingsFromHome(page, true);
     const flag = page.locator('[data-a="flag"]');
     await expect(flag).toBeVisible();
     notes.versionLine = (await page.locator('[data-testid="settings-version"]').innerText().catch(() => '')).trim();

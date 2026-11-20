@@ -18,7 +18,7 @@ const SIZES = [
   [1440, 900],
   [2560, 1080],
 ] as const;
-const HUD = ['.hm-profile', '.hm-cur', '.hm-corner', '.hm-left', '.hm-slot > *', '.hm-promo', '.hm-plate', '.hm-nav', '.hm-play', '.hm-line', '.lb-peek', '.lb-ver'];
+const HUD = ['.hm-profile', '.hm-cur', '.hm-left', '.hm-slot > *', '.hm-promo', '.hm-plate', '.hm-nav', '.hm-play', '.hm-line', '.lb-peek', '.lb-ver', '.fr-rail'];
 
 async function seed(page: Page, hero: string, side: 'cat' | 'dog'): Promise<void> {
   await page.addInitScript((v) => {

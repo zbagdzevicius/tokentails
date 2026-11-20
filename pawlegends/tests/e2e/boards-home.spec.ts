@@ -136,7 +136,7 @@ async function checkPlacement(game: Frame, name: string): Promise<void> {
   expect(Math.abs(join.x - c.x), `${name}: Boards lines up with Join`).toBeLessThanOrEqual(1);
   expect(c.y, `${name}: Boards under Join`).toBeGreaterThan(join.y + join.height - 0.5);
   const others = [
-    ...(await boxes(game.locator('.hm-corner .hm-icon, .hm-corner > *'))),
+    ...(await boxes(game.locator('.fr-rail'))),
     ...(await boxes(game.locator('.hm-playc .hm-play, .hm-playc .hm-alt'))),
     ...(await boxes(game.locator('.hm-top, .hm-nav, .hm-promo'))),
   ];
@@ -182,7 +182,7 @@ test('Home Boards: Global, Country (Top countries, My country), Cats vs Dogs and
   const modal = game.locator('[data-testid="boards-modal"]');
   await expect(modal).toBeVisible();
   await expect(modal.locator('[role="dialog"][aria-modal="true"]')).toHaveAccessibleName('Leaderboards');
-  // the friends panel does not open: the boards are their own window
+  // no social window opens: the boards are their own window
   await expect(game.locator('.pl-social')).toHaveCount(0);
   await expect(modal.locator('.pl-boards-sub .pl-btn')).toHaveText(['Global', 'Country', 'Cats vs Dogs', 'Ranked']);
   // straight on Global: no extra step
@@ -251,13 +251,8 @@ test('Home Boards: Global, Country (Top countries, My country), Cats vs Dogs and
   await expect(game.locator('[data-testid="boards-modal"] [data-board="ranked"]')).toHaveAttribute('aria-pressed', 'true');
   await game.locator('.pl-boards-scrim').click({ position: { x: 4, y: 4 } });
   await expect(game.locator('[data-testid="boards-modal"]')).toHaveCount(0);
-  // the friends panel has no Recent tab, no Compact list and no leaderboards
-  await game.locator('[data-testid="lobby-social"]').click();
-  const sheet = game.locator('.pl-social');
-  await expect(sheet).toBeVisible();
-  await expect(sheet.locator('[role="tab"]')).toHaveText(['Friends', 'Clubs']);
-  await sheet.locator('[data-a="tabs-more"]').click();
-  await expect(sheet.locator('.pl-social-moremenu [data-tab="boards"], [data-testid="social-density"]')).toHaveCount(0);
+  // the friends panel (Nov 20) has no tabs and no leaderboards
+  await expect(game.locator('.fr-rail [role="tab"], .fr-rail [data-tab="boards"]')).toHaveCount(0);
 });
 
 test('Home avatar = my avatar: the same picture as Profile and the friends list, updated live', async ({ context, page, baseURL }, info) => {
@@ -269,11 +264,11 @@ test('Home avatar = my avatar: the same picture as Profile and the friends list,
   if (SHOTS) await page.screenshot({ path: join(SHOTS, `home-avatar-${info.project.name}.png`) });
   // changed elsewhere (another device, Profile): the next answer that carries it redraws Home in place
   me.av = { i: 'h:clem' };
-  await game.locator('[data-testid="lobby-social"]').click();
-  await expect(game.locator('.pl-social')).toBeVisible();
+  await game.locator('[data-testid="home-friends-add"]').click();
+  await expect(game.locator('[data-testid="friends-sheet"]')).toBeVisible();
   await expect(av).toHaveAttribute('data-av', 'h:clem');
   // no self card in the friends panel: my name and "Online" are not repeated there
-  await expect(game.locator('.pl-social-head')).not.toContainText('Zygis');
+  await expect(game.locator('.fr-rail')).not.toContainText('Zygis');
   if (SHOTS) {
     await page.waitForTimeout(500);
     await page.screenshot({ path: join(SHOTS, `social-${info.project.name}.png`) });
@@ -281,7 +276,7 @@ test('Home avatar = my avatar: the same picture as Profile and the friends list,
   me.av = { i: 'h:nova' };
 });
 
-test('Home Boards: clear of the profile, nav, PLAY and the corner icons; every tab fits at every size', async ({ context, page, baseURL }) => {
+test('Home Boards: clear of the profile, nav, PLAY and the friends panel; every tab fits at every size', async ({ context, page, baseURL }) => {
   test.skip(test.info().project.name !== 'desktop', 'sizes are set here');
   const game = await home(context, page, baseURL!);
   await expect(game.locator('[data-testid="home-boards"]')).toBeVisible({ timeout: limit(60_000) });

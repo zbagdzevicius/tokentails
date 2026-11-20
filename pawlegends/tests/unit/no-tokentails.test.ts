@@ -94,7 +94,7 @@ const home = (o: Partial<HomeScreenOpts> = {}): HomeScreenOpts => ({
   onMute: vi.fn(),
   onStore: vi.fn(),
   onSettings: vi.fn(),
-  onSocial: vi.fn(),
+  friendsOn: true,
   onCollection: vi.fn(),
   onParty: vi.fn(),
   storeOpen: true,

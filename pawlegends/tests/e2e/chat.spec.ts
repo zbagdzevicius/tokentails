@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Frame, type Locator } from '@playwright/test';
+import { expect, test, type Browser, type Frame } from '@playwright/test';
 import { mockHost, openHost, received } from './host';
 import { limit } from '../unit/cpu-budget';
 
@@ -111,15 +111,11 @@ async function signedIn(browser: Browser, baseURL: string, who: Who, srv: Return
 }
 
 /**
- * Open a DM from a friend's row: the chat icon where it shows (a mouse, or an unread thread), else the row menu's
- * Message (touch shows only the row's main action; Social sidebar redesign, Nov 18).
+ * Open a DM from Home's friends panel (Nov 20): the friend's row opens their Player Card, whose Message opens the thread.
  */
-async function openDm(row: Locator): Promise<void> {
-  const chat = row.locator('[data-a="chat"]');
-  if (await chat.isVisible()) return chat.click();
-  await row.locator('.pl-fr-main').click();
-  // the menu sits under the row with a mouse, or is a bottom sheet in the panel on touch
-  await row.locator('xpath=ancestor::aside[contains(@class,"pl-social")]').locator('[data-testid="social-row-menu"] [role="menuitem"][data-a="chat"]').click();
+async function openDm(game: Frame, code: string): Promise<void> {
+  await game.locator(`[data-testid="home-friend"][data-code="${code}"] .fr-main`).click({ timeout: limit(60_000) });
+  await game.locator('[data-testid="profile-message"]').click({ timeout: limit(15_000) });
 }
 
 test('two friends: a phrase and text DM, the unread badge, the reply in the open thread within 5 s; avatars on rows', async ({ browser, baseURL }, info) => {
@@ -129,12 +125,11 @@ test('two friends: a phrase and text DM, the unread badge, the reply in the open
   const a = await signedIn(browser, baseURL!, 'A', srv, vp);
   const b = await signedIn(browser, baseURL!, 'B', srv, { width: 667, height: 375 });
 
-  // A opens Social: friend rows carry avatars; Chat on Sunny's row opens the thread
-  await a.game.locator('[data-testid="lobby-social"]').click({ timeout: limit(60_000) });
-  const rowB = a.game.locator(`.pl-social-row[data-code="${CODE.B}"]`);
-  await expect(rowB).toBeVisible();
+  // A's Home: friend rows carry avatars; Sunny's row opens the Player Card, Message the thread
+  const rowB = a.game.locator(`[data-testid="home-friend"][data-code="${CODE.B}"]`);
+  await expect(rowB).toBeVisible({ timeout: limit(60_000) });
   await expect(rowB.locator('.pl-av')).toHaveCount(1);
-  await openDm(rowB);
+  await openDm(a.game, CODE.B);
   const chatA = a.game.locator('[data-testid="chat-sheet"]');
   await expect(chatA).toBeVisible();
   // 18+ and 16-17: free text (with the server filter) plus phrases
@@ -147,11 +142,9 @@ test('two friends: a phrase and text DM, the unread badge, the reply in the open
   // no document scroll: only the message list scrolls
   expect(await chatA.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
 
-  // B: the Social sheet shows the unread badge and the dot on A's row; the thread shows both messages
-  await b.game.locator('[data-testid="lobby-social"]').click({ timeout: limit(60_000) });
-  const rowA = b.game.locator(`.pl-social-row[data-code="${CODE.A}"]`);
-  await expect(rowA.locator('[data-testid="chat-unread"]')).toHaveText('2');
-  await rowA.locator('[data-a="chat"]').click();
+  // B: the friends panel's chat button shows the unread count and opens the newest unread thread with both messages
+  await expect(b.game.locator('[data-testid="home-friends-unread"]')).toHaveText('2', { timeout: limit(60_000) });
+  await b.game.locator('[data-testid="home-friends-chat"]').click();
   const chatB = b.game.locator('[data-testid="chat-sheet"]');
   await expect(chatB.locator('.pl-chat-bubble')).toHaveText([PHRASES[0], 'see you at 7']);
   expect(await chatB.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
@@ -176,8 +169,7 @@ test('an under-16 friend: phrases and stickers only on both sides', async ({ bro
   test.setTimeout(limit(300_000));
   const srv = server();
   const k = await signedIn(browser, baseURL!, 'K', srv, { width: 844, height: 390 });
-  await k.game.locator('[data-testid="lobby-social"]').click({ timeout: limit(60_000) });
-  await openDm(k.game.locator(`.pl-social-row[data-code="${CODE.A}"]`));
+  await openDm(k.game, CODE.A);
   const sheet = k.game.locator('[data-testid="chat-sheet"]');
   await expect(sheet.locator('[data-testid="chat-phrases"]')).toBeVisible();
   await expect(sheet.locator('[data-testid="chat-input"]')).toHaveCount(0);
@@ -186,8 +178,7 @@ test('an under-16 friend: phrases and stickers only on both sides', async ({ bro
   await expect(sheet.locator('.pl-chat-msg.mine .pl-chat-bubble').last()).toHaveText(PHRASES[0]);
   expect(await sheet.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
   const a = await signedIn(browser, baseURL!, 'A', srv, { width: 1280, height: 720 });
-  await a.game.locator('[data-testid="lobby-social"]').click({ timeout: limit(60_000) });
-  await openDm(a.game.locator(`.pl-social-row[data-code="${CODE.K}"]`));
+  await openDm(a.game, CODE.K);
   const sheetA = a.game.locator('[data-testid="chat-sheet"]');
   await expect(sheetA.locator('.pl-chat-bubble')).toHaveText([PHRASES[0]]);
   await expect(sheetA.locator('[data-testid="chat-input"]')).toHaveCount(0);

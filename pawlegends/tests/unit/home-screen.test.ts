@@ -370,11 +370,11 @@ describe('home patch (no rebuild under modals)', () => {
     expect(panel.classList.contains('still')).toBe(false);
   });
 
-  it('syncs the Sound switch and keeps the handlers on the new options', () => {
+  it('keeps the handlers on the new options (no Sound switch on Home since Nov 20: it is on the Profile screen)', () => {
     const onStore = vi.fn();
     const root = mount(base({ storeOpen: true, onStore: vi.fn() }));
     expect(patchHome(root, base({ storeOpen: true, onStore, muted: true }))).toBe(true);
-    expect(root.querySelector('[data-a="mute"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(root.querySelector('[data-a="mute"]')).toBeNull();
     root.querySelector<HTMLElement>('.hm-nav [data-a="store"]')!.click();
     expect(onStore).toHaveBeenCalledTimes(1);
   });

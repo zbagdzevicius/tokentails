@@ -2,11 +2,11 @@ import { expect, test, type Frame } from '@playwright/test';
 import { mockHost, openHost } from './host';
 import { limit } from '../unit/cpu-budget';
 
-// Sign-in: the account chip joins the lobby's top-right corner (ui/account.ts) while signed out; signed in, the
-// account is in Profile → Account and the corner has no chip. At the no-scroll phone sizes
-// (no-scroll.spec.ts) the corner, chip included, stays inside the viewport, keeps 40 px touch targets and never
-// covers the left column; the page still never scrolls. Signed out ("Sign in") and signed in with a long name, in
-// the web host (Games button) and the app (no Games button, isApp).
+// Sign-in on Home (friends panel, Nov 20): Home has no top-right corner any more, so no account chip mounts there.
+// Signed out, the friends panel at the top says "Sign in to add friends" with Sign in (and Profile has Sign in);
+// signed in, the account is in Profile → Account. At the no-scroll phone sizes (no-scroll.spec.ts) the panel stays
+// inside the viewport, keeps 40 px touch targets and never covers the left column; the page never scrolls. Signed out
+// and signed in with a long name, in the web host and the app (isApp).
 
 const SIZES = [
   { name: '667x375', width: 667, height: 375 },
@@ -17,7 +17,7 @@ const SIZES = [
 async function cornerProblems(game: Frame): Promise<string[]> {
   return game.evaluate(() => {
     const out: string[] = [];
-    const items = [...document.querySelectorAll<HTMLElement>('.lb-corner > *')].filter((e) => e.offsetParent !== null);
+    const items = [...document.querySelectorAll<HTMLElement>('.fr-rail .fr-head button, .fr-rail .fr-cta')].filter((e) => e.offsetParent !== null);
     for (const e of items) {
       const r = e.getBoundingClientRect();
       const label = e.getAttribute('aria-label') ?? e.className;
@@ -49,12 +49,18 @@ for (const size of SIZES) {
     ]) {
       test(variant.name, async ({ context, page, baseURL }) => {
         test.setTimeout(limit(90_000));
-        await mockHost(context, baseURL!, { app: variant.app, signedIn: variant.signedIn, name: 'Bartholomew Whiskerton' });
+        // a returning player (the friends panel is not on the first guided visit)
+        await mockHost(context, baseURL!, {
+          app: variant.app,
+          signedIn: variant.signedIn,
+          name: 'Bartholomew Whiskerton',
+          profile: { v: 1, sessions: 3, matches: 5, wins: 2, firstWinDone: true, hero: 'sage', trick: 'hiss', difficulty: 'easy', veteran: true },
+        });
         const game = await openHost(page);
         await game.waitForSelector('html[data-screen="title"] .pl-home');
-        // signed in, the account lives in Profile → Account (the avatar chip): no second chip in the corner
-        if (variant.signedIn) await expect(game.locator('[data-testid="account-chip"]')).toHaveCount(0);
-        else await expect(game.locator('[data-testid="account-chip"]')).toBeVisible();
+        // no corner chip on Home either way; signed out, the friends panel's Sign in
+        await expect(game.locator('[data-testid="account-chip"]')).toHaveCount(0);
+        if (!variant.signedIn) await expect(game.locator('[data-testid="home-friends-signin"]')).toBeVisible({ timeout: limit(20_000) });
         await game.waitForTimeout(500);
         expect(await cornerProblems(game)).toEqual([]);
       });

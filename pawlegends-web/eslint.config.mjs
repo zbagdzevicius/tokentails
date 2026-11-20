@@ -34,8 +34,6 @@ const eslintConfig = [
       "next-env.d.ts",
       // Pawlegends' Vite bundle, written by `npm run build:client` in pawlegends/. Its source is checked there.
       "public/pawlegends-game/**",
-      // The founder's rail previews (pages/preview/), the same bundle built at another base.
-      "public/preview-rail-*/**",
       "test-results/**",
       "playwright-report/**",
     ],

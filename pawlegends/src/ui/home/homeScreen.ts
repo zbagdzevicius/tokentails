@@ -8,12 +8,12 @@
  * centred, L2 rose stars and sky sparks on a canvas (motes.ts; Med/High only), L4 this UI:
  * - top left: the profile chip (avatar in its frame ring with the Season XP ring, name, XP bar, tier);
  * - top centre: Season XP and tier chips (only numbers that exist; tap opens the pass);
- * - top right (`.lb-corner`, where the account chip mounts): Friends and ranked (embedded), Settings, Sound (the old
- *   "< Games" button is gone, Nov 12: the founder found it redundant; no exit to the host's games, NO-TOKENTAILS.md);
+ * - top right: the friends panel (founder Nov 20, ui/home/friendsRail.ts; embedded only): THE friends list on Home,
+ *   always visible (phones: a strip of avatar chips under the top bar). The round Friends, Settings and Sound buttons
+ *   are gone (Nov 20): Settings and Sound live on the Profile screen (the profile chip), and in a match's pause menu;
  * - left edge: Quests (one panel: Today's quests, then the live events), # Join (a party code) and Boards (the
  *   leaderboards window), round buttons;
- * - right edge: nothing (founder Nov 19: the drop, the season and the events are told once in What's New, the comic
- *   page of ui/showcase, opened by the app over Home; their own screens stay one tap away in the nav and Quests);
+ *   The drop, the season and the events are told once in What's New (ui/showcase), opened by the app over Home;
  * - bottom: a glass nav (Heroes, Pass, Store on the web), on the first visit too with the items that need a match
  *   locked. Heroes only browses (skills, lore): it never starts a match;
  * - bottom right: the big round PLAY (the 3v3 main queue) and, once the account reaches their level, the smaller Ranked
@@ -52,6 +52,8 @@ import { bindEvents, needsTap } from '../events/eventsBind';
 import { liveopsState, onLiveops } from '../../meta/liveops';
 import type { GoalsTab } from './goalsPanel';
 import { PARTY_BUTTON_LINE, PARTY_XP_BONUS } from '../../meta/partyBonus';
+import { bindRail, placeRail, railHtml, setRailFriends, type RailFriends, type RailMeta, RAIL_META } from './friendsRail';
+import type { FriendRow } from '../../social/presence';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
@@ -107,16 +109,24 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   onYarn?(): void;
   /** Boards in the left stack, under Join (founder Nov 19): the leaderboards window. Absent: no button. */
   onBoards?(): void;
+  /** The friends panel shows (a host session: embedded only). */
+  friendsOn?: boolean;
+  /** The friends panel's list (`social.get`'s friends): null while the first answer is on its way. */
+  friends?: RailFriends;
+  /** Its header badges, a guest, my party (the invite rule). */
+  friendsMeta?: Partial<RailMeta>;
+  /** A friend's row: their Player Card. */
+  onFriendOpen?(f: FriendRow): void;
+  /** A friend's +: invite to a party (one opens when there is none). */
+  onFriendInvite?(f: FriendRow): void;
+  /** The panel's add-friend button: the add-friend sheet (add by name, requests, recent players). */
+  onAddFriend?(): void;
+  /** The panel's chat button (unread DMs). */
+  onFriendChat?(): void;
+  /** A guest's Sign in on the panel. */
+  onFriendsSignIn?(): void;
 }
 
-const GEAR =
-  '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>';
-const SPEAKER = (on: boolean): string =>
-  `<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/>${
-    on
-      ? '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
-      : '<path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
-  }</svg>`;
 const PEOPLE =
   '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2c2.4.1 4.3 1.6 4.9 4.6"/></svg>';
 const BAG = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M6 8h12l1 13H5zM9 8V6a3 3 0 0 1 6 0v2h-2V6a1 1 0 0 0-2 0v2z"/></svg>';
@@ -316,6 +326,16 @@ export function disposeHome(el: HTMLElement | null | undefined): void {
   teardown.delete(el);
 }
 
+/** Homes that carry the friends rail. */
+const railRoots = new WeakSet<HTMLElement>();
+/** New friends (a `social.get` answer) or badges for the Home on screen, drawn in place; false when it has no panel. */
+export function setHomeFriends(el: HTMLElement | null | undefined, list: RailFriends, meta?: Partial<RailMeta>): boolean {
+  if (!el?.isConnected || !railRoots.has(el)) return false;
+  setRailFriends(el.querySelector<HTMLElement>(':scope > .fr-rail'), list, meta);
+  placeRail(el);
+  return true;
+}
+
 const overlayOpen = (): boolean => !!document.querySelector('.pl-menu, [aria-modal="true"], .pl-store, .plc-meet, .pl-offer');
 
 /**
@@ -337,7 +357,7 @@ export function patchHome(el: HTMLElement | null | undefined, o: HomeScreenOpts)
 export const HOME_ENTRANCE = ['hm-drop', 'hm-slide-l', 'hm-slide-r', 'hm-rise', 'hm-rise-c', 'hm-pop-in'] as const;
 
 /**
- * The patched regions, in DOM order (the corner, the cards slot, the fx layer and the toast stay put). The release line
+ * The patched regions, in DOM order (the friends panel, the cards slot, the fx layer and the toast stay put). The release line
  * lives in Settings (s7 ui, founder Nov 15: on a phone it ran under the nav and through a champion).
  */
 const REGIONS = ['.hm-top', '.hm-left', '.hm-stage', '.hm-nav', '.hm-playc'] as const;
@@ -356,7 +376,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
   root.dataset.variants = availableQueues(o).join(' ');
   const dare = o.dare;
   const returning = !o.firstTime && !dare;
-  const layoutKey = (x: HomeScreenOpts): string => [!!x.firstTime, x.dare ? JSON.stringify(x.dare) : '', !!x.onSocial, !!x.onSettings, !!x.onJoinCode].join('|');
+  const layoutKey = (x: HomeScreenOpts): string => [!!x.firstTime, x.dare ? JSON.stringify(x.dare) : '', !!x.friendsOn, !!x.onJoinCode].join('|');
   const layout = layoutKey(o);
   let diff: Difficulty = o.last.difficulty;
   let avail = availableQueues(o);
@@ -406,17 +426,15 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     };
   };
   let shown = regionHtml();
+  // the friends panel (founder Nov 20): THE friends list on Home wherever a host session exists (not the first match)
+  const railOn = !!o.friendsOn && !o.firstTime;
   root.innerHTML = `
     <div class="hm-fx" aria-hidden="true">
       ${low || reduced ? '' : '<canvas class="hm-motes"></canvas>'}
       <i class="hm-shade"></i>
     </div>
     ${shown['.hm-top']}
-    <div class="pl-corner lb-corner hm-corner">
-      ${o.onSocial && !o.firstTime ? `<button type="button" class="hm-icon lb-social" data-a="social" data-testid="lobby-social" aria-label="Friends and ranked" title="Friends and ranked">${PEOPLE}${o.socialBadge ? `<i class="hm-badge lb-social-badge">${Math.min(9, o.socialBadge)}</i>` : ''}</button>` : ''}
-      ${o.onSettings ? `<button type="button" class="hm-icon" data-a="settings" aria-label="Settings" title="Settings">${GEAR}</button>` : ''}
-      <button type="button" class="hm-icon hm-mute" data-a="mute" aria-label="Sound" aria-pressed="${!o.muted}" title="Sound">${SPEAKER(!o.muted)}</button>
-    </div>
+    ${railOn ? railHtml(o.friends ?? null, { ...RAIL_META, ...o.friendsMeta }) : ''}
     ${shown['.hm-left']}
     <div class="hm-slot lb-cards" data-slot="cards"></div>
     ${shown['.hm-stage']}
@@ -550,7 +568,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     const t = e.target as HTMLElement;
     const btn = t.closest<HTMLElement>('[data-a]');
     const a = btn?.dataset.a;
-    if (!a || (leaving && a !== 'mute')) return;
+    if (!a || leaving) return;
     if (t.closest('.ms-overlay')) return;
     if (a === 'goals') {
       if (goalsOpen()) return closeGoals();
@@ -574,9 +592,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     else if (a === 'yarn') {
       o.sound?.('click');
       o.onYarn?.();
-    } else if (a === 'settings') o.onSettings?.();
-    else if (a === 'social') o.onSocial?.();
-    else if (a === 'boards') {
+    } else if (a === 'boards') {
       o.sound?.('click');
       o.onBoards?.();
     }
@@ -588,13 +604,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       o.sound?.('click');
       shake(btn!);
       toast(btn!.dataset.why ?? 'Locked.');
-    } else if (a === 'mute') {
-      const b = root.querySelector<HTMLElement>('[data-a="mute"]');
-      if (!b) return;
-      const nowMuted = b.getAttribute('aria-pressed') === 'true';
-      b.setAttribute('aria-pressed', String(!nowMuted));
-      b.innerHTML = SPEAKER(!nowMuted);
-      o.onMute(nowMuted);
     }
   });
   // the Quests panel closes on a tap outside it, the 3D scene included: Home's root is pointer-events:none, so a tap on
@@ -690,6 +699,44 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
     questOpeners.delete(root);
   });
   parent.appendChild(root);
+  if (railOn) {
+    const rail = root.querySelector<HTMLElement>(':scope > .fr-rail');
+    bindRail(
+      root,
+      {
+        onOpen: (f) => {
+          o.sound?.('click');
+          o.onFriendOpen?.(f);
+        },
+        onInvite: (f) => {
+          o.sound?.('click');
+          o.onFriendInvite?.(f);
+        },
+        onWhy: (f, why) => {
+          o.sound?.('click');
+          toast(`${f.name}: ${why}`);
+        },
+        onAdd: () => {
+          o.sound?.('click');
+          o.onAddFriend?.();
+        },
+        onChat: () => {
+          o.sound?.('click');
+          o.onFriendChat?.();
+        },
+        onSignIn: () => o.onFriendsSignIn?.(),
+      },
+      ac?.signal,
+    );
+    setRailFriends(rail, o.friends ?? null, { ...RAIL_META, ...o.friendsMeta });
+    railRoots.add(root);
+    const place = (): void => placeRail(root);
+    place();
+    requestAnimationFrame(place);
+    // the entrance pops PLAY in: measure again once it settled
+    setTimeout(place, 700);
+    window.addEventListener('resize', place, ac ? { signal: ac.signal, passive: true } : { passive: true });
+  }
   if (o.notice) toast(o.notice);
   /** A button that just unlocked: "New: Ranked" once (its NEW tag and pop are in the markup); the app records it. */
   function reveal(): void {
@@ -734,14 +781,13 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts & { still?: bo
       } else old?.remove();
     }
     shown = want;
+    if (railOn) {
+      const rail = root.querySelector<HTMLElement>(':scope > .fr-rail');
+      if (next.friends !== undefined) setRailFriends(rail, next.friends, next.friendsMeta);
+      placeRail(root);
+    }
     // an open Quests panel stays open across a redraw (a quest counted, an event changed)
     if (goalsWas) goals?.showGoals(root, o, true);
-    // the corner's Sound switch follows a mute changed elsewhere (Settings, the host)
-    const mute = root.querySelector<HTMLElement>('[data-a="mute"]');
-    if (mute && mute.getAttribute('aria-pressed') !== String(!o.muted)) {
-      mute.setAttribute('aria-pressed', String(!o.muted));
-      mute.innerHTML = SPEAKER(!o.muted);
-    }
     if (o.notice) toast(o.notice);
     // Back from Practice's champion select onto a Home still on screen: its map pick again
     if (o.openAt?.mode === 'practice' && returning) openPractice('back');

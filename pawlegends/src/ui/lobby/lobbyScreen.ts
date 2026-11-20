@@ -95,12 +95,6 @@ export interface LobbyScreenOpts {
   onMute(m: boolean): void;
   onStore?(): void;
   onSettings?(): void;
-  /**
-   * Social, ranked and boards (SOCIAL-RANKED.md §14.1): a 44 px people button left of Settings, with a badge (requests
-   * and invites waiting). Hidden on the first visit (the guided match only). Absent standalone (no host session).
-   */
-  onSocial?(): void;
-  socialBadge?: number;
   onCollection?(): void;
   quests?: readonly QuestView[];
   /** The stage dolly before the match loads (Lobby.playOut). */
@@ -109,9 +103,6 @@ export interface LobbyScreenOpts {
   sound?(name: 'click' | 'magic' | 'horn'): void;
 }
 
-/** Social (SOCIAL-RANKED.md §14.1): two heads, the Friends and ranked sheet. */
-const PEOPLE =
-  '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2c2.4.1 4.3 1.6 4.9 4.6"/></svg>';
 const GEAR =
   '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>';
 const SPEAKER = (on: boolean): string =>
@@ -306,7 +297,6 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     ${versionMarkHtml()}
     <div class="pl-corner lb-corner">
       ${firstHidesBadge(o) ? '' : badgeHtml(o.frame, o.title, o.portrait, id.element)}
-      ${o.onSocial && !o.firstTime ? `<button type="button" class="lb-icon lb-social" data-a="social" data-testid="lobby-social" aria-label="Friends and ranked" title="Friends and ranked">${PEOPLE}${o.socialBadge ? `<i class="lb-social-badge">${Math.min(9, o.socialBadge)}</i>` : ''}</button>` : ''}
       ${o.onSettings ? `<button type="button" class="lb-icon" data-a="settings" aria-label="Settings" title="Settings">${GEAR}</button>` : ''}
       <button type="button" class="lb-icon" data-a="mute" aria-label="Sound" aria-pressed="${!o.muted}" title="Sound">${SPEAKER(!o.muted)}</button>
     </div>`;
@@ -401,7 +391,6 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     else if (a === 'joincode') o.onJoinCode?.();
     else if (a === 'store') o.onStore?.();
     else if (a === 'settings') o.onSettings?.();
-    else if (a === 'social') o.onSocial?.();
     else if (a === 'collection') o.onCollection?.();
     else if (a === 'mute') {
       const b = root.querySelector<HTMLElement>('[data-a="mute"]');

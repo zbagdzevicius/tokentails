@@ -294,7 +294,8 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       // signed-in owners were still told "No account needed." (round 0)
       const acct = scr.querySelector<HTMLElement>('.acct');
       if (acct) acct.textContent = s.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.';
-      // sign-in: the account chip in the corner (a host answered: the web page or the app's in-page host)
+      // sign-in: the account chip in the corner (a host answered: the web page or the app's in-page host); Home has no
+      // corner since Nov 20 (sign-in there is the friends panel's and Profile's), so it mounts on the classic title only
       const model = accountModel();
       if (model && !(model.signedIn && deps.accountInProfile)) mountAccountChip(scr, model, (a) => void account(a));
       else {

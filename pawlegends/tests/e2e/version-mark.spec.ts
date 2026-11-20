@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { PROFILE_KEY } from './helpers';
 import { limit } from '../unit/cpu-budget';
+import { openSettingsFromHome } from './openSettings';
 
 // The release line (src/ui/versionMark.ts). s7 ui (founder, Nov 15): it left Home's bottom-left corner, where on a
 // phone it ran under the nav and through a champion, and now sits in Settings under the legal links. At a landscape
@@ -83,9 +84,7 @@ for (const size of SIZES) {
 }
 
 async function openSettings(page: Page, touch: boolean): Promise<void> {
-  const b = page.locator('.pl-home [data-a="settings"]').first();
-  if (touch) await b.tap();
-  else await b.click();
+  await openSettingsFromHome(page, touch);
   await page.waitForSelector('.pl-settings [data-testid="version-mark"]');
 }
 

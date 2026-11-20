@@ -680,6 +680,10 @@ Add `heroSight(m, out: Int32Array)` to `pawlegends/src/sim/server.ts`.
 
 ## 14. Client screens (phone first, no-scroll)
 
+> Nov 20: the friends sidebar (the Social sheet) is gone. Friends live in Home's always-visible friends panel; adding
+> people, requests, status and the invite gift in the add-friend sheet; per-friend actions on the Player Card; clubs in
+> the club window from Profile. See FRIENDS.md for the current design and where each old feature went.
+
 All new UI is DOM in the menu layers at the 30 fps menu pacer. Nothing renders per frame in a match. Polling stops in a match and in hidden tabs. Safe-area padding is `max(16px, env(safe-area-inset-*))`. Targets are 44 px.
 
 ### 14.1 Landing changes (`ui/lobby/lobbyScreen.ts`, `lobby.css`)

@@ -372,7 +372,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     render();
   });
   // pawlegends: lobby spec §1 — Esc closes Settings (it kept blocking clicks after Escape) and focus returns to the
-  // button that opened it (the screen under it may have been redrawn: then its Settings button)
+  // button that opened it (the screen under it may have been redrawn: then its Settings button, or Home's profile chip)
   const opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
   const close = (): void => {
     if (!root.isConnected) return;
@@ -380,7 +380,8 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     document.removeEventListener('keydown', onKey, true);
     root.remove();
     o.onClose();
-    const back = opener?.isConnected ? opener : document.querySelector<HTMLElement>('[data-a="settings"]');
+    // opened from the Profile screen (Nov 20: Home has no Settings button), which closed: back to Home's profile chip
+    const back = opener?.isConnected ? opener : (document.querySelector<HTMLElement>('[data-a="settings"]') ?? document.querySelector<HTMLElement>('.pl-home [data-a="profile"]'));
     back?.focus({ preventScroll: true });
   };
   const onKey = (e: KeyboardEvent): void => {

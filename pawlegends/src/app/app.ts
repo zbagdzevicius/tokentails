@@ -75,7 +75,7 @@ import type { Choice } from '../ui/screens';
 /** gaps5 polish 8: the champion select, the results and the pause menu are one lazy chunk (ui/screens.ts). */
 type ScreensMod = typeof import('../ui/screens');
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
-import { botsChoice, disposeHome, homeScreen, openHomeQuests, patchHome, type HomeProfile, type HomeScreenOpts } from '../ui/home/homeScreen';
+import { botsChoice, disposeHome, homeScreen, openHomeQuests, patchHome, setHomeFriends, type HomeProfile, type HomeScreenOpts } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
 import { levelInfo, shownMatches } from '../meta/accountLevel';
 import { loadCloud } from '../meta/progressCloud';
@@ -105,6 +105,7 @@ import { partyBonusPct, partyBonusXp } from '../meta/partyBonus';
 import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
+import { ASK_PHRASE, LATER, friendRowsOf, laterStep } from '../social/socialState';
 import { flagHidden, hasMatchFlags, matchFlag, myCountry, refreshMyFlag, setFlagHidden } from '../social/flags';
 import { matchPersona, matchPersonaSlots } from '../party/personas';
 import { loadMastery } from '../meta/mastery';
@@ -1139,6 +1140,8 @@ export class App {
       });
     // social (SOCIAL-RANKED.md §4.3): the title pulse starts once (it runs only while the title shows)
     this.startSocialPulse();
+    // the friends rail (founder Nov 20): its list, fetched when Home shows (at most every 15 s; the pulse refreshes it)
+    if (this.bridge.active && Date.now() - this.homeFriendsAt > 15_000) void this.refreshHomeFriends();
     const first = this.screen !== 'title' || !this.screenEl;
     // the match chunk loads in the background once the title is up (a match then starts without a fetch)
     if (!this.matchPrefetched) {
@@ -1318,14 +1321,20 @@ export class App {
           : undefined,
       onMute: (m) => this.setMuted(m),
       onStore: () => this.openStore('lobby'),
-      onSettings: () => this.openSettings(),
-      // Social, ranked and boards (SOCIAL-RANKED.md §14): through the host's session, so embedded only
-      onSocial: this.bridge.active ? () => this.openSocial() : undefined,
       // founder Nov 19: Boards under # Join opens the leaderboards window (the one way in; hidden in the first match)
       onBoards: this.bridge.active ? () => this.openBoards('home') : undefined,
       // the Profile screen (one way in: the avatar chip): yours, with the device's data where no host answers
       onProfile: () => this.openProfile(),
-      socialBadge: this.socialBadge,
+      // the friends panel (founder Nov 20): THE friends list on Home, always visible (embedded: the host's session).
+      // Settings and Sound moved to the Profile screen (the profile chip) and the match's pause menu
+      friendsOn: this.bridge.active,
+      friends: this.homeFriends,
+      friendsMeta: this.friendsMeta(),
+      onFriendOpen: (f) => this.openProfile({ code: f.code, name: f.name, av: f.av, cc: f.cc ?? null, friend: true, source: 'friends' }),
+      onFriendInvite: (f) => this.inviteAfterParty({ code: f.code, name: f.name }),
+      onAddFriend: () => this.openFriendsSheet('add'),
+      onFriendChat: () => this.openChat(null),
+      onFriendsSignIn: () => this.integration.requestSignIn('save-progress'),
       onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
       // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
       // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
@@ -1674,13 +1683,13 @@ export class App {
             // CHAT-AVATARS §2.7: report a party chat line through the host (signed-in players only)
             chatReport: (mid, kind) =>
               accountState().signedIn ? this.integration.api('chat.report', { msg: mid, kind }).then((r) => r.ok) : Promise.resolve(false),
-            // SOCIAL-INVITES.md: "Invite friends" in the lobby opens the Friends sheet over it (Invite on online rows)
-            ...(this.bridge.active ? { friends: () => this.openSocial('friends') } : {}),
+            // SOCIAL-INVITES.md: "Invite friends" in the lobby: the friends with their + (Home's panel is under it)
+            ...(this.bridge.active ? { friends: () => this.openFriendsSheet('invite') } : {}),
             // CHAT-AVATARS §5: the relay's push for a DM, so a party player sees it without waiting for a poll
             dmNotice: (thread) => {
-              if (this.social && !this.social.closed) return this.social.dmNotice(thread);
+              if (this.dm) return this.dm.dmNotice(thread);
               this.chatUnread++;
-              this.paintSocialBadge();
+              this.paintFriends();
             },
           },
           { mode, code },
@@ -1693,11 +1702,15 @@ export class App {
   }
   private partyOpening = false;
 
-  /** The Social sheet (SOCIAL-RANKED.md §14.2): one at a time, over the lobby. */
-  private social: import('../social/socialSheet').SocialSheet | null = null;
-  /** Requests and invites waiting (the lobby button's badge), from the title pulse. */
-  private socialBadge = 0;
-  /** Unread DMs (CHAT-AVATARS §6.1), added to the badge. */
+  /** The add-friend sheet (or the party lobby's invite list): one at a time (social/friendsSheet.ts). */
+  private friendsSheet: import('../social/friendsSheet').FriendsSheet | null = null;
+  /** The DM threads (social/dmHost.ts), made on first use. */
+  private dm: import('../social/dmHost').DmHost | null = null;
+  /** The club window (Profile's "Your club"). */
+  private clubs: import('../social/clubsModal').ClubsModal | null = null;
+  /** Friend requests waiting (the friends panel's add-friend badge), from `social.get`. */
+  private friendRequests = 0;
+  /** Unread DMs (CHAT-AVATARS §6.1): the friends panel's chat badge. */
   private chatUnread = 0;
   private socialPulse: ReturnType<typeof setInterval> | null = null;
   private socialRev: string | undefined;
@@ -1719,19 +1732,16 @@ export class App {
   /** Invite ids already toasted (an invite lives 60 s, SOCIAL-INVITES.md; the set is tiny). */
   private readonly socialToasted = new Set<string>();
 
-  /** The lobby's Friends button badge, in place (the title is not re-rendered for a pulse). */
-  private paintSocialBadge(): void {
-    const btn = this.root.querySelector<HTMLElement>('[data-testid="lobby-social"]');
-    if (!btn) return;
-    let b = btn.querySelector<HTMLElement>('.lb-social-badge');
-    const n = this.socialBadge + this.chatUnread;
-    if (!n) return void b?.remove();
-    if (!b) {
-      b = document.createElement('i');
-      b.className = 'lb-social-badge';
-      btn.appendChild(b);
-    }
-    b.textContent = n > 9 ? '9+' : String(n);
+  /** The friends panel's badges and invite rule: requests, unread DMs, a guest, my party. */
+  private friendsMeta(): { requests: number; unread: number; guest: boolean; myParty: string | null } {
+    const v = this.party?.state.view;
+    return { requests: this.friendRequests, unread: this.chatUnread, guest: !accountState().signedIn, myParty: v && !this.party?.state.inMatch ? v.code : null };
+  }
+
+  /** Home's friends panel, in place (the title is not re-rendered for a pulse). */
+  private paintFriends(): void {
+    if (this.screen === 'title') setHomeFriends(this.screenEl, this.homeFriends, this.friendsMeta());
+    this.friendsSheet?.refresh();
   }
 
   /**
@@ -1908,14 +1918,28 @@ export class App {
             : {}),
           ...(this.bridge.active
             ? {
-                message: (f: { code: string; name: string }) => this.openSocial(undefined, f.code),
+                message: (f: { code: string; name: string }) => this.openChat({ ...f, ...(friend?.av ? { av: friend.av } : {}) }),
                 invite: (f: { code: string; name: string }) => this.inviteAfterParty(f),
               }
             : {}),
           ...(s.storeOpen ? { openStore: (t?: StoreTab) => this.openStore('lobby', t) } : {}),
           ...(s.storeOpen ? { openPass: () => this.openPass() } : {}),
           ...(p.matches > 0 ? { openTrack: () => this.openCollection() } : {}),
-          ...(this.bridge.active ? { openSocial: (t?: 'friends' | 'clubs') => this.openSocial(t) } : {}),
+          ...(this.bridge.active && self ? { openClubs: () => this.openClubs() } : {}),
+          // founder Nov 20: Settings and Sound live on the Profile screen (Home's corner buttons are gone)
+          muted: () => sfx.isMuted,
+          onMute: (m: boolean) => this.setMuted(m),
+          ...(this.bridge.active && !self
+            ? {
+                friendRow: (code: string) => this.homeFriends?.find((f) => f.code === code) ?? null,
+                joinParty: (party: string) => this.openParty('join', party),
+                ...(this.partyApi ? { spectate: (room: string, name: string) => this.openSpectate({ room, name }) } : {}),
+                askToJoin: (f: { code: string; name: string }) => this.askToJoin(f),
+                inviteLater: (f: { code: string; name: string }, on: boolean) => this.inviteLater(f, on),
+                laterQueued: (code: string) => this.laterHas(code),
+              }
+            : {}),
+          onFriendsChanged: () => void this.refreshHomeFriends(true),
           onName: (name) => {
             setMyName(name);
           },
@@ -2026,50 +2050,165 @@ export class App {
     });
   }
 
-  private openSocial(tab?: import('../social/socialSheet').SocialTab, chatWith?: string): void {
-    if (this.social && !this.social.closed) {
-      if (chatWith) this.social.openChat(chatWith);
+  /** The friends panel's list (null until `social.get` first answers) and when it was asked. */
+  private homeFriends: import('../social/presence').FriendRow[] | null = null;
+  private homeFriendsAt = 0;
+  private homeFriendsBusy = false;
+  private homeFriendsAgain = false;
+  /** Ask `social.get` for the panel (a guest has no friends: the panel shows Sign in). `force`: after a change here. */
+  private async refreshHomeFriends(force = false): Promise<void> {
+    if (!this.bridge.active) return;
+    if (this.homeFriendsBusy) {
+      if (force) this.homeFriendsAgain = true;
       return;
     }
+    if (!accountState().signedIn) {
+      // asked again on the next Home (the host's session may land a moment later)
+      this.homeFriendsAt = 0;
+      this.homeFriends = [];
+      this.friendRequests = 0;
+      this.paintFriends();
+      return;
+    }
+    this.homeFriendsAt = Date.now();
+    this.homeFriendsBusy = true;
+    try {
+      const r = await this.api('social.get');
+      const body = r.body as { friends?: unknown; requests?: { in?: unknown[] }; chat?: { unread?: unknown } } | undefined;
+      const list = r.ok ? friendRowsOf(body?.friends) : null;
+      if (list) {
+        this.homeFriends = list;
+        this.friendRequests = Array.isArray(body?.requests?.in) ? body.requests.in.length : 0;
+        if (typeof body?.chat?.unread === 'number') this.chatUnread = Math.max(0, body.chat.unread);
+        this.runLater();
+      }
+      // no answer: the empty prompt rather than a panel waiting forever
+      else if (this.homeFriends === null) this.homeFriends = [];
+    } finally {
+      this.homeFriendsBusy = false;
+    }
+    this.paintFriends();
+    if (this.homeFriendsAgain) {
+      this.homeFriendsAgain = false;
+      void this.refreshHomeFriends();
+    }
+  }
+
+  /** Invites queued on a friend's card for after their match (socialState LATER): send or tell once they are free. */
+  private runLater(): void {
+    if (!LATER.size || !this.homeFriends) return;
+    const v = this.party?.state.view;
+    const inParty = !!v && v.phase === 'lobby' && !this.party?.state.inMatch;
+    for (const [code, q] of [...LATER]) {
+      const f = this.homeFriends.find((x) => x.code === code);
+      const step = laterStep(f?.presence, q.at, inParty);
+      if (step === 'wait') continue;
+      LATER.delete(code);
+      if (step === 'send') this.inviteAfterParty({ code, name: q.name });
+      else if (step === 'tell') void import('../social/inviteInbox').then((m) => m.lineToast(document, `${q.name} is free now: invite them from Friends`, 'invite-later-free'));
+    }
+  }
+  private inviteLater(f: { code: string; name: string }, on: boolean): void {
+    if (on) LATER.set(f.code, { name: f.name, at: Date.now() });
+    else LATER.delete(f.code);
+    this.analytics.track('party_invite' as never, { action: on ? 'later' : 'later_cancel' } as never);
+  }
+  private laterHas(code: string): boolean {
+    return LATER.has(code);
+  }
+
+  /** Ask to join a friend's closed lobby (LoL's "Ask to join"): a "Wanna play?" phrase in their DM. */
+  private async askToJoin(f: { code: string; name: string }): Promise<boolean> {
+    const open = await this.api('chat.open', { code: f.code });
+    const thread = (open.body as { thread?: string } | undefined)?.thread;
+    const r = open.ok && thread ? await this.api('chat.send', { thread, k: 'q', pid: ASK_PHRASE }) : open;
+    this.analytics.track('party_invite' as never, { action: 'ask' } as never);
+    return r.ok;
+  }
+
+  /**
+   * The add-friend sheet (friends panel's add button) or, from the party lobby, its invite list (social/friendsSheet.ts).
+   * One at a time; its own lazy chunk.
+   */
+  private openFriendsSheet(mode: import('../social/friendsSheet').FriendsSheetMode): void {
+    if (this.friendsSheet && !this.friendsSheet.closed) return;
     sfx.play('click');
-    void import('../social/socialSheet')
-      .then(({ SocialSheet }) => {
-        if (this.social && !this.social.closed) return;
-        this.social = new SocialSheet(
+    void import('../social/friendsSheet')
+      .then(({ FriendsSheet }) => {
+        if (this.friendsSheet && !this.friendsSheet.closed) return;
+        this.friendsSheet = new FriendsSheet(
           this.root,
           {
             api: (op, args) => this.api(op, args),
             signedIn: () => accountState().signedIn,
-            partyCode: () => {
-              const v = this.party?.state.view;
-              return v && v.phase === 'lobby' && !this.party?.state.inMatch ? v.code : null;
-            },
-            joinParty: (code) => this.openParty('join', code),
-            partyMode: () => (this.party && this.queueModeFor() === 'ranked' ? 'ranked' : null),
-            // SPECTATE.md: Watch on a friend's row, and the featured "Watch live" row (needs the relay)
-            ...(this.partyApi ? { watch: (target: { room: string; name: string } | { featured: true }) => this.openSpectate(target) } : {}),
             signIn: () => this.integration.requestSignIn('save-progress'),
-            // one main queue: Play Casual is PLAY (the 3v3 queue)
-            playCasual: () => {
-              if (this.screen === 'title' && !this.session && !this.party) this.startFlow({ mode: MAIN_MODE, queue: pvpKnown() === true ? 'pvp' : 'coop' });
+            openCard: (p) => this.openProfile({ code: p.code, name: p.name, av: p.av, friend: !!p.friend, source: mode === 'invite' ? 'party' : 'friends' }),
+            friends: () => this.homeFriends,
+            myParty: () => this.friendsMeta().myParty,
+            invite: (f) => this.inviteAfterParty({ code: f.code, name: f.name }),
+            ...(this.partyApi ? { watchLive: () => this.openSpectate({ featured: true }) } : {}),
+            onChanged: () => void this.refreshHomeFriends(true),
+            onClose: () => {
+              this.friendsSheet = null;
             },
-            inMatch: () => !!this.session,
-            onUnread: (n) => {
-              this.chatUnread = Math.max(0, n);
-              this.paintSocialBadge();
-            },
-            // PLAYER-CARD.md: a friend's View profile opens their Player Card (the profile, read-only) on its Overview
-            history: (friend) => this.openProfile({ ...friend, friend: true, source: 'friends' }),
-            // SOCIAL-INVITES.md: Invite with no party yet opens a party lobby, then sends it
-            inviteFriend: (friend) => this.inviteAfterParty(friend),
-            // the inviter is told when an invite runs out unanswered (accept and decline come through the inbox)
-            onInviteSent: (inv) => this.watchSentInvite(inv),
+            track: (e, p) => this.analytics.track(e as 'history_open', p),
           },
-          tab,
+          mode,
         );
-        if (chatWith) this.social.openChat(chatWith);
+        if (mode === 'invite') void this.refreshHomeFriends(true);
       })
       .catch((err: unknown) => reportCrash('window', err));
+  }
+
+  /** A DM thread (Player Card's Message, a DM toast) or, with null, the newest unread one (the panel's chat button). */
+  private openChat(friend: { code: string; name: string; av?: unknown } | null): void {
+    if (!this.bridge.active) return;
+    sfx.play('click');
+    void import('../social/dmHost')
+      .then(({ DmHost }) => {
+        if (!this.dm)
+          this.dm = new DmHost(this.root, {
+            api: (op, args) => this.api(op, args),
+            friends: () => this.homeFriends,
+            inMatch: () => !!this.session,
+            onUnread: (n) => {
+              this.chatUnread = n;
+              this.paintFriends();
+            },
+            onBlocked: () => void this.refreshHomeFriends(true),
+            track: (e, p) => this.analytics.track(e as 'history_open', p),
+          });
+        if (friend) this.dm.openWith(friend);
+        else void this.dm.openUnread();
+      })
+      .catch((err: unknown) => reportCrash('window', err));
+  }
+
+  /** The club window (Profile's "Your club" / "Find a club"). */
+  private openClubs(): void {
+    if (this.clubs && !this.clubs.closed) return;
+    void import('../social/clubsModal')
+      .then(({ ClubsModal }) => {
+        if (this.clubs && !this.clubs.closed) return;
+        this.clubs = new ClubsModal(this.root, {
+          api: (op, args) => this.api(op, args),
+          inMatch: () => !!this.session,
+          onClose: () => {
+            this.clubs = null;
+          },
+          track: (e, p) => this.analytics.track(e as 'history_open', p),
+        });
+      })
+      .catch((err: unknown) => reportCrash('window', err));
+  }
+
+  /** Close every social window (a match starts, a party link or invite moves the player). */
+  private closeSocial(): void {
+    this.friendsSheet?.dispose();
+    this.friendsSheet = null;
+    this.dm?.dispose();
+    this.clubs?.dispose();
+    this.clubs = null;
   }
 
   /**
@@ -2085,9 +2224,10 @@ export class App {
       if (!r.ok || r.status === 204 || !r.body) return;
       const body = r.body as { rev?: string; invites?: { id?: string; from?: { name?: string }; party?: string; mode?: string }[]; chat?: { unread?: number } };
       this.socialRev = typeof body.rev === 'string' ? body.rev : undefined;
-      this.socialBadge = body.invites?.length ?? 0;
+      // a presence or list change: the friends panel redraws
+      void this.refreshHomeFriends();
       this.chatUnread = typeof body.chat?.unread === 'number' ? Math.max(0, body.chat.unread) : this.chatUnread;
-      this.paintSocialBadge();
+      this.paintFriends();
       // the pulse answers "changed" on any friend's presence change too: toast each invite once, not on every change
       // (the same LoL-style card as the fast inbox, SOCIAL-INVITES.md)
       if (body.invites?.some((i) => !this.socialToasted.has(i.id || i.party || ''))) {
@@ -2167,7 +2307,8 @@ export class App {
   private inboxSkip = 0;
   private inboxZeros = 0;
   /** Invite on a friend's row with no party yet: sent once the party lobby is up (the one play path opens it). */
-  private pendingInvite: { code: string; name: string; at: number; lobbyAt: number } | null = null;
+  /** Invites waiting for a party lobby (a + on Home opens one first), sent in order once it is up. */
+  private pendingInvites: { code: string; name: string; at: number; lobbyAt: number }[] = [];
   private pendingTimer: ReturnType<typeof setInterval> | null = null;
 
   private inboxOdd = false;
@@ -2228,20 +2369,20 @@ export class App {
   private onInbox(box: import('../social/inviteInbox').Inbox, mod: typeof import('../social/inviteInbox')): void {
     const primed = this.inboxPrimed;
     this.inboxPrimed = true;
-    this.socialBadge = box.invites.length;
     if (box.chat) {
       const before = this.chatUnread;
       this.chatUnread = box.chat.unread;
       const top = box.chat.top;
       if (top && box.chat.unread > before) {
-        if (this.social && !this.social.closed) this.social.dmNotice(top.thread);
+        if (this.dm?.open) this.dm.dmNotice(top.thread);
         else if (primed && !this.playingMatch() && top.code) {
           const code = top.code;
-          mod.dmToast(document, top.fromName, top.preview, () => this.openSocial('friends', code));
+          const name = top.fromName;
+          mod.dmToast(document, top.fromName, top.preview, () => this.openChat({ code, name }));
         }
       }
     }
-    this.paintSocialBadge();
+    this.paintFriends();
     for (const a of box.answers) {
       const t = this.sentInvites.get(a.id);
       if (t) clearTimeout(t);
@@ -2347,7 +2488,7 @@ export class App {
       if (r.ok && typeof p === 'string') party = p;
     }
     if (this.playingMatch()) return;
-    if (this.social && !this.social.closed) this.social.dispose();
+    this.closeSocial();
     if (this.party) {
       if (this.party.state.view?.code === party) return void (this.party.suspended ? undefined : this.party.show());
       // LoL: accepting moves you out of the lobby you were in (Nov 19: from the party's results too)
@@ -2369,12 +2510,12 @@ export class App {
       busy: () => !!this.session || this.partyOpening || !!this.party?.state.inMatch,
       currentCode: () => this.party?.state.view?.code ?? this.party?.state.joining ?? null,
       showParty: () => {
-        if (this.social && !this.social.closed) this.social.dispose();
+        this.closeSocial();
         this.party?.show();
       },
       join: (code) => {
         this.analytics.track('party_invite' as never, { action: 'link' } as never);
-        if (this.social && !this.social.closed) this.social.dispose();
+        this.closeSocial();
         // like accepting an invite: a link moves you out of the lobby you were in
         if (this.party) this.party.leaveParty();
         this.party = null;
@@ -2394,23 +2535,36 @@ export class App {
    * the lobby is up. Gives up after 2 minutes.
    */
   private inviteAfterParty(friend: { code: string; name: string }): void {
-    this.pendingInvite = { ...friend, at: Date.now(), lobbyAt: 0 };
-    // one main queue: the party lobby opens at once (its leader queues the 3v3 queue, or Ranked)
-    this.modeChoiceNow = { mode: MAIN_MODE, queue: 'friends' };
-    if (this.screen === 'title' && !this.session) this.openParty('create');
-    if (this.pendingTimer) clearInterval(this.pendingTimer);
-    this.pendingTimer = setInterval(() => void this.flushPendingInvite(), 1_500);
+    // one entry per friend (a second tap on the same friend waits for the first)
+    if (!this.pendingInvites.some((x) => x.code === friend.code)) this.pendingInvites.push({ ...friend, at: Date.now(), lobbyAt: 0 });
+    // already in a party lobby (its Invite friends list): the invite goes out at once, the lobby's mode stays
+    const v = this.party?.state.view;
+    if (!(v && v.phase === 'lobby' && !this.party?.state.inMatch)) {
+      // one main queue: the party lobby opens at once (its leader queues the 3v3 queue, or Ranked)
+      this.modeChoiceNow = { mode: MAIN_MODE, queue: 'friends' };
+      if (this.screen === 'title' && !this.session) this.openParty('create');
+    }
+    if (!this.pendingTimer) this.pendingTimer = setInterval(() => void this.flushPendingInvite(), 1_500);
+    void this.flushPendingInvite();
   }
 
   private pendingBusy = false;
   private async flushPendingInvite(): Promise<void> {
-    const p = this.pendingInvite;
+    const p = this.pendingInvites[0];
+    let done = false;
+    // this invite is done; the timer stops with the last one
     const stop = () => {
-      this.pendingInvite = null;
+      done = true;
+      this.pendingInvites.shift();
+      if (this.pendingInvites.length) return;
       if (this.pendingTimer) clearInterval(this.pendingTimer);
       this.pendingTimer = null;
     };
-    if (!p) return stop();
+    if (!p) {
+      if (this.pendingTimer) clearInterval(this.pendingTimer);
+      this.pendingTimer = null;
+      return;
+    }
     // the party never opened (no connection, or still nothing after 2 minutes): say so, never a silent nothing
     const unreachable = this.party?.state.error?.code === 'party_unreachable' && !this.party.state.view;
     if (unreachable || Date.now() - p.at > 120_000) {
@@ -2426,7 +2580,8 @@ export class App {
     this.pendingBusy = true;
     try {
       const { buildSim, lineToast } = await import('../social/inviteInbox');
-      const r = await this.integration.api('invite.send', { to: p.code, sim: buildSim() });
+      // a Ranked party invites to Ranked (the old sidebar's rule)
+      const r = await this.integration.api('invite.send', { to: p.code, sim: buildSim(), ...(this.party && this.queueModeFor() === 'ranked' ? { mode: 'ranked' } : {}) });
       const code = (r.body as { code?: string } | undefined)?.code;
       // the relay writes the lobby's presence a moment after it opens: retry "no party" for 15 s
       if (!r.ok && code === 'PAWLEGENDS_SOCIAL_NO_PARTY' && Date.now() - p.lobbyAt < 15_000) return;
@@ -2441,7 +2596,9 @@ export class App {
             ? `Invite sent. ${p.name} is offline: they get a notification.`
             : body?.busy === 'match'
               ? `Invite sent. ${p.name} is in a match: they see it when it ends.`
-              : `Invite sent to ${p.name}`
+              : body?.busy === 'party'
+                ? `Invite sent to ${p.name}. They are in another lobby.`
+                : `Invite sent to ${p.name}`
           : `Couldn't invite ${p.name}. Try again from Friends.`,
         sent ? 'invite-sent' : 'invite-failed',
       );
@@ -2449,6 +2606,8 @@ export class App {
     } finally {
       this.pendingBusy = false;
     }
+    // the next friend in line goes now (the lobby is up)
+    if (done && this.pendingInvites.length) void this.flushPendingInvite();
   }
 
   /** PvP reports (SOCIAL-RANKED.md §8): one book per room, kept for the results screen of that room. */

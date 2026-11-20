@@ -1,0 +1,606 @@
+/* Social components (the old Social sidebar's stylesheet, Nov 18; the sidebar itself is gone since Nov 20): the DM
+   thread (chatSheet.ts), the add-friend sheet and the club window (friendsSheet.ts, clubsModal.ts: `.pl-social` frames
+   re-placed by friendsSheet.css), the invite gift, request and suggestion rows, my status card. It refines the shared
+   shell in ui/css/social.css. Every selector starts with `html`: the main stylesheet can be linked after this chunk's,
+   so equal specificity would lose to it. Rules for the sidebar's own parts (tabs, groups, row menus) were removed. */
+/* presence has its own palette (round 5): never the bolt of a primary action or the rose of an alert. Each state is a
+   hue and a shape: online a green disc, away an amber crescent, in a lobby a violet disc, in a queue a teal ring, in
+   a match a slate square, offline a faint hollow disc. Text tints are the lighter step of the same hue. */
+html .pl-social, html .pl-chat {
+  --pr-online: #3fcf7f; --pr-online-t: #79e6a6;
+  --pr-away: #f2a65a; --pr-away-t: #ffc58c;
+  --pr-lobby: #a98bff; --pr-lobby-t: #cbb8ff;
+  --pr-queue: #2fc9c0; --pr-queue-t: #7fe3dc;
+  --pr-match: #8ea3cc; --pr-match-t: #bccbe8;
+}
+html .pl-chat { --soc-st: 14px; }
+html .pl-social {
+  --soc-row: 44px; --soc-name: 15px; --soc-st: 14px; --soc-av: 32px;
+  width: min(100vw, clamp(352px, 26vw, 420px)); min-width: 0; gap: 6px;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 10px;
+  font: 600 14px/1.25 var(--font);
+}
+/* LoL density with a mouse; touch keeps 48 px rows (44 px targets plus breathing room) */
+@media (pointer: coarse) { html .pl-social { --soc-row: 48px; } }
+@media (min-width: 1600px) and (min-height: 800px) { html .pl-social { --soc-row: 50px; --soc-name: 16px; --soc-st: 15px; --soc-av: 36px; } }
+@media (max-height: 500px) { html .pl-social { gap: 4px; padding-top: max(4px, env(safe-area-inset-top)); padding-bottom: max(4px, env(safe-area-inset-bottom)); } }
+html[data-menu-text='large'] .pl-social { --soc-row: 56px; --soc-name: 17px; --soc-st: 15px; --soc-av: 36px; }
+/* a phone held upright: the panel and a DM take the whole width (no strip of game beside them) */
+@media (max-width: 480px) { html .pl-social, html .pl-chat, html .pl-chat.is-docked { width: 100vw; } }
+
+/* ── header: me, the invite gift, Add, Close (one row) ─────────────────────────────────────────────────────────── */
+html .pl-social > .pl-social-head {
+  position: relative; display: flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 0 0 2px;
+  background: none; box-shadow: none; border-radius: 0;
+}
+html .pl-social-title { flex: 1 1 auto; margin: 0 0 0 8px; font: 800 18px/1.2 var(--font); color: var(--v6-cream); }
+html .pl-head-acts { flex: none; display: flex; align-items: center; gap: 2px; margin-left: auto; }
+html .pl-social .pl-social-x { width: 44px; min-height: 44px; color: var(--v6-muted); }
+@media (hover: hover) { html .pl-social .pl-social-x:hover { color: var(--v6-cream); } }
+
+/* ── tab bar: underlined text tabs on one track (no pills), More, Search ────────────────────────────────────────── */
+
+/* the Friends tab's dot: something waits there (a request or an unread message) while another tab is open */
+
+@keyframes pl-live-pulse { 50% { opacity: 0.35; } }
+@keyframes pl-soc-pop { from { opacity: 0; transform: translateY(-4px); } }
+
+/* menu items (More, a friend's row menu) */
+html .pl-mi {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--v6-r-xs);
+  background: transparent; color: var(--v6-cream); font: 700 14px/1.2 var(--font); text-align: left; cursor: pointer;
+}
+html .pl-mi .pl-i { flex: none; color: var(--v6-muted); }
+@media (hover: hover) { html .pl-mi:hover { background: rgb(var(--v6-cream-rgb) / 0.08); } }
+html .pl-mi:active { background: rgb(var(--v6-cream-rgb) / 0.14); }
+html .pl-mi[aria-current='true'] { color: var(--v6-bolt); }
+html .pl-mi.danger, html .pl-mi.danger .pl-i { color: #ff9aa0; }
+html .pl-mi:disabled { cursor: default; color: var(--v6-faint); background: none; }
+html .pl-mi:disabled .pl-i { color: var(--v6-faint); }
+html .pl-mi > span { display: grid; gap: 2px; min-width: 0; }
+html .pl-mi > span small { color: var(--v6-muted); font: 600 14px/1.2 var(--font); }
+html .pl-mi.danger.armed { background: var(--v6-enemy); color: #fff; }
+html .pl-mi.danger.armed .pl-i { color: #fff; }
+
+/* ── the search row (opened from the tab bar) and the Add a friend card ────────────────────────────────────────── */
+
+html .pl-social-search {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; box-sizing: border-box;
+  border-radius: var(--v6-r-s); background: var(--v6-night-0); box-shadow: inset 0 0 0 1px var(--v6-line-strong); color: var(--v6-muted); cursor: text;
+}
+html .pl-social-search .pl-i { flex: none; }
+/* 16 px: iOS does not zoom into the field */
+html .pl-social-search input { flex: 1 1 auto; min-width: 0; height: 100%; padding: 0; border: 0; background: transparent; color: var(--v6-cream); font: 600 16px/1 var(--font); outline: none; }
+html .pl-social-search input::placeholder { color: rgb(var(--v6-cream-rgb) / 0.55); }
+/* one × only: the field's own clear button is off, the row's Close clears and closes */
+html .pl-social-search input::-webkit-search-cancel-button, html .pl-social-search input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }
+/* the letters a search matched, in a friend's name */
+html .pl-social .pl-hl { padding: 0; border-radius: 2px; background: rgb(var(--v6-bolt-rgb) / 0.28); color: var(--v6-cream); box-shadow: inset 0 -2px 0 var(--v6-bolt); }
+html .pl-ico {
+  flex: none; position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s);
+  background: transparent; color: var(--v6-muted); cursor: pointer; touch-action: manipulation;
+  transition: background-color var(--v6-dur-fast) var(--v6-ease-out), color var(--v6-dur-fast) var(--v6-ease-out), opacity var(--v6-dur-fast) var(--v6-ease-out);
+}
+@media (hover: hover) { html .pl-ico:hover { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); } }
+html .pl-ico:active { background: rgb(var(--v6-cream-rgb) / 0.16); }
+
+html .pl-social .pl-head-acts .pl-ico { width: 44px; }
+/* Add a friend: a card at the top of the list (the list stays under it) */
+html .pl-add-card {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 4px 0 6px; padding: 6px; border-radius: var(--v6-r-s); background: var(--v6-night-0);
+  box-shadow: inset 0 0 0 1px rgb(var(--v6-bolt-rgb) / 0.45);
+}
+html .pl-add-top { display: flex; align-items: center; gap: 4px; }
+html .pl-add-top .pl-social-search { box-shadow: inset 0 0 0 1px var(--v6-line-strong); background: var(--v6-night-2); }
+html .pl-add-top .pl-social-search .pl-i { color: var(--v6-bolt); }
+html .pl-social .pl-add-top .pl-btn { min-height: 44px; padding: 0 16px; }
+
+html .pl-social-hint { margin: 4px 6px 2px; color: var(--v6-muted); font-size: 14px; line-height: 1.35; }
+html .pl-social-suggest { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+html .pl-social-suggest:empty { display: none; }
+
+/* ── the list: the sheet's one scroll region ───────────────────────────────────────────────────────────────────── */
+html .pl-social .pl-social-body {
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; gap: 2px; padding: 0 2px 8px 0;
+  scrollbar-width: thin; scrollbar-color: var(--v6-line-strong) transparent;
+}
+
+/* the invite card (share/invite.ts): a title, one short line, the code chip and Share; folds to one line */
+html .pl-social .pl-invite-row {
+  flex: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-height: 0; margin: 0 0 6px; padding: 10px 6px 6px 12px; border-radius: var(--v6-r-s);
+  background: linear-gradient(135deg, rgb(var(--v6-rose-rgb) / 0.16), rgb(var(--v6-sky-rgb) / 0.1)); box-shadow: inset 0 0 0 1px var(--v6-line);
+}
+html .pl-inv-top { display: flex; align-items: flex-start; gap: 10px; }
+html .pl-inv-ic { flex: none; display: grid; place-items: center; width: 22px; height: 22px; color: var(--v6-bolt); }
+html .pl-inv-txt { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+html .pl-social .pl-invite-row .pl-social-name { font: 800 15px/1.25 var(--font); white-space: normal; overflow: visible; }
+html .pl-inv-sub { color: var(--v6-muted); font-size: 14px; line-height: 1.35; }
+html .pl-social .pl-inv-fold { width: 44px; margin: -10px 0 -10px 0; }
+html .pl-inv-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+html .pl-inv-code {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px dashed rgb(var(--v6-bolt-rgb) / 0.6);
+  border-radius: var(--v6-r-s); background: var(--v6-night-0); color: var(--v6-muted); font: inherit; cursor: pointer;
+}
+html .pl-inv-code small { color: var(--v6-muted); font: 700 14px/1 var(--font); }
+html .pl-inv-code b { color: var(--v6-bolt); font: 800 15px/1 var(--font); letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+@media (hover: hover) { html .pl-inv-code:hover { border-style: solid; color: var(--v6-cream); } }
+html .pl-social .pl-inv-share { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; }
+/* "Got a code? Enter it": a real secondary button (round 6), the ghost style, sized to its words */
+html .pl-social .pl-inv-have { justify-self: start; }
+html .pl-social .pl-invite-form { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 4px; background: rgb(var(--v6-bolt-rgb) / 0.08); box-shadow: none; }
+html .pl-social .pl-invite-form input { min-height: 44px; font-size: 16px; }
+
+/* groups: a sticky header with a chevron and a count */
+/* the header is opaque and above the rows (rows stack in their own layer below it): nothing shows through or on top */
+html .pl-group { display: grid; grid-template-columns: minmax(0, 1fr); }
+html .pl-group-h {
+  position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: 6px; width: 100%; min-height: 44px; margin: 0; padding: 0 8px 0 4px; box-sizing: border-box;
+  border: 0; border-radius: 0; background: var(--v6-night-2); box-shadow: 0 -2px 0 var(--v6-night-2), inset 0 -1px 0 var(--v6-line);
+  color: rgb(var(--v6-cream-rgb) / 0.78); font: 800 14px/1 var(--font); letter-spacing: 0.04em; text-transform: uppercase; text-align: left; cursor: pointer;
+}
+html .pl-group-h > .pl-i { flex: none; transition: transform var(--v6-dur-fast) var(--v6-ease-out); }
+html .pl-group-h[aria-expanded='false'] > .pl-i { transform: rotate(-90deg); }
+html .pl-group-t { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+html .pl-group-t .pl-i { flex: none; color: var(--v6-gold-2); }
+/* a heading that never folds (Friend requests, a recent match) */
+html .pl-group-h.is-static { cursor: default; }
+html .pl-group-h.is-static > .pl-i { color: var(--v6-muted); }
+html .pl-group[data-g='requests'] .pl-group-h { color: var(--v6-cream); }
+@media (hover: hover) { html .pl-group-h:hover { color: var(--v6-cream); } }
+/* count pills: 13 px on a solid fill (no faint 8 % wash) */
+html .pl-group-n {
+  margin-left: auto; min-width: 26px; padding: 4px 8px; box-sizing: border-box; border-radius: 11px; background: var(--v6-night-3, #3a2a55);
+  box-shadow: inset 0 0 0 1px var(--v6-line-strong); color: var(--v6-cream); font: 800 13px/1 var(--font); letter-spacing: 0; text-align: center; font-variant-numeric: tabular-nums;
+}
+html .pl-group[data-g='requests'] .pl-group-n { background: var(--v6-rose); box-shadow: none; color: #fff; }
+html .pl-group[data-g='online'] .pl-group-n { background: rgb(63 207 127 / 0.22); box-shadow: inset 0 0 0 1px rgb(63 207 127 / 0.55); color: var(--pr-online-t); }
+html .pl-group[data-g='match'] .pl-group-n { background: rgb(142 163 204 / 0.22); box-shadow: inset 0 0 0 1px rgb(142 163 204 / 0.55); color: var(--pr-match-t); }
+html .pl-group[data-g='fav'] .pl-group-n { background: rgb(242 193 78 / 0.2); box-shadow: inset 0 0 0 1px rgb(242 193 78 / 0.55); color: var(--v6-gold-1); }
+html .pl-group-list { position: relative; z-index: 0; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 2px 0 6px; }
+@media (max-height: 500px) {
+  html .pl-social > .pl-social-head { min-height: 44px; }
+}
+/* the scroll cue: a fade over the list's bottom edge while more rows sit below */
+html .pl-social .pl-social-body::after {
+  content: ''; position: sticky; bottom: -8px; z-index: 5; flex: none; height: 28px; margin-top: -28px; pointer-events: none;
+  background: linear-gradient(180deg, rgb(var(--v6-night-2-rgb, 36 22 58) / 0), var(--v6-night-2)); opacity: 0; transition: opacity var(--v6-dur-fast) var(--v6-ease-out);
+}
+html .pl-social.has-more .pl-social-body::after { opacity: 1; }
+@media (pointer: coarse) { html .pl-group-list { gap: 0; } }
+
+/* ── my status (founder Nov 19: no self card): a dot button in the header; the card under it ───────────────────── */
+
+html .pl-me-card {
+  flex: none; display: grid; gap: 4px; padding: 6px; border-radius: var(--v6-r-s); background: var(--v6-night-0);
+  box-shadow: inset 0 0 0 1px var(--v6-line-strong), var(--v6-shadow-2); animation: pl-soc-pop var(--v6-dur-fast) var(--v6-ease-out) both;
+}
+
+html .pl-me-card [role='radiogroup'], html .pl-me-card-acts { display: grid; gap: 2px; }
+html .pl-me-card-acts { padding-top: 4px; border-top: 1px solid var(--v6-line); }
+html .pl-me-opt { min-height: 48px; }
+html .pl-me-opt > span { flex: 1 1 auto; display: grid; gap: 2px; min-width: 0; }
+html .pl-me-opt small { color: var(--v6-muted); font: 600 14px/1.25 var(--font); }
+html .pl-me-opt .pl-dot { width: 12px; height: 12px; margin: 0 4px; }
+/* my status note: one of the presets, a native select (44 px, keyboard and screen reader for free) */
+html .pl-me-note { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 4px 6px 4px 12px; border-top: 1px solid var(--v6-line); color: var(--v6-muted); font: 700 14px/1.2 var(--font); }
+html .pl-me-note select {
+  min-width: 0; min-height: 44px; padding: 0 10px; border: 0; border-radius: var(--v6-r-s); background: var(--v6-night-2); color: var(--v6-cream);
+  box-shadow: inset 0 0 0 1px var(--v6-line-strong); font: 600 16px/1.2 var(--font); cursor: pointer;
+}
+html .pl-me-opt .pl-i { color: var(--v6-bolt); }
+html .pl-me-code { color: var(--v6-bolt); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+
+/* ── rows ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
+html .pl-social .pl-rq { position: relative; gap: 4px; min-height: var(--soc-row); padding: 0 2px 0 0; border-radius: var(--v6-r-s); }
+html .pl-social .pl-rq { gap: 10px; padding-left: 6px; }
+
+/* presence: the avatar's ring IS the status colour (its own art ring is off here), the corner dot adds a shape for
+   colour-blind players: online a disc, lobby a disc, queue a hollow ring, match a square, offline a faint hollow disc */
+html .pl-fr-av {
+  --ring: rgb(var(--v6-cream-rgb) / 0.22);
+  position: relative; flex: none; display: grid; place-items: center; width: var(--soc-av, 36px); height: var(--soc-av, 36px); border-radius: 50%;
+}
+html .pl-fr-av .pl-av { --av: var(--soc-av, 36px) !important; border: 0 !important; box-shadow: 0 0 0 2px var(--v6-night-2), 0 0 0 4px var(--ring) !important; }
+/* the portrait art has its own coloured rim: crop it, so the only ring is the presence ring */
+html .pl-fr-av .pl-av img { transform: scale(1.2); }
+html .pl-fr-av[data-state='online'] { --ring: var(--pr-online); }
+html .pl-fr-av[data-state='away'] { --ring: var(--pr-away); }
+html .pl-fr-av[data-state='party'] { --ring: var(--pr-lobby); }
+html .pl-fr-av[data-state='queue'] { --ring: var(--pr-queue); }
+html .pl-fr-av[data-state='match'] { --ring: var(--pr-match); }
+html .pl-fr-av[data-state='offline'] .pl-av { filter: grayscale(0.85) brightness(0.72); }
+html .pl-fr-av[data-state='away'] .pl-av { filter: saturate(0.6) brightness(0.88); }
+html .pl-social .pl-dot, html .pl-chat .pl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--v6-faint); box-shadow: 0 0 0 2.5px var(--v6-night-2); }
+html .pl-fr-av .pl-dot { position: absolute; right: -5px; bottom: -5px; z-index: 1; }
+html .pl-social .pl-dot[data-state='online'], html .pl-chat .pl-dot[data-state='online'] { background: var(--pr-online); }
+/* away: an amber crescent (a night bite out of the disc) */
+html .pl-social .pl-dot[data-state='away'], html .pl-chat .pl-dot[data-state='away'] { background: radial-gradient(circle at 72% 28%, var(--v6-night-2) 0 34%, transparent 36%), var(--pr-away); }
+html .pl-social .pl-dot[data-state='party'], html .pl-chat .pl-dot[data-state='party'] { background: var(--pr-lobby); }
+html .pl-social .pl-dot[data-state='queue'], html .pl-chat .pl-dot[data-state='queue'] { background: var(--v6-night-2); box-shadow: inset 0 0 0 3px var(--pr-queue), 0 0 0 2.5px var(--v6-night-2); }
+html .pl-social .pl-dot[data-state='match'], html .pl-chat .pl-dot[data-state='match'] { border-radius: 3px; background: var(--pr-match); }
+html .pl-social .pl-dot[data-state='offline'], html .pl-chat .pl-dot[data-state='offline'] { background: var(--v6-night-3); box-shadow: inset 0 0 0 2px var(--v6-faint), 0 0 0 2.5px var(--v6-night-2); }
+
+/* names keep one line, so every row is one height (LoL): a long one ends in "…" with the whole name as its tooltip
+   (fillNames), in the row menu and in the thread head; the flag keeps its gap right after the name */
+html .pl-social .pl-social-who, html .pl-chat .pl-chat-who-h { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+html .pl-social .pl-social-nm { gap: 6px; min-width: 0; }
+html .pl-social .pl-social-row .pl-social-name, html .pl-chat .pl-chat-who-h .pl-social-name {
+  flex: 0 1 auto; min-width: 0; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font: 700 var(--soc-name, 15px)/1.25 var(--font); color: var(--v6-cream);
+}
+/* the flag sits before the name: a long name ends in "…" and the flag never hides behind it */
+html .pl-social .pl-social-nm .pl-cc { flex: none; margin: 0; font-size: 14px; order: -1; }
+
+html .pl-social-line { display: flex; flex-wrap: nowrap; align-items: baseline; gap: 6px; min-width: 0; font: 600 var(--soc-st, 13px)/1.25 var(--font); color: var(--v6-muted); }
+html .pl-social .pl-social-line .pl-social-st, html .pl-chat .pl-chat-who-h .pl-social-st { flex: none; font: 600 var(--soc-st, 13px)/1.25 var(--font); color: var(--v6-muted); }
+html .pl-social .pl-social-line .pl-social-st { white-space: nowrap; }
+html .pl-social-st[data-state='online'] { color: var(--pr-online-t) !important; }
+html .pl-social-st[data-state='away'] { color: var(--pr-away-t) !important; }
+html .pl-social-st[data-state='party'] { color: var(--pr-lobby-t) !important; }
+html .pl-social-st[data-state='queue'] { color: var(--pr-queue-t) !important; }
+html .pl-social-st[data-state='match'] { color: var(--pr-match-t) !important; }
+/* an unread message: after the status on the same line (the row keeps its height), a small bubble then the text,
+   cut with an ellipsis (the thread shows it whole); the name turns bold cream, LoL's unread cue */
+
+/* a status note ("Looking for a duo"): after the status, quiet italic, cut with an ellipsis */
+
+/* trailing actions: two columns (Chat, then the row's action flush right); the right column is always there, so
+   every action lines up down the list; buttons are 40×44 with a mouse, 44×44 on touch */
+html .pl-fr-acts { --act: 44px; flex: none; display: grid; grid-template-columns: auto var(--act); align-items: center; column-gap: 2px; }
+html .pl-fr-acts .pl-act-1 { grid-column: 1; }
+html .pl-fr-acts .pl-act-2 { grid-column: 2; }
+html .pl-fr-acts .pl-ico { width: var(--act); height: 44px; }
+/* the row's one primary (Join a lobby, Accept a request): a filled bolt pill inside the full-size target */
+html .pl-fr-acts .pl-ico.is-primary { color: var(--v6-night); }
+html .pl-fr-acts .pl-ico.is-primary .pl-ic { width: 36px; height: 32px; border-radius: var(--v6-r-s); background: var(--v6-bolt); box-shadow: 0 2px 0 rgb(0 0 0 / 0.35); }
+@media (hover: hover) {
+  html .pl-fr-acts .pl-ico.is-primary:hover { background: transparent; color: var(--v6-night); }
+  html .pl-fr-acts .pl-ico.is-primary:hover .pl-ic { background: var(--v6-bolt-top, var(--v6-bolt)); }
+}
+html .pl-fr-acts .pl-ico.is-primary:active .pl-ic { transform: scale(0.94); }
+/* the unread count sits on the bubble's corner */
+html .pl-ic { position: relative; display: grid; place-items: center; }
+html .pl-ic .pl-chat-unread { top: -8px; right: -10px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; font: 800 13px/20px var(--font); }
+/* Decline: the same pill as Accept (equal weight), outlined instead of filled */
+html .pl-fr-acts .pl-ico.is-pill .pl-ic { width: 36px; height: 32px; border-radius: var(--v6-r-s); box-shadow: inset 0 0 0 1.5px var(--v6-line-strong); color: var(--v6-cream); }
+@media (hover: hover) { html .pl-fr-acts .pl-ico.is-pill:hover { background: transparent; } html .pl-fr-acts .pl-ico.is-pill:hover .pl-ic { background: rgb(var(--v6-cream-rgb) / 0.1); } }
+
+/* a mouse: Invite, Watch and a read Chat show on hover and keyboard focus (their columns stay: nothing shifts) */
+@media (hover: hover) and (pointer: fine) {
+  html .pl-fr-acts { grid-template-columns: var(--act) var(--act); }
+  
+  
+  
+}
+/* touch: 44 px targets; the row's action shows (Invite quiet, Join filled); Chat only when unread, else its column
+   closes (the name gets the room; the right column keeps every action lined up); the rest is in the row's menu */
+@media (hover: none), (pointer: coarse) {
+  html .pl-fr-acts { --act: 44px; }
+  
+}
+
+/* scrolling a row or its menu into view keeps it clear of the stuck group header (the menu keeps its row above it) */
+
+/* a friend's menu: under the row, in the list's flow */
+
+/* Invite greyed with its reason: one line across the menu */
+
+/* touch or a short screen: the menu is a bottom sheet over the panel (a scrim behind it; tap it to close) */
+
+@keyframes pl-scrim-in { from { opacity: 0; } }
+
+@keyframes pl-sheet-up { from { transform: translateY(24px); opacity: 0; } }
+
+/* the bottom sheet shows the friend as their row did: avatar with status, the name, the status line */
+
+/* ── one button system in the sheet: bolt = the one primary, ghost = quiet, rose = the one CTA of an empty state ── */
+html .pl-social .pl-btn, html .pl-chat .pl-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--v6-r-s);
+  background: var(--v6-bolt); color: var(--v6-night); text-shadow: none; box-shadow: none; font: 800 14px/1 var(--font); transform: none;
+}
+@media (hover: hover) { html .pl-social .pl-btn:hover, html .pl-chat .pl-btn:hover { background: var(--v6-bolt-top, var(--v6-bolt)); transform: none; } }
+html .pl-social .pl-btn:active, html .pl-chat .pl-btn:active { transform: scale(0.97); box-shadow: none; }
+html .pl-social .pl-btn.ghost, html .pl-chat .pl-btn.ghost { background: transparent; color: var(--v6-cream); box-shadow: inset 0 0 0 1px var(--v6-line-strong); }
+@media (hover: hover) { html .pl-social .pl-btn.ghost:hover, html .pl-chat .pl-btn.ghost:hover { background: rgb(var(--v6-cream-rgb) / 0.08); box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb) / 0.5); } }
+html .pl-social .pl-btn.ghost[aria-pressed='true'] { background: rgb(var(--v6-cream-rgb) / 0.12); box-shadow: inset 0 0 0 1px var(--v6-cream); }
+html .pl-social .pl-btn.cta { background: var(--v6-rose); color: #fff; }
+@media (hover: hover) { html .pl-social .pl-btn.cta:hover { background: var(--v6-rose-light); color: var(--v6-night); } }
+/* the invite code chip: the same quiet line as a ghost button (no dashes) */
+html .pl-social .pl-inv-code { border: 0; box-shadow: inset 0 0 0 1px var(--v6-line-strong); }
+@media (hover: hover) { html .pl-social .pl-inv-code:hover { box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb) / 0.5); } }
+
+/* ── DM thread: the list's width over it on a phone; docked beside the list on a wide screen (LoL) ──────────── */
+html .pl-chat { width: min(100vw, clamp(352px, 26vw, 420px)); }
+/* a phone held upright: the thread takes the whole width, like the list */
+@media (max-width: 480px) { html .pl-chat:not(.is-docked) { width: 100vw; } }
+/* docked: as tall as its messages (no dead space over a short thread), at most 460 px or 64 % of the screen */
+html .pl-chat.is-docked {
+  top: auto; right: min(100vw, clamp(352px, 26vw, 420px)); bottom: 0; width: 360px; height: auto; max-height: min(460px, 64vh); min-height: 220px;
+  border-radius: var(--v6-r-m, 10px) var(--v6-r-m, 10px) 0 0; box-shadow: -8px -4px 28px rgb(0 0 0 / 0.5), inset 0 0 0 1px var(--v6-line-strong);
+  padding: 8px; animation-name: pl-dock-in;
+}
+@keyframes pl-dock-in { from { opacity: 0; transform: translateY(16px); } }
+html .pl-chat.is-docked::before { display: none; }
+html .pl-chat-head { gap: 8px; }
+html .pl-chat-head .pl-fr-av { --soc-av: 36px; }
+html .pl-chat .pl-chat-back .pl-i { transform: rotate(90deg); }
+html .pl-chat .pl-ico { flex: none; position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--v6-r-s); background: transparent; color: var(--v6-muted); cursor: pointer; }
+@media (hover: hover) { html .pl-chat .pl-ico:hover { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); } }
+html .pl-chat-who-h { flex: 1 1 auto; }
+/* minimised (docked): only the head shows, like LoL's chat tab; what arrived meanwhile shows as "2 new" */
+html .pl-chat.is-docked.is-min { height: auto; min-height: 0; padding-top: 4px; padding-bottom: 4px; cursor: pointer; }
+html .pl-chat.is-min .pl-chat-menuwrap, html .pl-chat.is-min .pl-chat-list, html .pl-chat.is-min .pl-chat-foot { display: none; }
+html .pl-chat.is-min .pl-chat-head { box-shadow: none; }
+html .pl-chat-new { margin-right: 6px; padding: 1px 6px; border-radius: 9px; background: var(--v6-rose); color: #fff; font: 800 13px/1.3 var(--font); }
+/* Back's count sits beside the chevron (never drawn over it) */
+html .pl-chat .pl-chat-back.has-n { width: auto; min-width: 44px; padding: 0 8px 0 2px; display: inline-flex; gap: 2px; }
+html .pl-back-n { min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; background: var(--v6-rose); color: #fff; font: 800 13px/20px var(--font); text-align: center; font-variant-numeric: tabular-nums; }
+/* the open conversations (LoL's chat tabs): one strip over the head, avatars with status, unread counts */
+html .pl-chat-tabs { flex: none; display: flex; gap: 4px; margin: 0 0 4px; padding: 0 0 4px; overflow-x: auto; scrollbar-width: none; box-shadow: inset 0 -1px 0 var(--v6-line); }
+html .pl-chat-tabs::-webkit-scrollbar { display: none; }
+html .pl-chat-tab {
+  flex: 0 1 auto; min-width: 44px; max-width: 150px; min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; border: 0;
+  border-radius: var(--v6-r-s); background: transparent; color: var(--v6-muted); font: 700 14px/1 var(--font); cursor: pointer;
+}
+html .pl-chat-tab .pl-fr-av { --soc-av: 26px; }
+html .pl-chat-tab .pl-dot { width: 10px; height: 10px; right: -4px; bottom: -4px; }
+html .pl-chat-tab-n { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+html .pl-chat-tab[aria-selected='true'] { background: rgb(var(--v6-cream-rgb) / 0.1); color: var(--v6-cream); box-shadow: inset 0 -3px 0 var(--v6-sky); }
+html .pl-chat-tab.has-unread { color: var(--v6-cream); }
+@media (hover: hover) { html .pl-chat-tab:not([aria-selected='true']):hover { background: rgb(var(--v6-cream-rgb) / 0.06); color: var(--v6-cream); } }
+html .pl-chat-tab-u { flex: none; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; background: var(--v6-rose); color: #fff; font: 800 13px/20px var(--font); text-align: center; }
+/* the newest messages sit on the composer (a short thread does not float at the top) */
+html .pl-chat .pl-chat-list > :first-child { margin-top: auto; }
+/* time lines: the first message, a new day, or 15 minutes of quiet */
+html .pl-chat-day { align-self: center; margin: 6px 0 2px; color: var(--v6-muted); font: 700 14px/1.2 var(--font); font-variant-numeric: tabular-nums; }
+/* the composer and its notes: 14 px floor; Send a 44 px target */
+html .pl-chat .pl-chat-line, html .pl-chat .pl-chat-err { font-size: 14px; }
+html .pl-chat .pl-chat-count { font-size: 13px; }
+html .pl-chat .pl-chat-chip { font-size: 14px; }
+html .pl-chat .pl-chat-form .pl-btn { min-height: 44px; min-width: 64px; }
+/* Report sits behind a hover (mouse), a right click or a long press (touch): no "…" on every bubble */
+html .pl-chat .pl-chat-msg { position: relative; }
+html .pl-chat .pl-chat-more { opacity: 0; transition: opacity var(--v6-dur-fast) var(--v6-ease-out); }
+html .pl-chat .pl-chat-msg:hover .pl-chat-more, html .pl-chat .pl-chat-more:focus-visible, html .pl-chat .pl-chat-msg.is-reporting .pl-chat-more { opacity: 1; }
+/* touch: a tap on a friend's message shows its "…" (a 44 px target beside the bubble); a long press opens Report */
+@media (hover: none), (pointer: coarse) {
+  html .pl-chat .pl-chat-msg:not(.is-picked):not(.is-reporting) .pl-chat-more { display: none; }
+  html .pl-chat .pl-chat-msg.is-picked .pl-chat-more { opacity: 1; min-width: 44px; min-height: 44px; }
+  html .pl-chat .pl-chat-msg.is-picked .pl-chat-bubble { box-shadow: inset 0 0 0 2px var(--v6-sky), 0 2px 0 var(--v6-night-0); }
+  html .pl-chat .pl-chat-bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; cursor: pointer; }
+}
+/* the phrases button says what it is (an icon and "Phrases"; the icon alone when the window is narrow) */
+html .pl-chat .pl-chat-phr { flex: none; gap: 6px; padding: 0 10px; min-height: 44px; }
+@media (max-width: 359px) { html .pl-chat .pl-chat-phr span { display: none; } }
+
+/* the status note: in the flow under the list (it never covers a row) */
+html .pl-social .pl-social-note {
+  position: static; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; min-height: 40px;
+  box-sizing: border-box; font-size: 14px; line-height: 1.3;
+}
+
+/* empty states: a mark, one line, what to do; one rose CTA at most */
+
+/* a few friends: one quiet line and two quiet buttons under the list (it fills the empty panel) */
+
+/* Clubs (no club yet): the same type and tokens as Friends; the join field under its caption */
+html .pl-social .pl-club-intro { gap: 10px; padding: 8px 4px 4px; }
+html .pl-social .pl-club-title { margin: 0; font: 800 17px/1.2 var(--font); color: var(--v6-cream); }
+html .pl-social .pl-club-lede { margin: 0; color: var(--v6-muted); font: 600 14px/1.4 var(--font); }
+html .pl-social .pl-club-hint { margin: 6px 0 0; color: rgb(var(--v6-cream-rgb) / 0.78); font: 600 14px/1.35 var(--font); }
+html .pl-social .pl-club-make { display: flex; align-items: center; gap: 8px; }
+html .pl-social .pl-club-newname { flex: 1 1 auto; min-width: 0; font: 800 15px/1.25 var(--font); overflow-wrap: anywhere; }
+html .pl-social .pl-club-die { color: var(--v6-bolt); }
+html .pl-social .pl-club-intro .pl-club-join { display: flex; gap: 6px; margin: 0; padding: 0; background: none; box-shadow: none; }
+html .pl-social .pl-club-intro .pl-club-join input { flex: 1 1 auto; min-width: 0; min-height: 44px; font-size: 16px; }
+html .pl-social .pl-club-kt small, html .pl-social .pl-club-kudos small { font-size: 14px; }
+
+/* the old hide ladder hid status lines on short screens: they stay now (the list scrolls) */
+@media (max-height: 300px) { html .pl-social .pl-social-st { display: inline; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html .pl-me-card, html .pl-chat.is-docked { animation: none; }
+  html .pl-chat .pl-chat-more { transition: none; }
+  
+  html .pl-ico, html .pl-group-h .pl-i { transition: none; }
+}
+
+/* ── round 6 ───────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* AA contrast on the rose: night text on every rose pill, badge and CTA (white on #ff3d7f is 3.4:1, night is 5.7:1) */
+html .pl-group[data-g='requests'] .pl-group-n, html .pl-social .pl-ic .pl-chat-unread, html .pl-chat .pl-chat-new, html .pl-chat .pl-back-n,
+html .pl-chat .pl-chat-tab-u, html .pl-social .pl-btn.cta { color: var(--v6-night); }
+html .pl-social .pl-ic .pl-chat-unread { background: var(--v6-rose); }
+
+/* one row height in the list: requests and friends alike (44 px with a mouse, 48 on touch) */
+html .pl-social .pl-social-body .pl-rq { height: var(--soc-row); min-height: var(--soc-row); box-sizing: border-box; }
+html .pl-social .pl-social-body .pl-rq .pl-fr-av { margin: 0; }
+
+/* the champion a friend plays in a match, a queued invite, when we last played: after the status, not italic */
+
+/* the row menu: "Played together 2d ago · 4 games" over the actions */
+
+/* a short screen: Friend requests stand without a header (the rows say it), marked by a rose edge */
+html .pl-group.is-bare .pl-rq { box-shadow: inset 3px 0 0 var(--v6-rose); }
+html .pl-group.is-bare .pl-group-list { padding-top: 0; }
+/* a short screen: no padding around a group's rows (one more friend on the first screen) */
+@media (max-height: 500px) { html .pl-social .pl-group-list { padding: 0; } }
+
+/* touch: the row's one action names itself ("Invite", "Ask", "Watch", "Join") beside its icon */
+
+@media (hover: none), (pointer: coarse) {
+  /* a fixed right column (the longest word fits), so every action and Chat line up down the list */
+  html .pl-fr-acts { grid-template-columns: auto 88px; }
+  html .pl-fr-acts .pl-act-2 { justify-self: end; }
+  
+  /* a quiet outlined pill inside the full 44 px target */
+  
+  
+  html .pl-fr-acts .pl-ico.is-primary:not(.is-accept) { width: 88px; }
+  /* a request keeps Decline and Accept side by side, the same size (Accept flush right like every row's action) */
+  html .pl-rq .pl-fr-acts { grid-template-columns: auto 44px; }
+  html .pl-fr-acts .pl-ico.is-primary:not(.is-accept) .pl-ic { width: 84px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 6px; box-sizing: border-box; }
+}
+
+/* my status card: never past the screen. A mouse: in the flow, capped, scrolls. Touch or a short screen: a bottom
+   sheet over the panel like the row menu (a scrim behind; it scrolls when taller than the panel) */
+html .pl-me-card { max-height: min(70vh, 520px); overflow-y: auto; overscroll-behavior: contain; }
+html .pl-me-card.is-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; max-height: calc(100% - 8px); margin: 0;
+  padding: 4px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 10px; border-radius: var(--v6-r-m, 10px) var(--v6-r-m, 10px) 0 0;
+  box-shadow: 0 -1px 0 var(--v6-line-strong), 0 -12px 32px rgb(0 0 0 / 0.5); animation-name: pl-sheet-up;
+}
+
+@media (max-height: 500px) {
+  /* sideways phone: the three statuses side by side (their word only), the code and avatar side by side */
+  html .pl-me-card.is-sheet [role='radiogroup'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  html .pl-me-card.is-sheet .pl-me-opt { min-height: 44px; padding: 0 8px; gap: 6px; }
+  html .pl-me-card.is-sheet .pl-me-opt small, html .pl-me-card.is-sheet .pl-me-opt > .pl-i { display: none; }
+  html .pl-me-card.is-sheet .pl-me-opt[aria-checked='true'] { background: rgb(var(--v6-cream-rgb) / 0.1); box-shadow: inset 0 0 0 1px var(--v6-line-strong); }
+  html .pl-me-card.is-sheet .pl-me-card-acts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* no friends on a short screen: the invite first, then one compact line and Find */
+
+/* DM tabs: the selected conversation shows its whole name; the others are their avatar (status dot, unread count;
+   the name in the tooltip and label), so no name is ever cut to "Brave Mi…" */
+html .pl-chat-tab { flex: 0 0 auto; max-width: none; }
+html .pl-chat-tab[aria-selected='true'] { flex: 0 1 auto; min-width: 0; }
+html .pl-chat-tab[aria-selected='false'] { padding: 0 6px; gap: 4px; }
+html .pl-chat-tab[aria-selected='false'] .pl-chat-tab-n { display: none; }
+html .pl-chat-who-h.is-tabbed { justify-content: center; }
+
+/* ── round 7 ───────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* a request row's Tab stop is the person (never Accept): it shows focus like a friend's row */
+
+/* a row brought into view by the keyboard stops below the stuck group header (requests too) */
+html .pl-social .pl-rq { scroll-margin-top: 44px; }
+html .pl-social .pl-social-body { scroll-padding-top: 44px; }
+/* a short screen keeps the "Friend requests" heading (like every other screen), a compact 32 px one: it is a heading,
+   not a control */
+@media (max-height: 500px) {
+  html .pl-group[data-g='requests'] .pl-group-h.is-static { min-height: 28px; font-size: 14px; }
+  /* the room it takes comes back from the chrome: no gaps between the header, tabs and list; rows at the 44 px floor */
+  html .pl-social { gap: 0; --soc-row: 44px; }
+  html .pl-social .pl-social-body { gap: 0; }
+}
+
+/* touch: a row carries a trailing action only when it is time-sensitive (Join a lobby, Watch a match) or a message
+   waits; Invite and Ask live in the row's sheet (one tap on the row). No column of identical outlined buttons, and
+   the name and status get the room */
+
+/* a mouse: the row menu is a compact vertical context menu floating by its row (or at the cursor), never in the
+   list's flow; one column, the danger pair under a line */
+
+/* the bottom sheet: an odd last action spans the row (no orphan cell); a phone held upright lists them in one column */
+
+/* my status card with a mouse: a popover under the header (it never pushes the list down) */
+html .pl-me-card:not(.is-sheet) {
+  position: absolute; top: calc(max(8px, env(safe-area-inset-top)) + 50px); left: 10px; z-index: 22; width: min(340px, calc(100% - 20px));
+  max-height: calc(100% - 72px); box-shadow: inset 0 0 0 1px var(--v6-line-strong), 0 12px 32px rgb(0 0 0 / 0.55);
+}
+/* a sideways phone: the three statuses side by side, each on one line ("Appear offline" never wraps) */
+@media (max-height: 500px) {
+  html .pl-me-card.is-sheet [role='radiogroup'] { grid-template-columns: repeat(3, minmax(max-content, 1fr)); }
+  html .pl-me-card.is-sheet .pl-me-opt { justify-content: center; padding: 0 6px; gap: 6px; }
+  html .pl-me-card.is-sheet .pl-me-opt b { white-space: nowrap; }
+  html .pl-me-card.is-sheet .pl-me-opt .pl-dot { margin: 0; }
+}
+
+/* a short screen with few friends: Find and Invite pinned under the list (always above the fold) */
+
+/* ── the DM, round 7 ── */
+/* docked: a real chat window (420 × up to 500), resizable from its top-left grip; the messages sit on the composer */
+html .pl-chat.is-docked { width: 420px; height: min(500px, 62vh); max-height: none; min-height: 260px; }
+html .pl-chat.is-docked.is-min { height: auto; min-height: 0; }
+html .pl-chat.is-docked.is-sized.is-min { height: auto !important; }
+html .pl-chat-grip {
+  position: absolute; left: 0; top: 0; z-index: 3; width: 18px; height: 18px; cursor: nwse-resize; touch-action: none; border-radius: var(--v6-r-m, 10px) 0 0 0;
+  background: linear-gradient(135deg, rgb(var(--v6-cream-rgb) / 0.45) 0 2px, transparent 2px 5px, rgb(var(--v6-cream-rgb) / 0.3) 5px 7px, transparent 7px);
+}
+/* docked with tabs: the tabs are the head (one row of chrome); options, minimise and close at its end */
+html .pl-chat-head.is-strip { gap: 2px; min-height: 48px; }
+html .pl-chat-head.is-strip .pl-chat-tabs { flex: 1 1 auto; min-width: 0; margin: 0; padding: 0; box-shadow: none; }
+html .pl-chat.is-docked .pl-chat-head.is-strip > .pl-ico { width: 40px; height: 44px; }
+html .pl-chat-tab-who { display: grid; gap: 2px; min-width: 0; text-align: left; }
+html .pl-chat-tab-who .pl-chat-tab-n { color: var(--v6-cream); }
+html .pl-chat .pl-chat-tab-s { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 600 14px/1.1 var(--font); color: var(--v6-muted); }
+/* each run of messages ends with its time, on its side */
+html .pl-chat .pl-chat-time { flex-basis: 100%; margin: 0 4px; color: var(--v6-muted); font: 600 14px/1.2 var(--font); font-variant-numeric: tabular-nums; }
+html .pl-chat .pl-chat-msg.mine .pl-chat-time { text-align: right; }
+html .pl-chat .pl-chat-msg.ends-run { margin-bottom: 4px; }
+/* loading: a skeleton of the thread (three bubbles), the composer already in place (disabled) */
+html .pl-chat .pl-chat-skel { display: flex; max-width: 86%; }
+html .pl-chat .pl-chat-skel.mine { align-self: flex-end; }
+html .pl-chat .pl-chat-skel i { display: block; width: 180px; height: 34px; border-radius: var(--v6-r-l); background: linear-gradient(90deg, var(--v6-night-3) 0 40%, rgb(var(--v6-cream-rgb) / 0.1) 50%, var(--v6-night-3) 60%) 0 0 / 300% 100%; animation: pl-skel 1.2s linear infinite; }
+html .pl-chat .pl-chat-skel.mine i { width: 130px; }
+html .pl-chat .pl-chat-skel:nth-child(3) i { width: 220px; }
+@keyframes pl-skel { from { background-position: 100% 0; } to { background-position: 0 0; } }
+html .pl-chat .pl-chat-form.is-wait input { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) { html .pl-chat .pl-chat-skel i { animation: none; } }
+
+/* ── round 8 ───────────────────────────────────────────────────────────────────────────────────────────────────── */
+/* one separator everywhere on a status line ("In match · Ranked · 8m · Sage", "Teammate · Clem · 3 games", a recent
+   match's "Casual · Victory · 2h ago"): a dot with the same room on both sides, never a flex gap plus a space */
+html .pl-social .pl-social-line { gap: 0; }
+
+html .pl-group-t > span { min-width: 0; }
+
+/* the list's bottom edge names the groups still below it (LoL always shows its Offline header) */
+
+/* the bar names what is below: the fade under it is not needed too */
+
+/* the invite card: one even grid (a coat to claim and the code across, Share link and Enter a code side by side) */
+html .pl-social .pl-inv-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+html .pl-social .pl-inv-acts > .pl-inv-code, html .pl-social .pl-inv-acts > [data-a='inv-claim'], html .pl-social .pl-inv-acts.is-one > .pl-inv-share { grid-column: 1 / -1; }
+html .pl-social .pl-inv-acts > .pl-btn { min-width: 0; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+html .pl-social .pl-inv-acts .pl-inv-code { justify-content: flex-start; width: 100%; box-sizing: border-box; }
+html .pl-social .pl-inv-acts .pl-inv-code > .pl-i { margin-left: auto; }
+html .pl-social .pl-inv-acts .pl-inv-have { justify-self: stretch; }
+/* no orphan word on the card's lines ("…you both get a / coat") */
+html .pl-social .pl-inv-sub, html .pl-social .pl-invite-row .pl-social-name { text-wrap: pretty; }
+/* a short screen: the invite card is a bottom sheet over the list (it never pushes the friends below the fold) */
+
+/* no friends on a short screen: one row ("No friends yet", then Find) above the invite card */
+
+/* the row's bottom sheet: an odd count leads with its first action across the row (no lone cell at the end) */
+
+/* me: one resting style (a quiet pill), the same right after the panel opens, on hover and with keyboard focus */
+
+html .pl-me-note > span { display: grid; gap: 2px; }
+html .pl-me-note-hint { color: var(--v6-muted); font: 600 14px/1.2 var(--font); }
+
+/* touch: a free friend (online or away) carries Invite to party as one 44 px icon (one tap, like LoL's hover invite) */
+
+/* a message's menu: a small context menu by its bubble, over the thread (it never pushes the messages) */
+html .pl-chat-msgmenu {
+  position: absolute; z-index: 8; display: grid; gap: 2px; width: 232px; max-width: calc(100% - 8px); padding: 4px; box-sizing: border-box;
+  border-radius: var(--v6-r-s); background: var(--v6-night-0); box-shadow: inset 0 0 0 1px var(--v6-line-strong), 0 12px 32px rgb(0 0 0 / 0.55);
+  animation: pl-soc-pop var(--v6-dur-fast) var(--v6-ease-out) both;
+}
+html .pl-chat-msgmenu .pl-mi { min-height: 40px; padding: 0 10px; }
+@media (pointer: coarse) { html .pl-chat-msgmenu .pl-mi { min-height: 44px; } }
+html .pl-chat-msgmenu .pl-report-chip { padding-left: 36px; }
+html .pl-chat-msgmenu-h { display: flex; align-items: center; gap: 8px; margin: 4px 10px 2px; color: var(--v6-cream); font: 800 14px/1.2 var(--font); }
+html .pl-chat-msgmenu-h .pl-i { color: var(--v6-rose-light); }
+html .pl-chat-msgmenu .pl-mi-back { border-top: 1px solid var(--v6-line); }
+html .pl-chat-msgmenu .pl-mi-back .pl-i { transform: rotate(90deg); }
+html .pl-chat-msgmenu > [role='group'] { display: grid; gap: 2px; }
+@media (prefers-reduced-motion: reduce) { html .pl-chat-msgmenu { animation: none; } }
+
+/* a minimised DM: a bar on the screen's bottom edge, under the friends list (never over the HUD), which keeps room */
+html .pl-chat.is-docked.is-min {
+  right: 0 !important; bottom: 0 !important; width: min(100vw, clamp(352px, 26vw, 420px)) !important; max-height: none !important;
+  padding-bottom: max(4px, env(safe-area-inset-bottom)); box-shadow: 0 -1px 0 var(--v6-line-strong), 0 -10px 24px rgb(0 0 0 / 0.45);
+}
+html .pl-social.has-chat-tray { padding-bottom: calc(60px + max(8px, env(safe-area-inset-bottom))); }
+html .pl-chat.is-min .pl-chat-head { min-height: 48px; }
+/* a friend on a phone or tablet: a small phone mark after the name (LoL's mobile marker) */
+
+/* a message's "…" with a mouse: a 40 px target (its row keeps its height: the extra room overlaps the gaps) */
+@media (hover: hover) and (pointer: fine) { html .pl-chat .pl-chat-more { min-width: 40px; min-height: 40px; margin: -4px 0; } }
+/* a phone's DM: one row of chrome (Back, the tabs, options), tight enough that the selected friend's name stays whole */
+html .pl-chat:not(.is-docked) .pl-chat-head.is-strip { gap: 0; }
+html .pl-chat:not(.is-docked) .pl-chat-head.is-strip .pl-chat-tabs { gap: 2px; }
+html .pl-chat:not(.is-docked) .pl-chat-head.is-strip .pl-chat-tab[aria-selected='true'] { padding: 0 6px 0 4px; gap: 6px; }
+html .pl-chat:not(.is-docked) .pl-chat-tab[aria-selected='false'] { position: relative; min-width: 44px; justify-content: center; }
+html .pl-chat:not(.is-docked) .pl-chat-tab[aria-selected='false'] .pl-chat-tab-u { position: absolute; top: 2px; right: -2px; box-shadow: 0 0 0 2px var(--v6-night-2); }

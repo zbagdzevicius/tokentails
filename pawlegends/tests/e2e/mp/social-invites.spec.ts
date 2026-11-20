@@ -227,12 +227,12 @@ test('invite a friend LoL style, they accept into your lobby; a DM arrives live 
   expect(code).toMatch(/^[A-Z0-9]{6}$/);
   srv.partyOf.A = code;
 
-  // A: Invite friends → the Friends sheet over the lobby → Invite on B's row
+  // A: Invite friends → the invite list over the lobby (Home's rows, Nov 20) → + on B's row
   await ga.locator('[data-testid="party-invite-friends"]').click();
-  const rowB = ga.locator(`.pl-social-row[data-code="${CODE.B}"]`);
-  await expect(rowB.locator('.pl-social-st')).toHaveText('Online');
-  await rowB.locator('[data-testid="social-invite"]').click();
-  await expect(ga.locator('.pl-social-note')).toContainText(`Invite sent to ${NAME.B}`);
+  const rowB = ga.locator(`[data-testid="friends-sheet"] [data-testid="home-friend"][data-code="${CODE.B}"]`);
+  await expect(rowB.locator('.fr-st')).toHaveText('Online');
+  await rowB.locator('[data-testid="home-friend-invite"]').click();
+  await expect(ga.locator('[data-testid="invite-sent"]').last()).toContainText(`Invite sent to ${NAME.B}`);
   const sentAt = Date.now();
   expect(srv.invites[0]).toMatchObject({ from: 'A', to: 'B', party: code });
   expect(srv.invites[0].sim).toMatch(/^\d+\.[A-Za-z0-9]+$/);
@@ -256,8 +256,9 @@ test('invite a friend LoL style, they accept into your lobby; a DM arrives live 
   // A hears the answer on its next inbox poll
   await expect(ga.locator('[data-testid="invite-answer-accepted"]')).toContainText(`${NAME.B} is joining your party`, { timeout: 6_000 });
 
-  // A messages B from the Friends sheet (still open over A's lobby): B gets the DM toast live, in its lobby
-  await rowB.locator('[data-a="chat"]').click();
+  // A messages B (B's row in the invite list opens the Player Card, Message the thread): B gets the DM toast live
+  await rowB.locator('.fr-main').click();
+  await ga.locator('[data-testid="profile-message"]').click();
   const chatA = ga.locator('[data-testid="chat-sheet"]');
   await expect(chatA).toBeVisible();
   await chatA.locator('[data-testid="chat-input"]').fill('gl hf, mid is yours');
@@ -270,12 +271,13 @@ test('invite a friend LoL style, they accept into your lobby; a DM arrives live 
   await expect(chatB.locator('.pl-chat-bubble').last()).toHaveText('gl hf, mid is yours', { timeout: 15_000 });
 
   // B reloads: back in A's lobby (the party seat resumes), and the message is still there (server-side history) from
-  // the Friends sheet's Chat on A's row
+  // A's Player Card (A's row in the invite list)
   await b.reopen();
   const gb2 = b.game();
   await expect(gb2.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 60_000 });
   await gb2.locator('[data-testid="party-invite-friends"]').click();
-  await gb2.locator(`.pl-social-row[data-code="${CODE.A}"] [data-a="chat"]`).click();
+  await gb2.locator(`[data-testid="friends-sheet"] [data-testid="home-friend"][data-code="${CODE.A}"] .fr-main`).click();
+  await gb2.locator('[data-testid="profile-message"]').click();
   await expect(gb2.locator('[data-testid="chat-sheet"] .pl-chat-bubble').last()).toHaveText('gl hf, mid is yours', { timeout: 15_000 });
 
   // a third player (a guest, no host) types the party code: Join with code
@@ -301,8 +303,8 @@ test('Nov 20: Invite from Home with no party: the lobby opens through relay boun
   const b = await friend(browser, baseURL!, 'B', srv);
   const ga = a.game();
   await expect(ga.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
-  await ga.locator('[data-testid="lobby-social"]').click();
-  const invite = ga.locator(`[data-code="${CODE.B}"] [data-testid="social-invite"]`).first();
+  // Home's friends panel (Nov 20): + on B's row
+  const invite = ga.locator(`[data-testid="home-friend"][data-code="${CODE.B}"] [data-testid="home-friend-invite"]`).first();
   await expect(invite).toBeVisible({ timeout: 15_000 });
   await fetch(`${RELAY}/e2e/bounce?n=2`);
   const t0 = Date.now();
@@ -339,7 +341,7 @@ test('Decline: the card closes and the inviter is told', async ({ browser, baseU
   await expect(codeEl).toBeVisible({ timeout: 60_000 });
   srv.partyOf.A = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');
   await ga.locator('[data-testid="party-invite-friends"]').click();
-  await ga.locator(`.pl-social-row[data-code="${CODE.B}"] [data-testid="social-invite"]`).click();
+  await ga.locator(`[data-testid="friends-sheet"] [data-testid="home-friend"][data-code="${CODE.B}"] [data-testid="home-friend-invite"]`).click();
   const card = b.game().locator('[data-testid="invite-toast"]');
   await expect(card).toBeVisible({ timeout: 6_000 });
   await card.locator('[data-testid="invite-decline"]').click();
@@ -375,25 +377,25 @@ test('add a friend by nickname, invite them (offline feedback too), they accept 
   srv.partyOf.A = code;
   await expect.poll(() => seatNames(ga), { timeout: 15_000 }).toEqual(['zygis']);
 
-  // A: Invite friends → Add → types "mi" → the suggestion "Mira" → Add: friends now
+  // A: Invite friends → (no friends yet) Add friend → types "mi" → the suggestion "Mira" → Add: friends now
   await ga.locator('[data-testid="party-invite-friends"]').click();
-  await expect(ga.locator('.pl-social-empty')).toContainText('No friends yet');
-  await ga.locator('.pl-social [data-a="add"]').click();
+  await expect(ga.locator('[data-testid="friends-sheet"] .fr-empty')).toContainText('No friends yet');
+  await ga.locator('[data-testid="friends-sheet"] [data-testid="home-friends-empty"]').click();
   await ga.locator('[data-testid="social-add-input"]').pressSequentially('mi', { delay: 60 });
   const sug = ga.locator('[data-testid="social-suggest"]');
   await expect(sug).toHaveCount(1, { timeout: 5_000 });
   await expect(sug.locator('.pl-social-name')).toHaveText('Mira');
   await sug.locator('[data-a="add-name"]').click();
   await expect(ga.locator('.pl-social-note')).toHaveText('You are friends now');
-  const rowB = ga.locator(`.pl-social-row[data-code="${CODE.B}"]`);
-  await expect(rowB).toBeVisible();
 
-  // an offline friend can be invited too; the inviter is told (they get a notification)
+  // an offline friend can be invited from the party lobby; the inviter is told (they get a notification)
   srv.offline.add('B');
-  await ga.locator('.pl-social [data-a="close"]').first().click();
+  await ga.locator('[data-testid="friends-sheet-close"]').click();
   await ga.locator('[data-testid="party-invite-friends"]').click();
-  await rowB.locator('[data-testid="social-invite"]').click();
-  await expect(ga.locator('.pl-social-note')).toContainText('is offline: they get a notification.');
+  const rowB = ga.locator(`[data-testid="friends-sheet"] [data-testid="home-friend"][data-code="${CODE.B}"]`);
+  await expect(rowB).toBeVisible({ timeout: 35_000 });
+  await rowB.locator('[data-testid="home-friend-invite"]').click();
+  await expect(ga.locator('[data-testid="invite-sent"]').last()).toContainText('is offline: they get a notification.');
   srv.offline.delete('B');
 
   // B, on Home, gets the invite card within the 4 s inbox poll and accepts
@@ -422,11 +424,11 @@ async function aParty(ga: Frame, srv: Srv): Promise<string> {
   return code;
 }
 
-/** A taps Invite on B's row (the Friends sheet over A's lobby) and sees the note; returns when it was sent. */
+/** A taps + on B's row (the invite list over A's lobby) and sees the toast; returns when it was sent. */
 async function inviteB(ga: Frame, note: string | RegExp = `Invite sent to ${NAME.B}`): Promise<number> {
-  if (!(await ga.locator('.pl-social-row').count())) await ga.locator('[data-testid="party-invite-friends"]').click();
-  await ga.locator(`.pl-social-row[data-code="${CODE.B}"] [data-testid="social-invite"]`).click();
-  await expect(ga.locator('.pl-social-note')).toContainText(note);
+  if (!(await ga.locator('[data-testid="friends-sheet"]').count())) await ga.locator('[data-testid="party-invite-friends"]').click();
+  await ga.locator(`[data-testid="friends-sheet"] [data-testid="home-friend"][data-code="${CODE.B}"] [data-testid="home-friend-invite"]`).click();
+  await expect(ga.locator('[data-testid="invite-sent"]').last()).toContainText(note);
   return Date.now();
 }
 
@@ -471,7 +473,7 @@ test('Nov 19: B in the Store, in its own lobby, in champion select: the card eve
   // B in its own lobby (A's row says In lobby and still offers Invite): the card asks to leave B's party
   await b.reopen();
   await bPartyWithC(browser, b.game(), srv);
-  await ga.locator('.pl-social [data-a="close"]').first().click();
+  await ga.locator('[data-testid="friends-sheet-close"]').click();
   at = await inviteB(ga, `Invite sent to ${NAME.B}. They are in another lobby.`);
   await expect(card()).toBeVisible({ timeout: 6_000 });
   await expect(card().locator('[data-testid="invite-leave"]')).toHaveText(`Leave your party and join ${NAME.A}?`);

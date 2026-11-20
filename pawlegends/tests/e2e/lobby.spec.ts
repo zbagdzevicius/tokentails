@@ -60,16 +60,18 @@ test('the lobby: Play on top, the 3D hero in frame on its map spot, named champi
   await expect(page.locator('.pl-home')).not.toContainText(/\$|€|price|buy|donate/i);
 });
 
-test('Settings closes on Escape and gives focus back to its button', async ({ page }) => {
+test('Settings (from the Profile screen, Nov 20) closes on Escape and gives focus back to Home', async ({ page }) => {
   await seed(page);
   await page.goto('/?e2e=1');
   await page.waitForSelector('.pl-home');
-  await page.locator('[data-a="settings"]').focus();
+  await page.locator('.pl-home [data-a="profile"]').focus();
+  await page.keyboard.press('Enter');
+  await page.locator('[data-testid="profile-settings"]').focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('.pl-settings')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.pl-settings')).toHaveCount(0);
-  await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute('data-a'))).toBe('settings');
+  await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute('data-a'))).toBe('profile');
   // the lobby takes clicks again
   expect(await onTop(page, '.pl-home .pl-btn.big')).toBe(true);
 });

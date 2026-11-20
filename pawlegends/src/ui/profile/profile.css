@@ -517,7 +517,10 @@
   .pfx-rankbody { gap: 12px; }
   .pfx-crest { width: 72px; }
   /* the identity column is narrow here: name, title, flag and one action (the code and Friends are in Account) */
-  .pfx-who [data-a='social'] { display: none; }
+  /* Settings and Sound shrink to icons beside Edit profile */
+  .pfx-acts:has(.pfx-tool) { flex-direction: row; flex-wrap: wrap; }
+  .pfx-tool span { display: none; }
+  .pfx-tool { min-width: 44px; justify-content: center; }
   .pfx-who { align-self: stretch; justify-content: flex-end; min-height: 0; overflow-y: auto; scrollbar-width: none; gap: 4px; padding-bottom: 6px; }
   .pfx-who > *, .pfx-whotext > * { flex-shrink: 0; }
   .pfx-ring { width: 58px; height: 58px; }
@@ -656,3 +659,14 @@ button.pfx-ccard { display: block; width: 100%; padding: 0; border: 0; color: va
   .pfx-segb { flex-direction: column; gap: 2px; padding: 4px 6px; border-radius: 14px; }
   .pfx-seg { border-radius: 18px; }
 }
+
+/* friends panel Nov 20: Settings and Sound beside Edit profile (Home's round corner buttons are gone), a friend's
+   minor actions (Favourite, Remove, Block) under their main ones, and the Account tab's blocked players */
+.pfx-tool { display: inline-flex; align-items: center; gap: 6px; }
+.pfx-tool svg { width: 18px; height: 18px; flex: none; }
+.pfx-sound[aria-pressed='false'] { color: var(--v6-muted, rgb(255 243 227 / 0.7)); }
+.pfx-acts.minor { gap: 4px 14px; }
+.pfx-acts.minor .pfx-link { align-self: center; }
+.pfx-blocks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pfx-blocks li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; }
+.pfx-bname { font: 800 15px/1.2 var(--font, sans-serif); color: var(--v6-cream, #fff3e3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

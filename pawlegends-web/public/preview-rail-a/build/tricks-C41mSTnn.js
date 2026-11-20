@@ -1,1 +1,0 @@
-var e=Object.freeze([`pounce`,`snack`,`hiss`,`purrify`]),t=Object.freeze({pounce:Object.freeze({cooldown:3600,blink:4e3}),snack:Object.freeze({cooldown:2700,healBp:2500,duration:60}),hiss:Object.freeze({cooldown:3e3,fear:21,radius:3e3}),purrify:Object.freeze({cooldown:2400,immune:30})});export{e as n,t};

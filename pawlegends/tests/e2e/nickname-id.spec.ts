@@ -125,10 +125,10 @@ test('nickname is the username: notice once, live taken / available, add friend 
   await expect(again.locator('[data-testid="name-notice"]')).toHaveCount(0);
 
   // 5. Add friend by name: suggestions while typing, Add sends the exact name
-  await again.locator('[data-testid="lobby-social"]').click();
-  const sheet = again.locator('.pl-social');
-  await again.addStyleTag({ content: '.pl-social, .pl-me-card, .pl-fr-scrim { animation: none !important; } .pl-social * { transition: none !important; }' });
-  await sheet.locator('[data-a="add"]').first().click();
+  // (Home's friends panel, Nov 20: the add-friend button opens the add-friend sheet)
+  await again.locator('[data-testid="home-friends-add"]').click();
+  const sheet = again.locator('[data-testid="friends-sheet"]');
+  await again.addStyleTag({ content: '.pl-social, .pl-fsheet-scrim { animation: none !important; } .pl-social * { transition: none !important; }' });
   const add = sheet.locator('[data-testid="social-add-input"]');
   await expect(add).toHaveAttribute('placeholder', 'Player name');
   await add.fill('Mir');
@@ -138,8 +138,7 @@ test('nickname is the username: notice once, live taken / available, add friend 
   await sheet.locator('[data-testid="social-suggest"]').first().locator('[data-a="add-name"]').click();
   await expect(sheet.locator('.pl-social-note')).toHaveText('Request sent to Mira');
   await expect.poll(() => srv.s.adds).toEqual([{ name: 'Mira' }]);
-  // my card copies my name, never a code
-  await sheet.locator('[data-testid="social-status"]').click();
+  // my card (the sheet's You section) copies my name, never a code
   await expect(sheet.locator('[data-testid="social-copy-name"]')).toContainText('Pawsome Zyg');
   await noCode(again);
   await shot(page, project, 'my-card');

@@ -74,6 +74,9 @@ import {
   type Sources,
   type SourceState,
 } from './model';
+import type { FriendRow } from '../../social/presence';
+import { railInvite } from '../home/friendsRail';
+import { playedText } from '../../social/socialState';
 import { checkLine, NAME_MAX, nameErrorText, nameProblem, priceLine, yarnText, type NameCheck, type NameInfo } from './name';
 
 export interface ProfileFriend {
@@ -115,7 +118,27 @@ export interface ProfileScreenOpts {
   openStore?(tab?: 'champions' | 'coats' | 'frames'): void;
   openPass?(): void;
   openTrack?(): void;
-  openSocial?(tab?: 'friends' | 'clubs'): void;
+  /** The club window (Profile's "Your club" / "Find a club"). */
+  openClubs?(): void;
+  /** Sound (founder Nov 20: Settings and Sound moved here from Home's corner): muted now, and the switch. */
+  muted?(): boolean;
+  onMute?(muted: boolean): void;
+  /**
+   * Another player who is a friend: their row as Home's friends panel last heard it (presence, favourite), for Join,
+   * Watch, Ask to join and "Invite when their match ends". Null: not known.
+   */
+  friendRow?(code: string): FriendRow | null;
+  /** A friend's joinable lobby: join it. */
+  joinParty?(party: string): void;
+  /** A friend's live match: spectate it (SPECTATE.md). */
+  spectate?(room: string, name: string): void;
+  /** A friend in a lobby that is not open: a "Wanna play?" in their DM. */
+  askToJoin?(friend: { code: string; name: string }): Promise<boolean>;
+  /** A friend in a match or queue: invite them when it ends (queued for this session); and whether one is queued. */
+  inviteLater?(friend: { code: string; name: string }, on: boolean): void;
+  laterQueued?(code: string): boolean;
+  /** Friends or blocks changed here (remove, favourite, block, unblock): Home's friends panel reloads. */
+  onFriendsChanged?(): void;
   /** Watch a replay kept on this device. */
   watch?(id: string): void;
   /**
@@ -168,6 +191,14 @@ const X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M1
 const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z"/></svg>';
 const PARTY_ICON =
   '<svg class="pfx-pico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2c2.4.1 4.3 1.6 4.9 4.6"/></svg>';
+const GEAR_SVG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>';
+const SPEAKER_SVG = (on: boolean): string =>
+  `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/>${
+    on
+      ? '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+      : '<path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+  }</svg>`;
 const OUTCOME_WORD = Object.freeze({ won: 'Victory', lost: 'Defeat', draw: 'Draw' });
 const heroName = (h: string): string => (h in HEROES ? HEROES[h as HeroId].name : h);
 const DELETE_URL = 'https://pawlegends.app/account';
@@ -196,7 +227,11 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   const src: Sources = { ...SOURCES_IDLE };
   let priv = false;
   /** Another player who is not a friend: Add friend, then Block (asked once). */
-  let rel: 'idle' | 'busy' | 'sent' | 'asked' | 'friend' | 'confirm-block' | 'blocked' = o.friend?.friend ? 'friend' : 'idle';
+  let rel: 'idle' | 'busy' | 'sent' | 'asked' | 'friend' | 'confirm-block' | 'confirm-remove' | 'blocked' = o.friend?.friend ? 'friend' : 'idle';
+  /** Block was asked from a friend's card (Cancel goes back to the friend's actions). */
+  let wasFriend = false;
+  /** Yours: the players you blocked (`social.get` blocks; Account tab, Unblock). */
+  let blocks: { code: string; name: string; av?: unknown }[] | null = null;
   /** PLAYER-CARD.md: the player is online (Invite to party shows for an online friend); null: not known (older server). */
   let online: boolean | null = null;
   /** PLAYER-CARD.md: a guest viewer sees a minimal card (the history of another player needs an account). */
@@ -255,24 +290,68 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     return `<span class="pfx-ring" style="--p:${pct}%"${lv ? ` aria-label="${esc(`Level ${lv.level}, ${lv.toNext ? `${moreMatches(lv.toNext)} to level ${lv.level + 1}` : 'top level'}`)}" role="img"` : ''}>${av}${lv ? `<span class="pfx-lv" data-testid="profile-level">Lv ${lv.level}</span>` : ''}</span>`;
   };
 
+  /**
+   * A friend's card (PLAYER-CARD.md, friends panel Nov 20: everything the old sidebar's row menu had, in one place):
+   * Friends, Message, Invite to party (greyed with the reason when not now), Join their open lobby, Watch their match,
+   * Ask to join a closed lobby, Invite when their match ends; then Favourite, Remove (asked once) and Block (asked once).
+   */
+  const friendActs = (): string => {
+    const fr = o.friend;
+    if (!fr) return '';
+    const row = o.friendRow?.(fr.code) ?? null;
+    const p = row?.presence ?? null;
+    const b = (a: string, text: string, id: string, ghost = true, extra = ''): string => `<button type="button" class="pl-btn${ghost ? ' ghost' : ''} small" data-a="${a}" data-testid="${id}"${extra}>${esc(text)}</button>`;
+    const main: string[] = [`<span class="pfx-done pfx-rel" role="status" data-testid="profile-friends-state">${CHECK_SVG}Friends</span>`];
+    if (o.message) main.push(b('message', 'Message', 'profile-message', false));
+    if (o.invite) {
+      const inv = p ? railInvite(p) : online === false ? ({ ok: false, why: 'Offline' } as const) : ({ ok: true } as const);
+      main.push(inv.ok ? b('invite', 'Invite to party', 'profile-invite') : `<button type="button" class="pl-btn ghost small" data-testid="profile-invite-off" disabled title="${esc(inv.why)}">${esc(`Invite: ${inv.why.toLowerCase()}`)}</button>`);
+    }
+    if (p?.state === 'party' && p.joinable && p.party && o.joinParty) main.push(b('join', 'Join lobby', 'profile-join'));
+    else if (p?.state === 'party' && o.askToJoin) main.push(b('ask', 'Ask to join', 'profile-ask'));
+    if (p?.state === 'match' && p.room && /^[a-z0-9]{12}$/.test(p.room) && o.spectate) main.push(b('spectate', 'Watch', 'profile-watch'));
+    if ((p?.state === 'match' || p?.state === 'queue') && o.inviteLater) {
+      const q = o.laterQueued?.(fr.code) ?? false;
+      main.push(b('later', q ? 'Cancel queued invite' : `Invite when their ${p.state === 'queue' ? 'queue' : 'match'} ends`, 'profile-later', true, ` data-on="${q ? 0 : 1}"`));
+    }
+    const minor: string[] = [];
+    if (o.api && row) minor.push(`<button type="button" class="pfx-link" data-a="fav" data-on="${row.fav ? 0 : 1}" data-testid="profile-fav">${row.fav ? 'Unpin from favourites' : 'Pin to favourites'}</button>`);
+    if (o.api)
+      minor.push(
+        rel === 'confirm-remove'
+          ? `<span class="pfx-ask" role="group" aria-label="Remove this friend?"><span>Remove ${esc(fr.name)} from friends?</span><button type="button" class="pl-btn small danger" data-a="remove-yes" data-testid="profile-remove-yes">Remove</button><button type="button" class="pl-btn ghost small" data-a="remove-no">Cancel</button></span>`
+          : rel === 'confirm-block'
+            ? `<span class="pfx-ask" role="group" aria-label="Block this player?"><span>Block? They can't message or invite you.</span><button type="button" class="pl-btn small danger" data-a="block-yes" data-testid="profile-block-yes">Block</button><button type="button" class="pl-btn ghost small" data-a="block-no">Cancel</button></span>`
+            : `<button type="button" class="pfx-link" data-a="remove" data-testid="profile-remove">Remove friend</button><button type="button" class="pfx-link danger" data-a="block" data-testid="profile-block">Block</button>`,
+      );
+    const played = row ? playedText(row.played, now()) : '';
+    return `<div class="pfx-acts">${main.join('')}</div>${minor.length ? `<div class="pfx-acts minor">${minor.join('')}</div>` : ''}${played ? `<p class="pfx-fine" data-testid="profile-played">${esc(played)}</p>` : ''}`;
+  };
+
   /** The identity over the splash: the avatar in its level ring, the name (the unique username), title and flag, the main actions. */
   const identity = (): string => {
     const title = d.title ? `<span class="pfx-title" data-testid="profile-title">${esc(titleText(d.title))}</span>` : '';
     const flag = d.cc ? `<span class="pfx-flag" title="${esc(countryName(d.cc))}" data-testid="profile-flag-shown">${ccHtml(d.cc)}</span>` : '';
     let act = '';
-    const friends = o.openSocial ? `<button type="button" class="pl-btn ghost small" data-a="social" data-testid="profile-friends">Friends</button>` : '';
-    if (self && !d.signedIn) act = o.account || o.api ? `<div class="pfx-acts"><button type="button" class="pl-btn small" data-a="signin" data-testid="profile-signin">Sign in</button>${friends}</div><p class="pfx-fine">Sign in to choose your name and keep your progress.</p>` : '';
+    // founder Nov 20: Settings and Sound live here (Home's round corner buttons are gone); the Friends button went with
+    // the sidebar (Home's friends panel is the one friends list)
+    const mutedNow = o.muted?.() ?? false;
+    const tools = `<button type="button" class="pl-btn ghost small pfx-tool" data-a="settings" data-testid="profile-settings" aria-label="Settings" title="Settings">${GEAR_SVG}<span>Settings</span></button>${
+      o.onMute
+        ? `<button type="button" class="pl-btn ghost small pfx-tool pfx-sound" data-a="sound" data-testid="profile-sound" aria-pressed="${!mutedNow}" aria-label="Sound ${mutedNow ? 'off' : 'on'}" title="${mutedNow ? 'Sound off: tap to turn it on' : 'Sound on: tap to mute'}">${SPEAKER_SVG(!mutedNow)}<span>${mutedNow ? 'Sound off' : 'Sound on'}</span></button>`
+        : ''
+    }`;
+    if (self && !d.signedIn)
+      act = `<div class="pfx-acts">${o.account || o.api ? `<button type="button" class="pl-btn small" data-a="signin" data-testid="profile-signin">Sign in</button>` : ''}${tools}</div>${o.account || o.api ? `<p class="pfx-fine">Sign in to choose your name and keep your progress.</p>` : ''}`;
     else if (canEdit()) {
       const why = src.name === 'failed' ? `<p class="pfx-fine bad">Couldn't load your name. <button type="button" class="pfx-link" data-a="retry">Try again</button></p>` : '';
       // no Edit until the name rules loaded (a failed load shows its own Try again instead of a dead button)
-      act = src.name === 'failed' && !info ? `${why}<div class="pfx-acts">${friends}</div>` : `<div class="pfx-acts"><button type="button" class="pl-btn small" data-a="edit" data-testid="profile-edit"${info ? '' : ' disabled'}>Edit profile</button>${friends}</div>`;
-    } else if (self) act = friends ? `<div class="pfx-acts">${friends}</div>` : '';
+      act = src.name === 'failed' && !info ? `${why}<div class="pfx-acts">${tools}</div>` : `<div class="pfx-acts"><button type="button" class="pl-btn small" data-a="edit" data-testid="profile-edit"${info ? '' : ' disabled'}>Edit profile</button>${tools}</div>`;
+    } else if (self) act = `<div class="pfx-acts">${tools}</div>`;
     else if (guestView) {
       act = `<div class="pfx-acts"><button type="button" class="pl-btn small" data-a="signin" data-testid="profile-card-signin">Sign in</button></div><p class="pfx-fine">Sign in to see their stats and add friends.</p>`;
-    } else if (rel === 'friend') {
-      // PLAYER-CARD.md: Friends (a state, not a button), Message, and Invite to party while they are online
-      const inviteOk = online === true || (online === null && !!o.friend?.friend);
-      act = `<div class="pfx-acts"><span class="pfx-done pfx-rel" role="status" data-testid="profile-friends-state">${CHECK_SVG}Friends</span>${o.message ? `<button type="button" class="pl-btn small" data-a="message" data-testid="profile-message">Message</button>` : ''}${o.invite && inviteOk ? `<button type="button" class="pl-btn ghost small" data-a="invite" data-testid="profile-invite">Invite to party</button>` : ''}</div>`;
+    } else if (rel === 'friend' || rel === 'confirm-remove' || (rel === 'confirm-block' && wasFriend)) {
+      act = friendActs();
     } else if (o.friend && o.api) {
       // a player from Boards or a match: Add friend in one tap (the Social sheet's request by code), Accept when they
       // asked first, and Block, asked once
@@ -392,7 +471,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   /** Honor (yours): this month's good-teammate thumbs-up toward the monthly chest, and the club. */
   const honorCard = (): string => {
     if (!self) return '';
-    const clubBtn = o.openSocial ? `<button type="button" class="pfx-link" data-a="clubs" data-testid="profile-clubs">${d.club ? 'Your club' : 'Find a club'}</button>` : '';
+    const clubBtn = o.openClubs ? `<button type="button" class="pfx-link" data-a="clubs" data-testid="profile-clubs">${d.club ? 'Your club' : 'Find a club'}</button>` : '';
     if (!d.signedIn) return card('Honor', `<p class="pfx-empty">Sign in to get thumbs-up from teammates and join a club.</p>`, 'pfx-honor', '', clubBtn);
     if (busy(src.club)) return card('Honor', skel(2), 'pfx-honor');
     if (src.club === 'failed' && d.kudos === null) return card('Honor', failed('your honor'), 'pfx-honor');
@@ -876,8 +955,21 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     const flag = o.flag
       ? card('Privacy', `<label class="pfx-switch"><input type="checkbox" data-a="flag" data-testid="profile-flag"${hidden ? '' : ' checked'}><span>Show my country flag${d.cc && !hidden ? ` ${ccHtml(d.cc)}` : ''}</span></label><p class="pfx-fine">Match history is public. More choices are in Settings.</p>`)
       : '';
-    const set = card('Settings', `<p class="pfx-fine">Sound, graphics, controls, notifications and privacy.</p><button type="button" class="pl-btn ghost small" data-a="settings" data-testid="profile-settings">Open Settings</button>`);
-    return pane(`<div class="pfx-agrid">${acc}${flag}${set}</div>`, 'pfx-apane');
+    // friends panel Nov 20: the blocked players (the old sidebar had only a 5 s Undo); Settings is the hero's button
+    const blocked =
+      self && d.signedIn && o.api
+        ? card(
+            'Blocked players',
+            blocks === null
+              ? busy(src.social)
+                ? skel(2)
+                : `<p class="pfx-fine">Couldn't load the list.</p>`
+              : blocks.length
+                ? `<ul class="pfx-blocks" data-testid="profile-blocks">${blocks.map((x) => `<li><span class="pfx-bname" data-name="${esc(x.name)}"></span><button type="button" class="pl-btn ghost small" data-a="unblock" data-code="${esc(x.code)}" data-testid="profile-unblock">Unblock</button></li>`).join('')}</ul>`
+                : `<p class="pfx-fine" data-testid="profile-blocks-none">You haven't blocked anyone. Block a player from their card.</p>`,
+          )
+        : '';
+    return pane(`<div class="pfx-agrid">${acc}${flag}${blocked}</div>`, 'pfx-apane');
   };
 
   // ------------------------------------------------------------------------------------------------ editor
@@ -1086,6 +1178,8 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       } else if (k === 'social') {
         if (r.ok && r.body) {
           const me = (r.body as { me?: { code?: string; av?: unknown; title?: string | null; frame?: string | null } }).me;
+          const bl = (r.body as { blocks?: unknown }).blocks;
+          blocks = (Array.isArray(bl) ? bl : []).filter((x): x is { code: string; name: string } => !!x && typeof (x as { code?: unknown }).code === 'string' && typeof (x as { name?: unknown }).name === 'string');
           if (me) {
             d.code = typeof me.code === 'string' ? me.code : d.code;
             if (me.av) d.av = me.av;
@@ -1308,6 +1402,54 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     render();
   };
 
+  /** A friend's card: pin to (or unpin from) favourites (Home's panel lists favourites first). */
+  const setFav = async (on: boolean): Promise<void> => {
+    if (!o.api || !o.friend) return;
+    const r = await settle(o.api('social.me', { code: o.friend.code, favOn: on }));
+    if (disposed) return;
+    say(r.ok ? (on ? `${o.friend.name} pinned to favourites` : `${o.friend.name} unpinned`) : "Couldn't save. Try again.", !r.ok);
+    if (r.ok) {
+      const row = o.friendRow?.(o.friend.code);
+      if (row) row.fav = on || undefined;
+      o.track?.('friend_fav', { on });
+      o.onFriendsChanged?.();
+    }
+    render();
+  };
+
+  /** A friend's card: Remove friend (asked once; no Undo). */
+  const removeFriend = async (): Promise<void> => {
+    if (!o.api || !o.friend) return;
+    rel = 'busy';
+    render();
+    const r = await settle(o.api('friend.remove', { code: o.friend.code }));
+    if (disposed) return;
+    if (r.ok) {
+      rel = 'idle';
+      say(`${o.friend.name} removed from friends`);
+      o.track?.('friend_remove');
+      o.onFriendsChanged?.();
+    } else {
+      rel = 'friend';
+      say(r.status === 0 ? 'No connection. Try again.' : "Couldn't remove. Try again.", true);
+    }
+    render();
+  };
+
+  /** Account: unblock a player. */
+  const unblock = async (code: string): Promise<void> => {
+    if (!o.api || !code || !blocks) return;
+    const r = await settle(o.api('block.remove', { code }));
+    if (disposed) return;
+    if (r.ok) {
+      const who = blocks.find((x) => x.code === code)?.name ?? 'Player';
+      blocks = blocks.filter((x) => x.code !== code);
+      say(`${who} unblocked`);
+      o.onFriendsChanged?.();
+    } else say("Couldn't unblock. Try again.", true);
+    render();
+  };
+
   const blockPlayer = async (): Promise<void> => {
     if (!o.api || !o.friend) return;
     rel = 'busy';
@@ -1316,8 +1458,10 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     if (disposed) return;
     if (r.ok) {
       rel = 'blocked';
+      wasFriend = false;
       say('Blocked. They cannot message or invite you.');
       o.track?.('profile_block');
+      o.onFriendsChanged?.();
     } else {
       rel = 'idle';
       say(r.status === 0 ? 'No connection. Try again.' : "Couldn't block. Try again.", true);
@@ -1453,17 +1597,64 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       case 'play':
         return o.play ? leave(() => o.play!()) : undefined;
       case 'clubs':
-        return o.openSocial ? leave(() => o.openSocial!('clubs')) : undefined;
+        return o.openClubs ? leave(() => o.openClubs!()) : undefined;
+      case 'sound': {
+        if (!o.onMute) return;
+        const was = o.muted?.() ?? false;
+        o.onMute(!was);
+        say(was ? 'Sound on' : 'Sound off');
+        render();
+        return void root.querySelector<HTMLElement>('[data-a="sound"]')?.focus({ preventScroll: true });
+      }
+      case 'join': {
+        const party = (fr && o.friendRow?.(fr.code)?.presence.party) || '';
+        return party && o.joinParty ? leave(() => o.joinParty!(party)) : undefined;
+      }
+      case 'spectate': {
+        const room = (fr && o.friendRow?.(fr.code)?.presence.room) || '';
+        return room && fr && o.spectate ? leave(() => o.spectate!(room, fr.name)) : undefined;
+      }
+      case 'ask':
+        if (!fr || !o.askToJoin) return;
+        say(`Asking ${fr.name}…`);
+        render();
+        void o.askToJoin(fr).then((ok) => {
+          if (disposed) return;
+          say(ok ? `Asked ${fr.name} to play. They can invite you.` : "Couldn't ask. Try again.", !ok);
+          render();
+        });
+        return;
+      case 'later':
+        if (!fr || !o.inviteLater) return;
+        o.inviteLater(fr, el.dataset.on === '1');
+        say(el.dataset.on === '1' ? `Invite queued: ${fr.name} gets it when their match ends` : 'Queued invite cancelled');
+        return render();
+      case 'fav':
+        return void setFav(el.dataset.on === '1');
+      case 'remove':
+        rel = 'confirm-remove';
+        render();
+        return void root.querySelector<HTMLElement>('[data-a="remove-no"]')?.focus({ preventScroll: true });
+      case 'remove-no':
+        rel = 'friend';
+        render();
+        return void root.querySelector<HTMLElement>('[data-a="remove"]')?.focus({ preventScroll: true });
+      case 'remove-yes':
+        return void removeFriend();
+      case 'unblock':
+        return void unblock(el.dataset.code ?? '');
       case 'add-friend':
         return void addFriend();
       case 'accept-friend':
         return void acceptFriend();
       case 'block':
+        wasFriend = rel === 'friend';
         rel = 'confirm-block';
         render();
         return void root.querySelector<HTMLElement>('[data-a="block-no"]')?.focus({ preventScroll: true });
       case 'block-no':
-        rel = 'idle';
+        rel = wasFriend ? 'friend' : 'idle';
+        wasFriend = false;
         render();
         return void root.querySelector<HTMLElement>('[data-a="block"]')?.focus({ preventScroll: true });
       case 'block-yes':
@@ -1478,8 +1669,6 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         return o.openPass ? leave(() => o.openPass!()) : undefined;
       case 'track':
         return o.openTrack ? leave(() => o.openTrack!()) : undefined;
-      case 'social':
-        return o.openSocial ? leave(() => o.openSocial!()) : undefined;
       case 'store-champions':
         return o.openStore ? leave(() => o.openStore!('champions')) : undefined;
       case 'store-coats':

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { mockHost, openHost, received, SITE } from './host';
 import { limit } from '../unit/cpu-budget';
+import { openSettingsFromHome } from './openSettings';
 
 // SHARE-PUSH.md §2: framed on the web with a push key from the host, Settings shows Notifications; turning it on asks
 // the browser, registers /push-sw.js and (when the browser has a push service) sends the subscription through the
@@ -15,10 +16,8 @@ const KEY = `B${'A'.repeat(86)}`;
 const SW = readFileSync(new URL('../../../pawlegends-web/public/push-sw.js', import.meta.url), 'utf8');
 
 async function openSettings(game: import('@playwright/test').Frame) {
-  await game.locator('[data-a="settings"]').first().click();
-  const panel = game.locator('.pl-settings');
-  await expect(panel).toBeVisible();
-  return panel;
+  await openSettingsFromHome(game);
+  return game.locator('.pl-settings');
 }
 
 test('Settings: Notifications with categories when the server has a key; the browser is asked on Turn on', async ({ context, page, baseURL }) => {

@@ -11,7 +11,7 @@ import * as game from '../../src/social/clubs/clubData';
 import * as server from '../../../backend/src/pawlegends/clubs/clubs.contracts';
 import { chestBarHtml } from '../../src/social/clubs/clubsPanel';
 import { kudosMates, kudosOutcome, mountKudos } from '../../src/social/kudos';
-import { SocialSheet } from '../../src/social/socialSheet';
+import { ClubsModal } from '../../src/social/clubsModal';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -90,17 +90,17 @@ function sheet(start: game.ClubView | null) {
     if (op === 'chat.history') return { id: 'x', ok: true, status: 200, body: { thread: { tier: 'text' }, messages: [{ mid: 'a'.repeat(24), mine: false, k: 'q', id: 5, at: Date.now(), who: 'Brave Paws' }], more: false } };
     return { id: 'x', ok: true, status: 200, body: {} };
   });
-  const s = new SocialSheet(document.body, { api: api as never, signedIn: () => true, partyCode: () => null, joinParty: vi.fn(), signIn: vi.fn(), playCasual: vi.fn(), height: () => 375 }, 'clubs');
+  const s = new ClubsModal(document.body, { api: api as never });
   return { s, calls };
 }
 
-describe('clubs tab', () => {
+describe('the club window (Profile → Your club)', () => {
   it('no club: a generated name, reroll, Create sends the two list positions', async () => {
     const { s, calls } = sheet(null);
     await flush();
     const name = s.root.querySelector('[data-testid="club-name"]')!.textContent!;
     expect(name.split(' ')).toHaveLength(2);
-    expect(s.root.querySelector('[data-tab="clubs"]')!.getAttribute('aria-selected')).toBe('true');
+    expect(s.root.getAttribute('aria-label')).toBe('Club');
     (s.root.querySelector('[data-testid="club-create"]') as HTMLElement).click();
     await flush();
     const create = calls.find((c) => c.op === 'club.create')!;

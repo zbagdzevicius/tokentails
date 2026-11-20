@@ -149,7 +149,7 @@ async function sweep(
   return bad;
 }
 
-const HOME_KEYS = ['.pl-home .hm-profile', '.pl-home .hm-cur', '.pl-home .hm-corner', '.pl-home .hm-left', '.pl-home .hm-slot > *', '.pl-home .hm-promo', '.pl-home .hm-plate', '.pl-home .hm-nav', '.pl-home .hm-play', '.pl-home .hm-alt', '.pl-home .hm-line', '.pl-home .lb-peek', '.pl-home .lb-ver'];
+const HOME_KEYS = ['.pl-home .hm-profile', '.pl-home .hm-cur', '.pl-home .fr-rail', '.pl-home .hm-left', '.pl-home .hm-slot > *', '.pl-home .hm-promo', '.pl-home .hm-plate', '.pl-home .hm-nav', '.pl-home .hm-play', '.pl-home .hm-alt', '.pl-home .hm-line', '.pl-home .lb-peek', '.pl-home .lb-ver'];
 const RESULTS_KEYS = ['.pl-results .pl-results-col', '.pl-results .pl-reward', '.pl-results .actions.pinned', '.pl-results .tt-mvp', '.pl-results .pl-tohome'];
 const HUD_KEYS = ['.pl-hud .pl-minimap', '.pl-hud .pl-bar', '.pl-hud .pl-pause', '.pl-hud .pl-chat', '.pl-hud .pl-score', '.pl-hud .pl-tbtn'];
 

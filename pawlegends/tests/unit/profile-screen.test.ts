@@ -253,6 +253,7 @@ function open(o: { data?: Partial<ProfileData>; friend?: ProfileScreenOpts['frie
     calls.push({ op, args });
     if (failing === true || (Array.isArray(failing) && failing.includes(op))) return res(0);
     if (op === 'name.get') return res(200, cur);
+    if (op === 'social.get' && o.extra?.['social.get']) return o.extra['social.get'](args);
     if (op === 'social.get') return res(200, { me: { code: 'PL-7KQ2-M9XR', name: cur.name, av: { i: 'h:sage' }, title: 'title.founder', frame: null } });
     if (op === 'ranked.me') return res(200, { ranked: { placementsLeft: 0, placementsOf: 5, tierIdx: 4, points: 42 } });
     if (op === 'history.list')
@@ -672,17 +673,58 @@ describe('profile screen', () => {
       expect(q('[data-testid="profile-friends-state"]')).not.toBeNull();
     });
 
-    it('a friend: Invite to party only while they are online; no Add friend or Block', async () => {
+    it('a friend: Invite to party only while they are online (greyed with the reason otherwise); Remove and Block, no Add friend', async () => {
       open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex' }, player: card('friend', true) });
       await flush();
       expect(q('[data-testid="profile-invite"]')).not.toBeNull();
       expect(q('[data-testid="profile-add-friend"]')).toBeNull();
-      expect(q('[data-testid="profile-block"]')).toBeNull();
+      expect(q('[data-testid="profile-remove"]')).not.toBeNull();
+      expect(q('[data-testid="profile-block"]')).not.toBeNull();
       document.body.innerHTML = '';
       open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex', friend: true }, player: card('friend', false) });
       await flush();
       expect(q('[data-testid="profile-friends-state"]')).not.toBeNull();
       expect(q('[data-testid="profile-invite"]')).toBeNull();
+      expect(q('[data-testid="profile-invite-off"]').textContent).toBe('Invite: offline');
+    });
+
+    it("a friend's card (friends panel, Nov 20): Join an open lobby, Watch a match, Ask to join, invite later, favourite, remove asked once", async () => {
+      const row = { code: 'PL-AAAA-BBBB', name: 'Rex', presence: { state: 'party', joinable: true, party: 'ABCD2345' } } as import('../../src/social/presence').FriendRow;
+      const joinParty = vi.fn();
+      const spectate = vi.fn();
+      const askToJoin = vi.fn(async () => true);
+      const inviteLater = vi.fn();
+      const onFriendsChanged = vi.fn();
+      const more = { friendRow: () => row, joinParty, spectate, askToJoin, inviteLater, laterQueued: () => false, onFriendsChanged, invite: vi.fn(), message: vi.fn() };
+      let t = open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex', friend: true }, player: card('friend', true), more });
+      await flush();
+      q('[data-testid="profile-join"]').click();
+      expect(joinParty).toHaveBeenCalledWith('ABCD2345');
+      document.body.innerHTML = '';
+      row.presence = { state: 'match', room: 'abcdefabcdef', since: NOW - 60_000 };
+      t = open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex', friend: true }, player: card('friend', true), more });
+      await flush();
+      expect(q('[data-testid="profile-invite-off"]').textContent).toBe('Invite: in a match');
+      q('[data-testid="profile-later"]').click();
+      expect(inviteLater).toHaveBeenCalledWith(expect.objectContaining({ code: 'PL-AAAA-BBBB' }), true);
+      q('[data-testid="profile-watch"]').click();
+      expect(spectate).toHaveBeenCalledWith('abcdefabcdef', expect.any(String));
+      document.body.innerHTML = '';
+      row.presence = { state: 'party', party: 'CLOSED12' };
+      t = open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex', friend: true }, player: card('friend', true), more });
+      await flush();
+      q('[data-testid="profile-ask"]').click();
+      await flush();
+      expect(askToJoin).toHaveBeenCalledTimes(1);
+      q('[data-testid="profile-fav"]').click();
+      await flush();
+      expect(t.calls.find((c) => c.op === 'social.me')?.args).toEqual({ code: 'PL-AAAA-BBBB', favOn: true });
+      q('[data-testid="profile-remove"]').click();
+      expect(t.calls.some((c) => c.op === 'friend.remove')).toBe(false);
+      q('[data-testid="profile-remove-yes"]').click();
+      await flush();
+      expect(t.calls.find((c) => c.op === 'friend.remove')?.args).toEqual({ code: 'PL-AAAA-BBBB' });
+      expect(onFriendsChanged).toHaveBeenCalled();
     });
 
     it('my own code (my Boards row, my seat) opens my own profile instead', async () => {
@@ -857,6 +899,59 @@ describe('profile screen', () => {
     expect(q('[data-testid="profile-delete"]').getAttribute('href')).toBe('https://pawlegends.app/account');
     q('[data-testid="account-sign-out"]').click();
     expect(sent).toEqual(['sign-out']);
+  });
+
+  it('Settings and Sound sit beside Edit profile (founder Nov 20); no Friends button; Sound toggles and says its state', async () => {
+    let muted = false;
+    const onMute = vi.fn((m: boolean) => {
+      muted = m;
+    });
+    const openSettings = vi.fn();
+    open({ more: { muted: () => muted, onMute, openSettings } });
+    await flush();
+    expect(q('[data-testid="profile-friends"]')).toBeNull();
+    const acts = q('[data-testid="profile-edit"]').closest('.pfx-acts')!;
+    expect(acts.querySelector('[data-testid="profile-settings"]')).not.toBeNull();
+    expect(acts.querySelector('[data-testid="profile-sound"]')!.getAttribute('aria-pressed')).toBe('true');
+    q('[data-testid="profile-sound"]').click();
+    expect(onMute).toHaveBeenCalledWith(true);
+    expect(q('[data-testid="profile-sound"]').getAttribute('aria-pressed')).toBe('false');
+    expect(q('[data-testid="profile-sound"]').textContent).toBe('Sound off');
+    q('[data-testid="profile-settings"]').click();
+    expect(openSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('a guest has Settings and Sound too', async () => {
+    open({ data: { signedIn: false }, more: { muted: () => true, onMute: vi.fn() } });
+    await flush();
+    expect(q('[data-testid="profile-settings"]')).not.toBeNull();
+    expect(q('[data-testid="profile-sound"]').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('Account: the blocked players with Unblock; no second Settings card', async () => {
+    const onFriendsChanged = vi.fn();
+    const t = open({
+      tab: 'account',
+      more: { account: { model: { signedIn: true, name: 'Pat', provider: 'google', isApp: false }, send: vi.fn() }, onFriendsChanged },
+      extra: {},
+    });
+    await flush();
+    expect(q('[data-testid="profile-blocks-none"]')).not.toBeNull();
+    document.body.innerHTML = '';
+    const t2 = open({
+      tab: 'account',
+      more: { account: { model: { signedIn: true, name: 'Pat', provider: 'google', isApp: false }, send: vi.fn() }, onFriendsChanged },
+      extra: { 'social.get': () => res(200, { me: { code: 'PL-7KQ2-M9XR', name: 'Pat' }, blocks: [{ code: 'PL-ZZZZ-ZZZZ', name: '<b>Grumpy</b>' }] }) },
+    });
+    void t;
+    await flush();
+    expect(document.querySelectorAll('.pfx-agrid [data-testid="profile-settings"]')).toHaveLength(0);
+    expect(q('[data-testid="profile-blocks"] .pfx-bname').textContent).toBe('<b>Grumpy</b>');
+    q('[data-testid="profile-unblock"]').click();
+    await flush();
+    expect(t2.calls.find((c) => c.op === 'block.remove')?.args).toEqual({ code: 'PL-ZZZZ-ZZZZ' });
+    expect(q('[data-testid="profile-blocks-none"]')).not.toBeNull();
+    expect(onFriendsChanged).toHaveBeenCalled();
   });
 
   it("another player's card: their rank, level, flag, title and border; Message and Invite for a friend", async () => {

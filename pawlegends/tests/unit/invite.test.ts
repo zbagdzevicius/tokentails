@@ -4,10 +4,10 @@
  * row shows the code, progress and a Claim button only when a coat is ready, a typed code goes to `growth.redeem`, a
  * claim to `growth.claim`, and names stay text. No price anywhere (the row shows in the apps too).
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResult } from '../../src/embed/api';
 import { cleanInviteCode, coatLabel, inviteError, inviteLine, inviteStateOf } from '../../src/share/invite';
-import { SocialSheet } from '../../src/social/socialSheet';
+import { FriendsSheet } from '../../src/social/friendsSheet';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -53,15 +53,7 @@ function sheet(inv: Record<string, unknown>, friends = 7) {
         : { id: 'x', ok: false, status: 404, body: { code: 'PAWLEGENDS_INVITE_UNKNOWN' } };
     return { id: 'x', ok: true, status: 200, body: {} };
   });
-  const s = new SocialSheet(document.body, {
-    api: api as never,
-    signedIn: () => true,
-    partyCode: () => null,
-    joinParty: vi.fn(),
-    signIn: vi.fn(),
-    playCasual: vi.fn(),
-    height: () => 800,
-  });
+  const s = new FriendsSheet(document.body, { api: api as never, signedIn: () => true, signIn: vi.fn() });
   return { s, calls };
 }
 
@@ -81,11 +73,9 @@ describe('invite helpers', () => {
   });
 });
 
-describe('the invite row in the Social sheet', () => {
-  // the card starts open (a choice made on this device); with no choice it folds once there are friends to show
-  beforeEach(() => localStorage.setItem('pl.social.inviteFolded', '0'));
+describe('the invite row in the add-friend sheet', () => {
 
-  it('its × folds it away and remembers it; Share link copies the link (never the bare code)', async () => {
+  it('Share link copies the link (never the bare code); the card has no fold (its own section)', async () => {
     const writes: string[] = [];
     Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t: string) => void writes.push(t) } });
@@ -99,13 +89,8 @@ describe('the invite row in the Social sheet', () => {
     expect(writes).toHaveLength(1);
     expect(writes[0]).toContain('https://pawlegends.app/?ref=K7QX2MP');
     expect(document.querySelector('.pl-social-note')!.textContent).toBe('Invite link copied');
-    document.querySelector<HTMLElement>('[data-a="inv-fold"]')!.click();
-    await flush();
-    expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
-    expect(document.querySelector('[data-testid="invite-open"]')!.getAttribute('aria-expanded')).toBe('false');
-    expect(localStorage.getItem('pl.social.inviteFolded')).toBe('1');
+    expect(document.querySelector('[data-a="inv-fold"]')).toBeNull();
     t.s.dispose();
-    localStorage.removeItem('pl.social.inviteFolded');
   });
 
   it('shows the progress (no invite code), takes the first row, and keeps names as text', async () => {
@@ -119,10 +104,8 @@ describe('the invite row in the Social sheet', () => {
     expect(row.querySelector('.pl-social-name')!.textContent).toBe('<b>Mia</b>: 1/3 matches');
     expect(document.querySelector('b b, .pl-invite-row b:not(:only-child) b')).toBeNull();
     expect(document.querySelector('[data-testid="invite-claim"]')).toBeNull();
-    // the invite card sits above the list (no paging: every friend has a row, the card takes none of their slots)
-    expect(document.querySelectorAll('.pl-fr')).toHaveLength(7);
-    expect(row.closest('.pl-social-body')!.firstElementChild).toBe(row);
-    // a title and a short line, never one long cut sentence; Share link is the one button
+    // its own section in the sheet (Home's panel is the friends list); Share link is the one button
+    expect(row.closest('[data-g="gift"]')).not.toBeNull();
     expect(row.querySelector('[data-testid="invite-copy"]')).toBeNull();
     expect(row.querySelector('[data-testid="invite-enter"]')).toBeNull();
     expect(row.querySelector('[data-testid="invite-share"]')).toBeTruthy();
@@ -151,6 +134,6 @@ describe('the invite row in the Social sheet', () => {
     sheet({});
     await flush();
     expect(document.querySelector('[data-testid="invite-row"]')).toBeNull();
-    expect(document.querySelectorAll('.pl-fr')).toHaveLength(7);
+    expect(document.querySelector('[data-testid="social-add-input"]')).not.toBeNull();
   });
 });

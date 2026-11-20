@@ -20,7 +20,7 @@ seat) opens your own profile with Edit profile, so there is never a duplicate co
 | Match history detail, both teams (Profile → Matches, and the history sheet) | the name button (`data-profile`) | `history` |
 | End-of-match scoreboard (PvP and matchmade rooms) | a human's name (`data-pslot`); the server names the seat (`history.seat`) | `results` |
 | Your party's rows on the results screen | the same, when the room is known | `results` |
-| Friends sidebar | the row menu's View profile (was Match history); opens on Overview | `friends` |
+| Home's friends panel (FRIENDS.md, Nov 20) | a friend's row; opens on Overview, with Message, Invite, Join, Watch, Ask to join, Invite later, Favourite, Remove and Block | `friends` |
 
 Not wired: Recent players (no code by design, gated by `allowRecent` and the age band), the in-match Tab scoreboard (a
 tap there mutes), and party lobby seats (no codes in the party view).

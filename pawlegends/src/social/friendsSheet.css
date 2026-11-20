@@ -1,0 +1,28 @@
+/* The add-friend sheet (friendsSheet.ts): a centred window over Home (full screen on a phone). It reuses the social
+   components' look (social.css: rows, the add card, my status card, the invite gift) under `.pl-social`, and only
+   replaces the old right-side panel frame. Every selector starts with `html` (equal specificity would lose to the main
+   stylesheet linked after this chunk). */
+html .pl-fsheet-scrim { position: fixed; inset: 0; z-index: 54; background: var(--v6-scrim, rgb(18 9 31 / 0.62)); animation: pl-fs-fade 0.18s ease-out both; }
+@keyframes pl-fs-fade { from { opacity: 0; } }
+html .pl-social.pl-fsheet {
+  top: 50%; left: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 32px)); height: auto; max-height: min(720px, calc(100dvh - 32px)); min-width: 0;
+  border-radius: 14px; padding: 6px 10px 10px; gap: 6px;
+  box-shadow: inset 0 0 0 1px rgb(var(--v6-cream-rgb, 255 243 227) / 0.14), 0 24px 60px rgb(0 0 0 / 0.55);
+  animation: pl-fs-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes pl-fs-in { from { opacity: 0; transform: translate(-50%, calc(-50% + 14px)); } }
+html .pl-social.pl-fsheet::before { display: none; }
+html .pl-fsheet .pl-social-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 10px; padding: 2px 2px 6px; }
+html .pl-fsheet .pl-group-h.is-static { position: static; }
+html .pl-fsheet .pl-add-card { position: static; margin: 0; }
+html .pl-fsheet .pl-fs-me { position: static; max-height: none; margin: 0; }
+html .pl-fsheet .pl-fs-live { align-self: flex-start; }
+html .pl-fsheet .pl-social-note { margin: 0; }
+/* invite mode: Home's own rows */
+html .pl-fsheet .fr-insheet { position: static; display: block; width: auto; padding: 0; background: none; box-shadow: none; animation: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+html .pl-fsheet .fr-insheet .fr-list { max-height: none; overflow: visible; }
+@media (max-width: 560px), (max-height: 480px) {
+  html .pl-social.pl-fsheet { top: 0; left: 0; transform: none; width: 100vw; max-height: none; height: 100dvh; border-radius: 0; animation: pl-sheet-in var(--v6-dur-screen, 0.24s) var(--v6-ease-out, ease-out) both; }
+}
+@media (prefers-reduced-motion: reduce) { html .pl-social.pl-fsheet, html .pl-fsheet-scrim { animation: none; } }

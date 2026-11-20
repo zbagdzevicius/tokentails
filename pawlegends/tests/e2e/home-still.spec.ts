@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { limit } from '../unit/cpu-budget';
+import { openSettingsFromHome } from './openSettings';
 
 // The Home re-render fix (Nov 12): opening and closing a panel over Home, or switching the Treat Track | Legends Pass
 // tabs, rebuilt Home under it, so every entrance animation (the bars dropping in, the left stack and promo sliding, PLAY
@@ -94,16 +95,14 @@ test('Home stays mounted and still while the Treat Track, Legends Pass and Setti
   // (the Cards drawer and its nav item were removed with every Token Tails mention, NO-TOKENTAILS.md, Nov 12)
   await expect(page.locator('.hm-nav [data-a="cards"]')).toHaveCount(0);
 
-  // Settings: turning Sound off there patches Home's Sound switch, nothing else
-  const mute = page.locator('.pl-home [data-a="mute"]');
-  await expect(mute).toHaveAttribute('aria-pressed', 'true');
-  await page.locator('.hm-corner [data-a="settings"]').click();
-  await expect(page.locator('.pl-settings')).toBeVisible();
+  // Settings (from the Profile screen since Nov 20: Home has no Sound or Settings button): turning Sound off there
+  // leaves Home still
+  await expect(page.locator('.pl-home [data-a="mute"], .pl-home [data-a="settings"]')).toHaveCount(0);
+  await openSettingsFromHome(page);
   await still('settings open');
   await page.locator('.pl-settings [data-a="sound"]').click();
   await page.locator('.pl-settings [data-a="close"]').click();
   await expect(page.locator('.pl-settings')).toHaveCount(0);
-  await expect(mute).toHaveAttribute('aria-pressed', 'false');
   await still('settings closed');
 
   // Practice's map pick (Lv 5, MODE-UNLOCKS.md; it mounts inside Home; Home behind it stays put)

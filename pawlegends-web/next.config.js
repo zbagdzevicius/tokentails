@@ -47,8 +47,7 @@ const wwwRedirect = {
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const REVALIDATE = "public, max-age=0, must-revalidate";
 const cache = (source, value) => ({ source, headers: [{ key: "Cache-Control", value }] });
-// The game's cache rules, for the live build and the hidden rail previews (pages/preview/, removed once the founder
-// picks a rail). Each build has its own base path, so their files and caches never mix.
+// The game's cache rules for a build directory (its own base path, so files and caches never mix).
 const gameBuildHeaders = (dir) => [
   cache(`/${dir}/build/:path*`, IMMUTABLE),
   {
@@ -70,9 +69,6 @@ const gameBuildHeaders = (dir) => [
   },
   cache(`/${dir}/assets/:path*`, "public, max-age=3600, stale-while-revalidate=604800"),
 ];
-// Founder rail previews (Nov 20): out of search engines, page and build alike.
-const NOINDEX = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
-const PREVIEW_BUILDS = ["preview-rail-a", "preview-rail-b"];
 const headers = [
   // Lets the cutover check (`curl -sI https://pawlegends.app/play`) tell this app from the old client deployment.
   { source: "/:path*", headers: [{ key: "x-pawlegends-web", value: "1" }] },
@@ -95,9 +91,6 @@ const headers = [
   })),
   // The push service worker (docs/plans/moba/SHARE-PUSH.md §2): browsers check it for updates; never cached for long.
   cache("/push-sw.js", REVALIDATE),
-  ...PREVIEW_BUILDS.flatMap((dir) => gameBuildHeaders(dir)),
-  { source: "/preview/:path*", headers: NOINDEX },
-  ...PREVIEW_BUILDS.map((dir) => ({ source: `/${dir}/:path*`, headers: NOINDEX })),
 ];
 
 /** @type {import('next').NextConfig} */

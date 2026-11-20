@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { limit } from '../unit/cpu-budget';
+import { openSettingsFromHome } from './openSettings';
 
 // Theme soundtrack (audio/theme.ts): nothing before the first gesture; then the home loop; the champion-select build
 // while the pick is open; the lock sting on LOCK IN; the loops fade in a match. Each source is checked where it lands
@@ -66,7 +67,7 @@ test('home theme after the first tap, the select build in champion select, the l
   await played(page, 'home');
 
   // Settings: the Music slider is saved
-  await page.locator('.hm-icon[data-a="settings"]').click();
+  await openSettingsFromHome(page);
   const slider = page.locator('[data-testid="music-row"] input[type="range"]');
   await expect(slider).toBeVisible();
   await slider.evaluate((el: HTMLInputElement) => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PROTO, PROTO_WATCH, ProtoError, SPECTATE_DELAY_MS, SPECTATE_LIMITS, parseClientJson, parseServerJson } from '../../src/net/proto';
-import { rowAction } from '../../src/social/socialSheet';
+import { rowAction } from '../../src/social/presence';
 import { watchFromUrl } from '../../src/share/partyLink';
 import { delayText, followSlot, winnerText } from '../../src/spectate/viewer';
 

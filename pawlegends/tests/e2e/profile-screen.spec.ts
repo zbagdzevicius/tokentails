@@ -219,10 +219,8 @@ for (const kind of ['guest', 'new', 'vet', 'other', 'fail'] as Kind[])
         const tag = `${kind}-${vp}`;
         const screen = game.locator('[data-testid="profile-screen"]');
         if (kind === 'other') {
-          await game.locator('[data-testid="lobby-social"]').first().click({ timeout: limit(60_000) });
-          // the friends list: a row opens its menu, View profile opens their Player Card (PLAYER-CARD.md)
-          await game.locator('.pl-social .pl-fr-main').first().click({ timeout: limit(10_000) });
-          await game.locator('.pl-fr-menu [data-a="history"]').first().click({ timeout: limit(10_000) });
+          // Home's friends panel (Nov 20): a row opens their Player Card (PLAYER-CARD.md)
+          await game.locator('[data-testid="home-friend"] .fr-main').first().click({ timeout: limit(60_000) });
           await expect(screen).toHaveAttribute('data-self', '0');
           // a friend's View profile opens their profile on its Overview
           await expect(screen).toHaveAttribute('data-tab', 'overview');
@@ -328,9 +326,7 @@ for (const kind of ['guest', 'new', 'vet', 'other', 'fail'] as Kind[])
         const home = game.locator('[data-testid="home-profile"]');
         const reopen = async (): Promise<void> => {
           if (kind === 'other') {
-            await game.locator('[data-testid="lobby-social"]').first().click();
-            await game.locator('.pl-social .pl-fr-main').first().click();
-            await game.locator('.pl-fr-menu [data-a="history"]').first().click();
+            await game.locator('[data-testid="home-friend"] .fr-main').first().click();
           } else await home.first().click();
           await expect(screen).toBeVisible();
         };

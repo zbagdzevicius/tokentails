@@ -89,19 +89,15 @@ test('Home, nav, settings and Friends: Tab moves no focus and draws no ring', as
   await tabStays(page, game, '.hm-nav [data-a="heroes"]', 'home nav Champions');
   await tabStays(page, game, '.hm-nav button', 'home nav');
   await tabStays(page, game, '[data-testid="home-play"]', 'home PLAY');
-  // Settings
-  await game.locator('[data-a="settings"]').first().click();
+  // Home's friends panel (Nov 20)
+  if (await game.locator('.fr-rail button').first().isVisible()) await tabStays(page, game, '.fr-rail button', 'friends panel');
+  // Settings: on the Profile screen since Nov 20 (Home's corner buttons are gone)
+  await game.locator('[data-testid="home-profile"]').first().click();
+  await game.locator('[data-testid="profile-settings"]').click();
   await game.locator('.pl-settings').waitFor();
   await tabStays(page, game, '.pl-settings button', 'settings');
   await page.keyboard.press('Escape');
   await expect(game.locator('.pl-settings')).toHaveCount(0);
-  // Friends sidebar
-  const social = game.locator('[data-testid="lobby-social"]');
-  if (await social.isVisible()) {
-    await social.click();
-    await game.locator('.pl-social').waitFor();
-    await tabStays(page, game, '.pl-social button', 'friends sidebar');
-  }
 });
 
 test('Store: Tab moves no focus and draws no ring', async ({ context, page, baseURL }) => {

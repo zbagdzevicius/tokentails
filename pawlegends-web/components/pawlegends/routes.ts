@@ -14,12 +14,9 @@ export const PAWLEGENDS_LANDING_PATH: string = routes.landingPath;
 /** `/legends`: the scroll-lane-map landing, A/B arm B (landingVariant.ts). */
 export const PAWLEGENDS_LEGENDS_PATH: string = routes.legendsPath;
 export const PAWLEGENDS_PLAY_PATH: string = routes.playPath;
-/**
- * The pages that host the game: `/play`, and the founder's hidden rail previews (pages/preview/rail-a and rail-b, Nov
- * 20; removed once a rail is picked). The consent bar docks above the game on each of them.
- */
+/** The page that hosts the game (`/play`): the consent bar docks above the game there. */
 export function isGamePagePath(pathname: string): boolean {
-  return pathname === PAWLEGENDS_PLAY_PATH || /^\/preview\/rail-[ab]$/.test(pathname);
+  return pathname === PAWLEGENDS_PLAY_PATH;
 }
 export const PAWLEGENDS_PLAY_QUERY_KEYS: readonly string[] = Object.freeze([...routes.playQueryKeys]);
 

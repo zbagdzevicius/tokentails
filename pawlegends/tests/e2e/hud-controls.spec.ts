@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, playFromHome, seedSide } from './helpers';
 import { limit } from '../unit/cpu-budget';
+import { openSettingsFromHome } from './openSettings';
 
 /**
  * Gaps round 3 (hud-controls): the HUD layout editor (Settings → HUD layout → Edit) and the per-ability cast modes, end
@@ -38,7 +39,7 @@ test('the editor: drag, refuse an overlap, save; the match lays out what was sav
   await seedSide(page, 'cat', { sessions: 3, matches: 5, wins: 2, veteran: true });
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('[data-a="settings"]').first().click();
+  await openSettingsFromHome(page);
   await page.locator('[data-testid="hud-edit"]').click();
   const ed = page.locator('[data-testid="hud-editor"]');
   await expect(ed).toBeVisible();
@@ -155,7 +156,7 @@ test('cast modes: Indicator shows the aim on the press; Normal arms, then a fiel
 test('Settings: frame rate, ability casting and the HUD layout rows on a phone', async ({ page }) => {
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('[data-a="settings"]').first().click();
+  await openSettingsFromHome(page);
   await expect(page.locator('[data-testid="fps-row"] [data-fps="60"].on')).toHaveCount(1);
   await page.locator('[data-testid="tcast"] summary').click();
   await expect(page.locator('.tcast')).toHaveCount(5);

@@ -33,19 +33,13 @@ export const PAWLEGENDS_SEO = Object.freeze({
 export interface PawlegendsPlayPageProps {
   /** Where the game build is served (`flags.ts` `PAWLEGENDS_GAME_BASE`, `/pawlegends-game/`, by default). */
   gameBase?: string;
-  /**
-   * A hidden preview page (pages/preview/): a small corner badge with this text, and `noindex, nofollow` instead of
-   * `/play`'s `noindex, follow`.
-   */
-  preview?: string;
 }
 
 /**
  * `/play` (POC.md §11.4): the Pawlegends three.js build, full-bleed in a same-origin iframe. Auth is `optional`: an
- * existing session is reused, none is created; the game only learns whether the player is signed in. The hidden
- * preview pages render the same page with another `gameBase`.
+ * existing session is reused, none is created; the game only learns whether the player is signed in.
  */
-export function PawlegendsPlayPage({ gameBase, preview }: PawlegendsPlayPageProps) {
+export function PawlegendsPlayPage({ gameBase }: PawlegendsPlayPageProps) {
   // No page zoom around the game iframe (components/pawlegends/noZoom.ts); restored when the page unmounts.
   useEffect(() => lockPageZoom(), []);
   // Tab is a game key, never focus traversal over the host page (components/pawlegends/tabGuard.ts).
@@ -56,18 +50,8 @@ export function PawlegendsPlayPage({ gameBase, preview }: PawlegendsPlayPageProp
       <Head>
         {/* Same key as _app's tag, so next/head keeps this one on this page only. */}
         <meta name="viewport" content={PAWLEGENDS_VIEWPORT} key="viewport" />
-        {/* Same key as SeoHead's robots tag: the later one wins, so a preview is noindex and nofollow. */}
-        {preview ? <meta name="robots" content="noindex,nofollow" key="robots" /> : null}
       </Head>
       <PawlegendsHost gameBase={gameBase} />
-      {preview ? (
-        <div
-          data-testid="pawlegends-preview-badge"
-          className="pointer-events-none fixed bottom-2 left-2 z-[60] rounded bg-tt-night-950/80 px-2 py-1 font-sans text-[11px] font-bold text-tt-gold-400"
-        >
-          {preview}
-        </div>
-      ) : null}
     </FirebaseAuthProvider>
   );
 }
