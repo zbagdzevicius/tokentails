@@ -5,6 +5,7 @@ import { User } from 'src/user/user.schema';
 import { countryOf, shownFlag, type FlagRow } from '../flags/flags';
 import { PawlegendsFlag } from '../flags/flags.schema';
 import { visibleFlags } from '../flags/flags.service';
+import { playerCodes } from '../social/player-codes';
 import { PawlegendsMatchHistory, PawlegendsMatchStats } from '../history/history.schema';
 import { seasonAt, statsId } from '../history/history.model';
 import { playedOf } from '../mm/rating.schema';
@@ -70,6 +71,8 @@ export interface LevelRowView {
     me?: boolean;
     av?: AvatarView;
     cc?: string;
+    /** The player's code (the Player Card); only on a signed-in caller's board. */
+    code?: string;
 }
 
 export interface LevelMe {
@@ -432,10 +435,11 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
         return this.cached(`${key}|p${p}`, async () => {
             const slice = order.slice(p * LEVEL_PAGE, p * LEVEL_PAGE + LEVEL_PAGE);
             const ids = slice.map(r => r._id);
-            const [names, avs, ccs] = await Promise.all([
+            const [names, avs, ccs, codes] = await Promise.all([
                 displayNames({ social: this.social, cats: this.cats }, ids),
                 this.avatars(ids),
                 visibleFlags(this.flagRows, ids),
+                playerCodes(this.social, ids).catch(() => new Map<string, string>()),
             ]);
             return {
                 pages,
@@ -447,6 +451,8 @@ export class LeaderboardService implements LeaderboardSink, OnModuleInit, OnModu
                     m: r.m,
                     ...(avs.get(r._id) ? { av: avs.get(r._id) } : {}),
                     ...(ccs.get(r._id) ? { cc: ccs.get(r._id) } : {}),
+                    // the Player Card (PLAYER-CARD.md): signed-in callers only (the public route drops it)
+                    ...(codes.get(r._id) ? { code: codes.get(r._id) } : {}),
                 })),
             };
         });

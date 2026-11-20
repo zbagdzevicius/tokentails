@@ -32,14 +32,15 @@ const LIMITS: Record<string, { account: ClientIpThrottleOptions; ip: ClientIpThr
     // SOCIAL-INVITES.md: the fast inbox, one poll every 4 s per open game (two tabs fit), shared IPs (NAT) fit
     inbox: { account: { limit: 40, ttl: MIN }, ip: { limit: 600, ttl: MIN } },
     answer: { account: { limit: 20, ttl: MIN }, ip: { limit: 60, ttl: MIN } },
-    request: { account: { limit: 5, ttl: MIN }, ip: { limit: 30, ttl: MIN } },
+    request: { account: { limit: 30, ttl: MIN }, ip: { limit: 90, ttl: MIN } },
     edit: { account: { limit: 30, ttl: MIN }, ip: { limit: 60, ttl: MIN } },
     me: { account: { limit: 10, ttl: MIN }, ip: { limit: 30, ttl: MIN } },
     rotate: { account: { limit: 3, ttl: 24 * 60 * MIN }, ip: { limit: 10, ttl: 60 * MIN } },
     recent: { account: { limit: 30, ttl: MIN }, ip: { limit: 60, ttl: MIN } },
     invite: { account: { limit: 10, ttl: 10 * MIN }, ip: { limit: 30, ttl: 10 * MIN } },
     age: { account: { limit: 5, ttl: MIN }, ip: { limit: 20, ttl: MIN } },
-    code: { account: { limit: 30, ttl: 10 * MIN }, ip: { limit: 60, ttl: 10 * MIN } },
+    // PLAYER-CARD.md: Add friend on a Player Card sends the code the server handed out (Boards, a match): not a guess
+    code: { account: { limit: 100, ttl: 10 * MIN }, ip: { limit: 200, ttl: 10 * MIN } },
     // SOCIAL-INVITES.md: nickname suggestions while typing (the game waits 300 ms between keys and needs 2 letters)
     search: { account: { limit: 40, ttl: MIN }, ip: { limit: 200, ttl: MIN } },
 };

@@ -4,6 +4,7 @@ import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ClientIpThrottlerGuard } from 'src/shared/guards/client-ip-throttler.guard';
 import { LeaderboardService } from '../leaderboard/leaderboard.service';
 import { needAccount, RankedService } from './ranked.service';
+import { withoutCodes } from '../social/player-codes';
 
 /*
  * Ranked and leaderboard reads (docs/plans/moba/SOCIAL-RANKED.md §10). `ranked/status`, `ping` (§7.11) and the global,
@@ -74,7 +75,10 @@ export class PawlegendsRankedController {
     ) {
         await this.ipThrottler.consume('PawlegendsRanked.board', req, { limit: 60, ttl: MINUTE }, res);
         if (kind === 'friends' || kind === 'local' || kind === 'country') throw needAccount();
-        return this.leaderboardBoard(kind, query || {}, null) ?? this.ranked.board(kind, query || {}, null);
+        // no player codes without a token (PLAYER-CARD.md: only a signed-in caller opens a Player Card)
+        return withoutCodes(
+            await (this.leaderboardBoard(kind, query || {}, null) ?? this.ranked.board(kind, query || {}, null))
+        );
     }
 
     /** With a token: the friends and local boards, and `me` on the others (registered accounts). */

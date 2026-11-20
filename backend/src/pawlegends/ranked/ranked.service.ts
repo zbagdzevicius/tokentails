@@ -12,6 +12,7 @@ import type { MmRatingRow, RankedFields } from '../mm/rating.schema';
 import { CURRENT_SEASON_ID, SEASONS } from '../pawlegends-catalog';
 import { pawlegendsError } from '../pawlegends.errors';
 import { displayNames } from '../social/display-name';
+import { playerCodes } from '../social/player-codes';
 import { liveHeroIds, resolveAvatars } from '../social/avatar';
 import type { AvatarView } from '../../shared-contracts/chat';
 import { PawlegendsOwned } from '../pawlegends.schema';
@@ -346,10 +347,11 @@ export class RankedService {
     ): Promise<Omit<Cached, 'atMs'>> {
         const slice = kept.slice(page * BOARD_PAGE, page * BOARD_PAGE + BOARD_PAGE);
         const ids = slice.map(r => r.row.accountId);
-        const [names, avs, ccs] = await Promise.all([
+        const [names, avs, ccs, codes] = await Promise.all([
             displayNames({ social: this.social, cats: this.cats }, ids),
             this.avatars(ids),
             visibleFlags(this.flagRows, ids),
+            playerCodes(this.social, ids).catch(() => new Map<string, string>()),
         ]);
         return {
             accs: ids,
@@ -363,6 +365,8 @@ export class RankedService {
                     value: r.points,
                     ...(avs.get(r.row.accountId) ? { av: avs.get(r.row.accountId) } : {}),
                     ...(ccs.get(r.row.accountId) ? { cc: ccs.get(r.row.accountId) } : {}),
+                    // the Player Card (PLAYER-CARD.md): signed-in callers only (the public route drops it)
+                    ...(codes.get(r.row.accountId) ? { code: codes.get(r.row.accountId) } : {}),
                     tier: tierLabel(r.tierIdx, r.points),
                 })),
             },

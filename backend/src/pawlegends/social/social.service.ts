@@ -17,6 +17,7 @@ import { checkAvatarChoice, liveHeroIds, resolveAvatars } from './avatar';
 import { ChatService } from './chat.service';
 import { RANKED_MIN_MATCHES } from '../ranked/tiers';
 import { displayNames } from './display-name';
+import { playerCodes } from './player-codes';
 import { foldCatName } from '../../shared-contracts/name';
 import { pushNotify } from '../push/push-sink';
 import { PresenceRow, presenceUpdate, PresenceView, readPresence } from './presence';
@@ -95,6 +96,9 @@ export interface SocialProfile {
     rev: number;
     rotations?: { day: string; n: number } | null;
 }
+
+/** The Player Card's relation (PLAYER-CARD.md): `sent` my request is pending, `asked` theirs is. */
+export type PlayerRelation = 'self' | 'friend' | 'sent' | 'asked' | 'none';
 
 interface Edge {
     _id: string;
@@ -345,6 +349,53 @@ export class SocialService {
     async blockedEither(a: string, b: string): Promise<boolean> {
         const n = await this.blocks.countDocuments({ _id: { $in: [`${a}:${b}`, `${b}:${a}`] } });
         return n > 0;
+    }
+
+    /**
+     * The Player Card (docs/plans/moba/PLAYER-CARD.md): how the viewer stands with another player, the same words as
+     * `search` (`friend`, `sent`: my request is pending, `asked`: theirs is), plus `self` and `none`.
+     */
+    async relationOf(me: string, them: string): Promise<PlayerRelation> {
+        if (me === them) return 'self';
+        const edge = (await this.friends.findById(pairId(me, them)).lean()) as Edge | null;
+        if (!edge) return 'none';
+        if (edge.state === 'accepted') return 'friend';
+        return edge.from === me ? 'sent' : 'asked';
+    }
+
+    /** The Player Card: online or not, nothing more (an invisible player reads offline; no room, party or queue). */
+    async onlineOf(id: string): Promise<boolean> {
+        const v = (await this.presenceOf([id])).get(id);
+        return !!v && v.state !== 'offline';
+    }
+
+    /**
+     * The Player Card from an end-of-match scoreboard: the account a (room, slot) names (its last holder, the way
+     * `recent`, `kudos` and reports read it), for a player of that room only, inside the recent window. Null for a
+     * bot seat, the caller's own seat, an unknown or old room: the caller answers "no player" and never says why.
+     */
+    async seatHolder(me: string, roomIn: unknown, slotIn: unknown): Promise<string | null> {
+        const roomId = typeof roomIn === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(roomIn) ? roomIn : null;
+        const slot = Number(slotIn);
+        if (!roomId || !Number.isInteger(slot) || slot < 0 || slot > 9) throw SOCIAL_ERRORS.invalid('room and slot');
+        const room = (await this.rooms.findById(roomId).lean()) as MmRoomRecord | null;
+        const now = this.now().getTime();
+        if (
+            !room ||
+            !room.members.some(m => m.accountId === me) ||
+            now - new Date(room.endedAt ?? room.createdAt).getTime() > RECENT_DAYS * DAY
+        )
+            return null;
+        const held = room.members
+            .filter(m => m.slot === slot && m.accountId)
+            .sort((a, b) => b.joinedTick - a.joinedTick);
+        const target = held[0]?.accountId;
+        return target && target !== me ? target : null;
+    }
+
+    /** Player codes by account id (the Player Card's seat lookup); unknown ids are left out. */
+    codesOf(ids: readonly string[]): Promise<Map<string, string>> {
+        return playerCodes(this.social, ids);
     }
 
     // ---------------------------------------------------------------------------------------------------------------
