@@ -1991,6 +1991,8 @@ export class App {
           // `leaderboard_open {source, tab}` once open, `board_view {kind}` per tab
           track: (e, p) => this.analytics.track(e as 'leaderboard_open', p),
           source,
+          // a guest's Country > My country: the host's sign-in (founder Nov 20: guests see Top countries)
+          signIn: () => this.integration.requestSignIn('save-progress'),
           // PLAYER-CARD.md: a name opens the Player Card over the window (my own row: my profile)
           ...(this.bridge.active ? { openPlayer: (p: 'self' | { code: string; name: string; av?: unknown; cc?: string }) => (p === 'self' ? this.openProfile(null) : this.openProfile({ ...p, source: 'boards' })) } : {}),
           onClose: () => {

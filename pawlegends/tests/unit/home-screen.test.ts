@@ -503,8 +503,14 @@ describe('Home Boards (founder Nov 19: under # Join, the leaderboards window)', 
     expect(onBoards).toHaveBeenCalledTimes(1);
   });
 
-  it('hidden in the first guided match, a dare, and where the host has no social (no onBoards)', () => {
-    expect(mount(base({ firstTime: true, onBoards: vi.fn() })).querySelector('[data-testid="home-boards"]')).toBeNull();
+  it('a brand-new guest sees it too, under Join (Nov 20: a fresh guest had no Boards); hidden only where the host has no social (no onBoards)', () => {
+    const onBoards = vi.fn();
+    const first = mount(base({ firstTime: true, onBoards, onJoinCode: vi.fn() }));
+    const btn = first.querySelector<HTMLElement>('[data-testid="home-boards"]')!;
+    expect(btn).not.toBeNull();
+    expect(btn.previousElementSibling?.getAttribute('data-testid')).toBe('join-code');
+    btn.click();
+    expect(onBoards).toHaveBeenCalledTimes(1);
     document.body.innerHTML = '';
     expect(mount(base()).querySelector('[data-testid="home-boards"]')).toBeNull();
   });

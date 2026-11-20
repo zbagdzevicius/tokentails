@@ -106,16 +106,43 @@ describe('tabs', () => {
     expect(localStorage.getItem('pl.boards.tab')).toBe('ranked');
   });
 
-  it('signed out: Country asks to sign in without a call; the others load without `me`', async () => {
+  it('signed out: Country shows Top countries from the public board; My country asks to sign in; the others load without `me`', async () => {
     localStorage.setItem('pl.boards.tab', 'country');
-    const { calls } = sheet((op) => (op === 'board.get' ? ok(levelRows) : null), false);
+    const countries = { countries: { rows: [{ rank: 1, cc: 'LT', players: 3, levels: 37 }, { rank: 2, cc: 'LV', players: 1, levels: 18 }], mine: null, total: 2 } };
+    const { calls } = sheet((op, args) => (op === 'board.get' ? ok(args.kind === 'countries' ? countries : levelRows) : null), false);
     await flush();
-    expect(calls).toHaveLength(0);
+    // one public call: no page, no `me`
+    expect(calls.map((c) => c.args)).toEqual([{ kind: 'countries' }]);
+    expect([...document.querySelectorAll('[data-testid="board-countries"] .pl-bd-cc')].map((r) => (r as HTMLElement).dataset.cc)).toEqual(['LT', 'LV']);
+    expect(document.querySelector('[data-testid="board-country-lead"]')!.textContent).toMatch(/Lithuania is #1/);
+    expect(document.querySelector('.pl-bd-you')).toBeNull();
+    document.querySelector<HTMLElement>('[data-scope="mine"]')!.click();
     expect(document.querySelector('[data-testid="board-country-why"]')!.textContent).toMatch(/Sign in to see the top players in your country/);
+    // no host sign-in given: the line alone
+    expect(document.querySelector('[data-testid="board-signin"]')).toBeNull();
+    // one answer holds both views: no reload
+    expect(calls).toHaveLength(1);
     document.querySelector<HTMLElement>('[data-board="level"]')!.click();
     await flush();
-    expect(calls[0]!.args).toEqual({ kind: 'level', page: 0 });
+    expect(calls[1]!.args).toEqual({ kind: 'level', page: 0 });
     expect(document.querySelector('.pl-bd-note')!.textContent).toMatch(/Guests are not ranked/);
+  });
+});
+
+describe('guest sign-in from My country', () => {
+  it('Sign in closes the window and opens the host sign-in', async () => {
+    localStorage.setItem('pl.boards.tab', 'country');
+    localStorage.setItem('pl.boards.country', 'mine');
+    const signIn = vi.fn();
+    const onClose = vi.fn();
+    const api = vi.fn(async (): Promise<ApiResult> => ok({ countries: { rows: [], mine: null, total: 0 } }));
+    const h = openBoards(document.body, { api: api as never, signedIn: () => false, signIn, onClose });
+    await flush();
+    expect(api).toHaveBeenCalledWith('board.get', { kind: 'countries' });
+    document.querySelector<HTMLElement>('[data-testid="board-signin"]')!.click();
+    expect(h.closed).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(signIn).toHaveBeenCalledTimes(1);
   });
 });
 

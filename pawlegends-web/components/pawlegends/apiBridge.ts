@@ -311,8 +311,9 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
     case "ranked.me":
       return { method: "GET", path: "/pawlegends/ranked/me", auth: "any" };
     case "board.get": {
-      // the Leaderboards window (LEADERBOARDS.md): level, country, sides (Cats vs Dogs) and global (Ranked)
-      const kind = str(a.kind, /^(global|friends|hero|weekly|local|level|country|sides)$/);
+      // the Leaderboards window (LEADERBOARDS.md): level, country, countries (Top countries alone, public: guests),
+      // sides (Cats vs Dogs) and global (Ranked)
+      const kind = str(a.kind, /^(global|friends|hero|weekly|local|level|country|countries|sides)$/);
       if (!kind) return null;
       const query = q({
         hero: str(a.hero, /^[a-z0-9_-]{1,32}$/i),
@@ -321,6 +322,7 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
         page: int(a.page, 0, 50),
       });
       // the friends, local and country boards (the caller's own country) and the caller's own rank need a token
+      if (kind === "countries") return { method: "GET", path: "/pawlegends/boards/countries", auth: "none" };
       return kind === "friends" || kind === "local" || kind === "country" || a.name === "me"
         ? { method: "GET", path: `/pawlegends/boards/${kind}/me${query}`, auth: "registered" }
         : { method: "GET", path: `/pawlegends/boards/${kind}${query}`, auth: "none" };

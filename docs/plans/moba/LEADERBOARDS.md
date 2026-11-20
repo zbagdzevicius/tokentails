@@ -13,7 +13,7 @@ fires when it opens, `board_view {kind}` per tab (and `countries` / `country` wh
 | Tab | Route (`board.get` kind) | Source of truth | Who is on it |
 |---|---|---|---|
 | Global (`level`) | `GET /pawlegends/boards/level[/me]?page=` | `pawlegendslevels` (`_id` account, `m` the account level's matches, `at` when `m` last grew) | registered accounts; not guests, deleted, `boardExcludedAt`, or a `board_exclude`/`pvp_ban` sanction in force |
-| Country: Top countries | `GET /pawlegends/boards/country/me` (token), `countries` | the same rows, by each row's shown flag | every country with at least one player on Global who shows its flag |
+| Country: Top countries | `GET /pawlegends/boards/country/me` (token), `countries`; guests `GET /pawlegends/boards/countries` (public, kind `countries`) | the same rows, by each row's shown flag | every country with at least one player on Global who shows its flag |
 | Country: My country | the same answer, `rows`/`me` (`?page=`) | the same rows, kept to accounts whose flag shows the caller's country | as Global, and only players who show their flag; a caller who hid theirs, or whose country is unknown, gets `local` and no rows |
 | Cats vs Dogs | `GET /pawlegends/boards/sides[/me]` | `pawlegendssidewins` counters: `all`, `season:<id>`, `week:<isoWeek>` | every counted match once |
 | Ranked | `GET /pawlegends/boards/global[/me]?page=` | the season's ranked ladder (`RankedService`, unchanged) | placed ranked players, top 100 |
@@ -28,7 +28,17 @@ flag (ties: more players, then the country code). It rewards both many players a
 the Global board shows, and needs no new counters. The first 50 are listed with the #1 country named over the list
 ("Lithuania is #1"); my country is marked, or pinned under the list when it is lower. One `country/me` answer carries
 both views, so the switch between them makes no call (the view is remembered in `pl.boards.country`; Top countries by
-default). Signed out, the Country tab asks to sign in (the host sends `country` with the account's token only).
+default).
+
+Guests (founder Nov 20: "yes"): the Country tab shows Top countries from the public `GET /pawlegends/boards/countries`
+(`board.get {kind: 'countries'}`, always sent without a token): `{countries: {rows: [{rank, cc, players, levels}],
+mine: null, total}}`, the same 60 s cached ranking, with no player, id, name or code in it. My country stays signed-in
+only: a guest sees "Sign in to see the top players in your country and your own place." and a Sign in button (the
+host's sign-in; the window closes). Player codes on board rows stay signed-in only. The route counts per client
+address at 10x the route limit (600 a minute), like every anonymous Paw Legends read.
+
+The Boards button sits under Join wherever Join shows, a brand-new guest's first Home included (Nov 20: a fresh guest
+saw no Boards; it had been hidden on the first visit and on a dare). It still needs a host with social (`onBoards`).
 
 ## The account level: one source
 

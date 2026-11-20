@@ -52,6 +52,9 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("board.get", { kind: "level", name: "me" })).toMatchObject({ path: "/pawlegends/boards/level/me", auth: "registered" });
     expect(routeOf("board.get", { kind: "sides" })).toMatchObject({ path: "/pawlegends/boards/sides", auth: "none" });
     expect(routeOf("board.get", { kind: "country" })).toMatchObject({ path: "/pawlegends/boards/country/me", auth: "registered" });
+    // Top countries alone is public (guests see it), even when a signed-in game asks with name "me"
+    expect(routeOf("board.get", { kind: "countries" })).toMatchObject({ method: "GET", path: "/pawlegends/boards/countries", auth: "none" });
+    expect(routeOf("board.get", { kind: "countries", name: "me", page: 2 })).toMatchObject({ path: "/pawlegends/boards/countries", auth: "none" });
     expect(routeOf("board.get", { kind: "nope" })).toBeNull();
     expect(routeOf("ranked.status", {})).toMatchObject({ auth: "none" });
     const thread = "dAAAAAAAAAAAAAAAAAAAAAA";

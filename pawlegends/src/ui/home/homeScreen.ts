@@ -247,8 +247,9 @@ function leftHtml(o: HomeScreenOpts, live: boolean): string {
       ? `<button type="button" class="hm-round hm-goals${live ? ' live' : ''}" data-a="goals" data-testid="home-goals" aria-haspopup="dialog" aria-expanded="false" aria-label="${esc(`Quests: ${t.done} of ${t.total} done today${live ? '. An event needs you' : ''}`)}"><span class="hm-qring${t.done === t.total ? ' all' : ''}" style="--p:${pct}%" aria-hidden="true">${SCROLL}</span><span class="hm-rl">Quests</span>${live ? '<i class="hm-dot" aria-hidden="true"></i>' : ''}</button>`
       : '';
   const code = o.onJoinCode ? `<button type="button" class="hm-round hm-code" data-a="joincode" data-testid="join-code" aria-label="Join a party with a code" title="Join a party with a code"><b aria-hidden="true">#</b><span class="hm-rl">Join</span></button>` : '';
-  // founder Nov 19: the leaderboards are their own window, opened from here (under Join); the one way in
-  const boards = returning && o.onBoards ? `<button type="button" class="hm-round hm-boards" data-a="boards" data-testid="home-boards" aria-haspopup="dialog" aria-label="Leaderboards" title="Leaderboards">${PODIUM}<span class="hm-rl">Boards</span></button>` : '';
+  // founder Nov 19: the leaderboards are their own window, opened from here (under Join); the one way in. Shown wherever
+  // Join is, a brand-new guest's first visit too (Nov 20: a fresh guest saw no Boards; guests see the public boards)
+  const boards = o.onBoards ? `<button type="button" class="hm-round hm-boards" data-a="boards" data-testid="home-boards" aria-haspopup="dialog" aria-label="Leaderboards" title="Leaderboards">${PODIUM}<span class="hm-rl">Boards</span></button>` : '';
   return `<div class="hm-left">${goals}${code}${boards}</div>`;
 }
 

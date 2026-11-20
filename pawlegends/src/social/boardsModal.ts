@@ -7,7 +7,8 @@
  *   registered player (guests are not on boards);
  * - Country, two views switched like Cats vs Dogs' periods: Top countries (every country by its players' total
  *   level, #1 crowned, mine marked or pinned) and My country (the Global board kept to players who show my country's
- *   flag, my exact rank pinned under it);
+ *   flag, my exact rank pinned under it). Founder Nov 20: guests see Top countries too (the public `countries` board:
+ *   country totals only, no players); My country asks them to sign in;
  * - Cats vs Dogs: every counted match win by side, this season or all time, as a tug-of-war bar;
  * - Ranked: this season's ranked ladder, top 100 (tier and points).
  * My own row shows once: on the list when I am on the page, else pinned under it. Its own lazy chunk (with its
@@ -24,7 +25,7 @@ import { ccHtmlOrNone, countryName, flagEmoji, setFlagHidden } from './flags';
 import { icon } from './socialIcons';
 import './boardsModal.css';
 
-/** The tabs, in order. Country needs an account (it shows a sign-in line without one). */
+/** The tabs, in order. Country's My country needs an account (a guest sees Top countries and a sign-in line). */
 export type BoardKind = 'level' | 'country' | 'sides' | 'ranked';
 export const BOARD_KINDS: readonly BoardKind[] = Object.freeze(['level', 'country', 'sides', 'ranked']);
 const BOARD_LABEL: Readonly<Record<BoardKind, string>> = Object.freeze({ level: 'Global', country: 'Country', sides: 'Cats vs Dogs', ranked: 'Ranked' });
@@ -245,6 +246,8 @@ export interface BoardsDeps {
    * are plain text.
    */
   openPlayer?(p: 'self' | { code: string; name: string; av?: AvatarView; cc?: string }): void;
+  /** Guests: My country's sign-in button (the host's sign-in). Absent: the line alone. */
+  signIn?(): void;
   onClose?(): void;
 }
 
@@ -334,7 +337,6 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
 
   const bodyHtml = (): string => {
     const d = board.data;
-    if (board.kind === 'country' && !signedIn) return `<div class="pl-bd-why" data-testid="board-country-why"><p class="pl-social-empty">Sign in to see the top players in your country.</p></div>`;
     if (!d) return `<p class="pl-social-empty pl-boards-loading">Loading…</p>`;
     if (d.error) return `<div class="pl-bd-why"><p class="pl-social-empty" data-testid="board-error">${esc(String(d.error))}</p><button type="button" class="pl-btn small" data-a="retry">Try again</button></div>`;
     if (board.kind === 'sides') return sidesHtml(d);
@@ -352,6 +354,11 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
         : '';
       const list = v.rows.length ? v.rows.map((r) => countryRowHtml(r)).join('') : `<p class="pl-social-empty">No countries yet. Players who show their flag put their country on the board.</p>`;
       return `${scopes}${lead}<div class="pl-bd-list" role="list" data-testid="board-countries">${list}${v.pinned ? countryRowHtml(v.pinned, true) : ''}</div><p class="pl-bd-note">Countries by their players' total level. Only players who show their flag count.</p>`;
+    }
+    if (board.kind === 'country' && !signedIn) {
+      // a guest: My country is the signed-in player's own country (from their flag); a gentle way in
+      const btn = deps.signIn ? `<button type="button" class="pl-btn small" data-a="board-signin" data-testid="board-signin">Sign in</button>` : '';
+      return `${scopes}<div class="pl-bd-why" data-testid="board-country-why"><p class="pl-social-empty">Sign in to see the top players in your country and your own place.</p>${btn}</div>`;
     }
     if (board.kind === 'country' && (local?.hidden || !cc)) {
       const why = local?.hidden
@@ -453,13 +460,12 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
 
   const load = async (): Promise<void> => {
     const my = ++seq;
-    if (board.kind === 'country' && !signedIn) {
-      board.data = { rows: [] };
-      render();
-      return;
-    }
     const kind = board.kind;
-    const args: ApiArgs = { kind: SERVER_KIND[kind], ...(kind === 'sides' ? {} : { page: board.page }), ...(signedIn ? { name: 'me' } : {}) };
+    // a guest's Country tab: Top countries alone, from the public board (country totals, no players)
+    const guestCountries = kind === 'country' && !signedIn;
+    const args: ApiArgs = guestCountries
+      ? { kind: 'countries' }
+      : { kind: SERVER_KIND[kind], ...(kind === 'sides' ? {} : { page: board.page }), ...(signedIn ? { name: 'me' } : {}) };
     const r = await deps.api('board.get', args).catch((): ApiResult => ({ id: 'x', ok: false, status: 0 }));
     if (disposed || my !== seq) return;
     board.data = r.ok ? ((r.body as Record<string, any>) ?? { rows: [] }) : { rows: [], error: errorText(r) };
@@ -568,6 +574,11 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
         board.data = null;
         render();
         void load();
+        return;
+      case 'board-signin':
+        // a guest's My country: the host's sign-in (the window closes; Boards reopens signed in)
+        close();
+        deps.signIn?.();
         return;
       case 'board-flag':
         // Country: one tap shows my flag (the same choice as Settings), then the board loads with me on it

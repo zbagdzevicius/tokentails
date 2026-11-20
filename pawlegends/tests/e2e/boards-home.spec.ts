@@ -313,3 +313,59 @@ test('Home Boards: clear of the profile, nav, PLAY and the corner icons; every t
     await expect(game.locator('[data-testid="boards-modal"]')).toHaveCount(0);
   }
 });
+
+/*
+ * Founder Nov 20 ("yes"): guests see Top countries. A brand-new guest (no profile, signed out) has Boards under Join on
+ * the first Home; Country loads the public `countries` board (country totals only, no `me`), My country asks to sign in.
+ */
+test('Guest Boards: a brand-new guest opens Boards; Top countries from the public board, My country asks to sign in', async ({ context, page, baseURL }, info) => {
+  const asked: Array<Record<string, unknown>> = [];
+  await context.exposeFunction('plApi', async (op: string, args: Record<string, unknown>) => {
+    if (op === 'board.get') {
+      asked.push({ ...args });
+      if (args.kind === 'countries')
+        return {
+          status: 200,
+          body: {
+            countries: {
+              rows: [
+                { rank: 1, cc: 'LT', players: 41, levels: 286 },
+                { rank: 2, cc: 'LV', players: 22, levels: 190 },
+                { rank: 3, cc: 'GB', players: 18, levels: 121 },
+              ],
+              mine: null,
+              total: 3,
+            },
+          },
+        };
+      return { status: 200, body: { period: 'all', page: 0, pages: 1, rows: LEVEL_ROWS } };
+    }
+    return { status: 200, body: {} };
+  });
+  await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: false, liveApi: true });
+  const game = await openHost(page);
+  const btn = game.locator('[data-testid="home-boards"]');
+  await expect(btn).toBeVisible({ timeout: limit(60_000) });
+  // the first visit's Home (PLAY starts the guided first match)
+  await expect(game.locator('[data-testid="home-play"]')).toHaveAttribute('data-a', 'clem');
+  await page.waitForTimeout(800);
+  // the first Home: under Join, clear of PLAY, the corner, the top and the nav
+  await checkPlacement(game, `${info.project.name} first visit`);
+  if (SHOTS) await page.screenshot({ path: join(SHOTS, `home-boards-guest-${info.project.name}.png`) });
+  await btn.click();
+  const modal = game.locator('[data-testid="boards-modal"]');
+  await expect(modal).toBeVisible();
+  await modal.locator('[data-board="country"]').click();
+  await expect(modal.locator('[data-scope="top"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(modal.locator('[data-testid="board-country-lead"]')).toContainText('Lithuania is #1');
+  await expect(modal.locator('.pl-bd-cc')).toHaveCount(3);
+  await expect(modal.locator('.pl-bd-cc.me')).toHaveCount(0);
+  await checkDialog(game, `${info.project.name} guest countries`);
+  expect(asked.find((a) => a.kind === 'countries')).toEqual({ kind: 'countries' });
+  expect(asked.some((a) => a.name === 'me' || a.kind === 'country')).toBe(false);
+  await modal.locator('[data-scope="mine"]').click();
+  await expect(modal.locator('[data-testid="board-country-why"]')).toContainText('Sign in to see the top players in your country');
+  await expect(modal.locator('[data-testid="board-signin"]')).toBeVisible();
+  // one answer holds both views
+  expect(asked.filter((a) => a.kind === 'countries')).toHaveLength(1);
+});
