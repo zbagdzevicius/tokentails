@@ -38,6 +38,7 @@ import { matchPersonas } from './personas';
 import { againLabel, partyRows, partyRowsHtml } from './ui/partyResults';
 import { PartyChat } from './ui/partyChat';
 import { friendMates } from '../meta/partyBonus';
+import { updateReloaded } from '../net/reloadReason';
 import type { AvatarView, ChatReportKind } from '../data/chatPhrases';
 
 // ------------------------------------------------------------------------------------------------ the reducer
@@ -66,6 +67,8 @@ export interface QueueStatus {
   found: number;
   lowPriorityMs?: number;
   warn?: 'leaver';
+  /** With `warn`: the early leaves in the last 7 days (the Short wait says "You left 2 matches early…"). */
+  left?: number;
   /** Ranked (SOCIAL-RANKED.md §7.11): players searching this pool now. */
   searching?: number;
 }
@@ -99,6 +102,17 @@ export interface QueueState {
   seen: boolean;
   /** Play again after a Quick Play match (analytics). */
   requeue: boolean;
+  /**
+   * `mm.rejoin`: this player's own match is still live (a crash, a reload, the title): the card offers Rejoin match or
+   * Search new match before any search (M1A-IMPL.md §4.3).
+   */
+  rejoin?: RejoinOffer;
+}
+
+/** The live match the relay offers back (`mm.rejoin`). */
+export interface RejoinOffer {
+  mode: 'coop' | 'casual' | 'classic' | 'ranked' | 'party';
+  clockS: number;
 }
 
 /** A backfill offer (`mm.backfill.offer`) waiting for Join or Keep searching. */
@@ -162,6 +176,8 @@ export interface PartyState {
   joinTries: number;
   /** In a match the relay welcomed this socket as someone new (it lost the seat): the join gets the seat back. */
   rejoin: boolean;
+  /** Rejoin match was tapped (`mm.back` sent): the search to start again if the match ended meanwhile. */
+  backFrom?: QueueState;
 }
 
 /**
@@ -214,6 +230,8 @@ export type PartyEvent =
   | { e: 'keep' }
   /** Cancel the search. */
   | { e: 'unqueue' }
+  /** The `mm.rejoin` offer: Rejoin match (yes) or Search new match (no: the old seat counts as an early leave). */
+  | { e: 'rejoin'; yes: boolean }
   | { e: 'side'; side: MmSide }
   | { e: 'found-shown' }
   | { e: 'offer'; yes: boolean | null }
@@ -277,10 +295,11 @@ export const initialParty = (mode: OpenMode, code: string | null = null, side: M
 
 /**
  * The `mm.join` frame. Ranked carries `bots: true` (SOCIAL-RANKED.md §7.11): this game labels bots, so a quiet ranked
- * queue may fill the search with them or play it vs AI.
+ * queue may fill the search with them or play it vs AI. `held` (M1A-IMPL.md §4.3): 'ask' has the relay offer this
+ * player's own live match back first (`mm.rejoin`); 'leave' searches anyway, giving that seat up as an early leave.
  */
-export const mmJoinMsg = (queue: MmQueue, side: MmSide): ClientJson =>
-  queue === 'ranked' ? { t: 'mm.join', queue, side, bots: true } : { t: 'mm.join', queue, side };
+export const mmJoinMsg = (queue: MmQueue, side: MmSide, held: 'ask' | 'leave' = 'ask'): ClientJson =>
+  queue === 'ranked' ? { t: 'mm.join', queue, side, bots: true, held } : { t: 'mm.join', queue, side, held };
 
 /** This player is a stranger in a Quick Play party (a stranger's view never carries the code). */
 export const isStranger = (v: PartyView | null): boolean => !!v?.mm && v.code === '';
@@ -449,8 +468,22 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       return { state: { ...s, queue: { ...q, mode: 'casual', toCoop: false } }, effects: fx };
     }
     case 'unqueue':
-      if (s.queue && !s.queue.stopped && s.welcomed) send({ t: 'mm.leave' });
+      if (s.queue && !s.queue.stopped && !s.queue.rejoin && s.welcomed) send({ t: 'mm.leave' });
       return { state: { ...s, queue: null, offer: null }, effects: fx };
+    case 'rejoin': {
+      const q = s.queue;
+      if (!q?.rejoin || !s.welcomed) return { state: s, effects: [] };
+      if (ev.yes) {
+        // the relay hands this identity its own seat back (a twin's `welcome`, the party view and the match follow)
+        send({ t: 'mm.back' });
+        const { rejoin: _r, ...rest } = q;
+        return { state: { ...s, mode: 'back', queue: null, offer: null, asked: true, error: null, backFrom: rest }, effects: fx };
+      }
+      // Search new match: the old seat goes (it counts as leaving early) and the search starts
+      send(mmJoinMsg(q.toCoop ? 'coop' : q.mode, q.side, 'leave'));
+      const { rejoin: _r, ...rest } = q;
+      return { state: { ...s, queue: { ...rest, status: null } }, effects: fx };
+    }
     case 'side':
       if (!s.queue) return { state: s, effects: [] };
       return { state: { ...s, queue: { ...s.queue, side: ev.side } }, effects: [] };
@@ -523,7 +556,13 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       if (queue && !queue.found && matched) queue = null;
       // the app ends a match (`matchOver`) once its results are done; the view keeps updating meanwhile
       // a friend party's own match (no matchmaker) is never ranked
-      return { state: { ...s, view: m, error, asked: true, code: m.code || s.code, queue, accept: matched ? null : s.accept, joining: null, joinTries: 0, rejoin: false, rankedMatch: m.mm ? s.rankedMatch : false }, effects: fx };
+      return { state: { ...s, view: m, error, asked: true, code: m.code || s.code, queue, accept: matched ? null : s.accept, joining: null, joinTries: 0, rejoin: false, backFrom: undefined, rankedMatch: m.mm ? s.rankedMatch : false }, effects: fx };
+    }
+    case 'mm.rejoin': {
+      // the answer to a search while this player's own match still runs: no search yet, the card offers it back
+      const q = s.queue;
+      if (!q || q.found || q.stopped || s.accept) return { state: s, effects: [] };
+      return { state: { ...s, queue: { ...q, status: null, rejoin: { mode: m.mode, clockS: m.clockS } }, offer: null }, effects: [{ t: 'vibrate' }] };
     }
     case 'mm.status': {
       const status: QueueStatus = {
@@ -532,6 +571,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         found: m.found,
         ...(m.lowPriorityMs ? { lowPriorityMs: m.lowPriorityMs } : {}),
         ...(m.warn ? { warn: m.warn } : {}),
+        ...(m.warn && typeof m.left === 'number' && m.left > 0 ? { left: m.left } : {}),
         ...(typeof m.searching === 'number' ? { searching: m.searching } : {}),
       };
       const base = s.queue && !s.queue.found ? s.queue : searching(m.side, { party: !!s.view && !isStranger(s.view), mode: m.queue });
@@ -629,7 +669,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       // back (a bot flies it) and show Update
       if (s.error?.code === 'update_required' || !matchBuildOk(m, SIM_VERSION, simHash()))
         return { state: { ...s, inMatch: false, error: { code: 'update_required' } }, effects: [{ t: 'send', msg: { t: 'bye' } }] };
-      return { state: { ...s, inMatch: true, solo: false, error: null }, effects: [{ t: 'match', match: m }] };
+      return { state: { ...s, inMatch: true, solo: false, error: null, backFrom: undefined }, effects: [{ t: 'match', match: m }] };
     case 'local':
       return { state: { ...s, solo: true }, effects: [{ t: 'solo', difficulty: m.difficulty }] };
     case 'nudge':
@@ -710,6 +750,11 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       if (m.code === 'server_busy') {
         const leader = !!s.view && s.view.leader === s.view.you;
         return { state: { ...s, error }, effects: leader ? [{ t: 'retry-start', ms: m.retryMs ?? 15_000 }] : [] };
+      }
+      // Rejoin match, but that match ended meanwhile: search as the player meant to (the card again, no error)
+      if (m.code === 'party_not_found' && s.backFrom && !s.view) {
+        const q = { ...s.backFrom, status: null, stopped: null };
+        return { state: { ...s, mode: 'queue', error: null, backFrom: undefined, queue: q }, effects: [{ t: 'send', msg: mmJoinMsg(q.toCoop ? 'coop' : q.mode, q.side) }] };
       }
       // a quiet resume of a party that is gone: back to the title, no error screen
       if ((s.mode === 'resume' || s.mode === 'back') && ENDED.has(m.code) && !s.view) return { state: { ...s, error, asked: false, joining: null }, effects: [{ t: 'close' }] };
@@ -904,7 +949,14 @@ export class PartyClient {
         build: h.build,
         guestKey: h.guestKey(),
         // SPECTATE.md §5: only an opted-out player says so (an older relay never sees the key otherwise)
-        hint: { maxDifficulty: h.maxDifficulty, newbie: h.newbie, ...(h.matches !== undefined ? { matches: Math.max(0, Math.min(1_000_000, Math.floor(h.matches))) } : {}), ...(allowWatch() ? {} : { watch: false }) },
+        // `reload: 'update'`: our own update reloaded the app a moment ago, so a seat lost to it is never an early leave
+        hint: {
+          maxDifficulty: h.maxDifficulty,
+          newbie: h.newbie,
+          ...(h.matches !== undefined ? { matches: Math.max(0, Math.min(1_000_000, Math.floor(h.matches))) } : {}),
+          ...(allowWatch() ? {} : { watch: false }),
+          ...(updateReloaded() ? { reload: 'update' as const } : {}),
+        },
       },
       h.env ?? browserSocketEnv(),
     );
@@ -1335,6 +1387,8 @@ export class PartyClient {
       found: q.status?.found ?? (s.view && !isStranger(s.view) ? s.view.members.length : 1),
       lowPriorityS: Math.max(0, ((q.status?.lowPriorityMs ?? 0) - (this.now() - this.statusAt)) / 1000),
       warn: q.status?.warn === 'leaver',
+      ...(q.status?.left ? { left: q.status.left } : {}),
+      ...(q.rejoin ? { rejoin: { mode: q.rejoin.mode, clockS: q.rejoin.clockS } } : {}),
       party: q.party,
       partyMates: this.partyMates(),
       stopped: q.stopped,
@@ -1800,6 +1854,13 @@ export class PartyClient {
       case 'bf-yes':
         this.dispatch({ e: 'offer', yes: true });
         return;
+      // M1A-IMPL.md §4.3: this player's own match is still live
+      case 'mm-rejoin':
+        this.dispatch({ e: 'rejoin', yes: true });
+        return;
+      case 'mm-rejoin-no':
+        this.dispatch({ e: 'rejoin', yes: false });
+        return;
       case 'mm-accept':
         this.dispatch({ e: 'accept', yes: true });
         return;
@@ -2091,7 +2152,7 @@ export class PartyClient {
   private slidesLoading = false;
   private syncSlides(screen: PartyScreen): void {
     const q = this.state.queue;
-    const want = screen === 'queue' && !!q && !q.found && !q.stopped;
+    const want = screen === 'queue' && !!q && !q.found && !q.stopped && !q.rejoin;
     if (!want) {
       this.slides?.show(false);
       delete this.el.dataset.slides;

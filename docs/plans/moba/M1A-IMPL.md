@@ -215,7 +215,10 @@ Flow:
      holder's row gets its `left` event only once the seat changed hands: a refused backfill costs nobody anything.
 5. **The leaver:** if they were only dropped and come back before a backfill, they reclaim as today. After a backfill,
    they are removed from the mm party, their resume token is dropped, and a reconnect gets
-   `error{code:'seat_taken'}` ("Your seat was taken"). The match counts as `left` for them (§4.4).
+   `error{code:'seat_taken'}` ("Your seat was taken"). The backfill writes `dropped` for a holder who was disconnected
+   (a crash, a reload, a network drop), `afk` for one still connected but idle, and keeps `left` for a seat given up on
+   purpose. A `dropped` row becomes `left` at the room's end only if the player never came back (no hello of theirs on
+   the relay, no newer mm room on either instance) and was offline for the last 180 s (§4.3, 2026-11-20).
 6. **Rewards:** a backfiller's win pays catnip as any party win. A backfiller's **loss changes no rating** (the
    `backfill` flag in the mm room record, §4.3).
 
@@ -293,7 +296,8 @@ Same interface pattern as the room store: `MmRoomStore` with `MongoMmRoomStore` 
   queueMs: { [slot]: number },             // time each human waited (the done measures)
   members: [{ slot, identityHash, accountId|null, joinedTick, backfill: boolean,
               ratingAtStart: {r, rd, sigma} | null,
-              event?: 'left'|'afk', eventTick?: number }],
+              event?: 'left'|'afk'|'dropped', eventTick?: number,
+              waitFromMs?: number }],          // the leaver wait's start, on the latest counted row (§4.4)
   endedAt?: Date, createdAt: Date }
 indexes: { 'members.identityHash': 1, createdAt: -1 }, { 'members.accountId': 1 }, TTL 30 days on createdAt
 ```
@@ -301,14 +305,35 @@ indexes: { 'members.identityHash': 1, createdAt: -1 }, { 'members.accountId': 1 
 `identityHash` = sha256 of the identity key (account or guest key; never an IP). No IP is ever stored.
 
 Events are set by the relay glue at room end, from the `Room`'s own slot state:
-- `left`: `party.leave` mid-match, or offline for the last 180 s before the end;
-- `afk`: AFK-reason pilot ticks (`drop`, `away`, `afk`) > 35 % of the match's ticks while the member held the seat.
-A drop that reconnected and reclaimed is not an event.
+- `left`: `party.leave` mid-match (Leave match), Search new match after declining the rejoin offer, or offline for the
+  last 180 s before the end;
+- `afk`: idle pilot ticks (`away`, `afk`) > 35 % of the match's ticks while the member held the seat;
+- `dropped` (never on the ladder, 2026-11-20): the seat was lost without the player choosing to leave.
+
+**Graceful involuntary exits (founder, 2026-11-20: "it should handle gracefully").**
+- A crash, an app relaunch, an OTA reload or a network drop keeps the seat (a bot flies it). Reconnecting takes it back
+  as before, and the `drop` pilot ticks of a player who came back no longer count toward `afk`.
+- **Rejoin first.** The game sends `mm.join{held:'ask'}`. When the identity still holds a live seat the socket can play
+  (same sim build, the room not ending, any mode: co-op, 3v3, 5v5, ranked, a friend party), the relay answers
+  `mm.rejoin{mode, clockS}` instead of searching. The card offers **Rejoin match** (`mm.back`: the relay hands the seat
+  back, a twin member or the member's own seat) or **Search new match** (`mm.join{held:'leave'}`: the seat is given up
+  and counts as `left`).
+- Every other seat the relay frees for the same identity's newest search, match or backfill is `dropped` (the relay's
+  `LiveRoom.vacated`, read by the bridge): an older game without `held`, a seat on another build (an update changed
+  the sim, so it cannot be played), a second device.
+- **Our own update never counts.** The web update (`app.ts` `updates.reload`) and the shell's OTA apply
+  (`pawlegends-app/src/shell/ota.ts`) write `localStorage['pl.reload.update']` before reloading; the game takes it at
+  boot (`src/net/reloadReason.ts`) and for 10 minutes its hello carries `hint.reload: 'update'`. A seat that socket
+  loses is `dropped`, even after Search new match.
+- A backfill of a dropped seat writes `dropped`; see §3 step 5 for when it becomes `left`.
+- Loss forgiveness (§4.2) also covers a teammate who `dropped`.
 
 ### 4.4 Leaver penalty (light) (`mm/leaver.ts`, pure)
 
-`leaverStatus(identityHash, rooms, nowMs)` over that identity's mm rooms of the last 7 days (read once at `mm.join`,
-cached 60 s; no penalty collection exists to tamper with or keep in sync):
+`leaverStatus(identityHash, rooms, nowMs)` over that identity's mm rooms of the last 7 days (read from Mongo at each
+`mm.join`, cached 5 s per relay instance and dropped when that instance writes a room's events, so the two instances
+agree; no penalty collection exists to tamper with or keep in sync). A `dropped` row is neither an event nor a clean
+match:
 
 | Events in 7 days | Effect |
 |---|---|
@@ -317,7 +342,8 @@ cached 60 s; no penalty collection exists to tamper with or keep in sync):
 | 3 or more | `+ 3 min`, same card |
 
 - Decay: every 5 completed mm matches without an event erase the oldest event.
-- Served once per match (founder, 2026-11-20): the wait starts at the first search that owes it and counts down across Cancel, Search again and relay bounces (a re-search waits only what is left, never a fresh full wait). A match seating the player clears it, so the next search owes it again; a wait served and never followed by a match is forgotten an hour after it ended.
+- Served once per match (founder, 2026-11-20): the wait starts at the first search that owes it and counts down across Cancel, Search again and relay bounces (a re-search waits only what is left, never a fresh full wait). The start is stored on the latest counted event row (`waitFromMs`, one conditional update, `MmRoomStore.anchorWait`), so a re-search on the other relay instance counts the same wait down. A match after the start (an mm room of that identity created later) used it, so the next search owes it again; a wait served and never followed by a match is forgotten an hour after it ended.
+- The Short wait card says why in one sentence with the count from `mm.status.left`: "You left 2 matches early this week, so your search starts after a short wait." The while-you-wait slides show beside it.
 - No catnip removal, no lock, no rating loss for the leaver in M1a. The ladder is the M1b ladder's first two steps.
 - Unticketed sockets with neither an account nor a guest key (an `ip:` identity) get no ladder: an IP is many people.
 

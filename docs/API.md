@@ -799,7 +799,7 @@ In the results phase each member's `party` entry carries `again: true` once they
 Relay counters (`PartyRelay.counters()`, logs only): `rooms_live, sockets, turn_overrun_ms_p99, loop_delay_p99,
 referee_lag_turns, desyncs, divergences, restores, refused_busy, join_fail_global`, plus the Quick Play counters
 `mm_queued, mm_joins, mm_matches, mm_humans_1..3, mm_wait_ms_p50, mm_wait_ms_p95, mm_fills_quiet|normal|busy,
-mm_backfill_offers, mm_backfills, mm_leaver_events, mm_refused, mm_cancels`.
+mm_backfill_offers, mm_backfills, mm_leaver_events, mm_dropped, mm_rejoin_offers, mm_rejoins, mm_refused, mm_cancels`.
 
 **Quick Play (PROTO 2, M1a co-op; docs/plans/moba/M1A-IMPL.md §5.5).** `hello.proto` may be 1 or 2 (`PROTO_MIN` ..
 `PROTO`); `welcome.proto` echoes it; the subprotocol stays `pl.1`. A PROTO 1 socket never receives an `mm.*` frame or
@@ -807,13 +807,19 @@ the codes `mm_locked` / `seat_taken`, and an `mm.*` frame from it is `bad_messag
 
 | Client frame | Fields | Rules |
 |---|---|---|
-| `mm.join` | `queue: 'coop'`, `side: 'cat'\|'dog'\|'any'`, `region?` (`^[a-z0-9-]{1,16}$`, only `eu` today) | Solo, or the leader of a party of 1 or 2 in lobby or results (every member on PROTO 2, else they get `update_required`). In results of a Quick Play party a stranger's `mm.join` is "Play again" |
+| `mm.join` | `queue: 'coop'`, `side: 'cat'\|'dog'\|'any'`, `region?` (`^[a-z0-9-]{1,16}$`, only `eu` today), `held?: 'ask'\|'leave'` (2026-11-20: `ask` answers `mm.rejoin` instead of searching while this identity holds a live seat it can play; `leave` gives that seat up as an early leave) | Solo, or the leader of a party of 1 or 2 in lobby or results (every member on PROTO 2, else they get `update_required`). In results of a Quick Play party a stranger's `mm.join` is "Play again" |
 | `mm.leave` | | Cancel before `mm.found` |
 | `mm.side` | `side` | While queued, one per 2 s |
 | `mm.backfill` | `offer` (`^[a-z0-9]{12}$`), `yes` | Within 10 s of the offer |
+| `mm.back` | | Take this identity's own live seat back (any mode, same sim build, room not ending); `party_not_found` when there is none |
 
-Server frames: `mm.status {queue, side, waitedMs, estimateMs, found, lowPriorityMs?, warn?: 'leaver'}` (on change and
-every 2 s), `mm.found {side, humans, bots, difficulty}` (the `party` frame in `pick` follows), `mm.cancel {reason:
+`hello.hint.reload?: 'update'` (2026-11-20): the first hello after our own update reloaded the app; for 10 minutes
+seats that socket loses are `dropped`, never `left` (M1A-IMPL.md §4.3). No PROTO bump for `held`, `reload`,
+`mm.rejoin` or `left`: an older game never sends them and never gets `mm.rejoin`.
+
+Server frames: `mm.status {queue, side, waitedMs, estimateMs, found, lowPriorityMs?, warn?: 'leaver', left?}` (on
+change and every 2 s; `left` with `warn`: the early leaves in 7 days), `mm.rejoin {mode: 'coop'|'casual'|'classic'|
+'ranked'|'party', clockS}` (the answer to `mm.join{held:'ask'}` while this player's own match runs), `mm.found {side, humans, bots, difficulty}` (the `party` frame in `pick` follows), `mm.cancel {reason:
 'left'|'away'|'party'|'server'|'update'}`, `mm.backfill.offer {offer, side, clockS, score, expiresMs}` (`score` is
 `[0, 0]`: the relay does not run the sim), `error` codes `mm_locked {retryMs}` (join caps: 30 / 120 / 600 per 10 min per
 identity / address / network; 12 / 40 queued per address / network) and `seat_taken` (a backfill took the seat; sent

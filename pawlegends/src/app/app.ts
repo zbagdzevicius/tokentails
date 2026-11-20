@@ -109,6 +109,7 @@ import { flagHidden, hasMatchFlags, matchFlag, myCountry, refreshMyFlag, setFlag
 import { matchPersona, matchPersonaSlots } from '../party/personas';
 import { loadMastery } from '../meta/mastery';
 import { RewardsCloud, todayExtraHtml } from '../ui/rewards/rewards';
+import { markUpdateReload, takeUpdateReload } from '../net/reloadReason';
 
 type Screen = 'title' | 'pick' | 'match' | 'results';
 
@@ -445,6 +446,8 @@ export class App {
       })(),
       showCard: (o) => showUpdateCard(document, o),
       reload: (reason, version) => {
+        // our own update reloads the app: the next hello says so, so a seat lost to it is never an early leave
+        markUpdateReload();
         // framed: the host starts the frame again on the latest build; an older host ignores the message, so the
         // frame reloads itself shortly after (the host reconnects on the frame's load either way)
         if (bridge.kind === 'frame') {
@@ -510,6 +513,8 @@ export class App {
     this.gr.resize();
     if (this.dare) this.analytics.track('dare_open', { hero: this.dare.hero, difficulty: this.dare.difficulty });
     this.analytics.track('quality_tier', { tier: this.tier });
+    // M1A-IMPL.md §4.3: did our own update (web build or OTA bundle) load this page? (the relay hello says so)
+    takeUpdateReload();
     this.showTitle();
     // a `?party=` link joins at once; a reload with a party seat (a stored resume token) rejoins it
     // SPECTATE.md §1: a `?watch=` link opens the live view (a party link wins)

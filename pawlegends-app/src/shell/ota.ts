@@ -71,6 +71,11 @@ export const KEYS = Object.freeze({
   trying: 'pl.ota.trying',
   failed: 'pl.ota.failed',
   checkedAt: 'pl.ota.checkedAt',
+  /**
+   * Our own update reloads the page (the game's src/net/reloadReason.ts `UPDATE_RELOAD_KEY`, keep equal): the game's
+   * next relay hello says so, so a seat lost to it is never an early leave (M1A-IMPL.md §4.3).
+   */
+  updateReload: 'pl.reload.update',
 });
 
 export const CHECK_EVERY_MS = 30 * 60_000;
@@ -245,11 +250,13 @@ export class Ota {
       return false;
     }
     writeJson(this.d.kv, KEYS.trying, pending.version);
+    this.d.kv.setItem(KEYS.updateReload, String(this.d.now()));
     try {
       await this.d.updater.set({ id: pending.id });
       return true;
     } catch (e) {
       this.d.kv.removeItem(KEYS.trying);
+      this.d.kv.removeItem(KEYS.updateReload);
       this.log(`set ${pending.version} failed: ${String(e)}`);
       return false;
     }

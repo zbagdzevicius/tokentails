@@ -120,8 +120,9 @@ describe('ranked in the party client', () => {
   it('a ranked search: mm.join ranked goes out with bots: true (this game labels them); other queues never send it', () => {
     let s = { ...initialParty('queue', null, 'any', 'ranked'), welcomed: true, mmOk: true, pvpOk: true };
     const r = reduceParty(s, { e: 'queue', side: 'any', mode: 'ranked' });
-    expect(r.effects).toContainEqual({ t: 'send', msg: { t: 'mm.join', queue: 'ranked', side: 'any', bots: true } });
-    expect(mmJoinMsg('casual', 'cat')).toEqual({ t: 'mm.join', queue: 'casual', side: 'cat' });
+    expect(r.effects).toContainEqual({ t: 'send', msg: { t: 'mm.join', queue: 'ranked', side: 'any', bots: true, held: 'ask' } });
+    expect(mmJoinMsg('casual', 'cat')).toEqual({ t: 'mm.join', queue: 'casual', side: 'cat', held: 'ask' });
+    expect(mmJoinMsg('casual', 'cat', 'leave')).toEqual({ t: 'mm.join', queue: 'casual', side: 'cat', held: 'leave' });
     // an older relay without the account checks still answers closed: the card stops and offers Casual
     s = reduceParty(r.state, { e: 'server', m: { t: 'error', code: 'mm_ranked_closed', online: 0, need: 0 } as never }).state;
     expect(s.queue).toMatchObject({ stopped: 'ranked_closed' });

@@ -88,6 +88,10 @@ export interface QueueModel {
   ranked?: RankedQueueInfo;
   /** Mode unlocks: the refused mode's level; `mine` true when this player has it (a party member does not). */
   modeLock?: { mode: string; level: number; have: number; need: number; mine: boolean };
+  /** With `warn`: early leaves in the last 7 days (the Short wait's one sentence says how many). */
+  left?: number;
+  /** This player's own match is still live (`mm.rejoin`): Rejoin match or Search new match, before any search. */
+  rejoin?: { mode: string; clockS: number };
 }
 
 const SIDES: readonly MmSide[] = ['cat', 'dog', 'any'];
@@ -173,6 +177,7 @@ export function queueCardHtml(m: QueueModel): string {
     const ai = m.match.ai ? `<span class="pp-ai" data-testid="mm-found-ai">${esc(COPY.rankedAiFound)}</span>` : '';
     return `<div class="pp-card pp-narrow pp-queue" data-state="found" data-testid="mm-queue"${m.match.ai ? ' data-ranked="1" data-ai="1"' : ''}><h2>${m.match.ai ? COPY.rankedFoundAi : COPY.online}</h2><p class="pp-found" role="status" data-testid="mm-found"><b>${COPY.matchFound}</b><span>${esc(COPY.foundLine(m.match.humans, m.match.bots, sideText(m.match.side), diff))}</span>${ai}</p>${cancel}</div>`;
   }
+  if (m.rejoin) return rejoinCardHtml(m.rejoin);
   if (m.stopped) {
     const wait = m.retryS > 0;
     const again =
@@ -248,9 +253,26 @@ export function queueCardHtml(m: QueueModel): string {
   </div>`;
 }
 
+/**
+ * The player's own match is still live (a crash, a reload, the title while it runs): Rejoin match first; Search new
+ * match gives that seat up (an early leave) and searches; Back closes the card and leaves the seat as it is.
+ */
+export function rejoinCardHtml(r: { mode: string; clockS: number }): string {
+  return `<div class="pp-card pp-narrow pp-queue" data-state="rejoin" data-testid="mm-queue">
+    <h2>${COPY.rejoinTitle}</h2>
+    <p class="pp-dim" role="status" data-testid="mm-rejoin-line">${esc(COPY.rejoinLine(COPY.rejoinMode(r.mode), clockText(Math.max(0, r.clockS))))}</p>
+    <div class="pp-col">
+      <button type="button" class="pl-btn big" data-p="mm-rejoin" data-testid="mm-rejoin">${COPY.rejoinYes}</button>
+      <button type="button" class="pl-btn ghost" data-p="mm-rejoin-no" data-testid="mm-rejoin-no">${COPY.rejoinNo}</button>
+    </div>
+    <p class="pp-hint" data-testid="mm-rejoin-hint">${COPY.rejoinHint}</p>
+    <button type="button" class="pl-btn ghost small" data-p="mm-cancel" data-testid="mm-cancel">${COPY.back}</button>
+  </div>`;
+}
+
 /** The low-priority wait: why, the countdown, then what happens; the side chip and Cancel stay. */
 function waitCardHtml(m: QueueModel): string {
-  const why = m.warn ? COPY.lowPriorityLeaver : COPY.lowPriorityDodge;
+  const why = m.warn ? (m.left ? COPY.lowPriorityLeft(m.left) : COPY.lowPriorityLeaver) : COPY.lowPriorityDodge;
   const then = m.pvp && !m.ranked ? `<p class="pp-dim" data-testid="mm-wait-then">${COPY.lowPriorityThen}</p>` : '';
   return `<div class="pp-card pp-narrow pp-queue" data-state="wait" data-testid="mm-queue"${m.ranked ? ' data-ranked="1"' : ''}>
     <h2>${COPY.lowPriorityTitle}</h2>

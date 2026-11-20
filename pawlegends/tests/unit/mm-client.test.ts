@@ -61,7 +61,7 @@ describe('Quick Play client (M1a)', () => {
     expect(screenOf(s0)).toBe('queue');
     expect(s0.queue).toMatchObject({ side: 'dog', stopped: null, status: null });
     const { s, fx } = run(s0, welcome());
-    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'dog' }]);
+    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'dog', held: 'ask' }]);
     expect(fx.some((f) => f.t === 'decide-later')).toBe(false);
     expect(s.mmOk).toBe(true);
     // a stray decide sends nothing more
@@ -112,7 +112,7 @@ describe('Quick Play client (M1a)', () => {
     expect(screenOf(r.s)).toBe('queue');
     expect(r.s.queue?.stopped).toBe('away');
     const again = run(r.s, { e: 'queue', side: r.s.queue!.side });
-    expect(sent(again.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'cat' }]);
+    expect(sent(again.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'cat', held: 'ask' }]);
     expect(again.s.queue?.stopped).toBeNull();
   });
 
@@ -121,7 +121,7 @@ describe('Quick Play client (M1a)', () => {
     expect(r.s.queue?.stopped).toBeNull();
     expect(screenOf(r.s)).toBe('queue');
     const back = run(r.s, welcome());
-    expect(sent(back.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'dog' }]);
+    expect(sent(back.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'dog', held: 'ask' }]);
   });
 
   it('mm.cancel{server} asks for the watchdog: with no restart welcome the client searches again by itself', () => {
@@ -129,7 +129,7 @@ describe('Quick Play client (M1a)', () => {
     expect(r.fx.some((f) => f.t === 'server-wait')).toBe(true);
     // the watchdog dispatches `queue` again on the same socket: mm.join goes out
     const again = run(r.s, { e: 'queue', side: 'cat' });
-    expect(sent(again.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'cat' }]);
+    expect(sent(again.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'cat', held: 'ask' }]);
   });
 
   it('a search the relay refuses for the party (party_busy) stops with Search again, never spins', () => {
@@ -158,7 +158,7 @@ describe('Quick Play client (M1a)', () => {
     expect(wait.ms).toBeLessThanOrEqual(10_000);
     // the retry is due: the same search goes out again
     const again = reduceParty(locked.s, { e: 'mm-retry' });
-    expect(sent(again.effects)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'any' }]);
+    expect(sent(again.effects)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'any', held: 'ask' }]);
     const busy = run(initialParty('queue'), welcome(), { t: 'error', code: 'server_busy', retryMs: 15_000 });
     expect(busy.s.queue?.stopped).toBeNull();
     expect(busy.fx.some((f) => f.t === 'mm-retry')).toBe(true);
@@ -223,7 +223,7 @@ describe('Quick Play client (M1a)', () => {
   it('Play again after the match: the stranger re-queues; the relay moving it out of the party keeps the card', () => {
     let s = run(initialParty('queue', null, 'dog'), welcome(), mmView({ phase: 'results' })).s;
     const again = run(s, { e: 'queue', side: 'dog', requeue: true });
-    expect(sent(again.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'dog' }]);
+    expect(sent(again.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'dog', held: 'ask' }]);
     expect(again.s.queue?.requeue).toBe(true);
     s = again.s;
     const left = run(s, { ...mmView(), left: true } as unknown as ServerJson);
@@ -235,7 +235,7 @@ describe('Quick Play client (M1a)', () => {
   it('a friend party: the leader queues it; members see the card from the view; a cancel goes back to the lobby', () => {
     let s = run(initialParty('create'), welcome(), friendView()).s;
     const q = run(s, { e: 'queue', side: 'any' });
-    expect(sent(q.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'any' }]);
+    expect(sent(q.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'any', held: 'ask' }]);
     expect(q.s.queue?.party).toBe(true);
     expect(screenOf(q.s)).toBe('queue');
     // a party frame from before the relay marked the queue does not end the search

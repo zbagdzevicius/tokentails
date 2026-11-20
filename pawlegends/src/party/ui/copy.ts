@@ -122,6 +122,19 @@ export const COPY = Object.freeze({
   // the low-priority wait is its own state (founder, 2026-11-20): the search, its clock and its bots start when it ends
   lowPriorityTitle: 'Short wait',
   lowPriorityLeaver: 'You left matches early, so your search starts after a short wait.',
+  /** One plain sentence with the count (M1A-IMPL.md §4.3): a crash, a reload or an update never counts. */
+  lowPriorityLeft: (n: number) =>
+    n === 1
+      ? 'You left a match early this week, so your search starts after a short wait.'
+      : `You left ${n} matches early this week, so your search starts after a short wait.`,
+  // your own match is still live (a crash, a reload, the title): offered back before any search (M1A-IMPL.md §4.3)
+  rejoinTitle: 'Your match is still on',
+  rejoinLine: (mode: string, clock: string) => `${mode} · ${clock}`,
+  rejoinMode: (mode: string) =>
+    mode === 'ranked' ? 'Ranked' : mode === 'casual' ? '3v3' : mode === 'classic' ? '5v5' : mode === 'party' ? 'Party match' : 'Co-op',
+  rejoinYes: 'Rejoin match',
+  rejoinNo: 'Search new match',
+  rejoinHint: 'A new search gives up your seat and counts as leaving early.',
   lowPriorityDodge: 'You skipped found matches, so your search starts after a short wait.',
   lowPriorityThen: 'Then bots fill the empty seats from 3 s',
   leaverWarn: 'Leaving matches early adds a short wait',

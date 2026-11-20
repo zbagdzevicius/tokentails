@@ -140,6 +140,9 @@ describe('Ota.applyIfSafe', () => {
     expect(await ota.applyIfSafe()).toBe(true);
     expect(updater.setTo).toBe('id-202611071530-abc1234');
     expect(JSON.parse(store.m.get(KEYS.trying)!)).toBe('202611071530-abc1234');
+    // the game's next hello says our own update reloaded it (never an early leave)
+    expect(Number(store.m.get(KEYS.updateReload))).toBeGreaterThan(0);
+    expect(KEYS.updateReload).toBe('pl.reload.update');
   });
   it('never in a match, on pick or results, or with a party', async () => {
     const s = setup();

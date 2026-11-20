@@ -65,7 +65,7 @@ const pvpView = (over: Partial<PartyView> = {}): PartyView => ({
 describe('casual PvP client', () => {
   it('Play PvP sends mm.join casual after a PROTO 3 welcome; a PROTO 2 relay stops it with "update"', () => {
     const { s, fx } = run(initialParty('queue', null, 'any', 'casual'), welcome());
-    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'casual', side: 'any' }]);
+    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'casual', side: 'any', held: 'ask' }]);
     expect(s.pvpOk).toBe(true);
     const old = run(initialParty('queue', null, 'any', 'casual'), welcome(2));
     expect(sent(old.fx)).toEqual([]);
@@ -74,12 +74,12 @@ describe('casual PvP client', () => {
 
   it('5v5 Classic PvP sends mm.join classic (no 5-match lock on the client) and a classic status keeps the queue', () => {
     let { s, fx } = run(initialParty('queue', null, 'any', 'classic'), welcome(4));
-    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'classic', side: 'any' }]);
+    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'classic', side: 'any', held: 'ask' }]);
     ({ s } = run(s, { t: 'mm.status', queue: 'classic', side: 'any', waitedMs: 5000, estimateMs: 45_000, found: 1, teams: [1, 0] }));
     expect(s.queue).toMatchObject({ mode: 'classic', theirs: 0 });
     // a reconnect re-sends the same 5v5 queue (never 3v3 casual, which a newbie is refused)
     ({ fx } = run(s, welcome(4)));
-    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'classic', side: 'any' }]);
+    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'classic', side: 'any', held: 'ask' }]);
   });
 
   it('a casual status shows both teams; at 45 s "playing Co-op vs bots" with Keep waiting, which re-sends casual', () => {
@@ -136,7 +136,7 @@ describe('casual PvP client', () => {
     expect(fx.some((f) => f.t === 'voided')).toBe(true);
     expect(screenOf(s)).toBe('void');
     ({ s, fx } = run(s, { e: 'queue', side: 'any', mode: 'casual', requeue: true }));
-    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'casual', side: 'any' }]);
+    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'casual', side: 'any', held: 'ask' }]);
     expect(s.voided).toBe(false);
   });
 
@@ -161,7 +161,7 @@ describe('casual PvP client', () => {
     expect(pvpQueueFor('pvp', 1, true)).toBe('classic');
     expect(pvpQueueFor('coop', 0, false)).toBe('coop');
     const { fx } = run(initialParty('queue', null, 'any', 'casual'), welcome());
-    expect(sent(fx)).toContainEqual({ t: 'mm.join', queue: 'casual', side: 'any' });
+    expect(sent(fx)).toContainEqual({ t: 'mm.join', queue: 'casual', side: 'any', held: 'ask' });
   });
 
   it('online mode: co-op by default, then the last one used, from the first match (no 5-match lock)', () => {
