@@ -420,6 +420,9 @@
 .pfx-acts.start { justify-content: flex-start; }
 /* another player's social actions */
 .pfx-done { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-night-rgb) / 0.7); color: var(--v6-bolt); font: 800 14px/1 var(--font); }
+/* PLAYER-CARD.md: the relation states (Friends, Request sent) read as a state with a tick, never a button */
+.pfx-rel { gap: 6px; }
+.pfx-rel svg { width: 16px; height: 16px; flex: none; }
 .pfx-ask { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; padding: 8px 10px; border-radius: var(--v6-r-xs); background: rgb(var(--v6-night-rgb) / 0.82); font-size: 14px; }
 .pfx .pl-btn.danger { background: var(--v6-rose); color: var(--v6-cream); }
 /* the Matches tab: Show more, recordings */

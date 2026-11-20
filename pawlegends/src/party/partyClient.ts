@@ -1411,7 +1411,7 @@ export class PartyClient {
   private againPressed = false;
 
   /** The party rows of the results screen (names honour Hide names; card art from the party view). */
-  resultsRows(stats: readonly SlotStats[], mySlot: number, baseNames: readonly string[], end: { names?: (string | null)[]; pilotPct?: number[] }): string {
+  resultsRows(stats: readonly SlotStats[], mySlot: number, baseNames: readonly string[], end: { names?: (string | null)[]; pilotPct?: number[] }, players = false): string {
     const v = this.state.view;
     const art: (string | null)[] = [null, null, null, null, null, null];
     if (v) for (const s of seatsOf(v)) art[s.slot] = s.art;
@@ -1419,6 +1419,7 @@ export class PartyClient {
     if (v) for (const m of v.members) if (m.slot !== undefined && m.av) avs[m.slot] = m.av;
     return partyRowsHtml(
       partyRows({ stats, mySlot, partyNames: end.names ?? [], baseNames, pilotPct: end.pilotPct ?? [], art, avs, hide: hideNames(), personas: matchPersonas() }),
+      players && !hideNames(),
     );
   }
 

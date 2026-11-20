@@ -1738,7 +1738,7 @@ export class App {
    * yours from the Home avatar chip, or another player's read-only from a friend's row. The one way in to the name,
    * avatar, border, title, flag, level, rank, mastery, stats, collection and account. Its own lazy chunk; one overlay.
    */
-  private openProfile(friend: { code: string; name: string; av?: unknown; cc?: string | null; friend?: boolean } | null = null, tab?: import('../ui/profile/model').ProfileTab): void {
+  private openProfile(friend: { code: string; name: string; av?: unknown; cc?: string | null; friend?: boolean; source?: string } | null = null, tab?: import('../ui/profile/model').ProfileTab): void {
     if (this.overlay) {
       if (this.overlay.kind !== 'profile') return;
       this.overlay.close();
@@ -1840,6 +1840,9 @@ export class App {
             : {}),
           // a player in a match's detail (Matches tab): their profile, this same screen read-only
           openPlayer: (pl) => this.openProfile(pl),
+          // PLAYER-CARD.md: the card of my own code (my Boards row, my seat) is my own profile, with Edit profile
+          openSelf: () => this.openProfile(null),
+          viewerSignedIn: accountState().signedIn,
           // the empty states' "Play your first match": Home's own PLAY (the one play path)
           ...(self
             ? {
@@ -1925,6 +1928,28 @@ export class App {
     };
   }
 
+  /**
+   * PLAYER-CARD.md: the Player Card of a seat in the match just played (the end-of-match scoreboard has no codes): the
+   * server names the seat's player (`history.seat`); a guest sees the name alone and a Sign in line. A seat the server
+   * does not name (a bot, a block, an old room) opens nothing.
+   */
+  private seatBusy = false;
+  private openSeat(room: string, slot: number, name: string, source: string): void {
+    if (!this.bridge.active || this.seatBusy) return;
+    if (!accountState().signedIn) return this.openProfile({ code: '', name, source });
+    this.seatBusy = true;
+    void this.api('history.seat', { room, slot })
+      .then((r) => {
+        const b = (r.ok ? r.body : null) as { code?: unknown; name?: unknown } | null;
+        if (b && typeof b.code === 'string' && b.code) this.openProfile({ code: b.code, name: typeof b.name === 'string' && b.name ? b.name : name, source });
+        else this.analytics.track('profile_card_open' as 'history_open', { source, missing: true });
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        this.seatBusy = false;
+      });
+  }
+
   /** The leaderboards window (founder Nov 19: its own modal, opened from Boards on Home); one at a time, lazy. */
   private boards: import('../social/boardsModal').BoardsHandle | null = null;
   private boardsOpening = false;
@@ -1941,6 +1966,8 @@ export class App {
           // `leaderboard_open {source, tab}` once open, `board_view {kind}` per tab
           track: (e, p) => this.analytics.track(e as 'leaderboard_open', p),
           source,
+          // PLAYER-CARD.md: a name opens the Player Card over the window (my own row: my profile)
+          ...(this.bridge.active ? { openPlayer: (p: 'self' | { code: string; name: string; av?: unknown; cc?: string }) => (p === 'self' ? this.openProfile(null) : this.openProfile({ ...p, source: 'boards' })) } : {}),
           onClose: () => {
             this.boards = null;
           },
@@ -1995,8 +2022,8 @@ export class App {
               this.chatUnread = Math.max(0, n);
               this.paintSocialBadge();
             },
-            // a friend's row opens their profile (read-only) on its Matches tab; the full history is one tap from there
-            history: (friend) => this.openProfile({ ...friend, friend: true }, 'matches'),
+            // PLAYER-CARD.md: a friend's View profile opens their Player Card (the profile, read-only) on its Overview
+            history: (friend) => this.openProfile({ ...friend, friend: true, source: 'friends' }),
             // SOCIAL-INVITES.md: Invite with no party yet opens a party lobby, then sends it
             inviteFriend: (friend) => this.inviteAfterParty(friend),
             // the inviter is told when an invite runs out unanswered (accept and decline come through the inbox)
@@ -2911,7 +2938,7 @@ export class App {
         best: !won && st.slot === bestMine,
         rel: st.slot === mySlot ? 'self' : (st.slot < 3 ? 0 : 1) === myTeam ? 'ally' : 'enemy',
         // PvP reports (SOCIAL-RANKED.md §8.1): a flag on every human row but your own
-        ...(reportBook && partyNames && reportable(st.slot, mySlot, partyNames) ? { slot: st.slot, flag: reportBook.done(st.slot) ? ('done' as const) : ('can' as const) } : {}),
+        ...(reportBook && partyNames && reportable(st.slot, mySlot, partyNames) ? { slot: st.slot, flag: reportBook.done(st.slot) ? ('done' as const) : ('can' as const), ...(hideNames() ? {} : { player: true }) } : {}),
         k: st.kills,
         d: st.deaths,
         a: st.assists,
@@ -2929,6 +2956,8 @@ export class App {
     const resultsEl = screens.resultsScreen(this.root, {
         // gap plan P4: a scored ranked match shows the ranked block (filled once the save lands)
         ...(party && this.rankedRun && partyEnd?.scored !== false ? { ranked: true, ...(this.rankedRun.kind ? { rankedKind: this.rankedRun.kind } : {}) } : {}),
+        // PLAYER-CARD.md: another human's name opens their Player Card (the seat resolves on the server; bots never)
+        ...(reportBook ? { onPlayer: (slot: number, name: string) => this.openSeat(reportBook.room, slot, name, 'results') } : {}),
         ...(reportBook
           ? {
               onReport: (slot: number, anchor: HTMLElement) =>
@@ -3058,7 +3087,7 @@ export class App {
         ...(party
           ? {
               party: {
-                rowsHtml: party.resultsRows(e.result.stats, mySlot, names, partyEnd as { names?: (string | null)[]; pilotPct?: number[] }),
+                rowsHtml: party.resultsRows(e.result.stats, mySlot, names, partyEnd as { names?: (string | null)[]; pilotPct?: number[] }, !!reportBook),
                 ...party.resultsActions(),
                 // leave the party and the results: back to the title (never a stranded results screen)
                 onLeave: () => {

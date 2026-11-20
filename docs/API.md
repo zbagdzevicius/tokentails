@@ -1252,3 +1252,24 @@ The enums marked "shared" live in `shared/enums.ts` and are generated into every
   `champ.frankie` as `legacy` owned rows (lazy, once per account, `startersChecked` on the Yarn row, cut-off row
   `meta:starters-v2-release`). `POST /pawlegends/champions/unlock` refuses the new starters as free and sells the former
   ones (Sir Brutus T1, Gabby and Frankie T2).
+
+## Paw Legends: Player Card (Nov 20)
+
+docs/plans/moba/PLAYER-CARD.md. A tap on a player's name (Boards, a match's scoreboard, the end-of-match scoreboard,
+your party's rows, Friends → View profile) opens their Player Card: the Profile screen read-only, fed by one call.
+
+- `GET /pawlegends/history/u/:code` (registered, 60/min per IP): the first page's `player` block is a whitelist:
+  `{matches, ranked: {placementsLeft, placementsOf, none?, tierIdx?, tier?, label?, points?, peak?}, av?, cc?, rel?,
+  online?}`. `rel` is the caller's relation: `self`, `friend`, `sent` (the caller's request is pending), `asked` (theirs
+  is), `none`. `online` is a boolean only (an invisible player reads `false`; never a room, party, queue or champion).
+  The card body is cached 60 s per player; `rel` and `online` are read on every call. Never an account id, email, auth
+  id, provider or age band; a block reads as 404 `PAWLEGENDS_SOCIAL_NOT_FOUND`; a guest gets 403 `PAWLEGENDS_NEED_ACCOUNT`.
+- `GET /pawlegends/history/seat/:room/:slot` (registered, 60/min per IP): the end-of-match scoreboard has no codes, so
+  the card asks who held a seat of a room the caller played (the seat's last holder, within the recent-players window)
+  → `{code, name}`. A bot seat, the caller's own seat, a block, an old room or a room the caller was not in all answer
+  404 `PAWLEGENDS_SOCIAL_NOT_FOUND` (the answer never says "bot"). 400 `PAWLEGENDS_SOCIAL_INVALID` for a bad room or
+  slot. Bridge op `history.seat {room, slot}`.
+- Board rows (`/pawlegends/boards/level|country|global/me`) carry `code` (formatted `PL-XXXX-XXXX`) so a name opens the
+  card. The public token-less `/pawlegends/boards/:kind` drops it.
+- Limits raised so Add friend from a card never stalls: `POST /pawlegends/social/friends` 30/min per account (90 per
+  IP), code lookups 100 per 10 min per account (200 per IP).

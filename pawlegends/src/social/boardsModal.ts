@@ -116,6 +116,15 @@ export interface BoardRow {
   over?: boolean;
   av?: AvatarView;
   cc?: string;
+  /** PLAYER-CARD.md: the player's code (signed-in callers only): a tap on the name opens their Player Card. */
+  code?: string;
+}
+
+/** PLAYER-CARD.md: a row's name opens a Player Card: mine (`self`), another player's by code, or none. Pure. */
+export function rowPlayer(r: BoardRow): 'self' | { code: string; name: string; av?: AvatarView; cc?: string } | null {
+  if (r.me) return 'self';
+  const code = typeof r.code === 'string' && /^[A-Za-z0-9-]{4,24}$/.test(r.code) ? r.code : null;
+  return code ? { code, name: String(r.name ?? ''), ...(isAvatarView(r.av) ? { av: r.av } : {}), ...(r.cc ? { cc: r.cc } : {}) } : null;
 }
 
 /**
@@ -231,6 +240,11 @@ export interface BoardsDeps {
   track?(event: string, props?: Record<string, string | number | boolean>): void;
   /** Where the window was opened from (`leaderboard_open {source, tab}`). */
   source?: string;
+  /**
+   * PLAYER-CARD.md: a tap on a name opens that player's card over the window (`self`: my own profile). Absent: names
+   * are plain text.
+   */
+  openPlayer?(p: 'self' | { code: string; name: string; av?: AvatarView; cc?: string }): void;
   onClose?(): void;
 }
 
@@ -262,11 +276,19 @@ function countryRowHtml(r: CountryRow, pinned = false): string {
   return `<div class="pl-social-row pl-bd pl-bd-cc${r.me ? ' me' : ''}${first ? ' first' : ''}${pinned ? ' pin' : ''}" role="listitem" data-cc="${esc(r.cc)}"${pinned ? ' data-testid="board-pinned"' : ''}><b class="pl-rank">${pinned ? '#' : ''}${n(r.rank)}</b><span class="pl-bd-ccflag" aria-hidden="true">${flagEmoji(r.cc)}</span><span class="pl-social-nm"><span class="pl-social-name">${esc(countryName(r.cc))}</span>${r.me ? '<small class="pl-bd-you">You</small>' : ''}</span><span class="pl-bd-metric"><b>${fmt(n(r.levels))} Lv</b><small>${fmt(players)} ${players === 1 ? 'player' : 'players'}</small></span></div>`;
 }
 
-/** One board row: rank, avatar, name and flag, the metric. The pinned "You" row is the same. */
-function rowHtml(kind: BoardKind, r: BoardRow, pinned = false): string {
+/**
+ * One board row: rank, avatar, name and flag, the metric. The pinned "You" row is the same. PLAYER-CARD.md: the name
+ * is a button that opens the Player Card (my own row: my profile) when the host can open one and the row names a player.
+ */
+function rowHtml(kind: BoardKind, r: BoardRow, pinned = false, cards = false): string {
   const metric = rowMetric(kind, r);
   const rank = r.over ? '100+' : String(Number(r.rank));
-  return `<div class="pl-social-row pl-bd${r.me ? ' me' : ''}${pinned ? ' pin' : ''}" role="listitem"${pinned ? ' data-testid="board-pinned"' : ''}><b class="pl-rank">${pinned ? '#' : ''}${rank}</b>${isAvatarView(r.av) ? avatarHtml(r.av, 32) : '<span class="pl-bd-noav" aria-hidden="true"></span>'}<span class="pl-social-nm"><span class="pl-social-name" data-name="${esc(String(r.name ?? ''))}"></span>${ccHtmlOrNone(r.cc)}${r.me ? '<small class="pl-bd-you">You</small>' : ''}</span><span class="pl-bd-metric${kind === 'ranked' ? ' rk' : ''}"><b>${esc(metric.main)}</b><small>${esc(metric.sub)}</small></span></div>`;
+  const who = cards ? rowPlayer(r) : null;
+  const nm = esc(String(r.name ?? ''));
+  const name = who
+    ? `<button type="button" class="pl-social-name pl-pname" data-name="${nm}" data-player="${who === 'self' ? 'self' : esc(who.code)}" data-testid="board-player" aria-label="${esc(`${who === 'self' ? 'Your profile' : `${String(r.name ?? '')}: view profile`}`)}"></button>`
+    : `<span class="pl-social-name" data-name="${nm}"></span>`;
+  return `<div class="pl-social-row pl-bd${r.me ? ' me' : ''}${pinned ? ' pin' : ''}" role="listitem"${pinned ? ' data-testid="board-pinned"' : ''}><b class="pl-rank">${pinned ? '#' : ''}${rank}</b>${isAvatarView(r.av) ? avatarHtml(r.av, 32) : '<span class="pl-bd-noav" aria-hidden="true"></span>'}<span class="pl-social-nm">${name}${ccHtmlOrNone(r.cc)}${r.me ? '<small class="pl-bd-you">You</small>' : ''}</span><span class="pl-bd-metric${kind === 'ranked' ? ' rk' : ''}"><b>${esc(metric.main)}</b><small>${esc(metric.sub)}</small></span></div>`;
 }
 
 /** Open the leaderboards window over `parent`. One at a time: the caller keeps the handle. */
@@ -346,9 +368,10 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
         : board.kind === 'ranked'
           ? 'No ranked players yet this season. Ranked opens at level 10.'
           : 'No one here yet. Finish a match to get on the board.';
-    const list = view.rows.length ? view.rows.map((r) => rowHtml(board.kind, r)).join('') : `<p class="pl-social-empty">${empty}</p>`;
+    const cards = !!deps.openPlayer;
+    const list = view.rows.length ? view.rows.map((r) => rowHtml(board.kind, r, false, cards)).join('') : `<p class="pl-social-empty">${empty}</p>`;
     const note = board.kind === 'level' && !signedIn ? `<p class="pl-bd-note">Sign in to get on the board. Guests are not ranked.</p>` : '';
-    return `${head}<div class="pl-bd-list" role="list">${list}${view.pinned ? rowHtml(board.kind, view.pinned, true) : ''}</div>${note}`;
+    return `${head}<div class="pl-bd-list" role="list">${list}${view.pinned ? rowHtml(board.kind, view.pinned, true, cards) : ''}</div>${note}`;
   };
 
   const footHtml = (): string => {
@@ -456,6 +479,9 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
 
   const onKey = (e: KeyboardEvent): void => {
     if (disposed) return;
+    // PLAYER-CARD.md: a Player Card (or any dialog) opened over the window owns the keys until it closes
+    const top = [...doc.querySelectorAll<HTMLElement>('[aria-modal="true"]')].pop();
+    if (top && !dialog.contains(top) && top !== dialog) return;
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -502,6 +528,19 @@ export function openBoards(parent: HTMLElement, deps: BoardsDeps): BoardsHandle 
       rememberCountryScope(scope);
       deps.track?.('board_view', { kind: scope === 'top' ? 'countries' : 'country' });
       render();
+      return;
+    }
+    const player = t.closest<HTMLElement>('[data-player]');
+    if (player && deps.openPlayer) {
+      const all = boardView(board.data);
+      const rows = [...all.rows, ...(all.pinned ? [all.pinned] : [])];
+      const want = player.dataset.player;
+      const row = want === 'self' ? rows.find((r) => r.me) : rows.find((r) => !r.me && r.code === want);
+      const who = row ? rowPlayer(row) : null;
+      if (who) {
+        deps.track?.('board_player_open', { kind: board.kind, self: who === 'self' });
+        deps.openPlayer(who);
+      }
       return;
     }
     const range = t.closest<HTMLElement>('[data-range]')?.dataset.range as SidesRange | undefined;

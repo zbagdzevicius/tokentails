@@ -69,6 +69,8 @@ export const PAWLEGENDS_API_OPS = [
   // public since Nov 17 (the founder), so there is no privacy op
   "history.list",
   "history.match",
+  // docs/plans/moba/PLAYER-CARD.md: the Player Card from an end-of-match scoreboard ({room, slot} → {code, name})
+  "history.seat",
   // nicknames (docs/plans/moba/SOCIAL-RANKED.md §2.3): the name others see and the next change's price; the change itself
   "name.get",
   "name.set",
@@ -477,6 +479,12 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
       if (!id) return null;
       if (a.code === undefined) return { method: "GET", path: `/pawlegends/history/match/${id}`, auth: "any" };
       return code ? { method: "GET", path: `/pawlegends/history/u/${enc(code)}/match/${id}`, auth: "registered" } : null;
+    }
+    // PLAYER-CARD.md: who held a seat of a match I played (registered); a bot seat reads 404 like an unknown player
+    case "history.seat": {
+      const room = str(a.room, ROOM);
+      const slot = int(a.slot, 0, 9);
+      return room && slot !== null ? { method: "GET", path: `/pawlegends/history/seat/${enc(room)}/${slot}`, auth: "registered" } : null;
     }
     // nicknames (SOCIAL-RANKED.md §2.3): registered only; the server checks the name, the price and the cooldown
     case "name.get":

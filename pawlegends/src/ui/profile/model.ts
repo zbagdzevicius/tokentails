@@ -164,7 +164,14 @@ export function shownName(d: Pick<ProfileData, 'self' | 'signedIn' | 'name'>): s
 }
 
 /** Another player's public card (`history.list` → `player`), checked, or null. Pure. */
-export function parsePlayerCard(raw: unknown): { matches: number; ranked: RankedCard | null; none: boolean; av: unknown; cc: string | null } | null {
+/**
+ * The Player Card's relation (PLAYER-CARD.md): `friend`, `sent` (my request is pending), `asked` (theirs is), `self`,
+ * `none`. Absent on an older server: the card shows Add friend (and a friend opened from Friends stays a friend).
+ */
+export type PlayerRel = 'self' | 'friend' | 'sent' | 'asked' | 'none';
+const RELS: readonly string[] = ['self', 'friend', 'sent', 'asked', 'none'];
+
+export function parsePlayerCard(raw: unknown): { matches: number; ranked: RankedCard | null; none: boolean; av: unknown; cc: string | null; rel: PlayerRel | null; online: boolean | null } | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
   const matches = typeof o.matches === 'number' && Number.isFinite(o.matches) && o.matches >= 0 ? Math.min(1e6, Math.floor(o.matches)) : 0;
@@ -172,7 +179,9 @@ export function parsePlayerCard(raw: unknown): { matches: number; ranked: Ranked
   const ranked = r ? parseRankedCard({ ranked: r }) : null;
   const av = o.av && typeof o.av === 'object' && typeof (o.av as { i?: unknown }).i === 'string' ? o.av : null;
   const cc = typeof o.cc === 'string' && /^[A-Z]{2}$/.test(o.cc) ? o.cc : null;
-  return { matches, ranked, none: r?.none === true, av, cc };
+  const rel = typeof o.rel === 'string' && RELS.includes(o.rel) ? (o.rel as PlayerRel) : null;
+  const online = typeof o.online === 'boolean' ? o.online : null;
+  return { matches, ranked, none: r?.none === true, av, cc, rel, online };
 }
 
 export const emptyData = (self: boolean, name: string): ProfileData => ({

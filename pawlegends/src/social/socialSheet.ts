@@ -1306,7 +1306,7 @@ export class SocialSheet {
     const cancel = sheet ? `<button type="button" class="pl-btn ghost pl-fr-cancel" data-a="menu-close">Cancel</button>` : '';
     // round 8: the bottom sheet's two columns never leave a lone cell: with an odd count the first action (Join,
     // Spectate, Invite: the reason the menu was opened) spans the row as the lead
-    const items = [first, mi('chat', 'chat', 'Message'), this.deps.history ? mi('history', 'history', 'Match history') : '', fav, busy].filter(Boolean);
+    const items = [first, mi('chat', 'chat', 'Message'), this.deps.history ? mi('history', 'friends', 'View profile', ' data-testid="social-view-profile"') : '', fav, busy].filter(Boolean);
     if (sheet && items.length % 2) items[0] = items[0].replace('class="pl-mi', 'class="pl-mi pl-mi-lead');
     return `<div class="pl-fr-menu${sheet ? ' is-sheet' : ' is-pop'}" role="menu" aria-label="${this.esc(`${f.name}: options`)}" data-testid="social-row-menu">${head}<div class="pl-fr-menu-acts">${items.join('')}</div><div class="pl-fr-menu-danger">${remove}${mi('block', 'block', 'Block').replace('class="pl-mi"', 'class="pl-mi danger"')}</div>${cancel}</div>`;
   }
@@ -1854,7 +1854,7 @@ export class SocialSheet {
       case 'history': {
         const name = this.state?.friends.find((f) => f.code === code)?.name ?? '';
         if (!code || !this.deps.history) return;
-        this.deps.track?.('friend_history');
+        this.deps.track?.('friend_history', { to: 'profile' });
         this.dispose();
         this.deps.history({ code, name });
         return;

@@ -104,6 +104,14 @@ export type AnalyticsEvent =
   /** The leaderboards opened in one tap (`source`: home; `tab`: level, country, sides, ranked, the tab it opened on). */
   | 'leaderboard_open'
   /**
+   * PLAYER-CARD.md: another player's card opened (`source`: boards, history, results, party, friends; `guest`), a name on
+   * Boards tapped (`kind`, `self`), and Add friend / Accept on a card (`source`, `outcome`: sent, friends, accepted).
+   * Never a name, code or id.
+   */
+  | 'profile_card_open'
+  | 'board_player_open'
+  | 'friend_add_from_card'
+  /**
    * What's New (meta/showcase.ts, founder Nov 19): the comic pages opened (`pages`, `first`, `first_type`), a page shown
    * (`id`, `type`, `page`), its button (`id`, `type`, `target`), closed without it (`how`: close, esc, outside, done).
    * Item ids and types only, never a player field.

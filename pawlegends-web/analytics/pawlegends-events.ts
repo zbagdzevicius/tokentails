@@ -87,6 +87,10 @@ export const PAWLEGENDS_GAME_EVENTS = [
   "settings_change",
   // the leaderboards opened in one tap (`source`: home, the chip under the promo)
   "leaderboard_open",
+  // the Player Card (docs/plans/moba/PLAYER-CARD.md): opened (`source`), a Boards name tapped, Add friend from a card
+  "profile_card_open",
+  "board_player_open",
+  "friend_add_from_card",
   // What's New (the comic pages that tell a drop, a season or an event once): opened, a page shown, its button, closed
   "showcase_open",
   "showcase_page",

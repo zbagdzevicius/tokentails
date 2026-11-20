@@ -66,6 +66,8 @@ export const API_OPS = Object.freeze([
   // match history (MATCH-HISTORY.md): the list (own, or a friend's by `code`), one match, who may see it
   'history.list',
   'history.match',
+  // PLAYER-CARD.md: the Player Card from an end-of-match scoreboard (a room and a slot name the player; answers a code)
+  'history.seat',
   // nicknames (SOCIAL-RANKED.md §2.3): the name others see, the price of the next change, and the change itself
   'name.get',
   'name.set',

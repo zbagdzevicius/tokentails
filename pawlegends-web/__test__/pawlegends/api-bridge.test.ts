@@ -140,6 +140,10 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("history.match", { match: id })).toEqual({ method: "GET", path: `/pawlegends/history/match/${id}`, auth: "any" });
     expect(routeOf("history.match", { match: id, code: "PL-7KQ2-M9XR" })?.path).toBe(`/pawlegends/history/u/PL-7KQ2-M9XR/match/${id}`);
     expect(routeOf("history.match", { match: "../admin" })).toBeNull();
+    // PLAYER-CARD.md: an end-of-match seat (registered); a bad room or slot is never forwarded
+    expect(routeOf("history.seat", { room: "r1abc", slot: 4 })).toEqual({ method: "GET", path: "/pawlegends/history/seat/r1abc/4", auth: "registered" });
+    expect(routeOf("history.seat", { room: "../x", slot: 4 })).toBeNull();
+    expect(routeOf("history.seat", { room: "r1abc", slot: 10 })).toBeNull();
     // public since Nov 17 (the founder): no privacy op
     expect(routeOf("history.privacy" as never, { visibility: "me" })).toBeNull();
   });

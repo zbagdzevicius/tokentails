@@ -526,7 +526,7 @@ describe('profile screen', () => {
     q('[data-testid="profile-match-list"] [data-a="match"]').click();
     await flush();
     q('[data-profile="PL-REXX-0001"]').click();
-    expect(openPlayer).toHaveBeenCalledWith({ code: 'PL-REXX-0001', name: 'Rex' });
+    expect(openPlayer).toHaveBeenCalledWith({ code: 'PL-REXX-0001', name: 'Rex', source: 'history' });
   });
 
   it("Match history shows once on another player's Overview: no banner button, the card links to the Matches tab", async () => {
@@ -560,6 +560,87 @@ describe('profile screen', () => {
     await flush();
     expect(q('[data-testid="profile-note"]').textContent).toBe("You can't add this player.");
     expect(q('[data-testid="profile-add-friend"]')).not.toBeNull();
+  });
+
+  describe('Player Card (PLAYER-CARD.md)', () => {
+    const card = (rel: string, online?: boolean) => ({ matches: 30, ranked: { placementsLeft: 0, placementsOf: 5, tierIdx: 7, points: 40, peak: 'Alley I' }, av: { i: 'h:pixel' }, cc: 'LT', rel, ...(online === undefined ? {} : { online }) });
+
+    it('a stranger from Boards: Add friend in one tap reads Request sent; the open and the add are tracked with the source', async () => {
+      const track = vi.fn();
+      const t = open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex', source: 'boards' }, player: card('none', true), extra: { 'friend.add': () => res(201, { state: 'sent' }) }, more: { track } });
+      await flush();
+      expect(track).toHaveBeenCalledWith('profile_card_open', { source: 'boards', guest: false });
+      expect(q('[data-testid="profile-level"]').textContent).toMatch(/^Lv \d+/);
+      q('[data-testid="profile-add-friend"]').click();
+      await flush();
+      expect(t.calls.find((c) => c.op === 'friend.add')?.args).toEqual({ code: 'PL-AAAA-BBBB' });
+      expect(q('[data-testid="profile-request-sent"]').textContent).toBe('Request sent');
+      expect(track).toHaveBeenCalledWith('friend_add_from_card', { source: 'boards', outcome: 'sent' });
+    });
+
+    it('the server says where we stand: sent shows Request sent, asked shows Accept (friend.accept), friend shows Friends', async () => {
+      open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex' }, player: card('sent') });
+      await flush();
+      expect(q('[data-testid="profile-request-sent"]')).not.toBeNull();
+      expect(q('[data-testid="profile-add-friend"]')).toBeNull();
+      document.body.innerHTML = '';
+      const t = open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex' }, player: card('asked'), extra: { 'friend.accept': () => res(200, {}) } });
+      await flush();
+      q('[data-testid="profile-accept-friend"]').click();
+      await flush();
+      expect(t.calls.find((c) => c.op === 'friend.accept')?.args).toEqual({ code: 'PL-AAAA-BBBB' });
+      expect(q('[data-testid="profile-friends-state"]').textContent).toBe('Friends');
+      expect(q('[data-testid="profile-message"]')).not.toBeNull();
+    });
+
+    it('they asked first: Add friend that the server accepts at once reads Friends, never Request sent', async () => {
+      open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex' }, player: card('none'), extra: { 'friend.add': () => res(201, { state: 'friends' }) } });
+      await flush();
+      q('[data-testid="profile-add-friend"]').click();
+      await flush();
+      expect(q('[data-testid="profile-request-sent"]')).toBeNull();
+      expect(q('[data-testid="profile-friends-state"]')).not.toBeNull();
+    });
+
+    it('a friend: Invite to party only while they are online; no Add friend or Block', async () => {
+      open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex' }, player: card('friend', true) });
+      await flush();
+      expect(q('[data-testid="profile-invite"]')).not.toBeNull();
+      expect(q('[data-testid="profile-add-friend"]')).toBeNull();
+      expect(q('[data-testid="profile-block"]')).toBeNull();
+      document.body.innerHTML = '';
+      open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex', friend: true }, player: card('friend', false) });
+      await flush();
+      expect(q('[data-testid="profile-friends-state"]')).not.toBeNull();
+      expect(q('[data-testid="profile-invite"]')).toBeNull();
+    });
+
+    it('my own code (my Boards row, my seat) opens my own profile instead', async () => {
+      const openSelf = vi.fn();
+      const t = open({ friend: { code: 'PL-7KQ2-M9XR', name: 'Me' }, hist: res(200, { owner: { name: 'Me', self: true }, rows: [], next: null }), more: { openSelf } });
+      await flush();
+      expect(openSelf).toHaveBeenCalledTimes(1);
+      expect(t.onClose).toHaveBeenCalled();
+      expect(q('[data-testid="profile-screen"]')).toBeNull();
+    });
+
+    it('a guest viewer: name, avatar and flag from the row, a Sign in line, no host calls and no stats tabs', async () => {
+      const t = open({ friend: { code: 'PL-AAAA-BBBB', name: 'Rex', av: { i: 'h:pixel' }, cc: 'LT' }, more: { viewerSignedIn: false } });
+      await flush();
+      expect(t.calls).toEqual([]);
+      expect(q('[data-testid="profile-name"]').textContent).toBe('Rex');
+      expect(q('[data-testid="profile-flag-shown"]')).not.toBeNull();
+      expect(q('[data-testid="profile-card-guest"]')).not.toBeNull();
+      expect(q('[data-testid="profile-add-friend"]')).toBeNull();
+      expect(document.querySelectorAll('.cst-tab')).toHaveLength(1);
+      q('[data-testid="profile-card-signin"]').click();
+      expect(t.signIn).toHaveBeenCalled();
+    });
+
+    it('parsePlayerCard reads rel and online, and drops anything else', () => {
+      expect(parsePlayerCard({ matches: 3, rel: 'asked', online: true })).toMatchObject({ rel: 'asked', online: true });
+      expect(parsePlayerCard({ matches: 3, rel: 'admin', online: 'yes' })).toMatchObject({ rel: null, online: null });
+    });
   });
 
   it('Matches tab: the full history pages inline (Show more sends the cursor), no mode filters, rows open the detail', async () => {

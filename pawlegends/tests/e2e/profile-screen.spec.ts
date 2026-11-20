@@ -220,13 +220,12 @@ for (const kind of ['guest', 'new', 'vet', 'other', 'fail'] as Kind[])
         const screen = game.locator('[data-testid="profile-screen"]');
         if (kind === 'other') {
           await game.locator('[data-testid="lobby-social"]').first().click({ timeout: limit(60_000) });
-          // the friends list: a row opens its menu, Match history opens their profile
+          // the friends list: a row opens its menu, View profile opens their Player Card (PLAYER-CARD.md)
           await game.locator('.pl-social .pl-fr-main').first().click({ timeout: limit(10_000) });
           await game.locator('.pl-fr-menu [data-a="history"]').first().click({ timeout: limit(10_000) });
           await expect(screen).toHaveAttribute('data-self', '0');
-          // a friend's row opens their profile on Matches
-          await expect(screen).toHaveAttribute('data-tab', 'matches');
-          await screen.locator('[data-testid="profile-tab-overview"]').click();
+          // a friend's View profile opens their profile on its Overview
+          await expect(screen).toHaveAttribute('data-tab', 'overview');
           await expect(screen.locator('[data-testid="profile-name"]')).toHaveText('Mira');
         } else {
           await game.locator('[data-testid="home-profile"]').first().click({ timeout: limit(60_000) });

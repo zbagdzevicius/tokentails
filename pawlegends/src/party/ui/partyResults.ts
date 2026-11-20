@@ -107,8 +107,11 @@ export function partyRows(o: PartyRowsInput): PartyResultRow[] {
   return out;
 }
 
-/** The rows block of the results screen. Pure. */
-export function partyRowsHtml(rows: readonly PartyResultRow[]): string {
+/**
+ * The rows block of the results screen. Pure. PLAYER-CARD.md: with `players`, another human's name opens their Player
+ * Card (`data-pslot`, the results screen's click); a persona or a bot row keeps a plain name, the same look as a human's.
+ */
+export function partyRowsHtml(rows: readonly PartyResultRow[], players = false): string {
   const row = (r: PartyResultRow): string => {
     const pic = r.art ?? portraitUrl(r.hero as never);
     const av = r.av
@@ -119,7 +122,7 @@ export function partyRowsHtml(rows: readonly PartyResultRow[]): string {
     const chip = r.human && r.botPct > BOT_CHIP_PCT ? `<span class="pr-bot" data-testid="party-bot-chip">bot ${r.botPct}%</span>` : '';
     const tag = r.me ? '<span class="pr-you">you</span>' : r.human || r.persona ? '' : '<span class="pr-tag">bot</span>';
     const looks = r.human || r.persona;
-    return `<li class="pr-row${looks ? ' human' : ' botrow'}${r.me ? ' me' : ''}" data-slot="${r.slot}" data-testid="${looks ? 'party-result-human' : 'party-result-bot'}">${av}<span class="pr-who"><b>${esc(r.name)}</b><small>${esc(HERO_TEXT[r.hero as keyof typeof HERO_TEXT]?.title ?? r.hero)}</small></span>${tag}${chip}<span class="pr-kda">${r.k}/${r.d}/${r.a}</span><span class="pr-dmg" title="Hero damage">${r.dmg}</span></li>`;
+    return `<li class="pr-row${looks ? ' human' : ' botrow'}${r.me ? ' me' : ''}" data-slot="${r.slot}" data-testid="${looks ? 'party-result-human' : 'party-result-bot'}">${av}<span class="pr-who">${players && r.human && !r.me ? `<b><button type="button" class="pl-pname" data-pslot="${r.slot}" data-pname="${esc(r.name)}" data-testid="party-result-player" aria-label="${esc(`${r.name}: view profile`)}">${esc(r.name)}</button></b>` : `<b>${esc(r.name)}</b>`}<small>${esc(HERO_TEXT[r.hero as keyof typeof HERO_TEXT]?.title ?? r.hero)}</small></span>${tag}${chip}<span class="pr-kda">${r.k}/${r.d}/${r.a}</span><span class="pr-dmg" title="Hero damage">${r.dmg}</span></li>`;
   };
   return `<div class="pl-party-results" data-testid="party-results"><b class="pr-h">Your party</b><ul>${rows.map(row).join('')}</ul></div>`;
 }

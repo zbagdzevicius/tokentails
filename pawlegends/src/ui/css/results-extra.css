@@ -223,3 +223,9 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
 @keyframes pl-mode-unlock { from { opacity: 0; transform: scale(0.85); } }
 @media (prefers-reduced-motion: reduce) { .pl-results .pl-mode-unlock { animation: none; } }
 html[data-quality='low'] .pl-results .pl-mode-unlock { animation: none; }
+
+/* PLAYER-CARD.md: a player's name that opens their Player Card (Boards, the end-of-match scoreboard, your party's rows).
+   Reads as the name (same font and colour), with a dotted underline; a 44 px tap target without growing the row. */
+.pl-pname { display: inline; min-height: 0; padding: 12px 0; margin: -12px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; text-decoration: underline dotted; text-decoration-thickness: 1.5px; text-underline-offset: 3px; text-decoration-color: rgb(var(--v6-cream-rgb, 255 247 230) / 0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; -webkit-tap-highlight-color: transparent; }
+.pl-pname:hover { text-decoration-style: solid; text-decoration-color: currentColor; }
+.pl-pname:focus, .pl-pname:focus-visible { outline: none; }

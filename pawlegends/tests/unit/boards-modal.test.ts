@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResult } from '../../src/embed/api';
-import { boardKinds, boardView, countriesView, openBoards, readBoardKind, readCountryScope, rollValue, rowMetric, sidesView, splitPct } from '../../src/social/boardsModal';
+import { boardKinds, boardView, countriesView, openBoards, readBoardKind, readCountryScope, rollValue, rowMetric, rowPlayer, sidesView, splitPct } from '../../src/social/boardsModal';
 
 beforeEach(() => {
   localStorage.clear();
@@ -23,7 +23,7 @@ const flush = async () => {
 
 const ok = (body: unknown): ApiResult => ({ id: 'x', ok: true, status: 200, body });
 
-function sheet(answer: (op: string, args: any) => ApiResult | null, signedIn = true) {
+function sheet(answer: (op: string, args: any) => ApiResult | null, signedIn = true, openPlayer?: (p: unknown) => void) {
   const calls: { op: string; args: any }[] = [];
   const api = vi.fn(async (op: string, args?: any): Promise<ApiResult> => {
     calls.push({ op, args });
@@ -31,7 +31,7 @@ function sheet(answer: (op: string, args: any) => ApiResult | null, signedIn = t
   });
   const track = vi.fn();
   const onClose = vi.fn();
-  const h = openBoards(document.body, { api: api as never, signedIn: () => signedIn, track, onClose, source: 'home' });
+  const h = openBoards(document.body, { api: api as never, signedIn: () => signedIn, track, onClose, source: 'home', ...(openPlayer ? { openPlayer } : {}) });
   return { h, calls, track, onClose };
 }
 
@@ -323,5 +323,52 @@ describe('Cats vs Dogs', () => {
     } finally {
       window.matchMedia = mm;
     }
+  });
+});
+
+describe('Player Card from Boards (PLAYER-CARD.md)', () => {
+  const rows = { period: 'all', page: 0, pages: 1, rows: [{ rank: 1, name: 'Mira', value: 15, m: 61, cc: 'LV', code: 'PL-MIRA-0001', av: { i: 'h:pixel' } }, { rank: 2, name: 'Sunny', value: 6, m: 12 }], me: { rank: 140, value: 2, m: 3, name: 'Zyg' } };
+
+  it('rowPlayer: my row is self, a row with a code is a player, a row without one is plain', () => {
+    expect(rowPlayer({ rank: 1, name: 'Me', value: 1, me: true })).toBe('self');
+    expect(rowPlayer({ rank: 1, name: 'Mira', value: 1, code: 'PL-MIRA-0001', cc: 'LV' })).toEqual({ code: 'PL-MIRA-0001', name: 'Mira', cc: 'LV' });
+    expect(rowPlayer({ rank: 1, name: 'Old', value: 1 })).toBeNull();
+    expect(rowPlayer({ rank: 1, name: 'Bad', value: 1, code: '"><img>' })).toBeNull();
+  });
+
+  it('a name opens that player\'s card; my pinned row opens my own; a row without a code stays text', async () => {
+    const openPlayer = vi.fn();
+    const { track } = sheet((op) => (op === 'board.get' ? ok(rows) : null), true, openPlayer);
+    await flush();
+    const names = [...document.querySelectorAll<HTMLElement>('[data-testid="board-player"]')];
+    expect(names.map((n) => n.textContent)).toEqual(['Mira', 'Zyg']);
+    expect(names[0].tagName).toBe('BUTTON');
+    names[0].click();
+    expect(openPlayer).toHaveBeenLastCalledWith({ code: 'PL-MIRA-0001', name: 'Mira', av: { i: 'h:pixel' }, cc: 'LV' });
+    expect(track).toHaveBeenCalledWith('board_player_open', { kind: 'level', self: false });
+    document.querySelector<HTMLElement>('[data-testid="board-pinned"] [data-testid="board-player"]')!.click();
+    expect(openPlayer).toHaveBeenLastCalledWith('self');
+    // Sunny has no code (a public answer): plain text
+    expect([...document.querySelectorAll('.pl-bd .pl-social-name')].find((n) => n.textContent === 'Sunny')?.tagName).toBe('SPAN');
+  });
+
+  it('without a host that opens cards, every name is plain text', async () => {
+    sheet((op) => (op === 'board.get' ? ok(rows) : null));
+    await flush();
+    expect(document.querySelector('[data-testid="board-player"]')).toBeNull();
+  });
+
+  it('a card open over the window owns Esc: the window stays open', async () => {
+    const { h } = sheet((op) => (op === 'board.get' ? ok(rows) : null), true, vi.fn());
+    await flush();
+    const card = document.createElement('div');
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+    document.body.appendChild(card);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(h.closed).toBe(false);
+    card.remove();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(h.closed).toBe(true);
   });
 });

@@ -83,6 +83,8 @@ export interface ProfileFriend {
   cc?: string | null;
   /** Already a friend (Message and Invite show); false or absent: a player from a match. */
   friend?: boolean;
+  /** PLAYER-CARD.md: where the card was opened (`profile_card_open {source}`): boards, history, results, friends... */
+  source?: string;
 }
 
 export interface ProfileScreenOpts {
@@ -124,7 +126,11 @@ export interface ProfileScreenOpts {
   /** This device's rows as they are now (a save status changed since the screen opened). */
   deviceRows?(): ProfileRow[];
   /** A player in a match's detail: their profile (this same screen, read-only). */
-  openPlayer?(p: { code: string; name: string }): void;
+  openPlayer?(p: { code: string; name: string; source?: string }): void;
+  /** PLAYER-CARD.md: the code turned out to be the viewer's own (a Boards row, a match): open your own profile. */
+  openSelf?(): void;
+  /** PLAYER-CARD.md: the viewer is signed in (false: a guest sees the name, avatar and flag, and a Sign in line). */
+  viewerSignedIn?: boolean;
   /** Start playing (the empty states' "Play your first match"): Home's PLAY. */
   play?(): void;
   /** Another player: open a chat with them (Social's chat). */
@@ -155,6 +161,7 @@ export interface ProfileScreenOpts {
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 const BACK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
 const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z"/></svg>';
 const PARTY_ICON =
@@ -179,12 +186,18 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     d.frame = frameOfAv(d.av);
   }
   if (self && d.rowsLocal === undefined) d.rowsLocal = true;
-  const tabs = tabsFor(self);
+  // a guest's card of another player is the overview alone (the rest needs an account)
+  const tabs: readonly ProfileTab[] = !self && o.viewerSignedIn === false ? ['overview'] : tabsFor(self);
   let tab: ProfileTab = o.tab && isProfileTab(o.tab) && tabs.includes(o.tab) ? o.tab : 'overview';
   const src: Sources = { ...SOURCES_IDLE };
   let priv = false;
   /** Another player who is not a friend: Add friend, then Block (asked once). */
-  let rel: 'idle' | 'busy' | 'sent' | 'confirm-block' | 'blocked' = 'idle';
+  let rel: 'idle' | 'busy' | 'sent' | 'asked' | 'friend' | 'confirm-block' | 'blocked' = o.friend?.friend ? 'friend' : 'idle';
+  /** PLAYER-CARD.md: the player is online (Invite to party shows for an online friend); null: not known (older server). */
+  let online: boolean | null = null;
+  /** PLAYER-CARD.md: a guest viewer sees a minimal card (the history of another player needs an account). */
+  const guestView = !self && o.viewerSignedIn === false;
+  const source = o.friend?.source ?? (o.friend?.friend ? 'friends' : 'history');
   /** The Matches tab's paging (the first page is the Overview's); every mode, no filter (founder, Nov 19). */
   let moreBusy = false;
   /** The Collection's open kind. */
@@ -249,16 +262,23 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       // no Edit until the name rules loaded (a failed load shows its own Try again instead of a dead button)
       act = src.name === 'failed' && !info ? `${why}<div class="pfx-acts">${friends}</div>` : `<div class="pfx-acts"><button type="button" class="pl-btn small" data-a="edit" data-testid="profile-edit"${info ? '' : ' disabled'}>Edit profile</button>${friends}</div>`;
     } else if (self) act = friends ? `<div class="pfx-acts">${friends}</div>` : '';
-    else if (o.friend?.friend) {
-      act = `<div class="pfx-acts">${o.message ? `<button type="button" class="pl-btn small" data-a="message" data-testid="profile-message">Message</button>` : ''}${o.invite ? `<button type="button" class="pl-btn ghost small" data-a="invite" data-testid="profile-invite">Invite to party</button>` : ''}</div>`;
+    else if (guestView) {
+      act = `<div class="pfx-acts"><button type="button" class="pl-btn small" data-a="signin" data-testid="profile-card-signin">Sign in</button></div><p class="pfx-fine">Sign in to see their stats and add friends.</p>`;
+    } else if (rel === 'friend') {
+      // PLAYER-CARD.md: Friends (a state, not a button), Message, and Invite to party while they are online
+      const inviteOk = online === true || (online === null && !!o.friend?.friend);
+      act = `<div class="pfx-acts"><span class="pfx-done pfx-rel" role="status" data-testid="profile-friends-state">${CHECK_SVG}Friends</span>${o.message ? `<button type="button" class="pl-btn small" data-a="message" data-testid="profile-message">Message</button>` : ''}${o.invite && inviteOk ? `<button type="button" class="pl-btn ghost small" data-a="invite" data-testid="profile-invite">Invite to party</button>` : ''}</div>`;
     } else if (o.friend && o.api) {
-      // a player from a match: Add friend (the social sheet's request by code), and Block, asked once
+      // a player from Boards or a match: Add friend in one tap (the Social sheet's request by code), Accept when they
+      // asked first, and Block, asked once
       const add =
         rel === 'sent'
-          ? `<span class="pfx-done" role="status" data-testid="profile-request-sent">Request sent</span>`
+          ? `<span class="pfx-done pfx-rel" role="status" data-testid="profile-request-sent">${CHECK_SVG}Request sent</span>`
           : rel === 'blocked'
             ? `<span class="pfx-done" role="status" data-testid="profile-blocked">Blocked</span>`
-            : `<button type="button" class="pl-btn small" data-a="add-friend" data-testid="profile-add-friend"${rel === 'busy' ? ' disabled' : ''}>Add friend</button>`;
+            : rel === 'asked'
+              ? `<button type="button" class="pl-btn small" data-a="accept-friend" data-testid="profile-accept-friend">Accept request</button>`
+              : `<button type="button" class="pl-btn small" data-a="add-friend" data-testid="profile-add-friend"${rel === 'busy' ? ' disabled' : ''}>Add friend</button>`;
       const block =
         rel === 'confirm-block'
           ? `<span class="pfx-ask" role="group" aria-label="Block this player?"><span>Block? They can't message or invite you.</span><button type="button" class="pl-btn small danger" data-a="block-yes" data-testid="profile-block-yes">Block</button><button type="button" class="pl-btn ghost small" data-a="block-no">Cancel</button></span>`
@@ -477,8 +497,13 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
 
   // --------------------------------------------------------------------------------------------- tab views
   const showRank = (): boolean => self || !!d.hasCard || busy(src.hist) || src.hist === 'failed';
+  /** PLAYER-CARD.md: a guest's card of another player: who they are, and one line on what an account shows. */
+  const guestCard = (): string =>
+    card('Player stats', `<div class="pfx-mid" data-testid="profile-card-guest"><p class="pfx-empty">Sign in to see their rank, champions, stats and matches, and to add them as a friend.</p><button type="button" class="pl-btn small" data-a="signin">Sign in</button></div>`, 'pfx-recent');
   const overview = (): string =>
-    `<div class="pfx-ov${showRank() ? '' : ' norank'}${self ? '' : ' other'}" role="tabpanel" id="pfx-panel" aria-labelledby="pfx-tab-${tab}">${identity()}<div class="pfx-cards" data-scroll="main">${showRank() ? rankCard() : ''}${topChampsCard()}${seasonCard()}${passCard()}${recentCard()}${honorCard()}</div></div>`;
+    guestView
+      ? `<div class="pfx-ov norank other" role="tabpanel" id="pfx-panel" aria-labelledby="pfx-tab-${tab}">${identity()}<div class="pfx-cards" data-scroll="main">${guestCard()}</div></div>`
+      : `<div class="pfx-ov${showRank() ? '' : ' norank'}${self ? '' : ' other'}" role="tabpanel" id="pfx-panel" aria-labelledby="pfx-tab-${tab}">${identity()}<div class="pfx-cards" data-scroll="main">${showRank() ? rankCard() : ''}${topChampsCard()}${seasonCard()}${passCard()}${recentCard()}${honorCard()}</div></div>`;
 
   const pane = (body: string, cls = ''): string => `<div class="pfx-pane ${cls}" data-scroll="main" role="tabpanel" id="pfx-panel" aria-labelledby="pfx-tab-${tab}">${body}</div>`;
 
@@ -983,7 +1008,8 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
       return render();
     }
     const api = o.api!;
-    const want: (keyof Sources)[] = self ? ['name', 'social', 'ranked', 'hist', 'club'] : ['hist'];
+    const want: (keyof Sources)[] = self ? ['name', 'social', 'ranked', 'hist', 'club'] : guestView ? [] : ['hist'];
+    if (guestView) for (const k of Object.keys(src) as (keyof Sources)[]) src[k] = 'ok';
     // only what is not loaded yet (a retry asks again for the failed ones)
     const todo = want.filter((k) => src[k] !== 'ok');
     for (const k of todo) src[k] = 'loading';
@@ -1014,6 +1040,8 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
           }
           d.stats = parseStats(b.stats) ?? statsOfRows(d.rows);
           if (!self) {
+            // PLAYER-CARD.md: my own code (my row on Boards, my seat in a match): my own profile, with Edit profile
+            if ((b.owner as { self?: unknown } | undefined)?.self === true && o.openSelf) return leave(() => o.openSelf!());
             if (typeof b.owner?.name === 'string' && b.owner.name) d.name = b.owner.name.slice(0, 40);
             const card = parsePlayerCard(b.player);
             if (card) {
@@ -1028,6 +1056,9 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
                 d.frame = frameOfAv(card.av);
               }
               if (card.cc) d.cc = card.cc;
+              if (card.rel === 'self' && o.openSelf) return leave(() => o.openSelf!());
+              if (card.rel && rel !== 'busy' && rel !== 'confirm-block' && rel !== 'blocked') rel = card.rel === 'none' || card.rel === 'self' ? 'idle' : card.rel;
+              if (card.online !== null) online = card.online;
             }
           }
           src.hist = 'ok';
@@ -1197,9 +1228,12 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     if (disposed) return;
     const code = (r.body as { code?: string } | undefined)?.code ?? '';
     if (r.ok) {
-      rel = 'sent';
-      say((r.body as { state?: string } | undefined)?.state === 'friends' ? 'You are friends now' : 'Friend request sent');
+      // they asked first: the server accepts at once (state `friends`)
+      const now = (r.body as { state?: string } | undefined)?.state === 'friends';
+      rel = now ? 'friend' : 'sent';
+      say(now ? 'You are friends now' : 'Friend request sent');
       o.track?.('profile_add_friend');
+      o.track?.('friend_add_from_card', { source, outcome: now ? 'friends' : 'sent' });
     } else {
       rel = 'idle';
       say(
@@ -1216,6 +1250,24 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
                   : "Couldn't send the request. Try again.",
         true,
       );
+    }
+    render();
+  };
+
+  /** PLAYER-CARD.md: they asked first: accept from the card (the Social sheet's own op). */
+  const acceptFriend = async (): Promise<void> => {
+    if (!o.api || !o.friend || rel === 'busy') return;
+    rel = 'busy';
+    render();
+    const r = await settle(o.api('friend.accept', { code: o.friend.code }));
+    if (disposed) return;
+    if (r.ok) {
+      rel = 'friend';
+      say('You are friends now');
+      o.track?.('friend_add_from_card', { source, outcome: 'accepted' });
+    } else {
+      rel = 'asked';
+      say(r.status === 0 ? 'No connection. Try again.' : "Couldn't accept. Try again.", true);
     }
     render();
   };
@@ -1328,7 +1380,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
     }
     const prof = target.closest<HTMLElement>('[data-profile]');
     if (prof) {
-      const p = { code: prof.dataset.profile ?? '', name: prof.dataset.pname ?? '' };
+      const p = { code: prof.dataset.profile ?? '', name: prof.dataset.pname ?? '', source: 'history' };
       return p.code && o.openPlayer ? leave(() => o.openPlayer!(p)) : undefined;
     }
     const wid = target.closest<HTMLElement>('[data-watch]')?.dataset.watch;
@@ -1377,6 +1429,8 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
         return o.openSocial ? leave(() => o.openSocial!('clubs')) : undefined;
       case 'add-friend':
         return void addFriend();
+      case 'accept-friend':
+        return void acceptFriend();
       case 'block':
         rel = 'confirm-block';
         render();
@@ -1530,6 +1584,7 @@ export function profileScreen(parent: HTMLElement, o: ProfileScreenOpts): { el: 
   if (self && d.level === null) d.level = levelInfo(d.matches);
   parent.appendChild(root);
   o.track?.('profile_open', { self, tab });
+  if (!self) o.track?.('profile_card_open', { source, guest: guestView });
   render();
   root.querySelector<HTMLElement>('.cst-back')?.focus({ preventScroll: true });
   void fetchAll();

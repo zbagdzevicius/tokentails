@@ -556,6 +556,8 @@ export interface ResultsOpts {
    */
   /** PvP reports (SOCIAL-RANKED.md §8.1): a tap on a row's flag (the reason chips open over it). */
   onReport?(slot: number, anchor: HTMLElement): void;
+  /** PLAYER-CARD.md: a tap on another human player's name (the scoreboard, your party's rows): their Player Card. */
+  onPlayer?(slot: number, name: string): void;
   /** Party results: Play again and Leave (Quick Play strangers: `leave` "Back"); `change: false` hides Change champion. */
   party?: { rowsHtml: string; again: string; onLeave(): void; leave?: string; change?: boolean; coop?: boolean };
   /** Lane F (F5): per-hero level, Toys, Fish, last hits and Toy timings, medals, and the player's Fish by source. */
@@ -605,13 +607,22 @@ export interface ResultRow {
   /** FLAGS.md: the seat's country flag ('' or null: a neutral paw); absent: no flag column. */
   cc?: string | null;
   flag?: 'can' | 'done';
+  /** PLAYER-CARD.md: another human player (never a bot or a persona): the name opens their Player Card (needs `slot`). */
+  player?: boolean;
+}
+
+/** PLAYER-CARD.md: a name that opens the player's card (a human seat of this match), else the plain name. Pure. */
+export function resultName(name: string, slot: number | undefined, player: boolean | undefined): string {
+  return player && slot !== undefined
+    ? `<button type="button" class="pl-pname" data-pslot="${slot}" data-pname="${esc(name)}" data-testid="results-player" aria-label="${esc(`${name}: view profile`)}">${esc(name)}</button>`
+    : esc(name);
 }
 
 function resultTable(rows: readonly ResultRow[]): string {
   const graded = rows.some((r) => r.grade);
   const tag = (r: ResultRow): string => (r.mvp ? ' <em class="mvp">MVP</em>' : r.best ? ' <em class="best">Best</em>' : '');
   const tr = (r: ResultRow): string =>
-    `<tr class="${r.rel}"><td${r.flag && r.slot !== undefined ? ' class="sb-rp"' : ''}>${r.cc !== undefined ? ccHtml(r.cc) : ''}${esc(r.name)}${tag(r)}${r.flag && r.slot !== undefined ? flagHtml(r.slot, r.name, r.flag === 'done') : ''}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td>${graded ? `<td class="g" data-grade="${r.grade ?? ''}">${r.grade ?? ''}</td>` : ''}</tr>`;
+    `<tr class="${r.rel}"><td${r.flag && r.slot !== undefined ? ' class="sb-rp"' : ''}>${r.cc !== undefined ? ccHtml(r.cc) : ''}${resultName(r.name, r.slot, r.player)}${tag(r)}${r.flag && r.slot !== undefined ? flagHtml(r.slot, r.name, r.flag === 'done') : ''}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td>${graded ? `<td class="g" data-grade="${r.grade ?? ''}">${r.grade ?? ''}</td>` : ''}</tr>`;
   return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Champion</th><th>K/D/A</th><th>Champion dmg</th><th>Tower dmg</th>${graded ? '<th>Grade</th>' : ''}</tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
 }
 
@@ -792,6 +803,12 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     </div>
     </div>`;
   root.addEventListener('click', (e) => {
+    const pl = (e.target as HTMLElement).closest<HTMLElement>('[data-pslot]');
+    if (pl) {
+      e.preventDefault();
+      o.onPlayer?.(Number(pl.dataset.pslot), pl.dataset.pname ?? '');
+      return;
+    }
     const flag = (e.target as HTMLElement).closest<HTMLElement>('[data-report]');
     if (flag) {
       e.preventDefault();

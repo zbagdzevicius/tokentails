@@ -174,3 +174,5 @@ html .pl-cvd-mine { font-weight: 700; color: var(--v6-cream, #fff3e3); }
 @media (max-width: 480px) {
   html .pl-boards .pl-boards-sub { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+/* PLAYER-CARD.md: a Player Card (the Profile screen) opened from a name sits over the window; closing it shows the window */
+.pl-boards-wrap ~ .pl-screen.pfx { z-index: 61; }
