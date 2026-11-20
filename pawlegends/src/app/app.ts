@@ -2294,7 +2294,14 @@ export class App {
       if (this.pendingTimer) clearInterval(this.pendingTimer);
       this.pendingTimer = null;
     };
-    if (!p || Date.now() - p.at > 120_000) return stop();
+    if (!p) return stop();
+    // the party never opened (no connection, or still nothing after 2 minutes): say so, never a silent nothing
+    const unreachable = this.party?.state.error?.code === 'party_unreachable' && !this.party.state.view;
+    if (unreachable || Date.now() - p.at > 120_000) {
+      stop();
+      void import('../social/inviteInbox').then((m) => m.lineToast(document, `Couldn't invite ${p.name}: no connection. Try again from Friends.`, 'invite-failed'));
+      return;
+    }
     const v = this.party?.state.view;
     if (this.pendingBusy || !v || v.phase !== 'lobby' || this.party?.state.inMatch) return;
     if (!p.lobbyAt) p.lobbyAt = Date.now();

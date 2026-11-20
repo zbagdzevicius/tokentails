@@ -289,6 +289,43 @@ test('invite a friend LoL style, they accept into your lobby; a DM arrives live 
   await expect(ga.locator('[data-testid="party-seat"]')).toHaveCount(3, { timeout: 30_000 });
 });
 
+/*
+ * Founder report (Nov 20): "when I click invite friend I get into party and see Reconnecting … also friend invite doesn't
+ * result in a confirmation modal". Invite on a friend's row from Home (no party yet) opens the party lobby, then sends
+ * the invite; production's draining second relay bounced the lobby's socket (the harness bounces two the same way).
+ */
+test('Nov 20: Invite from Home with no party: the lobby opens through relay bounces, the friend gets the card, Accept joins', async ({ browser, baseURL }) => {
+  test.setTimeout(300_000);
+  const srv = server();
+  const a = await friend(browser, baseURL!, 'A', srv);
+  const b = await friend(browser, baseURL!, 'B', srv);
+  const ga = a.game();
+  await expect(ga.locator('.pl-home[data-variants~="friends"]')).toBeVisible({ timeout: 60_000 });
+  await ga.locator('[data-testid="lobby-social"]').click();
+  const invite = ga.locator(`[data-code="${CODE.B}"] [data-testid="social-invite"]`).first();
+  await expect(invite).toBeVisible({ timeout: 15_000 });
+  await fetch(`${RELAY}/e2e/bounce?n=2`);
+  const t0 = Date.now();
+  await invite.click();
+  // the party lobby opens with its code (never "Connecting…" under "Reconnecting…")
+  const codeEl = ga.locator('[data-testid="party-code"]');
+  await expect(codeEl).toBeVisible({ timeout: 10_000 });
+  expect(Date.now() - t0).toBeLessThan(8_000);
+  await expect(ga.locator('.pp-notes')).not.toContainText('Reconnecting');
+  const code = ((await codeEl.textContent()) ?? '').replace(/\s/g, '');
+  // the relay's presence write, as the API would see it
+  srv.partyOf.A = code;
+  // the inviter's confirmation, then the friend's Accept / Decline card
+  await expect(ga.locator('[data-testid="invite-sent"]')).toContainText(`Invite sent to ${NAME.B}`, { timeout: 10_000 });
+  const gb = b.game();
+  const card = gb.locator('[data-testid="invite-toast"]');
+  await expect(card).toBeVisible({ timeout: 6_000 });
+  await expect(card).toContainText(`${NAME.A} invites you to a party`);
+  await card.locator('[data-testid="invite-accept"]').click();
+  await expect(gb.locator('[data-testid="party-code"]')).toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`, { timeout: 30_000 });
+  await expect(ga.locator('[data-testid="party-seat"]')).toHaveCount(2, { timeout: 30_000 });
+});
+
 test('Decline: the card closes and the inviter is told', async ({ browser, baseURL }) => {
   test.setTimeout(300_000);
   const srv = server();

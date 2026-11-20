@@ -79,6 +79,7 @@ export const COPY = Object.freeze({
   ended: 'This party has ended',
   notFound: 'No party with that code. Check it with your friend.',
   unreachable: 'No connection. Try again.',
+  retry: 'Try again',
   matchLost: 'Lost connection to the match.',
   codeChanged: 'This invite is old. Ask for a new link.',
   alreadyIn: 'You are in this party in another tab.',

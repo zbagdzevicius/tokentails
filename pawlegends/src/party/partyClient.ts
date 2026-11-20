@@ -213,7 +213,18 @@ export type PartyEvent =
   | { e: 'found-shown' }
   | { e: 'offer'; yes: boolean | null }
   /** The match's relay has not come back for MATCH_LOST_MS (net-host.ts): leave the match screen, say so. */
-  | { e: 'lost' };
+  | { e: 'lost' }
+  /** Still "Connecting…" (or "Joining …") after CONNECT_GIVE_UP_MS / JOIN_GIVE_UP_MS: say so, with Try again. */
+  | { e: 'timeout' };
+
+/**
+ * Party play's connect budget (Nov 20 fix): the relay answers a healthy connect in ~0.3 s and a bounce off a draining
+ * relay costs ~0.4 s, so a party with no lobby after this long is not coming. The screen says "No connection" with Try
+ * again (the socket keeps retrying underneath; a late lobby still replaces the error).
+ */
+export const CONNECT_GIVE_UP_MS = 15_000;
+/** A join may reconnect on purpose to find its party on the other relay (§14): a longer budget. */
+export const JOIN_GIVE_UP_MS = 30_000;
 
 /** A fresh search. */
 export const searching = (side: MmSide, o: { party?: boolean; requeue?: boolean; mode?: MmQueue } = {}): QueueState => ({
@@ -351,6 +362,9 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       return { state: { ...s, mode: 'create', asked: true, error: null }, effects: [{ t: 'send', msg: { t: 'party.create', difficulty: 'easy' } }] };
     case 'join':
       return { state: { ...s, mode: s.mode === 'code' ? 'code' : 'join', code: ev.code, asked: true, error: null, joining: ev.code, joinTries: 0 }, effects: [{ t: 'send', msg: { t: 'party.join', code: ev.code } }] };
+    case 'timeout':
+      if (screenOf(s) !== 'connecting') return { state: s, effects: [] };
+      return { state: { ...s, error: { code: 'party_unreachable' }, asked: false, joining: null, joinTries: 0, rejoin: false }, effects: [] };
     case 'lost':
       if (!s.inMatch) return { state: s, effects: [] };
       return { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, accept: null, error: { code: 'match_lost' }, asked: true, joining: null, rejoin: false }, effects: [{ t: 'seat-taken' }] };
@@ -1621,9 +1635,20 @@ export class PartyClient {
         this.close();
         this.h.startSolo(this.h.difficulty);
         return;
+      case 'retry': {
+        // "No connection" → Try again: the same ask again (create, or the join of the same code), a fresh budget
+        const prev = this.state;
+        this.state = { ...initialParty(prev.mode, prev.code), welcomed: prev.welcomed, mmOk: prev.mmOk, pvpOk: prev.pvpOk };
+        this.openedAt = this.now();
+        this.drawn = '';
+        if (this.state.welcomed) this.dispatch({ e: 'decide' });
+        else this.render();
+        return;
+      }
       case 'own':
         // "Start your own party"
         this.state = { ...initialParty('create'), welcomed: this.state.welcomed };
+        this.openedAt = this.now();
         this.drawn = '';
         if (this.state.welcomed) this.dispatch({ e: 'create' });
         else this.render();
@@ -1809,7 +1834,12 @@ export class PartyClient {
 
   private everySecond(): void {
     if (this.closed || this.state.inMatch || this.state.solo) return;
-    if (screenOf(this.state) === 'connecting') this.render();
+    if (screenOf(this.state) === 'connecting') {
+      // never a "Connecting…" that never ends: past the budget it says "No connection" with Try again
+      const budget = this.state.joining ? JOIN_GIVE_UP_MS : CONNECT_GIVE_UP_MS;
+      if (this.now() - this.openedAt >= budget) this.dispatch({ e: 'timeout' });
+      else this.render();
+    }
     if (screenOf(this.state) === 'queue' || screenOf(this.state) === 'accept') {
       this.liveQueue();
       // a locked or busy stop: Search again turns on when the wait is over
@@ -1880,6 +1910,10 @@ export class PartyClient {
         const title = errorText(s.error?.code ?? 'party_ended');
         if (s.error?.code === 'seat_taken') {
           html = `<div class="pp-card pp-narrow pp-ended" data-testid="party-ended" data-reason="seat_taken"><h2>${esc(title)}</h2><p class="pp-dim">${COPY.seatTakenNote}</p><div class="pp-col"><button type="button" class="pl-btn big" data-p="mm-again" data-testid="mm-again">${COPY.online}</button><button type="button" class="pl-btn ghost small" data-p="back">${COPY.back}</button></div></div>`;
+          break;
+        }
+        if (s.error?.code === 'party_unreachable') {
+          html = `<div class="pp-card pp-narrow pp-ended" data-testid="party-ended" data-reason="unreachable"><h2>${esc(title)}</h2><div class="pp-col"><button type="button" class="pl-btn big" data-p="retry" data-testid="party-retry">${COPY.retry}</button><button type="button" class="pl-btn ghost small" data-p="back">${COPY.back}</button></div></div>`;
           break;
         }
         html = `<div class="pp-card pp-narrow pp-ended" data-testid="party-ended"><h2>${esc(title)}</h2><div class="pp-col"><button type="button" class="pl-btn big" data-p="solo" data-testid="party-play-now">${COPY.playNow}</button><button type="button" class="pl-btn ghost" data-p="own" data-testid="party-own">${COPY.ownParty}</button><button type="button" class="pl-btn ghost small" data-p="back">${COPY.back}</button></div></div>`;

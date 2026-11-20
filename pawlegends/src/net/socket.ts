@@ -232,7 +232,8 @@ export class PartySocket {
       this.ticketWait = this.waitTicket(fresh);
     }
     this.stopped = false;
-    this.emitState(this.attempt === 0 ? 'connecting' : 'reconnecting');
+    // before the first `welcome` there is nothing to reconnect to: a bounce off a draining relay is still "connecting"
+    this.emitState(this.attempt === 0 || !this.welcomedOnce ? 'connecting' : 'reconnecting');
     const ws = this.env.open(this.url, SUBPROTOCOL);
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
@@ -301,6 +302,7 @@ export class PartySocket {
 
   private onMessage(data: unknown): void {
     if (typeof data === 'string') {
+      let moveNow = false;
       let m: ServerJson;
       try {
         m = parseServerJson(data);
@@ -341,6 +343,9 @@ export class PartySocket {
       } else if (m.t === 'error' && (m.code === 'server_moving' || m.code === 'room_elsewhere' || m.code === 'party_elsewhere' || (m.code === 'room_gone' && typeof m.retryMs === 'number'))) {
         // a planned move (a deploy): the close that follows reconnects after `retryMs`, not after a backoff
         this.moveRetryMs = Math.max(0, Math.min(5000, typeof m.retryMs === 'number' ? m.retryMs : 250));
+        // the relay closes these sockets right after the error; behind the load balancer that close reaches the client
+        // about 1 s later (measured Nov 20 on api.tokentails.com). Hang up now and come back after `retryMs`.
+        if (m.code !== 'room_gone') moveNow = true;
       } else if (m.t === 'error' && m.code === 'seat_elsewhere') {
         this.elsewhere = true;
         this.stopped = true;
@@ -350,6 +355,7 @@ export class PartySocket {
       }
       this.side.json?.(m);
       this.listener.json?.(m);
+      if (moveNow) this.hangUp();
       return;
     }
     const raw = data instanceof ArrayBuffer ? new Uint8Array(data) : (data as Uint8Array);
@@ -424,6 +430,22 @@ export class PartySocket {
     return d.length ? d[Math.min(d.length - 1, Math.floor(d.length * 0.95))] : 0;
   }
 
+  /** Close the current socket on our side and run the reconnect path at once (its own close event is ignored). */
+  private hangUp(): void {
+    const ws = this.ws;
+    if (!ws || this.stopped) return;
+    ws.onopen = null;
+    ws.onmessage = null;
+    ws.onerror = null;
+    ws.onclose = null;
+    try {
+      ws.close(4000, 'move');
+    } catch {
+      /* already closing */
+    }
+    this.onClose(1012);
+  }
+
   private onClose(code: number): void {
     this.ws = null;
     this.stopBeats();
@@ -447,7 +469,7 @@ export class PartySocket {
     }
     this.moveRetryMs = null;
     this.reconnects++;
-    this.emitState('reconnecting');
+    this.emitState(this.welcomedOnce ? 'reconnecting' : 'connecting');
     this.reconnectTimer = this.env.setTimer(() => {
       this.reconnectTimer = null;
       if (!this.stopped) this.connect();
