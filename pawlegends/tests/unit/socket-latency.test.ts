@@ -280,3 +280,60 @@ describe('PartySocket reconnect with a fresh ticket (SOCIAL-INVITES.md: the acco
     expect(f.sockets[1].hellos().map((h) => h.ticket)).toEqual(['first']);
   });
 });
+
+describe('PartySocket: a signed-in first hello without a ticket is retried once (founder, 2026-11-20)', () => {
+  const welcome = (w: FakeWs) => w.onmessage?.({ data: JSON.stringify({ t: 'welcome', proto: 8, member: 'm1', resumeToken: 'r'.repeat(24), serverMs: 0 }) });
+
+  it('the host answered too late: the guest welcome is not taken; a fresh ticket signs a new socket in', async () => {
+    const f = setup();
+    let asked = 0;
+    f.s.refreshTicketsWith(async () => `fresh-${++asked}`, () => true);
+    // the first ticket never comes in time (the app's sign-in still starting)
+    f.s.connect(new Promise<string | null>(() => undefined));
+    f.sockets[0].open();
+    f.advance(TICKET_WAIT_MS);
+    await flush();
+    expect(f.sockets[0].hellos().map((h) => h.ticket)).toEqual([undefined]);
+    // a join the client sent meanwhile waits for the signed-in welcome
+    f.s.sendJson({ t: 'mm.join', queue: 'casual', side: 'any' } as never);
+    welcome(f.sockets[0]);
+    expect(f.s.open).toBe(false);
+    expect(f.sockets).toHaveLength(2);
+    f.sockets[1].open();
+    await flush();
+    expect(asked).toBe(1);
+    expect(f.sockets[1].hellos().map((h) => h.ticket)).toEqual(['fresh-1']);
+    expect(f.sockets[0].sent.some((x) => typeof x === 'string' && x.includes('mm.join'))).toBe(false);
+    welcome(f.sockets[1]);
+    expect(f.s.open).toBe(true);
+    expect(f.sockets[1].sent.some((x) => typeof x === 'string' && x.includes('mm.join'))).toBe(true);
+  });
+
+  it('once only, never for a guest, never after the first welcome', async () => {
+    // the retry also misses: the second welcome counts (a guest for now, as before)
+    const f = setup();
+    let asked = 0;
+    f.s.refreshTicketsWith(async () => (++asked, null), () => true);
+    f.s.connect(Promise.resolve(null));
+    await flush();
+    f.sockets[0].open();
+    await flush();
+    welcome(f.sockets[0]);
+    f.sockets[1].open();
+    await flush();
+    welcome(f.sockets[1]);
+    expect(f.s.open).toBe(true);
+    expect(f.sockets).toHaveLength(2);
+    expect(asked).toBe(1);
+    // a guest (not signed in) keeps its first welcome
+    const g = setup();
+    g.s.refreshTicketsWith(async () => 'never', () => false);
+    g.s.connect(Promise.resolve(null));
+    await flush();
+    g.sockets[0].open();
+    await flush();
+    welcome(g.sockets[0]);
+    expect(g.s.open).toBe(true);
+    expect(g.sockets).toHaveLength(1);
+  });
+});

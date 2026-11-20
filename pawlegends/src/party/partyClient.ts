@@ -557,12 +557,16 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         const rankedKind: RankedKind | undefined = ranked ? (m.teams[0][1] + m.teams[1][1] > 0 ? 'filled' : 'players') : undefined;
         return { state: { ...s, accept, found, offer: null, rankedMatch: ranked, rankedKind }, effects: fx };
       }
-      const found: MmFound = { side: m.side, humans: m.humans, bots: m.bots, difficulty: m.difficulty, ...(m.queue === 'ranked' && m.ai ? { ai: true } : {}) };
+      // matched co-op (founder, 2026-11-20): its bot seats play as named players (the relay's personas), so the strip
+      // and the pick count every seat of the team as a player; ranked vs AI keeps its bots labelled
+      const aiMatch = m.queue === 'ranked' && m.ai === true;
+      const found: MmFound = aiMatch
+        ? { side: m.side, humans: m.humans, bots: m.bots, difficulty: m.difficulty, ai: true }
+        : { side: m.side, humans: m.humans + m.bots, bots: 0, difficulty: m.difficulty };
       const q = s.queue ?? searching(m.side);
       fx.push({ t: 'found-hold' }, { t: 'vibrate' });
       // §7.11: ranked vs AI (a co-op shaped match from the ranked queue) is ranked: the results show the ranked block
-      const ai = m.queue === 'ranked' && m.ai === true;
-      return { state: { ...s, queue: { ...q, found }, found, offer: null, rankedMatch: ai, rankedKind: ai ? 'ai' : undefined }, effects: fx };
+      return { state: { ...s, queue: { ...q, found }, found, offer: null, rankedMatch: aiMatch, rankedKind: aiMatch ? 'ai' : undefined }, effects: fx };
     }
     case 'mm.accepted': {
       if (!s.accept || s.accept.match !== m.match) return { state: s, effects: [] };
@@ -893,7 +897,11 @@ export class PartyClient {
     // LATENCY-PLAN C2: the WebSocket upgrade runs while the ticket is fetched; `hello` waits for the ticket (≤ 3 s)
     this.bornAt = this.now();
     // a reconnect after the ticket aged (a phone back from the background, a move to the other relay) signs in again
-    this.socket.refreshTicketsWith(() => h.ticket());
+    // a signed-in player's first hello without a ticket (a late host answer) is retried once: never a guest by accident
+    this.socket.refreshTicketsWith(
+      () => h.ticket(),
+      () => h.mmInfo?.().guest === false,
+    );
     this.socket.connect(h.ticket());
     this.timer = setInterval(() => this.everySecond(), 250);
   }
@@ -1099,7 +1107,10 @@ export class PartyClient {
     if (s.queue?.stopped && !prev.queue?.stopped) this.stoppedAt = now;
     if (m?.t === 'mm.status') {
       this.statusAt = now;
-      this.queueSince = Math.min(this.queueSince || now, now - m.waitedMs);
+      // a low-priority wait comes before the search (the relay starts it when the wait ends): the clock starts then;
+      // the co-op switch's few seconds of grace are no wait
+      const penalty = m.lowPriorityMs && !(m.from === 'casual' && m.queue === 'coop') ? m.lowPriorityMs : 0;
+      this.queueSince = penalty ? now + penalty : Math.min(this.queueSince || now, now - m.waitedMs);
       if (m.lowPriorityMs && !this.penaltyTracked) {
         this.penaltyTracked = true;
         this.h.analytics?.('mm_penalty', { level: m.lowPriorityMs <= 60_000 ? 1 : m.lowPriorityMs <= 180_000 ? 2 : 3, wait_s: Math.round(m.lowPriorityMs / 1000) });
@@ -1209,7 +1220,13 @@ export class PartyClient {
       if (left <= 0 && !this.state.accept.accepted) this.dispatch({ e: 'accept', yes: null });
     }
     const low = Math.max(0, (q.status?.lowPriorityMs ?? 0) - (this.now() - this.statusAt));
-    if (low > 0) set('low', COPY.lowPriority(clockText(low / 1000)));
+    if (low > 0) set('lowclock', clockText(Math.ceil(low / 1000)));
+    // the wait ended: the searching card (its clock from 0:00, the bot pips) takes over at once
+    else if (this.card.querySelector('[data-state="wait"]')) {
+      this.drawn = '';
+      this.render();
+      return;
+    }
     if (this.state.offer) {
       const left = this.offerLeftS();
       set('offer', String(Math.ceil(left)));

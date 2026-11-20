@@ -33,8 +33,15 @@ export function loadingHtml(v: PartyView, hideNames = false): string {
     const species = v.mm.species ?? ['cat', 'dog'];
     return `<div class="pp-card pp-narrow pp-loading" data-testid="party-loading" data-pvp="1"><h2>${COPY.loadingTitle}</h2><p class="pp-dim">${esc(COPY.yourTeam(sideText(species[mine])))}</p><ul class="pp-lcs" data-testid="pvp-load-mine">${team(mine)}</ul><p class="pp-dim">${esc(`${COPY.theirTeam}: ${sideText(species[1 - mine])}`)}</p><ul class="pp-lcs their" data-testid="pvp-load-theirs">${team(1 - mine)}</ul>${leave}</div>`;
   }
+  // matched co-op (founder, 2026-11-20): a bot seat the relay shows as a player loads like one
+  const coopPersonas = v.mm ? personaMap(v.mm.fill, 2 * per) : new Map<number, Persona>();
   const cards = Array.from({ length: per }, (_, i) => i)
-    .map((i) => card(humans[i]))
+    .map((i) => {
+      if (!coopPersonas.size) return card(humans[i]);
+      const m = v.members.find((x) => x.slot === i);
+      const p = m ? undefined : coopPersonas.get(i);
+      return p ? personaCard(p, i) : card(m);
+    })
     .join('');
   const late = (v.deadlineMs ?? 1) <= 0 ? humans.find((m) => (m.loadPct ?? 0) < 100 && m.id !== v.you) : undefined;
   // only when someone is late: who the bot covers for (the bot cards say the rest)

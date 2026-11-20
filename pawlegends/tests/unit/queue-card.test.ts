@@ -61,10 +61,21 @@ describe('queue card (M1a)', () => {
     expect(radios.map((r) => r.getAttribute('tabindex'))).toEqual(['-1', '0', '-1']);
   });
 
-  it('a low-priority wait shows its countdown (and replaces the leaver warning)', () => {
-    const d = dom(queueCardHtml(model({ lowPriorityS: 65, warn: true })));
-    expect(d.querySelector('[data-testid="mm-low"]')?.textContent).toContain('1:05');
+  it('a low-priority wait is its own state: why, its countdown, no search clock or pips (founder, 2026-11-20)', () => {
+    const d = dom(queueCardHtml(model({ lowPriorityS: 65, warn: true, waitedS: 0 })));
+    expect(d.querySelector('[data-testid="mm-queue"]')?.getAttribute('data-state')).toBe('wait');
+    expect(d.querySelector('[data-testid="mm-wait-timer"]')?.textContent).toBe('1:05');
+    expect(d.querySelector('[data-testid="mm-low"]')?.textContent).toMatch(/left matches early/);
+    expect(d.querySelector('[data-testid="mm-timer"]')).toBeNull();
+    expect(d.querySelector('[data-testid="mm-pips"]')).toBeNull();
     expect(d.querySelector('[data-testid="mm-warn"]')).toBeNull();
+    // a dodge wait (no leaver ladder) says so; a PvP wait says what follows it
+    const dodge = dom(queueCardHtml(model({ lowPriorityS: 60, pvp: { theirs: 0, toCoop: false, requeued: false } })));
+    expect(dodge.querySelector('[data-testid="mm-low"]')?.textContent).toMatch(/skipped found matches/);
+    expect(dodge.querySelector('[data-testid="mm-wait-then"]')?.textContent).toMatch(/from 3 s/);
+    expect(dodge.textContent).not.toMatch(/Finding/);
+    // the side can still change while waiting
+    expect(dodge.querySelector('[data-testid="mm-side"]')).not.toBeNull();
     expect(dom(queueCardHtml(model({ warn: true }))).querySelector('[data-testid="mm-warn"]')).not.toBeNull();
     // still cancellable
     expect(d.querySelector('[data-testid="mm-cancel"]')).not.toBeNull();

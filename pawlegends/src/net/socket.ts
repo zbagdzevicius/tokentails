@@ -210,9 +210,22 @@ export class PartySocket {
   private ticketSource: (() => Promise<string | null>) | null = null;
   private ticketAtMs = 0;
 
-  /** Reconnects fetch a fresh ticket from `fn` once the held one is older than TICKET_FRESH_MS (signed-in players). */
-  refreshTicketsWith(fn: () => Promise<string | null>): void {
+  /** The player is signed in (the host's account): a first hello that went without a ticket is retried once. */
+  private signedIn: (() => boolean) | null = null;
+  /** The hello on the current socket carried no ticket. */
+  private helloTicketless = false;
+  private ticketRetried = false;
+
+  /**
+   * Reconnects fetch a fresh ticket from `fn` once the held one is older than TICKET_FRESH_MS (signed-in players).
+   * `signedIn`: a signed-in player's first hello that went without a ticket (the host answered late or not at all, e.g.
+   * the app's sign-in still starting) is retried once with a fresh ticket before its `welcome` counts, so the relay
+   * never takes them for a guest for the whole session (a generated name such as "Sly Calico" instead of their
+   * nickname, founder 2026-11-20).
+   */
+  refreshTicketsWith(fn: () => Promise<string | null>, signedIn?: () => boolean): void {
     this.ticketSource = fn;
+    this.signedIn = signedIn ?? null;
   }
 
   /**
@@ -243,6 +256,7 @@ export class PartySocket {
         if (this.ws !== ws || ws.readyState !== 1 || this.stopped) return;
         const h: ClientJson = { t: 'hello', proto: this.proto, sim: this.hello.sim, simHash: this.hello.simHash, build: this.hello.build };
         if (this.hello.ticket) h.ticket = this.hello.ticket;
+        this.helloTicketless = !this.hello.ticket;
         if (this.hello.guestKey) h.guestKey = this.hello.guestKey;
         if (this.hello.hint) h.hint = this.hello.hint;
         if (this.token) h.resume = { token: this.token };
@@ -272,6 +286,39 @@ export class PartySocket {
     ws.onmessage = (e) => this.onMessage(e.data);
     ws.onclose = (e) => this.onClose(e.code);
     ws.onerror = () => undefined;
+  }
+
+  /**
+   * The first `welcome` of a signed-in player whose hello went without a ticket: once, a fresh ticket and a new socket
+   * (nothing was flushed yet and no seat is held, so nothing is lost). True when it retried.
+   */
+  private retryTicketless(): boolean {
+    if (this.welcomedOnce || this.ticketRetried || !this.helloTicketless || !this.ticketSource || this.inMatch) return false;
+    let signed = false;
+    try {
+      signed = !!this.signedIn?.();
+    } catch {
+      signed = false;
+    }
+    if (!signed) return false;
+    this.ticketRetried = true;
+    let fresh: Promise<string | null>;
+    try {
+      fresh = this.ticketSource();
+    } catch {
+      fresh = Promise.resolve(null);
+    }
+    const ws = this.ws;
+    if (ws) {
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onerror = null;
+      ws.onclose = null;
+      ws.close(4000, 'ticket');
+    }
+    this.ws = null;
+    this.connect(fresh);
+    return true;
   }
 
   /** Settles when the ticket is in `hello` (or failed, or took longer than TICKET_WAIT_MS: a guest hello). Never rejects. */
@@ -316,6 +363,7 @@ export class PartySocket {
         this.ws?.close(4000, 'proto');
         return;
       }
+      if (m.t === 'welcome' && this.retryTicketless()) return;
       if (m.t === 'welcome') {
         this.welcomedOnce = true;
         this.mm = typeof m.proto === 'number' && m.proto >= 2;

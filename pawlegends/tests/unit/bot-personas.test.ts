@@ -148,3 +148,45 @@ describe('a persona teammate holds its locked champion', () => {
     expect(lockedByOthers(view({ mm: { ...mm, fill: undefined } })).size).toBe(0);
   });
 });
+
+describe('matched co-op shows its bot seats as players too (founder, 2026-11-20)', () => {
+  /** A lone player on slot 0 of a matched co-op room: two personas beside it, three on the bot team. */
+  const COOP: PersonaView[] = [
+    { slot: 1, name: 'Brave Mittens', cc: 'LT', av: { i: 'h:mochi' }, hero: 'mochi', locked: true },
+    { slot: 2, name: 'Zippy Panther', av: { i: 'h:nova' } },
+    { slot: 3, name: 'Sunny Biscuit', cc: 'DE', av: { i: 'h:rex' }, hero: 'brutus', locked: true },
+    { slot: 4, name: 'Witty Lynx', av: { i: 'h:chili' } },
+    { slot: 5, name: 'Lucky Tabby', av: { i: 'h:rex' } },
+  ];
+  const coop = (fill: PersonaView[] | undefined): PartyView =>
+    view({
+      members: [{ id: 'a', name: 'Zygis', guest: false, conn: 'on', slot: 0 }],
+      mm: { side: 'cat', strangers: true, ...(fill ? { fill } : {}) },
+    });
+
+  it('the pick: the teammates by name, a locked champion shown, no "Bot"; the found line counts players', () => {
+    const v = coop(COOP);
+    const seats = partySeats(v, '', (m) => m.name, 3, false);
+    expect(seats.map((x) => x.name)).toEqual(['Zygis', 'Brave Mittens', 'Zippy Panther']);
+    expect(seats[1]).toMatchObject({ hero: 'mochi', state: 'locked' });
+    expect(seats[2]).toMatchObject({ hero: null, state: 'empty' });
+    const html = pickHtml({ view: v, hover: 'clem', trick: 'pounce', secondsLeft: 20, error: null, found: { humans: 3, bots: 0, side: 'cat', difficulty: 'normal' } });
+    expect(html).not.toMatch(/>Bot<|bots? ·|\+ \d bots?/);
+    expect(html).toContain('3 players · Cats · Normal');
+    // a persona teammate's locked champion is taken like a player's
+    expect(lockedByOthers(v).get('mochi')).toBe('Brave Mittens');
+  });
+
+  it('loading: the teammates load as players with their flags', () => {
+    const html = loadingHtml({ ...coop(COOP), phase: 'loading' });
+    expect(html).toContain('Brave Mittens');
+    expect(html).toContain('Zippy Panther');
+    expect(html).not.toMatch(/>Bot</);
+  });
+
+  it('an older relay (no personas) and ranked vs AI keep "Bot"', () => {
+    const seats = partySeats(coop(undefined), '', (m) => m.name, 3, false);
+    expect(seats.map((x) => x.name)).toEqual(['Zygis', 'Bot', 'Bot']);
+    expect(loadingHtml({ ...coop(undefined), phase: 'loading' })).toMatch(/>Bot</);
+  });
+});

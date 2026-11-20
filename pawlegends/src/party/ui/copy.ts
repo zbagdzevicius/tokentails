@@ -119,6 +119,11 @@ export const COPY = Object.freeze({
   sideAny: 'Either',
   playersFound: (n: number) => `${n} of 3 players found`,
   lowPriority: (t: string) => `You left a match early. Wait ${t}`,
+  // the low-priority wait is its own state (founder, 2026-11-20): the search, its clock and its bots start when it ends
+  lowPriorityTitle: 'Short wait',
+  lowPriorityLeaver: 'You left matches early, so your search starts after a short wait.',
+  lowPriorityDodge: 'You skipped found matches, so your search starts after a short wait.',
+  lowPriorityThen: 'Then bots fill the empty seats from 3 s',
   leaverWarn: 'Leaving matches early adds a short wait',
   matchFound: 'Match found',
   foundLine: (humans: number, bots: number, side: string, diff: string) =>

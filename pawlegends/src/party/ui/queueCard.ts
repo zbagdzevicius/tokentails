@@ -177,6 +177,10 @@ export function queueCardHtml(m: QueueModel): string {
           : `<button type="button" class="pl-btn big" data-p="mm-again" data-testid="mm-again"${wait ? ' disabled' : ''}>${COPY.searchAgain}</button>`;
     return `<div class="pp-card pp-narrow pp-queue" data-state="stopped" data-testid="mm-queue"${m.ranked ? ' data-ranked="1"' : ''}><h2>${COPY.online}</h2><p class="pp-dim" role="status" data-testid="mm-stopped" data-reason="${m.stopped}"><span data-live="stop">${esc(stopText(m))}</span></p><div class="pp-col">${again}<button type="button" class="pl-btn ghost small" data-p="mm-cancel" data-testid="mm-cancel">${COPY.back}</button></div></div>`;
   }
+  // a low-priority wait (leaver ladder, dodges) is a wait before the search (founder, 2026-11-20: the card counted on
+  // and filled bot pips while nothing could seat it): its own countdown, no search clock, no pips; the searching card
+  // takes over when it ends (the relay starts the search then). The co-op switch's grace is no penalty.
+  if (m.lowPriorityS > 0 && !m.pvp?.toCoop) return waitCardHtml(m);
   const est = m.estimateS !== null && m.estimateS > 0 ? ` · <span class="pp-dim">${esc(COPY.usually(clockText(m.estimateS)))}</span>` : '';
   // the co-op switch's own few seconds are no penalty (botTrickle.ts COOP_SWITCH_GRACE_S)
   const low = m.lowPriorityS > (m.pvp?.toCoop ? COOP_SWITCH_GRACE_S : 0) ? `<p class="pp-hint pp-low" data-testid="mm-low"><span data-live="low">${esc(COPY.lowPriority(clockText(m.lowPriorityS)))}</span></p>` : '';
@@ -234,6 +238,20 @@ export function queueCardHtml(m: QueueModel): string {
     ${pipsHtml(m.found, m.teamSize === 5 ? 5 : 3)}
     ${sideChipHtml(m.side)}
     ${warn}${offer}
+    <button type="button" class="pl-btn ghost" data-p="mm-cancel" data-testid="mm-cancel">${COPY.cancel}</button>
+  </div>`;
+}
+
+/** The low-priority wait: why, the countdown, then what happens; the side chip and Cancel stay. */
+function waitCardHtml(m: QueueModel): string {
+  const why = m.warn ? COPY.lowPriorityLeaver : COPY.lowPriorityDodge;
+  const then = m.pvp && !m.ranked ? `<p class="pp-dim" data-testid="mm-wait-then">${COPY.lowPriorityThen}</p>` : '';
+  return `<div class="pp-card pp-narrow pp-queue" data-state="wait" data-testid="mm-queue"${m.ranked ? ' data-ranked="1"' : ''}>
+    <h2>${COPY.lowPriorityTitle}</h2>
+    <p class="pp-hint pp-low" role="status" data-testid="mm-low">${esc(why)}</p>
+    <p class="pp-qtime" role="timer" aria-live="off"><b data-live="lowclock" data-testid="mm-wait-timer">${clockText(Math.ceil(m.lowPriorityS))}</b></p>
+    ${then}
+    ${sideChipHtml(m.side)}
     <button type="button" class="pl-btn ghost" data-p="mm-cancel" data-testid="mm-cancel">${COPY.cancel}</button>
   </div>`;
 }

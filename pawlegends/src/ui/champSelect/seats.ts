@@ -2,7 +2,9 @@
  * Champion select seats (docs/plans/moba/LANDING-PICK-UX.md §B5): the team column's models, from the solo choice and
  * its bots, or from a party view (slot order; casual PvP shows the own team only; hidden names stay hidden). Humans
  * show their usernames; bots keep champion names (or "Bot" while their hero is not known); a casual bot seat the relay
- * shows as a player (`mm.fill`, party/personas.ts) is a player's seat: its name, its champion once it locks. Pure.
+ * shows as a player (`mm.fill`, party/personas.ts; casual and matched co-op, never ranked) is a player's seat: its
+ * name, its champion once it locks. The solo vs-bots select (Practice, its bot level picked by the player) keeps "Bot".
+ * Pure.
  */
 import { HEROES, type HeroId } from '../../data/heroes';
 import type { MemberView, PartyView } from '../../net/proto';
@@ -49,6 +51,17 @@ export function partySeats(v: PartyView, hover: string, shown: (m: MemberView) =
       const m = v.members.find((x) => x.slot === slot);
       if (m) return memberSeat(v, m, shown(m), hover);
       const p = personas.get(slot);
+      if (!p) return { ...bot };
+      const hero = heroOf(p.hero ?? undefined);
+      return { name: hide ? `Teammate ${i + 1}` : p.name, hero, state: hero ? 'locked' : 'empty' };
+    });
+  }
+  // matched co-op (founder, 2026-11-20): a bot seat the relay shows as a player is a player's seat too
+  if (v.mm && personas.size) {
+    return Array.from({ length: teamSize }, (_, i) => {
+      const m = v.members.find((x) => x.slot === i);
+      if (m) return memberSeat(v, m, shown(m), hover);
+      const p = personas.get(i);
       if (!p) return { ...bot };
       const hero = heroOf(p.hero ?? undefined);
       return { name: hide ? `Teammate ${i + 1}` : p.name, hero, state: hero ? 'locked' : 'empty' };

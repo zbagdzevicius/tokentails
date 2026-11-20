@@ -78,14 +78,20 @@ describe('Quick Play client (M1a)', () => {
   it('mm.found holds "Match found", then the pick (side fixed) takes over', () => {
     const r = run(initialParty('queue'), welcome(), status(), { t: 'mm.found', side: 'dog', humans: 2, bots: 1, difficulty: 'normal' });
     expect(r.fx).toContainEqual({ t: 'found-hold' });
-    expect(r.s.found).toEqual({ side: 'dog', humans: 2, bots: 1, difficulty: 'normal' });
+    // matched co-op: the bot seat plays as a named player (founder, 2026-11-20), so every seat counts as a player
+    expect(r.s.found).toEqual({ side: 'dog', humans: 3, bots: 0, difficulty: 'normal' });
     // the party view in pick follows in the same flush: the card still holds the strip
     const p = run(r.s, mmView());
     expect(screenOf(p.s)).toBe('queue');
     expect(isStranger(p.s.view)).toBe(true);
     const shown = run(p.s, { e: 'found-shown' });
     expect(screenOf(shown.s)).toBe('pick');
-    expect(shown.s.found?.humans).toBe(2);
+    expect(shown.s.found?.humans).toBe(3);
+  });
+
+  it('ranked vs AI keeps its bots counted as bots', () => {
+    const r = run(initialParty('queue'), welcome(), status(), { t: 'mm.found', side: 'cat', humans: 1, bots: 2, difficulty: 'hard', queue: 'ranked', ai: true } as never);
+    expect(r.s.found).toEqual({ side: 'cat', humans: 1, bots: 2, difficulty: 'hard', ai: true });
   });
 
   it('a stranger view has no code and does not close the client', () => {

@@ -78,7 +78,9 @@ describe('bot trickle on the PvP queue card', () => {
     expect(grace.textContent).not.toMatch(/leaving matches/i);
     const penalty = dom(queueCardHtml(model({ waitedS: 41, lowPriorityS: 50, pvp: { theirs: 0, toCoop: true, requeued: false } })));
     expect(penalty.querySelector('[data-testid="mm-low"]')?.textContent).toContain('0:50');
-    const searching = dom(queueCardHtml(model({ waitedS: 10, lowPriorityS: 4 })));
-    expect(searching.querySelector('[data-testid="mm-low"]')?.textContent).toContain('0:04');
+    // a penalty before the search: its own wait card with the countdown
+    const waiting = dom(queueCardHtml(model({ waitedS: 0, lowPriorityS: 4 })));
+    expect(waiting.querySelector('[data-testid="mm-wait-timer"]')?.textContent).toBe('0:04');
+    expect(waiting.querySelector('[data-testid="mm-pips"]')).toBeNull();
   });
 });
