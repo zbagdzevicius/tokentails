@@ -32,6 +32,8 @@ export const SOCIAL_PURGE_COLLECTIONS = Object.freeze({
     kudos: 'pawlegendskudos',
     // FLAGS.md: the account's country flag row (an ISO code and the hide choice)
     flags: 'pawlegendsflags',
+    // LEADERBOARDS.md: the account's Level board row
+    levels: 'pawlegendslevels',
 });
 
 export async function purgePawlegendsSocial(db: PurgeDb, accountIdIn: unknown): Promise<{ threads: number }> {
@@ -70,6 +72,7 @@ export async function purgePawlegendsSocial(db: PurgeDb, accountIdIn: unknown): 
     await c('kudos').deleteMany({ $or: [{ from: id }, { to: id }] });
     await c('presence').deleteMany({ _id: id });
     await c('flags').deleteMany({ _id: id });
+    await c('levels').deleteMany({ _id: id });
     await c('social').deleteMany({ _id: id });
     return { threads: dmIds.length };
 }

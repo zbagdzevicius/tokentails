@@ -37,6 +37,7 @@ import {
     pawlegendsError,
 } from './pawlegends-live';
 import { applyCommunityGoal } from './liveops/liveops-live';
+import { applyLevelSync } from './leaderboard/leaderboard-live';
 import { partyMode } from './history/history.model';
 import { lossShareOf, slotGrade, type Grade, type GradeStats } from './ranked/grade';
 
@@ -288,6 +289,8 @@ export async function savePawlegendsPartyMatch(
         $inc: { [`${PAWLEGENDS_MATCHES_FIELD}.${difficulty}`]: 1 },
         $set: { lastPlayedAt: now },
     });
+    // the Level board (leaderboard/): re-read from the count just written, never counted on its own
+    await applyLevelSync(String(userId));
     const catnipCount = await recomputeCatnipCount(deps.users, userId);
     // Legends Pass Season XP: after the Game row (unique per room and slot); none over the daily cap.
     const season = deps.season

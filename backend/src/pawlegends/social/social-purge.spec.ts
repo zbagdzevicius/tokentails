@@ -53,7 +53,12 @@ describe('purgePawlegendsSocial', () => {
         await cols[c.messages].create({ _id: 'm4', thread: 'pP', from: 'G', k: 'q', id: 12 });
         await cols[c.messages].create({ _id: 'm5', thread: 'dFG', from: 'F', k: 'q', id: 0 });
 
+        await cols[c.levels].create({ _id: 'X', m: 12, at: new Date() });
+        await cols[c.levels].create({ _id: 'F', m: 3, at: new Date() });
+
         expect(await purgePawlegendsSocial(d, 'X')).toEqual({ threads: 1 });
+        // LEADERBOARDS.md: the Level board row goes with the account
+        expect(cols[c.levels].docs.map(l => l._id)).toEqual(['F']);
         expect(cols[c.messages].docs.map(m => m._id).sort()).toEqual(['m4', 'm5']);
         expect(cols[c.threads].docs.map(t => t._id).sort()).toEqual(['dFG', 'pP']);
         const party = cols[c.threads].docs.find(t => t._id === 'pP')!;

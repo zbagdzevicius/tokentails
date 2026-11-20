@@ -16,6 +16,7 @@ import type { SeasonXpGain, SeasonXpMatch } from './pawlegends-season.service';
 import { applyInviteProgress, type InviteProgressDep } from './growth/apply-invite-progress';
 import { soloMode, type BuildInput as HistoryInput } from './history/history.model';
 import { applyCommunityGoal } from './liveops/liveops-live';
+import { applyLevelSync } from './leaderboard/leaderboard-live';
 
 export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-info';
 
@@ -556,6 +557,8 @@ export async function savePawlegendsMatch(
         $inc: { [`${PAWLEGENDS_MATCHES_FIELD}.${difficulty}`]: 1 },
         $set: { lastPlayedAt: (deps.now || (() => new Date()))() },
     });
+    // the Level board (leaderboard/): re-read from the count just written, never counted on its own
+    await applyLevelSync(String(userId));
     // The catnip reaches the account's Token Tails total (catnipCount), as Catnip Chaos and Paw Match do.
     const catnipCount = await recomputeCatnipCount(deps.users, userId);
     // Legends Pass Season XP: after the Game row (unique digest) exists, so this match pays once. The human is slot 0.

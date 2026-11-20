@@ -33,6 +33,7 @@ import {
     type SeasonStatsView,
 } from './history.model';
 import { PawlegendsHistoryPrefs, PawlegendsMatchHistory, PawlegendsMatchStats } from './history.schema';
+import { applyMatchSides } from '../leaderboard/leaderboard-live';
 
 /*
  * Match history (docs/plans/moba/MATCH-HISTORY.md): the Wild Rift style list, the match detail and the season stats,
@@ -111,6 +112,8 @@ export class MatchHistoryCore {
             if (!fresh) return false;
             await this.store.incStats(statsId(row.accountId, row.season), row.accountId, statsInc(row));
             await this.store.prune(row.accountId, HISTORY_KEEP);
+            // Cats vs Dogs (leaderboard/): the stored row's winning side, once per match id
+            await applyMatchSides(row);
             return true;
         } catch (error) {
             this.log.warn(`pawlegends history write failed: ${(error as Error)?.message ?? 'unknown'}`);

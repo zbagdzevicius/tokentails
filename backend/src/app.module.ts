@@ -216,6 +216,8 @@ import { PawlegendsProgressService } from './pawlegends/progress/progress.servic
 import { PawlegendsProgressController } from './pawlegends/progress/progress.controller';
 import { PAWLEGENDS_HISTORY_SCHEMAS } from './pawlegends/history/history.schema';
 import { MatchHistoryService } from './pawlegends/history/history.service';
+import { PAWLEGENDS_LEADERBOARD_SCHEMAS } from './pawlegends/leaderboard/leaderboard.schema';
+import { LeaderboardService } from './pawlegends/leaderboard/leaderboard.service';
 import { PawlegendsHistoryController } from './pawlegends/history/history.controller';
 import { PAWLEGENDS_LIVEOPS_SCHEMAS } from './pawlegends/liveops/liveops.schema';
 import { PAWLEGENDS_PUSH_SCHEMAS } from './pawlegends/push/push.schema';
@@ -363,6 +365,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             ...PAWLEGENDS_PROGRESS_SCHEMAS,
             // Pawlegends match history: per-match rows, season stats, who may see them (MATCH-HISTORY.md).
             ...PAWLEGENDS_HISTORY_SCHEMAS,
+            // Pawlegends Leaderboards window: Level rows and the Cats vs Dogs tally (LEADERBOARDS.md).
+            ...PAWLEGENDS_LEADERBOARD_SCHEMAS,
         ]),
         FirebaseAdminModule.forRoot(config as any),
         ...JwtModules,
@@ -536,6 +540,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         RankedStatusService,
         RankedService,
         RankedSeasonRewardsService,
+        // Pawlegends Leaderboards window (LEADERBOARDS.md): Level, Country and Cats vs Dogs; also their /live sink.
+        LeaderboardService,
         // Pawlegends live ops (LIVEOPS.md): also the /live sink of the community goal and the Winter Nap days.
         LiveopsService,
         // Pawlegends web push (SHARE-PUSH.md section 2): the push sink of invites, club chests, ranked, events and Winter Nap.

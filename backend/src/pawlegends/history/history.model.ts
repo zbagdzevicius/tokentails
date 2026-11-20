@@ -4,8 +4,8 @@ import { gradeScore, slotGrade, type GradeStats } from '../ranked/grade';
 /*
  * Match history (docs/plans/moba/MATCH-HISTORY.md): the pure half. One compact row per human participant per match,
  * written ONLY by the `/live` save (`pawlegends-live.ts`, `pawlegends-party-live.ts`) after its Game row exists, from
- * the re-sim's or the referee's VERIFIED per-slot stats (never the client's numbers). Display only: no score, no counter
- * and no reward ever reads it.
+ * the re-sim's or the referee's VERIFIED per-slot stats (never the client's numbers). Display only: no score and no
+ * reward ever reads it; the one counter it feeds is the Leaderboards' Cats vs Dogs tally (leaderboard/sides.ts).
  *
  * Names are never stored (as everywhere in social): a human seat keeps its account id (`u`, server only, never sent to a
  * client) and the read resolves the display name. Bots are stored as bots and shown as bots.
